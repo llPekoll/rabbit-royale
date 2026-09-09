@@ -34,6 +34,13 @@ const CARROT_REST_Y = -6;
 const CARROT_BOB_HEIGHT = 6;
 /** Seconds for one rise (jittered per carrot, so they never sync up). */
 const CARROT_BOB_SECONDS = 1.15;
+/** How long the taken carrot is held big before it lifts away. */
+const CARROT_POP_SECONDS = 0.16;
+const CARROT_HOLD_SECONDS = 0.30;
+const CARROT_FADE_SECONDS = 0.34;
+/** The skull left on a tile that killed someone. */
+const SKULL_SCALE = 0.6;
+
 /** Contact shadow: an ellipse a little narrower than the art. */
 const CARROT_SHADOW_RX = 5;
 const CARROT_SHADOW_RY = 2.5;
@@ -300,8 +307,8 @@ export class Tile {
     gsap.to(sprite, { alpha: 1, duration: 0.18 });
     gsap.from(shadow.scale, { x: 0.3, y: 0.3, duration: 0.28, ease: 'back.out(2)' });
 
-    // …then hover, gently and forever. Jittered so two carrots on screen never
-    // bob in lockstep, which reads as a repeating texture rather than as life.
+    // …then hover. Jittered so two carrots on screen never bob in lockstep,
+    // which reads as a repeating texture rather than as life.
     const period = CARROT_BOB_SECONDS * (0.85 + Math.random() * 0.3);
     this.carrotBob = gsap.to(sprite, {
       y: CARROT_REST_Y - CARROT_BOB_HEIGHT,
@@ -321,6 +328,81 @@ export class Tile {
       repeat: -1,
       delay: Math.random() * period,
     });
+  }
+
+  /**
+   * The carrot has been taken: show it clearly for a beat, then let it go.
+   *
+   * A pickup that vanishes the instant it is touched leaves the player unsure
+   * what they got — especially at the speed this game is played. So it pops
+   * BIGGER first (the payoff is legible), and only then rises and fades out.
+   */
+  collectCarrot(): void {
+    const sprite = this.carrotSprite;
+    if (!sprite) return;
+    this.carrotSprite = null;
+
+    // Stop the hover, or it fights the exit tween for the same property.
+    this.carrotBob?.kill();
+    this.carrotBob = null;
+    this.carrotShadowTween?.kill();
+    this.carrotShadowTween = null;
+
+    const shadow = this.carrotShadow;
+    this.carrotShadow = null;
+
+    const tl = gsap.timeline({
+      onComplete: () => {
+        sprite.destroy();
+        shadow?.destroy();
+      },
+    });
+    // Beat one: it grows, so the eye lands on it.
+    tl.to(sprite.scale, {
+      x: sprite.scale.x * 1.5, y: sprite.scale.y * 1.5,
+      duration: CARROT_POP_SECONDS, ease: 'back.out(3)',
+    }, 0);
+    if (shadow) tl.to(shadow, { alpha: 0, duration: CARROT_POP_SECONDS }, 0);
+    // Beat two: it lifts away and fades. Held long enough to read, short enough
+    // not to sit on the tile the player is about to walk onto.
+    tl.to(sprite, {
+      y: sprite.y - 26, alpha: 0,
+      duration: CARROT_FADE_SECONDS, ease: 'power1.in',
+    }, CARROT_HOLD_SECONDS);
+
+    this.contentSprite = null;
+  }
+
+  /**
+   * What a bomb leaves behind.
+   *
+   * The explosion is over in half a second, and the tile has to keep saying
+   * "someone died here" long after — for the player who walked it, and for the
+   * three others reading the same board. The skull is that record.
+   */
+  markBombSite(): void {
+    const tex = Assets.get<import('pixi.js').Texture>(Keys.DEAD_SKULL);
+    if (!tex) return;
+
+    // The bomb sprite drawn by revealContent has done its job.
+    if (this.contentSprite) {
+      gsap.killTweensOf(this.contentSprite);
+      this.contentSprite.destroy();
+      this.contentSprite = null;
+    }
+
+    const skull = new Sprite(tex);
+    skull.anchor.set(0.5);
+    skull.scale.set(SKULL_SCALE);
+    skull.zIndex = 39;   // above the tile, below a rabbit standing on it
+    this.container.addChild(skull);
+    this.contentSprite = skull;
+
+    // Fade in UNDER the blast rather than popping in after it: the explosion is
+    // still playing over this tile, and a skull appearing on its last frame
+    // reads as a second, separate event.
+    skull.alpha = 0;
+    gsap.to(skull, { alpha: 1, duration: 0.4, delay: 0.25 });
   }
 
   /** Kept for the palier ladder the casino used; unused by this game. */

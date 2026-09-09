@@ -54,8 +54,10 @@ function Scene({ scale, loopExplosion }: Args) {
           ['carrot', 0], ['golden', 0], ['bomb', 0], ['empty', 3], ['empty', 1],
         ];
         const indices = rowOf(contents.length);
+        const tilesByIndex = new Map<number, Tile>();
         indices.forEach((index, i) => {
           const tile = new Tile(index);
+          tilesByIndex.set(index, tile);
           board.addChild(tile.container);
           const [content, adjacent] = contents[i];
           tile.revealContent(content, adjacent, false);
@@ -66,7 +68,7 @@ function Scene({ scale, loopExplosion }: Args) {
         const rabbit = new PlayerRabbit(indices[0], Keys.BUNNY_WHITE);
         board.addChild(rabbit.container);
 
-        // The blast, over the bomb tile.
+        // The blast, over the bomb tile — and the skull it leaves behind.
         const bombTile = indices[2];
         let timer: ReturnType<typeof setInterval> | undefined;
         const boom = () => {
@@ -85,6 +87,9 @@ function Scene({ scale, loopExplosion }: Args) {
           sprite.play();
         };
         boom();
+        // What the tile looks like afterwards, which is what a player actually
+        // spends the run looking at.
+        tilesByIndex.get(bombTile)?.markBombSite();
         if (loopExplosion) timer = setInterval(boom, 1400);
 
         return () => { if (timer) clearInterval(timer); };

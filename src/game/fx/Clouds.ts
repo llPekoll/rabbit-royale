@@ -27,10 +27,17 @@ export interface CloudFieldOptions {
 
 /** Drift speed in design px per second. Slow: weather, not traffic. */
 const SPEED_RANGE = [4, 11] as const;
-/** Clouds are drawn small — they are distance, not subject. */
-const SCALE_RANGE = [0.30, 0.62] as const;
-/** Faint enough to sit under the island's own colour without competing. */
-const ALPHA_RANGE = [0.30, 0.60] as const;
+/**
+ * Big, and deliberately bigger than the frame can hold.
+ *
+ * The first cut drew them small and faint, which read as haze rather than as
+ * weather. A cloud that OVERFLOWS the screen sells scale: you see part of it,
+ * it drifts, and the rest is somewhere off-frame — which is what a real cloud
+ * bank looks like from underneath.
+ */
+const SCALE_RANGE = [1.1, 2.2] as const;
+/** Solid. They are objects passing over the sea, not a tint on it. */
+const ALPHA_RANGE = [0.92, 1] as const;
 /**
  * Between the island art and the board.
  *
@@ -40,6 +47,9 @@ const ALPHA_RANGE = [0.30, 0.60] as const;
  * every tile, so they can never drift across the numbers.
  */
 const Z = -9;
+
+/** Off-frame room, big enough to hide a whole oversized cloud. */
+const MARGIN = 900;
 
 interface Cloud {
   sprite: Sprite;
@@ -95,25 +105,31 @@ export class CloudField {
   private place(cloud: Cloud, t: number): void {
     const { width: w, height: h } = this.opts;
     const s = cloud.sprite;
-    // A margin wide enough that a cloud is fully off-frame before it wraps,
-    // so nothing ever pops in or out mid-air.
-    const m = 160;
+    // Wide enough that a cloud this size is FULLY off-frame before it wraps —
+    // it is now bigger than the canvas, so the old 160px margin would have
+    // popped half a cloud into existence mid-air.
+    const m = MARGIN;
 
     switch (cloud.band) {
+      // Each band sits mostly OFF the frame: a cloud shows its inner edge and
+      // hangs the rest into the margin. The offsets are past the edge rather
+      // than inside it because these sprites are now larger than the canvas —
+      // centred on the frame they would sit squarely over the board, and the
+      // one rule here is that nothing covers the tiles the game is read from.
       case 'top':
         s.x = -m + t * (w + m * 2);
-        s.y = rand([10, h * 0.16]);
+        s.y = rand([-h * 0.34, -h * 0.12]);
         break;
       case 'bottom':
         s.x = w + m - t * (w + m * 2);   // the other way, so the sky is not a conveyor
-        s.y = rand([h * 0.86, h - 10]);
+        s.y = rand([h * 1.12, h * 1.34]);
         break;
       case 'left':
-        s.x = rand([10, w * 0.13]);
+        s.x = rand([-w * 0.30, -w * 0.12]);
         s.y = -m + t * (h + m * 2);
         break;
       case 'right':
-        s.x = rand([w * 0.87, w - 10]);
+        s.x = rand([w * 1.12, w * 1.30]);
         s.y = h + m - t * (h + m * 2);
         break;
     }
@@ -122,7 +138,7 @@ export class CloudField {
   /** Advance the field. `deltaMs` is real milliseconds. */
   update(deltaMs: number): void {
     const { width: w, height: h } = this.opts;
-    const m = 160;
+    const m = MARGIN;
     const dt = deltaMs / 1000;
 
     for (const cloud of this.clouds) {

@@ -13,6 +13,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { EnergyBar } from '@/components/energy-bar';
 import { ENERGY } from '@config/tuning';
+import { GoButton } from '@/components/go-button';
 import '@/app/globals.css';
 
 interface Args {
@@ -64,10 +65,11 @@ function Overlay({ energy, carrots, rabbits, warnStage, spectating, recap }: Arg
 
         {/* The one way out. Not a nav bar: the game is two places, and each is
             one press from the other. */}
-        <button className="rr-back">
-          <span className="rr-back-arrow" aria-hidden>▲</span>
-          <span>{spectating ? 'Stop watching' : 'To the burrow'}</span>
-        </button>
+        <GoButton
+          dir="up"
+          label={spectating ? 'Stop watching' : 'To the burrow'}
+          onClick={() => {}}
+        />
       </div>
     </div>
   );

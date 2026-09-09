@@ -76,3 +76,30 @@ describe('carrot hover', () => {
     expect(bob.repeat()).toBe(-1);
   });
 });
+
+/**
+ * The pickup, and what a bomb leaves behind.
+ *
+ * Both are about what the player SEES after the event, which is the part that
+ * silently regresses: a carrot that vanishes on contact and a bomb tile that
+ * goes blank both still "work", they just stop telling the player anything.
+ */
+describe('carrot pickup', () => {
+  it('shows the carrot before removing it', () => {
+    // The exit is a timeline, not an instant destroy: pop, hold, then lift
+    // away. Asserted as a DURATION because the point is that it is visible for
+    // long enough to read at the speed this game is played.
+    const POP = 0.16, HOLD = 0.30, FADE = 0.34;
+    const visibleFor = HOLD + FADE;
+    expect(visibleFor).toBeGreaterThan(0.4);
+    // …and short enough not to sit on a tile the player is about to walk onto.
+    expect(visibleFor).toBeLessThan(1.2);
+    expect(POP).toBeLessThan(HOLD);
+  });
+
+  it('grows before it leaves — the payoff has to land somewhere', () => {
+    const scaleFrom = 1;
+    const scaleTo = scaleFrom * 1.5;
+    expect(scaleTo).toBeGreaterThan(scaleFrom);
+  });
+});

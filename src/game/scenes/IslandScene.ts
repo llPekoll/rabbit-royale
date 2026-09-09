@@ -255,8 +255,14 @@ export class IslandScene implements Scene {
       this.sound.playExplosion();
       this.playExplosion(index);
       this.shakeScreen();
+      // The blast is over in half a second; the tile has to go on saying
+      // "someone died here" for the rest of the run.
+      tile.markBombSite();
     } else if (content === 'carrot' || content === 'golden') {
       this.sound.playCoin();
+      // Show it, then let it go. Digging a carrot IS taking it — there is no
+      // second step — so the pickup animation starts with the reveal.
+      tile.collectCarrot();
     } else {
       this.sound.playStep();
     }

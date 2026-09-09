@@ -324,27 +324,54 @@ button { min-height: 44px; min-width: 44px; }
 .rr-stat-label { color: var(--muted); font-size: 13px; }
 .rr-note { text-align: center; color: var(--muted); }
 
-/* The one action. Full width at the bottom, where a thumb already is. */
+/* ── The one action ────────────────────────────────────────────────────────
+   Full width at the bottom, where a thumb already is. The arrow is the kit's
+   own pixel sprite — the same one that flanks the hub's cabinet carousel — and
+   it travels along its own axis, because this is the only thing on the screen
+   asking to be pressed and a still arrow does not ask. */
 .rr-go, .rr-back {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 14px;
   width: 100%;
   max-width: 460px;
   margin: 10px auto 6px;
-  padding: 16px;
-  font-size: 16px;
-  font-weight: 600;
+  padding: 14px 16px;
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   border-radius: 14px;
-  border-color: rgba(255, 212, 92, 0.3);
+  border-color: rgba(255, 212, 92, 0.32);
   color: var(--crown);
   background: rgba(255, 212, 92, 0.08);
 }
-.rr-go-arrow, .rr-back-arrow { font-size: 13px; animation: rr-nudge 1.8s ease-in-out infinite; }
-@keyframes rr-nudge { 50% { transform: translateY(3px); } }
-.rr-back-arrow { animation-name: rr-nudge-up; }
-@keyframes rr-nudge-up { 50% { transform: translateY(-3px); } }
+.rr-go:disabled, .rr-back:disabled {
+  color: var(--muted);
+  border-color: var(--border);
+  background: none;
+}
+
+.rr-go-arrow {
+  image-rendering: pixelated;
+  /* Sized in the component from ARROW_SIZE at a whole multiple, so the sprite
+     never lands between pixels. */
+  flex: none;
+}
+.rr-go-down .rr-go-arrow { animation: rr-arrow-down 1.6s ease-in-out infinite; }
+.rr-go-up .rr-go-arrow { animation: rr-arrow-up 1.6s ease-in-out infinite; }
+@keyframes rr-arrow-down {
+  0%, 100% { transform: translateY(-3px); }
+  50%      { transform: translateY(5px); }
+}
+@keyframes rr-arrow-up {
+  0%, 100% { transform: translateY(3px); }
+  50%      { transform: translateY(-5px); }
+}
+/* A looping arrow is exactly the motion that makes some people ill. */
+@media (prefers-reduced-motion: reduce) {
+  .rr-go-arrow { animation: none !important; }
+}
 
 /* ── The season board ──────────────────────────────────────────────────────
    A slide-over on a phone, a permanent column on a wide screen. One markup,

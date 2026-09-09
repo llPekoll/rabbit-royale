@@ -12,7 +12,7 @@ import {
   pgTable, text, integer, bigint, timestamp, boolean, uuid, index, uniqueIndex, pgEnum,
 } from 'drizzle-orm/pg-core';
 
-export const itemKindEnum = pgEnum('item_kind', ['bomb', 'shield', 'lightning']);
+export const itemKindEnum = pgEnum('item_kind', ['bomb', 'shield', 'lightning', 'trap']);
 export const raidResultEnum = pgEnum('raid_result', ['damaged', 'looted', 'blocked']);
 
 /**
@@ -44,6 +44,11 @@ export const players = pgTable('players', {
   energyUpdatedAt: timestamp('energy_updated_at', { withTimezone: true }).notNull().defaultNow(),
 
   gardenCollectedAt: timestamp('garden_collected_at', { withTimezone: true }).notNull().defaultNow(),
+  /** Traps bought or looted. The FREE daily allowance is derived from the
+   *  timestamp below rather than stored — same reason as energy and HP: a
+   *  per-player cron is what falls over first. */
+  trapsOwned: integer('traps_owned').notNull().default(0),
+  trapsClaimedAt: timestamp('traps_claimed_at', { withTimezone: true }).notNull().defaultNow(),
   /** Raids bounce off until this instant. */
   shieldedUntil: timestamp('shielded_until', { withTimezone: true }),
 
@@ -113,6 +118,51 @@ export const raids = pgTable('raids', {
 }, (t) => [
   index('raids_defender_idx').on(t.defenderId, t.createdAt),
   index('raids_attacker_idx').on(t.attackerId, t.createdAt),
+]);
+
+/**
+ * A trap on a burrow's floor.
+ *
+ * Placed by the OWNER, invisible to raiders until sprung — a visible trap is
+ * just a wall, and a wall gets routed around rather than feared. One row per
+ * live trap; a sprung one is deleted, because a trap is replaced rather than
+ * repaired.
+ */
+export const traps = pgTable('traps', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  ownerId: text('owner_id').notNull().references(() => players.id, { onDelete: 'cascade' }),
+  /** Burrow tile index — see config/burrowConfig.ts. */
+  tile: integer('tile').notNull(),
+  placedAt: timestamp('placed_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  // One trap per tile: stacking them would let a single square end any raid,
+  // which defeats the point of choosing WHERE to defend.
+  uniqueIndex('traps_owner_tile_idx').on(t.ownerId, t.tile),
+]);
+
+/**
+ * A raid in progress or finished — the attacker's crossing of a burrow.
+ *
+ * Stored rather than held in memory because a raid is a MINI-RUN the attacker
+ * can be disconnected from, and because the victim's notification is built from
+ * it. `endedAt` null means someone is walking your floor right now.
+ */
+export const raidRuns = pgTable('raid_runs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  attackerId: text('attacker_id').notNull().references(() => players.id, { onDelete: 'cascade' }),
+  defenderId: text('defender_id').notNull().references(() => players.id, { onDelete: 'cascade' }),
+  /** Where the raider stands, and what is left of their energy. */
+  tile: integer('tile').notNull(),
+  energy: integer('energy').notNull(),
+  trapsSprung: integer('traps_sprung').notNull().default(0),
+  /** Set when the raider reached the field. */
+  succeeded: boolean('succeeded').notNull().default(false),
+  carrotsLooted: bigint('carrots_looted', { mode: 'number' }).notNull().default(0),
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+  endedAt: timestamp('ended_at', { withTimezone: true }),
+}, (t) => [
+  index('raid_runs_defender_idx').on(t.defenderId, t.startedAt),
+  index('raid_runs_attacker_idx').on(t.attackerId, t.startedAt),
 ]);
 
 /** Sabotage: a bomb or a lightning strike planted on someone else's live island. */

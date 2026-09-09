@@ -15,6 +15,7 @@ import { useGameSocket, type RunRecap } from '@/components/use-game-socket';
 import { GameCanvas } from '@/components/game-canvas';
 import { EnergyBar } from '@/components/energy-bar';
 import { WalletButton } from '@/components/wallet-button';
+import { GoButton } from '@/components/go-button';
 import type { IslandScene } from '@/game/scenes/IslandScene';
 
 export default function Play() {
@@ -57,10 +58,7 @@ function PlayScreen() {
           <div style={{ fontSize: 56 }}>🐰</div>
           <p style={{ color: 'var(--muted)' }}>Connect your wallet to play.</p>
         </div>
-        <button className="rr-back" onClick={() => router.push('/')}>
-          <span className="rr-back-arrow" aria-hidden>▲</span>
-          <span>Back to the burrow</span>
-        </button>
+        <GoButton dir="up" label="Back to the burrow" onClick={() => router.push('/')} />
       </main>
     );
   }
@@ -83,10 +81,11 @@ function PlayScreen() {
         {/* The way back. The run keeps going behind it — the server holds the
             seat for RECONNECT_GRACE_MS, and carrots are banked at pickup, so
             glancing at the burrow costs nothing. */}
-        <button className="rr-back" onClick={() => router.push('/')}>
-          <span className="rr-back-arrow" aria-hidden>▲</span>
-          <span>{spectating ? 'Stop watching' : 'To the burrow'}</span>
-        </button>
+        <GoButton
+          dir="up"
+          label={spectating ? 'Stop watching' : 'To the burrow'}
+          onClick={() => router.push('/')}
+        />
       </div>
     </>
   );

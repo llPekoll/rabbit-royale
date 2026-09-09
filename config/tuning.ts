@@ -131,6 +131,74 @@ export const OUT_OF_RUN_ENERGY = {
 
 // ── Phase 5: raids & sabotage ────────────────────────────────────────────────
 
+/**
+ * Traps: the defensive half of the raid.
+ *
+ * A raider WALKS your burrow — in through the path, tile by tile, towards the
+ * carrot field — spending energy as they go. Traps drain that energy, and at
+ * zero the raid ends where it stands. This is what makes PLACING one mean
+ * something: you are choosing which approach to make expensive, and a raider
+ * who finds the short route mined has to take the long one.
+ *
+ * They are invisible to the attacker until stepped on. A visible trap is just a
+ * wall, and a wall is routed around rather than feared.
+ */
+export const TRAPS = {
+  /**
+   * Energy a trap drains when stepped on.
+   *
+   * Balanced by simulation against RAID_RUN.START_ENERGY, not by feel: with a
+   * competent owner mining the busiest tiles, an undefended burrow always falls
+   * and a fully defended one still falls about a quarter of the time. A burrow
+   * that could be made impregnable would end the attacking half of the game.
+   *
+   *   traps placed | raid succeeds
+   *        0       |   100%
+   *        2       |    94%
+   *        4       |    67%
+   *        6       |    42%
+   *        8       |    27%
+   */
+  DRAIN: 8,
+  /** Free traps per rolling 24h — derived from a timestamp, never a cron. */
+  FREE_PER_DAY: 3,
+  /** The free allowance refills over this window. */
+  REFILL_MS: 24 * 60 * 60 * 1000,
+  /** Ceiling on traps held at once, however they were obtained. */
+  MAX_HELD: 12,
+  /** Traps live on the board at the same time. Beyond this the burrow is a maze
+   *  rather than a gauntlet, and no raid is ever winnable — which kills the
+   *  attacking half of the game. */
+  MAX_PLACED: 8,
+  /** Carrot price of one extra trap. */
+  CARROT_COST: 180,
+  /** A sprung trap is spent. It is not repaired, it is replaced. */
+  CONSUMED_ON_TRIGGER: true,
+} as const;
+
+/**
+ * The raid run itself: an attacker's budget for crossing someone's burrow.
+ *
+ * Deliberately tight against TRAPS.DRAIN — four untouched traps end a raid, so
+ * a well-defended burrow is genuinely hard, and an undefended one is a walk.
+ */
+export const RAID_RUN = {
+  /**
+   * Energy an attacker enters with.
+   *
+   * Tight on purpose. The shortest crossing is 7 steps, so this is not about
+   * the walk — it is the number of TRAPS a raid can absorb, and it is what the
+   * table on TRAPS.DRAIN was tuned against. Raising it makes defence decorative.
+   */
+  START_ENERGY: 20,
+  /** Every step costs this, trap or not — distance itself is a defence. */
+  STEP_COST: 1,
+  /** Reaching the carrot field is the win condition; this is what it pays. */
+  LOOT_SHARE: 0.25,
+  /** Attacks on one victim per rolling window, so nobody is farmed. */
+  COOLDOWN_MS: 60 * 60 * 1000,
+} as const;
+
 export const RAID = {
   /** Damage a bomb item deals to a burrow, ± the jitter fraction. */
   BOMB_DAMAGE: 45,

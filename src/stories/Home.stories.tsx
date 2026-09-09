@@ -9,6 +9,7 @@
  */
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { GoButton } from '@/components/go-button';
 import '@/app/globals.css';
 
 interface Args {
@@ -111,10 +112,7 @@ function Home({ signedIn, stock, hp, maxHp, gardenReady, level, upgradeCost, boa
         )}
       </section>
 
-      <button className="rr-go" disabled={!signedIn}>
-        <span className="rr-go-label">Go farm</span>
-        <span className="rr-go-arrow" aria-hidden>▼</span>
-      </button>
+      <GoButton dir="down" label="Go farm" onClick={() => {}} disabled={!signedIn} />
     </main>
   );
 }

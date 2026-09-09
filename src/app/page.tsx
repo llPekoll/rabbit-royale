@@ -16,6 +16,7 @@ import { useRouter } from 'next/navigation';
 import { useWalletLogin } from '@/components/use-wallet-login';
 import { WalletButton } from '@/components/wallet-button';
 import { LeaderboardDrawer } from '@/components/leaderboard-drawer';
+import { GoButton } from '@/components/go-button';
 
 interface Burrow {
   level: number;
@@ -146,10 +147,7 @@ export default function Home() {
       </section>
 
       {/* The one way out, and the only thing to press when you are done here. */}
-      <button className="rr-go" onClick={() => router.push('/play')} disabled={!player}>
-        <span className="rr-go-label">Go farm</span>
-        <span className="rr-go-arrow" aria-hidden>▼</span>
-      </button>
+      <GoButton dir="down" label="Go farm" onClick={() => router.push('/play')} disabled={!player} />
     </main>
   );
 }
