@@ -44,6 +44,9 @@ export function GameCanvas({ seed, playerId, onMoveIntent, onPlaceTrap, onReady 
   // deliberately does not re-run when their identity changes — rebuilding the
   // whole game for that is the churn this boundary prevents — so capturing them
   // would leave the scenes calling stale handlers.
+  // The seed at mount time. Later changes go through `setIsland`, never
+  // through a remount — see the effect's dependency list.
+  const seedRef = useRef(seed);
   const moveRef = useRef(onMoveIntent);
   const trapRef = useRef(onPlaceTrap);
   const readyRef = useRef(onReady);
@@ -64,7 +67,7 @@ export function GameCanvas({ seed, playerId, onMoveIntent, onPlaceTrap, onReady 
 
       const app = await createApp(host, {
         island: {
-          seed,
+          seed: seedRef.current,
           playerId,
           onMoveIntent: (tile) => moveRef.current(tile),
         },
@@ -97,9 +100,15 @@ export function GameCanvas({ seed, playerId, onMoveIntent, onPlaceTrap, onReady 
       appRef.current?.destroy();
       appRef.current = null;
     };
-    // Only the island's identity forces a rebuild — everything else is a swap.
+    // NOTHING but the player forces a rebuild.
+    //
+    // `seed` was in this list, and it made the app tear itself down mid-boot: it
+    // mounts with a placeholder, the server answers with the real island, the
+    // prop changes, everything is rebuilt — and the new scene has already
+    // missed the `island` event carrying the rabbits. Changing island is now a
+    // method on the live scene (see IslandScene.setIsland), not a remount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seed, playerId]);
+  }, [playerId]);
 
   return <div ref={hostRef} style={{ position: 'fixed', inset: 0 }} />;
 }

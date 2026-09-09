@@ -91,7 +91,11 @@ button { min-height: 44px; min-width: 44px; }
   gap: 12px;
   justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  /* The bar takes the slack and the counters keep their width; without this
+     the row can grow past its box on a narrow screen instead of the bar
+     shrinking, which is what pushed the name off the edge. */
+  min-width: 0;
   padding: 8px 12px;
   background: var(--panel);
   border: 1px solid var(--border);
@@ -226,6 +230,8 @@ button { min-height: 44px; min-width: 44px; }
   display: flex;
   align-items: center;
   gap: 7px;
+  /* A flex item will not shrink below its content unless told to. */
+  min-width: 0;
   /* The bar takes the row's slack: it is the reading that matters most, and
      the counters beside it are fixed-width glances. */
   flex: 1 1 auto;
@@ -341,24 +347,74 @@ button { min-height: 44px; min-width: 44px; }
   padding: 8px 0 4px;
 }
 
-/* The banked count, top-right beside the wallet. One line, because that is all
-   the information is: a number and what it counts. */
+/* The banked count. The number is what you read, and the word under it only
+   says what the number counts — so the figure is big and the label is small
+   and quiet beneath it. */
 .rr-carrots {
   position: relative;
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
-  gap: 5px;
-  font-size: 15px;
+  line-height: 1;
   color: var(--carrot);
   font-variant-numeric: tabular-nums;
   /* The art behind this screen is bright grass, so the figure needs its own
      edge rather than a panel to sit on. */
   text-shadow: 0 2px 0 rgba(0, 0, 0, 0.65);
 }
+.rr-carrots-n {
+  position: relative;
+  z-index: 1;
+  font-size: 30px;
+}
 /* The number takes the hit when carrots land in it: a count that changes
    without flinching reads as a value someone edited, not as loot arriving. */
-.rr-carrots-n { position: relative; z-index: 1; }
 .rr-carrots-n.banked { display: inline-block; animation: rr-banked 420ms cubic-bezier(0.22, 1.2, 0.36, 1); }
+.rr-carrots-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 3px;
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.65);
+}
+
+/* The gain, rising off the right-hand side of the count and fading out.
+   Absolutely positioned so it never widens the counter mid-flight — a bar that
+   reflows while the number is changing is the one thing the eye reads as a bug
+   rather than as a reward. */
+.rr-carrots-gain {
+  position: absolute;
+  left: 100%;
+  top: 0;
+  margin-left: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 13px;
+  color: var(--carrot);
+  white-space: nowrap;
+  pointer-events: none;
+  /* Quick: it is up almost at once, holds just long enough to be read, then
+     goes. A slow gain keeps the eye on a number that has already changed. */
+  animation: rr-gain 520ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes rr-gain {
+  0%   { opacity: 0; transform: translateY(4px) scale(0.9); }
+  15%  { opacity: 1; transform: translateY(0) scale(1); }
+  55%  { opacity: 1; transform: translateY(-8px); }
+  100% { opacity: 0; transform: translateY(-22px); }
+}
+
+/* The game's own carrot, wherever this screen names one. Pixel art, so it is
+   drawn at whole multiples and never smoothed. */
+.rr-carrot-px {
+  image-rendering: pixelated;
+  vertical-align: -2px;
+  flex: none;
+}
 
 .rr-wallet {
   font-size: 13px;
@@ -473,6 +529,9 @@ button { min-height: 44px; min-width: 44px; }
   /* The burst does not run at all (see carrot-burst.tsx); the number simply
      changes, which is the fact it was decorating. */
   .rr-carrots-n.banked { animation: none; }
+  /* The gain still appears and still says +N — it simply does not travel. */
+  .rr-carrots-gain { animation: rr-gain-still 520ms steps(1, end) forwards; }
+  @keyframes rr-gain-still { 0%, 60% { opacity: 1; } 100% { opacity: 0; } }
 }
 .rr-note { text-align: center; color: var(--muted); }
 
@@ -503,7 +562,15 @@ button { min-height: 44px; min-width: 44px; }
      its own edge to stay legible rather than a panel to sit on. */
   text-shadow: 0 2px 0 rgba(0, 0, 0, 0.65);
 }
+/* Greyed means BOTH halves: the sprite is the louder of the two, and a dimmed
+   word beside a bright bouncing arrow still reads as "press me". */
 .rr-go:disabled, .rr-back:disabled { color: var(--muted); }
+.rr-go:disabled .rr-go-arrow,
+.rr-back:disabled .rr-go-arrow {
+  filter: grayscale(1) brightness(0.55);
+  /* The nudge is an invitation. Stop it when there is nothing to accept. */
+  animation: none;
+}
 
 .rr-go-arrow {
   image-rendering: pixelated;
@@ -843,7 +910,7 @@ button { min-height: 44px; min-width: 44px; }
    The kit's face is an 8px cell, so it is crispest at whole multiples. These
    are the sizes the interface actually uses, rounded onto that grid. */
 .rr-hud { font-size: 12px; }
-.rr-carrots { font-size: 14px; }
+.rr-carrots-n { font-size: 26px; }
 .rr-burrow-title { font-size: 16px; letter-spacing: 0.04em; }
 .rr-lb-row { font-size: 12px; }
 .rr-lb-name small { font-size: 8px; letter-spacing: 0; }

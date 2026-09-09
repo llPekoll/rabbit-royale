@@ -45,8 +45,13 @@ describe('the React / Pixi boundary', () => {
     expect(CANVAS).toMatch(/readyRef\.current/);
   });
 
-  it('rebuilds only when the island itself changes', () => {
+  it('rebuilds only when the PLAYER changes', () => {
     // Anything else in this dependency list drops the WebGL context mid-run.
-    expect(CANVAS).toMatch(/\}, \[seed, playerId\]\);/);
+    // `seed` used to be here and it made the app tear itself down mid-boot:
+    // mounted with a placeholder, the server answers with the real island, the
+    // prop changes, everything rebuilds — and the new scene has already missed
+    // the event carrying the rabbits. A new island is a method call now.
+    expect(CANVAS).toMatch(/\}, \[playerId\]\);/);
+    expect(CANVAS).not.toMatch(/\}, \[seed, playerId\]\);/);
   });
 });

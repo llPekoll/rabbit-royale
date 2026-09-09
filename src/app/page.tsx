@@ -19,6 +19,7 @@ import { GameCanvas, type GameHandles } from '@/components/game-canvas';
 import { WalletButton } from '@/components/wallet-button';
 import { LeaderboardDrawer } from '@/components/leaderboard-drawer';
 import { GoButton } from '@/components/go-button';
+import { CarrotCounter } from '@/components/carrot-counter';
 import { LoadingScreen } from '@/components/loading-screen';
 import { EnergyBar } from '@/components/energy-bar';
 import { SCENE } from '@/game/keys';
@@ -30,6 +31,9 @@ interface Burrow {
   maxHp: number;
   stock: number;
   gardenReady: number;
+  energy: number;
+  maxEnergy: number;
+  nextEnergyInMs: number | null;
   yieldPerHour: number;
   capHours: number;
   gardenCapacity: number;
@@ -47,6 +51,10 @@ export default function Home() {
   const [burrow, setBurrow] = useState<Burrow | null>(null);
   const [pending, setPending] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  // Bumped on every successful harvest: it replays the rising "+N" and
+  // re-keys the figure so it pops as the carrots land.
+  const [burstKey, setBurstKey] = useState(0);
+  const [burstAmount, setBurstAmount] = useState(0);
   const [ready, setReady] = useState(false);
 
   // The Pixi handles. A ref, not state: they are used to DRIVE the canvas, and
@@ -58,6 +66,21 @@ export default function Home() {
   useEffect(() => {
     game.bindScene(() => handles.current?.island ?? null);
   }, [game]);
+
+  // A new island reaches the LIVE scene. Remounting the canvas for it raced the
+  // socket and lost — see GameCanvas.
+  const shownSeed = useRef<string | null>(null);
+  useEffect(() => {
+    const island = handles.current?.island;
+    if (!ready || !island || !game.islandSeed) return;
+    if (shownSeed.current === game.islandSeed) return;
+    shownSeed.current = game.islandSeed;
+    void island.setIsland(game.islandSeed).then(() => {
+      // The snapshot's rabbits and dug tiles were applied to the OLD board, so
+      // they have to be replayed onto the new one.
+      game.resync();
+    });
+  }, [ready, game.islandSeed, game]);
 
   const auth = useCallback(
     (init?: RequestInit) => ({
@@ -82,7 +105,11 @@ export default function Home() {
       const res = await fetch('/api/burrow', auth({ method: 'POST', body: JSON.stringify({ action }) }))
         .then((r) => r.json());
       if (res.burrow) setBurrow(res.burrow);
-      if (res.harvested) setNote(`+${res.harvested} 🥕`);
+      if (res.harvested) {
+        setNote(`+${res.harvested} 🥕`);
+        setBurstAmount(res.harvested);
+        setBurstKey((k) => k + 1);
+      }
       else if (res.spent) setNote(`Burrow deepened: ${res.spent} 🥕`);
       else if (res.error === 'insufficient_carrots') setNote(`Need ${res.need - res.have} more 🥕`);
       else if (res.error === 'nothing_to_harvest') setNote('The garden is empty. Come back later.');
@@ -97,6 +124,9 @@ export default function Home() {
     handles.current?.show(next === 'island' ? SCENE.island : SCENE.burrow);
     setWhere(next);
   }, []);
+
+  /** Enough to dig with. Null burrow means "still loading", not "empty". */
+  const hasEnergy = burrow === null || burrow.energy > 0;
 
   const onMoveIntent = useCallback((tile: number) => game.moveTo(tile), [game]);
   const onPlaceTrap = useCallback(() => {}, []);
@@ -130,6 +160,11 @@ export default function Home() {
       )}
 
       <div className="rr-topbar">
+        {/* The one number worth carrying on every screen, top-right beside the
+            wallet — where a balance lives. */}
+        {player && (
+          <CarrotCounter stock={burrow?.stock ?? 0} fireKey={burstKey} gain={burstAmount} />
+        )}
         <WalletButton />
       </div>
 
@@ -156,13 +191,6 @@ export default function Home() {
             <>
               <h1 className="rr-burrow-title">🕳️ Your burrow</h1>
 
-              <div className="rr-stat">
-                <span className="rr-stat-value" style={{ color: 'var(--carrot)' }}>
-                  {burrow?.stock ?? 0}
-                </span>
-                <span className="rr-stat-label">🥕 carrots banked</span>
-              </div>
-
               <div className="rr-card">
                 <div className="rr-row">
                   <span>Hit points</span>
@@ -174,6 +202,32 @@ export default function Home() {
                 {/* Repair is free and time-based, always. Charging for it would
                     turn every raid into a bill and kill the revenge loop. */}
                 <small style={{ color: 'var(--muted)' }}>Repairs itself over time. Always free.</small>
+              </div>
+
+              <div className="rr-card">
+                <div className="rr-row">
+                  <span>&#9889; Energy</span>
+                  <span style={{ color: hasEnergy ? 'var(--carrot)' : 'var(--danger)' }}>
+                    {burrow?.energy ?? 0} / {burrow?.maxEnergy ?? 0}
+                  </span>
+                </div>
+                <div className="rr-meter">
+                  <i
+                    style={{
+                      width: `${burrow ? (burrow.energy / burrow.maxEnergy) * 100 : 0}%`,
+                      background: hasEnergy ? 'var(--carrot)' : 'var(--danger)',
+                    }}
+                  />
+                </div>
+                {/* Empty is the state that needs explaining: without a return
+                    time the player cannot tell a broken game from a wait. */}
+                <small style={{ color: 'var(--muted)' }}>
+                  {!hasEnergy
+                    ? `Out of energy. Next in ${formatWait(burrow?.nextEnergyInMs ?? null)}.`
+                    : burrow?.nextEnergyInMs === null
+                      ? 'Full.'
+                      : `+1 in ${formatWait(burrow?.nextEnergyInMs ?? null)}.`}
+                </small>
               </div>
 
               <div className="rr-card">
@@ -235,7 +289,14 @@ export default function Home() {
       )}
 
       {player && where === 'burrow' && (
-        <GoButton dir="down" label="Go farm" onClick={() => goTo('island')} />
+        // Disabled rather than hidden: the way onto the island should stay
+        // visible so its absence reads as "not yet", not as "gone".
+        <GoButton
+          dir="down"
+          label="Go farm"
+          onClick={() => goTo('island')}
+          disabled={!hasEnergy}
+        />
       )}
 
       {/* Signed out there is nothing to load; signed in, wait for both scenes. */}
@@ -272,6 +333,21 @@ function Recap({ recap, onAgain }: { recap: RunRecap; onAgain: () => void }) {
       <button onClick={onAgain} style={{ width: '100%' }}>Again</button>
     </div>
   );
+}
+
+/**
+ * A wait, in the coarsest unit that is still honest.
+ *
+ * "23m" rather than "23m 14s": the player is deciding whether to wait or close
+ * the tab, and a ticking second-hand invites them to watch it.
+ */
+function formatWait(ms: number | null): string {
+  if (ms === null) return 'a moment';
+  const mins = Math.ceil(ms / 60_000);
+  if (mins < 60) return `${mins}m`;
+  const hours = Math.floor(mins / 60);
+  const rest = mins % 60;
+  return rest ? `${hours}h ${rest}m` : `${hours}h`;
 }
 
 /** The burrow, painted. Stands in for the canvas before sign-in. */

@@ -30,6 +30,14 @@ export interface ClientRabbit {
   crowned: boolean;
 }
 
+/** What the server sends when you land on an island. */
+export interface IslandSnapshot {
+  seed: string;
+  warnStage: number;
+  rabbits: ClientRabbit[];
+  revealed: Array<{ tile: number; content: TileContent; adjacent: number }>;
+}
+
 export interface RunRecap {
   carrots: number;
   tilesDug: number;
@@ -51,6 +59,14 @@ export function useGameSocket(
   const pendingRef = useRef<Array<(s: IslandScene) => void>>([]);
 
   const [wsUrl, setWsUrl] = useState<string | null>(null);
+  /**
+   * The last island snapshot, kept so it can be replayed.
+   *
+   * The scene may be rebuilt AFTER the snapshot arrives — a new island re-cuts
+   * the coastline and clears the board — and the tiles and rabbits it carried
+   * would otherwise be lost with the old board.
+   */
+  const snapshotRef = useRef<IslandSnapshot | null>(null);
   const [islandSeed, setIslandSeed] = useState<string | null>(null);
   const [rabbits, setRabbits] = useState<Map<string, ClientRabbit>>(new Map());
   const [warnStage, setWarnStage] = useState(0);
@@ -94,12 +110,8 @@ export function useGameSocket(
     });
     socket.on('disconnect', () => setConnected(false));
 
-    socket.on('island', (snap: {
-      seed: string;
-      warnStage: number;
-      rabbits: ClientRabbit[];
-      revealed: Array<{ tile: number; content: TileContent; adjacent: number }>;
-    }) => {
+    socket.on('island', (snap: IslandSnapshot) => {
+      snapshotRef.current = snap;
       setIslandSeed(snap.seed);
       setWarnStage(snap.warnStage);
       setRecap(null);
@@ -155,6 +167,20 @@ export function useGameSocket(
     return () => { socket.disconnect(); socketRef.current = null; };
   }, [token, wsUrl, spectate, toScene]);
 
+  /**
+   * Paint the last snapshot onto the board again.
+   *
+   * Called after the scene has switched island: `setIsland` clears the tiles
+   * and rabbits, so what the server already told us has to be re-applied.
+   */
+  const resync = useCallback(() => {
+    const snap = snapshotRef.current;
+    const scene = sceneRef.current();
+    if (!snap || !scene) return;
+    for (const t of snap.revealed) scene.revealTile(t.tile, t.content, t.adjacent);
+    snap.rabbits.forEach((r, i) => scene.addRabbit(r.playerId, r.name, r.tile, i));
+  }, []);
+
   /** Ask to step onto a tile. The server decides whether it happens. */
   const moveTo = useCallback((tile: number) => {
     socketRef.current?.emit('move', { tile });
@@ -168,5 +194,5 @@ export function useGameSocket(
   }, []);
 
   const me = playerId ? rabbits.get(playerId) ?? null : null;
-  return { islandSeed, rabbits, me, warnStage, recap, connected, moveTo, restart, bindScene };
+  return { islandSeed, rabbits, me, warnStage, recap, connected, moveTo, restart, bindScene, resync };
 }

@@ -257,6 +257,50 @@ export class IslandScene implements Scene {
     this.data?.onMoveIntent(to);
   }
 
+  /**
+   * Move to a different island, without rebuilding the scene.
+   *
+   * The seed decides the coastline and which ground is painted, and both used
+   * to be settled once in `create()` — so a new island meant a new scene, which
+   * React did by remounting the whole Pixi app. That was a race it always lost:
+   * the app mounts with a placeholder seed, the server answers with the real
+   * one, the prop changes, the app is torn down and rebuilt — and the rebuilt
+   * scene has already missed the `island` event that carried the rabbits. The
+   * result was a board with no tiles and no rabbit on it.
+   *
+   * Re-cutting the coastline here is cheap (it is arithmetic on a seed) and
+   * costs no reload at all.
+   */
+  async setIsland(seed: string): Promise<void> {
+    if (this.data) this.data.seed = seed;
+    this.shape = makeShape(seed);
+
+    // Tear down what belonged to the old island, keep everything else.
+    this.clearHighlights();
+    for (const tile of this.tiles.values()) tile.destroy();
+    this.tiles.clear();
+    for (const rabbit of this.rabbits.values()) rabbit.destroy();
+    this.rabbits.clear();
+
+    this.arrows?.destroy();
+    this.arrows = new MoveArrows(this.container, this.shape);
+    this.arrows.setVisible(true);
+
+    // A new ground, painted from the new seed.
+    this.background?.destroy();
+    this.background = await createIslandBackground(
+      this.container,
+      GAME_W / 2,
+      GAME_H / 2,
+      seed,
+      () => ({ width: this.app.renderer.width, height: this.app.renderer.height }),
+    );
+
+    this.myTile = SPAWN_INDEX;
+    this.buildTiles();
+    this.refreshReachable();
+  }
+
   // ── Server events ──────────────────────────────────────────────────────────
 
   /** The server dug a tile — for everyone on the island, whoever dug it. */

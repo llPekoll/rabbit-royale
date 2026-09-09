@@ -15,6 +15,7 @@ const PAGE = read('../src/app/page.tsx');
 const CANVAS = read('../src/components/game-canvas.tsx');
 const MANAGER = read('../src/game/SceneManager.ts');
 const BOOT = read('../src/game/scenes/BootScene.ts');
+const SCENE_ISLAND = read('../src/game/scenes/IslandScene.ts');
 
 describe('one mount', () => {
   it('boots both scenes together', () => {
@@ -43,8 +44,11 @@ describe('one mount', () => {
     expect(PAGE).toMatch(/handles\.current\?\.show\(/);
   });
 
-  it('rebuilds the app only for a new island, never for a crossing', () => {
-    expect(CANVAS).toMatch(/\}, \[seed, playerId\]\);/);
+  it('never rebuilds the app for a new island', () => {
+    // Changing island re-cuts the coastline on the LIVE scene. Remounting for
+    // it raced the socket and lost — the rebuilt scene missed the snapshot.
+    expect(CANVAS).toMatch(/\}, \[playerId\]\);/);
+    expect(SCENE_ISLAND).toMatch(/setIsland\(/);
   });
 
   it('does not wait for the game server before mounting', () => {
