@@ -12,13 +12,19 @@
     "db:migrate": "drizzle-kit migrate",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "next lint"
+    "lint": "next lint",
+    "storybook": "storybook dev -p 6007",
+    "build-storybook": "storybook build"
   },
   "dependencies": {
+    "@domin8/arcade-kit": "github:Paul-Ollivier/arcade-kit#v2.2.1",
     "bs58": "^6.0.0",
     "drizzle-orm": "^0.45.1",
+    "gsap": "^3.15.0",
+    "howler": "^2.2.4",
     "jose": "^6.2.3",
     "next": "16.2.1",
+    "pixi.js": "^8.20.1",
     "postgres": "^3.4.8",
     "react": "19.2.4",
     "react-dom": "19.2.4",
@@ -27,11 +33,17 @@
     "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
+    "@storybook/react-vite": "^10.6.0",
+    "@types/howler": "^2.2.13",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^6.1.1",
     "drizzle-kit": "^0.31.10",
+    "playwright": "^1.63.0",
+    "storybook": "^10.6.0",
     "typescript": "^5",
+    "vite-tsconfig-paths": "^6.1.1",
     "vitest": "^4.1.9"
   },
   "type": "module"

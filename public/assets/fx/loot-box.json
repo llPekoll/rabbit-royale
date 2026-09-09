@@ -1,0 +1,221 @@
+{ "frames": [
+   {
+    "filename": "lootBox 0.aseprite",
+    "frame": { "x": 0, "y": 0, "w": 23, "h": 14 },
+    "rotated": false,
+    "trimmed": true,
+    "spriteSourceSize": { "x": 21, "y": 50, "w": 23, "h": 14 },
+    "sourceSize": { "w": 64, "h": 64 },
+    "duration": 100
+   },
+   {
+    "filename": "lootBox 1.aseprite",
+    "frame": { "x": 23, "y": 0, "w": 23, "h": 14 },
+    "rotated": false,
+    "trimmed": true,
+    "spriteSourceSize": { "x": 21, "y": 50, "w": 23, "h": 14 },
+    "sourceSize": { "w": 64, "h": 64 },
+    "duration": 100
+   },
+   {
+    "filename": "lootBox 2.aseprite",
+    "frame": { "x": 46, "y": 0, "w": 23, "h": 14 },
+    "rotated": false,
+    "trimmed": true,
+    "spriteSourceSize": { "x": 21, "y": 50, "w": 23, "h": 14 },
+    "sourceSize": { "w": 64, "h": 64 },
+    "duration": 100
+   },
+   {
+    "filename": "lootBox 3.aseprite",
+    "frame": { "x": 0, "y": 14, "w": 23, "h": 14 },
+    "rotated": false,
+    "trimmed": true,
+    "spriteSourceSize": { "x": 21, "y": 50, "w": 23, "h": 14 },
+    "sourceSize": { "w": 64, "h": 64 },
+    "duration": 100
+   },
+   {
+    "filename": "lootBox 4.aseprite",
+    "frame": { "x": 23, "y": 14, "w": 23, "h": 14 },
+    "rotated": false,
+    "trimmed": true,
+    "spriteSourceSize": { "x": 21, "y": 50, "w": 23, "h": 14 },
+    "sourceSize": { "w": 64, "h": 64 },
+    "duration": 100
+   },
+   {
+    "filename": "lootBox 5.aseprite",
+    "frame": { "x": 0, "y": 0, "w": 23, "h": 14 },
+    "rotated": false,
+    "trimmed": true,
+    "spriteSourceSize": { "x": 21, "y": 50, "w": 23, "h": 14 },
+    "sourceSize": { "w": 64, "h": 64 },
+    "duration": 100
+   },
+   {
+    "filename": "lootBox 6.aseprite",
+    "frame": { "x": 46, "y": 14, "w": 25, "h": 13 },
+    "rotated": false,
+    "trimmed": true,
+    "spriteSourceSize": { "x": 20, "y": 51, "w": 25, "h": 13 },
+    "sourceSize": { "w": 64, "h": 64 },
+    "duration": 100
+   },
+   {
+    "filename": "lootBox 7.aseprite",
+    "frame": { "x": 0, "y": 28, "w": 25, "h": 13 },
+    "rotated": false,
+    "trimmed": true,
+    "spriteSourceSize": { "x": 20, "y": 51, "w": 25, "h": 13 },
+    "sourceSize": { "w": 64, "h": 64 },
+    "duration": 100
+   },
+   {
+    "filename": "lootBox 8.aseprite",
+    "frame": { "x": 25, "y": 28, "w": 23, "h": 17 },
+    "rotated": false,
+    "trimmed": true,
+    "spriteSourceSize": { "x": 21, "y": 47, "w": 23, "h": 17 },
+    "sourceSize": { "w": 64, "h": 64 },
+    "duration": 100
+   },
+   {
+    "filename": "lootBox 9.aseprite",
+    "frame": { "x": 48, "y": 28, "w": 30, "h": 15 },
+    "rotated": false,
+    "trimmed": true,
+    "spriteSourceSize": { "x": 21, "y": 47, "w": 30, "h": 15 },
+    "sourceSize": { "w": 64, "h": 64 },
+    "duration": 100
+   },
+   {
+    "filename": "lootBox 10.aseprite",
+    "frame": { "x": 0, "y": 45, "w": 30, "h": 15 },
+    "rotated": false,
+    "trimmed": true,
+    "spriteSourceSize": { "x": 21, "y": 49, "w": 30, "h": 15 },
+    "sourceSize": { "w": 64, "h": 64 },
+    "duration": 100
+   },
+   {
+    "filename": "lootBox 11.aseprite",
+    "frame": { "x": 0, "y": 0, "w": 23, "h": 14 },
+    "rotated": false,
+    "trimmed": true,
+    "spriteSourceSize": { "x": 21, "y": 50, "w": 23, "h": 14 },
+    "sourceSize": { "w": 64, "h": 64 },
+    "duration": 100
+   },
+   {
+    "filename": "lootBox 12.aseprite",
+    "frame": { "x": 23, "y": 0, "w": 23, "h": 14 },
+    "rotated": false,
+    "trimmed": true,
+    "spriteSourceSize": { "x": 21, "y": 50, "w": 23, "h": 14 },
+    "sourceSize": { "w": 64, "h": 64 },
+    "duration": 100
+   },
+   {
+    "filename": "lootBox 13.aseprite",
+    "frame": { "x": 46, "y": 0, "w": 23, "h": 14 },
+    "rotated": false,
+    "trimmed": true,
+    "spriteSourceSize": { "x": 21, "y": 50, "w": 23, "h": 14 },
+    "sourceSize": { "w": 64, "h": 64 },
+    "duration": 100
+   },
+   {
+    "filename": "lootBox 14.aseprite",
+    "frame": { "x": 0, "y": 14, "w": 23, "h": 14 },
+    "rotated": false,
+    "trimmed": true,
+    "spriteSourceSize": { "x": 21, "y": 50, "w": 23, "h": 14 },
+    "sourceSize": { "w": 64, "h": 64 },
+    "duration": 100
+   },
+   {
+    "filename": "lootBox 15.aseprite",
+    "frame": { "x": 23, "y": 14, "w": 23, "h": 14 },
+    "rotated": false,
+    "trimmed": true,
+    "spriteSourceSize": { "x": 21, "y": 50, "w": 23, "h": 14 },
+    "sourceSize": { "w": 64, "h": 64 },
+    "duration": 100
+   },
+   {
+    "filename": "lootBox 16.aseprite",
+    "frame": { "x": 0, "y": 0, "w": 23, "h": 14 },
+    "rotated": false,
+    "trimmed": true,
+    "spriteSourceSize": { "x": 21, "y": 50, "w": 23, "h": 14 },
+    "sourceSize": { "w": 64, "h": 64 },
+    "duration": 100
+   },
+   {
+    "filename": "lootBox 17.aseprite",
+    "frame": { "x": 46, "y": 14, "w": 25, "h": 13 },
+    "rotated": false,
+    "trimmed": true,
+    "spriteSourceSize": { "x": 20, "y": 51, "w": 25, "h": 13 },
+    "sourceSize": { "w": 64, "h": 64 },
+    "duration": 100
+   },
+   {
+    "filename": "lootBox 18.aseprite",
+    "frame": { "x": 0, "y": 28, "w": 25, "h": 13 },
+    "rotated": false,
+    "trimmed": true,
+    "spriteSourceSize": { "x": 20, "y": 51, "w": 25, "h": 13 },
+    "sourceSize": { "w": 64, "h": 64 },
+    "duration": 100
+   },
+   {
+    "filename": "lootBox 19.aseprite",
+    "frame": { "x": 25, "y": 28, "w": 23, "h": 17 },
+    "rotated": false,
+    "trimmed": true,
+    "spriteSourceSize": { "x": 21, "y": 47, "w": 23, "h": 17 },
+    "sourceSize": { "w": 64, "h": 64 },
+    "duration": 100
+   },
+   {
+    "filename": "lootBox 20.aseprite",
+    "frame": { "x": 30, "y": 45, "w": 23, "h": 7 },
+    "rotated": false,
+    "trimmed": true,
+    "spriteSourceSize": { "x": 21, "y": 55, "w": 23, "h": 7 },
+    "sourceSize": { "w": 64, "h": 64 },
+    "duration": 100
+   },
+   {
+    "filename": "lootBox 21.aseprite",
+    "frame": { "x": 53, "y": 45, "w": 23, "h": 7 },
+    "rotated": false,
+    "trimmed": true,
+    "spriteSourceSize": { "x": 21, "y": 57, "w": 23, "h": 7 },
+    "sourceSize": { "w": 64, "h": 64 },
+    "duration": 100
+   }
+ ],
+ "meta": {
+  "app": "https://www.aseprite.org/",
+  "version": "1.3.15.2-arm64",
+  "image": "lootBox.png",
+  "format": "RGBA8888",
+  "size": { "w": 78, "h": 60 },
+  "scale": "1",
+  "frameTags": [
+   { "name": "higblight", "from": 0, "to": 5, "direction": "forward", "color": "#000000ff" },
+   { "name": "jump front", "from": 6, "to": 10, "direction": "forward", "color": "#000000ff" },
+   { "name": "highlight", "from": 11, "to": 16, "direction": "forward", "color": "#000000ff" },
+   { "name": "jumpback", "from": 17, "to": 21, "direction": "forward", "color": "#000000ff" }
+  ],
+  "layers": [
+   { "name": "Sprite Sheet", "opacity": 255, "blendMode": "normal" },
+   { "name": "Sprite Sheet Copy", "opacity": 255, "blendMode": "normal" }
+  ],
+  "slices": [
+  ]
+ }
+}
