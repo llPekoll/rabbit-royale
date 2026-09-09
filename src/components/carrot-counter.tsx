@@ -16,7 +16,7 @@
  * layout that reflows while the number is changing reads as a bug, not a
  * reward.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CARROT_URL, CARROT_SIZE } from '@domin8/arcade-kit/game';
 
 export interface CarrotCounterProps {
@@ -36,11 +36,72 @@ export interface CarrotCounterProps {
 const GAIN_MS = 520;
 
 /**
- * The carrot at 1x, drawn from the game's own sprite rather than the 🥕 emoji —
- * the reward on this screen should be the same object the player digs out of
- * the ground, and an emoji is whatever font the device happens to ship.
+ * How long the figure takes to climb to its new value. Kept just under the
+ * gain's own life so the "+31" is still on screen while the number chases it —
+ * the two halves of the same event should overlap, not queue.
  */
-function Carrot({ scale = 1 }: { scale?: number }) {
+const ROLL_MS = 420;
+
+/**
+ * Count from one value to another over ROLL_MS.
+ *
+ * A total that jumps 100 -> 130 is a value someone assigned; one that RUNS up
+ * to 130 is carrots arriving, and it is the difference between reading a number
+ * and watching it happen.
+ *
+ * Driven by rAF against a real clock rather than by a per-step interval: the
+ * roll then takes the same time on any device and simply draws fewer frames on
+ * a slow one, instead of running long.
+ */
+function useRollingNumber(target: number, ms: number): number {
+  const [shown, setShown] = useState(target);
+  const from = useRef(target);
+  const raf = useRef<number | null>(null);
+
+  useEffect(() => {
+    const start = from.current;
+    const delta = target - start;
+    // Only a GAIN rolls. A total that fell (a raid took carrots) should land at
+    // once: animating a loss dwells on it, and the player did not choose it.
+    if (delta <= 0) {
+      from.current = target;
+      setShown(target);
+      return;
+    }
+
+    const t0 = performance.now();
+    const tick = (now: number) => {
+      const p = Math.min(1, (now - t0) / ms);
+      // Eases out, so it sprints and settles rather than crawling to the end.
+      const eased = 1 - (1 - p) * (1 - p);
+      setShown(Math.round(start + delta * eased));
+      if (p < 1) raf.current = requestAnimationFrame(tick);
+      else from.current = target;
+    };
+    raf.current = requestAnimationFrame(tick);
+
+    return () => {
+      if (raf.current !== null) cancelAnimationFrame(raf.current);
+      // Whatever happens, the figure must end up telling the truth.
+      from.current = target;
+    };
+  }, [target, ms]);
+
+  return shown;
+}
+
+/**
+ * The game's own carrot rather than the 🥕 emoji — the reward on this screen
+ * should be the same object the player digs out of the ground, and an emoji is
+ * whatever font the device happens to ship.
+ *
+ * Sized by HEIGHT against the text it sits beside: the sprite is tall and
+ * narrow (13x29), so drawing it at its native size next to a 10px label made a
+ * carrot three times the height of the word it belongs to.
+ */
+function Carrot({ height }: { height: number }) {
+  // Width follows from the sprite's own aspect, so it is never squashed.
+  const width = Math.round((CARROT_SIZE.width / CARROT_SIZE.height) * height);
   return (
     <img
       className="rr-carrot-px"
@@ -48,14 +109,15 @@ function Carrot({ scale = 1 }: { scale?: number }) {
       alt=""
       aria-hidden
       draggable={false}
-      width={CARROT_SIZE.width * scale}
-      height={CARROT_SIZE.height * scale}
+      width={width}
+      height={height}
     />
   );
 }
 
 export function CarrotCounter({ stock, fireKey, gain }: CarrotCounterProps) {
   const [showGain, setShowGain] = useState(false);
+  const shown = useRollingNumber(stock, ROLL_MS);
 
   useEffect(() => {
     // fireKey 0 is the first render: nothing has been harvested yet.
@@ -68,10 +130,10 @@ export function CarrotCounter({ stock, fireKey, gain }: CarrotCounterProps) {
   return (
     <span className="rr-carrots" title={`${stock} carrots banked`}>
       <span key={fireKey} className={`rr-carrots-n${fireKey ? ' banked' : ''}`}>
-        {stock}
+        {shown}
       </span>
       <span className="rr-carrots-label">
-        <Carrot />
+        <Carrot height={14} />
         carrots
       </span>
       {showGain && (
@@ -79,7 +141,7 @@ export function CarrotCounter({ stock, fireKey, gain }: CarrotCounterProps) {
         // a second gain during the first one's flight would not replay.
         <span key={`gain-${fireKey}`} className="rr-carrots-gain" aria-hidden>
           +{gain}
-          <Carrot />
+          <Carrot height={18} />
         </span>
       )}
     </span>

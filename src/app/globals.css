@@ -397,15 +397,25 @@ button { min-height: 44px; min-width: 44px; }
   color: var(--carrot);
   white-space: nowrap;
   pointer-events: none;
-  /* Quick: it is up almost at once, holds just long enough to be read, then
-     goes. A slow gain keeps the eye on a number that has already changed. */
-  animation: rr-gain 520ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  /* Two keyframes and nothing else: one steady rise, one steady fade. The
+     earlier version stopped and restarted (a scale bounce, then a hold, then a
+     second climb), and a curve interrupted three times is what reads as
+     stuttering rather than as movement. */
+  /* The rise and the fade are two separate animations on purpose: with both in
+     one set of keyframes the gain had faded out while it was still only half
+     way up, so the travel was never actually seen. The movement runs the whole
+     520ms; the fade waits, then takes the last third. */
+  animation:
+    rr-gain-rise 520ms ease-out forwards,
+    rr-gain-fade 180ms ease-in 340ms forwards;
 }
-@keyframes rr-gain {
-  0%   { opacity: 0; transform: translateY(4px) scale(0.9); }
-  15%  { opacity: 1; transform: translateY(0) scale(1); }
-  55%  { opacity: 1; transform: translateY(-8px); }
-  100% { opacity: 0; transform: translateY(-22px); }
+@keyframes rr-gain-rise {
+  from { transform: translateY(0); }
+  to   { transform: translateY(-26px); }
+}
+@keyframes rr-gain-fade {
+  from { opacity: 1; }
+  to   { opacity: 0; }
 }
 
 /* The game's own carrot, wherever this screen names one. Pixel art, so it is
@@ -530,9 +540,17 @@ button { min-height: 44px; min-width: 44px; }
      changes, which is the fact it was decorating. */
   .rr-carrots-n.banked { animation: none; }
   /* The gain still appears and still says +N — it simply does not travel. */
-  .rr-carrots-gain { animation: rr-gain-still 520ms steps(1, end) forwards; }
-  @keyframes rr-gain-still { 0%, 60% { opacity: 1; } 100% { opacity: 0; } }
+  .rr-carrots-gain { animation: rr-gain-fade 180ms ease-in 340ms forwards; }
 }
+/* The wordmark on the sign-in screen. Scales down on a narrow phone but never
+   past its own pixels: it is pixel art, so it is never smoothed. */
+.rr-logo {
+  width: min(100%, 365px);
+  height: auto;
+  image-rendering: pixelated;
+  margin-bottom: 10px;
+}
+
 .rr-note { text-align: center; color: var(--muted); }
 
 /* ── The one action ────────────────────────────────────────────────────────

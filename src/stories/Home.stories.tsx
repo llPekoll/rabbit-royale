@@ -45,7 +45,9 @@ function Home({ signedIn, stock, hp, maxHp, gardenReady, level, upgradeCost, boa
       />
       <div className="rr-topbar">
         <button className={`rr-wallet${signedIn ? ' connected' : ''}`}>
-          {signedIn ? <><span aria-hidden>🐰</span> LuckyPaw42</> : 'Connect wallet'}
+          {/* The real chip draws the player's avatar sprite here (see
+              WalletButton); an emoji stand-in would misrepresent it. */}
+          {signedIn ? 'LuckyPaw42' : 'Connect wallet'}
         </button>
       </div>
 
@@ -94,7 +96,7 @@ function Home({ signedIn, stock, hp, maxHp, gardenReady, level, upgradeCost, boa
           </div>
         ) : (
           <>
-            <h1 className="rr-burrow-title">🕳️ Your burrow</h1>
+            <h1 className="rr-burrow-title">Your burrow</h1>
             {/* The count lives in the topbar now (see .rr-carrots), not in a
                 block of its own. */}
             <div className="rr-card">

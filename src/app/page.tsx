@@ -180,8 +180,16 @@ export default function Home() {
         <section className="rr-burrow">
           {!player ? (
             <div className="rr-empty">
-              <div style={{ fontSize: 64 }}>🕳️</div>
-              <h1 style={{ margin: '10px 0 4px' }}>Rabbit Royale</h1>
+              {/* The game's own logo, not an emoji and not the title set in a
+                  UI font: this is the first thing a new player sees, and the
+                  wordmark already says "Rabbit Royale" — so it replaces both. */}
+              <img
+                className="rr-logo"
+                src={LOGO}
+                alt="Rabbit Royale"
+                width={365}
+                height={78}
+              />
               <p style={{ color: 'var(--muted)', margin: 0 }}>The Cursed Crown</p>
               <p style={{ color: 'var(--muted)', maxWidth: 300 }}>
                 Connect your wallet to claim a burrow. Nothing to remember, nothing to lose.
@@ -189,7 +197,7 @@ export default function Home() {
             </div>
           ) : (
             <>
-              <h1 className="rr-burrow-title">🕳️ Your burrow</h1>
+              <h1 className="rr-burrow-title">Your burrow</h1>
 
               <div className="rr-card">
                 <div className="rr-row">
@@ -352,3 +360,4 @@ function formatWait(ms: number | null): string {
 
 /** The burrow, painted. Stands in for the canvas before sign-in. */
 const BURROW_ART = '/assets/island/burrow_generated.webp';
+const LOGO = '/assets/ui/RR-Logo_Banner.webp';

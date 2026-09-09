@@ -26,7 +26,7 @@ function Harness({ amount = 24, start = 138 }: { amount?: number; start?: number
         </span>
         <button className="rr-wallet connected">CursedWarren42</button>
       </div>
-      <h1 className="rr-burrow-title">🕳️ Your burrow</h1>
+      <h1 className="rr-burrow-title">Your burrow</h1>
       <button
         style={{ width: '100%', marginTop: 16 }}
         onClick={() => {

@@ -70,7 +70,7 @@ function Harness({
           <CarrotCounter stock={stock} fireKey={fireKey} gain={gain} />
         </div>
 
-        <h1 className="rr-burrow-title" style={{ margin: 0 }}>🕳️ Your burrow</h1>
+        <h1 className="rr-burrow-title" style={{ margin: 0 }}>Your burrow</h1>
 
         <div className="rr-card" style={{ margin: 0 }}>
           <div className="rr-row">
