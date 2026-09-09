@@ -47,6 +47,8 @@ export interface RunRecap {
 
 export function useGameSocket(token: string | null, playerId: string | null) {
   const socketRef = useRef<Socket | null>(null);
+  // Fetched rather than baked: see /api/config for why.
+  const [wsUrl, setWsUrl] = useState<string | null>(null);
   const [island, setIsland] = useState<ClientIsland | null>(null);
   const [rabbits, setRabbits] = useState<Map<string, ClientRabbit>>(new Map());
   const [warnStage, setWarnStage] = useState(0);
@@ -55,8 +57,17 @@ export function useGameSocket(token: string | null, playerId: string | null) {
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
-    if (!token) return;
-    const socket = io(process.env.NEXT_PUBLIC_WS_URL ?? 'http://localhost:3010', {
+    fetch('/api/config')
+      .then((r) => r.json())
+      .then((c) => setWsUrl(c.wsUrl || window.location.origin))
+      // A failed config fetch should not strand the player on a blank screen:
+      // same-origin is the right guess for a single-host dev setup.
+      .catch(() => setWsUrl(window.location.origin));
+  }, []);
+
+  useEffect(() => {
+    if (!token || !wsUrl) return;
+    const socket = io(wsUrl, {
       auth: { token },
       transports: ['websocket'],
     });
@@ -107,7 +118,7 @@ export function useGameSocket(token: string | null, playerId: string | null) {
     socket.on('run_over', (r: RunRecap) => setRecap(r));
 
     return () => { socket.disconnect(); socketRef.current = null; };
-  }, [token]);
+  }, [token, wsUrl]);
 
   const move = useCallback((dir: Direction) => {
     socketRef.current?.emit('move', { dir });
