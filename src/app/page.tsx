@@ -294,7 +294,10 @@ export default function Home() {
            overlay layer rather than the burrow's column. */
         <div className="rr-overlay">
           <Hud game={game} name={player?.name ?? ''} />
-          <div style={{ flex: 1 }} />
+          {/* Pushes the recap and the arrow to the bottom. Explicitly
+              transparent to input: it covers the whole board, and the CSS
+              above only re-enables pointers on the controls. */}
+          <div style={{ flex: 1, pointerEvents: 'none' }} />
           {game.recap && <Recap recap={game.recap} onAgain={game.restart} />}
           <GoButton dir="up" label="To the burrow" onClick={() => goTo('burrow')} />
         </div>

@@ -190,9 +190,11 @@ button { min-height: 44px; min-width: 44px; }
    full-height column with the HUD at the top, the nav pinned at the bottom, and
    nothing but canvas in between.
 
-   `pointer-events: none` on the column, re-enabled on its children, is what
-   keeps the empty middle transparent to touch — without it an invisible div
-   would eat every tap meant for the board. */
+   `pointer-events: none` on the column, re-enabled on the CONTROLS, is what
+   keeps the empty middle transparent to touch. Re-enabling it on every child
+   was the bug: the flex spacer that pushes the recap to the bottom is a
+   900px-tall invisible div, and it swallowed every click and tap meant for the
+   board — the game was keyboard-only without anyone touching the input code. */
 .rr-overlay {
   position: fixed;
   inset: 0;
@@ -202,7 +204,11 @@ button { min-height: 44px; min-width: 44px; }
   pointer-events: none;
   z-index: 10;
 }
-.rr-overlay > * { pointer-events: auto; }
+.rr-overlay > .rr-hud,
+.rr-overlay > .rr-card,
+.rr-overlay > .rr-go,
+.rr-overlay > .rr-back,
+.rr-overlay > button { pointer-events: auto; }
 
 /* The board is played through, so the chrome over it has to stay readable
    against pixel art of any colour without hiding half the island. */

@@ -151,6 +151,11 @@ export async function createApp(
   window.addEventListener('resize', resize);
 
   pixi.stage.sortableChildren = true;
+  // Pixi 8's stage is `passive` by default, which stops events reaching
+  // children even when they are `static` — clicking and tapping the board did
+  // nothing at all and the game was keyboard-only. `static` here lets the
+  // hit-test descend without making the stage itself a target.
+  pixi.stage.eventMode = 'static';
 
   const scenes = new SceneManager(pixi, gameRoot);
   onScenes?.(scenes);
