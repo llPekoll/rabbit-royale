@@ -24,26 +24,6 @@ interface Args {
   recap: boolean;
 }
 
-/** The nav, copied flat rather than imported: the real one uses next/navigation
- *  hooks that need a router Storybook does not provide. */
-function FakeNav({ active }: { active: string }) {
-  const tabs = [
-    { href: '/play', label: 'Island', icon: '🏝️' },
-    { href: '/burrow', label: 'Burrow', icon: '🕳️' },
-    { href: '/leaderboard', label: 'Crown', icon: '👑' },
-  ];
-  return (
-    <nav className="rr-nav">
-      {tabs.map((t) => (
-        <a key={t.href} className={t.href === active ? 'active' : ''}>
-          <span aria-hidden>{t.icon}</span>
-          <small>{t.label}</small>
-        </a>
-      ))}
-    </nav>
-  );
-}
-
 function Overlay({ energy, carrots, rabbits, warnStage, spectating, recap }: Args) {
   return (
     <div style={{ position: 'relative', height: '100dvh', overflow: 'hidden' }}>
@@ -82,7 +62,12 @@ function Overlay({ energy, carrots, rabbits, warnStage, spectating, recap }: Arg
           </div>
         )}
 
-        <FakeNav active="/play" />
+        {/* The one way out. Not a nav bar: the game is two places, and each is
+            one press from the other. */}
+        <button className="rr-back">
+          <span className="rr-back-arrow" aria-hidden>▲</span>
+          <span>{spectating ? 'Stop watching' : 'To the burrow'}</span>
+        </button>
       </div>
     </div>
   );

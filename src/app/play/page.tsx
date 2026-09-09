@@ -8,13 +8,13 @@
  * rather than through React state — a re-render per dug tile would fight the
  * animations the engine is already running.
  */
-import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useWalletLogin } from '@/components/use-wallet-login';
 import { useGameSocket, type RunRecap } from '@/components/use-game-socket';
 import { GameCanvas } from '@/components/game-canvas';
 import { EnergyBar } from '@/components/energy-bar';
-import { Nav } from '@/components/nav';
+import { WalletButton } from '@/components/wallet-button';
 import type { IslandScene } from '@/game/scenes/IslandScene';
 
 export default function Play() {
@@ -26,7 +26,8 @@ export default function Play() {
 }
 
 function PlayScreen() {
-  const { player, token, busy, error, login } = useWalletLogin();
+  const { player, token } = useWalletLogin();
+  const router = useRouter();
   const params = useSearchParams();
   // Set when arriving from the leaderboard's "watch": the run belongs to
   // someone else and every control is off.
@@ -46,18 +47,20 @@ function PlayScreen() {
     game.moveTo(tileIndex);
   }, [game, spectating]);
 
+  // Signed out, the island has nothing to show: send them home, where the one
+  // thing to do is connect. No second sign-in screen to keep in step.
   if (!player) {
     return (
-      <main className="rr-page" style={{ justifyContent: 'center', textAlign: 'center' }}>
-        <div style={{ fontSize: 56 }}>🐰</div>
-        <h1>Sign in</h1>
-        <p style={{ color: 'var(--muted)' }}>
-          Your wallet is your account. Nothing to remember, nothing to lose.
-        </p>
-        <button onClick={login} disabled={busy}>
-          {busy ? 'Waiting for wallet…' : 'Connect wallet'}
+      <main className="rr-home">
+        <div className="rr-topbar"><WalletButton /></div>
+        <div className="rr-empty">
+          <div style={{ fontSize: 56 }}>🐰</div>
+          <p style={{ color: 'var(--muted)' }}>Connect your wallet to play.</p>
+        </div>
+        <button className="rr-back" onClick={() => router.push('/')}>
+          <span className="rr-back-arrow" aria-hidden>▲</span>
+          <span>Back to the burrow</span>
         </button>
-        {error && <p style={{ color: 'var(--danger)' }}>{error}</p>}
       </main>
     );
   }
@@ -77,7 +80,13 @@ function PlayScreen() {
         <Hud game={game} name={player.name} spectating={spectating} />
         <div style={{ flex: 1 }} />
         {game.recap && <Recap recap={game.recap} onAgain={game.restart} />}
-        <Nav />
+        {/* The way back. The run keeps going behind it — the server holds the
+            seat for RECONNECT_GRACE_MS, and carrots are banked at pickup, so
+            glancing at the burrow costs nothing. */}
+        <button className="rr-back" onClick={() => router.push('/')}>
+          <span className="rr-back-arrow" aria-hidden>▲</span>
+          <span>{spectating ? 'Stop watching' : 'To the burrow'}</span>
+        </button>
       </div>
     </>
   );
