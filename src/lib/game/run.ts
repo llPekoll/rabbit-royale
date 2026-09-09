@@ -1,28 +1,27 @@
 /**
- * Run mechanics: what happens when a rabbit tries to move.
+ * Run mechanics: what happens when a rabbit tries to step onto a tile.
  *
- * This is THE authoritative rule set. The WS server calls it; the client calls
- * the same code to predict, so a correct client and the server always agree and
- * only a cheating one diverges (BUILD-PLAN rule #4: the client is never the
- * source of truth on bombs, energy or score).
+ * This is THE authoritative rule set. The WS server calls it, and it is the
+ * only place that decides what a dig costs or where a bomb throws you. The
+ * client is never a source of truth on bombs, energy or score (BUILD-PLAN
+ * rule #4) — it sends a destination and renders what comes back.
  *
- * Everything is a pure-ish transform on `(island, rabbit, direction)` — it
- * mutates the two objects it is handed and returns what happened, so a caller
- * can broadcast the delta without diffing whole islands.
+ * Everything is a transform on `(island, rabbit, targetTile)`: it mutates the
+ * two objects it is handed and returns what happened, so a caller can broadcast
+ * a delta rather than diffing whole islands.
  */
-import { BOMB, CHEST_LOOT, ENERGY, MULTIPLAYER } from '../../../config/tuning';
+import { BOMB, CHEST_LOOT, ENERGY, MULTIPLAYER } from '@config/tuning';
+import { SPAWN_INDEX, neighbors, toColRow, type IslandShape } from '@/config/gridConfig';
 import { pickWeighted, randInt, type Rng } from './rng';
-import { knockbackTarget, revealTile } from './island';
-import {
-  DIRECTIONS, idx, inBounds,
-  type DigResult, type Direction, type Island, type Rabbit,
-} from './types';
+import { revealTile } from './island';
+import type { DigResult, Island, Rabbit } from './types';
 
 export type MoveRejection =
   | 'dead'
   | 'stunned'
   | 'too-fast'
-  | 'out-of-bounds'
+  | 'not-adjacent'
+  | 'off-island'
   | 'no-energy';
 
 export interface MoveOutcome {
@@ -31,7 +30,7 @@ export interface MoveOutcome {
   /** Set when the move dug a fresh tile. Absent when walking revealed ground. */
   dig?: DigResult;
   /** Where the rabbit ended up (post-knockback). */
-  position: { x: number; y: number };
+  tile: number;
   energy: number;
   carrots: number;
   /** The run ended on this move — energy hit zero. */
@@ -47,14 +46,15 @@ export interface MoveOutcome {
 export function resolveMove(
   island: Island,
   rabbit: Rabbit,
-  dir: Direction,
+  to: number,
+  shape: IslandShape,
   rng: Rng,
   now: number = Date.now(),
 ): MoveOutcome {
   const reject = (rejection: MoveRejection): MoveOutcome => ({
     ok: false,
     rejection,
-    position: { x: rabbit.x, y: rabbit.y },
+    tile: rabbit.tile,
     energy: rabbit.energy,
     carrots: rabbit.carrots,
     runOver: !rabbit.alive,
@@ -65,31 +65,29 @@ export function resolveMove(
   // Anti-speedhack: a human cannot out-pace this, a script can.
   if (now - rabbit.lastMoveAt < MULTIPLAYER.MIN_MOVE_INTERVAL_MS) return reject('too-fast');
 
-  const [dx, dy] = DIRECTIONS[dir];
-  const nx = rabbit.x + dx;
-  const ny = rabbit.y + dy;
-  if (!inBounds(island, nx, ny)) return reject('out-of-bounds');
+  const tile = island.tiles.get(to);
+  if (!tile) return reject('off-island');
+  // One step only. Checked here rather than trusted from the client, which is
+  // the entire reason this function exists.
+  if (!isAdjacent(rabbit.tile, to)) return reject('not-adjacent');
 
   rabbit.lastMoveAt = now;
-  const tile = island.tiles[idx(island, nx, ny)];
 
   // Walking revealed ground is free — that is the whole reason to read numbers.
   if (tile.revealed) {
-    rabbit.x = nx;
-    rabbit.y = ny;
-    return { ok: true, position: { x: nx, y: ny }, energy: rabbit.energy, carrots: rabbit.carrots, runOver: false };
+    rabbit.tile = to;
+    return { ok: true, tile: to, energy: rabbit.energy, carrots: rabbit.carrots, runOver: false };
   }
 
-  // Digging costs. You may not dig your last point of energy into nothing —
+  // Digging costs. You may not spend your last point of energy into nothing —
   // running out mid-dig would hide WHY the run ended.
   if (rabbit.energy < ENERGY.DIG_COST) return reject('no-energy');
 
-  const firstDigger = revealTile(island, idx(island, nx, ny), rabbit.playerId);
+  const firstDigger = revealTile(island, to, rabbit.playerId);
   rabbit.energy -= ENERGY.DIG_COST;
 
   const dig: DigResult = {
-    x: nx,
-    y: ny,
+    tile: to,
     content: tile.content,
     adjacent: tile.adjacent,
     energyDelta: -ENERGY.DIG_COST,
@@ -101,13 +99,11 @@ export function resolveMove(
       rabbit.energy -= ENERGY.BOMB_LOSS;
       dig.energyDelta -= ENERGY.BOMB_LOSS;
       rabbit.stunnedUntil = now + BOMB.STUN_MS;
-      // Thrown backwards, away from the blast. The rabbit does NOT enter the
-      // bomb tile — it is blown from where it stood.
-      const back = [-dx, -dy] as const;
-      const landing = knockbackTarget(island, { x: rabbit.x, y: rabbit.y }, back, BOMB.KNOCKBACK_TILES);
-      rabbit.x = landing.x;
-      rabbit.y = landing.y;
-      dig.knockback = { ...landing, stunnedUntil: rabbit.stunnedUntil };
+      // Thrown backwards from where it STOOD — the rabbit never enters the
+      // bomb tile.
+      const landing = knockbackTarget(island, rabbit.tile, to, shape);
+      rabbit.tile = landing;
+      dig.knockback = { tile: landing, stunnedUntil: rabbit.stunnedUntil };
       if (tile.plantedBy) dig.plantedBy = tile.plantedBy;
       break;
     }
@@ -122,8 +118,7 @@ export function resolveMove(
         dig.energyDelta += gain;
         dig.carrotDelta = 1;
       }
-      rabbit.x = nx;
-      rabbit.y = ny;
+      rabbit.tile = to;
       break;
     }
     case 'chest': {
@@ -132,20 +127,17 @@ export function resolveMove(
         const amount = randInt(rng, roll.min, roll.max);
         dig.loot = { kind: roll.kind, amount };
         // Phase 1 stub: only carrots are real. Items are recorded by the caller
-        // once the inventory exists (Phase 5) — the loot table already rolls them.
+        // once the inventory exists (Phase 5) — the table already rolls them.
         if (roll.kind === 'carrots') {
           rabbit.carrots += amount;
           dig.carrotDelta = amount;
         }
       }
-      rabbit.x = nx;
-      rabbit.y = ny;
+      rabbit.tile = to;
       break;
     }
-    default: {
-      rabbit.x = nx;
-      rabbit.y = ny;
-    }
+    default:
+      rabbit.tile = to;
   }
 
   if (rabbit.energy <= 0) {
@@ -156,16 +148,61 @@ export function resolveMove(
   return {
     ok: true,
     dig,
-    position: { x: rabbit.x, y: rabbit.y },
+    tile: rabbit.tile,
     energy: rabbit.energy,
     carrots: rabbit.carrots,
     runOver: !rabbit.alive,
   };
 }
 
+/** One of the 8 steps? Cheap enough to inline, but named so it reads. */
+export function isAdjacent(a: number, b: number): boolean {
+  if (a === b) return false;
+  const p = toColRow(a);
+  const q = toColRow(b);
+  return Math.abs(p.col - q.col) <= 1 && Math.abs(p.row - q.row) <= 1;
+}
+
+/**
+ * Where a blast throws a rabbit: away from the bomb, preferring ALREADY
+ * REVEALED ground — being thrown into fresh dirt would cost energy the player
+ * did not choose to spend. Falls back to any legal neighbour, then to standing
+ * still when the rabbit is boxed in on a headland.
+ */
+export function knockbackTarget(
+  island: Island,
+  from: number,
+  bomb: number,
+  shape: IslandShape,
+): number {
+  const origin = toColRow(from);
+  const blast = toColRow(bomb);
+  // The direction the blast pushes: straight back along the approach.
+  const away = { col: origin.col - blast.col, row: origin.row - blast.row };
+
+  const options = neighbors(from, shape).filter((n) => n !== bomb);
+  if (options.length === 0) return from;
+
+  let best = from;
+  let bestScore = -Infinity;
+  for (const candidate of options) {
+    const c = toColRow(candidate);
+    const dir = { col: c.col - origin.col, row: c.row - origin.row };
+    // Dot product against the blast direction: most directly "away" wins.
+    let score = dir.col * away.col + dir.row * away.row;
+    // A revealed landing is strictly better than an unrevealed one, whichever
+    // way it lies — the tie-break the comment above is about.
+    if (island.tiles.get(candidate)?.revealed) score += 0.5;
+    if (score > bestScore) {
+      bestScore = score;
+      best = candidate;
+    }
+  }
+  return best;
+}
+
 /** A rabbit at the start of a run, placed on the island's spawn. */
 export function spawnRabbit(
-  island: Island,
   playerId: string,
   name: string,
   energy: number = ENERGY.START,
@@ -173,8 +210,7 @@ export function spawnRabbit(
   return {
     playerId,
     name,
-    x: Math.floor(island.width / 2),
-    y: Math.floor(island.height / 2),
+    tile: SPAWN_INDEX,
     energy,
     carrots: 0,
     stunnedUntil: 0,

@@ -14,10 +14,13 @@
  */
 import { MULTIPLAYER } from '../../config/tuning';
 import { generateIsland } from '../../src/lib/game/island';
+import { makeShape, type IslandShape } from '../../src/config/gridConfig';
 import type { Island, Rabbit } from '../../src/lib/game/types';
 
 export interface LiveIsland {
   island: Island;
+  /** The coastline, cut from the same seed. Cached: every move consults it. */
+  shape: IslandShape;
   /** playerId → rabbit. Seats, including players in reconnect grace. */
   rabbits: Map<string, Rabbit>;
   /** playerId → deadline; a refresh keeps the seat this long. */
@@ -54,6 +57,7 @@ export class MemoryIslandStore implements IslandStore {
   create(seed: string, lifetimeCarrots: number): LiveIsland {
     const live: LiveIsland = {
       island: generateIsland({ seed, lifetimeCarrots }),
+      shape: makeShape(seed),
       rabbits: new Map(),
       disconnectedAt: new Map(),
       erupting: false,

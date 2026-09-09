@@ -1,4 +1,12 @@
-/** Shared game types. Client and server both import these — never duplicate. */
+/**
+ * Shared game types.
+ *
+ * Positions are TILE INDICES, not x/y pairs. The board is an isometric grid
+ * whose neighbours are not "the four cardinal directions" — the renderer, the
+ * input mapping and the island's shape all already speak in indices, and having
+ * the server speak a second dialect would mean translating on every message and
+ * getting it wrong somewhere. `gridConfig` owns the index↔col/row maths.
+ */
 
 /** What is buried under a tile. Only the server knows this before a dig. */
 export type TileContent = 'empty' | 'carrot' | 'golden' | 'bomb' | 'chest';
@@ -18,12 +26,11 @@ export interface Tile {
 export interface Island {
   id: string;
   seed: string;
-  width: number;
-  height: number;
-  tiles: Tile[];
-  /** Tier name from tuning.ISLAND_TIERS — drives the visuals and the densities. */
+  /** Land tiles, by index. Water squares are absent, not present-and-empty. */
+  tiles: Map<number, Tile>;
+  /** Tier name from tuning.ISLAND_TIERS — drives visuals and densities. */
   tier: string;
-  /** Tiles dug so far, tracked incrementally: the eruption check runs every dig. */
+  /** Tiles dug so far, tracked incrementally: the eruption check runs per dig. */
   dugCount: number;
   createdAt: number;
 }
@@ -31,48 +38,31 @@ export interface Island {
 export interface Rabbit {
   playerId: string;
   name: string;
-  x: number;
-  y: number;
+  /** Tile index. */
+  tile: number;
   energy: number;
   carrots: number;
   /** Server timestamp until which input is ignored (bomb stun). */
   stunnedUntil: number;
   /** Last accepted move, for the anti-speedhack gate. */
   lastMoveAt: number;
-  /** 0 energy = run over. Kept on the island until they leave or restart. */
+  /** 0 energy = run over. */
   alive: boolean;
   /** Season leader, drawn with the crown and worth more when raided. */
   crowned: boolean;
 }
 
-export type Direction = 'up' | 'down' | 'left' | 'right';
-
-export const DIRECTIONS: Record<Direction, readonly [number, number]> = {
-  up: [0, -1],
-  down: [0, 1],
-  left: [-1, 0],
-  right: [1, 0],
-} as const;
-
 /** What a dig produced. The server sends this back; the client only animates. */
 export interface DigResult {
-  x: number;
-  y: number;
+  tile: number;
   content: TileContent;
   adjacent: number;
   energyDelta: number;
   carrotDelta: number;
-  /** Set when the tile was a bomb: where the blast threw the rabbit. */
-  knockback?: { x: number; y: number; stunnedUntil: number };
+  /** Set when the tile was a bomb: the tile the blast threw the rabbit onto. */
+  knockback?: { tile: number; stunnedUntil: number };
   /** Chest contents (Phase 1 stub gives carrots; Phase 5 gives real items). */
   loot?: { kind: string; amount: number };
   /** A sabotage bomb names its planter, so revenge has an address. */
   plantedBy?: string;
 }
-
-/** Index helpers — tiles are a flat array, always addressed through these. */
-export const idx = (island: Pick<Island, 'width'>, x: number, y: number) =>
-  y * island.width + x;
-
-export const inBounds = (island: Pick<Island, 'width' | 'height'>, x: number, y: number) =>
-  x >= 0 && y >= 0 && x < island.width && y < island.height;

@@ -15,6 +15,12 @@ export type SceneConstructor = new (
 
 export class SceneManager {
   private current: Scene | null = null;
+
+  /** The live scene, for callers that need to drive it (the socket layer feeds
+   *  server events straight into the scene rather than through React state). */
+  get currentScene(): Scene | null {
+    return this.current;
+  }
   private tickerCallback: ((ticker: { deltaTime: number }) => void) | null =
     null;
   app: Application;

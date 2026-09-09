@@ -1,5 +1,10 @@
 /**
- * Redis: the live leaderboard and cross-process presence.
+ * The live leaderboard and cross-process presence, in Redis.
+ *
+ * Shared by BOTH tiers: the WS server writes a score when a run banks, the web
+ * API reads the board. One implementation rather than two, because a
+ * leaderboard that disagrees with itself depending on which service you asked
+ * is worse than no leaderboard.
  *
  * Postgres holds the truth about season scores; Redis holds the ORDERING. A
  * sorted set answers "top 100" and "my rank" in O(log n) no matter how many

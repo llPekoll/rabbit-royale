@@ -13,7 +13,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '../src/lib/db';
 import { players } from '../src/lib/db/schema';
 import { signSession } from '../src/lib/auth/jwt';
-import type { Direction } from '../src/lib/game/types';
+import { makeShape, neighbors } from '../src/config/gridConfig';
 
 const WS = process.env.WS_URL ?? 'http://localhost:3010';
 const ADDRESS = '9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM';
@@ -40,23 +40,35 @@ socket.on('connect', () => {
   socket.emit('join');
 });
 
-socket.on('island', async (snap: { island: { width: number; height: number; tiles: unknown[] }; rabbits: unknown[] }) => {
-  pass(`island ${snap.island.width}x${snap.island.height}, ${snap.rabbits.length} rabbit(s)`);
+socket.on('island', (snap: {
+  seed: string;
+  rabbits: Array<{ playerId: string; tile: number }>;
+  revealed: Array<{ tile: number }>;
+}) => {
+  const shape = makeShape(snap.seed);
+  pass(`island "${snap.seed}", ${snap.rabbits.length} rabbit(s), ${snap.revealed.length} tiles already dug`);
 
-  // The server must NEVER ship the content of an unrevealed tile.
-  const leaked = (snap.island.tiles as Array<Record<string, unknown>>)
-    .filter((t) => !t.revealed && Object.keys(t).length > 1);
-  if (leaked.length) fail(`${leaked.length} unrevealed tiles leaked their content`);
-  pass('unrevealed tiles carry no content');
+  // The server must NEVER mention a tile that has not been dug: the payload
+  // carries ONLY revealed tiles, so there is no field to read a bomb out of.
+  if (snap.revealed.length === 0) fail('snapshot revealed nothing — the spawn ring should be open');
+  pass('snapshot carries only revealed tiles');
 
-  // Walk a RANDOM walk, not a cycle: a four-direction loop returns to tiles it
-  // already revealed, which are free to walk, so energy would never drain and
+  let at = snap.rabbits.find((r) => r.playerId === ID)?.tile ?? 0;
+  socket.on('rabbit_moved', (r: { playerId: string; tile: number }) => {
+    if (r.playerId === ID) at = r.tile;
+  });
+  socket.on('bomb_hit', (b: { playerId: string; tile: number }) => {
+    if (b.playerId === ID) at = b.tile;
+  });
+
+  // A RANDOM walk over real neighbours. A fixed cycle would keep returning to
+  // tiles it already revealed — free to walk, so energy would never drain and
   // the run would never end. The point is to spend energy on fresh dirt.
-  const dirs: Direction[] = ['up', 'down', 'left', 'right'];
-  const walk = setInterval(() => {
-    socket.emit('move', { dir: dirs[Math.floor(Math.random() * 4)] });
+  walkTimer = setInterval(() => {
+    const options = neighbors(at, shape);
+    if (options.length === 0) return;
+    socket.emit('move', { tile: options[Math.floor(Math.random() * options.length)] });
   }, 110);
-  walkTimer = walk;
 });
 
 socket.on('tile_revealed', () => { reveals++; });

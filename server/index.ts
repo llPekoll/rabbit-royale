@@ -24,13 +24,14 @@ import { ENERGY, ERUPTION, MULTIPLAYER } from '../config/tuning';
 import { mulberry32, seedFrom } from '../src/lib/game/rng';
 import { dugFraction, publicView } from '../src/lib/game/island';
 import { resolveMove, spawnRabbit } from '../src/lib/game/run';
-import type { Direction, Rabbit } from '../src/lib/game/types';
+import { makeShape } from '../src/config/gridConfig';
+import type { Rabbit } from '../src/lib/game/types';
 import { verifySession } from '../src/lib/auth/jwt';
 import { db } from '../src/lib/db';
 import { players, runs, seasons } from '../src/lib/db/schema';
 import { MemoryIslandStore, type LiveIsland } from './islands/store';
 import { roomFor } from './islands/router';
-import { markOffline, markOnline, setScore } from './redis';
+import { markOffline, markOnline, setScore } from '../src/lib/leaderboard';
 
 const PORT = Number(process.env.WS_PORT ?? 3010);
 const store = new MemoryIslandStore();
@@ -46,6 +47,9 @@ interface SocketData {
   bombsHit?: number;
   tilesDug?: number;
   lifetimeCarrots?: number;
+  /** Set when this socket is WATCHING someone: it receives the island's events
+   *  but owns no rabbit, so every gameplay handler falls through. */
+  spectating?: string;
 }
 
 const httpServer = http.createServer((req, res) => {
@@ -90,8 +94,13 @@ function newIsland(lifetimeCarrots: number): LiveIsland {
 
 /** Everything a client needs to draw the island it just joined. */
 function snapshot(live: LiveIsland) {
+  const view = publicView(live.island);
   return {
-    island: publicView(live.island),
+    // The SEED, not the map: the client cuts the identical coastline from it.
+    // Where the land is was never a secret; what is buried in it is.
+    seed: view.seed,
+    tier: view.tier,
+    revealed: view.revealed,
     warnStage: live.warnStage,
     rabbits: [...live.rabbits.values()].map(publicRabbit),
   };
@@ -102,8 +111,7 @@ function snapshot(live: LiveIsland) {
 const publicRabbit = (r: Rabbit) => ({
   playerId: r.playerId,
   name: r.name,
-  x: r.x,
-  y: r.y,
+  tile: r.tile,
   energy: r.energy,
   carrots: r.carrots,
   alive: r.alive,
@@ -139,7 +147,7 @@ async function erupt(live: LiveIsland) {
     for (const rabbit of survivors) {
       const socket = socketOf(rabbit.playerId);
       // Energy and carrots ride along; the run continues, only the ground changed.
-      const moved = spawnRabbit(next.island, rabbit.playerId, rabbit.name, rabbit.energy);
+      const moved = spawnRabbit(rabbit.playerId, rabbit.name, rabbit.energy);
       moved.carrots = rabbit.carrots;
       next.rabbits.set(rabbit.playerId, moved);
       if (socket) {
@@ -234,7 +242,7 @@ io.on('connection', (socket: Socket) => {
 
     // A refresh returns to the same rabbit if the grace window has not lapsed.
     const existing = live.rabbits.get(data.playerId);
-    const rabbit = existing ?? spawnRabbit(live.island, data.playerId, player.name, ENERGY.START);
+    const rabbit = existing ?? spawnRabbit(data.playerId, player.name, ENERGY.START);
     live.rabbits.set(data.playerId, rabbit);
     live.disconnectedAt.delete(data.playerId);
     live.emptySince = null;
@@ -260,24 +268,55 @@ io.on('connection', (socket: Socket) => {
   });
 
   /**
-   * A move intent. The direction is the ONLY thing the client gets to choose;
-   * everything the move produces is decided here.
+   * Watch someone else's run.
+   *
+   * The front door to sabotage (phase 5): you pick a target on the leaderboard,
+   * see what they see, and decide whether to spend a bomb on them. A spectator
+   * joins the target's island ROOM — so it receives every reveal and every move
+   * live — but is never given a rabbit, which is what makes watching harmless.
    */
-  socket.on('move', (payload: { dir?: unknown }) => {
-    if (!data.playerId || !data.islandId) return;
-    const dir = payload?.dir;
-    if (dir !== 'up' && dir !== 'down' && dir !== 'left' && dir !== 'right') return;
+  socket.on('spectate', async (payload: { playerId?: unknown }) => {
+    const target = payload?.playerId;
+    if (typeof target !== 'string') return;
+
+    // Find whichever island the target is currently on.
+    let found: LiveIsland | undefined;
+    for (const live of store.all()) {
+      if (live.rabbits.has(target)) { found = live; break; }
+    }
+    if (!found) return socket.emit('error_msg', { code: 'not_playing' });
+
+    // Leave whatever was being watched before — a viewer belongs to one island.
+    if (data.islandId) socket.leave(roomFor(data.islandId));
+    data.islandId = found.island.id;
+    data.spectating = target;
+    socket.join(roomFor(found.island.id));
+    socket.emit('island', snapshot(found));
+  });
+
+  /**
+   * A move intent. The DESTINATION TILE is the only thing the client chooses,
+   * and even that is checked (adjacent, on land, off cooldown) — everything the
+   * move then produces is decided here.
+   *
+   * A spectator has no rabbit on the island, so this falls through harmlessly:
+   * watching cannot move anyone.
+   */
+  socket.on('move', (payload: { tile?: unknown }) => {
+    if (!data.playerId || !data.islandId || data.spectating) return;
+    const to = payload?.tile;
+    if (typeof to !== 'number' || !Number.isInteger(to)) return;
 
     const live = store.get(data.islandId);
     if (!live || live.erupting) return;
     const rabbit = live.rabbits.get(data.playerId);
     if (!rabbit) return;
 
-    // The dig RNG is seeded per (island, tile, player) so a chest's contents are
-    // fixed the moment the island exists — replayable, and not re-rollable by a
+    // The dig RNG is seeded per (island, tile) so a chest's contents are fixed
+    // the moment the island exists — replayable, and not re-rollable by a
     // client that disconnects on a bad drop.
-    const rng = mulberry32(seedFrom(`${live.island.seed}:${rabbit.x},${rabbit.y}:${dir}`));
-    const out = resolveMove(live.island, rabbit, dir as Direction, rng);
+    const rng = mulberry32(seedFrom(`${live.island.seed}:${to}`));
+    const out = resolveMove(live.island, rabbit, to, live.shape, rng);
     if (!out.ok) return socket.emit('move_rejected', { reason: out.rejection });
 
     const room = roomFor(live.island.id);
@@ -288,11 +327,17 @@ io.on('connection', (socket: Socket) => {
       // A dug tile is revealed FOR EVERYONE — the shared map is the whole point
       // of the shared island. The carrot, however, went to the first digger only.
       io.to(room).emit('tile_revealed', {
-        x: out.dig.x, y: out.dig.y,
-        content: out.dig.content, adjacent: out.dig.adjacent,
+        tile: out.dig.tile,
+        content: out.dig.content,
+        adjacent: out.dig.adjacent,
         dugBy: data.playerId,
         plantedBy: out.dig.plantedBy,
       });
+      // The blast is its own event: the client plays a damage animation and a
+      // knockback, which a plain move would not distinguish from a walk.
+      if (out.dig.knockback) {
+        io.to(room).emit('bomb_hit', { playerId: data.playerId, tile: out.dig.knockback.tile });
+      }
     }
 
     io.to(room).emit('rabbit_moved', publicRabbit(rabbit));
@@ -300,6 +345,7 @@ io.on('connection', (socket: Socket) => {
     socket.emit('move_result', out);
 
     if (out.runOver) {
+      io.to(room).emit('rabbit_died', { playerId: data.playerId });
       void bankRun(data, rabbit).catch((e) => console.error('[bankRun]', e));
       socket.emit('run_over', {
         carrots: rabbit.carrots,
@@ -336,6 +382,8 @@ io.on('connection', (socket: Socket) => {
   socket.on('disconnect', async () => {
     if (!data.playerId) return;
     await markOffline(data.playerId);
+    // A spectator holds no seat, so there is nothing to keep warm for them.
+    if (data.spectating) return;
     const live = data.islandId ? store.get(data.islandId) : undefined;
     if (!live) return;
 

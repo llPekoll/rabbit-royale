@@ -28,7 +28,11 @@ const config: StorybookConfig = {
     cfg.resolve = {
       ...cfg.resolve,
       tsconfigPaths: true,
-      alias: { ...(cfg.resolve?.alias ?? {}), '@': join(here, '../src') },
+      alias: {
+        ...(cfg.resolve?.alias ?? {}),
+        '@': join(here, '../src'),
+        '@config': join(here, '../config'),
+      },
     };
     return cfg;
   },

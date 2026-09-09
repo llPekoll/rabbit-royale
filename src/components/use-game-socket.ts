@@ -1,41 +1,33 @@
 'use client';
 
 /**
- * The socket client. Mirrors the server's event vocabulary exactly.
+ * The socket client.
  *
- * This holds the client's COPY of the island, built from what the server sends.
- * It is not a second source of truth: every tile here arrived in a
- * `tile_revealed`, and the client never guesses what is under an unrevealed
- * tile because it genuinely does not know.
+ * Two consumers, deliberately split:
+ *  - the SCENE gets tile reveals and rabbit movement, pushed straight in. Those
+ *    fire many times a second and each one starts an animation; routing them
+ *    through React state would re-render the page per dug tile and fight the
+ *    engine's own tweens.
+ *  - REACT state holds only what the HUD shows (energy, carrots, the recap),
+ *    which changes rarely and belongs in the render tree.
+ *
+ * Nothing here is a second source of truth. Every tile this hook knows about
+ * arrived in a `tile_revealed`; it never guesses what is under an unrevealed
+ * one, because it genuinely does not know.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
-import type { Direction } from '@/lib/game/types';
-
-export interface ClientTile {
-  revealed: boolean;
-  content?: string;
-  adjacent?: number;
-  dugBy?: string;
-}
+import type { TileContent } from '@/lib/game/types';
+import type { IslandScene } from '@/game/scenes/IslandScene';
 
 export interface ClientRabbit {
   playerId: string;
   name: string;
-  x: number;
-  y: number;
+  tile: number;
   energy: number;
   carrots: number;
   alive: boolean;
   crowned: boolean;
-}
-
-export interface ClientIsland {
-  id: string;
-  width: number;
-  height: number;
-  tier: string;
-  tiles: ClientTile[];
 }
 
 export interface RunRecap {
@@ -45,86 +37,129 @@ export interface RunRecap {
   durationMs: number;
 }
 
-export function useGameSocket(token: string | null, playerId: string | null) {
+/** Resolves the live scene, or null before Pixi has finished booting. */
+type SceneGetter = () => IslandScene | null;
+
+export function useGameSocket(
+  token: string | null,
+  playerId: string | null,
+  spectate?: string | null,
+) {
   const socketRef = useRef<Socket | null>(null);
-  // Fetched rather than baked: see /api/config for why.
+  const sceneRef = useRef<SceneGetter>(() => null);
+  /** Events that arrived before the scene existed, replayed once it does. */
+  const pendingRef = useRef<Array<(s: IslandScene) => void>>([]);
+
   const [wsUrl, setWsUrl] = useState<string | null>(null);
-  const [island, setIsland] = useState<ClientIsland | null>(null);
+  const [islandSeed, setIslandSeed] = useState<string | null>(null);
   const [rabbits, setRabbits] = useState<Map<string, ClientRabbit>>(new Map());
   const [warnStage, setWarnStage] = useState(0);
-  const [erupting, setErupting] = useState(false);
   const [recap, setRecap] = useState<RunRecap | null>(null);
   const [connected, setConnected] = useState(false);
 
+  /** Apply to the scene now, or queue it until the scene exists. */
+  const toScene = useCallback((fn: (s: IslandScene) => void) => {
+    const scene = sceneRef.current();
+    if (scene) fn(scene);
+    else pendingRef.current.push(fn);
+  }, []);
+
+  const bindScene = useCallback((getter: SceneGetter) => {
+    sceneRef.current = getter;
+    const scene = getter();
+    if (!scene) return;
+    // Drain whatever arrived while Pixi was still loading its atlases — without
+    // this, the tiles dug during the boot would stay face-down forever.
+    const queued = pendingRef.current;
+    pendingRef.current = [];
+    for (const fn of queued) fn(scene);
+  }, []);
+
+  // The WS URL is fetched, not baked: see /api/config for why.
   useEffect(() => {
     fetch('/api/config')
       .then((r) => r.json())
       .then((c) => setWsUrl(c.wsUrl || window.location.origin))
-      // A failed config fetch should not strand the player on a blank screen:
-      // same-origin is the right guess for a single-host dev setup.
       .catch(() => setWsUrl(window.location.origin));
   }, []);
 
   useEffect(() => {
     if (!token || !wsUrl) return;
-    const socket = io(wsUrl, {
-      auth: { token },
-      transports: ['websocket'],
-    });
+    const socket = io(wsUrl, { auth: { token }, transports: ['websocket'] });
     socketRef.current = socket;
 
     socket.on('connect', () => {
       setConnected(true);
-      socket.emit('join');
+      socket.emit(spectate ? 'spectate' : 'join', spectate ? { playerId: spectate } : undefined);
     });
     socket.on('disconnect', () => setConnected(false));
 
-    socket.on('island', (snap: { island: ClientIsland; warnStage: number; rabbits: ClientRabbit[] }) => {
-      setIsland(snap.island);
+    socket.on('island', (snap: {
+      seed: string;
+      warnStage: number;
+      rabbits: ClientRabbit[];
+      revealed: Array<{ tile: number; content: TileContent; adjacent: number }>;
+    }) => {
+      setIslandSeed(snap.seed);
       setWarnStage(snap.warnStage);
-      setErupting(false);
       setRecap(null);
       setRabbits(new Map(snap.rabbits.map((r) => [r.playerId, r])));
-    });
-
-    // A dug tile is revealed for everyone on the island — including the tile
-    // someone ELSE dug, which is how the shared race stays legible.
-    socket.on('tile_revealed', (t: { x: number; y: number; content: string; adjacent: number; dugBy: string }) => {
-      setIsland((prev) => {
-        if (!prev) return prev;
-        const tiles = prev.tiles.slice();
-        tiles[t.y * prev.width + t.x] = { revealed: true, content: t.content, adjacent: t.adjacent, dugBy: t.dugBy };
-        return { ...prev, tiles };
+      // A joiner lands mid-run on an island others have been digging, so the
+      // snapshot carries what is already uncovered.
+      toScene((s) => {
+        for (const t of snap.revealed) s.revealTile(t.tile, t.content, t.adjacent);
+        snap.rabbits.forEach((r, i) => s.addRabbit(r.playerId, r.name, r.tile, i));
       });
     });
 
-    const upsert = (r: ClientRabbit) =>
+    socket.on('tile_revealed', (t: { tile: number; content: TileContent; adjacent: number }) => {
+      toScene((s) => s.revealTile(t.tile, t.content, t.adjacent));
+    });
+
+    socket.on('rabbit_moved', (r: ClientRabbit) => {
       setRabbits((prev) => new Map(prev).set(r.playerId, r));
-    socket.on('rabbit_moved', upsert);
-    socket.on('rabbit_joined', upsert);
+      toScene((s) => s.moveRabbit(r.playerId, r.tile));
+    });
+
+    socket.on('rabbit_joined', (r: ClientRabbit) => {
+      setRabbits((prev) => {
+        const next = new Map(prev).set(r.playerId, r);
+        toScene((s) => s.addRabbit(r.playerId, r.name, r.tile, next.size - 1));
+        return next;
+      });
+    });
+
     socket.on('rabbit_left', ({ playerId: gone, grace }: { playerId: string; grace: boolean }) => {
-      // A player in the reconnect grace window is still shown — they are
-      // refreshing, not gone, and blinking their rabbit out and back is worse.
+      // Someone in the reconnect window is refreshing, not gone. Blinking their
+      // rabbit out and straight back in is worse than leaving it standing.
       if (grace) return;
       setRabbits((prev) => {
         const next = new Map(prev);
         next.delete(gone);
         return next;
       });
+      toScene((s) => s.removeRabbit(gone));
+    });
+
+    socket.on('bomb_hit', ({ playerId: hit, tile }: { playerId: string; tile: number }) => {
+      toScene((s) => s.bombHit(hit, tile));
+    });
+
+    socket.on('rabbit_died', ({ playerId: dead }: { playerId: string }) => {
+      toScene((s) => s.killRabbit(dead));
     });
 
     socket.on('volcano', ({ stage }: { stage: number }) => setWarnStage(stage));
-    socket.on('eruption', () => setErupting(true));
     socket.on('run_over', (r: RunRecap) => setRecap(r));
 
     return () => { socket.disconnect(); socketRef.current = null; };
-  }, [token, wsUrl]);
+  }, [token, wsUrl, spectate, toScene]);
 
-  const move = useCallback((dir: Direction) => {
-    socketRef.current?.emit('move', { dir });
+  /** Ask to step onto a tile. The server decides whether it happens. */
+  const moveTo = useCallback((tile: number) => {
+    socketRef.current?.emit('move', { tile });
   }, []);
 
-  /** New run after death — the server drops the old seat and re-drops you in. */
   const restart = useCallback(() => {
     const socket = socketRef.current;
     if (!socket) return;
@@ -133,5 +168,5 @@ export function useGameSocket(token: string | null, playerId: string | null) {
   }, []);
 
   const me = playerId ? rabbits.get(playerId) ?? null : null;
-  return { island, rabbits, me, warnStage, erupting, recap, connected, move, restart };
+  return { islandSeed, rabbits, me, warnStage, recap, connected, moveTo, restart, bindScene };
 }

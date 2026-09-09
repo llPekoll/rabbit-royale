@@ -9,6 +9,9 @@ export default defineConfig({
   resolve: {
     // The game code imports through `@/…` exactly as Next resolves it; without
     // this the tests import a different module graph than the app runs.
-    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      '@config': fileURLToPath(new URL('./config', import.meta.url)),
+    },
   },
 });
