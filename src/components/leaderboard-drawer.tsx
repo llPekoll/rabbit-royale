@@ -59,7 +59,7 @@ export function LeaderboardDrawer({ token, playerId }: { token: string | null; p
         aria-controls="rr-leaderboard"
       >
         <span aria-hidden>👑</span>
-        <small>{me?.rank ? `#${me.rank}` : '–'}</small>
+        <small>{me?.rank ? `#${me.rank}` : '-'}</small>
       </button>
 
       <aside id="rr-leaderboard" className={`rr-lb${open ? ' open' : ''}`}>
@@ -68,7 +68,7 @@ export function LeaderboardDrawer({ token, playerId }: { token: string | null; p
           {daysLeft !== null && <span style={{ color: 'var(--muted)' }}>{daysLeft}d</span>}
           {/* Closing is phone-only chrome; on a wide screen the panel is just
               part of the page and there is nothing to close. */}
-          <button className="rr-lb-close" onClick={() => setOpen(false)} aria-label="Close">×</button>
+          <button className="rr-lb-close" onClick={() => setOpen(false)} aria-label="Close">&times;</button>
         </header>
 
         <div className="rr-lb-list">
@@ -88,7 +88,7 @@ export function LeaderboardDrawer({ token, playerId }: { token: string | null; p
               <span className="rr-lb-rank">{e.crowned ? '👑' : e.rank}</span>
               <span className="rr-lb-name">
                 {e.name}
-                <small>burrow {e.burrowLevel} · {e.lifetime} lifetime</small>
+                <small>burrow {e.burrowLevel} &middot; {e.lifetime} lifetime</small>
               </span>
               <span style={{ color: 'var(--carrot)' }}>{e.score}</span>
             </button>

@@ -34,7 +34,13 @@ export function PixiStage({ width, height, background = '#081120', assets, prepa
 
     (async () => {
       const a = new Application();
-      await a.init({ width, height, background, antialias: false, autoDensity: true, resolution: window.devicePixelRatio || 1 });
+      // Same ceiling as the game (see Application.ts MAX_RESOLUTION): a story
+      // that renders at a different pixel ratio is not showing what ships.
+      await a.init({
+        width, height, background, antialias: false, autoDensity: true,
+        resolution: Math.min(window.devicePixelRatio || 1, 2),
+      });
+      a.ticker.maxFPS = 60;
       if (disposed) { a.destroy(true, { children: true }); return; }
       app = a;
       hostRef.current?.appendChild(a.canvas);

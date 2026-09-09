@@ -14,8 +14,14 @@
 import { Assets, Container, Sprite, type Texture } from 'pixi.js';
 import * as Keys from '@/config/assetKeys';
 
-/** Where a cloud is allowed to be. Never over the island's playable middle. */
-export type CloudBand = 'top' | 'bottom' | 'left' | 'right';
+/**
+ * Where a cloud is allowed to be. Never over the island's playable middle.
+ *
+ * All four bands drift HORIZONTALLY: weather moves across a sky, and clouds
+ * that slid up and down the sides read as a lift rather than as wind. The bands
+ * differ in the height they sit at, not in the direction they travel.
+ */
+export type CloudBand = 'top' | 'upper' | 'lower' | 'bottom';
 
 export interface CloudFieldOptions {
   /** Design-space extent the clouds drift across. */
@@ -66,7 +72,7 @@ export class CloudField {
     parent.addChild(this.layer);
 
     const perBand = opts.perBand ?? 4;
-    const bands: CloudBand[] = ['top', 'bottom', 'left', 'right'];
+    const bands: CloudBand[] = ['top', 'upper', 'lower', 'bottom'];
     for (const band of bands) {
       for (let i = 0; i < perBand; i++) {
         const cloud = this.spawn(band);
@@ -98,9 +104,9 @@ export class CloudField {
   /**
    * Put a cloud at `t` (0..1) along its band's crossing.
    *
-   * Top and bottom drift horizontally; the sides drift vertically. Vertical on
-   * the sides rather than horizontal because a side cloud moving sideways would
-   * cross the island — and the whole rule here is that they stay off it.
+   * Every band runs left-to-right or right-to-left; only the height differs.
+   * Alternating the direction between bands keeps the sky from reading as one
+   * conveyor belt.
    */
   private place(cloud: Cloud, t: number): void {
     const { width: w, height: h } = this.opts;
@@ -111,44 +117,47 @@ export class CloudField {
     const m = MARGIN;
 
     switch (cloud.band) {
-      // Each band sits mostly OFF the frame: a cloud shows its inner edge and
-      // hangs the rest into the margin. The offsets are past the edge rather
-      // than inside it because these sprites are now larger than the canvas —
-      // centred on the frame they would sit squarely over the board, and the
-      // one rule here is that nothing covers the tiles the game is read from.
+      // The bands sit mostly OFF the frame, top and bottom: a cloud shows its
+      // inner edge and hangs the rest into the margin. These sprites are larger
+      // than the canvas, so a band centred on the frame would sit squarely over
+      // the board — and the one rule here is that nothing covers the tiles the
+      // game is read from.
       case 'top':
         s.x = -m + t * (w + m * 2);
-        s.y = rand([-h * 0.34, -h * 0.12]);
+        s.y = rand([-h * 0.34, -h * 0.18]);
+        break;
+      case 'upper':
+        s.x = w + m - t * (w + m * 2);   // the other way, so the sky is not a conveyor
+        s.y = rand([-h * 0.16, -h * 0.04]);
+        break;
+      case 'lower':
+        s.x = -m + t * (w + m * 2);
+        s.y = rand([h * 1.04, h * 1.16]);
         break;
       case 'bottom':
-        s.x = w + m - t * (w + m * 2);   // the other way, so the sky is not a conveyor
-        s.y = rand([h * 1.12, h * 1.34]);
-        break;
-      case 'left':
-        s.x = rand([-w * 0.30, -w * 0.12]);
-        s.y = -m + t * (h + m * 2);
-        break;
-      case 'right':
-        s.x = rand([w * 1.12, w * 1.30]);
-        s.y = h + m - t * (h + m * 2);
+        s.x = w + m - t * (w + m * 2);
+        s.y = rand([h * 1.18, h * 1.34]);
         break;
     }
   }
 
   /** Advance the field. `deltaMs` is real milliseconds. */
   update(deltaMs: number): void {
-    const { width: w, height: h } = this.opts;
+    const { width: w } = this.opts;
     const m = MARGIN;
     const dt = deltaMs / 1000;
 
     for (const cloud of this.clouds) {
       const s = cloud.sprite;
       const d = cloud.speed * dt;
-      switch (cloud.band) {
-        case 'top':    s.x += d; if (s.x > w + m) this.place(cloud, 0); break;
-        case 'bottom': s.x -= d; if (s.x < -m)    this.place(cloud, 0); break;
-        case 'left':   s.y += d; if (s.y > h + m) this.place(cloud, 0); break;
-        case 'right':  s.y -= d; if (s.y < -m)    this.place(cloud, 0); break;
+      // Horizontal, always: `top` and `lower` drift right, the other two left.
+      const rightwards = cloud.band === 'top' || cloud.band === 'lower';
+      if (rightwards) {
+        s.x += d;
+        if (s.x > w + m) this.place(cloud, 0);
+      } else {
+        s.x -= d;
+        if (s.x < -m) this.place(cloud, 0);
       }
     }
   }

@@ -123,7 +123,7 @@ function Recap({ recap, onAgain }: { recap: RunRecap; onAgain: () => void }) {
     <div className="rr-card" style={{ textAlign: 'center' }}>
       <h2 style={{ margin: '0 0 4px' }}>Run over</h2>
       <p style={{ color: 'var(--muted)', margin: '0 0 10px' }}>
-        🥕 {recap.carrots} · {recap.tilesDug} dug · 💣 {recap.bombsHit} ·{' '}
+        🥕 {recap.carrots} &middot; {recap.tilesDug} dug &middot; 💣 {recap.bombsHit}{' '}
         {(recap.durationMs / 1000).toFixed(0)}s
       </p>
       <button onClick={onAgain} style={{ width: '100%' }}>Again</button>

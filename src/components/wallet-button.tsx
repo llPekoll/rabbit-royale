@@ -15,7 +15,7 @@ export function WalletButton() {
   if (!player) {
     return (
       <button className="rr-wallet" onClick={login} disabled={busy}>
-        {busy ? 'Waiting…' : 'Connect wallet'}
+        {busy ? 'Waiting...' : 'Connect wallet'}
       </button>
     );
   }

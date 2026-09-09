@@ -52,7 +52,7 @@ function Home({ signedIn, stock, hp, maxHp, gardenReady, level, upgradeCost, boa
         <header className="rr-lb-head">
           <strong>👑 Season</strong>
           <span style={{ color: 'var(--muted)' }}>9d</span>
-          <button className="rr-lb-close" onClick={() => setOpen(false)}>×</button>
+          <button className="rr-lb-close" onClick={() => setOpen(false)}>&times;</button>
         </header>
         <div className="rr-lb-list">
           {ENTRIES.map((e) => (
@@ -63,7 +63,7 @@ function Home({ signedIn, stock, hp, maxHp, gardenReady, level, upgradeCost, boa
               <span className="rr-lb-rank">{e.crowned ? '👑' : e.rank}</span>
               <span className="rr-lb-name">
                 {e.name}
-                <small>burrow {e.burrow} · {e.lifetime} lifetime</small>
+                <small>burrow {e.burrow} &middot; {e.lifetime} lifetime</small>
               </span>
               <span style={{ color: 'var(--carrot)' }}>{e.score}</span>
             </button>
@@ -103,7 +103,7 @@ function Home({ signedIn, stock, hp, maxHp, gardenReady, level, upgradeCost, boa
             </div>
             <div className="rr-card">
               <div className="rr-row">
-                <span>Dig deeper — level {level}</span>
+                <span>Dig deeper &middot; level {level}</span>
                 <span style={{ color: 'var(--muted)' }}>{upgradeCost} 🥕</span>
               </div>
               <button style={{ width: '100%' }} disabled={stock < upgradeCost}>Upgrade</button>

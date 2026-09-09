@@ -60,9 +60,9 @@ export default function Home() {
         .then((r) => r.json());
       if (res.burrow) setBurrow(res.burrow);
       if (res.harvested) setNote(`+${res.harvested} 🥕`);
-      else if (res.spent) setNote(`Burrow deepened — ${res.spent} 🥕`);
+      else if (res.spent) setNote(`Burrow deepened: ${res.spent} 🥕`);
       else if (res.error === 'insufficient_carrots') setNote(`Need ${res.need - res.have} more 🥕`);
-      else if (res.error === 'nothing_to_harvest') setNote('The garden is empty — come back later.');
+      else if (res.error === 'nothing_to_harvest') setNote('The garden is empty. Come back later.');
       else if (res.error === 'max_level') setNote('Your burrow is as deep as it goes.');
     } finally {
       setPending(false);
@@ -101,7 +101,7 @@ export default function Home() {
             <div className="rr-card">
               <div className="rr-row">
                 <span>Hit points</span>
-                <span>{burrow?.hp ?? '–'} / {burrow?.maxHp ?? '–'}</span>
+                <span>{burrow?.hp ?? '-'} / {burrow?.maxHp ?? '-'}</span>
               </div>
               <div className="rr-meter">
                 <i style={{ width: `${burrow ? (burrow.hp / burrow.maxHp) * 100 : 0}%` }} />
@@ -127,9 +127,9 @@ export default function Home() {
 
             <div className="rr-card">
               <div className="rr-row">
-                <span>Dig deeper — level {burrow?.level ?? '–'}</span>
+                <span>Dig deeper &middot; level {burrow?.level ?? '-'}</span>
                 <span style={{ color: 'var(--muted)' }}>
-                  {burrow?.upgradeCost === null ? 'Max' : `${burrow?.upgradeCost ?? '–'} 🥕`}
+                  {burrow?.upgradeCost === null ? 'Max' : `${burrow?.upgradeCost ?? '-'} 🥕`}
                 </span>
               </div>
               <button

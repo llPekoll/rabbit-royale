@@ -229,12 +229,12 @@ export const Coastlines: Story = {
           const shape = makeShape(s);
           return (
             <div key={s} style={{ color: '#8b949e', font: '12px ui-monospace, monospace' }}>
-              <div style={{ marginBottom: 4 }}>{s} — {playableTiles(shape)} tiles</div>
+              <div style={{ marginBottom: 4 }}>{s} &middot; {playableTiles(shape)} tiles</div>
               <pre style={{ margin: 0, lineHeight: 1, color: '#3ecf7f' }}>
                 {Array.from({ length: ROWS }, (_, r) =>
                   Array.from({ length: COLS }, (_, c) => {
                     const i = r * COLS + c;
-                    return isForbidden(i, shape) ? ' ·' : (i === SPAWN_INDEX ? ' S' : ' █');
+                    return isForbidden(i, shape) ? ' .' : (i === SPAWN_INDEX ? ' S' : ' #');
                   }).join(''),
                 ).join('\n')}
               </pre>

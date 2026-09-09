@@ -1,4 +1,9 @@
 :root {
+  /* The arcade-kit's pixel face, pointed here by <PixelFont/> once it loads.
+     The fallback is a monospace stack rather than the system sans: if the font
+     never arrives, tabular digits keep the HUD from jittering. */
+  --font-pixel: ui-monospace, "SF Mono", Menlo, monospace;
+
   --bg: #0d1117;
   --panel: #161b22;
   --border: #30363d;
@@ -16,7 +21,11 @@ html, body {
   padding: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  /* Pixel everywhere. The game is drawn in 8px cells and the chrome around it
+     was in the system sans, which read as a web page wrapped around a game
+     rather than as one thing. The face is crispest at multiples of 8px. */
+  font-family: var(--font-pixel);
+  letter-spacing: 0.02em;
   /* Touch device: the grid is driven by taps and a d-pad, so browser gestures
      (pull-to-refresh, double-tap zoom) only ever get in the way. */
   overscroll-behavior: none;
@@ -361,8 +370,25 @@ button { min-height: 44px; min-width: 44px; }
      never lands between pixels. */
   flex: none;
 }
-.rr-go-down .rr-go-arrow { animation: rr-arrow-down 1.6s ease-in-out infinite; }
-.rr-go-up .rr-go-arrow { animation: rr-arrow-up 1.6s ease-in-out infinite; }
+
+/* The word leads, the arrow follows along the axis it points down: stacked,
+   the label reads first and the sprite below it is the direction of travel.
+   Side by side the arrow was pulling the eye off the word it belongs to. */
+.rr-go-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.rr-go-down .rr-go-inner { flex-direction: column; }
+.rr-go-up .rr-go-inner { flex-direction: column-reverse; }
+
+/* Word and arrow float as one object rather than the sprite drifting away
+   from the word it belongs to. The button itself stays put — animating it
+   would drag its hit area around under the thumb — so the pair rides on this
+   inner wrapper instead. */
+.rr-go-down .rr-go-inner { animation: rr-arrow-down 1.6s ease-in-out infinite; }
+.rr-go-up .rr-go-inner { animation: rr-arrow-up 1.6s ease-in-out infinite; }
 @keyframes rr-arrow-down {
   0%, 100% { transform: translateY(-3px); }
   50%      { transform: translateY(5px); }
@@ -373,7 +399,7 @@ button { min-height: 44px; min-width: 44px; }
 }
 /* A looping arrow is exactly the motion that makes some people ill. */
 @media (prefers-reduced-motion: reduce) {
-  .rr-go-arrow { animation: none !important; }
+  .rr-go-inner { animation: none !important; }
 }
 
 /* ── The season board ──────────────────────────────────────────────────────
@@ -467,3 +493,23 @@ button { min-height: 44px; min-width: 44px; }
   .rr-lb-tab, .rr-scrim, .rr-lb-close { display: none; }
   .rr-home { padding-right: calc(330px + 12px); }
 }
+
+/* ── Pixel type ────────────────────────────────────────────────────────────
+   The kit's face is an 8px cell, so it is crispest at whole multiples. These
+   are the sizes the interface actually uses, rounded onto that grid. */
+.rr-hud { font-size: 12px; }
+.rr-stat-value { font-size: 40px; letter-spacing: 0; }
+.rr-stat-label { font-size: 12px; }
+.rr-burrow-title { font-size: 16px; letter-spacing: 0.04em; }
+.rr-lb-row { font-size: 12px; }
+.rr-lb-name small { font-size: 8px; letter-spacing: 0; }
+.rr-lb-tab small { font-size: 8px; }
+.rr-wallet { font-size: 12px; }
+.rr-card { font-size: 12px; }
+.rr-go, .rr-back { font-size: 16px; }
+
+/* Headings keep their weight but not their size sprawl: a pixel face has one
+   weight, so hierarchy has to come from size and colour alone. */
+h1 { font-size: 20px; letter-spacing: 0.04em; }
+h2 { font-size: 16px; }
+button { font-family: var(--font-pixel); }

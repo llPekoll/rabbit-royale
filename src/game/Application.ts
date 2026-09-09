@@ -8,6 +8,27 @@ import { BootScene } from './scenes/BootScene';
  *  video's sea and this fill, so an approximate match is sufficient. */
 export const BG_COLOR = 0x1eaac4;
 
+/**
+ * Ceiling on the renderer's pixel ratio.
+ *
+ * The Seeker's screen is ~460 PPI, so a native `devicePixelRatio` of 3+ makes
+ * the GPU shade two to three times the pixels for art that is drawn on a coarse
+ * grid and scaled with nearest-neighbour — the extra samples land inside the
+ * same flat pixel blocks and are invisible by construction. Capping at 2 keeps
+ * the art crisp on any phone and gives the battery back the difference.
+ */
+const MAX_RESOLUTION = 2;
+
+/**
+ * Frames per second.
+ *
+ * The Seeker's panel can do 120, and letting the ticker run there doubles the
+ * work for a game whose pieces move one tile at a time on a 0.2s tween —
+ * nobody can see the difference on a grid, and the phone's battery pays for it
+ * all the same. Pinned at 60.
+ */
+const TARGET_FPS = 60;
+
 /** Design-space reference dimensions for each orientation. Scene code
  *  reads the live GAME_W / GAME_H below, which resize() swaps on rotation. */
 export const LANDSCAPE_W = 960;
@@ -57,12 +78,15 @@ export async function createApp(container: HTMLElement): Promise<GameApp> {
     width: window.innerWidth,
     height: window.innerHeight,
     backgroundAlpha: 0,
-    resolution: window.devicePixelRatio || 1,
+    resolution: Math.min(window.devicePixelRatio || 1, MAX_RESOLUTION),
     autoDensity: true,
     antialias: false,
     roundPixels: true,
     canvas: document.createElement('canvas'),
   });
+
+  // A 120Hz panel would otherwise drive the ticker at 120. See TARGET_FPS.
+  pixi.ticker.maxFPS = TARGET_FPS;
 
   const canvas = pixi.canvas as HTMLCanvasElement;
   canvas.style.width = '100vw';

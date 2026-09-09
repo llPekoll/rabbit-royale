@@ -30,7 +30,7 @@ function Overlay({ energy, carrots, rabbits, warnStage, spectating, recap }: Arg
     <div style={{ position: 'relative', height: '100dvh', overflow: 'hidden' }}>
       {/* Stand-in for the Pixi canvas, which is `position: fixed` in the app. */}
       <img
-        src="/assets/island/Island_over_video.png"
+        src="/assets/island/land2.png"
         alt=""
         style={{
           position: 'absolute', inset: 0, width: '100%', height: '100%',
@@ -57,7 +57,7 @@ function Overlay({ energy, carrots, rabbits, warnStage, spectating, recap }: Arg
           <div className="rr-card" style={{ textAlign: 'center' }}>
             <h2 style={{ margin: '0 0 4px' }}>Run over</h2>
             <p style={{ color: 'var(--muted)', margin: '0 0 10px' }}>
-              🥕 {carrots} · 34 dug · 💣 3 · 62s
+              🥕 {carrots} &middot; 34 dug &middot; 💣 3 &middot; 62s
             </p>
             <button style={{ width: '100%' }}>Again</button>
           </div>

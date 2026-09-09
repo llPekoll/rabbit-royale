@@ -25,6 +25,17 @@ export function GameCanvas({ seed, playerId, onMoveIntent, onSceneReady }: GameC
   // drop the WebGL context and restart the run visually.
   const appRef = useRef<GameApp | null>(null);
 
+  // The callbacks are read through refs rather than captured by the effect.
+  // The effect deliberately does NOT re-run when they change (rebuilding the
+  // whole board because a prop identity moved is exactly the re-render churn
+  // this boundary exists to prevent), so capturing them directly would leave
+  // the scene calling a stale handler — the bug that would bite the moment
+  // `spectating` flips and moves silently stopped working.
+  const moveRef = useRef(onMoveIntent);
+  const readyRef = useRef(onSceneReady);
+  moveRef.current = onMoveIntent;
+  readyRef.current = onSceneReady;
+
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
@@ -35,10 +46,14 @@ export function GameCanvas({ seed, playerId, onMoveIntent, onSceneReady }: GameC
       if (disposed) { app.destroy(); return; }
       appRef.current = app;
 
-      const data: IslandSceneData = { seed, playerId, onMoveIntent };
+      const data: IslandSceneData = {
+        seed,
+        playerId,
+        onMoveIntent: (tile) => moveRef.current(tile),
+      };
       await app.scenes.start(IslandScene, data);
       const scene = app.scenes.currentScene as IslandScene | null;
-      if (scene) onSceneReady(scene);
+      if (scene) readyRef.current(scene);
     })();
 
     return () => {

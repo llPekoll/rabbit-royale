@@ -67,8 +67,8 @@ function Scene({ traps, placing }: Args) {
         }}
       />
       <p style={{ color: '#8b949e', font: '12px ui-monospace, monospace', marginTop: 8 }}>
-        {placed.length} traps down · cap {TRAPS.MAX_PLACED} · entrance tile{' '}
-        {entranceTile()} · shortest crossing {shortestRaidPath()} steps
+        {placed.length} traps down &middot; cap {TRAPS.MAX_PLACED} &middot; entrance tile{' '}
+        {entranceTile()} &middot; shortest crossing {shortestRaidPath()} steps
       </p>
     </div>
   );

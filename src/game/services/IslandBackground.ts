@@ -1,72 +1,57 @@
 /**
- * The island backdrop: an animated video loop with a crisp PNG painted over it.
+ * The island's painted ground.
  *
- * Ported from the original Rabbit Royale's GameScene, extracted into its own
- * module because the scene there was 2200 lines and this part is reusable
- * verbatim. Two sprites, always transformed together:
+ * One sprite, chosen by SEED from the three paintings in public/assets/island.
+ * Three rather than one so two islands in a session do not look like the same
+ * place with the tiles moved, and chosen from the seed rather than at random so
+ * the server and the client land on the same picture without it crossing the
+ * wire — the same trick the coastline uses.
  *
- *  - the VIDEO carries the motion (sea, volcano smoke) and nothing else;
- *  - the PNG overlay carries the sharpness. The loop is a compressed video and
- *    its codec artefacts smear exactly the pixel edges this game is drawn in,
- *    so the island itself is painted once, properly, with the moving parts left
- *    transparent for the video to show through.
- *
- * Anything that moves one and forgets the other tears the island off its own
- * water, which is why `layout()` sets both from one computation.
+ * There WAS a video loop under this (drifting sea, volcano smoke) inherited
+ * from the original Rabbit Royale. It is gone: the paintings carry their own
+ * water, so the video was a second full-screen layer drawn under one that
+ * already covered it — pure overdraw, plus a decoded frame uploaded to the GPU
+ * every frame, on a phone. The sky's motion now comes from the clouds.
  */
 import { Container, Sprite, Texture } from 'pixi.js';
 import gsap from 'gsap';
 import { seedFrom } from '@/lib/game/rng';
 
-const VIDEO_WEBM = '/assets/island/Island Loop.webm';
-const VIDEO_MP4 = '/assets/island/Island Loop.mp4';
-const OVERLAY_URL = '/assets/island/Island_over_video.png';
-
-/**
- * The ground each island is drawn on, picked by SEED.
- *
- * Three paintings rather than one, so two islands in a session do not look like
- * the same place with the tiles moved. Chosen from the seed rather than at
- * random, so the server and the client land on the same picture without it
- * crossing the wire — the same trick the coastline uses.
- */
+/** The ground each island is drawn on, picked by seed. */
 const LANDS = [
   '/assets/island/land1.png',
   '/assets/island/land2.png',
   '/assets/island/land3.png',
 ] as const;
 
-/**
- * How much of the design space the island fills.
- *
- * The original drew the island at exactly the design size (960×540) around a
- * small 8×8 board. This grid is 16×16 — more than twice the span — so the
- * backdrop is ZOOMED past the canvas edges: the playable island grows to fill
- * the screen and the surrounding sea, which is only framing, is cropped away.
- * Bigger than ~1.9 and the volcano starts leaving the top of the frame.
- */
-export const ISLAND_ZOOM = 1.75;
-
-/** Width of the soft edge that hides the seam between video sea and background. */
-const FADE_PX = 100;
-
 /** The design canvas the ground has to cover. */
 const DESIGN_W = 960;
 const DESIGN_H = 540;
 
+/**
+ * How far the ground is zoomed past the frame.
+ *
+ * The paintings are small crops (~300px wide), so they are already upscaled to
+ * cover the canvas; this is on top of that. Kept at 1 — the board is drawn to
+ * fit the canvas, and enlarging the ground further only pushes its features
+ * out of view.
+ */
+export const ISLAND_ZOOM = 1;
+
 export interface IslandBackground {
-  /** Video and overlay, plus their masks. Added to the container given. */
   layout(centerX: number, centerY: number, zoom?: number): void;
   destroy(): void;
 }
 
+/** Which painting a seed lands on. Exported so a story can label itself. */
+export const landForSeed = (seed: string) => LANDS[seedFrom(seed) % LANDS.length];
+
 /**
- * Build the backdrop into `container`.
+ * Paint the ground into `container`.
  *
- * Resolves once the first video frame has decoded — waiting only for metadata
- * leaves a race where Pixi uploads an empty black frame. A 2s timeout keeps a
- * hard network failure from hanging the boot; the overlay PNG alone still
- * renders a perfectly playable island.
+ * Resolves once the image has decoded, so the board is never built over an
+ * empty frame. A failure is survivable: the tiles and the sky still draw, and
+ * the scene is playable on the flat background colour.
  */
 export async function createIslandBackground(
   container: Container,
@@ -75,168 +60,47 @@ export async function createIslandBackground(
   /** The island's seed. Decides which of the three grounds is painted. */
   seed?: string,
 ): Promise<IslandBackground> {
-  const video = document.createElement('video');
-  // Prefer WebM (VP9): universally supported by modern browsers and free of the
-  // proprietary H.264 decoder, which open-source Chromium builds lack.
-  video.src = video.canPlayType('video/webm; codecs="vp9"') ? VIDEO_WEBM : VIDEO_MP4;
-  video.loop = true;
-  video.muted = true;
-  video.playsInline = true;
-  video.autoplay = true;
-  video.preload = 'auto';
-  video.playbackRate = 0.667;
-
-  await new Promise<void>((resolve) => {
-    if (video.readyState >= 2 /* HAVE_CURRENT_DATA */) return resolve();
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const cleanup = () => {
-      if (timer !== null) clearTimeout(timer);
-      video.removeEventListener('loadeddata', onLoad);
-      video.removeEventListener('error', onErr);
-    };
-    const onLoad = () => { cleanup(); resolve(); };
-    const onErr = () => {
-      cleanup();
-      console.warn('[island] video failed to load', video.error);
-      resolve(); // proceed: the overlay PNG still draws the island
-    };
-    video.addEventListener('loadeddata', onLoad);
-    video.addEventListener('error', onErr);
-    timer = setTimeout(onLoad, 2000);
-    video.load();
-  });
-
-  // Start playback BEFORE building the texture so Pixi's VideoSource sees an
-  // already-playing element and wires its frame callbacks up from the start.
-  video.play().catch(() => {
-    const start = () => { void video.play(); document.removeEventListener('pointerdown', start); };
-    document.addEventListener('pointerdown', start);
-  });
-
-  const nativeW = video.videoWidth || 960;
-  const nativeH = video.videoHeight || 540;
-
-  const videoTex = Texture.from({ resource: video, scaleMode: 'nearest' });
-  videoTex.source.scaleMode = 'nearest';
-  videoTex.source.autoGenerateMipmaps = false;
-
-  const bg = new Sprite(videoTex);
-  bg.anchor.set(0.5);
-  bg.zIndex = -10;
-  container.addChild(bg);
-
-  // Feather all four edges so the video's ocean melts into the background
-  // colour. An exact hex match between video sample and Graphics fill is
-  // unreliable (video/WebGL colour transforms), so a soft fade is the robust
-  // way to hide the seam.
-  const maskTex = buildFadeMask(nativeW, nativeH);
-  const bgMask = new Sprite(maskTex);
-  bgMask.anchor.set(0.5);
-  container.addChild(bgMask);
-  bg.mask = bgMask;
-
-  // The crisp island, over the video. Which painting depends on the seed, so a
-  // new island genuinely looks like somewhere else.
-  let overlay: Sprite | null = null;
-  let overlayMask: Sprite | null = null;
   const img = new Image();
-  img.src = seed ? LANDS[seedFrom(seed) % LANDS.length] : OVERLAY_URL;
+  img.src = seed ? landForSeed(seed) : LANDS[0];
   try {
     await img.decode();
   } catch {
-    console.warn('[island] overlay failed to load; the video plays bare');
-  }
-  if (img.naturalWidth > 0) {
-    const tex = Texture.from(img);
-    tex.source.scaleMode = 'nearest';
-    tex.source.autoGenerateMipmaps = false;
-    overlay = new Sprite(tex);
-    overlay.anchor.set(0.5);
-    overlay.zIndex = -9.5;
-    container.addChild(overlay);
-    // A Pixi mask belongs to one object, so the overlay needs its own copy.
-    overlayMask = new Sprite(maskTex);
-    overlayMask.anchor.set(0.5);
-    container.addChild(overlayMask);
-    overlay.mask = overlayMask;
+    console.warn('[island] ground failed to load; playing on the flat sea colour');
   }
 
+  const tex = Texture.from(img);
+  tex.source.scaleMode = 'nearest';
+  tex.source.autoGenerateMipmaps = false;
 
-  // The ground's own pixel size, so it can be scaled independently of the video.
-  const landW = img.naturalWidth || nativeW;
-  const landH = img.naturalHeight || nativeH;
+  const ground = new Sprite(tex);
+  ground.anchor.set(0.5);
+  // Under every tile (tile depth starts at 0) and under the clouds at -9.
+  ground.zIndex = -10;
+  container.addChild(ground);
 
-  const sprites = () => [bg, bgMask, overlay, overlayMask].filter(Boolean) as Sprite[];
+  const nativeW = img.naturalWidth || DESIGN_W;
+  const nativeH = img.naturalHeight || DESIGN_H;
 
   const api: IslandBackground = {
     layout(cx, cy, zoom = ISLAND_ZOOM) {
-      // The video is authored at the design size and is ZOOMED past the frame,
-      // because the board is bigger than the island it was drawn around.
-      const vw = nativeW * zoom;
-      const vh = nativeH * zoom;
-      for (const s of [bg, bgMask]) {
-        s.position.set(cx, cy);
-        s.width = vw;
-        s.height = vh;
-      }
-
-      // The painted ground is a SMALL crop (~300px), so it gets its own scale:
-      // just enough to cover the frame, and no more. Riding the video's zoom
-      // put it at a 5x blowup — mush, and so tight you saw a tree trunk rather
-      // than an island.
-      const cover = Math.max(DESIGN_W / landW, DESIGN_H / landH);
-      for (const s of [overlay, overlayMask]) {
-        if (!s) continue;
-        s.position.set(cx, cy);
-        s.width = landW * cover;
-        s.height = landH * cover;
-      }
+      // Cover the canvas, no more: these are ~300px crops, so they are already
+      // being enlarged three-fold and any extra zoom is both blurrier and
+      // tighter than the island wants to be.
+      const cover = Math.max(DESIGN_W / nativeW, DESIGN_H / nativeH) * zoom;
+      ground.position.set(cx, cy);
+      ground.width = nativeW * cover;
+      ground.height = nativeH * cover;
     },
     destroy() {
-      video.pause();
-      video.src = '';
-      for (const s of sprites()) s.destroy();
+      ground.destroy();
     },
   };
 
   api.layout(centerX, centerY);
 
-  // Ease in rather than snapping: the video and its overlay fade together,
-  // because fading them separately shows the blurry video alone for a moment.
-  const fading = overlay ? [bg, overlay] : [bg];
-  for (const s of fading) s.alpha = 0;
-  gsap.to(fading, { alpha: 1, duration: 0.9, ease: 'power2.out' });
+  // Ease in rather than snapping: the board drops onto it a moment later.
+  ground.alpha = 0;
+  gsap.to(ground, { alpha: 1, duration: 0.9, ease: 'power2.out' });
 
   return api;
-}
-
-/** An opaque centre with feathered edges, as a texture usable as a Pixi mask. */
-function buildFadeMask(w: number, h: number): Texture {
-  const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext('2d')!;
-  ctx.fillStyle = 'white';
-  ctx.fillRect(0, 0, w, h);
-
-  const addFade = (orientation: 'v' | 'h', span: number) => {
-    const g = orientation === 'v'
-      ? ctx.createLinearGradient(0, 0, 0, h)
-      : ctx.createLinearGradient(0, 0, w, 0);
-    const start = FADE_PX / span;
-    g.addColorStop(0, 'rgba(255,255,255,0)');
-    g.addColorStop(start, 'rgba(255,255,255,1)');
-    g.addColorStop(1 - start, 'rgba(255,255,255,1)');
-    g.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, w, h);
-  };
-  // destination-in keeps the INTERSECTION of both gradients: opaque centre,
-  // feathered on all four sides.
-  ctx.globalCompositeOperation = 'destination-in';
-  addFade('v', h);
-  addFade('h', w);
-  ctx.globalCompositeOperation = 'source-over';
-
-  return Texture.from(canvas);
 }
