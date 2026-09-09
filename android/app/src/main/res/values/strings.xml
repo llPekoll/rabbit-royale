@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Rabbit Royale</string>
+    <string name="notif_channel_id">rr_default</string>
+    <string name="notif_channel_name">Raids et saisons</string>
+    <string name="notif_channel_desc">Ton terrier attaqué, ta saison qui se termine.</string>
+</resources>

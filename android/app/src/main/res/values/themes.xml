@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Fond identique au --bg du site : sans ça, un flash blanc apparaît entre
+         le lancement de l'activité et le premier paint de la WebView. -->
+    <style name="Theme.RabbitRoyale" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowBackground">@color/bg</item>
+        <item name="android:statusBarColor">@color/bg</item>
+        <item name="android:navigationBarColor">@color/bg</item>
+    </style>
+</resources>

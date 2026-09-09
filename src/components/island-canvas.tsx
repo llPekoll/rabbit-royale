@@ -11,10 +11,8 @@
  * playtest question.
  */
 import { useEffect, useRef } from 'react';
+import { isoOrigin, toScreen, toTile, TILE_H, TILE_W } from '@/lib/game/iso';
 import type { ClientIsland, ClientRabbit } from './use-game-socket';
-
-const TILE_W = 56;
-const TILE_H = 28;
 
 /** Minesweeper's classic hint colours — learned muscle memory, so kept. */
 const HINT_COLORS = ['', '#4aa3ff', '#3ecf7f', '#ff6b6b', '#b46bff', '#ffb03a', '#3ecfcf', '#dddddd', '#888888'];
@@ -24,11 +22,14 @@ export function IslandCanvas({
   rabbits,
   meId,
   warnStage,
+  onTapTile,
 }: {
   island: ClientIsland;
   rabbits: Map<string, ClientRabbit>;
   meId: string | null;
   warnStage: number;
+  /** Tapping a tile is the primary control on a phone. */
+  onTapTile?: (x: number, y: number) => void;
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
 
@@ -47,12 +48,10 @@ export function IslandCanvas({
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
 
-    const originX = island.height * (TILE_W / 2);
-    const originY = TILE_H * 3;
-    const iso = (x: number, y: number) => ({
-      sx: originX + (x - y) * (TILE_W / 2),
-      sy: originY + (x + y) * (TILE_H / 2),
-    });
+    // Shared with the hit-test below — see lib/game/iso.ts for why they must
+    // be the same code and not two copies of the same formula.
+    const origin = isoOrigin(island.height);
+    const iso = (x: number, y: number) => toScreen(origin, x, y);
 
     const diamond = (sx: number, sy: number, fill: string, stroke: string) => {
       ctx.beginPath();
@@ -127,5 +126,45 @@ export function IslandCanvas({
     }
   }, [island, rabbits, meId, warnStage]);
 
-  return <canvas ref={ref} style={{ imageRendering: 'pixelated', display: 'block', margin: '0 auto' }} />;
+  /**
+   * Screen point → tile, via the SAME module the renderer projects with, so the
+   * two cannot drift apart. A mismatch means taps land on the wrong tile, which
+   * a player reads as "the controls are broken".
+   *
+   * The canvas is CSS-scaled on small screens, so the raw client offset has to
+   * be divided by the ratio between the layout box and the drawing box —
+   * without that, taps drift further off the further you are from the origin.
+   */
+  const handleTap = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!onTapTile) return;
+    const canvas = ref.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const scale = rect.width / (canvas.width / (window.devicePixelRatio || 1));
+    const px = (e.clientX - rect.left) / scale;
+    const py = (e.clientY - rect.top) / scale;
+
+    const { x, y } = toTile(isoOrigin(island.height), px, py);
+    if (x < 0 || y < 0 || x >= island.width || y >= island.height) return;
+    onTapTile(x, y);
+  };
+
+  return (
+    <canvas
+      ref={ref}
+      onPointerDown={handleTap}
+      style={{
+        imageRendering: 'pixelated',
+        display: 'block',
+        margin: '0 auto',
+        // The board pans inside .rr-board rather than letting the browser treat
+        // a drag as a page gesture.
+        touchAction: 'none',
+        // A 20-wide island is ~1100px: wider than any phone. Let it shrink to
+        // fit rather than forcing the player to pan on every single move.
+        maxWidth: '100%',
+        height: 'auto',
+      }}
+    />
+  );
 }

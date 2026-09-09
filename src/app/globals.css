@@ -35,3 +35,82 @@ button {
 }
 button:active { transform: translateY(1px); }
 button:disabled { opacity: 0.5; cursor: default; }
+
+/* ── Mobile first ──────────────────────────────────────────────────────────
+   The Seeker is the target device, so the phone layout is the layout and the
+   desktop simply gets more room. Two things matter more here than on a
+   desktop: the board must never push the page sideways, and the controls must
+   sit where a thumb already is. */
+
+html, body {
+  height: 100%;
+  /* The native shell draws under the notch (that is the point of not using a
+     TWA), so the page has to keep its own content out of it. */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+           env(safe-area-inset-bottom) env(safe-area-inset-left);
+  /* A game is not a document: the page itself never scrolls, the board pans. */
+  overflow: hidden;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Anything a thumb hits is at least 44px — below that, taps miss under
+   pressure, and this game is played in a hurry. */
+button { min-height: 44px; min-width: 44px; }
+
+.rr-screen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 8px;
+}
+
+/* The board pans inside its own box. Without this the canvas widens the body
+   and the whole page scrolls sideways mid-run. */
+.rr-board {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  display: grid;
+  place-items: center;
+}
+
+.rr-hud {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;  /* the HUD must not jitter as digits change */
+}
+
+/* The d-pad sits bottom-right: this is a one-handed game, and centring the
+   controls puts them where the holding thumb cannot reach. */
+.rr-dpad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  width: min(210px, 55vw);
+  margin: 0 auto 8px;
+  align-self: end;
+  justify-self: end;
+}
+.rr-dpad button {
+  aspect-ratio: 1;
+  font-size: 22px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+}
+
+@media (min-width: 720px) {
+  /* Desktop plays on the keyboard; the d-pad is only in the way. */
+  .rr-dpad { display: none; }
+}

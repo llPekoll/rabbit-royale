@@ -24,6 +24,22 @@ export default function Play() {
   const game = useGameSocket(token, player?.id ?? null);
   const { move, restart, recap } = game;
 
+  /**
+   * Tap a neighbouring tile to move onto it. On a phone this is the primary
+   * control — a d-pad alone makes the player aim at a button instead of at the
+   * board. Only the four adjacent tiles respond: the server would reject
+   * anything else anyway, and pathfinding across a minefield is not a thing a
+   * player wants done automatically.
+   */
+  const tapTile = (x: number, y: number) => {
+    const me = game.me;
+    if (!me) return;
+    const dx = x - me.x;
+    const dy = y - me.y;
+    if (Math.abs(dx) + Math.abs(dy) !== 1) return;
+    move(dx === 1 ? 'right' : dx === -1 ? 'left' : dy === 1 ? 'down' : 'up');
+  };
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       // R restarts instantly — the fastest possible retry loop is what makes a
@@ -55,20 +71,21 @@ export default function Play() {
   }
 
   return (
-    <main style={{ padding: 12 }}>
+    <main className="rr-screen" style={{ padding: 10 }}>
       <Hud game={game} name={player.name} />
 
       {game.island ? (
-        <div style={{ overflow: 'auto', marginTop: 12 }}>
+        <div className="rr-board">
           <IslandCanvas
             island={game.island}
             rabbits={game.rabbits}
             meId={player.id}
             warnStage={game.warnStage}
+            onTapTile={tapTile}
           />
         </div>
       ) : (
-        <p style={{ textAlign: 'center', color: 'var(--muted)', marginTop: 64 }}>
+        <p className="rr-board" style={{ color: 'var(--muted)' }}>
           {game.connected ? 'Finding an island…' : 'Connecting…'}
         </p>
       )}
@@ -91,11 +108,7 @@ export default function Play() {
 function Hud({ game, name }: { game: ReturnType<typeof useGameSocket>; name: string }) {
   const me = game.me;
   return (
-    <header style={{
-      display: 'flex', gap: 16, justifyContent: 'center', alignItems: 'center',
-      padding: '10px 14px', background: 'var(--panel)', border: '1px solid var(--border)',
-      borderRadius: 10, flexWrap: 'wrap',
-    }}>
+    <header className="rr-hud">
       <strong>{name}</strong>
       <span title="Energy">⚡ {me?.energy ?? '–'}</span>
       <span title="Carrots this run" style={{ color: 'var(--carrot)' }}>🥕 {me?.carrots ?? 0}</span>
@@ -111,18 +124,12 @@ function Hud({ game, name }: { game: ReturnType<typeof useGameSocket>; name: str
 /** Touch controls. The Seeker is a phone — a keyboard is the fallback, not the plan. */
 function DPad({ onMove }: { onMove: (d: Direction) => void }) {
   const btn = (label: string, dir: Direction) => (
-    <button
-      onPointerDown={(e) => { e.preventDefault(); onMove(dir); }}
-      style={{ width: 64, height: 64, fontSize: 22 }}
-    >
-      {label}
-    </button>
+    // pointerdown, not click: a click waits for the release, which costs a
+    // noticeable beat on every single move.
+    <button onPointerDown={(e) => { e.preventDefault(); onMove(dir); }}>{label}</button>
   );
   return (
-    <div style={{
-      display: 'grid', gridTemplateColumns: 'repeat(3, 64px)', gap: 8,
-      justifyContent: 'center', marginTop: 20,
-    }}>
+    <div className="rr-dpad">
       <div /> {btn('↑', 'up')} <div />
       {btn('←', 'left')} <div /> {btn('→', 'right')}
       <div /> {btn('↓', 'down')} <div />

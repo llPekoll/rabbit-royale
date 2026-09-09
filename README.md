@@ -151,3 +151,43 @@ untouched by design.
 Read [BUILD-PLAN.md](./BUILD-PLAN.md) before starting a phase, and put the GDD
 at the repo root — it is the tiebreaker for every design question, and it is not
 in this repo yet.
+
+---
+
+## Le client natif Android (`android/`)
+
+**Kotlin natif, pas un TWA** — délibérément. Un TWA délègue le rendu à Chrome,
+ce qui coûte trois choses dont le jeu ne peut pas se passer :
+
+- dessiner **sous l'encoche** (un TWA laisse une bande noire) ;
+- garder le **plein écran immersif** pendant une partie ;
+- injecter un **pont JavaScript** vers le Seed Vault et vers FCM.
+
+Ici l'app tient sa propre fenêtre et charge le jeu dans une WebView qu'elle
+contrôle. Elle reprend la structure de `seeker-app`, qui a déjà fait ses preuves.
+
+| Fichier | Rôle |
+| --- | --- |
+| `MainActivity.kt` | La fenêtre : edge-to-edge, encoche, immersif, permission notifs. |
+| `WalletBridge.kt` | `window.AndroidWallet` — Mobile Wallet Adapter / Seed Vault. |
+| `RoyaleMessagingService.kt` | Réception FCM **application fermée**. |
+
+Côté web, `src/components/native-bridge.ts` présente ce pont sous la même forme
+qu'un wallet de navigateur, donc **un seul chemin de code** sert le Seeker et le
+bureau : le serveur ne voit aucune différence.
+
+### Les notifications
+
+Elles ne sont pas un bonus : la boucle PvP ne rappelle personne sans elles. Un
+raid subi pendant la nuit doit réveiller le joueur, pas l'attendre — d'où FCM
+natif plutôt qu'une notification web, qui ne partirait pas application fermée.
+Android 13+ exige une demande **à l'exécution** ; la déclaration au manifest ne
+suffit pas (leçon déjà payée sur `seeker-app`).
+
+```bash
+cd android
+RR_GAME_URL=https://…  ./gradlew assembleRelease
+```
+
+Il manque `app/google-services.json` (console Firebase) — sans lui, le module
+`google-services` fait échouer le build. C'est la seule pièce manquante.

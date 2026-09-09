@@ -13,6 +13,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import bs58 from 'bs58';
+import { isNative, nativeWallet } from './native-bridge';
 
 export interface Player {
   id: string;
@@ -22,13 +23,12 @@ export interface Player {
 
 interface InjectedWallet {
   connect(): Promise<{ publicKey: { toString(): string } }>;
-  signMessage(msg: Uint8Array, encoding?: string): Promise<{ signature: Uint8Array }>;
+  /** Raw bytes from a browser wallet; a base58 string from the native bridge. */
+  signMessage(msg: Uint8Array, encoding?: string): Promise<{ signature: Uint8Array | string }>;
 }
 
 declare global {
   interface Window {
-    /** Injected by the Android wrapper — Mobile Wallet Adapter over the bridge. */
-    rrWallet?: InjectedWallet;
     solana?: InjectedWallet;
   }
 }
@@ -57,8 +57,11 @@ export function useWalletLogin() {
     setError(null);
     setBusy(true);
     try {
-      const wallet = window.rrWallet ?? window.solana;
-      if (!wallet) throw new Error('No wallet found. Open in the Seeker app or install a Solana wallet.');
+      // Native shell (Seeker / Seed Vault) first, browser wallet second. Both
+      // present the same interface — see native-bridge.ts.
+      const native = isNative() ? nativeWallet() : null;
+      const wallet = native ?? window.solana;
+      if (!wallet) throw new Error('No wallet found. Open in the Rabbit Royale app or install a Solana wallet.');
 
       const { publicKey } = await wallet.connect();
       const address = publicKey.toString();
@@ -70,8 +73,12 @@ export function useWalletLogin() {
       }).then((r) => r.json());
       if (challenge.error) throw new Error(challenge.error);
 
+      // The native bridge signs the string itself and hands back base58; a
+      // browser wallet returns raw bytes we encode here.
+      native?.setMessage(challenge.message);
       const signed = await wallet.signMessage(new TextEncoder().encode(challenge.message), 'utf8');
-      const signature = bs58.encode(signed.signature);
+      const signature =
+        typeof signed.signature === 'string' ? signed.signature : bs58.encode(signed.signature);
 
       const res = await fetch('/api/auth/verify', {
         method: 'POST',
