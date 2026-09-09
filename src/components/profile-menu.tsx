@@ -231,20 +231,25 @@ export function ProfileMenu({
  * to the art rather than to the grid is what stops the avatar sitting in a
  * pocket of empty space.
  */
-const AVATAR_TOP = 16;
-const AVATAR_H = AVATAR_FRAME - AVATAR_TOP;
+/**
+ * Where the rabbit actually is inside frame 0, measured from the sheets (all
+ * five are identical): x 8..22, y 18..32. Cropping to the ART rather than to
+ * the 32px cell is what stops the avatar floating in a pocket of empty space.
+ */
+const ART = { x: 8, y: 18, w: 14, h: 14 };
 
 function Avatar({ src, size }: { src: string; size: number }) {
-  const w = AVATAR_FRAME * size;
   return (
     <span
       className="rr-avatar"
       style={{
-        width: w,
-        height: AVATAR_H * size,
+        width: ART.w * size,
+        height: ART.h * size,
         backgroundImage: `url('${src}')`,
-        backgroundSize: `${w * 8}px auto`,
-        backgroundPosition: `0 ${-AVATAR_TOP * size}px`,
+        // The sheet is 8 frames wide and 8 tall, so it scales as a whole and
+        // the window is slid onto the one frame we want.
+        backgroundSize: `${AVATAR_FRAME * 8 * size}px auto`,
+        backgroundPosition: `${-ART.x * size}px ${-ART.y * size}px`,
       }}
       aria-hidden
     />

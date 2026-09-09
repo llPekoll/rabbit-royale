@@ -9,8 +9,9 @@ slice is 1px WIDE and the caps are left/right rather than top/bottom.
 
 Drawn in code rather than by hand so the whole set stays on one grid and one
 palette, and so a colour tweak is a re-run instead of a re-draw. Output is 1x
-pixel art — the page scales it with image-rendering: pixelated, which is what
-keeps the edges hard.
+lossless WebP — the page scales it with image-rendering: pixelated, which is
+what keeps the edges hard, and lossy compression would smear exactly the hard
+edges the art is made of.
 
 Palette follows the INSERT COIN logo, held identical to fuse's: heavy near-black
 outline, saturated core, a lighter bevel and a darker one, no anti-aliasing.
@@ -127,14 +128,16 @@ def build():
     made = []
     for part, w in (("base", BASE_W), ("mid", MID_W), ("cap", CAP_W)):
         img = shell_slice(w, part)
-        name = f"{OUT}/bar-shell-{part}.png"
-        img.save(name)
+        name = f"{OUT}/bar-shell-{part}.webp"
+        # Lossless, always: WebP's lossy mode blends neighbouring pixels, which
+        # is precisely the hard edge this art is made of.
+        img.save(name, lossless=True)
         made.append((name, img.size))
     for cname, colors in FILLS.items():
         for part, w in (("cap", 3), ("mid", MID_W)):
             img = fill_slice(w, part, colors)
-            name = f"{OUT}/bar-fill-{cname}-{part}.png"
-            img.save(name)
+            name = f"{OUT}/bar-fill-{cname}-{part}.webp"
+            img.save(name, lossless=True)
             made.append((name, img.size))
     return made
 

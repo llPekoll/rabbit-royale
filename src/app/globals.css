@@ -620,14 +620,13 @@ button { min-height: 44px; min-width: 44px; }
   image-rendering: pixelated;
   flex: none;
 }
-/* Same crop as the panel's Avatar: the rabbit stands at the bottom of its
-   32px cell, so the chip shows the bottom half of the frame at 1x. */
+/* Same crop as the panel's Avatar (art at x8 y18, 14x14 in frame 0), at 1x. */
 .rr-wallet-face {
-  width: 32px;
-  height: 16px;
-  background-position: 0 -16px;
+  width: 14px;
+  height: 14px;
+  background-position: -8px -18px;
   vertical-align: -3px;
-  margin-right: 2px;
+  margin-right: 5px;
 }
 
 /* A fixed track rather than wrapping flex: the rabbits are all one size, so a

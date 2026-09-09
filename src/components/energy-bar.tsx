@@ -65,8 +65,8 @@ export function EnergyBar({ energy, bombCost = ENERGY.BOMB_LOSS }: EnergyBarProp
             // pixel art must never do.
             width: `round(down, (100% - 2 * var(--rr-gauge-wall)) * ${pct}, calc(1px * var(--rr-gauge-px)))`,
             background: `
-              url('${FILL}-${tone}-cap.png') right center / auto 100% no-repeat,
-              url('${FILL}-${tone}-mid.png') left center / auto 100% repeat-x`,
+              url('${FILL}-${tone}-cap.webp') right center / auto 100% no-repeat,
+              url('${FILL}-${tone}-mid.webp') left center / auto 100% repeat-x`,
           }}
         />
         {/* The death line: one bomb's worth. Painted over the fill so a full
