@@ -19,6 +19,7 @@ import { loadAllAssets } from '@/game/services/AssetLoader';
 import { initTileTextures } from '@/game/services/TileTextures';
 import { getExplosionTextures } from '@/game/services/AssetLoader';
 import { createIslandBackground } from '@/game/services/IslandBackground';
+import { CloudField } from '@/game/fx/Clouds';
 import * as Keys from '@/config/assetKeys';
 import {
   COLS, ROWS, SPAWN_INDEX, makeShape, isForbidden, neighbors, playableTiles, tilePos,
@@ -89,6 +90,11 @@ function Scene({ seed, bombDensity, rabbits, stepMs, islandZoom, background }: A
           });
         }
 
+        // The sky, on every side of the island.
+        const sky = new CloudField(stage, { width: 960, height: 540 });
+        const ticker = (t: { deltaTime: number }) => sky.update(t.deltaTime * (1000 / 60));
+        app.ticker.add(ticker);
+
         const island = fakeIsland(seed, bombDensity);
         const board = new Container();
         board.sortableChildren = true;
@@ -155,6 +161,8 @@ function Scene({ seed, bombDensity, rabbits, stepMs, islandZoom, background }: A
 
         return () => {
           clearInterval(timer);
+          app.ticker.remove(ticker);
+          sky.destroy();
           bg?.destroy();
         };
       }}

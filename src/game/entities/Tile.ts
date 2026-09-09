@@ -434,6 +434,10 @@ export class Tile {
     gsap.killTweensOf(this.blinkGfx);
     this.blinkGfx.alpha = 0;
     this.blinkGfx.visible = on;
+    // A lit tile is a clickable one, so say so with the cursor too — on a
+    // desktop the pointer is the affordance a player reads before the glow.
+    // (A phone has no cursor and simply ignores this.)
+    this.container.cursor = on ? 'pointer' : 'default';
   }
 
   /** One-shot gold flash: snap to full opacity, then fade back to

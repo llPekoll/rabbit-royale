@@ -1,5 +1,8 @@
 import { Container, Graphics } from 'pixi.js';
-import { HALF_W, HALF_H, tilePos, tileDepth, tileInScreenDirection } from '@/config/gridConfig';
+import {
+  HALF_W, HALF_H, tilePos, tileDepth, tileInScreenDirection,
+  DEFAULT_SHAPE, type IslandShape,
+} from '@/config/gridConfig';
 
 /**
  * The keyboard hint, drawn ON THE BOARD.
@@ -48,7 +51,12 @@ export class MoveArrows {
   private alpha = ALPHA_IDLE;
   private shown = false;
 
-  constructor(private parent: Container) {
+  /**
+   * The island's coastline. Every island now has its OWN shape (cut from its
+   * seed), so the hint has to know which one it is annotating — otherwise it
+   * points confidently at water on any island but the default.
+   */
+  constructor(private parent: Container, private shape: IslandShape = DEFAULT_SHAPE) {
 
     for (const [dx, dy] of HEADINGS) {
       const g = new Graphics();
@@ -89,7 +97,7 @@ export class MoveArrows {
       return;
     }
     HEADINGS.forEach(([dx, dy], i) => {
-      const target = tileInScreenDirection(from, dx, dy);
+      const target = tileInScreenDirection(from, dx, dy, this.shape);
       const g = this.arrows[i];
       if (target === null) { g.visible = false; return; }
       const { x, y } = tilePos(target);

@@ -30,6 +30,11 @@ const IMAGES = [
   // The carrot comes from the shared kit rather than public/: it is the same
   // prop the hub's season pass draws, and one copy means one carrot.
   { key: Keys.CARROT, src: CARROT_URL },
+  // The drifting clouds. Eight shapes so a sky of them never visibly repeats.
+  ...Array.from({ length: Keys.CLOUD_COUNT }, (_, i) => ({
+    key: Keys.cloudKey(i + 1),
+    src: `/assets/clouds/Clouds_0${i + 1}.png`,
+  })),
 ];
 
 // Golden coin frames now come from @domin8/arcade-kit (loadCoinAssets) — see

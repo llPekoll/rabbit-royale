@@ -22,11 +22,13 @@ import { SoundManager } from '../services/SoundManager';
 import { getExplosionTextures } from '../services/AssetLoader';
 import { KeyboardControls } from '../services/KeyboardControls';
 import { createIslandBackground, type IslandBackground } from '../services/IslandBackground';
+import { MoveArrows } from '../ui/MoveArrows';
+import { CloudField } from '../fx/Clouds';
 import * as Keys from '@/config/assetKeys';
 import {
   COLS, ROWS, SPAWN_INDEX, GRID_CENTER_X, GRID_CENTER_Y,
-  isForbidden, makeShape, screenToTile, tilePos, tileInScreenDirection, toColRow,
-  type IslandShape,
+  isForbidden, makeShape, neighbors, screenToTile, tilePos, tileInScreenDirection,
+  toColRow, type IslandShape,
 } from '@/config/gridConfig';
 import type { TileContent } from '@/lib/game/types';
 
@@ -47,6 +49,8 @@ const EXPLOSION_LIFT = 20;
 const EXPLOSION_FPS = 20;
 /** Peak offset of the board kick, in design px. */
 const SHAKE_PX = 4;
+/** Seconds between blinks as the sweep travels round the rabbit. */
+const SWEEP_STEP_SECONDS = 0.25;
 
 /** The bunny sheets, handed out per player so four rabbits are distinguishable. */
 const BUNNY_SHEETS = [
@@ -65,6 +69,12 @@ export class IslandScene implements Scene {
   private tiles = new Map<number, Tile>();
   private rabbits = new Map<string, PlayerRabbit>();
   private data: IslandSceneData | null = null;
+
+  /** The tiles currently lit as reachable, and the sweep running over them. */
+  private highlighted: number[] = [];
+  private sweep: gsap.core.Tween | null = null;
+  private arrows: MoveArrows | null = null;
+  private clouds: CloudField | null = null;
 
   /** Where the local rabbit is, for direction-relative movement. */
   private myTile = SPAWN_INDEX;
@@ -87,8 +97,19 @@ export class IslandScene implements Scene {
       GAME_H / 2,
     );
 
+    // The sky, behind everything: the island already moves (surf, volcano
+    // smoke), so a dead blue border around it makes the frame look like a
+    // screenshot. Clouds only ever cross the SEA — never the board, where they
+    // would hide the numbers the game is read from.
+    this.clouds = new CloudField(this.container, { width: GAME_W, height: GAME_H });
+
     this.buildTiles();
+    // The keyboard hint, drawn ON the board rather than as a legend beside it:
+    // the board answers "where does UP go?" by pointing at the answer.
+    this.arrows = new MoveArrows(this.container, this.shape);
+    this.arrows.setVisible(true);
     this.attachControls();
+    this.refreshReachable();
     this.sound.startMusic(Keys.MUSIC_ISLAND);
   }
 
@@ -97,10 +118,80 @@ export class IslandScene implements Scene {
     for (let i = 0; i < COLS * ROWS; i++) {
       if (isForbidden(i, this.shape)) continue;
       const tile = new Tile(i);
+      // Per-tile click. The Seeker is a touch device, so this — not the
+      // keyboard — is how the game is actually played.
+      tile.container.on('pointertap', () => this.requestMove(i));
       this.tiles.set(i, tile);
       this.container.addChild(tile.container);
     }
     this.tiles.get(SPAWN_INDEX)?.markSpawn();
+  }
+
+  // ── Reachability ───────────────────────────────────────────────────────────
+
+  /**
+   * Light the tiles a single step can reach, and put the direction marks on the
+   * four a key press covers.
+   *
+   * This is the game's whole affordance: on an isometric board "which squares
+   * can I click?" is not obvious from the geometry, and lighting them answers
+   * it without a tutorial. Called after every step, so the ring travels with
+   * the rabbit.
+   */
+  private refreshReachable(): void {
+    this.clearHighlights();
+
+    const me = this.data ? this.rabbits.get(this.data.playerId) : null;
+    if (!me) {
+      this.arrows?.update(null);
+      return;
+    }
+
+    for (const index of neighbors(this.myTile, this.shape)) {
+      const tile = this.tiles.get(index);
+      if (!tile) continue;
+      tile.setHighlight(true);
+      this.highlighted.push(index);
+    }
+    this.arrows?.update(this.myTile);
+    this.startSweep();
+  }
+
+  /**
+   * Blink the lit tiles one at a time, going round the rabbit, so the ring
+   * reads as a rotating sweep rather than an uncoordinated twinkle. Sorted by
+   * ANGLE from the rabbit, which is what makes it travel in a circle rather
+   * than in index order.
+   */
+  private startSweep(): void {
+    this.stopSweep();
+    if (this.highlighted.length === 0) return;
+
+    const { col: rc, row: rr } = toColRow(this.myTile);
+    const ring = [...this.highlighted].sort((a, b) => {
+      const p = toColRow(a);
+      const q = toColRow(b);
+      return Math.atan2(p.row - rr, p.col - rc) - Math.atan2(q.row - rr, q.col - rc);
+    });
+
+    let step = 0;
+    const tick = () => {
+      this.tiles.get(ring[step % ring.length])?.blink();
+      step++;
+      this.sweep = gsap.delayedCall(SWEEP_STEP_SECONDS, tick);
+    };
+    tick();
+  }
+
+  private stopSweep(): void {
+    this.sweep?.kill();
+    this.sweep = null;
+  }
+
+  private clearHighlights(): void {
+    this.stopSweep();
+    for (const index of this.highlighted) this.tiles.get(index)?.setHighlight(false);
+    this.highlighted = [];
   }
 
   // ── Input ──────────────────────────────────────────────────────────────────
@@ -114,10 +205,15 @@ export class IslandScene implements Scene {
         if (to !== null) this.requestMove(to);
       },
       onConfirm: () => {},
+      // The hint has done its job once a key has been pressed: it fades rather
+      // than vanishing, so the board does not visibly change under the player.
+      onFirstUse: () => this.arrows?.markUsed(),
     });
     this.controls.attach();
 
-    // Tap/click a neighbouring tile. On a phone this is the primary control.
+    // Tiles carry their own click handler (see buildTiles). This catches taps
+    // that land on the gap BETWEEN two diamonds, which are frequent on a phone
+    // and would otherwise feel like the game ignoring you.
     this.container.eventMode = 'static';
     this.container.hitArea = { contains: () => true };
     this.container.on('pointertap', (e) => {
@@ -137,6 +233,13 @@ export class IslandScene implements Scene {
     const a = toColRow(this.myTile);
     const b = toColRow(to);
     if (Math.abs(a.col - b.col) > 1 || Math.abs(a.row - b.row) > 1) return;
+    if (!this.tiles.has(to)) return;
+
+    // Flash the tile immediately, before the server has answered. The move may
+    // still be refused, but a tap with NO feedback until a round trip reads as
+    // a dropped input — and on a phone that is the difference between "this
+    // game is responsive" and "this game is broken".
+    this.tiles.get(to)?.flash();
     this.data?.onMoveIntent(to);
   }
 
@@ -217,7 +320,10 @@ export class IslandScene implements Scene {
     this.rabbits.set(playerId, rabbit);
     this.container.addChild(rabbit.container);
     rabbit.playSpawnDrop();
-    if (playerId === this.data?.playerId) this.myTile = index;
+    if (playerId === this.data?.playerId) {
+      this.myTile = index;
+      this.refreshReachable();
+    }
   }
 
   /** A rabbit moved. Positions come from the server, never from local input. */
@@ -228,6 +334,8 @@ export class IslandScene implements Scene {
     if (playerId === this.data?.playerId) {
       this.myTile = index;
       this.sound.playHop();
+      // The ring travels with the rabbit.
+      this.refreshReachable();
     }
   }
 
@@ -237,13 +345,22 @@ export class IslandScene implements Scene {
     if (!rabbit) return;
     rabbit.playDamage();
     rabbit.setPosition(landedOn);
-    if (playerId === this.data?.playerId) this.myTile = landedOn;
+    if (playerId === this.data?.playerId) {
+      this.myTile = landedOn;
+      this.refreshReachable();
+    }
   }
 
   /** A run ended. The rabbit dies in place and its ghost drifts off. */
   killRabbit(playerId: string): void {
     this.rabbits.get(playerId)?.playDeath();
-    if (playerId === this.data?.playerId) this.sound.playDie();
+    if (playerId === this.data?.playerId) {
+      this.sound.playDie();
+      // Nothing is reachable from a dead rabbit — leaving the ring lit would
+      // invite clicks the server will refuse.
+      this.clearHighlights();
+      this.arrows?.update(null);
+    }
   }
 
   removeRabbit(playerId: string): void {
@@ -251,7 +368,15 @@ export class IslandScene implements Scene {
     this.rabbits.delete(playerId);
   }
 
+  /** Pixi's ticker, in real milliseconds. Only the sky needs it. */
+  update(deltaTime: number): void {
+    this.clouds?.update(deltaTime * (1000 / 60));
+  }
+
   destroy(): void {
+    this.clearHighlights();
+    this.clouds?.destroy();
+    this.arrows?.destroy();
     this.controls?.destroy();
     this.background?.destroy();
     this.sound.stopMusic();

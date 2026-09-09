@@ -28,6 +28,10 @@ export const BUNNY_ANIMS = {
  *  size it by HEIGHT and derive the width, or it renders squashed. */
 export const CARROT = 'carrot';
 
+/** The eight drifting cloud sprites, keyed `cloud-1`..`cloud-8`. */
+export const CLOUD_COUNT = 8;
+export const cloudKey = (n: number) => `cloud-${n}`;
+
 // FX
 export const EXPLOSION_SMALL = 'explosion-small';
 
