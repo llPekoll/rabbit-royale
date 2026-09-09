@@ -26,8 +26,12 @@ interface Burrow {
   maxHp: number;
   stock: number;
   gardenReady: number;
+  yieldPerHour: number;
+  capHours: number;
+  gardenCapacity: number;
   upgradeCost: number | null;
   canUpgrade: boolean;
+  next: { hp: number; yieldPerHour: number } | null;
 }
 
 export default function Home() {
@@ -95,7 +99,10 @@ export default function Home() {
         <WalletButton />
       </div>
 
-      <LeaderboardDrawer token={token} playerId={player?.id} />
+      {/* Nothing but the wallet button until you are in. A season board and a
+          way onto the island are meaningless without an account behind them,
+          and showing them first invites a tap that can only fail. */}
+      {player && <LeaderboardDrawer token={token} playerId={player.id} />}
 
       <section className="rr-burrow">
         {!player ? (
@@ -166,8 +173,12 @@ export default function Home() {
         )}
       </section>
 
-      {/* The one way out, and the only thing to press when you are done here. */}
-      <GoButton dir="down" label="Go farm" onClick={() => router.push('/play')} disabled={!player} />
+      {/* The one way out, and the only thing to press when you are done here.
+          Absent rather than disabled when signed out: a greyed button is an
+          invitation the game cannot honour yet. */}
+      {player && (
+        <GoButton dir="down" label="Go farm" onClick={() => router.push('/play')} />
+      )}
 
       <LoadingScreen ready={artReady} label="Waking the warren" />
     </main>

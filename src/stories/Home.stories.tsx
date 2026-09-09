@@ -49,11 +49,14 @@ function Home({ signedIn, stock, hp, maxHp, gardenReady, level, upgradeCost, boa
         </button>
       </div>
 
-      <button className="rr-lb-tab" onClick={() => setOpen((v) => !v)}>
-        <span aria-hidden>👑</span>
-        <small>#4</small>
-      </button>
+      {signedIn && (
+        <button className="rr-lb-tab" onClick={() => setOpen((v) => !v)}>
+          <span aria-hidden>👑</span>
+          <small>#4</small>
+        </button>
+      )}
 
+      {signedIn && (
       <aside className={`rr-lb${open ? ' open' : ''}`}>
         <header className="rr-lb-head">
           <strong>👑 Season</strong>
@@ -76,7 +79,8 @@ function Home({ signedIn, stock, hp, maxHp, gardenReady, level, upgradeCost, boa
           ))}
         </div>
       </aside>
-      {open && <div className="rr-scrim" onClick={() => setOpen(false)} />}
+      )}
+      {signedIn && open && <div className="rr-scrim" onClick={() => setOpen(false)} />}
 
       <section className="rr-burrow">
         {!signedIn ? (
@@ -118,7 +122,7 @@ function Home({ signedIn, stock, hp, maxHp, gardenReady, level, upgradeCost, boa
         )}
       </section>
 
-      <GoButton dir="down" label="Go farm" onClick={() => {}} disabled={!signedIn} />
+      {signedIn && <GoButton dir="down" label="Go farm" onClick={() => {}} />}
     </main>
   );
 }

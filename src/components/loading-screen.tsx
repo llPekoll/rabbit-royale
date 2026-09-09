@@ -13,7 +13,13 @@
  */
 import { useEffect, useState } from 'react';
 
-const ART = '/assets/island/loading_screen.png';
+/**
+ * JPEG, not PNG. The source was a 512KB RGBA PNG for an opaque, photo-like
+ * painting — the wrong format for the content, and it took 30 seconds to reach
+ * a browser in production, which meant the LOADING screen was itself the thing
+ * being waited for. At q88 it is 75KB and indistinguishable.
+ */
+const ART = '/assets/island/loading_screen.jpg';
 
 export interface LoadingScreenProps {
   /** Lift the veil. The screen underneath is already mounted. */

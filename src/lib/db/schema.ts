@@ -25,6 +25,11 @@ export const players = pgTable('players', {
   id: text('id').primaryKey(),                    // "sol:<address>"
   wallet: text('wallet').notNull(),               // base58 address
   name: text('name').notNull(),
+  /** Which rabbit they show up as. One of the game's own bunny sheets, stored
+   *  as its key rather than an image: the art already exists, so a profile
+   *  picture is a CHOICE among it, not an upload to host and moderate. Null
+   *  means the player never picked and gets the default. */
+  avatar: text('avatar'),
 
   /** THE THREE COUNTERS (GDD). One carrot event feeds all three, always. */
   /** Spendable bank. Raids move carrots out of here. */

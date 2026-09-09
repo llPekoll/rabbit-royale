@@ -15,6 +15,13 @@
       "when": 1788946592212,
       "tag": "0001_closed_spectrum",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788955924139,
+      "tag": "0002_foamy_turbo",
+      "breakpoints": true
     }
   ]
 }
