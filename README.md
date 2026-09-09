@@ -66,6 +66,7 @@ lie to itself and to nothing else.
 | `server/index.ts` | The authoritative loop. |
 | `server/islands/store.ts` | Where island state lives — the seam for sharding. |
 | `src/lib/auth/wallet-login.ts` | Sign-in. ed25519 over a single-use nonce. |
+| `src/game/island/` | Square-tile islands with stacked plateaus, from the Tiny Swords sheets. Groundwork for a future game, not used by the run. [Its own README](./src/game/island/README.md); look at one at `/island`. |
 
 ### Tuning
 
