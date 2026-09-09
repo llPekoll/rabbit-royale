@@ -80,7 +80,7 @@ button { min-height: 44px; min-width: 44px; }
 .rr-hud {
   display: flex;
   gap: 12px;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
   padding: 8px 12px;
@@ -195,3 +195,103 @@ button { min-height: 44px; min-width: 44px; }
 .rr-lb-row.me { background: rgba(255, 212, 92, 0.08); }
 .rr-lb-rank { color: var(--muted); text-align: right; }
 .rr-lb-row.crown .rr-lb-rank { color: var(--crown); }
+
+/* ── The in-game overlay ───────────────────────────────────────────────────
+   The Pixi canvas is `position: fixed` and fills the screen, so everything the
+   player TAPS has to sit above it in its own layer. This is that layer: a
+   full-height column with the HUD at the top, the nav pinned at the bottom, and
+   nothing but canvas in between.
+
+   `pointer-events: none` on the column, re-enabled on its children, is what
+   keeps the empty middle transparent to touch — without it an invisible div
+   would eat every tap meant for the board. */
+.rr-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: env(safe-area-inset-top) 10px env(safe-area-inset-bottom);
+  pointer-events: none;
+  z-index: 10;
+}
+.rr-overlay > * { pointer-events: auto; }
+
+/* The board is played through, so the chrome over it has to stay readable
+   against pixel art of any colour without hiding half the island. */
+.rr-overlay .rr-hud,
+.rr-overlay .rr-nav,
+.rr-overlay .rr-card {
+  background: rgba(13, 17, 23, 0.82);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+/* The nav stays at the bottom DURING a run — it is how a player reaches their
+   burrow and the board, and a phone's bottom third is the reachable one. */
+.rr-overlay .rr-nav { margin-bottom: 0; }
+
+/* ── Energy bar ────────────────────────────────────────────────────────────
+   A recessed tube with a glowing fill, after fuse's gauge. Horizontal because
+   it lives in a HUD strip on a phone, where vertical space is the scarce one. */
+.rr-energy {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  /* The bar takes the row's slack: it is the reading that matters most, and
+     the counters beside it are fixed-width glances. */
+  flex: 1 1 auto;
+  min-width: 140px;
+}
+.rr-energy-icon { font-size: 13px; line-height: 1; }
+
+.rr-energy-tube {
+  position: relative;
+  flex: 1;
+  height: 14px;
+  border-radius: 7px;
+  background: #0b0f14;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  /* Recessed, so the fill reads as sitting INSIDE the tube rather than on it. */
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.9);
+}
+.rr-energy-fill {
+  display: block;
+  height: 100%;
+  border-radius: 5px;
+  /* Short, not smooth: energy changes in discrete steps (a dig, a carrot, a
+     blast) and easing them into each other hides how much a single dig cost. */
+  transition: width 120ms linear;
+}
+/* Under one bomb's worth the next blast ends the run — the bar says so itself
+   rather than leaving the player to do the arithmetic. */
+.rr-energy-fill.critical { animation: rr-pulse 0.9s ease-in-out infinite; }
+@keyframes rr-pulse { 50% { opacity: 0.45; } }
+
+.rr-energy-mark {
+  position: absolute;
+  top: 0;
+  width: 1px;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.45);
+}
+.rr-energy-value {
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  min-width: 2ch;
+  text-align: right;
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rr-energy-fill { transition: none; }
+  .rr-energy-fill.critical { animation: none; }
+}
+
+/* The player's own name is the least useful thing in the HUD — they know who
+   they are — and on a narrow phone it wraps the bar onto a second row, which
+   costs board. Drop it below 420px; the spectate eye stays, because THAT is not
+   obvious from context. */
+@media (max-width: 420px) {
+  .rr-hud > small { display: none; }
+}

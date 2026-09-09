@@ -13,6 +13,7 @@ import { useSearchParams } from 'next/navigation';
 import { useWalletLogin } from '@/components/use-wallet-login';
 import { useGameSocket, type RunRecap } from '@/components/use-game-socket';
 import { GameCanvas } from '@/components/game-canvas';
+import { EnergyBar } from '@/components/energy-bar';
 import { Nav } from '@/components/nav';
 import type { IslandScene } from '@/game/scenes/IslandScene';
 
@@ -92,16 +93,18 @@ function Hud({
   const me = game.me;
   return (
     <header className="rr-hud">
-      {spectating ? (
-        <strong style={{ color: 'var(--crown)' }}>👁 watching</strong>
-      ) : (
-        <strong>{name}</strong>
-      )}
-      <span title="Energy">⚡ {me?.energy ?? '–'}</span>
+      {/* Energy first and widest: it is the only resource, it falls with every
+          dig, and it is what the player prices the next tile against. */}
+      <EnergyBar energy={me?.energy ?? 0} />
       <span style={{ color: 'var(--carrot)' }}>🥕 {me?.carrots ?? 0}</span>
       <span style={{ color: 'var(--muted)' }}>🐰 {game.rabbits.size}</span>
       {game.warnStage > 0 && (
         <span style={{ color: 'var(--danger)' }}>🌋 {'!'.repeat(game.warnStage)}</span>
+      )}
+      {spectating ? (
+        <strong style={{ color: 'var(--crown)' }}>👁</strong>
+      ) : (
+        <small style={{ color: 'var(--muted)' }}>{name}</small>
       )}
     </header>
   );
