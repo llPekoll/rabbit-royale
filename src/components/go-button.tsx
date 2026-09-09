@@ -30,16 +30,14 @@ export function GoButton({ dir, label, onClick, disabled }: GoButtonProps) {
   const size = ARROW_SIZE[dir];
   return (
     <button className={`rr-go rr-go-${dir}`} onClick={onClick} disabled={disabled}>
-      {/* The pair stacks and floats together on this wrapper (see
-          .rr-go-inner): the arrow sits on the side it points towards — above
-          the word going up, below it going down — and the whole thing drifts
-          as one object, so the button reads as movement rather than as
-          decoration bolted to a word. The <button> itself stays still so its
-          hit area does not travel under the thumb. */}
+      {/* Word above, arrow below, whichever way it points — and the pair
+          floats together on this wrapper (see .rr-go-inner) so the button
+          reads as movement rather than as decoration bolted to a word. The
+          <button> itself stays still so its hit area does not travel under
+          the thumb. */}
       <span className="rr-go-inner">
-        {dir === 'up' && <Arrow dir={dir} size={size} />}
         <span className="rr-go-label">{label}</span>
-        {dir === 'down' && <Arrow dir={dir} size={size} />}
+        <Arrow dir={dir} size={size} />
       </span>
     </button>
   );

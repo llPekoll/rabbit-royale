@@ -37,6 +37,12 @@ function Home({ signedIn, stock, hp, maxHp, gardenReady, level, upgradeCost, boa
 
   return (
     <main className="rr-home" style={{ height: '100dvh' }}>
+      {/* The burrow behind everything, exactly as the page draws it. */}
+      <div
+        className="rr-home-art"
+        style={{ backgroundImage: 'url(/assets/island/burrow_generated.jpg)' }}
+        aria-hidden
+      />
       <div className="rr-topbar">
         <button className={`rr-wallet${signedIn ? ' connected' : ''}`}>
           {signedIn ? <><span aria-hidden>🐰</span> LuckyPaw42</> : 'Connect wallet'}

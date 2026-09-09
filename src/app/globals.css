@@ -209,8 +209,16 @@ button { min-height: 44px; min-width: 44px; }
 
 
 /* ── Energy bar ────────────────────────────────────────────────────────────
-   A recessed tube with a glowing fill, after fuse's gauge. Horizontal because
-   it lives in a HUD strip on a phone, where vertical space is the scarce one. */
+   Pixel art, after fuse's gauge — the same 9-slice sprites and the same INSERT
+   COIN palette, turned on their side (see tools/gen_energy_bar.py). Horizontal
+   because it lives in a HUD strip on a phone, where vertical space is scarce.
+
+   The tube is three slices: fixed ends, a 1px middle that repeats to whatever
+   width the HUD gives it. The fill is the same trick, so a bar whose length
+   changes every dig is still one set of sprites. Everything is scaled by whole
+   multiples of the source pixel (--rr-gauge-px) and rendered `pixelated`, which
+   is what keeps the edges hard — no border-radius, no blur, no glow, because
+   none of those exist in the art this game is drawn in. */
 .rr-energy {
   display: flex;
   align-items: center;
@@ -222,36 +230,63 @@ button { min-height: 44px; min-width: 44px; }
 }
 .rr-energy-icon { font-size: 13px; line-height: 1; }
 
+/* One knob for the whole gauge: every length below is a multiple of the source
+   pixel, so the art can never land on a half-pixel and go soft. */
+.rr-energy {
+  --rr-gauge-px: 2;
+  --rr-gauge-h: calc(14px * var(--rr-gauge-px));
+  --rr-gauge-end: calc(7px * var(--rr-gauge-px));   /* shell base/cap width */
+  --rr-gauge-wall: calc(4px * var(--rr-gauge-px));  /* channel inset */
+}
+
 .rr-energy-tube {
   position: relative;
   flex: 1;
-  height: 14px;
-  border-radius: 7px;
-  background: #0b0f14;
-  border: 1px solid var(--border);
-  overflow: hidden;
-  /* Recessed, so the fill reads as sitting INSIDE the tube rather than on it. */
-  box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.9);
+  height: var(--rr-gauge-h);
+  /* The three shell slices in one layer: fixed ends pinned left and right, the
+     1px middle repeated across the gap between them. */
+  background:
+    url('/assets/ui/gauge/bar-shell-base.png') left center / auto 100% no-repeat,
+    url('/assets/ui/gauge/bar-shell-cap.png') right center / auto 100% no-repeat,
+    url('/assets/ui/gauge/bar-shell-mid.png') left center / auto 100% repeat-x;
+  image-rendering: pixelated;
 }
 .rr-energy-fill {
-  display: block;
-  height: 100%;
-  border-radius: 5px;
+  position: absolute;
+  /* Sits in the channel the shell's walls leave, never on top of them. */
+  top: var(--rr-gauge-wall);
+  bottom: var(--rr-gauge-wall);
+  left: var(--rr-gauge-wall);
+  image-rendering: pixelated;
   /* Short, not smooth: energy changes in discrete steps (a dig, a carrot, a
      blast) and easing them into each other hides how much a single dig cost. */
   transition: width 120ms linear;
 }
+/* An empty bar draws nothing: at zero width the crest would still show a
+   sliver of fill in a tube that is supposed to be empty. */
+.rr-energy-fill[hidden] { display: none; }
+
 /* Under one bomb's worth the next blast ends the run — the bar says so itself
    rather than leaving the player to do the arithmetic. */
-.rr-energy-fill.critical { animation: rr-pulse 0.9s ease-in-out infinite; }
-@keyframes rr-pulse { 50% { opacity: 0.45; } }
+.rr-energy-fill.critical { animation: rr-pulse 0.9s steps(1, end) infinite; }
+/* Stepped, not eased: a smooth fade is the one thing pixel art never does. */
+@keyframes rr-pulse { 50% { opacity: 0.35; } }
 
 .rr-energy-mark {
   position: absolute;
-  top: 0;
-  width: 1px;
-  height: 100%;
-  background: rgba(255, 255, 255, 0.45);
+  /* Inside the channel, not across the frame: the shell is the housing and the
+     notch is a marking ON the gauge, so it stops where the fill stops. */
+  top: var(--rr-gauge-wall);
+  bottom: var(--rr-gauge-wall);
+  /* One source pixel wide, like everything else in the sprite, and snapped to
+     the pixel grid so it never lands half-lit between two columns. */
+  width: calc(1px * var(--rr-gauge-px));
+  /* Opaque and hard-edged: a translucent hairline is anti-aliasing by another
+     name, and there is none anywhere else in this art. Two columns — the
+     outline colour and a light one beside it — so the notch stays readable
+     both against the empty channel AND against a fill sitting on top of it. */
+  background: #0a0814;
+  box-shadow: calc(1px * var(--rr-gauge-px)) 0 0 rgba(214, 210, 255, 0.85);
 }
 .rr-energy-value {
   font-variant-numeric: tabular-nums;
@@ -285,6 +320,11 @@ button { min-height: 44px; min-width: 44px; }
   padding: env(safe-area-inset-top) 12px env(safe-area-inset-bottom);
   overflow: hidden;
 }
+/* Everything except the art sits above it. Only the z-index is set here: the
+   season board is `position: fixed` and forcing it relative tore it out of the
+   viewport and dropped it into the flow. */
+.rr-home > *:not(.rr-home-art) { z-index: 1; }
+.rr-topbar, .rr-burrow, .rr-go, .rr-back { position: relative; }
 
 .rr-topbar {
   display: flex;
@@ -299,14 +339,59 @@ button { min-height: 44px; min-width: 44px; }
 }
 .rr-wallet.connected { color: var(--crown); border-color: rgba(255, 212, 92, 0.35); }
 
+/* The burrow, painted behind the whole screen.
+   z-index 0 with the siblings lifted above it, NOT -1: a negative index puts
+   the layer behind its stacking context's background, and `body` is painted
+   opaque — so the art was drawn, correctly, underneath a solid colour. */
+.rr-home-art {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background-size: cover;
+  background-position: center;
+  image-rendering: pixelated;
+}
+/* A wash over the art so white text stays readable on bright grass, dark
+   enough to read against, light enough to still see the place. */
+.rr-home-art::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    rgba(13, 17, 23, 0.80) 0%,
+    rgba(13, 17, 23, 0.62) 30%,
+    rgba(13, 17, 23, 0.18) 58%,
+    rgba(13, 17, 23, 0.05) 100%
+  );
+}
+
+/* The panels sit on the LEFT, not centred: the middle and right of the
+   painting are the burrow itself — the mound, the door, the field — and
+   covering them would defeat the point of drawing it. */
 .rr-burrow {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  max-width: 460px;
+  max-width: 400px;
   width: 100%;
-  margin: 0 auto;
+  margin: 0;
+  padding-right: 12px;
+}
+
+/* On a phone there is no room to sit beside anything, so the column recentres
+   and the wash goes flat and darker to keep the text legible over the art. */
+@media (max-width: 720px) {
+  .rr-burrow { margin: 0 auto; max-width: 460px; }
+  .rr-home-art::after {
+    background: linear-gradient(
+      180deg,
+      rgba(13, 17, 23, 0.90) 0%,
+      rgba(13, 17, 23, 0.82) 60%,
+      rgba(13, 17, 23, 0.90) 100%
+    );
+  }
 }
 .rr-burrow-title { font-size: 20px; margin: 4px 0 12px; }
 
@@ -344,8 +429,8 @@ button { min-height: 44px; min-width: 44px; }
   justify-content: center;
   gap: 14px;
   width: 100%;
-  max-width: 460px;
-  margin: 10px auto 6px;
+  max-width: 400px;
+  margin: 10px 0 6px;
   padding: 14px 16px;
   font-size: 15px;
   letter-spacing: 0.08em;
@@ -371,17 +456,16 @@ button { min-height: 44px; min-width: 44px; }
   flex: none;
 }
 
-/* The word leads, the arrow follows along the axis it points down: stacked,
-   the label reads first and the sprite below it is the direction of travel.
+/* The word leads and the arrow trails underneath it, whichever way the arrow
+   points: the label is what you read, the sprite below it is what it does.
    Side by side the arrow was pulling the eye off the word it belongs to. */
 .rr-go-inner {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 6px;
 }
-.rr-go-down .rr-go-inner { flex-direction: column; }
-.rr-go-up .rr-go-inner { flex-direction: column-reverse; }
 
 /* Word and arrow float as one object rather than the sprite drifting away
    from the word it belongs to. The button itself stays put — animating it
@@ -513,3 +597,66 @@ button { min-height: 44px; min-width: 44px; }
 h1 { font-size: 20px; letter-spacing: 0.04em; }
 h2 { font-size: 16px; }
 button { font-family: var(--font-pixel); }
+
+/* ── Loading ───────────────────────────────────────────────────────────────
+   The island, over the screen that is still loading behind it. */
+.rr-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  background: var(--bg);
+  transition: opacity 420ms ease;
+}
+.rr-loading.done {
+  opacity: 0;
+  /* Stop eating taps the moment it starts to fade — the screen underneath is
+     already live, and a transparent overlay that still blocks input is the
+     most confusing state a loader can be in. */
+  pointer-events: none;
+}
+.rr-loading img {
+  width: min(84vw, 520px);
+  image-rendering: pixelated;
+  /* The art is a lit island on a dark page; the glow ties them together. */
+  filter: drop-shadow(0 0 40px rgba(80, 190, 220, 0.28));
+}
+.rr-loading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* Dots that fill in, one at a time. */
+.rr-loading-dots::after {
+  content: '';
+  animation: rr-dots 1.2s steps(1, end) infinite;
+}
+@keyframes rr-dots {
+  0%   { content: ''; }
+  25%  { content: '.'; }
+  50%  { content: '..'; }
+  75%  { content: '...'; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rr-loading-dots::after { content: '...'; animation: none; }
+}
+
+/* In-game the button has no column to align with, so it recentres. */
+.rr-overlay .rr-back { margin-left: auto; margin-right: auto; }
+@media (max-width: 720px) {
+  .rr-go, .rr-back { margin-left: auto; margin-right: auto; max-width: 460px; }
+}
+
+/* The panels are over artwork now, so they need their own ground. */
+.rr-home .rr-card {
+  background: rgba(13, 17, 23, 0.82);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}

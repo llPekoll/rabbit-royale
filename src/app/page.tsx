@@ -17,6 +17,7 @@ import { useWalletLogin } from '@/components/use-wallet-login';
 import { WalletButton } from '@/components/wallet-button';
 import { LeaderboardDrawer } from '@/components/leaderboard-drawer';
 import { GoButton } from '@/components/go-button';
+import { LoadingScreen } from '@/components/loading-screen';
 
 interface Burrow {
   level: number;
@@ -35,6 +36,16 @@ export default function Home() {
   const [burrow, setBurrow] = useState<Burrow | null>(null);
   const [pending, setPending] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  // The burrow painting is 150KB and IS this screen's background, so the page
+  // is not ready until it has decoded — showing the panels over a black
+  // rectangle first is exactly the flicker the loading screen exists to hide.
+  const [artReady, setArtReady] = useState(false);
+
+  useEffect(() => {
+    const img = new Image();
+    img.src = BURROW_ART;
+    img.decode().then(() => setArtReady(true)).catch(() => setArtReady(true));
+  }, []);
 
   const auth = useCallback(
     (init?: RequestInit) => ({
@@ -71,6 +82,15 @@ export default function Home() {
 
   return (
     <main className="rr-home">
+      {/* Your burrow, drawn behind everything. This screen is a PLACE — the
+          panels are notes pinned on it, which is why they sit to one side
+          rather than filling the middle. */}
+      <div
+        className="rr-home-art"
+        style={{ backgroundImage: `url(${BURROW_ART})` }}
+        aria-hidden
+      />
+
       <div className="rr-topbar">
         <WalletButton />
       </div>
@@ -148,6 +168,12 @@ export default function Home() {
 
       {/* The one way out, and the only thing to press when you are done here. */}
       <GoButton dir="down" label="Go farm" onClick={() => router.push('/play')} disabled={!player} />
+
+      <LoadingScreen ready={artReady} label="Waking the warren" />
     </main>
   );
 }
+
+/** The burrow, painted. Also preloaded above, so the panels never flash over
+ *  an empty background. */
+const BURROW_ART = '/assets/island/burrow_generated.jpg';
