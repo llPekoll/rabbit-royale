@@ -35,6 +35,23 @@ declare global {
 
 const TOKEN_KEY = 'rr_token';
 
+/**
+ * What to do with a stored token after the server has answered.
+ *
+ * Pulled out of the effect so it can be tested: this is the decision that broke
+ * once already. A refused token is not a transient error — it never becomes
+ * valid on its own, so keeping it pins the player on "Connect wallet" and makes
+ * signing in again write a second dead token behind the first.
+ */
+export function restoreDecision(status: number): 'keep' | 'discard' {
+  // Refused outright: the token is expired, forged, signed with a secret this
+  // deployment no longer has, or names a player who no longer exists.
+  if (status === 401 || status === 403 || status === 404) return 'discard';
+  // Anything else (a 500, a proxy hiccup, being offline) says nothing about the
+  // token — throwing it away there would sign the player out over a blip.
+  return 'keep';
+}
+
 export function useWalletLogin() {
   const [player, setPlayer] = useState<Player | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -47,10 +64,28 @@ export function useWalletLogin() {
     const saved = localStorage.getItem(TOKEN_KEY);
     if (!saved) return;
     setToken(saved);
+    let alive = true;
     fetch('/api/auth/me', { headers: { Authorization: `Bearer ${saved}` } })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => d?.player && setPlayer({ id: d.player.id, name: d.player.name, wallet: d.player.wallet }))
-      .catch(() => localStorage.removeItem(TOKEN_KEY));
+      .then(async (r) => {
+        if (!alive) return;
+        if (r.ok) {
+          const d = await r.json();
+          if (d?.player) {
+            setPlayer({ id: d.player.id, name: d.player.name, wallet: d.player.wallet });
+            return;
+          }
+        }
+        if (restoreDecision(r.status) === 'discard') {
+          localStorage.removeItem(TOKEN_KEY);
+          setToken(null);
+        }
+      })
+      // A network failure is NOT a bad token — the player may simply be offline,
+      // so the session is kept and only the sign-in state stays unresolved.
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
   }, []);
 
   const login = useCallback(async () => {

@@ -15,6 +15,7 @@ import {
 } from '../src/lib/game/player-name';
 import { AVATARS, DEFAULT_AVATAR, avatarSrc, isBuiltInAvatar } from '../src/lib/game/avatars';
 import { raidResult } from '../src/lib/game/record-raid';
+import { restoreDecision } from '../src/components/use-wallet-login';
 
 describe('player names', () => {
   it('accepts ordinary names', () => {
@@ -99,5 +100,28 @@ describe('raid classification', () => {
     expect(raidResult(outcome(0, 30))).toBe('damaged');
     // A shield, or a raider stopped on the doorstep.
     expect(raidResult(outcome(0, 0))).toBe('blocked');
+  });
+});
+
+
+describe('restoring a stored session', () => {
+  it('throws away a token the server refuses', () => {
+    // The bug this exists to prevent: a refused token was KEPT, so the player
+    // saw "Connect wallet" forever and signing in again wrote another dead
+    // token behind the first one.
+    for (const status of [401, 403, 404]) {
+      expect(restoreDecision(status), String(status)).toBe('discard');
+    }
+  });
+
+  it('keeps the token when the failure says nothing about it', () => {
+    // A server error or a bad connection must not sign the player out.
+    for (const status of [0, 429, 500, 502, 503]) {
+      expect(restoreDecision(status), String(status)).toBe('keep');
+    }
+  });
+
+  it('keeps a token the server accepted', () => {
+    expect(restoreDecision(200)).toBe('keep');
   });
 });

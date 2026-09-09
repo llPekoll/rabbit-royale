@@ -14,7 +14,8 @@
     "test:watch": "vitest",
     "lint": "next lint",
     "storybook": "storybook dev -p 6007",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "db:check": "bun run scripts/check-migrations.ts"
   },
   "dependencies": {
     "@domin8/arcade-kit": "github:Paul-Ollivier/arcade-kit#v2.2.1",
