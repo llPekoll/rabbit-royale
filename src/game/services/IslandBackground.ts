@@ -16,10 +16,25 @@
  */
 import { Container, Sprite, Texture } from 'pixi.js';
 import gsap from 'gsap';
+import { seedFrom } from '@/lib/game/rng';
 
 const VIDEO_WEBM = '/assets/island/Island Loop.webm';
 const VIDEO_MP4 = '/assets/island/Island Loop.mp4';
 const OVERLAY_URL = '/assets/island/Island_over_video.png';
+
+/**
+ * The ground each island is drawn on, picked by SEED.
+ *
+ * Three paintings rather than one, so two islands in a session do not look like
+ * the same place with the tiles moved. Chosen from the seed rather than at
+ * random, so the server and the client land on the same picture without it
+ * crossing the wire — the same trick the coastline uses.
+ */
+const LANDS = [
+  '/assets/island/land1.png',
+  '/assets/island/land2.png',
+  '/assets/island/land3.png',
+] as const;
 
 /**
  * How much of the design space the island fills.
@@ -34,6 +49,10 @@ export const ISLAND_ZOOM = 1.75;
 
 /** Width of the soft edge that hides the seam between video sea and background. */
 const FADE_PX = 100;
+
+/** The design canvas the ground has to cover. */
+const DESIGN_W = 960;
+const DESIGN_H = 540;
 
 export interface IslandBackground {
   /** Video and overlay, plus their masks. Added to the container given. */
@@ -53,6 +72,8 @@ export async function createIslandBackground(
   container: Container,
   centerX: number,
   centerY: number,
+  /** The island's seed. Decides which of the three grounds is painted. */
+  seed?: string,
 ): Promise<IslandBackground> {
   const video = document.createElement('video');
   // Prefer WebM (VP9): universally supported by modern browsers and free of the
@@ -114,11 +135,12 @@ export async function createIslandBackground(
   container.addChild(bgMask);
   bg.mask = bgMask;
 
-  // The crisp island, over the video.
+  // The crisp island, over the video. Which painting depends on the seed, so a
+  // new island genuinely looks like somewhere else.
   let overlay: Sprite | null = null;
   let overlayMask: Sprite | null = null;
   const img = new Image();
-  img.src = OVERLAY_URL;
+  img.src = seed ? LANDS[seedFrom(seed) % LANDS.length] : OVERLAY_URL;
   try {
     await img.decode();
   } catch {
@@ -139,14 +161,35 @@ export async function createIslandBackground(
     overlay.mask = overlayMask;
   }
 
+
+  // The ground's own pixel size, so it can be scaled independently of the video.
+  const landW = img.naturalWidth || nativeW;
+  const landH = img.naturalHeight || nativeH;
+
   const sprites = () => [bg, bgMask, overlay, overlayMask].filter(Boolean) as Sprite[];
 
   const api: IslandBackground = {
     layout(cx, cy, zoom = ISLAND_ZOOM) {
-      for (const s of sprites()) {
+      // The video is authored at the design size and is ZOOMED past the frame,
+      // because the board is bigger than the island it was drawn around.
+      const vw = nativeW * zoom;
+      const vh = nativeH * zoom;
+      for (const s of [bg, bgMask]) {
         s.position.set(cx, cy);
-        s.width = nativeW * zoom;
-        s.height = nativeH * zoom;
+        s.width = vw;
+        s.height = vh;
+      }
+
+      // The painted ground is a SMALL crop (~300px), so it gets its own scale:
+      // just enough to cover the frame, and no more. Riding the video's zoom
+      // put it at a 5x blowup — mush, and so tight you saw a tree trunk rather
+      // than an island.
+      const cover = Math.max(DESIGN_W / landW, DESIGN_H / landH);
+      for (const s of [overlay, overlayMask]) {
+        if (!s) continue;
+        s.position.set(cx, cy);
+        s.width = landW * cover;
+        s.height = landH * cover;
       }
     },
     destroy() {

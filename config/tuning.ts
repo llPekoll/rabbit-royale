@@ -144,20 +144,13 @@ export const OUT_OF_RUN_ENERGY = {
  * wall, and a wall is routed around rather than feared.
  */
 export const TRAPS = {
-  /**
+/**
    * Energy a trap drains when stepped on.
    *
-   * Balanced by simulation against RAID_RUN.START_ENERGY, not by feel: with a
-   * competent owner mining the busiest tiles, an undefended burrow always falls
-   * and a fully defended one still falls about a quarter of the time. A burrow
-   * that could be made impregnable would end the attacking half of the game.
-   *
-   *   traps placed | raid succeeds
-   *        0       |   100%
-   *        2       |    94%
-   *        4       |    67%
-   *        6       |    42%
-   *        8       |    27%
+   * Sized against RAID_RUN.START_ENERGY so that a trap costs a raider roughly a
+   * fifth of their crossing: enough that mining the right tile visibly shortens
+   * a raid, not so much that one trap ends it. Since loot is paid by depth, a
+   * trap now converts directly into carrots the attacker does not get.
    */
   DRAIN: 8,
   /** Free traps per rolling 24h — derived from a timestamp, never a cron. */
@@ -186,17 +179,52 @@ export const RAID_RUN = {
   /**
    * Energy an attacker enters with.
    *
-   * Tight on purpose. The shortest crossing is 7 steps, so this is not about
-   * the walk — it is the number of TRAPS a raid can absorb, and it is what the
-   * table on TRAPS.DRAIN was tuned against. Raising it makes defence decorative.
+   * Sized against the crossing (9 steps) and TRAPS.DRAIN, so that an
+   * undefended burrow is walked easily and each trap costs the attacker a
+   * visible slice of the haul:
+   *
+   *   traps | avg loot of a 10 000 stock | how far the raider got
+   *      0  |            2 500           |         100%
+   *      2  |            2 500           |         100%
+   *      3  |            2 027           |          78%
+   *      5  |            1 555           |          56%
+   *      8  |              847           |          22%
+   *
+   * Because loot is paid by DEPTH, this is a slope rather than a threshold —
+   * raising this number shifts where the slope starts, it cannot restore the
+   * pass/fail cliff the design had before.
    */
-  START_ENERGY: 20,
+  START_ENERGY: 26,
   /** Every step costs this, trap or not — distance itself is a defence. */
   STEP_COST: 1,
-  /** Reaching the carrot field is the win condition; this is what it pays. */
+  /**
+   * The most a raid can take, reached only by touching the carrot field.
+   *
+   * A raid is scored by HOW FAR it got, not by whether it "won" — the Clash of
+   * Clans shape. This matters mechanically, not just thematically: the crossing
+   * is about five steps, so a handful of traps will always stop a raider dead,
+   * and a pass/fail rule therefore only ever returned 100% or 0% however the
+   * numbers were tuned. Paying by depth makes each trap shave a slice off the
+   * haul instead of deciding the whole thing, which is the gradient the design
+   * needs and cannot be tuned back into a cliff.
+   */
   LOOT_SHARE: 0.25,
+  /**
+   * A raid that dies on the doorstep still pays this share of the maximum, so
+   * attacking is never pure loss — otherwise nobody attacks a defended burrow
+   * twice and the PvP loop stops.
+   */
+  MIN_LOOT_FRACTION: 0.15,
   /** Attacks on one victim per rolling window, so nobody is farmed. */
   COOLDOWN_MS: 60 * 60 * 1000,
+  /**
+   * After being raided you cannot be raided again for this long.
+   *
+   * The Clash of Clans shield, and the single most important anti-churn rule in
+   * the game: without it a player who logs off rich is farmed to zero by
+   * morning and does not come back.
+   */
+  SHIELD_AFTER_RAID_MS: 12 * 60 * 60 * 1000,
 } as const;
 
 export const RAID = {

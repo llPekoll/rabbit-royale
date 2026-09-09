@@ -95,6 +95,7 @@ export class IslandScene implements Scene {
       this.container,
       GAME_W / 2,
       GAME_H / 2,
+      this.data?.seed,
     );
 
     // The sky, behind everything: the island already moves (surf, volcano

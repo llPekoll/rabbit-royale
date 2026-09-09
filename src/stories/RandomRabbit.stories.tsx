@@ -84,7 +84,7 @@ function Scene({ seed, bombDensity, rabbits, stepMs, islandZoom, background }: A
         // will actually sit on rather than against flat blue.
         let bg: { destroy(): void } | null = null;
         if (background) {
-          void createIslandBackground(stage, 960 / 2, 540 / 2).then((b) => {
+          void createIslandBackground(stage, 960 / 2, 540 / 2, seed).then((b) => {
             bg = b;
             b.layout(960 / 2, 540 / 2, islandZoom);
           });

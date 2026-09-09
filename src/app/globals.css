@@ -341,19 +341,22 @@ button { min-height: 44px; min-width: 44px; }
   font-size: 15px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  border-radius: 14px;
-  border-color: rgba(255, 212, 92, 0.32);
   color: var(--crown);
-  background: rgba(255, 212, 92, 0.08);
-}
-.rr-go:disabled, .rr-back:disabled {
-  color: var(--muted);
-  border-color: var(--border);
+  /* No frame, no fill: the arrow and the word ARE the button. A box around
+     them was competing with the pixel art for attention, and the sprite
+     already reads as pressable on its own. */
+  border: none;
   background: none;
+  /* The screens behind this are busy (an island, a burrow), so the text needs
+     its own edge to stay legible rather than a panel to sit on. */
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.65);
 }
+.rr-go:disabled, .rr-back:disabled { color: var(--muted); }
 
 .rr-go-arrow {
   image-rendering: pixelated;
+  /* Matches the label's own shadow, so the two read as one control. */
+  filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.55));
   /* Sized in the component from ARROW_SIZE at a whole multiple, so the sprite
      never lands between pixels. */
   flex: none;

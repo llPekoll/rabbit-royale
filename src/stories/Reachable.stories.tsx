@@ -48,7 +48,7 @@ function Scene({ seed, background, arrows, sweepStep }: Args) {
 
         let bg: { destroy(): void } | null = null;
         if (background) {
-          void createIslandBackground(stage, 480, 270).then((b) => { bg = b; });
+          void createIslandBackground(stage, 480, 270, seed).then((b) => { bg = b; });
         }
 
         // The sky. Driven by the story's own ticker below, exactly as the scene

@@ -10,22 +10,34 @@
  * Same isometric projection as the island (the art shares its angle), just a
  * smaller board and its own origin.
  */
-export const BURROW_COLS = 11;
-export const BURROW_ROWS = 11;
+export const BURROW_COLS = 15;
+export const BURROW_ROWS = 15;
 
 // Same diamond proportion as the island, a touch larger: this board is smaller,
 // so its tiles can afford the room and the traps stay easy to tap.
-export const BURROW_TILE_W = 56;
-export const BURROW_TILE_H = 30;
+export const BURROW_TILE_W = 34;
+export const BURROW_TILE_H = 19;
 export const BURROW_HALF_W = BURROW_TILE_W / 2;
 export const BURROW_HALF_H = BURROW_TILE_H / 2;
 
-/** Measured against burrow_generated.jpg at BURROW_ZOOM — move one, re-measure. */
-export const BURROW_ORIGIN_X = 480;
-export const BURROW_ORIGIN_Y = 150;
+/**
+ * Measured against burrow_generated.jpg, by eye: the field's tiles have to land
+ * on the fenced patch and the entrance on the stone path. Move the art or the
+ * layout and this needs re-measuring — the Storybook story is what that is done
+ * against.
+ */
+export const BURROW_ORIGIN_X = 455;
+export const BURROW_ORIGIN_Y = 235;
 
-/** How far the backdrop is zoomed so the drawn scene fills the frame. */
-export const BURROW_ZOOM = 1.0;
+/**
+ * How far the backdrop is zoomed.
+ *
+ * The art draws a small homestead in a large field of grass. At 1× the played
+ * ground occupied about a third of the frame and the board had to shrink to
+ * tiles too small to tap, so the scene is enlarged until the homestead fills
+ * it and the grass is cropped away.
+ */
+export const BURROW_ZOOM = 1.45;
 
 export const burrowIndex = (col: number, row: number) => row * BURROW_COLS + col;
 export const burrowColRow = (index: number) => ({
@@ -56,18 +68,34 @@ export const burrowTileDepth = (index: number) => {
  * Written as a picture rather than as coordinates because that is how it is
  * checked: against the background art, by eye.
  */
+/**
+ * The layout.
+ *
+ * WIDE on purpose. An earlier cut funnelled every route through one narrow
+ * approach, and the balance came out as a cliff — 100% of raids got through,
+ * then 0% the moment the funnel was mined, with no gradient in between. Traps
+ * were all-or-nothing rather than a cost.
+ *
+ * A raider needs REAL alternatives for placement to be a judgement call: a long
+ * open flank, a short mined one. So the ground is broad, with scattered rocks
+ * that shape routes instead of a wall that dictates one.
+ */
 const LAYOUT = [
-  '####...####',
-  '###.....###',
-  '##..FFF..##',
-  '##..FFF..##',
-  '#.........#',
-  '#..#...#..#',   // rocks: two chokepoints, so there are ROUTES to choose between
-  '#.........#',
-  '##.......##',
-  '###.....###',
-  '####...####',
-  '#####E#####',
+  '###############',
+  '#.............#',
+  '#.FFF.........#',
+  '#.FFF.........#',
+  '#.FFF....#....#',
+  '#........#....#',   // rocks SHAPE the routes; they never reduce them to one
+  '#.............#',
+  '#....#........#',
+  '#....#....#...#',
+  '#.........#...#',
+  '#.............#',
+  '#..#..........#',
+  '#..#..........#',
+  '#............E#',   // the path enters lower-right, as the art draws it
+  '###############',
 ] as const;
 
 export type BurrowCell = 'ground' | 'blocked' | 'entrance' | 'field';
@@ -80,9 +108,14 @@ const CELL: Record<string, BurrowCell> = {
 };
 
 export function burrowCell(index: number): BurrowCell {
+  // Every guard here matters: this is called with indices that came off the
+  // wire (a client naming the tile it wants to trap or step onto), so a
+  // non-integer or out-of-range value must return 'blocked' rather than throw.
+  // JS's % keeps the sign, so a negative index yields a negative column.
+  if (!Number.isInteger(index)) return 'blocked';
   const { col, row } = burrowColRow(index);
   if (row < 0 || row >= BURROW_ROWS || col < 0 || col >= BURROW_COLS) return 'blocked';
-  return CELL[LAYOUT[row][col]] ?? 'blocked';
+  return CELL[LAYOUT[row]?.[col] ?? '#'] ?? 'blocked';
 }
 
 /** Can a raider stand here? The field counts — reaching it is the win. */
