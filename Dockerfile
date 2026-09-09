@@ -18,6 +18,8 @@ WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1
 COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
+# `public/` is tracked (see public/.gitkeep) — a missing directory here fails
+# the build at the COPY rather than at runtime.
 COPY --from=build /app/public ./public
 EXPOSE 3010
 CMD ["bun", "server.js"]
