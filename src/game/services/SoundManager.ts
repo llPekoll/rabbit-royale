@@ -48,6 +48,56 @@ export function setGlobalAudio(next: { musicMuted: boolean; sfxMuted: boolean; m
   // muted and resumes cleanly when music comes back on. SFX need no sweep —
   // they're short one-shots gated at play time.
   for (const inst of instances) inst.applyMusicMuted(next.musicMuted);
+
+  // The app-level loop follows the same rules as a scene's.
+  if (ambient) {
+    ambient.volume(MUSIC_MIX * musicLevel);
+    if (next.musicMuted) {
+      if (ambient.playing()) ambient.pause();
+    } else if (!ambient.playing() && !sceneMusicPlaying()) {
+      ambientId = ambient.play(ambientId ?? undefined);
+    }
+  }
+}
+
+/**
+ * The app's own background loop, outside any Pixi scene.
+ *
+ * `IslandScene` starts the music when a run begins, which left every other
+ * screen — the burrow, which is where a player spends most of their time —
+ * silent. This is the same track on the same bus, owned by the app rather than
+ * by a scene, so it keeps playing while the player moves between them.
+ *
+ * Kept at module scope alongside the buses it obeys: it must honour a mute
+ * pushed from anywhere, and there is only ever one of it.
+ */
+let ambient: Howl | null = null;
+let ambientId: number | null = null;
+
+/** Start (or resume) the app's background loop. Safe to call repeatedly. */
+export function startAmbientMusic(): void {
+  const cfg = MUSIC_MAP[Keys.MUSIC_ISLAND];
+  if (!cfg) return;
+  if (!ambient) {
+    ambient = new Howl({ src: [cfg.src], loop: true, volume: MUSIC_MIX * musicLevel });
+  }
+  // Browsers refuse audio until the player has interacted with the page; the
+  // call simply does nothing then, and the next one (after a tap) succeeds.
+  if (!musicMuted && !ambient.playing()) ambientId = ambient.play();
+}
+
+export function stopAmbientMusic(): void {
+  if (!ambient) return;
+  ambient.stop();
+  ambient.unload();
+  ambient = null;
+  ambientId = null;
+}
+
+/** Whether a scene's own music is playing, so the ambient loop can stand down. */
+function sceneMusicPlaying(): boolean {
+  for (const inst of instances) if (inst.hasMusic()) return true;
+  return false;
 }
 
 export function isGloballyMuted(): boolean {
@@ -153,9 +203,17 @@ export class SoundManager {
   playCoinStart(): void { this.playSfx(Keys.SFX_COIN_START); }
   playInsertCoin(): void { this.playSfx(Keys.SFX_INSERT_COIN); }
 
+  /** Does this instance have a track of its own going? */
+  hasMusic(): boolean {
+    return !!this.music?.playing();
+  }
+
   startMusic(key: string = Keys.MUSIC_ISLAND): void {
     if (this.musicKey === key && this.music?.playing()) return;
     this.stopMusic();
+    // A scene's own track replaces the app's: two copies of the same loop,
+    // started at different moments, is the worst sound in the game.
+    if (ambient?.playing()) ambient.pause();
     const cfg = MUSIC_MAP[key];
     if (!cfg) return;
     this.music = new Howl({ src: [cfg.src], loop: cfg.loop, volume: MUSIC_MIX * musicLevel });
@@ -173,6 +231,10 @@ export class SoundManager {
       this.music = null;
       this.musicKey = null;
       this.musicId = null;
+    }
+    // The scene is done; the app's own loop takes the room back.
+    if (ambient && !musicMuted && !ambient.playing() && !sceneMusicPlaying()) {
+      ambientId = ambient.play(ambientId ?? undefined);
     }
   }
 }

@@ -18,6 +18,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { CARROT_URL, CARROT_SIZE } from '@domin8/arcade-kit/game';
+import { CarrotBurst } from '@/components/carrot-burst';
 
 export interface CarrotCounterProps {
   /** Carrots banked, as the server has them. */
@@ -129,6 +130,9 @@ export function CarrotCounter({ stock, fireKey, gain }: CarrotCounterProps) {
 
   return (
     <span className="rr-carrots" title={`${stock} carrots banked`}>
+      {/* Carrots fly up behind the figure as it climbs — the loot arriving,
+          with the rolling number as its result. */}
+      <CarrotBurst fireKey={fireKey} amount={gain} />
       <span key={fireKey} className={`rr-carrots-n${fireKey ? ' banked' : ''}`}>
         {shown}
       </span>

@@ -20,6 +20,7 @@ import { WalletButton } from '@/components/wallet-button';
 import { LeaderboardDrawer } from '@/components/leaderboard-drawer';
 import { GoButton } from '@/components/go-button';
 import { CarrotCounter } from '@/components/carrot-counter';
+import { SoundButton } from '@/components/sound-button';
 import { LoadingScreen } from '@/components/loading-screen';
 import { EnergyBar } from '@/components/energy-bar';
 import { SCENE } from '@/game/keys';
@@ -158,6 +159,9 @@ export default function Home() {
           aria-hidden
         />
       )}
+
+      {/* Sound belongs to the app, not to a screen: it rides above both. */}
+      <SoundButton />
 
       <div className="rr-topbar">
         {/* The one number worth carrying on every screen, top-right beside the
