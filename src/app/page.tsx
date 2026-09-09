@@ -17,6 +17,7 @@ import { useWalletLogin } from '@/components/use-wallet-login';
 import { WalletButton } from '@/components/wallet-button';
 import { LeaderboardDrawer } from '@/components/leaderboard-drawer';
 import { GoButton } from '@/components/go-button';
+import { CarrotBurst } from '@/components/carrot-burst';
 import { LoadingScreen } from '@/components/loading-screen';
 
 interface Burrow {
@@ -40,6 +41,10 @@ export default function Home() {
   const [burrow, setBurrow] = useState<Burrow | null>(null);
   const [pending, setPending] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  // Bumped on every successful harvest: it both replays the burst and re-keys
+  // the number, so the figure pops at the moment the carrots land in it.
+  const [burstKey, setBurstKey] = useState(0);
+  const [burstAmount, setBurstAmount] = useState(0);
   // The burrow painting is 150KB and IS this screen's background, so the page
   // is not ready until it has decoded — showing the panels over a black
   // rectangle first is exactly the flicker the loading screen exists to hide.
@@ -74,7 +79,11 @@ export default function Home() {
       const res = await fetch('/api/burrow', auth({ method: 'POST', body: JSON.stringify({ action }) }))
         .then((r) => r.json());
       if (res.burrow) setBurrow(res.burrow);
-      if (res.harvested) setNote(`+${res.harvested} 🥕`);
+      if (res.harvested) {
+        setNote(`+${res.harvested} 🥕`);
+        setBurstAmount(res.harvested);
+        setBurstKey((k) => k + 1);
+      }
       else if (res.spent) setNote(`Burrow deepened: ${res.spent} 🥕`);
       else if (res.error === 'insufficient_carrots') setNote(`Need ${res.need - res.have} more 🥕`);
       else if (res.error === 'nothing_to_harvest') setNote('The garden is empty. Come back later.');
@@ -116,14 +125,24 @@ export default function Home() {
           </div>
         ) : (
           <>
-            <h1 className="rr-burrow-title">🕳️ Your burrow</h1>
-
+            {/* The count leads. It is the one number the player came to see,
+                and the title only says where they are — which the art behind
+                it already said. */}
             <div className="rr-stat">
-              <span className="rr-stat-value" style={{ color: 'var(--carrot)' }}>
+              {/* The burst is positioned relative to this block, so the carrots
+                  fly INTO the figure they are changing. */}
+              <CarrotBurst fireKey={burstKey} amount={burstAmount} />
+              <span
+                key={burstKey}
+                className={`rr-stat-value${burstKey ? ' banked' : ''}`}
+                style={{ color: 'var(--carrot)' }}
+              >
                 {burrow?.stock ?? 0}
               </span>
               <span className="rr-stat-label">🥕 carrots banked</span>
             </div>
+
+            <h1 className="rr-burrow-title">🕳️ Your burrow</h1>
 
             <div className="rr-card">
               <div className="rr-row">

@@ -18,6 +18,7 @@
  * would just be a bug the player has to learn.
  */
 import { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AVATARS, avatarSrc, AVATAR_FRAME } from '@/lib/game/avatars';
 import { nameProblem, nameProblemMessage, NAME_MAX } from '@/lib/game/player-name';
 
@@ -76,6 +77,16 @@ export function ProfileMenu({
 
   const auth = { Authorization: `Bearer ${token}` };
 
+  // Escape closes it. Expected of anything modal, and it is the exit a
+  // keyboard player reaches for before looking for an [x].
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   useEffect(() => {
     let alive = true;
     setHistoryFailed(false);
@@ -125,9 +136,25 @@ export function ProfileMenu({
   const problem = nameProblem(name);
   const renamed = name.trim() !== player.name;
 
-  return (
+  // Portalled to <body>. The chip that opens this lives inside `.rr-topbar`,
+  // which is positioned and so forms a stacking context — a panel rendered
+  // there can never rise above the season board, whatever its z-index, and it
+  // opened invisibly behind it. A dialog belongs at the top of the document,
+  // not wherever its trigger happens to sit.
+  return createPortal(
     <>
-      <aside className="rr-lb rr-profile open" id="rr-profile">
+      {/* Tap-away. A dialog whose only exit is its own [x] is a trap, and on a
+          wide screen the board's chrome hides that [x] — so this is the exit
+          that always works. */}
+      <div className="rr-profile-scrim" onClick={onClose} aria-hidden />
+
+      <aside
+        className="rr-lb rr-profile open"
+        id="rr-profile"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Your burrow"
+      >
         <header className="rr-lb-head">
           <strong>Your burrow</strong>
           <button className="rr-lb-close" onClick={onClose} aria-label="Close">
@@ -214,7 +241,8 @@ export function ProfileMenu({
         )}
       </aside>
       <div className="rr-scrim" onClick={onClose} />
-    </>
+    </>,
+    document.body,
   );
 }
 

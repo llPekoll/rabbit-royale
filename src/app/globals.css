@@ -320,11 +320,15 @@ button { min-height: 44px; min-width: 44px; }
   padding: env(safe-area-inset-top) 12px env(safe-area-inset-bottom);
   overflow: hidden;
 }
-/* Everything except the art sits above it. Only the z-index is set here: the
-   season board is `position: fixed` and forcing it relative tore it out of the
-   viewport and dropped it into the flow. */
-.rr-home > *:not(.rr-home-art) { z-index: 1; }
-.rr-topbar, .rr-burrow, .rr-go, .rr-back { position: relative; }
+/* The page content sits above the painting.
+   Named explicitly rather than as `> *:not(.rr-home-art)`: that blanket rule
+   also stamped z-index 1 onto the season board and the profile panel, which are
+   FIXED overlays with z-indexes of their own — and it turned .rr-topbar into a
+   stacking context, so the profile panel rendered inside it could never rise
+   above the board however high its own z-index went. That is what made clicking
+   the profile chip look like nothing happened: the panel opened, behind the
+   board. Overlays position themselves; only the flow content needs lifting. */
+.rr-topbar, .rr-burrow, .rr-go, .rr-back { position: relative; z-index: 1; }
 
 .rr-topbar {
   display: flex;
@@ -407,7 +411,12 @@ button { min-height: 44px; min-width: 44px; }
 
 /* The stock, big: it is the number the whole persistent layer is about, and a
    returning player should read it before anything else on the screen. */
-.rr-stat { text-align: center; margin: 6px 0 14px; }
+/* The banked count leads the screen, so it owns the space above the title. */
+.rr-stat {
+  position: relative;
+  text-align: center;
+  margin: 6px 0 14px;
+}
 .rr-stat-value {
   display: block;
   font-size: 44px;
@@ -416,6 +425,46 @@ button { min-height: 44px; min-width: 44px; }
   font-variant-numeric: tabular-nums;
 }
 .rr-stat-label { color: var(--muted); font-size: 13px; }
+
+/* The number takes the hit when the carrots land in it: a count that changes
+   without flinching reads as a value someone edited, not as loot arriving. */
+.rr-stat-value.banked { animation: rr-banked 420ms cubic-bezier(0.22, 1.2, 0.36, 1); }
+@keyframes rr-banked {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+/* The carrots themselves. A layer over the counter that never takes a click and
+   never changes the layout — it exists for the half-second the loot is in the
+   air, and the number below it must not move while it plays. */
+.rr-carrot-burst {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+.rr-carrot-fly {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  /* Half the sprite's own width, so `left: 50%` centres it rather than
+     hanging it off the middle. */
+  margin-left: -6px;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  image-rendering: pixelated;
+  will-change: transform, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The burst does not run at all (see carrot-burst.tsx); the number simply
+     changes, which is the fact it was decorating. */
+  .rr-stat-value.banked { animation: none; }
+}
 .rr-note { text-align: center; color: var(--muted); }
 
 /* ── The one action ────────────────────────────────────────────────────────
@@ -553,8 +602,25 @@ button { min-height: 44px; min-width: 44px; }
 /* ── The player's own panel ────────────────────────────────────────────────
    The second drawer in the game, so it reuses the season board's chrome
    (.rr-lb) rather than inventing a second way to slide in from the right.
-   Only what differs lives here. */
-.rr-profile { z-index: 31; }
+   Only what differs lives here.
+
+   Unlike the board it is a DIALOG: it slides in on demand at every width, and
+   sits above the board rather than beside it. */
+.rr-profile {
+  z-index: 33;
+  /* Its own slide, so the wide-screen rule that pins the board open cannot
+     also pin this one. */
+  transform: translateX(100%);
+}
+.rr-profile.open { transform: none; }
+
+/* A dialog needs something to dismiss it against, at every width. */
+.rr-profile-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 32;
+  background: rgba(0, 0, 0, 0.5);
+}
 
 .rr-tabs {
   display: flex;
@@ -752,8 +818,14 @@ button { min-height: 44px; min-width: 44px; }
    scrim, nothing to open. That is what "on the side" means when there is room
    for a side. */
 @media (min-width: 860px) {
-  .rr-lb { transform: none; }
-  .rr-lb-tab, .rr-scrim, .rr-lb-close { display: none; }
+  /* The SEASON BOARD is furniture on a wide screen: always there, nothing to
+     open or close. Scoped with :not(.rr-profile) — the profile panel borrows
+     this chrome but is a real dialog, and letting it inherit "always visible"
+     parked it permanently underneath the board (same edge, same width), so
+     clicking the chip appeared to do nothing at all. */
+  .rr-lb:not(.rr-profile) { transform: none; }
+  .rr-lb-tab, .rr-scrim { display: none; }
+  .rr-lb:not(.rr-profile) .rr-lb-close { display: none; }
   .rr-home { padding-right: calc(330px + 12px); }
 }
 
