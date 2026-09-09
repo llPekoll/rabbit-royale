@@ -246,9 +246,9 @@ button { min-height: 44px; min-width: 44px; }
   /* The three shell slices in one layer: fixed ends pinned left and right, the
      1px middle repeated across the gap between them. */
   background:
-    url('/assets/ui/gauge/bar-shell-base.png') left center / auto 100% no-repeat,
-    url('/assets/ui/gauge/bar-shell-cap.png') right center / auto 100% no-repeat,
-    url('/assets/ui/gauge/bar-shell-mid.png') left center / auto 100% repeat-x;
+    url('/assets/ui/gauge/bar-shell-base.webp') left center / auto 100% no-repeat,
+    url('/assets/ui/gauge/bar-shell-cap.webp') right center / auto 100% no-repeat,
+    url('/assets/ui/gauge/bar-shell-mid.webp') left center / auto 100% repeat-x;
   image-rendering: pixelated;
 }
 .rr-energy-fill {
@@ -549,6 +549,186 @@ button { min-height: 44px; min-width: 44px; }
   z-index: 29;
   background: rgba(0, 0, 0, 0.5);
 }
+
+/* ── The player's own panel ────────────────────────────────────────────────
+   The second drawer in the game, so it reuses the season board's chrome
+   (.rr-lb) rather than inventing a second way to slide in from the right.
+   Only what differs lives here. */
+.rr-profile { z-index: 31; }
+
+.rr-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+}
+.rr-tabs button {
+  flex: 1;
+  position: relative;
+  border: none;
+  border-radius: 0;
+  background: none;
+  color: var(--muted);
+  padding: 12px 8px;
+}
+/* The selected tab is marked by a rule under it, not by a filled box: the
+   panel is already a box, and a box inside a box reads as a mistake. */
+.rr-tabs button.on {
+  color: var(--crown);
+  box-shadow: inset 0 -2px 0 var(--crown);
+}
+
+/* Unread raids. Small, red, and on the thing you press — a count that has to
+   be gone looking for is not a notification. */
+.rr-badge {
+  display: inline-block;
+  min-width: 16px;
+  margin-left: 6px;
+  padding: 1px 4px;
+  border-radius: 8px;
+  background: var(--danger);
+  color: #0d1117;
+  font-size: 10px;
+  font-style: normal;
+  line-height: 14px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.rr-profile-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+}
+.rr-profile-h {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* One frame of a bunny sheet. The sheet is 8 frames wide, so the window is
+   pinned top-left and the background sized to the whole strip — frame 0, the
+   first idle pose, with no second asset to keep in step. */
+.rr-avatar {
+  display: inline-block;
+  background-repeat: no-repeat;
+  background-position: 0 0;
+  image-rendering: pixelated;
+  flex: none;
+}
+/* Same crop as the panel's Avatar: the rabbit stands at the bottom of its
+   32px cell, so the chip shows the bottom half of the frame at 1x. */
+.rr-wallet-face {
+  width: 32px;
+  height: 16px;
+  background-position: 0 -16px;
+  vertical-align: -3px;
+  margin-right: 2px;
+}
+
+/* A fixed track rather than wrapping flex: the rabbits are all one size, so a
+   grid keeps them on an even rhythm instead of leaving a ragged last row. */
+.rr-avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+.rr-avatar-pick {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Square cells of one height: the selected one gets a border the others do
+     not, and without a fixed box that border made its cell taller than its
+     neighbours and shunted the row. */
+  aspect-ratio: 1;
+  padding: 0;
+  min-width: 0;
+  min-height: 0;
+  line-height: 0;
+  border-color: transparent;
+  overflow: hidden;
+}
+/* The chosen rabbit is ringed in the crown colour — the same mark the game
+   uses everywhere else for "this one is yours". */
+.rr-avatar-pick.on {
+  border-color: var(--crown);
+  background: rgba(255, 212, 92, 0.12);
+}
+
+.rr-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+.rr-field span { font-size: 12px; color: var(--muted); }
+.rr-field input {
+  font: inherit;
+  color: inherit;
+  background: #0b0f14;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  min-height: 44px;
+}
+.rr-warn { margin: 0; font-size: 12px; color: var(--danger); }
+.rr-empty { margin: 0; font-size: 12px; color: var(--muted); }
+
+.rr-btn { width: 100%; }
+.rr-btn.ghost { color: var(--muted); background: none; }
+
+.rr-wallet-line {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* Carrots per day. The bar carries the comparison, the number the fact. */
+.rr-days, .rr-raids {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+}
+.rr-days li {
+  display: grid;
+  grid-template-columns: 56px 1fr 40px;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 12px;
+}
+.rr-day { color: var(--muted); }
+.rr-day-bar {
+  height: 8px;
+  background: #0b0f14;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.rr-day-bar > i { display: block; height: 100%; background: var(--carrot); }
+.rr-day-n { text-align: right; color: var(--carrot); }
+
+.rr-raids li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0;
+  font-size: 12px;
+  border-top: 1px solid var(--border);
+}
+.rr-raid-who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Taken from you reads red, taken BY you reads gold: the log has to be
+   skimmable for "who got me" without reading a single word of it. */
+.rr-raids li.hit .rr-raid-what { color: var(--danger); }
+.rr-raids li.mine .rr-raid-what { color: var(--crown); }
+.rr-raid-when { color: var(--muted); min-width: 30px; text-align: right; }
 
 .rr-lb-row {
   display: grid;

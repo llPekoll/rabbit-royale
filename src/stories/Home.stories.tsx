@@ -40,7 +40,7 @@ function Home({ signedIn, stock, hp, maxHp, gardenReady, level, upgradeCost, boa
       {/* The burrow behind everything, exactly as the page draws it. */}
       <div
         className="rr-home-art"
-        style={{ backgroundImage: 'url(/assets/island/burrow_generated.jpg)' }}
+        style={{ backgroundImage: 'url(/assets/island/burrow_generated.webp)' }}
         aria-hidden
       />
       <div className="rr-topbar">

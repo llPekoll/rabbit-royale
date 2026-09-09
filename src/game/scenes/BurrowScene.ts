@@ -22,7 +22,7 @@ import {
   burrowCell, burrowTilePos, burrowTileDepth, isTrappable,
 } from '@/config/burrowConfig';
 
-const BACKDROP_URL = '/assets/island/burrow_generated.jpg';
+const BACKDROP_URL = '/assets/island/burrow_generated.webp';
 
 /** Placed traps read as YOURS — gold, like the crown and the carrot count. */
 const TRAP_TINT = 0xffd45c;

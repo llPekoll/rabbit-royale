@@ -103,5 +103,20 @@ export function useWalletLogin() {
     setPlayer(null);
   }, []);
 
-  return { player, token, busy, error, login, logout };
+  /**
+   * Adopt a profile change made elsewhere (the profile menu renaming the
+   * player). A rename REISSUES the session token, because the name is one of
+   * its claims — so the new one has to replace the stored one here, or the WS
+   * handshake keeps introducing the player under the old name until the old
+   * token expires.
+   */
+  const applyProfile = useCallback((patch: { name?: string; token?: string }) => {
+    if (patch.token) {
+      localStorage.setItem(TOKEN_KEY, patch.token);
+      setToken(patch.token);
+    }
+    if (patch.name) setPlayer((p) => (p ? { ...p, name: patch.name! } : p));
+  }, []);
+
+  return { player, token, busy, error, login, logout, applyProfile };
 }

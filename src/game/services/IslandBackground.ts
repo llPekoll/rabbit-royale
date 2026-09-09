@@ -19,9 +19,9 @@ import { seedFrom } from '@/lib/game/rng';
 
 /** The ground each island is drawn on, picked by seed. */
 const LANDS = [
-  '/assets/island/land1.png',
-  '/assets/island/land2.png',
-  '/assets/island/land3.png',
+  '/assets/island/land1.webp',
+  '/assets/island/land2.webp',
+  '/assets/island/land3.webp',
 ] as const;
 
 /** The design canvas the ground has to cover. */

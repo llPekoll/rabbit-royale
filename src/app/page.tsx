@@ -187,4 +187,4 @@ export default function Home() {
 
 /** The burrow, painted. Also preloaded above, so the panels never flash over
  *  an empty background. */
-const BURROW_ART = '/assets/island/burrow_generated.jpg';
+const BURROW_ART = '/assets/island/burrow_generated.webp';

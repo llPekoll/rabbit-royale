@@ -11,29 +11,29 @@ const FRAME_SIZE = 32;
 const SHEET_COLS = 8;
 
 const BUNNY_SHEETS = [
-  { key: Keys.BUNNY_BROWN, src: '/assets/bunnies/Bunny Sprite Sheet - Brown.png' },
-  { key: Keys.BUNNY_GRAY, src: '/assets/bunnies/Bunny Sprite Sheet - Gray.png' },
-  { key: Keys.BUNNY_ORANGE, src: '/assets/bunnies/Bunny Sprite Sheet - Orange.png' },
-  { key: Keys.BUNNY_WHITE, src: '/assets/bunnies/Bunny Sprite Sheet - White.png' },
-  { key: Keys.BUNNY_YELLOW, src: '/assets/bunnies/Bunny Sprite Sheet - Yellowish.png' },
+  { key: Keys.BUNNY_BROWN, src: '/assets/bunnies/Bunny Sprite Sheet - Brown.webp' },
+  { key: Keys.BUNNY_GRAY, src: '/assets/bunnies/Bunny Sprite Sheet - Gray.webp' },
+  { key: Keys.BUNNY_ORANGE, src: '/assets/bunnies/Bunny Sprite Sheet - Orange.webp' },
+  { key: Keys.BUNNY_WHITE, src: '/assets/bunnies/Bunny Sprite Sheet - White.webp' },
+  { key: Keys.BUNNY_YELLOW, src: '/assets/bunnies/Bunny Sprite Sheet - Yellowish.webp' },
 ];
 
 const IMAGES = [
-  { key: Keys.DEAD_SKULL, src: '/assets/bunnies/RR-Skull.png' },
-  { key: Keys.GHOST_DOWN, src: '/assets/bunnies/RR-Ghost-Down.png' },
-  { key: Keys.GHOST_UP, src: '/assets/bunnies/RR-Ghost-Up.png' },
-  { key: Keys.BOMB_SMALL, src: '/assets/RR-Bomb-Small.png' },
-  { key: Keys.LOGO, src: '/assets/ui/rr-logo-1x.png' },
-  { key: Keys.LOGO_BANNER, src: '/assets/ui/RR-Logo_Banner.png' },
-  { key: Keys.TREASURE_CHEST, src: '/assets/ui/treasure_chest.png' },
-  { key: Keys.LOOT_BOX, src: '/assets/fx/loot-box.png' },
+  { key: Keys.DEAD_SKULL, src: '/assets/bunnies/RR-Skull.webp' },
+  { key: Keys.GHOST_DOWN, src: '/assets/bunnies/RR-Ghost-Down.webp' },
+  { key: Keys.GHOST_UP, src: '/assets/bunnies/RR-Ghost-Up.webp' },
+  { key: Keys.BOMB_SMALL, src: '/assets/RR-Bomb-Small.webp' },
+  { key: Keys.LOGO, src: '/assets/ui/rr-logo-1x.webp' },
+  { key: Keys.LOGO_BANNER, src: '/assets/ui/RR-Logo_Banner.webp' },
+  { key: Keys.TREASURE_CHEST, src: '/assets/ui/treasure_chest.webp' },
+  { key: Keys.LOOT_BOX, src: '/assets/fx/loot-box.webp' },
   // The carrot comes from the shared kit rather than public/: it is the same
   // prop the hub's season pass draws, and one copy means one carrot.
   { key: Keys.CARROT, src: CARROT_URL },
   // The drifting clouds. Eight shapes so a sky of them never visibly repeats.
   ...Array.from({ length: Keys.CLOUD_COUNT }, (_, i) => ({
     key: Keys.cloudKey(i + 1),
-    src: `/assets/clouds/Clouds_0${i + 1}.png`,
+    src: `/assets/clouds/Clouds_0${i + 1}.webp`,
   })),
 ];
 
@@ -43,7 +43,7 @@ const IMAGES = [
 /** Explosion spritesheet: 48x48 frames */
 const EXPLOSION = {
   key: Keys.EXPLOSION_SMALL,
-  src: '/assets/fx/expfx1_epic_explosion_A_small_orange/spritesheet.png',
+  src: '/assets/fx/expfx1_epic_explosion_A_small_orange/spritesheet.webp',
   frameWidth: 48,
   frameHeight: 48,
 };
@@ -66,7 +66,7 @@ export async function loadLootBoxSheet(): Promise<Spritesheet | null> {
   if (lootBoxSheet) return lootBoxSheet;
   try {
     if (!Assets.get<Texture>(Keys.LOOT_BOX)) {
-      Assets.add({ alias: Keys.LOOT_BOX, src: '/assets/fx/loot-box.png' });
+      Assets.add({ alias: Keys.LOOT_BOX, src: '/assets/fx/loot-box.webp' });
       await Assets.load(Keys.LOOT_BOX);
     }
     const json = (await fetch('/assets/fx/loot-box.json').then((r) => r.json())) as {

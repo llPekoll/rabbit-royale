@@ -30,7 +30,7 @@ function Overlay({ energy, carrots, rabbits, warnStage, spectating, recap }: Arg
     <div style={{ position: 'relative', height: '100dvh', overflow: 'hidden' }}>
       {/* Stand-in for the Pixi canvas, which is `position: fixed` in the app. */}
       <img
-        src="/assets/island/land2.png"
+        src="/assets/island/land2.webp"
         alt=""
         style={{
           position: 'absolute', inset: 0, width: '100%', height: '100%',

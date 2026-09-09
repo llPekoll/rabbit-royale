@@ -19,7 +19,7 @@ import { useEffect, useState } from 'react';
  * a browser in production, which meant the LOADING screen was itself the thing
  * being waited for. At q88 it is 75KB and indistinguishable.
  */
-const ART = '/assets/island/loading_screen.jpg';
+const ART = '/assets/island/loading_screen.webp';
 
 export interface LoadingScreenProps {
   /** Lift the veil. The screen underneath is already mounted. */
