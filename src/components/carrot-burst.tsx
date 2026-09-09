@@ -37,9 +37,15 @@ export interface CarrotBurstProps {
   fireKey: number;
   /** How many carrots were banked — more carrots, more sprites (capped). */
   amount: number;
+  /**
+   * How wide the fan opens, in pixels. Defaults to the width of the element the
+   * burst sits in, so a burst over a narrow counter stays over that counter
+   * instead of drifting across its neighbours.
+   */
+  spread?: number;
 }
 
-export function CarrotBurst({ fireKey, amount }: CarrotBurstProps) {
+export function CarrotBurst({ fireKey, amount, spread }: CarrotBurstProps) {
   const host = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -51,6 +57,14 @@ export function CarrotBurst({ fireKey, amount }: CarrotBurstProps) {
     if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
 
     const el = host.current;
+    // The fan is as wide as the thing it decorates unless told otherwise. The
+    // host itself is a zero-height overlay, so the measurement comes from its
+    // PARENT — the counter — which is the element the carrots belong to.
+    const box = el.parentElement?.getBoundingClientRect();
+    // Kept INSIDE the counter, not merely near it: this thing lives in a
+    // crowded top bar with a wallet chip beside it and the screen edge just
+    // past that, so a fan wider than its own element lands on its neighbours.
+    const width = spread ?? Math.min(box?.width ?? 90, 90);
     // More carrots for a bigger haul, but on a curve: 5 and 500 should differ,
     // 500 and 5000 need not.
     const count = Math.max(3, Math.min(MAX_CARROTS, Math.round(Math.sqrt(amount))));
@@ -76,22 +90,24 @@ export function CarrotBurst({ fireKey, amount }: CarrotBurstProps) {
       // A fan, not a column: each carrot keeps its own lane the whole way up.
       // Converging them on the centre stacked every sprite on top of the digits
       // and hid the number the burst exists to point at.
-      // Lanes are pushed away from the centre (the digits live there), so the
-      // fan straddles the number instead of climbing over it.
+      // A narrow counter has no room for a fan AROUND it, so the carrots rise
+      // from below and pass THROUGH — they are behind the digits (z-index), so
+      // the number stays readable the whole way. Trying to straddle a 90px
+      // counter just parked the sprites on top of the figure.
       const t = i / Math.max(1, count - 1) - 0.5;
-      const lane = Math.sign(t) * (34 + Math.abs(t) * 150) + gsap.utils.random(-8, 8);
+      const lane = t * width + gsap.utils.random(-6, 6);
       tl.fromTo(
         s,
         // Starting already fanned (and lower) keeps every carrot out of the
         // digits' column on the way up: a launch from the centre had the late
         // ones climbing straight through the number.
-        { x: lane * 0.82, y: 66, opacity: 0, scale: 0.7, rotate: gsap.utils.random(-40, 40) },
+        { x: lane * 0.6, y: 30, opacity: 0, scale: 0.7, rotate: gsap.utils.random(-30, 30) },
         {
           // Rising and spreading, so they clear the figure instead of covering
           // it — the eye is pulled UP past the number, which is what makes it
           // look at the number.
           x: lane,
-          y: -26,
+          y: -14,
           opacity: 1,
           scale: 1,
           rotate: gsap.utils.random(-18, 18),
@@ -103,7 +119,7 @@ export function CarrotBurst({ fireKey, amount }: CarrotBurstProps) {
       ).to(
         s,
         // They keep going and fade out above, rather than stopping dead.
-        { y: -62, opacity: 0, duration: 0.26, ease: 'power1.in' },
+        { y: -34, opacity: 0, duration: 0.26, ease: 'power1.in' },
         '>-0.06',
       );
     });
@@ -112,7 +128,7 @@ export function CarrotBurst({ fireKey, amount }: CarrotBurstProps) {
       tl.kill();
       sprites.forEach((s) => s.remove());
     };
-  }, [fireKey, amount]);
+  }, [fireKey, amount, spread]);
 
   return <div className="rr-carrot-burst" ref={host} aria-hidden />;
 }

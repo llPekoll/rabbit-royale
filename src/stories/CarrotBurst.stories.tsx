@@ -16,12 +16,15 @@ function Harness({ amount = 24, start = 138 }: { amount?: number; start?: number
 
   return (
     <div style={{ background: '#2d5a27', padding: '60px 20px 20px', width: 340 }}>
-      <div className="rr-stat">
-        <CarrotBurst fireKey={key} amount={amount} />
-        <span key={key} className={`rr-stat-value${key ? ' banked' : ''}`} style={{ color: 'var(--carrot)' }}>
-          {stock}
+      {/* The counter as the app actually carries it: small, top-right, beside
+          the wallet — with the carrots passing BEHIND the figure. */}
+      <div className="rr-topbar">
+        <span className="rr-carrots">
+          <CarrotBurst fireKey={key} amount={amount} />
+          <span key={key} className={`rr-carrots-n${key ? ' banked' : ''}`}>{stock}</span>
+          <span aria-hidden>🥕</span>
         </span>
-        <span className="rr-stat-label">🥕 carrots banked</span>
+        <button className="rr-wallet connected">CursedWarren42</button>
       </div>
       <h1 className="rr-burrow-title">🕳️ Your burrow</h1>
       <button

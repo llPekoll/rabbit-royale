@@ -28,6 +28,12 @@ const LANDS = [
 const DESIGN_W = 960;
 const DESIGN_H = 540;
 
+/** Guarded: this runs before the first resize, and a zero collapses the sprite. */
+const defaultViewport = () => ({
+  width: (typeof window === 'undefined' ? 0 : window.innerWidth) || DESIGN_W,
+  height: (typeof window === 'undefined' ? 0 : window.innerHeight) || DESIGN_H,
+});
+
 /**
  * How far the ground is zoomed past the frame.
  *
@@ -59,6 +65,9 @@ export async function createIslandBackground(
   centerY: number,
   /** The island's seed. Decides which of the three grounds is painted. */
   seed?: string,
+  /** The renderer's live size in CSS pixels. Defaults to the window, which is
+   *  right when nothing else shares the screen. */
+  viewport: () => { width: number; height: number } = defaultViewport,
 ): Promise<IslandBackground> {
   const img = new Image();
   img.src = seed ? landForSeed(seed) : LANDS[0];
@@ -83,10 +92,24 @@ export async function createIslandBackground(
 
   const api: IslandBackground = {
     layout(cx, cy, zoom = ISLAND_ZOOM) {
-      // Cover the canvas, no more: these are ~300px crops, so they are already
-      // being enlarged three-fold and any extra zoom is both blurrier and
-      // tighter than the island wants to be.
-      const cover = Math.max(DESIGN_W / nativeW, DESIGN_H / nativeH) * zoom;
+      // Cover the CANVAS, not the design box and not the window.
+      //
+      // The design space is 960x540 and the root scales it to FIT, so on any
+      // canvas that is not 16:9 there is bare space left over — it showed as a
+      // flat blue band under the island. The window is the wrong thing to
+      // measure too: the season board takes 330px of it on a wide screen, so
+      // the renderer is narrower than `innerWidth` and the ground came out
+      // sized for a box it does not occupy.
+      //
+      // `viewport()` is injected so this stays testable and so it can be told
+      // the truth by whoever owns the renderer.
+      const { width: vw, height: vh } = viewport();
+      const rootScale = Math.min(vw / DESIGN_W, vh / DESIGN_H);
+      // What the canvas measures in DESIGN units after that scale.
+      const needW = vw / rootScale;
+      const needH = vh / rootScale;
+
+      const cover = Math.max(needW / nativeW, needH / nativeH) * zoom;
       ground.position.set(cx, cy);
       ground.width = nativeW * cover;
       ground.height = nativeH * cover;

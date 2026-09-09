@@ -68,7 +68,14 @@ export interface GameApp {
   }
 }
 
-export async function createApp(container: HTMLElement): Promise<GameApp> {
+export async function createApp(
+  container: HTMLElement,
+  /** Handed to the boot, which builds both scenes from it. */
+  boot?: import('./keys').BootData,
+  /** Called with the scene manager BEFORE the boot runs, so `boot.onReady` —
+   *  which fires from inside it — has something to reach it by. */
+  onScenes?: (scenes: SceneManager) => void,
+): Promise<GameApp> {
   // Kill any orphaned GSAP tweens from previous HMR instances
   gsap.globalTimeline.clear();
 
@@ -146,7 +153,8 @@ export async function createApp(container: HTMLElement): Promise<GameApp> {
   pixi.stage.sortableChildren = true;
 
   const scenes = new SceneManager(pixi, gameRoot);
-  await scenes.start(BootScene);
+  onScenes?.(scenes);
+  await scenes.start(BootScene, boot);
 
   return {
     pixi,
@@ -154,7 +162,7 @@ export async function createApp(container: HTMLElement): Promise<GameApp> {
     gameRoot,
     destroy() {
       window.removeEventListener('resize', resize);
-      scenes.destroyCurrent();
+      scenes.destroyAll();
       gsap.globalTimeline.clear();
       pixi.destroy(true, { children: true });
     },

@@ -95,10 +95,8 @@ function Home({ signedIn, stock, hp, maxHp, gardenReady, level, upgradeCost, boa
         ) : (
           <>
             <h1 className="rr-burrow-title">🕳️ Your burrow</h1>
-            <div className="rr-stat">
-              <span className="rr-stat-value" style={{ color: 'var(--carrot)' }}>{stock}</span>
-              <span className="rr-stat-label">🥕 carrots banked</span>
-            </div>
+            {/* The count lives in the topbar now (see .rr-carrots), not in a
+                block of its own. */}
             <div className="rr-card">
               <div className="rr-row"><span>Hit points</span><span>{hp} / {maxHp}</span></div>
               <div className="rr-meter"><i style={{ width: `${(hp / maxHp) * 100}%` }} /></div>

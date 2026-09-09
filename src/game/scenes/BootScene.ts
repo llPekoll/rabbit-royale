@@ -5,6 +5,9 @@ import { GAME_W, GAME_H } from '../Application';
 import { loadAllAssets } from '../services/AssetLoader';
 import { initTileTextures } from '../services/TileTextures';
 import { IslandScene } from './IslandScene';
+import { BurrowScene } from './BurrowScene';
+import type { BootData } from '../keys';
+import { SCENE } from '../keys';
 
 // Hold off on drawing the loading bar this long. A warm cache resolves the
 // asset load within a frame or two, and flashing a progress bar for that single
@@ -17,11 +20,16 @@ export class BootScene implements Scene {
   private sceneManager: SceneManager;
   private bar: Graphics | null = null;
   private fill: Graphics | null = null;
+  private data: BootData | null = null;
 
   constructor(app: Application, sceneManager: SceneManager) {
     this.app = app;
     this.sceneManager = sceneManager;
     this.container = new Container();
+  }
+
+  init(data?: unknown): void {
+    if (data) this.data = data as BootData;
   }
 
   create(): Promise<void> {
@@ -43,7 +51,20 @@ export class BootScene implements Scene {
 
     clearTimeout(showTimer);
     initTileTextures(this.app.renderer);
-    await this.sceneManager.start(IslandScene);
+
+    // BOTH scenes are built here, once, and kept.
+    //
+    // The player crosses between their burrow and the island constantly, and
+    // rebuilding a scene on each crossing re-decodes its artwork and drops its
+    // WebGL state — a visible pause on a move that should be instant. Paying
+    // for both up front, behind the loading screen the player is already
+    // watching, buys a game that never stalls again.
+    await this.sceneManager.resident_add(SCENE.burrow, BurrowScene, this.data?.burrow);
+    await this.sceneManager.resident_add(SCENE.island, IslandScene, this.data?.island);
+
+    // The burrow is home: it is where a returning player lands.
+    this.sceneManager.show(SCENE.burrow);
+    this.data?.onReady?.();
   }
 
   private buildBar(): void {

@@ -162,6 +162,9 @@ button { min-height: 44px; min-width: 44px; }
   overflow: hidden;
 }
 .rr-meter > i { display: block; height: 100%; background: var(--carrot); }
+/* The caption under a meter is its label, so it sits with the meter rather than
+   crowding whatever button follows. */
+.rr-card small { display: block; margin: 6px 0 10px; }
 
 .rr-lb-row {
   display: grid;
@@ -332,9 +335,30 @@ button { min-height: 44px; min-width: 44px; }
 
 .rr-topbar {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: 10px;
   padding: 8px 0 4px;
 }
+
+/* The banked count, top-right beside the wallet. One line, because that is all
+   the information is: a number and what it counts. */
+.rr-carrots {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 15px;
+  color: var(--carrot);
+  font-variant-numeric: tabular-nums;
+  /* The art behind this screen is bright grass, so the figure needs its own
+     edge rather than a panel to sit on. */
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.65);
+}
+/* The number takes the hit when carrots land in it: a count that changes
+   without flinching reads as a value someone edited, not as loot arriving. */
+.rr-carrots-n { position: relative; z-index: 1; }
+.rr-carrots-n.banked { display: inline-block; animation: rr-banked 420ms cubic-bezier(0.22, 1.2, 0.36, 1); }
 
 .rr-wallet {
   font-size: 13px;
@@ -411,24 +435,6 @@ button { min-height: 44px; min-width: 44px; }
 
 /* The stock, big: it is the number the whole persistent layer is about, and a
    returning player should read it before anything else on the screen. */
-/* The banked count leads the screen, so it owns the space above the title. */
-.rr-stat {
-  position: relative;
-  text-align: center;
-  margin: 6px 0 14px;
-}
-.rr-stat-value {
-  display: block;
-  font-size: 44px;
-  font-weight: 700;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-}
-.rr-stat-label { color: var(--muted); font-size: 13px; }
-
-/* The number takes the hit when the carrots land in it: a count that changes
-   without flinching reads as a value someone edited, not as loot arriving. */
-.rr-stat-value.banked { animation: rr-banked 420ms cubic-bezier(0.22, 1.2, 0.36, 1); }
 @keyframes rr-banked {
   0%   { transform: scale(1); }
   35%  { transform: scale(1.18); }
@@ -445,7 +451,10 @@ button { min-height: 44px; min-width: 44px; }
   top: 0;
   height: 0;
   pointer-events: none;
-  z-index: 2;
+  /* BEHIND the figure: over a counter this narrow the carrots pass across the
+     digits, and a burst that hides the number it is announcing is worse than
+     no burst at all. */
+  z-index: -1;
 }
 .rr-carrot-fly {
   position: absolute;
@@ -463,7 +472,7 @@ button { min-height: 44px; min-width: 44px; }
 @media (prefers-reduced-motion: reduce) {
   /* The burst does not run at all (see carrot-burst.tsx); the number simply
      changes, which is the fact it was decorating. */
-  .rr-stat-value.banked { animation: none; }
+  .rr-carrots-n.banked { animation: none; }
 }
 .rr-note { text-align: center; color: var(--muted); }
 
@@ -826,15 +835,15 @@ button { min-height: 44px; min-width: 44px; }
   .rr-lb:not(.rr-profile) { transform: none; }
   .rr-lb-tab, .rr-scrim { display: none; }
   .rr-lb:not(.rr-profile) .rr-lb-close { display: none; }
-  .rr-home { padding-right: calc(330px + 12px); }
+  /* Room for the board — only while it is showing. */
+  .rr-home:has(.rr-lb:not(.rr-profile)) { padding-right: calc(330px + 12px); }
 }
 
 /* ── Pixel type ────────────────────────────────────────────────────────────
    The kit's face is an 8px cell, so it is crispest at whole multiples. These
    are the sizes the interface actually uses, rounded onto that grid. */
 .rr-hud { font-size: 12px; }
-.rr-stat-value { font-size: 40px; letter-spacing: 0; }
-.rr-stat-label { font-size: 12px; }
+.rr-carrots { font-size: 14px; }
 .rr-burrow-title { font-size: 16px; letter-spacing: 0.04em; }
 .rr-lb-row { font-size: 12px; }
 .rr-lb-name small { font-size: 8px; letter-spacing: 0; }

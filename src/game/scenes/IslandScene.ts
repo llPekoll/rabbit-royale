@@ -75,6 +75,10 @@ export class IslandScene implements Scene {
   private sweep: gsap.core.Tween | null = null;
   private arrows: MoveArrows | null = null;
   private clouds: CloudField | null = null;
+  private onResize: (() => void) | null = null;
+  /** Last canvas size the ground was laid out for. */
+  private lastW = 0;
+  private lastH = 0;
 
   /** Where the local rabbit is, for direction-relative movement. */
   private myTile = SPAWN_INDEX;
@@ -96,6 +100,9 @@ export class IslandScene implements Scene {
       GAME_W / 2,
       GAME_H / 2,
       this.data?.seed,
+      // The renderer, not the window: the season board takes a slice of the
+      // page on a wide screen, so `innerWidth` overstates the canvas.
+      () => ({ width: this.app.renderer.width, height: this.app.renderer.height }),
     );
 
     // The sky, behind everything: the island already moves (surf, volcano
@@ -103,6 +110,12 @@ export class IslandScene implements Scene {
     // screenshot. Clouds only ever cross the SEA — never the board, where they
     // would hide the numbers the game is read from.
     this.clouds = new CloudField(this.container, { width: GAME_W, height: GAME_H });
+
+    // The design space is scaled to FIT the window, so a viewport that is not
+    // 16:9 leaves bare canvas the ground has to reach across. That margin
+    // changes with every resize, hence the listener rather than a one-off.
+    this.onResize = () => this.background?.layout(GAME_W / 2, GAME_H / 2);
+    window.addEventListener('resize', this.onResize);
 
     this.buildTiles();
     // The keyboard hint, drawn ON the board rather than as a legend beside it:
@@ -375,12 +388,28 @@ export class IslandScene implements Scene {
     this.rabbits.delete(playerId);
   }
 
-  /** Pixi's ticker, in real milliseconds. Only the sky needs it. */
+  /** Pixi's ticker, in real milliseconds. */
   update(deltaTime: number): void {
     this.clouds?.update(deltaTime * (1000 / 60));
+
+    // The canvas can change size WITHOUT a window resize — the season board
+    // mounting or unmounting beside it does exactly that, and the ground was
+    // left sized for the old box, showing bare sea at the bottom. Cheap to
+    // check, and it only does work when the number actually moved.
+    const w = this.app.renderer.width;
+    const h = this.app.renderer.height;
+    if (w !== this.lastW || h !== this.lastH) {
+      this.lastW = w;
+      this.lastH = h;
+      this.background?.layout(GAME_W / 2, GAME_H / 2);
+    }
   }
 
   destroy(): void {
+    if (this.onResize) {
+      window.removeEventListener('resize', this.onResize);
+      this.onResize = null;
+    }
     this.clearHighlights();
     this.clouds?.destroy();
     this.arrows?.destroy();
