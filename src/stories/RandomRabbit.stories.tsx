@@ -11,16 +11,17 @@
  */
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { Assets, Container } from 'pixi.js';
+import { AnimatedSprite, Assets, Container } from 'pixi.js';
 import { PixiStage } from './PixiStage';
 import { Tile } from '@/game/entities/Tile';
 import { PlayerRabbit } from '@/game/entities/PlayerRabbit';
 import { loadAllAssets } from '@/game/services/AssetLoader';
 import { initTileTextures } from '@/game/services/TileTextures';
+import { getExplosionTextures } from '@/game/services/AssetLoader';
 import { createIslandBackground } from '@/game/services/IslandBackground';
 import * as Keys from '@/config/assetKeys';
 import {
-  COLS, ROWS, SPAWN_INDEX, makeShape, isForbidden, neighbors, playableTiles,
+  COLS, ROWS, SPAWN_INDEX, makeShape, isForbidden, neighbors, playableTiles, tilePos,
 } from '@/config/gridConfig';
 import { mulberry32, seedFrom } from '@/lib/game/rng';
 import type { TileContent } from '@/lib/game/types';
@@ -125,6 +126,22 @@ function Scene({ seed, bombDensity, rabbits, stepMs, islandZoom, background }: A
             }
 
             if (content === 'bomb') {
+              // The blast, exactly as the scene plays it — a story that faked
+              // this would stop being evidence of what the game does.
+              const textures = getExplosionTextures();
+              if (textures.length > 0) {
+                const pos = tilePos(to);
+                const boom = new AnimatedSprite(textures);
+                boom.anchor.set(0.5);
+                boom.position.set(pos.x, pos.y - 20);
+                boom.scale.set(1.6);
+                boom.zIndex = 55;
+                boom.animationSpeed = 20 / 60;
+                boom.loop = false;
+                boom.onComplete = () => { board.removeChild(boom); boom.destroy(); };
+                board.addChild(boom);
+                boom.play();
+              }
               // Dying is the interesting animation, so the walker stays dead:
               // a rabbit that respawned instantly would never let you watch it.
               w.alive = false;
@@ -180,6 +197,15 @@ export const Peaceful: Story = { args: { bombDensity: 0.03, stepMs: 160 } };
 /** The bare board, no art beneath it: for judging tile geometry and hint
  *  legibility without the island's colour interfering. */
 export const NoBackground: Story = { args: { background: false, rabbits: 4 } };
+
+/**
+ * Carrots and blasts, dense and fast — the story for judging the two props
+ * this game is actually made of: does a carrot read as pick-up-able from
+ * across the board, and does a bomb going off register?
+ */
+export const CarrotsAndBombs: Story = {
+  args: { seed: 'props', bombDensity: 0.2, rabbits: 5, stepMs: 180 },
+};
 
 /**
  * Every coastline the generator makes, side by side. The island's silhouette is

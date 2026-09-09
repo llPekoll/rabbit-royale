@@ -1,5 +1,6 @@
 import { Assets, Spritesheet, Texture, TextureSource } from 'pixi.js';
 import { loadButtonAssets, loadArcadeFonts, loadCoinAssets } from '@domin8/arcade-kit/pixi';
+import { CARROT_URL } from '@domin8/arcade-kit/game';
 import * as Keys from '@/config/assetKeys';
 
 // Force nearest-neighbor (pixelated) scaling for all textures
@@ -26,6 +27,9 @@ const IMAGES = [
   { key: Keys.LOGO_BANNER, src: '/assets/ui/RR-Logo_Banner.png' },
   { key: Keys.TREASURE_CHEST, src: '/assets/ui/treasure_chest.png' },
   { key: Keys.LOOT_BOX, src: '/assets/fx/loot-box.png' },
+  // The carrot comes from the shared kit rather than public/: it is the same
+  // prop the hub's season pass draws, and one copy means one carrot.
+  { key: Keys.CARROT, src: CARROT_URL },
 ];
 
 // Golden coin frames now come from @domin8/arcade-kit (loadCoinAssets) — see

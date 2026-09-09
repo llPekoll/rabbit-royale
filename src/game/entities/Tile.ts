@@ -4,7 +4,6 @@ import * as Keys from '@/config/assetKeys';
 import { pixelText, shadowedPixelText, formatMult, TINT_MULT } from '../ui/PixelText';
 import { getDiamondFill, getDiamondOutline } from '../services/TileTextures';
 import { lootBoxSheet } from '../services/AssetLoader';
-import { GOLDEN_COIN_ALIASES } from '@domin8/arcade-kit/pixi';
 import type { TileContent } from '@/lib/game/types';
 import gsap from 'gsap';
 
@@ -17,6 +16,29 @@ const HINT_TINTS = [
   0xffffff, 0x4aa3ff, 0x3ecf7f, 0xff6b6b, 0xb46bff,
   0xffb03a, 0x3ecfcf, 0xdddddd, 0x888888,
 ];
+
+/**
+ * The carrot's on-tile geometry. Scale rather than a target width: the art is
+ * 13x29 and pinning either axis squashes it (the same trap the chest's
+ * CHEST_SCALE comment describes).
+ */
+const CARROT_SCALE = 0.7;
+/**
+ * Where the carrot's tip rests at the BOTTOM of its hover, relative to the
+ * tile's centre. Negative: the carrot floats ABOVE the tile face, which is what
+ * separates it from the ground it is lying on and stops the rabbit standing
+ * next to it from occluding half of it.
+ */
+const CARROT_REST_Y = -6;
+/** How far it lifts at the top of its hover, in px. */
+const CARROT_BOB_HEIGHT = 6;
+/** Seconds for one rise (jittered per carrot, so they never sync up). */
+const CARROT_BOB_SECONDS = 1.15;
+/** Contact shadow: an ellipse a little narrower than the art. */
+const CARROT_SHADOW_RX = 5;
+const CARROT_SHADOW_RY = 2.5;
+const CARROT_SHADOW_Y = 4;
+const CARROT_SHADOW_ALPHA = 0.3;
 
 const FOG_COLOR = 0x1a2a3a;
 const FOG_ALPHA = 0.55;
@@ -117,6 +139,13 @@ export class Tile {
   private palierBobTween: gsap.core.Tween | null = null;
   /** The minesweeper hint label, if this tile shows one. */
   private hintGroup: Container | null = null;
+  /** The carrot's hover and its shadow's matching squash. Killed on destroy —
+   *  an infinite tween on a destroyed sprite is a leak that survives the tile. */
+  private carrotBob: gsap.core.Tween | null = null;
+  private carrotShadow: Graphics | null = null;
+  private carrotShadowTween: gsap.core.Tween | null = null;
+  /** The hovering carrot, if this tile has one. Read by the float test. */
+  carrotSprite: Sprite | null = null;
   index: number;
   revealed = false;
   private palierRaised = false;
@@ -228,18 +257,70 @@ export class Tile {
     }
   }
 
-  /** A carrot pickup, popping out of the ground as it is dug up. */
+  /**
+   * A carrot pickup: pops out of the ground, then HOVERS.
+   *
+   * The float is what makes it read as a collectable rather than as scenery
+   * painted on the tile, and the shadow underneath is what keeps the float from
+   * reading as "this sprite is drawn in the wrong place" — a hovering object
+   * with no contact point looks detached from the board. The two go together;
+   * neither works alone. Same reasoning as the chest's own contact shadow.
+   */
   private addCarrot(golden: boolean): void {
-    const tex = Assets.get(GOLDEN_COIN_ALIASES?.[0] ?? Keys.LOOT_BOX);
+    const tex = Assets.get<import('pixi.js').Texture>(Keys.CARROT);
     if (!tex) return;
-    const s = new Sprite(tex);
-    s.anchor.set(0.5);
-    s.scale.set(golden ? 1.5 : 1);
-    if (golden) s.tint = 0xffe066;
-    s.zIndex = 40;
-    this.contentSprite = s;
-    this.container.addChild(s);
-    gsap.from(s, { y: 10, alpha: 0, duration: 0.25, ease: 'back.out(2)' });
+
+    // The contact shadow, drawn on the tile FIRST so the carrot floats over it.
+    // It squashes as the carrot rises, which is what sells the height.
+    const shadow = new Graphics()
+      .ellipse(0, CARROT_SHADOW_Y, CARROT_SHADOW_RX, CARROT_SHADOW_RY)
+      .fill({ color: 0x000000, alpha: CARROT_SHADOW_ALPHA });
+    shadow.zIndex = 38;
+    this.container.addChild(shadow);
+    this.carrotShadow = shadow;
+
+    // The art is TALL (13x29): scale it as a whole so it never squashes, and
+    // keep the factor integer-ish so the pixels stay on the grid.
+    const sprite = new Sprite(tex);
+    sprite.anchor.set(0.5, 1);   // feet on the ground, so `y` IS its height
+    sprite.scale.set(golden ? CARROT_SCALE * 1.35 : CARROT_SCALE);
+    if (golden) sprite.tint = 0xffe066;
+    sprite.zIndex = 40;
+    sprite.y = CARROT_REST_Y;
+    this.contentSprite = sprite;
+    this.container.addChild(sprite);
+
+    // Exposed for the float test — the tween is what makes the carrot hover,
+    // and it is the only part of this worth asserting mechanically.
+    this.carrotSprite = sprite;
+
+    // Pop out of the dirt…
+    sprite.alpha = 0;
+    gsap.from(sprite, { y: CARROT_REST_Y + 12, duration: 0.28, ease: 'back.out(2)' });
+    gsap.to(sprite, { alpha: 1, duration: 0.18 });
+    gsap.from(shadow.scale, { x: 0.3, y: 0.3, duration: 0.28, ease: 'back.out(2)' });
+
+    // …then hover, gently and forever. Jittered so two carrots on screen never
+    // bob in lockstep, which reads as a repeating texture rather than as life.
+    const period = CARROT_BOB_SECONDS * (0.85 + Math.random() * 0.3);
+    this.carrotBob = gsap.to(sprite, {
+      y: CARROT_REST_Y - CARROT_BOB_HEIGHT,
+      duration: period,
+      ease: 'sine.inOut',
+      yoyo: true,
+      repeat: -1,
+      delay: Math.random() * period,
+    });
+    // The shadow shrinks as the carrot rises — the whole reason it is there.
+    this.carrotShadowTween = gsap.to(shadow.scale, {
+      x: 0.72,
+      y: 0.72,
+      duration: period,
+      ease: 'sine.inOut',
+      yoyo: true,
+      repeat: -1,
+      delay: Math.random() * period,
+    });
   }
 
   /** Kept for the palier ladder the casino used; unused by this game. */
@@ -750,7 +831,23 @@ export class Tile {
       gsap.killTweensOf(this.palierHolder.position);
       this.palierHolder = null;
     }
+    // The carrot's hover repeats FOREVER: left alive it keeps ticking against a
+    // destroyed sprite for the rest of the session, once per dug carrot.
+    if (this.carrotBob) {
+      this.carrotBob.kill();
+      this.carrotBob = null;
+    }
+    if (this.carrotShadowTween) {
+      this.carrotShadowTween.kill();
+      this.carrotShadowTween = null;
+    }
+    if (this.carrotShadow) {
+      gsap.killTweensOf(this.carrotShadow);
+      gsap.killTweensOf(this.carrotShadow.scale);
+      this.carrotShadow = null;
+    }
     if (this.contentSprite) {
+      gsap.killTweensOf(this.contentSprite);
       this.contentSprite.destroy();
       this.contentSprite = null;
     }

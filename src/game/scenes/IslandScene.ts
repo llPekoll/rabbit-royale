@@ -11,19 +11,21 @@
  * answers, arriving as events. A tile is drawn face-down until the server says
  * otherwise, because the client is never told what it has not dug.
  */
-import { Application, Container } from 'pixi.js';
+import { AnimatedSprite, Application, Container } from 'pixi.js';
+import gsap from 'gsap';
 import type { Scene } from '../SceneManager';
 import { SceneManager } from '../SceneManager';
 import { GAME_W, GAME_H } from '../Application';
 import { Tile } from '../entities/Tile';
 import { PlayerRabbit } from '../entities/PlayerRabbit';
 import { SoundManager } from '../services/SoundManager';
+import { getExplosionTextures } from '../services/AssetLoader';
 import { KeyboardControls } from '../services/KeyboardControls';
 import { createIslandBackground, type IslandBackground } from '../services/IslandBackground';
 import * as Keys from '@/config/assetKeys';
 import {
   COLS, ROWS, SPAWN_INDEX, GRID_CENTER_X, GRID_CENTER_Y,
-  isForbidden, makeShape, screenToTile, tileInScreenDirection, toColRow,
+  isForbidden, makeShape, screenToTile, tilePos, tileInScreenDirection, toColRow,
   type IslandShape,
 } from '@/config/gridConfig';
 import type { TileContent } from '@/lib/game/types';
@@ -37,6 +39,14 @@ export interface IslandSceneData {
   /** The local player's id, so their own rabbit can be told apart. */
   playerId: string;
 }
+
+/** Explosion presentation. The art is a 48x48 sheet — see AssetLoader. */
+const EXPLOSION_SCALE = 1.6;
+/** Lifted off the tile centre so the blast reads as going OFF, not lying flat. */
+const EXPLOSION_LIFT = 20;
+const EXPLOSION_FPS = 20;
+/** Peak offset of the board kick, in design px. */
+const SHAKE_PX = 4;
 
 /** The bunny sheets, handed out per player so four rabbits are distinguishable. */
 const BUNNY_SHEETS = [
@@ -137,9 +147,66 @@ export class IslandScene implements Scene {
     const tile = this.tiles.get(index);
     if (!tile) return;
     tile.revealContent(content, adjacent);
-    if (content === 'bomb') this.sound.playExplosion();
-    else if (content === 'carrot' || content === 'golden') this.sound.playCoin();
-    else this.sound.playStep();
+
+    if (content === 'bomb') {
+      this.sound.playExplosion();
+      this.playExplosion(index);
+      this.shakeScreen();
+    } else if (content === 'carrot' || content === 'golden') {
+      this.sound.playCoin();
+    } else {
+      this.sound.playStep();
+    }
+  }
+
+  /**
+   * The blast. Drawn ABOVE everything on the tile (zIndex 55, over the rabbits'
+   * 50) and lifted off the tile's centre, because an explosion whose middle
+   * sits on the ground reads as a puddle rather than as something going off.
+   *
+   * Fire-and-forget: it removes and destroys itself on the last frame, so
+   * nothing has to track it.
+   */
+  private playExplosion(index: number): void {
+    const textures = getExplosionTextures();
+    if (textures.length === 0) return;
+
+    const { x, y } = tilePos(index);
+    const boom = new AnimatedSprite(textures);
+    boom.anchor.set(0.5);
+    boom.position.set(x, y - EXPLOSION_LIFT);
+    boom.scale.set(EXPLOSION_SCALE);
+    boom.zIndex = 55;
+    boom.animationSpeed = EXPLOSION_FPS / 60;
+    boom.loop = false;
+    boom.onComplete = () => {
+      this.container.removeChild(boom);
+      boom.destroy();
+    };
+    this.container.addChild(boom);
+    boom.play();
+  }
+
+  /**
+   * A short kick on the whole board. The bomb takes energy the player cannot
+   * get back, so it should be FELT — the sound and the sprite alone let a blast
+   * slide past unnoticed while the player is reading numbers elsewhere.
+   *
+   * Tweens the container's position and restores it exactly, so repeated blasts
+   * cannot accumulate drift.
+   */
+  private shakeScreen(): void {
+    const { x, y } = this.container.position;
+    gsap.killTweensOf(this.container.position);
+    gsap.to(this.container.position, {
+      x: x + SHAKE_PX,
+      y: y + SHAKE_PX * 0.6,
+      duration: 0.05,
+      repeat: 7,
+      yoyo: true,
+      ease: 'none',
+      onComplete: () => this.container.position.set(x, y),
+    });
   }
 
   /** A rabbit appeared (joined, or respawned after an eruption). */

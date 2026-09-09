@@ -24,6 +24,10 @@ export const BUNNY_ANIMS = {
 // Golden-coin frames now come from @domin8/arcade-kit
 // (GOLDEN_COIN_ALIASES / loadCoinAssets) — no local key needed.
 
+/** The pixel carrot — RR's own food prop, from the shared kit. TALL (13x29):
+ *  size it by HEIGHT and derive the width, or it renders squashed. */
+export const CARROT = 'carrot';
+
 // FX
 export const EXPLOSION_SMALL = 'explosion-small';
 
