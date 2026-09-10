@@ -162,8 +162,26 @@ async function main() {
     check('a quote obeys the quantity limit', overQty.error === 'too_many_at_once', overQty);
 
     const confirmed = await Pay.PATCH(req('PATCH', { paymentId: quote.paymentId, signature: 'not-a-real-signature' }));
-    check('an unpaid quote credits nothing',
+    check('a junk signature is refused rather than credited',
       confirmed.status === 202 || confirmed.status === 400, confirmed.status);
+
+    // The sweep: a quote nobody came back for. Nothing was paid here, so the
+    // point being proved is that it is left ALONE rather than credited — a
+    // sweep that handed out items for unpaid quotes would be the worst possible
+    // bug in this rail.
+    const before = await Shop.GET(req('GET')).then((r) => r.json());
+    check('an unpaid quote credits nothing', (before.recovered?.length ?? 0) === 0, before.recovered);
+    const stillPending = await db.query.payments.findFirst({ where: eq(payments.id, quote.paymentId) });
+    check('...and stays open for the next visit', stillPending?.status === 'pending', stillPending?.status);
+
+    // An EXPIRED quote is swept away instead: the price it named is no longer
+    // the price, so honouring it later would honour a stale quote.
+    await db.update(payments)
+      .set({ expiresAt: new Date(Date.now() - 1000) })
+      .where(eq(payments.id, quote.paymentId));
+    await Shop.GET(req('GET')).then((r) => r.json());
+    const expired = await db.query.payments.findFirst({ where: eq(payments.id, quote.paymentId) });
+    check('an expired quote is swept, not honoured', expired?.status === 'expired', expired?.status);
 
     await db.delete(payments).where(eq(payments.playerId, ID));
   } else {

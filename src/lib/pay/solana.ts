@@ -160,3 +160,54 @@ export async function verifyPayment(opts: {
 
   return { ok: true, received };
 }
+
+/**
+ * Find a paid transaction for a quote the player never came back to confirm.
+ *
+ * The gap this closes: a player signs, the transfer lands, and they close the
+ * tab before the confirm round-trip completes. Their money is on chain, the
+ * intent stays `pending`, and nothing ever credits them. Polling from the
+ * client cannot help — the client is gone.
+ *
+ * So the server does what the client would have done, from the other end. It
+ * reads the treasury's recent signatures and looks for the one carrying this
+ * quote's reference in its memo. A webhook would do the same job with less
+ * searching, but it would put a third party inside the payment path for a case
+ * that is rare and cheap to sweep up on the next visit.
+ *
+ * `limit` is deliberately modest. This runs when a player opens the shop, not
+ * on a timer, and an unpaid quote is the common case — so the cost of looking
+ * has to stay small even when there is nothing to find.
+ */
+export async function findPaidSignature(opts: {
+  treasury: PublicKey;
+  reference: string;
+  /** Only look at transactions after the quote was issued. */
+  since: Date;
+  limit?: number;
+}): Promise<string | null> {
+  let signatures;
+  try {
+    signatures = await connection().getSignaturesForAddress(opts.treasury, {
+      limit: opts.limit ?? 40,
+    });
+  } catch (err) {
+    // An RPC that is down says nothing about whether the player paid. Give up
+    // quietly and let the next visit try again — never mark a quote failed on
+    // the strength of a network error.
+    console.warn('[pay] getSignaturesForAddress failed', err);
+    return null;
+  }
+
+  const floor = Math.floor(opts.since.getTime() / 1000);
+  for (const entry of signatures) {
+    // Older than the quote: it cannot be this payment, and everything after it
+    // is older still.
+    if (entry.blockTime && entry.blockTime < floor) break;
+    if (entry.err) continue;
+    // The memo rides on the signature listing, so the common case — none of
+    // these is ours — costs no extra round trips at all.
+    if (entry.memo?.includes(opts.reference)) return entry.signature;
+  }
+  return null;
+}

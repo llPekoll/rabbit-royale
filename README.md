@@ -130,6 +130,31 @@ little, or without this quote's reference in its memo. Redeeming one signature
 twice is stopped by the unique index on `payments.signature`, which is load
 bearing: do not remove it.
 
+### Three ways a payment lands
+
+A quote/sign/confirm rail has one structural gap: the player signs, the transfer
+lands, and they close the tab before the confirm round-trip finishes. Their
+money is on chain and their bag is empty. So three independent paths credit a
+payment, and they fail differently on purpose:
+
+| Path | Confirms in | Dies when |
+| --- | --- | --- |
+| The player's browser polls | seconds | the tab closes |
+| Alchemy's webhook wakes the server | seconds | a deploy or an Alchemy outage |
+| The shop sweeps unclaimed quotes | next visit | never — it is the floor |
+
+**None of them is believed.** The browser reports a signature, the webhook
+points at a transaction, the sweep finds one by memo — and in all three cases
+the server then reads that transaction on chain through the same
+`verifyPayment`. That is why adding a public webhook endpoint does not widen the
+trust boundary: the chain stays the only authority, and Alchemy merely gets to
+say *look now*.
+
+The webhook is HMAC-signed (`ALCHEMY_WEBHOOK_SECRET`) over the RAW body, checked
+before the body is parsed. A missing secret CLOSES the endpoint rather than
+opening it — an unsigned webhook that credited items would be a public "give me
+things" button. `test/webhook.test.ts` pins every refusal.
+
 A dApp **cannot** make Phantom convert SOL or SKR into USDC — that swap is a
 manual action inside the wallet. A player holding no USDC is told to swap first,
 in those words, rather than handed a button that quietly does nothing.
@@ -143,6 +168,16 @@ USDC_TREASURY_ADDRESS=   # a wallet you control
 USDC_MINT=               # mainnet EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
 SOLANA_RPC_URL=          # also served to the browser via /api/config
 ```
+
+Optional, for the webhook path:
+
+```
+ALCHEMY_WEBHOOK_SECRET=  # the signing key from Alchemy's dashboard
+```
+
+Point the webhook at `POST /api/webhooks/alchemy` and watch the treasury's USDC
+token account. Without the secret the endpoint refuses everything, and the other
+two paths carry the rail on their own.
 
 Unset, the shop serves carrots only and hides its USDC buttons rather than
 offering a payment that cannot complete.

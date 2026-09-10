@@ -14,14 +14,14 @@
  * control flow rather than as a promise.
  */
 import { randomUUID } from 'node:crypto';
-import { and, eq, lt } from 'drizzle-orm';
+import { and, desc, eq, lt } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { inventory, payments, players } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
 import { holdings, isItemKind, purchaseBlocker, purchaseUsdc } from '@/lib/game/inventory';
 import { grantItem } from '@/lib/game/grant';
 import { USDC, usdcBaseUnits } from '@config/tuning';
-import { payEnabled, treasuryAddress, usdcMint, verifyPayment } from '@/lib/pay/solana';
+import { findPaidSignature, payEnabled, treasuryAddress, usdcMint, verifyPayment } from '@/lib/pay/solana';
 import { shopState } from '../route';
 
 /** `{ kind, qty? }` → a quote the player's wallet can pay. */
@@ -184,4 +184,91 @@ export async function expireStaleQuotes(): Promise<void> {
   await db.update(payments)
     .set({ status: 'expired' })
     .where(and(eq(payments.status, 'pending'), lt(payments.expiresAt, new Date())));
+}
+
+/**
+ * Credit a payment that was made but never claimed.
+ *
+ * THE gap in a quote/sign/confirm rail: a player signs, the transfer lands, and
+ * they close the tab before the confirm round-trip finishes. Their money is on
+ * chain, the intent stays `pending`, and nothing credits them. Polling from the
+ * client cannot fix it, because the client is what went away.
+ *
+ * So the server sweeps its own unclaimed quotes when the player next opens the
+ * shop. Cheap, self-contained, and it also covers a server that was restarted
+ * mid-payment — which a webhook would not, if the webhook fired during the
+ * restart.
+ *
+ * Returns what was credited, so the shop can tell the player their earlier
+ * purchase arrived rather than leaving them to notice a changed number.
+ */
+export async function claimUnfinishedPayments(playerId: string): Promise<
+  { kind: string; qty: number }[]
+> {
+  if (!payEnabled()) return [];
+
+  const pending = await db.query.payments.findMany({
+    where: and(eq(payments.playerId, playerId), eq(payments.status, 'pending')),
+    orderBy: desc(payments.createdAt),
+    limit: 5,
+  });
+  if (pending.length === 0) return [];
+
+  const treasury = treasuryAddress()!;
+  const mint = usdcMint()!;
+  const now = Date.now();
+  const credited: { kind: string; qty: number }[] = [];
+
+  for (const intent of pending) {
+    // An expired quote is swept rather than searched: the price it named is no
+    // longer the price, so honouring it later would be honouring a stale quote.
+    if (intent.expiresAt.getTime() < now) {
+      await db.update(payments).set({ status: 'expired' }).where(eq(payments.id, intent.id));
+      continue;
+    }
+
+    const signature = await findPaidSignature({
+      treasury,
+      reference: intent.reference,
+      since: intent.createdAt,
+    });
+    // Not paid, or the RPC could not say. Either way this quote is left alone
+    // to be tried again on the next visit.
+    if (!signature) continue;
+
+    // Verified the same way a client-supplied signature is — the sweep is not a
+    // shortcut past the checks, only a different way of finding the signature.
+    const check = await verifyPayment({
+      signature,
+      treasury,
+      mint,
+      amount: intent.amount,
+      reference: intent.reference,
+    });
+    if (!check.ok) continue;
+
+    const granted = await db.transaction(async (tx) => {
+      const [claimed] = await tx.update(payments)
+        .set({ status: 'confirmed', signature, confirmedAt: new Date() })
+        .where(and(eq(payments.id, intent.id), eq(payments.status, 'pending')))
+        .returning({ id: payments.id });
+      if (!claimed) return null;
+
+      return grantItem(tx, playerId, intent.kind, intent.qty, Date.now(), {
+        currency: 'usdc',
+        cost: intent.amount,
+        paymentId: intent.id,
+      });
+      // A signature already used by another quote hits the unique index. That
+      // is a replay, not a payment, and it must not stop the sweep looking at
+      // the rest.
+    }).catch((err: unknown) => {
+      if (String(err).includes('payments_signature_idx')) return null;
+      throw err;
+    });
+
+    if (granted) credited.push({ kind: intent.kind, qty: intent.qty });
+  }
+
+  return credited;
 }
