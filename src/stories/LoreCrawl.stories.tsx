@@ -25,7 +25,7 @@ import { CarrotField } from '@/components/carrot-field';
 import { burrowArt } from '@/config/burrowArt';
 import '@/app/globals.css';
 
-const LOGO = '/assets/ui/RR-Logo_Banner.webp';
+const LOGO = '/assets/ui/rr-logo-banner.webp';
 
 interface Knobs {
   /** Distance to the vanishing point, px. Shorter = more dramatic. */

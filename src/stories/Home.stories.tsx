@@ -103,7 +103,7 @@ function Home({ signedIn, stock, hp, maxHp, gardenReady, level, upgradeCost, boa
                 "Rabbit Royale", so the heading was redundant twice over. */}
             <img
               className="rr-logo"
-              src="/assets/ui/RR-Logo_Banner.webp"
+              src="/assets/ui/rr-logo-banner.webp"
               alt="Rabbit Royale"
               width={365}
               height={106}

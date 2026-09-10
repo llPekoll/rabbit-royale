@@ -24,6 +24,7 @@ import { GoButton } from '@/components/go-button';
 import { CarrotCounter } from '@/components/carrot-counter';
 import { SoundButton } from '@/components/sound-button';
 import { LoadingScreen } from '@/components/loading-screen';
+import { LogoBanner } from '@/components/logo-banner';
 import { EnergyBar } from '@/components/energy-bar';
 import { CarrotField } from '@/components/carrot-field';
 import { ShopButton, ShopPanel } from '@/components/shop-card';
@@ -658,18 +659,9 @@ function Burrow() {
             <div className="rr-empty">
               {/* The game's own logo, not an emoji and not the title set in a
                   UI font: this is the first thing a new player sees, and the
-                  wordmark already says "Rabbit Royale" — so it replaces both. */}
-              <img
-                className="rr-logo"
-                src={LOGO}
-                alt="Rabbit Royale"
-                // The file's own 365x78. It is `height: auto` in CSS, so a
-                // wrong number here does not distort it — it reserves the
-                // wrong box while the image loads and shifts the column under
-                // the reader's eyes.
-                width={365}
-                height={78}
-              />
+                  wordmark already says "Rabbit Royale" — so it replaces both.
+                  Its ribbon carries the ticker; see components/logo-banner. */}
+              <LogoBanner />
               <p style={{ color: 'var(--muted)', margin: 0 }}>The Cursed Crown</p>
               <p style={{ color: 'var(--muted)', maxWidth: 300 }}>
                 Connect your wallet to claim a burrow. Nothing to remember, nothing to lose.
@@ -981,7 +973,6 @@ function formatWait(ms: number | null): string {
 // this could show, and the starter homestead is the honest picture to greet a
 // new player with.
 const BURROW_ART = burrowArt(1);
-const LOGO = '/assets/ui/RR-Logo_Banner.webp';
 /** The game's own carrot, so the figure is marked in the art rather than in an
  *  emoji the system font draws in a style nothing else on screen shares. */
 const CARROT_MARK = '/assets/misc/carrote_silouhette.png';

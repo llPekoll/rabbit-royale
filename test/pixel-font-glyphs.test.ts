@@ -21,6 +21,9 @@
 import { describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+// fileURLToPath, NOT url.pathname: on Windows the latter yields "/C:/…", a
+// path readdirSync then resolves against the drive root and fails to find.
+import { fileURLToPath } from 'node:url';
 
 /**
  * Files whose strings reach the DOM.
@@ -70,13 +73,17 @@ const UNSUPPORTED = /[‐-―‘’“”•·…×−←-⇿]/;
 const ENTITIES = /&(mdash|ndash|hellip|lsquo|rsquo|ldquo|rdquo|bull|minus);/;
 
 describe('pixel font coverage', () => {
-  const root = new URL('../src', import.meta.url).pathname;
+  const root = fileURLToPath(new URL('../src', import.meta.url));
 
   it('uses no character the bitmap face cannot draw', () => {
     const offenders: string[] = [];
 
     for (const file of uiFiles(root)) {
-      const lines = readFileSync(file, 'utf8').split('\n');
+      // `\r?\n`, not `\n`: on a CRLF checkout every line would keep a trailing
+      // carriage return, and `\r` is a line terminator — so the `//.*$` that
+      // strips trailing comments below could never match, and every em dash in
+      // a note beside a line of code got reported as player-facing copy.
+      const lines = readFileSync(file, 'utf8').split(/\r?\n/);
       let inComment = false;
       lines.forEach((line, i) => {
         // Comments are prose for humans and never reach the screen. That

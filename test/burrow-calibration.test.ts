@@ -14,6 +14,9 @@
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync, existsSync } from 'node:fs';
+// fileURLToPath, NOT url.pathname: on Windows the latter yields "/C:/…", which
+// then resolves against the drive root and finds nothing.
+import { fileURLToPath } from 'node:url';
 import {
   BURROW_COLS, BURROW_ROWS, BURROW_HALF_W, BURROW_HALF_H,
   BURROW_ORIGIN_X, BURROW_ORIGIN_Y, BURROW_ZOOM,
@@ -26,7 +29,7 @@ import { burrowArt, BURROW_ART_TIERS } from '../src/config/burrowArt';
 const GAME_W = 960;
 const GAME_H = 540;
 
-const ART = new URL('../public/assets/island/burrow.webp', import.meta.url).pathname;
+const ART = fileURLToPath(new URL('../public/assets/island/burrow.webp', import.meta.url));
 
 /**
  * Every level's backdrop, which all have to satisfy the SAME calibration.
@@ -42,10 +45,10 @@ const ART = new URL('../public/assets/island/burrow.webp', import.meta.url).path
  */
 const LEVEL_ART = [1, 2, 3, 4].map((level) => ({
   level,
-  path: new URL(
+  path: fileURLToPath(new URL(
     `../public/assets/island/${level === 1 ? 'burrow' : `burrow_lvl${level}`}.webp`,
     import.meta.url,
-  ).pathname,
+  )),
 }));
 
 /** WebP dimensions, straight out of the header — no decoder needed. */
@@ -129,7 +132,7 @@ describe('the shipping backdrop', () => {
   it('is smaller than the JPEG it was converted from', () => {
     // The point of converting at all. An earlier pass at quality 92 produced a
     // WebP LARGER than the source, which defeats it.
-    const jpg = new URL('../public/assets/island/burrow.jpg', import.meta.url).pathname;
+    const jpg = fileURLToPath(new URL('../public/assets/island/burrow.jpg', import.meta.url));
     if (!existsSync(jpg)) return;
     expect(readFileSync(ART).length).toBeLessThan(readFileSync(jpg).length);
   });

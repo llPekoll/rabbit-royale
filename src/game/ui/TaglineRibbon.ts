@@ -2,14 +2,7 @@ import { Container, Graphics, BitmapText, Sprite } from 'pixi.js';
 import gsap from 'gsap';
 import * as Keys from '@/config/assetKeys';
 import { GAME_W } from '../Application';
-
-const TAGLINES = [
-  'EVERY STEP COULD BE YOUR LAST... OR YOUR FORTUNE',
-  'CROSS THE ISLAND, CLAIM THE GOLD, OR DIE TRYING',
-  'THE BRAVE HOP FURTHER - THE LUCKY HOP HOME',
-  'STEP BY STEP, THE ISLAND TAKES OR THE ISLAND GIVES',
-  'ONLY THE BOLD SURVIVE - ONLY THE WISE CASH OUT',
-];
+import { TAGLINES, nextTagline } from '@/config/taglines';
 
 /**
  * Scrolling tagline rendered inside the logo banner ribbon. Picks a random
@@ -51,9 +44,7 @@ export class TaglineRibbon {
 
   /** Swap to a fresh random phrase (not the current one) and relayout. */
   reroll(logoScale: number): void {
-    const pool = TAGLINES.filter(t => t !== this.text.text);
-    const next = pool[Math.floor(Math.random() * pool.length)] ?? TAGLINES[0];
-    this.text.text = next;
+    this.text.text = nextTagline(this.text.text);
     this.relayout(logoScale);
   }
 

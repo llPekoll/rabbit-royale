@@ -619,13 +619,74 @@ button { min-height: 44px; min-width: 44px; }
   /* The gain still appears and still says +N — it simply does not travel. */
   .rr-carrots-gain { animation: rr-gain-fade 180ms ease-in 340ms forwards; }
 }
-/* The wordmark on the sign-in screen. Scales down on a narrow phone but never
-   past its own pixels: it is pixel art, so it is never smoothed. */
+/* The wordmark on the sign-in screen, and the ticker running through its
+   ribbon. See components/logo-banner.tsx — the SIZE is set there, in whole
+   multiples of the artwork's 365x78, because this is pixel art and a
+   fractional scale makes its strokes go uneven. Nothing here may reintroduce a
+   percentage width. */
+.rr-logo-banner {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+.rr-logo-stack {
+  position: relative;
+  /* Below 365px there is no honest integer left — 1x already overflows — so
+     the artwork is allowed to shrink rather than be cut off. The ribbon is
+     positioned in percentages of this box, so it follows either way. */
+  max-width: 100%;
+}
+
 .rr-logo {
-  width: min(100%, 365px);
+  display: block;
+  width: 100%;
   height: auto;
   image-rendering: pixelated;
-  margin-bottom: 10px;
+}
+
+/* The ribbon's writable interior, as a fraction of the banner. Everything is
+   positioned by the component; this only clips. */
+.rr-ribbon {
+  position: absolute;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  font-family: var(--font-pixel);
+  /* The ink the artwork's own lettering uses — not black, which sits on a
+     cream ribbon like a hole punched in it. */
+  color: #4a3a2a;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+
+.rr-ribbon-text {
+  position: absolute;
+  left: 0;
+  white-space: nowrap;
+  will-change: transform;
+  animation-name: rr-ticker;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes rr-ticker {
+  from { transform: translateX(var(--rr-ticker-from)); }
+  to   { transform: translateX(var(--rr-ticker-to)); }
+}
+
+/* A crawl nobody asked for is the kind of motion that makes a page unusable
+   for some readers. Hold the phrase still and legible instead of hiding it. */
+@media (prefers-reduced-motion: reduce) {
+  .rr-ribbon { justify-content: center; }
+  .rr-ribbon-text {
+    position: static;
+    animation: none;
+    transform: none !important;
+  }
 }
 
 /* ── Sound ────────────────────────────────────────────────────────────────
@@ -1049,6 +1110,13 @@ button { min-height: 44px; min-width: 44px; }
 }
 .rr-warn { margin: 0; font-size: 12px; color: var(--danger); }
 .rr-empty { margin: 0; font-size: 12px; color: var(--muted); }
+
+/* The pixel face reports a `normal` line box SHORTER than the glyphs it draws,
+   so a paragraph that wraps lands its second line on top of its first — which
+   is exactly what the sign-in copy does. Every other pixel-font surface here
+   sets line-height explicitly (see the `line-height: 1` rules above); these two
+   paragraphs were the ones that never did. */
+.rr-empty p { line-height: 1.6; }
 
 .rr-btn { width: 100%; }
 .rr-btn.ghost { color: var(--muted); background: none; }
