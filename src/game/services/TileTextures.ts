@@ -57,17 +57,19 @@ export function getDiamondOutline(): Texture {
 }
 
 /**
- * The scale a diamond sprite needs to cover a tile of a given size.
+ * The scale a diamond sprite needs to sit on a tile of a given size.
  *
  * The textures above are baked ONCE, at the island's tile size, and the burrow
- * uses a smaller tile (34x19 against 44x24). A sprite left at its natural size
+ * uses its own (34x19 against 44x24). A sprite left at its natural size
  * therefore draws the island's diamond over the burrow's grid: the cells
  * overlap their neighbours and no longer line up with the ground they name.
  *
- * The bake also insets by 0.88 (see DW/DH) to leave a hairline between cells,
- * so that factor has to come back out here — otherwise the inset is applied
- * twice and the cells shrink away from each other.
+ * The 0.88 inset is DELIBERATELY kept rather than divided out. It is what
+ * leaves a hairline between neighbouring cells, and it is how the island's
+ * board reads — a grid whose diamonds touch edge to edge looks like a mesh
+ * laid over the art, where inset ones read as separate tiles you pick between.
+ * The burrow should look like the same game as the farm.
  */
 export function diamondScaleFor(halfW: number, halfH: number): { x: number; y: number } {
-  return { x: halfW / DW, y: halfH / DH };
+  return { x: halfW / HALF_W, y: halfH / HALF_H };
 }

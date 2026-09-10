@@ -97,5 +97,23 @@ export function PixiStage({ width, height, background = '#081120', assets, prepa
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return <div ref={hostRef} style={{ lineHeight: 0, ...style }} />;
+  // Centre the canvas in whatever frame the story is given, and never let the
+  // host add a scrollbar: a canvas that is letterboxed to fit leaves slack on
+  // one axis, and left in the corner it reads as a broken layout — worse, a
+  // frame short enough to scroll hides the bottom of the picture, which on the
+  // burrow is where the board is. `overflow: hidden` makes "too small" show as
+  // a smaller canvas rather than as a hidden one.
+  return (
+    <div
+      ref={hostRef}
+      style={{
+        lineHeight: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+        ...style,
+      }}
+    />
+  );
 }

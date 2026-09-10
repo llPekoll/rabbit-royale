@@ -23,10 +23,14 @@ const SCENE = readFileSync(new URL('../src/game/scenes/BurrowScene.ts', import.m
 
 describe('burrow tile size', () => {
   it('scales a baked diamond onto the tile it is asked for', () => {
-    // The island's own size is the identity case: the texture was baked for it.
+    // The island's own size is the identity case: the texture was baked for it,
+    // inset and all. The 0.88 inset is KEPT rather than divided out — it is the
+    // hairline between neighbouring cells, and it is how the island's board
+    // reads. Diamonds that touch edge to edge look like a mesh laid over the
+    // art; inset ones read as separate tiles you choose between.
     const island = diamondScaleFor(HALF_W, HALF_H);
-    expect(island.x).toBeCloseTo(1 / 0.88, 5);
-    expect(island.y).toBeCloseTo(1 / 0.88, 5);
+    expect(island.x).toBeCloseTo(1, 5);
+    expect(island.y).toBeCloseTo(1, 5);
     // And the burrow's is smaller, in both axes, by the ratio of the tiles.
     const burrow = diamondScaleFor(BURROW_HALF_W, BURROW_HALF_H);
     expect(burrow.x / island.x).toBeCloseTo(BURROW_HALF_W / HALF_W, 5);
