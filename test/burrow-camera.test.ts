@@ -40,11 +40,14 @@ describe('burrow camera', () => {
         expect(f.backdrop.bottom).toBeGreaterThanOrEqual(v.h);
       });
 
-      it('changes the shot enough to be felt', () => {
-        // Either direction counts — what must not happen is a nudge. Landscape
-        // now zooms IN (the board is the subject), portrait still pulls back
-        // because the board is wider than that frame at 1:1.
-        expect(Math.abs(f.cam.scale - 1)).toBeGreaterThan(0.08);
+      it('holds the camera still', () => {
+        // The camera used to FIT the board to the frame, and that is a trap: a
+        // camera that refits cancels every change to the board. Cells at 34,
+        // 48, 64 and 80px all came out at 46.8px on screen, with only the
+        // camera's scale moving (1.38x to 0.58x) and the homestead shrinking
+        // around them — two knobs fighting, neither doing what its name says.
+        // The tile size is the lever now; this must stay a constant.
+        expect(f.cam.scale).toBe(1);
       });
 
       it('keeps tiles big enough to tap', () => {
@@ -55,16 +58,6 @@ describe('burrow camera', () => {
         // space is a comfortable thumb target on a real phone. Still a floor —
         // a board you can see but cannot hit is no better than one you cannot.
         expect(f.tileWidth).toBeGreaterThanOrEqual(23);
-      });
-
-      it('gives the board most of the frame', () => {
-        // The fault this replaces: the shot was framed on the PAINTING, so the
-        // played ground used 47% of the width and 46% of the height — under a
-        // quarter of the screen, parked in a corner, tiles at 23.6px — and no
-        // amount of tuning the pull-back constant could grow it, because the
-        // camera could only ever shrink. The board is the subject now.
-        const w = (f.board.right - f.board.left) / v.w;
-        expect(w).toBeGreaterThan(0.7);
       });
 
       it('keeps the whole board on screen', () => {

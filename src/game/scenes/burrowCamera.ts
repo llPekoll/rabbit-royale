@@ -77,60 +77,14 @@ export function burrowCamOut(): number {
 }
 
 /**
- * Room left around the board.
+ * How far the camera sits back while placing.
  *
- * More than a cosmetic margin now that the shot zooms in to fit. At 1.08 the
- * board filled 93% of the frame and the LANDMARKS went out of it — the door,
- * the fenced field, the mound — which are the things a defender is reading the
- * board against ("cover the path, not the lawn"). A grid with no homestead
- * around it is a spreadsheet again, just a bigger one.
- *
- * 1.08 is as tight as this goes while the board still clears the edges: the
- * cells render at ~47px, roughly double where this screen started, and the
- * fenced field and the path stay in shot. The burrow's door is the first thing
- * to go if it is tightened further, and that is the landmark the whole board is
- * read against.
- *
- * Tunable at runtime through `setBoardPad` — Burrow/Placing puts a slider on it
- * — because this is a judgement about feel, and a number you can only change by
- * editing a file and rebuilding is a number nobody actually tries alternatives
- * for. The override is for tuning; the default is what ships.
+ * A constant on purpose — see boardCam. Slightly above 1 so the decision shot
+ * is a touch wider than the home shot, which is what makes the change of
+ * framing read as a camera move rather than as nothing happening; the SIZE of
+ * a cell is the tile's job, not this one's.
  */
-const BOARD_PAD = 1.08;
-
-/** The live override, when a tuning harness has set one. */
-let boardPadOverride: number | null = null;
-
-/**
- * Override the landscape margin, or pass null to go back to the shipped value.
- *
- * Exists for the Storybook slider. Deliberately a setter rather than an
- * argument threaded through `boardCam`: the scene asks the camera for its
- * framing from several places (placing, raiding, resize), and adding a
- * parameter to all of them to serve a tuning tool would put the tool in the
- * game's code path.
- */
-export function setBoardPad(pad: number | null): void {
-  boardPadOverride = pad;
-}
-
-/**
- * The margin in portrait.
- *
- * Just enough to keep the board off the edges. See boardCam for why it is not
- * the same number as BOARD_PAD.
- */
-const BOARD_PAD_TIGHT = 1.06;
-
-/**
- * How far the placement shot may zoom IN.
- *
- * A ceiling, not a target: the fit normally decides, and this only stops a small
- * board (or a very tall viewport) from being magnified until the pixel art turns
- * to mush and the cells lose the context around them. At the burrow's 34x19
- * tile it allows roughly 75px per cell — a thumb target with room to spare.
- */
-const BURROW_CAM_MAX = 2.2;
+const PLACING_SCALE = 1.0;
 
 export interface BurrowCam {
   scale: number;
@@ -205,43 +159,27 @@ export function homeCam(): BurrowCam {
 }
 
 /**
- * Pulled back for a decision: the whole board, centred.
+ * The placement shot: a FIXED pull-back, not a fit.
  *
- * Solved from the BOARD, not from the painting.
+ * This used to solve a scale that made the board fill the frame. That sounds
+ * right and is a trap: a camera that refits the board cancels every change to
+ * the board. Make a cell bigger and the board grows; the camera zooms out by
+ * exactly the same factor to keep it fitted; the cell lands on screen at the
+ * size it started. Measured, not guessed — 34px, 48px, 64px and 80px cells all
+ * came out at 46.8px on screen, with only the camera's scale moving (1.38x
+ * down to 0.58x) and the homestead shrinking around them.
  *
- * This used to cap the scale at `burrowCamOut()` — the widest shot the backdrop
- * allows — on the theory that a decision needs to see everything. It does, but
- * "everything" is the board, and the board is a small part of a wide landscape.
- * Framing the painting left the played ground using 47% of the width and 46% of
- * the height (under a quarter of the screen), parked in the bottom-right corner
- * with the rest of the frame given to empty grass, and tiles at 23.6px. This is
- * the screen where a player picks one cell out of many with a thumb.
+ * So the camera is now a constant, and the tile size is the knob that actually
+ * changes how big a cell is. The two were fighting; only one of them should be
+ * the lever, and it should be the one whose name matches what it does.
  *
- * So the fit decides, and it is usually a zoom IN. `Math.min` against a
- * pull-back constant could only ever shrink, which is why no amount of tuning
- * that constant ever made this screen bigger.
+ * The clamp in `frame` still applies, so a board that outgrows the painting is
+ * held to the art's edge rather than sliding off it.
  */
 export function boardCam(W: number = GAME_W, H: number = GAME_H): BurrowCam {
   const b = boardBounds();
-  // The board is a wide, shallow diamond — about 1.8:1 — so which axis binds
-  // depends entirely on the viewport's shape, and the two cases want different
-  // margins.
-  //
-  // Landscape has room to spare once the width is fitted, and the margin is
-  // what keeps the burrow's
-  // landmarks (door, field, mound) in shot around the grid: a defender reads
-  // the board against them. Portrait is the opposite — the width is already the
-  // limit and the vertical margin is enormous, so spending the same 35% on the
-  // width buys nothing and costs a third of the tile size on the one screen
-  // where a thumb is doing the tapping. There, the margin is only what keeps
-  // the board off the edges.
-  // Portrait vs landscape, not "which axis binds": the board is ~1.79:1 and the
-  // landscape design space is 1.78:1, so the width binds in BOTH orientations
-  // and an axis test cannot tell them apart.
-  const pad = boardPadOverride ?? (H > W ? BOARD_PAD_TIGHT : BOARD_PAD);
-  const fit = Math.min(W / (b.w * pad), H / (b.h * pad));
   return frame(
-    Math.min(fit, BURROW_CAM_MAX),
+    PLACING_SCALE,
     (b.minX + b.maxX) / 2, (b.minY + b.maxY) / 2,
     W, H,
   );
