@@ -1,0 +1,98 @@
+/**
+ * Watching someone else's run.
+ *
+ * Two bugs are pinned here, both found by clicking a leaderboard row in prod:
+ *
+ *  1. The row navigated to `/play?spectate=...` and that route does not exist.
+ *     The game is ONE page and two Pixi scenes — every crossing is a wipe, not
+ *     a navigation — so a router push could only ever 404.
+ *  2. The id it put in the query string was `sol:<address>`: a live wallet in
+ *     the address bar, in browser history, in the referrer of every request the
+ *     page then made, and in any screenshot of the run. Irreversible once it
+ *     has happened, and never necessary — watching needs a target, not a key.
+ *
+ * Source-text assertions, like the other chrome tests in this suite: the thing
+ * being protected is a WIRING decision, and wiring is what regresses.
+ */
+import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+
+const PAGE = readFileSync('src/app/page.tsx', 'utf8');
+const DRAWER = readFileSync('src/components/leaderboard-drawer.tsx', 'utf8');
+const SCENE = readFileSync('src/game/scenes/IslandScene.ts', 'utf8');
+
+describe('spectating', () => {
+  it('never routes to a URL', () => {
+    // The 404 that started this. No route, no query string, no router.
+    // Only CODE is scanned: the header comment names `/play` on purpose, to
+    // record what went wrong, and a test that forbade the word would forbid
+    // explaining the bug it protects against.
+    const code = DRAWER.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    expect(code).not.toMatch(/\/play/);
+    expect(code).not.toMatch(/router\.push/);
+    expect(code).not.toMatch(/useRouter/);
+    expect(PAGE).not.toMatch(/spectate=/);
+  });
+
+  it('never puts a player id in a query string', () => {
+    // `playerId` is `sol:<address>`. Nothing may encode it into a location.
+    expect(DRAWER).not.toMatch(/encodeURIComponent\(e\.playerId\)/);
+    expect(PAGE).not.toMatch(/searchParams/);
+  });
+
+  it('reports the target upward instead of navigating', () => {
+    expect(DRAWER).toMatch(/onSpectate\?\.\(e\.playerId\)/);
+    expect(PAGE).toMatch(/onSpectate=\{spectate\}/);
+  });
+
+  it('crosses to the island the same way playing does', () => {
+    // A wipe, not a route change — the scene swap the app already owns.
+    const fn = PAGE.slice(PAGE.indexOf('const spectate = useCallback'));
+    const body = fn.slice(0, fn.indexOf('}, ['));
+    expect(body).toMatch(/setSpectating\(targetId\)/);
+    expect(body).toMatch(/goTo\('island'\)/);
+  });
+
+  it('feeds the target to the socket so the session switches mode', () => {
+    // Passing a literal null here was what made the feature dead code.
+    expect(PAGE).toMatch(/useGameSocket\(token, player\?\.id \?\? null, spectating\)/);
+  });
+
+  it('cannot strand the session in viewer mode', () => {
+    // Every way off the island clears the target. A second exit path that
+    // forgot to would leave a player watching with no route back to their own
+    // game, and the only fix would be a reload.
+    expect(PAGE).toMatch(/onClick=\{stopSpectating\}/);
+    const stop = PAGE.slice(PAGE.indexOf('const stopSpectating = useCallback'));
+    const body = stop.slice(0, stop.indexOf('}, ['));
+    expect(body).toMatch(/setSpectating\(null\)/);
+    expect(body).toMatch(/goTo\('burrow'\)/);
+    // Signing out drops it too, or the next player inherits the watch.
+    const reset = PAGE.slice(PAGE.indexOf('if (player) return;'));
+    expect(reset.slice(0, reset.indexOf('}, [player]);'))).toMatch(/setSpectating\(null\)/);
+  });
+
+  it('does not let a viewer light up tiles they cannot dig', () => {
+    // The scene flashes a tapped tile BEFORE the server answers, so the guard
+    // has to be in the scene: the server refusing the move is not enough to
+    // stop the lie, it only stops the dig.
+    const fn = SCENE.slice(SCENE.indexOf('private requestMove'));
+    const body = fn.slice(0, fn.indexOf('this.data?.onMoveIntent'));
+    expect(body).toMatch(/this\.rabbits\.has\(this\.data\.playerId\)/);
+    // ...and the guard must come before the flash, not after it.
+    expect(body.indexOf('rabbits.has')).toBeLessThan(body.indexOf('.flash()'));
+  });
+
+  it('shows the watched run, not an empty one', () => {
+    // `game.me` resolves by the VIEWER's id and is null while spectating, so
+    // the playing HUD showed a spectator zero carrots and an empty bar.
+    const hud = PAGE.slice(PAGE.indexOf('function Hud('));
+    expect(hud).toMatch(/game\.rabbits\.get\(spectating\)/);
+    expect(hud).toMatch(/watching/);
+  });
+
+  it('offers no run recap to someone who was only watching', () => {
+    // `restart` would start a run the viewer never asked for.
+    expect(PAGE).toMatch(/game\.recap && !spectating/);
+  });
+});

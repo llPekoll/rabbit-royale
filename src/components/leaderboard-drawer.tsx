@@ -11,9 +11,19 @@
  *
  * Each row is a button that starts spectating — the front door to sabotage
  * (phase 5), not an ornament.
+ *
+ * Picking a row REPORTS a target; it does not navigate. Spectating used to
+ * `router.push('/play?spectate=...')`, which was wrong twice over: there is no
+ * `/play` route (the game is one page and two Pixi scenes, so every crossing is
+ * a wipe rather than a navigation) so it 404'd, and the id it put in the query
+ * string was `sol:<address>` — a live wallet in the address bar, in history, in
+ * the referrer of every later request, and in any screenshot of the run.
+ *
+ * Handing the id upward keeps both problems from existing: the page swaps
+ * scenes the way it already does for the island, and the wallet never leaves
+ * the tab.
  */
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 
 export interface Entry {
   rank: number;
@@ -25,8 +35,19 @@ export interface Entry {
   crowned: boolean;
 }
 
-export function LeaderboardDrawer({ token, playerId }: { token: string | null; playerId?: string }) {
-  const router = useRouter();
+export interface LeaderboardDrawerProps {
+  token: string | null;
+  playerId?: string;
+  /**
+   * Watch this player's run. Called with the target's id; the page decides what
+   * that means (cross to the island, join as a viewer). Optional: the board is
+   * also shown while a run is not startable, and a row that cannot be acted on
+   * is simply inert rather than absent.
+   */
+  onSpectate?: (targetId: string) => void;
+}
+
+export function LeaderboardDrawer({ token, playerId, onSpectate }: LeaderboardDrawerProps) {
   const [open, setOpen] = useState(false);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [me, setMe] = useState<{ rank: number | null; score: number } | null>(null);
@@ -82,8 +103,13 @@ export function LeaderboardDrawer({ token, playerId }: { token: string | null; p
               key={e.playerId}
               className={`rr-lb-row${e.crowned ? ' crown' : ''}${e.playerId === playerId ? ' me' : ''}`}
               // Watching your own run from here would just be the game.
-              disabled={e.playerId === playerId}
-              onClick={() => router.push(`/play?spectate=${encodeURIComponent(e.playerId)}`)}
+              disabled={e.playerId === playerId || !onSpectate}
+              onClick={() => {
+                onSpectate?.(e.playerId);
+                // The board is covering the island on a phone; leaving it up
+                // would hide the run it just opened.
+                setOpen(false);
+              }}
             >
               <span className="rr-lb-rank">{e.crowned ? '👑' : e.rank}</span>
               <span className="rr-lb-name">

@@ -466,6 +466,9 @@ function Burrow() {
     setPickingTarget(false);
     setLoreOpen(false);
     setShopOnArrival(false);
+    // Or the next player to sign in inherits the watch and lands on a
+    // stranger's island with no idea why.
+    setSpectating(null);
     setPlacing(false);
     setBurrow(null);
     setNote(null);

@@ -295,6 +295,12 @@ export class IslandScene implements Scene {
    * the last thing a player wants done on their behalf.
    */
   private requestMove(to: number): void {
+    // No rabbit on this board means this is somebody else's run being watched.
+    // Bail BEFORE the flash: the tap must not light a tile up, because the
+    // server will (rightly) never act on it and a lit tile that never resolves
+    // reads as a broken game rather than as "you are only watching". The same
+    // test the reachable ring uses, so the two can never disagree.
+    if (!this.data || !this.rabbits.has(this.data.playerId)) return;
     if (to === this.myTile) return;
     const a = toColRow(this.myTile);
     const b = toColRow(to);
