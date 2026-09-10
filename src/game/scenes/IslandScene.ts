@@ -27,10 +27,12 @@ import { CloudField } from '../fx/Clouds';
 import * as Keys from '@/config/assetKeys';
 import {
   COLS, ROWS, SPAWN_INDEX, GRID_CENTER_X, GRID_CENTER_Y,
-  isForbidden, makeShape, neighbors, screenToTile, tilePos, tileInScreenDirection,
+  isForbidden, makeShape, screenToTile, tilePos, tileInScreenDirection,
   toColRow, type IslandShape,
 } from '@/config/gridConfig';
 import type { TileContent } from '@/lib/game/types';
+import { ENERGY } from '@config/tuning';
+import { reachableTiles } from '@/lib/game/reachable';
 
 /** What the scene needs from the outside world. The socket layer supplies it. */
 export interface IslandSceneData {
@@ -73,6 +75,17 @@ export class IslandScene implements Scene {
   /** The tiles currently lit as reachable, and the sweep running over them. */
   private highlighted: number[] = [];
   private sweep: gsap.core.Tween | null = null;
+
+  /**
+   * The local rabbit's energy, and when its stun wears off — mirrored from the
+   * server purely so the ring can tell an ACCEPTABLE move from a refused one
+   * (see refreshReachable). Never a source of truth: the HUD reads the server's
+   * own numbers, and a move is still the server's to allow.
+   */
+  private myEnergy = Infinity;
+  private stunnedUntil = 0;
+  /** Re-lights the ring the moment a stun expires. */
+  private stunTimer: ReturnType<typeof setTimeout> | null = null;
   private arrows: MoveArrows | null = null;
   private clouds: CloudField | null = null;
   private onResize: (() => void) | null = null;
@@ -151,6 +164,14 @@ export class IslandScene implements Scene {
    * can I click?" is not obvious from the geometry, and lighting them answers
    * it without a tutorial. Called after every step, so the ring travels with
    * the rabbit.
+   *
+   * Lit means CLICKABLE, not merely adjacent. The ring used to light all eight
+   * land neighbours, which over-promised: while stunned nothing is accepted,
+   * and on the last point of energy only ALREADY-REVEALED ground is, since a
+   * fresh dig costs energy the rabbit does not have. Lighting a tile the server
+   * is about to refuse teaches the player the ring cannot be trusted, which
+   * costs more than the ring is worth. So the same three gates the server
+   * applies (see resolveMove) decide what gets lit.
    */
   private refreshReachable(): void {
     this.clearHighlights();
@@ -161,14 +182,41 @@ export class IslandScene implements Scene {
       return;
     }
 
-    for (const index of neighbors(this.myTile, this.shape)) {
+    const reachable = reachableTiles({
+      tile: this.myTile,
+      energy: this.myEnergy,
+      alive: true,
+      stunnedUntil: this.stunnedUntil,
+      isRevealed: (i) => this.tiles.get(i)?.revealed ?? false,
+    }, this.shape);
+
+    // Stunned: nothing came back, and the ring must stay dark for exactly as
+    // long as the server will keep refusing. It re-lights itself on expiry.
+    if (this.isStunned()) this.scheduleStunRefresh();
+
+    for (const index of reachable) {
       const tile = this.tiles.get(index);
       if (!tile) continue;
       tile.setHighlight(true);
       this.highlighted.push(index);
     }
-    this.arrows?.update(this.myTile);
+    // The keyboard marks follow the same rule — pointing at a tile the ring
+    // has gone dark on would put the two hints in contradiction.
+    this.arrows?.update(reachable.length > 0 ? this.myTile : null, reachable);
     this.startSweep();
+  }
+
+  private isStunned(): boolean {
+    return Date.now() < this.stunnedUntil;
+  }
+
+  /** Re-light the ring the instant the stun lapses, with no move needed. */
+  private scheduleStunRefresh(): void {
+    if (this.stunTimer) clearTimeout(this.stunTimer);
+    this.stunTimer = setTimeout(() => {
+      this.stunTimer = null;
+      this.refreshReachable();
+    }, Math.max(0, this.stunnedUntil - Date.now()) + 16);
   }
 
   /**
@@ -204,6 +252,10 @@ export class IslandScene implements Scene {
 
   private clearHighlights(): void {
     this.stopSweep();
+    if (this.stunTimer) {
+      clearTimeout(this.stunTimer);
+      this.stunTimer = null;
+    }
     for (const index of this.highlighted) this.tiles.get(index)?.setHighlight(false);
     this.highlighted = [];
   }
@@ -324,6 +376,20 @@ export class IslandScene implements Scene {
     } else {
       this.sound.playStep();
     }
+
+    // Ground someone just dug is free to WALK onto, so a neighbour turning
+    // revealed can make a tile clickable that a moment ago was not — the case
+    // that matters on the last point of energy, where the ring is otherwise
+    // dark and this is the player's only remaining move.
+    if (this.isNeighborOfMine(index)) this.refreshReachable();
+  }
+
+  /** Is this tile one of the local rabbit's eight? */
+  private isNeighborOfMine(index: number): boolean {
+    const a = toColRow(this.myTile);
+    const b = toColRow(index);
+    return index !== this.myTile
+      && Math.abs(a.col - b.col) <= 1 && Math.abs(a.row - b.row) <= 1;
   }
 
   /**
@@ -377,7 +443,7 @@ export class IslandScene implements Scene {
   }
 
   /** A rabbit appeared (joined, or respawned after an eruption). */
-  addRabbit(playerId: string, name: string, index: number, seatIndex: number): void {
+  addRabbit(playerId: string, name: string, index: number, seatIndex: number, energy?: number): void {
     if (this.rabbits.has(playerId)) return;
     const sheet = BUNNY_SHEETS[seatIndex % BUNNY_SHEETS.length];
     const rabbit = new PlayerRabbit(index, sheet);
@@ -386,31 +452,61 @@ export class IslandScene implements Scene {
     rabbit.playSpawnDrop();
     if (playerId === this.data?.playerId) {
       this.myTile = index;
+      // A fresh rabbit is never stunned, whatever the last run ended in.
+      this.stunnedUntil = 0;
+      if (energy !== undefined) this.myEnergy = energy;
       this.refreshReachable();
     }
   }
 
-  /** A rabbit moved. Positions come from the server, never from local input. */
-  moveRabbit(playerId: string, index: number): void {
+  /**
+   * A rabbit moved. Positions come from the server, never from local input.
+   *
+   * `energy` is the mover's, straight off the same event the HUD reads. Taken
+   * here rather than tracked locally because a dig's real cost is the server's
+   * to decide (a bomb takes more than a step does) — and the ring needs the
+   * true figure to know whether the next dig is still affordable.
+   */
+  moveRabbit(playerId: string, index: number, energy?: number): void {
     const rabbit = this.rabbits.get(playerId);
     if (!rabbit) return;
     rabbit.moveTo(index);
     if (playerId === this.data?.playerId) {
       this.myTile = index;
+      if (energy !== undefined) this.myEnergy = energy;
       this.sound.playHop();
       // The ring travels with the rabbit.
       this.refreshReachable();
     }
   }
 
-  /** A bomb went off under someone: damage animation, then the knockback. */
-  bombHit(playerId: string, landedOn: number): void {
+  /**
+   * The local rabbit's energy changed without it moving (a carrot banked by
+   * someone else's dig, a refill). Re-lights the ring only when the change
+   * crosses the "can I afford a dig?" line, which is the only thing the ring
+   * reads energy for.
+   */
+  setEnergy(energy: number): void {
+    const couldDig = this.myEnergy >= ENERGY.DIG_COST;
+    this.myEnergy = energy;
+    if (couldDig !== (energy >= ENERGY.DIG_COST)) this.refreshReachable();
+  }
+
+  /**
+   * A bomb went off under someone: damage animation, then the knockback.
+   *
+   * `stunnedUntil` is the server's own timestamp. While it stands the server
+   * refuses every move, so the ring goes dark for exactly that long rather than
+   * inviting taps that will bounce — and comes back by itself when it lapses.
+   */
+  bombHit(playerId: string, landedOn: number, stunnedUntil?: number): void {
     const rabbit = this.rabbits.get(playerId);
     if (!rabbit) return;
     rabbit.playDamage();
     rabbit.setPosition(landedOn);
     if (playerId === this.data?.playerId) {
       this.myTile = landedOn;
+      if (stunnedUntil !== undefined) this.stunnedUntil = stunnedUntil;
       this.refreshReachable();
     }
   }

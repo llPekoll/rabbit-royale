@@ -336,7 +336,15 @@ io.on('connection', (socket: Socket) => {
       // The blast is its own event: the client plays a damage animation and a
       // knockback, which a plain move would not distinguish from a walk.
       if (out.dig.knockback) {
-        io.to(room).emit('bomb_hit', { playerId: data.playerId, tile: out.dig.knockback.tile });
+        // The stun rides along so the client can keep the ring dark for its
+        // duration. Sent as a REMAINING DURATION, not as the server's absolute
+        // deadline: the two clocks are unrelated, and a client running a minute
+        // fast would read an absolute stamp as long expired.
+        io.to(room).emit('bomb_hit', {
+          playerId: data.playerId,
+          tile: out.dig.knockback.tile,
+          stunMs: Math.max(0, out.dig.knockback.stunnedUntil - Date.now()),
+        });
       }
     }
 

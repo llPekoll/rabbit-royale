@@ -90,16 +90,22 @@ export class MoveArrows {
    * `null` (no rabbit on the board) hides the lot. A heading with no legal
    * neighbour — the island's edge, a forbidden tile — hides just that one, so
    * the hint never points off the island.
+   *
+   * `allowed`, when given, narrows that further to the tiles the move is
+   * actually ACCEPTED on (out of energy, stunned). The mark and the lit ring
+   * are two views of one answer, so they are driven from the same list — a
+   * mark on a dark tile would be the hint contradicting the affordance.
    */
-  update(from: number | null): void {
+  update(from: number | null, allowed?: readonly number[]): void {
     if (from === null || !this.shown) {
       for (const g of this.arrows) g.visible = false;
       return;
     }
+    const permitted = allowed ? new Set(allowed) : null;
     HEADINGS.forEach(([dx, dy], i) => {
       const target = tileInScreenDirection(from, dx, dy, this.shape);
       const g = this.arrows[i];
-      if (target === null) { g.visible = false; return; }
+      if (target === null || (permitted && !permitted.has(target))) { g.visible = false; return; }
       const { x, y } = tilePos(target);
       g.position.set(x, y);
       g.zIndex = tileDepth(target) + 0.5;

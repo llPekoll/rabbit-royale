@@ -120,7 +120,7 @@ export function useGameSocket(
       // snapshot carries what is already uncovered.
       toScene((s) => {
         for (const t of snap.revealed) s.revealTile(t.tile, t.content, t.adjacent);
-        snap.rabbits.forEach((r, i) => s.addRabbit(r.playerId, r.name, r.tile, i));
+        snap.rabbits.forEach((r, i) => s.addRabbit(r.playerId, r.name, r.tile, i, r.energy));
       });
     });
 
@@ -130,13 +130,13 @@ export function useGameSocket(
 
     socket.on('rabbit_moved', (r: ClientRabbit) => {
       setRabbits((prev) => new Map(prev).set(r.playerId, r));
-      toScene((s) => s.moveRabbit(r.playerId, r.tile));
+      toScene((s) => s.moveRabbit(r.playerId, r.tile, r.energy));
     });
 
     socket.on('rabbit_joined', (r: ClientRabbit) => {
       setRabbits((prev) => {
         const next = new Map(prev).set(r.playerId, r);
-        toScene((s) => s.addRabbit(r.playerId, r.name, r.tile, next.size - 1));
+        toScene((s) => s.addRabbit(r.playerId, r.name, r.tile, next.size - 1, r.energy));
         return next;
       });
     });
@@ -153,8 +153,15 @@ export function useGameSocket(
       toScene((s) => s.removeRabbit(gone));
     });
 
-    socket.on('bomb_hit', ({ playerId: hit, tile }: { playerId: string; tile: number }) => {
-      toScene((s) => s.bombHit(hit, tile));
+    socket.on('bomb_hit', (
+      { playerId: hit, tile, stunMs }:
+      { playerId: string; tile: number; stunMs?: number },
+    ) => {
+      // The server sends how long the stun still has to run; the deadline is
+      // put on OUR clock here, so a skewed client still darkens the ring for
+      // the right length of time.
+      const until = stunMs === undefined ? undefined : Date.now() + stunMs;
+      toScene((s) => s.bombHit(hit, tile, until));
     });
 
     socket.on('rabbit_died', ({ playerId: dead }: { playerId: string }) => {
@@ -178,7 +185,7 @@ export function useGameSocket(
     const scene = sceneRef.current();
     if (!snap || !scene) return;
     for (const t of snap.revealed) scene.revealTile(t.tile, t.content, t.adjacent);
-    snap.rabbits.forEach((r, i) => scene.addRabbit(r.playerId, r.name, r.tile, i));
+    snap.rabbits.forEach((r, i) => scene.addRabbit(r.playerId, r.name, r.tile, i, r.energy));
   }, []);
 
   /** Ask to step onto a tile. The server decides whether it happens. */
