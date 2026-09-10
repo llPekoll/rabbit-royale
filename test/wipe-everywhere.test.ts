@@ -57,6 +57,33 @@ describe('the iris covers every crossing', () => {
     expect(PAGE).toMatch(/onCut=\{\(\) => setShowCanvas\(true\)\}/);
   });
 
+  it('hands the WHOLE screen over at the midpoint, not just the canvas', () => {
+    // The bug: `player` lands the instant the wallet answers, so every piece of
+    // chrome gated on it swapped BEFORE the shutter closed — the sign-in column
+    // and the lore vanished, the burrow's panels appeared, and only then did the
+    // iris play over a change the player had already watched happen. Reported
+    // as "d'abord ca change et apres ca joue l'animation".
+    //
+    // So screen OWNERSHIP reads `showCanvas` everywhere. `player` still gates
+    // things that need a session (a token, an id) — those may pair the two, but
+    // none of them may test `player` alone to decide which screen is up.
+    for (const gate of [
+      /\{!showCanvas && <LoreCrawl \/>\}/,
+      /\{!showCanvas && \(/,                       // the sign-in art
+      /\{player && showCanvas && \(/,               // the canvas itself
+      /\{showCanvas && where === 'burrow' && !raid\.raid && !crossing && \(/,
+      /\{showCanvas && \(\s*<CarrotCounter/,
+      /\{!showCanvas \? \(/,                       // the sign-in column body
+    ]) expect(PAGE).toMatch(gate);
+  });
+
+  it('does not put a loading screen over the sign-in art', () => {
+    // The boot it reports on has not started while the curtain is closing —
+    // the canvas is not mounted yet. Keyed on `player` it threw "Waking the
+    // warren" over the screen the curtain was still working on.
+    expect(PAGE).toMatch(/<LoadingScreen ready=\{!showCanvas \|\| ready\}/);
+  });
+
   it('does not hold the sign-in curtain open until the canvas boots', () => {
     // Boot takes as long as it takes. Gating the curtain on `ready` would turn
     // a flourish into an indefinite black screen on a slow connection.

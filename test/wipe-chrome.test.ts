@@ -52,8 +52,13 @@ describe('chrome across the wipe', () => {
     // `where` is not derived from the player, so signing out on the island left
     // it on 'island' and the sign-in screen kept the island's HUD and its "To
     // the burrow" arrow. Two things put that right and both are asserted: the
-    // branch falls back to the burrow with no player...
-    expect(PAGE).toMatch(/where === 'burrow' \|\| !player \?/);
+    // branch falls back to the burrow while the sign-in screen owns the frame.
+    //
+    // `showCanvas`, not `player`: the frame changes hands at the curtain's
+    // midpoint, and gating this on `player` put the island branch in play the
+    // instant the wallet answered — a HUD over the sign-in art for the length
+    // of the wipe. See wipe-everywhere for the rest of that family.
+    expect(PAGE).toMatch(/where === 'burrow' \|\| !showCanvas \?/);
     // ...and `where` itself is reset when the session ends, so a later sign-in
     // does not land back on the island. The window is generous because the
     // same block also tears down the sign-in curtain — what is pinned is that

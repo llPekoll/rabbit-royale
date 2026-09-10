@@ -111,10 +111,16 @@ function Burrow() {
    *
    * Signing in swaps a DOM screen for the canvas, and that swap is the first
    * cut a new player ever sees — so it gets the same carrot iris as every
-   * other change of place. `arriving` runs the curtain; `showCanvas` is what
-   * the screen actually shows, and it flips at the curtain's MIDPOINT rather
-   * than when `player` lands, so the sign-in art stays put until the sheet is
-   * black and the canvas is uncovered rather than dropped on top.
+   * other change of place. `arriving` runs the curtain; `showCanvas` says
+   * which of the two screens OWNS THE FRAME, and it flips at the curtain's
+   * midpoint rather than when `player` lands.
+   *
+   * Every piece of chrome that belongs to one screen or the other reads
+   * `showCanvas`, never `player` — that was the bug: `player` arrives the
+   * instant the wallet answers, so the sign-in column, the lore and the
+   * burrow's panels all swapped BEFORE the shutter had closed, and the iris
+   * then played over a change the player had already watched happen. `player`
+   * still gates anything that genuinely needs a session (a token, an id).
    */
   const [arriving, setArriving] = useState(false);
   const [showCanvas, setShowCanvas] = useState(false);
@@ -607,7 +613,7 @@ function Burrow() {
 
       {/* The story, told to whoever has not signed in yet. It is the only thing
           on this screen that is not a request — see lore-crawl.tsx. */}
-      {!player && <LoreCrawl />}
+      {!showCanvas && <LoreCrawl />}
 
       {/* Over everything, including the fixed overlays. See .rr-curtain. */}
       <CarrotCurtain
@@ -622,7 +628,7 @@ function Burrow() {
       <div className="rr-topbar">
         {/* The one number worth carrying on every screen, top-right beside the
             wallet — where a balance lives. */}
-        {player && (
+        {showCanvas && (
           <CarrotCounter stock={burrow?.stock ?? 0} fireKey={burstKey} gain={burstAmount} />
         )}
         <WalletButton />
@@ -632,7 +638,7 @@ function Burrow() {
           a run needs the whole frame, and a third of the screen given to a
           leaderboard is a third the player cannot dig in. It collapses to its
           tab while playing. */}
-      {player && where === 'burrow' && !crossing && (
+      {player && showCanvas && where === 'burrow' && !crossing && (
         <LeaderboardDrawer token={token} playerId={player.id} onSpectate={spectate} />
       )}
 
@@ -643,9 +649,10 @@ function Burrow() {
           must not take its place while the shutter is over the burrow. So a
           crossing shows the wipe and nothing else.
 
-          `|| !player` is a belt on top of the reset above: signed out there is
-          no canvas and no run, so the island branch has nothing to draw over —
-          it would put a HUD and a "To the burrow" arrow on the sign-in screen.
+          `|| !showCanvas` is a belt on top of the reset above: before the
+          curtain hands the frame over there is no canvas and no run, so the
+          island branch has nothing to draw over — it would put a HUD and a
+          "To the burrow" arrow on the sign-in screen.
           The effect already puts `where` back; this makes the wrong screen
           unreachable rather than merely un-entered. */}
       {/* The burrow column is about YOUR burrow — its HP, its garden, its
@@ -653,9 +660,9 @@ function Burrow() {
           and leaving the column up put your own 400/400 and a HARVEST button
           over a castle you are trying to rob. The raid has its own thin HUD
           (RaidHud) that describes the place you are actually standing in. */}
-      {crossing || raid.raid ? null : where === 'burrow' || !player ? (
+      {crossing || raid.raid ? null : where === 'burrow' || !showCanvas ? (
         <section className="rr-burrow">
-          {!player ? (
+          {!showCanvas ? (
             <div className="rr-empty">
               {/* The game's own logo, not an emoji and not the title set in a
                   UI font: this is the first thing a new player sees, and the
@@ -843,7 +850,7 @@ function Burrow() {
         </div>
       )}
 
-      {player && where === 'burrow' && !raid.raid && !crossing && (
+      {showCanvas && where === 'burrow' && !raid.raid && !crossing && (
         // Disabled rather than hidden: the way onto the island should stay
         // visible so its absence reads as "not yet", not as "gone". It still
         // waits out a crossing with the rest of the burrow's chrome — it is
@@ -901,8 +908,11 @@ function Burrow() {
         />
       )}
 
-      {/* Signed out there is nothing to load; signed in, wait for both scenes. */}
-      <LoadingScreen ready={!player || ready} label="Waking the warren" />
+      {/* Nothing to load until the canvas owns the frame; after that, wait for
+          both scenes. Keyed on `showCanvas` rather than `player` so it does not
+          throw a loading screen over the sign-in art while the curtain is still
+          closing — the boot it reports on has not started yet at that point. */}
+      <LoadingScreen ready={!showCanvas || ready} label="Waking the warren" />
     </main>
   );
 }
