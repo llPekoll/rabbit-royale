@@ -9,7 +9,9 @@
  * ground actually ran 208px off the right-hand edge, so the far flank was not
  * merely small, it was unreachable.
  *
- * So the camera pulls back for the decision and returns afterwards. It is one
+ * So the camera reframes for the decision and returns afterwards — zooming IN
+ * on the board in landscape, and back out in portrait, whichever puts the
+ * played ground on the screen at a size a thumb can use. It is one
  * transform on the scene container rather than a per-object rescale: the
  * backdrop, the crop, the clouds and the board all keep their measured
  * relationship to each other (burrowConfig's origin was solved against the art)
@@ -74,8 +76,36 @@ export function burrowCamOut(): number {
   return camOut;
 }
 
-/** Room left around the board when pulled back, so it does not touch the edges. */
-const BOARD_PAD = 1.08;
+/**
+ * Room left around the board.
+ *
+ * More than a cosmetic margin now that the shot zooms in to fit. At 1.08 the
+ * board filled 93% of the frame and the LANDMARKS went out of it — the door,
+ * the fenced field, the mound — which are the things a defender is reading the
+ * board against ("cover the path, not the lawn"). A grid with no homestead
+ * around it is a spreadsheet again, just a bigger one.
+ *
+ * 1.35 keeps the burrow itself in shot while still roughly doubling the tiles.
+ */
+const BOARD_PAD = 1.35;
+
+/**
+ * The margin in portrait.
+ *
+ * Just enough to keep the board off the edges. See boardCam for why it is not
+ * the same number as BOARD_PAD.
+ */
+const BOARD_PAD_TIGHT = 1.06;
+
+/**
+ * How far the placement shot may zoom IN.
+ *
+ * A ceiling, not a target: the fit normally decides, and this only stops a small
+ * board (or a very tall viewport) from being magnified until the pixel art turns
+ * to mush and the cells lose the context around them. At the burrow's 34x19
+ * tile it allows roughly 75px per cell — a thumb target with room to spare.
+ */
+const BURROW_CAM_MAX = 2.2;
 
 export interface BurrowCam {
   scale: number;
@@ -152,15 +182,41 @@ export function homeCam(): BurrowCam {
 /**
  * Pulled back for a decision: the whole board, centred.
  *
- * The scale is the pull-back OR whatever it takes to fit the board with a
- * margin, whichever is further out — so a viewport shape that the constant was
- * not chosen for still gets a board it can see all of.
+ * Solved from the BOARD, not from the painting.
+ *
+ * This used to cap the scale at `burrowCamOut()` — the widest shot the backdrop
+ * allows — on the theory that a decision needs to see everything. It does, but
+ * "everything" is the board, and the board is a small part of a wide landscape.
+ * Framing the painting left the played ground using 47% of the width and 46% of
+ * the height (under a quarter of the screen), parked in the bottom-right corner
+ * with the rest of the frame given to empty grass, and tiles at 23.6px. This is
+ * the screen where a player picks one cell out of many with a thumb.
+ *
+ * So the fit decides, and it is usually a zoom IN. `Math.min` against a
+ * pull-back constant could only ever shrink, which is why no amount of tuning
+ * that constant ever made this screen bigger.
  */
 export function boardCam(W: number = GAME_W, H: number = GAME_H): BurrowCam {
   const b = boardBounds();
-  const fit = Math.min(W / (b.w * BOARD_PAD), H / (b.h * BOARD_PAD));
+  // The board is a wide, shallow diamond — about 1.8:1 — so which axis binds
+  // depends entirely on the viewport's shape, and the two cases want different
+  // margins.
+  //
+  // Landscape has room to spare once the width is fitted, and the margin is
+  // what keeps the burrow's
+  // landmarks (door, field, mound) in shot around the grid: a defender reads
+  // the board against them. Portrait is the opposite — the width is already the
+  // limit and the vertical margin is enormous, so spending the same 35% on the
+  // width buys nothing and costs a third of the tile size on the one screen
+  // where a thumb is doing the tapping. There, the margin is only what keeps
+  // the board off the edges.
+  // Portrait vs landscape, not "which axis binds": the board is ~1.79:1 and the
+  // landscape design space is 1.78:1, so the width binds in BOTH orientations
+  // and an axis test cannot tell them apart.
+  const pad = H > W ? BOARD_PAD_TIGHT : BOARD_PAD;
+  const fit = Math.min(W / (b.w * pad), H / (b.h * pad));
   return frame(
-    Math.min(burrowCamOut(), fit),
+    Math.min(fit, BURROW_CAM_MAX),
     (b.minX + b.maxX) / 2, (b.minY + b.maxY) / 2,
     W, H,
   );
