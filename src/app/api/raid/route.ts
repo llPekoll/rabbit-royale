@@ -48,6 +48,16 @@ async function raidView(runId: string) {
     trapsSprung: run.trapsSprung,
     /** Tiles walked, plus their neighbours — nothing further. */
     view: raiderView(run.visited, clues, smoked),
+    /**
+     * Where they may step next.
+     *
+     * Sent rather than left to the client to work out, even though it is just
+     * "the neighbours of where I stand". The server refuses an illegal step
+     * anyway, so this is not a security boundary — it is a consistency one: two
+     * implementations of the same rule drift, and the one that drifts is the
+     * client's, which then offers a tile the server will reject.
+     */
+    steps: run.endedAt ? [] : burrowNeighbors(run.tile),
     /** The raider is told the numbers are hidden, and why. A blank board with
      *  no explanation reads as a bug rather than as a defence. */
     smoked,

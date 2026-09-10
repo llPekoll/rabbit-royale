@@ -276,8 +276,14 @@ button { min-height: 44px; min-width: 44px; }
 .rr-energy-icon { font-size: 13px; line-height: 1; }
 
 /* One knob for the whole gauge: every length below is a multiple of the source
-   pixel, so the art can never land on a half-pixel and go soft. */
-.rr-energy {
+   pixel, so the art can never land on a half-pixel and go soft.
+   
+   On :root, not on .rr-energy. These sprites now draw TWO bars — the run's
+   energy in the HUD and the burrow's meters (.rr-pix-meter) — and scoping the
+   knob to the HUD's own element left the burrow's bars resolving every length
+   to nothing, so they collapsed to zero height and rendered as an empty gap.
+   One gauge, one definition. */
+:root {
   --rr-gauge-px: 2;
   --rr-gauge-h: calc(14px * var(--rr-gauge-px));
   --rr-gauge-end: calc(7px * var(--rr-gauge-px));   /* shell base/cap width */
@@ -1442,3 +1448,426 @@ button { font-family: var(--font-pixel); }
   font-variant-numeric: tabular-nums;
 }
 .rr-shop-open-traps.bare { color: var(--danger); }
+
+/* ── THE CODEX ─────────────────────────────────────────────────────────────
+   The lore panel, and the scroll that opens it.
+
+   Almost everything visual here comes from `@domin8/arcade-kit` — the panel
+   face, the title, the [X] — so this block only does what the kit cannot know
+   about: where the dialog sits, how the two columns behave on a phone, and the
+   parchment-derived tones for the parts that are ours (the shelf, the rules,
+   the numeral discs).
+
+   Every colour is out of `scroll.png`'s own eight-colour palette. See the
+   header of components/lore-codex.tsx for the full list and the reasoning. */
+
+.rr-lore-open {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 14px;
+  margin-bottom: 10px;
+  border-color: #975528;
+  /* Warmer and lighter than the shop's soil: the codex is parchment, and the
+     two entry points sit one above the other in the same column. */
+  background: linear-gradient(180deg, #3a2415, #281508);
+}
+.rr-lore-open:hover { border-color: #dea86c; }
+.rr-lore-open-icon {
+  width: 22px;
+  height: auto; /* keeps the sprite's 30x31 aspect — it is not square */
+  flex: none;
+  image-rendering: pixelated;
+}
+.rr-lore-open-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+}
+.rr-lore-open-name { font-size: 14px; color: #dea86c; }
+.rr-lore-open-sub {
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+/* A chapter that just opened is the reason to tap: it gets the parchment's own
+   lit tone, the one colour in this button that reads as treasure. */
+.rr-lore-open-sub.fresh { color: #f4d593; }
+
+.rr-lore-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(10, 6, 4, 0.78);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  animation: rr-shop-in 140ms ease-out;
+}
+
+.rr-lore-modal {
+  width: min(760px, 100%);
+  /* The scrim already reserves 16px of padding, so 100% here is the space the
+     dialog may actually occupy. */
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+/* The KIT PANEL is the real box, and it sizes to its content: a full codex is
+   six chapters of prose tall, which pushed the title off the top of the screen
+   and cut the footer off the bottom. The height cap has to reach the panel
+   itself and then every wrapper down to the scrolling column, or each link in
+   the chain quietly re-expands to its natural height. */
+.rr-lore-modal > * {
+  min-height: 0;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rr-lore-scrim { animation: none; }
+}
+
+.rr-lore-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  /* Inside the kit panel's 2px decorative frame, at scale 5. */
+  padding: 6px 10px 10px;
+  min-height: 0;
+  /* The header and the footer are fixed; the shelf and the page between them
+     are what gives, which is why both of those scroll and this does not. */
+  overflow: hidden;
+  flex: 1;
+}
+
+.rr-lore-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.rr-lore-head-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.rr-lore-head-title img {
+  width: 26px;
+  height: auto;
+  image-rendering: pixelated;
+}
+
+.rr-lore-body {
+  display: flex;
+  gap: 14px;
+  min-height: 0;
+  flex: 1;
+}
+
+/* The shelf. Fixed width on a desktop so the prose column keeps a stable
+   measure as chapters are switched — a list that resizes with its longest
+   visible title makes the text reflow on every tap. */
+.rr-lore-list {
+  width: 232px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.rr-lore-rule {
+  width: 2px;
+  flex: none;
+  background: rgba(96, 51, 28, 0.34);
+}
+
+.rr-lore-tab {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 8px;
+  /* Not a card: the shelf is a list on the same sheet as the page beside it. */
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+.rr-lore-tab:hover { background: rgba(151, 85, 40, 0.16); }
+/* The open chapter is marked on its spine, not by a filled block — a solid
+   selection on parchment reads as a highlighter, which this sheet has never
+   seen. */
+.rr-lore-tab.active {
+  background: rgba(151, 85, 40, 0.22);
+  box-shadow: inset 3px 0 0 #975528;
+}
+.rr-lore-tab.locked { cursor: pointer; }
+.rr-lore-tab.locked:hover { background: rgba(96, 51, 28, 0.12); }
+
+.rr-lore-numeral {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  /* Square, like every other edge in this game's art. */
+  border-radius: 0;
+}
+
+.rr-lore-tab-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.rr-lore-tab-title {
+  font-size: 13px;
+  line-height: 1.25;
+}
+.rr-lore-tab-sub {
+  font-size: 11px;
+  line-height: 1.3;
+  /* Teasers are one line on the shelf; the chapter itself carries the prose. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rr-lore-page {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+.rr-lore-title {
+  margin: 0 0 10px;
+  font-size: 18px;
+  letter-spacing: 0.03em;
+}
+/* The pixel web font is proportional but still a pixel face: it wants a
+   generous line and a short measure, or the eye loses the row it was on. */
+.rr-lore-para,
+.rr-lore-teaser,
+.rr-lore-locked {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.75;
+  max-width: 62ch;
+}
+.rr-lore-locked { font-variant-numeric: tabular-nums; }
+
+.rr-lore-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-top: 9px;
+  border-top: 2px solid rgba(96, 51, 28, 0.34);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.rr-lore-foot-note { font-size: 11px; }
+
+/* On a phone the two columns become one: the shelf turns into a strip of
+   numeral discs above the page. The Seeker is the target device, and a 232px
+   list beside a prose column leaves neither enough room to be read. */
+@media (max-width: 620px) {
+  .rr-lore-body { flex-direction: column; gap: 10px; }
+  .rr-lore-list {
+    width: 100%;
+    flex-direction: row;
+    gap: 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 4px;
+  }
+  /* Only the disc survives the collapse — six titles side by side is a list
+     nobody can read, and the page below already names the open chapter. */
+  .rr-lore-tab { width: auto; padding: 4px; }
+  .rr-lore-tab-text { display: none; }
+  .rr-lore-rule { width: 100%; height: 2px; }
+  .rr-lore-page { padding-right: 0; }
+}
+
+/* ── THE BURROW, IN PIXELS ─────────────────────────────────────────────────
+   The column used to be web chrome on top of a pixel game: 12px rounded cards,
+   8px rounded buttons, a CSS-gradient meter. The panels and buttons themselves
+   now come from `@domin8/arcade-kit` (see components/burrow-chrome.tsx), so
+   this block only covers the parts the kit has no component for — the meter cut
+   from the game's own gauge sprites, and the prose that wraps. */
+
+/* Prose inside a card. The pixel WEB font, not BitmapText: these are sentences
+   that wrap, and the fixed-cell atlas is for short labels. */
+.rr-pix-note {
+  margin: 0;
+  font-family: var(--font-pixel), ui-monospace, monospace;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+/* The meter, in the SAME nine-slice gauge sprites as the run's energy bar —
+   colour is a sprite set, never a hex, so the palette stays in the art. */
+.rr-pix-meter {
+  position: relative;
+  width: 100%;
+  height: var(--rr-gauge-h);
+  background:
+    url('/assets/ui/gauge/bar-shell-base.webp') left center / auto 100% no-repeat,
+    url('/assets/ui/gauge/bar-shell-cap.webp') right center / auto 100% no-repeat,
+    url('/assets/ui/gauge/bar-shell-mid.webp') left center / auto 100% repeat-x;
+  image-rendering: pixelated;
+}
+.rr-pix-meter-fill {
+  position: absolute;
+  /* In the channel the shell's walls leave, never on top of them. */
+  top: var(--rr-gauge-wall);
+  bottom: var(--rr-gauge-wall);
+  left: var(--rr-gauge-wall);
+  image-rendering: pixelated;
+  /* Short and stepped: a resource changes in discrete amounts, and easing
+     them hides how much a single action cost. */
+  transition: width 120ms linear;
+}
+.rr-pix-meter-fill[hidden] { display: none; }
+
+/* The burrow's heading, in the kit's title face rather than a UI font. */
+.rr-burrow-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0 10px;
+}
+
+/* The carrot beside a figure — the game's own sprite, tinted by the art, not
+   an emoji drawn in whatever the system font decides. */
+.rr-carrot-mark {
+  width: 11px;
+  height: auto;
+  display: block;
+  image-rendering: pixelated;
+  opacity: 0.9;
+}
+
+/* ── The raid ────────────────────────────────────────────────────────────────
+   Picking a burrow, and the HUD while you are inside one. Shares the shed's
+   warm palette rather than the app's slate: a raid and a shop are the two
+   screens about somebody else's carrots, and they should read as one world. */
+.rr-raid-pick { max-height: min(560px, 100%); }
+
+.rr-raid-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+  margin: 0;
+  padding: 8px 14px;
+}
+.rr-raid-list > li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--plank, #4a2f1d);
+}
+.rr-raid-list > li:last-child { border-bottom: none; }
+/* Shielded targets are listed but out of reach — visible so the board does not
+   look empty, dimmed so the eye skips them. */
+.rr-raid-list > li.shielded { opacity: 0.45; }
+.rr-raid-name { font-size: 13px; }
+.rr-raid-stock {
+  font-size: 12px;
+  color: #ffb238;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.rr-raid-list button {
+  min-height: 34px;
+  padding: 6px 14px;
+  font-size: 11px;
+  border-radius: 8px;
+  border: 1px solid #c1442e;
+  background: rgba(193, 68, 46, 0.16);
+  color: #ff9d8a;
+}
+.rr-raid-list button:disabled { border-color: var(--border); color: var(--muted); background: none; }
+
+/* The HUD sits over the board, top-centre, out of the way of the ground being
+   walked. Fixed, because the board behind it is a canvas that fills the screen. */
+.rr-raid-hud {
+  position: fixed;
+  top: calc(8px + env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  width: min(420px, calc(100% - 20px));
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(29, 16, 10, 0.88);
+  border: 1px solid #4a2f1d;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: #f5e6d3;
+}
+.rr-raid-hud > header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+.rr-raid-target { flex: 1; }
+.rr-raid-energy { color: #ffb238; font-variant-numeric: tabular-nums; }
+.rr-raid-sprung { color: #ff8a7a; font-variant-numeric: tabular-nums; }
+
+/* Smoke has to announce itself: a board with no numbers and no explanation
+   reads as a broken game rather than as a defence somebody paid for. */
+.rr-raid-smoke {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: #9fb4c7;
+  text-align: center;
+}
+.rr-raid-note { margin: 8px 0 0; font-size: 11px; color: #ff8a7a; text-align: center; }
+
+.rr-raid-over {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #4a2f1d;
+}
+.rr-raid-over strong { font-size: 13px; }
+.rr-raid-haul { font-size: 15px; color: #ffb238; font-variant-numeric: tabular-nums; }
+.rr-raid-over button { width: 100%; min-height: 38px; font-size: 12px; }
+
+/* The way in, in the burrow column. Red where the shop is amber: one spends
+   your own carrots, the other takes somebody else's. */
+.rr-raid-open {
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 13px 14px;
+  margin-bottom: 10px;
+  border-color: #6b2f24;
+  background: linear-gradient(180deg, #2f1512, #240d0a);
+}
+.rr-raid-open:hover { border-color: #c1442e; }
+.rr-raid-open-name { flex: 1; text-align: left; font-size: 14px; color: #ff9d8a; }
+.rr-raid-open small { display: block; margin: 0; font-size: 11px; color: var(--muted); }

@@ -25,8 +25,16 @@ import { LoadingScreen } from '@/components/loading-screen';
 import { EnergyBar } from '@/components/energy-bar';
 import { CarrotField } from '@/components/carrot-field';
 import { ShopButton, ShopPanel } from '@/components/shop-card';
+import { LoreButton, LoreCodex } from '@/components/lore-codex';
+import {
+  BurrowCard, CardRow, CardNote, BurrowMeter, BurrowButton,
+  CARROT, CHALK_DIM, DANGER, LAMP,
+} from '@/components/burrow-chrome';
+import { BitmapText, TitleText } from '@domin8/arcade-kit';
 import { useShop, type ItemKind } from '@/components/use-shop';
 import { useUsdcPay } from '@/components/use-usdc-pay';
+import { RaidHud, TargetList } from '@/components/raid-panel';
+import { useRaid } from '@/components/use-raid';
 import { gardenProgress } from '@/lib/game/garden-growth';
 import { burrowArt } from '@/config/burrowArt';
 import { SCENE } from '@/game/keys';
@@ -37,6 +45,8 @@ interface Burrow {
   hp: number;
   maxHp: number;
   stock: number;
+  /** Lifetime carrots — never reset, never stolen. Opens the codex. */
+  lifetime: number;
   gardenReady: number;
   energy: number;
   maxEnergy: number;
@@ -67,6 +77,10 @@ export default function Home() {
   const [placing, setPlacing] = useState(false);
   /** The shop is a drawer over the burrow, not a card in it. */
   const [shopOpen, setShopOpen] = useState(false);
+  /** True while the target list is up. A live raid is state on `raid` itself. */
+  const [pickingTarget, setPickingTarget] = useState(false);
+  /** The codex reads over the burrow the same way the shop sells over it. */
+  const [loreOpen, setLoreOpen] = useState(false);
   /** The RPC the browser builds a USDC transfer against — served at runtime so
    *  one image runs on any network (see api/config). */
   const [rpcUrl, setRpcUrl] = useState<string | null>(null);
@@ -78,6 +92,7 @@ export default function Home() {
   const game = useGameSocket(token, player?.id ?? null, null);
   const shop = useShop(token);
   const usdc = useUsdcPay(token, rpcUrl);
+  const raid = useRaid(token);
 
   useEffect(() => {
     game.bindScene(() => handles.current?.island ?? null);
@@ -253,6 +268,48 @@ export default function Home() {
     for (const tile of tiles) handles.current?.burrow?.addTrap(tile, false);
   }, [ready, shop.traps]);
 
+  /**
+   * The raid, pushed into the burrow scene.
+   *
+   * The scene is TOLD what to draw and works nothing out: the server decides
+   * which tiles a raider may see, what their numbers are and where they may
+   * step. A client that computed its own view could compute the trap positions
+   * too, which is the whole reason raids are worth defending against.
+   */
+  useEffect(() => {
+    const burrow = handles.current?.burrow;
+    if (!ready || !burrow) return;
+
+    if (!raid.raid) {
+      burrow.setRaid(null);
+      return;
+    }
+    burrow.setRaid({
+      view: raid.raid.view,
+      at: raid.raid.tile,
+      // A finished raid offers no steps: the board stays readable, but the walk
+      // is over and tapping it must do nothing.
+      steps: raid.raid.finished ? [] : raid.raid.steps,
+      onStep: (tile) => void raid.step(tile),
+    });
+  }, [ready, raid.raid, raid]);
+
+  // A sprung trap is played ONCE, on the event, rather than inferred from the
+  // board redrawing — springing one is the moment a raid turns, and a tile that
+  // merely redrew darker would not register.
+  useEffect(() => {
+    if (raid.sprung) handles.current?.burrow?.springTrap(raid.sprung.tile);
+  }, [raid.sprung]);
+
+  // Raiding happens ON the burrow board, so entering one crosses to that scene
+  // and closes everything that was covering it.
+  useEffect(() => {
+    if (!raid.raid) return;
+    setPickingTarget(false);
+    setShopOpen(false);
+    if (where !== 'burrow') goTo('burrow');
+  }, [raid.raid, where, goTo]);
+
   // Leaving the burrow leaves placement mode with it: coming back to a screen
   // still showing a grid you forgot you opened is a small mystery every time.
   useEffect(() => {
@@ -343,89 +400,99 @@ export default function Home() {
             </div>
           ) : (
             <>
-              <h1 className="rr-burrow-title">Your burrow</h1>
-
-              <div className="rr-card">
-                <div className="rr-row">
-                  <span>Hit points</span>
-                  <span>{burrow?.hp ?? '-'} / {burrow?.maxHp ?? '-'}</span>
-                </div>
-                <div className="rr-meter">
-                  <i style={{ width: `${burrow ? (burrow.hp / burrow.maxHp) * 100 : 0}%` }} />
-                </div>
-                {/* Repair is free and time-based, always. Charging for it would
-                    turn every raid into a bill and kill the revenge loop. */}
-                <small style={{ color: 'var(--muted)' }}>Repairs itself over time. Always free.</small>
+              {/* The heading in the kit's TITLE face — the same one every
+                  panel in the arcade wears. It was a UI-font <h1>, which is
+                  the giveaway that the chrome came from somewhere else. */}
+              <div className="rr-burrow-head">
+                <TitleText scale={1.6} style={{ color: LAMP }}>YOUR BURROW</TitleText>
               </div>
 
-              <div className="rr-card">
-                <div className="rr-row">
-                  <span>&#9889; Energy</span>
-                  <span style={{ color: hasEnergy ? 'var(--carrot)' : 'var(--danger)' }}>
-                    {burrow?.energy ?? 0} / {burrow?.maxEnergy ?? 0}
-                  </span>
-                </div>
-                <div className="rr-meter">
-                  <i
-                    style={{
-                      width: `${burrow ? (burrow.energy / burrow.maxEnergy) * 100 : 0}%`,
-                      background: hasEnergy ? 'var(--carrot)' : 'var(--danger)',
-                    }}
-                  />
-                </div>
+              <BurrowCard>
+                <CardRow
+                  label="HIT POINTS"
+                  value={`${burrow?.hp ?? '-'}/${burrow?.maxHp ?? '-'}`}
+                />
+                <BurrowMeter
+                  value={burrow?.hp ?? 0}
+                  max={burrow?.maxHp ?? 1}
+                  label="Burrow hit points"
+                />
+                {/* Repair is free and time-based, always. Charging for it would
+                    turn every raid into a bill and kill the revenge loop. */}
+                <CardNote>Repairs itself over time. Always free.</CardNote>
+              </BurrowCard>
+
+              <BurrowCard>
+                <CardRow
+                  label="ENERGY"
+                  value={`${burrow?.energy ?? 0}/${burrow?.maxEnergy ?? 0}`}
+                  tone={hasEnergy ? CARROT : DANGER}
+                />
+                {/* The gauge picks a SPRITE SET, never a hex — empty is the
+                    danger art, the same reading the run's own bar gives. */}
+                <BurrowMeter
+                  value={burrow?.energy ?? 0}
+                  max={burrow?.maxEnergy ?? 1}
+                  tone={hasEnergy ? 'carrot' : 'danger'}
+                  label="Energy"
+                />
                 {/* Empty is the state that needs explaining: without a return
                     time the player cannot tell a broken game from a wait. */}
-                <small style={{ color: 'var(--muted)' }}>
+                <CardNote>
                   {!hasEnergy
                     ? `Out of energy. Next in ${formatWait(burrow?.nextEnergyInMs ?? null)}.`
                     : burrow?.nextEnergyInMs === null
                       ? 'Full.'
                       : `+1 in ${formatWait(burrow?.nextEnergyInMs ?? null)}.`}
-                </small>
-              </div>
+                </CardNote>
+              </BurrowCard>
 
-              <div className="rr-card">
-                <div className="rr-row">
-                  <span>&#127793; Garden</span>
-                  <span style={{ color: 'var(--carrot)' }}>+{burrow?.gardenReady ?? 0}</span>
-                </div>
+              <BurrowCard>
+                <CardRow
+                  label="GARDEN"
+                  value={
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <BitmapText scale={1.25} style={{ color: CARROT }}>
+                        {`+${burrow?.gardenReady ?? 0}`}
+                      </BitmapText>
+                      <img className="pixelated rr-carrot-mark" src={CARROT_MARK} alt="" aria-hidden />
+                    </span>
+                  }
+                />
                 {/* The RATE, not just the pile: "+0" alone reads as broken. */}
-                <small style={{ color: 'var(--muted)', display: 'block', marginBottom: 8 }}>
-                  {burrow?.yieldPerHour ?? '-'} 🥕/hour &middot; holds {burrow?.gardenCapacity ?? '-'}
+                <CardNote>
+                  {burrow?.yieldPerHour ?? '-'}/hour &middot; holds {burrow?.gardenCapacity ?? '-'}
                   {' '}({burrow?.capHours ?? '-'}h)
-                </small>
-                <button
-                  style={{ width: '100%' }}
+                </CardNote>
+                <BurrowButton
                   disabled={pending || !burrow?.gardenReady}
                   onClick={() => act('harvest')}
                 >
-                  Harvest
-                </button>
-              </div>
+                  HARVEST
+                </BurrowButton>
+              </BurrowCard>
 
-              <div className="rr-card">
-                <div className="rr-row">
-                  <span>Dig deeper &middot; level {burrow?.level ?? '-'}</span>
-                  <span style={{ color: 'var(--muted)' }}>
-                    {burrow?.upgradeCost === null ? 'Max' : `${burrow?.upgradeCost ?? '-'} 🥕`}
-                  </span>
-                </div>
+              <BurrowCard>
+                <CardRow
+                  label={`DIG DEEPER - LVL ${burrow?.level ?? '-'}`}
+                  value={burrow?.upgradeCost === null ? 'MAX' : `${burrow?.upgradeCost ?? '-'}`}
+                  tone={burrow?.canUpgrade ? CARROT : CHALK_DIM}
+                />
                 {/* What the price buys. A cost with no stated benefit is a
                     number the player has no way to judge. */}
                 {burrow?.next && (
-                  <small style={{ color: 'var(--muted)', display: 'block', marginBottom: 8 }}>
+                  <CardNote>
                     level {burrow.level + 1}: {burrow.next.hp} HP &middot;{' '}
-                    {burrow.next.yieldPerHour} 🥕/hour
-                  </small>
+                    {burrow.next.yieldPerHour}/hour
+                  </CardNote>
                 )}
-                <button
-                  style={{ width: '100%' }}
+                <BurrowButton
                   disabled={pending || !burrow?.canUpgrade}
                   onClick={() => act('upgrade')}
                 >
-                  Upgrade
-                </button>
-              </div>
+                  UPGRADE
+                </BurrowButton>
+              </BurrowCard>
 
               {/* Placing takes over the screen, so the way into the shop
                   steps aside for the way out of placement. */}
@@ -434,7 +501,15 @@ export default function Home() {
                   Done placing
                 </button>
               ) : (
-                <ShopButton shop={shop.shop} onOpen={() => setShopOpen(true)} />
+                <>
+                  <ShopButton shop={shop.shop} onOpen={() => setShopOpen(true)} />
+                  {/* Under the shop on purpose: the shop is what a player came
+                      to the burrow to DO, the codex is what they stay for. */}
+                  <LoreButton
+                    lifetime={burrow?.lifetime ?? 0}
+                    onOpen={() => setLoreOpen(true)}
+                  />
+                </>
               )}
 
               {/* While placing, this is the only instruction on screen — the
@@ -468,7 +543,7 @@ export default function Home() {
         </div>
       )}
 
-      {player && where === 'burrow' && (
+      {player && where === 'burrow' && !raid.raid && (
         // Disabled rather than hidden: the way onto the island should stay
         // visible so its absence reads as "not yet", not as "gone".
         <GoButton
@@ -476,6 +551,28 @@ export default function Home() {
           label="Go farm"
           onClick={() => goTo('island')}
           disabled={!hasEnergy}
+        />
+      )}
+
+      {/* The board is the Pixi scene behind this, so the HUD is deliberately
+          thin — a raid is walked on the ground, not in a list. */}
+      {player && raid.raid && (
+        <RaidHud
+          raid={raid.raid}
+          outcome={raid.outcome}
+          busy={raid.busy}
+          note={raid.note}
+          onLeave={raid.leave}
+        />
+      )}
+
+      {player && pickingTarget && !raid.raid && (
+        <TargetList
+          targets={raid.targets}
+          busy={raid.busy}
+          note={raid.note}
+          onEnter={(id) => void raid.enter(id)}
+          onClose={() => { setPickingTarget(false); raid.setNote(null); }}
         />
       )}
 
@@ -490,6 +587,13 @@ export default function Home() {
           error={usdc.error}
           onPlaceTraps={startPlacing}
           onClose={() => { setShopOpen(false); shop.setNote(null); usdc.setError(null); }}
+        />
+      )}
+
+      {player && loreOpen && (
+        <LoreCodex
+          lifetime={burrow?.lifetime ?? 0}
+          onClose={() => setLoreOpen(false)}
         />
       )}
 
@@ -553,3 +657,6 @@ function formatWait(ms: number | null): string {
 // new player with.
 const BURROW_ART = burrowArt(1);
 const LOGO = '/assets/ui/RR-Logo_Banner.webp';
+/** The game's own carrot, so the figure is marked in the art rather than in an
+ *  emoji the system font draws in a style nothing else on screen shares. */
+const CARROT_MARK = '/assets/misc/carrote_silouhette.png';

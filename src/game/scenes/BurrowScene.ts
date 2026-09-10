@@ -10,7 +10,7 @@
  * question this screen asks the owner is a spatial one — which approach do I
  * make expensive? — and it can only be asked on a map.
  */
-import { Application, Container, Sprite, Texture, Graphics } from 'pixi.js';
+import { Application, Container, Sprite, Texture, Graphics, type BitmapText } from 'pixi.js';
 import gsap from 'gsap';
 import type { Scene } from '../SceneManager';
 import { SceneManager } from '../SceneManager';
@@ -18,6 +18,7 @@ import { GAME_W, GAME_H } from '../Application';
 import { CloudField } from '../fx/Clouds';
 import { CarrotCrop } from '../entities/CarrotCrop';
 import { getDiamondOutline } from '../services/TileTextures';
+import { pixelText } from '../ui/PixelText';
 import * as Keys from '@/config/assetKeys';
 import {
   BURROW_COLS, BURROW_ROWS, BURROW_HALF_W, BURROW_HALF_H, BURROW_ZOOM,
@@ -48,6 +49,29 @@ const TRAP_TINT = 0xffd45c;
  */
 const PLACEABLE_TINT = 0x8fd6ff;
 const PLACEABLE_ALPHA = 0.42;
+
+// ── Raiding someone else's burrow ────────────────────────────────────────────
+// The same board, read from the other side. A raider sees clue NUMBERS and the
+// steps they may take; they never see a trap until they spring it, which is the
+// whole reason burying one is worth doing.
+
+/** A tile the raider has read. Cool and dim: it is known, not offered. */
+const SEEN_TINT = 0x9fb4c7;
+const SEEN_ALPHA = 0.30;
+/** A tile the raider may step onto next. The one thing asking to be tapped. */
+const STEP_TINT = 0xffd45c;
+const STEP_ALPHA = 0.55;
+/** Where the raider stands. */
+const RAIDER_TINT = 0xff8c42;
+/** Clue colours by count, so a 3 reads as worse than a 1 before it is read as
+ *  a number at all — the same trick the island's hints use. */
+const CLUE_COLOURS = [0x7fd1ff, 0x8fe388, 0xffd45c, 0xff9d5c, 0xff6b6b];
+
+/** One tile as a raider may see it. `clue` null means a smoke screen hides it. */
+export interface RaidTile {
+  tile: number;
+  clue: number | null;
+}
 
 export interface BurrowSceneData {
   /** Tiles that already hold a trap. */
@@ -83,6 +107,10 @@ export class BurrowScene implements Scene {
   private board = new Container();
   private trapSprites = new Map<number, Container>();
   private hints: Sprite[] = [];
+  /** The raid overlay: the attacker's read of this board. Empty when at home. */
+  private raidCells: Sprite[] = [];
+  private raidLabels: BitmapText[] = [];
+  private raiding = false;
   private data: BurrowSceneData = { traps: [], placing: false, onPlace: () => {} };
 
   constructor(private app: Application, _sceneManager: SceneManager) {
@@ -287,6 +315,129 @@ export class BurrowScene implements Scene {
     this.setPlacing(this.data.placing);
   }
 
+  // ── Raiding ───────────────────────────────────────────────────────────────
+  //
+  // The same ground, read from the attacker's side. The scene is told WHAT to
+  // draw and never works anything out: the server decides which tiles a raider
+  // may see, what their numbers are, and where they may step. That split is the
+  // whole security model of a raid — a client that computed its own view could
+  // simply compute the trap positions too.
+
+  /**
+   * Draw a raid in progress, or clear it with `null`.
+   *
+   * Called on every step rather than diffed, because a step changes what is
+   * visible, what is steppable and where the raider stands all at once, and
+   * three separate updates would show a frame of the board disagreeing with
+   * itself.
+   */
+  setRaid(state: {
+    view: RaidTile[];
+    /** Where the raider stands. */
+    at: number;
+    /** Tiles they may step onto — the server's list, not ours. */
+    steps: number[];
+    onStep(tile: number): void;
+  } | null): void {
+    this.clearRaid();
+    if (!state) {
+      // Back to being a home: the owner's own traps come back into view.
+      for (const tile of this.data.traps) this.addTrap(tile, false);
+      this.setPlacing(this.data.placing);
+      return;
+    }
+
+    // A raider must not see the OWNER's traps. They are hidden rather than
+    // never drawn, because the same scene serves both sides and the owner may
+    // have been looking at their own burrow a moment ago.
+    for (const group of this.trapSprites.values()) group.visible = false;
+    this.setPlacing(false);
+
+    this.raiding = true;
+    const steppable = new Set(state.steps);
+
+    for (const { tile, clue } of state.view) {
+      const { x, y } = burrowTilePos(tile);
+      const canStep = steppable.has(tile);
+
+      const cell = new Sprite(getDiamondOutline());
+      cell.anchor.set(0.5);
+      cell.position.set(x, y);
+      cell.zIndex = burrowTileDepth(tile);
+      cell.tint = canStep ? STEP_TINT : SEEN_TINT;
+      cell.alpha = canStep ? STEP_ALPHA : SEEN_ALPHA;
+      if (canStep) {
+        cell.eventMode = 'static';
+        cell.cursor = 'pointer';
+        cell.on('pointertap', () => state.onStep(tile));
+        // The next step breathes. It is the only thing on this screen asking to
+        // be pressed, and a still outline does not ask.
+        gsap.to(cell, { alpha: STEP_ALPHA * 0.55, duration: 0.9, yoyo: true, repeat: -1 });
+      }
+      this.board.addChild(cell);
+      this.raidCells.push(cell);
+
+      // The number. Absent under a smoke screen — and a zero is drawn as
+      // nothing at all, exactly as minesweeper does, so the eye goes to the
+      // tiles that carry danger.
+      if (clue !== null && clue > 0) {
+        const label = pixelText(x, y - 3, String(clue));
+        label.anchor.set(0.5);
+        label.scale.set(0.5);
+        label.tint = CLUE_COLOURS[Math.min(clue, CLUE_COLOURS.length - 1)];
+        label.zIndex = burrowTileDepth(tile) + 0.4;
+        this.board.addChild(label);
+        this.raidLabels.push(label);
+      }
+    }
+
+    // The raider themselves, on top of their own tile.
+    const here = burrowTilePos(state.at);
+    const marker = new Sprite(getDiamondOutline());
+    marker.anchor.set(0.5);
+    marker.position.set(here.x, here.y);
+    marker.zIndex = burrowTileDepth(state.at) + 0.6;
+    marker.tint = RAIDER_TINT;
+    marker.alpha = 0.95;
+    this.board.addChild(marker);
+    this.raidCells.push(marker);
+  }
+
+  /**
+   * A trap went off under the raider.
+   *
+   * Its own call rather than something inferred from the next `setRaid`,
+   * because springing a trap is the moment the raid turns and it has to be felt
+   * — a board that simply redrew one tile darker would not register.
+   */
+  springTrap(tile: number): void {
+    const { x, y } = burrowTilePos(tile);
+    const blast = new Sprite(getDiamondOutline());
+    blast.anchor.set(0.5);
+    blast.position.set(x, y);
+    blast.zIndex = burrowTileDepth(tile) + 1;
+    blast.tint = 0xff6b6b;
+    this.board.addChild(blast);
+    gsap.to(blast.scale, { x: 2.2, y: 2.2, duration: 0.45, ease: 'power2.out' });
+    gsap.to(blast, {
+      alpha: 0,
+      duration: 0.45,
+      onComplete: () => blast.destroy(),
+    });
+  }
+
+  /** Tear the raid overlay down. */
+  private clearRaid(): void {
+    for (const c of this.raidCells) { gsap.killTweensOf(c); c.destroy(); }
+    for (const l of this.raidLabels) l.destroy();
+    this.raidCells = [];
+    this.raidLabels = [];
+    if (this.raiding) {
+      for (const group of this.trapSprites.values()) group.visible = true;
+      this.raiding = false;
+    }
+  }
+
   /** A trap was sprung or removed. */
   removeTrap(tile: number): void {
     const group = this.trapSprites.get(tile);
@@ -307,6 +458,7 @@ export class BurrowScene implements Scene {
   }
 
   destroy(): void {
+    this.clearRaid();
     this.clouds?.destroy();
     for (const g of this.trapSprites.values()) gsap.killTweensOf(g);
     this.trapSprites.clear();

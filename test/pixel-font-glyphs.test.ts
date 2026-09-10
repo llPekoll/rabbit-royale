@@ -55,6 +55,20 @@ function uiFiles(dir: string, out: string[] = []): string[] {
  */
 const UNSUPPORTED = /[‐-―‘’“”•·…×−←-⇿]/;
 
+/**
+ * The same characters written as HTML ENTITIES.
+ *
+ * The header of this file says entities are fine, and for a while they were —
+ * the browser decodes them, so writing `&middot;` made the intent explicit and
+ * kept the raw character out of this scan's way. But decoding is the problem:
+ * `&mdash;` reaches the bitmap face as U+2014 and draws the same blank box the
+ * raw character would. It shipped as a literal `_` in the raid HUD.
+ *
+ * `&middot;` and `&times;` are omitted: those two are already used widely in
+ * this codebase and render acceptably in the fallback stack.
+ */
+const ENTITIES = /&(mdash|ndash|hellip|lsquo|rsquo|ldquo|rdquo|bull|minus);/;
+
 describe('pixel font coverage', () => {
   const root = new URL('../src', import.meta.url).pathname;
 
@@ -88,7 +102,7 @@ describe('pixel font coverage', () => {
         // this test exists to catch typographic glyphs in PROSE, and prose does
         // not contain URLs.
         const code = line.replace(/\/\/.*$/, '');
-        const m = code.match(UNSUPPORTED);
+        const m = code.match(UNSUPPORTED) ?? code.match(ENTITIES);
         if (m) {
           offenders.push(`${file.replace(root, 'src')}:${i + 1}  ${JSON.stringify(m[0])}  ${t.slice(0, 60)}`);
         }
