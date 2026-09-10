@@ -35,8 +35,8 @@ import {
 } from '@/components/burrow-chrome';
 
 /** The two states of the speaker, on the kit's 16px button grid. */
-const SPEAKER_ON = '/assets/ui/sound/speaker-on.webp';
-const SPEAKER_OFF = '/assets/ui/sound/speaker-off.webp';
+const SPEAKER_ON = '/assets/sound/speaker-on.webp';
+const SPEAKER_OFF = '/assets/sound/speaker-off.webp';
 
 export function SoundButton() {
   const { musicMuted, sfxMuted, volume, toggleMusic, toggleSfx, setVolume } = useAudioSettings();

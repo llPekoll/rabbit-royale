@@ -21,23 +21,31 @@ import { Assets, Rectangle, Texture } from 'pixi.js';
 /** Every terrain sheet in this pack is cut to 64px cells. */
 export const TILE = 64;
 
-const ROOT = '/assets/tiny-swords';
+/**
+ * The sheets the island draws from. They are the CONSOLIDATED cut of the two
+ * Tiny Swords packs, not the packs themselves — the raw art lives outside
+ * `public/` in `art-source/tiny-swords/` (with the manifest recording every
+ * sheet's size and alpha bounds) so the browser is only ever served the
+ * three dozen files the island actually loads.
+ */
+const TERRAIN = '/assets/terrain';
+const DECO = '/assets/deco';
 
 export const ISLAND_SHEETS = {
-  flat: `${ROOT}/terrain/tilemap-flat.webp`,
-  elevation: `${ROOT}/terrain/tilemap-elevation.webp`,
-  water: `${ROOT}/terrain/water.webp`,
-  foam: `${ROOT}/terrain/foam.webp`,
-  tree: `${ROOT}/resources/tree.webp`,
+  flat: `${TERRAIN}/tilemap-flat.webp`,
+  elevation: `${TERRAIN}/tilemap-elevation.webp`,
+  water: `${TERRAIN}/water.webp`,
+  foam: `${TERRAIN}/foam.webp`,
+  tree: `${DECO}/tree.webp`,
 } as const;
 
 /** The eighteen loose props: mushrooms, stones, bushes, bones, a scarecrow. */
 export const PROP_COUNT = 18;
-export const propUrl = (n: number) => `${ROOT}/deco/prop-${String(n).padStart(2, '0')}.webp`;
+export const propUrl = (n: number) => `${DECO}/prop-${String(n).padStart(2, '0')}.webp`;
 
 /** Four little rocks that bob in open water. */
 export const SEA_ROCK_COUNT = 4;
-export const seaRockUrl = (n: number) => `${ROOT}/terrain/sea-rock-0${n}.webp`;
+export const seaRockUrl = (n: number) => `${TERRAIN}/sea-rock-0${n}.webp`;
 
 /**
  * The free pack's five grass palettes — the same tiles painted five ways.
@@ -52,7 +60,7 @@ export const seaRockUrl = (n: number) => `${ROOT}/terrain/sea-rock-0${n}.webp`;
  * Update 010's cliffs costs nothing.
  */
 export const TIER_PALETTE_COUNT = 5;
-export const tierPaletteUrl = (n: number) => `${ROOT}/classic/terrain/tilemap-color-${n}.webp`;
+export const tierPaletteUrl = (n: number) => `${TERRAIN}/palette-${n}.webp`;
 
 /**
  * The palette sheets are 9x6. Columns 0-3 are the shoreline set, whose white

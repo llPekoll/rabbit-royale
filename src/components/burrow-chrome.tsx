@@ -115,7 +115,7 @@ export function BurrowMeter({
   value, max, tone = 'carrot', label,
 }: { value: number; max: number; tone?: 'carrot' | 'warn' | 'danger'; label: string }) {
   const pct = max > 0 ? Math.max(0, Math.min(1, value / max)) : 0;
-  const FILL = '/assets/ui/gauge/bar-fill';
+  const FILL = '/assets/gauge/bar-fill';
   return (
     <div
       className="rr-pix-meter"

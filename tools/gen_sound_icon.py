@@ -27,7 +27,7 @@ Output is 1x lossless WebP, like every other generated sprite in this repo.
 """
 from PIL import Image
 
-OUT = "public/assets/ui/sound"
+OUT = "public/assets/sound"
 
 # ── Palette ───────────────────────────────────────────────────────────────
 # The kit's [X] is a white glyph on a dark grey face; this matches it exactly so

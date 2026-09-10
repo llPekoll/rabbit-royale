@@ -585,12 +585,12 @@ function Burrow() {
                 className="rr-logo"
                 src={LOGO}
                 alt="Rabbit Royale"
-                // The file's own 365x106. It is `height: auto` in CSS, so a
+                // The file's own 365x78. It is `height: auto` in CSS, so a
                 // wrong number here does not distort it — it reserves the
                 // wrong box while the image loads and shifts the column under
                 // the reader's eyes.
                 width={365}
-                height={106}
+                height={78}
               />
               <p style={{ color: 'var(--muted)', margin: 0 }}>The Cursed Crown</p>
               <p style={{ color: 'var(--muted)', maxWidth: 300 }}>

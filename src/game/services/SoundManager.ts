@@ -148,7 +148,7 @@ const SOUND_MAP: Record<string, { src: string; volume: number; format?: string[]
   [Keys.SFX_HOP]: { src: '/assets/sfx/Jump.mp3', volume: 0.3 },
   [Keys.SFX_STEP]: { src: '/assets/sfx/04_step_grass_1.mp3', volume: 0.2 },
   [Keys.SFX_COIN]: { src: '/assets/sfx/coin.mp3', volume: 0.4 },
-  [Keys.SFX_COIN_START]: { src: '/assets/sfx/events/coin_start.mp3', volume: 0.5 },
+  [Keys.SFX_COIN_START]: { src: '/assets/sfx/coin_start.mp3', volume: 0.5 },
   [Keys.SFX_CHIME]: { src: '/assets/sfx/8_bit_chime_positive.mp3', volume: 0.5 },
   [Keys.SFX_CHIME_QUICK]: { src: '/assets/sfx/8_bit_chime_quick.mp3', volume: 0.4 },
   // Kept low: the death reveal fires one per revealed mine (≈10 overlapping

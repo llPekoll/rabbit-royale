@@ -297,9 +297,9 @@ button { min-height: 44px; min-width: 44px; }
   /* The three shell slices in one layer: fixed ends pinned left and right, the
      1px middle repeated across the gap between them. */
   background:
-    url('/assets/ui/gauge/bar-shell-base.webp') left center / auto 100% no-repeat,
-    url('/assets/ui/gauge/bar-shell-cap.webp') right center / auto 100% no-repeat,
-    url('/assets/ui/gauge/bar-shell-mid.webp') left center / auto 100% repeat-x;
+    url('/assets/gauge/bar-shell-base.webp') left center / auto 100% no-repeat,
+    url('/assets/gauge/bar-shell-cap.webp') right center / auto 100% no-repeat,
+    url('/assets/gauge/bar-shell-mid.webp') left center / auto 100% repeat-x;
   image-rendering: pixelated;
 }
 .rr-energy-fill {
@@ -1860,9 +1860,9 @@ button { font-family: var(--font-pixel); }
   width: 100%;
   height: var(--rr-gauge-h);
   background:
-    url('/assets/ui/gauge/bar-shell-base.webp') left center / auto 100% no-repeat,
-    url('/assets/ui/gauge/bar-shell-cap.webp') right center / auto 100% no-repeat,
-    url('/assets/ui/gauge/bar-shell-mid.webp') left center / auto 100% repeat-x;
+    url('/assets/gauge/bar-shell-base.webp') left center / auto 100% no-repeat,
+    url('/assets/gauge/bar-shell-cap.webp') right center / auto 100% no-repeat,
+    url('/assets/gauge/bar-shell-mid.webp') left center / auto 100% repeat-x;
   image-rendering: pixelated;
 }
 .rr-pix-meter-fill {

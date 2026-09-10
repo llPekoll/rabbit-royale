@@ -8,8 +8,8 @@ The pack ships twice, in two folders whose names carry spaces and parentheses
 ("Resources/Resources", "UI Elements/UI Elements"), Title Case, and PNGs where
 the rest of this repo ships WebP. None of that survives here.
 
-    Update 010  ->  public/assets/tiny-swords/          (canon: the newer art)
-    Free Pack   ->  public/assets/tiny-swords/classic/  (the older cut, kept
+    Update 010  ->  art-source/tiny-swords/          (canon: the newer art)
+    Free Pack   ->  art-source/tiny-swords/classic/  (the older cut, kept
                                                          for the units and UI
                                                          that 010 never redrew)
 
@@ -17,11 +17,17 @@ Everything is re-encoded as LOSSLESS WebP, so the pixels are byte-identical
 after decode and the tree lands at roughly a third of the size. Rerunning is
 safe: the target directory is rebuilt from scratch every time.
 
-    python3 tools/consolidate_tiny_swords.py [--src public/assets] [--keep-src]
+    python3 tools/consolidate_tiny_swords.py [--src art-source] [--keep-src]
 
 Writes `manifest.json` beside the art, listing every file with its pixel size —
 that file is the input to `src/game/island/tileset.ts`, so no sheet geometry is
 ever typed in by hand.
+
+This tree is SOURCE, not shipped art: it lives outside `public/` so the browser
+is never served six hundred files to use thirty. The sheets the island actually
+loads are copied into `public/assets/terrain/` and `public/assets/deco/` — see
+ISLAND_SHEETS, propUrl, seaRockUrl and tierPaletteUrl in tileset.ts for the
+exact list. Add a sheet there and you must copy it across too.
 """
 from __future__ import annotations
 
@@ -221,7 +227,7 @@ def run(jobs: list[tuple[Path, Path]], assets_root: Path, manifest: list[dict]) 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--src", default="public/assets", type=Path)
+    ap.add_argument("--src", default="art-source", type=Path)
     ap.add_argument("--keep-src", action="store_true", help="leave the two original pack folders in place")
     args = ap.parse_args()
 

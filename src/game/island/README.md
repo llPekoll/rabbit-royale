@@ -105,7 +105,7 @@ leaves the sheets in Pixi's cache for the next island.
 
 ## The art
 
-`public/assets/tiny-swords/`, consolidated from the free pack and Update 010 by
+`art-source/tiny-swords/`, consolidated from the free pack and Update 010 by
 `tools/consolidate_tiny_swords.py` — lossless WebP, kebab-case, no editor
 sources. Update 010 is canon; `classic/` holds what only the free pack has
 (lancers, monks, the extra buildings and UI). `manifest.json` records every

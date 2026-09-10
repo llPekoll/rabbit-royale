@@ -22,7 +22,7 @@ const IMAGES = [
   { key: Keys.DEAD_SKULL, src: '/assets/bunnies/RR-Skull.webp' },
   { key: Keys.GHOST_DOWN, src: '/assets/bunnies/RR-Ghost-Down.webp' },
   { key: Keys.GHOST_UP, src: '/assets/bunnies/RR-Ghost-Up.webp' },
-  { key: Keys.BOMB_SMALL, src: '/assets/RR-Bomb-Small.webp' },
+  { key: Keys.BOMB_SMALL, src: '/assets/misc/RR-Bomb-Small.webp' },
   { key: Keys.LOGO, src: '/assets/ui/rr-logo-1x.webp' },
   { key: Keys.LOGO_BANNER, src: '/assets/ui/RR-Logo_Banner.webp' },
   { key: Keys.TREASURE_CHEST, src: '/assets/ui/treasure_chest.webp' },
@@ -50,7 +50,7 @@ const IMAGES = [
 /** Explosion spritesheet: 48x48 frames */
 const EXPLOSION = {
   key: Keys.EXPLOSION_SMALL,
-  src: '/assets/fx/expfx1_epic_explosion_A_small_orange/spritesheet.webp',
+  src: '/assets/fx/explosion.webp',
   frameWidth: 48,
   frameHeight: 48,
 };

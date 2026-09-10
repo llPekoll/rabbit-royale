@@ -18,7 +18,7 @@ outline, saturated core, a lighter bevel and a darker one, no anti-aliasing.
 """
 from PIL import Image
 
-OUT = "public/assets/ui/gauge"
+OUT = "public/assets/gauge"
 
 # ── Palette ───────────────────────────────────────────────────────────────
 OUTLINE = (10, 8, 20, 255)

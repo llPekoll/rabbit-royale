@@ -73,6 +73,8 @@ lie to itself and to nothing else.
 | `src/lib/game/grant.ts` | The ONE place an item is credited, whichever currency paid. |
 | `src/lib/pay/solana.ts` | Reads the chain to decide whether a USDC payment happened. |
 | `src/game/island/` | Square-tile islands with stacked plateaus, from the Tiny Swords sheets. Groundwork for a future game, not used by the run. [Its own README](./src/game/island/README.md); look at one at `/island`. |
+| `public/assets/` | What the browser is served. One level of folders, no deeper. |
+| `art-source/` | Source art that is NOT shipped: the raw Tiny Swords packs and the legacy PNGs the WebPs were cut from. Nothing here reaches the browser. |
 
 ### Tuning
 

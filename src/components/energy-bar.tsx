@@ -32,7 +32,7 @@ export interface EnergyBarProps {
 const SCALE = ENERGY.MAX;
 
 /** The fill sprites, by what the bar is saying. */
-const FILL = '/assets/ui/gauge/bar-fill';
+const FILL = '/assets/gauge/bar-fill';
 
 export function EnergyBar({ energy, bombCost = ENERGY.BOMB_LOSS }: EnergyBarProps) {
   const pct = Math.max(0, Math.min(1, energy / SCALE));
