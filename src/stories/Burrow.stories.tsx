@@ -6,7 +6,7 @@
  * the placement grid both on and off. Outside placement the grid is invisible
  * on purpose: this is a picture of your home, not a spreadsheet.
  */
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { PixiStage } from './PixiStage';
 import { BurrowScene } from '@/game/scenes/BurrowScene';
@@ -111,7 +111,7 @@ export const Defended: Story = { args: { traps: TRAPS.MAX_PLACED } };
  * code paths onto one camera — the owner's `setPlacing`, and a raider's
  * `setRaid` — and only the second one has to get its ordering right.
  */
-function CameraHarness() {
+function CameraHarness({ loop }: { loop: boolean }) {
   const sceneRef = useRef<BurrowScene | null>(null);
   const [mode, setMode] = useState<'home' | 'placing' | 'raiding'>('home');
 
@@ -151,6 +151,34 @@ function CameraHarness() {
     scene.setRaid(next === 'raiding' ? raid() : null);
     scene.setPlacing(next === 'placing');
   };
+
+  /**
+   * Play the move on a loop, so it can be WATCHED rather than triggered.
+   *
+   * The buttons alone make the pull-back something you cause and then try to
+   * catch out of the corner of your eye — and half a second of easing is
+   * exactly the sort of thing you miss while your hand is still on the mouse.
+   * Looping puts the movement itself on screen, both directions, repeatedly,
+   * which is the only way to judge whether it reads as a camera or as a resize.
+   *
+   * The dwell is longer than the 0.55s tween on purpose: arriving and SITTING
+   * is part of what is being judged, and a cycle that turned round the instant
+   * it landed would only ever show motion.
+   */
+  const goRef = useRef(go);
+  goRef.current = go;
+  useEffect(() => {
+    if (!loop) return;
+    // Kicks off once the scene exists; before that `go` is a no-op and the
+    // cycle simply picks it up on the next turn.
+    let n = 0;
+    const CYCLE: ('home' | 'placing')[] = ['placing', 'home'];
+    const id = setInterval(() => {
+      goRef.current(CYCLE[n % CYCLE.length]);
+      n++;
+    }, 1800);
+    return () => clearInterval(id);
+  }, [loop]);
 
   return (
     <div>
@@ -195,11 +223,25 @@ function CameraHarness() {
       </div>
       <p style={{ color: '#8b949e', font: '12px ui-monospace, monospace', marginTop: 8 }}>
         Pulled back for a decision, close for the place. Press the same button
-        twice: the camera must NOT re-tween.
+        twice: the camera must NOT re-tween.{loop ? ' Playing on a loop.' : ''}
       </p>
     </div>
   );
 }
 
-/** Watch the camera pull back and come home. Press the buttons. */
-export const Camera: StoryObj = { render: () => <CameraHarness /> };
+/**
+ * The move itself, played on a loop: pull back, sit, come home, repeat.
+ *
+ * This is the one to open to judge the FEEL of it — the easing, how far it
+ * goes, whether the ground stays legible at the far end. Nothing to press.
+ */
+export const CameraLoop: StoryObj = { render: () => <CameraHarness loop /> };
+
+/**
+ * The same camera, driven by hand.
+ *
+ * For the cases a loop cannot show: the raid route into the pulled-back shot
+ * (a different code path from the owner's), and pressing one button twice to
+ * check the camera does not re-tween when it is already where it is going.
+ */
+export const Camera: StoryObj = { render: () => <CameraHarness loop={false} /> };
