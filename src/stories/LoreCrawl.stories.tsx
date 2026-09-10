@@ -34,6 +34,14 @@ interface Knobs {
   tilt: number;
   /** How far the text travels in one pass, vh. */
   run: number;
+  /**
+   * Where the text sits at 0%, as a % of the viewport.
+   *
+   * The knob that decides how long a visitor stares at an empty sky before the
+   * story starts, which is why it is here: at 108% the first six seconds of
+   * every page load were blank.
+   */
+  start: number;
   /** Seconds for one pass. */
   seconds: number;
   /**
@@ -71,6 +79,7 @@ function Screen(k: Knobs) {
     crawl.style.perspective = `${k.perspective}px`;
     stage.style.transform = `rotateX(${k.tilt}deg)`;
     text.style.setProperty('--crawl-run', `${k.run}vh`);
+    text.style.top = `${k.start}%`;
     text.style.animationDuration = `${k.seconds}s`;
 
     if (k.freezeAt >= 0) {
@@ -124,6 +133,7 @@ const meta: Meta<typeof Screen> = {
     perspective: { control: { type: 'range', min: 160, max: 1400, step: 20 } },
     tilt: { control: { type: 'range', min: 0, max: 70, step: 1 } },
     run: { control: { type: 'range', min: 120, max: 400, step: 10 } },
+    start: { control: { type: 'range', min: 20, max: 130, step: 2 } },
     seconds: { control: { type: 'range', min: 10, max: 120, step: 2 } },
     freezeAt: { control: { type: 'range', min: -1, max: 60, step: 1 } },
   },
@@ -134,7 +144,7 @@ type Story = StoryObj<typeof Screen>;
 
 /** What ships. Playing, at the values in globals.css. */
 export const Default: Story = {
-  args: { perspective: 620, tilt: 38, run: 260, seconds: 44, freezeAt: -1 },
+  args: { perspective: 620, tilt: 38, run: 215, start: 62, seconds: 36, freezeAt: -1 },
 };
 
 /**
@@ -144,7 +154,7 @@ export const Default: Story = {
  * the one a playing story almost never lets you look at.
  */
 export const Frozen: Story = {
-  args: { ...Default.args, freezeAt: 20 } as Knobs,
+  args: { ...Default.args, freezeAt: 14 } as Knobs,
 };
 
 /**
@@ -155,7 +165,7 @@ export const Frozen: Story = {
  * "not enough" is much harder to recognise than "too much".
  */
 export const TooFlat: Story = {
-  args: { ...Default.args, perspective: 340, tilt: 26, freezeAt: 20 } as Knobs,
+  args: { ...Default.args, perspective: 340, tilt: 26, freezeAt: 14 } as Knobs,
 };
 
 /**
@@ -166,5 +176,5 @@ export const TooFlat: Story = {
  * which is exactly the trap.
  */
 export const TooSteep: Story = {
-  args: { ...Default.args, perspective: 240, tilt: 52, freezeAt: 20 } as Knobs,
+  args: { ...Default.args, perspective: 240, tilt: 52, freezeAt: 14 } as Knobs,
 };

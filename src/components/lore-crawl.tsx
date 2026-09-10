@@ -37,11 +37,15 @@ import { LORE } from '@/config/lore';
  *
  * MEASURED, not guessed. At 58s the last line had cleared the horizon by ~42s
  * and the loop then held on an empty sky for sixteen seconds, which reads as
- * the animation having broken rather than as a pause. 44s puts the restart
- * about two seconds behind the last line: long enough to be a breath, short
- * enough that nobody wonders whether it stopped.
+ * the animation having broken rather than as a pause.
+ *
+ * The pass is now shorter because it no longer starts below the fold: the text
+ * begins mid-climb (see `top` in globals.css) so the reader lands on the story
+ * instead of on six seconds of empty sky. Same reading speed, less runway --
+ * cutting the duration with the distance is what keeps the words legible
+ * rather than merely faster.
  */
-const CRAWL_SECONDS = 44;
+const CRAWL_SECONDS = 36;
 
 /** The one chapter open to a player with no carrots. See config/lore.ts. */
 const OPENING = LORE[0];

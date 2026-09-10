@@ -1931,10 +1931,13 @@ button { font-family: var(--font-pixel); }
 
 .rr-crawl-text {
   position: absolute;
-  /* Starts below the near edge of the tilted plane, not below the viewport:
-     the plane is foreshortened, so the text must start past its own bottom to
-     be off-screen at 0%. */
-  top: 108%;
+  /* Where the text sits before it starts moving.
+     Was 108% (fully below the near edge), which put the title at y=1052 on a
+     900px screen: the first six seconds of every visit were an empty sky, and
+     a page that opens on nothing reads as a page that failed to load. It now
+     starts with the chapter already climbing -- the title clears the bottom
+     fade within about a second of load. */
+  top: 62%;
   /* Wider than it looks: the tilt squeezes the block horizontally as it
      recedes, so a column sized by eye at rest ends up a thin ribbon in the
      distance. */
@@ -1946,10 +1949,12 @@ button { font-family: var(--font-pixel); }
      the game's one warm accent and it is what the story is about. */
   color: var(--crown);
   text-shadow: 0 0 12px rgba(255, 212, 92, 0.28);
-  /* The text's height plus the screen it has to cross. Generous on purpose:
-     overshooting only costs a beat of empty sky between passes, while
-     undershooting cuts the last paragraph off mid-sentence. */
-  --crawl-run: 260vh;
+  /* The text's height plus the screen it has to cross.
+     Cut with the start offset above: the text now begins 46vh higher, so
+     keeping the old 260vh would simply have moved the dead air from the head
+     of the loop to its tail. Still generous -- overshooting costs a beat of
+     empty sky between passes, undershooting cuts the last line mid-sentence. */
+  --crawl-run: 215vh;
   animation-name: rr-crawl-up;
   animation-timing-function: linear;
   animation-iteration-count: infinite;
