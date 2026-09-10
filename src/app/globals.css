@@ -223,6 +223,17 @@ button { min-height: 44px; min-width: 44px; }
   align-self: center;
 }
 
+/* Same story for the run recap. It is a short read — a score, three counts and
+   one button — and stretched across a desktop the numbers drift apart while
+   the button grows into a banner nobody would call a button. Capped narrower
+   than the HUD strip because a card that tall reads as a dialog, and a dialog
+   wider than it is tall stops looking like one. */
+.rr-overlay > .rr-card {
+  width: 100%;
+  max-width: 380px;
+  align-self: center;
+}
+
 /* The board is played through, so the chrome over it has to stay readable
    against pixel art of any colour without hiding half the island. */
 .rr-overlay .rr-hud,
