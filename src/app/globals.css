@@ -2217,3 +2217,64 @@ button { font-family: var(--font-pixel); }
   background: rgba(13, 17, 23, 0.72);
 }
 .rr-raid-quit:hover:not(:disabled) { color: var(--text); }
+
+/* The carrot iris over the sign-in crossing — see components/carrot-curtain.
+   The canvas has its own (Pixi) shutter; this one exists because the screen it
+   covers is DOM and unmounts, so a shutter drawn inside the canvas would show
+   up together with the thing it is meant to hide.
+
+   A black sheet with a carrot-shaped HOLE, exactly like the Pixi one. The hole
+   is cut by masking the sheet with (everything MINUS the carrot): two mask
+   layers composited with `subtract`. The carrot asset is an alpha silhouette,
+   so `mask-mode: alpha` — the default — is already right.
+
+   z-index is above every overlay in the app (the season board and profile
+   panel top out far below this): a shutter that something can appear in front
+   of is not a shutter. */
+.rr-curtain {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  pointer-events: none;
+  background: #000;
+
+  /* Layer 1: the whole sheet. Layer 2: the carrot, subtracted out of it.
+
+     ORDER MATTERS, and not for the usual prefix reason. `-webkit-mask-composite`
+     is not an alias of `mask-composite` — it takes a different keyword set
+     (`xor` where the standard says `subtract`), and in Chromium setting it also
+     writes the standard property. Declared after, it silently overwrites
+     `subtract` with `source-out` and the hole never opens: the sheet stays
+     solid black and the screen never comes back. Verified in a browser, because
+     the computed style is the only place this shows. Every prefixed line
+     therefore comes FIRST, and the standard one wins. */
+  -webkit-mask-image: linear-gradient(#000, #000), var(--rr-curtain-mask);
+  -webkit-mask-repeat: no-repeat, no-repeat;
+  -webkit-mask-position: center, center;
+  mask-image: linear-gradient(#000, #000), var(--rr-curtain-mask);
+  mask-repeat: no-repeat, no-repeat;
+  mask-position: center, center;
+  /* The aperture. Scaled by `--rr-curtain-open`, which is what actually
+     animates. `auto` on the width keeps the carrot's own proportions — a
+     stretched carrot stops reading as one.
+
+     The size to beat is the viewport DIAGONAL, so a wide-open hole clears the
+     corners at any window shape. CSS `sqrt()` would say that exactly but is
+     too new to rely on here, and `vmax` alone under-covers a square-ish window
+     (diagonal = vmax * sqrt(2) at worst). So: 2.6 * 1.42 * vmax, which is the
+     Pixi iris's OPEN_SCALE with the diagonal folded in, rounded up. */
+  -webkit-mask-size: 100% 100%, auto calc(369vmax * var(--rr-curtain-open));
+  -webkit-mask-composite: xor;
+  mask-size: 100% 100%, auto calc(369vmax * var(--rr-curtain-open));
+  mask-composite: subtract;
+
+  transition: -webkit-mask-size var(--rr-curtain-ms) var(--rr-curtain-ease),
+              mask-size var(--rr-curtain-ms) var(--rr-curtain-ease);
+}
+
+/* Someone who asked for less motion still needs the screen change hidden — the
+   cut is doing work, not just decoration. So the sheet still covers and still
+   uncovers, it simply does not animate the aperture. */
+@media (prefers-reduced-motion: reduce) {
+  .rr-curtain { transition: none; }
+}

@@ -55,8 +55,10 @@ describe('chrome across the wipe', () => {
     // branch falls back to the burrow with no player...
     expect(PAGE).toMatch(/where === 'burrow' \|\| !player \?/);
     // ...and `where` itself is reset when the session ends, so a later sign-in
-    // does not land back on the island.
-    expect(PAGE).toMatch(/if \(player\) return;[\s\S]{0,80}setWhere\('burrow'\)/);
+    // does not land back on the island. The window is generous because the
+    // same block also tears down the sign-in curtain — what is pinned is that
+    // the reset lives in the no-player branch, not how many lines precede it.
+    expect(PAGE).toMatch(/if \(player\) return;[\s\S]{0,400}setWhere\('burrow'\)/);
   });
 
   it('holds the burrow-anchored controls too', () => {

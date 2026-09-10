@@ -34,6 +34,16 @@ export interface GameHandles {
    * the shutter is fully open again.
    */
   wipeTo(key: SceneKey, atCut?: () => void): Promise<void>;
+  /**
+   * The same iris, over a change that stays on ONE scene.
+   *
+   * Entering a raid, leaving one, opening the trap grid: the scene does not
+   * swap, but the SCREEN does — a stranger's board replaces yours, or a picture
+   * of a home becomes a grid to make a decision on. Those read as changes of place
+   * to the player even though nothing is remounted, so they get the same
+   * punctuation. Without a key to `show`, the midpoint is the caller's alone.
+   */
+  wipeOver(atCut: () => void | Promise<void>): Promise<void>;
 }
 
 export interface GameCanvasProps {
@@ -105,6 +115,13 @@ export function GameCanvas({ seed, playerId, onMoveIntent, onPlaceTrap, onReady 
                 // to refuse the move — cross bare rather than not at all.
                 if (!wipe) { scenes.show(key); atCut?.(); return Promise.resolve(); }
                 return wipe.play(() => { scenes.show(key); atCut?.(); });
+              },
+              wipeOver: (atCut) => {
+                const wipe = ref.app?.wipe;
+                // Same rule as wipeTo: the change always happens, the flourish
+                // is what is optional.
+                if (!wipe) return Promise.resolve(atCut()).then(() => {});
+                return wipe.play(atCut);
               },
             });
           }

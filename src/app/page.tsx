@@ -14,6 +14,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useWalletLogin, WalletSessionProvider } from '@/components/use-wallet-login';
+import { CarrotCurtain } from '@/components/carrot-curtain';
 import { useGameSocket } from '@/components/use-game-socket';
 import { Recap } from '@/components/run-recap';
 import { GameCanvas, type GameHandles } from '@/components/game-canvas';
@@ -104,8 +105,28 @@ function Burrow() {
   const [burstKey, setBurstKey] = useState(0);
   const [burstAmount, setBurstAmount] = useState(0);
   const [ready, setReady] = useState(false);
+  /**
+   * The sign-in crossing: shutter running, and who the screen belongs to.
+   *
+   * Signing in swaps a DOM screen for the canvas, and that swap is the first
+   * cut a new player ever sees — so it gets the same carrot iris as every
+   * other change of place. `arriving` runs the curtain; `showCanvas` is what
+   * the screen actually shows, and it flips at the curtain's MIDPOINT rather
+   * than when `player` lands, so the sign-in art stays put until the sheet is
+   * black and the canvas is uncovered rather than dropped on top.
+   */
+  const [arriving, setArriving] = useState(false);
+  const [showCanvas, setShowCanvas] = useState(false);
   /** True while the burrow board is showing trappable tiles. */
   const [placing, setPlacing] = useState(false);
+  /**
+   * Whether a raid was up on the previous render.
+   *
+   * A ref, not state: it exists only to tell "a raid began or ended" apart from
+   * "the raider took a step", and re-rendering on it would be a render per dug
+   * tile for a value nothing draws.
+   */
+  const wasRaiding = useRef(false);
   /**
    * True from the moment a crossing starts until the iris is fully open again.
    *
@@ -282,14 +303,33 @@ function Burrow() {
    */
   const startPlacing = useCallback(() => {
     setShopOpen(false);
-    setPlacing(true);
-    handles.current?.burrow?.setPlacing(true);
+    const h = handles.current;
+    if (!h) return;
+    // Behind the iris, like every other change of screen. The camera's own
+    // pull-back still runs — it just runs in the dark, so the player is handed
+    // the wide shot rather than watching it travel. `crossing` hides the
+    // burrow's column for the duration, exactly as a crossing to the island does.
+    setCrossing(true);
+    void h
+      .wipeOver(() => { setPlacing(true); h.burrow?.setPlacing(true); })
+      .finally(() => setCrossing(false));
   }, []);
 
   const stopPlacing = useCallback(() => {
-    setPlacing(false);
-    handles.current?.burrow?.setPlacing(false);
-  }, []);
+    const h = handles.current;
+    // The bare path matters here: this is also the tidy-up when leaving the
+    // burrow (see the effect below), and that already runs inside a wipe.
+    // Nesting a second iris in the first would close the shutter twice.
+    if (!h || where !== 'burrow') {
+      setPlacing(false);
+      handles.current?.burrow?.setPlacing(false);
+      return;
+    }
+    setCrossing(true);
+    void h
+      .wipeOver(() => { setPlacing(false); h.burrow?.setPlacing(false); })
+      .finally(() => setCrossing(false));
+  }, [where]);
 
   /**
    * Leave the island for the shop, in one press.
@@ -418,18 +458,31 @@ function Burrow() {
     const burrow = handles.current?.burrow;
     if (!ready || !burrow) return;
 
-    if (!raid.raid) {
-      burrow.setRaid(null);
-      return;
-    }
-    burrow.setRaid({
-      view: raid.raid.view,
-      at: raid.raid.tile,
-      // A finished raid offers no steps: the board stays readable, but the walk
-      // is over and tapping it must do nothing.
-      steps: raid.raid.finished ? [] : raid.raid.steps,
-      onStep: (tile) => void raid.step(tile),
-    });
+    const draw = () => {
+      if (!raid.raid) { burrow.setRaid(null); return; }
+      burrow.setRaid({
+        view: raid.raid.view,
+        at: raid.raid.tile,
+        // A finished raid offers no steps: the board stays readable, but the
+        // walk is over and tapping it must do nothing.
+        steps: raid.raid.finished ? [] : raid.raid.steps,
+        onStep: (tile) => void raid.step(tile),
+      });
+    };
+
+    // This effect runs on EVERY step — the payload changes each time a tile is
+    // dug. Only the two ends are a change of place: arriving on a stranger's
+    // ground, and coming home from it. Wiping the steps too would put a
+    // half-second shutter between a tap and its answer, which is the one thing
+    // a minesweeper must never do.
+    const inRaid = raid.raid !== null;
+    const crossed = inRaid !== wasRaiding.current;
+    wasRaiding.current = inRaid;
+
+    const h = handles.current;
+    if (!crossed || !h) { draw(); return; }
+    setCrossing(true);
+    void h.wipeOver(draw).finally(() => setCrossing(false));
   }, [ready, raid.raid, raid]);
 
   // A sprung trap is played ONCE, on the event, rather than inferred from the
@@ -472,8 +525,26 @@ function Burrow() {
    * (no `player`, no <GameCanvas/>), so a stale ref would let a control call
    * `wipeTo` on a Pixi app that no longer exists.
    */
+  /**
+   * Signing in: run the iris, and hand the screen over at its midpoint.
+   *
+   * Deliberately NOT gated on the canvas being ready. Boot takes as long as it
+   * takes (assets, two scenes), and holding the shutter shut until it finished
+   * would turn a flourish into an indefinite black screen. The curtain runs to
+   * its own beat; the canvas mounts at the midpoint and boots behind it, which
+   * is the same bargain the burrow/island crossing already makes.
+   */
+  useEffect(() => {
+    if (!player || showCanvas || arriving) return;
+    setArriving(true);
+  }, [player, showCanvas, arriving]);
+
   useEffect(() => {
     if (player) return;
+    // Signing out is the same crossing in reverse, and it is instant: the
+    // canvas is torn down with the player, so there is nothing to wipe over.
+    setShowCanvas(false);
+    setArriving(false);
     setWhere('burrow');
     setCrossing(false);
     setShopOpen(false);
@@ -508,7 +579,7 @@ function Burrow() {
           scene was waiting for the island. The seed only decides which ground
           the island is painted on, so a placeholder until the server answers
           costs nothing. */}
-      {player && (
+      {player && showCanvas && (
         <GameCanvas
           seed={game.islandSeed ?? player.id}
           playerId={player.id}
@@ -522,7 +593,7 @@ function Burrow() {
           its field GROWING on top of it rather than painted into it. Someone on
           this screen is waiting (for a wallet, for a decision), and a place that
           is visibly alive is worth more here than anywhere else in the game. */}
-      {!player && (
+      {!showCanvas && (
         <div className="rr-home-art" aria-hidden>
           <div
             className="rr-home-art-img"
@@ -536,6 +607,13 @@ function Burrow() {
       {/* The story, told to whoever has not signed in yet. It is the only thing
           on this screen that is not a request — see lore-crawl.tsx. */}
       {!player && <LoreCrawl />}
+
+      {/* Over everything, including the fixed overlays. See .rr-curtain. */}
+      <CarrotCurtain
+        play={arriving}
+        onCut={() => setShowCanvas(true)}
+        onDone={() => setArriving(false)}
+      />
 
       {/* Sound belongs to the app, not to a screen: it rides above both. */}
       <SoundButton />

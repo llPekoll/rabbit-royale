@@ -24,39 +24,18 @@
  */
 import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import gsap from 'gsap';
+import {
+  WIPE_CLOSE_MS, WIPE_OPEN_MS, WIPE_HOLD_MS, WIPE_OPEN_SCALE,
+} from '@/config/wipe';
 
-/**
- * How long each half takes.
- *
- * Brisk, but not hurried: this sits between a press and the thing the player
- * asked for, so it reads as punctuation rather than as a wait. The first cut
- * of these was faster and the carrot went by before the eye could name it —
- * which wastes the one flourish the transition has.
- *
- * The opening is the slower of the two on purpose: closing is the game taking
- * the screen away, and that should feel decisive; opening is handing the new
- * one over, and that can afford to be generous.
- */
-const CLOSE_MS = 580;
-const OPEN_MS = 680;
-
-/**
- * The beat of full black between them.
- *
- * Long enough to be a deliberate pause rather than a stutter — this is where
- * the scene swap hides, and a cut the eye can rest on for a moment reads as
- * intentional where a flicker reads as a hitch.
- */
-const HOLD_MS = 500;
-
-/**
- * The hole at its widest, as a multiple of the screen's diagonal.
- *
- * Over 1 because the carrot is a narrow shape: an aperture whose HEIGHT covers
- * the diagonal still leaves corners of screen outside its WIDTH, and those
- * would stay black at the moment the wipe is supposed to be fully open.
- */
-const OPEN_SCALE = 2.6;
+// The timings live in config/wipe so the DOM iris over the sign-in screen can
+// share them without importing Pixi. The first cut of these was faster and the
+// carrot went by before the eye could name it — which wastes the one flourish
+// the transition has.
+const CLOSE_MS = WIPE_CLOSE_MS;
+const OPEN_MS = WIPE_OPEN_MS;
+const HOLD_MS = WIPE_HOLD_MS;
+const OPEN_SCALE = WIPE_OPEN_SCALE;
 
 export interface CarrotWipeOptions {
   /** Viewport size in screen pixels — NOT design space: the sheet must cover
