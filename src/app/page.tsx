@@ -91,6 +91,14 @@ function Burrow() {
   const [ready, setReady] = useState(false);
   /** True while the burrow board is showing trappable tiles. */
   const [placing, setPlacing] = useState(false);
+  /**
+   * True from the moment a crossing starts until the iris is fully open again.
+   *
+   * The burrow's column is held back by this. Not the island's HUD: that one
+   * has to change AT the midpoint (it is drawn over the board it describes),
+   * and it is a thin bar rather than a stack of panels.
+   */
+  const [crossing, setCrossing] = useState(false);
   /** The shop is a drawer over the burrow, not a card in it. */
   const [shopOpen, setShopOpen] = useState(false);
   /** True while the target list is up. A live raid is state on `raid` itself. */
@@ -188,10 +196,22 @@ function Burrow() {
   const goTo = useCallback((next: Where) => {
     const h = handles.current;
     if (!h) return;
-    // `setWhere` rides the midpoint callback rather than running here: called
-    // now it would flip the overlay while the iris was still closing, popping
-    // the island's HUD over the burrow for the length of the wipe.
-    void h.wipeTo(next === 'island' ? SCENE.island : SCENE.burrow, () => setWhere(next));
+    // TWO moments, not one, because the two halves of the chrome want opposite
+    // things.
+    //
+    // `setWhere` rides the MIDPOINT: called any earlier it would flip the
+    // overlay while the iris was still closing, popping the island's HUD over
+    // the burrow for the length of the wipe.
+    //
+    // The burrow's own column waits for the shutter to be fully OPEN. It is a
+    // heavy stack of panels, and mounting it at the midpoint put the whole
+    // column on screen over a canvas that was still pitch black — the panels
+    // arrived before the place they belong to. `wipeTo` resolves exactly when
+    // the aperture finishes opening, so that is when the column is allowed in.
+    setCrossing(true);
+    void h
+      .wipeTo(next === 'island' ? SCENE.island : SCENE.burrow, () => setWhere(next))
+      .finally(() => setCrossing(false));
   }, []);
 
   /** Enough to dig with. Null burrow means "still loading", not "empty". */
@@ -391,11 +411,17 @@ function Burrow() {
           a run needs the whole frame, and a third of the screen given to a
           leaderboard is a third the player cannot dig in. It collapses to its
           tab while playing. */}
-      {player && where === 'burrow' && (
+      {player && where === 'burrow' && !crossing && (
         <LeaderboardDrawer token={token} playerId={player.id} />
       )}
 
-      {where === 'burrow' ? (
+      {/* THREE states, not two. `crossing` renders neither screen's chrome:
+          the burrow's column is held back until the iris has finished opening
+          (mounted at the midpoint it sits on a black canvas for the whole
+          opening — the chrome arriving before the place), and the island's HUD
+          must not take its place while the shutter is over the burrow. So a
+          crossing shows the wipe and nothing else. */}
+      {crossing ? null : where === 'burrow' ? (
         <section className="rr-burrow">
           {!player ? (
             <div className="rr-empty">
@@ -559,9 +585,11 @@ function Burrow() {
         </div>
       )}
 
-      {player && where === 'burrow' && !raid.raid && (
+      {player && where === 'burrow' && !raid.raid && !crossing && (
         // Disabled rather than hidden: the way onto the island should stay
-        // visible so its absence reads as "not yet", not as "gone".
+        // visible so its absence reads as "not yet", not as "gone". It still
+        // waits out a crossing with the rest of the burrow's chrome — it is
+        // the one control anchored to that screen.
         <GoButton
           dir="down"
           label="Go farm"
