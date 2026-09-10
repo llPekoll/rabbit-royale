@@ -18,13 +18,22 @@
 import { Container, Graphics, type Sprite } from 'pixi.js';
 
 /** Eye sockets, as fractions of the banner's drawn rect. MEASURED on
- *  `RR-Logo_Banner.png` (365x78) rather than eyeballed: a dark pixel counts as
+ *  `RR-Logo_Banner.png` (365x106) rather than eyeballed: a dark pixel counts as
  *  socket only when bone surrounds it on all four sides, which is what
  *  separates the holes from the skull's own outline (the outline's centroid
- *  sits well above the eyes — aiming at it puts the flame over the crown). */
+ *  sits well above the eyes — aiming at it puts the flame over the crown).
+ *
+ *  RE-MEASURED for the redrawn banner (365x106, the wide wordmark stacked over
+ *  a compact one). These are FRACTIONS of the rect they are applied to, so the
+ *  taller sheet moved the eyes UP the frame: y fell from 0.542 to ~0.397 while
+ *  x barely moved, which is exactly what a sheet growing from 78 to 106 rows
+ *  does to a fixed pixel row. Taken from the two socket blobs themselves
+ *  (106 and 107 px, symmetric about the skull) rather than from a
+ *  flood-fill heuristic — that one locked onto the side banners' shadow and
+ *  put the flames outside the skull entirely. */
 export const SKULL_EMBERS: readonly { x: number; y: number }[] = [
-  { x: 0.464, y: 0.542 },
-  { x: 0.532, y: 0.532 },
+  { x: 0.467, y: 0.397 },
+  { x: 0.531, y: 0.396 },
 ];
 
 const RAMP = [0xffe27a, 0xffab2e, 0xf4571b, 0xb52a10];
