@@ -41,7 +41,10 @@ describe('one mount', () => {
   it('crosses without navigating', () => {
     // A router push here would rebuild the app and undo everything above.
     expect(PAGE).not.toMatch(/router\.push/);
-    expect(PAGE).toMatch(/handles\.current\?\.show\(/);
+    // The crossing goes through the resident scenes, not the router. It used to
+    // be a bare `show()`; the iris wipe wraps that, and `wipeTo` still ends in
+    // the same swap — what matters is that neither one navigates.
+    expect(PAGE).toMatch(/\.(show|wipeTo)\(/);
   });
 
   it('never rebuilds the app for a new island', () => {

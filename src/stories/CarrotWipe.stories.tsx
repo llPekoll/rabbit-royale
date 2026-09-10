@@ -106,7 +106,9 @@ function Scene({ aperture, frozen, gradient, loop }: Args) {
           cursor: 'pointer',
         }}
       >
-        {frozen ? 'gelé — utilise le curseur aperture' : `GO — actuellement dans ${where === 'burrow' ? 'le terrier' : "l'île"}`}
+        {frozen
+          ? 'gelé - utilise le curseur aperture'
+          : `GO - actuellement dans ${where === 'burrow' ? 'le terrier' : "l'île"}`}
       </button>
       <PixiStage
         width={WIDTH}
