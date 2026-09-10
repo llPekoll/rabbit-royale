@@ -17,7 +17,7 @@ import { SceneManager } from '../SceneManager';
 import { GAME_W, GAME_H } from '../Application';
 import { CloudField } from '../fx/Clouds';
 import { CarrotCrop } from '../entities/CarrotCrop';
-import { getDiamondOutline } from '../services/TileTextures';
+import { getDiamondOutline, diamondScaleFor } from '../services/TileTextures';
 import { pixelText } from '../ui/PixelText';
 import * as Keys from '@/config/assetKeys';
 import {
@@ -37,6 +37,22 @@ import { homeCam, boardCam, type BurrowCam } from './burrowCamera';
 // field in the same place, so burrowConfig's origin, zoom and LAYOUT — measured
 // against level 1 — hold for all of them. test/burrow-calibration.test.ts
 // enforces that, for every level.
+
+/**
+ * A diamond sprite sized for THIS board.
+ *
+ * The texture is baked at the island's tile size; the burrow's is smaller. Every
+ * diamond on this screen goes through here, because one that skips it is drawn
+ * a quarter too big and stops matching the ground under it — which is exactly
+ * how the placement grid ended up unreadable.
+ */
+function burrowDiamond(): Sprite {
+  const s = new Sprite(getDiamondOutline());
+  s.anchor.set(0.5);
+  const k = diamondScaleFor(BURROW_HALF_W, BURROW_HALF_H);
+  s.scale.set(k.x, k.y);
+  return s;
+}
 
 /** Placed traps read as YOURS — gold, like the crown and the carrot count. */
 const TRAP_TINT = 0xffd45c;
@@ -241,8 +257,7 @@ export class BurrowScene implements Scene {
       const { x, y } = burrowTilePos(i);
       // Outline rather than fill: an outlined diamond reads as a CELL you can
       // pick, where a flat wash just tinted the artwork underneath.
-      const hint = new Sprite(getDiamondOutline());
-      hint.anchor.set(0.5);
+      const hint = burrowDiamond();
       hint.position.set(x, y);
       hint.zIndex = burrowTileDepth(i);
       hint.tint = PLACEABLE_TINT;
@@ -361,8 +376,7 @@ export class BurrowScene implements Scene {
     group.position.set(x, y);
     group.zIndex = burrowTileDepth(tile) + 0.5;
 
-    const marker = new Sprite(getDiamondOutline());
-    marker.anchor.set(0.5);
+    const marker = burrowDiamond();
     marker.tint = TRAP_TINT;
     marker.alpha = 0.75;
     group.addChild(marker);
@@ -433,8 +447,7 @@ export class BurrowScene implements Scene {
       const { x, y } = burrowTilePos(tile);
       const canStep = steppable.has(tile);
 
-      const cell = new Sprite(getDiamondOutline());
-      cell.anchor.set(0.5);
+      const cell = burrowDiamond();
       cell.position.set(x, y);
       cell.zIndex = burrowTileDepth(tile);
       cell.tint = canStep ? STEP_TINT : SEEN_TINT;
@@ -466,8 +479,7 @@ export class BurrowScene implements Scene {
 
     // The raider themselves, on top of their own tile.
     const here = burrowTilePos(state.at);
-    const marker = new Sprite(getDiamondOutline());
-    marker.anchor.set(0.5);
+    const marker = burrowDiamond();
     marker.position.set(here.x, here.y);
     marker.zIndex = burrowTileDepth(state.at) + 0.6;
     marker.tint = RAIDER_TINT;
@@ -485,13 +497,20 @@ export class BurrowScene implements Scene {
    */
   springTrap(tile: number): void {
     const { x, y } = burrowTilePos(tile);
-    const blast = new Sprite(getDiamondOutline());
-    blast.anchor.set(0.5);
+    const blast = burrowDiamond();
     blast.position.set(x, y);
     blast.zIndex = burrowTileDepth(tile) + 1;
     blast.tint = 0xff6b6b;
     this.board.addChild(blast);
-    gsap.to(blast.scale, { x: 2.2, y: 2.2, duration: 0.45, ease: 'power2.out' });
+    // Relative to the tile's own scale, not an absolute 2.2: the diamond is
+    // pre-scaled to burrow size now, and an absolute target would snap it back
+    // to the island's tile on the first frame of the blast.
+    gsap.to(blast.scale, {
+      x: blast.scale.x * 2.2,
+      y: blast.scale.y * 2.2,
+      duration: 0.45,
+      ease: 'power2.out',
+    });
     gsap.to(blast, {
       alpha: 0,
       duration: 0.45,
