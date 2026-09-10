@@ -150,7 +150,13 @@ export async function PATCH(req: Request) {
       .returning({ id: payments.id });
     if (!claimed) return null;
 
-    return grantItem(tx, session.sub, intent.kind, intent.qty);
+    // `intent.amount` is already in USDC base units, which is what the receipt
+    // stores — and the payment id links it back to its on-chain proof.
+    return grantItem(tx, session.sub, intent.kind, intent.qty, Date.now(), {
+      currency: 'usdc',
+      cost: intent.amount,
+      paymentId: intent.id,
+    });
   }).catch((err: unknown) => {
     // The unique index rejected the signature: it already credited another
     // quote. That is a replay, not a payment.

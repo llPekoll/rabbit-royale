@@ -14,7 +14,7 @@
  */
 import { eq } from 'drizzle-orm';
 import { db } from '../src/lib/db';
-import { inventory, payments, players, traps } from '../src/lib/db/schema';
+import { inventory, payments, players, purchases, traps } from '../src/lib/db/schema';
 import { signSession } from '../src/lib/auth/jwt';
 import { SHOP, TRAPS, OUT_OF_RUN_ENERGY } from '../config/tuning';
 import * as Shop from '../src/app/api/shop/route';
@@ -95,6 +95,20 @@ async function main() {
   check('energy is never carried in the bag',
     (await db.query.inventory.findMany({ where: eq(inventory.playerId, ID) }))
       .every((r) => r.kind !== 'energy'));
+
+  // The receipt book. A purchase that leaves no trace is a support message
+  // waiting to happen: the player sees a smaller number and nothing else.
+  const receipts = await db.query.purchases.findMany({ where: eq(purchases.playerId, ID) });
+  check('a carrot purchase writes a receipt', receipts.length >= 2, receipts.length);
+  const bombReceipt = receipts.find((r) => r.kind === 'bomb');
+  check('...naming what was bought', bombReceipt?.qty === 2, bombReceipt);
+  check('...in the currency it was paid in', bombReceipt?.currency === 'carrots');
+  check('...for what it actually cost',
+    bombReceipt?.cost === SHOP.PRICES.bomb * 2, bombReceipt?.cost);
+  check('...with no payment attached for a carrot purchase',
+    bombReceipt?.paymentId === null);
+  check('an energy refill is receipted too, though nothing is carried',
+    receipts.some((r) => r.kind === 'energy'));
 
   // Traps: buy, place, and the refusals that protect the board.
   const trapState = await trapsGet();

@@ -14,7 +14,7 @@
  */
 import { eq, sql as raw } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { inventory, players } from '@/lib/db/schema';
+import { inventory, players, purchases } from '@/lib/db/schema';
 import { ENERGY_PACK, OUT_OF_RUN_ENERGY } from '@config/tuning';
 import { currentEnergy } from './regen';
 import { spendEnergyPack, type EnergyPackRow, type ItemKind } from './inventory';
@@ -35,6 +35,20 @@ export interface GrantResult {
 }
 
 /**
+ * What the purchase cost, for the receipt.
+ *
+ * Omitted by callers that are not selling — a chest drop grants an item too,
+ * and a chest is not a purchase. No receipt is written without one.
+ */
+export interface Receipt {
+  currency: 'carrots' | 'usdc';
+  /** Whole carrots, or USDC base units (6 dp) — whichever `currency` names. */
+  cost: number;
+  /** The payment row that funded it. USDC only. */
+  paymentId?: string;
+}
+
+/**
  * Credit `qty` of `kind` to a player, inside the caller's transaction.
  *
  * Three shapes, because the three storage decisions made elsewhere in the
@@ -49,7 +63,22 @@ export async function grantItem(
   kind: ItemKind,
   qty: number,
   now = Date.now(),
+  receipt?: Receipt,
 ): Promise<GrantResult> {
+  // The receipt is written in the caller's transaction, beside the debit and
+  // the grant, so a receipt can never exist for an item that was not delivered
+  // — nor an item be delivered without one.
+  if (receipt) {
+    await tx.insert(purchases).values({
+      playerId,
+      kind,
+      qty,
+      currency: receipt.currency,
+      cost: receipt.cost,
+      paymentId: receipt.paymentId ?? null,
+    });
+  }
+
   if (kind === 'energy') {
     const player = await tx.query.players.findFirst({ where: eq(players.id, playerId) });
     if (!player) throw new Error('unknown player');

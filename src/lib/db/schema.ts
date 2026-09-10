@@ -23,6 +23,8 @@ import {
  * name what was bought. Nothing reads an `inventory` row of that kind.
  */
 export const itemKindEnum = pgEnum('item_kind', ['bomb', 'shield', 'lightning', 'trap', 'energy']);
+/** What a purchase was paid with. Both routes buy the same goods — see SHOP. */
+export const currencyEnum = pgEnum('currency', ['carrots', 'usdc']);
 /** A USDC payment's life: quoted → paid → credited, or abandoned. */
 export const paymentStatusEnum = pgEnum('payment_status', ['pending', 'confirmed', 'failed', 'expired']);
 export const raidResultEnum = pgEnum('raid_result', ['damaged', 'looted', 'blocked']);
@@ -200,6 +202,47 @@ export const sabotages = pgTable('sabotages', {
   triggeredAt: timestamp('triggered_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index('sabotages_victim_idx').on(t.victimId, t.createdAt)]);
+
+/**
+ * The receipt book: one row per item actually credited.
+ *
+ * Separate from `payments` on purpose, because the two answer different
+ * questions. `payments` is the USDC RAIL's own ledger — what was quoted, which
+ * treasury, which signature, whether the chain confirmed it — and it has rows
+ * that were never delivered (expired quotes, failed transfers). This table is
+ * the player's HISTORY: it only ever holds things they really received, in
+ * either currency, which is what a profile screen should show.
+ *
+ * Carrot purchases had no record at all before this. A player could spend
+ * thousands of carrots and find nothing to show for it but a changed balance,
+ * which is the kind of gap that turns into a support message rather than a bug
+ * report.
+ *
+ * Written in the SAME transaction as the debit and the grant, so a receipt can
+ * never exist for an item that was not delivered, nor an item be delivered
+ * without a receipt.
+ */
+export const purchases = pgTable('purchases', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  playerId: text('player_id').notNull().references(() => players.id, { onDelete: 'cascade' }),
+  kind: itemKindEnum('kind').notNull(),
+  qty: integer('qty').notNull().default(1),
+  currency: currencyEnum('currency').notNull(),
+  /**
+   * What it cost, in the smallest unit of whatever `currency` says: whole
+   * carrots, or USDC base units (6 dp). One column rather than two nullable
+   * ones — a price is always denominated, and a row carrying both a carrot
+   * price and a dollar price would describe a purchase that never happened.
+   */
+  cost: bigint('cost', { mode: 'number' }).notNull(),
+  /** The payment that funded it, for a USDC purchase. Null for carrots — this
+   *  is what links a receipt back to its on-chain proof. */
+  paymentId: uuid('payment_id').references(() => payments.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  // The profile reads this newest-first for one player, and nothing else does.
+  index('purchases_player_idx').on(t.playerId, t.createdAt),
+]);
 
 /**
  * A USDC purchase, from quote to credit.

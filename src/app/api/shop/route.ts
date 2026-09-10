@@ -98,7 +98,11 @@ export async function POST(req: Request) {
       .returning({ stock: players.stock });
     if (!charged) return null;
 
-    return grantItem(tx, session.sub, kind, qty);
+    // The receipt rides along in the same transaction as the debit above.
+    return grantItem(tx, session.sub, kind, qty, Date.now(), {
+      currency: 'carrots',
+      cost,
+    });
   });
 
   // The guard bounced it: the same carrots were spent by a parallel request.

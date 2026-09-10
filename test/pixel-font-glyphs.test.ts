@@ -11,6 +11,12 @@
  * the same characters, but writing them as entities makes the intent explicit
  * and keeps them out of this scan's way — so the rule is about RAW characters
  * in source strings.
+ *
+ * The scan covers `src/` AND `src/config/` prose tables. The lore codex put its
+ * chapters in config/lore.ts rather than in the component that renders them,
+ * which is the right place for a content table — and it walked straight past a
+ * scan that only read components. Every em-dash in it shipped as a blank, and
+ * only a screenshot caught it. Copy is copy wherever it is declared.
  */
 import { describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
@@ -29,7 +35,10 @@ function uiFiles(dir: string, out: string[] = []): string[] {
     const path = join(dir, name);
     if (statSync(path).isDirectory()) {
       uiFiles(path, out);
-    } else if (/\.tsx$/.test(name) || (/\.ts$/.test(name) && /[\\/]components[\\/]/.test(path))) {
+    } else if (
+      /\.tsx$/.test(name)
+      || (/\.ts$/.test(name) && /[\\/](?:components|config)[\\/]/.test(path))
+    ) {
       out.push(path);
     }
   }
@@ -63,7 +72,17 @@ describe('pixel font coverage', () => {
           return;
         }
         if (/\{\/\*/.test(t) && !/\*\/\}/.test(t)) { inComment = true; return; }
-        const m = line.match(UNSUPPORTED);
+        // A TRAILING comment is prose too. `const SOIL = '#2a1810'; // earth —
+        // packed` is a colour, not a string that reaches the screen, and
+        // flagging its em dash sends someone to ASCII-ify a note nobody reads
+        // on a device. Only the code before the `//` is scanned.
+        //
+        // Deliberately naive about `//` inside a string literal: a URL in
+        // player-facing copy would have its tail skipped. That trade is fine —
+        // this test exists to catch typographic glyphs in PROSE, and prose does
+        // not contain URLs.
+        const code = line.replace(/\/\/.*$/, '');
+        const m = code.match(UNSUPPORTED);
         if (m) {
           offenders.push(`${file.replace(root, 'src')}:${i + 1}  ${JSON.stringify(m[0])}  ${t.slice(0, 60)}`);
         }

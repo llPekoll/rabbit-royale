@@ -188,3 +188,22 @@ describe('holdings', () => {
     expect(holdings([], aDayLater, now).trap).toBeGreaterThan(0);
   });
 });
+
+describe('receipts', () => {
+  // The one that would silently misreport: `cost` is stored in the smallest
+  // unit of whichever currency the row names, so a USDC purchase is base units
+  // and a carrot purchase is whole carrots. Reading one as the other turns a
+  // 40-cent bomb into a 400 000-carrot bomb on the profile screen.
+  it('stores a USDC price in base units, not dollars', () => {
+    const dollars = itemUsdcPrice('bomb');
+    const stored = usdcBaseUnits(dollars);
+    expect(stored).toBe(Math.round(dollars * 1e6));
+    // …and comes back to the same dollars, which is what the profile renders.
+    expect(stored / 1e6).toBeCloseTo(dollars, 6);
+  });
+
+  it('stores a carrot price as whole carrots', () => {
+    expect(Number.isInteger(purchaseCost('trap', 3))).toBe(true);
+    expect(purchaseCost('trap', 3)).toBe(itemPrice('trap') * 3);
+  });
+});

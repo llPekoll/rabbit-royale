@@ -43,8 +43,19 @@ interface RaidRow {
   direction: 'against' | 'by';
 }
 
+interface Purchase {
+  id: string;
+  kind: 'trap' | 'bomb' | 'lightning' | 'shield' | 'energy';
+  qty: number;
+  currency: 'carrots' | 'usdc';
+  /** Whole carrots, or USDC base units (6 dp) — whichever `currency` names. */
+  cost: number;
+  createdAt: string;
+}
+
 interface History {
   days: Day[];
+  purchases: Purchase[];
   raids: { against: RaidRow[]; by: RaidRow[]; unseen: number };
 }
 
@@ -296,6 +307,7 @@ function HistoryTab({ history, failed }: { history: History | null; failed: bool
     (a, b) => +new Date(b.createdAt) - +new Date(a.createdAt),
   );
   const best = Math.max(1, ...history.days.map((d) => d.carrots));
+  const bought = history.purchases ?? [];
 
   return (
     <div className="rr-profile-body">
@@ -341,8 +353,56 @@ function HistoryTab({ history, failed }: { history: History | null; failed: bool
           ))}
         </ul>
       )}
+
+      {/* Where the carrots WENT. Digging is only half the ledger, and a player
+          who spent thousands on traps had nothing to show for it but a smaller
+          number. Reuses the raid list's chrome: both answer "what happened to
+          my carrots", and a second list styled differently would read as a
+          different KIND of thing. */}
+      <h3 className="rr-profile-h">Bought</h3>
+      {/* Defended against an older API: a client can outlive a deploy that has
+          not shipped `purchases` yet, and an empty section is a better answer
+          than a crashed panel. */}
+      {bought.length === 0 ? (
+        <p className="rr-empty">Nothing from the shed yet.</p>
+      ) : (
+        <ul className="rr-raids">
+          {bought.map((p) => (
+            <li key={p.id} className="mine">
+              <span className="rr-raid-who">
+                {ITEM_LABEL[p.kind] ?? p.kind}
+                {p.qty > 1 ? ` x${p.qty}` : ''}
+              </span>
+              <span className="rr-raid-what">{priceOf(p)}</span>
+              <span className="rr-raid-when">{ago(p.createdAt)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
+}
+
+/** The shop's own names, so a receipt reads like the thing that was bought. */
+const ITEM_LABEL: Record<string, string> = {
+  trap: 'Trap',
+  bomb: 'Bomb',
+  lightning: 'Lightning',
+  shield: 'Shield',
+  energy: 'Energy',
+};
+
+/**
+ * What a purchase cost, in the currency it was actually paid in.
+ *
+ * `cost` is stored in the smallest unit of whichever currency the row names, so
+ * a USDC row is base units (6 dp) and has to come back to dollars here. Reading
+ * one as the other would report a 40-cent bomb as 400 000 carrots.
+ */
+function priceOf(p: Purchase): string {
+  return p.currency === 'usdc'
+    ? `$${(p.cost / 1e6).toFixed(2)}`
+    : `-${p.cost.toLocaleString()} 🥕`;
 }
 
 /** "Mon 14" — the weekday is what a player actually remembers a run by. */
