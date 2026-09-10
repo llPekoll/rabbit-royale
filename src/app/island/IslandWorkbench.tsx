@@ -49,6 +49,9 @@ const randomSeed = () => Math.random().toString(36).slice(2, 8);
  */
 const MAX_PIXELATE = 8;
 
+/** Where the page opens. The island is meant to be judged chunky. */
+const DEFAULT_PIXELATE = 3;
+
 export function IslandWorkbench() {
   const hostRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<Application | null>(null);
@@ -68,7 +71,7 @@ export function IslandWorkbench() {
    * rebuilding a few thousand sprites to answer a question about pixel size
    * would throw away the very thing you are comparing against.
    */
-  const [pixelate, setPixelate] = useState(1);
+  const [pixelate, setPixelate] = useState(DEFAULT_PIXELATE);
   const [appReady, setAppReady] = useState(false);
   /** The device's own pixel ratio — what `pixelate` divides. */
   const baseResolution = useRef(1);
