@@ -54,9 +54,20 @@ export function PixiStage({ width, height, background = '#081120', assets, prepa
       // missing" rather than as "the frame is too narrow". `height: auto` with
       // an aspect ratio is what the game itself does on resize: scale
       // uniformly, letterbox the remainder.
+      // `maxHeight` as well as `maxWidth`, and this is the half that was
+      // missing: sizing by width alone made the canvas TALLER than a short
+      // frame (Storybook's Seeker landscape is 800x360, so an 800-wide canvas
+      // came out 450 tall), and the overflow hid the bottom of the picture —
+      // which on this screen is exactly where the board is. It reads as "the
+      // tiles are gone" when in fact the frame is too short for them.
       a.canvas.style.maxWidth = '100%';
+      a.canvas.style.maxHeight = '100vh';
       a.canvas.style.height = 'auto';
+      a.canvas.style.width = 'auto';
       a.canvas.style.aspectRatio = `${width} / ${height}`;
+      // Letterbox rather than crop: the frame keeps whichever dimension is the
+      // binding one and the other shrinks to match.
+      a.canvas.style.objectFit = 'contain';
 
       if (assets) {
         for (const [key, src] of Object.entries(assets)) Assets.add({ alias: key, src });

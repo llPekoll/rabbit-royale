@@ -19,7 +19,7 @@
  */
 import { GAME_W, GAME_H } from '../Application';
 import {
-  BURROW_COLS, BURROW_ROWS, BURROW_HALF_W, BURROW_HALF_H, BURROW_TILE_W, BURROW_ZOOM,
+  BURROW_COLS, BURROW_ROWS, BURROW_HALF_W, BURROW_HALF_H, BURROW_ZOOM,
   burrowCell, burrowTilePos,
 } from '@/config/burrowConfig';
 import PLOTS from '@/config/carrotPlots.json';
@@ -272,6 +272,9 @@ export function boardCamFraming(W: number, H: number) {
       top: cam.y + cam.scale * (H / 2 - back.h / 2),
       bottom: cam.y + cam.scale * (H / 2 + back.h / 2),
     },
-    tileWidth: BURROW_TILE_W * cam.scale,
+    // The LIVE half-width, not the shipped constant: the tuning harness can
+    // change the tile size, and a report that ignored it would describe a board
+    // nobody is looking at.
+    tileWidth: BURROW_HALF_W * 2 * cam.scale,
   };
 }
