@@ -58,7 +58,17 @@ interface PayingWallet {
 
 export type PayStage = 'idle' | 'quoting' | 'signing' | 'confirming' | 'done';
 
-export function useUsdcPay(token: string | null, rpcUrl: string | null) {
+/**
+ * The relay, not Alchemy.
+ *
+ * The wallet has to make RPC calls to build a transfer, so something must be
+ * reachable from the browser — but it is this deployment's own endpoint rather
+ * than the provider's, which is what keeps the API key server-side. See
+ * app/api/rpc.
+ */
+const RPC_RELAY = '/api/rpc';
+
+export function useUsdcPay(token: string | null, enabled: boolean) {
   const [stage, setStage] = useState<PayStage>('idle');
   const [error, setError] = useState<string | null>(null);
 
@@ -79,7 +89,7 @@ export function useUsdcPay(token: string | null, rpcUrl: string | null) {
       setError('No Solana wallet found. Install Phantom to pay with USDC.');
       return null;
     }
-    if (!rpcUrl) {
+    if (!enabled) {
       setError('Payments are not configured on this server.');
       return null;
     }
@@ -97,7 +107,13 @@ export function useUsdcPay(token: string | null, rpcUrl: string | null) {
       const payer = new PublicKey(publicKey.toString());
       const mint = new PublicKey(quote.mint);
       const treasury = new PublicKey(quote.treasury);
-      const connection = new Connection(rpcUrl, 'confirmed');
+      // The relay needs the session, and web3.js has no way to add a header —
+      // so the token rides in the URL. It is this game's own endpoint and the
+      // token is already in the client's hands, so nothing new is exposed.
+      const connection = new Connection(
+        `${window.location.origin}${RPC_RELAY}?t=${encodeURIComponent(token)}`,
+        'confirmed',
+      );
 
       const from = await getAssociatedTokenAddress(mint, payer);
       const to = await getAssociatedTokenAddress(mint, treasury);
@@ -172,7 +188,7 @@ export function useUsdcPay(token: string | null, rpcUrl: string | null) {
     } finally {
       setStage((s) => (s === 'done' ? 'done' : 'idle'));
     }
-  }, [token, rpcUrl]);
+  }, [token, enabled]);
 
   return { pay, stage, error, setError };
 }

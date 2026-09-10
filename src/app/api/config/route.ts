@@ -13,13 +13,17 @@ export function GET() {
   return Response.json({
     wsUrl: process.env.NEXT_PUBLIC_WS_URL ?? process.env.WS_PUBLIC_URL ?? '',
     /**
-     * The RPC the browser builds a USDC transfer against. Public by nature —
-     * it is an endpoint the wallet would hit anyway — but served from here for
-     * the same reason as the WS URL: one image, any network, no rebuild.
+     * Whether the browser may build a USDC transfer — NOT where.
      *
-     * Empty means the money route is off, and the shop hides its USDC buttons
+     * This used to serve the Alchemy URL itself, which put the API key in the
+     * page source for anyone to lift, and forced the Alchemy account's IP
+     * allowlist off (the callers are players, from everywhere). The browser now
+     * talks to /api/rpc, which relays to Alchemy from the server: the key never
+     * leaves the environment and Alchemy only ever sees one IP.
+     *
+     * False means the money route is off, and the shop hides its USDC buttons
      * rather than offering a payment that cannot complete.
      */
-    rpcUrl: process.env.SOLANA_RPC_URL ?? '',
+    payments: Boolean(process.env.SOLANA_RPC_URL),
   });
 }

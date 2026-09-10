@@ -107,7 +107,9 @@ function Burrow() {
   const [loreOpen, setLoreOpen] = useState(false);
   /** The RPC the browser builds a USDC transfer against — served at runtime so
    *  one image runs on any network (see api/config). */
-  const [rpcUrl, setRpcUrl] = useState<string | null>(null);
+  /** Whether the money route is switched on. The RPC itself is relayed
+   *  server-side, so the browser never sees a provider URL. */
+  const [payments, setPayments] = useState(false);
 
   // The Pixi handles. A ref, not state: they are used to DRIVE the canvas, and
   // putting them in state would re-render the tree that owns it.
@@ -115,7 +117,7 @@ function Burrow() {
 
   const game = useGameSocket(token, player?.id ?? null, null);
   const shop = useShop(token);
-  const usdc = useUsdcPay(token, rpcUrl);
+  const usdc = useUsdcPay(token, payments);
   const raid = useRaid(token);
 
   useEffect(() => {
@@ -153,13 +155,14 @@ function Burrow() {
       .catch(() => {});
   }, [token, auth]);
 
-  // Runtime config, once. An empty rpcUrl means the money route is off, and the
-  // shop hides its USDC buttons rather than offering a payment that cannot
-  // complete.
+  // Runtime config, once. `payments: false` means the money route is off, and
+  // the shop hides its USDC buttons rather than offering a payment that cannot
+  // complete. The RPC URL itself is never sent here — the browser talks to
+  // /api/rpc, which relays server-side so the API key stays put.
   useEffect(() => {
     fetch('/api/config')
       .then((r) => r.json())
-      .then((d) => setRpcUrl(d.rpcUrl || null))
+      .then((d) => setPayments(Boolean(d.payments)))
       .catch(() => {});
   }, []);
 
@@ -625,7 +628,7 @@ function Burrow() {
           shop={shop.shop}
           busy={shop.busy}
           onBuy={buyWithCarrots}
-          onPayUsdc={rpcUrl ? buyWithUsdc : undefined}
+          onPayUsdc={payments ? buyWithUsdc : undefined}
           payStage={usdc.stage}
           note={shop.note}
           error={usdc.error}
