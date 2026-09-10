@@ -1931,13 +1931,16 @@ button { font-family: var(--font-pixel); }
 
 .rr-crawl-text {
   position: absolute;
-  /* Where the text sits before it starts moving.
-     Was 108% (fully below the near edge), which put the title at y=1052 on a
-     900px screen: the first six seconds of every visit were an empty sky, and
-     a page that opens on nothing reads as a page that failed to load. It now
-     starts with the chapter already climbing -- the title clears the bottom
-     fade within about a second of load. */
-  top: 62%;
+  /* Where the text sits before it starts moving: at the bottom edge, so the
+     crawl rises INTO the frame the way the film's does.
+
+     It spent a while at 62% -- the chapter already half-climbed at load --
+     to avoid opening on an empty sky. That fixed the dead air by starting the
+     story mid-sentence, which is the worse of the two problems: the title card
+     is the part that says what you are looking at. The dead air is handled by
+     the runway and the duration below instead, which are cut to put the title
+     on screen quickly without skipping it. */
+  top: 100%;
   /* Wider than it looks: the tilt squeezes the block horizontally as it
      recedes, so a column sized by eye at rest ends up a thin ribbon in the
      distance. */
@@ -1950,11 +1953,13 @@ button { font-family: var(--font-pixel); }
   color: var(--crown);
   text-shadow: 0 0 12px rgba(255, 212, 92, 0.28);
   /* The text's height plus the screen it has to cross.
-     Cut with the start offset above: the text now begins 46vh higher, so
-     keeping the old 260vh would simply have moved the dead air from the head
-     of the loop to its tail. Still generous -- overshooting costs a beat of
-     empty sky between passes, undershooting cuts the last line mid-sentence. */
-  --crawl-run: 215vh;
+     Paced with `top` above and CRAWL_SECONDS in lore-crawl.tsx: those three
+     numbers are one setting, and moving any one alone changes the READING
+     SPEED. The text starts 38vh lower than it did, so the runway grows by the
+     same 38vh and the duration grows with it -- 253vh in 42s is the same
+     5.97vh/s the 215vh/36s pairing gave. Overshooting costs a beat of empty
+     sky between passes, undershooting cuts the last line mid-sentence. */
+  --crawl-run: 253vh;
   animation-name: rr-crawl-up;
   animation-timing-function: linear;
   animation-iteration-count: infinite;

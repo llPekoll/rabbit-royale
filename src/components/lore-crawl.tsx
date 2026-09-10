@@ -35,17 +35,17 @@ import { LORE } from '@/config/lore';
  * before the top of the screen eats it. Deliberately NOT tunable from outside —
  * a crawl whose speed is a prop invites the value that makes it unreadable.
  *
- * MEASURED, not guessed. At 58s the last line had cleared the horizon by ~42s
- * and the loop then held on an empty sky for sixteen seconds, which reads as
- * the animation having broken rather than as a pause.
+ * PACED WITH THE DISTANCE. This number, `top` and `--crawl-run` (both in
+ * globals.css) are ONE setting: the reading speed is the runway divided by the
+ * duration, so changing either alone speeds the words up or slows them down.
  *
- * The pass is now shorter because it no longer starts below the fold: the text
- * begins mid-climb (see `top` in globals.css) so the reader lands on the story
- * instead of on six seconds of empty sky. Same reading speed, less runway --
- * cutting the duration with the distance is what keeps the words legible
- * rather than merely faster.
+ * 253vh in 64s is ~3.95vh/s. The crawl ran at ~5.97vh/s and the words went past
+ * faster than they could be read -- which for a screen whose entire job is to
+ * be read is the only failure that matters. A third slower is the fix; the
+ * earlier note that 58s left sixteen seconds of empty sky was measured against
+ * the SHORTER 215vh runway and no longer applies to this one.
  */
-const CRAWL_SECONDS = 36;
+const CRAWL_SECONDS = 64;
 
 /** The one chapter open to a player with no carrots. See config/lore.ts. */
 const OPENING = LORE[0];

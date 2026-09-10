@@ -25,7 +25,7 @@ import { CarrotField } from '@/components/carrot-field';
 import { burrowArt } from '@/config/burrowArt';
 import '@/app/globals.css';
 
-const LOGO = '/assets/ui/RR-Logo_Banner.webp';
+const LOGO = '/assets/ui/rr-logo-wide.webp';
 
 interface Knobs {
   /** Distance to the vanishing point, px. Shorter = more dramatic. */
@@ -114,7 +114,7 @@ function Screen(k: Knobs) {
           unless the block is here at its real height. */}
       <section className="rr-burrow" style={{ position: 'relative', zIndex: 1, height: '100%' }}>
         <div className="rr-empty">
-          <img className="rr-logo" src={LOGO} alt="Rabbit Royale" width={365} height={78} />
+          <img className="rr-logo" src={LOGO} alt="Rabbit Royale" width={365} height={64} />
           <p style={{ color: 'var(--muted)', margin: 0 }}>The Cursed Crown</p>
           <p style={{ color: 'var(--muted)', maxWidth: 300 }}>
             Connect your wallet to claim a burrow. Nothing to remember, nothing to lose.
@@ -142,9 +142,12 @@ export default meta;
 
 type Story = StoryObj<typeof Screen>;
 
-/** What ships. Playing, at the values in globals.css. */
+/** What ships. Playing, at the values in globals.css + lore-crawl.tsx.
+ *  These four numbers MIRROR the real ones — a story that drifts from what
+ *  ships is not evidence, it is a second implementation. They were 215/62/36
+ *  while the app had already moved to 253/100/64. */
 export const Default: Story = {
-  args: { perspective: 620, tilt: 38, run: 215, start: 62, seconds: 36, freezeAt: -1 },
+  args: { perspective: 620, tilt: 38, run: 253, start: 100, seconds: 64, freezeAt: -1 },
 };
 
 /**

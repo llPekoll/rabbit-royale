@@ -83,6 +83,18 @@ export default function Home() {
 function Burrow() {
   const { player, token } = useWalletLogin();
   const [where, setWhere] = useState<Where>('burrow');
+  /**
+   * Whose run is being watched, or null to play your own.
+   *
+   * State, NOT a URL. The game is one page and two Pixi scenes, so going to the
+   * island is a wipe rather than a navigation — there is no route to hang a
+   * query string on, and the id this would carry is `sol:<address>`, which has
+   * no business in an address bar, in history, or in a screenshot.
+   *
+   * Changing it re-opens the socket (see useGameSocket's deps), which is what
+   * makes the switch between playing and watching a single assignment.
+   */
+  const [spectating, setSpectating] = useState<string | null>(null);
   const [burrow, setBurrow] = useState<Burrow | null>(null);
   const [pending, setPending] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -117,7 +129,7 @@ function Burrow() {
   // putting them in state would re-render the tree that owns it.
   const handles = useRef<GameHandles | null>(null);
 
-  const game = useGameSocket(token, player?.id ?? null, null);
+  const game = useGameSocket(token, player?.id ?? null, spectating);
   const shop = useShop(token);
   const usdc = useUsdcPay(token, payments);
   const raid = useRaid(token);
@@ -222,7 +234,19 @@ function Burrow() {
   /** Enough to dig with. Null burrow means "still loading", not "empty". */
   const hasEnergy = burrow === null || burrow.energy > 0;
 
-  const onMoveIntent = useCallback((tile: number) => game.moveTo(tile), [game]);
+  /**
+   * A tile was tapped on the island.
+   *
+   * Dropped outright while spectating. The server already refuses a spectator's
+   * move (they have no rabbit on the board), but the SCENE flashes the tile the
+   * instant it is tapped, before any answer comes back — so without this a
+   * viewer would see their taps light up someone else's board and nothing ever
+   * happen, which reads as a broken game rather than as a rule.
+   */
+  const onMoveIntent = useCallback((tile: number) => {
+    if (spectating) return;
+    game.moveTo(tile);
+  }, [game, spectating]);
   /**
    * A tile was tapped while placing.
    *
@@ -272,11 +296,43 @@ function Burrow() {
     goTo('burrow');
   }, [goTo]);
 
+  /**
+   * Watch someone else's run.
+   *
+   * Two things in one press, in this order: name the target, then cross. The
+   * assignment re-opens the socket as a spectator (the server puts the viewer
+   * in the target's island room without giving them a rabbit), and the wipe
+   * takes the screen to the island the way "Go farm" already does. Setting the
+   * target first means the snapshot is on its way while the shutter is closing
+   * rather than after it opens.
+   *
+   * No energy is spent and no run is started: watching is free, which is what
+   * makes it the front door to sabotage rather than a cost to pay before one.
+   */
+  const spectate = useCallback((targetId: string) => {
+    if (targetId === player?.id) return;   // watching yourself is just playing
+    setSpectating(targetId);
+    goTo('island');
+  }, [player?.id, goTo]);
+
+  /**
+   * Stop watching and go home.
+   *
+   * Clearing the target re-opens the socket as a player again, so leaving a
+   * spectated run cannot strand the session in viewer mode — the state that
+   * made you a spectator is the only state that keeps you one.
+   */
+  const stopSpectating = useCallback(() => {
+    setSpectating(null);
+    goTo('burrow');
+  }, [goTo]);
+
   // Arrived. Spend the intent once — `where` is the burrow now, so the
   // clearing effect above has already run and will not undo this.
   useEffect(() => {
     if (!shopOnArrival || where !== 'burrow') return;
     setShopOnArrival(false);
+    setSpectating(null);
     setShopOpen(true);
   }, [shopOnArrival, where]);
 
@@ -481,7 +537,7 @@ function Burrow() {
           leaderboard is a third the player cannot dig in. It collapses to its
           tab while playing. */}
       {player && where === 'burrow' && !crossing && (
-        <LeaderboardDrawer token={token} playerId={player.id} />
+        <LeaderboardDrawer token={token} playerId={player.id} onSpectate={spectate} />
       )}
 
       {/* THREE states, not two. `crossing` renders neither screen's chrome:
@@ -508,7 +564,7 @@ function Burrow() {
                 src={LOGO}
                 alt="Rabbit Royale"
                 width={365}
-                height={78}
+                height={64}
               />
               <p style={{ color: 'var(--muted)', margin: 0 }}>The Cursed Crown</p>
               <p style={{ color: 'var(--muted)', maxWidth: 300 }}>
@@ -650,21 +706,33 @@ function Burrow() {
         /* On the island the chrome is a thin HUD over the board, so it uses the
            overlay layer rather than the burrow's column. */
         <div className="rr-overlay">
-          <Hud game={game} name={player?.name ?? ''} />
+          <Hud game={game} name={player?.name ?? ''} spectating={spectating} />
           {/* Pushes the recap and the arrow to the bottom. Explicitly
               transparent to input: it covers the whole board, and the CSS
               above only re-enables pointers on the controls. */}
           <div style={{ flex: 1, pointerEvents: 'none' }} />
-          {game.recap && (
+          {/* A spectator has no run of their own to recap, and nothing on this
+              card would be about them — `restart` would start a run they never
+              asked for. The watched player's run simply ends and the viewer is
+              still watching. */}
+          {game.recap && !spectating && (
             <Recap
               recap={game.recap}
               energy={burrow?.energy ?? null}
               onAgain={game.restart}
               onShop={goShopping}
-              onHome={() => goTo('burrow')}
+              onHome={stopSpectating}
             />
           )}
-          <GoButton dir="up" label="To the burrow" onClick={() => goTo('burrow')} />
+          {/* Leaving ALWAYS goes through `stopSpectating`, even when playing
+              (where it is just `goTo`): a second exit path that forgot to clear
+              the target would strand the session as a viewer with no way back
+              into its own game. */}
+          <GoButton
+            dir="up"
+            label={spectating ? 'Stop watching' : 'To the burrow'}
+            onClick={stopSpectating}
+          />
         </div>
       )}
 
@@ -730,19 +798,45 @@ function Burrow() {
   );
 }
 
-function Hud({ game, name }: { game: ReturnType<typeof useGameSocket>; name: string }) {
-  const me = game.me;
+/**
+ * The thin bar over the board.
+ *
+ * It reports on WHOEVER the run belongs to, which is not always the person
+ * reading it. A spectator has no rabbit on the island — `game.me` resolves by
+ * the viewer's own id and is null for them — so the playing HUD would have
+ * shown a spectator an empty energy bar and zero carrots, describing a run
+ * nobody is having. Watching shows the WATCHED rabbit's numbers instead, and
+ * says whose they are.
+ */
+function Hud({
+  game, name, spectating,
+}: {
+  game: ReturnType<typeof useGameSocket>;
+  name: string;
+  /** The watched player's id, or null while playing your own run. */
+  spectating: string | null;
+}) {
+  const watched = spectating ? game.rabbits.get(spectating) ?? null : null;
+  const subject = spectating ? watched : game.me;
+  // The target may not be on the board yet (the snapshot is still in flight) or
+  // may have just finished. Their name is still the honest label either way.
+  const label = spectating ? (watched?.name ?? 'their run') : name;
+
   return (
     <header className="rr-hud">
       {/* Energy first and widest: it is the only resource, it falls with every
           dig, and it is what the player prices the next tile against. */}
-      <EnergyBar energy={me?.energy ?? 0} />
-      <span style={{ color: 'var(--carrot)' }}>🥕 {me?.carrots ?? 0}</span>
+      <EnergyBar energy={subject?.energy ?? 0} />
+      <span style={{ color: 'var(--carrot)' }}>🥕 {subject?.carrots ?? 0}</span>
       <span style={{ color: 'var(--muted)' }}>🐰 {game.rabbits.size}</span>
       {game.warnStage > 0 && (
         <span style={{ color: 'var(--danger)' }}>🌋 {'!'.repeat(game.warnStage)}</span>
       )}
-      <small style={{ color: 'var(--muted)' }}>{name}</small>
+      {/* Says it in words, not just by the eye icon: a viewer who forgets they
+          are watching reads every number here as their own. */}
+      <small style={{ color: spectating ? 'var(--crown)' : 'var(--muted)' }}>
+        {spectating ? `👁 watching ${label}` : label}
+      </small>
     </header>
   );
 }
@@ -770,7 +864,7 @@ function formatWait(ms: number | null): string {
 // this could show, and the starter homestead is the honest picture to greet a
 // new player with.
 const BURROW_ART = burrowArt(1);
-const LOGO = '/assets/ui/RR-Logo_Banner.webp';
+const LOGO = '/assets/ui/rr-logo-wide.webp';
 /** The game's own carrot, so the figure is marked in the art rather than in an
  *  emoji the system font draws in a style nothing else on screen shares. */
 const CARROT_MARK = '/assets/misc/carrote_silouhette.png';
