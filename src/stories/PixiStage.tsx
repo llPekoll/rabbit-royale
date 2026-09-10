@@ -45,7 +45,18 @@ export function PixiStage({ width, height, background = '#081120', assets, prepa
       app = a;
       hostRef.current?.appendChild(a.canvas);
       a.canvas.style.imageRendering = 'pixelated';
+      // Fit the story's frame WITHOUT distorting it.
+      //
+      // `maxWidth: 100%` alone squeezes the width and leaves the height, so a
+      // panel narrower than the design space (Storybook's Seeker viewport is
+      // 800 wide against a 960 canvas) showed a stretched picture with the
+      // right-hand side of the board simply gone — which reads as "the grid is
+      // missing" rather than as "the frame is too narrow". `height: auto` with
+      // an aspect ratio is what the game itself does on resize: scale
+      // uniformly, letterbox the remainder.
       a.canvas.style.maxWidth = '100%';
+      a.canvas.style.height = 'auto';
+      a.canvas.style.aspectRatio = `${width} / ${height}`;
 
       if (assets) {
         for (const [key, src] of Object.entries(assets)) Assets.add({ alias: key, src });
