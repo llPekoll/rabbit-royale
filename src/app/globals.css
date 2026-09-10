@@ -549,16 +549,34 @@ button { min-height: 44px; min-width: 44px; }
     );
   }
 }
+/* Signed out the column is not a column: there are no panels to keep off the
+   painting, so it spans the screen and centres under the crawl. */
+.rr-burrow:has(.rr-empty) { max-width: none; padding-right: 0; margin: 0; }
+
 .rr-burrow-title { font-size: 20px; margin: 4px 0 12px; }
 
+/* The sign-in column. Anchored to the BOTTOM rather than centred: the crawl
+   now owns the middle of this screen, and a wordmark parked in the vanishing
+   point covers the paragraph the crawl exists to show. Bottom-aligned it also
+   puts the one thing to press within thumb reach, which is where it belonged
+   on a phone regardless. */
 .rr-empty {
   height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
   text-align: center;
   gap: 4px;
+  padding-bottom: 8vh;
+  /* A pad behind the copy so it stays legible whatever line of the crawl is
+     passing behind it — the crawl is bright yellow and the copy is grey. */
+  background: radial-gradient(
+    120% 42% at 50% 100%,
+    rgba(13, 17, 23, 0.94) 0%,
+    rgba(13, 17, 23, 0.86) 45%,
+    rgba(13, 17, 23, 0) 100%
+  );
 }
 
 /* The stock, big: it is the number the whole persistent layer is about, and a
@@ -1871,3 +1889,152 @@ button { font-family: var(--font-pixel); }
 .rr-raid-open:hover { border-color: #c1442e; }
 .rr-raid-open-name { flex: 1; text-align: left; font-size: 14px; color: #ff9d8a; }
 .rr-raid-open small { display: block; margin: 0; font-size: 11px; color: var(--muted); }
+
+/* ── The opening crawl ─────────────────────────────────────────────────────
+   The sign-in screen's story, receding into the horizon. See lore-crawl.tsx
+   for why this is a transform on real text rather than a video.
+
+   It occupies the whole signed-out screen and sits BETWEEN the burrow painting
+   (z 0) and the sign-in column (z 1): the words pass in front of the place and
+   behind the wordmark and the button, which is the only stacking that lets all
+   three be readable at once. */
+.rr-crawl {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  /* The vanishing point. Measured against a screenshot, not guessed: at 340px
+     with a 26deg plane the recession was invisible and the crawl read as flat
+     text scrolling up a page, which is the one thing it must not look like.
+     The perspective is what sells distance, so it is short and the origin sits
+     ABOVE the viewport -- the horizon is off-screen, the way it is in the film,
+     rather than at the top edge where the text would appear to fold. */
+  perspective: 620px;
+  perspective-origin: 50% 0%;
+}
+
+/* The plane the text lies on. Tilted away from the viewer; the scroll itself
+   happens on the child, so the tilt is composited once and never recalculated
+   per frame. */
+.rr-crawl-stage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  /* The tilt, landed between two measured failures. At 26deg with a 340px
+     perspective there was no visible recession at all -- flat text scrolling up
+     a page. At 52deg with 240px the plane folded so hard the whole chapter
+     compressed into a squashed band along the bottom edge and not one line was
+     readable. 38deg on a LONG perspective is the film's own compromise: the
+     lens is long, so the convergence is gentle and the type survives it. */
+  transform: rotateX(38deg);
+  transform-origin: 50% 100%;
+  transform-style: preserve-3d;
+}
+
+.rr-crawl-text {
+  position: absolute;
+  /* Starts below the near edge of the tilted plane, not below the viewport:
+     the plane is foreshortened, so the text must start past its own bottom to
+     be off-screen at 0%. */
+  top: 108%;
+  /* Wider than it looks: the tilt squeezes the block horizontally as it
+     recedes, so a column sized by eye at rest ends up a thin ribbon in the
+     distance. */
+  width: min(96%, 700px);
+  text-align: justify;
+  font-size: clamp(13px, 3.4vw, 20px);
+  line-height: 1.75;
+  /* The crawl's own colour. The crown yellow rather than plain white: it is
+     the game's one warm accent and it is what the story is about. */
+  color: var(--crown);
+  text-shadow: 0 0 12px rgba(255, 212, 92, 0.28);
+  /* The text's height plus the screen it has to cross. Generous on purpose:
+     overshooting only costs a beat of empty sky between passes, while
+     undershooting cuts the last paragraph off mid-sentence. */
+  --crawl-run: 260vh;
+  animation-name: rr-crawl-up;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+.rr-crawl-text p { margin: 0 0 1.1em; }
+
+/* The two display lines above the prose. Centred while the body is justified —
+   they are a title card, not part of the text block. */
+.rr-crawl-ep {
+  text-align: center;
+  letter-spacing: 0.22em;
+  font-size: 0.8em;
+  opacity: 0.75;
+  margin-bottom: 0.6em !important;
+}
+.rr-crawl-title {
+  text-align: center;
+  font-size: 1.5em;
+  line-height: 1.3;
+  margin: 0 0 1.4em;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+@keyframes rr-crawl-up {
+  /* Starts fully below the near edge and ends fully past the horizon: the text
+     is never on screen at 0% or 100%, so the loop has no visible seam.
+
+     The distance is in `vh`, NOT in `%`. A percentage here resolves against
+     the TEXT's own height, which is taller than the viewport and changes with
+     the chapter's length and the line wrapping -- so the same keyframe travels
+     a different distance on every screen, and on a wide desktop the whole
+     chapter took most of the loop just to clear the bottom edge (a screenshot
+     at 12s was still on the title). Viewport units make the pass mean the same
+     thing everywhere, and `--crawl-run` keeps the number in one place: it must
+     cover the text's own height plus the screen it crosses. */
+  from { transform: translateY(0); }
+  to   { transform: translateY(calc(-1 * var(--crawl-run))); }
+}
+
+/* The horizon, and the near edge.
+   The text does not stop at either end of the screen, it dissolves into both.
+   Without the top the crawl is a rectangle of words sliding under a hard edge,
+   which reads as an overflow bug rather than as distance.
+
+   The BOTTOM matters just as much and was missing: the nearest lines ran on
+   straight into the wordmark and the sign-in copy and the three fought over
+   the same pixels. Now a line has already faded out by the time it reaches
+   them, which is also what the film does -- text enters from nowhere and
+   leaves the frame, it is never cut off. */
+.rr-crawl-horizon {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      180deg,
+      var(--bg) 0%,
+      rgba(13, 17, 23, 0.94) 20%,
+      rgba(13, 17, 23, 0.55) 44%,
+      rgba(13, 17, 23, 0) 62%
+    ),
+    linear-gradient(
+      0deg,
+      var(--bg) 0%,
+      rgba(13, 17, 23, 0.90) 14%,
+      rgba(13, 17, 23, 0.45) 26%,
+      rgba(13, 17, 23, 0) 38%
+    );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The story is the point, the movement is not. Flat, still, and scrollable:
+     a reader who asked for no motion still gets the whole chapter. */
+  .rr-crawl { perspective: none; overflow-y: auto; pointer-events: auto; }
+  .rr-crawl-stage { transform: none; align-items: flex-start; }
+  .rr-crawl-text {
+    position: relative;
+    top: 0;
+    animation: none;
+    padding: 24px 0 40px;
+  }
+  .rr-crawl-horizon { display: none; }
+}

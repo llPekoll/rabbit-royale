@@ -14,7 +14,8 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useWalletLogin, WalletSessionProvider } from '@/components/use-wallet-login';
-import { useGameSocket, type RunRecap } from '@/components/use-game-socket';
+import { useGameSocket } from '@/components/use-game-socket';
+import { Recap } from '@/components/run-recap';
 import { GameCanvas, type GameHandles } from '@/components/game-canvas';
 import { WalletButton } from '@/components/wallet-button';
 import { LeaderboardDrawer } from '@/components/leaderboard-drawer';
@@ -26,6 +27,7 @@ import { EnergyBar } from '@/components/energy-bar';
 import { CarrotField } from '@/components/carrot-field';
 import { ShopButton, ShopPanel } from '@/components/shop-card';
 import { LoreButton, LoreCodex } from '@/components/lore-codex';
+import { LoreCrawl } from '@/components/lore-crawl';
 import {
   BurrowCard, CardRow, CardNote, BurrowMeter, BurrowButton,
   CARROT, CHALK_DIM, DANGER, LAMP,
@@ -251,6 +253,33 @@ function Burrow() {
     handles.current?.burrow?.setPlacing(false);
   }, []);
 
+  /**
+   * Leave the island for the shop, in one press.
+   *
+   * The recap offers this to a player whose tank is empty, and the shop is a
+   * drawer over the BURROW — so it has to cross first and open on arrival.
+   *
+   * The open cannot happen here. `goTo` flips `where` at the wipe's midpoint,
+   * so at this instant we are still on the island — and the effect that clears
+   * the burrow's overlays whenever `where` is not 'burrow' would close the
+   * drawer we just opened, on the very next render. Opening it early would
+   * also mount it over the island for the length of the crossing. So the
+   * intent is parked and spent on arrival, below.
+   */
+  const [shopOnArrival, setShopOnArrival] = useState(false);
+  const goShopping = useCallback(() => {
+    setShopOnArrival(true);
+    goTo('burrow');
+  }, [goTo]);
+
+  // Arrived. Spend the intent once — `where` is the burrow now, so the
+  // clearing effect above has already run and will not undo this.
+  useEffect(() => {
+    if (!shopOnArrival || where !== 'burrow') return;
+    setShopOnArrival(false);
+    setShopOpen(true);
+  }, [shopOnArrival, where]);
+
   /** A purchase changed the carrot stock, so the burrow panel is stale too. */
   const refreshBurrow = useCallback(() => {
     if (!token) return;
@@ -357,6 +386,39 @@ function Burrow() {
     setShopOpen(false);
   }, [where, placing, stopPlacing]);
 
+  /**
+   * Signing out puts the app back on the doorstep — every screen, not just the
+   * ones drawn from `player`.
+   *
+   * `where` is the one piece of state that outlived a session: it is not
+   * derived from the player, so logging out on the island left it on 'island'
+   * and the signed-out screen kept the island's HUD and its "To the burrow"
+   * arrow floating over the sign-in art. Everything else here is the same
+   * class of leftover — a shop drawer, a half-picked raid target, a codex
+   * scrolled to chapter four — all of which would still be open behind the
+   * login screen and would reappear, mid-flow, for whoever signs in next.
+   *
+   * The canvas handles go with them: the scenes are unmounted with the player
+   * (no `player`, no <GameCanvas/>), so a stale ref would let a control call
+   * `wipeTo` on a Pixi app that no longer exists.
+   */
+  useEffect(() => {
+    if (player) return;
+    setWhere('burrow');
+    setCrossing(false);
+    setShopOpen(false);
+    setPickingTarget(false);
+    setLoreOpen(false);
+    setShopOnArrival(false);
+    setPlacing(false);
+    setBurrow(null);
+    setNote(null);
+    setPending(false);
+    handles.current = null;
+    shownSeed.current = null;
+    setReady(false);
+  }, [player]);
+
   // A harvest empties the field NOW, on the action, rather than waiting for the
   // next refresh to notice the number fell — collecting has to have an
   // immediate consequence on the place, not just on a counter.
@@ -398,6 +460,10 @@ function Burrow() {
         </div>
       )}
 
+      {/* The story, told to whoever has not signed in yet. It is the only thing
+          on this screen that is not a request — see lore-crawl.tsx. */}
+      {!player && <LoreCrawl />}
+
       {/* Sound belongs to the app, not to a screen: it rides above both. */}
       <SoundButton />
 
@@ -423,8 +489,14 @@ function Burrow() {
           (mounted at the midpoint it sits on a black canvas for the whole
           opening — the chrome arriving before the place), and the island's HUD
           must not take its place while the shutter is over the burrow. So a
-          crossing shows the wipe and nothing else. */}
-      {crossing ? null : where === 'burrow' ? (
+          crossing shows the wipe and nothing else.
+
+          `|| !player` is a belt on top of the reset above: signed out there is
+          no canvas and no run, so the island branch has nothing to draw over —
+          it would put a HUD and a "To the burrow" arrow on the sign-in screen.
+          The effect already puts `where` back; this makes the wrong screen
+          unreachable rather than merely un-entered. */}
+      {crossing ? null : where === 'burrow' || !player ? (
         <section className="rr-burrow">
           {!player ? (
             <div className="rr-empty">
@@ -583,7 +655,15 @@ function Burrow() {
               transparent to input: it covers the whole board, and the CSS
               above only re-enables pointers on the controls. */}
           <div style={{ flex: 1, pointerEvents: 'none' }} />
-          {game.recap && <Recap recap={game.recap} onAgain={game.restart} />}
+          {game.recap && (
+            <Recap
+              recap={game.recap}
+              energy={burrow?.energy ?? null}
+              onAgain={game.restart}
+              onShop={goShopping}
+              onHome={() => goTo('burrow')}
+            />
+          )}
           <GoButton dir="up" label="To the burrow" onClick={() => goTo('burrow')} />
         </div>
       )}
@@ -664,19 +744,6 @@ function Hud({ game, name }: { game: ReturnType<typeof useGameSocket>; name: str
       )}
       <small style={{ color: 'var(--muted)' }}>{name}</small>
     </header>
-  );
-}
-
-function Recap({ recap, onAgain }: { recap: RunRecap; onAgain: () => void }) {
-  return (
-    <div className="rr-card" style={{ textAlign: 'center' }}>
-      <h2 style={{ margin: '0 0 4px' }}>Run over</h2>
-      <p style={{ color: 'var(--muted)', margin: '0 0 10px' }}>
-        🥕 {recap.carrots} &middot; {recap.tilesDug} dug &middot; 💣 {recap.bombsHit}{' '}
-        {(recap.durationMs / 1000).toFixed(0)}s
-      </p>
-      <button onClick={onAgain} style={{ width: '100%' }}>Again</button>
-    </div>
   );
 }
 

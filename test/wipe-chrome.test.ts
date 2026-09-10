@@ -41,7 +41,19 @@ describe('chrome across the wipe', () => {
   it('shows neither screen while crossing', () => {
     // A crossing is its own state. Gating only the burrow would let the
     // island's HUD render in its place while the shutter sits over the burrow.
-    expect(PAGE).toMatch(/\{crossing \? null : where === 'burrow' \?/);
+    // `crossing` must still be the FIRST thing the ternary asks.
+    expect(PAGE).toMatch(/\{crossing \? null : where === 'burrow'/);
+  });
+
+  it('never shows the island to a signed-out player', () => {
+    // `where` is not derived from the player, so signing out on the island left
+    // it on 'island' and the sign-in screen kept the island's HUD and its "To
+    // the burrow" arrow. Two things put that right and both are asserted: the
+    // branch falls back to the burrow with no player...
+    expect(PAGE).toMatch(/where === 'burrow' \|\| !player \?/);
+    // ...and `where` itself is reset when the session ends, so a later sign-in
+    // does not land back on the island.
+    expect(PAGE).toMatch(/if \(player\) return;[\s\S]{0,80}setWhere\('burrow'\)/);
   });
 
   it('holds the burrow-anchored controls too', () => {
