@@ -85,11 +85,34 @@ export function burrowCamOut(): number {
  * board against ("cover the path, not the lawn"). A grid with no homestead
  * around it is a spreadsheet again, just a bigger one.
  *
- * 1.15 nearly doubles the tiles (34px cells render at ~44) and still keeps the
- * fenced field and the mound's near edge in shot. Tightening it further starts
- * cropping the door, which is the landmark the whole board is read against.
+ * 1.08 is as tight as this goes while the board still clears the edges: the
+ * cells render at ~47px, roughly double where this screen started, and the
+ * fenced field and the path stay in shot. The burrow's door is the first thing
+ * to go if it is tightened further, and that is the landmark the whole board is
+ * read against.
+ *
+ * Tunable at runtime through `setBoardPad` — Burrow/Placing puts a slider on it
+ * — because this is a judgement about feel, and a number you can only change by
+ * editing a file and rebuilding is a number nobody actually tries alternatives
+ * for. The override is for tuning; the default is what ships.
  */
-const BOARD_PAD = 1.15;
+const BOARD_PAD = 1.08;
+
+/** The live override, when a tuning harness has set one. */
+let boardPadOverride: number | null = null;
+
+/**
+ * Override the landscape margin, or pass null to go back to the shipped value.
+ *
+ * Exists for the Storybook slider. Deliberately a setter rather than an
+ * argument threaded through `boardCam`: the scene asks the camera for its
+ * framing from several places (placing, raiding, resize), and adding a
+ * parameter to all of them to serve a tuning tool would put the tool in the
+ * game's code path.
+ */
+export function setBoardPad(pad: number | null): void {
+  boardPadOverride = pad;
+}
 
 /**
  * The margin in portrait.
@@ -215,7 +238,7 @@ export function boardCam(W: number = GAME_W, H: number = GAME_H): BurrowCam {
   // Portrait vs landscape, not "which axis binds": the board is ~1.79:1 and the
   // landscape design space is 1.78:1, so the width binds in BOTH orientations
   // and an axis test cannot tell them apart.
-  const pad = H > W ? BOARD_PAD_TIGHT : BOARD_PAD;
+  const pad = boardPadOverride ?? (H > W ? BOARD_PAD_TIGHT : BOARD_PAD);
   const fit = Math.min(W / (b.w * pad), H / (b.h * pad));
   return frame(
     Math.min(fit, BURROW_CAM_MAX),

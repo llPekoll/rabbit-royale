@@ -37,11 +37,21 @@ import {
   burrowCell, burrowTilePos, walkableTiles, isTrappable,
 } from '@/config/burrowConfig';
 import { GAME_W, GAME_H } from '@/game/Application';
-import { boardCamFraming } from '@/game/scenes/burrowCamera';
+import { boardCamFraming, setBoardPad } from '@/game/scenes/burrowCamera';
 
 interface Args {
   /** Placement mode. Off, the screen is a picture of a home — no grid at all. */
   placing: boolean;
+  /**
+   * The margin around the board, which is what decides the tile size.
+   *
+   * Lower is tighter and bigger. This is a judgement about feel — how large a
+   * cell has to be to pick confidently, against how much of the homestead you
+   * need around it to know WHICH cell to pick — so it is a slider rather than a
+   * constant somebody edits and rebuilds for. The report under the canvas gives
+   * the number each position buys.
+   */
+  pad: number;
 }
 
 /**
@@ -77,8 +87,12 @@ function boardReport() {
   };
 }
 
-function Scene({ placing }: Args) {
+function Scene({ placing, pad }: Args) {
   const [placed, setPlaced] = useState<number[]>([]);
+  // Set BEFORE the scene mounts and the report is computed, so both read the
+  // same framing. The story remounts on every arg change (see `key` in meta),
+  // which is what makes the slider move the camera at all.
+  setBoardPad(pad);
   const r = boardReport();
   const ok = r.onScreen;
 
@@ -112,7 +126,7 @@ function Scene({ placing }: Args) {
 {`grid ${r.grid}   tile ${r.tile}   walkable ${r.cells}   trappable ${r.trappable}
 board spans x ${r.minX.toFixed(0)}..${r.maxX.toFixed(0)}  y ${r.minY.toFixed(0)}..${r.maxY.toFixed(0)}   (canvas ${GAME_W}x${GAME_H})
 through the placement camera: x ${r.framing.board.left.toFixed(0)}..${r.framing.board.right.toFixed(0)}  y ${r.framing.board.top.toFixed(0)}..${r.framing.board.bottom.toFixed(0)}
-tile on screen ${r.framing.tileWidth.toFixed(1)}px
+tile on screen ${r.framing.tileWidth.toFixed(1)}px   (margin ${pad.toFixed(2)}, camera ${r.framing.cam.scale.toFixed(2)}x)
 ${ok ? 'the whole board is on screen' : 'OFF SCREEN - cells fall outside the canvas, and those are the tiles that go missing'}
 ${placed.length} traps placed`}
       </pre>
@@ -123,7 +137,10 @@ ${placed.length} traps placed`}
 const meta: Meta<Args> = {
   title: 'Burrow/Placing',
   render: (args) => <Scene key={JSON.stringify(args)} {...args} />,
-  args: { placing: true },
+  args: { placing: true, pad: 1.08 },
+  argTypes: {
+    pad: { control: { type: 'range', min: 1.0, max: 1.6, step: 0.01 } },
+  },
 };
 export default meta;
 
