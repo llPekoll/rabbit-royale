@@ -1906,7 +1906,12 @@ button { font-family: var(--font-pixel); }
      The perspective is what sells distance, so it is short and the origin sits
      ABOVE the viewport -- the horizon is off-screen, the way it is in the film,
      rather than at the top edge where the text would appear to fold. */
-  perspective: 620px;
+  /* Shorter than it was (620px): the perspective divisor is what FLARES the
+     near text, and a long lens gave an almost parallel column -- the bottom
+     lines measured 944px against 536px at the title, which reads as a mild
+     skew rather than as text coming at you. Bringing the eye closer widens the
+     near end without touching the far end, which is already right. */
+  perspective: 420px;
   perspective-origin: 50% 0%;
 }
 

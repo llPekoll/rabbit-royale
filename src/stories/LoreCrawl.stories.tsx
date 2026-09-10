@@ -147,7 +147,7 @@ type Story = StoryObj<typeof Screen>;
  *  ships is not evidence, it is a second implementation. They were 215/62/36
  *  while the app had already moved to 253/100/64. */
 export const Default: Story = {
-  args: { perspective: 620, tilt: 38, run: 253, start: 100, seconds: 64, freezeAt: -1 },
+  args: { perspective: 420, tilt: 38, run: 253, start: 100, seconds: 64, freezeAt: -1 },
 };
 
 /**

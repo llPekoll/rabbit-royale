@@ -1,0 +1,57 @@
+# What Docker must NOT receive as build context.
+#
+# Without this file `COPY . .` shipped 812MB — 697MB of local `node_modules`,
+# 69MB of `.next`, 19MB of `storybook-static` — on every build. None of it is
+# wanted: the image installs its own dependencies in the `deps` stage and runs
+# its own `bun run build`, so these are at best dead weight over the wire.
+#
+# `.next` is worse than dead weight. Copying a locally-built `.next` into the
+# build stage lays host artefacts under the build that is about to run, and
+# they were produced by a different OS, a different arch and possibly a
+# different Next version. That is the kind of mismatch that fails a container
+# build while the same commit builds cleanly on the machine it was written on.
+#
+# `.env` is excluded on purpose too: build-time secrets belong in the builder's
+# environment, never baked into an image layer.
+
+# Dependencies — reinstalled in the `deps` stage from package.json + bun.lock.
+node_modules
+**/node_modules
+
+# Build output — the image builds its own.
+.next
+out
+storybook-static
+tsconfig.tsbuildinfo
+
+# Secrets and local environment.
+.env
+.env.*
+!.env.example
+
+# Version control and editor state.
+.git
+.gitignore
+.vscode
+.idea
+*.swp
+.DS_Store
+
+# Local databases and dumps that occasionally land at the root.
+*.db
+*.db-shm
+*.db-wal
+*.dat
+
+# Test and tooling output nothing in the image reads.
+coverage
+playwright-report
+test-results
+
+# The native client is built and shipped separately.
+android
+twa
+
+# Documentation — it never reaches the runtime image.
+*.md
+!README.md
