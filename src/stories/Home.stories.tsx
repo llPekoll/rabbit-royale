@@ -7,6 +7,7 @@
  *
  * The markup mirrors the page; what is faked is only the data and the router.
  */
+import { LoreCrawl } from '@/components/lore-crawl';
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { GoButton } from '@/components/go-button';
@@ -43,6 +44,13 @@ function Home({ signedIn, stock, hp, maxHp, gardenReady, level, upgradeCost, boa
         style={{ backgroundImage: 'url(/assets/island/burrow_generated.webp)' }}
         aria-hidden
       />
+
+      {/* The opening crawl, signed out only — the same condition the page uses.
+          Without it this story judged the sign-in screen against a background
+          the real one has not had since the crawl shipped: the wordmark sits in
+          front of MOVING TEXT there, and whether it stays readable over a
+          bright line of prose is exactly the thing a harness is for. */}
+      {!signedIn && <LoreCrawl />}
       <div className="rr-topbar">
         <button className={`rr-wallet${signedIn ? ' connected' : ''}`}>
           {/* The real chip draws the player's avatar sprite here (see
@@ -87,8 +95,19 @@ function Home({ signedIn, stock, hp, maxHp, gardenReady, level, upgradeCost, boa
       <section className="rr-burrow">
         {!signedIn ? (
           <div className="rr-empty">
-            <div style={{ fontSize: 64 }}>🕳️</div>
-            <h1 style={{ margin: '10px 0 4px' }}>Rabbit Royale</h1>
+            {/* The wordmark, exactly as the page draws it — NOT an emoji and
+                not an <h1>. This story showed a 🕳️ and a UI-font heading long
+                after the real screen had replaced both with the logo, which is
+                the failure mode of a hand-built harness: it keeps rendering the
+                screen as it was the day it was written. The art already says
+                "Rabbit Royale", so the heading was redundant twice over. */}
+            <img
+              className="rr-logo"
+              src="/assets/ui/RR-Logo_Banner.webp"
+              alt="Rabbit Royale"
+              width={365}
+              height={106}
+            />
             <p style={{ color: 'var(--muted)', margin: 0 }}>The Cursed Crown</p>
             <p style={{ color: 'var(--muted)', maxWidth: 300 }}>
               Connect your wallet to claim a burrow. Nothing to remember, nothing to lose.

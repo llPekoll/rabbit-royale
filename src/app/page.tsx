@@ -585,8 +585,12 @@ function Burrow() {
                 className="rr-logo"
                 src={LOGO}
                 alt="Rabbit Royale"
+                // The file's own 365x106. It is `height: auto` in CSS, so a
+                // wrong number here does not distort it — it reserves the
+                // wrong box while the image loads and shifts the column under
+                // the reader's eyes.
                 width={365}
-                height={64}
+                height={106}
               />
               <p style={{ color: 'var(--muted)', margin: 0 }}>The Cursed Crown</p>
               <p style={{ color: 'var(--muted)', maxWidth: 300 }}>
@@ -899,7 +903,7 @@ function formatWait(ms: number | null): string {
 // this could show, and the starter homestead is the honest picture to greet a
 // new player with.
 const BURROW_ART = burrowArt(1);
-const LOGO = '/assets/ui/rr-logo-wide.webp';
+const LOGO = '/assets/ui/RR-Logo_Banner.webp';
 /** The game's own carrot, so the figure is marked in the art rather than in an
  *  emoji the system font draws in a style nothing else on screen shares. */
 const CARROT_MARK = '/assets/misc/carrote_silouhette.png';

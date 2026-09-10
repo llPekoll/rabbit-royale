@@ -25,7 +25,7 @@ import { CarrotField } from '@/components/carrot-field';
 import { burrowArt } from '@/config/burrowArt';
 import '@/app/globals.css';
 
-const LOGO = '/assets/ui/rr-logo-wide.webp';
+const LOGO = '/assets/ui/RR-Logo_Banner.webp';
 
 interface Knobs {
   /** Distance to the vanishing point, px. Shorter = more dramatic. */
@@ -114,7 +114,7 @@ function Screen(k: Knobs) {
           unless the block is here at its real height. */}
       <section className="rr-burrow" style={{ position: 'relative', zIndex: 1, height: '100%' }}>
         <div className="rr-empty">
-          <img className="rr-logo" src={LOGO} alt="Rabbit Royale" width={365} height={64} />
+          <img className="rr-logo" src={LOGO} alt="Rabbit Royale" width={365} height={106} />
           <p style={{ color: 'var(--muted)', margin: 0 }}>The Cursed Crown</p>
           <p style={{ color: 'var(--muted)', maxWidth: 300 }}>
             Connect your wallet to claim a burrow. Nothing to remember, nothing to lose.
