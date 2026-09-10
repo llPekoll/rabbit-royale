@@ -182,7 +182,7 @@ export async function createApp(
   // A decorative shutter must never be the reason the game fails to boot: if
   // the carrot is somehow missing, cross bare (see GameHandles.wipeTo) rather
   // than take the whole app down for a transition.
-  const carrot = Assets.get<Texture>(Keys.CARROT);
+  const carrot = Assets.get<Texture>(Keys.CARROT_MASK);
   if (carrot) {
     wipe = new CarrotWipe({
       width: window.innerWidth,

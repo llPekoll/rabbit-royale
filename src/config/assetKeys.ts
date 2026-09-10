@@ -27,6 +27,8 @@ export const BUNNY_ANIMS = {
 /** The pixel carrot — RR's own food prop, from the shared kit. TALL (13x29):
  *  size it by HEIGHT and derive the width, or it renders squashed. */
 export const CARROT = 'carrot';
+/** The iris aperture's silhouette — see tools/gen_carrot_mask.py. */
+export const CARROT_MASK = 'carrot-mask';
 
 /** The eight drifting cloud sprites, keyed `cloud-1`..`cloud-8`. */
 export const CLOUD_COUNT = 8;

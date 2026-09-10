@@ -15,7 +15,11 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Container, Graphics, Sprite, Texture, Assets } from 'pixi.js';
 import { PixiStage } from './PixiStage';
 import { CarrotWipe } from '@/game/fx/CarrotWipe';
-import { CARROT_URL } from '@domin8/arcade-kit/game';
+/** The generated aperture — see tools/gen_carrot_mask.py. */
+const MASK_URL = '/assets/fx/carrot-mask.webp';
+
+/** Breath between passes in the looping story, so each wipe reads as one. */
+const LOOP_PAUSE_MS = 700;
 
 /**
  * Plus petit que le 960x540 du jeu : dans le cadre Storybook, avec le volet
@@ -79,9 +83,13 @@ interface Args {
   frozen: boolean;
   /** Swap the painted backdrops for flat ramps — see `place`. */
   gradient: boolean;
+  /** Run the wipe over and over, so the motion can be watched rather than
+   *  triggered — the timing is the thing under review, and a single press is
+   *  over before the eye has settled. */
+  loop: boolean;
 }
 
-function Scene({ aperture, frozen, gradient }: Args) {
+function Scene({ aperture, frozen, gradient, loop }: Args) {
   const playRef = useRef<(() => void) | null>(null);
   const [where, setWhere] = useState<Where>('burrow');
 
@@ -104,7 +112,7 @@ function Scene({ aperture, frozen, gradient }: Args) {
         width={WIDTH}
         height={HEIGHT}
         background="#000000"
-        prepare={async () => { await Assets.load([CARROT_URL, ART.burrow, ART.island]); }}
+        prepare={async () => { await Assets.load([MASK_URL, ART.burrow, ART.island]); }}
         setup={(stage) => {
           const scenes = {
             burrow: place('burrow', gradient),
@@ -117,7 +125,7 @@ function Scene({ aperture, frozen, gradient }: Args) {
           const wipe = new CarrotWipe({
             width: WIDTH,
             height: HEIGHT,
-            texture: Assets.get<Texture>(CARROT_URL),
+            texture: Assets.get<Texture>(MASK_URL),
           });
           stage.addChild(wipe.view);
 
@@ -126,18 +134,38 @@ function Scene({ aperture, frozen, gradient }: Args) {
             wipe.set(aperture);
           }
 
-          playRef.current = () => {
-            if (frozen) return;
-            void wipe.play(() => {
-              // The swap, at full black — exactly as the game does it.
-              current = current === 'burrow' ? 'island' : 'burrow';
-              scenes.burrow.visible = current === 'burrow';
-              scenes.island.visible = current === 'island';
-              setWhere(current);
-            });
-          };
+          const cross = () => wipe.play(() => {
+            // The swap, at full black — exactly as the game does it.
+            current = current === 'burrow' ? 'island' : 'burrow';
+            scenes.burrow.visible = current === 'burrow';
+            scenes.island.visible = current === 'island';
+            setWhere(current);
+          });
 
-          return () => { playRef.current = null; wipe.destroy(); };
+          playRef.current = () => { if (!frozen) void cross(); };
+
+          // The loop waits a beat between passes: back to back, the reopening
+          // of one wipe runs into the closing of the next and the shape never
+          // gets a moment to be seen whole.
+          let timer: ReturnType<typeof setTimeout> | null = null;
+          let stopped = false;
+          if (loop && !frozen) {
+            const again = async () => {
+              while (!stopped) {
+                await cross();
+                if (stopped) break;
+                await new Promise<void>((r) => { timer = setTimeout(r, LOOP_PAUSE_MS); });
+              }
+            };
+            void again();
+          }
+
+          return () => {
+            stopped = true;
+            if (timer) clearTimeout(timer);
+            playRef.current = null;
+            wipe.destroy();
+          };
         }}
       />
     </div>
@@ -147,7 +175,7 @@ function Scene({ aperture, frozen, gradient }: Args) {
 const meta: Meta<Args> = {
   title: 'FX/Carrot wipe',
   render: (args) => <Scene key={JSON.stringify(args)} {...args} />,
-  args: { aperture: 0.35, frozen: false, gradient: false },
+  args: { aperture: 0.35, frozen: false, gradient: false, loop: false },
   argTypes: { aperture: { control: { type: 'range', min: 0, max: 1, step: 0.01 } } },
 };
 export default meta;
@@ -156,6 +184,16 @@ type Story = StoryObj<Args>;
 
 /** Press GO: the iris closes on a carrot, swaps the screen, and opens again. */
 export const Wipe: Story = {};
+
+/**
+ * The same wipe, over and over, with a breath between passes.
+ *
+ * The story to watch rather than to press. Timing is the half of this effect
+ * that no still frame carries — whether the close reads as brisk or as a wait,
+ * whether the black holds long enough to be a cut — and judging it one press
+ * at a time means the eye is still settling when it is already over.
+ */
+export const Looping: Story = { args: { loop: true } };
 
 /**
  * The same wipe over flat vertical ramps.

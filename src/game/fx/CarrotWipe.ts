@@ -24,7 +24,6 @@
  */
 import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import gsap from 'gsap';
-import { CARROT_SIZE } from '@domin8/arcade-kit/game';
 
 /**
  * How long each half takes. Short on purpose: this sits between a press and the
@@ -50,8 +49,16 @@ export interface CarrotWipeOptions {
    *  the letterbox too, which lives outside the scaled game root. */
   width: number;
   height: number;
-  /** The kit's carrot, already loaded. Its ALPHA is the shape; its colours are
-   *  never seen — the sprite is only ever a mask. */
+  /**
+   * The aperture mask (`/assets/fx/carrot-mask.webp`, from
+   * tools/gen_carrot_mask.py), already loaded. Its ALPHA is the shape; the
+   * white it is drawn in is never seen.
+   *
+   * NOT the kit's carrot sprite. That one is drawn to be looked at — it carries
+   * its shape in shading as much as in its outline — and an alpha channel keeps
+   * only the outline, so as a mask it came out a soft blob with its leaves
+   * shattering into specks the moment the iris got small.
+   */
   texture: Texture;
 }
 
@@ -81,11 +88,11 @@ export class CarrotWipe {
 
     this.hole = new Sprite(options.texture);
     this.hole.anchor.set(0.5);
-    // The aperture is a 29px sprite blown up past the screen's diagonal — the
-    // largest upscale in the game by far. Linear filtering turns its edge into
-    // a soft brown smear at exactly the size where the shape has to read, so
-    // the scale mode is pinned HERE rather than trusted from the loader: this
-    // sprite is a silhouette, and a soft silhouette is not one.
+    // A ~40px mask blown up past the screen's diagonal — the largest upscale in
+    // the game by far. Linear filtering turns its edge into a soft grey fringe
+    // at exactly the size where the shape has to read, so the scale mode is
+    // pinned HERE rather than trusted from the loader: this sprite is a
+    // silhouette, and a soft silhouette is not one.
     options.texture.source.scaleMode = 'nearest';
 
     // The mask sprite is a shape, not a picture: it is never added to the
@@ -158,9 +165,9 @@ export class CarrotWipe {
   /**
    * Repaint: fill the screen black, and size the carrot that is cut out of it.
    *
-   * The carrot is sized by HEIGHT with its width derived from the source, so
-   * the silhouette keeps its proportions at every scale — the kit's carrot is
-   * 13x29, and forcing it into a square box renders it as a squashed lozenge.
+   * Sized by HEIGHT with the width derived from the mask's own aspect, so
+   * retuning the shape in the generator needs no matching edit here — and so
+   * the silhouette can never be squashed into a lozenge by a square box.
    */
   private draw(): void {
     this.sheet.clear();
@@ -176,7 +183,8 @@ export class CarrotWipe {
     this.sheet.mask = open > 0 ? this.hole : null;
     this.hole.visible = open > 0;
     this.hole.height = height;
-    this.hole.width = height * (CARROT_SIZE.width / CARROT_SIZE.height);
+    const tex = this.hole.texture;
+    this.hole.width = height * (tex.width / tex.height);
     this.hole.position.set(this.w / 2, this.h / 2);
   }
 }

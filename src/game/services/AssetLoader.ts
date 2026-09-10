@@ -30,6 +30,10 @@ const IMAGES = [
   // The carrot comes from the shared kit rather than public/: it is the same
   // prop the hub's season pass draws, and one copy means one carrot.
   { key: Keys.CARROT, src: CARROT_URL },
+  // The iris aperture. Generated (tools/gen_carrot_mask.py) rather than taken
+  // from the kit's carrot: a mask keeps only alpha, and the sprite's shape
+  // lives partly in its shading.
+  { key: Keys.CARROT_MASK, src: '/assets/fx/carrot-mask.webp' },
   // The drifting clouds. Eight shapes so a sky of them never visibly repeats.
   ...Array.from({ length: Keys.CLOUD_COUNT }, (_, i) => ({
     key: Keys.cloudKey(i + 1),
