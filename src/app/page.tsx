@@ -24,7 +24,11 @@ import { SoundButton } from '@/components/sound-button';
 import { LoadingScreen } from '@/components/loading-screen';
 import { EnergyBar } from '@/components/energy-bar';
 import { CarrotField } from '@/components/carrot-field';
+import { ShopButton, ShopPanel } from '@/components/shop-card';
+import { useShop, type ItemKind } from '@/components/use-shop';
+import { useUsdcPay } from '@/components/use-usdc-pay';
 import { gardenProgress } from '@/lib/game/garden-growth';
+import { burrowArt } from '@/config/burrowArt';
 import { SCENE } from '@/game/keys';
 
 interface Burrow {
@@ -59,12 +63,21 @@ export default function Home() {
   const [burstKey, setBurstKey] = useState(0);
   const [burstAmount, setBurstAmount] = useState(0);
   const [ready, setReady] = useState(false);
+  /** True while the burrow board is showing trappable tiles. */
+  const [placing, setPlacing] = useState(false);
+  /** The shop is a drawer over the burrow, not a card in it. */
+  const [shopOpen, setShopOpen] = useState(false);
+  /** The RPC the browser builds a USDC transfer against — served at runtime so
+   *  one image runs on any network (see api/config). */
+  const [rpcUrl, setRpcUrl] = useState<string | null>(null);
 
   // The Pixi handles. A ref, not state: they are used to DRIVE the canvas, and
   // putting them in state would re-render the tree that owns it.
   const handles = useRef<GameHandles | null>(null);
 
   const game = useGameSocket(token, player?.id ?? null, null);
+  const shop = useShop(token);
+  const usdc = useUsdcPay(token, rpcUrl);
 
   useEffect(() => {
     game.bindScene(() => handles.current?.island ?? null);
@@ -100,6 +113,16 @@ export default function Home() {
       .then((d) => d.burrow && setBurrow(d.burrow))
       .catch(() => {});
   }, [token, auth]);
+
+  // Runtime config, once. An empty rpcUrl means the money route is off, and the
+  // shop hides its USDC buttons rather than offering a payment that cannot
+  // complete.
+  useEffect(() => {
+    fetch('/api/config')
+      .then((r) => r.json())
+      .then((d) => setRpcUrl(d.rpcUrl || null))
+      .catch(() => {});
+  }, []);
 
   const act = async (action: 'harvest' | 'upgrade') => {
     setPending(true);
@@ -144,7 +167,57 @@ export default function Home() {
   const hasEnergy = burrow === null || burrow.energy > 0;
 
   const onMoveIntent = useCallback((tile: number) => game.moveTo(tile), [game]);
-  const onPlaceTrap = useCallback(() => {}, []);
+  /**
+   * A tile was tapped while placing.
+   *
+   * The marker is drawn only AFTER the server accepts it — an optimistic one
+   * would show a defence that is not there, which on a defensive mechanic is
+   * the worst possible lie to tell a player.
+   */
+  const onPlaceTrap = useCallback(async (tile: number) => {
+    const ok = await shop.placeTrap(tile);
+    if (ok) handles.current?.burrow?.addTrap(tile);
+  }, [shop]);
+
+  /**
+   * Start placing traps.
+   *
+   * Closes the shop on the way: the ground being mined is the burrow board,
+   * which the drawer is covering. Leaving the panel open would ask the player
+   * to tap a tile they cannot see.
+   */
+  const startPlacing = useCallback(() => {
+    setShopOpen(false);
+    setPlacing(true);
+    handles.current?.burrow?.setPlacing(true);
+  }, []);
+
+  const stopPlacing = useCallback(() => {
+    setPlacing(false);
+    handles.current?.burrow?.setPlacing(false);
+  }, []);
+
+  /** A purchase changed the carrot stock, so the burrow panel is stale too. */
+  const refreshBurrow = useCallback(() => {
+    if (!token) return;
+    fetch('/api/burrow', auth())
+      .then((r) => r.json())
+      .then((d) => d.burrow && setBurrow(d.burrow))
+      .catch(() => {});
+  }, [token, auth]);
+
+  const buyWithCarrots = useCallback(async (kind: ItemKind) => {
+    const res = await shop.buy(kind);
+    if (res) refreshBurrow();
+  }, [shop, refreshBurrow]);
+
+  const buyWithUsdc = useCallback(async (kind: ItemKind) => {
+    const res = await usdc.pay(kind);
+    if (res) {
+      await shop.refresh();
+      refreshBurrow();
+    }
+  }, [usdc, shop, refreshBurrow]);
 
   // The field in the burrow scene follows the real garden. Pushed on every
   // burrow refresh rather than read by the scene, because the scene has no
@@ -155,6 +228,38 @@ export default function Home() {
       gardenProgress(burrow.gardenReady, burrow.level),
     );
   }, [ready, burrow]);
+
+  // The backdrop follows the level, so an upgrade is visible in the PLACE and
+  // not only in the panel: the fence around your field becomes railings, then a
+  // castle wall. Keyed on the level alone — the burrow object changes on every
+  // poll, and the scene skips the reload when the art is already the right one.
+  useEffect(() => {
+    if (!ready || !burrow) return;
+    void handles.current?.burrow?.setLevel(burrow.level);
+  }, [ready, burrow?.level]);
+
+  // The traps already on the ground, drawn once the board exists.
+  //
+  // Keyed on the tile LIST rather than on the state object, which is replaced
+  // on every refresh: `addTrap` ignores a tile it has already drawn, so a
+  // re-run is harmless, but re-running it on every poll is work for nothing.
+  const drawnTraps = useRef('');
+  useEffect(() => {
+    const tiles = shop.traps?.placed;
+    if (!ready || !tiles) return;
+    const key = tiles.join(',');
+    if (drawnTraps.current === key) return;
+    drawnTraps.current = key;
+    for (const tile of tiles) handles.current?.burrow?.addTrap(tile, false);
+  }, [ready, shop.traps]);
+
+  // Leaving the burrow leaves placement mode with it: coming back to a screen
+  // still showing a grid you forgot you opened is a small mystery every time.
+  useEffect(() => {
+    if (where === 'burrow') return;
+    if (placing) stopPlacing();
+    setShopOpen(false);
+  }, [where, placing, stopPlacing]);
 
   // A harvest empties the field NOW, on the action, rather than waiting for the
   // next refresh to notice the number fell — collecting has to have an
@@ -322,6 +427,29 @@ export default function Home() {
                 </button>
               </div>
 
+              {/* Placing takes over the screen, so the way into the shop
+                  steps aside for the way out of placement. */}
+              {placing ? (
+                <button className="rr-btn" onClick={stopPlacing}>
+                  Done placing
+                </button>
+              ) : (
+                <ShopButton shop={shop.shop} onOpen={() => setShopOpen(true)} />
+              )}
+
+              {/* While placing, this is the only instruction on screen — the
+                  board itself cannot say what a tap will cost. */}
+              {placing && shop.shop && (
+                <p className="rr-note">
+                  Tap a tile to mine it &middot; {shop.shop.traps.held} left
+                </p>
+              )}
+
+              {/* Outside the drawer, only a REFUSAL is worth showing: a receipt
+                  for a purchase the player just watched happen in the panel is
+                  noise on the burrow screen. */}
+              {placing && shop.note && <p className="rr-shop-pay">{shop.note}</p>}
+
               {note && <p className="rr-note">{note}</p>}
             </>
           )}
@@ -348,6 +476,20 @@ export default function Home() {
           label="Go farm"
           onClick={() => goTo('island')}
           disabled={!hasEnergy}
+        />
+      )}
+
+      {player && shopOpen && (
+        <ShopPanel
+          shop={shop.shop}
+          busy={shop.busy}
+          onBuy={buyWithCarrots}
+          onPayUsdc={rpcUrl ? buyWithUsdc : undefined}
+          payStage={usdc.stage}
+          note={shop.note}
+          error={usdc.error}
+          onPlaceTraps={startPlacing}
+          onClose={() => { setShopOpen(false); shop.setNote(null); usdc.setError(null); }}
         />
       )}
 
@@ -405,5 +547,9 @@ function formatWait(ms: number | null): string {
 /** The burrow, painted. Stands in for the canvas before sign-in. */
 // The BARE-soil cut of the art: the crop is drawn live over it by CarrotField,
 // so it has to not already be in the picture. See tools/plant_carrots.py.
-const BURROW_ART = '/assets/island/burrow.webp';
+//
+// Level 1 deliberately: nobody is signed in, so there is no burrow whose level
+// this could show, and the starter homestead is the honest picture to greet a
+// new player with.
+const BURROW_ART = burrowArt(1);
 const LOGO = '/assets/ui/RR-Logo_Banner.webp';

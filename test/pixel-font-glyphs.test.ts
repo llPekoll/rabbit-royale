@@ -16,13 +16,20 @@ import { describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-/** Files whose strings reach the DOM. */
+/**
+ * Files whose strings reach the DOM.
+ *
+ * `.tsx` for components, and the HOOKS in the same folder: player-facing copy
+ * migrated into them once the shop needed one message table for many failures,
+ * and a scan that only read components let two bad glyphs through. Anything
+ * under src/components renders, whatever its extension.
+ */
 function uiFiles(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
     const path = join(dir, name);
     if (statSync(path).isDirectory()) {
       uiFiles(path, out);
-    } else if (/\.tsx$/.test(name)) {
+    } else if (/\.tsx$/.test(name) || (/\.ts$/.test(name) && /[\\/]components[\\/]/.test(path))) {
       out.push(path);
     }
   }

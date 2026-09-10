@@ -1118,3 +1118,327 @@ button { font-family: var(--font-pixel); }
   backdrop-filter: blur(3px);
   -webkit-backdrop-filter: blur(3px);
 }
+
+/* ── The shop ────────────────────────────────────────────────────────────────
+   A button in the burrow, and a market stall over the whole screen.
+
+   It has been three things. A card in the column did not fit; a side drawer fit
+   but read as a settings panel — the same slate chrome as the leaderboard, on
+   the one screen whose job is to make someone want to spend.
+
+   So the shop gets its OWN palette, taken from the game's art rather than from
+   the interface around it: dug soil, old planks, and a hurricane lamp. The app's
+   --bg/--panel/--border are a dark IDE grey, which is right for a HUD that must
+   disappear and wrong for a stall that must not. Nothing outside this block is
+   affected. */
+.rr-shop {
+  --soil: #2a1810;      /* turned earth — the ground of the dialog */
+  --soil-deep: #1d100a; /* the shadow under everything */
+  --plank: #4a2f1d;     /* boards — edges and divisions */
+  --plank-lit: #6b4526; /* a board with the lamp on it */
+  --lamp: #ffb238;      /* hurricane lamp — the warm light, and carrot prices */
+  --leaf: #7cb342;      /* carrot top — the one green */
+  --coin: #7fd1ff;      /* kept cold, and ONLY ever money */
+  --chalk: #f5e6d3;     /* chalk on a board — the reading colour */
+  --chalk-dim: #b39877;
+}
+
+/* Full-bleed, centred, and dark enough that the island behind stops competing.
+   The shop is a place you step into. */
+.rr-shop-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(10, 6, 4, 0.78);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  animation: rr-shop-in 140ms ease-out;
+}
+
+.rr-shop-modal {
+  /* Inherits the palette above by carrying the same custom properties: the
+     scrim is not an ancestor of the tokens, the modal owns them. */
+  --soil: #2a1810;
+  --soil-deep: #1d100a;
+  --plank: #4a2f1d;
+  --plank-lit: #6b4526;
+  --lamp: #ffb238;
+  --leaf: #7cb342;
+  --coin: #7fd1ff;
+  --chalk: #f5e6d3;
+  --chalk-dim: #b39877;
+
+  width: min(720px, 100%);
+  max-height: min(660px, 100%);
+  display: flex;
+  flex-direction: column;
+  color: var(--chalk);
+  background: var(--soil);
+  border: 2px solid var(--plank);
+  border-radius: 14px;
+  /* A lamp above the stall, not a CSS drop-shadow under a card: the glow is
+     warm and sits INSIDE the top edge, which is where the light would be. */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 178, 56, 0.22),
+    0 18px 50px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  animation: rr-shop-rise 160ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+@keyframes rr-shop-in { from { opacity: 0; } }
+@keyframes rr-shop-rise {
+  from { transform: translateY(10px) scale(0.985); opacity: 0; }
+}
+/* One orchestrated entrance, and it is skipped entirely for anyone who asked
+   for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  .rr-shop-scrim, .rr-shop-modal { animation: none; }
+}
+
+.rr-shop-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  background: var(--plank);
+  border-bottom: 2px solid var(--soil-deep);
+}
+.rr-shop-top h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 17px;
+  letter-spacing: 0.04em;
+  color: var(--lamp);
+}
+/* The purse is the number every price is judged against, so it is set like a
+   figure rather than like a label. */
+.rr-shop-purse {
+  font-size: 15px;
+  color: var(--lamp);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.rr-shop-x {
+  border: none;
+  background: none;
+  color: var(--chalk-dim);
+  font-size: 24px;
+  line-height: 1;
+  padding: 0 4px;
+  min-height: 32px;
+  min-width: 32px;
+}
+.rr-shop-x:hover { color: var(--chalk); }
+
+/* The defence line. It is the ONE piece of state in here rather than a thing
+   for sale, so it gets the width and the sentence — and it turns red when the
+   ground is bare, which is the state actually costing the player carrots. */
+.rr-shop-defence {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  background: var(--soil-deep);
+  border-bottom: 1px solid var(--plank);
+}
+/* Green when the ground is defended, red when it is bare. The number is the
+   only thing in the dialog reporting a STATE rather than a price, so it is the
+   only thing allowed to alarm. */
+.rr-shop-defence-count {
+  font-size: 20px;
+  color: var(--leaf);
+  font-variant-numeric: tabular-nums;
+}
+.rr-shop-defence.bare .rr-shop-defence-count { color: #ff8a7a; }
+.rr-shop-defence-count i {
+  font-style: normal;
+  font-size: 12px;
+  color: var(--chalk-dim);
+}
+.rr-shop-defence-say {
+  flex: 1;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--chalk-dim);
+}
+.rr-shop-place {
+  border: 1px solid var(--leaf);
+  background: rgba(124, 179, 66, 0.14);
+  color: var(--leaf);
+  font-size: 11px;
+  padding: 8px 14px;
+  min-height: 36px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+.rr-shop-place:disabled { opacity: 0.4; }
+
+/* The goods. Two columns on a wide screen, one on a phone — five items do not
+   divide evenly, so the last tile spans the row rather than sitting alone. */
+.rr-shop-grid {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+  margin: 0;
+  padding: 14px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+.rr-shop-grid > li:last-child:nth-child(odd) { grid-column: 1 / -1; }
+/* A tile that spans the row must not stretch its buttons to half a metre —
+   they stay the width they are everywhere else, pushed to the right where a
+   thumb already is. */
+.rr-shop-grid > li:last-child:nth-child(odd) .rr-shop-tile-buy {
+  justify-content: flex-end;
+}
+.rr-shop-grid > li:last-child:nth-child(odd) .rr-shop-tile-buy > button {
+  flex: 0 0 auto;
+  min-width: 132px;
+}
+
+/* Each tile carries its own --tile colour, set inline per item. This is where
+   the boldness is spent: a shelf where every card was the same grey is the
+   version this replaces, and the colour says what the thing does. */
+.rr-shop-tile {
+  padding: 12px;
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--tile) 22%, transparent), transparent 70%),
+    var(--soil-deep);
+  border: 1px solid color-mix(in srgb, var(--tile) 45%, var(--plank));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+/* Nothing left to buy: the tile steps back rather than shouting a price that
+   cannot be paid. */
+.rr-shop-tile.full { opacity: 0.5; }
+
+.rr-shop-tile-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.rr-shop-tile-icon {
+  font-size: 18px;
+  line-height: 1;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--tile) 60%, transparent));
+}
+.rr-shop-tile-head h3 {
+  flex: 1;
+  margin: 0;
+  font-size: 13px;
+  color: var(--chalk);
+}
+.rr-shop-tile-held {
+  font-size: 10px;
+  color: var(--chalk-dim);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.rr-shop-tile-blurb {
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.45;
+  color: var(--chalk-dim);
+  /* Two lines of copy, always: a ragged tile grid where one card is shorter
+     than its neighbour reads as broken rather than as varied. */
+  min-height: 2.9em;
+}
+
+/* The two prices. Equal width and equal weight — the GDD's rule, and not a
+   styling preference — but warm for what you dug and cold for what you paid,
+   so which world a price comes from is legible before it is read. */
+.rr-shop-tile-buy {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+.rr-shop-tile-buy > button {
+  flex: 1;
+  min-height: 38px;
+  font-size: 12px;
+  padding: 8px 6px;
+  border-radius: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.rr-pay-carrot {
+  border: 1px solid var(--lamp);
+  background: linear-gradient(180deg, #ffc45c, #e8912a);
+  color: #3a1f08;
+}
+.rr-pay-carrot:hover:not(:disabled) { background: linear-gradient(180deg, #ffd076, #f39c33); }
+.rr-pay-usdc {
+  border: 1px solid color-mix(in srgb, var(--coin) 55%, transparent);
+  background: rgba(127, 209, 255, 0.1);
+  color: var(--coin);
+}
+.rr-pay-usdc:hover:not(:disabled) { background: rgba(127, 209, 255, 0.18); }
+.rr-shop-tile-buy > button:disabled {
+  filter: grayscale(0.7);
+  opacity: 0.45;
+}
+
+.rr-shop-foot {
+  padding: 10px 18px;
+  line-height: 1.4;
+  background: var(--plank);
+  border-top: 2px solid var(--soil-deep);
+  font-size: 11px;
+  text-align: center;
+  color: var(--chalk-dim);
+  min-height: 38px;
+  display: grid;
+  place-items: center;
+}
+.rr-shop-foot .good { color: var(--leaf); }
+.rr-shop-foot .bad { color: #ff8a7a; }
+
+/* Phone: one column, and the dialog takes the screen. */
+@media (max-width: 560px) {
+  .rr-shop-scrim { padding: 0; }
+  .rr-shop-modal {
+    width: 100%;
+    max-height: 100%;
+    height: 100%;
+    border: none;
+    border-radius: 0;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .rr-shop-grid { grid-template-columns: 1fr; }
+}
+
+/* ── The way in ───────────────────────────────────────────────────────────
+   A button in the burrow column. It keeps the burrow's own chrome — it belongs
+   to that screen, not to the stall — but carries the defence state, because an
+   undefended burrow is what costs a player carrots while they are not looking. */
+.rr-shop-open {
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 13px 14px;
+  margin-bottom: 10px;
+  border-color: #6b4526;
+  background: linear-gradient(180deg, #2f1d12, #241309);
+}
+.rr-shop-open:hover { border-color: var(--carrot); }
+.rr-shop-open-name {
+  flex: 1;
+  text-align: left;
+  font-size: 14px;
+  color: #ffb238;
+}
+.rr-shop-open-traps {
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.rr-shop-open-traps.bare { color: var(--danger); }

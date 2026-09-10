@@ -5,9 +5,12 @@ for carrots, reads the numbers to avoid bombs, and banks what it survives with.
 On top of the run sits a persistent layer: a raidable burrow, a season score,
 and a crown worth stealing.
 
-Free-to-play, **non-gambling**. There is no wager, no balance and no token in
-this repo — see [BUILD-PLAN.md](./BUILD-PLAN.md) phase 7 for what is deliberately
-kept for later.
+Free-to-play, **non-gambling**. There is no wager, no balance and no cash-out:
+carrots are earned by playing and spent in the game, and they never come back
+out. The shop takes USDC as a CONVENIENCE route beside its carrot prices — see
+[The shop](#the-shop) — and it buys nothing the grind cannot reach. What that
+paid route is not, and must never become, is a way to put money in and take
+money out.
 
 ---
 
@@ -66,6 +69,9 @@ lie to itself and to nothing else.
 | `server/index.ts` | The authoritative loop. |
 | `server/islands/store.ts` | Where island state lives — the seam for sharding. |
 | `src/lib/auth/wallet-login.ts` | Sign-in. ed25519 over a single-use nonce. |
+| `src/lib/game/inventory.ts` | The bag and the shelf: prices, caps, refusals. |
+| `src/lib/game/grant.ts` | The ONE place an item is credited, whichever currency paid. |
+| `src/lib/pay/solana.ts` | Reads the chain to decide whether a USDC payment happened. |
 | `src/game/island/` | Square-tile islands with stacked plateaus, from the Tiny Swords sheets. Groundwork for a future game, not used by the run. [Its own README](./src/game/island/README.md); look at one at `/island`. |
 
 ### Tuning
@@ -76,6 +82,89 @@ are about to type a number into game code, it belongs there. The tests assert
 retuning during a playtest never turns the suite red for no reason.
 
 ---
+
+## The shop
+
+Four items and an energy refill, each priced in **carrots or USDC**. Both prices
+sit on every line and neither buys anything the other cannot — that is the GDD's
+economy rule (`no exclusive power for money, ever`) expressed as a data shape
+rather than as a promise, and `test/shop.test.ts` fails if a one-currency line
+ever appears.
+
+| Item | What it does |
+| --- | --- |
+| Trap | Mined into your own burrow floor. Drains a raider's energy when sprung. |
+| Bomb | Planted on someone's live island. Signed — the victim sees who. |
+| Lightning | Re-hides ground they had already cleared. |
+| Shield | Raids bounce off your burrow for `RAID.ITEM_SHIELD_MS`. |
+| Energy | Refills the run bar now instead of waiting for regen. |
+
+Traps and energy are deliberately **not** rows in `inventory`. A trap lives on
+the player row beside the timestamp its free daily allowance is derived from,
+and energy is applied on purchase rather than carried — `holdings()` folds all
+three storage decisions back into one bag so a client sees a shelf, not a schema.
+
+Every limit that binds the carrot route binds the money route too: caps,
+per-purchase quantities and the daily energy window are all checked before a
+quote is issued *and* before an item is credited. Only affordability differs,
+because a wallet, not a carrot stock, decides that one.
+
+### The USDC rail
+
+The game never touches the money. It quotes a price, the player's wallet signs
+an SPL transfer, and the server **reads the chain** to decide whether that
+transfer happened:
+
+```
+POST  /api/shop/pay   → { paymentId, treasury, mint, amount, reference }
+      (the wallet signs and submits the transfer itself)
+PATCH /api/shop/pay   → { paymentId, signature } → verified, then credited
+```
+
+`verifyPayment` reads the transaction's **token balance deltas** rather than
+decoding instructions: the deltas are the post-execution truth, so a transfer
+wrapped in any number of instructions still counts and one that reverted does
+not. It refuses a transfer to the wrong address, of the wrong mint (any SPL
+token can call itself "USDC" — the mint address is the only real name), of too
+little, or without this quote's reference in its memo. Redeeming one signature
+twice is stopped by the unique index on `payments.signature`, which is load
+bearing: do not remove it.
+
+A dApp **cannot** make Phantom convert SOL or SKR into USDC — that swap is a
+manual action inside the wallet. A player holding no USDC is told to swap first,
+in those words, rather than handed a button that quietly does nothing.
+
+Three variables switch the rail on, and there is deliberately no default for the
+first two (a hardcoded mainnet address in a repo is how a test build takes real
+money):
+
+```
+USDC_TREASURY_ADDRESS=   # a wallet you control
+USDC_MINT=               # mainnet EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
+SOLANA_RPC_URL=          # also served to the browser via /api/config
+```
+
+Unset, the shop serves carrots only and hides its USDC buttons rather than
+offering a payment that cannot complete.
+
+`bun run scripts/smoke-shop.ts` walks the whole thing against a real database —
+purchases, refusals, trap placement, and quoting — in-process, so it needs
+Postgres and no running server. It covers both configurations; set the three
+variables to exercise the money path.
+
+## Traps: the burrow is a board
+
+A trap is placed on your own floor from the burrow screen, which is why that
+screen is a map rather than a panel: the question it asks is spatial — *which
+approach do I make expensive?* The owner sees their own traps; a raider is sent
+none of them, because a visible trap is a wall, and a wall gets routed around
+rather than feared.
+
+Three a day are free (`TRAPS.FREE_PER_DAY`), derived from a timestamp on a
+rolling window rather than granted at midnight, so nobody is punished for
+playing at the wrong hour. Lifting a trap destroys it — otherwise a defender
+would re-mine between every raid at no cost, and choosing where to defend would
+stop being a commitment.
 
 ## Identity: the wallet is the account
 
