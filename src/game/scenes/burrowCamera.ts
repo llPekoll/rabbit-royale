@@ -85,9 +85,11 @@ export function burrowCamOut(): number {
  * board against ("cover the path, not the lawn"). A grid with no homestead
  * around it is a spreadsheet again, just a bigger one.
  *
- * 1.35 keeps the burrow itself in shot while still roughly doubling the tiles.
+ * 1.15 nearly doubles the tiles (34px cells render at ~44) and still keeps the
+ * fenced field and the mound's near edge in shot. Tightening it further starts
+ * cropping the door, which is the landmark the whole board is read against.
  */
-const BOARD_PAD = 1.35;
+const BOARD_PAD = 1.15;
 
 /**
  * The margin in portrait.
