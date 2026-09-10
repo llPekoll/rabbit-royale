@@ -34,24 +34,29 @@ import { loadAllAssets } from '@/game/services/AssetLoader';
 import { initTileTextures } from '@/game/services/TileTextures';
 import {
   BURROW_COLS, BURROW_ROWS, BURROW_HALF_W, BURROW_HALF_H,
-  burrowCell, burrowTilePos, walkableTiles, isTrappable,
+  burrowCell, burrowTilePos, isTrappable, setBurrowTileSize,
 } from '@/config/burrowConfig';
 import { GAME_W, GAME_H } from '@/game/Application';
-import { boardCamFraming, setBoardPad } from '@/game/scenes/burrowCamera';
+import { boardCamFraming } from '@/game/scenes/burrowCamera';
 
 interface Args {
   /** Placement mode. Off, the screen is a picture of a home — no grid at all. */
   placing: boolean;
   /**
-   * The margin around the board, which is what decides the tile size.
+   * The size of ONE CELL, in art pixels.
    *
-   * Lower is tighter and bigger. This is a judgement about feel — how large a
-   * cell has to be to pick confidently, against how much of the homestead you
-   * need around it to know WHICH cell to pick — so it is a slider rather than a
-   * constant somebody edits and rebuilds for. The report under the canvas gives
-   * the number each position buys.
+   * THE knob for "make the tiles bigger", now that the camera is a constant.
+   * It changes how much painted ground one cell covers, so the homestead keeps
+   * its size and only the grid gets coarser or finer.
+   *
+   * It only reads as a real lever because the camera stopped compensating: back
+   * when `boardCam` refitted the board to the frame, 34px and 80px cells both
+   * came out at 46.8px on screen. See burrowCamera's boardCam.
+   *
+   * Watch the report: past a point a bigger cell walks the board off the canvas,
+   * and those cells are simply unreachable.
    */
-  pad: number;
+  tile: number;
 }
 
 /**
@@ -87,17 +92,16 @@ function boardReport() {
   };
 }
 
-function Scene({ placing, pad }: Args) {
+function Scene({ placing, tile }: Args) {
   const [placed, setPlaced] = useState<number[]>([]);
-  // Set BEFORE the scene mounts and the report is computed, so both read the
-  // same framing. The story remounts on every arg change (see `key` in meta),
-  // which is what makes the slider move the camera at all.
-  setBoardPad(pad);
+  // Before anything measures or draws. The story remounts on every arg change,
+  // so this runs ahead of the scene each time the slider moves.
+  setBurrowTileSize(tile);
   const r = boardReport();
   const ok = r.onScreen;
 
   return (
-    <div>
+    <div style={{ position: 'relative', lineHeight: 0 }}>
       <PixiStage
         width={GAME_W}
         height={GAME_H}
@@ -118,15 +122,23 @@ function Scene({ placing, pad }: Args) {
           return () => scenes.destroyCurrent();
         }}
       />
+      {/* Overlaid, not stacked underneath.
+          In a short frame (Storybook's Seeker landscape is 800x360) a block of
+          text below the canvas pushes the picture up and out, and the story
+          then opens scrolled past the very thing it exists to show — which
+          reads as "the tiles are gone" for the third time in a row. Floating it
+          over the corner keeps the frame exactly one canvas tall. */}
       <pre style={{
-        color: ok ? '#8b949e' : '#ff6b6b',
-        font: '12px ui-monospace, monospace',
-        marginTop: 8, whiteSpace: 'pre-wrap',
+        position: 'absolute', left: 8, bottom: 8, margin: 0, zIndex: 2,
+        color: ok ? '#cfe8ff' : '#ff9a9a',
+        background: 'rgba(0,0,0,0.55)', padding: '6px 8px', borderRadius: 4,
+        font: '11px ui-monospace, monospace', whiteSpace: 'pre-wrap',
+        pointerEvents: 'none',
       }}>
 {`grid ${r.grid}   tile ${r.tile}   walkable ${r.cells}   trappable ${r.trappable}
 board spans x ${r.minX.toFixed(0)}..${r.maxX.toFixed(0)}  y ${r.minY.toFixed(0)}..${r.maxY.toFixed(0)}   (canvas ${GAME_W}x${GAME_H})
 through the placement camera: x ${r.framing.board.left.toFixed(0)}..${r.framing.board.right.toFixed(0)}  y ${r.framing.board.top.toFixed(0)}..${r.framing.board.bottom.toFixed(0)}
-tile on screen ${r.framing.tileWidth.toFixed(1)}px   (margin ${pad.toFixed(2)}, camera ${r.framing.cam.scale.toFixed(2)}x)
+cell ${tile}px in the art -> ${r.framing.tileWidth.toFixed(1)}px on screen   (camera fixed at ${r.framing.cam.scale.toFixed(2)}x)
 ${ok ? 'the whole board is on screen' : 'OFF SCREEN - cells fall outside the canvas, and those are the tiles that go missing'}
 ${placed.length} traps placed`}
       </pre>
@@ -137,9 +149,9 @@ ${placed.length} traps placed`}
 const meta: Meta<Args> = {
   title: 'Burrow/Placing',
   render: (args) => <Scene key={JSON.stringify(args)} {...args} />,
-  args: { placing: true, pad: 1.08 },
+  args: { placing: true, tile: 56 },
   argTypes: {
-    pad: { control: { type: 'range', min: 1.0, max: 1.6, step: 0.01 } },
+    tile: { control: { type: 'range', min: 24, max: 80, step: 2 } },
   },
 };
 export default meta;
@@ -151,7 +163,11 @@ type Story = StoryObj<Args>;
  *
  * Click a lit tile: it should take a trap, and the counter below should move.
  */
-export const Placing: Story = {};
+export const Placing: Story = {
+  args: {
+    tile: 36
+  }
+};
 
 /** The same board with the grid down — a home, not a spreadsheet. */
 export const AtRest: Story = { args: { placing: false } };

@@ -10,15 +10,60 @@
  * Same isometric projection as the island (the art shares its angle), just a
  * smaller board and its own origin.
  */
-export const BURROW_COLS = 15;
-export const BURROW_ROWS = 15;
+/**
+ * 27x27, not 15x15.
+ *
+ * The old board covered the CARROT FIELD and almost nothing else: the whole
+ * grid spanned 476x266px of a 1376x768 painting, so the burrow's door, the
+ * stone path and every approach around the mound sat OUTSIDE it. A raid was a
+ * few tiles in a vegetable patch, and a defender had nowhere to put a trap that
+ * a raider had to walk past.
+ *
+ * The ground is now the whole homestead — field, door, path, the clearing and
+ * the rocks — so a raider picks an approach and a defender has to guess which.
+ *
+ * 19 and not more: the camera has to fit the WHOLE board on a phone, and a
+ * wider board is only shown by zooming out past the point where a tile can be
+ * hit with a thumb. Measured against burrow-camera's 23px floor — 27x27 put
+ * tiles at 16px, 21x21 at 21px. The prairie beyond this is empty grass, so the
+ * board stops where the homestead does.
+ */
+export const BURROW_COLS = 19;
+export const BURROW_ROWS = 19;
 
 // Same diamond proportion as the island, a touch larger: this board is smaller,
 // so its tiles can afford the room and the traps stay easy to tap.
 export const BURROW_TILE_W = 34;
 export const BURROW_TILE_H = 19;
-export const BURROW_HALF_W = BURROW_TILE_W / 2;
-export const BURROW_HALF_H = BURROW_TILE_H / 2;
+
+/**
+ * The tile size actually used to lay out and draw the board.
+ *
+ * A `let` with a setter, not a const, so Burrow/Placing can put a slider on it.
+ * Making a CELL bigger is a different thing from moving the camera: the camera
+ * magnifies the whole painting, art and all, while this changes how much
+ * painted ground one cell covers — the grid gets coarser and the homestead
+ * keeps its size. That is the knob you want when the tiles are too small to
+ * tap but the burrow is the right size on screen.
+ *
+ * The catch, and the reason this needs a harness rather than a guess: the
+ * layout is a fixed 19x19 picture, so a bigger cell means a bigger BOARD
+ * footprint (34px -> 646 wide, 52px -> 988 wide), and the placement camera then
+ * shrinks it all back to fit. Past a point the two cancel out exactly. Getting
+ * real estate out of this means a coarser grid — fewer, larger cells over the
+ * same ground — which is a LAYOUT change, not a number.
+ */
+export let BURROW_HALF_W = BURROW_TILE_W / 2;
+export let BURROW_HALF_H = BURROW_TILE_H / 2;
+
+/** Override the tile size for tuning, or pass null to restore the shipped one. */
+export function setBurrowTileSize(width: number | null): void {
+  const w = width ?? BURROW_TILE_W;
+  BURROW_HALF_W = w / 2;
+  // Locked to the art's isometric angle: the diamonds have to keep the
+  // backdrop's 34:19 proportion or they stop lying flat on the painted ground.
+  BURROW_HALF_H = (w * BURROW_TILE_H / BURROW_TILE_W) / 2;
+}
 
 /**
  * Measured against `burrow.webp`, and NOT by eye this time.
@@ -32,8 +77,16 @@ export const BURROW_HALF_H = BURROW_TILE_H / 2;
  * Re-measure with the Burrow/Calibration story, and `test/burrow-calibration`
  * fails if this ever drifts off the landmarks again.
  */
-export const BURROW_ORIGIN_X = 484;
-export const BURROW_ORIGIN_Y = 292;
+/**
+ * Solved for the 27x27 board, not nudged from the old pair.
+ *
+ * The constraint: every landmark the layout names has to land on the art that
+ * paints it. Measured by flood-filling the field's soil out of `burrow.webp`
+ * and requiring the `F` cells to fall inside it — the same method as before,
+ * re-run for the bigger board rather than trusted from the smaller one.
+ */
+export const BURROW_ORIGIN_X = 735;
+export const BURROW_ORIGIN_Y = 285;
 
 /**
  * How far the backdrop is zoomed.
@@ -100,21 +153,25 @@ export const burrowTileDepth = (index: number) => {
  * still picks a side and the defender still has to guess which.
  */
 const LAYOUT = [
-  '###############',
-  '###############',
-  '##FFFFFFF#....#',
-  '##FFFFFFF#....#',
-  '##FFFFF.FF....#',   // the gap is a bare patch the art leaves in the rows
-  '##FFFFFFF#....#',
-  '##FFFFFFF..##.#',   // rocks SHAPE the routes; they never reduce them to one
-  '##FFFFFFFF.##.#',
-  '##FFFFFFF#.##.#',
-  '##F.F.FF..##.E#',   // the path enters mid-right, where the art draws it
-  '#.....F..##...#',
-  '#.............#',
-  '#....#....#...#',
-  '###############',
-  '###############',
+  '....##..##.........',
+  '.....#.............',
+  '......#......#E....',
+  '#....###.....#.....',
+  '#...###......#.....',
+  '..#.#.#......##....',
+  '###..##............',
+  '.....##............',
+  '#####..............',
+  '.#............#....',
+  '.#.#..........#....',
+  '..##...............',
+  '.##....FFFFFFF.....',
+  '#.#....FFFFFFF.....',
+  '#.#....FFFFFFF.....',
+  '.#....#FFFFFFF#....',
+  '##....#FFFFFFF#....',
+  '...................',
+  '.....#.#.#.........',
 ] as const;
 
 export type BurrowCell = 'ground' | 'blocked' | 'entrance' | 'field';
