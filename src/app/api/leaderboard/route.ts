@@ -25,21 +25,47 @@ export async function GET(req: Request) {
   let rows: Array<{ id: string; name: string; seasonScore: number; lifetimeCarrots: number; burrowLevel: number }>;
   const ranked = season ? await topPlayers(season.id, limit) : [];
 
+  // Postgres is asked for the top `limit` REGARDLESS of what Redis said.
+  //
+  // The sorted set used to decide not just the order but the ROSTER: whoever
+  // was missing from it did not appear, however high their score. A player only
+  // enters that set when the WS server mirrors their score on join (see
+  // server/index.ts), so anyone who has not started a run since the season
+  // opened was invisible on the board forever — with a perfectly good score
+  // sitting in the database. That is not a cache miss that heals; nothing ever
+  // backfills it. It hid a 25k-point player for the whole season.
+  //
+  // Redis keeps the job it is good at (ordering a large set cheaply) and loses
+  // the one it was never entitled to (deciding who exists). Both sources are
+  // merged below, so a player shows up if EITHER knows about them.
+  const fromDb = await db.select({
+    id: players.id, name: players.name, seasonScore: players.seasonScore,
+    lifetimeCarrots: players.lifetimeCarrots, burrowLevel: players.burrowLevel,
+  }).from(players).orderBy(desc(players.seasonScore)).limit(limit);
+
   if (ranked.length > 0) {
-    const ids = ranked.map((r) => r.playerId);
-    const found = await db.select({
-      id: players.id, name: players.name, seasonScore: players.seasonScore,
-      lifetimeCarrots: players.lifetimeCarrots, burrowLevel: players.burrowLevel,
-    }).from(players).where(inArray(players.id, ids));
-    const byId = new Map(found.map((p) => [p.id, p]));
-    rows = ids.map((id) => byId.get(id)!).filter(Boolean);
+    // Anyone Redis names who is NOT already in the Postgres page — a player
+    // ranked by the cache but pushed out of the top `limit` by rows the cache
+    // does not know about. Fetching them keeps the two views consistent
+    // instead of silently dropping whichever source the other disagrees with.
+    const known = new Set(fromDb.map((p) => p.id));
+    const missing = ranked.map((r) => r.playerId).filter((id) => !known.has(id));
+    const extra = missing.length > 0
+      ? await db.select({
+          id: players.id, name: players.name, seasonScore: players.seasonScore,
+          lifetimeCarrots: players.lifetimeCarrots, burrowLevel: players.burrowLevel,
+        }).from(players).where(inArray(players.id, missing))
+      : [];
+
+    // Ordered by the SCORE IN POSTGRES, which is the record. A stale Redis
+    // score would otherwise reorder the board around a number nobody has.
+    rows = [...fromDb, ...extra]
+      .sort((a, b) => b.seasonScore - a.seasonScore)
+      .slice(0, limit);
   } else {
-    // Redis down, or a season that has not scored yet. The query is the slow
-    // path by design — it is correct, and it keeps the board working.
-    rows = await db.select({
-      id: players.id, name: players.name, seasonScore: players.seasonScore,
-      lifetimeCarrots: players.lifetimeCarrots, burrowLevel: players.burrowLevel,
-    }).from(players).orderBy(desc(players.seasonScore)).limit(limit);
+    // Redis down, or a season that has not scored yet. Postgres alone already
+    // answered the question.
+    rows = fromDb;
   }
 
   const entries = rows.map((p, i) => ({

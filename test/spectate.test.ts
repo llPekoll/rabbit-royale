@@ -96,3 +96,38 @@ describe('spectating', () => {
     expect(PAGE).toMatch(/game\.recap && !spectating/);
   });
 });
+
+/**
+ * The season board's roster.
+ *
+ * Pinned because the bug it protects against was silent and long-lived: a
+ * player with a real score in Postgres simply never appeared, and there was
+ * nothing to see in any log.
+ */
+describe('leaderboard roster', () => {
+  const ROUTE = readFileSync('src/app/api/leaderboard/route.ts', 'utf8');
+
+  it('asks Postgres for the top players unconditionally', () => {
+    // The bug: the Redis sorted set decided WHO EXISTS, not just their order.
+    // A player only enters that set when the WS server mirrors their score on
+    // join, so anyone who had not started a run since the season opened was
+    // invisible however high they scored — and nothing ever backfilled it.
+    const before = ROUTE.indexOf('const fromDb = await db.select');
+    const branch = ROUTE.indexOf('if (ranked.length > 0)');
+    expect(before).toBeGreaterThan(-1);
+    // The query must sit BEFORE the branch, i.e. it is not conditional on Redis.
+    expect(before).toBeLessThan(branch);
+  });
+
+  it('orders by the score in Postgres, not the one in Redis', () => {
+    // Redis is a cache and can be stale. Sorting by its score would reorder the
+    // board around a number that exists nowhere else.
+    expect(ROUTE).toMatch(/sort\(\(a, b\) => b\.seasonScore - a\.seasonScore\)/);
+  });
+
+  it('still honours players Redis knows about', () => {
+    // The merge must not become "ignore Redis": a player the cache ranks but
+    // who falls outside the Postgres page is fetched rather than dropped.
+    expect(ROUTE).toMatch(/filter\(\(id\) => !known\.has\(id\)\)/);
+  });
+});
