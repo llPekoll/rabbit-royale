@@ -12,5 +12,14 @@ export const dynamic = 'force-dynamic';
 export function GET() {
   return Response.json({
     wsUrl: process.env.NEXT_PUBLIC_WS_URL ?? process.env.WS_PUBLIC_URL ?? '',
+    /**
+     * The RPC the browser builds a USDC transfer against. Public by nature —
+     * it is an endpoint the wallet would hit anyway — but served from here for
+     * the same reason as the WS URL: one image, any network, no rebuild.
+     *
+     * Empty means the money route is off, and the shop hides its USDC buttons
+     * rather than offering a payment that cannot complete.
+     */
+    rpcUrl: process.env.SOLANA_RPC_URL ?? '',
   });
 }

@@ -19,6 +19,8 @@
   },
   "dependencies": {
     "@domin8/arcade-kit": "github:Paul-Ollivier/arcade-kit#v2.2.1",
+    "@solana/spl-token": "^0.4.15",
+    "@solana/web3.js": "^1.99.0",
     "bs58": "^6.0.0",
     "drizzle-orm": "^0.45.1",
     "gsap": "^3.15.0",

@@ -246,6 +246,141 @@ export const RAID = {
   SHIELD_REDUCTION: 1,
 } as const;
 
+/**
+ * The shop: what carrots buy, and what money buys instead.
+ *
+ * TWO PRICES ON EVERY LINE, always. That is the GDD's economy rule stated as a
+ * data shape: "everything is buyable in carrots OR money", and "no exclusive
+ * power for money, ever". Money is the CONVENIENCE route — it skips the grind,
+ * it never buys a thing the grind cannot reach — so an item with a USDC price
+ * and no carrot price would be a design bug, and `everyItemHasBothPrices` in
+ * the tests fails if one ever appears.
+ *
+ * Carrot prices are steep on purpose. Carrots are the sink the whole economy
+ * drains into, and because spending never touches the season score, an
+ * expensive shop is what turns surplus carrots into protected points rather
+ * than into a bigger pile sitting in a raidable burrow.
+ *
+ * The two prices are NOT pegged to each other. A carrot price is tuned against
+ * what a player earns in a run; a USDC price is tuned against what the thing is
+ * worth to someone who would rather not do the run. Trying to hold them at a
+ * fixed ratio would drag every carrot retune into a pricing decision.
+ */
+export const SHOP = {
+  /**
+   * Carrot price per kind.
+   *
+   * Set against what each one DOES rather than against each other:
+   *  - trap      — the cheapest, and the only one also given away free
+   *                (TRAPS.FREE_PER_DAY). Defence must never be gated on wealth,
+   *                or a poor player is farmed forever.
+   *  - bomb      — offence. Above a trap, because it takes carrots off somebody
+   *                else where a trap only keeps your own.
+   *  - lightning — scrambles revealed ground mid-run. Rarer than a bomb in the
+   *                chest table, so dearer here to match.
+   *  - shield    — the most expensive: it removes you from the PvP loop for
+   *                RAID.ITEM_SHIELD_MS, and cheap safety empties a raiding game
+   *                of targets.
+   *  - energy    — one refill (see ENERGY_PACK). Deliberately the harshest
+   *                carrot-per-value line in the shop: the GDD names energy as
+   *                THE carrot sink, so paying for a run in carrots should
+   *                visibly hurt.
+   */
+  PRICES: {
+    trap: TRAPS.CARROT_COST,
+    bomb: 300,
+    lightning: 520,
+    shield: 750,
+    energy: 900,
+  },
+  /**
+   * USDC price per kind, in whole USDC (converted to base units at the edge —
+   * see USDC.DECIMALS). Small numbers on purpose: this is a free-to-play game
+   * whose paid route is a convenience, and a $5 bomb reads as a game that
+   * expects to be paid rather than played.
+   */
+  USDC_PRICES: {
+    trap: 0.25,
+    bomb: 0.40,
+    lightning: 0.60,
+    shield: 0.90,
+    energy: 0.99,
+  },
+  /**
+   * Ceiling per kind, so a whale cannot stockpile a season of offence in one
+   * sitting. Traps have their own, tighter cap (TRAPS.MAX_HELD) because they
+   * are also handed out free.
+   */
+  MAX_HELD: 20,
+  /** Items per purchase. A "buy 5" that silently bought 5000 is a refund
+   *  request; the server clamps to this and says so. */
+  MAX_QTY_PER_PURCHASE: 10,
+} as const;
+
+/**
+ * What one energy purchase gives.
+ *
+ * A refill rather than a stack of points, because energy is what gates a RUN:
+ * the thing being sold is "go and play now", and a player who buys it should
+ * land on an island rather than on a slightly fuller bar.
+ *
+ * It tops up to OUT_OF_RUN_ENERGY.MAX and no further. Selling energy ABOVE the
+ * natural ceiling would be selling a longer run than the game gives anyone,
+ * which is the pay-to-win line — money buys the wait, never the advantage.
+ */
+export const ENERGY_PACK = {
+  /** Energy added, capped at OUT_OF_RUN_ENERGY.MAX. */
+  AMOUNT: OUT_OF_RUN_ENERGY.MAX,
+  /** Refills per rolling day, so money cannot buy an unlimited session. */
+  MAX_PER_DAY: 5,
+  WINDOW_MS: 24 * 60 * 60 * 1000,
+} as const;
+
+/**
+ * The USDC rail.
+ *
+ * Payment is a signed SPL transfer to the treasury, verified ON CHAIN by the
+ * server before anything is credited — the client reports a signature and is
+ * believed about nothing else, exactly as it is believed about nothing in a
+ * run. The mint and the treasury come from the environment, because a hardcoded
+ * mainnet address in a repo is how a testnet build takes real money.
+ */
+export const USDC = {
+  /** USDC is a 6-decimal SPL token on Solana, on every network. */
+  DECIMALS: 6,
+  /** Confirmations the server waits for before crediting. */
+  COMMITMENT: 'confirmed',
+  /**
+   * A payment intent expires after this. It is the window in which a quoted
+   * price is honoured, so it has to be long enough to approve a transaction in
+   * a wallet and short enough that a stale quote cannot be redeemed later.
+   */
+  INTENT_TTL_MS: 15 * 60 * 1000,
+} as const;
+
+/** Whole USDC → base units (the integer amount a transfer actually moves). */
+export function usdcBaseUnits(amount: number): number {
+  return Math.round(amount * 10 ** USDC.DECIMALS);
+}
+
+/** What one item of `kind` costs in carrots. */
+export function itemPrice(kind: keyof typeof SHOP.PRICES): number {
+  return SHOP.PRICES[kind];
+}
+
+/** What one item of `kind` costs in whole USDC. */
+export function itemUsdcPrice(kind: keyof typeof SHOP.USDC_PRICES): number {
+  return SHOP.USDC_PRICES[kind];
+}
+
+/** How many of `kind` a player may hold at once. Energy is not held — it is
+ *  applied on purchase — so it has no bag ceiling of its own. */
+export function itemCap(kind: keyof typeof SHOP.PRICES): number {
+  if (kind === 'trap') return TRAPS.MAX_HELD;
+  if (kind === 'energy') return ENERGY_PACK.MAX_PER_DAY;
+  return SHOP.MAX_HELD;
+}
+
 export const SABOTAGE = {
   /** Bombs a single saboteur may have live on one victim's island. */
   MAX_PLANTED_PER_TARGET: 3,

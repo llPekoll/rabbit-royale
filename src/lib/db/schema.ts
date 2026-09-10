@@ -2,8 +2,11 @@
  * Rabbit Royale: The Cursed Crown — schema.
  *
  * Standalone: this game owns its own database (`rr_crown`) and its own identity.
- * There is no hub session and no money here — it is F2P non-gambling by design,
- * so nothing in this file records a balance, a wager or a token.
+ * There is no hub session here, and no balance and no wager: it is F2P
+ * non-gambling by design, so nothing in this file records money a player could
+ * take back out. `payments` is the one table that touches money at all, and it
+ * records PURCHASES — USDC in, an item out, never a balance and never a
+ * withdrawal.
  *
  * Written up front for phases 4-6 so migrations do not thrash while gameplay is
  * still being tuned; phases 1-3 simply do not read most of it.
@@ -12,7 +15,16 @@ import {
   pgTable, text, integer, bigint, timestamp, boolean, uuid, index, uniqueIndex, pgEnum,
 } from 'drizzle-orm/pg-core';
 
-export const itemKindEnum = pgEnum('item_kind', ['bomb', 'shield', 'lightning', 'trap']);
+/**
+ * What the shop sells and the bag holds.
+ *
+ * `energy` is in this list but never in `inventory`: an energy refill is APPLIED
+ * on purchase rather than carried, so it appears here only so a payment row can
+ * name what was bought. Nothing reads an `inventory` row of that kind.
+ */
+export const itemKindEnum = pgEnum('item_kind', ['bomb', 'shield', 'lightning', 'trap', 'energy']);
+/** A USDC payment's life: quoted → paid → credited, or abandoned. */
+export const paymentStatusEnum = pgEnum('payment_status', ['pending', 'confirmed', 'failed', 'expired']);
 export const raidResultEnum = pgEnum('raid_result', ['damaged', 'looted', 'blocked']);
 
 /**
@@ -56,6 +68,11 @@ export const players = pgTable('players', {
   trapsClaimedAt: timestamp('traps_claimed_at', { withTimezone: true }).notNull().defaultNow(),
   /** Raids bounce off until this instant. */
   shieldedUntil: timestamp('shielded_until', { withTimezone: true }),
+  /** Energy refills bought in the current rolling window, and when that
+   *  window opened. A daily cap on PAID energy is what keeps money buying the
+   *  wait rather than an unlimited session (ENERGY_PACK.MAX_PER_DAY). */
+  energyPacksBought: integer('energy_packs_bought').notNull().default(0),
+  energyPacksSince: timestamp('energy_packs_since', { withTimezone: true }).notNull().defaultNow(),
 
   runsPlayed: integer('runs_played').notNull().default(0),
   tilesDug: bigint('tiles_dug', { mode: 'number' }).notNull().default(0),
@@ -183,6 +200,46 @@ export const sabotages = pgTable('sabotages', {
   triggeredAt: timestamp('triggered_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index('sabotages_victim_idx').on(t.victimId, t.createdAt)]);
+
+/**
+ * A USDC purchase, from quote to credit.
+ *
+ * Written BEFORE the player is asked to sign anything, which is what makes the
+ * rail safe to replay: the row is the server's own record of what it quoted, so
+ * a transaction that arrives is checked against a price this server set rather
+ * than against a number the client hands back with it.
+ *
+ * `signature` is the Solana transaction signature, and it is UNIQUE — that
+ * single constraint is what stops one payment being redeemed twice, whether by
+ * a double-tapped button, a retried fetch, or somebody replaying a neighbour's
+ * transaction. Do not remove it.
+ */
+export const payments = pgTable('payments', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  playerId: text('player_id').notNull().references(() => players.id, { onDelete: 'cascade' }),
+  /** What was bought, and how many. */
+  kind: itemKindEnum('kind').notNull(),
+  qty: integer('qty').notNull().default(1),
+  /** Quoted price in USDC base units (6 dp) — an integer, never a float, because
+   *  this number is compared to an on-chain amount for equality. */
+  amount: bigint('amount', { mode: 'number' }).notNull(),
+  /** Where the money was to be sent. Stored per-payment: the treasury address
+   *  can be rotated, and an old intent must still verify against the address it
+   *  was actually quoted for. */
+  treasury: text('treasury').notNull(),
+  /** Echoed in the transfer's memo so a payment can be matched to its intent. */
+  reference: text('reference').notNull(),
+  status: paymentStatusEnum('status').notNull().default('pending'),
+  signature: text('signature'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
+}, (t) => [
+  // THE anti-double-spend constraint. One signature can credit one payment.
+  uniqueIndex('payments_signature_idx').on(t.signature),
+  uniqueIndex('payments_reference_idx').on(t.reference),
+  index('payments_player_idx').on(t.playerId, t.createdAt),
+]);
 
 /** Seasons. The current one is the row with `endedAt` null. */
 export const seasons = pgTable('seasons', {
