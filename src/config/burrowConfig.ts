@@ -21,13 +21,19 @@ export const BURROW_HALF_W = BURROW_TILE_W / 2;
 export const BURROW_HALF_H = BURROW_TILE_H / 2;
 
 /**
- * Measured against burrow_generated.jpg, by eye: the field's tiles have to land
- * on the fenced patch and the entrance on the stone path. Move the art or the
- * layout and this needs re-measuring — the Storybook story is what that is done
- * against.
+ * Measured against `burrow.webp`, and NOT by eye this time.
+ *
+ * The soil and the stone path are flood-filled out of the art, and the origin
+ * and zoom are solved so that every FIELD cell lands on soil and the entrance
+ * lands on the path. Doing it by eye is what let the previous art's numbers
+ * survive an art change while quietly pointing at grass — the win condition of
+ * a raid sat on a lawn and nothing complained.
+ *
+ * Re-measure with the Burrow/Calibration story, and `test/burrow-calibration`
+ * fails if this ever drifts off the landmarks again.
  */
-export const BURROW_ORIGIN_X = 455;
-export const BURROW_ORIGIN_Y = 235;
+export const BURROW_ORIGIN_X = 484;
+export const BURROW_ORIGIN_Y = 292;
 
 /**
  * How far the backdrop is zoomed.
@@ -37,7 +43,7 @@ export const BURROW_ORIGIN_Y = 235;
  * tiles too small to tap, so the scene is enlarged until the homestead fills
  * it and the grass is cropped away.
  */
-export const BURROW_ZOOM = 1.45;
+export const BURROW_ZOOM = 1.445;
 
 export const burrowIndex = (col: number, row: number) => row * BURROW_COLS + col;
 export const burrowColRow = (index: number) => ({
@@ -79,22 +85,35 @@ export const burrowTileDepth = (index: number) => {
  * A raider needs REAL alternatives for placement to be a judgement call: a long
  * open flank, a short mined one. So the ground is broad, with scattered rocks
  * that shape routes instead of a wall that dictates one.
+ *
+ * The `F` block is MEASURED, not drawn by taste: it is the cells that land on
+ * the soil the art actually paints (see the flood fill in
+ * tools/plant_carrots.py). It is much larger than the 3x3 it used to be,
+ * because the old block was sized for a smaller painting of the field and only
+ * ever covered a corner of this one.
+ *
+ * A bigger field puts its edge nearer the path, so the straight-line crossing
+ * fell to five steps — below the six the raid needs to stay a decision (see
+ * burrow-raid.test: under that there is no route to choose between, and trap
+ * placement stops mattering). The rock ridge on the field's right-hand
+ * approach is what buys it back: it is a DETOUR, not a wall, so the raider
+ * still picks a side and the defender still has to guess which.
  */
 const LAYOUT = [
   '###############',
+  '###############',
+  '##FFFFFFF#....#',
+  '##FFFFFFF#....#',
+  '##FFFFF.FF....#',   // the gap is a bare patch the art leaves in the rows
+  '##FFFFFFF#....#',
+  '##FFFFFFF..##.#',   // rocks SHAPE the routes; they never reduce them to one
+  '##FFFFFFFF.##.#',
+  '##FFFFFFF#.##.#',
+  '##F.F.FF..##.E#',   // the path enters mid-right, where the art draws it
+  '#.....F..##...#',
   '#.............#',
-  '#.FFF.........#',
-  '#.FFF.........#',
-  '#.FFF....#....#',
-  '#........#....#',   // rocks SHAPE the routes; they never reduce them to one
-  '#.............#',
-  '#....#........#',
   '#....#....#...#',
-  '#.........#...#',
-  '#.............#',
-  '#..#..........#',
-  '#..#..........#',
-  '#............E#',   // the path enters lower-right, as the art draws it
+  '###############',
   '###############',
 ] as const;
 

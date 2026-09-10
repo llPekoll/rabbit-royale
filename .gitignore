@@ -13,3 +13,7 @@ next-env.d.ts
 .DS_Store
 *.log
 storybook-static/
+
+# The hand-drawn burrow source. Only the converted .webp is tracked; see
+# tools/plant_carrots.py, which needs this file put back to re-run.
+public/assets/island/burrow.jpg
