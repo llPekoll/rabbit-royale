@@ -17,8 +17,26 @@ RUN bun build server/index.ts --compile --minify --outfile ws-server
 
 FROM alpine:3
 WORKDIR /app
-# Bun's single-file binary needs libstdc++/libgcc at runtime on musl.
-RUN apk add --no-cache libstdc++ libgcc
+# libstdc++/libgcc: Bun's single-file binary needs them at runtime on musl.
+# wget: for the healthcheck below. Alpine ships busybox's applet, but it is
+# installed explicitly rather than assumed — a healthcheck whose binary is
+# missing fails every probe, which reads as a broken server rather than as a
+# broken healthcheck.
+RUN apk add --no-cache libstdc++ libgcc wget
+
 COPY --from=build /app/ws-server ./ws-server
 EXPOSE 3010
+
+# Tell the orchestrator the difference between "started" and "serving".
+#
+# Without this, Coolify only knows the process exists — so a server that is up
+# but wedged looks healthy, and one that is merely slow to boot looks dead. The
+# generous start-period is deliberate: a restart during boot is what turns one
+# bad minute into "Restart limit reached".
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD wget -qO- http://127.0.0.1:3010/health || exit 1
+
+# PID 1 must forward signals, or SIGTERM never reaches the server and every
+# deploy ends in a SIGKILL that reads as a crash in the deployment log.
+STOPSIGNAL SIGTERM
 CMD ["./ws-server"]

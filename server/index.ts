@@ -32,6 +32,7 @@ import { players, runs, seasons } from '../src/lib/db/schema';
 import { MemoryIslandStore, type LiveIsland } from './islands/store';
 import { roomFor } from './islands/router';
 import { markOffline, markOnline, setScore } from '../src/lib/leaderboard';
+import { guard, installProcessGuards, optional } from './resilience';
 
 const PORT = Number(process.env.WS_PORT ?? 3010);
 const store = new MemoryIslandStore();
@@ -52,8 +53,19 @@ interface SocketData {
   spectating?: string;
 }
 
+/**
+ * Health, and what the box is actually doing.
+ *
+ * Deliberately does NOT check Postgres or Redis. A health endpoint decides
+ * whether to RESTART this process, and restarting it cannot fix a database that
+ * is down — it would only destroy every live run in memory and then fail again,
+ * which is precisely the restart loop this file now exists to avoid.
+ *
+ * So the question this answers is narrow and honest: is the event loop running
+ * and is the socket server up? Dependency failures are visible in the counters
+ * below and in the logs, where a human can act on them.
+ */
 const httpServer = http.createServer((req, res) => {
-  // Health + a cheap operational window into what the box is actually doing.
   if (req.url === '/health') {
     const islands = [...store.all()];
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -61,6 +73,7 @@ const httpServer = http.createServer((req, res) => {
       status: 'ok',
       islands: islands.length,
       rabbits: islands.reduce((n, i) => n + i.rabbits.size, 0),
+      sockets: io.engine?.clientsCount ?? 0,
       uptimeSec: Math.round(process.uptime()),
     }));
     return;
@@ -74,14 +87,22 @@ const io = new Server(httpServer, { cors: { origin: '*', methods: ['GET', 'POST'
 // A socket without a valid token connects as a SPECTATOR: it may watch (phase 5
 // needs spectating anyway) but every gameplay handler below refuses it.
 io.use(async (socket, next) => {
-  const auth = socket.handshake.auth as { token?: string };
-  if (auth?.token) {
-    const claims = await verifySession(auth.token);
-    if (claims?.sub) {
-      const data = socket.data as SocketData;
-      data.playerId = claims.sub;
-      data.name = claims.name || 'Rabbit';
+  // A bad token must not throw out of here. `verifySession` swallows its own
+  // failures today, but this middleware runs on EVERY connection, so it is
+  // wrapped rather than trusted: an unauthenticated socket is a spectator,
+  // which is a defined state, whereas a rejection here is a dead process.
+  try {
+    const auth = socket.handshake.auth as { token?: string };
+    if (auth?.token) {
+      const claims = await verifySession(auth.token);
+      if (claims?.sub) {
+        const data = socket.data as SocketData;
+        data.playerId = claims.sub;
+        data.name = claims.name || 'Rabbit';
+      }
     }
+  } catch (e) {
+    console.error('[rr-ws] handshake auth failed:', e);
   }
   next();
 });
@@ -139,7 +160,7 @@ async function erupt(live: LiveIsland) {
   const room = roomFor(live.island.id);
   io.to(room).emit('eruption', { islandId: live.island.id, durationMs: ERUPTION.SEQUENCE_MS });
 
-  setTimeout(async () => {
+  setTimeout(guard('erupt', async () => {
     const survivors = [...live.rabbits.values()].filter((r) => r.alive);
     const lifetime = Math.max(0, ...survivors.map((r) => r.carrots));
     const next = newIsland(lifetime);
@@ -159,7 +180,7 @@ async function erupt(live: LiveIsland) {
     }
     io.to(roomFor(next.island.id)).emit('rabbits', [...next.rabbits.values()].map(publicRabbit));
     store.delete(live.island.id);
-  }, ERUPTION.SEQUENCE_MS);
+  }), ERUPTION.SEQUENCE_MS);
 }
 
 /** The socket currently holding a player's seat, if any. */
@@ -212,11 +233,16 @@ async function bankRun(data: SocketData, rabbit: Rabbit) {
     endedAt: new Date(),
   }).where(eq(runs.id, data.runId));
 
-  // Mirror the new score into the leaderboard's sorted set.
-  const [row] = await db.select({ score: players.seasonScore })
-    .from(players).where(eq(players.id, data.playerId));
-  const season = await currentSeason();
-  if (row) await setScore(season.id, data.playerId, row.score);
+  // The carrots are banked in Postgres by this point, which is what matters.
+  // Mirroring the score into Redis is a CACHE update — `rebuildLeaderboard`
+  // restores it from Postgres — so it is not allowed to fail the banking that
+  // already succeeded.
+  await optional('setScore', async () => {
+    const [row] = await db.select({ score: players.seasonScore })
+      .from(players).where(eq(players.id, data.playerId!));
+    const season = await currentSeason();
+    if (row) await setScore(season.id, data.playerId!, row.score);
+  });
 
   data.runId = undefined;
 }
@@ -230,7 +256,7 @@ io.on('connection', (socket: Socket) => {
    * Join a run. Drop-in: no lobby, no matchmaking — you land on the fullest
    * island that has room, or a new one if they are all full.
    */
-  socket.on('join', async () => {
+  socket.on('join', guard('join', async () => {
     if (!data.playerId) return socket.emit('error_msg', { code: 'unauthenticated' });
 
     const player = await db.query.players.findFirst({ where: eq(players.id, data.playerId) });
@@ -262,10 +288,13 @@ io.on('connection', (socket: Socket) => {
       data.tilesDug = 0;
     }
 
-    await markOnline(data.playerId);
+    // Presence is a NICE-TO-HAVE. A Redis hiccup must not stop a player joining
+    // a run — this used to throw straight out of the handler and take the whole
+    // process, and everyone else's live island, with it.
+    await optional('markOnline', () => markOnline(data.playerId!));
     socket.emit('island', snapshot(live));
     socket.to(roomFor(live.island.id)).emit('rabbit_joined', publicRabbit(rabbit));
-  });
+  }));
 
   /**
    * Watch someone else's run.
@@ -275,7 +304,7 @@ io.on('connection', (socket: Socket) => {
    * joins the target's island ROOM — so it receives every reveal and every move
    * live — but is never given a rabbit, which is what makes watching harmless.
    */
-  socket.on('spectate', async (payload: { playerId?: unknown }) => {
+  socket.on('spectate', guard('spectate', async (payload: { playerId?: unknown }) => {
     const target = payload?.playerId;
     if (typeof target !== 'string') return;
 
@@ -292,7 +321,7 @@ io.on('connection', (socket: Socket) => {
     data.spectating = target;
     socket.join(roomFor(found.island.id));
     socket.emit('island', snapshot(found));
-  });
+  }));
 
   /**
    * A move intent. The DESTINATION TILE is the only thing the client chooses,
@@ -302,7 +331,7 @@ io.on('connection', (socket: Socket) => {
    * A spectator has no rabbit on the island, so this falls through harmlessly:
    * watching cannot move anyone.
    */
-  socket.on('move', (payload: { tile?: unknown }) => {
+  socket.on('move', guard('move', (payload: { tile?: unknown }) => {
     if (!data.playerId || !data.islandId || data.spectating) return;
     const to = payload?.tile;
     if (typeof to !== 'number' || !Number.isInteger(to)) return;
@@ -373,10 +402,10 @@ io.on('connection', (socket: Socket) => {
       }
       if (fraction >= ERUPTION.THRESHOLD) void erupt(live);
     }
-  });
+  }));
 
   /** Start a fresh run after dying, without a reconnect. */
-  socket.on('restart', async () => {
+  socket.on('restart', guard('restart', async () => {
     if (!data.playerId || !data.islandId) return;
     const live = store.get(data.islandId);
     const old = live?.rabbits.get(data.playerId);
@@ -385,11 +414,14 @@ io.on('connection', (socket: Socket) => {
     socket.leave(roomFor(data.islandId));
     data.islandId = undefined;
     socket.emit('restarting');
-  });
+  }));
 
-  socket.on('disconnect', async () => {
+  socket.on('disconnect', guard('disconnect', async () => {
     if (!data.playerId) return;
-    await markOffline(data.playerId);
+    // THE crash that took production down. This runs on every closed tab, so a
+    // single bad second from Redis was enough to kill the server and end every
+    // live run on it. Presence is not worth a run, let alone all of them.
+    await optional('markOffline', () => markOffline(data.playerId!));
     // A spectator holds no seat, so there is nothing to keep warm for them.
     if (data.spectating) return;
     const live = data.islandId ? store.get(data.islandId) : undefined;
@@ -399,13 +431,13 @@ io.on('connection', (socket: Socket) => {
     // (BUILD-PLAN phase 3). A sweep frees it once the grace window lapses.
     live.disconnectedAt.set(data.playerId, Date.now());
     io.to(roomFor(live.island.id)).emit('rabbit_left', { playerId: data.playerId, grace: true });
-  });
+  }));
 });
 
 // ── Sweeps ───────────────────────────────────────────────────────────────────
 // Two janitors, both cheap and both idempotent: expired reconnect grace, and
 // islands nobody is on. Neither is on the hot path.
-setInterval(() => {
+setInterval(guard('sweep', () => {
   const now = Date.now();
   for (const live of store.all()) {
     for (const [playerId, at] of live.disconnectedAt) {
@@ -419,7 +451,24 @@ setInterval(() => {
     }
   }
   for (const dead of store.reapable(now)) store.delete(dead.island.id);
-}, 5000);
+}), 5000);
+
+/**
+ * The last line of defence.
+ *
+ * Installed BEFORE listening, so a failure during startup is logged rather than
+ * silently exited. See server/resilience.ts for why an unhandled rejection is
+ * downgraded to a log line here rather than being allowed to end the process:
+ * this box holds every live run in memory, and killing it over one bad event
+ * throws away everyone else's game.
+ */
+installProcessGuards({
+  close: () => new Promise<void>((resolve) => {
+    // Tell clients to stop trying before the door shuts, so a deploy reads as a
+    // reconnect rather than as an error.
+    io.close(() => httpServer.close(() => resolve()));
+  }),
+});
 
 httpServer.listen(PORT, () => {
   console.log(`[rr-ws] listening on :${PORT}`);

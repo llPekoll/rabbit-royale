@@ -187,6 +187,47 @@ raid game, and one column to avoid it.
 
 ---
 
+## Staying up
+
+`rr-ws` died repeatedly in production — Coolify reported **Exited / Restart
+limit reached** — and the cause was structural rather than one bad line: nothing
+in the server was wrapped in anything.
+
+The chain was always the same. An `async` socket handler throws (Postgres
+blinks, Redis drops a connection), and because socket.io never awaits a
+handler's promise, that becomes an unhandled rejection. Node's default is to
+kill the process. Docker restarts it, the next disconnect does it again, and
+after N restarts Docker gives up.
+
+Two things made it severe. It was triggered by **routine** events — `markOffline`
+runs on every closed tab, so one bad second from Redis killed the server. And the
+work that threw was **optional**: nobody's run should end because a presence set
+could not be written.
+
+`server/resilience.ts` encodes the rule that follows: *a failure while handling
+one socket must never reach the other players.*
+
+| Tool | Where it is used |
+| --- | --- |
+| `guard(scope, handler)` | Every socket handler, the eruption timer, the sweep. Logs a throw instead of ending the process. |
+| `optional(scope, work)` | Presence and the leaderboard mirror — the writes that are nice to have and not load bearing. |
+| `installProcessGuards()` | `uncaughtException` / `unhandledRejection` downgraded to log lines, plus an orderly SIGTERM. |
+
+Downgrading those two process events is normally bad advice, and it is the right
+call here: this box holds every live run **in memory**, so crashing on one bad
+event throws away dozens of innocent runs to punish one. Full stacks are logged,
+so nothing is hidden — it is triaged from logs rather than from an outage.
+
+`/health` deliberately does **not** check Postgres or Redis. A health endpoint
+decides whether to RESTART the process, and restarting cannot fix a database
+that is down — it would only destroy the live runs and fail again, which is the
+exact loop this work exists to end.
+
+`test/resilience.test.ts` pins the containment. The behaviour was also verified
+against a running server with `REDIS_URL` pointed at a dead port: 15 authenticated
+join/disconnect cycles, junk tokens, and malformed payloads on every event left
+uptime climbing uninterrupted, with the Redis failures visible in the log.
+
 ## Built to hold a crowd
 
 The MVP runs one WS process, which on 4 vCPUs handles thousands of sockets. The
