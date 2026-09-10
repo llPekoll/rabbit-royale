@@ -15,6 +15,60 @@
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { RaidOutcome, RaidState, Target } from './use-raid';
+import { LauncherTab, CARROT, DANGER, LAMP } from './burrow-chrome';
+import { LootChest, CHEST_ASPECT } from './loot-chest';
+
+export interface RaidButtonProps {
+  targets: Target[];
+  onOpen(): void;
+}
+
+/**
+ * The way out of your own burrow and into someone else's.
+ *
+ * It reports the SIZE OF THE PRIZE rather than a target count, because that is
+ * the number that decides whether to go: "4.8k unguarded" is a reason, "3
+ * targets" is a menu item. Shielded burrows are excluded from that figure —
+ * counting carrots you cannot take would be the button lying about the trip.
+ *
+ * The subtitle goes quiet rather than the button disappearing when there is
+ * nobody to rob: raiding is half the game, and a door that vanishes when the
+ * street is empty reads as a broken feature rather than a quiet night.
+ */
+export function RaidButton({ targets, onOpen }: RaidButtonProps) {
+  const open = targets.filter((t) => !t.shielded);
+  const loot = open.reduce((n, t) => n + t.stock, 0);
+  const fat = open.length > 0 ? Math.max(...open.map((t) => t.stock)) : 0;
+
+  return (
+    <LauncherTab
+      // The kit's chest, the same object the shop tab wears — and drawn from
+      // the arcade-kit atlas rather than a file in public/, which is what
+      // keeps it from 404ing the way a loose sprite would.
+      art={<LootChest size={46} />}
+      spriteSize={46}
+      spriteHeight={Math.round(46 * CHEST_ASPECT)}
+      label="GO RAIDING"
+      sub={
+        open.length === 0
+          ? (targets.length > 0 ? 'ALL BURROWS SHIELDED' : 'NOBODY TO ROB')
+          : `${short(loot)} UNGUARDED`
+      }
+      // Lit only when there is something to take. A warm tab over an empty
+      // street is the same lie as a count of unreachable targets.
+      ink={open.length === 0 ? DANGER : fat >= 1000 ? CARROT : LAMP}
+      count={open.length || undefined}
+      onClick={onOpen}
+      ariaLabel="Raid another burrow"
+    />
+  );
+}
+
+/** 4820 -> "4.8k". The tab is one line wide; five digits do not fit it. */
+function short(n: number): string {
+  if (n < 1000) return String(n);
+  return `${(n / 1000).toFixed(n < 10_000 ? 1 : 0)}k`;
+}
 
 export interface TargetListProps {
   targets: Target[];

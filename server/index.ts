@@ -468,6 +468,13 @@ io.on('connection', (socket: Socket) => {
     io.to(roomFor(live.island.id)).emit('rabbit_left', { playerId: data.playerId, grace: false });
     data.islandId = undefined;
     data.runId = undefined;
+
+    // Off the island, so no longer "digging". This was missing, and it is not
+    // cosmetic: the board offers a WATCH button on whoever this set names, so a
+    // player who walked back to their burrow stayed advertised as a live run
+    // until they closed the tab — and clicking them landed on `not_playing`.
+    // The set is cleared here, on the way out, rather than only on disconnect.
+    await optional('markOffline', () => markOffline(data.playerId!));
   }));
 
   /** Start a fresh run after dying, without a reconnect. */
@@ -480,6 +487,9 @@ io.on('connection', (socket: Socket) => {
     socket.leave(roomFor(data.islandId));
     data.islandId = undefined;
     socket.emit('restarting');
+    // Between two islands: there is no run to watch for the moment it takes to
+    // join the next one. `join` marks them online again.
+    await optional('markOffline', () => markOffline(data.playerId!));
   }));
 
   socket.on('disconnect', guard('disconnect', async () => {

@@ -36,7 +36,7 @@ import { BitmapText, TitleText } from '@domin8/arcade-kit';
 import { useShop, type ItemKind } from '@/components/use-shop';
 import type { PayTokenId } from '@/lib/pay/tokens';
 import { useUsdcPay } from '@/components/use-usdc-pay';
-import { RaidHud, TargetList } from '@/components/raid-panel';
+import { RaidHud, TargetList, RaidButton } from '@/components/raid-panel';
 import { useRaid } from '@/components/use-raid';
 import { gardenProgress } from '@/lib/game/garden-growth';
 import { burrowArt } from '@/config/burrowArt';
@@ -693,8 +693,19 @@ function Burrow() {
               ) : (
                 <>
                   <ShopButton shop={shop.shop} onOpen={() => setShopOpen(true)} />
-                  {/* Under the shop on purpose: the shop is what a player came
-                      to the burrow to DO, the codex is what they stay for. */}
+                  {/* The way OUT of your own burrow and into someone else's.
+                      The target list, the raid HUD and the whole crossing were
+                      already built and wired — nothing ever called
+                      `setPickingTarget(true)`, so the entire attacking half of
+                      the game was unreachable from the UI. This is the door.
+
+                      Above the codex and below the shop: the shop is what you
+                      came to the burrow to do, raiding is what you leave it
+                      for, and the story is what you stay for. */}
+                  <RaidButton
+                    targets={raid.targets}
+                    onOpen={() => { setPickingTarget(true); void raid.refresh(); }}
+                  />
                   <LoreButton
                     lifetime={burrow?.lifetime ?? 0}
                     onOpen={() => setLoreOpen(true)}
