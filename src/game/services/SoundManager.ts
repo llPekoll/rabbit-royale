@@ -54,7 +54,9 @@ export function setGlobalAudio(next: { musicMuted: boolean; sfxMuted: boolean; m
     ambient.volume(MUSIC_MIX * musicLevel);
     if (next.musicMuted) {
       if (ambient.playing()) ambient.pause();
-    } else if (!ambient.playing() && !sceneMusicPlaying()) {
+    } else if (!ambientMusicPlaying() && !sceneMusicPlaying()) {
+      // Same distinction as in startAmbientMusic: resume our own paused id if
+      // we have one, but a loop that never truly started needs a fresh play.
       ambientId = ambient.play(ambientId ?? undefined);
     }
   }
@@ -73,6 +75,21 @@ export function setGlobalAudio(next: { musicMuted: boolean; sfxMuted: boolean; m
  */
 let ambient: Howl | null = null;
 let ambientId: number | null = null;
+/**
+ * Whether the loop has actually made a sound yet.
+ *
+ * NOT the same question as `ambient.playing()`, and that difference is why the
+ * game booted silent. Howler answers `playing()` with `!sound._paused`, and a
+ * `play()` issued before the track has loaded is QUEUED — it returns an id that
+ * is already un-paused, so `playing()` says `true` while nothing is audible.
+ * The autoplay gate then refuses the queued start, Howler emits `playerror`,
+ * and the flag went unread: the arming listeners in use-audio-settings tore
+ * themselves down on the first tap believing the music was up, and it never
+ * played again for the rest of the session.
+ *
+ * So the truth is taken from the events, which fire only on the real thing.
+ */
+let ambientStarted = false;
 
 /** Start (or resume) the app's background loop. Safe to call repeatedly. */
 export function startAmbientMusic(): void {
@@ -80,10 +97,20 @@ export function startAmbientMusic(): void {
   if (!cfg) return;
   if (!ambient) {
     ambient = new Howl({ src: [cfg.src], loop: true, volume: MUSIC_MIX * musicLevel });
+    // Only a real 'play' proves the browser let us through; 'playerror' is the
+    // autoplay gate saying no, and puts us back to square one so the next tap
+    // tries again rather than assuming the loop is already running.
+    ambient.on('play', () => { ambientStarted = true; });
+    ambient.on('playerror', () => { ambientStarted = false; });
   }
   // Browsers refuse audio until the player has interacted with the page; the
   // call simply does nothing then, and the next one (after a tap) succeeds.
-  if (!musicMuted && !ambient.playing()) ambientId = ambient.play();
+  if (!musicMuted && !ambientMusicPlaying()) ambientId = ambient.play();
+}
+
+/** Is the app loop genuinely audible right now? See `ambientStarted`. */
+export function ambientMusicPlaying(): boolean {
+  return !!ambient && ambientStarted && ambient.playing();
 }
 
 export function stopAmbientMusic(): void {
@@ -92,6 +119,7 @@ export function stopAmbientMusic(): void {
   ambient.unload();
   ambient = null;
   ambientId = null;
+  ambientStarted = false;
 }
 
 /** Whether a scene's own music is playing, so the ambient loop can stand down. */
@@ -233,7 +261,7 @@ export class SoundManager {
       this.musicId = null;
     }
     // The scene is done; the app's own loop takes the room back.
-    if (ambient && !musicMuted && !ambient.playing() && !sceneMusicPlaying()) {
+    if (ambient && !musicMuted && !ambientMusicPlaying() && !sceneMusicPlaying()) {
       ambientId = ambient.play(ambientId ?? undefined);
     }
   }

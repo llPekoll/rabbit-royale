@@ -19,7 +19,7 @@
  * the one the player is actually looking at.
  */
 import { useCallback, useEffect, useState } from 'react';
-import { setGlobalAudio, startAmbientMusic } from '@/game/services/SoundManager';
+import { setGlobalAudio, startAmbientMusic, ambientMusicPlaying } from '@/game/services/SoundManager';
 
 /** The hub's own keys, shared on purpose — see the note above. */
 const MUSIC_MUTED_KEY = 'domin8:music-muted';
@@ -101,6 +101,15 @@ export function useAudioSettings(): AudioSettings {
     startAmbientMusic();
     const go = () => {
       startAmbientMusic();
+      // STAY ARMED until the loop is genuinely audible. `startAmbientMusic` is
+      // asynchronous twice over — the track may still be loading, and the
+      // browser may refuse the start outright — so the gesture that unlocks
+      // audio is often not the one that gets a sound out. Tearing the
+      // listeners down on the first tap regardless (what this did before) left
+      // the game silent for the whole session. `ambientMusicPlaying()` reads
+      // Howler's own play/playerror events rather than its optimistic
+      // `playing()`, so it only says yes once a sound has actually started.
+      if (!ambientMusicPlaying()) return;
       window.removeEventListener('pointerdown', go);
       window.removeEventListener('keydown', go);
     };
