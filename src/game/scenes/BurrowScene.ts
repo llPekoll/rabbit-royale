@@ -25,6 +25,7 @@ import {
   burrowCell, burrowTilePos, burrowTileDepth, isTrappable,
 } from '@/config/burrowConfig';
 import { burrowArt } from '@/config/burrowArt';
+import { homeCam, boardCam, type BurrowCam } from './burrowCamera';
 
 // The hand-drawn art, field left BARE — the crop is drawn over it as live,
 // growing sprites (see components/carrot-field.tsx), because a carrot painted
@@ -111,6 +112,9 @@ export class BurrowScene implements Scene {
   private raidCells: Sprite[] = [];
   private raidLabels: BitmapText[] = [];
   private raiding = false;
+  /** Where the camera is now, so a re-entry does not re-tween to where it sits. */
+  private cam: BurrowCam = homeCam();
+  private onResize: (() => void) | null = null;
   private data: BurrowSceneData = { traps: [], placing: false, onPlace: () => {} };
 
   constructor(private app: Application, _sceneManager: SceneManager) {
@@ -131,6 +135,15 @@ export class BurrowScene implements Scene {
 
     this.container.addChild(this.board);
     this.buildBoard();
+    // Land on the right framing rather than travelling to it: there is no
+    // previous shot to move from on the scene's first frame.
+    this.moveCamera(this.wantedCam(), true);
+    // A rotation swaps the design space under us (see Application.resize), and
+    // the pulled-back framing is solved against it — so the shot has to be
+    // re-solved rather than kept, or a phone turned mid-placement would hold a
+    // landscape camera over a portrait board.
+    this.onResize = () => this.moveCamera(this.wantedCam(), true);
+    window.addEventListener('resize', this.onResize);
     this.setPlacing(this.data.placing);
     for (const tile of this.data.traps) this.addTrap(tile, false);
   }
@@ -253,6 +266,7 @@ export class BurrowScene implements Scene {
    */
   setPlacing(placing: boolean): void {
     this.data.placing = placing;
+    this.moveCamera(this.wantedCam());
     this.hints.forEach((hint, n) => {
       const tile = this.tileOfHint(n);
       const usable = placing && isTrappable(tile) && !this.trapSprites.has(tile);
@@ -261,6 +275,63 @@ export class BurrowScene implements Scene {
       gsap.killTweensOf(hint);
       gsap.to(hint, { alpha: usable ? PLACEABLE_ALPHA : 0, duration: 0.2 });
     });
+  }
+
+  /**
+   * Move the camera.
+   *
+   * Animated rather than snapped: the pull-back is a change of reading, not a
+   * change of screen, and a cut would make it look like the burrow was replaced
+   * by a different one. `back.out` overshoots very slightly on the way, which
+   * is what makes it read as a camera being pulled rather than a picture being
+   * resized.
+   *
+   * `immediate` is for the first frame of the scene, where there is no previous
+   * framing to travel from and an animation would just be a lurch on arrival.
+   */
+  private moveCamera(to: BurrowCam, immediate = false): void {
+    // Re-entering placement while already pulled back must not re-tween — the
+    // board re-runs setPlacing on every trap added or removed. `immediate`
+    // skips the check: it is used for the first frame and after a rotation,
+    // where the numbers can be unchanged and yet still need applying.
+    if (!immediate
+      && Math.abs(to.scale - this.cam.scale) < 0.001
+      && Math.abs(to.x - this.cam.x) < 0.5
+      && Math.abs(to.y - this.cam.y) < 0.5) return;
+    this.cam = to;
+
+    gsap.killTweensOf(this.container);
+    gsap.killTweensOf(this.container.scale);
+    if (immediate) {
+      this.container.position.set(to.x, to.y);
+      this.container.scale.set(to.scale);
+      this.pinSky();
+      return;
+    }
+    const ease = 'back.out(1.3)';
+    // The sky is pinned every frame rather than at the ends: the tween
+    // interpolates, and clouds corrected only on arrival would swim across the
+    // garden for the whole half second in between.
+    gsap.to(this.container, { x: to.x, y: to.y, duration: 0.55, ease, onUpdate: () => this.pinSky() });
+    gsap.to(this.container.scale, { x: to.scale, y: to.scale, duration: 0.55, ease });
+  }
+
+  /** Hold the clouds against the frame while the camera moves under them. */
+  private pinSky(): void {
+    this.clouds?.counterCamera(
+      this.container.scale.x, this.container.position.x, this.container.position.y,
+    );
+  }
+
+  /**
+   * The framing this screen's current job wants.
+   *
+   * Placing and raiding are the same request — show me the whole board — so
+   * they share one answer rather than each nudging the camera their own way and
+   * fighting when a raid begins while the grid is still up.
+   */
+  private wantedCam(): BurrowCam {
+    return (this.raiding || this.data.placing) ? boardCam() : homeCam();
   }
 
   /** The board skips blocked tiles, so hint order is not tile order. */
@@ -341,7 +412,8 @@ export class BurrowScene implements Scene {
   } | null): void {
     this.clearRaid();
     if (!state) {
-      // Back to being a home: the owner's own traps come back into view.
+      // Back to being a home: the owner's own traps come back into view, and
+      // the camera comes back in with them (setPlacing reframes).
       for (const tile of this.data.traps) this.addTrap(tile, false);
       this.setPlacing(this.data.placing);
       return;
@@ -351,9 +423,10 @@ export class BurrowScene implements Scene {
     // never drawn, because the same scene serves both sides and the owner may
     // have been looking at their own burrow a moment ago.
     for (const group of this.trapSprites.values()) group.visible = false;
-    this.setPlacing(false);
-
+    // Set before setPlacing: it reframes, and a raid wants the pulled-back
+    // board — without this the camera would fly home and straight back out.
     this.raiding = true;
+    this.setPlacing(false);
     const steppable = new Set(state.steps);
 
     for (const { tile, clue } of state.view) {
@@ -459,6 +532,13 @@ export class BurrowScene implements Scene {
 
   destroy(): void {
     this.clearRaid();
+    if (this.onResize) {
+      window.removeEventListener('resize', this.onResize);
+      this.onResize = null;
+    }
+    // The camera tweens the container itself, which is about to go.
+    gsap.killTweensOf(this.container);
+    gsap.killTweensOf(this.container.scale);
     this.clouds?.destroy();
     for (const g of this.trapSprites.values()) gsap.killTweensOf(g);
     this.trapSprites.clear();

@@ -162,6 +162,23 @@ export class CloudField {
     }
   }
 
+  /**
+   * Undo a camera transform applied to the parent, so the sky stays pinned to
+   * the FRAME rather than to the scene.
+   *
+   * The bands are deliberately parked just off the canvas edges (see `place`) —
+   * a cloud shows its inner edge and hangs the rest into the margin. That is a
+   * statement about the frame, so when the burrow's camera pulls back it drags
+   * the whole parked bank into view and the sky suddenly reads as fog rolling
+   * over the garden. Counter-scaling keeps the clouds where they were composed
+   * to be, at any camera position.
+   */
+  counterCamera(scale: number, x: number, y: number): void {
+    const inv = 1 / scale;
+    this.layer.scale.set(inv);
+    this.layer.position.set(-x * inv, -y * inv);
+  }
+
   destroy(): void {
     for (const c of this.clouds) c.sprite.destroy();
     this.clouds = [];
