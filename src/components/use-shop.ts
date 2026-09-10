@@ -14,6 +14,7 @@
  * purchase refreshes everything in the same round trip.
  */
 import { useCallback, useEffect, useState } from 'react';
+import type { PayTokenId } from '@/lib/pay/tokens';
 
 export type ItemKind = 'trap' | 'bomb' | 'lightning' | 'shield' | 'energy' | 'smoke';
 
@@ -38,6 +39,8 @@ export interface ShopState {
     freePerDay: number;
   };
   usdcEnabled: boolean;
+  /** The rails this deployment takes. Empty when the money route is off. */
+  tokens: PayTokenId[];
 }
 
 export interface TrapState {

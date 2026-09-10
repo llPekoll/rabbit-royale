@@ -2089,3 +2089,32 @@ button { font-family: var(--font-pixel); }
   }
   .rr-crawl-horizon { display: none; }
 }
+
+/* The currency switch, in the shop's header.
+   ONE choice for the whole shop, not one per item: six items times three rails
+   would be eighteen buttons on a phone. Every tile still prices in dollars —
+   this only says what that dollar travels as. */
+.rr-shop-rails {
+  display: inline-flex;
+  gap: 3px;
+  margin-left: 8px;
+}
+.rr-shop-rail {
+  padding: 3px 8px;
+  min-height: 0;
+  min-width: 0;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  border-radius: 0;
+  border: 1px solid #4a2f1d;
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--muted);
+}
+.rr-shop-rail:hover { color: #f5e6d3; }
+/* The active rail wears the money colour the USDC buttons already use, so the
+   switch and the prices below it read as the same system. */
+.rr-shop-rail.on {
+  color: #7fd1ff;
+  border-color: #7fd1ff;
+  background: rgba(127, 209, 255, 0.12);
+}

@@ -20,6 +20,7 @@ import {
 import { grantItem } from '@/lib/game/grant';
 import { availableTraps } from '@/lib/game/traps';
 import { TRAPS } from '@config/tuning';
+import { enabledTokens } from '@/lib/pay/tokens';
 import { treasuryAddress } from '@/lib/pay/solana';
 import { claimUnfinishedPayments } from './pay/route';
 
@@ -49,6 +50,14 @@ export async function shopState(playerId: string) {
     /** Null when no treasury is configured — the UI hides the USDC button
      *  rather than offering a payment that cannot be made. */
     usdcEnabled: treasuryAddress() !== null,
+    /**
+     * The rails this deployment can actually take money on.
+     *
+     * Sent rather than assumed: a currency switch offering SKR on a server with
+     * no SKR mint configured is a button that quotes and then fails, which is
+     * worse than not offering it.
+     */
+    tokens: treasuryAddress() !== null ? enabledTokens() : [],
   };
 }
 

@@ -23,6 +23,7 @@ import { createPortal } from 'react-dom';
 import type { ItemKind, ShopItem, ShopState } from './use-shop';
 import type { PayStage } from './use-usdc-pay';
 import { LauncherTab, DANGER, LAMP } from './burrow-chrome';
+import { PAY_TOKENS, type PayTokenId } from '@/lib/pay/tokens';
 import { LootChest, CHEST_ASPECT } from './loot-chest';
 
 /**
@@ -115,6 +116,9 @@ export function ShopButton({ shop, onOpen }: ShopButtonProps) {
 
 export interface ShopCardProps {
   shop: ShopState | null;
+  /** The rail every purchase in this shop settles on. */
+  payToken: PayTokenId;
+  onPayTokenChange(t: PayTokenId): void;
   busy: boolean;
   onBuy(kind: ItemKind): void;
   onPayUsdc?(kind: ItemKind): void;
@@ -128,7 +132,8 @@ export interface ShopCardProps {
 }
 
 export function ShopPanel({
-  shop, busy, onBuy, onPayUsdc, payStage = 'idle', note, error, onPlaceTraps, onClose,
+  shop, busy, onBuy, onPayUsdc, payStage = 'idle', note, error,
+  payToken, onPayTokenChange, onPlaceTraps, onClose,
 }: ShopCardProps) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -162,6 +167,25 @@ export function ShopPanel({
               making the player close the shop to check it is the one thing a
               shop must never do. */}
           <span className="rr-shop-purse">{(shop?.stock ?? 0).toLocaleString()} 🥕</span>
+          {/* THE CURRENCY, once for the whole shop.
+              Per-item currency buttons would be six items times three rails on
+              a phone. The price on every tile stays a dollar amount; this only
+              says what that dollar travels as.
+              Hidden below two rails: a "switch" with one option is furniture. */}
+          {(shop?.tokens?.length ?? 0) > 1 && (
+            <span className="rr-shop-rails" role="group" aria-label="Pay with">
+              {shop!.tokens.map((t) => (
+                <button
+                  key={t}
+                  className={`rr-shop-rail${t === payToken ? ' on' : ''}`}
+                  onClick={() => onPayTokenChange(t)}
+                  aria-pressed={t === payToken}
+                >
+                  {PAY_TOKENS[t].symbol}
+                </button>
+              ))}
+            </span>
+          )}
           <button className="rr-shop-x" onClick={onClose} aria-label="Close">&times;</button>
         </header>
 

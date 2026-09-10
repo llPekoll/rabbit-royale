@@ -280,9 +280,30 @@ export const payments = pgTable('payments', {
   /** What was bought, and how many. */
   kind: itemKindEnum('kind').notNull(),
   qty: integer('qty').notNull().default(1),
-  /** Quoted price in USDC base units (6 dp) — an integer, never a float, because
-   *  this number is compared to an on-chain amount for equality. */
+  /**
+   * Which rail this payment is on: 'usdc', 'sol' or 'skr'.
+   *
+   * Stored per-payment rather than derived, because it decides how the
+   * transaction is VERIFIED — a native SOL transfer moves lamports and an SPL
+   * transfer moves token balances, and reading the wrong one finds nothing.
+   * Defaults to 'usdc' so the rows written before the shop took anything else
+   * keep verifying exactly as they did.
+   */
+  token: text('token').notNull().default('usdc'),
+  /**
+   * Quoted price in the TOKEN's base units — an integer, never a float, because
+   * this number is compared to an on-chain amount for equality. Decimals differ
+   * per token (USDC 6, SOL 9), so this is only meaningful beside `token`.
+   */
   amount: bigint('amount', { mode: 'number' }).notNull(),
+  /**
+   * The USD price the quote was struck at, and the rate it used.
+   *
+   * Kept for the record rather than for the maths: a purchase settled in SOL is
+   * a dollar amount at a moment, and without the rate a row is unauditable
+   * later. Never re-read to verify — the quote's `amount` is the promise.
+   */
+  usdPrice: text('usd_price'),
   /** Where the money was to be sent. Stored per-payment: the treasury address
    *  can be rotated, and an old intent must still verify against the address it
    *  was actually quoted for. */

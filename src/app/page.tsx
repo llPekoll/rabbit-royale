@@ -34,6 +34,7 @@ import {
 } from '@/components/burrow-chrome';
 import { BitmapText, TitleText } from '@domin8/arcade-kit';
 import { useShop, type ItemKind } from '@/components/use-shop';
+import type { PayTokenId } from '@/lib/pay/tokens';
 import { useUsdcPay } from '@/components/use-usdc-pay';
 import { RaidHud, TargetList } from '@/components/raid-panel';
 import { useRaid } from '@/components/use-raid';
@@ -119,6 +120,13 @@ function Burrow() {
   const [pickingTarget, setPickingTarget] = useState(false);
   /** The codex reads over the burrow the same way the shop sells over it. */
   const [loreOpen, setLoreOpen] = useState(false);
+  /**
+   * The rail every purchase settles on, chosen once for the whole shop.
+   *
+   * Session state rather than a stored preference: a player's holdings change,
+   * and the shop offers only what this deployment can take anyway.
+   */
+  const [payToken, setPayToken] = useState<PayTokenId>('usdc');
   /** The RPC the browser builds a USDC transfer against — served at runtime so
    *  one image runs on any network (see api/config). */
   /** Whether the money route is switched on. The RPC itself is relayed
@@ -357,12 +365,12 @@ function Burrow() {
   }, [shop, refreshBurrow]);
 
   const buyWithUsdc = useCallback(async (kind: ItemKind) => {
-    const res = await usdc.pay(kind);
+    const res = await usdc.pay(kind, 1, payToken);
     if (res) {
       await shop.refresh();
       refreshBurrow();
     }
-  }, [usdc, shop, refreshBurrow]);
+  }, [usdc, shop, refreshBurrow, payToken]);
 
   // The field in the burrow scene follows the real garden. Pushed on every
   // burrow refresh rather than read by the scene, because the scene has no
@@ -786,6 +794,8 @@ function Burrow() {
           busy={shop.busy}
           onBuy={buyWithCarrots}
           onPayUsdc={payments ? buyWithUsdc : undefined}
+          payToken={payToken}
+          onPayTokenChange={setPayToken}
           payStage={usdc.stage}
           note={shop.note}
           error={usdc.error}

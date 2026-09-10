@@ -16,15 +16,23 @@
  * this hook is a claim, and only the server's own look at the chain makes it a
  * purchase.
  *
- * ON CONVERSION: a dApp cannot make Phantom swap SOL (or SKR) into USDC — that
- * is a manual action inside the wallet. So if the player holds no USDC, the
- * transfer will fail to build and they are told, in those words, to swap in
- * their wallet first. Pretending otherwise would produce a button that silently
- * does nothing for anybody without a USDC balance.
+ * THREE RAILS, ONE PRICE. An item costs a dollar amount; the token is only how
+ * that dollar travels. The server quotes the rail, freezes the rate and states
+ * the exact base units — this hook never prices anything, it only moves what it
+ * was told to move.
+ *
+ * The two rails are genuinely different transactions: native SOL is a system
+ * transfer of lamports, and USDC/SKR are SPL token transfers between token
+ * accounts. That is why `mint` is nullable and why the branch below exists.
+ *
+ * It replaces a dead end. A dApp cannot make a wallet swap on the player's
+ * behalf without their signature, so a USDC-only shop had nothing to offer a
+ * player holding SOL beyond "go swap, then come back" — which most of them
+ * simply did not do.
  */
 import { useCallback, useState } from 'react';
 import {
-  Connection, PublicKey, Transaction, TransactionInstruction,
+  Connection, PublicKey, SystemProgram, Transaction, TransactionInstruction,
 } from '@solana/web3.js';
 import {
   createTransferCheckedInstruction,
@@ -33,6 +41,7 @@ import {
   createAssociatedTokenAccountInstruction,
 } from '@solana/spl-token';
 import { isNative } from './native-bridge';
+import { PAY_TOKENS, type PayTokenId } from '@/lib/pay/tokens';
 
 /** The memo program — where the reference goes, so the server can match the
  *  transfer to the quote it issued. */
@@ -41,10 +50,17 @@ const MEMO_PROGRAM = new PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr'
 interface Quote {
   paymentId: string;
   treasury: string;
-  mint: string;
+  /** Which rail the server quoted. */
+  token: PayTokenId;
+  /** Null for native SOL: there is no token account, only lamports. */
+  mint: string | null;
   amount: number;
   decimals: number;
+  /** The dollar price — unchanged by the rail. */
   usdc: number;
+  /** What that costs in the chosen token, for the message the player reads. */
+  tokenAmount: number;
+  symbol: string;
   reference: string;
   expiresAt: string;
 }
@@ -72,7 +88,7 @@ export function useUsdcPay(token: string | null, enabled: boolean) {
   const [stage, setStage] = useState<PayStage>('idle');
   const [error, setError] = useState<string | null>(null);
 
-  const pay = useCallback(async (kind: string, qty = 1) => {
+  const pay = useCallback(async (kind: string, qty = 1, rail: PayTokenId = 'usdc') => {
     setError(null);
     if (!token) return null;
 
@@ -99,13 +115,14 @@ export function useUsdcPay(token: string | null, enabled: boolean) {
       const quote: Quote & { error?: string } = await fetch('/api/shop/pay', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ kind, qty }),
+        body: JSON.stringify({ kind, qty, token: rail }),
       }).then((r) => r.json());
       if (quote.error) throw new Error(quote.error);
 
       const { publicKey } = await wallet.connect();
       const payer = new PublicKey(publicKey.toString());
-      const mint = new PublicKey(quote.mint);
+      // No mint here on purpose: native SOL has none, and the SPL branch below
+      // derives its own from the quote.
       const treasury = new PublicKey(quote.treasury);
       // The relay needs the session, and web3.js has no way to add a header —
       // so the token rides in the URL. It is this game's own endpoint and the
@@ -115,37 +132,61 @@ export function useUsdcPay(token: string | null, enabled: boolean) {
         'confirmed',
       );
 
-      const from = await getAssociatedTokenAddress(mint, payer);
-      const to = await getAssociatedTokenAddress(mint, treasury);
+      const tx = new Transaction();
+      const meta = PAY_TOKENS[quote.token];
+      const short = (n: number) => n.toFixed(meta.displayDecimals);
 
-      // No USDC account at all means no USDC — the wallet has nothing to send,
-      // and this is where the "swap first" advice belongs.
-      try {
-        const account = await getAccount(connection, from);
-        if (Number(account.amount) < quote.amount) {
+      if (quote.mint === null) {
+        // NATIVE SOL: lamports move between the accounts themselves, so there
+        // is no token account to look up and none to create.
+        const balance = await connection.getBalance(payer);
+        // Leave room for the fee: spending the balance to the last lamport
+        // produces a transaction that cannot pay for itself, and the wallet
+        // rejects it with an error the player cannot act on.
+        const FEE_HEADROOM = 5_000;
+        if (balance < quote.amount + FEE_HEADROOM) {
           throw new Error(
-            `Not enough USDC - this costs $${quote.usdc.toFixed(2)}. Swap some SOL for USDC in your wallet first.`,
+            `Not enough SOL - this costs ${short(quote.tokenAmount)} SOL ($${quote.usdc.toFixed(2)}).`,
           );
         }
-      } catch (e) {
-        if (e instanceof Error && e.message.startsWith('Not enough USDC')) throw e;
-        throw new Error('No USDC in this wallet. Swap some SOL for USDC in your wallet first.');
+        tx.add(SystemProgram.transfer({
+          fromPubkey: payer,
+          toPubkey: treasury,
+          lamports: quote.amount,
+        }));
+      } else {
+        const mint = new PublicKey(quote.mint);
+        const from = await getAssociatedTokenAddress(mint, payer);
+        const to = await getAssociatedTokenAddress(mint, treasury);
+
+        // No token account at all means none of that token — the wallet has
+        // nothing to send. Now that the shop takes three rails, the advice is
+        // to pick another one rather than to go swapping.
+        try {
+          const account = await getAccount(connection, from);
+          if (Number(account.amount) < quote.amount) {
+            throw new Error(
+              `Not enough ${meta.symbol} - this costs ${short(quote.tokenAmount)} ${meta.symbol} ($${quote.usdc.toFixed(2)}).`,
+            );
+          }
+        } catch (e) {
+          if (e instanceof Error && e.message.startsWith('Not enough')) throw e;
+          throw new Error(`No ${meta.symbol} in this wallet. Try another currency.`);
+        }
+
+        // The treasury's token account may not exist yet — the first payment
+        // creates it, paid for by that first payer. A few thousand lamports
+        // once, rather than a deployment step that gets forgotten.
+        try {
+          await getAccount(connection, to);
+        } catch {
+          tx.add(createAssociatedTokenAccountInstruction(payer, to, treasury, mint));
+        }
+
+        tx.add(
+          createTransferCheckedInstruction(from, mint, to, payer, quote.amount, quote.decimals),
+        );
       }
-
-      const tx = new Transaction();
-
-      // The treasury's token account may not exist yet — the first payment
-      // creates it, paid for by that first payer. A few thousand lamports once,
-      // rather than a deployment step that gets forgotten.
-      try {
-        await getAccount(connection, to);
-      } catch {
-        tx.add(createAssociatedTokenAccountInstruction(payer, to, treasury, mint));
-      }
-
-      tx.add(
-        createTransferCheckedInstruction(from, mint, to, payer, quote.amount, quote.decimals),
-      );
       // The reference, in the memo. This is what binds the transfer to THIS
       // quote — without it, any transfer of the right size to the treasury
       // could be claimed by whoever saw it in an explorer.

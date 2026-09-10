@@ -99,11 +99,60 @@ export type VerifyResult = VerifyOk | { ok: false; reason: VerifyFailure };
  * looks like a transfer but reverts. Decoding instructions would have to
  * anticipate every shape a wallet might send.
  */
+/**
+ * Lamports the treasury gained, read off the account index.
+ *
+ * `preBalances`/`postBalances` are positional — they line up with the
+ * transaction's account keys — so the treasury has to be located by index
+ * rather than by name. A transfer to an address that is not in the keys simply
+ * is not in this transaction, which is exactly the answer we want.
+ */
+function nativeReceived(
+  tx: NonNullable<Awaited<ReturnType<Connection['getTransaction']>>>,
+  treasury: PublicKey,
+): number {
+  const keys = tx.transaction.message.getAccountKeys?.({
+    accountKeysFromLookups: tx.meta?.loadedAddresses,
+  });
+  const list = keys ? [...keys.keySegments().flat()] : [];
+  const i = list.findIndex((k) => k.equals(treasury));
+  if (i < 0) return 0;
+  const before = tx.meta?.preBalances?.[i] ?? 0;
+  const after = tx.meta?.postBalances?.[i] ?? 0;
+  return after - before;
+}
+
+/**
+ * Token base units the treasury gained. Matched on OWNER and MINT rather than
+ * on the token account address, so a treasury whose associated token account
+ * did not exist yet (it is created by the first payment) is handled by the same
+ * code path.
+ */
+function splReceived(
+  tx: NonNullable<Awaited<ReturnType<Connection['getTransaction']>>>,
+  treasury: PublicKey,
+  mint: PublicKey,
+): number {
+  const pick = (rows: NonNullable<typeof tx.meta>['preTokenBalances']) =>
+    (rows ?? [])
+      .filter((b) => b.owner === treasury.toBase58() && b.mint === mint.toBase58())
+      .reduce((n, b) => n + Number(b.uiTokenAmount.amount ?? 0), 0);
+  return pick(tx.meta?.postTokenBalances) - pick(tx.meta?.preTokenBalances);
+}
+
 export async function verifyPayment(opts: {
   signature: string;
   treasury: PublicKey;
-  mint: PublicKey;
-  /** Base units the quote asked for. */
+  /**
+   * The SPL mint that must have moved, or null for NATIVE SOL.
+   *
+   * Null is not "any token" — it selects the lamport path. A native transfer
+   * shows up in `preBalances`/`postBalances` and moves no token balance at all,
+   * so reading token balances for it finds nothing and reading lamports for an
+   * SPL transfer finds only the fee. The two are different ledgers.
+   */
+  mint: PublicKey | null;
+  /** Base units the quote asked for, in THAT token's decimals. */
   amount: number;
   /** The quote's reference, expected in the transaction's memo. */
   reference: string;
@@ -139,20 +188,9 @@ export async function verifyPayment(opts: {
   const memoed = logs.some((l) => l.includes(opts.reference));
   if (!memoed) return { ok: false, reason: 'wrong_reference' };
 
-  // What the treasury's USDC account held before and after. Matched on OWNER
-  // and MINT rather than on the token account address, so a treasury whose
-  // associated token account did not exist yet (it is created by the first
-  // payment) is handled by the same code path.
-  const before = (tx.meta.preTokenBalances ?? []).filter(
-    (b) => b.owner === opts.treasury.toBase58() && b.mint === opts.mint.toBase58(),
-  );
-  const after = (tx.meta.postTokenBalances ?? []).filter(
-    (b) => b.owner === opts.treasury.toBase58() && b.mint === opts.mint.toBase58(),
-  );
-
-  const sum = (rows: typeof before) =>
-    rows.reduce((n, b) => n + Number(b.uiTokenAmount.amount ?? 0), 0);
-  const received = sum(after) - sum(before);
+  const received = opts.mint === null
+    ? nativeReceived(tx, opts.treasury)
+    : splReceived(tx, opts.treasury, opts.mint);
 
   // `>=` rather than `===`: a wallet may round up, and refusing money somebody
   // actually sent is the worse failure. Underpayment is refused.

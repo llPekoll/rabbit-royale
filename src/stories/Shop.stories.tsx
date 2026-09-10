@@ -17,6 +17,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
 import { ShopButton, ShopPanel } from '@/components/shop-card';
 import type { ItemKind, ShopState } from '@/components/use-shop';
+import type { PayTokenId } from '@/lib/pay/tokens';
 import '@/app/globals.css';
 
 const ART = '/assets/island/burrow_generated.webp';
@@ -35,6 +36,8 @@ function makeShop(stock: number, held: Partial<Record<ItemKind, number>>, usdcEn
   return {
     stock,
     usdcEnabled,
+    // Mirrors what the server sends: the rails this deployment takes.
+    tokens: usdcEnabled ? (['usdc', 'sol', 'skr'] as const).slice() : [],
     items: (Object.keys(PRICES) as ItemKind[]).map((kind) => {
       const { price, usdc, cap } = PRICES[kind];
       const have = held[kind] ?? 0;
@@ -65,6 +68,7 @@ function Harness({
   const [shopOpen, setShopOpen] = useState(open);
   const [placing, setPlacing] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  const [rail, setRail] = useState<PayTokenId>('usdc');
 
   const shop = makeShop(carrots, bag, usdcEnabled);
 
@@ -121,6 +125,8 @@ function Harness({
 
       {shopOpen && (
         <ShopPanel
+          payToken={rail}
+          onPayTokenChange={setRail}
           shop={shop}
           busy={false}
           onBuy={buy}

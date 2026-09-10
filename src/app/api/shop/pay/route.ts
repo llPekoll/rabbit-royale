@@ -22,6 +22,11 @@ import { holdings, isItemKind, purchaseBlocker, purchaseUsdc } from '@/lib/game/
 import { grantItem } from '@/lib/game/grant';
 import { USDC, usdcBaseUnits } from '@config/tuning';
 import { findPaidSignature, payEnabled, treasuryAddress, usdcMint, verifyPayment } from '@/lib/pay/solana';
+import {
+  PAY_TOKENS, baseUnitsFor, enabledTokens, isPayTokenId, mintFor, wholeFor,
+  type PayTokenId,
+} from '@/lib/pay/tokens';
+import { usdPriceFor } from '@/lib/pay/rates';
 import { shopState } from '../route';
 
 /** `{ kind, qty? }` → a quote the player's wallet can pay. */
@@ -35,7 +40,9 @@ export async function POST(req: Request) {
   const treasury = treasuryAddress()!;
   const mint = usdcMint()!;
 
-  const body = (await req.json().catch(() => ({}))) as { kind?: unknown; qty?: unknown };
+  const body = (await req.json().catch(() => ({}))) as {
+    kind?: unknown; qty?: unknown; token?: unknown;
+  };
   if (!isItemKind(body.kind)) return Response.json({ error: 'unknown_item' }, { status: 400 });
   const kind = body.kind;
   const qty = body.qty === undefined ? 1 : Number(body.qty);
@@ -52,8 +59,35 @@ export async function POST(req: Request) {
   const blocker = purchaseBlocker(kind, qty, bag);
   if (blocker) return Response.json({ error: blocker }, { status: 400 });
 
+  /**
+   * WHICH RAIL. The price is a dollar amount either way — the token only says
+   * how that dollar travels. An unknown or unconfigured token is refused rather
+   * than quietly swapped for USDC: a player who chose SOL and is charged in
+   * something else has been lied to.
+   */
+  const token: PayTokenId = isPayTokenId(body.token) ? body.token : 'usdc';
+  if (!enabledTokens().includes(token)) {
+    return Response.json({ error: 'token_unavailable' }, { status: 400 });
+  }
+
   const usdc = purchaseUsdc(kind, qty);
-  const amount = usdcBaseUnits(usdc);
+
+  /**
+   * The rate is read ONCE, here, and frozen into the quote.
+   *
+   * Never re-read at confirm time: a swing between signing and landing would
+   * turn a paid purchase into an underpayment, through no fault of the player.
+   * A null rate means the feed is untrustworthy (thin liquidity, a price
+   * outside its band, a dead API) and the correct answer is to not sell.
+   */
+  const usdPrice = await usdPriceFor(token);
+  if (usdPrice === null) {
+    return Response.json({ error: 'no_price_for_token' }, { status: 503 });
+  }
+
+  const amount = token === 'usdc'
+    ? usdcBaseUnits(usdc)          // the exact path USDC always took
+    : baseUnitsFor(usdc, token, usdPrice);
   const reference = randomUUID();
   const expiresAt = new Date(Date.now() + USDC.INTENT_TTL_MS);
 
@@ -64,7 +98,9 @@ export async function POST(req: Request) {
     playerId: session.sub,
     kind,
     qty,
+    token,
     amount,
+    usdPrice: String(usdPrice),
     treasury: treasury.toBase58(),
     reference,
     expiresAt,
@@ -74,10 +110,17 @@ export async function POST(req: Request) {
     paymentId: intent.id,
     /** What the wallet must send. */
     treasury: treasury.toBase58(),
-    mint: mint.toBase58(),
+    /** The rail, and what the wallet must actually move on it. */
+    token,
+    /** Null for native SOL — the client sends lamports, not a token transfer. */
+    mint: mintFor(token)?.toBase58() ?? null,
     amount,
-    decimals: USDC.DECIMALS,
+    decimals: PAY_TOKENS[token].decimals,
+    /** The dollar price, unchanged by the rail: the tile still says $0.25. */
     usdc,
+    /** ...and what that costs in the chosen token, for the confirmation line. */
+    tokenAmount: wholeFor(amount, token),
+    symbol: PAY_TOKENS[token].symbol,
     /** Must appear in the transaction's memo — it binds the transfer to THIS
      *  quote, so a payment cannot be claimed by anyone who saw it on chain. */
     reference,
@@ -120,10 +163,15 @@ export async function PATCH(req: Request) {
     return Response.json({ error: 'quote_expired' }, { status: 410 });
   }
 
+  // The rail comes from the INTENT, never from the request: it decides which
+  // ledger the transfer is read from, and letting the client name it would let
+  // a lamport transfer be checked against token balances (and pass by finding
+  // nothing to contradict it).
+  const paidToken: PayTokenId = isPayTokenId(intent.token) ? intent.token : 'usdc';
   const check = await verifyPayment({
     signature,
     treasury: treasuryAddress()!,
-    mint: usdcMint()!,
+    mint: mintFor(paidToken),
     amount: intent.amount,
     reference: intent.reference,
   });
