@@ -43,6 +43,9 @@ function backdropFloor(): number {
   return floor * 1.002;
 }
 
+/** Memo for `burrowCamOut`: the art does not change size at runtime. */
+let camOut: number | null = null;
+
 /**
  * How far back the camera pulls to show the whole board.
  *
@@ -57,8 +60,19 @@ function backdropFloor(): number {
  * tap targets, but a design pixel is not a device pixel — the canvas is fitted
  * to the screen, so the tiles here are ~23.5 design px and still a comfortable
  * thumb target on a phone. The binding constraint was always the painting.
+ *
+ * A FUNCTION rather than a `const`, and this is not style. The design space it
+ * measures against lives in Application, which pulls in Pixi and the whole
+ * scene graph; computing this at module scope ran that chain during Next's
+ * prerender of `/` and hit a half-initialised binding in the import cycle
+ * ("Cannot access 'jf' before initialization" — a build failure, not a runtime
+ * one). Deferring the sum to first call keeps module load inert. Memoised, so
+ * callers still pay for it once.
  */
-export const BURROW_CAM_OUT = backdropFloor();
+export function burrowCamOut(): number {
+  camOut ??= backdropFloor();
+  return camOut;
+}
 
 /** Room left around the board when pulled back, so it does not touch the edges. */
 const BOARD_PAD = 1.08;
@@ -146,7 +160,7 @@ export function boardCam(W: number = GAME_W, H: number = GAME_H): BurrowCam {
   const b = boardBounds();
   const fit = Math.min(W / (b.w * BOARD_PAD), H / (b.h * BOARD_PAD));
   return frame(
-    Math.min(BURROW_CAM_OUT, fit),
+    Math.min(burrowCamOut(), fit),
     (b.minX + b.maxX) / 2, (b.minY + b.maxY) / 2,
     W, H,
   );
