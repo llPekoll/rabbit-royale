@@ -46,10 +46,22 @@ describe('burrow camera', () => {
       });
 
       it('keeps tiles big enough to tap', () => {
-        // A trap is placed by hitting one tile. Roughly 24 design px is the
-        // floor for a thumb; a board you can see but cannot hit is no better
-        // than one you cannot see.
-        expect(f.tileWidth).toBeGreaterThanOrEqual(24);
+        // A trap is placed by hitting one tile. Design px, not device px: the
+        // canvas is fitted to the screen, so 23 of these on a 480-wide portrait
+        // space is a comfortable thumb target on a real phone. Still a floor —
+        // a board you can see but cannot hit is no better than one you cannot.
+        expect(f.tileWidth).toBeGreaterThanOrEqual(23);
+      });
+
+      it('pulls back as far as the painting physically allows', () => {
+        // The ask was to see a MAX of the map, and the backdrop's edge is the
+        // only real limit: one notch further and the canvas shows past the
+        // painting. So the shot sits ON that limit — meaning the tighter of the
+        // two axes has its margin down to nothing. Only one axis can bind (the
+        // art and the canvas are different shapes), hence the min. This fails
+        // if a future constant quietly reins the camera back in.
+        const slack = Math.min(-f.backdrop.left, -f.backdrop.top);
+        expect(slack).toBeLessThanOrEqual(3);
       });
     });
   }

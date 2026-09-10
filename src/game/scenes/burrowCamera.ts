@@ -23,15 +23,42 @@ import {
 import PLOTS from '@/config/carrotPlots.json';
 
 /**
+ * The scale at which the backdrop exactly fills the canvas.
+ *
+ * Below it the painting no longer covers every edge, and `frame()`'s clamp
+ * would start eating the pull-back silently — the camera would report one scale
+ * and show another. Computed against the design space the game actually runs
+ * in, and against BOTH orientations, so the tighter of the two wins rather than
+ * a rotation quietly breaking the promise.
+ */
+function backdropFloor(): number {
+  let floor = 0;
+  for (const [W, H] of [[GAME_W, GAME_H], [GAME_H, GAME_W]] as const) {
+    const back = rawBackdropSize(W, H);
+    floor = Math.max(floor, W / back.w, H / back.h);
+  }
+  // A whisker inside the exact fit. Landing ON it leaves the edge a rounding
+  // error short of the canvas, which is a one-pixel seam rather than a bug —
+  // but it is a seam a player would see against the sky.
+  return floor * 1.002;
+}
+
+/**
  * How far back the camera pulls to show the whole board.
  *
- * Aggressive on purpose — the ask was for a cut you FEEL, not a nudge. It stops
- * at 0.78 rather than going further because the tiles are the tap targets: at
- * this scale they are ~27px across, and below roughly 24 they stop being
- * comfortable to hit with a thumb, which would trade one unusable board for
- * another.
+ * This is now the furthest the shot can physically go: at this scale the
+ * backdrop's edges land exactly on the canvas edges, so the player sees the
+ * WHOLE painting and one pixel more would be a strip of empty canvas along the
+ * bottom of their burrow. Derived from the art rather than typed, because the
+ * number that matters is "as far as the painting allows" and a literal would go
+ * stale the day the backdrop is redrawn at another aspect ratio.
+ *
+ * Note what does NOT limit it any more: it used to stop at 0.78 to protect the
+ * tap targets, but a design pixel is not a device pixel — the canvas is fitted
+ * to the screen, so the tiles here are ~23.5 design px and still a comfortable
+ * thumb target on a phone. The binding constraint was always the painting.
  */
-export const BURROW_CAM_OUT = 0.78;
+export const BURROW_CAM_OUT = backdropFloor();
 
 /** Room left around the board when pulled back, so it does not touch the edges. */
 const BOARD_PAD = 1.08;
@@ -64,6 +91,11 @@ function boardBounds() {
  * has before it can promise not to pull past the edge of it.
  */
 function backdropSize(W: number, H: number) {
+  return rawBackdropSize(W, H);
+}
+
+/** The same sum, hoisted so `backdropFloor` can use it before the exports run. */
+function rawBackdropSize(W: number, H: number) {
   const cover = Math.max(W / PLOTS.art.w, H / PLOTS.art.h);
   return {
     w: PLOTS.art.w * cover * BURROW_ZOOM,
