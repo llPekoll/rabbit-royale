@@ -33,6 +33,8 @@ export interface Entry {
   lifetime: number;
   burrowLevel: number;
   crowned: boolean;
+  /** Out on an island right now — the only column that is live. */
+  digging?: boolean;
 }
 
 export interface LeaderboardDrawerProps {
@@ -55,14 +57,28 @@ export function LeaderboardDrawer({ token, playerId, onSpectate }: LeaderboardDr
 
   useEffect(() => {
     const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
-    fetch('/api/leaderboard?limit=50', { headers })
-      .then((r) => r.json())
-      .then((d) => {
-        setEntries(d.entries ?? []);
-        setMe(d.me ?? null);
-        setSeason(d.season ?? null);
-      })
-      .catch(() => {});
+    let alive = true;
+
+    const load = () => {
+      fetch('/api/leaderboard?limit=50', { headers })
+        .then((r) => r.json())
+        .then((d) => {
+          if (!alive) return;
+          setEntries(d.entries ?? []);
+          setMe(d.me ?? null);
+          setSeason(d.season ?? null);
+        })
+        .catch(() => {});
+    };
+
+    load();
+    // Scores barely move, but WHO IS DIGGING changes by the minute — and a
+    // "watch" button pointing at someone who logged off ten minutes ago is
+    // worse than no button. Fetched rather than pushed: the board is open for
+    // seconds at a time on a phone, and a socket for it would cost more than
+    // the poll it replaces.
+    const id = setInterval(load, 20_000);
+    return () => { alive = false; clearInterval(id); };
   }, [token]);
 
   const daysLeft = season
@@ -101,9 +117,17 @@ export function LeaderboardDrawer({ token, playerId, onSpectate }: LeaderboardDr
           {entries.map((e) => (
             <button
               key={e.playerId}
-              className={`rr-lb-row${e.crowned ? ' crown' : ''}${e.playerId === playerId ? ' me' : ''}`}
-              // Watching your own run from here would just be the game.
-              disabled={e.playerId === playerId || !onSpectate}
+              className={
+                `rr-lb-row${e.crowned ? ' crown' : ''}`
+                + `${e.playerId === playerId ? ' me' : ''}`
+                + `${e.digging ? ' digging' : ''}`
+              }
+              // Watching your own run from here would just be the game, and
+              // there is nothing to watch on someone who is not on an island —
+              // a spectate that lands on an empty board is the server's
+              // `not_playing` error dressed up as a feature.
+              disabled={e.playerId === playerId || !onSpectate || !e.digging}
+              title={e.digging ? `Watch ${e.name} dig` : `${e.name} is not out right now`}
               onClick={() => {
                 onSpectate?.(e.playerId);
                 // The board is covering the island on a phone; leaving it up
@@ -114,7 +138,21 @@ export function LeaderboardDrawer({ token, playerId, onSpectate }: LeaderboardDr
               <span className="rr-lb-rank">{e.crowned ? '👑' : e.rank}</span>
               <span className="rr-lb-name">
                 {e.name}
-                <small>burrow {e.burrowLevel} &middot; {e.lifetime} lifetime</small>
+                {/* The live dot rides the NAME, not the rank column: it is a
+                    fact about the player, and the rank column is a fixed-width
+                    slot that a second glyph would blow out. */}
+                {e.digging && <i className="rr-live" aria-hidden />}
+                {/* The separator stays an ENTITY, as it was before: a raw
+                    middot in a template literal is not decoded by anything and
+                    the bitmap atlas (ASCII 32-126) cannot draw it — it ships as
+                    a blank. So the two halves are JSX, not one string. */}
+                <small>
+                  {e.digging ? (
+                    <>digging now &middot; tap to watch</>
+                  ) : (
+                    <>burrow {e.burrowLevel} &middot; {e.lifetime} lifetime</>
+                  )}
+                </small>
               </span>
               <span style={{ color: 'var(--carrot)' }}>{e.score}</span>
             </button>

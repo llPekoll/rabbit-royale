@@ -1041,6 +1041,42 @@ button { min-height: 44px; min-width: 44px; }
 .rr-lb-row.crown .rr-lb-rank { color: var(--crown); }
 .rr-lb-name small { display: block; color: var(--muted); font-size: 11px; }
 
+/* ── Out on an island right now ───────────────────────────────────────────
+   The only live fact on the board. Every other column describes a player;
+   this one describes a run happening while you read it, which is the whole
+   reason to tap the row. */
+.rr-lb-row.digging .rr-lb-name { color: var(--crown); }
+.rr-lb-row.digging .rr-lb-name small { color: rgba(255, 212, 92, 0.7); }
+
+/* The dot. Inline with the name rather than in the rank column: the rank slot
+   is a fixed 30px and a second glyph in it pushes the numbers out of line. */
+.rr-live {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 6px;
+  vertical-align: middle;
+  border-radius: 50%;
+  background: #4ade80;
+  box-shadow: 0 0 6px rgba(74, 222, 128, 0.9);
+  animation: rr-live-pulse 1.8s ease-in-out infinite;
+}
+@keyframes rr-live-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.45; transform: scale(0.82); }
+}
+
+/* A row nobody is digging on cannot be watched, and says so by going quiet
+   rather than by vanishing: the player is still on the board, they are simply
+   not a target right now. */
+.rr-lb-row:disabled { cursor: default; }
+.rr-lb-row:disabled:not(.me):not(.digging) { opacity: 0.62; }
+
+@media (prefers-reduced-motion: reduce) {
+  /* The dot still marks the row; it just stops breathing. */
+  .rr-live { animation: none; }
+}
+
 /* Wide screen: the board is simply THERE, beside the burrow — no handle, no
    scrim, nothing to open. That is what "on the side" means when there is room
    for a side. */

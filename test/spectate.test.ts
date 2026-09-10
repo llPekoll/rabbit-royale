@@ -131,3 +131,46 @@ describe('leaderboard roster', () => {
     expect(ROUTE).toMatch(/filter\(\(id\) => !known\.has\(id\)\)/);
   });
 });
+
+/**
+ * Who is out on an island right now.
+ *
+ * Presence is the only live column on the board, and it is what makes a row
+ * worth tapping: spectating someone who is not digging lands on the server's
+ * `not_playing` error, so without this the board is mostly buttons that fail.
+ */
+describe('digging presence', () => {
+  const LIB = readFileSync('src/lib/leaderboard.ts', 'utf8');
+  const ROUTE = readFileSync('src/app/api/leaderboard/route.ts', 'utf8');
+
+  it('asks Redis once for the whole page', () => {
+    // One SMISMEMBER, not one SISMEMBER per row — the board asks about fifty
+    // players every time it opens.
+    expect(LIB).toMatch(/smIsMember\(ONLINE_KEY, ids\)/);
+    expect(ROUTE).toMatch(/onlineAmong\(rows\.map/);
+  });
+
+  it('never lets presence break the board', () => {
+    // Redis is decoration here. A throw would take down a leaderboard that is
+    // perfectly serveable from Postgres, so the failure mode is an empty set.
+    const fn = LIB.slice(LIB.indexOf('export async function onlineAmong'));
+    const body = fn.slice(0, fn.indexOf('\n}'));
+    expect(body).toMatch(/try \{/);
+    expect(body).toMatch(/catch \{[\s\S]*return new Set\(\)/);
+  });
+
+  it('only offers a watch on someone who is actually digging', () => {
+    // The row is disabled otherwise: a spectate that lands on an empty board
+    // is an error dressed up as a feature.
+    expect(DRAWER).toMatch(/!e\.digging/);
+  });
+
+  it('refreshes, because presence goes stale', () => {
+    // Scores barely move; who is on an island changes by the minute, and a
+    // watch button pointing at someone who left ten minutes ago is worse than
+    // no button at all.
+    expect(DRAWER).toMatch(/setInterval\(load/);
+    // ...and the poll must be cleaned up, or every open leaks a timer.
+    expect(DRAWER).toMatch(/clearInterval\(id\)/);
+  });
+});

@@ -92,3 +92,32 @@ export async function onlineCount(): Promise<number> {
   const r = await redis();
   return (await r?.sCard(ONLINE_KEY)) ?? 0;
 }
+
+/**
+ * Which of `ids` are out on an island right now.
+ *
+ * One round trip for the whole board rather than one per row: `SMISMEMBER`
+ * answers the entire membership question at once, and the leaderboard asks it
+ * about fifty players every time it opens.
+ *
+ * Note what this set actually means. A player is added in the `join` handler —
+ * the moment they land on an island — and removed on disconnect, so it is
+ * "currently digging", not "has the tab open". That is the more useful of the
+ * two: it is the difference between a row worth watching and a row that is
+ * merely someone's account.
+ *
+ * Redis down returns an EMPTY set, never a throw. Presence is decoration on a
+ * board that must render regardless; the failure mode is "nobody looks online",
+ * which is wrong quietly rather than a page that will not load.
+ */
+export async function onlineAmong(ids: string[]): Promise<Set<string>> {
+  if (ids.length === 0) return new Set();
+  try {
+    const r = await redis();
+    if (!r) return new Set();
+    const flags = await r.smIsMember(ONLINE_KEY, ids);
+    return new Set(ids.filter((_, i) => flags[i]));
+  } catch {
+    return new Set();
+  }
+}

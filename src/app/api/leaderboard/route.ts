@@ -9,7 +9,7 @@ import { desc, inArray, isNull, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { players, seasons } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
-import { topPlayers, rankOf } from '@/lib/leaderboard';
+import { topPlayers, rankOf, onlineAmong } from '@/lib/leaderboard';
 import { SEASON } from '@config/tuning';
 
 export const dynamic = 'force-dynamic';
@@ -68,6 +68,10 @@ export async function GET(req: Request) {
     rows = fromDb;
   }
 
+  // Who is out digging right now. One round trip for the whole page — and a
+  // failure here costs a dot, not the board (see onlineAmong).
+  const online = await onlineAmong(rows.map((p) => p.id));
+
   const entries = rows.map((p, i) => ({
     rank: i + 1,
     playerId: p.id,
@@ -77,6 +81,14 @@ export async function GET(req: Request) {
     burrowLevel: p.burrowLevel,
     /** The #1 wears the crown: worth more when raided, and marked everywhere. */
     crowned: i === 0,
+    /**
+     * Out on an island at this moment — so there is something to WATCH.
+     *
+     * This is the one fact on the row that changes minute to minute, and it is
+     * what makes spectating worth a tap: every other column describes a player,
+     * this one describes a run in progress.
+     */
+    digging: online.has(p.id),
   }));
 
   // Where the viewer sits, even when they are nowhere near the top — a board
