@@ -277,3 +277,41 @@ export async function PATCH(req: Request) {
     },
   });
 }
+
+/**
+ * Abandon the raid you are inside. Nothing is taken and nothing is damaged.
+ *
+ * This was missing, and its absence was a trap in the literal sense: `leave()`
+ * on the client only cleared local state, so the row stayed open with a null
+ * `endedAt` and every later raid came back `raid_in_progress`. A player who
+ * walked into a burrow and thought better of it could not raid again until the
+ * one they had abandoned somehow finished — which it never would, because they
+ * had left.
+ *
+ * Retreating is a real decision rather than a courtesy: the energy already
+ * spent crossing is energy not spent digging, so walking out early costs
+ * something. It just must not cost the rest of the game.
+ *
+ * The run is CLOSED, not deleted: it still counts for the per-victim cooldown
+ * (`RAID_RUN.COOLDOWN_MS`), or abandoning would be a free way to re-roll a
+ * board until the traps fell somewhere convenient. No `raids` row is written —
+ * that table is the victim's log of what was done to them, and nothing was.
+ */
+export async function DELETE(req: Request) {
+  const session = await getSession(req);
+  if (!session) return Response.json({ error: 'unauthenticated' }, { status: 401 });
+
+  const run = await db.query.raidRuns.findFirst({
+    where: and(eq(raidRuns.attackerId, session.sub), isNull(raidRuns.endedAt)),
+    orderBy: desc(raidRuns.startedAt),
+  });
+  // Already gone: report success rather than an error. A double-tap on Retreat
+  // must not look like a failure.
+  if (!run) return Response.json({ raid: null });
+
+  await db.update(raidRuns)
+    .set({ endedAt: new Date(), succeeded: false, carrotsLooted: 0 })
+    .where(eq(raidRuns.id, run.id));
+
+  return Response.json({ raid: null });
+}

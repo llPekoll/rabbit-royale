@@ -1148,8 +1148,14 @@ button { min-height: 44px; min-width: 44px; }
 /* A row nobody is digging on cannot be watched, and says so by going quiet
    rather than by vanishing: the player is still on the board, they are simply
    not a target right now. */
+/* A row you can act on says so. The base `button` rule sets `cursor: pointer`,
+   but these rows strip the button chrome (border, background, radius) and the
+   pointer is the only affordance left saying "this does something" — so it is
+   stated here rather than inherited by luck. */
+.rr-lb-row:not(:disabled) { cursor: pointer; }
 .rr-lb-row:disabled { cursor: default; }
 .rr-lb-row:disabled:not(.me):not(.digging) { opacity: 0.62; }
+
 
 @media (prefers-reduced-motion: reduce) {
   /* The dot still marks the row; it just stops breathing. */
@@ -2197,3 +2203,17 @@ button { font-family: var(--font-pixel); }
   border-color: #7fd1ff;
   background: rgba(127, 209, 255, 0.12);
 }
+
+/* The retreat button, mid-raid. Quiet: leaving is always available but it is
+   not what the screen is for, and a loud button here would compete with the
+   board it sits over. */
+.rr-raid-quit {
+  align-self: flex-start;
+  margin-top: 6px;
+  padding: 6px 12px;
+  min-height: 0;
+  font-size: 12px;
+  color: var(--muted);
+  background: rgba(13, 17, 23, 0.72);
+}
+.rr-raid-quit:hover:not(:disabled) { color: var(--text); }

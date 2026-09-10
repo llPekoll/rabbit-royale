@@ -138,13 +138,25 @@ export function useRaid(token: string | null) {
     }
   }, [token, auth]);
 
-  /** Leave a finished raid and go back to the target list. */
+  /**
+   * Leave a raid — finished, or abandoned halfway.
+   *
+   * The DELETE is the part that was missing. Clearing local state alone left
+   * the run open server-side with a null `endedAt`, so the next raid came back
+   * `raid_in_progress` forever: retreating cost the player the whole feature.
+   *
+   * Local state is cleared FIRST so the board comes down immediately — the
+   * request is a formality the player should not have to watch. `refresh` then
+   * reloads the target list, which is where leaving is meant to land.
+   */
   const leave = useCallback(() => {
     setRaid(null);
     setOutcome(null);
     setSprung(null);
-    void refresh();
-  }, [refresh]);
+    void fetch('/api/raid', auth({ method: 'DELETE' }))
+      .catch(() => {})
+      .finally(() => void refresh());
+  }, [auth, refresh]);
 
   return { raid, targets, outcome, note, busy, sprung, enter, step, leave, refresh, setNote };
 }

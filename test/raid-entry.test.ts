@@ -83,3 +83,44 @@ describe('raiding is reachable', () => {
     expect(PANEL).toMatch(/ALL BURROWS SHIELDED/);
   });
 });
+
+/**
+ * Getting back OUT of a raid.
+ *
+ * Found by walking into Clementine's burrow and looking for the exit: there
+ * wasn't one. The way home is normally in the burrow column, which is (rightly)
+ * hidden during a raid, and the HUD's only button lived behind `raid.finished`.
+ */
+describe('leaving a raid', () => {
+  const ROUTE = readFileSync('src/app/api/raid/route.ts', 'utf8');
+  const HOOK = readFileSync('src/components/use-raid.ts', 'utf8');
+
+  it('offers a way out mid-raid', () => {
+    // Without this a raider who changed their mind was stuck on someone else's
+    // board until their energy ran out.
+    expect(PANEL).toMatch(/!raid\.finished && \([\s\S]{0,200}rr-raid-quit/);
+  });
+
+  it('can end a raid server-side', () => {
+    // The row must be CLOSED, or the run stays open with a null endedAt and
+    // every later raid comes back `raid_in_progress` forever.
+    expect(ROUTE).toMatch(/export async function DELETE/);
+    expect(ROUTE).toMatch(/\.set\(\{ endedAt: new Date\(\), succeeded: false, carrotsLooted: 0 \}\)/);
+  });
+
+  it('actually calls it when leaving', () => {
+    // Clearing local state alone was the bug: the client forgot, the server
+    // did not.
+    expect(HOOK).toMatch(/fetch\('\/api\/raid', auth\(\{ method: 'DELETE' \}\)\)/);
+  });
+
+  it('closes rather than deletes, so the cooldown still counts', () => {
+    // Abandoning must not be a free re-roll of the trap layout.
+    expect(ROUTE).not.toMatch(/delete\(raidRuns\)/);
+  });
+
+  it('hides your own burrow while you are in someone else\'s', () => {
+    // Your 400/400 HP and a HARVEST button over a castle you are robbing.
+    expect(PAGE).toMatch(/crossing \|\| raid\.raid \? null/);
+  });
+});

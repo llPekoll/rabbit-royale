@@ -165,6 +165,19 @@ export function RaidHud({ raid, outcome, busy, note, onLeave }: RaidHudProps) {
 
       {note && !raid.finished && <p className="rr-raid-note">{note}</p>}
 
+      {/* The way out, MID-RAID.
+          It only existed on the finished card, so a raider who walked in and
+          changed their mind was stuck on someone else's board until their
+          energy ran out — there was no button, and the burrow column that
+          normally carries the way home is (correctly) hidden during a raid.
+          Being able to walk away is not a courtesy here: energy spent is
+          energy not spent digging, so retreating is a real decision. */}
+      {!raid.finished && (
+        <button className="rr-raid-quit" onClick={onLeave} disabled={busy}>
+          Retreat
+        </button>
+      )}
+
       {raid.finished && (
         <div className="rr-raid-over">
           <strong>

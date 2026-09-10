@@ -41,8 +41,11 @@ describe('chrome across the wipe', () => {
   it('shows neither screen while crossing', () => {
     // A crossing is its own state. Gating only the burrow would let the
     // island's HUD render in its place while the shutter sits over the burrow.
-    // `crossing` must still be the FIRST thing the ternary asks.
-    expect(PAGE).toMatch(/\{crossing \? null : where === 'burrow'/);
+    // `crossing` must still be the first thing the ternary asks. A raid now
+    // suppresses the same chrome for its own reason (the board underneath
+    // belongs to someone else), so the test pins the ORDER — crossing first,
+    // then the screen choice — rather than the exact expression.
+    expect(PAGE).toMatch(/\{crossing(?: \|\| raid\.raid)? \? null : where === 'burrow'/);
   });
 
   it('never shows the island to a signed-out player', () => {

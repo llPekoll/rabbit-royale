@@ -569,7 +569,12 @@ function Burrow() {
           it would put a HUD and a "To the burrow" arrow on the sign-in screen.
           The effect already puts `where` back; this makes the wrong screen
           unreachable rather than merely un-entered. */}
-      {crossing ? null : where === 'burrow' || !player ? (
+      {/* The burrow column is about YOUR burrow — its HP, its garden, its
+          upgrade. During a raid the board underneath belongs to somebody else,
+          and leaving the column up put your own 400/400 and a HARVEST button
+          over a castle you are trying to rob. The raid has its own thin HUD
+          (RaidHud) that describes the place you are actually standing in. */}
+      {crossing || raid.raid ? null : where === 'burrow' || !player ? (
         <section className="rr-burrow">
           {!player ? (
             <div className="rr-empty">
