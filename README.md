@@ -305,6 +305,12 @@ the WS server verifies the tokens the web tier issues). The browser needs
 Migrations follow the house rule: `bun db:generate` then `bun db:migrate`.
 Never `db:push`.
 
+**Deploy is automatic, migrations are not.** The Dockerfile never runs
+`db:migrate`, so code that reads a new column can start before that column
+exists — which has already broken the shop in production once. The procedure,
+the Coolify container ids and the checks are in
+[docs/GO-TO-PROD.md](./docs/GO-TO-PROD.md).
+
 ---
 
 ## Where things stand
