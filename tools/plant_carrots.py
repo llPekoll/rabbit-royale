@@ -56,6 +56,10 @@ SCALE = 0.62
 # into a hedge and the soil stopped reading as soil, which loses the furrows the
 # art went to the trouble of drawing.
 PER_ROW = 7
+# How far a plant may stray from its slot, in the field's own parametric axes.
+# See the planting loop for why the two differ by so much.
+JITTER_S = 0.022
+JITTER_T = 0.032
 
 # Keep the plants off the field's rim: the fence posts sit just inside the
 # soil's bounding diamond, and a carrot centred on the edge pokes through them.
@@ -200,9 +204,20 @@ def main() -> None:
     for s_ in ridges:
         for i in range(PER_ROW):
             t = MARGIN + (1 - 2 * MARGIN) * (i + 0.5) / PER_ROW
-            # A touch of jitter, so the field reads as planted by hand.
-            js = s_ + rng.uniform(-0.012, 0.012)
-            jt = t + rng.uniform(-0.012, 0.012)
+            # Jitter, so the field reads as planted by hand rather than drilled.
+            #
+            # The two axes get DIFFERENT budgets, because they are not the same
+            # kind of freedom. `s` crosses the furrows: a plant that wanders too
+            # far in s leaves its ridge and stands in a trough, which is the one
+            # thing ridge_crests exists to prevent — so it is held to about a
+            # quarter of the gap between crests. `t` runs ALONG the furrow,
+            # where there is nothing to fall off, so it can be much looser.
+            #
+            # The first cut used +-0.012 for both. Along the row that is only a
+            # tenth of the spacing — far too tight to break the grid, and the
+            # field read as a drilled crop rather than a planted one.
+            js = s_ + rng.uniform(-JITTER_S, JITTER_S)
+            jt = t + rng.uniform(-JITTER_T, JITTER_T)
             spots.append((top[1] + uy * js + vy * jt, top[0] + ux * js + vx * jt))
 
     # Sorted by y so the runtime can draw them back-to-front: a nearer plant has
