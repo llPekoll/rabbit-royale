@@ -210,6 +210,19 @@ button { min-height: 44px; min-width: 44px; }
 .rr-overlay > .rr-back,
 .rr-overlay > button { pointer-events: auto; }
 
+/* The strip is drawn for a phone, where it spans the screen because the screen
+   is narrow. Left free on a desktop it spans that too, and `space-between`
+   then scatters the counters across a metre of glass — the carrots adrift in
+   the middle, the name pinned to the far corner. They are one reading and they
+   have to sit in one glance, so the strip keeps a phone's width and centres.
+   Capped here rather than on `.rr-hud`, which the burrow reuses inside a
+   column that already has a width of its own. */
+.rr-overlay > .rr-hud {
+  width: 100%;
+  max-width: 560px;
+  align-self: center;
+}
+
 /* The board is played through, so the chrome over it has to stay readable
    against pixel art of any colour without hiding half the island. */
 .rr-overlay .rr-hud,
@@ -236,12 +249,18 @@ button { min-height: 44px; min-width: 44px; }
   display: flex;
   align-items: center;
   gap: 7px;
-  /* A flex item will not shrink below its content unless told to. */
-  min-width: 0;
   /* The bar takes the row's slack: it is the reading that matters most, and
-     the counters beside it are fixed-width glances. */
+     the counters beside it are fixed-width glances. It still may not shrink
+     below its content — a flex item will not, unless told to. */
   flex: 1 1 auto;
   min-width: 140px;
+  /* ...but only up to a point. The HUD was drawn for a phone, where there is
+     no slack to take and the bar lands the right size by accident. Give it a
+     desktop's width and it grows without limit: a run's 30 points then fill a
+     third of the screen, and the eye has to travel the whole way to read a
+     value the gauge is meant to give at a glance. The cap is a reading
+     distance, not a layout preference. */
+  max-width: 320px;
 }
 .rr-energy-icon { font-size: 13px; line-height: 1; }
 
