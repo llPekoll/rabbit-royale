@@ -631,58 +631,137 @@ button { min-height: 44px; min-width: 44px; }
 /* ── Sound ────────────────────────────────────────────────────────────────
    Bottom-left: the bottom-centre is the one action and the top-right is the
    wallet, so the chrome takes the corner nothing else wanted. Fixed, because it
-   belongs to the app rather than to whichever screen is showing. */
+   belongs to the app rather than to whichever screen is showing.
+
+   LIFTED OFF THE FLOOR. Flush in the corner this control was unreachable: the
+   GO FARM button is full-width up to 400px, so on a phone its box runs to the
+   left edge and its bottom lands within ~2px of the mute's — and in dev, Next's
+   own tools indicator sits in precisely that corner and takes the tap first.
+   The lift clears the GO button's whole band, so the two never share a row.
+   Chrome only: the mute must stay above the button it was hiding behind. */
+:root {
+  /* GO FARM's band, MEASURED rather than guessed: the button renders 82px tall
+     (a stacked label over a 32px arrow sprite, plus 14px padding each side) and
+     carries 10px/6px margins, so it occupies 98px. Rounded up to 104 for the
+     pixel of air that makes the two read as separate controls rather than a
+     stack. A guessed 68px left them still touching — the arrow sprite is what
+     makes this band twice the height of an ordinary button. */
+  --rr-sound-lift: 104px;
+}
 .rr-sound {
   position: fixed;
   left: 10px;
-  bottom: calc(10px + env(safe-area-inset-bottom));
+  bottom: calc(var(--rr-sound-lift) + env(safe-area-inset-bottom));
+  /* Above the GO button and the burrow column, below the drawers (29+) —
+     this is chrome, and a drawer that is open is the thing being read. */
   z-index: 28;
   display: flex;
-  align-items: flex-end;
-  gap: 4px;
-}
-.rr-sound-btn, .rr-sound-more {
-  padding: 0;
-  min-width: 40px;
-  min-height: 40px;
-  border-radius: 10px;
-  background: rgba(13, 17, 23, 0.72);
-  display: grid;
-  place-items: center;
-}
-/* The disclosure is secondary to the mute, so it is smaller and quieter. */
-.rr-sound-more {
-  min-width: 24px;
-  min-height: 24px;
-  font-size: 11px;
-  color: var(--muted);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
 }
 
+/* The two controls sit side by side; the panel stacks above them. */
+.rr-sound-cluster {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+}
+
+/* Both are kit buttons now, so they bring their own 9-slice face — these rules
+   only give them a tap target. 44px is the accessible minimum, and this is a
+   control people reach for one-handed on a phone. */
+.rr-sound-btn, .rr-sound-more {
+  min-height: 44px;
+  padding: 0;
+  /* The kit's button paints its own background and outline. The global
+     `button` rule's panel fill and 1px border would sit UNDER that sprite and
+     leak out at its transparent corners. */
+  background: none;
+  border: none;
+  border-radius: 0;
+}
+.rr-sound-btn { min-width: 52px; }
+/* The disclosure is secondary to the mute, so it is narrower. */
+.rr-sound-more { min-width: 34px; }
+
+/* The speaker sprite: 16px of source art, scaled by whole numbers only, so it
+   never lands between pixels. */
+.rr-sound-glyph {
+  display: block;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+/* The panel is a kit nine-slice, so it carries no fill or radius of its own
+   here — only its placement above the cluster. */
 .rr-sound-panel {
   position: absolute;
   left: 0;
   bottom: calc(100% + 6px);
-  width: 190px;
-  padding: 10px;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  width: 200px;
+}
+/* The panel's decorative frame is 2 source px — 4px at UI_PIXEL — and the
+   nine-slice paints it as a BORDER, so content laid out flush to the box sits
+   under it. The bottom needs the most: the slider's thumb overhangs its track
+   by 4px at each end, and at 10px the bottom row was being cropped by the
+   frame. */
+.rr-sound-panel-inner {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+  padding: 12px 14px 14px;
+  box-sizing: border-box;
+  width: 100%;
 }
 .rr-sound-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  font-size: 12px;
+  gap: 10px;
 }
-.rr-sound-row input[type='range'] { width: 96px; }
-/* The browser's own controls arrive in system blue, which is the one colour
-   this game does not use. `accent-color` retints both without rebuilding
-   them. */
-.rr-sound-row input { accent-color: var(--carrot); }
+
+/* The volume slider stays a native <input type="range"> — drag, arrow keys and
+   screen-reader support for free, which a redrawn one would owe. It is only
+   retinted: the track is cut from the burrow's soil and the thumb is a square
+   carrot chip, because a round thumb is the one shape this game does not have. */
+.rr-sound-range {
+  width: 104px;
+  height: 14px;
+  margin: 0;
+  background: none;
+  border: none;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+.rr-sound-range::-webkit-slider-runnable-track {
+  height: 6px;
+  background: #1d100a;              /* SOIL_DEEP — the channel */
+  border: 2px solid #0c0a12;        /* the kit's button ink */
+}
+.rr-sound-range::-moz-range-track {
+  height: 6px;
+  background: #1d100a;
+  border: 2px solid #0c0a12;
+}
+.rr-sound-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 10px;
+  height: 14px;
+  margin-top: -6px;                 /* centre the chip on the 6px track */
+  background: #e07a2f;              /* CARROT */
+  border: 2px solid #0c0a12;
+  border-radius: 0;
+}
+.rr-sound-range::-moz-range-thumb {
+  width: 10px;
+  height: 14px;
+  background: #e07a2f;
+  border: 2px solid #0c0a12;
+  border-radius: 0;
+}
 
 .rr-note { text-align: center; color: var(--muted); }
 
