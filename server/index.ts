@@ -165,11 +165,22 @@ async function erupt(live: LiveIsland) {
     const lifetime = Math.max(0, ...survivors.map((r) => r.carrots));
     const next = newIsland(lifetime);
 
+    // Anyone NOT moving on is finished here: the island they were on is about
+    // to be deleted, and with it their rabbit. Bank before that happens, or a
+    // run that ended on a bomb moments before the eruption is thrown away.
+    for (const rabbit of live.rabbits.values()) {
+      if (rabbit.alive) continue;
+      void bankRun(rabbit).catch((e) => console.error('[bankRun:erupt]', e));
+    }
+
     for (const rabbit of survivors) {
       const socket = socketOf(rabbit.playerId);
       // Energy and carrots ride along; the run continues, only the ground changed.
       const moved = spawnRabbit(rabbit.playerId, rabbit.name, rabbit.energy);
       moved.carrots = rabbit.carrots;
+      // ...and so does the run's paperwork. Without it the moved rabbit has no
+      // run id, so whatever it digs on the new island can never be banked.
+      moved.run = rabbit.run;
       next.rabbits.set(rabbit.playerId, moved);
       if (socket) {
         socket.leave(room);
@@ -211,27 +222,45 @@ async function currentSeason() {
  * ONE carrot event feeds all three counters (GDD): the spendable stock, the
  * season score, and the untouchable lifetime total. They are written in a single
  * statement so they can never drift apart.
+ *
+ * CALLED FROM EVERY EXIT, not just from running out of energy. A run used to
+ * bank only on `runOver`, so a player who walked back to the burrow with a full
+ * sack — or closed the tab — had their carrots deleted with the rabbit when the
+ * reconnect grace lapsed. Digging and then leaving is the ordinary way to play;
+ * it must not be the way to lose a run.
+ *
+ * Idempotent, which is what makes that safe: it clears `data.runId` on the way
+ * out and returns early without it, so the same run cannot be banked twice
+ * however many exits fire.
  */
-async function bankRun(data: SocketData, rabbit: Rabbit) {
-  if (!data.playerId || !data.runId) return;
+async function bankRun(rabbit: Rabbit) {
+  const run = rabbit.run;
+  // No run id means it is already banked. That check is the whole reason this
+  // is safe to call from several exits at once (a dig that ends the run AND
+  // the sweep that later frees the seat).
+  if (!run?.id) return;
+  const runId = run.id;
+  run.id = undefined;
+
   const carrots = rabbit.carrots;
+  const playerId = rabbit.playerId;
 
   await db.update(players).set({
     stock: raw`${players.stock} + ${carrots}`,
     seasonScore: raw`${players.seasonScore} + ${carrots}`,
     lifetimeCarrots: raw`${players.lifetimeCarrots} + ${carrots}`,
     runsPlayed: raw`${players.runsPlayed} + 1`,
-    tilesDug: raw`${players.tilesDug} + ${data.tilesDug ?? 0}`,
+    tilesDug: raw`${players.tilesDug} + ${run.tilesDug}`,
     lastSeenAt: new Date(),
-  }).where(eq(players.id, data.playerId));
+  }).where(eq(players.id, playerId));
 
   await db.update(runs).set({
     carrots,
-    tilesDug: data.tilesDug ?? 0,
-    bombsHit: data.bombsHit ?? 0,
-    durationMs: Date.now() - (data.runStartedAt ?? Date.now()),
+    tilesDug: run.tilesDug,
+    bombsHit: run.bombsHit,
+    durationMs: Date.now() - run.startedAt,
     endedAt: new Date(),
-  }).where(eq(runs.id, data.runId));
+  }).where(eq(runs.id, runId));
 
   // The carrots are banked in Postgres by this point, which is what matters.
   // Mirroring the score into Redis is a CACHE update — `rebuildLeaderboard`
@@ -239,12 +268,10 @@ async function bankRun(data: SocketData, rabbit: Rabbit) {
   // already succeeded.
   await optional('setScore', async () => {
     const [row] = await db.select({ score: players.seasonScore })
-      .from(players).where(eq(players.id, data.playerId!));
+      .from(players).where(eq(players.id, playerId));
     const season = await currentSeason();
-    if (row) await setScore(season.id, data.playerId!, row.score);
+    if (row) await setScore(season.id, playerId, row.score);
   });
-
-  data.runId = undefined;
 }
 
 // ── Handlers ─────────────────────────────────────────────────────────────────
@@ -282,6 +309,9 @@ io.on('connection', (socket: Socket) => {
         islandSeed: live.island.seed,
         islandTier: live.island.tier,
       }).returning({ id: runs.id });
+      // ON THE RABBIT, not on the socket: the seat outlives the connection, and
+      // the sweep that frees it is the exit with no socket to read.
+      rabbit.run = { id: run.id, startedAt: Date.now(), tilesDug: 0, bombsHit: 0 };
       data.runId = run.id;
       data.runStartedAt = Date.now();
       data.bombsHit = 0;
@@ -353,6 +383,12 @@ io.on('connection', (socket: Socket) => {
     if (out.dig) {
       data.tilesDug = (data.tilesDug ?? 0) + 1;
       if (out.dig.content === 'bomb') data.bombsHit = (data.bombsHit ?? 0) + 1;
+      // The rabbit's own tally is the one that gets banked — `socket.data` is
+      // gone by the time the sweep ends an abandoned run.
+      if (rabbit.run) {
+        rabbit.run.tilesDug += 1;
+        if (out.dig.content === 'bomb') rabbit.run.bombsHit += 1;
+      }
       // A dug tile is revealed FOR EVERYONE — the shared map is the whole point
       // of the shared island. The carrot, however, went to the first digger only.
       io.to(room).emit('tile_revealed', {
@@ -383,7 +419,7 @@ io.on('connection', (socket: Socket) => {
 
     if (out.runOver) {
       io.to(room).emit('rabbit_died', { playerId: data.playerId });
-      void bankRun(data, rabbit).catch((e) => console.error('[bankRun]', e));
+      void bankRun(rabbit).catch((e) => console.error('[bankRun]', e));
       socket.emit('run_over', {
         carrots: rabbit.carrots,
         tilesDug: data.tilesDug ?? 0,
@@ -402,6 +438,36 @@ io.on('connection', (socket: Socket) => {
       }
       if (fraction >= ERUPTION.THRESHOLD) void erupt(live);
     }
+  }));
+
+  /**
+   * Walk away from a run, on purpose.
+   *
+   * THE common exit, and the one that had no handler at all: going back to the
+   * burrow does not close the socket (the client keeps it for the leaderboard
+   * and the burrow's own traffic), so the seat was simply held until the
+   * island was reaped — and the carrots went with it. A player who dug a full
+   * sack and walked home lost the lot, which is what "the carrots are not
+   * really added" was.
+   *
+   * Banking here is what makes leaving a legitimate way to end a run: the GDD
+   * says a run can only ever ADD to the burrow, so carrying them home has to
+   * be worth exactly as much as running the tank dry.
+   */
+  socket.on('leave', guard('leave', async () => {
+    if (!data.playerId || !data.islandId) return;
+    const live = store.get(data.islandId);
+    const rabbit = live?.rabbits.get(data.playerId);
+    if (!live || !rabbit) return;
+
+    await bankRun(rabbit).catch((e) => console.error('[bankRun:leave]', e));
+
+    live.rabbits.delete(data.playerId);
+    live.disconnectedAt.delete(data.playerId);
+    socket.leave(roomFor(live.island.id));
+    io.to(roomFor(live.island.id)).emit('rabbit_left', { playerId: data.playerId, grace: false });
+    data.islandId = undefined;
+    data.runId = undefined;
   }));
 
   /** Start a fresh run after dying, without a reconnect. */
@@ -446,6 +512,12 @@ setInterval(guard('sweep', () => {
       live.rabbits.delete(playerId);
       live.disconnectedAt.delete(playerId);
       if (rabbit) {
+        // The seat is being given up for good, so the run ENDS here — bank it.
+        // This sweep used to delete the rabbit and its carrots together, which
+        // is how a player who walked home or closed the tab lost everything
+        // they had dug. There is no socket left to read at this point, which is
+        // exactly why the run's paperwork rides on the rabbit.
+        void bankRun(rabbit).catch((e) => console.error('[bankRun:sweep]', e));
         io.to(roomFor(live.island.id)).emit('rabbit_left', { playerId, grace: false });
       }
     }

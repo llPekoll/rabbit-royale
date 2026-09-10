@@ -200,6 +200,19 @@ export function useGameSocket(
     socket.once('restarting', () => socket.emit('join'));
   }, []);
 
+  /**
+   * Give up the seat and BANK the run.
+   *
+   * Going back to the burrow does not close this socket — the burrow needs it
+   * too — so without telling the server, the rabbit just sat on the island
+   * holding its carrots until the island was reaped, and they were lost. The
+   * server banks on `leave`, so carrying a sack home is worth exactly what
+   * running the tank dry is.
+   */
+  const leave = useCallback(() => {
+    socketRef.current?.emit('leave');
+  }, []);
+
   const me = playerId ? rabbits.get(playerId) ?? null : null;
-  return { islandSeed, rabbits, me, warnStage, recap, connected, moveTo, restart, bindScene, resync };
+  return { islandSeed, rabbits, me, warnStage, recap, connected, moveTo, restart, leave, bindScene, resync };
 }

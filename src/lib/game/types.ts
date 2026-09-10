@@ -50,6 +50,23 @@ export interface Rabbit {
   alive: boolean;
   /** Season leader, drawn with the crown and worth more when raided. */
   crowned: boolean;
+  /**
+   * The run's own paperwork, carried ON THE RABBIT rather than on the socket.
+   *
+   * A seat outlives its connection: a refresh keeps the run alive through the
+   * reconnect grace, and the sweep that eventually frees the seat has no socket
+   * to read from. Banking used to take these from `socket.data`, so the one
+   * exit that had no socket — the sweep — deleted the rabbit and its carrots
+   * without ever writing them down. They live here so any exit can bank.
+   */
+  run?: {
+    /** `runs` row id. Cleared once banked, which is what makes banking safe to
+     *  call from more than one exit. */
+    id?: string;
+    startedAt: number;
+    tilesDug: number;
+    bombsHit: number;
+  };
 }
 
 /** What a dig produced. The server sends this back; the client only animates. */

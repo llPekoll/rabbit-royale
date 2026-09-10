@@ -225,11 +225,17 @@ function Burrow() {
     // column on screen over a canvas that was still pitch black — the panels
     // arrived before the place they belong to. `wipeTo` resolves exactly when
     // the aperture finishes opening, so that is when the column is allowed in.
+    // Leaving the island ENDS the run, so the seat is given up and the carrots
+    // are banked. Every route home goes through here (the arrow, a raid, the
+    // recap, giving up a spectate), which is why it lives in the crossing
+    // rather than on one button: a run banked from only some exits is the bug
+    // this fixes, one door further along.
+    if (next === 'burrow' && where === 'island' && !spectating) game.leave();
     setCrossing(true);
     void h
       .wipeTo(next === 'island' ? SCENE.island : SCENE.burrow, () => setWhere(next))
       .finally(() => setCrossing(false));
-  }, []);
+  }, [where, spectating, game]);
 
   /** Enough to dig with. Null burrow means "still loading", not "empty". */
   const hasEnergy = burrow === null || burrow.energy > 0;
