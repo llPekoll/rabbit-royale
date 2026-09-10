@@ -17,8 +17,13 @@ import { PixiStage } from './PixiStage';
 import { CarrotWipe } from '@/game/fx/CarrotWipe';
 import { CARROT_URL } from '@domin8/arcade-kit/game';
 
-const WIDTH = 960;
-const HEIGHT = 540;
+/**
+ * Plus petit que le 960x540 du jeu : dans le cadre Storybook, avec le volet
+ * Controls ouvert en bas, un canvas pleine hauteur pousse le bouton hors de
+ * l'écran. L'iris est proportionnel à la diagonale, donc il se lit pareil.
+ */
+const WIDTH = 720;
+const HEIGHT = 405;
 
 /** Two flat, obviously-different screens, so the cut is unmistakable. Bright
  *  on purpose: a dark stand-in makes a working hole look like a dimmed one. */
@@ -52,7 +57,20 @@ function Scene({ aperture, frozen }: Args) {
   const [where, setWhere] = useState<'burrow' | 'island'>('burrow');
 
   return (
-    <div style={{ display: 'grid', gap: 10, justifyItems: 'start' }}>
+    <div style={{ display: 'grid', gap: 10, justifyItems: 'start', padding: 10 }}>
+      {/* Le bouton AU-DESSUS du canvas, pas en dessous : sous 540px de rendu il
+          sort du cadre et le volet Controls le recouvre — invisible et donc
+          incliquable, ce qui rend la story inutilisable. */}
+      <button
+        onClick={() => playRef.current?.()}
+        style={{
+          font: '600 13px ui-monospace, monospace',
+          padding: '10px 18px',
+          cursor: 'pointer',
+        }}
+      >
+        {frozen ? 'gelé — utilise le curseur aperture' : `GO — actuellement dans ${where === 'burrow' ? 'le terrier' : "l'île"}`}
+      </button>
       <PixiStage
         width={WIDTH}
         height={HEIGHT}
@@ -93,12 +111,6 @@ function Scene({ aperture, frozen }: Args) {
           return () => { playRef.current = null; wipe.destroy(); };
         }}
       />
-      <button
-        onClick={() => playRef.current?.()}
-        style={{ font: '600 13px ui-monospace, monospace', padding: '8px 14px' }}
-      >
-        {frozen ? 'frozen — use the aperture control' : `GO — currently in the ${where}`}
-      </button>
     </div>
   );
 }
