@@ -42,6 +42,13 @@ const INITIAL: Settings = {
 
 const randomSeed = () => Math.random().toString(36).slice(2, 8);
 
+/**
+ * How coarse the picture may get. 8 already turns a 34-wide island into a few
+ * hundred blocks, which is past the point where the SHAPE is still readable —
+ * and the shape is what this page is for.
+ */
+const MAX_PIXELATE = 8;
+
 export function IslandWorkbench() {
   const hostRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<Application | null>(null);
@@ -52,6 +59,19 @@ export function IslandWorkbench() {
   const [settings, setSettings] = useState<Settings>(INITIAL);
   const [status, setStatus] = useState('loading the tile sheets...');
   const [stats, setStats] = useState({ cells: 0, land: 0, tiers: 0 });
+
+  /**
+   * Chunkiness, and NOT part of `Settings` on purpose.
+   *
+   * Every field in `Settings` changes what the island IS, so touching one
+   * regenerates the map. This changes only how the same island is drawn, and
+   * rebuilding a few thousand sprites to answer a question about pixel size
+   * would throw away the very thing you are comparing against.
+   */
+  const [pixelate, setPixelate] = useState(1);
+  const [appReady, setAppReady] = useState(false);
+  /** The device's own pixel ratio — what `pixelate` divides. */
+  const baseResolution = useRef(1);
 
   const set = useCallback(<K extends keyof Settings>(key: K, value: Settings[K]) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
@@ -64,12 +84,13 @@ export function IslandWorkbench() {
     const app = new Application();
 
     (async () => {
+      baseResolution.current = Math.min(window.devicePixelRatio || 1, 2);
       await app.init({
         background: SEA,
         antialias: false,
         autoDensity: true,
         resizeTo: hostRef.current ?? undefined,
-        resolution: Math.min(window.devicePixelRatio || 1, 2),
+        resolution: baseResolution.current,
       });
       if (disposed) {
         app.destroy(true, { children: true });
@@ -91,6 +112,7 @@ export function IslandWorkbench() {
       }
       if (disposed) return;
       setStatus('');
+      setAppReady(true);
       // Nudge the build effect now that the sheets exist.
       setSettings((prev) => ({ ...prev }));
 
@@ -103,9 +125,31 @@ export function IslandWorkbench() {
       islandRef.current = null;
       appRef.current = null;
       worldRef.current = null;
+      setAppReady(false);
       app.destroy(true, { children: true });
     };
   }, []);
+
+  /**
+   * Pixelate by rendering into FEWER pixels, not by filtering the ones we have.
+   *
+   * The canvas keeps its CSS size while its backing store shrinks by this
+   * factor, so the browser blows the result back up — and since the canvas is
+   * `image-rendering: pixelated`, that upscale is nearest-neighbour. The blocks
+   * are therefore real: every one of them is a pixel the renderer actually
+   * drew, sampled from the sheets at that size. A blur-and-posterise filter
+   * would only imitate that, and would cost a full-screen pass per frame.
+   *
+   * A window resize cannot undo this: Pixi's resize plugin passes no
+   * resolution, and `TextureSource.resize` keeps the current one when it is
+   * given none.
+   */
+  useEffect(() => {
+    const app = appRef.current;
+    if (!app || !appReady) return;
+    const { width, height } = app.screen;
+    app.renderer.resize(width, height, baseResolution.current / pixelate);
+  }, [pixelate, appReady]);
 
   // Rebuild on every settings change, and refit whenever the canvas resizes.
   useEffect(() => {
@@ -210,11 +254,28 @@ export function IslandWorkbench() {
           />
         </label>
 
+        {/* Below the generation knobs and above the stats: this one is about
+            the PICTURE, not the island, and the island is unchanged while you
+            drag it. */}
+        <Slider
+          label="pixelate"
+          value={pixelate}
+          min={1}
+          max={MAX_PIXELATE}
+          onChange={setPixelate}
+        />
+        {pixelate > 1 ? (
+          <button style={styles.buttonGhost} onClick={() => setPixelate(1)}>
+            BACK TO 1:1
+          </button>
+        ) : null}
+
         <dl style={styles.stats}>
           <Stat label="grid" value={`${settings.width} x ${settings.height}`} />
           <Stat label="pixels" value={`${settings.width * TILE} x ${settings.height * TILE}`} />
           <Stat label="land cells" value={`${stats.land} / ${stats.cells}`} />
           <Stat label="tiers drawn" value={String(stats.tiers)} />
+          <Stat label="pixelate" value={pixelate === 1 ? '1:1' : `1 px = ${pixelate}`} />
         </dl>
 
         {status ? <p style={styles.status}>{status}</p> : null}
@@ -306,6 +367,16 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#08222a',
     font: 'inherit',
     fontWeight: 700,
+    letterSpacing: 1,
+    cursor: 'pointer',
+  },
+  buttonGhost: {
+    padding: '5px 10px',
+    background: 'none',
+    border: '1px solid #24505e',
+    borderRadius: 3,
+    color: '#8fb9c4',
+    font: 'inherit',
     letterSpacing: 1,
     cursor: 'pointer',
   },
