@@ -29,10 +29,24 @@ import {
 } from '@/config/burrowConfig';
 import { GAME_W, GAME_H } from '@/game/Application';
 
-/** The two backdrops that exist. `generated` is what the scene ships today. */
+/**
+ * Every backdrop that exists.
+ *
+ * The four `level_*` entries are the ones the game ships — one per burrow
+ * level, picked by config/burrowArt. They are the same painting redrawn with a
+ * bigger enclosure each time, and the artist drew the tilled field at a
+ * different size in each, so tools/align_burrow_levels.py rescales them onto
+ * level 1's field. That is precisely what this story is for: switch between
+ * the four and the orange FIELD cells must stay on the dirt in all of them. If
+ * one level's cells wander onto its fence or its castle wall, the alignment
+ * step was missed for that file.
+ */
 const ART = {
+  level_1: '/assets/island/burrow.webp',
+  level_2: '/assets/island/burrow_lvl2.webp',
+  level_3: '/assets/island/burrow_lvl3.webp',
+  level_4: '/assets/island/burrow_lvl4.webp',
   generated: '/assets/island/burrow_generated.webp',
-  hand_drawn: '/assets/island/burrow.webp',
 } as const;
 
 /** What each kind of cell claims about the ground beneath it. */
@@ -145,7 +159,7 @@ const meta: Meta<Args> = {
   title: 'Burrow/Calibration',
   render: (args) => <Calibration {...args} />,
   args: {
-    art: 'hand_drawn',
+    art: 'level_1',
     originX: BURROW_ORIGIN_X,
     originY: BURROW_ORIGIN_Y,
     zoom: BURROW_ZOOM,
@@ -180,6 +194,20 @@ export const Current: Story = {};
  * whole board on a lawn last time, silently.
  */
 export const PreviousArt: Story = { args: { art: 'generated' } };
+
+/**
+ * The upgrade art, at the same numbers.
+ *
+ * A burrow is re-painted as it is levelled — wooden rails, iron railings, a
+ * castle wall — and each of those is a separate painting. They share ONE
+ * calibration only because tools/align_burrow_levels.py rescaled each of them
+ * onto level 1's field first. Step through these three and the orange cells
+ * must stay on the soil exactly as they do on Current; if a level's field has
+ * drifted onto its fence, that file was shipped without the alignment step.
+ */
+export const Level2: Story = { args: { art: 'level_2' } };
+export const Level3: Story = { args: { art: 'level_3' } };
+export const Level4: Story = { args: { art: 'level_4' } };
 
 /**
  * What the old numbers did to the current art — the bug this story was built to

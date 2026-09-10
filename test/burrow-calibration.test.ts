@@ -20,11 +20,33 @@ import {
   burrowCell, fieldTiles, entranceTile,
 } from '../src/config/burrowConfig';
 import PLOTS from '../src/config/carrotPlots.json';
+import ALIGNMENT from '../src/config/burrowArtAlignment.json';
+import { burrowArt, BURROW_ART_TIERS } from '../src/config/burrowArt';
 
 const GAME_W = 960;
 const GAME_H = 540;
 
 const ART = new URL('../public/assets/island/burrow.webp', import.meta.url).pathname;
+
+/**
+ * Every level's backdrop, which all have to satisfy the SAME calibration.
+ *
+ * The burrow is re-painted as it is upgraded (wooden rails, iron railings,
+ * castle wall), and the artist drew the tilled field at a different size and
+ * place in each one. Rather than give each level its own origin, the art is
+ * pre-aligned so the field lands where level 1's does — see
+ * tools/align_burrow_levels.py. That is exactly the kind of claim that rots
+ * silently, so it is asserted here for every level rather than trusted: a
+ * re-export that forgets the alignment step puts the raid's win condition on a
+ * castle wall, and nothing else would notice.
+ */
+const LEVEL_ART = [1, 2, 3, 4].map((level) => ({
+  level,
+  path: new URL(
+    `../public/assets/island/${level === 1 ? 'burrow' : `burrow_lvl${level}`}.webp`,
+    import.meta.url,
+  ).pathname,
+}));
 
 /** WebP dimensions, straight out of the header — no decoder needed. */
 function webpSize(path: string): { w: number; h: number } {
@@ -90,11 +112,18 @@ describe('the shipping backdrop', () => {
     // A guard on the PAIR, not on the file: the origin, zoom and layout below
     // are all solved against THIS image, so a different one silently
     // invalidates every one of them.
-    const scene = readFileSync(
-      new URL('../src/game/scenes/BurrowScene.ts', import.meta.url).pathname, 'utf8',
-    );
-    expect(scene).toMatch(/BACKDROP_URL = '\/assets\/island\/burrow\.webp'/);
+    expect(burrowArt(1)).toBe('/assets/island/burrow.webp');
     expect(art).toEqual({ w: 1376, h: 768 });
+  });
+
+  it('is the size every other level is drawn at', () => {
+    // The scene fits the backdrop by its NATURAL dimensions (a cover fit, then
+    // BURROW_ZOOM), so the board's position on screen is a function of the
+    // image's size. A level shipped at a different size would land its board
+    // somewhere else however well its field was aligned.
+    for (const { level, path } of LEVEL_ART) {
+      expect(webpSize(path), `level ${level}`).toEqual(art);
+    }
   });
 
   it('is smaller than the JPEG it was converted from', () => {
@@ -138,6 +167,131 @@ describe('the shipping backdrop', () => {
  */
 const SOIL = { x0: 555, x1: 815, y0: 440, y1: 590 };
 const PATH = { x0: 743, x1: 1084, y0: 485, y1: 647 };
+
+/**
+ * The upgrade art has to put its field where level 1 puts it.
+ *
+ * This is the claim the whole single-calibration design rests on. Each level is
+ * a separate painting whose tilled field the artist drew at its own size and
+ * position; tools/align_burrow_levels.py scales and crops each one so the field
+ * lands on level 1's. If that ever stops being true — a level re-exported from
+ * source without re-running the tool, a corner re-measured wrong — then the
+ * FIELD cells, which are the raid's win condition, sit on a fence or a castle
+ * wall on that level and on soil everywhere else. Nothing else in the suite
+ * looks at the upgrade art at all.
+ *
+ * Checked against the recorded measurement rather than by decoding the WebPs:
+ * the repo ships no image decoder, and the tool that does have one writes down
+ * what it measured.
+ */
+describe('every level is aligned to the same field', () => {
+  const target = ALIGNMENT.target;
+
+  /** A source corner, put through that level's per-axis scale and crop. */
+  const transform = (pt: number[], scale: number[], crop: number[]) => ({
+    x: pt[0] * scale[0] - crop[0],
+    y: pt[1] * scale[1] - crop[1],
+  });
+
+  /** The diamond a level's field becomes once aligned. */
+  const placed = (rec: { source_field: Record<string, number[]>; scale: number[]; crop: number[] }) => {
+    const f = rec.source_field;
+    const bottom = [f.L[0] + f.R[0] - f.T[0], f.L[1] + f.R[1] - f.T[1]];
+    const T = transform(f.T, rec.scale, rec.crop);
+    const L = transform(f.L, rec.scale, rec.crop);
+    const R = transform(f.R, rec.scale, rec.crop);
+    const B = transform(bottom, rec.scale, rec.crop);
+    return {
+      centre: { x: (L.x + R.x) / 2, y: (T.y + B.y) / 2 },
+      width: R.x - L.x,
+      depth: B.y - T.y,
+    };
+  };
+
+  it('targets the diamond the BOARD calls the field', () => {
+    // The target is derived from burrowConfig's own LAYOUT, not typed in, so
+    // this guards the derivation: if the layout or the origin changes, the art
+    // has to be re-aligned to it and the recorded target must move too.
+    const soilWidth = SOIL.x1 - SOIL.x0;
+    const soilDepth = SOIL.y1 - SOIL.y0;
+    expect(target.width).toBeGreaterThan(soilWidth * 0.9);
+    expect(target.width).toBeLessThan(soilWidth * 1.3);
+    expect(target.depth).toBeGreaterThan(soilDepth * 0.7);
+    expect(target.depth).toBeLessThan(soilDepth * 1.2);
+  });
+
+  it("fits every level's field to that same diamond", () => {
+    // The whole point. Each painting drew its field at its own size and depth;
+    // after alignment they must all present the SAME field to the board, so
+    // one origin, one zoom, one layout and one plot list serve all of them.
+    for (const [name, rec] of Object.entries(ALIGNMENT.aligned)) {
+      const got = placed(rec);
+      // A pixel of slack for the whole-pixel crop, and a little more for the
+      // corners themselves, which are read off the art by eye on a 10px grid.
+      expect(Math.abs(got.centre.x - target.centre[0]), `${name} centre x`).toBeLessThanOrEqual(2);
+      expect(Math.abs(got.centre.y - target.centre[1]), `${name} centre y`).toBeLessThanOrEqual(2);
+      expect(Math.abs(got.width - target.width), `${name} width`).toBeLessThanOrEqual(2);
+      expect(Math.abs(got.depth - target.depth), `${name} depth`).toBeLessThanOrEqual(2);
+    }
+  });
+
+  it('needs only a mild correction to get there', () => {
+    // A sanity bound on the transform itself. These are re-drawings of one
+    // painting, so the fit should be a nudge; a scale far from 1 would mean a
+    // corner was mis-read (which is exactly how level 2 first shipped with its
+    // top row of cells on the grass) rather than that the art really differs.
+    for (const [name, rec] of Object.entries(ALIGNMENT.aligned)) {
+      const [kx, ky] = rec.scale;
+      for (const [axis, k] of [['x', kx], ['y', ky]] as const) {
+        expect(k, `${name} scale ${axis}`).toBeGreaterThan(1);
+        expect(k, `${name} scale ${axis}`).toBeLessThan(1.8);
+      }
+      // The per-axis split is the part worth watching: it is a deliberate
+      // deviation from a uniform scale, so it should stay small enough to be
+      // invisible in isometric pixel art.
+      expect(Math.abs(ky / kx - 1), `${name} axis split`).toBeLessThanOrEqual(0.2);
+    }
+  });
+
+  it('records every level the art module can hand out', () => {
+    // The manifest and the module are written by different hands (a Python
+    // tool and a TS constant), so the thing worth asserting is that they agree
+    // on the SET of levels — an art file added to one and not the other ships
+    // a level this suite never checks.
+    const measured = new Set(Object.keys(ALIGNMENT.aligned));
+    expect(measured).toContain('burrow');
+    for (let level = 2; level <= BURROW_ART_TIERS; level++) {
+      expect(measured, `level ${level}`).toContain(`burrow_lvl${level}`);
+    }
+  });
+
+  it('gives each level its own distinct picture', () => {
+    // Four levels pointing at three files (or at one) would still pass every
+    // geometric check above and quietly undo the point of the exercise.
+    const urls = new Set(
+      Array.from({ length: BURROW_ART_TIERS }, (_, i) => burrowArt(i + 1)),
+    );
+    expect(urls.size).toBe(BURROW_ART_TIERS);
+  });
+
+  it('shows the top tier for every level above it', () => {
+    // Levels run to 20 and the art stops at 4, so the tail has to clamp rather
+    // than fall off the end of the list.
+    const top = burrowArt(BURROW_ART_TIERS);
+    for (const level of [BURROW_ART_TIERS + 1, 12, 20, 999]) {
+      expect(burrowArt(level), `level ${level}`).toBe(top);
+    }
+  });
+
+  it('falls back to level 1 for a level it cannot read', () => {
+    // The level reaches the scene from a database row and, on a raid, off the
+    // wire as the DEFENDER's. A burrow with no ground is a worse failure than
+    // a burrow shown one tier too low.
+    for (const bad of [null, undefined, 0, -3, NaN, Infinity]) {
+      expect(burrowArt(bad as number), `level ${String(bad)}`).toBe(burrowArt(1));
+    }
+  });
+});
 
 describe('the board lands on the ground it names', () => {
   const art = webpSize(ART);

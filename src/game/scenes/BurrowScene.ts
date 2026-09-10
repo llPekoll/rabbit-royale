@@ -23,15 +23,18 @@ import {
   BURROW_COLS, BURROW_ROWS, BURROW_HALF_W, BURROW_HALF_H, BURROW_ZOOM,
   burrowCell, burrowTilePos, burrowTileDepth, isTrappable,
 } from '@/config/burrowConfig';
+import { burrowArt } from '@/config/burrowArt';
 
 // The hand-drawn art, field left BARE — the crop is drawn over it as live,
 // growing sprites (see components/carrot-field.tsx), because a carrot painted
 // into a backdrop can never grow.
 //
-// burrowConfig's origin, zoom and LAYOUT are all measured against THIS file.
-// Changing it means re-measuring them (Burrow/Calibration story), which
-// test/burrow-calibration.test.ts enforces.
-const BACKDROP_URL = '/assets/island/burrow.webp';
+// WHICH painting depends on the burrow's level (see config/burrowArt), so an
+// upgrade is something you can see rather than only a number that moved. The
+// board does not move with it: every level's art is pre-aligned to put the
+// field in the same place, so burrowConfig's origin, zoom and LAYOUT — measured
+// against level 1 — hold for all of them. test/burrow-calibration.test.ts
+// enforces that, for every level.
 
 /** Placed traps read as YOURS — gold, like the crown and the carrot count. */
 const TRAP_TINT = 0xffd45c;
@@ -60,12 +63,22 @@ export interface BurrowSceneData {
    * loop instead, for a viewer with no garden of their own.
    */
   gardenProgress?: number | null;
+  /**
+   * The burrow's level, which picks the backdrop.
+   *
+   * Absent means level 1 — the scene is shown before the burrow has loaded, and
+   * to viewers with no burrow at all, and both want a picture rather than a
+   * blank.
+   */
+  level?: number | null;
 }
 
 export class BurrowScene implements Scene {
   container: Container;
   private clouds: CloudField | null = null;
   private backdrop: Sprite | null = null;
+  /** Which art is currently up, so a level change can skip a no-op reload. */
+  private backdropUrl: string | null = null;
   private crop: CarrotCrop | null = null;
   private board = new Container();
   private trapSprites = new Map<number, Container>();
@@ -95,14 +108,16 @@ export class BurrowScene implements Scene {
   }
 
   private async buildBackdrop(): Promise<void> {
+    const url = burrowArt(this.data.level);
     const img = new Image();
-    img.src = BACKDROP_URL;
+    img.src = url;
     try {
       await img.decode();
     } catch {
       console.warn('[burrow] backdrop failed to load');
       return;
     }
+    this.backdropUrl = url;
     const tex = Texture.from(img);
     tex.source.scaleMode = 'nearest';
     tex.source.autoGenerateMipmaps = false;
@@ -117,8 +132,26 @@ export class BurrowScene implements Scene {
     sprite.width = img.naturalWidth * cover * BURROW_ZOOM;
     sprite.height = img.naturalHeight * cover * BURROW_ZOOM;
     sprite.zIndex = -10;
+    // An upgrade replaces the picture in place. Destroying the old sprite
+    // rather than leaving it behind matters: they are the full canvas at
+    // BURROW_ZOOM, so stacking them would keep every backdrop the player has
+    // ever had resident and drawn.
+    this.backdrop?.destroy();
     this.backdrop = sprite;
     this.container.addChild(sprite);
+  }
+
+  /**
+   * The burrow was upgraded — show the level's art.
+   *
+   * The board, the crop and the traps all stay exactly where they are: every
+   * level's painting is pre-aligned on the same field, so this changes the
+   * picture and nothing about the ground underneath it.
+   */
+  async setLevel(level: number | null | undefined): Promise<void> {
+    this.data.level = level;
+    if (burrowArt(level) === this.backdropUrl) return;
+    await this.buildBackdrop();
   }
 
   /**
