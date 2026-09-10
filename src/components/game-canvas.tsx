@@ -25,6 +25,15 @@ export interface GameHandles {
   burrow: BurrowScene;
   /** Cross between the two. No teardown, no reload. */
   show(key: SceneKey): void;
+  /**
+   * Cross with the carrot iris closed over the cut.
+   *
+   * `atCut` runs at the pitch-black midpoint, alongside the scene swap — that
+   * is where a caller puts its OWN change of screen (React chrome, say), so
+   * the HUD never appears over the place it does not belong to. Resolves once
+   * the shutter is fully open again.
+   */
+  wipeTo(key: SceneKey, atCut?: () => void): Promise<void>;
 }
 
 export interface GameCanvasProps {
@@ -63,7 +72,10 @@ export function GameCanvas({ seed, playerId, onMoveIntent, onPlaceTrap, onReady 
       // `onReady` fires from INSIDE createApp, before it has returned, so it
       // cannot close over `app` — it reads the manager through this box, which
       // the boot fills in as soon as it exists.
-      const ref: { scenes: GameApp['scenes'] | null } = { scenes: null };
+      const ref: { scenes: GameApp['scenes'] | null; app: GameApp | null } = {
+        scenes: null,
+        app: null,
+      };
 
       const app = await createApp(host, {
         island: {
@@ -87,11 +99,19 @@ export function GameCanvas({ seed, playerId, onMoveIntent, onPlaceTrap, onReady 
               island,
               burrow,
               show: (key) => { scenes.show(key); },
+              wipeTo: (key, atCut) => {
+                const wipe = ref.app?.wipe;
+                // No shutter yet (an early press during boot) is not a reason
+                // to refuse the move — cross bare rather than not at all.
+                if (!wipe) { scenes.show(key); atCut?.(); return Promise.resolve(); }
+                return wipe.play(() => { scenes.show(key); atCut?.(); });
+              },
             });
           }
         },
       }, (scenes) => { ref.scenes = scenes; });
       if (disposed) { app.destroy(); return; }
+      ref.app = app;
       appRef.current = app;
     })();
 

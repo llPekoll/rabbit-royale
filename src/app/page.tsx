@@ -120,10 +120,22 @@ export default function Home() {
     }
   };
 
-  /** Cross to the other place. A swap, so it is instant. */
+  /**
+   * Cross to the other place, behind the carrot iris.
+   *
+   * The swap itself is still instant — both scenes are resident, nothing is
+   * rebuilt. What the wipe buys is that nobody SEES the instant: the shutter
+   * closes on a carrot, the scene changes at full black, and it opens on the
+   * other place. React's own chrome flips at the same midpoint, so the HUD
+   * never appears over the screen it does not belong to.
+   */
   const goTo = useCallback((next: Where) => {
-    handles.current?.show(next === 'island' ? SCENE.island : SCENE.burrow);
-    setWhere(next);
+    const h = handles.current;
+    if (!h) return;
+    // `setWhere` rides the midpoint callback rather than running here: called
+    // now it would flip the overlay while the iris was still closing, popping
+    // the island's HUD over the burrow for the length of the wipe.
+    void h.wipeTo(next === 'island' ? SCENE.island : SCENE.burrow, () => setWhere(next));
   }, []);
 
   /** Enough to dig with. Null burrow means "still loading", not "empty". */

@@ -1,7 +1,9 @@
-import { Application, Container, Graphics } from 'pixi.js';
+import { Application, Assets, Container, Graphics, Texture } from 'pixi.js';
 import gsap from 'gsap';
 import { SceneManager } from './SceneManager';
 import { BootScene } from './scenes/BootScene';
+import { CarrotWipe } from './fx/CarrotWipe';
+import * as Keys from '@/config/assetKeys';
 
 /** Background color. The video's feathered edges (alpha-masked on all
  *  four sides in GameScene) hide any subtle hue mismatch between the
@@ -47,6 +49,9 @@ export interface GameApp {
   scenes: SceneManager;
   /** Root container that scales design-space → screen. */
   gameRoot: Container;
+  /** The carrot iris that hides the cut between the two places. Absent only if
+   *  its texture failed to load — the game still crosses, just bare. */
+  wipe: CarrotWipe | null;
 }
 
 // Patch GSAP Tween.render to silently kill tweens targeting destroyed Pixi objects
@@ -121,6 +126,10 @@ export async function createApp(
   gameRoot.sortableChildren = true;
   pixi.stage.addChild(gameRoot);
 
+  // Declared before resize() so that function can close over it; filled in
+  // after the boot, which is what loads the carrot it is cut from.
+  let wipe: CarrotWipe | null = null;
+
   function resize() {
     const w = window.innerWidth;
     const h = window.innerHeight;
@@ -145,6 +154,11 @@ export async function createApp(
       Math.round((w - GAME_W * scale) / 2),
       0,
     );
+
+    // The shutter is built after this function (it needs the booted textures)
+    // but resize runs once before that, so it is optional here rather than
+    // hoisted — a rotation mid-wipe still has to re-cover the new viewport.
+    wipe?.resize(w, h);
   }
 
   resize();
@@ -161,12 +175,34 @@ export async function createApp(
   onScenes?.(scenes);
   await scenes.start(BootScene, boot);
 
+  // The iris sits on the STAGE, not in gameRoot: it has to cover the letterbox
+  // as well as the board, and gameRoot is only the scaled design space. Added
+  // after the boot so the carrot texture the loader fetched is already there,
+  // and given the top zIndex so no scene can ever draw over the shutter.
+  // A decorative shutter must never be the reason the game fails to boot: if
+  // the carrot is somehow missing, cross bare (see GameHandles.wipeTo) rather
+  // than take the whole app down for a transition.
+  const carrot = Assets.get<Texture>(Keys.CARROT);
+  if (carrot) {
+    wipe = new CarrotWipe({
+      width: window.innerWidth,
+      height: window.innerHeight,
+      texture: carrot,
+    });
+    wipe.view.zIndex = 1000;
+    pixi.stage.addChild(wipe.view);
+  } else {
+    console.warn('[rr] no carrot texture: crossing between scenes without the iris');
+  }
+
   return {
     pixi,
     scenes,
     gameRoot,
+    wipe,
     destroy() {
       window.removeEventListener('resize', resize);
+      wipe?.destroy();
       scenes.destroyAll();
       gsap.globalTimeline.clear();
       pixi.destroy(true, { children: true });
