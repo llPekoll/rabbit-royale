@@ -484,8 +484,21 @@ button { min-height: 44px; min-width: 44px; }
   position: fixed;
   inset: 0;
   z-index: 0;
+}
+/* The painting and the crop are two layers that must line up EXACTLY, so both
+   are sized `cover` from the same centre. They are the same source resolution
+   (the crop canvas is the art's own pixel size), so `cover` lands them on the
+   same pixels — which is what lets the carrots sit in the furrows at any
+   viewport shape without a single hardcoded offset. */
+.rr-home-art-img,
+.rr-home-art-crop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   background-size: cover;
   background-position: center;
+  object-fit: cover;
   image-rendering: pixelated;
 }
 /* A wash over the art so white text stays readable on bright grass, dark

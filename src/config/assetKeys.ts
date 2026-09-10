@@ -30,6 +30,10 @@ export const CARROT = 'carrot';
 /** The iris aperture's silhouette — see tools/gen_carrot_mask.py. */
 export const CARROT_MASK = 'carrot-mask';
 
+/** The 12-frame carrot GROWTH sheet — the burrow's field, sprout to ripe.
+ *  Distinct from CARROT, which is the single picked-carrot prop. */
+export const CARROT_GROWTH = 'carrot-growth';
+
 /** The eight drifting cloud sprites, keyed `cloud-1`..`cloud-8`. */
 export const CLOUD_COUNT = 8;
 export const cloudKey = (n: number) => `cloud-${n}`;

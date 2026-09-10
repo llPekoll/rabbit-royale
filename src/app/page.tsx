@@ -23,6 +23,8 @@ import { CarrotCounter } from '@/components/carrot-counter';
 import { SoundButton } from '@/components/sound-button';
 import { LoadingScreen } from '@/components/loading-screen';
 import { EnergyBar } from '@/components/energy-bar';
+import { CarrotField } from '@/components/carrot-field';
+import { gardenProgress } from '@/lib/game/garden-growth';
 import { SCENE } from '@/game/keys';
 
 interface Burrow {
@@ -144,6 +146,23 @@ export default function Home() {
   const onMoveIntent = useCallback((tile: number) => game.moveTo(tile), [game]);
   const onPlaceTrap = useCallback(() => {}, []);
 
+  // The field in the burrow scene follows the real garden. Pushed on every
+  // burrow refresh rather than read by the scene, because the scene has no
+  // business knowing about fetches — it renders what it is told.
+  useEffect(() => {
+    if (!ready || !burrow) return;
+    handles.current?.burrow?.setGardenProgress(
+      gardenProgress(burrow.gardenReady, burrow.level),
+    );
+  }, [ready, burrow]);
+
+  // A harvest empties the field NOW, on the action, rather than waiting for the
+  // next refresh to notice the number fell — collecting has to have an
+  // immediate consequence on the place, not just on a counter.
+  useEffect(() => {
+    if (burstKey > 0) handles.current?.burrow?.harvestGarden();
+  }, [burstKey]);
+
   return (
     <main className="rr-home">
       {/* One canvas, both scenes, mounted as soon as there is a player.
@@ -163,13 +182,19 @@ export default function Home() {
         />
       )}
 
-      {/* Signed out there is no canvas, so the burrow painting stands in. */}
+      {/* Signed out there is no canvas, so the burrow painting stands in — with
+          its field GROWING on top of it rather than painted into it. Someone on
+          this screen is waiting (for a wallet, for a decision), and a place that
+          is visibly alive is worth more here than anywhere else in the game. */}
       {!player && (
-        <div
-          className="rr-home-art"
-          style={{ backgroundImage: `url(${BURROW_ART})` }}
-          aria-hidden
-        />
+        <div className="rr-home-art" aria-hidden>
+          <div
+            className="rr-home-art-img"
+            style={{ backgroundImage: `url(${BURROW_ART})` }}
+          />
+          {/* No garden to report on, so it runs its decorative loop. */}
+          <CarrotField className="rr-home-art-crop" progress={null} />
+        </div>
       )}
 
       {/* Sound belongs to the app, not to a screen: it rides above both. */}
@@ -378,5 +403,7 @@ function formatWait(ms: number | null): string {
 }
 
 /** The burrow, painted. Stands in for the canvas before sign-in. */
-const BURROW_ART = '/assets/island/burrow_generated.webp';
+// The BARE-soil cut of the art: the crop is drawn live over it by CarrotField,
+// so it has to not already be in the picture. See tools/plant_carrots.py.
+const BURROW_ART = '/assets/island/burrow.webp';
 const LOGO = '/assets/ui/RR-Logo_Banner.webp';

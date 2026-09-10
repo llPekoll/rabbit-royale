@@ -34,6 +34,9 @@ const IMAGES = [
   // from the kit's carrot: a mask keeps only alpha, and the sprite's shape
   // lives partly in its shading.
   { key: Keys.CARROT_MASK, src: '/assets/fx/carrot-mask.webp' },
+  // The field's crop, as a growth animation. Loaded here rather than by the
+  // scene so the burrow never paints a frame of bare dirt while it arrives.
+  { key: Keys.CARROT_GROWTH, src: '/assets/carottes/carrote.png' },
   // The drifting clouds. Eight shapes so a sky of them never visibly repeats.
   ...Array.from({ length: Keys.CLOUD_COUNT }, (_, i) => ({
     key: Keys.cloudKey(i + 1),

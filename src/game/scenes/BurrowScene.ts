@@ -16,13 +16,22 @@ import type { Scene } from '../SceneManager';
 import { SceneManager } from '../SceneManager';
 import { GAME_W, GAME_H } from '../Application';
 import { CloudField } from '../fx/Clouds';
+import { CarrotCrop } from '../entities/CarrotCrop';
 import { getDiamondOutline } from '../services/TileTextures';
+import * as Keys from '@/config/assetKeys';
 import {
   BURROW_COLS, BURROW_ROWS, BURROW_HALF_W, BURROW_HALF_H, BURROW_ZOOM,
   burrowCell, burrowTilePos, burrowTileDepth, isTrappable,
 } from '@/config/burrowConfig';
 
-const BACKDROP_URL = '/assets/island/burrow_generated.webp';
+// The hand-drawn art, field left BARE — the crop is drawn over it as live,
+// growing sprites (see components/carrot-field.tsx), because a carrot painted
+// into a backdrop can never grow.
+//
+// burrowConfig's origin, zoom and LAYOUT are all measured against THIS file.
+// Changing it means re-measuring them (Burrow/Calibration story), which
+// test/burrow-calibration.test.ts enforces.
+const BACKDROP_URL = '/assets/island/burrow.webp';
 
 /** Placed traps read as YOURS — gold, like the crown and the carrot count. */
 const TRAP_TINT = 0xffd45c;
@@ -44,12 +53,20 @@ export interface BurrowSceneData {
   placing: boolean;
   /** Called when a trappable tile is tapped. The server decides. */
   onPlace(tile: number): void;
+  /**
+   * How full the garden is, 0..1 — `gardenReady / capacity`.
+   *
+   * Drives the crop growing in the field. Absent (or null) runs the decorative
+   * loop instead, for a viewer with no garden of their own.
+   */
+  gardenProgress?: number | null;
 }
 
 export class BurrowScene implements Scene {
   container: Container;
   private clouds: CloudField | null = null;
   private backdrop: Sprite | null = null;
+  private crop: CarrotCrop | null = null;
   private board = new Container();
   private trapSprites = new Map<number, Container>();
   private hints: Sprite[] = [];
@@ -67,6 +84,7 @@ export class BurrowScene implements Scene {
 
   async create(): Promise<void> {
     await this.buildBackdrop();
+    this.buildCrop();
     // The same sky as the island, so the two screens are the same world.
     this.clouds = new CloudField(this.container, { width: GAME_W, height: GAME_H });
 
@@ -101,6 +119,38 @@ export class BurrowScene implements Scene {
     sprite.zIndex = -10;
     this.backdrop = sprite;
     this.container.addChild(sprite);
+  }
+
+  /**
+   * The crop growing in the field.
+   *
+   * Positioned from the SAME plot list the still art was measured with
+   * (carrotPlots.json), in the backdrop's own coordinate space — so the plants
+   * sit in the furrows the art draws, at any canvas size, with no offsets
+   * tuned by hand.
+   */
+  private buildCrop(): void {
+    const sheet = Texture.from(Keys.CARROT_GROWTH);
+    this.crop = new CarrotCrop(this.container, sheet);
+    this.crop.setProgress(this.data.gardenProgress ?? null);
+  }
+
+  /** The garden filled or was collected — the field follows. */
+  setGardenProgress(progress: number | null): void {
+    this.data.gardenProgress = progress;
+    this.crop?.setProgress(progress);
+  }
+
+  /**
+   * The harvest was taken: clear the field and let it grow back.
+   *
+   * Called on the ACTION rather than inferred from progress falling, so that
+   * collecting has an immediate visible consequence on the place instead of
+   * waiting for the next poll to notice.
+   */
+  harvestGarden(): void {
+    this.crop?.reset();
+    this.crop?.setProgress(0);
   }
 
   /**
@@ -218,7 +268,9 @@ export class BurrowScene implements Scene {
   }
 
   update(deltaTime: number): void {
-    this.clouds?.update(deltaTime * (1000 / 60));
+    const ms = deltaTime * (1000 / 60);
+    this.clouds?.update(ms);
+    this.crop?.update(ms);
   }
 
   destroy(): void {
@@ -227,6 +279,7 @@ export class BurrowScene implements Scene {
     this.trapSprites.clear();
     for (const h of this.hints) gsap.killTweensOf(h);
     this.hints = [];
+    this.crop?.destroy();
     this.backdrop?.destroy();
     this.container.destroy({ children: true });
   }
