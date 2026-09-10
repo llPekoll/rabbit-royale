@@ -569,14 +569,10 @@ button { min-height: 44px; min-width: 44px; }
   text-align: center;
   gap: 4px;
   padding-bottom: 8vh;
-  /* A pad behind the copy so it stays legible whatever line of the crawl is
-     passing behind it — the crawl is bright yellow and the copy is grey. */
-  background: radial-gradient(
-    120% 42% at 50% 100%,
-    rgba(13, 17, 23, 0.94) 0%,
-    rgba(13, 17, 23, 0.86) 45%,
-    rgba(13, 17, 23, 0) 100%
-  );
+  /* No background of its own. The crawl's own bottom fade (.rr-crawl-horizon)
+     already darkens exactly this band, and stacking a second wash on top of it
+     dimmed the burrow painting into mud for no gain. One gradient, in the
+     component that owns the reason for it. */
 }
 
 /* The stock, big: it is the number the whole persistent layer is about, and a
@@ -2019,9 +2015,13 @@ button { font-family: var(--font-pixel); }
     linear-gradient(
       0deg,
       var(--bg) 0%,
-      rgba(13, 17, 23, 0.90) 14%,
-      rgba(13, 17, 23, 0.45) 26%,
-      rgba(13, 17, 23, 0) 38%
+      /* Opaque up to here: the sign-in block (wordmark, tagline, the line about
+         claiming a burrow) measures ~28% of the viewport on a 390x844 phone,
+         which is the tallest it gets. A shorter fade let the crawl run straight
+         through the wordmark. */
+      rgba(13, 17, 23, 0.94) 24%,
+      rgba(13, 17, 23, 0.55) 34%,
+      rgba(13, 17, 23, 0) 46%
     );
 }
 
