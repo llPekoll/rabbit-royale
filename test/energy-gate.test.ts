@@ -16,6 +16,7 @@ const CSS = readFileSync(new URL('../src/app/globals.css', import.meta.url), 'ut
 const now = Date.now();
 const row = (energy: number, agoMs = 0) => ({
   stock: 0,
+  lifetimeCarrots: 0,
   burrowLevel: 1,
   burrowHp: 100,
   hpUpdatedAt: new Date(now),

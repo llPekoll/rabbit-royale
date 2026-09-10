@@ -13,6 +13,7 @@ import { burrowView, yieldPerHour } from '../src/lib/game/burrow';
 const now = Date.now();
 const row = (level: number, stock = 0, pickedHoursAgo = 0) => ({
   stock,
+  lifetimeCarrots: 0,
   burrowLevel: level,
   burrowHp: level * BURROW.HP_PER_LEVEL,
   hpUpdatedAt: new Date(now),

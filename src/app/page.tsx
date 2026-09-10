@@ -13,7 +13,7 @@
  * driven through the handles the canvas hands back, never through state.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useWalletLogin } from '@/components/use-wallet-login';
+import { useWalletLogin, WalletSessionProvider } from '@/components/use-wallet-login';
 import { useGameSocket, type RunRecap } from '@/components/use-game-socket';
 import { GameCanvas, type GameHandles } from '@/components/game-canvas';
 import { WalletButton } from '@/components/wallet-button';
@@ -62,7 +62,23 @@ interface Burrow {
 /** Which of the two places is on screen. Not a route: a scene swap. */
 type Where = 'burrow' | 'island';
 
+/**
+ * The session is created HERE, above both consumers.
+ *
+ * The page and the wallet chip each call `useWalletLogin`, and before this it
+ * was a plain hook: two independent copies of the same session. Logging out
+ * through the chip emptied only the chip's copy, leaving a signed-out player
+ * looking at their own burrow. One provider, one session.
+ */
 export default function Home() {
+  return (
+    <WalletSessionProvider>
+      <Burrow />
+    </WalletSessionProvider>
+  );
+}
+
+function Burrow() {
   const { player, token } = useWalletLogin();
   const [where, setWhere] = useState<Where>('burrow');
   const [burrow, setBurrow] = useState<Burrow | null>(null);

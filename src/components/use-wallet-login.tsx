@@ -10,8 +10,20 @@
  *
  * Both do the same thing: sign the server's challenge. The server never sees a
  * key, only a signature over a nonce it minted.
+ *
+ * ONE SESSION, SHARED. The state lives in a context, and `useWalletLogin` reads
+ * it — it does not create it. That is not ceremony: this hook used to be called
+ * independently by the page and by the wallet button, and a plain hook with
+ * `useState` gives each caller its OWN state. Signing out through the button
+ * cleared the button's copy (the chip went back to "Connect wallet") while the
+ * page's copy still held a player, so the burrow, the carrot counter and the
+ * leaderboard all stayed on screen for a signed-out player. Both halves read
+ * the same localStorage token, which is exactly why it looked like it worked
+ * until someone logged out.
+ *
+ * Mount `<WalletSessionProvider>` above anything that signs in.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import bs58 from 'bs58';
 import { isNative, nativeWallet } from './native-bridge';
 
@@ -52,7 +64,7 @@ export function restoreDecision(status: number): 'keep' | 'discard' {
   return 'keep';
 }
 
-export function useWalletLogin() {
+function useWalletSession() {
   const [player, setPlayer] = useState<Player | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -154,4 +166,44 @@ export function useWalletLogin() {
   }, []);
 
   return { player, token, busy, error, login, logout, applyProfile };
+}
+
+export type WalletSession = ReturnType<typeof useWalletSession>;
+
+/**
+ * The session, created ONCE and handed to everyone below it.
+ *
+ * Null means no provider is mounted. That is a wiring mistake rather than a
+ * state a player can reach, so `useWalletLogin` throws on it instead of
+ * silently handing back a second, private session — which is precisely the
+ * failure this context exists to end.
+ */
+const WalletSessionContext = createContext<WalletSession | null>(null);
+
+export function WalletSessionProvider({ children }: { children: ReactNode }) {
+  const session = useWalletSession();
+  // The value is an object rebuilt every render; memoise on the fields that
+  // actually change so consumers are not woken by identity churn alone.
+  const value = useMemo(
+    () => session,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [session.player, session.token, session.busy, session.error],
+  );
+  return (
+    <WalletSessionContext.Provider value={value}>
+      {children}
+    </WalletSessionContext.Provider>
+  );
+}
+
+/**
+ * Read the ONE session. Every caller gets the same player, the same token and
+ * the same `logout` — so signing out empties every screen at once.
+ */
+export function useWalletLogin(): WalletSession {
+  const ctx = useContext(WalletSessionContext);
+  if (!ctx) {
+    throw new Error('useWalletLogin needs a <WalletSessionProvider> above it.');
+  }
+  return ctx;
 }

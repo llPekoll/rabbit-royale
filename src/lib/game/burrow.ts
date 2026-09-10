@@ -10,6 +10,8 @@ import { currentEnergy, gardenYield, maxHp, type RegenRow } from './regen';
 
 export interface BurrowRow extends RegenRow {
   stock: number;
+  /** Never reset, never stolen — the counter the codex unlocks on. */
+  lifetimeCarrots: number;
 }
 
 export interface BurrowView {
@@ -18,6 +20,13 @@ export interface BurrowView {
   hp: number;
   maxHp: number;
   stock: number;
+  /**
+   * Lifetime carrots — the third counter, and the only one that never moves
+   * backwards. It rides on the burrow view because the burrow screen is where
+   * it is read: it is what opens the codex's chapters (config/lore.ts), and a
+   * story hung on `stock` or `seasonScore` would be un-read by a raid.
+   */
+  lifetime: number;
   /** Carrots waiting to be collected right now. */
   gardenReady: number;
   /**
@@ -76,6 +85,7 @@ export function burrowView(row: BurrowRow, now = Date.now()): BurrowView {
     hp: row.burrowHp,
     maxHp: maxHp(row.burrowLevel),
     stock: row.stock,
+    lifetime: row.lifetimeCarrots,
     gardenReady: gardenYield(row, now),
     energy: currentEnergy(row, now),
     maxEnergy: OUT_OF_RUN_ENERGY.MAX,
