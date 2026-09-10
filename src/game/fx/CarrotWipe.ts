@@ -26,14 +26,28 @@ import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import gsap from 'gsap';
 
 /**
- * How long each half takes. Short on purpose: this sits between a press and the
- * thing the player asked for, so it has to read as punctuation, not as a wait.
- * The classic wipe is quick — the charm is in the shape, not in the duration.
+ * How long each half takes.
+ *
+ * Brisk, but not hurried: this sits between a press and the thing the player
+ * asked for, so it reads as punctuation rather than as a wait. The first cut
+ * of these was faster and the carrot went by before the eye could name it —
+ * which wastes the one flourish the transition has.
+ *
+ * The opening is the slower of the two on purpose: closing is the game taking
+ * the screen away, and that should feel decisive; opening is handing the new
+ * one over, and that can afford to be generous.
  */
-const CLOSE_MS = 420;
-const OPEN_MS = 480;
-/** A beat of full black, so the cut lands as a cut rather than as a stutter. */
-const HOLD_MS = 90;
+const CLOSE_MS = 580;
+const OPEN_MS = 680;
+
+/**
+ * The beat of full black between them.
+ *
+ * Long enough to be a deliberate pause rather than a stutter — this is where
+ * the scene swap hides, and a cut the eye can rest on for a moment reads as
+ * intentional where a flicker reads as a hitch.
+ */
+const HOLD_MS = 500;
 
 /**
  * The hole at its widest, as a multiple of the screen's diagonal.
