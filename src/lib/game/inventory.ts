@@ -13,11 +13,11 @@
  *  - ENERGY is not held at all — a refill is applied on purchase, so what the
  *    shelf reports for it is how many refills the daily cap still allows.
  */
-import { ENERGY_PACK, SHOP, itemCap, itemPrice, itemUsdcPrice } from '@config/tuning';
+import { ENERGY_PACK, SHOP, SMOKE, itemCap, itemPrice, itemUsdcPrice } from '@config/tuning';
 import { availableTraps, type TrapRow } from './traps';
 
 /** The kinds the shop sells. Same set the `item_kind` enum stores. */
-export const ITEM_KINDS = ['trap', 'bomb', 'lightning', 'shield', 'energy'] as const;
+export const ITEM_KINDS = ['trap', 'bomb', 'lightning', 'shield', 'energy', 'smoke'] as const;
 export type ItemKind = (typeof ITEM_KINDS)[number];
 
 /** The kinds that are actually CARRIED. Energy is spent as it is bought. */
@@ -38,6 +38,34 @@ export interface InventoryRow {
 export interface EnergyPackRow {
   energyPacksBought: number;
   energyPacksSince: Date;
+}
+
+/** When this burrow's clue numbers stop being hidden. */
+export interface SmokeRow {
+  smokeUntil: Date | null;
+}
+
+/** Are this burrow's numbers hidden right now? */
+export function smokeActive(row: SmokeRow, now = Date.now()): boolean {
+  return !!row.smokeUntil && row.smokeUntil.getTime() > now;
+}
+
+/** Whole days of screen still banked, rounded up — what the shelf displays. */
+export function smokeDaysLeft(row: SmokeRow, now = Date.now()): number {
+  if (!smokeActive(row, now)) return 0;
+  return Math.ceil((row.smokeUntil!.getTime() - now) / SMOKE.DURATION_MS);
+}
+
+/**
+ * The new expiry after buying `qty` screens.
+ *
+ * EXTENDS an active screen rather than restarting it: buying two in a row is
+ * worth two days, which is what a player assumes, and restarting would quietly
+ * burn the second purchase. Capped so a whale cannot buy a blind season.
+ */
+export function extendSmoke(row: SmokeRow, qty: number, now = Date.now()): Date {
+  const from = smokeActive(row, now) ? row.smokeUntil!.getTime() : now;
+  return new Date(Math.min(from + qty * SMOKE.DURATION_MS, now + SMOKE.MAX_MS));
 }
 
 /** What a player holds, every kind present even at zero. */
@@ -84,14 +112,17 @@ export function spendEnergyPack(row: EnergyPackRow, now = Date.now()): EnergyPac
  */
 export function holdings(
   rows: InventoryRow[],
-  row: TrapRow & EnergyPackRow,
+  row: TrapRow & EnergyPackRow & SmokeRow,
   now = Date.now(),
 ): Holdings {
-  const bag = { trap: 0, bomb: 0, lightning: 0, shield: 0, energy: 0 } as Holdings;
+  const bag = { trap: 0, bomb: 0, lightning: 0, shield: 0, energy: 0, smoke: 0 } as Holdings;
   for (const r of rows) if (isItemKind(r.kind)) bag[r.kind] = r.qty;
-  // Traps and energy override whatever the table said: neither is stored there.
+  // Traps, energy and smoke override whatever the table said: none is stored
+  // there. Traps live beside their free allowance, energy is applied on
+  // purchase, and smoke is an expiry instant rather than a thing carried.
   bag.trap = availableTraps(row, now);
   bag.energy = energyPacksUsed(row, now);
+  bag.smoke = smokeDaysLeft(row, now);
   return bag;
 }
 
@@ -164,7 +195,9 @@ export function purchaseBlocker(
   if (!Number.isInteger(qty) || qty < 1) return 'bad_quantity';
   if (qty > SHOP.MAX_QTY_PER_PURCHASE) return 'too_many_at_once';
   if (bag[kind] + qty > itemCap(kind)) {
-    return kind === 'energy' ? 'daily_energy_limit' : 'inventory_full';
+    if (kind === 'energy') return 'daily_energy_limit';
+    if (kind === 'smoke') return 'smoke_capped';
+    return 'inventory_full';
   }
   if (stock !== undefined && stock < purchaseCost(kind, qty)) return 'insufficient_carrots';
   return null;

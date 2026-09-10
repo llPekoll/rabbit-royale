@@ -8,11 +8,11 @@
  * as they apply to carrots, and the energy window is rolling.
  */
 import { describe, expect, it } from 'vitest';
-import { ENERGY_PACK, SHOP, itemCap, itemPrice, itemUsdcPrice, usdcBaseUnits } from '../config/tuning';
+import { ENERGY_PACK, SHOP, SMOKE, itemCap, itemPrice, itemUsdcPrice, usdcBaseUnits } from '../config/tuning';
 import {
   CARRIED_KINDS, ITEM_KINDS, energyPacksLeft, energyPacksUsed, holdings,
   isItemKind, purchaseBlocker, purchaseCost, purchaseUsdc, shopShelf,
-  spendEnergyPack, type Holdings,
+  spendEnergyPack, smokeActive, smokeDaysLeft, extendSmoke, type Holdings,
 } from '../src/lib/game/inventory';
 
 const now = Date.now();
@@ -23,9 +23,10 @@ const fresh = {
   trapsClaimedAt: new Date(now),
   energyPacksBought: 0,
   energyPacksSince: new Date(now),
+  smokeUntil: null,
 };
 const bag = (over: Partial<Holdings> = {}): Holdings =>
-  ({ trap: 0, bomb: 0, lightning: 0, shield: 0, energy: 0, ...over });
+  ({ trap: 0, bomb: 0, lightning: 0, shield: 0, energy: 0, smoke: 0, ...over });
 
 describe('the price list', () => {
   // THE economy rule, as a test. "Everything is buyable in carrots OR money"
@@ -205,5 +206,44 @@ describe('receipts', () => {
   it('stores a carrot price as whole carrots', () => {
     expect(Number.isInteger(purchaseCost('trap', 3))).toBe(true);
     expect(purchaseCost('trap', 3)).toBe(itemPrice('trap') * 3);
+  });
+});
+
+describe('the smoke screen', () => {
+  const smokeRow = (until: Date | null) => ({ smokeUntil: until });
+
+  it('is inactive by default', () => {
+    expect(smokeActive(smokeRow(null), now)).toBe(false);
+    expect(smokeDaysLeft(smokeRow(null), now)).toBe(0);
+  });
+
+  it('is inactive once it has lapsed', () => {
+    expect(smokeActive(smokeRow(new Date(now - 1)), now)).toBe(false);
+  });
+
+  it('EXTENDS an active screen rather than restarting it', () => {
+    // Buying two in a row is worth two days, which is what a player assumes.
+    // Restarting would quietly burn the second purchase.
+    const oneDay = smokeRow(new Date(now + SMOKE.DURATION_MS));
+    const after = extendSmoke(oneDay, 1, now);
+    expect(after.getTime()).toBe(now + 2 * SMOKE.DURATION_MS);
+  });
+
+  it('starts from NOW when nothing is active', () => {
+    expect(extendSmoke(smokeRow(null), 1, now).getTime()).toBe(now + SMOKE.DURATION_MS);
+    // A lapsed screen must not be extended from its old expiry, or a player who
+    // returns after a week gets a screen that is already over.
+    expect(extendSmoke(smokeRow(new Date(now - 999_999)), 1, now).getTime())
+      .toBe(now + SMOKE.DURATION_MS);
+  });
+
+  it('caps banked screen time, so nobody buys a blind season', () => {
+    const hoarded = extendSmoke(smokeRow(null), 99, now);
+    expect(hoarded.getTime()).toBe(now + SMOKE.MAX_MS);
+  });
+
+  it('refuses a purchase past the cap, and says which limit it hit', () => {
+    const capped = bag({ smoke: itemCap('smoke') });
+    expect(purchaseBlocker('smoke', 1, capped, 1e6)).toBe('smoke_capped');
   });
 });

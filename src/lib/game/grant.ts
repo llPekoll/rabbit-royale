@@ -17,7 +17,7 @@ import { db } from '@/lib/db';
 import { inventory, players, purchases } from '@/lib/db/schema';
 import { ENERGY_PACK, OUT_OF_RUN_ENERGY } from '@config/tuning';
 import { currentEnergy } from './regen';
-import { spendEnergyPack, type EnergyPackRow, type ItemKind } from './inventory';
+import { extendSmoke, spendEnergyPack, type EnergyPackRow, type ItemKind, type SmokeRow } from './inventory';
 
 /**
  * A Drizzle transaction, or the handle itself.
@@ -32,6 +32,8 @@ export interface GrantResult {
   qty: number;
   /** For an energy refill: the bar after the top-up. Null for carried items. */
   energy: number | null;
+  /** For a smoke screen: when the numbers come back. Null otherwise. */
+  smokeUntil?: Date | null;
 }
 
 /**
@@ -102,6 +104,16 @@ export async function grantItem(
     }).where(eq(players.id, playerId));
 
     return { kind, qty, energy };
+  }
+
+  if (kind === 'smoke') {
+    const player = await tx.query.players.findFirst({ where: eq(players.id, playerId) });
+    if (!player) throw new Error('unknown player');
+
+    // Extends an active screen rather than restarting it — see extendSmoke.
+    const smokeUntil = extendSmoke(player as SmokeRow, qty, now);
+    await tx.update(players).set({ smokeUntil }).where(eq(players.id, playerId));
+    return { kind, qty, energy: null, smokeUntil };
   }
 
   if (kind === 'trap') {

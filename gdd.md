@@ -17,12 +17,16 @@ The Burrow
 One building, one level. Leveling up = garden produces more + bigger defense budget.
 Garden: passive carrot production, capped (~15% of active income — the run stays the main source). Harvest on return; stealable if you don't.
 Stock: fully exposed. A successful raid takes ~20-25%. No secured storage (a king could bunker his score). New players get a starting shield (~3 days).
-Defense field: you place bombs on your own home minefield (budget per level, a valid path must remain). Your base IS a puzzle you design.
+Defense field: your burrow is a 15x15 board with a fixed shape — the door, the stone path and the carrot field are where the art puts them. You bury traps on the walkable ground between them (budget per level, a valid path must always remain). Every burrow has the same shape; what differs between two of them is where the owner buried, which is the whole point. Your base IS a puzzle you design.
+Traps are invisible to a raider until sprung. A visible trap is just a wall, and a wall gets routed around rather than feared.
+Smoke screen (defensive, expensive): hides the clue numbers of YOUR burrow for 24h. A raider crosses it blind, reading nothing but their own steps. It is the anti-revenge item — after you take someone's carrots, it is what stops them walking straight back in with your layout memorised. Priced high on purpose: the crossing is meant to be solvable, and permanent blindness would make defence free.
 Repairs and defense re-setup are free. Always.
 PvP
 The Crown: leaderboard #1 is marked on the world map, gets a score bonus, and drops more loot. Being first = being hunted.
 Sabotage (real-time): spectate a live run, plant a signed bomb or lightning on their island. Items are earned in chests or bought, never free. The victim sees who did it — revenge is the point. A planted bomb updates revealed numbers: sharp players can spot the "2" that became a "3".
-Raid (async): you enter the defender's base and play THEIR minefield, the one they designed. Hit a bomb → knocked out, attempt over. Reach the vault → loot ~25% of the stock. Attackers can invite a friend to dig together; the defender gets a push notification and can rush home.
+Raid (async): you enter the defender's base and WALK THEIR BOARD, tile by tile, from the door towards the carrot field — the minefield they designed. You spend energy on every step; a sprung trap drains a chunk of it. At zero the raid ends where you stand.
+A raid is scored by HOW FAR you got, not by whether you "won". The crossing is only a handful of steps, so a pass/fail rule would resolve every raid to 100% or 0% however it was tuned; paying by depth makes each trap shave a slice off the haul instead of deciding the whole thing. Reach the field → the full share (~25%). Die on the doorstep → a floor, so attacking a defended burrow is never pure loss and nobody stops attacking after one bad run.
+Attackers can invite a friend to dig together; the defender gets a push notification and can rush home.
 Economy
 One carrot feeds three counters:
 Wallet — spendable, stealable. Buys everything in-game.

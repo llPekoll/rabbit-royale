@@ -45,9 +45,15 @@ function uiFiles(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-/** Characters the kit's ASCII atlas cannot draw. Emoji are exempt: they are
- *  rendered by the system font, not by the bitmap face. */
-const UNSUPPORTED = /[‐-―‘’“”•·…×←-⇿]/;
+/**
+ * Characters the kit's ASCII atlas cannot draw. Emoji are exempt: they are
+ * rendered by the system font, not by the bitmap face.
+ *
+ * U+2212 MINUS SIGN is in the list because it is the one that actually got
+ * shipped: it looks identical to a hyphen in an editor, so `-300` written with
+ * it passed every review and rendered as a blank box beside the price.
+ */
+const UNSUPPORTED = /[‐-―‘’“”•·…×−←-⇿]/;
 
 describe('pixel font coverage', () => {
   const root = new URL('../src', import.meta.url).pathname;

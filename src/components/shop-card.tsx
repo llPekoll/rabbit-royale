@@ -22,6 +22,8 @@ import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { ItemKind, ShopItem, ShopState } from './use-shop';
 import type { PayStage } from './use-usdc-pay';
+import { LauncherTab, DANGER, LAMP } from './burrow-chrome';
+import { LootChest, CHEST_ASPECT } from './loot-chest';
 
 /**
  * Icons are picked for COVERAGE, not for taste.
@@ -68,6 +70,12 @@ const ITEMS: Record<ItemKind, {
     blurb: 'Fill the bar and dig now, instead of waiting it out.',
     tint: '#e07a2f',
   },
+  smoke: {
+    icon: '🌫️',
+    name: 'Smoke screen',
+    blurb: 'Hides your burrow\u2019s numbers for a day. Raiders cross it blind.',
+    tint: '#6b7a8f',
+  },
 };
 
 /**
@@ -86,16 +94,22 @@ export function ShopButton({ shop, onOpen }: ShopButtonProps) {
   const traps = shop?.traps;
   const bare = !!traps && traps.placed === 0;
   return (
-    <button className="rr-shop-open" onClick={onOpen}>
-      <span className="rr-shop-open-name">Shop</span>
-      {traps && (
-        // An undefended burrow is the one thing worth saying loudly here: it is
-        // the state that costs the player carrots while they are not looking.
-        <span className={`rr-shop-open-traps${bare ? ' bare' : ''}`}>
-          {bare ? 'Burrow undefended' : `${traps.placed}/${traps.maxPlaced} buried`}
-        </span>
-      )}
-    </button>
+    <LauncherTab
+      // The kit's animated chest, not a flat sprite: its idle highlight sweeps
+      // the lid every few seconds, which is what makes it read as an object
+      // lying on the tab rather than an icon printed on it.
+      art={<LootChest size={52} />}
+      spriteSize={52}
+      spriteHeight={Math.round(52 * CHEST_ASPECT)}
+      label="SHOP"
+      // An undefended burrow is the one thing worth saying loudly here: it is
+      // the state that costs the player carrots while they are not looking.
+      sub={traps ? (bare ? 'BURROW UNDEFENDED' : `${traps.placed}/${traps.maxPlaced} BURIED`) : undefined}
+      ink={bare ? DANGER : LAMP}
+      count={traps?.held}
+      onClick={onOpen}
+      ariaLabel="Shop"
+    />
   );
 }
 
@@ -214,10 +228,14 @@ function Row({
 }) {
   const meta = ITEMS[item.kind];
   const full = !item.hasRoom;
-  // Energy counts DOWN (refills left today), everything else counts up.
+  // Three different things to report, because three different things are being
+  // sold: a count for carried items, refills LEFT for energy, and days of cover
+  // remaining for smoke, which is time rather than a thing at all.
   const held = item.kind === 'energy'
     ? `${item.cap - item.held} today`
-    : `${item.held}/${item.cap}`;
+    : item.kind === 'smoke'
+      ? (item.held > 0 ? `${item.held}d left` : 'off')
+      : `${item.held}/${item.cap}`;
 
   return (
     <li

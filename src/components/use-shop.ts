@@ -15,7 +15,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 
-export type ItemKind = 'trap' | 'bomb' | 'lightning' | 'shield' | 'energy';
+export type ItemKind = 'trap' | 'bomb' | 'lightning' | 'shield' | 'energy' | 'smoke';
 
 export interface ShopItem {
   kind: ItemKind;
@@ -54,6 +54,7 @@ const MESSAGES: Record<string, string> = {
   insufficient_carrots: 'Not enough carrots.',
   inventory_full: 'Your bag is full of those.',
   daily_energy_limit: 'No more refills today. The garden still grows.',
+  smoke_capped: 'Your burrow is hidden as long as it can be.',
   too_many_at_once: 'Too many at once.',
   bad_quantity: 'That is not a quantity.',
   no_traps: 'No traps left. Buy one, or wait for tomorrow.',
@@ -160,11 +161,15 @@ export function useShop(token: string | null) {
  *  a receipt and this is a game. */
 function purchaseNote(kind: ItemKind, qty: number, spent: number): string {
   const n = qty > 1 ? `${qty} ` : '';
+  // Plain ASCII '-', not a minus sign: the pixel face cannot draw U+2212 and it
+  // renders as a blank box on the device. See test/pixel-font-glyphs.
+  const paid = `-${spent} 🥕`;
   switch (kind) {
-    case 'energy': return `Energy refilled. −${spent} 🥕`;
-    case 'trap': return `${n}trap${qty > 1 ? 's' : ''} in the shed. −${spent} 🥕`;
-    case 'bomb': return `${n}bomb${qty > 1 ? 's' : ''} armed. −${spent} 🥕`;
-    case 'lightning': return `${n}lightning bolt${qty > 1 ? 's' : ''} bottled. −${spent} 🥕`;
-    case 'shield': return `${n}shield${qty > 1 ? 's' : ''} ready. −${spent} 🥕`;
+    case 'energy': return `Energy refilled. ${paid}`;
+    case 'trap': return `${n}trap${qty > 1 ? 's' : ''} in the shed. ${paid}`;
+    case 'bomb': return `${n}bomb${qty > 1 ? 's' : ''} armed. ${paid}`;
+    case 'lightning': return `${n}lightning bolt${qty > 1 ? 's' : ''} bottled. ${paid}`;
+    case 'shield': return `${n}shield${qty > 1 ? 's' : ''} ready. ${paid}`;
+    case 'smoke': return `The numbers are hidden. ${paid}`;
   }
 }

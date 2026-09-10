@@ -28,6 +28,7 @@ const PRICES: Record<ItemKind, { price: number; usdc: number; cap: number }> = {
   lightning: { price: 520, usdc: 0.60, cap: 20 },
   shield: { price: 750, usdc: 0.90, cap: 20 },
   energy: { price: 900, usdc: 0.99, cap: 5 },
+  smoke: { price: 2400, usdc: 1.99, cap: 3 },
 };
 
 function makeShop(stock: number, held: Partial<Record<ItemKind, number>>, usdcEnabled: boolean): ShopState {

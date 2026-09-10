@@ -266,6 +266,36 @@ export const RAID = {
  * worth to someone who would rather not do the run. Trying to hold them at a
  * fixed ratio would drag every carrot retune into a pricing decision.
  */
+/**
+ * The smoke screen: the anti-revenge item.
+ *
+ * Hides the clue numbers of YOUR burrow while it holds, so a raider crosses it
+ * blind — reading nothing but their own steps and whatever they spring.
+ *
+ * It exists because of a specific failure of a raid game: after you take
+ * somebody's carrots they come straight back, and the second visit is easy
+ * because they already learned the layout. A trap you have to re-buy does not
+ * fix that — they know where the old ones were. Blinding the board does.
+ *
+ * Deliberately EXPENSIVE and TEMPORARY. The crossing is meant to be solvable,
+ * so permanent blindness would make defence free and end the attacking half of
+ * the game; 24h is long enough to cover the window where revenge actually
+ * happens and short enough that it has to be bought again.
+ */
+export const SMOKE = {
+  /** How long the numbers stay hidden. */
+  DURATION_MS: 24 * 60 * 60 * 1000,
+  /**
+   * Whether a fresh purchase EXTENDS an active screen or restarts it.
+   *
+   * Extends: buying two in a row is worth two days, which is what a player
+   * assumes. Restarting would quietly burn the second one.
+   */
+  STACKS: true,
+  /** Ceiling on banked screen time, so a whale cannot buy a blind season. */
+  MAX_MS: 3 * 24 * 60 * 60 * 1000,
+} as const;
+
 export const SHOP = {
   /**
    * Carrot price per kind.
@@ -292,6 +322,14 @@ export const SHOP = {
     lightning: 520,
     shield: 750,
     energy: 900,
+    /**
+     * The dearest thing in the shed, and the only one that is dear for a
+     * DESIGN reason rather than an economic one: it takes information away
+     * from an attacker, which is stronger than anything else on this shelf.
+     * Priced so that blinding your burrow is a decision taken after a bad
+     * night, not a standing habit.
+     */
+    smoke: 2_400,
   },
   /**
    * USDC price per kind, in whole USDC (converted to base units at the edge —
@@ -305,6 +343,7 @@ export const SHOP = {
     lightning: 0.60,
     shield: 0.90,
     energy: 0.99,
+    smoke: 1.99,
   },
   /**
    * Ceiling per kind, so a whale cannot stockpile a season of offence in one
@@ -378,6 +417,10 @@ export function itemUsdcPrice(kind: keyof typeof SHOP.USDC_PRICES): number {
 export function itemCap(kind: keyof typeof SHOP.PRICES): number {
   if (kind === 'trap') return TRAPS.MAX_HELD;
   if (kind === 'energy') return ENERGY_PACK.MAX_PER_DAY;
+  // Smoke is TIME, not a thing carried: the ceiling is how many days of screen
+  // may be banked at once, so the shelf can say "2 of 3 days" like it says
+  // "4 of 20 bombs".
+  if (kind === 'smoke') return Math.round(SMOKE.MAX_MS / SMOKE.DURATION_MS);
   return SHOP.MAX_HELD;
 }
 

@@ -22,7 +22,7 @@ import {
  * on purchase rather than carried, so it appears here only so a payment row can
  * name what was bought. Nothing reads an `inventory` row of that kind.
  */
-export const itemKindEnum = pgEnum('item_kind', ['bomb', 'shield', 'lightning', 'trap', 'energy']);
+export const itemKindEnum = pgEnum('item_kind', ['bomb', 'shield', 'lightning', 'trap', 'energy', 'smoke']);
 /** What a purchase was paid with. Both routes buy the same goods — see SHOP. */
 export const currencyEnum = pgEnum('currency', ['carrots', 'usdc']);
 /** A USDC payment's life: quoted → paid → credited, or abandoned. */
@@ -70,6 +70,14 @@ export const players = pgTable('players', {
   trapsClaimedAt: timestamp('traps_claimed_at', { withTimezone: true }).notNull().defaultNow(),
   /** Raids bounce off until this instant. */
   shieldedUntil: timestamp('shielded_until', { withTimezone: true }),
+  /**
+   * The smoke screen: while this is in the future, a raider crossing this
+   * burrow is sent no clue numbers at all.
+   *
+   * An INSTANT rather than a count, because what is bought is time. Buying
+   * another screen while one holds extends this rather than replacing it —
+   * two purchases are worth two days, which is what a player assumes. */
+  smokeUntil: timestamp('smoke_until', { withTimezone: true }),
   /** Energy refills bought in the current rolling window, and when that
    *  window opened. A daily cap on PAID energy is what keeps money buying the
    *  wait rather than an unlimited session (ENERGY_PACK.MAX_PER_DAY). */
@@ -178,6 +186,15 @@ export const raidRuns = pgTable('raid_runs', {
   /** Where the raider stands, and what is left of their energy. */
   tile: integer('tile').notNull(),
   energy: integer('energy').notNull(),
+  /**
+   * Every tile walked, in order.
+   *
+   * Stored because a raid is a mini-run the attacker can be DISCONNECTED from,
+   * and what they are allowed to see is derived from where they have been —
+   * without this, a refresh would either blank the board they had read or hand
+   * them the whole thing. Also the audit trail if a big haul is ever disputed.
+   */
+  visited: integer('visited').array().notNull().default([]),
   trapsSprung: integer('traps_sprung').notNull().default(0),
   /** Set when the raider reached the field. */
   succeeded: boolean('succeeded').notNull().default(false),

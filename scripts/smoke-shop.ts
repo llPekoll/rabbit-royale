@@ -17,6 +17,7 @@ import { db } from '../src/lib/db';
 import { inventory, payments, players, purchases, traps } from '../src/lib/db/schema';
 import { signSession } from '../src/lib/auth/jwt';
 import { SHOP, TRAPS, OUT_OF_RUN_ENERGY } from '../config/tuning';
+import { ITEM_KINDS } from '../src/lib/game/inventory';
 import * as Shop from '../src/app/api/shop/route';
 import * as Traps from '../src/app/api/traps/route';
 import * as Pay from '../src/app/api/shop/pay/route';
@@ -59,7 +60,10 @@ async function main() {
   console.log('\nshop, against the real database\n');
 
   const shelf = await shopGet();
-  check('the shelf lists every item', shelf.items?.length === 5, shelf);
+  // Counted from ITEM_KINDS rather than pinned to a literal: adding an item to
+  // the shop should not fail this test, only a MISSING one should.
+  check('the shelf lists every item', shelf.items?.length === ITEM_KINDS.length,
+    { got: shelf.items?.length, want: ITEM_KINDS.length });
   check('every line carries both prices',
     shelf.items?.every((i: { price: number; usdc: number }) => i.price > 0 && i.usdc > 0));
   // The shelf must AGREE with the environment: offering a USDC button with no

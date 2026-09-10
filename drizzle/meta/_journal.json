@@ -36,6 +36,13 @@
       "when": 1789026545424,
       "tag": "0004_wealthy_felicia_hardy",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789027150602,
+      "tag": "0005_optimal_thing",
+      "breakpoints": true
     }
   ]
 }

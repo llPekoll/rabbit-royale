@@ -15,7 +15,7 @@
  *  - the loot, a share of the victim's stock scaled by how far the raider got.
  */
 import { BURROW, CROWN, RAID, RAID_RUN } from '@config/tuning';
-import { entranceTile, fieldTiles, burrowNeighbors } from '@/config/burrowConfig';
+import { entranceTile, fieldTiles, burrowNeighbors, walkableTiles } from '@/config/burrowConfig';
 
 /** Steps from a tile to the nearest field tile — the raid's own distance metric. */
 export function distanceToField(): Map<number, number> {
@@ -121,3 +121,55 @@ export const burrowMaxHp = (level: number) => level * BURROW.HP_PER_LEVEL;
  * post-raid shield, which is the anti-churn rule the whole loop rests on.
  */
 export const breaksBurrow = (hpBefore: number, damage: number) => damage >= hpBefore;
+
+/**
+ * The clue numbers a raider reads: how many traps touch each tile.
+ *
+ * This is what makes a burrow a MINEFIELD rather than a maze. A raider standing
+ * on a "0" knows all eight neighbours are safe and can stride; a "2" is a
+ * decision. It is the same contract as the island — deterministic danger,
+ * random reward — carried into the defensive half of the game.
+ *
+ * Computed on the server from the trap positions and sent as NUMBERS ONLY. The
+ * raider is never told where the traps are, which is what keeps burying one
+ * worth doing.
+ */
+export function trapClues(traps: Iterable<number>): Map<number, number> {
+  const mined = new Set(traps);
+  const clues = new Map<number, number>();
+  for (const tile of walkableTiles()) {
+    let n = 0;
+    for (const neighbour of burrowNeighbors(tile)) if (mined.has(neighbour)) n++;
+    clues.set(tile, n);
+  }
+  return clues;
+}
+
+/**
+ * What a raider may see of a burrow, from where they stand.
+ *
+ * Only the tiles they have ALREADY visited and those touching them — a raider
+ * reads the board by walking it, one step of information at a time. Handing
+ * over every clue at once would turn the crossing into a solved puzzle before
+ * the first step.
+ *
+ * `smoked` blanks the numbers entirely: the defender bought a screen, so the
+ * raider crosses blind and learns only what they spring. The TILES are still
+ * listed — a raider must know where the walls are, or they are not playing a
+ * board, they are guessing at a void.
+ */
+export function raiderView(
+  visited: Iterable<number>,
+  clues: Map<number, number>,
+  smoked: boolean,
+): { tile: number; clue: number | null }[] {
+  const seen = new Set<number>();
+  for (const tile of visited) {
+    seen.add(tile);
+    for (const neighbour of burrowNeighbors(tile)) seen.add(neighbour);
+  }
+  return [...seen].map((tile) => ({
+    tile,
+    clue: smoked ? null : (clues.get(tile) ?? 0),
+  }));
+}
