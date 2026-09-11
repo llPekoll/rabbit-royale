@@ -13,6 +13,15 @@ const PLAYER = {
   id: 'sol:demo',
   name: 'CursedWarren42',
   wallet: '7xKXtg2CW3xY9mSVzKqPmJfBnQ4dRhVaLpEwNcUuTbHs',
+  guest: false,
+};
+
+/** The same panel for someone who pressed PLAY and never held a wallet. */
+const GUEST = {
+  id: 'guest:8f0c1a2e-0000-4000-8000-000000000000',
+  name: 'LuckyClover7',
+  wallet: null,
+  guest: true,
 };
 
 const DAYS = [
@@ -90,15 +99,24 @@ function json(body: unknown): Promise<Response> {
   );
 }
 
-function Harness({ unseen = 0, avatar = null }: { unseen?: number; avatar?: string | null }) {
+function Harness({
+  unseen = 0,
+  avatar = null,
+  guest = false,
+}: {
+  unseen?: number;
+  avatar?: string | null;
+  guest?: boolean;
+}) {
   // Set before the panel's first render, which is when it fetches.
   stub.unseen = unseen;
   return (
     <div style={{ height: 700, background: '#0d1117' }}>
       <ProfileMenu
         token="stub"
-        player={PLAYER}
+        player={guest ? GUEST : PLAYER}
         avatar={avatar}
+        onConnectWallet={guest ? async () => true : null}
         onUpdated={() => {}}
         onClose={() => {}}
         onLogout={() => {}}
@@ -124,3 +142,12 @@ export const NoAvatarYet: Story = { args: { avatar: null } };
 
 /** Robbed overnight: the badge is the whole point of the feature. */
 export const WithUnreadRaids: Story = { args: { unseen: 3, avatar: 'gray' } };
+
+/**
+ * A guest's panel: no address to show, an offer in its place.
+ *
+ * The block stands exactly where the wallet line does for everyone else, which
+ * is the point — this is the same panel, telling the truth about a different
+ * kind of account rather than a reduced version of it.
+ */
+export const GuestBurrow: Story = { args: { guest: true, avatar: 'orange' } };

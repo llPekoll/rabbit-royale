@@ -61,7 +61,12 @@ interface History {
 
 export interface ProfileMenuProps {
   token: string;
-  player: { id: string; name: string; wallet: string };
+  player: { id: string; name: string; wallet: string | null; guest: boolean };
+  /** Take this player's guest account onto a real wallet. Null hides the offer
+   *  (they already have one). Resolves true when the wallet was attached. */
+  onConnectWallet?: (() => Promise<boolean>) | null;
+  /** True while the wallet prompt is open, so the offer can say so. */
+  connecting?: boolean;
   /** Avatar as the server currently has it — null until the player picks one. */
   avatar?: string | null;
   /** Told the new name/avatar so the chip outside updates without a reload. */
@@ -74,6 +79,8 @@ export function ProfileMenu({
   token,
   player,
   avatar,
+  onConnectWallet,
+  connecting = false,
   onUpdated,
   onClose,
   onLogout,
@@ -85,6 +92,16 @@ export function ProfileMenu({
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<History | null>(null);
   const [historyFailed, setHistoryFailed] = useState(false);
+  /**
+   * Armed when a guest has pressed "abandon" once.
+   *
+   * A wallet player who disconnects can sign back in; a guest cannot — the
+   * token in this browser IS the account, and dropping it strands the row for
+   * good. So their exit takes two presses, and the second one says what it
+   * does. No such gate for a wallet player: making the reversible action feel
+   * dangerous is how a warning stops being read.
+   */
+  const [confirmingAbandon, setConfirmingAbandon] = useState(false);
 
   const auth = { Authorization: `Bearer ${token}` };
 
@@ -240,11 +257,51 @@ export function ProfileMenu({
 
             {error && <p className="rr-warn">{error}</p>}
 
-            <p className="rr-wallet-line" title={player.wallet}>
-              {player.wallet.slice(0, 4)}...{player.wallet.slice(-4)}
-            </p>
-            <button className="rr-btn ghost" onClick={onLogout}>
-              Disconnect
+            {/* A guest is told the truth rather than shown a blank address:
+                their burrow is real and it is also only in this browser, and
+                the second half is the part they can do something about. The
+                offer is right here, beside the name and the face, because this
+                panel is already where a player comes to make their account
+                theirs. */}
+            {player.guest ? (
+              <div className="rr-guest-note">
+                <p>
+                  Guest burrow. It lives in this browser only: connect a wallet
+                  to keep it, play on any device, and unlock the shop.
+                </p>
+                {onConnectWallet && (
+                  <button
+                    className="rr-btn"
+                    disabled={connecting}
+                    onClick={() => {
+                      void onConnectWallet();
+                    }}
+                  >
+                    {connecting ? 'Waiting for wallet...' : 'Connect wallet'}
+                  </button>
+                )}
+              </div>
+            ) : (
+              <p className="rr-wallet-line" title={player.wallet ?? undefined}>
+                {player.wallet?.slice(0, 4)}...{player.wallet?.slice(-4)}
+              </p>
+            )}
+            {/* "Disconnect" is a wallet word, and a guest has no wallet to
+                disconnect from — for them this ENDS the account, which is worth
+                both naming plainly and asking twice about. */}
+            <button
+              className="rr-btn ghost"
+              onClick={() => {
+                if (!player.guest) return onLogout();
+                if (confirmingAbandon) return onLogout();
+                setConfirmingAbandon(true);
+              }}
+            >
+              {!player.guest
+                ? 'Disconnect'
+                : confirmingAbandon
+                  ? 'Really abandon? This cannot be undone'
+                  : 'Abandon this burrow'}
             </button>
           </div>
         ) : (

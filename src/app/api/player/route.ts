@@ -69,6 +69,8 @@ export async function PATCH(req: Request) {
   }
 
   const token = await signSession({
+    // Null for a guest, and it has to STAY null: re-minting the session is the
+    // one place a rename could quietly hand a walletless player a wallet claim.
     sub: updated.id,
     wallet: updated.wallet,
     name: updated.name,

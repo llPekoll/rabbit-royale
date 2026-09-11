@@ -550,16 +550,29 @@ button { min-height: 44px; min-width: 44px; }
   }
 }
 /* Signed out the column is not a column: there are no panels to keep off the
-   painting, so it spans the screen and centres under the crawl. */
-.rr-burrow:has(.rr-empty) { max-width: none; padding-right: 0; margin: 0; }
+   painting, so it spans the screen and centres under the crawl.
+
+   AND it rises above the crawl (z 2). `.rr-burrow` carries `z-index: 1` and
+   `position: relative`, which makes it a STACKING CONTEXT: a z-index on the
+   buttons inside it can only order them against each other, never lift them
+   past a sibling of the column itself. So the whole column moves, and only in
+   this state -- signed in, the panels must stay below the game's overlays at
+   their original z 1. The column is `pointer-events: none` except on its own
+   children, so covering the crawl costs the crawl nothing. */
+.rr-burrow:has(.rr-empty) {
+  max-width: none;
+  padding-right: 0;
+  margin: 0;
+  z-index: 3;
+}
 
 .rr-burrow-title { font-size: 20px; margin: 4px 0 12px; }
 
 /* The sign-in column. Anchored to the BOTTOM rather than centred: the crawl
-   now owns the middle of this screen, and a wordmark parked in the vanishing
-   point covers the paragraph the crawl exists to show. Bottom-aligned it also
-   puts the one thing to press within thumb reach, which is where it belonged
-   on a phone regardless. */
+   owns the middle of this screen and the wordmark owns the top (.rr-masthead),
+   so what is left down here is the ask and nothing else. Bottom-aligned it
+   also puts the one thing to press within thumb reach, which is where it
+   belonged on a phone regardless. */
 .rr-empty {
   height: 100%;
   display: flex;
@@ -569,11 +582,24 @@ button { min-height: 44px; min-width: 44px; }
   text-align: center;
   gap: 4px;
   padding-bottom: 8vh;
+  /* TRANSPARENT TO THE POINTER, except on the buttons themselves.
+     This box is `height: 100%` with its content pushed to the bottom, so the
+     empty space above the buttons still covers the whole screen -- including
+     the masthead, which sits behind it. That stole the wordmark's clicks and,
+     more visibly, laid an inert layer over the tagline. The children opt back
+     in below. */
+  pointer-events: none;
   /* No background of its own. The crawl's own bottom fade (.rr-crawl-horizon)
      already darkens exactly this band, and stacking a second wash on top of it
      dimmed the burrow painting into mud for no gain. One gradient, in the
      component that owns the reason for it. */
 }
+/* The buttons (and the warning) take their clicks back from the rule above,
+   and rise above the crawl (z 2) so its near fade cannot paint over them.
+   `position: relative` is what makes the z-index bite. The masthead is z 3 as
+   well and never overlaps these -- one is pinned to the top, these to the
+   bottom. */
+.rr-empty > * { pointer-events: auto; position: relative; z-index: 3; }
 
 /* The stock, big: it is the number the whole persistent layer is about, and a
    returning player should read it before anything else on the screen. */
@@ -619,74 +645,137 @@ button { min-height: 44px; min-width: 44px; }
   /* The gain still appears and still says +N — it simply does not travel. */
   .rr-carrots-gain { animation: rr-gain-fade 180ms ease-in 340ms forwards; }
 }
-/* The wordmark on the sign-in screen, and the ticker running through its
-   ribbon. See components/logo-banner.tsx — the SIZE is set there, in whole
-   multiples of the artwork's 365x78, because this is pixel art and a
-   fractional scale makes its strokes go uneven. Nothing here may reintroduce a
-   percentage width. */
-.rr-logo-banner {
-  width: 100%;
+/* The masthead: the wordmark at the top of the signed-out screen.
+   FIXED, and above the crawl (z 1 against the crawl's 0), because the crawl is
+   a full-screen fixed layer of its own and the column under it scrolls. In
+   flow the title would scroll away on a short phone, which is the one thing a
+   title may not do. It takes no clicks — everything pressable is at the
+   bottom — so it never stands between the reader and the button. */
+.rr-masthead {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  /* Above .rr-crawl-mast (z 2), which is the fade that hides the crawl behind
+     the wordmark. At z 1 the masthead sat UNDER its own band and the tagline
+     came out greyed -- the band is there to dim the words, not the title. */
+  z-index: 3;
   display: flex;
-  justify-content: center;
-  margin-bottom: 10px;
+  flex-direction: column;
+  align-items: center;
+  padding-top: calc(env(safe-area-inset-top) + 10px);
+  pointer-events: none;
 }
 
+/* On a phone the wallet button is a full-width-ish pill in the top-right and
+   the emblem is centred under it, so at 2x the two overlap. The masthead drops
+   below the top bar rather than the emblem shrinking: the logo is the first
+   thing a new player sees and a step down in scale costs more than the space
+   does. */
+@media (max-width: 720px) {
+  .rr-masthead { padding-top: calc(env(safe-area-inset-top) + 52px); }
+}
+
+/* The emblem and the text written into it. Sized by the component in whole
+   multiples; the ribbon inside is positioned in percentages of this box, so it
+   follows the artwork at every scale. */
 .rr-logo-stack {
   position: relative;
-  /* Below 365px there is no honest integer left — 1x already overflows — so
-     the artwork is allowed to shrink rather than be cut off. The ribbon is
-     positioned in percentages of this box, so it follows either way. */
   max-width: 100%;
 }
 
-.rr-logo {
-  display: block;
-  width: 100%;
-  height: auto;
-  image-rendering: pixelated;
-}
-
-/* The ribbon's writable interior, as a fraction of the banner. Everything is
-   positioned by the component; this only clips. */
-.rr-ribbon {
+/* The subtitle, sitting in the artwork's own empty scroll. The box comes from
+   RIBBON in logo-banner.tsx, measured off the file. */
+.rr-logo-ribbon {
   position: absolute;
-  overflow: hidden;
+  left: 17.71%;   /* 17/96  */
+  width: 64.58%;  /* 62/96  */
+  top: 87.74%;    /* 93/106 */
+  height: 4.72%;  /* 5/106  */
   display: flex;
   align-items: center;
+  justify-content: center;
   font-family: var(--font-pixel);
   /* The ink the artwork's own lettering uses — not black, which sits on a
      cream ribbon like a hole punched in it. */
   color: #4a3a2a;
   line-height: 1;
   white-space: nowrap;
+  /* No tracking: the phrase only just fits the scroll between its end folds. */
+  letter-spacing: 0;
+  text-transform: uppercase;
   pointer-events: none;
   user-select: none;
 }
 
-.rr-ribbon-text {
-  position: absolute;
-  left: 0;
-  white-space: nowrap;
-  will-change: transform;
-  animation-name: rr-ticker;
-  animation-timing-function: linear;
-  animation-iteration-count: infinite;
+/* The wordmark itself. See components/logo-banner.tsx — the SIZE is set there,
+   in whole multiples of the artwork's 96x106, because this is pixel art and a
+   fractional scale makes its strokes go uneven. Nothing here may reintroduce a
+   percentage width. */
+.rr-logo-banner {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-@keyframes rr-ticker {
-  from { transform: translateX(var(--rr-ticker-from)); }
-  to   { transform: translateX(var(--rr-ticker-to)); }
+.rr-logo {
+  display: block;
+  /* Fills the stack, which is what the component sizes in whole multiples.
+     `max-width` keeps a viewport narrower than the artwork shrinking it rather
+     than cutting it off; the ribbon is positioned in percentages so it follows
+     either way. */
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  image-rendering: pixelated;
 }
 
-/* A crawl nobody asked for is the kind of motion that makes a page unusable
-   for some readers. Hold the phrase still and legible instead of hiding it. */
+/* The phrase under the emblem. It lived in the banner's ribbon as a scrolling
+   ticker; the emblem's ribbon is already lettered, so the phrases read here
+   instead — one at a time, swapped on a timer rather than crawling, because
+   there is no slot to crawl through any more. */
+.rr-tagline {
+  margin: 10px 0 0;
+  max-width: min(90vw, 420px);
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  line-height: 1.5;
+  /* TWO LINES ALWAYS, reserved. The phrases differ in length, so one wraps
+     where the last did not -- and the masthead's measured height (--rr-mast,
+     which the crawl's top fade is anchored to) changed with every swap. The
+     gradient then chased a moving target and lost the race on the frames
+     right after a change, leaving the phrase sitting in the fade and reading
+     grey. A fixed box makes the measurement constant. */
+  min-height: 3em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--crown);
+  /* Full strength. At 0.85 over the dark ground the phrase read as grey next
+     to the subtitle above it -- the pixel face has no anti-aliasing to spare
+     at this size, so any opacity comes straight off the legibility. */
+  opacity: 1;
+  /* WEIGHT, not opacity, is what was missing. Nothing covers this line (the
+     mast band's opaque part is measured to end below it) -- it simply read
+     dim, because an 11px pixel face is one-pixel strokes and the crown yellow
+     is a mid tone against black. The same `-webkit-text-stroke` trick the
+     crawl's near lines use thickens it without a second font weight, which
+     this face does not have. */
+  paint-order: stroke fill;
+  -webkit-text-stroke: 0.6px var(--crown);
+  text-shadow: 0 0 12px rgba(255, 212, 92, 0.45);
+  animation: rr-tagline-in 600ms ease-out both;
+}
+
+@keyframes rr-tagline-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .rr-ribbon { justify-content: center; }
-  .rr-ribbon-text {
-    position: static;
-    animation: none;
-    transform: none !important;
-  }
+  .rr-tagline { animation: none; }
 }
 
 /* ── Sound ────────────────────────────────────────────────────────────────
@@ -1026,6 +1115,44 @@ button { min-height: 44px; min-width: 44px; }
   vertical-align: middle;
 }
 
+/* GUEST, on the wallet chip. Muted rather than alarming: it is a normal way to
+   play, not an error — but it is stated, because a guest who never learns their
+   burrow is browser-bound is the one who loses it. */
+.rr-guest-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 5px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 9px;
+  font-style: normal;
+  line-height: 14px;
+  letter-spacing: 0.06em;
+  vertical-align: middle;
+}
+
+/* The upgrade offer, in the profile panel — where the wallet address sits for
+   everyone else, because that is exactly the line it stands in for. */
+.rr-guest-note {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rr-guest-note p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--muted);
+  text-align: left;
+}
+
 .rr-profile-body {
   flex: 1;
   overflow-y: auto;
@@ -1120,6 +1247,29 @@ button { min-height: 44px; min-width: 44px; }
 
 .rr-btn { width: 100%; }
 .rr-btn.ghost { color: var(--muted); background: none; }
+
+/* The doorstep's two buttons.
+   `.rr-btn` is full-width because it lives in a panel; signed out there is no
+   panel (`.rr-burrow:has(.rr-empty)` spans the screen), so an unclamped button
+   would stretch the whole width of a desktop. Clamped here rather than by
+   dropping `.rr-btn`, because these want the panel button's metrics — they are
+   just not in a panel. */
+.rr-empty .rr-btn { width: min(300px, 100%); }
+
+/* PLAY: the one thing to press on this screen, and it should look like it.
+   Carrot on dark rather than another outlined chip — the wallet sign-in below
+   it is deliberately quieter, because the whole point of the guest door is
+   that digging comes first. */
+.rr-play {
+  margin-bottom: 4px;
+  font-size: 18px;
+  letter-spacing: 0.08em;
+  padding: 14px 28px;
+  color: #2a1206;
+  background: var(--carrot);
+  border-color: var(--carrot);
+}
+.rr-play:not(:disabled):hover { filter: brightness(1.08); }
 
 .rr-wallet-line {
   margin: 6px 0 0;
@@ -2086,7 +2236,17 @@ button { font-family: var(--font-pixel); }
 .rr-crawl {
   position: fixed;
   inset: 0;
-  z-index: 0;
+  /* ABOVE `.rr-burrow` (z 1), BELOW the buttons inside it (z 3, see .rr-empty).
+     .rr-crawl and .rr-burrow are SIBLINGS in .rr-home, so this number decides
+     whether the whole crawl -- words and fades alike -- paints over the column
+     or under it, and no z-index INSIDE this layer can change that: children
+     only stack against each other within their own context. At z 0 the whole
+     chapter painted under the column, which is why it looked like it was
+     behind a black bar even though .rr-crawl-sky is explicitly behind the
+     text. At z 2 the crawl covers the column -- including its buttons, which
+     vanished -- so the buttons are lifted past it instead of this being
+     lowered back down. */
+  z-index: 2;
   overflow: hidden;
   pointer-events: none;
   /* The vanishing point. Measured against a screenshot, not guessed: at 340px
@@ -2110,6 +2270,8 @@ button { font-family: var(--font-pixel); }
 .rr-crawl-stage {
   position: absolute;
   inset: 0;
+  /* Between the two fades: over .rr-crawl-sky, under .rr-crawl-horizon. */
+  z-index: 1;
   display: flex;
   justify-content: center;
   /* The tilt, landed between two measured failures. At 26deg with a 340px
@@ -2117,7 +2279,12 @@ button { font-family: var(--font-pixel); }
      a page. At 52deg with 240px the plane folded so hard the whole chapter
      compressed into a squashed band along the bottom edge and not one line was
      readable. 38deg on a LONG perspective is the film's own compromise: the
-     lens is long, so the convergence is gentle and the type survives it. */
+     lens is long, so the convergence is gentle and the type survives it.
+
+     DO NOT set this to 0. A flat stage is the `TooFlat` story -- the harness
+     keeps it as a labelled FAILURE, not as an option: with no rotation the
+     perspective has nothing to divide, and the crawl stops being a crawl and
+     becomes a text box sliding up a web page. */
   transform: rotateX(38deg);
   transform-origin: 50% 100%;
   transform-style: preserve-3d;
@@ -2148,18 +2315,50 @@ button { font-family: var(--font-pixel); }
   text-shadow: 0 0 12px rgba(255, 212, 92, 0.28);
   /* The text's height plus the screen it has to cross.
      Paced with `top` above and CRAWL_SECONDS in lore-crawl.tsx: those three
-     numbers are one setting, and moving any one alone changes the READING
-     SPEED. The text starts 38vh lower than it did, so the runway grows by the
-     same 38vh and the duration grows with it -- 253vh in 42s is the same
-     5.97vh/s the 215vh/36s pairing gave. Overshooting costs a beat of empty
-     sky between passes, undershooting cuts the last line mid-sentence. */
+     numbers are ONE setting, and moving any one alone changes the READING
+     SPEED. 253vh in 64s is ~3.95vh/s -- slow enough to be read rather than
+     skimmed. Overshooting costs a beat of empty sky between passes,
+     undershooting cuts the last line mid-sentence. */
   --crawl-run: 253vh;
   animation-name: rr-crawl-up;
   animation-timing-function: linear;
   animation-iteration-count: infinite;
   will-change: transform;
 }
-.rr-crawl-text p { margin: 0 0 1.1em; }
+/* ── The fat near end ────────────────────────────────────────────────────────
+   The crawl is thin where it is far and FAT where it is near, which is what
+   the film's does: the type does not just get bigger as it comes at you, it
+   gets heavier, because the near end is the part you are meant to be reading.
+
+   The perspective alone does not give this. `rotateX` scales the glyphs, but a
+   pixel face has ONE weight (the arcade kit ships a single woff2 -- there is
+   no bold to switch to), so a scaled-up line is the same thin strokes drawn
+   larger: it reads as blown-up small text rather than as display type.
+
+   So the weight is painted on: `-webkit-text-stroke` thickens the glyph's own
+   outline in its own colour, which is the one way to fatten a face that has no
+   heavier cut. It is applied PER PARAGRAPH and grows down the chapter, because
+   the paragraphs are already stacked in reading order -- the last one is the
+   one nearest the viewer when the block is on screen. `paint-order: stroke
+   fill` keeps the stroke behind the fill so the letterforms stay crisp instead
+   of closing up their counters. */
+.rr-crawl-text p {
+  margin: 0 0 1.1em;
+  paint-order: stroke fill;
+  -webkit-text-stroke: 0.5px currentColor;
+}
+/* Each paragraph a little heavier than the one above it. Capped at the third
+   body line: past ~1.4px the stroke starts filling in the bowls of the pixel
+   face and the words turn into blocks.
+
+   COUNTED FROM 2, because `.rr-crawl-ep` ("Chapter I") is a <p> as well and is
+   therefore nth-of-type(1). It is the FAR end of the block -- the first thing
+   over the horizon -- so it must stay the thinnest thing on screen, and it
+   gets its stroke taken off again below rather than being caught by the base
+   rule above. The body paragraphs are types 2, 3, 4... */
+.rr-crawl-text p:nth-of-type(3) { -webkit-text-stroke-width: 0.8px; }
+.rr-crawl-text p:nth-of-type(4) { -webkit-text-stroke-width: 1.1px; }
+.rr-crawl-text p:nth-of-type(n + 5) { -webkit-text-stroke-width: 1.4px; }
 
 /* The two display lines above the prose. Centred while the body is justified —
    they are a title card, not part of the text block. */
@@ -2169,6 +2368,9 @@ button { font-family: var(--font-pixel); }
   font-size: 0.8em;
   opacity: 0.75;
   margin-bottom: 0.6em !important;
+  /* The far end: thinnest thing on screen. Undoes the body's base stroke,
+     which catches this line because it is a <p> too. */
+  -webkit-text-stroke-width: 0;
 }
 .rr-crawl-title {
   text-align: center;
@@ -2200,33 +2402,108 @@ button { font-family: var(--font-pixel); }
    Without the top the crawl is a rectangle of words sliding under a hard edge,
    which reads as an overflow bug rather than as distance.
 
-   The BOTTOM matters just as much and was missing: the nearest lines ran on
-   straight into the wordmark and the sign-in copy and the three fought over
-   the same pixels. Now a line has already faded out by the time it reaches
-   them, which is also what the film does -- text enters from nowhere and
-   leaves the frame, it is never cut off. */
-.rr-crawl-horizon {
+   TWO ELEMENTS, NOT ONE, because the two fades sit on OPPOSITE sides of the
+   text now. The near edge stays in front: the bottom of the screen is where
+   the sign-in copy lives, and the nearest lines have to have dissolved before
+   they reach it. But the top fade moved BEHIND the words -- it used to be one
+   element painted over both ends, which meant the black at the top ate the
+   crawl exactly where the masthead is, and the chapter climbed into a dark
+   band and vanished a good third of the screen early. Behind the text the same
+   gradient still darkens the painting under the wordmark (which is what it was
+   for) while the words ride over it all the way up to the horizon. */
+.rr-crawl-sky {
   position: absolute;
   inset: 0;
-  background:
-    linear-gradient(
-      180deg,
-      var(--bg) 0%,
-      rgba(13, 17, 23, 0.94) 20%,
-      rgba(13, 17, 23, 0.55) 44%,
-      rgba(13, 17, 23, 0) 62%
-    ),
-    linear-gradient(
-      0deg,
-      var(--bg) 0%,
-      /* Opaque up to here: the sign-in block (wordmark, tagline, the line about
-         claiming a burrow) measures ~28% of the viewport on a 390x844 phone,
-         which is the tallest it gets. A shorter fade let the crawl run straight
-         through the wordmark. */
-      rgba(13, 17, 23, 0.94) 24%,
-      rgba(13, 17, 23, 0.55) 34%,
-      rgba(13, 17, 23, 0) 46%
-    );
+  /* Under the text, over the burrow painting. */
+  z-index: 0;
+  background: linear-gradient(
+    180deg,
+    var(--bg) 0%,
+    rgba(13, 17, 23, 0.94) 20%,
+    rgba(13, 17, 23, 0.55) 44%,
+    rgba(13, 17, 23, 0) 62%
+  );
+}
+
+/* The masthead's own sky, OVER the text.
+   The crawl now rides above the far gradient -- which is what makes the
+   chapter readable all the way to the horizon -- but the wordmark lives up
+   there too, and a screenshot showed the words running straight through the
+   skull: two bright things in the same pixels, neither readable.
+
+   So the top of the frame gets a second, SHORTER fade that does sit over the
+   crawl. It covers the masthead's band only. The words still climb past the
+   point where the old gradient used to eat them; they just dissolve before
+   they reach the logo rather than behind it. `--rr-mast` is the band's height
+   and is the one number to move if the masthead's size changes. */
+.rr-crawl-mast {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  /* The masthead's measured height (published by logo-banner.tsx), plus a
+     SHORT run-out. Kept tight on purpose: an earlier cut ran the fade 22vh
+     past the wordmark and the result was a grey band hanging a third of the
+     way down the screen, dimming the crawl long after it had cleared the logo
+     -- the words looked like they were behind a black bar instead of behind
+     the masthead. The far end of a receding crawl is small and faint up here
+     anyway, so it needs covering only where the artwork actually is. */
+  height: calc(var(--rr-mast, 260px) + 6vh);
+  /* Over the text (z 1), under the near edge's fade (z 2). */
+  z-index: 2;
+  background: linear-gradient(
+    180deg,
+    /* Solid for the masthead's own band... */
+    var(--bg) 0%,
+    /* Solid a little PAST the masthead's last pixel, not 10px short of it: the
+       measured height ends at the tagline's baseline, so stopping inside it
+       left the phrase sitting in the first half of the fade and reading grey
+       on a phone, where the band is tallest. */
+    var(--bg) calc(var(--rr-mast, 260px) + 10px),
+    /* ...then out quickly, in the room just below it. */
+    rgba(13, 17, 23, 0.55) calc(var(--rr-mast, 260px) + 2vh),
+    rgba(13, 17, 23, 0) 100%
+  );
+}
+
+/* The near edge, over the words.
+   MEASURED, NOT GUESSED IN PERCENTAGES. This band spent three rounds being
+   tuned as a fraction of the viewport (26%, then 34% on a phone) and the crawl
+   kept showing through, because the block it has to clear is not a fixed
+   fraction of anything: signed out it is a PLAY button, two lines of copy and
+   an "I have a wallet" button, it wraps differently at every width, and it
+   grows again when a sign-in error appears under it. A percentage that covers
+   it on one screen leaves the brightest, fattest lines legible on the next.
+
+   So `.rr-empty` publishes its own height as `--rr-gate` (see page.tsx) and
+   the fade is anchored to that: fully opaque across the block itself, fading
+   out in the space above it. One number, measured from the thing it has to
+   hide. */
+.rr-crawl-horizon {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  /* The block, plus the run-out the fade needs above it. */
+  height: calc(var(--rr-gate, 34vh) + 18vh);
+  /* OVER the text. This is the one fade that must stay in front, and it was
+     tried behind (z 0) once: the chapter then ran at full brightness straight
+     through the sign-in block -- "Play as a guest" was unreadable under a line
+     of crawl, and the words cut across the orange button's edge. The buttons
+     are already lifted to z 3 and it still was not enough, because they are
+     only 48px tall and the text simply passes around and between them.
+     The near-edge dissolve IS what keeps the controls clean. */
+  z-index: 2;
+  background: linear-gradient(
+    0deg,
+    /* Solid for the block's own band... */
+    var(--bg) 0%,
+    var(--bg) calc(var(--rr-gate, 34vh) - 8px),
+    /* ...then out, in the room above it. */
+    rgba(13, 17, 23, 0.8) calc(var(--rr-gate, 34vh) + 4vh),
+    rgba(13, 17, 23, 0.42) calc(var(--rr-gate, 34vh) + 10vh),
+    rgba(13, 17, 23, 0) 100%
+  );
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2240,6 +2517,7 @@ button { font-family: var(--font-pixel); }
     animation: none;
     padding: 24px 0 40px;
   }
+  .rr-crawl-sky,
   .rr-crawl-horizon { display: none; }
 }
 

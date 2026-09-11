@@ -18,7 +18,8 @@ import { ProfileMenu } from '@/components/profile-menu';
 import { avatarSrc, AVATAR_FRAME } from '@/lib/game/avatars';
 
 export function WalletButton() {
-  const { player, token, busy, error, login, logout, applyProfile } = useWalletLogin();
+  const { player, token, busy, error, login, linkWallet, logout, applyProfile } =
+    useWalletLogin();
   const [open, setOpen] = useState(false);
   const [avatar, setAvatar] = useState<string | null>(null);
   const [unseen, setUnseen] = useState(0);
@@ -51,7 +52,7 @@ export function WalletButton() {
       <button
         className="rr-wallet connected"
         onClick={() => setOpen(true)}
-        title={error ?? player.wallet}
+        title={error ?? player.wallet ?? 'Guest burrow. Connect a wallet to keep it.'}
         aria-haspopup="dialog"
         aria-expanded={open}
       >
@@ -64,6 +65,11 @@ export function WalletButton() {
           aria-hidden
         />
         {player.name}
+        {/* A guest is MARKED on the chip. The state is temporary by design, and
+            the corner is where a player already looks to see who they are —
+            leaving it unsaid is how somebody loses a week of digging to a
+            cleared browser without ever having been told it could happen. */}
+        {player.guest && <em className="rr-guest-tag">GUEST</em>}
         {/* Unread raids ride on the chip: being robbed while away is only
             useful news if the game tells you before you go looking. */}
         {unseen > 0 && <em className="rr-badge">{unseen}</em>}
@@ -74,6 +80,10 @@ export function WalletButton() {
           token={token}
           player={player}
           avatar={avatar}
+          connecting={busy}
+          // Only a guest is offered the upgrade; a wallet player has nothing
+          // to link, and the panel hides the whole block for them.
+          onConnectWallet={player.guest ? linkWallet : null}
           onUpdated={(patch) => {
             if (patch.avatar) setAvatar(patch.avatar);
             // The hook owns the token and the name: a rename reissues the

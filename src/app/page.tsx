@@ -84,7 +84,7 @@ export default function Home() {
 }
 
 function Burrow() {
-  const { player, token } = useWalletLogin();
+  const { player, token, busy, error: signInError, login, playAsGuest } = useWalletLogin();
   const [where, setWhere] = useState<Where>('burrow');
   /**
    * Whose run is being watched, or null to play your own.
@@ -615,6 +615,18 @@ function Burrow() {
           on this screen that is not a request — see lore-crawl.tsx. */}
       {!showCanvas && <LoreCrawl />}
 
+      {/* The wordmark, at the TOP of the screen and in its own fixed layer.
+          It used to ride in the sign-in column at the bottom, under the crawl's
+          near edge; up here it is the masthead the crawl rises towards, which
+          is the arrangement the effect has always implied. Fixed rather than in
+          flow because the column below it scrolls and a title that scrolls away
+          on a short phone stops being a title. */}
+      {!showCanvas && (
+        <div className="rr-masthead">
+          <LogoBanner />
+        </div>
+      )}
+
       {/* Over everything, including the fixed overlays. See .rr-curtain. */}
       <CarrotCurtain
         play={arriving}
@@ -664,15 +676,28 @@ function Burrow() {
         <section className="rr-burrow">
           {!showCanvas ? (
             <div className="rr-empty">
-              {/* The game's own logo, not an emoji and not the title set in a
-                  UI font: this is the first thing a new player sees, and the
-                  wordmark already says "Rabbit Royale" — so it replaces both.
-                  Its ribbon carries the ticker; see components/logo-banner. */}
-              <LogoBanner />
-              <p style={{ color: 'var(--muted)', margin: 0 }}>The Cursed Crown</p>
-              <p style={{ color: 'var(--muted)', maxWidth: 300 }}>
-                Connect your wallet to claim a burrow. Nothing to remember, nothing to lose.
-              </p>
+              {/* The wordmark is NOT here any more — it is the masthead above,
+                  so what is left at the bottom is only the ask. The subtitle
+                  goes with the logo for the same reason it always did: it names
+                  the chapter the crawl is reading. */}
+              {/* Two buttons and nothing else. The prose that used to sit
+                  between them ("Dig now, no wallet needed...") explained the
+                  choice; the labels now say it, and a doorstep that argues
+                  with you is a doorstep you read instead of walk through. The
+                  crawl above is the only copy on this screen.
+
+                  The wallet leads and the guest run follows it — the reverse
+                  of what shipped before, where PLAY was primary on the grounds
+                  that a signature is a steep price for a game you have not
+                  played yet. That reasoning still holds; this ordering is a
+                  deliberate call that the wallet is the front door. */}
+              <button className="rr-btn rr-play" onClick={login} disabled={busy}>
+                Connect wallet
+              </button>
+              <button className="rr-btn ghost" onClick={playAsGuest} disabled={busy}>
+                {busy ? 'Digging in...' : 'Play as a guest'}
+              </button>
+              {signInError && <p className="rr-warn">{signInError}</p>}
             </div>
           ) : (
             <>
@@ -890,7 +915,11 @@ function Burrow() {
           shop={shop.shop}
           busy={shop.busy}
           onBuy={buyWithCarrots}
-          onPayUsdc={payments ? buyWithUsdc : undefined}
+          // No wallet, no paid rail — the shop does not offer it rather than
+          // offering it and failing at the quote. The carrot side of every
+          // shelf is untouched: everything money buys is also earnable, so a
+          // guest's shop is smaller, not poorer.
+          onPayUsdc={payments && !player.guest ? buyWithUsdc : undefined}
           payToken={payToken}
           onPayTokenChange={setPayToken}
           payStage={usdc.stage}

@@ -50,6 +50,13 @@
       "when": 1789038313494,
       "tag": "0006_mushy_mister_fear",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789094980716,
+      "tag": "0007_foamy_goliath",
+      "breakpoints": true
     }
   ]
 }

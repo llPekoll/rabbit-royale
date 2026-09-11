@@ -11,6 +11,13 @@
  * Both do the same thing: sign the server's challenge. The server never sees a
  * key, only a signature over a nonce it minted.
  *
+ * THERE IS A SECOND DOOR. `playAsGuest` asks the server for a session with no
+ * wallet at all, so someone who has never held one can press play and get a
+ * real burrow. The session it returns is an ordinary session — the same token,
+ * read the same way by every screen and by the WS handshake — and `linkWallet`
+ * later attaches a proven address to that same account, keeping everything
+ * built in the meantime.
+ *
  * ONE SESSION, SHARED. The state lives in a context, and `useWalletLogin` reads
  * it — it does not create it. That is not ceremony: this hook used to be called
  * independently by the page and by the wallet button, and a plain hook with
@@ -30,7 +37,10 @@ import { isNative, nativeWallet } from './native-bridge';
 export interface Player {
   id: string;
   name: string;
-  wallet: string;
+  /** Null for a guest who has not connected one yet. */
+  wallet: string | null;
+  /** True while this account lives only in this browser. See `playAsGuest`. */
+  guest: boolean;
 }
 
 interface InjectedWallet {
@@ -83,7 +93,12 @@ function useWalletSession() {
         if (r.ok) {
           const d = await r.json();
           if (d?.player) {
-            setPlayer({ id: d.player.id, name: d.player.name, wallet: d.player.wallet });
+            setPlayer({
+              id: d.player.id,
+              name: d.player.name,
+              wallet: d.player.wallet ?? null,
+              guest: Boolean(d.player.guest),
+            });
             return;
           }
         }
@@ -100,32 +115,58 @@ function useWalletSession() {
     };
   }, []);
 
+  /**
+   * Take the wallet through the challenge and hand back a proven signature.
+   *
+   * Shared by `login` and `linkWallet` because they are the same proof: one
+   * lands on a new session, the other on an existing account. Duplicating it
+   * would be two places for the native/browser split and for the base58
+   * encoding to drift apart in.
+   */
+  const proveWallet = useCallback(async (): Promise<{ address: string; signature: string }> => {
+    // Native shell (Seeker / Seed Vault) first, browser wallet second. Both
+    // present the same interface — see native-bridge.ts.
+    const native = isNative() ? nativeWallet() : null;
+    const wallet = native ?? window.solana;
+    if (!wallet) throw new Error('No wallet found. Open in the Rabbit Royale app or install a Solana wallet.');
+
+    const { publicKey } = await wallet.connect();
+    const address = publicKey.toString();
+
+    const challenge = await fetch('/api/auth/challenge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ address }),
+    }).then((r) => r.json());
+    if (challenge.error) throw new Error(challenge.error);
+
+    // The native bridge signs the string itself and hands back base58; a
+    // browser wallet returns raw bytes we encode here.
+    native?.setMessage(challenge.message);
+    const signed = await wallet.signMessage(new TextEncoder().encode(challenge.message), 'utf8');
+    const signature =
+      typeof signed.signature === 'string' ? signed.signature : bs58.encode(signed.signature);
+
+    return { address, signature };
+  }, []);
+
+  /** Adopt a session the server just issued: store the token, take the player. */
+  const adopt = useCallback((res: { token: string; player: Player }) => {
+    localStorage.setItem(TOKEN_KEY, res.token);
+    setToken(res.token);
+    setPlayer({
+      id: res.player.id,
+      name: res.player.name,
+      wallet: res.player.wallet ?? null,
+      guest: Boolean(res.player.guest),
+    });
+  }, []);
+
   const login = useCallback(async () => {
     setError(null);
     setBusy(true);
     try {
-      // Native shell (Seeker / Seed Vault) first, browser wallet second. Both
-      // present the same interface — see native-bridge.ts.
-      const native = isNative() ? nativeWallet() : null;
-      const wallet = native ?? window.solana;
-      if (!wallet) throw new Error('No wallet found. Open in the Rabbit Royale app or install a Solana wallet.');
-
-      const { publicKey } = await wallet.connect();
-      const address = publicKey.toString();
-
-      const challenge = await fetch('/api/auth/challenge', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address }),
-      }).then((r) => r.json());
-      if (challenge.error) throw new Error(challenge.error);
-
-      // The native bridge signs the string itself and hands back base58; a
-      // browser wallet returns raw bytes we encode here.
-      native?.setMessage(challenge.message);
-      const signed = await wallet.signMessage(new TextEncoder().encode(challenge.message), 'utf8');
-      const signature =
-        typeof signed.signature === 'string' ? signed.signature : bs58.encode(signed.signature);
+      const { address, signature } = await proveWallet();
 
       const res = await fetch('/api/auth/verify', {
         method: 'POST',
@@ -134,15 +175,74 @@ function useWalletSession() {
       }).then((r) => r.json());
       if (res.error) throw new Error(res.error);
 
-      localStorage.setItem(TOKEN_KEY, res.token);
-      setToken(res.token);
-      setPlayer(res.player);
+      adopt(res);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Sign-in failed');
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [adopt, proveWallet]);
+
+  /**
+   * Start playing with no wallet at all.
+   *
+   * One POST and no prompt: this is the cheapest possible first step, and it
+   * has to stay that way — every second between pressing play and digging is
+   * paid for by a player who has not been given a reason to wait yet.
+   */
+  const playAsGuest = useCallback(async () => {
+    setError(null);
+    setBusy(true);
+    try {
+      const res = await fetch('/api/auth/guest', { method: 'POST' }).then((r) => r.json());
+      if (res.error) throw new Error(res.error);
+      adopt(res);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not start a guest burrow');
+    } finally {
+      setBusy(false);
+    }
+  }, [adopt]);
+
+  /**
+   * Attach a wallet to the guest account already signed in.
+   *
+   * The SAME burrow: the server keeps the row and only fills in its address,
+   * so nothing a guest earned is at stake in pressing this. The one refusal
+   * worth naming for the player is `wallet_taken` — that wallet already has a
+   * burrow of its own, and merging two is not something to decide inside a
+   * login, so the honest advice is to sign out and sign in with it.
+   */
+  const linkWallet = useCallback(async (): Promise<boolean> => {
+    if (!token) return false;
+    setError(null);
+    setBusy(true);
+    try {
+      const { address, signature } = await proveWallet();
+
+      const res = await fetch('/api/auth/link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ address, signature }),
+      }).then((r) => r.json());
+
+      if (res.error === 'wallet_taken') {
+        throw new Error('That wallet already has a burrow. Disconnect and sign in with it.');
+      }
+      if (res.error === 'already_linked') {
+        throw new Error('This burrow already has a wallet.');
+      }
+      if (res.error) throw new Error(res.error);
+
+      adopt(res);
+      return true;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not connect that wallet');
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }, [adopt, proveWallet, token]);
 
   const logout = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY);
@@ -165,7 +265,7 @@ function useWalletSession() {
     if (patch.name) setPlayer((p) => (p ? { ...p, name: patch.name! } : p));
   }, []);
 
-  return { player, token, busy, error, login, logout, applyProfile };
+  return { player, token, busy, error, login, playAsGuest, linkWallet, logout, applyProfile };
 }
 
 export type WalletSession = ReturnType<typeof useWalletSession>;

@@ -37,6 +37,19 @@ export async function POST(req: Request) {
   if (!payEnabled()) {
     return Response.json({ error: 'payments_unavailable' }, { status: 503 });
   }
+
+  // A guest has no wallet, so there is nothing for this quote to be paid FROM.
+  // Refused here, at the quote, rather than at the confirm: a payment row that
+  // no one can ever settle is a row that will sit pending until it expires, and
+  // the player would have been asked to open a wallet they do not have first.
+  //
+  // This is the ONLY thing a guest cannot do. The carrot route (POST /api/shop)
+  // is untouched — everything money buys is also earnable, which is the GDD's
+  // rule, and it is what keeps the guest door from being a crippled demo.
+  if (!session.wallet) {
+    return Response.json({ error: 'wallet_required' }, { status: 403 });
+  }
+
   const treasury = treasuryAddress()!;
   const mint = usdcMint()!;
 

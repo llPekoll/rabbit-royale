@@ -34,7 +34,9 @@ export async function POST(req: Request) {
   const token = await signSession({ sub: playerId, wallet: address, name: player!.name });
 
   return Response.json(
-    { token, player: { id: playerId, name: player!.name, wallet: address } },
+    // `guest` is stated rather than inferred from a null wallet: the client
+    // reads ONE field to decide whether to nag about connecting one.
+    { token, player: { id: playerId, name: player!.name, wallet: address, guest: false } },
     {
       headers: {
         'Set-Cookie': `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${60 * 60 * 24 * 30}${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`,

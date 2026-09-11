@@ -38,12 +38,11 @@ import { LORE } from '@/config/lore';
  * PACED WITH THE DISTANCE. This number, `top` and `--crawl-run` (both in
  * globals.css) are ONE setting: the reading speed is the runway divided by the
  * duration, so changing either alone speeds the words up or slows them down.
+ * The set that ships is 253vh / 100% / 64s — the harness's `Default` story.
  *
- * 253vh in 64s is ~3.95vh/s. The crawl ran at ~5.97vh/s and the words went past
+ * 253vh in 64s is ~3.95vh/s. It ran at ~5.97vh/s once and the words went past
  * faster than they could be read -- which for a screen whose entire job is to
- * be read is the only failure that matters. A third slower is the fix; the
- * earlier note that 58s left sixteen seconds of empty sky was measured against
- * the SHORTER 215vh runway and no longer applies to this one.
+ * be read is the only failure that matters.
  */
 const CRAWL_SECONDS = 64;
 
@@ -66,8 +65,56 @@ export function LoreCrawl({ className }: LoreCrawlProps) {
     return () => cancelAnimationFrame(id);
   }, []);
 
+  /**
+   * Publish the sign-in block's height as `--rr-gate`, which is the distance
+   * the near fade has to cover (see .rr-crawl-horizon).
+   *
+   * It is measured rather than written down as a percentage because the block
+   * has no fixed height: signed out it is a PLAY button, two lines of copy and
+   * a second button; the copy rewraps at every width; and a failed sign-in
+   * adds a warning line under it. Every percentage tried here covered it on
+   * one screen and let the crawl through on another.
+   *
+   * The crawl reads a box it does not own, so it finds it by class rather than
+   * by ref — `.rr-empty` is rendered by page.tsx as a sibling, and threading a
+   * ref between two fixed layers for one number is worse than this lookup.
+   * Absent (any state where there is no gate), the CSS fallback applies.
+   */
+  useEffect(() => {
+    const root = document.documentElement;
+    const gate = document.querySelector('.rr-empty');
+    if (!gate) return;
+    const publish = () => {
+      // NOT `gate.height`: .rr-empty is `height: 100%` with its content pushed
+      // to the bottom, so its own box is the whole column and measuring it
+      // would black out the entire screen. What has to be covered is the
+      // content — from the top of the first child down to the bottom edge.
+      const first = gate.firstElementChild;
+      if (!first) return;
+      const top = first.getBoundingClientRect().top;
+      root.style.setProperty('--rr-gate', `${Math.max(0, Math.round(window.innerHeight - top))}px`);
+    };
+    publish();
+    // The observer catches the block growing (a warning line, a rewrap); the
+    // resize listener catches the viewport changing under it, which moves the
+    // block's top without changing its own size.
+    const ro = new ResizeObserver(publish);
+    ro.observe(gate);
+    window.addEventListener('resize', publish);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', publish);
+      root.style.removeProperty('--rr-gate');
+    };
+  }, []);
+
   return (
     <div className={`rr-crawl${className ? ` ${className}` : ''}`}>
+      {/* The sky the crawl rises into, BEHIND the words. It darkens the burrow
+          painting under the masthead so the wordmark has something to sit on,
+          without taking a bite out of the chapter on its way past — which is
+          what a single over-the-text gradient did. See .rr-crawl-sky. */}
+      <div className="rr-crawl-sky" aria-hidden />
       {/* The receding plane. `aria-hidden` is NOT used: this is the only prose
           on the screen, and hiding the story from a screen reader to keep a
           visual effect tidy would leave a blind player with a bare button. The
@@ -91,6 +138,10 @@ export function LoreCrawl({ className }: LoreCrawlProps) {
           ))}
         </div>
       </div>
+      {/* The masthead's band, over the words: the wordmark sits at the top of
+          this screen and the crawl climbs into it, so the lines have to have
+          dissolved by the time they get there. See .rr-crawl-mast. */}
+      <div className="rr-crawl-mast" aria-hidden />
       {/* The fade into the horizon. A gradient element rather than a mask on
           the text: masking the animated layer forces it off the compositor on
           every browser that still paints masks on the CPU, and this runs on a

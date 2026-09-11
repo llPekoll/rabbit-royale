@@ -30,14 +30,27 @@ export const paymentStatusEnum = pgEnum('payment_status', ['pending', 'confirmed
 export const raidResultEnum = pgEnum('raid_result', ['damaged', 'looted', 'blocked']);
 
 /**
- * A player. Identity is a proven Solana wallet — the Seeker is the target
- * device, so the Seed Vault is the login and there are no passwords or emails
- * to lose. `id` is `sol:<address>`, mirroring the convention used across the
- * Domin8 stack so log lines stay greppable between projects.
+ * A player. Identity is a proven Solana wallet OR a guest device.
+ *
+ * The Seeker is the target device, so the Seed Vault is the login and there are
+ * no passwords or emails to lose. `id` is `sol:<address>` for a signed wallet,
+ * mirroring the convention used across the Domin8 stack so log lines stay
+ * greppable between projects — and `guest:<uuid>` for someone who pressed PLAY
+ * before owning a wallet.
+ *
+ * A guest is a REAL player: same burrow, same energy, same leaderboard, same
+ * raids. The only thing they cannot do is pay, because paying needs a wallet to
+ * pay from. Connecting one later keeps the row and renames its id (see
+ * lib/auth/link.ts), so the progression a guest built is the progression they
+ * sign in to — anything else teaches new players that the first hour is a
+ * throwaway.
  */
 export const players = pgTable('players', {
-  id: text('id').primaryKey(),                    // "sol:<address>"
-  wallet: text('wallet').notNull(),               // base58 address
+  id: text('id').primaryKey(),                    // "sol:<address>" | "guest:<uuid>"
+  /** base58 address, or NULL for a guest who has not connected one yet. The
+   *  unique index below still holds: Postgres lets NULLs repeat, so any number
+   *  of guests coexist while no two players can claim the same wallet. */
+  wallet: text('wallet'),
   name: text('name').notNull(),
   /** Which rabbit they show up as. One of the game's own bunny sheets, stored
    *  as its key rather than an image: the art already exists, so a profile
