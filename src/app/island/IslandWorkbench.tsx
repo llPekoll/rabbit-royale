@@ -287,7 +287,8 @@ export function IslandWorkbench() {
   );
 }
 
-function Slider({
+/** Shared with `/isoworld`, which is the same workbench in another projection. */
+export function Slider({
   label,
   value,
   min,
@@ -319,7 +320,7 @@ function Slider({
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+export function Stat({ label, value }: { label: string; value: string }) {
   return (
     <>
       <dt style={styles.statLabel}>{label}</dt>
@@ -331,7 +332,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 // Inline objects rather than a stylesheet: this page is a workbench, and every
 // rule it needs is on screen here. `CSSProperties`, never `as const` — a
 // readonly literal spread into `style` fails the production build.
-const styles: Record<string, React.CSSProperties> = {
+export const styles: Record<string, React.CSSProperties> = {
   page: { position: 'fixed', inset: 0, display: 'flex', background: SEA, color: '#e8f6f8' },
   canvas: { flex: 1, minWidth: 0, lineHeight: 0 },
   panel: {
