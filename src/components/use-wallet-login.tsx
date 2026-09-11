@@ -84,15 +84,32 @@ function useWalletSession() {
   // token is what the WS handshake needs, so it is kept where JS can read it.
   useEffect(() => {
     const saved = localStorage.getItem(TOKEN_KEY);
-    if (!saved) return;
-    setToken(saved);
+    if (saved) setToken(saved);
     let alive = true;
-    fetch('/api/auth/me', { headers: { Authorization: `Bearer ${saved}` } })
+    /**
+     * ASK EVEN WITH NO TOKEN IN HAND.
+     *
+     * The session cookie is HttpOnly and outlives localStorage, so "no token
+     * here" does not mean "not signed in" — it means this browser cannot read
+     * the one it has. Returning early on a missing token was what sent a
+     * returning player to the doorstep and let them open a SECOND burrow on top
+     * of the one the server still held, stranding the first for good.
+     *
+     * With no token the request carries the cookie alone, and `/me` mints a
+     * fresh token from it, which is adopted below.
+     */
+    fetch('/api/auth/me', saved ? { headers: { Authorization: `Bearer ${saved}` } } : undefined)
       .then(async (r) => {
         if (!alive) return;
         if (r.ok) {
           const d = await r.json();
           if (d?.player) {
+            // Only sent when the cookie did the proving; keep the stored one
+            // otherwise so a rename's reissued token is not overwritten.
+            if (d.token) {
+              localStorage.setItem(TOKEN_KEY, d.token);
+              setToken(d.token);
+            }
             setPlayer({
               id: d.player.id,
               name: d.player.name,
@@ -248,6 +265,10 @@ function useWalletSession() {
     localStorage.removeItem(TOKEN_KEY);
     setToken(null);
     setPlayer(null);
+    // The cookie has to go too, or `/me` signs the player straight back in on
+    // the next reload. Fire-and-forget: the local state is already cleared, and
+    // a failed request must not leave the player looking signed in.
+    void fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
   }, []);
 
   /**

@@ -172,3 +172,41 @@ describe('a guest connecting their wallet is answered', () => {
     expect(BUTTON).toMatch(/if \(linked\) setOpen\(false\)/);
   });
 });
+
+/**
+ * Coming back is coming back to YOUR burrow.
+ *
+ * The session cookie is HttpOnly and lasts thirty days; the localStorage token
+ * does not have to. The client only ever asked `/me` when it found a token, so
+ * a browser that had lost the token looked signed out while the server still
+ * held the session — and the doorstep happily opened a SECOND burrow on top of
+ * the first, which nothing could reach again afterwards. The cookie was always
+ * there to be asked; nobody asked it.
+ */
+describe('a returning player lands on the burrow they already have', () => {
+  const HOOK = read('../src/components/use-wallet-login.tsx');
+  const ME = read('../src/app/api/auth/me/route.ts');
+  const LOGOUT = read('../src/app/api/auth/logout/route.ts');
+
+  it('asks the server who it is even with no token in hand', () => {
+    // The early return on a missing token IS the bug — with no token the
+    // request still goes out, carrying the cookie alone.
+    expect(HOOK).not.toMatch(/if \(!saved\) return;/);
+    expect(HOOK).toMatch(/saved \? \{ headers/);
+  });
+
+  it('adopts the token the cookie earned, so the WS handshake has one', () => {
+    expect(HOOK).toMatch(/if \(d\.token\)/);
+  });
+
+  it('mints that token only when the cookie did the proving', () => {
+    // A caller that sent an Authorization header already has its token;
+    // re-minting there would clobber a rename's freshly reissued one.
+    expect(ME).toMatch(/!req\.headers\.get\('authorization'\)/);
+  });
+
+  it('clears the cookie on the way out, or logging out does not stick', () => {
+    expect(LOGOUT).toMatch(/Max-Age=0/);
+    expect(HOOK).toMatch(/\/api\/auth\/logout/);
+  });
+});
