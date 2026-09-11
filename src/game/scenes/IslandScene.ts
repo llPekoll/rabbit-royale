@@ -21,7 +21,7 @@ import { PlayerRabbit } from '../entities/PlayerRabbit';
 import { SoundManager } from '../services/SoundManager';
 import { getExplosionTextures } from '../services/AssetLoader';
 import { KeyboardControls } from '../services/KeyboardControls';
-import { createIslandBackground, type IslandBackground } from '../services/IslandBackground';
+import { createTerrainBackground, type TerrainBackground } from '../services/TerrainBackground';
 import { MoveArrows } from '../ui/MoveArrows';
 import { CloudField } from '../fx/Clouds';
 import * as Keys from '@/config/assetKeys';
@@ -30,6 +30,7 @@ import {
   isForbidden, makeShape, screenToTile, tilePos, tileInScreenDirection,
   toColRow, type IslandShape,
 } from '@/config/gridConfig';
+import { farmableTiles } from '@/lib/game/terrainBoard';
 import type { TileContent } from '@/lib/game/types';
 import { ENERGY } from '@config/tuning';
 import { reachableTiles } from '@/lib/game/reachable';
@@ -65,7 +66,7 @@ export class IslandScene implements Scene {
   private app: Application;
   private sound = new SoundManager();
   private controls: KeyboardControls | null = null;
-  private background: IslandBackground | null = null;
+  private background: TerrainBackground | null = null;
 
   private shape: IslandShape = makeShape('default');
   private tiles = new Map<number, Tile>();
@@ -108,15 +109,10 @@ export class IslandScene implements Scene {
   }
 
   async create(): Promise<void> {
-    this.background = await createIslandBackground(
-      this.container,
-      GAME_W / 2,
-      GAME_H / 2,
-      this.data?.seed,
-      // The renderer, not the window: the season board takes a slice of the
-      // page on a wide screen, so `innerWidth` overstates the canvas.
-      () => ({ width: this.app.renderer.width, height: this.app.renderer.height }),
-    );
+    // The GROUND the server is playing on, generated from the island's seed
+    // rather than picked from three paintings. Both sides build it from the
+    // seed alone, so what blocks a tile here is what the server refuses.
+    this.background = await createTerrainBackground(this.container, this.data?.seed ?? '');
 
     // The sky, behind everything: the island already moves (surf, volcano
     // smoke), so a dead blue border around it makes the frame look like a
@@ -140,10 +136,16 @@ export class IslandScene implements Scene {
     this.sound.startMusic(Keys.MUSIC_ISLAND);
   }
 
-  /** One Tile per land square. Water squares get nothing — not a hidden tile. */
+  /**
+   * One Tile per PLAYABLE square.
+   *
+   * Driven by the terrain rather than by the flat silhouette: the sea, the
+   * rock under a cliff face, the cells with a tree on them and the pockets cut
+   * off behind a plateau all get nothing — not a hidden tile. The server buries
+   * content on exactly this set, so a tile here is a tile it knows about.
+   */
   private buildTiles(): void {
-    for (let i = 0; i < COLS * ROWS; i++) {
-      if (isForbidden(i, this.shape)) continue;
+    for (const i of farmableTiles(this.data?.seed ?? '')) {
       const tile = new Tile(i);
       // Per-tile click. The Seeker is a touch device, so this — not the
       // keyboard — is how the game is actually played.
@@ -188,7 +190,7 @@ export class IslandScene implements Scene {
       alive: true,
       stunnedUntil: this.stunnedUntil,
       isRevealed: (i) => this.tiles.get(i)?.revealed ?? false,
-    }, this.shape);
+    }, this.data?.seed ?? '');
 
     // Stunned: nothing came back, and the ring must stay dark for exactly as
     // long as the server will keep refusing. It re-lights itself on expiry.
@@ -203,6 +205,11 @@ export class IslandScene implements Scene {
     // The keyboard marks follow the same rule — pointing at a tile the ring
     // has gone dark on would put the two hints in contradiction.
     this.arrows?.update(reachable.length > 0 ? this.myTile : null, reachable);
+
+    // Anything tall between the rabbit and the camera goes see-through, so the
+    // player is never lost inside a pine they cannot walk into anyway.
+    const standing = toColRow(this.myTile);
+    this.background?.fadeBehind(standing.col, standing.row);
     this.startSweep();
   }
 
@@ -344,15 +351,9 @@ export class IslandScene implements Scene {
     this.arrows = new MoveArrows(this.container, this.shape);
     this.arrows.setVisible(true);
 
-    // A new ground, painted from the new seed.
+    // A new island, generated from the new seed.
     this.background?.destroy();
-    this.background = await createIslandBackground(
-      this.container,
-      GAME_W / 2,
-      GAME_H / 2,
-      seed,
-      () => ({ width: this.app.renderer.width, height: this.app.renderer.height }),
-    );
+    this.background = await createTerrainBackground(this.container, seed);
 
     this.myTile = SPAWN_INDEX;
     this.buildTiles();
@@ -537,6 +538,8 @@ export class IslandScene implements Scene {
   /** Pixi's ticker, in real milliseconds. */
   update(deltaTime: number): void {
     this.clouds?.update(deltaTime * (1000 / 60));
+    // The island breathes: trees sway, bushes rustle, the flock shifts.
+    this.background?.update(deltaTime * (1000 / 60));
 
     // The canvas can change size WITHOUT a window resize — the season board
     // mounting or unmounting beside it does exactly that, and the ground was

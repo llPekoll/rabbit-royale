@@ -12,7 +12,7 @@
  * darkening the ring for it would only ever misfire on a legitimate player.
  */
 import { ENERGY } from '@config/tuning';
-import { neighbors, type IslandShape } from '@/config/gridConfig';
+import { terrainNeighbors } from './terrainBoard';
 
 export interface ReachableState {
   /** Where the rabbit stands. */
@@ -34,14 +34,18 @@ export interface ReachableState {
  */
 export function reachableTiles(
   state: ReachableState,
-  shape: IslandShape,
+  seed: string,
   now: number = Date.now(),
 ): number[] {
   // Dead or stunned, the server refuses every move; the ring goes fully dark.
   if (!state.alive) return [];
   if (now < state.stunnedUntil) return [];
 
-  return neighbors(state.tile, shape).filter((index) => {
+  // The TERRAIN's neighbours, which is what `resolveMove` checks on the server
+  // — so the ring stays a promise that a tap will be accepted. A cliff two
+  // tiers up and a tile with a pine on it are both absent from this list, and
+  // both are refused server-side for exactly the same reason.
+  return terrainNeighbors(seed, state.tile).filter((index) => {
     // Revealed ground costs nothing, so it stays clickable at zero energy —
     // and at zero energy it is the ONLY thing that is.
     if (state.isRevealed(index)) return true;

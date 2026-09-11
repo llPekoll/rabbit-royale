@@ -15,6 +15,7 @@ import {
   COLS, ROWS, SPAWN_INDEX, makeShape, isForbidden, neighbors,
   type IslandShape,
 } from '@/config/gridConfig';
+import { farmableTiles, spawnTile, terrainNeighbors } from './terrainBoard';
 import { mulberry32, seedFrom, shuffle } from './rng';
 import type { Island, Tile } from './types';
 
@@ -29,17 +30,21 @@ export function generateIsland(opts: GenerateOptions): Island {
   const tier = tierFor(opts.lifetimeCarrots ?? 0);
   const shape = makeShape(opts.seed);
 
-  // Land only. A water square is ABSENT from the map rather than present and
-  // empty, so nothing can accidentally bury a carrot in the sea.
+  // Playable ground only. A tile is absent from the map unless the TERRAIN
+  // offers it: not the sea, not the rock a cliff face is drawn over, not a
+  // cell with a pine on it, and not a pocket cut off behind a cliff. Anything
+  // buried outside that set is a prize the player can see and never reach,
+  // which is worse than no prize at all.
   const tiles = new Map<number, Tile>();
-  for (let i = 0; i < COLS * ROWS; i++) {
-    if (isForbidden(i, shape)) continue;
+  for (const i of farmableTiles(opts.seed)) {
     tiles.set(i, { revealed: false, content: 'empty', adjacent: 0 });
   }
 
   // The spawn and its immediate ring are carved out of the bomb pool, so a run
-  // can never open on a blast.
-  const safe = new Set<number>([SPAWN_INDEX, ...neighbors(SPAWN_INDEX, shape)]);
+  // can never open on a blast. The spawn comes from the terrain too — the
+  // centre of a 16x16 can be open water once the coastline is generated.
+  const spawn = spawnTile(opts.seed);
+  const safe = new Set<number>([spawn, ...terrainNeighbors(opts.seed, spawn)]);
 
   // Deal contents by shuffling the eligible tiles once and slicing. Simpler
   // than rejection-sampling per item, and it cannot loop forever at the high
@@ -75,7 +80,12 @@ export function generateIsland(opts: GenerateOptions): Island {
 /** Bombs among a tile's 8 neighbours. */
 export function countAdjacent(island: Island, index: number, shape: IslandShape): number {
   let n = 0;
-  for (const nb of neighbors(index, shape)) {
+  // Counted over the TERRAIN's neighbours, not the flat silhouette's. A hint
+  // that counted tiles which are not on the board would be unsolvable: the
+  // player would read a "2" with only one diggable cell beside it. `shape` is
+  // kept in the signature because the sabotage path still passes it, and
+  // because the two agree on everything except the cells terrain removes.
+  for (const nb of terrainNeighbors(island.seed, index)) {
     if (island.tiles.get(nb)?.content === 'bomb') n++;
   }
   return n;

@@ -6,7 +6,8 @@
  */
 import { describe, expect, it } from 'vitest';
 import { generateIsland, dugFraction, publicView, recomputeAdjacency } from '../src/lib/game/island';
-import { SPAWN_INDEX, makeShape, neighbors, isForbidden, COLS, ROWS } from '../src/config/gridConfig';
+import { makeShape, isForbidden, COLS, ROWS } from '../src/config/gridConfig';
+import { spawnTile, terrainNeighbors, farmableTiles } from '../src/lib/game/terrainBoard';
 
 describe('generateIsland', () => {
   it('is deterministic for a seed', () => {
@@ -25,11 +26,13 @@ describe('generateIsland', () => {
     );
   });
 
-  it('holds only land — never a tile in the sea', () => {
-    const shape = makeShape('sea');
+  it('holds only playable ground — never sea, cliff rock or a blocked cell', () => {
+    // The silhouette is no longer the authority: the TERRAIN is. A tile the
+    // island buries content in has to be one a rabbit can actually reach.
     const island = generateIsland({ seed: 'sea' });
+    const playable = new Set(farmableTiles('sea'));
     for (const index of island.tiles.keys()) {
-      expect(isForbidden(index, shape)).toBe(false);
+      expect(playable.has(index)).toBe(true);
     }
   });
 
@@ -38,7 +41,7 @@ describe('generateIsland', () => {
       const seed = `seed-${i}`;
       const island = generateIsland({ seed });
       const shape = makeShape(seed);
-      for (const index of [SPAWN_INDEX, ...neighbors(SPAWN_INDEX, shape)]) {
+      for (const index of [spawnTile(seed), ...terrainNeighbors(seed, spawnTile(seed))]) {
         const tile = island.tiles.get(index)!;
         expect(tile.content).not.toBe('bomb');
         expect(tile.revealed).toBe(true);
@@ -49,9 +52,10 @@ describe('generateIsland', () => {
   it('hints match the bombs actually adjacent', () => {
     const seed = 'hints';
     const island = generateIsland({ seed });
-    const shape = makeShape(seed);
     for (const [index, tile] of island.tiles) {
-      const bombs = neighbors(index, shape)
+      // Counted over the terrain's neighbours: a hint that counted cells which
+      // are not on the board would be unsolvable.
+      const bombs = terrainNeighbors(seed, index)
         .filter((n) => island.tiles.get(n)?.content === 'bomb').length;
       expect(tile.adjacent).toBe(bombs);
     }
@@ -63,11 +67,11 @@ describe('generateIsland', () => {
     const shape = makeShape(seed);
     // Find a quiet tile with a plantable neighbour.
     const victim = [...island.tiles.keys()].find((i) => {
-      const nbs = neighbors(i, shape);
+      const nbs = terrainNeighbors(seed, i);
       return nbs.some((n) => island.tiles.get(n)!.content === 'empty');
     })!;
     const before = island.tiles.get(victim)!.adjacent;
-    const target = neighbors(victim, shape).find((n) => island.tiles.get(n)!.content === 'empty')!;
+    const target = terrainNeighbors(seed, victim).find((n) => island.tiles.get(n)!.content === 'empty')!;
 
     island.tiles.get(target)!.content = 'bomb';
     recomputeAdjacency(island, shape);

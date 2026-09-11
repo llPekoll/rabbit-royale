@@ -14,6 +14,7 @@ import { BOMB, CHEST_LOOT, ENERGY, MULTIPLAYER } from '@config/tuning';
 import { SPAWN_INDEX, neighbors, toColRow, type IslandShape } from '@/config/gridConfig';
 import { pickWeighted, randInt, type Rng } from './rng';
 import { revealTile } from './island';
+import { spawnTile, terrainNeighbors } from './terrainBoard';
 import type { DigResult, Island, Rabbit } from './types';
 
 export type MoveRejection =
@@ -67,9 +68,11 @@ export function resolveMove(
 
   const tile = island.tiles.get(to);
   if (!tile) return reject('off-island');
-  // One step only. Checked here rather than trusted from the client, which is
-  // the entire reason this function exists.
-  if (!isAdjacent(rabbit.tile, to)) return reject('not-adjacent');
+  // One step only, and onto ground the TERRAIN allows. Checked here rather
+  // than trusted from the client, which is the entire reason this function
+  // exists: the ring the player taps is drawn from the same rule, so a client
+  // that lied about a cliff or a tree would simply have its move refused.
+  if (!canWalk(island.seed, rabbit.tile, to)) return reject('not-adjacent');
 
   rabbit.lastMoveAt = now;
 
@@ -164,6 +167,22 @@ export function isAdjacent(a: number, b: number): boolean {
 }
 
 /**
+ * One step, onto ground this island actually offers.
+ *
+ * `isAdjacent` only ever knew about distance, which was enough while the board
+ * was a flat silhouette. On generated terrain a neighbouring tile can be two
+ * tiers up, or have a pine on it — both of which the player can SEE, so a
+ * server that allowed the step would be contradicting its own picture.
+ *
+ * The terrain is rebuilt from the island's seed on both sides, so this is the
+ * same answer the client's ring is drawn from.
+ */
+export function canWalk(seed: string, from: number, to: number): boolean {
+  if (!isAdjacent(from, to)) return false;
+  return terrainNeighbors(seed, from).includes(to);
+}
+
+/**
  * Where a blast throws a rabbit: away from the bomb, preferring ALREADY
  * REVEALED ground — being thrown into fresh dirt would cost energy the player
  * did not choose to spend. Falls back to any legal neighbour, then to standing
@@ -180,7 +199,10 @@ export function knockbackTarget(
   // The direction the blast pushes: straight back along the approach.
   const away = { col: origin.col - blast.col, row: origin.row - blast.row };
 
-  const options = neighbors(from, shape).filter((n) => n !== bomb);
+  // Terrain neighbours, so a blast never throws the rabbit into the sea, up a
+  // cliff or inside a tree. `from` itself is the fallback: standing still is
+  // the only landing that is always legal.
+  const options = terrainNeighbors(island.seed, from).filter((n) => n !== bomb);
   if (options.length === 0) return from;
 
   let best = from;
@@ -206,11 +228,15 @@ export function spawnRabbit(
   playerId: string,
   name: string,
   energy: number = ENERGY.START,
+  seed?: string,
 ): Rabbit {
   return {
     playerId,
     name,
-    tile: SPAWN_INDEX,
+    // The middle of a 16x16 is open water on plenty of generated coastlines,
+    // so the spawn is chosen FROM the island when one is named. `SPAWN_INDEX`
+    // remains the answer for callers with no seed (tests, fixtures).
+    tile: seed ? spawnTile(seed) : SPAWN_INDEX,
     energy,
     carrots: 0,
     stunnedUntil: 0,

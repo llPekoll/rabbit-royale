@@ -9,9 +9,15 @@
 import { describe, expect, it } from 'vitest';
 import { ENERGY } from '../config/tuning';
 import { reachableTiles, type ReachableState } from '../src/lib/game/reachable';
-import { SPAWN_INDEX, makeShape, neighbors } from '../src/config/gridConfig';
+import { spawnTile, terrainNeighbors } from '../src/lib/game/terrainBoard';
 
-const SHAPE = makeShape('reachable-test');
+/**
+ * The ring is drawn from the TERRAIN now, not from a flat silhouette, so the
+ * fixture is a seed rather than a shape — and the tile the rabbit stands on
+ * has to be one the terrain actually offers.
+ */
+const SEED = 'reachable-test';
+const SPAWN_INDEX = spawnTile(SEED);
 const NOW = 1_000_000;
 
 /** A healthy rabbit on the spawn, on an island nobody has dug yet. */
@@ -28,17 +34,17 @@ function rabbit(over: Partial<ReachableState> = {}): ReachableState {
 
 describe('a rabbit that can afford to dig', () => {
   it('lights every land neighbour', () => {
-    const lit = reachableTiles(rabbit(), SHAPE, NOW);
-    expect(lit.sort()).toEqual(neighbors(SPAWN_INDEX, SHAPE).sort());
+    const lit = reachableTiles(rabbit(), SEED, NOW);
+    expect(lit.sort()).toEqual(terrainNeighbors(SEED, SPAWN_INDEX).sort());
     expect(lit.length).toBeGreaterThan(0);
   });
 
   it('never lights water, so the ring cannot point off the island', () => {
     // Walk the whole island rather than trusting the spawn's neighbourhood:
     // the coast is where a bad ring would show, and the spawn is inland.
-    for (const from of neighbors(SPAWN_INDEX, SHAPE)) {
-      const lit = reachableTiles(rabbit({ tile: from }), SHAPE, NOW);
-      const land = new Set(neighbors(from, SHAPE));
+    for (const from of terrainNeighbors(SEED, SPAWN_INDEX)) {
+      const lit = reachableTiles(rabbit({ tile: from }), SEED, NOW);
+      const land = new Set(terrainNeighbors(SEED, from));
       for (const t of lit) expect(land.has(t)).toBe(true);
     }
   });
@@ -46,14 +52,14 @@ describe('a rabbit that can afford to dig', () => {
 
 describe('out of energy', () => {
   it('goes fully dark on undug ground — every tile there costs a dig', () => {
-    expect(reachableTiles(rabbit({ energy: 0 }), SHAPE, NOW)).toEqual([]);
+    expect(reachableTiles(rabbit({ energy: 0 }), SEED, NOW)).toEqual([]);
   });
 
   it('still lights ground someone has already dug, which is free to walk', () => {
-    const [free] = neighbors(SPAWN_INDEX, SHAPE);
+    const [free] = terrainNeighbors(SEED, SPAWN_INDEX);
     const lit = reachableTiles(
       rabbit({ energy: 0, isRevealed: (i) => i === free }),
-      SHAPE,
+      SEED,
       NOW,
     );
     // The player's last remaining move. Darkening it would strand them on a
@@ -62,21 +68,21 @@ describe('out of energy', () => {
   });
 
   it('lights everything again at exactly the cost of one dig', () => {
-    const lit = reachableTiles(rabbit({ energy: ENERGY.DIG_COST }), SHAPE, NOW);
-    expect(lit.sort()).toEqual(neighbors(SPAWN_INDEX, SHAPE).sort());
+    const lit = reachableTiles(rabbit({ energy: ENERGY.DIG_COST }), SEED, NOW);
+    expect(lit.sort()).toEqual(terrainNeighbors(SEED, SPAWN_INDEX).sort());
   });
 });
 
 describe('stunned by a bomb', () => {
   it('darkens the ring while the stun runs, energy notwithstanding', () => {
-    const lit = reachableTiles(rabbit({ stunnedUntil: NOW + 500 }), SHAPE, NOW);
+    const lit = reachableTiles(rabbit({ stunnedUntil: NOW + 500 }), SEED, NOW);
     expect(lit).toEqual([]);
   });
 
   it('darkens even revealed ground — a stun refuses the free moves too', () => {
     const lit = reachableTiles(
       rabbit({ stunnedUntil: NOW + 500, isRevealed: () => true }),
-      SHAPE,
+      SEED,
       NOW,
     );
     expect(lit).toEqual([]);
@@ -84,13 +90,13 @@ describe('stunned by a bomb', () => {
 
   it('comes back the moment the stun lapses', () => {
     const stunned = rabbit({ stunnedUntil: NOW });
-    expect(reachableTiles(stunned, SHAPE, NOW).length).toBeGreaterThan(0);
+    expect(reachableTiles(stunned, SEED, NOW).length).toBeGreaterThan(0);
   });
 });
 
 describe('a dead rabbit', () => {
   it('lights nothing at all', () => {
-    expect(reachableTiles(rabbit({ alive: false }), SHAPE, NOW)).toEqual([]);
+    expect(reachableTiles(rabbit({ alive: false }), SEED, NOW)).toEqual([]);
   });
 });
 
@@ -101,10 +107,9 @@ describe('a dead rabbit', () => {
  * this behaviour.
  */
 describe('the Storybook setups', () => {
-  const STORY_SHAPE = makeShape('reachable');
-  const dug = new Set(neighbors(SPAWN_INDEX, STORY_SHAPE));
+  const dug = new Set(terrainNeighbors(SEED, SPAWN_INDEX));
   const at = (over: Partial<ReachableState> = {}) =>
-    reachableTiles({ ...rabbit(), ...over }, STORY_SHAPE, NOW);
+    reachableTiles({ ...rabbit(), ...over }, SEED, NOW);
 
   it('ClickToMove and RunningLow light the full ring', () => {
     expect(at().length).toBe(dug.size);

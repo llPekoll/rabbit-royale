@@ -176,7 +176,7 @@ async function erupt(live: LiveIsland) {
     for (const rabbit of survivors) {
       const socket = socketOf(rabbit.playerId);
       // Energy and carrots ride along; the run continues, only the ground changed.
-      const moved = spawnRabbit(rabbit.playerId, rabbit.name, rabbit.energy);
+      const moved = spawnRabbit(rabbit.playerId, rabbit.name, rabbit.energy, next.island.seed);
       moved.carrots = rabbit.carrots;
       // ...and so does the run's paperwork. Without it the moved rabbit has no
       // run id, so whatever it digs on the new island can never be banked.
@@ -295,7 +295,7 @@ io.on('connection', (socket: Socket) => {
 
     // A refresh returns to the same rabbit if the grace window has not lapsed.
     const existing = live.rabbits.get(data.playerId);
-    const rabbit = existing ?? spawnRabbit(data.playerId, player.name, ENERGY.START);
+    const rabbit = existing ?? spawnRabbit(data.playerId, player.name, ENERGY.START, live.island.seed);
     live.rabbits.set(data.playerId, rabbit);
     live.disconnectedAt.delete(data.playerId);
     live.emptySince = null;

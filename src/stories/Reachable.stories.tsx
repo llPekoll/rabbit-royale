@@ -133,7 +133,7 @@ function Scene({ seed, background, arrows, sweepStep, energy, dugNeighbours, stu
             alive: true,
             stunnedUntil: stunned ? Date.now() + 60_000 : 0,
             isRevealed: (i) => tiles.get(i)?.revealed ?? false,
-          }, shape);
+          }, seed);
           for (const i of lit) tiles.get(i)?.setHighlight(true);
           marks.update(lit.length > 0 ? at : null, lit);
 

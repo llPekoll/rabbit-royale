@@ -47,8 +47,24 @@ const CARROT_SHADOW_RY = 2.5;
 const CARROT_SHADOW_Y = 4;
 const CARROT_SHADOW_ALPHA = 0.3;
 
+/**
+ * The lid over an undug tile.
+ *
+ * These were calibrated against the PAINTED island backdrop, which is darker
+ * and busier than open grass. Over generated terrain the same translucent navy
+ * reads as a slightly different shade of ground rather than as a covered tile
+ * — the fog is present but stops saying "you cannot see this yet". Overridable
+ * per tile so that trade can be tuned against whatever is actually behind the
+ * board; the defaults are what ships today.
+ */
 const FOG_COLOR = 0x1a2a3a;
 const FOG_ALPHA = 0.55;
+
+/** How an undug tile is veiled. Omitted fields keep the defaults above. */
+export interface FogStyle {
+  color?: number;
+  alpha?: number;
+}
 const HIGHLIGHT_COLOR = 0xffd700;
 const MINE_TINT = 0xff3333;
 /** How far above its tile a chest starts when it DROPS in with the board. */
@@ -164,7 +180,7 @@ export class Tile {
    *  floating over the rabbit's head. */
   private static readonly PALIER_BOB_AMP = 2.5;
 
-  constructor(index: number) {
+  constructor(index: number, fogStyle?: FogStyle) {
     this.index = index;
     const { x, y } = tilePos(index);
     const depth = tileDepth(index);
@@ -174,7 +190,7 @@ export class Tile {
     this.container.zIndex = depth;
 
     // Fog diamond
-    this.fog = diamondFill(FOG_COLOR, FOG_ALPHA);
+    this.fog = diamondFill(fogStyle?.color ?? FOG_COLOR, fogStyle?.alpha ?? FOG_ALPHA);
     this.container.addChild(this.fog);
 
     // Highlight diamond (hidden by default)

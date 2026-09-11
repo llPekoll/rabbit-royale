@@ -17,7 +17,19 @@ let outlineTex: Texture | null = null;
  *  Two textures: a solid white fill, and a fill+stroke combo. Both are
  *  tinted at use-time so a single bake covers every color variant. */
 export function initTileTextures(renderer: Renderer): void {
-  if (fillTex && outlineTex) return;
+  // Re-bake when the cached textures belong to a renderer that is GONE.
+  //
+  // These live in module scope and so outlive the Application that made them.
+  // Storybook destroys the whole renderer between stories, which destroys
+  // every texture it generated — but the variables here still hold those dead
+  // objects, so a plain `if (fillTex) return` handed the next story textures
+  // with no GPU source behind them. The tiles then drew as nothing at all:
+  // the fog, the highlight and the blink silently vanished, and only on a
+  // SECOND visit to a story, which is what made it look like a phantom.
+  //
+  // `destroyed` is the honest question to ask — not whether we have a texture,
+  // but whether the one we have can still be drawn.
+  if (fillTex && outlineTex && !fillTex.destroyed && !outlineTex.destroyed) return;
 
   const fillG = new Graphics()
     .poly([0, -DH, DW, 0, 0, DH, -DW, 0])

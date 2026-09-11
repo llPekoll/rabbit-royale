@@ -30,6 +30,7 @@ export const TILE = 64;
  */
 const TERRAIN = '/assets/terrain';
 const DECO = '/assets/deco';
+const UNITS = '/assets/units';
 
 export const ISLAND_SHEETS = {
   flat: `${TERRAIN}/tilemap-flat.webp`,
@@ -39,9 +40,73 @@ export const ISLAND_SHEETS = {
   tree: `${DECO}/tree.webp`,
 } as const;
 
+/**
+ * The living sheets: sheep and soldiers.
+ *
+ * These are ANIMATION sheets, not terrain — a grid of `cell`-sized frames, one
+ * row per animation. The numbers below were read off the art (each sheet's
+ * pixel size divided by its cell), never guessed, same rule as the rest of this
+ * file.
+ *
+ * They are copied into `public/assets/units/` from `art-source/`, because
+ * nothing under `art-source/` is served to the browser.
+ */
+export const UNIT_SHEETS = {
+  sheepIdle: `${UNITS}/sheep-idle.webp`,
+  sheepBounce: `${UNITS}/sheep-bounce.webp`,
+  pawnBlue: `${UNITS}/pawn-blue.webp`,
+  pawnRed: `${UNITS}/pawn-red.webp`,
+  warriorBlue: `${UNITS}/warrior-blue.webp`,
+  warriorRed: `${UNITS}/warrior-red.webp`,
+  archerBlue: `${UNITS}/archer-blue.webp`,
+  torchRed: `${UNITS}/torch-red.webp`,
+} as const;
+
+/**
+ * Frame geometry per sheet: cell size, columns, and the row to play.
+ *
+ * `foot` is how far down the art reaches inside its cell, in pixels — the same
+ * idea as `PROP_FOOT_PX`. A unit anchored at its box's bottom floats; anchored
+ * at its foot it stands on the ground.
+ */
+const UNIT_GEOMETRY = {
+  sheepIdle:   { cell: 128, cols: 8, row: 0, foot: 86 },
+  sheepBounce: { cell: 128, cols: 6, row: 0, foot: 86 },
+  pawnBlue:    { cell: 192, cols: 6, row: 0, foot: 128 },
+  // The classic pack's red pawn: 1536x192, so eight frames rather than six,
+  // and its feet reach y=135 — both read off the art, not copied from blue.
+  pawnRed:     { cell: 192, cols: 8, row: 0, foot: 135 },
+  warriorBlue: { cell: 192, cols: 6, row: 0, foot: 136 },
+  warriorRed:  { cell: 192, cols: 6, row: 0, foot: 136 },
+  archerBlue:  { cell: 192, cols: 8, row: 0, foot: 134 },
+  torchRed:    { cell: 192, cols: 7, row: 0, foot: 133 },
+} as const satisfies Record<keyof typeof UNIT_SHEETS, { cell: number; cols: number; row: number; foot: number }>;
+
+export type UnitKind = keyof typeof UNIT_SHEETS;
+
+/** An animated character: its frames, and the anchor that stands it up. */
+export interface UnitSprite {
+  frames: Texture[];
+  anchorY: number;
+}
+
 /** The eighteen loose props: mushrooms, stones, bushes, bones, a scarecrow. */
 export const PROP_COUNT = 18;
 export const propUrl = (n: number) => `${DECO}/prop-${String(n).padStart(2, '0')}.webp`;
+
+/**
+ * The classic pack's bushes: waist-high scenery a rabbit cannot walk through.
+ *
+ * Eight frames of 128 in a 1024x128 strip, sitting at y=79 — measured, like
+ * every other number in this file. They are the reason `fadeTo` exists in
+ * `blocking.ts`: tall enough to hide the player, too small to be worth losing
+ * a cell to invisibly, so they block AND go see-through.
+ */
+export const BUSH_COUNT = 4;
+export const bushUrl = (n: number) => `${DECO}/bushes/bushe${n}.webp`;
+const BUSH_FRAME = 128;
+const BUSH_FRAMES = 8;
+const BUSH_FOOT_PX = 79;
 
 /** Four little rocks that bob in open water. */
 export const SEA_ROCK_COUNT = 4;
@@ -124,6 +189,10 @@ export interface IslandTileset {
   stump: FootSprite;
   /** Four rocks, eight bob frames each. */
   seaRocks: Texture[][];
+  /** Sheep and soldiers, each a strip of frames with a standing anchor. */
+  units: Record<UnitKind, UnitSprite>;
+  /** Four bushes, eight sway frames each, sharing one standing anchor. */
+  bushes: UnitSprite[];
 }
 
 /** Cut a texture into `cols x rows` cells of `w x h`, row-major. */
@@ -160,6 +229,8 @@ export async function loadIslandTileset(): Promise<IslandTileset> {
     ...Array.from({ length: PROP_COUNT }, (_, i) => propUrl(i + 1)),
     ...Array.from({ length: SEA_ROCK_COUNT }, (_, i) => seaRockUrl(i + 1)),
     ...Array.from({ length: TIER_PALETTE_COUNT }, (_, i) => tierPaletteUrl(i + 1)),
+    ...Array.from({ length: BUSH_COUNT }, (_, i) => bushUrl(i + 1)),
+    ...Object.values(UNIT_SHEETS),
   ];
   const loaded = await Assets.load<Texture>(urls);
 
@@ -203,5 +274,24 @@ export async function loadIslandTileset(): Promise<IslandTileset> {
     seaRocks: Array.from({ length: SEA_ROCK_COUNT }, (_, i) =>
       sliceStrip(loaded[seaRockUrl(i + 1)], SEA_ROCK_FRAME, SEA_ROCK_FRAMES),
     ),
+    bushes: Array.from({ length: BUSH_COUNT }, (_, i) => ({
+      frames: sliceStrip(loaded[bushUrl(i + 1)], BUSH_FRAME, BUSH_FRAMES),
+      anchorY: BUSH_FOOT_PX / BUSH_FRAME,
+    })),
+    units: Object.fromEntries(
+      (Object.keys(UNIT_SHEETS) as UnitKind[]).map((kind) => {
+        const g = UNIT_GEOMETRY[kind];
+        const sheet = loaded[UNIT_SHEETS[kind]];
+        const frames = Array.from(
+          { length: g.cols },
+          (_, i) =>
+            new Texture({
+              source: sheet.source,
+              frame: new Rectangle(i * g.cell, g.row * g.cell, g.cell, g.cell),
+            }),
+        );
+        return [kind, { frames, anchorY: g.foot / g.cell }];
+      }),
+    ) as Record<UnitKind, UnitSprite>,
   };
 }

@@ -1,0 +1,5857 @@
+{
+ "art-source/tiny-swords-png/Buildings/Black Buildings/Tower.png": {
+  "cell": [
+   128,
+   1,
+   2
+  ],
+  "kind": "sheet",
+  "newcell": [
+   120,
+   128
+  ],
+  "offset": [
+   4,
+   0
+  ],
+  "orig": [
+   128,
+   256
+  ]
+ },
+ "art-source/tiny-swords-png/Buildings/Blue Buildings/Tower.png": {
+  "cell": [
+   128,
+   1,
+   2
+  ],
+  "kind": "sheet",
+  "newcell": [
+   120,
+   128
+  ],
+  "offset": [
+   4,
+   0
+  ],
+  "orig": [
+   128,
+   256
+  ]
+ },
+ "art-source/tiny-swords-png/Buildings/Purple Buildings/Tower.png": {
+  "cell": [
+   128,
+   1,
+   2
+  ],
+  "kind": "sheet",
+  "newcell": [
+   120,
+   128
+  ],
+  "offset": [
+   4,
+   0
+  ],
+  "orig": [
+   128,
+   256
+  ]
+ },
+ "art-source/tiny-swords-png/Buildings/Red Buildings/Tower.png": {
+  "cell": [
+   128,
+   1,
+   2
+  ],
+  "kind": "sheet",
+  "newcell": [
+   120,
+   128
+  ],
+  "offset": [
+   4,
+   0
+  ],
+  "orig": [
+   128,
+   256
+  ]
+ },
+ "art-source/tiny-swords-png/Buildings/Yellow Buildings/Tower.png": {
+  "cell": [
+   128,
+   1,
+   2
+  ],
+  "kind": "sheet",
+  "newcell": [
+   120,
+   128
+  ],
+  "offset": [
+   4,
+   0
+  ],
+  "orig": [
+   128,
+   256
+  ]
+ },
+ "art-source/tiny-swords-png/Particle FX/Dust_01.png": {
+  "cell": [
+   64,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   35,
+   33
+  ],
+  "offset": [
+   15,
+   13
+  ],
+  "orig": [
+   512,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/Particle FX/Dust_02.png": {
+  "cell": [
+   64,
+   10,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   64,
+   57
+  ],
+  "offset": [
+   0,
+   4
+  ],
+  "orig": [
+   640,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/Particle FX/Explosion_01.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   64,
+   64
+  ],
+  "offset": [
+   63,
+   60
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Particle FX/Explosion_02.png": {
+  "cell": [
+   192,
+   10,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   108,
+   138
+  ],
+  "offset": [
+   43,
+   20
+  ],
+  "orig": [
+   1920,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Particle FX/Fire_01.png": {
+  "cell": [
+   64,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   22,
+   24
+  ],
+  "offset": [
+   21,
+   40
+  ],
+  "orig": [
+   512,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/Particle FX/Fire_02.png": {
+  "cell": [
+   64,
+   10,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   36,
+   43
+  ],
+  "offset": [
+   15,
+   21
+  ],
+  "orig": [
+   640,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/Particle FX/Fire_03.png": {
+  "cell": [
+   64,
+   12,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   55,
+   55
+  ],
+  "offset": [
+   4,
+   9
+  ],
+  "orig": [
+   768,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/Particle FX/Water Splash.png": {
+  "cell": [
+   192,
+   9,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   93,
+   82
+  ],
+  "offset": [
+   52,
+   58
+  ],
+  "orig": [
+   1728,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Decorations/Bushes/Bushe1.png": {
+  "cell": [
+   128,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   67,
+   46
+  ],
+  "offset": [
+   31,
+   33
+  ],
+  "orig": [
+   1024,
+   128
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Decorations/Bushes/Bushe2.png": {
+  "cell": [
+   128,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   46,
+   34
+  ],
+  "offset": [
+   41,
+   42
+  ],
+  "orig": [
+   1024,
+   128
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Decorations/Bushes/Bushe3.png": {
+  "cell": [
+   128,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   79,
+   59
+  ],
+  "offset": [
+   23,
+   25
+  ],
+  "orig": [
+   1024,
+   128
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Decorations/Bushes/Bushe4.png": {
+  "cell": [
+   128,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   46,
+   42
+  ],
+  "offset": [
+   40,
+   37
+  ],
+  "orig": [
+   1024,
+   128
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Decorations/Rocks in the Water/Water Rocks_01.png": {
+  "cell": [
+   64,
+   16,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   41,
+   29
+  ],
+  "offset": [
+   9,
+   25
+  ],
+  "orig": [
+   1024,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Decorations/Rocks in the Water/Water Rocks_02.png": {
+  "cell": [
+   64,
+   16,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   61,
+   39
+  ],
+  "offset": [
+   1,
+   17
+  ],
+  "orig": [
+   1024,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Decorations/Rocks in the Water/Water Rocks_03.png": {
+  "cell": [
+   64,
+   16,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   50,
+   32
+  ],
+  "offset": [
+   7,
+   23
+  ],
+  "orig": [
+   1024,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Decorations/Rocks in the Water/Water Rocks_04.png": {
+  "cell": [
+   64,
+   16,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   64,
+   45
+  ],
+  "offset": [
+   0,
+   14
+  ],
+  "orig": [
+   1024,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Decorations/Rocks/Rock1.png": {
+  "kind": "single",
+  "new": [
+   32,
+   26
+  ],
+  "offset": [
+   15,
+   25
+  ],
+  "orig": [
+   64,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Decorations/Rocks/Rock2.png": {
+  "kind": "single",
+  "new": [
+   50,
+   36
+  ],
+  "offset": [
+   7,
+   17
+  ],
+  "orig": [
+   64,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Decorations/Rocks/Rock3.png": {
+  "kind": "single",
+  "new": [
+   39,
+   29
+  ],
+  "offset": [
+   14,
+   23
+  ],
+  "orig": [
+   64,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Decorations/Rocks/Rock4.png": {
+  "kind": "single",
+  "new": [
+   59,
+   42
+  ],
+  "offset": [
+   2,
+   14
+  ],
+  "orig": [
+   64,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Decorations/Rubber Duck/Rubber duck.png": {
+  "cell": [
+   32,
+   3,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   32,
+   24
+  ],
+  "offset": [
+   0,
+   4
+  ],
+  "orig": [
+   96,
+   32
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Resources/Gold/Gold Resource/Gold_Resource_Highlight.png": {
+  "cell": [
+   128,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   24,
+   26
+  ],
+  "offset": [
+   51,
+   49
+  ],
+  "orig": [
+   768,
+   128
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Resources/Gold/Gold Stones/Gold Stone 1_Highlight.png": {
+  "cell": [
+   128,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   32,
+   29
+  ],
+  "offset": [
+   48,
+   50
+  ],
+  "orig": [
+   768,
+   128
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Resources/Gold/Gold Stones/Gold Stone 2_Highlight.png": {
+  "cell": [
+   128,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   33,
+   28
+  ],
+  "offset": [
+   49,
+   47
+  ],
+  "orig": [
+   768,
+   128
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Resources/Gold/Gold Stones/Gold Stone 3_Highlight.png": {
+  "cell": [
+   128,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   58,
+   52
+  ],
+  "offset": [
+   34,
+   36
+  ],
+  "orig": [
+   768,
+   128
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Resources/Gold/Gold Stones/Gold Stone 4_Highlight.png": {
+  "cell": [
+   128,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   63,
+   55
+  ],
+  "offset": [
+   35,
+   31
+  ],
+  "orig": [
+   768,
+   128
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Resources/Gold/Gold Stones/Gold Stone 5_Highlight.png": {
+  "cell": [
+   128,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   74,
+   80
+  ],
+  "offset": [
+   28,
+   20
+  ],
+  "orig": [
+   768,
+   128
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Resources/Gold/Gold Stones/Gold Stone 6_Highlight.png": {
+  "cell": [
+   128,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   92,
+   81
+  ],
+  "offset": [
+   17,
+   17
+  ],
+  "orig": [
+   768,
+   128
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Resources/Meat/Meat Resource/Meat Resource.png": {
+  "kind": "single",
+  "new": [
+   47,
+   36
+  ],
+  "offset": [
+   9,
+   16
+  ],
+  "orig": [
+   64,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Resources/Meat/Sheep/Sheep_Grass.png": {
+  "cell": [
+   128,
+   12,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   48,
+   44
+  ],
+  "offset": [
+   40,
+   40
+  ],
+  "orig": [
+   1536,
+   128
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Resources/Meat/Sheep/Sheep_Idle.png": {
+  "cell": [
+   128,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   45,
+   44
+  ],
+  "offset": [
+   41,
+   40
+  ],
+  "orig": [
+   768,
+   128
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Resources/Meat/Sheep/Sheep_Move.png": {
+  "cell": [
+   128,
+   4,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   52,
+   47
+  ],
+  "offset": [
+   38,
+   37
+  ],
+  "orig": [
+   512,
+   128
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Resources/Tools/Tool_01.png": {
+  "kind": "single",
+  "new": [
+   28,
+   28
+  ],
+  "offset": [
+   20,
+   17
+  ],
+  "orig": [
+   64,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Resources/Tools/Tool_02.png": {
+  "kind": "single",
+  "new": [
+   27,
+   23
+  ],
+  "offset": [
+   18,
+   20
+  ],
+  "orig": [
+   64,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Resources/Tools/Tool_03.png": {
+  "kind": "single",
+  "new": [
+   19,
+   20
+  ],
+  "offset": [
+   23,
+   22
+  ],
+  "orig": [
+   64,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Resources/Tools/Tool_04.png": {
+  "kind": "single",
+  "new": [
+   23,
+   25
+  ],
+  "offset": [
+   21,
+   19
+  ],
+  "orig": [
+   64,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Resources/Wood/Trees/Stump 1.png": {
+  "cell": [
+   64,
+   3,
+   4
+  ],
+  "kind": "sheet",
+  "newcell": [
+   48,
+   40
+  ],
+  "offset": [
+   11,
+   8
+  ],
+  "orig": [
+   192,
+   256
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Resources/Wood/Trees/Stump 2.png": {
+  "cell": [
+   64,
+   3,
+   4
+  ],
+  "kind": "sheet",
+  "newcell": [
+   43,
+   35
+  ],
+  "offset": [
+   9,
+   18
+  ],
+  "orig": [
+   192,
+   256
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Resources/Wood/Trees/Stump 3.png": {
+  "cell": [
+   64,
+   3,
+   4
+  ],
+  "kind": "sheet",
+  "newcell": [
+   24,
+   35
+  ],
+  "offset": [
+   21,
+   5
+  ],
+  "orig": [
+   192,
+   256
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Resources/Wood/Trees/Stump 4.png": {
+  "cell": [
+   64,
+   3,
+   4
+  ],
+  "kind": "sheet",
+  "newcell": [
+   26,
+   26
+  ],
+  "offset": [
+   22,
+   10
+  ],
+  "orig": [
+   192,
+   256
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Resources/Wood/Trees/Tree1.png": {
+  "cell": [
+   256,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   256,
+   190
+  ],
+  "offset": [
+   0,
+   51
+  ],
+  "orig": [
+   1536,
+   256
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Resources/Wood/Trees/Tree2.png": {
+  "cell": [
+   256,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   256,
+   244
+  ],
+  "offset": [
+   0,
+   5
+  ],
+  "orig": [
+   1536,
+   256
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Resources/Wood/Trees/Tree3.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   93,
+   147
+  ],
+  "offset": [
+   49,
+   23
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Resources/Wood/Trees/Tree4.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   81,
+   122
+  ],
+  "offset": [
+   56,
+   46
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Resources/Wood/Wood Resource/Wood Resource.png": {
+  "kind": "single",
+  "new": [
+   47,
+   28
+  ],
+  "offset": [
+   9,
+   18
+  ],
+  "orig": [
+   64,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Tileset/Water Background color.png": {
+  "kind": "single",
+  "new": [
+   64,
+   64
+  ],
+  "offset": [
+   0,
+   0
+  ],
+  "orig": [
+   64,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/Terrain/Tileset/Water Foam.png": {
+  "cell": [
+   192,
+   16,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   86,
+   91
+  ],
+  "offset": [
+   52,
+   58
+  ],
+  "orig": [
+   3072,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/UI Elements/UI Elements/Bars/BigBar_Base.png": {
+  "cell": [
+   64,
+   5,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   64,
+   51
+  ],
+  "offset": [
+   0,
+   9
+  ],
+  "orig": [
+   320,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/UI Elements/UI Elements/Bars/BigBar_Fill.png": {
+  "kind": "single",
+  "new": [
+   64,
+   24
+  ],
+  "offset": [
+   0,
+   20
+  ],
+  "orig": [
+   64,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/UI Elements/UI Elements/Bars/SmallBar_Base.png": {
+  "cell": [
+   64,
+   5,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   64,
+   19
+  ],
+  "offset": [
+   0,
+   22
+  ],
+  "orig": [
+   320,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/UI Elements/UI Elements/Bars/SmallBar_Fill.png": {
+  "kind": "single",
+  "new": [
+   64,
+   3
+  ],
+  "offset": [
+   0,
+   30
+  ],
+  "orig": [
+   64,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/UI Elements/UI Elements/Buttons/TinyRoundBlueButton.png": {
+  "kind": "single",
+  "new": [
+   64,
+   64
+  ],
+  "offset": [
+   0,
+   0
+  ],
+  "orig": [
+   64,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/UI Elements/UI Elements/Buttons/TinyRoundRedButton.png": {
+  "kind": "single",
+  "new": [
+   64,
+   64
+  ],
+  "offset": [
+   0,
+   0
+  ],
+  "orig": [
+   64,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/UI Elements/UI Elements/Buttons/TinySquareBlueButton.png": {
+  "kind": "single",
+  "new": [
+   60,
+   60
+  ],
+  "offset": [
+   2,
+   2
+  ],
+  "orig": [
+   64,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/UI Elements/UI Elements/Buttons/TinySquareRedButton.png": {
+  "kind": "single",
+  "new": [
+   60,
+   60
+  ],
+  "offset": [
+   2,
+   2
+  ],
+  "orig": [
+   64,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/UI Elements/UI Elements/Cursors/Cursor_01.png": {
+  "kind": "single",
+  "new": [
+   22,
+   30
+  ],
+  "offset": [
+   22,
+   17
+  ],
+  "orig": [
+   64,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/UI Elements/UI Elements/Cursors/Cursor_02.png": {
+  "kind": "single",
+  "new": [
+   27,
+   32
+  ],
+  "offset": [
+   20,
+   17
+  ],
+  "orig": [
+   64,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/UI Elements/UI Elements/Cursors/Cursor_03.png": {
+  "kind": "single",
+  "new": [
+   32,
+   36
+  ],
+  "offset": [
+   16,
+   13
+  ],
+  "orig": [
+   64,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/UI Elements/UI Elements/Cursors/Cursor_04.png": {
+  "cell": [
+   64,
+   2,
+   2
+  ],
+  "kind": "sheet",
+  "newcell": [
+   58,
+   58
+  ],
+  "offset": [
+   3,
+   3
+  ],
+  "orig": [
+   128,
+   128
+  ]
+ },
+ "art-source/tiny-swords-png/UI Elements/UI Elements/Icons/Icon_01.png": {
+  "kind": "single",
+  "new": [
+   57,
+   57
+  ],
+  "offset": [
+   5,
+   3
+  ],
+  "orig": [
+   64,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/UI Elements/UI Elements/Icons/Icon_02.png": {
+  "kind": "single",
+  "new": [
+   62,
+   50
+  ],
+  "offset": [
+   1,
+   7
+  ],
+  "orig": [
+   64,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/UI Elements/UI Elements/Icons/Icon_03.png": {
+  "kind": "single",
+  "new": [
+   55,
+   52
+  ],
+  "offset": [
+   4,
+   4
+  ],
+  "orig": [
+   64,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/UI Elements/UI Elements/Icons/Icon_04.png": {
+  "kind": "single",
+  "new": [
+   60,
+   48
+  ],
+  "offset": [
+   2,
+   9
+  ],
+  "orig": [
+   64,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/UI Elements/UI Elements/Icons/Icon_05.png": {
+  "kind": "single",
+  "new": [
+   57,
+   56
+  ],
+  "offset": [
+   3,
+   5
+  ],
+  "orig": [
+   64,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/UI Elements/UI Elements/Icons/Icon_06.png": {
+  "kind": "single",
+  "new": [
+   63,
+   60
+  ],
+  "offset": [
+   0,
+   3
+  ],
+  "orig": [
+   64,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/UI Elements/UI Elements/Icons/Icon_07.png": {
+  "kind": "single",
+  "new": [
+   43,
+   51
+  ],
+  "offset": [
+   11,
+   8
+  ],
+  "orig": [
+   64,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/UI Elements/UI Elements/Icons/Icon_08.png": {
+  "kind": "single",
+  "new": [
+   54,
+   50
+  ],
+  "offset": [
+   4,
+   8
+  ],
+  "orig": [
+   64,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/UI Elements/UI Elements/Icons/Icon_09.png": {
+  "kind": "single",
+  "new": [
+   51,
+   55
+  ],
+  "offset": [
+   6,
+   5
+  ],
+  "orig": [
+   64,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/UI Elements/UI Elements/Icons/Icon_10.png": {
+  "kind": "single",
+  "new": [
+   54,
+   56
+  ],
+  "offset": [
+   6,
+   4
+  ],
+  "orig": [
+   64,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/UI Elements/UI Elements/Icons/Icon_11.png": {
+  "kind": "single",
+  "new": [
+   52,
+   55
+  ],
+  "offset": [
+   5,
+   5
+  ],
+  "orig": [
+   64,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/UI Elements/UI Elements/Icons/Icon_12.png": {
+  "kind": "single",
+  "new": [
+   49,
+   58
+  ],
+  "offset": [
+   9,
+   3
+  ],
+  "orig": [
+   64,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/UI Elements/UI Elements/Ribbons/SmallRibbons.png": {
+  "cell": [
+   320,
+   1,
+   2
+  ],
+  "kind": "sheet",
+  "newcell": [
+   316,
+   316
+  ],
+  "offset": [
+   2,
+   4
+  ],
+  "orig": [
+   320,
+   640
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Archer/Archer_Idle.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   72,
+   89
+  ],
+  "offset": [
+   56,
+   47
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Archer/Archer_Run.png": {
+  "cell": [
+   192,
+   4,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   73,
+   90
+  ],
+  "offset": [
+   57,
+   46
+  ],
+  "orig": [
+   768,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Archer/Archer_Shoot.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   87,
+   90
+  ],
+  "offset": [
+   53,
+   46
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Archer/Arrow.png": {
+  "kind": "single",
+  "new": [
+   43,
+   12
+  ],
+  "offset": [
+   10,
+   26
+  ],
+  "orig": [
+   64,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Lancer/Lancer_DownRight_Attack.png": {
+  "cell": [
+   320,
+   3,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   122,
+   143
+  ],
+  "offset": [
+   121,
+   131
+  ],
+  "orig": [
+   960,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Lancer/Lancer_DownRight_Defence.png": {
+  "cell": [
+   320,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   103,
+   126
+  ],
+  "offset": [
+   126,
+   132
+  ],
+  "orig": [
+   1920,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Lancer/Lancer_Down_Attack.png": {
+  "cell": [
+   320,
+   3,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   47,
+   165
+  ],
+  "offset": [
+   141,
+   137
+  ],
+  "orig": [
+   960,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Lancer/Lancer_Down_Defence.png": {
+  "cell": [
+   320,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   46,
+   142
+  ],
+  "offset": [
+   142,
+   138
+  ],
+  "orig": [
+   1920,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Lancer/Lancer_Idle.png": {
+  "cell": [
+   320,
+   12,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   70,
+   150
+  ],
+  "offset": [
+   114,
+   48
+  ],
+  "orig": [
+   3840,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Lancer/Lancer_Right_Attack.png": {
+  "cell": [
+   320,
+   3,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   186,
+   75
+  ],
+  "offset": [
+   121,
+   123
+  ],
+  "orig": [
+   960,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Lancer/Lancer_Right_Defence.png": {
+  "cell": [
+   320,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   153,
+   75
+  ],
+  "offset": [
+   122,
+   123
+  ],
+  "orig": [
+   1920,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Lancer/Lancer_Run.png": {
+  "cell": [
+   320,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   72,
+   149
+  ],
+  "offset": [
+   110,
+   54
+  ],
+  "orig": [
+   1920,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Lancer/Lancer_UpRight_Attack.png": {
+  "cell": [
+   320,
+   3,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   129,
+   107
+  ],
+  "offset": [
+   131,
+   88
+  ],
+  "orig": [
+   960,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Lancer/Lancer_UpRight_Defence.png": {
+  "cell": [
+   320,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   110,
+   91
+  ],
+  "offset": [
+   133,
+   105
+  ],
+  "orig": [
+   1920,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Lancer/Lancer_Up_Attack.png": {
+  "cell": [
+   320,
+   3,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   52,
+   151
+  ],
+  "offset": [
+   122,
+   46
+  ],
+  "orig": [
+   960,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Lancer/Lancer_Up_Defence.png": {
+  "cell": [
+   320,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   51,
+   126
+  ],
+  "offset": [
+   123,
+   72
+  ],
+  "orig": [
+   1920,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Monk/Heal.png": {
+  "cell": [
+   192,
+   11,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   121,
+   71
+  ],
+  "offset": [
+   35,
+   63
+  ],
+  "orig": [
+   2112,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Monk/Heal_Effect.png": {
+  "cell": [
+   192,
+   11,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   98,
+   128
+  ],
+  "offset": [
+   47,
+   18
+  ],
+  "orig": [
+   2112,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Monk/Idle.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   58,
+   69
+  ],
+  "offset": [
+   67,
+   65
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Monk/Run.png": {
+  "cell": [
+   192,
+   4,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   83,
+   71
+  ],
+  "offset": [
+   55,
+   63
+  ],
+  "orig": [
+   768,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Pawn/Pawn_Idle Axe.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   69,
+   74
+  ],
+  "offset": [
+   56,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Pawn/Pawn_Idle Gold.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   64,
+   74
+  ],
+  "offset": [
+   67,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Pawn/Pawn_Idle Hammer.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   75,
+   74
+  ],
+  "offset": [
+   67,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Pawn/Pawn_Idle Knife.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   68,
+   74
+  ],
+  "offset": [
+   67,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Pawn/Pawn_Idle Meat.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   62,
+   74
+  ],
+  "offset": [
+   67,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Pawn/Pawn_Idle Pickaxe.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   65,
+   74
+  ],
+  "offset": [
+   60,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Pawn/Pawn_Idle Wood.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   65,
+   74
+  ],
+  "offset": [
+   67,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Pawn/Pawn_Idle.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   58,
+   74
+  ],
+  "offset": [
+   67,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Pawn/Pawn_Interact Axe.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   98,
+   75
+  ],
+  "offset": [
+   56,
+   60
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Pawn/Pawn_Interact Hammer.png": {
+  "cell": [
+   192,
+   3,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   84,
+   73
+  ],
+  "offset": [
+   71,
+   65
+  ],
+  "orig": [
+   576,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Pawn/Pawn_Interact Knife.png": {
+  "cell": [
+   192,
+   4,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   80,
+   81
+  ],
+  "offset": [
+   61,
+   60
+  ],
+  "orig": [
+   768,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Pawn/Pawn_Interact Pickaxe.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   101,
+   75
+  ],
+  "offset": [
+   52,
+   60
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Pawn/Pawn_Run Axe.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   77,
+   77
+  ],
+  "offset": [
+   54,
+   58
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Pawn/Pawn_Run Gold.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   65,
+   77
+  ],
+  "offset": [
+   68,
+   58
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Pawn/Pawn_Run Hammer.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   80,
+   77
+  ],
+  "offset": [
+   65,
+   58
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Pawn/Pawn_Run Knife.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   77,
+   77
+  ],
+  "offset": [
+   65,
+   58
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Pawn/Pawn_Run Meat.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   70,
+   81
+  ],
+  "offset": [
+   68,
+   54
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Pawn/Pawn_Run Pickaxe.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   77,
+   77
+  ],
+  "offset": [
+   54,
+   58
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Pawn/Pawn_Run Wood.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   66,
+   77
+  ],
+  "offset": [
+   68,
+   58
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Pawn/Pawn_Run.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   66,
+   77
+  ],
+  "offset": [
+   65,
+   58
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Warrior/Warrior_Attack1.png": {
+  "cell": [
+   192,
+   4,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   120,
+   112
+  ],
+  "offset": [
+   43,
+   44
+  ],
+  "orig": [
+   768,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Warrior/Warrior_Attack2.png": {
+  "cell": [
+   192,
+   4,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   118,
+   104
+  ],
+  "offset": [
+   41,
+   48
+  ],
+  "orig": [
+   768,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Warrior/Warrior_Guard.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   70,
+   93
+  ],
+  "offset": [
+   57,
+   44
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Warrior/Warrior_Idle.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   84,
+   89
+  ],
+  "offset": [
+   59,
+   48
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Black Units/Warrior/Warrior_Run.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   93,
+   91
+  ],
+  "offset": [
+   53,
+   46
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Archer/Archer_Idle.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   72,
+   89
+  ],
+  "offset": [
+   56,
+   47
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Archer/Archer_Run.png": {
+  "cell": [
+   192,
+   4,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   73,
+   90
+  ],
+  "offset": [
+   57,
+   46
+  ],
+  "orig": [
+   768,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Archer/Archer_Shoot.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   87,
+   90
+  ],
+  "offset": [
+   53,
+   46
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Archer/Arrow.png": {
+  "kind": "single",
+  "new": [
+   43,
+   12
+  ],
+  "offset": [
+   10,
+   26
+  ],
+  "orig": [
+   64,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Lancer/Lancer_DownRight_Attack.png": {
+  "cell": [
+   320,
+   3,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   122,
+   143
+  ],
+  "offset": [
+   121,
+   131
+  ],
+  "orig": [
+   960,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Lancer/Lancer_DownRight_Defence.png": {
+  "cell": [
+   320,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   103,
+   126
+  ],
+  "offset": [
+   126,
+   132
+  ],
+  "orig": [
+   1920,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Lancer/Lancer_Down_Attack.png": {
+  "cell": [
+   320,
+   3,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   47,
+   165
+  ],
+  "offset": [
+   141,
+   137
+  ],
+  "orig": [
+   960,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Lancer/Lancer_Down_Defence.png": {
+  "cell": [
+   320,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   46,
+   142
+  ],
+  "offset": [
+   142,
+   138
+  ],
+  "orig": [
+   1920,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Lancer/Lancer_Idle.png": {
+  "cell": [
+   320,
+   12,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   70,
+   150
+  ],
+  "offset": [
+   114,
+   48
+  ],
+  "orig": [
+   3840,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Lancer/Lancer_Right_Attack.png": {
+  "cell": [
+   320,
+   3,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   186,
+   75
+  ],
+  "offset": [
+   121,
+   123
+  ],
+  "orig": [
+   960,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Lancer/Lancer_Right_Defence.png": {
+  "cell": [
+   320,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   153,
+   75
+  ],
+  "offset": [
+   122,
+   123
+  ],
+  "orig": [
+   1920,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Lancer/Lancer_Run.png": {
+  "cell": [
+   320,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   72,
+   149
+  ],
+  "offset": [
+   110,
+   54
+  ],
+  "orig": [
+   1920,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Lancer/Lancer_UpRight_Attack.png": {
+  "cell": [
+   320,
+   3,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   129,
+   107
+  ],
+  "offset": [
+   131,
+   88
+  ],
+  "orig": [
+   960,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Lancer/Lancer_UpRight_Defence.png": {
+  "cell": [
+   320,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   110,
+   91
+  ],
+  "offset": [
+   133,
+   105
+  ],
+  "orig": [
+   1920,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Lancer/Lancer_Up_Attack.png": {
+  "cell": [
+   320,
+   3,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   52,
+   151
+  ],
+  "offset": [
+   122,
+   46
+  ],
+  "orig": [
+   960,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Lancer/Lancer_Up_Defence.png": {
+  "cell": [
+   320,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   51,
+   126
+  ],
+  "offset": [
+   123,
+   72
+  ],
+  "orig": [
+   1920,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Monk/Heal.png": {
+  "cell": [
+   192,
+   11,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   121,
+   71
+  ],
+  "offset": [
+   35,
+   63
+  ],
+  "orig": [
+   2112,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Monk/Heal_Effect.png": {
+  "cell": [
+   192,
+   11,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   98,
+   128
+  ],
+  "offset": [
+   47,
+   18
+  ],
+  "orig": [
+   2112,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Monk/Idle.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   58,
+   69
+  ],
+  "offset": [
+   67,
+   65
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Monk/Run.png": {
+  "cell": [
+   192,
+   4,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   83,
+   71
+  ],
+  "offset": [
+   55,
+   63
+  ],
+  "orig": [
+   768,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Pawn/Pawn_Idle Axe.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   69,
+   74
+  ],
+  "offset": [
+   56,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Pawn/Pawn_Idle Gold.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   64,
+   74
+  ],
+  "offset": [
+   67,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Pawn/Pawn_Idle Hammer.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   75,
+   74
+  ],
+  "offset": [
+   67,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Pawn/Pawn_Idle Knife.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   68,
+   74
+  ],
+  "offset": [
+   67,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Pawn/Pawn_Idle Meat.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   62,
+   74
+  ],
+  "offset": [
+   67,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Pawn/Pawn_Idle Pickaxe.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   65,
+   74
+  ],
+  "offset": [
+   60,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Pawn/Pawn_Idle Wood.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   65,
+   74
+  ],
+  "offset": [
+   67,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Pawn/Pawn_Idle.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   58,
+   74
+  ],
+  "offset": [
+   67,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Pawn/Pawn_Interact Axe.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   98,
+   75
+  ],
+  "offset": [
+   56,
+   60
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Pawn/Pawn_Interact Hammer.png": {
+  "cell": [
+   192,
+   3,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   84,
+   73
+  ],
+  "offset": [
+   71,
+   65
+  ],
+  "orig": [
+   576,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Pawn/Pawn_Interact Knife.png": {
+  "cell": [
+   192,
+   4,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   80,
+   81
+  ],
+  "offset": [
+   61,
+   60
+  ],
+  "orig": [
+   768,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Pawn/Pawn_Interact Pickaxe.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   101,
+   75
+  ],
+  "offset": [
+   52,
+   60
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Pawn/Pawn_Run Axe.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   77,
+   77
+  ],
+  "offset": [
+   54,
+   58
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Pawn/Pawn_Run Gold.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   65,
+   77
+  ],
+  "offset": [
+   68,
+   58
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Pawn/Pawn_Run Hammer.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   80,
+   77
+  ],
+  "offset": [
+   65,
+   58
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Pawn/Pawn_Run Knife.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   77,
+   77
+  ],
+  "offset": [
+   65,
+   58
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Pawn/Pawn_Run Meat.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   70,
+   81
+  ],
+  "offset": [
+   68,
+   54
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Pawn/Pawn_Run Pickaxe.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   77,
+   77
+  ],
+  "offset": [
+   54,
+   58
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Pawn/Pawn_Run Wood.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   66,
+   77
+  ],
+  "offset": [
+   68,
+   58
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Pawn/Pawn_Run.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   66,
+   77
+  ],
+  "offset": [
+   65,
+   58
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Warrior/Warrior_Attack1.png": {
+  "cell": [
+   192,
+   4,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   120,
+   112
+  ],
+  "offset": [
+   43,
+   44
+  ],
+  "orig": [
+   768,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Warrior/Warrior_Attack2.png": {
+  "cell": [
+   192,
+   4,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   118,
+   104
+  ],
+  "offset": [
+   41,
+   48
+  ],
+  "orig": [
+   768,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Warrior/Warrior_Guard.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   70,
+   93
+  ],
+  "offset": [
+   57,
+   44
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Warrior/Warrior_Idle.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   84,
+   89
+  ],
+  "offset": [
+   59,
+   48
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Blue Units/Warrior/Warrior_Run.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   93,
+   91
+  ],
+  "offset": [
+   53,
+   46
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Archer/Archer_Idle.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   72,
+   89
+  ],
+  "offset": [
+   56,
+   47
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Archer/Archer_Run.png": {
+  "cell": [
+   192,
+   4,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   73,
+   90
+  ],
+  "offset": [
+   57,
+   46
+  ],
+  "orig": [
+   768,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Archer/Archer_Shoot.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   87,
+   90
+  ],
+  "offset": [
+   53,
+   46
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Archer/Arrow.png": {
+  "kind": "single",
+  "new": [
+   43,
+   12
+  ],
+  "offset": [
+   10,
+   26
+  ],
+  "orig": [
+   64,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Lancer/Lancer_DownRight_Attack.png": {
+  "cell": [
+   320,
+   3,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   122,
+   143
+  ],
+  "offset": [
+   121,
+   131
+  ],
+  "orig": [
+   960,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Lancer/Lancer_DownRight_Defence.png": {
+  "cell": [
+   320,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   103,
+   126
+  ],
+  "offset": [
+   126,
+   132
+  ],
+  "orig": [
+   1920,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Lancer/Lancer_Down_Attack.png": {
+  "cell": [
+   320,
+   3,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   47,
+   165
+  ],
+  "offset": [
+   141,
+   137
+  ],
+  "orig": [
+   960,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Lancer/Lancer_Down_Defence.png": {
+  "cell": [
+   320,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   46,
+   142
+  ],
+  "offset": [
+   142,
+   138
+  ],
+  "orig": [
+   1920,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Lancer/Lancer_Idle.png": {
+  "cell": [
+   320,
+   12,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   70,
+   150
+  ],
+  "offset": [
+   114,
+   48
+  ],
+  "orig": [
+   3840,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Lancer/Lancer_Right_Attack.png": {
+  "cell": [
+   320,
+   3,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   186,
+   75
+  ],
+  "offset": [
+   121,
+   123
+  ],
+  "orig": [
+   960,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Lancer/Lancer_Right_Defence.png": {
+  "cell": [
+   320,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   153,
+   75
+  ],
+  "offset": [
+   122,
+   123
+  ],
+  "orig": [
+   1920,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Lancer/Lancer_Run.png": {
+  "cell": [
+   320,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   72,
+   149
+  ],
+  "offset": [
+   110,
+   54
+  ],
+  "orig": [
+   1920,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Lancer/Lancer_UpRight_Attack.png": {
+  "cell": [
+   320,
+   3,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   129,
+   107
+  ],
+  "offset": [
+   131,
+   88
+  ],
+  "orig": [
+   960,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Lancer/Lancer_UpRight_Defence.png": {
+  "cell": [
+   320,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   110,
+   91
+  ],
+  "offset": [
+   133,
+   105
+  ],
+  "orig": [
+   1920,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Lancer/Lancer_Up_Attack.png": {
+  "cell": [
+   320,
+   3,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   52,
+   151
+  ],
+  "offset": [
+   122,
+   46
+  ],
+  "orig": [
+   960,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Lancer/Lancer_Up_Defence.png": {
+  "cell": [
+   320,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   51,
+   126
+  ],
+  "offset": [
+   123,
+   72
+  ],
+  "orig": [
+   1920,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Monk/Heal.png": {
+  "cell": [
+   192,
+   11,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   121,
+   71
+  ],
+  "offset": [
+   35,
+   63
+  ],
+  "orig": [
+   2112,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Monk/Heal_Effect.png": {
+  "cell": [
+   192,
+   11,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   98,
+   128
+  ],
+  "offset": [
+   47,
+   18
+  ],
+  "orig": [
+   2112,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Monk/Idle.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   58,
+   69
+  ],
+  "offset": [
+   67,
+   65
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Monk/Run.png": {
+  "cell": [
+   192,
+   4,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   83,
+   71
+  ],
+  "offset": [
+   55,
+   63
+  ],
+  "orig": [
+   768,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Pawn/Pawn_Idle Axe.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   69,
+   74
+  ],
+  "offset": [
+   56,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Pawn/Pawn_Idle Gold.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   64,
+   74
+  ],
+  "offset": [
+   67,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Pawn/Pawn_Idle Hammer.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   75,
+   74
+  ],
+  "offset": [
+   67,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Pawn/Pawn_Idle Knife.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   68,
+   74
+  ],
+  "offset": [
+   67,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Pawn/Pawn_Idle Meat.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   62,
+   74
+  ],
+  "offset": [
+   67,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Pawn/Pawn_Idle Pickaxe.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   65,
+   74
+  ],
+  "offset": [
+   60,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Pawn/Pawn_Idle Wood.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   65,
+   74
+  ],
+  "offset": [
+   67,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Pawn/Pawn_Idle.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   58,
+   74
+  ],
+  "offset": [
+   67,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Pawn/Pawn_Interact Axe.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   98,
+   75
+  ],
+  "offset": [
+   56,
+   60
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Pawn/Pawn_Interact Hammer.png": {
+  "cell": [
+   192,
+   3,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   84,
+   73
+  ],
+  "offset": [
+   71,
+   65
+  ],
+  "orig": [
+   576,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Pawn/Pawn_Interact Knife.png": {
+  "cell": [
+   192,
+   4,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   80,
+   81
+  ],
+  "offset": [
+   61,
+   60
+  ],
+  "orig": [
+   768,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Pawn/Pawn_Interact Pickaxe.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   101,
+   75
+  ],
+  "offset": [
+   52,
+   60
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Pawn/Pawn_Run Axe.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   77,
+   77
+  ],
+  "offset": [
+   54,
+   58
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Pawn/Pawn_Run Gold.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   65,
+   77
+  ],
+  "offset": [
+   68,
+   58
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Pawn/Pawn_Run Hammer.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   80,
+   77
+  ],
+  "offset": [
+   65,
+   58
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Pawn/Pawn_Run Knife.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   77,
+   77
+  ],
+  "offset": [
+   65,
+   58
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Pawn/Pawn_Run Meat.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   70,
+   81
+  ],
+  "offset": [
+   68,
+   54
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Pawn/Pawn_Run Pickaxe.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   77,
+   77
+  ],
+  "offset": [
+   54,
+   58
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Pawn/Pawn_Run Wood.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   66,
+   77
+  ],
+  "offset": [
+   68,
+   58
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Pawn/Pawn_Run.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   66,
+   77
+  ],
+  "offset": [
+   65,
+   58
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Warrior/Warrior_Attack1.png": {
+  "cell": [
+   192,
+   4,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   120,
+   112
+  ],
+  "offset": [
+   43,
+   44
+  ],
+  "orig": [
+   768,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Warrior/Warrior_Attack2.png": {
+  "cell": [
+   192,
+   4,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   118,
+   104
+  ],
+  "offset": [
+   41,
+   48
+  ],
+  "orig": [
+   768,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Warrior/Warrior_Guard.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   70,
+   93
+  ],
+  "offset": [
+   57,
+   44
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Warrior/Warrior_Idle.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   84,
+   89
+  ],
+  "offset": [
+   59,
+   48
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Purple Units/Warrior/Warrior_Run.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   93,
+   91
+  ],
+  "offset": [
+   53,
+   46
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Archer/Archer_Idle.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   72,
+   89
+  ],
+  "offset": [
+   56,
+   47
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Archer/Archer_Run.png": {
+  "cell": [
+   192,
+   4,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   73,
+   90
+  ],
+  "offset": [
+   57,
+   46
+  ],
+  "orig": [
+   768,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Archer/Archer_Shoot.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   87,
+   90
+  ],
+  "offset": [
+   53,
+   46
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Archer/Arrow.png": {
+  "kind": "single",
+  "new": [
+   43,
+   12
+  ],
+  "offset": [
+   10,
+   26
+  ],
+  "orig": [
+   64,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Lancer/Lancer_DownRight_Attack.png": {
+  "cell": [
+   320,
+   3,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   122,
+   143
+  ],
+  "offset": [
+   121,
+   131
+  ],
+  "orig": [
+   960,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Lancer/Lancer_DownRight_Defence.png": {
+  "cell": [
+   320,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   103,
+   126
+  ],
+  "offset": [
+   126,
+   132
+  ],
+  "orig": [
+   1920,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Lancer/Lancer_Down_Attack.png": {
+  "cell": [
+   320,
+   3,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   47,
+   165
+  ],
+  "offset": [
+   141,
+   137
+  ],
+  "orig": [
+   960,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Lancer/Lancer_Down_Defence.png": {
+  "cell": [
+   320,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   46,
+   142
+  ],
+  "offset": [
+   142,
+   138
+  ],
+  "orig": [
+   1920,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Lancer/Lancer_Idle.png": {
+  "cell": [
+   320,
+   12,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   70,
+   150
+  ],
+  "offset": [
+   114,
+   48
+  ],
+  "orig": [
+   3840,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Lancer/Lancer_Right_Attack.png": {
+  "cell": [
+   320,
+   3,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   186,
+   75
+  ],
+  "offset": [
+   121,
+   123
+  ],
+  "orig": [
+   960,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Lancer/Lancer_Right_Defence.png": {
+  "cell": [
+   320,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   153,
+   75
+  ],
+  "offset": [
+   122,
+   123
+  ],
+  "orig": [
+   1920,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Lancer/Lancer_Run.png": {
+  "cell": [
+   320,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   72,
+   149
+  ],
+  "offset": [
+   110,
+   54
+  ],
+  "orig": [
+   1920,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Lancer/Lancer_UpRight_Attack.png": {
+  "cell": [
+   320,
+   3,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   129,
+   107
+  ],
+  "offset": [
+   131,
+   88
+  ],
+  "orig": [
+   960,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Lancer/Lancer_UpRight_Defence.png": {
+  "cell": [
+   320,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   110,
+   91
+  ],
+  "offset": [
+   133,
+   105
+  ],
+  "orig": [
+   1920,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Lancer/Lancer_Up_Attack.png": {
+  "cell": [
+   320,
+   3,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   52,
+   151
+  ],
+  "offset": [
+   122,
+   46
+  ],
+  "orig": [
+   960,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Lancer/Lancer_Up_Defence.png": {
+  "cell": [
+   320,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   51,
+   126
+  ],
+  "offset": [
+   123,
+   72
+  ],
+  "orig": [
+   1920,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Monk/Heal.png": {
+  "cell": [
+   192,
+   11,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   121,
+   71
+  ],
+  "offset": [
+   35,
+   63
+  ],
+  "orig": [
+   2112,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Monk/Heal_Effect.png": {
+  "cell": [
+   192,
+   11,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   98,
+   128
+  ],
+  "offset": [
+   47,
+   18
+  ],
+  "orig": [
+   2112,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Monk/Idle.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   58,
+   69
+  ],
+  "offset": [
+   67,
+   65
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Monk/Run.png": {
+  "cell": [
+   192,
+   4,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   83,
+   71
+  ],
+  "offset": [
+   55,
+   63
+  ],
+  "orig": [
+   768,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Pawn/Pawn_Idle Axe.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   69,
+   74
+  ],
+  "offset": [
+   56,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Pawn/Pawn_Idle Gold.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   64,
+   74
+  ],
+  "offset": [
+   67,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Pawn/Pawn_Idle Hammer.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   75,
+   74
+  ],
+  "offset": [
+   67,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Pawn/Pawn_Idle Knife.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   68,
+   74
+  ],
+  "offset": [
+   67,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Pawn/Pawn_Idle Meat.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   62,
+   74
+  ],
+  "offset": [
+   67,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Pawn/Pawn_Idle Pickaxe.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   65,
+   74
+  ],
+  "offset": [
+   60,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Pawn/Pawn_Idle Wood.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   65,
+   74
+  ],
+  "offset": [
+   67,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Pawn/Pawn_Idle.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   58,
+   74
+  ],
+  "offset": [
+   67,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Pawn/Pawn_Interact Axe.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   98,
+   75
+  ],
+  "offset": [
+   56,
+   60
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Pawn/Pawn_Interact Hammer.png": {
+  "cell": [
+   192,
+   3,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   84,
+   73
+  ],
+  "offset": [
+   71,
+   65
+  ],
+  "orig": [
+   576,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Pawn/Pawn_Interact Knife.png": {
+  "cell": [
+   192,
+   4,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   80,
+   81
+  ],
+  "offset": [
+   61,
+   60
+  ],
+  "orig": [
+   768,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Pawn/Pawn_Interact Pickaxe.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   101,
+   75
+  ],
+  "offset": [
+   52,
+   60
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Pawn/Pawn_Run Axe.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   77,
+   77
+  ],
+  "offset": [
+   54,
+   58
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Pawn/Pawn_Run Gold.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   65,
+   77
+  ],
+  "offset": [
+   68,
+   58
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Pawn/Pawn_Run Hammer.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   80,
+   77
+  ],
+  "offset": [
+   65,
+   58
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Pawn/Pawn_Run Knife.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   77,
+   77
+  ],
+  "offset": [
+   65,
+   58
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Pawn/Pawn_Run Meat.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   70,
+   81
+  ],
+  "offset": [
+   68,
+   54
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Pawn/Pawn_Run Pickaxe.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   77,
+   77
+  ],
+  "offset": [
+   54,
+   58
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Pawn/Pawn_Run Wood.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   66,
+   77
+  ],
+  "offset": [
+   68,
+   58
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Pawn/Pawn_Run.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   66,
+   77
+  ],
+  "offset": [
+   65,
+   58
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Warrior/Warrior_Attack1.png": {
+  "cell": [
+   192,
+   4,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   120,
+   112
+  ],
+  "offset": [
+   43,
+   44
+  ],
+  "orig": [
+   768,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Warrior/Warrior_Attack2.png": {
+  "cell": [
+   192,
+   4,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   118,
+   104
+  ],
+  "offset": [
+   41,
+   48
+  ],
+  "orig": [
+   768,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Warrior/Warrior_Guard.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   70,
+   93
+  ],
+  "offset": [
+   57,
+   44
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Warrior/Warrior_Idle.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   84,
+   89
+  ],
+  "offset": [
+   59,
+   48
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Red Units/Warrior/Warrior_Run.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   93,
+   91
+  ],
+  "offset": [
+   53,
+   46
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Archer/Archer_Idle.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   72,
+   89
+  ],
+  "offset": [
+   56,
+   47
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Archer/Archer_Run.png": {
+  "cell": [
+   192,
+   4,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   73,
+   90
+  ],
+  "offset": [
+   57,
+   46
+  ],
+  "orig": [
+   768,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Archer/Archer_Shoot.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   87,
+   90
+  ],
+  "offset": [
+   53,
+   46
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Archer/Arrow.png": {
+  "kind": "single",
+  "new": [
+   43,
+   12
+  ],
+  "offset": [
+   10,
+   26
+  ],
+  "orig": [
+   64,
+   64
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Lancer/Lancer_DownRight_Attack.png": {
+  "cell": [
+   320,
+   3,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   122,
+   143
+  ],
+  "offset": [
+   121,
+   131
+  ],
+  "orig": [
+   960,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Lancer/Lancer_DownRight_Defence.png": {
+  "cell": [
+   320,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   103,
+   126
+  ],
+  "offset": [
+   126,
+   132
+  ],
+  "orig": [
+   1920,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Lancer/Lancer_Down_Attack.png": {
+  "cell": [
+   320,
+   3,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   47,
+   165
+  ],
+  "offset": [
+   141,
+   137
+  ],
+  "orig": [
+   960,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Lancer/Lancer_Down_Defence.png": {
+  "cell": [
+   320,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   46,
+   142
+  ],
+  "offset": [
+   142,
+   138
+  ],
+  "orig": [
+   1920,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Lancer/Lancer_Idle.png": {
+  "cell": [
+   320,
+   12,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   70,
+   150
+  ],
+  "offset": [
+   114,
+   48
+  ],
+  "orig": [
+   3840,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Lancer/Lancer_Right_Attack.png": {
+  "cell": [
+   320,
+   3,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   186,
+   75
+  ],
+  "offset": [
+   121,
+   123
+  ],
+  "orig": [
+   960,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Lancer/Lancer_Right_Defence.png": {
+  "cell": [
+   320,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   153,
+   75
+  ],
+  "offset": [
+   122,
+   123
+  ],
+  "orig": [
+   1920,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Lancer/Lancer_Run.png": {
+  "cell": [
+   320,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   72,
+   149
+  ],
+  "offset": [
+   110,
+   54
+  ],
+  "orig": [
+   1920,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Lancer/Lancer_UpRight_Attack.png": {
+  "cell": [
+   320,
+   3,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   129,
+   107
+  ],
+  "offset": [
+   131,
+   88
+  ],
+  "orig": [
+   960,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Lancer/Lancer_UpRight_Defence.png": {
+  "cell": [
+   320,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   110,
+   91
+  ],
+  "offset": [
+   133,
+   105
+  ],
+  "orig": [
+   1920,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Lancer/Lancer_Up_Attack.png": {
+  "cell": [
+   320,
+   3,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   52,
+   151
+  ],
+  "offset": [
+   122,
+   46
+  ],
+  "orig": [
+   960,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Lancer/Lancer_Up_Defence.png": {
+  "cell": [
+   320,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   51,
+   126
+  ],
+  "offset": [
+   123,
+   72
+  ],
+  "orig": [
+   1920,
+   320
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Monk/Heal.png": {
+  "cell": [
+   192,
+   11,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   121,
+   71
+  ],
+  "offset": [
+   35,
+   63
+  ],
+  "orig": [
+   2112,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Monk/Heal_Effect.png": {
+  "cell": [
+   192,
+   11,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   98,
+   128
+  ],
+  "offset": [
+   47,
+   18
+  ],
+  "orig": [
+   2112,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Monk/Idle.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   58,
+   69
+  ],
+  "offset": [
+   67,
+   65
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Monk/Run.png": {
+  "cell": [
+   192,
+   4,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   83,
+   71
+  ],
+  "offset": [
+   55,
+   63
+  ],
+  "orig": [
+   768,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Pawn/Pawn_Idle Axe.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   69,
+   74
+  ],
+  "offset": [
+   56,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Pawn/Pawn_Idle Gold.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   64,
+   74
+  ],
+  "offset": [
+   67,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Pawn/Pawn_Idle Hammer.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   75,
+   74
+  ],
+  "offset": [
+   67,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Pawn/Pawn_Idle Knife.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   68,
+   74
+  ],
+  "offset": [
+   67,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Pawn/Pawn_Idle Meat.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   62,
+   74
+  ],
+  "offset": [
+   67,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Pawn/Pawn_Idle Pickaxe.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   65,
+   74
+  ],
+  "offset": [
+   60,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Pawn/Pawn_Idle Wood.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   65,
+   74
+  ],
+  "offset": [
+   67,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Pawn/Pawn_Idle.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   58,
+   74
+  ],
+  "offset": [
+   67,
+   61
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Pawn/Pawn_Interact Axe.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   98,
+   75
+  ],
+  "offset": [
+   56,
+   60
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Pawn/Pawn_Interact Hammer.png": {
+  "cell": [
+   192,
+   3,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   84,
+   73
+  ],
+  "offset": [
+   71,
+   65
+  ],
+  "orig": [
+   576,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Pawn/Pawn_Interact Knife.png": {
+  "cell": [
+   192,
+   4,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   80,
+   81
+  ],
+  "offset": [
+   61,
+   60
+  ],
+  "orig": [
+   768,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Pawn/Pawn_Interact Pickaxe.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   101,
+   75
+  ],
+  "offset": [
+   52,
+   60
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Pawn/Pawn_Run Axe.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   77,
+   77
+  ],
+  "offset": [
+   54,
+   58
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Pawn/Pawn_Run Gold.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   65,
+   77
+  ],
+  "offset": [
+   68,
+   58
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Pawn/Pawn_Run Hammer.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   80,
+   77
+  ],
+  "offset": [
+   65,
+   58
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Pawn/Pawn_Run Knife.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   77,
+   77
+  ],
+  "offset": [
+   65,
+   58
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Pawn/Pawn_Run Meat.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   70,
+   81
+  ],
+  "offset": [
+   68,
+   54
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Pawn/Pawn_Run Pickaxe.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   77,
+   77
+  ],
+  "offset": [
+   54,
+   58
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Pawn/Pawn_Run Wood.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   66,
+   77
+  ],
+  "offset": [
+   68,
+   58
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Pawn/Pawn_Run.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   66,
+   77
+  ],
+  "offset": [
+   65,
+   58
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Warrior/Warrior_Attack1.png": {
+  "cell": [
+   192,
+   4,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   120,
+   112
+  ],
+  "offset": [
+   43,
+   44
+  ],
+  "orig": [
+   768,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Warrior/Warrior_Attack2.png": {
+  "cell": [
+   192,
+   4,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   118,
+   104
+  ],
+  "offset": [
+   41,
+   48
+  ],
+  "orig": [
+   768,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Warrior/Warrior_Guard.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   70,
+   93
+  ],
+  "offset": [
+   57,
+   44
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Warrior/Warrior_Idle.png": {
+  "cell": [
+   192,
+   8,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   84,
+   89
+  ],
+  "offset": [
+   59,
+   48
+  ],
+  "orig": [
+   1536,
+   192
+  ]
+ },
+ "art-source/tiny-swords-png/Units/Yellow Units/Warrior/Warrior_Run.png": {
+  "cell": [
+   192,
+   6,
+   1
+  ],
+  "kind": "sheet",
+  "newcell": [
+   93,
+   91
+  ],
+  "offset": [
+   53,
+   46
+  ],
+  "orig": [
+   1152,
+   192
+  ]
+ }
+}

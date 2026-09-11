@@ -19,8 +19,17 @@ export type { IslandMap, IslandOptions } from './generate';
 export { blobCol, blobRow, edgeMask, elevationWallRow, ELEVATION_SURFACE_ROW, ELEVATION_WALL_STACK_ROW } from './autotile';
 export type { BlobIndex, EdgeMask, RegionTest } from './autotile';
 
-export { loadIslandTileset, TILE, ISLAND_SHEETS, propUrl, seaRockUrl, PROP_COUNT, SEA_ROCK_COUNT } from './tileset';
-export type { IslandTileset, GroundKind, FootSprite } from './tileset';
+export { loadIslandTileset, TILE, ISLAND_SHEETS, UNIT_SHEETS, propUrl, seaRockUrl, PROP_COUNT, SEA_ROCK_COUNT } from './tileset';
+export type { IslandTileset, GroundKind, FootSprite, UnitKind, UnitSprite } from './tileset';
 
 export { IslandView } from './IslandView';
 export type { IslandViewOptions } from './IslandView';
+
+export { isoProject, isoUnproject, isoDepth, isoBounds, columnFaces, ISO_TILE } from './iso';
+export type { IsoMetrics, IsoPoint } from './iso';
+
+export { IslandBoard, MAX_STEP, WANDER_CHANCE, STEPS, cellKey } from './board';
+export type { Occupant, OccupantKind } from './board';
+
+export { IsoIslandView } from './IsoIslandView';
+export type { IsoIslandViewOptions } from './IsoIslandView';

@@ -13,7 +13,9 @@ Open <http://localhost:3010/island> to look at one.
 | `generate.ts` | seeds, tiers, erosion | textures, Pixi, the screen |
 | `autotile.ts` | a cell's four neighbours | the map, the sheets |
 | `tileset.ts` | sheet geometry, Pixi textures | islands |
+| `iso.ts` | the diamond lattice, projection, depth | the map, the sheets |
 | `IslandView.ts` | all of the above | gameplay |
+| `IsoIslandView.ts` | all of the above, isometrically | gameplay |
 
 A map is `Int8Array` of terrain tiers plus its size — small enough to travel as
 a seed, and assertable without a canvas. `test/island-tiles.test.ts` covers the
@@ -61,6 +63,41 @@ tilemap-color-1..5  576x384   the five grass palettes; blob set at cols 5-8
                               which this module does not use — its foam animates)
 foam                1536x192  8 frames, each centred on the tile it edges
 ```
+
+## The isometric cut
+
+`IsoIslandView` draws the same map, from the same sheets, on a diamond lattice
+instead of a square one. Open the `Island/Iso island` stories to look at one.
+
+```ts
+const island = new IsoIslandView({ map, tileset });   // metrics default to 2:1
+```
+
+The projection is the standard one, `screenX = (x - y) * w/2`, `screenY =
+(x + y) * h/2 - tier * z`. Two things about it are worth knowing before
+changing anything:
+
+**The ground is sheared, the rest is not.** Moving a square tile onto an
+isometric lattice and leaving it square does not read as isometric — the tile's
+edges stay axis-aligned while the grid runs diagonally, so neighbours overlap
+as offset rectangles and a plateau comes out as a staircase of playing cards.
+So the flat layers go through a matrix that takes the tile's unit square to the
+cell's diamond. Trees, props and rocks keep their own upright sprites, which is
+how an isometric scene draws standing things anyway. The shear costs some pixel
+crispness on the ground; that is the trade, and it is the reason this view is a
+separate class rather than a flag on `IslandView`.
+
+**A raised cell is a column, not a sprite.** Lifting a plateau by `tier * z`
+opens a gap underneath, and if nothing fills it the shelf hovers. Each land
+cell therefore stamps the cliff face down to its lowest visible neighbour
+(south and east are the sides this camera sees past) before stamping its
+surface. `tileZ` defaults to 32 because that is how tall the pack's face
+actually draws — lift by less and a band of rock hangs below the shelf, by more
+and the sea shows through.
+
+Draw order is painter's along `x + y` with height breaking ties, in one flat
+`sortableChildren` container: a tree on a near cell has to be able to draw in
+front of a cliff on a far one, and no stack of layers can express that.
 
 ## Generating
 
