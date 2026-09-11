@@ -619,6 +619,13 @@ io.on('connection', (socket: Socket) => {
       }
     }
 
+    // One line per dig, so "my counter did not move" is answerable from the
+    // server's own log instead of by reasoning about the client. Only digs:
+    // a line per step would bury it.
+    if (out.dig) {
+      console.log('[dig]', data.playerId, 'tile', to, out.dig.content,
+        'carrots', rabbit.carrots, `(+${out.dig.carrotDelta})`);
+    }
     io.to(room).emit('rabbit_moved', publicRabbit(rabbit));
     // The mover alone gets the private detail (their loot, their knockback).
     socket.emit('move_result', out);

@@ -20,6 +20,7 @@ import { readFileSync } from 'node:fs';
 const PAGE = readFileSync('src/app/page.tsx', 'utf8');
 const DRAWER = readFileSync('src/components/leaderboard-drawer.tsx', 'utf8');
 const SCENE = readFileSync('src/game/scenes/IslandScene.ts', 'utf8');
+const HUD = readFileSync('src/components/run-hud.tsx', 'utf8');
 
 describe('spectating', () => {
   it('never routes to a URL', () => {
@@ -86,9 +87,12 @@ describe('spectating', () => {
   it('shows the watched run, not an empty one', () => {
     // `game.me` resolves by the VIEWER's id and is null while spectating, so
     // the playing HUD showed a spectator zero carrots and an empty bar.
-    const hud = PAGE.slice(PAGE.indexOf('function Hud('));
-    expect(hud).toMatch(/game\.rabbits\.get\(spectating\)/);
-    expect(hud).toMatch(/watching/);
+    //
+    // Reads the HUD's own file: it moved out of `page.tsx` so that a story
+    // could drive it, which is how "the carrot counter does not move" became
+    // answerable without playing the real game.
+    expect(HUD).toMatch(/game\.rabbits\.get\(spectating\)/);
+    expect(HUD).toMatch(/watching/);
   });
 
   it('offers no run recap to someone who was only watching', () => {

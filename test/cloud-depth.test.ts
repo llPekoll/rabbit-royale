@@ -1,18 +1,17 @@
 /**
- * Clouds drift over the sea, not under it.
+ * Who draws in front of whom, on the island.
  *
- * `Clouds.ts` puts its layer at -9 and says why in a comment: the backdrop is
- * "at -10", the tiles start at 0, so the gap between them is the one place a
- * cloud can be seen without ever crossing the numbers the board is read from.
- *
- * Only the burrow's backdrop actually had that -10. The island's terrain was
- * added with `addChildAt(view, 0)` and no zIndex at all — and an insertion
- * index means nothing in a `sortableChildren` container, so it sorted at the
- * default 0 and covered the clouds. On the island, and only there, the weather
- * passed behind the sea.
+ * Three symptoms, one cause. The terrain is ONE container, so its `zIndex` is a
+ * single number for the whole landscape — sea, cliffs, trees, rocks, sheep.
+ * Parked under the board at -10 it buried its own sorting: every sprite inside
+ * already carries `isoDepth(x, y, tier) + 1`, on exactly the scale the tiles
+ * use, and the two were built to interleave. They never got the chance, which
+ * is why a tree could not stand in front of a tile, why `fadeBehind` had
+ * nothing to fade, and why raised tiles overlapped their neighbours.
  *
  * Source-read rather than rendered: standing up Pixi, a tileset and a WebGL
- * context to assert one number is far more machinery than the number is worth.
+ * context to assert a handful of numbers is far more machinery than the
+ * numbers are worth.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -20,24 +19,47 @@ import { readFileSync } from 'node:fs';
 const read = (p: string) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const CLOUDS = read('../src/game/fx/Clouds.ts');
 const TERRAIN = read('../src/game/services/TerrainBackground.ts');
-const BURROW = read('../src/game/scenes/BurrowScene.ts');
+const TILE = read('../src/game/entities/Tile.ts');
+const ISO = read('../src/game/island/iso.ts');
+const GRID = read('../src/config/gridConfig.ts');
 
-describe('cloud depth', () => {
-  it('keeps the cloud layer between the backdrop and the board', () => {
-    expect(CLOUDS).toMatch(/const Z = -9;/);
+describe('island layering', () => {
+  it('puts the clouds in front of everything the board can reach', () => {
+    // Tiles sort on tileDepth * 16 + tier, and tileDepth tops out at 30 on a
+    // 16x16 grid — so the board alone climbs past 480. A tidy number just
+    // above the effects (55, 60, 62) would sit UNDER most of the board.
+    const z = CLOUDS.match(/const Z = ([0-9_]+);/);
+    expect(z).not.toBeNull();
+    expect(Number(z![1].replace(/_/g, ''))).toBeGreaterThan(480);
   });
 
-  it('puts the island terrain below the clouds, not at the default 0', () => {
-    expect(TERRAIN).toMatch(/island\.view\.zIndex = -10;/);
+  it('lets the terrain interleave with the board instead of hiding beneath it', () => {
+    expect(TERRAIN).toMatch(/island\.view\.zIndex = 0;/);
+    // -10 was the bug: one number for the whole landscape, below every tile.
+    expect(TERRAIN).not.toMatch(/island\.view\.zIndex = -10;/);
   });
 
   it('does not rely on insertion order inside a sorted container', () => {
-    // addChildAt(view, 0) was the bug: it reads as "first, so behind", and a
-    // sorted container ignores it entirely.
+    // addChildAt(view, 0) reads as "first, so behind" and a sorted container
+    // ignores it entirely.
     expect(TERRAIN).not.toMatch(/addChildAt\(island\.view, 0\)/);
   });
 
-  it('agrees with the burrow, which had it right all along', () => {
-    expect(BURROW).toMatch(/zIndex = -10;/);
+  /**
+   * The two depth scales MUST stay identical, or the interleave silently stops
+   * working: the terrain would sort on one ruler and the board on another.
+   */
+  it('sorts terrain and tiles on the same ruler', () => {
+    expect(ISO).toMatch(/return \(x \+ y\) \* 16 \+ tier;/);
+    expect(TILE).toMatch(/tileDepth\(index\) \* 16 \+ tier/);
+    // ...and that ruler's first term is the same quantity on both sides.
+    expect(GRID).toMatch(/return col \+ row;/);
+  });
+
+  it('keeps height in the tie-break, so a raised tile clears its neighbour', () => {
+    // tileDepth alone is col + row, which gives a plateau tile and a sea-level
+    // one on the same diagonal an identical depth — the overlap seen when
+    // walking up a tier.
+    expect(TILE).toMatch(/\* 16 \+ tier/);
   });
 });

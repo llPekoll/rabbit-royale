@@ -25,7 +25,7 @@ import { CarrotCounter } from '@/components/carrot-counter';
 import { SoundButton } from '@/components/sound-button';
 import { LoadingScreen } from '@/components/loading-screen';
 import { LogoBanner } from '@/components/logo-banner';
-import { EnergyBar } from '@/components/energy-bar';
+import { RunHud } from '@/components/run-hud';
 import { CarrotField } from '@/components/carrot-field';
 import { ShopButton, ShopPanel } from '@/components/shop-card';
 import { LoreButton, LoreCodex } from '@/components/lore-codex';
@@ -867,7 +867,7 @@ function Burrow() {
         /* On the island the chrome is a thin HUD over the board, so it uses the
            overlay layer rather than the burrow's column. */
         <div className="rr-overlay">
-          <Hud game={game} name={player?.name ?? ''} spectating={spectating} />
+          <RunHud game={game} name={player?.name ?? ''} spectating={spectating} />
           {/* Pushes the recap and the arrow to the bottom. Explicitly
               transparent to input: it covers the whole board, and the CSS
               above only re-enables pointers on the controls. */}
@@ -965,49 +965,6 @@ function Burrow() {
           closing — the boot it reports on has not started yet at that point. */}
       <LoadingScreen ready={!showCanvas || ready} label="Waking the warren" />
     </main>
-  );
-}
-
-/**
- * The thin bar over the board.
- *
- * It reports on WHOEVER the run belongs to, which is not always the person
- * reading it. A spectator has no rabbit on the island — `game.me` resolves by
- * the viewer's own id and is null for them — so the playing HUD would have
- * shown a spectator an empty energy bar and zero carrots, describing a run
- * nobody is having. Watching shows the WATCHED rabbit's numbers instead, and
- * says whose they are.
- */
-function Hud({
-  game, name, spectating,
-}: {
-  game: ReturnType<typeof useGameSocket>;
-  name: string;
-  /** The watched player's id, or null while playing your own run. */
-  spectating: string | null;
-}) {
-  const watched = spectating ? game.rabbits.get(spectating) ?? null : null;
-  const subject = spectating ? watched : game.me;
-  // The target may not be on the board yet (the snapshot is still in flight) or
-  // may have just finished. Their name is still the honest label either way.
-  const label = spectating ? (watched?.name ?? 'their run') : name;
-
-  return (
-    <header className="rr-hud">
-      {/* Energy first and widest: it is the only resource, it falls with every
-          dig, and it is what the player prices the next tile against. */}
-      <EnergyBar energy={subject?.energy ?? 0} />
-      <span style={{ color: 'var(--carrot)' }}>🥕 {subject?.carrots ?? 0}</span>
-      <span style={{ color: 'var(--muted)' }}>🐰 {game.rabbits.size}</span>
-      {game.warnStage > 0 && (
-        <span style={{ color: 'var(--danger)' }}>🌋 {'!'.repeat(game.warnStage)}</span>
-      )}
-      {/* Says it in words, not just by the eye icon: a viewer who forgets they
-          are watching reads every number here as their own. */}
-      <small style={{ color: spectating ? 'var(--crown)' : 'var(--muted)' }}>
-        {spectating ? `👁 watching ${label}` : label}
-      </small>
-    </header>
   );
 }
 

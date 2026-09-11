@@ -7,9 +7,14 @@
  * video's surf, the volcano's smoke), and a dead border around it makes the
  * whole frame look like a screenshot.
  *
- * They live BEHIND the board (`zIndex` under the tiles) and never over it —
- * a cloud drifting across the tiles would hide the numbers the game is read
- * from, which is the one thing the art may not do.
+ * They pass OVER everything, the board included — weather is the one thing in
+ * the frame that is nearer than the island.
+ *
+ * They used to be pinned under the tiles, on the grounds that a cloud drifting
+ * across the board would hide the numbers the game is read from. That trade is
+ * paid for differently now: the bands still avoid the playable middle, so what
+ * a cloud crosses is the sea and the island's edges rather than the tiles a
+ * player is reading. See `BANDS` for where each one sits.
  */
 import { Assets, Container, Sprite, type Texture } from 'pixi.js';
 import * as Keys from '@/config/assetKeys';
@@ -45,14 +50,15 @@ const SCALE_RANGE = [1.1, 2.2] as const;
 /** Solid. They are objects passing over the sea, not a tint on it. */
 const ALPHA_RANGE = [0.92, 1] as const;
 /**
- * Between the island art and the board.
+ * In FRONT of the whole island.
  *
- * The video sits at -10 and the crisp island overlay at -9.5, and the backdrop
- * is zoomed past the canvas edges — so anything BEHIND it is simply never seen.
- * Tiles start at 0. Clouds therefore go in the gap: over the painted sea, under
- * every tile, so they can never drift across the numbers.
+ * Tiles sort on `tileDepth(i) * 16 + tier`, and on a 16x16 grid `tileDepth`
+ * reaches 30 — so the board alone climbs past 480, and the scene's own effects
+ * (the blast at 55, a bolt at 60, labels at 62) ride on top of their tile.
+ * A cloud has to clear ALL of that, hence a number with room above the highest
+ * thing the board can produce rather than a tidy one just past the effects.
  */
-const Z = -9;
+const Z = 10_000;
 
 /** Off-frame room, big enough to hide a whole oversized cloud. */
 const MARGIN = 900;

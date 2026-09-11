@@ -60,16 +60,22 @@ export async function createTerrainBackground(
     ISO_ORIGIN_Y - origin.y - island.originY,
   );
   /**
-   * Under the board, the rabbits AND the clouds.
+   * LEVEL WITH THE BOARD, not beneath it.
    *
-   * The insertion index alone does not say this: the scene sorts its children
-   * by `zIndex` (`sortableChildren`), so being added first only holds until
-   * something with a lower one shows up. The clouds are that something — they
-   * sit at -9, on the documented assumption that this backdrop is at -10, and
-   * with the terrain left at the default 0 they drifted BEHIND the sea instead
-   * of over it.
+   * The terrain is one container, so its `zIndex` is a single number for the
+   * whole landscape — sea, cliffs, trees, rocks and sheep alike. Parked below
+   * the tiles it buried its own careful sorting: every sprite in here already
+   * carries `isoDepth(x, y, tier) + 1`, on exactly the scale the tiles use
+   * (`tileDepth(i) * 16 + tier`, and `tileDepth` is `col + row`) — the two were
+   * built to interleave and never got the chance. That is why a tree could not
+   * stand in front of a tile, and why `fadeBehind` (which exists to let a tree
+   * HIDE a rabbit) had nothing to fade.
+   *
+   * At 0 both scales finally meet: a near tree sorts above a far tile, a far
+   * cliff below a near one, per sprite rather than per layer. The board's own
+   * fog drops just under this — see `FOG_Z` in Tile.ts.
    */
-  island.view.zIndex = -10;
+  island.view.zIndex = 0;
   container.addChild(island.view);
 
   return {
