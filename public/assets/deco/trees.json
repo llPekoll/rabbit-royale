@@ -1,0 +1,400 @@
+{
+  "frames": [
+    {
+      "filename": "trees 0.aseprite",
+      "frame": { "x": 2, "y": 2, "w": 121, "h": 244 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 37, "y": 5, "w": 121, "h": 244 },
+      "sourceSize": { "w": 192, "h": 256 },
+      "duration": 100
+    },
+    {
+      "filename": "trees 1.aseprite",
+      "frame": { "x": 125, "y": 2, "w": 121, "h": 244 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 37, "y": 5, "w": 121, "h": 244 },
+      "sourceSize": { "w": 192, "h": 256 },
+      "duration": 100
+    },
+    {
+      "filename": "trees 2.aseprite",
+      "frame": { "x": 248, "y": 2, "w": 121, "h": 244 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 37, "y": 5, "w": 121, "h": 244 },
+      "sourceSize": { "w": 192, "h": 256 },
+      "duration": 100
+    },
+    {
+      "filename": "trees 3.aseprite",
+      "frame": { "x": 371, "y": 2, "w": 121, "h": 244 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 37, "y": 5, "w": 121, "h": 244 },
+      "sourceSize": { "w": 192, "h": 256 },
+      "duration": 100
+    },
+    {
+      "filename": "trees 4.aseprite",
+      "frame": { "x": 494, "y": 2, "w": 121, "h": 244 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 37, "y": 5, "w": 121, "h": 244 },
+      "sourceSize": { "w": 192, "h": 256 },
+      "duration": 100
+    },
+    {
+      "filename": "trees 5.aseprite",
+      "frame": { "x": 617, "y": 2, "w": 121, "h": 244 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 37, "y": 5, "w": 121, "h": 244 },
+      "sourceSize": { "w": 192, "h": 256 },
+      "duration": 100
+    },
+    {
+      "filename": "trees 6.aseprite",
+      "frame": { "x": 740, "y": 2, "w": 121, "h": 244 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 37, "y": 5, "w": 121, "h": 244 },
+      "sourceSize": { "w": 192, "h": 256 },
+      "duration": 100
+    },
+    {
+      "filename": "trees 7.aseprite",
+      "frame": { "x": 863, "y": 2, "w": 121, "h": 244 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 37, "y": 5, "w": 121, "h": 244 },
+      "sourceSize": { "w": 192, "h": 256 },
+      "duration": 100
+    },
+    {
+      "filename": "trees 8.aseprite",
+      "frame": { "x": 986, "y": 2, "w": 121, "h": 244 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 37, "y": 5, "w": 121, "h": 244 },
+      "sourceSize": { "w": 192, "h": 256 },
+      "duration": 100
+    },
+    {
+      "filename": "trees 9.aseprite",
+      "frame": { "x": 1109, "y": 2, "w": 121, "h": 244 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 37, "y": 5, "w": 121, "h": 244 },
+      "sourceSize": { "w": 192, "h": 256 },
+      "duration": 100
+    },
+    {
+      "filename": "trees 10.aseprite",
+      "frame": { "x": 2, "y": 248, "w": 121, "h": 244 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 37, "y": 5, "w": 121, "h": 244 },
+      "sourceSize": { "w": 192, "h": 256 },
+      "duration": 100
+    },
+    {
+      "filename": "trees 11.aseprite",
+      "frame": { "x": 125, "y": 248, "w": 121, "h": 244 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 37, "y": 5, "w": 121, "h": 244 },
+      "sourceSize": { "w": 192, "h": 256 },
+      "duration": 100
+    },
+    {
+      "filename": "trees 12.aseprite",
+      "frame": { "x": 248, "y": 248, "w": 121, "h": 244 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 37, "y": 5, "w": 121, "h": 244 },
+      "sourceSize": { "w": 192, "h": 256 },
+      "duration": 100
+    },
+    {
+      "filename": "trees 13.aseprite",
+      "frame": { "x": 371, "y": 248, "w": 121, "h": 244 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 37, "y": 5, "w": 121, "h": 244 },
+      "sourceSize": { "w": 192, "h": 256 },
+      "duration": 100
+    },
+    {
+      "filename": "trees 14.aseprite",
+      "frame": { "x": 494, "y": 248, "w": 121, "h": 244 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 37, "y": 5, "w": 121, "h": 244 },
+      "sourceSize": { "w": 192, "h": 256 },
+      "duration": 100
+    },
+    {
+      "filename": "trees 15.aseprite",
+      "frame": { "x": 617, "y": 248, "w": 121, "h": 244 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 37, "y": 5, "w": 121, "h": 244 },
+      "sourceSize": { "w": 192, "h": 256 },
+      "duration": 100
+    },
+    {
+      "filename": "trees 16.aseprite",
+      "frame": { "x": 740, "y": 248, "w": 121, "h": 244 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 37, "y": 5, "w": 121, "h": 244 },
+      "sourceSize": { "w": 192, "h": 256 },
+      "duration": 100
+    },
+    {
+      "filename": "trees 17.aseprite",
+      "frame": { "x": 863, "y": 248, "w": 121, "h": 244 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 37, "y": 5, "w": 121, "h": 244 },
+      "sourceSize": { "w": 192, "h": 256 },
+      "duration": 100
+    },
+    {
+      "filename": "trees 18.aseprite",
+      "frame": { "x": 986, "y": 248, "w": 121, "h": 244 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 37, "y": 5, "w": 121, "h": 244 },
+      "sourceSize": { "w": 192, "h": 256 },
+      "duration": 100
+    },
+    {
+      "filename": "trees 19.aseprite",
+      "frame": { "x": 1109, "y": 248, "w": 121, "h": 244 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 37, "y": 5, "w": 121, "h": 244 },
+      "sourceSize": { "w": 192, "h": 256 },
+      "duration": 100
+    },
+    {
+      "filename": "trees 20.aseprite",
+      "frame": { "x": 2, "y": 494, "w": 121, "h": 244 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 37, "y": 5, "w": 121, "h": 244 },
+      "sourceSize": { "w": 192, "h": 256 },
+      "duration": 100
+    },
+    {
+      "filename": "trees 21.aseprite",
+      "frame": { "x": 125, "y": 494, "w": 121, "h": 244 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 37, "y": 5, "w": 121, "h": 244 },
+      "sourceSize": { "w": 192, "h": 256 },
+      "duration": 100
+    },
+    {
+      "filename": "trees 22.aseprite",
+      "frame": { "x": 248, "y": 494, "w": 121, "h": 244 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 37, "y": 5, "w": 121, "h": 244 },
+      "sourceSize": { "w": 192, "h": 256 },
+      "duration": 100
+    },
+    {
+      "filename": "trees 23.aseprite",
+      "frame": { "x": 371, "y": 494, "w": 121, "h": 244 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 37, "y": 5, "w": 121, "h": 244 },
+      "sourceSize": { "w": 192, "h": 256 },
+      "duration": 100
+    },
+    {
+      "filename": "trees 24.aseprite",
+      "frame": { "x": 494, "y": 494, "w": 121, "h": 244 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 37, "y": 5, "w": 121, "h": 244 },
+      "sourceSize": { "w": 192, "h": 256 },
+      "duration": 100
+    },
+    {
+      "filename": "trees 25.aseprite",
+      "frame": { "x": 617, "y": 494, "w": 121, "h": 244 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 37, "y": 5, "w": 121, "h": 244 },
+      "sourceSize": { "w": 192, "h": 256 },
+      "duration": 100
+    },
+    {
+      "filename": "trees 26.aseprite",
+      "frame": { "x": 740, "y": 494, "w": 121, "h": 244 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 37, "y": 5, "w": 121, "h": 244 },
+      "sourceSize": { "w": 192, "h": 256 },
+      "duration": 100
+    },
+    {
+      "filename": "trees 27.aseprite",
+      "frame": { "x": 863, "y": 494, "w": 121, "h": 244 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 37, "y": 5, "w": 121, "h": 244 },
+      "sourceSize": { "w": 192, "h": 256 },
+      "duration": 100
+    },
+    {
+      "filename": "trees 28.aseprite",
+      "frame": { "x": 986, "y": 494, "w": 121, "h": 244 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 37, "y": 5, "w": 121, "h": 244 },
+      "sourceSize": { "w": 192, "h": 256 },
+      "duration": 100
+    },
+    {
+      "filename": "trees 29.aseprite",
+      "frame": { "x": 1109, "y": 494, "w": 121, "h": 244 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 37, "y": 5, "w": 121, "h": 244 },
+      "sourceSize": { "w": 192, "h": 256 },
+      "duration": 100
+    },
+    {
+      "filename": "trees 30.aseprite",
+      "frame": { "x": 2, "y": 740, "w": 121, "h": 244 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 37, "y": 5, "w": 121, "h": 244 },
+      "sourceSize": { "w": 192, "h": 256 },
+      "duration": 100
+    },
+    {
+      "filename": "trees 31.aseprite",
+      "frame": { "x": 125, "y": 740, "w": 121, "h": 244 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 37, "y": 5, "w": 121, "h": 244 },
+      "sourceSize": { "w": 192, "h": 256 },
+      "duration": 100
+    },
+    {
+      "filename": "trees 32.aseprite",
+      "frame": { "x": 248, "y": 740, "w": 121, "h": 244 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 37, "y": 5, "w": 121, "h": 244 },
+      "sourceSize": { "w": 192, "h": 256 },
+      "duration": 100
+    },
+    {
+      "filename": "trees 33.aseprite",
+      "frame": { "x": 371, "y": 740, "w": 121, "h": 244 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 37, "y": 5, "w": 121, "h": 244 },
+      "sourceSize": { "w": 192, "h": 256 },
+      "duration": 100
+    },
+    {
+      "filename": "trees 34.aseprite",
+      "frame": { "x": 494, "y": 740, "w": 121, "h": 244 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 37, "y": 5, "w": 121, "h": 244 },
+      "sourceSize": { "w": 192, "h": 256 },
+      "duration": 100
+    },
+    {
+      "filename": "trees 35.aseprite",
+      "frame": { "x": 617, "y": 740, "w": 121, "h": 244 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 37, "y": 5, "w": 121, "h": 244 },
+      "sourceSize": { "w": 192, "h": 256 },
+      "duration": 100
+    }
+  ],
+  "meta": {
+    "app": "https://www.aseprite.org/",
+    "version": "1.3.15.2-arm64",
+    "image": "trees.png",
+    "format": "RGBA8888",
+    "size": { "w": 1232, "h": 986 },
+    "scale": "1",
+    "frameTags": [
+      {
+        "name": "Tree 1",
+        "from": 0,
+        "to": 7,
+        "direction": "forward",
+        "color": "#57b9f2ff"
+      },
+      {
+        "name": "Stump 1",
+        "from": 8,
+        "to": 8,
+        "direction": "forward",
+        "color": "#57b9f2ff"
+      },
+      {
+        "name": "Tree 2",
+        "from": 9,
+        "to": 16,
+        "direction": "forward",
+        "color": "#6acd5bff"
+      },
+      {
+        "name": "Stump 2",
+        "from": 17,
+        "to": 17,
+        "direction": "forward",
+        "color": "#6acd5bff"
+      },
+      {
+        "name": "Tree 3",
+        "from": 18,
+        "to": 25,
+        "direction": "forward",
+        "color": "#f3ce52ff"
+      },
+      {
+        "name": "Stump 3",
+        "from": 26,
+        "to": 26,
+        "direction": "forward",
+        "color": "#f3ce52ff"
+      },
+      {
+        "name": "Tree 4",
+        "from": 27,
+        "to": 34,
+        "direction": "forward",
+        "color": "#d186dfff"
+      },
+      {
+        "name": "Stump 4",
+        "from": 35,
+        "to": 35,
+        "direction": "forward",
+        "color": "#d186dfff"
+      }
+    ],
+    "layers": [
+      { "name": "Shadow", "opacity": 255, "blendMode": "normal" },
+      { "name": "Base", "opacity": 255, "blendMode": "normal" },
+      { "name": "Top", "opacity": 255, "blendMode": "normal" }
+    ],
+    "slices": []
+  }
+}

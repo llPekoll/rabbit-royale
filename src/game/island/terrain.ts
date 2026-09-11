@@ -60,7 +60,7 @@ const PATROL = { min: 1, max: 2 };
 const INHABITANT_SPACING = 1;
 
 /** How many art variants each kind has, for `Placement.variant`. */
-export const VARIANT_COUNT = { bush: 4, prop: 15, landmark: 3, rock: 4 } as const;
+export const VARIANT_COUNT = { tree: 4, bush: 4, prop: 15, landmark: 3, rock: 4 } as const;
 
 /**
  * Sheep outweigh soldiers two to one: a soldier never moves, so an island
@@ -118,7 +118,10 @@ function scatterScenery(map: IslandMap, out: Placement[]): void {
 
       const roll = rng();
       if (roll < TREE_CHANCE && isInterior(map, x, y, tier)) {
-        out.push({ id: `tree-${out.length}`, kind: 'tree', x, y, variant: 0 });
+        out.push({
+          id: `tree-${out.length}`, kind: 'tree', x, y,
+          variant: Math.floor(rng() * VARIANT_COUNT.tree),
+        });
         taken.add(`${x},${y}`);
       } else if (roll < TREE_CHANCE + BUSH_CHANCE) {
         out.push({

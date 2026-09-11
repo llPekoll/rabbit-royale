@@ -242,12 +242,13 @@ export class IslandView {
         // Edges end up bushy instead of wooded, which is what a coast looks like.
         const roll = rng();
         if (roll < TREE_CHANCE && isInterior(map, x, y, tier)) {
+          const tree = tileset.trees[Math.floor(rng() * tileset.trees.length)];
           const sprite = this.footSprite(
-            { texture: tileset.tree.frames[0], anchorY: tileset.tree.anchorY },
+            { texture: tree.frames[0], anchorY: tree.anchorY },
             x,
             y,
           );
-          placed.push({ sprite, footY, frames: tileset.tree.frames });
+          placed.push({ sprite, footY, frames: tree.frames });
         } else if (roll < TREE_CHANCE + PROP_CHANCE) {
           const pool =
             rng() < LANDMARK_CHANCE

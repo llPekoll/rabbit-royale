@@ -37,7 +37,7 @@ export const ISLAND_SHEETS = {
   elevation: `${TERRAIN}/tilemap-elevation.webp`,
   water: `${TERRAIN}/water.webp`,
   foam: `${TERRAIN}/foam.webp`,
-  tree: `${DECO}/tree.webp`,
+  trees: `${DECO}/trees.png`,
 } as const;
 
 /**
@@ -144,11 +144,28 @@ export type GroundKind = keyof typeof FLAT_ORIGIN;
 const FOAM_FRAME = 192;
 const FOAM_FRAMES = 8;
 
-/** The tree sways over six frames of 192x192, then row 2 opens with its stump. */
-const TREE_FRAME = 192;
-const TREE_SWAY_FRAMES = 6;
-const TREE_COLS = 4;
-const STUMP_CELL = { col: 0, row: 2 };
+/**
+ * The tree sheet: four kinds of tree, each swaying over eight frames and
+ * followed by the stump it leaves when felled.
+ *
+ * `trees.png` is an Aseprite atlas whose companion `trees.json` describes it,
+ * but the pack is perfectly regular — 36 frames of 121x244 on a 10-wide grid,
+ * every one trimmed by the same margin — so it slices like any other sheet
+ * instead of pulling in an atlas parser. The numbers below were read out of
+ * that JSON; re-read them there if the art is re-exported.
+ *
+ * Frames are TRIMMED: the art is a 121x244 window cut out of a 192x256 cel at
+ * offset (37,5). Only the window is on the sheet, so a frame's own height is
+ * 244 and the feet below are measured against that, not against 256.
+ */
+const TREE_FRAME = { w: 121, h: 244 } as const;
+const TREE_SHEET_COLS = 10;
+const TREE_PAD = 2;
+const TREE_PITCH = { x: 123, y: 246 } as const;
+/** Eight sway frames, then one stump, four times over. */
+const TREE_SWAY_FRAMES = 8;
+const TREE_VARIANT_STRIDE = TREE_SWAY_FRAMES + 1;
+export const TREE_VARIANT_COUNT = 4;
 
 /** Sea rocks bob over eight frames of 128x128. */
 const SEA_ROCK_FRAME = 128;
@@ -163,8 +180,17 @@ const SEA_ROCK_FRAMES = 8;
  * floating and bury others. Re-measure with the manifest if the art changes.
  */
 const PROP_FOOT_PX = [43, 47, 49, 37, 40, 49, 43, 49, 53, 46, 50, 51, 55, 47, 44, 104, 105, 169];
-const TREE_FOOT_PX = 178;
-const STUMP_FOOT_PX = 176;
+/**
+ * Where each tree and stump actually meets the ground, in pixels down its own
+ * 244-tall frame — the lowest opaque row, measured per variant off the sheet.
+ *
+ * One shared number would not do here: these four trees are not one tree in
+ * four palettes. The second fills its frame to the last row while the fourth
+ * stops 17px short, so a single anchor would plant one of them and leave the
+ * other hovering. Each stump is measured to its own tree's ground line.
+ */
+const TREE_FOOT_PX = [236, 244, 229, 227];
+const STUMP_FOOT_PX = [235, 240, 227, 223];
 
 export interface FootSprite {
   texture: Texture;
@@ -184,9 +210,10 @@ export interface IslandTileset {
   /** The elevation sheet, indexed `[row][col]`: 8 rows, 4 columns. */
   elevation: Texture[][];
   props: FootSprite[];
-  /** Six sway frames sharing one anchor. */
-  tree: { frames: Texture[]; anchorY: number };
-  stump: FootSprite;
+  /** Four trees, eight sway frames each, every one with its own anchor. */
+  trees: UnitSprite[];
+  /** The stump each of those trees leaves, in the same order. */
+  stumps: FootSprite[];
   /** Four rocks, eight bob frames each. */
   seaRocks: Texture[][];
   /** Sheep and soldiers, each a strip of frames with a standing anchor. */
@@ -239,8 +266,19 @@ export async function loadIslandTileset(): Promise<IslandTileset> {
   const blobSet = (originCol: number) =>
     flatCells.map((line) => line.slice(originCol, originCol + 4));
 
-  const treeSheet = loaded[ISLAND_SHEETS.tree];
-  const treeCells = sliceGrid(treeSheet, TREE_FRAME, TREE_FRAME, TREE_COLS, 3);
+  // The tree atlas is padded: frames sit on a 123x246 pitch inset by 2px, so
+  // it needs its own cut rather than the flush grid the terrain sheets use.
+  const treeSheet = loaded[ISLAND_SHEETS.trees];
+  const treeFrame = (i: number) =>
+    new Texture({
+      source: treeSheet.source,
+      frame: new Rectangle(
+        TREE_PAD + (i % TREE_SHEET_COLS) * TREE_PITCH.x,
+        TREE_PAD + Math.floor(i / TREE_SHEET_COLS) * TREE_PITCH.y,
+        TREE_FRAME.w,
+        TREE_FRAME.h,
+      ),
+    });
 
   return {
     water: loaded[ISLAND_SHEETS.water],
@@ -260,17 +298,16 @@ export async function loadIslandTileset(): Promise<IslandTileset> {
       const texture = loaded[propUrl(i + 1)];
       return { texture, anchorY: PROP_FOOT_PX[i] / texture.height };
     }),
-    tree: {
-      frames: Array.from(
-        { length: TREE_SWAY_FRAMES },
-        (_, i) => treeCells[Math.floor(i / TREE_COLS)][i % TREE_COLS],
+    trees: Array.from({ length: TREE_VARIANT_COUNT }, (_, v) => ({
+      frames: Array.from({ length: TREE_SWAY_FRAMES }, (_, i) =>
+        treeFrame(v * TREE_VARIANT_STRIDE + i),
       ),
-      anchorY: TREE_FOOT_PX / TREE_FRAME,
-    },
-    stump: {
-      texture: treeCells[STUMP_CELL.row][STUMP_CELL.col],
-      anchorY: STUMP_FOOT_PX / TREE_FRAME,
-    },
+      anchorY: TREE_FOOT_PX[v] / TREE_FRAME.h,
+    })),
+    stumps: Array.from({ length: TREE_VARIANT_COUNT }, (_, v) => ({
+      texture: treeFrame(v * TREE_VARIANT_STRIDE + TREE_SWAY_FRAMES),
+      anchorY: STUMP_FOOT_PX[v] / TREE_FRAME.h,
+    })),
     seaRocks: Array.from({ length: SEA_ROCK_COUNT }, (_, i) =>
       sliceStrip(loaded[seaRockUrl(i + 1)], SEA_ROCK_FRAME, SEA_ROCK_FRAMES),
     ),

@@ -202,9 +202,11 @@ function DecoScene({ scale, animate }: Args) {
           x += w + 6;
         });
 
-        // Tree sway + the stump it opens onto, on their own baseline.
+        // Every tree swaying beside the stump it opens onto, on one baseline —
+        // which is the point of the row: four trees of four different heights
+        // all have to stand ON that line, or an anchor is wrong.
         const treeY = 470;
-        root.addChild(label('tree  6 sway frames + stump', 20, 300));
+        root.addChild(label('trees  4 variants, 8 sway frames + stump each', 20, 300));
         const treeLine = new Graphics();
         treeLine.rect(20, treeY, WIDTH - 40, 1).fill(0x3d5a70);
         root.addChild(treeLine);
@@ -219,19 +221,25 @@ function DecoScene({ scale, animate }: Args) {
           root.addChild(s);
           tx += tex.width * tScale + 4;
         };
-        if (animate) {
-          const anim = new AnimatedSprite(ts.tree.frames);
-          anim.anchor.set(0, ts.tree.anchorY);
-          anim.position.set(tx, treeY);
-          anim.scale.set(tScale);
-          anim.animationSpeed = 8 / 60;
-          anim.play();
-          root.addChild(anim);
-          tx += ts.tree.frames[0].width * tScale + 10;
-        } else {
-          ts.tree.frames.forEach((f) => addFoot(f, ts.tree.anchorY));
-        }
-        addFoot(ts.stump.texture, ts.stump.anchorY);
+        ts.trees.forEach((tree, v) => {
+          if (animate) {
+            const anim = new AnimatedSprite(tree.frames);
+            anim.anchor.set(0, tree.anchorY);
+            anim.position.set(tx, treeY);
+            anim.scale.set(tScale);
+            anim.animationSpeed = 8 / 60;
+            anim.play();
+            root.addChild(anim);
+            tx += tree.frames[0].width * tScale + 10;
+          } else {
+            // Only the first sway frame per variant when still: all thirty-two
+            // would run off the row, and a sway frame tells you nothing at rest.
+            addFoot(tree.frames[0], tree.anchorY);
+          }
+          const stump = ts.stumps[v];
+          addFoot(stump.texture, stump.anchorY);
+          tx += 12;
+        });
       }}
     />
   );

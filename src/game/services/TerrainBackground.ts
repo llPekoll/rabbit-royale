@@ -43,12 +43,32 @@ export async function createTerrainBackground(
   const tileset = await loadIslandTileset();
   const { map, placements } = terrainFor(seed);
 
+  /**
+   * The standing art joins the BOARD's container, not the terrain's.
+   *
+   * Pixi only ever sorts siblings, and a container is painted in a single turn.
+   * With the trees, rocks and sheep inside the terrain's own subtree, the whole
+   * landscape took one place in the order: entirely in front of the tiles, or
+   * entirely behind them. Behind is what shipped, which is why a sheep sat
+   * under the fog of the very cell it stands on.
+   *
+   * Note there is no wrapper around them — a wrapper would be one sibling with
+   * one depth, i.e. exactly the same bug at one remove. They go in loose, so
+   * each sprite's `isoDepth(x, y, tier) + 1` competes directly with each tile's
+   * `tileDepth(i) * 16 + tier`. Those are the same ruler (`tileDepth` is
+   * `col + row`, and `isoDepth` is `(x + y) * 16 + tier`), which is what makes
+   * the interleave correct rather than merely plausible.
+   *
+   * The GROUND does not move: it is a backdrop, and nothing in it needs to come
+   * forward.
+   */
   const island = new IsoIslandView({
     map,
     tileset,
     metrics: { w: HALF_W * 2, h: HALF_H * 2, z: TIER_LIFT },
     decoScale: DECO_SCALE,
     placements,
+    decoLayer: container,
   });
 
   // Line the terrain up with the BOARD's grid: project the board's origin
@@ -60,22 +80,12 @@ export async function createTerrainBackground(
     ISO_ORIGIN_Y - origin.y - island.originY,
   );
   /**
-   * LEVEL WITH THE BOARD, not beneath it.
+   * The ground stays UNDER the board — it is a backdrop and nothing more.
    *
-   * The terrain is one container, so its `zIndex` is a single number for the
-   * whole landscape — sea, cliffs, trees, rocks and sheep alike. Parked below
-   * the tiles it buried its own careful sorting: every sprite in here already
-   * carries `isoDepth(x, y, tier) + 1`, on exactly the scale the tiles use
-   * (`tileDepth(i) * 16 + tier`, and `tileDepth` is `col + row`) — the two were
-   * built to interleave and never got the chance. That is why a tree could not
-   * stand in front of a tile, and why `fadeBehind` (which exists to let a tree
-   * HIDE a rabbit) had nothing to fade.
-   *
-   * At 0 both scales finally meet: a near tree sorts above a far tile, a far
-   * cliff below a near one, per sprite rather than per layer. The board's own
-   * fog drops just under this — see `FOG_Z` in Tile.ts.
+   * -10 rather than some low sort value: the clouds document their own depth
+   * against this exact number.
    */
-  island.view.zIndex = 0;
+  island.view.zIndex = -10;
   container.addChild(island.view);
 
   return {

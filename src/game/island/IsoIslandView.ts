@@ -90,6 +90,25 @@ export interface IsoIslandViewOptions {
   sea?: boolean;
   /** Milliseconds per sway frame. */
   frameMs?: number;
+  /**
+   * Where the standing art goes: trees, bushes, rocks, sheep, soldiers.
+   *
+   * Defaults to this view's own `world`, which is what every standalone use
+   * wants — one container, one sorted island.
+   *
+   * A board laid OVER the terrain needs the other arrangement. Pixi sorts
+   * siblings, and everything in here is a child of `view`: the whole landscape
+   * is painted during `view`'s turn, so it lands entirely in front of the
+   * board's tiles or entirely behind them, never woven between. Handing in the
+   * scene's own container makes each tree and sheep a SIBLING of the tiles, at
+   * which point their `isoDepth` and the tiles' `tileDepth` — the same ruler —
+   * finally decide it per sprite: a sheep in front of the fog on its cell, a
+   * tree behind a rabbit standing nearer the camera.
+   *
+   * The sprites are positioned in `view`'s space, so a foreign container must
+   * share its origin; `TerrainBackground` aligns the two before passing it.
+   */
+  decoLayer?: Container;
 }
 
 const DEFAULT_FRAME_MS = 130;
@@ -217,6 +236,24 @@ export class IsoIslandView {
   private readonly livestock: Array<{ occupant: Occupant; sprite: Sprite; tier: number }> = [];
   /** Cells claimed by a sheep or soldier, for the spacing rule. */
   private readonly inhabited = new Set<string>();
+  /**
+   * Every sprite this view put somewhere OTHER than its own `view`.
+   *
+   * Empty unless `decoLayer` was given. `view.destroy({children:true})` reaches
+   * its own subtree and nothing else, so without this list a deported tree
+   * would outlive the scene that drew it — the leak only exists with the
+   * option set, which is exactly the kind that goes unnoticed.
+   */
+  private readonly decoSprites: Sprite[] = [];
+  /**
+   * Where `view` was moved to, mirrored onto the deported sprites.
+   *
+   * Sprites inside `view` follow it for free; deported ones are in another
+   * subtree and have to be told. Zero until `placeDeco` is called, which is
+   * correct for every caller that never deports anything.
+   */
+  private decoOffsetX = 0;
+  private decoOffsetY = 0;
   private readonly frameMs: number;
   private elapsed = 0;
   private destroyed = false;
@@ -244,8 +281,11 @@ export class IsoIslandView {
     if (options.sea ?? true) this.buildSea(world);
     this.buildGround(world);
     if (options.deco ?? true) {
-      this.buildDeco(world);
-      this.buildInhabitants(world);
+      // The ground always stays in `world`; only the STANDING art can be asked
+      // to live elsewhere, because only it needs to interleave with a board.
+      const deco = options.decoLayer ?? world;
+      this.buildDeco(deco);
+      this.buildInhabitants(deco);
     }
   }
 
@@ -268,10 +308,12 @@ export class IsoIslandView {
       let frames: Texture[] | undefined;
 
       switch (p.kind) {
-        case 'tree':
-          sprite = this.foot(world, { texture: tileset.tree.frames[0], anchorY: tileset.tree.anchorY }, p.x, p.y, tier, depth);
-          frames = tileset.tree.frames;
+        case 'tree': {
+          const tree = tileset.trees[p.variant % tileset.trees.length];
+          sprite = this.foot(world, { texture: tree.frames[0], anchorY: tree.anchorY }, p.x, p.y, tier, depth);
+          frames = tree.frames;
           break;
+        }
         case 'bush': {
           const bush = tileset.bushes[p.variant % tileset.bushes.length];
           sprite = this.foot(world, { texture: bush.frames[0], anchorY: bush.anchorY }, p.x, p.y, tier, depth);
@@ -387,7 +429,10 @@ export class IsoIslandView {
       const tier = levelAt(this.options.map, occupant.x, occupant.y);
       entry.tier = tier;
       const p = isoProject(occupant.x + 0.5, occupant.y + 0.5, tier, this.metrics);
-      sprite.position.set(p.x, p.y);
+      // Through the same shift the sprite was stamped with: a deported sheep
+      // moved by raw projection would snap back to the terrain's inner origin
+      // the first time it wandered.
+      this.placeSprite(sprite, p.x, p.y);
       sprite.zIndex = isoDepth(occupant.x, occupant.y, tier) + 1;
     }
   }
@@ -402,10 +447,38 @@ export class IsoIslandView {
     }
   }
 
+  /**
+   * Mirror `view`'s own position onto the deported deco sprites.
+   *
+   * Call it after moving `view`. Sprites inside `view` are carried by it; the
+   * ones handed to a `decoLayer` live in a different subtree and would
+   * otherwise stay at the origin, a screenful from the ground they belong to.
+   *
+   * A no-op when nothing was deported, so a caller that does not use
+   * `decoLayer` need not know this exists.
+   */
+  placeDeco(x: number, y: number): void {
+    const dx = x - this.decoOffsetX;
+    const dy = y - this.decoOffsetY;
+    this.decoOffsetX = x;
+    this.decoOffsetY = y;
+    for (const sprite of this.decoSprites) sprite.position.set(sprite.x + dx, sprite.y + dy);
+  }
+
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
     this.animated.length = 0;
+    // Deco handed to a FOREIGN container is not under `view`, so destroying
+    // `view` would leave every tree and sheep on the scene after it closed.
+    // Owned here rather than by the caller: this view created the sprites, and
+    // a leak that only happens with one option set is the kind nobody notices
+    // until a scene has been entered and left a dozen times.
+    const deco = this.options.decoLayer;
+    if (deco && deco !== this.view) {
+      for (const sprite of this.decoSprites) sprite.destroy();
+      this.decoSprites.length = 0;
+    }
     // The textures are slices of shared sheets and outlive this view.
     this.view.destroy({ children: true });
   }
@@ -522,13 +595,14 @@ export class IsoIslandView {
         if (keepClear?.(x, y)) { rng(); rng(); continue; }
         const roll = rng();
         if (roll < TREE_CHANCE && isInterior(map, x, y, tier)) {
-          const sprite = this.foot(world, { texture: tileset.tree.frames[0], anchorY: tileset.tree.anchorY }, x, y, tier, depth);
+          const tree = tileset.trees[Math.floor(rng() * tileset.trees.length)];
+          const sprite = this.foot(world, { texture: tree.frames[0], anchorY: tree.anchorY }, x, y, tier, depth);
           sprite.scale.set(scale);
           this.register('tree', sprite, x, y, tier);
           this.animated.push({
             sprite,
-            frames: tileset.tree.frames,
-            offset: Math.floor(rng() * tileset.tree.frames.length),
+            frames: tree.frames,
+            offset: Math.floor(rng() * tree.frames.length),
           });
         } else if (roll < TREE_CHANCE + BUSH_CHANCE) {
           // Bushes take the cell but fade when the rabbit is behind them, so
@@ -712,8 +786,13 @@ export class IsoIslandView {
     const sprite = new Sprite(texture);
     sprite.anchor.set(0.5, anchorY);
     const p = isoProject(x + 0.5, y + 0.5, tier, this.metrics);
-    sprite.position.set(p.x, p.y);
     sprite.zIndex = depth;
+
+    // Every deco sprite funnels through here, so this is the one place that
+    // knows whether one is landing outside `view`.
+    const deported = this.options.decoLayer;
+    if (deported && world === deported) this.decoSprites.push(sprite);
+    this.placeSprite(sprite, p.x, p.y);
     world.addChild(sprite);
     return sprite;
   }
