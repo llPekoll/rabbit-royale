@@ -17,7 +17,7 @@
  * every spectator join, and regenerating a few hundred cells each time would
  * be wasted work on both ends.
  */
-import { COLS, ROWS, toColRow, toIndex } from '@/config/gridConfig';
+import { COLS, ROWS, screenToTile, tilePos, toColRow, toIndex } from '@/config/gridConfig';
 import { IslandBoard } from '@/game/island/board';
 import { generateTerrain, type Terrain } from '@/game/island/terrain';
 
@@ -37,6 +37,17 @@ export const TERRAIN_OPTIONS = {
   rise: 0.42,
   raggedness: 0.32,
 } as const;
+
+/**
+ * How far one terrain tier lifts a tile, in board pixels.
+ *
+ * Lives here rather than in the renderer because BOTH the ground and the
+ * playable tiles have to agree on it. While it was a constant inside the
+ * background, the terrain rose and the board stayed at sea level — a flat
+ * chequerboard laid over a landscape with plateaus, each contradicting the
+ * other. Anything that draws a cell reads this.
+ */
+export const TIER_LIFT = 18;
 
 const cache = new Map<string, { terrain: Terrain; board: IslandBoard }>();
 
@@ -66,6 +77,62 @@ function cached(seed: string) {
     cache.set(seed, entry);
   }
   return entry;
+}
+
+/**
+ * How far up the screen a tile sits, for the tier it stands on.
+ *
+ * Zero at sea level, one `TIER_LIFT` per plateau. Subtracted from a tile's y,
+ * so a cell on the second shelf is drawn on the shelf rather than under it.
+ */
+export function tierLift(seed: string, index: number): number {
+  const { col, row } = toColRow(index);
+  return levelTierAt(seed, col, row) * TIER_LIFT;
+}
+
+/** The terrain tier of a tile: 0 is sea, 1 sea-level ground, 2+ a plateau. */
+export function levelTierAt(seed: string, col: number, row: number): number {
+  const { map } = cached(seed).terrain;
+  if (col < 0 || row < 0 || col >= map.width || row >= map.height) return 0;
+  return map.level[row * map.width + col];
+}
+
+/**
+ * Where a tile's centre sits on screen, terrace included.
+ *
+ * The one function anything standing ON the board should use — tiles, rabbits,
+ * the movement ring. `tilePos` alone answers for a flat 16x16 and leaves
+ * everything at sea level, which on generated terrain means sprites sunk into
+ * the plateaus they are supposed to be standing on.
+ */
+export function tileScreenPos(seed: string, index: number): { x: number; y: number } {
+  const flat = tilePos(index);
+  return { x: flat.x, y: flat.y - tierLift(seed, index) };
+}
+
+/**
+ * Which tile a point on screen names, terraces included.
+ *
+ * `screenToTile` inverts a FLAT projection, so on raised ground it answers
+ * with the cell in front of the one the player is looking at — tap a plateau
+ * and the move goes to the grass below it. Corrected by trying the tiers from
+ * the top down: the first one whose lifted diamond contains the point wins,
+ * which is also what the eye picks, since a higher tile is drawn over a lower.
+ */
+export function terrainTileAt(seed: string, sx: number, sy: number): number | null {
+  const { map } = cached(seed).terrain;
+  let tallest = 0;
+  for (const tier of map.level) if (tier > tallest) tallest = tier;
+
+  for (let tier = tallest; tier >= 1; tier--) {
+    const index = screenToTile(sx, sy + tier * TIER_LIFT);
+    if (index === null) continue;
+    const { col, row } = toColRow(index);
+    if (levelTierAt(seed, col, row) !== tier) continue;
+    if (!boardFor(seed).isOnBoard(col, row)) continue;
+    return index;
+  }
+  return null;
 }
 
 /** True when a rabbit may stand on this tile: ground, unblocked, on the board. */

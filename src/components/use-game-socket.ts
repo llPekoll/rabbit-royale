@@ -38,6 +38,20 @@ export interface IslandSnapshot {
   revealed: Array<{ tile: number; content: TileContent; adjacent: number }>;
 }
 
+/**
+ * A finished run, once its carrots are actually in Postgres.
+ *
+ * Not the same moment as `run_over`: that one is the RULE (the tank is empty,
+ * the rabbit is out), and it is emitted alongside the write rather than after
+ * it. This one is the RECEIPT, and it is the only point at which re-reading the
+ * burrow is guaranteed to see the run. It also covers the exits `run_over` does
+ * not — walking home with a full sack is the ordinary way to end a run, and it
+ * never produced a recap at all.
+ */
+export interface Banked {
+  carrots: number;
+}
+
 export interface RunRecap {
   carrots: number;
   tilesDug: number;
@@ -72,6 +86,14 @@ export function useGameSocket(
   const [warnStage, setWarnStage] = useState(0);
   const [recap, setRecap] = useState<RunRecap | null>(null);
   const [connected, setConnected] = useState(false);
+  /**
+   * Bumped each time a run's carrots land in the database.
+   *
+   * A counter rather than the amount, because the amount is not what the
+   * consumer needs: it re-reads the burrow for the authoritative total, and two
+   * runs that happened to bank the same number must still be two events.
+   */
+  const [banked, setBanked] = useState(0);
 
   /** Apply to the scene now, or queue it until the scene exists. */
   const toScene = useCallback((fn: (s: IslandScene) => void) => {
@@ -170,6 +192,9 @@ export function useGameSocket(
 
     socket.on('volcano', ({ stage }: { stage: number }) => setWarnStage(stage));
     socket.on('run_over', (r: RunRecap) => setRecap(r));
+    // The carrots are in Postgres NOW, so whatever shows the total may go and
+    // read it. See `Banked`: this is deliberately not `run_over`.
+    socket.on('banked', (_b: Banked) => setBanked((n) => n + 1));
 
     return () => { socket.disconnect(); socketRef.current = null; };
   }, [token, wsUrl, spectate, toScene]);
@@ -214,5 +239,8 @@ export function useGameSocket(
   }, []);
 
   const me = playerId ? rabbits.get(playerId) ?? null : null;
-  return { islandSeed, rabbits, me, warnStage, recap, connected, moveTo, restart, leave, bindScene, resync };
+  return {
+    islandSeed, rabbits, me, warnStage, recap, banked, connected,
+    moveTo, restart, leave, bindScene, resync,
+  };
 }

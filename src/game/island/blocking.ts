@@ -54,16 +54,26 @@ export interface ThingRule {
 /**
  * The rules, one line per kind.
  *
- * `prop` is the loose ground clutter — mushrooms, bones, small stones. They
- * are the one kind that does NOT block: they are flat on the ground, a rabbit
- * steps over them, and blocking on each of them would eat the island a
- * mushroom at a time. Everything with a volume blocks.
+ * `prop` and `bush` are the ground cover a rabbit walks through — mushrooms,
+ * bones, small stones, and the bushes it pushes past. Everything with a real
+ * volume blocks: trees, stumps, rocks, signposts, and anything alive.
+ *
+ * The dividing line is "would a rabbit go round it", not "is it drawn large":
+ * a bush is drawn bigger than a signpost and stops nobody.
  */
 export const THING_RULES: Record<ThingKind, ThingRule> = {
   tree:     { blocks: true,  wanders: false, fadeTo: 0.45 },
   stump:    { blocks: true,  wanders: false, fadeTo: 1 },
   rock:     { blocks: true,  wanders: false, fadeTo: 1 },
-  bush:     { blocks: true,  wanders: false, fadeTo: 0.4 },
+  // Waist-high, and a rabbit pushes through it. Blocking looked right on
+  // paper and was wrong in play: bushes are the most-scattered thing on the
+  // island, so at 5% they were taking roughly 8% of the board out of the game
+  // on their own — more than trees, cliffs and livestock combined. Meadows
+  // came out fenced off for no reason a player could see.
+  //
+  // They still FADE, which is what they were really for: a rabbit standing
+  // behind one has to stay visible.
+  bush:     { blocks: false, wanders: false, fadeTo: 0.4 },
   prop:     { blocks: false, wanders: false, fadeTo: 1 },
   landmark: { blocks: true,  wanders: false, fadeTo: 0.5 },
   sheep:    { blocks: true,  wanders: true,  fadeTo: 1 },

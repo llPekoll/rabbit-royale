@@ -30,7 +30,7 @@ import {
   isForbidden, makeShape, screenToTile, tilePos, tileInScreenDirection,
   toColRow, type IslandShape,
 } from '@/config/gridConfig';
-import { farmableTiles } from '@/lib/game/terrainBoard';
+import { farmableTiles, terrainTileAt, tierLift } from '@/lib/game/terrainBoard';
 import type { TileContent } from '@/lib/game/types';
 import { ENERGY } from '@config/tuning';
 import { reachableTiles } from '@/lib/game/reachable';
@@ -130,6 +130,7 @@ export class IslandScene implements Scene {
     // The keyboard hint, drawn ON the board rather than as a legend beside it:
     // the board answers "where does UP go?" by pointing at the answer.
     this.arrows = new MoveArrows(this.container, this.shape);
+    this.arrows.setSeed(this.data?.seed ?? '');
     this.arrows.setVisible(true);
     this.attachControls();
     this.refreshReachable();
@@ -146,7 +147,9 @@ export class IslandScene implements Scene {
    */
   private buildTiles(): void {
     for (const i of farmableTiles(this.data?.seed ?? '')) {
-      const tile = new Tile(i);
+      // Lifted onto the terrace the terrain puts it on, so the board follows
+      // the landscape instead of lying flat across it.
+      const tile = new Tile(i, undefined, tierLift(this.data?.seed ?? '', i));
       // Per-tile click. The Seeker is a touch device, so this — not the
       // keyboard — is how the game is actually played.
       tile.container.on('pointertap', () => this.requestMove(i));
@@ -291,7 +294,9 @@ export class IslandScene implements Scene {
     this.container.hitArea = { contains: () => true };
     this.container.on('pointertap', (e) => {
       const local = this.container.toLocal(e.global);
-      const idx = screenToTile(local.x, local.y, this.shape);
+      // Terrace-aware: a tap on a plateau must name the plateau, not the
+      // grass drawn below it.
+      const idx = terrainTileAt(this.data?.seed ?? '', local.x, local.y);
       if (idx !== null) this.requestMove(idx);
     });
   }
@@ -349,6 +354,7 @@ export class IslandScene implements Scene {
 
     this.arrows?.destroy();
     this.arrows = new MoveArrows(this.container, this.shape);
+    this.arrows.setSeed(this.data?.seed ?? '');
     this.arrows.setVisible(true);
 
     // A new island, generated from the new seed.
@@ -453,7 +459,7 @@ export class IslandScene implements Scene {
   addRabbit(playerId: string, name: string, index: number, seatIndex: number, energy?: number): void {
     if (this.rabbits.has(playerId)) return;
     const sheet = BUNNY_SHEETS[seatIndex % BUNNY_SHEETS.length];
-    const rabbit = new PlayerRabbit(index, sheet);
+    const rabbit = new PlayerRabbit(index, sheet, this.data?.seed ?? '');
     this.rabbits.set(playerId, rabbit);
     this.container.addChild(rabbit.container);
     rabbit.playSpawnDrop();

@@ -180,9 +180,13 @@ export class Tile {
    *  floating over the rabbit's head. */
   private static readonly PALIER_BOB_AMP = 2.5;
 
-  constructor(index: number, fogStyle?: FogStyle) {
+  constructor(index: number, fogStyle?: FogStyle, lift = 0) {
     this.index = index;
-    const { x, y } = tilePos(index);
+    const { x, y: flatY } = tilePos(index);
+    // Raised onto its own terrace. Without this the board is a flat
+    // chequerboard lying across a landscape with plateaus: the ground rises,
+    // the tiles stay at sea level, and the two visibly contradict each other.
+    const y = flatY - lift;
     const depth = tileDepth(index);
 
     this.container = new Container();

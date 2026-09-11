@@ -236,6 +236,16 @@ export function tileInScreenDirection(
   dx: number,
   dy: number,
   shape: IslandShape = DEFAULT_SHAPE,
+  /**
+   * The tiles that actually exist, when the caller knows better than `shape`.
+   *
+   * On generated terrain the flat silhouette is no longer the authority: it
+   * still calls a cell land that the terrain has turned into cliff rock, and
+   * it knows nothing about the trees standing on it. A caller that passes this
+   * gets the same answer the server would give; one that does not keeps the
+   * old behaviour.
+   */
+  allowed?: ReadonlySet<number>,
 ): number | null {
   const len = Math.hypot(dx, dy);
   if (len === 0) return null;
@@ -251,7 +261,7 @@ export function tileInScreenDirection(
     const nr = row + dr;
     if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) continue;
     const idx = toIndex(nc, nr);
-    if (isForbidden(idx, shape)) continue;
+    if (allowed ? !allowed.has(idx) : isForbidden(idx, shape)) continue;
 
     // Where this step lands on screen, relative to the current tile.
     const sx = (dc - dr) * HALF_W;

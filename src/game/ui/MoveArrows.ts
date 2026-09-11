@@ -1,4 +1,5 @@
 import { Container, Graphics } from 'pixi.js';
+import { terrainNeighbors, tileScreenPos } from '@/lib/game/terrainBoard';
 import {
   HALF_W, HALF_H, tilePos, tileDepth, tileInScreenDirection,
   DEFAULT_SHAPE, type IslandShape,
@@ -56,6 +57,14 @@ export class MoveArrows {
    * seed), so the hint has to know which one it is annotating — otherwise it
    * points confidently at water on any island but the default.
    */
+  /** The island, so arrows follow the terrain rather than a flat silhouette. */
+  private seed = '';
+
+  /** Point the arrows at `seed`'s island. */
+  setSeed(seed: string): void {
+    this.seed = seed;
+  }
+
   constructor(private parent: Container, private shape: IslandShape = DEFAULT_SHAPE) {
 
     for (const [dx, dy] of HEADINGS) {
@@ -103,10 +112,15 @@ export class MoveArrows {
     }
     const permitted = allowed ? new Set(allowed) : null;
     HEADINGS.forEach(([dx, dy], i) => {
-      const target = tileInScreenDirection(from, dx, dy, this.shape);
+      // Steered by the TERRAIN when we know the island: the flat silhouette
+      // offers cells the server refuses, and hides ones it allows.
+      const reachable = permitted ?? (this.seed ? new Set(terrainNeighbors(this.seed, from)) : undefined);
+      const target = tileInScreenDirection(from, dx, dy, this.shape, reachable);
       const g = this.arrows[i];
-      if (target === null || (permitted && !permitted.has(target))) { g.visible = false; return; }
-      const { x, y } = tilePos(target);
+      if (target === null) { g.visible = false; return; }
+      // Terrace-aware: an arrow drawn at the flat position points at the
+      // ground BELOW the shelf its tile is actually on.
+      const { x, y } = this.seed ? tileScreenPos(this.seed, target) : tilePos(target);
       g.position.set(x, y);
       g.zIndex = tileDepth(target) + 0.5;
       g.alpha = this.alpha;

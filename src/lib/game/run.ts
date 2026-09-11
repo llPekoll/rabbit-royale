@@ -15,9 +15,12 @@ import { SPAWN_INDEX, neighbors, toColRow, type IslandShape } from '@/config/gri
 import { pickWeighted, randInt, type Rng } from './rng';
 import { revealTile } from './island';
 import { spawnTile, terrainNeighbors } from './terrainBoard';
+import { occupancyOf, planPush } from './push';
 import type { DigResult, Island, Rabbit } from './types';
 
 export type MoveRejection =
+  | 'head-on'
+  | 'blocked'
   | 'dead'
   | 'stunned'
   | 'too-fast'
@@ -36,6 +39,30 @@ export interface MoveOutcome {
   carrots: number;
   /** The run ended on this move — energy hit zero. */
   runOver: boolean;
+  /**
+   * Rabbits this move shoved, and what it cost them.
+   *
+   * Empty on an ordinary walk. One entry per rabbit in the chain, furthest
+   * first — the order they have to be applied in, and the order the client
+   * should animate them. Each carries its own dig, because rule 2 says landing
+   * on undug ground digs it: a push can set off a bomb under someone who never
+   * chose to dig there.
+   */
+  pushed?: PushedRabbit[];
+}
+
+/** One rabbit displaced by another's move. */
+export interface PushedRabbit {
+  playerId: string;
+  from: number;
+  to: number;
+  /** Who did this to them. Rule 7: the victim always knows. */
+  pushedBy: string;
+  /** What the landing tile turned out to hold, when the push dug it. */
+  dig?: DigResult;
+  /** Their energy after the landing, and whether it ended their run. */
+  energy: number;
+  runOver: boolean;
 }
 
 /**
@@ -51,6 +78,14 @@ export function resolveMove(
   shape: IslandShape,
   rng: Rng,
   now: number = Date.now(),
+  /**
+   * Everyone else on the island, so a step can shove them.
+   *
+   * Optional: without it nothing is pushed and moves resolve exactly as they
+   * did before. That keeps every existing caller and test honest, and makes
+   * pushing a thing the SERVER opts into by handing over the roster.
+   */
+  others?: Iterable<Rabbit>,
 ): MoveOutcome {
   const reject = (rejection: MoveRejection): MoveOutcome => ({
     ok: false,
@@ -74,12 +109,69 @@ export function resolveMove(
   // that lied about a cliff or a tree would simply have its move refused.
   if (!canWalk(island.seed, rabbit.tile, to)) return reject('not-adjacent');
 
+  // Who is standing there, and where does everybody end up? Planned BEFORE
+  // anything is committed, so a chain whose far end is a cliff refuses the
+  // whole move instead of leaving rabbits half-shoved.
+  const occupancy = others ? occupancyOf(others) : new Map<number, Rabbit>();
+  const push = planPush(island.seed, rabbit, to, occupancy, now);
+  if (!push.ok) {
+    return reject(push.refusal === 'head-on' ? 'head-on' : 'blocked');
+  }
+
   rabbit.lastMoveAt = now;
+  rabbit.cameFrom = rabbit.tile;
+
+  // Apply the shove. Furthest first, so nobody lands on an occupied tile.
+  //
+  // Rule 2: a pushed rabbit DIGS what it lands on, bomb included. This is the
+  // one place the game spends a consequence someone did not choose, and it is
+  // deliberate — see `docs/bumping.md`. The energy is not charged to them,
+  // though: they did not choose to dig, so they pay the blast and not the toll.
+  const pushed: PushedRabbit[] = [];
+  for (const step of push.plan.steps) {
+    const victim = occupancy.get(step.from)!;
+    victim.tile = step.to;
+    victim.cameFrom = step.from;
+
+    const entry: PushedRabbit = {
+      playerId: victim.playerId,
+      from: step.from,
+      to: step.to,
+      pushedBy: rabbit.playerId,
+      energy: victim.energy,
+      runOver: false,
+    };
+
+    const landing = island.tiles.get(step.to);
+    if (landing && !landing.revealed) {
+      revealTile(island, step.to, victim.playerId);
+      const dug: DigResult = {
+        tile: step.to,
+        content: landing.content,
+        adjacent: landing.adjacent,
+        energyDelta: 0,
+        carrotDelta: 0,
+      };
+      if (landing.content === 'bomb') {
+        victim.energy -= ENERGY.BOMB_LOSS;
+        dug.energyDelta = -ENERGY.BOMB_LOSS;
+        victim.stunnedUntil = now + BOMB.STUN_MS;
+        if (victim.energy <= 0) {
+          victim.energy = 0;
+          victim.alive = false;
+          entry.runOver = true;
+        }
+      }
+      entry.dig = dug;
+      entry.energy = victim.energy;
+    }
+    pushed.push(entry);
+  }
 
   // Walking revealed ground is free — that is the whole reason to read numbers.
   if (tile.revealed) {
     rabbit.tile = to;
-    return { ok: true, tile: to, energy: rabbit.energy, carrots: rabbit.carrots, runOver: false };
+    return { ok: true, tile: to, energy: rabbit.energy, carrots: rabbit.carrots, runOver: false, pushed };
   }
 
   // Digging costs. You may not spend your last point of energy into nothing —
@@ -155,6 +247,7 @@ export function resolveMove(
     energy: rabbit.energy,
     carrots: rabbit.carrots,
     runOver: !rabbit.alive,
+    pushed,
   };
 }
 

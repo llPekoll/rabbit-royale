@@ -406,6 +406,28 @@ function Burrow() {
       .catch(() => {});
   }, [token, auth]);
 
+  /**
+   * A run ended and its carrots are in the database — go and read the total.
+   *
+   * THE missing half of banking. The server credits a run from every exit, but
+   * the burrow's counter is fetched, not pushed, and nothing re-fetched it once
+   * a run was over: the carrots were genuinely in Postgres and the HUD still
+   * showed the figure from before the run, so "playing does not add to my
+   * counter" was true of everything the player could actually see.
+   *
+   * Keyed on `game.banked`, which the server sends AFTER the write. Firing on
+   * `run_over` instead would race its own UPDATE and could re-read the old
+   * total — and it would miss walking home, which is the common way to finish.
+   *
+   * Deliberately not `burstKey`: that one also empties the burrow's garden
+   * (see the harvest effect below), and a run's carrots come from the island,
+   * not from the field outside the door.
+   */
+  useEffect(() => {
+    if (!game.banked) return;
+    refreshBurrow();
+  }, [game.banked, refreshBurrow]);
+
   const buyWithCarrots = useCallback(async (kind: ItemKind) => {
     const res = await shop.buy(kind);
     if (res) refreshBurrow();

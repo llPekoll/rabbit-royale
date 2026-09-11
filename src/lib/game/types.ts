@@ -46,6 +46,14 @@ export interface Rabbit {
   stunnedUntil: number;
   /** Last accepted move, for the anti-speedhack gate. */
   lastMoveAt: number;
+  /**
+   * The tile this rabbit stepped off on its last move.
+   *
+   * Kept so a head-on collision can be told from a chase: both look like two
+   * rabbits one tile apart, and only the DIRECTION of the last step separates
+   * them. Undefined before the first move.
+   */
+  cameFrom?: number;
   /** 0 energy = run over. */
   alive: boolean;
   /** Season leader, drawn with the crown and worth more when raided. */

@@ -1,5 +1,6 @@
 import { AnimatedSprite, Assets, Container, Sprite, Texture } from 'pixi.js';
 import { tilePos, ISO_TILE_W, RABBIT_SCALE } from '@/config/gridConfig';
+import { tileScreenPos } from '@/lib/game/terrainBoard';
 import * as Keys from '@/config/assetKeys';
 import { getBunnyAnimTextures, BUNNY_ANIM_DEFS } from '../services/AssetLoader';
 import gsap from 'gsap';
@@ -8,14 +9,17 @@ export class PlayerRabbit {
   sprite: AnimatedSprite;
   container: Container;
   private sheetKey: string;
+  /** The island, so every hop lands on the terrace the terrain puts it on. */
+  private seed = '';
   isMoving = false;
 
-  constructor(tileIndex: number, sheetKey = Keys.BUNNY_WHITE) {
+  constructor(tileIndex: number, sheetKey = Keys.BUNNY_WHITE, seed = '') {
     this.sheetKey = sheetKey;
+    this.seed = seed;
     this.container = new Container();
     this.container.zIndex = 50;
 
-    const { x, y } = tilePos(tileIndex);
+    const { x, y } = this.at(tileIndex);
 
     // Create with idle animation textures
     const idleTextures = getBunnyAnimTextures(sheetKey, 'idle');
@@ -28,6 +32,11 @@ export class PlayerRabbit {
 
     this.container.addChild(this.sprite);
     this.container.position.set(x, y);
+  }
+
+  /** Where a tile's centre is, terrace included. */
+  private at(tileIndex: number): { x: number; y: number } {
+    return this.seed ? tileScreenPos(this.seed, tileIndex) : tilePos(tileIndex);
   }
 
   /** Drop the rabbit from above with a snappy bounce landing. */
@@ -70,7 +79,7 @@ export class PlayerRabbit {
     }
     this.isMoving = true;
 
-    const { x, y } = tilePos(tileIndex);
+    const { x, y } = this.at(tileIndex);
 
     // Flip sprite based on horizontal direction
     if (x < this.container.x) this.sprite.scale.x = -Math.abs(this.sprite.scale.x);
@@ -161,7 +170,7 @@ export class PlayerRabbit {
   }
 
   setPosition(tileIndex: number): void {
-    const { x, y } = tilePos(tileIndex);
+    const { x, y } = this.at(tileIndex);
     this.container.position.set(x, y);
   }
 

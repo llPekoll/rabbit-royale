@@ -34,12 +34,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Container } from 'pixi.js';
 import { PixiStage } from './PixiStage';
-import {
-  generateIsland,
-  IsoIslandView,
-  loadIslandTileset,
-  type IslandTileset,
-} from '@/game/island';
+import { IsoIslandView, loadIslandTileset, type IslandTileset } from '@/game/island';
 import { Tile } from '@/game/entities/Tile';
 import { mulberry32, seedFrom } from '@/lib/game/rng';
 import type { TileContent } from '@/lib/game/types';
@@ -49,8 +44,9 @@ import { initTileTextures } from '@/game/services/TileTextures';
 import { createIslandBackground } from '@/game/services/IslandBackground';
 import {
   COLS, ROWS, HALF_W, HALF_H,
-  SPAWN_INDEX, isForbidden, makeShape, toIndex, toColRow, tilePos,
+  isForbidden, makeShape, toIndex, toColRow, tilePos,
 } from '@/config/gridConfig';
+import { farmableTiles, spawnTile, terrainFor, terrainNeighbors, tierLift, TIER_LIFT } from '@/lib/game/terrainBoard';
 
 const WIDTH = 960;
 const HEIGHT = 540;
@@ -66,7 +62,13 @@ interface Args {
   land: number;
   rise: number;
   raggedness: number;
-  /** Height of one terrain tier, in px. 0 is flat ground. */
+  /**
+   * Height of one terrain tier, in px.
+   *
+   * Only used by the PAINTED comparison arm now. The terrain arm draws at
+   * `TIER_LIFT`, because the playable tiles are raised by that and the two
+   * have to agree — see the note at the `metrics` below.
+   */
   tileZ: number;
   deco: boolean;
   /**
@@ -132,31 +134,25 @@ function Scene(args: Args) {
             cleanups.push(() => bg.destroy());
           });
         } else {
-          // The terrain, built at the BOARD's metrics so a terrain cell and a
-          // playable tile are the same diamond.
-          const size = Math.round(COLS * args.terrainScale);
-          const map = generateIsland({
-            seed: args.seed,
-            width: size,
-            height: size,
-            tiers: args.tiers,
-            land: args.land,
-            rise: args.rise,
-            raggedness: args.raggedness,
-          });
-          // The board occupies the middle COLS x ROWS of the terrain grid, so
-          // that is the region scenery has to leave alone.
-          const off = Math.round((size - COLS) / 2);
+          // THE GAME'S terrain, not one of the story's own.
+          //
+          // This story used to generate its own island from its own controls
+          // while the tiles on top consulted the game's — so the two disagreed
+          // about where the ground was, and about how high each tier stood.
+          // Hints floated over their tiles by the difference. A story that
+          // shows a different island from the one that ships is not evidence.
+          const { map, placements } = terrainFor(args.seed);
+          const size = map.width;
           const island = new IsoIslandView({
             map,
             tileset,
-            metrics: { w: HALF_W * 2, h: HALF_H * 2, z: args.tileZ },
-            deco: args.deco,
+            // TIER_LIFT, not `tileZ`: the tiles are raised by the game's own
+            // constant (see `Tile`'s `lift`), so a terrain drawn at any other
+            // height disagrees with the board by the difference per tier —
+            // which is exactly how hints end up floating above their tiles.
+            metrics: { w: HALF_W * 2, h: HALF_H * 2, z: TIER_LIFT },
+            placements,
             decoScale: args.decoScale,
-            inhabitedShare: args.inhabitedShare,
-            keepClear: args.clearBoard
-              ? (x, y) => x >= off && x < off + COLS && y >= off && y < off + ROWS
-              : undefined,
           });
 
           // Line the two grids up by their CENTRES.
@@ -205,8 +201,11 @@ function Scene(args: Args) {
           // were rolled rather than invented, so the picture is a legal board
           // and not a plausible-looking one.
           const rng = mulberry32(seedFrom(`${args.seed}:farm`));
-          const land: number[] = [];
-          for (let i = 0; i < COLS * ROWS; i++) if (!isForbidden(i, shape)) land.push(i);
+          // The TERRAIN decides where tiles exist, exactly as the game does.
+          // Cutting them from `makeShape` instead put tiles on cells the
+          // terrain has no ground for, and left every one of them at sea level
+          // while the ground rose — hints floating between the plateaus.
+          const land = farmableTiles(args.seed);
 
           const content = new Map<number, TileContent>();
           for (const i of land) {
@@ -219,37 +218,26 @@ function Scene(args: Args) {
           }
           // The spawn is where the rabbit stands; a bomb under it would be a
           // board the server would never deal.
-          content.set(SPAWN_INDEX, 'empty');
+          content.set(spawnTile(args.seed), 'empty');
 
           /** Bombs among a tile's eight neighbours — the minesweeper hint. */
-          const adjacentBombs = (index: number): number => {
-            const { col, row } = toColRow(index);
-            let n = 0;
-            for (let dr = -1; dr <= 1; dr++) {
-              for (let dc = -1; dc <= 1; dc++) {
-                if (!dr && !dc) continue;
-                const c = col + dc;
-                const r = row + dr;
-                if (c < 0 || r < 0 || c >= COLS || r >= ROWS) continue;
-                if (content.get(toIndex(c, r)) === 'bomb') n++;
-              }
-            }
-            return n;
-          };
+          const adjacentBombs = (index: number): number =>
+            terrainNeighbors(args.seed, index)
+              .filter((n) => content.get(n) === 'bomb').length;
 
           for (const i of land) {
             const tile = new Tile(i, {
               color: parseInt(args.fogColor.replace('#', ''), 16),
               alpha: args.fogAlpha,
-            });
+            }, tierLift(args.seed, i));
             boardLayer.addChild(tile.container);
             // Dug tiles cluster around the spawn, the way a real run spreads
             // outward from where the rabbit landed rather than at random.
             const { col, row } = toColRow(i);
-            const spawn = toColRow(SPAWN_INDEX);
+            const spawn = toColRow(spawnTile(args.seed));
             const dist = Math.max(Math.abs(col - spawn.col), Math.abs(row - spawn.row));
             const reach = args.dug * Math.max(COLS, ROWS) * 0.7;
-            const isDug = i === SPAWN_INDEX || (dist < reach && rng() < 0.85);
+            const isDug = i === spawnTile(args.seed) || (dist < reach && rng() < 0.85);
             if (!isDug) continue;
             const what = content.get(i) ?? 'empty';
             // A dug bomb has already gone off, so it shows as spent ground.
@@ -258,7 +246,7 @@ function Scene(args: Args) {
           cleanups.push(() => boardLayer.destroy({ children: true }));
 
           if (args.rabbit) {
-            const rabbit = new PlayerRabbit(SPAWN_INDEX);
+            const rabbit = new PlayerRabbit(spawnTile(args.seed));
             boardLayer.addChild(rabbit.container);
           }
         }

@@ -10,6 +10,21 @@
  * Kept to the gates the client can honestly evaluate. `too-fast` is deliberately
  * not among them: it is an anti-speedhack floor no human hand reaches, so
  * darkening the ring for it would only ever misfire on a legitimate player.
+ *
+ * ## The pushing gates are NOT evaluated here, on purpose
+ *
+ * A step onto another rabbit can be refused for reasons this function cannot
+ * see coming: the target is stunned, or the chain behind them is blocked, or
+ * the two of you collided head-on within `HEAD_ON_WINDOW_MS` (see `push.ts`).
+ * The last one is unknowable in advance by definition — it depends on what the
+ * other player does in the same instant.
+ *
+ * Rather than half-mirror them, the ring stays lit over occupied tiles and the
+ * push is attempted. A refused push bounces as `move_rejected`, and the client
+ * shows the bonk. Darkening the ring on stun would be MORE honest for that one
+ * case but would also flicker as stuns lapse, and it would still not cover the
+ * head-on — so the ring means "you may try to step here", which over an
+ * occupied tile is exactly what a bumper-car game should promise.
  */
 import { ENERGY } from '@config/tuning';
 import { terrainNeighbors } from './terrainBoard';

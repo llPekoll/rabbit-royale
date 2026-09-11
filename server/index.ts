@@ -232,6 +232,13 @@ async function currentSeason() {
  * Idempotent, which is what makes that safe: it clears `data.runId` on the way
  * out and returns early without it, so the same run cannot be banked twice
  * however many exits fire.
+ *
+ * TELLS THE PLAYER, too. The burrow's carrot counter is drawn from `/api/burrow`,
+ * so a run that landed in Postgres but was never announced left the HUD showing
+ * the total from BEFORE the run — the carrots were banked, and the player could
+ * not see it. `banked` fires here rather than at each exit for the same reason
+ * the write does: there are five ways a run can end, and only one of them should
+ * have to know what banking means.
  */
 async function bankRun(rabbit: Rabbit) {
   const run = rabbit.run;
@@ -261,6 +268,13 @@ async function bankRun(rabbit: Rabbit) {
     durationMs: Date.now() - run.startedAt,
     endedAt: new Date(),
   }).where(eq(runs.id, runId));
+
+  // Announced only now, after the row is written: the client answers this by
+  // re-reading the burrow, and a notice that outran its own UPDATE would have it
+  // read the old total and cache the very staleness this exists to clear.
+  // The socket may be gone (a closed tab, a sweep banking for an absent player)
+  // — the carrots are safe either way, and the next burrow load will show them.
+  socketOf(playerId)?.emit('banked', { carrots });
 
   // The carrots are banked in Postgres by this point, which is what matters.
   // Mirroring the score into Redis is a CACHE update — `rebuildLeaderboard`
@@ -375,10 +389,44 @@ io.on('connection', (socket: Socket) => {
     // the moment the island exists — replayable, and not re-rollable by a
     // client that disconnects on a bad drop.
     const rng = mulberry32(seedFrom(`${live.island.seed}:${to}`));
-    const out = resolveMove(live.island, rabbit, to, live.shape, rng);
+    // The other rabbits ride along so a step can SHOVE them — the bumper-car
+    // rules in `docs/bumping.md`. Passing the roster is what turns pushing on;
+    // `resolveMove` without it behaves exactly as it did before.
+    const others = [...live.rabbits.values()].filter((r) => r.playerId !== rabbit.playerId);
+    const out = resolveMove(live.island, rabbit, to, live.shape, rng, Date.now(), others);
     if (!out.ok) return socket.emit('move_rejected', { reason: out.rejection });
 
     const room = roomFor(live.island.id);
+
+    // Everyone this move shoved. Broadcast BEFORE the mover's own event so the
+    // client can animate the shove and the step in the order they happened.
+    //
+    // Rule 2 means a push can reveal a tile and set off a bomb under someone
+    // who never dug: those land as ordinary `tile_revealed` events, because a
+    // dug tile is dug regardless of whose foot did it.
+    for (const shove of out.pushed ?? []) {
+      if (shove.dig) {
+        io.to(room).emit('tile_revealed', {
+          tile: shove.dig.tile,
+          content: shove.dig.content,
+          adjacent: shove.dig.adjacent,
+          dugBy: shove.playerId,
+        });
+      }
+      io.to(room).emit('rabbit_pushed', {
+        playerId: shove.playerId,
+        from: shove.from,
+        to: shove.to,
+        // Rule 7: the victim always knows who did it — revenge is the point.
+        pushedBy: shove.pushedBy,
+        energy: shove.energy,
+        runOver: shove.runOver,
+      });
+      const victim = live.rabbits.get(shove.playerId);
+      if (victim && shove.runOver) {
+        void bankRun(victim).catch((e) => console.error('[bankRun:pushed]', e));
+      }
+    }
 
     if (out.dig) {
       data.tilesDug = (data.tilesDug ?? 0) + 1;

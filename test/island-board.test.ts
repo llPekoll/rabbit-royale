@@ -240,12 +240,16 @@ describe('things block their cell', () => {
     expect(farmable).toEqual(walkable.sort());
   });
 
-  it('leaves loose ground clutter walkable', () => {
-    // A mushroom is flat on the grass; blocking on each one would eat the
-    // island a prop at a time.
+  it('leaves ground cover walkable and volumes blocking', () => {
+    // The line is "would a rabbit go round it", not "is it drawn large". A
+    // mushroom is flat on the grass and a bush is pushed through; both would
+    // eat the island a sprite at a time if they blocked. Bushes in particular
+    // are the most-scattered thing there is — when they blocked, they took
+    // more of the board than trees, cliffs and livestock combined.
     expect(blocksCell('prop')).toBe(false);
+    expect(blocksCell('bush')).toBe(false);
     expect(blocksCell('tree')).toBe(true);
-    expect(blocksCell('bush')).toBe(true);
+    expect(blocksCell('rock')).toBe(true);
   });
 });
 

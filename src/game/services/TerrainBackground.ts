@@ -17,11 +17,8 @@
 import { Container } from 'pixi.js';
 import { HALF_W, HALF_H, ISO_ORIGIN_X, ISO_ORIGIN_Y, COLS, ROWS } from '@/config/gridConfig';
 import { IsoIslandView, loadIslandTileset, isoProject } from '@/game/island';
-import { terrainFor } from '@/lib/game/terrainBoard';
+import { terrainFor, TIER_LIFT } from '@/lib/game/terrainBoard';
 import type { IslandBackground } from './IslandBackground';
-
-/** How tall one terrain tier stands, in board pixels. */
-const TIER_LIFT = 18;
 
 /** Scenery is cut for 64px tiles; the board's are 44x24. */
 const DECO_SCALE = 0.4;
