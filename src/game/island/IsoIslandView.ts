@@ -29,7 +29,7 @@
  * a tree on a low cell must be able to come out in front of a cliff behind it
  * and no stack of layers can express that.
  */
-import { Container, Matrix, Sprite, type Texture } from 'pixi.js';
+import { Container, Graphics, Matrix, Sprite, type Texture } from 'pixi.js';
 import { mulberry32, seedFrom } from '@/lib/game/rng';
 import { blobCol, blobRow, edgeMask, ELEVATION_SURFACE_ROW } from './autotile';
 import { atOrAbove, levelAt, type IslandMap } from './generate';
@@ -109,7 +109,27 @@ export interface IsoIslandViewOptions {
    * share its origin; `TerrainBackground` aligns the two before passing it.
    */
   decoLayer?: Container;
+  /**
+   * Drop a contact shadow under everything that STANDS on the island.
+   *
+   * Off by default, because the standalone views draw the terrain on its own
+   * and an ellipse under every tree is noise when there is no board to anchor
+   * against. On the playing board it is the opposite: a tree and a sheep hover
+   * over a grid of lit diamonds without one, and the eye cannot tell which cell
+   * a sprite belongs to — the same reason the carrots and chests on `Tile`
+   * already carry one.
+   *
+   * Only the standing art gets one. Ground, cliff faces and sea rocks are part
+   * of the landscape rather than objects on it.
+   */
+  decoShadows?: boolean;
 }
+
+/** The contact shadow under a standing sprite: an ellipse a little narrower
+ *  than the cell, so it reads as touching rather than as a painted disc. */
+const SHADOW_RX = 0.34;
+const SHADOW_RY = 0.17;
+const SHADOW_ALPHA = 0.26;
 
 const DEFAULT_FRAME_MS = 130;
 
@@ -216,6 +236,18 @@ const FACE_ROW = 3;
 /** How much of a 64px face tile is solid rock, measured off the sheet. */
 const FACE_SOLID_H = 32;
 
+/**
+ * How tall the thing being hidden is, in pixels, for `facesHiding`.
+ *
+ * A rabbit, which is the only thing that asks. Deliberately a constant: the
+ * question is "would a player-sized sprite be covered on this cell", and a
+ * caller checking a cell before anything stands on it has nothing to measure.
+ */
+const RABBIT_H = 26;
+
+/** How far `facesHiding` looks for rock, in cells. */
+const RADIUS = 3;
+
 interface AnimatedProp {
   sprite: Sprite;
   frames: Texture[];
@@ -256,18 +288,54 @@ export class IsoIslandView {
    * and neither can be either unless something outside this view can see them.
    * `syncOccupants` is the other half — it moves the sprites back.
    */
-  private readonly livestock: Array<{ occupant: Occupant; sprite: Sprite; tier: number }> = [];
+  private readonly livestock: Array<{ occupant: Occupant; sprite: Sprite; tier: number; shadow?: Container }> = [];
   /** Cells claimed by a sheep or soldier, for the spacing rule. */
   private readonly inhabited = new Set<string>();
   /**
-   * Every sprite this view put somewhere OTHER than its own `view`.
+   * Every sprite a cliff cell draws — faces, rock rim and grass — by cell.
+   *
+   * Kept for the same reason `livestock` is: a cliff is the OTHER thing on this
+   * island tall enough to hide a rabbit, and until now nothing outside this
+   * view could reach one. `fadeBehind` only ever knew about occupants, so a
+   * player walking along the foot of a plateau went behind a wall of rock that
+   * had no idea it was covering anybody — the one case the fade was invented
+   * for that it never actually handled.
+   *
+   * The whole COLUMN rather than its faces, and that distinction was a visible
+   * bug before it was a design note: a cell's grass is drawn on top of its own
+   * wall, so fading the wall alone left a lid of turf hanging over the hole.
+   * Everything the cell puts between the camera and what is behind it has to
+   * go together — several faces (a deep drop repeats the tile down the gap),
+   * the rim, and the surface.
+   *
+   * Only cells that show rock are in here; a cell inside a plateau hides
+   * nothing and must keep its ground.
+   */
+  private readonly faces = new Map<string, Sprite[]>();
+  /**
+   * Everything this view put somewhere OTHER than its own `view`.
    *
    * Empty unless `decoLayer` was given. `view.destroy({children:true})` reaches
-   * its own subtree and nothing else, so without this list a deported tree
-   * would outlive the scene that drew it — the leak only exists with the
+   * its own subtree and nothing else, so without this set a deported tree
+   * would outlive the scene that drew it — a leak that only exists with the
    * option set, which is exactly the kind that goes unnoticed.
+   *
+   * `Container`, not `Sprite`: contact shadows are `Graphics`, and everything
+   * done to the set — move it, destroy it — is defined on the common base.
    */
-  private readonly decoSprites = new Set<Sprite>();
+  private readonly decoSprites = new Set<Container>();
+  /** The shadow `stamp` just drew, for the caller that wants to keep it. */
+  private lastShadow: Container | undefined;
+  /**
+   * One container per land cell — the block — by cell key.
+   *
+   * Kept so the board can put a cell's VEIL inside its block (`mountVeil`),
+   * which is what stops veils compounding: with the whole terrain behind the
+   * board, a raised tile's veil lay straight on its lower neighbour's with
+   * nothing opaque between them, and every terrace edge wore a double-dark
+   * wedge. Inside the block the cell's own grass sits between the two.
+   */
+  private readonly blocks = new Map<string, Container>();
   /**
    * Where `view` was moved to, mirrored onto the deported sprites.
    *
@@ -393,7 +461,11 @@ export class IsoIslandView {
       occupant: { id: `${kind}-${this.livestock.length}`, kind, x, y },
       sprite,
       tier,
+      // Claimed rather than looked up: `stamp` has just drawn it, and reading
+      // it here is what lets a wandering sheep take its shadow with it.
+      shadow: this.lastShadow,
     });
+    this.lastShadow = undefined;
     if (blocksCell(kind)) this.occupied.add(key(x, y));
   }
 
@@ -438,6 +510,115 @@ export class IsoIslandView {
   }
 
   /**
+   * The sprite drawing one inhabitant, by its id.
+   *
+   * `occupants()` hands out the OBSTACLES — where things are, not what they
+   * look like — and that is the right shape for the board, which must not be
+   * able to reach a texture. But an effect applied to the thing hiding the
+   * player (a dissolve, a tint, an outline) needs the sprite itself, and the
+   * alternative is exposing `livestock` wholesale and letting every caller
+   * rummage through the view's internals.
+   *
+   * Returns undefined for an unknown id rather than throwing: a caller holding
+   * a stale occupant list across a rebuild should skip that entry, not crash
+   * the frame.
+   */
+  spriteFor(id: string): Sprite | undefined {
+    return this.livestock.find((entry) => entry.occupant.id === id)?.sprite;
+  }
+
+  /**
+   * The cliff faces standing between the camera and a cell — the rock a
+   * rabbit on this cell is walking behind.
+   *
+   * Decided from where the sprites actually LAND rather than from a fixed
+   * neighbourhood, because on this projection the two are not the same thing
+   * and guessing the offsets got it wrong twice. A face closes the drop on its
+   * cell's south and east sides, so it hangs below that cell — but the cell it
+   * belongs to is also lifted by its own tier, and the two cancel out to
+   * different amounts depending on how deep the drop is. The cells whose rock
+   * ends up in front of a given rabbit are not a neat "one row north" or "one
+   * row south"; they are wherever that arithmetic puts them.
+   *
+   * So this asks the projection directly. A face is in the way when it
+   *
+   *   - stands on higher ground than the rabbit (lower rock is behind it),
+   *   - sorts AFTER the rabbit (`isoDepth`, the same ruler the renderer uses,
+   *     so this can never disagree with what is actually drawn on top), and
+   *   - overlaps the rabbit vertically on screen, within the band its own art
+   *     covers.
+   *
+   * `RABBIT_H` is how tall the thing being hidden is. It is a constant rather
+   * than a measurement because the answer wanted is "is a player-sized sprite
+   * covered here", not "is this particular texture covered" — and a caller
+   * asking about a cell has no sprite to measure yet.
+   */
+  facesHiding(x: number, y: number): Sprite[] {
+    const { map } = this.options;
+    const here = levelAt(map, x, y);
+    const hereDepth = isoDepth(x, y, here);
+    const hereY = isoProject(x + 0.5, y + 0.5, here, this.metrics).y;
+    const out: Sprite[] = [];
+
+    // Only cells near enough to matter: a face more than a few cells away
+    // cannot reach across the screen to cover this one, and walking the whole
+    // map every frame for every occluder is the kind of cost that turns a nice
+    // effect into a dropped frame.
+    for (let cy = y - RADIUS; cy <= y + RADIUS; cy++) {
+      for (let cx = x - RADIUS; cx <= x + RADIUS; cx++) {
+        const tier = levelAt(map, cx, cy);
+        if (tier <= here) continue;
+        if (isoDepth(cx, cy, tier) <= hereDepth) continue;
+
+        const stack = this.faces.get(key(cx, cy));
+        if (!stack) continue;
+
+        // The band this column of rock covers: from the top of its face down
+        // through however many tiles were stacked to close the drop.
+        const topY = isoProject(cx + 0.5, cy + 0.5, tier, this.metrics).y;
+        const bottomY = topY + stack.length * FACE_SOLID_H;
+        // The rabbit's body, not its feet: standing at `hereY`, it occupies the
+        // band above that point.
+        if (bottomY < hereY - RABBIT_H || topY > hereY) continue;
+
+        // The whole stack or none of it: a window through the top slab of a
+        // three-deep column shows the two below, which is worse than no
+        // window at all.
+        out.push(...stack);
+      }
+    }
+    return out;
+  }
+
+  /**
+   * Put a board tile's veil INSIDE its cell's block, over the grass.
+   *
+   * The block draws as one thing in painter's order, so a raised cell's grass
+   * — opaque — lands between its veil and the veil of the lower cell it
+   * overlaps. That is the whole fix for veils compounding along terrace edges,
+   * and it needs no mask and no second sort: the sort the blocks already have
+   * is the one the veils now share.
+   *
+   * Local depth 2: above the rim (0) and the grass (1), below nothing — a veil
+   * is the last thing a cell paints. Positioned at the cell's centre in the
+   * terrain's own space, which is where the board's diamond already was once
+   * `TerrainBackground` aligned the two grids.
+   *
+   * False when there is no block here (sea, or a map without this cell), so a
+   * caller can keep the veil where it was.
+   */
+  mountVeil(x: number, y: number, veil: Sprite): boolean {
+    const block = this.blocks.get(key(x, y));
+    if (!block) return false;
+    const tier = levelAt(this.options.map, x, y);
+    const p = isoProject(x + 0.5, y + 0.5, tier, this.metrics);
+    veil.position.set(p.x, p.y);
+    veil.zIndex = 2;
+    block.addChild(veil);
+    return true;
+  }
+
+  /**
    * Move every inhabitant's sprite to wherever the board has walked it.
    *
    * Cheap enough to call every tick: it touches one position and one depth per
@@ -462,6 +643,12 @@ export class IsoIslandView {
       // the first time it wandered.
       this.placeSprite(sprite, p.x, p.y);
       sprite.zIndex = isoDepth(occupant.x, occupant.y, tier) + 1;
+      // The shadow travels with its owner. Left behind it reads as a stain on
+      // the grass, which is worse than having no shadow at all.
+      if (entry.shadow) {
+        this.placeSprite(entry.shadow, p.x, p.y);
+        entry.shadow.zIndex = sprite.zIndex - 0.5;
+      }
     }
   }
 
@@ -504,7 +691,7 @@ export class IsoIslandView {
    * happened to `syncOccupants`, where a wandering sheep was re-placed by raw
    * projection and snapped back to the terrain's inner origin.
    */
-  private placeSprite(sprite: Sprite, x: number, y: number): void {
+  private placeSprite(sprite: Container, x: number, y: number): void {
     if (this.decoSprites.has(sprite)) {
       sprite.position.set(x + this.originX + this.decoOffsetX, y + this.originY + this.decoOffsetY);
     } else {
@@ -586,9 +773,40 @@ export class IsoIslandView {
         const inTier = atOrAbove(map, tier);
         const mask = edgeMask(inTier, x, y);
 
+        // Everything this cell draws, as one group.
+        //
+        // The faces alone are not enough, and the gap showed up the moment the
+        // effect worked: dissolving the wall left the cell's own GRASS sitting
+        // opaque on top of the hole, so the island read as a slab of turf
+        // floating over a gap. The surface is part of what stands between the
+        // camera and anyone behind this column, so it dissolves with it — the
+        // rock rim too, which is drawn as a separate sprite under the grass and
+        // would otherwise survive as a thin stone lip around nothing.
+        const column: Sprite[] = [];
+
+        /**
+         * ONE CONTAINER PER CELL — the block.
+         *
+         * Everything this cell draws goes in here — the cliff faces, the rock
+         * rim, the grass, and (once the board mounts it) the veil — and the
+         * block is added to `world` with a SINGLE depth. The pieces sort among
+         * themselves with small local numbers and never against a neighbour:
+         * as loose siblings at `depth - 1 - i`, `depth - 1` and `depth`, a
+         * neighbouring cell could sort into the gaps between them. A cell
+         * cannot interleave with a cell.
+         */
+        const block = new Container();
+        block.sortableChildren = true;
+        block.zIndex = depth;
+        world.addChild(block);
+        this.blocks.set(key(x, y), block);
+
         // How far this cell has to reach down before it meets something. The
         // south and east neighbours are the two the camera can see past on
-        // this projection; the drop is to the lower of them.
+        // this projection; the drop is to the LOWER of them, because the one
+        // rectangle drawn here stands in for both faces and has to be as tall
+        // as the deeper — measured against the south alone, a plateau edge on
+        // the sea loses its east-facing cliff and floats.
         const drop = tier - Math.min(levelAt(map, x, y + 1), levelAt(map, x + 1, y));
 
         if (drop > 0) {
@@ -599,29 +817,41 @@ export class IsoIslandView {
           const face = tileset.elevation[FACE_ROW][blobCol(mask)];
           const count = columnFaces(drop, this.metrics, FACE_SOLID_H);
           // Bottom-up, so the face nearest the camera is drawn last and its
-          // lit top edge is not overdrawn by the one below it.
+          // lit top edge is not overdrawn by the one below it. Depths are
+          // local to the block: the faces stack under the surface.
           for (let i = count - 1; i >= 0; i--) {
-            const sprite = this.stamp(world, face, x, y, tier, depth - 1 - i, 0);
+            const sprite = this.stamp(block, face, x, y, tier, -1 - i, 0);
             sprite.scale.set(this.metrics.w / TILE, 1);
             sprite.y += i * FACE_SOLID_H;
+            // Interactive with no action: the wall CATCHES the pointer so it
+            // never reaches the veil of the lower tile drawn under it. Rock on
+            // screen, nothing under the cursor — which is what rock is.
+            sprite.eventMode = 'static';
+            sprite.label = 'wall';
+            column.push(sprite);
           }
         }
 
         // Rock rim under the grass, exactly as the top-down view does it: the
         // grass corners are transparent, so a thin lip of stone survives.
         if (tier > 1) {
-          this.stampGround(
-            world,
+          column.push(this.stampGround(
+            block,
             tileset.elevation[ELEVATION_SURFACE_ROW[blobRow(mask)]][blobCol(mask)],
-            x, y, tier, depth,
-          );
+            x, y, tier, 0,
+          ));
         }
 
         const flat =
           ground === 'tiered'
             ? tileset.tierGrass[Math.min(tier - 1, tileset.tierGrass.length - 1)]
             : tileset.flat[ground];
-        this.stampGround(world, flat[blobRow(mask)][blobCol(mask)], x, y, tier, depth);
+        column.push(this.stampGround(block, flat[blobRow(mask)][blobCol(mask)], x, y, tier, 1));
+
+        // Only cells that actually SHOW rock are worth remembering: a cell in
+        // the middle of a plateau has no face, and dissolving its grass would
+        // punch a hole in ground nothing was hiding behind.
+        if (drop > 0) this.faces.set(key(x, y), column);
       }
     }
   }
@@ -851,6 +1081,36 @@ export class IsoIslandView {
     const deported = this.options.decoLayer;
     if (deported && world === deported) this.decoSprites.add(sprite);
     this.placeSprite(sprite, p.x, p.y);
+
+    /**
+     * The contact shadow, added BEFORE the sprite so it cannot cover it.
+     *
+     * Only for things anchored at the FOOT (`anchorY` near 1) — that is what
+     * separates a tree or a sheep, which stands on the ground, from a ground
+     * texture sheared into its own diamond. Testing the anchor rather than the
+     * kind means anything added later gets one for free, and nothing that lies
+     * flat ever does.
+     *
+     * Depth is `depth - 0.5`: under its own sprite, over the ground of the same
+     * cell (which sits at `depth - 1`). Half a step because the scale is
+     * integer per cell, so there is room between a sprite and its ground and
+     * nowhere else for a neighbour to slip in.
+     */
+    if (this.options.decoShadows && anchorY > 0.9) {
+      const shadow = new Graphics()
+        .ellipse(0, 0, this.metrics.w * SHADOW_RX, this.metrics.h * SHADOW_RY)
+        .fill({ color: 0x000000, alpha: SHADOW_ALPHA });
+      shadow.zIndex = depth - 0.5;
+      if (deported && world === deported) this.decoSprites.add(shadow);
+      this.placeSprite(shadow, p.x, p.y);
+      world.addChild(shadow);
+      // Handed to whoever stamped this, so `register` can tie it to an
+      // occupant and `syncOccupants` can carry it along. A field rather than a
+      // return value because `stamp`'s contract is "the sprite", and every
+      // existing caller reads it that way.
+      this.lastShadow = shadow;
+    }
+
     world.addChild(sprite);
     return sprite;
   }

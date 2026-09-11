@@ -164,11 +164,18 @@ export class IslandScene implements Scene {
       const seed = this.data?.seed ?? '';
       const { col, row } = toColRow(i);
       const tile = new Tile(i, undefined, tierLift(seed, i), levelTierAt(seed, col, row));
-      // Per-tile click. The Seeker is a touch device, so this — not the
-      // keyboard — is how the game is actually played.
-      tile.container.on('pointertap', () => this.requestMove(i));
+      // Per-tile tap, on the VEIL: the pointer follows the tile as drawn, and
+      // a wall over it catches the tap instead (see Tile's constructor). The
+      // Seeker is a touch device, so this — not the keyboard — is how the
+      // game is actually played.
+      tile.onTap(() => this.requestMove(i));
       this.tiles.set(i, tile);
       this.container.addChild(tile.container);
+      // The veil goes into the cell's terrain block, so it sorts with the
+      // ground rather than stacking on the veils of lower neighbours — the
+      // double-dark wedge along every terrace edge was two veils with nothing
+      // opaque between them. The hints and highlights stay up here.
+      tile.mountVeil((veil) => this.background?.mountVeil(i, veil) ?? false);
     }
     this.tiles.get(SPAWN_INDEX)?.markSpawn();
   }
@@ -307,6 +314,11 @@ export class IslandScene implements Scene {
     this.container.eventMode = 'static';
     this.container.hitArea = { contains: () => true };
     this.container.on('pointertap', (e) => {
+      // A tap ON a tile has already been handled by that tile, and bubbles up
+      // here. Resolving it again through `terrainTileAt` — a flat-projection
+      // resolver that knows nothing about walls — could name a DIFFERENT tile
+      // and fire a second move at it. Only taps that hit no tile are ours.
+      if (e.target !== this.container) return;
       const local = this.container.toLocal(e.global);
       // Terrace-aware: a tap on a plateau must name the plateau, not the
       // grass drawn below it.

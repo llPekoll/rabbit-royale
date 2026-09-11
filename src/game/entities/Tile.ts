@@ -214,15 +214,52 @@ export class Tile {
     this.blinkGfx.alpha = 0;
     this.container.addChild(this.blinkGfx);
 
-    // Set up interactivity with diamond hit area
-    this.container.eventMode = 'static';
-    this.container.cursor = 'pointer';
-    this.container.hitArea = new Polygon([
+    /**
+     * The VEIL is what the pointer sees, not the container.
+     *
+     * The veil is the tile as drawn: it lives in the cell's terrain block and
+     * sorts with the ground, so a raised tile's veil is tested before the
+     * lower veil it covers, and Pixi's draw order answers "which tile is under
+     * the pointer" exactly as the picture does. The container holds hints and
+     * highlights, which float above everything and must not catch the pointer
+     * for a tile whose veil is hidden under a neighbour's wall — the wall
+     * itself is interactive with no action, so it swallows that pointer
+     * instead (see `buildGround`).
+     *
+     * A dug tile keeps its veil at alpha 0 and stays tappable: the hit test
+     * does not read alpha. The hit area is the FULL diamond, not the inset one
+     * the texture draws, so the hairline between two tiles belongs to one of
+     * them rather than to whatever shows through it.
+     */
+    this.container.eventMode = 'passive';
+    this.fog.eventMode = 'static';
+    this.fog.cursor = 'pointer';
+    this.fog.label = `tile-${index}`;
+    this.fog.hitArea = new Polygon([
       0, -HALF_H,
       HALF_W, 0,
       0, HALF_H,
       -HALF_W, 0,
     ]);
+  }
+
+  /** Run `fn` when the tile is tapped. Bound to the veil — see the constructor. */
+  onTap(fn: () => void): void {
+    this.fog.on('pointertap', fn);
+  }
+
+  /**
+   * Hand the veil to a host that will draw it somewhere else.
+   *
+   * The island scene mounts it inside the cell's TERRAIN block, so it sorts
+   * with the ground it covers instead of with the tile's hints and highlights
+   * (which stay here, above everything). The tile keeps tweening it — the
+   * reveal does not care whose child it is. If the host declines, the veil
+   * goes back where it was, under everything else the tile draws.
+   */
+  mountVeil(host: (veil: Sprite) => boolean): void {
+    this.container.removeChild(this.fog);
+    if (!host(this.fog)) this.container.addChildAt(this.fog, 0);
   }
 
   /**
@@ -560,7 +597,7 @@ export class Tile {
     // A lit tile is a clickable one, so say so with the cursor too — on a
     // desktop the pointer is the affordance a player reads before the glow.
     // (A phone has no cursor and simply ignores this.)
-    this.container.cursor = on ? 'pointer' : 'default';
+    this.fog.cursor = on ? 'pointer' : 'default';
   }
 
   /** One-shot gold flash: snap to full opacity, then fade back to
@@ -584,9 +621,10 @@ export class Tile {
   }
 
   /**
-   * Put the round's chest on this tile — visible THROUGH the fog from the
-   * first frame (the spec's "il le voit et choisit d'y aller"): added after
-   * the fog child, so paint order keeps it on top while the tile is unrevealed.
+   * Put the round's chest on this tile — visible from the first frame (the
+   * spec's "il le voit et choisit d'y aller"). It draws above the veil: the
+   * veil lives in the cell's terrain block (see `mountVeil`), under everything
+   * this container holds.
    * `tint` is the rarity accent (chestConfig.CHEST_TIER_COLOR).
    */
   setChest(tint: number, drop = false, tier: string = 'common'): void {
@@ -906,6 +944,9 @@ export class Tile {
   destroy(): void {
     gsap.killTweensOf(this.blinkGfx);
     gsap.killTweensOf(this.fog);
+    // A veil mounted in a terrain block is not this container's child, so
+    // destroying the container would leave it behind on the island.
+    if (this.fog.parent !== this.container && !this.fog.destroyed) this.fog.destroy();
     this.stopChestTweens();
     if (this.chestSprite) {
       gsap.killTweensOf(this.chestSprite);

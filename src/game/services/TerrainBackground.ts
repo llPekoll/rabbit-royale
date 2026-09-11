@@ -14,8 +14,8 @@
  * origin, so a terrain cell and a playable tile are the same diamond rather
  * than two grids that merely look alike.
  */
-import { Container } from 'pixi.js';
-import { HALF_W, HALF_H, ISO_ORIGIN_X, ISO_ORIGIN_Y, COLS, ROWS } from '@/config/gridConfig';
+import { Container, type Sprite } from 'pixi.js';
+import { HALF_W, HALF_H, ISO_ORIGIN_X, ISO_ORIGIN_Y, COLS, ROWS, toColRow } from '@/config/gridConfig';
 import { IsoIslandView, loadIslandTileset, isoProject } from '@/game/island';
 import { terrainFor, TIER_LIFT } from '@/lib/game/terrainBoard';
 import type { IslandBackground } from './IslandBackground';
@@ -40,6 +40,11 @@ export interface TerrainBackground extends IslandBackground {
    * flock across a rebuild would send.
    */
   moveSheep(id: string, x: number, y: number): void;
+  /**
+   * Put a tile's veil inside the terrain block of its cell — see
+   * `IsoIslandView.mountVeil`. False when the cell has no block.
+   */
+  mountVeil(index: number, veil: Sprite): boolean;
 }
 
 /**
@@ -81,6 +86,9 @@ export async function createTerrainBackground(
     decoScale: DECO_SCALE,
     placements,
     decoLayer: container,
+    // Over a playing board a tree without one hovers between two lit
+    // diamonds and the eye cannot tell which cell it stands on.
+    decoShadows: true,
   });
 
   // Line the terrain up with the BOARD's grid: project the board's origin
@@ -119,6 +127,10 @@ export async function createTerrainBackground(
       one.x = x;
       one.y = y;
       island.syncOccupants();
+    },
+    mountVeil(index, veil) {
+      const { col, row } = toColRow(index);
+      return island.mountVeil(col, row, veil);
     },
     update: (deltaMs) => island.update(deltaMs),
     destroy: () => island.destroy(),

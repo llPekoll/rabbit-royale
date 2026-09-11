@@ -17,7 +17,7 @@
  * every spectator join, and regenerating a few hundred cells each time would
  * be wasted work on both ends.
  */
-import { COLS, ROWS, screenToTile, tilePos, toColRow, toIndex } from '@/config/gridConfig';
+import { COLS, ROWS, TIER_LIFT, screenToTile, tilePos, toColRow, toIndex } from '@/config/gridConfig';
 import { IslandBoard } from '@/game/island/board';
 import { generateTerrain, type Terrain } from '@/game/island/terrain';
 
@@ -38,16 +38,9 @@ export const TERRAIN_OPTIONS = {
   raggedness: 0.32,
 } as const;
 
-/**
- * How far one terrain tier lifts a tile, in board pixels.
- *
- * Lives here rather than in the renderer because BOTH the ground and the
- * playable tiles have to agree on it. While it was a constant inside the
- * background, the terrain rose and the board stayed at sea level — a flat
- * chequerboard laid over a landscape with plateaus, each contradicting the
- * other. Anything that draws a cell reads this.
- */
-export const TIER_LIFT = 18;
+/** Re-exported for the callers that always found it here; it lives in
+ *  `gridConfig` now, next to the other board pixels — see the note there. */
+export { TIER_LIFT };
 
 const cache = new Map<string, { terrain: Terrain; board: IslandBoard }>();
 

@@ -43,6 +43,15 @@ export const ISO_ORIGIN_X = 515;
 export const ISO_ORIGIN_Y = 150;
 
 /**
+ * How far one terrain tier lifts a tile, in board pixels.
+ *
+ * Here with HALF_W and HALF_H because it is a board dimension, not a rendering
+ * choice: the ground, the playable tiles and the click resolver all have to
+ * agree on it, and they all read it from here.
+ */
+export const TIER_LIFT = 18;
+
+/**
  * How large a rabbit is drawn, as a multiple of its 32px sprite.
  *
  * Deliberately NOT derived from the tile size. The original tied the two

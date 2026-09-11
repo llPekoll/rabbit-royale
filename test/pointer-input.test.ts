@@ -44,6 +44,13 @@ describe('Pixi receives events at all', () => {
   });
 
   it('lets each tile answer for itself as well', () => {
-    expect(SCENE).toMatch(/tile\.container\.on\('pointertap'/);
+    // Through its VEIL, not its container: the veil is the tile as drawn and
+    // sorts with the ground, so a raised tile's veil is hit before the lower
+    // veil it covers — and the container, which floats above everything with
+    // the hints, stays transparent to the pointer.
+    expect(SCENE).toMatch(/tile\.onTap\(/);
+    const TILE = readFileSync(new URL('../src/game/entities/Tile.ts', import.meta.url), 'utf8');
+    expect(TILE).toMatch(/this\.fog\.on\('pointertap', fn\)/);
+    expect(TILE).toMatch(/this\.container\.eventMode = 'passive'/);
   });
 });
