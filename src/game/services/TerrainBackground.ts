@@ -59,8 +59,18 @@ export async function createTerrainBackground(
     ISO_ORIGIN_X - origin.x - island.originX,
     ISO_ORIGIN_Y - origin.y - island.originY,
   );
-  // Under the board and the rabbits, which the scene adds after this.
-  container.addChildAt(island.view, 0);
+  /**
+   * Under the board, the rabbits AND the clouds.
+   *
+   * The insertion index alone does not say this: the scene sorts its children
+   * by `zIndex` (`sortableChildren`), so being added first only holds until
+   * something with a lower one shows up. The clouds are that something — they
+   * sit at -9, on the documented assumption that this backdrop is at -10, and
+   * with the terrain left at the default 0 they drifted BEHIND the sea instead
+   * of over it.
+   */
+  island.view.zIndex = -10;
+  container.addChild(island.view);
 
   return {
     layout() {
