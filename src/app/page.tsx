@@ -544,7 +544,7 @@ function Burrow() {
    *
    * `where` is the one piece of state that outlived a session: it is not
    * derived from the player, so logging out on the island left it on 'island'
-   * and the signed-out screen kept the island's HUD and its "To the burrow"
+   * and the signed-out screen kept the island's HUD and its "Back home"
    * arrow floating over the sign-in art. Everything else here is the same
    * class of leftover — a shop drawer, a half-picked raid target, a codex
    * scrolled to chapter four — all of which would still be open behind the
@@ -686,7 +686,7 @@ function Burrow() {
           `|| !showCanvas` is a belt on top of the reset above: before the
           curtain hands the frame over there is no canvas and no run, so the
           island branch has nothing to draw over — it would put a HUD and a
-          "To the burrow" arrow on the sign-in screen.
+          "Back home" arrow on the sign-in screen.
           The effect already puts `where` back; this makes the wrong screen
           unreachable rather than merely un-entered. */}
       {/* The burrow column is about YOUR burrow — its HP, its garden, its
@@ -890,8 +890,8 @@ function Burrow() {
               the target would strand the session as a viewer with no way back
               into its own game. */}
           <GoButton
-            dir="up"
-            label={spectating ? 'Stop watching' : 'To the burrow'}
+            dir="down"
+            label={spectating ? 'Stop watching' : 'Back home'}
             onClick={stopSpectating}
           />
         </div>

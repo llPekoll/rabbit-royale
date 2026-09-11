@@ -66,8 +66,8 @@ function Overlay({ energy, carrots, rabbits, warnStage, spectating, recap }: Arg
         {/* The one way out. Not a nav bar: the game is two places, and each is
             one press from the other. */}
         <GoButton
-          dir="up"
-          label={spectating ? 'Stop watching' : 'To the burrow'}
+          dir="down"
+          label={spectating ? 'Stop watching' : 'Back home'}
           onClick={() => {}}
         />
       </div>

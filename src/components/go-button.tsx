@@ -1,7 +1,11 @@
 'use client';
 
 /**
- * The one action on each screen: down to the island, back up to the burrow.
+ * The one action on each screen: out to the island, and home again.
+ *
+ * Both arrows point DOWN. The island's exit is not "up to the burrow" — going
+ * home is settling back into it, and an up arrow on a button called "Back
+ * home" pointed away from the place it names.
  *
  * Uses the arcade-kit's own pixel arrow — the same sprite that flanks the hub's
  * cabinet carousel — rather than a text glyph, so this button belongs to the

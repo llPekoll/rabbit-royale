@@ -180,14 +180,18 @@ export class Tile {
    *  floating over the rabbit's head. */
   private static readonly PALIER_BOB_AMP = 2.5;
 
-  constructor(index: number, fogStyle?: FogStyle, lift = 0) {
+  constructor(index: number, fogStyle?: FogStyle, lift = 0, tier = 0) {
     this.index = index;
     const { x, y: flatY } = tilePos(index);
     // Raised onto its own terrace. Without this the board is a flat
     // chequerboard lying across a landscape with plateaus: the ground rises,
     // the tiles stay at sea level, and the two visibly contradict each other.
     const y = flatY - lift;
-    const depth = tileDepth(index);
+    // Depth on the SAME scale the terrain sorts by (`isoDepth`), height
+    // included. `tileDepth` alone is `col + row`, which gives a raised tile and
+    // a sea-level one on the same diagonal an identical depth — so which of
+    // them draws on top is arbitrary, and neighbouring tiles visibly overlap.
+    const depth = tileDepth(index) * 16 + tier;
 
     this.container = new Container();
     this.container.position.set(x, y);

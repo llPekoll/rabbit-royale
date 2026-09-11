@@ -1,7 +1,7 @@
 import { Container, Graphics } from 'pixi.js';
-import { terrainNeighbors, tileScreenPos } from '@/lib/game/terrainBoard';
+import { levelTierAt, terrainNeighbors, tileScreenPos } from '@/lib/game/terrainBoard';
 import {
-  HALF_W, HALF_H, tilePos, tileDepth, tileInScreenDirection,
+  HALF_W, HALF_H, tilePos, tileDepth, tileInScreenDirection, toColRow,
   DEFAULT_SHAPE, type IslandShape,
 } from '@/config/gridConfig';
 
@@ -122,7 +122,12 @@ export class MoveArrows {
       // ground BELOW the shelf its tile is actually on.
       const { x, y } = this.seed ? tileScreenPos(this.seed, target) : tilePos(target);
       g.position.set(x, y);
-      g.zIndex = tileDepth(target) + 0.5;
+      // Same scale the tiles sort on (see `Tile`): depth * 16 + tier. Half a
+      // unit above the tile it names, which on this scale is still well below
+      // the next cell along.
+      const cell = toColRow(target);
+      const tier = this.seed ? levelTierAt(this.seed, cell.col, cell.row) : 0;
+      g.zIndex = tileDepth(target) * 16 + tier + 0.5;
       g.alpha = this.alpha;
       g.visible = true;
     });

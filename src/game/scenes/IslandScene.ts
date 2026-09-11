@@ -32,7 +32,7 @@ import {
   isForbidden, makeShape, screenToTile, tilePos, tileInScreenDirection,
   toColRow, type IslandShape,
 } from '@/config/gridConfig';
-import { farmableTiles, terrainTileAt, tierLift } from '@/lib/game/terrainBoard';
+import { farmableTiles, levelTierAt, terrainTileAt, tierLift } from '@/lib/game/terrainBoard';
 import type { TileContent } from '@/lib/game/types';
 import { ENERGY, LIGHTNING } from '@config/tuning';
 import { reachableTiles } from '@/lib/game/reachable';
@@ -161,7 +161,9 @@ export class IslandScene implements Scene {
     for (const i of farmableTiles(this.data?.seed ?? '')) {
       // Lifted onto the terrace the terrain puts it on, so the board follows
       // the landscape instead of lying flat across it.
-      const tile = new Tile(i, undefined, tierLift(this.data?.seed ?? '', i));
+      const seed = this.data?.seed ?? '';
+      const { col, row } = toColRow(i);
+      const tile = new Tile(i, undefined, tierLift(seed, i), levelTierAt(seed, col, row));
       // Per-tile click. The Seeker is a touch device, so this — not the
       // keyboard — is how the game is actually played.
       tile.container.on('pointertap', () => this.requestMove(i));

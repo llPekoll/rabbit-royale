@@ -1,6 +1,6 @@
 import { AnimatedSprite, Assets, Container, Sprite, Texture } from 'pixi.js';
-import { tilePos, ISO_TILE_W, RABBIT_SCALE } from '@/config/gridConfig';
-import { tileScreenPos } from '@/lib/game/terrainBoard';
+import { tilePos, tileDepth, toColRow, ISO_TILE_W, RABBIT_SCALE } from '@/config/gridConfig';
+import { levelTierAt, tileScreenPos } from '@/lib/game/terrainBoard';
 import * as Keys from '@/config/assetKeys';
 import { getBunnyAnimTextures, BUNNY_ANIM_DEFS } from '../services/AssetLoader';
 import gsap from 'gsap';
@@ -17,7 +17,12 @@ export class PlayerRabbit {
     this.sheetKey = sheetKey;
     this.seed = seed;
     this.container = new Container();
-    this.container.zIndex = 50;
+    // Sorted by its CELL, on the same scale as the tiles (see `Tile`): a fixed
+    // depth put the rabbit behind every tile further down the board once tiles
+    // started sorting by `depth * 16 + tier`. The +8 is half a cell, so the
+    // rabbit stands on its own tile and in front of it, but behind the next
+    // row down.
+    this.container.zIndex = this.depthFor(tileIndex);
 
     const { x, y } = this.at(tileIndex);
 
@@ -37,6 +42,13 @@ export class PlayerRabbit {
   /** Where a tile's centre is, terrace included. */
   private at(tileIndex: number): { x: number; y: number } {
     return this.seed ? tileScreenPos(this.seed, tileIndex) : tilePos(tileIndex);
+  }
+
+  /** Depth for a cell, on the scale the tiles sort by. */
+  private depthFor(tileIndex: number): number {
+    const cell = toColRow(tileIndex);
+    const tier = this.seed ? levelTierAt(this.seed, cell.col, cell.row) : 0;
+    return tileDepth(tileIndex) * 16 + tier + 8;
   }
 
   /** Drop the rabbit from above with a snappy bounce landing. */
@@ -80,6 +92,9 @@ export class PlayerRabbit {
     this.isMoving = true;
 
     const { x, y } = this.at(tileIndex);
+    // Re-sorted as it goes: a rabbit that kept its old depth would walk behind
+    // the tiles it is moving towards.
+    this.container.zIndex = this.depthFor(tileIndex);
 
     // Flip sprite based on horizontal direction
     if (x < this.container.x) this.sprite.scale.x = -Math.abs(this.sprite.scale.x);
@@ -172,6 +187,7 @@ export class PlayerRabbit {
   setPosition(tileIndex: number): void {
     const { x, y } = this.at(tileIndex);
     this.container.position.set(x, y);
+    this.container.zIndex = this.depthFor(tileIndex);
   }
 
   destroy(): void {
