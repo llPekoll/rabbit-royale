@@ -44,7 +44,7 @@ export type LinkResult =
    * possible place to decide it. The client is told to sign in to that account
    * instead, and the guest row is left untouched.
    */
-  | { ok: false; reason: 'wallet_taken'; playerId: string }
+  | { ok: false; reason: 'wallet_taken'; playerId: string; takenBy: string }
   | { ok: false; reason: 'unknown_player' };
 
 /**
@@ -66,13 +66,30 @@ export async function linkWalletToPlayer(
   if (!me) return { ok: false, reason: 'unknown_player' };
   if (me.wallet) return { ok: false, reason: 'already_linked' };
 
-  // Checked BEFORE the signature is consumed, so a player who picked the wrong
-  // wallet is not also charged a spent nonce for the mistake.
   const taken = await db.query.players.findFirst({ where: eq(players.wallet, address) });
-  if (taken) return { ok: false, reason: 'wallet_taken', playerId: taken.id };
 
-  if (!(await verifyLoginChallenge(address, signatureB58, now))) {
-    return { ok: false, reason: 'invalid_signature' };
+  /*
+   * Proved BEFORE the refusal, not after — and this costs the nonce.
+   *
+   * The refusal below NAMES the burrow holding the wallet. Checking `taken`
+   * first (as this did) would let any guest session post an arbitrary address
+   * and read back whose it is, with no proof of anything: an enumeration
+   * oracle over every player's wallet. Proving first means the only name you
+   * can ever learn is one you just demonstrated you own.
+   *
+   * The cost is that picking the wrong wallet now spends the challenge, where
+   * before it was free. That is the right trade: a spent nonce costs one more
+   * signature prompt, and the player is about to be sent somewhere useful
+   * anyway. Leaking the map of wallets to burrows costs everybody else.
+   */
+  const proven = await verifyLoginChallenge(address, signatureB58, now);
+  if (!proven) return { ok: false, reason: 'invalid_signature' };
+
+  // The NAME travels with the refusal: "that wallet already has a burrow" is
+  // a fact about somebody the player cannot see, and "...called Thistle" is
+  // the same fact about a burrow they recognise as their own.
+  if (taken) {
+    return { ok: false, reason: 'wallet_taken', playerId: taken.id, takenBy: taken.name };
   }
 
   // The unique index is the real guard: two guests racing the same wallet both
@@ -87,6 +104,10 @@ export async function linkWalletToPlayer(
     if (!updated) return { ok: false, reason: 'unknown_player' };
     return { ok: true, playerId: updated.id, wallet: address, name: updated.name };
   } catch {
-    return { ok: false, reason: 'wallet_taken', playerId: '' };
+    // Lost the unique-index race. The winner's row is not read back for a
+    // name — it exists by definition, and a second query on the failure path
+    // is one more thing to go wrong while telling somebody something went
+    // wrong.
+    return { ok: false, reason: 'wallet_taken', playerId: '', takenBy: '' };
   }
 }

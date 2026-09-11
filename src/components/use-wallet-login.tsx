@@ -79,6 +79,15 @@ function useWalletSession() {
   const [token, setToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /**
+   * The burrow already holding the wallet a guest just tried to link.
+   *
+   * Non-null means the last link was refused as `wallet_taken` and the player
+   * can be offered that burrow instead of being told to go find it themselves.
+   * An empty string is the same refusal without a name (the unique index
+   * caught the race, and the winner's row is not read back for one).
+   */
+  const [takenBy, setTakenBy] = useState<string | null>(null);
 
   // Restore a previous session before deciding to show a login button — the
   // token is what the WS handshake needs, so it is kept where JS can read it.
@@ -181,6 +190,7 @@ function useWalletSession() {
 
   const login = useCallback(async () => {
     setError(null);
+    setTakenBy(null);
     setBusy(true);
     try {
       const { address, signature } = await proveWallet();
@@ -233,6 +243,7 @@ function useWalletSession() {
   const linkWallet = useCallback(async (): Promise<boolean> => {
     if (!token) return false;
     setError(null);
+    setTakenBy(null);
     setBusy(true);
     try {
       const { address, signature } = await proveWallet();
@@ -244,7 +255,15 @@ function useWalletSession() {
       }).then((r) => r.json());
 
       if (res.error === 'wallet_taken') {
-        throw new Error('That wallet already has a burrow. Disconnect and sign in with it.');
+        // Named, and remembered: the panel turns this into a button that signs
+        // into that burrow, so the dead end becomes one press. The name may be
+        // absent when the unique index (not the read) caught the clash.
+        setTakenBy(typeof res.takenBy === 'string' && res.takenBy ? res.takenBy : '');
+        throw new Error(
+          res.takenBy
+            ? `That wallet already digs for "${res.takenBy}".`
+            : 'That wallet already has a burrow.',
+        );
       }
       if (res.error === 'already_linked') {
         throw new Error('This burrow already has a wallet.');
@@ -286,7 +305,10 @@ function useWalletSession() {
     if (patch.name) setPlayer((p) => (p ? { ...p, name: patch.name! } : p));
   }, []);
 
-  return { player, token, busy, error, login, playAsGuest, linkWallet, logout, applyProfile };
+  return {
+    player, token, busy, error, takenBy,
+    login, playAsGuest, linkWallet, logout, applyProfile,
+  };
 }
 
 export type WalletSession = ReturnType<typeof useWalletSession>;

@@ -44,7 +44,17 @@ export async function POST(req: Request) {
 
   const result = await linkWalletToPlayer(session.sub, address, signature);
   if (!result.ok) {
-    return Response.json({ error: result.reason }, { status: STATUS[result.reason] ?? 400 });
+    // `wallet_taken` carries WHO holds it. The client turns that into a named
+    // offer to switch, so the refusal ends somewhere the player can go —
+    // sending back the bare reason left them re-pressing a button that could
+    // only ever fail again. Nothing secret: they just proved they own this
+    // wallet, so the burrow it belongs to is already theirs to see.
+    return Response.json(
+      result.reason === 'wallet_taken'
+        ? { error: result.reason, takenBy: result.takenBy }
+        : { error: result.reason },
+      { status: STATUS[result.reason] ?? 400 },
+    );
   }
 
   const player = await db.query.players.findFirst({ where: eq(players.id, result.playerId) });

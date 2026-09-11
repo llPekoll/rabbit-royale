@@ -80,6 +80,15 @@ export interface ProfileMenuProps {
    * that caused it.
    */
   connectError?: string | null;
+  /**
+   * The burrow that already holds the wallet they just tried to link, when
+   * that is why the last attempt failed. Non-null turns the dead end into an
+   * offer to sign into that burrow instead; an empty string is the same
+   * refusal with no name to show.
+   */
+  takenBy?: string | null;
+  /** Sign into the burrow that owns the wallet, abandoning this guest one. */
+  onSwitchToOwner?: (() => void) | null;
   /** Avatar as the server currently has it — null until the player picks one. */
   avatar?: string | null;
   /** Told the new name/avatar so the chip outside updates without a reload. */
@@ -95,6 +104,8 @@ export function ProfileMenu({
   onConnectWallet,
   connecting = false,
   connectError = null,
+  takenBy = null,
+  onSwitchToOwner = null,
   onUpdated,
   onClose,
   onLogout,
@@ -308,6 +319,18 @@ export function ProfileMenu({
                 {/* The refusal, where the press happened. Silence here reads as
                     a dead button, which is the one thing it must never do. */}
                 {connectError && <p className="rr-warn">{connectError}</p>}
+                {/* A refused link used to end here, on advice ("disconnect and
+                    sign in with it") that the player had to carry out by hand
+                    — so the honest thing to do was also the tedious thing, and
+                    pressing Connect again was easier and could only fail. The
+                    burrow they were sent to find is one press away instead.
+                    Their guest burrow is NOT destroyed by this: it keeps its
+                    row, and this browser simply stops being signed into it. */}
+                {takenBy !== null && onSwitchToOwner && (
+                  <button className="rr-btn ghost" onClick={onSwitchToOwner}>
+                    {takenBy ? `Play as "${takenBy}"` : 'Sign in with that wallet'}
+                  </button>
+                )}
               </div>
             ) : (
               <p className="rr-wallet-line" title={player.wallet ?? undefined}>

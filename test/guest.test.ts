@@ -121,6 +121,19 @@ describe('the shape of the feature', () => {
     expect(LINK).toMatch(/already_linked/);
   });
 
+  it('proves the wallet BEFORE naming the burrow that holds it', () => {
+    // The `wallet_taken` refusal carries the owner's name so the player can be
+    // offered that burrow. That name is only safe to hand out AFTER the caller
+    // has proved they own the address — otherwise any guest session could post
+    // addresses and read back whose they are, enumerating every player's
+    // wallet for free. Order is the whole guard, so it is pinned here.
+    const proven = LINK.indexOf('verifyLoginChallenge(address');
+    const named = LINK.indexOf("reason: 'wallet_taken', playerId: taken.id");
+    expect(proven).toBeGreaterThan(-1);
+    expect(named).toBeGreaterThan(-1);
+    expect(proven).toBeLessThan(named);
+  });
+
   it('gives a guest the onboarding shield a wallet player gets', () => {
     // A guest is the most fragile new player there is, so they are the last
     // account to take the anti-farming shield away from.

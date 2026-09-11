@@ -18,7 +18,7 @@ import { ProfileMenu } from '@/components/profile-menu';
 import { avatarSrc, AVATAR_FRAME } from '@/lib/game/avatars';
 
 export function WalletButton() {
-  const { player, token, busy, error, login, linkWallet, logout, applyProfile } =
+  const { player, token, busy, error, takenBy, login, linkWallet, logout, applyProfile } =
     useWalletLogin();
   const [open, setOpen] = useState(false);
   const [avatar, setAvatar] = useState<string | null>(null);
@@ -82,6 +82,18 @@ export function WalletButton() {
           avatar={avatar}
           connecting={busy}
           connectError={player.guest ? error : null}
+          takenBy={player.guest ? takenBy : null}
+          // Signing in as the wallet's owner leaves the guest burrow behind —
+          // `login` adopts the other session wholesale. The panel closes on
+          // the way: everything in it describes the account being left.
+          onSwitchToOwner={
+            player.guest
+              ? () => {
+                  setOpen(false);
+                  void login();
+                }
+              : null
+          }
           // Only a guest is offered the upgrade; a wallet player has nothing
           // to link, and the panel hides the whole block for them.
           onConnectWallet={
