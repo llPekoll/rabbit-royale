@@ -126,12 +126,17 @@ export class IslandBoard {
   /**
    * True when the tier above drops a CLIFF FACE onto this cell.
    *
-   * The face is drawn in the cell below a shelf's edge, standing on whatever
-   * is down there — so that cell is land by the map, but every pixel a player
-   * can see of it is rock. Farming it would put a carrot inside a cliff, and
-   * walking onto it would put the rabbit behind one. The view already refuses
-   * to grow mushrooms here for exactly the same reason; the board has to agree
-   * with the picture, or the two disagree about where the island is.
+   * Kept as a QUESTION, no longer as a veto. The face is drawn in the cell
+   * below a shelf's edge, so part of this tile is under rock — which is why
+   * scenery still avoids it, a carrot half-buried in a cliff being a poor
+   * prize.
+   *
+   * It used to make the cell unplayable too, and that was wrong at the scale
+   * it happened: cliff feet run in CONTIGUOUS BANDS along every plateau, about
+   * 6% of an island and up to 10%, so the board came out with blank strips
+   * beside every shelf that read as missing tiles rather than as rock. A tile
+   * partly covered by the cliff above it is still a tile a rabbit can stand on
+   * and dig, and the player can see it perfectly well.
    */
   isUnderCliff(x: number, y: number): boolean {
     const here = levelAt(this.map, x, y);
@@ -240,16 +245,12 @@ export const WANDER_CHANCE = 0.25;
  * The island's main body: the largest set of cells that can all reach one
  * another, ignoring who happens to be standing where.
  *
- * Excluding the cells a cliff face is drawn over does not just shrink the
- * island, it can CUT PIECES OFF it — a shelf whose only approach ran along the
- * foot of a cliff leaves a pocket of grass nothing can walk to. Measured over
- * sixty seeds, five islands strand something and the worst loses 5.9% of its
- * cells that way.
- *
- * Those pockets are worse than missing ground: they are visibly part of the
- * island, so a carrot buried in one is a prize the player can see and never
- * collect. The board therefore keeps only the main body, and the pockets stay
- * as scenery — land you look at, like the sea.
+ * The island can still come apart even with every land cell standable: a
+ * shelf two tiers above its only neighbour is land nothing can climb to. Those
+ * pockets are worse than missing ground — they are visibly part of the island,
+ * so a carrot buried in one is a prize the player can see and never collect.
+ * The board therefore keeps only the main body, and the pockets stay as
+ * scenery: land you look at, like the sea.
  *
  * Computed once per board rather than per query: it is one flood fill over the
  * map, and every `isWalkable` afterwards is a set lookup.
@@ -259,10 +260,10 @@ export const WANDER_CHANCE = 0.25;
  * stop being farmable because a sheep walked past it.
  */
 export function playableCells(map: IslandMap): Set<string> {
-  const standable = (x: number, y: number) => {
-    const here = levelAt(map, x, y);
-    return here > 0 && levelAt(map, x, y - 1) <= here;
-  };
+  // Land is land. A cell with a cliff face drawn across part of it is still
+  // ground a rabbit stands on — excluding those carved blank bands out of
+  // every plateau's foot, which is a worse problem than a partly-hidden tile.
+  const standable = (x: number, y: number) => levelAt(map, x, y) > 0;
 
   const seen = new Set<string>();
   let best = new Set<string>();

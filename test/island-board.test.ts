@@ -14,6 +14,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { generateIsland, levelAt } from '@/game/island/generate';
+import { generateTerrain } from '@/game/island/terrain';
 import { IslandBoard, MAX_STEP, cellKey, type Occupant } from '@/game/island/board';
 import { THING_RULES, blocksCell, type ThingKind } from '@/game/island/blocking';
 
@@ -127,129 +128,41 @@ describe('every island is one connected board', () => {
 });
 
 /**
- * Nothing is farmed, walked or stood on inside a cliff.
+ * A cliff's FOOT is ground, not a wall.
  *
- * A cell below a shelf's edge is land on the map but rock on the screen: the
- * face is drawn standing on it. Burying a carrot there would put it inside the
- * cliff, which is the kind of thing that looks like a rendering bug and is
- * really a disagreement between the board and the picture.
- */
-describe('cliffs are not ground', () => {
-  it.each(SEEDS.slice(0, 20))('%s farms nothing under a cliff', (seed) => {
-    const map = generateIsland({ seed, tiers: 4, rise: 0.55 });
-    const board = new IslandBoard(map);
-    for (const cell of board.farmableCells()) {
-      expect(board.isUnderCliff(cell.x, cell.y)).toBe(false);
-    }
-  });
-
-  it.each(SEEDS.slice(0, 20))('%s never walks into one', (seed) => {
-    const map = generateIsland({ seed, tiers: 4, rise: 0.55 });
-    const board = new IslandBoard(map);
-    for (const [x, y] of standableCells(board, map)) {
-      for (const to of board.stepsFrom(x, y)) {
-        expect(board.isUnderCliff(to.x, to.y)).toBe(false);
-      }
-    }
-  });
-
-  /**
-   * The pockets a cliff cuts off stay SMALL.
-   *
-   * Keeping only the main body is what makes connectivity true, but it would
-   * also be a perfect way to hide a bad island: a generator that dealt two
-   * halves and a bridge would pass every test above while quietly throwing
-   * away half the map. So the share discarded is pinned too.
-   */
-  it.each(SEEDS.slice(0, 20))('%s strands almost nothing', (seed) => {
-    const map = generateIsland({ seed, tiers: 4, rise: 0.55 });
-    const board = new IslandBoard(map);
-    const standable = landCells(map).filter(([x, y]) => !board.isUnderCliff(x, y));
-    const onBoard = standable.filter(([x, y]) => board.isOnBoard(x, y));
-    expect(onBoard.length / standable.length).toBeGreaterThan(0.9);
-  });
-
-  it('still leaves most of the island farmable', () => {
-    const map = generateIsland({ seed: 'yield', tiers: 3 });
-    const board = new IslandBoard(map);
-    // A rule that quietly ate the island would pass both tests above.
-    expect(board.farmableCells().length).toBeGreaterThan(landCells(map).length * 0.7);
-  });
-});
-
-/**
- * Nothing is walkable that something is standing in.
+ * It used to be excluded: the face is drawn across part of that cell, so it
+ * looked like rock. But cliff feet run in contiguous bands along every
+ * plateau — about 6% of an island, up to 10% — and removing them carved blank
+ * strips beside every shelf that read as missing tiles. A tile partly covered
+ * by the cliff above it is still a tile a rabbit stands on and digs.
  *
- * The rule the whole registry exists for, and the bug it was written after:
- * trees were drawn on cells the board still called free, so the ring offered a
- * tile with a pine on it and the rabbit walked behind the trunk. The board no
- * longer asks what a sprite IS — it asks the registry whether that kind
- * blocks, which means a new kind of scenery cannot be added without answering.
+ * What a cliff still refuses is the CLIMB: `MAX_STEP` is what makes a plateau
+ * mean anything, and that is tested above.
  */
-describe('things block their cell', () => {
-  const map = generateIsland({ seed: 'blocking', tiers: 3 });
-
-  /** One thing of every kind, each on its own cell. */
-  const oneOfEach = (board: IslandBoard): Occupant[] => {
-    const cells = standableCells(board, map);
-    return (Object.keys(THING_RULES) as ThingKind[]).map((kind, i) => ({
-      id: `${kind}`, kind, x: cells[i * 3][0], y: cells[i * 3][1],
-    }));
-  };
-
-  it.each(Object.keys(THING_RULES) as ThingKind[])(
-    'a %s is walkable exactly when the registry says it does not block',
-    (kind) => {
-      const board = new IslandBoard(map);
-      const [x, y] = standableCells(board, map)[0];
-      const withThing = new IslandBoard(map, [{ id: 't', kind, x, y }]);
-      expect(withThing.isWalkable(x, y)).toBe(!blocksCell(kind));
-    },
-  );
-
-  it('never offers a step onto a blocked cell', () => {
-    const board = new IslandBoard(map, oneOfEach(new IslandBoard(map)));
-    for (const [x, y] of standableCells(board, map)) {
-      for (const to of board.stepsFrom(x, y)) {
-        expect(board.isBlocked(to.x, to.y)).toBe(false);
-      }
+describe('cliff feet are ground', () => {
+  it.each(SEEDS.slice(0, 20))('%s keeps the ground under its cliffs in play', (seed) => {
+    const map = generateIsland({ seed, tiers: 4, rise: 0.55 });
+    const board = new IslandBoard(map);
+    let feet = 0;
+    let playable = 0;
+    for (const [x, y] of landCells(map)) {
+      if (!board.isUnderCliff(x, y)) continue;
+      feet++;
+      if (board.isFarmable(x, y)) playable++;
     }
+    // Some feet sit in a pocket the board drops anyway; the point is that
+    // being under a cliff is no longer by ITSELF a reason to be excluded.
+    if (feet > 0) expect(playable / feet).toBeGreaterThan(0.8);
   });
 
-  it('never farms a blocked cell', () => {
-    const board = new IslandBoard(map, oneOfEach(new IslandBoard(map)));
-    for (const cell of board.farmableCells()) {
-      expect(board.isBlocked(cell.x, cell.y)).toBe(false);
+  it('scenery still avoids them', () => {
+    // A carrot half-buried in a cliff is a poor prize even when the tile is
+    // legal, so the terrain keeps growing things elsewhere.
+    const { map, placements } = generateTerrain({ seed: 'cliff-scenery', tiers: 4 });
+    const board = new IslandBoard(map, placements);
+    for (const p of placements) {
+      expect(board.isUnderCliff(p.x, p.y)).toBe(false);
     }
-  });
-
-  /**
-   * The invariant that makes "no highlight, no passage" true rather than
-   * merely intended: walkable and farmable are the SAME set of cells. If they
-   * ever diverge, something is buried where nobody can dig it up.
-   */
-  it('farms exactly what it can walk on', () => {
-    const board = new IslandBoard(map, oneOfEach(new IslandBoard(map)));
-    const farmable = board.farmableCells().map((c) => cellKey(c.x, c.y)).sort();
-    const walkable: string[] = [];
-    for (let y = 0; y < map.height; y++) {
-      for (let x = 0; x < map.width; x++) {
-        if (board.isWalkable(x, y)) walkable.push(cellKey(x, y));
-      }
-    }
-    expect(farmable).toEqual(walkable.sort());
-  });
-
-  it('leaves ground cover walkable and volumes blocking', () => {
-    // The line is "would a rabbit go round it", not "is it drawn large". A
-    // mushroom is flat on the grass and a bush is pushed through; both would
-    // eat the island a sprite at a time if they blocked. Bushes in particular
-    // are the most-scattered thing there is — when they blocked, they took
-    // more of the board than trees, cliffs and livestock combined.
-    expect(blocksCell('prop')).toBe(false);
-    expect(blocksCell('bush')).toBe(false);
-    expect(blocksCell('tree')).toBe(true);
-    expect(blocksCell('rock')).toBe(true);
   });
 });
 

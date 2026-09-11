@@ -42,9 +42,21 @@ describe('choosing what lies', () => {
     }
   });
 
-  it('does nothing on a board nobody has read', () => {
-    const m = planMirage(generateIsland({ seed: 'untouched' }), 'attacker', NOW);
-    expect(m.hints).toEqual([]);
+  it('has almost nothing to bend on a board nobody has read', () => {
+    // A fresh island reveals the spawn and its ring, so a hint or two can
+    // exist from the first second — but a mirage thrown before anyone has read
+    // anything is close to wasted, which is the fair outcome: the item attacks
+    // deduction, and there is barely any happening yet.
+    const island = generateIsland({ seed: 'untouched' });
+    const hinted = [...island.tiles.values()].filter((t) => t.revealed && t.adjacent > 0);
+    const m = planMirage(island, 'attacker', NOW);
+    expect(m.hints.length).toBe(Math.min(hinted.length, MIRAGE.TILES));
+  });
+
+  it('does nothing at all when not one tile carries a hint', () => {
+    const island = generateIsland({ seed: 'blank' });
+    for (const tile of island.tiles.values()) { tile.revealed = false; tile.adjacent = 0; }
+    expect(planMirage(island, 'attacker', NOW).hints).toEqual([]);
   });
 
   it('is seeded: the same throw lies the same way twice', () => {

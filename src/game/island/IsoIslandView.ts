@@ -377,7 +377,15 @@ export class IsoIslandView {
    * through a tree it should now occlude.
    */
   syncOccupants(): void {
-    for (const { occupant, sprite, tier } of this.livestock) {
+    for (const entry of this.livestock) {
+      const { occupant, sprite } = entry;
+      // The tier is read from the MAP, not from where the thing was created.
+      // A sheep keeps to its own shelf, but "its own shelf" is a property of
+      // the cell it stands on now — a cached tier left a wandering sheep drawn
+      // at the height of its birthplace, which shows up as a sheep floating
+      // beside a plateau it walked off the edge of.
+      const tier = levelAt(this.options.map, occupant.x, occupant.y);
+      entry.tier = tier;
       const p = isoProject(occupant.x + 0.5, occupant.y + 0.5, tier, this.metrics);
       sprite.position.set(p.x, p.y);
       sprite.zIndex = isoDepth(occupant.x, occupant.y, tier) + 1;
