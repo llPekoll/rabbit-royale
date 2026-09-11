@@ -1056,26 +1056,55 @@ button { min-height: 44px; min-width: 44px; }
 }
 
 /* ── The player's own panel ────────────────────────────────────────────────
-   The second drawer in the game, so it reuses the season board's chrome
-   (.rr-lb) rather than inventing a second way to slide in from the right.
-   Only what differs lives here.
+   A MODAL, not a drawer. It used to slide in from the right edge, sharing the
+   season board's rail — which put the two panels on the same strip of screen
+   and made the one you are reading look like a variation of the one you are
+   not. This panel is about YOU and nothing else on screen matters while it is
+   open, so it takes the middle and dims the rest.
 
-   Unlike the board it is a DIALOG: it slides in on demand at every width, and
-   sits above the board rather than beside it. */
+   It still borrows .rr-lb for its surface (panel colour, border, column
+   layout); everything about WHERE it sits is overridden here. */
 .rr-profile {
+  position: fixed;
   z-index: 33;
-  /* Its own slide, so the wide-screen rule that pins the board open cannot
-     also pin this one. */
-  transform: translateX(100%);
+  /* Centred by the inset + margin pair rather than a transform: the panel
+     animates its own transform on open, and a translate used for centring
+     would fight it. */
+  inset: 0;
+  margin: auto;
+  width: min(380px, calc(100vw - 32px));
+  /* Tall enough for the avatar grid, never taller than the screen — the body
+     inside already scrolls. */
+  height: max-content;
+  max-height: min(640px, calc(100dvh - 32px));
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  transform: translateY(8px) scale(0.98);
+  opacity: 0;
+  transition: transform 160ms ease, opacity 160ms ease;
+  padding: 0;
 }
-.rr-profile.open { transform: none; }
+.rr-profile.open {
+  transform: none;
+  opacity: 1;
+}
+/* The head is the drag-free title bar of a box now, so it gets the box's
+   corners back. */
+.rr-profile .rr-lb-head { border-radius: 14px 14px 0 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rr-profile { transition: opacity 160ms ease; transform: none; }
+}
 
 /* A dialog needs something to dismiss it against, at every width. */
 .rr-profile-scrim {
   position: fixed;
   inset: 0;
   z-index: 32;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
 }
 
 .rr-tabs {

@@ -13,9 +13,12 @@
  * landed while you were away, which is the only way a player ever learns who
  * emptied their burrow overnight.
  *
- * Slides from the right and shares the season board's chrome (.rr-lb): this is
- * the second drawer in the game, and a second drawer that behaved differently
- * would just be a bug the player has to learn.
+ * A centred modal over a dimmed board. It used to slide in from the right,
+ * onto the same rail as the season board — two panels on one edge, where the
+ * one about YOU read as a variant of the one about everybody else. Nothing on
+ * screen matters while you are editing your own burrow, so this takes the
+ * middle and dims the rest. It still borrows the board's surface (.rr-lb) so
+ * the two feel like the same game.
  */
 import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -67,6 +70,16 @@ export interface ProfileMenuProps {
   onConnectWallet?: (() => Promise<boolean>) | null;
   /** True while the wallet prompt is open, so the offer can say so. */
   connecting?: boolean;
+  /**
+   * Why the last attempt failed, straight from the session hook.
+   *
+   * A refused link used to leave this panel EXACTLY as it was — no wallet
+   * found, wallet already taken, prompt dismissed, all of it looked identical
+   * to not having pressed the button. The player's only reading of that is
+   * "connecting is broken", so the reason has to land here, next to the button
+   * that caused it.
+   */
+  connectError?: string | null;
   /** Avatar as the server currently has it — null until the player picks one. */
   avatar?: string | null;
   /** Told the new name/avatar so the chip outside updates without a reload. */
@@ -81,6 +94,7 @@ export function ProfileMenu({
   avatar,
   onConnectWallet,
   connecting = false,
+  connectError = null,
   onUpdated,
   onClose,
   onLogout,
@@ -102,6 +116,17 @@ export function ProfileMenu({
    * dangerous is how a warning stops being read.
    */
   const [confirmingAbandon, setConfirmingAbandon] = useState(false);
+  /**
+   * False for exactly one frame, so the open animation has a "from" to come
+   * from. Mounting straight into `.open` means the browser only ever sees the
+   * end state and the panel simply appears — the grow-in is the thing that
+   * tells the player this box came from the chip they just pressed.
+   */
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setShown(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   const auth = { Authorization: `Bearer ${token}` };
 
@@ -165,19 +190,19 @@ export function ProfileMenu({
   const renamed = name.trim() !== player.name;
 
   // Portalled to <body>. The chip that opens this lives inside `.rr-topbar`,
-  // which is positioned and so forms a stacking context — a panel rendered
+  // which is positioned and so forms a stacking context — a modal rendered
   // there can never rise above the season board, whatever its z-index, and it
   // opened invisibly behind it. A dialog belongs at the top of the document,
   // not wherever its trigger happens to sit.
   return createPortal(
     <>
-      {/* Tap-away. A dialog whose only exit is its own [x] is a trap, and on a
-          wide screen the board's chrome hides that [x] — so this is the exit
-          that always works. */}
+      {/* Tap-away. A dialog whose only exit is its own [x] is a trap, and the
+          dimmed board behind this one is exactly what a player clicks to get
+          back to — so clicking it has to work. */}
       <div className="rr-profile-scrim" onClick={onClose} aria-hidden />
 
       <aside
-        className="rr-lb rr-profile open"
+        className={`rr-lb rr-profile${shown ? ' open' : ''}`}
         id="rr-profile"
         role="dialog"
         aria-modal="true"
@@ -280,6 +305,9 @@ export function ProfileMenu({
                     {connecting ? 'Waiting for wallet...' : 'Connect wallet'}
                   </button>
                 )}
+                {/* The refusal, where the press happened. Silence here reads as
+                    a dead button, which is the one thing it must never do. */}
+                {connectError && <p className="rr-warn">{connectError}</p>}
               </div>
             ) : (
               <p className="rr-wallet-line" title={player.wallet ?? undefined}>
@@ -308,7 +336,6 @@ export function ProfileMenu({
           <HistoryTab history={history} failed={historyFailed} />
         )}
       </aside>
-      <div className="rr-scrim" onClick={onClose} />
     </>,
     document.body,
   );
