@@ -60,6 +60,21 @@ const CARROT_SHADOW_ALPHA = 0.3;
 const FOG_COLOR = 0x1a2a3a;
 const FOG_ALPHA = 0.55;
 
+/**
+ * How much of a fogged tile is hidden behind the cliff standing in front of it.
+ *
+ * The tile to the north on the next tier up is drawn `HALF_H + TIER_LIFT` = 30px
+ * higher, and a diamond is `HALF_H * 2` = 24px tall — so 6px of this one is
+ * never covered by it, and that strip is where the veil of a cell the player
+ * cannot see was painting itself over the rock.
+ *
+ * Expressed as the y the flat top edge sits at, plus how far in the diamond has
+ * narrowed by then. The diamond's edge runs at HALF_H per HALF_W, so cutting
+ * 6px down from the top corner brings each side in by `6 * HALF_W / HALF_H`.
+ */
+const FOG_CLIFF_CUT_Y = HALF_H - (HALF_H * 2 - (HALF_H + TIER_LIFT) + HALF_H * 2) + HALF_H;
+const FOG_CLIFF_CUT = 0;
+
 /** How an undug tile is veiled. Omitted fields keep the defaults above. */
 export interface FogStyle {
   color?: number;
@@ -180,7 +195,7 @@ export class Tile {
    *  floating over the rabbit's head. */
   private static readonly PALIER_BOB_AMP = 2.5;
 
-  constructor(index: number, fogStyle?: FogStyle, lift = 0, tier = 0) {
+  constructor(index: number, fogStyle?: FogStyle, lift = 0, tier = 0, cliffAbove = false) {
     this.index = index;
     const { x, y: flatY } = tilePos(index);
     // Raised onto its own terrace. Without this the board is a flat
@@ -200,6 +215,34 @@ export class Tile {
     // Fog diamond
     this.fog = diamondFill(fogStyle?.color ?? FOG_COLOR, fogStyle?.alpha ?? FOG_ALPHA);
     this.container.addChild(this.fog);
+
+    /**
+     * Cut the fog back to the foot of the cliff standing in front of it.
+     *
+     * A tile one tier up is drawn 30px higher — HALF_H for the step north plus
+     * TIER_LIFT for the storey — while a diamond is only 24px tall. The 6px
+     * that neither covers is where the tile BEHIND showed through, and with a
+     * row of terraces it repeated: the stack of offset grey diamonds down a
+     * plateau's edge.
+     *
+     * The terrain already fills that gap with a real cliff face (32px, taller
+     * than the lift). What did not belong there was this fog, painted over the
+     * rock from a cell the player cannot see. So the northern corner is masked
+     * away and the veil stops at the edge of the shelf.
+     *
+     * The tile stays PLAYABLE and stays fogged — it is dug like any other. Only
+     * the sliver hidden behind the cliff goes.
+     */
+    if (cliffAbove) {
+      const mask = new Graphics()
+        // The diamond minus its top corner: same silhouette, flat top edge at
+        // the height the cliff in front reaches.
+        .poly([-HALF_W, 0, -HALF_W + FOG_CLIFF_CUT, -FOG_CLIFF_CUT_Y,
+               HALF_W - FOG_CLIFF_CUT, -FOG_CLIFF_CUT_Y, HALF_W, 0, 0, HALF_H])
+        .fill(0xffffff);
+      this.container.addChild(mask);
+      this.fog.mask = mask;
+    }
 
     // Highlight diamond (hidden by default)
     this.highlightGfx = diamondOutline(HIGHLIGHT_COLOR);

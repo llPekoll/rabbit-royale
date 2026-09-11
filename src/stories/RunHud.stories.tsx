@@ -63,6 +63,14 @@ function Scene({ carrots, every, spectating, mismatchedId }: Args) {
           const m = new Map(prev);
           // The one line that matters, copied from `use-game-socket`.
           m.set(ME, rabbit({ carrots: carrots * next, energy: Math.max(0, 18 - next) }));
+          // The rival digs too. Without this, `Spectating` showed a number
+          // frozen in the fixture — which is the very thing these stories were
+          // written to stop doing: a counter that cannot move proves nothing
+          // about a counter that will not move.
+          m.set(OTHER, rabbit({
+            playerId: OTHER, name: 'Rival', tile: 99,
+            carrots: 3 + next, energy: Math.max(0, 15 - next),
+          }));
           return m;
         });
         return next;
@@ -89,6 +97,7 @@ function Scene({ carrots, every, spectating, mismatchedId }: Args) {
       </div>
       <p style={{ color: '#9aa7b8', fontSize: 12, marginTop: 24, fontFamily: 'monospace' }}>
         digs: {digs} - server says carrots={carrots * digs} - me={game.me ? 'found' : 'NULL'}
+        {spectating && ' - watching, so the HUD reads the RIVAL, not me'}
       </p>
     </div>
   );
@@ -114,14 +123,24 @@ type Story = StoryObj<Args>;
 export const Default: Story = {};
 
 /**
- * The suspected failure, made visible: the id the page looks up is not the id
- * the server sends. `me` is null, every number reads zero, and the bar looks
- * exactly like a counter that refuses to move — including a full energy bar
- * that never drains, which is the tell.
+ * The id the page looks up is not the id the server sends, so `me` is null.
+ *
+ * Every number reads zero AND the energy bar sits empty — the two fall
+ * together because they come from the same `subject`. That pairing is the
+ * tell, and it is worth stating because it is easy to get backwards: an
+ * energy bar that DOES move rules this out only while playing. A spectator
+ * sees `me` null by definition and still gets full numbers, from the watched
+ * rabbit — see `Spectating`.
  */
 export const MismatchedId: Story = { args: { mismatchedId: true } };
 
-/** Watching someone else: their numbers, and it says so. */
+/**
+ * Watching someone else: their numbers, and it says so.
+ *
+ * `me` is null here and that is CORRECT — a spectator has no rabbit of their
+ * own. The numbers come from the watched rabbit instead, and they have to
+ * climb: a frozen rival would make this story prove nothing.
+ */
 export const Spectating: Story = { args: { spectating: true } };
 
 /** Nothing dug yet. The honest zero, for comparison with the broken one. */

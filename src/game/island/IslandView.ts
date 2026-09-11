@@ -64,11 +64,23 @@ const LANDMARK_CHANCE = 0.08;
 /** Props stand a quarter-tile below the centre, so they read as ON the tile. */
 const FOOT_OFFSET = TILE * 0.25;
 
+/**
+ * The wind that crosses this island, as in `IsoIslandView` — see the long note
+ * there. Vegetation takes its sway phase from how far downwind its cell lies,
+ * so the gust travels tree by tree instead of the whole field turning at once.
+ */
+const WIND = { x: 1, y: 0.6 };
+const WIND_TILES_PER_FRAME = 1.7;
+const windPhase = (x: number, y: number) => (x * WIND.x + y * WIND.y) / WIND_TILES_PER_FRAME;
+
 interface AnimatedProp {
   sprite: Sprite;
   frames: Texture[];
-  /** Staggered so a field of trees does not sway as one organism. */
-  offset: number;
+  /**
+   * Frames of head start, fractional, so a field of trees does not sway as one
+   * organism — and, being fractional, does not change texture on one tick.
+   */
+  phase: number;
 }
 
 export class IslandView {
@@ -115,8 +127,12 @@ export class IslandView {
     const foamFrame = this.foamFrames[step % this.foamFrames.length];
     for (const sprite of this.foam) sprite.texture = foamFrame;
 
+    // Each prop is sampled on its own clock: flooring after the phase is added
+    // is what keeps the field off a single shared tick.
+    const t = this.elapsed / this.frameMs;
     for (const item of this.animated) {
-      item.sprite.texture = item.frames[(step + item.offset) % item.frames.length];
+      const n = item.frames.length;
+      item.sprite.texture = item.frames[((Math.floor(t + item.phase) % n) + n) % n];
     }
   }
 
@@ -219,7 +235,7 @@ export class IslandView {
   private buildDeco(layer: Container): void {
     const { map, tileset } = this.options;
     const rng = mulberry32(seedFrom(`${map.seed}:deco`));
-    const placed: Array<{ sprite: Sprite; footY: number; frames?: Texture[] }> = [];
+    const placed: Array<{ sprite: Sprite; footY: number; frames?: Texture[]; phase?: number }> = [];
 
     for (let y = 0; y < map.height; y++) {
       for (let x = 0; x < map.width; x++) {
@@ -232,7 +248,7 @@ export class IslandView {
           const sprite = new Sprite(frames[0]);
           sprite.anchor.set(0.5);
           sprite.position.set((x + 0.5) * TILE, (y + 0.5) * TILE);
-          placed.push({ sprite, footY, frames });
+          placed.push({ sprite, footY, frames, phase: windPhase(x, y) });
           continue;
         }
 
@@ -248,7 +264,7 @@ export class IslandView {
             x,
             y,
           );
-          placed.push({ sprite, footY, frames: tree.frames });
+          placed.push({ sprite, footY, frames: tree.frames, phase: windPhase(x, y) });
         } else if (roll < TREE_CHANCE + PROP_CHANCE) {
           const pool =
             rng() < LANDMARK_CHANCE
@@ -264,11 +280,7 @@ export class IslandView {
     for (const item of placed) {
       layer.addChild(item.sprite);
       if (item.frames) {
-        this.animated.push({
-          sprite: item.sprite,
-          frames: item.frames,
-          offset: Math.floor(rng() * item.frames.length),
-        });
+        this.animated.push({ sprite: item.sprite, frames: item.frames, phase: item.phase ?? 0 });
       }
     }
   }

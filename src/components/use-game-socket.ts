@@ -178,10 +178,12 @@ export function useGameSocket(
       // has been unreproducible from the server side — everything there pays
       // correctly — so the question is what actually ARRIVES here, and whether
       // the id it arrives under is the one the HUD looks itself up by.
-      if (r.playerId === playerId) {
-        console.log('[rr] rabbit_moved: carrots=%d energy=%d tile=%d (me=%s)',
-          r.carrots, r.energy, r.tile, playerId);
-      }
+      // Logged UNCONDITIONALLY, and printing both ids. Gated on
+      // `r.playerId === playerId` it would print nothing in the one case worth
+      // catching — an event arriving under an id the HUD does not look up —
+      // and silence is the least useful thing a diagnostic can say.
+      console.log('[rr] rabbit_moved from=%s | me=%s | match=%s | carrots=%d energy=%d',
+        r.playerId, playerId, String(r.playerId === playerId), r.carrots, r.energy);
       setRabbits((prev) => new Map(prev).set(r.playerId, r));
       toScene((s) => s.moveRabbit(r.playerId, r.tile, r.energy));
     });
