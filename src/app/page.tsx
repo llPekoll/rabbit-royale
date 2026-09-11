@@ -267,6 +267,11 @@ function Burrow() {
     // rather than on one button: a run banked from only some exits is the bug
     // this fixes, one door further along.
     if (next === 'burrow' && where === 'island' && !spectating) game.leave();
+    // And the way back OUT asks for a new seat, because the way in gave the old
+    // one up. Not needed on the very first trip — the socket's `connect` joins
+    // once — but harmless there: the server answers a join it already granted
+    // with the same island snapshot.
+    if (next === 'island' && where === 'burrow' && !spectating) game.join();
     setCrossing(true);
     void h
       .wipeTo(next === 'island' ? SCENE.island : SCENE.burrow, () => setWhere(next))

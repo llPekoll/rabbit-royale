@@ -69,6 +69,15 @@ export interface IslandStore {
    * without a lobby only feels alive if the emptiest island is not the default.
    */
   findJoinable(): LiveIsland | undefined;
+  /**
+   * The island already holding a seat for this player, if any.
+   *
+   * Consulted BEFORE `findJoinable`, because a seat outlives the connection: a
+   * player reconnecting inside the grace window has a rabbit somewhere, and
+   * sending them to the fullest island instead would leave that one behind,
+   * still carrying their carrots, for the sweep to bank.
+   */
+  seatOf(playerId: string): LiveIsland | undefined;
   /** Islands with nobody on them past their TTL — swept on a timer. */
   reapable(now: number): LiveIsland[];
 }
@@ -100,6 +109,14 @@ export class MemoryIslandStore implements IslandStore {
     };
     this.islands.set(live.island.id, live);
     return live;
+  }
+
+  seatOf(playerId: string): LiveIsland | undefined {
+    for (const live of this.islands.values()) {
+      if (live.erupting) continue;
+      if (live.rabbits.has(playerId)) return live;
+    }
+    return undefined;
   }
 
   findJoinable(): LiveIsland | undefined {

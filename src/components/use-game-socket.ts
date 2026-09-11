@@ -204,16 +204,6 @@ export function useGameSocket(
     });
 
     socket.on('rabbit_moved', (r: ClientRabbit) => {
-      // One line per move, in the browser console. "My counter did not move"
-      // has been unreproducible from the server side — everything there pays
-      // correctly — so the question is what actually ARRIVES here, and whether
-      // the id it arrives under is the one the HUD looks itself up by.
-      // Logged UNCONDITIONALLY, and printing both ids. Gated on
-      // `r.playerId === playerId` it would print nothing in the one case worth
-      // catching — an event arriving under an id the HUD does not look up —
-      // and silence is the least useful thing a diagnostic can say.
-      console.log('[rr] rabbit_moved from=%s | me=%s | match=%s | carrots=%d energy=%d',
-        r.playerId, playerId, String(r.playerId === playerId), r.carrots, r.energy);
       setRabbits((prev) => new Map(prev).set(r.playerId, r));
       toScene((s) => s.moveRabbit(r.playerId, r.tile, r.energy));
     });
@@ -301,9 +291,23 @@ export function useGameSocket(
     socketRef.current?.emit('leave');
   }, []);
 
+  /**
+   * Take a seat on an island — the counterpart to `leave`.
+   *
+   * `join` used to be emitted only from the `connect` handler, which made it
+   * reachable exactly once per socket. But the socket SURVIVES the walk to the
+   * burrow (the burrow needs it), and `leave` gives the seat up on the way
+   * out — so the second trip out to farm arrived with no rabbit on the server
+   * and no way to ask for one: every tap was dropped, silently, until the page
+   * was reloaded. Each crossing now pairs with the `leave` that opened it.
+   */
+  const join = useCallback(() => {
+    socketRef.current?.emit('join');
+  }, []);
+
   const me = playerId ? rabbits.get(playerId) ?? null : null;
   return {
     islandSeed, rabbits, me, warnStage, recap, banked, connected,
-    moveTo, restart, leave, bindScene, resync,
+    moveTo, restart, join, leave, bindScene, resync,
   };
 }

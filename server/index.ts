@@ -314,10 +314,32 @@ io.on('connection', (socket: Socket) => {
     data.name = player.name;
     data.lifetimeCarrots = player.lifetimeCarrots;
 
-    const live = store.findJoinable() ?? newIsland(player.lifetimeCarrots);
+    // A seat still held on some island is the one to return to — otherwise a
+    // reconnecting player is dropped onto the fullest island instead and ends
+    // up with TWO rabbits: the new one here, and the old seat ticking away
+    // until the grace sweep banks it.
+    const live = store.seatOf(data.playerId) ?? store.findJoinable() ?? newIsland(player.lifetimeCarrots);
 
-    // A refresh returns to the same rabbit if the grace window has not lapsed.
-    const existing = live.rabbits.get(data.playerId);
+    /**
+     * A refresh returns to the same rabbit; walking back in starts a new run.
+     *
+     * The distinction is `disconnectedAt`: it is written only when the SOCKET
+     * drops, so a seat still held without it means the player never left the
+     * connection — they crossed to their burrow and came back, which is a new
+     * run and has to begin at the spawn. Reusing the rabbit there put them back
+     * wherever they had wandered to, and a DEAD one made the island
+     * unplayable — every move answered `'dead'`, the ring went dark, and
+     * nothing on screen said why.
+     */
+    const held = live.rabbits.get(data.playerId);
+    const existing = held && held.alive && live.disconnectedAt.has(data.playerId) ? held : undefined;
+    if (held && !existing) {
+      // Whatever it was carrying is owed to them before the rabbit goes.
+      await bankRun(held).catch((e) => console.error('[bankRun:rejoin]', e));
+      live.rabbits.delete(data.playerId);
+      live.disconnectedAt.delete(data.playerId);
+      io.to(roomFor(live.island.id)).emit('rabbit_left', { playerId: data.playerId, grace: false });
+    }
     const rabbit = existing ?? spawnRabbit(data.playerId, player.name, ENERGY.START, live.island.seed);
     live.rabbits.set(data.playerId, rabbit);
     live.disconnectedAt.delete(data.playerId);

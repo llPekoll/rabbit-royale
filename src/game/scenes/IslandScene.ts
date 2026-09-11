@@ -562,9 +562,33 @@ export class IslandScene implements Scene {
     });
   }
 
-  /** A rabbit appeared (joined, or respawned after an eruption). */
+  /**
+   * A rabbit appeared (joined, or respawned after an eruption).
+   *
+   * A rabbit we already hold is REPOSITIONED rather than ignored. This arrives
+   * from an island snapshot, which is the server's word on where everyone is:
+   * a player who walked home and came back out gets a new rabbit at the spawn,
+   * and the sprite left standing wherever the old run ended has to be moved to
+   * meet it. Dropping the event instead left them looking at a rabbit that was
+   * not where the server thought they were, and every move they made was
+   * answered from the spawn.
+   */
   addRabbit(playerId: string, name: string, index: number, seatIndex: number, energy?: number): void {
-    if (this.rabbits.has(playerId)) return;
+    const known = this.rabbits.get(playerId);
+    if (known) {
+      // Teleport, not `moveTo`: a respawn is not a hop, and the spawn is
+      // usually nowhere near the tile the last run ended on.
+      known.cancelMove();
+      known.setPosition(index);
+      known.playSpawnDrop();
+      if (playerId === this.data?.playerId) {
+        this.myTile = index;
+        this.stunnedUntil = 0;
+        if (energy !== undefined) this.myEnergy = energy;
+        this.refreshReachable();
+      }
+      return;
+    }
     const sheet = BUNNY_SHEETS[seatIndex % BUNNY_SHEETS.length];
     const rabbit = new PlayerRabbit(index, sheet, this.data?.seed ?? '');
     this.rabbits.set(playerId, rabbit);
