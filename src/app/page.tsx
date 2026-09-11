@@ -28,6 +28,7 @@ import { LogoBanner } from '@/components/logo-banner';
 import { RunHud } from '@/components/run-hud';
 import { CarrotField } from '@/components/carrot-field';
 import { ShopButton, ShopPanel } from '@/components/shop-card';
+import { EnergyPopup } from '@/components/energy-popup';
 import { LoreButton, LoreCodex } from '@/components/lore-codex';
 import { LoreCrawl } from '@/components/lore-crawl';
 import {
@@ -148,6 +149,14 @@ function Burrow() {
   const [pickingTarget, setPickingTarget] = useState(false);
   /** The codex reads over the burrow the same way the shop sells over it. */
   const [loreOpen, setLoreOpen] = useState(false);
+  /**
+   * The "out of energy" popup — see energy-popup.tsx.
+   *
+   * Its own state rather than a mode of `shopOpen`: the Shed answers "what is
+   * for sale", this answers "I pressed GO and nothing happened", and folding
+   * the second into the first is how the second question stopped being asked.
+   */
+  const [energyOpen, setEnergyOpen] = useState(false);
   /**
    * The rail every purchase settles on, chosen once for the whole shop.
    *
@@ -399,7 +408,11 @@ function Burrow() {
     if (!shopOnArrival || where !== 'burrow') return;
     setShopOnArrival(false);
     setSpectating(null);
-    setShopOpen(true);
+    // The popup, not the whole Shed. This intent is only ever set by the
+    // recap's "Get more energy", which is one question with one answer — the
+    // stall's seven shelves were the old best approximation of it, and the
+    // shed is still one press away inside the popup.
+    setEnergyOpen(true);
   }, [shopOnArrival, where]);
 
   /** A purchase changed the carrot stock, so the burrow panel is stale too. */
@@ -444,6 +457,43 @@ function Burrow() {
       await shop.refresh();
       refreshBurrow();
     }
+  }, [usdc, shop, refreshBurrow, payToken]);
+
+  /**
+   * GO FARM on an empty tank.
+   *
+   * The arrow used to be `disabled` here, which answered the only tap on the
+   * screen with silence — the player had no way to tell an empty bar from a
+   * broken button, and the refill was reachable only through the recap, which
+   * a player who walked home never sees. Now the press is always ANSWERED:
+   * with the island if there is energy, and with the reason if there is not.
+   */
+  const goFarm = useCallback(() => {
+    if (!hasEnergy) { setEnergyOpen(true); return; }
+    goTo('island');
+  }, [hasEnergy, goTo]);
+
+  /**
+   * A refill bought from the popup.
+   *
+   * It CLOSES on success, because the popup is a question and the answer is
+   * now a full bar — leaving it up would make the player dismiss a dialog
+   * about a problem they have just solved. It stays up on a refusal, which is
+   * where the note it shows belongs.
+   */
+  const buyEnergy = useCallback(async () => {
+    const res = await shop.buy('energy');
+    if (!res) return;
+    refreshBurrow();
+    setEnergyOpen(false);
+  }, [shop, refreshBurrow]);
+
+  const payEnergyUsdc = useCallback(async () => {
+    const res = await usdc.pay('energy', 1, payToken);
+    if (!res) return;
+    await shop.refresh();
+    refreshBurrow();
+    setEnergyOpen(false);
   }, [usdc, shop, refreshBurrow, payToken]);
 
   // The field in the burrow scene follows the real garden. Pushed on every
@@ -532,6 +582,7 @@ function Burrow() {
     if (!raid.raid) return;
     setPickingTarget(false);
     setShopOpen(false);
+    setEnergyOpen(false);
     if (where !== 'burrow') goTo('burrow');
   }, [raid.raid, where, goTo]);
 
@@ -541,6 +592,9 @@ function Burrow() {
     if (where === 'burrow') return;
     if (placing) stopPlacing();
     setShopOpen(false);
+    // The popup belongs to the burrow's arrow, so it leaves with the screen —
+    // the recap on the island has its own way of asking the same question.
+    setEnergyOpen(false);
   }, [where, placing, stopPlacing]);
 
   /**
@@ -584,6 +638,7 @@ function Burrow() {
     setShopOpen(false);
     setPickingTarget(false);
     setLoreOpen(false);
+    setEnergyOpen(false);
     setShopOnArrival(false);
     // Or the next player to sign in inherits the watch and lands on a
     // stranger's island with no idea why.
@@ -903,15 +958,34 @@ function Burrow() {
       )}
 
       {showCanvas && where === 'burrow' && !raid.raid && !crossing && (
-        // Disabled rather than hidden: the way onto the island should stay
-        // visible so its absence reads as "not yet", not as "gone". It still
-        // waits out a crossing with the rest of the burrow's chrome — it is
-        // the one control anchored to that screen.
-        <GoButton
-          dir="down"
-          label="Go farm"
-          onClick={() => goTo('island')}
-          disabled={!hasEnergy}
+        // Never disabled, and never hidden. It is the one control anchored to
+        // this screen, and a dead arrow was the game's worst answer to its
+        // most common dead end — an empty tank now opens the popup that says
+        // so and offers the way out. It still waits out a crossing with the
+        // rest of the burrow's chrome.
+        <GoButton dir="down" label="Go farm" onClick={goFarm} />
+      )}
+
+      {/* The small "out of energy" dialog. Above the shop in the tree and
+          independent of it: the Shed can be opened FROM here, and when it is
+          this one steps aside rather than stacking behind it. */}
+      {player && energyOpen && (
+        <EnergyPopup
+          shop={shop.shop}
+          stock={burrow?.stock ?? 0}
+          energy={burrow?.energy ?? 0}
+          maxEnergy={burrow?.maxEnergy ?? 0}
+          nextEnergyInMs={burrow?.nextEnergyInMs ?? null}
+          busy={shop.busy}
+          payStage={usdc.stage}
+          note={shop.note}
+          error={usdc.error}
+          onBuy={() => void buyEnergy()}
+          // Same rule as the Shed: no wallet, no money route — the popup
+          // offers one price instead of offering two and failing at the quote.
+          onPayUsdc={payments && !player.guest ? () => void payEnergyUsdc() : undefined}
+          onOpenShop={() => { setEnergyOpen(false); shop.setNote(null); setShopOpen(true); }}
+          onClose={() => { setEnergyOpen(false); shop.setNote(null); usdc.setError(null); }}
         />
       )}
 

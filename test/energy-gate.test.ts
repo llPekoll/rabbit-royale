@@ -52,22 +52,55 @@ describe('energy in the burrow view', () => {
   });
 });
 
-describe('the farm button is gated', () => {
-  it('is disabled with no energy', () => {
-    expect(PAGE).toMatch(/disabled=\{!hasEnergy\}/);
+describe('the farm button answers an empty tank', () => {
+  /**
+   * It used to be `disabled`, and that was the bug this suite now guards
+   * against: the ONE control on the screen answered a tap with silence, so an
+   * empty bar and a broken button looked the same. The press is always
+   * answered — with the island when there is energy, and with the popup that
+   * says why not and sells the way out when there is not.
+   */
+  it('is never disabled', () => {
+    expect(PAGE).not.toMatch(/label="Go farm"[\s\S]{0,160}disabled/);
+  });
+
+  it('opens the popup instead of crossing when the tank is empty', () => {
+    expect(PAGE).toMatch(/onClick=\{goFarm\}/);
+    const gate = PAGE.slice(PAGE.indexOf('const goFarm'));
+    expect(gate.slice(0, 200)).toMatch(/if \(!hasEnergy\) \{ setEnergyOpen\(true\); return; \}/);
   });
 
   it('treats "still loading" as usable, not as empty', () => {
-    // A null burrow is a screen that has not answered yet. Greying the button
-    // there would flash it disabled on every load.
+    // A null burrow is a screen that has not answered yet. Offering a refill
+    // there would be a shop pitch aimed at a player who may be full.
     expect(PAGE).toMatch(/burrow === null \|\| burrow\.energy > 0/);
   });
+});
 
-  it('greys the ARROW too, not just the label', () => {
-    // The sprite is the louder half: a dimmed word beside a bright bouncing
-    // arrow still reads as "press me".
-    expect(CSS).toMatch(/\.rr-go:disabled \.rr-go-arrow/);
-    const block = CSS.slice(CSS.indexOf('.rr-go:disabled .rr-go-arrow'));
-    expect(block.slice(0, 300)).toMatch(/animation:\s*none/);
+describe('the out-of-energy popup', () => {
+  const POPUP = readFileSync(new URL('../src/components/energy-popup.tsx', import.meta.url), 'utf8');
+
+  it('states the free route beside the paid one', () => {
+    // A refill offered without the wait next to it is a toll, not a shortcut.
+    expect(POPUP).toMatch(/nextEnergyInMs/);
+    expect(POPUP).toMatch(/comes back on its own/);
+  });
+
+  it('offers the carrot price, and money only when the rail is on', () => {
+    expect(POPUP).toMatch(/rr-pay-carrot/);
+    expect(POPUP).toMatch(/onPayUsdc && item/);
+    // Same rule as the Shed: no wallet, no USDC button rather than a button
+    // that fails at the quote.
+    expect(PAGE).toMatch(/onPayUsdc=\{payments && !player\.guest \? \(\) => void payEnergyUsdc\(\)/);
+  });
+
+  it('keeps the whole shed one press away', () => {
+    expect(POPUP).toMatch(/onOpenShop/);
+  });
+
+  it('stays a small dialog on a phone', () => {
+    // The Shed goes full-screen there because it is seven shelves; one
+    // question blown up to full-screen reads as a page to escape from.
+    expect(CSS).toMatch(/\.rr-shop-scrim:has\(\.rr-energy-modal\)/);
   });
 });

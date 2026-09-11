@@ -1803,6 +1803,91 @@ button { font-family: var(--font-pixel); }
   .rr-shop-grid { grid-template-columns: 1fr; }
 }
 
+/* ── OUT OF ENERGY ─────────────────────────────────────────────────────────
+   The small dialog behind GO FARM on an empty tank. See energy-popup.tsx.
+
+   It rides the Shed's own scrim and modal so it lands in the same warm soil
+   the shop does, and then contradicts it in exactly one way: this is a SMALL
+   popup, and it stays small on a phone too. The shop takes the whole screen
+   there because it is seven shelves and a defence report; this is one line of
+   state and one price, and a single question blown up to full-screen reads as
+   a page the player has to get back out of rather than as an answer to the
+   button they just pressed. */
+.rr-energy-modal {
+  width: min(380px, 100%);
+  max-height: none;
+}
+
+/* The bar's own figure, set like the defence count it sits in the same slot
+   as: the number IS the problem, so it is the largest thing in the dialog. */
+.rr-energy-state {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  background: var(--soil-deep);
+  border-bottom: 1px solid var(--plank);
+}
+.rr-energy-count {
+  font-size: 22px;
+  color: #ff8a7a;
+  font-variant-numeric: tabular-nums;
+}
+.rr-energy-count i {
+  font-style: normal;
+  font-size: 12px;
+  color: var(--chalk-dim);
+}
+.rr-energy-say {
+  flex: 1;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--chalk-dim);
+}
+
+.rr-energy-buy {
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.rr-energy-blurb {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--chalk);
+}
+/* The daily window, dimmed under the promise: it is a condition on the offer,
+   not part of it. */
+.rr-energy-blurb i {
+  font-style: normal;
+  color: var(--chalk-dim);
+}
+
+/* The rest of the shed, in the footer where the shop's own strapline goes —
+   a link out, not a second offer competing with the one above it. */
+.rr-energy-more {
+  border: none;
+  background: none;
+  padding: 0;
+  min-height: 0;
+  font-size: 11px;
+  color: var(--chalk-dim);
+  text-decoration: underline;
+}
+.rr-energy-more:hover { color: var(--lamp); }
+
+@media (max-width: 560px) {
+  /* Undo the full-screen shop rule for this one dialog. */
+  .rr-shop-scrim:has(.rr-energy-modal) { padding: 16px; }
+  .rr-energy-modal {
+    width: 100%;
+    height: auto;
+    max-height: 100%;
+    border: 2px solid var(--plank);
+    border-radius: 14px;
+  }
+}
+
 /* ── The way in ───────────────────────────────────────────────────────────
    A button in the burrow column. It keeps the burrow's own chrome — it belongs
    to that screen, not to the stall — but carries the defence state, because an
