@@ -79,6 +79,9 @@ export async function createTerrainBackground(
     ISO_ORIGIN_X - origin.x - island.originX,
     ISO_ORIGIN_Y - origin.y - island.originY,
   );
+  // The deported sprites are in the scene's container, not under `view`, so
+  // moving `view` does not carry them. This hands them the same shift.
+  island.placeDeco(island.view.position.x, island.view.position.y);
   /**
    * The ground stays UNDER the board — it is a backdrop and nothing more.
    *

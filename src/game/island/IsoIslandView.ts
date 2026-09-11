@@ -113,6 +113,28 @@ export interface IsoIslandViewOptions {
 
 const DEFAULT_FRAME_MS = 130;
 
+/**
+ * How the wind crosses the island, and how the crowd avoids marching in step.
+ *
+ * Every animated prop used to share one global frame counter with an integer
+ * offset, which meant the whole island changed texture on the same tick: forty
+ * trees, eight possible phases, so five of them were always exactly in unison.
+ * That reads as a clock, not as weather. Each sprite now carries a fractional
+ * phase and is sampled on its own clock, so no two ever have to turn together.
+ *
+ * For vegetation the phase is not random — it is the cell's distance along the
+ * wind, so the sway arrives at one tree after another and crosses the island as
+ * a gust. `WIND` is that direction (south-east, matching the light) and
+ * `WIND_TILES_PER_FRAME` is how many tiles the gust advances per frame of the
+ * sway: low numbers make a slow, wide wave, high numbers a ripple.
+ *
+ * Units get a random phase instead. A patrol is not blown by the wind, and
+ * giving soldiers a positional phase would have neighbours idling in lockstep,
+ * which is the very thing this fixes.
+ */
+const WIND = { x: 1, y: 0.6 };
+const WIND_TILES_PER_FRAME = 1.7;
+
 const TREE_CHANCE = 0.08;
 const BUSH_CHANCE = 0.05;
 const PROP_CHANCE = 0.11;
@@ -197,7 +219,8 @@ const FACE_SOLID_H = 32;
 interface AnimatedProp {
   sprite: Sprite;
   frames: Texture[];
-  offset: number;
+  /** Frames of head start, fractional — see `WIND`. */
+  phase: number;
 }
 
 export class IsoIslandView {
@@ -244,7 +267,7 @@ export class IsoIslandView {
    * would outlive the scene that drew it — the leak only exists with the
    * option set, which is exactly the kind that goes unnoticed.
    */
-  private readonly decoSprites: Sprite[] = [];
+  private readonly decoSprites = new Set<Sprite>();
   /**
    * Where `view` was moved to, mirrored onto the deported sprites.
    *
@@ -345,7 +368,12 @@ export class IsoIslandView {
       this.livestock.push({ occupant: { id: p.id, kind: p.kind, x: p.x, y: p.y }, sprite, tier });
       if (blocksCell(p.kind)) this.occupied.add(key(p.x, p.y));
       if (frames) {
-        this.animated.push({ sprite, frames, offset: Math.floor(rng() * frames.length) });
+        const windblown = p.kind === 'tree' || p.kind === 'bush';
+        this.animated.push({
+          sprite,
+          frames,
+          phase: windblown ? this.windPhase(p.x, p.y) : this.freePhase(frames, rng),
+        });
       }
     }
   }
@@ -437,13 +465,50 @@ export class IsoIslandView {
     }
   }
 
+  /**
+   * The phase for something the wind moves: how far its cell lies downwind.
+   *
+   * Two trees on the same gust line sway together, which is what a gust IS;
+   * the wave is across the wind, not within it. The fractional part matters —
+   * it is what keeps the island off a single tick.
+   */
+  private windPhase(x: number, y: number): number {
+    return (x * WIND.x + y * WIND.y) / WIND_TILES_PER_FRAME;
+  }
+
+  /** The phase for something that moves itself: anywhere in the cycle. */
+  private freePhase(frames: Texture[], rng: () => number): number {
+    return rng() * frames.length;
+  }
+
   /** Advance the tree sway. `deltaMs` is real milliseconds. */
   update(deltaMs: number): void {
     if (this.destroyed) return;
     this.elapsed += deltaMs;
-    const step = Math.floor(this.elapsed / this.frameMs);
+    const t = this.elapsed / this.frameMs;
     for (const item of this.animated) {
-      item.sprite.texture = item.frames[(step + item.offset) % item.frames.length];
+      // Floor AFTER adding the phase, not before: a fractional phase has to
+      // survive into the sample or every sprite snaps back onto the same tick.
+      const n = item.frames.length;
+      item.sprite.texture = item.frames[((Math.floor(t + item.phase) % n) + n) % n];
+    }
+  }
+
+  /**
+   * Put a sprite at a projected point, in whichever space it actually lives in.
+   *
+   * Sprites inside `view` sit in `world`, which already carries the island's
+   * origin, so the raw projection is right for them. A deported sprite is in a
+   * foreign container and carries both shifts itself. Every positioning path
+   * goes through here so the two cannot drift apart — which is precisely what
+   * happened to `syncOccupants`, where a wandering sheep was re-placed by raw
+   * projection and snapped back to the terrain's inner origin.
+   */
+  private placeSprite(sprite: Sprite, x: number, y: number): void {
+    if (this.decoSprites.has(sprite)) {
+      sprite.position.set(x + this.originX + this.decoOffsetX, y + this.originY + this.decoOffsetY);
+    } else {
+      sprite.position.set(x, y);
     }
   }
 
@@ -477,7 +542,7 @@ export class IsoIslandView {
     const deco = this.options.decoLayer;
     if (deco && deco !== this.view) {
       for (const sprite of this.decoSprites) sprite.destroy();
-      this.decoSprites.length = 0;
+      this.decoSprites.clear();
     }
     // The textures are slices of shared sheets and outlive this view.
     this.view.destroy({ children: true });
@@ -584,7 +649,7 @@ export class IsoIslandView {
           sprite.scale.set(scale);
           // Sea rocks sit in open water, which is off-board anyway — they are
           // registered for completeness, not because anything could walk there.
-          this.animated.push({ sprite, frames, offset: Math.floor(rng() * frames.length) });
+          this.animated.push({ sprite, frames, phase: this.windPhase(x, y) });
           continue;
         }
 
@@ -599,11 +664,7 @@ export class IsoIslandView {
           const sprite = this.foot(world, { texture: tree.frames[0], anchorY: tree.anchorY }, x, y, tier, depth);
           sprite.scale.set(scale);
           this.register('tree', sprite, x, y, tier);
-          this.animated.push({
-            sprite,
-            frames: tree.frames,
-            offset: Math.floor(rng() * tree.frames.length),
-          });
+          this.animated.push({ sprite, frames: tree.frames, phase: this.windPhase(x, y) });
         } else if (roll < TREE_CHANCE + BUSH_CHANCE) {
           // Bushes take the cell but fade when the rabbit is behind them, so
           // they cost a tile without ever hiding the player (see `blocking`).
@@ -611,11 +672,7 @@ export class IsoIslandView {
           const sprite = this.foot(world, { texture: bush.frames[0], anchorY: bush.anchorY }, x, y, tier, depth);
           sprite.scale.set(scale);
           this.register('bush', sprite, x, y, tier);
-          this.animated.push({
-            sprite,
-            frames: bush.frames,
-            offset: Math.floor(rng() * bush.frames.length),
-          });
+          this.animated.push({ sprite, frames: bush.frames, phase: this.windPhase(x, y) });
         } else if (roll < TREE_CHANCE + BUSH_CHANCE + PROP_CHANCE) {
           // The last three props are a skull marker, a signpost and a
           // scarecrow: placed things with a volume, so they block where a
@@ -752,8 +809,9 @@ export class IsoIslandView {
     // These sheets are drawn at 128/192px for a 64px tile, so they tower over
     // the terrain at 1:1 — scaled down to read as inhabitants of it.
     sprite.scale.set(sprite.scale.x * scale, sprite.scale.y * scale);
-    // A random starting frame, or every sheep on the island breathes in sync.
-    this.animated.push({ sprite, frames: unit.frames, offset: Math.floor(rng() * unit.frames.length) });
+    // A free phase, or every sheep on the island breathes in sync. Not the
+    // wind's: a patrol keeps its own time, and neighbours must not match.
+    this.animated.push({ sprite, frames: unit.frames, phase: this.freePhase(unit.frames, rng) });
     this.inhabited.add(key(x, y));
 
     // Sheep wander, soldiers hold their ground — the distinction the board
@@ -791,7 +849,7 @@ export class IsoIslandView {
     // Every deco sprite funnels through here, so this is the one place that
     // knows whether one is landing outside `view`.
     const deported = this.options.decoLayer;
-    if (deported && world === deported) this.decoSprites.push(sprite);
+    if (deported && world === deported) this.decoSprites.add(sprite);
     this.placeSprite(sprite, p.x, p.y);
     world.addChild(sprite);
     return sprite;

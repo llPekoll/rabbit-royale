@@ -33,10 +33,21 @@ describe('island layering', () => {
     expect(Number(z![1].replace(/_/g, ''))).toBeGreaterThan(480);
   });
 
-  it('lets the terrain interleave with the board instead of hiding beneath it', () => {
-    expect(TERRAIN).toMatch(/island\.view\.zIndex = 0;/);
-    // -10 was the bug: one number for the whole landscape, below every tile.
-    expect(TERRAIN).not.toMatch(/island\.view\.zIndex = -10;/);
+  it('hands the standing art to the board container, not the terrain', () => {
+    // The fix for a sheep drawn under the fog of its own cell: a container is
+    // painted in ONE turn, so deco inside the terrain could only ever land
+    // wholly in front of or wholly behind the tiles.
+    expect(TERRAIN).toMatch(/decoLayer: container/);
+    // ...and with no wrapper, which would be one sibling with one depth again.
+    expect(TERRAIN).not.toMatch(/const deco = new Container\(\)/);
+  });
+
+  it('carries the deported sprites the shift that view gets for free', () => {
+    expect(TERRAIN).toMatch(/island\.placeDeco\(/);
+  });
+
+  it('leaves the ground itself below the board', () => {
+    expect(TERRAIN).toMatch(/island\.view\.zIndex = -10;/);
   });
 
   it('does not rely on insertion order inside a sorted container', () => {
