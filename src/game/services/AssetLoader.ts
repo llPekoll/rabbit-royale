@@ -78,11 +78,43 @@ const LIGHTNING = {
  */
 export const LIGHTNING_FOOT = 62 / 64;
 
+/**
+ * The BIG bolt: a 6x5 grid of 195x220 cells, read left-to-right then down.
+ *
+ * Only the first 27 cells hold art — the sheet's last three are blank padding
+ * from the grid, and playing them would leave the animation hanging on empty
+ * frames after it has visibly finished. Two cells INSIDE the run (13 and 14)
+ * are blank on purpose: the sparks flicker out and come back, so the count is
+ * a hard 27 rather than "up to the first empty cell".
+ */
+const LIGHTNING_BOLT_SHEET = {
+  key: Keys.LIGHTNING_BOLT,
+  src: '/assets/fx/lightning-bolt.webp',
+  frameWidth: 195,
+  frameHeight: 220,
+  cols: 6,
+  frames: 27,
+};
+
+/**
+ * Where the BIG bolt meets the ground, as a share of its cell.
+ *
+ * Measured off the art: the strike splashes at the very bottom of its cell and
+ * the sparks settle there, so the foot is the cell's bottom edge. Anchoring
+ * centrally floats the whole strike half its height above its target.
+ */
+export const LIGHTNING_BOLT_FOOT = 1;
+
+/** How many frames the big bolt plays. */
+export const LIGHTNING_BOLT_FRAMES = LIGHTNING_BOLT_SHEET.frames;
+
 /** Store parsed spritesheets for AnimatedSprite creation */
 export const bunnySheets = new Map<string, Spritesheet>();
 export let explosionSheet: Spritesheet | null = null;
 /** One parsed sheet per bolt shape, in `LIGHTNING_STRIKES` order. */
 export const lightningSheets: Spritesheet[] = [];
+/** The big bolt's parsed sheet — `getLightningBoltTextures()` reads it. */
+export let lightningBoltSheet: Spritesheet | null = null;
 /** The loot box's parsed atlas — `lootBoxFrames('idle'|'shine')` reads it. */
 export let lootBoxSheet: Spritesheet | null = null;
 
@@ -175,6 +207,7 @@ export async function loadAllAssets(
     ...BUNNY_SHEETS,
     { key: EXPLOSION.key, src: EXPLOSION.src },
     ...LIGHTNING.keys.map((key) => ({ key, src: LIGHTNING.src(key) })),
+    { key: LIGHTNING_BOLT_SHEET.key, src: LIGHTNING_BOLT_SHEET.src },
   ];
 
   // Add all to Assets resolver
@@ -251,6 +284,25 @@ export async function loadAllAssets(
     lightningSheets.push(sheet);
   }
 
+  // The big bolt: a grid rather than a strip, so the slice walks rows too.
+  const boltTex = Assets.get<Texture>(LIGHTNING_BOLT_SHEET.key);
+  if (boltTex) {
+    const frames: Record<string, { frame: { x: number; y: number; w: number; h: number } }> = {};
+    for (let i = 0; i < LIGHTNING_BOLT_SHEET.frames; i++) {
+      frames[`${LIGHTNING_BOLT_SHEET.key}-${i}`] = {
+        frame: {
+          x: (i % LIGHTNING_BOLT_SHEET.cols) * LIGHTNING_BOLT_SHEET.frameWidth,
+          y: Math.floor(i / LIGHTNING_BOLT_SHEET.cols) * LIGHTNING_BOLT_SHEET.frameHeight,
+          w: LIGHTNING_BOLT_SHEET.frameWidth,
+          h: LIGHTNING_BOLT_SHEET.frameHeight,
+        },
+      };
+    }
+    const sheet = new Spritesheet(boltTex, { frames, meta: { scale: 1 } });
+    await sheet.parse();
+    lightningBoltSheet = sheet;
+  }
+
   await loadLootBoxSheet();
   // Bitmap fonts (outline + basic) are registered by loadArcadeFonts() above.
 }
@@ -293,6 +345,23 @@ export function getLightningTextures(which = 0): Texture[] {
 
 /** How many bolt shapes ship, for a caller rolling a random one. */
 export const LIGHTNING_SHAPES = Keys.LIGHTNING_STRIKES.length;
+
+/**
+ * The big bolt's 27 frames, in order.
+ *
+ * Built by index rather than `Object.values`, for the same reason the small
+ * bolts are: the order of an animation is not something to leave to a map's
+ * iteration order. The two blank frames mid-run are KEPT — they are the
+ * flicker, and filtering them would close a gap the art puts there on purpose.
+ */
+export function getLightningBoltTextures(): Texture[] {
+  if (!lightningBoltSheet) return [];
+  const sheet = lightningBoltSheet;
+  return Array.from(
+    { length: LIGHTNING_BOLT_SHEET.frames },
+    (_, i) => sheet.textures[`${LIGHTNING_BOLT_SHEET.key}-${i}`],
+  ).filter(Boolean);
+}
 
 /** Get explosion animation textures. */
 export function getExplosionTextures(): Texture[] {

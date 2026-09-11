@@ -49,6 +49,19 @@ export const EXPLOSION_SMALL = 'explosion-small';
  */
 export const LIGHTNING_STRIKES = ['lightning-1', 'lightning-2'] as const;
 
+/**
+ * The BIG lightning bolt — a 27-frame strike drawn far larger than the two
+ * small `LIGHTNING_STRIKES` strips, and with a life of its own: a flash that
+ * whites out the frame, the bolt, then sparks raining down and dying out.
+ *
+ * It ships separately rather than as a third `LIGHTNING_STRIKES` shape because
+ * it is not the same KIND of thing: those are 64px square tile-sized bolts
+ * used several at a time across a strike area, this is one 195x220 bolt aimed
+ * at a single target. Mixing them would let a tile-sized strike roll the giant
+ * one and swamp the board.
+ */
+export const LIGHTNING_BOLT = 'lightning-bolt';
+
 // UI
 export const LOGO = 'logo';
 export const LOGO_BANNER = 'logo-banner';
