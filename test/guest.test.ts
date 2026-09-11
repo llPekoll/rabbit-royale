@@ -141,3 +141,34 @@ describe('the shape of the feature', () => {
     expect(PAGE).toMatch(/onPayUsdc=\{payments && !player\.guest/);
   });
 });
+
+/**
+ * Pressing "Connect wallet" as a guest did nothing visible.
+ *
+ * `linkWallet` reports every refusal — no wallet installed, prompt dismissed,
+ * wallet already owns a burrow — into the SESSION's `error`, which the profile
+ * panel never read: its own `error` state belongs to the rename field. So a
+ * failed link left the panel byte-for-byte identical, and a successful one left
+ * it open on copy that no longer applied. Both read to the player as "the
+ * button is broken", which is exactly how it was reported.
+ */
+describe('a guest connecting their wallet is answered', () => {
+  const PANEL = read('../src/components/profile-menu.tsx');
+  const BUTTON = read('../src/components/wallet-button.tsx');
+
+  it('shows the refusal inside the panel that caused it', () => {
+    expect(PANEL).toMatch(/connectError/);
+    // Rendered, not merely accepted as a prop.
+    expect(PANEL).toMatch(/\{connectError && /);
+  });
+
+  it('feeds the panel the session error rather than swallowing it', () => {
+    expect(BUTTON).toMatch(/connectError=\{player\.guest \? error/);
+  });
+
+  it('closes the panel once the wallet is actually attached', () => {
+    // The chip behind has just dropped its GUEST tag; staying open on the old
+    // copy is what made a SUCCESSFUL link look like nothing happened.
+    expect(BUTTON).toMatch(/if \(linked\) setOpen\(false\)/);
+  });
+});

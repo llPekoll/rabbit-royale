@@ -81,9 +81,22 @@ export function WalletButton() {
           player={player}
           avatar={avatar}
           connecting={busy}
+          connectError={player.guest ? error : null}
           // Only a guest is offered the upgrade; a wallet player has nothing
           // to link, and the panel hides the whole block for them.
-          onConnectWallet={player.guest ? linkWallet : null}
+          onConnectWallet={
+            player.guest
+              ? async () => {
+                  const linked = await linkWallet();
+                  // Closing on success is the acknowledgement: the chip behind
+                  // has just lost its GUEST tag and gained the address, and
+                  // leaving the panel open on the old copy is what made a
+                  // SUCCESSFUL link look like nothing had happened either.
+                  if (linked) setOpen(false);
+                  return linked;
+                }
+              : null
+          }
           onUpdated={(patch) => {
             if (patch.avatar) setAvatar(patch.avatar);
             // The hook owns the token and the name: a rename reissues the
