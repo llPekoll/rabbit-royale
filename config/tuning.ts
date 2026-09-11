@@ -321,6 +321,33 @@ export const SMOKE = {
  * them. Corrupt everything and there is nothing to check a number against,
  * which is just smoke with extra steps.
  */
+/**
+ * The lightning strike: sabotage by AREA rather than by ambush.
+ *
+ * A planted bomb waits for the victim to step on it. A strike does not wait —
+ * it lands where the attacker points and sets off everything buried under the
+ * cells around it, at once, whether the victim was going that way or not.
+ *
+ * The two are deliberately different weapons rather than two speeds of the
+ * same one. A bomb is patient and cheap and rewards knowing where someone is
+ * headed; a strike is loud, costs more, and takes ground away from a victim
+ * who was nowhere near it. What it does NOT do is re-cover dug tiles — the GDD
+ * rejects that outright ("breaks minesweeper logic"), and rightly: a board
+ * that can un-deduce itself makes reading it pointless.
+ */
+export const LIGHTNING = {
+  /**
+   * Radius of the strike, in tiles. 1 is the 3x3 around the target.
+   *
+   * Kept small on purpose. The strike's value is that it hits ground the
+   * victim has not chosen to walk on, and a wide blast would clear half an
+   * island in one purchase — which ends the run rather than damaging it.
+   */
+  RADIUS: 1,
+  /** Milliseconds between each tile in the area going off, for the eye. */
+  STAGGER_MS: 60,
+} as const;
+
 export const MIRAGE = {
   /** How long the false numbers hold on the victim's island. */
   DURATION_MS: 90 * 1000,

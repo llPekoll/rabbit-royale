@@ -56,7 +56,7 @@ const ITEMS: Record<ItemKind, {
   lightning: {
     icon: '⚡',
     name: 'Lightning',
-    blurb: 'Hides ground they already cleared. Chaos, from a distance.',
+    blurb: 'Calls a strike on a rival\u2019s island. It opens the ground around it.',
     tint: '#e0a020',
   },
   shield: {

@@ -158,6 +158,17 @@ export function useGameSocket(
      * lied to defeats the item, and finding out is the whole point. It just
      * redraws the tiles it is given.
      */
+    /**
+     * A lightning strike landed on this island.
+     *
+     * Played BEFORE the reveals that follow it: the bolt is the cause and the
+     * opened ground is the consequence, and a flash arriving after its own
+     * result reads as a delayed effect rather than as a strike.
+     */
+    socket.on('lightning_struck', (p: { target: number; tiles: number[] }) => {
+      toScene((s) => s.playLightning(p.target, p.tiles));
+    });
+
     socket.on('hints_changed', (p: { tiles: Array<{ tile: number; adjacent: number }> }) => {
       toScene((s) => { for (const t of p.tiles) s.setHint(t.tile, t.adjacent); });
     });

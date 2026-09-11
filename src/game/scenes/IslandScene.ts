@@ -19,7 +19,9 @@ import { GAME_W, GAME_H } from '../Application';
 import { Tile } from '../entities/Tile';
 import { PlayerRabbit } from '../entities/PlayerRabbit';
 import { SoundManager } from '../services/SoundManager';
-import { getExplosionTextures } from '../services/AssetLoader';
+import {
+  getExplosionTextures, getLightningTextures, LIGHTNING_FOOT, LIGHTNING_SHAPES,
+} from '../services/AssetLoader';
 import { KeyboardControls } from '../services/KeyboardControls';
 import { createTerrainBackground, type TerrainBackground } from '../services/TerrainBackground';
 import { MoveArrows } from '../ui/MoveArrows';
@@ -32,7 +34,7 @@ import {
 } from '@/config/gridConfig';
 import { farmableTiles, terrainTileAt, tierLift } from '@/lib/game/terrainBoard';
 import type { TileContent } from '@/lib/game/types';
-import { ENERGY } from '@config/tuning';
+import { ENERGY, LIGHTNING } from '@config/tuning';
 import { reachableTiles } from '@/lib/game/reachable';
 
 /** What the scene needs from the outside world. The socket layer supplies it. */
@@ -44,6 +46,9 @@ export interface IslandSceneData {
   /** The local player's id, so their own rabbit can be told apart. */
   playerId: string;
 }
+
+/** Frames per second the bolt plays at. Six frames, so this is its whole life. */
+const LIGHTNING_FPS = 14;
 
 /** Explosion presentation. The art is a 48x48 sheet — see AssetLoader. */
 const EXPLOSION_SCALE = 1.6;
@@ -72,6 +77,13 @@ export class IslandScene implements Scene {
   private tiles = new Map<number, Tile>();
   private rabbits = new Map<string, PlayerRabbit>();
   private data: IslandSceneData | null = null;
+
+  /**
+   * Pending bolt timers, so a scene torn down mid-strike does not fire into a
+   * destroyed container. A strike is staggered over a few hundred ms, which is
+   * easily long enough to cross an island change.
+   */
+  private readonly lightningTimers = new Set<number>();
 
   /** The tiles currently lit as reachable, and the sweep running over them. */
   private highlighted: number[] = [];
@@ -446,6 +458,55 @@ export class IslandScene implements Scene {
   }
 
   /**
+   * The lightning strike: a bolt per tile it opened, staggered.
+   *
+   * Staggered rather than simultaneous because a 3x3 of identical flashes
+   * going off on the same frame reads as one big sprite, not as a strike
+   * spreading. `LIGHTNING.STAGGER_MS` between them is barely perceptible and
+   * is the whole difference.
+   *
+   * Each bolt picks its shape from the tile index, so every client watching
+   * the same strike draws the same weather — and two neighbouring tiles rarely
+   * get the same silhouette, which is what stops it reading as a stamp.
+   */
+  playLightning(target: number, tiles: number[]): void {
+    this.sound.playExplosion();
+    this.shakeScreen();
+    const order = tiles.length > 0 ? tiles : [target];
+    order.forEach((index, i) => {
+      const delay = i * LIGHTNING.STAGGER_MS;
+      const timer = window.setTimeout(() => {
+        this.lightningTimers.delete(timer);
+        this.playBolt(index);
+      }, delay);
+      this.lightningTimers.add(timer);
+    });
+  }
+
+  /** One bolt, standing on its tile. */
+  private playBolt(index: number): void {
+    const textures = getLightningTextures(index % LIGHTNING_SHAPES);
+    if (textures.length === 0) return;
+
+    const { x, y } = tilePos(index);
+    const bolt = new AnimatedSprite(textures);
+    // Anchored at the FOOT, not the middle: the art draws a bolt falling from
+    // the top of its cell and splashing at the bottom, so the splash is what
+    // has to land on the tile.
+    bolt.anchor.set(0.5, LIGHTNING_FOOT);
+    bolt.position.set(x, y - tierLift(this.data?.seed ?? '', index));
+    bolt.zIndex = 60;
+    bolt.animationSpeed = LIGHTNING_FPS / 60;
+    bolt.loop = false;
+    bolt.onComplete = () => {
+      this.container.removeChild(bolt);
+      bolt.destroy();
+    };
+    this.container.addChild(bolt);
+    bolt.play();
+  }
+
+  /**
    * A short kick on the whole board. The bomb takes energy the player cannot
    * get back, so it should be FELT — the sound and the sprite alone let a blast
    * slide past unnoticed while the player is reading numbers elsewhere.
@@ -578,6 +639,10 @@ export class IslandScene implements Scene {
       this.onResize = null;
     }
     this.clearHighlights();
+    // A strike is staggered over a few hundred ms — easily long enough to
+    // outlive an island change and fire a bolt into a destroyed container.
+    for (const timer of this.lightningTimers) window.clearTimeout(timer);
+    this.lightningTimers.clear();
     this.clouds?.destroy();
     this.arrows?.destroy();
     this.controls?.destroy();

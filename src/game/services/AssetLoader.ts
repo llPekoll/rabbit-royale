@@ -55,9 +55,34 @@ const EXPLOSION = {
   frameHeight: 48,
 };
 
+/**
+ * The lightning strike: two bolts, six frames of 64px each.
+ *
+ * The art draws a bolt falling from the top of its cell and SPLASHING at the
+ * bottom, so the sprite's anchor belongs at its foot rather than its middle —
+ * see `LIGHTNING_FOOT`. Anchored centrally the strike lands half a tile high
+ * and reads as hovering.
+ */
+const LIGHTNING = {
+  keys: Keys.LIGHTNING_STRIKES,
+  src: (key: string) => `/assets/fx/${key}.webp`,
+  frame: 64,
+  frames: 6,
+};
+
+/**
+ * Where the bolt meets the ground, as a share of its cell.
+ *
+ * Measured off the art: every frame reaches y=62 of 64. Anchoring there puts
+ * the splash on the tile rather than the middle of the bolt.
+ */
+export const LIGHTNING_FOOT = 62 / 64;
+
 /** Store parsed spritesheets for AnimatedSprite creation */
 export const bunnySheets = new Map<string, Spritesheet>();
 export let explosionSheet: Spritesheet | null = null;
+/** One parsed sheet per bolt shape, in `LIGHTNING_STRIKES` order. */
+export const lightningSheets: Spritesheet[] = [];
 /** The loot box's parsed atlas — `lootBoxFrames('idle'|'shine')` reads it. */
 export let lootBoxSheet: Spritesheet | null = null;
 
@@ -149,6 +174,7 @@ export async function loadAllAssets(
     ...IMAGES,
     ...BUNNY_SHEETS,
     { key: EXPLOSION.key, src: EXPLOSION.src },
+    ...LIGHTNING.keys.map((key) => ({ key, src: LIGHTNING.src(key) })),
   ];
 
   // Add all to Assets resolver
@@ -209,6 +235,22 @@ export async function loadAllAssets(
   await explSheet.parse();
   explosionSheet = explSheet;
 
+  // The lightning strips: one row each, so the slice is a loop over columns.
+  lightningSheets.length = 0;
+  for (const key of LIGHTNING.keys) {
+    const tex = Assets.get<Texture>(key);
+    if (!tex) continue;
+    const frames: Record<string, { frame: { x: number; y: number; w: number; h: number } }> = {};
+    for (let i = 0; i < LIGHTNING.frames; i++) {
+      frames[`${key}-${i}`] = {
+        frame: { x: i * LIGHTNING.frame, y: 0, w: LIGHTNING.frame, h: LIGHTNING.frame },
+      };
+    }
+    const sheet = new Spritesheet(tex, { frames, meta: { scale: 1 } });
+    await sheet.parse();
+    lightningSheets.push(sheet);
+  }
+
   await loadLootBoxSheet();
   // Bitmap fonts (outline + basic) are registered by loadArcadeFonts() above.
 }
@@ -230,6 +272,27 @@ export function getBunnyAnimTextures(
   }
   return textures;
 }
+
+/**
+ * One bolt's frames, in order.
+ *
+ * `which` picks the shape — pass a seeded roll so a strike looks the same on
+ * every client watching it. Out-of-range wraps, so a caller can hand it a
+ * plain random integer without knowing how many shapes ship.
+ *
+ * Built by index rather than `Object.values`: the order of an animation is not
+ * something to leave to a map's iteration order.
+ */
+export function getLightningTextures(which = 0): Texture[] {
+  if (lightningSheets.length === 0) return [];
+  const key = Keys.LIGHTNING_STRIKES[which % Keys.LIGHTNING_STRIKES.length];
+  const sheet = lightningSheets[which % lightningSheets.length];
+  return Array.from({ length: LIGHTNING.frames }, (_, i) => sheet.textures[`${key}-${i}`])
+    .filter(Boolean);
+}
+
+/** How many bolt shapes ship, for a caller rolling a random one. */
+export const LIGHTNING_SHAPES = Keys.LIGHTNING_STRIKES.length;
 
 /** Get explosion animation textures. */
 export function getExplosionTextures(): Texture[] {

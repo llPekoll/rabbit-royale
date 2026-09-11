@@ -25,6 +25,7 @@ import { mulberry32, seedFrom } from '../src/lib/game/rng';
 import { dugFraction, publicView } from '../src/lib/game/island';
 import { resolveMove, spawnRabbit } from '../src/lib/game/run';
 import { mirageActive, planMirage, shownAdjacent } from '../src/lib/game/mirage';
+import { strike } from '../src/lib/game/lightning';
 import { makeShape } from '../src/config/gridConfig';
 import type { Rabbit } from '../src/lib/game/types';
 import { verifySession } from '../src/lib/auth/jwt';
@@ -366,6 +367,77 @@ io.on('connection', (socket: Socket) => {
     data.spectating = target;
     socket.join(roomFor(found.island.id));
     socket.emit('island', snapshot(found));
+  }));
+
+  /**
+   * Call a lightning strike down on a tile of this island.
+   *
+   * The loud sabotage. A planted bomb is an ambush that waits to be stepped
+   * on; a strike lands where it is aimed and opens the ground around it at
+   * once, setting off whatever was buried there.
+   *
+   * It does NOT re-cover dug tiles, whatever the shop's old copy promised —
+   * the GDD rejects that by name ("breaks minesweeper logic"), and a board
+   * that can un-deduce itself makes reading it pointless.
+   *
+   * The item is spent BEFORE the strike lands: a failed strike that still cost
+   * the carrot is a bug report, one that landed unpaid is an exploit.
+   */
+  socket.on('lightning', guard('lightning', async (payload: { tile?: unknown }) => {
+    if (!data.playerId || !data.islandId || data.spectating) return;
+    const target = payload?.tile;
+    if (typeof target !== 'number' || !Number.isInteger(target)) return;
+
+    const live = store.get(data.islandId);
+    if (!live || live.erupting) return;
+    // Aimed at ground that exists. A strike into the sea is a client bug, not
+    // a play, so it is refused rather than silently doing nothing.
+    if (!live.island.tiles.has(target)) {
+      return socket.emit('lightning_rejected', { reason: 'off-island' });
+    }
+
+    const spent = await db
+      .update(inventory)
+      .set({ qty: raw`${inventory.qty} - 1` })
+      .where(and(
+        eq(inventory.playerId, data.playerId),
+        eq(inventory.kind, 'lightning'),
+        raw`${inventory.qty} > 0`,
+      ))
+      .returning({ qty: inventory.qty });
+    if (spent.length === 0) return socket.emit('lightning_rejected', { reason: 'none-held' });
+
+    const out = strike(live.island, data.playerId, target);
+
+    const room = roomFor(live.island.id);
+    // The bolt itself, so every client can play it — including spectators, who
+    // are watching precisely for this.
+    io.to(room).emit('lightning_struck', {
+      target,
+      castBy: data.playerId,
+      tiles: out.struck.map((s) => s.tile),
+      bombs: out.bombs,
+    });
+
+    // Then the ground it opened, as ordinary reveals: a dug tile is dug
+    // regardless of what dug it, and the hint recount already happened.
+    const now = Date.now();
+    for (const s of out.struck) {
+      const reveal = {
+        tile: s.tile,
+        content: s.content,
+        adjacent: s.adjacent,
+        dugBy: data.playerId,
+      };
+      if (live.mirages.size === 0) {
+        io.to(room).emit('tile_revealed', reveal);
+      } else {
+        for (const seated of live.rabbits.keys()) {
+          const bent = shownAdjacent(live.mirages.get(seated), s.tile, s.adjacent, now);
+          socketOf(seated)?.emit('tile_revealed', { ...reveal, adjacent: bent });
+        }
+      }
+    }
   }));
 
   /**

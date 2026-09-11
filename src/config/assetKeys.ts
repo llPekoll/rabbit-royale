@@ -40,6 +40,14 @@ export const cloudKey = (n: number) => `cloud-${n}`;
 
 // FX
 export const EXPLOSION_SMALL = 'explosion-small';
+/**
+ * The lightning strike, in two shapes.
+ *
+ * Two rather than one so a strike that covers several tiles does not stamp the
+ * same bolt across all of them — a repeated silhouette reads as one sprite
+ * copied, where two alternating reads as weather.
+ */
+export const LIGHTNING_STRIKES = ['lightning-1', 'lightning-2'] as const;
 
 // UI
 export const LOGO = 'logo';
