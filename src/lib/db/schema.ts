@@ -22,7 +22,7 @@ import {
  * on purchase rather than carried, so it appears here only so a payment row can
  * name what was bought. Nothing reads an `inventory` row of that kind.
  */
-export const itemKindEnum = pgEnum('item_kind', ['bomb', 'shield', 'lightning', 'trap', 'energy', 'smoke']);
+export const itemKindEnum = pgEnum('item_kind', ['bomb', 'shield', 'lightning', 'trap', 'energy', 'smoke', 'mirage']);
 /** What a purchase was paid with. Both routes buy the same goods — see SHOP. */
 export const currencyEnum = pgEnum('currency', ['carrots', 'usdc']);
 /** A USDC payment's life: quoted → paid → credited, or abandoned. */

@@ -1,0 +1,1 @@
+ALTER TYPE "public"."item_kind" ADD VALUE 'mirage';

@@ -16,7 +16,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { PayTokenId } from '@/lib/pay/tokens';
 
-export type ItemKind = 'trap' | 'bomb' | 'lightning' | 'shield' | 'energy' | 'smoke';
+export type ItemKind = 'trap' | 'bomb' | 'lightning' | 'shield' | 'energy' | 'smoke' | 'mirage';
 
 export interface ShopItem {
   kind: ItemKind;
@@ -174,5 +174,6 @@ function purchaseNote(kind: ItemKind, qty: number, spent: number): string {
     case 'lightning': return `${n}lightning bolt${qty > 1 ? 's' : ''} bottled. ${paid}`;
     case 'shield': return `${n}shield${qty > 1 ? 's' : ''} ready. ${paid}`;
     case 'smoke': return `The numbers are hidden. ${paid}`;
+    case 'mirage': return `${n}mirage${qty > 1 ? 's' : ''} ready to throw. ${paid}`;
   }
 }

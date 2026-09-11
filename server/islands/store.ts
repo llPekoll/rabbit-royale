@@ -15,6 +15,7 @@
 import { MULTIPLAYER } from '../../config/tuning';
 import { generateIsland } from '../../src/lib/game/island';
 import { makeShape, type IslandShape } from '../../src/config/gridConfig';
+import type { ActiveMirage } from '../../src/lib/game/mirage';
 import type { Island, Rabbit } from '../../src/lib/game/types';
 
 export interface LiveIsland {
@@ -29,6 +30,15 @@ export interface LiveIsland {
   erupting: boolean;
   /** Warning stage 0-3, broadcast only when it changes (the volcano smokes). */
   warnStage: number;
+  /**
+   * Mirages currently bending the numbers, by VICTIM.
+   *
+   * Per victim rather than per island: a mirage is thrown at one rival, and
+   * everyone else on the shared island goes on reading honest ground. Holding
+   * it here rather than on the rabbit means it survives the victim's
+   * reconnect, which is exactly the window an attacker would otherwise use.
+   */
+  mirages: Map<string, ActiveMirage>;
   emptySince: number | null;
 }
 
@@ -62,6 +72,7 @@ export class MemoryIslandStore implements IslandStore {
       disconnectedAt: new Map(),
       erupting: false,
       warnStage: 0,
+      mirages: new Map(),
       emptySince: Date.now(),
     };
     this.islands.set(live.island.id, live);

@@ -20,15 +20,16 @@ import { randomUUID } from 'node:crypto';
 import { Server, type Socket } from 'socket.io';
 import { and, eq, isNull, sql as raw } from 'drizzle-orm';
 
-import { ENERGY, ERUPTION, MULTIPLAYER } from '../config/tuning';
+import { ENERGY, ERUPTION, MIRAGE, MULTIPLAYER } from '../config/tuning';
 import { mulberry32, seedFrom } from '../src/lib/game/rng';
 import { dugFraction, publicView } from '../src/lib/game/island';
 import { resolveMove, spawnRabbit } from '../src/lib/game/run';
+import { mirageActive, planMirage, shownAdjacent } from '../src/lib/game/mirage';
 import { makeShape } from '../src/config/gridConfig';
 import type { Rabbit } from '../src/lib/game/types';
 import { verifySession } from '../src/lib/auth/jwt';
 import { db } from '../src/lib/db';
-import { players, runs, seasons } from '../src/lib/db/schema';
+import { inventory, players, runs, seasons } from '../src/lib/db/schema';
 import { MemoryIslandStore, type LiveIsland } from './islands/store';
 import { roomFor } from './islands/router';
 import { markOffline, markOnline, setScore } from '../src/lib/leaderboard';
@@ -368,6 +369,78 @@ io.on('connection', (socket: Socket) => {
   }));
 
   /**
+   * Throw a mirage at a rival on this island.
+   *
+   * The sabotage that attacks DEDUCTION rather than position: a few of the
+   * victim's already-revealed numbers start lying by one, for ninety seconds.
+   * See `docs/` and `src/lib/game/mirage.ts` for why only a few, and why the
+   * drift is small — a lie has to stay findable or the victim stops reading
+   * the board instead of checking it.
+   *
+   * The item is spent BEFORE the mirage lands: a failed throw that still cost
+   * the carrot is a bug report, but a mirage that landed without being paid for
+   * is an exploit, and only one of those is recoverable.
+   */
+  socket.on('mirage', guard('mirage', async (payload: { victim?: unknown }) => {
+    if (!data.playerId || !data.islandId || data.spectating) return;
+    const victimId = payload?.victim;
+    if (typeof victimId !== 'string' || victimId === data.playerId) return;
+
+    const live = store.get(data.islandId);
+    if (!live || live.erupting) return;
+    const victim = live.rabbits.get(victimId);
+    // Only someone actually playing this island can be confused by it.
+    if (!victim || !victim.alive) return;
+    // One at a time per victim: stacking mirages would compound past the point
+    // where the lie is still checkable against honest neighbours.
+    if (mirageActive(live.mirages.get(victimId), Date.now())) {
+      return socket.emit('mirage_rejected', { reason: 'already-mirrored' });
+    }
+
+    // Spend it. Conditional on the row still having one, so two sockets racing
+    // the same last mirage cannot both win.
+    const spent = await db
+      .update(inventory)
+      .set({ qty: raw`${inventory.qty} - 1` })
+      .where(and(
+        eq(inventory.playerId, data.playerId),
+        eq(inventory.kind, 'mirage'),
+        raw`${inventory.qty} > 0`,
+      ))
+      .returning({ qty: inventory.qty });
+    if (spent.length === 0) return socket.emit('mirage_rejected', { reason: 'none-held' });
+
+    const now = Date.now();
+    const m = planMirage(live.island, data.playerId, now);
+    if (m.hints.length === 0) {
+      // Nothing on the victim's board to corrupt yet. The item is already gone
+      // — thrown at someone who has not read anything is simply a wasted throw,
+      // and refunding it would let an attacker probe for free.
+      return socket.emit('mirage_rejected', { reason: 'nothing-to-bend' });
+    }
+    live.mirages.set(victimId, m);
+
+    // Only the victim is told, and only which tiles to redraw — never that the
+    // numbers are false. Being told you are being lied to defeats the item;
+    // FINDING OUT is the whole point.
+    const victimSocket = socketOf(victimId);
+    victimSocket?.emit('hints_changed', {
+      tiles: m.hints.map((h) => ({ tile: h.tile, adjacent: h.shown })),
+    });
+    socket.emit('mirage_thrown', { victim: victimId, tiles: m.hints.length });
+
+    // And when it lifts, the truth comes back the same way.
+    setTimeout(() => {
+      const held = live.mirages.get(victimId);
+      if (held !== m) return;               // superseded or the island is gone
+      live.mirages.delete(victimId);
+      socketOf(victimId)?.emit('hints_changed', {
+        tiles: m.hints.map((h) => ({ tile: h.tile, adjacent: h.truth })),
+      });
+    }, MIRAGE.DURATION_MS).unref?.();
+  }));
+
+  /**
    * A move intent. The DESTINATION TILE is the only thing the client chooses,
    * and even that is checked (adjacent, on land, off cooldown) — everything the
    * move then produces is decided here.
@@ -439,13 +512,26 @@ io.on('connection', (socket: Socket) => {
       }
       // A dug tile is revealed FOR EVERYONE — the shared map is the whole point
       // of the shared island. The carrot, however, went to the first digger only.
-      io.to(room).emit('tile_revealed', {
+      // Everyone gets the truth — except a victim under a mirage, who gets
+      // their own bent copy. Sent per socket rather than to the room, because
+      // the whole point is that one player's board disagrees with everybody
+      // else's and nobody is told which.
+      const reveal = {
         tile: out.dig.tile,
         content: out.dig.content,
         adjacent: out.dig.adjacent,
         dugBy: data.playerId,
         plantedBy: out.dig.plantedBy,
-      });
+      };
+      const now = Date.now();
+      if (live.mirages.size === 0) {
+        io.to(room).emit('tile_revealed', reveal);
+      } else {
+        for (const seated of live.rabbits.keys()) {
+          const bent = shownAdjacent(live.mirages.get(seated), reveal.tile, reveal.adjacent, now);
+          socketOf(seated)?.emit('tile_revealed', { ...reveal, adjacent: bent });
+        }
+      }
       // The blast is its own event: the client plays a damage animation and a
       // knockback, which a plain move would not distinguish from a walk.
       if (out.dig.knockback) {

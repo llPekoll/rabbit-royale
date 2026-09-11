@@ -369,6 +369,18 @@ export class IslandScene implements Scene {
   // ── Server events ──────────────────────────────────────────────────────────
 
   /** The server dug a tile — for everyone on the island, whoever dug it. */
+  /**
+   * Redraw the number on a tile that is already dug.
+   *
+   * For hints that CHANGE after the fact: a saboteur's bomb pushing a 2 to a
+   * 3, or a mirage bending one. The scene is not told which — it redraws what
+   * the server sent, and a number quietly disagreeing with its neighbours is
+   * exactly the thing a player is meant to notice for themselves.
+   */
+  setHint(index: number, adjacent: number): void {
+    this.tiles.get(index)?.setHint(adjacent);
+  }
+
   revealTile(index: number, content: TileContent, adjacent: number): void {
     const tile = this.tiles.get(index);
     if (!tile) return;

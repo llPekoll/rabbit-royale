@@ -150,6 +150,18 @@ export function useGameSocket(
       toScene((s) => s.revealTile(t.tile, t.content, t.adjacent));
     });
 
+    /**
+     * Numbers on already-dug ground changed.
+     *
+     * A mirage landing, or lifting. The client is deliberately NOT told which
+     * it is, or that the numbers are false at all: being told you are being
+     * lied to defeats the item, and finding out is the whole point. It just
+     * redraws the tiles it is given.
+     */
+    socket.on('hints_changed', (p: { tiles: Array<{ tile: number; adjacent: number }> }) => {
+      toScene((s) => { for (const t of p.tiles) s.setHint(t.tile, t.adjacent); });
+    });
+
     socket.on('rabbit_moved', (r: ClientRabbit) => {
       setRabbits((prev) => new Map(prev).set(r.playerId, r));
       toScene((s) => s.moveRabbit(r.playerId, r.tile, r.energy));

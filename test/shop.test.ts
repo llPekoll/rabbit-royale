@@ -26,7 +26,7 @@ const fresh = {
   smokeUntil: null,
 };
 const bag = (over: Partial<Holdings> = {}): Holdings =>
-  ({ trap: 0, bomb: 0, lightning: 0, shield: 0, energy: 0, smoke: 0, ...over });
+  ({ trap: 0, bomb: 0, lightning: 0, shield: 0, energy: 0, smoke: 0, mirage: 0, ...over });
 
 describe('the price list', () => {
   // THE economy rule, as a test. "Everything is buyable in carrots OR money"

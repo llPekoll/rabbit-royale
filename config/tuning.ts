@@ -296,6 +296,69 @@ export const SMOKE = {
   MAX_MS: 3 * 24 * 60 * 60 * 1000,
 } as const;
 
+/**
+ * The mirage: the anti-DEDUCTION item.
+ *
+ * Smoke takes the numbers away. This one leaves them there and makes some of
+ * them LIE — a "2" that should read 3, on a live island, while the victim is
+ * playing it. The GDD already names this as the sabotage tell worth having:
+ * "a revealed 2 silently becomes a 3, and an attentive victim can spot it."
+ *
+ * It is the stronger idea of the two and the cheaper item, which is not a
+ * contradiction:
+ *
+ *  - Smoke removes information. The victim KNOWS they are blind, adapts, and
+ *    walks carefully. It is expensive because certainty-of-ignorance is a
+ *    solid defensive state.
+ *  - A mirage corrupts information. The victim does not know, trusts the
+ *    board, and walks into a bomb reading a number that said it was safe.
+ *
+ * What keeps it from being pure cruelty is that it is READABLE. A lie is only
+ * a lie against the truth around it: a corrupted hint contradicts its
+ * neighbours, so a player who is actually reading the board can catch it and
+ * re-derive the real count. That is the skill the item attacks and rewards at
+ * the same time — and it is why only a FEW tiles are touched, never all of
+ * them. Corrupt everything and there is nothing to check a number against,
+ * which is just smoke with extra steps.
+ */
+export const MIRAGE = {
+  /** How long the false numbers hold on the victim's island. */
+  DURATION_MS: 90 * 1000,
+  /**
+   * How many REVEALED tiles are made to lie.
+   *
+   * A handful, not a share of the board: the lie has to be findable. Three
+   * wrong numbers among twenty honest ones is a puzzle; twenty wrong ones is
+   * noise, and a player who cannot trust anything stops reading and just digs.
+   */
+  TILES: 3,
+  /**
+   * How far a corrupted hint drifts from the truth.
+   *
+   * Plus or minus one. A "2" showing 3 or 1 is a plausible number that sits
+   * wrong against its neighbours; a "2" showing 7 is obviously broken and
+   * fools nobody. The lie has to be worth believing to be worth spotting.
+   */
+  DRIFT: 1,
+  /**
+   * Only ever tiles the victim has ALREADY dug.
+   *
+   * An undug tile has no number to corrupt, and faking one would invent
+   * information rather than falsify it — the victim would be reading a hint
+   * for ground nobody has opened, which reads as a bug.
+   */
+  REVEALED_ONLY: true,
+  /**
+   * Share of ground dug DURING the mirage that also comes out wrong.
+   *
+   * Without it the item lasts one puzzle: the victim checks the three
+   * corrupted tiles, finds them, and everything after is honest. A quarter
+   * keeps the doubt alive for the whole ninety seconds while leaving three
+   * digs in four truthful — enough honest ground to catch the liars against.
+   */
+  FRESH_RATE: 0.25,
+} as const;
+
 export const SHOP = {
   /**
    * Carrot price per kind.
@@ -330,6 +393,15 @@ export const SHOP = {
      * night, not a standing habit.
      */
     smoke: 2_400,
+    /**
+     * Cheaper than smoke, and stronger — deliberately.
+     *
+     * Smoke buys a defensive state that lasts a day; a mirage buys ninety
+     * seconds of someone else's confusion. The price is what separates a
+     * standing habit from an opportunist strike, and this one is meant to be
+     * thrown in the middle of a race rather than budgeted for.
+     */
+    mirage: 1_100,
   },
   /**
    * USDC price per kind, in whole USDC (converted to base units at the edge —
@@ -344,6 +416,7 @@ export const SHOP = {
     shield: 0.90,
     energy: 0.99,
     smoke: 1.99,
+    mirage: 0.99,
   },
   /**
    * Ceiling per kind, so a whale cannot stockpile a season of offence in one

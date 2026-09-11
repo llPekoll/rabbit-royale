@@ -77,6 +77,12 @@ const ITEMS: Record<ItemKind, {
     blurb: 'Hides your burrow\u2019s numbers for a day. Raiders cross it blind.',
     tint: '#6b7a8f',
   },
+  mirage: {
+    icon: '🌀',
+    name: 'Mirage',
+    blurb: 'Makes a few of a rival\u2019s numbers lie, mid-run. They can spot it.',
+    tint: '#9a6bd6',
+  },
 };
 
 /**

@@ -17,11 +17,11 @@ import { ENERGY_PACK, SHOP, SMOKE, itemCap, itemPrice, itemUsdcPrice } from '@co
 import { availableTraps, type TrapRow } from './traps';
 
 /** The kinds the shop sells. Same set the `item_kind` enum stores. */
-export const ITEM_KINDS = ['trap', 'bomb', 'lightning', 'shield', 'energy', 'smoke'] as const;
+export const ITEM_KINDS = ['trap', 'bomb', 'lightning', 'shield', 'energy', 'smoke', 'mirage'] as const;
 export type ItemKind = (typeof ITEM_KINDS)[number];
 
 /** The kinds that are actually CARRIED. Energy is spent as it is bought. */
-export const CARRIED_KINDS = ['trap', 'bomb', 'lightning', 'shield'] as const;
+export const CARRIED_KINDS = ['trap', 'bomb', 'lightning', 'shield', 'mirage'] as const;
 export type CarriedKind = (typeof CARRIED_KINDS)[number];
 
 export function isItemKind(v: unknown): v is ItemKind {
@@ -115,7 +115,7 @@ export function holdings(
   row: TrapRow & EnergyPackRow & SmokeRow,
   now = Date.now(),
 ): Holdings {
-  const bag = { trap: 0, bomb: 0, lightning: 0, shield: 0, energy: 0, smoke: 0 } as Holdings;
+  const bag = { trap: 0, bomb: 0, lightning: 0, shield: 0, energy: 0, smoke: 0, mirage: 0 } as Holdings;
   for (const r of rows) if (isItemKind(r.kind)) bag[r.kind] = r.qty;
   // Traps, energy and smoke override whatever the table said: none is stored
   // there. Traps live beside their free allowance, energy is applied on

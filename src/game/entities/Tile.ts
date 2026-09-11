@@ -269,6 +269,22 @@ export class Tile {
    * decades of muscle memory and a player reads "3 = danger" before they read
    * the glyph, so it is worth keeping exactly.
    */
+  /**
+   * Replace the number on an already-revealed tile.
+   *
+   * Redrawn rather than tweened: a hint that animated when it changed would
+   * announce itself, and the whole point of a corrupted number is that it
+   * looks like it was always there. A tile with no hint (a true zero, or one
+   * not yet dug) is left alone — inventing a number for ground the player has
+   * not opened reads as a bug, not as sabotage.
+   */
+  setHint(count: number): void {
+    if (!this.revealed || !this.hintGroup) return;
+    this.hintGroup.destroy({ children: true });
+    this.hintGroup = null;
+    if (count > 0) this.addHint(count, false);
+  }
+
   private addHint(count: number, animate: boolean): void {
     const label = shadowedPixelText(0, 0, String(count));
     label.face.tint = HINT_TINTS[Math.min(count, HINT_TINTS.length - 1)];
