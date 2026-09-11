@@ -28,6 +28,18 @@ export interface TerrainBackground extends IslandBackground {
   fadeBehind(tileX: number, tileY: number): void;
   /** Advance the sway. `deltaMs` is real milliseconds. */
   update(deltaMs: number): void;
+  /**
+   * Put one sheep on a new cell, because the SERVER says so.
+   *
+   * The terrain scattered the flock from the seed, but it does not decide
+   * where it goes from there — sheep bolt when a rabbit closes in, and that
+   * makes their position shared mutable state the server owns (`flee.ts`).
+   * This is the client's end of that: no rules, just "this one is there now".
+   *
+   * Silently ignores an unknown id, which is what a client holding a stale
+   * flock across a rebuild would send.
+   */
+  moveSheep(id: string, x: number, y: number): void;
 }
 
 /**
@@ -98,6 +110,16 @@ export async function createTerrainBackground(
       // recompute, unlike the painting, which had to re-cover the viewport.
     },
     fadeBehind: (x, y) => island.fadeBehind(x, y),
+    moveSheep(id, x, y) {
+      // The occupant objects are the SAME ones the view holds, so writing the
+      // cell here and calling `syncOccupants` is what moves the sprite — the
+      // path a wandering sheep already used, now driven from the wire.
+      const one = island.occupants().find((o) => o.id === id);
+      if (!one) return;
+      one.x = x;
+      one.y = y;
+      island.syncOccupants();
+    },
     update: (deltaMs) => island.update(deltaMs),
     destroy: () => island.destroy(),
   };

@@ -36,6 +36,23 @@ export interface IslandSnapshot {
   warnStage: number;
   rabbits: ClientRabbit[];
   revealed: Array<{ tile: number; content: TileContent; adjacent: number }>;
+  /**
+   * Where the flock stands, by placement id.
+   *
+   * Sent because it is no longer derivable: sheep bolt when a rabbit gets
+   * close, so the seed only says where they STARTED. A player joining a run in
+   * progress needs the current picture — a sheep blocks its cell, so a stale
+   * flock is a stale set of legal moves.
+   */
+  sheep?: Array<{ id: string; x: number; y: number }>;
+}
+
+/** One sheep's move, as `sheep_moved` reports it. */
+export interface SheepMove {
+  id: string;
+  tile: number;
+  /** A panic sprint rather than a graze — the client plays it faster. */
+  sprinting: boolean;
 }
 
 /**
@@ -171,6 +188,19 @@ export function useGameSocket(
 
     socket.on('hints_changed', (p: { tiles: Array<{ tile: number; adjacent: number }> }) => {
       toScene((s) => { for (const t of p.tiles) s.setHint(t.tile, t.adjacent); });
+    });
+
+    /**
+     * The flock moved, as the SERVER decided it.
+     *
+     * The client does not run the flight rules — it plays what it is told,
+     * exactly like `rabbit_moved`. A sheep blocks its cell, so a browser that
+     * chose its own sheep positions would disagree with the server about which
+     * moves are legal, and the player would get a move refused for no visible
+     * reason.
+     */
+    socket.on('sheep_moved', (p: { sheep: SheepMove[] }) => {
+      toScene((s) => { for (const one of p.sheep) s.moveSheep(one.id, one.tile, one.sprinting); });
     });
 
     socket.on('rabbit_moved', (r: ClientRabbit) => {

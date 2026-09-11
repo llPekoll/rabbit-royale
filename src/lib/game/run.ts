@@ -86,6 +86,15 @@ export function resolveMove(
    * pushing a thing the SERVER opts into by handing over the roster.
    */
   others?: Iterable<Rabbit>,
+  /**
+   * Tiles the flock is standing on right now.
+   *
+   * Same bargain as `others`: optional, so every existing caller and test is
+   * unchanged, and the SERVER is what opts into the live picture by handing it
+   * over. A sheep blocks its cell, and where the flock stands stopped being a
+   * function of the seed the day sheep started bolting (see `flee.ts`).
+   */
+  blocked?: ReadonlySet<number>,
 ): MoveOutcome {
   const reject = (rejection: MoveRejection): MoveOutcome => ({
     ok: false,
@@ -107,7 +116,12 @@ export function resolveMove(
   // than trusted from the client, which is the entire reason this function
   // exists: the ring the player taps is drawn from the same rule, so a client
   // that lied about a cliff or a tree would simply have its move refused.
-  if (!canWalk(island.seed, rabbit.tile, to)) return reject('not-adjacent');
+  if (!canWalk(island.seed, rabbit.tile, to, blocked)) {
+    // 'blocked' when something is standing there, 'not-adjacent' when the
+    // ground itself refuses — the client tells them apart to pick a message,
+    // and "you cannot reach that" is wrong for a tile with a sheep on it.
+    return reject(blocked?.has(to) ? 'blocked' : 'not-adjacent');
+  }
 
   // Who is standing there, and where does everybody end up? Planned BEFORE
   // anything is committed, so a chain whose far end is a cliff refuses the
@@ -270,9 +284,23 @@ export function isAdjacent(a: number, b: number): boolean {
  * The terrain is rebuilt from the island's seed on both sides, so this is the
  * same answer the client's ring is drawn from.
  */
-export function canWalk(seed: string, from: number, to: number): boolean {
+export function canWalk(seed: string, from: number, to: number, blocked?: ReadonlySet<number>): boolean {
   if (!isAdjacent(from, to)) return false;
-  return terrainNeighbors(seed, from).includes(to);
+  if (!terrainNeighbors(seed, from).includes(to)) return false;
+  /**
+   * Cells a sheep has walked onto since the island was cut.
+   *
+   * The seed says where the flock STARTED; it cannot say where it is now, and
+   * a sheep blocks its cell. Without this the server contradicts its own
+   * broadcast — it would refuse a tile the flock has left and wave a rabbit
+   * through one it has moved onto, which the player sees as the sheep being
+   * decorative right up until a move is rejected for no visible reason.
+   *
+   * Optional because most callers ask a question the flock cannot change (a
+   * blast's landing spot, the client's own ring); the server's move handler is
+   * the one that must pass it.
+   */
+  return !blocked?.has(to);
 }
 
 /**

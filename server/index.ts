@@ -26,7 +26,9 @@ import { dugFraction, publicView } from '../src/lib/game/island';
 import { resolveMove, spawnRabbit } from '../src/lib/game/run';
 import { mirageActive, planMirage, shownAdjacent } from '../src/lib/game/mirage';
 import { strike } from '../src/lib/game/lightning';
-import { makeShape } from '../src/config/gridConfig';
+import { makeShape, toColRow, toIndex } from '../src/config/gridConfig';
+import { planFlock, type Ground } from '../src/lib/game/flee';
+import { boardFor, terrainFor } from '../src/lib/game/terrainBoard';
 import type { Rabbit } from '../src/lib/game/types';
 import { verifySession } from '../src/lib/auth/jwt';
 import { db } from '../src/lib/db';
@@ -126,6 +128,11 @@ function snapshot(live: LiveIsland) {
     revealed: view.revealed,
     warnStage: live.warnStage,
     rabbits: [...live.rabbits.values()].map(publicRabbit),
+    // Where the flock stands NOW, not where the seed first put it. A player
+    // joining a run in progress has to see the sheep everyone else sees —
+    // they block cells, so an out-of-date flock is an out-of-date set of legal
+    // moves.
+    sheep: [...live.sheep].map(([id, at]) => ({ id, x: at.x, y: at.y })),
   };
 }
 
@@ -538,7 +545,11 @@ io.on('connection', (socket: Socket) => {
     // rules in `docs/bumping.md`. Passing the roster is what turns pushing on;
     // `resolveMove` without it behaves exactly as it did before.
     const others = [...live.rabbits.values()].filter((r) => r.playerId !== rabbit.playerId);
-    const out = resolveMove(live.island, rabbit, to, live.shape, rng, Date.now(), others);
+    // Where the flock stands right now. The seed says where it started, and a
+    // sheep blocks its cell — without this the server would wave a rabbit onto
+    // a tile it has just told everyone a sheep is standing on.
+    const sheepTiles = new Set([...live.sheep.values()].map((at) => toIndex(at.x, at.y)));
+    const out = resolveMove(live.island, rabbit, to, live.shape, rng, Date.now(), others, sheepTiles);
     if (!out.ok) return socket.emit('move_rejected', { reason: out.rejection });
 
     const room = roomFor(live.island.id);
@@ -722,6 +733,95 @@ io.on('connection', (socket: Socket) => {
     io.to(roomFor(live.island.id)).emit('rabbit_left', { playerId: data.playerId, grace: true });
   }));
 });
+
+// ── The flock ────────────────────────────────────────────────────────────────
+
+/**
+ * How often the sheep get a turn.
+ *
+ * Slow on purpose. A sheep is scenery that gets out of the way, not a second
+ * kind of player: ticking it at the rabbits' rate would fill the socket with
+ * livestock traffic and make a quiet island look frantic. At this rate a
+ * grazing flock drifts about once every two seconds, and a spooked one bolts
+ * on the first tick after the rabbit closes in — which is the only timing that
+ * has to feel immediate.
+ */
+const FLOCK_TICK_MS = 500;
+
+/**
+ * What `flee.ts` needs to know about the ground, answered from live state.
+ *
+ * `isFree` is the interesting one: it has to consult the CURRENT flock, not
+ * just the seed's obstacles, or two sheep would walk through each other. The
+ * rabbits count too — a sheep that stepped onto an occupied tile would put two
+ * things on one cell, and the board's own rules say a rabbit's tile is taken.
+ */
+function groundFor(live: LiveIsland): { ground: Ground; occupied: Set<string> } {
+  const seed = live.island.seed;
+  const board = boardFor(seed);
+  const { map } = terrainFor(seed);
+  const occupied = new Set<string>();
+  for (const at of live.sheep.values()) occupied.add(`${at.x},${at.y}`);
+  for (const rabbit of live.rabbits.values()) {
+    const { col, row } = toColRow(rabbit.tile);
+    occupied.add(`${col},${row}`);
+  }
+  return {
+    ground: {
+      stepsFrom: (x, y) => board.stepsFrom(x, y),
+      // Reads the set LIVE, so a cell claimed earlier in this same tick is
+      // already taken by the time the next sheep is planned.
+      isFree: (x, y) => board.isWalkable(x, y) && !occupied.has(`${x},${y}`),
+      tierAt: (x, y) => map.level[y * map.width + x] ?? 0,
+    },
+    occupied,
+  };
+}
+
+/**
+ * Move every island's flock one tick and tell the room what changed.
+ *
+ * Only islands with somebody on them: a flock nobody is watching does not need
+ * to drift, and skipping empty islands keeps this loop proportional to players
+ * rather than to islands ever created.
+ *
+ * Nothing is emitted when nothing moved, which is the common case — a calm
+ * flock only grazes a quarter of the time, and most ticks pass in silence.
+ */
+setInterval(guard('flock', () => {
+  for (const live of store.all()) {
+    if (live.erupting || live.rabbits.size === 0) continue;
+
+    const { ground, occupied } = groundFor(live);
+    const rabbitTiles = [...live.rabbits.values()].filter((r) => r.alive).map((r) => r.tile);
+    const flock = [...live.sheep].map(([id, at]) => ({ id, x: at.x, y: at.y }));
+
+    const flights = planFlock(
+      flock,
+      ground,
+      rabbitTiles,
+      Math.random,
+      // Committed as each one is planned, so the next sheep sees the cell as
+      // taken — `planFlock` relies on this to stop two of them choosing it.
+      // The vacated cell is released in the same breath, or a flock would
+      // gradually wall itself in behind the ghosts of where it used to stand.
+      (from, to) => {
+        occupied.delete(`${from.x},${from.y}`);
+        occupied.add(`${to.x},${to.y}`);
+      },
+    );
+    if (!flights.length) continue;
+
+    for (const flight of flights) live.sheep.set(flight.id, flight.to);
+    io.to(roomFor(live.island.id)).emit('sheep_moved', {
+      sheep: flights.map((f) => ({
+        id: f.id,
+        tile: toIndex(f.to.x, f.to.y),
+        sprinting: f.sprinting,
+      })),
+    });
+  }
+}), FLOCK_TICK_MS);
 
 // ── Sweeps ───────────────────────────────────────────────────────────────────
 // Two janitors, both cheap and both idempotent: expired reconnect grace, and

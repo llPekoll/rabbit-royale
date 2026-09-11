@@ -15,6 +15,7 @@
 import { MULTIPLAYER } from '../../config/tuning';
 import { generateIsland } from '../../src/lib/game/island';
 import { makeShape, type IslandShape } from '../../src/config/gridConfig';
+import { terrainFor } from '../../src/lib/game/terrainBoard';
 import type { ActiveMirage } from '../../src/lib/game/mirage';
 import type { Island, Rabbit } from '../../src/lib/game/types';
 
@@ -39,6 +40,21 @@ export interface LiveIsland {
    * reconnect, which is exactly the window an attacker would otherwise use.
    */
   mirages: Map<string, ActiveMirage>;
+  /**
+   * Where the sheep are RIGHT NOW, by placement id.
+   *
+   * Everything else standing on the island (trees, rocks, soldiers) is derived
+   * from the seed on both sides and never moves, so the server has nothing to
+   * say about it. Sheep bolt when a rabbit gets close (`flee.ts`), and the
+   * moment a thing moves its position stops being derivable: two clients
+   * running the same seed would drift apart, and since a sheep BLOCKS its cell
+   * they would disagree about which moves are legal. So the server owns it and
+   * broadcasts it, exactly like a rabbit's tile.
+   *
+   * Seeded from the terrain's placements when the island is created, so a run
+   * still opens on the flock the seed describes.
+   */
+  sheep: Map<string, { x: number; y: number }>;
   emptySince: number | null;
 }
 
@@ -73,6 +89,13 @@ export class MemoryIslandStore implements IslandStore {
       erupting: false,
       warnStage: 0,
       mirages: new Map(),
+      // The flock the seed describes, taken as a STARTING position rather than
+      // as the truth: from here on the server moves them and tells everyone.
+      sheep: new Map(
+        terrainFor(seed).placements
+          .filter((p) => p.kind === 'sheep')
+          .map((p) => [p.id, { x: p.x, y: p.y }] as const),
+      ),
       emptySince: Date.now(),
     };
     this.islands.set(live.island.id, live);

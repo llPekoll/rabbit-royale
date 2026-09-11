@@ -395,6 +395,26 @@ export class IslandScene implements Scene {
     this.tiles.get(index)?.setHint(adjacent);
   }
 
+  /**
+   * A sheep moved, because the server said so.
+   *
+   * No rules here: the flight logic lives on the server (`flee.ts`), and the
+   * client plays what it is told — the same bargain as `rabbit_moved`. A sheep
+   * BLOCKS its cell, so a browser that decided this for itself would disagree
+   * with the server about which moves are legal.
+   *
+   * `sprinting` is accepted and not yet used: a bolting sheep should read as
+   * faster than a grazing one, but the sprites move instantly today and adding
+   * a tween belongs with the rest of the animation work.
+   */
+  moveSheep(id: string, tile: number, _sprinting = false): void {
+    const { col, row } = toColRow(tile);
+    this.background?.moveSheep(id, col, row);
+    // The ring is drawn from what is walkable, and a sheep that moved just
+    // changed that: the cell it left is open now and the one it took is not.
+    this.refreshReachable();
+  }
+
   revealTile(index: number, content: TileContent, adjacent: number): void {
     const tile = this.tiles.get(index);
     if (!tile) return;

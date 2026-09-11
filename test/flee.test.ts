@@ -22,6 +22,9 @@ import {
   type Ground,
 } from '../src/lib/game/flee';
 import { toIndex } from '../src/config/gridConfig';
+import { readFileSync } from 'node:fs';
+
+const read = (p: string) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
 /**
  * A board where `open` names every cell that exists and `tiers` gives the ones
@@ -175,5 +178,59 @@ describe('a flock', () => {
       () => {},
     );
     expect(flights.map((f) => f.id)).toEqual(['near']);
+  });
+});
+
+/**
+ * The half that cannot be got wrong quietly.
+ *
+ * A sheep BLOCKS its cell. The moment it moves, its position stops being a
+ * function of the seed — and if the server does not own and broadcast it, two
+ * browsers drift apart and disagree about which moves are legal. The player
+ * sees a move refused for no visible reason, which is the worst kind of bug:
+ * it looks like the game cheating.
+ *
+ * Source-read, because the wiring is what matters here and standing up a
+ * socket, a store and two clients to assert it would test the harness.
+ */
+describe('the server owns the flock', () => {
+  const STORE = read('../server/islands/store.ts');
+  const SERVER = read('../server/index.ts');
+  const RUN = read('../src/lib/game/run.ts');
+
+  it('keeps the live positions on the island, not in the seed', () => {
+    expect(STORE).toMatch(/sheep: Map<string, \{ x: number; y: number \}>/);
+    // Seeded from the terrain, then owned: the seed is a starting point.
+    expect(STORE).toMatch(/p\.kind === 'sheep'/);
+  });
+
+  it('ticks the flock and tells the room', () => {
+    expect(SERVER).toMatch(/setInterval\(guard\('flock'/);
+    expect(SERVER).toMatch(/emit\('sheep_moved'/);
+  });
+
+  it('sends the current flock to whoever joins mid-run', () => {
+    // A stale flock is a stale set of legal moves.
+    expect(SERVER).toMatch(/sheep: \[\.\.\.live\.sheep\]/);
+  });
+
+  it('refuses a step onto a tile the flock is standing on', () => {
+    // Without this the server waves a rabbit onto a cell it has just told
+    // everyone a sheep occupies.
+    expect(RUN).toMatch(/blocked\?: ReadonlySet<number>/);
+    expect(SERVER).toMatch(/const sheepTiles = new Set/);
+  });
+
+  it('frees the cell a sheep leaves, in the same breath as claiming the new one', () => {
+    // Otherwise a flock walls itself in behind the ghosts of where it stood.
+    expect(SERVER).toMatch(/occupied\.delete\(`\$\{from\.x\},\$\{from\.y\}`\)/);
+    expect(SERVER).toMatch(/occupied\.add\(`\$\{to\.x\},\$\{to\.y\}`\)/);
+  });
+
+  it('leaves the client playing what it is told, with no rules of its own', () => {
+    const SCENE = read('../src/game/scenes/IslandScene.ts');
+    expect(SCENE).toMatch(/moveSheep\(id: string, tile: number/);
+    // The flight rules must not be imported client-side.
+    expect(SCENE).not.toMatch(/planFlight|planFlock/);
   });
 });
