@@ -46,7 +46,7 @@ import {
   COLS, ROWS, HALF_W, HALF_H,
   isForbidden, makeShape, toIndex, toColRow, tilePos,
 } from '@/config/gridConfig';
-import { farmableTiles, spawnTile, terrainFor, terrainNeighbors, tierLift, TIER_LIFT } from '@/lib/game/terrainBoard';
+import { farmableTiles, levelTierAt, spawnTile, terrainFor, terrainNeighbors, tierLift, TIER_LIFT } from '@/lib/game/terrainBoard';
 
 const WIDTH = 960;
 const HEIGHT = 540;
@@ -226,10 +226,15 @@ function Scene(args: Args) {
               .filter((n) => content.get(n) === 'bomb').length;
 
           for (const i of land) {
+            // The tier is the 4th argument and it is LOAD-BEARING: it breaks
+            // the depth tie between a raised tile and a sea-level one on the
+            // same diagonal. Left out, this story sorted differently from the
+            // game and could not show the overlap it exists to show.
+            const { col: tc, row: tr } = toColRow(i);
             const tile = new Tile(i, {
               color: parseInt(args.fogColor.replace('#', ''), 16),
               alpha: args.fogAlpha,
-            }, tierLift(args.seed, i));
+            }, tierLift(args.seed, i), levelTierAt(args.seed, tc, tr));
             boardLayer.addChild(tile.container);
             // Dug tiles cluster around the spawn, the way a real run spreads
             // outward from where the rabbit landed rather than at random.
