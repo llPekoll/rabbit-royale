@@ -406,6 +406,15 @@ export class BurrowScene implements Scene {
       hint.eventMode = 'static';
       hint.hitArea = new Polygon([0, -hh, hw, 0, 0, hh, -hw, 0]);
       hint.on('pointertap', () => {
+        // TEMPORARY (see `rrDiag` in page.tsx): a tap reaching this line is the
+        // one fact no log has ever shown, so it is worth saying out loud until
+        // lifting a bomb is confirmed working.
+        console.log('[tap]', JSON.stringify({
+          tile: i,
+          placing: this.data.placing,
+          trappable: isTrappable(this.data.seed, i),
+          mined: this.trapSprites.has(i),
+        }));
         if (!this.data.placing || !isTrappable(this.data.seed, i)) return;
         this.data.onToggle(i, this.trapSprites.has(i));
       });

@@ -334,6 +334,8 @@ function Burrow() {
    * bomb the server never lifted.
    */
   const onToggleTrap = useCallback(async (tile: number, mined: boolean) => {
+    // TEMPORARY, with the [tap] log in BurrowScene — see `rrDiag` below.
+    console.log('[onToggleTrap]', tile, 'mined:', mined);
     if (mined) {
       const ok = await shop.removeTrap(tile);
       if (ok) handles.current?.burrow?.removeTrap(tile);
@@ -342,6 +344,54 @@ function Burrow() {
     const ok = await shop.placeTrap(tile);
     if (ok) handles.current?.burrow?.addTrap(tile);
   }, [shop]);
+
+  /**
+   * TEMPORARY: `rrDiag()` in the browser console.
+   *
+   * The question no log could answer from the outside — WHAT IS ON TOP of the
+   * board in this particular browser, at this particular size. A tap that
+   * lands on an HTML element never reaches the canvas, so it produces no log
+   * anywhere: not in the scene, not in the route. Silence was the symptom, and
+   * silence is exactly what a missing log looks like, which is why this took
+   * so long to pin down.
+   *
+   * It walks a grid of points over the canvas, asks the browser what element
+   * sits at each one, and reports anything that is NOT the canvas — with the
+   * computed `pointer-events` of each culprit, which is the property that
+   * decides whether a tap falls through to the game.
+   */
+  useEffect(() => {
+    (window as unknown as { rrDiag?: () => void }).rrDiag = () => {
+      const canvas = document.querySelector('canvas');
+      if (!canvas) { console.log('[rrDiag] no canvas'); return; }
+      const r = canvas.getBoundingClientRect();
+      const blockers = new Map<string, { count: number; pe: string; box: string }>();
+      let clear = 0;
+      for (let gy = 1; gy < 10; gy++) {
+        for (let gx = 1; gx < 10; gx++) {
+          const x = r.x + (r.width * gx) / 10;
+          const y = r.y + (r.height * gy) / 10;
+          const el = document.elementFromPoint(x, y);
+          if (!el || el === canvas) { clear++; continue; }
+          const cs = getComputedStyle(el);
+          const b = el.getBoundingClientRect();
+          const key = `${el.tagName}.${el.className || '(no class)'}`;
+          const hit = blockers.get(key);
+          if (hit) hit.count++;
+          else blockers.set(key, {
+            count: 1,
+            pe: cs.pointerEvents,
+            box: `${Math.round(b.width)}x${Math.round(b.height)}`,
+          });
+        }
+      }
+      console.log(`[rrDiag] ${clear}/81 points reach the canvas`);
+      if (!blockers.size) { console.log('[rrDiag] nothing covers the board'); return; }
+      for (const [name, v] of blockers) {
+        console.log(`[rrDiag] ${v.count} pts blocked by ${name} — pointer-events: ${v.pe}, box ${v.box}`);
+      }
+    };
+  }, []);
 
   /**
    * Start placing traps.
