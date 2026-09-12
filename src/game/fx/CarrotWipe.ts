@@ -118,14 +118,30 @@ export class CarrotWipe {
     this.view.visible = true;
     this.set(1);
 
-    await this.to(0, CLOSE_MS, 'power2.in');
-    await midpoint();
-    await wait(HOLD_MS);
-    // `power2.out` on the way back: the aperture leaves fast and returns slow,
-    // so the new screen is uncovered generously rather than snatched open.
-    await this.to(1, OPEN_MS, 'power2.out');
-
-    this.view.visible = false;
+    try {
+      await this.to(0, CLOSE_MS, 'power2.in');
+      await midpoint();
+      await wait(HOLD_MS);
+      // `power2.out` on the way back: the aperture leaves fast and returns
+      // slow, so the new screen is uncovered generously rather than snatched
+      // open.
+      await this.to(1, OPEN_MS, 'power2.out');
+    } finally {
+      // The shutter comes down WHATEVER happened in between.
+      //
+      // It is `eventMode: 'static'` on purpose — while it is up it swallows
+      // every tap meant for the board behind it. So a `midpoint` that throws
+      // does not merely skip an animation: it leaves a full-screen,
+      // interactive black sheet parked over the game forever, and every tap
+      // from then on dies in it. The board looks fine (the sheet is drawn at
+      // aperture 0, i.e. fully open and invisible) while nothing can be
+      // clicked — a failure with no symptom but silence.
+      //
+      // `midpoint` is where the scene swap goes, so it is exactly the callback
+      // most likely to throw: it rebuilds terrain, and it runs next to fetches
+      // that can time out.
+      this.view.visible = false;
+    }
   }
 
   /** Park the iris open or shut without animating — for stories and resets. */

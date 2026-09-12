@@ -18,6 +18,7 @@ import { readFileSync } from 'node:fs';
 const PAGE = readFileSync(new URL('../src/app/page.tsx', import.meta.url), 'utf8');
 const CANVAS = readFileSync(new URL('../src/components/game-canvas.tsx', import.meta.url), 'utf8');
 const CURTAIN = readFileSync(new URL('../src/components/carrot-curtain.tsx', import.meta.url), 'utf8');
+const WIPE = readFileSync(new URL('../src/game/fx/CarrotWipe.ts', import.meta.url), 'utf8');
 
 describe('the iris covers every crossing', () => {
   it('offers a same-scene wipe as well as a scene swap', () => {
@@ -161,5 +162,26 @@ describe('the iris covers every crossing', () => {
     const FX = readFileSync(new URL('../src/game/fx/CarrotWipe.ts', import.meta.url), 'utf8');
     expect(FX).toMatch(/from '@\/config\/wipe'/);
     expect(FX).not.toMatch(/const CLOSE_MS = \d/);
+  });
+
+  /**
+   * The shutter comes down even when the crossing throws.
+   *
+   * `CarrotWipe.view` is `eventMode: 'static'` on purpose — while it is up it
+   * swallows every tap meant for the board behind it. So a `midpoint` that
+   * throws does not merely skip an animation: it parks a full-screen,
+   * INTERACTIVE sheet over the game permanently. And because the sheet is left
+   * at aperture 0 — fully open, so invisible — the board looks perfectly normal
+   * while nothing on it can be clicked. A failure whose only symptom is
+   * silence.
+   *
+   * `midpoint` is the scene swap: it rebuilds terrain and runs alongside
+   * fetches that can time out, so it is precisely the callback most likely to
+   * throw.
+   */
+  it('lowers the shutter even if the midpoint throws', () => {
+    // The reset must be in a `finally`, not merely the last statement of the
+    // happy path — which is what it was.
+    expect(WIPE).toMatch(/finally\s*\{[^}]*this\.view\.visible = false/);
   });
 });
