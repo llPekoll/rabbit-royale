@@ -121,6 +121,8 @@ describe('leaving a raid', () => {
 
   it('hides your own burrow while you are in someone else\'s', () => {
     // Your 400/400 HP and a HARVEST button over a castle you are robbing.
-    expect(PAGE).toMatch(/crossing \|\| raid\.raid \? null/);
+    // Gated on `shownRaid` — the raid the SCREEN belongs to — so the column
+    // leaves at the shutter's midpoint instead of the instant the fetch lands.
+    expect(PAGE).toMatch(/crossing \|\| shownRaid \? null/);
   });
 });

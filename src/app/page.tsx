@@ -40,7 +40,7 @@ import { useShop, type ItemKind } from '@/components/use-shop';
 import type { PayTokenId } from '@/lib/pay/tokens';
 import { useUsdcPay } from '@/components/use-usdc-pay';
 import { RaidHud, TargetList, RaidButton } from '@/components/raid-panel';
-import { useRaid } from '@/components/use-raid';
+import { useRaid, type RaidState } from '@/components/use-raid';
 import { gardenProgress } from '@/lib/game/garden-growth';
 import { burrowArt } from '@/config/burrowArt';
 import { SCENE } from '@/game/keys';
@@ -135,6 +135,22 @@ function Burrow() {
    * tile for a value nothing draws.
    */
   const wasRaiding = useRef(false);
+  /**
+   * The raid the SCREEN currently belongs to — not the one the server has
+   * granted.
+   *
+   * `raid.raid` lands the instant the fetch answers, and every piece of chrome
+   * gated on it swapped right there: your burrow column vanished and the
+   * raid's HUD appeared over your own garden, and only THEN did the iris start
+   * closing. The carrot swiped over a change the player had already watched
+   * happen — reported as "ca change de scene apres ya l'opercule qui swipe",
+   * and the same bug the sign-in curtain already fixed with `showCanvas`.
+   *
+   * The iris is a Pixi object on the stage, so it cannot cover DOM at all: the
+   * chrome has to swap ITSELF at the midpoint. This is what the render reads,
+   * and `draw` flips it under full black alongside the board.
+   */
+  const [shownRaid, setShownRaid] = useState<RaidState | null>(null);
   /**
    * True from the moment a crossing starts until the iris is fully open again.
    *
@@ -564,6 +580,13 @@ function Burrow() {
     // two later, in full view. The whole point of a shutter is that the swap
     // happens behind it, so the midpoint has to last as long as the swap does.
     const draw = () => {
+      // The CHROME rides the midpoint with the board.
+      //
+      // Both halves of the screen have to turn over at the same instant, and
+      // that instant is under full black. The board is Pixi and the HUD is DOM,
+      // so nothing but this shared call can keep them in step — the iris covers
+      // the canvas and cannot cover the DOM at all.
+      setShownRaid(raid.raid);
       if (!raid.raid) return burrow.setRaid(null);
       return burrow.setRaid({
         view: raid.raid.view,
@@ -781,7 +804,7 @@ function Burrow() {
           and leaving the column up put your own 400/400 and a HARVEST button
           over a castle you are trying to rob. The raid has its own thin HUD
           (RaidHud) that describes the place you are actually standing in. */}
-      {crossing || raid.raid ? null : where === 'burrow' || !showCanvas ? (
+      {crossing || shownRaid ? null : where === 'burrow' || !showCanvas ? (
         <section className="rr-burrow">
           {!showCanvas ? (
             <div className="rr-empty">
@@ -994,7 +1017,7 @@ function Burrow() {
         </div>
       )}
 
-      {showCanvas && where === 'burrow' && !raid.raid && !crossing && (
+      {showCanvas && where === 'burrow' && !shownRaid && !crossing && (
         // Never disabled, and never hidden. It is the one control anchored to
         // this screen, and a dead arrow was the game's worst answer to its
         // most common dead end — an empty tank now opens the popup that says
@@ -1031,9 +1054,9 @@ function Burrow() {
 
       {/* The board is the Pixi scene behind this, so the HUD is deliberately
           thin — a raid is walked on the ground, not in a list. */}
-      {player && raid.raid && (
+      {player && shownRaid && (
         <RaidHud
-          raid={raid.raid}
+          raid={shownRaid}
           outcome={raid.outcome}
           busy={raid.busy}
           note={raid.note}
@@ -1041,7 +1064,7 @@ function Burrow() {
         />
       )}
 
-      {player && pickingTarget && !raid.raid && (
+      {player && pickingTarget && !shownRaid && (
         <TargetList
           targets={raid.targets}
           busy={raid.busy}

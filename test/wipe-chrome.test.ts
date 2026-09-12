@@ -45,7 +45,10 @@ describe('chrome across the wipe', () => {
     // suppresses the same chrome for its own reason (the board underneath
     // belongs to someone else), so the test pins the ORDER — crossing first,
     // then the screen choice — rather than the exact expression.
-    expect(PAGE).toMatch(/\{crossing(?: \|\| raid\.raid)? \? null : where === 'burrow'/);
+    // `shownRaid`, not `raid.raid`: the chrome turns over at the shutter's
+    // midpoint rather than when the server answers. See wipe-everywhere's
+    // "swaps the raid's chrome at the midpoint" for why.
+    expect(PAGE).toMatch(/\{crossing(?: \|\| shownRaid)? \? null : where === 'burrow'/);
   });
 
   it('never shows the island to a signed-out player', () => {
@@ -70,6 +73,6 @@ describe('chrome across the wipe', () => {
     // The leaderboard and the way onto the island belong to the burrow screen,
     // so they wait with the column rather than appearing over black.
     expect(PAGE).toMatch(/where === 'burrow' && !crossing/);
-    expect(PAGE).toMatch(/!raid\.raid && !crossing/);
+    expect(PAGE).toMatch(/!shownRaid && !crossing/);
   });
 });

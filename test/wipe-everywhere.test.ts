@@ -73,6 +73,29 @@ describe('the iris covers every crossing', () => {
     expect(FX.indexOf('await midpoint()')).toBeLessThan(FX.indexOf('await wait(HOLD_MS)'));
   });
 
+  it("swaps the raid's chrome at the midpoint, not when the server answers", () => {
+    // The rest of the bug above, and the half that was actually visible.
+    //
+    // The iris is a Pixi object on the stage, so it covers the CANVAS and
+    // cannot cover DOM at all. The raid's HUD and the burrow's column are DOM,
+    // and they were gated on `raid.raid` — which lands the instant the fetch
+    // answers. So the column vanished and "X's burrow" appeared over your own
+    // garden, and only THEN did the shutter start closing: the carrot swiped
+    // over a change already made. Exactly the sign-in bug one screen along, and
+    // why that one reads `showCanvas` rather than `player`.
+    //
+    // `shownRaid` is the raid the SCREEN belongs to. It is flipped inside
+    // `draw`, so the DOM turns over under full black in step with the board.
+    expect(PAGE).toMatch(/const \[shownRaid, setShownRaid\] = useState<RaidState \| null>\(null\)/);
+    // Flipped in the midpoint callback, and nowhere else — a `setShownRaid`
+    // sitting in an effect keyed on `raid.raid` would put the bug straight back.
+    expect(PAGE).toMatch(/const draw = \(\) => \{[\s\S]{0,600}setShownRaid\(raid\.raid\);/);
+    expect(PAGE.match(/setShownRaid\(/g)).toHaveLength(1);
+    // And nothing the player SEES may read the server's copy directly.
+    expect(PAGE).not.toMatch(/\{player && raid\.raid && \(/);
+    expect(PAGE).toMatch(/\{player && shownRaid && \(/);
+  });
+
   it('hands the screen over at the sign-in curtain\'s midpoint', () => {
     // `showCanvas`, not `player`, is what swaps the screen — so the sign-in art
     // survives until the sheet is black and the canvas is uncovered rather
@@ -96,7 +119,7 @@ describe('the iris covers every crossing', () => {
       /\{!showCanvas && <LoreCrawl \/>\}/,
       /\{!showCanvas && \(/,                       // the sign-in art
       /\{player && showCanvas && \(/,               // the canvas itself
-      /\{showCanvas && where === 'burrow' && !raid\.raid && !crossing && \(/,
+      /\{showCanvas && where === 'burrow' && !shownRaid && !crossing && \(/,
       /\{showCanvas && \(\s*<CarrotCounter/,
       /\{!showCanvas \? \(/,                       // the sign-in column body
     ]) expect(PAGE).toMatch(gate);
