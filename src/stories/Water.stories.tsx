@@ -25,6 +25,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Container } from 'pixi.js';
 import { PixiStage } from './PixiStage';
 import { createPackWater, loadPackWater, type PackWater } from '@/game/fx/PackWater';
+import { createSurfaceTexture, type SurfaceTexture } from '@/game/fx/SurfaceTexture';
 import {
   generateIsland, levelAt, IsoIslandView, loadIslandTileset, isoBounds,
 } from '@/game/island';
@@ -51,12 +52,36 @@ interface Args {
   foamFrameMs: number;
   /** How far neighbouring cells are pushed out of step, 0 to 1. */
   foamPhase: number;
+
+  /** Surface: pale contour lines on the open water, under everything else. */
+  surface: boolean;
+  surfaceColor: string;
+  /** How strongly the lines show, 0 to 1. */
+  surfaceOpacity: number;
+  /** Size of one blob of the field, in pixels. */
+  surfaceScale: number;
+  /** Size of a patch, as a share of one cell. */
+  surfaceRadius: number;
+  /** Strength of the fainter second outline, 0 to 1. */
+  surfaceLevels: number;
+  /** How irregular a patch's outline is. */
+  surfaceWobble: number;
+  /** Share of cells that carry a patch at all, 0 to 1. */
+  surfaceDensity: number;
+  /** Line thickness, in field units. */
+  surfaceWidth: number;
+  /** How fast the whole field slides. */
+  surfaceDrift: number;
+  /** How fast it changes shape in place. */
+  surfaceMorph: number;
 }
 
 function Scene(args: Args) {
   const tick = useRef<((ms: number) => void) | null>(null);
   const {
     seed, cells, tiers, seaColor, foam, foamColor, foamAlpha, foamScale, foamFrameMs, foamPhase,
+    surface, surfaceColor, surfaceOpacity, surfaceScale, surfaceRadius, surfaceLevels,
+    surfaceWobble, surfaceDensity, surfaceWidth, surfaceDrift, surfaceMorph,
   } = args;
 
   return (
@@ -69,6 +94,7 @@ function Scene(args: Args) {
       setup={(stage, app) => {
         let water: PackWater | null = null;
         let island: IsoIslandView | null = null;
+        let sea: SurfaceTexture | null = null;
 
         void (async () => {
           const tileset = await loadIslandTileset();
@@ -104,6 +130,29 @@ function Scene(args: Args) {
             );
           }
 
+          // The moving surface, UNDER everything and over the background.
+          //
+          // Its own plane in the display list rather than a filter on the
+          // scene: a filter is padded and clipped to whatever region Pixi
+          // chose, which is what put a halo round the last attempt. A mesh is
+          // just a child, and "under" is simply the order it was added in.
+          if (surface) {
+            sea = createSurfaceTexture(WIDTH, HEIGHT, {
+              sea: Number(seaColor.replace('#', '0x')),
+              lineColor: Number(surfaceColor.replace('#', '0x')),
+              opacity: surfaceOpacity,
+              scale: surfaceScale,
+              radius: surfaceRadius,
+              levels: surfaceLevels,
+              wobble: surfaceWobble,
+              density: surfaceDensity,
+              width: surfaceWidth,
+              drift: surfaceDrift,
+              morph: surfaceMorph,
+            });
+            stage.addChild(sea.view);
+          }
+
           // Surf at the waterline, then the land, then what stands on it.
           const holder = new Container();
           if (water) holder.addChild(water.view);
@@ -116,6 +165,7 @@ function Scene(args: Args) {
           island.placeDeco(0, 0);
 
           tick.current = (ms) => {
+            sea?.update(ms);
             water?.update(ms);
             island?.update(ms);
           };
@@ -123,7 +173,9 @@ function Scene(args: Args) {
 
         return () => {
           water?.destroy();
+          sea?.destroy();
           water = null;
+          sea = null;
           island = null;
           tick.current = null;
         };
@@ -147,11 +199,25 @@ const meta: Meta<Args> = {
     foamScale: { control: { type: 'range', min: 0.6, max: 1.8, step: 0.05 } },
     foamFrameMs: { control: { type: 'range', min: 60, max: 400, step: 10 } },
     foamPhase: { control: { type: 'range', min: 0, max: 1, step: 0.05 } },
+    surface: { control: 'boolean' },
+    surfaceColor: { control: 'color' },
+    surfaceOpacity: { control: { type: 'range', min: 0, max: 1, step: 0.05 } },
+    surfaceScale: { control: { type: 'range', min: 20, max: 200, step: 2 } },
+    surfaceRadius: { control: { type: 'range', min: 0.05, max: 0.8, step: 0.01 } },
+    surfaceLevels: { control: { type: 'range', min: 0, max: 1, step: 0.05 } },
+    surfaceWobble: { control: { type: 'range', min: 0, max: 0.8, step: 0.02 } },
+    surfaceDensity: { control: { type: 'range', min: 0, max: 1, step: 0.02 } },
+    surfaceWidth: { control: { type: 'range', min: 0, max: 0.12, step: 0.002 } },
+    surfaceDrift: { control: { type: 'range', min: 0, max: 0.3, step: 0.005 } },
+    surfaceMorph: { control: { type: 'range', min: 0, max: 1.5, step: 0.05 } },
   },
   args: {
     seed: 'harbour-9', cells: 18, tiers: 3, seaColor: '#47aba9',
     foam: true, foamColor: '#c6f0db', foamAlpha: 1, foamScale: 0.88, foamFrameMs: 140,
     foamPhase: 1,
+    surface: true, surfaceColor: '#9fd9cf', surfaceOpacity: 0.55, surfaceScale: 58,
+    surfaceRadius: 0.34, surfaceLevels: 0.55, surfaceWobble: 0.22, surfaceDensity: 0.62, surfaceWidth: 0.035,
+    surfaceDrift: 0.06, surfaceMorph: 0.35,
   },
   render: (args) => <Scene {...args} />,
 };
@@ -162,7 +228,7 @@ type Story = StoryObj<Args>;
 /** The sea alone: one colour, nothing on it. */
 export const Sea: Story = {
   name: '01 · Aplat',
-  args: { foam: false },
+  args: { foam: false, surface: false },
 };
 
 /**
@@ -174,6 +240,27 @@ export const Sea: Story = {
  */
 export const Foam: Story = {
   name: '02 · Ecume',
+  args: { surface: false },
+};
+
+/**
+ * Step 6: surface texture, as pale contour lines.
+ *
+ * A three-octave noise field cut into bands, with only the crossings drawn —
+ * so the result is thin closed curves that drift and change shape, rather than
+ * the noise wash that painting the field straight would give.
+ *
+ * Under the surf and over the background, as its own plane in the display
+ * list. Shown here WITHOUT the surf, so the lines are the only thing moving.
+ */
+export const Surface: Story = {
+  name: '03 · Texture de surface',
+  args: { foam: false },
+};
+
+/** The two together, which is what ships. */
+export const All: Story = {
+  name: '04 · Ensemble',
   args: {},
 };
 

@@ -106,3 +106,24 @@ describe('shader source', () => {
     expect(dupes, `redeclared in main(): ${dupes.join(', ')}`).toEqual([]);
   });
 });
+
+/**
+ * A mesh whose quad is scaled inside the VERTEX SHADER reports 1x1 bounds.
+ *
+ * Pixi measures geometry on the CPU, so it never sees the multiply: the mesh
+ * is a single pixel as far as culling and layout are concerned, and the effect
+ * runs, animates and stays invisible with nothing in the console. The size has
+ * to be in the buffer, where both the GPU and Pixi can read it.
+ */
+describe('mesh geometry', () => {
+  it('sizes its quad in the vertex buffer, not in the vertex shader', () => {
+    const src = readFileSync(new URL('SurfaceTexture.ts', DIR), 'utf8');
+    const open = src.indexOf('const vertex = `');
+    const vert = src.slice(open, src.indexOf('\n`;', open));
+    expect(
+      vert,
+      'the vertex shader scales aPosition, so Pixi will measure the mesh as 1x1 '
+      + 'and the plane renders as a dot. Put the size in the geometry instead.',
+    ).not.toMatch(/aPosition\s*\*/);
+  });
+});
