@@ -26,6 +26,7 @@ import { Container } from 'pixi.js';
 import { PixiStage } from './PixiStage';
 import { createPackWater, loadPackWater, type PackWater } from '@/game/fx/PackWater';
 import { createSurfaceTexture, type SurfaceTexture } from '@/game/fx/SurfaceTexture';
+import { createDucks, loadDucks, type Ducks } from '@/game/fx/Ducks';
 import {
   generateIsland, levelAt, IsoIslandView, loadIslandTileset, isoBounds,
 } from '@/game/island';
@@ -74,6 +75,13 @@ interface Args {
   surfaceDrift: number;
   /** How fast it changes shape in place. */
   surfaceMorph: number;
+
+  /** Ducks paddling about on the open water. */
+  ducks: boolean;
+  duckCount: number;
+  /** Cells per second. */
+  duckSpeed: number;
+  duckScale: number;
 }
 
 function Scene(args: Args) {
@@ -82,6 +90,7 @@ function Scene(args: Args) {
     seed, cells, tiers, seaColor, foam, foamColor, foamAlpha, foamScale, foamFrameMs, foamPhase,
     surface, surfaceColor, surfaceOpacity, surfaceScale, surfaceRadius, surfaceLevels,
     surfaceWobble, surfaceDensity, surfaceWidth, surfaceDrift, surfaceMorph,
+    ducks, duckCount, duckSpeed, duckScale,
   } = args;
 
   return (
@@ -95,6 +104,7 @@ function Scene(args: Args) {
         let water: PackWater | null = null;
         let island: IsoIslandView | null = null;
         let sea: SurfaceTexture | null = null;
+        let flock: Ducks | null = null;
 
         void (async () => {
           const tileset = await loadIslandTileset();
@@ -153,9 +163,35 @@ function Scene(args: Args) {
             stage.addChild(sea.view);
           }
 
+          if (ducks) {
+            // Seeded from the island's own seed, so the same island always
+            // puts its ducks in the same places and a screenshot is
+            // comparable.
+            let n = 0;
+            for (let i = 0; i < seed.length; i++) n = (n * 31 + seed.charCodeAt(i)) >>> 0;
+            const rng = () => {
+              n = (n * 1664525 + 1013904223) >>> 0;
+              return n / 4294967296;
+            };
+            flock = createDucks(
+              await loadDucks(), map.width, map.height,
+              (x, y) => x >= 0 && y >= 0 && x < map.width && y < map.height
+                && levelAt(map, x, y) === 0,
+              (x, y) => ({
+                x: bounds.originX + (x - y) * HALF_W,
+                y: bounds.originY + (x + y) * HALF_H,
+              }),
+              rng,
+              { count: duckCount, speed: duckSpeed, scale: duckScale },
+            );
+          }
+
           // Surf at the waterline, then the land, then what stands on it.
           const holder = new Container();
           if (water) holder.addChild(water.view);
+          // Ducks over the surf but UNDER the island, so one swimming behind
+          // the coast goes behind it rather than over the grass.
+          if (flock) holder.addChild(flock.view);
           holder.addChild(island.view);
           holder.position.set(ox, oy);
           stage.addChild(holder);
@@ -166,6 +202,7 @@ function Scene(args: Args) {
 
           tick.current = (ms) => {
             sea?.update(ms);
+            flock?.update(ms);
             water?.update(ms);
             island?.update(ms);
           };
@@ -174,8 +211,10 @@ function Scene(args: Args) {
         return () => {
           water?.destroy();
           sea?.destroy();
+          flock?.destroy();
           water = null;
           sea = null;
+          flock = null;
           island = null;
           tick.current = null;
         };
@@ -210,6 +249,10 @@ const meta: Meta<Args> = {
     surfaceWidth: { control: { type: 'range', min: 0, max: 0.12, step: 0.002 } },
     surfaceDrift: { control: { type: 'range', min: 0, max: 0.3, step: 0.005 } },
     surfaceMorph: { control: { type: 'range', min: 0, max: 1.5, step: 0.05 } },
+    ducks: { control: 'boolean' },
+    duckCount: { control: { type: 'range', min: 1, max: 12, step: 1 } },
+    duckSpeed: { control: { type: 'range', min: 0.5, max: 6, step: 0.5 } },
+    duckScale: { control: { type: 'range', min: 0.5, max: 2.5, step: 0.1 } },
   },
   args: {
     seed: 'harbour-9', cells: 18, tiers: 3, seaColor: '#47aba9',
@@ -218,6 +261,7 @@ const meta: Meta<Args> = {
     surface: true, surfaceColor: '#9fd9cf', surfaceOpacity: 0.55, surfaceScale: 58,
     surfaceRadius: 0.34, surfaceLevels: 0.55, surfaceWobble: 0.22, surfaceDensity: 0.62, surfaceWidth: 0.035,
     surfaceDrift: 0.06, surfaceMorph: 0.35,
+    ducks: true, duckCount: 4, duckSpeed: 2, duckScale: 1.6,
   },
   render: (args) => <Scene {...args} />,
 };
@@ -262,6 +306,19 @@ export const Surface: Story = {
 export const All: Story = {
   name: '04 · Ensemble',
   args: {},
+};
+
+/**
+ * Ducks, on the water and nothing else.
+ *
+ * They are not stamped on cells the way the trees and sea rocks are: a duck
+ * keeps a fractional position and swims across the lattice, testing only the
+ * cell it is heading FOR. Placed above the surf and under the island, so one
+ * paddling behind the coast passes behind it.
+ */
+export const DuckPond: Story = {
+  name: '05 · Canards',
+  args: { surface: false, foam: true, duckCount: 6 },
 };
 
 /** A bigger board, to see the coastline at length. */
