@@ -27,7 +27,7 @@ import { LoadingScreen } from '@/components/loading-screen';
 import { LogoBanner } from '@/components/logo-banner';
 import { RunHud } from '@/components/run-hud';
 import { CarrotField } from '@/components/carrot-field';
-import { ShopButton, ShopPanel } from '@/components/shop-card';
+import { ShopButton, ShopPanel, ProtectButton } from '@/components/shop-card';
 import { EnergyPopup } from '@/components/energy-popup';
 import { LoreButton, LoreCodex } from '@/components/lore-codex';
 import { LoreCrawl } from '@/components/lore-crawl';
@@ -945,6 +945,15 @@ function Burrow() {
               ) : (
                 <>
                   <ShopButton shop={shop.shop} onOpen={() => setShopOpen(true)} />
+                  {/* Straight to the board. Burying a bomb and buying one are
+                      two errands, and only the shopping one had a door: to
+                      rearrange your own ground you had to open the shed and
+                      find "Move them" inside a dialog selling you things. A
+                      defender editing their burrow is not shopping.
+
+                      Directly under the shop, because that is where the state
+                      it reports used to be read. */}
+                  <ProtectButton shop={shop.shop} onPlace={startPlacing} />
                   {/* The way OUT of your own burrow and into someone else's.
                       The target list, the raid HUD and the whole crossing were
                       already built and wired — nothing ever called

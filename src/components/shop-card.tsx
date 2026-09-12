@@ -29,7 +29,7 @@ import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { ItemKind, ShopItem, ShopState } from './use-shop';
 import type { PayStage } from './use-usdc-pay';
-import { LauncherTab, DANGER, LAMP } from './burrow-chrome';
+import { LauncherTab, CHALK_DIM, DANGER, LAMP } from './burrow-chrome';
 import { PAY_TOKENS, priceLabel, type PayTokenId } from '@/lib/pay/tokens';
 import { LootChest, CHEST_ASPECT } from './loot-chest';
 
@@ -106,7 +106,6 @@ export interface ShopButtonProps {
 
 export function ShopButton({ shop, onOpen }: ShopButtonProps) {
   const traps = shop?.traps;
-  const bare = !!traps && traps.placed === 0;
   return (
     <LauncherTab
       // The kit's animated chest, not a flat sprite: its idle highlight sweeps
@@ -116,10 +115,13 @@ export function ShopButton({ shop, onOpen }: ShopButtonProps) {
       spriteSize={52}
       spriteHeight={Math.round(52 * CHEST_ASPECT)}
       label="SHOP"
-      // An undefended burrow is the one thing worth saying loudly here: it is
-      // the state that costs the player carrots while they are not looking.
-      sub={traps ? (bare ? 'BURROW UNDEFENDED' : `${traps.placed}/${traps.maxPlaced} BURIED`) : undefined}
-      ink={bare ? DANGER : LAMP}
+      // The defence state moved to PROTECT BASE, which is the tab that can now
+      // act on it. It used to live here because the shed was the only door to
+      // the board; two tabs reporting the same "2/8 buried" is one of them
+      // repeating the other, and the alarm belongs on the tab that fixes it.
+      // What is left is the shed's own business: what is on the shelf.
+      sub={traps ? `${traps.held} IN THE SHED` : undefined}
+      ink={LAMP}
       count={traps?.held}
       onClick={onOpen}
       ariaLabel="Shop"
@@ -332,3 +334,56 @@ function Row({
     </li>
   );
 }
+
+/**
+ * PROTECT BASE — the way to the board, without the shop in between.
+ *
+ * Burying a bomb and buying one are two different errands, and only one of
+ * them was reachable: editing the ground meant opening the shed, finding the
+ * defence strip, and tapping "Move them" — a shopping dialog standing between
+ * the player and their own map. A defender rearranging their burrow is not
+ * shopping, so this tab calls placement directly and the shed's button stays
+ * as the path for someone who has just bought a trap and wants to bury it
+ * while they are already in there.
+ *
+ * The sub-line carries the same state the SHOP tab used to carry alone, and
+ * `ink` alarms on a bare burrow for the same reason it does there: an
+ * undefended ground is what costs the player carrots while they are not
+ * looking.
+ *
+ * Dead only when there is genuinely nothing to do — nothing in the ground AND
+ * nothing in the shed — which is the same test the shed's own button makes.
+ */
+export interface ProtectButtonProps {
+  shop: ShopState | null;
+  onPlace(): void;
+}
+
+export function ProtectButton({ shop, onPlace }: ProtectButtonProps) {
+  const traps = shop?.traps;
+  const bare = !!traps && traps.placed === 0;
+  const canEdit = !!traps
+    && (traps.placed > 0 || (traps.held > 0 && traps.placed < traps.maxPlaced));
+
+  return (
+    <LauncherTab
+      // The bomb itself, at the tab's own pixel — the object the tap buries.
+      // 20x23 source, so the height is the larger side and the bleed geometry
+      // needs telling, exactly as the chest does.
+      sprite={BOMB_SRC}
+      spriteSize={34}
+      spriteHeight={Math.round(34 * (23 / 20))}
+      label="PROTECT BASE"
+      sub={
+        !traps ? undefined
+          : bare ? 'NOTHING BURIED'
+            : `${traps.placed}/${traps.maxPlaced} IN THE GROUND`
+      }
+      ink={!canEdit ? CHALK_DIM : bare ? DANGER : LAMP}
+      onClick={canEdit ? onPlace : undefined}
+      ariaLabel="Protect your base"
+    />
+  );
+}
+
+const BOMB_SRC = '/assets/misc/RR-Bomb-Small.webp';

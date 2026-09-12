@@ -1689,10 +1689,21 @@ button { font-family: var(--font-pixel); }
    for sale, so it gets the width and the sentence — and it turns red when the
    ground is bare, which is the state actually costing the player carrots. */
 .rr-shop-defence {
-  display: flex;
+  /* The count and its sentence are ONE reading ("3/8 traps in the ground"),
+     and the button is a separate act. As one flex row the button was pinned
+     to the far right of that sentence, level with the header's close [x] and
+     the rail pills — three unrelated controls on one line, with the green one
+     reading as part of the title bar rather than as the answer to the state
+     beside it.
+
+     So: the state spans the top row, the button sits on its own line under it
+     and pushes to the right. It is now unmistakably a response to the sentence
+     above it, and it no longer shares an edge with the [x]. */
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 12px;
-  padding: 12px 18px;
+  gap: 0 12px;
+  padding: 10px 18px;
   background: var(--soil-deep);
   border-bottom: 1px solid var(--plank);
 }
@@ -1717,6 +1728,12 @@ button { font-family: var(--font-pixel); }
   color: var(--chalk-dim);
 }
 .rr-shop-place {
+  /* Its own column at the end of the state line, NOT the header's. The row it
+     belongs to is the sentence it answers; what it must not do is sit level
+     with the close [x] and the rail pills, which is what made it read as part
+     of the title bar. */
+  grid-column: 3;
+  justify-self: end;
   border: 1px solid var(--leaf);
   background: rgba(124, 179, 66, 0.14);
   color: var(--leaf);

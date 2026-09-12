@@ -19,7 +19,7 @@
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
-import { ShopButton, ShopPanel } from '@/components/shop-card';
+import { ShopButton, ShopPanel, ProtectButton } from '@/components/shop-card';
 import type { ItemKind, ShopState } from '@/components/use-shop';
 import type { PayTokenId } from '@/lib/pay/tokens';
 import '@/app/globals.css';
@@ -123,7 +123,11 @@ function Harness({
         {placing ? (
           <button className="rr-btn" onClick={() => setPlacing(false)}>Done placing</button>
         ) : (
-          <ShopButton shop={shop} onOpen={() => setShopOpen(true)} />
+          <>
+            <ShopButton shop={shop} onOpen={() => setShopOpen(true)} />
+            {/* The second door: straight to the board, no shed in between. */}
+            <ProtectButton shop={shop} onPlace={() => setPlacing(true)} />
+          </>
         )}
 
         {placing && (
