@@ -129,6 +129,39 @@ export function burrowNeighbors(seed: string, tile: number): number[] {
   return out;
 }
 
+/**
+ * The 8 cells around a tile that EXIST — what a raider can see from here.
+ *
+ * Deliberately not `burrowNeighbors`. That answers "where may I step", and it
+ * drops any neighbour more than `MAX_STEP` above or below: a cliff face beside
+ * you is not a legal move, so it is not a neighbour. Reusing it as the reveal
+ * rule meant a raider standing under a shelf was shown nothing at all in that
+ * direction — the ground the wall stands on was never uncovered, so the wall
+ * itself was never drawn, and a burrow read as a void with a rabbit in it.
+ *
+ * Seeing a cliff gives nothing away: the whole point of a terrace is that you
+ * can look at it and not climb it. What stays hidden is what lies BEYOND —
+ * that still has to be walked to. So this is sight, `burrowNeighbors` is
+ * movement, and the server keeps validating steps against the latter.
+ */
+export function burrowAround(seed: string, tile: number): number[] {
+  if (!Number.isInteger(tile) || tile < 0 || tile >= BURROW_COLS * BURROW_ROWS) return [];
+  const { cells } = burrowFor(seed);
+  const { col, row } = burrowColRow(tile);
+
+  const out: number[] = [];
+  for (const [dc, dr] of BURROW_STEPS) {
+    const nc = col + dc;
+    const nr = row + dr;
+    if (nc < 0 || nc >= BURROW_COLS || nr < 0 || nr >= BURROW_ROWS) continue;
+    const i = burrowIndex(nc, nr);
+    // Off-island stays off-island: the sea is not scenery a raider is owed.
+    if (cells[i] === 'blocked') continue;
+    out.push(i);
+  }
+  return out;
+}
+
 /** The terrain tier of a tile: 1 is ground level, 2+ a shelf, 0 off-island. */
 export function burrowTier(seed: string, tile: number): number {
   if (!Number.isInteger(tile) || tile < 0 || tile >= BURROW_COLS * BURROW_ROWS) return 0;

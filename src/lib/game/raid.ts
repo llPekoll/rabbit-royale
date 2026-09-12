@@ -16,7 +16,7 @@
  */
 import { BURROW, CROWN, RAID, RAID_RUN } from '@config/tuning';
 import {
-  entranceTile, fieldTiles, burrowNeighbors, walkableTiles, burrowTier,
+  entranceTile, fieldTiles, burrowNeighbors, burrowAround, walkableTiles, burrowTier,
 } from '@/game/burrow/board';
 
 /**
@@ -188,7 +188,12 @@ export function raiderView(
   const seen = new Set<number>();
   for (const tile of visited) {
     seen.add(tile);
-    for (const neighbour of burrowNeighbors(seed, tile)) seen.add(neighbour);
+    // SIGHT, not movement. `burrowNeighbors` drops anything more than one
+    // shelf up or down, so on terraced ground a raider standing below a cliff
+    // uncovered nothing in that direction and the burrow read as an empty
+    // blue void — four cells revealed out of 231 on a corner entrance.
+    // Seeing the wall costs nothing; what is behind it still has to be walked.
+    for (const neighbour of burrowAround(seed, tile)) seen.add(neighbour);
   }
   return [...seen].map((tile) => ({
     tile,
