@@ -40,6 +40,14 @@ export interface ReachableState {
   stunnedUntil: number;
   /** Has this tile already been dug? Walking revealed ground is free. */
   isRevealed(index: number): boolean;
+  /**
+   * Tiles the flock stands on RIGHT NOW, when the caller knows.
+   *
+   * The seed says where the sheep started, not where they are, so the terrain
+   * neighbours cannot leave them out. The server refuses a step onto one
+   * (`blocked`), and the ring has to go dark on the same cells or it lies.
+   */
+  blocked?: ReadonlySet<number>;
 }
 
 /**
@@ -61,6 +69,7 @@ export function reachableTiles(
   // tiers up and a tile with a pine on it are both absent from this list, and
   // both are refused server-side for exactly the same reason.
   return terrainNeighbors(seed, state.tile).filter((index) => {
+    if (state.blocked?.has(index)) return false;
     // Revealed ground costs nothing, so it stays clickable at zero energy —
     // and at zero energy it is the ONLY thing that is.
     if (state.isRevealed(index)) return true;

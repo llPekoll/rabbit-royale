@@ -19,6 +19,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import type { TileContent } from '@/lib/game/types';
 import type { IslandScene } from '@/game/scenes/IslandScene';
+import { toIndex } from '@/config/gridConfig';
 
 export interface ClientRabbit {
   playerId: string;
@@ -160,6 +161,9 @@ export function useGameSocket(
       toScene((s) => {
         for (const t of snap.revealed) s.revealTile(t.tile, t.content, t.adjacent);
         snap.rabbits.forEach((r, i) => s.addRabbit(r.playerId, r.name, r.tile, i, r.energy));
+        // Where the flock is NOW. The seed only says where it started, and a
+        // joiner arrives after it has bolted around for a while.
+        for (const one of snap.sheep ?? []) s.moveSheep(one.id, toIndex(one.x, one.y));
       });
     });
 

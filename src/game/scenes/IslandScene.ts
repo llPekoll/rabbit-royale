@@ -32,7 +32,7 @@ import {
   isForbidden, makeShape, screenToTile, tilePos, tileInScreenDirection,
   toColRow, type IslandShape,
 } from '@/config/gridConfig';
-import { farmableTiles, levelTierAt, terrainTileAt, tierLift } from '@/lib/game/terrainBoard';
+import { farmableTiles, levelTierAt, spawnTile, terrainTileAt, tierLift } from '@/lib/game/terrainBoard';
 import type { TileContent } from '@/lib/game/types';
 import { ENERGY, LIGHTNING } from '@config/tuning';
 import { reachableTiles } from '@/lib/game/reachable';
@@ -108,6 +108,14 @@ export class IslandScene implements Scene {
 
   /** Where the local rabbit is, for direction-relative movement. */
   private myTile = SPAWN_INDEX;
+  /**
+   * Where each sheep stands NOW, by placement id — the server's word.
+   *
+   * The board only knows where the flock started, so the ring is drawn from
+   * this on top of it: a lit tile with a sheep on it is a tap the server will
+   * refuse, and the ring must not promise one.
+   */
+  private sheepTiles = new Map<string, number>();
 
   constructor(app: Application, _sceneManager: SceneManager) {
     this.app = app;
@@ -125,6 +133,7 @@ export class IslandScene implements Scene {
     // rather than picked from three paintings. Both sides build it from the
     // seed alone, so what blocks a tile here is what the server refuses.
     this.background = await createTerrainBackground(this.container, this.data?.seed ?? '');
+    this.syncFlock();
 
     // The sky, behind everything: the island already moves (surf, volcano
     // smoke), so a dead blue border around it makes the frame look like a
@@ -177,7 +186,11 @@ export class IslandScene implements Scene {
       // opaque between them. The hints and highlights stay up here.
       tile.mountVeil((veil) => this.background?.mountVeil(i, veil) ?? false);
     }
-    this.tiles.get(SPAWN_INDEX)?.markSpawn();
+    // The spawn comes from the terrain, as the server's does (`spawnRabbit`):
+    // the centre of a flat 16x16 can be open sea, or a cell with a pine on it.
+    const spawn = spawnTile(this.data?.seed ?? '');
+    this.tiles.get(spawn)?.markSpawn();
+    this.myTile = spawn;
   }
 
   // ── Reachability ───────────────────────────────────────────────────────────
@@ -214,6 +227,7 @@ export class IslandScene implements Scene {
       alive: true,
       stunnedUntil: this.stunnedUntil,
       isRevealed: (i) => this.tiles.get(i)?.revealed ?? false,
+      blocked: new Set(this.sheepTiles.values()),
     }, this.data?.seed ?? '');
 
     // Stunned: nothing came back, and the ring must stay dark for exactly as
@@ -387,7 +401,7 @@ export class IslandScene implements Scene {
     this.background?.destroy();
     this.background = await createTerrainBackground(this.container, seed);
 
-    this.myTile = SPAWN_INDEX;
+    this.syncFlock();
     this.buildTiles();
     this.refreshReachable();
   }
@@ -420,11 +434,30 @@ export class IslandScene implements Scene {
    * a tween belongs with the rest of the animation work.
    */
   moveSheep(id: string, tile: number, _sprinting = false): void {
+    // Remembered first, so a roster that lands before the ground is built
+    // (the snapshot races `create`, and `setIsland` rebuilds the ground after
+    // the snapshot that named the island) is replayed by `syncFlock`.
+    this.sheepTiles.set(id, tile);
     const { col, row } = toColRow(tile);
     this.background?.moveSheep(id, col, row);
     // The ring is drawn from what is walkable, and a sheep that moved just
     // changed that: the cell it left is open now and the one it took is not.
     this.refreshReachable();
+  }
+
+  /**
+   * Put the flock where the roster says, on freshly built ground.
+   *
+   * The ground draws the sheep where the SEED put them; the roster is where
+   * the server has since moved them. Ids the new island does not know — the
+   * previous island's flock, still in the map when the seed changed — are
+   * dropped, or the ring would darken tiles nothing stands on.
+   */
+  private syncFlock(): void {
+    for (const [id, tile] of this.sheepTiles) {
+      const { col, row } = toColRow(tile);
+      if (!this.background?.moveSheep(id, col, row)) this.sheepTiles.delete(id);
+    }
   }
 
   revealTile(index: number, content: TileContent, adjacent: number): void {

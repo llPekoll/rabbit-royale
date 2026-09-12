@@ -43,6 +43,9 @@ export function PixiStage({ width, height, background = '#081120', assets, prepa
       a.ticker.maxFPS = 60;
       if (disposed) { a.destroy(true, { children: true }); return; }
       app = a;
+      // The Pixi devtools convention, so a story's scene graph can be inspected
+      // (and probed from a script) instead of guessed at from pixels.
+      (globalThis as { __PIXI_APP__?: Application }).__PIXI_APP__ = a;
       hostRef.current?.appendChild(a.canvas);
       a.canvas.style.imageRendering = 'pixelated';
       // Fit the story's frame WITHOUT distorting it.

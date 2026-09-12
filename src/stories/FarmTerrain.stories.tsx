@@ -11,18 +11,20 @@
  * REAL `makeShape` board, the REAL `Tile` entity and a REAL `PlayerRabbit` on
  * the generated ground, at the game's own metrics, and lets the eye decide.
  *
- * ## The two grids have to agree, and they already do
+ * ## The terrain is the game's, through the game's own service
  *
- * The game's `tilePos` is `(col - row) * HALF_W`, `(col + row) * HALF_H` —
- * character for character the projection in `iso.ts`. So the terrain is built
- * at the BOARD's metrics (44x24, not the module's 64x32 default) and its
- * origin is pinned to the board's, which is what makes a terrain cell and a
- * playable tile the same diamond rather than two grids that merely look alike.
+ * The ground, the trees, the flock and the sea come from `createTerrainBackground`
+ * — the very call `IslandScene` makes — and each tile's veil is mounted inside
+ * its cell's terrain block exactly as the scene mounts it. The story used to
+ * build its own `IsoIslandView` and line the two grids up by hand, and the
+ * hand was off by one cell: every veil sat on the cell diagonally above the
+ * ground it covered, a row of them hung over the sea, and the shore row went
+ * bare. A story that draws the island differently from the game is not
+ * evidence, so it no longer draws it at all — it asks the game to.
  *
- * `terrainScale` is the one knob that matters: the board is 16x16, the terrain
- * grid is larger so that land runs past the playable area instead of stopping
- * at it. Take it to 1 and the island ends exactly where the board does, which
- * is the failure this story exists to make visible.
+ * `terrainScale`, `tiers`, `land`, `rise`, `raggedness` and `clearBoard` are
+ * left over from that era and change nothing today: the island is the one
+ * `terrainBoard` cuts for the seed, at the game's own settings.
  *
  * ## What to look for
  *
@@ -32,9 +34,8 @@
  *   - do the terrain's trees fight the board for attention?
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { Container } from 'pixi.js';
+import { Container, type Sprite } from 'pixi.js';
 import { PixiStage } from './PixiStage';
-import { IsoIslandView, loadIslandTileset, type IslandTileset } from '@/game/island';
 import { Tile } from '@/game/entities/Tile';
 import { mulberry32, seedFrom } from '@/lib/game/rng';
 import type { TileContent } from '@/lib/game/types';
@@ -42,11 +43,9 @@ import { PlayerRabbit } from '@/game/entities/PlayerRabbit';
 import { loadAllAssets } from '@/game/services/AssetLoader';
 import { initTileTextures } from '@/game/services/TileTextures';
 import { createIslandBackground } from '@/game/services/IslandBackground';
-import {
-  COLS, ROWS, HALF_W, HALF_H,
-  isForbidden, makeShape, toIndex, toColRow, tilePos,
-} from '@/config/gridConfig';
-import { farmableTiles, levelTierAt, spawnTile, terrainFor, terrainNeighbors, tierLift, TIER_LIFT } from '@/lib/game/terrainBoard';
+import { createTerrainBackground } from '@/game/services/TerrainBackground';
+import { COLS, ROWS, toColRow } from '@/config/gridConfig';
+import { farmableTiles, levelTierAt, spawnTile, terrainNeighbors, tierLift } from '@/lib/game/terrainBoard';
 
 const WIDTH = 960;
 const HEIGHT = 540;
@@ -111,8 +110,6 @@ interface Args {
 }
 
 function Scene(args: Args) {
-  let tileset: IslandTileset | null = null;
-
   return (
     <PixiStage
       width={WIDTH}
@@ -120,77 +117,37 @@ function Scene(args: Args) {
       background={SEA}
       prepare={async () => {
         await loadAllAssets();
-        tileset = await loadIslandTileset();
       }}
       setup={(stage, app) => {
-        if (!tileset) return;
         initTileTextures(app.renderer);
 
         const cleanups: Array<() => void> = [];
+        // The backgrounds resolve asynchronously; a story torn down before
+        // they do must not build a board into a destroyed stage.
+        let gone = false;
+        cleanups.push(() => { gone = true; });
 
-        if (args.painted) {
-          // The comparison arm: the screen exactly as it ships today.
-          void createIslandBackground(stage, WIDTH / 2, HEIGHT / 2, args.seed).then((bg) => {
-            cleanups.push(() => bg.destroy());
-          });
-        } else {
-          // THE GAME'S terrain, not one of the story's own.
-          //
-          // This story used to generate its own island from its own controls
-          // while the tiles on top consulted the game's — so the two disagreed
-          // about where the ground was, and about how high each tier stood.
-          // Hints floated over their tiles by the difference. A story that
-          // shows a different island from the one that ships is not evidence.
-          const { map, placements } = terrainFor(args.seed);
-          const size = map.width;
-          const island = new IsoIslandView({
-            map,
-            tileset,
-            // TIER_LIFT, not `tileZ`: the tiles are raised by the game's own
-            // constant (see `Tile`'s `lift`), so a terrain drawn at any other
-            // height disagrees with the board by the difference per tier —
-            // which is exactly how hints end up floating above their tiles.
-            metrics: { w: HALF_W * 2, h: HALF_H * 2, z: TIER_LIFT },
-            placements,
-            decoScale: args.decoScale,
-          });
+        /**
+         * ONE sorted container for the board and everything standing on the
+         * island, exactly as `IslandScene` has it. The terrain service puts the
+         * trees, rocks and sheep in here as SIBLINGS of the tiles, so a sheep
+         * sorts in front of the veil on its own cell instead of the whole
+         * landscape landing entirely behind (or entirely before) the board.
+         */
+        const boardLayer = new Container();
+        boardLayer.sortableChildren = true;
+        stage.addChild(boardLayer);
+        cleanups.push(() => boardLayer.destroy({ children: true }));
 
-          // Line the two grids up by their CENTRES.
-          //
-          // Both use the same projection, so this is one subtraction rather
-          // than a fudge: project the board's middle cell through the game's
-          // `tilePos`, project the terrain's middle cell through the terrain's
-          // own origin, and shift by the difference. The terrain grid can then
-          // grow around the board without the playable area sliding off the
-          // land — which is the whole point of `terrainScale`.
-          const boardMid = tilePos(toIndex(Math.round((COLS - 1) / 2), Math.round((ROWS - 1) / 2)));
-          const mid = (size - 1) / 2;
-          const terrainMid = {
-            x: (mid - mid) * HALF_W,        // centre of a square grid: always 0
-            y: (mid + mid) * HALF_H,
-          };
-          island.view.position.set(
-            boardMid.x - terrainMid.x - island.originX,
-            boardMid.y - terrainMid.y - island.originY,
-          );
-          stage.addChild(island.view);
-
-          const ticker = (t: { deltaMS: number }) => island.update(t.deltaMS);
-          app.ticker.add(ticker);
-          cleanups.push(() => {
-            app.ticker.remove(ticker);
-            island.destroy();
-          });
-        }
-
-        if (args.board) {
-          // The real board: the same shape cutter and the same Tile entity the
-          // scene uses, so what is judged here is what would ship.
-          const shape = makeShape(args.seed);
-          const boardLayer = new Container();
-          boardLayer.sortableChildren = true;
-          stage.addChild(boardLayer);
-
+        /**
+         * The real board: the same tile set, the same Tile entity and the same
+         * veil mounting the scene uses, so what is judged here is what ships.
+         *
+         * `mountVeil` is the terrain's — it puts a tile's veil inside the
+         * block of its cell, over that cell's grass. Over the painting there
+         * is no block, and the veil stays on the tile.
+         */
+        const buildBoard = (mountVeil: (index: number, veil: Sprite) => boolean) => {
           // What a run in progress looks like.
           //
           // The board is not the point on its own — a grid of face-down tiles
@@ -201,10 +158,9 @@ function Scene(args: Args) {
           // were rolled rather than invented, so the picture is a legal board
           // and not a plausible-looking one.
           const rng = mulberry32(seedFrom(`${args.seed}:farm`));
-          // The TERRAIN decides where tiles exist, exactly as the game does.
-          // Cutting them from `makeShape` instead put tiles on cells the
-          // terrain has no ground for, and left every one of them at sea level
-          // while the ground rose — hints floating between the plateaus.
+          // The TERRAIN decides where tiles exist, exactly as the game does:
+          // every grass cell, minus the ones with a tree, a rock or a soldier
+          // on them. A sheep's cell keeps its tile — the sheep walks off it.
           const land = farmableTiles(args.seed);
 
           const content = new Map<number, TileContent>();
@@ -230,15 +186,15 @@ function Scene(args: Args) {
             // the depth tie between a raised tile and a sea-level one on the
             // same diagonal. Left out, this story sorted differently from the
             // game and could not show the overlap it exists to show.
-            const { col: tc, row: tr } = toColRow(i);
+            const { col, row } = toColRow(i);
             const tile = new Tile(i, {
               color: parseInt(args.fogColor.replace('#', ''), 16),
               alpha: args.fogAlpha,
-            }, tierLift(args.seed, i), levelTierAt(args.seed, tc, tr));
+            }, tierLift(args.seed, i), levelTierAt(args.seed, col, row));
             boardLayer.addChild(tile.container);
+            tile.mountVeil((veil) => mountVeil(i, veil));
             // Dug tiles cluster around the spawn, the way a real run spreads
             // outward from where the rabbit landed rather than at random.
-            const { col, row } = toColRow(i);
             const spawn = toColRow(spawnTile(args.seed));
             const dist = Math.max(Math.abs(col - spawn.col), Math.abs(row - spawn.row));
             const reach = args.dug * Math.max(COLS, ROWS) * 0.7;
@@ -248,12 +204,37 @@ function Scene(args: Args) {
             // A dug bomb has already gone off, so it shows as spent ground.
             tile.revealContent(what === 'bomb' ? 'empty' : what, adjacentBombs(i), false);
           }
-          cleanups.push(() => boardLayer.destroy({ children: true }));
 
           if (args.rabbit) {
             const rabbit = new PlayerRabbit(spawnTile(args.seed));
             boardLayer.addChild(rabbit.container);
           }
+        };
+
+        if (args.painted) {
+          // The comparison arm: the screen exactly as it shipped before.
+          void createIslandBackground(stage, WIDTH / 2, HEIGHT / 2, args.seed).then((bg) => {
+            if (gone) { bg.destroy(); return; }
+            cleanups.push(() => bg.destroy());
+            // The painting joined the stage after the board's container did;
+            // the board goes back on top of it.
+            stage.setChildIndex(boardLayer, stage.children.length - 1);
+            if (args.board) buildBoard(() => false);
+          });
+        } else {
+          // THE GAME'S terrain, through THE GAME'S service — the same call
+          // `IslandScene` makes, into the same kind of container. It aligns
+          // the terrain to the board's grid and hands back `mountVeil`, so
+          // there is nothing left here to get wrong.
+          void createTerrainBackground(boardLayer, args.seed, { decoScale: args.decoScale })
+            .then((bg) => {
+              if (gone) { bg.destroy(); return; }
+              cleanups.push(() => bg.destroy());
+              const ticker = (t: { deltaMS: number }) => bg.update(t.deltaMS);
+              app.ticker.add(ticker);
+              cleanups.push(() => app.ticker.remove(ticker));
+              if (args.board) buildBoard((i, veil) => bg.mountVeil(i, veil));
+            });
         }
 
         return () => cleanups.forEach((fn) => fn());

@@ -13,12 +13,24 @@
  *   sea        never walkable; it is not a cell at all
  *   cliff      a step between tiers of more than `MAX_STEP` cannot be climbed
  *   soldier    a wall. It never moves, so a route it blocks stays blocked
- *   sheep      blocks its cell, but WANDERS — so a blocked path can open
+ *   sheep      in the way while it stands there, but it WANDERS — and bolts
+ *              when a rabbit comes near (`flee.ts`)
  *
  * That difference is the whole design. A soldier is terrain you have to route
  * around; a flock is a queue you can wait out. Making them both static would
  * leave the island stable and lifeless, and making them both passable would
  * make the inhabitants scenery again.
+ *
+ * ## The seed places the flock; it does not keep it
+ *
+ * This board is built from the seed alone and is never told where a sheep
+ * went next — the server owns that and broadcasts it. So a sheep's STARTING
+ * cell must not be carved out of the board the way a tree's is: that left a
+ * hole with no tile, no veil and no carrot under it, and the sheep walked off
+ * and left the hole behind. Only things that never move take a cell off the
+ * board (`isFixed`). Who is standing on a cell right now is a question for
+ * the live picture — the server's roster, the client's `sheep_moved` — and
+ * both answer it on top of this.
  *
  * Deliberately free of Pixi and of the view: this decides what is legal, never
  * what is drawn. That is what lets it be asserted without a canvas — the same
@@ -118,6 +130,18 @@ export class IslandBoard {
     return o !== undefined && blocksCell(o.kind);
   }
 
+  /**
+   * True when something that NEVER MOVES takes `(x, y)` off the board.
+   *
+   * A tree, a rock, a soldier. Not a sheep: it blocks (`isBlocked`) only for
+   * as long as it stands there, and this board is not told when it leaves —
+   * see the note at the top of the file.
+   */
+  isFixed(x: number, y: number): boolean {
+    const o = this.byCell.get(cellKey(x, y));
+    return o !== undefined && blocksCell(o.kind) && !wanders(o.kind);
+  }
+
   /** True when `(x, y)` is land — a cell that exists, occupied or not. */
   isLand(x: number, y: number): boolean {
     return levelAt(this.map, x, y) > 0;
@@ -144,13 +168,16 @@ export class IslandBoard {
   }
 
   /**
-   * True when a rabbit could stand on `(x, y)` — land, and nobody on it.
+   * True when a rabbit could stand on `(x, y)` — land, with nothing permanent
+   * on it.
    *
    * Says nothing about whether it can be REACHED: that depends on where it is
-   * stepping from, which is `canStep`.
+   * stepping from, which is `canStep`. And nothing about the flock: a sheep
+   * standing here right now is refused by the live layer (the server's
+   * `blocked` set, the client's ring), which knows where it actually is.
    */
   isWalkable(x: number, y: number): boolean {
-    return this.isOnBoard(x, y) && !this.isBlocked(x, y);
+    return this.isOnBoard(x, y) && !this.isFixed(x, y);
   }
 
   /**
@@ -163,7 +190,7 @@ export class IslandBoard {
    * touching what is walkable.
    */
   isFarmable(x: number, y: number): boolean {
-    return this.isOnBoard(x, y) && !this.isBlocked(x, y);
+    return this.isOnBoard(x, y) && !this.isFixed(x, y);
   }
 
   /** Every farmable cell of the island, in row-major order. */
@@ -219,7 +246,10 @@ export class IslandBoard {
       if (!wanders(o.kind)) continue;
       if (this.rng() > chance) continue;
 
-      const open = this.stepsFrom(o.x, o.y).filter((c) => this.sameTier(o, c.x, c.y));
+      // `stepsFrom` ignores the flock (see `isWalkable`), so the other sheep
+      // are refused here — two on one cell is the thing this must never do.
+      const open = this.stepsFrom(o.x, o.y)
+        .filter((c) => !this.occupantAt(c.x, c.y) && this.sameTier(o, c.x, c.y));
       if (!open.length) continue;
       const to = open[Math.floor(this.rng() * open.length)];
 

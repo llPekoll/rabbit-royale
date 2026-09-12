@@ -375,8 +375,19 @@ export class IsoIslandView {
       // The ground always stays in `world`; only the STANDING art can be asked
       // to live elsewhere, because only it needs to interleave with a board.
       const deco = options.decoLayer ?? world;
-      this.buildDeco(deco);
-      this.buildInhabitants(deco);
+      if (options.placements) {
+        // The things the BOARD has, and nothing else. `drawPlacements` had
+        // been written for exactly this and never called: the view went on
+        // scattering its own trees and flock from its own rolls, so the
+        // player saw a pine on a cell the server called free, a bare patch of
+        // grass where the server had a tree, and a flock the server's moves
+        // could not find by id — sheep that never moved.
+        this.drawPlacements(deco, options.placements);
+        this.buildSeaRocks(deco);
+      } else {
+        this.buildDeco(deco);
+        this.buildInhabitants(deco);
+      }
     }
   }
 
@@ -433,7 +444,16 @@ export class IsoIslandView {
       }
 
       if (p.kind !== 'sheep' && p.kind !== 'soldier') sprite.scale.set(scale);
-      this.livestock.push({ occupant: { id: p.id, kind: p.kind, x: p.x, y: p.y }, sprite, tier });
+      // The board's OWN id, so a `sheep_moved` from the server names a sprite
+      // this view actually holds — and the shadow `foot` just dropped, so a
+      // sheep that bolts takes it along (see `register`).
+      this.livestock.push({
+        occupant: { id: p.id, kind: p.kind, x: p.x, y: p.y },
+        sprite,
+        tier,
+        shadow: this.lastShadow,
+      });
+      this.lastShadow = undefined;
       if (blocksCell(p.kind)) this.occupied.add(key(p.x, p.y));
       if (frames) {
         const windblown = p.kind === 'tree' || p.kind === 'bush';
@@ -442,6 +462,31 @@ export class IsoIslandView {
           frames,
           phase: windblown ? this.windPhase(p.x, p.y) : this.freePhase(frames, rng),
         });
+      }
+    }
+  }
+
+  /**
+   * The little rocks bobbing in open water, for an island drawn from
+   * placements.
+   *
+   * The board has nothing to say about the sea — nothing stands there — so the
+   * placements carry no rocks and the view rolls its own, on a stream of its
+   * own so the land is not disturbed. `buildDeco` keeps rolling them inline
+   * for the standalone views, whose scatter this must not change.
+   */
+  private buildSeaRocks(world: Container): void {
+    const { map, tileset } = this.options;
+    const rng = mulberry32(seedFrom(`${map.seed}:sea-rocks`));
+    const scale = this.options.decoScale ?? 1;
+    for (let y = 0; y < map.height; y++) {
+      for (let x = 0; x < map.width; x++) {
+        if (levelAt(map, x, y) !== 0) continue;
+        if (touchesLand(map, x, y) || rng() > SEA_ROCK_CHANCE) continue;
+        const frames = tileset.seaRocks[Math.floor(rng() * tileset.seaRocks.length)];
+        const sprite = this.stamp(world, frames[0], x, y, 0, isoDepth(x, y, 0) + 1, 0.5);
+        sprite.scale.set(scale);
+        this.animated.push({ sprite, frames, phase: this.windPhase(x, y) });
       }
     }
   }

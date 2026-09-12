@@ -36,10 +36,10 @@ export interface TerrainBackground extends IslandBackground {
    * makes their position shared mutable state the server owns (`flee.ts`).
    * This is the client's end of that: no rules, just "this one is there now".
    *
-   * Silently ignores an unknown id, which is what a client holding a stale
-   * flock across a rebuild would send.
+   * False for an unknown id — what a client holding a stale flock across a
+   * rebuild sends — so the caller can drop it from its roster.
    */
-  moveSheep(id: string, x: number, y: number): void;
+  moveSheep(id: string, x: number, y: number): boolean;
   /**
    * Put a tile's veil inside the terrain block of its cell — see
    * `IsoIslandView.mountVeil`. False when the cell has no block.
@@ -56,6 +56,9 @@ export interface TerrainBackground extends IslandBackground {
 export async function createTerrainBackground(
   container: Container,
   seed: string,
+  /** `decoScale` overrides the board's scenery size — for the stories that
+   *  exist to show what the wrong size looks like. The game never passes it. */
+  options: { decoScale?: number } = {},
 ): Promise<TerrainBackground> {
   const tileset = await loadIslandTileset();
   const { map, placements } = terrainFor(seed);
@@ -83,9 +86,14 @@ export async function createTerrainBackground(
     map,
     tileset,
     metrics: { w: HALF_W * 2, h: HALF_H * 2, z: TIER_LIFT },
-    decoScale: DECO_SCALE,
+    decoScale: options.decoScale ?? DECO_SCALE,
     placements,
     decoLayer: container,
+    // No water tiles. The scene already paints the sea edge to edge
+    // (`BG_COLOR`), and the pack's water is a flat teal of a DIFFERENT shade:
+    // stamped per cell, it drew a second, lighter diamond the size of the
+    // whole grid around the island, which read as a veil lying on the water.
+    sea: false,
     // Over a playing board a tree without one hovers between two lit
     // diamonds and the eye cannot tell which cell it stands on.
     decoShadows: true,
@@ -123,10 +131,11 @@ export async function createTerrainBackground(
       // cell here and calling `syncOccupants` is what moves the sprite — the
       // path a wandering sheep already used, now driven from the wire.
       const one = island.occupants().find((o) => o.id === id);
-      if (!one) return;
+      if (!one) return false;
       one.x = x;
       one.y = y;
       island.syncOccupants();
+      return true;
     },
     mountVeil(index, veil) {
       const { col, row } = toColRow(index);

@@ -164,7 +164,9 @@ export function spawnTile(seed: string): number {
   let bestDist = Infinity;
   for (let row = 0; row < ROWS; row++) {
     for (let col = 0; col < COLS; col++) {
-      if (!board.isWalkable(col, row)) continue;
+      // Not under a sheep either: the board lets the flock's cells through
+      // (they are farmable), but a run cannot open with a rabbit on a sheep.
+      if (!board.isWalkable(col, row) || board.occupantAt(col, row)) continue;
       const d = Math.abs(col - mid.col) + Math.abs(row - mid.row);
       if (d < bestDist) { bestDist = d; best = toIndex(col, row); }
     }
