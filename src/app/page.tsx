@@ -543,18 +543,27 @@ function Burrow() {
     void handles.current?.burrow?.setLevel(burrow.level);
   }, [ready, burrow?.level]);
 
-  // The traps already on the ground, drawn once the board exists.
+  // The traps on the ground, SYNCHRONISED with the server's list.
+  //
+  // Both directions, which is the whole point. This used to only ever add, and
+  // that made lifting a bomb impossible in a way that looked like the tap
+  // doing nothing: the tap removed the marker, the response refreshed the
+  // list, this effect ran again and drew the bomb straight back. The board
+  // healed itself faster than the eye could see the gap.
   //
   // Keyed on the tile LIST rather than on the state object, which is replaced
-  // on every refresh: `addTrap` ignores a tile it has already drawn, so a
-  // re-run is harmless, but re-running it on every poll is work for nothing.
+  // on every poll: identical lists mean there is nothing to reconcile.
   const drawnTraps = useRef('');
   useEffect(() => {
     const tiles = shop.traps?.placed;
     if (!ready || !tiles) return;
     const key = tiles.join(',');
     if (drawnTraps.current === key) return;
+    const had = drawnTraps.current ? drawnTraps.current.split(',').map(Number) : [];
     drawnTraps.current = key;
+    const now = new Set(tiles);
+    // Gone from the server's list — lifted here, or sprung by a raider.
+    for (const tile of had) if (!now.has(tile)) handles.current?.burrow?.removeTrap(tile);
     for (const tile of tiles) handles.current?.burrow?.addTrap(tile, false);
   }, [ready, shop.traps]);
 
