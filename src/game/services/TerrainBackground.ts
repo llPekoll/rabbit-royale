@@ -47,8 +47,17 @@ export interface TerrainBackground extends IslandBackground {
   /**
    * Put a tile's veil inside the terrain block of its cell — see
    * `IsoIslandView.mountVeil`. False when the cell has no block.
+   *
+   * `zIndex` is the LOCAL depth inside the block: the rim is 0, the grass 1,
+   * and a veil 2 by default. It is a parameter because a cell carries more
+   * than one flat overlay — the fog, and above it the highlight and the blink
+   * that mark a reachable neighbour. They all have to mount, or the ones left
+   * behind lie over the whole scene and compound with their neighbours along
+   * every terrace edge (see `IsoIslandView.blocks`). The burrow's adapter has
+   * always taken this; the island's dropped it, which is exactly why only the
+   * island still stacked overlays outside the blocks.
    */
-  mountVeil(index: number, veil: Sprite): boolean;
+  mountVeil(index: number, veil: Container, zIndex?: number): boolean;
 }
 
 /**
@@ -211,9 +220,9 @@ export async function createTerrainBackground(
       island.syncOccupants();
       return true;
     },
-    mountVeil(index, veil) {
+    mountVeil(index, veil, zIndex) {
       const { col, row } = toColRow(index);
-      return island.mountVeil(col, row, veil);
+      return island.mountVeil(col, row, veil, zIndex);
     },
     update(deltaMs) {
       island.update(deltaMs);

@@ -92,7 +92,25 @@ describe('a veil is part of its cell', () => {
   const TILE = readFileSync(new URL('../src/game/entities/Tile.ts', import.meta.url), 'utf8');
 
   it('is mounted in the terrain block by the scene', () => {
-    expect(SCENE).toMatch(/tile\.mountVeil\(\(veil\) => this\.background\?\.mountVeil\(i, veil\)/);
+    // The local depth rides along now: a cell holds three flat diamonds (the
+    // fog, the highlight, the blink) and they have to stack in a fixed order
+    // INSIDE the block rather than compound above the whole scene.
+    expect(SCENE).toMatch(/tile\.mountVeil\(\(veil, z\) => this\.background\?\.mountVeil\(i, veil, z\)/);
+  });
+
+  /**
+   * Every flat diamond mounts — not just the fog.
+   *
+   * The highlight and the blink are the same shape as the veil and lie just
+   * as flat, so leaving them in the tile's container was the same bug twice
+   * over: the texture draws ~21px tall against an 18px tier lift, so each one
+   * overhangs the cell behind it, and two translucent quads over one pixel
+   * compound. With the highlight up, the wedge along a terrace edge was gold.
+   */
+  it('mounts the highlight and the blink as well as the fog', () => {
+    expect(TILE).toMatch(/host\(this\.fog, 2\)/);
+    expect(TILE).toMatch(/host\(this\.highlightGfx, 4\)/);
+    expect(TILE).toMatch(/host\(this\.blinkGfx, 5\)/);
   });
 
   it('draws last inside the block, over the grass', () => {
@@ -107,11 +125,15 @@ describe('a veil is part of its cell', () => {
   });
 
   it('goes back under the tile if there is no block to hold it', () => {
-    expect(TILE).toMatch(/if \(!host\(this\.fog\)\) this\.container\.addChildAt\(this\.fog, 0\);/);
+    expect(TILE).toMatch(/if \(!host\(this\.fog, 2\)\) this\.container\.addChildAt\(this\.fog, 0\);/);
   });
 
   it('is destroyed with its tile even though it is not its child', () => {
-    expect(TILE).toMatch(/this\.fog\.parent !== this\.container && !this\.fog\.destroyed\) this\.fog\.destroy\(\)/);
+    // All three deported diamonds, not just the fog: whichever of them the
+    // terrain accepted is no longer the container's child, so destroying the
+    // container would leave it behind on the island.
+    expect(TILE).toMatch(/for \(const d of \[this\.fog, this\.highlightGfx, this\.blinkGfx\]\)/);
+    expect(TILE).toMatch(/d\.parent !== this\.container && !d\.destroyed\) d\.destroy\(\)/);
   });
 });
 

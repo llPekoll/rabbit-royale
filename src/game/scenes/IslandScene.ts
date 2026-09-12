@@ -232,7 +232,7 @@ export class IslandScene implements Scene {
       // ground rather than stacking on the veils of lower neighbours — the
       // double-dark wedge along every terrace edge was two veils with nothing
       // opaque between them. The hints and highlights stay up here.
-      tile.mountVeil((veil) => this.background?.mountVeil(i, veil) ?? false);
+      tile.mountVeil((veil, z) => this.background?.mountVeil(i, veil, z) ?? false);
     }
     // The spawn comes from the terrain, as the server's does (`spawnRabbit`):
     // the centre of a flat 16x16 can be open sea, or a cell with a pine on it.

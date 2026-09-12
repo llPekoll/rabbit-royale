@@ -265,9 +265,33 @@ export class Tile {
    * reveal does not care whose child it is. If the host declines, the veil
    * goes back where it was, under everything else the tile draws.
    */
-  mountVeil(host: (veil: Sprite) => boolean): void {
+  mountVeil(host: (veil: Sprite, zIndex?: number) => boolean): void {
+    /**
+     * All THREE flat diamonds go into the block, not just the fog.
+     *
+     * The highlight and the blink are the same shape as the veil and lie just
+     * as flat, so leaving them in the container was the bug `mountVeil`
+     * already fixes for the fog, twice over: the diamond texture draws ~21px
+     * tall against an 18px tier lift, so every one of them overhangs the cell
+     * behind it by ~3px, and two translucent quads over one pixel compound
+     * (0.30 over 0.30 reads 0.51). On terraced ground that is the double-dark
+     * wedge along every shelf edge — and with the highlight up it was a
+     * double-GOLD one.
+     *
+     * Local depths above the veil's 2, in the order they paint: the fog is
+     * the ground's own cover, the highlight rings the tile you may move to,
+     * and the blink flashes over both. Nothing else in the block goes this
+     * high — the burrow's trap marker, the only other mounted thing, sits at
+     * 3 on a board that has no highlight.
+     */
     this.container.removeChild(this.fog);
-    if (!host(this.fog)) this.container.addChildAt(this.fog, 0);
+    if (!host(this.fog, 2)) this.container.addChildAt(this.fog, 0);
+
+    this.container.removeChild(this.highlightGfx);
+    if (!host(this.highlightGfx, 4)) this.container.addChildAt(this.highlightGfx, 1);
+
+    this.container.removeChild(this.blinkGfx);
+    if (!host(this.blinkGfx, 5)) this.container.addChildAt(this.blinkGfx, 2);
   }
 
   /**
@@ -952,9 +976,13 @@ export class Tile {
   destroy(): void {
     gsap.killTweensOf(this.blinkGfx);
     gsap.killTweensOf(this.fog);
-    // A veil mounted in a terrain block is not this container's child, so
-    // destroying the container would leave it behind on the island.
-    if (this.fog.parent !== this.container && !this.fog.destroyed) this.fog.destroy();
+    // A diamond mounted in a terrain block is not this container's child, so
+    // destroying the container would leave it behind on the island. All three
+    // mount now (see `mountVeil`), so all three have to be checked — the fog
+    // alone was right only while it was the only one deported.
+    for (const d of [this.fog, this.highlightGfx, this.blinkGfx]) {
+      if (d.parent !== this.container && !d.destroyed) d.destroy();
+    }
     this.stopChestTweens();
     if (this.chestSprite) {
       gsap.killTweensOf(this.chestSprite);
