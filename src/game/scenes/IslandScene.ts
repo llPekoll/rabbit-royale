@@ -187,6 +187,13 @@ export class IslandScene implements Scene {
     };
     window.addEventListener('resize', this.onResize);
     this.applyCamera();
+    // Seed the size watch in `update` with the size the shot was just solved
+    // for. Left at 0 it reports a change on the very first frame and re-solves
+    // for nothing; worse, a scene built while HIDDEN is not ticked at all, so
+    // the pair stayed at 0 until it was shown and the first frame after the
+    // cut spent itself recomputing a camera that was already right.
+    this.lastW = this.app.renderer.width;
+    this.lastH = this.app.renderer.height;
 
     this.buildTiles();
     // The keyboard hint, drawn ON the board rather than as a legend beside it:
@@ -445,6 +452,12 @@ export class IslandScene implements Scene {
     this.syncFlock();
     this.buildTiles();
     this.refreshReachable();
+
+    // The shot is solved from the SEED's own terrain — how tall the island
+    // came out, how far its lattice reaches — so a new island needs a new
+    // one. Without this the scene keeps the previous island's framing while
+    // drawing this one, which is how the farm ended up zoomed into a corner.
+    this.applyCamera();
   }
 
   // ── Server events ──────────────────────────────────────────────────────────
