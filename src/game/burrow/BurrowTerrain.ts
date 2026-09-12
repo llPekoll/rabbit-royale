@@ -66,7 +66,7 @@ export interface BurrowTerrainView {
    * False when the cell has no block (off-island), and the caller keeps the
    * diamond where it was.
    */
-  mountVeil(tile: number, veil: Sprite): boolean;
+  mountVeil(tile: number, veil: Container, zIndex?: number): boolean;
   /** Advance the sway. `deltaMs` is real milliseconds. */
   update(deltaMs: number): void;
   destroy(): void;
@@ -170,9 +170,9 @@ export async function createBurrowTerrain(
   return {
     view: island.view,
     setLevel: place,
-    mountVeil(tile, veil) {
+    mountVeil(tile, veil, zIndex) {
       const { col, row } = burrowColRow(tile);
-      return island.mountVeil(col, row, veil);
+      return island.mountVeil(col, row, veil, zIndex);
     },
     reveal(tiles) {
       if (tiles === null) {

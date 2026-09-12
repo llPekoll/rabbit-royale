@@ -502,11 +502,9 @@ export class BurrowScene implements Scene {
    */
   addTrap(tile: number, animate = true): void {
     if (this.trapSprites.has(tile)) return;
-    const { x, y } = burrowTileScreen(this.data.seed, tile);
 
     const group = new Container();
-    group.position.set(x, y);
-    group.zIndex = burrowDepth(this.data.seed, tile) + 0.5;
+    group.sortableChildren = true;
 
     const marker = burrowDiamond();
     marker.tint = TRAP_TINT;
@@ -527,7 +525,21 @@ export class BurrowScene implements Scene {
     // the one cell that most needs to answer them.
     group.eventMode = 'none';
 
-    this.board.addChild(group);
+    // Into the cell's terrain block, through the SAME call that placed the
+    // diamond under it — at a higher zIndex so it draws over it.
+    //
+    // Positioned by hand against `burrowTileScreen` before, which is a
+    // different space from the one `mountVeil` puts the diamond in: the
+    // markers came out sitting a few pixels above the grid that placed them,
+    // so a bomb appeared to be buried between two cells. One cell, one call,
+    // one answer — the marker cannot drift from the diamond it covers because
+    // neither is positioned independently any more.
+    if (!this.terrain?.mountVeil(tile, group, 3)) {
+      const { x, y } = burrowTileScreen(this.data.seed, tile);
+      group.position.set(x, y);
+      group.zIndex = burrowDepth(this.data.seed, tile) + 0.5;
+      this.board.addChild(group);
+    }
     this.trapSprites.set(tile, group);
 
     if (animate) {

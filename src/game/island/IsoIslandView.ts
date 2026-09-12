@@ -693,13 +693,19 @@ export class IsoIslandView {
    * False when there is no block here (sea, or a map without this cell), so a
    * caller can keep the veil where it was.
    */
-  mountVeil(x: number, y: number, veil: Sprite): boolean {
+  mountVeil(x: number, y: number, veil: Container, zIndex = 2): boolean {
     const block = this.blocks.get(key(x, y));
     if (!block) return false;
     const tier = levelAt(this.options.map, x, y);
     const p = isoProject(x + 0.5, y + 0.5, tier, this.metrics);
     veil.position.set(p.x, p.y);
-    veil.zIndex = 2;
+    // Inside the block, and above the ground it covers. `zIndex` is a
+    // parameter because a cell can carry more than one mounted thing: the
+    // burrow puts a placement diamond AND, on top of it, the marker for the
+    // bomb buried there. Both have to be positioned by this method — anything
+    // placed by hand alongside them lands in a different space and drifts off
+    // the cell, which is exactly what the trap markers did.
+    veil.zIndex = zIndex;
     block.addChild(veil);
     return true;
   }

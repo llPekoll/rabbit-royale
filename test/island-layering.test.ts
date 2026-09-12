@@ -96,7 +96,12 @@ describe('a veil is part of its cell', () => {
   });
 
   it('draws last inside the block, over the grass', () => {
-    expect(VIEW).toMatch(/veil\.zIndex = 2;/);
+    // 2 is the DEFAULT rather than a constant now: a cell can hold more than
+    // one mounted thing, and the burrow stacks a bomb's marker over the
+    // placement diamond on the same cell (zIndex 3). What matters here is
+    // unchanged — whatever a caller mounts lands above the grass.
+    expect(VIEW).toMatch(/zIndex = 2\b/);
+    expect(VIEW).toMatch(/veil\.zIndex = zIndex;/);
     // Grass is 1: the veil is the one thing a cell paints after it.
     expect(VIEW).toMatch(/x, y, tier, 1\)\);/);
   });
