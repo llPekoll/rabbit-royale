@@ -554,9 +554,18 @@ function Burrow() {
     const burrow = handles.current?.burrow;
     if (!ready || !burrow) return;
 
+    // AWAITED, and the promise handed back to the shutter.
+    //
+    // `setRaid` rebuilds the ground it is about to draw on — a raid is crossed
+    // on the DEFENDER's homestead, so the terrain is destroyed and grown again
+    // from their seed. That is the slowest thing either end of a raid does, and
+    // returning before it finished told the iris the cut was already made: the
+    // shutter reopened on the OLD board and the new one popped in a frame or
+    // two later, in full view. The whole point of a shutter is that the swap
+    // happens behind it, so the midpoint has to last as long as the swap does.
     const draw = () => {
-      if (!raid.raid) { void burrow.setRaid(null); return; }
-      void burrow.setRaid({
+      if (!raid.raid) return burrow.setRaid(null);
+      return burrow.setRaid({
         view: raid.raid.view,
         walked: raid.raid.walked,
         at: raid.raid.tile,
@@ -582,7 +591,7 @@ function Burrow() {
     wasRaiding.current = inRaid;
 
     const h = handles.current;
-    if (!crossed || !h) { draw(); return; }
+    if (!crossed || !h) { void draw(); return; }
     setCrossing(true);
     void h.wipeOver(draw).finally(() => setCrossing(false));
   }, [ready, raid.raid, raid]);

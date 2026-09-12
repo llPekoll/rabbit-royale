@@ -45,7 +45,32 @@ describe('the iris covers every crossing', () => {
     // the transition in and out of `raid.raid` being null is a change of place.
     expect(PAGE).toMatch(/const inRaid = raid\.raid !== null/);
     expect(PAGE).toMatch(/const crossed = inRaid !== wasRaiding\.current/);
-    expect(PAGE).toMatch(/if \(!crossed \|\| !h\) \{ draw\(\); return; \}/);
+    expect(PAGE).toMatch(/if \(!crossed \|\| !h\) \{ void draw\(\); return; \}/);
+  });
+
+  it('holds the shutter shut until the ground is actually rebuilt', () => {
+    // The bug, reported as "ca change de scene apres ya l'opercule qui swipe"
+    // and again on the way out of a raid.
+    //
+    // `setRaid` is ASYNC: either end of a raid destroys the terrain and grows
+    // the other homestead from its seed (see BurrowScene.showGround). `draw`
+    // used to fire it with `void` and return undefined, so `play()` awaited a
+    // midpoint that was already resolved, held its 500ms of black over the OLD
+    // board, and opened the iris — and the new ground popped in a frame or two
+    // into the opening, in full view. The swap has to happen BEHIND the sheet,
+    // which means the midpoint must last as long as the swap.
+    //
+    // So `draw` RETURNS the promise, and every branch of it returns one.
+    expect(PAGE).toMatch(/if \(!raid\.raid\) return burrow\.setRaid\(null\);/);
+    expect(PAGE).toMatch(/return burrow\.setRaid\(\{/);
+    expect(PAGE).not.toMatch(/void burrow\.setRaid\(/);
+
+    // And the shutter must actually await what it is handed — a `play` that
+    // dropped the midpoint's promise would put the bug back with `draw` intact.
+    const FX = readFileSync(new URL('../src/game/fx/CarrotWipe.ts', import.meta.url), 'utf8');
+    expect(FX).toMatch(/await midpoint\(\);/);
+    // The beat of black comes AFTER the swap, not in place of waiting for it.
+    expect(FX.indexOf('await midpoint()')).toBeLessThan(FX.indexOf('await wait(HOLD_MS)'));
   });
 
   it('hands the screen over at the sign-in curtain\'s midpoint', () => {
