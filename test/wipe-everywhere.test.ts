@@ -35,9 +35,17 @@ describe('the iris covers every crossing', () => {
     expect(CANVAS).toMatch(/if \(!wipe\) return Promise\.resolve\(atCut\(\)\)/);
   });
 
-  it('wipes into and out of placement mode', () => {
-    expect(PAGE).toMatch(/wipeOver\(\(\) => \{ setPlacing\(true\); h\.burrow\?\.setPlacing\(true\); \}\)/);
-    expect(PAGE).toMatch(/wipeOver\(\(\) => \{ setPlacing\(false\); h\.burrow\?\.setPlacing\(false\); \}\)/);
+  it('does NOT wipe into or out of placement mode', () => {
+    // The opposite of what this test used to pin. Placement is not a change
+    // of screen — it is the same burrow seen from further back — and putting
+    // the carrot shutter over it read as a black flash for nothing. The
+    // camera's own tween between the home and board shots
+    // (BurrowScene.moveCamera) is the transition, and it has to be SEEN.
+    expect(PAGE).not.toMatch(/wipeOver\([^)]*setPlacing\(true\)/);
+    expect(PAGE).not.toMatch(/wipeOver\([^)]*setPlacing\(false\)/);
+    // The bare calls are what remain: the scene retunes the camera itself.
+    expect(PAGE).toMatch(/setPlacing\(true\);\s*handles\.current\?\.burrow\?\.setPlacing\(true\)/);
+    expect(PAGE).toMatch(/setPlacing\(false\);\s*handles\.current\?\.burrow\?\.setPlacing\(false\)/);
   });
 
   it('does not wipe every step of a raid', () => {

@@ -460,33 +460,24 @@ function Burrow() {
    */
   const startPlacing = useCallback(() => {
     setShopOpen(false);
-    const h = handles.current;
-    if (!h) return;
-    // Behind the iris, like every other change of screen. The camera's own
-    // pull-back still runs — it just runs in the dark, so the player is handed
-    // the wide shot rather than watching it travel. `crossing` hides the
-    // burrow's column for the duration, exactly as a crossing to the island does.
-    setCrossing(true);
-    void h
-      .wipeOver(() => { setPlacing(true); h.burrow?.setPlacing(true); })
-      .finally(() => setCrossing(false));
+    // No iris here, on purpose — the camera IS the transition.
+    //
+    // Placement used to go behind the carrot wipe like every change of screen,
+    // and read as a black flash for what is not a change of screen at all: the
+    // same burrow, seen from further back. `setPlacing` already tweens the
+    // camera from the home shot to the board shot (see BurrowScene.moveCamera),
+    // so the pull-back the shutter was hiding is exactly the thing to show.
+    setPlacing(true);
+    handles.current?.burrow?.setPlacing(true);
   }, []);
 
   const stopPlacing = useCallback(() => {
-    const h = handles.current;
-    // The bare path matters here: this is also the tidy-up when leaving the
-    // burrow (see the effect below), and that already runs inside a wipe.
-    // Nesting a second iris in the first would close the shutter twice.
-    if (!h || where !== 'burrow') {
-      setPlacing(false);
-      handles.current?.burrow?.setPlacing(false);
-      return;
-    }
-    setCrossing(true);
-    void h
-      .wipeOver(() => { setPlacing(false); h.burrow?.setPlacing(false); })
-      .finally(() => setCrossing(false));
-  }, [where]);
+    // The same bare path whether the player is done or is leaving the burrow
+    // altogether (see the effect below): the camera eases back in, and nothing
+    // else needs to happen in the dark.
+    setPlacing(false);
+    handles.current?.burrow?.setPlacing(false);
+  }, []);
 
   /**
    * Leave the island for the shop, in one press.
