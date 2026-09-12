@@ -115,6 +115,11 @@ export class CarrotWipe {
    * is the whole reason to hide a cut behind a shutter.
    */
   async play(midpoint: () => void | Promise<void>): Promise<void> {
+    // Which crossing this is. A second `play` starting while one is still in
+    // flight takes ownership; the older one then knows, in its `finally`, that
+    // the shutter it is about to lower belongs to somebody else now.
+    const run = ++this.runId;
+
     this.view.visible = true;
     this.set(1);
 
@@ -140,12 +145,21 @@ export class CarrotWipe {
       // `midpoint` is where the scene swap goes, so it is exactly the callback
       // most likely to throw: it rebuilds terrain, and it runs next to fetches
       // that can time out.
-      this.view.visible = false;
+      //
+      // Unless a newer crossing has taken over: it raised the shutter for its
+      // own cut, and lowering it here would tear the sheet away mid-animation
+      // and show the swap this one exists to hide. The newer run owns the
+      // reset, and it will do it when its own turn ends.
+      if (run === this.runId) this.view.visible = false;
     }
   }
 
+  /** Bumped by each `play`, so an older one can tell it has been superseded. */
+  private runId = 0;
+
   /** Park the iris open or shut without animating — for stories and resets. */
   set(aperture: number): void {
+    this.settle?.();
     this.tween?.kill();
     this.tween = null;
     this.aperture = aperture;
@@ -153,6 +167,9 @@ export class CarrotWipe {
   }
 
   destroy(): void {
+    // A crossing in flight when the app tears down: settle it, or the `play()`
+    // awaiting it never reaches its own cleanup.
+    this.settle?.();
     this.tween?.kill();
     this.tween = null;
     this.view.destroy({ children: true });
@@ -160,16 +177,51 @@ export class CarrotWipe {
 
   private to(aperture: number, ms: number, ease: string): Promise<void> {
     return new Promise((resolve) => {
+      // Settle the tween this one replaces, rather than just killing it.
+      //
+      // `kill()` stops a tween without firing `onComplete`, so the promise the
+      // REPLACED animation handed out would never resolve — and the `play()`
+      // awaiting it would hang inside its `try` for the rest of the session.
+      // Its `finally` then never runs, so the shutter never comes down: a
+      // full-screen, interactive sheet parked over the game, invisible because
+      // it is parked fully open. Every tap after that dies in it.
+      //
+      // That is not a hypothetical race. `play()` opens with `set(1)`, which
+      // kills too, so ANY second crossing started while one is still running —
+      // tapping into placement and straight back out, which is a thing a
+      // player does — was enough to wedge the game with no error anywhere.
+      this.settle?.();
       this.tween?.kill();
+
+      // Resolve at most once, whichever comes first: the animation finishing,
+      // or this promise being handed over to a newer one.
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        this.settle = null;
+        resolve();
+      };
+      this.settle = finish;
+
       this.tween = gsap.to(this, {
         aperture,
         duration: ms / 1000,
         ease,
         onUpdate: () => this.draw(),
-        onComplete: () => resolve(),
+        onComplete: finish,
       });
     });
   }
+
+  /**
+   * Resolve the in-flight `to()`, if there is one.
+   *
+   * Held here rather than passed around because the thing that has to settle a
+   * promise is whatever kills its tween, and that can be `set`, `destroy` or
+   * the next `to` — three places that have no other way to reach it.
+   */
+  private settle: (() => void) | null = null;
 
   /**
    * Repaint: fill the screen black, and size the carrot that is cut out of it.
