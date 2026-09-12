@@ -139,25 +139,26 @@ export async function createTerrainBackground(
   /**
    * The sea's own layer: the surf breaking on the coast, and the ducks on it.
    *
-   * A CHILD of the terrain's view, at the bottom of it, rather than a sibling
-   * in the scene — and that distinction is the whole alignment.
+   * Added to the terrain's GROUND container, which is the only frame that
+   * lines up cell-for-cell with the land.
    *
-   * `island.view` carries an offset of its own (`bounds.origin`, the inset
-   * from the lattice's box to its cell (0,0)), and the board's `tilePos` is
-   * expressed in the SCENE's coordinates with that offset already worked in.
-   * Placing the water beside the view and addressing it with `tilePos` mixed
-   * the two frames: the surf landed a constant (-352, -36) off the coast, as a
-   * raft of pale tiles adrift to one side of the island. Inside the view, the
-   * terrain's own projection is the one true frame and cells address in it
-   * directly.
+   * There are three frames in play and they are one offset apart at each step:
+   * the scene's (what `tilePos` answers in), `island.view`'s, and inside that
+   * the ground's, shifted by `bounds.origin` — the inset from the lattice's
+   * bounding box to its cell (0,0). The ground, the cliffs and every stamped
+   * sprite live in the last of those. Two earlier cuts of this got it wrong in
+   * both directions: addressing `tilePos` from the view put the surf a constant
+   * (-352, -36) off the coast, and projecting correctly but adding to `view`
+   * threw it the same distance back the other way, as a ribbon of pale tiles
+   * running off the top-left corner.
    *
-   * At the bottom of that view so a duck swimming behind the island is hidden
+   * At the bottom of the ground so a duck swimming behind the island is hidden
    * by it rather than sliding over the cliffs, and so the surf's overhang tucks
    * beneath the land it laps.
    */
   const sea = new Container();
   sea.zIndex = -1000;
-  island.view.addChild(sea);
+  island.ground.addChild(sea);
 
   const isLand = (x: number, y: number) =>
     x >= 0 && y >= 0 && x < COLS && y < ROWS && levelTierAt(seed, x, y) > 0;

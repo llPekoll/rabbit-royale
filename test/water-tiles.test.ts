@@ -26,7 +26,10 @@
  * stops the next one from being half-applied.
  */
 import { describe, expect, it } from 'vitest';
-import { isoProject } from '../src/game/island/iso';
+import { isoProject, isoBounds } from '../src/game/island/iso';
+import { TILE } from '../src/game/island/tileset';
+import { terrainFor } from '../src/lib/game/terrainBoard';
+import { ISO_ORIGIN_X, ISO_ORIGIN_Y } from '../src/config/gridConfig';
 import { HALF_W, HALF_H, tilePos, toIndex } from '../src/config/gridConfig';
 import { TIER_LIFT } from '../src/lib/game/terrainBoard';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -114,12 +117,18 @@ describe('no scene draws the sea as tiles', () => {
     });
 
     it(`${site.name} places the surf in the terrain's own frame`, () => {
-      // The `at` callback handed to createPackWater/createDucks must project
-      // through `isoProject`, the same call `IsoIslandView.stamp` makes —
-      // never through the board's `tilePos`/`burrowTilePos`, which answer in
-      // the scene's frame and put the water a third of a board off the coast.
+      // Two halves, and BOTH were got wrong once each.
+      //
+      // The `at` callback must project through `isoProject` — the same call
+      // `IsoIslandView.stamp` makes — never through the board's
+      // `tilePos`/`burrowTilePos`, which answer in the scene's frame.
       expect(src, site.file).toMatch(/const at = [^\n]*isoProject\(/);
       expect(src, site.file).not.toMatch(/const at = [^\n]*(?:burrowT|t)ilePos\(/);
+      // And the layer must join the GROUND, not the view: those are one
+      // `bounds.origin` apart, so projecting correctly into the wrong parent
+      // throws the surf just as far off, in the other direction.
+      expect(src, site.file).toMatch(/\.ground\.addChild\(sea\)/);
+      expect(src, site.file).not.toMatch(/\.view\.addChild\(sea\)/);
     });
 
     it(`${site.name} takes its look from the shared constants`, () => {
@@ -156,5 +165,43 @@ describe('no scene draws the sea as tiles', () => {
     // Not equal, and not nearly equal: a fix that made them agree by accident
     // would leave this test passing over a bug it was written to catch.
     expect(Math.hypot(terrain.x - board.x, terrain.y - board.y)).toBeGreaterThan(100);
+  });
+
+  /**
+   * The surf lands on the board's diamonds — end to end, in numbers.
+   *
+   * The checks above are about the SHAPE of the call, and shape alone was not
+   * enough: this bug shipped twice, once from the wrong projection and once
+   * from the right projection in the wrong parent, and each time the code read
+   * plausibly. This composes the whole chain the way the scene does —
+   * `view.position` + `ground.position` + `at(cell)` — and compares it against
+   * what the BOARD says the same cell is at. They have to agree exactly, since
+   * the terrain is deliberately pinned to the board's grid.
+   */
+  it('the surf lands exactly on the board\'s cells', () => {
+    const seed = 'island-1';
+    const { map } = terrainFor(seed);
+    const metrics = { w: HALF_W * 2, h: HALF_H * 2, z: TIER_LIFT };
+
+    // The view's own inset, computed the way IsoIslandView computes it.
+    const bounds = isoBounds(map.width, map.height, map.tiers, metrics, TILE / 2);
+    const origin = isoProject(0.5, 0.5, 0, metrics);
+    // Where TerrainBackground puts the view so cell (0,0) meets the board's.
+    const view = {
+      x: ISO_ORIGIN_X - origin.x - bounds.originX,
+      y: ISO_ORIGIN_Y - origin.y - bounds.originY,
+    };
+
+    for (const [x, y] of [[0, 0], [8, 8], [15, 15], [0, 15], [15, 0]] as const) {
+      // A foam sprite: added to `ground`, positioned at `at(x, y)`.
+      const at = isoProject(x + 0.5, y + 0.5, 0, metrics);
+      const abs = {
+        x: view.x + bounds.originX + at.x,
+        y: view.y + bounds.originY + at.y,
+      };
+      const board = tilePos(toIndex(x, y));
+      expect(abs.x, `cell ${x},${y} x`).toBeCloseTo(board.x, 6);
+      expect(abs.y, `cell ${x},${y} y`).toBeCloseTo(board.y, 6);
+    }
   });
 });

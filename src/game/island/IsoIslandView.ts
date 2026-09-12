@@ -278,6 +278,23 @@ export class IsoIslandView {
   /** Add this to a stage. Its origin is the top-left of the island's box. */
   readonly view = new Container();
 
+  /**
+   * The container the GROUND is actually drawn in.
+   *
+   * Not the same frame as `view`: it is offset inside it by `bounds.origin`,
+   * the inset from the lattice's bounding box to its cell (0,0). Everything
+   * stamped through `stamp` lands here, projected by `isoProject` with no
+   * further shift — so anything a caller wants to line up cell-for-cell with
+   * the terrain (the surf on the coast, ducks on the water) has to join THIS,
+   * addressed the same way. Added to `view` instead, it comes out a constant
+   * `bounds.origin` adrift, which is a third of a board.
+   *
+   * Exposed read-only for exactly that: callers add to it, they do not move it.
+   */
+  get ground(): Container { return this.world; }
+
+  private world!: Container;
+
   /** Projected size in pixels, for centring or fitting the camera. */
   readonly width: number;
   readonly height: number;
@@ -414,6 +431,7 @@ export class IsoIslandView {
     world.sortableChildren = true;
     world.position.set(bounds.originX, bounds.originY);
     this.view.addChild(world);
+    this.world = world;
 
     if (options.sea ?? true) this.buildSea(world);
     if (options.foam ?? true) this.buildFoam(world);

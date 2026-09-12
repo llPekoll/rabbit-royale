@@ -120,6 +120,16 @@ export async function createApp(
   pixi.renderer.events.cursorStyles.pointer = cur('--cur-hand');
   container.appendChild(canvas);
 
+  // The live application, reachable from the console.
+  //
+  // The Storybook stage has always exposed this (see stories/PixiStage), and
+  // the page's own `rrDiag` was written against it — but the GAME never set
+  // it, so every run of that diagnostic gave up at "no __PIXI_APP__" and its
+  // whole Pixi half, the part that answers WHICH display object a tap reaches,
+  // has never once executed. Set here so the real app can be questioned the
+  // same way a story can.
+  (globalThis as { __PIXI_APP__?: Application }).__PIXI_APP__ = pixi;
+
   // Full-viewport background rect. Added directly to the stage (not inside
   // gameRoot) so it always covers the whole screen including letterbox
   // regions outside the design canvas. Drawn as Graphics so its color goes
@@ -212,6 +222,10 @@ export async function createApp(
     wipe,
     destroy() {
       window.removeEventListener('resize', resize);
+      // Don't leave a destroyed app behind for the console to question — after
+      // an HMR reload its hit test would answer for a renderer that is gone.
+      const g = globalThis as { __PIXI_APP__?: Application };
+      if (g.__PIXI_APP__ === pixi) delete g.__PIXI_APP__;
       wipe?.destroy();
       scenes.destroyAll();
       gsap.globalTimeline.clear();

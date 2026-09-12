@@ -190,16 +190,15 @@ export async function createBurrowTerrain(
   /**
    * The sea's own layer: the surf on the shore, and the ducks on the water.
    *
-   * A CHILD of the terrain's view rather than a sibling, unlike the island's.
-   * This function hands the scene `island.view` as its whole ground — there is
-   * no wrapper to hang a sibling off — so the water goes inside it, at a
-   * zIndex below anything the view draws. That also means it inherits the
-   * alignment already applied to the view, so cells address in the board's own
-   * projection with no second offset.
+   * Added to the terrain's GROUND container — the frame the land itself is
+   * drawn in, offset inside `view` by `bounds.origin`. See the long version of
+   * this in `TerrainBackground`: the view and the ground are one shift apart,
+   * and putting the water in the wrong one of the two throws it a third of a
+   * board off the coast.
    */
   const sea = new Container();
   sea.zIndex = -1000;
-  island.view.addChild(sea);
+  island.ground.addChild(sea);
 
   const isLand = (x: number, y: number) =>
     x >= 0 && y >= 0 && x < BURROW_COLS && y < BURROW_ROWS
