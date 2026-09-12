@@ -194,6 +194,18 @@ function Burrow() {
   const shop = useShop(token);
   const usdc = useUsdcPay(token, payments);
   const raid = useRaid(token);
+  /**
+   * The live `step`, reachable without depending on it.
+   *
+   * The Pixi cells capture their handler once, when the board is drawn. Wiring
+   * `raid.step` in directly would put a value that changes identity on every
+   * render into the drawing effect's dependencies — and that effect rebuilds
+   * the defender's terrain, so the board would be destroyed and regrown
+   * underneath the player's finger. The ref is always current, so the cells
+   * can hold a stable function that calls the latest one.
+   */
+  const stepRef = useRef(raid.step);
+  stepRef.current = raid.step;
 
   useEffect(() => {
     game.bindScene(() => handles.current?.island ?? null);
@@ -691,7 +703,10 @@ function Burrow() {
         // A finished raid offers no steps: the board stays readable, but the
         // walk is over and tapping it must do nothing.
         steps: raid.raid.finished ? [] : raid.raid.steps,
-        onStep: (tile) => void raid.step(tile),
+        // Through a REF, so this effect does not depend on the callback.
+        // `step` changes identity whenever the hook re-renders, and depending
+        // on it here rebuilt the defender's terrain mid-raid.
+        onStep: (tile) => void stepRef.current(tile),
       });
     };
 
@@ -708,7 +723,16 @@ function Burrow() {
     if (!crossed || !h) { void draw(); return; }
     setCrossing(true);
     void h.wipeOver(draw).finally(() => setCrossing(false));
-  }, [ready, raid.raid, raid]);
+    // ONLY the raid payload.
+    //
+    // `raid` (the whole hook object) used to be in here, and it was a new
+    // object on every render — so this effect re-ran constantly and each run
+    // called `setRaid`, which destroys the defender's terrain and grows it
+    // back. That is why a raid showed the player's OWN island: the rebuild was
+    // still in flight when the next one cancelled it, so the ground on screen
+    // was whatever the last finished build happened to be. It is also why taps
+    // did nothing — every diamond they hit had already been destroyed.
+  }, [ready, raid.raid]);
 
   // A sprung trap is played ONCE, on the event, rather than inferred from the
   // board redrawing — springing one is the moment a raid turns, and a tile that
@@ -931,6 +955,19 @@ function Burrow() {
                 <TitleText scale={1.6} style={{ color: LAMP }}>YOUR BURROW</TitleText>
               </div>
 
+              {/* While placing, the column steps out of the way.
+                  
+                  HP, energy, the garden and the upgrade are all readings of a
+                  burrow you are not currently managing — and the column is
+                  ~400px of a board that has to be TAPPED, cell by cell, over
+                  its whole width. The cards were covering the left third of
+                  the ground the player is being asked to mine, which on a
+                  narrow window is most of the useful island.
+                  
+                  The instruction and "Done placing" stay: they are the two
+                  things placement itself needs. */}
+              {!placing && (
+              <>
               <BurrowCard>
                 <CardRow
                   label="HIT POINTS"
@@ -1017,6 +1054,8 @@ function Burrow() {
                   UPGRADE
                 </BurrowButton>
               </BurrowCard>
+              </>
+              )}
 
               {/* Placing takes over the screen, so the way into the shop
                   steps aside for the way out of placement. */}

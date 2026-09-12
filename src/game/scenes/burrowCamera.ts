@@ -68,8 +68,16 @@ function boardBounds(seed: string) {
  * The homestead should not be pressed against the edges of the screen: the
  * terrain draws a coastline and a rim of sea, and cropping to the exact
  * walkable box cuts the island off at its own shore.
+ *
+ * 0.82 rather than the old 0.94, which filled the frame almost edge to edge.
+ * Placement is the one screen where the whole board has to be READABLE AND
+ * TAPPABLE at once — the player is scanning for a cell to mine, not admiring
+ * the homestead — and a board pressed against the frame leaves the outermost
+ * cells half under the window's own edges. The extra breathing room costs
+ * nothing: the shot is already a fit, so pulling back only makes each cell
+ * smaller, and `MIN_TILE_PX` guards the floor.
  */
-const BOARD_MARGIN = 0.94;
+const BOARD_MARGIN = 0.82;
 
 /**
  * The smallest a cell may be drawn, in DESIGN pixels.

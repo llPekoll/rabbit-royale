@@ -19,6 +19,8 @@
  * scene's own colour, so there is no backdrop edge to walk into frame.
  */
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { boardCamFraming, MIN_TILE_PX } from '../src/game/scenes/burrowCamera';
 
 /** The design spaces the game actually runs in — see Application. */
@@ -78,4 +80,38 @@ describe('burrow camera', () => {
       });
     });
   }
+
+  /**
+   * Placement clears the column out of the way.
+   *
+   * The cards (HP, energy, garden, upgrade) are readings of a burrow the
+   * player is not managing at that moment, and they occupy ~400px down the
+   * left of a board that has to be tapped cell by cell across its whole width.
+   * On a narrow window they covered most of the useful island.
+   *
+   * Asserted against the source because it is a rendering condition, not a
+   * value: what is being pinned is that the cards sit behind `!placing`, and
+   * that the two things placement itself needs — the instruction and the way
+   * out — do not.
+   */
+  it('hides the burrow cards while placing', () => {
+    const page = readFileSync(join(__dirname, '..', 'src/app/page.tsx'), 'utf8');
+    const gate = page.indexOf('{!placing && (');
+    expect(gate, 'the cards must sit behind a !placing gate').toBeGreaterThan(-1);
+
+    // The HP card — the first of the four — is inside the gate.
+    const hp = page.indexOf('HIT POINTS');
+    expect(hp).toBeGreaterThan(gate);
+
+    // And the gate closes before the way out, so "Done placing" is still
+    // rendered while placing. Textual order alone would prove nothing here
+    // (the exit's JSX happens to be written later in the file either way), so
+    // this checks the CLOSING of the block instead.
+    const close = page.indexOf('</>\n              )}', gate);
+    expect(close, 'the !placing block must be closed').toBeGreaterThan(hp);
+    // The BUTTON, not the word: "Done placing" also appears in the comment
+    // explaining this very gate, which sits above it.
+    const done = page.indexOf('onClick={stopPlacing}');
+    expect(done, 'the exit must be outside the gate').toBeGreaterThan(close);
+  });
 });
