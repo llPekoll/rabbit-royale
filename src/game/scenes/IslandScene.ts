@@ -375,7 +375,9 @@ export class IslandScene implements Scene {
     // and would otherwise feel like the game ignoring you.
     this.container.eventMode = 'static';
     this.container.hitArea = { contains: () => true };
-    this.container.on('pointertap', (e) => {
+    // `pointerdown` to match the tiles: waiting for the finger to LIFT added
+    // the whole press duration to a move that already waits on a round trip.
+    this.container.on('pointerdown', (e) => {
       // A tap ON a tile has already been handled by that tile, and bubbles up
       // here. Resolving it again through `terrainTileAt` — a flat-projection
       // resolver that knows nothing about walls — could name a DIFFERENT tile

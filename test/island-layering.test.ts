@@ -136,7 +136,7 @@ describe('the pointer sees the veil', () => {
   it('makes the veil the interactive surface, not the container', () => {
     expect(TILE).toMatch(/this\.container\.eventMode = 'passive';/);
     expect(TILE).toMatch(/this\.fog\.eventMode = 'static';/);
-    expect(TILE).toMatch(/this\.fog\.on\('pointertap', fn\);/);
+    expect(TILE).toMatch(/this\.fog\.on\('pointerdown', fn\);/);
     expect(SCENE).toMatch(/tile\.onTap\(\(\) => this\.requestMove\(i\)\);/);
   });
 

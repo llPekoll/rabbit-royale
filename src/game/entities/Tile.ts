@@ -243,9 +243,17 @@ export class Tile {
     ]);
   }
 
-  /** Run `fn` when the tile is tapped. Bound to the veil — see the constructor. */
+  /**
+   * Run `fn` when the tile is tapped. Bound to the veil — see the constructor.
+   *
+   * On `pointerdown`, not `pointertap`: a tap only becomes a `pointertap` when
+   * the finger LIFTS, so every millisecond the player holds the screen was
+   * added to a move that already waits on a server round trip. The press is
+   * the moment the intent exists, and nothing here needs the release — there
+   * is no drag to tell a tap apart from.
+   */
   onTap(fn: () => void): void {
-    this.fog.on('pointertap', fn);
+    this.fog.on('pointerdown', fn);
   }
 
   /**

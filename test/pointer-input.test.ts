@@ -40,7 +40,9 @@ describe('Pixi receives events at all', () => {
     // Taps land between two tiles constantly on a phone; without this the game
     // feels like it is ignoring you.
     expect(SCENE).toMatch(/hitArea = \{ contains: \(\) => true \}/);
-    expect(SCENE).toMatch(/on\('pointertap'/);
+    // `pointerdown`, not `pointertap`: the move must not wait for the finger
+    // to lift on top of the server round trip it already waits for.
+    expect(SCENE).toMatch(/on\('pointerdown'/);
   });
 
   it('lets each tile answer for itself as well', () => {
@@ -50,7 +52,19 @@ describe('Pixi receives events at all', () => {
     // the hints, stays transparent to the pointer.
     expect(SCENE).toMatch(/tile\.onTap\(/);
     const TILE = readFileSync(new URL('../src/game/entities/Tile.ts', import.meta.url), 'utf8');
-    expect(TILE).toMatch(/this\.fog\.on\('pointertap', fn\)/);
+    expect(TILE).toMatch(/this\.fog\.on\('pointerdown', fn\)/);
     expect(TILE).toMatch(/this\.container\.eventMode = 'passive'/);
+  });
+
+  it('never waits for the finger to lift before asking to move', () => {
+    // A move already costs a server round trip — the rabbit is placed by the
+    // server, never locally — so the press must go out at the moment of
+    // contact. `pointertap` fires on RELEASE, quietly adding however long the
+    // player held the screen to every hop. Both the per-tile handler and the
+    // scene's between-the-diamonds fallback are on `pointerdown`; neither may
+    // drift back.
+    const TILE = readFileSync(new URL('../src/game/entities/Tile.ts', import.meta.url), 'utf8');
+    expect(TILE).not.toMatch(/\.on\('pointertap'/);
+    expect(SCENE).not.toMatch(/\.on\('pointertap'/);
   });
 });
