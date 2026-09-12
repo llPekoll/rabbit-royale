@@ -304,13 +304,25 @@ function Burrow() {
     game.moveTo(tile);
   }, [game, spectating]);
   /**
-   * A tile was tapped while placing.
+   * A tile was tapped while placing: a bare one takes a bomb, a mined one
+   * gives it back.
    *
-   * The marker is drawn only AFTER the server accepts it — an optimistic one
-   * would show a defence that is not there, which on a defensive mechanic is
-   * the worst possible lie to tell a player.
+   * One handler for both because it is one gesture — tap to arm, tap again to
+   * change your mind — and the scene already knows which way round it is (it
+   * drew the marker), so nothing here has to work it out a second time.
+   *
+   * The marker is drawn, and removed, only AFTER the server accepts it. An
+   * optimistic one would show a defence that is not there, which on a
+   * defensive mechanic is the worst possible lie to tell a player — and the
+   * lie is just as bad in reverse, a tile that looks clear still holding a
+   * bomb the server never lifted.
    */
-  const onPlaceTrap = useCallback(async (tile: number) => {
+  const onToggleTrap = useCallback(async (tile: number, mined: boolean) => {
+    if (mined) {
+      const ok = await shop.removeTrap(tile);
+      if (ok) handles.current?.burrow?.removeTrap(tile);
+      return;
+    }
     const ok = await shop.placeTrap(tile);
     if (ok) handles.current?.burrow?.addTrap(tile);
   }, [shop]);
@@ -679,7 +691,7 @@ function Burrow() {
           seed={game.islandSeed ?? player.id}
           playerId={player.id}
           onMoveIntent={onMoveIntent}
-          onPlaceTrap={onPlaceTrap}
+          onToggleTrap={onToggleTrap}
           onReady={(h) => { handles.current = h; setReady(true); }}
         />
       )}
@@ -913,10 +925,20 @@ function Burrow() {
               )}
 
               {/* While placing, this is the only instruction on screen — the
-                  board itself cannot say what a tap will cost. */}
+                  board itself cannot say what a tap will cost. It has to name
+                  the way BACK too: a gold marker does not look like a button,
+                  so a player who misplaced one has no way to guess that
+                  tapping it again is what lifts it.
+
+                  With an empty shed the sentence drops the half it cannot
+                  deliver. Lifting still works — that is the whole reason the
+                  board opens at zero — and telling someone to mine a tile when
+                  every tap will be refused is worse than saying nothing. */}
               {placing && shop.shop && (
                 <p className="rr-note">
-                  Tap a tile to mine it &middot; {shop.shop.traps.held} left
+                  {shop.shop.traps.held > 0
+                    ? <>Tap a tile to mine it, tap a mine to lift it &middot; {shop.shop.traps.held} left</>
+                    : <>No traps left &middot; tap a mine to lift it and bury it elsewhere</>}
                 </p>
               )}
 

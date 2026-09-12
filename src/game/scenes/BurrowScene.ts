@@ -145,8 +145,16 @@ export interface BurrowSceneData {
   traps: number[];
   /** True while the owner is choosing where to put one. */
   placing: boolean;
-  /** Called when a trappable tile is tapped. The server decides. */
-  onPlace(tile: number): void;
+  /**
+   * A minable tile was tapped. `mined` says which way it goes: a bare tile
+   * takes a bomb, a mined one gives it back.
+   *
+   * ONE callback rather than an onPlace and an onRemove, because the scene
+   * already knows which tiles hold a bomb (it drew them) and the caller would
+   * otherwise have to work that out a second time from its own copy of the
+   * list. The server still decides — this only says what was asked for.
+   */
+  onToggle(tile: number, mined: boolean): void;
   /**
    * How full the garden is, 0..1 — `gardenReady / capacity`.
    *
@@ -184,7 +192,7 @@ export class BurrowScene implements Scene {
   private cam: BurrowCam = homeCam();
   private onResize: (() => void) | null = null;
   private data: BurrowSceneData = {
-    seed: 'burrow', traps: [], placing: false, onPlace: () => {},
+    seed: 'burrow', traps: [], placing: false, onToggle: () => {},
   };
   /**
    * The player's OWN burrow, kept apart from what is currently on screen.
@@ -343,8 +351,12 @@ export class BurrowScene implements Scene {
       hint.alpha = 0;
       hint.eventMode = 'static';
       hint.visible = false;
+      // A mined tile stays tappable: tapping it again is how a bomb comes back
+      // up, which is the only way to correct a misplaced one.
       hint.on('pointertap', () => {
-        if (this.data.placing && isTrappable(this.data.seed, i)) this.data.onPlace(i);
+        if (this.data.placing && isTrappable(this.data.seed, i)) {
+          this.data.onToggle(i, this.trapSprites.has(i));
+        }
       });
       this.board.addChild(hint);
       this.hints.push(hint);
@@ -363,12 +375,23 @@ export class BurrowScene implements Scene {
     this.moveCamera(this.wantedCam());
     this.hints.forEach((hint, n) => {
       const tile = this.tileOfHint(n);
-      const usable = placing && isTrappable(this.data.seed, tile) && !this.trapSprites.has(tile);
-      hint.visible = usable;
+      const usable = placing && isTrappable(this.data.seed, tile);
+      // A mined tile is still a target — tapping it lifts the bomb — but its
+      // own gold marker is already saying so, and a blue diamond under it
+      // would read as "free to mine" on the one tile that is not.
+      const mined = this.trapSprites.has(tile);
+      hint.visible = usable && !mined;
       hint.cursor = usable ? 'pointer' : 'default';
       gsap.killTweensOf(hint);
-      gsap.to(hint, { alpha: usable ? PLACEABLE_ALPHA : 0, duration: 0.2 });
+      gsap.to(hint, { alpha: usable && !mined ? PLACEABLE_ALPHA : 0, duration: 0.2 });
     });
+    // Markers only answer taps while placing. They are on screen the rest of
+    // the time too — a burrow at home shows its own defences — and a stray tap
+    // on the home screen must not quietly disarm one.
+    for (const group of this.trapSprites.values()) {
+      group.eventMode = placing ? 'static' : 'none';
+      group.cursor = placing ? 'pointer' : 'default';
+    }
   }
 
   /**
@@ -471,6 +494,14 @@ export class BurrowScene implements Scene {
       .moveTo(0, -BURROW_HALF_H * 0.34).lineTo(0, BURROW_HALF_H * 0.34)
       .stroke({ color: 0x3a2a12, width: 2 });
     group.addChild(stakes);
+
+    // The marker is its own tap target. The placement hint under it is hidden
+    // once a tile is mined (see `setPlacing`), and a hidden sprite receives no
+    // pointer events — so without this the tile that most needs a tap would be
+    // the one tile on the board that ignores them.
+    group.on('pointertap', () => {
+      if (this.data.placing) this.data.onToggle(tile, true);
+    });
 
     this.board.addChild(group);
     this.trapSprites.set(tile, group);

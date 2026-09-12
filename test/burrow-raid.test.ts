@@ -73,11 +73,32 @@ describe('burrow layout', () => {
     expect(shortestRaidPath(seed)).toBeGreaterThanOrEqual(MIN_CROSSING);
   });
 
-  forEachBurrow('never lets a trap sit on the field or the entrance', (seed) => {
-    // A trap on the objective makes every raid a coin flip on the last step; a
-    // trap on the entrance ends a raid before it starts.
-    for (const i of fieldTiles(seed)) expect(isTrappable(seed, i)).toBe(false);
-    expect(isTrappable(seed, entranceTile(seed))).toBe(false);
+  forEachBurrow('lets the defender mine every tile a rabbit can walk on', (seed) => {
+    // The rule a player can learn in one sentence, and the reason `cells.ts`
+    // exists: walkable and minable are the same answer, so the board can never
+    // offer a tile the server then refuses.
+    //
+    // The field and the entrance used to be carved out — a bomb on the
+    // objective was called a coin flip on the last step, one on the entrance a
+    // raid that dies before it begins. What the exclusions actually did was
+    // fence off the two areas a defender most wants to defend, on a board that
+    // could not explain why those tiles ignored a tap. MAX_PLACED is what
+    // keeps a burrow from becoming a maze, whatever the bombs sit on.
+    for (const t of walkableTiles(seed)) expect(isTrappable(seed, t)).toBe(true);
+    for (const i of fieldTiles(seed)) expect(isTrappable(seed, i)).toBe(true);
+    expect(isTrappable(seed, entranceTile(seed))).toBe(true);
+  });
+
+  forEachBurrow('still refuses a tile that is not on the board at all', (seed) => {
+    // The other half of the rule, and the half that is a SECURITY check: the
+    // tile index arrives off the wire, so a wall, a negative and a number past
+    // the end all have to be refused rather than trusted.
+    const walls = [...Array(BURROW_COLS * BURROW_ROWS).keys()]
+      .filter((t) => burrowCell(seed, t) === 'blocked');
+    for (const t of walls) expect(isTrappable(seed, t)).toBe(false);
+    for (const bad of [-1, 1.5, NaN, BURROW_COLS * BURROW_ROWS]) {
+      expect(isTrappable(seed, bad)).toBe(false);
+    }
   });
 
   forEachBurrow('keeps every walkable tile connected to the entrance', (seed) => {

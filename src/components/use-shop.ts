@@ -157,7 +157,33 @@ export function useShop(token: string | null) {
     return true;
   }, [token, auth, refresh]);
 
-  return { shop, traps, busy, note, setNote, refresh, buy, placeTrap };
+  /**
+   * Lift a bomb back off a tile.
+   *
+   * The other half of `placeTrap`, and deliberately the same shape: the marker
+   * is removed only after the server says the tile is clear, for the same
+   * reason it is only drawn after the server says it is mined. A board that
+   * shows a defence you no longer have is the same lie either way round.
+   */
+  const removeTrap = useCallback(async (tile: number): Promise<boolean> => {
+    if (!token) return false;
+    setNote(null);
+    const res = await fetch('/api/traps', auth({
+      method: 'DELETE',
+      body: JSON.stringify({ tile }),
+    })).then((r) => r.json()).catch(() => ({ error: 'network' }));
+
+    if (res.error) {
+      setNote(shopMessage(res.error));
+      return false;
+    }
+    setTraps(res);
+    // The bag got one back, so the shop's counts are stale too.
+    void refresh();
+    return true;
+  }, [token, auth, refresh]);
+
+  return { shop, traps, busy, note, setNote, refresh, buy, placeTrap, removeTrap };
 }
 
 /** What a successful purchase says. Named per item, because "bought 1 item" is

@@ -150,7 +150,22 @@ export function ShopPanel({
   }, [onClose]);
 
   const traps = shop?.traps;
-  const canPlace = !!traps && traps.held > 0 && traps.placed < traps.maxPlaced;
+  /**
+   * Can the board be opened at all?
+   *
+   * Not "can I bury one". This used to be `held > 0 && placed < maxPlaced`,
+   * and it locked a defender out of their own map at the exact moment they
+   * most wanted it: three bombs down, none left in the shed, and the only way
+   * to move one was to buy a fourth. Editing has to be possible whenever there
+   * is something TO edit — a bomb to lift and re-bury is a decision the shed's
+   * stock has no business vetoing.
+   *
+   * So: anything already in the ground, or room and stock to add one. Only a
+   * player with an empty board and an empty shed has nothing to do there, and
+   * for them the button is honestly dead.
+   */
+  const canEditBoard = !!traps
+    && (traps.placed > 0 || (traps.held > 0 && traps.placed < traps.maxPlaced));
   const busyNow = busy || payStage !== 'idle';
   const status = error
     ?? (payStage !== 'idle' && payStage !== 'done' ? PAY_STAGE[payStage] : note);
@@ -206,8 +221,12 @@ export function ShopPanel({
                 : `Traps in the ground. ${traps.held} left in the shed.`}
             </span>
             {onPlaceTraps && (
-              <button className="rr-shop-place" onClick={onPlaceTraps} disabled={!canPlace}>
-                Bury one
+              <button className="rr-shop-place" onClick={onPlaceTraps} disabled={!canEditBoard}>
+                {/* The label follows what the tap will actually get you. With
+                    an empty shed there is nothing to bury, and "Bury one" on a
+                    button that opens a board you can only REARRANGE is a
+                    promise it cannot keep. */}
+                {traps.held > 0 && traps.placed < traps.maxPlaced ? 'Bury one' : 'Move them'}
               </button>
             )}
           </div>

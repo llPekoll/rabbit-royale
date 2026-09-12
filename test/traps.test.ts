@@ -7,7 +7,9 @@
  */
 import { describe, expect, it } from 'vitest';
 import { TRAPS } from '../config/tuning';
-import { availableTraps, freeTraps, spendTrap, placementBlocker } from '../src/lib/game/traps';
+import {
+  availableTraps, freeTraps, spendTrap, refundTrap, placementBlocker,
+} from '../src/lib/game/traps';
 
 const HOUR = 3_600_000;
 const ago = (ms: number) => new Date(Date.now() - ms);
@@ -75,7 +77,9 @@ describe('placementBlocker', () => {
     expect(placementBlocker(rich, 0, true, false)).toBeNull();
   });
 
-  it('refuses the field, the entrance and an occupied tile', () => {
+  it('refuses a tile off the board, and one that already holds a bomb', () => {
+    // Not the field or the entrance any more — those are minable now (see
+    // game/burrow/cells). What is left is ground that is not ground at all.
     expect(placementBlocker(rich, 0, false, false)).toBe('tile_not_trappable');
     expect(placementBlocker(rich, 0, true, true)).toBe('tile_already_trapped');
   });
@@ -89,3 +93,39 @@ describe('placementBlocker', () => {
     expect(placementBlocker(broke, 0, true, false)).toBe('no_traps');
   });
 });
+
+describe('refundTrap', () => {
+  it('hands a lifted trap back as bought stock', () => {
+    const row = { trapsOwned: 2, trapsClaimedAt: new Date() };
+    expect(refundTrap(row).trapsOwned).toBe(3);
+  });
+
+  it('does not rewind the free allowance, however the trap was paid for', () => {
+    // The loop this closes: spend a free trap, lift it, and a rewound stamp
+    // would give back the trap AND the progress towards the next one — so a
+    // defender could rearrange their burrow into free traps. Owned stock has
+    // no clock, so a lift is worth exactly the placement it undoes.
+    const row = { trapsOwned: 0, trapsClaimedAt: ago(perTrap * 2) };
+    const spent = spendTrap(row)!;
+    const after = { ...row, ...spent, ...refundTrap({ ...row, ...spent }) };
+
+    expect(availableTraps(after)).toBe(availableTraps(row));
+    // And the clock kept running rather than restarting: one free trap is
+    // still one step away, exactly as it was before the placement.
+    expect(freeTraps(after)).toBe(1);
+  });
+
+  it('never pushes a player over what the bag holds', () => {
+    const full = { trapsOwned: TRAPS.MAX_HELD, trapsClaimedAt: new Date() };
+    expect(availableTraps(refundTrapRow(full))).toBe(TRAPS.MAX_HELD);
+
+    // With the free allowance full too, the cap counts BOTH: a refund that
+    // ignored the allowance would let a lift smuggle a player past MAX_HELD.
+    const brimming = { trapsOwned: TRAPS.MAX_HELD, trapsClaimedAt: ago(TRAPS.REFILL_MS) };
+    expect(availableTraps(refundTrapRow(brimming))).toBe(TRAPS.MAX_HELD);
+  });
+});
+
+/** A row with its refund applied, for the assertions above. */
+const refundTrapRow = (row: { trapsOwned: number; trapsClaimedAt: Date }) =>
+  ({ ...row, ...refundTrap(row) });

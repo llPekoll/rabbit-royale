@@ -50,12 +50,14 @@ export interface GameCanvasProps {
   seed: string;
   playerId: string;
   onMoveIntent(tileIndex: number): void;
-  onPlaceTrap(tile: number): void;
+  /** A minable tile was tapped while placing. `mined` says whether it already
+   *  holds a bomb — the tap takes it back up rather than putting one down. */
+  onToggleTrap(tile: number, mined: boolean): void;
   /** Both scenes are built and the burrow is showing. */
   onReady(handles: GameHandles): void;
 }
 
-export function GameCanvas({ seed, playerId, onMoveIntent, onPlaceTrap, onReady }: GameCanvasProps) {
+export function GameCanvas({ seed, playerId, onMoveIntent, onToggleTrap, onReady }: GameCanvasProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<GameApp | null>(null);
 
@@ -67,10 +69,10 @@ export function GameCanvas({ seed, playerId, onMoveIntent, onPlaceTrap, onReady 
   // through a remount — see the effect's dependency list.
   const seedRef = useRef(seed);
   const moveRef = useRef(onMoveIntent);
-  const trapRef = useRef(onPlaceTrap);
+  const trapRef = useRef(onToggleTrap);
   const readyRef = useRef(onReady);
   moveRef.current = onMoveIntent;
-  trapRef.current = onPlaceTrap;
+  trapRef.current = onToggleTrap;
   readyRef.current = onReady;
 
   useEffect(() => {
@@ -100,7 +102,7 @@ export function GameCanvas({ seed, playerId, onMoveIntent, onPlaceTrap, onReady 
           seed: playerId,
           traps: [],
           placing: false,
-          onPlace: (tile) => trapRef.current(tile),
+          onToggle: (tile, mined) => trapRef.current(tile, mined),
         },
         onReady: () => {
           if (disposed) return;

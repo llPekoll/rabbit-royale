@@ -85,7 +85,12 @@ function Scene({ seed, traps, placing, level }: Args) {
             level,
             traps: defaultTraps(seed, traps),
             placing,
-            onPlace: (tile: number) => {
+            onToggle: (tile: number, mined: boolean) => {
+              if (mined) {
+                scene?.removeTrap(tile);
+                setPlaced((prev) => prev.filter((t) => t !== tile));
+                return;
+              }
               scene?.addTrap(tile);
               setPlaced((prev) => [...prev, tile]);
             },
@@ -240,7 +245,11 @@ function CameraHarness({ loop, seed = SEEDS[0] }: { loop: boolean; seed?: string
             seed,
             traps,
             placing: false,
-            onPlace: (tile: number) => sceneRef.current?.addTrap(tile),
+            onToggle: (tile: number, mined: boolean) => {
+              const scene = sceneRef.current;
+              if (mined) scene?.removeTrap(tile);
+              else scene?.addTrap(tile);
+            },
           }).then(() => {
             sceneRef.current = scenes.currentScene as BurrowScene;
           });

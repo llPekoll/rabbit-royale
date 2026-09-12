@@ -66,6 +66,25 @@ export function spendTrap(
   return null;
 }
 
+/**
+ * Give a trap back: the inverse of `spendTrap`, for one lifted off the board.
+ *
+ * It comes back as OWNED stock rather than as free allowance, whichever kind
+ * paid for it. Rewinding `trapsClaimedAt` would be the exact inverse, and it
+ * is the wrong one: the allowance refills on a clock, so a rewind hands back a
+ * trap AND restarts the timer that was already running towards the next one —
+ * lift and re-place on a loop and the burrow mines itself for free. Owned
+ * stock has no clock, so a trap returned this way is worth exactly the one
+ * that was spent.
+ *
+ * Capped at MAX_HELD so a defender who lifts a full board cannot end up
+ * holding more than the bag allows.
+ */
+export function refundTrap(row: TrapRow, now = Date.now()): { trapsOwned: number } {
+  const free = freeTraps(row, now);
+  return { trapsOwned: Math.min(TRAPS.MAX_HELD - free, row.trapsOwned + 1) };
+}
+
 /** Why a trap cannot be placed, or null when it can. */
 export function placementBlocker(
   row: TrapRow,

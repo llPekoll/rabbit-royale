@@ -119,7 +119,16 @@ function Scene({ seed, placing, tile }: Args) {
             seed,
             traps: [],
             placing,
-            onPlace: (tile: number) => {
+            // No server here, so the story IS the authority — it answers a tap
+            // the way the route does: a bare tile takes a bomb, a mined one
+            // gives it back. Doing only half of that would leave the one
+            // interaction this story exists to check untestable by hand.
+            onToggle: (tile: number, mined: boolean) => {
+              if (mined) {
+                scene?.removeTrap(tile);
+                setPlaced((prev) => prev.filter((t) => t !== tile));
+                return;
+              }
               scene?.addTrap(tile);
               setPlaced((prev) => [...prev, tile]);
             },

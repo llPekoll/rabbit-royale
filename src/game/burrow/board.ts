@@ -33,6 +33,7 @@ import {
   burrowIndex, burrowColRow, type BurrowCell, type BurrowTerrain,
 } from './generate';
 import { levelAt } from '@/game/island/generate';
+import { cellIsMinable, cellIsWalkable } from './cells';
 
 export {
   BURROW_COLS, BURROW_ROWS, burrowIndex, burrowColRow,
@@ -73,13 +74,13 @@ export function burrowCell(seed: string, tile: number): BurrowCell {
 }
 
 /** Can a raider stand here? The field counts — reaching it is the win. */
-export const isWalkable = (seed: string, tile: number) => burrowCell(seed, tile) !== 'blocked';
+export const isWalkable = (seed: string, tile: number) => cellIsWalkable(burrowCell(seed, tile));
 
 /** Every tile a raider may occupy. */
 export function walkableTiles(seed: string): number[] {
   const { cells } = burrowFor(seed);
   const out: number[] = [];
-  for (let i = 0; i < cells.length; i++) if (cells[i] !== 'blocked') out.push(i);
+  for (let i = 0; i < cells.length; i++) if (cellIsWalkable(cells[i])) out.push(i);
   return out;
 }
 
@@ -90,15 +91,15 @@ export const entranceTile = (seed: string) => burrowFor(seed).entrance;
 export const fieldTiles = (seed: string) => burrowFor(seed).field;
 
 /**
- * Where the OWNER may place a trap: walkable ground only.
+ * Where the OWNER may bury a bomb: every cell a rabbit can move onto.
  *
- * Not the field (a trap on the objective would make every raid a coin flip on
- * the last step) and not the entrance (a raid that dies before it begins is
- * not a raid). What is left is the crossing, which is the part worth
- * defending. Unchanged in meaning from the hand-drawn burrow — only the ground
- * it is asked about is generated now.
+ * The rule itself is in `cells.ts`, next to what makes a cell walkable in the
+ * first place — the two answers are now the same sentence, which is the whole
+ * reason they live together. This is kept as its own name because a future
+ * rule (nothing under the doorstep, say) belongs there without every caller
+ * learning about it.
  */
-export const isTrappable = (seed: string, tile: number) => burrowCell(seed, tile) === 'ground';
+export const isTrappable = (seed: string, tile: number) => cellIsMinable(burrowCell(seed, tile));
 
 /**
  * The 8 steps, minus walls, edges and cliffs.
@@ -121,7 +122,7 @@ export function burrowNeighbors(seed: string, tile: number): number[] {
     const nr = row + dr;
     if (nc < 0 || nc >= BURROW_COLS || nr < 0 || nr >= BURROW_ROWS) continue;
     const i = burrowIndex(nc, nr);
-    if (cells[i] === 'blocked') continue;
+    if (!cellIsWalkable(cells[i])) continue;
     if (Math.abs(levelAt(map, nc, nr) - here) > MAX_STEP) continue;
     out.push(i);
   }

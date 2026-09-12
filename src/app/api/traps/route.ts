@@ -16,7 +16,7 @@ import { and, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { players, traps } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
-import { availableTraps, placementBlocker, spendTrap } from '@/lib/game/traps';
+import { availableTraps, placementBlocker, refundTrap, spendTrap } from '@/lib/game/traps';
 import { isTrappable } from '@/game/burrow/board';
 import { TRAPS } from '@config/tuning';
 
@@ -94,11 +94,21 @@ export async function POST(req: Request) {
 }
 
 /**
- * `{ tile }` — lift a trap you placed.
+ * `{ tile }` — lift a trap you placed. Tapping a mined tile again is what calls
+ * this, so putting one down and taking it back up is one gesture.
  *
- * The trap is DESTROYED, not returned to the bag. Otherwise a defender could
- * re-mine their burrow between every raid at no cost, and the choice of where
- * to defend — which is the entire mechanic — would stop being a commitment.
+ * The trap RETURNS to the bag. It used to be destroyed, on the grounds that a
+ * free lift lets a defender re-mine their burrow between every raid and so
+ * empties the placement of its commitment — but the commitment that matters is
+ * the one a RAIDER walks into, and it is made the moment a raid starts, not
+ * the moment a tile is tapped. What destroying it actually punished was
+ * misclicking: the board is 19x19 of small diamonds, and the only way to
+ * correct a slip was to pay 180 carrots for it.
+ *
+ * The re-mining loop is still closed, by the two limits that were always doing
+ * that job: MAX_PLACED caps the board however often it is rearranged, and the
+ * refund is stock returned rather than allowance rewound (`refundTrap`), so no
+ * amount of lifting makes a trap that was not already bought or waited for.
  */
 export async function DELETE(req: Request) {
   const session = await getSession(req);
@@ -108,9 +118,21 @@ export async function DELETE(req: Request) {
   const tile = Number(body.tile);
   if (!Number.isInteger(tile)) return Response.json({ error: 'bad_tile' }, { status: 400 });
 
-  const [removed] = await db.delete(traps)
-    .where(and(eq(traps.ownerId, session.sub), eq(traps.tile, tile)))
-    .returning({ tile: traps.tile });
+  const player = await db.query.players.findFirst({ where: eq(players.id, session.sub) });
+  if (!player) return Response.json({ error: 'unknown player' }, { status: 404 });
+
+  // One transaction, and the DELETE goes first: its `returning` is what says
+  // whether there was a trap there at all, so a refund can never be paid for a
+  // tile that held nothing — two taps racing on the same tile hand back one
+  // trap, not two.
+  const removed = await db.transaction(async (tx) => {
+    const [row] = await tx.delete(traps)
+      .where(and(eq(traps.ownerId, session.sub), eq(traps.tile, tile)))
+      .returning({ tile: traps.tile });
+    if (!row) return null;
+    await tx.update(players).set(refundTrap(player)).where(eq(players.id, session.sub));
+    return row;
+  });
   if (!removed) return Response.json({ error: 'no_trap_there' }, { status: 404 });
 
   return Response.json({ removed: tile, ...(await trapState(session.sub)) });
