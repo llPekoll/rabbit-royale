@@ -37,7 +37,7 @@ import { pixelText } from '../ui/PixelText';
 import * as Keys from '@/config/assetKeys';
 import { BURROW_COLS, BURROW_ROWS, BURROW_HALF_W, BURROW_HALF_H } from '@/config/burrowConfig';
 import { burrowCell, isTrappable } from '@/game/burrow/board';
-import { burrowTileScreen, burrowDepth } from '@/game/burrow/screen';
+import { burrowTileScreen, burrowDepth, burrowTileAt } from '@/game/burrow/screen';
 import { createBurrowTerrain, type BurrowTerrainView } from '@/game/burrow/BurrowTerrain';
 import { homeCam, boardCam, raidCam, type BurrowCam } from './burrowCamera';
 
@@ -253,6 +253,11 @@ export class BurrowScene implements Scene {
     this.clouds = new CloudField(this.container, { width: GAME_W, height: GAME_H });
 
     this.container.addChild(this.board);
+    // The board takes every tap, including the ones landing on no diamond at
+    // all — `pickTile` decides what they mean. Set once here rather than per
+    // cell, and left on: it does nothing outside placement mode.
+    this.board.eventMode = 'static';
+    this.board.on('pointertap', (e) => this.pickTile(e.global));
     this.buildBoard();
     // Land on the right framing rather than travelling to it: there is no
     // previous shot to move from on the scene's first frame.
@@ -349,18 +354,47 @@ export class BurrowScene implements Scene {
       hint.zIndex = burrowDepth(this.data.seed, i);
       hint.tint = PLACEABLE_TINT;
       hint.alpha = 0;
-      hint.eventMode = 'static';
+      // Deliberately NOT a click target — see `pickTile`. These are paint.
+      hint.eventMode = 'none';
       hint.visible = false;
-      // A mined tile stays tappable: tapping it again is how a bomb comes back
-      // up, which is the only way to correct a misplaced one.
-      hint.on('pointertap', () => {
-        if (this.data.placing && isTrappable(this.data.seed, i)) {
-          this.data.onToggle(i, this.trapSprites.has(i));
-        }
-      });
-      this.board.addChild(hint);
+      // Into the cell's own terrain block when the ground will take it, so a
+      // raised cell's diamond is covered by the grass of the cell in front
+      // instead of lapping over it. The farm solved the identical problem this
+      // way (`IsoIslandView.mountVeil`); the board keeps the sprite either
+      // way, so `setPlacing` and `tileOfHint` are unaffected by which parent
+      // won. Falls back to the flat board when there is no block.
+      if (!this.terrain?.mountVeil(i, hint)) this.board.addChild(hint);
       this.hints.push(hint);
     }
+  }
+
+  /**
+   * Which tile a tap on the board means, and what to do about it.
+   *
+   * ONE handler on the board rather than a listener per cell, because a cell
+   * cannot answer this question about itself. A Sprite's hit area is its
+   * BOUNDING BOX, not the diamond drawn inside it, so every hint claimed a
+   * rectangle overlapping its four diagonal neighbours and z-order — not the
+   * pointer — decided which one replied.
+   *
+   * On terraced ground that stopped being imprecise and became simply wrong. A
+   * shelf tile is lifted BURROW_TIER_LIFT (18px) up the screen and a tile is
+   * 18.5px tall, so a lifted diamond sits almost exactly over the one a row
+   * behind it: measured across one seed, all 62 raised tiles resolved to the
+   * cell 20 indices away — the row below — and the bomb went there instead.
+   *
+   * `burrowTileAt` is the answer, and it already existed for exactly this: it
+   * tries the tiers from the top down and returns the first whose LIFTED
+   * diamond contains the point, which is also the one the eye picks, since a
+   * higher tile is drawn over a lower one. It had simply never been wired to
+   * anything.
+   */
+  private pickTile(global: { x: number; y: number }): void {
+    if (!this.data.placing) return;
+    const p = this.board.toLocal(global);
+    const tile = burrowTileAt(this.data.seed, p.x, p.y);
+    if (tile === null || !isTrappable(this.data.seed, tile)) return;
+    this.data.onToggle(tile, this.trapSprites.has(tile));
   }
 
   /**
@@ -381,17 +415,12 @@ export class BurrowScene implements Scene {
       // would read as "free to mine" on the one tile that is not.
       const mined = this.trapSprites.has(tile);
       hint.visible = usable && !mined;
-      hint.cursor = usable ? 'pointer' : 'default';
       gsap.killTweensOf(hint);
       gsap.to(hint, { alpha: usable && !mined ? PLACEABLE_ALPHA : 0, duration: 0.2 });
     });
-    // Markers only answer taps while placing. They are on screen the rest of
-    // the time too — a burrow at home shows its own defences — and a stray tap
-    // on the home screen must not quietly disarm one.
-    for (const group of this.trapSprites.values()) {
-      group.eventMode = placing ? 'static' : 'none';
-      group.cursor = placing ? 'pointer' : 'default';
-    }
+    // A stray tap outside placement mode must not disarm anything: `pickTile`
+    // refuses on `data.placing` alone, so there is nothing to toggle here.
+    this.board.cursor = placing ? 'pointer' : 'default';
   }
 
   /**
@@ -495,13 +524,10 @@ export class BurrowScene implements Scene {
       .stroke({ color: 0x3a2a12, width: 2 });
     group.addChild(stakes);
 
-    // The marker is its own tap target. The placement hint under it is hidden
-    // once a tile is mined (see `setPlacing`), and a hidden sprite receives no
-    // pointer events — so without this the tile that most needs a tap would be
-    // the one tile on the board that ignores them.
-    group.on('pointertap', () => {
-      if (this.data.placing) this.data.onToggle(tile, true);
-    });
+    // Not a click target of its own: `pickTile` resolves every tap from the
+    // pointer's position, so a mined tile is picked the same way a bare one
+    // is. A listener here would double-fire on the tile it sits on.
+    group.eventMode = 'none';
 
     this.board.addChild(group);
     this.trapSprites.set(tile, group);

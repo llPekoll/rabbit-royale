@@ -52,6 +52,21 @@ export interface BurrowTerrainView {
    * is what the owner sees: your own burrow keeps no secrets from you.
    */
   reveal(tiles: Iterable<number> | null): void;
+  /**
+   * Put a tile's placement diamond INSIDE the terrain block of its cell.
+   *
+   * The farm's fix, brought over verbatim — see `IsoIslandView.mountVeil` and
+   * the note on `blocks`. A diamond laid in a flat container sits straight on
+   * its lower neighbour's with nothing opaque in between, so every terrace
+   * edge wore a double-drawn wedge: a tier lifts a cell by 18px while the
+   * diamond itself draws ~21px tall, and the 3px difference laps over the cell
+   * behind. Mounted in the block, the cell's own grass is drawn between the
+   * two and the overlap is covered by the ground it belongs to.
+   *
+   * False when the cell has no block (off-island), and the caller keeps the
+   * diamond where it was.
+   */
+  mountVeil(tile: number, veil: Sprite): boolean;
   /** Advance the sway. `deltaMs` is real milliseconds. */
   update(deltaMs: number): void;
   destroy(): void;
@@ -155,6 +170,10 @@ export async function createBurrowTerrain(
   return {
     view: island.view,
     setLevel: place,
+    mountVeil(tile, veil) {
+      const { col, row } = burrowColRow(tile);
+      return island.mountVeil(col, row, veil);
+    },
     reveal(tiles) {
       if (tiles === null) {
         island.revealOnly(null);

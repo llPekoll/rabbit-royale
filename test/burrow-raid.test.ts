@@ -18,9 +18,10 @@ import {
   BURROW_COLS, BURROW_ROWS, burrowIndex, burrowTilePos, burrowScreenToTile,
 } from '../src/config/burrowConfig';
 import {
-  burrowCell, burrowNeighbors, entranceTile, fieldTiles, isTrappable,
+  burrowCell, burrowNeighbors, burrowTier, entranceTile, fieldTiles, isTrappable,
   isWalkable, shortestRaidPath, walkableTiles,
 } from '../src/game/burrow/board';
+import { burrowTileScreen, burrowTileAt } from '../src/game/burrow/screen';
 import { MIN_CROSSING } from '../src/game/burrow/generate';
 import { RAID, RAID_RUN, TRAPS } from '../config/tuning';
 import { distanceToField, settleRaid } from '../src/lib/game/raid';
@@ -118,6 +119,40 @@ describe('burrow layout', () => {
     // trappable tiles makes placement a formality rather than a decision.
     const minable = walkableTiles(seed).filter((t) => isTrappable(seed, t));
     expect(minable.length).toBeGreaterThan(TRAPS.MAX_PLACED * 4);
+  });
+
+  forEachBurrow('resolves a click to the tile that is DRAWN under it', (seed) => {
+    // The bug this pins down: a placement hint used to be its own click
+    // target, and a Sprite is hit-tested by its BOUNDING BOX rather than by
+    // the diamond inside it. On terraced ground that stopped being imprecise
+    // and became simply wrong — a shelf tile is lifted BURROW_TIER_LIFT (18px)
+    // while a tile is 24px tall, so a lifted diamond lands on the cell a row
+    // behind it and the bomb went there instead.
+    //
+    // `burrowTileAt` walks the tiers from the top down, which is the order the
+    // eye reads them in. Asked about a tile's own drawn centre it must answer
+    // with that tile — unless a SHELF is drawn over that point, in which case
+    // the shelf is the honest answer, because that is what the player sees.
+    for (const tile of walkableTiles(seed)) {
+      const { x, y } = burrowTileScreen(seed, tile);
+      const got = burrowTileAt(seed, x, y);
+      if (got === tile) continue;
+      // The only acceptable miss: something standing higher covers the point.
+      expect(got).not.toBeNull();
+      expect(burrowTier(seed, got!)).toBeGreaterThan(burrowTier(seed, tile));
+    }
+  });
+
+  forEachBurrow('never resolves a click to a tile nobody can stand on', (seed) => {
+    // A click that lands on a wall has to answer null rather than the nearest
+    // cell: the scene now places bombs straight from this answer, so a
+    // forgiving resolver would bury one inside a rock.
+    for (let i = 0; i < BURROW_COLS * BURROW_ROWS; i++) {
+      if (burrowCell(seed, i) !== 'blocked') continue;
+      const { x, y } = burrowTileScreen(seed, i);
+      const got = burrowTileAt(seed, x, y);
+      if (got !== null) expect(isWalkable(seed, got)).toBe(true);
+    }
   });
 
   it('grows a DIFFERENT burrow for a different player', () => {

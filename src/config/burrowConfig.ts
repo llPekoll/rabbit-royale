@@ -82,7 +82,25 @@ export function setBurrowTileSize(width: number | null): void {
  * a lift the renderer and the board disagreed on would put a raider's marker
  * beside the tile it is standing on.
  */
-export const BURROW_TIER_LIFT = 18;
+export let BURROW_TIER_LIFT = 18;
+
+/**
+ * Override the tier lift for tuning, or pass null to restore the shipped one.
+ *
+ * A `let` with a setter for the same reason `setBurrowTileSize` is one: this
+ * number is the one that decides whether a shelf CLEARS the tile behind it,
+ * and it cannot be judged from a still — you have to slide it and watch the
+ * overlap close. See `Burrow/Picking`.
+ *
+ * The shipped 18 is not arbitrary. It is the island's `TIER_LIFT` verbatim,
+ * and the two have to stay equal: the same cliff art is drawn on both boards,
+ * so a lift that differed would give the same sprite a gap under it on one
+ * screen and an overhang on the other. Anything found here therefore belongs
+ * in `gridConfig.TIER_LIFT` too, not here alone.
+ */
+export function setBurrowTierLift(lift: number | null): void {
+  BURROW_TIER_LIFT = lift ?? 18;
+}
 
 /**
  * Where tile (0, 0) sits: the top vertex of the diamond lattice.
