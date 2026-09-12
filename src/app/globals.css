@@ -1099,6 +1099,13 @@ button { min-height: 44px; min-width: 44px; }
   color: var(--crown);
 }
 .rr-lb-tab small { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+/* Out with the board: the handle rides the panel's left edge so it stays the
+   one visible control for a board that is showing, instead of hiding beneath
+   it. Same easing as the panel, so the two move as one piece. */
+.rr-lb-tab {
+  transition: transform 200ms ease;
+}
+.rr-lb-tab.open { transform: translateX(calc(-1 * min(330px, 86vw))); }
 
 .rr-scrim {
   position: fixed;
@@ -1463,20 +1470,23 @@ button { min-height: 44px; min-width: 44px; }
   .rr-live { animation: none; }
 }
 
-/* Wide screen: the board is simply THERE, beside the burrow — no handle, no
-   scrim, nothing to open. That is what "on the side" means when there is room
-   for a side. */
+/* Wide screen: the board sits BESIDE the burrow rather than over it — the page
+   gives up a column for it instead of being dimmed behind it. It still opens
+   and closes; what changes is that opening it costs the burrow some width
+   rather than hiding it. */
 @media (min-width: 860px) {
-  /* The SEASON BOARD is furniture on a wide screen: always there, nothing to
-     open or close. Scoped with :not(.rr-profile) — the profile panel borrows
-     this chrome but is a real dialog, and letting it inherit "always visible"
-     parked it permanently underneath the board (same edge, same width), so
-     clicking the chip appeared to do nothing at all. */
-  .rr-lb:not(.rr-profile) { transform: none; }
-  .rr-lb-tab, .rr-scrim { display: none; }
-  .rr-lb:not(.rr-profile) .rr-lb-close { display: none; }
-  /* Room for the board — only while it is showing. */
-  .rr-home:has(.rr-lb:not(.rr-profile)) { padding-right: calc(330px + 12px); }
+  /* No scrim: nothing is being covered, so there is nothing to tap away, and a
+     full-page overlay here would swallow clicks meant for the burrow. */
+  .rr-scrim { display: none; }
+  /* Room for the board — only while it is out. Scoped with :not(.rr-profile):
+     the profile panel borrows this chrome but is a real modal, and it must not
+     shove the page sideways when it opens.
+
+     Eased on the same curve as the panel's slide: the gutter opening and the
+     board arriving are one movement, and an instant jump under a 200ms slide
+     reads as the page flinching out of the way. */
+  .rr-home { transition: padding-right 200ms ease; }
+  .rr-home:has(.rr-lb:not(.rr-profile).open) { padding-right: calc(330px + 12px); }
 }
 
 /* ── Pixel type ────────────────────────────────────────────────────────────

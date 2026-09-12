@@ -3,11 +3,15 @@
 /**
  * The season board, beside the burrow.
  *
- * On a wide screen it simply sits there — a column to the right of the burrow,
- * always visible. On a phone there is no room for that, so it collapses to a
- * tab on the right edge showing the crown and YOUR rank, and slides over when
- * tapped. Same component, same markup: the layout is a media query, not a
- * second implementation.
+ * On a wide screen it is a column to the right of the burrow, out by default;
+ * on a phone there is no room for that, so it starts away and slides over the
+ * island. Same markup either way: the layout is a media query, not a second
+ * implementation.
+ *
+ * Both widths can put it away and bring it back — a tab on the right edge
+ * showing the crown and YOUR rank, and an [x] in the header. The board used to
+ * be nailed open above 860px, which left no way to see the whole burrow on the
+ * screens with the most of it to see.
  *
  * Each row is a button that starts spectating — the front door to sabotage
  * (phase 5), not an ornament.
@@ -24,6 +28,9 @@
  * the tab.
  */
 import { useEffect, useState } from 'react';
+
+/** The width below which the board is a slide-over rather than a column. */
+const WIDE = '(min-width: 860px)';
 
 export interface Entry {
   rank: number;
@@ -50,10 +57,27 @@ export interface LeaderboardDrawerProps {
 }
 
 export function LeaderboardDrawer({ token, playerId, onSpectate }: LeaderboardDrawerProps) {
+  // One piece of state for both layouts. It only differs in where it STARTS:
+  // on a wide screen the board is furniture and begins out, on a phone it
+  // covers the island and begins away. Either way the handle and the [x] move
+  // it, so the column can now be put away on a desktop too.
+  //
+  // `false` on the first render everywhere, because the server has no viewport
+  // and a `matchMedia` read during render would make the markup disagree with
+  // the HTML it hydrates into. The wide default is applied in an effect, one
+  // frame later; the board slides in instead of appearing, which is the same
+  // motion it makes when opened by hand.
   const [open, setOpen] = useState(false);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [me, setMe] = useState<{ rank: number | null; score: number } | null>(null);
   const [season, setSeason] = useState<{ endsAt: string } | null>(null);
+
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    // Only the FIRST crossing into wide opens it: reopening the board every
+    // time a desktop window is nudged past 860px would undo a deliberate close.
+    if (window.matchMedia(WIDE).matches) setOpen(true);
+  }, []);
 
   useEffect(() => {
     const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
@@ -87,13 +111,16 @@ export function LeaderboardDrawer({ token, playerId, onSpectate }: LeaderboardDr
 
   return (
     <>
-      {/* The phone-sized handle. Carries the player's own rank, so the board is
-          worth opening (or reassuringly not) without opening it. */}
+      {/* The handle. Carries the player's own rank, so the board is worth
+          opening (or reassuringly not) without opening it — and it is the only
+          way back once the board is put away, so it stays on every width and
+          rides the panel's edge when the board is out. */}
       <button
-        className="rr-lb-tab"
+        className={`rr-lb-tab${open ? ' open' : ''}`}
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-controls="rr-leaderboard"
+        aria-label={open ? 'Hide the season board' : 'Show the season board'}
       >
         <span aria-hidden>👑</span>
         <small>{me?.rank ? `#${me.rank}` : '-'}</small>
@@ -103,8 +130,8 @@ export function LeaderboardDrawer({ token, playerId, onSpectate }: LeaderboardDr
         <header className="rr-lb-head">
           <strong>👑 Season</strong>
           {daysLeft !== null && <span style={{ color: 'var(--muted)' }}>{daysLeft}d</span>}
-          {/* Closing is phone-only chrome; on a wide screen the panel is just
-              part of the page and there is nothing to close. */}
+          {/* Every screen can put the board away now — on a phone it is covering
+              the island, on a desktop it is eating a third of the burrow. */}
           <button className="rr-lb-close" onClick={() => setOpen(false)} aria-label="Close">&times;</button>
         </header>
 
@@ -130,9 +157,11 @@ export function LeaderboardDrawer({ token, playerId, onSpectate }: LeaderboardDr
               title={e.digging ? `Watch ${e.name} dig` : `${e.name} is not out right now`}
               onClick={() => {
                 onSpectate?.(e.playerId);
-                // The board is covering the island on a phone; leaving it up
-                // would hide the run it just opened.
-                setOpen(false);
+                // On a phone the board is covering the island, so leaving it up
+                // would hide the run it just opened. On a wide screen it sits
+                // beside the island rather than over it, and closing it there
+                // would throw away a column the player put out on purpose.
+                if (!window.matchMedia?.(WIDE).matches) setOpen(false);
               }}
             >
               <span className="rr-lb-rank">{e.crowned ? '👑' : e.rank}</span>
