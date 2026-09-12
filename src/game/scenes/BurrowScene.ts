@@ -32,7 +32,7 @@ import { SceneManager } from '../SceneManager';
 import { GAME_W, GAME_H } from '../Application';
 import { CloudField } from '../fx/Clouds';
 import { CarrotCrop } from '../entities/CarrotCrop';
-import { getDiamondOutline, diamondScaleFor } from '../services/TileTextures';
+import { getDiamondFill, getDiamondOutline, diamondScaleFor } from '../services/TileTextures';
 import { getBunnyAnimTextures } from '../services/AssetLoader';
 import { pixelText } from '../ui/PixelText';
 import * as Keys from '@/config/assetKeys';
@@ -52,6 +52,25 @@ import { homeCam, boardCam, raidCam, type BurrowCam } from './burrowCamera';
  */
 function burrowDiamond(): Sprite {
   const s = new Sprite(getDiamondOutline());
+  s.anchor.set(0.5);
+  const k = diamondScaleFor(BURROW_HALF_W, BURROW_HALF_H);
+  s.scale.set(k.x, k.y);
+  return s;
+}
+
+/**
+ * The same diamond, SOLID.
+ *
+ * The outline is 30% white plus a 2px stroke, which reads beautifully against
+ * open water and disappears completely against a sunlit meadow — and a raider
+ * stands on grass, not on water. A steppable cell has to be found at a glance
+ * on a board the player has never seen, so it gets a filled body instead of a
+ * hairline. Placement mode learned this exact lesson already (see
+ * `PLACEABLE_TINT`: "the first pass at 16% white simply vanished into the
+ * grass").
+ */
+function burrowDiamondSolid(): Sprite {
+  const s = new Sprite(getDiamondFill());
   s.anchor.set(0.5);
   const k = diamondScaleFor(BURROW_HALF_W, BURROW_HALF_H);
   s.scale.set(k.x, k.y);
@@ -100,9 +119,20 @@ const PLACEABLE_ALPHA = 0.42;
 /** A tile the raider has read. Cool and dim: it is known, not offered. */
 const SEEN_TINT = 0x9fb4c7;
 const SEEN_ALPHA = 0.30;
-/** A tile the raider may step onto next. The one thing asking to be tapped. */
+/**
+ * A tile the raider may step onto next. The one thing asking to be tapped.
+ *
+ * Drawn as a SOLID diamond (see `burrowDiamondSolid`) rather than an outline,
+ * and the pulse only ever dips to `STEP_ALPHA_DIM` instead of fading towards
+ * nothing. Gold at half opacity over an outline was invisible against the
+ * meadow: the cells were there, the hit test named them, and the player still
+ * could not see where they were allowed to walk — so they tapped bare ground
+ * a dozen times looking for the board.
+ */
 const STEP_TINT = 0xffd45c;
-const STEP_ALPHA = 0.55;
+const STEP_ALPHA = 0.85;
+/** The bottom of the breath. Never low enough to lose the tile. */
+const STEP_ALPHA_DIM = 0.55;
 /**
  * The edge of the known world: a tile the raider can see but has NOT read.
  *
@@ -689,7 +719,9 @@ export class BurrowScene implements Scene {
       const canStep = steppable.has(tile);
       const walked = visited.has(tile);
 
-      const cell = burrowDiamond();
+      // Solid for a tile you may step onto, outline for one you merely see:
+      // the offer has to be findable, the record only has to be legible.
+      const cell = canStep ? burrowDiamondSolid() : burrowDiamond();
       cell.position.set(x, y);
       cell.zIndex = burrowDepth(this.data.seed, tile);
       // Named, so a hit test says WHICH cell answered rather than 'Sprite' —
@@ -723,7 +755,7 @@ export class BurrowScene implements Scene {
         cell.on('pointertap', () => state.onStep(tile));
         // The next step breathes. It is the only thing on this screen asking to
         // be pressed, and a still outline does not ask.
-        gsap.to(cell, { alpha: STEP_ALPHA * 0.55, duration: 0.9, yoyo: true, repeat: -1 });
+        gsap.to(cell, { alpha: STEP_ALPHA_DIM, duration: 0.9, yoyo: true, repeat: -1 });
       }
       this.board.addChild(cell);
       this.raidCells.push(cell);
