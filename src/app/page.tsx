@@ -543,10 +543,16 @@ function Burrow() {
     if (!ready || !burrow) return;
 
     const draw = () => {
-      if (!raid.raid) { burrow.setRaid(null); return; }
-      burrow.setRaid({
+      if (!raid.raid) { void burrow.setRaid(null); return; }
+      void burrow.setRaid({
         view: raid.raid.view,
+        walked: raid.raid.walked,
         at: raid.raid.tile,
+        // Whose ground to draw. A raid is crossed on the DEFENDER's homestead,
+        // grown from their id — the same seed the server validated the step
+        // against.
+        seed: raid.raid.defender.id,
+        level: raid.raid.defender.level,
         // A finished raid offers no steps: the board stays readable, but the
         // walk is over and tapping it must do nothing.
         steps: raid.raid.finished ? [] : raid.raid.steps,

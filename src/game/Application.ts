@@ -108,6 +108,16 @@ export async function createApp(
   // whole screen for a frame on reveal; using BG_COLOR keeps any pre-render
   // frame seamless with the game's sea color.
   canvas.style.backgroundColor = `#${BG_COLOR.toString(16).padStart(6, '0')}`;
+  // The scenes ask for cursors by name (`sprite.cursor = 'pointer'`), and Pixi
+  // resolves those names through this table straight onto `canvas.style`. That
+  // write beats the stylesheet, so the kit's pointers have to be repeated here
+  // or the board would be the one surface still showing the system arrow while
+  // every button around it had changed. Read from the CSS variables rather than
+  // spelled out again, so the files and their hotspots are declared once.
+  const cur = (name: string) =>
+    getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  pixi.renderer.events.cursorStyles.default = cur('--cur-arrow');
+  pixi.renderer.events.cursorStyles.pointer = cur('--cur-hand');
   container.appendChild(canvas);
 
   // Full-viewport background rect. Added directly to the stage (not inside

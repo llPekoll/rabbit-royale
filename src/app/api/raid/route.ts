@@ -23,7 +23,7 @@ import { getSession } from '@/lib/auth/jwt';
 import {
   distanceToField, raiderView, settleRaid, trapClues,
 } from '@/lib/game/raid';
-import { burrowNeighbors, entranceTile, burrowCell } from '@/config/burrowConfig';
+import { burrowNeighbors, entranceTile, burrowCell } from '@/game/burrow/board';
 import { currentHp } from '@/lib/game/regen';
 import { smokeActive } from '@/lib/game/inventory';
 import { RAID, RAID_RUN, TRAPS } from '@config/tuning';
@@ -37,17 +37,38 @@ async function raidView(runId: string) {
   if (!defender) return null;
 
   const mined = await db.query.traps.findMany({ where: eq(traps.ownerId, run.defenderId) });
-  const clues = trapClues(mined.map((t) => t.tile));
+  // The burrow's ground is grown from its OWNER's id — see game/burrow/board.
+  // Nothing about the terrain crosses the wire: the raider's client rebuilds
+  // the same homestead from the defender id it is sent below.
+  const seed = run.defenderId;
+  const clues = trapClues(seed, mined.map((t) => t.tile));
   const smoked = smokeActive(defender);
 
   return {
     raidId: run.id,
-    defender: { id: defender.id, name: defender.name, avatar: defender.avatar },
+    defender: {
+      id: defender.id,
+      name: defender.name,
+      avatar: defender.avatar,
+      /** Their burrow's level, so the raider's client draws the building they
+       *  are walking up to. Not a secret — it is the most visible thing about
+       *  a burrow, and seeing a castle before you commit is the point. */
+      level: defender.burrowLevel,
+    },
     tile: run.tile,
     energy: run.energy,
     trapsSprung: run.trapsSprung,
     /** Tiles walked, plus their neighbours — nothing further. */
-    view: raiderView(run.visited, clues, smoked),
+    view: raiderView(seed, run.visited, clues, smoked),
+    /**
+     * The tiles actually STOOD on, as opposed to merely seen from.
+     *
+     * Leaks nothing the raider does not already know — it is their own path —
+     * and the client needs it to tell crossed ground from the frontier of what
+     * they can see. Without it the board draws every uncovered cell the same
+     * and a crossing shows no progress.
+     */
+    walked: run.visited,
     /**
      * Where they may step next.
      *
@@ -57,7 +78,7 @@ async function raidView(runId: string) {
      * implementations of the same rule drift, and the one that drifts is the
      * client's, which then offers a tile the server will reject.
      */
-    steps: run.endedAt ? [] : burrowNeighbors(run.tile),
+    steps: run.endedAt ? [] : burrowNeighbors(seed, run.tile),
     /** The raider is told the numbers are hidden, and why. A blank board with
      *  no explanation reads as a bug rather than as a defence. */
     smoked,
@@ -149,7 +170,7 @@ export async function POST(req: Request) {
     }, { status: 429 });
   }
 
-  const start = entranceTile();
+  const start = entranceTile(body.defenderId);
   const [run] = await db.insert(raidRuns).values({
     attackerId: session.sub,
     defenderId: body.defenderId,
@@ -178,7 +199,7 @@ export async function PATCH(req: Request) {
   // Adjacency is checked SERVER-SIDE. `burrowNeighbors` already excludes walls
   // and off-board indices, so a client naming a distant or blocked tile is
   // simply refused rather than teleported.
-  if (!Number.isInteger(to) || !burrowNeighbors(run.tile).includes(to)) {
+  if (!Number.isInteger(to) || !burrowNeighbors(run.defenderId, run.tile).includes(to)) {
     return Response.json({ error: 'not_adjacent' }, { status: 400 });
   }
 
@@ -196,7 +217,7 @@ export async function PATCH(req: Request) {
   }
 
   const visited = [...run.visited, to];
-  const reachedField = burrowCell(to) === 'field';
+  const reachedField = burrowCell(run.defenderId, to) === 'field';
   const outOfEnergy = energy <= 0;
 
   // Still walking.
@@ -214,12 +235,13 @@ export async function PATCH(req: Request) {
   const now = new Date();
   const hp = currentHp(defender, now.getTime());
   const outcome = settleRaid({
+    seed: run.defenderId,
     endedAt: to,
     defenderStock: defender.stock,
     defenderHp: hp,
     defenderLevel: defender.burrowLevel,
     shielded: !!defender.shieldedUntil && defender.shieldedUntil.getTime() > now.getTime(),
-  }, Math.random, distanceToField());
+  }, Math.random, distanceToField(run.defenderId));
 
   // Everything moves in ONE transaction: the loot leaving the defender, the
   // loot arriving, the burrow's damage, the shield, the log. A crash halfway

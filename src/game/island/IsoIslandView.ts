@@ -29,7 +29,7 @@
  * a tree on a low cell must be able to come out in front of a cliff behind it
  * and no stack of layers can express that.
  */
-import { Container, Graphics, Matrix, Sprite, type Texture } from 'pixi.js';
+import { Container, Graphics, Sprite, type Texture } from 'pixi.js';
 import { mulberry32, seedFrom } from '@/lib/game/rng';
 import { blobCol, blobRow, edgeMask, ELEVATION_SURFACE_ROW } from './autotile';
 import { atOrAbove, levelAt, type IslandMap } from './generate';
@@ -62,6 +62,20 @@ export interface IsoIslandViewOptions {
    * cell keeps scenery reading as scenery. 1 leaves the art at native size.
    */
   decoScale?: number;
+  /**
+   * Override the ground of individual cells, as `(x, y) => GroundKind | null`.
+   *
+   * For a patch that has to read as something other than the meadow around it
+   * — the burrow's tilled carrot field, which is the objective of a raid and
+   * has to be findable from across the board. Returning null leaves the cell
+   * to the normal `ground` rule.
+   *
+   * A GROUND swap rather than a tint or an overlay, because the blob set
+   * autotiles: the patch gets its own rounded edges against the grass, so it
+   * reads as soil somebody turned over rather than as a coloured rectangle
+   * lying on a lawn.
+   */
+  groundAt?: (x: number, y: number) => GroundKind | null;
   /**
    * Cells that must stay clear of trees and props, as `(x, y) => boolean`.
    *
@@ -336,6 +350,33 @@ export class IsoIslandView {
    * wedge. Inside the block the cell's own grass sits between the two.
    */
   private readonly blocks = new Map<string, Container>();
+  /**
+   * Everything standing ON a cell, by cell key — trees, props, rocks, units.
+   *
+   * Separate from `blocks` (which holds the ground) because the two are hidden
+   * for different reasons and, crucially, live in different subtrees once the
+   * deco is deported to a `decoLayer`. Kept so a caller can hide a whole cell —
+   * its ground AND what stands on it — which is what `revealOnly` is for.
+   *
+   * The scatter is a plain list per cell rather than one sprite: a cell can
+   * carry a tree, its contact shadow, and a mushroom at once, and hiding the
+   * tree while leaving its shadow painted on the fog is exactly the kind of
+   * half-hidden cell this exists to prevent.
+   */
+  private readonly onCell = new Map<string, Container[]>();
+  /**
+   * The cliff face sprites under each cell, and how far they reach.
+   *
+   * A face is built once, tall enough to meet the ground the cell actually
+   * stands on. When most of the island is HIDDEN (`revealOnly`) that ground may
+   * not be drawn, and the column is then a slab of rock hanging over open
+   * water — which reads as a rendering fault rather than as a cliff.
+   *
+   * Kept so the reveal can show only the topmost face of an exposed cell: one
+   * tier of rock says "this is a shelf" without claiming to reach a sea floor
+   * the viewer cannot see.
+   */
+  private readonly cliffFaces = new Map<string, { faces: Sprite[]; x: number; y: number }>();
   /**
    * Where `view` was moved to, mirrored onto the deported sprites.
    *
@@ -736,6 +777,85 @@ export class IsoIslandView {
    * happened to `syncOccupants`, where a wandering sheep was re-placed by raw
    * projection and snapped back to the terrain's inner origin.
    */
+  /** Remember that `sprite` stands on cell `(x, y)`, for `revealOnly`. */
+  private registerOnCell(x: number, y: number, sprite: Container): void {
+    const k = key(x, y);
+    const list = this.onCell.get(k);
+    if (list) list.push(sprite);
+    else this.onCell.set(k, [sprite]);
+  }
+
+  /**
+   * Show only these cells, and hide the rest of the island completely.
+   *
+   * For a board a player is meant to discover by WALKING it — the burrow a
+   * raider is crossing. Everything about a generated homestead is information:
+   * where the cliffs run, where the trees are, which corner the garden is in.
+   * Drawing all of it and merely dimming the unvisited cells hands the raider
+   * the whole route for free, which is what the burrow's raid overlay did the
+   * moment the ground stopped being one picture everybody had already seen.
+   *
+   * So this hides rather than dims: a cell nobody has reached is not drawn at
+   * all, and the sea the island floats in is what a raider sees around the
+   * part they have uncovered.
+   *
+   * Passing null puts the whole island back, which is what the OWNER sees —
+   * your own burrow holds no secrets from you.
+   */
+  revealOnly(cells: Iterable<{ x: number; y: number }> | null): void {
+    if (cells === null) {
+      for (const block of this.blocks.values()) block.visible = true;
+      for (const list of this.onCell.values()) {
+        for (const sprite of list) sprite.visible = true;
+      }
+      for (const { faces } of this.cliffFaces.values()) {
+        for (const face of faces) face.visible = true;
+      }
+      return;
+    }
+
+    const shown = new Set<string>();
+    for (const c of cells) shown.add(key(c.x, c.y));
+
+    for (const [k, block] of this.blocks) block.visible = shown.has(k);
+    for (const [k, list] of this.onCell) {
+      const visible = shown.has(k);
+      for (const sprite of list) sprite.visible = visible;
+    }
+
+    // Trim the cliffs.
+    //
+    // A face is built tall enough to reach whatever the cell actually stands
+    // on — often, at the island's rim, the sea floor several tiers down. With
+    // the sea and the lower ground hidden, that full column is a slab of rock
+    // hanging in mid-air, which reads as a rendering fault rather than as a
+    // cliff.
+    //
+    // A revealed cell therefore shows only as much rock as the revealed ground
+    // BELOW it justifies: the drop to the lowest neighbour that is itself
+    // drawn. Where nothing below is drawn that is one tier — enough to say
+    // "this is a shelf" without claiming a depth the viewer cannot see.
+    for (const [k, { faces, x, y }] of this.cliffFaces) {
+      if (!shown.has(k)) continue;
+      const map = this.options.map;
+      const tier = levelAt(map, x, y);
+
+      // The two sides this projection can see past, counted only where the
+      // neighbour is actually on screen.
+      let floor = tier - 1;
+      for (const [dx, dy] of [[0, 1], [1, 0]] as const) {
+        if (!shown.has(key(x + dx, y + dy))) continue;
+        floor = Math.min(floor, levelAt(map, x + dx, y + dy));
+      }
+      const visibleDrop = Math.max(1, tier - floor);
+
+      // `faces` was pushed deepest-first (the loop counts down), so the LAST
+      // entries are the ones nearest the surface — keep that many.
+      const keep = Math.min(faces.length, visibleDrop);
+      faces.forEach((face, i) => { face.visible = i >= faces.length - keep; });
+    }
+  }
+
   private placeSprite(sprite: Container, x: number, y: number): void {
     if (this.decoSprites.has(sprite)) {
       sprite.position.set(x + this.originX + this.decoOffsetX, y + this.originY + this.decoOffsetY);
@@ -792,7 +912,13 @@ export class IsoIslandView {
     for (let y = 0; y < map.height; y++) {
       for (let x = 0; x < map.width; x++) {
         if (levelAt(map, x, y) !== 0) continue;
-        this.stampGround(world, tileset.water, x, y, 0, isoDepth(x, y, 0));
+        // Registered against its cell like everything else, so a board that
+        // hides most of itself (`revealOnly`) hides its water too. Left drawn,
+        // the sea painted a lighter diamond over the scene's own background in
+        // exactly the shape of the island's bounding box — which tells a
+        // raider how big the homestead is and where it sits before they have
+        // taken a step.
+        this.registerOnCell(x, y, this.stampGround(world, tileset.water, x, y, 0, isoDepth(x, y, 0)));
       }
     }
   }
@@ -860,14 +986,30 @@ export class IsoIslandView {
           // squashed horizontally to the diamond's width, so that it spans the
           // cell it holds up without leaning with it.
           const face = tileset.elevation[FACE_ROW][blobCol(mask)];
-          const count = columnFaces(drop, this.metrics, FACE_SOLID_H);
+          // The baked tile already carries ONE tier of side, so the stack only
+          // has to cover what is left below it. A one-tier drop — the common
+          // case by far — therefore stamps nothing at all, and a deeper one
+          // stamps the shortfall. Without this every block drew its own side
+          // twice and every shelf came out a tier too tall.
+          const covered = this.metrics.z;
+          const remaining = drop * this.metrics.z - covered;
+          const count = remaining <= 0
+            ? 0
+            : columnFaces(remaining / this.metrics.z, this.metrics, FACE_SOLID_H);
           // Bottom-up, so the face nearest the camera is drawn last and its
           // lit top edge is not overdrawn by the one below it. Depths are
           // local to the block: the faces stack under the surface.
+          const faces: Sprite[] = [];
           for (let i = count - 1; i >= 0; i--) {
             const sprite = this.stamp(block, face, x, y, tier, -1 - i, 0);
-            sprite.scale.set(this.metrics.w / TILE, 1);
-            sprite.y += i * FACE_SOLID_H;
+            faces.push(sprite);
+            // No horizontal squash here any more: the baked sheet already
+            // carries the face at the diamond's width (`gen_iso_sheets.py`
+            // resizes the face rows rather than projecting them, because a
+            // wall stands up and must not be laid onto the ground plane).
+            // Scaling again would take it to 30px on a 44px cell.
+            sprite.x -= TILE / 2;
+            sprite.y += covered + i * FACE_SOLID_H;
             // Interactive with no action: the wall CATCHES the pointer so it
             // never reaches the veil of the lower tile drawn under it. Rock on
             // screen, nothing under the cursor — which is what rock is.
@@ -875,6 +1017,12 @@ export class IsoIslandView {
             sprite.label = 'wall';
             column.push(sprite);
           }
+          // Kept so `revealOnly` can trim a cliff that would otherwise hang
+          // into open sea — see the note there.
+          // The cell's coordinates ride along rather than being parsed back out
+          // of the key: the key's format is an implementation detail of the
+          // map, and re-deriving numbers from a string is how it becomes one.
+          this.cliffFaces.set(key(x, y), { faces, x, y });
         }
 
         // Rock rim under the grass, exactly as the top-down view does it: the
@@ -887,11 +1035,26 @@ export class IsoIslandView {
           ));
         }
 
-        const flat =
-          ground === 'tiered'
-            ? tileset.tierGrass[Math.min(tier - 1, tileset.tierGrass.length - 1)]
-            : tileset.flat[ground];
-        column.push(this.stampGround(block, flat[blobRow(mask)][blobCol(mask)], x, y, tier, 1));
+        // A cell may ask for its own ground — the burrow's tilled field does.
+        // It is autotiled against ITS OWN patch rather than against the land,
+        // so the soil gets rounded edges where it meets the meadow.
+        const override = this.options.groundAt?.(x, y) ?? null;
+        if (override) {
+          const patch = edgeMask(
+            (cx, cy) => this.options.groundAt?.(cx, cy) === override,
+            x, y,
+          );
+          const soil = tileset.flat[override];
+          column.push(this.stampGround(
+            block, soil[blobRow(patch)][blobCol(patch)], x, y, tier, 1,
+          ));
+        } else {
+          const flat =
+            ground === 'tiered'
+              ? tileset.tierGrass[Math.min(tier - 1, tileset.tierGrass.length - 1)]
+              : tileset.flat[ground];
+          column.push(this.stampGround(block, flat[blobRow(mask)][blobCol(mask)], x, y, tier, 1));
+        }
 
         // Only cells that actually SHOW rock are worth remembering: a cell in
         // the middle of a plateau has no face, and dissolving its grass would
@@ -1125,6 +1288,9 @@ export class IsoIslandView {
     // knows whether one is landing outside `view`.
     const deported = this.options.decoLayer;
     if (deported && world === deported) this.decoSprites.add(sprite);
+    // Every standing sprite funnels through `stamp`, so this is the one place
+    // that can tie one to the cell it stands on — see `revealOnly`.
+    this.registerOnCell(x, y, sprite);
     this.placeSprite(sprite, p.x, p.y);
 
     /**
@@ -1147,6 +1313,9 @@ export class IsoIslandView {
         .fill({ color: 0x000000, alpha: SHADOW_ALPHA });
       shadow.zIndex = depth - 0.5;
       if (deported && world === deported) this.decoSprites.add(shadow);
+      // The shadow belongs to the same cell as the sprite above it: hiding one
+      // without the other leaves an ellipse painted on empty sea.
+      this.registerOnCell(x, y, shadow);
       this.placeSprite(shadow, p.x, p.y);
       world.addChild(shadow);
       // Handed to whoever stamped this, so `register` can tie it to an
@@ -1163,22 +1332,23 @@ export class IsoIslandView {
   /**
    * Put one GROUND texture on cell `(x, y)`, sheared into the cell's diamond.
    *
-   * This is the correction that makes the projection work. Moving a square
-   * tile onto an isometric lattice and leaving it square does not read as
-   * isometric: the tile's edges stay horizontal and vertical while the grid
-   * runs diagonally, so neighbours overlap as offset rectangles and a plateau
-   * comes out looking like a staircase of playing cards rather than like
-   * ground. Seen small it passes; at close range it falls apart completely.
+   * The ground USED to be sheared here, by a matrix taking the tile's unit
+   * square to the cell's diamond. That was the right correction for top-down
+   * art — square tiles on an iso lattice read as a staircase of playing cards
+   * — but it paid for it every frame, on nearest-neighbour pixel art, by
+   * resampling a 64px square down to a 44x24 diamond at draw time. Squashing
+   * to 69% of the width and 37% of the height at sample time is what made the
+   * ground read as mushy, and it is the thing the art was criticised for.
    *
-   * So the ground is transformed after all. The matrix takes the tile's unit
-   * square to the cell's diamond — `(1,0)` to the screen step for one step
-   * east, `(0,1)` to the step for one step south — which is exactly the
-   * projection expressed as a 2x2, and it makes tile edges land on cell edges.
+   * The terrain sheets are now baked ALREADY PROJECTED (`tools/gen_iso_sheets.py`,
+   * which applies that same matrix once, offline, at 8x supersampling). So the
+   * shear here would run a second time: a tile measured 42x24 after the bake
+   * comes out 14x8 after a second pass — confetti. The sprite is therefore
+   * placed, not transformed.
    *
-   * The cost is the one the pixel art always pays for this: the shear does not
-   * fall on the pixel grid, so the ground softens slightly. Only the flat
-   * layers go through here. Trees and props keep `stamp` and stay crisp and
-   * upright, which is how an isometric scene draws them anyway.
+   * The cell stays 64px with the diamond centred inside it, which is why this
+   * offsets by half the box: the sheet geometry, `tileset.ts`'s slicing and
+   * every prop anchor in the pack are unchanged by the swap.
    */
   private stampGround(
     world: Container,
@@ -1189,14 +1359,13 @@ export class IsoIslandView {
     depth: number,
   ): Sprite {
     const sprite = new Sprite(texture);
-    const { w, h } = this.metrics;
-    // Columns of the projection matrix: one step east, then one step south.
-    // Divided by TILE because the source art is TILE px across, not 1 unit.
-    sprite.setFromMatrix(
-      new Matrix(w / 2 / TILE, h / 2 / TILE, -w / 2 / TILE, h / 2 / TILE, 0, 0),
-    );
+    const { h } = this.metrics;
+    // The baked cell is TILE square with the diamond centred in it, so the
+    // diamond's top vertex sits at (TILE/2, (TILE - h)/2) inside the box.
+    // `isoProject` answers where that vertex belongs on screen; subtracting
+    // its in-box position gives the box's top-left.
     const p = isoProject(x, y, tier, this.metrics);
-    sprite.position.set(p.x, p.y);
+    sprite.position.set(p.x - TILE / 2, p.y - (TILE - h) / 2);
     sprite.zIndex = depth;
     world.addChild(sprite);
     return sprite;

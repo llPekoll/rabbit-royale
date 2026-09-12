@@ -12,6 +12,22 @@
   --carrot: #ff8c42;
   --crown: #ffd45c;
   --danger: #ff6b6b;
+
+  /* The kit's own pointers. The system arrow was the last piece of desktop
+     chrome left on screen, and it sat on top of a game drawn entirely in
+     8px cells. Used at the source's own 22×30 — doubling it made the art
+     legible but gave the game a cursor half again the size of the system
+     one, which reads as a mis-scaled asset rather than as a style. Native
+     size is also the only scale that stays honest: the OS scales a cursor
+     with no say from `image-rendering`, so any enlargement has to be baked
+     in, and only whole multiples keep the pixels square.
+     The numbers after each url are the hotspot: the arrow points from its
+     tip, the hand from the fingertip, the deny ring from its centre. Every
+     one ends in a keyword fallback, which is what a browser that rejects the
+     image (or a file that 404s) lands on instead of losing the cursor. */
+  --cur-arrow: url('/assets/ui/cursors/arrow.png') 0 0, default;
+  --cur-hand: url('/assets/ui/cursors/hand.png') 5 0, pointer;
+  --cur-denied: url('/assets/ui/cursors/denied.png') 16 18, not-allowed;
 }
 
 * { box-sizing: border-box; }
@@ -31,6 +47,10 @@ html, body {
   overscroll-behavior: none;
   -webkit-user-select: none;
   user-select: none;
+  /* Set on the page, not on `*`: a universal rule would also overrule the
+     text cursor inside an input, and the hand on every element that asks for
+     one. Children inherit `default` from here anyway. */
+  cursor: var(--cur-arrow);
 }
 
 button {
@@ -40,10 +60,12 @@ button {
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 10px 16px;
-  cursor: pointer;
+  cursor: var(--cur-hand);
 }
 button:active { transform: translateY(1px); }
-button:disabled { opacity: 0.5; cursor: default; }
+/* A dead button gets the ring rather than the arrow: it says "not this one"
+   instead of merely dropping the affordance. */
+button:disabled { opacity: 0.5; cursor: var(--cur-denied); }
 
 /* ── Mobile first ──────────────────────────────────────────────────────────
    The Seeker is the target device, so the phone layout is the layout and the
@@ -246,16 +268,24 @@ button { min-height: 44px; min-width: 44px; }
 
 
 /* ── Energy bar ────────────────────────────────────────────────────────────
-   Pixel art, after fuse's gauge — the same 9-slice sprites and the same INSERT
-   COIN palette, turned on their side (see tools/gen_energy_bar.py). Horizontal
-   because it lives in a HUD strip on a phone, where vertical space is scarce.
+   Pixel art, cut from Tiny Swords' wooden UI bar (see tools/gen_energy_bar.py).
+   It was drawn in code in fuse's blue-neon palette until the rest of the game
+   settled on Tiny Swords' wood and brass, at which point the gauge was the one
+   piece of HUD still borrowed from somewhere else. Horizontal because it lives
+   in a HUD strip on a phone, where vertical space is scarce.
 
    The tube is three slices: fixed ends, a 1px middle that repeats to whatever
    width the HUD gives it. The fill is the same trick, so a bar whose length
-   changes every dig is still one set of sprites. Everything is scaled by whole
-   multiples of the source pixel (--rr-gauge-px) and rendered `pixelated`, which
+   changes every dig is still one set of sprites. It renders `pixelated`, which
    is what keeps the edges hard — no border-radius, no blur, no glow, because
-   none of those exist in the art this game is drawn in. */
+   none of those exist in the art this game is drawn in.
+
+   The wooden sprite is 51 source pixels tall against the old one's 14, so
+   --rr-gauge-px is a FRACTION rather than the whole multiple it used to be:
+   the bar has to land back on the height the HUD strip was built around. Lengths
+   still derive from it, but anything one pixel wide (the death-line notch, the
+   fill's rounding step) is stated in screen pixels instead — scaled by 0.55 it
+   would round away to a grey smear. */
 .rr-energy {
   display: flex;
   align-items: center;
@@ -284,10 +314,28 @@ button { min-height: 44px; min-width: 44px; }
    to nothing, so they collapsed to zero height and rendered as an empty gap.
    One gauge, one definition. */
 :root {
-  --rr-gauge-px: 2;
-  --rr-gauge-h: calc(14px * var(--rr-gauge-px));
-  --rr-gauge-end: calc(7px * var(--rr-gauge-px));   /* shell base/cap width */
-  --rr-gauge-wall: calc(4px * var(--rr-gauge-px));  /* channel inset */
+  /* The sprites are Tiny Swords' wooden bar, which is 51 source pixels tall
+     where the old drawn-in-code tube was 14. Scaled by a whole multiple it
+     would be three times the height of the HUD strip it lives in, and that
+     strip was drawn for a phone — so the scale here is a fraction, chosen to
+     land the bar back on the height it has always had (~28px). Fractional, but
+     not arbitrary: the bar still renders `pixelated`, so what this costs is
+     source pixels that share a screen pixel, not soft edges. */
+  --rr-gauge-px: 0.55;
+  --rr-gauge-h: calc(51px * var(--rr-gauge-px));
+  /* The channel is not centred in this frame the way the drawn one was: the
+     wood's top rail is thinner than the shadowed lip below it. Measured off
+     the sprite (the dark channel runs y=11..34 of 51) rather than halved, or
+     the fill would sit a pixel high and clip its own top band. */
+  --rr-gauge-wall-top: calc(11px * var(--rr-gauge-px));
+  --rr-gauge-wall-bottom: calc(16px * var(--rr-gauge-px));
+  /* Where the channel actually STARTS inside the end cap — not the cap's full
+     width. The cap is 24 source pixels wide, but 13 of those are the dark
+     socket the bar seats into and the channel opens at x=11; insetting the
+     fill by the whole cap started it 13px too far right, which read as the bar
+     sitting off-centre with a dark gap on its left. Measured off the sprite,
+     and symmetric: the right cap's channel closes 11px from its end. */
+  --rr-gauge-wall: calc(11px * var(--rr-gauge-px));
 }
 
 .rr-energy-tube {
@@ -304,9 +352,10 @@ button { min-height: 44px; min-width: 44px; }
 }
 .rr-energy-fill {
   position: absolute;
-  /* Sits in the channel the shell's walls leave, never on top of them. */
-  top: var(--rr-gauge-wall);
-  bottom: var(--rr-gauge-wall);
+  /* Sits in the channel the shell's walls leave, never on top of them. The
+     top and bottom differ because the wooden frame's rails do. */
+  top: var(--rr-gauge-wall-top);
+  bottom: var(--rr-gauge-wall-bottom);
   left: var(--rr-gauge-wall);
   image-rendering: pixelated;
   /* Short, not smooth: energy changes in discrete steps (a dig, a carrot, a
@@ -327,17 +376,20 @@ button { min-height: 44px; min-width: 44px; }
   position: absolute;
   /* Inside the channel, not across the frame: the shell is the housing and the
      notch is a marking ON the gauge, so it stops where the fill stops. */
-  top: var(--rr-gauge-wall);
-  bottom: var(--rr-gauge-wall);
-  /* One source pixel wide, like everything else in the sprite, and snapped to
-     the pixel grid so it never lands half-lit between two columns. */
-  width: calc(1px * var(--rr-gauge-px));
+  top: var(--rr-gauge-wall-top);
+  bottom: var(--rr-gauge-wall-bottom);
+  /* A whole screen pixel, not a source one. Everything else here scales with
+     --rr-gauge-px, but that is now a fraction (0.55) and a notch scaled by it
+     would be half a pixel wide — which a browser draws as a grey smear, the
+     one thing this art never does. The death line is a marking, not part of
+     the sprite, so it is allowed its own unit. */
+  width: 1px;
   /* Opaque and hard-edged: a translucent hairline is anti-aliasing by another
      name, and there is none anywhere else in this art. Two columns — the
      outline colour and a light one beside it — so the notch stays readable
      both against the empty channel AND against a fill sitting on top of it. */
   background: #0a0814;
-  box-shadow: calc(1px * var(--rr-gauge-px)) 0 0 rgba(214, 210, 255, 0.85);
+  box-shadow: 1px 0 0 rgba(214, 210, 255, 0.85);
 }
 .rr-energy-value {
   font-variant-numeric: tabular-nums;
@@ -883,7 +935,7 @@ button { min-height: 44px; min-width: 44px; }
   border: none;
   -webkit-appearance: none;
   appearance: none;
-  cursor: pointer;
+  cursor: var(--cur-hand);
 }
 .rr-sound-range::-webkit-slider-runnable-track {
   height: 6px;
@@ -1399,8 +1451,10 @@ button { min-height: 44px; min-width: 44px; }
    but these rows strip the button chrome (border, background, radius) and the
    pointer is the only affordance left saying "this does something" — so it is
    stated here rather than inherited by luck. */
-.rr-lb-row:not(:disabled) { cursor: pointer; }
-.rr-lb-row:disabled { cursor: default; }
+.rr-lb-row:not(:disabled) { cursor: var(--cur-hand); }
+/* The arrow, not the deny ring: a row nobody is digging on is not forbidden,
+   it simply is not a target yet — the ring would read as a refusal. */
+.rr-lb-row:disabled { cursor: var(--cur-arrow); }
 .rr-lb-row:disabled:not(.me):not(.digging) { opacity: 0.62; }
 
 
@@ -2069,7 +2123,7 @@ button { font-family: var(--font-pixel); }
   background: transparent;
   border: none;
   border-radius: 0;
-  cursor: pointer;
+  cursor: var(--cur-hand);
   text-align: left;
   width: 100%;
 }
@@ -2081,7 +2135,7 @@ button { font-family: var(--font-pixel); }
   background: rgba(151, 85, 40, 0.22);
   box-shadow: inset 3px 0 0 #975528;
 }
-.rr-lore-tab.locked { cursor: pointer; }
+.rr-lore-tab.locked { cursor: var(--cur-hand); }
 .rr-lore-tab.locked:hover { background: rgba(96, 51, 28, 0.12); }
 
 .rr-lore-numeral {
@@ -2199,9 +2253,10 @@ button { font-family: var(--font-pixel); }
 }
 .rr-pix-meter-fill {
   position: absolute;
-  /* In the channel the shell's walls leave, never on top of them. */
-  top: var(--rr-gauge-wall);
-  bottom: var(--rr-gauge-wall);
+  /* In the channel the shell's walls leave, never on top of them — top and
+     bottom differ, because the wooden frame's rails do. */
+  top: var(--rr-gauge-wall-top);
+  bottom: var(--rr-gauge-wall-bottom);
   left: var(--rr-gauge-wall);
   image-rendering: pixelated;
   /* Short and stepped: a resource changes in discrete amounts, and easing

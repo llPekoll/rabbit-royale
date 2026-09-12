@@ -1,57 +1,61 @@
 /**
  * The burrow's board: the ground a raider has to cross.
  *
- * Deliberately its own grid, not the island's. A burrow is a fixed, hand-shaped
- * place — the art puts the door, the field and the path where they are — so
- * unlike an island it is NOT cut from a seed. Every burrow is the same shape;
- * what differs between two of them is where the owner put their traps, which is
- * the whole point.
+ * This file is now GEOMETRY ONLY — where a tile sits on screen, how big a
+ * diamond is, which tile a tap names. What the ground actually IS (walkable,
+ * blocked, the entrance, the field) moved to `game/burrow/board.ts`, because
+ * it is no longer the same for everybody.
  *
- * Same isometric projection as the island (the art shares its angle), just a
- * smaller board and its own origin.
+ * ## What changed, and why the split
+ *
+ * Every burrow used to be one hand-drawn 19x19 ASCII layout, calibrated by eye
+ * against one painting. That made a raid a memory test — the rocks, the door
+ * and the field were in the same place in every burrow in the game, so the
+ * second crossing was the first one replayed. It also made the layout and the
+ * ART a matched pair that nothing could keep matched: the grid was measured
+ * against `burrow.webp`, and a redraw pointed the raid's win condition at a
+ * lawn without anything noticing (which is what `burrow-calibration` existed
+ * to catch).
+ *
+ * The ground is now TILES, cut from the owner's seed on the same terrain the
+ * island uses, and drawn from those tiles rather than painted. So there is no
+ * painting to calibrate against and no origin to solve: the board is the
+ * picture. What is left here is the projection it is drawn with.
+ *
+ * Same isometric projection as the island — a burrow and an island are the
+ * same world, and a player should not have to learn the angle twice.
  */
-/**
- * 27x27, not 15x15.
- *
- * The old board covered the CARROT FIELD and almost nothing else: the whole
- * grid spanned 476x266px of a 1376x768 painting, so the burrow's door, the
- * stone path and every approach around the mound sat OUTSIDE it. A raid was a
- * few tiles in a vegetable patch, and a defender had nowhere to put a trap that
- * a raider had to walk past.
- *
- * The ground is now the whole homestead — field, door, path, the clearing and
- * the rocks — so a raider picks an approach and a defender has to guess which.
- *
- * 19 and not more: the camera has to fit the WHOLE board on a phone, and a
- * wider board is only shown by zooming out past the point where a tile can be
- * hit with a thumb. Measured against burrow-camera's 23px floor — 27x27 put
- * tiles at 16px, 21x21 at 21px. The prairie beyond this is empty grass, so the
- * board stops where the homestead does.
- */
-export const BURROW_COLS = 19;
-export const BURROW_ROWS = 19;
+import { BURROW_COLS, BURROW_ROWS, burrowIndex, burrowColRow } from '@/game/burrow/generate';
 
-// Same diamond proportion as the island, a touch larger: this board is smaller,
-// so its tiles can afford the room and the traps stay easy to tap.
-export const BURROW_TILE_W = 34;
-export const BURROW_TILE_H = 19;
+export { BURROW_COLS, BURROW_ROWS, burrowIndex, burrowColRow };
+
+/**
+ * The diamond — the island's exact tile, 44x24.
+ *
+ * Deliberately the SAME numbers as `gridConfig`'s `ISO_TILE_W/H`, not merely
+ * the same proportion. The board used to be a touch smaller (40x22) on the
+ * reasoning that a 19x19 grid has more cells to fit than the island's 16x16,
+ * but that traded a real cost for an imaginary one: the placement camera is
+ * FITTED, so it cancels any change to this number (see the note on `boardCam`)
+ * and nothing ever ran off the canvas. What the difference did buy was a
+ * SECOND SET OF TILE ART — art drawn for a 44-wide diamond is wrong on a
+ * 40-wide one, by 10%, in every tile of the game.
+ *
+ * One world, one diamond, one set of tiles to draw. A larger cell is also a
+ * larger thumb target, which is the direction `MIN_TILE_PX` wants to go.
+ */
+export const BURROW_TILE_W = 44;
+export const BURROW_TILE_H = 24;
 
 /**
  * The tile size actually used to lay out and draw the board.
  *
- * A `let` with a setter, not a const, so Burrow/Placing can put a slider on it.
- * Making a CELL bigger is a different thing from moving the camera: the camera
- * magnifies the whole painting, art and all, while this changes how much
- * painted ground one cell covers — the grid gets coarser and the homestead
- * keeps its size. That is the knob you want when the tiles are too small to
- * tap but the burrow is the right size on screen.
- *
- * The catch, and the reason this needs a harness rather than a guess: the
- * layout is a fixed 19x19 picture, so a bigger cell means a bigger BOARD
- * footprint (34px -> 646 wide, 52px -> 988 wide), and the placement camera then
- * shrinks it all back to fit. Past a point the two cancel out exactly. Getting
- * real estate out of this means a coarser grid — fewer, larger cells over the
- * same ground — which is a LAYOUT change, not a number.
+ * A `let` with a setter, not a const, so Burrow/Placing can put a slider on
+ * it. Changing this changes how much ground one cell covers — the grid gets
+ * coarser or finer and the homestead keeps its place on screen. It is the knob
+ * that actually changes how big a cell is; the camera is deliberately NOT
+ * (see the note on `boardCam`, where a fitted camera cancelled every change to
+ * this number exactly).
  */
 export let BURROW_HALF_W = BURROW_TILE_W / 2;
 export let BURROW_HALF_H = BURROW_TILE_H / 2;
@@ -60,49 +64,42 @@ export let BURROW_HALF_H = BURROW_TILE_H / 2;
 export function setBurrowTileSize(width: number | null): void {
   const w = width ?? BURROW_TILE_W;
   BURROW_HALF_W = w / 2;
-  // Locked to the art's isometric angle: the diamonds have to keep the
-  // backdrop's 34:19 proportion or they stop lying flat on the painted ground.
+  // Locked to the island's isometric angle: the two screens are one world, and
+  // a diamond of a different proportion would read as a different camera.
   BURROW_HALF_H = (w * BURROW_TILE_H / BURROW_TILE_W) / 2;
 }
 
 /**
- * Measured against `burrow.webp`, and NOT by eye this time.
+ * How far one terrain tier lifts a tile, in board pixels.
  *
- * The soil and the stone path are flood-filled out of the art, and the origin
- * and zoom are solved so that every FIELD cell lands on soil and the entrance
- * lands on the path. Doing it by eye is what let the previous art's numbers
- * survive an art change while quietly pointing at grass — the win condition of
- * a raid sat on a lawn and nothing complained.
+ * The island's `TIER_LIFT`, verbatim, now that the two boards share a diamond.
+ * It used to be scaled down alongside the smaller cell; with the cells equal
+ * there is nothing left to scale, and a shelf that is one art-tile tall on the
+ * island has to be one art-tile tall here or the same cliff sprite draws with
+ * a gap under it on one screen and an overhang on the other.
  *
- * Re-measure with the Burrow/Calibration story, and `test/burrow-calibration`
- * fails if this ever drifts off the landmarks again.
+ * The ground, the playable tiles and the tap resolver all read it from here —
+ * a lift the renderer and the board disagreed on would put a raider's marker
+ * beside the tile it is standing on.
  */
-/**
- * Solved for the 27x27 board, not nudged from the old pair.
- *
- * The constraint: every landmark the layout names has to land on the art that
- * paints it. Measured by flood-filling the field's soil out of `burrow.webp`
- * and requiring the `F` cells to fall inside it — the same method as before,
- * re-run for the bigger board rather than trusted from the smaller one.
- */
-export const BURROW_ORIGIN_X = 735;
-export const BURROW_ORIGIN_Y = 285;
+export const BURROW_TIER_LIFT = 18;
 
 /**
- * How far the backdrop is zoomed.
+ * Where tile (0, 0) sits: the top vertex of the diamond lattice.
  *
- * The art draws a small homestead in a large field of grass. At 1× the played
- * ground occupied about a third of the frame and the board had to shrink to
- * tiles too small to tap, so the scene is enlarged until the homestead fills
- * it and the grass is cropped away.
+ * Solved rather than measured now. The grid is 19x19, so the lattice spans
+ * `(cols + rows) * halfW` across and is centred by putting its left corner at
+ * the canvas middle minus half of that — which is what these two lines say.
+ * There is no painting to line it up with any more, which is the point: the
+ * old pair were constants tuned against `burrow.webp` and silently wrong the
+ * moment the art changed.
  */
-export const BURROW_ZOOM = 1.445;
-
-export const burrowIndex = (col: number, row: number) => row * BURROW_COLS + col;
-export const burrowColRow = (index: number) => ({
-  col: index % BURROW_COLS,
-  row: Math.floor(index / BURROW_COLS),
-});
+export const BURROW_ORIGIN_X = 480;
+/**
+ * A little above centre: lifted tiles grow UPWARD from their cell, so a board
+ * centred on its flat projection sits low once the shelves are on it.
+ */
+export const BURROW_ORIGIN_Y = 96;
 
 export function burrowTilePos(index: number): { x: number; y: number } {
   const { col, row } = burrowColRow(index);
@@ -112,145 +109,27 @@ export function burrowTilePos(index: number): { x: number; y: number } {
   };
 }
 
+/**
+ * Painter's depth for a tile: the diagonal running away from the camera.
+ *
+ * Scaled by 16 and left room for the tier, exactly like the island's
+ * `isoDepth`, so that a tile and a tree standing on the terrain under it sort
+ * against the SAME ruler. They are siblings in one sorted container — that is
+ * what lets a rock on a near cell draw in front of a cliff on a far one.
+ */
 export const burrowTileDepth = (index: number) => {
   const { col, row } = burrowColRow(index);
-  return col + row;
+  return (col + row) * 16;
 };
 
 /**
- * The layout, drawn to match the art.
+ * Screen point → burrow tile, ignoring height.
  *
- *  `.` walkable ground   `#` blocked (trees, rocks, the mound itself)
- *  `E` the raider's entrance — where the path meets the board
- *  `F` the carrot field — the objective; reaching ANY of these wins the raid
- *
- * Written as a picture rather than as coordinates because that is how it is
- * checked: against the background art, by eye.
+ * The inverse of `burrowTilePos` at tier 0. On terraced ground this answers
+ * with the cell the point would hit if the burrow were flat, which is why the
+ * scene uses `burrowTileAt` (in `game/burrow/screen.ts`) instead — it walks the
+ * tiers from the top down, the way the eye does.
  */
-/**
- * The layout.
- *
- * WIDE on purpose. An earlier cut funnelled every route through one narrow
- * approach, and the balance came out as a cliff — 100% of raids got through,
- * then 0% the moment the funnel was mined, with no gradient in between. Traps
- * were all-or-nothing rather than a cost.
- *
- * A raider needs REAL alternatives for placement to be a judgement call: a long
- * open flank, a short mined one. So the ground is broad, with scattered rocks
- * that shape routes instead of a wall that dictates one.
- *
- * The `F` block is MEASURED, not drawn by taste: it is the cells that land on
- * the soil the art actually paints (see the flood fill in
- * tools/plant_carrots.py). It is much larger than the 3x3 it used to be,
- * because the old block was sized for a smaller painting of the field and only
- * ever covered a corner of this one.
- *
- * A bigger field puts its edge nearer the path, so the straight-line crossing
- * fell to five steps — below the six the raid needs to stay a decision (see
- * burrow-raid.test: under that there is no route to choose between, and trap
- * placement stops mattering). The rock ridge on the field's right-hand
- * approach is what buys it back: it is a DETOUR, not a wall, so the raider
- * still picks a side and the defender still has to guess which.
- */
-const LAYOUT = [
-  '....##..##.........',
-  '.....#.............',
-  '......#......#E....',
-  '#....###.....#.....',
-  '#...###......#.....',
-  '..#.#.#......##....',
-  '###..##............',
-  '.....##............',
-  '#####..............',
-  '.#............#....',
-  '.#.#..........#....',
-  '..##...............',
-  '.##....FFFFFFF.....',
-  '#.#....FFFFFFF.....',
-  '#.#....FFFFFFF.....',
-  '.#....#FFFFFFF#....',
-  '##....#FFFFFFF#....',
-  '...................',
-  '.....#.#.#.........',
-] as const;
-
-export type BurrowCell = 'ground' | 'blocked' | 'entrance' | 'field';
-
-const CELL: Record<string, BurrowCell> = {
-  '.': 'ground',
-  '#': 'blocked',
-  'E': 'entrance',
-  'F': 'field',
-};
-
-export function burrowCell(index: number): BurrowCell {
-  // Every guard here matters: this is called with indices that came off the
-  // wire (a client naming the tile it wants to trap or step onto), so a
-  // non-integer or out-of-range value must return 'blocked' rather than throw.
-  // JS's % keeps the sign, so a negative index yields a negative column.
-  if (!Number.isInteger(index)) return 'blocked';
-  const { col, row } = burrowColRow(index);
-  if (row < 0 || row >= BURROW_ROWS || col < 0 || col >= BURROW_COLS) return 'blocked';
-  return CELL[LAYOUT[row]?.[col] ?? '#'] ?? 'blocked';
-}
-
-/** Can a raider stand here? The field counts — reaching it is the win. */
-export const isWalkable = (index: number) => burrowCell(index) !== 'blocked';
-
-/** Every tile a raider may occupy. */
-export function walkableTiles(): number[] {
-  const out: number[] = [];
-  for (let i = 0; i < BURROW_COLS * BURROW_ROWS; i++) if (isWalkable(i)) out.push(i);
-  return out;
-}
-
-/** Where a raid starts. */
-export function entranceTile(): number {
-  for (let i = 0; i < BURROW_COLS * BURROW_ROWS; i++) {
-    if (burrowCell(i) === 'entrance') return i;
-  }
-  throw new Error('burrow layout has no entrance');
-}
-
-/** The objective. Reaching any of these ends the raid in the attacker's favour. */
-export function fieldTiles(): number[] {
-  const out: number[] = [];
-  for (let i = 0; i < BURROW_COLS * BURROW_ROWS; i++) {
-    if (burrowCell(i) === 'field') out.push(i);
-  }
-  return out;
-}
-
-/**
- * Where the OWNER may place a trap: walkable ground only.
- *
- * Not the field (a trap on the objective would make every raid a coin flip on
- * the last step) and not the entrance (a raid that dies before it begins is not
- * a raid). What is left is the crossing, which is the part worth defending.
- */
-export const isTrappable = (index: number) => burrowCell(index) === 'ground';
-
-/** The 8 steps, minus walls and edges. */
-const STEPS: readonly (readonly [number, number])[] = [
-  [-1, -1], [0, -1], [1, -1],
-  [-1, 0],           [1, 0],
-  [-1, 1],  [0, 1],  [1, 1],
-];
-
-export function burrowNeighbors(index: number): number[] {
-  const { col, row } = burrowColRow(index);
-  const out: number[] = [];
-  for (const [dc, dr] of STEPS) {
-    const nc = col + dc;
-    const nr = row + dr;
-    if (nc < 0 || nc >= BURROW_COLS || nr < 0 || nr >= BURROW_ROWS) continue;
-    const i = burrowIndex(nc, nr);
-    if (isWalkable(i)) out.push(i);
-  }
-  return out;
-}
-
-/** Screen point → burrow tile, or null off the board. */
 export function burrowScreenToTile(sx: number, sy: number): number | null {
   const dx = sx - BURROW_ORIGIN_X;
   const dy = sy - BURROW_ORIGIN_Y;
@@ -258,27 +137,4 @@ export function burrowScreenToTile(sx: number, sy: number): number | null {
   const row = Math.round((dy / BURROW_HALF_H - dx / BURROW_HALF_W) / 2);
   if (col < 0 || col >= BURROW_COLS || row < 0 || row >= BURROW_ROWS) return null;
   return burrowIndex(col, row);
-}
-
-/** Steps in the shortest unobstructed path from the entrance to the field. */
-export function shortestRaidPath(): number {
-  const start = entranceTile();
-  const goal = new Set(fieldTiles());
-  const seen = new Set([start]);
-  let frontier = [start];
-  let steps = 0;
-  while (frontier.length) {
-    steps++;
-    const next: number[] = [];
-    for (const tile of frontier) {
-      for (const n of burrowNeighbors(tile)) {
-        if (seen.has(n)) continue;
-        if (goal.has(n)) return steps;
-        seen.add(n);
-        next.push(n);
-      }
-    }
-    frontier = next;
-  }
-  return Infinity;
 }

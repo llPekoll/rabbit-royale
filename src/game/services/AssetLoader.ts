@@ -2,6 +2,7 @@ import { Assets, Spritesheet, Texture, TextureSource } from 'pixi.js';
 import { loadButtonAssets, loadArcadeFonts, loadCoinAssets } from '@domin8/arcade-kit/pixi';
 import { CARROT_URL } from '@domin8/arcade-kit/game';
 import * as Keys from '@/config/assetKeys';
+import { BURROW_BUILDING_URLS } from '@/game/burrow/buildings';
 
 // Force nearest-neighbor (pixelated) scaling for all textures
 TextureSource.defaultOptions.scaleMode = 'nearest';
@@ -37,6 +38,11 @@ const IMAGES = [
   // The field's crop, as a growth animation. Loaded here rather than by the
   // scene so the burrow never paints a frame of bare dirt while it arrives.
   { key: Keys.CARROT_GROWTH, src: '/assets/carottes/carrote.png' },
+  // The burrow's buildings, one per level of the upgrade ladder. Loaded here
+  // rather than by the scene for the same reason the crop is: the homestead
+  // must never paint a frame with no house standing on it, and an upgrade has
+  // to swap the texture instantly rather than after a fetch.
+  ...BURROW_BUILDING_URLS.map((src) => ({ key: src, src })),
   // The drifting clouds. Eight shapes so a sky of them never visibly repeats.
   ...Array.from({ length: Keys.CLOUD_COUNT }, (_, i) => ({
     key: Keys.cloudKey(i + 1),

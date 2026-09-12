@@ -94,6 +94,10 @@ export function GameCanvas({ seed, playerId, onMoveIntent, onPlaceTrap, onReady 
           onMoveIntent: (tile) => moveRef.current(tile),
         },
         burrow: {
+          // The player's own id IS their burrow's seed: the ground is grown
+          // from it on both sides (see game/burrow/board), so the homestead
+          // drawn here is the one the server validates raids against.
+          seed: playerId,
           traps: [],
           placing: false,
           onPlace: (tile) => trapRef.current(tile),

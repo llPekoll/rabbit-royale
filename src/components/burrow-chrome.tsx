@@ -129,9 +129,11 @@ export function BurrowMeter({
         className="rr-pix-meter-fill"
         hidden={pct === 0}
         style={{
-          // Snapped to whole source pixels — a fill ending mid-pixel renders
+          // Snapped to whole SCREEN pixels — a fill ending mid-pixel renders
           // the crest as two half-lit columns, which pixel art never does.
-          width: `round(down, (100% - 2 * var(--rr-gauge-wall)) * ${pct}, calc(1px * var(--rr-gauge-px)))`,
+          // (One source pixel was the step until the wooden sprite arrived; it
+          // scales by a fraction, so that step now rounds to nothing.)
+          width: `round(down, (100% - 2 * var(--rr-gauge-wall)) * ${pct}, 1px)`,
           background: `
             url('${FILL}-${tone}-cap.webp') right center / auto 100% no-repeat,
             url('${FILL}-${tone}-mid.webp') left center / auto 100% repeat-x`,

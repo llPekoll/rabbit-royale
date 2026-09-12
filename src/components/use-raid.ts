@@ -14,15 +14,20 @@ import { useCallback, useEffect, useState } from 'react';
 export interface RaidTile {
   tile: number;
   clue: number | null;
+  /** Which shelf the tile stands on, so the client draws it at the right
+   *  height on the defender's terraced ground. */
+  tier: number;
 }
 
 export interface RaidState {
   raidId: string;
-  defender: { id: string; name: string; avatar: string | null };
+  defender: { id: string; name: string; avatar: string | null; level: number };
   tile: number;
   energy: number;
   trapsSprung: number;
   view: RaidTile[];
+  /** The tiles the raider has stood on — their own path, so it reveals nothing. */
+  walked: number[];
   steps: number[];
   smoked: boolean;
   finished: boolean;

@@ -15,19 +15,28 @@
  *  - the loot, a share of the victim's stock scaled by how far the raider got.
  */
 import { BURROW, CROWN, RAID, RAID_RUN } from '@config/tuning';
-import { entranceTile, fieldTiles, burrowNeighbors, walkableTiles } from '@/config/burrowConfig';
+import {
+  entranceTile, fieldTiles, burrowNeighbors, walkableTiles, burrowTier,
+} from '@/game/burrow/board';
 
-/** Steps from a tile to the nearest field tile — the raid's own distance metric. */
-export function distanceToField(): Map<number, number> {
+/**
+ * Steps from a tile to the nearest field tile — the raid's own distance metric.
+ *
+ * Takes the DEFENDER's seed, because a burrow is no longer one shape shared by
+ * every player: the ground is grown from its owner's id (see
+ * `game/burrow/board`), so "how far is this tile from the carrots" is only a
+ * question once you say whose carrots.
+ */
+export function distanceToField(seed: string): Map<number, number> {
   const dist = new Map<number, number>();
-  let frontier = fieldTiles();
+  let frontier = fieldTiles(seed);
   for (const t of frontier) dist.set(t, 0);
   let d = 0;
   while (frontier.length) {
     d++;
     const next: number[] = [];
     for (const t of frontier) {
-      for (const n of burrowNeighbors(t)) {
+      for (const n of burrowNeighbors(seed, t)) {
         if (dist.has(n)) continue;
         dist.set(n, d);
         next.push(n);
@@ -44,8 +53,12 @@ export function distanceToField(): Map<number, number> {
  * Measured against the distance the raider STARTED at, so a burrow whose layout
  * changes does not silently rescale everyone's rewards.
  */
-export function raidProgress(endedAt: number, dist = distanceToField()): number {
-  const start = dist.get(entranceTile());
+export function raidProgress(
+  seed: string,
+  endedAt: number,
+  dist = distanceToField(seed),
+): number {
+  const start = dist.get(entranceTile(seed));
   const here = dist.get(endedAt);
   if (start === undefined || here === undefined || start === 0) return 1;
   return Math.max(0, Math.min(1, (start - here) / start));
@@ -71,6 +84,8 @@ export interface RaidOutcome {
  */
 export function settleRaid(
   opts: {
+    /** The defender's burrow seed — their player id. */
+    seed: string;
     endedAt: number;
     defenderStock: number;
     defenderHp: number;
@@ -79,14 +94,14 @@ export function settleRaid(
     crowned?: boolean;
   },
   rng: () => number = Math.random,
-  dist = distanceToField(),
+  dist = distanceToField(opts.seed),
 ): RaidOutcome {
   // A shield is absolute. Anything less invites the farming it exists to stop.
   if (opts.shielded) {
     return { progress: 0, loot: 0, damage: 0, reachedField: false };
   }
 
-  const progress = raidProgress(opts.endedAt, dist);
+  const progress = raidProgress(opts.seed, opts.endedAt, dist);
   const reachedField = dist.get(opts.endedAt) === 0;
 
   // Loot scales from a floor to the cap. The floor is why attacking a
@@ -134,12 +149,12 @@ export const breaksBurrow = (hpBefore: number, damage: number) => damage >= hpBe
  * raider is never told where the traps are, which is what keeps burying one
  * worth doing.
  */
-export function trapClues(traps: Iterable<number>): Map<number, number> {
+export function trapClues(seed: string, traps: Iterable<number>): Map<number, number> {
   const mined = new Set(traps);
   const clues = new Map<number, number>();
-  for (const tile of walkableTiles()) {
+  for (const tile of walkableTiles(seed)) {
     let n = 0;
-    for (const neighbour of burrowNeighbors(tile)) if (mined.has(neighbour)) n++;
+    for (const neighbour of burrowNeighbors(seed, tile)) if (mined.has(neighbour)) n++;
     clues.set(tile, n);
   }
   return clues;
@@ -157,19 +172,27 @@ export function trapClues(traps: Iterable<number>): Map<number, number> {
  * raider crosses blind and learns only what they spring. The TILES are still
  * listed — a raider must know where the walls are, or they are not playing a
  * board, they are guessing at a void.
+ *
+ * The `tier` rides along because the defender's ground is now TERRACED and
+ * generated: a raider drawing a seen tile has to know which shelf it is on, or
+ * every revealed cell lands at ground level and the ones on a plateau sit
+ * inside the cliff they are standing on. It leaks nothing — the shape of the
+ * land is not a secret, only where the traps are is.
  */
 export function raiderView(
+  seed: string,
   visited: Iterable<number>,
   clues: Map<number, number>,
   smoked: boolean,
-): { tile: number; clue: number | null }[] {
+): { tile: number; clue: number | null; tier: number }[] {
   const seen = new Set<number>();
   for (const tile of visited) {
     seen.add(tile);
-    for (const neighbour of burrowNeighbors(tile)) seen.add(neighbour);
+    for (const neighbour of burrowNeighbors(seed, tile)) seen.add(neighbour);
   }
   return [...seen].map((tile) => ({
     tile,
     clue: smoked ? null : (clues.get(tile) ?? 0),
+    tier: burrowTier(seed, tile),
   }));
 }

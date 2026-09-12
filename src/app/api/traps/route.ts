@@ -17,7 +17,7 @@ import { db } from '@/lib/db';
 import { players, traps } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
 import { availableTraps, placementBlocker, spendTrap } from '@/lib/game/traps';
-import { isTrappable } from '@/config/burrowConfig';
+import { isTrappable } from '@/game/burrow/board';
 import { TRAPS } from '@config/tuning';
 
 async function trapState(playerId: string) {
@@ -62,7 +62,9 @@ export async function POST(req: Request) {
   const blocker = placementBlocker(
     player,
     placed.length,
-    isTrappable(tile),
+    // The owner's own id is their burrow's seed — they may only mine their
+    // own ground, and `isTrappable` is asked about exactly that ground.
+    isTrappable(session.sub, tile),
     placed.some((t) => t.tile === tile),
   );
   if (blocker) return Response.json({ error: blocker }, { status: 400 });

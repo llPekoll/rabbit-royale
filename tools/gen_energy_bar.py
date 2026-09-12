@@ -1,133 +1,102 @@
 #!/usr/bin/env python3
 """
-Generate the energy bar's pixel art, after fuse's gauge (art/fuse/gen_bars.py).
+Cut the energy bar's pixel art out of Tiny Swords' UI bars.
 
-Same 9-slice idea, same palette, turned on its side: fuse's gauge is vertical
-because it stands next to a button, ours is horizontal because it lives in a
-HUD strip on a phone, where vertical space is the scarce one. So the repeatable
-slice is 1px WIDE and the caps are left/right rather than top/bottom.
+This used to DRAW the gauge in code, in fuse's blue-night/neon palette. The
+game around it is Tiny Swords' wood and brass, and a neon tube in a HUD made of
+planks was the one piece of UI that still read as borrowed from another game.
+So the shape stays and the source changes: the slices below are cut from
+`art-source/.../Bars/BigBar_{Base,Fill}.png` rather than plotted pixel by pixel.
 
-Drawn in code rather than by hand so the whole set stays on one grid and one
-palette, and so a colour tweak is a re-run instead of a re-draw. Output is 1x
-lossless WebP — the page scales it with image-rendering: pixelated, which is
-what keeps the edges hard, and lossy compression would smear exactly the hard
-edges the art is made of.
+What did NOT change is the contract, because the CSS and the component are
+built on it: the same nine filenames, the same 9-slice geometry (fixed ends, a
+1px middle repeated between them, a fill that sits in the channel the ends
+leave), and lossless WebP at 1x — the page scales it with `image-rendering:
+pixelated`, and lossy compression would smear exactly the hard edges the art is
+made of. Re-running this replaces the sprites in place; nothing else moves.
 
-Palette follows the INSERT COIN logo, held identical to fuse's: heavy near-black
-outline, saturated core, a lighter bevel and a darker one, no anti-aliasing.
+Tiny Swords ships each bar as one 320px sheet holding three pieces at 64px
+intervals — left cap, repeatable body, right cap — which is the same 9-slice
+idea under another layout, so the cut is a crop rather than a redraw.
+
+The one thing the source cannot give is COLOUR. Tiny Swords' fill is a single
+red, and energy's fill is the reading: gold while the run is healthy, amber
+when a bomb would hurt, red when the next one ends it. So the fill's banding —
+shadow, body, specular — is taken from the art and re-tinted per state, which
+keeps one lighting model across all three while letting the hue carry meaning.
 """
 from PIL import Image
 
+SRC = "art-source/tiny-swords-png/UI Elements/UI Elements/Bars/BigBar_Base.png"
+SRC_FILL = "art-source/tiny-swords-png/UI Elements/UI Elements/Bars/BigBar_Fill.png"
 OUT = "public/assets/gauge"
 
-# ── Palette ───────────────────────────────────────────────────────────────
-OUTLINE = (10, 8, 20, 255)
-SHELL_D = (32, 30, 52, 255)
-SHELL_M = (48, 46, 74, 255)
-SHELL_L = (72, 70, 104, 255)
-VOID    = (18, 16, 32, 255)
-CLEAR   = (0, 0, 0, 0)
+# Where the three pieces sit in the 320px sheet, measured off the source's
+# opaque columns rather than guessed: (left cap, body, right cap).
+SLICES = {"base": (40, 64), "mid": (128, 192), "cap": (256, 280)}
 
-# Energy's three states, not fuse's four multipliers: full, low, and the last
-# bomb's worth. Names say the STATE, so the component never picks a hue.
+# The body is 64px of identical wood; one column of it tiles to any width, and
+# a 1px middle is what keeps the HUD's bar cheap at any length.
+MID_W = 1
+
+# The fill's three bands in the source, read off BigBar_Fill: a dark rim, the
+# body, and the specular streak that catches the light near the top. Given as
+# (y_start, y_end, role) over the source's 24px height.
+BANDS = ((0, 2, "dark"), (3, 4, "body"), (5, 7, "spec"), (8, 13, "body"), (14, 23, "dark"))
+
+# Energy's three states. Names say the STATE, never the hue, so the component
+# picks a meaning and this file decides what that looks like. Each is
+# (dark, body, spec) — the same three roles the source's banding uses.
 FILLS = {
-    "carrot": ((170, 96, 0, 255), (255, 176, 0, 255), (255, 224, 130, 255), (255, 248, 220, 255)),
-    "warn":   ((150, 84, 0, 255), (255, 138, 0, 255), (255, 200, 120, 255), (255, 244, 214, 255)),
-    "danger": ((150, 12, 46, 255), (255, 23, 68, 255), (255, 130, 150, 255), (255, 225, 230, 255)),
+    "carrot": ((150, 86, 0, 255), (255, 176, 0, 255), (255, 230, 150, 255)),
+    "warn":   ((150, 70, 0, 255), (255, 138, 0, 255), (255, 205, 130, 255)),
+    "danger": ((150, 12, 46, 255), (255, 62, 62, 255), (255, 167, 98, 255)),
 }
 
-H = 14          # bar height in source pixels — fuse's W, on its side
-CAP_W = 6       # right end of the shell (fuse's cap)
-BASE_W = 7      # left end of the shell (fuse's base)
-MID_W = 1       # the repeatable slice
+
+def sheet(path):
+    return Image.open(path).convert("RGBA")
 
 
-def px(img, x, y, c):
-    if 0 <= x < img.width and 0 <= y < img.height:
-        img.putpixel((x, y), c)
-
-
-def hline(img, x0, x1, y, c):
-    for x in range(x0, x1 + 1):
-        px(img, x, y, c)
-
-
-def vline(img, x, y0, y1, c):
-    for y in range(y0, y1 + 1):
-        px(img, x, y, c)
-
-
-def shell_slice(w, part):
-    """One piece of the empty tube: 'cap' (right), 'mid', or 'base' (left)."""
-    img = Image.new("RGBA", (w, H), CLEAR)
-    # Outer outline, 2px so it reads at scale.
-    for y in (0, 1, H - 2, H - 1):
-        hline(img, 0, w - 1, y, OUTLINE)
-    # Inner walls: light on top, dark below — one light source, top-left, held
-    # across every asset (fuse lights left/right; on its side that is up/down).
-    hline(img, 0, w - 1, 2, SHELL_L)
-    hline(img, 0, w - 1, 3, SHELL_M)
-    hline(img, 0, w - 1, H - 4, SHELL_D)
-    hline(img, 0, w - 1, H - 3, SHELL_D)
-    # The empty channel.
-    for y in range(4, H - 4):
-        hline(img, 0, w - 1, y, VOID)
-
-    if part == "base":
-        # Rounded-off corners, stepped — never a smooth curve.
-        for x, inset in enumerate((4, 2, 1, 0, 0, 0, 0)):
-            for y in range(0, inset):
-                px(img, x, y, CLEAR)
-                px(img, x, H - 1 - y, CLEAR)
-            px(img, x, inset, OUTLINE)
-            px(img, x, H - 1 - inset, OUTLINE)
-        vline(img, 0, 4, H - 5, OUTLINE)
-        vline(img, 1, 4, H - 5, OUTLINE)
-        vline(img, 2, 4, H - 5, SHELL_M)
-        vline(img, 3, 4, H - 5, SHELL_D)
-    elif part == "cap":
-        for i, inset in enumerate((0, 0, 1, 2, 4, 4)):
-            x = i
-            if inset:
-                for y in range(0, inset):
-                    px(img, x, y, CLEAR)
-                    px(img, x, H - 1 - y, CLEAR)
-                px(img, x, inset, OUTLINE)
-                px(img, x, H - 1 - inset, OUTLINE)
-        vline(img, w - 1, 4, H - 5, OUTLINE)
-        vline(img, w - 2, 4, H - 5, OUTLINE)
-        vline(img, w - 3, 4, H - 5, SHELL_L)
-    return img
+def shell_slice(src, part):
+    """One piece of the empty tube, cropped from the sheet."""
+    x0, x1 = SLICES[part]
+    if part == "mid":
+        # One column, not the whole 64px body: it repeats, so the rest is
+        # bytes the page would download to draw the same pixels again.
+        x1 = x0 + MID_W
+    return src.crop((x0, 0, x1, src.height))
 
 
 def fill_slice(w, part, colors):
-    """The liquid inside: 'cap' is the bright leading crest, 'mid' repeats."""
-    dark, mid, light, spark = colors
-    img = Image.new("RGBA", (w, H - 8), CLEAR)
-    h = img.height
-    for y in range(h):
-        for x in range(w):
-            # Banding in flat steps across the bar's thickness, never a
-            # smooth gradient.
-            c = mid
-            if y < 2:
-                c = light
-            elif y >= h - 2:
-                c = dark
-            img.putpixel((x, y), c)
+    """The liquid inside: 'cap' is the bright leading crest, 'mid' repeats.
+
+    Height is the source fill's, so it lands in the channel the shell's walls
+    leave without the CSS having to know either number.
+    """
+    dark, body, spec = colors
+    role = {"dark": dark, "body": body, "spec": spec}
+    h = sum(b - a + 1 for a, b, _ in BANDS)
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    for a, b, kind in BANDS:
+        for y in range(a, b + 1):
+            for x in range(w):
+                img.putpixel((x, y), role[kind])
     if part == "cap":
-        # Bright crest on the leading edge, so the bar's head pops off the tube.
-        vline(img, w - 1, 0, h - 1, spark)
-        vline(img, w - 2, 0, h - 1, light)
-        px(img, w - 1, 1, (255, 255, 255, 255))
-        px(img, w - 1, 2, (255, 255, 255, 255))
+        # A bright crest on the leading edge, so the bar's head pops off the
+        # wood instead of dissolving into it. The source has no such crest —
+        # its bar is always full — but a gauge that moves needs its end read at
+        # a glance, so it is added here in the fill's own light colour.
+        for y in range(h):
+            img.putpixel((w - 1, y), spec)
     return img
 
 
 def build():
     made = []
-    for part, w in (("base", BASE_W), ("mid", MID_W), ("cap", CAP_W)):
-        img = shell_slice(w, part)
+    src = sheet(SRC)
+    for part in ("base", "mid", "cap"):
+        img = shell_slice(src, part)
         name = f"{OUT}/bar-shell-{part}.webp"
         # Lossless, always: WebP's lossy mode blends neighbouring pixels, which
         # is precisely the hard edge this art is made of.

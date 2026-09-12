@@ -6,8 +6,8 @@
  * Energy was a number in the HUD, which is the one thing it must not be: it is
  * the only resource in the game, it falls with every dig, and a player has to
  * price "is this tile worth it?" at a glance without reading. So it gets a bar,
- * drawn in fuse's gauge sprites — the same 9-slice pixel art and the same
- * palette, laid on its side (see tools/gen_energy_bar.py).
+ * drawn in Tiny Swords' wooden gauge sprites — the same 9-slice pixel art as
+ * the rest of the game's UI (see tools/gen_energy_bar.py).
  *
  * Colour is not a style here, it is the reading: gold while the run is healthy,
  * amber when a bomb would hurt, red when the next one ends it. So the component
@@ -60,10 +60,12 @@ export function EnergyBar({ energy, bombCost = ENERGY.BOMB_LOSS }: EnergyBarProp
           className={`rr-energy-fill${critical ? ' critical' : ''}`}
           hidden={pct === 0}
           style={{
-            // Snapped to whole source pixels: a fill that ends mid-pixel makes
+            // Snapped to whole SCREEN pixels: a fill that ends mid-pixel makes
             // the crest render as two half-lit columns, which is the one thing
-            // pixel art must never do.
-            width: `round(down, (100% - 2 * var(--rr-gauge-wall)) * ${pct}, calc(1px * var(--rr-gauge-px)))`,
+            // pixel art must never do. The step used to be one source pixel,
+            // but the wooden sprite scales by a fraction now — rounding to
+            // 0.55px would snap to nothing.
+            width: `round(down, (100% - 2 * var(--rr-gauge-wall)) * ${pct}, 1px)`,
             background: `
               url('${FILL}-${tone}-cap.webp') right center / auto 100% no-repeat,
               url('${FILL}-${tone}-mid.webp') left center / auto 100% repeat-x`,
@@ -75,7 +77,7 @@ export function EnergyBar({ energy, bombCost = ENERGY.BOMB_LOSS }: EnergyBarProp
         <span
           className="rr-energy-mark"
           style={{
-            left: `calc(var(--rr-gauge-wall) + round(down, (100% - 2 * var(--rr-gauge-wall)) * ${bombCost / SCALE}, calc(1px * var(--rr-gauge-px))))`,
+            left: `calc(var(--rr-gauge-wall) + round(down, (100% - 2 * var(--rr-gauge-wall)) * ${bombCost / SCALE}, 1px))`,
           }}
         />
       </div>

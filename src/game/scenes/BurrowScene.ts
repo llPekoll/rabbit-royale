@@ -5,12 +5,26 @@
  * grew while you were away — and it is where you PLACE TRAPS, which is the only
  * defence you get and the reason the layout is a board at all.
  *
- * A raider crosses this same ground (see burrowConfig): they enter by the path
- * and walk towards the field, spending energy, and your traps drain it. So the
- * question this screen asks the owner is a spatial one — which approach do I
- * make expensive? — and it can only be asked on a map.
+ * A raider crosses this same ground (see game/burrow/board): they come in at
+ * the entrance and walk towards the field, spending energy, and your traps
+ * drain it. So the question this screen asks the owner is a spatial one —
+ * which approach do I make expensive? — and it can only be asked on a map.
+ *
+ * ## The ground is GENERATED, and it is yours
+ *
+ * This screen used to draw one full-canvas painting with an invisible grid
+ * calibrated over it, the same picture for every player in the game. The
+ * ground is now tiles, cut from the owner's own seed (their player id) on the
+ * same terrain the island uses — so two burrows are two different places, a
+ * raider has to actually read the homestead they are crossing, and a cliff is
+ * a real obstacle rather than a painted one.
+ *
+ * Everything on this screen therefore needs to know WHOSE burrow it is, which
+ * is what `BurrowSceneData.seed` carries.
  */
-import { Application, Container, Sprite, Texture, Graphics, type BitmapText } from 'pixi.js';
+import {
+  AnimatedSprite, Application, Container, Sprite, Texture, Graphics, type BitmapText,
+} from 'pixi.js';
 import gsap from 'gsap';
 import type { Scene } from '../SceneManager';
 import { SceneManager } from '../SceneManager';
@@ -18,25 +32,14 @@ import { GAME_W, GAME_H } from '../Application';
 import { CloudField } from '../fx/Clouds';
 import { CarrotCrop } from '../entities/CarrotCrop';
 import { getDiamondOutline, diamondScaleFor } from '../services/TileTextures';
+import { getBunnyAnimTextures } from '../services/AssetLoader';
 import { pixelText } from '../ui/PixelText';
 import * as Keys from '@/config/assetKeys';
-import {
-  BURROW_COLS, BURROW_ROWS, BURROW_HALF_W, BURROW_HALF_H, BURROW_ZOOM,
-  burrowCell, burrowTilePos, burrowTileDepth, isTrappable,
-} from '@/config/burrowConfig';
-import { burrowArt } from '@/config/burrowArt';
-import { homeCam, boardCam, type BurrowCam } from './burrowCamera';
-
-// The hand-drawn art, field left BARE — the crop is drawn over it as live,
-// growing sprites (see components/carrot-field.tsx), because a carrot painted
-// into a backdrop can never grow.
-//
-// WHICH painting depends on the burrow's level (see config/burrowArt), so an
-// upgrade is something you can see rather than only a number that moved. The
-// board does not move with it: every level's art is pre-aligned to put the
-// field in the same place, so burrowConfig's origin, zoom and LAYOUT — measured
-// against level 1 — hold for all of them. test/burrow-calibration.test.ts
-// enforces that, for every level.
+import { BURROW_COLS, BURROW_ROWS, BURROW_HALF_W, BURROW_HALF_H } from '@/config/burrowConfig';
+import { burrowCell, isTrappable } from '@/game/burrow/board';
+import { burrowTileScreen, burrowDepth } from '@/game/burrow/screen';
+import { createBurrowTerrain, type BurrowTerrainView } from '@/game/burrow/BurrowTerrain';
+import { homeCam, boardCam, raidCam, type BurrowCam } from './burrowCamera';
 
 /**
  * A diamond sprite sized for THIS board.
@@ -68,9 +71,30 @@ const PLACEABLE_TINT = 0x8fd6ff;
 const PLACEABLE_ALPHA = 0.42;
 
 // ── Raiding someone else's burrow ────────────────────────────────────────────
-// The same board, read from the other side. A raider sees clue NUMBERS and the
-// steps they may take; they never see a trap until they spring it, which is the
-// whole reason burying one is worth doing.
+//
+// The same board, read from the other side, and the reading is now the whole
+// point. A raider sees clue NUMBERS and the steps they may take; they never
+// see a trap until they spring it, which is the whole reason burying one is
+// worth doing.
+//
+// ## The homestead itself is the secret now
+//
+// This overlay used to be drawn OVER a burrow in full view — every tree, the
+// door, the field — and that was defensible while the burrow was one painting
+// every player had already seen a hundred times. The only hidden thing was
+// where the traps were, and the dim wash on unvisited tiles said "you have not
+// read this one yet" rather than "you cannot see this".
+//
+// On generated ground that is a giveaway. Where the cliffs run, which corner
+// holds the garden, which approach the trees force — all of it is information
+// the raider is supposed to be BUYING one step at a time, and drawing the
+// whole island hands it over before the first move. So the terrain is hidden
+// and uncovered cell by cell (`BurrowTerrainView.reveal`), and what a raider
+// looks at is a few tiles of somebody's land floating in the sea.
+//
+// Which also fixes the thing that made the old overlay unreadable: the dim
+// tints had to fight a busy pixel-art meadow underneath them. Against open
+// water they simply read.
 
 /** A tile the raider has read. Cool and dim: it is known, not offered. */
 const SEEN_TINT = 0x9fb4c7;
@@ -78,8 +102,23 @@ const SEEN_ALPHA = 0.30;
 /** A tile the raider may step onto next. The one thing asking to be tapped. */
 const STEP_TINT = 0xffd45c;
 const STEP_ALPHA = 0.55;
-/** Where the raider stands. */
-const RAIDER_TINT = 0xff8c42;
+/**
+ * The edge of the known world: a tile the raider can see but has NOT read.
+ *
+ * These are the neighbours of where they have walked — uncovered ground whose
+ * clue number they have, but which they have not stood on. Drawn darker than a
+ * read tile so the frontier of the crossing is legible as a frontier.
+ */
+const FRONTIER_ALPHA = 0.16;
+/**
+ * How large the raider is drawn, as a multiple of its 32px sprite.
+ *
+ * Smaller than the island's `RABBIT_SCALE` (2.4): this board's cells are the
+ * same size, but a burrow is a place you are sneaking through rather than a
+ * field you own, and a rabbit that fills three cells hides the very clue
+ * numbers the crossing is read from.
+ */
+const RAIDER_SCALE = 1.5;
 /** Clue colours by count, so a 3 reads as worse than a 1 before it is read as
  *  a number at all — the same trick the island's hints use. */
 const CLUE_COLOURS = [0x7fd1ff, 0x8fe388, 0xffd45c, 0xff9d5c, 0xff6b6b];
@@ -91,6 +130,17 @@ export interface RaidTile {
 }
 
 export interface BurrowSceneData {
+  /**
+   * WHOSE burrow this is — the owner's player id, which is the seed their
+   * ground is grown from (see `game/burrow/board`).
+   *
+   * Required, and deliberately not defaulted to something: a burrow drawn from
+   * the wrong seed is a different homestead, so every trap the owner placed
+   * would land on ground that does not exist. Callers that have no player yet
+   * (the signed-out backdrop, a story) pass a fixed seed of their own and get
+   * a consistent burrow to look at.
+   */
+  seed: string;
   /** Tiles that already hold a trap. */
   traps: number[];
   /** True while the owner is choosing where to put one. */
@@ -105,7 +155,7 @@ export interface BurrowSceneData {
    */
   gardenProgress?: number | null;
   /**
-   * The burrow's level, which picks the backdrop.
+   * The burrow's level, which picks the BUILDING standing on the ground.
    *
    * Absent means level 1 — the scene is shown before the burrow has loaded, and
    * to viewers with no burrow at all, and both want a picture rather than a
@@ -117,9 +167,7 @@ export interface BurrowSceneData {
 export class BurrowScene implements Scene {
   container: Container;
   private clouds: CloudField | null = null;
-  private backdrop: Sprite | null = null;
-  /** Which art is currently up, so a level change can skip a no-op reload. */
-  private backdropUrl: string | null = null;
+  private terrain: BurrowTerrainView | null = null;
   private crop: CarrotCrop | null = null;
   private board = new Container();
   private trapSprites = new Map<number, Container>();
@@ -127,11 +175,27 @@ export class BurrowScene implements Scene {
   /** The raid overlay: the attacker's read of this board. Empty when at home. */
   private raidCells: Sprite[] = [];
   private raidLabels: BitmapText[] = [];
+  /** The raider's own sprite — a Container, so it is torn down separately. */
+  private raidActors: Container[] = [];
+  /** Where the raider stands, so the camera can follow them. */
+  private raiderAt = 0;
   private raiding = false;
   /** Where the camera is now, so a re-entry does not re-tween to where it sits. */
   private cam: BurrowCam = homeCam();
   private onResize: (() => void) | null = null;
-  private data: BurrowSceneData = { traps: [], placing: false, onPlace: () => {} };
+  private data: BurrowSceneData = {
+    seed: 'burrow', traps: [], placing: false, onPlace: () => {},
+  };
+  /**
+   * The player's OWN burrow, kept apart from what is currently on screen.
+   *
+   * `data.seed` and `data.level` describe the ground being DRAWN, which during
+   * a raid is the defender's homestead. These two are what to come home to
+   * when the raid ends — without them, leaving a raid would leave the player
+   * standing in the victim's garden.
+   */
+  private ownSeed = 'burrow';
+  private ownLevel: number | null | undefined = null;
 
   constructor(private app: Application, _sceneManager: SceneManager) {
     this.container = new Container();
@@ -141,10 +205,41 @@ export class BurrowScene implements Scene {
 
   init(data?: unknown): void {
     if (data) this.data = data as BurrowSceneData;
+    this.ownSeed = this.data.seed;
+    this.ownLevel = this.data.level;
+  }
+
+  /**
+   * Put someone's ground on screen: terrain, building and crop.
+   *
+   * Rebuilt rather than re-tinted, because a different seed is a different
+   * island — a different coastline, different cliffs, a field in a different
+   * corner. Cheap enough to do on the two ends of a raid (it is one terrain of
+   * 361 cells and the sheets are already in Pixi's cache), and it happens
+   * under the screen wipe that the raid already plays.
+   */
+  private async showGround(seed: string, level: number | null | undefined): Promise<void> {
+    if (seed === this.data.seed && this.terrain) {
+      this.terrain.setLevel(level);
+      return;
+    }
+    this.data.seed = seed;
+    this.data.level = level;
+
+    this.terrain?.destroy();
+    this.terrain = null;
+    this.crop?.destroy();
+    this.crop = null;
+    for (const hint of this.hints) hint.destroy();
+    this.hints = [];
+
+    await this.buildTerrain();
+    this.buildCrop();
+    this.buildBoard();
   }
 
   async create(): Promise<void> {
-    await this.buildBackdrop();
+    await this.buildTerrain();
     this.buildCrop();
     // The same sky as the island, so the two screens are the same world.
     this.clouds = new CloudField(this.container, { width: GAME_W, height: GAME_H });
@@ -164,64 +259,48 @@ export class BurrowScene implements Scene {
     for (const tile of this.data.traps) this.addTrap(tile, false);
   }
 
-  private async buildBackdrop(): Promise<void> {
-    const url = burrowArt(this.data.level);
-    const img = new Image();
-    img.src = url;
-    try {
-      await img.decode();
-    } catch {
-      console.warn('[burrow] backdrop failed to load');
-      return;
-    }
-    this.backdropUrl = url;
-    const tex = Texture.from(img);
-    tex.source.scaleMode = 'nearest';
-    tex.source.autoGenerateMipmaps = false;
-
-    const sprite = new Sprite(tex);
-    sprite.anchor.set(0.5);
-    sprite.position.set(GAME_W / 2, GAME_H / 2);
-    // Cover the canvas, then ZOOM past it: the art draws a small homestead in a
-    // wide field, and at 1x the played ground was a third of the frame. See
-    // BURROW_ZOOM.
-    const cover = Math.max(GAME_W / img.naturalWidth, GAME_H / img.naturalHeight);
-    sprite.width = img.naturalWidth * cover * BURROW_ZOOM;
-    sprite.height = img.naturalHeight * cover * BURROW_ZOOM;
-    sprite.zIndex = -10;
-    // An upgrade replaces the picture in place. Destroying the old sprite
-    // rather than leaving it behind matters: they are the full canvas at
-    // BURROW_ZOOM, so stacking them would keep every backdrop the player has
-    // ever had resident and drawn.
-    this.backdrop?.destroy();
-    this.backdrop = sprite;
-    this.container.addChild(sprite);
+  /**
+   * The ground: the owner's own terrain, drawn from their seed.
+   *
+   * Awaited before anything else in `create` — the board, the crop and the
+   * traps are all positioned against tiles, and building them over a terrain
+   * that has not decoded yet would put them on an empty frame.
+   */
+  private async buildTerrain(): Promise<void> {
+    this.terrain = await createBurrowTerrain(
+      this.container, this.data.seed, this.data.level,
+    );
   }
 
   /**
-   * The burrow was upgraded — show the level's art.
+   * The burrow was upgraded — show the level's building.
    *
-   * The board, the crop and the traps all stay exactly where they are: every
-   * level's painting is pre-aligned on the same field, so this changes the
-   * picture and nothing about the ground underneath it.
+   * The ground, the board, the crop and the traps all stay exactly where they
+   * are: the level picks which building stands on the burrow's cell and
+   * nothing else, so an upgrade is one texture swap rather than a re-drawn
+   * homestead. (It used to be a whole new full-canvas painting, which is why
+   * every level's art had to be pre-aligned with every other level's.)
    */
-  async setLevel(level: number | null | undefined): Promise<void> {
+  setLevel(level: number | null | undefined): void {
+    this.ownLevel = level;
+    // Only touches the screen when the player's OWN ground is up: an upgrade
+    // that landed mid-raid must not swap the victim's hut for the raider's
+    // castle.
+    if (this.data.seed !== this.ownSeed) return;
     this.data.level = level;
-    if (burrowArt(level) === this.backdropUrl) return;
-    await this.buildBackdrop();
+    this.terrain?.setLevel(level);
   }
 
   /**
    * The crop growing in the field.
    *
-   * Positioned from the SAME plot list the still art was measured with
-   * (carrotPlots.json), in the backdrop's own coordinate space — so the plants
-   * sit in the furrows the art draws, at any canvas size, with no offsets
-   * tuned by hand.
+   * Sown on the FIELD TILES the owner's seed chose — see `CarrotCrop`. There
+   * is no painted soil to line the plants up with any more, which is the point:
+   * the furrows and the plants are now the same set of cells.
    */
   private buildCrop(): void {
     const sheet = Texture.from(Keys.CARROT_GROWTH);
-    this.crop = new CarrotCrop(this.container, sheet);
+    this.crop = new CarrotCrop(this.container, sheet, this.data.seed);
     this.crop.setProgress(this.data.gardenProgress ?? null);
   }
 
@@ -252,20 +331,20 @@ export class BurrowScene implements Scene {
    */
   private buildBoard(): void {
     for (let i = 0; i < BURROW_COLS * BURROW_ROWS; i++) {
-      if (burrowCell(i) === 'blocked') continue;
+      if (burrowCell(this.data.seed, i) === 'blocked') continue;
 
-      const { x, y } = burrowTilePos(i);
+      const { x, y } = burrowTileScreen(this.data.seed, i);
       // Outline rather than fill: an outlined diamond reads as a CELL you can
       // pick, where a flat wash just tinted the artwork underneath.
       const hint = burrowDiamond();
       hint.position.set(x, y);
-      hint.zIndex = burrowTileDepth(i);
+      hint.zIndex = burrowDepth(this.data.seed, i);
       hint.tint = PLACEABLE_TINT;
       hint.alpha = 0;
       hint.eventMode = 'static';
       hint.visible = false;
       hint.on('pointertap', () => {
-        if (this.data.placing && isTrappable(i)) this.data.onPlace(i);
+        if (this.data.placing && isTrappable(this.data.seed, i)) this.data.onPlace(i);
       });
       this.board.addChild(hint);
       this.hints.push(hint);
@@ -284,7 +363,7 @@ export class BurrowScene implements Scene {
     this.moveCamera(this.wantedCam());
     this.hints.forEach((hint, n) => {
       const tile = this.tileOfHint(n);
-      const usable = placing && isTrappable(tile) && !this.trapSprites.has(tile);
+      const usable = placing && isTrappable(this.data.seed, tile) && !this.trapSprites.has(tile);
       hint.visible = usable;
       hint.cursor = usable ? 'pointer' : 'default';
       gsap.killTweensOf(hint);
@@ -346,14 +425,18 @@ export class BurrowScene implements Scene {
    * fighting when a raid begins while the grid is still up.
    */
   private wantedCam(): BurrowCam {
-    return (this.raiding || this.data.placing) ? boardCam() : homeCam();
+    // A raid follows the raider; placing frames the whole homestead. They used
+    // to share one answer, which was right while both sides saw the same fully
+    // drawn board — see `raidCam` for why a hidden board needs its own shot.
+    if (this.raiding) return raidCam(this.data.seed, this.raiderAt);
+    return this.data.placing ? boardCam(this.data.seed) : homeCam();
   }
 
   /** The board skips blocked tiles, so hint order is not tile order. */
   private tileOfHint(n: number): number {
     let seen = 0;
     for (let i = 0; i < BURROW_COLS * BURROW_ROWS; i++) {
-      if (burrowCell(i) === 'blocked') continue;
+      if (burrowCell(this.data.seed, i) === 'blocked') continue;
       if (seen === n) return i;
       seen++;
     }
@@ -370,11 +453,11 @@ export class BurrowScene implements Scene {
    */
   addTrap(tile: number, animate = true): void {
     if (this.trapSprites.has(tile)) return;
-    const { x, y } = burrowTilePos(tile);
+    const { x, y } = burrowTileScreen(this.data.seed, tile);
 
     const group = new Container();
     group.position.set(x, y);
-    group.zIndex = burrowTileDepth(tile) + 0.5;
+    group.zIndex = burrowDepth(this.data.seed, tile) + 0.5;
 
     const marker = burrowDiamond();
     marker.tint = TRAP_TINT;
@@ -415,23 +498,62 @@ export class BurrowScene implements Scene {
    * visible, what is steppable and where the raider stands all at once, and
    * three separate updates would show a frame of the board disagreeing with
    * itself.
+   *
+   * A raid also changes WHOSE ground this is. The defender's burrow is a
+   * different homestead grown from their own id, so the scene swaps its
+   * terrain for theirs on the way in and back to the player's own on the way
+   * out — see `showGround`. Without that the raider would be walking the
+   * server's tile indices across a picture of their own garden, and every
+   * clue, step and wall would land on the wrong cell.
    */
-  setRaid(state: {
+  async setRaid(state: {
     view: RaidTile[];
     /** Where the raider stands. */
     at: number;
     /** Tiles they may step onto — the server's list, not ours. */
     steps: number[];
+    /**
+     * Tiles the raider has actually STOOD on.
+     *
+     * Distinct from `view`, which also carries the neighbours they can merely
+     * see from there. The difference is what separates crossed ground from the
+     * frontier, and without it the board shows no progress — see
+     * `FRONTIER_ALPHA`.
+     */
+    walked?: number[];
+    /** Whose burrow is being crossed — their id, which seeds their ground. */
+    seed: string;
+    /** The defender's burrow level, which picks their building. */
+    level?: number | null;
     onStep(tile: number): void;
-  } | null): void {
+  } | null): Promise<void> {
     this.clearRaid();
     if (!state) {
-      // Back to being a home: the owner's own traps come back into view, and
+      // Back to being a home: the player's own ground, their own traps, and
       // the camera comes back in with them (setPlacing reframes).
+      await this.showGround(this.ownSeed, this.ownLevel);
+      // Your own burrow holds no secrets from you: the whole homestead back,
+      // garden included.
+      this.terrain?.reveal(null);
+      this.crop?.revealOnly(null);
       for (const tile of this.data.traps) this.addTrap(tile, false);
       this.setPlacing(this.data.placing);
       return;
     }
+
+    await this.showGround(state.seed, state.level);
+
+    // Only the ground the raider has uncovered is drawn at all — the rest of
+    // the homestead is not dimmed, it is absent. See the note above.
+    //
+    // The CROP is uncovered with it. It is drawn by the scene rather than by
+    // the terrain, so it does not follow automatically — and a carrot is the
+    // most legible thing on this board, so plants left drawn over hidden
+    // ground were an arrow pointing straight at the raid's objective.
+    const uncovered = state.view.map((v) => v.tile);
+    this.terrain?.reveal(uncovered);
+    this.crop?.revealOnly(uncovered);
+    const visited = new Set(state.walked ?? []);
 
     // A raider must not see the OWNER's traps. They are hidden rather than
     // never drawn, because the same scene serves both sides and the owner may
@@ -440,18 +562,26 @@ export class BurrowScene implements Scene {
     // Set before setPlacing: it reframes, and a raid wants the pulled-back
     // board — without this the camera would fly home and straight back out.
     this.raiding = true;
+    // Before setPlacing, which reframes: the camera centres on the raider, so
+    // it has to know where they are standing first.
+    this.raiderAt = state.at;
     this.setPlacing(false);
     const steppable = new Set(state.steps);
 
     for (const { tile, clue } of state.view) {
-      const { x, y } = burrowTilePos(tile);
+      const { x, y } = burrowTileScreen(this.data.seed, tile);
       const canStep = steppable.has(tile);
+      const walked = visited.has(tile);
 
       const cell = burrowDiamond();
       cell.position.set(x, y);
-      cell.zIndex = burrowTileDepth(tile);
+      cell.zIndex = burrowDepth(this.data.seed, tile);
       cell.tint = canStep ? STEP_TINT : SEEN_TINT;
-      cell.alpha = canStep ? STEP_ALPHA : SEEN_ALPHA;
+      // Three readings, not two: a tile you have STOOD on, a tile you may step
+      // onto next, and a tile you can merely see from where you are. The last
+      // is the frontier, and it was previously drawn identically to ground the
+      // raider had already crossed — so the board gave no sense of progress.
+      cell.alpha = canStep ? STEP_ALPHA : walked ? SEEN_ALPHA : FRONTIER_ALPHA;
       if (canStep) {
         cell.eventMode = 'static';
         cell.cursor = 'pointer';
@@ -471,21 +601,61 @@ export class BurrowScene implements Scene {
         label.anchor.set(0.5);
         label.scale.set(0.5);
         label.tint = CLUE_COLOURS[Math.min(clue, CLUE_COLOURS.length - 1)];
-        label.zIndex = burrowTileDepth(tile) + 0.4;
+        label.zIndex = burrowDepth(this.data.seed, tile) + 0.4;
         this.board.addChild(label);
         this.raidLabels.push(label);
       }
     }
 
-    // The raider themselves, on top of their own tile.
-    const here = burrowTilePos(state.at);
-    const marker = burrowDiamond();
-    marker.position.set(here.x, here.y);
-    marker.zIndex = burrowTileDepth(state.at) + 0.6;
-    marker.tint = RAIDER_TINT;
-    marker.alpha = 0.95;
-    this.board.addChild(marker);
-    this.raidCells.push(marker);
+    // The raider themselves — an actual rabbit standing on the ground, not a
+    // coloured lozenge. A raid is the player walking into somebody's home, and
+    // a tinted diamond among other tinted diamonds gave them nothing to follow
+    // with their eye: on a board of a dozen visible cells the one thing that
+    // must be unmistakable is where you are.
+    const here = burrowTileScreen(this.data.seed, state.at);
+    const raider = this.buildRaider();
+    raider.position.set(here.x, here.y);
+    raider.zIndex = burrowDepth(this.data.seed, state.at) + 0.6;
+    this.board.addChild(raider);
+    this.raidActors.push(raider);
+  }
+
+  /**
+   * The attacker's sprite.
+   *
+   * The game's own bunny, idling, so the figure crossing a burrow is the same
+   * character that digs an island — one player, two screens. Falls back to a
+   * plain marker when the sheets have not loaded, because a raid that draws no
+   * raider at all is worse than one that draws a lozenge.
+   */
+  private buildRaider(): Container {
+    const group = new Container();
+    const frames = getBunnyAnimTextures(Keys.BUNNY_WHITE, 'idle');
+
+    // A contact shadow first, so the rabbit reads as standing on the tile
+    // rather than floating over it — the same trick the island's deco uses.
+    group.addChild(
+      new Graphics()
+        .ellipse(0, 0, BURROW_HALF_W * 0.34, BURROW_HALF_H * 0.34)
+        .fill({ color: 0x000000, alpha: 0.26 }),
+    );
+
+    if (frames.length) {
+      const sprite = new AnimatedSprite(frames);
+      // Feet at the tile's centre, like every other standing thing here.
+      sprite.anchor.set(0.5, 0.9);
+      sprite.scale.set(RAIDER_SCALE);
+      sprite.animationSpeed = 8 / 60;
+      sprite.loop = true;
+      sprite.play();
+      group.addChild(sprite);
+    } else {
+      const marker = burrowDiamond();
+      marker.tint = STEP_TINT;
+      marker.alpha = 0.95;
+      group.addChild(marker);
+    }
+    return group;
   }
 
   /**
@@ -496,10 +666,10 @@ export class BurrowScene implements Scene {
    * — a board that simply redrew one tile darker would not register.
    */
   springTrap(tile: number): void {
-    const { x, y } = burrowTilePos(tile);
+    const { x, y } = burrowTileScreen(this.data.seed, tile);
     const blast = burrowDiamond();
     blast.position.set(x, y);
-    blast.zIndex = burrowTileDepth(tile) + 1;
+    blast.zIndex = burrowDepth(this.data.seed, tile) + 1;
     blast.tint = 0xff6b6b;
     this.board.addChild(blast);
     // Relative to the tile's own scale, not an absolute 2.2: the diamond is
@@ -522,8 +692,10 @@ export class BurrowScene implements Scene {
   private clearRaid(): void {
     for (const c of this.raidCells) { gsap.killTweensOf(c); c.destroy(); }
     for (const l of this.raidLabels) l.destroy();
+    for (const a of this.raidActors) { gsap.killTweensOf(a); a.destroy({ children: true }); }
     this.raidCells = [];
     this.raidLabels = [];
+    this.raidActors = [];
     if (this.raiding) {
       for (const group of this.trapSprites.values()) group.visible = true;
       this.raiding = false;
@@ -547,6 +719,9 @@ export class BurrowScene implements Scene {
     const ms = deltaTime * (1000 / 60);
     this.clouds?.update(ms);
     this.crop?.update(ms);
+    // The terrain sways: the same wind that crosses the island crosses the
+    // homestead, which is half of what makes the two read as one world.
+    this.terrain?.update(ms);
   }
 
   destroy(): void {
@@ -564,7 +739,7 @@ export class BurrowScene implements Scene {
     for (const h of this.hints) gsap.killTweensOf(h);
     this.hints = [];
     this.crop?.destroy();
-    this.backdrop?.destroy();
+    this.terrain?.destroy();
     this.container.destroy({ children: true });
   }
 }

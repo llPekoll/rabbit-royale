@@ -24,11 +24,12 @@ const TARGETS: Target[] = [
 
 const RAID: RaidState = {
   raidId: 'r1',
-  defender: { id: 'a', name: 'Thistle', avatar: null },
+  defender: { id: 'a', name: 'Thistle', avatar: null, level: 3 },
   tile: 143,
   energy: 18,
   trapsSprung: 1,
   view: [],
+  walked: [143],
   steps: [],
   smoked: false,
   finished: false,

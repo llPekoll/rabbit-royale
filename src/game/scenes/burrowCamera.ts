@@ -1,90 +1,39 @@
 /**
  * Where the burrow's camera sits, and why it moves.
  *
- * The screen has two readings of the same ground, and they want opposite
- * framings. At HOME the burrow is a place: the art is worth looking at, so the
- * camera sits close and the homestead fills the frame. While PLACING a trap —
- * or RAIDING someone else's — the burrow is a board, and a board you cannot see
- * the whole of is a board you cannot make a decision on. In portrait the played
- * ground actually ran 208px off the right-hand edge, so the far flank was not
- * merely small, it was unreachable.
+ * The screen has three readings of the same ground, and they want different
+ * framings. At HOME the burrow is a place: the camera sits close and the
+ * homestead fills the frame. While PLACING a trap it is a board, and a board
+ * you cannot see the whole of is a board you cannot make a decision on. While
+ * RAIDING someone else's it is a board you are mostly BLIND to, so fitting it
+ * would frame an empty sea — the camera follows the raider instead
+ * (`raidCam`).
  *
- * So the camera reframes for the decision and returns afterwards — zooming IN
- * on the board in landscape, and back out in portrait, whichever puts the
- * played ground on the screen at a size a thumb can use. It is one
- * transform on the scene container rather than a per-object rescale: the
- * backdrop, the crop, the clouds and the board all keep their measured
- * relationship to each other (burrowConfig's origin was solved against the art)
- * and only the window onto them changes.
+ * Placing and raiding used to share one answer, which was right while both
+ * sides looked at the same fully drawn board. Hiding the defender's ground is
+ * what split them.
+ *
+ * It is one transform on the scene container rather than a per-object rescale:
+ * the terrain, the crop, the clouds and the board all keep their measured
+ * relationship to each other and only the window onto them changes.
+ *
+ * ## What the ground being GENERATED changed here
+ *
+ * The shot used to be clamped against the BACKDROP — a full-canvas painting
+ * that the camera was forbidden from pulling past, because a strip of empty
+ * canvas along the bottom of the burrow read as a broken screen. There is no
+ * painting any more: the ground is tiles, drawn only where the island is, and
+ * the sea around it is the scene's own colour edge to edge. So the binding
+ * constraint is now the BOARD itself, which is what the camera was always
+ * really about — fit the played ground, at a size a thumb can use.
+ *
+ * The board's extent is also no longer a constant. Every player's homestead is
+ * a different shape, so the framing is solved per seed rather than once.
  */
 import { GAME_W, GAME_H } from '../Application';
-import {
-  BURROW_COLS, BURROW_ROWS, BURROW_HALF_W, BURROW_HALF_H, BURROW_ZOOM,
-  burrowCell, burrowTilePos,
-} from '@/config/burrowConfig';
-import PLOTS from '@/config/carrotPlots.json';
-
-/**
- * The scale at which the backdrop exactly fills the canvas.
- *
- * Below it the painting no longer covers every edge, and `frame()`'s clamp
- * would start eating the pull-back silently — the camera would report one scale
- * and show another. Computed against the design space the game actually runs
- * in, and against BOTH orientations, so the tighter of the two wins rather than
- * a rotation quietly breaking the promise.
- */
-function backdropFloor(): number {
-  let floor = 0;
-  for (const [W, H] of [[GAME_W, GAME_H], [GAME_H, GAME_W]] as const) {
-    const back = rawBackdropSize(W, H);
-    floor = Math.max(floor, W / back.w, H / back.h);
-  }
-  // A whisker inside the exact fit. Landing ON it leaves the edge a rounding
-  // error short of the canvas, which is a one-pixel seam rather than a bug —
-  // but it is a seam a player would see against the sky.
-  return floor * 1.002;
-}
-
-/** Memo for `burrowCamOut`: the art does not change size at runtime. */
-let camOut: number | null = null;
-
-/**
- * How far back the camera pulls to show the whole board.
- *
- * This is now the furthest the shot can physically go: at this scale the
- * backdrop's edges land exactly on the canvas edges, so the player sees the
- * WHOLE painting and one pixel more would be a strip of empty canvas along the
- * bottom of their burrow. Derived from the art rather than typed, because the
- * number that matters is "as far as the painting allows" and a literal would go
- * stale the day the backdrop is redrawn at another aspect ratio.
- *
- * Note what does NOT limit it any more: it used to stop at 0.78 to protect the
- * tap targets, but a design pixel is not a device pixel — the canvas is fitted
- * to the screen, so the tiles here are ~23.5 design px and still a comfortable
- * thumb target on a phone. The binding constraint was always the painting.
- *
- * A FUNCTION rather than a `const`, and this is not style. The design space it
- * measures against lives in Application, which pulls in Pixi and the whole
- * scene graph; computing this at module scope ran that chain during Next's
- * prerender of `/` and hit a half-initialised binding in the import cycle
- * ("Cannot access 'jf' before initialization" — a build failure, not a runtime
- * one). Deferring the sum to first call keeps module load inert. Memoised, so
- * callers still pay for it once.
- */
-export function burrowCamOut(): number {
-  camOut ??= backdropFloor();
-  return camOut;
-}
-
-/**
- * How far the camera sits back while placing.
- *
- * A constant on purpose — see boardCam. Slightly above 1 so the decision shot
- * is a touch wider than the home shot, which is what makes the change of
- * framing read as a camera move rather than as nothing happening; the SIZE of
- * a cell is the tile's job, not this one's.
- */
-const PLACING_SCALE = 1.0;
+import { BURROW_COLS, BURROW_ROWS, BURROW_HALF_W, BURROW_HALF_H } from '@/config/burrowConfig';
+import { burrowCell } from '@/game/burrow/board';
+import { burrowTileScreen } from '@/game/burrow/screen';
 
 export interface BurrowCam {
   scale: number;
@@ -92,12 +41,19 @@ export interface BurrowCam {
   y: number;
 }
 
-/** The played ground's bounding box, in scene coordinates. */
-function boardBounds() {
+/**
+ * The played ground's bounding box, in scene coordinates.
+ *
+ * Only the walkable cells: the sea and the scenery around them are framing,
+ * and fitting the whole 19x19 lattice would spend the screen on water. Lifted
+ * tiles are included at their lifted position, so a shelf at the top of the
+ * homestead is not cropped off.
+ */
+function boardBounds(seed: string) {
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   for (let i = 0; i < BURROW_COLS * BURROW_ROWS; i++) {
-    if (burrowCell(i) === 'blocked') continue;
-    const { x, y } = burrowTilePos(i);
+    if (burrowCell(seed, i) === 'blocked') continue;
+    const { x, y } = burrowTileScreen(seed, i);
     minX = Math.min(minX, x - BURROW_HALF_W);
     maxX = Math.max(maxX, x + BURROW_HALF_W);
     minY = Math.min(minY, y - BURROW_HALF_H);
@@ -107,83 +63,94 @@ function boardBounds() {
 }
 
 /**
- * The backdrop's size in scene space.
+ * Margin around the board in the pulled-back shot, as a share of the frame.
  *
- * Mirrors what BurrowScene does to the sprite — cover the canvas, then multiply
- * by BURROW_ZOOM — because the camera has to know how much painted ground it
- * has before it can promise not to pull past the edge of it.
+ * The homestead should not be pressed against the edges of the screen: the
+ * terrain draws a coastline and a rim of sea, and cropping to the exact
+ * walkable box cuts the island off at its own shore.
  */
-function backdropSize(W: number, H: number) {
-  return rawBackdropSize(W, H);
-}
-
-/** The same sum, hoisted so `backdropFloor` can use it before the exports run. */
-function rawBackdropSize(W: number, H: number) {
-  const cover = Math.max(W / PLOTS.art.w, H / PLOTS.art.h);
-  return {
-    w: PLOTS.art.w * cover * BURROW_ZOOM,
-    h: PLOTS.art.h * cover * BURROW_ZOOM,
-  };
-}
+const BOARD_MARGIN = 0.94;
 
 /**
- * Centre the camera on a point at a given scale, without ever showing past the
- * painting.
+ * The smallest a cell may be drawn, in DESIGN pixels.
  *
- * The clamp is the whole reason this is computed rather than tweened by hand: a
- * pull-back that also recentres can walk the backdrop's edge into frame, and a
- * strip of empty canvas along the bottom of the burrow reads as a bug in a way
- * a slightly off-centre board never does. Where the two wishes conflict, the
- * painting wins and the board lands a little off centre.
+ * A trap is placed by hitting one tile. Design px, not device px: the canvas
+ * is fitted to the screen, so 23 of these on a 480-wide portrait space is a
+ * comfortable thumb target on a real phone.
  */
-function frame(scale: number, fx: number, fy: number, W: number, H: number): BurrowCam {
-  const back = backdropSize(W, H);
-  const x = W / 2 - scale * fx;
-  const y = H / 2 - scale * fy;
-  // The backdrop is drawn centred on the canvas, so in scene space it spans
-  // W/2 ± back.w/2. These are the offsets that keep it over every edge.
-  const xMin = W - scale * (W / 2 + back.w / 2);
-  const xMax = -scale * (W / 2 - back.w / 2);
-  const yMin = H - scale * (H / 2 + back.h / 2);
-  const yMax = -scale * (H / 2 - back.h / 2);
-  return {
-    scale,
-    x: Math.min(Math.max(x, xMin), xMax),
-    y: Math.min(Math.max(y, yMin), yMax),
-  };
-}
+export const MIN_TILE_PX = 23;
 
-/** At home: the framing the art was measured in, untouched. */
+/** At home: the framing the scene is laid out in, untouched. */
 export function homeCam(): BurrowCam {
   return { scale: 1, x: 0, y: 0 };
 }
 
 /**
- * The placement shot: a FIXED pull-back, not a fit.
+ * The decision shot: fit the whole homestead, centred.
  *
- * This used to solve a scale that made the board fill the frame. That sounds
- * right and is a trap: a camera that refits the board cancels every change to
- * the board. Make a cell bigger and the board grows; the camera zooms out by
- * exactly the same factor to keep it fitted; the cell lands on screen at the
- * size it started. Measured, not guessed — 34px, 48px, 64px and 80px cells all
- * came out at 46.8px on screen, with only the camera's scale moving (1.38x
- * down to 0.58x) and the homestead shrinking around them.
+ * A FIT, not a constant — and this is the opposite of what the painted burrow
+ * did, for a reason that changed under it. Back then the board was a fixed
+ * 19x19 picture and a fitted camera cancelled every change to the tile size
+ * exactly (cells at 34, 48, 64 and 80px all came out at 46.8px on screen, with
+ * only the camera's scale moving). A constant was the right call: the two
+ * knobs were fighting and only one should be the lever.
  *
- * So the camera is now a constant, and the tile size is the knob that actually
- * changes how big a cell is. The two were fighting; only one of them should be
- * the lever, and it should be the one whose name matches what it does.
- *
- * The clamp in `frame` still applies, so a board that outgrows the painting is
- * held to the art's edge rather than sliding off it.
+ * Now every player's homestead is a different SHAPE, and one constant cannot
+ * frame all of them — a wide island would run off the screen and a compact one
+ * would sit in a corner of it. So the camera fits the seed's own board, and
+ * the tile size still decides how big a cell is relative to the homestead
+ * around it. The two are no longer fighting because they are answering
+ * different questions.
  */
-export function boardCam(W: number = GAME_W, H: number = GAME_H): BurrowCam {
-  const b = boardBounds();
-  return frame(
-    PLACING_SCALE,
-    (b.minX + b.maxX) / 2, (b.minY + b.maxY) / 2,
-    W, H,
-  );
+export function boardCam(seed: string, W: number = GAME_W, H: number = GAME_H): BurrowCam {
+  const b = boardBounds(seed);
+  const scale = Math.min((W * BOARD_MARGIN) / b.w, (H * BOARD_MARGIN) / b.h);
+  return {
+    scale,
+    x: W / 2 - scale * (b.minX + b.maxX) / 2,
+    y: H / 2 - scale * (b.minY + b.maxY) / 2,
+  };
 }
+
+/**
+ * The raider's shot: centred on where they STAND, at the placement scale.
+ *
+ * Not a fit of the board, and not a fit of the uncovered patch either.
+ *
+ * Fitting the whole board is what the owner wants — they are looking at a
+ * place they know — but a raider has most of that board hidden, so a
+ * board-fitted camera frames a large empty sea with a few tiles adrift in one
+ * corner. That is what the first cut did, and it read as a bug.
+ *
+ * Fitting the UNCOVERED patch is the obvious alternative and is worse: the
+ * patch grows with every step, so the camera would re-solve and lurch on each
+ * tap, and the ground the raider had learned to read would drift under them.
+ * Worse still, the zoom level would itself leak information — a shot that
+ * pulls back as the patch grows tells the raider how much they have uncovered
+ * without their having to look.
+ *
+ * So: a fixed scale, centred on the raider. The shot is stable, the thing the
+ * player is steering is always in the middle of it, and stepping moves the
+ * camera by exactly one cell — which reads as walking.
+ */
+export function raidCam(
+  seed: string,
+  at: number,
+  W: number = GAME_W,
+  H: number = GAME_H,
+): BurrowCam {
+  const here = burrowTileScreen(seed, at);
+  return { scale: RAID_SCALE, x: W / 2 - RAID_SCALE * here.x, y: H / 2 - RAID_SCALE * here.y };
+}
+
+/**
+ * How close the raider's camera sits.
+ *
+ * Closer than the owner's board shot: a raid is a handful of cells at a time,
+ * so there is no reason to hold the whole homestead in frame, and the clue
+ * numbers have to be readable on a phone.
+ */
+const RAID_SCALE = 1.25;
 
 /**
  * What the pulled-back shot puts where, for the test that guards it.
@@ -192,10 +159,9 @@ export function boardCam(W: number = GAME_W, H: number = GAME_H): BurrowCam {
  * the code that actually runs instead of a second copy of the arithmetic that
  * could drift from it.
  */
-export function boardCamFraming(W: number, H: number) {
-  const cam = boardCam(W, H);
-  const b = boardBounds();
-  const back = backdropSize(W, H);
+export function boardCamFraming(seed: string, W: number, H: number) {
+  const cam = boardCam(seed, W, H);
+  const b = boardBounds(seed);
   return {
     cam,
     board: {
@@ -203,12 +169,6 @@ export function boardCamFraming(W: number, H: number) {
       right: cam.x + cam.scale * b.maxX,
       top: cam.y + cam.scale * b.minY,
       bottom: cam.y + cam.scale * b.maxY,
-    },
-    backdrop: {
-      left: cam.x + cam.scale * (W / 2 - back.w / 2),
-      right: cam.x + cam.scale * (W / 2 + back.w / 2),
-      top: cam.y + cam.scale * (H / 2 - back.h / 2),
-      bottom: cam.y + cam.scale * (H / 2 + back.h / 2),
     },
     // The LIVE half-width, not the shipped constant: the tuning harness can
     // change the tile size, and a report that ignored it would describe a board

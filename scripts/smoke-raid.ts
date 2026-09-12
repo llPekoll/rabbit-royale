@@ -12,7 +12,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '../src/lib/db';
 import { players, raidRuns, raids, traps } from '../src/lib/db/schema';
 import { signSession } from '../src/lib/auth/jwt';
-import { entranceTile, burrowNeighbors, burrowCell } from '../src/config/burrowConfig';
+import { entranceTile, burrowNeighbors, burrowCell } from '../src/game/burrow/board';
 import { distanceToField } from '../src/lib/game/raid';
 import { RAID_RUN, TRAPS, SMOKE } from '../config/tuning';
 import * as Raid from '../src/app/api/raid/route';
@@ -60,7 +60,7 @@ async function main() {
 
   // Enter.
   const entered = await enter(DEF);
-  check('a raid starts at the door', entered.raid?.tile === entranceTile(), entered);
+  check('a raid starts at the door', entered.raid?.tile === entranceTile(DEF), entered);
   check('...with a full budget', entered.raid?.energy === RAID_RUN.START_ENERGY);
   check('...and the defender named', entered.raid?.defender?.name === 'Defender');
   check('you cannot raid yourself', (await enter(ATT)).error === 'cannot_raid_yourself');
@@ -69,7 +69,7 @@ async function main() {
   // The view is PARTIAL: only where you have been, and its neighbours.
   const seen = entered.raid.view.length;
   check('the board is revealed by walking, not all at once',
-    seen > 0 && seen <= 1 + burrowNeighbors(entranceTile()).length, seen);
+    seen > 0 && seen <= 1 + burrowNeighbors(DEF, entranceTile(DEF)).length, seen);
   check('a raider is never told where traps are',
     !JSON.stringify(entered.raid).includes('"traps"'), Object.keys(entered.raid));
 
@@ -79,13 +79,15 @@ async function main() {
   check('a non-integer tile is refused', (await step(1.5)).error === 'not_adjacent');
 
   // Walk towards the field, greedily by distance.
-  const dist = distanceToField();
+  // The defender's id IS their burrow's seed: the ground is grown from it on
+  // both sides, so this walks the same homestead the route validates against.
+  const dist = distanceToField(DEF);
   let guard = 0;
   let last = entered.raid;
   while (!last.finished && guard++ < 40) {
     const here = last.raid?.tile ?? last.tile;
-    const next = burrowNeighbors(here)
-      .sort((a, b) => (dist.get(a) ?? 99) - (dist.get(b) ?? 99))[0];
+    const next = burrowNeighbors(DEF, here)
+      .sort((a: number, b: number) => (dist.get(a) ?? 99) - (dist.get(b) ?? 99))[0];
     const out = await step(next);
     if (out.error) { check(`walking failed: ${out.error}`, false, out); break; }
     last = out.raid?.finished ? { ...out, finished: true } : { raid: out.raid, finished: false };
@@ -113,7 +115,8 @@ async function main() {
   // ── Traps actually cost the raider ──────────────────────────────────────
   await reset();
   // Mine every tile next to the door, so the first step MUST spring one.
-  const doorway = burrowNeighbors(entranceTile()).filter((t) => burrowCell(t) === 'ground');
+  const doorway = burrowNeighbors(DEF, entranceTile(DEF))
+    .filter((t: number) => burrowCell(DEF, t) === 'ground');
   await db.insert(traps).values(doorway.map((tile) => ({ ownerId: DEF, tile })));
 
   const mined = await enter(DEF);

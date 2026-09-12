@@ -11,8 +11,8 @@
  *    was drawn a quarter too large, overlapping its neighbours instead of
  *    lining up with the ground it names.
  *
- * 2. The board ran off the canvas. `BURROW_ORIGIN_X/Y` and the grid size are
- *    tuned by eye against the painting, and a pass that grew the board without
+ * 2. The board ran off the canvas. The origin and the grid size were tuned by
+ *    eye against the painting, and a pass that grew the board without
  *    re-solving the origin pushed most of the cells past the right and bottom
  *    edges. On a 960x540 canvas the tiles were simply somewhere else.
  *
@@ -21,9 +21,11 @@
  * the overflow is invisible precisely because the tiles that are gone are the
  * ones you cannot see. Red numbers mean cells are off-screen.
  *
- * Burrow/Calibration answers a different question — does the board sit on the
- * right PAINTED ground. This one answers: is it on screen, the right size, and
- * can you click it.
+ * The painting those two faults were measured against is gone — the ground is
+ * generated tiles now — but the question this story asks survives it intact,
+ * and is if anything sharper: the board is a different shape for every player,
+ * so "is it on screen, the right size, and can you click it" has to be true
+ * for all of them rather than for one tuned layout.
  */
 import { useEffect, useRef, useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
@@ -33,28 +35,30 @@ import { SceneManager } from '@/game/SceneManager';
 import { loadAllAssets } from '@/game/services/AssetLoader';
 import { initTileTextures } from '@/game/services/TileTextures';
 import {
-  BURROW_COLS, BURROW_ROWS, BURROW_HALF_W, BURROW_HALF_H,
-  burrowCell, burrowTilePos, isTrappable, setBurrowTileSize,
+  BURROW_COLS, BURROW_ROWS, BURROW_HALF_W, BURROW_HALF_H, setBurrowTileSize,
 } from '@/config/burrowConfig';
+import { burrowCell, isTrappable } from '@/game/burrow/board';
+import { burrowTileScreen } from '@/game/burrow/screen';
 import { GAME_W, GAME_H } from '@/game/Application';
 import { boardCamFraming } from '@/game/scenes/burrowCamera';
 
 interface Args {
+  /** Whose burrow. The ground is grown from it — see game/burrow/board. */
+  seed: string;
   /** Placement mode. Off, the screen is a picture of a home — no grid at all. */
   placing: boolean;
   /**
    * The size of ONE CELL, in art pixels.
    *
-   * THE knob for "make the tiles bigger", now that the camera is a constant.
-   * It changes how much painted ground one cell covers, so the homestead keeps
-   * its size and only the grid gets coarser or finer.
+   * THE knob for "make the tiles bigger". It changes how much ground one cell
+   * covers, so the homestead keeps its shape and only the grid — and the
+   * terrain drawn from it — gets coarser or finer.
    *
-   * It only reads as a real lever because the camera stopped compensating: back
-   * when `boardCam` refitted the board to the frame, 34px and 80px cells both
-   * came out at 46.8px on screen. See burrowCamera's boardCam.
-   *
-   * Watch the report: past a point a bigger cell walks the board off the canvas,
-   * and those cells are simply unreachable.
+   * The camera fits the board again (it has to: every burrow is a different
+   * shape), so this no longer changes the cell's size on screen the way it did
+   * while the camera was a constant. What it changes is the RESOLUTION of the
+   * homestead: bigger cells mean the same 19x19 island drawn larger, with the
+   * camera pulling back to keep it framed.
    */
   tile: number;
 }
@@ -65,14 +69,14 @@ interface Args {
  * Computed from the same config the scene reads, so it cannot drift from what
  * is drawn. This is the measurement the missing grid needed and nobody had.
  */
-function boardReport() {
+function boardReport(seed: string) {
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   let cells = 0, trappable = 0;
   for (let i = 0; i < BURROW_COLS * BURROW_ROWS; i++) {
-    if (burrowCell(i) === 'blocked') continue;
+    if (burrowCell(seed, i) === 'blocked') continue;
     cells++;
-    if (isTrappable(i)) trappable++;
-    const { x, y } = burrowTilePos(i);
+    if (isTrappable(seed, i)) trappable++;
+    const { x, y } = burrowTileScreen(seed, i);
     minX = Math.min(minX, x - BURROW_HALF_W);
     maxX = Math.max(maxX, x + BURROW_HALF_W);
     minY = Math.min(minY, y - BURROW_HALF_H);
@@ -80,7 +84,7 @@ function boardReport() {
   }
   // The pulled-back shot is what placement actually uses, so the fit that
   // matters is measured through the camera rather than against the raw canvas.
-  const framing = boardCamFraming(GAME_W, GAME_H);
+  const framing = boardCamFraming(seed, GAME_W, GAME_H);
   return {
     minX, maxX, minY, maxY, cells, trappable,
     grid: `${BURROW_COLS}x${BURROW_ROWS}`,
@@ -92,12 +96,12 @@ function boardReport() {
   };
 }
 
-function Scene({ placing, tile }: Args) {
+function Scene({ seed, placing, tile }: Args) {
   const [placed, setPlaced] = useState<number[]>([]);
   // Before anything measures or draws. The story remounts on every arg change,
   // so this runs ahead of the scene each time the slider moves.
   setBurrowTileSize(tile);
-  const r = boardReport();
+  const r = boardReport(seed);
   const ok = r.onScreen;
 
   return (
@@ -105,13 +109,14 @@ function Scene({ placing, tile }: Args) {
       <PixiStage
         width={GAME_W}
         height={GAME_H}
-        background="#3f9142"
+        background="#1eaac4"
         prepare={() => loadAllAssets()}
         setup={(stage, app) => {
           initTileTextures(app.renderer);
           const scenes = new SceneManager(app, stage);
           let scene: BurrowScene | null = null;
           void scenes.start(BurrowScene, {
+            seed,
             traps: [],
             placing,
             onPlace: (tile: number) => {
@@ -146,11 +151,20 @@ ${placed.length} traps placed`}
   );
 }
 
+/** A few player ids to flip between — the ground is grown from these. */
+const SEEDS = [
+  'sol:9xQeWvG816AUJHqBkAS8fcCQoFEQx7WVwCz1AKDsN5Tk',
+  'guest:3f2a1c9e-5b4d-4e6f-8a7b-2c1d0e9f8a7b',
+  'player-1',
+  'player-2',
+] as const;
+
 const meta: Meta<Args> = {
   title: 'Burrow/Placing',
   render: (args) => <Scene key={JSON.stringify(args)} {...args} />,
-  args: { placing: true, tile: 56 },
+  args: { seed: SEEDS[0], placing: true, tile: 40 },
   argTypes: {
+    seed: { control: 'select', options: SEEDS },
     tile: { control: { type: 'range', min: 24, max: 80, step: 2 } },
   },
 };
@@ -163,11 +177,16 @@ type Story = StoryObj<Args>;
  *
  * Click a lit tile: it should take a trap, and the counter below should move.
  */
-export const Placing: Story = {
-  args: {
-    tile: 36
-  }
-};
+export const Placing: Story = { args: { tile: 40 } };
+
+/**
+ * Every burrow is a different shape — the reason the board is generated at all.
+ *
+ * Flip the `seed` control: the coastline, the cliffs, the door and the garden
+ * all move. If two of these look like the same place with the traps shifted,
+ * the generator is not doing its job.
+ */
+export const AnotherPlayer: Story = { args: { seed: SEEDS[2] } };
 
 /** The same board with the grid down — a home, not a spreadsheet. */
 export const AtRest: Story = { args: { placing: false } };

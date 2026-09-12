@@ -15,15 +15,41 @@ import { loadAllAssets } from '@/game/services/AssetLoader';
 import { initTileTextures } from '@/game/services/TileTextures';
 import {
   walkableTiles, isTrappable, entranceTile, shortestRaidPath, burrowNeighbors,
-} from '@/config/burrowConfig';
+} from '@/game/burrow/board';
 import { distanceToField, trapClues, raiderView } from '@/lib/game/raid';
 import { TRAPS } from '@config/tuning';
 
+/**
+ * A handful of burrows to flip between.
+ *
+ * Shaped like real player ids, because that is what the seed is — and looking
+ * at four of them side by side is the only way to see whether the generator
+ * makes PLACES or makes noise.
+ */
+const SEEDS = [
+  'sol:9xQeWvG816AUJHqBkAS8fcCQoFEQx7WVwCz1AKDsN5Tk',
+  'guest:3f2a1c9e-5b4d-4e6f-8a7b-2c1d0e9f8a7b',
+  'player-1',
+  'player-2',
+  'player-3',
+] as const;
+
 interface Args {
+  /**
+   * Whose burrow to look at.
+   *
+   * The ground is grown from this (see `game/burrow/board`), so changing it is
+   * the point of the control: a burrow is no longer one picture every player
+   * shares, and the only way to judge a GENERATOR is to look at several of
+   * what it makes.
+   */
+  seed: string;
   /** How many traps are already down. */
   traps: number;
   /** Placement mode: the grid appears only while it is on. */
   placing: boolean;
+  /** Which building stands on it — the burrow's level. */
+  level: number;
 }
 
 /**
@@ -31,23 +57,23 @@ interface Args {
  * STEPS. Sorting by tile index (the first cut) is not distance at all — it put
  * traps beside the door instead of across the approach.
  */
-function defaultTraps(n: number): number[] {
-  const dist = distanceToField();
-  return walkableTiles()
-    .filter(isTrappable)
+function defaultTraps(seed: string, n: number): number[] {
+  const dist = distanceToField(seed);
+  return walkableTiles(seed)
+    .filter((t) => isTrappable(seed, t))
     .sort((a, b) => (dist.get(a) ?? 99) - (dist.get(b) ?? 99))
     .slice(0, n);
 }
 
-function Scene({ traps, placing }: Args) {
-  const [placed, setPlaced] = useState<number[]>(defaultTraps(traps));
+function Scene({ seed, traps, placing, level }: Args) {
+  const [placed, setPlaced] = useState<number[]>(defaultTraps(seed, traps));
 
   return (
     <div>
       <PixiStage
         width={960}
         height={540}
-        background="#3f9142"
+        background="#1eaac4"
         prepare={() => loadAllAssets()}
         setup={(stage, app) => {
           initTileTextures(app.renderer);
@@ -55,7 +81,9 @@ function Scene({ traps, placing }: Args) {
           let scene: BurrowScene | null = null;
 
           void scenes.start(BurrowScene, {
-            traps: defaultTraps(traps),
+            seed,
+            level,
+            traps: defaultTraps(seed, traps),
             placing,
             onPlace: (tile: number) => {
               scene?.addTrap(tile);
@@ -63,14 +91,22 @@ function Scene({ traps, placing }: Args) {
             },
           }).then(() => {
             scene = scenes.currentScene as BurrowScene;
+            // Exposed for the same reason PixiStage exposes `__PIXI_APP__`:
+            // a raid is a SEQUENCE, and the faults worth catching live several
+            // steps in. Driving the real scene from a script is the only way
+            // to look at step 7 without clicking to it by hand.
+            (globalThis as { __BURROW_SCENE?: BurrowScene }).__BURROW_SCENE = scene;
           });
 
-          return () => scenes.destroyCurrent();
+          return () => {
+            delete (globalThis as { __BURROW_SCENE?: BurrowScene }).__BURROW_SCENE;
+            scenes.destroyCurrent();
+          };
         }}
       />
       <p style={{ color: '#8b949e', font: '12px ui-monospace, monospace', marginTop: 8 }}>
         {placed.length} traps down &middot; cap {TRAPS.MAX_PLACED} &middot; entrance tile{' '}
-        {entranceTile()} &middot; shortest crossing {shortestRaidPath()} steps
+        {entranceTile(seed)} &middot; shortest crossing {shortestRaidPath(seed)} steps
       </p>
     </div>
   );
@@ -79,8 +115,12 @@ function Scene({ traps, placing }: Args) {
 const meta: Meta<Args> = {
   title: 'Burrow/Board',
   render: (args) => <Scene key={JSON.stringify(args)} {...args} />,
-  args: { traps: 0, placing: false },
-  argTypes: { traps: { control: { type: 'range', min: 0, max: TRAPS.MAX_PLACED, step: 1 } } },
+  args: { seed: SEEDS[0], traps: 0, placing: false, level: 1 },
+  argTypes: {
+    seed: { control: 'select', options: SEEDS },
+    traps: { control: { type: 'range', min: 0, max: TRAPS.MAX_PLACED, step: 1 } },
+    level: { control: { type: 'range', min: 1, max: 6, step: 1 } },
+  },
 };
 export default meta;
 
@@ -111,11 +151,11 @@ export const Defended: Story = { args: { traps: TRAPS.MAX_PLACED } };
  * code paths onto one camera — the owner's `setPlacing`, and a raider's
  * `setRaid` — and only the second one has to get its ordering right.
  */
-function CameraHarness({ loop }: { loop: boolean }) {
+function CameraHarness({ loop, seed = SEEDS[0] }: { loop: boolean; seed?: string }) {
   const sceneRef = useRef<BurrowScene | null>(null);
   const [mode, setMode] = useState<'home' | 'placing' | 'raiding'>('home');
 
-  const traps = defaultTraps(4);
+  const traps = defaultTraps(seed, 4);
 
   /**
    * A raid several steps in, so the overlay is a SHAPE rather than one tile.
@@ -127,19 +167,25 @@ function CameraHarness({ loop }: { loop: boolean }) {
    * puts clue numbers across the middle of the board where they can be judged.
    */
   const raid = () => {
-    const dist = distanceToField();
-    const start = entranceTile();
+    const dist = distanceToField(seed);
+    const start = entranceTile(seed);
     const visited = [start];
     let at = start;
     for (let i = 0; i < 4; i++) {
-      const next = burrowNeighbors(at)
+      const next = burrowNeighbors(seed, at)
         .sort((a, b) => (dist.get(a) ?? 99) - (dist.get(b) ?? 99))[0];
       if (next === undefined || (dist.get(next) ?? 99) >= (dist.get(at) ?? 99)) break;
       at = next;
       visited.push(at);
     }
-    const view = raiderView(visited, trapClues(traps), false);
-    return { view, at, steps: burrowNeighbors(at), onStep: () => {} };
+    const view = raiderView(seed, visited, trapClues(seed, traps), false);
+    // The harness raids the SAME burrow it is standing in, which no real raid
+    // ever does — it is the camera being judged here, not the ground.
+    return {
+      view, at, seed, walked: visited,
+      steps: burrowNeighbors(seed, at),
+      onStep: () => {},
+    };
   };
 
   const go = (next: 'home' | 'placing' | 'raiding') => {
@@ -148,7 +194,7 @@ function CameraHarness({ loop }: { loop: boolean }) {
     setMode(next);
     // Leaving a raid has to be told to the scene explicitly — the raid overlay
     // is what is holding the camera out, not the placing flag.
-    scene.setRaid(next === 'raiding' ? raid() : null);
+    void scene.setRaid(next === 'raiding' ? raid() : null);
     scene.setPlacing(next === 'placing');
   };
 
@@ -185,12 +231,13 @@ function CameraHarness({ loop }: { loop: boolean }) {
       <PixiStage
         width={960}
         height={540}
-        background="#3f9142"
+        background="#1eaac4"
         prepare={() => loadAllAssets()}
         setup={(stage, app) => {
           initTileTextures(app.renderer);
           const scenes = new SceneManager(app, stage);
           void scenes.start(BurrowScene, {
+            seed,
             traps,
             placing: false,
             onPlace: (tile: number) => sceneRef.current?.addTrap(tile),
