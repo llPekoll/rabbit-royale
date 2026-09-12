@@ -194,7 +194,35 @@ export function useShop(token: string | null) {
     return true;
   }, [token, auth, refresh]);
 
-  return { shop, traps, busy, note, setNote, refresh, buy, placeTrap, removeTrap };
+  /**
+   * Lift EVERY bomb off the board, in one call.
+   *
+   * The same contract as `removeTrap` — the markers come off only once the
+   * server says the ground is clear — but one round trip instead of eight, so
+   * a defender rearranging their whole defence does not tap their way through
+   * it one diamond at a time.
+   *
+   * Returns the tiles that were cleared, so the caller can take exactly those
+   * markers off the board rather than guessing from its own copy of the list.
+   */
+  const clearTraps = useCallback(async (): Promise<number[] | null> => {
+    if (!token) return null;
+    setNote(null);
+    const had = traps?.placed ?? [];
+    const res = await fetch('/api/traps?all=1', auth({ method: 'DELETE' }))
+      .then((r) => r.json()).catch(() => ({ error: 'network' }));
+
+    if (res.error) {
+      setNote(shopMessage(res.error));
+      return null;
+    }
+    setTraps(res);
+    // The bag got them back, so the shop's counts are stale too.
+    void refresh();
+    return had;
+  }, [token, auth, refresh, traps]);
+
+  return { shop, traps, busy, note, setNote, refresh, buy, placeTrap, removeTrap, clearTraps };
 }
 
 /** What a successful purchase says. Named per item, because "bought 1 item" is

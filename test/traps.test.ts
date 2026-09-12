@@ -8,7 +8,7 @@
 import { describe, expect, it } from 'vitest';
 import { TRAPS } from '../config/tuning';
 import {
-  availableTraps, freeTraps, spendTrap, refundTrap, placementBlocker,
+  availableTraps, freeTraps, spendTrap, refundTrap, refundTraps, placementBlocker,
 } from '../src/lib/game/traps';
 
 const HOUR = 3_600_000;
@@ -123,6 +123,51 @@ describe('refundTrap', () => {
     // ignored the allowance would let a lift smuggle a player past MAX_HELD.
     const brimming = { trapsOwned: TRAPS.MAX_HELD, trapsClaimedAt: ago(TRAPS.REFILL_MS) };
     expect(availableTraps(refundTrapRow(brimming))).toBe(TRAPS.MAX_HELD);
+  });
+});
+
+/**
+ * Clearing the whole board hands back exactly what was on it.
+ *
+ * The board-clear button lifts up to MAX_PLACED traps in one call, so the
+ * refund has to be the single-trap rule applied N times — not N saturating
+ * adds, and never a rewind of the allowance clock, which is the exploit
+ * `refundTrap` exists to avoid.
+ */
+describe('refundTraps', () => {
+  const fresh = () => ({ trapsOwned: 0, trapsClaimedAt: new Date() });
+
+  it('gives back every trap that was on the board', () => {
+    expect(refundTraps(fresh(), 8).trapsOwned).toBe(8);
+  });
+
+  it('agrees with refundTrap for a single one', () => {
+    const row = { trapsOwned: 2, trapsClaimedAt: new Date() };
+    expect(refundTraps(row, 1)).toEqual(refundTrap(row));
+  });
+
+  it('never lifts the bag past what it can hold', () => {
+    const row = { trapsOwned: 10, trapsClaimedAt: new Date() };
+    expect(refundTraps(row, 8).trapsOwned).toBeLessThanOrEqual(TRAPS.MAX_HELD);
+  });
+
+  it('counts the free allowance against the cap, like refundTrap', () => {
+    // A full day's wait, so the free allowance stands at its maximum and the
+    // room left for returned stock is that much smaller.
+    const row = { trapsOwned: 0, trapsClaimedAt: ago(TRAPS.REFILL_MS) };
+    expect(refundTraps(row, 8).trapsOwned)
+      .toBe(Math.min(TRAPS.MAX_HELD - TRAPS.FREE_PER_DAY, 8));
+  });
+
+  it('does not rewind the allowance clock', () => {
+    // Stock only — never `trapsClaimedAt`, or clearing and re-mining on a loop
+    // would mine the burrow for free.
+    expect(Object.keys(refundTraps(fresh(), 8))).toEqual(['trapsOwned']);
+  });
+
+  it('is a no-op for an empty board', () => {
+    const row = { trapsOwned: 3, trapsClaimedAt: new Date() };
+    expect(refundTraps(row, 0).trapsOwned).toBe(3);
   });
 });
 

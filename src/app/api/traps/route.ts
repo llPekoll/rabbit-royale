@@ -16,7 +16,7 @@ import { and, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { players, traps } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
-import { availableTraps, placementBlocker, refundTrap, spendTrap } from '@/lib/game/traps';
+import { availableTraps, placementBlocker, refundTrap, refundTraps, spendTrap } from '@/lib/game/traps';
 import { isTrappable } from '@/game/burrow/board';
 import { TRAPS } from '@config/tuning';
 
@@ -123,6 +123,35 @@ export async function DELETE(req: Request) {
   // bomb worked on localhost and in Storybook, and did nothing in production,
   // the route reading an empty body and answering `bad_tile`.
   const url = new URL(req.url);
+
+  // `?all=1` clears the WHOLE board in one gesture.
+  //
+  // Rearranging a defence means lifting several bombs, and one tap per tile on
+  // a 19x19 grid is a chore the player does before every change of plan. Same
+  // rules as lifting one, applied to everything at once: one transaction, and
+  // the refund is stock returned rather than allowance rewound, so clearing
+  // and re-mining creates nothing.
+  if (url.searchParams.get('all') !== null) {
+    const player = await db.query.players.findFirst({ where: eq(players.id, session.sub) });
+    if (!player) return Response.json({ error: 'unknown player' }, { status: 404 });
+
+    const cleared = await db.transaction(async (tx) => {
+      // The DELETE's `returning` is what says how many were actually there, so
+      // the refund can never be paid for traps a concurrent request already
+      // lifted — the same reason the single-tile path deletes first.
+      const rows = await tx.delete(traps)
+        .where(eq(traps.ownerId, session.sub))
+        .returning({ tile: traps.tile });
+      if (!rows.length) return 0;
+      await tx.update(players)
+        .set(refundTraps(player, rows.length))
+        .where(eq(players.id, session.sub));
+      return rows.length;
+    });
+
+    return Response.json({ cleared, ...(await trapState(session.sub)) });
+  }
+
   const fromQuery = url.searchParams.get('tile');
   const body = fromQuery === null
     ? ((await req.json().catch(() => ({}))) as { tile?: unknown })

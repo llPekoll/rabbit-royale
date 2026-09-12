@@ -81,8 +81,30 @@ export function spendTrap(
  * holding more than the bag allows.
  */
 export function refundTrap(row: TrapRow, now = Date.now()): { trapsOwned: number } {
+  return refundTraps(row, 1, now);
+}
+
+/**
+ * Give back `count` traps at once — clearing the whole board in one gesture.
+ *
+ * The same rule as `refundTrap`, applied N times rather than looped by the
+ * caller: stock returned, never allowance rewound, and the same MAX_HELD cap
+ * measured against the free allowance standing right now.
+ *
+ * It has to be one call rather than N, because the cap is not distributive: a
+ * defender lifting eight traps into a bag that can hold twelve, with three free
+ * already waiting, ends at nine — not at eight separate saturating adds, which
+ * is the same answer here but stops being so the moment either limit moves.
+ * One function, one place to be right.
+ */
+export function refundTraps(
+  row: TrapRow,
+  count: number,
+  now = Date.now(),
+): { trapsOwned: number } {
   const free = freeTraps(row, now);
-  return { trapsOwned: Math.min(TRAPS.MAX_HELD - free, row.trapsOwned + 1) };
+  const room = Math.max(0, TRAPS.MAX_HELD - free);
+  return { trapsOwned: Math.min(room, row.trapsOwned + Math.max(0, count)) };
 }
 
 /** Why a trap cannot be placed, or null when it can. */

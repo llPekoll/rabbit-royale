@@ -358,6 +358,20 @@ function Burrow() {
   }, [shop]);
 
   /**
+   * Lift every bomb off the board at once.
+   *
+   * The markers come off only for the tiles the SERVER says it cleared — the
+   * same rule as lifting one. Clearing a board and being told so is a change
+   * the player must be able to trust: a marker removed optimistically would
+   * show an undefended burrow that is still mined, or the reverse.
+   */
+  const clearTraps = useCallback(async () => {
+    const cleared = await shop.clearTraps();
+    if (!cleared) return;
+    for (const tile of cleared) handles.current?.burrow?.removeTrap(tile);
+  }, [shop]);
+
+  /**
    * TEMPORARY: `rrDiag()` in the browser console.
    *
    * The question no log could answer from the outside — WHAT IS ON TOP of the
@@ -1060,9 +1074,26 @@ function Burrow() {
               {/* Placing takes over the screen, so the way into the shop
                   steps aside for the way out of placement. */}
               {placing ? (
-                <button className="rr-btn" onClick={stopPlacing}>
-                  Done placing
-                </button>
+                <>
+                  <button className="rr-btn" onClick={stopPlacing}>
+                    Done placing
+                  </button>
+                  {/* Clear the board in one press.
+                      
+                      Rearranging a defence means lifting several bombs, and
+                      tapping them off one diamond at a time on a 19x19 grid is
+                      the chore that stands between a player and changing their
+                      mind. The traps come back to the bag, exactly as lifting
+                      one does, so this costs nothing but the gesture.
+                      
+                      Only offered when there is something to clear — a button
+                      that does nothing is worse than no button. */}
+                  {(shop.traps?.placed.length ?? 0) > 0 && (
+                    <button className="rr-btn ghost" onClick={clearTraps}>
+                      Clear all mines
+                    </button>
+                  )}
+                </>
               ) : (
                 <>
                   <ShopButton shop={shop.shop} onOpen={() => setShopOpen(true)} />
