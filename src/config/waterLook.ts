@@ -28,10 +28,10 @@ export const WATER_LOOK = {
    * The overhang is baked into the frame, so this is a dial and not the thing
    * that makes the coastline join up. The story's 0.88 tucks it further under
    * the land, which on a phone-sized board left the coast as a thin seam you
-   * had to look for. 1.15 pushes the same band back out past the shore so it
+   * had to look for. 1.2 pushes the same band back out past the shore so it
    * reads at a glance.
    */
-  overlap: 1.15,
+  overlap: 1.2,
 } as const;
 
 /** The flock, as `createDucks` takes it. */
