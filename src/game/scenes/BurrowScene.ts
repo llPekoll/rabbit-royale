@@ -377,6 +377,16 @@ export class BurrowScene implements Scene {
       hint.eventMode = 'static';
       hint.hitArea = new Polygon([0, -hh, hw, 0, 0, hh, -hw, 0]);
       hint.on('pointertap', () => {
+        // TEMPORARY: a tap on a mined cell does nothing in production and the
+        // server never sees a request, so the question is whether the tap even
+        // reaches here — and if it does, which guard turns it away.
+        console.log('[tap]', JSON.stringify({
+          tile: i,
+          placing: this.data.placing,
+          seed: this.data.seed,
+          trappable: isTrappable(this.data.seed, i),
+          mined: this.trapSprites.has(i),
+        }));
         if (!this.data.placing || !isTrappable(this.data.seed, i)) return;
         this.data.onToggle(i, this.trapSprites.has(i));
       });
