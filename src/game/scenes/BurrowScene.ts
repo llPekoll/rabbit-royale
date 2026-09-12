@@ -37,7 +37,7 @@ import { getBunnyAnimTextures } from '../services/AssetLoader';
 import { pixelText } from '../ui/PixelText';
 import * as Keys from '@/config/assetKeys';
 import { BURROW_COLS, BURROW_ROWS, BURROW_HALF_W, BURROW_HALF_H } from '@/config/burrowConfig';
-import { burrowCell, isTrappable } from '@/game/burrow/board';
+import { burrowCell, isTrappable, walkableTiles } from '@/game/burrow/board';
 import { burrowTileScreen, burrowDepth } from '@/game/burrow/screen';
 import { createBurrowTerrain, type BurrowTerrainView } from '@/game/burrow/BurrowTerrain';
 import { homeCam, boardCam, raidCam, type BurrowCam } from './burrowCamera';
@@ -219,6 +219,8 @@ export class BurrowScene implements Scene {
   /** Where the raider stands, so the camera can follow them. */
   private raiderAt = 0;
   private raiding = false;
+  /** TEMPORARY: the raid on screen is a `?reveal=1` one. See `wantedCam`. */
+  private revealed = false;
   /** Where the camera is now, so a re-entry does not re-tween to where it sits. */
   private cam: BurrowCam = homeCam();
   private onResize: (() => void) | null = null;
@@ -548,7 +550,17 @@ export class BurrowScene implements Scene {
     // A raid follows the raider; placing frames the whole homestead. They used
     // to share one answer, which was right while both sides saw the same fully
     // drawn board — see `raidCam` for why a hidden board needs its own shot.
-    if (this.raiding) return raidCam(this.data.seed, this.raiderAt);
+    // TEMPORARY (`?reveal=1`): a revealed raid is not a raid, it is somebody
+    // looking at a homestead. `raidCam`'s close shot exists to follow a raider
+    // who can only see a few cells and to keep the zoom from leaking how much
+    // they have uncovered — neither applies when the whole board is on screen,
+    // and at 1.25 the island simply runs off all four edges. Fit it instead.
+    // Goes with the flag.
+    if (this.raiding) {
+      return this.revealed
+        ? boardCam(this.data.seed)
+        : raidCam(this.data.seed, this.raiderAt);
+    }
     return this.data.placing ? boardCam(this.data.seed) : homeCam();
   }
 
@@ -708,6 +720,11 @@ export class BurrowScene implements Scene {
     // Set before setPlacing: it reframes, and a raid wants the pulled-back
     // board — without this the camera would fly home and straight back out.
     this.raiding = true;
+    // Inferred rather than plumbed through: the flag lives in the URL and the
+    // scene has no business reading it. A view carrying nearly every walkable
+    // cell can only be a revealed one — a real raider's view is their path
+    // plus its fringe, which is a fraction of the board.
+    this.revealed = state.view.length >= walkableTiles(this.data.seed).length * 0.9;
     // Before setPlacing, which reframes: the camera centres on the raider, so
     // it has to know where they are standing first.
     this.raiderAt = state.at;
