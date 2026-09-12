@@ -30,10 +30,20 @@ describe('the overlay does not swallow the board', () => {
 });
 
 describe('Pixi receives events at all', () => {
-  it('makes the stage interactive', () => {
-    // Pixi 8's stage is `passive` by default, which stops events reaching
-    // children even when those children are `static`.
-    expect(APP).toMatch(/stage\.eventMode\s*=\s*'static'/);
+  it('leaves the stage passive', () => {
+    // This assertion used to be the exact opposite, on the belief that a
+    // passive root stops events reaching `static` children. It does not —
+    // Pixi prunes a passive container only when `interactiveChildren` is off.
+    // A STATIC root is what breaks things: it puts the whole tree into
+    // interactive mode, so the topmost sprite containing the point ends the
+    // hit test and the search never reaches the diamond behind it. The burrow,
+    // whose taps live on the diamonds, went completely dead while the island
+    // (which resolves taps on its scene container, geometrically) kept
+    // working — which is why it took three days to see. Measured on the real
+    // scene with tools/tap-probe.mjs: passive hits `burrow-hint-N`, static
+    // hits the stage.
+    expect(APP).not.toMatch(/stage\.eventMode\s*=\s*'static'/);
+    expect(APP).not.toMatch(/stage\.eventMode\s*=\s*'dynamic'/);
   });
 
   it('gives the board a hit area that covers the gaps between diamonds', () => {

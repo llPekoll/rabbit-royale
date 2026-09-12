@@ -192,11 +192,32 @@ export async function createApp(
   window.addEventListener('resize', resize);
 
   pixi.stage.sortableChildren = true;
-  // Pixi 8's stage is `passive` by default, which stops events reaching
-  // children even when they are `static` — clicking and tapping the board did
-  // nothing at all and the game was keyboard-only. `static` here lets the
-  // hit-test descend without making the stage itself a target.
-  pixi.stage.eventMode = 'static';
+  // The stage stays `passive` — Pixi's default — and this is load-bearing.
+  //
+  // It was `static` for three days, on the belief that a passive root stops
+  // events reaching children even when those are `static`. That is not what
+  // Pixi 8 does: `EventBoundary._interactivePrune` skips a passive container
+  // only when its `interactiveChildren` is false, so a passive stage descends
+  // into everything and tests exactly the objects that asked to be tested.
+  // (The mouse really was dead at the time — the CSS spacer over the board
+  // was the cause, fixed in the same commit; this line rode along on the
+  // wrong theory.)
+  //
+  // A `static` root is worse than useless: `hitTestRecursive` passes the
+  // interactive mode DOWN the tree once it meets one, so under a static stage
+  // every sprite in the game is hit-tested by its bounds, and the topmost one
+  // that contains the point ENDS the search — returning an empty path that
+  // bubbles up to the nearest interactive ancestor. On the burrow, whose taps
+  // are handled by the placement diamonds themselves, that ancestor is the
+  // stage: a tree, a bush, or simply the rectangular bounds of the cell IN
+  // FRONT swallowed the tap before the diamond behind it was ever asked, and
+  // the probe reported `target: Container` with no parent — the stage.
+  //
+  // Measured on the real BurrowScene (tools/tap-probe.mjs), same cell, same
+  // click: passive → `burrow-hint-183` and a `[tap]`; static → the stage and
+  // nothing. The island never noticed either way, because its scene container
+  // is itself `static` with an all-covering hitArea and resolves the tile
+  // geometrically — which is why the bug was invisible there and total here.
 
   const scenes = new SceneManager(pixi, gameRoot);
   onScenes?.(scenes);
