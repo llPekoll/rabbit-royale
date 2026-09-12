@@ -774,7 +774,27 @@ export class BurrowScene implements Scene {
         // be pressed, and a still outline does not ask.
         gsap.to(cell, { alpha: STEP_ALPHA_DIM, duration: 0.9, yoyo: true, repeat: -1 });
       }
-      this.board.addChild(cell);
+      /**
+       * Into the cell's own terrain BLOCK, exactly as `buildBoard` mounts a
+       * placement diamond — and for the two reasons that note already gives.
+       *
+       * On the flat board these quads were siblings of nothing: they lay over
+       * the whole scene, so a step cell drew ON TOP of the bush and the rabbit
+       * standing on it, and a raised cell's diamond lapped over the cell
+       * behind it. `IsoIslandView.blocks` exists precisely to stop that — the
+       * cell's own grass is drawn between two neighbouring veils, so they
+       * cannot compound into the double-dark wedge every terrace edge wore.
+       *
+       * `mountVeil` also POSITIONS it: the block's own projection, not ours.
+       * Anything placed by hand alongside lands in a different space and
+       * drifts off the cell, which is what the trap markers used to do.
+       */
+      if (!this.terrain?.mountVeil(tile, cell)) {
+        // No block (off-island): keep the old behaviour rather than drop the
+        // cell, or a raid on a ragged coast would lose its steps.
+        cell.position.set(x, y);
+        this.board.addChild(cell);
+      }
       this.raidCells.push(cell);
 
       // The number. Absent under a smoke screen — and a zero is drawn as
@@ -785,8 +805,15 @@ export class BurrowScene implements Scene {
         label.anchor.set(0.5);
         label.scale.set(0.5);
         label.tint = CLUE_COLOURS[Math.min(clue, CLUE_COLOURS.length - 1)];
-        label.zIndex = burrowDepth(this.data.seed, tile) + 0.4;
-        this.board.addChild(label);
+        // Mounted in the same block as the diamond it belongs to, one step
+        // above it — a number left on the flat board would be read against a
+        // cell it no longer sits with once the terrain sorts.
+        label.position.set(0, -3);
+        if (!this.terrain?.mountVeil(tile, label, 3)) {
+          label.position.set(x, y - 3);
+          label.zIndex = burrowDepth(this.data.seed, tile) + 0.4;
+          this.board.addChild(label);
+        }
         this.raidLabels.push(label);
       }
     }
