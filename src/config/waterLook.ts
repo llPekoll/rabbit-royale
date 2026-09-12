@@ -23,10 +23,15 @@ export const WATER_LOOK = {
   /** The pale green-white of the pack's foam. */
   foamColor: 0xc6f0db,
   /**
-   * Slightly under 1: the overhang is baked into the frame, so this tucks the
-   * surf a little further under the land rather than making it join up.
+   * Above 1: how much of the surf shows in the WATER rather than under the land.
+   *
+   * The overhang is baked into the frame, so this is a dial and not the thing
+   * that makes the coastline join up. The story's 0.88 tucks it further under
+   * the land, which on a phone-sized board left the coast as a thin seam you
+   * had to look for. 1.15 pushes the same band back out past the shore so it
+   * reads at a glance.
    */
-  overlap: 0.88,
+  overlap: 1.15,
 } as const;
 
 /** The flock, as `createDucks` takes it. */
