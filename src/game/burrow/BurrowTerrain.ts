@@ -22,7 +22,7 @@ import { Container, Sprite, Texture } from 'pixi.js';
 import { IsoIslandView, loadIslandTileset, isoProject } from '@/game/island';
 import {
   BURROW_HALF_W, BURROW_HALF_H, BURROW_TIER_LIFT,
-  BURROW_ORIGIN_X, BURROW_ORIGIN_Y, BURROW_COLS, BURROW_ROWS, burrowTilePos,
+  BURROW_ORIGIN_X, BURROW_ORIGIN_Y, BURROW_COLS, BURROW_ROWS,
 } from '@/config/burrowConfig';
 import { burrowFor, burrowColRow, burrowIndex, burrowCell } from './board';
 import { mulberry32, seedFrom } from '@/lib/game/rng';
@@ -204,9 +204,18 @@ export async function createBurrowTerrain(
   const isLand = (x: number, y: number) =>
     x >= 0 && y >= 0 && x < BURROW_COLS && y < BURROW_ROWS
     && burrowCell(seed, burrowIndex(x, y)) !== 'blocked';
-  // Flat position: the surf lies at sea level, not lifted onto whatever tier
+  // The TERRAIN's own projection, not the board's `burrowTilePos`.
+  //
+  // `sea` is inside `island.view`, and the view carries an offset of its own
+  // (`bounds.origin`); `burrowTilePos` is expressed in the scene's frame with
+  // that offset already worked in. Mixing the two put the island's surf a
+  // constant (-352, -36) off its coast — a raft of pale tiles beside the land
+  // instead of a line on it. This is the same call `IsoIslandView.stamp`
+  // makes, so the surf lands on exactly the diamonds the ground was drawn on.
+  //
+  // Flat (tier 0): the surf lies at sea level, not lifted onto whatever tier
   // the land behind it rose to.
-  const at = (x: number, y: number) => burrowTilePos(burrowIndex(x, y));
+  const at = (x: number, y: number) => isoProject(x + 0.5, y + 0.5, 0, metrics);
 
   const water = createPackWater(
     await loadPackWater(), BURROW_COLS, BURROW_ROWS, isLand, at, WATER_LOOK,

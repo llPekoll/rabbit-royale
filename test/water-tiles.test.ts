@@ -26,6 +26,9 @@
  * stops the next one from being half-applied.
  */
 import { describe, expect, it } from 'vitest';
+import { isoProject } from '../src/game/island/iso';
+import { HALF_W, HALF_H, tilePos, toIndex } from '../src/config/gridConfig';
+import { TIER_LIFT } from '../src/lib/game/terrainBoard';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
@@ -110,6 +113,15 @@ describe('no scene draws the sea as tiles', () => {
       expect(src, site.file).toMatch(/createDucks\(/);
     });
 
+    it(`${site.name} places the surf in the terrain's own frame`, () => {
+      // The `at` callback handed to createPackWater/createDucks must project
+      // through `isoProject`, the same call `IsoIslandView.stamp` makes —
+      // never through the board's `tilePos`/`burrowTilePos`, which answer in
+      // the scene's frame and put the water a third of a board off the coast.
+      expect(src, site.file).toMatch(/const at = [^\n]*isoProject\(/);
+      expect(src, site.file).not.toMatch(/const at = [^\n]*(?:burrowT|t)ilePos\(/);
+    });
+
     it(`${site.name} takes its look from the shared constants`, () => {
       // Not inline numbers. Two scenes tuning their own foam is how the game
       // ends up with two different seas depending on the screen.
@@ -117,4 +129,32 @@ describe('no scene draws the sea as tiles', () => {
       expect(src, site.file).toMatch(/DUCK_LOOK/);
     });
   }
+
+  /**
+   * The surf is addressed in the TERRAIN's frame, not the board's.
+   *
+   * These are two different coordinate systems that agree on nothing but their
+   * spacing. `island.view` carries `bounds.origin` — the inset from the
+   * lattice's bounding box to its cell (0,0) — while the board's `tilePos`
+   * already has that worked into scene coordinates. The water lives INSIDE the
+   * view, so it must use the view's frame; addressing it with `tilePos`
+   * shipped once, and put the surf a constant (-352, -36) off the coast: a raft
+   * of pale tiles adrift beside the island instead of a line breaking on it.
+   *
+   * Pinned as arithmetic because it is arithmetic. A headless canvas cannot see
+   * a misplaced sprite, but the gap between the two projections is a number,
+   * and it is large — a third of the board — so this fails loudly if the call
+   * ever reverts to the board's helper.
+   */
+  it('the two projections really are different frames', () => {
+    const metrics = { w: HALF_W * 2, h: HALF_H * 2, z: TIER_LIFT };
+    // What `createPackWater` is handed (and what `IsoIslandView.stamp` uses).
+    const terrain = isoProject(0.5, 0.5, 0, metrics);
+    // What the BOARD would answer for the same cell.
+    const board = tilePos(toIndex(0, 0));
+
+    // Not equal, and not nearly equal: a fix that made them agree by accident
+    // would leave this test passing over a bug it was written to catch.
+    expect(Math.hypot(terrain.x - board.x, terrain.y - board.y)).toBeGreaterThan(100);
+  });
 });
