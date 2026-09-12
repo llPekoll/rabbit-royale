@@ -58,8 +58,9 @@ async function raidView(runId: string, revealAll = false) {
     tile: run.tile,
     energy: run.energy,
     trapsSprung: run.trapsSprung,
-    /** Tiles walked, plus their neighbours — nothing further. */
     /**
+     * Tiles walked, plus their neighbours — nothing further.
+     *
      * TEMPORARY — `?reveal=1` hands back the WHOLE homestead.
      *
      * A debug switch for looking at a generated burrow as a burrow, rather
@@ -150,6 +151,7 @@ export async function POST(req: Request) {
   const session = await getSession(req);
   if (!session) return Response.json({ error: 'unauthenticated' }, { status: 401 });
 
+  const reveal = new URL(req.url).searchParams.get('reveal') !== null;
   const body = (await req.json().catch(() => ({}))) as { defenderId?: unknown };
   if (typeof body.defenderId !== 'string') {
     return Response.json({ error: 'bad_request' }, { status: 400 });
@@ -171,7 +173,7 @@ export async function POST(req: Request) {
   const open = await db.query.raidRuns.findFirst({
     where: and(eq(raidRuns.attackerId, session.sub), isNull(raidRuns.endedAt)),
   });
-  if (open) return Response.json({ error: 'raid_in_progress', raid: await raidView(open.id) }, { status: 409 });
+  if (open) return Response.json({ error: 'raid_in_progress', raid: await raidView(open.id, reveal) }, { status: 409 });
 
   // Nobody gets farmed: one attack per victim per window.
   const recent = await db.query.raidRuns.findFirst({
@@ -194,7 +196,10 @@ export async function POST(req: Request) {
     visited: [start],
   }).returning({ id: raidRuns.id });
 
-  return Response.json({ raid: await raidView(run.id) });
+  // TEMPORARY: the flag has to ride the POST as well. This is the response
+  // that draws the board on ARRIVAL, so without it a revealed raid showed the
+  // usual nine cells until the first step.
+  return Response.json({ raid: await raidView(run.id, reveal) });
 }
 
 /** `{ tile }` — one step. The server decides everything that follows. */
@@ -307,7 +312,7 @@ export async function PATCH(req: Request) {
   });
 
   return Response.json({
-    raid: await raidView(run.id),
+    raid: await raidView(run.id, new URL(req.url).searchParams.get('reveal') !== null),
     sprungTrap: !!trap,
     outcome: {
       reachedField,

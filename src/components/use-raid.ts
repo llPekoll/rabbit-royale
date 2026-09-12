@@ -115,7 +115,7 @@ export function useRaid(token: string | null) {
     setNote(null);
     setOutcome(null);
     try {
-      const res = await fetch('/api/raid', auth({
+      const res = await fetch(`/api/raid${q}`, auth({
         method: 'POST',
         body: JSON.stringify({ defenderId }),
       })).then((r) => r.json());
@@ -131,7 +131,7 @@ export function useRaid(token: string | null) {
     } finally {
       setBusy(false);
     }
-  }, [token, auth]);
+  }, [token, auth, q]);
 
   const step = useCallback(async (tile: number) => {
     if (!token) return;
