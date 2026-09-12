@@ -1160,8 +1160,6 @@ function Burrow() {
           {game.recap && !spectating && (
             <Recap
               recap={game.recap}
-              energy={burrow?.energy ?? null}
-              onAgain={game.restart}
               onShop={goShopping}
               onHome={stopSpectating}
             />

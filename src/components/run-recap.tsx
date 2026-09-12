@@ -5,31 +5,32 @@ import type { RunRecap } from './use-game-socket';
 /**
  * The end of a run, and the way out of it.
  *
- * A recap whose only button was "Again" was a dead end for the player who most
- * needed a way forward: the runs that end because the tank ran dry are exactly
- * the ones where digging again is not an option, and the screen still offered
- * it as the single thing to do. So the recap asks the burrow what is actually
- * possible and offers THAT.
+ * EVERY run ends the same way: `resolveMove` kills the rabbit when, and only
+ * when, its energy hits zero (see the `energy <= 0` check in `run.ts`). A bomb
+ * does not end a run — it takes 8 energy and can be survived. So "Run over"
+ * and "the tank is empty" are THE SAME EVENT, and the refill is always the
+ * offer that matches the screen.
  *
- * Out of energy the choice is real and it is two-sided — buy a refill and keep
- * digging now, or go home and let the garden fill the bar for free. Both are
- * shown, and going home is the plain one: the shop is never the only door out
- * of an empty tank, or the wait becomes a toll.
+ * This used to be decided from the BURROW's energy instead, which is a
+ * different resource entirely — a right of entry, regenerating 12/hour to a
+ * ceiling of 60, while a run's own bar starts at 30 and is spent digging. The
+ * two never agreed, and the burrow's figure is not even debited by a run, so
+ * the empty-tank branch this file was written for could not fire: the recap
+ * offered "Again" to a player who had just run dry, which is the one thing
+ * they cannot do.
+ *
+ * The choice is real and two-sided — buy a refill and keep digging now, or go
+ * home and let the garden fill the bar for free. Both are shown, and going
+ * home is the plain one: the shop is never the only door out of an empty tank,
+ * or the wait becomes a toll.
  */
 export function Recap({
-  recap, energy, onAgain, onShop, onHome,
+  recap, onShop, onHome,
 }: {
   recap: RunRecap;
-  /** Out-of-run energy left in the burrow. Null while the burrow is loading. */
-  energy: number | null;
-  onAgain: () => void;
   onShop: () => void;
   onHome: () => void;
 }) {
-  // Null means "not known yet", not "empty" — offering a refill to a player
-  // who has energy would be a shop pitch dressed as help.
-  const dry = energy !== null && energy <= 0;
-
   return (
     <div className="rr-card" style={{ textAlign: 'center' }}>
       <h2 style={{ margin: '0 0 4px' }}>Run over</h2>
@@ -40,33 +41,20 @@ export function Recap({
         {' '}&middot; {formatRunTime(recap.durationMs)}
       </p>
 
-      {dry ? (
-        <>
-          {/* Why there is no "Again" here, said plainly — a button that
-              vanished with no explanation reads as a broken screen. */}
-          <p className="rr-note" style={{ margin: '0 0 10px' }}>
-            Out of energy.
-          </p>
-          <button onClick={onShop} style={{ width: '100%', marginBottom: 8 }}>
-            Get more energy
-          </button>
-          <button className="rr-btn ghost" onClick={onHome} style={{ width: '100%' }}>
-            Back to the burrow
-          </button>
-        </>
-      ) : (
-        <>
-          <button onClick={onAgain} style={{ width: '100%', marginBottom: 8 }}>
-            Again
-          </button>
-          {/* Leaving was always possible — the arrow below does it — but a
-              player who has just finished is deciding between two things, and
-              only one of them was written down. */}
-          <button className="rr-btn ghost" onClick={onHome} style={{ width: '100%' }}>
-            Back to the burrow
-          </button>
-        </>
-      )}
+      {/* Why there is no "Again", said plainly — a button that vanished with
+          no explanation reads as a broken screen. */}
+      <p className="rr-note" style={{ margin: '0 0 10px' }}>
+        Out of energy.
+      </p>
+      <button onClick={onShop} style={{ width: '100%', marginBottom: 8 }}>
+        Get more energy
+      </button>
+      {/* Leaving was always possible — the arrow below does it — but a player
+          who has just finished is deciding between two things, and only one of
+          them was written down. */}
+      <button className="rr-btn ghost" onClick={onHome} style={{ width: '100%' }}>
+        Back to the burrow
+      </button>
     </div>
   );
 }

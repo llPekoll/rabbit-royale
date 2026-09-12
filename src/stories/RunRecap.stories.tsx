@@ -1,10 +1,11 @@
 /**
  * The end of a run, and the way out of it.
  *
- * The question these answer: does the screen offer something a player can
- * actually DO? The recap used to end every run with a single "Again" button,
- * including the runs that ended because the tank ran dry — where digging again
- * is precisely the one thing that is not possible.
+ * The question this answers: does the screen offer something a player can
+ * actually DO? The recap used to end every run with a single "Again" button —
+ * but a run ONLY ends by running out of energy (`run.ts` kills the rabbit at
+ * `energy <= 0` and nowhere else), so digging again is precisely the one thing
+ * that is never possible here. There is one state, not three.
  *
  * Framed over the island, at the bottom of the overlay, because that is where
  * it appears: a card judged in the middle of an empty page is judged somewhere
@@ -16,7 +17,7 @@ import '@/app/globals.css';
 
 const ART = '/assets/island/land1.webp';
 
-function Harness({ energy }: { energy: number | null }) {
+function Harness() {
   return (
     <div style={{
       width: 760, height: 420, position: 'relative',
@@ -35,8 +36,6 @@ function Harness({ energy }: { energy: number | null }) {
         <div style={{ flex: 1 }} />
         <Recap
           recap={{ carrots: 42, tilesDug: 78, bombsHit: 3, durationMs: 214_000 }}
-          energy={energy}
-          onAgain={() => {}}
           onShop={() => {}}
           onHome={() => {}}
         />
@@ -54,19 +53,10 @@ export default meta;
 
 type Story = StoryObj<typeof Harness>;
 
-/** Energy left: another run is possible, so "Again" leads. */
-export const CanDigAgain: Story = { args: { energy: 24 } };
-
 /**
- * The tank is empty — the case the old recap had no answer for. "Again" would
- * be a button that cannot work, so it is replaced by the two things that can:
- * buy a refill, or go home and let the garden fill the bar for free.
+ * The only way a run ever ends: the tank is empty. "Again" would be a button
+ * that cannot work, so the screen offers the two things that can — buy a
+ * refill and keep digging now, or go home and let the garden fill the bar for
+ * free.
  */
-export const OutOfEnergy: Story = { args: { energy: 0 } };
-
-/**
- * The burrow has not answered yet. Null is "not known", NOT "empty" — pitching
- * a refill at a player who has energy would be a shop ad dressed as help, so
- * this state behaves as if a run is still possible.
- */
-export const BurrowStillLoading: Story = { args: { energy: null } };
+export const OutOfEnergy: Story = {};
