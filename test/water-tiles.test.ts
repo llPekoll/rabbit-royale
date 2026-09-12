@@ -131,6 +131,15 @@ describe('no scene draws the sea as tiles', () => {
       expect(src, site.file).not.toMatch(/\.view\.addChild\(sea\)/);
     });
 
+    it(`${site.name} keeps the sea out of hit testing`, () => {
+      // The surf is 128px of frame on a 44px cell, so it overhangs its
+      // neighbours on purpose. Interactive, it swallows their taps too — and
+      // the placement diamonds live in these same terrain blocks, so a bomb
+      // tapped near the coast answered with foam and did nothing.
+      expect(src, site.file).toMatch(/sea\.eventMode = 'none'/);
+      expect(src, site.file).toMatch(/sea\.interactiveChildren = false/);
+    });
+
     it(`${site.name} takes its look from the shared constants`, () => {
       // Not inline numbers. Two scenes tuning their own foam is how the game
       // ends up with two different seas depending on the screen.

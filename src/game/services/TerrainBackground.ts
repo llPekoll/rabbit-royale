@@ -158,6 +158,16 @@ export async function createTerrainBackground(
    */
   const sea = new Container();
   sea.zIndex = -1000;
+  // Decoration, never a target.
+  //
+  // A foam sprite is 128px of frame against a 44px cell, so it overhangs its
+  // neighbours by design — that spill is what joins the shore into a coastline.
+  // Left interactive it also swallows their TAPS: the placement diamonds are
+  // mounted in these very terrain blocks, so a bomb tapped near the coast
+  // answered with surf instead of its cell and the tap did nothing at all.
+  // `none` takes this whole layer, ducks included, out of hit testing.
+  sea.eventMode = 'none';
+  sea.interactiveChildren = false;
   island.ground.addChild(sea);
 
   const isLand = (x: number, y: number) =>
