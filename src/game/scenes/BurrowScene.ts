@@ -282,13 +282,20 @@ export class BurrowScene implements Scene {
   }
 
   /**
-   * The burrow was upgraded — show the level's building.
+   * The burrow was upgraded — show the level's building, and the bigger garden.
    *
-   * The ground, the board, the crop and the traps all stay exactly where they
-   * are: the level picks which building stands on the burrow's cell and
-   * nothing else, so an upgrade is one texture swap rather than a re-drawn
-   * homestead. (It used to be a whole new full-canvas painting, which is why
-   * every level's art had to be pre-aligned with every other level's.)
+   * The ground, the board and the traps all stay exactly where they are: the
+   * level picks which building stands on the burrow's cell, so that half of an
+   * upgrade is one texture swap rather than a re-drawn homestead. (It used to
+   * be a whole new full-canvas painting, which is why every level's art had to
+   * be pre-aligned with every other level's.)
+   *
+   * The CROP is the exception, because a bigger burrow holds more carrots and
+   * therefore grows more of them — see `plantsPerCell`. Re-sowing it is what
+   * makes the upgrade visible in the field and not only on the building, and
+   * it is cheap: a couple of dozen sprites on ground that is already drawn.
+   * The seed is unchanged, so the plants that were already there come back in
+   * the same places with the new ones filled in between.
    */
   setLevel(level: number | null | undefined): void {
     this.ownLevel = level;
@@ -296,8 +303,26 @@ export class BurrowScene implements Scene {
     // that landed mid-raid must not swap the victim's hut for the raider's
     // castle.
     if (this.data.seed !== this.ownSeed) return;
+    const grew = level !== this.data.level;
     this.data.level = level;
     this.terrain?.setLevel(level);
+    if (grew && this.crop) this.resowCrop();
+  }
+
+  /**
+   * Sow the field again at the current level, keeping what is on screen.
+   *
+   * A bare re-build would clear the field and regrow it from nothing, which is
+   * the picture `harvestGarden` uses to say "your carrots have been collected"
+   * — exactly the wrong thing to show someone who just spent carrots on an
+   * upgrade. So the fullness is carried across: the field the player was
+   * looking at is still standing, with more plants in it.
+   */
+  private resowCrop(): void {
+    const progress = this.data.gardenProgress ?? null;
+    this.crop?.destroy();
+    this.buildCrop();
+    this.crop?.setProgress(progress);
   }
 
   /**
@@ -306,10 +331,14 @@ export class BurrowScene implements Scene {
    * Sown on the FIELD TILES the owner's seed chose — see `CarrotCrop`. There
    * is no painted soil to line the plants up with any more, which is the point:
    * the furrows and the plants are now the same set of cells.
+   *
+   * Sown at the DEFENDER's level, `data.level`, rather than the viewer's: this
+   * is a picture of the burrow on screen, and during a raid that is somebody
+   * else's. `setLevel` re-sows it when the level changes.
    */
   private buildCrop(): void {
     const sheet = Texture.from(Keys.CARROT_GROWTH);
-    this.crop = new CarrotCrop(this.container, sheet, this.data.seed);
+    this.crop = new CarrotCrop(this.container, sheet, this.data.seed, this.data.level);
     this.crop.setProgress(this.data.gardenProgress ?? null);
   }
 
@@ -377,16 +406,6 @@ export class BurrowScene implements Scene {
       hint.eventMode = 'static';
       hint.hitArea = new Polygon([0, -hh, hw, 0, 0, hh, -hw, 0]);
       hint.on('pointertap', () => {
-        // TEMPORARY: a tap on a mined cell does nothing in production and the
-        // server never sees a request, so the question is whether the tap even
-        // reaches here — and if it does, which guard turns it away.
-        console.log('[tap]', JSON.stringify({
-          tile: i,
-          placing: this.data.placing,
-          seed: this.data.seed,
-          trappable: isTrappable(this.data.seed, i),
-          mined: this.trapSprites.has(i),
-        }));
         if (!this.data.placing || !isTrappable(this.data.seed, i)) return;
         this.data.onToggle(i, this.trapSprites.has(i));
       });

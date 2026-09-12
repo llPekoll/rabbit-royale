@@ -586,7 +586,29 @@ button { min-height: 44px; min-width: 44px; }
   width: 100%;
   margin: 0;
   padding-right: 12px;
+  /* TRANSPARENT TO THE POINTER, except on the panels themselves — the same
+     arrangement, for the same reason, as `.rr-overlay` above.
+
+     `flex: 1` stretches this column over the full height of the screen, and
+     `overflow-y: auto` makes it a scroll box: a rectangle of roughly 400x844
+     sitting on top of a canvas that fills the window. Its panels only occupy
+     the top of it, so the empty space below them was still an opaque sheet
+     over the board — and on the burrow screen the board is where the bombs
+     are. Placing one worked (the tap landed above, on a panel-free row the
+     column happened not to cover); LIFTING one, which is a tap on ground the
+     column did cover, silently did nothing. No request, no log, nothing to
+     see: the click never reached the canvas at all.
+
+     The children opt back in below. `> *` is safe HERE, unlike on
+     `.rr-overlay`: every direct child of this column is a real panel that
+     draws something, and the cards are `NineSlicePanel`s with no class of
+     their own to name. What made the blanket rule a bug over there was a flex
+     SPACER — an invisible 900px div whose whole job was to push the recap
+     down. This column has none: it is a scroll box, and its children stack
+     from the top with nothing but themselves between them. */
+  pointer-events: none;
 }
+.rr-burrow > * { pointer-events: auto; }
 
 /* On a phone there is no room to sit beside anything, so the column recentres
    and the wash goes flat and darker to keep the text legible over the art. */

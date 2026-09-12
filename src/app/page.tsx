@@ -334,8 +334,6 @@ function Burrow() {
    * bomb the server never lifted.
    */
   const onToggleTrap = useCallback(async (tile: number, mined: boolean) => {
-    // TEMPORARY: see the tap log in BurrowScene.
-    console.log('[onToggleTrap]', tile, 'mined:', mined);
     if (mined) {
       const ok = await shop.removeTrap(tile);
       if (ok) handles.current?.burrow?.removeTrap(tile);

@@ -128,11 +128,6 @@ export async function DELETE(req: Request) {
     ? ((await req.json().catch(() => ({}))) as { tile?: unknown })
     : { tile: fromQuery };
   const tile = Number(body.tile);
-  // TEMPORARY: lifting a bomb does nothing in production and the cause is not
-  // visible from here. Remove once it is understood.
-  console.log('[traps DELETE]', JSON.stringify({
-    url: req.url, fromQuery, tile, player: session.sub,
-  }));
   if (!Number.isInteger(tile)) return Response.json({ error: 'bad_tile' }, { status: 400 });
 
   const player = await db.query.players.findFirst({ where: eq(players.id, session.sub) });
@@ -150,7 +145,6 @@ export async function DELETE(req: Request) {
     await tx.update(players).set(refundTrap(player)).where(eq(players.id, session.sub));
     return row;
   });
-  console.log('[traps DELETE] removed:', JSON.stringify(removed));
   if (!removed) return Response.json({ error: 'no_trap_there' }, { status: 404 });
 
   return Response.json({ removed: tile, ...(await trapState(session.sub)) });

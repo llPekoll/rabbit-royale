@@ -76,3 +76,30 @@ describe('chrome across the wipe', () => {
     expect(PAGE).toMatch(/!shownRaid && !crossing/);
   });
 });
+
+/**
+ * The burrow column must not lie on the board.
+ *
+ * `.rr-overlay` learned this once already, and its comment says why: a
+ * full-height column over a full-screen canvas swallows every tap meant for
+ * the game. `.rr-burrow` is the same shape — `flex: 1` and `overflow-y: auto`
+ * make it a ~400x844 scroll box — and it had the same bug, found in production
+ * by measuring what `elementFromPoint` returned where the bombs are drawn: the
+ * section, not the canvas.
+ *
+ * Placing a bomb still worked, which is what made it hard to see: that tap
+ * lands on a row the panels happen to leave clear. Lifting one is a tap lower
+ * down, on ground the column covered — and it did nothing at all, with no
+ * request and no error to read.
+ */
+describe('the burrow column is transparent to the board', () => {
+  const CSS = readFileSync(new URL('../src/app/globals.css', import.meta.url), 'utf8');
+
+  it('lets taps through the column itself', () => {
+    expect(CSS).toMatch(/\.rr-burrow \{[^}]*pointer-events: none;/s);
+  });
+
+  it('gives the panels their clicks back', () => {
+    expect(CSS).toMatch(/\.rr-burrow > \* \{ pointer-events: auto; \}/);
+  });
+});
