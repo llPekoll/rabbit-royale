@@ -261,7 +261,7 @@ const meta: Meta<Args> = {
     surface: true, surfaceColor: '#9fd9cf', surfaceOpacity: 0.55, surfaceScale: 58,
     surfaceRadius: 0.34, surfaceLevels: 0.55, surfaceWobble: 0.22, surfaceDensity: 0.62, surfaceWidth: 0.035,
     surfaceDrift: 0.06, surfaceMorph: 0.35,
-    ducks: true, duckCount: 4, duckSpeed: 2, duckScale: 1.6,
+    ducks: true, duckCount: 4, duckSpeed: 2, duckScale: 1.2,
   },
   render: (args) => <Scene {...args} />,
 };

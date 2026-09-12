@@ -15,18 +15,37 @@
  * on arrival picks another; a target is only accepted if its cell is water, so
  * the flock stays in the sea without anyone computing a coastline.
  *
- * The check is done on the DESTINATION before setting off, not per frame on
- * the way. Testing every frame and turning back at the shore makes a duck
- * jitter along the coast, because the cell it is leaving and the cell it is
- * entering disagree for as long as it straddles them.
+ * The WHOLE PATH is checked before setting off, not just the destination.
+ * Testing only the endpoint let a duck take the straight line between two
+ * patches of open sea and swim clean under the island on the way — which is
+ * exactly what put one on top of a rock. Testing per frame instead is no good
+ * either: the cell a duck is leaving and the cell it is entering disagree for
+ * as long as it straddles them, so it jitters along the shore. Sampling the
+ * candidate path in advance settles both — a route that clips land is simply
+ * never chosen.
+ *
+ * ## It swims along a curve, not a straight line
+ *
+ * A duck that turns instantly at each waypoint reads as a machine following
+ * waypoints. Instead it carries a HEADING that turns toward the target a
+ * little each frame, so the corner between two legs comes out rounded and the
+ * whole track is a spline it drew itself. `uTurn` is how sharply it may turn:
+ * low is a wide, lazy arc.
+ *
+ * Because the heading lags the target, the duck can drift wide of the line —
+ * so the path check leaves a margin (`CLEARANCE`) around the route rather than
+ * testing the exact segment.
  *
  * ## Facing
  *
- * The art is drawn facing RIGHT, with its wake trailing left. Swimming left is
- * therefore a horizontal flip — `scale.x` negative — and not a second sheet.
- * The flip follows the sign of the horizontal travel only: a duck heading
- * almost straight "up" the diamond would otherwise flip back and forth on the
- * noise in its own heading.
+ * The art is drawn facing RIGHT, with its wake trailing left. The sprite is
+ * ROTATED to its heading so it genuinely points where it is going, and flipped
+ * vertically rather than horizontally when heading left — a plain rotation
+ * past 90 degrees would leave it swimming upside down.
+ *
+ * The angle is taken in SCREEN space, not map space: on this lattice a
+ * heading of (1,1) is straight down the diamond, and rotating by the map
+ * angle would point the duck off at 45 degrees to its own wake.
  */
 import { Assets, Container, Rectangle, Sprite, Texture } from 'pixi.js';
 
@@ -55,6 +74,22 @@ export interface DucksOptions {
   range?: number;
   /** Seconds a duck rests on arrival, before choosing again. */
   restMs?: number;
+  /**
+   * How much of its heading the sprite actually leans into, 0 to 1.
+   *
+   * The art is drawn from above and carries its own perspective, so a full
+   * rotation tips the duck over instead of turning it. Around a third reads as
+   * a heading without breaking the drawing.
+   */
+  tilt?: number;
+  /**
+   * How sharply a duck may turn, in radians per second.
+   *
+   * This is what makes the track a curve: the heading chases the target
+   * instead of snapping to it, so each corner is rounded off. High values
+   * straighten it back into waypoint-to-waypoint travel.
+   */
+  turn?: number;
 }
 
 export interface Ducks {
@@ -82,6 +117,8 @@ interface Duck {
   /** Where it is heading, in map space. */
   tx: number;
   ty: number;
+  /** Which way it is pointing, in MAP space radians. Turns toward the target. */
+  heading: number;
   /** Its own offset into the bob, so the flock never bobs in unison. */
   phase: number;
   /** Milliseconds left of its rest, or 0 when swimming. */
@@ -110,7 +147,8 @@ export function createDucks(
   options: DucksOptions = {},
 ): Ducks {
   const o = {
-    count: 3, speed: 2, frameMs: 220, scale: 1.6, range: 4, restMs: 1400, ...options,
+    count: 3, speed: 2, frameMs: 220, scale: 1.2, range: 4, restMs: 1400,
+    turn: 1.6, tilt: 0.32, ...options,
   };
 
   const view = new Container();
@@ -119,6 +157,33 @@ export function createDucks(
   view.sortableChildren = true;
   const ducks: Duck[] = [];
 
+  /**
+   * How far from land a route has to stay, in cells.
+   *
+   * The duck's heading lags its target, so it swings wide of the straight
+   * line between waypoints. Testing the exact segment would approve a route
+   * that the duck then overshoots onto the shore.
+   */
+  const CLEARANCE = 0.45;
+
+  /** True when every point along a->b is open water, margin included. */
+  const clearPath = (ax: number, ay: number, bx: number, by: number): boolean => {
+    const dist = Math.hypot(bx - ax, by - ay);
+    // Twice per cell, so no sample can step over a one-cell spit of land.
+    const steps = Math.max(2, Math.ceil(dist * 2));
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const px = ax + (bx - ax) * t;
+      const py = ay + (by - ay) * t;
+      // The four corners of the margin, not just the centre: a duck is a
+      // sprite with width, and a centre line can thread a gap its body cannot.
+      for (const [ox, oy] of [[0, 0], [CLEARANCE, 0], [-CLEARANCE, 0], [0, CLEARANCE], [0, -CLEARANCE]]) {
+        if (!isWater(Math.floor(px + ox), Math.floor(py + oy))) return false;
+      }
+    }
+    return true;
+  };
+
   /** A water cell picked at random, or null if the sea is too small to find one. */
   const openWater = (): { x: number; y: number } | null => {
     // Bounded rather than "until it finds one": an island that somehow filled
@@ -126,7 +191,9 @@ export function createDucks(
     for (let tries = 0; tries < 200; tries++) {
       const x = rng() * width;
       const y = rng() * height;
-      if (isWater(Math.floor(x), Math.floor(y))) return { x, y };
+      // Zero-length path: reuses the same margin test, so a duck never starts
+      // tucked against the shore where it has nowhere to turn.
+      if (clearPath(x, y, x, y)) return { x, y };
     }
     return null;
   };
@@ -142,6 +209,7 @@ export function createDucks(
     view.addChild(sprite);
     ducks.push({
       sprite, x: spot.x, y: spot.y, tx: spot.x, ty: spot.y,
+      heading: rng() * Math.PI * 2,
       phase: rng() * FRAMES, resting: rng() * o.restMs,
     });
   }
@@ -163,33 +231,73 @@ export function createDucks(
           const dy = d.ty - d.y;
           const dist = Math.hypot(dx, dy);
 
-          if (dist < 0.05) {
-            // Arrived: rest, then choose somewhere new nearby.
+          if (dist < 0.15) {
+            // Arrived: rest, then choose somewhere new it can actually reach.
             d.resting = o.restMs * (0.5 + rng());
-            for (let tries = 0; tries < 12; tries++) {
+            for (let tries = 0; tries < 16; tries++) {
               const nx = d.x + (rng() * 2 - 1) * o.range;
               const ny = d.y + (rng() * 2 - 1) * o.range;
               if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
-              // The DESTINATION is what gets tested — see the header for why
-              // checking every frame makes a duck jitter along the shore.
-              if (!isWater(Math.floor(nx), Math.floor(ny))) continue;
+              // The WHOLE ROUTE, not just where it ends: a straight line
+              // between two patches of open sea can pass under the island.
+              if (!clearPath(d.x, d.y, nx, ny)) continue;
               d.tx = nx;
               d.ty = ny;
               break;
             }
           } else {
-            d.x += (dx / dist) * step;
-            d.y += (dy / dist) * step;
-            // Face the way it travels. Horizontal sign only: on this lattice a
-            // duck heading up the diamond has a tiny dx that would flip it
-            // back and forth every frame.
-            const screenDx = dx - dy;
-            if (Math.abs(screenDx) > 0.01) d.sprite.scale.x = screenDx < 0 ? -o.scale : o.scale;
+            // Turn TOWARD the target rather than onto it, so the corner
+            // between two legs comes out as a curve. The difference is wrapped
+            // into -PI..PI first, or a duck needing to turn a little anticlockwise
+            // would instead swing most of the way round the other way.
+            const want = Math.atan2(dy, dx);
+            let turn = want - d.heading;
+            turn = Math.atan2(Math.sin(turn), Math.cos(turn));
+            const maxTurn = o.turn * (deltaMs / 1000);
+            d.heading += Math.max(-maxTurn, Math.min(maxTurn, turn));
+
+            const nx = d.x + Math.cos(d.heading) * step;
+            const ny = d.y + Math.sin(d.heading) * step;
+            // Last guard: however it drifted, it never enters a land cell.
+            if (isWater(Math.floor(nx), Math.floor(ny))) {
+              d.x = nx;
+              d.y = ny;
+            } else {
+              // Nose against the shore — give up on this leg and pick again.
+              d.tx = d.x;
+              d.ty = d.y;
+            }
           }
         }
 
         const p = at(d.x, d.y);
         d.sprite.position.set(p.x, p.y);
+
+        // Point the sprite along its heading, in SCREEN space.
+        //
+        // A map-space angle is wrong on this lattice: (1,1) is straight down
+        // the diamond, not down-right, so the duck would sit at 45 degrees to
+        // its own wake. Projecting the heading through the same (x-y, x+y)
+        // shear the board uses gives the angle actually seen.
+        const hx = Math.cos(d.heading);
+        const hy = Math.sin(d.heading);
+        const sx = hx - hy;
+        const sy = (hx + hy) * 0.5;
+        // Facing left is a horizontal FLIP plus the mirrored angle, not a
+        // rotation past 90 degrees — that would swim it upside down.
+        //
+        // The angle is then DAMPED by uTilt. At full strength the duck banks
+        // like an aeroplane: this art is drawn from above with its own built-in
+        // perspective, and tipping it 60 degrees breaks that perspective — the
+        // bird reads as falling over rather than as turning. A fraction of the
+        // angle keeps the hint of a heading while the duck stays upright.
+        if (sx < 0) {
+          d.sprite.scale.set(-o.scale, o.scale);
+          d.sprite.rotation = Math.atan2(-sy, -sx) * o.tilt;
+        } else {
+          d.sprite.scale.set(o.scale, o.scale);
+          d.sprite.rotation = Math.atan2(sy, sx) * o.tilt;
+        }
         // Depth, so a duck swimming south passes IN FRONT of one to the north
         // rather than through it. The water layer sorts on the same axis the
         // island does.
