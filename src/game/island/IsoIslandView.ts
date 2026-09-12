@@ -29,7 +29,7 @@
  * a tree on a low cell must be able to come out in front of a cliff behind it
  * and no stack of layers can express that.
  */
-import { Container, Graphics, Sprite, type Texture } from 'pixi.js';
+import { Container, Graphics, Rectangle, Sprite, type Texture } from 'pixi.js';
 import { mulberry32, seedFrom } from '@/lib/game/rng';
 import { blobCol, blobRow, edgeMask, ELEVATION_SURFACE_ROW } from './autotile';
 import { atOrAbove, levelAt, type IslandMap } from './generate';
@@ -1019,7 +1019,22 @@ export class IsoIslandView {
             // Interactive with no action: the wall CATCHES the pointer so it
             // never reaches the veil of the lower tile drawn under it. Rock on
             // screen, nothing under the cursor — which is what rock is.
+            //
+            // Confined to the cell it actually stands on. A face sprite is the
+            // sheet's full 64x64 while a cell is `w` by `z` — so hit-tested by
+            // its BOUNDING BOX (the default) each wall swallowed the taps of
+            // the cells around it as well as its own, and on a board whose
+            // cells are 44 wide that is 10px of dead ground on either side
+            // plus everything above and below. A bomb buried near a cliff then
+            // could not be tapped at all: the wall answered instead, with
+            // nothing, and the tap died there without ever reaching a handler.
+            //
+            // The rectangle is in the sprite's own space. A face is stamped
+            // with anchorY 0, so the box runs from the anchor DOWNWARD: the
+            // cell's own column is the middle `w` of it, `z` tall from the top.
+            const { w, z } = this.metrics;
             sprite.eventMode = 'static';
+            sprite.hitArea = new Rectangle((TILE - w) / 2, 0, w, z);
             sprite.label = 'wall';
             column.push(sprite);
           }

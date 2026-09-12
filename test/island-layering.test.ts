@@ -141,7 +141,16 @@ describe('the pointer sees the veil', () => {
   });
 
   it('lets the wall catch the pointer over the veil it covers', () => {
-    expect(VIEW).toMatch(/sprite\.eventMode = 'static';\s*sprite\.label = 'wall';/);
+    expect(VIEW).toMatch(/sprite\.eventMode = 'static';/);
+    expect(VIEW).toMatch(/sprite\.label = 'wall';/);
+  });
+
+  it('confines the wall to its own cell, so it swallows no neighbour', () => {
+    // A face sprite is the sheet's full 64x64 while a cell is `w` by `z`. Hit
+    // tested by its bounding box it also answered for the cells around it, and
+    // a bomb buried next to a cliff could not be tapped at all — the wall
+    // replied instead, with nothing. The rectangle is the cell's own column.
+    expect(VIEW).toMatch(/sprite\.hitArea = new Rectangle\(\(TILE - w\) \/ 2, 0, w, z\);/);
   });
 
   it('resolves a tap once', () => {
