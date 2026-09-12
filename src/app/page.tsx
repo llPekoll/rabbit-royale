@@ -1005,6 +1005,9 @@ function Burrow() {
           maxEnergy={burrow?.maxEnergy ?? 0}
           nextEnergyInMs={burrow?.nextEnergyInMs ?? null}
           busy={shop.busy}
+          // The same rail the Shed is set to, because `payEnergyUsdc` quotes on
+          // it — the price shown and the price charged are one choice.
+          payToken={payToken}
           payStage={usdc.stage}
           note={shop.note}
           error={usdc.error}

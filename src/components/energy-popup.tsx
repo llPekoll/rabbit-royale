@@ -23,6 +23,7 @@ import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { ShopItem, ShopState } from './use-shop';
 import type { PayStage } from './use-usdc-pay';
+import { priceLabel, type PayTokenId } from '@/lib/pay/tokens';
 
 export interface EnergyPopupProps {
   /** The shelf, for the energy line's price and its daily window. Null while loading. */
@@ -34,6 +35,15 @@ export interface EnergyPopupProps {
   /** Time to the next free point, or null when the bar is full. */
   nextEnergyInMs: number | null;
   busy: boolean;
+  /**
+   * The rail the purchase will settle on — chosen in the Shed, not here.
+   *
+   * This popup has no currency switch (one line, one price is the whole point
+   * of it), but it MUST price in the same rail the payment uses: a button that
+   * says `$0.99` and then asks the wallet for SOL is the one lie a money button
+   * cannot tell.
+   */
+  payToken: PayTokenId;
   payStage?: PayStage;
   note?: string | null;
   error?: string | null;
@@ -46,7 +56,7 @@ export interface EnergyPopupProps {
 }
 
 export function EnergyPopup({
-  shop, stock, energy, maxEnergy, nextEnergyInMs, busy, payStage = 'idle',
+  shop, stock, energy, maxEnergy, nextEnergyInMs, busy, payToken, payStage = 'idle',
   note, error, onBuy, onPayUsdc, onOpenShop, onClose,
 }: EnergyPopupProps) {
   useEffect(() => {
@@ -114,8 +124,9 @@ export function EnergyPopup({
                 className="rr-pay-usdc"
                 onClick={onPayUsdc}
                 disabled={busyNow || !item.hasRoom}
+                title={`$${item.usdc.toFixed(2)}`}
               >
-                ${item.usdc.toFixed(2)}
+                {priceLabel(item.usdc, payToken, shop?.rates?.[payToken])}
               </button>
             )}
           </div>

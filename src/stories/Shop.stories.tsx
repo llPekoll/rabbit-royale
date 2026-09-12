@@ -12,6 +12,10 @@
  *
  * Interactive: press Shop, buy things, watch a line hit its cap. Escape or a
  * tap on the scrim closes it, like every other drawer in the game.
+ *
+ * The currency switch in the header re-prices every tile. Worth flicking
+ * through: `0.0013 SOL` is a longer string than `$0.25`, and the money button
+ * shares its row with the carrot price at 330px.
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
@@ -49,6 +53,11 @@ function makeShop(stock: number, held: Partial<Record<ItemKind, number>>, usdcEn
       };
     }),
     traps: { held: held.trap ?? 3, placed: 2, maxPlaced: 8, drain: 8, freePerDay: 3 },
+    // Roughly what Jupiter was quoting when this was written. The story needs
+    // real-ish magnitudes rather than round numbers: SOL at $200 is what turns
+    // a $0.25 trap into `0.0013 SOL`, and whether THAT fits the button is the
+    // thing worth looking at here.
+    rates: usdcEnabled ? { usdc: 1, sol: 200, skr: 0.02 } : null,
   };
 }
 

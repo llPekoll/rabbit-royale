@@ -45,6 +45,8 @@ function makeShop(stock: number, refillsTaken: number, usdcEnabled: boolean): Sh
       };
     }),
     traps: { held: 3, placed: 2, maxPlaced: 8, drain: 8, freePerDay: 3 },
+    // Roughly the rates Jupiter was quoting when this was written.
+    rates: usdcEnabled ? { usdc: 1, sol: 200, skr: 0.02 } : null,
   };
 }
 
@@ -125,6 +127,9 @@ function Harness({
           maxEnergy={maxEnergy}
           nextEnergyInMs={nextEnergyInMs}
           busy={false}
+          // The Shed owns the rail; this story just states one.
+          payToken="usdc"
+
           note={note}
           onBuy={buy}
           onPayUsdc={usdcEnabled ? () => setNote('Would open the wallet.') : undefined}

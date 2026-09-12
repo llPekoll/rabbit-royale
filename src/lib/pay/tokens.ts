@@ -113,3 +113,30 @@ export function baseUnitsFor(usd: number, id: PayTokenId, usdPrice: number): num
 export function wholeFor(baseUnits: number, id: PayTokenId): number {
   return baseUnits / 10 ** PAY_TOKENS[id].decimals;
 }
+
+/**
+ * A dollar price, written in the rail the player chose.
+ *
+ * The shop prices in USD and this is the only place that turns that into words,
+ * so the tile, the confirmation line and any receipt cannot drift apart.
+ *
+ * `usdPrice` is the rate from the same feed the quote will use. When it is
+ * missing or nonsense the answer is the DOLLAR figure, not a guess: a shop that
+ * shows `0.0000 SOL` because a feed blinked is worse than one that briefly
+ * falls back to the price it actually charges in.
+ *
+ * SOL is shown to its own precision rather than to two places, because `0.00
+ * SOL` is not a price. See `displayDecimals`.
+ */
+export function priceLabel(usd: number, id: PayTokenId, usdPrice: number | undefined): string {
+  const token = PAY_TOKENS[id];
+  if (id === 'usdc') return `$${usd.toFixed(2)}`;
+  if (!usdPrice || !(usdPrice > 0) || !Number.isFinite(usdPrice)) return `$${usd.toFixed(2)}`;
+  const whole = usd / usdPrice;
+  // Round UP, the way `baseUnitsFor` does. The tile must never quote less than
+  // the wallet will be asked for — a price that grows at the signing step reads
+  // as a bait and switch even when it is a rounding artefact.
+  const places = token.displayDecimals;
+  const shown = Math.ceil(whole * 10 ** places) / 10 ** places;
+  return `${shown.toFixed(places)} ${token.symbol}`;
+}

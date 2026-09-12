@@ -21,6 +21,7 @@ import { grantItem } from '@/lib/game/grant';
 import { availableTraps } from '@/lib/game/traps';
 import { TRAPS } from '@config/tuning';
 import { enabledTokens } from '@/lib/pay/tokens';
+import { tokenUsdPrices } from '@/lib/pay/rates';
 import { treasuryAddress } from '@/lib/pay/solana';
 import { claimUnfinishedPayments } from './pay/route';
 
@@ -37,6 +38,26 @@ export async function shopState(playerId: string) {
   // placed their three free ones reads "0 traps" and concludes the game ate them.
   const placed = await db.$count(trapsTable, eq(trapsTable.ownerId, playerId));
 
+  const money = treasuryAddress() !== null;
+
+  /**
+   * What a dollar is worth on each rail, right now.
+   *
+   * Sent with the shelf so the tile can say `0.0021 SOL` instead of `$0.25`
+   * when the player has chosen SOL — a price in a currency you do not hold is
+   * a price you have to do arithmetic on before you can decide.
+   *
+   * It is INDICATIVE, not a quote. The binding number is still the one
+   * api/shop/pay freezes at signing time; this is the same feed read through
+   * the same cache, so the two agree to within five minutes of drift, and the
+   * tile says so by staying a rounded display figure.
+   *
+   * Failures here do not fail the shop: `tokenUsdPrices` already degrades to
+   * its last good price and then to its baked fallback, so the worst case is a
+   * slightly stale number rather than a shelf that will not load.
+   */
+  const rates = money ? await tokenUsdPrices() : null;
+
   return {
     stock: player.stock,
     items: shopShelf(bag, player.stock),
@@ -49,7 +70,7 @@ export async function shopState(playerId: string) {
     },
     /** Null when no treasury is configured — the UI hides the USDC button
      *  rather than offering a payment that cannot be made. */
-    usdcEnabled: treasuryAddress() !== null,
+    usdcEnabled: money,
     /**
      * The rails this deployment can actually take money on.
      *
@@ -57,7 +78,9 @@ export async function shopState(playerId: string) {
      * no SKR mint configured is a button that quotes and then fails, which is
      * worse than not offering it.
      */
-    tokens: treasuryAddress() !== null ? enabledTokens() : [],
+    tokens: money ? enabledTokens() : [],
+    /** USD per whole token, per rail. Null when the money route is off. */
+    rates,
   };
 }
 

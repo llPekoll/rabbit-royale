@@ -2,8 +2,9 @@
  * Three rails, one price, and a closed list.
  *
  * The shop prices in USD and settles in a token. That split is what keeps three
- * currencies from turning into eighteen buttons: the tile still says `$0.25`,
- * and the rail is chosen once for the whole shop.
+ * currencies from turning into eighteen buttons: the rail is chosen once for
+ * the whole shop, and every tile is then LABELLED in it — `priceLabel` is the
+ * one place that turns the dollar into words.
  *
  * The rules worth pinning are the ones that cost money when they break:
  *
@@ -20,6 +21,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   PAY_TOKENS, PAY_TOKEN_IDS, isPayTokenId, baseUnitsFor, wholeFor, tokenEnabled,
+  priceLabel,
 } from '../src/lib/pay/tokens';
 import { readFileSync } from 'node:fs';
 
@@ -108,5 +110,45 @@ describe('the price feed guards', () => {
     // Zero would make everything free.
     expect(RATES).toMatch(/lastGood/);
     expect(RATES).toMatch(/FALLBACK_USD/);
+  });
+});
+
+/**
+ * What the shelf SAYS a thing costs.
+ *
+ * The label is not the quote — the binding number is frozen server-side at
+ * signing — but it is what the player decides on, so the two must not be able
+ * to disagree in the direction that matters: the button may never quote less
+ * than the wallet is about to be asked for.
+ */
+describe('the price on the tile', () => {
+  it('keeps USDC in dollars, and ignores the rate entirely', () => {
+    // A dollar is a dollar. Routing USDC through the conversion would make the
+    // shop's own unit depend on a feed, which is how `$0.25` becomes `$0.2499`.
+    expect(priceLabel(0.25, 'usdc', 1)).toBe('$0.25');
+    expect(priceLabel(0.25, 'usdc', undefined)).toBe('$0.25');
+  });
+
+  it('writes the price in the chosen rail, at that rail\u2019s precision', () => {
+    // `0.00 SOL` is not a price. See displayDecimals.
+    expect(priceLabel(0.25, 'sol', 200)).toBe('0.0013 SOL');
+    expect(priceLabel(1.99, 'skr', 0.02)).toBe('99.50 SKR');
+  });
+
+  it('rounds UP, the way the quote does', () => {
+    // A price that GROWS at the signing step reads as a bait and switch even
+    // when it is a rounding artefact. 0.25/200 = 0.00125 exactly.
+    expect(priceLabel(0.25, 'sol', 200)).toBe('0.0013 SOL');
+    // ...and never below what baseUnitsFor will ask the wallet for.
+    const asked = wholeFor(baseUnitsFor(0.25, 'sol', 200), 'sol');
+    expect(Number.parseFloat(priceLabel(0.25, 'sol', 200))).toBeGreaterThanOrEqual(asked);
+  });
+
+  it('falls back to dollars rather than inventing a rate', () => {
+    // A feed that blinked must not turn a $0.25 trap into `0.0000 SOL` or, far
+    // worse, into `Infinity SOL`.
+    expect(priceLabel(0.25, 'sol', undefined)).toBe('$0.25');
+    expect(priceLabel(0.25, 'sol', 0)).toBe('$0.25');
+    expect(priceLabel(0.25, 'sol', Number.NaN)).toBe('$0.25');
   });
 });

@@ -41,6 +41,14 @@ export interface ShopState {
   usdcEnabled: boolean;
   /** The rails this deployment takes. Empty when the money route is off. */
   tokens: PayTokenId[];
+  /**
+   * USD per whole token, per rail — so a tile can price itself in the rail the
+   * player picked without a round trip per switch.
+   *
+   * Indicative only. The binding number is the one the quote freezes; this is
+   * what the shelf is LABELLED with, and null when the money route is off.
+   */
+  rates: Partial<Record<PayTokenId, number>> | null;
 }
 
 export interface TrapState {

@@ -17,13 +17,20 @@
  * The two prices stay equally weighted — that is the GDD's economy rule and it
  * is not a styling decision — but they are warm for carrots and cold for money,
  * so which world a price comes from is legible before it is read.
+ *
+ * The money price is written in the RAIL the player chose, converted at the
+ * server's Jupiter rate. It used to always read `$0.25`, which is the number
+ * the game charges but not the number that leaves the wallet: a player paying
+ * in SOL was left to do the arithmetic themselves, on a phone, before deciding.
+ * The dollar figure is still what everything is priced in, and it is one hover
+ * away on every button.
  */
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { ItemKind, ShopItem, ShopState } from './use-shop';
 import type { PayStage } from './use-usdc-pay';
 import { LauncherTab, DANGER, LAMP } from './burrow-chrome';
-import { PAY_TOKENS, type PayTokenId } from '@/lib/pay/tokens';
+import { PAY_TOKENS, priceLabel, type PayTokenId } from '@/lib/pay/tokens';
 import { LootChest, CHEST_ASPECT } from './loot-chest';
 
 /**
@@ -190,8 +197,8 @@ export function ShopPanel({
           <span className="rr-shop-purse">{(shop?.stock ?? 0).toLocaleString()} 🥕</span>
           {/* THE CURRENCY, once for the whole shop.
               Per-item currency buttons would be six items times three rails on
-              a phone. The price on every tile stays a dollar amount; this only
-              says what that dollar travels as.
+              a phone. Switching it re-prices every tile below, since a rail the
+              player cannot read a price in is a rail they will not pick.
               Hidden below two rails: a "switch" with one option is furniture. */}
           {(shop?.tokens?.length ?? 0) > 1 && (
             <span className="rr-shop-rails" role="group" aria-label="Pay with">
@@ -239,6 +246,8 @@ export function ShopPanel({
               item={item}
               busy={busyNow}
               onBuy={() => onBuy(item.kind)}
+              payToken={payToken}
+              rate={shop.rates?.[payToken]}
               onPayUsdc={shop.usdcEnabled && onPayUsdc ? () => onPayUsdc(item.kind) : undefined}
             />
           ))}
@@ -268,10 +277,15 @@ const PAY_STAGE: Record<string, string> = {
 };
 
 function Row({
-  item, busy, onBuy, onPayUsdc,
+  item, busy, payToken, rate, onBuy, onPayUsdc,
 }: {
   item: ShopItem;
   busy: boolean;
+  /** The rail chosen for the whole shop — this tile only READS it. */
+  payToken: PayTokenId;
+  /** USD per whole token on that rail, or undefined when the feed had nothing
+   *  to say. `priceLabel` falls back to dollars rather than inventing a rate. */
+  rate: number | undefined;
   onBuy(): void;
   onPayUsdc?(): void;
 }) {
@@ -302,8 +316,16 @@ function Row({
           {item.price.toLocaleString()} 🥕
         </button>
         {onPayUsdc && (
-          <button className="rr-pay-usdc" onClick={onPayUsdc} disabled={busy || full}>
-            ${item.usdc.toFixed(2)}
+          <button
+            className="rr-pay-usdc"
+            onClick={onPayUsdc}
+            disabled={busy || full}
+            /* The dollar price, always, on hover: the shop's prices ARE dollars
+               and the rail is a conversion, so the figure the game actually
+               charges in stays one hover away however it is displayed. */
+            title={`$${item.usdc.toFixed(2)}`}
+          >
+            {priceLabel(item.usdc, payToken, rate)}
           </button>
         )}
       </div>
