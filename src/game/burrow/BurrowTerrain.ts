@@ -274,6 +274,16 @@ export async function createBurrowTerrain(
       }
       island.revealOnly(cells);
       home.visible = buildingSeen;
+      // TEMPORARY (see TapProbe): why the defender's building is or is not on
+      // screen. It hides until the raider uncovers the exact cell it stands
+      // on, which on most layouts is the far end of the crossing — so "I
+      // cannot see their base" is expected for most of a raid, and this says
+      // so out loud rather than leaving it to be read off the code.
+      console.log('[burrow-home]', JSON.stringify({
+        building: { x: b.x, y: b.y, tile: burrowIndex(b.x, b.y), tier: b.tier },
+        visible: buildingSeen,
+        revealed: cells.length,
+      }));
     },
     update(deltaMs) {
       island.update(deltaMs);
