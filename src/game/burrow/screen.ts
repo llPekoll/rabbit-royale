@@ -52,6 +52,12 @@ export const burrowDepth = (seed: string, tile: number) =>
  * tiers from the top down: the first one whose lifted diamond contains the
  * point wins, which is also what the eye picks, since a higher tile is drawn
  * over a lower one.
+ *
+ * NOT what the scene uses to place a bomb. The board resolves a tap the way
+ * the farm does — each cell's diamond carries a polygon hit area and sorts
+ * inside its terrain block, so Pixi's own draw order gives the answer and
+ * there is no second projection to keep in step with the first. This stays as
+ * the way to ask the question WITHOUT a scene, which is what the tests do.
  */
 export function burrowTileAt(seed: string, sx: number, sy: number): number | null {
   const { map } = burrowFor(seed);
