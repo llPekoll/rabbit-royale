@@ -74,6 +74,18 @@ export function useRaid(token: string | null) {
   /** Bumped when a trap goes off, so the scene can play the blast once. */
   const [sprung, setSprung] = useState<{ tile: number; key: number } | null>(null);
 
+  /**
+   * TEMPORARY — carry `?reveal=1` through to the raid API.
+   *
+   * The debug switch that draws a whole burrow instead of the cells a raider
+   * has earned (see `raidView`). Read off the page's own URL so it survives a
+   * refresh mid-crossing, and so turning it on is a matter of editing the
+   * address bar rather than rebuilding. Delete with TapProbe.
+   */
+  const reveal = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).has('reveal');
+  const q = reveal ? '?reveal=1' : '';
+
   const auth = useCallback(
     (init?: RequestInit): RequestInit => ({
       ...init,
@@ -89,11 +101,11 @@ export function useRaid(token: string | null) {
   /** Load whatever is true right now: a raid in progress, or the target list. */
   const refresh = useCallback(async () => {
     if (!token) return;
-    const res = await fetch('/api/raid', auth()).then((r) => r.json()).catch(() => null);
+    const res = await fetch(`/api/raid${q}`, auth()).then((r) => r.json()).catch(() => null);
     if (!res || res.error) return;
     setRaid(res.raid ?? null);
     setTargets(res.targets ?? []);
-  }, [token, auth]);
+  }, [token, auth, q]);
 
   useEffect(() => { void refresh(); }, [refresh]);
 
@@ -126,7 +138,7 @@ export function useRaid(token: string | null) {
     setBusy(true);
     setNote(null);
     try {
-      const res = await fetch('/api/raid', auth({
+      const res = await fetch(`/api/raid${q}`, auth({
         method: 'PATCH',
         body: JSON.stringify({ tile }),
       })).then((r) => r.json());
@@ -141,7 +153,7 @@ export function useRaid(token: string | null) {
     } finally {
       setBusy(false);
     }
-  }, [token, auth]);
+  }, [token, auth, q]);
 
   /**
    * Leave a raid — finished, or abandoned halfway.

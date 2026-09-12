@@ -23,13 +23,13 @@ import { getSession } from '@/lib/auth/jwt';
 import {
   distanceToField, raiderView, settleRaid, trapClues,
 } from '@/lib/game/raid';
-import { burrowNeighbors, entranceTile, burrowCell } from '@/game/burrow/board';
+import { burrowNeighbors, entranceTile, burrowCell, walkableTiles } from '@/game/burrow/board';
 import { currentHp } from '@/lib/game/regen';
 import { smokeActive } from '@/lib/game/inventory';
 import { RAID, RAID_RUN, TRAPS } from '@config/tuning';
 
 /** Everything the raid screen draws, for a raid in progress. */
-async function raidView(runId: string) {
+async function raidView(runId: string, revealAll = false) {
   const run = await db.query.raidRuns.findFirst({ where: eq(raidRuns.id, runId) });
   if (!run) return null;
 
@@ -59,7 +59,19 @@ async function raidView(runId: string) {
     energy: run.energy,
     trapsSprung: run.trapsSprung,
     /** Tiles walked, plus their neighbours — nothing further. */
-    view: raiderView(seed, run.visited, clues, smoked),
+    /**
+     * TEMPORARY — `?reveal=1` hands back the WHOLE homestead.
+     *
+     * A debug switch for looking at a generated burrow as a burrow, rather
+     * than through the four cells a raider has earned: the generator, the
+     * cliffs and the field are impossible to judge one tile at a time. It is
+     * cheating by construction — a real raider who could read the whole board
+     * would simply read the trap positions off the clue numbers — so it must
+     * come out before this is a game anyone else plays. Delete with TapProbe.
+     */
+    view: revealAll
+      ? raiderView(seed, walkableTiles(seed), clues, smoked)
+      : raiderView(seed, run.visited, clues, smoked),
     /**
      * The tiles actually STOOD on, as opposed to merely seen from.
      *
@@ -94,11 +106,14 @@ export async function GET(req: Request) {
 
   // A raid already in progress wins over anything else: an attacker who
   // refreshes mid-crossing must land back where they were standing.
+  // TEMPORARY: `?reveal=1` draws the whole burrow. See `raidView`.
+  const reveal = new URL(req.url).searchParams.get('reveal') !== null;
+
   const open = await db.query.raidRuns.findFirst({
     where: and(eq(raidRuns.attackerId, session.sub), isNull(raidRuns.endedAt)),
     orderBy: desc(raidRuns.startedAt),
   });
-  if (open) return Response.json({ raid: await raidView(open.id) });
+  if (open) return Response.json({ raid: await raidView(open.id, reveal) });
 
   // Otherwise: who is worth attacking. Ordered by stock, because the reason to
   // raid somebody is what they are holding.
@@ -225,7 +240,10 @@ export async function PATCH(req: Request) {
     await db.update(raidRuns)
       .set({ tile: to, energy, visited, trapsSprung: sprung })
       .where(eq(raidRuns.id, run.id));
-    return Response.json({ raid: await raidView(run.id), sprungTrap: !!trap });
+    return Response.json({
+      raid: await raidView(run.id, new URL(req.url).searchParams.get('reveal') !== null),
+      sprungTrap: !!trap,
+    });
   }
 
   // The raid is over, one way or the other. Settle it.
