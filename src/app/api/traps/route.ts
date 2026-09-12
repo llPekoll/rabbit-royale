@@ -114,7 +114,19 @@ export async function DELETE(req: Request) {
   const session = await getSession(req);
   if (!session) return Response.json({ error: 'unauthenticated' }, { status: 401 });
 
-  const body = (await req.json().catch(() => ({}))) as { tile?: unknown };
+  // The tile comes in the QUERY STRING, with the body kept as a fallback.
+  //
+  // A DELETE that carries a body is legal and works in dev, but it is the one
+  // request shape intermediaries feel free to drop: proxies and CDNs strip the
+  // body from a DELETE often enough that the spec warns against relying on it.
+  // In front of this app there is one (Traefik, via Coolify) — so lifting a
+  // bomb worked on localhost and in Storybook, and did nothing in production,
+  // the route reading an empty body and answering `bad_tile`.
+  const url = new URL(req.url);
+  const fromQuery = url.searchParams.get('tile');
+  const body = fromQuery === null
+    ? ((await req.json().catch(() => ({}))) as { tile?: unknown })
+    : { tile: fromQuery };
   const tile = Number(body.tile);
   if (!Number.isInteger(tile)) return Response.json({ error: 'bad_tile' }, { status: 400 });
 

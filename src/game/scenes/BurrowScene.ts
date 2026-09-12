@@ -541,6 +541,13 @@ export class BurrowScene implements Scene {
       this.board.addChild(group);
     }
     this.trapSprites.set(tile, group);
+    // Remember it on the DATA too, not just as a sprite. A raid tears the
+    // ground down and rebuilds it (`showGround`), and what comes back is
+    // redrawn from `data.traps` — which was only ever the list handed in at
+    // mount (empty), so every bomb placed during a session vanished off the
+    // board the moment the player raided someone and came home. They were
+    // still in the database; the screen simply stopped showing them.
+    if (!this.data.traps.includes(tile)) this.data.traps = [...this.data.traps, tile];
 
     if (animate) {
       group.scale.set(0);
@@ -774,6 +781,8 @@ export class BurrowScene implements Scene {
     const group = this.trapSprites.get(tile);
     if (!group) return;
     this.trapSprites.delete(tile);
+    // ...and off the data, or a raid would bring back a bomb that was lifted.
+    this.data.traps = this.data.traps.filter((t) => t !== tile);
     gsap.to(group, {
       alpha: 0,
       duration: 0.25,

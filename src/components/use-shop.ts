@@ -176,9 +176,12 @@ export function useShop(token: string | null) {
   const removeTrap = useCallback(async (tile: number): Promise<boolean> => {
     if (!token) return false;
     setNote(null);
-    const res = await fetch('/api/traps', auth({
+    // The tile rides in the URL, not in a body: a DELETE body is legal but is
+    // the one thing a proxy in front of the app may drop, and one is in front
+    // of this app — which is why lifting a bomb worked in Storybook and did
+    // nothing in production. The route still reads a body as a fallback.
+    const res = await fetch(`/api/traps?tile=${encodeURIComponent(tile)}`, auth({
       method: 'DELETE',
-      body: JSON.stringify({ tile }),
     })).then((r) => r.json()).catch(() => ({ error: 'network' }));
 
     if (res.error) {
