@@ -17,7 +17,7 @@ import {
   walkableTiles, isTrappable, entranceTile, shortestRaidPath, burrowNeighbors,
 } from '@/game/burrow/board';
 import { distanceToField, trapClues, raiderView } from '@/lib/game/raid';
-import { TRAPS } from '@config/tuning';
+import { BURROW, TRAPS } from '@config/tuning';
 
 /**
  * A handful of burrows to flip between.
@@ -50,6 +50,15 @@ interface Args {
   placing: boolean;
   /** Which building stands on it — the burrow's level. */
   level: number;
+  /**
+   * How full the garden is, 0..1.
+   *
+   * The crop's density is scaled by the LEVEL and its fullness by this, and the
+   * two are easy to confuse by eye — a busier field could be either. Pinning
+   * fullness makes the level's effect the only thing moving, which is what lets
+   * "does an upgrade actually show in the field?" be answered by looking.
+   */
+  garden: number;
 }
 
 /**
@@ -65,7 +74,7 @@ function defaultTraps(seed: string, n: number): number[] {
     .slice(0, n);
 }
 
-function Scene({ seed, traps, placing, level }: Args) {
+function Scene({ seed, traps, placing, level, garden }: Args) {
   const [placed, setPlaced] = useState<number[]>(defaultTraps(seed, traps));
 
   return (
@@ -83,6 +92,7 @@ function Scene({ seed, traps, placing, level }: Args) {
           void scenes.start(BurrowScene, {
             seed,
             level,
+            gardenProgress: garden,
             traps: defaultTraps(seed, traps),
             placing,
             onToggle: (tile: number, mined: boolean) => {
@@ -120,11 +130,12 @@ function Scene({ seed, traps, placing, level }: Args) {
 const meta: Meta<Args> = {
   title: 'Burrow/Board',
   render: (args) => <Scene key={JSON.stringify(args)} {...args} />,
-  args: { seed: SEEDS[0], traps: 0, placing: false, level: 1 },
+  args: { seed: SEEDS[0], traps: 0, placing: false, level: 1, garden: 1 },
   argTypes: {
     seed: { control: 'select', options: SEEDS },
     traps: { control: { type: 'range', min: 0, max: TRAPS.MAX_PLACED, step: 1 } },
-    level: { control: { type: 'range', min: 1, max: 6, step: 1 } },
+    level: { control: { type: 'range', min: 1, max: BURROW.MAX_LEVEL, step: 1 } },
+    garden: { control: { type: 'range', min: 0, max: 1, step: 0.05 } },
   },
 };
 export default meta;

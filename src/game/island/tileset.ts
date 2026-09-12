@@ -141,7 +141,16 @@ const FLAT_ORIGIN = { grass: 0, sand: 5 } as const;
 export type GroundKind = keyof typeof FLAT_ORIGIN;
 
 /** Foam is eight frames of 192x192, each centred on the 64px tile it edges. */
-const FOAM_FRAME = 192;
+/**
+ * Foam is re-cut for the diamond by `tools/gen_iso_sheets.py`.
+ *
+ * The pack ships it as eight 192px frames around a 64px tile — three tiles
+ * across, drawn for a top-down grid where the neighbours overdraw most of the
+ * ring. The baked strip is eight TILE-sized frames with the surf already
+ * projected onto the cell's diamond, so a shore cell's sprite is its own cell
+ * plus a small ragged margin instead of a three-tile halo.
+ */
+const FOAM_FRAME = TILE;
 const FOAM_FRAMES = 8;
 
 /**

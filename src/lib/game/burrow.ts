@@ -7,6 +7,7 @@
  */
 import { BURROW, GARDEN, OUT_OF_RUN_ENERGY, upgradeCost } from '../../../config/tuning';
 import { currentEnergy, gardenYield, maxHp, type RegenRow } from './regen';
+import { gardenCapacity, yieldPerHour } from './garden-growth';
 
 export interface BurrowRow extends RegenRow {
   stock: number;
@@ -72,9 +73,15 @@ export function msToNextEnergy(
   return perPoint - (elapsed % perPoint);
 }
 
-/** Carrots per hour a garden makes at `level`. */
-export const yieldPerHour = (level: number) =>
-  GARDEN.YIELD_PER_HOUR_BASE + GARDEN.YIELD_PER_LEVEL * (level - 1);
+/**
+ * Carrots per hour a garden makes at `level`, and the ceiling it fills to.
+ *
+ * Both re-exported from `garden-growth` rather than worked out again here. The
+ * picture of the field divides by the SAME capacity this view reports, so
+ * "holds 576" in the panel and a field drawn full are one fact stated twice —
+ * see the note on `gardenCapacity`.
+ */
+export { yieldPerHour, gardenCapacity };
 
 export function burrowView(row: BurrowRow, now = Date.now()): BurrowView {
   const atMax = row.burrowLevel >= BURROW.MAX_LEVEL;
@@ -92,7 +99,7 @@ export function burrowView(row: BurrowRow, now = Date.now()): BurrowView {
     nextEnergyInMs: msToNextEnergy(row, now),
     yieldPerHour: yieldPerHour(row.burrowLevel),
     capHours: GARDEN.CAP_HOURS,
-    gardenCapacity: yieldPerHour(row.burrowLevel) * GARDEN.CAP_HOURS,
+    gardenCapacity: gardenCapacity(row.burrowLevel),
     upgradeCost: cost,
     canUpgrade: cost !== null && row.stock >= cost,
     next: atMax

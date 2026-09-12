@@ -103,7 +103,7 @@ export function CarrotField({ progress, harvestKey = 0, className }: CarrotField
         // back forward instead of speckling at random.
         const next = plots.find((q) => q.sproutedAt === null);
         if (next) next.sproutedAt = now;
-        nextSprout = now + spawnGapMs(p);
+        nextSprout = now + spawnGapMs(p, plots.length);
       }
       // Fullness fell (a harvest, or the idle loop wrapping): clear the surplus
       // from the front, so the field empties the way it filled.
@@ -122,7 +122,7 @@ export function CarrotField({ progress, harvestKey = 0, className }: CarrotField
       if (wanted <= MIN_LIVE_PLOTS) {
         for (const plot of plots) {
           if (plot.sproutedAt === null) continue;
-          if (now - plot.sproutedAt < GROW_MS + spawnGapMs(p)) continue;
+          if (now - plot.sproutedAt < GROW_MS + spawnGapMs(p, plots.length)) continue;
           plot.sproutedAt = null;
           const fresh = plots[Math.floor(Math.random() * plots.length)];
           if (fresh.sproutedAt === null) fresh.sproutedAt = now;

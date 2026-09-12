@@ -10,10 +10,11 @@
  */
 import { describe, expect, it } from 'vitest';
 import { GARDEN } from '../config/tuning';
+import PLOTS from '../src/config/carrotPlots.json';
 import {
-  STAGES, GROW_MS, SPAWN_GAP_MS, IDLE_CYCLE_MS,
+  STAGES, GROW_MS, SPAWN_GAP_MS, IDLE_CYCLE_MS, PER_CELL, REFERENCE_PLOTS,
   gardenCapacity, gardenProgress, idleProgress, spawnGapMs, grownCount, growthFrame,
-  MIN_LIVE_PLOTS,
+  plantsPerCell, MIN_LIVE_PLOTS,
 } from '../src/lib/game/garden-growth';
 
 describe('capacity matches the economy', () => {
@@ -140,5 +141,139 @@ describe('the signed-out loop', () => {
     expect(idleProgress(-1000)).toBeLessThan(1);
     expect(idleProgress(1e12)).toBeGreaterThanOrEqual(0);
     expect(idleProgress(1e12)).toBeLessThan(1);
+  });
+});
+
+/**
+ * The field and the panel are two readings of ONE number.
+ *
+ * Everything below guards a seam where a picture could quietly drift from the
+ * economy it depicts. None of these would fail loudly in the game — a field
+ * that fills to the wrong ceiling, or plays at a speed the artist did not
+ * draw, just looks slightly off forever — so they are pinned here instead.
+ */
+describe('the picture and the economy cannot drift apart', () => {
+  it('reports the SAME capacity to the HUD as it fills the field to', async () => {
+    // `burrowView` prints "holds 576"; `gardenProgress` divides by the ceiling
+    // to draw the crop. These were two separate expressions of the same
+    // formula, one of them rounded — so a fractional yield would have made the
+    // field hit full at a number the panel never promised.
+    const { gardenCapacity: fromBurrow } = await import('../src/lib/game/burrow');
+    for (const level of [1, 2, 5, 10, 20]) {
+      expect(fromBurrow(level)).toBe(gardenCapacity(level));
+    }
+  });
+
+  it('fills the field exactly when the garden is at the advertised ceiling', async () => {
+    const { burrowView } = await import('../src/lib/game/burrow');
+    const level = 4;
+    const row = {
+      burrowLevel: level,
+      burrowHp: 100,
+      stock: 0,
+      lifetimeCarrots: 0,
+      energy: 0,
+      // Long enough ago that the garden is certainly capped.
+      gardenCollectedAt: new Date(Date.now() - 48 * 3_600_000),
+      energyUpdatedAt: new Date(),
+      burrowHpUpdatedAt: new Date(),
+    };
+    const view = burrowView(row as never);
+    expect(view.gardenReady).toBe(view.gardenCapacity);
+    // The capped garden draws a FULL field, with nothing left over.
+    expect(gardenProgress(view.gardenReady, level)).toBe(1);
+  });
+});
+
+describe('the animation is timed by the art, not by a constant', () => {
+  it('plays for exactly as long as the artist drew it', async () => {
+    // The frames carry their own hold times out of Aseprite; GROW_MS is their
+    // sum. It used to be a hand-typed 1400 against a 12 x 100 sheet, so every
+    // carrot grew ~17% slower than drawn.
+    const atlas = await import('../public/assets/carottes/carrote.json');
+    const frames = (atlas.default ?? atlas).frames;
+    const drawn = frames.reduce(
+      (sum: number, f: { duration: number }) => sum + f.duration, 0,
+    );
+    expect(GROW_MS).toBe(drawn);
+  });
+
+  it('has one growth stage per frame in the sheet', () => {
+    // A re-export that adds or drops a stage must not leave STAGES describing
+    // a sheet that no longer exists — `growthFrame` would clamp early and
+    // carrots would stop half-grown, with nothing failing.
+    expect(STAGES).toBe(PLOTS.frames.length);
+  });
+
+  it('reaches the last frame exactly at the end of the cycle', () => {
+    expect(growthFrame(GROW_MS - 1)).toBe(STAGES - 1);
+  });
+});
+
+describe('a bigger garden grows more carrots', () => {
+  it('sows more plants per cell as the burrow is upgraded', () => {
+    // Every other consequence of an upgrade shows in the place. A field that
+    // looked identical at level 1 and level 20 was the one part of the burrow
+    // that denied the player's progress.
+    expect(plantsPerCell(20)).toBeGreaterThan(plantsPerCell(1));
+  });
+
+  it('never thins out a garden that was upgraded', () => {
+    let last = 0;
+    for (let level = 1; level <= 20; level++) {
+      const n = plantsPerCell(level);
+      expect(n).toBeGreaterThanOrEqual(last);
+      last = n;
+    }
+  });
+
+  it('stays within the range, including off the ends', () => {
+    // Called with whatever the scene holds, which is `null` before the burrow
+    // has loaded and could be anything after a bad response.
+    for (const level of [-5, 0, 1, 20, 999]) {
+      expect(plantsPerCell(level)).toBeGreaterThanOrEqual(PER_CELL.min);
+      expect(plantsPerCell(level)).toBeLessThanOrEqual(PER_CELL.max);
+    }
+  });
+
+  it('keeps FULLNESS readable rather than swamping it with size', () => {
+    // The density says how big the garden is; the share of plots standing says
+    // how full it is. If density scaled hard enough, a quarter-full top-level
+    // field would carry more carrots than a FULL level-1 one and "how busy
+    // does it look" would stop meaning anything on its own.
+    const cells = 12;
+    const fullAtLevel1 = grownCount(1, cells * plantsPerCell(1));
+    const quarterAtMax = grownCount(0.25, cells * plantsPerCell(20));
+    expect(quarterAtMax).toBeLessThan(fullAtLevel1);
+  });
+});
+
+describe('a denser field still fills in the same time', () => {
+  it('fills a big garden no slower than a small one', () => {
+    // The gap is a per-PLOT pause, so on its own it made the time-to-full
+    // proportional to the number of plants — and the player who upgraded was
+    // the one who waited longest to SEE the harvest the panel already promised
+    // them. Time to fill is gap x plots, and that is what must hold still.
+    const cells = 12;
+    const small = cells * plantsPerCell(1);
+    const big = cells * plantsPerCell(20);
+    expect(big).toBeGreaterThan(small);
+
+    const fill = (plots: number) => spawnGapMs(1, plots) * plots;
+    expect(fill(big)).toBeCloseTo(fill(small), 5);
+  });
+
+  it('is unchanged for a field the original size', () => {
+    // The default keeps every caller that predates varying density — the
+    // signed-out DOM field, and the tuning these numbers were chosen against.
+    expect(spawnGapMs(0.5, REFERENCE_PLOTS)).toBe(spawnGapMs(0.5));
+    expect(spawnGapMs(1)).toBe(SPAWN_GAP_MS.full);
+    expect(spawnGapMs(0)).toBe(SPAWN_GAP_MS.empty);
+  });
+
+  it('survives a field with no plants in it', () => {
+    // `plots.length` is 0 on a seed whose field failed to generate; a division
+    // by it must not hand back Infinity and stall the sprouting loop forever.
+    expect(Number.isFinite(spawnGapMs(0.5, 0))).toBe(true);
   });
 });

@@ -67,7 +67,7 @@ OUT = "art-source/iso-sheets"
 SS = 8
 
 
-def project_cell(cell: Image.Image, w: int, h: int) -> Image.Image:
+def project_cell(cell: Image.Image, w: int, h: int, box: int = TILE) -> Image.Image:
     """One 64x64 square onto one w x h diamond, centred in a 64px box.
 
     The projection is affine and Pillow wants the INVERSE (output -> input),
@@ -102,9 +102,9 @@ def project_cell(cell: Image.Image, w: int, h: int) -> Image.Image:
     )
     out = out.resize((w, h), Image.NEAREST)
 
-    box = Image.new("RGBA", (TILE, TILE), (0, 0, 0, 0))
-    box.alpha_composite(out, ((TILE - w) // 2, (TILE - h) // 2))
-    return box
+    out_box = Image.new("RGBA", (box, box), (0, 0, 0, 0))
+    out_box.alpha_composite(out, ((box - w) // 2, (box - h) // 2))
+    return out_box
 
 
 
@@ -228,6 +228,113 @@ def project_sheet(path_in: str, path_out: str, cols: int, rows: int,
     return path_out
 
 
+# ---------------------------------------------------------------------------
+# Foam
+#
+# The pack's surf is drawn for a TOP-DOWN grid: a 192px frame around a 64px
+# tile, three tiles across, counting on the neighbouring cells to overdraw most
+# of it. On a diamond lattice nothing overdraws anything, so every shore cell
+# lays its own full ring and the coast silts up into a bank of cloud — which is
+# exactly what it did.
+#
+# So the foam is re-cut the way the ground was: projected onto the diamond, and
+# cropped to ONE cell plus a small margin. What survives is the ragged lip of
+# the ring, which is the part that reads as water meeting a shore; the rest was
+# only ever there to be covered up.
+# ---------------------------------------------------------------------------
+FOAM_FRAMES = 8
+FOAM_CELL = 192
+# How far past its own diamond a cell's surf may reach, as a share of the cell.
+# Enough to break the straight edge, not enough to touch the next cell's ring.
+FOAM_MARGIN = 0.30
+
+
+def project_foam(path_in: str, path_out: str) -> str:
+    src = Image.open(path_in).convert("RGBA")
+    w = int(DIAMOND_W * (1 + FOAM_MARGIN * 2))
+    h = int(DIAMOND_H * (1 + FOAM_MARGIN * 2))
+    out = Image.new("RGBA", (TILE * FOAM_FRAMES, TILE), (0, 0, 0, 0))
+    for i in range(FOAM_FRAMES):
+        cell = src.crop((i * FOAM_CELL, 0, (i + 1) * FOAM_CELL, FOAM_CELL))
+        # The frame's own 64px tile sits at its centre; project THAT square, so
+        # the diamond lands where the cell is, and let the margin carry the
+        # overspill.
+        inner = cell.crop((
+            (FOAM_CELL - TILE) // 2, (FOAM_CELL - TILE) // 2,
+            (FOAM_CELL + TILE) // 2, (FOAM_CELL + TILE) // 2,
+        ))
+        tile = project_cell(inner, w, h)
+        out.alpha_composite(tile, (i * TILE, 0))
+    os.makedirs(os.path.dirname(path_out), exist_ok=True)
+    out.save(path_out)
+    return path_out
+
+
+# ---------------------------------------------------------------------------
+# The pack's own shadow and foam, sheared onto the diamond
+#
+# Both were being RECONSTRUCTED before: the cast shadow as the island's
+# rendered silhouette blurred and offset, the foam as sixteen offset copies of
+# that silhouette union'd into a ring. Neither reproduced what the pack already
+# draws — an irregular, hand-stippled edge — and the ring in particular had no
+# way to be hollow (`blendMode: 'erase'` and an inverse mask were both tried
+# and measured; neither cut a hole).
+#
+# The pack ships both, drawn for a top-down grid. Shearing them onto the
+# isometric diamond is the same one-line matrix the terrain uses, and it
+# replaces all of that machinery with an image.
+# ---------------------------------------------------------------------------
+PACK = "art-source/tiny-swords-png/Terrain/Tileset"
+
+FOAM_PACK_FRAMES = 16
+
+
+def project_pack_shadow(path_out: str) -> str:
+    """The pack's blob shadow, on the diamond, at one cell."""
+    src = Image.open(f"{PACK}/Shadow.png").convert("RGBA")
+    box = src.crop(src.getbbox()).resize((TILE, TILE), Image.NEAREST)
+    out = Image.new("RGBA", (TILE, TILE), (0, 0, 0, 0))
+    out.alpha_composite(project_cell(box, DIAMOND_W, DIAMOND_H))
+    os.makedirs(os.path.dirname(path_out), exist_ok=True)
+    out.save(path_out)
+    return path_out
+
+
+def project_pack_foam(path_out: str) -> str:
+    """The pack's animated surf, sheared onto the diamond at its own size.
+
+    Sixteen frames of 86x91. Each is squared off to 86x86 — shape only, not
+    scale — so the projected diamond comes out symmetric, then sheared with the
+    board's own ratio. The result lands at roughly 59x32 against a 44x24 cell,
+    so a sprite placed on its tile spills a few pixels past it on every side.
+    That spill is the whole point: it is what reads as surf, and it is what
+    lets neighbouring cells join into one coastline instead of a quilt.
+
+    Two things NOT to do here, both tried and measured:
+
+    - Resizing a frame to the cell before shearing. It then lands exactly
+      inside the diamond, overhangs nothing, and every shore cell paints a
+      separate lozenge.
+    - Hollowing the middle out to leave a rim. The pack's foam is a filled
+      shape — in Tiny Swords a water tile covers its centre — so erasing the
+      inside erases the sprite.
+    """
+    src = Image.open(f"{PACK}/Water Foam.png").convert("RGBA")
+    fw = src.width // FOAM_PACK_FRAMES
+    k = fw / TILE
+    w = int(round(DIAMOND_W * k))
+    h = int(round(DIAMOND_H * k))
+    # A box wide enough to hold the overhang; a cell-sized one clips it off.
+    box = TILE * 2
+    out = Image.new("RGBA", (box * FOAM_PACK_FRAMES, box), (0, 0, 0, 0))
+    for i in range(FOAM_PACK_FRAMES):
+        frame = src.crop((i * fw, 0, (i + 1) * fw, src.height)).resize((fw, fw), Image.NEAREST)
+        out.alpha_composite(project_cell(frame, w, h, box), (i * box, 0))
+    os.makedirs(os.path.dirname(path_out), exist_ok=True)
+    out.save(path_out)
+    return path_out
+
+
 def project_faces(path_in: str, path_out: str) -> str:
     """The elevation sheet, whose FACE rows must not be projected.
 
@@ -302,12 +409,21 @@ def install(png_path: str) -> str:
 def main():
     made = []
     for i in range(1, 6):
+        # Palette 1 is SEA LEVEL, and a cell at sea level has no drop to show:
+        # its neighbour is water, not a shelf below it. Extruding it gave the
+        # coast a rim of cliff standing in the sea, as if the island were a
+        # tabletop lifted out of the water. Tiers 2+ do sit above something and
+        # keep their sides.
         made.append(project_sheet(
-            f"{SRC}/palette-{i}.webp", f"{OUT}/palette-{i}.png", 9, 6))
+            f"{SRC}/palette-{i}.webp", f"{OUT}/palette-{i}.png", 9, 6,
+            volume=(i > 1)))
     made.append(project_sheet(
         f"{SRC}/tilemap-flat.webp", f"{OUT}/tilemap-flat.png", 10, 4))
     made.append(project_faces(
         f"{SRC}/tilemap-elevation.webp", f"{OUT}/tilemap-elevation.png"))
+    made.append(project_foam(f"{SRC}/foam.webp", f"{OUT}/foam.png"))
+    made.append(project_pack_shadow(f"{OUT}/pack-shadow.png"))
+    made.append(project_pack_foam(f"{OUT}/pack-foam.png"))
 
     print(f"{len(made)} feuilles bakees dans {OUT}/")
 

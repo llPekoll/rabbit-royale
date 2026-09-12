@@ -102,6 +102,8 @@ export interface IsoIslandViewOptions {
   placements?: readonly Placement[];
   /** Draw the open-sea tiles under the island. On by default. */
   sea?: boolean;
+  /** Animate surf on the sea cells that touch land. On by default. */
+  foam?: boolean;
   /** Milliseconds per sway frame. */
   frameMs?: number;
   /**
@@ -249,6 +251,9 @@ const FACE_ROW = 3;
 
 /** How much of a 64px face tile is solid rock, measured off the sheet. */
 const FACE_SOLID_H = 32;
+
+/** Surf reads as water catching light, not as a white wall. */
+const FOAM_ALPHA = 0.55;
 
 /**
  * How tall the thing being hidden is, in pixels, for `facesHiding`.
@@ -411,6 +416,7 @@ export class IsoIslandView {
     this.view.addChild(world);
 
     if (options.sea ?? true) this.buildSea(world);
+    if (options.foam ?? true) this.buildFoam(world);
     this.buildGround(world);
     if (options.deco ?? true) {
       // The ground always stays in `world`; only the STANDING art can be asked
@@ -925,6 +931,43 @@ export class IsoIslandView {
         // raider how big the homestead is and where it sits before they have
         // taken a step.
         this.registerOnCell(x, y, this.stampGround(world, tileset.water, x, y, 0, isoDepth(x, y, 0)));
+      }
+    }
+  }
+
+  /**
+   * Surf on every sea cell that touches land.
+   *
+   * The pack draws foam as a 192px frame centred on the 64px tile it edges, so
+   * the surf spills a whole tile past the shore on every side — that overspill
+   * is what makes a coastline look wet rather than cut out with scissors.
+   *
+   * It goes through `stampGround`, the same projection as the ground itself.
+   * Drawn as an upright sprite instead, each cell's surf came out as a little
+   * SQUARE floating beside the island: foam lies ON the water, so it has to be
+   * on the water's plane, and anything axis-aligned there reads as a sticker.
+   *
+   * Drawn UNDER everything on its own cell (`isoDepth - 1`): the island's own
+   * blocks must cover the half of the ring that laps onto the land, or the
+   * white spills over the grass.
+   */
+  private buildFoam(world: Container): void {
+    const { map, tileset } = this.options;
+    if (!tileset.foam?.length) return;
+    for (let y = 0; y < map.height; y++) {
+      for (let x = 0; x < map.width; x++) {
+        if (levelAt(map, x, y) !== 0) continue;
+        if (!touchesLand(map, x, y)) continue;
+        const frames = tileset.foam;
+        // Already projected in the sheet, so it is PLACED, not sheared — the
+        // same reason the ground stopped being sheared once it was baked.
+        const sprite = this.stamp(world, frames[0], x, y, 0, isoDepth(x, y, 0) - 1, 0.5);
+        sprite.anchor.set(0.5);
+        sprite.scale.set(this.metrics.w / TILE);
+        sprite.alpha = FOAM_ALPHA;
+        // Phased by position so the whole coast does not pulse as one — the
+        // same trick the wind uses on the trees.
+        this.animated.push({ sprite, frames, phase: this.windPhase(x, y) });
       }
     }
   }

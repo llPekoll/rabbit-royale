@@ -33,6 +33,7 @@ import {
   toColRow, type IslandShape,
 } from '@/config/gridConfig';
 import { farmableTiles, levelTierAt, spawnTile, terrainTileAt, tierLift } from '@/lib/game/terrainBoard';
+import { islandCam } from './islandCamera';
 import type { TileContent } from '@/lib/game/types';
 import { ENERGY, LIGHTNING } from '@config/tuning';
 import { reachableTiles } from '@/lib/game/reachable';
@@ -45,6 +46,28 @@ export interface IslandSceneData {
   onMoveIntent(index: number): void;
   /** The local player's id, so their own rabbit can be told apart. */
   playerId: string;
+  /**
+   * The canvas the camera should frame against, overriding `GAME_W`/`GAME_H`.
+   *
+   * For STORIES only; the game never passes it. `GAME_W`/`GAME_H` are swapped
+   * by `Application.resize`, which Storybook never runs — so in a story they
+   * are stuck at the landscape 960x540 whatever size the canvas actually is,
+   * and a portrait story would report a shot nobody is looking at. The very
+   * thing the island camera exists to fix is the PORTRAIT framing, so a story
+   * that cannot show portrait cannot show the fix.
+   */
+  canvas?: { width: number; height: number };
+  /**
+   * Skip the camera entirely, leaving the scene at the identity transform.
+   *
+   * For STORIES only; the game never passes it. This is not "a different
+   * camera" but the absence of one — the board sitting at the raw
+   * `ISO_ORIGIN_*` coordinates with only `Application`'s design-space fit on
+   * top, which is exactly what shipped and exactly what was too small. A story
+   * that showed the bug by feeding the camera wrong numbers would be showing a
+   * third thing that never existed.
+   */
+  noCamera?: boolean;
 }
 
 /** Frames per second the bolt plays at. Six frames, so this is its whole life. */
@@ -105,6 +128,20 @@ export class IslandScene implements Scene {
   /** Last canvas size the ground was laid out for. */
   private lastW = 0;
   private lastH = 0;
+  /** Where `applyCamera` last put the scene — see `shakeScreen`. */
+  private camX = 0;
+  private camY = 0;
+
+  /**
+   * The canvas everything in this scene is laid out against.
+   *
+   * One pair of accessors rather than `GAME_W`/`GAME_H` at each use site, so
+   * the camera, the clouds and the ground cannot end up framing three
+   * different boxes when a story overrides the size — see `canvas` on
+   * `IslandSceneData`.
+   */
+  private get canvasW(): number { return this.data?.canvas?.width ?? GAME_W; }
+  private get canvasH(): number { return this.data?.canvas?.height ?? GAME_H; }
 
   /** Where the local rabbit is, for direction-relative movement. */
   private myTile = SPAWN_INDEX;
@@ -139,13 +176,17 @@ export class IslandScene implements Scene {
     // smoke), so a dead blue border around it makes the frame look like a
     // screenshot. Clouds only ever cross the SEA — never the board, where they
     // would hide the numbers the game is read from.
-    this.clouds = new CloudField(this.container, { width: GAME_W, height: GAME_H });
+    this.clouds = new CloudField(this.container, { width: this.canvasW, height: this.canvasH });
 
     // The design space is scaled to FIT the window, so a viewport that is not
     // 16:9 leaves bare canvas the ground has to reach across. That margin
     // changes with every resize, hence the listener rather than a one-off.
-    this.onResize = () => this.background?.layout(GAME_W / 2, GAME_H / 2);
+    this.onResize = () => {
+      this.background?.layout(this.canvasW / 2, this.canvasH / 2);
+      this.applyCamera();
+    };
     window.addEventListener('resize', this.onResize);
+    this.applyCamera();
 
     this.buildTiles();
     // The keyboard hint, drawn ON the board rather than as a legend beside it:
@@ -581,17 +622,60 @@ export class IslandScene implements Scene {
    * Tweens the container's position and restores it exactly, so repeated blasts
    * cannot accumulate drift.
    */
-  private shakeScreen(): void {
-    const { x, y } = this.container.position;
+  /**
+   * Frame the island: one transform on the scene container.
+   *
+   * Everything in the scene — terrain, tiles, rabbits, fog, arrows — is laid
+   * out in the board's own coordinates around `ISO_ORIGIN_*`, and stays there.
+   * This is the only place that decides how that ground maps onto the screen,
+   * which is why the whole scene keeps its measured internal relationships
+   * while the shot changes. See `islandCamera` for what the shot is and why.
+   *
+   * Records the framing in `camX` / `camY` so `shakeScreen` has something to
+   * return to: the shake tweens the container's position and restores it from
+   * a value captured when it started, so a resize DURING a blast would
+   * otherwise be undone the moment the shake finished.
+   */
+  private applyCamera(): void {
+    if (this.data?.noCamera) {
+      this.camX = 0;
+      this.camY = 0;
+      this.container.scale.set(1);
+      this.container.position.set(0, 0);
+      return;
+    }
+    const cam = islandCam(
+      this.data?.seed ?? '',
+      this.canvasW,
+      this.canvasH,
+    );
+    this.camX = cam.x;
+    this.camY = cam.y;
+    // A shake owns the position until it completes, and it restores to
+    // camX/camY — which this has just updated. Writing position here as well
+    // would fight the tween for the rest of the blast.
     gsap.killTweensOf(this.container.position);
+    this.container.scale.set(cam.scale);
+    this.container.position.set(cam.x, cam.y);
+  }
+
+  private shakeScreen(): void {
+    gsap.killTweensOf(this.container.position);
+    // Kick by a constant on SCREEN, not in board space: the container is now
+    // scaled by the camera, so a fixed offset in its own coordinates would be
+    // a harder jolt the further the camera is zoomed in.
+    const kick = SHAKE_PX / this.container.scale.x;
     gsap.to(this.container.position, {
-      x: x + SHAKE_PX,
-      y: y + SHAKE_PX * 0.6,
+      x: this.camX + kick,
+      y: this.camY + kick * 0.6,
       duration: 0.05,
       repeat: 7,
       yoyo: true,
       ease: 'none',
-      onComplete: () => this.container.position.set(x, y),
+      // Restores to the CAMERA's framing rather than to a position captured
+      // when the shake began — a resize mid-blast moves the camera, and
+      // returning to the old spot would undo it.
+      onComplete: () => this.container.position.set(this.camX, this.camY),
     });
   }
 
@@ -720,7 +804,8 @@ export class IslandScene implements Scene {
     if (w !== this.lastW || h !== this.lastH) {
       this.lastW = w;
       this.lastH = h;
-      this.background?.layout(GAME_W / 2, GAME_H / 2);
+      this.background?.layout(this.canvasW / 2, this.canvasH / 2);
+      this.applyCamera();
     }
   }
 
