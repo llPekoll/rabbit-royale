@@ -692,6 +692,25 @@ export class BurrowScene implements Scene {
       const cell = burrowDiamond();
       cell.position.set(x, y);
       cell.zIndex = burrowDepth(this.data.seed, tile);
+      // Named, so a hit test says WHICH cell answered rather than 'Sprite' —
+      // the same reason the placement diamonds carry a label.
+      cell.label = `raid-step-${tile}`;
+      /**
+       * The DIAMOND is what the pointer sees, exactly as in `buildBoard`.
+       *
+       * Without this the cell hit-tested as its bounding BOX, which overlaps
+       * all four diagonal neighbours — so on this board z-order decided which
+       * tile answered a tap instead of the pointer, and the tile that replied
+       * was routinely not the one under the finger. The server then refused
+       * the step as `not_adjacent`, which is what "Too far. One step at a
+       * time." was really reporting: the board and the pointer disagreed.
+       */
+      cell.hitArea = new Polygon([
+        0, -BURROW_HALF_H / cell.scale.y,
+        BURROW_HALF_W / cell.scale.x, 0,
+        0, BURROW_HALF_H / cell.scale.y,
+        -BURROW_HALF_W / cell.scale.x, 0,
+      ]);
       cell.tint = canStep ? STEP_TINT : SEEN_TINT;
       // Three readings, not two: a tile you have STOOD on, a tile you may step
       // onto next, and a tile you can merely see from where you are. The last

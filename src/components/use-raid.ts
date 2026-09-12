@@ -9,7 +9,7 @@
  * same rule the island run follows: a raid decides who loses carrots, so a
  * client that could move its own rabbit could walk to the field for free.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 export interface RaidTile {
   tile: number;
@@ -163,5 +163,19 @@ export function useRaid(token: string | null) {
       .finally(() => void refresh());
   }, [auth, refresh]);
 
-  return { raid, targets, outcome, note, busy, sprung, enter, step, leave, refresh, setNote };
+  /**
+   * Memoised, because effects DEPEND on it.
+   *
+   * The raid is pushed into the Pixi scene by an effect in `page.tsx`, and a
+   * fresh object literal here made that effect re-run on every render of the
+   * page — every poll, every HUD tick. Each re-run called `setRaid` again,
+   * which destroys the defender's terrain and grows it back, so a raid was
+   * being rebuilt from scratch continuously: taps landed on diamonds that were
+   * about to be destroyed, and the board the player was looking at was never
+   * the one their tap was tested against.
+   */
+  return useMemo(
+    () => ({ raid, targets, outcome, note, busy, sprung, enter, step, leave, refresh, setNote }),
+    [raid, targets, outcome, note, busy, sprung, enter, step, leave, refresh],
+  );
 }
