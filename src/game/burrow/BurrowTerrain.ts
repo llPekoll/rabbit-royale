@@ -114,10 +114,26 @@ export async function createBurrowTerrain(
     // landscape taking one place in the order. See the long note in
     // TerrainBackground.
     decoLayer: container,
-    // The burrow sits in the same sea the island does, and here the water IS
-    // wanted: it is what makes the homestead read as an island of its own
-    // rather than as a lawn that stops.
-    sea: true,
+    // The burrow sits in the same sea the island does — but it is the SCENE's
+    // sea, painted edge to edge, not one tile per cell.
+    //
+    // `sea: true` was here to stop the homestead reading as "a lawn that
+    // stops", and that goal is right; the means were wrong, and on a real
+    // screen it showed. The pack's water is a flat teal of a DIFFERENT shade
+    // from the scene's background, so stamped per cell it laid a lighter
+    // diamond over the whole grid — the carpet of squares visible around the
+    // farm. `buildFoam` then edged it with one sprite per shore cell, which is
+    // what made the coast climb in steps.
+    //
+    // Both off, exactly as `TerrainBackground` does for the island and as the
+    // `Island/Water` stories do: the ground stops at the shore, the scene's own
+    // BG_COLOR is the sea, and the coastline belongs to the water work in
+    // `game/fx` (PackWater) rather than to the tile grid. The sea ROCKS are
+    // unaffected — `buildSeaRocks` does not read either flag — so the water
+    // around the homestead keeps the thing that actually made it read as
+    // occupied.
+    sea: false,
+    foam: false,
     decoShadows: true,
     groundAt: (x, y) => (soil.has(`${x},${y}`) ? 'sand' : null),
   });
