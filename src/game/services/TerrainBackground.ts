@@ -94,6 +94,19 @@ export async function createTerrainBackground(
     // stamped per cell, it drew a second, lighter diamond the size of the
     // whole grid around the island, which read as a veil lying on the water.
     sea: false,
+    // And no per-cell surf either, for the same reason one step further out.
+    //
+    // `buildFoam` stamps one foam sprite on every SEA CELL that touches land.
+    // On a grid that coarse the ring it makes is the grid: the shore comes out
+    // as a staircase of teal diamonds stepping around the island, which reads
+    // as tiled water rather than as a coast. It is the shape the water work in
+    // `game/fx` (`PackWater`, and `Island/Water` in Storybook) exists to
+    // replace — a continuous band solved from distance to land rather than one
+    // sprite per cell.
+    //
+    // Off rather than restyled: leaving it on would draw the old coastline
+    // UNDER the new one the moment that work lands.
+    foam: false,
     // Over a playing board a tree without one hovers between two lit
     // diamonds and the eye cannot tell which cell it stands on.
     decoShadows: true,
