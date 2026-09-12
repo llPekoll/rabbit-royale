@@ -403,6 +403,9 @@ export class BurrowScene implements Scene {
        */
       const hw = BURROW_HALF_W / hint.scale.x;
       const hh = BURROW_HALF_H / hint.scale.y;
+      // Named so a hit test says WHICH cell answered rather than 'Sprite' —
+      // the island's veils carry the same kind of label for the same reason.
+      hint.label = `burrow-hint-${i}`;
       hint.eventMode = 'static';
       hint.hitArea = new Polygon([0, -hh, hw, 0, 0, hh, -hw, 0]);
       hint.on('pointertap', () => {
@@ -562,6 +565,7 @@ export class BurrowScene implements Scene {
     // OVER that diamond, so without this it would swallow every tap meant for
     // the one cell that most needs to answer them.
     group.eventMode = 'none';
+    group.label = `burrow-trap-${tile}`;
 
     // Into the cell's terrain block, through the SAME call that placed the
     // diamond under it — at a higher zIndex so it draws over it.

@@ -386,9 +386,41 @@ function Burrow() {
         }
       }
       console.log(`[rrDiag] ${clear}/81 points reach the canvas`);
-      if (!blockers.size) { console.log('[rrDiag] nothing covers the board'); return; }
       for (const [name, v] of blockers) {
         console.log(`[rrDiag] ${v.count} pts blocked by ${name} — pointer-events: ${v.pe}, box ${v.box}`);
+      }
+      if (!blockers.size) console.log('[rrDiag] HTML: nothing covers the board');
+
+      // ── Inside Pixi ─────────────────────────────────────────────────────
+      //
+      // The HTML half above only answers "did the tap reach the canvas". Once
+      // it does, Pixi decides which display object replies — by DEPTH, and the
+      // deepest interactive thing under the pointer wins. So the same question
+      // has to be asked a second time, in the scene graph.
+      const app = (globalThis as { __PIXI_APP__?: {
+        stage: unknown; renderer: { events?: { rootBoundary?: {
+          hitTest(x: number, y: number): unknown } } };
+      } }).__PIXI_APP__;
+      if (!app) { console.log('[rrDiag] no __PIXI_APP__ — cannot inspect the scene'); return; }
+
+      // Pixi's OWN hit test, which is the authority: whatever it names here is
+      // exactly what a real click would be delivered to.
+      const boundary = app.renderer.events?.rootBoundary;
+      const canvasR = canvas.getBoundingClientRect();
+      const probe = (px: number, py: number) => {
+        const hit = boundary?.hitTest(px, py) as
+          { label?: string; constructor?: { name?: string }; eventMode?: string } | null;
+        return hit
+          ? `${hit.label || hit.constructor?.name || '?'} (eventMode ${hit.eventMode})`
+          : 'nothing';
+      };
+      console.log('[rrDiag] pixi hit test at 9 points across the board:');
+      for (let gy = 1; gy < 4; gy++) {
+        for (let gx = 1; gx < 4; gx++) {
+          const px = (canvasR.width * gx) / 4;
+          const py = (canvasR.height * gy) / 4;
+          console.log(`[rrDiag]   ${Math.round(px)},${Math.round(py)} -> ${probe(px, py)}`);
+        }
       }
     };
   }, []);
