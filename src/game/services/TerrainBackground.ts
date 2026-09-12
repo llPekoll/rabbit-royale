@@ -15,9 +15,13 @@
  * than two grids that merely look alike.
  */
 import { Container, type Sprite } from 'pixi.js';
-import { HALF_W, HALF_H, ISO_ORIGIN_X, ISO_ORIGIN_Y, COLS, ROWS, toColRow } from '@/config/gridConfig';
+import { HALF_W, HALF_H, ISO_ORIGIN_X, ISO_ORIGIN_Y, COLS, ROWS, toColRow, tilePos, toIndex } from '@/config/gridConfig';
 import { IsoIslandView, loadIslandTileset, isoProject } from '@/game/island';
-import { terrainFor, TIER_LIFT } from '@/lib/game/terrainBoard';
+import { terrainFor, TIER_LIFT, levelTierAt } from '@/lib/game/terrainBoard';
+import { mulberry32, seedFrom } from '@/lib/game/rng';
+import { createPackWater, loadPackWater, type PackWater } from '@/game/fx/PackWater';
+import { createDucks, loadDucks, type Ducks } from '@/game/fx/Ducks';
+import { WATER_LOOK, DUCK_LOOK } from '@/config/waterLook';
 import type { IslandBackground } from './IslandBackground';
 
 /** Scenery is cut for 64px tiles; the board's are 44x24. */
@@ -132,6 +136,47 @@ export async function createTerrainBackground(
   island.view.zIndex = -10;
   container.addChild(island.view);
 
+  /**
+   * The sea's own layer: the surf breaking on the coast, and the ducks on it.
+   *
+   * Under the ground (`-20` against the ground's `-10`) so a duck swimming
+   * behind the island is hidden by it rather than sliding over the cliffs, and
+   * so the surf's overhang tucks beneath the land it laps.
+   *
+   * Cells are addressed in the BOARD's own terms — `tilePos` for the screen
+   * point, `levelTierAt` for land — so the water sits on exactly the grid the
+   * terrain was drawn on rather than on a second one that merely lines up.
+   * Both helpers take the flat position: the surf belongs at sea level, not
+   * lifted onto whatever tier the land behind it rose to.
+   */
+  const sea = new Container();
+  sea.zIndex = -20;
+  container.addChild(sea);
+
+  const isLand = (x: number, y: number) =>
+    x >= 0 && y >= 0 && x < COLS && y < ROWS && levelTierAt(seed, x, y) > 0;
+  // `sea` is a SIBLING of `island.view` in the same container, and the terrain
+  // was just aligned so its cell (0,0) lands on the board's `tilePos(0)`. So
+  // the board's own projection is already the right answer here — re-applying
+  // the terrain's offset on top would push the water off by that shift twice.
+  const at = (x: number, y: number) => tilePos(toIndex(x, y));
+
+  const water = createPackWater(
+    await loadPackWater(), COLS, ROWS, isLand, at, WATER_LOOK,
+  );
+  sea.addChild(water.view);
+
+  const ducks = createDucks(
+    await loadDucks(), COLS, ROWS,
+    (x, y) => !isLand(x, y),
+    at,
+    // Seeded from the island, so the same island always puts its ducks in the
+    // same places — a screenshot of a seed is reproducible.
+    mulberry32(seedFrom(`${seed}:ducks`)),
+    DUCK_LOOK,
+  );
+  sea.addChild(ducks.view);
+
   return {
     layout() {
       // The terrain is pinned to the board's grid, and the board does not move
@@ -154,8 +199,17 @@ export async function createTerrainBackground(
       const { col, row } = toColRow(index);
       return island.mountVeil(col, row, veil);
     },
-    update: (deltaMs) => island.update(deltaMs),
-    destroy: () => island.destroy(),
+    update(deltaMs) {
+      island.update(deltaMs);
+      water.update(deltaMs);
+      ducks.update(deltaMs);
+    },
+    destroy() {
+      island.destroy();
+      water.destroy();
+      ducks.destroy();
+      sea.destroy({ children: true });
+    },
   };
 }
 

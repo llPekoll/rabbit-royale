@@ -22,9 +22,13 @@ import { Container, Sprite, Texture } from 'pixi.js';
 import { IsoIslandView, loadIslandTileset, isoProject } from '@/game/island';
 import {
   BURROW_HALF_W, BURROW_HALF_H, BURROW_TIER_LIFT,
-  BURROW_ORIGIN_X, BURROW_ORIGIN_Y,
+  BURROW_ORIGIN_X, BURROW_ORIGIN_Y, BURROW_COLS, BURROW_ROWS, burrowTilePos,
 } from '@/config/burrowConfig';
-import { burrowFor, burrowColRow, burrowIndex } from './board';
+import { burrowFor, burrowColRow, burrowIndex, burrowCell } from './board';
+import { mulberry32, seedFrom } from '@/lib/game/rng';
+import { createPackWater, loadPackWater } from '@/game/fx/PackWater';
+import { createDucks, loadDucks } from '@/game/fx/Ducks';
+import { WATER_LOOK, DUCK_LOOK } from '@/config/waterLook';
 import { burrowBuilding } from './buildings';
 import { burrowDepth } from './screen';
 
@@ -183,6 +187,42 @@ export async function createBurrowTerrain(
   };
   place(level);
 
+  /**
+   * The sea's own layer: the surf on the shore, and the ducks on the water.
+   *
+   * A CHILD of the terrain's view rather than a sibling, unlike the island's.
+   * This function hands the scene `island.view` as its whole ground — there is
+   * no wrapper to hang a sibling off — so the water goes inside it, at a
+   * zIndex below anything the view draws. That also means it inherits the
+   * alignment already applied to the view, so cells address in the board's own
+   * projection with no second offset.
+   */
+  const sea = new Container();
+  sea.zIndex = -1000;
+  island.view.addChild(sea);
+
+  const isLand = (x: number, y: number) =>
+    x >= 0 && y >= 0 && x < BURROW_COLS && y < BURROW_ROWS
+    && burrowCell(seed, burrowIndex(x, y)) !== 'blocked';
+  // Flat position: the surf lies at sea level, not lifted onto whatever tier
+  // the land behind it rose to.
+  const at = (x: number, y: number) => burrowTilePos(burrowIndex(x, y));
+
+  const water = createPackWater(
+    await loadPackWater(), BURROW_COLS, BURROW_ROWS, isLand, at, WATER_LOOK,
+  );
+  sea.addChild(water.view);
+
+  const ducks = createDucks(
+    await loadDucks(), BURROW_COLS, BURROW_ROWS,
+    (x, y) => !isLand(x, y),
+    at,
+    // Seeded from the homestead, so a player's own pond is always the same.
+    mulberry32(seedFrom(`${seed}:ducks`)),
+    DUCK_LOOK,
+  );
+  sea.addChild(ducks.view);
+
   return {
     view: island.view,
     setLevel: place,
@@ -191,6 +231,11 @@ export async function createBurrowTerrain(
       return island.mountVeil(col, row, veil, zIndex);
     },
     reveal(tiles) {
+      // The water goes with the ground it surrounds. A raider is meant to be
+      // blind to a homestead they have not walked, and a coastline left drawn
+      // is its outline: the surf traces every shore cell, so the shape of the
+      // island would be readable before a single tile was uncovered.
+      sea.visible = tiles === null;
       if (tiles === null) {
         island.revealOnly(null);
         home.visible = true;
@@ -212,9 +257,19 @@ export async function createBurrowTerrain(
       island.revealOnly(cells);
       home.visible = buildingSeen;
     },
-    update: (deltaMs) => island.update(deltaMs),
+    update(deltaMs) {
+      island.update(deltaMs);
+      // Skipped while hidden: a raid keeps the sea invisible for its whole
+      // length, and animating a flock nobody can see is work for nothing.
+      if (!sea.visible) return;
+      water.update(deltaMs);
+      ducks.update(deltaMs);
+    },
     destroy() {
       home.destroy();
+      water.destroy();
+      ducks.destroy();
+      sea.destroy({ children: true });
       island.destroy();
     },
   };

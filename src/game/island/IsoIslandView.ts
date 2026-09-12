@@ -37,7 +37,7 @@ import { columnFaces, isoBounds, isoDepth, isoProject, ISO_TILE, type IsoMetrics
 import type { Occupant, OccupantKind } from './board';
 import type { Placement } from './terrain';
 import { blocksCell, fadeAlpha } from './blocking';
-import { TILE, type FootSprite, type GroundKind, type IslandTileset, type UnitKind } from './tileset';
+import { TILE, SEA_ROCK_FRAME, type FootSprite, type GroundKind, type IslandTileset, type UnitKind } from './tileset';
 
 export interface IsoIslandViewOptions {
   map: IslandMap;
@@ -532,7 +532,12 @@ export class IsoIslandView {
         if (touchesLand(map, x, y) || rng() > SEA_ROCK_CHANCE) continue;
         const frames = tileset.seaRocks[Math.floor(rng() * tileset.seaRocks.length)];
         const sprite = this.stamp(world, frames[0], x, y, 0, isoDepth(x, y, 0) + 1, 0.5);
-        sprite.scale.set(scale);
+        // The rock's sheet is cut at 128, twice the 64 the rest of the ground
+        // art uses, so `decoScale` alone draws it at double everyone else's
+        // size — a boulder the size of a tree bobbing next to the shore. Divide
+        // its own frame out first, the same normalisation the ground does with
+        // `metrics.w / TILE`.
+        sprite.scale.set(scale * (TILE / SEA_ROCK_FRAME));
         this.animated.push({ sprite, frames, phase: this.windPhase(x, y) });
       }
     }

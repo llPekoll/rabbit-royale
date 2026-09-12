@@ -90,4 +90,31 @@ describe('no scene draws the sea as tiles', () => {
 
     expect(builders).toEqual(SITES.map((s) => s.file).sort());
   });
+
+  /**
+   * And the replacement is actually wired up, in both scenes.
+   *
+   * Turning the tiled water off and not putting the continuous coast in its
+   * place would leave the island with a hard cut-out edge — which is a worse
+   * picture than the staircase was, and the kind of half-migration that is easy
+   * to leave behind once the obvious artefact is gone.
+   */
+  for (const site of SITES) {
+    const src = code(site.file);
+
+    it(`${site.name} draws the continuous surf instead`, () => {
+      expect(src, site.file).toMatch(/createPackWater\(/);
+    });
+
+    it(`${site.name} puts ducks on the water`, () => {
+      expect(src, site.file).toMatch(/createDucks\(/);
+    });
+
+    it(`${site.name} takes its look from the shared constants`, () => {
+      // Not inline numbers. Two scenes tuning their own foam is how the game
+      // ends up with two different seas depending on the screen.
+      expect(src, site.file).toMatch(/WATER_LOOK/);
+      expect(src, site.file).toMatch(/DUCK_LOOK/);
+    });
+  }
 });

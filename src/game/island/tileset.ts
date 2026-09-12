@@ -176,8 +176,15 @@ const TREE_SWAY_FRAMES = 8;
 const TREE_VARIANT_STRIDE = TREE_SWAY_FRAMES + 1;
 export const TREE_VARIANT_COUNT = 4;
 
-/** Sea rocks bob over eight frames of 128x128. */
-const SEA_ROCK_FRAME = 128;
+/**
+ * Sea rocks bob over eight frames of 128x128.
+ *
+ * Exported because that 128 is TWICE the 64 every other ground-level sprite is
+ * cut at (`TILE`), so anything drawing a rock has to divide it out. Left
+ * implicit, a rock scaled by `decoScale` like a bush comes out at double the
+ * size of the island it is bobbing beside.
+ */
+export const SEA_ROCK_FRAME = 128;
 const SEA_ROCK_FRAMES = 8;
 
 /**
