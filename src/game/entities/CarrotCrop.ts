@@ -20,12 +20,15 @@
  * and there is nothing left to keep aligned with a painting.
  *
  * Several plants per cell, jittered inside the diamond, so a field reads as a
- * crop rather than as one carrot per square.
+ * crop rather than as one carrot per square — and MORE of them on an upgraded
+ * burrow, because that garden genuinely holds more carrots. See
+ * `plantsPerCell`.
  */
 import { Container, Sprite, Texture, Rectangle } from 'pixi.js';
 import PLOTS from '@/config/carrotPlots.json';
 import {
   GROW_MS, MIN_LIVE_PLOTS, growthFrame, spawnGapMs, grownCount, idleProgress,
+  plantsPerCell,
 } from '@/lib/game/garden-growth';
 import { mulberry32, seedFrom } from '@/lib/game/rng';
 import { BURROW_HALF_W, BURROW_HALF_H } from '@/config/burrowConfig';
@@ -41,15 +44,6 @@ interface Plot {
   sprite: Sprite;
 }
 
-/**
- * Plants per field cell.
- *
- * Three keeps a 12-cell garden at ~36 plants, which is about what the painted
- * field carried (35) — so `garden-growth`'s pacing, tuned against that count,
- * still reads the same.
- */
-const PER_CELL = 3;
-
 /** How large a carrot is drawn against the burrow's diamond. */
 const PLANT_SCALE = 0.42;
 
@@ -64,13 +58,23 @@ export class CarrotCrop {
 
   /**
    * `sheet` is the carrot growth atlas; `seed` is the burrow's owner, which is
-   * what decides where the field is.
+   * what decides where the field is; `level` is how far the burrow is upgraded,
+   * which decides how DENSELY the field is sown.
    *
    * The jitter is seeded from the same id, so a player's garden is sown the
    * same way every time they open it — a field that reshuffled on each visit
-   * would read as the plants having moved overnight.
+   * would read as the plants having moved overnight. Raising the density adds
+   * plants to that same sown field rather than re-rolling it, because the
+   * per-cell loop draws from the sequence in order: the carrots a player
+   * already had stay exactly where they were, and an upgrade fills in the gaps
+   * between them.
    */
-  constructor(private container: Container, sheet: Texture, seed: string) {
+  constructor(
+    private container: Container,
+    sheet: Texture,
+    seed: string,
+    level: number | null | undefined,
+  ) {
     // One sub-texture per growth frame, from the atlas rectangles rather than a
     // cols x rows formula — a re-pack would break a formula silently.
     this.frames = PLOTS.frames.map((r) => new Texture({
@@ -79,10 +83,13 @@ export class CarrotCrop {
     }));
 
     const rng = mulberry32(seedFrom(`${seed}:crop`));
+    // A bigger garden holds more carrots, so it grows more of them. See
+    // `plantsPerCell` for why the range is a doubling and not more.
+    const perCell = plantsPerCell(Math.max(1, level ?? 1));
 
     for (const tile of fieldTiles(seed)) {
       const centre = burrowTileScreen(seed, tile);
-      for (let n = 0; n < PER_CELL; n++) {
+      for (let n = 0; n < perCell; n++) {
         // Scattered inside the cell's DIAMOND, not its bounding box: a point
         // picked in the box lands outside the tile at the corners, and a
         // carrot there grows out of the neighbouring cell. |u| + |v| <= 1 in
@@ -160,7 +167,7 @@ export class CarrotCrop {
       // speckling at random.
       const next = this.plots.find((q) => q.sproutedAt === null);
       if (next) next.sproutedAt = now;
-      this.nextSprout = now + spawnGapMs(p);
+      this.nextSprout = now + spawnGapMs(p, this.plots.length);
     }
     if (live > wanted) {
       for (let i = this.plots.length - 1; i >= 0; i--) {
@@ -180,7 +187,7 @@ export class CarrotCrop {
     if (wanted <= MIN_LIVE_PLOTS) {
       for (const plot of this.plots) {
         if (plot.sproutedAt === null) continue;
-        if (now - plot.sproutedAt < GROW_MS + spawnGapMs(p)) continue;
+        if (now - plot.sproutedAt < GROW_MS + spawnGapMs(p, this.plots.length)) continue;
         plot.sproutedAt = null;
         plot.sprite.visible = false;
         const fresh = this.plots[Math.floor(Math.random() * this.plots.length)];
