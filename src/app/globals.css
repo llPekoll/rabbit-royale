@@ -1067,9 +1067,46 @@ button { min-height: 44px; min-width: 44px; }
   0%, 100% { transform: translateY(3px); }
   50%      { transform: translateY(-5px); }
 }
+/* ── Out of the way while placing ──────────────────────────────────────────
+   Placement pulls the camera back to show the whole board, and this button is
+   not one of the controls that job needs — the instruction and "Done placing"
+   are. So it leaves.
+
+   It TRAVELS rather than unmounting, on the camera's own curve and duration
+   (BurrowScene.moveCamera: 0.55s, back.out(1.3)), because the pull-back is
+   happening in the same moment. A control that blinks out mid-zoom reads as a
+   glitch; one that drops away with the zoom reads as the screen rearranging
+   itself for a different job. The overshoot in `back.out` is what sells it as
+   a camera move rather than a CSS slide.
+
+   `translateY` and `opacity` only — both compositor properties, so this rides
+   the same frames as the Pixi tween instead of fighting it for layout. The
+   distance is in `vh` so it clears the bottom of any screen, and the button
+   keeps its footprint in the column: animating it out of the flow would have
+   the burrow's content jump at the start of the move.
+
+   Pointer events go at the top of the move, not the end — a button on its way
+   off screen must not answer a thumb that is already reaching for a tile. */
+.rr-go, .rr-back {
+  transition:
+    transform 0.55s cubic-bezier(0.34, 1.3, 0.64, 1),
+    opacity 0.45s ease-in;
+}
+.rr-go-away {
+  transform: translateY(22vh);
+  opacity: 0;
+  pointer-events: none;
+}
+/* The inner wrapper's idle bounce would fight the exit, and a button bobbing
+   as it falls off the screen reads as two animations, not one move. */
+.rr-go-away .rr-go-inner { animation: none; }
+
 /* A looping arrow is exactly the motion that makes some people ill. */
 @media (prefers-reduced-motion: reduce) {
   .rr-go-inner { animation: none !important; }
+  /* The button still has to go — it just goes at once, with no travel. */
+  .rr-go, .rr-back { transition: opacity 0.15s linear; }
+  .rr-go-away { transform: none; }
 }
 
 /* ── The season board ──────────────────────────────────────────────────────

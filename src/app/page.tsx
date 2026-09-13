@@ -1182,7 +1182,13 @@ function Burrow() {
         // most common dead end — an empty tank now opens the popup that says
         // so and offers the way out. It still waits out a crossing with the
         // rest of the burrow's chrome.
-        <GoButton dir="down" label="Go farm" onClick={goFarm} />
+        //
+        // `away` while placing rather than unmounting it: farming is not on
+        // offer while you are mining the board, but the camera is pulling back
+        // in that same moment, and the button rides down with it on the same
+        // curve (see .rr-go-away). Unmounted, it would blink out halfway
+        // through the zoom.
+        <GoButton dir="down" label="Go farm" onClick={goFarm} away={placing} />
       )}
 
       {/* The small "out of energy" dialog. Above the shop in the tree and
