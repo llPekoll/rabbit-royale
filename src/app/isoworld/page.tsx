@@ -7,11 +7,25 @@
  * anything is built on them.
  */
 import { IsoWorldWorkbench } from './IsoWorldWorkbench';
+import { ISO_STYLES, type IsoStyle } from '@/game/isoworld';
 
 export const metadata = {
   title: 'Iso world workbench',
 };
 
-export default function IsoWorldPage() {
-  return <IsoWorldWorkbench />;
+/**
+ * `?style=smooth|pixel` and `?seed=...` pick the starting sheet and island,
+ * so a look can be linked to directly.
+ */
+export default async function IsoWorldPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const style = typeof params.style === 'string' && (ISO_STYLES as string[]).includes(params.style)
+    ? (params.style as IsoStyle)
+    : undefined;
+  const seed = typeof params.seed === 'string' && params.seed ? params.seed : undefined;
+  return <IsoWorldWorkbench style={style} seed={seed} />;
 }

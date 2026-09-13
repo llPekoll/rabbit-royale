@@ -60,6 +60,21 @@ export interface Ramp {
   kind: RampKind;
 }
 
+/**
+ * A ramp's corner heights, NE SE SW NW (corner `c` sits between sides `c`
+ * and `c + 1`): 1 where its surface stands at the tier above.
+ */
+export function rampCorners(ramp: Ramp): readonly [0 | 1, 0 | 1, 0 | 1, 0 | 1] {
+  const h: [0 | 1, 0 | 1, 0 | 1, 0 | 1] = [0, 0, 0, 0];
+  if (ramp.kind === 'outer') h[ramp.dir] = 1;
+  else if (ramp.kind === 'inner') for (const c of DIRS) if (c !== (ramp.dir + 2) % 4) h[c] = 1;
+  else {
+    h[(ramp.dir + 3) % 4] = 1;
+    h[ramp.dir] = 1;
+  }
+  return h;
+}
+
 /** The sides of a cell along which a ramp's surface stands at the tier above. */
 export function rampHighSides(ramp: Ramp): readonly Dir[] {
   if (ramp.kind === 'outer') return [];
@@ -67,7 +82,7 @@ export function rampHighSides(ramp: Ramp): readonly Dir[] {
   return [ramp.dir];
 }
 
-export type PropKind = 'hedge' | 'boulder' | 'post';
+export type PropKind = 'hedge' | 'boulder' | 'post' | 'patch';
 
 export interface Prop {
   kind: PropKind;
@@ -114,6 +129,9 @@ const PROP_CHANCE: ReadonlyArray<{ kind: PropKind; chance: number }> = [
   { kind: 'hedge', chance: 0.05 },
   { kind: 'boulder', chance: 0.03 },
   { kind: 'post', chance: 0.015 },
+  // Patches of darker grass: only the smooth sheet draws them, and they are
+  // the one prop it does draw.
+  { kind: 'patch', chance: 0.09 },
 ];
 
 /** Tier at `(x, y)`; out of bounds is open sea. */
@@ -271,10 +289,12 @@ const lookup = (level: Int8Array, w: number, h: number) => (x: number, y: number
  * Three things a slope world cannot draw, and the fix for each, applied
  * until nothing changes:
  *
- *   - a cell with an 8-neighbour two or more tiers below it (the coast
- *     included: the sea is tier 0) — lowered to one above the lowest. This
- *     is what makes every coast a one-block cliff of sand and every inland
- *     step exactly one tier;
+ *   - first and once, every land cell within two cells of the sea is made
+ *     tier 1: the beach. One ring of flat sand keeps every slope off the
+ *     coast, where its side would show as a wedge hanging over the water;
+ *     the second lets the slope up from the beach stand on it;
+ *   - a cell with a LAND 8-neighbour two or more tiers below it — lowered to
+ *     one above the lowest, so every inland step is exactly one tier;
  *   - a cell whose corners no piece fits (`rampFor` undefined), or with three
  *     or four higher sides — raised to the tier above when none of its
  *     8-neighbours is below it, so that no new two-tier step appears;
@@ -293,6 +313,16 @@ export function regularize(source: Int8Array, w: number, h: number): Int8Array {
     level[y * w + x] = v;
   };
 
+  const nearSea = (x: number, y: number, reach: number) => {
+    for (let dy = -reach; dy <= reach; dy++) {
+      for (let dx = -reach; dx <= reach; dx++) if (at(x + dx, y + dy) === 0) return true;
+    }
+    return false;
+  };
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) if (at(x, y) > 1 && nearSea(x, y, 2)) set(x, y, 1);
+  }
+
   for (let pass = 0; pass < 200; pass++) {
     let changed = false;
     for (let y = 0; y < h; y++) {
@@ -301,11 +331,17 @@ export function regularize(source: Int8Array, w: number, h: number): Int8Array {
         if (t === 0) continue;
 
         let lowest = t;
+        let lowestLand = t;
         for (let dy = -1; dy <= 1; dy++) {
-          for (let dx = -1; dx <= 1; dx++) if (dx || dy) lowest = Math.min(lowest, at(x + dx, y + dy));
+          for (let dx = -1; dx <= 1; dx++) {
+            if (!dx && !dy) continue;
+            const n = at(x + dx, y + dy);
+            lowest = Math.min(lowest, n);
+            if (n > 0) lowestLand = Math.min(lowestLand, n);
+          }
         }
-        if (lowest <= t - 2) {
-          set(x, y, lowest + 1);
+        if (lowestLand <= t - 2) {
+          set(x, y, lowestLand + 1);
           changed = true;
           continue;
         }

@@ -15,6 +15,7 @@ export {
   rotateIsoWorld,
   regularize,
   rampHighSides,
+  rampCorners,
   tierAt,
   rampAt,
   propAt,

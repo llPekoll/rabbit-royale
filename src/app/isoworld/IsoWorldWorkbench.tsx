@@ -95,7 +95,7 @@ const randomSeed = () => Math.random().toString(36).slice(2, 8);
 /** The pixel blocks are 32px; past 4 an island is mush. */
 const MAX_PIXELATE = 4;
 
-export function IsoWorldWorkbench() {
+export function IsoWorldWorkbench({ style, seed }: { style?: IsoStyle; seed?: string } = {}) {
   const hostRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<Application | null>(null);
   const tilesetRef = useRef<IsoTileset | null>(null);
@@ -103,7 +103,11 @@ export function IsoWorldWorkbench() {
   const worldRef = useRef<Container | null>(null);
   const backdropRef = useRef<Sprite | null>(null);
 
-  const [settings, setSettings] = useState<Settings>(INITIAL);
+  const [settings, setSettings] = useState<Settings>({
+    ...INITIAL,
+    ...(style ? { style } : {}),
+    ...(seed ? { seed } : {}),
+  });
   const [status, setStatus] = useState('loading the tile sheet...');
   const [tileset, setTileset] = useState<IsoTileset | null>(null);
   const [stats, setStats] = useState({ cells: 0, land: 0, tiers: 0, ramps: 0, props: 0, sprites: 0 });

@@ -26,7 +26,16 @@ neighbour's transparent edge and draw a hairline seam down every wall.
     col   0        1        2          3          4         5         6         7
     r0    cube     slab     slope W    slope N    inner NE  inner SE  inner SW  inner NW
     r1    turf     flat     slope S    slope E    outer NE  outer SE  outer SW  outer NW
-    r2    rim N    rim E    rim S      rim W
+    r2    rim N    rim E    rim S      rim W      fringe N  fringe E  fringe S  fringe W
+    r2    ...      col 8    patch      col 9-12   patch fringe N E S W
+
+A FRINGE is the scalloped lace of this material's colour that hangs over a
+neighbouring cell along one of ITS edges — the reference's plateaus spill
+over the ground below them with a wavy outline. It is drawn INSIDE the base
+diamond along that edge, so the renderer places it on the cell being spilled
+onto. The PATCH is a darker tuft of grass filling one cell, with its own
+fringes in its own colour, so a patch spills onto the cells around it the
+same way.
 
 Columns 4-7 are the corner ramps, in `Dir` order of their first side (see
 `rampHighSides` in terrain.ts): an INNER corner climbs toward two adjacent
@@ -98,7 +107,7 @@ OUT_PUBLIC = ROOT / 'public' / 'assets' / 'world' / 'iso-smooth-sheet-128.png'
 CELL = 128
 PAD = 2
 PITCH = CELL + 2 * PAD
-COLS, ROWS = 8, 10
+COLS, ROWS = 13, 10
 SS = 4  # supersampling: drawn at 512px per cell, then resolved down
 
 # Line weights, in OUTPUT pixels. Heavier than they look on the sheet: in the
@@ -109,18 +118,28 @@ GRID = 3.0      # light grid on top faces
 STRIPE = 3.0    # earth stripes on cliff faces
 BLEED = 0.8     # how far a filled face overshoots its edge to hide seams
 
-# Palette, read off the reference.
-INK = (58, 108, 62)              # outline: dark green
-CLIFF = (200, 186, 160)          # cliff face, tan
-CLIFF_SOUTH = (188, 173, 148)    # the face turned away from the light, a touch darker
-STRIPE_INK = (156, 141, 116)
-PEBBLE = (120, 118, 100)
+# Palette, sampled from public/assets/world/nature-isoworld.png.
+INK = (96, 104, 90)              # silhouette outline: the reference's grey-green cliff line
+LACE_INK = (104, 160, 82)        # outline of fringes and patches: dark green
+TUFT = (110, 170, 84)
+CLIFF = (191, 180, 150)          # cliff face, tan
+CLIFF_SOUTH = (181, 170, 141)    # the face turned away from the light, a touch darker
+STRIPE_INK = (168, 158, 132)
+PEBBLE = (118, 120, 108)
 
+# Fringe geometry, in lattice units of the cell edge.
+FRINGE_DEPTH = 0.16
+FRINGE_BUMPS = 4
+
+# Each material: its flat top, the grid on it, and its PATCH — the darker
+# tuft of grass the reference scatters on it. A slope leading up to a
+# material is that material's colour: the reference's plateaus run down
+# their slopes in one tone and only the lace at the foot marks the change.
 MATERIALS = [
-    # name,  top fill,        grid line
-    ('moss', (124, 186, 92), (156, 212, 120)),
-    ('grass', (168, 224, 122), (208, 244, 160)),
-    ('sand', (239, 243, 185), (250, 252, 216)),
+    # name,   top fill,        top grid,        patch fill
+    ('moss', (176, 218, 120), (200, 236, 150), (128, 188, 96)),
+    ('grass', (211, 244, 153), (232, 254, 192), (148, 204, 110)),
+    ('sand', (239, 243, 185), (250, 252, 216), (211, 244, 153)),
 ]
 
 # --- lattice ---------------------------------------------------------------
@@ -412,6 +431,51 @@ RIM_EDGES = {
 CORNERS = {'L': (0, 1), 'R': (1, 0), 'F': (1, 1)}
 
 
+def scallop_band(edge: str, depth: float, bumps: int):
+    """
+    The polygon of a lace along one edge of the base diamond, inside it: the
+    straight edge, then a wavy far side of `bumps` semicircles.
+    """
+    (a, b) = RIM_EDGES[edge]
+    # Inward direction, in lattice units: from the edge toward the cell.
+    inward = {'N': (0, 1), 'E': (-1, 0), 'S': (0, -1), 'W': (1, 0)}[edge]
+    pts = [P(*a), P(*b)]
+    steps = 24 * bumps
+    for k in range(steps, -1, -1):
+        t = k / steps
+        phase = (t * bumps) % 1
+        d = depth * (0.55 + 0.45 * math.sqrt(max(0.0, 1 - (2 * phase - 1) ** 2)))
+        u = a[0] + (b[0] - a[0]) * t + inward[0] * d
+        v = a[1] + (b[1] - a[1]) * t + inward[1] * d
+        pts.append(P(u, v, 0))
+    return pts
+
+
+def fringe(color, edge: str) -> Cell:
+    """The lace of `color` hanging over this cell from the neighbour across `edge`."""
+    c = Cell()
+    pts = scallop_band(edge, FRINGE_DEPTH, FRINGE_BUMPS)
+    d = ImageDraw.Draw(c.img)
+    d.polygon(pts, fill=color)
+    # Outline the wavy side only; the straight side meets the neighbour's fill.
+    d.line(pts[2:], fill=LACE_INK, width=round(OUTLINE * 0.8 * SS), joint='curve')
+    return c
+
+
+def patch(mat, rng) -> Cell:
+    """A darker tuft of grass filling the cell, with a few blades marked on it."""
+    c = Cell()
+    c.fill(top_quad(0), mat[3])
+    for _ in range(3):
+        u, v = rng.uniform(0.25, 0.75), rng.uniform(0.25, 0.75)
+        x, y = P(u, v, 0)
+        w, h = 5 * SS, 4 * SS
+        d = ImageDraw.Draw(c.img)
+        d.line([(x - w, y - h), (x, y), (x + w, y - h)], fill=TUFT, width=round(1.6 * SS), joint='curve')
+        d.line([(x - 2 * w, y - 2), (x - w * 0.6, y + h * 0.8)], fill=TUFT, width=round(1.4 * SS))
+    return c
+
+
 def rim(direction: str) -> Cell:
     """The dark outline along one edge of the base diamond, centred on it."""
     c = Cell()
@@ -465,6 +529,9 @@ def build() -> Image.Image:
             put(r + 1, 4 + d, outer(mat, rng, d))
         for col, direction in enumerate('NESW'):
             put(r + 2, col, rim(direction))
+            put(r + 2, 4 + col, fringe(mat[1], direction))
+            put(r + 2, 9 + col, fringe(mat[3], direction))
+        put(r + 2, 8, patch(mat, rng))
     for col, which in enumerate('LRF'):
         put(9, col, corner(which))
     return sheet

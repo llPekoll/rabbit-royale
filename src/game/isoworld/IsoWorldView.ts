@@ -40,11 +40,26 @@
  * face shows and no wall continues it westward, the right likewise for the
  * east face and north. Sea cells lay rims too, so the island's foot is drawn.
  */
-import { Container, Sprite, type Texture } from 'pixi.js';
+import { Container, Graphics, Sprite, type Texture } from 'pixi.js';
 import type { IsoTileset, Material, MaterialTiles } from './sheet';
-import { DIR, DIR_STEP, propAt, rampAt, rampHighSides, tierAt, touchesSea, type Dir, type IsoWorld } from './terrain';
+import {
+  DIR,
+  DIR_STEP,
+  propAt,
+  rampAt,
+  rampCorners,
+  rampHighSides,
+  tierAt,
+  touchesSea,
+  type Dir,
+  type IsoWorld,
+  type Ramp,
+} from './terrain';
 
 const DIRS: readonly Dir[] = [DIR.N, DIR.E, DIR.S, DIR.W];
+
+/** The outline colour of the smooth sheet, for the one line the sheet cannot carry. */
+const INK = 0x3a6c3e;
 
 /**
  * How the land is built. `tiered` is the default and means what the sheet
@@ -138,6 +153,8 @@ export class IsoWorldView {
 
     if (tier === 0) {
       if (tileset.water) this.place(tileset.water, x, y, 0, false);
+      // The sea draws the island's foot: its rims, at floor height, along
+      // every edge where land stands.
       this.outline(x, y, 0);
       return;
     }
@@ -146,13 +163,16 @@ export class IsoWorldView {
     const beach = layered && tier === 1 && touchesSea(world, x, y);
     const east = tierAt(world, x + 1, y);
     const south = tierAt(world, x, y + 1);
-    for (let k = 0; k < tier; k++) {
+    const surface = tier * block.z;
+    // Blocks from the floor up. On the floor tier itself there is no block:
+    // the cell is a flat tile with nothing under it.
+    for (let k = spec.floor; k < tier; k++) {
       const top = k === tier - 1;
       if (!top && east > k && south > k) continue;
       this.place(this.blockMaterial(ground, tier, top).cube, x, y, k * block.z);
     }
+    if (tier <= spec.floor) this.place(this.surfaceMaterial(ground, tier).flat, x, y, surface);
 
-    const surface = tier * block.z;
     // The turf is thin, so it is laid its own thickness down: its top lands
     // exactly on the surface and its sides cover the top of the dirt block.
     if (layered && !beach) this.place(tileset.materials.grass.turf, x, y, surface - tileset.turfZ);
@@ -162,29 +182,38 @@ export class IsoWorldView {
     if (ramp) {
       // Layered: stairs are cut stone, slopes are the hillside. A flight turned
       // to face the camera has no stairs sprite and becomes a slope — and then
-      // it is hillside too, not a grey wedge of stone.
-      const stairsSet = layered ? tileset.materials.stone : surfaceSet;
+      // it is hillside too, not a grey wedge of stone. On a sheet coloured by
+      // tier the ramp belongs to the tier it climbs TO: the band below a
+      // plateau is that plateau's colour, lit.
+      const rampSet = layered ? surfaceSet : this.surfaceMaterial(ground, tier + 1);
+      const stairsSet = layered ? tileset.materials.stone : rampSet;
       const piece =
         ramp.kind === 'stairs'
           ? stairsSet.stairs[ramp.dir]
           : ramp.kind === 'inner'
-            ? surfaceSet.inner?.[ramp.dir]
+            ? rampSet.inner?.[ramp.dir]
             : ramp.kind === 'outer'
-              ? surfaceSet.outer?.[ramp.dir]
+              ? rampSet.outer?.[ramp.dir]
               : undefined;
-      this.place(piece ?? surfaceSet.slope[ramp.dir], x, y, surface);
+      this.place(piece ?? rampSet.slope[ramp.dir], x, y, surface);
     }
-    this.outline(x, y, tier, ramp !== undefined);
+    this.outline(x, y, tier, ramp);
 
     const prop = (this.options.deco ?? true) ? propAt(world, x, y) : undefined;
     if (prop) {
-      // A sheet without prop pieces draws none; the smooth sheet is terrain only.
+      // A sheet without a piece for a prop draws none of that kind.
       const texture =
         prop.kind === 'post'
           ? tileset.post
-          : tileset.materials[prop.kind === 'hedge' ? spec.hedge : spec.boulder].block?.[prop.dir];
+          : prop.kind === 'patch'
+            ? tier > spec.floor
+              ? surfaceSet.patch
+              : undefined
+            : tileset.materials[prop.kind === 'hedge' ? spec.hedge : spec.boulder].block?.[prop.dir];
       if (texture) this.place(texture, x, y, surface);
     }
+
+    this.lace(x, y, tier, ramp);
   }
 
   /**
@@ -192,9 +221,9 @@ export class IsoWorldView {
    * corners down its walls, by the rules in the class notes. Nothing on the
    * pixel sheet, which has no outline pieces.
    */
-  private outline(x: number, y: number, tier: number, ramp = false): void {
+  private outline(x: number, y: number, tier: number, ramp?: Ramp): void {
     const { world, tileset } = this.options;
-    const { block, corners } = tileset;
+    const { block, corners, spec } = tileset;
     const rim = this.surfaceMaterial(this.options.ground ?? 'tiered', Math.max(tier, 1)).rim;
     if (!rim || !corners) return;
 
@@ -210,13 +239,31 @@ export class IsoWorldView {
       return { tier: n, joins };
     });
 
-    const surface = tier * block.z;
+    // The sea has no surface of its own; its rims sit on the floor.
+    const surface = Math.max(tier, spec.floor) * block.z;
     if (!ramp) {
       for (const d of DIRS) {
         const { tier: n, joins } = around[d];
         if (joins || n === tier) continue;
         const far = d === DIR.N || d === DIR.W;
         if (far || n < tier) this.place(rim[d], x, y, surface);
+      }
+    } else {
+      // A ramp's edges against the sea, where nothing else draws the island's
+      // outline. Near edges: the rim at the ramp's foot — the base of its
+      // wall or wedge, or its flat edge. Far edges: the surface's own edge
+      // against the sky — a rim at the foot where it lies flat, a rim one
+      // block up where it stands at the tier above, and a drawn line where
+      // it slopes, since no sheet piece runs diagonally.
+      const h = rampCorners(ramp);
+      for (const d of DIRS) {
+        if (around[d].tier !== 0) continue;
+        const far = d === DIR.N || d === DIR.W;
+        const a = h[(d + 3) % 4];
+        const b = h[d];
+        if (!far || (a === 0 && b === 0)) this.place(rim[d], x, y, surface);
+        else if (a === 1 && b === 1) this.place(rim[d], x, y, surface + block.z);
+        else this.line(x, y, d, a, b, surface);
       }
     }
 
@@ -226,12 +273,88 @@ export class IsoWorldView {
     const north = around[DIR.N].tier;
     // A ramp's own block has its edges drawn in the sprite; only the blocks under it get corners.
     const top = ramp ? tier - 1 : tier;
-    for (let k = 0; k < top; k++) {
+    for (let k = spec.floor; k < top; k++) {
       const z = k * block.z;
       if (east <= k && south <= k) this.place(corners.front, x, y, z);
       if (south <= k && west <= k) this.place(corners.left, x, y, z);
       if (east <= k && north <= k) this.place(corners.right, x, y, z);
     }
+  }
+
+  /**
+   * The lace: a colour spilling over a neighbouring cell along their shared
+   * edge, with a scalloped outline — the reference's plateaus over the ground
+   * at their foot, and its patches of grass over the turf around them.
+   *
+   * A ramp is painted the colour of the tier it climbs to, so at its foot,
+   * where it meets flat ground of its own tier, that colour spills over the
+   * ground. A patch spills its own colour over the flat cells around it.
+   *
+   * The piece hangs INSIDE the cell spilled onto, so it must be drawn after
+   * that cell's own surface. Painter's order draws a cell after its north and
+   * west neighbours and before its south and east ones, so each cell settles
+   * the two edges it shares with the earlier pair — in either direction —
+   * and leaves the other two to the later pair.
+   */
+  private lace(x: number, y: number, tier: number, ramp: Ramp | undefined): void {
+    const { world, tileset } = this.options;
+    const { block, spec } = tileset;
+    const ground = this.options.ground ?? 'tiered';
+    if (!this.surfaceMaterial(ground, tier).fringe) return;
+    const deco = this.options.deco ?? true;
+    const patch = deco && propAt(world, x, y)?.kind === 'patch' && tier > spec.floor;
+    const surface = tier * block.z;
+
+    for (const d of [DIR.N, DIR.W] as const) {
+      const { dx, dy } = DIR_STEP[d];
+      const nx = x + dx;
+      const ny = y + dy;
+      if (tierAt(world, nx, ny) !== tier) continue;
+      const nRamp = rampAt(world, nx, ny);
+      // Same tier as this cell, so the floor rule is the same.
+      const nPatch = deco && propAt(world, nx, ny)?.kind === 'patch' && tier > spec.floor;
+      const back = ((d + 2) % 4) as Dir;
+
+      if (nRamp && !ramp) {
+        // The neighbour's slope colour spills onto this cell.
+        this.place(this.surfaceMaterial(ground, tier + 1).fringe![d], x, y, surface);
+      } else if (ramp && !nRamp) {
+        this.place(this.surfaceMaterial(ground, tier + 1).fringe![back], nx, ny, surface);
+      } else if (nPatch && !patch) {
+        this.place(this.surfaceMaterial(ground, tier).patchFringe![d], x, y, surface);
+      } else if (patch && !nPatch) {
+        this.place(this.surfaceMaterial(ground, tier).patchFringe![back], nx, ny, surface);
+      }
+    }
+  }
+
+  /**
+   * The ink along a sloped edge of cell `(x, y)`: side `d`, from its first
+   * corner (clockwise) `a` blocks up to its second `b`, above `elevation`.
+   * Drawn rather than placed, since the sheet has no diagonal rim; same
+   * colour and weight as the rim pieces.
+   */
+  private line(x: number, y: number, d: Dir, a: number, b: number, elevation: number): void {
+    const { cell, block } = this.options.tileset;
+    // Side d runs from corner d - 1 to corner d; corners NE SE SW NW sit at
+    // the cell's right, bottom, left and top points.
+    const point = (c: number, z: number): [number, number] => {
+      const cx = (x - y) * (block.w / 2);
+      const cy = (x + y) * (block.h / 2) - elevation - z * block.z;
+      const at = [
+        [cx + block.w / 2, cy + block.h / 2],
+        [cx, cy + block.h],
+        [cx - block.w / 2, cy + block.h / 2],
+        [cx, cy],
+      ][c] as [number, number];
+      return at;
+    };
+    const from = point((d + 3) % 4, a);
+    const to = point(d, b);
+    const g = new Graphics();
+    g.moveTo(from[0], from[1]).lineTo(to[0], to[1]).stroke({ color: INK, width: (cell * 4.6) / 128, cap: 'round' });
+    this.layer.addChild(g);
+    this.sprites++;
   }
 
   /** The material of the block at height `k` of a column standing at `tier`. */

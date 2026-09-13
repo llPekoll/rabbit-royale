@@ -89,6 +89,13 @@ interface SheetSpec {
   /** Whether the corner ramps exist (columns 4-7 of rows 0 and 1). */
   corners: boolean;
   /**
+   * The tier drawn as a sheet with nothing under it. 0 on the pixel sheet:
+   * the sea is the floor and land stands on it in blocks from the sea bed.
+   * 1 on the smooth sheet: the sand IS the floor, a flat tile with no
+   * thickness, and only the tiers above it have cliffs — as in the reference.
+   */
+  floor: number;
+  /**
    * What lies under the island: one flat colour, or a vertical gradient as
    * `[offset 0..1, rgb]` stops. Only `smooth` has no sea, so its islands float
    * on the page.
@@ -112,13 +119,14 @@ export const SHEETS: Readonly<Record<IsoStyle, SheetSpec>> = {
     stairs: true,
     blocks: true,
     corners: false,
+    floor: 0,
     background: 0x0b2233,
   },
   smooth: {
     // The query is a layout revision, bumped whenever the sheet's cells move:
     // browsers cache the file by URL, and a stale sheet sliced with the new
     // offsets shows pieces that no longer exist.
-    url: '/assets/world/iso-smooth-sheet-128.png?layout=3',
+    url: '/assets/world/iso-smooth-sheet-128.png?layout=5',
     cell: 128,
     pad: 2,
     materials: ['moss', 'grass', 'sand'],
@@ -132,14 +140,21 @@ export const SHEETS: Readonly<Record<IsoStyle, SheetSpec>> = {
     stairs: false,
     blocks: false,
     corners: true,
-    // The reference's page: teal at the top, through spring green, to a
-    // dusty olive at the bottom.
+    floor: 1,
+    // The reference's page, sampled every tenth of its height: teal at the
+    // top, through spring green, to a dusty olive at the bottom.
     background: [
-      [0, 0x69bfaf],
-      [0.2, 0x76c3a0],
-      [0.45, 0xa6d087],
-      [0.62, 0xb8cd7d],
-      [1, 0xa0af89],
+      [0, 0x69bfae],
+      [0.1, 0x68bfa7],
+      [0.2, 0x74c3a1],
+      [0.3, 0x85c695],
+      [0.4, 0x99cc8c],
+      [0.5, 0xacd283],
+      [0.6, 0xb6cd7b],
+      [0.7, 0xb4c67f],
+      [0.8, 0xabbb82],
+      [0.9, 0xa5b388],
+      [1, 0x9ead87],
     ],
   },
 };
@@ -167,6 +182,13 @@ export interface MaterialTiles {
   flat: Texture;
   /** One per direction the slope climbs toward. */
   slope: Readonly<Record<Dir, Texture>>;
+  /**
+   * The lace of this material's colour hanging over a cell along one of its
+   * edges, and the darker patch of grass with its own lace. Smooth sheet only.
+   */
+  fringe?: Readonly<Record<Dir, Texture>>;
+  patch?: Texture;
+  patchFringe?: Readonly<Record<Dir, Texture>>;
   /** Corner ramps by their first side, on sheets that have them. */
   inner?: Readonly<Record<Dir, Texture>>;
   outer?: Readonly<Record<Dir, Texture>>;
@@ -251,7 +273,12 @@ async function load(style: IsoStyle): Promise<IsoTileset> {
         ? { block: { 0: slice(r + 2, 5), 1: slice(r + 1, 5), 2: slice(r + 2, 4), 3: slice(r + 1, 4) } }
         : {}),
       ...(spec.outlines
-        ? { rim: { 0: slice(r + 2, 0), 1: slice(r + 2, 1), 2: slice(r + 2, 2), 3: slice(r + 2, 3) } }
+        ? {
+            rim: { 0: slice(r + 2, 0), 1: slice(r + 2, 1), 2: slice(r + 2, 2), 3: slice(r + 2, 3) },
+            fringe: { 0: slice(r + 2, 4), 1: slice(r + 2, 5), 2: slice(r + 2, 6), 3: slice(r + 2, 7) },
+            patch: slice(r + 2, 8),
+            patchFringe: { 0: slice(r + 2, 9), 1: slice(r + 2, 10), 2: slice(r + 2, 11), 3: slice(r + 2, 12) },
+          }
         : {}),
     };
   };

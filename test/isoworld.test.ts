@@ -83,9 +83,13 @@ describe('corner mode', () => {
             for (let dy = -1; dy <= 1; dy++) {
               for (let dx = -1; dx <= 1; dx++) {
                 const n = tierAt(world, x + dx, y + dy);
-                // Never two tiers at once, and the coast is always tier 1.
-                expect(Math.abs(n - t) <= 1 || (n === 0 && t === 1)).toBe(true);
-                if (n === 0) expect(t).toBe(1);
+                // Never two tiers at once between land cells, and the coast is
+                // flat sand: no ramp ever touches the sea.
+                if (n > 0) expect(Math.abs(n - t) <= 1).toBe(true);
+                if (n === 0) {
+                  expect(t).toBe(1);
+                  expect(world.ramps.has(y * world.width + x)).toBe(false);
+                }
               }
             }
             // A raised corner that no piece covers would be drawn as a wall.
