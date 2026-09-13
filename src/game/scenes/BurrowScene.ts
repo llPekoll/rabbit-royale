@@ -37,10 +37,10 @@ import { getBunnyAnimTextures } from '../services/AssetLoader';
 import { pixelText } from '../ui/PixelText';
 import * as Keys from '@/config/assetKeys';
 import { BURROW_COLS, BURROW_ROWS, BURROW_HALF_W, BURROW_HALF_H } from '@/config/burrowConfig';
-import { burrowCell, isTrappable, walkableTiles } from '@/game/burrow/board';
+import { burrowCell, isTrappable } from '@/game/burrow/board';
 import { burrowTileScreen, burrowDepth } from '@/game/burrow/screen';
 import { createBurrowTerrain, type BurrowTerrainView } from '@/game/burrow/BurrowTerrain';
-import { homeCam, boardCam, raidCam, type BurrowCam } from './burrowCamera';
+import { homeCam, boardCam, type BurrowCam } from './burrowCamera';
 
 /**
  * A diamond sprite sized for THIS board.
@@ -97,24 +97,21 @@ const PLACEABLE_ALPHA = 0.42;
 // see a trap until they spring it, which is the whole reason burying one is
 // worth doing.
 //
-// ## The homestead itself is the secret now
+// ## The homestead is in full view; the NUMBERS are the secret
 //
-// This overlay used to be drawn OVER a burrow in full view — every tree, the
-// door, the field — and that was defensible while the burrow was one painting
-// every player had already seen a hundred times. The only hidden thing was
-// where the traps were, and the dim wash on unvisited tiles said "you have not
-// read this one yet" rather than "you cannot see this".
+// The overlay is drawn over the defender's whole burrow — every tree, the
+// cliffs, the door, the field. For a while the terrain was hidden and
+// uncovered cell by cell instead (`BurrowTerrainView.reveal`), on the theory
+// that the shape of generated ground was itself information a raider should
+// pay for. It played terribly: a raider looked at three or four tiles adrift
+// in open water, could not tell where the field was, which way the island
+// ran, or why one step was a wall, and read the whole screen as broken.
 //
-// On generated ground that is a giveaway. Where the cliffs run, which corner
-// holds the garden, which approach the trees force — all of it is information
-// the raider is supposed to be BUYING one step at a time, and drawing the
-// whole island hands it over before the first move. So the terrain is hidden
-// and uncovered cell by cell (`BurrowTerrainView.reveal`), and what a raider
-// looks at is a few tiles of somebody's land floating in the sea.
-//
-// Which also fixes the thing that made the old overlay unreadable: the dim
-// tints had to fight a busy pixel-art meadow underneath them. Against open
-// water they simply read.
+// So the ground is shown and the CLUES are what a raider earns by walking.
+// Where the traps are is the only real secret, the server never sends it, and
+// a number is only drawn on a tile the raider has stood on or next to. Knowing
+// where the garden is tells them where to go; it does not tell them what is
+// buried on the way.
 
 /** A tile the raider has read. Cool and dim: it is known, not offered. */
 const SEEN_TINT = 0x9fb4c7;
@@ -224,11 +221,7 @@ export class BurrowScene implements Scene {
   private raidLabels: BitmapText[] = [];
   /** The raider's own sprite — a Container, so it is torn down separately. */
   private raidActors: Container[] = [];
-  /** Where the raider stands, so the camera can follow them. */
-  private raiderAt = 0;
   private raiding = false;
-  /** TEMPORARY: the raid on screen is a `?reveal=1` one. See `wantedCam`. */
-  private revealed = false;
   /** Where the camera is now, so a re-entry does not re-tween to where it sits. */
   private cam: BurrowCam = homeCam();
   private onResize: (() => void) | null = null;
@@ -576,23 +569,16 @@ export class BurrowScene implements Scene {
    * Placing and raiding are the same request — show me the whole board — so
    * they share one answer rather than each nudging the camera their own way and
    * fighting when a raid begins while the grid is still up.
+   *
+   * A raid briefly had its own close shot that followed the raider, because the
+   * defender's ground was hidden and a fit of a hidden board framed empty sea.
+   * The ground is drawn in full again (see the raid note above), so the fit is
+   * the right shot: the raider is choosing a route across a homestead, and a
+   * route needs the whole homestead in frame.
    */
   private wantedCam(): BurrowCam {
-    // A raid follows the raider; placing frames the whole homestead. They used
-    // to share one answer, which was right while both sides saw the same fully
-    // drawn board — see `raidCam` for why a hidden board needs its own shot.
-    // TEMPORARY (`?reveal=1`): a revealed raid is not a raid, it is somebody
-    // looking at a homestead. `raidCam`'s close shot exists to follow a raider
-    // who can only see a few cells and to keep the zoom from leaking how much
-    // they have uncovered — neither applies when the whole board is on screen,
-    // and at 1.25 the island simply runs off all four edges. Fit it instead.
-    // Goes with the flag.
-    if (this.raiding) {
-      return this.revealed
-        ? boardCam(this.data.seed)
-        : raidCam(this.data.seed, this.raiderAt);
-    }
-    return this.data.placing ? boardCam(this.data.seed) : homeCam();
+    if (this.raiding || this.data.placing) return boardCam(this.data.seed);
+    return homeCam();
   }
 
   /** The board skips blocked tiles, so hint order is not tile order. */
@@ -732,16 +718,12 @@ export class BurrowScene implements Scene {
 
     await this.showGround(state.seed, state.level);
 
-    // Only the ground the raider has uncovered is drawn at all — the rest of
-    // the homestead is not dimmed, it is absent. See the note above.
-    //
-    // The CROP is uncovered with it. It is drawn by the scene rather than by
-    // the terrain, so it does not follow automatically — and a carrot is the
-    // most legible thing on this board, so plants left drawn over hidden
-    // ground were an arrow pointing straight at the raid's objective.
-    const uncovered = state.view.map((v) => v.tile);
-    this.terrain?.reveal(uncovered);
-    this.crop?.revealOnly(uncovered);
+    // The whole homestead, garden included — see the raid note above. The
+    // ground is a fresh build for another seed and starts fully drawn, but a
+    // terrain that survives (raiding the same burrow twice) may still be
+    // carrying an earlier raid's reveal, so it is put back explicitly.
+    this.terrain?.reveal(null);
+    this.crop?.revealOnly(null);
     const visited = new Set(state.walked ?? []);
 
     // A raider must not see the OWNER's traps. They are hidden rather than
@@ -751,14 +733,6 @@ export class BurrowScene implements Scene {
     // Set before setPlacing: it reframes, and a raid wants the pulled-back
     // board — without this the camera would fly home and straight back out.
     this.raiding = true;
-    // Inferred rather than plumbed through: the flag lives in the URL and the
-    // scene has no business reading it. A view carrying nearly every walkable
-    // cell can only be a revealed one — a real raider's view is their path
-    // plus its fringe, which is a fraction of the board.
-    this.revealed = state.view.length >= walkableTiles(this.data.seed).length * 0.9;
-    // Before setPlacing, which reframes: the camera centres on the raider, so
-    // it has to know where they are standing first.
-    this.raiderAt = state.at;
     this.setPlacing(false);
     const steppable = new Set(state.steps);
 

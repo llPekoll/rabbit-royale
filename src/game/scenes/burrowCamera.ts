@@ -1,17 +1,17 @@
 /**
  * Where the burrow's camera sits, and why it moves.
  *
- * The screen has three readings of the same ground, and they want different
+ * The screen has two readings of the same ground, and they want different
  * framings. At HOME the burrow is a place: the camera sits close and the
- * homestead fills the frame. While PLACING a trap it is a board, and a board
- * you cannot see the whole of is a board you cannot make a decision on. While
- * RAIDING someone else's it is a board you are mostly BLIND to, so fitting it
- * would frame an empty sea — the camera follows the raider instead
- * (`raidCam`).
+ * homestead fills the frame. While PLACING a trap, or RAIDING someone else's,
+ * it is a board, and a board you cannot see the whole of is a board you cannot
+ * make a decision on — so both fit the whole homestead (`boardCam`).
  *
- * Placing and raiding used to share one answer, which was right while both
- * sides looked at the same fully drawn board. Hiding the defender's ground is
- * what split them.
+ * A raid briefly had a close shot of its own that followed the raider, from
+ * the time the defender's ground was hidden and uncovered cell by cell: a fit
+ * of a hidden board framed empty sea. The ground is drawn in full again, and
+ * the close shot went with the hiding — a raider who could see four cells of
+ * somebody's island could not tell what they were looking at.
  *
  * It is one transform on the scene container rather than a per-object rescale:
  * the terrain, the crop, the clouds and the board all keep their measured
@@ -119,46 +119,6 @@ export function boardCam(seed: string, W: number = GAME_W, H: number = GAME_H): 
     y: H / 2 - scale * (b.minY + b.maxY) / 2,
   };
 }
-
-/**
- * The raider's shot: centred on where they STAND, at the placement scale.
- *
- * Not a fit of the board, and not a fit of the uncovered patch either.
- *
- * Fitting the whole board is what the owner wants — they are looking at a
- * place they know — but a raider has most of that board hidden, so a
- * board-fitted camera frames a large empty sea with a few tiles adrift in one
- * corner. That is what the first cut did, and it read as a bug.
- *
- * Fitting the UNCOVERED patch is the obvious alternative and is worse: the
- * patch grows with every step, so the camera would re-solve and lurch on each
- * tap, and the ground the raider had learned to read would drift under them.
- * Worse still, the zoom level would itself leak information — a shot that
- * pulls back as the patch grows tells the raider how much they have uncovered
- * without their having to look.
- *
- * So: a fixed scale, centred on the raider. The shot is stable, the thing the
- * player is steering is always in the middle of it, and stepping moves the
- * camera by exactly one cell — which reads as walking.
- */
-export function raidCam(
-  seed: string,
-  at: number,
-  W: number = GAME_W,
-  H: number = GAME_H,
-): BurrowCam {
-  const here = burrowTileScreen(seed, at);
-  return { scale: RAID_SCALE, x: W / 2 - RAID_SCALE * here.x, y: H / 2 - RAID_SCALE * here.y };
-}
-
-/**
- * How close the raider's camera sits.
- *
- * Closer than the owner's board shot: a raid is a handful of cells at a time,
- * so there is no reason to hold the whole homestead in frame, and the clue
- * numbers have to be readable on a phone.
- */
-const RAID_SCALE = 1.25;
 
 /**
  * What the pulled-back shot puts where, for the test that guards it.
