@@ -45,6 +45,15 @@ export interface TerrainBackground extends IslandBackground {
    */
   moveSheep(id: string, x: number, y: number): boolean;
   /**
+   * The same, but WALKED: the sprite crosses each cell in turn.
+   *
+   * `cells` is the route in order, the last entry being where it ends up.
+   * `moveSheep` stays for the cases with no route to play — a joiner's
+   * snapshot, which says where the flock is rather than how it got there, and
+   * a rebuild replaying the roster onto fresh ground.
+   */
+  walkSheep(id: string, cells: Array<{ x: number; y: number }>, sprinting: boolean): boolean;
+  /**
    * Put a tile's veil inside the terrain block of its cell — see
    * `IsoIslandView.mountVeil`. False when the cell has no block.
    *
@@ -210,15 +219,13 @@ export async function createTerrainBackground(
     },
     fadeBehind: (x, y) => island.fadeBehind(x, y),
     moveSheep(id, x, y) {
-      // The occupant objects are the SAME ones the view holds, so writing the
-      // cell here and calling `syncOccupants` is what moves the sprite — the
-      // path a wandering sheep already used, now driven from the wire.
-      const one = island.occupants().find((o) => o.id === id);
-      if (!one) return false;
-      one.x = x;
-      one.y = y;
-      island.syncOccupants();
-      return true;
+      // Straight onto the cell, and any walk in progress dropped with it: a
+      // surviving walk keeps drawing the sprite along its old route and undoes
+      // the placement on the very next frame.
+      return island.placeOccupant(id, x, y);
+    },
+    walkSheep(id, cells, sprinting) {
+      return island.walkOccupant(id, cells, sprinting);
     },
     mountVeil(index, veil, zIndex) {
       const { col, row } = toColRow(index);

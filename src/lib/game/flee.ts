@@ -68,6 +68,20 @@ export interface Flight {
   id: string;
   from: { x: number; y: number };
   to: { x: number; y: number };
+  /**
+   * Every cell the sheep sets foot on, in order, EXCLUDING where it started.
+   *
+   * A graze is one entry and reads the same either way, but a sprint is up to
+   * `SPRINT_STEPS` cells chosen one neighbour at a time — and those cells are
+   * not a straight line. Reporting only `to` was what made a bolting sheep
+   * teleport: the client had the two endpoints and nothing in between, so the
+   * best it could do was cut the corner, straight through whatever the sheep
+   * had actually run around.
+   *
+   * The last entry always equals `to`; `to` is kept because most callers (the
+   * board, the blocking set) only ever want where it ended up.
+   */
+  path: Array<{ x: number; y: number }>;
   /** True when this was a panic sprint rather than a graze. The client plays
    *  it faster and the server can skip the usual drift timer. */
   sprinting: boolean;
@@ -115,13 +129,19 @@ export function planFlight(
     if (random() > GRAZE_CHANCE) return null;
     const step = pickStep(sheep.x, sheep.y, ground, random, true);
     if (!step) return null;
-    return { id: sheep.id, from: { x: sheep.x, y: sheep.y }, to: step, sprinting: false };
+    return {
+      id: sheep.id,
+      from: { x: sheep.x, y: sheep.y },
+      to: step,
+      path: [step],
+      sprinting: false,
+    };
   }
 
   // Rules 2 and 4: bolt somewhere legal, several cells, climbing if the shelf
   // it is on has nothing left to offer.
   let { x, y } = sheep;
-  let moved = false;
+  const path: Array<{ x: number; y: number }> = [];
   /**
    * Cells this sprint has already touched.
    *
@@ -145,10 +165,16 @@ export function planFlight(
     x = step.x;
     y = step.y;
     visited.add(`${x},${y}`);
-    moved = true;
+    path.push({ x, y });
   }
-  if (!moved) return null;
-  return { id: sheep.id, from: { x: sheep.x, y: sheep.y }, to: { x, y }, sprinting: true };
+  if (!path.length) return null;
+  return {
+    id: sheep.id,
+    from: { x: sheep.x, y: sheep.y },
+    to: { x, y },
+    path,
+    sprinting: true,
+  };
 }
 
 /**

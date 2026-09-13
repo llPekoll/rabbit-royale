@@ -274,6 +274,39 @@ interface AnimatedProp {
   phase: number;
 }
 
+/**
+ * How long a sheep takes to cross ONE cell, in milliseconds.
+ *
+ * Per cell rather than per move, so a four-cell sprint takes four times as long
+ * as a single step instead of being crammed into the same slot — a sheep that
+ * covers four cells in the time another covers one is back to looking
+ * teleported, just more smoothly.
+ *
+ * Both are comfortably inside the server's `FLOCK_TICK_MS`, which is what
+ * keeps a walk finished before the next order for the same sheep arrives.
+ */
+const GRAZE_MS_PER_CELL = 320;
+
+/** The same, for a sheep that is bolting. Panic is faster than grazing. */
+const SPRINT_MS_PER_CELL = 110;
+
+/** Straight-line blend, for a stride that crosses a tier boundary. */
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
+/** A walk in progress: the cells still to cross, and how far into the first. */
+interface Walk {
+  /** Where this leg started. Interpolated against `cells[0]`. */
+  from: { x: number; y: number };
+  /** Cells left to reach, in order. The walk ends when this empties. */
+  cells: Array<{ x: number; y: number }>;
+  /** Milliseconds into the current leg. */
+  elapsed: number;
+  /** Milliseconds one leg takes. */
+  legMs: number;
+}
+
 export class IsoIslandView {
   /** Add this to a stage. Its origin is the top-left of the island's box. */
   readonly view = new Container();
@@ -324,7 +357,14 @@ export class IsoIslandView {
    * and neither can be either unless something outside this view can see them.
    * `syncOccupants` is the other half — it moves the sprites back.
    */
-  private readonly livestock: Array<{ occupant: Occupant; sprite: Sprite; tier: number; shadow?: Container }> = [];
+  private readonly livestock: Array<{
+    occupant: Occupant;
+    sprite: Sprite;
+    tier: number;
+    shadow?: Container;
+    /** A walk in progress, if this one is on the move. See `walkOccupant`. */
+    walk?: Walk;
+  }> = [];
   /** Cells claimed by a sheep or soldier, for the spacing rule. */
   private readonly inhabited = new Set<string>();
   /**
@@ -740,6 +780,92 @@ export class IsoIslandView {
   }
 
   /**
+   * Put an inhabitant on a cell at once, cancelling any walk it was on.
+   *
+   * The teleport that `walkOccupant` exists to avoid — and still the right
+   * thing in the two places that use it: a joiner's snapshot, which knows
+   * where the flock IS and not how it got there, and a roster replayed onto
+   * freshly rebuilt ground. Cancelling matters as much as the placing: a walk
+   * left running would keep drawing the sprite along its old route and quietly
+   * override the cell just written.
+   */
+  placeOccupant(id: string, x: number, y: number): boolean {
+    const entry = this.livestock.find((o) => o.occupant.id === id);
+    if (!entry) return false;
+    entry.walk = undefined;
+    entry.occupant.x = x;
+    entry.occupant.y = y;
+    this.syncOccupants();
+    return true;
+  }
+
+  /**
+   * Send an inhabitant on foot to a run of cells, one at a time.
+   *
+   * The occupant's cell is set to the DESTINATION immediately, while the
+   * sprite is left to catch up: everything that reasons about the board — the
+   * blocking set, the reachable ring — has to agree with the server the moment
+   * it speaks, and a sheep whose cell only updated when the animation finished
+   * would leave a walkable hole the server had already closed.
+   *
+   * A walk already in progress is dropped rather than queued. The server ticks
+   * the flock on a timer, so a second order for the same sheep means the first
+   * is stale; finishing it first would put the flock further behind with every
+   * tick it fell short.
+   */
+  walkOccupant(id: string, cells: Array<{ x: number; y: number }>, sprinting: boolean): boolean {
+    const entry = this.livestock.find((o) => o.occupant.id === id);
+    if (!entry || !cells.length) return false;
+    const last = cells[cells.length - 1];
+    // Start from where it is DRAWN, not from its cell: interrupting a walk
+    // mid-stride and restarting from the logical cell is a visible snap
+    // forward, which is the very thing this method exists to remove.
+    const prev = entry.walk;
+    const from = prev && prev.cells.length
+      ? {
+          x: lerp(prev.from.x, prev.cells[0].x, Math.min(1, prev.elapsed / prev.legMs)),
+          y: lerp(prev.from.y, prev.cells[0].y, Math.min(1, prev.elapsed / prev.legMs)),
+        }
+      : { x: entry.occupant.x, y: entry.occupant.y };
+    entry.walk = {
+      from,
+      cells: cells.map((c) => ({ ...c })),
+      elapsed: 0,
+      legMs: sprinting ? SPRINT_MS_PER_CELL : GRAZE_MS_PER_CELL,
+    };
+    entry.occupant.x = last.x;
+    entry.occupant.y = last.y;
+    this.syncOccupants();
+    return true;
+  }
+
+  /**
+   * Carry every walk forward by `deltaMs`, retiring the ones that arrive.
+   *
+   * Legs are consumed in a loop rather than one per frame: a long frame (a tab
+   * coming back to the foreground, a slow first paint) can outlast a whole
+   * stride, and spending only one leg on it would let a sheep drift further
+   * behind the server the worse the framerate got.
+   */
+  private advanceWalks(deltaMs: number): void {
+    let moving = false;
+    for (const entry of this.livestock) {
+      const walk = entry.walk;
+      if (!walk) continue;
+      moving = true;
+      walk.elapsed += deltaMs;
+      while (walk.cells.length && walk.elapsed >= walk.legMs) {
+        walk.elapsed -= walk.legMs;
+        walk.from = walk.cells.shift()!;
+      }
+      // Arrived: drop the walk so `syncOccupants` goes back to reading the
+      // occupant's own cell, which is already the destination.
+      if (!walk.cells.length) entry.walk = undefined;
+    }
+    if (moving) this.syncOccupants();
+  }
+
+  /**
    * Move every inhabitant's sprite to wherever the board has walked it.
    *
    * Cheap enough to call every tick: it touches one position and one depth per
@@ -750,20 +876,47 @@ export class IsoIslandView {
    */
   syncOccupants(): void {
     for (const entry of this.livestock) {
-      const { occupant, sprite } = entry;
+      const { occupant, sprite, walk } = entry;
+      // Where to DRAW it, which is not always where it stands. A walking sheep
+      // is between two cells, and `occupant` already holds the destination —
+      // the board treats the cell as taken the moment the walk is ordered, so
+      // a rabbit can never step into the gap behind a sheep mid-stride.
+      let dx = occupant.x;
+      let dy = occupant.y;
+      if (walk && walk.cells.length) {
+        const next = walk.cells[0];
+        const t = Math.min(1, walk.elapsed / walk.legMs);
+        dx = walk.from.x + (next.x - walk.from.x) * t;
+        dy = walk.from.y + (next.y - walk.from.y) * t;
+      }
       // The tier is read from the MAP, not from where the thing was created.
       // A sheep keeps to its own shelf, but "its own shelf" is a property of
       // the cell it stands on now — a cached tier left a wandering sheep drawn
       // at the height of its birthplace, which shows up as a sheep floating
       // beside a plateau it walked off the edge of.
-      const tier = levelAt(this.options.map, occupant.x, occupant.y);
+      //
+      // Mid-stride the height is interpolated too, between the cell it is
+      // leaving and the one it is entering: sampling `levelAt` at a fractional
+      // cell snaps the whole climb onto whichever side of the boundary it
+      // rounds to, so a sheep taking a tier would pop up a step instead of
+      // walking up it.
+      const tier = walk && walk.cells.length
+        ? lerp(
+            levelAt(this.options.map, walk.from.x, walk.from.y),
+            levelAt(this.options.map, walk.cells[0].x, walk.cells[0].y),
+            Math.min(1, walk.elapsed / walk.legMs),
+          )
+        : levelAt(this.options.map, occupant.x, occupant.y);
       entry.tier = tier;
-      const p = isoProject(occupant.x + 0.5, occupant.y + 0.5, tier, this.metrics);
+      const p = isoProject(dx + 0.5, dy + 0.5, tier, this.metrics);
       // Through the same shift the sprite was stamped with: a deported sheep
       // moved by raw projection would snap back to the terrain's inner origin
       // the first time it wandered.
       this.placeSprite(sprite, p.x, p.y);
-      sprite.zIndex = isoDepth(occupant.x, occupant.y, tier) + 1;
+      // Depth from the DRAWN cell as well, or a sheep walking south stays
+      // sorted at its old row for the whole stride and slides through the tree
+      // it should already be passing in front of.
+      sprite.zIndex = isoDepth(dx, dy, tier) + 1;
       // The shadow travels with its owner. Left behind it reads as a stain on
       // the grass, which is worse than having no shadow at all.
       if (entry.shadow) {
@@ -789,9 +942,10 @@ export class IsoIslandView {
     return rng() * frames.length;
   }
 
-  /** Advance the tree sway. `deltaMs` is real milliseconds. */
+  /** Advance the tree sway and any flock on the move. `deltaMs` is real ms. */
   update(deltaMs: number): void {
     if (this.destroyed) return;
+    this.advanceWalks(deltaMs);
     this.elapsed += deltaMs;
     const t = this.elapsed / this.frameMs;
     for (const item of this.animated) {

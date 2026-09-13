@@ -234,3 +234,98 @@ describe('the server owns the flock', () => {
     expect(SCENE).not.toMatch(/planFlight|planFlock/);
   });
 });
+
+/**
+ * A sheep that WALKS rather than blinks.
+ *
+ * The flight rules were right long before the sheep looked right: a sprint
+ * crossed up to four cells and the wire carried only the last one, so the
+ * flock jumped between cells instead of running between them. The route is the
+ * fix, and these are the two halves of it — the planner has to report every
+ * cell, and the client has to be handed them.
+ */
+describe('a sheep walks the cells it crossed', () => {
+  it('reports a graze as the single cell it stepped to', () => {
+    const g = ground(['0,0', '1,0', '0,1', '1,1']);
+    const flight = planFlight({ id: 's', x: 0, y: 0 }, g, false, first);
+    expect(flight?.path).toEqual([flight!.to]);
+  });
+
+  it('reports every cell of a sprint, in order, ending where it stops', () => {
+    // A corridor: the only way out is east, so the route is forced and can be
+    // asserted exactly rather than merely counted.
+    const open = ['0,0', '1,0', '2,0', '3,0', '4,0'];
+    const flight = planFlight({ id: 's', x: 0, y: 0 }, ground(open), true, first);
+    expect(flight?.sprinting).toBe(true);
+    expect(flight?.path).toEqual([
+      { x: 1, y: 0 },
+      { x: 2, y: 0 },
+      { x: 3, y: 0 },
+      { x: 4, y: 0 },
+    ]);
+    // The endpoint is still reported on its own — the board and the blocking
+    // set only ever want where it ended up.
+    expect(flight?.to).toEqual({ x: 4, y: 0 });
+  });
+
+  it('never reports a path longer than a sprint, nor one that starts where it stood', () => {
+    const open: string[] = [];
+    for (let x = 0; x < 8; x++) for (let y = 0; y < 8; y++) open.push(`${x},${y}`);
+    const flight = planFlight({ id: 's', x: 4, y: 4 }, ground(open), true, Math.random);
+    expect(flight!.path.length).toBeLessThanOrEqual(SPRINT_STEPS);
+    // Excluding the origin is what lets the client treat each entry as "a cell
+    // to cross"; including it would stall the first stride.
+    expect(flight!.path).not.toContainEqual(flight!.from);
+    expect(flight!.path.at(-1)).toEqual(flight!.to);
+  });
+
+  it('every step of a path is adjacent to the one before it', () => {
+    // The client tweens straight between consecutive entries, so a gap in the
+    // route is a sheep sliding across cells it never visited.
+    const open: string[] = [];
+    for (let x = 0; x < 8; x++) for (let y = 0; y < 8; y++) open.push(`${x},${y}`);
+    for (let run = 0; run < 50; run++) {
+      const flight = planFlight({ id: 's', x: 4, y: 4 }, ground(open), true, Math.random);
+      if (!flight) continue;
+      let prev = flight.from;
+      for (const cell of flight.path) {
+        expect(cellDistance(prev.x, prev.y, cell.x, cell.y)).toBe(1);
+        prev = cell;
+      }
+    }
+  });
+
+  it('puts the route on the wire and walks it on the client', () => {
+    const SERVER = read('../server/index.ts');
+    // The endpoint alone is what made it teleport.
+    expect(SERVER).toMatch(/path: f\.path\.map/);
+
+    const SCENE = read('../src/game/scenes/IslandScene.ts');
+    expect(SCENE).toMatch(/walkSheep\(id: string, tiles: readonly number\[\]/);
+    // Still no rules client-side: it plays the route it is given.
+    expect(SCENE).not.toMatch(/planFlight|planFlock/);
+
+    const VIEW = read('../src/game/island/IsoIslandView.ts');
+    expect(VIEW).toMatch(/walkOccupant\(/);
+  });
+
+  it('drops a walk in progress when the flock is placed outright', () => {
+    // The snapshot and the rebuild both SNAP, and a walk left running would
+    // keep drawing the sprite along its old route — quietly overriding the
+    // cell just written, one frame later.
+    const VIEW = read('../src/game/island/IsoIslandView.ts');
+    expect(VIEW).toMatch(/placeOccupant\([\s\S]*?entry\.walk = undefined/);
+    const BG = read('../src/game/services/TerrainBackground.ts');
+    expect(BG).toMatch(/moveSheep\(id, x, y\) \{[\s\S]*?island\.placeOccupant/);
+  });
+
+  it('claims the destination cell immediately, not when the walk lands', () => {
+    // A sheep whose cell only updated on arrival would leave a walkable hole
+    // the server had already closed, and the ring would offer a tile the
+    // server then refuses.
+    const VIEW = read('../src/game/island/IsoIslandView.ts');
+    expect(VIEW).toMatch(/entry\.occupant\.x = last\.x/);
+    const SCENE = read('../src/game/scenes/IslandScene.ts');
+    expect(SCENE).toMatch(/this\.sheepTiles\.set\(id, last\)/);
+  });
+});

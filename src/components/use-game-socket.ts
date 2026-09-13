@@ -52,6 +52,14 @@ export interface IslandSnapshot {
 export interface SheepMove {
   id: string;
   tile: number;
+  /**
+   * The cells it walked, in order, as tile indices — the last is `tile`.
+   *
+   * Optional only for the snapshot path, where a joiner is told where the
+   * flock IS rather than how it got there; a live `sheep_moved` always carries
+   * it, and the scene falls back to a straight hop to `tile` without it.
+   */
+  path?: number[];
   /** A panic sprint rather than a graze — the client plays it faster. */
   sprinting: boolean;
 }
@@ -204,7 +212,9 @@ export function useGameSocket(
      * reason.
      */
     socket.on('sheep_moved', (p: { sheep: SheepMove[] }) => {
-      toScene((s) => { for (const one of p.sheep) s.moveSheep(one.id, one.tile, one.sprinting); });
+      toScene((s) => {
+        for (const one of p.sheep) s.walkSheep(one.id, one.path ?? [one.tile], one.sprinting);
+      });
     });
 
     socket.on('rabbit_moved', (r: ClientRabbit) => {

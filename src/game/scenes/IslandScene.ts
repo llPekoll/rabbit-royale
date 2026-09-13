@@ -492,6 +492,30 @@ export class IslandScene implements Scene {
    * faster than a grazing one, but the sprites move instantly today and adding
    * a tween belongs with the rest of the animation work.
    */
+  /**
+   * A sheep walked a route, because the server said so.
+   *
+   * Same bargain as `moveSheep` — no rules here, the flight logic is the
+   * server's (`flee.ts`) — but with the cells it crossed rather than only
+   * where it stopped. `tiles` is in order and its last entry is the
+   * destination; that is the one the roster and the reachable ring use, and
+   * they are updated NOW, not when the animation lands, so the client never
+   * disagrees with the server about which tiles are free.
+   */
+  walkSheep(id: string, tiles: readonly number[], sprinting = false): void {
+    if (!tiles.length) return;
+    const last = tiles[tiles.length - 1];
+    this.sheepTiles.set(id, last);
+    const cells = tiles.map((t) => {
+      const { col, row } = toColRow(t);
+      return { x: col, y: row };
+    });
+    // Falls back to the plain hop when the ground has no such sprite — the
+    // same stale-roster case `moveSheep` handles by dropping the id.
+    this.background?.walkSheep(id, cells, sprinting);
+    this.refreshReachable();
+  }
+
   moveSheep(id: string, tile: number, _sprinting = false): void {
     // Remembered first, so a roster that lands before the ground is built
     // (the snapshot races `create`, and `setIsland` rebuilds the ground after

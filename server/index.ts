@@ -839,6 +839,10 @@ setInterval(guard('flock', () => {
       sheep: flights.map((f) => ({
         id: f.id,
         tile: toIndex(f.to.x, f.to.y),
+        // Every cell it crossed, not just where it ended up. A sprint bends
+        // around whatever it ran past, so the endpoints alone leave the client
+        // no honest way to animate it — see `Flight.path`.
+        path: f.path.map((c) => toIndex(c.x, c.y)),
         sprinting: f.sprinting,
       })),
     });
