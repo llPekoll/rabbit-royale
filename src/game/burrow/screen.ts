@@ -20,10 +20,17 @@ import { burrowFor, burrowTier, isWalkable } from './board';
 /**
  * How far up the screen a tile sits, for the tier it stands on.
  *
- * Zero at ground level, one `BURROW_TIER_LIFT` per shelf.
+ * One `BURROW_TIER_LIFT` per tier, GROUND INCLUDED — the same rule as the
+ * island's `tierLift`, and the one the terrain actually draws by. `burrowTier`
+ * is 1 at ground level, and `BurrowTerrain` lines its view up against the
+ * board with the origin projected at tier 0, so every drawn cell — ground
+ * cells too — sits one lift above the flat lattice. This used to subtract one
+ * ("zero at ground level"), and everything placed by hand rather than mounted
+ * in a terrain block — the raider, the carrots, a blast — landed 18px below
+ * the ground it was standing on. A small rabbit hid it; the island's did not.
  */
 export const burrowLift = (seed: string, tile: number) =>
-  Math.max(0, burrowTier(seed, tile) - 1) * BURROW_TIER_LIFT;
+  Math.max(0, burrowTier(seed, tile)) * BURROW_TIER_LIFT;
 
 /** Where a tile's centre sits on screen, terrace included. */
 export function burrowTileScreen(seed: string, tile: number): { x: number; y: number } {
@@ -62,7 +69,9 @@ export const burrowDepth = (seed: string, tile: number) =>
 export function burrowTileAt(seed: string, sx: number, sy: number): number | null {
   const { map } = burrowFor(seed);
   for (let tier = map.tiers; tier >= 1; tier--) {
-    const lift = (tier - 1) * BURROW_TIER_LIFT;
+    // The same lift `burrowLift` applies, or a tap would resolve to the row
+    // behind the tile the player is looking at.
+    const lift = tier * BURROW_TIER_LIFT;
     const tile = burrowScreenToTile(sx, sy + lift);
     if (tile === null) continue;
     if (burrowTier(seed, tile) !== tier) continue;
