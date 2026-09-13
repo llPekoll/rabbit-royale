@@ -78,7 +78,10 @@ const UNIT_GEOMETRY = {
   pawnRed:     { cell: 192, cols: 8, row: 0, foot: 135 },
   warriorBlue: { cell: 192, cols: 6, row: 0, foot: 136 },
   warriorRed:  { cell: 192, cols: 6, row: 0, foot: 136 },
-  archerBlue:  { cell: 192, cols: 8, row: 0, foot: 134 },
+  // The sheet is 1536 wide — eight cells — but its idle row only DRAWS six:
+  // cells 7 and 8 are fully transparent (other rows use them). Played at eight
+  // the archer vanished for a quarter of every loop, which read as blinking.
+  archerBlue:  { cell: 192, cols: 6, row: 0, foot: 134 },
   torchRed:    { cell: 192, cols: 7, row: 0, foot: 133 },
 } as const satisfies Record<keyof typeof UNIT_SHEETS, { cell: number; cols: number; row: number; foot: number }>;
 

@@ -56,9 +56,17 @@ const CARROT_SHADOW_ALPHA = 0.3;
  * — the fog is present but stops saying "you cannot see this yet". Overridable
  * per tile so that trade can be tuned against whatever is actually behind the
  * board; the defaults are what ships today.
+ *
+ * LIGHTER, AND A SHADE RATHER THAN A STAIN. Navy at 55% over the generated
+ * grass turned the whole board a bruised olive checkerboard: the ground the
+ * island is drawn to show was the least legible thing on it. The lid is now a
+ * dark green at about a third, which reads as the grass in shadow — still
+ * clearly "not dug yet" beside a dug cell, which goes fully clear (see
+ * `revealContent`), so the board still says where you have been. Shared with
+ * the raid board on purpose: the two are meant to read the same way.
  */
-export const FOG_COLOR = 0x1a2a3a;
-export const FOG_ALPHA = 0.55;
+export const FOG_COLOR = 0x10241a;
+export const FOG_ALPHA = 0.32;
 
 
 /** How an undug tile is veiled. Omitted fields keep the defaults above. */

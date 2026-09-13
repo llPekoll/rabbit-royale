@@ -26,14 +26,17 @@
  *    simply overflows the frame around it.
  *
  *  - The ZOOM RANGE runs from "the whole island in frame" to a tile four times
- *    its drawn size. The floor is an overview — cells that small are not meant
- *    to be tapped, and the player zooms back in to play — and the ceiling is
- *    where the pixel art stops being art.
+ *    its drawn size — but the overview never draws a tile smaller than
+ *    `OVERVIEW_TILE_PX`. On a phone held upright the island is limited by the
+ *    screen's WIDTH, and a full fit drew 16-18px cells that a tap could not hit
+ *    (measured at 360px). The ceiling is where the pixel art stops being art.
  *
- *  - The PAN is clamped to the land: the island can be dragged until its coast
- *    meets the screen's edge (plus a little slack) and no further, so it can
- *    never be lost off-screen. On an axis where the island is smaller than the
- *    screen it is centred instead, since there is nothing to pan to.
+ *  - The PAN is clamped to the land, twice. The island's box may not leave the
+ *    screen by more than a little slack, and — because that box is mostly sea
+ *    on an isometric diamond, and a corner drag on a phone left 4-7% of the
+ *    land on screen — the middle of the screen may not stray more than
+ *    `LAND_REACH` from a land cell. On an axis where the island is smaller than
+ *    the screen it is centred instead, since there is nothing to pan to.
  */
 import { GAME_W, GAME_H } from '../Application';
 import { COLS, ROWS, HALF_W, HALF_H, ISO_TILE_W, tilePos, toColRow } from '@/config/gridConfig';
@@ -87,6 +90,27 @@ export const MAX_TILE_PX = ISO_TILE_W * 4;
  * thumb on the bezel.
  */
 const PAN_SLACK = 0.25;
+
+/**
+ * The smallest a cell may be drawn when zoomed all the way out, in design px.
+ * About 34px under a thumb on a 412px phone and 30px on a 360px one — an
+ * overview that can still be tapped rather than one that has to be zoomed back
+ * into first. Landscape and desktop already fit the island above this.
+ */
+export const OVERVIEW_TILE_PX = 40;
+
+/**
+ * How far the middle of the screen may be from the nearest land cell's centre,
+ * in SCENE px: one half-tile, so the middle of the screen is always over land.
+ *
+ * Measured against the land, not the screen. A quarter of the screen was tried
+ * first and at a narrow tip of the island it still left a wedge of coast in one
+ * corner and sea everywhere else (8% of the land on a 412px phone). Half a tile
+ * is also as close as the rule can get without snapping: neighbouring cell
+ * centres are 22 and 12 scene px apart, so any point on the land is within it
+ * and a drag across the island is never pulled onto a grid.
+ */
+export const LAND_REACH = HALF_W;
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
@@ -161,9 +185,35 @@ export function boardBounds(seed: string): Bounds {
  */
 export function zoomLimits(seed: string, W: number = GAME_W, H: number = GAME_H) {
   const b = boardBounds(seed);
-  const min = Math.min(W / b.w, H / b.h);
+  const min = Math.max(Math.min(W / b.w, H / b.h), OVERVIEW_TILE_PX / ISO_TILE_W);
   const max = Math.max(MAX_TILE_PX / ISO_TILE_W, min);
   return { min, max };
+}
+
+/** Land cell centres, in scene px, as drawn (terraces lifted). Cached by seed. */
+const landCache = new Map<string, Point[]>();
+
+export function landCentres(seed: string): Point[] {
+  const hit = landCache.get(seed);
+  if (hit) return hit;
+  const out: Point[] = [];
+  for (let i = 0; i < COLS * ROWS; i++) {
+    const { col, row } = toColRow(i);
+    if (levelTierAt(seed, col, row) === 0) continue;
+    out.push(tileScreenPos(seed, i));
+  }
+  landCache.set(seed, out);
+  return out;
+}
+
+function nearestLand(seed: string, p: Point): Point | null {
+  let best: Point | null = null;
+  let bestD = Infinity;
+  for (const q of landCentres(seed)) {
+    const d = (q.x - p.x) ** 2 + (q.y - p.y) ** 2;
+    if (d < bestD) { bestD = d; best = q; }
+  }
+  return best;
 }
 
 /** The zoom the island opens on: a playable tile, whatever the screen. */
@@ -181,11 +231,33 @@ export function clampCam(cam: IslandCam, seed: string, W: number = GAME_W, H: nu
   const { min, max } = zoomLimits(seed, W, H);
   const scale = clamp(cam.scale, min, max);
   const b = boardBounds(seed);
-  return {
-    scale,
-    x: clampAxis(cam.x, scale, b.minX, b.maxX, W),
-    y: clampAxis(cam.y, scale, b.minY, b.maxY, H),
-  };
+  let x = clampAxis(cam.x, scale, b.minX, b.maxX, W);
+  let y = clampAxis(cam.y, scale, b.minY, b.maxY, H);
+
+  // Keep land under the middle of the screen — see `LAND_REACH`. Only on the
+  // axes the island overflows: an axis it fits is centred, and stays centred.
+  const overX = b.w * scale > W;
+  const overY = b.h * scale > H;
+  if (overX || overY) {
+    const centre = { x: (W / 2 - x) / scale, y: (H / 2 - y) / scale };
+    const land = nearestLand(seed, centre);
+    if (land) {
+      const reach = LAND_REACH;
+      const dx = centre.x - land.x;
+      const dy = centre.y - land.y;
+      const d = Math.hypot(dx, dy);
+      if (d > reach) {
+        if (overX) x = W / 2 - scale * (land.x + (dx * reach) / d);
+        if (overY) y = H / 2 - scale * (land.y + (dy * reach) / d);
+      }
+    }
+    // The box rule again, last: a coast cell pulled to the middle of the
+    // screen can still put more sea beside it than the box's slack allows, and
+    // where the two disagree the stricter one wins.
+    x = clampAxis(x, scale, b.minX, b.maxX, W);
+    y = clampAxis(y, scale, b.minY, b.maxY, H);
+  }
+  return { scale, x, y };
 }
 
 /**

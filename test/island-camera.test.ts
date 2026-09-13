@@ -15,7 +15,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   boardBounds, clampCam, islandCam, islandCamFraming, panCam, zoomCam, zoomLimits,
-  toScene, MIN_TILE_PX, MAX_TILE_PX, DEFAULT_TILE_PX,
+  toScene, landCentres, MIN_TILE_PX, MAX_TILE_PX, DEFAULT_TILE_PX, OVERVIEW_TILE_PX, LAND_REACH,
 } from '../src/game/scenes/islandCamera';
 import { ISO_TILE_W } from '../src/config/gridConfig';
 
@@ -74,12 +74,17 @@ describe('the opening shot', () => {
 
 describe('the zoom range', () => {
   for (const v of VIEWPORTS) {
-    it(`${v.name}: zoomed all the way out, the whole island is in frame`, () => {
+    it(`${v.name}: zoomed all the way out, the whole island is in frame — unless that would draw untappable tiles`, () => {
       for (const seed of SEEDS) {
         const { min } = zoomLimits(seed, v.w, v.h);
         const b = boardBounds(seed);
-        expect(b.w * min, seed).toBeLessThanOrEqual(v.w + 1e-6);
-        expect(b.h * min, seed).toBeLessThanOrEqual(v.h + 1e-6);
+        // Never below the overview's tile floor...
+        expect(min * ISO_TILE_W, seed).toBeGreaterThanOrEqual(OVERVIEW_TILE_PX - 1e-6);
+        // ...and above it only as far as a full fit needs.
+        if (min * ISO_TILE_W > OVERVIEW_TILE_PX + 1e-6) {
+          expect(b.w * min, seed).toBeLessThanOrEqual(v.w + 1e-6);
+          expect(b.h * min, seed).toBeLessThanOrEqual(v.h + 1e-6);
+        }
         // And it is a real overview, not the opening shot again.
         expect(min, seed).toBeLessThan(islandCam(seed, v.w, v.h).scale);
       }
@@ -136,6 +141,33 @@ describe('panning', () => {
           expect(c.x + c.scale * b.maxX, seed).toBeGreaterThanOrEqual(v.w * 0.75 - 1e-6);
           expect(c.y + c.scale * b.minY, seed).toBeLessThanOrEqual(v.h * 0.25 + 1e-6);
           expect(c.y + c.scale * b.maxY, seed).toBeGreaterThanOrEqual(v.h * 0.75 - 1e-6);
+        }
+      }
+    });
+  }
+
+  for (const v of VIEWPORTS) {
+    it(`${v.name}: cannot drag the middle of the screen out over open sea`, () => {
+      // The box above is mostly sea on a diamond; a corner drag against it left
+      // a sliver of coast. Land has to stay within reach of the centre.
+      for (const seed of SEEDS) {
+        const land = landCentres(seed);
+        for (const zoom of [1, 0.001]) {
+          const cam = zoomCam(islandCam(seed, v.w, v.h), zoom, { x: v.w / 2, y: v.h / 2 }, seed, v.w, v.h);
+          const b = boardBounds(seed);
+          // Only where the island overflows BOTH axes: an axis it fits is
+          // centred instead, and the rule cannot move the camera along it.
+          if (b.w * cam.scale <= v.w || b.h * cam.scale <= v.h) continue;
+          for (const [dx, dy] of [[1e6, 1e6], [-1e6, 1e6], [1e6, -1e6], [-1e6, -1e6], [1e6, 0], [0, -1e6]]) {
+            const c = panCam(cam, dx, dy, seed, v.w, v.h);
+            const centre = toScene(c, { x: v.w / 2, y: v.h / 2 });
+            const d = Math.min(...land.map((q) => Math.hypot(q.x - centre.x, q.y - centre.y)));
+            // Within a tile. The box rule is applied last and wins where the two
+            // disagree — a coast pulled to the middle can still show more sea
+            // than the box allows — which on a wide screen leaves the centre up
+            // to ~1.4 half-tiles off the land, never out over open water.
+            expect(d, `${seed} ${dx},${dy}`).toBeLessThanOrEqual(2 * LAND_REACH + 1e-6);
+          }
         }
       }
     });

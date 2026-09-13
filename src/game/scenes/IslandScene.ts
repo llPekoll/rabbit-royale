@@ -402,6 +402,11 @@ export class IslandScene implements Scene {
     this.sweep = null;
   }
 
+  /** Blink the whole reachable ring at once — the reply to a tap out of reach. */
+  private pulseRing(): void {
+    for (const index of this.highlighted) this.tiles.get(index)?.blink();
+  }
+
   private clearHighlights(): void {
     this.stopSweep();
     if (this.stunTimer) {
@@ -526,7 +531,13 @@ export class IslandScene implements Scene {
     if (to === this.myTile) return;
     const a = toColRow(this.myTile);
     const b = toColRow(to);
-    if (Math.abs(a.col - b.col) > 1 || Math.abs(a.row - b.row) > 1) return;
+    if (Math.abs(a.col - b.col) > 1 || Math.abs(a.row - b.row) > 1) {
+      // Out of reach. On a board bigger than the screen players tap far
+      // tiles all the time, and a tap that does NOTHING reads as a dead game.
+      // The answer is the ring: light every tile a tap CAN reach, at once.
+      this.pulseRing();
+      return;
+    }
     if (!this.tiles.has(to)) return;
 
     // Flash the tile immediately, before the server has answered. The move may
