@@ -210,6 +210,14 @@ export const RAID_RUN = {
    */
   LOOT_SHARE: 0.25,
   /**
+   * The share is ROLLED between this and `LOOT_SHARE` on every settled raid,
+   * so two raids on the same stock do not pay the same round number — a haul
+   * that is always exactly a quarter reads as a rule, one that lands anywhere
+   * in a band reads as a robbery. `LOOT_SHARE` stays the ceiling every
+   * worst-case figure (`maxRaidLoss`, the "safe" stock) is computed from.
+   */
+  LOOT_SHARE_MIN: 0.20,
+  /**
    * A raid that dies on the doorstep still pays this share of the maximum, so
    * attacking is never pure loss — otherwise nobody attacks a defended burrow
    * twice and the PvP loop stops.

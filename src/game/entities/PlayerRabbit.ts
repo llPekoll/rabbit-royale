@@ -25,6 +25,15 @@ export class PlayerRabbit {
   private seed = '';
   private grid: RabbitGrid | null = null;
   isMoving = false;
+  /**
+   * What to play once the hop in flight lands, instead of settling to idle.
+   *
+   * A raid ends ON the step that ends it: the server's answer to the last tap
+   * both moves the rabbit and finishes the run, so the celebration (or the
+   * collapse) is asked for while the hop is still in the air. Cutting the
+   * tween left the rabbit dancing a cell short of the field it had reached.
+   */
+  private afterMove: (() => void) | null = null;
 
   constructor(tileIndex: number, sheetKey = Keys.BUNNY_WHITE, seed = '', grid?: RabbitGrid) {
     this.sheetKey = sheetKey;
@@ -79,14 +88,15 @@ export class PlayerRabbit {
     });
   }
 
-  private playAnim(name: string, onComplete?: () => void): void {
+  private playAnim(name: string, onComplete?: () => void, loopOverride?: boolean): void {
     const textures = getBunnyAnimTextures(this.sheetKey, name);
     if (textures.length === 0) return;
 
     const def = BUNNY_ANIM_DEFS[name];
     if (!def) return;
 
-    const [, , fps, loop] = def;
+    const [, , fps, defLoop] = def;
+    const loop = loopOverride ?? defLoop;
     this.sprite.textures = textures;
     this.sprite.animationSpeed = fps / 60;
     this.sprite.loop = loop;
@@ -125,7 +135,10 @@ export class PlayerRabbit {
       ease: 'quad.inOut',
       onComplete: () => {
         this.isMoving = false;
-        this.playAnim('idle');
+        const next = this.afterMove;
+        this.afterMove = null;
+        if (next) next();
+        else this.playAnim('idle');
         onComplete?.();
       },
     });
@@ -135,6 +148,13 @@ export class PlayerRabbit {
   cancelMove(): void {
     gsap.killTweensOf(this.container);
     this.isMoving = false;
+    this.afterMove = null;
+  }
+
+  /** Run `fn` now, or once the hop in flight has landed — see `afterMove`. */
+  private whenLanded(fn: () => void): void {
+    if (this.isMoving) this.afterMove = fn;
+    else fn();
   }
 
   /**
@@ -148,14 +168,30 @@ export class PlayerRabbit {
    * happened, and it is what a refill undoes.
    */
   playExhausted(onComplete?: () => void): void {
-    this.cancelMove();
+    // Once the last hop has landed, not instead of it: the step that spends
+    // the final point of energy is still a step, and the rabbit should be
+    // seen taking it before it drops.
+    //
     // `damage` is the only "worn out" row that ends on its feet, so it reads
     // as the stumble into the sleep rather than as a hit — nothing struck the
     // rabbit. Then `sleep` loops for as long as the run stays over.
-    this.playAnim('damage', () => {
-      this.playAnim('sleep');
-      onComplete?.();
+    this.whenLanded(() => {
+      this.playAnim('damage', () => {
+        this.playAnim('sleep');
+        onComplete?.();
+      });
     });
+  }
+
+  /**
+   * The raid is WON: the happy row, looped, for as long as the board stays up.
+   *
+   * `playHappy` runs the row once and sits back down, which is right for a
+   * carrot picked mid-run. Reaching somebody's field is the end of the trip
+   * and the rabbit keeps dancing until the scene takes it home.
+   */
+  celebrate(): void {
+    this.whenLanded(() => this.playAnim('happy', undefined, true));
   }
 
   playHappy(onComplete?: () => void): void {

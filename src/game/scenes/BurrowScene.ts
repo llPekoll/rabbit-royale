@@ -37,7 +37,9 @@ import { PlayerRabbit } from '../entities/PlayerRabbit';
 import { FOG_COLOR, FOG_ALPHA, HIGHLIGHT_COLOR, HINT_TINTS } from '../entities/Tile';
 import * as Keys from '@/config/assetKeys';
 import { BURROW_COLS, BURROW_ROWS, BURROW_HALF_W, BURROW_HALF_H, burrowColRow } from '@/config/burrowConfig';
-import { burrowCell, isTrappable, walkableTiles } from '@/game/burrow/board';
+import {
+  burrowCell, isTrappable, walkableTiles, fieldTiles, burrowAround,
+} from '@/game/burrow/board';
 import { burrowTileScreen, burrowDepth } from '@/game/burrow/screen';
 import { createBurrowTerrain, type BurrowTerrainView } from '@/game/burrow/BurrowTerrain';
 import { homeCam, boardCam, type BurrowCam } from './burrowCamera';
@@ -118,6 +120,18 @@ const PLACEABLE_ALPHA = 0.42;
 const RAID_SWEEP_SECONDS = 0.25;
 /** The island's hint pops in at this size; the raid's clue is the same glyph. */
 const CLUE_SCALE = 1.4;
+/**
+ * The ring of cells around the carrot field, marked from the first frame.
+ *
+ * A raid is a trip TO somewhere, and on a full map the garden reads as one
+ * more patch of scenery: the raider could see the whole island and still not
+ * know which corner ended the trip. So the cells that touch the field wear
+ * red instead of the navy fog, always — the fog says "not read yet", this
+ * says "one step from the win", and the two must not be the same colour.
+ * The field itself wears nothing: it is the prize, in plain sight.
+ */
+const GOAL_TINT = 0xff3b3b;
+const GOAL_ALPHA = 0.5;
 
 /** One tile as a raider may see it. `clue` null means a smoke screen hides it. */
 export interface RaidTile {
@@ -127,7 +141,12 @@ export interface RaidTile {
 
 /** One cell of the raid board — the island's `Tile`, reduced to what a raid draws. */
 interface RaidCell {
-  /** The navy lid over ground the raider has not been sent. */
+  /**
+   * What the veil says: `fog` lifts as the raider is sent the tile, `goal`
+   * stays red for the whole raid, `none` is the field — bare, and tappable.
+   */
+  veil: 'fog' | 'goal' | 'none';
+  /** The lid over the ground — navy fog, or the goal ring's red. */
   fog: Sprite;
   /** The gold outline on a tile they may step onto. */
   ring: Sprite;
@@ -187,6 +206,13 @@ export interface BurrowSceneData {
    * looking at while they decide whether to go farm or dig in.
    */
   shieldMs?: number | null;
+}
+
+/** How opaque a cell's veil is, for what it says and whether the raider has been sent it. */
+function veilAlpha(veil: RaidCell['veil'], seen: boolean): number {
+  if (veil === 'none') return 0;
+  if (veil === 'goal') return GOAL_ALPHA;
+  return seen ? 0 : FOG_ALPHA;
 }
 
 export class BurrowScene implements Scene {
@@ -741,7 +767,7 @@ export class BurrowScene implements Scene {
     // that fades in its whole starting patch reads as loading, not as seen.
     const seen = new Map(state.view.map((v) => [v.tile, v.clue]));
     for (const [tile, cell] of this.raidCells) {
-      const target = seen.has(tile) ? 0 : FOG_ALPHA;
+      const target = veilAlpha(cell.veil, seen.has(tile));
       gsap.killTweensOf(cell.fog);
       if (fresh || cell.fog.alpha === target) cell.fog.alpha = target;
       else gsap.to(cell.fog, { alpha: target, duration: 0.25, ease: 'power2.out' });
@@ -785,10 +811,17 @@ export class BurrowScene implements Scene {
         -BURROW_HALF_W / k.x, 0,
       ]);
     };
+    // The field, and the ring of walkable cells touching it — see `GOAL_TINT`.
+    const field = new Set(fieldTiles(seed));
+    const goal = new Set<number>();
+    for (const f of field) {
+      for (const n of burrowAround(seed, f)) if (!field.has(n)) goal.add(n);
+    }
     for (const tile of walkableTiles(seed)) {
+      const veil = field.has(tile) ? 'none' : goal.has(tile) ? 'goal' : 'fog';
       const fog = burrowDiamondSolid();
-      fog.tint = FOG_COLOR;
-      fog.alpha = FOG_ALPHA;
+      fog.tint = veil === 'goal' ? GOAL_TINT : FOG_COLOR;
+      fog.alpha = veilAlpha(veil, false);
       // The VEIL is what the pointer sees, as on the island: it sorts with
       // the ground, so a raised tile's veil answers before the lower one it
       // covers. Interactive whether or not it is lit — the hit test does not
@@ -819,7 +852,7 @@ export class BurrowScene implements Scene {
         sprite.zIndex = burrowDepth(seed, tile) + z / 10;
         this.board.addChild(sprite);
       }
-      this.raidCells.set(tile, { fog, ring, blink, clue: null, clueCount: null });
+      this.raidCells.set(tile, { veil, fog, ring, blink, clue: null, clueCount: null });
     }
   }
 
@@ -925,6 +958,20 @@ export class BurrowScene implements Scene {
       at: (tile) => burrowTileScreen(seed, tile),
       depth: (tile) => burrowDepth(seed, tile) + 0.6,
     });
+  }
+
+  /**
+   * The raid is over, and the board says so before the trip home.
+   *
+   * Won: the rabbit dances on the field. Lost: it collapses where its energy
+   * ran out, as it does on the island. Either way the ring goes dark — there
+   * is nowhere left to step — and the page takes the player home a couple of
+   * seconds later (see `RAID_OVER_MS` there).
+   */
+  finishRaid(succeeded: boolean): void {
+    this.darkenSteps();
+    if (succeeded) this.raider?.celebrate();
+    else this.raider?.playExhausted();
   }
 
   /**

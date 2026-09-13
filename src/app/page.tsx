@@ -76,6 +76,14 @@ type Where = 'burrow' | 'island';
  * through the chip emptied only the chip's copy, leaving a signed-out player
  * looking at their own burrow. One provider, one session.
  */
+/**
+ * How long a finished raid stays on the defender's board — the rabbit's dance
+ * on the field, or its collapse short of it — before the trip home.
+ */
+const RAID_OVER_MS = 2000;
+/** How long the haul is announced in the burrow once home. */
+const RAID_TOAST_MS = 4000;
+
 export default function Home() {
   return (
     <WalletSessionProvider>
@@ -644,6 +652,7 @@ function Burrow() {
       // the canvas and cannot cover the DOM at all.
       setShownRaid(raid.raid);
       if (!raid.raid) return burrow.setRaid(null);
+      const r = raid.raid;
       return burrow.setRaid({
         view: raid.raid.view,
         at: raid.raid.tile,
@@ -659,6 +668,11 @@ function Burrow() {
         // `step` changes identity whenever the hook re-renders, and depending
         // on it here rebuilt the defender's terrain mid-raid.
         onStep: (tile) => void stepRef.current(tile),
+      }).then(() => {
+        // The raid is over: the rabbit says so on the board — a dance on the
+        // field, a collapse short of it — before the trip home, which the
+        // effect below makes by itself.
+        if (r.finished) burrow.finishRaid(r.succeeded);
       });
     };
 
@@ -685,6 +699,43 @@ function Burrow() {
     // was whatever the last finished build happened to be. It is also why taps
     // did nothing — every diamond they hit had already been destroyed.
   }, [ready, raid.raid]);
+
+  /**
+   * A finished raid goes home BY ITSELF.
+   *
+   * It used to end on a card with a "Back to the burrow" button, which made the
+   * best moment of the raid — reaching the carrots — a form to dismiss. Now the
+   * rabbit dances on the field (or collapses short of it) for `RAID_OVER_MS`,
+   * and the player is carried home under the iris with the haul announced
+   * there, on their own ground, where the carrot count it changed is.
+   *
+   * Keyed on the raid's ID rather than the payload, so the timer is set once
+   * per finished raid and survives the polls that re-render the page.
+   */
+  const finishedRaidId = raid.raid?.finished ? raid.raid.raidId : null;
+  const leaveRef = useRef(raid.leave);
+  leaveRef.current = raid.leave;
+  const finishedRaid = useRef(raid.raid);
+  finishedRaid.current = raid.raid;
+  useEffect(() => {
+    if (!finishedRaidId) return;
+    const r = finishedRaid.current;
+    const haul = r
+      ? r.carrotsLooted > 0
+        ? `+${r.carrotsLooted.toLocaleString()} 🥕 stolen from ${r.defender.name}`
+        : `Nothing taken from ${r.defender.name}'s burrow`
+      : null;
+    const home = setTimeout(() => {
+      leaveRef.current();
+      if (haul) setNote(haul);
+    }, RAID_OVER_MS);
+    // The toast clears itself — but only ITSELF, so a harvest message that
+    // replaced it in the meantime is left alone.
+    const clear = setTimeout(() => {
+      setNote((n) => (n === haul ? null : n));
+    }, RAID_OVER_MS + RAID_TOAST_MS);
+    return () => { clearTimeout(home); clearTimeout(clear); };
+  }, [finishedRaidId]);
 
   // A sprung trap is played ONCE, on the event, rather than inferred from the
   // board redrawing — springing one is the moment a raid turns, and a tile that

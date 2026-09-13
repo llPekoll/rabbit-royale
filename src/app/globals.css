@@ -2461,7 +2461,6 @@ button { font-family: var(--font-pixel); }
 }
 .rr-raid-over strong { font-size: 13px; }
 .rr-raid-haul { font-size: 15px; color: #ffb238; font-variant-numeric: tabular-nums; }
-.rr-raid-over button { width: 100%; min-height: 38px; font-size: 12px; }
 
 /* The way in, in the burrow column. Red where the shop is amber: one spends
    your own carrots, the other takes somebody else's. */

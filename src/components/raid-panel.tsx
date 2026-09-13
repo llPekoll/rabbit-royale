@@ -178,11 +178,16 @@ export function RaidHud({ raid, outcome, busy, note, onLeave }: RaidHudProps) {
         </button>
       )}
 
+      {/* The end, WITHOUT a button. The board carries the moment — the rabbit
+          dances on the field or collapses short of it — and the page takes
+          the player home by itself a couple of seconds later, with the haul
+          announced in their own burrow. This line only names what happened
+          while that plays out. */}
       {raid.finished && (
         <div className="rr-raid-over">
           <strong>
             {outcome?.reachedField
-              ? 'You reached the field'
+              ? 'You reached the field!'
               : 'Out of energy'}
           </strong>
           <span className="rr-raid-haul">
@@ -190,7 +195,6 @@ export function RaidHud({ raid, outcome, busy, note, onLeave }: RaidHudProps) {
               ? `+${raid.carrotsLooted.toLocaleString()} 🥕`
               : 'Nothing taken'}
           </span>
-          <button onClick={onLeave} disabled={busy}>Back to the burrow</button>
         </div>
       )}
     </div>

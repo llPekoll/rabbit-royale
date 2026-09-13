@@ -112,8 +112,15 @@ export function settleRaid(
   // Loot scales from a floor to the cap. The floor is why attacking a
   // well-defended burrow is still worth doing: a raid that dies on the doorstep
   // pays something, so nobody stops attacking after one bad run.
+  //
+  // The full share is ROLLED in a band (`LOOT_SHARE_MIN`..`LOOT_SHARE`) rather
+  // than fixed, from the same injected `rng` as the damage — first, so a
+  // replay with the same rolls reproduces the same haul. `LOOT_SHARE` remains
+  // the ceiling every worst-case figure is computed from.
+  const band = RAID_RUN.LOOT_SHARE - RAID_RUN.LOOT_SHARE_MIN;
+  const fullShare = RAID_RUN.LOOT_SHARE_MIN + rng() * band;
   const share =
-    RAID_RUN.LOOT_SHARE *
+    fullShare *
     (RAID_RUN.MIN_LOOT_FRACTION + (1 - RAID_RUN.MIN_LOOT_FRACTION) * progress);
 
   // The crown is worth stealing: the season leader carries a bigger purse.

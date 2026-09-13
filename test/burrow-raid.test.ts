@@ -287,8 +287,23 @@ function averageLoot(placed: number, runsPerSeed = 60): number {
 
 describe('raid loot', () => {
   it('pays the full share when nothing defends the burrow', () => {
-    // Doing nothing must cost you, or there is no reason to place traps.
-    expect(averageLoot(0)).toBeCloseTo(STOCK * RAID_RUN.LOOT_SHARE, -2);
+    // Doing nothing must cost you, or there is no reason to place traps. The
+    // full share is rolled in a band, so the average sits at its middle.
+    const mid = (RAID_RUN.LOOT_SHARE_MIN + RAID_RUN.LOOT_SHARE) / 2;
+    expect(averageLoot(0)).toBeCloseTo(STOCK * mid, -2);
+  });
+
+  it('rolls the full share inside its band, never past the ceiling', () => {
+    const seed = SEEDS[0];
+    const dist = distanceToField(seed);
+    for (const roll of [0, 0.37, 0.999]) {
+      const out = settleRaid({
+        seed, endedAt: fieldTiles(seed)[0], defenderStock: STOCK,
+        defenderLevel: 6, shielded: false,
+      }, () => roll, dist);
+      expect(out.loot).toBeGreaterThanOrEqual(Math.floor(STOCK * RAID_RUN.LOOT_SHARE_MIN));
+      expect(out.loot).toBeLessThanOrEqual(Math.floor(STOCK * RAID_RUN.LOOT_SHARE));
+    }
   });
 
   it('pays LESS the better the burrow is defended', () => {
