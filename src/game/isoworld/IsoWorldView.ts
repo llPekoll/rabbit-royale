@@ -182,10 +182,8 @@ export class IsoWorldView {
     if (ramp) {
       // Layered: stairs are cut stone, slopes are the hillside. A flight turned
       // to face the camera has no stairs sprite and becomes a slope — and then
-      // it is hillside too, not a grey wedge of stone. On a sheet coloured by
-      // tier the ramp belongs to the tier it climbs TO: the band below a
-      // plateau is that plateau's colour, lit.
-      const rampSet = layered ? surfaceSet : this.surfaceMaterial(ground, tier + 1);
+      // it is hillside too, not a grey wedge of stone.
+      const rampSet = surfaceSet;
       const stairsSet = layered ? tileset.materials.stone : rampSet;
       const piece =
         ramp.kind === 'stairs'
@@ -286,9 +284,9 @@ export class IsoWorldView {
    * edge, with a scalloped outline — the reference's plateaus over the ground
    * at their foot, and its patches of grass over the turf around them.
    *
-   * A ramp is painted the colour of the tier it climbs to, so at its foot,
-   * where it meets flat ground of its own tier, that colour spills over the
-   * ground. A patch spills its own colour over the flat cells around it.
+   * A ramp is painted the colour of its own tier, and the plateau it climbs
+   * to spills its colour over the top of the ramp, along the ramp's high
+   * edge. A patch spills its own colour over the flat cells around it.
    *
    * The piece hangs INSIDE the cell spilled onto, so it must be drawn after
    * that cell's own surface. Painter's order draws a cell after its north and
@@ -309,18 +307,25 @@ export class IsoWorldView {
       const { dx, dy } = DIR_STEP[d];
       const nx = x + dx;
       const ny = y + dy;
-      if (tierAt(world, nx, ny) !== tier) continue;
+      const n = tierAt(world, nx, ny);
       const nRamp = rampAt(world, nx, ny);
-      // Same tier as this cell, so the floor rule is the same.
-      const nPatch = deco && propAt(world, nx, ny)?.kind === 'patch' && tier > spec.floor;
       const back = ((d + 2) % 4) as Dir;
 
-      if (nRamp && !ramp) {
-        // The neighbour's slope colour spills onto this cell.
-        this.place(this.surfaceMaterial(ground, tier + 1).fringe![d], x, y, surface);
-      } else if (ramp && !nRamp) {
-        this.place(this.surfaceMaterial(ground, tier + 1).fringe![back], nx, ny, surface);
-      } else if (nPatch && !patch) {
+      if (ramp && !nRamp && n === tier + 1 && rampHighSides(ramp).includes(d)) {
+        // The plateau to the north or west spills over this ramp's high edge.
+        this.place(this.surfaceMaterial(ground, n).fringe![d], x, y, surface + block.z);
+        continue;
+      }
+      if (nRamp && !ramp && n === tier - 1 && rampHighSides(nRamp).includes(back)) {
+        // This plateau spills over the ramp to its north or west.
+        this.place(this.surfaceMaterial(ground, tier).fringe![back], nx, ny, surface);
+        continue;
+      }
+
+      if (n !== tier) continue;
+      // Same tier as this cell, so the floor rule is the same.
+      const nPatch = deco && propAt(world, nx, ny)?.kind === 'patch' && tier > spec.floor;
+      if (nPatch && !patch) {
         this.place(this.surfaceMaterial(ground, tier).patchFringe![d], x, y, surface);
       } else if (patch && !nPatch) {
         this.place(this.surfaceMaterial(ground, tier).patchFringe![back], nx, ny, surface);
