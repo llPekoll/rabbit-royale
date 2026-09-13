@@ -30,11 +30,11 @@ neighbour's transparent edge and draw a hairline seam down every wall.
 
 and a tenth row of pieces shared by every material:
 
-    r9    corner L corner R corner F   post
+    r9    corner L corner R corner F
 
 The pixel sheet's last two columns (stairs, prop blocks) are not drawn: this
 sheet is terrain only, and the renderer builds a flight of stairs as a slope
-and skips the block props. Row 2 differs too: there is no water (the island
+and skips the props, post included. Row 2 differs too: there is no water (the island
 floats on the page's gradient) and the four cells hold the RIM pieces, the
 dark outline along one edge of the top face. Row 9's corners are the vertical
 outline at the cell's left, right and front (bottom) corner, one block tall.
@@ -109,8 +109,6 @@ CLIFF = (200, 186, 160)          # cliff face, tan
 CLIFF_SOUTH = (188, 173, 148)    # the face turned away from the light, a touch darker
 STRIPE_INK = (156, 141, 116)
 PEBBLE = (120, 118, 100)
-POST = (172, 132, 88)
-POST_INK = (110, 78, 46)
 
 MATERIALS = [
     # name,  top fill,        grid line
@@ -373,16 +371,6 @@ def corner(which: str) -> Cell:
     return c
 
 
-def post() -> Cell:
-    c = Cell()
-    cx, cy = P(0.5, 0.5, 0)
-    w, h = 9 * SS, 34 * SS
-    d = ImageDraw.Draw(c.img)
-    d.rounded_rectangle([cx - w, cy - h, cx + w, cy + 4 * SS], radius=4 * SS, fill=POST, outline=POST_INK, width=round(OUTLINE * SS * 0.7))
-    d.ellipse([cx - w, cy - h - 4 * SS, cx + w, cy - h + 6 * SS], fill=(196, 156, 108), outline=POST_INK, width=round(OUTLINE * SS * 0.7))
-    return c
-
-
 # --- the sheet -------------------------------------------------------------
 
 def build() -> Image.Image:
@@ -419,7 +407,6 @@ def build() -> Image.Image:
             put(r + 2, col, rim(direction))
     for col, which in enumerate('LRF'):
         put(9, col, corner(which))
-    put(9, 3, post())
     return sheet
 
 

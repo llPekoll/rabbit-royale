@@ -171,7 +171,7 @@ export class IsoWorldView {
 
     const prop = (this.options.deco ?? true) ? propAt(world, x, y) : undefined;
     if (prop) {
-      // A sheet without block props draws only the post.
+      // A sheet without prop pieces draws none; the smooth sheet is terrain only.
       const texture =
         prop.kind === 'post'
           ? tileset.post

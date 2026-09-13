@@ -73,8 +73,8 @@ interface SheetSpec {
   /** What a hedge and a boulder are made of. */
   hedge: Material;
   boulder: Material;
-  /** Where the post is: [row, col]. */
-  post: readonly [number, number];
+  /** Where the post is: [row, col]. Null when the sheet has none. */
+  post: readonly [number, number] | null;
   /** Whether the sheet has water. */
   water: boolean;
   /** Whether the sheet has the outline pieces: rims on row 2, corners on row 9. */
@@ -116,7 +116,7 @@ export const SHEETS: Readonly<Record<IsoStyle, SheetSpec>> = {
     layered: false,
     hedge: 'moss',
     boulder: 'sand',
-    post: [9, 3],
+    post: null,
     water: false,
     outlines: true,
     stairs: false,
@@ -185,8 +185,8 @@ export interface IsoTileset {
   water: Texture | null;
   /** The colour of that surface, for painting the sea beyond the grid. */
   seaColor: number;
-  /** A short wooden post, standing in the middle of its cell. */
-  post: Texture;
+  /** A short wooden post, standing in the middle of its cell. Not on every sheet. */
+  post: Texture | null;
   /** Smooth sheet only. */
   corners: CornerTiles | null;
 }
@@ -254,7 +254,7 @@ async function load(style: IsoStyle): Promise<IsoTileset> {
     materials,
     water: sea?.texture ?? null,
     seaColor: sea?.color ?? (typeof spec.background === 'number' ? spec.background : spec.background[0][1]),
-    post: slice(spec.post[0], spec.post[1]),
+    post: spec.post ? slice(spec.post[0], spec.post[1]) : null,
     corners: spec.outlines ? { left: slice(9, 0), right: slice(9, 1), front: slice(9, 2) } : null,
   };
 }
