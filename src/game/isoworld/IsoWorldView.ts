@@ -42,7 +42,7 @@
  */
 import { Container, Sprite, type Texture } from 'pixi.js';
 import type { IsoTileset, Material, MaterialTiles } from './sheet';
-import { DIR, DIR_STEP, propAt, rampAt, tierAt, touchesSea, type Dir, type IsoWorld } from './terrain';
+import { DIR, DIR_STEP, propAt, rampAt, rampHighSides, tierAt, touchesSea, type Dir, type IsoWorld } from './terrain';
 
 const DIRS: readonly Dir[] = [DIR.N, DIR.E, DIR.S, DIR.W];
 
@@ -164,8 +164,15 @@ export class IsoWorldView {
       // to face the camera has no stairs sprite and becomes a slope — and then
       // it is hillside too, not a grey wedge of stone.
       const stairsSet = layered ? tileset.materials.stone : surfaceSet;
-      const stairs = ramp.kind === 'stairs' ? stairsSet.stairs[ramp.dir] : undefined;
-      this.place(stairs ?? surfaceSet.slope[ramp.dir], x, y, surface);
+      const piece =
+        ramp.kind === 'stairs'
+          ? stairsSet.stairs[ramp.dir]
+          : ramp.kind === 'inner'
+            ? surfaceSet.inner?.[ramp.dir]
+            : ramp.kind === 'outer'
+              ? surfaceSet.outer?.[ramp.dir]
+              : undefined;
+      this.place(piece ?? surfaceSet.slope[ramp.dir], x, y, surface);
     }
     this.outline(x, y, tier, ramp !== undefined);
 
@@ -199,7 +206,7 @@ export class IsoWorldView {
       const climb = rampAt(world, nx, ny);
       // A ramp on the neighbour whose high edge is this edge: the surface
       // simply continues, so no line at this height.
-      const joins = climb !== undefined && climb.dir === ((d + 2) % 4) && n === tier - 1;
+      const joins = climb !== undefined && n === tier - 1 && rampHighSides(climb).includes(((d + 2) % 4) as Dir);
       return { tier: n, joins };
     });
 

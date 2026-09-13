@@ -34,10 +34,23 @@ export const DIR_STEP: Readonly<Record<Dir, { dx: number; dy: number }>> = {
   3: { dx: -1, dy: 0 },
 };
 
-export type RampKind = 'slope' | 'stairs';
+/**
+ * `slope` and `stairs` climb toward one side. The two corner kinds exist for
+ * the sheets that have them (see `planCornerRamps`): `inner` climbs toward two
+ * adjacent sides at once — the cell sits in the crook of the tier above — and
+ * `outer` rises to a single corner point, where the cell touches the tier
+ * above only diagonally.
+ */
+export type RampKind = 'slope' | 'stairs' | 'inner' | 'outer';
 
 export interface Ramp {
-  /** The side the ramp climbs TOWARD — where its high edge meets the tier above. */
+  /**
+   * For a slope or stairs, the side the ramp climbs TOWARD — where its high
+   * edge meets the tier above. For a corner kind, the first of its two sides
+   * clockwise: `dir` and `dir + 1`, so NW is W (3, then N), NE is N (0, then
+   * E), SE is E, SW is S. One encoding, so a quarter turn is `+ 1` for every
+   * kind.
+   */
   dir: Dir;
   /**
    * What it is built as. A preference, not a promise: the sheet only draws
@@ -45,6 +58,13 @@ export interface Ramp {
    * drawn as a slope instead.
    */
   kind: RampKind;
+}
+
+/** The sides of a cell along which a ramp's surface stands at the tier above. */
+export function rampHighSides(ramp: Ramp): readonly Dir[] {
+  if (ramp.kind === 'outer') return [];
+  if (ramp.kind === 'inner') return [ramp.dir, ((ramp.dir + 1) % 4) as Dir];
+  return [ramp.dir];
 }
 
 export type PropKind = 'hedge' | 'boulder' | 'post';
@@ -77,6 +97,14 @@ export interface IsoWorldOptions {
   ramps?: number;
   /** Share of those ramps built as stairs rather than slopes, 0..1. */
   stairs?: number;
+  /**
+   * Build the land so that EVERY step between tiers is a slope, corners
+   * included, and the only cliff is the coast: the relief is regularised
+   * first (see `regularize`), then every cell is given the ramp its corners
+   * call for (see `planCornerRamps`). `ramps` and `stairs` are ignored. Needs
+   * a sheet with the corner pieces.
+   */
+  corners?: boolean;
 }
 
 const DEFAULTS = { ramps: 0.35, stairs: 0.3 } as const;
@@ -129,6 +157,20 @@ export function touchesSea(world: IsoWorld, x: number, y: number): boolean {
  * back on a shared foot.
  */
 export function planIsoWorld(map: IslandMap, options: IsoWorldOptions = {}): IsoWorld {
+  if (options.corners) {
+    const level = regularize(map.level, map.width, map.height);
+    const world: IsoWorld = {
+      width: map.width,
+      height: map.height,
+      level,
+      ramps: planCornerRamps(level, map.width, map.height),
+      props: new Map(),
+      seed: map.seed,
+      tiers: map.tiers,
+    };
+    return { ...world, props: planProps(world) };
+  }
+
   const share = options.ramps ?? DEFAULTS.ramps;
   const stairsShare = options.stairs ?? DEFAULTS.stairs;
   // Its own stream, so ramps never shift anything else rolled from this seed.
@@ -179,6 +221,144 @@ export function planIsoWorld(map: IslandMap, options: IsoWorldOptions = {}): Iso
     tiers: map.tiers,
   };
   return { ...world, props: planProps(world) };
+}
+
+/**
+ * The height of a cell's corner `c`, in blocks above the cell: 1 when any of
+ * the three other cells meeting at that corner stands on the tier above, else
+ * 0. Corners are numbered like the sides they sit between: corner `c` is
+ * between sides `c` and `c + 1`, so NE (between N and E) is 0, SE 1, SW 2,
+ * NW 3.
+ *
+ * This is the whole geometry of a slope world: a cell's surface is the sheet
+ * stretched over its four corner heights, and two cells always agree along
+ * their shared edge because they share its two corners. Cells two or more
+ * tiers up are not counted — `regularize` has already removed them.
+ */
+function cornerHeight(at: (x: number, y: number) => number, x: number, y: number, c: Dir): 0 | 1 {
+  const tier = at(x, y);
+  const a = DIR_STEP[c];
+  const b = DIR_STEP[((c + 1) % 4) as Dir];
+  return at(x + a.dx, y + a.dy) > tier || at(x + b.dx, y + b.dy) > tier || at(x + a.dx + b.dx, y + a.dy + b.dy) > tier
+    ? 1
+    : 0;
+}
+
+/**
+ * The ramp a cell's corners call for, or `null` for flat ground, or
+ * `undefined` when no piece fits: two opposite corners raised (a saddle) or
+ * all four (a pit).
+ */
+function rampFor(at: (x: number, y: number) => number, x: number, y: number): Ramp | null | undefined {
+  const h = DIRS.map((c) => cornerHeight(at, x, y, c));
+  const raised = h.filter(Boolean).length;
+  if (raised === 0) return null;
+  if (raised === 1) return { kind: 'outer', dir: h.indexOf(1) as Dir };
+  if (raised === 3) return { kind: 'inner', dir: ((h.indexOf(0) + 2) % 4) as Dir };
+  if (raised === 2) {
+    // Two adjacent corners share a side: corner c and c + 1 sit on side c + 1.
+    for (const c of DIRS) if (h[c] && h[(c + 1) % 4]) return { kind: 'slope', dir: ((c + 1) % 4) as Dir };
+  }
+  return undefined;
+}
+
+const lookup = (level: Int8Array, w: number, h: number) => (x: number, y: number) =>
+  x < 0 || y < 0 || x >= w || y >= h ? 0 : level[y * w + x];
+
+/**
+ * Reshape the relief until every step between land tiers can be a slope.
+ *
+ * Three things a slope world cannot draw, and the fix for each, applied
+ * until nothing changes:
+ *
+ *   - a cell with an 8-neighbour two or more tiers below it (the coast
+ *     included: the sea is tier 0) — lowered to one above the lowest. This
+ *     is what makes every coast a one-block cliff of sand and every inland
+ *     step exactly one tier;
+ *   - a cell whose corners no piece fits (`rampFor` undefined), or with three
+ *     or four higher sides — raised to the tier above when none of its
+ *     8-neighbours is below it, so that no new two-tier step appears;
+ *     otherwise the higher cells around it are lowered instead;
+ *   - a one-cell spur or peak — a cell at tier 2 or more with three sides
+ *     lower — lowered, because slopes on three sides read as a bump, not as
+ *     land.
+ *
+ * Every rule lowers except the raise, and the raise never creates work for
+ * the lowering rules, so this converges; the cap is a guard, not a plan.
+ */
+export function regularize(source: Int8Array, w: number, h: number): Int8Array {
+  const level = Int8Array.from(source);
+  const at = lookup(level, w, h);
+  const set = (x: number, y: number, v: number) => {
+    level[y * w + x] = v;
+  };
+
+  for (let pass = 0; pass < 200; pass++) {
+    let changed = false;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const t = at(x, y);
+        if (t === 0) continue;
+
+        let lowest = t;
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) if (dx || dy) lowest = Math.min(lowest, at(x + dx, y + dy));
+        }
+        if (lowest <= t - 2) {
+          set(x, y, lowest + 1);
+          changed = true;
+          continue;
+        }
+
+        let higherSides = 0;
+        let lowerSides = 0;
+        for (const d of DIRS) {
+          const n = at(x + DIR_STEP[d].dx, y + DIR_STEP[d].dy);
+          if (n > t) higherSides++;
+          if (n < t) lowerSides++;
+        }
+
+        if (higherSides >= 3 || rampFor(at, x, y) === undefined) {
+          if (lowest >= t) {
+            set(x, y, t + 1);
+          } else {
+            for (let dy = -1; dy <= 1; dy++) {
+              for (let dx = -1; dx <= 1; dx++) {
+                if ((dx || dy) && at(x + dx, y + dy) > t) set(x + dx, y + dy, t);
+              }
+            }
+          }
+          changed = true;
+          continue;
+        }
+
+        if (t >= 2 && lowerSides >= 3) {
+          set(x, y, t - 1);
+          changed = true;
+        }
+      }
+    }
+    if (!changed) break;
+  }
+  return level;
+}
+
+/**
+ * A ramp on every land cell whose corners call for one — see `rampFor`. On
+ * regularised relief every cell gets a piece or is flat, so nothing between
+ * two land tiers is ever a wall.
+ */
+export function planCornerRamps(level: Int8Array, w: number, h: number): Map<number, Ramp> {
+  const at = lookup(level, w, h);
+  const ramps = new Map<number, Ramp>();
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (at(x, y) === 0) continue;
+      const ramp = rampFor(at, x, y);
+      if (ramp) ramps.set(y * w + x, ramp);
+    }
+  }
+  return ramps;
 }
 
 /**

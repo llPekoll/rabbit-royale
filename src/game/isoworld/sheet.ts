@@ -20,6 +20,10 @@
  *     r1    turf     flat     slope S    slope E    block W     block E
  *     r2    *        *        *          *          block S     block N
  *
+ * The smooth sheet adds columns 4-7 on rows 0 and 1: the INNER corner ramps
+ * (climbing toward two adjacent sides) and the OUTER ones (rising to a single
+ * corner point), in `Dir` order of their first side — see `rampHighSides`.
+ *
  * Row 2's first four cells differ per sheet. Pixel: the grass set holds the
  * four water blocks and the dirt set has two posts. Smooth: the four RIM
  * pieces, N E S W — the dark outline along one edge of the top face — and a
@@ -82,6 +86,8 @@ interface SheetSpec {
   /** Whether columns 4 and 5 exist: stairs, and the block props. */
   stairs: boolean;
   blocks: boolean;
+  /** Whether the corner ramps exist (columns 4-7 of rows 0 and 1). */
+  corners: boolean;
   /**
    * What lies under the island: one flat colour, or a vertical gradient as
    * `[offset 0..1, rgb]` stops. Only `smooth` has no sea, so its islands float
@@ -105,6 +111,7 @@ export const SHEETS: Readonly<Record<IsoStyle, SheetSpec>> = {
     outlines: false,
     stairs: true,
     blocks: true,
+    corners: false,
     background: 0x0b2233,
   },
   smooth: {
@@ -121,6 +128,7 @@ export const SHEETS: Readonly<Record<IsoStyle, SheetSpec>> = {
     outlines: true,
     stairs: false,
     blocks: false,
+    corners: true,
     // The reference's page: teal at the top, through spring green, to a
     // dusty olive at the bottom.
     background: [
@@ -156,6 +164,9 @@ export interface MaterialTiles {
   flat: Texture;
   /** One per direction the slope climbs toward. */
   slope: Readonly<Record<Dir, Texture>>;
+  /** Corner ramps by their first side, on sheets that have them. */
+  inner?: Readonly<Record<Dir, Texture>>;
+  outer?: Readonly<Record<Dir, Texture>>;
   /** Only the two directions that climb away from the camera exist, and not on every sheet. */
   stairs: Readonly<Partial<Record<Dir, Texture>>>;
   /** A three-quarter block standing in the quarter of the cell on that side. Not on every sheet. */
@@ -226,6 +237,12 @@ async function load(style: IsoStyle): Promise<IsoTileset> {
       turf: slice(r + 1, 0),
       flat: slice(r + 1, 1),
       slope: { 0: slice(r, 3), 1: slice(r + 1, 3), 2: slice(r + 1, 2), 3: slice(r, 2) },
+      ...(spec.corners
+        ? {
+            inner: { 0: slice(r, 4), 1: slice(r, 5), 2: slice(r, 6), 3: slice(r, 7) },
+            outer: { 0: slice(r + 1, 4), 1: slice(r + 1, 5), 2: slice(r + 1, 6), 3: slice(r + 1, 7) },
+          }
+        : {}),
       stairs: spec.stairs ? { 0: slice(r, 4), 3: slice(r, 5) } : {},
       ...(spec.blocks
         ? { block: { 0: slice(r + 2, 5), 1: slice(r + 1, 5), 2: slice(r + 2, 4), 3: slice(r + 1, 4) } }

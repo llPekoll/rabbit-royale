@@ -226,6 +226,8 @@ export function IsoWorldWorkbench() {
 
   // What the chosen sheet can do; the panel hides the knobs it cannot use.
   const hasStairs = tileset?.spec.stairs ?? true;
+  // A sheet with corner ramps builds every step as a slope: no share to set.
+  const corners = tileset?.spec.corners ?? false;
   const hasProps = (tileset?.spec.blocks || tileset?.spec.post !== null) ?? true;
   const isPixel = (tileset?.style ?? settings.style) === 'pixel';
   // A sheet coloured by tier has one colour per tier and no more.
@@ -259,7 +261,7 @@ export function IsoWorldWorkbench() {
     });
     // Planned on the unturned map, THEN turned: the ramps and props belong to
     // the island, so turning the camera must carry them rather than re-roll.
-    const planned = planIsoWorld(map, { ramps: settings.ramps, stairs: settings.stairs });
+    const planned = planIsoWorld(map, { ramps: settings.ramps, stairs: settings.stairs, corners });
     const island = new IsoWorldView({
       world: rotateIsoWorld(planned, rotation),
       tileset,
@@ -302,7 +304,7 @@ export function IsoWorldWorkbench() {
     return () => {
       app.renderer.off('resize', fit);
     };
-  }, [settings, rotation, tileset, tiers]);
+  }, [settings, rotation, tileset, tiers, corners]);
 
   return (
     <main style={{ ...styles.page, background: sea }}>
@@ -352,7 +354,9 @@ export function IsoWorldWorkbench() {
           step={0.02}
           onChange={(v) => set('raggedness', v)}
         />
-        <Slider label="ramps" value={settings.ramps} min={0} max={1} step={0.05} onChange={(v) => set('ramps', v)} />
+        {corners ? null : (
+          <Slider label="ramps" value={settings.ramps} min={0} max={1} step={0.05} onChange={(v) => set('ramps', v)} />
+        )}
         {hasStairs ? (
           <Slider label="stairs" value={settings.stairs} min={0} max={1} step={0.05} onChange={(v) => set('stairs', v)} />
         ) : null}

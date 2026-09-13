@@ -10,7 +10,18 @@
  *     const world = rotateIsoWorld(planIsoWorld(map, { ramps: 0.35 }), 1);
  *     stage.addChild(new IsoWorldView({ world, tileset }).view);
  */
-export { planIsoWorld, rotateIsoWorld, tierAt, rampAt, propAt, touchesSea, DIR, DIR_STEP } from './terrain';
+export {
+  planIsoWorld,
+  rotateIsoWorld,
+  regularize,
+  rampHighSides,
+  tierAt,
+  rampAt,
+  propAt,
+  touchesSea,
+  DIR,
+  DIR_STEP,
+} from './terrain';
 export type { IsoWorld, IsoWorldOptions, Ramp, RampKind, Prop, PropKind, Dir } from './terrain';
 
 export { loadIsoTileset, ISO_SHEET_URL, ISO_STYLES, SHEETS, BLOCK, CELL, MATERIALS } from './sheet';

@@ -23,10 +23,16 @@ its own edge pixels, so the sheet's pitch is `CELL + 2 * PAD`: the renderer
 filters this sheet, and a frame cut flush against the next would sample its
 neighbour's transparent edge and draw a hairline seam down every wall.
 
-    col   0        1        2          3
-    r0    cube     slab     slope W    slope N
-    r1    turf     flat     slope S    slope E
+    col   0        1        2          3          4         5         6         7
+    r0    cube     slab     slope W    slope N    inner NE  inner SE  inner SW  inner NW
+    r1    turf     flat     slope S    slope E    outer NE  outer SE  outer SW  outer NW
     r2    rim N    rim E    rim S      rim W
+
+Columns 4-7 are the corner ramps, in `Dir` order of their first side (see
+`rampHighSides` in terrain.ts): an INNER corner climbs toward two adjacent
+sides, an OUTER corner rises to one corner point. With the four straight
+slopes they cover every way a cell can meet the tier above, so a regularised
+island has no wall between two land tiers.
 
 and a tenth row of pieces shared by every material:
 
@@ -92,7 +98,7 @@ OUT_PUBLIC = ROOT / 'public' / 'assets' / 'world' / 'iso-smooth-sheet-128.png'
 CELL = 128
 PAD = 2
 PITCH = CELL + 2 * PAD
-COLS, ROWS = 4, 10
+COLS, ROWS = 8, 10
 SS = 4  # supersampling: drawn at 512px per cell, then resolved down
 
 # Line weights, in OUTPUT pixels. Heavier than they look on the sheet: in the
@@ -311,38 +317,89 @@ def flat(mat) -> Cell:
     return c
 
 
-def slope(mat, rng, direction: str) -> Cell:
+def ramp(mat, rng, heights) -> Cell:
     """
-    A ramp climbing toward `direction` — its high edge meets the tier above on
-    that side. W: high edge is the upper-left edge (u = 0); N: upper-right
-    (v = 0); S: lower-left (v = 1); E: lower-right (u = 1).
+    Any ramp, from its four corner heights `(h00, h10, h11, h01)` — the
+    lattice corners (u, v) = (0,0) top, (1,0) right, (1,1) bottom, (0,1)
+    left, each 0 or 1 block above the cell. The surface is two planar
+    triangles; the cut runs between the two corners that differ from the odd
+    one out, so a single raised or lowered corner is a crease and a straight
+    slope is one plane. The east and south faces follow their edge's profile:
+    nothing, a wedge, or a full wall. The wedge's top edge is outlined — it is
+    the silhouette of the ramp against its own side — a wall's is not, since
+    the tier above always covers it.
     """
     fill, grid = mat[1], mat[2]
+    h00, h10, h11, h01 = heights
+    corners = [(0, 0, h00), (1, 0, h10), (1, 1, h11), (0, 1, h01)]
     c = Cell()
-    if direction == 'W':
-        surf = poly((0, 0, 1), (1, 0, 0), (1, 1, 0), (0, 1, 1))
-        top_face(c, surf, fill, grid)
-        tri = poly((0, 1, 1), (1, 1, 0), (0, 1, 0))
-        side_face(c, tri, CLIFF_SOUTH, rng, textured=False, outline=[0])
-    elif direction == 'N':
-        surf = poly((0, 0, 1), (1, 0, 1), (1, 1, 0), (0, 1, 0))
-        top_face(c, surf, fill, grid)
-        tri = poly((1, 0, 1), (1, 1, 0), (1, 0, 0))
-        side_face(c, tri, CLIFF, rng, textured=False, outline=[0])
-    elif direction == 'S':
-        # Faces away: the surface is mostly behind its own wall.
-        surf = poly((0, 0, 0), (1, 0, 0), (1, 1, 1), (0, 1, 1))
-        top_face(c, surf, fill, grid)
-        side_face(c, south_face(0, 1), CLIFF_SOUTH, rng)
-        tri = poly((1, 1, 1), (1, 1, 0), (1, 0, 0))
-        side_face(c, tri, CLIFF, rng, textured=False, outline=[2])
-    elif direction == 'E':
-        surf = poly((0, 0, 0), (1, 0, 1), (1, 1, 1), (0, 1, 0))
-        top_face(c, surf, fill, grid)
-        tri = poly((1, 1, 1), (1, 1, 0), (0, 1, 0))
-        side_face(c, tri, CLIFF_SOUTH, rng, textured=False, outline=[2])
-        side_face(c, east_face(0, 1), CLIFF, rng)
+
+    raised = sum(heights)
+    if raised in (0, 4) or (raised == 2 and h00 == h11):
+        # Flat, or a straight slope: one plane.
+        top_face(c, poly(*corners), fill, grid)
+    else:
+        # The odd corner: the single raised one, or the single lowered one.
+        odd = heights.index(1) if raised == 1 else heights.index(0)
+        a, b = corners[(odd + 1) % 4], corners[(odd + 3) % 4]
+        opposite = corners[(odd + 2) % 4]
+        c.fill(poly(a, opposite, b), fill)
+        c.fill(poly(corners[odd], a, b), fill)
+        # The light grid, on the N and W edges as everywhere else.
+        for i, j in ((0, 1), (3, 0)):
+            top_face_line(c, P(*corners[i]), P(*corners[j]), grid)
+
+    for edge, color in (((3, 2), CLIFF_SOUTH), ((1, 2), CLIFF)):
+        i, j = edge
+        (ui, vi, zi), (uj, vj, zj) = corners[i], corners[j]
+        if zi == 0 and zj == 0:
+            continue
+        face = poly((ui, vi, zi), (uj, vj, zj), (uj, vj, 0), (ui, vi, 0))
+        if zi and zj:
+            side_face(c, face, color, rng, textured=True)
+        else:
+            # The raised top corner first, then the far base corner, so edge 0
+            # is the crease where the surface meets the wedge.
+            top_i, top_j, base_j, base_i = face
+            tri = [top_i, base_j, base_i] if zi else [top_j, base_i, base_j]
+            side_face(c, tri, color, rng, textured=False, outline=[0])
     return c
+
+
+def top_face_line(cell: Cell, a, b, color) -> None:
+    length = math.hypot(b[0] - a[0], b[1] - a[1])
+    k = GRID * SS / 2 / length
+    cell.stroke((a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k),
+                (b[0] - (b[0] - a[0]) * k, b[1] - (b[1] - a[1]) * k), color, GRID)
+
+
+# Corner heights (h00, h10, h11, h01) of each piece. A side's two corners are
+# raised for a straight slope toward it; corner c (NE 0, SE 1, SW 2, NW 3) is
+# lattice corner (1,0), (1,1), (0,1), (0,0) — index 1, 2, 3, 0 below.
+CORNER_INDEX = {0: 1, 1: 2, 2: 3, 3: 0}
+SIDE_CORNERS = {'N': (0, 1), 'E': (1, 2), 'S': (2, 3), 'W': (3, 0)}
+
+
+def slope(mat, rng, direction: str) -> Cell:
+    """A ramp climbing toward one side: that side's two corners raised."""
+    heights = [0, 0, 0, 0]
+    for i in SIDE_CORNERS[direction]:
+        heights[i] = 1
+    return ramp(mat, rng, heights)
+
+
+def inner(mat, rng, first_side: int) -> Cell:
+    """Climbs toward sides `first_side` and the next clockwise: three corners raised."""
+    heights = [1, 1, 1, 1]
+    heights[CORNER_INDEX[(first_side + 2) % 4]] = 0
+    return ramp(mat, rng, heights)
+
+
+def outer(mat, rng, first_side: int) -> Cell:
+    """Rises to the corner between `first_side` and the next clockwise."""
+    heights = [0, 0, 0, 0]
+    heights[CORNER_INDEX[first_side]] = 1
+    return ramp(mat, rng, heights)
 
 
 RIM_EDGES = {
@@ -403,6 +460,9 @@ def build() -> Image.Image:
         put(r + 1, 1, flat(mat))
         put(r + 1, 2, slope(mat, rng, 'S'))
         put(r + 1, 3, slope(mat, rng, 'E'))
+        for d in range(4):
+            put(r, 4 + d, inner(mat, rng, d))
+            put(r + 1, 4 + d, outer(mat, rng, d))
         for col, direction in enumerate('NESW'):
             put(r + 2, col, rim(direction))
     for col, which in enumerate('LRF'):
