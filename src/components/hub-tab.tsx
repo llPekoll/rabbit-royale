@@ -33,8 +33,9 @@ const FACE_BOTTOM = '#332619';
 const SHADOW = '#1b1009';
 /** The label under the art. Cream, the same ink the cards use for a value. */
 const INK = '#e9dabd';
-/** Spent/unavailable: the tile is still there, its light is not. */
-const INK_OFF = '#8a7a68';
+/** Spent/unavailable: the tile is still there, its light is not. Lifted from
+ *  #8a7a68, which was 4.1:1 at 7px — dim should still be readable. */
+const INK_OFF = '#a8977f';
 /** ...and its face goes flatter and darker, never more transparent. */
 const FACE_OFF_TOP = '#2f2820';
 const FACE_OFF_BOTTOM = '#221b14';
@@ -58,14 +59,20 @@ export interface HubTabProps {
    * the player.
    */
   disabled?: boolean;
+  /**
+   * Looks like `disabled` but still answers a tap — for a door whose own job
+   * is not available yet but which can send the player to what unlocks it.
+   */
+  muted?: boolean;
   onClick?(): void;
   ariaLabel?: string;
 }
 
 export function HubTab({
-  sprite, art, label, count, disabled, onClick, ariaLabel,
+  sprite, art, label, count, disabled, muted, onClick, ariaLabel,
 }: HubTabProps) {
   const showBadge = !!count && count > 0;
+  const off = disabled || muted;
   return (
     <button
       type="button"
@@ -81,15 +88,15 @@ export function HubTab({
       className="rr-hub-tab"
       style={{
         ...tile,
-        background: disabled
+        background: off
           ? `linear-gradient(180deg, ${FACE_OFF_TOP} 0%, ${FACE_OFF_BOTTOM} 100%)`
           : `linear-gradient(180deg, ${FACE_TOP} 0%, ${FACE_BOTTOM} 100%)`,
       }}
     >
-      <span style={{ ...artBox, opacity: disabled ? 0.45 : 1 }}>
+      <span style={{ ...artBox, opacity: off ? 0.45 : 1 }}>
         {art ?? <img className="pixelated" src={sprite} alt="" aria-hidden style={spriteStyle} />}
       </span>
-      <span style={{ ...labelText, color: disabled ? INK_OFF : INK }}>{label}</span>
+      <span style={{ ...labelText, color: off ? INK_OFF : INK }}>{label}</span>
 
       {showBadge && (
         <span style={badge}>
@@ -125,8 +132,10 @@ const tile: CSSProperties = {
      the floor: the mock's tiles are 95px of a 768-tall window (12.4%). The row
      is `fit-content`, so the tiles state their own size rather than dividing a
      width — which is what lets the row's box stop where the tiles do. */
-  width: '12.4svh',
-  height: '12.4svh',
+  // `--rr-tile` is set only on an upright phone, where the height-based size
+  // runs the row off the screen — see globals.css.
+  width: 'var(--rr-tile, 12.4svh)',
+  height: 'var(--rr-tile, 12.4svh)',
   minWidth: 44,
   minHeight: 44,
   flexShrink: 0,
@@ -193,7 +202,9 @@ const labelText: CSSProperties = {
   /* Against the ROW's width (`cqw`) so it tracks the tiles, with a floor low
      enough that the longest label ("RAIDING") still fits a Seeker-sized tile.
      At 2.9cqw it was 12px there and "RAIDING"/"STORY" both ellipsised. */
-  fontSize: 'clamp(7px, 2.2cqw, 12px)',
+  // Upright phones get a larger floor (`--rr-tile-label`): their tiles are
+  // 80-90px, and 7px there was the smallest text on the screen.
+  fontSize: 'var(--rr-tile-label, clamp(7px, 2.2cqw, 12px))',
   letterSpacing: '0.02em',
   lineHeight: 1,
   textAlign: 'center',

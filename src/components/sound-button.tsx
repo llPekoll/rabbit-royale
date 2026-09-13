@@ -128,6 +128,10 @@ export function SoundButton() {
           height={`${UI_PIXEL * 20}px`}
           textColor={LAMP}
           className="rr-sound-more"
+          // Inline, because the kit sets its own `minWidth` inline (16 units,
+          // 32px here) and that beats the stylesheet — it measured 32px wide,
+          // under the 44px tap-target minimum.
+          style={{ minWidth: 44 }}
           onClick={() => setOpen((v) => !v)}
           aria-label="Sound settings"
           aria-expanded={open}

@@ -56,7 +56,11 @@ export function HubTabs({
      is a STATUS — true all the time, actionable at no particular moment — and
      a permanently-lit badge is the thing this row must not have. The tile
      dims instead when there is nothing to do (no traps held and none buried
-     to rearrange), which says "not now" without shouting. */
+     to rearrange), which says "not now" without shouting.
+
+     Dimmed, NOT dead. That is the state every new player starts in, and a
+     tile that ignores the tap gives no hint of what would light it. So with
+     nothing to place it opens the SHOP, whose first shelf is the trap. */
   const canEditBase = !!traps
     && (traps.placed > 0 || (traps.held > 0 && traps.placed < traps.maxPlaced));
 
@@ -109,9 +113,10 @@ export function HubTabs({
       <HubTab
         sprite={SHIELD}
         label="BASE"
-        disabled={!canEditBase}
-        onClick={onProtect}
-        ariaLabel="Protect your base"
+        disabled={!traps}
+        muted={!canEditBase}
+        onClick={canEditBase ? onProtect : onShop}
+        ariaLabel={canEditBase ? 'Protect your base' : 'Protect your base: no traps yet, open the shop'}
       />
       <HubTab
         sprite={SWORDS}

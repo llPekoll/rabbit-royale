@@ -23,6 +23,7 @@ import { LeaderboardDrawer, type Me } from '@/components/leaderboard-drawer';
 import { GoButton } from '@/components/go-button';
 import { FarmButton } from '@/components/farm-button';
 import { CarrotPill } from '@/components/carrot-pill';
+import { TopbarReserve } from '@/components/topbar-reserve';
 import { SoundButton } from '@/components/sound-button';
 import { LoadingScreen } from '@/components/loading-screen';
 import { LogoBanner } from '@/components/logo-banner';
@@ -920,6 +921,8 @@ function Burrow() {
             keeps the player chip at the LEFT edge rather than centred. */}
         <span aria-hidden style={{ width: 1 }} />
       </div>
+      {/* Tells the island's overlay where this bar and the pill end. */}
+      {showCanvas && <TopbarReserve />}
 
       {/* The board is furniture at the burrow and a distraction on the island:
           a run needs the whole frame, and a third of the screen given to a

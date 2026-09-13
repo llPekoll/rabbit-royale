@@ -327,10 +327,12 @@ button { min-height: 44px; min-width: 44px; }
      simply lost behind the energy bar. It is the first thing you see on
      entering a run.
 
-     Read from a variable rather than repeated, so the strip and the bar cannot
-     drift apart: `.rr-topbar` is given the same figure as a `min-height`. */
+     MEASURED, not pinned: `--rr-chrome-top` is written by TopbarReserve from
+     the real bottom edges of the bar and the fixed carrot pill, neither of
+     which has a constant height. The pinned 56px is only the fallback for the
+     frame before that first measurement lands. */
   padding:
-    calc(env(safe-area-inset-top) + var(--rr-topbar-h))
+    var(--rr-chrome-top, calc(env(safe-area-inset-top) + var(--rr-topbar-h)))
     10px
     env(safe-area-inset-bottom);
   pointer-events: none;
@@ -683,6 +685,16 @@ button { min-height: 44px; min-width: 44px; }
   max-width: 20%;
   flex-shrink: 1;
 }
+/* ONE LINE. Under that cap the GUEST tag wrapped under the name and the chip
+   came out 51-63px tall, which pushed the whole bar (and everything reserving
+   it) down. As a no-wrap row it is the name that gives way, which is what the
+   ellipsis below is for. */
+.rr-wallet.connected {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+.rr-wallet.connected .rr-wallet-name { min-width: 0; flex: 0 1 auto; }
 
 /* The NAME is what gives way inside it — an element of its own, because a
    bare text node cannot be told to ellipsise. The avatar and the GUEST tag
@@ -695,6 +707,26 @@ button { min-height: 44px; min-width: 44px; }
   text-overflow: ellipsis;
   white-space: nowrap;
   vertical-align: bottom;
+}
+
+/* ON A PHONE THE BAR IS TWO ROWS.
+   Chip, centred pill and the season button want ~433px side by side, and at
+   20% of a phone the chip wrapped to 63px tall, cut the name to "R…" and still
+   ran 33-59px under the pill (measured at 412 and 360). No width on a phone
+   fits all three on one line.
+
+   So the pill takes a second row, left-aligned under the chip rather than
+   centred, which keeps it clear of the season button at the right; the bar
+   reserves that row so the column starts below it. The chip gets the first
+   row back and keeps the name, ellipsised against the season button. */
+@media (max-width: 480px) {
+  .rr-topbar { padding-bottom: 60px; }
+  .rr-wallet { max-width: calc(100vw - 150px); }
+  .rr-carrot-pill {
+    top: calc(env(safe-area-inset-top) + 60px);
+    left: 30px;
+    transform: none;
+  }
 }
 
 /* The burrow, painted behind the whole screen.
@@ -795,10 +827,11 @@ button { min-height: 44px; min-width: 44px; }
      Reserved rather than nudged. Moving the handle up or down only picks a
      different card to clip, because the column is a scroll box and any card
      can be at any height. */
-  /* Recentred, and keeping the base rule's foot band — a bare `margin: 0 auto`
-     here would reset `margin-bottom` to 0 and put the last tab back under the
-     mute. */
-  .rr-burrow { margin: 0 auto 44px; max-width: 460px; padding-right: 50px; }
+  /* FULL WIDTH, stated. The base rule sizes the column at `max(25vw, 220px)`
+     for a desktop beside the board; on a phone that is 220px, minus this
+     gutter's 50, and the cards came out 170px wide with their right-hand
+     values cut off ("30/", "+", an upgrade price with no digits). */
+  .rr-burrow { width: 100%; margin: 0 auto; max-width: 460px; padding-right: 50px; }
   .rr-home-art::after {
     background: linear-gradient(
       180deg,
@@ -819,6 +852,9 @@ button { min-height: 44px; min-width: 44px; }
    their original z 1. The column is `pointer-events: none` except on its own
    children, so covering the crawl costs the crawl nothing. */
 .rr-burrow:has(.rr-empty) {
+  /* The base column's desktop width would otherwise hold, and the two sign-in
+     buttons sat left-aligned in a 220-320px strip instead of under the crawl. */
+  width: 100%;
   max-width: none;
   padding-right: 0;
   margin: 0;
@@ -1078,7 +1114,7 @@ button { min-height: 44px; min-width: 44px; }
      offset past it into GO FARM). An explicit width is also what keeps the
      box from being wider than its tiles, which was the original complaint:
      at `min(400px, 60vw)` the empty remainder still swallowed clicks. */
-  width: calc(4 * 12.4svh + 3 * 8px);
+  width: calc(4 * var(--rr-tile, 12.4svh) + 3 * 8px);
   max-width: min(400px, 60vw);
   /* Above the board, the column AND the GO FARM button — all three sit at
      z 1, and on a short window GO's 400x100 box overlaps this corner and was
@@ -1176,6 +1212,41 @@ body:has(.rr-burrow) .rr-burrow {
    is up. */
 body:has(.rr-empty) .rr-sound { display: none; }
 
+/* ── A PHONE HELD UPRIGHT ──────────────────────────────────────────────────
+   The mock is a landscape screen: four tiles bottom-left, GO FARM centred
+   beside them, the mute in the right corner. Upright there is no "beside".
+   Tiles sized from the HEIGHT (12.4svh) came to 113px on a 412x915 phone, so
+   the row ran to x 487 on a 412px screen, GO FARM sat on BASE, and at 360px
+   the mute and GO took the taps meant for STORY and RAIDING.
+
+   So upright the floor is stacked: the row along the bottom, sized to the
+   WIDTH it has; GO FARM centred on the band above it; the mute above GO's
+   band at the right. The column leaves room for all three. */
+@media (max-width: 720px) and (orientation: portrait) {
+  :root {
+    /* Four tiles and three 8px gaps inside 10px side margins. */
+    --rr-tile: min(12.4svh, calc((100vw - 44px) / 4));
+    /* Seven letters of "RAIDING" still fit an 80px tile at 9px. */
+    --rr-tile-label: clamp(9px, 2.6cqw, 12px);
+    --rr-go-h: clamp(44px, 10.4svh, 80px);
+    /* The row's own top padding (8px) plus 8px of air. */
+    --rr-floor: calc(10px + env(safe-area-inset-bottom) + var(--rr-tile) + 16px);
+  }
+  .rr-hub-row { max-width: none; }
+  .rr-farm-btn { bottom: var(--rr-floor); }
+  body:has(.rr-hub-row) .rr-sound {
+    bottom: calc(var(--rr-floor) + var(--rr-go-h) + 8px);
+  }
+  body:has(.rr-burrow) .rr-burrow {
+    padding-bottom: calc(var(--rr-floor) + var(--rr-go-h) + 8px + 44px + 10px);
+  }
+  /* On the island the floor is BACK HOME, a full-width box, and the mute sat
+     on its right end. Lifted clear of that band. */
+  body:has(.rr-overlay) .rr-sound {
+    bottom: calc(env(safe-area-inset-bottom) + 110px);
+  }
+}
+
 /* The two controls sit side by side; the panel stacks above them. */
 .rr-sound-cluster {
   display: flex;
@@ -1197,8 +1268,9 @@ body:has(.rr-empty) .rr-sound { display: none; }
   border-radius: 0;
 }
 .rr-sound-btn { min-width: 52px; }
-/* The disclosure is secondary to the mute, so it is narrower. */
-.rr-sound-more { min-width: 34px; }
+/* The disclosure is secondary to the mute, but it is still a tap target: at
+   34px it measured 32 wide, under the 44px minimum. */
+.rr-sound-more { min-width: 44px; }
 
 /* The speaker sprite: 16px of source art, scaled by whole numbers only, so it
    never lands between pixels. */
