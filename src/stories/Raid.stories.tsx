@@ -82,7 +82,7 @@ export const ChooseTarget: Story = {
 export const Walking: Story = {
   render: () => (
     <Stage>
-      <RaidHud raid={RAID} outcome={null} busy={false} onLeave={() => {}} />
+      <RaidHud raid={RAID} busy={false} onLeave={() => {}} />
     </Stage>
   ),
 };
@@ -94,18 +94,25 @@ export const Walking: Story = {
 export const Smoked: Story = {
   render: () => (
     <Stage>
-      <RaidHud raid={{ ...RAID, smoked: true }} outcome={null} busy={false} onLeave={() => {}} />
+      <RaidHud raid={{ ...RAID, smoked: true }} busy={false} onLeave={() => {}} />
     </Stage>
   ),
 };
 
-/** Reached the field: the full share. */
+/**
+ * Reached the field — and the HUD says NOTHING.
+ *
+ * That blank is the story. A win now raises the full-screen ceremony (see
+ * `Raid/Victory`), so this bar deliberately prints no result line: a corner
+ * label announcing the haul first would make the stage that follows a repeat.
+ * What should be visible here is the live chrome only, with the board carrying
+ * the moment underneath.
+ */
 export const Won: Story = {
   render: () => (
     <Stage>
       <RaidHud
         raid={{ ...RAID, finished: true, succeeded: true, carrotsLooted: 12_050, energy: 4 }}
-        outcome={{ reachedField: true, loot: 12_050, damage: 42, progress: 1 }}
         busy={false}
         onLeave={() => {}}
       />
@@ -122,7 +129,6 @@ export const RanOut: Story = {
     <Stage>
       <RaidHud
         raid={{ ...RAID, finished: true, trapsSprung: 3, energy: 0, carrotsLooted: 1_420 }}
-        outcome={{ reachedField: false, loot: 1_420, damage: 11, progress: 0.3 }}
         busy={false}
         onLeave={() => {}}
       />

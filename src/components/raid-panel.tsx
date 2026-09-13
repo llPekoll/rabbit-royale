@@ -14,7 +14,7 @@
  */
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import type { RaidOutcome, RaidState, Target } from './use-raid';
+import type { RaidState, Target } from './use-raid';
 import { LauncherTab, CARROT, DANGER, LAMP } from './burrow-chrome';
 import { LootChest, CHEST_ASPECT } from './loot-chest';
 
@@ -132,7 +132,6 @@ export function TargetList({ targets, busy, onEnter, onClose, note }: TargetList
 
 export interface RaidHudProps {
   raid: RaidState;
-  outcome: RaidOutcome | null;
   busy: boolean;
   note?: string | null;
   onLeave(): void;
@@ -145,7 +144,7 @@ export interface RaidHudProps {
  * it is what the player prices the next tile against. The same reasoning as the
  * island's HUD, because it is the same decision.
  */
-export function RaidHud({ raid, outcome, busy, note, onLeave }: RaidHudProps) {
+export function RaidHud({ raid, busy, note, onLeave }: RaidHudProps) {
   return (
     <div className="rr-raid-hud">
       <header>
@@ -178,18 +177,25 @@ export function RaidHud({ raid, outcome, busy, note, onLeave }: RaidHudProps) {
         </button>
       )}
 
-      {/* The end, WITHOUT a button. The board carries the moment — the rabbit
-          dances on the field or collapses short of it — and the page takes
-          the player home by itself a couple of seconds later, with the haul
-          announced in their own burrow. This line only names what happened
-          while that plays out. */}
-      {raid.finished && (
+      {/* The end, WITHOUT a button — and only for a LOSS.
+          The board carries the moment (the rabbit collapses where its energy
+          ran out) and the page takes the player home by itself a couple of
+          seconds later, with the news announced in their own burrow. This line
+          only names what happened while that plays out.
+
+          A WIN says nothing here any more. It now raises the full-screen
+          ceremony (`components/raid-victory`) over this whole board, and the
+          two seconds before it arrives are the rabbit's dance — printing
+          "You reached the field! +4,820" in the corner first makes the stage
+          that follows a repeat of a corner label rather than the announcement.
+
+          Keyed on `raid.succeeded` rather than `outcome.reachedField`: the
+          outcome only rides the response that ended the raid, so after a
+          reload a won raid has none — and this line used to answer "Out of
+          energy" to a raid the player had just won. */}
+      {raid.finished && !raid.succeeded && (
         <div className="rr-raid-over">
-          <strong>
-            {outcome?.reachedField
-              ? 'You reached the field!'
-              : 'Out of energy'}
-          </strong>
+          <strong>Out of energy</strong>
           <span className="rr-raid-haul">
             {raid.carrotsLooted > 0
               ? `+${raid.carrotsLooted.toLocaleString()} 🥕`

@@ -43,6 +43,7 @@ import type { PayTokenId } from '@/lib/pay/tokens';
 import { useUsdcPay } from '@/components/use-usdc-pay';
 import { RaidHud, TargetList } from '@/components/raid-panel';
 import { useRaid, type RaidState } from '@/components/use-raid';
+import { RaidVictory } from '@/components/raid-victory';
 import { gardenProgress } from '@/lib/game/garden-growth';
 import { burrowArt } from '@/config/burrowArt';
 import { SCENE } from '@/game/keys';
@@ -264,6 +265,27 @@ function Burrow() {
     fetch('/api/burrow', auth())
       .then((r) => r.json())
       .then((d) => d.burrow && setBurrow(d.burrow))
+      .catch(() => {});
+  }, [token, auth]);
+
+  /**
+   * The player's own bunny, for the raid's victory ceremony.
+   *
+   * The wallet chip already fetches this for the face on the button, but it
+   * keeps it to itself, and the ceremony is raised from here. Rather than lift
+   * that state through a component whose job is signing in, this reads the same
+   * endpoint: `/api/auth/me` is a cheap authenticated row, fetched once per
+   * session, and both callers want exactly one field off it.
+   *
+   * A null avatar is not a failure — `avatarSrc` falls back to the default
+   * sheet — so this never blocks the ceremony on a request that did not land.
+   */
+  const [avatar, setAvatar] = useState<string | null>(null);
+  useEffect(() => {
+    if (!token) return;
+    fetch('/api/auth/me', auth())
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d?.player && setAvatar(d.player.avatar ?? null))
       .catch(() => {});
   }, [token, auth]);
 
@@ -516,6 +538,18 @@ function Burrow() {
     refreshBurrow();
   }, [game.banked, refreshBurrow]);
 
+  /**
+   * The same refresher, reachable from the finished-raid effect.
+   *
+   * That effect is keyed on the raid's ID ALONE, deliberately — it must fire
+   * once per finished raid and survive the polls that re-render this page.
+   * Putting `refreshBurrow` in its dependencies would re-run the whole ending
+   * (ceremony, timers and all) every time that callback changed identity, so
+   * the call goes through a ref instead.
+   */
+  const refreshBurrowRef = useRef(refreshBurrow);
+  refreshBurrowRef.current = refreshBurrow;
+
   const buyWithCarrots = useCallback(async (kind: ItemKind) => {
     const res = await shop.buy(kind);
     if (res) refreshBurrow();
@@ -734,14 +768,80 @@ function Burrow() {
   leaveRef.current = raid.leave;
   const finishedRaid = useRef(raid.raid);
   finishedRaid.current = raid.raid;
+
+  /**
+   * THE WIN GETS A CEREMONY; a loss keeps the quiet exit.
+   *
+   * Reaching the red tile is the whole raid, and it used to resolve the way a
+   * form submits: a two-second dance, a line in the corner, and the player was
+   * carried home. `RaidVictory` is the arcade's answer to that — the same
+   * full-screen stage the hub's shop and the casino's chest raise, wearing the
+   * island's blues.
+   *
+   * Held as its OWN state rather than read off `raid.raid`, for two reasons:
+   *
+   *   • `leave()` clears the raid, so a ceremony driven by `raid.raid.succeeded`
+   *     would unmount itself the moment it took the player home — it has to
+   *     outlive the thing that raised it.
+   *   • It carries a SNAPSHOT of the haul. The screen behind is going back to
+   *     the burrow while the stage is still up, and the numbers on it must not
+   *     change under the player mid-celebration.
+   *
+   * `succeeded` off the raid row, not `outcome.reachedField`: the outcome only
+   * rides the response that ended the raid, so it is gone by the next read,
+   * while the row survives. The HUD used to key its headline off the outcome
+   * and therefore answered "Out of energy" to a raid the player had just won;
+   * it now reads `succeeded` too.
+   */
+  const [victory, setVictory] = useState<
+    { raidId: string; defender: string; carrots: number; trapsSprung: number } | null
+  >(null);
+
   useEffect(() => {
     if (!finishedRaidId) return;
     const r = finishedRaid.current;
+    const won = r?.succeeded ?? false;
     const haul = r
       ? r.carrotsLooted > 0
         ? `+${r.carrotsLooted.toLocaleString()} 🥕 stolen from ${r.defender.name}`
         : `Nothing taken from ${r.defender.name}'s burrow`
       : null;
+
+    /**
+     * The haul is in the database — go and read the total.
+     *
+     * The same missing half as banking a run: the burrow's counter is fetched,
+     * not pushed, and a finished raid never re-fetched it. The carrots were
+     * genuinely credited (the server adds the loot to the attacker's stock when
+     * it settles) and the counter still showed the figure from before the raid,
+     * until something unrelated happened to refresh it.
+     *
+     * It went unnoticed because the old ending announced the haul in a toast,
+     * so a player was told what they had won even while the number behind the
+     * toast disagreed. The ceremony replaces that toast, which would have left
+     * the win with nothing but a stale counter.
+     */
+    refreshBurrowRef.current();
+
+    // A WIN: the board plays its dance, then the stage comes up over it. The
+    // trip home waits for the player to dismiss that — going home by itself
+    // under a ceremony they are still reading is the interruption the stage
+    // exists to avoid.
+    if (won && r) {
+      const ceremony = setTimeout(() => {
+        setVictory({
+          raidId: r.raidId,
+          defender: r.defender.name,
+          carrots: r.carrotsLooted,
+          trapsSprung: r.trapsSprung,
+        });
+      }, RAID_OVER_MS);
+      return () => clearTimeout(ceremony);
+    }
+
+    // A LOSS keeps what it had: the collapse on the field, then home by itself
+    // with the news in a toast. There is nothing here to celebrate and a
+    // full-screen stage saying so would be a punishment screen.
     const home = setTimeout(() => {
       leaveRef.current();
       if (haul) setNote(haul);
@@ -1270,10 +1370,30 @@ function Burrow() {
       {player && shownRaid && (
         <RaidHud
           raid={shownRaid}
-          outcome={raid.outcome}
           busy={raid.busy}
           note={raid.note}
           onLeave={raid.leave}
+        />
+      )}
+
+      {/* The raid's ceremony, over everything — including the board it was won
+          on, which is still up behind it. Dismissing is what takes the player
+          home, so the trip and the celebration cannot land on top of each
+          other. */}
+      {victory && (
+        <RaidVictory
+          key={victory.raidId}
+          defender={victory.defender}
+          carrots={victory.carrots}
+          avatar={avatar}
+          trapsSprung={victory.trapsSprung}
+          onDone={() => {
+            setVictory(null);
+            leaveRef.current();
+            // No toast on the way home: the stage just spent a full screen
+            // saying what was taken, and repeating it in the corner would read
+            // as a second, smaller announcement of the same thing.
+          }}
         />
       )}
 
