@@ -2358,14 +2358,6 @@ button { font-family: var(--font-pixel); }
 }
 .rr-pix-meter-fill[hidden] { display: none; }
 
-/* The burrow's heading, in the kit's title face rather than a UI font. */
-.rr-burrow-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 2px 0 10px;
-}
-
 /* The carrot beside a figure — the game's own sprite, tinted by the art, not
    an emoji drawn in whatever the system font decides. */
 .rr-carrot-mark {

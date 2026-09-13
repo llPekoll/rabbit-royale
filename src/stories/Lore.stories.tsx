@@ -21,7 +21,6 @@ import {
   LauncherTab, BurrowCard, CardRow, CardNote, BurrowMeter, BurrowButton,
   CARROT, LAMP,
 } from '@/components/burrow-chrome';
-import { TitleText } from '@domin8/arcade-kit';
 import { LootChest, CHEST_ASPECT } from '@/components/loot-chest';
 import '@/app/globals.css';
 
@@ -49,10 +48,6 @@ function Harness({ lifetime, open = true }: { lifetime: number; open?: boolean }
         overflowY: 'auto', boxSizing: 'border-box',
         background: 'linear-gradient(90deg, rgba(13,17,23,0.82) 60%, rgba(13,17,23,0))',
       }}>
-        <div className="rr-burrow-head">
-          <TitleText scale={1.6} style={{ color: LAMP }}>YOUR BURROW</TitleText>
-        </div>
-
         {/* Neighbour cards, so the scroll tab is judged BESIDE the chrome it
             sits under rather than alone on a page. */}
         <BurrowCard>

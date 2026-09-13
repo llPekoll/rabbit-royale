@@ -3,8 +3,6 @@ import gsap from 'gsap';
 import { SceneManager } from './SceneManager';
 import { BootScene } from './scenes/BootScene';
 import { CarrotWipe } from './fx/CarrotWipe';
-// TEMPORARY — see fx/TapProbe.
-import { createTapProbe, type TapProbeHandle } from './fx/TapProbe';
 import * as Keys from '@/config/assetKeys';
 
 /** Background color. The video's feathered edges (alpha-masked on all
@@ -151,9 +149,6 @@ export async function createApp(
   // Declared before resize() so that function can close over it; filled in
   // after the boot, which is what loads the carrot it is cut from.
   let wipe: CarrotWipe | null = null;
-  // TEMPORARY — declared here for the same reason as the wipe above: `resize`
-  // closes over it, and it is built after the boot. See fx/TapProbe.
-  let probeRef: TapProbeHandle | null = null;
 
   function resize() {
     const w = window.innerWidth;
@@ -184,8 +179,6 @@ export async function createApp(
     // but resize runs once before that, so it is optional here rather than
     // hoisted — a rotation mid-wipe still has to re-cover the new viewport.
     wipe?.resize(w, h);
-    // TEMPORARY — see fx/TapProbe.
-    probeRef?.resize(w, h);
   }
 
   resize();
@@ -243,12 +236,6 @@ export async function createApp(
     console.warn('[rr] no carrot texture: crossing between scenes without the iris');
   }
 
-  // TEMPORARY — the tap probe. On the stage, above the iris, so it reports
-  // whatever the renderer is actually delivering. See fx/TapProbe.
-  probeRef = createTapProbe(pixi);
-  pixi.stage.addChild(probeRef.view);
-  probeRef.resize(window.innerWidth, window.innerHeight);
-
   return {
     pixi,
     scenes,
@@ -256,7 +243,6 @@ export async function createApp(
     wipe,
     destroy() {
       window.removeEventListener('resize', resize);
-      probeRef?.destroy();
       // Don't leave a destroyed app behind for the console to question — after
       // an HMR reload its hit test would answer for a renderer that is gone.
       const g = globalThis as { __PIXI_APP__?: Application };

@@ -33,9 +33,9 @@ import { LoreButton, LoreCodex } from '@/components/lore-codex';
 import { LoreCrawl } from '@/components/lore-crawl';
 import {
   BurrowCard, CardRow, CardNote, BurrowMeter, BurrowButton,
-  CARROT, CHALK_DIM, DANGER, LAMP,
+  CARROT, CHALK_DIM, DANGER,
 } from '@/components/burrow-chrome';
-import { BitmapText, TitleText } from '@domin8/arcade-kit';
+import { BitmapText } from '@domin8/arcade-kit';
 import { useShop, type ItemKind } from '@/components/use-shop';
 import type { PayTokenId } from '@/lib/pay/tokens';
 import { useUsdcPay } from '@/components/use-usdc-pay';
@@ -346,8 +346,6 @@ function Burrow() {
    * bomb the server never lifted.
    */
   const onToggleTrap = useCallback(async (tile: number, mined: boolean) => {
-    // TEMPORARY, with the [tap] log in BurrowScene — see `rrDiag` below.
-    console.log('[onToggleTrap]', tile, 'mined:', mined);
     if (mined) {
       const ok = await shop.removeTrap(tile);
       if (ok) handles.current?.burrow?.removeTrap(tile);
@@ -370,86 +368,6 @@ function Burrow() {
     if (!cleared) return;
     for (const tile of cleared) handles.current?.burrow?.removeTrap(tile);
   }, [shop]);
-
-  /**
-   * TEMPORARY: `rrDiag()` in the browser console.
-   *
-   * The question no log could answer from the outside — WHAT IS ON TOP of the
-   * board in this particular browser, at this particular size. A tap that
-   * lands on an HTML element never reaches the canvas, so it produces no log
-   * anywhere: not in the scene, not in the route. Silence was the symptom, and
-   * silence is exactly what a missing log looks like, which is why this took
-   * so long to pin down.
-   *
-   * It walks a grid of points over the canvas, asks the browser what element
-   * sits at each one, and reports anything that is NOT the canvas — with the
-   * computed `pointer-events` of each culprit, which is the property that
-   * decides whether a tap falls through to the game.
-   */
-  useEffect(() => {
-    (window as unknown as { rrDiag?: () => void }).rrDiag = () => {
-      const canvas = document.querySelector('canvas');
-      if (!canvas) { console.log('[rrDiag] no canvas'); return; }
-      const r = canvas.getBoundingClientRect();
-      const blockers = new Map<string, { count: number; pe: string; box: string }>();
-      let clear = 0;
-      for (let gy = 1; gy < 10; gy++) {
-        for (let gx = 1; gx < 10; gx++) {
-          const x = r.x + (r.width * gx) / 10;
-          const y = r.y + (r.height * gy) / 10;
-          const el = document.elementFromPoint(x, y);
-          if (!el || el === canvas) { clear++; continue; }
-          const cs = getComputedStyle(el);
-          const b = el.getBoundingClientRect();
-          const key = `${el.tagName}.${el.className || '(no class)'}`;
-          const hit = blockers.get(key);
-          if (hit) hit.count++;
-          else blockers.set(key, {
-            count: 1,
-            pe: cs.pointerEvents,
-            box: `${Math.round(b.width)}x${Math.round(b.height)}`,
-          });
-        }
-      }
-      console.log(`[rrDiag] ${clear}/81 points reach the canvas`);
-      for (const [name, v] of blockers) {
-        console.log(`[rrDiag] ${v.count} pts blocked by ${name} — pointer-events: ${v.pe}, box ${v.box}`);
-      }
-      if (!blockers.size) console.log('[rrDiag] HTML: nothing covers the board');
-
-      // ── Inside Pixi ─────────────────────────────────────────────────────
-      //
-      // The HTML half above only answers "did the tap reach the canvas". Once
-      // it does, Pixi decides which display object replies — by DEPTH, and the
-      // deepest interactive thing under the pointer wins. So the same question
-      // has to be asked a second time, in the scene graph.
-      const app = (globalThis as { __PIXI_APP__?: {
-        stage: unknown; renderer: { events?: { rootBoundary?: {
-          hitTest(x: number, y: number): unknown } } };
-      } }).__PIXI_APP__;
-      if (!app) { console.log('[rrDiag] no __PIXI_APP__ — cannot inspect the scene'); return; }
-
-      // Pixi's OWN hit test, which is the authority: whatever it names here is
-      // exactly what a real click would be delivered to.
-      const boundary = app.renderer.events?.rootBoundary;
-      const canvasR = canvas.getBoundingClientRect();
-      const probe = (px: number, py: number) => {
-        const hit = boundary?.hitTest(px, py) as
-          { label?: string; constructor?: { name?: string }; eventMode?: string } | null;
-        return hit
-          ? `${hit.label || hit.constructor?.name || '?'} (eventMode ${hit.eventMode})`
-          : 'nothing';
-      };
-      console.log('[rrDiag] pixi hit test at 9 points across the board:');
-      for (let gy = 1; gy < 4; gy++) {
-        for (let gx = 1; gx < 4; gx++) {
-          const px = (canvasR.width * gx) / 4;
-          const py = (canvasR.height * gy) / 4;
-          console.log(`[rrDiag]   ${Math.round(px)},${Math.round(py)} -> ${probe(px, py)}`);
-        }
-      }
-    };
-  }, []);
 
   /**
    * Start placing traps.
@@ -953,13 +871,6 @@ function Burrow() {
             </div>
           ) : (
             <>
-              {/* The heading in the kit's TITLE face — the same one every
-                  panel in the arcade wears. It was a UI-font <h1>, which is
-                  the giveaway that the chrome came from somewhere else. */}
-              <div className="rr-burrow-head">
-                <TitleText scale={1.6} style={{ color: LAMP }}>YOUR BURROW</TitleText>
-              </div>
-
               {/* While placing, the column steps out of the way.
                   
                   HP, energy, the garden and the upgrade are all readings of a
@@ -1012,15 +923,19 @@ function Burrow() {
                   tone={hasEnergy ? 'carrot' : 'danger'}
                   label="Energy"
                 />
-                {/* Empty is the state that needs explaining: without a return
-                    time the player cannot tell a broken game from a wait. */}
-                <CardNote>
-                  {!hasEnergy
-                    ? `Out of energy. Next in ${formatWait(burrow?.nextEnergyInMs ?? null)}.`
-                    : burrow?.nextEnergyInMs === null
-                      ? 'Full.'
+                {/* Only the states that TELL the player something get a line.
+                    Empty needs a return time — without one they cannot tell a
+                    broken game from a wait — and a refill in progress needs its
+                    countdown. A FULL bar explains itself, so the note was a
+                    caption on a picture that was already clear, and the row it
+                    sat on is better spent on the board. */}
+                {burrow?.nextEnergyInMs !== null && (
+                  <CardNote>
+                    {!hasEnergy
+                      ? `Out of energy. Next in ${formatWait(burrow?.nextEnergyInMs ?? null)}.`
                       : `+1 in ${formatWait(burrow?.nextEnergyInMs ?? null)}.`}
-                </CardNote>
+                  </CardNote>
+                )}
               </BurrowCard>
 
               <BurrowCard>
