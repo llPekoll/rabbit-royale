@@ -1,8 +1,13 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    id("com.google.gms.google-services")
 }
+
+// Firebase n'est branche que si google-services.json est la. Sans lui le
+// plugin ferait echouer le build ; un APK de test doit pouvoir se construire
+// sans compte Firebase, quitte a partir sans notifications.
+val hasFirebase = file("google-services.json").exists()
+if (hasFirebase) apply(plugin = "com.google.gms.google-services")
 
 android {
     namespace = "fun.rabbitroyale.app"
@@ -20,8 +25,9 @@ android {
         buildConfigField(
             "String",
             "GAME_URL",
-            "\"${System.getenv("RR_GAME_URL") ?: "https://kpj80wphpilv7dzarcbyn4qi.datemeee.com"}\"",
+            "\"${System.getenv("RR_GAME_URL") ?: "https://rabbit.rip"}\"",
         )
+        buildConfigField("boolean", "HAS_FCM", hasFirebase.toString())
     }
 
     signingConfigs {
@@ -53,6 +59,19 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
     sourceSets["main"].java.srcDirs("src/main/kotlin")
+    // Le service FCM et sa declaration au manifest ne rejoignent le build que
+    // si Firebase est configure : sans les dependances, la classe ne compile
+    // pas, et la declarer au manifest ferait planter l'app au demarrage. On
+    // greffe src/fcm sur le source set "debug" ET "release" via un flavor
+    // unique, dont le manifest est fusionne (pas substitue) au principal.
+    flavorDimensions += "fcm"
+    productFlavors { create("standard") { dimension = "fcm" } }
+    if (hasFirebase) {
+        sourceSets["standard"].java.srcDirs("src/fcm/kotlin")
+        sourceSets["standard"].manifest.srcFile("src/fcm/AndroidManifest.xml")
+    } else {
+        sourceSets["standard"].java.srcDirs("src/nofcm/kotlin")
+    }
 }
 
 dependencies {
@@ -63,8 +82,10 @@ dependencies {
     // Firebase Cloud Messaging — les notifs natives (raid subi, terrier
     // réparé, saison qui se termine) sont ce qui ramène le joueur, donc elles
     // doivent arriver app fermée : hors WebView, forcément.
-    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
-    implementation("com.google.firebase:firebase-messaging-ktx")
+    if (hasFirebase) {
+        implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+        implementation("com.google.firebase:firebase-messaging-ktx")
+    }
     // Mobile Wallet Adapter — parle au Seed Vault du Seeker (et à tout wallet
     // MWA) pour signer le challenge de login sans jamais exposer la clé.
     implementation("com.solanamobile:mobile-wallet-adapter-clientlib-ktx:2.0.8")

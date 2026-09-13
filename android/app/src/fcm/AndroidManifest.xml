@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Fusionné au manifest principal uniquement quand google-services.json est
+  présent. Sans Firebase, déclarer ce service ferait planter l'app au démarrage
+  (classe introuvable), donc il vit ici plutôt que dans le manifest de base.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <service
+            android:name=".RoyaleMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="@string/notif_channel_id" />
+    </application>
+</manifest>

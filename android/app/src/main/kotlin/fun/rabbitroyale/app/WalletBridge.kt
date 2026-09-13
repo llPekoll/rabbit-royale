@@ -5,7 +5,6 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import androidx.lifecycle.lifecycleScope
 import com.funkatronics.encoders.Base58
-import com.google.firebase.messaging.FirebaseMessaging
 import com.solana.mobilewalletadapter.clientlib.ActivityResultSender
 import com.solana.mobilewalletadapter.clientlib.ConnectionIdentity
 import com.solana.mobilewalletadapter.clientlib.MobileWalletAdapter
@@ -90,14 +89,10 @@ class WalletBridge(
      */
     @JavascriptInterface
     fun getFcmToken() {
-        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
-            if (task.isSuccessful) {
-                post("window.__fcmResolve && window.__fcmResolve(${JSONObject.quote(task.result)})")
-            } else {
-                val msg = task.exception?.message ?: "token fcm indisponible"
-                post("window.__fcmReject && window.__fcmReject(${JSONObject.quote(msg)})")
-            }
-        }
+        FcmToken.fetch(
+            onToken = { post("window.__fcmResolve && window.__fcmResolve(${JSONObject.quote(it)})") },
+            onError = { post("window.__fcmReject && window.__fcmReject(${JSONObject.quote(it)})") },
+        )
     }
 
     /** True côté JS : permet à la page de savoir qu'elle tourne dans l'app native. */
