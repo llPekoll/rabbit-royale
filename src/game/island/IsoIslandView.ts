@@ -175,6 +175,18 @@ const TREE_CHANCE = 0.08;
 const BUSH_CHANCE = 0.05;
 const PROP_CHANCE = 0.11;
 const SEA_ROCK_CHANCE = 0.025;
+/**
+ * How much larger a sea rock is drawn than the sheet's own normalisation
+ * gives it.
+ *
+ * The four rocks are painted at 24 to 83px across, floating in 128px frames.
+ * Dividing the frame out (see `buildSeaRocks`) and then applying the board's
+ * `decoScale` drew the smallest at 5px — a speck that read as a stray pixel
+ * on the water — and the largest at 17px. Three times that runs from a 14px
+ * pebble, a third of a cell, to a 50px boulder, a cell wide: rocks you can
+ * see, none of them bigger than the island's trees.
+ */
+const SEA_ROCK_SIZE = 3;
 const NATURAL_PROPS = 15;
 const LANDMARK_CHANCE = 0.08;
 
@@ -606,6 +618,21 @@ export class IsoIslandView {
     }
   }
 
+  /** The sea cells a rock was rolled onto — see `hasSeaRock`. */
+  private readonly seaRockCells = new Set<string>();
+
+  /**
+   * Is there a rock on this sea cell?
+   *
+   * The rocks are the view's own roll, not the board's (nothing stands on the
+   * sea as far as the game is concerned), so nothing outside can know where
+   * they landed. The ducks need to: a duck is drawn UNDER the scenery, and
+   * one routed across a rock cell swam straight through the boulder.
+   */
+  hasSeaRock(x: number, y: number): boolean {
+    return this.seaRockCells.has(key(x, y));
+  }
+
   /**
    * The little rocks bobbing in open water, for an island drawn from
    * placements.
@@ -623,6 +650,7 @@ export class IsoIslandView {
       for (let x = 0; x < map.width; x++) {
         if (levelAt(map, x, y) !== 0) continue;
         if (touchesLand(map, x, y) || rng() > SEA_ROCK_CHANCE) continue;
+        this.seaRockCells.add(key(x, y));
         const frames = tileset.seaRocks[Math.floor(rng() * tileset.seaRocks.length)];
         const sprite = this.stamp(world, frames[0], x, y, 0, isoDepth(x, y, 0) + 1, 0.5);
         // The rock's sheet is cut at 128, twice the 64 the rest of the ground
@@ -630,7 +658,7 @@ export class IsoIslandView {
         // size — a boulder the size of a tree bobbing next to the shore. Divide
         // its own frame out first, the same normalisation the ground does with
         // `metrics.w / TILE`.
-        sprite.scale.set(scale * (TILE / SEA_ROCK_FRAME));
+        sprite.scale.set(scale * (TILE / SEA_ROCK_FRAME) * SEA_ROCK_SIZE);
         this.animated.push({ sprite, frames, phase: this.windPhase(x, y) });
       }
     }

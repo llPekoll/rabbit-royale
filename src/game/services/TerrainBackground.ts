@@ -200,9 +200,35 @@ export async function createTerrainBackground(
   );
   sea.addChild(water.view);
 
+  /**
+   * Water the ducks may use: the open sea, minus the ring of cells that touch
+   * land.
+   *
+   * A sea cell beside the coast is not really visible. The land is drawn one
+   * tier UP — its grass diamond sits `TIER_LIFT` above its flat footprint —
+   * so on the north and west sides it overhangs the sea cells behind it, and
+   * on the south and east the surf sprite spills over them. A duck routed
+   * through that ring swam under the island: half a bird sticking out from
+   * beneath the grass. Keeping the flock a full cell out puts it on water
+   * that is actually painted as water.
+   *
+   * The sea rocks are solid for the same reason, with the same ring: the
+   * boulder is drawn over the water layer, so a duck crossing its cell swam
+   * through it — and the largest rock is a whole cell wide.
+   */
+  const solid = (x: number, y: number) => isLand(x, y) || island.hasSeaRock(x, y);
+  const openSea = (x: number, y: number) => {
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if (solid(x + dx, y + dy)) return false;
+      }
+    }
+    return true;
+  };
+
   const ducks = createDucks(
     await loadDucks(), COLS, ROWS,
-    (x, y) => !isLand(x, y),
+    openSea,
     at,
     // Seeded from the island, so the same island always puts its ducks in the
     // same places — a screenshot of a seed is reproducible.

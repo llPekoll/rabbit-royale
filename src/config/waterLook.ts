@@ -39,5 +39,9 @@ export const DUCK_LOOK = {
   count: 4,
   /** Cells per second — ducks move in map space, not on screen. */
   speed: 2,
-  scale: 1.2,
+  /**
+   * 0.8 of a 32px frame: a duck about the size of a sheep's body, not of a
+   * whole cell. At 1.2 it was the biggest animal on the island.
+   */
+  scale: 0.8,
 } as const;

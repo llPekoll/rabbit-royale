@@ -24,28 +24,30 @@
  * candidate path in advance settles both — a route that clips land is simply
  * never chosen.
  *
- * ## It swims along a curve, not a straight line
+ * ## It swims the way the art faces, and nowhere else
  *
- * A duck that turns instantly at each waypoint reads as a machine following
- * waypoints. Instead it carries a HEADING that turns toward the target a
- * little each frame, so the corner between two legs comes out rounded and the
- * whole track is a spline it drew itself. `uTurn` is how sharply it may turn:
- * low is a wide, lazy arc.
+ * The duck is drawn in three-quarter view: beak toward the bottom-LEFT of the
+ * frame, wake trailing to the top-right. That is a bird coming TOWARD the
+ * viewer along one of the lattice's diagonals — map step `(0, 1)`, which the
+ * board projects to screen down-left. Mirrored, the same art swims down-right,
+ * map step `(1, 0)`. Those are the only two directions in which this picture
+ * is a duck swimming forward; along anything else it slides sideways, and an
+ * attempt at six directions (the four axes plus the screen's horizontal) was
+ * exactly that — a duck crabbing across the water with its beak pointing at
+ * the shore.
  *
- * Because the heading lags the target, the duck can drift wide of the line —
- * so the path check leaves a margin (`CLEARANCE`) around the route rather than
- * testing the exact segment.
+ * So a leg is a whole number of cells down-left or down-right, chosen and
+ * checked in advance like before, and the sprite is flipped — never rotated —
+ * to match. A duck that keeps swimming toward the viewer eventually runs out
+ * of water in front of it: it can never turn round, because the art has no
+ * back. When no leg is possible it DIVES — fades out where it is, and fades
+ * back in on a fresh patch of open sea. A duck disappearing under the surface
+ * and popping up somewhere else is what ducks do anyway.
  *
- * ## Facing
- *
- * The art is drawn facing RIGHT, with its wake trailing left. The sprite is
- * ROTATED to its heading so it genuinely points where it is going, and flipped
- * vertically rather than horizontally when heading left — a plain rotation
- * past 90 degrees would leave it swimming upside down.
- *
- * The angle is taken in SCREEN space, not map space: on this lattice a
- * heading of (1,1) is straight down the diamond, and rotating by the map
- * angle would point the duck off at 45 degrees to its own wake.
+ * The first version steered a continuous heading toward its target and drew a
+ * spline, then rotated the sprite to it. Neither survived: the curve was the
+ * one thing in frame not on the lattice, and tilting art that is drawn from
+ * above tipped the bird over instead of turning it.
  */
 import { Assets, Container, Rectangle, Sprite, Texture } from 'pixi.js';
 
@@ -72,24 +74,10 @@ export interface DucksOptions {
    * somewhere to be, which is not what a duck is.
    */
   range?: number;
-  /** Seconds a duck rests on arrival, before choosing again. */
+  /** Milliseconds a duck rests on arrival, before choosing again. */
   restMs?: number;
-  /**
-   * How much of its heading the sprite actually leans into, 0 to 1.
-   *
-   * The art is drawn from above and carries its own perspective, so a full
-   * rotation tips the duck over instead of turning it. Around a third reads as
-   * a heading without breaking the drawing.
-   */
-  tilt?: number;
-  /**
-   * How sharply a duck may turn, in radians per second.
-   *
-   * This is what makes the track a curve: the heading chases the target
-   * instead of snapping to it, so each corner is rounded off. High values
-   * straighten it back into waypoint-to-waypoint travel.
-   */
-  turn?: number;
+  /** Milliseconds a dive takes each way — under, and back up elsewhere. */
+  diveMs?: number;
 }
 
 export interface Ducks {
@@ -114,15 +102,24 @@ interface Duck {
   /** Where it is now, in MAP space — fractional, because it swims. */
   x: number;
   y: number;
-  /** Where it is heading, in map space. */
+  /** Where the current leg ends, in map space. */
   tx: number;
   ty: number;
-  /** Which way it is pointing, in MAP space radians. Turns toward the target. */
-  heading: number;
+  /** The leg's direction, one of the eight lattice steps, as a unit vector. */
+  dirX: number;
+  dirY: number;
+  /** The sprite's x-scale sign: 1 is the art as drawn (down-left), -1 mirrored (down-right). */
+  facing: 1 | -1;
   /** Its own offset into the bob, so the flock never bobs in unison. */
   phase: number;
   /** Milliseconds left of its rest, or 0 when swimming. */
   resting: number;
+  /**
+   * The dive in progress: how far through it, 0..2 x `diveMs`. The first
+   * half fades out in place, the second fades in at the new spot. 0 when
+   * afloat.
+   */
+  diving: number;
 }
 
 /**
@@ -147,8 +144,8 @@ export function createDucks(
   options: DucksOptions = {},
 ): Ducks {
   const o = {
-    count: 3, speed: 2, frameMs: 220, scale: 1.2, range: 4, restMs: 1400,
-    turn: 1.6, tilt: 0.32, ...options,
+    count: 3, speed: 2, frameMs: 220, scale: 0.8, range: 4, restMs: 1400, diveMs: 600,
+    ...options,
   };
 
   const view = new Container();
@@ -160,11 +157,18 @@ export function createDucks(
   /**
    * How far from land a route has to stay, in cells.
    *
-   * The duck's heading lags its target, so it swings wide of the straight
-   * line between waypoints. Testing the exact segment would approve a route
-   * that the duck then overshoots onto the shore.
+   * A duck is a sprite with width: a centre line that clears the coast by a
+   * hair still drags the bird's body over the sand.
    */
   const CLEARANCE = 0.45;
+
+  /**
+   * The two steps a leg may take: down-left on screen as the art is drawn,
+   * and down-right as its mirror. Nothing else — see the note at the top.
+   */
+  const STEPS: ReadonlyArray<readonly [number, number]> = [[0, 1], [1, 0]];
+  /** The sprite flip for a step: the art faces down-left, so `(1, 0)` mirrors. */
+  const facingFor = ([sx, sy]: readonly [number, number]): 1 | -1 => (sx - sy > 0 ? -1 : 1);
 
   /** True when every point along a->b is open water, margin included. */
   const clearPath = (ax: number, ay: number, bx: number, by: number): boolean => {
@@ -207,10 +211,11 @@ export function createDucks(
     const p = at(spot.x, spot.y);
     sprite.position.set(p.x, p.y);
     view.addChild(sprite);
+    const facing = rng() < 0.5 ? -1 : 1;
+    sprite.scale.set(facing * o.scale, o.scale);
     ducks.push({
-      sprite, x: spot.x, y: spot.y, tx: spot.x, ty: spot.y,
-      heading: rng() * Math.PI * 2,
-      phase: rng() * FRAMES, resting: rng() * o.restMs,
+      sprite, x: spot.x, y: spot.y, tx: spot.x, ty: spot.y, dirX: 0, dirY: 0, facing,
+      phase: rng() * FRAMES, resting: rng() * o.restMs, diving: 0,
     });
   }
 
@@ -224,40 +229,63 @@ export function createDucks(
       const t = elapsed / o.frameMs;
 
       for (const d of ducks) {
-        if (d.resting > 0) {
+        if (d.diving > 0) {
+          // Under: fade out where it is, surface somewhere new, fade in.
+          const before = d.diving;
+          d.diving += deltaMs;
+          if (before <= o.diveMs && d.diving > o.diveMs) {
+            const spot = openWater();
+            if (spot) {
+              d.x = spot.x;
+              d.y = spot.y;
+            }
+            d.tx = d.x;
+            d.ty = d.y;
+          }
+          if (d.diving >= 2 * o.diveMs) {
+            d.diving = 0;
+            d.resting = o.restMs * (0.5 + rng());
+          }
+        } else if (d.resting > 0) {
           d.resting -= deltaMs;
         } else {
           const dx = d.tx - d.x;
           const dy = d.ty - d.y;
           const dist = Math.hypot(dx, dy);
 
-          if (dist < 0.15) {
-            // Arrived: rest, then choose somewhere new it can actually reach.
+          if (dist < 1e-6) {
+            // Arrived: choose a new leg along the lattice it can actually
+            // swim — a whole number of cells down-left or down-right, the
+            // WHOLE route checked rather than just where it ends. Rest first
+            // either way; if no leg is possible, dive instead.
             d.resting = o.restMs * (0.5 + rng());
-            for (let tries = 0; tries < 16; tries++) {
-              const nx = d.x + (rng() * 2 - 1) * o.range;
-              const ny = d.y + (rng() * 2 - 1) * o.range;
+            let found = false;
+            for (let tries = 0; tries < 16 && !found; tries++) {
+              const step = STEPS[Math.floor(rng() * STEPS.length)];
+              const [sx, sy] = step;
+              const len = 1 + Math.floor(rng() * o.range);
+              const nx = d.x + sx * len;
+              const ny = d.y + sy * len;
               if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
-              // The WHOLE ROUTE, not just where it ends: a straight line
-              // between two patches of open sea can pass under the island.
               if (!clearPath(d.x, d.y, nx, ny)) continue;
+              const norm = Math.hypot(sx, sy);
               d.tx = nx;
               d.ty = ny;
-              break;
+              d.dirX = sx / norm;
+              d.dirY = sy / norm;
+              d.facing = facingFor(step);
+              found = true;
+            }
+            if (!found) {
+              d.resting = 0;
+              d.diving = 1e-3;
             }
           } else {
-            // Turn TOWARD the target rather than onto it, so the corner
-            // between two legs comes out as a curve. The difference is wrapped
-            // into -PI..PI first, or a duck needing to turn a little anticlockwise
-            // would instead swing most of the way round the other way.
-            const want = Math.atan2(dy, dx);
-            let turn = want - d.heading;
-            turn = Math.atan2(Math.sin(turn), Math.cos(turn));
-            const maxTurn = o.turn * (deltaMs / 1000);
-            d.heading += Math.max(-maxTurn, Math.min(maxTurn, turn));
-
-            const nx = d.x + Math.cos(d.heading) * step;
-            const ny = d.y + Math.sin(d.heading) * step;
+            // Along the leg, and never past its end: the last step lands
+            // exactly on the target, so the next leg starts on the lattice.
+            const travel = Math.min(step, dist);
+            const nx = d.x + d.dirX * travel;
+            const ny = d.y + d.dirY * travel;
             // Last guard: however it drifted, it never enters a land cell.
             if (isWater(Math.floor(nx), Math.floor(ny))) {
               d.x = nx;
@@ -272,32 +300,15 @@ export function createDucks(
 
         const p = at(d.x, d.y);
         d.sprite.position.set(p.x, p.y);
-
-        // Point the sprite along its heading, in SCREEN space.
-        //
-        // A map-space angle is wrong on this lattice: (1,1) is straight down
-        // the diamond, not down-right, so the duck would sit at 45 degrees to
-        // its own wake. Projecting the heading through the same (x-y, x+y)
-        // shear the board uses gives the angle actually seen.
-        const hx = Math.cos(d.heading);
-        const hy = Math.sin(d.heading);
-        const sx = hx - hy;
-        const sy = (hx + hy) * 0.5;
-        // Facing left is a horizontal FLIP plus the mirrored angle, not a
-        // rotation past 90 degrees — that would swim it upside down.
-        //
-        // The angle is then DAMPED by uTilt. At full strength the duck banks
-        // like an aeroplane: this art is drawn from above with its own built-in
-        // perspective, and tipping it 60 degrees breaks that perspective — the
-        // bird reads as falling over rather than as turning. A fraction of the
-        // angle keeps the hint of a heading while the duck stays upright.
-        if (sx < 0) {
-          d.sprite.scale.set(-o.scale, o.scale);
-          d.sprite.rotation = Math.atan2(-sy, -sx) * o.tilt;
-        } else {
-          d.sprite.scale.set(o.scale, o.scale);
-          d.sprite.rotation = Math.atan2(sy, sx) * o.tilt;
-        }
+        // Never rotated — see the note at the top. Flipped to face the way
+        // the leg runs, and that is all.
+        d.sprite.scale.set(d.facing * o.scale, o.scale);
+        // A diving duck fades under, then fades back up at its new spot.
+        d.sprite.alpha = d.diving === 0
+          ? 1
+          : d.diving <= o.diveMs
+            ? 1 - d.diving / o.diveMs
+            : (d.diving - o.diveMs) / o.diveMs;
         // Depth, so a duck swimming south passes IN FRONT of one to the north
         // rather than through it. The water layer sorts on the same axis the
         // island does.

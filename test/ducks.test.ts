@@ -66,35 +66,79 @@ describe('ducks', () => {
   });
 
   /**
-   * The heading turns toward the target a little at a time, so a corner comes
-   * out rounded. If it ever snapped straight onto the bearing the track would
-   * be a polyline, which is what reads as a machine following waypoints.
+   * The art faces down-left in three-quarter view, so the only directions in
+   * which it swims FORWARD are that one and its mirror: map steps (0,1) and
+   * (1,0). With the straight projection here those are bearings of 90 and 0
+   * degrees, and the sprite flip has to match — mirrored for (1,0).
+   *
+   * A duck can never turn round (the art has no back), so it dives when it
+   * runs out of water ahead and surfaces elsewhere. That is a JUMP between two
+   * frames, not a bearing, and is skipped here; the "never on land" test above
+   * covers where it comes up.
    */
-  it('turns gradually, so its track is a curve', () => {
+  it('swims only forward: down-left as drawn, or down-right mirrored', () => {
     const flock = createDucks(FRAMES, 24, 24, isWater, at, seeded(3), {
-      count: 1, speed: 3, range: 9, restMs: 0, turn: 1.2,
+      count: 4, speed: 3, range: 9, restMs: 0,
     });
-    let worst = 0;
-    let prev: number | null = null;
-    let last = { x: flock.view.children[0].x, y: flock.view.children[0].y };
+    let legs = 0;
+    const last = flock.view.children.map((s) => ({ x: s.x, y: s.y }));
     for (let frame = 0; frame < 1200; frame++) {
       flock.update(16);
-      const s = flock.view.children[0];
-      const dx = s.x - last.x;
-      const dy = s.y - last.y;
-      if (Math.hypot(dx, dy) > 0.01) {
-        const bearing = Math.atan2(dy, dx);
-        if (prev !== null) {
-          const d = Math.abs(Math.atan2(Math.sin(bearing - prev), Math.cos(bearing - prev)));
-          worst = Math.max(worst, d);
+      flock.view.children.forEach((s, i) => {
+        const dx = s.x - last[i].x;
+        const dy = s.y - last[i].y;
+        last[i] = { x: s.x, y: s.y };
+        const d = Math.hypot(dx, dy);
+        // A dive: it surfaced somewhere else this frame.
+        if (d > 5) return;
+        if (d > 0.01) {
+          const bearing = Math.atan2(dy, dx);
+          const step = Math.abs(bearing) < 1e-6 ? [1, 0] : Math.abs(bearing - Math.PI / 2) < 1e-6 ? [0, 1] : null;
+          expect(step, `frame ${frame}: a duck swam sideways, bearing ${bearing}`).not.toBeNull();
+          expect(Math.sign(s.scale.x), `frame ${frame}: a duck swam backwards`)
+            .toBe(step![0] === 1 ? -1 : 1);
+          legs++;
         }
-        prev = bearing;
-      }
-      last = { x: s.x, y: s.y };
+      });
     }
-    // One frame at turn=1.2 rad/s is ~0.02 rad; allow generous slack for the
-    // frame where a new leg is chosen, but nothing like an instant reversal.
-    expect(worst, 'the duck snapped onto a new bearing instead of turning').toBeLessThan(0.5);
+    expect(legs).toBeGreaterThan(0);
+    flock.destroy();
+  });
+
+  it('dives and comes up on open water when it cannot go forward', () => {
+    // A thin channel of water with the island's south and east shores right
+    // below: after a few legs every duck runs out of water ahead.
+    const flock = createDucks(FRAMES, 24, 24, isWater, at, seeded(11), {
+      count: 6, speed: 4, range: 9, restMs: 0, diveMs: 100,
+    });
+    let dives = 0;
+    const last = flock.view.children.map((s) => ({ x: s.x, y: s.y }));
+    for (let frame = 0; frame < 3000; frame++) {
+      flock.update(16);
+      flock.view.children.forEach((s, i) => {
+        if (Math.hypot(s.x - last[i].x, s.y - last[i].y) > 5) {
+          dives++;
+          expect(isWater(Math.floor(s.x / 10), Math.floor(s.y / 10))).toBe(true);
+        }
+        last[i] = { x: s.x, y: s.y };
+      });
+    }
+    expect(dives, 'no duck ever dived — they would be stuck against the shore').toBeGreaterThan(0);
+    flock.destroy();
+  });
+
+  it('is never rotated, only flipped to face the way it swims', () => {
+    const flock = createDucks(FRAMES, 24, 24, isWater, at, seeded(5), {
+      count: 4, speed: 3, range: 9, restMs: 0, scale: 0.8,
+    });
+    for (let frame = 0; frame < 600; frame++) {
+      flock.update(16);
+      for (const s of flock.view.children) {
+        expect(s.rotation).toBe(0);
+        expect(Math.abs(s.scale.x)).toBeCloseTo(0.8, 5);
+        expect(s.scale.y).toBeCloseTo(0.8, 5);
+      }
+    }
     flock.destroy();
   });
 });
