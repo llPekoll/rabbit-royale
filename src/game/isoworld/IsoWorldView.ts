@@ -303,6 +303,11 @@ export class IsoWorldView {
     const patch = deco && propAt(world, x, y)?.kind === 'patch' && tier > spec.floor;
     const surface = tier * block.z;
 
+    // An outer corner touches the plateau at one point: the lace wraps it.
+    if (ramp?.kind === 'outer') {
+      this.place(this.surfaceMaterial(ground, tier + 1).laceCap![ramp.dir], x, y, surface + block.z);
+    }
+
     for (const d of [DIR.N, DIR.W] as const) {
       const { dx, dy } = DIR_STEP[d];
       const nx = x + dx;
@@ -311,18 +316,23 @@ export class IsoWorldView {
       const nRamp = rampAt(world, nx, ny);
       const back = ((d + 2) % 4) as Dir;
 
-      if (ramp && !nRamp && n === tier + 1 && rampHighSides(ramp).includes(d)) {
-        // The plateau to the north or west spills over this ramp's high edge.
+      // The tier above spills over a ramp's high edge — whether that tier is
+      // flat there or itself climbing on toward the next.
+      if (ramp && n === tier + 1 && rampHighSides(ramp).includes(d)) {
         this.place(this.surfaceMaterial(ground, n).fringe![d], x, y, surface + block.z);
         continue;
       }
-      if (nRamp && !ramp && n === tier - 1 && rampHighSides(nRamp).includes(back)) {
-        // This plateau spills over the ramp to its north or west.
+      if (nRamp && n === tier - 1 && rampHighSides(nRamp).includes(back)) {
         this.place(this.surfaceMaterial(ground, tier).fringe![back], nx, ny, surface);
         continue;
       }
 
       if (n !== tier) continue;
+      // The foot of a slope: a line where it meets flat ground of its tier.
+      if (Boolean(ramp) !== Boolean(nRamp)) {
+        this.place(this.surfaceMaterial(ground, tier).crease![d], x, y, surface);
+        continue;
+      }
       // Same tier as this cell, so the floor rule is the same.
       const nPatch = deco && propAt(world, nx, ny)?.kind === 'patch' && tier > spec.floor;
       if (nPatch && !patch) {
