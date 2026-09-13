@@ -18,6 +18,20 @@
  */
 import { createClient, type RedisClientType } from 'redis';
 
+/**
+ * The slice of the Redis client this module's ranking reads through.
+ *
+ * Named so `gapToNextRank` can accept a stand-in without depending on the real
+ * client's full (very large) type.
+ */
+type RedisLike = {
+  zRevRank(key: string, member: string): Promise<number | null>;
+  zScore(key: string, member: string): Promise<number | null>;
+  zRangeWithScores(
+    key: string, start: number, stop: number, opts?: { REV?: boolean },
+  ): Promise<Array<{ value: string; score: number }>>;
+};
+
 const url = process.env.REDIS_URL;
 
 let client: RedisClientType | null = null;
@@ -54,6 +68,57 @@ export async function rankOf(season: number, playerId: string): Promise<number |
   if (!r) return null;
   const rank = await r.zRevRank(SEASON_KEY(season), playerId);
   return rank === null ? null : rank + 1;
+}
+
+/**
+ * How far the player is from the rank above them.
+ *
+ * WHY THIS EXISTS. A rank on its own ("#5") is a fact about where you stand;
+ * it does not say what to do about it. The gap to the player one place ahead
+ * is the smallest actionable target the season has — the one number that turns
+ * a standing into a goal.
+ *
+ * Reads the ordered set directly: the player above is the row at `rank - 1`,
+ * which is one `zRange` rather than a scan. Returns null when there is nothing
+ * to chase — the player is #1, has no score this season, or Redis is absent
+ * (phases 1-2 are solo and have no board at all).
+ *
+ * The gap is in SEASON SCORE, the unit the ranking is actually made of. It is
+ * deliberately not converted to banked carrots: the two move together but are
+ * not the same quantity, and a target quoted in the wrong unit would send the
+ * player after the wrong number.
+ */
+export async function gapToNextRank(
+  season: number,
+  playerId: string,
+  /**
+   * The client to read through. Defaults to the module's own, and exists so a
+   * test can stand a fake sorted set in its place: the arithmetic and the edge
+   * cases (the leader, an unranked player, a tie) are what need checking, and
+   * spinning up Redis to check them would test the wrong thing.
+   */
+  client: Pick<RedisLike, 'zRevRank' | 'zScore' | 'zRangeWithScores'> | null = null,
+): Promise<{ rank: number; gap: number } | null> {
+  const r = client ?? await redis();
+  if (!r) return null;
+
+  const rank0 = await r.zRevRank(SEASON_KEY(season), playerId);
+  if (rank0 === null || rank0 === 0) return null; // unranked, or already #1
+
+  const mine = await r.zScore(SEASON_KEY(season), playerId);
+  if (mine === null) return null;
+
+  const [above] = await r.zRangeWithScores(
+    SEASON_KEY(season), rank0 - 1, rank0 - 1, { REV: true },
+  );
+  if (!above) return null;
+
+  return {
+    rank: rank0 + 1,
+    // Clamped at 0: scores can tie, and a "0 to pass" reads as "you are there"
+    // rather than as a negative target.
+    gap: Math.max(0, Math.ceil(above.score - mine)),
+  };
 }
 
 /** The crowned player — the #1 of the current season. */

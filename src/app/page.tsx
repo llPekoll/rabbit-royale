@@ -19,27 +19,28 @@ import { useGameSocket } from '@/components/use-game-socket';
 import { Recap } from '@/components/run-recap';
 import { GameCanvas, type GameHandles } from '@/components/game-canvas';
 import { WalletButton } from '@/components/wallet-button';
-import { LeaderboardDrawer } from '@/components/leaderboard-drawer';
+import { LeaderboardDrawer, type Me } from '@/components/leaderboard-drawer';
 import { GoButton } from '@/components/go-button';
-import { CarrotCounter } from '@/components/carrot-counter';
+import { FarmButton } from '@/components/farm-button';
+import { CarrotPill } from '@/components/carrot-pill';
 import { SoundButton } from '@/components/sound-button';
 import { LoadingScreen } from '@/components/loading-screen';
 import { LogoBanner } from '@/components/logo-banner';
 import { RunHud } from '@/components/run-hud';
 import { CarrotField } from '@/components/carrot-field';
-import { ShopButton, ShopPanel, ProtectButton } from '@/components/shop-card';
+import { ShopPanel } from '@/components/shop-card';
 import { EnergyPopup } from '@/components/energy-popup';
-import { LoreButton, LoreCodex } from '@/components/lore-codex';
+import { LoreCodex } from '@/components/lore-codex';
+import { HubTabs } from '@/components/hub-tabs';
 import { LoreCrawl } from '@/components/lore-crawl';
-import {
-  BurrowCard, CardRow, CardNote, BurrowMeter, BurrowButton,
-  CARROT, CHALK_DIM, DANGER,
-} from '@/components/burrow-chrome';
-import { BitmapText } from '@domin8/arcade-kit';
+import { EnergyCard } from '@/components/energy-card';
+import { GardenCard } from '@/components/garden-card';
+import { BurrowPanel } from '@/components/burrow-card-panel';
+import { ShieldCard } from '@/components/shield-card';
 import { useShop, type ItemKind } from '@/components/use-shop';
 import type { PayTokenId } from '@/lib/pay/tokens';
 import { useUsdcPay } from '@/components/use-usdc-pay';
-import { RaidHud, TargetList, RaidButton } from '@/components/raid-panel';
+import { RaidHud, TargetList } from '@/components/raid-panel';
 import { useRaid, type RaidState } from '@/components/use-raid';
 import { gardenProgress } from '@/lib/game/garden-growth';
 import { burrowArt } from '@/config/burrowArt';
@@ -202,6 +203,8 @@ function Burrow() {
   const shop = useShop(token);
   const usdc = useUsdcPay(token, payments);
   const raid = useRaid(token);
+  /** The viewer's season standing, for the carrot pill's rank line. */
+  const [me, setMe] = useState<Me | null>(null);
   /**
    * The live `step`, reachable without depending on it.
    *
@@ -887,13 +890,29 @@ function Burrow() {
       {/* Sound belongs to the app, not to a screen: it rides above both. */}
       <SoundButton />
 
+      {/* THE TOP BAR, in the mock's three zones: the player at the left edge,
+          the carrot pill centred over the board, and the season and sound
+          controls at the right. The pill is `position: fixed` and places
+          itself (see `.rr-carrot-pill`); the flow here is the two ends. */}
       <div className="rr-topbar">
-        {/* The one number worth carrying on every screen, top-right beside the
-            wallet — where a balance lives. */}
-        {showCanvas && (
-          <CarrotCounter stock={burrow?.stock ?? 0} fireKey={burstKey} gain={burstAmount} />
-        )}
         <WalletButton />
+        {/* The pill carries the rank line, so a player can see what it would
+            take to climb without opening the season board. `me` is reported by
+            that board's own poll — see LeaderboardDrawer.onMe. */}
+        {showCanvas && (
+          <CarrotPill
+            stock={burrow?.stock ?? 0}
+            fireKey={burstKey}
+            gain={burstAmount}
+            rank={me?.rank ?? null}
+            toPass={me?.toPass ?? null}
+            onAdd={() => setShopOpen(true)}
+          />
+        )}
+        {/* The right-hand end. The season board hangs its own tab here and the
+            sound control rides above both screens, so this is the spacer that
+            keeps the player chip at the LEFT edge rather than centred. */}
+        <span aria-hidden style={{ width: 1 }} />
       </div>
 
       {/* The board is furniture at the burrow and a distraction on the island:
@@ -901,7 +920,12 @@ function Burrow() {
           leaderboard is a third the player cannot dig in. It collapses to its
           tab while playing. */}
       {player && showCanvas && where === 'burrow' && !crossing && (
-        <LeaderboardDrawer token={token} playerId={player.id} onSpectate={spectate} />
+        <LeaderboardDrawer
+          token={token}
+          playerId={player.id}
+          onSpectate={spectate}
+          onMe={setMe}
+        />
       )}
 
       {/* THREE states, not two. `crossing` renders neither screen's chrome:
@@ -977,97 +1001,61 @@ function Burrow() {
                   the player cannot buy or build, which is the same mistake as
                   the gauge it replaced. */}
               {burrow?.shieldMs != null && (
-                <BurrowCard>
-                  <CardRow
-                    label="SHIELD"
-                    value={formatWait(burrow.shieldMs)}
-                    tone={CARROT}
-                  />
-                  <CardNote>
-                    You were raided. Raids bounce off until it runs out.
-                  </CardNote>
-                </BurrowCard>
+                <div style={{ marginBottom: 10 }}>
+                  <ShieldCard ms={burrow.shieldMs} />
+                </div>
               )}
 
-              <BurrowCard>
-                <CardRow
-                  label="ENERGY"
-                  value={`${burrow?.energy ?? 0}/${burrow?.maxEnergy ?? 0}`}
-                  tone={hasEnergy ? CARROT : DANGER}
-                />
-                {/* The gauge picks a SPRITE SET, never a hex — empty is the
-                    danger art, the same reading the run's own bar gives. */}
-                <BurrowMeter
-                  value={burrow?.energy ?? 0}
-                  max={burrow?.maxEnergy ?? 1}
-                  tone={hasEnergy ? 'carrot' : 'danger'}
-                  label="Energy"
-                />
-                {/* Only the states that TELL the player something get a line.
-                    Empty needs a return time — without one they cannot tell a
-                    broken game from a wait — and a refill in progress needs its
-                    countdown. A FULL bar explains itself, so the note was a
-                    caption on a picture that was already clear, and the row it
-                    sat on is better spent on the board. */}
-                {burrow?.nextEnergyInMs !== null && (
-                  <CardNote>
-                    {!hasEnergy
-                      ? `Out of energy. Next in ${formatWait(burrow?.nextEnergyInMs ?? null)}.`
-                      : `+1 in ${formatWait(burrow?.nextEnergyInMs ?? null)}.`}
-                  </CardNote>
-                )}
-              </BurrowCard>
-
-              <BurrowCard>
-                <CardRow
-                  label="GARDEN"
-                  value={
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                      <BitmapText scale={1.25} style={{ color: CARROT }}>
-                        {`+${burrow?.gardenReady ?? 0}`}
-                      </BitmapText>
-                      <img className="pixelated rr-carrot-mark" src={CARROT_MARK} alt="" aria-hidden />
-                    </span>
+              {/* ENERGY IS ITS OWN OBJECT — see energy-card.tsx.
+                  
+                  It deliberately does NOT wear the wooden frame the cards
+                  below use: a big bolt at the left, the count beside it, the
+                  bar in the right-hand column only. Energy is the number this
+                  screen is read for, and sharing the upgrade price's shape is
+                  what stopped it being findable. */}
+              <div style={{ marginBottom: 10 }}>
+                <EnergyCard
+                  energy={burrow?.energy ?? 0}
+                  maxEnergy={burrow?.maxEnergy ?? 0}
+                  note={
+                    burrow?.nextEnergyInMs == null
+                      ? undefined
+                      : !hasEnergy
+                        ? `Out of energy. Next in ${formatWait(burrow.nextEnergyInMs)}.`
+                        : `+1 in ${formatWait(burrow.nextEnergyInMs)}.`
                   }
                 />
-                {/* The RATE, not just the pile: "+0" alone reads as broken. */}
-                <CardNote>
-                  {burrow?.yieldPerHour ?? '-'}/hour &middot; holds {burrow?.gardenCapacity ?? '-'}
-                  {' '}({burrow?.capHours ?? '-'}h)
-                </CardNote>
-                <BurrowButton
-                  disabled={pending || !burrow?.gardenReady}
-                  onClick={() => act('harvest')}
-                >
-                  HARVEST
-                </BurrowButton>
-              </BurrowCard>
+              </div>
 
-              <BurrowCard>
-                <CardRow
-                  label={`DIG DEEPER - LVL ${burrow?.level ?? '-'}`}
-                  value={burrow?.upgradeCost === null ? 'MAX' : `${burrow?.upgradeCost ?? '-'}`}
-                  tone={burrow?.canUpgrade ? CARROT : CHALK_DIM}
+              {/* The garden, in the mock's slab — see garden-card.tsx. HARVEST
+                  is a full-width carrot button rather than a nine-slice the
+                  colour of the panel behind it, which is what made the card's
+                  only action its least visible element. */}
+              <div style={{ marginBottom: 10 }}>
+                <GardenCard
+                  ready={burrow?.gardenReady ?? 0}
+                  yieldPerHour={burrow?.yieldPerHour ?? 0}
+                  capacity={burrow?.gardenCapacity ?? 0}
+                  capHours={burrow?.capHours ?? 0}
+                  pending={pending}
+                  onHarvest={() => act('harvest')}
                 />
-                {/* What the price buys. A cost with no stated benefit is a
-                    number the player has no way to judge.
-                    
-                    It used to quote "X HP" first. That was the upgrade's
-                    headline benefit and it bought nothing — HP defended
-                    nothing — so the garden rate, which is real, is now the
-                    whole of the offer. */}
-                {burrow?.next && (
-                  <CardNote>
-                    level {burrow.level + 1}: {burrow.next.yieldPerHour} carrots/hour
-                  </CardNote>
-                )}
-                <BurrowButton
-                  disabled={pending || !burrow?.canUpgrade}
-                  onClick={() => act('upgrade')}
-                >
-                  UPGRADE
-                </BurrowButton>
-              </BurrowCard>
+              </div>
+
+              {/* The burrow itself — its house, its rate, and what a raid
+                  cannot take. This was "DIG DEEPER", which named an action the
+                  game does not have over a picture of nothing; see
+                  burrow-card-panel.tsx. */}
+              <BurrowPanel
+                level={burrow?.level ?? 1}
+                stock={burrow?.stock ?? 0}
+                yieldPerHour={burrow?.yieldPerHour ?? 0}
+                upgradeCost={burrow?.upgradeCost ?? null}
+                canUpgrade={!!burrow?.canUpgrade}
+                pending={pending}
+                onUpgrade={() => act('upgrade')}
+              />
+
               </>
               )}
 
@@ -1096,33 +1084,6 @@ function Burrow() {
                 </>
               ) : (
                 <>
-                  <ShopButton shop={shop.shop} onOpen={() => setShopOpen(true)} />
-                  {/* Straight to the board. Burying a bomb and buying one are
-                      two errands, and only the shopping one had a door: to
-                      rearrange your own ground you had to open the shed and
-                      find "Move them" inside a dialog selling you things. A
-                      defender editing their burrow is not shopping.
-
-                      Directly under the shop, because that is where the state
-                      it reports used to be read. */}
-                  <ProtectButton shop={shop.shop} onPlace={startPlacing} />
-                  {/* The way OUT of your own burrow and into someone else's.
-                      The target list, the raid HUD and the whole crossing were
-                      already built and wired — nothing ever called
-                      `setPickingTarget(true)`, so the entire attacking half of
-                      the game was unreachable from the UI. This is the door.
-
-                      Above the codex and below the shop: the shop is what you
-                      came to the burrow to do, raiding is what you leave it
-                      for, and the story is what you stay for. */}
-                  <RaidButton
-                    targets={raid.targets}
-                    onOpen={() => { setPickingTarget(true); void raid.refresh(); }}
-                  />
-                  <LoreButton
-                    lifetime={burrow?.lifetime ?? 0}
-                    onOpen={() => setLoreOpen(true)}
-                  />
                 </>
               )}
 
@@ -1153,9 +1114,35 @@ function Burrow() {
             </>
           )}
         </section>
-      ) : (
-        /* On the island the chrome is a thin HUD over the board, so it uses the
-           overlay layer rather than the burrow's column. */
+      ) : null}
+
+      {/* THE FOUR DOORS, on the floor — outside the column on purpose.
+          
+          `.rr-burrow` carries `z-index: 1`, which makes it a stacking context:
+          a row nested inside it can never rise above GO FARM, a sibling at the
+          same z. On a short window GO's 400x100 box overlaps this corner and
+          swallowed three of the four tiles. As a sibling the row's own z-index
+          is measured against GO's and wins.
+          
+          Same conditions as the column above: not while placing, not during a
+          raid or a crossing, and only once there is a board to stand on. */}
+      {!crossing && !shownRaid && where === 'burrow' && showCanvas && !placing && (
+        <HubTabs
+          shop={shop.shop}
+          targets={raid.targets}
+          lifetime={burrow?.lifetime ?? 0}
+          onShop={() => setShopOpen(true)}
+          onProtect={startPlacing}
+          onRaid={() => { setPickingTarget(true); void raid.refresh(); }}
+          onStory={() => setLoreOpen(true)}
+        />
+      )}
+
+      {/* On the island the chrome is a thin HUD over the board, so it uses the
+          overlay layer rather than the burrow's column. The condition mirrors
+          the burrow branch above: the two are still the same either/or, split
+          into siblings only so the launcher row can sit between them. */}
+      {!crossing && !shownRaid && where !== 'burrow' && showCanvas && (
         <div className="rr-overlay">
           <RunHud game={game} name={player?.name ?? ''} spectating={spectating} />
           {/* Pushes the recap and the arrow to the bottom. Explicitly
@@ -1197,7 +1184,7 @@ function Burrow() {
         // in that same moment, and the button rides down with it on the same
         // curve (see .rr-go-away). Unmounted, it would blink out halfway
         // through the zoom.
-        <GoButton dir="down" label="Go farm" onClick={goFarm} away={placing} />
+        <FarmButton label="Go farm" onClick={goFarm} away={placing} />
       )}
 
       {/* The small "out of energy" dialog. Above the shop in the tree and
@@ -1309,4 +1296,3 @@ function formatWait(ms: number | null): string {
 const BURROW_ART = burrowArt(1);
 /** The game's own carrot, so the figure is marked in the art rather than in an
  *  emoji the system font draws in a style nothing else on screen shares. */
-const CARROT_MARK = '/assets/misc/carrote_silouhette.png';

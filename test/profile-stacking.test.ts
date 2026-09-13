@@ -25,7 +25,12 @@ describe('profile panel stacking', () => {
   it('sits above the season board', () => {
     const z = (sel: string) => {
       const block = CSS.slice(CSS.indexOf(sel));
-      const m = block.slice(0, 400).match(/z-index:\s*(\d+)/);
+      // The window was 400 chars and the board's rule outgrew it when the
+      // panel was rewritten to float — the `z-index` was still there, just
+      // further down past the comment explaining the new box. Widened rather
+      // than trimmed: what this test is about is the ORDER of two numbers, and
+      // it should not also be a limit on how well a rule is documented.
+      const m = block.slice(0, 1200).match(/z-index:\s*(\d+)/);
       return m ? Number(m[1]) : NaN;
     };
     expect(z('.rr-profile {')).toBeGreaterThan(z('.rr-lb {'));
@@ -38,11 +43,21 @@ describe('profile panel stacking', () => {
     expect(CSS).not.toMatch(/\.rr-home\s*>\s*\*:not\(\.rr-home-art\)/);
   });
 
-  it('slides on its own, not on the board wide-screen rule', () => {
-    // `.rr-lb { transform: none }` at >=860px pins the BOARD open. The panel
-    // borrows `.rr-lb` for its chrome, so that rule has to exclude it or the
-    // panel is pinned open too — permanently, underneath the board.
-    expect(CSS).toMatch(/\.rr-lb:not\(\.rr-profile\)\s*\{\s*transform:\s*none/);
+  /**
+   * The wide-screen rules that needed the `:not(.rr-profile)` guard are gone.
+   *
+   * Two of them existed: `.rr-lb { transform: none }`, which pinned the board
+   * open above 860px, and a `padding-right` gutter that made room for it. The
+   * board now opens only when its trophy button is pressed and floats over the
+   * water instead of taking a column of the page, so neither rule survives —
+   * and the profile panel has nothing left to be excluded from.
+   *
+   * What still has to hold is the thing those guards protected: the profile
+   * panel must not be pinned open by anything the BOARD does.
+   */
+  it('is not pinned open by any board rule', () => {
+    expect(CSS).not.toMatch(/\.rr-lb\s*\{\s*transform:\s*none/);
+    expect(CSS).not.toMatch(/padding-right: calc\(330px/);
   });
 
   it('can always be dismissed', () => {

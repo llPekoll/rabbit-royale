@@ -63,9 +63,73 @@ button {
   cursor: var(--cur-hand);
 }
 button:active { transform: translateY(1px); }
+
+/* PRESSING A SLAB BUTTON SINKS ITS FACE, rather than moving the whole thing.
+   
+   These buttons are built as a plinth (the button element, a salmon band) with
+   a face sitting on top of it, 4px short of the bottom. Pressing drops the
+   face by that 4px, so the band is swallowed and the slab visibly goes INTO
+   its own base. The blanket `translateY(1px)` above moves band and all, which
+   slides the object down the screen instead — fine for a plain button, not for
+   one drawn with depth.
+   
+   The plinth must not move, so these opt out of that rule. GO FARM keeps its
+   own `translateX(-50%)` (it is centred on the floor by that transform), which
+   is why the two are written separately rather than as one selector. */
+.rr-farm-btn:active { transform: translateX(-50%); }
+.rr-slab-btn:active { transform: none; }
+.rr-farm-btn:active .rr-farm-face { transform: translateY(4px); }
+.rr-slab-btn:active .rr-slab-face { transform: translateY(3px); }
+
+/* A dead button has nothing to sink. */
+.rr-farm-btn:disabled .rr-farm-face,
+.rr-slab-btn:disabled .rr-slab-face { transform: none; }
 /* A dead button gets the ring rather than the arrow: it says "not this one"
    instead of merely dropping the affordance. */
 button:disabled { opacity: 0.5; cursor: var(--cur-denied); }
+
+/* ON A SHORT SCREEN THE CARDS' FLOORS COME DOWN.
+
+   The buttons and the SAFE strip carry `min-height` floors in px so their
+   labels stay on one line. Those floors are sized for a desktop card; on the
+   Seeker (890x400, the target device) a card is 58-66px and the same floors
+   add up to more than fits, so the contents were clipped.
+
+   Under 520px of viewport height the floors relax by a few pixels each. The
+   labels are still legible — they are pixel type at 9px — and a slightly
+   tighter button is a far smaller fault than a button with its bottom edge cut
+   off. Above that height nothing here applies and the cards are the mock's.
+
+   Paired with `min-height` in the components rather than replacing it: the
+   component states the intent, this states what a small screen can afford. */
+@media (max-height: 520px) {
+  .rr-hub-btn { min-height: 24px !important; }
+  .rr-hub-strip { min-height: 14px !important; }
+}
+
+/* THE CARD'S FINE PRINT HIDES WHEN THE CARD IS SHORT.
+
+   On the Seeker (890x400) a card with a button is 58px tall, ~46 of them
+   usable, and a heading plus a sub-line plus a full-width button needs about
+   50. The sub-line is the right thing to drop: it is a rate ("72/hour · holds
+   864"), which is context, where the heading, the live value and the button
+   are what the card is read and tapped for.
+
+   Asked of the CARD (`@container`), not the viewport: the question is "is
+   there room here", so a card that gets more height for any other reason keeps
+   its line. See `subText` in hub-card.tsx. */
+@container (height < 70px) {
+  .rr-hub-sub { display: none; }
+}
+
+/* The launcher tiles opt OUT of that blanket fade.
+   
+   They sit on bright water, so fading the whole button lets the sea through
+   and a disabled tile comes out BLUE — lighter than its lit neighbours, which
+   is the opposite of what "unavailable" should look like. `hub-tab.tsx` dims
+   the face and the ink itself instead, which keeps the row's four squares one
+   object in two states. */
+button.rr-hub-tab:disabled { opacity: 1; }
 
 /* ── Mobile first ──────────────────────────────────────────────────────────
    The Seeker is the target device, so the phone layout is the layout and the
@@ -433,81 +497,84 @@ button { min-height: 44px; min-width: 44px; }
    board. Overlays position themselves; only the flow content needs lifting. */
 .rr-topbar, .rr-burrow, .rr-go, .rr-back { position: relative; z-index: 1; }
 
+/* GO FARM sits centred along the bottom, where the mock puts it.
+   
+   It used to be a flow child of the column, centred by `align-self`. The
+   launcher row is now `position: fixed` in the bottom-LEFT corner, and a
+   left-aligned GO underneath it was simply covered — the button was present
+   and reachable in the DOM but invisible on screen. Fixed and centred, the two
+   share the floor without touching: the row owns the left, GO owns the middle.
+   
+   z-index 20, the same as the row: neither should ever be under the board. */
+.rr-farm-btn {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(10px + env(safe-area-inset-bottom));
+  z-index: 20;
+}
+
 .rr-topbar {
+  /* THREE ZONES, as the mock lays them out: the player at the LEFT edge, the
+     carrot pill centred, the season and sound controls at the right.
+     
+     It was `justify-content: flex-end` — everything bunched at the right —
+     which is why the pill, centred out of flow, kept colliding with the player
+     chip. `space-between` gives each zone its own end of the bar and the pill
+     the middle, so none of them can walk into another. */
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 10px;
-  padding: 8px 0 4px;
+  /* 18px from each edge in the mock (x 18 on the left, 1358 of 1376 on the
+     right) — the panels sit close to the corners, not floating inside a
+     gutter. */
+  padding: 8px 18px 4px;
 }
+
+/* THE CARROT PILL SITS IN THE MIDDLE OF THE TOP EDGE.
+   
+   The mock centres it (its midpoint lands within 6px of the screen's), with
+   the player chip and the season button out at the edges. The topbar is
+   `justify-content: flex-end`, so a pill placed in that flow ends up shoulder
+   to shoulder with the wallet chip instead — which is where it was.
+   
+   Absolutely positioned rather than re-laid-out: the topbar's other children
+   are a row that belongs at the right, and centring the pill by making it a
+   flex item would have to push them around. Out of flow it simply sits where
+   the mock puts it and nothing else moves. */
+.rr-carrot-pill {
+  /* FIXED to the viewport, not absolute inside the topbar.
+     The topbar is a flow row that the season drawer narrows when it is open,
+     so centring within it put the pill at x 1105 of a 1376px screen — centred
+     on what was left of the bar rather than on the screen the mock centres it
+     on. The pill belongs to the SCREEN's top edge, like the launcher row
+     belongs to its floor. */
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 10px;
+  /* Above the board and the column, below the drawers — same band as the
+     launcher row, for the same reason. */
+  z-index: 20;
+}
+
+/* The pill does NOT move when the season board opens.
+   
+   It used to: a rule shifted its midpoint left by half the board's width, from
+   back when the board was a full-height drawer that pushed the page over. The
+   board floats now — inset, over the water, taking no space in the flow — so
+   that shift was moving the count for a panel that no longer displaces
+   anything, and the number visibly jumped every time the board was toggled.
+   A counter that walks when something else opens is the same fault as one that
+   walks when it counts. */
+
+
 
 /* The banked count. The number is what you read, and the word under it only
    says what the number counts — so the figure is big and the label is small
    and quiet beneath it. */
-.rr-carrots {
-  position: relative;
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  line-height: 1;
-  color: var(--carrot);
-  font-variant-numeric: tabular-nums;
-  /* The art behind this screen is bright grass, so the figure needs its own
-     edge rather than a panel to sit on. */
-  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.65);
-}
-.rr-carrots-n {
-  position: relative;
-  /* Above the burst: the carrots fly BEHIND the figure, so the number stays
-     readable while they pass. A plain z-index on the sprites is not enough —
-     they must be under a positioned element that is explicitly over them. */
-  z-index: 2;
-  font-size: 30px;
-}
-/* The number takes the hit when carrots land in it: a count that changes
-   without flinching reads as a value someone edited, not as loot arriving. */
-.rr-carrots-n.banked { display: inline-block; animation: rr-banked 420ms cubic-bezier(0.22, 1.2, 0.36, 1); }
-.rr-carrots-label {
-  position: relative;
-  z-index: 2;
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  margin-top: 3px;
-  font-size: 10px;
-  color: var(--muted);
-  letter-spacing: 0.04em;
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.65);
-}
 
-/* The gain, rising off the right-hand side of the count and fading out.
-   Absolutely positioned so it never widens the counter mid-flight — a bar that
-   reflows while the number is changing is the one thing the eye reads as a bug
-   rather than as a reward. */
-.rr-carrots-gain {
-  position: absolute;
-  left: 100%;
-  top: 0;
-  margin-left: 4px;
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  font-size: 13px;
-  color: var(--carrot);
-  white-space: nowrap;
-  pointer-events: none;
-  /* Two keyframes and nothing else: one steady rise, one steady fade. The
-     earlier version stopped and restarted (a scale bounce, then a hold, then a
-     second climb), and a curve interrupted three times is what reads as
-     stuttering rather than as movement. */
-  /* The rise and the fade are two separate animations on purpose: with both in
-     one set of keyframes the gain had faded out while it was still only half
-     way up, so the travel was never actually seen. The movement runs the whole
-     520ms; the fade waits, then takes the last third. */
-  animation:
-    rr-gain-rise 520ms ease-out forwards,
-    rr-gain-fade 180ms ease-in 340ms forwards;
-}
 @keyframes rr-gain-rise {
   from { transform: translateY(0); }
   /* Travels well clear of the counter: a short hop reads as a nudge, and the
@@ -533,6 +600,43 @@ button { min-height: 44px; min-width: 44px; }
   border-radius: 999px;
 }
 .rr-wallet.connected { color: var(--crown); border-color: rgba(255, 212, 92, 0.35); }
+
+/* On a narrow playfield the player chip gives ground to the centred pill.
+   
+   The chip sizes itself from its contents — a name plus a GUEST badge — and on
+   the Seeker that came to 222px of a 560px playfield, which put its right edge
+   across the pill's left one. Capping it lets a long name ellipsise instead of
+   pushing into the middle of the bar. The cap is generous enough that ordinary
+   names are untouched; it is the 20-character ones that yield. */
+/* The player chip takes the mock's SHARE of the bar, not its own content's
+   width.
+   
+   The mock gives it 251px of 1376 — 18% — with the carrot pill centred beside
+   it. Left to size itself the chip came to 38% on the Seeker and its right
+   edge crossed the pill's left one; capping it at `30vw` changed nothing,
+   because nothing was compressing it (the bar had room, so flex never asked
+   it to shrink). A cap in the mock's own proportion is what actually holds.
+   
+   `min-width: 0` lets the cap bite at all: a flex item's default minimum is
+   its content, which is the whole name. */
+.rr-wallet {
+  min-width: 0;
+  max-width: 20%;
+  flex-shrink: 1;
+}
+
+/* The NAME is what gives way inside it — an element of its own, because a
+   bare text node cannot be told to ellipsise. The avatar and the GUEST tag
+   keep their size: a half-drawn mark reads as a glitch, a shortened name
+   reads as a long name. */
+.rr-wallet-name {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
 
 /* The burrow, painted behind the whole screen.
    z-index 0 with the siblings lifted above it, NOT -1: a negative index puts
@@ -582,8 +686,15 @@ button { min-height: 44px; min-width: 44px; }
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  max-width: 400px;
-  width: 100%;
+  /* 25% of the WIDTH, which is what the mock holds constant (its cards are
+     342px of a 1376px screen). A flat 400px was the same mistake the card
+     HEIGHTS carried before they moved to `svh`: right at the window the mock
+     was drawn for, and far too wide anywhere else — on the Seeker it was 45%
+     of the screen, nearly half the board hidden behind the column.
+     The floor keeps a phone in portrait readable, where 25% of 400px would be
+     100px and no card would fit its own text. */
+  width: max(25vw, 220px);
+  max-width: 92vw;
   margin: 0;
   padding-right: 12px;
   /* TRANSPARENT TO THE POINTER, except on the panels themselves — the same
@@ -677,6 +788,17 @@ button { min-height: 44px; min-width: 44px; }
 
 /* The stock, big: it is the number the whole persistent layer is about, and a
    returning player should read it before anything else on the screen. */
+/* THE COUNT TAKES THE HIT when carrots land in it: a number that changes
+   without flinching reads as a value someone edited, not as loot arriving.
+   
+   Keyed on the pill's own figure. It used to be `.rr-carrots-n.banked`, from
+   the counter this replaced — and the pill sets `banked` on a span that never
+   had that class, so the pop had quietly stopped happening. */
+.rr-carrot-pill .banked {
+  display: inline-block;
+  animation: rr-banked 420ms cubic-bezier(0.22, 1.2, 0.36, 1);
+}
+
 @keyframes rr-banked {
   0%   { transform: scale(1); }
   35%  { transform: scale(1.18); }
@@ -715,9 +837,8 @@ button { min-height: 44px; min-width: 44px; }
 @media (prefers-reduced-motion: reduce) {
   /* The burst does not run at all (see carrot-burst.tsx); the number simply
      changes, which is the fact it was decorating. */
-  .rr-carrots-n.banked { animation: none; }
+  .rr-carrot-pill .banked { animation: none; }
   /* The gain still appears and still says +N — it simply does not travel. */
-  .rr-carrots-gain { animation: rr-gain-fade 180ms ease-in 340ms forwards; }
 }
 /* The masthead: the wordmark at the top of the signed-out screen.
    FIXED, and above the crawl (z 1 against the crawl's 0), because the crawl is
@@ -853,37 +974,133 @@ button { min-height: 44px; min-width: 44px; }
 }
 
 /* ── Sound ────────────────────────────────────────────────────────────────
-   Bottom-left: the bottom-centre is the one action and the top-right is the
-   wallet, so the chrome takes the corner nothing else wanted. Fixed, because it
-   belongs to the app rather than to whichever screen is showing.
+   Bottom-RIGHT: the bottom-centre is the one action, the bottom-left is the
+   launcher row, and the top-right is the season board's own button — so the
+   chrome takes the corner nothing else wanted. Fixed, because it belongs to
+   the app rather than to whichever screen is showing.
 
-   LIFTED OFF THE FLOOR. Flush in the corner this control was unreachable: the
-   GO FARM button is full-width up to 400px, so on a phone its box runs to the
-   left edge and its bottom lands within ~2px of the mute's — and in dev, Next's
-   own tools indicator sits in precisely that corner and takes the tap first.
-   The lift clears the GO button's whole band, so the two never share a row.
-   Chrome only: the mute must stay above the button it was hiding behind. */
-:root {
-  /* GO FARM's band, MEASURED rather than guessed: the button renders 82px tall
-     (a stacked label over a 32px arrow sprite, plus 14px padding each side) and
-     carries 10px/6px margins, so it occupies 98px. Rounded up to 104 for the
-     pixel of air that makes the two read as separate controls rather than a
-     stack. A guessed 68px left them still touching — the arrow sprite is what
-     makes this band twice the height of an ordinary button. */
-  --rr-sound-lift: 104px;
-}
-.rr-sound {
+   (This used to be bottom-LEFT, lifted 104px to clear GO FARM's band. That
+   whole arrangement went when the launcher row moved onto the floor and made
+   the left corner busy; the lift variable it needed went with it.) */
+
+/* THE LAUNCHER ROW SITS ON THE FLOOR.
+
+   The mock puts the four tiles in the bottom-left corner with open water
+   between them and the last card: they belong to the screen, not to the
+   scrolling column. See `hub-tab.tsx`'s `row` for what went wrong while they
+   were inside it.
+
+   Width is capped so four tiles stay square and finger-sized rather than
+   stretching across a desktop window; `left` matches the column's own gutter
+   so the row lines up with the cards above it. */
+.rr-hub-row {
   position: fixed;
   left: 10px;
-  bottom: calc(var(--rr-sound-lift) + env(safe-area-inset-bottom));
+  bottom: calc(10px + env(safe-area-inset-bottom));
+  /* Sized to the TILES, not to a column width, and stated rather than
+     inferred: four squares of `12.4svh` plus three 8px gaps. `fit-content`
+     was the first attempt and a `position: fixed` flex row reports width 0
+     with it — which broke anything measuring against the row (the mute was
+     offset past it into GO FARM). An explicit width is also what keeps the
+     box from being wider than its tiles, which was the original complaint:
+     at `min(400px, 60vw)` the empty remainder still swallowed clicks. */
+  width: calc(4 * 12.4svh + 3 * 8px);
+  max-width: min(400px, 60vw);
+  /* Above the board, the column AND the GO FARM button — all three sit at
+     z 1, and on a short window GO's 400x100 box overlaps this corner and was
+     swallowing three of the four tiles (SHOP escaped only because it sits left
+     of GO's left edge). Below the drawers (29+): these are doors, and an open
+     drawer is the thing being read. */
+  z-index: 20;
+}
+
+/* ON THE BURROW THE BOTTOM-LEFT CORNER IS SHARED.
+
+   The column now ends in a row of launcher tiles (`hub-tab.tsx`) occupying
+   roughly y 528..627 on a 768-tall window — the mute's own corner, and the two
+   overlapped by 7px once the row landed.
+
+   Two fixes were tried and rejected, recorded so they are not retried:
+   raising the control enough to clear a 100px row puts it 248px off the floor,
+   which is the middle of the screen rather than a corner; and moving it to the
+   bottom-RIGHT puts it under the season leaderboard, which is open by default
+   and swallowed the click entirely (measured: `elementFromPoint` returned
+   `.rr-lb-row`, so the control was not merely overlapped but DEAD).
+
+   So the control stays in its corner and the TILES yield: the column reserves
+   a strip at its foot, which keeps the row above the mute without either of
+   them leaving the place players look for it. */
+body:has(.rr-burrow) .rr-burrow {
+  /* Clear of the launcher row on the floor, which is `position: fixed` and so
+     takes no space of its own — the column has to leave it. */
+  padding-bottom: 108px;
+}
+
+/* ...but NOT on a short screen, where that strip is most of the column.
+   
+   On the Seeker (890x400) the column has ~228px of visible height and the
+   cards plus the launcher row need ~310. Reserving another 156 for the mute
+   pushed the row past the bottom, where it was not merely off-screen but
+   UNREACHABLE — `elementFromPoint` over the SHOP tile returned the game's
+   canvas, so the four doors were dead.
+   
+   Under 520px tall the column keeps only enough room for the mute to sit
+   beside the row rather than under it, and the mute drops to the floor: the
+   GO FARM band it was lifted to clear is itself shorter here. */
+@media (max-height: 520px) {
+  /* The column stops above the MUTE, which sits above the launcher row — so
+     the strip it has to leave is both of them, not just the row. At 4px the
+     burrow card ran under the mute and its UPGRADE button was half covered. */
+  /* Room for the launcher row; the mute shares its band rather than taking
+     one of its own. */
+  body:has(.rr-burrow) .rr-burrow { padding-bottom: calc(12.4svh + 30px); }
+
+  /* Cards sit closer together. On the Seeker the column has 228px of visible
+     height and the four cards need 224 of it — the 10px gutters between them
+     were another 30, and the last card was clipped by exactly that. 4px still
+     reads as a gap at this size, where the cards are only ~50px tall. */
+  body:has(.rr-burrow) .rr-burrow > div { margin-bottom: 4px !important; }
+
+  /* ...and the cards give up the last few percent — see `heightBox`. */
+  body:has(.rr-burrow) { --rr-card-scale: 0.93; }
+
+
+}
+.rr-sound {
+  /* BOTTOM-RIGHT, on every screen.
+     
+     It spent this session being moved around the bottom-LEFT corner — above
+     the launcher row, beside it, between it and GO FARM — because that corner
+     filled up: four tiles at the left, GO centred, and a column of cards above
+     them. Each placement cost something (the four doors went dead under it
+     once, and it sat on the burrow card's UPGRADE button twice).
+     
+     The bottom-right is empty on both screens. The season board is up there on
+     the right but stops well short of the floor, and nothing else claims that
+     corner — so the control finally has a place of its own rather than a gap
+     between other people's furniture. */
+  position: fixed;
+  right: 10px;
+  bottom: calc(10px + env(safe-area-inset-bottom));
   /* Above the GO button and the burrow column, below the drawers (29+) —
      this is chrome, and a drawer that is open is the thing being read. */
   z-index: 28;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  /* Right-aligned, so the panel it opens grows INWARD from that edge instead
+     of off the screen. */
+  align-items: flex-end;
   gap: 6px;
 }
+
+/* ...but NOT over the sign-in screen.
+   
+   Before the game is entered the page is a wordmark, an opening crawl and two
+   buttons — there is no sound playing yet, so a mute control is a switch for
+   something that is not happening, sitting on the one screen with nothing else
+   on it. `.rr-empty` is the sign-in panel; it is gone the moment the burrow
+   is up. */
+body:has(.rr-empty) .rr-sound { display: none; }
 
 /* The two controls sit side by side; the panel stacks above them. */
 .rr-sound-cluster {
@@ -1113,34 +1330,54 @@ button { min-height: 44px; min-width: 44px; }
    A slide-over on a phone, a permanent column on a wide screen. One markup,
    one component; only the layout differs. */
 .rr-lb {
+  /* A PANEL IN THE CORNER, not a full-height edge drawer.
+     
+     The mock floats it: it starts 13% down (clear of the trophy button that
+     opens it) and stops short of the floor, with rounded corners and a rim
+     like every other panel on the screen. Edge to edge it was a different kind
+     of object from everything around it — and it buried its own [x] under the
+     trophy, which made the close button unclickable.
+     
+     Inset from the right edge rather than flush, so it reads as lying ON the
+     water like the cards do. */
   position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: min(330px, 86vw);
+  top: clamp(52px, 13svh, 100px);
+  right: 10px;
+  bottom: clamp(12px, 8svh, 60px);
+  /* 26% of the width, which is the share the mock holds (360px of 1376) —
+     not a flat 330px, which was right only at the window it was drawn for and
+     came to 37% of the Seeker. */
+  width: max(26vw, 220px);
+  max-width: 86vw;
   z-index: 30;
   display: flex;
   flex-direction: column;
-  background: var(--panel);
-  border-left: 1px solid var(--border);
-  transform: translateX(100%);
+  overflow: hidden;
+  background: #161b1f;
+  border: 2px solid #ddccbc;
+  border-radius: 14px;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
+  /* Slides out past its own right inset, so nothing peeks. */
+  transform: translateX(calc(100% + 14px));
   transition: transform 200ms ease;
-  padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
 }
 .rr-lb.open { transform: none; }
 
 .rr-lb-head {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
+  gap: clamp(5px, 1.3svh, 10px);
+  /* Sized with the rows below it: a 22px title over 8px rows is a header
+     shouting at a list it belongs to. */
+  padding: clamp(5px, 1.6svh, 12px) clamp(7px, 1.8svh, 14px);
+  font-size: clamp(10px, 2.2svh, 17px);
   border-bottom: 1px solid var(--border);
 }
 .rr-lb-head strong { flex: 1; }
 .rr-lb-close {
   border: none;
   background: none;
-  font-size: 22px;
+  font-size: clamp(13px, 2.9svh, 22px);
   line-height: 1;
   padding: 0 6px;
   color: var(--muted);
@@ -1149,29 +1386,39 @@ button { min-height: 44px; min-width: 44px; }
 
 /* The handle: the board's own rank, so it is worth opening — or reassuringly
    not — without opening it. */
-.rr-lb-tab {
+/* THE SEASON BOARD'S DOOR, top-right beside the other chrome.
+   
+   This replaced `.rr-lb-tab`, a half-pill fixed to the middle of the right
+   edge that slid sideways with the panel. The mock puts the board's button in
+   the corner as a square slab — see `hub-icon-button.tsx` for why a pair of
+   matching squares reads better than a lone lozenge.
+   
+   It does NOT travel with the panel any more: the panel covers the right edge
+   when open, so the button sits clear of it (the panel starts below the top
+   bar) and simply stays where the player left it. */
+/* Out of the way while the board is showing.
+   
+   The trophy is the way IN; once the panel is up it has a [x] of its own, and
+   two close buttons in the same corner is one of them repeating the other. It
+   also sat directly over the panel's own header. `visibility` rather than
+   `display`, so it keeps its box and does not make the corner reflow as it
+   goes — and it fades on the same 200ms the panel slides on, so the two read
+   as one movement. */
+body:has(.rr-lb.open:not(.rr-profile)) .rr-lb-launch {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.rr-lb-launch {
+  transition: opacity 200ms ease, visibility 200ms;
   position: fixed;
-  right: 0;
-  top: 42%;
-  z-index: 29;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 12px 8px;
-  border-radius: 12px 0 0 12px;
-  border-right: none;
-  font-size: 17px;
-  color: var(--crown);
+  top: 10px;
+  right: 10px;
+  /* Above the panel it opens (29), so it is never buried by its own drawer. */
+  z-index: 31;
+  display: inline-flex;
+  pointer-events: auto;
 }
-.rr-lb-tab small { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
-/* Out with the board: the handle rides the panel's left edge so it stays the
-   one visible control for a board that is showing, instead of hiding beneath
-   it. Same easing as the panel, so the two move as one piece. */
-.rr-lb-tab {
-  transition: transform 200ms ease;
-}
-.rr-lb-tab.open { transform: translateX(calc(-1 * min(330px, 86vw))); }
 
 .rr-scrim {
   position: fixed;
@@ -1475,11 +1722,17 @@ button { min-height: 44px; min-width: 44px; }
 
 .rr-lb-row {
   display: grid;
-  grid-template-columns: 30px 1fr auto;
-  gap: 10px;
+  /* The rank column scales too: a fixed 30px slot beside 8px type is a gutter
+     wider than the number it holds. */
+  grid-template-columns: clamp(18px, 2.6svh, 30px) 1fr auto;
+  gap: clamp(5px, 1.3svh, 10px);
   align-items: center;
   width: 100%;
-  padding: 10px 12px;
+  /* ~43px of a 768-tall window in the mock — a share, so ten rows still fit a
+     400px screen. At a flat 10px the rows were 44px tall there too, and half
+     the list fell off the bottom of the panel. */
+  padding: clamp(4px, 1.1svh, 10px) clamp(6px, 1.6svh, 12px);
+  font-size: clamp(8px, 1.7svh, 13px);
   border: none;
   border-radius: 0;
   background: none;
@@ -1490,7 +1743,28 @@ button { min-height: 44px; min-width: 44px; }
 .rr-lb-row.me { background: rgba(255, 212, 92, 0.08); }
 .rr-lb-rank { color: var(--muted); text-align: right; }
 .rr-lb-row.crown .rr-lb-rank { color: var(--crown); }
-.rr-lb-name small { display: block; color: var(--muted); font-size: 11px; }
+.rr-lb-name small { display: block; color: var(--muted); font-size: clamp(6px, 1.3svh, 11px); }
+
+/* ZEBRA STRIPING, as the mock draws it.
+
+   Sampled off the reference: the panel's ground is #161b1f and every other row
+   lifts to #22272b. Rows had only a hairline between them, which on a list of
+   twelve near-identical lines is not enough to track one across its width —
+   the eye loses the row between a name at the left and a score at the right.
+   A band is what carries it across.
+
+   `:nth-child(odd)` over a border, and the border goes: two ways of separating
+   the same rows is one of them repeating the other. */
+.rr-lb-row + .rr-lb-row { border-top: none; }
+.rr-lb-list .rr-lb-row:nth-child(odd) { background: #22272b; }
+
+/* YOUR OWN ROW is warm, not brighter.
+   
+   #2e2e24 in the mock — a green-gold cast against the panel's cool grey, which
+   reads as "this one is yours" rather than as "this one is selected". It wins
+   over the stripe whichever side of the zebra it lands on. */
+.rr-lb-list .rr-lb-row.me,
+.rr-lb-list .rr-lb-row.me:nth-child(odd) { background: #2e2e24; }
 
 /* ── Out on an island right now ───────────────────────────────────────────
    The only live fact on the board. Every other column describes a player;
@@ -1544,26 +1818,38 @@ button { min-height: 44px; min-width: 44px; }
   /* No scrim: nothing is being covered, so there is nothing to tap away, and a
      full-page overlay here would swallow clicks meant for the burrow. */
   .rr-scrim { display: none; }
-  /* Room for the board — only while it is out. Scoped with :not(.rr-profile):
-     the profile panel borrows this chrome but is a real modal, and it must not
-     shove the page sideways when it opens.
-
-     Eased on the same curve as the panel's slide: the gutter opening and the
-     board arriving are one movement, and an instant jump under a 200ms slide
-     reads as the page flinching out of the way. */
-  .rr-home { transition: padding-right 200ms ease; }
-  .rr-home:has(.rr-lb:not(.rr-profile).open) { padding-right: calc(330px + 12px); }
+  /* The page no longer makes room for the board.
+     
+     It used to open a 330px gutter on the right while the board was out, back
+     when the board was a full-height edge drawer that took the space. It is a
+     floating panel now — inset from the edge, clear of the top bar, lying over
+     the water like the cards do — so the gutter was pushing the whole burrow
+     sideways for a panel that is not in the flow at all. */
 }
 
 /* ── Pixel type ────────────────────────────────────────────────────────────
    The kit's face is an 8px cell, so it is crispest at whole multiples. These
    are the sizes the interface actually uses, rounded onto that grid. */
 .rr-hud { font-size: 12px; }
-.rr-carrots-n { font-size: 26px; }
 .rr-burrow-title { font-size: 16px; letter-spacing: 0.04em; }
-.rr-lb-row { font-size: 12px; }
-.rr-lb-name small { font-size: 8px; letter-spacing: 0; }
-.rr-lb-tab small { font-size: 8px; }
+/* THE BOARD'S ROWS ARE BUTTONS, and buttons carry a 44px floor (see the
+   `button` rule near the top: anything a thumb hits is at least 44px).
+   
+   On a 400px-tall screen ten of those do not fit the panel — only five did,
+   and the rest fell below the fold. Under 520px the floor drops to 30 for
+   these rows ONLY. What that costs is real but small: a row is the panel's
+   full width (~230px), so it stays an easy target sideways; it is the height
+   that gives, and it gives only where the alternative is half a list. */
+@media (max-height: 520px) {
+  .rr-lb-list .rr-lb-row { min-height: 30px; }
+}
+
+/* The board's rows scale with the window — see `.rr-lb-row` above. A flat
+   12px here is what kept them 44px tall on a 400px-high screen, where only
+   five of ten fit the panel. The clamp still lands on the 8px cell's whole
+   multiples at the ends of its range. */
+.rr-lb-row { font-size: clamp(8px, 1.7svh, 12px); }
+.rr-lb-name small { font-size: clamp(6px, 1.3svh, 8px); letter-spacing: 0; }
 .rr-wallet { font-size: 12px; }
 .rr-card { font-size: 12px; }
 .rr-go, .rr-back { font-size: 16px; }

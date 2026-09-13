@@ -28,20 +28,23 @@ void loadPixelWebFont().then(() => {
  * board in the middle, and it is played sideways. The portrait entry is kept
  * because the burrow column and the codex both have a portrait fold to check.
  *
- * Sizes are the Seeker's own logical viewport (2400x1080 at DPR 3 => 800x360),
- * not a generic "mobile1" — a preset a few dozen px off lands on the wrong
- * side of a breakpoint and quietly reviews the wrong layout.
+ * Sizes are the Seeker's own logical viewport. The device is 2670x1200
+ * physical at ~460 PPI, which Android serves at DPR 3 => 890x400 logical. An
+ * earlier version of this file assumed a 2400x1080 panel and listed 800x360;
+ * that is 90x40 short, and a preset a few dozen px off lands on the wrong side
+ * of a breakpoint and quietly reviews the wrong layout. Not a generic
+ * "mobile1" for the same reason.
  */
 const VIEWPORTS = {
   seeker: {
     name: 'Seeker (landscape)',
     type: 'mobile' as const,
-    styles: { width: '800px', height: '360px' },
+    styles: { width: '890px', height: '400px' },
   },
   seekerPortrait: {
     name: 'Seeker (portrait)',
     type: 'mobile' as const,
-    styles: { width: '360px', height: '800px' },
+    styles: { width: '400px', height: '890px' },
   },
   // A roomier phone, to catch what only breaks between the two.
   phoneWide: {

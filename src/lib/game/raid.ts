@@ -116,7 +116,7 @@ export function settleRaid(
   // The full share is ROLLED in a band (`LOOT_SHARE_MIN`..`LOOT_SHARE`) rather
   // than fixed, from the same injected `rng` as the damage — first, so a
   // replay with the same rolls reproduces the same haul. `LOOT_SHARE` remains
-  // the ceiling every worst-case figure is computed from.
+  // the ceiling `maxRaidLoss` promises against.
   const band = RAID_RUN.LOOT_SHARE - RAID_RUN.LOOT_SHARE_MIN;
   const fullShare = RAID_RUN.LOOT_SHARE_MIN + rng() * band;
   const share =
@@ -137,6 +137,42 @@ export function settleRaid(
   const damage = Math.max(0, Math.round(RAID.BOMB_DAMAGE * progress * jitter));
 
   return { progress, loot, damage, reachedField };
+}
+
+/**
+ * The most a single raid can take from a stock — the worst case, always.
+ *
+ * Derived from `settleRaid`'s own formula rather than restated: the haul is
+ * `stock * share * (MIN_LOOT_FRACTION + (1 - MIN) * progress) * crownMult`
+ * capped at `LOOT_CAP`, and every term is maximised here. The rolled share
+ * tops out at `LOOT_SHARE`, `progress = 1` (a raider who walked the whole
+ * way) collapses the middle factor to 1, and the crown multiplier is applied
+ * UNCONDITIONALLY.
+ *
+ * That last part is the point. The burrow payload does not carry whether the
+ * player is wearing the season crown, and a number labelled "safe" that a
+ * crowned player could watch being taken anyway would be worse than no number
+ * at all. A floor that is occasionally pessimistic is a floor; one that is
+ * occasionally wrong is a lie.
+ */
+export function maxRaidLoss(stock: number): number {
+  if (!Number.isFinite(stock) || stock <= 0) return 0;
+  return Math.min(
+    RAID.LOOT_CAP,
+    Math.floor(stock * RAID_RUN.LOOT_SHARE * CROWN.LOOT_MULT),
+  );
+}
+
+/**
+ * What a single raid cannot take, whatever happens — the "safe" figure.
+ *
+ * There is no warehouse in the game yet; this is not one. It is the share the
+ * loot rules already guarantee (a raid takes a FRACTION of the stock, under a
+ * hard cap), made visible. When a real vault arrives this is where it lands.
+ */
+export function safeStock(stock: number): number {
+  if (!Number.isFinite(stock) || stock <= 0) return 0;
+  return Math.max(0, stock - maxRaidLoss(stock));
 }
 
 /**

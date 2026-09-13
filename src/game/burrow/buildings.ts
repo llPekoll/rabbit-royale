@@ -87,6 +87,19 @@ function tierFor(level: number | null | undefined) {
 }
 
 /**
+ * The building's ART for a level, with no board involved.
+ *
+ * `burrowBuilding` below needs a SEED, because it also answers where the thing
+ * stands. The burrow card only has to draw the same house the player can see
+ * on their island, and asking it to invent a seed for that would be asking the
+ * wrong question. Same ladder, same clamping — one source for "what does a
+ * level look like", so the card and the board can never disagree.
+ */
+export function burrowBuildingArt(level: number | null | undefined) {
+  return tierFor(level);
+}
+
+/**
  * Where this seed's burrow stands, and what it looks like at `level`.
  *
  * The cell is a property of the SEED, not of the level: upgrading swaps the

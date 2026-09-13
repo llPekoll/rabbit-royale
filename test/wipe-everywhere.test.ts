@@ -129,7 +129,11 @@ describe('the iris covers every crossing', () => {
       /\{!showCanvas && \(/,                       // the sign-in art
       /\{player && showCanvas && \(/,               // the canvas itself
       /\{showCanvas && where === 'burrow' && !shownRaid && !crossing && \(/,
-      /\{showCanvas && \(\s*<CarrotCounter/,
+      // The banked count. Anchored on the component the page actually renders:
+      // this was `<CarrotCounter` until the counter became `<CarrotPill` (the
+      // mock's panel, with a rank line under the figure), and a stale anchor
+      // here would have passed on a gate that no longer wrapped anything.
+      /\{showCanvas && \(\s*<CarrotPill/,
       /\{!showCanvas \? \(/,                       // the sign-in column body
     ]) expect(PAGE).toMatch(gate);
   });

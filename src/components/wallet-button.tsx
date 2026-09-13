@@ -64,7 +64,13 @@ export function WalletButton() {
           }}
           aria-hidden
         />
-        {player.name}
+        {/* The name is the only part of this chip that can give ground, so it
+            is the only part wrapped: a bare text node cannot be told to
+            ellipsise, and on a narrow screen the chip grew until it ran into
+            the carrot pill centred beside it. The avatar and the GUEST tag
+            keep their size — they are fixed marks, and a half-drawn one reads
+            as a glitch where a shortened name reads as a long name. */}
+        <span className="rr-wallet-name">{player.name}</span>
         {/* A guest is MARKED on the chip. The state is temporary by design, and
             the corner is where a player already looks to see who they are —
             leaving it unsaid is how somebody loses a week of digging to a

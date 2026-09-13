@@ -27,7 +27,8 @@
  * scenes the way it already does for the island, and the wallet never leaves
  * the tab.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { HubIconButton } from './hub-icon-button';
 
 /** The width below which the board is a slide-over rather than a column. */
 const WIDE = '(min-width: 860px)';
@@ -54,9 +55,26 @@ export interface LeaderboardDrawerProps {
    * is simply inert rather than absent.
    */
   onSpectate?: (targetId: string) => void;
+  /**
+   * Reports the viewer's own standing upward as it is fetched.
+   *
+   * The carrot pill shows the rank and the gap to the place above, and this
+   * drawer is already polling the board that carries both. A second fetch from
+   * the page would ask the same endpoint twice on the same timer — so the one
+   * request that already happens hands its answer up instead.
+   */
+  onMe?: (me: Me | null) => void;
 }
 
-export function LeaderboardDrawer({ token, playerId, onSpectate }: LeaderboardDrawerProps) {
+/** The viewer's own standing, as `/api/leaderboard` reports it. */
+export interface Me {
+  rank: number | null;
+  score: number;
+  /** Season score needed to pass the player one place ahead; null when none. */
+  toPass: number | null;
+}
+
+export function LeaderboardDrawer({ token, playerId, onSpectate, onMe }: LeaderboardDrawerProps) {
   // One piece of state for both layouts. It only differs in where it STARTS:
   // on a wide screen the board is furniture and begins out, on a phone it
   // covers the island and begins away. Either way the handle and the [x] move
@@ -69,15 +87,23 @@ export function LeaderboardDrawer({ token, playerId, onSpectate }: LeaderboardDr
   // motion it makes when opened by hand.
   const [open, setOpen] = useState(false);
   const [entries, setEntries] = useState<Entry[]>([]);
-  const [me, setMe] = useState<{ rank: number | null; score: number } | null>(null);
+  const [me, setMe] = useState<Me | null>(null);
   const [season, setSeason] = useState<{ endsAt: string } | null>(null);
 
-  useEffect(() => {
-    if (typeof window.matchMedia !== 'function') return;
-    // Only the FIRST crossing into wide opens it: reopening the board every
-    // time a desktop window is nudged past 860px would undo a deliberate close.
-    if (window.matchMedia(WIDE).matches) setOpen(true);
-  }, []);
+  /* CLOSED ON EVERY WIDTH, and it used to open itself on a wide one.
+     The board is a third of the screen; opening it unasked meant a desktop
+     player arrived at their burrow with the island already crowded, and had to
+     put away a panel they never opened. The trophy button in the corner is the
+     way in — see `HubIconButton` — and it carries a badge so the board is worth
+     a tap without having to be showing. */
+
+  /* `onMe` through a ref, not through the effect's deps.
+     The poll is keyed on `[token]` so it is set up once; putting a callback in
+     the deps would tear the interval down and rebuild it on every parent
+     render (the page passes an inline arrow), and leaving it out of the deps
+     would freeze the first render's closure. A ref is neither. */
+  const onMeRef = useRef(onMe);
+  onMeRef.current = onMe;
 
   useEffect(() => {
     const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
@@ -90,6 +116,7 @@ export function LeaderboardDrawer({ token, playerId, onSpectate }: LeaderboardDr
           if (!alive) return;
           setEntries(d.entries ?? []);
           setMe(d.me ?? null);
+          onMeRef.current?.(d.me ?? null);
           setSeason(d.season ?? null);
         })
         .catch(() => {});
@@ -111,20 +138,25 @@ export function LeaderboardDrawer({ token, playerId, onSpectate }: LeaderboardDr
 
   return (
     <>
-      {/* The handle. Carries the player's own rank, so the board is worth
-          opening (or reassuringly not) without opening it — and it is the only
-          way back once the board is put away, so it stays on every width and
-          rides the panel's edge when the board is out. */}
-      <button
-        className={`rr-lb-tab${open ? ' open' : ''}`}
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        aria-controls="rr-leaderboard"
-        aria-label={open ? 'Hide the season board' : 'Show the season board'}
-      >
-        <span aria-hidden>👑</span>
-        <small>{me?.rank ? `#${me.rank}` : '-'}</small>
-      </button>
+      {/* The way in: a square slab in the top-right corner beside the other
+          chrome, as the mock draws it. It replaces `.rr-lb-tab`, a half-pill
+          welded to the middle of the right edge — the one control on the
+          screen shaped like nothing else.
+
+          The badge is the player's own RANK, which is what makes a closed
+          board worth a glance: "#5" says where you stand without opening
+          anything, and the pill under the carrot count says what it would take
+          to move. */}
+      <span className="rr-lb-launch">
+        <HubIconButton
+          label={open ? 'Hide the season board' : 'Show the season board'}
+          pressed={open}
+          count={me?.rank ?? 0}
+          onClick={() => setOpen((v) => !v)}
+        >
+          🏆
+        </HubIconButton>
+      </span>
 
       <aside id="rr-leaderboard" className={`rr-lb${open ? ' open' : ''}`}>
         <header className="rr-lb-head">
@@ -175,13 +207,14 @@ export function LeaderboardDrawer({ token, playerId, onSpectate }: LeaderboardDr
                     middot in a template literal is not decoded by anything and
                     the bitmap atlas (ASCII 32-126) cannot draw it — it ships as
                     a blank. So the two halves are JSX, not one string. */}
-                <small>
-                  {e.digging ? (
-                    <>digging now &middot; tap to watch</>
-                  ) : (
-                    <>burrow {e.burrowLevel} &middot; {e.lifetime} lifetime</>
-                  )}
-                </small>
+                {/* The sub-line is now ONLY for a live run.
+                    It used to carry "burrow 4 · 7313 lifetime" on every row —
+                    two facts about a stranger that change nothing the reader
+                    can act on, doubling the height of a twelve-row list. The
+                    mock's rows are one line each: a rank, a name, a score.
+                    What survives is the one line worth a tap, because it is an
+                    invitation rather than a description. */}
+                {e.digging && <small>digging now &middot; tap to watch</small>}
               </span>
               <span style={{ color: 'var(--carrot)' }}>{e.score}</span>
             </button>

@@ -100,11 +100,13 @@ describe('burrow camera', () => {
     expect(gate, 'the cards must sit behind a !placing gate').toBeGreaterThan(-1);
 
     // The first card inside the gate. It was the HP card; HP are gone (they
-    // defended nothing), and the SHIELD card took the slot. Anchored on the
-    // JSX label rather than the words "HIT POINTS", which now survive only in
-    // the comment explaining the removal — matching those would have let this
-    // test pass on prose after the card itself was deleted.
-    const first = page.indexOf('label="SHIELD"');
+    // defended nothing), and the SHIELD card took the slot — which has since
+    // become its own component, so the anchor is the COMPONENT rather than the
+    // `label="SHIELD"` prop it used to carry inside a generic card. Anchored on
+    // JSX either way rather than on the words "HIT POINTS" or "SHIELD", which
+    // also appear in the comments explaining all this — matching prose would
+    // let this test pass after the card itself was deleted.
+    const first = page.indexOf('<ShieldCard');
     expect(first, 'the first card must sit inside the gate').toBeGreaterThan(gate);
 
     // And the gate closes before the way out, so "Done placing" is still

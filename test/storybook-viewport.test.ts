@@ -31,9 +31,13 @@ describe('storybook viewport', () => {
   it('sizes the phone to the real device, landscape', () => {
     const seeker = PREVIEW.slice(PREVIEW.indexOf('seeker: {'));
     const styles = seeker.slice(0, seeker.indexOf('},'));
-    // 2400x1080 at DPR 3. Landscape: wider than it is tall.
-    expect(styles).toMatch(/width: '800px'/);
-    expect(styles).toMatch(/height: '360px'/);
+    /* The Seeker's panel is 2670x1200 at ~460 PPI, which Android serves at
+       DPR 3 => 890x400 logical. This file previously asserted 800x360, from a
+       2400x1080 panel the device does not have — 90x40 short, which is exactly
+       the kind of drift this test exists to catch, so the numbers are stated
+       with their source rather than left as bare literals. */
+    expect(styles).toMatch(/width: '890px'/);
+    expect(styles).toMatch(/height: '400px'/);
   });
 
   it('keeps a portrait and a desktop to switch to', () => {

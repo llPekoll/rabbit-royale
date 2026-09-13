@@ -9,7 +9,7 @@ import { desc, inArray, isNull, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { players, seasons } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
-import { topPlayers, rankOf, onlineAmong } from '@/lib/leaderboard';
+import { topPlayers, rankOf, onlineAmong, gapToNextRank } from '@/lib/leaderboard';
 import { SEASON } from '@config/tuning';
 
 export const dynamic = 'force-dynamic';
@@ -94,13 +94,18 @@ export async function GET(req: Request) {
   // Where the viewer sits, even when they are nowhere near the top — a board
   // that cannot show you your own rank is a board you stop opening.
   const session = await getSession(req);
-  let me: { rank: number | null; score: number } | null = null;
+  let me: { rank: number | null; score: number; toPass: number | null } | null = null;
   if (session) {
     const row = await db.query.players.findFirst({ where: eq(players.id, session.sub) });
     if (row) {
+      /* The gap to the rank above, so the caller can say what it would take
+         to climb rather than only where the player stands. Null when there is
+         nothing to chase (#1, unranked, or no Redis) — see `gapToNextRank`. */
+      const ahead = season ? await gapToNextRank(season.id, session.sub) : null;
       me = {
         rank: season ? await rankOf(season.id, session.sub) : null,
         score: row.seasonScore,
+        toPass: ahead?.gap ?? null,
       };
     }
   }
