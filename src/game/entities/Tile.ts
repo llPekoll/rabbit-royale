@@ -12,7 +12,7 @@ import gsap from 'gsap';
  * from the COLOUR before they read the glyph, and that mapping is decades of
  * muscle memory it would be perverse to reinvent.
  */
-const HINT_TINTS = [
+export const HINT_TINTS = [
   0xffffff, 0x4aa3ff, 0x3ecf7f, 0xff6b6b, 0xb46bff,
   0xffb03a, 0x3ecfcf, 0xdddddd, 0x888888,
 ];
@@ -57,8 +57,8 @@ const CARROT_SHADOW_ALPHA = 0.3;
  * per tile so that trade can be tuned against whatever is actually behind the
  * board; the defaults are what ships today.
  */
-const FOG_COLOR = 0x1a2a3a;
-const FOG_ALPHA = 0.55;
+export const FOG_COLOR = 0x1a2a3a;
+export const FOG_ALPHA = 0.55;
 
 
 /** How an undug tile is veiled. Omitted fields keep the defaults above. */
@@ -66,7 +66,7 @@ export interface FogStyle {
   color?: number;
   alpha?: number;
 }
-const HIGHLIGHT_COLOR = 0xffd700;
+export const HIGHLIGHT_COLOR = 0xffd700;
 const MINE_TINT = 0xff3333;
 /** How far above its tile a chest starts when it DROPS in with the board. */
 const CHEST_DROP_HEIGHT = 90;

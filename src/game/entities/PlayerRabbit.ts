@@ -5,17 +5,31 @@ import * as Keys from '@/config/assetKeys';
 import { getBunnyAnimTextures, BUNNY_ANIM_DEFS } from '../services/AssetLoader';
 import gsap from 'gsap';
 
+/**
+ * The board a rabbit stands on: where a tile is, and how deep it sorts.
+ *
+ * The island is the default, solved from `seed`. The burrow hands its own pair
+ * in, so the SAME rabbit — same sheet, same size, same hop — crosses somebody
+ * else's homestead on a lattice the island's projection knows nothing about.
+ */
+export interface RabbitGrid {
+  at(tileIndex: number): { x: number; y: number };
+  depth(tileIndex: number): number;
+}
+
 export class PlayerRabbit {
   sprite: AnimatedSprite;
   container: Container;
   private sheetKey: string;
   /** The island, so every hop lands on the terrace the terrain puts it on. */
   private seed = '';
+  private grid: RabbitGrid | null = null;
   isMoving = false;
 
-  constructor(tileIndex: number, sheetKey = Keys.BUNNY_WHITE, seed = '') {
+  constructor(tileIndex: number, sheetKey = Keys.BUNNY_WHITE, seed = '', grid?: RabbitGrid) {
     this.sheetKey = sheetKey;
     this.seed = seed;
+    this.grid = grid ?? null;
     this.container = new Container();
     // Sorted by its CELL, on the same scale as the tiles (see `Tile`): a fixed
     // depth put the rabbit behind every tile further down the board once tiles
@@ -41,11 +55,13 @@ export class PlayerRabbit {
 
   /** Where a tile's centre is, terrace included. */
   private at(tileIndex: number): { x: number; y: number } {
+    if (this.grid) return this.grid.at(tileIndex);
     return this.seed ? tileScreenPos(this.seed, tileIndex) : tilePos(tileIndex);
   }
 
   /** Depth for a cell, on the scale the tiles sort by. */
   private depthFor(tileIndex: number): number {
+    if (this.grid) return this.grid.depth(tileIndex);
     const cell = toColRow(tileIndex);
     const tier = this.seed ? levelTierAt(this.seed, cell.col, cell.row) : 0;
     return tileDepth(tileIndex) * 16 + tier + 8;

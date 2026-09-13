@@ -23,8 +23,7 @@
  * is what `BurrowSceneData.seed` carries.
  */
 import {
-  AnimatedSprite, Application, Container, Sprite, Texture, Graphics, Polygon,
-  type BitmapText,
+  Application, Container, Sprite, Texture, Graphics, Polygon,
 } from 'pixi.js';
 import gsap from 'gsap';
 import type { Scene } from '../SceneManager';
@@ -33,11 +32,12 @@ import { GAME_W, GAME_H } from '../Application';
 import { CloudField } from '../fx/Clouds';
 import { CarrotCrop } from '../entities/CarrotCrop';
 import { getDiamondFill, getDiamondOutline, diamondScaleFor } from '../services/TileTextures';
-import { getBunnyAnimTextures } from '../services/AssetLoader';
-import { pixelText } from '../ui/PixelText';
+import { shadowedPixelText } from '../ui/PixelText';
+import { PlayerRabbit } from '../entities/PlayerRabbit';
+import { FOG_COLOR, FOG_ALPHA, HIGHLIGHT_COLOR, HINT_TINTS } from '../entities/Tile';
 import * as Keys from '@/config/assetKeys';
-import { BURROW_COLS, BURROW_ROWS, BURROW_HALF_W, BURROW_HALF_H } from '@/config/burrowConfig';
-import { burrowCell, isTrappable } from '@/game/burrow/board';
+import { BURROW_COLS, BURROW_ROWS, BURROW_HALF_W, BURROW_HALF_H, burrowColRow } from '@/config/burrowConfig';
+import { burrowCell, isTrappable, walkableTiles } from '@/game/burrow/board';
 import { burrowTileScreen, burrowDepth } from '@/game/burrow/screen';
 import { createBurrowTerrain, type BurrowTerrainView } from '@/game/burrow/BurrowTerrain';
 import { homeCam, boardCam, type BurrowCam } from './burrowCamera';
@@ -113,48 +113,29 @@ const PLACEABLE_ALPHA = 0.42;
 // where the garden is tells them where to go; it does not tell them what is
 // buried on the way.
 
-/** A tile the raider has read. Cool and dim: it is known, not offered. */
-const SEEN_TINT = 0x9fb4c7;
-const SEEN_ALPHA = 0.30;
-/**
- * A tile the raider may step onto next. The one thing asking to be tapped.
- *
- * Drawn as a SOLID diamond (see `burrowDiamondSolid`) rather than an outline,
- * and the pulse only ever dips to `STEP_ALPHA_DIM` instead of fading towards
- * nothing. Gold at half opacity over an outline was invisible against the
- * meadow: the cells were there, the hit test named them, and the player still
- * could not see where they were allowed to walk — so they tapped bare ground
- * a dozen times looking for the board.
- */
-const STEP_TINT = 0xffd45c;
-const STEP_ALPHA = 0.85;
-/** The bottom of the breath. Never low enough to lose the tile. */
-const STEP_ALPHA_DIM = 0.55;
-/**
- * The edge of the known world: a tile the raider can see but has NOT read.
- *
- * These are the neighbours of where they have walked — uncovered ground whose
- * clue number they have, but which they have not stood on. Drawn darker than a
- * read tile so the frontier of the crossing is legible as a frontier.
- */
-const FRONTIER_ALPHA = 0.16;
-/**
- * How large the raider is drawn, as a multiple of its 32px sprite.
- *
- * Smaller than the island's `RABBIT_SCALE` (2.4): this board's cells are the
- * same size, but a burrow is a place you are sneaking through rather than a
- * field you own, and a rabbit that fills three cells hides the very clue
- * numbers the crossing is read from.
- */
-const RAIDER_SCALE = 1.5;
-/** Clue colours by count, so a 3 reads as worse than a 1 before it is read as
- *  a number at all — the same trick the island's hints use. */
-const CLUE_COLOURS = [0x7fd1ff, 0x8fe388, 0xffd45c, 0xff9d5c, 0xff6b6b];
+/** Seconds between blinks as the sweep travels round the raider — the
+ *  island's own cadence (`SWEEP_STEP_SECONDS` there). */
+const RAID_SWEEP_SECONDS = 0.25;
+/** The island's hint pops in at this size; the raid's clue is the same glyph. */
+const CLUE_SCALE = 1.4;
 
 /** One tile as a raider may see it. `clue` null means a smoke screen hides it. */
 export interface RaidTile {
   tile: number;
   clue: number | null;
+}
+
+/** One cell of the raid board — the island's `Tile`, reduced to what a raid draws. */
+interface RaidCell {
+  /** The navy lid over ground the raider has not been sent. */
+  fog: Sprite;
+  /** The gold outline on a tile they may step onto. */
+  ring: Sprite;
+  /** The gold flash the sweep runs round the raider. */
+  blink: Sprite;
+  /** The hint number, when the tile carries one. */
+  clue: Container | null;
+  clueCount: number | null;
 }
 
 export interface BurrowSceneData {
@@ -216,11 +197,21 @@ export class BurrowScene implements Scene {
   private board = new Container();
   private trapSprites = new Map<number, Container>();
   private hints: Sprite[] = [];
-  /** The raid overlay: the attacker's read of this board. Empty when at home. */
-  private raidCells: Sprite[] = [];
-  private raidLabels: BitmapText[] = [];
-  /** The raider's own sprite — a Container, so it is torn down separately. */
-  private raidActors: Container[] = [];
+  /**
+   * The raid board: one cell per walkable tile of the DEFENDER's ground,
+   * built once per raid and updated on every step. Empty when at home.
+   */
+  private raidCells = new Map<number, RaidCell>();
+  /** Whose ground the cells were built for — a different seed is a rebuild. */
+  private raidCellsSeed: string | null = null;
+  /** The raider: the island's own rabbit, kept across steps so it HOPS. */
+  private raider: PlayerRabbit | null = null;
+  private raiderAt = -1;
+  /** The tiles currently lit as steppable, and the sweep running over them. */
+  private raidLit: number[] = [];
+  private raidSweep: gsap.core.Tween | null = null;
+  private raidSteps = new Set<number>();
+  private onRaidStep: ((tile: number) => void) | null = null;
   private raiding = false;
   /** Where the camera is now, so a re-entry does not re-tween to where it sits. */
   private cam: BurrowCam = homeCam();
@@ -665,6 +656,18 @@ export class BurrowScene implements Scene {
   // may see, what their numbers are, and where they may step. That split is the
   // whole security model of a raid — a client that computed its own view could
   // simply compute the trap positions too.
+  //
+  // ## Drawn the way the island is, on purpose
+  //
+  // A raid used to have a reading of its own: tinted lozenges for "seen",
+  // "walked" and "may step", numbers in a colour ladder of its own, a smaller
+  // rabbit. The player had learned the island's board — a navy veil over
+  // ground they had not dug, a gold ring that sweeps round the rabbit, a hint
+  // that pops in when a tile is cleared — and then met a second grammar on the
+  // same tiles and could not read it: the lozenges vanished into the grass,
+  // the ring did not look like the ring. So this is the island's `Tile`, cell
+  // for cell: the same fog, the same gold, the same hint ladder, the same
+  // rabbit at the same size, hopping the same way.
 
   /**
    * Draw a raid in progress, or clear it with `null`.
@@ -672,7 +675,8 @@ export class BurrowScene implements Scene {
    * Called on every step rather than diffed, because a step changes what is
    * visible, what is steppable and where the raider stands all at once, and
    * three separate updates would show a frame of the board disagreeing with
-   * itself.
+   * itself. The cells themselves persist across calls, so a reveal FADES and
+   * the raider HOPS instead of everything being torn down and put back.
    *
    * A raid also changes WHOSE ground this is. The defender's burrow is a
    * different homestead grown from their own id, so the scene swaps its
@@ -687,23 +691,14 @@ export class BurrowScene implements Scene {
     at: number;
     /** Tiles they may step onto — the server's list, not ours. */
     steps: number[];
-    /**
-     * Tiles the raider has actually STOOD on.
-     *
-     * Distinct from `view`, which also carries the neighbours they can merely
-     * see from there. The difference is what separates crossed ground from the
-     * frontier, and without it the board shows no progress — see
-     * `FRONTIER_ALPHA`.
-     */
-    walked?: number[];
     /** Whose burrow is being crossed — their id, which seeds their ground. */
     seed: string;
     /** The defender's burrow level, which picks their building. */
     level?: number | null;
     onStep(tile: number): void;
   } | null): Promise<void> {
-    this.clearRaid();
     if (!state) {
+      this.clearRaid();
       // Back to being a home: the player's own ground, their own traps, and
       // the camera comes back in with them (setPlacing reframes).
       await this.showGround(this.ownSeed, this.ownLevel);
@@ -716,15 +711,17 @@ export class BurrowScene implements Scene {
       return;
     }
 
+    // A different burrow is a different terrain, and the cells live INSIDE
+    // its blocks — they go down with it. Dropped here, before the ground is
+    // swapped, so nothing is destroyed twice.
+    if (this.raidCellsSeed !== state.seed) this.clearRaid();
     await this.showGround(state.seed, state.level);
 
-    // The whole homestead, garden included — see the raid note above. The
-    // ground is a fresh build for another seed and starts fully drawn, but a
-    // terrain that survives (raiding the same burrow twice) may still be
-    // carrying an earlier raid's reveal, so it is put back explicitly.
+    // The whole homestead, garden included — the veils, not the terrain, are
+    // what say "not dug yet". A terrain that survives (raiding the same burrow
+    // twice) may still carry an earlier reveal, so it is put back explicitly.
     this.terrain?.reveal(null);
     this.crop?.revealOnly(null);
-    const visited = new Set(state.walked ?? []);
 
     // A raider must not see the OWNER's traps. They are hidden rather than
     // never drawn, because the same scene serves both sides and the owner may
@@ -734,144 +731,200 @@ export class BurrowScene implements Scene {
     // board — without this the camera would fly home and straight back out.
     this.raiding = true;
     this.setPlacing(false);
-    const steppable = new Set(state.steps);
 
-    for (const { tile, clue } of state.view) {
-      const { x, y } = burrowTileScreen(this.data.seed, tile);
-      const canStep = steppable.has(tile);
-      const walked = visited.has(tile);
+    const fresh = this.raidCellsSeed !== state.seed;
+    if (fresh) this.buildRaidCells(state.seed);
+    this.onRaidStep = state.onStep;
 
-      // Solid for a tile you may step onto, outline for one you merely see:
-      // the offer has to be findable, the record only has to be legible.
-      const cell = canStep ? burrowDiamondSolid() : burrowDiamond();
-      cell.position.set(x, y);
-      cell.zIndex = burrowDepth(this.data.seed, tile);
-      // Named, so a hit test says WHICH cell answered rather than 'Sprite' —
-      // the same reason the placement diamonds carry a label.
-      cell.label = `raid-step-${tile}`;
-      /**
-       * The DIAMOND is what the pointer sees, exactly as in `buildBoard`.
-       *
-       * Without this the cell hit-tested as its bounding BOX, which overlaps
-       * all four diagonal neighbours — so on this board z-order decided which
-       * tile answered a tap instead of the pointer, and the tile that replied
-       * was routinely not the one under the finger. The server then refused
-       * the step as `not_adjacent`, which is what "Too far. One step at a
-       * time." was really reporting: the board and the pointer disagreed.
-       */
-      cell.hitArea = new Polygon([
-        0, -BURROW_HALF_H / cell.scale.y,
-        BURROW_HALF_W / cell.scale.x, 0,
-        0, BURROW_HALF_H / cell.scale.y,
-        -BURROW_HALF_W / cell.scale.x, 0,
-      ]);
-      cell.tint = canStep ? STEP_TINT : SEEN_TINT;
-      // Three readings, not two: a tile you have STOOD on, a tile you may step
-      // onto next, and a tile you can merely see from where you are. The last
-      // is the frontier, and it was previously drawn identically to ground the
-      // raider had already crossed — so the board gave no sense of progress.
-      cell.alpha = canStep ? STEP_ALPHA : walked ? SEEN_ALPHA : FRONTIER_ALPHA;
-      if (canStep) {
-        cell.eventMode = 'static';
-        cell.cursor = 'pointer';
-        cell.on('pointertap', () => state.onStep(tile));
-        // The next step breathes. It is the only thing on this screen asking to
-        // be pressed, and a still outline does not ask.
-        gsap.to(cell, { alpha: STEP_ALPHA_DIM, duration: 0.9, yoyo: true, repeat: -1 });
-      }
-      /**
-       * Into the cell's own terrain BLOCK, exactly as `buildBoard` mounts a
-       * placement diamond — and for the two reasons that note already gives.
-       *
-       * On the flat board these quads were siblings of nothing: they lay over
-       * the whole scene, so a step cell drew ON TOP of the bush and the rabbit
-       * standing on it, and a raised cell's diamond lapped over the cell
-       * behind it. `IsoIslandView.blocks` exists precisely to stop that — the
-       * cell's own grass is drawn between two neighbouring veils, so they
-       * cannot compound into the double-dark wedge every terrace edge wore.
-       *
-       * `mountVeil` also POSITIONS it: the block's own projection, not ours.
-       * Anything placed by hand alongside lands in a different space and
-       * drifts off the cell, which is what the trap markers used to do.
-       */
-      if (!this.terrain?.mountVeil(tile, cell)) {
-        // No block (off-island): keep the old behaviour rather than drop the
-        // cell, or a raid on a ragged coast would lose its steps.
-        cell.position.set(x, y);
-        this.board.addChild(cell);
-      }
-      this.raidCells.push(cell);
-
-      // The number. Absent under a smoke screen — and a zero is drawn as
-      // nothing at all, exactly as minesweeper does, so the eye goes to the
-      // tiles that carry danger.
-      if (clue !== null && clue > 0) {
-        const label = pixelText(x, y - 3, String(clue));
-        label.anchor.set(0.5);
-        label.scale.set(0.5);
-        label.tint = CLUE_COLOURS[Math.min(clue, CLUE_COLOURS.length - 1)];
-        // Mounted in the same block as the diamond it belongs to, one step
-        // above it — a number left on the flat board would be read against a
-        // cell it no longer sits with once the terrain sorts.
-        label.position.set(0, -3);
-        if (!this.terrain?.mountVeil(tile, label, 3)) {
-          label.position.set(x, y - 3);
-          label.zIndex = burrowDepth(this.data.seed, tile) + 0.4;
-          this.board.addChild(label);
-        }
-        this.raidLabels.push(label);
-      }
+    // Fog: lifted off every tile the raider has been sent, left on the rest.
+    // Faded, as the island fades a dig, except on the first frame — a board
+    // that fades in its whole starting patch reads as loading, not as seen.
+    const seen = new Map(state.view.map((v) => [v.tile, v.clue]));
+    for (const [tile, cell] of this.raidCells) {
+      const target = seen.has(tile) ? 0 : FOG_ALPHA;
+      gsap.killTweensOf(cell.fog);
+      if (fresh || cell.fog.alpha === target) cell.fog.alpha = target;
+      else gsap.to(cell.fog, { alpha: target, duration: 0.25, ease: 'power2.out' });
+      this.setClue(cell, seen.get(tile) ?? null, !fresh);
     }
 
-    // The raider themselves — an actual rabbit standing on the ground, not a
-    // coloured lozenge. A raid is the player walking into somebody's home, and
-    // a tinted diamond among other tinted diamonds gave them nothing to follow
-    // with their eye: on a board of a dozen visible cells the one thing that
-    // must be unmistakable is where you are.
-    const here = burrowTileScreen(this.data.seed, state.at);
-    const raider = this.buildRaider();
-    raider.position.set(here.x, here.y);
-    raider.zIndex = burrowDepth(this.data.seed, state.at) + 0.6;
-    this.board.addChild(raider);
-    this.raidActors.push(raider);
+    // The raider: the island's rabbit, hopping from where it was to where the
+    // server says it now is. Dropped in from above on arrival, as on the farm.
+    if (!this.raider) {
+      this.raider = this.buildRaider(state.seed, state.at);
+      this.board.addChild(this.raider.container);
+      this.raider.playSpawnDrop();
+    } else if (state.at !== this.raiderAt) {
+      this.raider.cancelMove();
+      this.raider.moveTo(state.at);
+    }
+    this.raiderAt = state.at;
+
+    // The ring: the tiles a tap will be accepted on, lit and swept exactly as
+    // the island lights and sweeps the eight around its rabbit. A finished
+    // raid sends none, and the ring goes dark.
+    this.lightSteps(state.steps, state.at);
   }
 
   /**
-   * The attacker's sprite.
-   *
-   * The game's own bunny, idling, so the figure crossing a burrow is the same
-   * character that digs an island — one player, two screens. Falls back to a
-   * plain marker when the sheets have not loaded, because a raid that draws no
-   * raider at all is worse than one that draws a lozenge.
+   * One veil per walkable tile of the defender's ground, the island's `Tile`
+   * in miniature: fog, ring and blink, all mounted in the cell's own terrain
+   * block so they sort with the ground rather than lapping over the cell
+   * behind (see `Tile.mountVeil` for the double-dark wedge this avoids).
    */
-  private buildRaider(): Container {
-    const group = new Container();
-    const frames = getBunnyAnimTextures(Keys.BUNNY_WHITE, 'idle');
+  private buildRaidCells(seed: string): void {
+    this.raidCellsSeed = seed;
+    const hit = () => {
+      // The diamond is scaled to the burrow's tile; the hit polygon is in the
+      // sprite's own space, so it is scaled back — see `buildBoard`.
+      const k = diamondScaleFor(BURROW_HALF_W, BURROW_HALF_H);
+      return new Polygon([
+        0, -BURROW_HALF_H / k.y,
+        BURROW_HALF_W / k.x, 0,
+        0, BURROW_HALF_H / k.y,
+        -BURROW_HALF_W / k.x, 0,
+      ]);
+    };
+    for (const tile of walkableTiles(seed)) {
+      const fog = burrowDiamondSolid();
+      fog.tint = FOG_COLOR;
+      fog.alpha = FOG_ALPHA;
+      // The VEIL is what the pointer sees, as on the island: it sorts with
+      // the ground, so a raised tile's veil answers before the lower one it
+      // covers. Interactive whether or not it is lit — the hit test does not
+      // read alpha — and the handler checks the ring, so a tap on dark ground
+      // is silently nothing rather than a refused request.
+      fog.eventMode = 'static';
+      fog.label = `raid-step-${tile}`;
+      fog.hitArea = hit();
+      fog.on('pointerdown', () => {
+        if (this.raidSteps.has(tile)) this.onRaidStep?.(tile);
+      });
 
-    // A contact shadow first, so the rabbit reads as standing on the tile
-    // rather than floating over it — the same trick the island's deco uses.
-    group.addChild(
-      new Graphics()
-        .ellipse(0, 0, BURROW_HALF_W * 0.34, BURROW_HALF_H * 0.34)
-        .fill({ color: 0x000000, alpha: 0.26 }),
-    );
+      const ring = burrowDiamond();
+      ring.tint = HIGHLIGHT_COLOR;
+      ring.visible = false;
 
-    if (frames.length) {
-      const sprite = new AnimatedSprite(frames);
-      // Feet at the tile's centre, like every other standing thing here.
-      sprite.anchor.set(0.5, 0.9);
-      sprite.scale.set(RAIDER_SCALE);
-      sprite.animationSpeed = 8 / 60;
-      sprite.loop = true;
-      sprite.play();
-      group.addChild(sprite);
-    } else {
-      const marker = burrowDiamond();
-      marker.tint = STEP_TINT;
-      marker.alpha = 0.95;
-      group.addChild(marker);
+      const blink = burrowDiamondSolid();
+      blink.tint = HIGHLIGHT_COLOR;
+      blink.visible = false;
+      blink.alpha = 0;
+
+      // Local depths as `Tile.mountVeil` assigns them: fog 2, ring 4, blink
+      // 5 — and the clue above all three (see `setClue`).
+      const { x, y } = burrowTileScreen(seed, tile);
+      for (const [sprite, z] of [[fog, 2], [ring, 4], [blink, 5]] as const) {
+        if (this.terrain?.mountVeil(tile, sprite, z)) continue;
+        sprite.position.set(x, y);
+        sprite.zIndex = burrowDepth(seed, tile) + z / 10;
+        this.board.addChild(sprite);
+      }
+      this.raidCells.set(tile, { fog, ring, blink, clue: null, clueCount: null });
     }
-    return group;
+  }
+
+  /**
+   * The number on a cleared tile — the island's hint, glyph for glyph: the
+   * same shadowed face, the same minesweeper colour ladder, the same pop-in.
+   * A zero is drawn as nothing, as minesweeper does, and a smoke screen (`null`)
+   * likewise: the eye goes to the tiles that carry danger.
+   */
+  private setClue(cell: RaidCell, count: number | null, animate: boolean): void {
+    const wanted = count !== null && count > 0 ? count : null;
+    if (cell.clueCount === wanted) return;
+    cell.clue?.destroy({ children: true });
+    cell.clue = null;
+    cell.clueCount = wanted;
+    if (wanted === null) return;
+
+    const label = shadowedPixelText(0, 0, String(wanted));
+    label.face.tint = HINT_TINTS[Math.min(wanted, HINT_TINTS.length - 1)];
+    // Above the ring and the blink in the cell's block. Mounted there rather
+    // than on the flat board so it is read against the cell it belongs to
+    // once the terrain sorts (`mountVeil` positions it by the block's own
+    // projection).
+    const tile = [...this.raidCells].find(([, c]) => c === cell)?.[0];
+    if (tile === undefined || !this.terrain?.mountVeil(tile, label.group, 6)) {
+      this.board.addChild(label.group);
+    }
+    cell.clue = label.group;
+    if (animate) {
+      label.group.scale.set(0);
+      gsap.to(label.group.scale, { x: CLUE_SCALE, y: CLUE_SCALE, duration: 0.22, ease: 'back.out(2)' });
+    } else {
+      label.group.scale.set(CLUE_SCALE);
+    }
+  }
+
+  /**
+   * Light the tiles a tap will be accepted on, and sweep the blink round the
+   * raider — `IslandScene.refreshReachable` and `startSweep`, on this board.
+   */
+  private lightSteps(steps: number[], at: number): void {
+    this.darkenSteps();
+    this.raidSteps = new Set(steps);
+    for (const tile of steps) {
+      const cell = this.raidCells.get(tile);
+      if (!cell) continue;
+      cell.ring.visible = true;
+      cell.blink.visible = true;
+      cell.blink.alpha = 0;
+      cell.fog.cursor = 'pointer';
+      this.raidLit.push(tile);
+    }
+    if (this.raidLit.length === 0) return;
+
+    // Sorted by ANGLE from the raider, so the blink travels in a circle
+    // rather than in index order.
+    const { col: rc, row: rr } = burrowColRow(at);
+    const ring = [...this.raidLit].sort((a, b) => {
+      const p = burrowColRow(a);
+      const q = burrowColRow(b);
+      return Math.atan2(p.row - rr, p.col - rc) - Math.atan2(q.row - rr, q.col - rc);
+    });
+    let step = 0;
+    const tick = () => {
+      const cell = this.raidCells.get(ring[step % ring.length]);
+      if (cell) {
+        gsap.killTweensOf(cell.blink);
+        cell.blink.alpha = 1;
+        gsap.to(cell.blink, { alpha: 0, duration: 1, ease: 'sine.out' });
+      }
+      step++;
+      this.raidSweep = gsap.delayedCall(RAID_SWEEP_SECONDS, tick);
+    };
+    tick();
+  }
+
+  private darkenSteps(): void {
+    this.raidSweep?.kill();
+    this.raidSweep = null;
+    for (const tile of this.raidLit) {
+      const cell = this.raidCells.get(tile);
+      if (!cell) continue;
+      cell.ring.visible = false;
+      gsap.killTweensOf(cell.blink);
+      cell.blink.visible = false;
+      cell.blink.alpha = 0;
+      cell.fog.cursor = 'default';
+    }
+    this.raidLit = [];
+    this.raidSteps = new Set();
+  }
+
+  /**
+   * The attacker: the island's own rabbit, on the burrow's lattice.
+   *
+   * The same class the farm spawns, handed this board's projection and depth
+   * so its hops land on the defender's terraces — one player, one character,
+   * two screens. Sorted half a cell in front of the tile it stands on, as the
+   * island sorts it.
+   */
+  private buildRaider(seed: string, at: number): PlayerRabbit {
+    return new PlayerRabbit(at, Keys.BUNNY_WHITE, '', {
+      at: (tile) => burrowTileScreen(seed, tile),
+      depth: (tile) => burrowDepth(seed, tile) + 0.6,
+    });
   }
 
   /**
@@ -879,9 +932,11 @@ export class BurrowScene implements Scene {
    *
    * Its own call rather than something inferred from the next `setRaid`,
    * because springing a trap is the moment the raid turns and it has to be felt
-   * — a board that simply redrew one tile darker would not register.
+   * — a board that simply redrew one tile darker would not register. The
+   * rabbit takes the hit the way it takes a bomb on the island.
    */
   springTrap(tile: number): void {
+    this.raider?.playDamage();
     const { x, y } = burrowTileScreen(this.data.seed, tile);
     const blast = burrowDiamond();
     blast.position.set(x, y);
@@ -906,12 +961,20 @@ export class BurrowScene implements Scene {
 
   /** Tear the raid overlay down. */
   private clearRaid(): void {
-    for (const c of this.raidCells) { gsap.killTweensOf(c); c.destroy(); }
-    for (const l of this.raidLabels) l.destroy();
-    for (const a of this.raidActors) { gsap.killTweensOf(a); a.destroy({ children: true }); }
-    this.raidCells = [];
-    this.raidLabels = [];
-    this.raidActors = [];
+    this.darkenSteps();
+    for (const cell of this.raidCells.values()) {
+      for (const s of [cell.fog, cell.ring, cell.blink]) { gsap.killTweensOf(s); s.destroy(); }
+      if (cell.clue) { gsap.killTweensOf(cell.clue.scale); cell.clue.destroy({ children: true }); }
+    }
+    this.raidCells.clear();
+    this.raidCellsSeed = null;
+    this.onRaidStep = null;
+    if (this.raider) {
+      this.raider.cancelMove();
+      this.raider.destroy();
+      this.raider = null;
+    }
+    this.raiderAt = -1;
     if (this.raiding) {
       for (const group of this.trapSprites.values()) group.visible = true;
       this.raiding = false;

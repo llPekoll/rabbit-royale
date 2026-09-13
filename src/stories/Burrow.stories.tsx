@@ -222,7 +222,7 @@ function CameraHarness({ loop, seed = SEEDS[0] }: { loop: boolean; seed?: string
     // The harness raids the SAME burrow it is standing in, which no real raid
     // ever does — it is the camera being judged here, not the ground.
     return {
-      view, at, seed, walked: visited,
+      view, at, seed,
       steps: burrowNeighbors(seed, at),
       onStep: () => {},
     };
