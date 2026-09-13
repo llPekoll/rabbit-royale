@@ -4,7 +4,7 @@
  * Ported from the original Rabbit Royale, ENLARGED: the casino version was a
  * fixed 8×8 with 44 playable tiles, which is a solo board — four rabbits racing
  * on it are never more than two steps apart and the whole island is dug out in
- * under a minute. The grid is now 16×16 and the island's shape is CUT FROM A
+ * under a minute. The grid is now 32×32 and the island's shape is CUT FROM A
  * SEED rather than hardcoded, so no two islands read the same.
  *
  * What is deliberately kept from the original: tile proportions (the art is
@@ -14,14 +14,23 @@
  */
 import { mulberry32, seedFrom } from '@/lib/game/rng';
 
-export const COLS = 16;
-export const ROWS = 16;
+/**
+ * 32x32, up from 16x16.
+ *
+ * The 16x16 board was sized to FIT the screen: the whole island in one shot,
+ * no camera. The island now has a free camera — pinch and wheel to zoom, drag
+ * to pan (see `islandCamera`) — so the board no longer has to fit anything.
+ * At the default zoom the ground runs off every edge of the screen, and the
+ * player explores it rather than reading it at a glance.
+ */
+export const COLS = 32;
+export const ROWS = 32;
 
 /**
- * Tile size. The original used 70×38 on an 8×8 board; a 16×16 board at that
- * size spans 1120px, well past the 960px design canvas. 44×24 keeps the SAME
+ * Tile size. The original used 70×38 on an 8×8 board; 44×24 keeps the SAME
  * 70:38 diamond proportion the art is drawn for (so the bunny sprites and tile
- * diamonds still sit right) while the whole island fits the frame.
+ * diamonds still sit right). How big a tile is ON SCREEN is the camera's
+ * business now, not the board's — see `DEFAULT_TILE_PX` in `islandCamera`.
  *
  * Kept even so the diamond's half-width is a whole pixel — a fractional half
  * puts tiles off the pixel grid and the nearest-neighbour art shimmers.

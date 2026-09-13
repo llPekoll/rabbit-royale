@@ -32,8 +32,11 @@ import {
   isForbidden, makeShape, screenToTile, tilePos, tileInScreenDirection,
   toColRow, type IslandShape,
 } from '@/config/gridConfig';
-import { farmableTiles, levelTierAt, spawnTile, terrainTileAt, tierLift } from '@/lib/game/terrainBoard';
-import { islandCam } from './islandCamera';
+import { farmableTiles, levelTierAt, spawnTile, terrainTileAt, tierLift, tileScreenPos } from '@/lib/game/terrainBoard';
+import {
+  islandCam, lookAt, panCam, zoomCam, toScene, toScreen, type IslandCam, type Point,
+} from './islandCamera';
+import { PanZoomGestures } from '../input/PanZoomGestures';
 import type { TileContent } from '@/lib/game/types';
 import { ENERGY, LIGHTNING } from '@config/tuning';
 import { reachableTiles } from '@/lib/game/reachable';
@@ -83,6 +86,30 @@ const SHAKE_PX = 4;
 /** Seconds between blinks as the sweep travels round the rabbit. */
 const SWEEP_STEP_SECONDS = 0.25;
 
+/**
+ * How hard one wheel notch zooms. A notch is ~100 units of `deltaY` on a
+ * mouse, so this is about 15% per click; a trackpad sends a stream of small
+ * deltas and the same constant gives it a smooth glide.
+ */
+const WHEEL_ZOOM_PER_UNIT = 0.0015;
+/**
+ * A trackpad pinch arrives as a wheel event with `ctrlKey` set and deltas an
+ * order of magnitude smaller than a scroll — this brings it back up to a
+ * pinch's pace.
+ */
+const TRACKPAD_PINCH_BOOST = 6;
+/**
+ * The share of the screen, from each edge, the rabbit may not walk into
+ * without the camera following. The board is bigger than the screen now, so a
+ * rabbit left to walk off the edge would be playing blind; the camera slides
+ * to re-centre on it once it gets this close to the frame. A third rather than
+ * a hair, so that the follow reads as the camera keeping up and not as the
+ * ground twitching under every hop.
+ */
+const FOLLOW_MARGIN = 0.3;
+/** How long the follow slide takes. Slower than a hop, faster than a thought. */
+const FOLLOW_SECONDS = 0.45;
+
 /** The bunny sheets, handed out per player so four rabbits are distinguishable. */
 const BUNNY_SHEETS = [
   Keys.BUNNY_WHITE, Keys.BUNNY_BROWN, Keys.BUNNY_GRAY,
@@ -128,9 +155,29 @@ export class IslandScene implements Scene {
   /** Last canvas size the ground was laid out for. */
   private lastW = 0;
   private lastH = 0;
-  /** Where `applyCamera` last put the scene — see `shakeScreen`. */
-  private camX = 0;
-  private camY = 0;
+  /**
+   * Where the camera IS: the one transform on the scene container. Written
+   * only through `setCam`, so the container, the sky and `shakeScreen`'s
+   * return point can never disagree about it.
+   */
+  private cam: IslandCam = { scale: 1, x: 0, y: 0 };
+  /** The design canvas `cam` was solved against — see `reframe`. */
+  private camW = 0;
+  private camH = 0;
+  /** Whether the last shot was solved for a portrait canvas — see `reframe`. */
+  private lastPortrait: boolean | null = null;
+  /** The tap / drag / pinch recogniser on the scene container. */
+  private gestures: PanZoomGestures | null = null;
+  /** Mouse wheel and trackpad pinch, straight off the canvas. */
+  private onWheel: ((e: WheelEvent) => void) | null = null;
+  /**
+   * The tile whose veil the current press landed on, if any. Set by the
+   * tile's own `pointerdown` (which resolves through the draw order) and
+   * consumed on the release, when the gesture turns out to be a tap.
+   */
+  private pressTile: number | null = null;
+  /** The camera slide keeping the rabbit in frame, while one is running. */
+  private follow: gsap.core.Tween | null = null;
 
   /**
    * The canvas everything in this scene is laid out against.
@@ -186,10 +233,10 @@ export class IslandScene implements Scene {
       // Same reason as the ground: the sky's bands are fractions of the design
       // space, so a rotation that swaps it leaves them solved for the old one.
       this.clouds?.resize(this.canvasW, this.canvasH);
-      this.applyCamera();
+      this.reframe();
     };
     window.addEventListener('resize', this.onResize);
-    this.applyCamera();
+    this.solveCamera();
     // Seed the size watch in `update` with the size the shot was just solved
     // for. Left at 0 it reports a change on the very first frame and re-solves
     // for nothing; worse, a scene built while HIDDEN is not ticked at all, so
@@ -224,11 +271,12 @@ export class IslandScene implements Scene {
       const seed = this.data?.seed ?? '';
       const { col, row } = toColRow(i);
       const tile = new Tile(i, undefined, tierLift(seed, i), levelTierAt(seed, col, row));
-      // Per-tile tap, on the VEIL: the pointer follows the tile as drawn, and
-      // a wall over it catches the tap instead (see Tile's constructor). The
-      // Seeker is a touch device, so this — not the keyboard — is how the
-      // game is actually played.
-      tile.onTap(() => this.requestMove(i));
+      // Per-tile press, on the VEIL: the pointer follows the tile as drawn,
+      // and a wall over it catches the press instead (see Tile's constructor).
+      // The Seeker is a touch device, so this — not the keyboard — is how the
+      // game is actually played. Only REMEMBERED here: whether the press is a
+      // tap or the start of a drag is decided on the release (see `onTap`).
+      tile.onPress(() => { this.pressTile = i; });
       this.tiles.set(i, tile);
       this.container.addChild(tile.container);
       // The veil goes into the cell's terrain block, so it sorts with the
@@ -373,25 +421,86 @@ export class IslandScene implements Scene {
     });
     this.controls.attach();
 
-    // Tiles carry their own click handler (see buildTiles). This catches taps
-    // that land on the gap BETWEEN two diamonds, which are frequent on a phone
-    // and would otherwise feel like the game ignoring you.
+    // The whole scene is one pointer surface: every press lands here (a tile's
+    // own veil sees it first and bubbles up), and the gesture recogniser sorts
+    // the presses into taps, drags and pinches. The all-covering hit area is
+    // also what catches taps on the gap BETWEEN two diamonds, which are
+    // frequent on a phone and would otherwise feel like the game ignoring you.
     this.container.eventMode = 'static';
     this.container.hitArea = { contains: () => true };
-    // `pointerdown` to match the tiles: waiting for the finger to LIFT added
-    // the whole press duration to a move that already waits on a round trip.
-    this.container.on('pointerdown', (e) => {
-      // A tap ON a tile has already been handled by that tile, and bubbles up
-      // here. Resolving it again through `terrainTileAt` — a flat-projection
-      // resolver that knows nothing about walls — could name a DIFFERENT tile
-      // and fire a second move at it. Only taps that hit no tile are ours.
-      if (e.target !== this.container) return;
-      const local = this.container.toLocal(e.global);
-      // Terrace-aware: a tap on a plateau must name the plateau, not the
-      // grass drawn below it.
-      const idx = terrainTileAt(this.data?.seed ?? '', local.x, local.y);
-      if (idx !== null) this.requestMove(idx);
-    });
+    this.gestures = new PanZoomGestures(
+      this.container,
+      // Renderer px -> design px, through the root that fits the design space
+      // to the window. The camera's arithmetic lives in design px.
+      (g) => this.designPoint(g),
+      {
+        onGestureStart: () => this.stopFollow(),
+        onPan: (dx, dy) => {
+          if (this.data?.noCamera) return;
+          this.setCam(panCam(this.cam, dx, dy, this.seed, this.canvasW, this.canvasH));
+        },
+        onPinch: (factor, at) => {
+          if (this.data?.noCamera) return;
+          this.setCam(zoomCam(this.cam, factor, at, this.seed, this.canvasW, this.canvasH));
+        },
+        onTap: (at) => this.onTap(at),
+      },
+    );
+    this.gestures.attach();
+
+    // The wheel is bound on the DOM, not through Pixi: Pixi's own wheel
+    // listener is passive, and a trackpad pinch (a wheel event with `ctrlKey`)
+    // has to be `preventDefault`ed or the browser zooms the page instead.
+    const canvas = this.app.canvas as HTMLCanvasElement;
+    this.onWheel = (e) => {
+      if (this.data?.noCamera) return;
+      e.preventDefault();
+      this.stopFollow();
+      const rect = canvas.getBoundingClientRect();
+      const at = this.designPoint({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+      // A `deltaMode` of lines (Firefox with a mouse) reports ~3 per notch
+      // where pixels report ~100; normalise so a notch is a notch.
+      const units = e.deltaMode === WheelEvent.DOM_DELTA_LINE ? e.deltaY * 33 : e.deltaY;
+      const rate = WHEEL_ZOOM_PER_UNIT * (e.ctrlKey ? TRACKPAD_PINCH_BOOST : 1);
+      this.setCam(zoomCam(this.cam, Math.exp(-units * rate), at, this.seed, this.canvasW, this.canvasH));
+    };
+    canvas.addEventListener('wheel', this.onWheel, { passive: false });
+  }
+
+  /** The seed everything on this scene is built from. */
+  private get seed(): string { return this.data?.seed ?? ''; }
+
+  /**
+   * Renderer px -> design px, through the root that fits the design space to
+   * the window. Before the scene is mounted there is no root, and the point
+   * is taken as already being in design px — which is what a story sees.
+   */
+  private designPoint(g: Point): Point {
+    const root = this.container.parent;
+    if (!root) return { x: g.x, y: g.y };
+    const p = root.toLocal(g);
+    return { x: p.x, y: p.y };
+  }
+
+  /**
+   * A press that lifted where it landed: a move.
+   *
+   * The tile pressed is what Pixi's hit test found under the finger, walls and
+   * terraces included (see `Tile.onPress`). Only when the press hit no tile at
+   * all — the hairline between two diamonds — is the point resolved
+   * geometrically, and terrace-aware: a tap on a plateau must name the
+   * plateau, not the grass drawn below it.
+   */
+  private onTap(at: Point): void {
+    const pressed = this.pressTile;
+    this.pressTile = null;
+    if (pressed !== null) {
+      this.requestMove(pressed);
+      return;
+    }
+    const local = this.data?.noCamera ? at : toScene(this.cam, at);
+    const idx = terrainTileAt(this.seed, local.x, local.y);
+    if (idx !== null) this.requestMove(idx);
   }
 
   /**
@@ -458,11 +567,11 @@ export class IslandScene implements Scene {
     this.buildTiles();
     this.refreshReachable();
 
-    // The shot is solved from the SEED's own terrain — how tall the island
-    // came out, how far its lattice reaches — so a new island needs a new
-    // one. Without this the scene keeps the previous island's framing while
-    // drawing this one, which is how the farm ended up zoomed into a corner.
-    this.applyCamera();
+    // The shot is solved from the SEED's own terrain — where its spawn is, how
+    // far its lattice reaches — so a new island needs a new one. Without this
+    // the scene keeps the previous island's framing while drawing this one,
+    // which is how the farm ended up zoomed into a corner.
+    this.solveCamera();
   }
 
   // ── Server events ──────────────────────────────────────────────────────────
@@ -664,41 +773,117 @@ export class IslandScene implements Scene {
    * Tweens the container's position and restores it exactly, so repeated blasts
    * cannot accumulate drift.
    */
+  // ── Camera ─────────────────────────────────────────────────────────────────
+
   /**
-   * Frame the island: one transform on the scene container.
+   * Put the camera somewhere: one transform on the scene container.
    *
    * Everything in the scene — terrain, tiles, rabbits, fog, arrows — is laid
    * out in the board's own coordinates around `ISO_ORIGIN_*`, and stays there.
    * This is the only place that decides how that ground maps onto the screen,
    * which is why the whole scene keeps its measured internal relationships
-   * while the shot changes. See `islandCamera` for what the shot is and why.
+   * while the shot changes. See `islandCamera` for the arithmetic and the
+   * limits; the gestures, the wheel, the follow and the resize all end here.
    *
-   * Records the framing in `camX` / `camY` so `shakeScreen` has something to
-   * return to: the shake tweens the container's position and restores it from
-   * a value captured when it started, so a resize DURING a blast would
-   * otherwise be undone the moment the shake finished.
+   * The sky is counter-scaled every time: its bands are parked just off the
+   * FRAME's edges, and a camera that dragged the parked bank into view would
+   * read as fog rolling over the board.
    */
-  private applyCamera(): void {
-    if (this.data?.noCamera) {
-      this.camX = 0;
-      this.camY = 0;
-      this.container.scale.set(1);
-      this.container.position.set(0, 0);
-      return;
-    }
-    const cam = islandCam(
-      this.data?.seed ?? '',
-      this.canvasW,
-      this.canvasH,
-    );
-    this.camX = cam.x;
-    this.camY = cam.y;
+  private setCam(cam: IslandCam): void {
+    this.cam = cam;
+    this.camW = this.canvasW;
+    this.camH = this.canvasH;
     // A shake owns the position until it completes, and it restores to
-    // camX/camY — which this has just updated. Writing position here as well
+    // `this.cam` — which this has just updated. Writing position here as well
     // would fight the tween for the rest of the blast.
     gsap.killTweensOf(this.container.position);
     this.container.scale.set(cam.scale);
     this.container.position.set(cam.x, cam.y);
+    this.clouds?.counterCamera(cam.scale, cam.x, cam.y);
+  }
+
+  /**
+   * The opening shot for this island: the default zoom, centred on the local
+   * rabbit if there is one and on the spawn otherwise — which is where the
+   * rabbit is about to land.
+   */
+  private solveCamera(): void {
+    this.stopFollow();
+    this.lastPortrait = this.canvasH > this.canvasW;
+    if (this.data?.noCamera) {
+      this.setCam({ scale: 1, x: 0, y: 0 });
+      return;
+    }
+    const me = this.data ? this.rabbits.get(this.data.playerId) : null;
+    const focus = me ? tileScreenPos(this.seed, this.myTile) : undefined;
+    this.setCam(islandCam(this.seed, this.canvasW, this.canvasH, focus));
+  }
+
+  /**
+   * The canvas changed size under the camera.
+   *
+   * A resize keeps the player's zoom and whatever was in the middle of the
+   * screen, and only re-clamps — the player chose that shot, and a window
+   * being dragged wider is no reason to take it away. A ROTATION is different:
+   * the design space swaps from 960x540 to 480x860, and the zoom that made a
+   * 60px tile in one is nonsense in the other, so it re-opens on the default.
+   */
+  private reframe(): void {
+    if (this.data?.noCamera) return;
+    const portrait = this.canvasH > this.canvasW;
+    if (this.lastPortrait !== null && portrait !== this.lastPortrait) {
+      this.solveCamera();
+      return;
+    }
+    this.lastPortrait = portrait;
+    // The scene point that was centred BEFORE the size changed, re-centred on
+    // the new canvas. Recovered from the camera and the canvas it was solved
+    // against, not from the renderer's pixel size — the camera works in
+    // design px and those are what it was centred in.
+    const centre = toScene(this.cam, { x: this.camW / 2, y: this.camH / 2 });
+    this.setCam(lookAt(this.seed, centre, this.cam.scale, this.canvasW, this.canvasH));
+  }
+
+  /**
+   * Slide the camera to keep the local rabbit in frame.
+   *
+   * Not a follow-cam: the camera holds still while the rabbit walks around the
+   * middle of the screen, so the ground does not drift under every hop, and
+   * only moves once the rabbit gets within `FOLLOW_MARGIN` of an edge. Then it
+   * re-centres in one slide. A player who has panned away to read the far
+   * side of the island gets the camera brought back on their next step, which
+   * is also when they need it back.
+   */
+  private keepInView(): void {
+    if (this.data?.noCamera) return;
+    // A finger on the screen owns the camera; the follow waits for the next
+    // step rather than fighting the drag for it.
+    if (this.gestures?.active) return;
+    const at = tileScreenPos(this.seed, this.myTile);
+    const on = toScreen(this.cam, at);
+    const W = this.canvasW;
+    const H = this.canvasH;
+    const inside = on.x > W * FOLLOW_MARGIN && on.x < W * (1 - FOLLOW_MARGIN)
+      && on.y > H * FOLLOW_MARGIN && on.y < H * (1 - FOLLOW_MARGIN);
+    if (inside) return;
+
+    this.stopFollow();
+    const to = lookAt(this.seed, at, this.cam.scale, W, H);
+    const proxy = { x: this.cam.x, y: this.cam.y };
+    this.follow = gsap.to(proxy, {
+      x: to.x,
+      y: to.y,
+      duration: FOLLOW_SECONDS,
+      ease: 'power2.out',
+      onUpdate: () => this.setCam({ scale: to.scale, x: proxy.x, y: proxy.y }),
+      onComplete: () => { this.follow = null; },
+    });
+  }
+
+  /** A finger on the screen owns the camera; the follow lets go. */
+  private stopFollow(): void {
+    this.follow?.kill();
+    this.follow = null;
   }
 
   private shakeScreen(): void {
@@ -708,16 +893,16 @@ export class IslandScene implements Scene {
     // a harder jolt the further the camera is zoomed in.
     const kick = SHAKE_PX / this.container.scale.x;
     gsap.to(this.container.position, {
-      x: this.camX + kick,
-      y: this.camY + kick * 0.6,
+      x: this.cam.x + kick,
+      y: this.cam.y + kick * 0.6,
       duration: 0.05,
       repeat: 7,
       yoyo: true,
       ease: 'none',
       // Restores to the CAMERA's framing rather than to a position captured
-      // when the shake began — a resize mid-blast moves the camera, and
+      // when the shake began — a pan mid-blast moves the camera, and
       // returning to the old spot would undo it.
-      onComplete: () => this.container.position.set(this.camX, this.camY),
+      onComplete: () => this.container.position.set(this.cam.x, this.cam.y),
     });
   }
 
@@ -745,6 +930,8 @@ export class IslandScene implements Scene {
         this.stunnedUntil = 0;
         if (energy !== undefined) this.myEnergy = energy;
         this.refreshReachable();
+        // A respawn is a cut, not a hop: the camera cuts with it.
+        this.solveCamera();
       }
       return;
     }
@@ -759,6 +946,8 @@ export class IslandScene implements Scene {
       this.stunnedUntil = 0;
       if (energy !== undefined) this.myEnergy = energy;
       this.refreshReachable();
+      // Open on the rabbit, wherever the spawn came out on this island.
+      this.solveCamera();
     }
   }
 
@@ -780,6 +969,8 @@ export class IslandScene implements Scene {
       this.sound.playHop();
       // The ring travels with the rabbit.
       this.refreshReachable();
+      // And so does the camera, once the rabbit nears the edge of the frame.
+      this.keepInView();
     }
   }
 
@@ -811,6 +1002,8 @@ export class IslandScene implements Scene {
       this.myTile = landedOn;
       if (stunnedUntil !== undefined) this.stunnedUntil = stunnedUntil;
       this.refreshReachable();
+      // A knockback can throw the rabbit clean out of the frame.
+      this.keepInView();
     }
   }
 
@@ -854,7 +1047,7 @@ export class IslandScene implements Scene {
       this.lastH = h;
       this.background?.layout(this.canvasW / 2, this.canvasH / 2);
       this.clouds?.resize(this.canvasW, this.canvasH);
-      this.applyCamera();
+      this.reframe();
     }
   }
 
@@ -868,6 +1061,13 @@ export class IslandScene implements Scene {
     // outlive an island change and fire a bolt into a destroyed container.
     for (const timer of this.lightningTimers) window.clearTimeout(timer);
     this.lightningTimers.clear();
+    this.stopFollow();
+    this.gestures?.destroy();
+    this.gestures = null;
+    if (this.onWheel) {
+      (this.app.canvas as HTMLCanvasElement).removeEventListener('wheel', this.onWheel);
+      this.onWheel = null;
+    }
     this.clouds?.destroy();
     this.arrows?.destroy();
     this.controls?.destroy();

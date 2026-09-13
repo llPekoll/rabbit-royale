@@ -1,58 +1,46 @@
 /**
- * The island has to FILL the screen, and be big enough to play with a thumb.
+ * The island is bigger than the screen, and the camera is what makes that
+ * playable: it opens on a tile a thumb can hit, centred on the rabbit, and it
+ * can be zoomed and dragged — but never past the point where the island is
+ * lost.
  *
- * Both halves of that were broken, and in a way only a phone showed. The scene
- * was laid out around `ISO_ORIGIN_X = 515` — measured by hand against the
- * 960-wide landscape canvas — and then fitted to the window. In portrait the
- * design space is 480 wide, so the board's own origin sat past the right edge
- * of the canvas it was measured in, and the fit shrank everything to
- * compensate. On top of that the fit was a CONTAIN, so whatever was left
- * between the board's shape and the window's came out as bare sea.
- *
- * The assertions below are the two complaints, made checkable: the ground
- * reaches every edge, and a cell is a real tap target. Asserted per seed
- * because the island is generated — a shape the numbers were never tuned
- * against would fail for exactly the player who rolled it, and for nobody
- * else.
+ * The board used to be framed once per viewport as a cover of the whole
+ * lattice, because the whole board had to be on screen: with no way to pan, a
+ * cell off-screen was a cell that could not be tapped. That shot was retired
+ * with the 32x32 board — a cover of it would draw a 30px tile in landscape and
+ * 15px in portrait — and the assertions below are the new contract. Asserted
+ * per seed because the island is generated: a shape the numbers were never
+ * tuned against would fail for exactly the player who rolled it.
  */
 import { describe, expect, it } from 'vitest';
-import { islandCamFraming, MIN_TILE_PX } from '../src/game/scenes/islandCamera';
+import {
+  boardBounds, clampCam, islandCam, islandCamFraming, panCam, zoomCam, zoomLimits,
+  toScene, MIN_TILE_PX, MAX_TILE_PX, DEFAULT_TILE_PX,
+} from '../src/game/scenes/islandCamera';
 import { ISO_TILE_W } from '../src/config/gridConfig';
 
 /** The design spaces the game actually runs in — see Application. */
 const VIEWPORTS = [
   { name: 'landscape', w: 960, h: 540 },
   { name: 'portrait', w: 480, h: 860 },
-  // The real one the bug was reported on: a Telegram mini-app on a phone.
+  // The real one the first camera bug was reported on: a Telegram mini-app.
   { name: 'telegram portrait', w: 390, h: 719 },
 ] as const;
 
 const SEEDS = ['island-1', 'island-2', 'seed:abc', 'default', 'x'] as const;
 
-describe('island camera', () => {
+describe('the opening shot', () => {
   for (const v of VIEWPORTS) {
     describe(v.name, () => {
-      it('covers every edge — no bare sea anywhere', () => {
-        // Both axes, which is what taking the cover against the DRAWN
-        // lattice rather than the walkable box bought. Fitting the walkable
-        // box left ~144px of sea along the top of a phone; every cell it
-        // excluded has terrain on it.
+      it('overflows the screen — the island is bigger than the frame', () => {
+        // The whole point of the larger board. A shot that fitted it would be
+        // the old cover again, at a tile size nobody can tap.
         for (const seed of SEEDS) {
           const f = islandCamFraming(seed, v.w, v.h);
-          expect(f.board.left, seed).toBeLessThanOrEqual(0.5);
-          expect(f.board.top, seed).toBeLessThanOrEqual(0.5);
-          expect(f.board.right, seed).toBeGreaterThanOrEqual(v.w - 0.5);
-          expect(f.board.bottom, seed).toBeGreaterThanOrEqual(v.h - 0.5);
-        }
-      });
-
-      it('keeps enough of the board reachable to play it', () => {
-        // There is no camera-follow: a cell you cannot see is a cell you
-        // cannot tap, so an over-zoomed shot is not a cosmetic problem.
-        for (const seed of SEEDS) {
-          const f = islandCamFraming(seed, v.w, v.h);
-          expect(v.w / f.tileWidth, seed).toBeGreaterThanOrEqual(5);
-          expect(f.tileWidth, seed).toBeGreaterThanOrEqual(MIN_TILE_PX);
+          expect(f.board.left, seed).toBeLessThan(0);
+          expect(f.board.right, seed).toBeGreaterThan(v.w);
+          expect(f.board.top, seed).toBeLessThan(0);
+          expect(f.board.bottom, seed).toBeGreaterThan(v.h);
         }
       });
 
@@ -63,58 +51,110 @@ describe('island camera', () => {
         }
       });
 
-      it('centres the island on the frame', () => {
+      it('draws the tile at the size the orientation asks for', () => {
+        const want = v.h > v.w ? DEFAULT_TILE_PX.portrait : DEFAULT_TILE_PX.landscape;
         for (const seed of SEEDS) {
           const f = islandCamFraming(seed, v.w, v.h);
-          // Equal overflow on opposite edges is what "centred" means for a
-          // cover: whatever is cropped is cropped evenly, so the island is
-          // never pushed against one side.
-          expect(f.board.left + f.board.right, seed).toBeCloseTo(v.w, 5);
-          expect(f.board.top + f.board.bottom, seed).toBeCloseTo(v.h, 5);
+          expect(f.tileWidth, seed).toBeCloseTo(want, 5);
+        }
+      });
+
+      it('opens on the spawn, in the middle of the screen', () => {
+        // The lattice's centre used to be the anchor; on a board this size it
+        // can be a whole screen away from where the rabbit lands.
+        for (const seed of SEEDS) {
+          const f = islandCamFraming(seed, v.w, v.h);
+          expect(f.spawn.x, seed).toBeCloseTo(v.w / 2, 5);
+          expect(f.spawn.y, seed).toBeCloseTo(v.h / 2, 5);
         }
       });
     });
   }
+});
 
-  /**
-   * The complaint that started this: "on mobile it is really too small, can you
-   * zoom all that x2". Measured against what the OLD path drew — the portrait
-   * design space fitted to the phone, at which a 44px tile came out around
-   * 36px on a 390-wide screen.
-   */
-  it('at least doubles the old on-screen tile size in portrait', () => {
-    const phone = { w: 390, h: 719 };
-    // What the fit-contain used to give: design space 480x860 scaled to fit.
-    const oldScale = Math.min(phone.w / 480, phone.h / 860);
-    const oldTilePx = ISO_TILE_W * oldScale;
+describe('the zoom range', () => {
+  for (const v of VIEWPORTS) {
+    it(`${v.name}: zoomed all the way out, the whole island is in frame`, () => {
+      for (const seed of SEEDS) {
+        const { min } = zoomLimits(seed, v.w, v.h);
+        const b = boardBounds(seed);
+        expect(b.w * min, seed).toBeLessThanOrEqual(v.w + 1e-6);
+        expect(b.h * min, seed).toBeLessThanOrEqual(v.h + 1e-6);
+        // And it is a real overview, not the opening shot again.
+        expect(min, seed).toBeLessThan(islandCam(seed, v.w, v.h).scale);
+      }
+    });
 
-    for (const seed of SEEDS) {
-      const f = islandCamFraming(seed, 480, 860);
-      // The camera works in design space; the canvas fit then applies on top.
-      const newTilePx = f.tileWidth * oldScale;
-      expect(newTilePx / oldTilePx, seed).toBeGreaterThanOrEqual(2);
-    }
+    it(`${v.name}: zoomed all the way in, a tile is four times its art`, () => {
+      for (const seed of SEEDS) {
+        const { max } = zoomLimits(seed, v.w, v.h);
+        expect(max * ISO_TILE_W, seed).toBeCloseTo(MAX_TILE_PX, 5);
+      }
+    });
+  }
+
+  it('is never inverted, however small the screen', () => {
+    const { min, max } = zoomLimits('island-1', 120, 80);
+    expect(max).toBeGreaterThanOrEqual(min);
+  });
+});
+
+describe('zooming about a point', () => {
+  it('keeps the scene point under the finger where it was', () => {
+    // What makes a pinch feel like grabbing the map rather than a slider.
+    const seed = 'island-1';
+    const [W, H] = [960, 540];
+    const cam = islandCam(seed, W, H);
+    const at = { x: 300, y: 200 };
+    const before = toScene(cam, at);
+    const after = toScene(zoomCam(cam, 1.5, at, seed, W, H), at);
+    expect(after.x).toBeCloseTo(before.x, 5);
+    expect(after.y).toBeCloseTo(before.y, 5);
   });
 
-  /**
-   * The trade the portrait shot deliberately makes.
-   *
-   * Filling the height and shrinking the tiles are in direct conflict on a
-   * phone (the lattice is 1.68:1, the screen 0.56:1), and this is the side that
-   * was chosen: the ground reaches the top, at about five columns in frame.
-   *
-   * Pinned because the losing side of that trade is one constant away, and a
-   * later tune that quietly reopened the band of sea along the top would be
-   * undoing a decision rather than adjusting a number.
-   */
-  it('fills the height of a portrait phone', () => {
-    for (const seed of SEEDS) {
-      const f = islandCamFraming(seed, 480, 860);
-      expect(f.board.top, seed).toBeLessThanOrEqual(0.5);
-      expect(f.board.bottom, seed).toBeGreaterThanOrEqual(860 - 0.5);
-      // And the cost it is paid for with, so the trade stays visible here
-      // rather than only in the camera's own comments.
-      expect(480 / f.tileWidth, seed).toBeGreaterThan(4.5);
-    }
+  it('stops at the limits rather than sailing past them', () => {
+    const seed = 'island-2';
+    const [W, H] = [480, 860];
+    const { min, max } = zoomLimits(seed, W, H);
+    const cam = islandCam(seed, W, H);
+    expect(zoomCam(cam, 100, { x: 10, y: 10 }, seed, W, H).scale).toBeCloseTo(max, 5);
+    expect(zoomCam(cam, 0.001, { x: 10, y: 10 }, seed, W, H).scale).toBeCloseTo(min, 5);
+  });
+});
+
+describe('panning', () => {
+  for (const v of VIEWPORTS) {
+    it(`${v.name}: cannot drag the island off the screen`, () => {
+      for (const seed of SEEDS) {
+        const cam = islandCam(seed, v.w, v.h);
+        const b = boardBounds(seed);
+        for (const [dx, dy] of [[1e6, 0], [-1e6, 0], [0, 1e6], [0, -1e6], [1e6, 1e6]]) {
+          const c = panCam(cam, dx, dy, seed, v.w, v.h);
+          // The lattice's edge may cross the screen's edge by a quarter of the
+          // screen — enough to bring a coast to the middle — and no further.
+          expect(c.x + c.scale * b.minX, seed).toBeLessThanOrEqual(v.w * 0.25 + 1e-6);
+          expect(c.x + c.scale * b.maxX, seed).toBeGreaterThanOrEqual(v.w * 0.75 - 1e-6);
+          expect(c.y + c.scale * b.minY, seed).toBeLessThanOrEqual(v.h * 0.25 + 1e-6);
+          expect(c.y + c.scale * b.maxY, seed).toBeGreaterThanOrEqual(v.h * 0.75 - 1e-6);
+        }
+      }
+    });
+  }
+
+  it('centres an axis the board no longer fills, instead of pinning it', () => {
+    // Zoomed all the way out the lattice is smaller than the screen on one
+    // axis; there is nothing to pan to there, so it sits in the middle.
+    const seed = 'island-1';
+    const [W, H] = [960, 540];
+    const { min } = zoomLimits(seed, W, H);
+    const b = boardBounds(seed);
+    const c = clampCam({ scale: min, x: -5000, y: -5000 }, seed, W, H);
+    const left = c.x + c.scale * b.minX;
+    const right = c.x + c.scale * b.maxX;
+    const top = c.y + c.scale * b.minY;
+    const bottom = c.y + c.scale * b.maxY;
+    // Whichever axis has slack is centred: equal margins either side.
+    if (b.w * min < W - 1e-6) expect(left + right).toBeCloseTo(W, 5);
+    if (b.h * min < H - 1e-6) expect(top + bottom).toBeCloseTo(H, 5);
   });
 });

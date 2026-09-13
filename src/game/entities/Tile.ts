@@ -244,15 +244,19 @@ export class Tile {
   }
 
   /**
-   * Run `fn` when the tile is tapped. Bound to the veil — see the constructor.
+   * Run `fn` when a pointer goes DOWN on the tile. Bound to the veil — see the
+   * constructor.
    *
-   * On `pointerdown`, not `pointertap`: a tap only becomes a `pointertap` when
-   * the finger LIFTS, so every millisecond the player holds the screen was
-   * added to a move that already waits on a server round trip. The press is
-   * the moment the intent exists, and nothing here needs the release — there
-   * is no drag to tell a tap apart from.
+   * A press, not a tap: this fires on `pointerdown`, and the tile does not know
+   * whether the finger will lift where it landed or drag the camera away. The
+   * scene remembers which tile was pressed and decides on the release, once
+   * its gesture recogniser has said whether this was a tap or a pan (see
+   * `PanZoomGestures`). Resolving the press here through Pixi's hit test is
+   * still what makes a raised tile win over the lower one its wall covers —
+   * the draw order answers "which tile is under the pointer" exactly as the
+   * picture does, which the flat geometric resolver cannot.
    */
-  onTap(fn: () => void): void {
+  onPress(fn: () => void): void {
     this.fog.on('pointerdown', fn);
   }
 

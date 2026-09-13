@@ -1,64 +1,43 @@
 /**
- * Where the island's camera sits, and why it moves.
+ * The island's camera: where it starts, how far it may go, and the arithmetic
+ * of moving it.
  *
- * The island used to have no camera at all. The board was laid out around
- * `ISO_ORIGIN_X` / `ISO_ORIGIN_Y` — two numbers MEASURED by hand against the
- * 960x540 landscape canvas — and the whole design space was then fitted to the
- * window by `Application.resize`. That works on a desktop, where the canvas and
- * the window have roughly the same shape. On a phone it fails twice over:
+ * The island used to be framed ONCE per viewport — a cover of the whole
+ * lattice, solved so the ground reached every edge of the screen and then
+ * held — because the whole board had to be on screen: there was no way to
+ * reach a cell that was not. That shot only worked because the board was
+ * small. It is 32x32 now, and the point of a board that size is that it does
+ * NOT fit: the player zooms (pinch, wheel) and pans (drag) across it, and the
+ * camera is state the gestures move rather than a number solved from the seed.
  *
- *  - The portrait design space is 480x860, but the origin is still 515 — past
- *    the right edge of the canvas it is supposedly measured in. The board hung
- *    off the side and the fit shrank everything to compensate.
- *  - `Math.min(w / W, h / H)` is a fit-CONTAIN. Whatever the board's shape, the
- *    difference between it and the window's shape came out as bare sea: the
- *    played ground never reached the edges of the screen it was drawn on.
+ * Everything here is pure arithmetic in DESIGN pixels (the `GAME_W`/`GAME_H`
+ * space `Application` fits to the window), on a `{ scale, x, y }` triple that
+ * `IslandScene` applies as one transform on its container. Scene coordinates
+ * map to design coordinates as `design = x + scale * scene`. Nothing in the
+ * scene moves for the camera; only the window onto it does.
  *
- * So the island now frames itself the way the burrow already does
- * (`burrowCamera`): solve for the seed's OWN board rather than for a canvas
- * that no longer describes anything, and one transform on the scene container
- * so the terrain, the board, the rabbits and the fog keep their measured
- * relationship and only the window onto them changes.
+ * Three rules, and the reasons for them:
  *
- * ## Why this is a cover, and what the cover is taken against
+ *  - The DEFAULT ZOOM is a tile size, not a fit. The old cover produced a
+ *    ~60px tile in landscape and ~73px in portrait, and both were played and
+ *    accepted; a fit of the new lattice would draw a 30px tile in landscape and
+ *    15px in portrait, which is no longer a tap target. So the default is the
+ *    tile size the old shot happened to give, made explicit, and the island
+ *    simply overflows the frame around it.
  *
- * The island is played by TAPPING the cell you want to step onto, and there is
- * no camera-follow: the shot is solved once per viewport and then holds. So an
- * over-zoomed shot is not cosmetic — a cell off screen is a cell that cannot be
- * walked to.
+ *  - The ZOOM RANGE runs from "the whole island in frame" to a tile four times
+ *    its drawn size. The floor is an overview — cells that small are not meant
+ *    to be tapped, and the player zooms back in to play — and the ceiling is
+ *    where the pixel art stops being art.
  *
- * What makes a cover safe here is WHAT it is taken against. The first cut
- * fitted the walkable box, copying the burrow, and a cover on that box needed
- * 3.3x — four columns of sixteen, the rest unreachable. But the walkable box is
- * not what is drawn: `TerrainBackground` builds the terrain over the FULL 16x16
- * lattice, so the shore and the cliffs outside the playable island are ground
- * too. Against the lattice (704x420 rather than 374x282) the portrait cover is
- * 2.05x, and that is a shot you can play.
- *
- * ## The trade this shot makes, deliberately
- *
- * Portrait is where the two things anyone wants are in direct conflict. The
- * lattice is 1.68:1 and a portrait phone is 0.56:1 — three times narrower — so
- * the height can be filled or the tiles can be made smaller, never both:
- *
- *     scale   tile on a phone   columns across   sea band top and bottom
- *     1.36    49px              8.0              144px
- *     1.50    54px              7.3              115px
- *     1.80    64px              6.1               52px
- *     2.05    73px              5.3                0px
- *
- * The shot takes the bottom row: the ground reaches the top and bottom of the
- * screen, at the cost of holding about five columns in frame. That is a choice
- * about how the game should look, not a fact about the arithmetic — the row
- * above is a one-constant change if it should ever read as too close.
- *
- * The only way to have both is to change the GENERATOR rather than the shot: a
- * taller grid (`ROWS`, or `TERRAIN_OPTIONS`) brings the lattice's aspect closer
- * to the screen's, and the cover scale falls out of it.
+ *  - The PAN is clamped to the land: the island can be dragged until its coast
+ *    meets the screen's edge (plus a little slack) and no further, so it can
+ *    never be lost off-screen. On an axis where the island is smaller than the
+ *    screen it is centred instead, since there is nothing to pan to.
  */
 import { GAME_W, GAME_H } from '../Application';
-import { COLS, ROWS, HALF_W, HALF_H, tilePos, toColRow } from '@/config/gridConfig';
-import { levelTierAt, TIER_LIFT } from '@/lib/game/terrainBoard';
+import { COLS, ROWS, HALF_W, HALF_H, ISO_TILE_W, tilePos, toColRow } from '@/config/gridConfig';
+import { levelTierAt, spawnTile, tileScreenPos, TIER_LIFT } from '@/lib/game/terrainBoard';
 
 export interface IslandCam {
   scale: number;
@@ -66,104 +45,229 @@ export interface IslandCam {
   y: number;
 }
 
-/**
- * The DRAWN ground's bounding box, in scene coordinates.
- *
- * The whole 16x16 lattice, not just the walkable cells — and this is the
- * correction that made the island reach the top of the screen.
- *
- * The first cut of this camera fitted the playable box, copying the burrow,
- * where it is right: there the sea around the homestead really is empty
- * framing. Here it is not. `TerrainBackground` builds `IsoIslandView` over the
- * FULL grid, so the shore, the cliffs and the scenery outside the walkable
- * island are all drawn ground. Measured, the difference is not marginal: the
- * playable box is about 374x282 and the lattice is 704x438, so fitting the
- * former framed a small island floating in the middle of the latter and left
- * ~150px of bare sea above it. Every cell the old box excluded is a cell with
- * terrain on it.
- *
- * Headroom above for the tallest tier: a raised tile is drawn as a column whose
- * TOP FACE is at the lifted point and whose art continues upward past it, so a
- * box measured at tile centres clips the plateaus along the top row.
- */
-function boardBounds(seed: string) {
-  // Tallest tier ON this island, not the generator's ceiling: reserving three
-  // tiers of headroom for a flat island would push the ground back down and
-  // reopen the very gap this exists to close.
-  let tallest = 0;
-  for (let i = 0; i < COLS * ROWS; i++) {
-    const { col, row } = toColRow(i);
-    const tier = levelTierAt(seed, col, row);
-    if (tier > tallest) tallest = tier;
-  }
-
-  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-  for (let i = 0; i < COLS * ROWS; i++) {
-    const { x, y } = tilePos(i);
-    minX = Math.min(minX, x - HALF_W);
-    maxX = Math.max(maxX, x + HALF_W);
-    minY = Math.min(minY, y - HALF_H - tallest * TIER_LIFT);
-    maxY = Math.max(maxY, y + HALF_H);
-  }
-  return { minX, maxX, minY, maxY, w: maxX - minX, h: maxY - minY };
+/** A point, in whichever space the caller says. */
+export interface Point {
+  x: number;
+  y: number;
 }
 
 /**
- * How much lattice must stay in frame across the screen's WIDTH, in cells.
+ * How wide a tile is drawn at the DEFAULT zoom, in design pixels.
  *
- * The backstop against a keyhole: whatever shape the island came out, keep
- * this many cells across so the player can see where they are going.
- *
- * In `HALF_W` units, not whole tiles — a diamond column advances by half a tile
- * width, so this is ~7 columns of the 16.
- *
- * It is deliberately LOOSE enough not to bind in portrait. It used to be 10.5,
- * measured against the playable box; against the full lattice that same number
- * capped the scale at 1.36 where the cover wants 1.96, and the 144px of sea
- * along the top came straight back. A limit that quietly overrides the thing it
- * is limiting is worse than no limit: the point here is to stop an absurd zoom,
- * not to be the value that decides the shot.
+ * Per orientation because the design spaces are: 960x540 landscape and 480x860
+ * portrait are two different rulers, and the same tile has to come out the
+ * same size under a thumb on each. These are the sizes the old cover shot
+ * produced (60 and 73), rounded to what read best — the portrait one nudged up
+ * because a phone is held closer than a desk.
  */
-const MIN_CELLS_VISIBLE = 7;
+export const DEFAULT_TILE_PX = { landscape: 60, portrait: 80 } as const;
 
 /**
- * The smallest a cell may be drawn, in DESIGN pixels.
+ * The smallest a cell may be drawn AT THE DEFAULT ZOOM, in design pixels.
  *
  * A tile is a tap target: the island is played by tapping the cell you want to
  * step onto, and the ring of eight around the rabbit has to be separable by a
- * thumb. Design px rather than device px, because the canvas is itself fitted
- * to the screen — see `MIN_TILE_PX` in `burrowCamera`, the same reasoning.
+ * thumb. The player may zoom OUT past this for an overview — that is what the
+ * overview is for — but the shot the game opens on must be playable as is.
  */
 export const MIN_TILE_PX = 26;
 
 /**
- * Frame the island: cover the canvas with the seed's own played ground, then
- * clamp back to what stays playable.
+ * The largest a cell may be drawn, in design pixels: four times its art.
  *
- * The `Math.max` is the difference between this and the fit it replaces — it
- * lets the LONGER axis overflow instead of leaving a band of sea. The ceiling
- * under it is what stops that from going too far.
+ * Past this the 44px diamond is a wall of nearest-neighbour blocks and the
+ * player can see about three cells, which is a keyhole rather than a board.
  */
-export function islandCam(seed: string, W: number = GAME_W, H: number = GAME_H): IslandCam {
+export const MAX_TILE_PX = ISO_TILE_W * 4;
+
+/**
+ * How far past the island's edge the board may be dragged, as a share of the
+ * screen. Zero would pin the coast to the screen edge; a little slack lets it
+ * be pulled towards the middle so the cells on it can be tapped without a
+ * thumb on the bezel.
+ */
+const PAN_SLACK = 0.25;
+
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+/**
+ * The LAND's bounding box, in scene coordinates, with a shore around it.
+ *
+ * The land only — cells the terrain raised above the sea — and not the whole
+ * lattice. The lattice is a 32x32 diamond and the island fills about 60% of
+ * it, so its bounding box is mostly open sea; a pan clamped against it let
+ * the island be dragged until only its corner was left on screen, with two
+ * thirds of the frame showing water. Clamping against the land is what makes
+ * "the island cannot be lost" mean the island.
+ *
+ * `SHORE` cells of margin all round, so the coast's foam and the rim of sea
+ * the surf is drawn on stay in the box: the pan may bring the coast to the
+ * edge of the screen, not cut it off at the last land cell.
+ *
+ * Headroom above for the tallest tier ON this island: a raised tile is drawn
+ * as a column whose top face is at the lifted point and whose art continues
+ * upward past it, so a box measured at tile centres clips the plateaus along
+ * the top row.
+ *
+ * Cached by seed: it is read on every gesture event, and a pinch fires dozens
+ * a second.
+ */
+export interface Bounds {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+  w: number;
+  h: number;
+}
+
+/** Cells of sea kept around the land in the camera's box — see `boardBounds`. */
+const SHORE = 2;
+
+const boundsCache = new Map<string, Bounds>();
+
+export function boardBounds(seed: string): Bounds {
+  const hit = boundsCache.get(seed);
+  if (hit) return hit;
+
+  let tallest = 0;
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (let i = 0; i < COLS * ROWS; i++) {
+    const { col, row } = toColRow(i);
+    const tier = levelTierAt(seed, col, row);
+    if (tier === 0) continue;
+    if (tier > tallest) tallest = tier;
+    const { x, y } = tilePos(i);
+    minX = Math.min(minX, x - HALF_W);
+    maxX = Math.max(maxX, x + HALF_W);
+    minY = Math.min(minY, y - HALF_H);
+    maxY = Math.max(maxY, y + HALF_H);
+  }
+  minX -= SHORE * HALF_W * 2;
+  maxX += SHORE * HALF_W * 2;
+  minY -= SHORE * HALF_H * 2 + tallest * TIER_LIFT;
+  maxY += SHORE * HALF_H * 2;
+  const b = { minX, maxX, minY, maxY, w: maxX - minX, h: maxY - minY };
+  boundsCache.set(seed, b);
+  return b;
+}
+
+/**
+ * The zoom the camera may not leave, for this island on this screen.
+ *
+ * `min` puts the whole island in frame — the overview. `max` is the tile
+ * ceiling, or `min` if the screen is so small that even the overview is past
+ * it, so the range is never inverted.
+ */
+export function zoomLimits(seed: string, W: number = GAME_W, H: number = GAME_H) {
   const b = boardBounds(seed);
-  // What it would take to fill the screen in both axes — the long axis wins,
-  // which is the whole difference between a cover and a fit.
-  const cover = Math.max(W / b.w, H / b.h);
-  // And what it may not exceed if the board is to stay reachable.
-  const ceiling = W / (MIN_CELLS_VISIBLE * HALF_W);
-  // The floor keeps a cell tappable on a viewport so extreme that even the
-  // ceiling is small. Applied last, so it wins: an untappable board is a
-  // worse failure than a board zoomed past its budget.
-  const scale = Math.max(Math.min(cover, ceiling), MIN_TILE_PX / (HALF_W * 2));
+  const min = Math.min(W / b.w, H / b.h);
+  const max = Math.max(MAX_TILE_PX / ISO_TILE_W, min);
+  return { min, max };
+}
+
+/** The zoom the island opens on: a playable tile, whatever the screen. */
+export function defaultZoom(seed: string, W: number = GAME_W, H: number = GAME_H): number {
+  const tile = H > W ? DEFAULT_TILE_PX.portrait : DEFAULT_TILE_PX.landscape;
+  const { min, max } = zoomLimits(seed, W, H);
+  return clamp(Math.max(tile, MIN_TILE_PX) / ISO_TILE_W, min, max);
+}
+
+/**
+ * Bring a camera back inside what it is allowed to show: the zoom range, and
+ * the pan that keeps the lattice against the frame.
+ */
+export function clampCam(cam: IslandCam, seed: string, W: number = GAME_W, H: number = GAME_H): IslandCam {
+  const { min, max } = zoomLimits(seed, W, H);
+  const scale = clamp(cam.scale, min, max);
+  const b = boardBounds(seed);
   return {
     scale,
-    x: W / 2 - scale * (b.minX + b.maxX) / 2,
-    y: H / 2 - scale * (b.minY + b.maxY) / 2,
+    x: clampAxis(cam.x, scale, b.minX, b.maxX, W),
+    y: clampAxis(cam.y, scale, b.minY, b.maxY, H),
   };
 }
 
 /**
- * What the shot puts where, for the test that guards it.
+ * One axis of the pan clamp. `lo..hi` is the board in scene units, `size` the
+ * screen in design units. Centred when the board is the smaller of the two;
+ * otherwise held so the board's edge cannot pass the screen's edge by more
+ * than the slack.
+ */
+function clampAxis(pos: number, scale: number, lo: number, hi: number, size: number): number {
+  const span = (hi - lo) * scale;
+  if (span <= size) return size / 2 - scale * (lo + hi) / 2;
+  const slack = size * PAN_SLACK;
+  // board.left = pos + scale * lo must stay <= slack, and
+  // board.right = pos + scale * hi must stay >= size - slack.
+  return clamp(pos, size - slack - scale * hi, slack - scale * lo);
+}
+
+/** A camera at `scale` with the scene point `focus` in the middle of the screen. */
+export function lookAt(
+  seed: string, focus: Point, scale: number, W: number = GAME_W, H: number = GAME_H,
+): IslandCam {
+  return clampCam({
+    scale,
+    x: W / 2 - scale * focus.x,
+    y: H / 2 - scale * focus.y,
+  }, seed, W, H);
+}
+
+/**
+ * The opening shot: the default zoom, centred on `focus` — by default the tile
+ * a run starts on, which is where the rabbit will land. The lattice's centre
+ * used to be the anchor, and on a board this size that could be a screen away
+ * from the spawn.
+ */
+export function islandCam(
+  seed: string, W: number = GAME_W, H: number = GAME_H, focus?: Point,
+): IslandCam {
+  const at = focus ?? tileScreenPos(seed, spawnTile(seed));
+  return lookAt(seed, at, defaultZoom(seed, W, H), W, H);
+}
+
+/**
+ * Zoom by `factor` about the design point `at`, so whatever is under the
+ * finger — or the wheel — stays under it. That invariant is what makes a
+ * pinch feel like grabbing the map rather than like a slider: solve for the
+ * scene point at `at` before, and place the same point at `at` after.
+ */
+export function zoomCam(
+  cam: IslandCam, factor: number, at: Point, seed: string,
+  W: number = GAME_W, H: number = GAME_H,
+): IslandCam {
+  const { min, max } = zoomLimits(seed, W, H);
+  const scale = clamp(cam.scale * factor, min, max);
+  const sceneX = (at.x - cam.x) / cam.scale;
+  const sceneY = (at.y - cam.y) / cam.scale;
+  return clampCam({
+    scale,
+    x: at.x - sceneX * scale,
+    y: at.y - sceneY * scale,
+  }, seed, W, H);
+}
+
+/** Slide the camera by a design-space delta, clamped. */
+export function panCam(
+  cam: IslandCam, dx: number, dy: number, seed: string,
+  W: number = GAME_W, H: number = GAME_H,
+): IslandCam {
+  return clampCam({ scale: cam.scale, x: cam.x + dx, y: cam.y + dy }, seed, W, H);
+}
+
+/** Where a scene point lands on the screen under `cam`, in design units. */
+export function toScreen(cam: IslandCam, p: Point): Point {
+  return { x: cam.x + cam.scale * p.x, y: cam.y + cam.scale * p.y };
+}
+
+/** The scene point under a design-space screen point. */
+export function toScene(cam: IslandCam, p: Point): Point {
+  return { x: (p.x - cam.x) / cam.scale, y: (p.y - cam.y) / cam.scale };
+}
+
+/**
+ * What the opening shot puts where, for the test that guards it.
  *
  * Returned rather than re-derived in the test, so the assertion is made against
  * the code that actually runs instead of a second copy of the arithmetic that
@@ -181,5 +285,8 @@ export function islandCamFraming(seed: string, W: number, H: number) {
       bottom: cam.y + cam.scale * b.maxY,
     },
     tileWidth: HALF_W * 2 * cam.scale,
+    /** Where the spawn tile's centre lands on screen. */
+    spawn: toScreen(cam, tileScreenPos(seed, spawnTile(seed))),
+    limits: zoomLimits(seed, W, H),
   };
 }

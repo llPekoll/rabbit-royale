@@ -4,7 +4,7 @@ import { resolveMove, spawnRabbit } from '@/lib/game/run';
 import { reachableTiles } from '@/lib/game/reachable';
 import { terrainNeighbors, farmableTiles, spawnTile } from '@/lib/game/terrainBoard';
 import { mulberry32 } from '@/lib/game/rng';
-import { makeShape } from '@/config/gridConfig';
+import { COLS, ROWS, makeShape } from '@/config/gridConfig';
 
 /**
  * The promise the whole redesign rests on: the ring the client lights is
@@ -35,7 +35,7 @@ describe('client ring mirrors server authority', () => {
 
     // And every tile NOT offered by the terrain is refused.
     const offered = new Set(terrainNeighbors(seed, rabbit.tile));
-    for (let i = 0; i < 256; i++) {
+    for (let i = 0; i < COLS * ROWS; i++) {
       if (offered.has(i) || i === rabbit.tile) continue;
       const fresh = spawnRabbit('p3', 'T', 10, seed);
       fresh.lastMoveAt = 0;

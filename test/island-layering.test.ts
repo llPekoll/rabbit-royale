@@ -159,7 +159,11 @@ describe('the pointer sees the veil', () => {
     expect(TILE).toMatch(/this\.container\.eventMode = 'passive';/);
     expect(TILE).toMatch(/this\.fog\.eventMode = 'static';/);
     expect(TILE).toMatch(/this\.fog\.on\('pointerdown', fn\);/);
-    expect(SCENE).toMatch(/tile\.onTap\(\(\) => this\.requestMove\(i\)\);/);
+    // The press is REMEMBERED on the veil and resolved on the release, once
+    // the gesture recogniser has said it was a tap and not the start of a
+    // drag — see `PanZoomGestures`. What matters here is that it is the veil
+    // that sees the press.
+    expect(SCENE).toMatch(/tile\.onPress\(\(\) => \{ this\.pressTile = i; \}\);/);
   });
 
   it('lets the wall catch the pointer over the veil it covers', () => {
@@ -176,6 +180,11 @@ describe('the pointer sees the veil', () => {
   });
 
   it('resolves a tap once', () => {
-    expect(SCENE).toMatch(/if \(e\.target !== this\.container\) return;/);
+    // A press that landed on a veil names that tile — the one Pixi's hit test
+    // found, walls and terraces included. Only a press that hit NO tile is
+    // resolved geometrically, and never both: resolving a veil's press again
+    // through the flat resolver could name a different tile and fire a
+    // second move at it.
+    expect(SCENE).toMatch(/const pressed = this\.pressTile;\s*this\.pressTile = null;\s*if \(pressed !== null\) \{\s*this\.requestMove\(pressed\);\s*return;\s*\}/);
   });
 });

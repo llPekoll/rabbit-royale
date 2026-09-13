@@ -1,5 +1,10 @@
 /**
- * How big the island is drawn, and whether it reaches the edges of the screen.
+ * How big the island is drawn, and how it is moved.
+ *
+ * The board is 32x32 and the camera is FREE: drag to pan, pinch or wheel to
+ * zoom, both live in this story. The readout gives the opening shot's numbers
+ * — tile size on a phone, how far the ground overflows the frame, the zoom
+ * range — and the picture is the thing itself.
  *
  * Written after "sur mobile c'est vraiment trop petit". Two faults, and neither
  * one shows on a desktop, which is why both shipped:
@@ -78,14 +83,14 @@ function Scene({ seed, portrait, camera }: Args) {
   const shownTile = ISO_TILE_W * shownScale;
   const shown = shownTile * fit;
 
-  // Does the drawn ground reach EVERY edge? It does, on both axes — that is
-  // what taking the cover against the full lattice rather than the walkable
-  // box bought. With the camera off the board sits wherever ISO_ORIGIN_* put
+  // Does the drawn ground OVERFLOW every edge? That is the opening shot's
+  // contract now: the island is bigger than the screen and the player pans
+  // across it. With the camera off the board sits wherever ISO_ORIGIN_* put
   // it, which in portrait is partly off the right-hand side.
   const covers = camera
-    && f.board.left <= 0.5 && f.board.top <= 0.5
-    && f.board.right >= canvas.width - 0.5
-    && f.board.bottom >= canvas.height - 0.5;
+    && f.board.left < 0 && f.board.top < 0
+    && f.board.right > canvas.width
+    && f.board.bottom > canvas.height;
 
   return (
     <div style={{ position: 'relative', lineHeight: 0 }}>
@@ -127,8 +132,8 @@ on a ${PHONE.width}x${PHONE.height} phone: ${shown.toFixed(0)}px per tile${camer
 ${camera
   ? `board spans x ${f.board.left.toFixed(0)}..${f.board.right.toFixed(0)}  y ${f.board.top.toFixed(0)}..${f.board.bottom.toFixed(0)}`
   : 'board sits at the raw ISO_ORIGIN (515, 150) - measured for the 960-wide landscape canvas'}
-${covers ? 'the ground reaches every edge - no bare sea' : 'BARE SEA - the ground stops short of an edge'}
-${(canvas.width / shownTile).toFixed(1)} tiles across the frame   (no camera-follow: a tile off screen is a tile you cannot tap)`}
+${covers ? 'the ground overflows every edge - drag to pan, pinch or wheel to zoom' : 'BARE SEA - the ground stops short of an edge'}
+${(canvas.width / shownTile).toFixed(1)} tiles across the frame   zoom ${f.limits.min.toFixed(2)}x (whole island) .. ${f.limits.max.toFixed(2)}x`}
       </pre>
     </div>
   );
@@ -147,15 +152,8 @@ export default meta;
 type Story = StoryObj<Args>;
 
 /**
- * The fix, on the viewport it was asked for: a portrait phone.
- *
- * A tile lands near 73px against the 36px it used to be, and the ground reaches
- * every edge — no band of sea at the top.
- *
- * That pairing is the trade this shot makes on purpose. The lattice is 1.68:1
- * and the screen 0.56:1, so filling the height and shrinking the tiles pull
- * against each other; reaching the top costs holding about five columns in
- * frame. `islandCamera` has the table of what the other choices would give.
+ * The opening shot on a portrait phone: an 80px tile, the spawn in the middle
+ * of the frame, and the island running off every edge. Drag it.
  */
 export const Portrait: Story = { args: { portrait: true, camera: true } };
 
@@ -168,11 +166,8 @@ export const Portrait: Story = { args: { portrait: true, camera: true } };
 export const PortraitBefore: Story = { args: { portrait: true, camera: false } };
 
 /**
- * Landscape, where the bug was mild and so went unnoticed.
- *
- * The whole lattice fits across the frame here (16 columns against portrait's
- * five), so landscape never had the conflict portrait does: the cover fills the
- * height at a scale that still shows everything.
+ * Landscape: a 60px tile, and the same overflow on every side. The wheel zooms
+ * about the pointer; a trackpad pinch does the same.
  */
 export const Landscape: Story = { args: { portrait: false, camera: true } };
 

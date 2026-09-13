@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { BOMB, ENERGY, MULTIPLAYER } from '../config/tuning';
 import { generateIsland } from '../src/lib/game/island';
 import { resolveMove, spawnRabbit, isAdjacent, knockbackTarget } from '../src/lib/game/run';
-import { SPAWN_INDEX, makeShape, neighbors, toColRow } from '../src/config/gridConfig';
+import { COLS, ROWS, SPAWN_INDEX, makeShape, neighbors, toColRow } from '../src/config/gridConfig';
 import { mulberry32 } from '../src/lib/game/rng';
 import type { Island } from '../src/lib/game/types';
 
@@ -131,7 +131,7 @@ describe('resolveMove', () => {
     const island = blank();
     const rabbit = spawnRabbit('p1', 'Test');
     // A tile index that is not land at all.
-    const water = [...Array(256).keys()].find((i) => !island.tiles.has(i))!;
+    const water = [...Array(COLS * ROWS).keys()].find((i) => !island.tiles.has(i))!;
     const out = resolveMove(island, rabbit, water, shape, rng(), soon());
     expect(out.rejection).toBe('off-island');
   });

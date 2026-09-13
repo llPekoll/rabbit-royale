@@ -50,9 +50,6 @@ describe('Pixi receives events at all', () => {
     // Taps land between two tiles constantly on a phone; without this the game
     // feels like it is ignoring you.
     expect(SCENE).toMatch(/hitArea = \{ contains: \(\) => true \}/);
-    // `pointerdown`, not `pointertap`: the move must not wait for the finger
-    // to lift on top of the server round trip it already waits for.
-    expect(SCENE).toMatch(/on\('pointerdown'/);
   });
 
   it('lets each tile answer for itself as well', () => {
@@ -60,21 +57,51 @@ describe('Pixi receives events at all', () => {
     // sorts with the ground, so a raised tile's veil is hit before the lower
     // veil it covers — and the container, which floats above everything with
     // the hints, stays transparent to the pointer.
-    expect(SCENE).toMatch(/tile\.onTap\(/);
+    expect(SCENE).toMatch(/tile\.onPress\(/);
     const TILE = readFileSync(new URL('../src/game/entities/Tile.ts', import.meta.url), 'utf8');
     expect(TILE).toMatch(/this\.fog\.on\('pointerdown', fn\)/);
     expect(TILE).toMatch(/this\.container\.eventMode = 'passive'/);
   });
 
-  it('never waits for the finger to lift before asking to move', () => {
-    // A move already costs a server round trip — the rabbit is placed by the
-    // server, never locally — so the press must go out at the moment of
-    // contact. `pointertap` fires on RELEASE, quietly adding however long the
-    // player held the screen to every hop. Both the per-tile handler and the
-    // scene's between-the-diamonds fallback are on `pointerdown`; neither may
-    // drift back.
+  it('never moves the rabbit on the press alone', () => {
+    // The board is bigger than the screen and is dragged to pan. A drag that
+    // starts on a lit tile — the rabbit is in the middle of the screen, which
+    // is exactly where a thumb lands to pan — must NOT hop the rabbit before
+    // the finger has moved. So the tile only REMEMBERS the press, and the move
+    // fires from the gesture recogniser's tap, on the release. Neither the tile
+    // nor the scene may fire a move straight from `pointerdown` again.
+    const TILE = readFileSync(new URL('../src/game/entities/Tile.ts', import.meta.url), 'utf8');
+    expect(TILE).not.toMatch(/onTap\(/);
+    expect(SCENE).toMatch(/tile\.onPress\(\(\) => \{ this\.pressTile = i; \}\)/);
+    expect(SCENE).not.toMatch(/this\.container\.on\('pointerdown'/);
+    expect(SCENE).toMatch(/new PanZoomGestures\(/);
+  });
+
+  it('never uses pointertap, which would swallow a drag that ended on a tile', () => {
     const TILE = readFileSync(new URL('../src/game/entities/Tile.ts', import.meta.url), 'utf8');
     expect(TILE).not.toMatch(/\.on\('pointertap'/);
     expect(SCENE).not.toMatch(/\.on\('pointertap'/);
+  });
+});
+
+describe('the camera can be driven by hand', () => {
+  const GESTURES = readFileSync(new URL('../src/game/input/PanZoomGestures.ts', import.meta.url), 'utf8');
+
+  it('follows the pointer wherever it goes mid-drag', () => {
+    // `pointermove` stops at the canvas edge and under the HUD panels;
+    // `globalpointermove` does not, so a drag never freezes mid-gesture.
+    expect(GESTURES).toMatch(/on\('globalpointermove'/);
+    expect(GESTURES).toMatch(/on\('pointerupoutside'/);
+    // Pixi never forwards `pointercancel` to a container, so a cancelled touch
+    // has to be dropped from the DOM or the next finger reads as a pinch.
+    expect(GESTURES).toMatch(/window\.addEventListener\('pointercancel'/);
+  });
+
+  it('binds the wheel on the DOM so a trackpad pinch cannot zoom the page', () => {
+    // Pixi's own wheel listener is passive; a `ctrlKey` wheel (a trackpad
+    // pinch) has to be `preventDefault`ed or the browser zooms the document.
+    expect(SCENE).toMatch(/addEventListener\('wheel', this\.onWheel, \{ passive: false \}\)/);
+    expect(SCENE).toMatch(/e\.preventDefault\(\)/);
+    expect(SCENE).toMatch(/removeEventListener\('wheel'/);
   });
 });
