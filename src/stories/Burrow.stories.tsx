@@ -59,6 +59,14 @@ interface Args {
    * "does an upgrade actually show in the field?" be answered by looking.
    */
   garden: number;
+  /**
+   * Minutes of shield left on the burrow — 0 for none.
+   *
+   * The sign is drawn over the BUILDING, so the thing worth looking at here is
+   * whether it clears the roofline at every level rather than sinking into the
+   * art: the silhouette grows with the upgrade and the badge has to ride it.
+   */
+  shieldMins: number;
 }
 
 /**
@@ -74,7 +82,7 @@ function defaultTraps(seed: string, n: number): number[] {
     .slice(0, n);
 }
 
-function Scene({ seed, traps, placing, level, garden }: Args) {
+function Scene({ seed, traps, placing, level, garden, shieldMins }: Args) {
   const [placed, setPlaced] = useState<number[]>(defaultTraps(seed, traps));
 
   return (
@@ -111,6 +119,7 @@ function Scene({ seed, traps, placing, level, garden }: Args) {
             // steps in. Driving the real scene from a script is the only way
             // to look at step 7 without clicking to it by hand.
             (globalThis as { __BURROW_SCENE?: BurrowScene }).__BURROW_SCENE = scene;
+            scene.setShield(shieldMins > 0 ? shieldMins * 60_000 : null);
           });
 
           return () => {
@@ -130,17 +139,32 @@ function Scene({ seed, traps, placing, level, garden }: Args) {
 const meta: Meta<Args> = {
   title: 'Burrow/Board',
   render: (args) => <Scene key={JSON.stringify(args)} {...args} />,
-  args: { seed: SEEDS[0], traps: 0, placing: false, level: 1, garden: 1 },
+  args: { seed: SEEDS[0], traps: 0, placing: false, level: 1, garden: 1, shieldMins: 0 },
   argTypes: {
     seed: { control: 'select', options: SEEDS },
     traps: { control: { type: 'range', min: 0, max: TRAPS.MAX_PLACED, step: 1 } },
     level: { control: { type: 'range', min: 1, max: BURROW.MAX_LEVEL, step: 1 } },
     garden: { control: { type: 'range', min: 0, max: 1, step: 0.05 } },
+    shieldMins: { control: { type: 'range', min: 0, max: 720, step: 5 } },
   },
 };
 export default meta;
 
 type Story = StoryObj<Args>;
+
+/**
+ * Freshly raided: the shield sign stands over the burrow.
+ *
+ * The badge replaced a HIT POINTS bar in the side column. HP defended nothing
+ * — traps are what a raider fights — so what the player needs on the BOARD is
+ * the one thing the bar ever decided: how long until raids can land again.
+ */
+export const Shielded: Story = { args: { shieldMins: 252 } };
+
+/** The same sign on the biggest silhouette, which is what it has to clear. */
+export const ShieldedMaxLevel: Story = {
+  args: { shieldMins: 45, level: BURROW.MAX_LEVEL },
+};
 
 /** How the burrow looks when you are just visiting it: no grid at all. */
 export const AtRest: Story = {};

@@ -18,7 +18,7 @@
  * art so it interleaves with the board, aligning the terrain's origin with the
  * board's — is the same idea, and the comments there are the long version.
  */
-import { Container, Sprite, Texture } from 'pixi.js';
+import { Container, Graphics, Sprite, Texture, type BitmapText } from 'pixi.js';
 import { IsoIslandView, loadIslandTileset, isoProject } from '@/game/island';
 import {
   BURROW_HALF_W, BURROW_HALF_H, BURROW_TIER_LIFT,
@@ -31,6 +31,7 @@ import { createDucks, loadDucks } from '@/game/fx/Ducks';
 import { WATER_LOOK, DUCK_LOOK } from '@/config/waterLook';
 import { burrowBuilding } from './buildings';
 import { burrowDepth } from './screen';
+import { pixelText } from '@/game/ui/PixelText';
 
 /**
  * Scenery is cut for 64px tiles; the burrow's are 40x22.
@@ -46,6 +47,15 @@ export interface BurrowTerrainView {
   view: Container;
   /** The burrow building, so the scene can swap it on an upgrade. */
   setLevel(level: number | null | undefined): void;
+  /**
+   * The shield sign that floats over the burrow, or null to take it down.
+   *
+   * It lives HERE rather than in the React column because a shield is a fact
+   * about the place: the card in the panel is a reading, and the player's eyes
+   * are on the board. `ms` is the time left, so the sign can count down in the
+   * one unit the player can act on.
+   */
+  setShield(ms: number | null): void;
   /**
    * Show only these tiles of the homestead, hiding the rest entirely.
    *
@@ -184,7 +194,63 @@ export async function createBurrowTerrain(
       island.view.position.y + island.originY + p.y,
     );
     home.zIndex = burrowDepth(seed, burrowIndex(b.x, b.y)) + 1;
+    // The sign rides the building: an upgrade moves nothing horizontally, but
+    // a taller silhouette would leave a badge pinned to the old roofline.
+    placeShield();
   };
+
+  /**
+   * The shield sign over the burrow.
+   *
+   * Drawn as a plaque rather than text alone: a bare string over a painted
+   * homestead is unreadable against grass one moment and sky the next, and
+   * this has to be legible from the resting camera without being tapped.
+   *
+   * Built once and hidden, not created on demand — a badge that appears every
+   * time the countdown ticks would rebuild a BitmapText every second.
+   */
+  const shield = new Container();
+  shield.visible = false;
+  shield.zIndex = 100_000;
+  const shieldPlate = new Graphics();
+  const shieldLabel: BitmapText = pixelText(0, 0, 'SHIELD');
+  shieldLabel.anchor.set(0.5, 0);
+  shieldLabel.tint = 0x8fe3ff;
+  const shieldTime: BitmapText = pixelText(0, 0, '');
+  shieldTime.anchor.set(0.5, 0);
+  shield.addChild(shieldPlate, shieldLabel, shieldTime);
+  container.addChild(shield);
+
+  /** Park the sign above the building's head, whatever level it is. */
+  const placeShield = () => {
+    // `home` is anchored at the art's foot, so its top is one full drawn
+    // height above its own y — that height is what the badge clears.
+    const lift = home.texture.height * DECO_SCALE * home.anchor.y + 14;
+    shield.position.set(home.position.x, home.position.y - lift);
+  };
+
+  const setShield = (ms: number | null) => {
+    if (ms === null || ms <= 0) {
+      shield.visible = false;
+      return;
+    }
+    const mins = Math.ceil(ms / 60_000);
+    shieldTime.text = (mins < 60
+      ? `${mins}M`
+      : `${Math.floor(mins / 60)}H ${mins % 60}M`).toUpperCase();
+
+    // Laid out AFTER the text is set, because the plate is sized to it.
+    shieldLabel.y = 4;
+    shieldTime.y = shieldLabel.y + shieldLabel.height + 2;
+    const w = Math.max(shieldLabel.width, shieldTime.width) + 12;
+    const h = shieldTime.y + shieldTime.height + 4;
+    shieldPlate.clear();
+    shieldPlate.roundRect(-w / 2, 0, w, h, 3).fill({ color: 0x0d1117, alpha: 0.82 });
+    shieldPlate.roundRect(-w / 2, 0, w, h, 3).stroke({ width: 1, color: 0x8fe3ff, alpha: 0.9 });
+    shield.visible = true;
+    placeShield();
+  };
+
   place(level);
 
   /**
@@ -244,6 +310,7 @@ export async function createBurrowTerrain(
   return {
     view: island.view,
     setLevel: place,
+    setShield,
     mountVeil(tile, veil, zIndex) {
       const { col, row } = burrowColRow(tile);
       return island.mountVeil(col, row, veil, zIndex);
@@ -259,6 +326,10 @@ export async function createBurrowTerrain(
         home.visible = true;
         return;
       }
+      // The sign goes with the building it hangs over: a badge floating in
+      // unrevealed dark would mark the burrow's position for a raider who has
+      // not walked there yet.
+      shield.visible = false;
       const cells: Array<{ x: number; y: number }> = [];
       let buildingSeen = false;
       const b = burrowBuilding(seed, level);
@@ -274,16 +345,6 @@ export async function createBurrowTerrain(
       }
       island.revealOnly(cells);
       home.visible = buildingSeen;
-      // TEMPORARY (see TapProbe): why the defender's building is or is not on
-      // screen. It hides until the raider uncovers the exact cell it stands
-      // on, which on most layouts is the far end of the crossing — so "I
-      // cannot see their base" is expected for most of a raid, and this says
-      // so out loud rather than leaving it to be read off the code.
-      console.log('[burrow-home]', JSON.stringify({
-        building: { x: b.x, y: b.y, tile: burrowIndex(b.x, b.y), tier: b.tier },
-        visible: buildingSeen,
-        revealed: cells.length,
-      }));
     },
     update(deltaMs) {
       island.update(deltaMs);
@@ -294,6 +355,7 @@ export async function createBurrowTerrain(
       ducks.update(deltaMs);
     },
     destroy() {
+      shield.destroy({ children: true });
       home.destroy();
       water.destroy();
       ducks.destroy();

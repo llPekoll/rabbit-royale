@@ -201,6 +201,14 @@ export interface BurrowSceneData {
    * blank.
    */
   level?: number | null;
+  /**
+   * Milliseconds of shield left on the OWNER's burrow, or null for none.
+   *
+   * The sign belongs on the board rather than only in the side column: the
+   * shield is a fact about the place, and the place is what the player is
+   * looking at while they decide whether to go farm or dig in.
+   */
+  shieldMs?: number | null;
 }
 
 export class BurrowScene implements Scene {
@@ -262,6 +270,9 @@ export class BurrowScene implements Scene {
   private async showGround(seed: string, level: number | null | undefined): Promise<void> {
     if (seed === this.data.seed && this.terrain) {
       this.terrain.setLevel(level);
+      // setLevel re-parks the sign against the new roofline but does not know
+      // whose ground this is; applyShield is what answers that.
+      this.applyShield();
       return;
     }
     this.data.seed = seed;
@@ -319,6 +330,27 @@ export class BurrowScene implements Scene {
     this.terrain = await createBurrowTerrain(
       this.container, this.data.seed, this.data.level,
     );
+    // A terrain built fresh knows nothing of a shield that was already up —
+    // re-entering the scene, or coming home from a raid, rebuilds the ground.
+    this.applyShield();
+  }
+
+  /**
+   * Hang the shield sign, but only over the player's OWN homestead.
+   *
+   * During a raid the ground on screen is the defender's, and their shield is
+   * none of the attacker's business — a raid only happens because there was no
+   * shield to stop it, so a badge there would be a plain contradiction.
+   */
+  private applyShield(): void {
+    const own = this.data.seed === this.ownSeed;
+    this.terrain?.setShield(own ? this.data.shieldMs ?? null : null);
+  }
+
+  /** The shield went up, ticked down, or ran out. */
+  setShield(ms: number | null): void {
+    this.data.shieldMs = ms;
+    this.applyShield();
   }
 
   /**
@@ -449,15 +481,6 @@ export class BurrowScene implements Scene {
       hint.eventMode = 'static';
       hint.hitArea = new Polygon([0, -hh, hw, 0, 0, hh, -hw, 0]);
       hint.on('pointertap', () => {
-        // TEMPORARY (see `rrDiag` in page.tsx): a tap reaching this line is the
-        // one fact no log has ever shown, so it is worth saying out loud until
-        // lifting a bomb is confirmed working.
-        console.log('[tap]', JSON.stringify({
-          tile: i,
-          placing: this.data.placing,
-          trappable: isTrappable(this.data.seed, i),
-          mined: this.trapSprites.has(i),
-        }));
         if (!this.data.placing || !isTrappable(this.data.seed, i)) return;
         this.data.onToggle(i, this.trapSprites.has(i));
       });

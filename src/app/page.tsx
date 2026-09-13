@@ -551,6 +551,36 @@ function Burrow() {
     );
   }, [ready, burrow]);
 
+  // The shield sign over the burrow, ticking.
+  //
+  // `shieldMs` arrives from a poll and is stale the instant it lands, so a
+  // sign fed only by the fetch would sit on one number for a whole polling
+  // interval and then jump. The deadline is computed ONCE per payload and the
+  // countdown is derived from the clock, which keeps it honest across a tab
+  // that was backgrounded — a timer counting itself down would drift or pause.
+  useEffect(() => {
+    if (!ready) return;
+    const handle = handles.current?.burrow;
+    if (!handle) return;
+    if (burrow?.shieldMs == null) {
+      handle.setShield(null);
+      return;
+    }
+    const until = Date.now() + burrow.shieldMs;
+    const tick = () => {
+      const left = until - Date.now();
+      handle.setShield(left > 0 ? left : null);
+      return left;
+    };
+    if (tick() <= 0) return;
+    // Once a minute: the sign is rendered to the minute, so a faster tick
+    // would redraw the same plaque over and over.
+    const id = setInterval(() => {
+      if (tick() <= 0) clearInterval(id);
+    }, 60_000);
+    return () => clearInterval(id);
+  }, [ready, burrow?.shieldMs]);
+
   // The backdrop follows the level, so an upgrade is visible in the PLACE and
   // not only in the panel: the fence around your field becomes railings, then a
   // castle wall. Keyed on the level alone — the burrow object changes on every
