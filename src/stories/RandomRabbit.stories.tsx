@@ -110,7 +110,7 @@ function Scene({ seed, bombDensity, rabbits, stepMs, islandZoom, background }: A
         tiles.get(SPAWN_INDEX)?.markSpawn();
 
         // The rabbits. Each wanders on its own, digging what it steps on —
-        // enough to watch the reveal, the hint numbers and the death play out.
+        // enough to watch the reveal, the hint numbers and the slump play out.
         const walkers = Array.from({ length: rabbits }, (_, n) => {
           const rabbit = new PlayerRabbit(SPAWN_INDEX, SHEETS[n % SHEETS.length]);
           board.addChild(rabbit.container);
@@ -148,10 +148,11 @@ function Scene({ seed, bombDensity, rabbits, stepMs, islandZoom, background }: A
                 board.addChild(boom);
                 boom.play();
               }
-              // Dying is the interesting animation, so the walker stays dead:
-              // a rabbit that respawned instantly would never let you watch it.
+              // A bomb does not end a run — it costs energy, and `run.ts` only
+              // stops a rabbit at zero. The walker slumps and stays down so the
+              // exhausted animation is watchable, which is what this story is for.
               w.alive = false;
-              w.rabbit.playDeath();
+              w.rabbit.playExhausted();
               continue;
             }
             w.rabbit.moveTo(to);

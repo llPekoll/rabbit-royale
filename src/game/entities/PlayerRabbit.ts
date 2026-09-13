@@ -1,4 +1,4 @@
-import { AnimatedSprite, Assets, Container, Sprite, Texture } from 'pixi.js';
+import { AnimatedSprite, Container } from 'pixi.js';
 import { tilePos, tileDepth, toColRow, ISO_TILE_W, RABBIT_SCALE } from '@/config/gridConfig';
 import { levelTierAt, tileScreenPos } from '@/lib/game/terrainBoard';
 import * as Keys from '@/config/assetKeys';
@@ -121,50 +121,25 @@ export class PlayerRabbit {
     this.isMoving = false;
   }
 
-  playDeath(onComplete?: () => void): void {
+  /**
+   * The run ended: the rabbit is OUT OF ENERGY, not dead.
+   *
+   * It used to play the death row and send a ghost up to the sky, which said
+   * something the rules never say — `resolveMove` ends a run on `energy <= 0`
+   * and nothing else, and a bomb is survivable (see `run.ts`, and the recap in
+   * `run-recap.tsx` which already tells the player "Out of energy"). So the
+   * rabbit slumps where it stands and sleeps it off: that is what actually
+   * happened, and it is what a refill undoes.
+   */
+  playExhausted(onComplete?: () => void): void {
     this.cancelMove();
-    this.playAnim('death', () => {
-      // Keep last death frame visible on the tile
-      this.sprite.stop();
-      this.playGhostAscend();
+    // `damage` is the only "worn out" row that ends on its feet, so it reads
+    // as the stumble into the sleep rather than as a hit — nothing struck the
+    // rabbit. Then `sleep` loops for as long as the run stays over.
+    this.playAnim('damage', () => {
+      this.playAnim('sleep');
       onComplete?.();
     });
-  }
-
-  /** Spawn a ghostly angel rabbit that floats up to the sky after death. */
-  private playGhostAscend(): void {
-    const tex1 = Assets.get<Texture>(Keys.GHOST_DOWN);
-    const tex2 = Assets.get<Texture>(Keys.GHOST_UP);
-    if (!tex1 || !tex2) return;
-
-    // 2-frame wing-flap animation
-    const ghost = new AnimatedSprite([tex1, tex2]);
-    ghost.anchor.set(0.5, 0.8);
-    // The ghost art is 136px to the rabbit's 32, so match its on-screen size.
-    ghost.scale.set((RABBIT_SCALE * 32) / 136);
-    ghost.animationSpeed = 3 / 60; // slow flap ~3 fps
-    ghost.loop = true;
-    ghost.alpha = 0.6;
-    ghost.blendMode = 'add';
-    ghost.zIndex = 60;
-    ghost.position.copyFrom(this.sprite.position);
-
-    this.container.addChild(ghost);
-
-    // Slow float upward (fire-and-forget, cleans up on its own)
-    gsap.to(ghost, {
-      y: ghost.y - 150,
-      alpha: 0,
-      duration: 6,
-      ease: 'none',
-      onComplete: () => {
-        ghost.stop();
-        this.container.removeChild(ghost);
-        ghost.destroy();
-      },
-    });
-
-    ghost.play();
   }
 
   playHappy(onComplete?: () => void): void {

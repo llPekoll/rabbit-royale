@@ -814,12 +814,18 @@ export class IslandScene implements Scene {
     }
   }
 
-  /** A run ended. The rabbit dies in place and its ghost drifts off. */
-  killRabbit(playerId: string): void {
-    this.rabbits.get(playerId)?.playDeath();
+  /**
+   * A run ended. The rabbit is spent, not dead — it drops where it stands.
+   *
+   * A run only ever ends on `energy <= 0` (`run.ts`), so there is nothing to
+   * mourn: the death animation, the ascending ghost and the death sting all
+   * claimed a fatality the rules never hand out, and the recap on the same
+   * screen says "Out of energy" underneath them.
+   */
+  exhaustRabbit(playerId: string): void {
+    this.rabbits.get(playerId)?.playExhausted();
     if (playerId === this.data?.playerId) {
-      this.sound.playDie();
-      // Nothing is reachable from a dead rabbit — leaving the ring lit would
+      // Nothing is reachable on an empty tank — leaving the ring lit would
       // invite clicks the server will refuse.
       this.clearHighlights();
       this.arrows?.update(null);

@@ -253,8 +253,11 @@ export function useGameSocket(
       toScene((s) => s.bombHit(hit, tile, until));
     });
 
-    socket.on('rabbit_died', ({ playerId: dead }: { playerId: string }) => {
-      toScene((s) => s.killRabbit(dead));
+    // The server's name for it is historical: the run ended because the tank
+    // hit zero, which is the only way a run ever ends. The rabbit is spent,
+    // not killed — see `exhaustRabbit`.
+    socket.on('rabbit_died', ({ playerId: spent }: { playerId: string }) => {
+      toScene((s) => s.exhaustRabbit(spent));
     });
 
     socket.on('volcano', ({ stage }: { stage: number }) => setWarnStage(stage));
