@@ -20,7 +20,8 @@
 import { useEffect, useRef } from 'react';
 import PLOTS from '@/config/carrotPlots.json';
 import {
-  GROW_MS, MIN_LIVE_PLOTS, growthFrame, spawnGapMs, grownCount, idleProgress, STAGES,
+  GROW_MS, growthFrame, spawnGapMs, idleProgress, STAGES,
+  recyclesPlots, standingTarget,
 } from '@/lib/game/garden-growth';
 
 const SHEET = '/assets/carottes/carrote.png';
@@ -96,8 +97,10 @@ export function CarrotField({ progress, harvestKey = 0, className }: CarrotField
       // Start plots until as many are growing as the field's fullness calls
       // for. Only one per gap, so they arrive as a trickle rather than all at
       // once — the trickle IS the readout.
-      const wanted = grownCount(p, plots.length);
       const live = plots.filter((q) => q.sproutedAt !== null).length;
+      // What the field is ALLOWED to be standing. On a real garden this never
+      // falls — see `standingTarget`; only `harvestKey` empties it.
+      const wanted = standingTarget(progressRef.current, live, plots.length);
       if (live < wanted && now >= nextSprout) {
         // Sprout the next BARE plot in draw order, so the field fills from the
         // back forward instead of speckling at random.
@@ -105,27 +108,28 @@ export function CarrotField({ progress, harvestKey = 0, className }: CarrotField
         if (next) next.sproutedAt = now;
         nextSprout = now + spawnGapMs(p, plots.length);
       }
-      // Fullness fell (a harvest, or the idle loop wrapping): clear the surplus
-      // from the front, so the field empties the way it filled.
+      // Fullness fell — only the idle loop wrapping can do this now, since a
+      // real garden's target never drops. Clear the surplus from the front, so
+      // the field empties the way it filled.
       if (live > wanted) {
         for (let i = plots.length - 1; i >= 0 && plots.filter((q) => q.sproutedAt !== null).length > wanted; i--) {
           if (plots[i].sproutedAt !== null) plots[i].sproutedAt = null;
         }
       }
 
-      // On a nearly empty garden the few living plots would sprout once and
-      // then stand there forever, which is the inert picture the floor in
-      // `grownCount` exists to avoid — a floor only helps if those plots keep
-      // MOVING. So once one has finished and had a moment to be seen, it is
-      // recycled to a fresh plot. Only while the field is nearly bare: on a
-      // real crop a grown carrot must stay put, because it is the harvest.
-      if (wanted <= MIN_LIVE_PLOTS) {
+      // The decorative loop's churn, keeping the floor in `grownCount` MOVING
+      // rather than standing inert. Never on a real garden — see
+      // `recyclesPlots`: there a grown carrot IS the harvest, and replaying it
+      // elsewhere shows carrots vanishing while the panel's number only climbs.
+      // The replacement is the next bare plot in draw order, not a random one,
+      // so the field still fills back to front.
+      if (recyclesPlots(progressRef.current)) {
         for (const plot of plots) {
           if (plot.sproutedAt === null) continue;
           if (now - plot.sproutedAt < GROW_MS + spawnGapMs(p, plots.length)) continue;
           plot.sproutedAt = null;
-          const fresh = plots[Math.floor(Math.random() * plots.length)];
-          if (fresh.sproutedAt === null) fresh.sproutedAt = now;
+          const fresh = plots.find((q) => q.sproutedAt === null);
+          if (fresh) fresh.sproutedAt = now;
         }
       }
 

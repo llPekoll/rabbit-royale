@@ -27,8 +27,8 @@
 import { Container, Sprite, Texture, Rectangle } from 'pixi.js';
 import PLOTS from '@/config/carrotPlots.json';
 import {
-  GROW_MS, MIN_LIVE_PLOTS, growthFrame, spawnGapMs, grownCount, idleProgress,
-  plantsPerCell,
+  GROW_MS, growthFrame, spawnGapMs, idleProgress, plantsPerCell,
+  recyclesPlots, standingTarget,
 } from '@/lib/game/garden-growth';
 import { mulberry32, seedFrom } from '@/lib/game/rng';
 import { BURROW_HALF_W, BURROW_HALF_H } from '@/config/burrowConfig';
@@ -159,8 +159,10 @@ export class CarrotCrop {
     const now = this.elapsed;
     const p = this.progress ?? idleProgress(now);
 
-    const wanted = grownCount(p, this.plots.length);
     const live = this.plots.filter((q) => q.sproutedAt !== null).length;
+    // What the field is ALLOWED to be standing. On a real garden this never
+    // falls — see `standingTarget`; only `reset` empties it.
+    const wanted = standingTarget(this.progress, live, this.plots.length);
 
     if (live < wanted && now >= this.nextSprout) {
       // Fill from the back forward, so the field grows in rather than
@@ -179,19 +181,20 @@ export class CarrotCrop {
       }
     }
 
-    // On a nearly bare field the few living plots would sprout once and then
-    // stand there forever, which is the inert picture `MIN_LIVE_PLOTS` exists
-    // to avoid — a floor only helps if those plots keep MOVING. So a finished
-    // one is recycled. Only while nearly bare: on a real crop a grown carrot
-    // must stay put, because it IS the harvest.
-    if (wanted <= MIN_LIVE_PLOTS) {
+    // The decorative loop's churn: a finished plot is recycled so the floor in
+    // `grownCount` keeps MOVING instead of standing there. Never on a real
+    // garden — see `recyclesPlots`: there, a grown carrot IS the harvest, and
+    // pulling it out to replay it elsewhere shows carrots vanishing while the
+    // panel's number only climbs. The replacement is the next bare plot in draw
+    // order rather than a random one, so the field still fills back to front.
+    if (recyclesPlots(this.progress)) {
       for (const plot of this.plots) {
         if (plot.sproutedAt === null) continue;
         if (now - plot.sproutedAt < GROW_MS + spawnGapMs(p, this.plots.length)) continue;
         plot.sproutedAt = null;
         plot.sprite.visible = false;
-        const fresh = this.plots[Math.floor(Math.random() * this.plots.length)];
-        if (fresh.sproutedAt === null) fresh.sproutedAt = now;
+        const fresh = this.plots.find((q) => q.sproutedAt === null);
+        if (fresh) fresh.sproutedAt = now;
       }
     }
 

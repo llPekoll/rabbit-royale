@@ -218,3 +218,44 @@ export function growthFrame(msSinceSprout: number, growMs = GROW_MS): number {
   const t = Math.min(1, msSinceSprout / growMs);
   return Math.min(STAGES - 1, Math.floor(t * STAGES));
 }
+
+/**
+ * Whether finished plots should be recycled — the decorative churn.
+ *
+ * `MIN_LIVE_PLOTS` keeps a bare field from going inert, and recycling is what
+ * keeps that floor MOVING. But recycling means a grown carrot vanishes and
+ * pops up somewhere else, and on a REAL garden that is a lie: those two shoots
+ * are the start of the harvest the panel is counting, so a player watching
+ * their field sees carrots appear and disappear while the number only climbs.
+ *
+ * So the churn belongs to the idle loop alone. Signed in the field is a
+ * readout — it only ever fills, and the one thing that empties it is the
+ * harvest. `progress` is null exactly when there is no garden to misreport.
+ */
+export function recyclesPlots(progress: number | null): boolean {
+  return progress === null;
+}
+
+/**
+ * How many plots may be STANDING, given how many already are.
+ *
+ * `grownCount` says what the fullness calls for, which is the right target
+ * while a field fills. It is the wrong thing to enforce downwards on a real
+ * garden: `gardenReady` is polled, so it arrives in steps and rounds, and a
+ * target that dips by one plant tears a grown carrot out of the ground to
+ * correct a rounding error. The garden only ever accumulates — the sole thing
+ * that removes carrots is collecting them — so on a real garden the standing
+ * count is a high-water mark and a harvest is what resets it.
+ *
+ * The idle loop still needs to fall: it wraps from full back to empty every
+ * cycle, and a monotonic decorative field would fill once and stay full.
+ */
+export function standingTarget(
+  progress: number | null,
+  live: number,
+  plots: number,
+): number {
+  const wanted = grownCount(progress ?? 0, plots);
+  if (progress === null) return wanted; // idle loop: free to empty
+  return Math.max(wanted, live);
+}

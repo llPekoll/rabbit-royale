@@ -14,7 +14,7 @@ import PLOTS from '../src/config/carrotPlots.json';
 import {
   STAGES, GROW_MS, SPAWN_GAP_MS, IDLE_CYCLE_MS, PER_CELL, REFERENCE_PLOTS,
   gardenCapacity, gardenProgress, idleProgress, spawnGapMs, grownCount, growthFrame,
-  plantsPerCell, MIN_LIVE_PLOTS,
+  plantsPerCell, MIN_LIVE_PLOTS, recyclesPlots, standingTarget,
 } from '../src/lib/game/garden-growth';
 
 describe('capacity matches the economy', () => {
@@ -275,5 +275,51 @@ describe('a denser field still fills in the same time', () => {
     // `plots.length` is 0 on a seed whose field failed to generate; a division
     // by it must not hand back Infinity and stall the sprouting loop forever.
     expect(Number.isFinite(spawnGapMs(0.5, 0))).toBe(true);
+  });
+});
+
+describe('a real garden only ever fills', () => {
+  /**
+   * The bug these pin down: the field was showing carrots appear and then
+   * vanish while the panel's "+N" only climbed. Two causes, both of which made
+   * the picture contradict the number it is a picture of.
+   */
+  const PLOTS_N = 40;
+
+  it('never pulls a standing carrot out of a real garden', () => {
+    // `gardenReady` is polled, so it arrives in steps and rounds. A target read
+    // straight off it dips by a plant on a rounding wobble, and the field
+    // answers by uprooting a grown carrot — the harvest, deleted to fix an
+    // off-by-one. The standing count is a high-water mark instead.
+    const live = grownCount(0.5, PLOTS_N);
+    expect(standingTarget(0.49, live, PLOTS_N)).toBe(live);
+    expect(standingTarget(0, live, PLOTS_N)).toBe(live);
+  });
+
+  it('still grows when the garden genuinely fills', () => {
+    const live = grownCount(0.5, PLOTS_N);
+    expect(standingTarget(0.9, live, PLOTS_N)).toBe(grownCount(0.9, PLOTS_N));
+  });
+
+  it('lets the idle loop empty, because it has no harvest to contradict', () => {
+    // Signed out the field is scenery on a wrapping cycle: it must fall back to
+    // bare each turn, or it fills once and stands there for good.
+    expect(standingTarget(null, PLOTS_N, PLOTS_N)).toBe(grownCount(0, PLOTS_N));
+  });
+
+  it('recycles plots only on the decorative loop', () => {
+    // Recycling means a grown carrot disappears and pops up elsewhere. That is
+    // fine for scenery and a lie on a real garden, at ANY fullness — including
+    // the just-harvested field, which is exactly when the player is watching.
+    expect(recyclesPlots(null)).toBe(true);
+    expect(recyclesPlots(0)).toBe(false);
+    expect(recyclesPlots(0.5)).toBe(false);
+  });
+
+  it('keeps a freshly harvested field alive without churning it', () => {
+    // The floor still applies — a bare garden shows a couple of shoots rather
+    // than reading as a failed asset load — but those shoots now stay put.
+    expect(grownCount(0, PLOTS_N)).toBe(MIN_LIVE_PLOTS);
+    expect(recyclesPlots(0)).toBe(false);
   });
 });
