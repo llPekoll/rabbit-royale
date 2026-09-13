@@ -28,12 +28,18 @@ neighbour's transparent edge and draw a hairline seam down every wall.
     r1    turf     flat     slope S    slope E    outer NE  outer SE  outer SW  outer NW
     r2    rim N    rim E    rim S      rim W      fringe N  fringe E  fringe S  fringe W
     r2    ...      col 8    patch      col 9-12   patch fringe N E S W
-    r2    ...      col 13-16 crease N E S W        col 17-20  lace cap NE SE SW NW
+    r2    ...      col 13-16 lace cap NE SE SW NW
 
-A CREASE is the dark line along an edge where a slope meets flat ground of
-the same tier — the foot of a ramp. A LACE CAP is the fringe wrapped around
-one corner of the cell, for the outer-corner ramp, which the plateau above
-touches only at that point.
+and on the shared row 9, after the corners:
+
+    r9    col 3-10  fold N^ Nv E^ Ev S^ Sv W^ Wv
+
+A LACE CAP is the fringe wrapped around one corner of the cell, for the
+outer-corner ramp, which the plateau above touches only at that point. A
+FOLD is the dark line along a SLOPED edge — one end a block up — where an
+outer corner's surface bends against the slope beside it: the ridge of a
+plateau's tip. `^` has the edge's first corner (clockwise) raised, `v` the
+second.
 
 A FRINGE is the scalloped lace of this material's colour that hangs over a
 neighbouring cell along one of ITS edges — the reference's plateaus spill
@@ -113,7 +119,7 @@ OUT_PUBLIC = ROOT / 'public' / 'assets' / 'world' / 'iso-smooth-sheet-128.png'
 CELL = 128
 PAD = 2
 PITCH = CELL + 2 * PAD
-COLS, ROWS = 21, 10
+COLS, ROWS = 17, 10
 SS = 4  # supersampling: drawn at 512px per cell, then resolved down
 
 # Line weights, in OUTPUT pixels. Heavier than they look on the sheet: in the
@@ -492,10 +498,12 @@ def lace_cap(color, corner: int) -> Cell:
     return c
 
 
-def crease(direction: str) -> Cell:
-    """A dark green line along one edge of the base diamond: the foot of a slope."""
+def fold(direction: str, first_raised: bool) -> Cell:
+    """A dark green line along one edge, one end a block up: an outer corner's ridge."""
     c = Cell()
-    a, b = RIM_EDGES[direction]
+    (au, av, _), (bu, bv, _) = RIM_EDGES[direction]
+    a = (au, av, 1 if first_raised else 0)
+    b = (bu, bv, 0 if first_raised else 1)
     c.stroke(P(*a), P(*b), LACE_INK, OUTLINE * 0.8, caps=True)
     return c
 
@@ -570,11 +578,13 @@ def build() -> Image.Image:
             put(r + 2, 4 + col, fringe(mat[1], direction))
             put(r + 2, 9 + col, fringe(mat[3], direction))
         put(r + 2, 8, patch(mat, rng))
-        for col, direction in enumerate('NESW'):
-            put(r + 2, 13 + col, crease(direction))
-            put(r + 2, 17 + col, lace_cap(mat[1], col))
+        for col in range(4):
+            put(r + 2, 13 + col, lace_cap(mat[1], col))
     for col, which in enumerate('LRF'):
         put(9, col, corner(which))
+    for i, direction in enumerate('NESW'):
+        put(9, 3 + 2 * i, fold(direction, True))
+        put(9, 4 + 2 * i, fold(direction, False))
     return sheet
 
 

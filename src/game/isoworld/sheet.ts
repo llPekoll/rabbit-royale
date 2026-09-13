@@ -126,7 +126,7 @@ export const SHEETS: Readonly<Record<IsoStyle, SheetSpec>> = {
     // The query is a layout revision, bumped whenever the sheet's cells move:
     // browsers cache the file by URL, and a stale sheet sliced with the new
     // offsets shows pieces that no longer exist.
-    url: '/assets/world/iso-smooth-sheet-128.png?layout=6',
+    url: '/assets/world/iso-smooth-sheet-128.png?layout=7',
     cell: 128,
     pad: 2,
     materials: ['moss', 'grass', 'sand'],
@@ -191,8 +191,6 @@ export interface MaterialTiles {
   patchFringe?: Readonly<Record<Dir, Texture>>;
   /** The lace wrapped around one corner, by corner (NE 0, SE 1, SW 2, NW 3). */
   laceCap?: Readonly<Record<Dir, Texture>>;
-  /** The dark line along one edge where a slope meets flat ground. */
-  crease?: Readonly<Record<Dir, Texture>>;
   /** Corner ramps by their first side, on sheets that have them. */
   inner?: Readonly<Record<Dir, Texture>>;
   outer?: Readonly<Record<Dir, Texture>>;
@@ -209,6 +207,11 @@ export interface CornerTiles {
   left: Texture;
   right: Texture;
   front: Texture;
+  /**
+   * The dark line along a sloped edge, by side, then by which end is a block
+   * up: the edge's first corner clockwise, or its second.
+   */
+  fold: Readonly<Record<Dir, readonly [Texture, Texture]>>;
 }
 
 export interface IsoTileset {
@@ -282,8 +285,7 @@ async function load(style: IsoStyle): Promise<IsoTileset> {
             fringe: { 0: slice(r + 2, 4), 1: slice(r + 2, 5), 2: slice(r + 2, 6), 3: slice(r + 2, 7) },
             patch: slice(r + 2, 8),
             patchFringe: { 0: slice(r + 2, 9), 1: slice(r + 2, 10), 2: slice(r + 2, 11), 3: slice(r + 2, 12) },
-            crease: { 0: slice(r + 2, 13), 1: slice(r + 2, 14), 2: slice(r + 2, 15), 3: slice(r + 2, 16) },
-            laceCap: { 0: slice(r + 2, 17), 1: slice(r + 2, 18), 2: slice(r + 2, 19), 3: slice(r + 2, 20) },
+            laceCap: { 0: slice(r + 2, 13), 1: slice(r + 2, 14), 2: slice(r + 2, 15), 3: slice(r + 2, 16) },
           }
         : {}),
     };
@@ -308,7 +310,19 @@ async function load(style: IsoStyle): Promise<IsoTileset> {
     water: sea?.texture ?? null,
     seaColor: sea?.color ?? (typeof spec.background === 'number' ? spec.background : spec.background[0][1]),
     post: spec.post ? slice(spec.post[0], spec.post[1]) : null,
-    corners: spec.outlines ? { left: slice(9, 0), right: slice(9, 1), front: slice(9, 2) } : null,
+    corners: spec.outlines
+      ? {
+          left: slice(9, 0),
+          right: slice(9, 1),
+          front: slice(9, 2),
+          fold: {
+            0: [slice(9, 3), slice(9, 4)],
+            1: [slice(9, 5), slice(9, 6)],
+            2: [slice(9, 7), slice(9, 8)],
+            3: [slice(9, 9), slice(9, 10)],
+          },
+        }
+      : null,
   };
 }
 

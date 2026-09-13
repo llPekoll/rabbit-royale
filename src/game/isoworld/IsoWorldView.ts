@@ -328,10 +328,19 @@ export class IsoWorldView {
       }
 
       if (n !== tier) continue;
-      // The foot of a slope: a line where it meets flat ground of its tier.
-      if (Boolean(ramp) !== Boolean(nRamp)) {
-        this.place(this.surfaceMaterial(ground, tier).crease![d], x, y, surface);
-        continue;
+      // The ridge of a plateau's tip: where an outer corner bends against
+      // the ramp beside it, along the sloped edge leaving its raised corner —
+      // but only on the corner's south and east sides, the ones the camera
+      // sees as a ridge. Those are this cell's north and west sides, so the
+      // outer corner is always the neighbour here.
+      if (ramp && nRamp?.kind === 'outer') {
+        const h = rampCorners(ramp);
+        const a = h[(d + 3) % 4];
+        const b = h[d];
+        if (a !== b) {
+          this.place(tileset.corners!.fold[d][a ? 0 : 1], x, y, surface);
+          continue;
+        }
       }
       // Same tier as this cell, so the floor rule is the same.
       const nPatch = deco && propAt(world, nx, ny)?.kind === 'patch' && tier > spec.floor;
