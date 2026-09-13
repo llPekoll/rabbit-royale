@@ -228,6 +228,9 @@ export function IsoWorldWorkbench() {
   const hasStairs = tileset?.spec.stairs ?? true;
   const hasProps = (tileset?.spec.blocks || tileset?.spec.post !== null) ?? true;
   const isPixel = (tileset?.style ?? settings.style) === 'pixel';
+  // A sheet coloured by tier has one colour per tier and no more.
+  const maxTiers = tileset && !tileset.spec.layered ? tileset.spec.tiers.length : 5;
+  const tiers = Math.min(settings.tiers, maxTiers);
 
   // Pixelate by rendering into fewer pixels — see `/island` for why. Only
   // pixel art wants it; the smooth sheet is always drawn at full resolution.
@@ -249,7 +252,7 @@ export function IsoWorldWorkbench() {
       seed: settings.seed,
       width: settings.width,
       height: settings.height,
-      tiers: settings.tiers,
+      tiers,
       land: settings.land,
       rise: settings.rise,
       raggedness: settings.raggedness,
@@ -299,7 +302,7 @@ export function IsoWorldWorkbench() {
     return () => {
       app.renderer.off('resize', fit);
     };
-  }, [settings, rotation, tileset]);
+  }, [settings, rotation, tileset, tiers]);
 
   return (
     <main style={{ ...styles.page, background: sea }}>
@@ -338,7 +341,7 @@ export function IsoWorldWorkbench() {
 
         <Slider label="width" value={settings.width} min={12} max={60} onChange={(v) => set('width', v)} />
         <Slider label="height" value={settings.height} min={10} max={44} onChange={(v) => set('height', v)} />
-        <Slider label="tiers" value={settings.tiers} min={1} max={5} onChange={(v) => set('tiers', v)} />
+        <Slider label="tiers" value={tiers} min={1} max={maxTiers} onChange={(v) => set('tiers', v)} />
         <Slider label="land" value={settings.land} min={0.15} max={0.85} step={0.01} onChange={(v) => set('land', v)} />
         <Slider label="rise" value={settings.rise} min={0.1} max={0.9} step={0.01} onChange={(v) => set('rise', v)} />
         <Slider
