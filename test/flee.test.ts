@@ -251,6 +251,35 @@ describe('a sheep walks the cells it crossed', () => {
     expect(flight?.path).toEqual([flight!.to]);
   });
 
+  it('goes as far as the budget allows, instead of milling about', () => {
+    // The bug this replaced: four random steps in a row, each merely forbidden
+    // from retracing, curl around themselves — on open ground that landed the
+    // sheep 1 cell from home 17% of the time and the full 4 only 11%, after
+    // visibly running the whole way. A bolt has to end up somewhere.
+    const open: string[] = [];
+    for (let x = 0; x < 21; x++) for (let y = 0; y < 21; y++) open.push(`${x},${y}`);
+    const g = ground(open);
+    for (let run = 0; run < 200; run++) {
+      const flight = planFlight({ id: 's', x: 10, y: 10 }, g, true, Math.random)!;
+      expect(cellDistance(10, 10, flight.to.x, flight.to.y)).toBe(SPRINT_STEPS);
+      // And by the shortest route: one cell of progress per cell walked.
+      expect(flight.path.length).toBe(SPRINT_STEPS);
+    }
+  });
+
+  it('settles for the furthest cell it CAN reach when hemmed in', () => {
+    // A stub two cells long: the budget is four, the terrain offers two, and
+    // the sheep must take the two rather than refuse to move.
+    const flight = planFlight(
+      { id: 's', x: 0, y: 0 },
+      ground(['0,0', '1,0', '2,0']),
+      true,
+      first,
+    );
+    expect(flight?.to).toEqual({ x: 2, y: 0 });
+    expect(flight?.path).toHaveLength(2);
+  });
+
   it('reports every cell of a sprint, in order, ending where it stops', () => {
     // A corridor: the only way out is east, so the route is forced and can be
     // asserted exactly rather than merely counted.
@@ -293,6 +322,25 @@ describe('a sheep walks the cells it crossed', () => {
         prev = cell;
       }
     }
+  });
+
+  it('plays the bounce sheet while bolting and the idle sheet otherwise', () => {
+    // Half the flock used to be scattered onto the bounce sheet permanently,
+    // so it hopped on the spot while grazing while the other half slid around
+    // without lifting a hoof. The sheet is what the sheep is DOING.
+    const VIEW = read('../src/game/island/IsoIslandView.ts');
+    expect(VIEW).toMatch(/graze: 'sheepIdle'/);
+    expect(VIEW).toMatch(/bolt: 'sheepBounce'/);
+    // Chosen from the order, and dropped again when the sheep arrives.
+    expect(VIEW).toMatch(/setGait\(entry, sprinting \? 'bolt' : 'graze'\)/);
+    expect(VIEW).toMatch(/setGait\(entry, 'graze'\)/);
+  });
+
+  it('never scatters a sheep onto the bolting sheet at spawn', () => {
+    // It would hop in place for the whole run without going anywhere.
+    const VIEW = read('../src/game/island/IsoIslandView.ts');
+    expect(VIEW).not.toMatch(/kind: 'sheepBounce', weight/);
+    expect(VIEW).toMatch(/\? \(\['sheepIdle'\] as const\)/);
   });
 
   it('puts the route on the wire and walks it on the client', () => {

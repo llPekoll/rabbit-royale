@@ -224,8 +224,13 @@ const PATROL = { min: 1, max: 2 } as const;
  * maze rather than a field.
  */
 const INHABITANTS = [
-  { kind: 'sheepIdle', weight: 6, group: FLOCK, scale: 0.62 },
-  { kind: 'sheepBounce', weight: 4, group: FLOCK, scale: 0.62 },
+  // One flock entry, not two. The bounce sheet used to be scattered alongside
+  // the idle one as variety, which was fine while a sheep never moved — but
+  // the sheet now MEANS something (`Gait`): idle is a sheep cropping grass,
+  // bounce is one hopping away from a rabbit. A sheep scattered onto the
+  // bounce sheet would hop on the spot for the whole run without going
+  // anywhere, so the flock spawns calm and `setGait` does the rest.
+  { kind: 'sheepIdle', weight: 10, group: FLOCK, scale: 0.62 },
   { kind: 'pawnBlue', weight: 1, group: PATROL, scale: 0.5 },
   { kind: 'warriorBlue', weight: 1, group: PATROL, scale: 0.5 },
   { kind: 'archerBlue', weight: 1, group: PATROL, scale: 0.5 },
@@ -295,6 +300,35 @@ function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
+/**
+ * How a sheep is moving, which is also which sheet it plays.
+ *
+ * `graze` is the idle sheet — the sheep cropping grass, and what a calm one
+ * plays whether it is drifting a cell or standing still. `bolt` is the bounce
+ * sheet: a sheep hopping, which is what panic looks like on this art.
+ */
+type Gait = 'graze' | 'bolt';
+
+/** The sheet each gait plays. Both are loaded for every island already. */
+const GAIT_SHEET: Record<Gait, UnitKind> = {
+  graze: 'sheepIdle',
+  bolt: 'sheepBounce',
+};
+
+/** One inhabitant, its sprite, and whatever it is currently doing. */
+interface Inhabitant {
+  occupant: Occupant;
+  sprite: Sprite;
+  tier: number;
+  shadow?: Container;
+  /** A walk in progress, if this one is on the move. See `walkOccupant`. */
+  walk?: Walk;
+  /** Its entry in `animated`, so its sheet can be swapped — see `setGait`. */
+  anim?: AnimatedProp;
+  /** Which sheet is playing now, so an unchanged gait costs nothing. */
+  gait?: Gait;
+}
+
 /** A walk in progress: the cells still to cross, and how far into the first. */
 interface Walk {
   /** Where this leg started. Interpolated against `cells[0]`. */
@@ -357,14 +391,7 @@ export class IsoIslandView {
    * and neither can be either unless something outside this view can see them.
    * `syncOccupants` is the other half — it moves the sprites back.
    */
-  private readonly livestock: Array<{
-    occupant: Occupant;
-    sprite: Sprite;
-    tier: number;
-    shadow?: Container;
-    /** A walk in progress, if this one is on the move. See `walkOccupant`. */
-    walk?: Walk;
-  }> = [];
+  private readonly livestock: Inhabitant[] = [];
   /** Cells claimed by a sheep or soldier, for the spacing rule. */
   private readonly inhabited = new Set<string>();
   /**
@@ -529,8 +556,10 @@ export class IsoIslandView {
         }
         case 'sheep':
         case 'soldier': {
+          // Sheep spawn calm for the same reason the scatter does: the bounce
+          // sheet is the bolting gait now, not a second breed. See `Gait`.
           const kinds = p.kind === 'sheep'
-            ? (['sheepIdle', 'sheepBounce'] as const)
+            ? (['sheepIdle'] as const)
             : (['pawnBlue', 'warriorBlue', 'archerBlue', 'warriorRed', 'torchRed', 'pawnRed'] as const);
           const unit = tileset.units[kinds[p.variant % kinds.length]];
           sprite = this.foot(world, { texture: unit.frames[0], anchorY: unit.anchorY }, p.x, p.y, tier, depth);
@@ -552,21 +581,27 @@ export class IsoIslandView {
       // The board's OWN id, so a `sheep_moved` from the server names a sprite
       // this view actually holds — and the shadow `foot` just dropped, so a
       // sheep that bolts takes it along (see `register`).
-      this.livestock.push({
+      const entry: Inhabitant = {
         occupant: { id: p.id, kind: p.kind, x: p.x, y: p.y },
         sprite,
         tier,
         shadow: this.lastShadow,
-      });
+      };
+      this.livestock.push(entry);
       this.lastShadow = undefined;
       if (blocksCell(p.kind)) this.occupied.add(key(p.x, p.y));
       if (frames) {
         const windblown = p.kind === 'tree' || p.kind === 'bush';
-        this.animated.push({
+        const anim = {
           sprite,
           frames,
           phase: windblown ? this.windPhase(p.x, p.y) : this.freePhase(frames, rng),
-        });
+        };
+        this.animated.push(anim);
+        // Kept on the entry so a bolting sheep can be re-framed onto the
+        // bounce sheet — `setGait`. Only a sheep ever changes sheet, but the
+        // link costs a reference and saves a search through `animated`.
+        if (p.kind === 'sheep') entry.anim = anim;
       }
     }
   }
@@ -780,6 +815,33 @@ export class IsoIslandView {
   }
 
   /**
+   * Put a sheep on the sheet that matches how it is moving.
+   *
+   * Every sheep spawns on one of the two sheets at random and used to keep it
+   * for life, so half the flock bounced on the spot while grazing and the
+   * other half slid across the island without lifting a hoof. The sheet is a
+   * property of what the animal is DOING, not of which one it is.
+   *
+   * A no-op when the gait has not changed, which is the common case: this is
+   * called on every walk order and most of them do not change the sheet.
+   */
+  private setGait(entry: Inhabitant, gait: Gait): void {
+    if (entry.gait === gait) return;
+    const sheet = this.options.tileset.units[GAIT_SHEET[gait]];
+    if (!sheet) return;
+    entry.gait = gait;
+    if (entry.anim) {
+      entry.anim.frames = sheet.frames;
+      // Restart the cycle rather than carrying the old index across: the two
+      // sheets are different lengths (eight frames idle, six bouncing), so a
+      // stale index lands mid-hop and reads as a stutter at the exact moment
+      // the sheep is meant to spring.
+      entry.anim.phase = 0;
+    }
+    entry.sprite.texture = sheet.frames[0];
+  }
+
+  /**
    * Put an inhabitant on a cell at once, cancelling any walk it was on.
    *
    * The teleport that `walkOccupant` exists to avoid — and still the right
@@ -835,6 +897,9 @@ export class IsoIslandView {
     };
     entry.occupant.x = last.x;
     entry.occupant.y = last.y;
+    // Bouncing while it bolts, cropping grass otherwise. Set here rather than
+    // per frame so the sheet changes exactly when the order does.
+    if (entry.occupant.kind === 'sheep') this.setGait(entry, sprinting ? 'bolt' : 'graze');
     this.syncOccupants();
     return true;
   }
@@ -859,8 +924,12 @@ export class IsoIslandView {
         walk.from = walk.cells.shift()!;
       }
       // Arrived: drop the walk so `syncOccupants` goes back to reading the
-      // occupant's own cell, which is already the destination.
-      if (!walk.cells.length) entry.walk = undefined;
+      // occupant's own cell, which is already the destination — and stop
+      // bouncing, since the sheep is standing still again.
+      if (!walk.cells.length) {
+        entry.walk = undefined;
+        if (entry.occupant.kind === 'sheep') this.setGait(entry, 'graze');
+      }
     }
     if (moving) this.syncOccupants();
   }
@@ -1490,7 +1559,8 @@ export class IsoIslandView {
     sprite.scale.set(sprite.scale.x * scale, sprite.scale.y * scale);
     // A free phase, or every sheep on the island breathes in sync. Not the
     // wind's: a patrol keeps its own time, and neighbours must not match.
-    this.animated.push({ sprite, frames: unit.frames, phase: this.freePhase(unit.frames, rng) });
+    const anim = { sprite, frames: unit.frames, phase: this.freePhase(unit.frames, rng) };
+    this.animated.push(anim);
     this.inhabited.add(key(x, y));
 
     // Sheep wander, soldiers hold their ground — the distinction the board
@@ -1500,6 +1570,13 @@ export class IsoIslandView {
       occupant: { id: `${species}-${this.livestock.length}`, kind: species, x, y },
       sprite,
       tier,
+      // Sheep only: the link is what lets `setGait` swap the sheet later. The
+      // gait it spawns on is whichever sheet the scatter happened to pick, so
+      // it is recorded rather than assumed — otherwise the first order to
+      // graze would be a no-op for a sheep that spawned bouncing.
+      ...(species === 'sheep'
+        ? { anim, gait: (kind === 'sheepBounce' ? 'bolt' : 'graze') as Gait }
+        : {}),
     });
   }
 
