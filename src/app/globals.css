@@ -1001,7 +1001,14 @@ button { min-height: 44px; min-width: 44px; }
   gap: 14px;
   width: 100%;
   max-width: 400px;
-  margin: 10px 0 6px;
+  /* Centred, always. The column it lives in is the full width of the screen,
+     so a capped button with flat side margins sat against the left edge — off
+     under the thumb on a phone held in either hand, and adrift in a corner on
+     a desktop. It is the one action on the screen; it belongs under the middle
+     of it. `align-self` rather than `margin: auto` so the in-game overlay,
+     which centres its own children, does not need a rule of its own. */
+  margin: 10px auto 6px;
+  align-self: center;
   padding: 14px 16px;
   font-size: 15px;
   letter-spacing: 0.08em;
@@ -1580,10 +1587,10 @@ button { font-family: var(--font-pixel); }
   .rr-loading-dots::after { content: '...'; animation: none; }
 }
 
-/* In-game the button has no column to align with, so it recentres. */
-.rr-overlay .rr-back { margin-left: auto; margin-right: auto; }
+/* A phone has the width to spare, so the tap target grows into it. The
+   centring itself now lives on the base rule and needs no help here. */
 @media (max-width: 720px) {
-  .rr-go, .rr-back { margin-left: auto; margin-right: auto; max-width: 460px; }
+  .rr-go, .rr-back { max-width: 460px; }
 }
 
 /* The panels are over artwork now, so they need their own ground. */
