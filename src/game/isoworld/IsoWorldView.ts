@@ -171,11 +171,12 @@ export class IsoWorldView {
 
     const prop = (this.options.deco ?? true) ? propAt(world, x, y) : undefined;
     if (prop) {
+      // A sheet without block props draws only the post.
       const texture =
         prop.kind === 'post'
           ? tileset.post
-          : tileset.materials[prop.kind === 'hedge' ? spec.hedge : spec.boulder].block[prop.dir];
-      this.place(texture, x, y, surface);
+          : tileset.materials[prop.kind === 'hedge' ? spec.hedge : spec.boulder].block?.[prop.dir];
+      if (texture) this.place(texture, x, y, surface);
     }
   }
 

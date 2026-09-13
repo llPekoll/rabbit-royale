@@ -16,25 +16,27 @@ be retouched without fighting anti-aliasing.
 
 ## Layout — the same grid as the pixel sheet, 4x larger
 
-Six columns by ten rows of 128px cells, three materials stacked three rows
+Four columns by ten rows of 128px cells, three materials stacked three rows
 each: rows 0-2 moss (dark green, the highest tier), 3-5 grass (medium green),
 6-8 sand (the lowest tier). Every cell sits in a `PAD`-pixel gutter filled with
 its own edge pixels, so the sheet's pitch is `CELL + 2 * PAD`: the renderer
 filters this sheet, and a frame cut flush against the next would sample its
 neighbour's transparent edge and draw a hairline seam down every wall.
 
-    col   0        1        2          3          4           5
-    r0    cube     slab     slope W    slope N    stairs N    stairs W
-    r1    turf     flat     slope S    slope E    block W     block E
-    r2    rim N    rim E    rim S      rim W      block S     block N
+    col   0        1        2          3
+    r0    cube     slab     slope W    slope N
+    r1    turf     flat     slope S    slope E
+    r2    rim N    rim E    rim S      rim W
 
 and a tenth row of pieces shared by every material:
 
     r9    corner L corner R corner F   post
 
-Row 2 differs from the pixel sheet: there is no water (the island floats on
-the page's gradient) and the first four cells hold the RIM pieces, the dark
-outline along one edge of the top face. Row 9's corners are the vertical
+The pixel sheet's last two columns (stairs, prop blocks) are not drawn: this
+sheet is terrain only, and the renderer builds a flight of stairs as a slope
+and skips the block props. Row 2 differs too: there is no water (the island
+floats on the page's gradient) and the four cells hold the RIM pieces, the
+dark outline along one edge of the top face. Row 9's corners are the vertical
 outline at the cell's left, right and front (bottom) corner, one block tall.
 
 ## Why the outlines are separate pieces
@@ -90,7 +92,7 @@ OUT_PUBLIC = ROOT / 'public' / 'assets' / 'world' / 'iso-smooth-sheet-128.png'
 CELL = 128
 PAD = 2
 PITCH = CELL + 2 * PAD
-COLS, ROWS = 6, 10
+COLS, ROWS = 4, 10
 SS = 4  # supersampling: drawn at 512px per cell, then resolved down
 
 # Line weights, in OUTPUT pixels. Heavier than they look on the sheet: in the
@@ -345,58 +347,6 @@ def slope(mat, rng, direction: str) -> Cell:
     return c
 
 
-def stairs(mat, rng, direction: str, steps=4) -> Cell:
-    """A flight climbing toward N or W: `steps` treads, each a quarter block up."""
-    fill, grid = mat[1], mat[2]
-    c = Cell()
-    for i in range(steps):
-        lo, hi = i / steps, (i + 1) / steps
-        z = (i + 1) / steps
-        if direction == 'N':
-            # climbing toward v = 0: tread i spans v in [1-hi, 1-lo]
-            v0, v1 = 1 - hi, 1 - lo
-            tread = poly((0, v0, z), (1, v0, z), (1, v1, z), (0, v1, z))
-            top_face(c, tread, fill, grid, grid_edges=(3,))
-            riser = poly((0, v1, z), (1, v1, z), (1, v1, z - 1 / steps), (0, v1, z - 1 / steps))
-            side_face(c, riser, CLIFF_SOUTH, rng, textured=False, outline=[0, 1, 2, 3])
-            side = poly((1, v0, z), (1, v1, z), (1, v1, 0), (1, v0, 0))
-            side_face(c, side, CLIFF, rng, textured=False, outline=[0, 1, 2, 3])
-        else:
-            u0, u1 = 1 - hi, 1 - lo
-            tread = poly((u0, 0, z), (u1, 0, z), (u1, 1, z), (u0, 1, z))
-            top_face(c, tread, fill, grid, grid_edges=(0,))
-            riser = poly((u1, 0, z), (u1, 1, z), (u1, 1, z - 1 / steps), (u1, 0, z - 1 / steps))
-            side_face(c, riser, CLIFF, rng, textured=False, outline=[0, 1, 2, 3])
-            side = poly((u0, 1, z), (u1, 1, z), (u1, 1, 0), (u0, 1, 0))
-            side_face(c, side, CLIFF_SOUTH, rng, textured=False, outline=[0, 1, 2, 3])
-    return c
-
-
-def block(mat, rng, direction: str) -> Cell:
-    """
-    A three-quarter block standing in the quarter of the cell on that side,
-    as in the pixel sheet: N sits in the far corner, S in the near one.
-    """
-    fill, grid = mat[1], mat[2]
-    c = Cell()
-    s = 0.62
-    origin = {'N': (0.19, 0.0), 'S': (0.19, 1 - s), 'W': (0.0, 0.19), 'E': (1 - s, 0.19)}[direction]
-    u0, v0 = origin
-    u1, v1 = u0 + s, v0 + s
-    h = 0.75
-    top = poly((u0, v0, h), (u1, v0, h), (u1, v1, h), (u0, v1, h))
-    c.fill(top, fill)
-    c.stroke_inside(top, INK, OUTLINE * 0.8)
-    south = poly((u0, v1, h), (u1, v1, h), (u1, v1, 0), (u0, v1, 0))
-    east = poly((u1, v0, h), (u1, v1, h), (u1, v1, 0), (u1, v0, 0))
-    shade = tuple(max(0, int(k * 0.88)) for k in fill)
-    c.fill(south, shade)
-    c.stroke_inside(south, INK, OUTLINE * 0.8)
-    c.fill(east, tuple(max(0, int(k * 0.94)) for k in fill))
-    c.stroke_inside(east, INK, OUTLINE * 0.8)
-    return c
-
-
 RIM_EDGES = {
     'N': ((0, 0, 0), (1, 0, 0)),
     'E': ((1, 0, 0), (1, 1, 0)),
@@ -461,18 +411,12 @@ def build() -> Image.Image:
         put(r, 1, cube(mat, rng, height=0.5))
         put(r, 2, slope(mat, rng, 'W'))
         put(r, 3, slope(mat, rng, 'N'))
-        put(r, 4, stairs(mat, rng, 'N'))
-        put(r, 5, stairs(mat, rng, 'W'))
         put(r + 1, 0, turf(mat, rng))
         put(r + 1, 1, flat(mat))
         put(r + 1, 2, slope(mat, rng, 'S'))
         put(r + 1, 3, slope(mat, rng, 'E'))
-        put(r + 1, 4, block(mat, rng, 'W'))
-        put(r + 1, 5, block(mat, rng, 'E'))
         for col, direction in enumerate('NESW'):
             put(r + 2, col, rim(direction))
-        put(r + 2, 4, block(mat, rng, 'S'))
-        put(r + 2, 5, block(mat, rng, 'N'))
     for col, which in enumerate('LRF'):
         put(9, col, corner(which))
     put(9, 3, post())

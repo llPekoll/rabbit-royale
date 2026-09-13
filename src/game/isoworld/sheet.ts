@@ -12,7 +12,8 @@
  *
  * Six columns by nine rows of cells, three materials stacked three rows each.
  * Every number below was read off the pixel sheet's alpha, and the smooth sheet
- * was drawn to the same grid:
+ * was drawn to the same grid, minus the last two columns — it is terrain only,
+ * so stairs are built as slopes and the block props are skipped:
  *
  *     col   0        1        2          3          4           5
  *     r0    cube     slab     slope W    slope N    stairs N    stairs W
@@ -78,6 +79,9 @@ interface SheetSpec {
   water: boolean;
   /** Whether the sheet has the outline pieces: rims on row 2, corners on row 9. */
   outlines: boolean;
+  /** Whether columns 4 and 5 exist: stairs, and the block props. */
+  stairs: boolean;
+  blocks: boolean;
   /**
    * What lies under the island: one flat colour, or a vertical gradient as
    * `[offset 0..1, rgb]` stops. Only `smooth` has no sea, so its islands float
@@ -99,6 +103,8 @@ export const SHEETS: Readonly<Record<IsoStyle, SheetSpec>> = {
     post: [8, 1],
     water: true,
     outlines: false,
+    stairs: true,
+    blocks: true,
     background: 0x0b2233,
   },
   smooth: {
@@ -113,6 +119,8 @@ export const SHEETS: Readonly<Record<IsoStyle, SheetSpec>> = {
     post: [9, 3],
     water: false,
     outlines: true,
+    stairs: false,
+    blocks: false,
     // The reference's page: teal at the top, through spring green, to a
     // dusty olive at the bottom.
     background: [
@@ -148,10 +156,10 @@ export interface MaterialTiles {
   flat: Texture;
   /** One per direction the slope climbs toward. */
   slope: Readonly<Record<Dir, Texture>>;
-  /** Only the two directions that climb away from the camera exist. */
+  /** Only the two directions that climb away from the camera exist, and not on every sheet. */
   stairs: Readonly<Partial<Record<Dir, Texture>>>;
-  /** A three-quarter block standing in the quarter of the cell on that side. */
-  block: Readonly<Record<Dir, Texture>>;
+  /** A three-quarter block standing in the quarter of the cell on that side. Not on every sheet. */
+  block?: Readonly<Record<Dir, Texture>>;
   /** The outline along one edge of the top face. Smooth sheet only. */
   rim?: Readonly<Record<Dir, Texture>>;
 }
@@ -218,8 +226,10 @@ async function load(style: IsoStyle): Promise<IsoTileset> {
       turf: slice(r + 1, 0),
       flat: slice(r + 1, 1),
       slope: { 0: slice(r, 3), 1: slice(r + 1, 3), 2: slice(r + 1, 2), 3: slice(r, 2) },
-      stairs: { 0: slice(r, 4), 3: slice(r, 5) },
-      block: { 0: slice(r + 2, 5), 1: slice(r + 1, 5), 2: slice(r + 2, 4), 3: slice(r + 1, 4) },
+      stairs: spec.stairs ? { 0: slice(r, 4), 3: slice(r, 5) } : {},
+      ...(spec.blocks
+        ? { block: { 0: slice(r + 2, 5), 1: slice(r + 1, 5), 2: slice(r + 2, 4), 3: slice(r + 1, 4) } }
+        : {}),
       ...(spec.outlines
         ? { rim: { 0: slice(r + 2, 0), 1: slice(r + 2, 1), 2: slice(r + 2, 2), 3: slice(r + 2, 3) } }
         : {}),
