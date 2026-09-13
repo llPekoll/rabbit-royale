@@ -224,13 +224,19 @@ export function IsoWorldWorkbench() {
     };
   }, [settings.style, appReady]);
 
-  // Pixelate by rendering into fewer pixels — see `/island` for why.
+  // What the chosen sheet can do; the panel hides the knobs it cannot use.
+  const hasStairs = tileset?.spec.stairs ?? true;
+  const hasProps = (tileset?.spec.blocks || tileset?.spec.post !== null) ?? true;
+  const isPixel = (tileset?.style ?? settings.style) === 'pixel';
+
+  // Pixelate by rendering into fewer pixels — see `/island` for why. Only
+  // pixel art wants it; the smooth sheet is always drawn at full resolution.
   useEffect(() => {
     const app = appRef.current;
     if (!app || !appReady) return;
     const { width, height } = app.screen;
-    app.renderer.resize(width, height, baseResolution.current / pixelate);
-  }, [pixelate, appReady]);
+    app.renderer.resize(width, height, baseResolution.current / (isPixel ? pixelate : 1));
+  }, [pixelate, appReady, isPixel]);
 
   // Rebuild on every settings or rotation change, refit on every resize.
   useEffect(() => {
@@ -344,7 +350,9 @@ export function IsoWorldWorkbench() {
           onChange={(v) => set('raggedness', v)}
         />
         <Slider label="ramps" value={settings.ramps} min={0} max={1} step={0.05} onChange={(v) => set('ramps', v)} />
-        <Slider label="stairs" value={settings.stairs} min={0} max={1} step={0.05} onChange={(v) => set('stairs', v)} />
+        {hasStairs ? (
+          <Slider label="stairs" value={settings.stairs} min={0} max={1} step={0.05} onChange={(v) => set('stairs', v)} />
+        ) : null}
 
         <label style={styles.row}>
           <span style={styles.label}>ground</span>
@@ -362,10 +370,12 @@ export function IsoWorldWorkbench() {
           </select>
         </label>
 
-        <label style={styles.row}>
-          <span style={styles.label}>deco</span>
-          <input type="checkbox" checked={settings.deco} onChange={(e) => set('deco', e.target.checked)} />
-        </label>
+        {hasProps ? (
+          <label style={styles.row}>
+            <span style={styles.label}>deco</span>
+            <input type="checkbox" checked={settings.deco} onChange={(e) => set('deco', e.target.checked)} />
+          </label>
+        ) : null}
 
         {/* View controls: the island is unchanged while these move. */}
         <div style={styles.row}>
@@ -378,17 +388,17 @@ export function IsoWorldWorkbench() {
           </button>
         </div>
 
-        <Slider label="pixelate" value={pixelate} min={1} max={MAX_PIXELATE} onChange={setPixelate} />
+        {isPixel ? <Slider label="pixelate" value={pixelate} min={1} max={MAX_PIXELATE} onChange={setPixelate} /> : null}
 
         <dl style={styles.stats}>
           <Stat label="grid" value={`${settings.width} x ${settings.height}`} />
           <Stat label="land cells" value={`${stats.land} / ${stats.cells}`} />
           <Stat label="tiers drawn" value={String(stats.tiers)} />
           <Stat label="ramps" value={String(stats.ramps)} />
-          <Stat label="props" value={String(stats.props)} />
+          {hasProps ? <Stat label="props" value={String(stats.props)} /> : null}
           <Stat label="sprites" value={String(stats.sprites)} />
           <Stat label="facing" value={['north', 'east', 'south', 'west'][rotation]} />
-          <Stat label="pixelate" value={pixelate === 1 ? '1:1' : `1 px = ${pixelate}`} />
+          {isPixel ? <Stat label="pixelate" value={pixelate === 1 ? '1:1' : `1 px = ${pixelate}`} /> : null}
         </dl>
 
         {status ? <p style={styles.status}>{status}</p> : null}
