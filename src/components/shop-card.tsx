@@ -29,7 +29,7 @@ import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { ItemKind, ShopItem, ShopState } from './use-shop';
 import type { PayStage } from './use-usdc-pay';
-import { LauncherTab, CHALK_DIM, DANGER, LAMP } from './burrow-chrome';
+import { LauncherTab, DANGER, LAMP } from './burrow-chrome';
 import { PAY_TOKENS, priceLabel, type PayTokenId } from '@/lib/pay/tokens';
 import { LootChest, CHEST_ASPECT } from './loot-chest';
 
@@ -255,11 +255,29 @@ export function ShopPanel({
           ))}
         </ul>
 
+        {/* THREE reasons there may be no card button, not two.
+            The shelf offers money when the deployment can take it AND this
+            player has a wallet to send it from, and those fail differently:
+
+              - no treasury configured  → the rail is off for everybody
+              - a GUEST                 → the rail is on, they have no wallet
+              - both available          → the two prices are equally weighted
+
+            The middle case used to fall through to "Carrots you dig, or card.
+            Same goods either way", on a shelf with no card button anywhere on
+            it — the footer describing a choice the player could not see. (And a
+            guest on a server with no treasury was told card payments "are not
+            switched on yet", which is true of the server and not the reason
+            they are looking at one price.) `onPayUsdc` is the only thing that
+            knows whether a button was actually rendered, so it is what decides
+            the sentence. */}
         <footer className="rr-shop-foot">
           {status ? (
             <span className={error ? 'bad' : 'good'}>{status}</span>
           ) : shop && !shop.usdcEnabled ? (
             <span>Card payments are not switched on yet. Carrots only for now.</span>
+          ) : shop && !onPayUsdc ? (
+            <span>Connect a wallet to pay by card. Everything here is diggable anyway.</span>
           ) : (
             <span>Carrots you dig, or card. Same goods either way.</span>
           )}
@@ -302,6 +320,19 @@ function Row({
       ? (item.held > 0 ? `${item.held}d left` : 'off')
       : `${item.held}/${item.cap}`;
 
+  /**
+   * What the carrot price means right now, in one sentence.
+   *
+   * Ordered by which refusal the player can do something about: a full shelf is
+   * finished business, a short purse is a reason to go and dig.
+   */
+  const price = `${item.price.toLocaleString()} carrots`;
+  const reason = full
+    ? `${meta.name}: ${price}. You are holding as many as you can.`
+    : item.canBuy
+      ? `Buy ${meta.name} for ${price}`
+      : `${meta.name}: ${price}. Not enough carrots yet. Dig for more.`;
+
   return (
     <li
       className={`rr-shop-tile${full ? ' full' : ''}`}
@@ -314,7 +345,23 @@ function Row({
       </div>
       <p className="rr-shop-tile-blurb">{meta.blurb}</p>
       <div className="rr-shop-tile-buy">
-        <button className="rr-pay-carrot" onClick={onBuy} disabled={busy || !item.canBuy}>
+        <button
+          className="rr-pay-carrot"
+          onClick={onBuy}
+          disabled={busy || !item.canBuy}
+          /* WHY it is dead, when it is dead.
+             `canBuy` folds two refusals into one grey slab — the shelf is full,
+             or the purse is short — and the face of the button says neither: it
+             reads "180 🥕" whether the answer is "you have 12" or "you already
+             hold all twelve of these". A player with an empty stock met seven
+             identical grey prices and no sentence anywhere explaining them.
+             The cap case has the tile's own `full` styling behind it; the
+             shortfall had nothing at all, and it is the one a new player is
+             always in. Carried as the accessible name and the tooltip rather
+             than printed on the face, so the shelf stays a shelf of prices. */
+          title={reason}
+          aria-label={reason}
+        >
           {item.price.toLocaleString()} 🥕
         </button>
         {onPayUsdc && (
@@ -351,19 +398,37 @@ function Row({
  * undefended ground is what costs the player carrots while they are not
  * looking.
  *
- * Dead only when there is genuinely nothing to do — nothing in the ground AND
- * nothing in the shed — which is the same test the shed's own button makes.
+ * NEVER DEAD. It used to be: with nothing in the ground and nothing in the
+ * shed, `onClick` was `undefined` and the tap did nothing at all — no board, no
+ * note, no sound. And that is the state a brand-new player is in, under a
+ * sub-line reading NOTHING BURIED in the danger colour, which is the strongest
+ * invitation to press anything on the screen. The game's loudest warning
+ * answered with silence.
+ *
+ * It is the same dead end the GO FARM arrow already had, and it gets the same
+ * answer: the press is ALWAYS answered — with the board when there is something
+ * to arrange, and with the shed when the honest reply is "you have no traps".
+ * `onNone` is that second door.
  */
 export interface ProtectButtonProps {
   shop: ShopState | null;
   onPlace(): void;
+  /**
+   * Where the tap goes when there is nothing to arrange: the Shed, which is
+   * where a trap comes from. Optional — without it the tab falls back to the
+   * board, because opening a grid you can only look at still beats silence.
+   */
+  onNone?(): void;
 }
 
-export function ProtectButton({ shop, onPlace }: ProtectButtonProps) {
+export function ProtectButton({ shop, onPlace, onNone }: ProtectButtonProps) {
   const traps = shop?.traps;
   const bare = !!traps && traps.placed === 0;
   const canEdit = !!traps
     && (traps.placed > 0 || (traps.held > 0 && traps.placed < traps.maxPlaced));
+  // Nothing buried and nothing to bury. Distinguished from `!canEdit` because
+  // the shelf being full (maxPlaced reached) is a different sentence.
+  const empty = !!traps && traps.placed === 0 && traps.held === 0;
 
   return (
     <LauncherTab
@@ -376,12 +441,20 @@ export function ProtectButton({ shop, onPlace }: ProtectButtonProps) {
       label="PROTECT BASE"
       sub={
         !traps ? undefined
-          : bare ? 'NOTHING BURIED'
-            : `${traps.placed}/${traps.maxPlaced} IN THE GROUND`
+          // Says what the tap will DO, not just what the ground is like. "NO
+          // TRAPS - GET ONE" is the whole state in four words: the burrow is
+          // open, you cannot fix it from here, and this is still the way to.
+          : empty ? 'NO TRAPS - GET ONE'
+            : bare ? 'NOTHING BURIED'
+              : `${traps.placed}/${traps.maxPlaced} IN THE GROUND`
       }
-      ink={!canEdit ? CHALK_DIM : bare ? DANGER : LAMP}
-      onClick={canEdit ? onPlace : undefined}
-      ariaLabel="Protect your base"
+      // Still alarmed on a bare burrow — that is the fact worth alarming about,
+      // and it is true whether or not the player can act on it from here. Only
+      // a burrow that is BOTH bare and unfixable used to be dimmed, which read
+      // as "nothing to see" on the one state that most needs pressing.
+      ink={bare ? DANGER : LAMP}
+      onClick={canEdit ? onPlace : (onNone ?? onPlace)}
+      ariaLabel={empty ? 'Protect your base - buy a trap' : 'Protect your base'}
     />
   );
 }

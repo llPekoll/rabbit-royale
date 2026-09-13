@@ -46,20 +46,53 @@ export function RunHud({
   const label = spectating ? (watched?.name ?? 'their run') : name;
 
   return (
-    <header className="rr-hud">
+    /* `watching` is a MODE of this strip, not decoration: it turns the row
+       into two, so the label can say whose run this is in full. See the CSS. */
+    <header className={`rr-hud${spectating ? ' watching' : ''}`}>
       {/* Energy first and widest: it is the only resource, it falls with every
           dig, and it is what the player prices the next tile against. */}
       <EnergyBar energy={subject?.energy ?? 0} />
-      <span style={{ color: 'var(--carrot)' }}>🥕 {subject?.carrots ?? 0}</span>
+      {/* SIGNED, because there are two carrot figures on this screen.
+          The topbar sits directly above this strip and carries the banked
+          stock — also in carrot orange, also reading 0 on a fresh account, and
+          about 50px away. Two identical numbers next to each other are not two
+          readings, they are one ambiguity: neither says whether it is what you
+          own or what you are carrying.
+
+          A leading `+` settles it without a label. `+12` is plainly a haul in
+          progress and `312 carrots` is plainly a balance, which is the
+          distinction that actually matters mid-run — the bank is what a bomb
+          cannot touch, and this is what a walk home turns into it. */}
+      <span style={{ color: 'var(--carrot)' }}>🥕 +{subject?.carrots ?? 0}</span>
       <span style={{ color: 'var(--muted)' }}>🐰 {game.rabbits.size}</span>
       {game.warnStage > 0 && (
         <span style={{ color: 'var(--danger)' }}>🌋 {'!'.repeat(game.warnStage)}</span>
       )}
-      {/* Says it in words, not just by the eye icon: a viewer who forgets they
-          are watching reads every number here as their own. */}
-      <small style={{ color: spectating ? 'var(--crown)' : 'var(--muted)' }}>
-        {spectating ? `👁 watching ${label}` : label}
-      </small>
+      {/* ONLY while watching. Says it in words, not just by the eye icon: a
+          viewer who forgets they are watching reads every number here as their
+          own, and that is the one reading this line exists to prevent.
+
+          Playing your own run it said your own name — which the wallet chip in
+          the topbar directly above is already saying, in the same face, about
+          20px away. Two copies of the player's name is not a second reading,
+          it is the strip spending its scarcest width on a fact nobody is
+          asking about their own run. Dropped there, kept here, where it names
+          somebody else. */}
+      {/* Measured on a 412px phone: this label wants 254px, and the strip is
+          392px with three counters and the gauge already in it, so it gets 136
+          and the name comes out as "Ash...". Dropping the word "watching"
+          saves about 70px and still does not fit -- there is no arrangement
+          that puts a full name on one row at this width.
+
+          So the strip takes a SECOND ROW instead (`.rr-hud.watching`), which is
+          the right trade for this mode in particular: a spectator is not
+          tapping tiles, so the board that second row costs buys nothing back
+          during a watch, whereas a clipped name is worse every second it is on
+          screen. Your own run keeps the single thin row, because that is when
+          board is worth something. */}
+      {spectating && (
+        <small style={{ color: 'var(--crown)' }}>👁 watching {label}</small>
+      )}
     </header>
   );
 }

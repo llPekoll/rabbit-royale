@@ -13,6 +13,12 @@
   --crown: #ffd45c;
   --danger: #ff6b6b;
 
+  /* The top bar's band — the one measurement two layers have to agree on.
+     `.rr-topbar` holds it open as a `min-height`, and the island's fixed
+     `.rr-overlay` reserves it at the top so the run's HUD strip lands under
+     the wallet chip rather than across it. 44px chip + 12px padding. */
+  --rr-topbar-h: 56px;
+
   /* The kit's own pointers. The system arrow was the last piece of desktop
      chrome left on screen, and it sat on top of a game drawn entirely in
      8px cells. Used at the source's own 22×30 — doubling it made the art
@@ -190,6 +196,30 @@ button { min-height: 44px; min-width: 44px; }
   font-variant-numeric: tabular-nums;  /* the HUD must not jitter as digits change */
 }
 
+/* WATCHING is a two-row strip, on purpose.
+   The label only exists while spectating (see run-hud.tsx), and it does not fit
+   beside the gauge and the three counters at phone width — measured on a 412px
+   phone it wants 254px of a 392px strip and gets 136, which clips the name to
+   "Ash...". Dropping the word "watching" saves about 70px and still does not
+   fit, so there is no one-row arrangement that names the player.
+
+   Left to wrap on its own it broke mid-phrase, after "watching". Given its own
+   full-width row it reads as a caption under the numbers, which is what it is:
+   the sentence that says these numbers belong to somebody else. It costs a row
+   of board only in the mode where the player is not tapping the board.
+
+   `flex-basis: 100%` is what drops it; `flex-wrap: wrap` on the parent is what
+   lets the basis take effect, and it is scoped to `.watching` so an ordinary
+   run's strip stays `nowrap` and cannot break into two rows on some narrow
+   width nobody tested. */
+.rr-hud.watching { flex-wrap: wrap; row-gap: 2px; }
+.rr-hud.watching > small {
+  flex-basis: 100%;
+  text-align: center;
+  /* The counters above keep the gap; this line sits tight under them. */
+  margin-top: -2px;
+}
+
 /* The d-pad sits bottom-right: this is a one-handed game, and centring the
    controls puts them where the holding thumb cannot reach. */
 .rr-dpad {
@@ -286,7 +316,23 @@ button { min-height: 44px; min-width: 44px; }
   inset: 0;
   display: flex;
   flex-direction: column;
-  padding: env(safe-area-inset-top) 10px env(safe-area-inset-bottom);
+  /* CLEARS THE TOPBAR, which is the one thing this layer shares the screen
+     with and the one thing `inset: 0` cannot see.
+
+     The topbar is in FLOW at the top of `.rr-home`; this layer is `fixed` and
+     starts at y 0 — so the run's HUD strip was drawn straight over the wallet
+     chip and the carrot count. Four readings in the same 56px band, two of them
+     in the same colour: on a phone the name appeared twice (once in the strip,
+     once in the chip, legible in neither) and the banked carrot figure was
+     simply lost behind the energy bar. It is the first thing you see on
+     entering a run.
+
+     Read from a variable rather than repeated, so the strip and the bar cannot
+     drift apart: `.rr-topbar` is given the same figure as a `min-height`. */
+  padding:
+    calc(env(safe-area-inset-top) + var(--rr-topbar-h))
+    10px
+    env(safe-area-inset-bottom);
   pointer-events: none;
   z-index: 10;
 }
@@ -468,13 +514,18 @@ button { min-height: 44px; min-width: 44px; }
   .rr-energy-fill.critical { animation: none; }
 }
 
-/* The player's own name is the least useful thing in the HUD — they know who
-   they are — and on a narrow phone it wraps the bar onto a second row, which
-   costs board. Drop it below 420px; the spectate eye stays, because THAT is not
-   obvious from context. */
-@media (max-width: 420px) {
-  .rr-hud > small { display: none; }
-}
+/* The player's own name used to ride in this strip and is gone — not at one
+   width, at every width. It is the least useful thing in a HUD (they know who
+   they are), the wallet chip one row above is already saying it, and on a
+   narrow phone it wrapped the bar onto a second row, which costs board.
+   See run-hud.tsx.
+
+   This was a `@media (max-width: 420px) { .rr-hud > small { display: none } }`,
+   whose own comment promised "the spectate eye stays, because THAT is not
+   obvious from context" — and then hid it, because both lines were the same
+   `<small>` and a width query cannot tell whose name it is looking at. The
+   component can, so it decides: no name for your own run, the eye and the
+   watched player's name for somebody else's, on a phone included. */
 
 /* ── Home: the burrow, with the board beside it ────────────────────────────
    No navigation bar anywhere. The game is TWO places and each is one press
@@ -530,6 +581,14 @@ button { min-height: 44px; min-width: 44px; }
      right) — the panels sit close to the corners, not floating inside a
      gutter. */
   padding: 8px 18px 4px;
+  /* PINNED, not content-driven. The island's overlay reserves exactly this
+     band at its top so the run's HUD starts below the bar instead of on top of
+     it, and a band whose height depends on whether a carrot gain is mid-flight
+     is a band the other layer cannot reserve. 44px of chip plus its 12px of
+     padding, which is what the wallet button and the carrot counter both
+     already measure. */
+  min-height: var(--rr-topbar-h);
+  box-sizing: border-box;
 }
 
 /* THE CARROT PILL SITS IN THE MIDDLE OF THE TOP EDGE.
@@ -724,7 +783,22 @@ button { min-height: 44px; min-width: 44px; }
 /* On a phone there is no room to sit beside anything, so the column recentres
    and the wash goes flat and darker to keep the text legible over the art. */
 @media (max-width: 720px) {
-  .rr-burrow { margin: 0 auto; max-width: 460px; }
+  /* The gutter is for the SEASON BOARD'S HANDLE, which is `position: fixed`
+     at `right: 0` and therefore invisible to this column's own layout. On a
+     wide screen the board sits beside the burrow and the 12px is enough; on a
+     phone the column recentres to the full width, and the handle's 44px then
+     lands on top of the cards — clipping the right-hand value in every row it
+     crosses. The one it happened to cross was DIG DEEPER's, so the upgrade
+     price read as "25" instead of "250": the handle covered the last digit of
+     the only number on this screen a player has to decide against.
+
+     Reserved rather than nudged. Moving the handle up or down only picks a
+     different card to clip, because the column is a scroll box and any card
+     can be at any height. */
+  /* Recentred, and keeping the base rule's foot band — a bare `margin: 0 auto`
+     here would reset `margin-bottom` to 0 and put the last tab back under the
+     mute. */
+  .rr-burrow { margin: 0 auto 44px; max-width: 460px; padding-right: 50px; }
   .rr-home-art::after {
     background: linear-gradient(
       180deg,
@@ -1362,6 +1436,30 @@ body:has(.rr-empty) .rr-sound { display: none; }
   transition: transform 200ms ease;
 }
 .rr-lb.open { transform: none; }
+
+/* PARKED IS NOT CLOSED — `visibility` rides along with the slide, so a board
+   that is away is not an invisible interactive sheet sitting past the right
+   edge. See the `inert` note in leaderboard-drawer.tsx for the half of this
+   that keyboards and screen readers care about; this is the half the pointer
+   cares about.
+
+   Delayed out, immediate in. `visibility` does not interpolate, so the
+   discrete step is scheduled for the END of the slide away (the panel has to
+   stay paintable for the 200ms it is travelling) and for the START of the
+   slide back (it has to be paintable before it travels).
+
+   Scoped off the profile panel, which borrows this surface but is a real
+   centred modal — it is only ever mounted while it is meant to be seen, it
+   fades in on `opacity`, and a `transition` declared at this specificity would
+   otherwise replace the one it declares for itself. */
+.rr-lb:not(.rr-profile) {
+  visibility: hidden;
+  transition: transform 200ms ease, visibility 0s linear 200ms;
+}
+.rr-lb:not(.rr-profile).open {
+  visibility: visible;
+  transition: transform 200ms ease, visibility 0s linear 0s;
+}
 
 .rr-lb-head {
   display: flex;
@@ -2032,8 +2130,10 @@ button { font-family: var(--font-pixel); }
   font-size: 24px;
   line-height: 1;
   padding: 0 4px;
-  min-height: 32px;
-  min-width: 32px;
+  /* 44px — the way OUT of a full-screen dialog on a phone, so it is the last
+     control that should be under the accessible minimum. It was 32. */
+  min-height: 44px;
+  min-width: 44px;
 }
 .rr-shop-x:hover { color: var(--chalk); }
 
@@ -2091,7 +2191,8 @@ button { font-family: var(--font-pixel); }
   color: var(--leaf);
   font-size: 11px;
   padding: 8px 14px;
-  min-height: 36px;
+  /* 44px, with the rest of this dialog's controls. It was 36. */
+  min-height: 44px;
   border-radius: 8px;
   white-space: nowrap;
 }
@@ -2183,7 +2284,12 @@ button { font-family: var(--font-pixel); }
 }
 .rr-shop-tile-buy > button {
   flex: 1;
-  min-height: 38px;
+  /* 44px, the accessible minimum. These were 38, which is under it on the one
+     control in the game that takes the player's money — and the tiles below
+     the fold are reached by scrolling this grid with a thumb, so a short button
+     is a button you scroll past by trying to press. The shop's own close [x]
+     had the same problem at 32. */
+  min-height: 44px;
   font-size: 12px;
   padding: 8px 6px;
   border-radius: 8px;

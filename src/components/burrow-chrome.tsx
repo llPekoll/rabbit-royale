@@ -165,6 +165,13 @@ export function BurrowButton({
       scale={UI_PIXEL}
       onClick={onClick}
       disabled={disabled}
+      /* The LABEL, because the label is a picture.
+         `BitmapText` draws the word from the kit's sprite atlas, so HARVEST and
+         UPGRADE have no text node anywhere in the button and no accessible name
+         at all — a screen reader read the two controls that spend and collect
+         the player's carrots as "button", "button". `children` is typed as a
+         string precisely so it can be said out loud here. */
+      aria-label={children}
       style={{
         width: full ? '100%' : undefined,
         height: 34,

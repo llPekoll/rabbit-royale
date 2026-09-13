@@ -89,7 +89,19 @@ describe('the out-of-energy popup', () => {
     expect(POPUP).toMatch(/onPayUsdc && item/);
     // Same rule as the Shed: no wallet, no USDC button rather than a button
     // that fails at the quote.
-    expect(PAGE).toMatch(/onPayUsdc=\{payments && !player\.guest \? \(\) => void payEnergyUsdc\(\)/);
+    //
+    // THREE conditions, because the browser being able to build a transfer and
+    // the server being able to receive one are different facts. /api/config's
+    // `payments` is `Boolean(SOLANA_RPC_URL)`; /api/shop's `usdcEnabled` is
+    // whether a treasury is configured. A deployment with an RPC and no
+    // treasury satisfied the first and failed the second, and this popup —
+    // unlike the Shed's own tiles, which always checked the treasury — put a
+    // price in money on screen that could never be quoted.
+    const gate = PAGE.slice(PAGE.indexOf('payEnergyUsdc()') - 400)
+      .slice(0, 500);
+    expect(gate).toMatch(/payments/);
+    expect(gate).toMatch(/usdcEnabled/);
+    expect(gate).toMatch(/!player\.guest/);
   });
 
   it('keeps the whole shed one press away', () => {

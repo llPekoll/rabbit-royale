@@ -158,7 +158,27 @@ export function LeaderboardDrawer({ token, playerId, onSpectate, onMe }: Leaderb
         </HubIconButton>
       </span>
 
-      <aside id="rr-leaderboard" className={`rr-lb${open ? ' open' : ''}`}>
+      {/* `inert` while it is away, which is the whole difference between a
+          drawer that is closed and one that is merely PARKED.
+
+          It is put away with `transform: translateX(100%)` — off the right edge
+          but still laid out, still focusable and still read out. So tabbing
+          away from the burrow walked into a board nobody could see: the header's
+          [x], then fifty rows, all announced at coordinates past the end of the
+          screen. Screen-reader users got the whole season board read to them on
+          a screen that was not showing it, and a keyboard player lost their
+          focus off-stage with no visible ring to find it by.
+
+          `inert` takes the subtree out of the tab order, out of the
+          accessibility tree and out of hit testing in one attribute, so the
+          slide-in animation is kept (which `display: none` would have cost) and
+          the panel stops existing for everyone else while it is away. The CSS
+          hides it from the picture with `visibility` on the same condition. */}
+      <aside
+        id="rr-leaderboard"
+        className={`rr-lb${open ? ' open' : ''}`}
+        inert={!open}
+      >
         <header className="rr-lb-head">
           <strong>👑 Season</strong>
           {daysLeft !== null && <span style={{ color: 'var(--muted)' }}>{daysLeft}d</span>}

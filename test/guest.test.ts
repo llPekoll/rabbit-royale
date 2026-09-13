@@ -151,7 +151,18 @@ describe('the shape of the feature', () => {
   });
 
   it('hides the paid rail from a guest', () => {
-    expect(PAGE).toMatch(/onPayUsdc=\{payments && !player\.guest/);
+    // Every door that can offer money asks the same three questions: can the
+    // browser build a transfer (`payments`), can this deployment receive one
+    // (`usdcEnabled`), and does this player have a wallet (`!player.guest`).
+    // Asserted per door rather than as one spelling, so neither the Shed nor
+    // the energy popup can quietly drop a condition the other keeps.
+    const doors = [...PAGE.matchAll(/onPayUsdc=\{([^}]*)\}/g)].map((m) => m[1]);
+    expect(doors.length).toBeGreaterThan(0);
+    for (const door of doors) {
+      expect(door).toMatch(/payments/);
+      expect(door).toMatch(/usdcEnabled/);
+      expect(door).toMatch(/!player\.guest/);
+    }
   });
 });
 

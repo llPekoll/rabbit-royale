@@ -895,7 +895,13 @@ function Burrow() {
           controls at the right. The pill is `position: fixed` and places
           itself (see `.rr-carrot-pill`); the flow here is the two ends. */}
       <div className="rr-topbar">
-        <WalletButton />
+        {/* Only with the rest of the screen's chrome. Signed out this chip says
+            "Connect wallet" — the doorstep's own primary action — and the
+            crawl's masthead fade (`.rr-crawl-mast`, z 2) paints over it while
+            staying `pointer-events: none`, so it was an invisible, live copy of
+            that button in the corner, and a second "Connect wallet" for a
+            screen reader. */}
+        {showCanvas && <WalletButton />}
         {/* The pill carries the rank line, so a player can see what it would
             take to climb without opening the season board. `me` is reported by
             that board's own poll — see LeaderboardDrawer.onMe. */}
@@ -1207,7 +1213,22 @@ function Burrow() {
           onBuy={() => void buyEnergy()}
           // Same rule as the Shed: no wallet, no money route — the popup
           // offers one price instead of offering two and failing at the quote.
-          onPayUsdc={payments && !player.guest ? () => void payEnergyUsdc() : undefined}
+          //
+          // And `shop.usdcEnabled` alongside `payments`, because the two
+          // answer different questions and only the second one is binding.
+          // /api/config's `payments` is `Boolean(SOLANA_RPC_URL)` — whether the
+          // BROWSER can build a transfer — while /api/shop's `usdcEnabled` is
+          // whether a TREASURY is configured to receive one. A deployment with
+          // an RPC and no treasury (which is every dev machine, and was this
+          // one) satisfied the first and failed the second, so this popup put a
+          // price in money on screen and the quote behind it could not be
+          // issued. The Shed's own tiles already check the treasury and were
+          // correct throughout; this door was the one taking the guess.
+          onPayUsdc={
+            payments && shop.shop?.usdcEnabled && !player.guest
+              ? () => void payEnergyUsdc()
+              : undefined
+          }
           onOpenShop={() => { setEnergyOpen(false); shop.setNote(null); setShopOpen(true); }}
           onClose={() => { setEnergyOpen(false); shop.setNote(null); usdc.setError(null); }}
         />
@@ -1244,7 +1265,13 @@ function Burrow() {
           // offering it and failing at the quote. The carrot side of every
           // shelf is untouched: everything money buys is also earnable, so a
           // guest's shop is smaller, not poorer.
-          onPayUsdc={payments && !player.guest ? buyWithUsdc : undefined}
+          // `usdcEnabled` as well as `payments` — see the EnergyPopup above for
+          // why the two are not the same question. Belt on top of the Row's own
+          // check, so the panel and the popup are gated identically rather than
+          // one of them relying on a deeper component to catch it.
+          onPayUsdc={
+            payments && shop.shop?.usdcEnabled && !player.guest ? buyWithUsdc : undefined
+          }
           payToken={payToken}
           onPayTokenChange={setPayToken}
           payStage={usdc.stage}
