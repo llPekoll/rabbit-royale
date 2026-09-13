@@ -294,7 +294,15 @@ export class BurrowScene implements Scene {
     // the pulled-back framing is solved against it — so the shot has to be
     // re-solved rather than kept, or a phone turned mid-placement would hold a
     // landscape camera over a portrait board.
-    this.onResize = () => this.moveCamera(this.wantedCam(), true);
+    //
+    // The sky is solved against the same numbers and has to move with the shot:
+    // its bands are fractions of the design space, so a field left on the old
+    // height parks its bottom bank hundreds of px below a taller portrait frame
+    // and the bottom of the screen goes bare.
+    this.onResize = () => {
+      this.clouds?.resize(GAME_W, GAME_H);
+      this.moveCamera(this.wantedCam(), true);
+    };
     window.addEventListener('resize', this.onResize);
     this.setPlacing(this.data.placing);
     for (const tile of this.data.traps) this.addTrap(tile, false);

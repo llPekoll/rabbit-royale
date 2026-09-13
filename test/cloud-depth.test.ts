@@ -74,3 +74,42 @@ describe('island layering', () => {
     expect(TILE).toMatch(/\* 16 \+ tier/);
   });
 });
+
+/**
+ * Whether the bottom of the frame actually gets weather.
+ *
+ * The bug this guards: the two lower bands were parked at `h * 1.04..1.34`, a
+ * fraction of the canvas height, while the sprites stay 256px tall whatever the
+ * canvas is. On the 860-tall portrait design space the burrow uses, that puts
+ * the `bottom` band ~1150px down — far enough that a cloud at the small end of
+ * SCALE_RANGE never reaches back into frame, so the bottom of the screen was
+ * bare. Source-read for the same reason as the rest of this file.
+ */
+describe('the bottom of the sky', () => {
+  it('anchors the lower bands to the sprite, not to a fraction of the canvas', () => {
+    // The regression is specifically an `s.y` ASSIGNED a multiple of the height,
+    // which drifts away from a fixed-size sprite as the canvas grows. Matched on
+    // the assignment rather than on the bare text, so the prose above `lower`
+    // explaining the old numbers does not trip it.
+    expect(CLOUDS).not.toMatch(/s\.y = rand\(\[h \* 1\./);
+    // Both lower bands go through the sprite-relative helper instead.
+    expect(CLOUDS).toMatch(/case 'lower':[\s\S]*?this\.showBelow\(/);
+    expect(CLOUDS).toMatch(/case 'bottom':[\s\S]*?this\.showBelow\(/);
+  });
+
+  it('measures the overhang off the sprite height, so any scale still shows', () => {
+    expect(CLOUDS).toMatch(/s\.texture\.height \* Math\.abs\(s\.scale\.y\)/);
+    // scale.x is mirrored on half the field, so it must not be the one used.
+    expect(CLOUDS).not.toMatch(/texture\.height \* Math\.abs\(s\.scale\.x\)/);
+  });
+
+  it('re-solves the field when the design space is swapped', () => {
+    // GAME_W/GAME_H flip on rotation; a field built in landscape and left alone
+    // keeps parking its bands against the old height.
+    expect(CLOUDS).toMatch(/resize\(width: number, height: number\): void/);
+    const BURROW = read('../src/game/scenes/BurrowScene.ts');
+    const ISLAND = read('../src/game/scenes/IslandScene.ts');
+    expect(BURROW).toMatch(/clouds\?\.resize\(GAME_W, GAME_H\)/);
+    expect(ISLAND).toMatch(/clouds\?\.resize\(this\.canvasW, this\.canvasH\)/);
+  });
+});

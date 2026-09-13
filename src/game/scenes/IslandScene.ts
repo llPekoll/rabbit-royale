@@ -183,6 +183,9 @@ export class IslandScene implements Scene {
     // changes with every resize, hence the listener rather than a one-off.
     this.onResize = () => {
       this.background?.layout(this.canvasW / 2, this.canvasH / 2);
+      // Same reason as the ground: the sky's bands are fractions of the design
+      // space, so a rotation that swaps it leaves them solved for the old one.
+      this.clouds?.resize(this.canvasW, this.canvasH);
       this.applyCamera();
     };
     window.addEventListener('resize', this.onResize);
@@ -820,6 +823,7 @@ export class IslandScene implements Scene {
       this.lastW = w;
       this.lastH = h;
       this.background?.layout(this.canvasW / 2, this.canvasH / 2);
+      this.clouds?.resize(this.canvasW, this.canvasH);
       this.applyCamera();
     }
   }

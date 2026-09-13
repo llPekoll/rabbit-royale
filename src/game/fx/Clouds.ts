@@ -136,15 +136,46 @@ export class CloudField {
         s.x = w + m - t * (w + m * 2);   // the other way, so the sky is not a conveyor
         s.y = rand([-h * 0.16, -h * 0.04]);
         break;
+      // The bottom pair is anchored to the sprite's OWN size, not to a fraction
+      // of the canvas — `showBelow` parks a cloud so that a fixed number of
+      // pixels of it pokes back up over the frame's bottom edge.
+      //
+      // They used to sit at `h * 1.04..1.34`, a fraction of the height like the
+      // top pair. The top pair gets away with it because a cloud hanging off the
+      // TOP edge is still 18-34% of the height up there for any h. Downwards the
+      // same arithmetic scales the gap with the canvas while the sprite stays
+      // 256px tall: on the 860-tall portrait space the burrow uses, `h * 1.34`
+      // parks the `bottom` band 1152px down, and at the small end of
+      // SCALE_RANGE its 141px half-height reaches nowhere near the frame — that
+      // band contributed literally zero visible pixels, and `lower` could fall
+      // to 3. The bottom of a portrait burrow was left bare.
+      //
+      // Anchoring to the sprite means both bands show the same sliver of cloud
+      // at every scale and on either orientation.
       case 'lower':
         s.x = -m + t * (w + m * 2);
-        s.y = rand([h * 1.04, h * 1.16]);
+        s.y = this.showBelow(s, [40, 110]);
         break;
       case 'bottom':
         s.x = w + m - t * (w + m * 2);
-        s.y = rand([h * 1.18, h * 1.34]);
+        s.y = this.showBelow(s, [4, 40]);
         break;
     }
+  }
+
+  /**
+   * The `y` that leaves `visible` px of this cloud showing above the frame's
+   * bottom edge, with the rest hanging off into the margin.
+   *
+   * Uses the sprite's own scaled height, so a 1.1x and a 2.2x cloud in the same
+   * band both show the same sliver instead of the big one swallowing the corner
+   * of the board while the small one never arrives at all.
+   */
+  private showBelow(s: Sprite, visible: readonly [number, number]): number {
+    // `scale.x` is negated on the flipped half of the field (see `spawn`), so
+    // height comes off `scale.y`, which is never mirrored.
+    const half = (s.texture.height * Math.abs(s.scale.y)) / 2;
+    return this.opts.height + half - rand(visible);
   }
 
   /** Advance the field. `deltaMs` is real milliseconds. */
@@ -166,6 +197,25 @@ export class CloudField {
         if (s.x < -m) this.place(cloud, 0);
       }
     }
+  }
+
+  /**
+   * Re-solve the field against a new design space.
+   *
+   * `GAME_W`/`GAME_H` are swapped on rotation (see Application.resize), and the
+   * bands are positioned as fractions of that space — so a field built in
+   * landscape and then turned to portrait keeps parking its bottom bands at the
+   * OLD height, hundreds of px from the edge they were meant to hug. The scenes
+   * already re-solve their camera on resize; the sky has to be re-solved with
+   * it.
+   *
+   * Existing clouds are re-placed rather than respawned: a cloud that jumped to
+   * a new texture and scale on rotation would read as a cut, and `t` is
+   * randomised per cloud so the field stays staggered instead of lining up.
+   */
+  resize(width: number, height: number): void {
+    this.opts = { ...this.opts, width, height };
+    for (const cloud of this.clouds) this.place(cloud, Math.random());
   }
 
   /**
