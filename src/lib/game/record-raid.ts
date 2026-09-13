@@ -62,8 +62,10 @@ export async function recordRaid(opts: {
       .set({
         stock: sql`greatest(0, ${players.stock} - ${outcome.loot})`,
         seasonScore: sql`greatest(0, ${players.seasonScore} - ${outcome.loot})`,
-        burrowHp: sql`greatest(0, ${players.burrowHp} - ${outcome.damage})`,
-        hpUpdatedAt: new Date(),
+        // No HP subtraction any more: the burrow has no hit points. The raid's
+        // `damage` survives as the SEVERITY written to the log line below —
+        // what the profile history reads back as "35 dmg" — and nothing is
+        // deducted from the defender but carrots.
       })
       .where(eq(players.id, defenderId))
       .returning({ stock: players.stock, seasonScore: players.seasonScore });

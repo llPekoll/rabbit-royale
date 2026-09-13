@@ -14,7 +14,7 @@
  *  - the burrow's HP, worn down by the raid and regenerating on its own;
  *  - the loot, a share of the victim's stock scaled by how far the raider got.
  */
-import { BURROW, CROWN, RAID, RAID_RUN } from '@config/tuning';
+import { CROWN, RAID, RAID_RUN } from '@config/tuning';
 import {
   entranceTile, fieldTiles, burrowNeighbors, burrowAround, walkableTiles, burrowTier,
 } from '@/game/burrow/board';
@@ -69,7 +69,13 @@ export interface RaidOutcome {
   progress: number;
   /** Carrots transferred. */
   loot: number;
-  /** Damage dealt to the burrow's HP. */
+  /**
+   * How hard the raid hit, 0..BOMB_DAMAGE — the severity the raid log and the
+   * profile history read ("35 dmg").
+   *
+   * It is a MEASURE, not a subtraction: burrows have no hit points to take it
+   * off. Nothing is deducted anywhere from this number.
+   */
   damage: number;
   /** True when the raider actually touched the carrot field. */
   reachedField: boolean;
@@ -88,7 +94,6 @@ export function settleRaid(
     seed: string;
     endedAt: number;
     defenderStock: number;
-    defenderHp: number;
     defenderLevel: number;
     shielded: boolean;
     crowned?: boolean;
@@ -118,24 +123,14 @@ export function settleRaid(
     Math.floor(opts.defenderStock * share * mult),
   );
 
-  // Damage rolls in a band so two identical raids do not read as scripted.
+  // Damage rolls in a band so two identical raids do not read as scripted. It
+  // is clamped at 0 only: it used to be capped by the defender's remaining HP,
+  // and with the hit-point bar gone there is no ceiling left to apply.
   const jitter = 1 + (rng() * 2 - 1) * RAID.DAMAGE_JITTER;
-  const damage = Math.min(
-    opts.defenderHp,
-    Math.round(RAID.BOMB_DAMAGE * progress * jitter),
-  );
+  const damage = Math.max(0, Math.round(RAID.BOMB_DAMAGE * progress * jitter));
 
   return { progress, loot, damage, reachedField };
 }
-
-/** Max HP for a burrow level — the one stat a burrow has. */
-export const burrowMaxHp = (level: number) => level * BURROW.HP_PER_LEVEL;
-
-/**
- * Does this raid break the burrow? A broken burrow earns its owner the
- * post-raid shield, which is the anti-churn rule the whole loop rests on.
- */
-export const breaksBurrow = (hpBefore: number, damage: number) => damage >= hpBefore;
 
 /**
  * The clue numbers a raider reads: how many traps touch each tile.

@@ -9,7 +9,7 @@ import { eq, sql as raw } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { players } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
-import { applyRegen, currentHp, gardenYield } from '@/lib/game/regen';
+import { applyRegen, gardenYield } from '@/lib/game/regen';
 import { burrowView, upgradeBlocker } from '@/lib/game/burrow';
 import { upgradeCost } from '@config/tuning';
 
@@ -62,14 +62,9 @@ export async function POST(req: Request) {
     }
     const cost = upgradeCost(player.burrowLevel);
 
-    // Settle the HP the burrow regenerated up to NOW before raising the level:
-    // max HP is a function of level, so raising it without stamping the clock
-    // would silently backdate the new, larger cap to the old timestamp.
     await db.update(players).set({
       stock: raw`${players.stock} - ${cost}`,
       burrowLevel: raw`${players.burrowLevel} + 1`,
-      burrowHp: currentHp(player, now.getTime()),
-      hpUpdatedAt: now,
     }).where(eq(players.id, session.sub));
 
     const after = await db.query.players.findFirst({ where: eq(players.id, session.sub) });

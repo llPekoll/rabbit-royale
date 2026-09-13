@@ -4,8 +4,8 @@
  * would have handled by accident.
  */
 import { describe, expect, it } from 'vitest';
-import { BURROW, GARDEN, OUT_OF_RUN_ENERGY } from '../config/tuning';
-import { currentEnergy, currentHp, gardenYield, maxHp } from '../src/lib/game/regen';
+import { GARDEN, OUT_OF_RUN_ENERGY } from '../config/tuning';
+import { currentEnergy, gardenYield } from '../src/lib/game/regen';
 
 const ago = (hours: number) => new Date(Date.now() - hours * 3_600_000);
 
@@ -17,17 +17,6 @@ describe('currentEnergy', () => {
 
   it('caps, however long you were away', () => {
     expect(currentEnergy({ energy: 0, energyUpdatedAt: ago(24 * 365) })).toBe(OUT_OF_RUN_ENERGY.MAX);
-  });
-});
-
-describe('currentHp', () => {
-  it('regenerates towards the level cap', () => {
-    const row = { burrowHp: 0, burrowLevel: 2, hpUpdatedAt: ago(1) };
-    expect(currentHp(row)).toBe(Math.floor(maxHp(2) * BURROW.HP_REGEN_PER_HOUR));
-  });
-
-  it('never exceeds max HP', () => {
-    expect(currentHp({ burrowHp: 0, burrowLevel: 3, hpUpdatedAt: ago(1000) })).toBe(maxHp(3));
   });
 });
 

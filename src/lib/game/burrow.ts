@@ -6,20 +6,20 @@
  * config/tuning.ts — nothing here invents one.
  */
 import { BURROW, GARDEN, OUT_OF_RUN_ENERGY, upgradeCost } from '../../../config/tuning';
-import { currentEnergy, gardenYield, maxHp, type RegenRow } from './regen';
+import { currentEnergy, gardenYield, type RegenRow } from './regen';
 import { gardenCapacity, yieldPerHour } from './garden-growth';
 
 export interface BurrowRow extends RegenRow {
   stock: number;
   /** Never reset, never stolen — the counter the codex unlocks on. */
   lifetimeCarrots: number;
+  /** Raids bounce off until this instant, or null if never shielded. */
+  shieldedUntil?: Date | null;
 }
 
 export interface BurrowView {
   level: number;
   maxLevel: number;
-  hp: number;
-  maxHp: number;
   stock: number;
   /**
    * Lifetime carrots — the third counter, and the only one that never moves
@@ -49,12 +49,22 @@ export interface BurrowView {
   capHours: number;
   /** Carrots waiting when the garden is completely full. */
   gardenCapacity: number;
+  /**
+   * Milliseconds of shield left, or null when raids can land right now.
+   *
+   * This replaced a HIT POINTS gauge. HP were never a defence — traps are what
+   * a raider actually fights, and the damage number changed neither his loot
+   * nor his progress. All the HP ever decided was how soon the next raid could
+   * land, so the screen now states THAT directly instead of dressing it as a
+   * health bar the burrow does not have.
+   */
+  shieldMs: number | null;
   /** Cost of the next level, or null at max. */
   upgradeCost: number | null;
   canUpgrade: boolean;
   /** What the next level buys, so the price has something to sit against. A
    *  cost with no stated benefit is a number the player cannot judge. */
-  next: { hp: number; yieldPerHour: number } | null;
+  next: { yieldPerHour: number } | null;
 }
 
 /**
@@ -74,6 +84,18 @@ export function msToNextEnergy(
 }
 
 /**
+ * Milliseconds of shield remaining, or null once raids can land again.
+ *
+ * Null rather than 0 for "unshielded" so the caller can tell "the shield just
+ * ran out" from "there is no shield" without comparing against a clock twice.
+ */
+export function msOfShield(until: Date | null, now = Date.now()): number | null {
+  if (!until) return null;
+  const left = until.getTime() - now;
+  return left > 0 ? left : null;
+}
+
+/**
  * Carrots per hour a garden makes at `level`, and the ceiling it fills to.
  *
  * Both re-exported from `garden-growth` rather than worked out again here. The
@@ -89,8 +111,6 @@ export function burrowView(row: BurrowRow, now = Date.now()): BurrowView {
   return {
     level: row.burrowLevel,
     maxLevel: BURROW.MAX_LEVEL,
-    hp: row.burrowHp,
-    maxHp: maxHp(row.burrowLevel),
     stock: row.stock,
     lifetime: row.lifetimeCarrots,
     gardenReady: gardenYield(row, now),
@@ -100,11 +120,10 @@ export function burrowView(row: BurrowRow, now = Date.now()): BurrowView {
     yieldPerHour: yieldPerHour(row.burrowLevel),
     capHours: GARDEN.CAP_HOURS,
     gardenCapacity: gardenCapacity(row.burrowLevel),
+    shieldMs: msOfShield(row.shieldedUntil ?? null, now),
     upgradeCost: cost,
     canUpgrade: cost !== null && row.stock >= cost,
-    next: atMax
-      ? null
-      : { hp: maxHp(row.burrowLevel + 1), yieldPerHour: yieldPerHour(row.burrowLevel + 1) },
+    next: atMax ? null : { yieldPerHour: yieldPerHour(row.burrowLevel + 1) },
   };
 }
 

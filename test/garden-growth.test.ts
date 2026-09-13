@@ -169,14 +169,12 @@ describe('the picture and the economy cannot drift apart', () => {
     const level = 4;
     const row = {
       burrowLevel: level,
-      burrowHp: 100,
       stock: 0,
       lifetimeCarrots: 0,
       energy: 0,
       // Long enough ago that the garden is certainly capped.
       gardenCollectedAt: new Date(Date.now() - 48 * 3_600_000),
       energyUpdatedAt: new Date(),
-      burrowHpUpdatedAt: new Date(),
     };
     const view = burrowView(row as never);
     expect(view.gardenReady).toBe(view.gardenCapacity);

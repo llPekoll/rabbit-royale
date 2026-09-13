@@ -1,5 +1,5 @@
 /**
- * Time-derived regeneration: energy, burrow HP, garden yield.
+ * Time-derived regeneration: energy and garden yield.
  *
  * NOTHING here is ticked by a job. Each value is computed from its `*UpdatedAt`
  * timestamp at the moment someone reads it, which is what lets this hold a lot
@@ -9,7 +9,7 @@
  * The functions are pure — they take a row and a clock and return numbers. The
  * caller decides whether to write the new values back.
  */
-import { BURROW, GARDEN, OUT_OF_RUN_ENERGY } from '../../../config/tuning';
+import { GARDEN, OUT_OF_RUN_ENERGY } from '../../../config/tuning';
 
 const HOUR = 3_600_000;
 
@@ -17,28 +17,13 @@ export interface RegenRow {
   energy: number;
   energyUpdatedAt: Date;
   burrowLevel: number;
-  burrowHp: number;
-  hpUpdatedAt: Date;
   gardenCollectedAt: Date;
 }
-
-export const maxHp = (level: number) => level * BURROW.HP_PER_LEVEL;
 
 /** Energy now, capped. Regen runs while you are out of a run. */
 export function currentEnergy(row: Pick<RegenRow, 'energy' | 'energyUpdatedAt'>, now = Date.now()) {
   const hours = Math.max(0, now - row.energyUpdatedAt.getTime()) / HOUR;
   return Math.min(OUT_OF_RUN_ENERGY.MAX, Math.floor(row.energy + hours * OUT_OF_RUN_ENERGY.REGEN_PER_HOUR));
-}
-
-/**
- * Burrow HP now. Repair is FREE and time-based only — monetising repair is
- * explicitly forbidden (BUILD-PLAN anti-scope-creep), because a paid repair
- * turns every raid into a bill and kills the revenge loop that makes raids work.
- */
-export function currentHp(row: Pick<RegenRow, 'burrowHp' | 'burrowLevel' | 'hpUpdatedAt'>, now = Date.now()) {
-  const max = maxHp(row.burrowLevel);
-  const hours = Math.max(0, now - row.hpUpdatedAt.getTime()) / HOUR;
-  return Math.min(max, Math.floor(row.burrowHp + hours * max * BURROW.HP_REGEN_PER_HOUR));
 }
 
 /**
@@ -57,8 +42,6 @@ export function applyRegen<T extends RegenRow>(row: T, now = Date.now()) {
   return {
     ...row,
     energy: currentEnergy(row, now),
-    burrowHp: currentHp(row, now),
-    burrowMaxHp: maxHp(row.burrowLevel),
     gardenReady: gardenYield(row, now),
   };
 }

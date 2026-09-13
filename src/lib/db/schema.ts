@@ -67,11 +67,9 @@ export const players = pgTable('players', {
   lifetimeCarrots: bigint('lifetime_carrots', { mode: 'number' }).notNull().default(0),
 
   burrowLevel: integer('burrow_level').notNull().default(1),
-  burrowHp: integer('burrow_hp').notNull().default(100),
-  /** HP and energy regen are derived from timestamps at read time — no per-player
-   *  cron, which is what lets this scale to a lot of players (BUILD-PLAN 5). */
-  hpUpdatedAt: timestamp('hp_updated_at', { withTimezone: true }).notNull().defaultNow(),
 
+  /** Energy regen is derived from its timestamp at read time — no per-player
+   *  cron, which is what lets this scale to a lot of players (BUILD-PLAN 5). */
   energy: integer('energy').notNull().default(30),
   energyUpdatedAt: timestamp('energy_updated_at', { withTimezone: true }).notNull().defaultNow(),
 

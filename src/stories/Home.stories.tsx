@@ -16,8 +16,8 @@ import '@/app/globals.css';
 interface Args {
   signedIn: boolean;
   stock: number;
-  hp: number;
-  maxHp: number;
+  /** Minutes of shield left, or 0 when raids can land right now. */
+  shieldMins: number;
   gardenReady: number;
   level: number;
   upgradeCost: number;
@@ -33,7 +33,7 @@ const ENTRIES = [
   { rank: 6, name: 'RustyClover5', score: 3110, burrow: 4, lifetime: 12050, crowned: false },
 ];
 
-function Home({ signedIn, stock, hp, maxHp, gardenReady, level, upgradeCost, boardOpen }: Args) {
+function Home({ signedIn, stock, shieldMins, gardenReady, level, upgradeCost, boardOpen }: Args) {
   const [open, setOpen] = useState(boardOpen);
 
   return (
@@ -118,11 +118,21 @@ function Home({ signedIn, stock, hp, maxHp, gardenReady, level, upgradeCost, boa
             <h1 className="rr-burrow-title">Your burrow</h1>
             {/* The count lives in the topbar now (see .rr-carrots), not in a
                 block of its own. */}
-            <div className="rr-card">
-              <div className="rr-row"><span>Hit points</span><span>{hp} / {maxHp}</span></div>
-              <div className="rr-meter"><i style={{ width: `${(hp / maxHp) * 100}%` }} /></div>
-              <small style={{ color: 'var(--muted)' }}>Repairs itself over time. Always free.</small>
-            </div>
+            {/* SHIELD, where "Hit points" used to be. HP defended nothing —
+                traps are what a raider fights — so the card states the one
+                thing the bar ever decided: how long until raids can land. It
+                shows only while the shield holds. */}
+            {shieldMins > 0 && (
+              <div className="rr-card">
+                <div className="rr-row">
+                  <span>Shield</span>
+                  <span style={{ color: 'var(--carrot)' }}>{shieldMins}m</span>
+                </div>
+                <small style={{ color: 'var(--muted)' }}>
+                  You were raided. Raids bounce off until it runs out.
+                </small>
+              </div>
+            )}
             <div className="rr-card">
               <div className="rr-row">
                 <span>🌱 Garden</span>
@@ -151,7 +161,7 @@ const meta: Meta<Args> = {
   render: (args) => <Home key={JSON.stringify(args)} {...args} />,
   parameters: { layout: 'fullscreen' },
   args: {
-    signedIn: true, stock: 1240, hp: 430, maxHp: 600,
+    signedIn: true, stock: 1240, shieldMins: 0,
     gardenReady: 186, level: 6, upgradeCost: 2185, boardOpen: false,
   },
 };
@@ -168,5 +178,5 @@ export const BoardOpen: Story = { args: { boardOpen: true } };
 /** First visit: the only thing to do is connect. */
 export const SignedOut: Story = { args: { signedIn: false } };
 
-/** Raided overnight: the burrow is hurt and repairing itself for free. */
-export const Raided: Story = { args: { hp: 74, stock: 310, gardenReady: 0 } };
+/** Raided overnight: carrots gone, and the shield that buys a quiet morning. */
+export const Raided: Story = { args: { shieldMins: 227, stock: 310, gardenReady: 0 } };

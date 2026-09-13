@@ -15,8 +15,6 @@ const row = (level: number, stock = 0, pickedHoursAgo = 0) => ({
   stock,
   lifetimeCarrots: 0,
   burrowLevel: level,
-  burrowHp: level * BURROW.HP_PER_LEVEL,
-  hpUpdatedAt: new Date(now),
   energy: 30,
   energyUpdatedAt: new Date(now),
   gardenCollectedAt: new Date(now - pickedHoursAgo * 3_600_000),
@@ -33,8 +31,9 @@ describe('burrowView', () => {
   it('says what the next level buys', () => {
     const v = burrowView(row(2), now);
     expect(v.next).not.toBeNull();
-    // Both numbers must MOVE, or the upgrade is a price for nothing.
-    expect(v.next!.hp).toBeGreaterThan(v.maxHp);
+    // The number must MOVE, or the upgrade is a price for nothing. It used to
+    // quote HP too; that stat is gone, so the garden rate is the whole offer
+    // and it carries the burden of justifying the price on its own.
     expect(v.next!.yieldPerHour).toBeGreaterThan(v.yieldPerHour);
   });
 

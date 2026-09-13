@@ -48,8 +48,6 @@ import { SCENE } from '@/game/keys';
 interface Burrow {
   level: number;
   maxLevel: number;
-  hp: number;
-  maxHp: number;
   stock: number;
   /** Lifetime carrots — never reset, never stolen. Opens the codex. */
   lifetime: number;
@@ -57,12 +55,14 @@ interface Burrow {
   energy: number;
   maxEnergy: number;
   nextEnergyInMs: number | null;
+  /** Milliseconds of shield left, or null when raids can land right now. */
+  shieldMs: number | null;
   yieldPerHour: number;
   capHours: number;
   gardenCapacity: number;
   upgradeCost: number | null;
   canUpgrade: boolean;
-  next: { hp: number; yieldPerHour: number } | null;
+  next: { yieldPerHour: number } | null;
 }
 
 /** Which of the two places is on screen. Not a route: a scene swap. */
@@ -973,20 +973,30 @@ function Burrow() {
                   things placement itself needs. */}
               {!placing && (
               <>
-              <BurrowCard>
-                <CardRow
-                  label="HIT POINTS"
-                  value={`${burrow?.hp ?? '-'}/${burrow?.maxHp ?? '-'}`}
-                />
-                <BurrowMeter
-                  value={burrow?.hp ?? 0}
-                  max={burrow?.maxHp ?? 1}
-                  label="Burrow hit points"
-                />
-                {/* Repair is free and time-based, always. Charging for it would
-                    turn every raid into a bill and kill the revenge loop. */}
-                <CardNote>Repairs itself over time. Always free.</CardNote>
-              </BurrowCard>
+              {/* SHIELD, where HIT POINTS used to be.
+                  
+                  The HP bar promised a fortress the game does not have: traps
+                  are what a raider fights, and the damage roll changed neither
+                  his loot nor his progress. The one thing HP ever decided was
+                  how soon the next raid could land — so that is what the card
+                  says now, in the only unit the player can act on: time.
+                  
+                  It renders ONLY while the shield holds. An always-present
+                  "not shielded" row would be a permanent reminder of a thing
+                  the player cannot buy or build, which is the same mistake as
+                  the gauge it replaced. */}
+              {burrow?.shieldMs != null && (
+                <BurrowCard>
+                  <CardRow
+                    label="SHIELD"
+                    value={formatWait(burrow.shieldMs)}
+                    tone={CARROT}
+                  />
+                  <CardNote>
+                    You were raided. Raids bounce off until it runs out.
+                  </CardNote>
+                </BurrowCard>
+              )}
 
               <BurrowCard>
                 <CardRow
@@ -1045,11 +1055,15 @@ function Burrow() {
                   tone={burrow?.canUpgrade ? CARROT : CHALK_DIM}
                 />
                 {/* What the price buys. A cost with no stated benefit is a
-                    number the player has no way to judge. */}
+                    number the player has no way to judge.
+                    
+                    It used to quote "X HP" first. That was the upgrade's
+                    headline benefit and it bought nothing — HP defended
+                    nothing — so the garden rate, which is real, is now the
+                    whole of the offer. */}
                 {burrow?.next && (
                   <CardNote>
-                    level {burrow.level + 1}: {burrow.next.hp} HP &middot;{' '}
-                    {burrow.next.yieldPerHour}/hour
+                    level {burrow.level + 1}: {burrow.next.yieldPerHour} carrots/hour
                   </CardNote>
                 )}
                 <BurrowButton

@@ -18,8 +18,6 @@ const row = (energy: number, agoMs = 0) => ({
   stock: 0,
   lifetimeCarrots: 0,
   burrowLevel: 1,
-  burrowHp: 100,
-  hpUpdatedAt: new Date(now),
   energy,
   energyUpdatedAt: new Date(now - agoMs),
   gardenCollectedAt: new Date(now),

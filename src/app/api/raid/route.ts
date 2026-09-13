@@ -24,7 +24,6 @@ import {
   distanceToField, raiderView, settleRaid, trapClues,
 } from '@/lib/game/raid';
 import { burrowNeighbors, entranceTile, burrowCell, walkableTiles } from '@/game/burrow/board';
-import { currentHp } from '@/lib/game/regen';
 import { smokeActive } from '@/lib/game/inventory';
 import { RAID, RAID_RUN, TRAPS } from '@config/tuning';
 
@@ -256,12 +255,10 @@ export async function PATCH(req: Request) {
   if (!defender) return Response.json({ error: 'unknown_player' }, { status: 404 });
 
   const now = new Date();
-  const hp = currentHp(defender, now.getTime());
   const outcome = settleRaid({
     seed: run.defenderId,
     endedAt: to,
     defenderStock: defender.stock,
-    defenderHp: hp,
     defenderLevel: defender.burrowLevel,
     shielded: !!defender.shieldedUntil && defender.shieldedUntil.getTime() > now.getTime(),
   }, Math.random, distanceToField(run.defenderId));
@@ -276,11 +273,15 @@ export async function PATCH(req: Request) {
     const [robbed] = await tx.update(players).set({
       stock: raw`greatest(0, ${players.stock} - ${outcome.loot})`,
       seasonScore: raw`greatest(0, ${players.seasonScore} - ${outcome.loot})`,
-      burrowHp: Math.max(0, hp - outcome.damage),
-      hpUpdatedAt: now,
-      // A broken burrow earns its owner a shield. THE anti-churn rule: without
-      // it a player who logs off rich is farmed to zero by morning.
-      shieldedUntil: outcome.damage >= hp
+      // A SACKED burrow earns its owner the long shield. THE anti-churn rule:
+      // without it a player who logs off rich is farmed to zero by morning.
+      //
+      // The test used to be `damage >= hp` — the raid that emptied a hit-point
+      // bar. That bar is gone (it defended nothing: traps are what a raider
+      // fights, and the damage roll moved neither his loot nor his progress),
+      // so the long shield now keys on the thing that actually made the raid
+      // grave: he walked all the way onto the carrot field.
+      shieldedUntil: reachedField
         ? new Date(now.getTime() + RAID.BROKEN_SHIELD_MS)
         : new Date(now.getTime() + RAID_RUN.SHIELD_AFTER_RAID_MS),
     }).where(eq(players.id, run.defenderId)).returning({ stock: players.stock });

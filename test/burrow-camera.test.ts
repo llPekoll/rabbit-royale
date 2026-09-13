@@ -99,16 +99,20 @@ describe('burrow camera', () => {
     const gate = page.indexOf('{!placing && (');
     expect(gate, 'the cards must sit behind a !placing gate').toBeGreaterThan(-1);
 
-    // The HP card — the first of the four — is inside the gate.
-    const hp = page.indexOf('HIT POINTS');
-    expect(hp).toBeGreaterThan(gate);
+    // The first card inside the gate. It was the HP card; HP are gone (they
+    // defended nothing), and the SHIELD card took the slot. Anchored on the
+    // JSX label rather than the words "HIT POINTS", which now survive only in
+    // the comment explaining the removal — matching those would have let this
+    // test pass on prose after the card itself was deleted.
+    const first = page.indexOf('label="SHIELD"');
+    expect(first, 'the first card must sit inside the gate').toBeGreaterThan(gate);
 
     // And the gate closes before the way out, so "Done placing" is still
     // rendered while placing. Textual order alone would prove nothing here
     // (the exit's JSX happens to be written later in the file either way), so
     // this checks the CLOSING of the block instead.
     const close = page.indexOf('</>\n              )}', gate);
-    expect(close, 'the !placing block must be closed').toBeGreaterThan(hp);
+    expect(close, 'the !placing block must be closed').toBeGreaterThan(first);
     // The BUTTON, not the word: "Done placing" also appears in the comment
     // explaining this very gate, which sits above it.
     const done = page.indexOf('onClick={stopPlacing}');

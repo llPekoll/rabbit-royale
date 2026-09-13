@@ -276,7 +276,6 @@ function averageLoot(placed: number, runsPerSeed = 60): number {
         seed,
         endedAt: walkRaid(seed, traps),
         defenderStock: STOCK,
-        defenderHp: 600,
         defenderLevel: 6,
         shielded: false,
       }, Math.random, dist).loot;
@@ -324,7 +323,7 @@ describe('settleRaid', () => {
     // Anything less invites the farming the shield exists to prevent.
     const out = settleRaid({
       seed: SEED, endedAt: reached(), defenderStock: STOCK,
-      defenderHp: 600, defenderLevel: 6, shielded: true,
+      defenderLevel: 6, shielded: true,
     });
     expect(out.loot).toBe(0);
     expect(out.damage).toBe(0);
@@ -333,23 +332,33 @@ describe('settleRaid', () => {
   it('caps a single haul, so a whale cannot be emptied in one hit', () => {
     const out = settleRaid({
       seed: SEED, endedAt: reached(), defenderStock: 10_000_000,
-      defenderHp: 600, defenderLevel: 6, shielded: false,
+      defenderLevel: 6, shielded: false,
     });
     expect(out.loot).toBeLessThanOrEqual(RAID.LOOT_CAP);
   });
 
-  it('never deals more damage than the burrow has left', () => {
-    const out = settleRaid({
-      seed: SEED, endedAt: reached(), defenderStock: STOCK,
-      defenderHp: 5, defenderLevel: 6, shielded: false,
-    });
-    expect(out.damage).toBeLessThanOrEqual(5);
+  /**
+   * Damage is a SEVERITY now, not a subtraction: burrows have no hit points to
+   * take it off, and it exists so the raid log and the profile history can say
+   * how hard a raid hit ("35 dmg"). What has to hold is that it stays a
+   * readable number — never negative, and bounded by the roll's own band.
+   */
+  it('reports damage as a bounded severity, never a negative', () => {
+    const ceiling = Math.round(RAID.BOMB_DAMAGE * (1 + RAID.DAMAGE_JITTER));
+    for (let i = 0; i < 200; i++) {
+      const out = settleRaid({
+        seed: SEED, endedAt: reached(), defenderStock: STOCK,
+        defenderLevel: 6, shielded: false,
+      });
+      expect(out.damage).toBeGreaterThanOrEqual(0);
+      expect(out.damage).toBeLessThanOrEqual(ceiling);
+    }
   });
 
   it('pays the crown holder\'s raider more — heavy is the head', () => {
     const base = {
       seed: SEED, endedAt: reached(), defenderStock: STOCK,
-      defenderHp: 600, defenderLevel: 6, shielded: false,
+      defenderLevel: 6, shielded: false,
     };
     const plain = settleRaid(base, () => 0.5);
     const crown = settleRaid({ ...base, crowned: true }, () => 0.5);
@@ -359,7 +368,7 @@ describe('settleRaid', () => {
   it('is reproducible for a given roll — a disputed haul can be replayed', () => {
     const base = {
       seed: SEED, endedAt: reached(), defenderStock: STOCK,
-      defenderHp: 600, defenderLevel: 6, shielded: false,
+      defenderLevel: 6, shielded: false,
     };
     expect(settleRaid(base, () => 0.42)).toEqual(settleRaid(base, () => 0.42));
   });
