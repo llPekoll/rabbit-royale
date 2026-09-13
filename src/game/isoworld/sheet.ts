@@ -1,24 +1,38 @@
 /**
- * The isometric sandbox sheet, sliced.
+ * The isometric block sheets, sliced.
  *
- * `public/assets/world/isometric-sandbox-sheet-32x32.png`, 192x288: six columns
- * by nine rows of 32px cells, three materials stacked three rows each. Every
- * number below was read off the sheet's alpha, not guessed:
+ * Two sheets share one layout, so one slicer reads both:
+ *
+ *   - `pixel`: `public/assets/world/isometric-sandbox-sheet-32x32.png`, the
+ *     sandbox pixel art, 32px cells, three materials (grass, stone, dirt);
+ *   - `smooth`: `public/assets/world/iso-smooth-sheet-128.png`, drawn by
+ *     `tools/gen_iso_smooth_sheet.py` in the flat outlined style of the
+ *     "Nature and Frogs" reference, 128px cells, one material per level
+ *     (moss, grass, sand) with tan cliffs.
+ *
+ * Six columns by nine rows of cells, three materials stacked three rows each.
+ * Every number below was read off the pixel sheet's alpha, and the smooth sheet
+ * was drawn to the same grid:
  *
  *     col   0        1        2          3          4           5
  *     r0    cube     slab     slope W    slope N    stairs N    stairs W
  *     r1    turf     flat     slope S    slope E    block W     block E
- *     r2    (water)  (water)  (water)    (water)    block S     block N
+ *     r2    *        *        *          *          block S     block N
  *
- * Grass is rows 0-2, stone 3-5, dirt 6-8. The grass set's row 2 holds the four
- * water blocks instead of anything grass; stone has nothing on row 5 but its
- * blocks, and dirt has two posts there.
+ * Row 2's first four cells differ per sheet. Pixel: the grass set holds the
+ * four water blocks and the dirt set has two posts. Smooth: the four RIM
+ * pieces, N E S W — the dark outline along one edge of the top face — and a
+ * tenth row shared by every material: the three vertical CORNER outlines
+ * (left, right, front) and the post. The smooth cube carries no outline of its
+ * own; a tile that did would draw ink across every interior seam. The renderer
+ * lays rims and corners only on silhouette edges (see `IsoWorldView`).
  *
  * Every sprite is drawn bottom-aligned in its cell: the lowest pixel of a
  * block's BASE diamond is the cell's last row, whatever the block's height. A
- * cube's top face is rows 0-15 and its sides run to row 31, so one block is 32
- * wide, 16 deep and 16 tall. That shared foot is what lets every piece — cube,
- * slope, stairs, prop — be placed by the same rule.
+ * cube's top face is the upper half of the cell and its sides run to the
+ * bottom, so one block is `cell` wide, `cell / 2` deep and `cell / 2` tall.
+ * That shared foot is what lets every piece — cube, slope, stairs, prop, rim —
+ * be placed by the same rule.
  *
  * "Slope W" climbs toward -x: its high edge is the cell's upper-left side. The
  * two slopes climbing toward the camera (S and E) draw as a wall with a wedge
@@ -27,33 +41,108 @@
 import { Assets, Rectangle, Texture } from 'pixi.js';
 import type { Dir } from './terrain';
 
-export const ISO_SHEET_URL = '/assets/world/isometric-sandbox-sheet-32x32.png';
+export type IsoStyle = 'pixel' | 'smooth';
+export const ISO_STYLES: readonly IsoStyle[] = ['smooth', 'pixel'];
 
-/** Sheet cell size. Every sprite is one cell. */
-export const CELL = 32;
+export type Material = 'grass' | 'stone' | 'dirt' | 'moss' | 'sand';
 
-/** One block: diamond width and depth on screen, and how tall it stands. */
+interface SheetSpec {
+  url: string;
+  cell: number;
+  /**
+   * Gutter around every cell, filled with its own edge pixels. A filtered
+   * sheet needs one: a frame cut flush against the next samples its
+   * neighbour's transparent edge and draws a hairline seam down every wall.
+   */
+  pad: number;
+  /** The three material sets, top row first. */
+  materials: readonly [Material, Material, Material];
+  /**
+   * The surface material of each tier, tier 1 first; higher tiers keep the
+   * last one. Only `smooth` colours the land by tier — `pixel` builds it in
+   * layers instead (see `layered`).
+   */
+  tiers: readonly Material[];
+  /**
+   * Whether the land is built as grass turf over a dirt block over stone, with
+   * a bare-dirt beach: the pixel sheet's look. A smooth tier is one material
+   * through, coloured by its height.
+   */
+  layered: boolean;
+  /** What a hedge and a boulder are made of. */
+  hedge: Material;
+  boulder: Material;
+  /** Where the post is: [row, col]. */
+  post: readonly [number, number];
+  /** Whether the sheet has water. */
+  water: boolean;
+  /** Whether the sheet has the outline pieces: rims on row 2, corners on row 9. */
+  outlines: boolean;
+  /**
+   * What lies under the island: one flat colour, or a vertical gradient as
+   * `[offset 0..1, rgb]` stops. Only `smooth` has no sea, so its islands float
+   * on the page.
+   */
+  background: number | ReadonlyArray<readonly [number, number]>;
+}
+
+export const SHEETS: Readonly<Record<IsoStyle, SheetSpec>> = {
+  pixel: {
+    url: '/assets/world/isometric-sandbox-sheet-32x32.png',
+    cell: 32,
+    pad: 0,
+    materials: ['grass', 'stone', 'dirt'],
+    tiers: ['grass'],
+    layered: true,
+    hedge: 'grass',
+    boulder: 'stone',
+    post: [8, 1],
+    water: true,
+    outlines: false,
+    background: 0x0b2233,
+  },
+  smooth: {
+    url: '/assets/world/iso-smooth-sheet-128.png',
+    cell: 128,
+    pad: 2,
+    materials: ['moss', 'grass', 'sand'],
+    tiers: ['sand', 'grass', 'moss'],
+    layered: false,
+    hedge: 'moss',
+    boulder: 'sand',
+    post: [9, 3],
+    water: false,
+    outlines: true,
+    // The reference's page: teal at the top, through spring green, to a
+    // dusty olive at the bottom.
+    background: [
+      [0, 0x69bfaf],
+      [0.2, 0x76c3a0],
+      [0.45, 0xa6d087],
+      [0.62, 0xb8cd7d],
+      [1, 0xa0af89],
+    ],
+  },
+};
+
+export const ISO_SHEET_URL = SHEETS.pixel.url;
+
+/** Pixel sheet cell size, kept for callers that only ever used that sheet. */
+export const CELL = SHEETS.pixel.cell;
+
+/** One pixel-sheet block: diamond width and depth on screen, and its height. */
 export const BLOCK = { w: 32, h: 16, z: 16 } as const;
 
-/** How thick the turf tile is (its opaque rows start at 12 instead of 16). */
-export const TURF_Z = 4;
-
-/** How high the water surface stands: the water blocks are half-height slabs. */
-export const WATER_Z = 8;
-
-/** What the sea is laid over, so the translucent water becomes a solid colour. */
+/** What the pixel sea is laid over, so the translucent water becomes a solid colour. */
 const DEEP = { r: 11, g: 34, b: 51 };
 
-export type Material = 'grass' | 'stone' | 'dirt';
-export const MATERIALS: readonly Material[] = ['grass', 'stone', 'dirt'];
-
-const MATERIAL_ROW: Readonly<Record<Material, number>> = { grass: 0, stone: 3, dirt: 6 };
+export const MATERIALS: readonly Material[] = ['grass', 'stone', 'dirt', 'moss', 'sand'];
 
 export interface MaterialTiles {
   cube: Texture;
   /** Half a cube tall. */
   slab: Texture;
-  /** A 4px-thick tile, for laying a surface over a different material. */
+  /** A thin tile, for laying a surface over a different material. */
   turf: Texture;
   /** The top face alone, no thickness. */
   flat: Texture;
@@ -63,56 +152,100 @@ export interface MaterialTiles {
   stairs: Readonly<Partial<Record<Dir, Texture>>>;
   /** A three-quarter block standing in the quarter of the cell on that side. */
   block: Readonly<Record<Dir, Texture>>;
+  /** The outline along one edge of the top face. Smooth sheet only. */
+  rim?: Readonly<Record<Dir, Texture>>;
+}
+
+/** The vertical outlines, one block tall, at a cell's left, right and front corner. */
+export interface CornerTiles {
+  left: Texture;
+  right: Texture;
+  front: Texture;
 }
 
 export interface IsoTileset {
+  style: IsoStyle;
+  spec: SheetSpec;
+  /** Sheet cell size. Every sprite is one cell. */
+  cell: number;
+  /** One block: diamond width and depth on screen, and how tall it stands. */
+  block: { w: number; h: number; z: number };
+  /** How thick the turf tile is. */
+  turfZ: number;
   materials: Readonly<Record<Material, MaterialTiles>>;
-  /** The water surface, top face only and opaque — see `seaTile`. */
-  water: Texture;
+  /** The water surface, top face only and opaque — see `seaTile`. Null when the sheet has no sea. */
+  water: Texture | null;
   /** The colour of that surface, for painting the sea beyond the grid. */
   seaColor: number;
   /** A short wooden post, standing in the middle of its cell. */
   post: Texture;
+  /** Smooth sheet only. */
+  corners: CornerTiles | null;
 }
 
-let cached: Promise<IsoTileset> | null = null;
+const cached = new Map<IsoStyle, Promise<IsoTileset>>();
 
-/** Load and slice the sheet. Cached, so every workbench rebuild shares it. */
-export function loadIsoTileset(): Promise<IsoTileset> {
-  cached ??= load().catch((err) => {
-    cached = null;
-    throw err;
-  });
-  return cached;
+/** Load and slice a sheet. Cached per style, so every workbench rebuild shares it. */
+export function loadIsoTileset(style: IsoStyle = 'pixel'): Promise<IsoTileset> {
+  let pending = cached.get(style);
+  if (!pending) {
+    pending = load(style).catch((err) => {
+      cached.delete(style);
+      throw err;
+    });
+    cached.set(style, pending);
+  }
+  return pending;
 }
 
-async function load(): Promise<IsoTileset> {
-  const sheet = await Assets.load<Texture>(ISO_SHEET_URL);
-  // Pixel art: sampled nearest, or every block edge smears when scaled.
-  sheet.source.scaleMode = 'nearest';
+async function load(style: IsoStyle): Promise<IsoTileset> {
+  const spec = SHEETS[style];
+  const { cell, pad } = spec;
+  const pitch = cell + 2 * pad;
+  const sheet = await Assets.load<Texture>(spec.url);
+  // Pixel art is sampled nearest, or every block edge smears when scaled; the
+  // smooth sheet is meant to be filtered.
+  sheet.source.scaleMode = style === 'pixel' ? 'nearest' : 'linear';
 
-  const cell = (row: number, col: number) =>
-    new Texture({ source: sheet.source, frame: new Rectangle(col * CELL, row * CELL, CELL, CELL) });
+  const slice = (row: number, col: number) =>
+    new Texture({ source: sheet.source, frame: new Rectangle(col * pitch + pad, row * pitch + pad, cell, cell) });
 
-  const material = (m: Material): MaterialTiles => {
-    const r = MATERIAL_ROW[m];
+  const material = (index: number): MaterialTiles => {
+    const r = index * 3;
     return {
-      cube: cell(r, 0),
-      slab: cell(r, 1),
-      turf: cell(r + 1, 0),
-      flat: cell(r + 1, 1),
-      slope: { 0: cell(r, 3), 1: cell(r + 1, 3), 2: cell(r + 1, 2), 3: cell(r, 2) },
-      stairs: { 0: cell(r, 4), 3: cell(r, 5) },
-      block: { 0: cell(r + 2, 5), 1: cell(r + 1, 5), 2: cell(r + 2, 4), 3: cell(r + 1, 4) },
+      cube: slice(r, 0),
+      slab: slice(r, 1),
+      turf: slice(r + 1, 0),
+      flat: slice(r + 1, 1),
+      slope: { 0: slice(r, 3), 1: slice(r + 1, 3), 2: slice(r + 1, 2), 3: slice(r, 2) },
+      stairs: { 0: slice(r, 4), 3: slice(r, 5) },
+      block: { 0: slice(r + 2, 5), 1: slice(r + 1, 5), 2: slice(r + 2, 4), 3: slice(r + 1, 4) },
+      ...(spec.outlines
+        ? { rim: { 0: slice(r + 2, 0), 1: slice(r + 2, 1), 2: slice(r + 2, 2), 3: slice(r + 2, 3) } }
+        : {}),
     };
   };
 
-  const { texture: water, color: seaColor } = seaTile(sheet);
+  const materials = {} as Record<Material, MaterialTiles>;
+  spec.materials.forEach((name, i) => {
+    materials[name] = material(i);
+  });
+  // Every material name resolves to SOME set, so a ground picked for one sheet
+  // still draws on the other rather than crashing on a missing key.
+  for (const name of MATERIALS) materials[name] ??= materials[spec.materials[0]];
+
+  const sea = spec.water ? seaTile(sheet, cell) : null;
   return {
-    materials: { grass: material('grass'), stone: material('stone'), dirt: material('dirt') },
-    water,
-    seaColor,
-    post: cell(8, 1),
+    style,
+    spec,
+    cell,
+    block: { w: cell, h: cell / 2, z: cell / 2 },
+    turfZ: cell / 8,
+    materials,
+    water: sea?.texture ?? null,
+    seaColor: sea?.color ?? (typeof spec.background === 'number' ? spec.background : spec.background[0][1]),
+    post: slice(spec.post[0], spec.post[1]),
+    corners: spec.outlines ? { left: slice(9, 0), right: slice(9, 1), front: slice(9, 2) } : null,
   };
 }
 
@@ -126,31 +259,31 @@ async function load(): Promise<IsoTileset> {
  * a sea that tiles seamlessly and a clean waterline where the land meets it:
  * each water cell covers the foot of the land block behind it.
  */
-function seaTile(sheet: Texture): { texture: Texture; color: number } {
+function seaTile(sheet: Texture, cell: number): { texture: Texture; color: number } {
   const canvas = document.createElement('canvas');
-  canvas.width = CELL;
-  canvas.height = CELL;
+  canvas.width = cell;
+  canvas.height = cell;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('no 2d canvas for the sea tile');
   // The filled water block: grass row 2, column 1.
-  ctx.drawImage(sheet.source.resource as CanvasImageSource, CELL, 2 * CELL, CELL, CELL, 0, 0, CELL, CELL);
+  ctx.drawImage(sheet.source.resource as CanvasImageSource, cell, 2 * cell, cell, cell, 0, 0, cell, cell);
 
-  const image = ctx.getImageData(0, 0, CELL, CELL);
+  const image = ctx.getImageData(0, 0, cell, cell);
   const px = image.data;
 
   // One colour for the whole surface, taken from the middle of the face. The
   // tile's rim pixels carry a different alpha — its outline — and kept, they
   // draw a grid over the whole sea.
-  const mid = (16 * CELL + 16) * 4;
+  const mid = ((cell / 2) * cell + cell / 2) * 4;
   const a = px[mid + 3] / 255;
   const r = Math.round(px[mid] * a + DEEP.r * (1 - a));
   const g = Math.round(px[mid + 1] * a + DEEP.g * (1 - a));
   const b = Math.round(px[mid + 2] * a + DEEP.b * (1 - a));
 
-  for (let y = 0; y < CELL; y++) {
-    for (let x = 0; x < CELL; x++) {
-      const i = (y * CELL + x) * 4;
-      const inside = inWaterTop(x, y);
+  for (let y = 0; y < cell; y++) {
+    for (let x = 0; x < cell; x++) {
+      const i = (y * cell + x) * 4;
+      const inside = inWaterTop(x, y, cell);
       px[i] = r;
       px[i + 1] = g;
       px[i + 2] = b;
@@ -166,11 +299,16 @@ function seaTile(sheet: Texture): { texture: Texture; color: number } {
 }
 
 /**
- * The water slab's top diamond: rows 8-23, widening two pixels a row to full
- * width at rows 15-16, then narrowing again. Read off the tile.
+ * The water slab's top diamond: on the 32px sheet rows 8-23, widening two
+ * pixels a row to full width at rows 15-16, then narrowing again. Read off the
+ * tile, and scaled with the cell.
  */
-function inWaterTop(x: number, y: number): boolean {
-  if (y < 8 || y > 23) return false;
-  const half = y <= 15 ? 1.5 + 2 * (y - 8) : 15.5 - 2 * (y - 16);
-  return Math.abs(x - 15.5) <= half;
+function inWaterTop(x: number, y: number, cell: number): boolean {
+  const k = cell / 32;
+  const top = 8 * k;
+  const bottom = 24 * k - 1;
+  if (y < top || y > bottom) return false;
+  const mid = 16 * k - 1;
+  const half = y <= mid ? 1.5 * k + 2 * (y - top) : 15.5 * k - 2 * (y - mid - 1);
+  return Math.abs(x - (cell / 2 - 0.5)) <= half;
 }

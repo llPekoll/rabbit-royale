@@ -1,0 +1,488 @@
+#!/usr/bin/env python3
+"""
+Draw the SMOOTH isometric block sheet for /isoworld.
+
+The pixel sandbox sheet (`public/assets/world/isometric-sandbox-sheet-32x32.png`)
+gave the block world its geometry; this tool draws the same pieces in the flat,
+outlined, vector-ish style of the "Nature and Frogs" reference: three levels
+(dark green, medium green, sand), tan cliff faces with a couple of earthy
+stripes, a thin dark outline on every silhouette edge and a faint lighter grid
+on the top faces. No decoration — the plants, flowers and rocks come later, by
+hand.
+
+The output is meant to be EDITED: it is a correctly-shaped, correctly-aligned
+starting point, saved as a lossless PNG at 4x the pixel sheet's cell so it can
+be retouched without fighting anti-aliasing.
+
+## Layout — the same grid as the pixel sheet, 4x larger
+
+Six columns by ten rows of 128px cells, three materials stacked three rows
+each: rows 0-2 moss (dark green, the highest tier), 3-5 grass (medium green),
+6-8 sand (the lowest tier). Every cell sits in a `PAD`-pixel gutter filled with
+its own edge pixels, so the sheet's pitch is `CELL + 2 * PAD`: the renderer
+filters this sheet, and a frame cut flush against the next would sample its
+neighbour's transparent edge and draw a hairline seam down every wall.
+
+    col   0        1        2          3          4           5
+    r0    cube     slab     slope W    slope N    stairs N    stairs W
+    r1    turf     flat     slope S    slope E    block W     block E
+    r2    rim N    rim E    rim S      rim W      block S     block N
+
+and a tenth row of pieces shared by every material:
+
+    r9    corner L corner R corner F   post
+
+Row 2 differs from the pixel sheet: there is no water (the island floats on
+the page's gradient) and the first four cells hold the RIM pieces, the dark
+outline along one edge of the top face. Row 9's corners are the vertical
+outline at the cell's left, right and front (bottom) corner, one block tall.
+
+## Why the outlines are separate pieces
+
+In the reference every silhouette edge has a dark line and nothing else does:
+a cliff wall is one continuous face however many cells long, and the grid on
+the top is a faint light line. A cube that carried its own outline would draw
+a dark line at every cell along a wall, a bar across a two-block cliff and a
+grid of ink over the whole island. So the cube here is BARE — faces, stripes,
+pebbles, the light grid — and the renderer lays a rim on an edge only where
+the neighbour stands at a different height, and a corner only where a wall
+ends. The lines are still bitmaps, drawn with round caps so they join cleanly
+where three meet.
+
+## Geometry
+
+Same lattice as the pixel sheet, scaled by 4: one block is 128 wide, 64 deep
+and 64 tall; every piece is bottom-aligned with its base diamond's top corner
+at (64, 64) of the cell. `(u, v, z)` below is a point on that lattice — `u`
+runs along the east edge, `v` along the south edge, `z` up in blocks — and
+`P()` projects it to the cell:
+
+    x = 64 + 64u - 64v          y = 64 + 32u + 32v - 64z
+
+## Seams
+
+Tiles meet edge to edge, and two anti-aliased edges laid on the same line
+leave a hairline of background between them. Every filled face is therefore
+drawn `BLEED` wider than its geometry; a neighbour drawn later covers the
+overlap exactly as it would cover the face. Outlines on the side faces are
+drawn INSIDE the face for the same reason: a neighbour's top face then hides
+them completely on interior tiles and they show only on the cliffs.
+
+The light grid is drawn on a tile's north and west edges only. Every interior
+edge is the north or west edge of exactly one tile, so the grid comes out
+complete with a single line per seam, and the south-east silhouette edges,
+where the dark outline goes, get no highlight beside it.
+
+Run:  python3 tools/gen_iso_smooth_sheet.py
+"""
+from __future__ import annotations
+
+import math
+import random
+from pathlib import Path
+
+from PIL import Image, ImageDraw
+
+ROOT = Path(__file__).resolve().parent.parent
+OUT_SOURCE = ROOT / 'art-source' / 'iso-smooth' / 'iso-smooth-sheet-128.png'
+OUT_PUBLIC = ROOT / 'public' / 'assets' / 'world' / 'iso-smooth-sheet-128.png'
+
+CELL = 128
+PAD = 2
+PITCH = CELL + 2 * PAD
+COLS, ROWS = 6, 10
+SS = 4  # supersampling: drawn at 512px per cell, then resolved down
+
+# Line weights, in OUTPUT pixels. Heavier than they look on the sheet: in the
+# reference a cell is ~50px wide with a 2px outline and 1.5px grid, and an
+# island on screen scales these 128px cells down to about that.
+OUTLINE = 4.6   # dark silhouette line
+GRID = 3.0      # light grid on top faces
+STRIPE = 3.0    # earth stripes on cliff faces
+BLEED = 0.8     # how far a filled face overshoots its edge to hide seams
+
+# Palette, read off the reference.
+INK = (58, 108, 62)              # outline: dark green
+CLIFF = (200, 186, 160)          # cliff face, tan
+CLIFF_SOUTH = (188, 173, 148)    # the face turned away from the light, a touch darker
+STRIPE_INK = (156, 141, 116)
+PEBBLE = (120, 118, 100)
+POST = (172, 132, 88)
+POST_INK = (110, 78, 46)
+
+MATERIALS = [
+    # name,  top fill,        grid line
+    ('moss', (124, 186, 92), (156, 212, 120)),
+    ('grass', (168, 224, 122), (208, 244, 160)),
+    ('sand', (239, 243, 185), (250, 252, 216)),
+]
+
+# --- lattice ---------------------------------------------------------------
+
+def P(u: float, v: float, z: float = 0.0) -> tuple[float, float]:
+    """Project a lattice point to cell pixels (supersampled)."""
+    x = 64 + 64 * u - 64 * v
+    y = 64 + 32 * u + 32 * v - 64 * z
+    return (x * SS, y * SS)
+
+
+def poly(*pts: tuple[float, float, float]) -> list[tuple[float, float]]:
+    return [P(*p) for p in pts]
+
+
+def offset_polygon(points: list[tuple[float, float]], d: float) -> list[tuple[float, float]]:
+    """
+    Push every edge of a convex polygon outward by `d` (inward when negative)
+    and rebuild the corners from the shifted edges. Points may go either way
+    round; the winding is detected from the signed area.
+    """
+    n = len(points)
+    area = sum(points[i][0] * points[(i + 1) % n][1] - points[(i + 1) % n][0] * points[i][1] for i in range(n))
+    sign = 1 if area > 0 else -1
+    lines = []
+    for i in range(n):
+        (x1, y1), (x2, y2) = points[i], points[(i + 1) % n]
+        dx, dy = x2 - x1, y2 - y1
+        length = math.hypot(dx, dy) or 1
+        # outward normal for this winding
+        nx, ny = sign * dy / length, -sign * dx / length
+        lines.append(((x1 + nx * d, y1 + ny * d), (x2 + nx * d, y2 + ny * d)))
+    out = []
+    for i in range(n):
+        (ax, ay), (bx, by) = lines[i - 1]
+        (cx, cy), (dx_, dy_) = lines[i]
+        # intersection of the two shifted edges
+        r = (bx - ax, by - ay)
+        s = (dx_ - cx, dy_ - cy)
+        denom = r[0] * s[1] - r[1] * s[0]
+        if abs(denom) < 1e-9:
+            out.append((cx, cy))
+            continue
+        t = ((cx - ax) * s[1] - (cy - ay) * s[0]) / denom
+        out.append((ax + t * r[0], ay + t * r[1]))
+    return out
+
+
+# --- drawing ---------------------------------------------------------------
+
+class Cell:
+    """One 128px cell, drawn supersampled. `img` is RGBA at CELL*SS."""
+
+    def __init__(self) -> None:
+        self.img = Image.new('RGBA', (CELL * SS, CELL * SS), (0, 0, 0, 0))
+
+    def fill(self, points, color, bleed: float = BLEED) -> None:
+        pts = offset_polygon(points, bleed * SS) if bleed else points
+        ImageDraw.Draw(self.img).polygon(pts, fill=color)
+
+    def stroke_inside(self, points, color, width: float, edges=None, extras=None) -> None:
+        """
+        Outline the given edges of a face (indices into `points`, all of them by
+        default), keeping the line entirely INSIDE the face. `extras` is a list
+        of (polyline, color, width) drawn under the same clip — stripes, pebbles.
+        """
+        n = len(points)
+        layer = Image.new('RGBA', self.img.size, (0, 0, 0, 0))
+        d = ImageDraw.Draw(layer)
+        for pl, col, w in extras or []:
+            d.line(pl, fill=col, width=round(w * SS), joint='curve')
+        for i in (edges if edges is not None else range(n)):
+            a, b = points[i], points[(i + 1) % n]
+            d.line([a, b], fill=color, width=round(2 * width * SS))
+        mask = Image.new('L', self.img.size, 0)
+        ImageDraw.Draw(mask).polygon(points, fill=255)
+        self.img.paste(layer, (0, 0), Image.composite(layer.split()[3], mask, mask))
+
+    def stroke(self, a, b, color, width: float, caps: bool = False) -> None:
+        d = ImageDraw.Draw(self.img)
+        d.line([a, b], fill=color, width=round(width * SS))
+        if caps:
+            r = width * SS / 2
+            for (x, y) in (a, b):
+                d.ellipse([x - r, y - r, x + r, y + r], fill=color)
+
+    def ellipse(self, center, rx, ry, fill, outline, width) -> None:
+        cx, cy = center
+        box = [cx - rx * SS, cy - ry * SS, cx + rx * SS, cy + ry * SS]
+        ImageDraw.Draw(self.img).ellipse(box, fill=fill, outline=outline, width=round(width * SS))
+
+    def resolve(self) -> Image.Image:
+        # Premultiplied so the transparent corners do not bleed dark fringes.
+        return self.img.convert('RGBa').resize((CELL, CELL), Image.LANCZOS).convert('RGBA')
+
+
+def cliff_extras(face_pts, rng: random.Random, rows=(0.38, 0.72)):
+    """Two wobbly earth stripes and a few pebbles, laid across a side face."""
+    # face_pts: 4 points, top edge first (a->b), then bottom edge (c->d) reversed
+    a, b, c, d = face_pts
+    extras = []
+    for t in rows:
+        pts = []
+        for k in range(9):
+            s = k / 8
+            x = a[0] + (b[0] - a[0]) * s
+            y0 = a[1] + (b[1] - a[1]) * s
+            y1 = d[1] + (c[1] - d[1]) * s
+            wob = math.sin(s * math.pi * 3 + t * 7) * 0.012
+            pts.append((x, y0 + (y1 - y0) * (t + wob)))
+        extras.append((pts, STRIPE_INK, STRIPE))
+    return extras
+
+
+def pebbles(cell: Cell, face_pts, rng: random.Random, count=3) -> None:
+    a, b, c, d = face_pts
+    for _ in range(count):
+        s = rng.uniform(0.18, 0.82)
+        t = rng.uniform(0.2, 0.85)
+        x = a[0] + (b[0] - a[0]) * s
+        y0 = a[1] + (b[1] - a[1]) * s
+        y1 = d[1] + (c[1] - d[1]) * s
+        cell.ellipse((x, y0 + (y1 - y0) * t), rng.uniform(2.6, 4.2), rng.uniform(1.6, 2.4), CLIFF, PEBBLE, 1.2)
+
+
+def side_face(cell: Cell, pts, color, rng: random.Random, textured=True, pebble_count=3, outline=None) -> None:
+    """
+    A cliff face: fill, stripes, pebbles, and an inset outline on the edges in
+    `outline` (indices into `pts`; none by default — see the module notes on
+    why a bare cube carries no ink).
+    """
+    cell.fill(pts, color)
+    extras = cliff_extras(pts, rng) if textured else []
+    if extras or outline:
+        cell.stroke_inside(pts, INK, OUTLINE, edges=outline or [], extras=extras)
+    if textured:
+        pebbles(cell, pts, rng, pebble_count)
+
+
+def top_face(cell: Cell, pts, fill, grid, grid_edges=(0, 3)) -> None:
+    """
+    A walkable surface. `pts` go top, right, bottom, left (N edge = 0->1, E = 1->2,
+    S = 2->3, W = 3->0); the light grid goes on N (edge 0) and W (edge 3).
+    """
+    cell.fill(pts, fill)
+    for i in grid_edges:
+        a, b = pts[i], pts[(i + 1) % len(pts)]
+        # Pulled in by half the width at each end, or the flat cap pokes past
+        # the corner onto the wall below.
+        length = math.hypot(b[0] - a[0], b[1] - a[1])
+        k = GRID * SS / 2 / length
+        cell.stroke((a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k),
+                    (b[0] - (b[0] - a[0]) * k, b[1] - (b[1] - a[1]) * k), grid, GRID)
+
+
+# The four faces of a unit block, as lattice quads (top edge first).
+def east_face(z0=0.0, z1=1.0):
+    return poly((1, 0, z1), (1, 1, z1), (1, 1, z0), (1, 0, z0))
+
+
+def south_face(z0=0.0, z1=1.0):
+    return poly((0, 1, z1), (1, 1, z1), (1, 1, z0), (0, 1, z0))
+
+
+def top_quad(z=1.0):
+    return poly((0, 0, z), (1, 0, z), (1, 1, z), (0, 1, z))
+
+
+# --- pieces ----------------------------------------------------------------
+
+def cube(mat, rng, height=1.0) -> Cell:
+    fill, grid = mat[1], mat[2]
+    c = Cell()
+    top_face(c, top_quad(height), fill, grid)
+    side_face(c, south_face(0, height), CLIFF_SOUTH, rng, pebble_count=2 if height < 1 else 3)
+    side_face(c, east_face(0, height), CLIFF, rng, pebble_count=2 if height < 1 else 3)
+    return c
+
+
+def turf(mat, rng) -> Cell:
+    """A thin tile, a quarter block thick: for laying one surface over another."""
+    fill, grid = mat[1], mat[2]
+    c = Cell()
+    top_face(c, top_quad(0.25), fill, grid)
+    side_face(c, south_face(0, 0.25), CLIFF_SOUTH, rng, textured=False)
+    side_face(c, east_face(0, 0.25), CLIFF, rng, textured=False)
+    return c
+
+
+def flat(mat) -> Cell:
+    fill, grid = mat[1], mat[2]
+    c = Cell()
+    top_face(c, top_quad(0), fill, grid)
+    return c
+
+
+def slope(mat, rng, direction: str) -> Cell:
+    """
+    A ramp climbing toward `direction` — its high edge meets the tier above on
+    that side. W: high edge is the upper-left edge (u = 0); N: upper-right
+    (v = 0); S: lower-left (v = 1); E: lower-right (u = 1).
+    """
+    fill, grid = mat[1], mat[2]
+    c = Cell()
+    if direction == 'W':
+        surf = poly((0, 0, 1), (1, 0, 0), (1, 1, 0), (0, 1, 1))
+        top_face(c, surf, fill, grid)
+        tri = poly((0, 1, 1), (1, 1, 0), (0, 1, 0))
+        side_face(c, tri, CLIFF_SOUTH, rng, textured=False, outline=[0])
+    elif direction == 'N':
+        surf = poly((0, 0, 1), (1, 0, 1), (1, 1, 0), (0, 1, 0))
+        top_face(c, surf, fill, grid)
+        tri = poly((1, 0, 1), (1, 1, 0), (1, 0, 0))
+        side_face(c, tri, CLIFF, rng, textured=False, outline=[0])
+    elif direction == 'S':
+        # Faces away: the surface is mostly behind its own wall.
+        surf = poly((0, 0, 0), (1, 0, 0), (1, 1, 1), (0, 1, 1))
+        top_face(c, surf, fill, grid)
+        side_face(c, south_face(0, 1), CLIFF_SOUTH, rng)
+        tri = poly((1, 1, 1), (1, 1, 0), (1, 0, 0))
+        side_face(c, tri, CLIFF, rng, textured=False, outline=[2])
+    elif direction == 'E':
+        surf = poly((0, 0, 0), (1, 0, 1), (1, 1, 1), (0, 1, 0))
+        top_face(c, surf, fill, grid)
+        tri = poly((1, 1, 1), (1, 1, 0), (0, 1, 0))
+        side_face(c, tri, CLIFF_SOUTH, rng, textured=False, outline=[2])
+        side_face(c, east_face(0, 1), CLIFF, rng)
+    return c
+
+
+def stairs(mat, rng, direction: str, steps=4) -> Cell:
+    """A flight climbing toward N or W: `steps` treads, each a quarter block up."""
+    fill, grid = mat[1], mat[2]
+    c = Cell()
+    for i in range(steps):
+        lo, hi = i / steps, (i + 1) / steps
+        z = (i + 1) / steps
+        if direction == 'N':
+            # climbing toward v = 0: tread i spans v in [1-hi, 1-lo]
+            v0, v1 = 1 - hi, 1 - lo
+            tread = poly((0, v0, z), (1, v0, z), (1, v1, z), (0, v1, z))
+            top_face(c, tread, fill, grid, grid_edges=(3,))
+            riser = poly((0, v1, z), (1, v1, z), (1, v1, z - 1 / steps), (0, v1, z - 1 / steps))
+            side_face(c, riser, CLIFF_SOUTH, rng, textured=False, outline=[0, 1, 2, 3])
+            side = poly((1, v0, z), (1, v1, z), (1, v1, 0), (1, v0, 0))
+            side_face(c, side, CLIFF, rng, textured=False, outline=[0, 1, 2, 3])
+        else:
+            u0, u1 = 1 - hi, 1 - lo
+            tread = poly((u0, 0, z), (u1, 0, z), (u1, 1, z), (u0, 1, z))
+            top_face(c, tread, fill, grid, grid_edges=(0,))
+            riser = poly((u1, 0, z), (u1, 1, z), (u1, 1, z - 1 / steps), (u1, 0, z - 1 / steps))
+            side_face(c, riser, CLIFF, rng, textured=False, outline=[0, 1, 2, 3])
+            side = poly((u0, 1, z), (u1, 1, z), (u1, 1, 0), (u0, 1, 0))
+            side_face(c, side, CLIFF_SOUTH, rng, textured=False, outline=[0, 1, 2, 3])
+    return c
+
+
+def block(mat, rng, direction: str) -> Cell:
+    """
+    A three-quarter block standing in the quarter of the cell on that side,
+    as in the pixel sheet: N sits in the far corner, S in the near one.
+    """
+    fill, grid = mat[1], mat[2]
+    c = Cell()
+    s = 0.62
+    origin = {'N': (0.19, 0.0), 'S': (0.19, 1 - s), 'W': (0.0, 0.19), 'E': (1 - s, 0.19)}[direction]
+    u0, v0 = origin
+    u1, v1 = u0 + s, v0 + s
+    h = 0.75
+    top = poly((u0, v0, h), (u1, v0, h), (u1, v1, h), (u0, v1, h))
+    c.fill(top, fill)
+    c.stroke_inside(top, INK, OUTLINE * 0.8)
+    south = poly((u0, v1, h), (u1, v1, h), (u1, v1, 0), (u0, v1, 0))
+    east = poly((u1, v0, h), (u1, v1, h), (u1, v1, 0), (u1, v0, 0))
+    shade = tuple(max(0, int(k * 0.88)) for k in fill)
+    c.fill(south, shade)
+    c.stroke_inside(south, INK, OUTLINE * 0.8)
+    c.fill(east, tuple(max(0, int(k * 0.94)) for k in fill))
+    c.stroke_inside(east, INK, OUTLINE * 0.8)
+    return c
+
+
+RIM_EDGES = {
+    'N': ((0, 0, 0), (1, 0, 0)),
+    'E': ((1, 0, 0), (1, 1, 0)),
+    'S': ((1, 1, 0), (0, 1, 0)),
+    'W': ((0, 1, 0), (0, 0, 0)),
+}
+
+CORNERS = {'L': (0, 1), 'R': (1, 0), 'F': (1, 1)}
+
+
+def rim(direction: str) -> Cell:
+    """The dark outline along one edge of the base diamond, centred on it."""
+    c = Cell()
+    a, b = RIM_EDGES[direction]
+    c.stroke(P(*a), P(*b), INK, OUTLINE, caps=True)
+    return c
+
+
+def corner(which: str) -> Cell:
+    """A vertical outline, one block tall, at the left, right or front corner."""
+    c = Cell()
+    u, v = CORNERS[which]
+    c.stroke(P(u, v, 0), P(u, v, 1), INK, OUTLINE, caps=True)
+    return c
+
+
+def post() -> Cell:
+    c = Cell()
+    cx, cy = P(0.5, 0.5, 0)
+    w, h = 9 * SS, 34 * SS
+    d = ImageDraw.Draw(c.img)
+    d.rounded_rectangle([cx - w, cy - h, cx + w, cy + 4 * SS], radius=4 * SS, fill=POST, outline=POST_INK, width=round(OUTLINE * SS * 0.7))
+    d.ellipse([cx - w, cy - h - 4 * SS, cx + w, cy - h + 6 * SS], fill=(196, 156, 108), outline=POST_INK, width=round(OUTLINE * SS * 0.7))
+    return c
+
+
+# --- the sheet -------------------------------------------------------------
+
+def build() -> Image.Image:
+    sheet = Image.new('RGBA', (COLS * PITCH, ROWS * PITCH), (0, 0, 0, 0))
+
+    def put(row: int, col: int, cell: Cell) -> None:
+        # The cell, then its four edges and corners extruded into the gutter.
+        img = cell.resolve()
+        x0, y0 = col * PITCH + PAD, row * PITCH + PAD
+        sheet.paste(img, (x0, y0))
+        left, right = img.crop((0, 0, 1, CELL)), img.crop((CELL - 1, 0, CELL, CELL))
+        top, bottom = img.crop((0, 0, CELL, 1)), img.crop((0, CELL - 1, CELL, CELL))
+        for k in range(1, PAD + 1):
+            sheet.paste(left, (x0 - k, y0))
+            sheet.paste(right, (x0 + CELL - 1 + k, y0))
+            sheet.paste(top, (x0, y0 - k))
+            sheet.paste(bottom, (x0, y0 + CELL - 1 + k))
+        for (cx, cy), (px, py) in (((0, 0), (x0 - PAD, y0 - PAD)), ((CELL - 1, 0), (x0 + CELL, y0 - PAD)),
+                                   ((0, CELL - 1), (x0 - PAD, y0 + CELL)), ((CELL - 1, CELL - 1), (x0 + CELL, y0 + CELL))):
+            sheet.paste(Image.new('RGBA', (PAD, PAD), img.getpixel((cx, cy))), (px, py))
+
+    for m, mat in enumerate(MATERIALS):
+        rng = random.Random(f'iso-smooth:{mat[0]}')
+        r = m * 3
+        put(r, 0, cube(mat, rng))
+        put(r, 1, cube(mat, rng, height=0.5))
+        put(r, 2, slope(mat, rng, 'W'))
+        put(r, 3, slope(mat, rng, 'N'))
+        put(r, 4, stairs(mat, rng, 'N'))
+        put(r, 5, stairs(mat, rng, 'W'))
+        put(r + 1, 0, turf(mat, rng))
+        put(r + 1, 1, flat(mat))
+        put(r + 1, 2, slope(mat, rng, 'S'))
+        put(r + 1, 3, slope(mat, rng, 'E'))
+        put(r + 1, 4, block(mat, rng, 'W'))
+        put(r + 1, 5, block(mat, rng, 'E'))
+        for col, direction in enumerate('NESW'):
+            put(r + 2, col, rim(direction))
+        put(r + 2, 4, block(mat, rng, 'S'))
+        put(r + 2, 5, block(mat, rng, 'N'))
+    for col, which in enumerate('LRF'):
+        put(9, col, corner(which))
+    put(9, 3, post())
+    return sheet
+
+
+if __name__ == '__main__':
+    sheet = build()
+    OUT_SOURCE.parent.mkdir(parents=True, exist_ok=True)
+    OUT_PUBLIC.parent.mkdir(parents=True, exist_ok=True)
+    sheet.save(OUT_SOURCE, optimize=True)
+    sheet.save(OUT_PUBLIC, optimize=True)
+    print(f'wrote {OUT_SOURCE.relative_to(ROOT)} and {OUT_PUBLIC.relative_to(ROOT)} ({sheet.width}x{sheet.height})')

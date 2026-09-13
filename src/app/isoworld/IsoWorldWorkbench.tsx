@@ -10,20 +10,55 @@
  * ever sees two sides of a cliff.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Application, Container } from 'pixi.js';
+import { Application, Container, Sprite, Texture } from 'pixi.js';
 import { generateIsland } from '@/game/island';
 import {
+  ISO_STYLES,
   IsoWorldView,
   loadIsoTileset,
   planIsoWorld,
   rotateIsoWorld,
   type IsoGround,
+  type IsoStyle,
   type IsoTileset,
 } from '@/game/isoworld';
 import { Slider, Stat, styles } from '../island/IslandWorkbench';
 
-/** Until the sheet is loaded and its sea colour is known. */
+/** Until the sheet is loaded and its background is known. */
 const DEEP_SEA = '#0b2233';
+
+const hex = (color: number) => `#${color.toString(16).padStart(6, '0')}`;
+
+/**
+ * What the island floats on, as CSS: the sheet's flat sea colour, or its
+ * gradient. The page and the canvas both paint it, so the panel's edge is not
+ * a seam.
+ */
+function backdropCss(tileset: IsoTileset): string {
+  const { background } = tileset.spec;
+  if (typeof background === 'number') return hex(background);
+  return `linear-gradient(180deg, ${background.map(([at, color]) => `${hex(color)} ${Math.round(at * 100)}%`).join(', ')})`;
+}
+
+/**
+ * The gradient as a texture, one pixel wide: a sprite of it stretched over
+ * the screen is the cheapest backdrop Pixi can draw. Null for a flat sea,
+ * where the renderer's own background colour does the job.
+ */
+function backdropTexture(tileset: IsoTileset): Texture | null {
+  const { background } = tileset.spec;
+  if (typeof background === 'number') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = 1;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  const fill = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  for (const [at, color] of background) fill.addColorStop(at, hex(color));
+  ctx.fillStyle = fill;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  return Texture.from(canvas);
+}
 
 interface Settings {
   seed: string;
@@ -37,6 +72,7 @@ interface Settings {
   stairs: number;
   ground: IsoGround;
   deco: boolean;
+  style: IsoStyle;
 }
 
 const INITIAL: Settings = {
@@ -51,11 +87,12 @@ const INITIAL: Settings = {
   stairs: 0.3,
   ground: 'tiered',
   deco: true,
+  style: 'smooth',
 };
 
 const randomSeed = () => Math.random().toString(36).slice(2, 8);
 
-/** The blocks are 32px; past 4 an island is mush. */
+/** The pixel blocks are 32px; past 4 an island is mush. */
 const MAX_PIXELATE = 4;
 
 export function IsoWorldWorkbench() {
@@ -64,9 +101,11 @@ export function IsoWorldWorkbench() {
   const tilesetRef = useRef<IsoTileset | null>(null);
   const islandRef = useRef<IsoWorldView | null>(null);
   const worldRef = useRef<Container | null>(null);
+  const backdropRef = useRef<Sprite | null>(null);
 
   const [settings, setSettings] = useState<Settings>(INITIAL);
   const [status, setStatus] = useState('loading the tile sheet...');
+  const [tileset, setTileset] = useState<IsoTileset | null>(null);
   const [stats, setStats] = useState({ cells: 0, land: 0, tiers: 0, ramps: 0, props: 0, sprites: 0 });
   const [sea, setSea] = useState(DEEP_SEA);
 
@@ -107,7 +146,7 @@ export function IsoWorldWorkbench() {
       baseResolution.current = Math.min(window.devicePixelRatio || 1, 2);
       await app.init({
         background: DEEP_SEA,
-        antialias: false,
+        antialias: true,
         autoDensity: true,
         resizeTo: hostRef.current ?? undefined,
         resolution: baseResolution.current,
@@ -118,26 +157,23 @@ export function IsoWorldWorkbench() {
       }
       appRef.current = app;
       hostRef.current?.appendChild(app.canvas);
-      app.canvas.style.imageRendering = 'pixelated';
+
+      // The backdrop under everything, stretched to the screen on every resize.
+      const backdrop = new Sprite(Texture.EMPTY);
+      backdrop.visible = false;
+      app.stage.addChild(backdrop);
+      backdropRef.current = backdrop;
+      const cover = () => {
+        backdrop.width = app.screen.width;
+        backdrop.height = app.screen.height;
+      };
+      cover();
+      app.renderer.on('resize', cover);
 
       const world = new Container();
       app.stage.addChild(world);
       worldRef.current = world;
-
-      try {
-        tilesetRef.current = await loadIsoTileset();
-      } catch (err) {
-        setStatus(`the tile sheet failed to load: ${String(err)}`);
-        return;
-      }
-      if (disposed) return;
-      // The sea beyond the grid has to be the colour of the sea inside it, or
-      // the map's diamond outline shows as a seam in open water.
-      app.renderer.background.color = tilesetRef.current.seaColor;
-      setSea(`#${tilesetRef.current.seaColor.toString(16).padStart(6, '0')}`);
-      setStatus('');
       setAppReady(true);
-      setSettings((prev) => ({ ...prev }));
     })();
 
     return () => {
@@ -146,10 +182,47 @@ export function IsoWorldWorkbench() {
       islandRef.current = null;
       appRef.current = null;
       worldRef.current = null;
+      backdropRef.current = null;
       setAppReady(false);
       app.destroy(true, { children: true });
     };
   }, []);
+
+  // Load the sheet for the chosen style, then dress the page in its backdrop.
+  useEffect(() => {
+    const app = appRef.current;
+    if (!app || !appReady) return;
+    let stale = false;
+    setStatus('loading the tile sheet...');
+    loadIsoTileset(settings.style).then(
+      (loaded) => {
+        if (stale) return;
+        tilesetRef.current = loaded;
+        // Pixel art wants its pixels kept; the smooth sheet wants filtering.
+        app.canvas.style.imageRendering = loaded.style === 'pixel' ? 'pixelated' : 'auto';
+        // The sea beyond the grid has to be the colour of the sea inside it,
+        // or the map's diamond outline shows as a seam in open water.
+        app.renderer.background.color = loaded.seaColor;
+        const backdrop = backdropRef.current;
+        if (backdrop) {
+          const texture = backdropTexture(loaded);
+          backdrop.texture = texture ?? Texture.EMPTY;
+          backdrop.visible = texture !== null;
+          backdrop.width = app.screen.width;
+          backdrop.height = app.screen.height;
+        }
+        setSea(backdropCss(loaded));
+        setStatus('');
+        setTileset(loaded);
+      },
+      (err) => {
+        if (!stale) setStatus(`the tile sheet failed to load: ${String(err)}`);
+      },
+    );
+    return () => {
+      stale = true;
+    };
+  }, [settings.style, appReady]);
 
   // Pixelate by rendering into fewer pixels — see `/island` for why.
   useEffect(() => {
@@ -163,8 +236,7 @@ export function IsoWorldWorkbench() {
   useEffect(() => {
     const app = appRef.current;
     const world = worldRef.current;
-    const tileset = tilesetRef.current;
-    if (!app || !world || !tileset) return;
+    if (!app || !world || !tileset || tileset.style !== settings.style) return;
 
     islandRef.current?.destroy();
     const map = generateIsland({
@@ -205,10 +277,11 @@ export function IsoWorldWorkbench() {
       const { width, height } = app.screen;
       const box = island.landBounds;
       let scale = Math.min(width / box.width, height / box.height) * 0.9;
-      // Snapped when there is room: 32px pixel art at 1.7x has every other
-      // pixel doubled and the outlines wobble. Half steps rather than whole
-      // ones, because flooring 1.9 to 1 halves the island for a quarter turn.
-      if (scale >= 1) scale = Math.floor(scale * 2) / 2;
+      // Pixel art is snapped when there is room: 32px sprites at 1.7x have
+      // every other pixel doubled and the outlines wobble. Half steps rather
+      // than whole ones, because flooring 1.9 to 1 halves the island for a
+      // quarter turn. The smooth sheet is filtered and scales freely.
+      if (tileset.style === 'pixel' && scale >= 1) scale = Math.floor(scale * 2) / 2;
       world.scale.set(scale);
       world.position.set(
         Math.round(width / 2 - (box.x + box.width / 2) * scale),
@@ -220,7 +293,7 @@ export function IsoWorldWorkbench() {
     return () => {
       app.renderer.off('resize', fit);
     };
-  }, [settings, rotation]);
+  }, [settings, rotation, tileset]);
 
   return (
     <main style={{ ...styles.page, background: sea }}>
@@ -232,6 +305,21 @@ export function IsoWorldWorkbench() {
           The /island generator, stacked in blocks. Ramps climb one tier; turn the world to see the
           cliffs the camera hides.
         </p>
+
+        <label style={styles.row}>
+          <span style={styles.label}>style</span>
+          <select
+            style={styles.input}
+            value={settings.style}
+            onChange={(e) => set('style', e.target.value as IsoStyle)}
+          >
+            {ISO_STYLES.map((style) => (
+              <option key={style} value={style}>
+                {style}
+              </option>
+            ))}
+          </select>
+        </label>
 
         <label style={styles.row}>
           <span style={styles.label}>seed</span>
@@ -266,9 +354,11 @@ export function IsoWorldWorkbench() {
             onChange={(e) => set('ground', e.target.value as IsoGround)}
           >
             <option value="tiered">tiered</option>
-            <option value="grass">grass</option>
-            <option value="stone">stone</option>
-            <option value="dirt">dirt</option>
+            {(tileset?.spec.materials ?? []).map((material) => (
+              <option key={material} value={material}>
+                {material}
+              </option>
+            ))}
           </select>
         </label>
 
