@@ -115,7 +115,10 @@ export const SHEETS: Readonly<Record<IsoStyle, SheetSpec>> = {
     background: 0x0b2233,
   },
   smooth: {
-    url: '/assets/world/iso-smooth-sheet-128.png',
+    // The query is a layout revision, bumped whenever the sheet's cells move:
+    // browsers cache the file by URL, and a stale sheet sliced with the new
+    // offsets shows pieces that no longer exist.
+    url: '/assets/world/iso-smooth-sheet-128.png?layout=3',
     cell: 128,
     pad: 2,
     materials: ['moss', 'grass', 'sand'],
