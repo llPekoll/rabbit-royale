@@ -238,6 +238,19 @@ function Burrow() {
     });
   }, [ready, game.islandSeed, game]);
 
+  // Whether the player's rabbit has been panned out of frame — see
+  // IslandScene.setRabbitInViewListener. Drives the "Find my rabbit" button.
+  const [rabbitAway, setRabbitAway] = useState(false);
+  useEffect(() => {
+    const island = handles.current?.island;
+    if (!ready || !island || where !== 'island') {
+      setRabbitAway(false);
+      return;
+    }
+    island.setRabbitInViewListener((inView) => setRabbitAway(!inView));
+    return () => island.setRabbitInViewListener(null);
+  }, [ready, where]);
+
   const auth = useCallback(
     (init?: RequestInit) => ({
       ...init,
@@ -1154,6 +1167,21 @@ function Burrow() {
       {!crossing && !shownRaid && where !== 'burrow' && showCanvas && (
         <div className="rr-overlay">
           <RunHud game={game} name={player?.name ?? ''} spectating={spectating} />
+          {/* The way back to your own rabbit once a drag has lost it. The camera
+              follows a STEP, and a rabbit panned off a phone screen has no tile
+              in reach to step onto. Only while it is actually out of frame.
+              Under the HUD rather than above BACK HOME: on a 360px phone the
+              bottom band is shared with the lifted sound control, and the two
+              overlapped. */}
+          {rabbitAway && !spectating && (
+            <button
+              type="button"
+              className="rr-btn rr-recentre"
+              onClick={() => handles.current?.island?.recentre()}
+            >
+              Find my rabbit
+            </button>
+          )}
           {/* Pushes the recap and the arrow to the bottom. Explicitly
               transparent to input: it covers the whole board, and the CSS
               above only re-enables pointers on the controls. */}

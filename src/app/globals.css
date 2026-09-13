@@ -151,9 +151,24 @@ html, body {
            env(safe-area-inset-bottom) env(safe-area-inset-left);
   /* A game is not a document: the page itself never scrolls, the board pans. */
   overflow: hidden;
-  touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
+
+/* PANS YES, PAGE ZOOM NO — on every element, not just the page.
+   It was `manipulation` on html/body, which still ALLOWS pinch-zoom. The canvas
+   is `touch-action: none` (Pixi sets it), but a pinch with one finger on the
+   island's HUD or BACK HOME is decided by the DOM chrome, and it zoomed the
+   whole page to 3x (measured, `visualViewport.scale`) — the viewport meta's
+   `userScalable: false` is ignored by iOS Safari and touch laptops.
+
+   On `*` because touch-action is intersected only up to the nearest scroll
+   container: set on body alone, a pinch inside the burrow column or a drawer
+   list would still zoom. Lowest specificity, so any component that states its
+   own wins, and the canvas's inline `none` is untouched. Scrolling stays;
+   double-tap zoom goes with pinch, as `manipulation` already did. */
+*, *::before, *::after { touch-action: pan-x pan-y; }
+/* A slider's horizontal drag belongs to the slider. */
+input[type='range'] { touch-action: pan-y; }
 
 /* Anything a thumb hits is at least 44px — below that, taps miss under
    pressure, and this game is played in a hurry. */
@@ -338,7 +353,6 @@ button { min-height: 44px; min-width: 44px; }
   pointer-events: none;
   z-index: 10;
 }
-.rr-overlay > .rr-hud,
 .rr-overlay > .rr-card,
 .rr-overlay > .rr-go,
 .rr-overlay > .rr-back,
@@ -355,6 +369,21 @@ button { min-height: 44px; min-width: 44px; }
   width: 100%;
   max-width: 560px;
   align-self: center;
+  /* A READOUT, not a control — nothing in it is tappable. Left catching the
+     pointer, a finger that landed on it never reached the board: a pinch with
+     one finger on the strip became a 200px pan, and a drag starting there did
+     nothing. Transparent, the strip is just more board. */
+  pointer-events: none;
+}
+
+/* "Find my rabbit": small and centred under the HUD strip, only while the
+   rabbit is out of frame. */
+.rr-overlay > .rr-recentre {
+  align-self: center;
+  width: auto;
+  margin: 8px 0 0;
+  padding: 8px 16px;
+  font-size: 12px;
 }
 
 /* Same story for the run recap. It is a short read — a score, three counts and

@@ -28,7 +28,7 @@ import { MoveArrows } from '../ui/MoveArrows';
 import { CloudField } from '../fx/Clouds';
 import * as Keys from '@/config/assetKeys';
 import {
-  COLS, ROWS, SPAWN_INDEX, GRID_CENTER_X, GRID_CENTER_Y,
+  COLS, ROWS, SPAWN_INDEX, GRID_CENTER_X, GRID_CENTER_Y, HALF_W,
   isForbidden, makeShape, screenToTile, tilePos, tileInScreenDirection,
   toColRow, type IslandShape,
 } from '@/config/gridConfig';
@@ -178,6 +178,14 @@ export class IslandScene implements Scene {
   private pressTile: number | null = null;
   /** The camera slide keeping the rabbit in frame, while one is running. */
   private follow: gsap.core.Tween | null = null;
+  /**
+   * UI hook: told when the local rabbit leaves the frame or comes back into it,
+   * so the chrome can offer a way back. The follow only runs on a STEP, and a
+   * player who has panned their rabbit off-screen on a phone has no tile left
+   * in reach to step onto — without this there was no way back but dragging.
+   */
+  private rabbitInViewListener: ((inView: boolean) => void) | null = null;
+  private rabbitInView = true;
 
   /**
    * The canvas everything in this scene is laid out against.
@@ -800,6 +808,38 @@ export class IslandScene implements Scene {
     this.container.scale.set(cam.scale);
     this.container.position.set(cam.x, cam.y);
     this.clouds?.counterCamera(cam.scale, cam.x, cam.y);
+
+    const inView = this.isRabbitInView();
+    if (inView !== this.rabbitInView) {
+      this.rabbitInView = inView;
+      this.rabbitInViewListener?.(inView);
+    }
+  }
+
+  /** Subscribe the chrome to the rabbit leaving / re-entering the frame. */
+  setRabbitInViewListener(cb: ((inView: boolean) => void) | null): void {
+    this.rabbitInViewListener = cb;
+    this.rabbitInView = this.isRabbitInView();
+    cb?.(this.rabbitInView);
+  }
+
+  /**
+   * Is the local rabbit's tile on screen, at least a tile clear of the edges?
+   * True when there is no rabbit to lose (spectating, no camera), so the
+   * chrome never offers to find one.
+   */
+  private isRabbitInView(): boolean {
+    if (!this.data || this.data.noCamera || !this.rabbits.has(this.data.playerId)) return true;
+    const on = toScreen(this.cam, tileScreenPos(this.seed, this.myTile));
+    const margin = HALF_W * 2 * this.cam.scale;
+    return on.x > margin && on.x < this.canvasW - margin
+      && on.y > margin && on.y < this.canvasH - margin;
+  }
+
+  /** Slide back to the local rabbit, keeping the player's zoom. */
+  recentre(): void {
+    if (this.data?.noCamera) return;
+    this.slideTo(tileScreenPos(this.seed, this.myTile));
   }
 
   /**
@@ -866,9 +906,13 @@ export class IslandScene implements Scene {
     const inside = on.x > W * FOLLOW_MARGIN && on.x < W * (1 - FOLLOW_MARGIN)
       && on.y > H * FOLLOW_MARGIN && on.y < H * (1 - FOLLOW_MARGIN);
     if (inside) return;
+    this.slideTo(at);
+  }
 
+  /** Centre `at` (scene px) in one eased slide, at the current zoom. */
+  private slideTo(at: Point): void {
     this.stopFollow();
-    const to = lookAt(this.seed, at, this.cam.scale, W, H);
+    const to = lookAt(this.seed, at, this.cam.scale, this.canvasW, this.canvasH);
     const proxy = { x: this.cam.x, y: this.cam.y };
     this.follow = gsap.to(proxy, {
       x: to.x,
