@@ -97,10 +97,24 @@ describe('the bottom of the sky', () => {
     expect(CLOUDS).toMatch(/case 'bottom':[\s\S]*?this\.showBelow\(/);
   });
 
-  it('measures the overhang off the sprite height, so any scale still shows', () => {
-    expect(CLOUDS).toMatch(/s\.texture\.height \* Math\.abs\(s\.scale\.y\)/);
+  it('measures the overhang off the PAINT, not off the sprite frame', () => {
+    // The textures are 576x256 boxes with the puff floating inside and dozens
+    // of fully transparent rows below it. Measuring off the frame parks empty
+    // padding at the edge — eight sprites overlapping the bottom of the canvas
+    // and zero cloud pixels rendered there.
+    expect(CLOUDS).toMatch(/const PAINTED_TOP = \d+;/);
+    expect(CLOUDS).toMatch(/PAINTED_TOP - s\.texture\.height \/ 2/);
     // scale.x is mirrored on half the field, so it must not be the one used.
-    expect(CLOUDS).not.toMatch(/texture\.height \* Math\.abs\(s\.scale\.x\)/);
+    expect(CLOUDS).toMatch(/Math\.abs\(s\.scale\.y\)/);
+    expect(CLOUDS).not.toMatch(/Math\.abs\(s\.scale\.x\)/);
+  });
+
+  it('anchors the puff by its top edge, so the body hangs off the frame', () => {
+    // Anchoring the puff's BOTTOM inside the frame is the same instruction as
+    // "put the whole cloud on screen": the body is 105-335px tall once scaled,
+    // so it lands over the board — the one thing this module must never do.
+    expect(CLOUDS).toMatch(/this\.opts\.height - toPaintedTop - rand\(visible\)/);
+    expect(CLOUDS).not.toMatch(/PAINTED_BOTTOM/);
   });
 
   it('re-solves the field when the design space is swapped', () => {

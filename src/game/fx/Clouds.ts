@@ -50,6 +50,15 @@ const SCALE_RANGE = [1.1, 2.2] as const;
 /** Solid. They are objects passing over the sea, not a tint on it. */
 const ALPHA_RANGE = [0.92, 1] as const;
 /**
+ * The HIGHEST row of the 256px cloud frame that has paint in it.
+ *
+ * The eight textures start painting between row 42 and row 115; the lowest of
+ * those starts is the safe one to measure from, so that every texture in the
+ * set has real paint at the frame edge rather than only the tall ones. Only the
+ * bottom bands need this — see `showBelow`.
+ */
+const PAINTED_TOP = 115;
+/**
  * In FRONT of the whole island.
  *
  * Tiles sort on `tileDepth(i) * 16 + tier`, and on a 16x16 grid `tileDepth`
@@ -154,28 +163,46 @@ export class CloudField {
       // at every scale and on either orientation.
       case 'lower':
         s.x = -m + t * (w + m * 2);
-        s.y = this.showBelow(s, [40, 110]);
+        s.y = this.showBelow(s, [26, 62]);
         break;
       case 'bottom':
         s.x = w + m - t * (w + m * 2);
-        s.y = this.showBelow(s, [4, 40]);
+        s.y = this.showBelow(s, [4, 26]);
         break;
     }
   }
 
   /**
-   * The `y` that leaves `visible` px of this cloud showing above the frame's
-   * bottom edge, with the rest hanging off into the margin.
+   * The `y` that leaves `visible` px of PAINTED cloud poking up over the
+   * frame's bottom edge, with the body of the puff hanging off below it.
    *
-   * Uses the sprite's own scaled height, so a 1.1x and a 2.2x cloud in the same
-   * band both show the same sliver instead of the big one swallowing the corner
-   * of the board while the small one never arrives at all.
+   * Measured against the art, not the frame. Every cloud texture is a 576x256
+   * box with the puff floating inside it and fully transparent rows above and
+   * below — 57 to 92px of nothing at the bottom, 42 to 115 at the top, which at
+   * SCALE_RANGE becomes a couple of hundred px either way. Parking the sprite's
+   * BOUNDING BOX 40px into frame showed 40px of that padding and not one pixel
+   * of cloud: a probe counted eight sprites overlapping the bottom of the
+   * canvas while the render counted zero cloud pixels there.
+   *
+   * It is the puff's TOP edge that is anchored, not its bottom. Anchoring the
+   * bottom is the same instruction as "put the whole cloud on screen" — the
+   * body is 105-335px tall once scaled, so it lands squarely over the board,
+   * which is the one thing this module must never do. Anchored by the top, the
+   * puff shows `visible` px at the edge and runs off the bottom of the frame.
+   *
+   * The ranges are kept small on purpose. The board is fitted to the frame with
+   * only a 0.82 margin, so its bottom corner comes within ~60px of the edge —
+   * a band reaching 110px up puts a puff over the tiles, which is the whole
+   * thing this module exists to avoid. Tuned by counting cloud pixels in the
+   * bottom rows against cloud pixels over the board.
    */
   private showBelow(s: Sprite, visible: readonly [number, number]): number {
     // `scale.x` is negated on the flipped half of the field (see `spawn`), so
-    // height comes off `scale.y`, which is never mirrored.
-    const half = (s.texture.height * Math.abs(s.scale.y)) / 2;
-    return this.opts.height + half - rand(visible);
+    // the height comes off `scale.y`, which is never mirrored.
+    const sy = Math.abs(s.scale.y);
+    // Centre -> highest painted row, in design px (negative: it is above).
+    const toPaintedTop = (PAINTED_TOP - s.texture.height / 2) * sy;
+    return this.opts.height - toPaintedTop - rand(visible);
   }
 
   /** Advance the field. `deltaMs` is real milliseconds. */
