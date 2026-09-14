@@ -205,3 +205,66 @@ L'ordre qui ne casse rien, pour une migration additive :
 Pour une migration **destructive** (colonne supprimée, type changé), l'ordre
 s'inverse et le déploiement doit se faire en deux temps : d'abord du code qui
 tolère les deux formes, ensuite la migration. Il n'y en a pas encore eu ici.
+
+---
+
+## Journal des écritures manuelles en base
+
+Tout SQL passé à la main sur `rr_crown` se note ici, **le jour où il est
+passé**. Ce n'est pas de la paperasse : le registre `__drizzle_migrations` est
+la seule mémoire qu'a Drizzle de l'état de la prod, et dès qu'on écrit hors
+`db:migrate`, cette mémoire ne suffit plus à reconstituer ce qui s'est produit.
+Un écart non noté devient, quelques semaines plus tard, une base dont personne
+ne sait si elle est en avance ou en retard sur le dépôt.
+
+Une ligne par intervention : la date, ce qui a été fait, et **pourquoi le
+chemin normal n'a pas été pris**.
+
+### 2026-09-14 — table `tuning` + réalignement du registre
+
+Passé en une transaction (`CREATE TABLE IF NOT EXISTS` + `INSERT` dans
+`__drizzle_migrations`), puis le seed des 35 clés.
+
+Le registre de prod était à **9 entrées contre 13 en local**. En inspectant le
+schéma colonne par colonne, trois de ces quatre migrations étaient **déjà
+appliquées** (`burrow_hp` supprimée, `watered_until` et `sprung_at` présentes,
+`water` dans l'enum) : c'est le registre qui avait divergé, pas le schéma. Leur
+SQL n'a donc **pas** été rejoué — `0009` supprime des colonnes déjà supprimées
+et aurait échoué en plein milieu de la transaction. Elles ont été enregistrées
+telles quelles, et seule `0012` (la table `tuning`) a réellement été créée.
+
+### 2026-09-14 — la migration `0008` enregistrée après coup
+
+`0008_hot_adam_destine.sql` ajoute la valeur `mirage` à l'enum `item_kind`.
+Elle était **appliquée au schéma mais absente du registre** : `mirage` bien
+présent dans l'enum, et pourtant la prod comptait 12 migrations là où le dépôt
+en a 13. Écart antérieur, origine inconnue.
+
+Aucun effet sur le jeu — l'effet était sur la prochaine personne qui compare
+les deux nombres et croit la prod en retard. La ligne a donc été insérée sans
+rejouer le SQL : `ADD VALUE` aurait échoué sur une valeur déjà là.
+
+```sql
+INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
+SELECT '796ab3979c9dbb651bdf6487e661cdc8678386ab4ae52ecaf660987f39cbcc9b', 1789103707098
+WHERE NOT EXISTS (SELECT 1 FROM drizzle.__drizzle_migrations WHERE hash = '796ab…');
+```
+
+Prod et local sont depuis à **13 migrations** toutes les deux. C'est le compte
+à vérifier avant toute migration future ; s'il diverge de nouveau, la cause est
+une écriture non notée dans ce journal.
+
+### Changer un réglage à chaud (ce n'est PAS une écriture à noter)
+
+Les lignes de la table `tuning` sont faites pour être modifiées — c'est leur
+raison d'être, pas une entorse. Elles portent leur propre `note` et leur
+`updated_at`, donc elles se documentent seules :
+
+```sql
+update tuning set value = 199, note = 'promo week-end' where key = 'SHOP.PRICES.bomb';
+```
+
+Effet en 30 s, sans redéploiement, donc sans tuer les parties en cours. Ce qui
+est surchargeable et dans quelles bornes est déclaré dans
+`config/overridable.ts` ; une valeur hors bornes est refusée et le jeu retombe
+sur `config/tuning.ts`.
