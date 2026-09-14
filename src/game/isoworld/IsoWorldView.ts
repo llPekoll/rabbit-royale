@@ -90,6 +90,9 @@ interface Hopper {
   rng: () => number;
 }
 
+/** Where the rabbit's feet meet the ground in `rabbit_green-nature.png`, in its pixels. */
+const RABBIT_FEET = [31, 84] as const;
+
 const HOP_TIME = 0.34;
 const HOP_REST = 0.5;
 const HOP_HEIGHT = 0.5;
@@ -426,7 +429,10 @@ export class IsoWorldView {
     shadow.ellipse(0, 0, r, r * 0.5).fill({ color: 0x2c4a34, alpha: 0.3 });
     node.addChild(shadow);
     const sprite = new Sprite(texture);
-    sprite.anchor.set(0.5, 0.96);
+    // The ground point of the drawing: between its back and front paws,
+    // where they touch down — not the sprite's bottom centre, which is off
+    // to the right and below the feet, and put the stance beside the cell.
+    sprite.anchor.set(RABBIT_FEET[0] / texture.width, RABBIT_FEET[1] / texture.height);
     node.addChild(sprite);
     this.layer.addChild(node);
     this.sprites += 2;
