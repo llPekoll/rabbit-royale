@@ -125,13 +125,12 @@ PITCH = CELL + 2 * PAD
 COLS, ROWS = 29, 10
 SS = 4  # supersampling: drawn at 512px per cell, then resolved down
 
-# Line weights, in OUTPUT pixels. Heavier than they look on the sheet: in the
-# reference a cell is ~50px wide with a 2px outline and 1.5px grid, and an
-# island on screen scales these 128px cells down to about that.
-OUTLINE = 4.6   # dark silhouette line
-GRID = 4.0      # the sharp grid line on top faces
-GLOW = 10.0     # the soft dark halo under it, the line's own colour multiplied in
-GLOW_STRENGTH = 0.35
+# Line weights, in OUTPUT pixels, matched to the hand-drawn decorations: their
+# outlines run 2-3px at the same scale (a one-cell base ~130px wide).
+OUTLINE = 2.6   # silhouette, rims, fringes, folds
+GRID = 2.0      # the sharp grid line on top faces
+GLOW = 7.0      # the soft dark halo under it, the line's own colour multiplied in
+GLOW_STRENGTH = 0.3
 STRIPE = 3.0    # earth stripes on cliff faces
 BLEED = 0.8     # how far a filled face overshoots its edge to hide seams
 
