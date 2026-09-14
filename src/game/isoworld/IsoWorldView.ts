@@ -68,10 +68,10 @@ const INK = 0x3a6c3e;
 /** Where the water stands above the floor, in blocks — the sheet's `WATER_HEIGHT`. */
 const WATER_LEVEL = 0.5;
 /** Foam: line width at 128px cells, opacity, how far a ripple drifts (cells), and its cycle (s). */
-const FOAM_WIDTH = 2.2;
-const FOAM_ALPHA = 0.85;
-const FOAM_REACH = 0.14;
-const FOAM_PERIOD = 2.6;
+const FOAM_WIDTH = 3.6;
+const FOAM_ALPHA = 0.92;
+const FOAM_REACH = 0.3;
+const FOAM_PERIOD = 3.2;
 
 interface WaterlineSegment {
   a: readonly [number, number];
@@ -690,7 +690,7 @@ export class IsoWorldView {
       const on = mulberry32(seed + s++);
       // The still line at the shore, and the one that drifts.
       this.layer.addChild(wavyLine(a, b, width, FOAM_ALPHA, on()));
-      const ripple = wavyLine(a, b, width * 0.8, FOAM_ALPHA, on());
+      const ripple = wavyLine(a, b, width * 0.9, FOAM_ALPHA, on());
       this.layer.addChild(ripple);
       this.ripples.push({ line: ripple, dx: ox * FOAM_REACH, dy: oy * FOAM_REACH, phase: on() });
       this.sprites += 2;
