@@ -59,6 +59,12 @@ NAMES: dict[int, str] = {
 MIN_AREA = 1500  # px of a piece's tight box; anything less is a stray mark
 BASE = 0.45      # the lowest share of a piece that is its base, not foliage
 
+# Pieces standing on a drawn slab. The artist's slabs are not all at the
+# 2:1 isometric angle, so each is straightened: an affine map sends the
+# slab's three visible corners — bottom, left, right — onto a true diamond
+# of the same width, and the foliage comes along.
+SLABBED = {'flowers-small', 'meadow-tuft', 'hill-big', 'hill-wide', 'bush-small', 'flowers-patch'}
+
 
 def label(mask: Image.Image) -> list[tuple[tuple[int, int, int, int], Image.Image]]:
     """
@@ -95,6 +101,55 @@ def label(mask: Image.Image) -> list[tuple[tuple[int, int, int, int], Image.Imag
     return regions
 
 
+def straighten(piece: Image.Image) -> Image.Image:
+    """
+    Map the slab's bottom, left and right corners onto a 2:1 diamond of the
+    same width, bottom corner fixed. The corners are read off the alpha: the
+    lowest opaque point, and the extreme points of the piece's lowest share.
+    """
+    a = piece.split()[3]
+    w, h = piece.size
+    pts = [(x, y) for y in range(h) for x in range(w) if a.getpixel((x, y)) > 8]
+    ymax = max(y for _, y in pts)
+    bottom_xs = [x for x, y in pts if y == ymax]
+    B = (sum(bottom_xs) / len(bottom_xs), float(ymax))
+    base = [p for p in pts if p[1] >= h * (1 - BASE)]
+    L = min(base, key=lambda p: p[0])
+    R = max(base, key=lambda p: p[0])
+    width = R[0] - L[0]
+    L2 = (B[0] - width / 2, B[1] - width / 4)
+    R2 = (B[0] + width / 2, B[1] - width / 4)
+    # Forward affine F with F(L)=L2, F(R)=R2, F(B)=B; PIL wants the inverse.
+    src = [L, R, B]
+    dst = [L2, R2, B]
+
+    def solve(src, dst):
+        # Least squares is overkill for three points: solve the 3x3 system per axis.
+        import itertools
+        (x0, y0), (x1, y1), (x2, y2) = src
+        det = x0 * (y1 - y2) - y0 * (x1 - x2) + (x1 * y2 - x2 * y1)
+        out = []
+        for k in range(2):
+            u0, u1, u2 = dst[0][k], dst[1][k], dst[2][k]
+            a_ = (u0 * (y1 - y2) - y0 * (u1 - u2) + (u1 * y2 - u2 * y1)) / det
+            b_ = (x0 * (u1 - u2) - u0 * (x1 - x2) + (x1 * u2 - x2 * u1)) / det
+            c_ = (x0 * (y1 * u2 - y2 * u1) - y0 * (x1 * u2 - x2 * u1) + u0 * (x1 * y2 - x2 * y1)) / det
+            out.append((a_, b_, c_))
+        return out
+
+    inv = solve(dst, src)  # output pixel -> input pixel
+    # Room for the foliage to move: pad the canvas generously, then re-crop.
+    pad = w // 2
+    canvas = Image.new('RGBA', (w + 2 * pad, h + pad), (0, 0, 0, 0))
+    canvas.paste(piece, (pad, pad))
+    (a0, b0, c0), (d0, e0, f0) = inv
+    # Shift for the padding: output (x, y) -> input (x - pad, y - pad) space.
+    data = (a0, b0, c0 - a0 * pad - b0 * pad + pad, d0, e0, f0 - d0 * pad - e0 * pad + pad)
+    out = canvas.transform(canvas.size, Image.AFFINE, data, resample=Image.BICUBIC)
+    tight = out.split()[3].point(lambda v: 255 if v > 8 else 0).getbbox()
+    return out.crop(tight)
+
+
 def main() -> None:
     sheet = Image.open(SOURCE).convert('RGBA')
     alpha = sheet.split()[3].point(lambda a: 255 if a > 8 else 0)
@@ -120,6 +175,9 @@ def main() -> None:
         piece = piece.crop(tight)
         if piece.width * piece.height < MIN_AREA:
             continue
+        name = NAMES.get(len(manifest), f'decor-{len(manifest):02d}')
+        if name in SLABBED:
+            piece = straighten(piece)
         a = piece.split()[3]
         # The base: the widest opaque row in the piece's lowest share.
         base, centre = 0, piece.width / 2
@@ -130,7 +188,6 @@ def main() -> None:
                 centre = (row[0] + row[-1]) / 2
         anchor = (round(centre), piece.height - 1)
         i = len(manifest)
-        name = NAMES.get(i, f'decor-{i:02d}')
         piece.save(OUT / f'{name}.png', optimize=True)
         cells = 1 if base < ONE_CELL else 2 if base < 2 * ONE_CELL else 3
         manifest.append({'name': name, 'file': f'{name}.png', 'width': piece.width, 'height': piece.height, 'anchor': anchor, 'base': base, 'cells': cells})

@@ -10,7 +10,7 @@
 import { Assets, Texture } from 'pixi.js';
 
 export const DECOR_URL = '/assets/world/decor';
-export const DECOR_MANIFEST_URL = `${DECOR_URL}/manifest.json?v=2`;
+export const DECOR_MANIFEST_URL = `${DECOR_URL}/manifest.json?v=3`;
 
 /** How wide a one-cell base is drawn on the artist's sheet, in pixels. */
 export const SHEET_CELL = 130;
@@ -73,7 +73,7 @@ async function load(): Promise<DecorSet> {
   const entries = (await response.json()) as DecorManifestEntry[];
   const pieces = await Promise.all(
     entries.map(async (entry) => {
-      const texture = await Assets.load<Texture>(`${DECOR_URL}/${entry.file}?v=2`);
+      const texture = await Assets.load<Texture>(`${DECOR_URL}/${entry.file}?v=3`);
       texture.source.scaleMode = 'linear';
       return { ...entry, texture };
     }),
