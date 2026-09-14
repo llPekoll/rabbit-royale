@@ -425,8 +425,9 @@ export class IsoWorldView {
     // rabbit about its feet, so the feet stay put.
     const node = new Container();
     const shadow = new Graphics();
-    const r = tileset.cell * 0.3;
-    shadow.ellipse(0, 0, r, r * 0.5).fill({ color: 0x2c4a34, alpha: 0.3 });
+    const r = tileset.cell * 0.17;
+    shadow.ellipse(0, 0, r, r * 0.5).fill({ color: 0x4f8a48, alpha: 0.55 });
+    shadow.blendMode = 'multiply';
     node.addChild(shadow);
     const sprite = new Sprite(texture);
     // The ground point of the drawing: between its back and front paws,

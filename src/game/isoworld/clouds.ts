@@ -32,7 +32,7 @@ const CLOUDS: readonly { url: string; axis: readonly [number, number] }[] = [
 
 /** How many cross the frame, and how they vary. */
 const COUNT = 9;
-const SCALE_RANGE = [0.45, 0.9] as const;
+const SCALE_RANGE = [0.6, 1.2] as const;
 const SPEED_RANGE = [6, 16] as const;
 /** Off-frame room, enough to hide the widest cloud. */
 const MARGIN = 450;
