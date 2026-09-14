@@ -10,7 +10,7 @@
  * ever sees two sides of a cliff.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Application, Container, Sprite, Texture } from 'pixi.js';
+import { Application, Assets, Container, Sprite, Texture } from 'pixi.js';
 import { generateIsland } from '@/game/island';
 import {
   DECOR_WEIGHTS,
@@ -27,6 +27,8 @@ import { Slider, Stat, styles } from '../island/IslandWorkbench';
 
 /** Until the sheet is loaded and its background is known. */
 const DEEP_SEA = '#0b2233';
+
+const RABBIT_URL = '/assets/world/rabbit_green-nature.png';
 
 const hex = (color: number) => `#${color.toString(16).padStart(6, '0')}`;
 
@@ -290,6 +292,14 @@ export function IsoWorldWorkbench({ style, seed }: { style?: IsoStyle; seed?: st
     islandRef.current = island;
     world.addChild(island.view);
 
+    // The test rabbit, once its picture is in: it hops about the grass.
+    let live = true;
+    if (!isPixel) {
+      Assets.load<Texture>(RABBIT_URL).then((texture) => {
+        if (live && islandRef.current === island) island.addHopper(texture);
+      });
+    }
+
     // The foam moves: one ticker for the island's life.
     const animate = () => island.tick(app.ticker.lastTime / 1000);
     app.ticker.add(animate);
@@ -327,6 +337,7 @@ export function IsoWorldWorkbench({ style, seed }: { style?: IsoStyle; seed?: st
     return () => {
       app.renderer.off('resize', fit);
       app.ticker.remove(animate);
+      live = false;
     };
   }, [settings, rotation, tileset, tiers, corners]);
 

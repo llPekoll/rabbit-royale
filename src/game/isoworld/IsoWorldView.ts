@@ -73,6 +73,20 @@ const FOAM_ALPHA = 0.92;
 const FOAM_REACH = 0.3;
 const FOAM_PERIOD = 3.2;
 
+/** A hop: from cell to cell, `t` of the way there, then a rest. */
+interface Hopper {
+  sprite: Sprite;
+  from: { x: number; y: number };
+  to: { x: number; y: number };
+  t: number;
+  wait: number;
+  rng: () => number;
+}
+
+const HOP_TIME = 0.32;
+const HOP_REST = 0.45;
+const HOP_HEIGHT = 0.45;
+
 interface WaterlineSegment {
   a: readonly [number, number];
   b: readonly [number, number];
@@ -298,6 +312,16 @@ export class IsoWorldView {
    */
   private readonly ripples: { line: Graphics; dx: number; dy: number; phase: number }[] = [];
 
+  /**
+   * How many children the layer held once each cell was built, by cell
+   * index: where something standing on that cell goes to be drawn in
+   * painter's order — after the cell, before everything in front of it.
+   */
+  private readonly cellEnd = new Map<number, number>();
+
+  private hopper: Hopper | null = null;
+  private lastTick = 0;
+
   constructor(private readonly options: IsoWorldViewOptions) {
     const { world, tileset } = options;
     const { width: w, height: h } = world;
@@ -328,7 +352,10 @@ export class IsoWorldView {
 
     const { floor } = tileset.spec;
     for (let s = 0; s <= w + h - 2; s++) {
-      for (let x = Math.max(0, s - h + 1); x <= Math.min(s, w - 1); x++) this.buildCell(x, s - x);
+      for (let x = Math.max(0, s - h + 1); x <= Math.min(s, w - 1); x++) {
+        this.buildCell(x, s - x);
+        this.cellEnd.set((s - x) * w + x, this.layer.children.length);
+      }
       for (const { x, y, prop } of this.decorAfter.get(s) ?? []) {
         const tier = tierAt(world, x, y);
         if (tier > floor) this.plant(x, y, prop, tier * block.z);
@@ -364,6 +391,131 @@ export class IsoWorldView {
       r.line.position.set(r.dx * t, r.dy * t);
       r.line.alpha = FOAM_ALPHA * (1 - t) * Math.min(1, t * 6);
     }
+    const dt = this.lastTick ? Math.min(0.1, seconds - this.lastTick) : 0;
+    this.lastTick = seconds;
+    if (this.hopper) this.hop(this.hopper, dt);
+  }
+
+  /**
+   * Put a rabbit on the island, hopping from cell to cell over the grass.
+   * A test of the world as a place to move in: it lands on cell centres,
+   * follows the ramps' surfaces, and is drawn among the tiles at its depth.
+   */
+  addHopper(texture: Texture): void {
+    const { world, tileset } = this.options;
+    const start = this.hopperCells().find(() => true);
+    if (start === undefined) return;
+    const sprite = new Sprite(texture);
+    sprite.anchor.set(0.5, 0.96);
+    sprite.scale.set(tileset.cell / SHEET_CELL);
+    this.layer.addChild(sprite);
+    this.sprites++;
+    const x = start % world.width;
+    const y = (start / world.width) | 0;
+    this.hopper = {
+      sprite,
+      from: { x, y },
+      to: { x, y },
+      t: 1,
+      wait: HOP_REST,
+      rng: mulberry32(seedFrom(`${world.seed}:hopper`)),
+    };
+    this.placeHopper(this.hopper);
+  }
+
+  /** The cells a hopper may land on: grass and moss, off the ramps' feet, with nothing planted. */
+  private hopperCells(): number[] {
+    const { world, tileset } = this.options;
+    const out: number[] = [];
+    for (let y = 0; y < world.height; y++) {
+      for (let x = 0; x < world.width; x++) {
+        if (this.canLand(x, y)) out.push(y * world.width + x);
+      }
+    }
+    return out;
+  }
+
+  private canLand(x: number, y: number): boolean {
+    const { world, tileset } = this.options;
+    if (tierAt(world, x, y) <= tileset.spec.floor) return false;
+    const prop = propAt(world, x, y);
+    if (prop?.kind === 'decor') return false;
+    // The other cells of a big piece's footprint: north-west of them lies its origin.
+    for (let dy = 0; dy <= 1; dy++) {
+      for (let dx = 0; dx <= 1; dx++) {
+        if (!dx && !dy) continue;
+        const p = propAt(world, x - dx, y - dy);
+        if (p?.kind === 'decor' && (p.cells ?? 1) > 1) return false;
+      }
+    }
+    return true;
+  }
+
+  private hop(h: Hopper, dt: number): void {
+    const { world } = this.options;
+    if (h.t >= 1) {
+      h.wait -= dt;
+      if (h.wait > 0) return;
+      // Pick a neighbour to hop to: never straight back unless cornered.
+      const options: { x: number; y: number }[] = [];
+      for (const d of DIRS) {
+        const nx = h.to.x + DIR_STEP[d].dx;
+        const ny = h.to.y + DIR_STEP[d].dy;
+        if (this.canLand(nx, ny)) options.push({ x: nx, y: ny });
+      }
+      const forward = options.filter((o) => o.x !== h.from.x || o.y !== h.from.y);
+      const pool = forward.length ? forward : options;
+      if (!pool.length) {
+        h.wait = HOP_REST;
+        return;
+      }
+      h.from = h.to;
+      h.to = pool[Math.floor(h.rng() * pool.length)];
+      h.t = 0;
+      h.wait = HOP_REST * (0.6 + h.rng() * 0.8);
+      // Face the way it goes: right on screen when x grows or y shrinks.
+      const sx = (h.to.x - h.from.x) - (h.to.y - h.from.y);
+      if (sx) h.sprite.scale.x = Math.abs(h.sprite.scale.x) * (sx > 0 ? 1 : -1);
+      void world;
+    }
+    h.t = Math.min(1, h.t + dt / HOP_TIME);
+    this.placeHopper(h);
+  }
+
+  private placeHopper(h: Hopper): void {
+    const { world, tileset } = this.options;
+    const { block } = tileset;
+    const t = h.t;
+    // Ground height at each cell's centre, in blocks, and the arc between.
+    const z0 = this.surfaceZ(h.from.x, h.from.y);
+    const z1 = this.surfaceZ(h.to.x, h.to.y);
+    const z = z0 + (z1 - z0) * t + HOP_HEIGHT * 4 * t * (1 - t);
+    const cx = h.from.x + (h.to.x - h.from.x) * t + 0.5;
+    const cy = h.from.y + (h.to.y - h.from.y) * t + 0.5;
+    h.sprite.position.set((cx - cy) * (block.w / 2), (cx + cy) * (block.h / 2) - z * block.z);
+    // Its depth: the cell furthest forward of the two it is between.
+    const cell = h.from.x + h.from.y > h.to.x + h.to.y ? h.from : h.to;
+    const at = this.cellEnd.get(cell.y * world.width + cell.x);
+    if (at !== undefined) {
+      const current = this.layer.getChildIndex(h.sprite);
+      const target = Math.min(this.layer.children.length - 1, current < at ? at - 1 : at);
+      if (current !== target) this.layer.setChildIndex(h.sprite, target);
+    }
+  }
+
+  /** The height of the ground at a cell's centre, in blocks above the sea floor. */
+  private surfaceZ(x: number, y: number): number {
+    const { world } = this.options;
+    const tier = tierAt(world, x, y);
+    const ramp = rampAt(world, x, y);
+    if (!ramp) return tier;
+    // The centre lies on both of the ramp's triangles' shared edge or inside
+    // one of them; the two planes agree there to within the cut, so either
+    // is close enough — take the mean of the two.
+    const [a, b] = rampTriangles(ramp).map(planeOf);
+    const za = a[0] + a[1] * 0.5 + a[2] * 0.5;
+    const zb = b[0] + b[1] * 0.5 + b[2] * 0.5;
+    return tier + (za + zb) / 2;
   }
 
   private buildCell(x: number, y: number): void {
