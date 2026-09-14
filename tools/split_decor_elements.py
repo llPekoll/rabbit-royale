@@ -116,10 +116,13 @@ def straighten(piece: Image.Image) -> Image.Image:
     base = [p for p in pts if p[1] >= h * (1 - BASE)]
     L = min(base, key=lambda p: p[0])
     R = max(base, key=lambda p: p[0])
-    width = R[0] - L[0]
-    L2 = (B[0] - width / 2, B[1] - width / 4)
-    R2 = (B[0] + width / 2, B[1] - width / 4)
-    # Forward affine F with F(L)=L2, F(R)=R2, F(B)=B; PIL wants the inverse.
+    # Only the vertical shear is corrected: y' = d x + e y + f, with x left
+    # alone. That fixes the slab's edge angles — each edge's rise over its
+    # run — while every vertical stays vertical, so a hill drawn upright on
+    # a crooked slab is still upright afterwards. A horizontal shear would
+    # square the slab too, but it leans everything standing on it.
+    L2 = (L[0], B[1] - (B[0] - L[0]) / 2)
+    R2 = (R[0], B[1] - (R[0] - B[0]) / 2)
     src = [L, R, B]
     dst = [L2, R2, B]
 

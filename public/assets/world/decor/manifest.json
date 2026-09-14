@@ -26,13 +26,13 @@
   {
     "name": "flowers-small",
     "file": "flowers-small.png",
-    "width": 97,
-    "height": 69,
+    "width": 91,
+    "height": 65,
     "anchor": [
-      51,
-      68
+      52,
+      64
     ],
-    "base": 91,
+    "base": 77,
     "cells": 1
   },
   {
@@ -53,58 +53,58 @@
     "width": 192,
     "height": 171,
     "anchor": [
-      96,
+      94,
       170
     ],
-    "base": 192,
+    "base": 187,
     "cells": 2
   },
   {
     "name": "hill-big",
     "file": "hill-big.png",
-    "width": 296,
-    "height": 220,
+    "width": 294,
+    "height": 214,
     "anchor": [
-      148,
-      219
-    ],
-    "base": 295,
-    "cells": 2
-  },
-  {
-    "name": "hill-wide",
-    "file": "hill-wide.png",
-    "width": 307,
-    "height": 207,
-    "anchor": [
-      148,
-      206
+      142,
+      213
     ],
     "base": 284,
     "cells": 2
   },
   {
+    "name": "hill-wide",
+    "file": "hill-wide.png",
+    "width": 283,
+    "height": 191,
+    "anchor": [
+      134,
+      190
+    ],
+    "base": 265,
+    "cells": 2
+  },
+  {
     "name": "bush-small",
     "file": "bush-small.png",
-    "width": 134,
+    "width": 133,
     "height": 85,
     "anchor": [
       66,
       84
     ],
-    "base": 134,
+    "base": 133,
     "cells": 1
   },
   {
     "name": "flowers-patch",
     "file": "flowers-patch.png",
-    "width": 114,
+    "width": 113,
     "height": 63,
     "anchor": [
-      58,
+      56,
       62
     ],
-    "base": 106,
+    "base": 108,
     "cells": 1
   },
   {
