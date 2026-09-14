@@ -137,7 +137,7 @@ export const SHEETS: Readonly<Record<IsoStyle, SheetSpec>> = {
     // The query is a layout revision, bumped whenever the sheet's cells move:
     // browsers cache the file by URL, and a stale sheet sliced with the new
     // offsets shows pieces that no longer exist.
-    url: '/assets/world/iso-smooth-sheet-128.png?layout=16',
+    url: '/assets/world/iso-smooth-sheet-128.png?layout=18',
     cell: 128,
     pad: 2,
     materials: ['moss', 'grass', 'sand'],
@@ -223,6 +223,13 @@ export interface MaterialTiles {
   rim?: Readonly<Record<Dir, Texture>>;
 }
 
+/** One texture per ramp shape: straight slopes, inner and outer corners, by `dir`. */
+export interface RampPieces {
+  slope: Readonly<Record<Dir, Texture>>;
+  inner: Readonly<Record<Dir, Texture>>;
+  outer: Readonly<Record<Dir, Texture>>;
+}
+
 /** The vertical outlines, one block tall, at a cell's left, right and front corner. */
 export interface CornerTiles {
   left: Texture;
@@ -243,10 +250,14 @@ export interface IsoTileset {
   /** The water surface, top face only and opaque — see `seaTile`. Null when the sheet has no sea. */
   water: Texture | null;
   /**
-   * The water sheet cut at the waterline over each kind of floor ramp, by
-   * the ramp's `dir`. Smooth sheet only: its water lies over the beach too.
+   * For a flooded floor ramp, by kind and `dir`: the water sheet cut at the
+   * waterline over its submerged part, and its surface and faces above the
+   * waterline, drawn again over the water. Smooth sheet only.
    */
-  waterOver: { slope: Readonly<Record<Dir, Texture>>; inner: Readonly<Record<Dir, Texture>>; outer: Readonly<Record<Dir, Texture>> } | null;
+  waterOver: RampPieces | null;
+  emerged: RampPieces | null;
+  /** The floor's ridge lines cut at the waterline, like `MaterialTiles.fold`. Smooth sheet only. */
+  emergedFold: Readonly<Record<Dir, readonly [Texture, Texture]>> | null;
   /** The colour of that surface, for painting the sea beyond the grid. */
   seaColor: number;
   /** A short wooden post, standing in the middle of its cell. Not on every sheet. */
@@ -340,12 +351,14 @@ async function load(style: IsoStyle): Promise<IsoTileset> {
     turfZ: cell / 8,
     materials,
     water: sea?.texture ?? waterTile,
-    waterOver: waterTile
+    waterOver: waterTile ? rampPieces(slice, 10, 12) : null,
+    emerged: waterTile ? rampPieces(slice, 10, 0) : null,
+    emergedFold: waterTile
       ? {
-          // Sheet order W N S E -> Dir N 0, E 1, S 2, W 3.
-          slope: { 0: slice(9, 7), 1: slice(9, 9), 2: slice(9, 8), 3: slice(9, 6) },
-          inner: { 0: slice(9, 10), 1: slice(9, 11), 2: slice(9, 12), 3: slice(9, 13) },
-          outer: { 0: slice(9, 14), 1: slice(9, 15), 2: slice(9, 16), 3: slice(9, 17) },
+          0: [slice(10, 24), slice(10, 25)],
+          1: [slice(10, 26), slice(10, 27)],
+          2: [slice(10, 28), slice(10, 29)],
+          3: [slice(10, 30), slice(10, 31)],
         }
       : null,
     seaColor: sea?.color ?? (typeof spec.background === 'number' ? spec.background : spec.background[0][1]),
@@ -358,6 +371,18 @@ async function load(style: IsoStyle): Promise<IsoTileset> {
         }
       : null,
     decor,
+  };
+}
+
+/**
+ * Twelve ramp-shaped pieces laid out from `col` on `row`: straight slopes in
+ * sheet order W N S E, then inner and outer corners in `Dir` order.
+ */
+function rampPieces(slice: (row: number, col: number) => Texture, row: number, col: number): RampPieces {
+  return {
+    slope: { 0: slice(row, col + 1), 1: slice(row, col + 3), 2: slice(row, col + 2), 3: slice(row, col) },
+    inner: { 0: slice(row, col + 4), 1: slice(row, col + 5), 2: slice(row, col + 6), 3: slice(row, col + 7) },
+    outer: { 0: slice(row, col + 8), 1: slice(row, col + 9), 2: slice(row, col + 10), 3: slice(row, col + 11) },
   };
 }
 

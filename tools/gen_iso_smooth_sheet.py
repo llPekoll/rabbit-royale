@@ -38,10 +38,11 @@ that side, so it clings to the hillside instead of floating over it; the
 lace cap is likewise laid on the outer corner's slope.
 
 WATER is a translucent sheet half a block above the sand's plane, over the
-sea and the beach alike: the flat tile (with its own light grid) covers a
-sea or flat sand cell, and the WATER OVER pieces cover a sand ramp — the
-same sheet cut at the waterline, so the ramp's upper half stands out of the
-water while its foot lies under it. Drawn in a layer over the land.
+sea and the beach alike. The flat tile covers a sea or flat sand cell. A
+sand ramp takes three pieces in order: the ramp itself, then WATER OVER —
+the sheet cut at the waterline, over the ramp's submerged part only — then
+EMERGED, the ramp's surface and faces above the waterline drawn again, since
+on a ramp facing the camera they stand in front of the water on screen.
 
 A LACE CAP is the fringe wrapped around one corner of the cell, for the
 outer-corner ramp, which the plateau above touches only at that point. A
@@ -67,8 +68,11 @@ island has no wall between two land tiers.
 and a tenth row of pieces shared by every material:
 
     r9    corner L corner R corner F   water
-    r9    col 6-9   water over slope W N S E     col 10-13 water over inner NE SE SW NW
-    r9    col 14-17 water over outer NE SE SW NW
+    r10   col 0-3   emerged slope W N S E        col 4-7   emerged inner NE SE SW NW
+    r10   col 8-11  emerged outer NE SE SW NW
+    r10   col 12-15 water over slope W N S E     col 16-19 water over inner NE SE SW NW
+    r10   col 20-23 water over outer NE SE SW NW
+    r10   col 24-31 emerged fold N^ Nv E^ Ev S^ Sv W^ Wv   (the sand's, cut at the waterline)
 
 The pixel sheet's last two columns (stairs, prop blocks) are not drawn: this
 sheet is terrain only, and the renderer builds a flight of stairs as a slope
@@ -130,7 +134,7 @@ OUT_PUBLIC = ROOT / 'public' / 'assets' / 'world' / 'iso-smooth-sheet-128.png'
 CELL = 128
 PAD = 2
 PITCH = CELL + 2 * PAD
-COLS, ROWS = 29, 10
+COLS, ROWS = 32, 11
 SS = 4  # supersampling: drawn at 512px per cell, then resolved down
 
 # Line weights, in OUTPUT pixels, matched to the hand-drawn decorations: their
@@ -545,13 +549,20 @@ def lace_cap(color, corner: int) -> Cell:
     return c
 
 
-def fold(color, direction: str, first_raised: bool) -> Cell:
-    """A line along one edge, one end a block up: the ridge at a plateau's corner."""
+def fold(color, direction: str, first_raised: bool, above: float = 0.0) -> Cell:
+    """
+    A line along one edge, one end a block up: the ridge at a plateau's
+    corner. `above` cuts it at that height, for a ridge whose foot is under
+    the water.
+    """
     c = Cell()
     (au, av, _), (bu, bv, _) = RIM_EDGES[direction]
     a = (au, av, 1 if first_raised else 0)
     b = (bu, bv, 0 if first_raised else 1)
-    c.stroke(P(*a), P(*b), color, OUTLINE * 0.8, caps=True)
+    hi, lo = (a, b) if first_raised else (b, a)
+    t = (1 - above) / 1
+    lo = (hi[0] + (lo[0] - hi[0]) * t, hi[1] + (lo[1] - hi[1]) * t, above)
+    c.stroke(P(*hi), P(*lo), color, OUTLINE * 0.8, caps=True)
     return c
 
 
@@ -577,43 +588,82 @@ def water() -> Cell:
     return c
 
 
-def clip_below(tri, level: float):
+def clip_z(poly, level: float, above: bool):
     """
-    The part of a lattice triangle `[(u, v, z)] * 3` whose surface lies
-    under `level`, as a polygon of (u, v) points. `z` is linear over the
-    triangle, so the cut is a straight line: Sutherland-Hodgman against it.
+    The part of a lattice polygon `[(u, v, z)]` on one side of the plane
+    `z = level`: below it, or above it. `z` is linear along each edge, so
+    the cut is straight: Sutherland-Hodgman against the plane, in 3D, so a
+    vertical face clips as well as a surface triangle.
     """
     out = []
-    n = len(tri)
+    n = len(poly)
     for i in range(n):
-        a, b = tri[i], tri[(i + 1) % n]
-        a_in, b_in = a[2] < level, b[2] < level
+        a, b = poly[i], poly[(i + 1) % n]
+        a_in = a[2] >= level if above else a[2] < level
+        b_in = b[2] >= level if above else b[2] < level
         if a_in:
-            out.append((a[0], a[1]))
+            out.append(a)
         if a_in != b_in:
             t = (level - a[2]) / (b[2] - a[2])
-            out.append((a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t))
+            out.append((a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, level))
     return out
 
 
-def water_over(heights) -> Cell:
-    """The water sheet over a ramp with these corner heights: only where the ramp is under it."""
+def ramp_triangles(heights):
+    """The two surface triangles of a ramp with these corner heights, as in `ramp()`."""
     h00, h10, h11, h01 = heights
     corners = [(0, 0, h00), (1, 0, h10), (1, 1, h11), (0, 1, h01)]
     raised = sum(heights)
     if raised in (0, 4) or (raised == 2 and h00 == h11):
-        tris = [[corners[0], corners[1], corners[2]], [corners[0], corners[2], corners[3]]]
-    else:
-        odd = heights.index(1) if raised == 1 else heights.index(0)
-        a, b = corners[(odd + 1) % 4], corners[(odd + 3) % 4]
-        tris = [[a, corners[(odd + 2) % 4], b], [corners[odd], a, b]]
+        return [[corners[0], corners[1], corners[2]], [corners[0], corners[2], corners[3]]], corners
+    odd = heights.index(1) if raised == 1 else heights.index(0)
+    a, b = corners[(odd + 1) % 4], corners[(odd + 3) % 4]
+    return [[a, corners[(odd + 2) % 4], b], [corners[odd], a, b]], corners
+
+
+def emerged(mat, heights) -> Cell:
+    """
+    A ramp's surface and faces above the waterline, to draw over the water:
+    the surface triangles and the south and east faces, each clipped to
+    `z >= WATER_HEIGHT`. A wedge's top edge keeps its outline.
+    """
+    tris, corners = ramp_triangles(heights)
     c = Cell()
     d = ImageDraw.Draw(c.img)
     for tri in tris:
-        poly = clip_below(tri, WATER_HEIGHT)
+        poly = clip_z(tri, WATER_HEIGHT, above=True)
         if len(poly) >= 3:
-            pts = [P(u, v, WATER_HEIGHT) for u, v in poly]
-            d.polygon(offset_polygon(pts, BLEED * SS) if len(pts) > 2 else pts, fill=WATER_FILL)
+            pts = [P(*p) for p in poly]
+            d.polygon(offset_polygon(pts, BLEED * SS), fill=mat[1])
+    for (i, j), color in (((3, 2), CLIFF_SOUTH), ((1, 2), CLIFF)):
+        (ui, vi, zi), (uj, vj, zj) = corners[i], corners[j]
+        if zi == 0 and zj == 0:
+            continue
+        face = [(ui, vi, zi), (uj, vj, zj), (uj, vj, 0), (ui, vi, 0)]
+        poly = clip_z(face, WATER_HEIGHT, above=True)
+        if len(poly) >= 3:
+            pts = [P(*p) for p in poly]
+            d.polygon(offset_polygon(pts, BLEED * SS), fill=color)
+            # The crease: a wedge's top edge, the part of it above the water,
+            # from the raised corner to where the edge meets the waterline.
+            if zi != zj:
+                hi, lo = ((ui, vi, zi), (uj, vj, zj)) if zi > zj else ((uj, vj, zj), (ui, vi, zi))
+                t = (hi[2] - WATER_HEIGHT) / (hi[2] - lo[2])
+                cut = (hi[0] + (lo[0] - hi[0]) * t, hi[1] + (lo[1] - hi[1]) * t, WATER_HEIGHT)
+                c.stroke(P(*hi), P(*cut), INK, OUTLINE, caps=True)
+    return c
+
+
+def water_over(heights) -> Cell:
+    """The water sheet over a ramp with these corner heights: only where the ramp is under it."""
+    tris, _ = ramp_triangles(heights)
+    c = Cell()
+    d = ImageDraw.Draw(c.img)
+    for tri in tris:
+        poly = clip_z(tri, WATER_HEIGHT, above=False)
+        if len(poly) >= 3:
+            pts = [P(u, v, WATER_HEIGHT) for u, v, _ in poly]
+            d.polygon(offset_polygon(pts, BLEED * SS), fill=WATER_FILL)
     return c
 
 
@@ -682,18 +732,28 @@ def build() -> Image.Image:
     for col, which in enumerate('LRF'):
         put(9, col, corner(which))
     put(9, 3, water())
-    for col, direction in enumerate('WNSE'):
+    # The beach is the floor, the only tier the water floods.
+    floor = MATERIALS[2]
+    shapes = []
+    for direction in 'WNSE':
         heights = [0, 0, 0, 0]
         for i in SIDE_CORNERS[direction]:
             heights[i] = 1
-        put(9, 6 + col, water_over(heights))
+        shapes.append(heights)
     for d in range(4):
         heights = [1, 1, 1, 1]
         heights[CORNER_INDEX[(d + 2) % 4]] = 0
-        put(9, 10 + d, water_over(heights))
+        shapes.append(heights)
+    for d in range(4):
         heights = [0, 0, 0, 0]
         heights[CORNER_INDEX[d]] = 1
-        put(9, 14 + d, water_over(heights))
+        shapes.append(heights)
+    for col, heights in enumerate(shapes):
+        put(10, col, emerged(floor, heights))
+        put(10, 12 + col, water_over(heights))
+    for i, direction in enumerate('NESW'):
+        put(10, 24 + 2 * i, fold(floor[4], direction, True, above=WATER_HEIGHT))
+        put(10, 25 + 2 * i, fold(floor[4], direction, False, above=WATER_HEIGHT))
     return sheet
 
 

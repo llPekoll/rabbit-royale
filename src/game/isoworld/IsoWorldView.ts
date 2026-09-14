@@ -169,13 +169,6 @@ export class IsoWorldView {
   private maxY = -Infinity;
 
   private readonly layer = new Container();
-  /**
-   * The sea, over the land: a translucent sheet half a block above the sand's
-   * plane, beach included, cut at the waterline across the beach's ramps. It
-   * lies over the land it floods, so it is drawn last, in its own layer.
-   */
-  private readonly waterLayer = new Container();
-  private readonly flooded: number[] = [];
 
   /** Decorations by the index of the LAST cell of their footprint, where they are drawn. */
   private readonly decorAt = new Map<number, { x: number; y: number; prop: Prop }>();
@@ -194,8 +187,6 @@ export class IsoWorldView {
 
     this.layer.position.set(this.originX, this.originY);
     this.view.addChild(this.layer);
-    this.waterLayer.position.set(this.originX, this.originY);
-    this.view.addChild(this.waterLayer);
 
     // A decoration stands on the last cell of its footprint in painter's
     // order, so it is drawn over every cell it covers.
@@ -212,7 +203,6 @@ export class IsoWorldView {
     for (let s = 0; s <= w + h - 2; s++) {
       for (let x = Math.max(0, s - h + 1); x <= Math.min(s, w - 1); x++) this.buildCell(x, s - x);
     }
-    this.buildSea();
 
     if (this.minX <= this.maxX) {
       Object.assign(this.landBounds, {
@@ -239,11 +229,13 @@ export class IsoWorldView {
     const tier = tierAt(world, x, y);
 
     if (tier === 0) {
-      if (tileset.water && !spec.floodedFloor) this.place(tileset.water, x, y, 0, false);
-      else if (tileset.water) this.flooded.push(y * world.width + x);
+      // The water: on the pixel sheet a surface on the sea bed; on the
+      // smooth one a translucent sheet half a block over the floor's plane.
+      if (tileset.water) this.place(tileset.water, x, y, spec.floodedFloor ? spec.floor * block.z : 0, false);
       // The sea draws the island's foot: its rims, at floor height, along
-      // every edge where land stands.
-      this.outline(x, y, 0);
+      // every edge where land stands — unless the floor is flooded, where
+      // that edge lies under the water and the sand's paler tone marks it.
+      if (!spec.floodedFloor) this.outline(x, y, 0);
       return;
     }
 
@@ -259,10 +251,7 @@ export class IsoWorldView {
       if (!top && east > k && south > k) continue;
       this.place(this.blockMaterial(ground, tier, top).cube, x, y, k * block.z);
     }
-    if (tier <= spec.floor) {
-      this.place(this.surfaceMaterial(ground, tier).flat, x, y, surface);
-      if (spec.floodedFloor) this.flooded.push(y * world.width + x);
-    }
+    if (tier <= spec.floor) this.place(this.surfaceMaterial(ground, tier).flat, x, y, surface);
 
     // The turf is thin, so it is laid its own thickness down: its top lands
     // exactly on the surface and its sides cover the top of the dirt block.
@@ -286,6 +275,19 @@ export class IsoWorldView {
               : undefined;
       this.place(piece ?? rampSet.slope[ramp.dir], x, y, surface);
     }
+
+    // The floor is flooded: the water sheet over the cell — cut at the
+    // waterline on a ramp, whose upper half is then drawn again over it,
+    // since on a ramp facing the camera it stands in front of the water.
+    if (spec.floodedFloor && tier === spec.floor && tileset.water && tileset.waterOver && tileset.emerged) {
+      if (ramp) {
+        const kind = ramp.kind === 'inner' || ramp.kind === 'outer' ? ramp.kind : 'slope';
+        this.place(tileset.waterOver[kind][ramp.dir], x, y, surface, false);
+        this.place(tileset.emerged[kind][ramp.dir], x, y, surface, false);
+      } else {
+        this.place(tileset.water, x, y, surface, false);
+      }
+    }
     this.outline(x, y, tier, ramp);
 
     const prop = (this.options.deco ?? true) ? propAt(world, x, y) : undefined;
@@ -308,32 +310,6 @@ export class IsoWorldView {
 
     const decor = this.decorAt.get(y * world.width + x);
     if (decor && tier > spec.floor) this.plant(decor.x, decor.y, decor.prop, surface);
-  }
-
-  /**
-   * The water sheet over the floor, in its own layer: the flat tile on sea
-   * and flat sand, and on a sand ramp the sheet cut at the waterline, so the
-   * ramp's foot lies under the water and its upper half stands clear.
-   */
-  private buildSea(): void {
-    const { world, tileset } = this.options;
-    const { block, spec } = tileset;
-    if (!tileset.water || !tileset.waterOver) return;
-    const base = spec.floor * block.z;
-    for (const i of this.flooded) {
-      const x = i % world.width;
-      const y = (i / world.width) | 0;
-      const ramp = rampAt(world, x, y);
-      const piece =
-        ramp === undefined
-          ? tileset.water
-          : ramp.kind === 'inner'
-            ? tileset.waterOver.inner[ramp.dir]
-            : ramp.kind === 'outer'
-              ? tileset.waterOver.outer[ramp.dir]
-              : tileset.waterOver.slope[ramp.dir];
-      this.place(piece, x, y, base, false, this.waterLayer);
-    }
   }
 
   /**
@@ -390,9 +366,13 @@ export class IsoWorldView {
       for (const d of DIRS) {
         const { tier: n, joins } = around[d];
         if (joins || n === tier) continue;
+        // A flooded floor's edge against the sea lies under the water.
+        if (spec.floodedFloor && tier === spec.floor && n === 0) continue;
         const far = d === DIR.N || d === DIR.W;
         if (far || n < tier) this.place(rim[d], x, y, surface);
       }
+    } else if (spec.floodedFloor && tier === spec.floor) {
+      // A flooded floor ramp's edges against the sea are all under water.
     } else {
       // A ramp's edges against the sea, where nothing else draws the island's
       // outline. Near edges: the rim at the ramp's foot — the base of its
@@ -485,7 +465,13 @@ export class IsoWorldView {
         const a = h[(d + 3) % 4];
         const b = h[d];
         if (a !== b && h[3] === 1 && foldsAt(ramp, nRamp, d)) {
-          this.place(this.surfaceMaterial(ground, tier).fold![d][a ? 0 : 1], x, y, surface);
+          // On a flooded floor the ridge's foot is under the water: only
+          // the part above the waterline is drawn.
+          const folds =
+            spec.floodedFloor && tier === spec.floor && tileset.emergedFold
+              ? tileset.emergedFold
+              : this.surfaceMaterial(ground, tier).fold!;
+          this.place(folds[d][a ? 0 : 1], x, y, surface);
           continue;
         }
       }
@@ -567,13 +553,13 @@ export class IsoWorldView {
    * (cell / 2, cell / 2) of its cell, so placing that point on the cell's
    * projected top corner is the whole rule, for every piece.
    */
-  private place(texture: Texture, x: number, y: number, elevation: number, land = true, into = this.layer): void {
+  private place(texture: Texture, x: number, y: number, elevation: number, land = true): void {
     const { cell, block } = this.options.tileset;
     const sprite = new Sprite(texture);
     const sx = (x - y) * (block.w / 2) - cell / 2;
     const sy = (x + y) * (block.h / 2) - elevation - (cell - block.h);
     sprite.position.set(sx, sy);
-    into.addChild(sprite);
+    this.layer.addChild(sprite);
     this.sprites++;
     if (land) {
       this.minX = Math.min(this.minX, sx);
