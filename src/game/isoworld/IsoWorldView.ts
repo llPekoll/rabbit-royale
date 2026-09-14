@@ -61,6 +61,65 @@ const DIRS: readonly Dir[] = [DIR.N, DIR.E, DIR.S, DIR.W];
 /** The outline colour of the smooth sheet, for the one line the sheet cannot carry. */
 const INK = 0x3a6c3e;
 
+/** Lattice (u, v) of corner c: NE, SE, SW, NW. */
+const CORNER_UV: readonly (readonly [number, number])[] = [
+  [1, 0],
+  [1, 1],
+  [0, 1],
+  [0, 0],
+];
+
+/**
+ * The plane `z = k + p·u + q·v` of a ramp's surface next to one of its sides,
+ * in the cell's own lattice. The surface is two triangles, cut between the
+ * two corners beside the odd one out (see the sheet generator), so the plane
+ * beside an edge is that of the triangle holding the edge.
+ */
+function planeBeside(ramp: Ramp, side: Dir): [number, number, number] {
+  const h = rampCorners(ramp);
+  const raised = h.filter(Boolean).length;
+  const i = ((side + 3) % 4) as Dir;
+  const j = side;
+  let tri: [Dir, Dir, Dir];
+  if (raised === 2) {
+    // One plane through any three corners.
+    tri = [0, 1, 2];
+  } else {
+    const odd = h.indexOf(raised === 1 ? 1 : 0) as Dir;
+    const a = ((odd + 1) % 4) as Dir;
+    const b = ((odd + 3) % 4) as Dir;
+    const opposite = ((odd + 2) % 4) as Dir;
+    tri = i === odd || j === odd ? [odd, a, b] : [a, opposite, b];
+  }
+  const [P0, P1, P2] = tri.map((c) => [CORNER_UV[c][0], CORNER_UV[c][1], h[c]] as const);
+  // Solve z = k + p u + q v through the three points.
+  const du1 = P1[0] - P0[0];
+  const dv1 = P1[1] - P0[1];
+  const dz1 = P1[2] - P0[2];
+  const du2 = P2[0] - P0[0];
+  const dv2 = P2[1] - P0[1];
+  const dz2 = P2[2] - P0[2];
+  const det = du1 * dv2 - du2 * dv1;
+  const p = (dz1 * dv2 - dz2 * dv1) / det;
+  const q = (du1 * dz2 - du2 * dz1) / det;
+  const k = P0[2] - p * P0[0] - q * P0[1];
+  return [k, p, q];
+}
+
+/**
+ * Whether the surfaces of `ramp` and its neighbour across `side` (both at the
+ * same tier) bend along their shared edge: their planes differ once the
+ * neighbour's is expressed in this cell's lattice.
+ */
+function foldsAt(ramp: Ramp, neighbour: Ramp, side: Dir): boolean {
+  const [k1, p1, q1] = planeBeside(ramp, side);
+  const [k2, p2, q2] = planeBeside(neighbour, ((side + 2) % 4) as Dir);
+  // The neighbour's lattice is ours shifted one cell along `side`.
+  const { dx, dy } = DIR_STEP[side];
+  const k2Here = k2 - p2 * dx - q2 * dy;
+  return Math.abs(p1 - p2) > 1e-6 || Math.abs(q1 - q2) > 1e-6 || Math.abs(k1 - k2Here) > 1e-6;
+}
+
 /**
  * How the land is built. `tiered` is the default and means what the sheet
  * says it means: on the pixel sheet, grass turf over a dirt top block, stone
@@ -328,16 +387,15 @@ export class IsoWorldView {
       }
 
       if (n !== tier) continue;
-      // The ridge of a plateau's tip: where an outer corner bends against
-      // the ramp beside it, along the sloped edge leaving its raised corner —
-      // but only on the corner's south and east sides, the ones the camera
-      // sees as a ridge. Those are this cell's north and west sides, so the
-      // outer corner is always the neighbour here.
-      if (ramp && nRamp?.kind === 'outer') {
+      // A ridge: a sloped edge between two ramps whose surfaces bend there,
+      // drawn only when it runs DOWN toward the camera — its raised end is
+      // this cell's north-west corner. The edges that leave the same point
+      // toward the back read as the far side of the hill, and stay bare.
+      if (ramp && nRamp) {
         const h = rampCorners(ramp);
         const a = h[(d + 3) % 4];
         const b = h[d];
-        if (a !== b) {
+        if (a !== b && h[3] === 1 && foldsAt(ramp, nRamp, d)) {
           this.place(tileset.corners!.fold[d][a ? 0 : 1], x, y, surface);
           continue;
         }
