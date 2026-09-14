@@ -256,6 +256,9 @@ une écriture non notée dans ce journal.
 
 ### Changer un réglage à chaud (ce n'est PAS une écriture à noter)
 
+> Les commandes complètes sont dans [TUNING.md](./TUNING.md) — c'est là qu'on
+> va pour régler, pas ici.
+
 Les lignes de la table `tuning` sont faites pour être modifiées — c'est leur
 raison d'être, pas une entorse. Elles portent leur propre `note` et leur
 `updated_at`, donc elles se documentent seules :

@@ -352,6 +352,9 @@ value outside its bounds, or a key the registry does not declare all resolve to
 the shipped number and log — a typo can make an override not apply, never make
 the game start without rules.
 
+Les commandes prêtes à coller, la liste des clés et ce qui se passe quand on se
+trompe : [docs/TUNING.md](./docs/TUNING.md).
+
 ---
 
 ## Where things stand
