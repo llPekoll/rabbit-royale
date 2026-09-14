@@ -10,7 +10,7 @@
 import { Assets, Texture } from 'pixi.js';
 
 export const DECOR_URL = '/assets/world/decor';
-export const DECOR_MANIFEST_URL = `${DECOR_URL}/manifest.json?v=1`;
+export const DECOR_MANIFEST_URL = `${DECOR_URL}/manifest.json?v=2`;
 
 /** How wide a one-cell base is drawn on the artist's sheet, in pixels. */
 export const SHEET_CELL = 130;
@@ -38,21 +38,23 @@ export interface DecorSet {
 }
 
 /**
- * How often each piece is planted, relative to the others. Tufts are the
- * grass of the place; the hills are landmarks, one or two an island.
+ * How often each piece is planted, relative to the others, and whether it
+ * is BARE — a stem or a tuft with no base of its own, which may grow on a
+ * patch of darker grass. Tufts are the grass of the place; the hills are
+ * landmarks, one or two an island.
  */
-export const DECOR_WEIGHTS: Readonly<Record<string, number>> = {
-  'tuft-small': 5,
-  'tuft-left': 4,
-  'tuft-right': 4,
-  'meadow-tuft': 3,
-  'flowers-small': 3,
-  'flowers-patch': 3,
-  'bush-small': 3,
-  'flower-tall': 2,
-  'flower-leafy': 2,
-  'hill-big': 1,
-  'hill-wide': 1,
+export const DECOR_WEIGHTS: Readonly<Record<string, { weight: number; bare?: boolean }>> = {
+  'tuft-small': { weight: 5, bare: true },
+  'tuft-left': { weight: 4, bare: true },
+  'tuft-right': { weight: 4, bare: true },
+  'meadow-tuft': { weight: 3 },
+  'flowers-small': { weight: 3 },
+  'flowers-patch': { weight: 3 },
+  'bush-small': { weight: 3 },
+  'flower-tall': { weight: 2, bare: true },
+  'flower-leafy': { weight: 2, bare: true },
+  'hill-big': { weight: 1 },
+  'hill-wide': { weight: 1 },
 };
 
 let cached: Promise<DecorSet> | null = null;
@@ -71,7 +73,7 @@ async function load(): Promise<DecorSet> {
   const entries = (await response.json()) as DecorManifestEntry[];
   const pieces = await Promise.all(
     entries.map(async (entry) => {
-      const texture = await Assets.load<Texture>(`${DECOR_URL}/${entry.file}?v=1`);
+      const texture = await Assets.load<Texture>(`${DECOR_URL}/${entry.file}?v=2`);
       texture.source.scaleMode = 'linear';
       return { ...entry, texture };
     }),

@@ -46,6 +46,7 @@ import type { IsoTileset, Material, MaterialTiles } from './sheet';
 import {
   DIR,
   DIR_STEP,
+  isPatch,
   propAt,
   rampAt,
   rampCorners,
@@ -279,11 +280,13 @@ export class IsoWorldView {
       const texture =
         prop.kind === 'post'
           ? tileset.post
-          : prop.kind === 'patch'
+          : isPatch(prop)
             ? tier > spec.floor
               ? surfaceSet.patch
               : undefined
-            : tileset.materials[prop.kind === 'hedge' ? spec.hedge : spec.boulder].block?.[prop.dir];
+            : prop.kind === 'decor'
+              ? undefined
+              : tileset.materials[prop.kind === 'hedge' ? spec.hedge : spec.boulder].block?.[prop.dir];
       if (texture) this.place(texture, x, y, surface);
     }
 
@@ -404,7 +407,7 @@ export class IsoWorldView {
     const ground = this.options.ground ?? 'tiered';
     if (!this.surfaceMaterial(ground, tier).fringe) return;
     const deco = this.options.deco ?? true;
-    const patch = deco && propAt(world, x, y)?.kind === 'patch' && tier > spec.floor;
+    const patch = deco && isPatch(propAt(world, x, y)) && tier > spec.floor;
     const surface = tier * block.z;
 
     // An outer corner touches the plateau at one point: the lace wraps it,
@@ -447,7 +450,7 @@ export class IsoWorldView {
         }
       }
       // Same tier as this cell, so the floor rule is the same.
-      const nPatch = deco && propAt(world, nx, ny)?.kind === 'patch' && tier > spec.floor;
+      const nPatch = deco && isPatch(propAt(world, nx, ny)) && tier > spec.floor;
       if (nPatch && !patch) {
         // This cell's grid line straddles the shared edge, half of it over
         // the patch: lay the patch again on top, then its lace over here.

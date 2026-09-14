@@ -98,13 +98,20 @@ export interface Prop {
   /** For `decor`: which piece, and the side of the square of cells its base covers. */
   decor?: string;
   cells?: number;
+  /** For `decor`: it stands on a patch of darker grass, drawn under it. */
+  onPatch?: boolean;
 }
+
+/** Whether a prop is, or stands on, a patch of darker grass. */
+export const isPatch = (prop: Prop | undefined): boolean => prop?.kind === 'patch' || prop?.onPatch === true;
 
 /** A decoration the planner may plant: its name, footprint and relative frequency. */
 export interface DecorChoice {
   name: string;
   cells: number;
   weight: number;
+  /** It has no base of its own — a stem, a tuft — so it may grow on a patch. */
+  bare?: boolean;
 }
 
 export interface IsoWorld {
@@ -145,7 +152,7 @@ export interface IsoWorldOptions {
   decorMinTier?: number;
 }
 
-const DEFAULTS = { ramps: 0.35, stairs: 0.3, decorDensity: 0.3 } as const;
+const DEFAULTS = { ramps: 0.35, stairs: 0.3, decorDensity: 0.22 } as const;
 
 /** Chance per eligible cell, stacked: hedges are common, posts are rare. */
 const PROP_CHANCE: ReadonlyArray<{ kind: PropKind; chance: number }> = [
@@ -433,7 +440,26 @@ function planProps(world: IsoWorld, options: IsoWorldOptions = {}): Map<number, 
   const decor = options.decor;
   const density = options.decorDensity ?? DEFAULTS.decorDensity;
   const totalWeight = decor?.reduce((sum, d) => sum + d.weight, 0) ?? 0;
+  const bare = decor?.filter((d) => d.bare && d.cells === 1) ?? [];
+  const bareWeight = bare.reduce((sum, d) => sum + d.weight, 0);
   const taken = new Set<number>();
+  // Cells with something growing on them: decor clusters around them, as
+  // the reference's plants crowd together on their patches.
+  const grown = new Set<number>();
+  const nearGrowth = (x: number, y: number) => {
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) if ((dx || dy) && grown.has((y + dy) * world.width + (x + dx))) return true;
+    }
+    return false;
+  };
+  const pickWeighted = <T extends { weight: number }>(list: readonly T[], total: number, r: number): T => {
+    let acc = 0;
+    for (const d of list) {
+      acc += d.weight / total;
+      if (r < acc) return d;
+    }
+    return list[list.length - 1];
+  };
 
   /** Flat ground at the cell's tier, all four neighbours included, off the coast and off any ramp. */
   const flatAt = (x: number, y: number, tier: number) =>
@@ -457,27 +483,31 @@ function planProps(world: IsoWorld, options: IsoWorldOptions = {}): Map<number, 
       const roll = rng();
       const dir = Math.floor(rng() * 4) as Dir;
       const pick = rng();
+      const onPatchRoll = rng();
       const flat = flatAt(x, y, tier);
 
       if (decor && totalWeight > 0) {
         if (taken.has(y * world.width + x) || tier < (options.decorMinTier ?? 1)) continue;
         if (!levelAt(x, y, tier)) continue;
-        // Patches keep their own chance; the rest of the budget is decor.
-        const patchChance = PROP_CHANCE.find((p) => p.kind === 'patch')?.chance ?? 0;
+        // Growth clusters: next to something already growing, the odds
+        // climb; in open ground they drop. Patches keep their own share of
+        // the roll, the rest of the budget is decor.
+        const crowd = nearGrowth(x, y) ? 2.2 : 0.6;
+        const patchChance = (PROP_CHANCE.find((p) => p.kind === 'patch')?.chance ?? 0) * crowd;
         if (roll < patchChance) {
-          if (flat) props.set(y * world.width + x, { kind: 'patch', dir });
+          if (!flat) continue;
+          grown.add(y * world.width + x);
+          // Half the patches carry a stem or a tuft, as the reference's do.
+          if (bareWeight > 0 && onPatchRoll < 0.5) {
+            const piece = pickWeighted(bare, bareWeight, pick);
+            props.set(y * world.width + x, { kind: 'decor', dir, decor: piece.name, cells: 1, onPatch: true });
+          } else {
+            props.set(y * world.width + x, { kind: 'patch', dir });
+          }
           continue;
         }
-        if (roll >= patchChance + density) continue;
-        let acc = 0;
-        let choice = decor[decor.length - 1];
-        for (const d of decor) {
-          acc += d.weight / totalWeight;
-          if (pick < acc) {
-            choice = d;
-            break;
-          }
-        }
+        if (roll >= patchChance + density * crowd) continue;
+        const choice = pickWeighted(decor, totalWeight, pick);
         // The footprint: a square of flat cells at this tier, none taken.
         let fits = true;
         for (let fy = 0; fy < choice.cells && fits; fy++) {
@@ -491,7 +521,10 @@ function planProps(world: IsoWorld, options: IsoWorldOptions = {}): Map<number, 
         }
         if (!fits) continue;
         for (let fy = 0; fy < choice.cells; fy++) {
-          for (let fx = 0; fx < choice.cells; fx++) taken.add((y + fy) * world.width + (x + fx));
+          for (let fx = 0; fx < choice.cells; fx++) {
+            taken.add((y + fy) * world.width + (x + fx));
+            grown.add((y + fy) * world.width + (x + fx));
+          }
         }
         props.set(y * world.width + x, { kind: 'decor', dir, decor: choice.name, cells: choice.cells });
         continue;

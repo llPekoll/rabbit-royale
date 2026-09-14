@@ -267,7 +267,12 @@ export function IsoWorldWorkbench({ style, seed }: { style?: IsoStyle; seed?: st
     // Planned on the unturned map, THEN turned: the ramps and props belong to
     // the island, so turning the camera must carry them rather than re-roll.
     const decor = tileset.decor
-      ? tileset.decor.pieces.map((p) => ({ name: p.name, cells: p.cells, weight: DECOR_WEIGHTS[p.name] ?? 1 }))
+      ? tileset.decor.pieces.map((p) => ({
+          name: p.name,
+          cells: p.cells,
+          weight: DECOR_WEIGHTS[p.name]?.weight ?? 1,
+          bare: DECOR_WEIGHTS[p.name]?.bare ?? false,
+        }))
       : undefined;
     const planned = planIsoWorld(map, {
       ramps: settings.ramps,

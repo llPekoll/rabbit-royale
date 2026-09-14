@@ -30,7 +30,7 @@ import json
 from collections import deque
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / 'public' / 'assets' / 'world' / 'green_nature_iso_decor_elements.png'
@@ -60,29 +60,39 @@ MIN_AREA = 1500  # px of a piece's tight box; anything less is a stray mark
 BASE = 0.45      # the lowest share of a piece that is its base, not foliage
 
 
-def label(mask: Image.Image) -> list[tuple[int, int, int, int]]:
-    """Bounding boxes of the connected regions of a small L-mode mask."""
+def label(mask: Image.Image) -> list[tuple[tuple[int, int, int, int], Image.Image]]:
+    """
+    The connected regions of a small L-mode mask: each as its bounding box
+    and its own mask, so a piece can be cut free of any neighbour whose box
+    overlaps its own.
+    """
     w, h = mask.size
     px = mask.load()
     seen = bytearray(w * h)
-    boxes = []
+    regions = []
     for y0 in range(h):
         for x0 in range(w):
             if seen[y0 * w + x0] or px[x0, y0] == 0:
                 continue
             q = deque([(x0, y0)])
             seen[y0 * w + x0] = 1
-            xs, ys = [x0], [y0]
+            cells = [(x0, y0)]
             while q:
                 x, y = q.popleft()
                 for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
                     if 0 <= nx < w and 0 <= ny < h and not seen[ny * w + nx] and px[nx, ny]:
                         seen[ny * w + nx] = 1
                         q.append((nx, ny))
-                        xs.append(nx)
-                        ys.append(ny)
-            boxes.append((min(xs), min(ys), max(xs) + 1, max(ys) + 1))
-    return boxes
+                        cells.append((nx, ny))
+            own = Image.new('L', (w, h), 0)
+            own.putdata([0] * (w * h))
+            opx = own.load()
+            for x, y in cells:
+                opx[x, y] = 255
+            xs = [c[0] for c in cells]
+            ys = [c[1] for c in cells]
+            regions.append(((min(xs), min(ys), max(xs) + 1, max(ys) + 1), own))
+    return regions
 
 
 def main() -> None:
@@ -90,16 +100,21 @@ def main() -> None:
     alpha = sheet.split()[3].point(lambda a: 255 if a > 8 else 0)
     glued = alpha.filter(ImageFilter.MaxFilter(GLUE))
     small = glued.resize((sheet.width // SCALE, sheet.height // SCALE), Image.NEAREST)
-    boxes = sorted(label(small), key=lambda b: (b[1] // 12, b[0]))
+    regions = sorted(label(small), key=lambda r: (r[0][1] // 12, r[0][0]))
 
     OUT.mkdir(parents=True, exist_ok=True)
     manifest = []
     contact = sheet.copy()
     draw = ImageDraw.Draw(contact)
-    for i, (x0, y0, x1, y1) in enumerate(boxes):
+    for (x0, y0, x1, y1), own in regions:
         box = (max(0, x0 * SCALE - GLUE), max(0, y0 * SCALE - GLUE), min(sheet.width, x1 * SCALE + GLUE), min(sheet.height, y1 * SCALE + GLUE))
+        # Only this region's pixels: its small mask blown back up and applied
+        # to the alpha, so an overlapping neighbour's parts are cut away.
+        keep = own.resize(sheet.size, Image.NEAREST).crop(box)
         piece = sheet.crop(box)
-        tight = piece.split()[3].point(lambda a: 255 if a > 8 else 0).getbbox()
+        alpha = ImageChops.multiply(piece.split()[3], keep)
+        piece.putalpha(alpha)
+        tight = alpha.point(lambda a: 255 if a > 8 else 0).getbbox()
         if not tight:
             continue
         piece = piece.crop(tight)
@@ -121,7 +136,7 @@ def main() -> None:
         manifest.append({'name': name, 'file': f'{name}.png', 'width': piece.width, 'height': piece.height, 'anchor': anchor, 'base': base, 'cells': cells})
         gx, gy = box[0] + tight[0], box[1] + tight[1]
         draw.rectangle([gx, gy, gx + piece.width, gy + piece.height], outline=(255, 0, 0), width=2)
-        draw.text((gx + 4, gy + 4), f'{i} {name} {piece.width}x{piece.height} c{cells}', fill=(200, 0, 0))
+        draw.text((gx + 4, gy + 4), f'{i} {name} {piece.width}x{piece.height} b{base} c{cells}', fill=(200, 0, 0))
         print(i, name, piece.size, 'anchor', anchor, 'base', base, 'cells', cells)
 
     MANIFEST.write_text(json.dumps(manifest, indent=2) + '\n')

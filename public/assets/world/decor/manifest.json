@@ -14,13 +14,13 @@
   {
     "name": "flower-leafy",
     "file": "flower-leafy.png",
-    "width": 135,
-    "height": 272,
+    "width": 101,
+    "height": 225,
     "anchor": [
-      82,
-      271
+      52,
+      224
     ],
-    "base": 82,
+    "base": 23,
     "cells": 1
   },
   {
@@ -50,11 +50,11 @@
   {
     "name": "meadow-tuft",
     "file": "meadow-tuft.png",
-    "width": 238,
-    "height": 306,
+    "width": 192,
+    "height": 213,
     "anchor": [
       92,
-      305
+      212
     ],
     "base": 186,
     "cells": 2
@@ -62,11 +62,11 @@
   {
     "name": "hill-big",
     "file": "hill-big.png",
-    "width": 339,
-    "height": 291,
+    "width": 294,
+    "height": 251,
     "anchor": [
-      186,
-      290
+      140,
+      250
     ],
     "base": 282,
     "cells": 2
@@ -74,23 +74,23 @@
   {
     "name": "hill-wide",
     "file": "hill-wide.png",
-    "width": 329,
+    "width": 283,
     "height": 172,
     "anchor": [
-      162,
+      140,
       171
     ],
-    "base": 324,
-    "cells": 3
+    "base": 276,
+    "cells": 2
   },
   {
     "name": "bush-small",
     "file": "bush-small.png",
-    "width": 149,
-    "height": 155,
+    "width": 133,
+    "height": 107,
     "anchor": [
       66,
-      154
+      106
     ],
     "base": 133,
     "cells": 1
@@ -99,36 +99,36 @@
     "name": "flowers-patch",
     "file": "flowers-patch.png",
     "width": 113,
-    "height": 109,
+    "height": 63,
     "anchor": [
-      72,
-      108
+      58,
+      62
     ],
-    "base": 50,
+    "base": 104,
     "cells": 1
   },
   {
     "name": "tuft-left",
     "file": "tuft-left.png",
-    "width": 130,
-    "height": 171,
+    "width": 84,
+    "height": 123,
     "anchor": [
       44,
-      170
+      122
     ],
-    "base": 79,
+    "base": 78,
     "cells": 1
   },
   {
     "name": "tuft-right",
     "file": "tuft-right.png",
-    "width": 72,
-    "height": 147,
+    "width": 68,
+    "height": 102,
     "anchor": [
-      38,
-      146
+      34,
+      101
     ],
-    "base": 68,
+    "base": 64,
     "cells": 1
   }
 ]
