@@ -23,7 +23,7 @@
  * is what `BurrowSceneData.seed` carries.
  */
 import {
-  Application, Assets, Container, Sprite, Texture, Polygon,
+  Application, Assets, Container, Rectangle, Sprite, Texture, Polygon,
 } from 'pixi.js';
 import gsap from 'gsap';
 import type { Scene } from '../SceneManager';
@@ -82,15 +82,22 @@ function burrowDiamondSolid(): Sprite {
 /** Placed traps read as YOURS — gold, like the crown and the carrot count. */
 const TRAP_TINT = 0xffd45c;
 /**
- * A trap still rearming: the same marker, drained of its warning colour.
+ * A rearming trap FILLS UP, like a glass.
  *
- * A COOL BLUE rather than a neutral grey. Grey at low alpha sank into the
- * grass — the marker read as a smudge on the ground and the owner could not
- * see the shape of their own defence while it healed, which is the one thing
- * this state exists to show. Blue separates from the board's greens and yellows
- * at any alpha, and reads as "asleep" rather than as "damaged".
+ * One bomb drawn twice: a dim copy for the part still to come, and a solid
+ * copy underneath it clipped to a waterline that rises as the trap recharges.
+ * The boundary between the two IS the progress bar — no second sprite, no
+ * gauge hovering over the tile, and nothing to compare against.
+ *
+ * This replaced fading the whole sprite up together, which was readable but
+ * ambiguous: a half-faded bomb could equally be a bomb drawn faint, and the
+ * eye had to guess whether the value it saw was "half charged" or just "the
+ * colour rearming traps are". A LINE has a position, and a position is read
+ * as a level without being taught.
  */
-const REARMING_TINT = 0x7fb2d9;
+const REARMING_ALPHA = 0.3;
+
+
 /**
  * A tile you may trap, shown only while placing: the rest of the time this
  * screen is a picture of your home, not a grid.
@@ -232,9 +239,23 @@ export class BurrowScene implements Scene {
   private crop: CarrotCrop | null = null;
   private board = new Container();
   private trapSprites = new Map<number, Container>();
-  /** tile -> is it standing? Mirrors what is DRAWN, so a refresh can tell an
-   *  arming change from a placement and animate only the former. */
-  private trapArmed = new Map<number, boolean>();
+  /**
+   * tile -> how charged it is, 0 (just sprung) to 1 (armed).
+   *
+   * A FRACTION rather than a flag, because the screen shows the climb: the
+   * owner watching their burrow sees each bomb fill back up rather than
+   * flicking from dead to alive at some invisible instant.
+   */
+  private trapCharge = new Map<number, number>();
+  /** The bomb art, kept so a charge can be re-cropped from the FULL frame
+   *  every time — cropping a crop would shrink the slice away. */
+  private bombTexture: Texture | null = null;
+  /** tile -> ms left before it is armed, as the server last said. `update`
+   *  counts these down so the ramp moves between polls rather than in steps. */
+  private trapRearmMsLeft = new Map<number, number>();
+  /** tile -> the full rearm window, so a remaining time can be made a
+   *  fraction. Kept per trap: the stagger means no two share a window. */
+  private trapRearmTotalMs = new Map<number, number>();
   private hints: Sprite[] = [];
   /**
    * The raid board: one cell per walkable tile of the DEFENDER's ground,
@@ -636,14 +657,10 @@ export class BurrowScene implements Scene {
     const group = new Container();
     group.sortableChildren = true;
 
+    // Painted by `paintTrap` once the bomb is in the group: how a trap looks
+    // is one function of its rearm progress, so the mount path and the frame
+    // that follows it cannot disagree about what 40% charged looks like.
     const marker = burrowDiamond();
-    marker.tint = armed ? TRAP_TINT : REARMING_TINT;
-    // A trap on its way back is drawn FAINT rather than not drawn at all. It
-    // still holds its tile — nothing else can be buried there — so removing it
-    // from the board would read as "you lost it" and invite the owner to hunt
-    // for a tile they cannot use. Dimmed says the true thing: still yours,
-    // not yet dangerous.
-    marker.alpha = armed ? 0.75 : 0.55;
     group.addChild(marker);
 
     // The bomb itself, the same art the island reveals under a dug tile — one
@@ -656,18 +673,36 @@ export class BurrowScene implements Scene {
     // do, instead of floating through the tile it is buried under.
     const bombTex = Assets.get<Texture>(Keys.BOMB_SMALL);
     if (bombTex) {
-      const bomb = new Sprite(bombTex);
-      bomb.anchor.set(0.5, 0.78);
       // Scaled off the cell, not off the texture's own pixels: the tile size is
       // a tuning knob (`setBurrowTileSize`), and a sprite pinned to a pixel
       // count stops matching the ground the moment that slider moves.
       const k = (BURROW_HALF_W * 0.62) / bombTex.width;
+
+      // THE BOMB, TWICE. The dim copy is what has not charged yet; the solid
+      // one is clipped to a waterline that rises as it does. Same texture,
+      // same anchor, same scale — so the two line up exactly and the only
+      // thing the eye sees is the boundary between them.
+      const bomb = new Sprite(bombTex);
+      bomb.anchor.set(0.5, 0.78);
       bomb.scale.set(k);
-      // Same treatment as the diamond under it: the bomb is still there, it is
-      // just not armed. Greyed rather than hidden so the shape of the defence
-      // stays readable while it comes back.
-      if (!armed) { bomb.alpha = 0.6; bomb.tint = REARMING_TINT; }
       group.addChild(bomb);
+
+      this.bombTexture = bombTex;
+      const filled = new Sprite(bombTex);
+      filled.anchor.set(0.5, 0.78);
+      filled.scale.set(k);
+      // NO MASK. The filled copy shows a CROP of the texture instead: its
+      // frame is narrowed to the bottom `t` of the art and the sprite is
+      // re-anchored to keep that slice sitting where it belongs.
+      //
+      // Two attempts with a Graphics mask failed for the same underlying
+      // reason — a display object used as a mask is pulled out of the render
+      // pass, so as a child of the group it never received a transform and
+      // measured zero on the canvas (clipping nothing), and as a child of the
+      // masked sprite it collapsed that sprite's own bounds instead. Cropping
+      // the texture needs no second display object at all, which is both
+      // simpler and impossible to get wrong this way.
+      group.addChild(filled);
     }
 
     // Transparent to the pointer, so the tap falls through to the cell's own
@@ -693,9 +728,10 @@ export class BurrowScene implements Scene {
       this.board.addChild(group);
     }
     this.trapSprites.set(tile, group);
-    // Remembered so a redraw can tell whether the sprite on screen still
-    // matches the server's answer — see `setTrapArmed`.
-    this.trapArmed.set(tile, armed);
+    // An armed trap has no ramp to climb. One that is rearming starts at the
+    // floor and is driven up by `update` until the server confirms it is back.
+    this.trapCharge.set(tile, armed ? 1 : 0);
+    this.paintTrap(tile);
     // Remember it on the DATA too, not just as a sprite. A raid tears the
     // ground down and rebuilds it (`showGround`), and what comes back is
     // redrawn from `data.traps` — which was only ever the list handed in at
@@ -1074,27 +1110,103 @@ export class BurrowScene implements Scene {
    * change of state. The pop is reserved for a trap the owner actually placed.
    */
   setTrapArmed(tile: number, armed: boolean): void {
-    const group = this.trapSprites.get(tile);
-    if (!group || this.trapArmed.get(tile) === armed) return;
-    this.trapArmed.set(tile, armed);
+    this.setTrapRearm(tile, armed ? null : { msLeft: 0, totalMs: 0 });
+  }
 
-    const [marker, bomb] = group.children as [Container, Container | undefined];
+  /**
+   * Where a trap is on its way back, as the SERVER sees it.
+   *
+   * `null` means armed. Otherwise `msLeft` is what is left of `totalMs`, and
+   * the ramp is drawn from their ratio — so a trap two thirds charged looks
+   * two thirds charged on every client, however long ago it was sprung.
+   *
+   * The server is the authority on the CLOCK; the scene only interpolates
+   * between polls. Deriving the fraction here from a local timestamp would
+   * drift on a sleeping tab and show a bomb as armed while the server still
+   * refuses to spring it.
+   */
+  setTrapRearm(tile: number, rearm: { msLeft: number; totalMs: number } | null): void {
+    const group = this.trapSprites.get(tile);
+    if (!group) return;
+
+    if (!rearm || rearm.msLeft <= 0) {
+      const was = this.trapCharge.get(tile) ?? 1;
+      this.trapCharge.set(tile, 1);
+      this.trapRearmMsLeft.delete(tile);
+      this.trapRearmTotalMs.delete(tile);
+      this.paintTrap(tile);
+      // The moment it comes back gets the placement's own bounce: the owner
+      // sees the burrow heal rather than merely finding it healed. Only on the
+      // TRANSITION, or every poll would make an armed board twitch.
+      if (was < 1) {
+        gsap.fromTo(group.scale, { x: 1.18, y: 1.18 }, {
+          x: 1, y: 1, duration: 0.4, ease: 'back.out(2)',
+        });
+      }
+      return;
+    }
+
+    const total = Math.max(1, rearm.totalMs || rearm.msLeft);
+    this.trapRearmMsLeft.set(tile, rearm.msLeft);
+    this.trapRearmTotalMs.set(tile, total);
+    this.trapCharge.set(tile, Math.max(0, Math.min(1, 1 - rearm.msLeft / total)));
+    this.paintTrap(tile);
+  }
+
+  /**
+   * Draw one trap at its current charge.
+   *
+   * The single place that turns a fraction into pixels, so the mount path, the
+   * per-frame ramp and a server correction all render the same way. Tint and
+   * alpha both ride the ramp: colour carries "is this dangerous", alpha
+   * carries "how far along", and moving them together is what makes the climb
+   * legible without a second sprite to compare against.
+   */
+  private paintTrap(tile: number): void {
+    const group = this.trapSprites.get(tile);
+    if (!group) return;
+    const t = Math.max(0, Math.min(1, this.trapCharge.get(tile) ?? 1));
+    const [marker, bomb, filled] = group.children as [
+      Sprite, Sprite | undefined, Sprite | undefined,
+    ];
+
+    // The tile under it stays gold and simply dims — the ground is still
+    // MINED at any charge, which is what the marker has always said.
+    // The tile stays clearly MINED at any charge — it is still the owner's
+    // ground and nothing else can be buried there. The dimming is slight on
+    // purpose: the marker says "mined", the waterline says "how ready", and
+    // fading the marker hard made a rearming trap disappear into the grass,
+    // which is the failure this whole treatment exists to avoid.
     if (marker) {
-      (marker as { tint?: number }).tint = armed ? TRAP_TINT : REARMING_TINT;
-      gsap.to(marker, { alpha: armed ? 0.75 : 0.55, duration: 0.3 });
+      marker.tint = TRAP_TINT;
+      marker.alpha = 0.55 + 0.2 * t;
     }
-    if (bomb) {
-      (bomb as { tint?: number }).tint = armed ? 0xffffff : REARMING_TINT;
-      gsap.to(bomb, { alpha: armed ? 1 : 0.6, duration: 0.3 });
-    }
-    // A trap coming back is the good news on this screen — it gets the small
-    // bounce the placement gets, so the owner sees the burrow healing rather
-    // than merely finding it healed.
-    if (armed) {
-      gsap.fromTo(group.scale, { x: 1.18, y: 1.18 }, {
-        x: 1, y: 1, duration: 0.4, ease: 'back.out(2)',
-      });
-    }
+    if (bomb) bomb.alpha = REARMING_ALPHA;
+
+    if (!filled) return;
+
+    // The waterline, as a CROP of the texture rather than a mask.
+    //
+    // The slice is the bottom `t` of the art. Re-anchoring by the same
+    // fraction is what keeps it in place: a sprite showing the bottom third
+    // must be anchored a third of the way up its own (now shorter) frame, or
+    // the crop would slide down the tile as it grew.
+    const src = this.bombTexture;
+    if (!src) return;
+    filled.visible = t > 0;
+    if (t <= 0) return;
+
+    const full = src.frame;
+    const sliceH = Math.max(1, Math.round(full.height * t));
+    const top = full.y + (full.height - sliceH);
+    filled.texture = new Texture({
+      source: src.source,
+      frame: new Rectangle(full.x, top, full.width, sliceH),
+    });
+    // The bomb sits at (0.5, 0.78) of the WHOLE art. Measured from the bottom
+    // of the crop, that same point is this far up the slice.
+    const anchorFromBottom = (1 - 0.78) * full.height;
+    filled.anchor.set(0.5, 1 - anchorFromBottom / sliceH);
   }
 
   /** A trap was sprung or removed. */
@@ -1102,7 +1214,9 @@ export class BurrowScene implements Scene {
     const group = this.trapSprites.get(tile);
     if (!group) return;
     this.trapSprites.delete(tile);
-    this.trapArmed.delete(tile);
+    this.trapCharge.delete(tile);
+    this.trapRearmMsLeft.delete(tile);
+    this.trapRearmTotalMs.delete(tile);
     // ...and off the data, or a raid would bring back a bomb that was lifted.
     this.data.traps = this.data.traps.filter((t) => t !== tile);
     gsap.to(group, {
@@ -1115,11 +1229,38 @@ export class BurrowScene implements Scene {
 
   update(deltaTime: number): void {
     const ms = deltaTime * (1000 / 60);
+    this.advanceRearm(ms);
     this.clouds?.update(ms);
     this.crop?.update(ms);
     // The terrain sways: the same wind that crosses the island crosses the
     // homestead, which is half of what makes the two read as one world.
     this.terrain?.update(ms);
+  }
+
+  /**
+   * Walk every rearming trap forward by one frame.
+   *
+   * Between polls, which is what makes the opacity a RAMP rather than a
+   * staircase — the burrow poll is seconds apart and a bomb that stepped
+   * three times over an hour would read as a glitch, not as recharging.
+   *
+   * It only ever moves the bar UP to just short of full: the server owns the
+   * moment a trap is armed again, and a client that finished the job itself
+   * would show a live bomb on a tile the server still lets a raider cross.
+   */
+  private advanceRearm(ms: number): void {
+    if (this.trapRearmMsLeft.size === 0) return;
+    for (const [tile, left] of this.trapRearmMsLeft) {
+      const total = this.trapRearmTotalMs.get(tile) ?? 0;
+      if (total <= 0) continue;
+      const next = Math.max(0, left - ms);
+      this.trapRearmMsLeft.set(tile, next);
+      // Capped just under 1 — the last sliver is the server's to grant.
+      const charge = Math.min(0.98, 1 - next / total);
+      if (Math.abs(charge - (this.trapCharge.get(tile) ?? 0)) < 0.002) continue;
+      this.trapCharge.set(tile, charge);
+      this.paintTrap(tile);
+    }
   }
 
   destroy(): void {

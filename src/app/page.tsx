@@ -38,6 +38,7 @@ import { EnergyCard } from '@/components/energy-card';
 import { GardenCard } from '@/components/garden-card';
 import { BurrowPanel } from '@/components/burrow-card-panel';
 import { ShieldCard } from '@/components/shield-card';
+import { TRAPS } from '@config/tuning';
 import { useShop, type ItemKind } from '@/components/use-shop';
 import type { PayTokenId } from '@/lib/pay/tokens';
 import { useUsdcPay } from '@/components/use-usdc-pay';
@@ -410,6 +411,12 @@ function Burrow() {
    * running for every second the board is open to save a poll it already
    * makes. Same treatment as the shield card's.
    */
+  // The full rearm window, so a REMAINING time can be turned back into a
+  // fraction for the ramp. Read from tuning rather than sent per trap: it is
+  // the same number for every trap, and the stagger is already baked into the
+  // `readyAt` the server hands over.
+  const REARM_TOTAL_MS = TRAPS.REARM_MS;
+
   const nextRearmLabel = useMemo(() => {
     const next = shop.traps?.rearming[0];
     if (!next) return null;
@@ -682,10 +689,23 @@ function Burrow() {
     // set of mined tiles does not move when one of them rearms, and the board
     // would have gone on showing a greyed bomb until the next placement.
     const armed = new Set(shop.traps?.armed ?? tiles);
-    const key = tiles.map((t) => `${t}${armed.has(t) ? '' : '~'}`).join(',');
+    // The REMAINING time rides in the key too, bucketed to the minute: the
+    // scene ramps the opacity itself between polls, so a key that changed on
+    // every millisecond would repaint constantly and one that ignored the
+    // clock would never hand the scene a correction at all.
+    const rearm = new Map(
+      (shop.traps?.rearming ?? []).map((r) => [r.tile, new Date(r.readyAt).getTime()] as const),
+    );
+    const key = tiles
+      .map((t) => {
+        const at = rearm.get(t);
+        if (at === undefined) return `${t}`;
+        return `${t}~${Math.round((at - Date.now()) / 60_000)}`;
+      })
+      .join(',');
     if (drawnTraps.current === key) return;
     const had = drawnTraps.current
-      ? drawnTraps.current.split(',').map((k) => Number(k.replace('~', '')))
+      ? drawnTraps.current.split(',').map((k) => Number(k.split('~')[0]))
       : [];
     drawnTraps.current = key;
     const now = new Set(tiles);
@@ -695,9 +715,16 @@ function Burrow() {
     for (const tile of had) if (!now.has(tile)) handles.current?.burrow?.removeTrap(tile);
     for (const tile of tiles) {
       handles.current?.burrow?.addTrap(tile, false, armed.has(tile));
-      // Already drawn: tell it which way it is now. `setTrapArmed` no-ops when
-      // nothing changed, so this is free on the common poll.
-      handles.current?.burrow?.setTrapArmed(tile, armed.has(tile));
+      // Then hand over the server's clock. The scene ramps the opacity from
+      // it, so a trap halfway back is DRAWN halfway back — which is the whole
+      // readable form of "rearming": the bomb recharges in front of you.
+      const at = rearm.get(tile);
+      handles.current?.burrow?.setTrapRearm(
+        tile,
+        at === undefined
+          ? null
+          : { msLeft: Math.max(0, at - Date.now()), totalMs: REARM_TOTAL_MS },
+      );
     }
   }, [ready, shop.traps]);
 

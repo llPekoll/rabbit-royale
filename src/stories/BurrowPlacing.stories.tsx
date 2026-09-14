@@ -72,6 +72,15 @@ interface Args {
    */
   preplaced: number;
   rearming: number;
+  /**
+   * Seconds for a full rearm in THIS story, against three hours in the game.
+   *
+   * Compressed on purpose: the ramp is the thing being judged, and nobody can
+   * judge a three-hour fade. The scene is handed the same shape the server
+   * sends (`msLeft` out of `totalMs`), so what is shown here is the real
+   * curve played at speed rather than a different animation.
+   */
+  rearmSeconds: number;
 }
 
 /**
@@ -107,7 +116,7 @@ function boardReport(seed: string) {
   };
 }
 
-function Scene({ seed, placing, tile, preplaced, rearming }: Args) {
+function Scene({ seed, placing, tile, preplaced, rearming, rearmSeconds }: Args) {
   const [placed, setPlaced] = useState<number[]>([]);
 
   // The tiles the story pre-mines.
@@ -145,6 +154,8 @@ function Scene({ seed, placing, tile, preplaced, rearming }: Args) {
   })();
   const down = seeded.slice(0, Math.min(rearming, seeded.length));
   const up = seeded.slice(down.length);
+  /** How many rearming traps are full right now, so the line can follow. */
+  const [charged, setCharged] = useState(0);
   // Before anything measures or draws. The story remounts on every arg change,
   // so this runs ahead of the scene each time the slider moves.
   setBurrowTileSize(tile);
@@ -162,6 +173,7 @@ function Scene({ seed, placing, tile, preplaced, rearming }: Args) {
           initTileTextures(app.renderer);
           const scenes = new SceneManager(app, stage);
           let scene: BurrowScene | null = null;
+          let stopLoop = () => {};
           void scenes.start(BurrowScene, {
             seed,
             // Handed in ARMED, then the down ones are repainted below. The
@@ -185,9 +197,43 @@ function Scene({ seed, placing, tile, preplaced, rearming }: Args) {
             },
           }).then(() => {
             scene = scenes.currentScene as BurrowScene;
-            for (const t of down) scene.setTrapArmed(t, false);
+            if (!down.length) return;
+
+            // The story LOOPS, and drives the charge itself.
+            //
+            // A single pass ends with a full board and nothing left to watch —
+            // at four seconds it is over before the eye arrives. Refilling from
+            // the top means the effect can be studied without reloading, and
+            // driving it here rather than leaving it to the scene's own ramp
+            // keeps the compressed clock in the one place that knows about it.
+            //
+            // Each bomb starts part-way up, a step apart, so every level is
+            // moving at once — staggering them into a queue would leave most
+            // sitting at zero with nothing to show.
+            const totalMs = rearmSeconds * 1000;
+            const startedAt = down.map((_, i) =>
+              performance.now() - totalMs * (1 - (i + 1) / (down.length + 1)));
+
+            let raf = 0;
+            const tick = () => {
+              const now = performance.now();
+              let full = 0;
+              down.forEach((tileIndex, i) => {
+                const elapsed = (now - startedAt[i]) % totalMs;
+                const msLeft = Math.max(0, totalMs - elapsed);
+                if (msLeft < 80) full++;
+                scene?.setTrapRearm(tileIndex, { msLeft, totalMs });
+              });
+              // So the line above the board tells the truth as the loop runs.
+              // A fixed "0/8 armed" over a board of full bombs is what made
+              // the effect look broken when it was not.
+              setCharged(full);
+              raf = requestAnimationFrame(tick);
+            };
+            raf = requestAnimationFrame(tick);
+            stopLoop = () => cancelAnimationFrame(raf);
           });
-          return () => scenes.destroyCurrent();
+          return () => { stopLoop(); scenes.destroyCurrent(); };
         }}
       />
       {/* The defence line the app shows while placing, rendered here because
@@ -203,11 +249,12 @@ function Scene({ seed, placing, tile, preplaced, rearming }: Args) {
           position: 'absolute', left: 0, right: 0, top: 8, margin: 0, zIndex: 2,
           textAlign: 'center', pointerEvents: 'none',
           font: '12px ui-monospace, monospace',
-          color: up.length + placed.length === 0 ? '#ff8a7a' : '#cfe8ff',
+          color: up.length + placed.length + charged === 0 ? '#ff8a7a' : '#cfe8ff',
           textShadow: '0 1px 2px rgba(0,0,0,0.8)',
         }}>
-          {up.length + placed.length}/8 armed
-          {down.length > 0 && ` · ${down.length} rearming · next in 40m · free`}
+          {up.length + placed.length + charged}/8 armed
+          {down.length - charged > 0
+            && ` · ${down.length - charged} rearming · looping every ${rearmSeconds}s`}
         </p>
       )}
 
@@ -246,12 +293,16 @@ const SEEDS = [
 const meta: Meta<Args> = {
   title: 'Burrow/Placing',
   render: (args) => <Scene key={JSON.stringify(args)} {...args} />,
-  args: { seed: SEEDS[0], placing: true, tile: 40, preplaced: 0, rearming: 0 },
+  args: {
+    seed: SEEDS[0], placing: true, tile: 40,
+    preplaced: 0, rearming: 0, rearmSeconds: 20,
+  },
   argTypes: {
     seed: { control: 'select', options: SEEDS },
     tile: { control: { type: 'range', min: 24, max: 80, step: 2 } },
     preplaced: { control: { type: 'range', min: 0, max: 8, step: 1 } },
     rearming: { control: { type: 'range', min: 0, max: 8, step: 1 } },
+    rearmSeconds: { control: { type: 'range', min: 4, max: 90, step: 2 } },
   },
 };
 export default meta;
@@ -278,6 +329,28 @@ export const AnotherPlayer: Story = { args: { seed: SEEDS[2] } };
 export const AtRest: Story = { args: { placing: false } };
 
 /**
+ * THE RECHARGE, PLAYED AT SPEED — watch the bombs fill back up.
+ *
+ * The story to WATCH rather than to look at: four traps sprung, coming back
+ * over twenty seconds instead of three hours. Each one fades from a cold,
+ * near-transparent blue up to the armed yellow, and they land one at a time
+ * because the server staggers them — a board does not snap back to full.
+ *
+ * This is what two static treatments could not do. A trap drawn at a fixed
+ * dim tint has to be compared against an armed neighbour to be read at all,
+ * and on a board where the armed ones sit behind a tree there is nothing to
+ * compare with. A value that CLIMBS reads on its own, and answers "how much
+ * longer" instead of only "is this one down".
+ *
+ * What to judge: can you tell at a glance which bombs are live? Does the
+ * climb read as recharging rather than as a rendering fault? Push
+ * `rearmSeconds` up if it goes by too fast to see.
+ */
+export const Recharging: Story = {
+  args: { preplaced: 8, rearming: 4, rearmSeconds: 20 },
+};
+
+/**
  * THE MORNING AFTER A RAID — five traps still standing, three coming back.
  *
  * The client half of the arming clock, and the only place it can be SEEN: a
@@ -289,7 +362,9 @@ export const AtRest: Story = { args: { placing: false } };
  * without being told? If they disappear into the ground the tint is too weak,
  * and a defender cannot see the shape of their own defence while it heals.
  */
-export const Rearming: Story = { args: { preplaced: 8, rearming: 3 } };
+export const Rearming: Story = {
+  args: { preplaced: 8, rearming: 3, rearmSeconds: 600 },
+};
 
 /**
  * Walked end to end: every trap down, all of them coming back.
@@ -299,7 +374,9 @@ export const Rearming: Story = { args: { preplaced: 8, rearming: 3 } };
  * and cost nothing. If this reads as punishment rather than as recovery, the
  * clock is failing at the job it was added for.
  */
-export const FullyRearming: Story = { args: { preplaced: 8, rearming: 8 } };
+export const FullyRearming: Story = {
+  args: { preplaced: 8, rearming: 8, rearmSeconds: 600 },
+};
 
 /** The control: the same eight traps, all armed. */
 export const FullyArmed: Story = { args: { preplaced: 8, rearming: 0 } };
