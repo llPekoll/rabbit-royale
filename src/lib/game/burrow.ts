@@ -5,7 +5,7 @@
  * "can I afford this?" and the tests. The numbers themselves all live in
  * config/tuning.ts — nothing here invents one.
  */
-import { BURROW, GARDEN, OUT_OF_RUN_ENERGY, upgradeCost } from '../../../config/tuning';
+import { BURROW, ENERGY, GARDEN, OUT_OF_RUN_ENERGY, upgradeCost } from '../../../config/tuning';
 import { currentEnergy, gardenYield, type RegenRow } from './regen';
 import { gardenCapacity, yieldPerHour } from './garden-growth';
 
@@ -42,6 +42,14 @@ export interface BurrowView {
   maxEnergy: number;
   /** How long until one more point of energy. Null when already full. */
   nextEnergyInMs: number | null;
+  /** What crossing to an island takes out of `energy` — ENERGY.RUN_COST. */
+  runCost: number;
+  /**
+   * How long until there is a run's worth in the bar, or null when there
+   * already is. The number beside the "go farm" arrow when it has to say no:
+   * "+1 in 4m" is true and useless to a player who needs thirty.
+   */
+  nextRunInMs: number | null;
   /** Carrots the garden makes per hour at this level. */
   yieldPerHour: number;
   /** Hours of production the garden holds before it stops — the reason to
@@ -83,6 +91,51 @@ export function msToNextEnergy(
   return perPoint - (elapsed % perPoint);
 }
 
+/** Is there a run's worth of energy in the bar right now? */
+export function canStartRun(
+  row: Pick<RegenRow, 'energy' | 'energyUpdatedAt'>,
+  now = Date.now(),
+): boolean {
+  return currentEnergy(row, now) >= ENERGY.RUN_COST;
+}
+
+/**
+ * Milliseconds until the bar holds a run's worth, or null when it already does.
+ *
+ * The regen is linear from `energyUpdatedAt`, so this is one subtraction on the
+ * same clock `currentEnergy` reads — the countdown and the number it counts
+ * towards cannot disagree. Ceiling'd to whole points because the bar only ever
+ * shows whole points: the wait ends when the next point lands, not a fraction
+ * of a second before it would have.
+ */
+export function msToRun(
+  row: Pick<RegenRow, 'energy' | 'energyUpdatedAt'>,
+  now = Date.now(),
+): number | null {
+  if (canStartRun(row, now)) return null;
+  const perPoint = 3_600_000 / OUT_OF_RUN_ENERGY.REGEN_PER_HOUR;
+  const short = ENERGY.RUN_COST - row.energy;
+  const readyAt = row.energyUpdatedAt.getTime() + Math.ceil(short) * perPoint;
+  return Math.max(0, readyAt - now);
+}
+
+/**
+ * The bar after paying for a run, or null when it cannot afford one.
+ *
+ * Pure: the caller writes it back. The regen that accrued since the last
+ * stamp is folded in FIRST and then the cost comes off, and the stamp moves to
+ * `now` — writing `energy - cost` against the OLD stamp would let the interval
+ * since it be paid out a second time on the next read.
+ */
+export function chargeRun(
+  row: Pick<RegenRow, 'energy' | 'energyUpdatedAt'>,
+  now = Date.now(),
+): { energy: number; energyUpdatedAt: Date } | null {
+  const have = currentEnergy(row, now);
+  if (have < ENERGY.RUN_COST) return null;
+  return { energy: have - ENERGY.RUN_COST, energyUpdatedAt: new Date(now) };
+}
+
 /**
  * Milliseconds of shield remaining, or null once raids can land again.
  *
@@ -117,6 +170,8 @@ export function burrowView(row: BurrowRow, now = Date.now()): BurrowView {
     energy: currentEnergy(row, now),
     maxEnergy: OUT_OF_RUN_ENERGY.MAX,
     nextEnergyInMs: msToNextEnergy(row, now),
+    runCost: ENERGY.RUN_COST,
+    nextRunInMs: msToRun(row, now),
     yieldPerHour: yieldPerHour(row.burrowLevel),
     capHours: GARDEN.CAP_HOURS,
     gardenCapacity: gardenCapacity(row.burrowLevel),

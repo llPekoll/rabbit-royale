@@ -56,7 +56,7 @@ describe('spectating', () => {
 
   it('feeds the target to the socket so the session switches mode', () => {
     // Passing a literal null here was what made the feature dead code.
-    expect(PAGE).toMatch(/useGameSocket\(token, player\?\.id \?\? null, spectating\)/);
+    expect(PAGE).toMatch(/useGameSocket\(token, player\?\.id \?\? null, spectating[,)]/);
   });
 
   it('cannot strand the session in viewer mode', () => {

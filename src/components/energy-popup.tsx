@@ -34,6 +34,14 @@ export interface EnergyPopupProps {
   maxEnergy: number;
   /** Time to the next free point, or null when the bar is full. */
   nextEnergyInMs: number | null;
+  /**
+   * What a run takes out of the bar (ENERGY.RUN_COST), and how long until the
+   * bar holds that much — null when it already does. Both optional so a
+   * caller that predates the charge still renders; without them the dialog
+   * falls back to counting single points.
+   */
+  runCost?: number;
+  nextRunInMs?: number | null;
   busy: boolean;
   /**
    * The rail the purchase will settle on — chosen in the Shed, not here.
@@ -56,7 +64,7 @@ export interface EnergyPopupProps {
 }
 
 export function EnergyPopup({
-  shop, stock, energy, maxEnergy, nextEnergyInMs, busy, payToken, payStage = 'idle',
+  shop, stock, energy, maxEnergy, nextEnergyInMs, runCost, nextRunInMs, busy, payToken, payStage = 'idle',
   note, error, onBuy, onPayUsdc, onOpenShop, onClose,
 }: EnergyPopupProps) {
   useEffect(() => {
@@ -99,8 +107,11 @@ export function EnergyPopup({
           {/* Plain ASCII punctuation only: the pixel face has no em dash and
               draws one as a blank box. See test/pixel-font-glyphs. */}
           <span className="rr-energy-say">
-            The bar is empty. One point comes back on its own in{' '}
-            {formatWait(nextEnergyInMs)}. Or fill it now and keep digging.
+            {runCost
+              ? <>A run takes {runCost}. Enough comes back on its own in{' '}
+                {formatWait(nextRunInMs ?? nextEnergyInMs)}. Or fill it now and keep digging.</>
+              : <>The bar is empty. One point comes back on its own in{' '}
+                {formatWait(nextEnergyInMs)}. Or fill it now and keep digging.</>}
           </span>
         </div>
 

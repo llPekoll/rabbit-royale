@@ -60,6 +60,9 @@ interface Burrow {
   energy: number;
   maxEnergy: number;
   nextEnergyInMs: number | null;
+  /** What a run takes out of `energy`, and how long until there is that much. */
+  runCost: number;
+  nextRunInMs: number | null;
   /** Milliseconds of shield left, or null when raids can land right now. */
   shieldMs: number | null;
   yieldPerHour: number;
@@ -203,7 +206,10 @@ function Burrow() {
   // putting them in state would re-render the tree that owns it.
   const handles = useRef<GameHandles | null>(null);
 
-  const game = useGameSocket(token, player?.id ?? null, spectating);
+  // `where` is passed so a reconnect mid-run can retake its seat, and only
+  // then: joining PAYS for a run now, so the socket must not ask for an island
+  // from the burrow — see the hook's note on `onIsland`.
+  const game = useGameSocket(token, player?.id ?? null, spectating, where === 'island' && !spectating);
   const shop = useShop(token);
   const usdc = useUsdcPay(token, payments);
   const raid = useRaid(token);
@@ -364,8 +370,11 @@ function Burrow() {
       .finally(() => setCrossing(false));
   }, [where, spectating, game]);
 
-  /** Enough to dig with. Null burrow means "still loading", not "empty". */
-  const hasEnergy = burrow === null || burrow.energy > 0;
+  /**
+   * Enough for a run — a whole one, ENERGY.RUN_COST of it, which the server
+   * takes at the crossing. Null burrow means "still loading", not "empty".
+   */
+  const hasEnergy = burrow === null || burrow.energy >= burrow.runCost;
 
   /**
    * A tile was tapped on the island.
@@ -571,6 +580,31 @@ function Burrow() {
    */
   const refreshBurrowRef = useRef(refreshBurrow);
   refreshBurrowRef.current = refreshBurrow;
+
+  /**
+   * The server would not seat us: the bar it holds is short of a run.
+   *
+   * The burrow's own gate (`hasEnergy`) asks the same question first, so this
+   * is the answer to a STALE screen — a tab left open while another one spent
+   * the bar, or a bar read before a refill lapsed. It is settled where the gate
+   * would have settled it: back on the burrow, with the popup open, and the
+   * bar re-read so the number in it is the server's.
+   *
+   * Waits for any crossing to finish before turning round, because the
+   * refusal can land while the iris is still closing on the way OUT, and a
+   * second wipe started inside the first is not a thing the curtain does.
+   * Each refusal is spent once (`at`): re-running on a later crossing would
+   * otherwise march the player home again for an answer they already had.
+   */
+  const spentRefusal = useRef(0);
+  useEffect(() => {
+    const r = game.refused;
+    if (!r || r.at === spentRefusal.current || crossing) return;
+    if (where === 'island') { goTo('burrow'); return; }
+    spentRefusal.current = r.at;
+    refreshBurrowRef.current();
+    setEnergyOpen(true);
+  }, [game.refused, where, crossing, goTo]);
 
   const buyWithCarrots = useCallback(async (kind: ItemKind) => {
     const res = await shop.buy(kind);
@@ -1199,7 +1233,7 @@ function Burrow() {
                     burrow?.nextEnergyInMs == null
                       ? undefined
                       : !hasEnergy
-                        ? `Out of energy. Next in ${formatWait(burrow.nextEnergyInMs)}.`
+                        ? `A run takes ${burrow.runCost}. Ready in ${formatWait(burrow.nextRunInMs ?? burrow.nextEnergyInMs)}.`
                         : `+1 in ${formatWait(burrow.nextEnergyInMs)}.`
                   }
                 />
@@ -1425,6 +1459,8 @@ function Burrow() {
           energy={burrow?.energy ?? 0}
           maxEnergy={burrow?.maxEnergy ?? 0}
           nextEnergyInMs={burrow?.nextEnergyInMs ?? null}
+          runCost={burrow?.runCost}
+          nextRunInMs={burrow?.nextRunInMs ?? null}
           busy={shop.busy}
           // The same rail the Shed is set to, because `payEnergyUsdc` quotes on
           // it — the price shown and the price charged are one choice.
