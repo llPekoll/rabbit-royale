@@ -51,19 +51,20 @@ NAMES: dict[int, str] = {
     5: 'hill-big',
     6: 'hill-wide',
     7: 'bush-small',
-    8: 'flowers-patch',
-    9: 'tuft-left',
-    10: 'tuft-right',
+    8: 'bush-round',
+    9: 'flowers-patch',
+    10: 'tuft-left',
+    11: 'tuft-right',
 }
 
 MIN_AREA = 1500  # px of a piece's tight box; anything less is a stray mark
 BASE = 0.45      # the lowest share of a piece that is its base, not foliage
 
-# Pieces standing on a drawn slab. The artist's slabs are not all at the
-# 2:1 isometric angle, so each is straightened: an affine map sends the
-# slab's three visible corners — bottom, left, right — onto a true diamond
-# of the same width, and the foliage comes along.
-SLABBED = {'flowers-small', 'meadow-tuft', 'hill-big', 'hill-wide', 'bush-small', 'flowers-patch'}
+# Pieces standing on a drawn slab, to be straightened onto a 2:1 diamond.
+# None any more: the slabs were erased from the sheet, and every piece now
+# stands on one of the tileset's own patches, which the renderer lays under
+# it. Kept for a sheet that draws them again.
+SLABBED: set[str] = set()
 
 
 def label(mask: Image.Image) -> list[tuple[tuple[int, int, int, int], Image.Image]]:

@@ -110,7 +110,11 @@ export interface DecorChoice {
   name: string;
   cells: number;
   weight: number;
-  /** It has no base of its own — a stem, a tuft — so it may grow on a patch. */
+  /**
+   * A stem or a tuft, which grows straight out of the turf and only sometimes
+   * on a patch. Anything else always stands on a patch the size of its
+   * footprint.
+   */
   bare?: boolean;
 }
 
@@ -520,13 +524,18 @@ function planProps(world: IsoWorld, options: IsoWorldOptions = {}): Map<number, 
           }
         }
         if (!fits) continue;
+        // The base: a patch under every footprint cell — the other cells
+        // hold a plain patch prop, the piece's own cell carries it as a flag.
+        const onPatch = !choice.bare || onPatchRoll < 0.5;
         for (let fy = 0; fy < choice.cells; fy++) {
           for (let fx = 0; fx < choice.cells; fx++) {
-            taken.add((y + fy) * world.width + (x + fx));
-            grown.add((y + fy) * world.width + (x + fx));
+            const i = (y + fy) * world.width + (x + fx);
+            taken.add(i);
+            grown.add(i);
+            if (onPatch && (fx || fy)) props.set(i, { kind: 'patch', dir });
           }
         }
-        props.set(y * world.width + x, { kind: 'decor', dir, decor: choice.name, cells: choice.cells });
+        props.set(y * world.width + x, { kind: 'decor', dir, decor: choice.name, cells: choice.cells, onPatch });
         continue;
       }
 

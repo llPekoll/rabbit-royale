@@ -10,7 +10,7 @@
 import { Assets, Texture } from 'pixi.js';
 
 export const DECOR_URL = '/assets/world/decor';
-export const DECOR_MANIFEST_URL = `${DECOR_URL}/manifest.json?v=4`;
+export const DECOR_MANIFEST_URL = `${DECOR_URL}/manifest.json?v=5`;
 
 /** How wide a one-cell base is drawn on the artist's sheet, in pixels. */
 export const SHEET_CELL = 130;
@@ -39,18 +39,22 @@ export interface DecorSet {
 
 /**
  * How often each piece is planted, relative to the others, and whether it
- * is BARE — a stem or a tuft with no base of its own, which may grow on a
- * patch of darker grass. Tufts are the grass of the place; the hills are
- * landmarks, one or two an island.
+ * is BARE — a stem or a tuft that can grow straight out of the turf, and
+ * only sometimes on a patch of darker grass. The rest — hills, bushes, the
+ * flower beds — always stand on a patch the size of their footprint: the
+ * sheet draws no ground under them, and the tileset's patch is the base
+ * that lines up with the grid. Tufts are the grass of the place; the hills
+ * are landmarks, one or two an island.
  */
 export const DECOR_WEIGHTS: Readonly<Record<string, { weight: number; bare?: boolean }>> = {
   'tuft-small': { weight: 5, bare: true },
   'tuft-left': { weight: 4, bare: true },
   'tuft-right': { weight: 4, bare: true },
-  'meadow-tuft': { weight: 3 },
+  'meadow-tuft': { weight: 3, bare: true },
   'flowers-small': { weight: 3 },
   'flowers-patch': { weight: 3 },
   'bush-small': { weight: 3 },
+  'bush-round': { weight: 3 },
   'flower-tall': { weight: 2, bare: true },
   'flower-leafy': { weight: 2, bare: true },
   'hill-big': { weight: 1 },
@@ -73,7 +77,7 @@ async function load(): Promise<DecorSet> {
   const entries = (await response.json()) as DecorManifestEntry[];
   const pieces = await Promise.all(
     entries.map(async (entry) => {
-      const texture = await Assets.load<Texture>(`${DECOR_URL}/${entry.file}?v=4`);
+      const texture = await Assets.load<Texture>(`${DECOR_URL}/${entry.file}?v=5`);
       texture.source.scaleMode = 'linear';
       return { ...entry, texture };
     }),

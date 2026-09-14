@@ -5,10 +5,10 @@
     "width": 101,
     "height": 167,
     "anchor": [
-      50,
+      47,
       166
     ],
-    "base": 26,
+    "base": 17,
     "cells": 1
   },
   {
@@ -26,13 +26,13 @@
   {
     "name": "flowers-small",
     "file": "flowers-small.png",
-    "width": 91,
-    "height": 65,
+    "width": 79,
+    "height": 76,
     "anchor": [
-      52,
-      64
+      40,
+      75
     ],
-    "base": 77,
+    "base": 49,
     "cells": 1
   },
   {
@@ -50,61 +50,73 @@
   {
     "name": "meadow-tuft",
     "file": "meadow-tuft.png",
-    "width": 192,
-    "height": 171,
+    "width": 85,
+    "height": 155,
     "anchor": [
-      94,
-      170
+      46,
+      154
     ],
-    "base": 187,
-    "cells": 2
+    "base": 78,
+    "cells": 1
   },
   {
     "name": "hill-big",
     "file": "hill-big.png",
-    "width": 294,
-    "height": 214,
+    "width": 247,
+    "height": 218,
     "anchor": [
-      142,
-      213
+      122,
+      217
     ],
-    "base": 284,
+    "base": 245,
     "cells": 2
   },
   {
     "name": "hill-wide",
     "file": "hill-wide.png",
     "width": 283,
-    "height": 191,
+    "height": 172,
     "anchor": [
-      134,
-      190
+      140,
+      171
     ],
-    "base": 265,
+    "base": 276,
     "cells": 2
   },
   {
     "name": "bush-small",
     "file": "bush-small.png",
-    "width": 133,
-    "height": 85,
+    "width": 85,
+    "height": 107,
     "anchor": [
-      66,
-      84
+      42,
+      106
     ],
-    "base": 133,
+    "base": 85,
+    "cells": 1
+  },
+  {
+    "name": "bush-round",
+    "file": "bush-round.png",
+    "width": 47,
+    "height": 38,
+    "anchor": [
+      20,
+      37
+    ],
+    "base": 41,
     "cells": 1
   },
   {
     "name": "flowers-patch",
     "file": "flowers-patch.png",
-    "width": 113,
-    "height": 63,
+    "width": 91,
+    "height": 50,
     "anchor": [
-      56,
-      62
+      44,
+      49
     ],
-    "base": 108,
+    "base": 75,
     "cells": 1
   },
   {
