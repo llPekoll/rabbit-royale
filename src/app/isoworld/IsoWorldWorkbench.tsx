@@ -331,7 +331,7 @@ export function IsoWorldWorkbench({ style, seed }: { style?: IsoStyle; seed?: st
   }, [settings, rotation, tileset, tiers, corners]);
 
   return (
-    <main style={{ ...styles.page, background: sea }}>
+    <main className={isPixel ? undefined : 'rr-smooth-cursors'} style={{ ...styles.page, background: sea }}>
       <div ref={hostRef} style={styles.canvas} />
 
       <aside style={styles.panel}>

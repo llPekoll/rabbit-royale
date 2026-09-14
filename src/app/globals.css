@@ -36,6 +36,17 @@
   --cur-denied: url('/assets/ui/cursors/denied.png') 16 18, not-allowed;
 }
 
+/* The smooth island's pointers: the same three, same sizes and hotspots,
+   drawn in its style by tools/gen_smooth_cursors.py. Set on the page that
+   shows that island; the variables cascade, so its buttons pick up the hand
+   through the same `var()` the game's do. */
+.rr-smooth-cursors {
+  --cur-arrow: url('/assets/ui/cursors/smooth/arrow.png') 0 0, default;
+  --cur-hand: url('/assets/ui/cursors/smooth/hand.png') 5 0, pointer;
+  --cur-denied: url('/assets/ui/cursors/smooth/denied.png') 16 18, not-allowed;
+  cursor: var(--cur-arrow);
+}
+
 * { box-sizing: border-box; }
 
 html, body {
