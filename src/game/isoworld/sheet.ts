@@ -80,8 +80,10 @@ interface SheetSpec {
   boulder: Material;
   /** Where the post is: [row, col]. Null when the sheet has none. */
   post: readonly [number, number] | null;
-  /** Whether the sheet has water. */
-  water: boolean;
+  /** Whether the sheet has water: the pixel sheet's flattened sea, or a drawn tile at [row, col]. */
+  water: boolean | readonly [number, number];
+  /** Where the water surface stands, in blocks: on the pixel sheet the sea bed, on the smooth one half a block under the sand. */
+  waterLevel: number;
   /** Whether the sheet has the outline pieces: rims on row 2, corners on row 9. */
   outlines: boolean;
   /** Whether columns 4 and 5 exist: stairs, and the block props. */
@@ -118,6 +120,7 @@ export const SHEETS: Readonly<Record<IsoStyle, SheetSpec>> = {
     boulder: 'stone',
     post: [8, 1],
     water: true,
+    waterLevel: 0,
     outlines: false,
     stairs: true,
     blocks: true,
@@ -130,7 +133,7 @@ export const SHEETS: Readonly<Record<IsoStyle, SheetSpec>> = {
     // The query is a layout revision, bumped whenever the sheet's cells move:
     // browsers cache the file by URL, and a stale sheet sliced with the new
     // offsets shows pieces that no longer exist.
-    url: '/assets/world/iso-smooth-sheet-128.png?layout=12',
+    url: '/assets/world/iso-smooth-sheet-128.png?layout=13',
     cell: 128,
     pad: 2,
     materials: ['moss', 'grass', 'sand'],
@@ -139,7 +142,8 @@ export const SHEETS: Readonly<Record<IsoStyle, SheetSpec>> = {
     hedge: 'moss',
     boulder: 'sand',
     post: null,
-    water: false,
+    water: [9, 3],
+    waterLevel: 0.5,
     outlines: true,
     stairs: false,
     blocks: false,
@@ -316,7 +320,8 @@ async function load(style: IsoStyle): Promise<IsoTileset> {
   // still draws on the other rather than crashing on a missing key.
   for (const name of MATERIALS) materials[name] ??= materials[spec.materials[0]];
 
-  const sea = spec.water ? seaTile(sheet, cell) : null;
+  const sea = spec.water === true ? seaTile(sheet, cell) : null;
+  const waterTile = Array.isArray(spec.water) ? slice(spec.water[0], spec.water[1]) : null;
   const decor = spec.decor ? await loadDecor() : null;
   return {
     style,
@@ -325,7 +330,7 @@ async function load(style: IsoStyle): Promise<IsoTileset> {
     block: { w: cell, h: cell / 2, z: cell / 2 },
     turfZ: cell / 8,
     materials,
-    water: sea?.texture ?? null,
+    water: sea?.texture ?? waterTile,
     seaColor: sea?.color ?? (typeof spec.background === 'number' ? spec.background : spec.background[0][1]),
     post: spec.post ? slice(spec.post[0], spec.post[1]) : null,
     corners: spec.outlines

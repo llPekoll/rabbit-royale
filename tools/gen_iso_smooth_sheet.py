@@ -37,6 +37,10 @@ inner corner, whose surface is flat where the fringe hangs. The SLOPE FRINGE
 that side, so it clings to the hillside instead of floating over it; the
 lace cap is likewise laid on the outer corner's slope.
 
+WATER is one translucent cyan tile with its own light grid; the renderer
+lays it on every sea cell half a block under the sand, so the island's floor
+stands just proud of the surface.
+
 A LACE CAP is the fringe wrapped around one corner of the cell, for the
 outer-corner ramp, which the plateau above touches only at that point. A
 FOLD is the line along a SLOPED edge — one end a block up — where two
@@ -60,7 +64,7 @@ island has no wall between two land tiers.
 
 and a tenth row of pieces shared by every material:
 
-    r9    corner L corner R corner F
+    r9    corner L corner R corner F   water
 
 The pixel sheet's last two columns (stairs, prop blocks) are not drawn: this
 sheet is terrain only, and the renderer builds a flight of stairs as a slope
@@ -142,6 +146,9 @@ CLIFF = (191, 180, 150)          # cliff face, tan
 CLIFF_SOUTH = (181, 170, 141)    # the face turned away from the light, a touch darker
 STRIPE_INK = (168, 158, 132)
 PEBBLE = (118, 120, 108)
+
+WATER_FILL = (150, 232, 228, 150)
+WATER_GRID = (222, 250, 247, 210)
 
 # Fringe geometry, in lattice units of the cell edge.
 FRINGE_DEPTH = 0.16
@@ -558,6 +565,21 @@ def patch(mat, rng) -> Cell:
     return c
 
 
+def water() -> Cell:
+    """The sea surface: a translucent flat tile with a light grid on its N and W edges."""
+    c = Cell()
+    pts = top_quad(0)
+    ImageDraw.Draw(c.img).polygon(offset_polygon(pts, BLEED * SS), fill=WATER_FILL)
+    for i in (0, 3):
+        a, b = pts[i], pts[(i + 1) % 4]
+        length = math.hypot(b[0] - a[0], b[1] - a[1])
+        k = GRID * SS / 2 / length
+        ImageDraw.Draw(c.img).line(
+            [(a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k), (b[0] - (b[0] - a[0]) * k, b[1] - (b[1] - a[1]) * k)],
+            fill=WATER_GRID, width=round(GRID * SS))
+    return c
+
+
 def rim(color, direction: str) -> Cell:
     """The outline along one edge of the base diamond, centred on it, in this material's edge colour."""
     c = Cell()
@@ -622,6 +644,7 @@ def build() -> Image.Image:
             put(r + 2, 22 + 2 * col, fold(mat[4], direction, False))
     for col, which in enumerate('LRF'):
         put(9, col, corner(which))
+    put(9, 3, water())
     return sheet
 
 

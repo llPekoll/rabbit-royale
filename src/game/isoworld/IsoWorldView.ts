@@ -229,7 +229,7 @@ export class IsoWorldView {
     const tier = tierAt(world, x, y);
 
     if (tier === 0) {
-      if (tileset.water) this.place(tileset.water, x, y, 0, false);
+      if (tileset.water) this.place(tileset.water, x, y, spec.waterLevel * block.z, false);
       // The sea draws the island's foot: its rims, at floor height, along
       // every edge where land stands.
       this.outline(x, y, 0);
@@ -248,7 +248,16 @@ export class IsoWorldView {
       if (!top && east > k && south > k) continue;
       this.place(this.blockMaterial(ground, tier, top).cube, x, y, k * block.z);
     }
-    if (tier <= spec.floor) this.place(this.surfaceMaterial(ground, tier).flat, x, y, surface);
+    if (tier <= spec.floor) {
+      // The floor is a sheet — except at the water's edge, where it shows the
+      // half block it stands proud of the surface by: a slab, its top on the
+      // floor, its faces down to the water. Only the two faces the camera
+      // sees matter, so only a sea cell south or east calls for it.
+      const shore = spec.waterLevel < tier && (east === 0 || south === 0);
+      const set = this.surfaceMaterial(ground, tier);
+      if (shore) this.place(set.slab, x, y, surface - block.z / 2);
+      else this.place(set.flat, x, y, surface);
+    }
 
     // The turf is thin, so it is laid its own thickness down: its top lands
     // exactly on the surface and its sides cover the top of the dirt block.
