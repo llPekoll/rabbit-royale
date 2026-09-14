@@ -479,8 +479,18 @@ export class IsoWorldView {
   private hop(h: Hopper, dt: number): void {
     const { world } = this.options;
     if (h.t >= 1) {
+      // The rest starts once the landing spring has settled, so the rabbit
+      // is seen standing at its own size between hops.
+      if (h.landed < 1) {
+        h.landed = Math.min(1, h.landed + dt / LAND_TIME);
+        this.placeHopper(h);
+        return;
+      }
       h.wait -= dt;
-      if (h.wait > 0) return;
+      if (h.wait > 0) {
+        this.placeHopper(h);
+        return;
+      }
       // Pick a neighbour to hop to: never straight back unless cornered.
       const options: { x: number; y: number }[] = [];
       for (const d of DIRS) {
@@ -506,7 +516,6 @@ export class IsoWorldView {
     const before = h.t;
     h.t = Math.min(1, h.t + dt / HOP_TIME);
     if (before < 1 && h.t >= 1) h.landed = 0;
-    h.landed = Math.min(1, h.landed + dt / LAND_TIME);
     this.placeHopper(h);
   }
 
@@ -527,7 +536,8 @@ export class IsoWorldView {
       // Just down: a spring. Squashed on impact, then oscillating back to
       // rest — an underdamped bounce, each swing smaller than the last.
       const q = h.landed;
-      const squash = 0.28 * Math.exp(-5.5 * q) * Math.cos(2 * Math.PI * LAND_BOUNCES * q);
+      // The `(1 - q)` envelope brings it to exactly rest at the end.
+      const squash = 0.28 * (1 - q) * Math.exp(-4 * q) * Math.cos(2 * Math.PI * LAND_BOUNCES * q);
       return { x: 1 + squash * 0.7, y: 1 - squash, lean: 0, height: 0 };
     }
     if (h.wait < ANTICIPATION) {
@@ -841,9 +851,8 @@ export class IsoWorldView {
       // Same tier as this cell, so the floor rule is the same.
       const nPatch = deco && isPatch(propAt(world, nx, ny)) && tier > spec.floor;
       if (nPatch && !patch) {
-        // This cell's grid line straddles the shared edge, half of it over
-        // the patch: lay the patch again on top, then its lace over here.
-        this.place(this.surfaceMaterial(ground, tier).patch!, nx, ny, surface);
+        // The lace reaches a little past the edge, over the half of this
+        // cell's grid line that lies on the patch.
         this.place(this.surfaceMaterial(ground, tier).patchFringe![d], x, y, surface);
       } else if (patch && !nPatch) {
         this.place(this.surfaceMaterial(ground, tier).patchFringe![back], nx, ny, surface);

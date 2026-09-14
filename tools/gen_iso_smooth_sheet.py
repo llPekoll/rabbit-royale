@@ -161,6 +161,7 @@ WATER_HEIGHT = 0.5
 # Fringe geometry, in lattice units of the cell edge.
 FRINGE_DEPTH = 0.16
 FRINGE_BUMPS = 4
+FRINGE_OVERLAP = 0.045  # ~3px past the edge, the width of a grid line
 
 # Each material: its flat top, the grid on it — a sharp line a shade darker
 # than the fill, over a soft halo of the same colour multiplied in — its
@@ -488,6 +489,13 @@ def scallop_band(edge: str, depth: float, bumps: int, z=lambda u, v: 0.0):
     (a, b) = RIM_EDGES[edge]
     # Inward direction, in lattice units: from the edge toward the cell.
     inward = {'N': (0, 1), 'E': (-1, 0), 'S': (0, -1), 'W': (1, 0)}[edge]
+    # The straight side sits a little PAST the edge, on the neighbour: the
+    # cell's own grid line straddles the edge, and the lace covers its half
+    # on the neighbour's side too, where the neighbour is a patch and the
+    # line would otherwise cut across it.
+    out = FRINGE_OVERLAP
+    a = (a[0] - inward[0] * out, a[1] - inward[1] * out, 0)
+    b = (b[0] - inward[0] * out, b[1] - inward[1] * out, 0)
     pts = [P(a[0], a[1], z(a[0], a[1])), P(b[0], b[1], z(b[0], b[1]))]
     steps = 24 * bumps
     for k in range(steps, -1, -1):
