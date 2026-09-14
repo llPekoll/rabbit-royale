@@ -24,6 +24,7 @@ import {
   type IsoTileset,
 } from '@/game/isoworld';
 import { Slider, Stat, styles } from '../island/IslandWorkbench';
+import { loadCloudPuffs, SmoothClouds } from '@/game/isoworld/clouds';
 
 /** Until the sheet is loaded and its background is known. */
 const DEEP_SEA = '#0b2233';
@@ -105,6 +106,7 @@ export function IsoWorldWorkbench({ style, seed }: { style?: IsoStyle; seed?: st
   const islandRef = useRef<IsoWorldView | null>(null);
   const worldRef = useRef<Container | null>(null);
   const backdropRef = useRef<Sprite | null>(null);
+  const cloudsRef = useRef<SmoothClouds | null>(null);
 
   const [settings, setSettings] = useState<Settings>({
     ...INITIAL,
@@ -180,6 +182,12 @@ export function IsoWorldWorkbench({ style, seed }: { style?: IsoStyle; seed?: st
       const world = new Container();
       app.stage.addChild(world);
       worldRef.current = world;
+
+      // The clouds drift in screen space, over the island; their shadows lie
+      // between the two. Both follow the frame.
+      const drift = () => cloudsRef.current?.update(app.ticker.deltaMS / 1000);
+      app.ticker.add(drift);
+      app.renderer.on('resize', () => cloudsRef.current?.resize(app.screen.width, app.screen.height));
       setAppReady(true);
     })();
 
@@ -190,6 +198,7 @@ export function IsoWorldWorkbench({ style, seed }: { style?: IsoStyle; seed?: st
       appRef.current = null;
       worldRef.current = null;
       backdropRef.current = null;
+      cloudsRef.current = null;
       setAppReady(false);
       app.destroy(true, { children: true });
     };
@@ -221,6 +230,19 @@ export function IsoWorldWorkbench({ style, seed }: { style?: IsoStyle; seed?: st
         setSea(backdropCss(loaded));
         setStatus('');
         setTileset(loaded);
+
+        // Weather over the smooth island only.
+        cloudsRef.current?.destroy();
+        cloudsRef.current = null;
+        if (loaded.style === 'smooth') {
+          loadCloudPuffs().then((puffs) => {
+            if (stale || cloudsRef.current) return;
+            const clouds = new SmoothClouds(puffs, app.screen.width, app.screen.height);
+            app.stage.addChild(clouds.shadows);
+            app.stage.addChild(clouds.layer);
+            cloudsRef.current = clouds;
+          });
+        }
       },
       (err) => {
         if (!stale) setStatus(`the tile sheet failed to load: ${String(err)}`);
