@@ -22,7 +22,7 @@ const CLOUD_URLS = ['/assets/world/iso-cloud-01.png', '/assets/world/iso-cloud-0
 
 /** How many cross the frame, and how they vary. */
 const COUNT = 9;
-const SCALE_RANGE = [0.8, 1.6] as const;
+const SCALE_RANGE = [0.45, 0.9] as const;
 const SPEED_RANGE = [6, 16] as const;
 /** Off-frame room, enough to hide the widest cloud. */
 const MARGIN = 450;
@@ -37,7 +37,7 @@ const CLOUD_ALPHA = 0.9;
  * lighter than the cloud so it never leads.
  */
 const SHADOW_DX = 0;
-const SHADOW_DY = 170;
+const SHADOW_DY = 110;
 const SHADOW_TINT = 0xa8bfa8;
 const SHADOW_ALPHA = 0.45;
 
