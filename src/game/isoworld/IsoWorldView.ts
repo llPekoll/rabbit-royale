@@ -497,8 +497,12 @@ export class IsoWorldView {
     const cell = h.from.x + h.from.y > h.to.x + h.to.y ? h.from : h.to;
     const at = this.cellEnd.get(cell.y * world.width + cell.x);
     if (at !== undefined) {
+      // `at` counts the children up to and including that cell's last piece,
+      // without the rabbit. `setChildIndex` takes the rabbit out first, so
+      // in the list it indexes the cell's last piece sits at `at - 1`
+      // whichever side the rabbit came from, and `at` is right after it.
       const current = this.layer.getChildIndex(h.sprite);
-      const target = Math.min(this.layer.children.length - 1, current < at ? at - 1 : at);
+      const target = Math.min(this.layer.children.length - 1, at);
       if (current !== target) this.layer.setChildIndex(h.sprite, target);
     }
   }
