@@ -126,7 +126,7 @@ export const SHEETS: Readonly<Record<IsoStyle, SheetSpec>> = {
     // The query is a layout revision, bumped whenever the sheet's cells move:
     // browsers cache the file by URL, and a stale sheet sliced with the new
     // offsets shows pieces that no longer exist.
-    url: '/assets/world/iso-smooth-sheet-128.png?layout=8',
+    url: '/assets/world/iso-smooth-sheet-128.png?layout=9',
     cell: 128,
     pad: 2,
     materials: ['moss', 'grass', 'sand'],
@@ -189,8 +189,10 @@ export interface MaterialTiles {
   fringe?: Readonly<Record<Dir, Texture>>;
   patch?: Texture;
   patchFringe?: Readonly<Record<Dir, Texture>>;
-  /** The lace wrapped around one corner, by corner (NE 0, SE 1, SW 2, NW 3). */
+  /** The lace wrapped around one corner, by corner (NE 0, SE 1, SW 2, NW 3), on the outer corner's slope. */
   laceCap?: Readonly<Record<Dir, Texture>>;
+  /** The lace laid down a straight slope climbing toward that side. */
+  slopeFringe?: Readonly<Record<Dir, Texture>>;
   /** Corner ramps by their first side, on sheets that have them. */
   inner?: Readonly<Record<Dir, Texture>>;
   outer?: Readonly<Record<Dir, Texture>>;
@@ -286,6 +288,7 @@ async function load(style: IsoStyle): Promise<IsoTileset> {
             patch: slice(r + 2, 8),
             patchFringe: { 0: slice(r + 2, 9), 1: slice(r + 2, 10), 2: slice(r + 2, 11), 3: slice(r + 2, 12) },
             laceCap: { 0: slice(r + 2, 13), 1: slice(r + 2, 14), 2: slice(r + 2, 15), 3: slice(r + 2, 16) },
+            slopeFringe: { 0: slice(r + 2, 17), 1: slice(r + 2, 18), 2: slice(r + 2, 19), 3: slice(r + 2, 20) },
           }
         : {}),
     };

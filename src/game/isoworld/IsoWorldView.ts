@@ -362,9 +362,10 @@ export class IsoWorldView {
     const patch = deco && propAt(world, x, y)?.kind === 'patch' && tier > spec.floor;
     const surface = tier * block.z;
 
-    // An outer corner touches the plateau at one point: the lace wraps it.
+    // An outer corner touches the plateau at one point: the lace wraps it,
+    // laid on the corner's slope, so the piece stands on the ramp's base.
     if (ramp?.kind === 'outer') {
-      this.place(this.surfaceMaterial(ground, tier + 1).laceCap![ramp.dir], x, y, surface + block.z);
+      this.place(this.surfaceMaterial(ground, tier + 1).laceCap![ramp.dir], x, y, surface);
     }
 
     for (const d of [DIR.N, DIR.W] as const) {
@@ -378,11 +379,11 @@ export class IsoWorldView {
       // The tier above spills over a ramp's high edge — whether that tier is
       // flat there or itself climbing on toward the next.
       if (ramp && n === tier + 1 && rampHighSides(ramp).includes(d)) {
-        this.place(this.surfaceMaterial(ground, n).fringe![d], x, y, surface + block.z);
+        this.laceOver(this.surfaceMaterial(ground, n), ramp, d, x, y, surface);
         continue;
       }
       if (nRamp && n === tier - 1 && rampHighSides(nRamp).includes(back)) {
-        this.place(this.surfaceMaterial(ground, tier).fringe![back], nx, ny, surface);
+        this.laceOver(this.surfaceMaterial(ground, tier), nRamp, back, nx, ny, surface - block.z);
         continue;
       }
 
@@ -408,6 +409,18 @@ export class IsoWorldView {
         this.place(this.surfaceMaterial(ground, tier).patchFringe![back], nx, ny, surface);
       }
     }
+  }
+
+  /**
+   * The lace of `material` over ramp cell `(x, y)` along its high side `d`,
+   * `base` being the ramp's own surface height. Down a straight slope the
+   * lace follows the hillside; an inner corner is flat where the lace hangs,
+   * so its lace lies in the plane of the tier above.
+   */
+  private laceOver(material: MaterialTiles, ramp: Ramp, d: Dir, x: number, y: number, base: number): void {
+    const { block } = this.options.tileset;
+    if (ramp.kind === 'slope' || ramp.kind === 'stairs') this.place(material.slopeFringe![d], x, y, base);
+    else this.place(material.fringe![d], x, y, base + block.z);
   }
 
   /**

@@ -28,7 +28,13 @@ neighbour's transparent edge and draw a hairline seam down every wall.
     r1    turf     flat     slope S    slope E    outer NE  outer SE  outer SW  outer NW
     r2    rim N    rim E    rim S      rim W      fringe N  fringe E  fringe S  fringe W
     r2    ...      col 8    patch      col 9-12   patch fringe N E S W
-    r2    ...      col 13-16 lace cap NE SE SW NW
+    r2    ...      col 13-16 lace cap NE SE SW NW   col 17-20 slope fringe N E S W
+
+The flat fringe (4-7) lies in the plane of the tier above: it is for the
+inner corner, whose surface is flat where the fringe hangs. The SLOPE FRINGE
+(17-20) is the same lace projected down a straight slope climbing toward
+that side, so it clings to the hillside instead of floating over it; the
+lace cap is likewise laid on the outer corner's slope.
 
 and on the shared row 9, after the corners:
 
@@ -119,7 +125,7 @@ OUT_PUBLIC = ROOT / 'public' / 'assets' / 'world' / 'iso-smooth-sheet-128.png'
 CELL = 128
 PAD = 2
 PITCH = CELL + 2 * PAD
-COLS, ROWS = 17, 10
+COLS, ROWS = 21, 10
 SS = 4  # supersampling: drawn at 512px per cell, then resolved down
 
 # Line weights, in OUTPUT pixels. Heavier than they look on the sheet: in the
@@ -454,15 +460,16 @@ RIM_EDGES = {
 CORNERS = {'L': (0, 1), 'R': (1, 0), 'F': (1, 1)}
 
 
-def scallop_band(edge: str, depth: float, bumps: int):
+def scallop_band(edge: str, depth: float, bumps: int, z=lambda u, v: 0.0):
     """
     The polygon of a lace along one edge of the base diamond, inside it: the
-    straight edge, then a wavy far side of `bumps` semicircles.
+    straight edge, then a wavy far side of `bumps` semicircles. `z` lifts each
+    lattice point onto a surface, so the lace can lie on a slope.
     """
     (a, b) = RIM_EDGES[edge]
     # Inward direction, in lattice units: from the edge toward the cell.
     inward = {'N': (0, 1), 'E': (-1, 0), 'S': (0, -1), 'W': (1, 0)}[edge]
-    pts = [P(*a), P(*b)]
+    pts = [P(a[0], a[1], z(a[0], a[1])), P(b[0], b[1], z(b[0], b[1]))]
     steps = 24 * bumps
     for k in range(steps, -1, -1):
         t = k / steps
@@ -470,14 +477,26 @@ def scallop_band(edge: str, depth: float, bumps: int):
         d = depth * (0.55 + 0.45 * math.sqrt(max(0.0, 1 - (2 * phase - 1) ** 2)))
         u = a[0] + (b[0] - a[0]) * t + inward[0] * d
         v = a[1] + (b[1] - a[1]) * t + inward[1] * d
-        pts.append(P(u, v, 0))
+        pts.append(P(u, v, z(u, v)))
     return pts
 
 
-def fringe(color, edge: str) -> Cell:
-    """The lace of `color` hanging over this cell from the neighbour across `edge`."""
+# Height of a straight slope climbing toward a side, over the cell.
+SLOPE_Z = {
+    'N': lambda u, v: 1 - v,
+    'E': lambda u, v: u,
+    'S': lambda u, v: v,
+    'W': lambda u, v: 1 - u,
+}
+
+
+def fringe(color, edge: str, sloped: bool = False) -> Cell:
+    """
+    The lace of `color` hanging over this cell from the neighbour across
+    `edge`: flat, or laid down the slope that climbs toward that edge.
+    """
     c = Cell()
-    pts = scallop_band(edge, FRINGE_DEPTH, FRINGE_BUMPS)
+    pts = scallop_band(edge, FRINGE_DEPTH, FRINGE_BUMPS, SLOPE_Z[edge] if sloped else (lambda u, v: 0.0))
     d = ImageDraw.Draw(c.img)
     d.polygon(pts, fill=color)
     # Outline the wavy side only; the straight side meets the neighbour's fill.
@@ -491,7 +510,9 @@ def lace_cap(color, corner: int) -> Cell:
     cu, cv = [(1, 0), (1, 1), (0, 1), (0, 0)][corner]
     # The two edges leaving the corner, as unit inward directions.
     a, b = [((-1, 0), (0, 1)), ((0, -1), (-1, 0)), ((1, 0), (0, -1)), ((0, 1), (1, 0))][corner]
-    pts = [P(cu, cv, 0)]
+    # On the outer corner's slope, which falls away from the raised corner.
+    z = lambda u, v: 1 - abs(u - cu) - abs(v - cv)
+    pts = [P(cu, cv, 1)]
     steps = 48
     # One smooth bulge, at the fringe's full depth, so it reads as the fringe
     # turning the corner rather than as a separate blob.
@@ -502,7 +523,7 @@ def lace_cap(color, corner: int) -> Cell:
         d = depth * (0.75 + 0.25 * math.sin(theta * 2))
         u = cu + d * (a[0] * math.cos(theta) + b[0] * math.sin(theta))
         v = cv + d * (a[1] * math.cos(theta) + b[1] * math.sin(theta))
-        pts.append(P(u, v, 0))
+        pts.append(P(u, v, z(u, v)))
     d2 = ImageDraw.Draw(c.img)
     d2.polygon(pts, fill=color)
     d2.line(pts[1:], fill=LACE_INK, width=round(OUTLINE * 0.8 * SS), joint='curve')
@@ -591,6 +612,8 @@ def build() -> Image.Image:
         put(r + 2, 8, patch(mat, rng))
         for col in range(4):
             put(r + 2, 13 + col, lace_cap(mat[1], col))
+        for col, direction in enumerate('NESW'):
+            put(r + 2, 17 + col, fringe(mat[1], direction, sloped=True))
     for col, which in enumerate('LRF'):
         put(9, col, corner(which))
     for i, direction in enumerate('NESW'):
