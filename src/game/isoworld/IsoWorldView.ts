@@ -170,12 +170,12 @@ export class IsoWorldView {
 
   private readonly layer = new Container();
   /**
-   * The sea, over the land: a translucent block on the sand's plane stands
-   * in front of and above the beach, so painter's order among cells cannot
-   * place it — it is drawn last, in its own layer.
+   * The sea, over the land: a translucent sheet half a block above the sand's
+   * plane, beach included, cut at the waterline across the beach's ramps. It
+   * lies over the land it floods, so it is drawn last, in its own layer.
    */
   private readonly waterLayer = new Container();
-  private readonly seaCells: number[] = [];
+  private readonly flooded: number[] = [];
 
   /** Decorations by the index of the LAST cell of their footprint, where they are drawn. */
   private readonly decorAt = new Map<number, { x: number; y: number; prop: Prop }>();
@@ -239,8 +239,8 @@ export class IsoWorldView {
     const tier = tierAt(world, x, y);
 
     if (tier === 0) {
-      if (tileset.water && !tileset.waterFaces) this.place(tileset.water, x, y, 0, false);
-      else if (tileset.water) this.seaCells.push(y * world.width + x);
+      if (tileset.water && !spec.floodedFloor) this.place(tileset.water, x, y, 0, false);
+      else if (tileset.water) this.flooded.push(y * world.width + x);
       // The sea draws the island's foot: its rims, at floor height, along
       // every edge where land stands.
       this.outline(x, y, 0);
@@ -259,7 +259,10 @@ export class IsoWorldView {
       if (!top && east > k && south > k) continue;
       this.place(this.blockMaterial(ground, tier, top).cube, x, y, k * block.z);
     }
-    if (tier <= spec.floor) this.place(this.surfaceMaterial(ground, tier).flat, x, y, surface);
+    if (tier <= spec.floor) {
+      this.place(this.surfaceMaterial(ground, tier).flat, x, y, surface);
+      if (spec.floodedFloor) this.flooded.push(y * world.width + x);
+    }
 
     // The turf is thin, so it is laid its own thickness down: its top lands
     // exactly on the surface and its sides cover the top of the dirt block.
@@ -308,21 +311,28 @@ export class IsoWorldView {
   }
 
   /**
-   * The sea as a translucent block on the floor's plane, in its own layer:
-   * the top on every sea cell, and a south or east face where the block
-   * borders land, so the beach shows through the water's edge.
+   * The water sheet over the floor, in its own layer: the flat tile on sea
+   * and flat sand, and on a sand ramp the sheet cut at the waterline, so the
+   * ramp's foot lies under the water and its upper half stands clear.
    */
   private buildSea(): void {
     const { world, tileset } = this.options;
     const { block, spec } = tileset;
-    if (!tileset.water || !tileset.waterFaces) return;
+    if (!tileset.water || !tileset.waterOver) return;
     const base = spec.floor * block.z;
-    for (const i of this.seaCells) {
+    for (const i of this.flooded) {
       const x = i % world.width;
       const y = (i / world.width) | 0;
-      if (tierAt(world, x, y + 1) > 0) this.place(tileset.waterFaces.south, x, y, base, false, this.waterLayer);
-      if (tierAt(world, x + 1, y) > 0) this.place(tileset.waterFaces.east, x, y, base, false, this.waterLayer);
-      this.place(tileset.water, x, y, base + spec.waterHeight * block.z, false, this.waterLayer);
+      const ramp = rampAt(world, x, y);
+      const piece =
+        ramp === undefined
+          ? tileset.water
+          : ramp.kind === 'inner'
+            ? tileset.waterOver.inner[ramp.dir]
+            : ramp.kind === 'outer'
+              ? tileset.waterOver.outer[ramp.dir]
+              : tileset.waterOver.slope[ramp.dir];
+      this.place(piece, x, y, base, false, this.waterLayer);
     }
   }
 

@@ -37,11 +37,11 @@ inner corner, whose surface is flat where the fringe hangs. The SLOPE FRINGE
 that side, so it clings to the hillside instead of floating over it; the
 lace cap is likewise laid on the outer corner's slope.
 
-WATER is a translucent block half a block tall standing on the sand's plane:
-its top (with its own light grid) and its south and east faces, drawn from
-the base edge up. The renderer lays the top on every sea cell and a face
-wherever the block borders land, in a layer over the land, since the block
-stands in front of and above the beach.
+WATER is a translucent sheet half a block above the sand's plane, over the
+sea and the beach alike: the flat tile (with its own light grid) covers a
+sea or flat sand cell, and the WATER OVER pieces cover a sand ramp — the
+same sheet cut at the waterline, so the ramp's upper half stands out of the
+water while its foot lies under it. Drawn in a layer over the land.
 
 A LACE CAP is the fringe wrapped around one corner of the cell, for the
 outer-corner ramp, which the plateau above touches only at that point. A
@@ -66,7 +66,9 @@ island has no wall between two land tiers.
 
 and a tenth row of pieces shared by every material:
 
-    r9    corner L corner R corner F   water     water S    water E
+    r9    corner L corner R corner F   water
+    r9    col 6-9   water over slope W N S E     col 10-13 water over inner NE SE SW NW
+    r9    col 14-17 water over outer NE SE SW NW
 
 The pixel sheet's last two columns (stairs, prop blocks) are not drawn: this
 sheet is terrain only, and the renderer builds a flight of stairs as a slope
@@ -150,8 +152,6 @@ STRIPE_INK = (168, 158, 132)
 PEBBLE = (118, 120, 108)
 
 WATER_FILL = (150, 232, 228, 150)
-WATER_FACE = (120, 214, 214, 165)
-WATER_GRID = (222, 250, 247, 210)
 WATER_HEIGHT = 0.5
 
 # Fringe geometry, in lattice units of the cell edge.
@@ -570,25 +570,50 @@ def patch(mat, rng) -> Cell:
 
 
 def water() -> Cell:
-    """The sea surface: a translucent flat tile with a light grid on its N and W edges."""
+    """The sea surface: one translucent flat tile half a block up. No grid: the sand's shows through."""
     c = Cell()
-    pts = top_quad(0)
+    pts = top_quad(WATER_HEIGHT)
     ImageDraw.Draw(c.img).polygon(offset_polygon(pts, BLEED * SS), fill=WATER_FILL)
-    for i in (0, 3):
-        a, b = pts[i], pts[(i + 1) % 4]
-        length = math.hypot(b[0] - a[0], b[1] - a[1])
-        k = GRID * SS / 2 / length
-        ImageDraw.Draw(c.img).line(
-            [(a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k), (b[0] - (b[0] - a[0]) * k, b[1] - (b[1] - a[1]) * k)],
-            fill=WATER_GRID, width=round(GRID * SS))
     return c
 
 
-def water_face(side: str) -> Cell:
-    """One translucent face of the water block, rising from the base edge."""
+def clip_below(tri, level: float):
+    """
+    The part of a lattice triangle `[(u, v, z)] * 3` whose surface lies
+    under `level`, as a polygon of (u, v) points. `z` is linear over the
+    triangle, so the cut is a straight line: Sutherland-Hodgman against it.
+    """
+    out = []
+    n = len(tri)
+    for i in range(n):
+        a, b = tri[i], tri[(i + 1) % n]
+        a_in, b_in = a[2] < level, b[2] < level
+        if a_in:
+            out.append((a[0], a[1]))
+        if a_in != b_in:
+            t = (level - a[2]) / (b[2] - a[2])
+            out.append((a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t))
+    return out
+
+
+def water_over(heights) -> Cell:
+    """The water sheet over a ramp with these corner heights: only where the ramp is under it."""
+    h00, h10, h11, h01 = heights
+    corners = [(0, 0, h00), (1, 0, h10), (1, 1, h11), (0, 1, h01)]
+    raised = sum(heights)
+    if raised in (0, 4) or (raised == 2 and h00 == h11):
+        tris = [[corners[0], corners[1], corners[2]], [corners[0], corners[2], corners[3]]]
+    else:
+        odd = heights.index(1) if raised == 1 else heights.index(0)
+        a, b = corners[(odd + 1) % 4], corners[(odd + 3) % 4]
+        tris = [[a, corners[(odd + 2) % 4], b], [corners[odd], a, b]]
     c = Cell()
-    face = south_face(0, WATER_HEIGHT) if side == 'S' else east_face(0, WATER_HEIGHT)
-    ImageDraw.Draw(c.img).polygon(offset_polygon(face, BLEED * SS), fill=WATER_FACE)
+    d = ImageDraw.Draw(c.img)
+    for tri in tris:
+        poly = clip_below(tri, WATER_HEIGHT)
+        if len(poly) >= 3:
+            pts = [P(u, v, WATER_HEIGHT) for u, v in poly]
+            d.polygon(offset_polygon(pts, BLEED * SS) if len(pts) > 2 else pts, fill=WATER_FILL)
     return c
 
 
@@ -657,8 +682,18 @@ def build() -> Image.Image:
     for col, which in enumerate('LRF'):
         put(9, col, corner(which))
     put(9, 3, water())
-    put(9, 4, water_face('S'))
-    put(9, 5, water_face('E'))
+    for col, direction in enumerate('WNSE'):
+        heights = [0, 0, 0, 0]
+        for i in SIDE_CORNERS[direction]:
+            heights[i] = 1
+        put(9, 6 + col, water_over(heights))
+    for d in range(4):
+        heights = [1, 1, 1, 1]
+        heights[CORNER_INDEX[(d + 2) % 4]] = 0
+        put(9, 10 + d, water_over(heights))
+        heights = [0, 0, 0, 0]
+        heights[CORNER_INDEX[d]] = 1
+        put(9, 14 + d, water_over(heights))
     return sheet
 
 
