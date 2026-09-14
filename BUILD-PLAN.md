@@ -91,7 +91,7 @@ Sabotage (après validation des raids) :
 - [ ] Spectate d'un joueur en run depuis le leaderboard
 - [ ] Item bombe → pose une bombe cachée sur sa map, signée (la cible voit qui) ; les chiffres déjà révélés se mettent à jour (le "2" devient "3" — détectable par un joueur attentif)
 - [ ] Item lightning → brouille/détruit une zone révélée
-- [ ] Les chests des runs droppent maintenant des items d'attaque et des shields (le stub de la phase 1 devient réel)
+- [x] Les chests des runs droppent maintenant des items d'attaque et des shields (le stub de la phase 1 devient réel) — plus l'eau et le fertiliseur du jardin, une seule table fusionnée ; les items sont credites au banking de la run
 
 **Definition of done** : deux comptes peuvent se raid, le score se transfère, le shield protège.
 **Question de playtest** : se faire piller donne-t-il envie de se venger (bon signe) ou de désinstaller (mauvais tuning : baisser le %) ?

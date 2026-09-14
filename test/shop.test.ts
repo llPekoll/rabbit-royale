@@ -10,8 +10,8 @@
 import { describe, expect, it } from 'vitest';
 import { ENERGY_PACK, SHOP, SMOKE, itemCap, itemPrice, itemUsdcPrice, usdcBaseUnits } from '../config/tuning';
 import {
-  CARRIED_KINDS, ITEM_KINDS, energyPacksLeft, energyPacksUsed, holdings,
-  isItemKind, purchaseBlocker, purchaseCost, purchaseUsdc, shopShelf,
+  CARRIED_KINDS, GARDEN_KINDS, ITEM_KINDS, SHOP_KINDS, energyPacksLeft, energyPacksUsed,
+  holdings, isItemKind, isShopKind, purchaseBlocker, purchaseCost, purchaseUsdc, shopShelf,
   spendEnergyPack, smokeActive, smokeDaysLeft, extendSmoke, type Holdings,
 } from '../src/lib/game/inventory';
 
@@ -26,14 +26,17 @@ const fresh = {
   smokeUntil: null,
 };
 const bag = (over: Partial<Holdings> = {}): Holdings =>
-  ({ trap: 0, bomb: 0, lightning: 0, shield: 0, energy: 0, smoke: 0, mirage: 0, ...over });
+  ({
+    trap: 0, bomb: 0, lightning: 0, shield: 0, energy: 0, smoke: 0, mirage: 0,
+    water: 0, fertiliser: 0, ...over,
+  });
 
 describe('the price list', () => {
   // THE economy rule, as a test. "Everything is buyable in carrots OR money"
   // and "no exclusive power for money, ever" both fail the moment a line
   // exists in one currency only.
   it('prices every item in both currencies', () => {
-    for (const kind of ITEM_KINDS) {
+    for (const kind of SHOP_KINDS) {
       expect(itemPrice(kind), `${kind} has no carrot price`).toBeGreaterThan(0);
       expect(itemUsdcPrice(kind), `${kind} has no USDC price`).toBeGreaterThan(0);
     }
@@ -45,10 +48,28 @@ describe('the price list', () => {
     expect(isItemKind(undefined)).toBe(false);
   });
 
+  /**
+   * The garden boosts are FOUND, never bought. This is the rule that keeps the
+   * chest worth digging for: the moment water is on the shelf, a rich player
+   * buys a permanent garden and the drop stops meaning anything.
+   *
+   * Guarded at the route's front door via `isShopKind`, so this pins the
+   * predicate the routes actually call rather than the shelf alone.
+   */
+  it('does not sell the garden boosts', () => {
+    for (const kind of GARDEN_KINDS) {
+      expect(isItemKind(kind), `${kind} should be a real item`).toBe(true);
+      expect(isShopKind(kind), `${kind} must not be buyable`).toBe(false);
+      expect(SHOP.PRICES).not.toHaveProperty(kind);
+    }
+    const shelf = shopShelf(bag(), 10_000).map((l) => l.kind as string);
+    for (const kind of GARDEN_KINDS) expect(shelf).not.toContain(kind);
+  });
+
   it('converts USDC to whole base units', () => {
     // The verifier compares this to an on-chain integer, so a float that
     // survives the conversion would never match.
-    for (const kind of ITEM_KINDS) {
+    for (const kind of SHOP_KINDS) {
       const units = usdcBaseUnits(itemUsdcPrice(kind));
       expect(Number.isInteger(units)).toBe(true);
     }
@@ -64,7 +85,7 @@ describe('the shelf', () => {
   it('shows items the player cannot afford', () => {
     // A shop that hides what you cannot buy gives nothing to save towards.
     const shelf = shopShelf(bag(), 0);
-    expect(shelf).toHaveLength(ITEM_KINDS.length);
+    expect(shelf).toHaveLength(SHOP_KINDS.length);
     expect(shelf.every((i) => i.canBuy)).toBe(false);
   });
 

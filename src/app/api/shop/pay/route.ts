@@ -18,7 +18,7 @@ import { and, desc, eq, lt } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { inventory, payments, players } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
-import { holdings, isItemKind, purchaseBlocker, purchaseUsdc } from '@/lib/game/inventory';
+import { holdings, isShopKind, purchaseBlocker, purchaseUsdc } from '@/lib/game/inventory';
 import { grantItem } from '@/lib/game/grant';
 import { USDC, usdcBaseUnits } from '@config/tuning';
 import { findPaidSignature, payEnabled, treasuryAddress, usdcMint, verifyPayment } from '@/lib/pay/solana';
@@ -56,7 +56,10 @@ export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as {
     kind?: unknown; qty?: unknown; token?: unknown;
   };
-  if (!isItemKind(body.kind)) return Response.json({ error: 'unknown_item' }, { status: 400 });
+  // isShopKind, not isItemKind: the enum now also carries the chest-only garden
+  // boosts, and those have no price. Guarding on the wider set would let a
+  // crafted POST reach `itemPrice` with a kind that has no entry.
+  if (!isShopKind(body.kind)) return Response.json({ error: 'unknown_item' }, { status: 400 });
   const kind = body.kind;
   const qty = body.qty === undefined ? 1 : Number(body.qty);
 

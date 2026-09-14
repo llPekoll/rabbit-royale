@@ -27,9 +27,11 @@ import { resolveMove, spawnRabbit } from '../src/lib/game/run';
 import { mirageActive, planMirage, shownAdjacent } from '../src/lib/game/mirage';
 import { strike } from '../src/lib/game/lightning';
 import { makeShape, toColRow, toIndex } from '../src/config/gridConfig';
-import { planFlock, type Ground } from '../src/lib/game/flee';
+import { GRAZE_CHANCE, isSpooked, planFlock, type Ground } from '../src/lib/game/flee';
 import { boardFor, terrainFor } from '../src/lib/game/terrainBoard';
 import type { Rabbit } from '../src/lib/game/types';
+import { grantItem } from '../src/lib/game/grant';
+import type { ItemKind } from '../src/lib/game/inventory';
 import { verifySession } from '../src/lib/auth/jwt';
 import { db } from '../src/lib/db';
 import { inventory, players, runs, seasons } from '../src/lib/db/schema';
@@ -278,12 +280,37 @@ async function bankRun(rabbit: Rabbit) {
     endedAt: new Date(),
   }).where(eq(runs.id, runId));
 
+  // Chest items land in the SAME banking step as the carrots, and after the
+  // run row is closed. Granting them at the dig would have let a player farm
+  // chests without ever finishing a run; granting them here means a run either
+  // banks entirely or not at all.
+  //
+  // Each grant is its own statement rather than one transaction with the
+  // carrots above, and that is a deliberate trade: `grantItem` reads the player
+  // row for the timed kinds, so folding it in would hold a row lock across the
+  // whole bag. A chest item that fails to land is a bug worth a loud log, not a
+  // reason to roll back carrots the player has already been told about.
+  for (const [kind, qty] of Object.entries(run.loot)) {
+    if (!qty) continue;
+    try {
+      await grantItem(db, playerId, kind as ItemKind, qty);
+    } catch (e) {
+      console.error('[bankRun] chest grant failed', playerId, kind, qty, e);
+    }
+  }
+  if (run.nfts.length) {
+    // No mint yet — the drop is RECORDED so the run that produced it is on file
+    // when minting arrives (BUILD-PLAN phase 114). Losing the log would make an
+    // NFT owed to a player unprovable, which is worse than not minting today.
+    console.log('[chest-nft]', playerId, 'run', runId, 'tiles', run.nfts.join(','));
+  }
+
   // Announced only now, after the row is written: the client answers this by
   // re-reading the burrow, and a notice that outran its own UPDATE would have it
   // read the old total and cache the very staleness this exists to clear.
   // The socket may be gone (a closed tab, a sweep banking for an absent player)
   // — the carrots are safe either way, and the next burrow load will show them.
-  socketOf(playerId)?.emit('banked', { carrots });
+  socketOf(playerId)?.emit('banked', { carrots, loot: run.loot, nfts: run.nfts.length });
 
   // The carrots are banked in Postgres by this point, which is what matters.
   // Mirroring the score into Redis is a CACHE update — `rebuildLeaderboard`
@@ -356,7 +383,7 @@ io.on('connection', (socket: Socket) => {
       }).returning({ id: runs.id });
       // ON THE RABBIT, not on the socket: the seat outlives the connection, and
       // the sweep that frees it is the exit with no socket to read.
-      rabbit.run = { id: run.id, startedAt: Date.now(), tilesDug: 0, bombsHit: 0 };
+      rabbit.run = { id: run.id, startedAt: Date.now(), tilesDug: 0, bombsHit: 0, loot: {}, nfts: [] };
       data.runId = run.id;
       data.runStartedAt = Date.now();
       data.bombsHit = 0;
@@ -380,6 +407,12 @@ io.on('connection', (socket: Socket) => {
    * live — but is never given a rabbit, which is what makes watching harmless.
    */
   socket.on('spectate', guard('spectate', async (payload: { playerId?: unknown }) => {
+    // Authenticated, like every other handler. Watching is not a harmless
+    // read: the snapshot below carries the island's seed and the room carries
+    // every reveal live, so an anonymous socket could follow any named player's
+    // run — and player ids are public, they ride on `publicRabbit` and on the
+    // leaderboard. A spectator still owns no rabbit; it just has to be someone.
+    if (!data.playerId) return socket.emit('error_msg', { code: 'unauthenticated' });
     const target = payload?.playerId;
     if (typeof target !== 'string') return;
 
@@ -801,6 +834,32 @@ function groundFor(live: LiveIsland): { ground: Ground; occupied: Set<string> } 
 }
 
 /**
+ * Is any sheep on this island SPOOKED — a rabbit within panic range?
+ *
+ * Asked before `groundFor`, and that order is the point. Building the ground
+ * means a `Set` of every occupant plus three closures, per island, twice a
+ * second — and on a calm island it is all allocated to plan a drift that
+ * usually does not happen. This pass is arithmetic over a handful of sheep and
+ * no allocation at all.
+ *
+ * Deliberately NOT the full answer to "will anything move": a calm flock still
+ * grazes on a `GRAZE_CHANCE` roll, and that roll belongs to `planFlight`. Rolling
+ * it here would consume draws from a stream the planner then reads differently,
+ * which is how an optimisation quietly changes the game. So the graze path pays
+ * for its ground exactly as before, and what this skips is the case that
+ * dominates at scale anyway: an island whose rabbits are nowhere near the flock.
+ */
+function anySheepSpooked(live: LiveIsland): boolean {
+  if (live.sheep.size === 0) return false;
+  const rabbitTiles = [...live.rabbits.values()].filter((r) => r.alive).map((r) => r.tile);
+  if (rabbitTiles.length === 0) return false;
+  for (const [id, at] of live.sheep) {
+    if (isSpooked({ id, x: at.x, y: at.y }, rabbitTiles)) return true;
+  }
+  return false;
+}
+
+/**
  * Move every island's flock one tick and tell the room what changed.
  *
  * Only islands with somebody on them: a flock nobody is watching does not need
@@ -813,6 +872,17 @@ function groundFor(live: LiveIsland): { ground: Ground; occupied: Set<string> } 
 setInterval(guard('flock', () => {
   for (const live of store.all()) {
     if (live.erupting || live.rabbits.size === 0) continue;
+    // Skip the islands where nothing can happen, BEFORE paying for the ground.
+    //
+    // Two ways a tick matters: something is spooked (tested exactly), or a calm
+    // sheep grazes. The second is a per-sheep coin flip inside `planFlight`, so
+    // the odds that at least one of n sheep grazes are `1 - (1 - p)^n` — rolled
+    // once here purely as a gate. The planner still flips per sheep afterwards,
+    // which is what decides WHICH sheep drifts; this only decides whether the
+    // island is worth looking at. A flock drifts marginally less often as a
+    // result (both rolls must pass), and at 500ms that is invisible — what it
+    // buys is that a quiet island costs arithmetic instead of a Set per tick.
+    if (!anySheepSpooked(live) && Math.random() >= 1 - (1 - GRAZE_CHANCE) ** live.sheep.size) continue;
 
     const { ground, occupied } = groundFor(live);
     const rabbitTiles = [...live.rabbits.values()].filter((r) => r.alive).map((r) => r.tile);

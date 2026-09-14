@@ -8,4 +8,4 @@
 - ils faut absolument que toutes les case prairie ai un fog
 - sur la mere pas de fog
 
-- Dans les chest tu as de l'eau du fertiliseur des traps et peut-etre un nft
+- Dans les chest tu as de l'eau, du fertiliseur, des items de raid (bombe, bouclier, foudre), des carottes et peut-etre un nft (1 sur 100) — voir le GDD. Pas de traps : ils sont deja donnes gratuitement chaque jour et vendus en boutique

@@ -13,12 +13,41 @@
  *  - ENERGY is not held at all — a refill is applied on purchase, so what the
  *    shelf reports for it is how many refills the daily cap still allows.
  */
-import { ENERGY_PACK, SHOP, SMOKE, itemCap, itemPrice, itemUsdcPrice } from '@config/tuning';
+import { ENERGY_PACK, GARDEN_BOOST, SHOP, SMOKE, itemCap, itemPrice, itemUsdcPrice } from '@config/tuning';
 import { availableTraps, type TrapRow } from './traps';
 
-/** The kinds the shop sells. Same set the `item_kind` enum stores. */
-export const ITEM_KINDS = ['trap', 'bomb', 'lightning', 'shield', 'energy', 'smoke', 'mirage'] as const;
+/**
+ * Every kind the `item_kind` enum stores.
+ *
+ * A superset of the shop's shelf now that chests drop garden consumables: see
+ * `SHOP_KINDS` for what is actually for sale. The split is deliberate — water
+ * and fertiliser are found, never bought, which is what keeps the garden a
+ * reward for digging rather than a second thing to spend carrots on.
+ */
+export const ITEM_KINDS = [
+  'trap', 'bomb', 'lightning', 'shield', 'energy', 'smoke', 'mirage', 'water', 'fertiliser',
+] as const;
 export type ItemKind = (typeof ITEM_KINDS)[number];
+
+/** The kinds the shop sells — the keys of SHOP.PRICES. */
+export const SHOP_KINDS = ['trap', 'bomb', 'lightning', 'shield', 'energy', 'smoke', 'mirage'] as const;
+export type ShopKind = (typeof SHOP_KINDS)[number];
+
+export function isShopKind(v: unknown): v is ShopKind {
+  return typeof v === 'string' && (SHOP_KINDS as readonly string[]).includes(v);
+}
+
+/**
+ * The garden boosts. Held as TIME on the player row, not as rows in the bag —
+ * same storage decision as the smoke screen, for the same reason: what a
+ * watering gives you is a window, and a count would have to be spent by hand.
+ */
+export const GARDEN_KINDS = ['water', 'fertiliser'] as const;
+export type GardenKind = (typeof GARDEN_KINDS)[number];
+
+export function isGardenKind(v: unknown): v is GardenKind {
+  return typeof v === 'string' && (GARDEN_KINDS as readonly string[]).includes(v);
+}
 
 /** The kinds that are actually CARRIED. Energy is spent as it is bought. */
 export const CARRIED_KINDS = ['trap', 'bomb', 'lightning', 'shield', 'mirage'] as const;
@@ -45,6 +74,12 @@ export interface SmokeRow {
   smokeUntil: Date | null;
 }
 
+/** When each garden boost lapses. Optional — a row may predate them. */
+export interface GardenBoostRow {
+  wateredUntil?: Date | null;
+  fertilisedUntil?: Date | null;
+}
+
 /** Are this burrow's numbers hidden right now? */
 export function smokeActive(row: SmokeRow, now = Date.now()): boolean {
   return !!row.smokeUntil && row.smokeUntil.getTime() > now;
@@ -66,6 +101,34 @@ export function smokeDaysLeft(row: SmokeRow, now = Date.now()): number {
 export function extendSmoke(row: SmokeRow, qty: number, now = Date.now()): Date {
   const from = smokeActive(row, now) ? row.smokeUntil!.getTime() : now;
   return new Date(Math.min(from + qty * SMOKE.DURATION_MS, now + SMOKE.MAX_MS));
+}
+
+/** How long one unit of each garden boost runs for. */
+const GARDEN_DURATION_MS: Record<GardenKind, number> = {
+  water: GARDEN_BOOST.WATER.DURATION_MS,
+  fertiliser: GARDEN_BOOST.FERTILISER.DURATION_MS,
+};
+
+/**
+ * The new expiry after picking up `qty` of a garden boost.
+ *
+ * Extends a live window rather than restarting it — exactly `extendSmoke`, and
+ * for the same player-facing reason: two waterings should be worth two windows,
+ * or a chest opened while the last one still runs is a drop thrown away.
+ *
+ * Capped at `MAX_BANKED_MS` from now, which is what keeps a lucky week from
+ * compounding into a permanently buffed garden.
+ */
+export function extendGardenBoost(
+  kind: GardenKind,
+  until: Date | null | undefined,
+  qty: number,
+  now = Date.now(),
+): Date {
+  const live = !!until && until.getTime() > now;
+  const from = live ? until!.getTime() : now;
+  const extended = from + qty * GARDEN_DURATION_MS[kind];
+  return new Date(Math.min(extended, now + GARDEN_BOOST.MAX_BANKED_MS));
 }
 
 /** What a player holds, every kind present even at zero. */
@@ -112,10 +175,13 @@ export function spendEnergyPack(row: EnergyPackRow, now = Date.now()): EnergyPac
  */
 export function holdings(
   rows: InventoryRow[],
-  row: TrapRow & EnergyPackRow & SmokeRow,
+  row: TrapRow & EnergyPackRow & SmokeRow & GardenBoostRow,
   now = Date.now(),
 ): Holdings {
-  const bag = { trap: 0, bomb: 0, lightning: 0, shield: 0, energy: 0, smoke: 0, mirage: 0 } as Holdings;
+  const bag = {
+    trap: 0, bomb: 0, lightning: 0, shield: 0, energy: 0, smoke: 0, mirage: 0,
+    water: 0, fertiliser: 0,
+  } as Holdings;
   for (const r of rows) if (isItemKind(r.kind)) bag[r.kind] = r.qty;
   // Traps, energy and smoke override whatever the table said: none is stored
   // there. Traps live beside their free allowance, energy is applied on
@@ -123,11 +189,22 @@ export function holdings(
   bag.trap = availableTraps(row, now);
   bag.energy = energyPacksUsed(row, now);
   bag.smoke = smokeDaysLeft(row, now);
+  // The garden boosts are instants too, reported as whole hours still to run so
+  // the HUD can say "watered, 3h" the way the shelf says "2 of 3 days".
+  bag.water = boostHoursLeft(row.wateredUntil, now);
+  bag.fertiliser = boostHoursLeft(row.fertilisedUntil, now);
   return bag;
 }
 
+/** Whole hours of a boost still to run, rounded up. Zero once it has lapsed. */
+export function boostHoursLeft(until: Date | null | undefined, now = Date.now()): number {
+  if (!until) return 0;
+  const ms = until.getTime() - now;
+  return ms > 0 ? Math.ceil(ms / 3_600_000) : 0;
+}
+
 export interface ShopItem {
-  kind: ItemKind;
+  kind: ShopKind;
   /** Price in carrots. Every line has one — see SHOP in tuning. */
   price: number;
   /** Price in whole USDC. Every line has one of these too. */
@@ -150,7 +227,10 @@ export interface ShopItem {
  * you cannot buy gives a player nothing to save towards.
  */
 export function shopShelf(bag: Holdings, stock: number): ShopItem[] {
-  return ITEM_KINDS.map((kind) => {
+  // SHOP_KINDS, not ITEM_KINDS: the bag now also holds the garden boosts, and
+  // those are found in chests rather than sold. Listing a kind with no entry
+  // in SHOP.PRICES would put an unpriced line on the shelf.
+  return SHOP_KINDS.map((kind) => {
     const cap = itemCap(kind);
     const hasRoom = bag[kind] < cap;
     return {
@@ -167,11 +247,11 @@ export function shopShelf(bag: Holdings, stock: number): ShopItem[] {
 
 /** Carrots for `qty` of `kind`. Flat — no bulk discount, because a discount on
  *  offence is a discount on hurting people who bought none. */
-export const purchaseCost = (kind: ItemKind, qty: number) => itemPrice(kind) * qty;
+export const purchaseCost = (kind: ShopKind, qty: number) => itemPrice(kind) * qty;
 
 /** Whole USDC for `qty` of `kind`. Rounded to the cent the quote is stated in;
  *  the base-unit conversion happens once, at the payment's edge. */
-export const purchaseUsdc = (kind: ItemKind, qty: number) =>
+export const purchaseUsdc = (kind: ShopKind, qty: number) =>
   Math.round(itemUsdcPrice(kind) * qty * 100) / 100;
 
 /**
@@ -187,7 +267,7 @@ export const purchaseUsdc = (kind: ItemKind, qty: number) =>
  * than a second, better game.
  */
 export function purchaseBlocker(
-  kind: ItemKind,
+  kind: ShopKind,
   qty: number,
   bag: Holdings,
   stock?: number,

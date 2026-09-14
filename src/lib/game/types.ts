@@ -74,8 +74,30 @@ export interface Rabbit {
     startedAt: number;
     tilesDug: number;
     bombsHit: number;
+    /**
+     * Items pulled from chests this run, by kind, banked with the carrots.
+     *
+     * Held here rather than written at the dig for the same reason the carrots
+     * are: a run is banked at ONE point, from whichever exit fires, and an item
+     * credited mid-dig would survive a run whose carrots were rolled back —
+     * a player could then farm chests by never finishing. Living on the rabbit
+     * also means the sweep can bank a loot bag for a player who is long gone.
+     *
+     * `nft` is deliberately absent from this bag: it is not a stackable item and
+     * is recorded on its own — see `run.nfts`.
+     */
+    loot: Partial<Record<LootItemKind, number>>;
+    /** Chest NFT drops this run, as tile indices — the seed the mint is drawn
+     *  from. Kept apart from `loot` because one is a count and this is not. */
+    nfts: number[];
   };
 }
+
+/**
+ * The chest kinds that become an inventory grant. `carrots` is paid straight
+ * onto the rabbit and `nft` is minted, so neither appears here.
+ */
+export type LootItemKind = 'bomb' | 'shield' | 'lightning' | 'water' | 'fertiliser';
 
 /** What a dig produced. The server sends this back; the client only animates. */
 export interface DigResult {
@@ -86,7 +108,7 @@ export interface DigResult {
   carrotDelta: number;
   /** Set when the tile was a bomb: the tile the blast threw the rabbit onto. */
   knockback?: { tile: number; stunnedUntil: number };
-  /** Chest contents (Phase 1 stub gives carrots; Phase 5 gives real items). */
+  /** Chest contents. Carrots land immediately; items are banked with the run. */
   loot?: { kind: string; amount: number };
   /** A sabotage bomb names its planter, so revenge has an address. */
   plantedBy?: string;

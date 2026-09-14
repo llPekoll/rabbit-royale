@@ -235,11 +235,20 @@ export function resolveMove(
         const roll = pickWeighted(rng, CHEST_LOOT);
         const amount = randInt(rng, roll.min, roll.max);
         dig.loot = { kind: roll.kind, amount };
-        // Phase 1 stub: only carrots are real. Items are recorded by the caller
-        // once the inventory exists (Phase 5) — the table already rolls them.
+
+        // Three destinations, because the table holds three different KINDS of
+        // thing. Carrots are paid onto the rabbit like any other dig; items go
+        // into the run's bag and are granted when the run banks; an NFT is
+        // neither a count nor a currency, so only the tile it came from is
+        // recorded and the mint is the caller's problem.
         if (roll.kind === 'carrots') {
           rabbit.carrots += amount;
           dig.carrotDelta = amount;
+        } else if (roll.kind === 'nft') {
+          rabbit.run?.nfts.push(to);
+        } else if (rabbit.run) {
+          const bag = rabbit.run.loot;
+          bag[roll.kind] = (bag[roll.kind] ?? 0) + amount;
         }
       }
       rabbit.tile = to;

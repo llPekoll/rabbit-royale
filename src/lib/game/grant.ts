@@ -17,7 +17,10 @@ import { db } from '@/lib/db';
 import { inventory, players, purchases } from '@/lib/db/schema';
 import { ENERGY_PACK, OUT_OF_RUN_ENERGY } from '@config/tuning';
 import { currentEnergy } from './regen';
-import { extendSmoke, spendEnergyPack, type EnergyPackRow, type ItemKind, type SmokeRow } from './inventory';
+import {
+  extendGardenBoost, extendSmoke, isGardenKind, spendEnergyPack,
+  type EnergyPackRow, type GardenBoostRow, type ItemKind, type SmokeRow,
+} from './inventory';
 
 /**
  * A Drizzle transaction, or the handle itself.
@@ -34,6 +37,8 @@ export interface GrantResult {
   energy: number | null;
   /** For a smoke screen: when the numbers come back. Null otherwise. */
   smokeUntil?: Date | null;
+  /** For a garden boost: when it lapses. Null otherwise. */
+  boostUntil?: Date | null;
 }
 
 /**
@@ -56,6 +61,8 @@ export interface Receipt {
  * Three shapes, because the three storage decisions made elsewhere in the
  * schema are real and this is where they meet:
  *  - energy is APPLIED, not held — it tops the bar up and stamps the window;
+ *  - smoke and the garden boosts are EXPIRY INSTANTS: what they give is a
+ *    window, and a second one extends the first rather than replacing it;
  *  - traps live on the player row beside their free allowance;
  *  - everything else is a row in `inventory`.
  */
@@ -114,6 +121,27 @@ export async function grantItem(
     const smokeUntil = extendSmoke(player as SmokeRow, qty, now);
     await tx.update(players).set({ smokeUntil }).where(eq(players.id, playerId));
     return { kind, qty, energy: null, smokeUntil };
+  }
+
+  // Water and fertiliser are TIME on the player row, like the smoke screen —
+  // there is no bag row to increment. A chest that drops two waterings buys two
+  // windows, and `extendGardenBoost` is what makes the second one count rather
+  // than restart the first.
+  if (isGardenKind(kind)) {
+    const player = await tx.query.players.findFirst({ where: eq(players.id, playerId) });
+    if (!player) throw new Error('unknown player');
+
+    const row = player as GardenBoostRow;
+    const until = extendGardenBoost(
+      kind,
+      kind === 'water' ? row.wateredUntil : row.fertilisedUntil,
+      qty,
+      now,
+    );
+    await tx.update(players)
+      .set(kind === 'water' ? { wateredUntil: until } : { fertilisedUntil: until })
+      .where(eq(players.id, playerId));
+    return { kind, qty, energy: null, boostUntil: until };
   }
 
   if (kind === 'trap') {
