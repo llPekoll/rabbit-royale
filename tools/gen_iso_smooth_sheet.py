@@ -126,7 +126,9 @@ SS = 4  # supersampling: drawn at 512px per cell, then resolved down
 # reference a cell is ~50px wide with a 2px outline and 1.5px grid, and an
 # island on screen scales these 128px cells down to about that.
 OUTLINE = 4.6   # dark silhouette line
-GRID = 3.0      # light grid on top faces
+GRID = 4.0      # the sharp grid line on top faces
+GLOW = 10.0     # the soft light halo under it
+GLOW_ALPHA = 140
 STRIPE = 3.0    # earth stripes on cliff faces
 BLEED = 0.8     # how far a filled face overshoots its edge to hide seams
 
@@ -143,15 +145,17 @@ PEBBLE = (118, 120, 108)
 FRINGE_DEPTH = 0.16
 FRINGE_BUMPS = 4
 
-# Each material: its flat top, the grid on it, and its PATCH — the darker
-# tuft of grass the reference scatters on it. A slope leading up to a
-# material is that material's colour: the reference's plateaus run down
-# their slopes in one tone and only the lace at the foot marks the change.
+# Each material: its flat top, the grid on it — a sharp line a shade darker
+# than the fill, over a soft halo a shade lighter, as the reference draws
+# it — and its PATCH, the darker tuft of grass the reference scatters on it.
+# A slope leading up to a material is that material's colour: the
+# reference's plateaus run down their slopes in one tone and only the lace
+# at the top marks the change.
 MATERIALS = [
-    # name,   top fill,        top grid,        patch fill
-    ('moss', (176, 218, 120), (200, 236, 150), (128, 188, 96)),
-    ('grass', (211, 244, 153), (232, 254, 192), (148, 204, 110)),
-    ('sand', (239, 243, 185), (250, 252, 216), (211, 244, 153)),
+    # name,   top fill,        grid line,       grid glow,       patch fill
+    ('moss', (176, 218, 120), (148, 200, 98), (196, 234, 144), (128, 188, 96)),
+    ('grass', (211, 244, 153), (180, 230, 134), (226, 254, 176), (148, 204, 110)),
+    ('sand', (239, 243, 185), (224, 229, 158), (248, 250, 204), (211, 244, 153)),
 ]
 
 # --- lattice ---------------------------------------------------------------
@@ -294,17 +298,12 @@ def side_face(cell: Cell, pts, color, rng: random.Random, textured=True, pebble_
 def top_face(cell: Cell, pts, fill, grid, grid_edges=(0, 3)) -> None:
     """
     A walkable surface. `pts` go top, right, bottom, left (N edge = 0->1, E = 1->2,
-    S = 2->3, W = 3->0); the light grid goes on N (edge 0) and W (edge 3).
+    S = 2->3, W = 3->0); the grid goes on N (edge 0) and W (edge 3). `grid` is
+    the (line, glow) pair.
     """
     cell.fill(pts, fill)
     for i in grid_edges:
-        a, b = pts[i], pts[(i + 1) % len(pts)]
-        # Pulled in by half the width at each end, or the flat cap pokes past
-        # the corner onto the wall below.
-        length = math.hypot(b[0] - a[0], b[1] - a[1])
-        k = GRID * SS / 2 / length
-        cell.stroke((a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k),
-                    (b[0] - (b[0] - a[0]) * k, b[1] - (b[1] - a[1]) * k), grid, GRID)
+        top_face_line(cell, pts[i], pts[(i + 1) % len(pts)], grid)
 
 
 # The four faces of a unit block, as lattice quads (top edge first).
@@ -322,8 +321,12 @@ def top_quad(z=1.0):
 
 # --- pieces ----------------------------------------------------------------
 
+def grid_of(mat):
+    return (mat[2], mat[3])
+
+
 def cube(mat, rng, height=1.0) -> Cell:
-    fill, grid = mat[1], mat[2]
+    fill, grid = mat[1], grid_of(mat)
     c = Cell()
     top_face(c, top_quad(height), fill, grid)
     side_face(c, south_face(0, height), CLIFF_SOUTH, rng, pebble_count=2 if height < 1 else 3)
@@ -333,7 +336,7 @@ def cube(mat, rng, height=1.0) -> Cell:
 
 def turf(mat, rng) -> Cell:
     """A thin tile, a quarter block thick: for laying one surface over another."""
-    fill, grid = mat[1], mat[2]
+    fill, grid = mat[1], grid_of(mat)
     c = Cell()
     top_face(c, top_quad(0.25), fill, grid)
     side_face(c, south_face(0, 0.25), CLIFF_SOUTH, rng, textured=False)
@@ -342,7 +345,7 @@ def turf(mat, rng) -> Cell:
 
 
 def flat(mat) -> Cell:
-    fill, grid = mat[1], mat[2]
+    fill, grid = mat[1], grid_of(mat)
     c = Cell()
     top_face(c, top_quad(0), fill, grid)
     return c
@@ -360,7 +363,7 @@ def ramp(mat, rng, heights) -> Cell:
     the silhouette of the ramp against its own side — a wall's is not, since
     the tier above always covers it.
     """
-    fill, grid = mat[1], mat[2]
+    fill, grid = mat[1], grid_of(mat)
     h00, h10, h11, h01 = heights
     corners = [(0, 0, h00), (1, 0, h10), (1, 1, h11), (0, 1, h01)]
     c = Cell()
@@ -397,11 +400,19 @@ def ramp(mat, rng, heights) -> Cell:
     return c
 
 
-def top_face_line(cell: Cell, a, b, color) -> None:
+def top_face_line(cell: Cell, a, b, grid) -> None:
+    """One grid line: the soft glow, then the sharp line over it."""
+    line, glow = grid
     length = math.hypot(b[0] - a[0], b[1] - a[1])
+    # Pulled in by half the width at each end, or the flat cap pokes past
+    # the corner onto the wall below.
     k = GRID * SS / 2 / length
-    cell.stroke((a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k),
-                (b[0] - (b[0] - a[0]) * k, b[1] - (b[1] - a[1]) * k), color, GRID)
+    a2 = (a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k)
+    b2 = (b[0] - (b[0] - a[0]) * k, b[1] - (b[1] - a[1]) * k)
+    layer = Image.new('RGBA', cell.img.size, (0, 0, 0, 0))
+    ImageDraw.Draw(layer).line([a2, b2], fill=(*glow, GLOW_ALPHA), width=round(GLOW * SS))
+    cell.img.alpha_composite(layer)
+    cell.stroke(a2, b2, line, GRID)
 
 
 # Corner heights (h00, h10, h11, h01) of each piece. A side's two corners are
@@ -511,7 +522,7 @@ def fold(direction: str, first_raised: bool) -> Cell:
 def patch(mat, rng) -> Cell:
     """A darker tuft of grass filling the cell, with a few blades marked on it."""
     c = Cell()
-    c.fill(top_quad(0), mat[3])
+    c.fill(top_quad(0), mat[4])
     for _ in range(3):
         u, v = rng.uniform(0.25, 0.75), rng.uniform(0.25, 0.75)
         x, y = P(u, v, 0)
@@ -576,7 +587,7 @@ def build() -> Image.Image:
         for col, direction in enumerate('NESW'):
             put(r + 2, col, rim(direction))
             put(r + 2, 4 + col, fringe(mat[1], direction))
-            put(r + 2, 9 + col, fringe(mat[3], direction))
+            put(r + 2, 9 + col, fringe(mat[4], direction))
         put(r + 2, 8, patch(mat, rng))
         for col in range(4):
             put(r + 2, 13 + col, lace_cap(mat[1], col))
