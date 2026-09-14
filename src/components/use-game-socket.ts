@@ -138,23 +138,10 @@ export interface JoinRefusal {
   at: number;
 }
 
-/**
- * @param onIsland Whether the player is OUT on the island right now.
- *
- *   The socket used to ask for a seat the moment it connected, wherever the
- *   player was. That was free while a seat cost nothing; now that joining
- *   PAYS for a run (ENERGY.RUN_COST), a page opened on the burrow must not
- *   quietly buy an island the player never crossed to — and then buy a second
- *   one when they do, because the first seat was still held. So the connect
- *   handler joins only when the player is already out there, which is the
- *   reconnect case: a refresh mid-run, where the server recognises the seat
- *   and charges nothing. The walk out to farm asks with `join`, once.
- */
 export function useGameSocket(
   token: string | null,
   playerId: string | null,
   spectate?: string | null,
-  onIsland = false,
 ) {
   const socketRef = useRef<Socket | null>(null);
   const sceneRef = useRef<SceneGetter>(() => null);
@@ -194,20 +181,31 @@ export function useGameSocket(
   /** The last time the server turned a `join` down, or null. */
   const [refused, setRefused] = useState<JoinRefusal | null>(null);
 
-  // A ref, not a dependency: `connect` fires again on every reconnect and has
-  // to read where the player is THEN, without tearing the socket down each
-  // time they cross between the burrow and the island.
-  const onIslandRef = useRef(onIsland);
-  onIslandRef.current = onIsland;
   /**
-   * The rabbits as of the last render, for the same reason. On top of being
-   * out on the island, a rejoin on connect wants a rabbit of OURS to have been
-   * there: a socket rebuilt at the end of a spectate (the target changes, so
-   * the socket does) connects while the screen is still on its way home, and
-   * without this it would buy the ex-viewer a run they never asked for.
+   * Whether the player has ASKED for a seat and not given it up.
+   *
+   * The socket used to ask for one the moment it connected, wherever the
+   * player was. That was free while a seat cost nothing; now that joining
+   * PAYS for a run (ENERGY.RUN_COST), a page opened on the burrow must not
+   * quietly buy an island the player never crossed to — and then a second
+   * one when they do, because the first seat was still held.
+   *
+   * So the ask is remembered here and sent whenever there is a socket to
+   * send it on. That covers both halves of the problem at once:
+   *  - `join` pressed before the socket exists (the WS URL is fetched, and on
+   *    a slow day the player reaches the arrow first) is not dropped on the
+   *    floor — it goes out on `connect`. Without this the player crossed to
+   *    an island with no rabbit and a HUD reading zero.
+   *  - a reconnect mid-run re-asks, and the server seats it for free (it is
+   *    the same run); a socket rebuilt at the end of a spectate, or a page
+   *    opened on the burrow, asks for nothing.
+   *
+   * A ref, not state: `connect` fires on every reconnect and has to read the
+   * intent THEN, without tearing the socket down each time it changes.
+   * Cleared by `leave` and by the end of a run — a blip during the recap must
+   * not buy the next run on its own.
    */
-  const rabbitsRef = useRef(rabbits);
-  rabbitsRef.current = rabbits;
+  const wantSeat = useRef(false);
 
   /** Apply to the scene now, or queue it until the scene exists. */
   const toScene = useCallback((fn: (s: IslandScene) => void) => {
@@ -242,10 +240,15 @@ export function useGameSocket(
 
     socket.on('connect', () => {
       setConnected(true);
-      if (spectate) socket.emit('spectate', { playerId: spectate });
-      // Only a player already OUT there, with a rabbit, rejoins on connect —
-      // see `onIsland`. That is a reconnect, which the server seats for free.
-      else if (onIslandRef.current && playerId && rabbitsRef.current.has(playerId)) socket.emit('join');
+      if (spectate) {
+        // Watching, not playing: whatever seat was wanted before is not.
+        wantSeat.current = false;
+        socket.emit('spectate', { playerId: spectate });
+      } else if (wantSeat.current) {
+        // A seat asked for before this socket existed, or held before it
+        // dropped — see `wantSeat`.
+        socket.emit('join');
+      }
     });
     socket.on('disconnect', () => setConnected(false));
 
@@ -396,13 +399,18 @@ export function useGameSocket(
     });
 
     socket.on('volcano', ({ stage }: { stage: number }) => setWarnStage(stage));
-    socket.on('run_over', (r: RunRecap) => setRecap(r));
+    socket.on('run_over', (r: RunRecap) => {
+      // The seat is spent. A reconnect from the recap must not ask again —
+      // that would start, and pay for, a run the player has not chosen.
+      wantSeat.current = false;
+      setRecap(r);
+    });
     // The carrots are in Postgres NOW, so whatever shows the total may go and
     // read it. See `Banked`: this is deliberately not `run_over`.
     socket.on('banked', (_b: Banked) => setBanked((n) => n + 1));
 
     return () => { socket.disconnect(); socketRef.current = null; };
-  }, [token, wsUrl, spectate, playerId, toScene]);
+  }, [token, wsUrl, spectate, toScene]);
 
   /**
    * Paint the last snapshot onto the board again.
@@ -430,7 +438,7 @@ export function useGameSocket(
     const socket = socketRef.current;
     if (!socket) return;
     socket.emit('restart');
-    socket.once('restarting', () => socket.emit('join'));
+    socket.once('restarting', () => { wantSeat.current = true; socket.emit('join'); });
   }, []);
 
   /**
@@ -443,6 +451,7 @@ export function useGameSocket(
    * running the tank dry is.
    */
   const leave = useCallback(() => {
+    wantSeat.current = false;
     socketRef.current?.emit('leave');
   }, []);
 
@@ -457,6 +466,11 @@ export function useGameSocket(
    * was reloaded. Each crossing now pairs with the `leave` that opened it.
    */
   const join = useCallback(() => {
+    // Remembered even when there is no socket yet: `connect` sends it. A
+    // socket that exists but is between reconnects also gets it on `connect`,
+    // and a live one gets it now. Never both — socket.io queues nothing on a
+    // disconnected socket, so the emit below is a no-op until `connect`.
+    wantSeat.current = true;
     socketRef.current?.emit('join');
   }, []);
 

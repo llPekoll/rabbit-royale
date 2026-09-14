@@ -206,10 +206,7 @@ function Burrow() {
   // putting them in state would re-render the tree that owns it.
   const handles = useRef<GameHandles | null>(null);
 
-  // `where` is passed so a reconnect mid-run can retake its seat, and only
-  // then: joining PAYS for a run now, so the socket must not ask for an island
-  // from the burrow — see the hook's note on `onIsland`.
-  const game = useGameSocket(token, player?.id ?? null, spectating, where === 'island' && !spectating);
+  const game = useGameSocket(token, player?.id ?? null, spectating);
   const shop = useShop(token);
   const usdc = useUsdcPay(token, payments);
   const raid = useRaid(token);

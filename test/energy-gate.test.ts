@@ -99,13 +99,24 @@ describe('a run is paid for out of the burrow', () => {
     expect(PAGE).toMatch(/burrow === null \|\| burrow\.energy >= burrow\.runCost/);
   });
 
-  it('does not buy an island from the burrow', () => {
-    // Joining pays now, so the socket may only rejoin ON the island — the
-    // reconnect case, which the server seats for free.
+  it('does not buy an island from the burrow, and does not lose the ask either', () => {
+    // Joining pays now, so a socket may not ask for a seat just because it
+    // connected — only because the player did. And the ask must survive the
+    // socket not existing yet: on a slow day the arrow is reached before the
+    // WS URL is back, and a dropped `join` put the player on an empty island
+    // with a HUD reading zero.
     const SOCKET = readFileSync(new URL('../src/components/use-game-socket.ts', import.meta.url), 'utf8');
     expect(SOCKET).not.toMatch(/socket\.emit\(spectate \? 'spectate' : 'join'/);
-    expect(SOCKET).toMatch(/onIslandRef\.current && playerId && rabbitsRef\.current\.has\(playerId\)\) socket\.emit\('join'\)/);
-    expect(PAGE).toMatch(/useGameSocket\(token, player\?\.id \?\? null, spectating, where === 'island' && !spectating\)/);
+    const onConnect = SOCKET.slice(SOCKET.indexOf("socket.on('connect'"), SOCKET.indexOf("socket.on('disconnect'"));
+    expect(onConnect).toMatch(/else if \(wantSeat\.current\) \{[\s\S]*?socket\.emit\('join'\)/);
+    const join = SOCKET.slice(SOCKET.indexOf('const join = useCallback'));
+    expect(join.slice(0, 600)).toMatch(/wantSeat\.current = true;\s*socketRef\.current\?\.emit\('join'\)/);
+    // Given up on the way home and at the end of a run, so a reconnect from
+    // the burrow or the recap starts nothing.
+    const leave = SOCKET.slice(SOCKET.indexOf('const leave = useCallback'));
+    expect(leave.slice(0, 200)).toMatch(/wantSeat\.current = false/);
+    const over = SOCKET.slice(SOCKET.indexOf("socket.on('run_over'"));
+    expect(over.slice(0, 300)).toMatch(/wantSeat\.current = false/);
   });
 
   it('turns a refused seat into the popup, back on the burrow', () => {
