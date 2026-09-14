@@ -283,8 +283,14 @@ export class IsoWorldView {
 
   private readonly layer = new Container();
 
-  /** Decorations by the index of the LAST cell of their footprint, where they are drawn. */
-  private readonly decorAt = new Map<number, { x: number; y: number; prop: Prop }>();
+  /**
+   * Decorations by the diagonal of their footprint's last cell. A piece
+   * stands at the centre of its footprint, where the footprint's diamond is
+   * widest, so its foliage stays inside it at the base and only spreads over
+   * the cells behind higher up. Drawn once that diagonal is complete, it
+   * stands on every cell it covers and behind anything further forward.
+   */
+  private readonly decorAfter = new Map<number, { x: number; y: number; prop: Prop }[]>();
 
   /**
    * The foam's moving lines, one per shore segment: each drifts from the
@@ -307,20 +313,26 @@ export class IsoWorldView {
     this.layer.position.set(this.originX, this.originY);
     this.view.addChild(this.layer);
 
-    // A decoration stands on the last cell of its footprint in painter's
-    // order, so it is drawn over every cell it covers.
     if (options.deco ?? true) {
       for (const [i, prop] of world.props) {
         if (prop.kind !== 'decor') continue;
         const c = prop.cells ?? 1;
         const x = i % w;
         const y = (i / w) | 0;
-        this.decorAt.set((y + c - 1) * w + (x + c - 1), { x, y, prop });
+        const after = x + y + 2 * (c - 1);
+        const list = this.decorAfter.get(after) ?? [];
+        list.push({ x, y, prop });
+        this.decorAfter.set(after, list);
       }
     }
 
+    const { floor } = tileset.spec;
     for (let s = 0; s <= w + h - 2; s++) {
       for (let x = Math.max(0, s - h + 1); x <= Math.min(s, w - 1); x++) this.buildCell(x, s - x);
+      for (const { x, y, prop } of this.decorAfter.get(s) ?? []) {
+        const tier = tierAt(world, x, y);
+        if (tier > floor) this.plant(x, y, prop, tier * block.z);
+      }
     }
 
     if (this.minX <= this.maxX) {
@@ -441,16 +453,13 @@ export class IsoWorldView {
     }
 
     this.lace(x, y, tier, ramp);
-
-    const decor = this.decorAt.get(y * world.width + x);
-    if (decor && tier > spec.floor) this.plant(decor.x, decor.y, decor.prop, surface);
   }
 
   /**
    * A decoration whose footprint's north-west cell is `(x, y)`, standing on
-   * ground at `elevation`. Its anchor pixel goes on the bottom corner of the
-   * footprint's last cell, and one scale factor fits every piece: the sheet
-   * draws a one-cell base `SHEET_CELL` pixels wide.
+   * ground at `elevation`. Its anchor pixel goes on the centre of the
+   * footprint, and one scale factor fits every piece: the sheet draws a
+   * one-cell base `SHEET_CELL` pixels wide.
    */
   private plant(x: number, y: number, prop: Prop, elevation: number): void {
     const { tileset } = this.options;
@@ -461,11 +470,9 @@ export class IsoWorldView {
     const scale = cell / SHEET_CELL;
     const sprite = new Sprite(piece.texture);
     sprite.scale.set(scale);
-    const lastX = x + c - 1;
-    const lastY = y + c - 1;
-    // The bottom corner of the last cell, at the surface.
-    const bx = (lastX - lastY) * (block.w / 2);
-    const by = (lastX + lastY) * (block.h / 2) + block.h - elevation;
+    // The centre of the footprint's diamond, at the surface.
+    const bx = (x - y) * (block.w / 2);
+    const by = (x + y + c - 1) * (block.h / 2) + block.h / 2 - elevation;
     sprite.position.set(bx - piece.anchor[0] * scale, by - piece.anchor[1] * scale);
     this.layer.addChild(sprite);
     this.sprites++;
