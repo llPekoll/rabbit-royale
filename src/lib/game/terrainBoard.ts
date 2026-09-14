@@ -73,6 +73,23 @@ function cached(seed: string) {
 }
 
 /**
+ * Forget a seed's terrain. SERVER ONLY — call it when an island is torn down.
+ *
+ * The cache above is unbounded, which is right for a client (it holds the one
+ * island the player is on) and wrong for a long-lived server process: an
+ * island lives minutes, and every one ever created left a terrain and an
+ * `IslandBoard` behind for good. That is a slow leak measured in uptime rather
+ * than in players — the box survives a busy afternoon and dies after a fortnight.
+ *
+ * Deliberately NOT called from anywhere on the client: there the entry is
+ * still in use for as long as the seed is on screen, and dropping it mid-run
+ * would regenerate the board under the renderer.
+ */
+export function forgetTerrain(seed: string): void {
+  cache.delete(seed);
+}
+
+/**
  * How far up the screen a tile sits, for the tier it stands on.
  *
  * Zero at sea level, one `TIER_LIFT` per plateau. Subtracted from a tile's y,

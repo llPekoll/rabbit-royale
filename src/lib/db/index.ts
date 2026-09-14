@@ -8,9 +8,16 @@
  * the connection to the first real query, which is when a database is genuinely
  * needed.
  *
- * `max` is deliberately modest: the WS server is the hot path and it holds
- * island state in memory, so Postgres sees writes at run boundaries, not per
- * move. A larger pool would just queue behind the same few vCPUs.
+ * `max` is sized for the BOUNDARIES, not the hot path. The WS server holds
+ * island state in memory, so Postgres never sees a move — it sees joins,
+ * deaths and banked runs. Those arrive in bursts (an eruption ends four runs
+ * at once) and each one is a short write, so the pool has to absorb a spike
+ * rather than sustain a rate.
+ *
+ * 10 was too tight for that: a burst queued behind the pool long before the
+ * CPU was troubled. 25 is still well inside the server's 100 `max_connections`
+ * with every process on the box counted in, which is the ceiling that actually
+ * matters — overshooting it turns a slow join into a refused connection.
  */
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import postgres, { type Sql } from 'postgres';
@@ -25,7 +32,7 @@ function connect() {
   if (_db && _sql) return { sql: _sql, db: _db };
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error('DATABASE_URL must be set');
-  _sql = postgres(url, { max: Number(process.env.PG_POOL_MAX ?? 10) });
+  _sql = postgres(url, { max: Number(process.env.PG_POOL_MAX ?? 25) });
   _db = drizzle(_sql, { schema });
   return { sql: _sql, db: _db };
 }

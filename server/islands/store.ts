@@ -12,10 +12,12 @@
  * put the database on the hot path for no benefit. What survives a restart is
  * what players earned (runs, carrots), which is written at run boundaries.
  */
+import { randomUUID } from 'node:crypto';
+
 import { MULTIPLAYER } from '../../config/tuning';
 import { generateIsland } from '../../src/lib/game/island';
 import { makeShape, type IslandShape } from '../../src/config/gridConfig';
-import { terrainFor } from '../../src/lib/game/terrainBoard';
+import { forgetTerrain, terrainFor } from '../../src/lib/game/terrainBoard';
 import type { ActiveMirage } from '../../src/lib/game/mirage';
 import type { Island, Rabbit } from '../../src/lib/game/types';
 
@@ -87,11 +89,30 @@ export class MemoryIslandStore implements IslandStore {
 
   get(id: string) { return this.islands.get(id); }
   all() { return this.islands.values(); }
-  delete(id: string) { this.islands.delete(id); }
+  /**
+   * Tear an island down, cache included.
+   *
+   * The island id IS its seed (`generateIsland` sets `id: opts.seed`), and the
+   * terrain cache is keyed by seed — so this is the one place that knows both
+   * that an island is finished and which cache entry it leaves behind. Doing it
+   * here rather than at the two call sites (the eruption and the sweep) is what
+   * stops the next teardown path from quietly reintroducing the leak.
+   */
+  delete(id: string) {
+    this.islands.delete(id);
+    forgetTerrain(id);
+  }
 
   create(seed: string, lifetimeCarrots: number): LiveIsland {
     const live: LiveIsland = {
-      island: generateIsland({ seed, lifetimeCarrots }),
+      // Two seeds, and the second one never leaves this process. `seed` is the
+      // island id and travels in every snapshot so the client can cut the same
+      // coastline; `contentSeed` decides where the bombs are and is generated
+      // fresh here. Without the split, publishing the id published the bomb map:
+      // the generator is pure and every primitive it uses is already in the
+      // browser bundle, so a player could re-run it in a console. See the note
+      // at the top of `island.ts`.
+      island: generateIsland({ seed, contentSeed: randomUUID(), lifetimeCarrots }),
       shape: makeShape(seed),
       rabbits: new Map(),
       disconnectedAt: new Map(),
