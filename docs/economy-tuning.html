@@ -244,17 +244,17 @@
       why:'Débité du terrier à l’entrée sur l’île (server/index.ts, payForRun). À 30 pour 60 de plafond la banque ne tenait que deux parties et le joueur arrivait à sec ; à 20 elle en tient trois, ce qui est la session visée. Le plein se refait en 5 h, soit un peu moins que les 12 h entre deux sessions : revenir plus souvent ne rapporte rien de plus.' },
 
     // la partie
-    { id:'runStart', g:'partie', name:'Énergie de départ d’une partie', path:'ENERGY.START', cur:30, prop:40, min:10, max:120, step:1, unit:'pts',
-      why:'LE bouton de la durée d’une partie : chaque case creusée en coûte 1, une carotte en rend, une bombe en prend. À 30 avec les densités actuelles la partie tenait 18 cases, moins de 4 minutes. Indépendant du coût ci-dessus : ce que la partie ouvre n’est pas ce qu’elle coûte.' },
-    { id:'carrotGain', g:'partie', name:'Énergie rendue par carotte', path:'ENERGY.CARROT_GAIN', cur:3, prop:4, min:0, max:12, step:1, unit:'pts',
-      why:'Avec 10 % de carottes et 14 % de bombes, chaque case coûtait 1,77 point net : la partie mourait deux fois plus vite que ce que l’énergie de départ laissait croire. Ce chiffre et les deux densités en dessous décident ensemble de la pente.' },
+    { id:'runStart', g:'partie', name:'Énergie de départ d’une partie', path:'ENERGY.START', cur:30, prop:25, min:10, max:120, step:1, unit:'pts',
+      why:'LE bouton de la durée d’une partie : chaque case creusée en coûte 1, une carotte en rend, une bombe en prend. Il DESCEND à 25 parce que les carottes montent à 30 % : la réserve de départ compte moins quand le terrain la remplit. Simulé sur 30 000 parties : 25 cases médianes, soit 5 minutes pile. Indépendant du coût d’entrée : ce que la partie ouvre n’est pas ce qu’elle coûte.' },
+    { id:'carrotGain', g:'partie', name:'Énergie rendue par carotte', path:'ENERGY.CARROT_GAIN', cur:3, prop:3, min:0, max:12, step:1, unit:'pts',
+      why:'Avec 10 % de carottes et 14 % de bombes, chaque case coûtait 1,77 point net : la partie mourait deux fois plus vite que ce que l’énergie de départ laissait croire. Ce chiffre et les deux densités en dessous décident ensemble de la pente — et la pente ne doit jamais atteindre zéro : au-delà la partie ne se termine plus faute d’énergie, seulement faute de cases. À 30 % de carottes, un gain de 4 y mène (2,7 % des parties vident l’île) ; 3 tient la pente à −0,74.' },
     { id:'goldenGain', g:'partie', name:'Énergie rendue par carotte dorée', path:'ENERGY.GOLDEN_GAIN', cur:12, prop:12, min:0, max:40, step:1, unit:'pts' },
     { id:'bombLoss', g:'partie', name:'Énergie perdue sur une bombe', path:'ENERGY.BOMB_LOSS', cur:8, prop:8, min:0, max:30, step:1, unit:'pts' },
-    { id:'carrotDensity', g:'partie', name:'Cases carotte (palier Meadow)', path:'ISLAND.CARROT_DENSITY', cur:0.10, prop:0.18, min:0.02, max:0.40, step:0.01, unit:'des cases',
-      why:'Une carotte pour dix cases contre une bombe pour sept : le plateau du premier palier punissait plus qu’il ne payait. À 18 % la carotte redevient le motif dominant du plateau, ce qui est le sens du mot « Meadow ».' },
+    { id:'carrotDensity', g:'partie', name:'Cases carotte (palier Meadow)', path:'ISLAND.CARROT_DENSITY', cur:0.10, prop:0.30, min:0.02, max:0.40, step:0.01, unit:'des cases',
+      why:'Une carotte pour dix cases contre une bombe pour sept : le plateau du premier palier punissait plus qu’il ne payait. À 30 % la carotte devient franchement le motif dominant, ce qui est le sens du mot « Meadow » — presque une case sur trois paie. ATTENTION au plafond : au-delà de 30 % la pente s’approche de zéro et la partie cesse de finir par épuisement ; à 35 % avec un gain de 4, une partie sur six vide l’île entière et le minesweeper perd son enjeu.' },
     { id:'goldenShare', g:'partie', name:'Part dorée parmi les carottes', path:'ISLAND.GOLDEN_SHARE', cur:0.06, prop:0.06, min:0, max:0.5, step:0.01, unit:'' },
-    { id:'bombDensity', g:'partie', name:'Cases bombe (palier Meadow)', path:'ISLAND.BOMB_DENSITY', cur:0.14, prop:0.10, min:0.02, max:0.40, step:0.01, unit:'des cases',
-      why:'Le premier palier est celui que voit un joueur qui n’a rien : 14 % en font un champ de mines. Les paliers suivants (ISLAND_TIERS) remontent la difficulté, c’est leur rôle.' },
+    { id:'bombDensity', g:'partie', name:'Cases bombe (palier Meadow)', path:'ISLAND.BOMB_DENSITY', cur:0.14, prop:0.12, min:0.02, max:0.40, step:0.01, unit:'des cases',
+      why:'Le premier palier est celui que voit un joueur qui n’a rien : 14 % en font un champ de mines. À 12 % contre 30 % de carottes, le rapport s’inverse enfin — deux carottes et demie pour une bombe, au lieu de deux bombes pour trois carottes. Les paliers suivants (ISLAND_TIERS) remontent la difficulté, c’est leur rôle.' },
     { id:'carrotValue', g:'partie', name:'Carottes gagnées par carotte déterrée', path:'+RUN.CARROT_VALUE', cur:1, prop:15, min:1, max:100, step:1, unit:'carottes',
       why:'LE chiffre qui décide si le jeu se joue ou s’attend. Codé en dur (rabbit.carrots += 1 dans run.ts) : à 1, une partie rapporte 2 carottes quand le jardin en donne 960 par jour — jouer pèse 1 % du revenu, donc jouer ne sert à rien. À 15 une partie vaut ~135 carottes et les parties repassent devant le jardin.' },
     { id:'goldenValue', g:'partie', name:'Carottes gagnées par carotte dorée', path:'+RUN.GOLDEN_VALUE', cur:1, prop:75, min:1, max:500, step:1, unit:'carottes',
@@ -403,7 +403,7 @@
    * REV jette les reglages d'avant — c'est le but : ils decrivent un
    * catalogue qui n'existe plus.
    */
-  const REV = 2;
+  const REV = 3;
   function save() { try { localStorage.setItem('rr-economy', JSON.stringify({ rev: REV, v, chest, shop })); } catch {} }
   function load() {
     try {
