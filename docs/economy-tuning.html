@@ -1,0 +1,769 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Carnet d'économie Rabbit Royale</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+  :root {
+    --soil: #2a1810;
+    --soil-deep: #1d100a;
+    --soil-lit: #35201a;
+    --plank: #4a2f1d;
+    --plank-lit: #6b4526;
+    --lamp: #ffb238;
+    --lamp-dim: #a8742a;
+    --leaf: #7cb342;
+    --coin: #7fd1ff;
+    --chalk: #f5e6d3;
+    --chalk-dim: #b39877;
+    --chalk-faint: #7d6a55;
+    --danger: #ff6b6b;
+    --warn: #ffd45c;
+    --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", sans-serif;
+    --body: "Atkinson Hyperlegible", "Helvetica Neue", Arial, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--soil-deep);
+    color: var(--chalk);
+    font-family: var(--body);
+    font-size: 15px;
+    line-height: 1.5;
+    padding-inline: 16px;
+    padding-block: 0 80px;
+  }
+  a { color: var(--lamp); }
+  h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; }
+  h1 { font-size: clamp(30px, 4.5vw, 46px); font-weight: 800; line-height: 1.05; letter-spacing: -0.01em; }
+  h2 { font-size: 24px; font-weight: 700; line-height: 1.15; }
+  h3 { font-size: 16px; font-weight: 700; }
+  p { margin: 0; max-width: 68ch; }
+  .eyebrow { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--chalk-dim); }
+  code, .mono { font-family: var(--mono); }
+
+  .page { max-width: 1240px; margin: 0 auto; }
+  header.top {
+    padding-block: 36px 24px;
+    border-bottom: 2px dashed var(--plank);
+    display: grid; gap: 14px;
+  }
+  header.top p { color: var(--chalk-dim); max-width: 78ch; }
+  .presets { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 6px; }
+  .presets .eyebrow { margin-right: 4px; }
+  button {
+    font-family: var(--body); font-size: 14px; cursor: pointer;
+    background: var(--plank); color: var(--chalk); border: 1px solid var(--plank-lit);
+    border-radius: 6px; padding: 8px 14px;
+  }
+  button:hover { background: var(--plank-lit); }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px; }
+  button.primary { background: var(--lamp); color: var(--soil-deep); border-color: var(--lamp); font-weight: 700; }
+  button.primary:hover { background: #ffc35c; }
+
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 32px; align-items: start; margin-top: 28px; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } .side { position: static !important; } }
+
+  /* ── summary column ── */
+  .side { position: sticky; top: 16px; display: grid; gap: 14px; }
+  .board {
+    background: var(--soil); border: 1px solid var(--plank); border-radius: 10px; padding: 18px;
+    display: grid; gap: 14px;
+  }
+  .hero { display: grid; gap: 2px; }
+  .hero .value { font-family: var(--body); font-weight: 700; font-size: 52px; line-height: 1; color: var(--lamp); }
+  .hero .label { color: var(--chalk-dim); }
+  .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+  .tile { display: grid; gap: 2px; }
+  .tile .value { font-weight: 700; font-size: 20px; line-height: 1.1; }
+  .tile .label { font-size: 12px; color: var(--chalk-dim); line-height: 1.3; }
+  .split { display: grid; gap: 6px; }
+  .split .bar { display: flex; height: 12px; border-radius: 3px; overflow: hidden; gap: 2px; background: var(--soil-deep); }
+  .split .bar i { display: block; height: 100%; }
+  .split .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--chalk-dim); }
+  .split .legend b { color: var(--chalk); font-weight: 600; }
+  .swatch { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: 0; }
+  .flags { display: grid; gap: 8px; }
+  .flag { display: grid; grid-template-columns: 18px 1fr; gap: 8px; font-size: 13px; line-height: 1.4; padding: 8px 10px; border-radius: 6px; background: var(--soil-lit); border-left: 3px solid var(--warn); }
+  .flag.ok { border-left-color: var(--leaf); }
+  .flag.bad { border-left-color: var(--danger); }
+  .flag span:first-child { font-weight: 700; }
+  svg.day { width: 100%; height: auto; display: block; }
+  svg.day text { font-family: var(--mono); font-size: 10px; fill: var(--chalk-dim); }
+
+  /* ── sections ── */
+  main { display: grid; gap: 40px; min-width: 0; }
+  section { display: grid; gap: 16px; }
+  section > header { display: grid; gap: 6px; }
+  section > header p { color: var(--chalk-dim); }
+  .refs { display: flex; flex-wrap: wrap; gap: 6px; }
+  .ref {
+    font-size: 12px; line-height: 1.35; padding: 5px 9px; border-radius: 4px;
+    background: var(--soil); border: 1px solid var(--plank); color: var(--chalk-dim);
+  }
+  .ref b { color: var(--chalk); font-weight: 700; }
+
+  .knobs { display: grid; gap: 2px; border: 1px solid var(--plank); border-radius: 8px; overflow: hidden; background: var(--plank); }
+  .knob {
+    background: var(--soil); padding: 12px 14px;
+    display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 96px; gap: 8px 16px; align-items: center;
+  }
+  @media (max-width: 640px) { .knob { grid-template-columns: 1fr 96px; } .knob .slide { grid-column: 1 / -1; } }
+  .knob .name { font-weight: 700; line-height: 1.25; }
+  .knob .path { font-family: var(--mono); font-size: 11px; color: var(--chalk-faint); margin-top: 2px; word-break: break-all; }
+  .knob .path.new { color: var(--lamp-dim); }
+  .knob .why { font-size: 13px; color: var(--chalk-dim); margin-top: 4px; line-height: 1.4; }
+  .knob input[type=range] { width: 100%; accent-color: var(--lamp); margin: 0; }
+  .knob .num { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
+  .knob input[type=number] {
+    width: 82px; font-family: var(--mono); font-size: 14px; text-align: right;
+    background: var(--soil-deep); color: var(--chalk); border: 1px solid var(--plank-lit); border-radius: 5px; padding: 6px 8px;
+  }
+  .knob .unit { font-size: 12px; color: var(--chalk-dim); min-width: 0; }
+  .knob.changed .name::after { content: " ●"; color: var(--lamp); font-size: 10px; vertical-align: 2px; }
+  .knob .out { font-family: var(--mono); font-size: 12px; color: var(--lamp); margin-top: 4px; }
+
+  .derived {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px 18px;
+    padding: 12px 14px; border-radius: 8px; background: var(--soil-lit); border: 1px dashed var(--plank-lit);
+  }
+  .derived .tile .value { font-size: 18px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .tablewrap { overflow-x: auto; border: 1px solid var(--plank); border-radius: 8px; background: var(--soil); }
+  th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--plank); vertical-align: middle; }
+  th { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--chalk-dim); font-weight: 400; }
+  tr:last-child td { border-bottom: 0; }
+  td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+  td input[type=number] {
+    width: 74px; font-family: var(--mono); font-size: 13px; text-align: right;
+    background: var(--soil-deep); color: var(--chalk); border: 1px solid var(--plank-lit); border-radius: 5px; padding: 4px 6px;
+  }
+  td .todo { display: inline-block; font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--lamp-dim); border: 1px solid var(--lamp-dim); border-radius: 3px; padding: 1px 5px; margin-left: 6px; vertical-align: 1px; }
+  td .kind { font-weight: 700; }
+  td .effect { font-size: 12px; color: var(--chalk-dim); display: block; }
+  .pbar { display: inline-block; height: 8px; border-radius: 2px; background: var(--lamp); vertical-align: middle; margin-right: 6px; }
+  .usdc { color: var(--coin); }
+
+  .safeviz { display: grid; gap: 8px; padding: 12px 14px; border-radius: 8px; background: var(--soil); border: 1px solid var(--plank); }
+  .safeviz .bar { display: flex; height: 22px; border-radius: 4px; overflow: hidden; gap: 2px; background: var(--soil-deep); }
+  .safeviz .bar i { display: block; height: 100%; }
+  .safeviz .cap { display: flex; justify-content: space-between; font-size: 13px; color: var(--chalk-dim); gap: 12px; flex-wrap: wrap; }
+  .safeviz .cap b { color: var(--chalk); }
+
+  .export { display: grid; gap: 12px; }
+  textarea {
+    width: 100%; min-height: 260px; font-family: var(--mono); font-size: 12.5px; line-height: 1.5;
+    background: var(--soil-deep); color: var(--chalk); border: 1px solid var(--plank); border-radius: 8px; padding: 12px; resize: vertical;
+  }
+  .toast { font-size: 13px; color: var(--leaf); min-height: 1.2em; }
+  .note { font-size: 13px; color: var(--chalk-dim); }
+  @media (prefers-reduced-motion: no-preference) { .knob .out { transition: color .2s; } }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <header class="top">
+    <span class="eyebrow">config/tuning.ts · réglage de l'économie</span>
+    <h1>Carnet d'économie Rabbit Royale</h1>
+    <p>Chaque curseur est un chiffre de <code>config/tuning.ts</code>, ou un chiffre encore à câbler (marqué <span class="mono" style="color:var(--lamp-dim)">à câbler</span>). La colonne de droite recalcule la journée d'un joueur qui revient <b>deux fois</b> pour des parties de <b>cinq minutes</b>. Les repères Clash of Clans, Hay Day, Harvest Moon, Candy Crush et Coin Master sont des ordres de grandeur de mémoire, pas des valeurs vérifiées.</p>
+    <p><b style="color:var(--danger)">Le diagnostic du 14 septembre.</b> L'énergie est maintenant débitée, et le réglage qui allait avec ne tient pas : une partie coûte 30 pour un plafond de 60, donc la banque pleine n'en paie que deux et le joueur arrive à sec. Pire, une partie ne rapporte que <b>2 carottes</b> quand le jardin en donne <b>960 par jour</b> — jouer pèse 1 % du revenu, donc la stratégie optimale est d'attendre que les carottes poussent. Le bouton <b>« proposé »</b> charge le réglage qui corrige les deux : une carotte déterrée vaut enfin quelque chose, le jardin redescend, la partie dure deux fois plus longtemps.</p>
+    <div class="presets">
+      <span class="eyebrow">Préréglages</span>
+      <button id="preset-code" type="button">Valeurs du code</button>
+      <button id="preset-prop" type="button" class="primary">Proposition 5 min × 2 sessions</button>
+      <span class="note" id="dirty"></span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <main id="main"></main>
+
+    <aside class="side">
+      <div class="board">
+        <div class="hero">
+          <div class="value" data-out="netDay">0</div>
+          <div class="label">carottes gagnées par jour, joueur niveau 1 qui joue ses sessions</div>
+        </div>
+        <div class="split">
+          <div class="bar" id="splitbar"></div>
+          <div class="legend" id="splitlegend"></div>
+        </div>
+        <div class="tiles">
+          <div class="tile"><div class="value" data-out="minutesDay">0</div><div class="label">minutes de jeu par jour</div></div>
+          <div class="tile"><div class="value" data-out="runsDay">0</div><div class="label">parties par jour</div></div>
+          <div class="tile"><div class="value" data-out="runMinutes">0</div><div class="label">minutes par partie (estimé)</div></div>
+          <div class="tile"><div class="value" data-out="refillHours">0</div><div class="label">heures pour refaire le plein d'énergie</div></div>
+          <div class="tile"><div class="value" data-out="daysShield">0</div><div class="label">jours pour s'offrir un bouclier</div></div>
+          <div class="tile"><div class="value" data-out="daysLevel5">0</div><div class="label">jours pour atteindre le terrier niveau 5</div></div>
+        </div>
+      </div>
+      <div class="board">
+        <span class="eyebrow">Énergie du terrier sur 24 h</span>
+        <svg class="day" id="daychart" viewBox="0 0 300 120" role="img" aria-label="Énergie du terrier au fil de la journée"></svg>
+        <p class="note" id="daynote"></p>
+      </div>
+      <div class="board">
+        <span class="eyebrow">À surveiller</span>
+        <div class="flags" id="flags"></div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  // ───────────────────────── knob catalogue ─────────────────────────
+  // cur = what config/tuning.ts holds today; prop = proposal for 5 min × 2 sessions.
+  // path = the constant in tuning.ts; path starting with '+' = not wired yet.
+  const K = [
+    // rythme cible
+    { id:'sessions',  g:'rythme', name:'Sessions par jour', path:'+cible', cur:2, prop:2, min:1, max:6, step:1, unit:'/ jour',
+      why:'Objectif produit : un joueur qui revient matin et soir. Tout le reste se déduit de ce nombre.' },
+    { id:'runsPerSession', g:'rythme', name:'Parties par session', path:'+cible', cur:3, prop:3, min:1, max:10, step:1, unit:'parties',
+      why:'Combien de parties une session contient. Avec 5 min par partie, 3 parties font un quart d’heure.' },
+    { id:'secPerDig', g:'rythme', name:'Secondes par case creusée', path:'+estimation', cur:12, prop:12, min:4, max:30, step:1, unit:'s',
+      why:'Marche + lecture des chiffres + creusage. Sert à convertir l’énergie de départ en minutes. À mesurer sur de vraies parties (runs.durationMs / tilesDug).' },
+
+    // énergie du terrier
+    { id:'eMax', g:'energie', name:'Énergie max du terrier', path:'OUT_OF_RUN_ENERGY.MAX', cur:60, prop:3, min:1, max:120, step:1, unit:'pts',
+      why:'Le plafond banqué pendant l’absence. Candy Crush plafonne à 5 vies : au-delà, l’absence ne rapporte plus rien, ce qui fait revenir.' },
+    { id:'eRegen', g:'energie', name:'Régénération par heure', path:'OUT_OF_RUN_ENERGY.REGEN_PER_HOUR', cur:12, prop:0.25, min:0.05, max:30, step:0.05, unit:'pts / h',
+      why:'Le plein doit se refaire à peu près entre deux sessions : 24 h ÷ sessions par jour.' },
+    { id:'eCost', g:'energie', name:'Coût d’une partie', path:'ENERGY.RUN_COST', cur:30, prop:20, min:0, max:60, step:1, unit:'pts',
+      why:'Débité du terrier à l’entrée sur l’île (server/index.ts, payForRun). À 30 pour 60 de plafond la banque ne tenait que deux parties et le joueur arrivait à sec ; à 20 elle en tient trois, ce qui est la session visée. Le plein se refait en 5 h, soit un peu moins que les 12 h entre deux sessions : revenir plus souvent ne rapporte rien de plus.' },
+
+    // la partie
+    { id:'runStart', g:'partie', name:'Énergie de départ d’une partie', path:'ENERGY.START', cur:30, prop:40, min:10, max:120, step:1, unit:'pts',
+      why:'LE bouton de la durée d’une partie : chaque case creusée en coûte 1, une carotte en rend, une bombe en prend. À 30 avec les densités actuelles la partie tenait 18 cases, moins de 4 minutes. Indépendant du coût ci-dessus : ce que la partie ouvre n’est pas ce qu’elle coûte.' },
+    { id:'carrotGain', g:'partie', name:'Énergie rendue par carotte', path:'ENERGY.CARROT_GAIN', cur:3, prop:4, min:0, max:12, step:1, unit:'pts',
+      why:'Avec 10 % de carottes et 14 % de bombes, chaque case coûtait 1,77 point net : la partie mourait deux fois plus vite que ce que l’énergie de départ laissait croire. Ce chiffre et les deux densités en dessous décident ensemble de la pente.' },
+    { id:'goldenGain', g:'partie', name:'Énergie rendue par carotte dorée', path:'ENERGY.GOLDEN_GAIN', cur:12, prop:12, min:0, max:40, step:1, unit:'pts' },
+    { id:'bombLoss', g:'partie', name:'Énergie perdue sur une bombe', path:'ENERGY.BOMB_LOSS', cur:8, prop:8, min:0, max:30, step:1, unit:'pts' },
+    { id:'carrotDensity', g:'partie', name:'Cases carotte (palier Meadow)', path:'ISLAND.CARROT_DENSITY', cur:0.10, prop:0.18, min:0.02, max:0.40, step:0.01, unit:'des cases',
+      why:'Une carotte pour dix cases contre une bombe pour sept : le plateau du premier palier punissait plus qu’il ne payait. À 18 % la carotte redevient le motif dominant du plateau, ce qui est le sens du mot « Meadow ».' },
+    { id:'goldenShare', g:'partie', name:'Part dorée parmi les carottes', path:'ISLAND.GOLDEN_SHARE', cur:0.06, prop:0.06, min:0, max:0.5, step:0.01, unit:'' },
+    { id:'bombDensity', g:'partie', name:'Cases bombe (palier Meadow)', path:'ISLAND.BOMB_DENSITY', cur:0.14, prop:0.10, min:0.02, max:0.40, step:0.01, unit:'des cases',
+      why:'Le premier palier est celui que voit un joueur qui n’a rien : 14 % en font un champ de mines. Les paliers suivants (ISLAND_TIERS) remontent la difficulté, c’est leur rôle.' },
+    { id:'carrotValue', g:'partie', name:'Carottes gagnées par carotte déterrée', path:'+RUN.CARROT_VALUE', cur:1, prop:15, min:1, max:100, step:1, unit:'carottes',
+      why:'LE chiffre qui décide si le jeu se joue ou s’attend. Codé en dur (rabbit.carrots += 1 dans run.ts) : à 1, une partie rapporte 2 carottes quand le jardin en donne 960 par jour — jouer pèse 1 % du revenu, donc jouer ne sert à rien. À 15 une partie vaut ~135 carottes et les parties repassent devant le jardin.' },
+    { id:'goldenValue', g:'partie', name:'Carottes gagnées par carotte dorée', path:'+RUN.GOLDEN_VALUE', cur:1, prop:75, min:1, max:500, step:1, unit:'carottes',
+      why:'Même +1 que la carotte normale aujourd’hui : la dorée est rare, brille, rend 12 points d’énergie — et paie comme une carotte ordinaire. À cinq fois la normale elle vaut un petit coffre, ce que sa rareté (6 % des carottes) promet déjà à l’œil.' },
+
+    // jardin
+    { id:'yieldBase', g:'jardin', name:'Rendement du jardin au niveau 1', path:'GARDEN.YIELD_PER_HOUR_BASE', cur:40, prop:20, min:0, max:200, step:1, unit:'carottes / h',
+      why:'40/h plafonné à 12 h fait 480 carottes par passage sans toucher une manette. Le jardin doit payer le RETOUR, pas la session : à 20/h il pèse un tiers du revenu, assez pour qu’on revienne le vider, pas assez pour que ce soit tout le jeu.' },
+    { id:'yieldLevel', g:'jardin', name:'Rendement gagné par niveau de terrier', path:'GARDEN.YIELD_PER_LEVEL', cur:8, prop:8, min:0, max:50, step:1, unit:'carottes / h' },
+    { id:'capHours', g:'jardin', name:'Le jardin s’arrête après', path:'GARDEN.CAP_HOURS', cur:12, prop:12, min:1, max:48, step:1, unit:'h',
+      why:'Le collecteur plein de Clash of Clans. À 24 h ÷ sessions par jour, chaque retour trouve un jardin juste plein : ni gaspillage, ni raison d’attendre.' },
+
+    // raid & entrepôt
+    { id:'lootShare', g:'raid', name:'Part du stock volable (max)', path:'RAID_RUN.LOOT_SHARE', cur:0.25, prop:0.20, min:0.05, max:0.6, step:0.01, unit:'' },
+    { id:'lootShareMin', g:'raid', name:'Part du stock volable (min)', path:'RAID_RUN.LOOT_SHARE_MIN', cur:0.20, prop:0.15, min:0.0, max:0.6, step:0.01, unit:'',
+      why:'Tirée entre min et max à chaque raid pour que deux raids ne paient jamais le même chiffre rond.' },
+    { id:'minLootFraction', g:'raid', name:'Part payée à un raid mort sur le seuil', path:'RAID_RUN.MIN_LOOT_FRACTION', cur:0.15, prop:0.15, min:0, max:0.5, step:0.01, unit:'du max' },
+    { id:'lootCap', g:'raid', name:'Plafond d’un seul raid', path:'RAID.LOOT_CAP', cur:5000, prop:2000, min:100, max:50000, step:100, unit:'carottes',
+      why:'Ce qui protège les gros stocks : au-dessus du point de croisement, un raid prend un montant fixe.' },
+    { id:'crownMult', g:'raid', name:'Multiplicateur de butin sur le n°1', path:'CROWN.LOOT_MULT', cur:1.75, prop:1.5, min:1, max:3, step:0.05, unit:'×' },
+    { id:'safeFloor', g:'raid', name:'Plancher jamais volable', path:'+RAID.SAFE_FLOOR', cur:0, prop:300, min:0, max:5000, step:50, unit:'carottes',
+      why:'N’existe pas : aujourd’hui le « safe » est seulement la part proportionnelle. Un plancher est ce que ressent un joueur quand il lit « entrepôt sûr » : en dessous, personne ne touche.' },
+    { id:'shieldAfterRaid', g:'raid', name:'Bouclier après avoir été raidé', path:'RAID_RUN.SHIELD_AFTER_RAID_MS', cur:12, prop:12, min:0, max:48, step:1, unit:'h' },
+    { id:'raidCooldown', g:'raid', name:'Délai entre deux raids sur la même victime', path:'RAID_RUN.COOLDOWN_MS', cur:1, prop:1, min:0, max:24, step:0.5, unit:'h' },
+    { id:'raidEnergy', g:'raid', name:'Énergie d’un raider à l’entrée', path:'RAID_RUN.START_ENERGY', cur:26, prop:26, min:5, max:80, step:1, unit:'pts',
+      why:'La traversée fait environ 9 pas à 1 point chacun ; un piège en draine 8 (TRAPS.DRAIN).' },
+    { id:'sampleStock', g:'raid', name:'Stock d’exemple pour la jauge', path:'+exemple', cur:3000, prop:3000, min:0, max:30000, step:100, unit:'carottes' },
+
+    // coffres
+    { id:'chestDensity', g:'coffres', name:'Cases coffre par île', path:'ISLAND.CHEST_DENSITY', cur:0.012, prop:0.02, min:0, max:0.1, step:0.001, unit:'des cases',
+      why:'Une île fait 14 à 20 cases de côté, soit 196 à 400 cases. Le chiffre qui compte est plus bas : combien de coffres une partie ouvre réellement.' },
+
+    // terrier
+    { id:'burrowSize', g:'terrier', name:'Côté du plateau du terrier', path:'BURROW_COLS / BURROW_ROWS', cur:19, prop:19, min:11, max:31, step:2, unit:'cases',
+      why:'Dans src/game/burrow/generate.ts, pas dans tuning.ts, et verrouillé : les index de cases sont stockés en base. MIN_CROSSING = 6 pas et FIELD_CELLS = 12 vivent au même endroit et pèsent directement sur la difficulté d’un raid.' },
+    { id:'maxLevel', g:'terrier', name:'Niveau max du terrier', path:'BURROW.MAX_LEVEL', cur:20, prop:20, min:5, max:50, step:1, unit:'niveaux' },
+    { id:'upBase', g:'terrier', name:'Coût du niveau 2', path:'BURROW.UPGRADE_BASE_COST', cur:250, prop:250, min:50, max:5000, step:10, unit:'carottes' },
+    { id:'upGrowth', g:'terrier', name:'Croissance du coût par niveau', path:'BURROW.UPGRADE_GROWTH', cur:1.55, prop:1.45, min:1.1, max:2.5, step:0.01, unit:'×',
+      why:'À 1,55 le niveau 20 seul coûte 666 000 carottes : 517 jours de revenu pour une saison qui en dure 14, donc les dix derniers niveaux n’existent pas. À 1,45 une saison jouée deux fois par jour finit vers le niveau 12 — il reste de la marge sans que le palier 20 soit une décoration.' },
+    { id:'trapFree', g:'terrier', name:'Pièges gratuits par jour', path:'TRAPS.FREE_PER_DAY', cur:3, prop:3, min:0, max:12, step:1, unit:'pièges' },
+    { id:'trapMaxPlaced', g:'terrier', name:'Pièges posés au maximum', path:'TRAPS.MAX_PLACED', cur:8, prop:8, min:1, max:30, step:1, unit:'pièges' },
+  ];
+
+  const CHEST_CUR = [
+    { kind:'carrots',    label:'Carottes',         inCode:true,  effect:'X carottes, tirées entre min et max',                    w:50, min:20, max:90 },
+    { kind:'golden',     label:'Carotte dorée',    inCode:false, effect:'Un gros paquet de carottes d’un coup (RUN.GOLDEN_VALUE)', w:0,  min:1,  max:1 },
+    { kind:'water',      label:'Eau',              inCode:false, effect:'Le jardin gagne des heures de pousse sur-le-champ',        w:0,  min:1,  max:1 },
+    { kind:'fertilizer', label:'Engrais',          inCode:false, effect:'Rendement du jardin ×2 pendant quelques heures',           w:0,  min:1,  max:1 },
+    { kind:'nft',        label:'NFT',              inCode:false, effect:'Cosmétique rare, jamais de puissance',                     w:0,  min:1,  max:1 },
+    { kind:'bomb',       label:'Bombe',            inCode:true,  effect:'Sabotage d’une île adverse',                               w:25, min:1,  max:2 },
+    { kind:'shield',     label:'Bouclier',         inCode:true,  effect:'Sort du PvP pendant RAID.ITEM_SHIELD_MS (6 h)',            w:15, min:1,  max:1 },
+    { kind:'lightning',  label:'Éclair',           inCode:true,  effect:'Frappe de zone sur une île adverse',                       w:10, min:1,  max:1 },
+  ];
+  const CHEST_PROP = { carrots:[45,40,150], golden:[10,1,1], water:[15,1,1], fertilizer:[15,1,1], nft:[0.5,1,1], bomb:[8,1,2], shield:[4,1,1], lightning:[2.5,1,1] };
+
+  const SHOP_CUR = [
+    { kind:'trap',      label:'Piège',     effect:'Draine 8 pts d’énergie au raider',        c:180,  u:0.25 },
+    { kind:'bomb',      label:'Bombe',     effect:'Sabotage sur une île adverse',            c:300,  u:0.40 },
+    { kind:'lightning', label:'Éclair',    effect:'Frappe 3×3 sur une île adverse',          c:520,  u:0.60 },
+    { kind:'shield',    label:'Bouclier',  effect:'6 h hors PvP (vendu mais jamais consommé : RAID.ITEM_SHIELD_MS est mort)', c:750,  u:0.90 },
+    { kind:'energy',    label:'Énergie',   effect:'Un plein du terrier, 5 par jour max',     c:900,  u:0.99 },
+    { kind:'mirage',    label:'Mirage',    effect:'90 s de chiffres faux chez l’adversaire', c:1100, u:0.99 },
+    { kind:'smoke',     label:'Fumée',     effect:'24 h de terrier illisible',               c:2400, u:1.99 },
+  ];
+  const SHOP_PROP = { trap:[150,0.25], bomb:[300,0.40], lightning:[500,0.60], shield:[600,0.90], energy:[400,0.99], mirage:[1000,0.99], smoke:[2000,1.99] };
+
+  // ───────────────────────── sections & benchmarks ─────────────────────────
+  const SECTIONS = [
+    { g:'rythme', title:'Le rythme visé', lead:'Tout part de là : deux retours par jour, cinq minutes par partie. Les autres sections sont réglées pour que ce rythme soit le plus rentable.',
+      refs:[
+        ['Candy Crush','un niveau dure 2 à 4 min, 3 à 4 sessions par jour chez les joueurs actifs'],
+        ['Clash of Clans','une bataille dure 3 min + 30 s de repérage ; 2 à 3 sessions par jour'],
+        ['Coin Master','sessions de 2 à 5 min, plusieurs fois par jour, rythmées par les spins'],
+        ['Stardew / Harvest Moon','une journée de jeu ≈ 14 à 18 min réelles : une session = une journée de ferme'],
+      ]},
+    { g:'energie', title:'Énergie du terrier', lead:'Ce qui limite le nombre de parties et fait revenir. À régler comme les vies de Candy Crush : le plein se refait pile entre deux sessions.',
+      refs:[
+        ['Candy Crush','5 vies max, +1 toutes les 30 min, plein en 2 h 30, vies illimitées 30 min ≈ 0,99 $'],
+        ['Coin Master','50 spins max, +5 par heure (1 toutes les 12 min), plein en 10 h'],
+        ['Clash Royale','4 emplacements de coffres, ouverture 3 h / 8 h / 12 h : le joueur revient quand un coffre est prêt'],
+        ['Clash of Clans','pas d’énergie : l’armée s’entraîne en 10 à 30 min, le bouclier fixe le retour'],
+      ]},
+    { g:'partie', title:'La partie sur l’île', lead:'Une partie dure tant qu’il reste de l’énergie. Les densités fixent ce qu’une case rapporte ; la valeur d’une carotte fixe ce que cinq minutes valent face au jardin.',
+      refs:[
+        ['Harvest Moon (FoMT)','endurance 100, chaque coup d’outil en coûte, la journée finit quand elle est vide'],
+        ['Démineur','densité de mines : facile 12 %, moyen 16 %, expert 21 % — l’île est à 14 % au palier 1'],
+        ['Coin Master','un spin rapporte 1 à 3 « événements » ; la valeur d’un spin monte avec le niveau du village'],
+      ]},
+    { g:'jardin', title:'Le jardin', lead:'Le revenu passif, celui qui récompense le simple fait de revenir. Sa jauge pleine doit coïncider avec le retour.',
+      refs:[
+        ['Hay Day','blé 2 min, maïs 5 min, carotte 10 min, soja 20 min, canne 30 min, indigo 2 h, citrouille 3 h'],
+        ['Harvest Moon (FoMT)','navet 5 jours → 60 G, pomme de terre 7 jours → 80 G, sachet de graines 120 G'],
+        ['Clash of Clans','collecteurs pleins en 12 à 24 h selon le niveau ; 50 % de leur contenu est pillable'],
+        ['Hay Day','grange et silo : capacité 50 au départ, +25 par palier, palier payé en matériaux'],
+      ]},
+    { g:'raid', title:'Raid, butin et entrepôt sûr', lead:'Combien un raid prend, et donc combien un joueur peut laisser dans son entrepôt sans le regretter. La carte « stock sûr » affichée en jeu est dérivée de ces chiffres.',
+      refs:[
+        ['Clash of Clans','stockages pillables à 20 % (HDV 1-5) puis 10 % (HDV 10+), collecteurs à 50 %, plafond par HDV'],
+        ['Clash of Clans','bouclier 12 h à 30 % de destruction, 14 h à 60 %, 16 h à 90 % ; garde de village 30 min à 2 h'],
+        ['Coin Master','raid : 3 trous sur 4 dans la réserve de la victime, ≈ 10 à 20 % de sa caisse ; 3 boucliers max'],
+        ['Boom Beach','pas de bouclier long : les ressources pillées sont plafonnées par le niveau du QG'],
+      ]},
+    { g:'coffres', title:'Coffres', lead:'Combien on en croise, et ce qu’ils cachent. Les lignes marquées à câbler n’existent pas encore dans le code : le tableau sert à décider avant d’implémenter.',
+      refs:[
+        ['Clash Royale','coffre argent 3 h, or 8 h, géant / magique 12 h, super magique 24 h ; contenu garanti + tirage'],
+        ['Coin Master','coffres bois / or / magique : nombre de cartes fixe, rareté tirée'],
+        ['Hay Day','caisses mystères sur la carte : 1 sur 3 contient quelque chose, sinon un simple diamant'],
+      ]},
+    { g:'terrier', title:'Terrier et pièges', lead:'La taille du plateau, la courbe des niveaux et la défense gratuite.',
+      refs:[
+        ['Clash of Clans','coût de l’HDV : 1 000 → 4 000 → 25 000 → 150 000 → 750 000 ; ≈ ×2 à ×6 par niveau'],
+        ['Clash of Clans','base 44×44 cases ; les défenses gratuites n’existent pas, mais les murs sont bon marché'],
+        ['Coin Master','village : 5 bâtiments × 5 étoiles, coût qui grimpe d’environ ×1,3 par village'],
+      ]},
+  ];
+
+  // ───────────────────────── state ─────────────────────────
+  const byId = Object.fromEntries(K.map(k => [k.id, k]));
+  let v = {};
+  let chest = CHEST_CUR.map(r => ({ ...r }));
+  let shop = SHOP_CUR.map(r => ({ ...r }));
+
+  function setPreset(which) {
+    for (const k of K) v[k.id] = which === 'prop' ? k.prop : k.cur;
+    chest = CHEST_CUR.map(r => {
+      const p = which === 'prop' ? CHEST_PROP[r.kind] : null;
+      return p ? { ...r, w:p[0], min:p[1], max:p[2] } : { ...r };
+    });
+    shop = SHOP_CUR.map(r => {
+      const p = which === 'prop' ? SHOP_PROP[r.kind] : null;
+      return p ? { ...r, c:p[0], u:p[1] } : { ...r };
+    });
+  }
+  function save() { try { localStorage.setItem('rr-economy', JSON.stringify({ v, chest, shop })); } catch {} }
+  function load() {
+    try {
+      const s = JSON.parse(localStorage.getItem('rr-economy') || 'null');
+      if (s && s.v && s.chest && s.shop) { v = { ...s.v }; chest = s.chest; shop = s.shop; for (const k of K) if (!(k.id in v)) v[k.id] = k.prop; return true; }
+    } catch {}
+    return false;
+  }
+
+  // ───────────────────────── model ─────────────────────────
+  const fmt = (n, d = 0) => Number.isFinite(n) ? n.toLocaleString('fr-FR', { maximumFractionDigits: d }) : '∞';
+  const hours = h => !Number.isFinite(h) ? '∞' : h >= 48 ? fmt(h / 24, 1) + ' j' : h >= 1 ? fmt(h, 1) + ' h' : fmt(h * 60) + ' min';
+
+  function chestEV() {
+    const tot = chest.reduce((s, r) => s + r.w, 0) || 1;
+    const carrotRow = chest.find(r => r.kind === 'carrots');
+    const goldenRow = chest.find(r => r.kind === 'golden');
+    const ev = (carrotRow.w / tot) * (carrotRow.min + carrotRow.max) / 2
+             + (goldenRow.w / tot) * v.goldenValue;
+    return { tot, ev };
+  }
+
+  function compute() {
+    const m = {};
+    // one run
+    const golden = v.carrotDensity * v.goldenShare;
+    const plain = v.carrotDensity - golden;
+    const netPerDig = -1 + plain * v.carrotGain + golden * v.goldenGain - v.bombDensity * v.bombLoss;
+    m.digs = netPerDig >= 0 ? Infinity : v.runStart / -netPerDig;
+    m.runMinutes = m.digs * v.secPerDig / 60;
+    const { ev: chestEv, tot } = chestEV();
+    m.chestsPerRun = m.digs * v.chestDensity;
+    m.tilesPerIsland = 17 * 17;
+    m.chestsPerIsland = m.tilesPerIsland * v.chestDensity;
+    m.carrotsPerRun = m.digs * (plain * v.carrotValue + golden * v.goldenValue) + m.chestsPerRun * chestEv;
+    m.bombsPerRun = m.digs * v.bombDensity;
+    // energy gate
+    if (v.eCost > 0) {
+      const perSession = Math.floor(Math.min(v.eMax, v.eMax) / v.eCost);
+      const regenBetween = v.eRegen * (24 / v.sessions);
+      const availPerSession = Math.min(v.eMax, regenBetween);
+      m.runsPerSession = Math.min(v.runsPerSession, Math.floor(availPerSession / v.eCost));
+      m.runsPerSessionMax = perSession;
+      m.refillHours = v.eMax / v.eRegen;
+    } else {
+      m.runsPerSession = v.runsPerSession;
+      m.runsPerSessionMax = Infinity;
+      m.refillHours = v.eMax / v.eRegen;
+    }
+    m.runsDay = m.runsPerSession * v.sessions;
+    m.minutesDay = m.runsDay * m.runMinutes;
+    m.runCarrotsDay = m.runsDay * m.carrotsPerRun;
+    // garden
+    const gapH = 24 / v.sessions;
+    m.gardenPerSession = Math.min(gapH, v.capHours) * v.yieldBase;
+    m.gardenDay = m.gardenPerSession * v.sessions;
+    m.gardenWasteH = Math.max(0, gapH - v.capHours);
+    // raids (attacker side, one raid per session on a target holding sampleStock)
+    m.avgShare = (v.lootShare + v.lootShareMin) / 2;
+    m.raidGain = Math.min(v.lootCap, v.sampleStock * m.avgShare * 0.8);
+    m.raidGainDay = m.raidGain * v.sessions;
+    m.netDay = m.runCarrotsDay + m.gardenDay;
+    // safe stock at sample
+    const exposedBase = Math.max(0, v.sampleStock - v.safeFloor);
+    m.maxLoss = Math.min(v.lootCap, Math.floor(exposedBase * v.lootShare * v.crownMult));
+    m.safe = v.sampleStock - m.maxLoss;
+    m.crossover = v.lootCap / (v.lootShare * v.crownMult) + v.safeFloor;
+    // shop / upgrades
+    m.daysShield = (shop.find(r => r.kind === 'shield').c) / (m.netDay || 1);
+    let cum = 0; for (let l = 1; l < 5; l++) cum += Math.round(v.upBase * Math.pow(v.upGrowth, l - 1));
+    m.costTo5 = cum;
+    m.daysLevel5 = cum / (m.netDay || 1);
+    m.upgrade = [1,2,3,4,9,19].map(l => [l + 1, Math.round(v.upBase * Math.pow(v.upGrowth, l - 1))]);
+    m.chestTot = tot; m.chestEv = chestEv;
+    return m;
+  }
+
+  // ───────────────────────── render ─────────────────────────
+  const main = document.getElementById('main');
+
+  function knobHtml(k) {
+    const isNew = k.path.startsWith('+');
+    return `<div class="knob" data-knob="${k.id}">
+      <div>
+        <div class="name">${k.name}</div>
+        <div class="path ${isNew ? 'new' : ''}">${isNew ? 'à câbler · ' + k.path.slice(1) : k.path}</div>
+        ${k.why ? `<div class="why">${k.why}</div>` : ''}
+        <div class="out" data-kout="${k.id}"></div>
+      </div>
+      <div class="slide"><input type="range" id="r-${k.id}" min="${k.min}" max="${k.max}" step="${k.step}" aria-label="${k.name}"></div>
+      <div class="num"><input type="number" id="n-${k.id}" min="${k.min}" max="${k.max}" step="${k.step}" aria-label="${k.name}, valeur"><span class="unit">${k.unit}</span></div>
+    </div>`;
+  }
+
+  function derivedHtml(items) {
+    return `<div class="derived">${items.map(([id, label]) => `<div class="tile"><div class="value" data-out="${id}">–</div><div class="label">${label}</div></div>`).join('')}</div>`;
+  }
+
+  function buildSections() {
+    const DERIVED = {
+      rythme: [['minutesDay','minutes de jeu par jour'], ['runsDay','parties par jour'], ['runMinutes','minutes par partie']],
+      energie: [['refillHours','plein refait en'], ['runsPerSessionMax','parties par plein'], ['runsPerSession','parties jouables par session']],
+      partie: [['digs','cases creusées par partie'], ['runMinutes','minutes par partie'], ['carrotsPerRun','carottes par partie'], ['bombsPerRun','bombes prises par partie'], ['runCarrotsDay','carottes des parties par jour']],
+      jardin: [['gardenPerSession','carottes à chaque retour'], ['gardenDay','carottes du jardin par jour'], ['gardenWasteH','heures perdues jardin plein']],
+      raid: [['raidGain','gain moyen d’un raid abouti sur le stock d’exemple'], ['crossover','stock où le plafond prend le relais']],
+      coffres: [['chestsPerIsland','coffres par île (17×17)'], ['chestsPerRun','coffres ouverts par partie'], ['chestEv','carottes moyennes par coffre']],
+      terrier: [['costTo5','carottes du niveau 1 au 5'], ['daysLevel5','jours pour y arriver']],
+    };
+    let html = '';
+    for (const s of SECTIONS) {
+      html += `<section id="s-${s.g}">
+        <header><span class="eyebrow">${s.title}</span><h2>${s.title}</h2><p>${s.lead}</p></header>
+        <div class="refs">${s.refs.map(([who, what]) => `<span class="ref"><b>${who}</b> · ${what}</span>`).join('')}</div>
+        <div class="knobs">${K.filter(k => k.g === s.g).map(knobHtml).join('')}</div>
+        ${s.g === 'raid' ? safeVizHtml() : ''}
+        ${s.g === 'coffres' ? chestTableHtml() : ''}
+        ${derivedHtml(DERIVED[s.g])}
+        ${s.g === 'terrier' ? `<div class="tablewrap"><table id="uptable"><thead><tr><th>Niveau</th><th class="n">Coût</th><th class="n">Rendement jardin</th><th class="n">Jours de revenu</th></tr></thead><tbody></tbody></table></div>` : ''}
+      </section>`;
+    }
+    html += shopSectionHtml();
+    html += exportSectionHtml();
+    main.innerHTML = html;
+  }
+
+  function safeVizHtml() {
+    return `<div class="safeviz">
+      <span class="eyebrow">Jauge de l’entrepôt sur le stock d’exemple</span>
+      <div class="bar"><i id="safe-safe" style="background:var(--leaf)"></i><i id="safe-exposed" style="background:var(--danger)"></i></div>
+      <div class="cap"><span><span class="swatch" style="background:var(--leaf)"></span><b data-out="safe">–</b> à l’abri (le chiffre de la carte « sûr »)</span><span><span class="swatch" style="background:var(--danger)"></span><b data-out="maxLoss">–</b> perdables au pire raid, couronne comprise</span></div>
+    </div>`;
+  }
+
+  function chestTableHtml() {
+    return `<div class="tablewrap"><table id="chesttable"><thead><tr><th>Contenu</th><th class="n">Poids</th><th class="n">Chance</th><th class="n">Min</th><th class="n">Max</th></tr></thead><tbody>
+      ${chest.map((r, i) => `<tr data-row="${i}">
+        <td><span class="kind">${r.label}</span>${r.inCode ? '' : '<span class="todo">à câbler</span>'}<span class="effect">${r.effect}</span></td>
+        <td class="n"><input type="number" min="0" step="0.5" data-chest="w" data-i="${i}" aria-label="poids ${r.label}"></td>
+        <td class="n" data-chestp="${i}">–</td>
+        <td class="n"><input type="number" min="0" step="1" data-chest="min" data-i="${i}" aria-label="min ${r.label}"></td>
+        <td class="n"><input type="number" min="0" step="1" data-chest="max" data-i="${i}" aria-label="max ${r.label}"></td>
+      </tr>`).join('')}
+    </tbody></table></div>
+    <p class="note">Table CHEST_LOOT de tuning.ts. Les poids sont relatifs, ils n’ont pas à totaliser 100. Attention : aujourd’hui seul le tirage « carottes » est crédité au joueur ; bombe, bouclier et éclair sont tirés puis jetés (stub Phase 1 dans run.ts). Les coffres n’existent que sur l’île, jamais dans le terrier.</p>`;
+  }
+
+  function shopSectionHtml() {
+    return `<section id="s-shop">
+      <header><span class="eyebrow">Le shop</span><h2>Le shop</h2><p>Chaque prix est relu en journées de revenu et en parties. La règle du GDD tient : tout s’achète en carottes ou en USDC, jamais un pouvoir réservé à l’argent.</p></header>
+      <div class="refs">
+        <span class="ref"><b>Clash of Clans</b> · bouclier 1 j = 100 gemmes, 2 j = 150, 7 j = 250 ; 500 gemmes ≈ 4,99 $, donc 1 jour de bouclier ≈ 1 $</span>
+        <span class="ref"><b>Candy Crush</b> · vies illimitées 30 min ≈ 0,99 $ ; boosters à l’unité 0,99 à 1,99 $</span>
+        <span class="ref"><b>Coin Master</b> · pack de spins d’entrée ≈ 1,99 $ ; le bouclier se gagne, il ne s’achète pas seul</span>
+        <span class="ref"><b>Hay Day</b> · les diamants sautent l’attente : ≈ 1 diamant par 5 min restantes</span>
+      </div>
+      <div class="tablewrap"><table id="shoptable"><thead><tr><th>Objet</th><th class="n">Carottes</th><th class="n">USDC</th><th class="n">Jours de revenu</th><th class="n">Parties</th><th class="n">Carottes / $</th></tr></thead><tbody>
+        ${shop.map((r, i) => `<tr>
+          <td><span class="kind">${r.label}</span><span class="effect">${r.effect}</span></td>
+          <td class="n"><input type="number" min="0" step="10" data-shop="c" data-i="${i}" aria-label="prix carottes ${r.label}"></td>
+          <td class="n"><input type="number" min="0" step="0.01" data-shop="u" data-i="${i}" aria-label="prix USDC ${r.label}" class="usdc"></td>
+          <td class="n" data-shopd="${i}">–</td>
+          <td class="n" data-shopr="${i}">–</td>
+          <td class="n" data-shopx="${i}">–</td>
+        </tr>`).join('')}
+      </tbody></table></div>
+      <p class="note">« Carottes / $ » est le taux implicite de chaque ligne. Le GDD ne veut pas de parité fixe, mais un écart de 1 à 5 entre deux lignes se voit.</p>
+    </section>`;
+  }
+
+  function exportSectionHtml() {
+    return `<section id="s-export" class="export">
+      <header><span class="eyebrow">Sortie</span><h2>À coller dans tuning.ts</h2><p>Seules les valeurs qui diffèrent du code apparaissent. Les lignes « à câbler » sont listées à part : elles demandent du code, pas juste un chiffre.</p></header>
+      <textarea id="exportbox" readonly spellcheck="false"></textarea>
+      <div class="presets"><button type="button" class="primary" id="copybtn">Copier</button><span class="toast" id="toast"></span></div>
+    </section>`;
+  }
+
+  function bind() {
+    for (const k of K) {
+      const r = document.getElementById('r-' + k.id), n = document.getElementById('n-' + k.id);
+      r.addEventListener('input', () => { v[k.id] = Number(r.value); n.value = r.value; update(); });
+      n.addEventListener('input', () => { const x = Number(n.value); if (Number.isFinite(x)) { v[k.id] = x; r.value = x; update(); } });
+    }
+    document.querySelectorAll('[data-chest]').forEach(el => el.addEventListener('input', () => {
+      const x = Number(el.value); if (Number.isFinite(x)) { chest[Number(el.dataset.i)][el.dataset.chest] = x; update(); }
+    }));
+    document.querySelectorAll('[data-shop]').forEach(el => el.addEventListener('input', () => {
+      const x = Number(el.value); if (Number.isFinite(x)) { shop[Number(el.dataset.i)][el.dataset.shop] = x; update(); }
+    }));
+    document.getElementById('preset-code').addEventListener('click', () => { setPreset('cur'); fill(); update(); });
+    document.getElementById('preset-prop').addEventListener('click', () => { setPreset('prop'); fill(); update(); });
+    document.getElementById('copybtn').addEventListener('click', async () => {
+      const t = document.getElementById('exportbox');
+      try { await navigator.clipboard.writeText(t.value); document.getElementById('toast').textContent = 'Copié.'; }
+      catch { t.select(); document.getElementById('toast').textContent = 'Sélectionné : Ctrl+C / Cmd+C.'; }
+      setTimeout(() => { document.getElementById('toast').textContent = ''; }, 2500);
+    });
+  }
+
+  function fill() {
+    for (const k of K) { document.getElementById('r-' + k.id).value = v[k.id]; document.getElementById('n-' + k.id).value = v[k.id]; }
+    document.querySelectorAll('[data-chest]').forEach(el => { el.value = chest[Number(el.dataset.i)][el.dataset.chest]; });
+    document.querySelectorAll('[data-shop]').forEach(el => { el.value = shop[Number(el.dataset.i)][el.dataset.shop]; });
+  }
+
+  function out(id, text) { document.querySelectorAll(`[data-out="${id}"]`).forEach(el => { el.textContent = text; }); }
+
+  function update() {
+    const m = compute();
+    out('netDay', fmt(m.netDay));
+    out('minutesDay', fmt(m.minutesDay));
+    out('runsDay', fmt(m.runsDay));
+    out('runMinutes', fmt(m.runMinutes, 1));
+    out('refillHours', hours(m.refillHours));
+    out('daysShield', fmt(m.daysShield, 1));
+    out('daysLevel5', fmt(m.daysLevel5, 1));
+    out('runsPerSessionMax', Number.isFinite(m.runsPerSessionMax) ? fmt(m.runsPerSessionMax) : 'illimité');
+    out('runsPerSession', fmt(m.runsPerSession));
+    out('digs', fmt(m.digs));
+    out('carrotsPerRun', fmt(m.carrotsPerRun, 1));
+    out('bombsPerRun', fmt(m.bombsPerRun, 1));
+    out('runCarrotsDay', fmt(m.runCarrotsDay));
+    out('gardenPerSession', fmt(m.gardenPerSession));
+    out('gardenDay', fmt(m.gardenDay));
+    out('gardenWasteH', fmt(m.gardenWasteH, 1));
+    out('raidGain', fmt(m.raidGain));
+    out('crossover', fmt(m.crossover));
+    out('safe', fmt(m.safe));
+    out('maxLoss', fmt(m.maxLoss));
+    out('chestsPerIsland', fmt(m.chestsPerIsland, 1));
+    out('chestsPerRun', fmt(m.chestsPerRun, 2));
+    out('chestEv', fmt(m.chestEv, 1));
+    out('costTo5', fmt(m.costTo5));
+
+    // per-knob notes
+    const kout = (id, t) => { const el = document.querySelector(`[data-kout="${id}"]`); if (el) el.textContent = t; };
+    kout('eRegen', `1 point toutes les ${hours(1 / v.eRegen)} · plein en ${hours(m.refillHours)} · entre deux sessions : ${fmt(v.eRegen * 24 / v.sessions, 1)} pts`);
+    kout('eMax', v.eCost > 0 ? `${fmt(Math.floor(v.eMax / v.eCost))} parties d’affilée au réveil` : 'sans coût de partie, ce plafond n’est qu’un affichage');
+    kout('runStart', `≈ ${fmt(m.digs)} cases · ${fmt(m.runMinutes, 1)} min à ${v.secPerDig} s la case`);
+    kout('carrotValue', `une partie ≈ ${fmt(m.carrotsPerRun, 1)} carottes · une session de jardin = ${fmt(m.gardenPerSession)}`);
+    kout('capHours', `entre deux sessions : ${fmt(24 / v.sessions, 1)} h · ${m.gardenWasteH > 0 ? fmt(m.gardenWasteH, 1) + ' h de production perdues par retour' : 'aucune heure perdue'}`);
+    kout('yieldBase', `${fmt(v.yieldBase * v.capHours)} carottes à jardin plein au niveau 1`);
+    kout('lootCap', `au-delà de ${fmt(m.crossover)} carottes en stock, tout sauf ${fmt(v.lootCap)} est à l’abri`);
+    kout('chestDensity', `≈ ${fmt(m.chestsPerIsland, 1)} coffres par île · un coffre toutes les ${m.chestsPerRun > 0 ? fmt(1 / m.chestsPerRun, 1) : '∞'} parties`);
+    kout('upGrowth', `niveau 10 : ${fmt(m.upgrade[4][1])} · niveau 20 : ${fmt(m.upgrade[5][1])} carottes`);
+    kout('shieldAfterRaid', `une victime ne peut être raidée que ${fmt(24 / Math.max(v.shieldAfterRaid, 0.01), 1)} fois par jour au plus`);
+
+    // safe bar
+    const s = document.getElementById('safe-safe'), e = document.getElementById('safe-exposed');
+    const tot = Math.max(1, v.sampleStock);
+    s.style.width = (100 * m.safe / tot) + '%'; e.style.width = (100 * m.maxLoss / tot) + '%';
+
+    // chest probabilities
+    chest.forEach((r, i) => { const el = document.querySelector(`[data-chestp="${i}"]`); const p = 100 * r.w / m.chestTot; el.innerHTML = `<span class="pbar" style="width:${Math.max(0, Math.min(60, p))}px"></span>${fmt(p, 1)} %`; });
+
+    // shop
+    shop.forEach((r, i) => {
+      document.querySelector(`[data-shopd="${i}"]`).textContent = fmt(r.c / (m.netDay || 1), 1);
+      document.querySelector(`[data-shopr="${i}"]`).textContent = m.carrotsPerRun > 0 ? fmt(r.c / m.carrotsPerRun, 1) : '∞';
+      document.querySelector(`[data-shopx="${i}"]`).textContent = r.u > 0 ? fmt(r.c / r.u) : '–';
+    });
+
+    // upgrade table
+    const tb = document.querySelector('#uptable tbody');
+    tb.innerHTML = m.upgrade.map(([lvl, cost]) => `<tr><td>${lvl}</td><td class="n">${fmt(cost)}</td><td class="n">${fmt(v.yieldBase + v.yieldLevel * (lvl - 1))} / h</td><td class="n">${fmt(cost / (m.netDay || 1), 1)}</td></tr>`).join('');
+
+    // split bar
+    const parts = [['Parties', m.runCarrotsDay, 'var(--lamp)'], ['Jardin', m.gardenDay, 'var(--leaf)']];
+    const sum = parts.reduce((a, p) => a + p[1], 0) || 1;
+    document.getElementById('splitbar').innerHTML = parts.map(p => `<i style="width:${100 * p[1] / sum}%;background:${p[2]}"></i>`).join('');
+    document.getElementById('splitlegend').innerHTML = parts.map(p => `<span><span class="swatch" style="background:${p[2]}"></span>${p[0]} <b>${fmt(p[1])}</b> (${fmt(100 * p[1] / sum)} %)</span>`).join('')
+      + `<span><span class="swatch" style="background:var(--danger)"></span>Raid réussi <b>+${fmt(m.raidGain)}</b> par raid, hors total</span>`;
+
+    // changed markers + dirty
+    let changed = 0;
+    for (const k of K) { const c = v[k.id] !== k.cur; document.querySelector(`[data-knob="${k.id}"]`).classList.toggle('changed', c); if (c) changed++; }
+    document.getElementById('dirty').textContent = changed ? `${changed} valeur${changed > 1 ? 's' : ''} différente${changed > 1 ? 's' : ''} du code` : 'identique au code';
+
+    drawDay(m);
+    flags(m);
+    exportText(m);
+    save();
+  }
+
+  function drawDay(m) {
+    const svg = document.getElementById('daychart');
+    const W = 300, H = 120, L = 30, R = 6, T = 10, B = 22;
+    const max = Math.max(v.eMax, 1);
+    const x = h => L + (W - L - R) * h / 24;
+    const y = e => T + (H - T - B) * (1 - e / max);
+    // simulate: sessions at evenly spaced hours starting 8h
+    const sessHours = Array.from({ length: v.sessions }, (_, i) => (8 + i * 24 / v.sessions) % 24).sort((a, b) => a - b);
+    let e = max, pts = [], h = 0, played = 0;
+    const step = 0.05;
+    // start at steady state: run twice over 24h and keep second lap
+    for (let lap = 0; lap < 2; lap++) {
+      pts = [];
+      for (h = 0; h <= 24 + 1e-9; h += step) {
+        e = Math.min(max, e + v.eRegen * step);
+        pts.push([h, e]);
+        for (const sh of sessHours) if (Math.abs(h - sh) < step / 2) {
+          const cost = v.eCost > 0 ? v.eCost : 0;
+          for (let r = 0; r < v.runsPerSession; r++) if (e >= cost) { e -= cost; if (lap === 1) played++; }
+          pts.push([h, e]);
+        }
+      }
+    }
+    const path = pts.map((p, i) => (i ? 'L' : 'M') + x(p[0]).toFixed(1) + ' ' + y(p[1]).toFixed(1)).join(' ');
+    const area = path + ` L${x(24).toFixed(1)} ${y(0)} L${x(0).toFixed(1)} ${y(0)} Z`;
+    let g = '';
+    for (const hh of [0, 6, 12, 18, 24]) g += `<line x1="${x(hh)}" y1="${T}" x2="${x(hh)}" y2="${y(0)}" stroke="var(--plank)" stroke-width="1"/><text x="${x(hh)}" y="${H - 6}" text-anchor="middle">${hh}h</text>`;
+    g += `<text x="${L - 4}" y="${y(max) + 4}" text-anchor="end">${fmt(max)}</text><text x="${L - 4}" y="${y(0)}" text-anchor="end">0</text>`;
+    g += `<path d="${area}" fill="var(--lamp)" fill-opacity="0.18"/><path d="${path}" fill="none" stroke="var(--lamp)" stroke-width="2" stroke-linejoin="round"/>`;
+    for (const sh of sessHours) g += `<line x1="${x(sh)}" y1="${T}" x2="${x(sh)}" y2="${y(0)}" stroke="var(--chalk-dim)" stroke-dasharray="2 3"/><text x="${x(sh)}" y="${T - 2}" text-anchor="middle">session</text>`;
+    svg.innerHTML = g;
+    document.getElementById('daynote').textContent = v.eCost > 0
+      ? `Sessions à ${sessHours.map(s => fmt(s) + ' h').join(' et ')} : ${played} parties jouées sur ${v.sessions * v.runsPerSession} voulues.`
+      : 'Sans coût de partie, la courbe ne bouge jamais : l’énergie reste pleine.';
+  }
+
+  function flags(m) {
+    const f = [];
+    const add = (cls, icon, text) => f.push(`<div class="flag ${cls}"><span>${icon}</span><span>${text}</span></div>`);
+    if (v.eCost === 0) add('bad', '!', 'Parties illimitées : l’énergie du terrier n’est débitée nulle part. Il faut câbler ENERGY.RUN_COST dans server/index.ts avant que les curseurs d’énergie comptent.');
+    else if (v.eCost > v.eMax) add('bad', '!', `Une partie coûte ${fmt(v.eCost)} pour un plafond de ${fmt(v.eMax)} : le terrier ne peut jamais en payer une seule.`);
+    else if (m.runsPerSessionMax < 2) add('bad', '!', `La banque pleine ne tient qu’une partie (${fmt(v.eMax)} ÷ ${fmt(v.eCost)}) : le joueur arrive à sec dès la deuxième, et la session est finie avant d’avoir commencé.`);
+    else if (m.runsPerSession < v.runsPerSession) add('', '!', `L’énergie ne suffit pas pour ${v.runsPerSession} parties par session : ${m.runsPerSession} seulement. Monter le plafond ou la régénération.`);
+    else if (Math.abs(m.refillHours - 24 / v.sessions) / (24 / v.sessions) < 0.25) add('ok', '✓', 'Le plein se refait à peu près entre deux sessions : rien n’est perdu à revenir au bon rythme.');
+    else if (m.refillHours < 24 / v.sessions * 0.6) add('', '!', `Plein en ${hours(m.refillHours)} pour un retour toutes les ${hours(24 / v.sessions)} : l’énergie plafonne longtemps, le joueur ne perd rien à jouer plus souvent que voulu.`);
+    if (Math.abs(m.runMinutes - 5) > 1.5) add('', '!', `Une partie dure ≈ ${fmt(m.runMinutes, 1)} min, la cible est 5. Régler ENERGY.START (ou mesurer les secondes par case sur de vraies parties).`);
+    else add('ok', '✓', `Une partie dure ≈ ${fmt(m.runMinutes, 1)} min.`);
+    const share = m.runCarrotsDay / (m.netDay || 1);
+    if (share < 0.25) add('bad', '!', `Les parties ne pèsent que ${fmt(100 * share)} % du revenu : jouer ne rapporte presque rien face au jardin. Monter la valeur d’une carotte déterrée ou baisser le jardin.`);
+    else if (share > 0.75) add('', '!', `Le jardin ne pèse que ${fmt(100 * (1 - share))} % : revenir sans jouer ne vaut rien, le rythme « 2 fois par jour » perd son appât.`);
+    else add('ok', '✓', `Parties ${fmt(100 * share)} % · jardin ${fmt(100 * (1 - share))} % : les deux raisons de revenir tiennent.`);
+    if (m.gardenWasteH > 0.5) add('', '!', `Le jardin est plein ${fmt(m.gardenWasteH, 1)} h avant le retour : de la production perdue, ou une raison de revenir plus tôt que voulu.`);
+    if (m.daysShield > 4) add('', '!', `Un bouclier coûte ${fmt(m.daysShield, 1)} jours de revenu : à ce prix personne ne se protège en carottes.`);
+    if (m.daysLevel5 > 14) add('', '!', `Le niveau 5 demande ${fmt(m.daysLevel5, 1)} jours : plus qu’une saison de 14 jours.`);
+    if (m.bombsPerRun > 3) add('', '!', `${fmt(m.bombsPerRun, 1)} bombes par partie en moyenne : la partie se finit sur un coup de malchance plus que sur un choix.`);
+    if (m.chestsPerRun < 0.2) add('', '!', `Un coffre toutes les ${fmt(1 / (m.chestsPerRun || 1e-9), 1)} parties : la plupart des joueurs n’en verront jamais dans une session.`);
+    add('', '·', 'Constantes mortes dans tuning.ts (changer ne fait rien) : RAID.LOOT_SHARE, CROWN.GAIN_MULT, RAID.ITEM_SHIELD_MS, RAID.SHIELD_REDUCTION, BURROW.HP_*, SMOKE.STACKS, TRAPS.CONSUMED_ON_TRIGGER, tout SABOTAGE.');
+    document.getElementById('flags').innerHTML = f.join('');
+  }
+
+  function exportText(m) {
+    const groups = {};
+    const todo = [];
+    for (const k of K) {
+      if (v[k.id] === k.cur) continue;
+      if (k.path.startsWith('+')) { if (!['cible', 'estimation', 'exemple'].includes(k.path.slice(1))) todo.push(`${k.path.slice(1)} = ${v[k.id]}   // ${k.name}`); continue; }
+      const [obj, key] = k.path.split('.');
+      let val = v[k.id];
+      if (key && key.endsWith('_MS')) val = `${v[k.id]} * 60 * 60 * 1000`;
+      (groups[obj] ||= []).push(`  ${key ?? ''}: ${val},   // était ${k.cur}${key && key.endsWith('_MS') ? ' h' : ''}`);
+    }
+    let t = `// config/tuning.ts — valeurs modifiées (${new Date().toLocaleDateString('fr-FR')})\n`;
+    t += `// Cible : ${v.sessions} sessions/jour × ${v.runsPerSession} parties de ≈ ${fmt(m.runMinutes, 1)} min. Revenu niveau 1 ≈ ${fmt(m.netDay)} carottes/jour.\n\n`;
+    for (const [obj, lines] of Object.entries(groups)) t += `${obj} {\n${lines.join('\n')}\n}\n\n`;
+    const chestChanged = chest.some((r, i) => r.w !== CHEST_CUR[i].w || r.min !== CHEST_CUR[i].min || r.max !== CHEST_CUR[i].max);
+    if (chestChanged) {
+      t += `export const CHEST_LOOT = [\n` + chest.filter(r => r.w > 0).map(r => `  { kind: '${r.kind}', weight: ${r.w}, min: ${r.min}, max: ${r.max} },${r.inCode ? '' : '   // à câbler : ' + r.effect}`).join('\n') + `\n] as const;\n\n`;
+    }
+    const shopChanged = shop.some((r, i) => r.c !== SHOP_CUR[i].c || r.u !== SHOP_CUR[i].u);
+    if (shopChanged) {
+      t += `SHOP.PRICES {\n` + shop.map((r, i) => `  ${r.kind}: ${r.c},${r.c !== SHOP_CUR[i].c ? '   // était ' + SHOP_CUR[i].c : ''}`).join('\n') + `\n}\nSHOP.USDC_PRICES {\n` + shop.map((r, i) => `  ${r.kind}: ${r.u},${r.u !== SHOP_CUR[i].u ? '   // était ' + SHOP_CUR[i].u : ''}`).join('\n') + `\n}\n\n`;
+    }
+    if (todo.length) t += `// À CÂBLER (pas encore dans le code) :\n` + todo.map(l => '// ' + l).join('\n') + '\n';
+    if (!Object.keys(groups).length && !chestChanged && !shopChanged && !todo.length) t += '// Rien ne diffère du code.\n';
+    document.getElementById('exportbox').value = t;
+  }
+
+  // ───────────────────────── boot ─────────────────────────
+  buildSections();
+  if (!load()) setPreset('prop');
+  fill();
+  bind();
+  update();
+})();
+</script>
+</body>
+</html>
