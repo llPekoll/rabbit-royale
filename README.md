@@ -313,6 +313,45 @@ exists — which has already broken the shop in production once. The procedure,
 the Coolify container ids and the checks are in
 [docs/GO-TO-PROD.md](./docs/GO-TO-PROD.md).
 
+### Tuning a live server
+
+Most numbers live in `config/tuning.ts` and change only with a deploy — which
+for `rr-ws` means killing every run in progress, since it holds the islands in
+memory and runs one replica. That is the right price for changing a *rule*, and
+much too high for fixing a price.
+
+So a subset is overridable at runtime from the `tuning` table:
+
+```bash
+bun db:seed-tuning              # remplit la table depuis config/tuning.ts
+bun db:seed-tuning --dry-run    # montre ce qui serait écrit
+bun db:seed-tuning --reset      # remet TOUT à la valeur du fichier
+bun db:seed-tuning --prune      # retire les clés qui ne sont plus surchargeables
+```
+
+Run it once after `db:migrate`, and again after any deploy that adds a knob —
+it only ever creates what is missing and refreshes rows it wrote itself, so a
+price you edited by hand survives a re-run (use `--reset` to overwrite those
+too). Then change a value with plain SQL and it is live within 30 seconds,
+everywhere, with no restart:
+
+```sql
+update tuning set value = 199, note = 'promo week-end' where key = 'SHOP.PRICES.bomb';
+```
+
+**What is overridable, and what is not**, is declared in
+`config/overridable.ts` with bounds per key. Prices, the garden, energy regen,
+raid loot and the upgrade ladder are read at the moment they apply, so they
+move cleanly. Island densities and a run's own energy rules are *not*: tile
+contents are fixed at generation and the run's rules are read while somebody is
+standing on that board, so changing them at runtime would mean two players
+playing different games with nothing on screen to say why.
+
+The file is always the fallback. An empty table, a database that is down, a
+value outside its bounds, or a key the registry does not declare all resolve to
+the shipped number and log — a typo can make an override not apply, never make
+the game start without rules.
+
 ---
 
 ## Where things stand

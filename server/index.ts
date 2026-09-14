@@ -33,6 +33,7 @@ import type { Rabbit } from '../src/lib/game/types';
 import { chargeRun, msToRun } from '../src/lib/game/burrow';
 import { currentEnergy } from '../src/lib/game/regen';
 import { grantItem } from '../src/lib/game/grant';
+import { refreshTuning } from '../src/lib/tuning/live';
 import type { ItemKind } from '../src/lib/game/inventory';
 import { verifySession } from '../src/lib/auth/jwt';
 import { db } from '../src/lib/db';
@@ -1032,6 +1033,20 @@ installProcessGuards({
     io.close(() => httpServer.close(() => resolve()));
   }),
 });
+
+/**
+ * Les surcharges de réglage, chargées au démarrage puis rafraîchies.
+ *
+ * Ce processus tient les îles en mémoire et ne redémarre qu'au prix de toutes
+ * les parties en cours — c'est précisément pour ça que les prix et l'économie
+ * sont surchargeables en base. Encore faut-il les relire : sans ce timer, le
+ * serveur garderait l'instantané du démarrage jusqu'au prochain déploiement,
+ * ce qui est exactement ce que la table sert à éviter.
+ *
+ * `unref` pour que le timer n'empêche jamais le processus de se terminer.
+ */
+void refreshTuning();
+setInterval(() => { void refreshTuning(); }, 30_000).unref();
 
 httpServer.listen(PORT, () => {
   console.log(`[rr-ws] listening on :${PORT}`);

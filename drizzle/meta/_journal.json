@@ -85,6 +85,13 @@
       "when": 1789359082527,
       "tag": "0011_curly_pepper_potts",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1789385843893,
+      "tag": "0012_oval_mariko_yashida",
+      "breakpoints": true
     }
   ]
 }

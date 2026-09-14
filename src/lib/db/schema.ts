@@ -12,7 +12,7 @@
  * still being tuned; phases 1-3 simply do not read most of it.
  */
 import {
-  pgTable, text, integer, bigint, timestamp, boolean, uuid, index, uniqueIndex, pgEnum,
+  pgTable, text, integer, bigint, doublePrecision, timestamp, boolean, uuid, index, uniqueIndex, pgEnum,
 } from 'drizzle-orm/pg-core';
 
 /**
@@ -389,3 +389,38 @@ export const seasonStandings = pgTable('season_standings', {
   rank: integer('rank').notNull(),
   score: bigint('score', { mode: 'number' }).notNull(),
 }, (t) => [uniqueIndex('standings_season_player_idx').on(t.seasonId, t.playerId)]);
+
+/**
+ * Live tuning: the numbers that may change WITHOUT a deploy.
+ *
+ * A SURCHARGE, never a replacement. `config/tuning.ts` stays the source of
+ * truth and ships with the build; a row here overrides exactly one of its
+ * numbers, and only if `config/overridable.ts` declares that key changeable
+ * and the value passes its bounds. An empty table is a perfectly healthy
+ * server running the file's own numbers — which is what makes this safe to
+ * add to a game already in production.
+ *
+ * `key` is the dotted path into the tuning module (`SHOP.PRICES.bomb`), so a
+ * row is readable by whoever has to reason about it at 3am, and so the seed
+ * script can write the whole file into the table in one pass.
+ *
+ * The value is stored as a double even for integer keys: Postgres numeric
+ * types are the wrong place to enforce "this one must be whole", because the
+ * registry already does it and doing it twice means two answers when they
+ * disagree.
+ */
+export const tuning = pgTable('tuning', {
+  key: text('key').primaryKey(),
+  value: doublePrecision('value').notNull(),
+  /**
+   * Who changed it and why — free text, and worth more than it looks.
+   *
+   * A bare number in a table is unexplainable a week later; the reason a price
+   * moved ("promo week-end", "bombe trop chere apres le patch") is what lets
+   * the next person tell a deliberate override from a leftover experiment.
+   */
+  note: text('note'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  /** Set when the row was written by the seed rather than by a human. */
+  seeded: boolean('seeded').notNull().default(false),
+});

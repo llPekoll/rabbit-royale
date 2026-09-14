@@ -18,6 +18,7 @@ import {
   holdings, isShopKind, purchaseBlocker, purchaseCost, shopShelf,
 } from '@/lib/game/inventory';
 import { grantItem } from '@/lib/game/grant';
+import { refreshTuningIfStale } from '@/lib/tuning/live';
 import { armedTraps, availableTraps, rearmingTraps } from '@/lib/game/traps';
 import { TRAPS } from '@config/tuning';
 import { enabledTokens } from '@/lib/pay/tokens';
@@ -108,6 +109,11 @@ export async function GET(req: Request) {
   const session = await getSession(req);
   if (!session) return Response.json({ error: 'unauthenticated' }, { status: 401 });
 
+  // Les prix affichés doivent être ceux qui seront facturés. Non bloquant : la
+  // page s'ouvre avec l'instantané courant et le suivant sera à jour, ce qui
+  // garde la lecture de la base hors du chemin critique de l'affichage.
+  refreshTuningIfStale();
+
   // Before anything else: did they pay for something and never come back for
   // it? A player who closes the tab between signing and confirming has money on
   // chain and nothing in their bag, and the shop is exactly where they will
@@ -131,6 +137,10 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const session = await getSession(req);
   if (!session) return Response.json({ error: 'unauthenticated' }, { status: 401 });
+
+  // Sur l'achat aussi : c'est la lecture qui débite, et elle doit voir le même
+  // prix que celui montré au joueur un instant plus tôt.
+  refreshTuningIfStale();
 
   const body = (await req.json().catch(() => ({}))) as { kind?: unknown; qty?: unknown };
   // isShopKind, not isItemKind: the enum now also carries the chest-only garden

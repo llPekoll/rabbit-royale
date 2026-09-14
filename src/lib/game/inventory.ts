@@ -14,6 +14,7 @@
  *    shelf reports for it is how many refills the daily cap still allows.
  */
 import { ENERGY_PACK, GARDEN_BOOST, SHOP, SMOKE, itemCap, itemPrice, itemUsdcPrice } from '@config/tuning';
+import { tuned } from '@/lib/tuning/live';
 import { availableTraps, type TrapRow } from './traps';
 
 /**
@@ -235,24 +236,48 @@ export function shopShelf(bag: Holdings, stock: number): ShopItem[] {
     const hasRoom = bag[kind] < cap;
     return {
       kind,
-      price: itemPrice(kind),
-      usdc: itemUsdcPrice(kind),
+      price: livePrice(kind),
+      usdc: liveUsdcPrice(kind),
       held: bag[kind],
       cap,
-      canBuy: stock >= itemPrice(kind) && hasRoom,
+      canBuy: stock >= livePrice(kind) && hasRoom,
       hasRoom,
     };
   });
 }
 
+/**
+ * What one `kind` costs right now, in carrots and in USDC.
+ *
+ * These go through the live surcharge rather than straight to the constants,
+ * which is what lets a price be corrected on a running server without a deploy
+ * — and therefore without the WS restart that would take every live run with
+ * it. `tuned` falls back to the shipped number whenever the key is not
+ * overridden, so an empty `tuning` table, or a database that is down, prices
+ * exactly as the build does (see `src/lib/tuning/live.ts`).
+ *
+ * `itemPrice` / `itemUsdcPrice` still run first: they are what makes an
+ * unknown kind fail here, rather than quietly resolving to a path the registry
+ * never declared.
+ */
+function livePrice(kind: ShopKind): number {
+  itemPrice(kind);                      // rejette une kind inconnue
+  return tuned(`SHOP.PRICES.${kind}`);
+}
+
+function liveUsdcPrice(kind: ShopKind): number {
+  itemUsdcPrice(kind);                  // idem
+  return tuned(`SHOP.USDC_PRICES.${kind}`);
+}
+
 /** Carrots for `qty` of `kind`. Flat — no bulk discount, because a discount on
  *  offence is a discount on hurting people who bought none. */
-export const purchaseCost = (kind: ShopKind, qty: number) => itemPrice(kind) * qty;
+export const purchaseCost = (kind: ShopKind, qty: number) => livePrice(kind) * qty;
 
 /** Whole USDC for `qty` of `kind`. Rounded to the cent the quote is stated in;
  *  the base-unit conversion happens once, at the payment's edge. */
 export const purchaseUsdc = (kind: ShopKind, qty: number) =>
-  Math.round(itemUsdcPrice(kind) * qty * 100) / 100;
+  Math.round(liveUsdcPrice(kind) * qty * 100) / 100;
 
 /**
  * Why a purchase cannot happen, or null when it can.
