@@ -49,7 +49,7 @@ describe('run recap', () => {
 
   it('says WHY there is no "Again"', () => {
     // A button that simply vanished reads as a broken screen.
-    expect(RECAP).toMatch(/Out of energy\./);
+    expect(RECAP).toMatch(/Out of hearts\./);
   });
 
   it('crosses home before opening the shop', () => {

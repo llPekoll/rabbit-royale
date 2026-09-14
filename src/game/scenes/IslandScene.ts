@@ -40,7 +40,7 @@ import {
 import { PanZoomGestures } from '../input/PanZoomGestures';
 import type { TileContent } from '@/lib/game/types';
 import { ENERGY, LIGHTNING } from '@config/tuning';
-import { reachableTiles } from '@/lib/game/reachable';
+import { canDig, reachableTiles } from '@/lib/game/reachable';
 
 /** What the scene needs from the outside world. The socket layer supplies it. */
 export interface IslandSceneData {
@@ -1067,9 +1067,9 @@ export class IslandScene implements Scene {
    * reads energy for.
    */
   setEnergy(energy: number): void {
-    const couldDig = this.myEnergy >= ENERGY.DIG_COST;
+    const couldDig = canDig(this.myEnergy);
     this.myEnergy = energy;
-    if (couldDig !== (energy >= ENERGY.DIG_COST)) this.refreshReachable();
+    if (couldDig !== canDig(energy)) this.refreshReachable();
   }
 
   /**

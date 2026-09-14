@@ -457,6 +457,13 @@ button { min-height: 44px; min-width: 44px; }
 }
 .rr-energy-icon { font-size: 13px; line-height: 1; }
 
+/* The run's hearts (see hearts.tsx). Whole-multiple pixel art: the sprite is
+   19×16, drawn at exactly 2× so no source pixel straddles a screen pixel. The
+   row keeps its width — it is the one reading that must not shrink when the
+   counters beside it crowd a phone. */
+.rr-hearts { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; }
+.rr-hearts img { width: 38px; height: 32px; image-rendering: pixelated; display: block; }
+
 /* One knob for the whole gauge: every length below is a multiple of the source
    pixel, so the art can never land on a half-pixel and go soft.
    

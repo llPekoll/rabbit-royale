@@ -146,8 +146,38 @@ export function revealTile(island: Island, index: number, by?: string): boolean 
   return true;
 }
 
-/** Fraction of the island dug — drives the smoke stages and the eruption. */
-export const dugFraction = (island: Island) => island.dugCount / island.tiles.size;
+/**
+ * Where the island stands: how many SAFE tiles are still in the ground, and
+ * how far along that makes it, 0 → 1, where 1 is the eruption.
+ *
+ * Safe tiles, not all tiles. An island is cleared when every tile that is not
+ * a bomb has been dug: by then the bombs left are all known from the numbers,
+ * and asking a player to step on them to "finish" would be asking them to lose
+ * hearts for nothing. A bomb that IS dug (someone stepped on it) is simply no
+ * longer in anyone's way.
+ *
+ * Walked, not tracked: the board is a few hundred tiles and this runs once
+ * per dig, which is nothing next to the socket round-trip it sits behind — and
+ * a counter kept alongside `dugCount` would be one more thing to get wrong on
+ * every reveal path.
+ */
+export function islandProgress(island: Island): { safeLeft: number; safeTotal: number; fraction: number } {
+  let safeTotal = 0;
+  let safeLeft = 0;
+  for (const tile of island.tiles.values()) {
+    if (tile.content === 'bomb') continue;
+    safeTotal++;
+    if (!tile.revealed) safeLeft++;
+  }
+  const fraction = safeTotal === 0 ? 1 : 1 - safeLeft / safeTotal;
+  return { safeLeft, safeTotal, fraction };
+}
+
+/** Safe tiles still in the ground. Below ERUPTION.JOIN_MIN_TILES_LEFT nobody new joins. */
+export const safeTilesLeft = (island: Island) => islandProgress(island).safeLeft;
+
+/** Share of the safe tiles dug — drives the smoke stages and, at 1, the eruption. */
+export const dugFraction = (island: Island) => islandProgress(island).fraction;
 
 /**
  * The island as a CLIENT may see it: only what is already REVEALED. An

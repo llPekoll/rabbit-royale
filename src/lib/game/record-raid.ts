@@ -60,8 +60,8 @@ export async function recordRaid(opts: {
     const [robbed] = await tx
       .update(players)
       .set({
-        stock: sql`greatest(0, ${players.stock} - ${outcome.loot})`,
-        seasonScore: sql`greatest(0, ${players.seasonScore} - ${outcome.loot})`,
+        stock: sql`greatest(0, ${players.stock} - ${outcome.lootFromStock})`,
+        seasonScore: sql`greatest(0, ${players.seasonScore} - ${outcome.lootFromStock})`,
         // No HP subtraction any more: the burrow has no hit points. The raid's
         // `damage` survives as the SEVERITY written to the log line below —
         // what the profile history reads back as "35 dmg" — and nothing is
@@ -75,7 +75,7 @@ export async function recordRaid(opts: {
     // Credit the attacker with what the defender could actually pay, so carrots
     // are conserved even when two raids land at once.
     const looted = outcome.loot;
-    const scoreTransferred = outcome.loot;
+    const scoreTransferred = outcome.lootFromStock;
 
     if (looted > 0) {
       await tx

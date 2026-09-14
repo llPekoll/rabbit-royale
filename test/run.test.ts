@@ -5,7 +5,7 @@
  * red for no reason.
  */
 import { describe, expect, it } from 'vitest';
-import { BOMB, ENERGY, MULTIPLAYER } from '../config/tuning';
+import { BOMB, ENERGY, MULTIPLAYER, RUN } from '../config/tuning';
 import { generateIsland } from '../src/lib/game/island';
 import { resolveMove, spawnRabbit, isAdjacent, knockbackTarget } from '../src/lib/game/run';
 import { COLS, ROWS, SPAWN_INDEX, makeShape, neighbors, toColRow } from '../src/config/gridConfig';
@@ -69,7 +69,7 @@ describe('resolveMove', () => {
     const before = rabbit.energy;
     resolveMove(island, rabbit, to, shape, rng(), soon());
     expect(rabbit.energy).toBe(before - ENERGY.DIG_COST + ENERGY.CARROT_GAIN);
-    expect(rabbit.carrots).toBe(1);
+    expect(rabbit.carrots).toBe(RUN.CARROT_VALUE);
   });
 
   it('caps energy at the ceiling', () => {
@@ -137,12 +137,23 @@ describe('resolveMove', () => {
   });
 
   it('ends the run at zero energy', () => {
+    // A bomb, not a plain dig: with digging free, the bar only reaches zero
+    // when a bomb takes the last of it.
     const island = blank();
-    const rabbit = spawnRabbit('p1', 'Test', ENERGY.DIG_COST);
-    const out = resolveMove(island, rabbit, step(), shape, rng(), soon());
+    const rabbit = spawnRabbit('p1', 'Test', ENERGY.DIG_COST + ENERGY.BOMB_LOSS);
+    const bomb = step();
+    island.tiles.get(bomb)!.content = 'bomb';
+    const out = resolveMove(island, rabbit, bomb, shape, rng(), soon());
     expect(rabbit.energy).toBe(0);
     expect(rabbit.alive).toBe(false);
     expect(out.runOver).toBe(true);
+  });
+
+  it('refuses a dig from a rabbit whose bar is at zero, whatever a dig costs', () => {
+    const island = blank();
+    const rabbit = spawnRabbit('p1', 'Test', 0);
+    const out = resolveMove(island, rabbit, step(), shape, rng(), soon());
+    expect(out.rejection).toBe('no-energy');
   });
 
   it('pays a carrot to the first digger only', () => {
@@ -153,7 +164,7 @@ describe('resolveMove', () => {
     island.tiles.get(to)!.content = 'carrot';
 
     resolveMove(island, first, to, shape, rng(), soon());
-    expect(first.carrots).toBe(1);
+    expect(first.carrots).toBe(RUN.CARROT_VALUE);
 
     // Second arrives at a tile that is now revealed: free to walk, and it pays
     // nothing — the carrot is gone.

@@ -164,9 +164,20 @@ function warnStageFor(fraction: number): number {
 }
 
 /**
- * The island is spent: sink it, and move everyone who is still alive onto a
- * fresh one. Carrots are already banked (they are credited at pickup), so an
- * eruption costs a player nothing but their position.
+ * The island is cleared: every run on it is over, and everyone goes home.
+ *
+ * This used to move the survivors onto a fresh island with their energy and
+ * carrots, which made a run endless for anyone who could avoid the bombs —
+ * digging is free, so nothing but a bomb ever drained the bar. Now the island
+ * IS the level: when its last safe tile is dug (`islandProgress`) the runs are
+ * banked, each player gets their recap, and the island is deleted. What is
+ * left to dig is what a run is worth, which is also why a late joiner gets a
+ * short one — and why, below ERUPTION.JOIN_MIN_TILES_LEFT, nobody new is sent.
+ *
+ * The recap is built from the SOCKET's tallies, the same way a death is, so
+ * the two endings print the same numbers for the same run. A rabbit whose run
+ * already ended on a bomb is banked (idempotently) but not told again — it
+ * already has its recap on screen.
  */
 async function erupt(live: LiveIsland) {
   if (live.erupting) return;
@@ -175,35 +186,27 @@ async function erupt(live: LiveIsland) {
   io.to(room).emit('eruption', { islandId: live.island.id, durationMs: ERUPTION.SEQUENCE_MS });
 
   setTimeout(guard('erupt', async () => {
-    const survivors = [...live.rabbits.values()].filter((r) => r.alive);
-    const lifetime = Math.max(0, ...survivors.map((r) => r.carrots));
-    const next = newIsland(lifetime);
-
-    // Anyone NOT moving on is finished here: the island they were on is about
-    // to be deleted, and with it their rabbit. Bank before that happens, or a
-    // run that ended on a bomb moments before the eruption is thrown away.
     for (const rabbit of live.rabbits.values()) {
-      if (rabbit.alive) continue;
-      void bankRun(rabbit).catch((e) => console.error('[bankRun:erupt]', e));
-    }
-
-    for (const rabbit of survivors) {
+      const wasAlive = rabbit.alive;
+      rabbit.alive = false;
+      // Bank before the island goes, alive or not: a run that ended on a bomb
+      // moments before the eruption must not be thrown away with the rabbit.
+      await bankRun(rabbit).catch((e) => console.error('[bankRun:erupt]', e));
+      if (!wasAlive) continue;
       const socket = socketOf(rabbit.playerId);
-      // Energy and carrots ride along; the run continues, only the ground changed.
-      const moved = spawnRabbit(rabbit.playerId, rabbit.name, rabbit.energy, next.island.seed);
-      moved.carrots = rabbit.carrots;
-      // ...and so does the run's paperwork. Without it the moved rabbit has no
-      // run id, so whatever it digs on the new island can never be banked.
-      moved.run = rabbit.run;
-      next.rabbits.set(rabbit.playerId, moved);
-      if (socket) {
-        socket.leave(room);
-        socket.join(roomFor(next.island.id));
-        (socket.data as SocketData).islandId = next.island.id;
-        socket.emit('island', snapshot(next));
-      }
+      const sd = socket?.data as SocketData | undefined;
+      if (!socket || !sd || sd.islandId !== live.island.id) continue;
+      socket.emit('run_over', {
+        carrots: rabbit.carrots,
+        tilesDug: sd.tilesDug ?? 0,
+        bombsHit: sd.bombsHit ?? 0,
+        durationMs: Date.now() - (sd.runStartedAt ?? Date.now()),
+        cleared: true,
+      });
+      // Not `sd.islandId = undefined`: the recap's "Again" goes through
+      // `restart`, which needs the id to leave the room and say `restarting`.
+      // A deleted island is a fine thing for it to find nothing under.
     }
-    io.to(roomFor(next.island.id)).emit('rabbits', [...next.rabbits.values()].map(publicRabbit));
     store.delete(live.island.id);
   }), ERUPTION.SEQUENCE_MS);
 }
@@ -788,7 +791,9 @@ io.on('connection', (socket: Socket) => {
         live.warnStage = stage;
         io.to(room).emit('volcano', { stage, dugFraction: fraction });
       }
-      if (fraction >= ERUPTION.THRESHOLD) void erupt(live);
+      // 1 means every safe tile is dug — the bombs left are known, and nobody
+      // is asked to step on them. See `islandProgress`.
+      if (fraction >= 1) void erupt(live);
     }
   }));
 
@@ -810,14 +815,16 @@ io.on('connection', (socket: Socket) => {
     if (!data.playerId || !data.islandId) return;
     const live = store.get(data.islandId);
     const rabbit = live?.rabbits.get(data.playerId);
-    if (!live || !rabbit) return;
-
-    await bankRun(rabbit).catch((e) => console.error('[bankRun:leave]', e));
-
-    live.rabbits.delete(data.playerId);
-    live.disconnectedAt.delete(data.playerId);
-    socket.leave(roomFor(live.island.id));
-    io.to(roomFor(live.island.id)).emit('rabbit_left', { playerId: data.playerId, grace: false });
+    // No island under the id is the ordinary case after an eruption: the run
+    // was banked and the island deleted, and the seat here is all that is
+    // left to give up. Returning early kept the socket "on" a dead island.
+    if (live && rabbit) {
+      await bankRun(rabbit).catch((e) => console.error('[bankRun:leave]', e));
+      live.rabbits.delete(data.playerId);
+      live.disconnectedAt.delete(data.playerId);
+      io.to(roomFor(live.island.id)).emit('rabbit_left', { playerId: data.playerId, grace: false });
+    }
+    socket.leave(roomFor(data.islandId));
     data.islandId = undefined;
     data.runId = undefined;
 

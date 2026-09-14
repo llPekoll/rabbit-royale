@@ -31,9 +31,13 @@ export function Recap({
   onShop: () => void;
   onHome: () => void;
 }) {
+  // Two endings since the island became a level: the hearts ran out, or the
+  // island did. The second is a win, and the card has to read like one — the
+  // refill offer would be nonsense under "Island cleared".
+  const cleared = !!recap.cleared;
   return (
     <div className="rr-card" style={{ textAlign: 'center' }}>
-      <h2 style={{ margin: '0 0 4px' }}>Run over</h2>
+      <h2 style={{ margin: '0 0 4px' }}>{cleared ? 'Island cleared!' : 'Run over'}</h2>
       <p style={{ color: 'var(--muted)', margin: '0 0 10px' }}>
         {/* The separator before the duration was missing, so a 3-bomb, 214s
             run printed "💣 3 214s" — which reads as one four-digit number. */}
@@ -44,15 +48,17 @@ export function Recap({
       {/* Why there is no "Again", said plainly — a button that vanished with
           no explanation reads as a broken screen. */}
       <p className="rr-note" style={{ margin: '0 0 10px' }}>
-        Out of energy.
+        {cleared ? 'Every tile worth digging is dug. The volcano took the rest.' : 'Out of hearts.'}
       </p>
-      <button onClick={onShop} style={{ width: '100%', marginBottom: 8 }}>
-        Get more energy
-      </button>
+      {!cleared && (
+        <button onClick={onShop} style={{ width: '100%', marginBottom: 8 }}>
+          Get more energy
+        </button>
+      )}
       {/* Leaving was always possible — the arrow below does it — but a player
           who has just finished is deciding between two things, and only one of
           them was written down. */}
-      <button className="rr-btn ghost" onClick={onHome} style={{ width: '100%' }}>
+      <button className={cleared ? undefined : 'rr-btn ghost'} onClick={onHome} style={{ width: '100%' }}>
         Back to the burrow
       </button>
     </div>

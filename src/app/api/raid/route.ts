@@ -27,6 +27,7 @@ import { burrowNeighbors, entranceTile, burrowCell, walkableTiles } from '@/game
 import { smokeActive } from '@/lib/game/inventory';
 import { armedTraps } from '@/lib/game/traps';
 import { RAID, RAID_RUN, TRAPS } from '@config/tuning';
+import { gardenAfterLoot, gardenYield } from '@/lib/game/regen';
 
 /** Everything the raid screen draws, for a raid in progress. */
 async function raidView(runId: string, revealAll = false) {
@@ -266,10 +267,15 @@ export async function PATCH(req: Request) {
   if (!defender) return Response.json({ error: 'unknown_player' }, { status: 404 });
 
   const now = new Date();
+  // What is standing in the defender's garden right now: the purse a raid is
+  // for (RAID.GARDEN_LOOT_SHARE). Read once and settled against, so the clock
+  // below is set back from the same figure the haul was computed on.
+  const gardenPending = gardenYield(defender, now.getTime());
   const outcome = settleRaid({
     seed: run.defenderId,
     endedAt: to,
     defenderStock: defender.stock,
+    defenderGarden: gardenPending,
     defenderLevel: defender.burrowLevel,
     shielded: !!defender.shieldedUntil && defender.shieldedUntil.getTime() > now.getTime(),
   }, Math.random, distanceToField(run.defenderId));
@@ -282,8 +288,13 @@ export async function PATCH(req: Request) {
     // changes sides entirely rather than merely leaving the victim's bank
     // (GDD). Guarded in SQL so a concurrent raid cannot overdraw the stock.
     const [robbed] = await tx.update(players).set({
-      stock: raw`greatest(0, ${players.stock} - ${outcome.loot})`,
-      seasonScore: raw`greatest(0, ${players.seasonScore} - ${outcome.loot})`,
+      // Only the STOCK part leaves the stock and the score: garden carrots were
+      // never in either yet (they land there at harvest), so the garden part
+      // is taken by setting the garden's clock back instead — see
+      // `gardenAfterLoot`. The attacker still receives the whole haul.
+      stock: raw`greatest(0, ${players.stock} - ${outcome.lootFromStock})`,
+      seasonScore: raw`greatest(0, ${players.seasonScore} - ${outcome.lootFromStock})`,
+      gardenCollectedAt: gardenAfterLoot(defender, gardenPending, outcome.lootFromGarden, now.getTime()),
       // A SACKED burrow earns its owner the long shield. THE anti-churn rule:
       // without it a player who logs off rich is farmed to zero by morning.
       //
@@ -319,7 +330,8 @@ export async function PATCH(req: Request) {
       damage: outcome.damage,
       result: outcome.loot > 0 ? 'looted' : outcome.damage > 0 ? 'damaged' : 'blocked',
       carrotsLooted: outcome.loot,
-      scoreTransferred: outcome.loot,
+      // Score follows the stock carrots only: the garden's were not yet scored.
+      scoreTransferred: outcome.lootFromStock,
     });
   });
 
@@ -329,6 +341,7 @@ export async function PATCH(req: Request) {
     outcome: {
       reachedField,
       loot: outcome.loot,
+      lootFromGarden: outcome.lootFromGarden,
       damage: outcome.damage,
       progress: outcome.progress,
     },

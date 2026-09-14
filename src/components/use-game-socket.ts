@@ -120,6 +120,8 @@ export interface RunRecap {
   tilesDug: number;
   bombsHit: number;
   durationMs: number;
+  /** The island was dug out, and the run ended with it — not on a bomb. */
+  cleared?: boolean;
 }
 
 /** Resolves the live scene, or null before Pixi has finished booting. */

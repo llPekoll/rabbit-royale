@@ -61,11 +61,14 @@ describe('a run is paid for out of the burrow', () => {
   });
 
   it('takes the cost off the regenerated bar and restamps the clock', () => {
-    // Three hours away on an empty bar: the regen is folded in FIRST, then the
+    // Hours away on an empty bar: the regen is folded in FIRST, then the
     // cost comes off. Charging the stored value against the old stamp would
     // pay the same three hours out again on the next read.
-    const paid = chargeRun(row(0, 3 * hour), now)!;
-    expect(paid.energy).toBe(3 * OUT_OF_RUN_ENERGY.REGEN_PER_HOUR - ENERGY.RUN_COST);
+    // Long enough away for the regen to afford a run, whatever the tuning says
+    // today: at 5/h and a cost of 25, three hours no longer did.
+    const hours = Math.ceil(ENERGY.RUN_COST / OUT_OF_RUN_ENERGY.REGEN_PER_HOUR) + 1;
+    const paid = chargeRun(row(0, hours * hour), now)!;
+    expect(paid.energy).toBe(hours * OUT_OF_RUN_ENERGY.REGEN_PER_HOUR - ENERGY.RUN_COST);
     expect(paid.energyUpdatedAt.getTime()).toBe(now);
     expect(burrowView({ ...row(0), ...paid }, now).energy).toBe(paid.energy);
   });

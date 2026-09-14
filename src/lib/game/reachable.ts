@@ -73,6 +73,21 @@ export function reachableTiles(
     // Revealed ground costs nothing, so it stays clickable at zero energy —
     // and at zero energy it is the ONLY thing that is.
     if (state.isRevealed(index)) return true;
-    return state.energy >= ENERGY.DIG_COST;
+    return canDig(state.energy);
   });
+}
+
+/**
+ * Can a rabbit with this much energy dig a tile? THE rule, shared by the
+ * server (`resolveMove`), the ring above and the scene's energy watcher, so
+ * the three can never disagree about which tap will be accepted.
+ *
+ * Two conditions, not one. `energy >= DIG_COST` is the price; `energy > 0` is
+ * the fact that a run at zero is OVER (`resolveMove` ends it the moment the
+ * bar touches zero). While a dig cost one the second was implied by the first.
+ * At DIG_COST = 0 it no longer is: a bare price check would light the ring for
+ * a rabbit whose run has just ended, promising a move the server refuses.
+ */
+export function canDig(energy: number): boolean {
+  return energy > 0 && energy >= ENERGY.DIG_COST;
 }

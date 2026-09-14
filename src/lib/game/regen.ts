@@ -119,6 +119,35 @@ export function gardenYield(
   return Math.floor((dry + wet * GARDEN_BOOST.WATER.RATE_MULT) * perHour);
 }
 
+/**
+ * The garden after a raid took `taken` of its `pending` carrots: the new
+ * `gardenCollectedAt` to store.
+ *
+ * The garden is not a number in a column, it is a clock (see the top of this
+ * file), so a theft cannot be subtracted — the clock is set BACK instead, to
+ * the instant at which the garden would hold what is left. Exact for a plain
+ * garden (carrots are hours × rate); proportional under a watering, where the
+ * hours kept are the same share of the paid hours as the carrots kept. The cap
+ * is honoured by construction: the paid hours were already clipped to it, so
+ * what remains is at most the cap.
+ *
+ * Nothing is taken from a garden that holds nothing, and a theft of the whole
+ * garden lands the clock on `now` — the same row a harvest writes.
+ */
+export function gardenAfterLoot(
+  row: Pick<RegenRow, 'gardenCollectedAt' | 'fertilisedUntil'>,
+  pending: number,
+  taken: number,
+  now = Date.now(),
+): Date {
+  if (pending <= 0 || taken <= 0) return row.gardenCollectedAt;
+  const keep = Math.max(0, 1 - Math.min(taken, pending) / pending);
+  const capHours = capHoursFor(row, now);
+  const elapsed = Math.max(0, now - row.gardenCollectedAt.getTime()) / HOUR;
+  const paidHours = Math.min(capHours, elapsed);
+  return new Date(now - paidHours * keep * HOUR);
+}
+
 /** A player row with the derived values filled in — what an API hands a client. */
 export function applyRegen<T extends RegenRow>(row: T, now = Date.now()) {
   return {

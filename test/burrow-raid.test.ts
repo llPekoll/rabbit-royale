@@ -256,6 +256,8 @@ function busiestTiles(seed: string, n: number): Set<number> {
 }
 
 const STOCK = 10_000;
+/** What a raid can see of it: the stock above the warehouse floor. */
+const EXPOSED = STOCK - RAID.SAFE_FLOOR;
 
 /**
  * Average carrots a raid takes from a burrow defended by `placed` traps.
@@ -290,7 +292,7 @@ describe('raid loot', () => {
     // Doing nothing must cost you, or there is no reason to place traps. The
     // full share is rolled in a band, so the average sits at its middle.
     const mid = (RAID_RUN.LOOT_SHARE_MIN + RAID_RUN.LOOT_SHARE) / 2;
-    expect(averageLoot(0)).toBeCloseTo(STOCK * mid, -2);
+    expect(averageLoot(0)).toBeCloseTo(EXPOSED * mid, -2);
   });
 
   it('rolls the full share inside its band, never past the ceiling', () => {
@@ -301,8 +303,8 @@ describe('raid loot', () => {
         seed, endedAt: fieldTiles(seed)[0], defenderStock: STOCK,
         defenderLevel: 6, shielded: false,
       }, () => roll, dist);
-      expect(out.loot).toBeGreaterThanOrEqual(Math.floor(STOCK * RAID_RUN.LOOT_SHARE_MIN));
-      expect(out.loot).toBeLessThanOrEqual(Math.floor(STOCK * RAID_RUN.LOOT_SHARE));
+      expect(out.loot).toBeGreaterThanOrEqual(Math.floor(EXPOSED * RAID_RUN.LOOT_SHARE_MIN));
+      expect(out.loot).toBeLessThanOrEqual(Math.floor(EXPOSED * RAID_RUN.LOOT_SHARE));
     }
   });
 

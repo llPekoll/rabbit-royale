@@ -12,19 +12,43 @@
 
 // ── Phase 1: the solo run ────────────────────────────────────────────────────
 
+/**
+ * A run's energy, read as HEARTS.
+ *
+ * Since 14 September 2026 the bar is a Zelda-style life: START / BOMB_LOSS
+ * hearts, one lost per bomb, and the run ends on the last one. Digging is
+ * free (DIG_COST 0) and an ordinary carrot heals nothing, so the numbers here
+ * are only ever multiples of one heart — keep them that way, the HUD draws
+ * whole hearts and nothing in between. A golden carrot gives one heart back.
+ *
+ * What ENDS a run is therefore the hearts or the island being cleared (see
+ * ERUPTION), never a clock: a player who reads the numbers and avoids every
+ * bomb finishes the island, and that is the point.
+ */
 export const ENERGY = {
-  /** Energy a run starts with. The whole run length knob. */
-  START: 30,
-  /** A dug tile costs this. Walking a revealed tile is free. */
-  DIG_COST: 1,
-  /** Ordinary carrot. */
-  CARROT_GAIN: 3,
-  /** Golden carrot (rare). */
-  GOLDEN_GAIN: 12,
-  /** Stepping on a bomb. */
+  /** Energy a run starts with: three hearts. */
+  START: 24,
+  /**
+   * A dug tile costs this. Walking a revealed tile is free.
+   *
+   * ZERO since 14 September 2026: digging itself is free, so a run's energy is
+   * a LIFE bar that only bombs eat and carrots refill, and the run ends when
+   * the bombs win. At 1 the bar drained on every step and, with 14 % bombs on
+   * top, a run lasted ~17 tiles — under four minutes, which read as "you can
+   * barely play one game". Run length is now set by BOMB_LOSS, BOMB_DENSITY
+   * and CARROT_GAIN alone; keep their net per tile NEGATIVE or a run never
+   * ends (docs/economy-tuning.html shows the slope).
+   */
+  DIG_COST: 0,
+  /** Ordinary carrot: score, not life. Anything above 0 lets a careful player
+   *  out-heal the bombs and never finish — see docs/economy-tuning.html. */
+  CARROT_GAIN: 0,
+  /** Golden carrot (rare): one heart back. */
+  GOLDEN_GAIN: 8,
+  /** Stepping on a bomb: one heart. */
   BOMB_LOSS: 8,
-  /** Hard ceiling so a lucky streak can't make a run immortal. */
-  MAX: 99,
+  /** Ceiling — the full set of hearts. A golden carrot on full life is score only. */
+  MAX: 24,
   /**
    * What the BURROW pays to start a run — drawn from `OUT_OF_RUN_ENERGY`, not
    * from the run's own tank, which always opens at START.
@@ -34,14 +58,48 @@ export const ENERGY = {
    * so the bar sat at its ceiling forever, a bought refill topped up a bar
    * that was already full, and runs were unlimited.
    *
-   * Equal to START so the sums read plainly: one run costs one tank. With
-   * OUT_OF_RUN_ENERGY at 60 / +12 an hour that is two runs banked at most, a
-   * fresh run every two and a half hours, and a bought refill worth two runs.
-   * A player short of this many points is shown the wait and the refill on
-   * the burrow, before they cross — not an island that refuses them.
+   * A THIRD of the bank, not a whole tank: a full burrow at OUT_OF_RUN_ENERGY
+   * .MAX = 60 pays three runs, which is the session the economy is tuned for
+   * (docs/economy-tuning.html). At 30 it paid two, and a newcomer — who is
+   * created with a full bank, see src/lib/auth — was out after two games on
+   * their first visit. A bought refill is worth three runs for the same
+   * reason. A player short of this many points is shown the wait and the
+   * refill on the burrow, before they cross — not an island that refuses them.
+   *
+   * Unrelated to START: what a run costs to ENTER is not what it opens with.
    */
-  RUN_COST: 30,
+  RUN_COST: 25,
 } as const;
+
+/*
+ * 15 September 2026: the economy was re-tuned as one set from
+ * docs/economy-tuning.html (regen, run cost, carrot and chest densities, garden
+ * yield, raid shares and cap, crown multiplier, upgrade growth, shop prices).
+ * The values were chosen together on the carnet's model — moving one back
+ * alone changes the day it was balanced for. The shop prices are ALSO seeded
+ * in the `tuning` table: run `bun db:seed-tuning` after deploying.
+ */
+
+/**
+ * What a dug carrot is WORTH, in carrots.
+ *
+ * Wired on 15 September 2026. It was a hard-coded `+= 1`, and at 1 a whole
+ * run paid two carrots against a garden that grew 960 a day: playing was 1 %
+ * of the income, so the best strategy was not to play. At 15 a five-minute run
+ * is worth about as much as a raid or a garden visit — the three reasons to
+ * come back carry similar weight (docs/economy-tuning.html).
+ *
+ * The island tiers (ISLAND_TIERS.minLifetime) were sized when a carrot was 1;
+ * they climb 15× faster now and may want re-spacing once real numbers exist.
+ */
+export const RUN = {
+  CARROT_VALUE: 15,
+  /** Five ordinary carrots: rare, it shines, and it should pay like a small chest. */
+  GOLDEN_VALUE: 75,
+} as const;
+
+/** Hearts a run opens with — what the HUD draws. */
+export const HEARTS = ENERGY.START / ENERGY.BOMB_LOSS;
 
 export const BOMB = {
   /** Tiles the rabbit is thrown backwards. Revealed terrain is preferred. */
@@ -62,11 +120,11 @@ export const ISLAND = {
   /** Fraction of tiles that are bombs. */
   BOMB_DENSITY: 0.14,
   /** Fraction of tiles that are carrots. */
-  CARROT_DENSITY: 0.10,
+  CARROT_DENSITY: 0.30,
   /** Of the carrots, this fraction are golden. */
   GOLDEN_SHARE: 0.06,
   /** Fraction of tiles holding a chest. */
-  CHEST_DENSITY: 0.012,
+  CHEST_DENSITY: 0.02,
   /** Radius around each spawn that is guaranteed bomb-free and pre-revealed. */
   SAFE_RADIUS: 1,
 } as const;
@@ -85,7 +143,7 @@ export interface IslandTier {
 }
 
 export const ISLAND_TIERS: readonly IslandTier[] = [
-  { name: 'Meadow',  minLifetime: 0,     bombDensity: 0.14, carrotDensity: 0.10, goldenShare: 0.06 },
+  { name: 'Meadow',  minLifetime: 0,     bombDensity: 0.14, carrotDensity: 0.30, goldenShare: 0.06 },
   { name: 'Thicket', minLifetime: 2_000, bombDensity: 0.18, carrotDensity: 0.13, goldenShare: 0.09 },
   { name: 'Ashland', minLifetime: 10_000, bombDensity: 0.22, carrotDensity: 0.17, goldenShare: 0.13 },
   { name: 'Caldera', minLifetime: 40_000, bombDensity: 0.27, carrotDensity: 0.22, goldenShare: 0.18 },
@@ -93,11 +151,32 @@ export const ISLAND_TIERS: readonly IslandTier[] = [
 
 // ── Phase 2: island life cycle ───────────────────────────────────────────────
 
+/**
+ * The island's end.
+ *
+ * Since 14 September 2026 the eruption is the END OF EVERY RUN on the island,
+ * not a change of scenery: the runs are banked and everyone goes home. An
+ * island is a level to clear, and it is CLEARED when every safe tile — every
+ * tile that is not a bomb — has been dug; the bombs left in the ground are
+ * known by then and nobody is asked to step on them. See `islandProgress` in
+ * island.ts and `erupt` in server/index.ts.
+ *
+ * Whoever is on the island finishes it. The threshold below is about who may
+ * START on it, not about ending anyone's run.
+ */
 export const ERUPTION = {
-  /** % of tiles dug at which the volcano starts smoking (3 escalating stages). */
+  /** Share of the safe tiles dug at which the volcano starts smoking (3 stages). */
   WARN_STAGES: [0.45, 0.62, 0.78],
-  /** % dug that triggers the eruption. The island sinks, a new one is born. */
-  THRESHOLD: 0.85,
+  /**
+   * Safe tiles left below which nobody new joins, and an island with nobody
+   * on it is torn down at once instead of living out its day.
+   *
+   * An ABSOLUTE count, not a share: what a late joiner is offered is measured
+   * in tiles, and a run of a dozen tiles is not worth what a run costs. So this
+   * is also the shortest run the game can sell — anyone already there keeps
+   * digging past it to the end.
+   */
+  JOIN_MIN_TILES_LEFT: 20,
   /** Length of the eruption cutscene before players land on the new island. */
   SEQUENCE_MS: 4000,
 } as const;
@@ -105,7 +184,7 @@ export const ERUPTION = {
 // ── Phase 3: multiplayer ─────────────────────────────────────────────────────
 
 export const MULTIPLAYER = {
-  /** Drop-in joins the emptiest island under this cap; all full → new island. */
+  /** Drop-in joins the FULLEST island under this cap; all full → new island. */
   MAX_PLAYERS_PER_ISLAND: 4,
   /** Server tick. Moves are resolved and broadcast on this cadence. */
   TICK_MS: 100,
@@ -113,8 +192,18 @@ export const MULTIPLAYER = {
   MIN_MOVE_INTERVAL_MS: 90,
   /** A disconnected player's seat is held this long for a refresh/reconnect. */
   RECONNECT_GRACE_MS: 45_000,
-  /** An island with nobody on it is torn down after this long. */
-  EMPTY_ISLAND_TTL_MS: 60_000,
+  /**
+   * An island with nobody on it is torn down after this long.
+   *
+   * A DAY, since 14 September 2026. A started island is a level in progress:
+   * whoever died on it, or anyone else, can come back and pay a run to finish
+   * it, and its remaining tiles are exactly what the next run is worth. Tearing
+   * it down after a minute threw that away and handed a lone joiner a fresh
+   * island with the old one's carrots still in the ground. The day is a
+   * memory bound for the single-replica WS server, not a design choice: an
+   * island nobody has touched since yesterday is not coming back.
+   */
+  EMPTY_ISLAND_TTL_MS: 24 * 60 * 60 * 1000,
 } as const;
 
 // ── Phase 4: the burrow ──────────────────────────────────────────────────────
@@ -125,14 +214,14 @@ export const BURROW = {
   MAX_LEVEL: 20,
   /** Cost in carrots to go from level N to N+1: BASE * GROWTH^(N-1). */
   UPGRADE_BASE_COST: 250,
-  UPGRADE_GROWTH: 1.55,
+  UPGRADE_GROWTH: 1.45,
   /** Burrow HP regenerates this fraction of max per hour (timestamp-derived). */
   HP_REGEN_PER_HOUR: 0.20,
 } as const;
 
 export const GARDEN = {
   /** Carrots produced per hour, scaled by burrow level. */
-  YIELD_PER_HOUR_BASE: 40,
+  YIELD_PER_HOUR_BASE: 20,
   YIELD_PER_LEVEL: 8,
   /** Production stops once this many hours have accumulated — come back daily. */
   CAP_HOURS: 12,
@@ -140,7 +229,7 @@ export const GARDEN = {
 
 export const OUT_OF_RUN_ENERGY = {
   /** Energy the burrow refills while you are away. */
-  REGEN_PER_HOUR: 12,
+  REGEN_PER_HOUR: 5,
   /** Ceiling on banked energy. */
   MAX: 60,
 } as const;
@@ -180,7 +269,7 @@ export const TRAPS = {
    *  attacking half of the game. */
   MAX_PLACED: 8,
   /** Carrot price of one extra trap. */
-  CARROT_COST: 180,
+  CARROT_COST: 150,
   /**
    * How long one sprung trap takes to rearm.
    *
@@ -245,7 +334,7 @@ export const RAID_RUN = {
    * haul instead of deciding the whole thing, which is the gradient the design
    * needs and cannot be tuned back into a cliff.
    */
-  LOOT_SHARE: 0.25,
+  LOOT_SHARE: 0.08,
   /**
    * The share is ROLLED between this and `LOOT_SHARE` on every settled raid,
    * so two raids on the same stock do not pay the same round number — a haul
@@ -253,7 +342,7 @@ export const RAID_RUN = {
    * in a band reads as a robbery. `LOOT_SHARE` stays the ceiling every
    * worst-case figure (`maxRaidLoss`, the "safe" stock) is computed from.
    */
-  LOOT_SHARE_MIN: 0.20,
+  LOOT_SHARE_MIN: 0.06,
   /**
    * A raid that dies on the doorstep still pays this share of the maximum, so
    * attacking is never pure loss — otherwise nobody attacks a defended burrow
@@ -278,9 +367,32 @@ export const RAID = {
   DAMAGE_JITTER: 0.20,
   /** Fraction of the victim's stock taken when their burrow hits 0 HP. This is
    *  THE number to lower if playtesters uninstall instead of retaliating. */
-  LOOT_SHARE: 0.25,
+  LOOT_SHARE: 0.08,
   /** Hard cap on a single raid's haul, so a whale can't be emptied in one hit. */
-  LOOT_CAP: 5_000,
+  LOOT_CAP: 1_200,
+  /**
+   * Carrots of stock no raid can touch — the warehouse floor.
+   *
+   * Wired on 15 September 2026. Before it, "safe stock" was only the share the
+   * loot rules left behind, which for a beginner holding 200 carrots meant
+   * losing 16 of them to anyone who walked in. A floor is what a player feels
+   * when they read "safe": below it, nobody. Clash of Clans protects newcomers
+   * differently (loot caps by town-hall level); this is the simpler rule.
+   */
+  SAFE_FLOOR: 300,
+  /**
+   * Share of the victim's UNHARVESTED garden a raid may take.
+   *
+   * Wired on 15 September 2026, and the Clash of Clans lesson in one number:
+   * collectors are raided at 50 % where storages give 10-20 %, because what is
+   * produced passively and left outside is what should be vulnerable. Until
+   * this, a raid took a slice of the stock and never touched the garden, so
+   * leaving carrots to grow was free and being away was never punished. Now a
+   * full garden is the thing worth raiding — which is what brings the owner
+   * back twice a day to bring it in. Scaled by depth like the stock, and it
+   * sits OUTSIDE the safe floor: the floor is the warehouse, the garden is not.
+   */
+  GARDEN_LOOT_SHARE: 0.35,
   /**
    * Shield granted when a raider walked all the way onto the carrot field.
    *
@@ -463,9 +575,9 @@ export const SHOP = {
   PRICES: {
     trap: TRAPS.CARROT_COST,
     bomb: 300,
-    lightning: 520,
-    shield: 750,
-    energy: 900,
+    lightning: 500,
+    shield: 600,
+    energy: 400,
     /**
      * The dearest thing in the shed, and the only one that is dear for a
      * DESIGN reason rather than an economic one: it takes information away
@@ -473,7 +585,7 @@ export const SHOP = {
      * Priced so that blinding your burrow is a decision taken after a bad
      * night, not a standing habit.
      */
-    smoke: 2_400,
+    smoke: 2_000,
     /**
      * Cheaper than smoke, and stronger — deliberately.
      *
@@ -482,7 +594,7 @@ export const SHOP = {
      * standing habit from an opportunist strike, and this one is meant to be
      * thrown in the middle of a race rather than budgeted for.
      */
-    mirage: 1_100,
+    mirage: 1_000,
   },
   /**
    * USDC price per kind, in whole USDC (converted to base units at the edge —
@@ -764,7 +876,7 @@ export const CROWN = {
   /** The #1's carrot gains are multiplied by this. Heavy is the head. */
   GAIN_MULT: 1.15,
   /** …and their burrow gives up this much more when raided successfully. */
-  LOOT_MULT: 1.75,
+  LOOT_MULT: 1.5,
 } as const;
 
 /**

@@ -81,7 +81,7 @@ describe('safe stock', () => {
    */
   it('is governed by the share while the stock is small', () => {
     const small = 1_000;
-    const byShare = Math.floor(small * RAID_RUN.LOOT_SHARE * CROWN.LOOT_MULT);
+    const byShare = Math.floor((small - RAID.SAFE_FLOOR) * RAID_RUN.LOOT_SHARE * CROWN.LOOT_MULT);
     expect(byShare).toBeLessThan(RAID.LOOT_CAP);
     expect(maxRaidLoss(small)).toBe(byShare);
   });

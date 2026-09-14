@@ -54,15 +54,18 @@ describe('banking a run', () => {
     expect(body).toMatch(/bankRun\(rabbit\)/);
   });
 
-  it('banks the finished runs an eruption is about to delete', () => {
-    const erupt = SERVER.slice(SERVER.indexOf('const survivors ='));
+  it('banks every run an eruption is about to delete', () => {
+    const erupt = SERVER.slice(SERVER.indexOf('async function erupt('));
     const body = erupt.slice(0, erupt.indexOf('store.delete'));
     expect(body).toMatch(/bankRun\(rabbit\)/);
+    // Alive or not: the eruption is the end of the run, not a change of island.
+    expect(body).toMatch(/rabbit\.alive = false/);
+    expect(body).toMatch(/cleared: true/);
   });
 
-  it('carries the run across an eruption for the survivors', () => {
-    // A moved rabbit with no run id can never bank what it digs next.
-    expect(SERVER).toMatch(/moved\.run = rabbit\.run/);
+  it('no longer carries a run across an eruption', () => {
+    // The island is the level now; a run that outlived it was an endless run.
+    expect(SERVER).not.toMatch(/moved\.run = rabbit\.run/);
   });
 
   it('counts tiles and bombs on the rabbit too', () => {

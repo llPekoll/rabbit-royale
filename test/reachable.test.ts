@@ -67,8 +67,9 @@ describe('out of energy', () => {
     expect(lit).toEqual([free]);
   });
 
-  it('lights everything again at exactly the cost of one dig', () => {
-    const lit = reachableTiles(rabbit({ energy: ENERGY.DIG_COST }), SEED, NOW);
+  it('lights everything again at the smallest bar that affords a dig', () => {
+    // One point, never zero: at zero the run is over whatever a dig costs.
+    const lit = reachableTiles(rabbit({ energy: Math.max(ENERGY.DIG_COST, 1) }), SEED, NOW);
     expect(lit.sort()).toEqual(terrainNeighbors(SEED, SPAWN_INDEX).sort());
   });
 });

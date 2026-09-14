@@ -10,11 +10,12 @@
  * two objects it is handed and returns what happened, so a caller can broadcast
  * a delta rather than diffing whole islands.
  */
-import { BOMB, CHEST_LOOT, CHEST_LOOT_BY_TIER, CHEST_NFT_ODDS, ENERGY, MULTIPLAYER } from '@config/tuning';
+import { BOMB, CHEST_LOOT, CHEST_LOOT_BY_TIER, CHEST_NFT_ODDS, ENERGY, MULTIPLAYER, RUN } from '@config/tuning';
 import { SPAWN_INDEX, neighbors, toColRow, type IslandShape } from '@/config/gridConfig';
 import { pickWeighted, randInt, type Rng } from './rng';
 import { revealTile } from './island';
 import { spawnTile, terrainNeighbors } from './terrainBoard';
+import { canDig } from './reachable';
 import { occupancyOf, planPush } from './push';
 import type { DigResult, Island, Rabbit } from './types';
 import { isLootItemKind } from './types';
@@ -190,8 +191,9 @@ export function resolveMove(
   }
 
   // Digging costs. You may not spend your last point of energy into nothing —
-  // running out mid-dig would hide WHY the run ended.
-  if (rabbit.energy < ENERGY.DIG_COST) return reject('no-energy');
+  // running out mid-dig would hide WHY the run ended. The rule lives in
+  // `canDig` so the client's ring lights exactly what is accepted here.
+  if (!canDig(rabbit.energy)) return reject('no-energy');
 
   const firstDigger = revealTile(island, to, rabbit.playerId);
   rabbit.energy -= ENERGY.DIG_COST;
@@ -223,10 +225,13 @@ export function resolveMove(
       // the same tile in one tick, and the server's ordering settles it.
       if (firstDigger) {
         const gain = tile.content === 'golden' ? ENERGY.GOLDEN_GAIN : ENERGY.CARROT_GAIN;
+        // Worth CARROTS, not one: a dug carrot pays RUN.CARROT_VALUE. See there
+        // for why `+= 1` made playing the worst way to earn.
+        const value = tile.content === 'golden' ? RUN.GOLDEN_VALUE : RUN.CARROT_VALUE;
         rabbit.energy = Math.min(ENERGY.MAX, rabbit.energy + gain);
-        rabbit.carrots += 1;
+        rabbit.carrots += value;
         dig.energyDelta += gain;
-        dig.carrotDelta = 1;
+        dig.carrotDelta = value;
       }
       rabbit.tile = to;
       break;

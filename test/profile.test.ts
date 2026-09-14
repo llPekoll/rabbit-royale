@@ -89,6 +89,8 @@ describe('raid classification', () => {
   const outcome = (loot: number, damage: number) => ({
     progress: 0.5,
     loot,
+    lootFromStock: loot,
+    lootFromGarden: 0,
     damage,
     reachedField: false,
   });

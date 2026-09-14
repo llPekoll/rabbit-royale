@@ -67,8 +67,12 @@ export function raidProgress(
 export interface RaidOutcome {
   /** 0..1, how far across the burrow the raider got. */
   progress: number;
-  /** Carrots transferred. */
+  /** Carrots transferred, garden and stock together. */
   loot: number;
+  /** ...of which from the stock above RAID.SAFE_FLOOR. Leaves the season score with it. */
+  lootFromStock: number;
+  /** ...of which from the unharvested garden (RAID.GARDEN_LOOT_SHARE). */
+  lootFromGarden: number;
   /**
    * How hard the raid hit, 0..BOMB_DAMAGE — the severity the raid log and the
    * profile history read ("35 dmg").
@@ -94,6 +98,8 @@ export function settleRaid(
     seed: string;
     endedAt: number;
     defenderStock: number;
+    /** Carrots waiting in the defender's garden — `gardenYield` at settlement. */
+    defenderGarden?: number;
     defenderLevel: number;
     shielded: boolean;
     crowned?: boolean;
@@ -103,7 +109,7 @@ export function settleRaid(
 ): RaidOutcome {
   // A shield is absolute. Anything less invites the farming it exists to stop.
   if (opts.shielded) {
-    return { progress: 0, loot: 0, damage: 0, reachedField: false };
+    return { progress: 0, loot: 0, lootFromStock: 0, lootFromGarden: 0, damage: 0, reachedField: false };
   }
 
   const progress = raidProgress(opts.seed, opts.endedAt, dist);
@@ -125,10 +131,23 @@ export function settleRaid(
 
   // The crown is worth stealing: the season leader carries a bigger purse.
   const mult = opts.crowned ? CROWN.LOOT_MULT : 1;
-  const loot = Math.min(
+
+  // Two purses, Clash of Clans' collector and storage. The GARDEN is outside
+  // and pillaged at its own, higher share; the STOCK is inside, above a floor
+  // no raid reaches. Both scale with how far the raider got. The cap is on the
+  // haul as a whole, and the garden fills it first: it is the purse a raid is
+  // for, and the one whose owner could have brought it in.
+  const depth = RAID_RUN.MIN_LOOT_FRACTION + (1 - RAID_RUN.MIN_LOOT_FRACTION) * progress;
+  const garden = Math.max(0, opts.defenderGarden ?? 0);
+  const lootFromGarden = Math.min(
     RAID.LOOT_CAP,
-    Math.floor(opts.defenderStock * share * mult),
+    Math.floor(garden * RAID.GARDEN_LOOT_SHARE * depth * mult),
   );
+  const lootFromStock = Math.min(
+    RAID.LOOT_CAP - lootFromGarden,
+    Math.floor(exposedStock(opts.defenderStock) * share * mult),
+  );
+  const loot = lootFromGarden + lootFromStock;
 
   // Damage rolls in a band so two identical raids do not read as scripted. It
   // is clamped at 0 only: it used to be capped by the defender's remaining HP,
@@ -136,7 +155,13 @@ export function settleRaid(
   const jitter = 1 + (rng() * 2 - 1) * RAID.DAMAGE_JITTER;
   const damage = Math.max(0, Math.round(RAID.BOMB_DAMAGE * progress * jitter));
 
-  return { progress, loot, damage, reachedField };
+  return { progress, loot, lootFromStock, lootFromGarden, damage, reachedField };
+}
+
+/** The stock a raid can see: what sits above RAID.SAFE_FLOOR. */
+export function exposedStock(stock: number): number {
+  if (!Number.isFinite(stock) || stock <= 0) return 0;
+  return Math.max(0, stock - RAID.SAFE_FLOOR);
 }
 
 /**
@@ -157,18 +182,21 @@ export function settleRaid(
  */
 export function maxRaidLoss(stock: number): number {
   if (!Number.isFinite(stock) || stock <= 0) return 0;
+  // Only what stands above the floor is ever at stake — see RAID.SAFE_FLOOR.
+  // The garden is not part of this figure: it is not stock, and the card that
+  // shows this number is about the warehouse.
   return Math.min(
     RAID.LOOT_CAP,
-    Math.floor(stock * RAID_RUN.LOOT_SHARE * CROWN.LOOT_MULT),
+    Math.floor(exposedStock(stock) * RAID_RUN.LOOT_SHARE * CROWN.LOOT_MULT),
   );
 }
 
 /**
  * What a single raid cannot take, whatever happens — the "safe" figure.
  *
- * There is no warehouse in the game yet; this is not one. It is the share the
- * loot rules already guarantee (a raid takes a FRACTION of the stock, under a
- * hard cap), made visible. When a real vault arrives this is where it lands.
+ * Two guarantees add up here: the floor (RAID.SAFE_FLOOR, untouchable
+ * outright) and the share the loot rules leave behind above it, under a hard
+ * cap. A stock at or under the floor is entirely safe.
  */
 export function safeStock(stock: number): number {
   if (!Number.isFinite(stock) || stock <= 0) return 0;

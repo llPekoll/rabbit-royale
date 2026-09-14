@@ -12,6 +12,8 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { MemoryIslandStore } from '../server/islands/store';
+import { ERUPTION } from '../config/tuning';
+import { safeTilesLeft } from '../src/lib/game/island';
 import { spawnRabbit } from '../src/lib/game/run';
 import { spawnTile } from '../src/lib/game/terrainBoard';
 
@@ -94,5 +96,59 @@ describe('a snapshot repositions a rabbit the scene already holds', () => {
     // the spawn.
     expect(SCENE).not.toMatch(/if \(this\.rabbits\.has\(playerId\)\) return;/);
     expect(SCENE).toMatch(/known\.setPosition\(index\)/);
+  });
+});
+
+/** Dig every safe tile but `leave` of them, so the island is nearly cleared. */
+function nearlyClear(island: { tiles: Map<number, { revealed: boolean; content: string }> }, leave: number) {
+  let left = safeTilesLeft(island as never);
+  for (const tile of island.tiles.values()) {
+    if (left <= leave) break;
+    if (tile.content === 'bomb' || tile.revealed) continue;
+    tile.revealed = true;
+    left--;
+  }
+}
+
+describe('a nearly cleared island is not worth a run to anyone new', () => {
+  it('is skipped by findJoinable, and a fresh island is picked instead', () => {
+    const store = new MemoryIslandStore();
+    const spent = store.create('spent', 0);
+    nearlyClear(spent.island, ERUPTION.JOIN_MIN_TILES_LEFT - 1);
+    spent.rabbits.set('p1', spawnRabbit('p1', 'P', 10, spent.island.seed));
+    const fresh = store.create('fresh', 0);
+    // The spent island is the FULLER one, which is what findJoinable prefers —
+    // the floor has to win over that.
+    expect(store.findJoinable()).toBe(fresh);
+  });
+
+  it('is nobody\'s to join at all when it is the only one', () => {
+    const store = new MemoryIslandStore();
+    const spent = store.create('spent', 0);
+    nearlyClear(spent.island, ERUPTION.JOIN_MIN_TILES_LEFT - 1);
+    expect(store.findJoinable()).toBeUndefined();
+  });
+
+  it('still takes a joiner right at the floor', () => {
+    const store = new MemoryIslandStore();
+    const live = store.create('edge', 0);
+    nearlyClear(live.island, ERUPTION.JOIN_MIN_TILES_LEFT);
+    expect(store.findJoinable()).toBe(live);
+  });
+});
+
+describe('an empty island', () => {
+  it('lives out its day while there is something left to finish', () => {
+    const store = new MemoryIslandStore();
+    store.create('kept', 0);
+    const now = Date.now();
+    expect(store.reapable(now + 60 * 60 * 1000)).toEqual([]);
+  });
+
+  it('goes at once when nobody new would be sent to it', () => {
+    const store = new MemoryIslandStore();
+    const spent = store.create('spent', 0);
+    nearlyClear(spent.island, ERUPTION.JOIN_MIN_TILES_LEFT - 1);
+    expect(store.reapable(Date.now() + 1000)).toEqual([spent]);
   });
 });

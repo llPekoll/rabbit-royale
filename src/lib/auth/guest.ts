@@ -45,7 +45,7 @@ export async function createGuestPlayer(now: Date = new Date()): Promise<{
   const id = `guest:${randomUUID()}`;
   const name = randomRabbitName(id);
 
-  const { RAID } = await import('../../../config/tuning');
+  const { RAID, OUT_OF_RUN_ENERGY } = await import('../../../config/tuning');
   await db.insert(players).values({
     id,
     // Null, not a placeholder string: the unique index on this column is what
@@ -54,6 +54,12 @@ export async function createGuestPlayer(now: Date = new Date()): Promise<{
     wallet: null,
     name,
     shieldedUntil: new Date(now.getTime() + RAID.ONBOARDING_SHIELD_MS),
+    // A FULL bank, not the column's default. The default is a literal the
+    // schema cannot derive from the tuning, and it dates from before runs cost
+    // anything: at 30 it paid exactly one game, and a newcomer's first visit
+    // ended after it. Every energy game hands over a full bar on day one.
+    energy: OUT_OF_RUN_ENERGY.MAX,
+    energyUpdatedAt: now,
     createdAt: now,
     lastSeenAt: now,
   });

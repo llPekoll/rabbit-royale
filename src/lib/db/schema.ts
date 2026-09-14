@@ -70,6 +70,12 @@ export const players = pgTable('players', {
 
   /** Energy regen is derived from its timestamp at read time — no per-player
    *  cron, which is what lets this scale to a lot of players (BUILD-PLAN 5). */
+  /**
+   * The default is NOT what a new player gets: both insert sites set `energy`
+   * to OUT_OF_RUN_ENERGY.MAX explicitly, because a column default cannot follow
+   * the tuning file and this literal predates runs costing anything. It only
+   * still exists so an insert that forgets the column does not fail.
+   */
   energy: integer('energy').notNull().default(30),
   energyUpdatedAt: timestamp('energy_updated_at', { withTimezone: true }).notNull().defaultNow(),
 

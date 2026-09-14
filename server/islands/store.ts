@@ -14,8 +14,8 @@
  */
 import { randomUUID } from 'node:crypto';
 
-import { MULTIPLAYER } from '../../config/tuning';
-import { generateIsland } from '../../src/lib/game/island';
+import { ERUPTION, MULTIPLAYER } from '../../config/tuning';
+import { generateIsland, safeTilesLeft } from '../../src/lib/game/island';
 import { makeShape, type IslandShape } from '../../src/config/gridConfig';
 import { forgetTerrain, terrainFor } from '../../src/lib/game/terrainBoard';
 import type { ActiveMirage } from '../../src/lib/game/mirage';
@@ -146,6 +146,9 @@ export class MemoryIslandStore implements IslandStore {
       if (live.erupting) continue;
       const seats = live.rabbits.size;
       if (seats >= MULTIPLAYER.MAX_PLAYERS_PER_ISLAND) continue;
+      // Nearly cleared: whoever is on it finishes it, but it is not worth a
+      // run to anyone new. See ERUPTION.JOIN_MIN_TILES_LEFT.
+      if (safeTilesLeft(live.island) < ERUPTION.JOIN_MIN_TILES_LEFT) continue;
       // Fullest-with-room: pack players together.
       if (!best || seats > best.rabbits.size) best = live;
     }
@@ -157,7 +160,11 @@ export class MemoryIslandStore implements IslandStore {
     for (const live of this.islands.values()) {
       if (live.rabbits.size > 0) { live.emptySince = null; continue; }
       live.emptySince ??= now;
-      if (now - live.emptySince > MULTIPLAYER.EMPTY_ISLAND_TTL_MS) out.push(live);
+      // An empty island lives out its day so someone can come back and finish
+      // it — unless there is nothing left worth coming back for, in which case
+      // nobody would be sent to it anyway (see `findJoinable`) and it goes now.
+      const spent = safeTilesLeft(live.island) < ERUPTION.JOIN_MIN_TILES_LEFT;
+      if (spent || now - live.emptySince > MULTIPLAYER.EMPTY_ISLAND_TTL_MS) out.push(live);
     }
     return out;
   }

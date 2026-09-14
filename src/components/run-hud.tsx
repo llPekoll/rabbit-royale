@@ -15,7 +15,7 @@
  * to a socket event was to play the real game — and "the carrot counter does
  * not move" is exactly the kind of bug that hides there.
  */
-import { EnergyBar } from './energy-bar';
+import { Hearts } from './hearts';
 import type { ClientRabbit } from './use-game-socket';
 
 /**
@@ -49,9 +49,9 @@ export function RunHud({
     /* `watching` is a MODE of this strip, not decoration: it turns the row
        into two, so the label can say whose run this is in full. See the CSS. */
     <header className={`rr-hud${spectating ? ' watching' : ''}`}>
-      {/* Energy first and widest: it is the only resource, it falls with every
-          dig, and it is what the player prices the next tile against. */}
-      <EnergyBar energy={subject?.energy ?? 0} />
+      {/* Hearts first: the run's life, one lost per bomb. Digging is free, so
+          this is the only thing on the strip that can end the run. */}
+      <Hearts energy={subject?.energy ?? 0} />
       {/* SIGNED, because there are two carrot figures on this screen.
           The topbar sits directly above this strip and carries the banked
           stock — also in carrot orange, also reading 0 on a fresh account, and
