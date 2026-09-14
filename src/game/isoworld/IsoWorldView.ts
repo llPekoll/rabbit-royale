@@ -169,6 +169,13 @@ export class IsoWorldView {
   private maxY = -Infinity;
 
   private readonly layer = new Container();
+  /**
+   * The sea, over the land: a translucent block on the sand's plane stands
+   * in front of and above the beach, so painter's order among cells cannot
+   * place it — it is drawn last, in its own layer.
+   */
+  private readonly waterLayer = new Container();
+  private readonly seaCells: number[] = [];
 
   /** Decorations by the index of the LAST cell of their footprint, where they are drawn. */
   private readonly decorAt = new Map<number, { x: number; y: number; prop: Prop }>();
@@ -187,6 +194,8 @@ export class IsoWorldView {
 
     this.layer.position.set(this.originX, this.originY);
     this.view.addChild(this.layer);
+    this.waterLayer.position.set(this.originX, this.originY);
+    this.view.addChild(this.waterLayer);
 
     // A decoration stands on the last cell of its footprint in painter's
     // order, so it is drawn over every cell it covers.
@@ -203,6 +212,7 @@ export class IsoWorldView {
     for (let s = 0; s <= w + h - 2; s++) {
       for (let x = Math.max(0, s - h + 1); x <= Math.min(s, w - 1); x++) this.buildCell(x, s - x);
     }
+    this.buildSea();
 
     if (this.minX <= this.maxX) {
       Object.assign(this.landBounds, {
@@ -229,7 +239,8 @@ export class IsoWorldView {
     const tier = tierAt(world, x, y);
 
     if (tier === 0) {
-      if (tileset.water) this.place(tileset.water, x, y, spec.waterLevel * block.z, false);
+      if (tileset.water && !tileset.waterFaces) this.place(tileset.water, x, y, 0, false);
+      else if (tileset.water) this.seaCells.push(y * world.width + x);
       // The sea draws the island's foot: its rims, at floor height, along
       // every edge where land stands.
       this.outline(x, y, 0);
@@ -248,16 +259,7 @@ export class IsoWorldView {
       if (!top && east > k && south > k) continue;
       this.place(this.blockMaterial(ground, tier, top).cube, x, y, k * block.z);
     }
-    if (tier <= spec.floor) {
-      // The floor is a sheet — except at the water's edge, where it shows the
-      // half block it stands proud of the surface by: a slab, its top on the
-      // floor, its faces down to the water. Only the two faces the camera
-      // sees matter, so only a sea cell south or east calls for it.
-      const shore = spec.waterLevel < tier && (east === 0 || south === 0);
-      const set = this.surfaceMaterial(ground, tier);
-      if (shore) this.place(set.slab, x, y, surface - block.z / 2);
-      else this.place(set.flat, x, y, surface);
-    }
+    if (tier <= spec.floor) this.place(this.surfaceMaterial(ground, tier).flat, x, y, surface);
 
     // The turf is thin, so it is laid its own thickness down: its top lands
     // exactly on the surface and its sides cover the top of the dirt block.
@@ -303,6 +305,25 @@ export class IsoWorldView {
 
     const decor = this.decorAt.get(y * world.width + x);
     if (decor && tier > spec.floor) this.plant(decor.x, decor.y, decor.prop, surface);
+  }
+
+  /**
+   * The sea as a translucent block on the floor's plane, in its own layer:
+   * the top on every sea cell, and a south or east face where the block
+   * borders land, so the beach shows through the water's edge.
+   */
+  private buildSea(): void {
+    const { world, tileset } = this.options;
+    const { block, spec } = tileset;
+    if (!tileset.water || !tileset.waterFaces) return;
+    const base = spec.floor * block.z;
+    for (const i of this.seaCells) {
+      const x = i % world.width;
+      const y = (i / world.width) | 0;
+      if (tierAt(world, x, y + 1) > 0) this.place(tileset.waterFaces.south, x, y, base, false, this.waterLayer);
+      if (tierAt(world, x + 1, y) > 0) this.place(tileset.waterFaces.east, x, y, base, false, this.waterLayer);
+      this.place(tileset.water, x, y, base + spec.waterHeight * block.z, false, this.waterLayer);
+    }
   }
 
   /**
@@ -536,13 +557,13 @@ export class IsoWorldView {
    * (cell / 2, cell / 2) of its cell, so placing that point on the cell's
    * projected top corner is the whole rule, for every piece.
    */
-  private place(texture: Texture, x: number, y: number, elevation: number, land = true): void {
+  private place(texture: Texture, x: number, y: number, elevation: number, land = true, into = this.layer): void {
     const { cell, block } = this.options.tileset;
     const sprite = new Sprite(texture);
     const sx = (x - y) * (block.w / 2) - cell / 2;
     const sy = (x + y) * (block.h / 2) - elevation - (cell - block.h);
     sprite.position.set(sx, sy);
-    this.layer.addChild(sprite);
+    into.addChild(sprite);
     this.sprites++;
     if (land) {
       this.minX = Math.min(this.minX, sx);

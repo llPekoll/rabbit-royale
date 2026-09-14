@@ -82,8 +82,12 @@ interface SheetSpec {
   post: readonly [number, number] | null;
   /** Whether the sheet has water: the pixel sheet's flattened sea, or a drawn tile at [row, col]. */
   water: boolean | readonly [number, number];
-  /** Where the water surface stands, in blocks: on the pixel sheet the sea bed, on the smooth one half a block under the sand. */
-  waterLevel: number;
+  /**
+   * How tall the water block is, in blocks, standing on the floor: 0 on the
+   * pixel sheet (its sea is a surface on the sea bed), half a block on the
+   * smooth one, where the sea is a translucent block on the sand's plane.
+   */
+  waterHeight: number;
   /** Whether the sheet has the outline pieces: rims on row 2, corners on row 9. */
   outlines: boolean;
   /** Whether columns 4 and 5 exist: stairs, and the block props. */
@@ -120,7 +124,7 @@ export const SHEETS: Readonly<Record<IsoStyle, SheetSpec>> = {
     boulder: 'stone',
     post: [8, 1],
     water: true,
-    waterLevel: 0,
+    waterHeight: 0,
     outlines: false,
     stairs: true,
     blocks: true,
@@ -133,7 +137,7 @@ export const SHEETS: Readonly<Record<IsoStyle, SheetSpec>> = {
     // The query is a layout revision, bumped whenever the sheet's cells move:
     // browsers cache the file by URL, and a stale sheet sliced with the new
     // offsets shows pieces that no longer exist.
-    url: '/assets/world/iso-smooth-sheet-128.png?layout=13',
+    url: '/assets/world/iso-smooth-sheet-128.png?layout=14',
     cell: 128,
     pad: 2,
     materials: ['moss', 'grass', 'sand'],
@@ -143,7 +147,7 @@ export const SHEETS: Readonly<Record<IsoStyle, SheetSpec>> = {
     boulder: 'sand',
     post: null,
     water: [9, 3],
-    waterLevel: 0.5,
+    waterHeight: 0.5,
     outlines: true,
     stairs: false,
     blocks: false,
@@ -238,6 +242,8 @@ export interface IsoTileset {
   materials: Readonly<Record<Material, MaterialTiles>>;
   /** The water surface, top face only and opaque — see `seaTile`. Null when the sheet has no sea. */
   water: Texture | null;
+  /** The water block's south and east faces, where it borders land. Smooth sheet only. */
+  waterFaces: { south: Texture; east: Texture } | null;
   /** The colour of that surface, for painting the sea beyond the grid. */
   seaColor: number;
   /** A short wooden post, standing in the middle of its cell. Not on every sheet. */
@@ -331,6 +337,7 @@ async function load(style: IsoStyle): Promise<IsoTileset> {
     turfZ: cell / 8,
     materials,
     water: sea?.texture ?? waterTile,
+    waterFaces: waterTile ? { south: slice(9, 4), east: slice(9, 5) } : null,
     seaColor: sea?.color ?? (typeof spec.background === 'number' ? spec.background : spec.background[0][1]),
     post: spec.post ? slice(spec.post[0], spec.post[1]) : null,
     corners: spec.outlines

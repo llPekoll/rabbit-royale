@@ -37,9 +37,11 @@ inner corner, whose surface is flat where the fringe hangs. The SLOPE FRINGE
 that side, so it clings to the hillside instead of floating over it; the
 lace cap is likewise laid on the outer corner's slope.
 
-WATER is one translucent cyan tile with its own light grid; the renderer
-lays it on every sea cell half a block under the sand, so the island's floor
-stands just proud of the surface.
+WATER is a translucent block half a block tall standing on the sand's plane:
+its top (with its own light grid) and its south and east faces, drawn from
+the base edge up. The renderer lays the top on every sea cell and a face
+wherever the block borders land, in a layer over the land, since the block
+stands in front of and above the beach.
 
 A LACE CAP is the fringe wrapped around one corner of the cell, for the
 outer-corner ramp, which the plateau above touches only at that point. A
@@ -64,7 +66,7 @@ island has no wall between two land tiers.
 
 and a tenth row of pieces shared by every material:
 
-    r9    corner L corner R corner F   water
+    r9    corner L corner R corner F   water     water S    water E
 
 The pixel sheet's last two columns (stairs, prop blocks) are not drawn: this
 sheet is terrain only, and the renderer builds a flight of stairs as a slope
@@ -148,7 +150,9 @@ STRIPE_INK = (168, 158, 132)
 PEBBLE = (118, 120, 108)
 
 WATER_FILL = (150, 232, 228, 150)
+WATER_FACE = (120, 214, 214, 165)
 WATER_GRID = (222, 250, 247, 210)
+WATER_HEIGHT = 0.5
 
 # Fringe geometry, in lattice units of the cell edge.
 FRINGE_DEPTH = 0.16
@@ -580,6 +584,14 @@ def water() -> Cell:
     return c
 
 
+def water_face(side: str) -> Cell:
+    """One translucent face of the water block, rising from the base edge."""
+    c = Cell()
+    face = south_face(0, WATER_HEIGHT) if side == 'S' else east_face(0, WATER_HEIGHT)
+    ImageDraw.Draw(c.img).polygon(offset_polygon(face, BLEED * SS), fill=WATER_FACE)
+    return c
+
+
 def rim(color, direction: str) -> Cell:
     """The outline along one edge of the base diamond, centred on it, in this material's edge colour."""
     c = Cell()
@@ -645,6 +657,8 @@ def build() -> Image.Image:
     for col, which in enumerate('LRF'):
         put(9, col, corner(which))
     put(9, 3, water())
+    put(9, 4, water_face('S'))
+    put(9, 5, water_face('E'))
     return sheet
 
 
