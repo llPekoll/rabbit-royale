@@ -397,13 +397,16 @@ export class IsoWorldView {
         const a = h[(d + 3) % 4];
         const b = h[d];
         if (a !== b && h[3] === 1 && foldsAt(ramp, nRamp, d)) {
-          this.place(tileset.corners!.fold[d][a ? 0 : 1], x, y, surface);
+          this.place(this.surfaceMaterial(ground, tier).fold![d][a ? 0 : 1], x, y, surface);
           continue;
         }
       }
       // Same tier as this cell, so the floor rule is the same.
       const nPatch = deco && propAt(world, nx, ny)?.kind === 'patch' && tier > spec.floor;
       if (nPatch && !patch) {
+        // This cell's grid line straddles the shared edge, half of it over
+        // the patch: lay the patch again on top, then its lace over here.
+        this.place(this.surfaceMaterial(ground, tier).patch!, nx, ny, surface);
         this.place(this.surfaceMaterial(ground, tier).patchFringe![d], x, y, surface);
       } else if (patch && !nPatch) {
         this.place(this.surfaceMaterial(ground, tier).patchFringe![back], nx, ny, surface);

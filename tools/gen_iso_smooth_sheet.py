@@ -29,6 +29,7 @@ neighbour's transparent edge and draw a hairline seam down every wall.
     r2    rim N    rim E    rim S      rim W      fringe N  fringe E  fringe S  fringe W
     r2    ...      col 8    patch      col 9-12   patch fringe N E S W
     r2    ...      col 13-16 lace cap NE SE SW NW   col 17-20 slope fringe N E S W
+    r2    ...      col 21-28 fold N^ Nv E^ Ev S^ Sv W^ Wv
 
 The flat fringe (4-7) lies in the plane of the tier above: it is for the
 inner corner, whose surface is flat where the fringe hangs. The SLOPE FRINGE
@@ -36,16 +37,12 @@ inner corner, whose surface is flat where the fringe hangs. The SLOPE FRINGE
 that side, so it clings to the hillside instead of floating over it; the
 lace cap is likewise laid on the outer corner's slope.
 
-and on the shared row 9, after the corners:
-
-    r9    col 3-10  fold N^ Nv E^ Ev S^ Sv W^ Wv
-
 A LACE CAP is the fringe wrapped around one corner of the cell, for the
 outer-corner ramp, which the plateau above touches only at that point. A
-FOLD is the dark line along a SLOPED edge — one end a block up — where an
-outer corner's surface bends against the slope beside it: the ridge of a
-plateau's tip. `^` has the edge's first corner (clockwise) raised, `v` the
-second.
+FOLD is the line along a SLOPED edge — one end a block up — where two
+slopes bend against each other: the ridge at a plateau's corner. It is the
+ridge cell's own colour, a shade darker, so a ridge in the sand is yellow.
+`^` has the edge's first corner (clockwise) raised, `v` the second.
 
 A FRINGE is the scalloped lace of this material's colour that hangs over a
 neighbouring cell along one of ITS edges — the reference's plateaus spill
@@ -116,7 +113,7 @@ import math
 import random
 from pathlib import Path
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageChops, ImageDraw
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT_SOURCE = ROOT / 'art-source' / 'iso-smooth' / 'iso-smooth-sheet-128.png'
@@ -125,7 +122,7 @@ OUT_PUBLIC = ROOT / 'public' / 'assets' / 'world' / 'iso-smooth-sheet-128.png'
 CELL = 128
 PAD = 2
 PITCH = CELL + 2 * PAD
-COLS, ROWS = 21, 10
+COLS, ROWS = 29, 10
 SS = 4  # supersampling: drawn at 512px per cell, then resolved down
 
 # Line weights, in OUTPUT pixels. Heavier than they look on the sheet: in the
@@ -133,8 +130,8 @@ SS = 4  # supersampling: drawn at 512px per cell, then resolved down
 # island on screen scales these 128px cells down to about that.
 OUTLINE = 4.6   # dark silhouette line
 GRID = 4.0      # the sharp grid line on top faces
-GLOW = 10.0     # the soft light halo under it
-GLOW_ALPHA = 140
+GLOW = 10.0     # the soft dark halo under it, the line's own colour multiplied in
+GLOW_STRENGTH = 0.35
 STRIPE = 3.0    # earth stripes on cliff faces
 BLEED = 0.8     # how far a filled face overshoots its edge to hide seams
 
@@ -152,16 +149,16 @@ FRINGE_DEPTH = 0.16
 FRINGE_BUMPS = 4
 
 # Each material: its flat top, the grid on it — a sharp line a shade darker
-# than the fill, over a soft halo a shade lighter, as the reference draws
-# it — and its PATCH, the darker tuft of grass the reference scatters on it.
-# A slope leading up to a material is that material's colour: the
-# reference's plateaus run down their slopes in one tone and only the lace
-# at the top marks the change.
+# than the fill, over a soft halo of the same colour multiplied in — its
+# PATCH, the darker tuft of grass the reference scatters on it, and its FOLD,
+# the ridge line drawn on its slopes. A slope leading up to a material is that
+# material's colour: the reference's plateaus run down their slopes in one
+# tone and only the lace at the top marks the change.
 MATERIALS = [
-    # name,   top fill,        grid line,       grid glow,       patch fill
-    ('moss', (176, 218, 120), (148, 200, 98), (196, 234, 144), (128, 188, 96)),
-    ('grass', (211, 244, 153), (180, 230, 134), (226, 254, 176), (148, 204, 110)),
-    ('sand', (239, 243, 185), (224, 229, 158), (248, 250, 204), (211, 244, 153)),
+    # name,   top fill,        grid line,       patch fill,      fold line
+    ('moss', (176, 218, 120), (148, 200, 98), (128, 188, 96), (112, 170, 84)),
+    ('grass', (211, 244, 153), (180, 230, 134), (148, 204, 110), (140, 196, 104)),
+    ('sand', (239, 243, 185), (224, 229, 158), (211, 244, 153), (198, 198, 126)),
 ]
 
 # --- lattice ---------------------------------------------------------------
@@ -328,7 +325,7 @@ def top_quad(z=1.0):
 # --- pieces ----------------------------------------------------------------
 
 def grid_of(mat):
-    return (mat[2], mat[3])
+    return mat[2]
 
 
 def cube(mat, rng, height=1.0) -> Cell:
@@ -406,18 +403,25 @@ def ramp(mat, rng, heights) -> Cell:
     return c
 
 
-def top_face_line(cell: Cell, a, b, grid) -> None:
-    """One grid line: the soft glow, then the sharp line over it."""
-    line, glow = grid
+def top_face_line(cell: Cell, a, b, line) -> None:
+    """
+    One grid line: a soft dark halo — the line's colour, multiplied into the
+    surface at `GLOW_STRENGTH` — then the sharp line over it.
+    """
     length = math.hypot(b[0] - a[0], b[1] - a[1])
     # Pulled in by half the width at each end, or the flat cap pokes past
     # the corner onto the wall below.
     k = GRID * SS / 2 / length
     a2 = (a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k)
     b2 = (b[0] - (b[0] - a[0]) * k, b[1] - (b[1] - a[1]) * k)
-    layer = Image.new('RGBA', cell.img.size, (0, 0, 0, 0))
-    ImageDraw.Draw(layer).line([a2, b2], fill=(*glow, GLOW_ALPHA), width=round(GLOW * SS))
-    cell.img.alpha_composite(layer)
+    # Multiply: white leaves the surface alone; the halo is the line colour
+    # faded toward white by the strength, so it darkens gently.
+    halo = tuple(round(255 - GLOW_STRENGTH * (255 - c)) for c in line)
+    layer = Image.new('RGB', cell.img.size, (255, 255, 255))
+    ImageDraw.Draw(layer).line([a2, b2], fill=halo, width=round(GLOW * SS))
+    rgb = ImageChops.multiply(cell.img.convert('RGB'), layer)
+    rgb.putalpha(cell.img.split()[3])
+    cell.img = rgb
     cell.stroke(a2, b2, line, GRID)
 
 
@@ -530,20 +534,20 @@ def lace_cap(color, corner: int) -> Cell:
     return c
 
 
-def fold(direction: str, first_raised: bool) -> Cell:
-    """A dark green line along one edge, one end a block up: an outer corner's ridge."""
+def fold(color, direction: str, first_raised: bool) -> Cell:
+    """A line along one edge, one end a block up: the ridge at a plateau's corner."""
     c = Cell()
     (au, av, _), (bu, bv, _) = RIM_EDGES[direction]
     a = (au, av, 1 if first_raised else 0)
     b = (bu, bv, 0 if first_raised else 1)
-    c.stroke(P(*a), P(*b), LACE_INK, OUTLINE * 0.8, caps=True)
+    c.stroke(P(*a), P(*b), color, OUTLINE * 0.8, caps=True)
     return c
 
 
 def patch(mat, rng) -> Cell:
     """A darker tuft of grass filling the cell, with a few blades marked on it."""
     c = Cell()
-    c.fill(top_quad(0), mat[4])
+    c.fill(top_quad(0), mat[3])
     for _ in range(3):
         u, v = rng.uniform(0.25, 0.75), rng.uniform(0.25, 0.75)
         x, y = P(u, v, 0)
@@ -608,17 +612,16 @@ def build() -> Image.Image:
         for col, direction in enumerate('NESW'):
             put(r + 2, col, rim(direction))
             put(r + 2, 4 + col, fringe(mat[1], direction))
-            put(r + 2, 9 + col, fringe(mat[4], direction))
+            put(r + 2, 9 + col, fringe(mat[3], direction))
         put(r + 2, 8, patch(mat, rng))
         for col in range(4):
             put(r + 2, 13 + col, lace_cap(mat[1], col))
         for col, direction in enumerate('NESW'):
             put(r + 2, 17 + col, fringe(mat[1], direction, sloped=True))
+            put(r + 2, 21 + 2 * col, fold(mat[4], direction, True))
+            put(r + 2, 22 + 2 * col, fold(mat[4], direction, False))
     for col, which in enumerate('LRF'):
         put(9, col, corner(which))
-    for i, direction in enumerate('NESW'):
-        put(9, 3 + 2 * i, fold(direction, True))
-        put(9, 4 + 2 * i, fold(direction, False))
     return sheet
 
 
