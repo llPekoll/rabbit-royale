@@ -17,6 +17,7 @@ import type { Scene } from '../SceneManager';
 import { SceneManager } from '../SceneManager';
 import { GAME_W, GAME_H } from '../Application';
 import { Tile } from '../entities/Tile';
+import { CHEST_TIER_COLOR, isChestTier } from '@/config/chestConfig';
 import { PlayerRabbit } from '../entities/PlayerRabbit';
 import { SoundManager } from '../services/SoundManager';
 import {
@@ -674,6 +675,11 @@ export class IslandScene implements Scene {
   revealTile(index: number, content: TileContent, adjacent: number): void {
     const tile = this.tiles.get(index);
     if (!tile) return;
+    // A dug chest has been opened — take the box, its beam and its label off
+    // the board. Left standing it would go on advertising a prize that is
+    // already in somebody's bag, and on a shared island that is a lie the next
+    // player would walk several tiles for. No-op on every other tile.
+    tile.clearChest();
     tile.revealContent(content, adjacent);
 
     if (content === 'bomb') {
@@ -697,6 +703,31 @@ export class IslandScene implements Scene {
     // that matters on the last point of energy, where the ring is otherwise
     // dark and this is the player's only remaining move.
     if (this.isNeighborOfMine(index)) this.refreshReachable();
+  }
+
+  /**
+   * Put the island's undug chests on the board.
+   *
+   * Chests are the one thing drawn BEFORE it is dug (see `publicView`): the
+   * player has to be able to price the walk from across the island, and a box
+   * nobody can see until they stand on it is a surprise rather than a decision.
+   *
+   * Idempotent, because both the join snapshot and every reconnect call this
+   * with the same list — `setChest` returns early on a tile that already has
+   * one, so a re-applied snapshot never stacks two boxes on a tile.
+   *
+   * `drop` is for the JOIN only: the chests fall in with the board, which reads
+   * as the island being dealt. A reconnect mid-run must not replay that — the
+   * chests were already there, and watching them drop again would say something
+   * arrived when nothing did.
+   */
+  showChests(chests: ReadonlyArray<{ tile: number; tier: string }>, drop = false): void {
+    for (const c of chests) {
+      const tile = this.tiles.get(c.tile);
+      if (!tile) continue;
+      const tier = isChestTier(c.tier) ? c.tier : 'bronze';
+      tile.setChest(CHEST_TIER_COLOR[tier], drop, tier);
+    }
   }
 
   /** Is this tile one of the local rabbit's eight? */

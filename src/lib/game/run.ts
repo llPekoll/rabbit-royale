@@ -10,13 +10,14 @@
  * two objects it is handed and returns what happened, so a caller can broadcast
  * a delta rather than diffing whole islands.
  */
-import { BOMB, CHEST_LOOT, ENERGY, MULTIPLAYER } from '@config/tuning';
+import { BOMB, CHEST_LOOT, CHEST_LOOT_BY_TIER, CHEST_NFT_ODDS, ENERGY, MULTIPLAYER } from '@config/tuning';
 import { SPAWN_INDEX, neighbors, toColRow, type IslandShape } from '@/config/gridConfig';
 import { pickWeighted, randInt, type Rng } from './rng';
 import { revealTile } from './island';
 import { spawnTile, terrainNeighbors } from './terrainBoard';
 import { occupancyOf, planPush } from './push';
 import type { DigResult, Island, Rabbit } from './types';
+import { isLootItemKind } from './types';
 
 export type MoveRejection =
   | 'head-on'
@@ -232,9 +233,23 @@ export function resolveMove(
     }
     case 'chest': {
       if (firstDigger) {
-        const roll = pickWeighted(rng, CHEST_LOOT);
+        // The tier decides the table, which is what makes the word written above
+        // the chest a promise rather than decoration — see CHEST_LOOT_BY_TIER.
+        // A chest with no tier (old island, hand-built fixture) falls back to
+        // the flat table so it can never roll nothing at all.
+        const chestTier = tile.chestTier;
+        const table = chestTier ? CHEST_LOOT_BY_TIER[chestTier] : CHEST_LOOT;
+        const roll = pickWeighted(rng, table);
         const amount = randInt(rng, roll.min, roll.max);
         dig.loot = { kind: roll.kind, amount };
+
+        // The Genesis piece is a SEPARATE roll on top of a crown chest's
+        // guaranteed item, never instead of it: folding it into the table would
+        // make the best outcome cost the player the item they were promised.
+        if (chestTier === 'crown' && rng() < CHEST_NFT_ODDS.inCrown) {
+          rabbit.run?.nfts.push(to);
+          dig.nft = true;
+        }
 
         // Three destinations, because the table holds three different KINDS of
         // thing. Carrots are paid onto the rabbit like any other dig; items go
@@ -246,7 +261,7 @@ export function resolveMove(
           dig.carrotDelta = amount;
         } else if (roll.kind === 'nft') {
           rabbit.run?.nfts.push(to);
-        } else if (rabbit.run) {
+        } else if (rabbit.run && isLootItemKind(roll.kind)) {
           const bag = rabbit.run.loot;
           bag[roll.kind] = (bag[roll.kind] ?? 0) + amount;
         }

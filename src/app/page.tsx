@@ -17,6 +17,7 @@ import { useWalletLogin, WalletSessionProvider } from '@/components/use-wallet-l
 import { CarrotCurtain } from '@/components/carrot-curtain';
 import { useGameSocket } from '@/components/use-game-socket';
 import { Recap } from '@/components/run-recap';
+import { ChestPrize } from '@/components/chest-prize';
 import { GameCanvas, type GameHandles } from '@/components/game-canvas';
 import { WalletButton } from '@/components/wallet-button';
 import { LeaderboardDrawer, type Me } from '@/components/leaderboard-drawer';
@@ -1380,6 +1381,12 @@ function Burrow() {
               onShop={goShopping}
               onHome={stopSpectating}
             />
+          )}
+          {/* A chest the local rabbit dug. Never for a spectator: `move_result`
+              is private to the mover, so a viewer has no prize of their own and
+              a take-over would interrupt them for somebody else's. */}
+          {game.chestPrize && !spectating && (
+            <ChestPrize prize={game.chestPrize} onDone={game.clearChestPrize} />
           )}
           {/* Leaving ALWAYS goes through `stopSpectating`, even when playing
               (where it is just `goTo`): a second exit path that forgot to clear

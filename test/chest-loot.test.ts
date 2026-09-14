@@ -9,13 +9,14 @@
  * pinned here rather than left to the server.
  */
 import { describe, expect, it } from 'vitest';
-import { CHEST_LOOT, CHEST_NFT_ODDS, ISLAND, SHOP } from '../config/tuning';
+import { CHEST_LOOT, CHEST_LOOT_BY_TIER, CHEST_NFT_ODDS, ISLAND, SHOP } from '../config/tuning';
 import { resolveMove, spawnRabbit } from '../src/lib/game/run';
 import { generateIsland } from '../src/lib/game/island';
 import { terrainNeighbors, farmableTiles } from '../src/lib/game/terrainBoard';
 import { makeShape } from '../src/config/gridConfig';
 import { mulberry32 } from '../src/lib/game/rng';
 import { GARDEN_KINDS, isItemKind } from '../src/lib/game/inventory';
+import { CHEST_TIER_ORDER, type ChestTier } from '../src/config/chestConfig';
 import type { Rabbit } from '../src/lib/game/types';
 
 const SEED = 'chest-test';
@@ -40,7 +41,7 @@ function pairOfTiles(): [number, number] | null {
 }
 
 /** Force `tile` to be a chest and dig it, returning the rabbit and the result. */
-function digChest(rngSeed: number) {
+function digChest(rngSeed: number, tier?: ChestTier) {
   const pair = pairOfTiles();
   if (!pair) return null;
   const [from, to] = pair;
@@ -50,41 +51,82 @@ function digChest(rngSeed: number) {
   const rabbit = digger(from);
   island.tiles.get(to)!.content = 'chest';
   island.tiles.get(to)!.revealed = false;
+  if (tier) island.tiles.get(to)!.chestTier = tier;
   const out = resolveMove(island, rabbit, to, SHAPE, mulberry32(rngSeed), NOW, []);
   return out.ok ? { rabbit, out } : null;
 }
 
+/**
+ * THE test that keeps the board honest.
+ *
+ * A chest announces its tier from across the island and the player spends real
+ * steps on that word. `CHEST_TIER_PROMISE` is what the label says; these tables
+ * are what the roll does. If they ever drift apart the game lies to the player
+ * in the one place it asked them to take a risk — and nothing else would fail.
+ */
+describe('the promise on the board', () => {
+  const KINDS_FOR: Record<string, readonly string[]> = {
+    bronze: ['carrots'],
+    silver: GARDEN_KINDS,
+    gold: ['bomb', 'shield', 'lightning'],
+    crown: ['bomb', 'shield', 'lightning'],
+  };
+
+  it.each(CHEST_TIER_ORDER)('%s rolls only what its label promises', (tier) => {
+    const rolled = CHEST_LOOT_BY_TIER[tier].map((r) => r.kind as string);
+    expect(rolled.length).toBeGreaterThan(0);
+    for (const kind of rolled) {
+      expect(KINDS_FOR[tier], `${tier} can roll ${kind}, which its label does not promise`)
+        .toContain(kind);
+    }
+  });
+
+  /**
+   * Only CROWN can carry a piece. It is the longest walk on the island, and the
+   * NFT is what pays for it — a bronze chest that could drop one would make
+   * that walk pointless.
+   */
+  it('keeps the Genesis piece to the crown alone', () => {
+    for (const tier of CHEST_TIER_ORDER) {
+      const kinds = CHEST_LOOT_BY_TIER[tier].map((r) => r.kind as string);
+      expect(kinds, `${tier} must not roll an nft from its table`).not.toContain('nft');
+    }
+    // It is a SEPARATE roll on top of the crown's guaranteed item, not a table
+    // entry — so the crown never trades its item away for the chance.
+    expect(CHEST_NFT_ODDS.inCrown).toBeGreaterThan(0);
+  });
+});
+
 describe('the loot table', () => {
   it('weighs every entry positively — a zero-weight line is dead config', () => {
-    for (const row of CHEST_LOOT) {
+    // Typed loosely on purpose: `as const` makes every tier's array its own
+    // literal tuple, so the two shapes will not unify without a common type.
+    const rows: readonly { kind: string; weight: number; min: number; max: number }[] = [
+      ...CHEST_LOOT,
+      ...CHEST_TIER_ORDER.flatMap((t) => [...CHEST_LOOT_BY_TIER[t]]),
+    ];
+    for (const row of rows) {
       expect(row.weight, `${row.kind} has no weight`).toBeGreaterThan(0);
       expect(row.min).toBeGreaterThan(0);
       expect(row.max).toBeGreaterThanOrEqual(row.min);
     }
   });
 
-  /**
-   * The documented odds must BE the odds. `CHEST_NFT_ODDS` is quoted in the
-   * comment that justifies the rarity, and a weight nudged during a retune
-   * would otherwise leave that reasoning describing a table that no longer
-   * exists.
-   */
-  it('drops an NFT at the rate the config claims', () => {
-    const total = CHEST_LOOT.reduce((sum, r) => sum + r.weight, 0);
-    const nft = CHEST_LOOT.find((r) => r.kind === 'nft');
-    expect(nft).toBeDefined();
-    expect(total / nft!.weight).toBeCloseTo(CHEST_NFT_ODDS.oneIn, 6);
+  /** A crown chest's NFT chance is a real, sizeable one — see CHEST_NFT_ODDS. */
+  it('gives the crown walk odds worth taking', () => {
+    expect(CHEST_NFT_ODDS.inCrown).toBeGreaterThan(0);
+    expect(CHEST_NFT_ODDS.inCrown).toBeLessThanOrEqual(1);
   });
 
   /**
-   * The merge rule: one table serves both kinds of player. A farmer who never
-   * raids still has to pull something they want, or the chest is a raider-only
+   * The merge rule: both families stay reachable. A farmer who never raids
+   * still has to meet something they want, or the chests are a raider-only
    * reward sitting on a farming map.
    */
-  it('carries both the raid items and the garden ones', () => {
-    const kinds = CHEST_LOOT.map((r) => r.kind as string);
-    for (const raid of ['bomb', 'shield', 'lightning']) expect(kinds).toContain(raid);
-    for (const garden of GARDEN_KINDS) expect(kinds).toContain(garden);
+  it('carries both the raid items and the garden ones across the ladder', () => {
+    const all = CHEST_TIER_ORDER.flatMap((t) => CHEST_LOOT_BY_TIER[t].map((r) => r.kind as string));
+    for (const raid of ['bomb', 'shield', 'lightning']) expect(all).toContain(raid);
+    for (const garden of GARDEN_KINDS) expect(all).toContain(garden);
   });
 
   it('names only kinds the bag or the economy can actually receive', () => {
@@ -164,5 +206,60 @@ describe('digging a chest', () => {
     bag.water = (bag.water ?? 0) + 2;
     bag.water = (bag.water ?? 0) + 3;
     expect(bag.water).toBe(5);
+  });
+});
+
+/**
+ * The tier survives the round trip: generation writes it, the dig reads it,
+ * and what comes out is what the label promised. Pinned end to end because the
+ * two halves live in different files and nothing else would notice them
+ * drifting apart.
+ */
+describe('a tiered chest, dug', () => {
+  it('gives every generated chest a tier', () => {
+    const island = generateIsland({ seed: SEED });
+    const chests = [...island.tiles.values()].filter((t) => t.content === 'chest');
+    expect(chests.length).toBeGreaterThan(0);
+    for (const c of chests) {
+      expect(CHEST_TIER_ORDER, 'a chest with no tier cannot keep a promise')
+        .toContain(c.chestTier);
+    }
+  });
+
+  it.each(CHEST_TIER_ORDER)('a %s chest pays only what its label promised', (tier) => {
+    const allowed = CHEST_LOOT_BY_TIER[tier].map((r) => r.kind as string);
+    let rolls = 0;
+    for (let seed = 1; seed <= 40; seed++) {
+      const dug = digChest(seed, tier);
+      const loot = dug?.out.dig?.loot;
+      if (!loot) continue;
+      rolls++;
+      expect(allowed, `${tier} paid ${loot.kind}`).toContain(loot.kind);
+      expect(loot.amount).toBeGreaterThan(0);
+    }
+    expect(rolls, 'no chest was actually dug — the fixture is broken').toBeGreaterThan(0);
+  });
+
+  /** Only a crown can hand over a piece, and never instead of its item. */
+  it('keeps Genesis pieces to crown chests', () => {
+    for (const tier of ['bronze', 'silver', 'gold'] as const) {
+      for (let seed = 1; seed <= 40; seed++) {
+        const dug = digChest(seed, tier);
+        if (!dug) continue;
+        expect(dug.rabbit.run!.nfts, `${tier} dropped a piece`).toHaveLength(0);
+      }
+    }
+    // And a crown that does drop one still pays its item in the same dig.
+    let withNft = 0;
+    for (let seed = 1; seed <= 120; seed++) {
+      const dug = digChest(seed, 'crown');
+      if (!dug?.out.dig) continue;
+      if (dug.rabbit.run!.nfts.length) {
+        withNft++;
+        expect(dug.out.dig.loot, 'a piece must never replace the crown item').toBeDefined();
+      }
+    }
+    expect(withNft, 'no crown ever rolled a piece — the odds are unreachable')
+      .toBeGreaterThan(0);
   });
 });

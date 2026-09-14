@@ -9,24 +9,50 @@
  * shipping it to the browser would hand every player the bomb map. The client
  * gets a redacted view (`publicView`) and the shape (from gridConfig, which is
  * safe: where the land is was never a secret).
+ *
+ * That import discipline is NOT what keeps the bombs secret, though, and it is
+ * worth being precise about why. Everything this module needs — `mulberry32`,
+ * `seedFrom`, `shuffle`, `farmableTiles`, `spawnTile`, `tierFor` — already ships
+ * to the browser for other reasons, and the algorithm below is a pure function
+ * of its inputs. Anyone holding the inputs can re-run it in a console without
+ * ever importing this file. So the secret cannot be the CODE; it has to be an
+ * input the client never receives.
+ *
+ * Hence two seeds. `seed` is public and cuts everything the client must draw
+ * (coastline, tiers, placements, spawn). `contentSeed` is private, never
+ * appears in `publicView` or in any payload, and is the ONLY thing that decides
+ * where a bomb sits. Publishing `seed` is then harmless by construction.
  */
-import { ISLAND, tierFor } from '@config/tuning';
+import { CHEST_TIER_WEIGHTS, ISLAND, tierFor } from '@config/tuning';
 import {
   COLS, ROWS, SPAWN_INDEX, makeShape, isForbidden, neighbors,
   type IslandShape,
 } from '@/config/gridConfig';
 import { farmableTiles, spawnTile, terrainNeighbors } from './terrainBoard';
-import { mulberry32, seedFrom, shuffle } from './rng';
+import { mulberry32, pickWeighted, seedFrom, shuffle } from './rng';
 import type { Island, Tile } from './types';
 
 export interface GenerateOptions {
+  /** PUBLIC. Cuts the land the client draws; travels in every snapshot. */
   seed: string;
+  /**
+   * PRIVATE. Seeds what is BURIED, and nothing else.
+   *
+   * Must never be sent to a client, logged next to a player id, or derived from
+   * `seed` — the whole point is that holding `seed` tells you nothing about the
+   * bombs. The server passes a fresh `randomUUID()`.
+   *
+   * Optional only so that the pure-generation tests can pin a content layout by
+   * seed alone; it falls back to `seed`, which is exactly the old (guessable)
+   * behaviour and is why the server must always pass one explicitly.
+   */
+  contentSeed?: string;
   /** Drives the tier (densities) — the highest lifetime among the players. */
   lifetimeCarrots?: number;
 }
 
 export function generateIsland(opts: GenerateOptions): Island {
-  const rng = mulberry32(seedFrom(`content:${opts.seed}`));
+  const rng = mulberry32(seedFrom(`content:${opts.contentSeed ?? opts.seed}`));
   const tier = tierFor(opts.lifetimeCarrots ?? 0);
   const shape = makeShape(opts.seed);
 
@@ -60,7 +86,15 @@ export function generateIsland(opts: GenerateOptions): Island {
   const golden = Math.floor(carrots * tier.goldenShare);
   for (const i of take(golden)) tiles.get(i)!.content = 'golden';
   for (const i of take(carrots - golden)) tiles.get(i)!.content = 'carrot';
-  for (const i of take(Math.floor(total * ISLAND.CHEST_DENSITY))) tiles.get(i)!.content = 'chest';
+  // Each chest draws its own tier, which decides both what it may hold and how
+  // loudly it announces itself. Drawn from the CONTENT rng like everything else
+  // buried here: the tier is shown on the board, but which tile got the crown
+  // must not be derivable from the public seed.
+  for (const i of take(Math.floor(total * ISLAND.CHEST_DENSITY))) {
+    const t = tiles.get(i)!;
+    t.content = 'chest';
+    t.chestTier = pickWeighted(rng, CHEST_TIER_WEIGHTS).kind;
+  }
 
   const island: Island = {
     id: opts.seed,
@@ -119,10 +153,28 @@ export const dugFraction = (island: Island) => island.dugCount / island.tiles.si
  * The island as a CLIENT may see it: only what is already REVEALED. An
  * unrevealed tile is not sent at all — there is no field to read a bomb out of,
  * which is the whole security model of this game.
+ *
+ * CHESTS ARE THE ONE EXCEPTION, and a deliberate one. A chest announces itself
+ * from across the island — that is the feature: the player sees a CROWN four
+ * tiles out and decides whether the walk is worth it. A chest nobody can see
+ * until they have already dug it is not a decision, it is a surprise.
+ *
+ * What leaks is exactly two things: WHERE a chest is, and WHICH TIER it is.
+ * Never what it rolled — the roll happens at the dig, from the private content
+ * seed, and the tier only says which TABLE will be drawn from. And never
+ * anything about its neighbours: `adjacent` is withheld until the tile is dug
+ * like everywhere else, so a chest tells a player nothing about the bombs
+ * around it. Walking to a visible chest is as dangerous as walking anywhere.
  */
 export function publicView(island: Island) {
   const revealed: Array<{ tile: number; content: string; adjacent: number; dugBy?: string }> = [];
+  const chests: Array<{ tile: number; tier: string }> = [];
   for (const [index, tile] of island.tiles) {
+    // An undug chest still advertises its position and tier — and nothing else.
+    if (!tile.revealed && tile.content === 'chest' && tile.chestTier) {
+      chests.push({ tile: index, tier: tile.chestTier });
+      continue;
+    }
     if (!tile.revealed) continue;
     revealed.push({ tile: index, content: tile.content, adjacent: tile.adjacent, dugBy: tile.dugBy });
   }
@@ -131,6 +183,7 @@ export function publicView(island: Island) {
     tier: island.tier,
     dugFraction: dugFraction(island),
     revealed,
+    chests,
   };
 }
 

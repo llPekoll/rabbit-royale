@@ -100,15 +100,20 @@ const CHEST_SHAKE_EVERY = [2.6, 5.5] as const;
  *  floating over it — and it squashes when the box drops in. */
 const CHEST_SHADOW_ALPHA = 0.32;
 /**
- * How loudly each rarity announces itself on the board. The chest SHOWS what
+ * How loudly each tier announces itself on the board. The chest SHOWS what
  * it holds (decided 2026-08-23): the walk to it is the trade the feature is
  * about, so the player has to be able to price it from across the island —
- * a "legendary, five steps out, do I dare" is the moment we are selling.
+ * a "CROWN, five steps out, do I dare" is the moment we are selling.
+ *
+ * The tiers are METALS, not rarity words, and deliberately so: RR Genesis
+ * pieces carry their own common/rare/epic/legendary, and a chest that used
+ * those same words would have a LEGENDARY one pay out a COMMON rabbit. See
+ * config/chestConfig.ts.
  * `beam` is the height of the shaft of light in px (0 = none), `motes` the
  * number of rising specks.
  */
 const CHEST_TIER_FLAIR: Record<string, { beam: number; width: number; motes: number; glow: number }> = {
-  // Every rarity gets a beam, COMMON included: giving it none made the cheapest
+  // Every tier gets a beam, BRONZE included: giving it none made the cheapest
   // chest look like a rendering bug rather than a modest prize. The ladder is
   // in the SIZE of the flair, not in its presence.
   //
@@ -116,10 +121,10 @@ const CHEST_TIER_FLAIR: Record<string, { beam: number; width: number; motes: num
   // 36-tile island against busy pixel-art grass, and the first pass — a 7px
   // beam at 22% alpha — was invisible at the size the game actually draws the
   // board. Anything subtle here reads as nothing at all.
-  common: { beam: 26, width: 11, motes: 3, glow: 0.75 },
-  rare: { beam: 40, width: 13, motes: 5, glow: 0.85 },
-  epic: { beam: 58, width: 15, motes: 7, glow: 0.95 },
-  legendary: { beam: 78, width: 18, motes: 10, glow: 1 },
+  bronze: { beam: 26, width: 11, motes: 3, glow: 0.75 },
+  silver: { beam: 40, width: 13, motes: 5, glow: 0.85 },
+  gold: { beam: 58, width: 15, motes: 7, glow: 0.95 },
+  crown: { beam: 78, width: 18, motes: 10, glow: 1 },
 };
 
 function diamondFill(color: number, alpha: number): Sprite {
@@ -669,13 +674,13 @@ export class Tile {
    * spec's "il le voit et choisit d'y aller"). It draws above the veil: the
    * veil lives in the cell's terrain block (see `mountVeil`), under everything
    * this container holds.
-   * `tint` is the rarity accent (chestConfig.CHEST_TIER_COLOR).
+   * `tint` is the tier accent (chestConfig.CHEST_TIER_COLOR).
    */
-  setChest(tint: number, drop = false, tier: string = 'common'): void {
+  setChest(tint: number, drop = false, tier: string = 'bronze'): void {
     if (this.chestSprite) return;
     const tex = Assets.get(Keys.TREASURE_CHEST);
     if (!tex) return;
-    const flair = CHEST_TIER_FLAIR[tier] ?? CHEST_TIER_FLAIR.common;
+    const flair = CHEST_TIER_FLAIR[tier] ?? CHEST_TIER_FLAIR.bronze;
 
     // The rarity is carried by the GROUND GLOW and the RING, never by tinting
     // the chest sprite: a tint MULTIPLIES the art, and the art is already a

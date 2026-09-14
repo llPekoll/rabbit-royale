@@ -8,6 +8,8 @@
  * getting it wrong somewhere. `gridConfig` owns the index↔col/row maths.
  */
 
+import type { ChestTier } from '@/config/chestConfig';
+
 /** What is buried under a tile. Only the server knows this before a dig. */
 export type TileContent = 'empty' | 'carrot' | 'golden' | 'bomb' | 'chest';
 
@@ -21,6 +23,14 @@ export interface Tile {
   plantedBy?: string;
   /** Whoever first dug it — carrots go to the first digger only. */
   dugBy?: string;
+  /**
+   * Which ladder rung a `chest` tile sits on, and therefore what it may hold.
+   *
+   * Set at generation and PUBLIC: the board announces it with a coloured beam
+   * and the word written above the box, because the walk towards a chest is the
+   * decision the feature is about. Undefined on every other content.
+   */
+  chestTier?: ChestTier;
 }
 
 export interface Island {
@@ -99,6 +109,24 @@ export interface Rabbit {
  */
 export type LootItemKind = 'bomb' | 'shield' | 'lightning' | 'water' | 'fertiliser';
 
+/** The kinds above, as a value — and the guard that narrows a table's `kind`. */
+export const LOOT_ITEM_KINDS: readonly LootItemKind[] = [
+  'bomb', 'shield', 'lightning', 'water', 'fertiliser',
+];
+
+/**
+ * Is this drop one the run's bag can hold?
+ *
+ * The loot tables type `kind` as a plain string (four tiers of differing shape
+ * will not unify otherwise), so this is where a rolled kind is proven to be a
+ * bankable item rather than asserted with a cast. A kind that is neither this,
+ * `carrots` nor `nft` is silently dropped — which a cast would have turned into
+ * a corrupt bag entry instead.
+ */
+export function isLootItemKind(v: string): v is LootItemKind {
+  return (LOOT_ITEM_KINDS as readonly string[]).includes(v);
+}
+
 /** What a dig produced. The server sends this back; the client only animates. */
 export interface DigResult {
   tile: number;
@@ -110,6 +138,14 @@ export interface DigResult {
   knockback?: { tile: number; stunnedUntil: number };
   /** Chest contents. Carrots land immediately; items are banked with the run. */
   loot?: { kind: string; amount: number };
+  /**
+   * A crown chest also gave up an RR Genesis piece.
+   *
+   * Its own flag rather than a `loot` kind, because it arrives ALONGSIDE the
+   * chest's item rather than instead of it — the client has two things to
+   * celebrate, and a single field could only name one.
+   */
+  nft?: boolean;
   /** A sabotage bomb names its planter, so revenge has an address. */
   plantedBy?: string;
 }

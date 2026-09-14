@@ -25,6 +25,22 @@ export const ENERGY = {
   BOMB_LOSS: 8,
   /** Hard ceiling so a lucky streak can't make a run immortal. */
   MAX: 99,
+  /**
+   * What the BURROW pays to start a run — drawn from `OUT_OF_RUN_ENERGY`, not
+   * from the run's own tank, which always opens at START.
+   *
+   * This is the knob that makes the burrow's bar mean something. Until it was
+   * wired, the server started every run at START without touching the bank,
+   * so the bar sat at its ceiling forever, a bought refill topped up a bar
+   * that was already full, and runs were unlimited.
+   *
+   * Equal to START so the sums read plainly: one run costs one tank. With
+   * OUT_OF_RUN_ENERGY at 60 / +12 an hour that is two runs banked at most, a
+   * fresh run every two and a half hours, and a bought refill worth two runs.
+   * A player short of this many points is shown the wait and the refill on
+   * the burrow, before they cross — not an island that refuses them.
+   */
+  RUN_COST: 30,
 } as const;
 
 export const BOMB = {
@@ -572,27 +588,102 @@ export const SABOTAGE = {
 } as const;
 
 /**
- * Chest loot table. Weights are relative, they need not sum to anything.
+ * What each chest tier rolls. Weights are relative, they need not sum to
+ * anything.
  *
- * ONE table, drawn from wherever a chest is dug. The two families in it are
- * deliberate: raid items (bomb, shield, lightning) act on somebody else's
- * board, garden items (water, fertiliser) act on your own. A single table is
- * what makes a chest worth opening for BOTH kinds of player — the farmer who
- * never raids still pulls something they want three times in ten, and the
- * raider gets a garden they did not ask for and may yet use. Splitting the
- * table by where it was found would have sorted players into two games that
- * never trade.
+ * ONE TABLE PER TIER, because the board makes a PROMISE. A chest announces
+ * itself from across the island — a coloured beam and the tier written over it
+ * — and the walk towards it is the trade the whole feature is about. The label
+ * is what the player prices that walk on, so `CHEST_TIER_PROMISE` in
+ * config/chestConfig.ts has to be TRUE: a flat table would let a BRONZE pay out
+ * an NFT and a CROWN pay out carrots, and four steps spent on a promise that
+ * the roll ignores is worse than no label at all.
  *
- * Carrots stay the floor at half the weight. They are the one drop that is
- * never dead: an item you have capped out on is a wasted chest, and a chest
- * that disappoints is worse than no chest, because the player walked onto a
- * known tile for it.
+ * The ladder is therefore in WHAT is drawn, not in how much:
+ *  - BRONZE — carrots. The floor, and never a dead drop: an item you have
+ *    capped out on is a wasted chest, whereas carrots always land.
+ *  - SILVER — the garden pair. A nudge on a twelve-hour clock, not a jackpot,
+ *    so it is the tier a farmer walks towards.
+ *  - GOLD — the raid items. They act on somebody else's board, which is what
+ *    makes them worth more than anything that only helps your own.
+ *  - CROWN — a raid item AND a shot at an RR Genesis piece. The only tier an
+ *    NFT can come out of, which is what makes a crown chest worth crossing an
+ *    island for.
  *
- * The garden pair is common and small — they are a nudge on a twelve-hour
- * clock, not a jackpot — while `nft` sits at the bottom on purpose. It is the
- * only entry with no gameplay effect and no cap, so its rarity is the whole of
- * its value; see `CHEST_NFT_ODDS` for the arithmetic that keeps it a story
- * rather than a currency.
+ * Both families stay reachable by everyone: a farmer who never raids still
+ * meets gold chests, and a raider still gets a garden they did not ask for.
+ * What changed is that the player now CHOOSES which of them to walk to.
+ */
+/**
+ * How the chests on an island split across the ladder.
+ *
+ * Weights, drawn per chest at generation. The shape is the whole economy of the
+ * feature: CROWN is the rarest thing on the board because it is the only tier
+ * that can carry a Genesis piece, and its scarcity — not the NFT chance inside
+ * it — is what keeps pieces from becoming an income stream (see
+ * `CHEST_NFT_ODDS`).
+ *
+ * A tier-1 island holds ~3 chests, so at 6% per chest about one island in six
+ * carries a crown: rare enough to be an event worth crossing the board for,
+ * common enough that the word CROWN means something to a player by the time
+ * they meet their first. Combined with `CHEST_NFT_ODDS`, a Genesis piece lands
+ * roughly once in twenty-four islands — a few times a season at two sessions a
+ * day, which is the intended "this happened to me once" cadence.
+ *
+ * Bronze stays the most common so the ordinary chest is never a disappointment.
+ */
+export const CHEST_TIER_WEIGHTS = [
+  { kind: 'bronze', weight: 45 },
+  { kind: 'silver', weight: 30 },
+  { kind: 'gold', weight: 19 },
+  { kind: 'crown', weight: 6 },
+] as const;
+
+/** One weighted line of a loot table. */
+export interface LootRoll {
+  readonly kind: string;
+  readonly weight: number;
+  readonly min: number;
+  readonly max: number;
+}
+
+/**
+ * Typed as a plain record of `LootRoll[]` rather than left to `as const`
+ * inference: four literal tuples of four different shapes will not unify, so a
+ * caller indexing this by a variable tier gets a union it cannot pass anywhere.
+ * The names still autocomplete; only the row literals are widened.
+ */
+export const CHEST_LOOT_BY_TIER: Record<'bronze' | 'silver' | 'gold' | 'crown', readonly LootRoll[]> = {
+  bronze: [
+    { kind: 'carrots', weight: 100, min: 20, max: 90 },
+  ],
+  silver: [
+    { kind: 'water', weight: 55, min: 1, max: 3 },
+    { kind: 'fertiliser', weight: 45, min: 1, max: 2 },
+  ],
+  gold: [
+    { kind: 'bomb', weight: 50, min: 1, max: 2 },
+    { kind: 'shield', weight: 28, min: 1, max: 1 },
+    { kind: 'lightning', weight: 22, min: 1, max: 1 },
+  ],
+  /**
+   * The crown's raid item is GUARANTEED and the NFT rides on top, which is why
+   * `nft` is not an entry here — a chance at a piece is not a substitute for
+   * the item, it is an extra. See `CHEST_NFT_ODDS`.
+   */
+  crown: [
+    { kind: 'lightning', weight: 40, min: 1, max: 1 },
+    { kind: 'shield', weight: 35, min: 1, max: 1 },
+    { kind: 'bomb', weight: 25, min: 2, max: 3 },
+  ],
+};
+
+/**
+ * The flat table, kept for any caller that has no tier to hand.
+ *
+ * Weighted so a tier-less roll still feels like the game's overall mix rather
+ * than like a fifth, secretly different chest. Prefer `CHEST_LOOT_BY_TIER`:
+ * this exists so a chest can never fail to roll ANYTHING, not as a design.
  */
 export const CHEST_LOOT = [
   { kind: 'carrots',   weight: 40, min: 20, max: 90 },
@@ -605,17 +696,24 @@ export const CHEST_LOOT = [
 ] as const;
 
 /**
- * The odds an `nft` roll works out to, kept here so a weight change has to
- * face the number it moves.
+ * The chance a CROWN chest also carries an RR Genesis piece.
  *
- * At weight 1 of 100 it is one chest in a hundred. A tier-1 island holds
- * ~0.012 x 17 x 17 ≈ 3 chests, and a player who digs every one of them across
- * two sessions a day meets one roughly every two and a half weeks — a season.
- * That is the intended feel: a thing that happens to you once a season, not a
- * thing you farm. Raising this weight past ~3 turns it into an income stream
- * and the drop stops being a story worth telling.
+ * A SEPARATE roll, not an entry in the crown's table, because the piece is an
+ * extra rather than an alternative: a crown chest always pays its raid item,
+ * and then this is asked. Folding it into the table would have made the best
+ * possible outcome — the NFT — cost the player the item they were promised.
+ *
+ * ONE IN FOUR of crown chests, and the rarity lives in how rare a CROWN is, not
+ * in this number. That is the part to hold on to when retuning: the player who
+ * walks four tiles to a crown chest is taking the longest, most expensive walk
+ * in the game, and doing it for a 1% chance would teach them not to bother.
+ * A visible, sizeable chance is what makes the walk a decision; the scarcity of
+ * crown chests themselves is what keeps pieces from becoming an income stream.
+ *
+ * So if pieces start arriving too fast, make CROWN chests rarer — do not shave
+ * this number, or the crown walk quietly becomes a bad bet.
  */
-export const CHEST_NFT_ODDS = { oneIn: 100 } as const;
+export const CHEST_NFT_ODDS = { inCrown: 0.25 } as const;
 
 /**
  * What the garden consumables do.

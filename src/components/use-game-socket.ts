@@ -46,6 +46,43 @@ export interface IslandSnapshot {
    * flock is a stale set of legal moves.
    */
   sheep?: Array<{ id: string; x: number; y: number }>;
+  /**
+   * The chests still buried, and how big each one is.
+   *
+   * The one kind of tile the server describes BEFORE it is dug (see
+   * `publicView`): a chest is meant to be seen from across the island and
+   * walked towards, so its position and tier are public while its contents are
+   * not. Optional so a client stays compatible with a server that predates it.
+   */
+  chests?: Array<{ tile: number; tier: string }>;
+}
+
+/**
+ * What a dig paid, as the server tells the digger.
+ *
+ * Mirrors `DigResult` on the server, narrowed to what the client acts on.
+ */
+export interface MoveResult {
+  dig?: {
+    loot?: { kind: string; amount: number };
+    /** A crown chest also gave up an RR Genesis piece. */
+    nft?: boolean;
+  };
+}
+
+/**
+ * A chest's contents, waiting to be shown.
+ *
+ * `at` is a timestamp rather than a boolean flag so two identical drops in a
+ * row are still two events — without it, opening a second bronze chest for the
+ * same amount would leave the state untouched and the ceremony would not
+ * replay.
+ */
+export interface ChestPrize {
+  kind: string;
+  amount: number;
+  nft: boolean;
+  at: number;
 }
 
 /** One sheep's move, as `sheep_moved` reports it. */
@@ -88,10 +125,36 @@ export interface RunRecap {
 /** Resolves the live scene, or null before Pixi has finished booting. */
 type SceneGetter = () => IslandScene | null;
 
+/** Why the server would not seat the player, as `error_msg` reports it. */
+export interface JoinRefusal {
+  code: 'no_energy';
+  /** The burrow's bar as the server read it. */
+  energy: number;
+  /** What a run costs out of it. */
+  need: number;
+  /** Time until the bar holds a run's worth, or null if it already does. */
+  nextRunInMs: number | null;
+  /** Bumped per refusal, so two identical answers are still two events. */
+  at: number;
+}
+
+/**
+ * @param onIsland Whether the player is OUT on the island right now.
+ *
+ *   The socket used to ask for a seat the moment it connected, wherever the
+ *   player was. That was free while a seat cost nothing; now that joining
+ *   PAYS for a run (ENERGY.RUN_COST), a page opened on the burrow must not
+ *   quietly buy an island the player never crossed to — and then buy a second
+ *   one when they do, because the first seat was still held. So the connect
+ *   handler joins only when the player is already out there, which is the
+ *   reconnect case: a refresh mid-run, where the server recognises the seat
+ *   and charges nothing. The walk out to farm asks with `join`, once.
+ */
 export function useGameSocket(
   token: string | null,
   playerId: string | null,
   spectate?: string | null,
+  onIsland = false,
 ) {
   const socketRef = useRef<Socket | null>(null);
   const sceneRef = useRef<SceneGetter>(() => null);
@@ -120,6 +183,31 @@ export function useGameSocket(
    * runs that happened to bank the same number must still be two events.
    */
   const [banked, setBanked] = useState(0);
+  /**
+   * The last chest worth a ceremony, or null once it has been shown.
+   *
+   * Held here rather than pushed at the scene because the reveal is a DOM
+   * take-over (the kit's `ChestReveal`), not something Pixi draws — and because
+   * the page decides when the player is free to watch it.
+   */
+  const [chestPrize, setChestPrize] = useState<ChestPrize | null>(null);
+  /** The last time the server turned a `join` down, or null. */
+  const [refused, setRefused] = useState<JoinRefusal | null>(null);
+
+  // A ref, not a dependency: `connect` fires again on every reconnect and has
+  // to read where the player is THEN, without tearing the socket down each
+  // time they cross between the burrow and the island.
+  const onIslandRef = useRef(onIsland);
+  onIslandRef.current = onIsland;
+  /**
+   * The rabbits as of the last render, for the same reason. On top of being
+   * out on the island, a rejoin on connect wants a rabbit of OURS to have been
+   * there: a socket rebuilt at the end of a spectate (the target changes, so
+   * the socket does) connects while the screen is still on its way home, and
+   * without this it would buy the ex-viewer a run they never asked for.
+   */
+  const rabbitsRef = useRef(rabbits);
+  rabbitsRef.current = rabbits;
 
   /** Apply to the scene now, or queue it until the scene exists. */
   const toScene = useCallback((fn: (s: IslandScene) => void) => {
@@ -154,12 +242,38 @@ export function useGameSocket(
 
     socket.on('connect', () => {
       setConnected(true);
-      socket.emit(spectate ? 'spectate' : 'join', spectate ? { playerId: spectate } : undefined);
+      if (spectate) socket.emit('spectate', { playerId: spectate });
+      // Only a player already OUT there, with a rabbit, rejoins on connect —
+      // see `onIsland`. That is a reconnect, which the server seats for free.
+      else if (onIslandRef.current && playerId && rabbitsRef.current.has(playerId)) socket.emit('join');
     });
     socket.on('disconnect', () => setConnected(false));
 
+    /**
+     * The server said no to a seat.
+     *
+     * Only `no_energy` is surfaced as state: it is the one refusal the player
+     * can act on (wait, or buy), and the burrow has a dialog for exactly that.
+     * The rest are logged and left — they are bugs or expired sessions, and
+     * the page already handles a dead session on its own.
+     */
+    socket.on('error_msg', (e: { code?: string; energy?: number; need?: number; nextRunInMs?: number | null }) => {
+      if (e?.code === 'no_energy') {
+        setRefused({
+          code: 'no_energy',
+          energy: e.energy ?? 0,
+          need: e.need ?? 0,
+          nextRunInMs: e.nextRunInMs ?? null,
+          at: Date.now(),
+        });
+        return;
+      }
+      console.warn('[rr-ws]', e?.code ?? 'error');
+    });
+
     socket.on('island', (snap: IslandSnapshot) => {
       snapshotRef.current = snap;
+      setRefused(null);
       setIslandSeed(snap.seed);
       setWarnStage(snap.warnStage);
       setRecap(null);
@@ -168,6 +282,9 @@ export function useGameSocket(
       // snapshot carries what is already uncovered.
       toScene((s) => {
         for (const t of snap.revealed) s.revealTile(t.tile, t.content, t.adjacent);
+        // Chests are drawn before they are dug — they DROP in here, which reads
+        // as the island being dealt to the player who just joined it.
+        s.showChests(snap.chests ?? [], true);
         snap.rabbits.forEach((r, i) => s.addRabbit(r.playerId, r.name, r.tile, i, r.energy));
         // Where the flock is NOW. The seed only says where it started, and a
         // joiner arrives after it has bolted around for a while.
@@ -177,6 +294,24 @@ export function useGameSocket(
 
     socket.on('tile_revealed', (t: { tile: number; content: TileContent; adjacent: number }) => {
       toScene((s) => s.revealTile(t.tile, t.content, t.adjacent));
+    });
+
+    /**
+     * The private half of a dig — sent to the mover alone.
+     *
+     * `tile_revealed` goes to the whole island, because uncovering ground is a
+     * shared fact. What the tile PAID is not: only the first digger is credited,
+     * and a chest's contents are theirs. So the ceremony is driven from here,
+     * never from `tile_revealed`, or every rabbit on the island would watch a
+     * take-over for a prize somebody else won.
+     */
+    socket.on('move_result', (r: MoveResult) => {
+      if (!r.dig?.loot) return;
+      // Carrots already land on the rabbit and animate on the tile — a
+      // full-screen ceremony for a handful of them would stop the run dead
+      // several times a minute. Only items and pieces earn the take-over.
+      if (r.dig.loot.kind === 'carrots' && !r.dig.nft) return;
+      setChestPrize({ ...r.dig.loot, nft: r.dig.nft === true, at: Date.now() });
     });
 
     /**
@@ -267,7 +402,7 @@ export function useGameSocket(
     socket.on('banked', (_b: Banked) => setBanked((n) => n + 1));
 
     return () => { socket.disconnect(); socketRef.current = null; };
-  }, [token, wsUrl, spectate, toScene]);
+  }, [token, wsUrl, spectate, playerId, toScene]);
 
   /**
    * Paint the last snapshot onto the board again.
@@ -280,6 +415,9 @@ export function useGameSocket(
     const scene = sceneRef.current();
     if (!snap || !scene) return;
     for (const t of snap.revealed) scene.revealTile(t.tile, t.content, t.adjacent);
+    // No drop on a resync: these chests were already standing there, and
+    // replaying the arrival would announce something that did not happen.
+    scene.showChests(snap.chests ?? [], false);
     snap.rabbits.forEach((r, i) => scene.addRabbit(r.playerId, r.name, r.tile, i, r.energy));
   }, []);
 
@@ -324,7 +462,8 @@ export function useGameSocket(
 
   const me = playerId ? rabbits.get(playerId) ?? null : null;
   return {
-    islandSeed, rabbits, me, warnStage, recap, banked, connected,
+    islandSeed, rabbits, me, warnStage, recap, banked, connected, refused,
+    chestPrize, clearChestPrize: () => setChestPrize(null),
     moveTo, restart, join, leave, bindScene, resync,
   };
 }
