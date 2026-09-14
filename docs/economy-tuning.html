@@ -391,10 +391,24 @@
       return p ? { ...r, c:p[0], u:p[1] } : { ...r };
     });
   }
-  function save() { try { localStorage.setItem('rr-economy', JSON.stringify({ v, chest, shop })); } catch {} }
+  /**
+   * Le reglage en cours est memorise dans le navigateur, pour qu'une session
+   * de tuning survive a un rechargement.
+   *
+   * REVISION : la sauvegarde porte le numero du catalogue au moment ou elle a
+   * ete ecrite. Sans ca, une valeur PROPOSEE corrigee ici n'atteignait jamais
+   * quelqu'un qui avait deja ouvert la page : son navigateur restaurait
+   * l'ancienne et le curseur affichait un chiffre que le fichier ne contenait
+   * plus (l'energie max restee a 3 alors qu'elle etait passee a 60). Monter
+   * REV jette les reglages d'avant — c'est le but : ils decrivent un
+   * catalogue qui n'existe plus.
+   */
+  const REV = 2;
+  function save() { try { localStorage.setItem('rr-economy', JSON.stringify({ rev: REV, v, chest, shop })); } catch {} }
   function load() {
     try {
       const s = JSON.parse(localStorage.getItem('rr-economy') || 'null');
+      if (s && s.rev !== REV) { localStorage.removeItem('rr-economy'); return false; }
       if (s && s.v && s.chest && s.shop) { v = { ...s.v }; chest = s.chest; shop = s.shop; for (const k of K) if (!(k.id in v)) v[k.id] = k.prop; return true; }
     } catch {}
     return false;
