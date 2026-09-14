@@ -45,6 +45,7 @@
  */
 import { Assets, Rectangle, Texture } from 'pixi.js';
 import type { Dir } from './terrain';
+import { loadDecor, type DecorSet } from './decor';
 
 export type IsoStyle = 'pixel' | 'smooth';
 export const ISO_STYLES: readonly IsoStyle[] = ['smooth', 'pixel'];
@@ -88,6 +89,8 @@ interface SheetSpec {
   blocks: boolean;
   /** Whether the corner ramps exist (columns 4-7 of rows 0 and 1). */
   corners: boolean;
+  /** Whether the hand-drawn decorations are planted on this sheet's land. */
+  decor: boolean;
   /**
    * The tier drawn as a sheet with nothing under it. 0 on the pixel sheet:
    * the sea is the floor and land stands on it in blocks from the sea bed.
@@ -119,6 +122,7 @@ export const SHEETS: Readonly<Record<IsoStyle, SheetSpec>> = {
     stairs: true,
     blocks: true,
     corners: false,
+    decor: false,
     floor: 0,
     background: 0x0b2233,
   },
@@ -140,6 +144,7 @@ export const SHEETS: Readonly<Record<IsoStyle, SheetSpec>> = {
     stairs: false,
     blocks: false,
     corners: true,
+    decor: true,
     floor: 1,
     // The reference's page, sampled every tenth of its height: teal at the
     // top, through spring green, to a dusty olive at the bottom.
@@ -235,6 +240,8 @@ export interface IsoTileset {
   post: Texture | null;
   /** Smooth sheet only. */
   corners: CornerTiles | null;
+  /** The decorations, on sheets that plant them. */
+  decor: DecorSet | null;
 }
 
 const cached = new Map<IsoStyle, Promise<IsoTileset>>();
@@ -310,6 +317,7 @@ async function load(style: IsoStyle): Promise<IsoTileset> {
   for (const name of MATERIALS) materials[name] ??= materials[spec.materials[0]];
 
   const sea = spec.water ? seaTile(sheet, cell) : null;
+  const decor = spec.decor ? await loadDecor() : null;
   return {
     style,
     spec,
@@ -327,6 +335,7 @@ async function load(style: IsoStyle): Promise<IsoTileset> {
           front: slice(9, 2),
         }
       : null,
+    decor,
   };
 }
 

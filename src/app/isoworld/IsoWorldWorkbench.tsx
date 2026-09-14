@@ -13,6 +13,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Application, Container, Sprite, Texture } from 'pixi.js';
 import { generateIsland } from '@/game/island';
 import {
+  DECOR_WEIGHTS,
   ISO_STYLES,
   IsoWorldView,
   loadIsoTileset,
@@ -232,7 +233,7 @@ export function IsoWorldWorkbench({ style, seed }: { style?: IsoStyle; seed?: st
   const hasStairs = tileset?.spec.stairs ?? true;
   // A sheet with corner ramps builds every step as a slope: no share to set.
   const corners = tileset?.spec.corners ?? false;
-  const hasProps = (tileset?.spec.blocks || tileset?.spec.post !== null) ?? true;
+  const hasProps = (tileset?.spec.blocks || tileset?.spec.decor || tileset?.spec.post !== null) ?? true;
   const isPixel = (tileset?.style ?? settings.style) === 'pixel';
   // A sheet coloured by tier has one colour per tier and no more.
   const maxTiers = tileset && !tileset.spec.layered ? tileset.spec.tiers.length : 5;
@@ -265,7 +266,16 @@ export function IsoWorldWorkbench({ style, seed }: { style?: IsoStyle; seed?: st
     });
     // Planned on the unturned map, THEN turned: the ramps and props belong to
     // the island, so turning the camera must carry them rather than re-roll.
-    const planned = planIsoWorld(map, { ramps: settings.ramps, stairs: settings.stairs, corners });
+    const decor = tileset.decor
+      ? tileset.decor.pieces.map((p) => ({ name: p.name, cells: p.cells, weight: DECOR_WEIGHTS[p.name] ?? 1 }))
+      : undefined;
+    const planned = planIsoWorld(map, {
+      ramps: settings.ramps,
+      stairs: settings.stairs,
+      corners,
+      decor,
+      decorMinTier: tileset.spec.floor + 1,
+    });
     const island = new IsoWorldView({
       world: rotateIsoWorld(planned, rotation),
       tileset,

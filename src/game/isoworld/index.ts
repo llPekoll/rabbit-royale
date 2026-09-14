@@ -23,7 +23,9 @@ export {
   DIR,
   DIR_STEP,
 } from './terrain';
-export type { IsoWorld, IsoWorldOptions, Ramp, RampKind, Prop, PropKind, Dir } from './terrain';
+export type { IsoWorld, IsoWorldOptions, Ramp, RampKind, Prop, PropKind, Dir, DecorChoice } from './terrain';
+export { loadDecor, DECOR_WEIGHTS, SHEET_CELL } from './decor';
+export type { DecorSet, DecorPiece } from './decor';
 
 export { loadIsoTileset, ISO_SHEET_URL, ISO_STYLES, SHEETS, BLOCK, CELL, MATERIALS } from './sheet';
 export type { IsoTileset, IsoStyle, Material, MaterialTiles } from './sheet';

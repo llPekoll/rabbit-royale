@@ -146,3 +146,32 @@ describe('rampCorners', () => {
     expect(rampCorners({ kind: 'outer', dir: 2 })).toEqual([0, 0, 1, 0]);
   });
 });
+
+describe('decor', () => {
+  const choices = [
+    { name: 'tuft', cells: 1, weight: 4 },
+    { name: 'hill', cells: 2, weight: 2 },
+  ];
+
+  it('keeps every footprint on level ground of one tier, and turns it with the world', () => {
+    const map = generateIsland({ seed: 'harbour-9', width: 34, height: 24, tiers: 3 });
+    const world = planIsoWorld(map, { corners: true, decor: choices, decorMinTier: 2, decorDensity: 0.5 });
+    const decor = [...world.props.values()].filter((p) => p.kind === 'decor');
+    expect(decor.some((p) => p.cells === 2)).toBe(true);
+    for (const w of [world, rotateIsoWorld(world, 1), rotateIsoWorld(world, 3)]) {
+      for (const [i, prop] of w.props) {
+        if (prop.kind !== 'decor') continue;
+        const x = i % w.width;
+        const y = (i / w.width) | 0;
+        const tier = tierAt(w, x, y);
+        expect(tier).toBeGreaterThanOrEqual(2);
+        for (let fy = 0; fy < (prop.cells ?? 1); fy++) {
+          for (let fx = 0; fx < (prop.cells ?? 1); fx++) {
+            expect(tierAt(w, x + fx, y + fy)).toBe(tier);
+            expect(w.ramps.has((y + fy) * w.width + (x + fx))).toBe(false);
+          }
+        }
+      }
+    }
+  });
+});

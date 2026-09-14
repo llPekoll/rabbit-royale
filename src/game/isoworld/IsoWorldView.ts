@@ -41,6 +41,7 @@
  * east face and north. Sea cells lay rims too, so the island's foot is drawn.
  */
 import { Container, Graphics, Sprite, type Texture } from 'pixi.js';
+import { SHEET_CELL } from './decor';
 import type { IsoTileset, Material, MaterialTiles } from './sheet';
 import {
   DIR,
@@ -53,6 +54,7 @@ import {
   touchesSea,
   type Dir,
   type IsoWorld,
+  type Prop,
   type Ramp,
 } from './terrain';
 
@@ -167,6 +169,9 @@ export class IsoWorldView {
 
   private readonly layer = new Container();
 
+  /** Decorations by the index of the LAST cell of their footprint, where they are drawn. */
+  private readonly decorAt = new Map<number, { x: number; y: number; prop: Prop }>();
+
   constructor(private readonly options: IsoWorldViewOptions) {
     const { world, tileset } = options;
     const { width: w, height: h } = world;
@@ -181,6 +186,18 @@ export class IsoWorldView {
 
     this.layer.position.set(this.originX, this.originY);
     this.view.addChild(this.layer);
+
+    // A decoration stands on the last cell of its footprint in painter's
+    // order, so it is drawn over every cell it covers.
+    if (options.deco ?? true) {
+      for (const [i, prop] of world.props) {
+        if (prop.kind !== 'decor') continue;
+        const c = prop.cells ?? 1;
+        const x = i % w;
+        const y = (i / w) | 0;
+        this.decorAt.set((y + c - 1) * w + (x + c - 1), { x, y, prop });
+      }
+    }
 
     for (let s = 0; s <= w + h - 2; s++) {
       for (let x = Math.max(0, s - h + 1); x <= Math.min(s, w - 1); x++) this.buildCell(x, s - x);
@@ -271,6 +288,34 @@ export class IsoWorldView {
     }
 
     this.lace(x, y, tier, ramp);
+
+    const decor = this.decorAt.get(y * world.width + x);
+    if (decor && tier > spec.floor) this.plant(decor.x, decor.y, decor.prop, surface);
+  }
+
+  /**
+   * A decoration whose footprint's north-west cell is `(x, y)`, standing on
+   * ground at `elevation`. Its anchor pixel goes on the bottom corner of the
+   * footprint's last cell, and one scale factor fits every piece: the sheet
+   * draws a one-cell base `SHEET_CELL` pixels wide.
+   */
+  private plant(x: number, y: number, prop: Prop, elevation: number): void {
+    const { tileset } = this.options;
+    const piece = prop.decor ? tileset.decor?.byName.get(prop.decor) : undefined;
+    if (!piece) return;
+    const { cell, block } = tileset;
+    const c = prop.cells ?? 1;
+    const scale = cell / SHEET_CELL;
+    const sprite = new Sprite(piece.texture);
+    sprite.scale.set(scale);
+    const lastX = x + c - 1;
+    const lastY = y + c - 1;
+    // The bottom corner of the last cell, at the surface.
+    const bx = (lastX - lastY) * (block.w / 2);
+    const by = (lastX + lastY) * (block.h / 2) + block.h - elevation;
+    sprite.position.set(bx - piece.anchor[0] * scale, by - piece.anchor[1] * scale);
+    this.layer.addChild(sprite);
+    this.sprites++;
   }
 
   /**

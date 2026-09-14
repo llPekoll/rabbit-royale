@@ -85,7 +85,7 @@ export function rampHighSides(ramp: Ramp): readonly Dir[] {
   return [ramp.dir];
 }
 
-export type PropKind = 'hedge' | 'boulder' | 'post' | 'patch';
+export type PropKind = 'hedge' | 'boulder' | 'post' | 'patch' | 'decor';
 
 export interface Prop {
   kind: PropKind;
@@ -95,6 +95,16 @@ export interface Prop {
    * like a ramp's direction, it turns with the world.
    */
   dir: Dir;
+  /** For `decor`: which piece, and the side of the square of cells its base covers. */
+  decor?: string;
+  cells?: number;
+}
+
+/** A decoration the planner may plant: its name, footprint and relative frequency. */
+export interface DecorChoice {
+  name: string;
+  cells: number;
+  weight: number;
 }
 
 export interface IsoWorld {
@@ -123,9 +133,19 @@ export interface IsoWorldOptions {
    * a sheet with the corner pieces.
    */
   corners?: boolean;
+  /**
+   * Decorations to scatter, with their footprints. Planted on flat ground
+   * instead of the block props; the cell holding the prop is the footprint's
+   * north-west corner, and the rest of the square is kept clear.
+   */
+  decor?: readonly DecorChoice[];
+  /** Share of the flat cells that get a decoration, 0..1. */
+  decorDensity?: number;
+  /** The lowest tier decorations grow on: above the beach, on the smooth sheet. */
+  decorMinTier?: number;
 }
 
-const DEFAULTS = { ramps: 0.35, stairs: 0.3 } as const;
+const DEFAULTS = { ramps: 0.35, stairs: 0.3, decorDensity: 0.3 } as const;
 
 /** Chance per eligible cell, stacked: hedges are common, posts are rare. */
 const PROP_CHANCE: ReadonlyArray<{ kind: PropKind; chance: number }> = [
@@ -189,7 +209,7 @@ export function planIsoWorld(map: IslandMap, options: IsoWorldOptions = {}): Iso
       seed: map.seed,
       tiers: map.tiers,
     };
-    return { ...world, props: planProps(world) };
+    return { ...world, props: planProps(world, options) };
   }
 
   const share = options.ramps ?? DEFAULTS.ramps;
@@ -241,7 +261,7 @@ export function planIsoWorld(map: IslandMap, options: IsoWorldOptions = {}): Iso
     seed: map.seed,
     tiers: map.tiers,
   };
-  return { ...world, props: planProps(world) };
+  return { ...world, props: planProps(world, options) };
 }
 
 /**
@@ -407,9 +427,27 @@ export function planCornerRamps(level: Int8Array, w: number, h: number): Map<num
  * sea or a ramp: a block standing on a cliff edge overhangs it, one on a beach
  * stands in the surf, and one beside a ramp blocks the way up it.
  */
-function planProps(world: IsoWorld): Map<number, Prop> {
+function planProps(world: IsoWorld, options: IsoWorldOptions = {}): Map<number, Prop> {
   const rng = mulberry32(seedFrom(`${world.seed}:props`));
   const props = new Map<number, Prop>();
+  const decor = options.decor;
+  const density = options.decorDensity ?? DEFAULTS.decorDensity;
+  const totalWeight = decor?.reduce((sum, d) => sum + d.weight, 0) ?? 0;
+  const taken = new Set<number>();
+
+  /** Flat ground at the cell's tier, all four neighbours included, off the coast and off any ramp. */
+  const flatAt = (x: number, y: number, tier: number) =>
+    tierAt(world, x, y) === tier &&
+    !rampAt(world, x, y) &&
+    !touchesSea(world, x, y) &&
+    DIRS.every((d) => {
+      const { dx, dy } = DIR_STEP[d];
+      return tierAt(world, x + dx, y + dy) === tier && !rampAt(world, x + dx, y + dy);
+    });
+  /** Level ground at the cell's tier: no ramp on it. A decoration may stand at a plateau's edge. */
+  const levelAt = (x: number, y: number, tier: number) =>
+    tierAt(world, x, y) === tier && !rampAt(world, x, y) && !touchesSea(world, x, y);
+
   for (let y = 0; y < world.height; y++) {
     for (let x = 0; x < world.width; x++) {
       const tier = tierAt(world, x, y);
@@ -418,13 +456,48 @@ function planProps(world: IsoWorld): Map<number, Prop> {
       // does not reshuffle the props on all the others.
       const roll = rng();
       const dir = Math.floor(rng() * 4) as Dir;
-      if (touchesSea(world, x, y) || rampAt(world, x, y)) continue;
-      const flat = DIRS.every((d) => {
-        const { dx, dy } = DIR_STEP[d];
-        return tierAt(world, x + dx, y + dy) === tier && !rampAt(world, x + dx, y + dy);
-      });
-      if (!flat) continue;
+      const pick = rng();
+      const flat = flatAt(x, y, tier);
 
+      if (decor && totalWeight > 0) {
+        if (taken.has(y * world.width + x) || tier < (options.decorMinTier ?? 1)) continue;
+        if (!levelAt(x, y, tier)) continue;
+        // Patches keep their own chance; the rest of the budget is decor.
+        const patchChance = PROP_CHANCE.find((p) => p.kind === 'patch')?.chance ?? 0;
+        if (roll < patchChance) {
+          if (flat) props.set(y * world.width + x, { kind: 'patch', dir });
+          continue;
+        }
+        if (roll >= patchChance + density) continue;
+        let acc = 0;
+        let choice = decor[decor.length - 1];
+        for (const d of decor) {
+          acc += d.weight / totalWeight;
+          if (pick < acc) {
+            choice = d;
+            break;
+          }
+        }
+        // The footprint: a square of flat cells at this tier, none taken.
+        let fits = true;
+        for (let fy = 0; fy < choice.cells && fits; fy++) {
+          for (let fx = 0; fx < choice.cells; fx++) {
+            const i = (y + fy) * world.width + (x + fx);
+            if (!levelAt(x + fx, y + fy, tier) || taken.has(i) || props.has(i)) {
+              fits = false;
+              break;
+            }
+          }
+        }
+        if (!fits) continue;
+        for (let fy = 0; fy < choice.cells; fy++) {
+          for (let fx = 0; fx < choice.cells; fx++) taken.add((y + fy) * world.width + (x + fx));
+        }
+        props.set(y * world.width + x, { kind: 'decor', dir, decor: choice.name, cells: choice.cells });
+        continue;
+      }
+
+      if (!flat) continue;
       let acc = 0;
       for (const { kind, chance } of PROP_CHANCE) {
         acc += chance;
@@ -469,7 +542,13 @@ function quarterTurn(world: IsoWorld): IsoWorld {
       const ramp = world.ramps.get(from);
       if (ramp) ramps.set(to, { ...ramp, dir: turnDir(ramp.dir) });
       const prop = world.props.get(from);
-      if (prop) props.set(to, { ...prop, dir: turnDir(prop.dir) });
+      if (prop) {
+        // A footprint's north-west corner turns into its north-east one: the
+        // square's new corner is `cells - 1` further along the new x.
+        const c = prop.cells ?? 1;
+        const turned = x * h + (h - 1 - y) - (c - 1);
+        props.set(turned, { ...prop, dir: turnDir(prop.dir) });
+      }
     }
   }
   return { width: h, height: w, level, ramps, props, seed: world.seed, tiers: world.tiers };

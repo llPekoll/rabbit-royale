@@ -1,0 +1,134 @@
+[
+  {
+    "name": "flower-tall",
+    "file": "flower-tall.png",
+    "width": 101,
+    "height": 167,
+    "anchor": [
+      50,
+      166
+    ],
+    "base": 26,
+    "cells": 1
+  },
+  {
+    "name": "flower-leafy",
+    "file": "flower-leafy.png",
+    "width": 135,
+    "height": 272,
+    "anchor": [
+      82,
+      271
+    ],
+    "base": 82,
+    "cells": 1
+  },
+  {
+    "name": "flowers-small",
+    "file": "flowers-small.png",
+    "width": 91,
+    "height": 102,
+    "anchor": [
+      46,
+      101
+    ],
+    "base": 90,
+    "cells": 1
+  },
+  {
+    "name": "tuft-small",
+    "file": "tuft-small.png",
+    "width": 96,
+    "height": 65,
+    "anchor": [
+      47,
+      64
+    ],
+    "base": 95,
+    "cells": 1
+  },
+  {
+    "name": "meadow-tuft",
+    "file": "meadow-tuft.png",
+    "width": 238,
+    "height": 306,
+    "anchor": [
+      92,
+      305
+    ],
+    "base": 186,
+    "cells": 2
+  },
+  {
+    "name": "hill-big",
+    "file": "hill-big.png",
+    "width": 339,
+    "height": 291,
+    "anchor": [
+      186,
+      290
+    ],
+    "base": 282,
+    "cells": 2
+  },
+  {
+    "name": "hill-wide",
+    "file": "hill-wide.png",
+    "width": 329,
+    "height": 172,
+    "anchor": [
+      162,
+      171
+    ],
+    "base": 324,
+    "cells": 3
+  },
+  {
+    "name": "bush-small",
+    "file": "bush-small.png",
+    "width": 149,
+    "height": 155,
+    "anchor": [
+      66,
+      154
+    ],
+    "base": 133,
+    "cells": 1
+  },
+  {
+    "name": "flowers-patch",
+    "file": "flowers-patch.png",
+    "width": 113,
+    "height": 109,
+    "anchor": [
+      72,
+      108
+    ],
+    "base": 50,
+    "cells": 1
+  },
+  {
+    "name": "tuft-left",
+    "file": "tuft-left.png",
+    "width": 130,
+    "height": 171,
+    "anchor": [
+      44,
+      170
+    ],
+    "base": 79,
+    "cells": 1
+  },
+  {
+    "name": "tuft-right",
+    "file": "tuft-right.png",
+    "width": 72,
+    "height": 147,
+    "anchor": [
+      38,
+      146
+    ],
+    "base": 68,
+    "cells": 1
+  }
+]
