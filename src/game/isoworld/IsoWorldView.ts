@@ -95,7 +95,9 @@ const HOP_REST = 0.5;
 const HOP_HEIGHT = 0.5;
 /** The crouch before a hop and the squash after one, in seconds. */
 const ANTICIPATION = 0.13;
-const LAND_TIME = 0.22;
+const LAND_TIME = 0.42;
+/** Full swings of the landing spring over `LAND_TIME`. */
+const LAND_BOUNCES = 2;
 
 interface WaterlineSegment {
   a: readonly [number, number];
@@ -515,16 +517,18 @@ export class IsoWorldView {
    */
   private hopPose(h: Hopper): { x: number; y: number; lean: number; height: number } {
     if (h.t < 1) {
-      // Airborne: stretched most at launch and landing, upright at the apex.
+      // Airborne: a little stretched at launch and landing, upright at the
+      // apex, with a slight lean into the arc.
       const v = 1 - 2 * h.t;
-      const stretch = 1 + 0.3 * Math.abs(v);
-      return { x: 1 / Math.sqrt(stretch), y: stretch, lean: -0.28 * v, height: 4 * h.t * (1 - h.t) };
+      const stretch = 1 + 0.12 * Math.abs(v);
+      return { x: 1 / Math.sqrt(stretch), y: stretch, lean: -0.1 * v, height: 4 * h.t * (1 - h.t) };
     }
     if (h.landed < 1) {
-      // Just down: flattened, then recovering with a little overshoot.
+      // Just down: a spring. Squashed on impact, then oscillating back to
+      // rest — an underdamped bounce, each swing smaller than the last.
       const q = h.landed;
-      const squash = 0.32 * (1 - q) * (1 - q) - 0.06 * Math.sin(Math.PI * q);
-      return { x: 1 + squash * 0.8, y: 1 - squash, lean: 0, height: 0 };
+      const squash = 0.28 * Math.exp(-5.5 * q) * Math.cos(2 * Math.PI * LAND_BOUNCES * q);
+      return { x: 1 + squash * 0.7, y: 1 - squash, lean: 0, height: 0 };
     }
     if (h.wait < ANTICIPATION) {
       // About to spring: gathering itself.
