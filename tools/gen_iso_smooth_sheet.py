@@ -150,15 +150,16 @@ FRINGE_BUMPS = 4
 
 # Each material: its flat top, the grid on it — a sharp line a shade darker
 # than the fill, over a soft halo of the same colour multiplied in — its
-# PATCH, the darker tuft of grass the reference scatters on it, and its FOLD,
-# the ridge line drawn on its slopes. A slope leading up to a material is that
+# PATCH, the darker tuft of grass the reference scatters on it, its FOLD,
+# the ridge line drawn on its slopes, and its EDGE, the rim drawn where it
+# meets the sea or a drop — the island's outline is sand-coloured. A slope leading up to a material is that
 # material's colour: the reference's plateaus run down their slopes in one
 # tone and only the lace at the top marks the change.
 MATERIALS = [
-    # name,   top fill,        grid line,       patch fill,      fold line
-    ('moss', (176, 218, 120), (148, 200, 98), (128, 188, 96), (112, 170, 84)),
-    ('grass', (211, 244, 153), (180, 230, 134), (148, 204, 110), (140, 196, 104)),
-    ('sand', (239, 243, 185), (224, 229, 158), (211, 244, 153), (198, 198, 126)),
+    # name,   top fill,        grid line,       patch fill,      fold line,       edge (rim)
+    ('moss', (176, 218, 120), (148, 200, 98), (128, 188, 96), (112, 170, 84), (96, 150, 72)),
+    ('grass', (211, 244, 153), (180, 230, 134), (148, 204, 110), (140, 196, 104), (120, 176, 90)),
+    ('sand', (239, 243, 185), (224, 229, 158), (211, 244, 153), (198, 198, 126), (184, 182, 112)),
 ]
 
 # --- lattice ---------------------------------------------------------------
@@ -558,11 +559,11 @@ def patch(mat, rng) -> Cell:
     return c
 
 
-def rim(direction: str) -> Cell:
-    """The dark outline along one edge of the base diamond, centred on it."""
+def rim(color, direction: str) -> Cell:
+    """The outline along one edge of the base diamond, centred on it, in this material's edge colour."""
     c = Cell()
     a, b = RIM_EDGES[direction]
-    c.stroke(P(*a), P(*b), INK, OUTLINE, caps=True)
+    c.stroke(P(*a), P(*b), color, OUTLINE, caps=True)
     return c
 
 
@@ -610,7 +611,7 @@ def build() -> Image.Image:
             put(r, 4 + d, inner(mat, rng, d))
             put(r + 1, 4 + d, outer(mat, rng, d))
         for col, direction in enumerate('NESW'):
-            put(r + 2, col, rim(direction))
+            put(r + 2, col, rim(mat[5], direction))
             put(r + 2, 4 + col, fringe(mat[1], direction))
             put(r + 2, 9 + col, fringe(mat[3], direction))
         put(r + 2, 8, patch(mat, rng))
