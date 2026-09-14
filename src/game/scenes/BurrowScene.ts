@@ -23,7 +23,7 @@
  * is what `BurrowSceneData.seed` carries.
  */
 import {
-  Application, Container, Sprite, Texture, Graphics, Polygon,
+  Application, Assets, Container, Sprite, Texture, Polygon,
 } from 'pixi.js';
 import gsap from 'gsap';
 import type { Scene } from '../SceneManager';
@@ -628,13 +628,25 @@ export class BurrowScene implements Scene {
     marker.alpha = 0.75;
     group.addChild(marker);
 
-    // A small cross of stakes, so a trap is legible as a THING on the ground
-    // and not merely a coloured square.
-    const stakes = new Graphics()
-      .moveTo(-BURROW_HALF_W * 0.22, 0).lineTo(BURROW_HALF_W * 0.22, 0)
-      .moveTo(0, -BURROW_HALF_H * 0.34).lineTo(0, BURROW_HALF_H * 0.34)
-      .stroke({ color: 0x3a2a12, width: 2 });
-    group.addChild(stakes);
+    // The bomb itself, the same art the island reveals under a dug tile — one
+    // buried bomb, one picture of a bomb, wherever the player meets it. It
+    // stood as a small cross of stakes before, which read as a marker ON the
+    // ground rather than as the thing that is buried in it.
+    //
+    // Sat on the diamond rather than centred in it: the sprite is anchored at
+    // its foot so the bomb RESTS on the cell the way the rabbit and the crops
+    // do, instead of floating through the tile it is buried under.
+    const bombTex = Assets.get<Texture>(Keys.BOMB_SMALL);
+    if (bombTex) {
+      const bomb = new Sprite(bombTex);
+      bomb.anchor.set(0.5, 0.78);
+      // Scaled off the cell, not off the texture's own pixels: the tile size is
+      // a tuning knob (`setBurrowTileSize`), and a sprite pinned to a pixel
+      // count stops matching the ground the moment that slider moves.
+      const k = (BURROW_HALF_W * 0.62) / bombTex.width;
+      bomb.scale.set(k);
+      group.addChild(bomb);
+    }
 
     // Transparent to the pointer, so the tap falls through to the cell's own
     // diamond underneath — which is what lifts the bomb. The marker is drawn
