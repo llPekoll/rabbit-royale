@@ -16,7 +16,10 @@ import { and, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { players, traps } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
-import { availableTraps, placementBlocker, refundTrap, refundTraps, spendTrap } from '@/lib/game/traps';
+import {
+  armedTraps, availableTraps, isArmed, placementBlocker, refundTrap, refundTraps, rearmingTraps,
+  spendTrap,
+} from '@/lib/game/traps';
 import { isTrappable } from '@/game/burrow/board';
 import { TRAPS } from '@config/tuning';
 
@@ -24,9 +27,23 @@ async function trapState(playerId: string) {
   const player = await db.query.players.findFirst({ where: eq(players.id, playerId) });
   if (!player) return null;
   const placed = await db.query.traps.findMany({ where: eq(traps.ownerId, playerId) });
+  const armed = new Set(armedTraps(placed).map((t) => t.tile));
   return {
     /** Tiles the owner has mined. Owner-only — never sent to a raider. */
     placed: placed.map((t) => t.tile),
+    /**
+     * Which of those are STANDING, and when the rest come back.
+     *
+     * The owner is shown the difference because a burrow reporting only "5
+     * traps" after a raid reads as loss, where "5 up, 3 rearming, next in
+     * 40 min" reads as a recovery already under way — which is what it is.
+     * Never sent to a raider: `placed` is owner-only to begin with.
+     */
+    armed: [...armed],
+    rearming: rearmingTraps(placed).map(({ trap, readyAt }) => ({
+      tile: trap.tile,
+      readyAt: new Date(readyAt).toISOString(),
+    })),
     held: availableTraps(player),
     maxPlaced: TRAPS.MAX_PLACED,
     maxHeld: TRAPS.MAX_HELD,
@@ -109,6 +126,14 @@ export async function POST(req: Request) {
  * that job: MAX_PLACED caps the board however often it is rearranged, and the
  * refund is stock returned rather than allowance rewound (`refundTrap`), so no
  * amount of lifting makes a trap that was not already bought or waited for.
+ *
+ * A trap still REARMING is lifted like any other, but comes back EMPTY-HANDED:
+ * the row goes, the bag does not grow. Refunding it would sell the arming
+ * clock for one tap — lift the sprung trap, get a whole one in the bag, place
+ * it on the next tile, and the burrow is back to full the moment its owner
+ * logs in. That is the instant rearm the design rejects, reached by a detour.
+ * Lifting it is still allowed, because the tile has to be freeable: what the
+ * owner gets back is the GROUND, not the trap.
  */
 export async function DELETE(req: Request) {
   const session = await getSession(req);
@@ -141,11 +166,18 @@ export async function DELETE(req: Request) {
       // lifted — the same reason the single-tile path deletes first.
       const rows = await tx.delete(traps)
         .where(eq(traps.ownerId, session.sub))
-        .returning({ tile: traps.tile });
+        .returning({ tile: traps.tile, sprungAt: traps.sprungAt });
       if (!rows.length) return 0;
-      await tx.update(players)
-        .set(refundTraps(player, rows.length))
-        .where(eq(players.id, session.sub));
+      // Only the STANDING traps are paid back — a board cleared mid-rearm
+      // hands back what was actually on it, not what was on its way. Counted
+      // through `armedTraps` rather than by testing `sprungAt` here, so the
+      // stagger is applied the same way the raid endpoint applies it.
+      const refundable = armedTraps(rows).length;
+      if (refundable > 0) {
+        await tx.update(players)
+          .set(refundTraps(player, refundable))
+          .where(eq(players.id, session.sub));
+      }
       return rows.length;
     });
 
@@ -169,9 +201,13 @@ export async function DELETE(req: Request) {
   const removed = await db.transaction(async (tx) => {
     const [row] = await tx.delete(traps)
       .where(and(eq(traps.ownerId, session.sub), eq(traps.tile, tile)))
-      .returning({ tile: traps.tile });
+      .returning({ tile: traps.tile, sprungAt: traps.sprungAt });
     if (!row) return null;
-    await tx.update(players).set(refundTrap(player)).where(eq(players.id, session.sub));
+    // A trap that was still rearming frees its tile without paying anything
+    // back — see the note above: refunding it would buy an instant rearm.
+    if (isArmed(row)) {
+      await tx.update(players).set(refundTrap(player)).where(eq(players.id, session.sub));
+    }
     return row;
   });
   if (!removed) return Response.json({ error: 'no_trap_there' }, { status: 404 });

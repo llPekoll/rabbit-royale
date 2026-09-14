@@ -44,7 +44,10 @@ function makeShop(stock: number, refillsTaken: number, usdcEnabled: boolean): Sh
         canBuy: stock >= price && have < cap,
       };
     }),
-    traps: { held: 3, placed: 2, maxPlaced: 8, drain: 8, freePerDay: 3 },
+    traps: {
+      held: 3, placed: 2, armed: 2, rearming: 0, nextRearmAt: null,
+      maxPlaced: 8, drain: 8, freePerDay: 3,
+    },
     // Roughly the rates Jupiter was quoting when this was written.
     rates: usdcEnabled ? { usdc: 1, sol: 200, skr: 0.02 } : null,
   };

@@ -25,6 +25,7 @@ import {
 } from '@/lib/game/raid';
 import { burrowNeighbors, entranceTile, burrowCell, walkableTiles } from '@/game/burrow/board';
 import { smokeActive } from '@/lib/game/inventory';
+import { armedTraps } from '@/lib/game/traps';
 import { RAID, RAID_RUN, TRAPS } from '@config/tuning';
 
 /** Everything the raid screen draws, for a raid in progress. */
@@ -40,7 +41,10 @@ async function raidView(runId: string, revealAll = false) {
   // Nothing about the terrain crosses the wire: the raider's client rebuilds
   // the same homestead from the defender id it is sent below.
   const seed = run.defenderId;
-  const clues = trapClues(seed, mined.map((t) => t.tile));
+  // ARMED traps only. A trap still rearming cannot drain anyone, so counting
+  // it in the clues would hand the raider a number no step could ever justify
+  // — and worse, it would let them read the position of a trap that is down.
+  const clues = trapClues(seed, armedTraps(mined).map((t) => t.tile));
   const smoked = smokeActive(defender);
 
   return {
@@ -223,16 +227,23 @@ export async function PATCH(req: Request) {
   }
 
   const mined = await db.query.traps.findMany({ where: eq(traps.ownerId, run.defenderId) });
-  const trap = mined.find((t) => t.tile === to);
+  // Only a STANDING trap can be stepped on, and it is found the same way the
+  // clues above were built. Asking the same function twice is what keeps the
+  // board the raider reads and the board the server settles against identical.
+  const trap = armedTraps(mined).find((t) => t.tile === to);
 
   let energy = run.energy - RAID_RUN.STEP_COST;
   let sprung = run.trapsSprung;
   if (trap) {
     energy -= TRAPS.DRAIN;
     sprung += 1;
-    // A sprung trap is SPENT. It is replaced, not repaired — otherwise a
-    // defender's ground would be permanently mined at a one-off cost.
-    await db.delete(traps).where(eq(traps.id, trap.id));
+    // A sprung trap is REPAIRED, not replaced: it keeps its tile and rearms on
+    // TRAPS.REARM_MS. Deleting it was pay-to-repair — the defender bought the
+    // ground back every morning at the daily allowance's pace, while losing it
+    // at the attackers' pace. Stamping it also RESTARTS the clock on a trap
+    // sprung twice, which is what makes camping a known tile cost the raider
+    // the full rearm each time rather than only the first.
+    await db.update(traps).set({ sprungAt: new Date() }).where(eq(traps.id, trap.id));
   }
 
   const visited = [...run.visited, to];

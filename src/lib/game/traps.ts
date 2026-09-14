@@ -125,3 +125,80 @@ export function placementBlocker(
 /** Carrots for one extra trap. Flat: a scaling price would let a rich player
  *  buy an impregnable burrow, which the balance explicitly rules out. */
 export const trapCost = () => TRAPS.CARROT_COST;
+
+/**
+ * A trap as the floor stores it: its tile, and when it was last sprung.
+ *
+ * Only the two fields the arming clock reads, so the pure helpers below can be
+ * tested without a database row.
+ */
+export interface PlacedTrap {
+  tile: number;
+  sprungAt?: Date | null;
+}
+
+/**
+ * When a sprung trap comes back, given its rank among the traps rearming.
+ *
+ * `rank` is 0 for the one that has been down longest, 1 for the next, and so
+ * on — the STAGGER is what stops a board snapping from bare to full on a
+ * single tick. Ranking by `sprungAt` rather than by tile means the trap sprung
+ * first is the trap restored first, which is the only order an owner watching
+ * their burrow could predict.
+ */
+export function rearmAt(sprungAt: Date, rank = 0): number {
+  return sprungAt.getTime() + TRAPS.REARM_MS + rank * TRAPS.REARM_STAGGER_MS;
+}
+
+/**
+ * Is this trap standing right now?
+ *
+ * Never sprung → armed. Otherwise it is armed again once its rearm instant has
+ * passed. `rank` comes from `armedTraps`, which is the only caller that can
+ * know it — a trap does not know its own place in the queue.
+ */
+export function isArmed(trap: PlacedTrap, now = Date.now(), rank = 0): boolean {
+  if (!trap.sprungAt) return true;
+  return rearmAt(trap.sprungAt, rank) <= now;
+}
+
+/**
+ * The traps actually defending a burrow right now.
+ *
+ * THE function the rest of the game asks. The raider's clue numbers and the
+ * server's "did you step on one" check both go through it, so the board a
+ * raider reads and the board the server settles against are the same board by
+ * construction — the bug this shape exists to make impossible.
+ *
+ * The rearm queue is ranked by `sprungAt` here, because the stagger is a
+ * property of the SET of down traps rather than of any one of them: a trap
+ * sprung an hour ago is third in line or first depending only on what else is
+ * down beside it.
+ */
+export function armedTraps<T extends PlacedTrap>(traps: readonly T[], now = Date.now()): T[] {
+  const down = traps
+    .filter((t) => t.sprungAt)
+    .sort((a, b) => a.sprungAt!.getTime() - b.sprungAt!.getTime());
+  const rank = new Map(down.map((t, i) => [t, i] as const));
+  return traps.filter((t) => isArmed(t, now, rank.get(t) ?? 0));
+}
+
+/**
+ * Traps still rearming, soonest first — what the owner's burrow screen shows.
+ *
+ * A burrow that simply reported "3 traps" while five sat invisible under a
+ * timer would read as loss rather than as recovery, which is the whole reason
+ * the clock is gradual in the first place.
+ */
+export function rearmingTraps<T extends PlacedTrap>(
+  traps: readonly T[],
+  now = Date.now(),
+): { trap: T; readyAt: number }[] {
+  const armed = new Set(armedTraps(traps, now));
+  const down = traps
+    .filter((t) => t.sprungAt)
+    .sort((a, b) => a.sprungAt!.getTime() - b.sprungAt!.getTime());
+  return down
+    .map((trap, rank) => ({ trap, readyAt: rearmAt(trap.sprungAt!, rank) }))
+    .filter(({ trap }) => !armed.has(trap));
+}

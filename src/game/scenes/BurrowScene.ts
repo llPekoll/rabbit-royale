@@ -82,6 +82,16 @@ function burrowDiamondSolid(): Sprite {
 /** Placed traps read as YOURS — gold, like the crown and the carrot count. */
 const TRAP_TINT = 0xffd45c;
 /**
+ * A trap still rearming: the same marker, drained of its warning colour.
+ *
+ * A COOL BLUE rather than a neutral grey. Grey at low alpha sank into the
+ * grass — the marker read as a smudge on the ground and the owner could not
+ * see the shape of their own defence while it healed, which is the one thing
+ * this state exists to show. Blue separates from the board's greens and yellows
+ * at any alpha, and reads as "asleep" rather than as "damaged".
+ */
+const REARMING_TINT = 0x7fb2d9;
+/**
  * A tile you may trap, shown only while placing: the rest of the time this
  * screen is a picture of your home, not a grid.
  *
@@ -222,6 +232,9 @@ export class BurrowScene implements Scene {
   private crop: CarrotCrop | null = null;
   private board = new Container();
   private trapSprites = new Map<number, Container>();
+  /** tile -> is it standing? Mirrors what is DRAWN, so a refresh can tell an
+   *  arming change from a placement and animate only the former. */
+  private trapArmed = new Map<number, boolean>();
   private hints: Sprite[] = [];
   /**
    * The raid board: one cell per walkable tile of the DEFENDER's ground,
@@ -617,15 +630,20 @@ export class BurrowScene implements Scene {
    * server never puts trap positions in a raider's payload, which is what keeps
    * them worth placing.
    */
-  addTrap(tile: number, animate = true): void {
+  addTrap(tile: number, animate = true, armed = true): void {
     if (this.trapSprites.has(tile)) return;
 
     const group = new Container();
     group.sortableChildren = true;
 
     const marker = burrowDiamond();
-    marker.tint = TRAP_TINT;
-    marker.alpha = 0.75;
+    marker.tint = armed ? TRAP_TINT : REARMING_TINT;
+    // A trap on its way back is drawn FAINT rather than not drawn at all. It
+    // still holds its tile — nothing else can be buried there — so removing it
+    // from the board would read as "you lost it" and invite the owner to hunt
+    // for a tile they cannot use. Dimmed says the true thing: still yours,
+    // not yet dangerous.
+    marker.alpha = armed ? 0.75 : 0.55;
     group.addChild(marker);
 
     // The bomb itself, the same art the island reveals under a dug tile — one
@@ -645,6 +663,10 @@ export class BurrowScene implements Scene {
       // count stops matching the ground the moment that slider moves.
       const k = (BURROW_HALF_W * 0.62) / bombTex.width;
       bomb.scale.set(k);
+      // Same treatment as the diamond under it: the bomb is still there, it is
+      // just not armed. Greyed rather than hidden so the shape of the defence
+      // stays readable while it comes back.
+      if (!armed) { bomb.alpha = 0.6; bomb.tint = REARMING_TINT; }
       group.addChild(bomb);
     }
 
@@ -671,6 +693,9 @@ export class BurrowScene implements Scene {
       this.board.addChild(group);
     }
     this.trapSprites.set(tile, group);
+    // Remembered so a redraw can tell whether the sprite on screen still
+    // matches the server's answer — see `setTrapArmed`.
+    this.trapArmed.set(tile, armed);
     // Remember it on the DATA too, not just as a sprite. A raid tears the
     // ground down and rebuilds it (`showGround`), and what comes back is
     // redrawn from `data.traps` — which was only ever the list handed in at
@@ -1040,11 +1065,44 @@ export class BurrowScene implements Scene {
     }
   }
 
+  /**
+   * A trap came back up, or went down.
+   *
+   * Repaints in place rather than tearing the sprite down and building it
+   * again: the marker is the SAME trap on the same tile either way, and a
+   * remove/add pair would pop it off the board and back for what is really a
+   * change of state. The pop is reserved for a trap the owner actually placed.
+   */
+  setTrapArmed(tile: number, armed: boolean): void {
+    const group = this.trapSprites.get(tile);
+    if (!group || this.trapArmed.get(tile) === armed) return;
+    this.trapArmed.set(tile, armed);
+
+    const [marker, bomb] = group.children as [Container, Container | undefined];
+    if (marker) {
+      (marker as { tint?: number }).tint = armed ? TRAP_TINT : REARMING_TINT;
+      gsap.to(marker, { alpha: armed ? 0.75 : 0.55, duration: 0.3 });
+    }
+    if (bomb) {
+      (bomb as { tint?: number }).tint = armed ? 0xffffff : REARMING_TINT;
+      gsap.to(bomb, { alpha: armed ? 1 : 0.6, duration: 0.3 });
+    }
+    // A trap coming back is the good news on this screen — it gets the small
+    // bounce the placement gets, so the owner sees the burrow healing rather
+    // than merely finding it healed.
+    if (armed) {
+      gsap.fromTo(group.scale, { x: 1.18, y: 1.18 }, {
+        x: 1, y: 1, duration: 0.4, ease: 'back.out(2)',
+      });
+    }
+  }
+
   /** A trap was sprung or removed. */
   removeTrap(tile: number): void {
     const group = this.trapSprites.get(tile);
     if (!group) return;
     this.trapSprites.delete(tile);
+    this.trapArmed.delete(tile);
     // ...and off the data, or a raid would bring back a bomb that was lifted.
     this.data.traps = this.data.traps.filter((t) => t !== tile);
     gsap.to(group, {

@@ -15,10 +15,10 @@ import { db } from '@/lib/db';
 import { inventory, players, traps as trapsTable } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
 import {
-  holdings, isItemKind, purchaseBlocker, purchaseCost, shopShelf,
+  holdings, isShopKind, purchaseBlocker, purchaseCost, shopShelf,
 } from '@/lib/game/inventory';
 import { grantItem } from '@/lib/game/grant';
-import { availableTraps } from '@/lib/game/traps';
+import { armedTraps, availableTraps, rearmingTraps } from '@/lib/game/traps';
 import { TRAPS } from '@config/tuning';
 import { enabledTokens } from '@/lib/pay/tokens';
 import { tokenUsdPrices } from '@/lib/pay/rates';
@@ -36,7 +36,14 @@ export async function shopState(playerId: string) {
   // Placed traps are OFF the bag's count in spirit — they are on the ground,
   // not in your pocket — so the screen reports both. Otherwise a player who has
   // placed their three free ones reads "0 traps" and concludes the game ate them.
-  const placed = await db.$count(trapsTable, eq(trapsTable.ownerId, playerId));
+  //
+  // Counted as ROWS rather than as armed traps: a trap rearming still occupies
+  // its tile, so it still counts against MAX_PLACED and the shed still cannot
+  // take another. The split into standing / coming back is reported beside it.
+  const placedRows = await db.query.traps.findMany({ where: eq(trapsTable.ownerId, playerId) });
+  const placed = placedRows.length;
+  const armed = armedTraps(placedRows).length;
+  const coming = rearmingTraps(placedRows);
 
   const money = treasuryAddress() !== null;
 
@@ -64,6 +71,19 @@ export async function shopState(playerId: string) {
     traps: {
       held: availableTraps(player),
       placed,
+      /**
+       * Standing versus coming back.
+       *
+       * Sent as two numbers rather than left for the client to subtract,
+       * because the stagger means "how many are up" is a function of the whole
+       * SET of down traps and their spring times — not something a count can
+       * be derived from once it has crossed the wire.
+       */
+      armed,
+      rearming: coming.length,
+      /** When the next one lands, so the shelf can count down without polling
+       *  for the answer. Null when the board is whole. */
+      nextRearmAt: coming.length ? new Date(coming[0].readyAt).toISOString() : null,
       maxPlaced: TRAPS.MAX_PLACED,
       drain: TRAPS.DRAIN,
       freePerDay: TRAPS.FREE_PER_DAY,
@@ -113,7 +133,10 @@ export async function POST(req: Request) {
   if (!session) return Response.json({ error: 'unauthenticated' }, { status: 401 });
 
   const body = (await req.json().catch(() => ({}))) as { kind?: unknown; qty?: unknown };
-  if (!isItemKind(body.kind)) return Response.json({ error: 'unknown_item' }, { status: 400 });
+  // isShopKind, not isItemKind: the enum now also carries the chest-only garden
+  // boosts, and those have no price. Guarding on the wider set would let a
+  // crafted POST reach `itemPrice` with a kind that has no entry.
+  if (!isShopKind(body.kind)) return Response.json({ error: 'unknown_item' }, { status: 400 });
   const kind = body.kind;
   const qty = body.qty === undefined ? 1 : Number(body.qty);
 

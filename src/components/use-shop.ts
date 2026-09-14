@@ -34,6 +34,11 @@ export interface ShopState {
   traps: {
     held: number;
     placed: number;
+    /** How many of `placed` are standing — see TrapState.armed. */
+    armed: number;
+    /** How many are still coming back, and when the next one lands. */
+    rearming: number;
+    nextRearmAt: string | null;
     maxPlaced: number;
     drain: number;
     freePerDay: number;
@@ -51,8 +56,27 @@ export interface ShopState {
   rates: Partial<Record<PayTokenId, number>> | null;
 }
 
+/** A trap on its way back up, and when it gets there. */
+export interface RearmingTrap {
+  tile: number;
+  /** ISO instant — the server's clock, never the browser's. */
+  readyAt: string;
+}
+
 export interface TrapState {
+  /** Every mined tile, standing or rearming. This is what the board draws. */
   placed: number[];
+  /**
+   * The subset actually defending the burrow right now.
+   *
+   * Split from `placed` because a burrow that reported only its standing traps
+   * would look like it had LOST the others — which is the reading the arming
+   * clock exists to prevent. The tile keeps its trap either way; what differs
+   * is whether a raider walking it would spring anything.
+   */
+  armed: number[];
+  /** The rest, soonest back first. */
+  rearming: RearmingTrap[];
   held: number;
   maxPlaced: number;
   maxHeld: number;

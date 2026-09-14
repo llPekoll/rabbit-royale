@@ -22,7 +22,7 @@ import {
  * on purchase rather than carried, so it appears here only so a payment row can
  * name what was bought. Nothing reads an `inventory` row of that kind.
  */
-export const itemKindEnum = pgEnum('item_kind', ['bomb', 'shield', 'lightning', 'trap', 'energy', 'smoke', 'mirage']);
+export const itemKindEnum = pgEnum('item_kind', ['bomb', 'shield', 'lightning', 'trap', 'energy', 'smoke', 'mirage', 'water', 'fertiliser']);
 /** What a purchase was paid with. Both routes buy the same goods — see SHOP. */
 export const currencyEnum = pgEnum('currency', ['carrots', 'usdc']);
 /** A USDC payment's life: quoted → paid → credited, or abandoned. */
@@ -89,6 +89,17 @@ export const players = pgTable('players', {
    * another screen while one holds extends this rather than replacing it —
    * two purchases are worth two days, which is what a player assumes. */
   smokeUntil: timestamp('smoke_until', { withTimezone: true }),
+  /**
+   * The garden boosts, held as INSTANTS for the same reason the smoke screen
+   * is: what a watering buys is time, and a second one while the first holds
+   * is worth two windows rather than a wasted drop. `gardenYield` reads both
+   * against the interval it is paying for, so neither needs a cron to expire —
+   * a lapsed timestamp simply stops counting.
+   *
+   * Water lifts the RATE, fertiliser lifts the CEILING; see GARDEN_BOOST.
+   */
+  wateredUntil: timestamp('watered_until', { withTimezone: true }),
+  fertilisedUntil: timestamp('fertilised_until', { withTimezone: true }),
   /** Energy refills bought in the current rolling window, and when that
    *  window opened. A daily cap on PAID energy is what keeps money buying the
    *  wait rather than an unlimited session (ENERGY_PACK.MAX_PER_DAY). */
@@ -117,7 +128,15 @@ export const loginNonces = pgTable('login_nonces', {
   issuedAt: timestamp('issued_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
-/** Attack/defence consumables, dropped by chests. Stacked per kind. */
+/**
+ * Consumables, dropped by chests. Stacked per kind.
+ *
+ * Two families share the table because they share a shape — a kind and a count
+ * a player spends down. The raid items (bomb, shield, lightning) act on someone
+ * else's board; the garden ones (water, fertiliser) act on your own. Nothing in
+ * the storage distinguishes them, and nothing needs to: what separates them is
+ * which route accepts them, not where the number lives.
+ */
 export const inventory = pgTable('inventory', {
   playerId: text('player_id').notNull().references(() => players.id, { onDelete: 'cascade' }),
   kind: itemKindEnum('kind').notNull(),
@@ -167,9 +186,19 @@ export const raids = pgTable('raids', {
  * A trap on a burrow's floor.
  *
  * Placed by the OWNER, invisible to raiders until sprung — a visible trap is
- * just a wall, and a wall gets routed around rather than feared. One row per
- * live trap; a sprung one is deleted, because a trap is replaced rather than
- * repaired.
+ * just a wall, and a wall gets routed around rather than feared.
+ *
+ * One row per trap the owner has ever placed, sprung or not. A sprung trap is
+ * NOT deleted: it keeps its tile and gets a `sprungAt`, and rearms on a clock
+ * (`TRAPS.REARM_MS`). That is what makes "repairs and defense re-setup are
+ * free" true in the code rather than only in the GDD — a trap the owner
+ * already earned stays theirs, so the free daily allowance is what EXTENDS a
+ * defence rather than what repairs last night's.
+ *
+ * Deleting it was pay-to-repair wearing a different name. Loss has no rate
+ * limit (as many raids as there are attackers) while replacement is capped at
+ * TRAPS.FREE_PER_DAY, so a player raided overnight could not re-arm as fast as
+ * they were emptied and every morning started poorer than the last.
  */
 export const traps = pgTable('traps', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -177,6 +206,15 @@ export const traps = pgTable('traps', {
   /** Burrow tile index — see config/burrowConfig.ts. */
   tile: integer('tile').notNull(),
   placedAt: timestamp('placed_at', { withTimezone: true }).notNull().defaultNow(),
+  /**
+   * When this trap was last sprung, or null while it is armed.
+   *
+   * The trap is live again once `sprungAt + TRAPS.REARM_MS` has passed — read
+   * through `isArmed`/`armedTraps` (lib/game/traps) rather than tested inline,
+   * so the raider's clues and the server's damage roll can never disagree
+   * about which traps are standing.
+   */
+  sprungAt: timestamp('sprung_at', { withTimezone: true }),
 }, (t) => [
   // One trap per tile: stacking them would let a single square end any raid,
   // which defeats the point of choosing WHERE to defend.

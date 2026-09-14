@@ -140,15 +140,12 @@ export interface ShopCardProps {
   payStage?: PayStage;
   note?: string | null;
   error?: string | null;
-  /** Enter trap placement on the burrow board. Closes the dialog: the ground
-   *  being buried is behind it. */
-  onPlaceTraps?(): void;
   onClose(): void;
 }
 
 export function ShopPanel({
   shop, busy, onBuy, onPayUsdc, payStage = 'idle', note, error,
-  payToken, onPayTokenChange, onPlaceTraps, onClose,
+  payToken, onPayTokenChange, onClose,
 }: ShopCardProps) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -158,23 +155,6 @@ export function ShopPanel({
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const traps = shop?.traps;
-  /**
-   * Can the board be opened at all?
-   *
-   * Not "can I bury one". This used to be `held > 0 && placed < maxPlaced`,
-   * and it locked a defender out of their own map at the exact moment they
-   * most wanted it: three bombs down, none left in the shed, and the only way
-   * to move one was to buy a fourth. Editing has to be possible whenever there
-   * is something TO edit — a bomb to lift and re-bury is a decision the shed's
-   * stock has no business vetoing.
-   *
-   * So: anything already in the ground, or room and stock to add one. Only a
-   * player with an empty board and an empty shed has nothing to do there, and
-   * for them the button is honestly dead.
-   */
-  const canEditBoard = !!traps
-    && (traps.placed > 0 || (traps.held > 0 && traps.placed < traps.maxPlaced));
   const busyNow = busy || payStage !== 'idle';
   const status = error
     ?? (payStage !== 'idle' && payStage !== 'done' ? PAY_STAGE[payStage] : note);
@@ -218,28 +198,6 @@ export function ShopPanel({
           )}
           <button className="rr-shop-x" onClick={onClose} aria-label="Close">&times;</button>
         </header>
-
-        {traps && (
-          <div className={`rr-shop-defence${traps.placed === 0 ? ' bare' : ''}`}>
-            <span className="rr-shop-defence-count">
-              {traps.placed}<i>/{traps.maxPlaced}</i>
-            </span>
-            <span className="rr-shop-defence-say">
-              {traps.placed === 0
-                ? 'Nothing buried. Any raider walks straight in.'
-                : `Traps in the ground. ${traps.held} left in the shed.`}
-            </span>
-            {onPlaceTraps && (
-              <button className="rr-shop-place" onClick={onPlaceTraps} disabled={!canEditBoard}>
-                {/* The label follows what the tap will actually get you. With
-                    an empty shed there is nothing to bury, and "Bury one" on a
-                    button that opens a board you can only REARRANGE is a
-                    promise it cannot keep. */}
-                {traps.held > 0 && traps.placed < traps.maxPlaced ? 'Bury one' : 'Move them'}
-              </button>
-            )}
-          </div>
-        )}
 
         <ul className="rr-shop-grid">
           {shop?.items.map((item) => (
@@ -423,7 +381,15 @@ export interface ProtectButtonProps {
 
 export function ProtectButton({ shop, onPlace, onNone }: ProtectButtonProps) {
   const traps = shop?.traps;
-  const bare = !!traps && traps.placed === 0;
+  // Undefended RIGHT NOW — nothing standing, whether or not traps are on their
+  // way back. That is the fact the alarm colour is about: a raider arriving
+  // this minute meets open ground either way.
+  const bare = !!traps && traps.armed === 0;
+  // ...but a burrow mid-rearm is not the same story as an empty one, and it is
+  // told differently below. The owner did not lose those traps and has nothing
+  // to do about them; saying "NOTHING BURIED" would send them to a board where
+  // there is nothing to fix.
+  const healing = !!traps && traps.armed === 0 && traps.rearming > 0;
   const canEdit = !!traps
     && (traps.placed > 0 || (traps.held > 0 && traps.placed < traps.maxPlaced));
   // Nothing buried and nothing to bury. Distinguished from `!canEdit` because
@@ -444,9 +410,12 @@ export function ProtectButton({ shop, onPlace, onNone }: ProtectButtonProps) {
           // Says what the tap will DO, not just what the ground is like. "NO
           // TRAPS - GET ONE" is the whole state in four words: the burrow is
           // open, you cannot fix it from here, and this is still the way to.
-          : empty ? 'NO TRAPS - GET ONE'
-            : bare ? 'NOTHING BURIED'
-              : `${traps.placed}/${traps.maxPlaced} IN THE GROUND`
+          : healing ? `REARMING - ${traps.rearming} COMING BACK`
+            : empty ? 'NO TRAPS - GET ONE'
+              : bare ? 'NOTHING BURIED'
+                : traps.rearming > 0
+                  ? `${traps.armed} UP - ${traps.rearming} REARMING`
+                  : `${traps.armed}/${traps.maxPlaced} IN THE GROUND`
       }
       // Still alarmed on a bare burrow — that is the fact worth alarming about,
       // and it is true whether or not the player can act on it from here. Only

@@ -71,6 +71,20 @@
       "when": 1789265708689,
       "tag": "0009_brainy_micromacro",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1789356117556,
+      "tag": "0010_fantastic_shotgun",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1789359082527,
+      "tag": "0011_curly_pepper_potts",
+      "breakpoints": true
     }
   ]
 }

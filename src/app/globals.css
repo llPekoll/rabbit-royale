@@ -1380,6 +1380,11 @@ body:has(.rr-empty) .rr-sound { display: none; }
 }
 
 .rr-note { text-align: center; color: var(--muted); }
+/* The defence line while placing: red when NOTHING is standing, which is the
+   one state on this screen that costs the player carrots tonight. The traps
+   still rearming are named on the same line and are not an alarm — they are
+   coming back, free, and the colour must not say otherwise. */
+.rr-note.danger { color: #ff8a7a; }
 
 /* ── The one action ────────────────────────────────────────────────────────
    Full width at the bottom, where a thumb already is. The arrow is the kit's
@@ -2237,67 +2242,6 @@ button { font-family: var(--font-pixel); }
   min-width: 44px;
 }
 .rr-shop-x:hover { color: var(--chalk); }
-
-/* The defence line. It is the ONE piece of state in here rather than a thing
-   for sale, so it gets the width and the sentence — and it turns red when the
-   ground is bare, which is the state actually costing the player carrots. */
-.rr-shop-defence {
-  /* The count and its sentence are ONE reading ("3/8 traps in the ground"),
-     and the button is a separate act. As one flex row the button was pinned
-     to the far right of that sentence, level with the header's close [x] and
-     the rail pills — three unrelated controls on one line, with the green one
-     reading as part of the title bar rather than as the answer to the state
-     beside it.
-
-     So: the state spans the top row, the button sits on its own line under it
-     and pushes to the right. It is now unmistakably a response to the sentence
-     above it, and it no longer shares an edge with the [x]. */
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 0 12px;
-  padding: 10px 18px;
-  background: var(--soil-deep);
-  border-bottom: 1px solid var(--plank);
-}
-/* Green when the ground is defended, red when it is bare. The number is the
-   only thing in the dialog reporting a STATE rather than a price, so it is the
-   only thing allowed to alarm. */
-.rr-shop-defence-count {
-  font-size: 20px;
-  color: var(--leaf);
-  font-variant-numeric: tabular-nums;
-}
-.rr-shop-defence.bare .rr-shop-defence-count { color: #ff8a7a; }
-.rr-shop-defence-count i {
-  font-style: normal;
-  font-size: 12px;
-  color: var(--chalk-dim);
-}
-.rr-shop-defence-say {
-  flex: 1;
-  font-size: 11px;
-  line-height: 1.4;
-  color: var(--chalk-dim);
-}
-.rr-shop-place {
-  /* Its own column at the end of the state line, NOT the header's. The row it
-     belongs to is the sentence it answers; what it must not do is sit level
-     with the close [x] and the rail pills, which is what made it read as part
-     of the title bar. */
-  grid-column: 3;
-  justify-self: end;
-  border: 1px solid var(--leaf);
-  background: rgba(124, 179, 66, 0.14);
-  color: var(--leaf);
-  font-size: 11px;
-  padding: 8px 14px;
-  /* 44px, with the rest of this dialog's controls. It was 36. */
-  min-height: 44px;
-  border-radius: 8px;
-  white-space: nowrap;
-}
-.rr-shop-place:disabled { opacity: 0.4; }
 
 /* The goods. Two columns on a wide screen, one on a phone — five items do not
    divide evenly, so the last tile spans the row rather than sitting alone. */

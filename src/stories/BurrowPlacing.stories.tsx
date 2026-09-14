@@ -61,6 +61,17 @@ interface Args {
    * camera pulling back to keep it framed.
    */
   tile: number;
+  /**
+   * Traps already in the ground when the story opens, and how many of them are
+   * still REARMING.
+   *
+   * The arming clock's client half is invisible without this: a sprung trap
+   * keeps its tile and comes back on a timer, so the board has to draw a trap
+   * that is present but not dangerous. Anything below `rearming` in the
+   * pre-placed list is drawn down.
+   */
+  preplaced: number;
+  rearming: number;
 }
 
 /**
@@ -96,8 +107,44 @@ function boardReport(seed: string) {
   };
 }
 
-function Scene({ seed, placing, tile }: Args) {
+function Scene({ seed, placing, tile, preplaced, rearming }: Args) {
   const [placed, setPlaced] = useState<number[]>([]);
+
+  // The tiles the story pre-mines.
+  //
+  // Chosen by SCREEN POSITION rather than by tile index, which is the whole
+  // difficulty: 236 cells are trappable, and most of them are behind a tree,
+  // under a cliff or outside the camera's framing. Picking by index buried
+  // bombs the story then could not show — eight traps in the scene graph, four
+  // of them ever drawn — which looks exactly like the arming tint failing.
+  //
+  // So: keep the cells the placement camera actually frames, with a margin,
+  // and walk them in a stride so the set is spread across the board rather
+  // than clumped in one corner.
+  const seeded = (() => {
+    const framing = boardCamFraming(seed, GAME_W, GAME_H);
+    const visible: number[] = [];
+    for (let i = 0; i < BURROW_COLS * BURROW_ROWS; i++) {
+      if (!isTrappable(seed, i)) continue;
+      const { x, y } = burrowTileScreen(seed, i);
+      // `cam.x`/`cam.y` are already the absolute offset the container is moved
+      // by (W/2 - scale*centre), so a tile's screen point is cam + scale*tile —
+      // the same form `framing.board` uses. Treating cam as a point to
+      // subtract put every cell off-canvas and selected nothing at all.
+      const sx = framing.cam.x + framing.cam.scale * x;
+      const sy = framing.cam.y + framing.cam.scale * y;
+      if (sx > 80 && sx < GAME_W - 80 && sy > 90 && sy < GAME_H - 90) visible.push(i);
+    }
+    const step = Math.max(1, Math.floor(visible.length / Math.max(1, preplaced)));
+    const out: number[] = [];
+    for (let n = 0; out.length < preplaced && n < visible.length; n++) {
+      const t = visible[(n * step) % visible.length];
+      if (!out.includes(t)) out.push(t);
+    }
+    return out;
+  })();
+  const down = seeded.slice(0, Math.min(rearming, seeded.length));
+  const up = seeded.slice(down.length);
   // Before anything measures or draws. The story remounts on every arg change,
   // so this runs ahead of the scene each time the slider moves.
   setBurrowTileSize(tile);
@@ -117,7 +164,11 @@ function Scene({ seed, placing, tile }: Args) {
           let scene: BurrowScene | null = null;
           void scenes.start(BurrowScene, {
             seed,
-            traps: [],
+            // Handed in ARMED, then the down ones are repainted below. The
+            // scene's mount path takes a plain tile list, and going through
+            // `setTrapArmed` afterwards is what the app does too — so the
+            // story exercises the same transition the poll drives.
+            traps: [...up, ...down],
             placing,
             // No server here, so the story IS the authority — it answers a tap
             // the way the route does: a bare tile takes a bomb, a mined one
@@ -132,10 +183,34 @@ function Scene({ seed, placing, tile }: Args) {
               scene?.addTrap(tile);
               setPlaced((prev) => [...prev, tile]);
             },
-          }).then(() => { scene = scenes.currentScene as BurrowScene; });
+          }).then(() => {
+            scene = scenes.currentScene as BurrowScene;
+            for (const t of down) scene.setTrapArmed(t, false);
+          });
           return () => scenes.destroyCurrent();
         }}
       />
+      {/* The defence line the app shows while placing, rendered here because
+          this is the only story that draws the board it describes.
+          
+          It moved OUT of the shop (the shop sells traps; the board is where
+          they are arranged) and the wording is the deliverable: it reports
+          what is STANDING, names what is coming back and says it is free.
+          Red only when nothing is armed — traps on their way back are not an
+          alarm, which is the whole point of the arming clock. */}
+      {placing && (
+        <p style={{
+          position: 'absolute', left: 0, right: 0, top: 8, margin: 0, zIndex: 2,
+          textAlign: 'center', pointerEvents: 'none',
+          font: '12px ui-monospace, monospace',
+          color: up.length + placed.length === 0 ? '#ff8a7a' : '#cfe8ff',
+          textShadow: '0 1px 2px rgba(0,0,0,0.8)',
+        }}>
+          {up.length + placed.length}/8 armed
+          {down.length > 0 && ` · ${down.length} rearming · next in 40m · free`}
+        </p>
+      )}
+
       {/* Overlaid, not stacked underneath.
           In a short frame (Storybook's Seeker landscape is 800x360) a block of
           text below the canvas pushes the picture up and out, and the story
@@ -154,7 +229,7 @@ board spans x ${r.minX.toFixed(0)}..${r.maxX.toFixed(0)}  y ${r.minY.toFixed(0)}
 through the placement camera: x ${r.framing.board.left.toFixed(0)}..${r.framing.board.right.toFixed(0)}  y ${r.framing.board.top.toFixed(0)}..${r.framing.board.bottom.toFixed(0)}
 cell ${tile}px in the art -> ${r.framing.tileWidth.toFixed(1)}px on screen   (camera fixed at ${r.framing.cam.scale.toFixed(2)}x)
 ${ok ? 'the whole board is on screen' : 'OFF SCREEN - cells fall outside the canvas, and those are the tiles that go missing'}
-${placed.length} traps placed`}
+${up.length + placed.length} armed   ${down.length} rearming (drawn faint)   ${placed.length} placed by hand`}
       </pre>
     </div>
   );
@@ -171,10 +246,12 @@ const SEEDS = [
 const meta: Meta<Args> = {
   title: 'Burrow/Placing',
   render: (args) => <Scene key={JSON.stringify(args)} {...args} />,
-  args: { seed: SEEDS[0], placing: true, tile: 40 },
+  args: { seed: SEEDS[0], placing: true, tile: 40, preplaced: 0, rearming: 0 },
   argTypes: {
     seed: { control: 'select', options: SEEDS },
     tile: { control: { type: 'range', min: 24, max: 80, step: 2 } },
+    preplaced: { control: { type: 'range', min: 0, max: 8, step: 1 } },
+    rearming: { control: { type: 'range', min: 0, max: 8, step: 1 } },
   },
 };
 export default meta;
@@ -199,3 +276,30 @@ export const AnotherPlayer: Story = { args: { seed: SEEDS[2] } };
 
 /** The same board with the grid down — a home, not a spreadsheet. */
 export const AtRest: Story = { args: { placing: false } };
+
+/**
+ * THE MORNING AFTER A RAID — five traps still standing, three coming back.
+ *
+ * The client half of the arming clock, and the only place it can be SEEN: a
+ * sprung trap keeps its tile and is drawn faint rather than removed, because
+ * removing it would read as "you lost it" and send the owner hunting for a
+ * tile they cannot use anyway.
+ *
+ * What to judge: can you tell the faint bombs from the armed ones at a glance,
+ * without being told? If they disappear into the ground the tint is too weak,
+ * and a defender cannot see the shape of their own defence while it heals.
+ */
+export const Rearming: Story = { args: { preplaced: 8, rearming: 3 } };
+
+/**
+ * Walked end to end: every trap down, all of them coming back.
+ *
+ * The line turns red — a raider arriving this minute meets open ground, and
+ * that is worth alarming about — but it still says the traps are on their way
+ * and cost nothing. If this reads as punishment rather than as recovery, the
+ * clock is failing at the job it was added for.
+ */
+export const FullyRearming: Story = { args: { preplaced: 8, rearming: 8 } };
+
+/** The control: the same eight traps, all armed. */
+export const FullyArmed: Story = { args: { preplaced: 8, rearming: 0 } };

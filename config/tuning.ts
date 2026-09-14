@@ -165,8 +165,29 @@ export const TRAPS = {
   MAX_PLACED: 8,
   /** Carrot price of one extra trap. */
   CARROT_COST: 180,
-  /** A sprung trap is spent. It is not repaired, it is replaced. */
-  CONSUMED_ON_TRIGGER: true,
+  /**
+   * How long one sprung trap takes to rearm.
+   *
+   * A sprung trap is REPAIRED, not replaced: it keeps its tile and comes back
+   * on this clock, costing its owner neither a carrot nor a re-placement. The
+   * opposite rule — consumed on trigger — is pay-to-repair, which the GDD
+   * rejects by name for churn.
+   *
+   * Sized so a burrow raided overnight is meaningfully back up by morning
+   * without being whole: at 8 traps placed and STAGGER_MS between each, a
+   * fully sprung board takes REARM_MS + 7 * STAGGER_MS ~= 6.5h to stand again.
+   */
+  REARM_MS: 3 * 60 * 60 * 1000,
+  /**
+   * Extra delay per trap beyond the first, so a board rearms ONE AT A TIME.
+   *
+   * Without it every trap sprung in one raid comes back on the same tick and
+   * the burrow snaps from bare to full, which makes the second raider's
+   * crossing meaningless and reads to the owner as a switch rather than a
+   * recovery. Staggering also means a raider who returns mid-rearm meets a
+   * partly-defended board — the gradient the whole raid design is built on.
+   */
+  REARM_STAGGER_MS: 30 * 60 * 1000,
 } as const;
 
 /**
@@ -244,8 +265,17 @@ export const RAID = {
   LOOT_SHARE: 0.25,
   /** Hard cap on a single raid's haul, so a whale can't be emptied in one hit. */
   LOOT_CAP: 5_000,
-  /** Shield granted automatically after your burrow is broken. */
-  BROKEN_SHIELD_MS: 8 * 60 * 60 * 1000,
+  /**
+   * Shield granted when a raider walked all the way onto the carrot field.
+   *
+   * LONGER than `RAID_RUN.SHIELD_AFTER_RAID_MS`, and the ordering is the whole
+   * point: these two used to be 8h for a sacked burrow against 12h for a raid
+   * that died at the door, so the worse the beating the sooner you were open
+   * again. Gravity has to buy protection or the rule teaches players that
+   * defending well is what gets them farmed. Clash of Clans grades the same
+   * way — 12h at 40% destruction, 16h at 90%.
+   */
+  BROKEN_SHIELD_MS: 16 * 60 * 60 * 1000,
   /** Shield a brand-new player is born with. */
   ONBOARDING_SHIELD_MS: 48 * 60 * 60 * 1000,
   /** Duration of a consumable shield item. */
@@ -541,13 +571,88 @@ export const SABOTAGE = {
   LIGHTNING_RADIUS: 2,
 } as const;
 
-/** Chest loot table. Weights are relative, they need not sum to anything. */
+/**
+ * Chest loot table. Weights are relative, they need not sum to anything.
+ *
+ * ONE table, drawn from wherever a chest is dug. The two families in it are
+ * deliberate: raid items (bomb, shield, lightning) act on somebody else's
+ * board, garden items (water, fertiliser) act on your own. A single table is
+ * what makes a chest worth opening for BOTH kinds of player — the farmer who
+ * never raids still pulls something they want three times in ten, and the
+ * raider gets a garden they did not ask for and may yet use. Splitting the
+ * table by where it was found would have sorted players into two games that
+ * never trade.
+ *
+ * Carrots stay the floor at half the weight. They are the one drop that is
+ * never dead: an item you have capped out on is a wasted chest, and a chest
+ * that disappoints is worse than no chest, because the player walked onto a
+ * known tile for it.
+ *
+ * The garden pair is common and small — they are a nudge on a twelve-hour
+ * clock, not a jackpot — while `nft` sits at the bottom on purpose. It is the
+ * only entry with no gameplay effect and no cap, so its rarity is the whole of
+ * its value; see `CHEST_NFT_ODDS` for the arithmetic that keeps it a story
+ * rather than a currency.
+ */
 export const CHEST_LOOT = [
-  { kind: 'carrots', weight: 50, min: 20, max: 90 },
-  { kind: 'bomb',    weight: 25, min: 1,  max: 2  },
-  { kind: 'shield',  weight: 15, min: 1,  max: 1  },
-  { kind: 'lightning', weight: 10, min: 1, max: 1 },
+  { kind: 'carrots',   weight: 40, min: 20, max: 90 },
+  { kind: 'bomb',      weight: 16, min: 1,  max: 2  },
+  { kind: 'water',     weight: 15, min: 1,  max: 3  },
+  { kind: 'fertiliser', weight: 12, min: 1, max: 2  },
+  { kind: 'shield',    weight: 9,  min: 1,  max: 1  },
+  { kind: 'lightning', weight: 7,  min: 1,  max: 1  },
+  { kind: 'nft',       weight: 1,  min: 1,  max: 1  },
 ] as const;
+
+/**
+ * The odds an `nft` roll works out to, kept here so a weight change has to
+ * face the number it moves.
+ *
+ * At weight 1 of 100 it is one chest in a hundred. A tier-1 island holds
+ * ~0.012 x 17 x 17 ≈ 3 chests, and a player who digs every one of them across
+ * two sessions a day meets one roughly every two and a half weeks — a season.
+ * That is the intended feel: a thing that happens to you once a season, not a
+ * thing you farm. Raising this weight past ~3 turns it into an income stream
+ * and the drop stops being a story worth telling.
+ */
+export const CHEST_NFT_ODDS = { oneIn: 100 } as const;
+
+/**
+ * What the garden consumables do.
+ *
+ * They act on the two different halves of `GARDEN`, which is what keeps them
+ * from being the same item twice:
+ *  - WATER raises the RATE. A watered garden makes more per hour, so it pays
+ *    the player who comes back often and harvests before the cap.
+ *  - FERTILISER raises the CEILING. A fed garden accumulates for longer before
+ *    it stops, so it pays the player who cannot come back tonight.
+ * One rewards attention, the other forgives its absence, and a player holding
+ * both has a real choice to make about the day ahead of them rather than a
+ * strictly-better button.
+ *
+ * Both are timed rather than instant. An instant "+N carrots" would be a
+ * carrot drop wearing a different sprite; a window means using one is a small
+ * bet on when you will next be here.
+ */
+export const GARDEN_BOOST = {
+  WATER: {
+    /** Yield per hour is multiplied by this while a watering is live. */
+    RATE_MULT: 1.5,
+    /** How long one unit of water lasts. Stacks by extending, not by multiplying. */
+    DURATION_MS: 4 * 60 * 60 * 1000,
+  },
+  FERTILISER: {
+    /** Hours added to GARDEN.CAP_HOURS while a feeding is live. */
+    EXTRA_CAP_HOURS: 6,
+    DURATION_MS: 12 * 60 * 60 * 1000,
+  },
+  /**
+   * Ceiling on banked boost, per kind. Without it a player sitting on twenty
+   * waterings from a lucky week runs a permanently buffed garden, and a
+   * permanent buff is just a higher base rate with extra steps.
+   */
+  MAX_BANKED_MS: 24 * 60 * 60 * 1000,
+} as const;
 
 // ── Phase 6: leaderboard, crown, seasons ─────────────────────────────────────
 

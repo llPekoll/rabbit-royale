@@ -21,8 +21,10 @@ import { HubCard, HubRow, headingText, valueText, subText, SUB_CLASS } from './h
 
 const SHIELD_ART = '/assets/ui/icons/shield.webp';
 
-/** The game's own wait formatter, matching the rest of the burrow column. */
-function formatWait(ms: number): string {
+/** The game's own wait formatter, matching the rest of the burrow column.
+ *  Exported because the trap board counts down to a rearm in the same voice —
+ *  two formatters would drift into two different ways of saying "1h 05m". */
+export function formatWait(ms: number): string {
   const mins = Math.max(0, Math.round(ms / 60000));
   if (mins < 60) return `${mins}m`;
   const hrs = Math.floor(mins / 60);

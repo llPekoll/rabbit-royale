@@ -52,7 +52,11 @@ function makeShop(stock: number, held: Partial<Record<ItemKind, number>>, usdcEn
         canBuy: stock >= price && have < cap,
       };
     }),
-    traps: { held: held.trap ?? 3, placed: 2, maxPlaced: 8, drain: 8, freePerDay: 3 },
+    traps: {
+      held: held.trap ?? 3,
+      placed: 2, armed: 2, rearming: 0, nextRearmAt: null,
+      maxPlaced: 8, drain: 8, freePerDay: 3,
+    },
     // Roughly what Jupiter was quoting when this was written. The story needs
     // real-ish magnitudes rather than round numbers: SOL at $200 is what turns
     // a $0.25 trap into `0.0013 SOL`, and whether THAT fits the button is the
@@ -146,7 +150,6 @@ function Harness({
           onBuy={buy}
           onPayUsdc={usdcEnabled ? (k: ItemKind) => setNote(`Would open the wallet for ${k}`) : undefined}
           note={note}
-          onPlaceTraps={() => { setShopOpen(false); setPlacing(true); }}
           onClose={() => { setShopOpen(false); setNote(null); }}
         />
       )}
@@ -168,9 +171,10 @@ export const Default: Story = {};
 /**
  * Shut, which is how the burrow actually looks most of the time.
  *
- * The button is the whole shop from here, and it still has to report the
- * defence — a player must be able to see their burrow is unmined without
- * opening anything. Press it.
+ * The button is the whole shop from here. The DEFENCE is no longer reported
+ * in this dialog at all — it moved to the burrow board, which is the screen
+ * where it can be acted on; the shop sells traps and says how many are in the
+ * shed. Press it.
  */
 export const Closed: Story = { args: { open: false } };
 

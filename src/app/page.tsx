@@ -12,7 +12,7 @@
  * React draws the chrome over that canvas and nothing else: the scenes are
  * driven through the handles the canvas hands back, never through state.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useWalletLogin, WalletSessionProvider } from '@/components/use-wallet-login';
 import { CarrotCurtain } from '@/components/carrot-curtain';
 import { useGameSocket } from '@/components/use-game-socket';
@@ -403,6 +403,20 @@ function Burrow() {
   }, [shop]);
 
   /**
+   * How long until the next trap comes back, as the burrow column says it.
+   *
+   * Recomputed on render rather than ticked: the value only has to be right
+   * when the player looks at it, and a countdown of its own would be a timer
+   * running for every second the board is open to save a poll it already
+   * makes. Same treatment as the shield card's.
+   */
+  const nextRearmLabel = useMemo(() => {
+    const next = shop.traps?.rearming[0];
+    if (!next) return null;
+    return formatWait(new Date(next.readyAt).getTime() - Date.now());
+  }, [shop.traps]);
+
+  /**
    * Lift every bomb off the board at once.
    *
    * The markers come off only for the tiles the SERVER says it cleared — the
@@ -663,14 +677,28 @@ function Burrow() {
   useEffect(() => {
     const tiles = shop.traps?.placed;
     if (!ready || !tiles) return;
-    const key = tiles.join(',');
+    // The ARMING state is part of the key, so a trap coming back up is a
+    // change this effect notices. Keyed on the tile list alone it was not: the
+    // set of mined tiles does not move when one of them rearms, and the board
+    // would have gone on showing a greyed bomb until the next placement.
+    const armed = new Set(shop.traps?.armed ?? tiles);
+    const key = tiles.map((t) => `${t}${armed.has(t) ? '' : '~'}`).join(',');
     if (drawnTraps.current === key) return;
-    const had = drawnTraps.current ? drawnTraps.current.split(',').map(Number) : [];
+    const had = drawnTraps.current
+      ? drawnTraps.current.split(',').map((k) => Number(k.replace('~', '')))
+      : [];
     drawnTraps.current = key;
     const now = new Set(tiles);
-    // Gone from the server's list — lifted here, or sprung by a raider.
+    // Gone from the server's list — lifted here. NOT a sprung trap any more:
+    // that one keeps its tile and comes back on the arming clock, so it stays
+    // on the board and is repainted below.
     for (const tile of had) if (!now.has(tile)) handles.current?.burrow?.removeTrap(tile);
-    for (const tile of tiles) handles.current?.burrow?.addTrap(tile, false);
+    for (const tile of tiles) {
+      handles.current?.burrow?.addTrap(tile, false, armed.has(tile));
+      // Already drawn: tell it which way it is now. `setTrapArmed` no-ops when
+      // nothing changed, so this is free on the common poll.
+      handles.current?.burrow?.setTrapArmed(tile, armed.has(tile));
+    }
   }, [ready, shop.traps]);
 
   /**
@@ -1209,6 +1237,31 @@ function Burrow() {
                 </>
               )}
 
+              {/* The state of the DEFENCE, on the screen where it can be acted
+                  on.
+                  
+                  This lived in the shop, which was the wrong room: the shop
+                  sells traps, the board is where they are arranged, and a
+                  player reading "3 rearming" over a shelf of prices cannot do
+                  anything about either. Here the same sentence sits above the
+                  ground it describes.
+                  
+                  It reports what is STANDING, not what is buried — those
+                  differ while traps rearm, and a board claiming 8/8 with five
+                  of them down would be a lie told in the player's favour. */}
+              {placing && shop.traps && (
+                <p className={`rr-note${shop.traps.armed.length === 0 ? ' danger' : ''}`}>
+                  {shop.traps.armed.length}/{shop.traps.maxPlaced} armed
+                  {shop.traps.rearming.length > 0 && (
+                    <>
+                      {' '}&middot; {shop.traps.rearming.length} rearming
+                      {nextRearmLabel && <> &middot; next in {nextRearmLabel}</>}
+                      {' '}&middot; free
+                    </>
+                  )}
+                </p>
+              )}
+
               {/* While placing, this is the only instruction on screen — the
                   board itself cannot say what a tap will cost. It has to name
                   the way BACK too: a gold marker does not look like a button,
@@ -1428,7 +1481,6 @@ function Burrow() {
           payStage={usdc.stage}
           note={shop.note}
           error={usdc.error}
-          onPlaceTraps={startPlacing}
           onClose={() => { setShopOpen(false); shop.setNote(null); usdc.setError(null); }}
         />
       )}
