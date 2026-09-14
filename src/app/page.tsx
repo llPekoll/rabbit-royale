@@ -1264,31 +1264,6 @@ function Burrow() {
                 </>
               )}
 
-              {/* The state of the DEFENCE, on the screen where it can be acted
-                  on.
-                  
-                  This lived in the shop, which was the wrong room: the shop
-                  sells traps, the board is where they are arranged, and a
-                  player reading "3 rearming" over a shelf of prices cannot do
-                  anything about either. Here the same sentence sits above the
-                  ground it describes.
-                  
-                  It reports what is STANDING, not what is buried — those
-                  differ while traps rearm, and a board claiming 8/8 with five
-                  of them down would be a lie told in the player's favour. */}
-              {placing && shop.traps && (
-                <p className={`rr-note${shop.traps.armed.length === 0 ? ' danger' : ''}`}>
-                  {shop.traps.armed.length}/{shop.traps.maxPlaced} armed
-                  {shop.traps.rearming.length > 0 && (
-                    <>
-                      {' '}&middot; {shop.traps.rearming.length} rearming
-                      {nextRearmLabel && <> &middot; next in {nextRearmLabel}</>}
-                      {' '}&middot; free
-                    </>
-                  )}
-                </p>
-              )}
-
               {/* While placing, this is the only instruction on screen — the
                   board itself cannot say what a tap will cost. It has to name
                   the way BACK too: a gold marker does not look like a button,
@@ -1313,6 +1288,35 @@ function Burrow() {
               {placing && shop.note && <p className="rr-shop-pay">{shop.note}</p>}
 
               {note && <p className="rr-note">{note}</p>}
+
+              {/* THE STATE OF THE DEFENCE, last line on the column.
+                  
+                  At the BOTTOM and always on — not only while placing. A
+                  defender's first question on opening their burrow is whether
+                  it is still guarded, and answering it only once they had
+                  already decided to rearrange their bombs was answering it too
+                  late. It sits under everything else because it is a status
+                  line, not a control: nothing here is tapped.
+                  
+                  It reports what is STANDING, not what is buried — those
+                  differ while traps rearm, and a board claiming 8/8 with five
+                  of them down would be a lie told in the player's favour.
+                  
+                  The rearming half names its own cost, which is none: a player
+                  who does not know the bombs come back free will go and buy
+                  replacements for traps they never lost. */}
+              {shop.traps && shop.traps.placed.length > 0 && (
+                <p className={`rr-note${shop.traps.armed.length === 0 ? ' danger' : ''}`}>
+                  {shop.traps.armed.length} bomb{shop.traps.armed.length === 1 ? '' : 's'} live
+                  {shop.traps.rearming.length > 0 && (
+                    <>
+                      {' '}&middot; {shop.traps.rearming.length} rearming
+                      {nextRearmLabel && <> (next in {nextRearmLabel})</>}
+                      {' '}&middot; costs you nothing
+                    </>
+                  )}
+                </p>
+              )}
             </>
           )}
         </section>
