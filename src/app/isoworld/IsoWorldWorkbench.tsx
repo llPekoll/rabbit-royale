@@ -290,6 +290,10 @@ export function IsoWorldWorkbench({ style, seed }: { style?: IsoStyle; seed?: st
     islandRef.current = island;
     world.addChild(island.view);
 
+    // The foam moves: one ticker for the island's life.
+    const animate = () => island.tick(app.ticker.lastTime / 1000);
+    app.ticker.add(animate);
+
     let land = 0;
     for (const level of map.level) if (level > 0) land++;
     setStats({
@@ -322,6 +326,7 @@ export function IsoWorldWorkbench({ style, seed }: { style?: IsoStyle; seed?: st
     app.renderer.on('resize', fit);
     return () => {
       app.renderer.off('resize', fit);
+      app.ticker.remove(animate);
     };
   }, [settings, rotation, tileset, tiers, corners]);
 

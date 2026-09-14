@@ -41,6 +41,7 @@
  * east face and north. Sea cells lay rims too, so the island's foot is drawn.
  */
 import { Container, Graphics, Sprite, type Texture } from 'pixi.js';
+import { mulberry32, seedFrom } from '@/lib/game/rng';
 import { SHEET_CELL } from './decor';
 import type { IsoTileset, Material, MaterialTiles } from './sheet';
 import {
@@ -63,6 +64,118 @@ const DIRS: readonly Dir[] = [DIR.N, DIR.E, DIR.S, DIR.W];
 
 /** The outline colour of the smooth sheet, for the one line the sheet cannot carry. */
 const INK = 0x3a6c3e;
+
+/** Where the water stands above the floor, in blocks — the sheet's `WATER_HEIGHT`. */
+const WATER_LEVEL = 0.5;
+/** Foam: line width at 128px cells, opacity, how far a ripple drifts (cells), and its cycle (s). */
+const FOAM_WIDTH = 2.2;
+const FOAM_ALPHA = 0.85;
+const FOAM_REACH = 0.14;
+const FOAM_PERIOD = 2.6;
+
+interface WaterlineSegment {
+  a: readonly [number, number];
+  b: readonly [number, number];
+  /** Toward the water, in lattice units. */
+  out: readonly [number, number];
+}
+
+type Vertex = readonly [number, number, number];
+
+/**
+ * A ramp's two surface triangles, as the sheet generator cuts them: one
+ * plane for a straight slope, otherwise the cut runs between the two
+ * corners beside the odd one out.
+ */
+function rampTriangles(ramp: Ramp): [Vertex, Vertex, Vertex][] {
+  const h = rampCorners(ramp);
+  const at = (c: Dir): Vertex => [CORNER_UV[c][0], CORNER_UV[c][1], h[c]];
+  const raised = h.filter(Boolean).length;
+  // NW 3, NE 0, SE 1, SW 2 around the cell.
+  if (raised === 2) return [[at(3), at(0), at(1)], [at(3), at(1), at(2)]];
+  const odd = h.indexOf(raised === 1 ? 1 : 0) as Dir;
+  const a = ((odd + 1) % 4) as Dir;
+  const b = ((odd + 3) % 4) as Dir;
+  const opposite = ((odd + 2) % 4) as Dir;
+  return [[at(a), at(opposite), at(b)], [at(odd), at(a), at(b)]];
+}
+
+/** Where a triangle's edges cross `z = level`: two points, or null when it does not. */
+function crossings(tri: [Vertex, Vertex, Vertex], level: number): [[number, number], [number, number]] | null {
+  const pts: [number, number][] = [];
+  for (let i = 0; i < 3; i++) {
+    const a = tri[i];
+    const b = tri[(i + 1) % 3];
+    if (a[2] < level !== b[2] < level) {
+      const t = (level - a[2]) / (b[2] - a[2]);
+      pts.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
+    }
+  }
+  return pts.length === 2 ? [pts[0], pts[1]] : null;
+}
+
+/** The plane `z = k + p u + q v` through three vertices. */
+function planeOf([P0, P1, P2]: [Vertex, Vertex, Vertex]): [number, number, number] {
+  const du1 = P1[0] - P0[0];
+  const dv1 = P1[1] - P0[1];
+  const dz1 = P1[2] - P0[2];
+  const du2 = P2[0] - P0[0];
+  const dv2 = P2[1] - P0[1];
+  const dz2 = P2[2] - P0[2];
+  const det = du1 * dv2 - du2 * dv1;
+  const p = (dz1 * dv2 - dz2 * dv1) / det;
+  const q = (du1 * dz2 - du2 * dz1) / det;
+  return [P0[2] - p * P0[0] - q * P0[1], p, q];
+}
+
+/**
+ * Along a wall whose top edge runs from height `h0` to `h1` over [0, 1]:
+ * the stretch where that edge is above `level`, or null.
+ */
+function wallSpan(h0: number, h1: number, level: number): [number, number] | null {
+  if (h0 <= level && h1 <= level) return null;
+  if (h0 > level && h1 > level) return [0, 1];
+  const t = (level - h0) / (h1 - h0);
+  return h0 > level ? [0, t] : [t, 1];
+}
+
+/**
+ * A white line from `a` to `b`, drawn by hand: a gentle wave along it and a
+ * gap somewhere, so no two are alike. `r` in [0, 1) picks where the gap is.
+ */
+function wavyLine(a: [number, number], b: [number, number], width: number, alpha: number, r: number): Graphics {
+  const g = new Graphics();
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const len = Math.hypot(dx, dy) || 1;
+  const nx = -dy / len;
+  const ny = dx / len;
+  const amp = width * 0.6;
+  const gapAt = 0.3 + r * 0.4;
+  const gap = 0.12;
+  const steps = 16;
+  let drawing = false;
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const inGap = t > gapAt - gap / 2 && t < gapAt + gap / 2;
+    const w = Math.sin(t * Math.PI * 3 + r * 6) * amp;
+    const x = a[0] + dx * t + nx * w;
+    const y = a[1] + dy * t + ny * w;
+    if (inGap) {
+      drawing = false;
+      continue;
+    }
+    if (!drawing) {
+      g.moveTo(x, y);
+      drawing = true;
+    } else {
+      g.lineTo(x, y);
+    }
+  }
+  g.stroke({ color: 0xffffff, width, cap: 'round', join: 'round' });
+  g.alpha = alpha;
+  return g;
+}
 
 /** Lattice (u, v) of corner c: NE, SE, SW, NW. */
 const CORNER_UV: readonly (readonly [number, number])[] = [
@@ -173,6 +286,12 @@ export class IsoWorldView {
   /** Decorations by the index of the LAST cell of their footprint, where they are drawn. */
   private readonly decorAt = new Map<number, { x: number; y: number; prop: Prop }>();
 
+  /**
+   * The foam's moving lines, one per shore segment: each drifts from the
+   * waterline out over the water and fades, on its own phase. See `tick`.
+   */
+  private readonly ripples: { line: Graphics; dx: number; dy: number; phase: number }[] = [];
+
   constructor(private readonly options: IsoWorldViewOptions) {
     const { world, tileset } = options;
     const { width: w, height: h } = world;
@@ -220,6 +339,19 @@ export class IsoWorldView {
   destroy(): void {
     // The textures are slices of one shared sheet and outlive this view.
     this.view.destroy({ children: true });
+  }
+
+  /**
+   * Animate the foam. `seconds` is any monotonic clock; each ripple runs a
+   * `FOAM_PERIOD` cycle — out from the shore by `FOAM_REACH` cells while it
+   * fades — offset by its own phase so the coast never pulses in step.
+   */
+  tick(seconds: number): void {
+    for (const r of this.ripples) {
+      const t = (seconds / FOAM_PERIOD + r.phase) % 1;
+      r.line.position.set(r.dx * t, r.dy * t);
+      r.line.alpha = FOAM_ALPHA * (1 - t) * Math.min(1, t * 6);
+    }
   }
 
   private buildCell(x: number, y: number): void {
@@ -279,11 +411,13 @@ export class IsoWorldView {
     // The floor is flooded: the water sheet over the cell — cut at the
     // waterline on a ramp, whose upper half is then drawn again over it,
     // since on a ramp facing the camera it stands in front of the water.
+    // Then the foam, where that waterline is.
     if (spec.floodedFloor && tier === spec.floor && tileset.water && tileset.waterOver && tileset.emerged) {
       if (ramp) {
         const kind = ramp.kind === 'inner' || ramp.kind === 'outer' ? ramp.kind : 'slope';
         this.place(tileset.waterOver[kind][ramp.dir], x, y, surface, false);
         this.place(tileset.emerged[kind][ramp.dir], x, y, surface, false);
+        this.foam(x, y, ramp, surface);
       } else {
         this.place(tileset.water, x, y, surface, false);
       }
@@ -498,6 +632,69 @@ export class IsoWorldView {
     const { block } = this.options.tileset;
     if (ramp.kind === 'slope' || ramp.kind === 'stairs') this.place(material.slopeFringe![d], x, y, base);
     else this.place(material.fringe![d], x, y, base + block.z);
+  }
+
+  /**
+   * Foam along the waterline of a flooded floor ramp: white lines where the
+   * water meets the sand, on the ramp's surface, and along its south or
+   * east wall where that wall stands in the water. Each segment gets a line
+   * that stays and one that drifts out and fades (see `tick`).
+   */
+  private foam(x: number, y: number, ramp: Ramp, elevation: number): void {
+    const { world, tileset } = this.options;
+    const { cell, block, spec } = tileset;
+    const level = WATER_LEVEL;
+    const segments: WaterlineSegment[] = [];
+
+    for (const tri of rampTriangles(ramp)) {
+      const cut = crossings(tri, level);
+      if (!cut) continue;
+      const [k, p, q] = planeOf(tri);
+      void k;
+      // Outward is downhill: against the surface's gradient.
+      const n = Math.hypot(p, q) || 1;
+      segments.push({ a: cut[0], b: cut[1], out: [-p / n, -q / n] });
+    }
+
+    // The walls: the south face (v = 1) borders (x, y + 1), the east (u = 1)
+    // borders (x + 1, y). Only where that neighbour is open water — the sea
+    // or flat flooded sand — does the wall stand in it. Its waterline runs
+    // wherever the face's top edge is above the level.
+    const h = rampCorners(ramp);
+    const waterAt = (nx: number, ny: number) => {
+      const t = tierAt(world, nx, ny);
+      return t === 0 || (t === spec.floor && !rampAt(world, nx, ny));
+    };
+    if (waterAt(x, y + 1)) {
+      const span = wallSpan(h[2], h[1], level); // SW -> SE along v = 1
+      if (span) segments.push({ a: [span[0], 1], b: [span[1], 1], out: [0, 1] });
+    }
+    if (waterAt(x + 1, y)) {
+      const span = wallSpan(h[0], h[1], level); // NE -> SE along u = 1
+      if (span) segments.push({ a: [1, span[0]], b: [1, span[1]], out: [1, 0] });
+    }
+
+    const cx = (x - y) * (block.w / 2);
+    const cy = (x + y) * (block.h / 2) - elevation - level * block.z;
+    const toScreen = ([u, v]: readonly [number, number]): [number, number] => [
+      cx + (u - v) * (block.w / 2),
+      cy + (u + v) * (block.h / 2),
+    ];
+    const width = (cell * FOAM_WIDTH) / 128;
+    const seed = seedFrom(`${world.seed}:foam:${x},${y}`);
+    let s = 0;
+    for (const seg of segments) {
+      const a = toScreen(seg.a);
+      const b = toScreen(seg.b);
+      const [ox, oy] = [(seg.out[0] - seg.out[1]) * (block.w / 2), (seg.out[0] + seg.out[1]) * (block.h / 2)];
+      const on = mulberry32(seed + s++);
+      // The still line at the shore, and the one that drifts.
+      this.layer.addChild(wavyLine(a, b, width, FOAM_ALPHA, on()));
+      const ripple = wavyLine(a, b, width * 0.8, FOAM_ALPHA, on());
+      this.layer.addChild(ripple);
+      this.ripples.push({ line: ripple, dx: ox * FOAM_REACH, dy: oy * FOAM_REACH, phase: on() });
+      this.sprites += 2;
+    }
   }
 
   /**
