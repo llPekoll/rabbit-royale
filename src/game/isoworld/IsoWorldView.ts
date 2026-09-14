@@ -75,17 +75,27 @@ const FOAM_PERIOD = 3.2;
 
 /** A hop: from cell to cell, `t` of the way there, then a rest. */
 interface Hopper {
+  node: Container;
   sprite: Sprite;
+  shadow: Graphics;
+  /** The sprite's resting scale, and which way it faces on screen. */
+  scale: number;
+  facing: 1 | -1;
   from: { x: number; y: number };
   to: { x: number; y: number };
   t: number;
   wait: number;
+  /** Seconds since it last landed, over `LAND_TIME`; 1 once recovered. */
+  landed: number;
   rng: () => number;
 }
 
-const HOP_TIME = 0.32;
-const HOP_REST = 0.45;
-const HOP_HEIGHT = 0.45;
+const HOP_TIME = 0.34;
+const HOP_REST = 0.5;
+const HOP_HEIGHT = 0.5;
+/** The crouch before a hop and the squash after one, in seconds. */
+const ANTICIPATION = 0.13;
+const LAND_TIME = 0.22;
 
 interface WaterlineSegment {
   a: readonly [number, number];
@@ -405,19 +415,32 @@ export class IsoWorldView {
     const { world, tileset } = this.options;
     const start = this.hopperCells().find(() => true);
     if (start === undefined) return;
+    // The node stands on the ground: its shadow at the origin, the rabbit
+    // above it by the height of the hop. Squash and stretch scale the
+    // rabbit about its feet, so the feet stay put.
+    const node = new Container();
+    const shadow = new Graphics();
+    const r = tileset.cell * 0.3;
+    shadow.ellipse(0, 0, r, r * 0.5).fill({ color: 0x2c4a34, alpha: 0.3 });
+    node.addChild(shadow);
     const sprite = new Sprite(texture);
     sprite.anchor.set(0.5, 0.96);
-    sprite.scale.set(tileset.cell / SHEET_CELL);
-    this.layer.addChild(sprite);
-    this.sprites++;
+    node.addChild(sprite);
+    this.layer.addChild(node);
+    this.sprites += 2;
     const x = start % world.width;
     const y = (start / world.width) | 0;
     this.hopper = {
+      node,
       sprite,
+      shadow,
+      scale: tileset.cell / SHEET_CELL,
+      facing: 1,
       from: { x, y },
       to: { x, y },
       t: 1,
       wait: HOP_REST,
+      landed: 1,
       rng: mulberry32(seedFrom(`${world.seed}:hopper`)),
     };
     this.placeHopper(this.hopper);
@@ -475,24 +498,63 @@ export class IsoWorldView {
       h.wait = HOP_REST * (0.6 + h.rng() * 0.8);
       // Face the way it goes: right on screen when x grows or y shrinks.
       const sx = (h.to.x - h.from.x) - (h.to.y - h.from.y);
-      if (sx) h.sprite.scale.x = Math.abs(h.sprite.scale.x) * (sx > 0 ? 1 : -1);
+      if (sx) h.facing = sx > 0 ? 1 : -1;
       void world;
     }
+    const before = h.t;
     h.t = Math.min(1, h.t + dt / HOP_TIME);
+    if (before < 1 && h.t >= 1) h.landed = 0;
+    h.landed = Math.min(1, h.landed + dt / LAND_TIME);
     this.placeHopper(h);
+  }
+
+  /**
+   * The rabbit's shape through a hop, about its feet: crouched before it
+   * springs, stretched along the arc and leaning into it, squashed on
+   * landing and bouncing back. `x` and `y` are its scale, `lean` its tilt.
+   */
+  private hopPose(h: Hopper): { x: number; y: number; lean: number; height: number } {
+    if (h.t < 1) {
+      // Airborne: stretched most at launch and landing, upright at the apex.
+      const v = 1 - 2 * h.t;
+      const stretch = 1 + 0.3 * Math.abs(v);
+      return { x: 1 / Math.sqrt(stretch), y: stretch, lean: -0.28 * v, height: 4 * h.t * (1 - h.t) };
+    }
+    if (h.landed < 1) {
+      // Just down: flattened, then recovering with a little overshoot.
+      const q = h.landed;
+      const squash = 0.32 * (1 - q) * (1 - q) - 0.06 * Math.sin(Math.PI * q);
+      return { x: 1 + squash * 0.8, y: 1 - squash, lean: 0, height: 0 };
+    }
+    if (h.wait < ANTICIPATION) {
+      // About to spring: gathering itself.
+      const k = 1 - h.wait / ANTICIPATION;
+      return { x: 1 + 0.18 * k, y: 1 - 0.24 * k, lean: 0, height: 0 };
+    }
+    return { x: 1, y: 1, lean: 0, height: 0 };
   }
 
   private placeHopper(h: Hopper): void {
     const { world, tileset } = this.options;
     const { block } = tileset;
     const t = h.t;
-    // Ground height at each cell's centre, in blocks, and the arc between.
+    // The ground under it: between the two cells' centres, at their heights.
     const z0 = this.surfaceZ(h.from.x, h.from.y);
     const z1 = this.surfaceZ(h.to.x, h.to.y);
-    const z = z0 + (z1 - z0) * t + HOP_HEIGHT * 4 * t * (1 - t);
+    const ground = z0 + (z1 - z0) * t;
     const cx = h.from.x + (h.to.x - h.from.x) * t + 0.5;
     const cy = h.from.y + (h.to.y - h.from.y) * t + 0.5;
-    h.sprite.position.set((cx - cy) * (block.w / 2), (cx + cy) * (block.h / 2) - z * block.z);
+    h.node.position.set((cx - cy) * (block.w / 2), (cx + cy) * (block.h / 2) - ground * block.z);
+
+    const pose = this.hopPose(h);
+    h.sprite.position.set(0, -pose.height * HOP_HEIGHT * block.z);
+    h.sprite.scale.set(h.scale * pose.x * h.facing, h.scale * pose.y);
+    h.sprite.rotation = pose.lean * h.facing;
+    // The shadow stays on the ground and shrinks as the rabbit rises.
+    const lift = pose.height;
+    h.shadow.scale.set(1 - 0.45 * lift);
+    h.shadow.alpha = 1 - 0.5 * lift;
+
     // Its depth: the cell furthest forward of the two it is between.
     const cell = h.from.x + h.from.y > h.to.x + h.to.y ? h.from : h.to;
     const at = this.cellEnd.get(cell.y * world.width + cell.x);
@@ -501,9 +563,9 @@ export class IsoWorldView {
       // without the rabbit. `setChildIndex` takes the rabbit out first, so
       // in the list it indexes the cell's last piece sits at `at - 1`
       // whichever side the rabbit came from, and `at` is right after it.
-      const current = this.layer.getChildIndex(h.sprite);
+      const current = this.layer.getChildIndex(h.node);
       const target = Math.min(this.layer.children.length - 1, at);
-      if (current !== target) this.layer.setChildIndex(h.sprite, target);
+      if (current !== target) this.layer.setChildIndex(h.node, target);
     }
   }
 
