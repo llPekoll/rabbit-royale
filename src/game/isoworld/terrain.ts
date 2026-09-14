@@ -66,9 +66,12 @@ export interface Ramp {
  */
 export function rampCorners(ramp: Ramp): readonly [0 | 1, 0 | 1, 0 | 1, 0 | 1] {
   const h: [0 | 1, 0 | 1, 0 | 1, 0 | 1] = [0, 0, 0, 0];
-  if (ramp.kind === 'outer') h[ramp.dir] = 1;
-  else if (ramp.kind === 'inner') for (const c of DIRS) if (c !== (ramp.dir + 2) % 4) h[c] = 1;
-  else {
+  if (ramp.kind === 'outer') {
+    h[ramp.dir] = 1;
+  } else if (ramp.kind === 'inner') {
+    for (const c of DIRS) if (c !== (ramp.dir + 2) % 4) h[c] = 1;
+  } else {
+    // A side's two corners: side d runs from corner d - 1 to corner d.
     h[(ramp.dir + 3) % 4] = 1;
     h[ramp.dir] = 1;
   }

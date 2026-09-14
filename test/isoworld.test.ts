@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { generateIsland } from '@/game/island/generate';
-import { DIR_STEP, planIsoWorld, rotateIsoWorld, tierAt, type IsoWorld } from '@/game/isoworld/terrain';
+import { DIR_STEP, planIsoWorld, rampCorners, rotateIsoWorld, tierAt, type IsoWorld } from '@/game/isoworld/terrain';
 
 const island = (seed: string) => generateIsland({ seed, width: 34, height: 24, tiers: 4 });
 
@@ -133,5 +133,16 @@ describe('corner mode', () => {
     // Every ramp still matches its corners after the turn: replan and compare.
     const replanned = planIsoWorld({ ...generateIsland({ seed: 'reef-2', width: 34, height: 24, tiers: 3 }), level: turned.level, width: turned.width, height: turned.height }, { corners: true });
     expect(snapshot({ ...turned, props: new Map() })).toEqual(snapshot({ ...replanned, props: new Map() }));
+  });
+});
+
+describe('rampCorners', () => {
+  it('raises the two corners of a slope\'s high side, three for an inner corner, one for an outer', () => {
+    // Corners NE SE SW NW; side N runs NW -> NE, side W runs SW -> NW.
+    expect(rampCorners({ kind: 'slope', dir: 0 })).toEqual([1, 0, 0, 1]);
+    expect(rampCorners({ kind: 'slope', dir: 3 })).toEqual([0, 0, 1, 1]);
+    expect(rampCorners({ kind: 'stairs', dir: 0 })).toEqual([1, 0, 0, 1]);
+    expect(rampCorners({ kind: 'inner', dir: 0 })).toEqual([1, 1, 0, 1]);
+    expect(rampCorners({ kind: 'outer', dir: 2 })).toEqual([0, 0, 1, 0]);
   });
 });

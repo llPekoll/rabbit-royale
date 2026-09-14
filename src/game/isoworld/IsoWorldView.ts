@@ -75,7 +75,7 @@ const CORNER_UV: readonly (readonly [number, number])[] = [
  * two corners beside the odd one out (see the sheet generator), so the plane
  * beside an edge is that of the triangle holding the edge.
  */
-function planeBeside(ramp: Ramp, side: Dir): [number, number, number] {
+export function planeBeside(ramp: Ramp, side: Dir): [number, number, number] {
   const h = rampCorners(ramp);
   const raised = h.filter(Boolean).length;
   const i = ((side + 3) % 4) as Dir;
@@ -111,7 +111,7 @@ function planeBeside(ramp: Ramp, side: Dir): [number, number, number] {
  * same tier) bend along their shared edge: their planes differ once the
  * neighbour's is expressed in this cell's lattice.
  */
-function foldsAt(ramp: Ramp, neighbour: Ramp, side: Dir): boolean {
+export function foldsAt(ramp: Ramp, neighbour: Ramp, side: Dir): boolean {
   const [k1, p1, q1] = planeBeside(ramp, side);
   const [k2, p2, q2] = planeBeside(neighbour, ((side + 2) % 4) as Dir);
   // The neighbour's lattice is ours shifted one cell along `side`.
