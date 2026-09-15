@@ -775,33 +775,124 @@ body:has(.rr-loop-bar) .rr-sound {
   position: fixed; inset: 0; z-index: 60; pointer-events: none;
   display: flex; align-items: center; justify-content: center;
 }
-.rr-levelup-flash {
-  position: absolute; inset: 0; background: radial-gradient(circle at 50% 55%, rgba(255, 236, 170, 0.75), rgba(255, 236, 170, 0) 60%);
-  animation: rr-levelup-flash 900ms ease-out both;
+/* THE LIGHTS GO DOWN under the stamp. It used to land straight on the lit
+   burrow — gold text on sunny grass and sand, where it had almost nothing to
+   stand out against. A dark vignette comes up in 180ms, holds for the stamp,
+   and lifts with it (`rr-levelup-out` ends at 2100ms). Darker at the edges
+   than in the middle, so the place is dimmed rather than blacked out. */
+.rr-levelup::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 50%, rgba(8, 6, 4, 0.5) 0%, rgba(8, 6, 4, 0.78) 75%);
+  animation: rr-levelup-dim 2100ms ease-out both;
 }
-@keyframes rr-levelup-flash { 0% { opacity: 0; } 15% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes rr-levelup-dim {
+  0%   { opacity: 0; }
+  9%   { opacity: 1; }
+  81%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+/* The burst: brighter, wider and held longer than the old 0.75 wash, and
+   SCREENED over the dim so it reads as light thrown on the scene rather than
+   as a pale fog laid on top of it. */
+.rr-levelup-flash {
+  position: absolute; inset: 0;
+  /* In vmin, not percentages: a percentage gradient is sized by the corner
+     distance, so on a 1376px desktop the same stops spread the light so thin
+     it barely registered, while a phone got a blinding one. */
+  background: radial-gradient(circle at 50% 50%,
+    rgba(255, 248, 214, 1) 0,
+    rgba(255, 214, 92, 0.9) 14vmin,
+    rgba(255, 160, 40, 0.45) 32vmin,
+    rgba(255, 160, 40, 0) 58vmin);
+  mix-blend-mode: screen;
+  animation: rr-levelup-flash 1200ms ease-out both;
+}
+@keyframes rr-levelup-flash {
+  0%   { opacity: 0; transform: scale(0.6); }
+  12%  { opacity: 1; transform: scale(1); }
+  35%  { opacity: 0.9; }
+  100% { opacity: 0; transform: scale(1.25); }
+}
 /* Raided while away (raided-stamp.tsx): the level-up stamp in the danger red,
    held a second longer — it is a story with a name in it, not a cheer. Gold
    again when every raid bounced off. */
 .rr-raided .rr-levelup-flash {
-  background: radial-gradient(circle at 50% 55%, rgba(255, 90, 90, 0.6), rgba(255, 90, 90, 0) 62%);
+  background: radial-gradient(circle at 50% 50%,
+    rgba(255, 210, 200, 0.9) 0%,
+    rgba(255, 90, 90, 0.7) 20%,
+    rgba(255, 60, 60, 0) 64%);
 }
+/* The raided stamp holds a second longer (out at 2550ms), and so does its dim. */
+.rr-raided::before { animation-duration: 2550ms; }
+@keyframes rr-raided-dim { 0% { opacity: 0; } 7% { opacity: 1; } 84% { opacity: 1; } 100% { opacity: 0; } }
+.rr-raided::before { animation-name: rr-raided-dim; }
 .rr-raided .rr-levelup-stamp {
   color: #ff6b6b;
-  text-shadow: 0 3px 0 #5a0f14, 0 0 24px rgba(255, 80, 80, 0.7);
+  text-shadow:
+    0 3px 0 #5a0f14,
+    0 0 6px rgba(255, 220, 210, 0.9),
+    0 0 20px rgba(255, 80, 80, 1),
+    0 0 52px rgba(230, 40, 40, 0.75);
   animation: rr-victory-stamp 520ms cubic-bezier(0.34, 1.56, 0.64, 1) both, rr-levelup-out 400ms ease-in 2150ms both;
 }
 .rr-raided .rr-levelup-stamp small { color: #ffd9d4; text-shadow: 0 2px 0 #5a0f14; }
 .rr-raided.defended .rr-levelup-flash {
-  background: radial-gradient(circle at 50% 55%, rgba(255, 236, 170, 0.75), rgba(255, 236, 170, 0) 60%);
+  background: radial-gradient(circle at 50% 50%,
+    rgba(255, 248, 214, 1) 0%,
+    rgba(255, 214, 92, 0.85) 18%,
+    rgba(255, 160, 40, 0.35) 42%,
+    rgba(255, 160, 40, 0) 68%);
 }
-.rr-raided.defended .rr-levelup-stamp { color: #ffd138; text-shadow: 0 3px 0 #7a3a10, 0 0 24px rgba(255, 209, 56, 0.8); }
+.rr-raided.defended .rr-levelup-stamp {
+  color: #ffd138;
+  text-shadow:
+    0 3px 0 #7a3a10,
+    0 0 6px rgba(255, 248, 214, 0.95),
+    0 0 20px rgba(255, 209, 56, 1),
+    0 0 48px rgba(255, 170, 40, 0.85);
+}
 .rr-raided.defended .rr-levelup-stamp small { color: #fde7bd; text-shadow: 0 2px 0 #7a3a10; }
 .rr-levelup-stamp {
+  position: relative;
   font-family: var(--font-pixel), ui-monospace, monospace;
   font-size: clamp(22px, 6vw, 44px); letter-spacing: 0.08em; color: #ffd138;
-  text-shadow: 0 3px 0 #7a3a10, 0 0 24px rgba(255, 209, 56, 0.8);
-  animation: rr-victory-stamp 520ms cubic-bezier(0.34, 1.56, 0.64, 1) both, rr-levelup-out 400ms ease-in 1100ms both;
+  /* The glow in three rings — a hot core tight to the glyphs, the gold bloom,
+     and a wide orange halo — where one soft 24px shadow barely lifted the
+     letters off the ground. The dark drop stays first, for the edge. */
+  text-shadow:
+    0 3px 0 #7a3a10,
+    0 0 6px rgba(255, 248, 214, 0.95),
+    0 0 20px rgba(255, 209, 56, 1),
+    0 0 48px rgba(255, 170, 40, 0.85),
+    0 0 90px rgba(255, 140, 30, 0.6);
+  text-align: center;
+  /* Held to 1700ms before it lifts — at 1100 the stamp was gone before a
+     player had finished reading the second line. */
+  animation: rr-victory-stamp 520ms cubic-bezier(0.34, 1.56, 0.64, 1) both, rr-levelup-out 400ms ease-in 1700ms both;
+}
+/* A bloom BEHIND the letters, breathing: the glyphs' own shadows light their
+   edges, this lights the space they stand in. */
+.rr-levelup-stamp::before {
+  content: '';
+  position: absolute;
+  inset: -45% -14%;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(255, 214, 92, 0.6) 0%, rgba(255, 160, 40, 0.25) 45%, rgba(255, 160, 40, 0) 72%);
+  filter: blur(6px);
+  animation: rr-levelup-halo 900ms ease-in-out infinite alternate;
+}
+@keyframes rr-levelup-halo {
+  from { opacity: 0.7; transform: scale(0.94); }
+  to   { opacity: 1; transform: scale(1.06); }
+}
+.rr-raided .rr-levelup-stamp::before {
+  background: radial-gradient(ellipse at center, rgba(255, 90, 90, 0.55) 0%, rgba(230, 40, 40, 0.22) 45%, rgba(230, 40, 40, 0) 72%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .rr-levelup-stamp::before { animation: none; }
 }
 .rr-levelup-stamp small { display: block; font-size: 0.42em; color: #fde7bd; text-shadow: 0 2px 0 #7a3a10; letter-spacing: 0.12em; margin-top: 6px; }
 @keyframes rr-levelup-out { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.15) translateY(-10px); } }

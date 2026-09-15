@@ -16,7 +16,7 @@ import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 
 /** How long the stamp stays, matched to the CSS (`rr-levelup-out` delay + run). */
-const STAMP_MS = 1600;
+const STAMP_MS = 2200;
 
 export function LevelUpStamp({ level, onDone }: { level: number; onDone(): void }) {
   useEffect(() => {
