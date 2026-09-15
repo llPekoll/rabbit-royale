@@ -175,7 +175,9 @@ export function LeaderboardDrawer({ token, playerId, onSpectate, onMe, onOpen }:
         <HubIconButton
           label={open ? 'Hide the season board' : 'Show the season board'}
           pressed={open}
-          count={me?.rank ?? 0}
+          // A standing, not news: "#59" in the quiet chip. It was a bare red
+          // "59", which read as fifty-nine unread things on the board.
+          badge={me?.rank ? `#${me.rank}` : null}
           onClick={() => {
             if (!open) onOpen?.();
             setOpen((v) => !v);

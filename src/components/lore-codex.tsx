@@ -168,6 +168,9 @@ export function LoreCodex({ lifetime, onClose, onRead }: LoreCodexProps) {
 
   const chapter = LORE[selected];
   const locked = lifetime < chapter.unlockAt;
+  // The same rule as the STORY icon's NEW badge (page.tsx `freshChapter`), so
+  // the chapter the badge promised is the one marked NEW on the shelf.
+  const fresh = open > 0 && lifetime - LORE[open - 1].unlockAt < 500;
 
   const bodyFont: CSSProperties = useMemo(
     () => ({ fontFamily: fontReady ? PIXEL_FONT_FAMILY : 'inherit' }),
@@ -209,6 +212,7 @@ export function LoreCodex({ lifetime, onClose, onRead }: LoreCodexProps) {
                     chapter={c}
                     index={i}
                     locked={lifetime < c.unlockAt}
+                    fresh={fresh && i === open - 1}
                     active={i === selected}
                     onSelect={() => setSelected(i)}
                   />
@@ -280,11 +284,13 @@ export function LoreCodex({ lifetime, onClose, onRead }: LoreCodexProps) {
 
 /** One chapter on the shelf: numeral disc, title, and its state. */
 function ChapterTab({
-  chapter, index, locked, active, onSelect,
+  chapter, index, locked, fresh = false, active, onSelect,
 }: {
   chapter: LoreChapter;
   index: number;
   locked: boolean;
+  /** The chapter the STORY icon's NEW badge is about. */
+  fresh?: boolean;
   active: boolean;
   onSelect(): void;
 }) {
@@ -307,6 +313,7 @@ function ChapterTab({
       <span className="rr-lore-tab-text">
         <span className="rr-lore-tab-title" style={{ color: locked ? INK_DIM : INK }}>
           {locked ? `Chapter ${index + 1}` : chapter.title}
+          {fresh && <em className="rr-new-tag">NEW</em>}
         </span>
         <span className="rr-lore-tab-sub" style={{ color: INK_DIM }}>
           {locked

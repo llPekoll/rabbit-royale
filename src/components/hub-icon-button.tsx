@@ -34,15 +34,26 @@ export interface HubIconButtonProps {
   label: string;
   /** Optional count. Absent or 0 draws nothing: a "0" badge notifies of nothing. */
   count?: number;
+  /** What the corner says instead of a bare count ("#59", "NEW"). Wins over `count`. */
+  badge?: string | null;
+  /**
+   * RED MEANS NEWS. `news` is something that happened, which opening the
+   * button will show you (a chapter just opened) — the saturated red dot.
+   * `count` (the default) is a standing number (traps in the shed, your rank):
+   * a quiet chip. Every corner used to be red, so the trophy's rank, the
+   * shed's trap count and a real new chapter all read as "something new in
+   * here" — and opening them found nothing marked new, which read as broken.
+   */
+  tone?: 'news' | 'count';
   /** Pressed state, for a button that toggles something open. */
   pressed?: boolean;
   onClick?(): void;
 }
 
 export function HubIconButton({
-  children, label, count, pressed, onClick,
+  children, label, count, badge: badgeText, tone = 'count', pressed, onClick,
 }: HubIconButtonProps) {
-  const showBadge = !!count && count > 0;
+  const corner = badgeText ?? (count && count > 0 ? (count > 99 ? '99+' : String(count)) : null);
   return (
     <button
       type="button"
@@ -60,8 +71,8 @@ export function HubIconButton({
       }}
     >
       <span style={glyph} aria-hidden>{children}</span>
-      {showBadge && (
-        <span style={badge} aria-hidden>{count > 99 ? '99+' : count}</span>
+      {corner && (
+        <span style={tone === 'news' ? badge : countChip} aria-hidden>{corner}</span>
       )}
     </button>
   );
@@ -115,4 +126,12 @@ const badge: CSSProperties = {
   fontVariantNumeric: 'tabular-nums',
   lineHeight: 1,
   border: '2px solid #ddccbc',
+};
+
+/** A standing number, not news: the same corner, in the chrome's own dark and cream. */
+const countChip: CSSProperties = {
+  ...badge,
+  background: '#2a1810',
+  color: '#fde7bd',
+  border: '2px solid #6b4526',
 };

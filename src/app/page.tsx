@@ -1705,7 +1705,8 @@ function Burrow() {
             <span key={lorePulseKey} className={lorePulseKey > 0 ? 'rr-tab-pop' : undefined} style={{ display: 'inline-flex' }}>
               <HubIconButton
                 label="Story"
-                count={freshChapter ? 1 : 0}
+                badge={freshChapter ? 'NEW' : null}
+                tone="news"
                 onClick={() => setLoreOpen(true)}
               >
                 📜

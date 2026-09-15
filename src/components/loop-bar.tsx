@@ -312,9 +312,15 @@ export function LoopBar({
             {raid.bombs > 0 && <span style={{ ...line, color: INK_DIM }}>{raid.bombs} bomb{raid.bombs === 1 ? '' : 's'} in the bag</span>}
           </span>
         </span>
-        {(raid.open > 0 || pointed === 'raid') && (
-          <span className="rr-hub-badge" style={badge} aria-hidden>{raid.open > 0 ? raid.open : '!'}</span>
-        )}
+        {/* RED ONLY FOR NEWS. The quest pointing here is a "!" in red, like
+            DIG and HOME. The number of open burrows is a standing count, so it
+            takes the quiet chip — a red "20" read as twenty unread things,
+            and the target list has nothing marked new to match it. */}
+        {pointed === 'raid' ? (
+          <span className="rr-hub-badge" style={badge} aria-hidden>!</span>
+        ) : raid.open > 0 ? (
+          <span style={countChip} aria-hidden>{raid.open}</span>
+        ) : null}
       </button>
 
       {/* The loop closes: a drawn arrow, not a glyph the pixel face lacks. */}
@@ -420,4 +426,12 @@ const badge: CSSProperties = {
   fontFamily: 'var(--font-pixel), ui-monospace, monospace',
   fontSize: 11,
   boxShadow: '0 2px 0 rgba(0,0,0,0.4)',
+};
+
+/** A standing number on a slab: the badge's shape in dark and cream, not red. */
+const countChip: CSSProperties = {
+  ...badge,
+  background: '#2a1810',
+  color: '#fde7bd',
+  border: '2px solid #6b4526',
 };

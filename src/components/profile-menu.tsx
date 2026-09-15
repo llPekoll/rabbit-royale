@@ -118,6 +118,13 @@ export function ProfileMenu({
   const [history, setHistory] = useState<History | null>(null);
   const [historyFailed, setHistoryFailed] = useState(false);
   /**
+   * How many raids were UNREAD when the history loaded. Opening the tab marks
+   * them read (and zeroes `history.raids.unseen`), so the count is kept here
+   * to mark those rows NEW — the chip's red badge promised news, and the list
+   * it opens onto has to say which rows it meant.
+   */
+  const [newRaids, setNewRaids] = useState(0);
+  /**
    * Armed when a guest has pressed "abandon" once.
    *
    * A wallet player who disconnects can sign back in; a guest cannot — the
@@ -156,7 +163,11 @@ export function ProfileMenu({
     setHistoryFailed(false);
     fetch('/api/player/history', { headers: auth })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((d) => alive && setHistory(d))
+      .then((d) => {
+        if (!alive) return;
+        setHistory(d);
+        setNewRaids(d?.raids?.unseen ?? 0);
+      })
       .catch(() => alive && setHistoryFailed(true));
     return () => {
       alive = false;
@@ -356,7 +367,7 @@ export function ProfileMenu({
             </button>
           </div>
         ) : (
-          <HistoryTab history={history} failed={historyFailed} />
+          <HistoryTab history={history} failed={historyFailed} newCount={newRaids} />
         )}
       </aside>
     </>,
@@ -402,7 +413,7 @@ function Avatar({ src, size }: { src: string; size: number }) {
   );
 }
 
-function HistoryTab({ history, failed }: { history: History | null; failed: boolean }) {
+function HistoryTab({ history, failed, newCount = 0 }: { history: History | null; failed: boolean; newCount?: number }) {
   // A history that failed to load is not a history that is empty, and neither
   // is one still in flight — saying "Loading..." forever is the worst of the
   // three, because it is the one the player waits on.
@@ -414,6 +425,9 @@ function HistoryTab({ history, failed }: { history: History | null; failed: bool
     (a, b) => +new Date(b.createdAt) - +new Date(a.createdAt),
   );
   const best = Math.max(1, ...history.days.map((d) => d.carrots));
+  // The unread raids are the newest ones against this player (the API sends
+  // them newest first).
+  const fresh = new Set(history.raids.against.slice(0, newCount).map((r) => r.id));
   const bought = history.purchases ?? [];
 
   return (
@@ -447,6 +461,7 @@ function HistoryTab({ history, failed }: { history: History | null; failed: bool
             <li key={r.id} className={r.direction === 'against' ? 'hit' : 'mine'}>
               <span className="rr-raid-who">
                 {r.direction === 'against' ? r.otherName : `You hit ${r.otherName}`}
+                {fresh.has(r.id) && <em className="rr-new-tag">NEW</em>}
               </span>
               <span className="rr-raid-what">
                 {r.result === 'blocked'

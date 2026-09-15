@@ -2443,6 +2443,22 @@ body:has(.rr-lb.open:not(.rr-profile)) .rr-lb-launch {
   vertical-align: middle;
 }
 
+/* NEW, on the thing a red badge was about (a chapter, an unread raid). The
+   badge outside promises news; this is where the news is, in the same red. */
+.rr-new-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: var(--danger);
+  color: #1a0a0a;
+  font-size: 9px;
+  font-style: normal;
+  line-height: 12px;
+  letter-spacing: 0.06em;
+  vertical-align: middle;
+}
+
 /* GUEST, on the wallet chip. Muted rather than alarming: it is a normal way to
    play, not an error — but it is stated, because a guest who never learns their
    burrow is browser-bound is the one who loses it. */
