@@ -24,3 +24,7 @@ android/.gradle/
 android/app/build/
 android/build/
 android/app/google-services.json
+
+# Python (scripts/render-bird.py tourne sous Blender)
+__pycache__/
+*.pyc
