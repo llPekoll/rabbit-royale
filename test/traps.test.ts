@@ -174,3 +174,58 @@ describe('refundTraps', () => {
 /** A row with its refund applied, for the assertions above. */
 const refundTrapRow = (row: { trapsOwned: number; trapsClaimedAt: Date }) =>
   ({ ...row, ...refundTrap(row) });
+
+/**
+ * A NEW BURROW HOLDS ITS FULL ALLOWANCE.
+ *
+ * `freeTraps` measuring from `trapsClaimedAt` is right (see above) and the
+ * players table defaults that column to now(), so the two correct pieces
+ * composed into a wrong answer: every player ever created was born holding
+ * zero traps and could bury nothing for REFILL_MS/FREE_PER_DAY — eight hours —
+ * while the burrow screen offered burying as its one gesture. Both creation
+ * paths now backdate the stamp, and this is the test that says so.
+ *
+ * The row shape is asserted rather than the database: `createGuestPlayer` and
+ * `resolveWalletPlayer` need a live Postgres, and the thing worth locking is
+ * the ARITHMETIC they rely on — that a stamp one REFILL_MS old means a full
+ * bag, and that it cannot mean more than a full one.
+ */
+describe('a newly created player', () => {
+  /** What guest.ts and wallet-login.ts write into the row. */
+  const born = (now = Date.now()) => ({
+    trapsOwned: 0,
+    trapsClaimedAt: new Date(now - TRAPS.REFILL_MS),
+  });
+
+  it('starts with the full free allowance, not an empty bag', () => {
+    expect(freeTraps(born())).toBe(TRAPS.FREE_PER_DAY);
+    expect(availableTraps(born())).toBe(TRAPS.FREE_PER_DAY);
+  });
+
+  it('can bury a trap on its first screen', () => {
+    // The burrow's one gesture, on an empty board and a trappable tile.
+    expect(placementBlocker(born(), 0, true, false)).toBeNull();
+  });
+
+  it('is not handed MORE than the allowance by the backdating', () => {
+    // The cap is what makes REFILL_MS a safe thing to subtract: point the
+    // stamp a week back and the answer is still three.
+    expect(freeTraps(born())).toBe(freeTraps({
+      trapsOwned: 0, trapsClaimedAt: ago(7 * 24 * HOUR),
+    }));
+  });
+
+  it('spends those three down to nothing, one at a time', () => {
+    // Guards the other half: a full bag at birth must still DRAIN normally,
+    // or the backdating has bought an infinite allowance.
+    let row = born();
+    for (let i = TRAPS.FREE_PER_DAY; i > 0; i--) {
+      expect(freeTraps(row)).toBe(i);
+      const spent = spendTrap(row);
+      expect(spent).not.toBeNull();
+      row = { ...row, ...spent! };
+    }
+    expect(freeTraps(row)).toBe(0);
+    expect(spendTrap(row)).toBeNull();
+  });
+});

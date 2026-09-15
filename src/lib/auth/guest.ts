@@ -45,7 +45,7 @@ export async function createGuestPlayer(now: Date = new Date()): Promise<{
   const id = `guest:${randomUUID()}`;
   const name = randomRabbitName(id);
 
-  const { RAID, OUT_OF_RUN_ENERGY } = await import('../../../config/tuning');
+  const { RAID, OUT_OF_RUN_ENERGY, TRAPS } = await import('../../../config/tuning');
   await db.insert(players).values({
     id,
     // Null, not a placeholder string: the unique index on this column is what
@@ -60,6 +60,18 @@ export async function createGuestPlayer(now: Date = new Date()): Promise<{
     // ended after it. Every energy game hands over a full bar on day one.
     energy: OUT_OF_RUN_ENERGY.MAX,
     energyUpdatedAt: now,
+    // A FULL trap allowance, for the same reason the bank above is full — and
+    // the column's default is wrong here in the same way. `trapsClaimedAt` is
+    // the instant the free allowance was last drawn down, and `freeTraps`
+    // reads it as "how long has it been refilling"; `defaultNow()` therefore
+    // means a brand new burrow has waited zero seconds and holds ZERO traps.
+    // A new player then cannot bury anything for eight hours, which is the
+    // one gesture the burrow screen exists to offer them.
+    //
+    // Backdating by a whole REFILL_MS hands over the full FREE_PER_DAY at
+    // once. It cannot hand over more: `freeTraps` caps at FREE_PER_DAY however
+    // far back this points, so this is "full", not "three".
+    trapsClaimedAt: new Date(now.getTime() - TRAPS.REFILL_MS),
     createdAt: now,
     lastSeenAt: now,
   });

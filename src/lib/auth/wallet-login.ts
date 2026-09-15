@@ -82,7 +82,7 @@ export async function resolveWalletPlayer(
     return id;
   }
 
-  const { RAID, OUT_OF_RUN_ENERGY } = await import('../../../config/tuning');
+  const { RAID, OUT_OF_RUN_ENERGY, TRAPS } = await import('../../../config/tuning');
   await db
     .insert(players)
     .values({
@@ -96,6 +96,14 @@ export async function resolveWalletPlayer(
       // ended after it. Every energy game hands over a full bar on day one.
       energy: OUT_OF_RUN_ENERGY.MAX,
       energyUpdatedAt: now,
+      // A FULL trap allowance, for the same reason the bank above is full.
+      // `trapsClaimedAt` is when the free allowance was last drawn down, and
+      // `freeTraps` reads it as "how long has it been refilling" — so the
+      // column's `defaultNow()` means a brand new burrow has waited zero
+      // seconds and holds ZERO traps, unable to bury anything for eight hours.
+      // Backdating a whole REFILL_MS hands over FREE_PER_DAY at once, and no
+      // more: `freeTraps` caps there however far back this points.
+      trapsClaimedAt: new Date(now.getTime() - TRAPS.REFILL_MS),
       createdAt: now,
       lastSeenAt: now,
     })
