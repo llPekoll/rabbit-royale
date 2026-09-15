@@ -1813,7 +1813,7 @@ function Burrow() {
                   it is the next-action line (config/next-action.ts) — the
                   strip never goes away, because a burrow with nothing
                   pointing anywhere is a column of readings. */}
-              <div style={{ marginBottom: 10 }}>
+              <div className="rr-toon-in" style={{ marginBottom: 10, ['--rr-toon-delay' as string]: '0ms' }}>
                 {quest?.active ? (
                   <QuestCard
                     quest={quest.active}
@@ -1831,7 +1831,7 @@ function Burrow() {
                   is a full-width carrot button rather than a nine-slice the
                   colour of the panel behind it, which is what made the card's
                   only action its least visible element. */}
-              <div style={{ marginBottom: 10 }}>
+              <div className="rr-toon-in" style={{ marginBottom: 10, ['--rr-toon-delay' as string]: '70ms' }}>
                 <GardenCard
                   ready={burrow?.gardenReady ?? 0}
                   yieldPerHour={burrow?.yieldPerHour ?? 0}
@@ -1850,15 +1850,17 @@ function Burrow() {
                   cannot take. This was "DIG DEEPER", which named an action the
                   game does not have over a picture of nothing; see
                   burrow-card-panel.tsx. */}
-              <BurrowPanel
-                level={burrow?.level ?? 1}
-                stock={burrow?.stock ?? 0}
-                yieldPerHour={burrow?.yieldPerHour ?? 0}
-                upgradeCost={burrow?.upgradeCost ?? null}
-                canUpgrade={!!burrow?.canUpgrade}
-                pending={pending}
-                onUpgrade={() => act('upgrade')}
-              />
+              <div className="rr-toon-in" style={{ ['--rr-toon-delay' as string]: '140ms' }}>
+                <BurrowPanel
+                  level={burrow?.level ?? 1}
+                  stock={burrow?.stock ?? 0}
+                  yieldPerHour={burrow?.yieldPerHour ?? 0}
+                  upgradeCost={burrow?.upgradeCost ?? null}
+                  canUpgrade={!!burrow?.canUpgrade}
+                  pending={pending}
+                  onUpgrade={() => act('upgrade')}
+                />
+              </div>
 
               </>
               )}

@@ -23,6 +23,7 @@
  * soil palette already follows against its own art.
  */
 import type { CSSProperties, ReactNode } from 'react';
+import { PxPanel } from './px';
 
 /* ── Sampled from the reference ────────────────────────────────────────── */
 /** The card's face — near-black brown, warmer at the top where the light is. */
@@ -115,21 +116,21 @@ export function HubCard({
   // the simple row the energy card needs.
   if (footer) {
     return (
-      <div style={{ ...cardBase, ...stacked, ...heightBox(ratio), ...style }}>
+      <PxPanel color={FACE_TOP} style={{ ...cardBase, ...stacked, ...heightBox(ratio), ...style }}>
         <div style={band}>
           {sprite}
           <div style={column}>{children}</div>
         </div>
         {footer}
-      </div>
+      </PxPanel>
     );
   }
 
   return (
-    <div style={{ ...cardBase, ...heightBox(ratio), ...style }}>
+    <PxPanel color={FACE_TOP} style={{ ...cardBase, ...heightBox(ratio), ...style }}>
       {sprite}
       <div style={column}>{children}</div>
-    </div>
+    </PxPanel>
   );
 }
 
@@ -241,12 +242,10 @@ const cardBase: CSSProperties = {
   padding: '1.1svh 5%',
   boxSizing: 'border-box',
   width: '100%',
-  border: `2px solid ${RIM}`,
-  borderRadius: 12,
-  background: `linear-gradient(180deg, ${FACE_TOP} 0%, ${FACE_BOTTOM} 100%)`,
-  // The card sits on bright water; without a cast shadow its dark face reads
-  // as a hole rather than as an object lying on top.
-  boxShadow: '0 3px 0 rgba(0, 0, 0, 0.35)',
+  /* THE FRAME IS THE CODEX'S NOW (`PxPanel`): the kit's nine-slice pixel
+     border with its pale top-left light and dark outline, filled with the
+     card's own face colour. It replaced a 2px bone rim, a 12px radius and a
+     smooth gradient — the one look on the burrow that was not pixel art. */
   /* `size`, and it has to be: every length inside this card is a `cqh` share
      of the card's own height, and only `size` makes the height queryable.
      `inline-size` was tried and is the wrong trade — the `cqh` lengths then

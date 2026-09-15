@@ -2443,6 +2443,42 @@ body:has(.rr-lb.open:not(.rr-profile)) .rr-lb-launch {
   vertical-align: middle;
 }
 
+/* ── Pixel chrome: the press, juiced (px.tsx) ──────────────────────────────
+   The kit's button already sinks its cap on :active. On top of that the whole
+   button squashes — wider and shorter, like something soft being pushed — and
+   springs back with an overshoot. The loud actions also wiggle after the
+   press (PxButton `wiggle`). */
+.rr-px-btn {
+  transition: transform 160ms cubic-bezier(0.34, 1.56, 0.64, 1), filter 90ms ease;
+}
+.rr-px-btn:active:not(:disabled) {
+  transform: scale(1.04, 0.9);
+  transition-duration: 60ms;
+}
+@media (hover: hover) {
+  .rr-px-btn:hover:not(:disabled) { transform: translateY(-1px); }
+}
+
+/* ── Toon entrance: the burrow's panels arrive, they are not just there ─────
+   Each card swings in from the side it lives on with a squash and a small
+   overshoot, one after another (`--rr-toon-delay`, set per card). FAST on
+   purpose — the whole column is in place in about half a second, because an
+   entrance a player waits through on every visit home stops being charming by
+   the third. */
+.rr-toon-in {
+  animation: rr-toon-in 380ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation-delay: var(--rr-toon-delay, 0ms);
+}
+@keyframes rr-toon-in {
+  0%   { opacity: 0; transform: translateX(-32px) scale(0.86, 1.08); }
+  55%  { opacity: 1; transform: translateX(5px) scale(1.04, 0.96); }
+  100% { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rr-px-btn, .rr-px-btn:active:not(:disabled), .rr-px-btn:hover:not(:disabled) { transition: none; transform: none; }
+  .rr-toon-in { animation: none; }
+}
+
 /* NEW, on the thing a red badge was about (a chapter, an unread raid). The
    badge outside promises news; this is where the news is, in the same red. */
 .rr-new-tag {

@@ -22,6 +22,7 @@
  */
 import { useEffect, useRef, type CSSProperties } from 'react';
 import gsap from 'gsap';
+import { PxButton, pxLabel } from './px';
 import {
   HubCard, HubRow, headingText, valueText, subText, SUB_CLASS,
 } from './hub-card';
@@ -110,26 +111,22 @@ export function QuestCard({
   const canClaim = quest.done && !pending;
 
   const footer = quest.done ? (
-    <button
+    // The codex's pixel button in the carrot it always was — see `PxButton`.
+    // It wiggles: taking a reward is one of the loud moments.
+    <PxButton
       type="button"
-      className="rr-hub-btn rr-slab-btn"
+      className="rr-hub-btn"
       onClick={onClaim}
       disabled={!canClaim}
       aria-label={`${rewardLabel(quest)} for ${quest.title}`}
-      style={{ ...slab, background: canClaim ? BTN_LIP : BTN_OFF_SHADOW }}
+      color={canClaim ? BTN : BTN_OFF}
+      shadowColor={canClaim ? BTN_SHADOW : BTN_OFF_SHADOW}
+      textColor={canClaim ? '#ffffff' : BTN_OFF_INK}
+      wiggle
+      style={slab}
     >
-      <span
-        className="rr-slab-face"
-        style={{
-          ...face,
-          background: canClaim ? BTN : BTN_OFF,
-          color: canClaim ? '#ffffff' : BTN_OFF_INK,
-          boxShadow: `inset 0 -3px 0 ${canClaim ? BTN_SHADOW : BTN_OFF_SHADOW}`,
-        }}
-      >
-        {rewardLabel(quest)}
-      </span>
-    </button>
+      <span style={{ ...pxLabel, fontSize: 'clamp(9px, 15cqh, 15px)' }}>{rewardLabel(quest)}</span>
+    </PxButton>
   ) : undefined;
 
   return (
@@ -173,31 +170,10 @@ export function QuestCard({
   );
 }
 
-const face: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  width: '100%',
-  height: 'calc(100% - 3px)',
-  position: 'absolute',
-  top: 0,
-  left: 0,
-  borderRadius: 8,
-  fontFamily: 'var(--font-pixel), ui-monospace, monospace',
-  fontSize: 'clamp(9px, 15cqh, 15px)',
-  letterSpacing: '0.08em',
-  transition: 'transform 90ms ease-out',
-};
-
+/** The claim button's size in its card; the look is `PxButton`'s. */
 const slab: CSSProperties = {
   height: '50cqh',
   minHeight: 32,
   flexShrink: 0,
   width: '100%',
-  position: 'relative',
-  border: 'none',
-  borderRadius: 8,
-  lineHeight: 1,
-  padding: 0,
-  overflow: 'hidden',
 };

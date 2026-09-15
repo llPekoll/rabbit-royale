@@ -24,6 +24,7 @@
  * visible. When a real vault arrives, this line is where it lands.
  */
 import type { CSSProperties } from 'react';
+import { PxButton, pxLabel } from './px';
 import {
   HubCard, HubRow, RIM, headingText, valueText, subText, SUB_CLASS, groupDigits,
 } from './hub-card';
@@ -86,28 +87,19 @@ export function BurrowPanel({
       // A plinth plus a face, so a press sinks the slab into its own base —
       // see `.rr-slab-btn` in globals.css and the garden card's twin.
       footer={
-        <button
+        <PxButton
           type="button"
-          className="rr-hub-btn rr-slab-btn"
+          className="rr-hub-btn"
           onClick={onUpgrade}
           disabled={!canUpgrade || pending}
-          style={{
-            ...upgradeButton,
-            background: canUpgrade && !pending ? BTN_LIP : BTN_OFF_SHADOW,
-          }}
+          color={canUpgrade && !pending ? BTN : BTN_OFF}
+          shadowColor={canUpgrade && !pending ? BTN_SHADOW : BTN_OFF_SHADOW}
+          textColor={canUpgrade && !pending ? '#ffffff' : BTN_OFF_INK}
+          wiggle
+          style={{ height: '34cqh', minHeight: 32, flexShrink: 0, width: '100%' }}
         >
-          <span
-            className="rr-slab-face"
-            style={{
-              ...upgradeFace,
-              background: canUpgrade && !pending ? BTN : BTN_OFF,
-              color: canUpgrade && !pending ? '#ffffff' : BTN_OFF_INK,
-              boxShadow: `inset 0 -3px 0 ${canUpgrade && !pending ? BTN_SHADOW : BTN_OFF_SHADOW}`,
-            }}
-          >
-            {maxed ? 'MAX LEVEL' : 'UPGRADE'}
-          </span>
-        </button>
+          <span style={{ ...pxLabel, fontSize: 'clamp(9px, 15cqh, 15px)' }}>{maxed ? 'MAX LEVEL' : 'UPGRADE'}</span>
+        </PxButton>
       }
     >
       <HubRow>

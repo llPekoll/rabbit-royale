@@ -28,6 +28,7 @@
  * and this card is GARDEN plus HARVEST again.
  */
 import type { CSSProperties } from 'react';
+import { PxButton, pxLabel } from './px';
 import {
   HubCard, HubRow, headingText, valueText, subText, SUB_CLASS,
 } from './hub-card';
@@ -95,28 +96,19 @@ export function GardenCard({
       // base instead of sliding the whole thing down the screen — see
       // `.rr-slab-btn` in globals.css.
       footer={
-        <button
-            type="button"
-            className="rr-hub-btn rr-slab-btn"
-            onClick={onHarvest}
-            disabled={!canHarvest}
-            style={{
-              ...harvestButton,
-              background: canHarvest ? BTN_LIP : BTN_OFF_SHADOW,
-            }}
-          >
-            <span
-              className="rr-slab-face"
-              style={{
-                ...harvestFace,
-                background: canHarvest ? BTN : BTN_OFF,
-                color: canHarvest ? '#ffffff' : BTN_OFF_INK,
-                boxShadow: `inset 0 -3px 0 ${canHarvest ? BTN_SHADOW : BTN_OFF_SHADOW}`,
-              }}
-            >
-              HARVEST
-          </span>
-        </button>
+        <PxButton
+          type="button"
+          className="rr-hub-btn"
+          onClick={onHarvest}
+          disabled={!canHarvest}
+          color={canHarvest ? BTN : BTN_OFF}
+          shadowColor={canHarvest ? BTN_SHADOW : BTN_OFF_SHADOW}
+          textColor={canHarvest ? '#ffffff' : BTN_OFF_INK}
+          wiggle
+          style={harvestButton}
+        >
+          <span style={{ ...pxLabel, fontSize: 'clamp(9px, 15cqh, 15px)' }}>HARVEST</span>
+        </PxButton>
       }
     >
       <HubRow>
@@ -198,14 +190,7 @@ const harvestButton: CSSProperties = {
   // flex compressed it back to 33% of the card and undid the measurement.
   flexShrink: 0,
   width: '100%',
-  position: 'relative',
-  border: 'none',
-  borderRadius: 8,
-  lineHeight: 1,
-  padding: 0,
-  overflow: 'hidden',
-  /* NO bottom margin — the shadow is drawn INSIDE the box (see the `inset`
-     box-shadow above). A margin here is the one length in the card that does
-     not scale with it, a constant among `cqh` shares, and it was the last few
-     pixels of overflow at every viewport. */
+  /* Size only: the look is `PxButton`'s. No padding, radius or overflow here —
+     the kit reserves its bevel with its own padding, and clipping the root
+     would cut the pixel corners. */
 };
