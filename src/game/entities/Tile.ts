@@ -1,4 +1,4 @@
-import { Container, Sprite, Assets, BitmapText, Polygon, AnimatedSprite, Graphics } from 'pixi.js';
+import { Container, Sprite, Assets, BitmapText, Polygon, AnimatedSprite, Graphics, type Texture } from 'pixi.js';
 import { HALF_W, HALF_H, tilePos, tileDepth } from '@/config/gridConfig';
 import * as Keys from '@/config/assetKeys';
 import { pixelText, shadowedPixelText, formatMult, TINT_MULT } from '../ui/PixelText';
@@ -87,6 +87,17 @@ const CHEST_DROP_HEIGHT = 90;
  * pixel size AND on the pixel grid (integer, so the art stays crisp).
  */
 const CHEST_SCALE = 2;
+/**
+ * The closed chest's frames, or null while the atlas is still coming.
+ *
+ * `higblight` is how the tag is spelled in the Aseprite file; `highlight` is
+ * the spelling it would have if anyone ever fixes it. Both are accepted so a
+ * corrected export does not empty the raid board.
+ */
+function chestIdleFrames(): Texture[] | null {
+  const idle = lootBoxSheet?.animations?.['higblight'] ?? lootBoxSheet?.animations?.['highlight'];
+  return idle && idle.length > 0 ? idle : null;
+}
 /** The shine (`highlight` tag) plays on its own every few seconds, jittered so
  *  two chests on screen never pulse in lockstep. */
 const CHEST_SHINE_EVERY = [4.5, 8] as const;
@@ -678,8 +689,15 @@ export class Tile {
    */
   setChest(tint: number, drop = false, tier: string = 'bronze'): void {
     if (this.chestSprite) return;
-    const tex = Assets.get(Keys.TREASURE_CHEST);
-    if (!tex) return;
+    // Gated on the ATLAS FRAMES, which are the only thing that draws the chest
+    // now. It used to be gated on a flat `treasure_chest.webp` that was merely
+    // the fallback — so the sheet could be parsed and ready and the chest would
+    // still refuse to appear if that one PNG had not loaded, and deleting the
+    // PNG would have emptied every raid board silently. Checked here rather
+    // than inside `buildChestSprite` so the glow, ring and shadow are never
+    // laid down around a chest that is not coming.
+    const idle = chestIdleFrames();
+    if (!idle) return;
     const flair = CHEST_TIER_FLAIR[tier] ?? CHEST_TIER_FLAIR.bronze;
 
     // The rarity is carried by the GROUND GLOW and the RING, never by tinting
@@ -707,7 +725,7 @@ export class Tile {
     this.chestShadow = shadow;
     this.container.addChild(shadow);
 
-    const s = this.buildChestSprite(tex);
+    const s = this.buildChestSprite(idle);
     this.chestSprite = s;
     this.container.addChild(s);
 
@@ -838,23 +856,24 @@ export class Tile {
    * reading as an event. Falls back to the still treasure-chest PNG when the
    * atlas has not loaded, so a chest is never invisible.
    */
-  private buildChestSprite(fallback: import('pixi.js').Texture): Sprite {
-    const idle = lootBoxSheet?.animations?.['higblight'] ?? lootBoxSheet?.animations?.['highlight'];
-    if (idle && idle.length > 0) {
-      const anim = new AnimatedSprite(idle);
-      anim.anchor.set(0.5, 0.8);
-      anim.scale.set(CHEST_SCALE);
-      anim.gotoAndStop(0); // idle = the closed box, still
-      this.chestAnim = anim;
-      this.scheduleChestShine();
-      return anim;
-    }
-    const s = new Sprite(fallback);
-    s.anchor.set(0.5, 0.8);
-    // The fallback PNG is 28px wide against the atlas' 23 — match the drawn
-    // size rather than the scale, so swapping to it is not a size jump.
-    s.scale.set((23 * CHEST_SCALE) / fallback.width);
-    return s;
+  /**
+   * The chest, from the kit's atlas — the only source there is.
+   *
+   * There used to be a still `treasure_chest.webp` behind this as a fallback,
+   * a flat box with no light on it. It went because a chest that never catches
+   * the light reads as a sticker rather than an object (the long version is in
+   * `loot-chest.tsx`), and because a fallback nobody ever saw was a second
+   * chest to keep in step with the first. `setChest` will not call this
+   * without the sheet.
+   */
+  private buildChestSprite(idle: Texture[]): Sprite {
+    const anim = new AnimatedSprite(idle);
+    anim.anchor.set(0.5, 0.8);
+    anim.scale.set(CHEST_SCALE);
+    anim.gotoAndStop(0); // idle = the closed box, still
+    this.chestAnim = anim;
+    this.scheduleChestShine();
+    return anim;
   }
 
   /** Play the shine once, then book the next one. */

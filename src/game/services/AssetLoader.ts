@@ -26,7 +26,6 @@ const IMAGES = [
   { key: Keys.BOMB_SMALL, src: '/assets/misc/RR-Bomb-Small.webp' },
   { key: Keys.LOGO, src: '/assets/ui/rr-logo-1x.webp' },
   { key: Keys.LOGO_BANNER, src: '/assets/ui/rr-logo-banner.webp' },
-  { key: Keys.TREASURE_CHEST, src: '/assets/ui/treasure_chest.webp' },
   { key: Keys.LOOT_BOX, src: '/assets/fx/loot-box.webp' },
   // The carrot comes from the shared kit rather than public/: it is the same
   // prop the hub's season pass draws, and one copy means one carrot.

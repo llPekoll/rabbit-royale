@@ -65,7 +65,6 @@ export const LIGHTNING_BOLT = 'lightning-bolt';
 // UI
 export const LOGO = 'logo';
 export const LOGO_BANNER = 'logo-banner';
-export const TREASURE_CHEST = 'treasure-chest';
 /** The animated loot box (shared with the arena): idle frames + a `highlight`
  *  shine tag. Its atlas ships beside it as `loot-box.json`. */
 export const LOOT_BOX = 'loot-box';
