@@ -114,10 +114,19 @@ type Where = 'burrow' | 'island';
 const RAID_OVER_MS = 2000;
 /** How long the haul is announced in the burrow once home. */
 const RAID_TOAST_MS = 4000;
+/** How a held crossing ended — see `waitForIsland`. */
+type IslandArrival = 'ready' | 'refused' | 'late';
+
 /** How long the run's haul sits over the DIG slab. Matches `.rr-home-haul`'s animation. */
 const BROUGHT_HOME_MS = 4000;
 /** How long a burrow toast stands under the pill before it clears itself. */
 const NOTE_MS = 4000;
+/**
+ * The longest the carrot shutter stays shut waiting for an island. Past it
+ * the crossing turns round with a reason: a black screen with no end is the
+ * one answer worse than "try again".
+ */
+const ISLAND_WAIT_MS = 8000;
 
 export default function Home() {
   return (
@@ -341,12 +350,61 @@ function Burrow() {
     if (!ready || !island || !game.islandSeed) return;
     if (shownSeed.current === game.islandSeed) return;
     shownSeed.current = game.islandSeed;
-    void island.setIsland(game.islandSeed).then(() => {
+    islandBuild.current = island.setIsland(game.islandSeed).then(() => {
       // The snapshot's rabbits and dug tiles were applied to the OLD board, so
       // they have to be replayed onto the new one.
       game.resync();
     });
   }, [ready, game.islandSeed, game]);
+
+  /**
+   * THE SHUTTER WAITS FOR THE ISLAND.
+   *
+   * The carrot iris used to open on a fixed beat after the cut, whatever the
+   * server had answered by then. On a slow join — or a dropped socket — it
+   * opened on the LAST island: its dug tiles, no rabbit, the old "Run over"
+   * card. The crossing out now holds the shutter shut until an island snapshot
+   * for THIS join has landed and its board is built, with a ceiling
+   * (ISLAND_WAIT_MS) past which it turns round and says so.
+   *
+   * `islandSeen` is the newest snapshot whose board is ready, compared with
+   * the count taken when the crossing began — so an answer that beats the
+   * iris to the cut is not waited for twice. The seed effect above runs first
+   * in the same commit, so a new seed's rebuild is already in `islandBuild`.
+   */
+  const islandBuild = useRef<Promise<void> | null>(null);
+  const islandSeen = useRef(0);
+  const islandWaiter = useRef<((result: IslandArrival) => void) | null>(null);
+  const refusedRef = useRef(game.refused);
+  refusedRef.current = game.refused;
+  useEffect(() => {
+    if (!game.islandKey) return;
+    const key = game.islandKey;
+    const done = () => {
+      islandSeen.current = Math.max(islandSeen.current, key);
+      islandWaiter.current?.('ready');
+      islandWaiter.current = null;
+    };
+    if (islandBuild.current) void islandBuild.current.then(done, done);
+    else done();
+  }, [game.islandKey]);
+  // A refused seat answers the join too: open, and let the refusal effect turn
+  // the crossing round, rather than holding black until the ceiling.
+  useEffect(() => {
+    if (!game.refused) return;
+    islandWaiter.current?.('refused');
+    islandWaiter.current = null;
+  }, [game.refused]);
+  const waitForIsland = useCallback(
+    (seenBefore: number, askedAt: number) => new Promise<IslandArrival>((resolve) => {
+      if (islandSeen.current > seenBefore) { resolve('ready'); return; }
+      const refused = refusedRef.current;
+      if (refused && refused.at >= askedAt) { resolve('refused'); return; }
+      const ceiling = setTimeout(() => { islandWaiter.current = null; resolve('late'); }, ISLAND_WAIT_MS);
+      islandWaiter.current = (result) => { clearTimeout(ceiling); resolve(result); };
+    }),
+    [],
+  );
 
   // Whether the player's rabbit has been panned out of frame — see
   // IslandScene.setRabbitInViewListener. Drives the "Find my rabbit" button.
@@ -492,12 +550,31 @@ function Burrow() {
     // one up. Not needed on the very first trip — the socket's `connect` joins
     // once — but harmless there: the server answers a join it already granted
     // with the same island snapshot.
+    // Counted BEFORE the join goes out, so an answer faster than the iris
+    // still counts as this crossing's island (see `waitForIsland`).
+    const seenBefore = islandSeen.current;
+    const askedAt = Date.now();
     if (next === 'island' && where === 'burrow' && !spectating) game.join();
+    const holdForIsland = next === 'island' && !spectating;
+    let arrival: IslandArrival = 'ready';
     setCrossing(true);
     void h
-      .wipeTo(next === 'island' ? SCENE.island : SCENE.burrow, () => setWhere(next))
-      .finally(() => setCrossing(false));
-  }, [where, spectating, game]);
+      .wipeTo(next === 'island' ? SCENE.island : SCENE.burrow, async () => {
+        setWhere(next);
+        if (holdForIsland) arrival = await waitForIsland(seenBefore, askedAt);
+      })
+      .finally(() => {
+        setCrossing(false);
+        // Nothing came. Turn round rather than open on a board with no rabbit
+        // on it — and say why, or the trip home reads as the game giving up.
+        if (arrival === 'late') {
+          refuse('The island did not answer. Try again in a moment.');
+          goToRef.current('burrow');
+        }
+      });
+  }, [where, spectating, game, waitForIsland, refuse]);
+  const goToRef = useRef(goTo);
+  goToRef.current = goTo;
 
   /**
    * Enough for a run — a whole one, ENERGY.RUN_COST of it, which the server

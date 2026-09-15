@@ -239,6 +239,13 @@ export function useGameSocket(
   const [recap, setRecap] = useState<RunRecap | null>(null);
   const [connected, setConnected] = useState(false);
   /**
+   * Bumped by every island snapshot, including one for the SAME seed. The
+   * crossing's shutter waits for it (page.tsx `waitForIsland`): the seed alone
+   * cannot say "the server answered this join", because a rejoin can land on
+   * the island it left.
+   */
+  const [islandKey, setIslandKey] = useState(0);
+  /**
    * The socket was up and fell over (not closed by us). `connected` alone
    * cannot say it: it is also false before the first connect, and a banner
    * saying "reconnecting" during the boot would be a lie.
@@ -382,6 +389,7 @@ export function useGameSocket(
       snapshotRef.current = snap;
       setRefused(null);
       setIslandSeed(snap.seed);
+      setIslandKey((k) => k + 1);
       setWarnStage(snap.warnStage);
       setRecap(null);
       setFirstRun(snap.first === true);
@@ -655,7 +663,7 @@ export function useGameSocket(
 
   const me = playerId ? rabbits.get(playerId) ?? null : null;
   return {
-    islandSeed, rabbits, me, warnStage, recap, banked, bankedCarrots, connected, dropped, refused,
+    islandSeed, islandKey, rabbits, me, warnStage, recap, banked, bankedCarrots, connected, dropped, refused,
     firstRun, digs, bank, erupting,
     chestPrize, clearChestPrize: () => setChestPrize(null),
     moveTo, restart, join, leave, bindScene, resync,

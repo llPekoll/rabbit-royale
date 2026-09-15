@@ -33,7 +33,7 @@ export interface GameHandles {
    * the HUD never appears over the place it does not belong to. Resolves once
    * the shutter is fully open again.
    */
-  wipeTo(key: SceneKey, atCut?: () => void): Promise<void>;
+  wipeTo(key: SceneKey, atCut?: () => void | Promise<void>): Promise<void>;
   /**
    * The same iris, over a change that stays on ONE scene.
    *
@@ -129,8 +129,10 @@ export function GameCanvas({
                 const wipe = ref.app?.wipe;
                 // No shutter yet (an early press during boot) is not a reason
                 // to refuse the move — cross bare rather than not at all.
-                if (!wipe) { scenes.show(key); atCut?.(); return Promise.resolve(); }
-                return wipe.play(() => { scenes.show(key); atCut?.(); });
+                if (!wipe) { scenes.show(key); return Promise.resolve(atCut?.()).then(() => {}); }
+                // AWAITED: a crossing out holds the shutter shut until its
+                // island has arrived (page.tsx `waitForIsland`).
+                return wipe.play(async () => { scenes.show(key); await atCut?.(); });
               },
               wipeOver: (atCut) => {
                 const wipe = ref.app?.wipe;

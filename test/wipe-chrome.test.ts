@@ -35,7 +35,19 @@ describe('chrome across the wipe', () => {
   it('still swaps the scene at the black midpoint', () => {
     // The scene swap and `setWhere` must stay in the midpoint callback: moving
     // them later would show the OLD place through the opening aperture.
-    expect(PAGE).toMatch(/wipeTo\([^)]*,\s*\(\) => setWhere\(next\)\)/);
+    // The midpoint is async now (it may wait for the island, below), but
+    // `setWhere` is still the first thing it does.
+    expect(PAGE).toMatch(/wipeTo\([^)]*,\s*async \(\) => \{\s*setWhere\(next\);/);
+  });
+
+  it('holds the shutter until the island has arrived', () => {
+    // The iris used to open on a fixed beat, and a slow join opened it on the
+    // last island with no rabbit and the old recap. The midpoint awaits the
+    // island, and the shutter awaits the midpoint.
+    expect(PAGE).toMatch(/if \(holdForIsland\) arrival = await waitForIsland\(seenBefore, askedAt\);/);
+    expect(PAGE).toMatch(/if \(arrival === 'late'\) \{[\s\S]{0,200}goToRef\.current\('burrow'\)/);
+    const CANVAS = readFileSync(new URL('../src/components/game-canvas.tsx', import.meta.url), 'utf8');
+    expect(CANVAS).toMatch(/wipe\.play\(async \(\) => \{ scenes\.show\(key\); await atCut\?\.\(\); \}\)/);
   });
 
   it('shows neither screen while crossing', () => {
