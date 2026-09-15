@@ -17,6 +17,23 @@ export interface RabbitGrid {
   depth(tileIndex: number): number;
 }
 
+/**
+ * The knockback's shape — see `playKnockback`.
+ *
+ * Under the server's 1.2s stun (BOMB.STUN_MS) with room for the landing
+ * bounce, so the rabbit is back on its feet before the ring relights. The
+ * arc is low on purpose: the tile it lands on has to stay readable under it.
+ */
+const KNOCK_FLIGHT_S = 0.55;
+const KNOCK_HEIGHT_PX = 34;
+/** Whole turns in the air. Two is a tumble; three starts to blur. */
+const KNOCK_SPINS = 2;
+/** Squash on impact, as factors of the resting scale. */
+const KNOCK_SQUASH_X = 1.3;
+const KNOCK_SQUASH_Y = 0.7;
+/** The small hop off the ground after the squash, in px. */
+const KNOCK_BOUNCE_PX = 6;
+
 export class PlayerRabbit {
   sprite: AnimatedSprite;
   container: Container;
@@ -147,8 +164,93 @@ export class PlayerRabbit {
   /** Cancel any in-progress movement tween so it won't override the next animation. */
   cancelMove(): void {
     gsap.killTweensOf(this.container);
+    gsap.killTweensOf(this.sprite);
+    gsap.killTweensOf(this.sprite.scale);
     this.isMoving = false;
     this.afterMove = null;
+  }
+
+  /**
+   * The rabbit is BLOWN to `tileIndex` — a bomb's knockback.
+   *
+   * It used to be `setPosition`: the blast played and the rabbit was simply
+   * somewhere else, three tiles back, in the same frame. Too fast to read as
+   * a throw; it read as the board glitching. So now it is a throw, and a
+   * cartoon one: a low arc across to the landing tile, a fast backwards
+   * tumble on the way (around the body, not the feet — the anchor moves to
+   * the centre for the flight and back for the landing), and a squash-and-
+   * stretch bounce as it hits the ground. Low, because the arc has to stay
+   * readable against the tile it lands on; fast, because the stun the server
+   * hands out is 1.2s and the rabbit should be on its feet before it lifts.
+   *
+   * Holds `isMoving` for the flight, so the `rabbit_moved` that follows the
+   * blast (same tile) is swallowed the way a move during a hop is, and
+   * `whenLanded` callers (an exhausted rabbit) run once it is down.
+   */
+  playKnockback(tileIndex: number, onComplete?: () => void): void {
+    this.cancelMove();
+    this.isMoving = true;
+
+    const from = { x: this.container.x, y: this.container.y };
+    const to = this.at(tileIndex);
+    this.container.zIndex = this.depthFor(tileIndex);
+
+    const sprite = this.sprite;
+    const baseY = sprite.y;
+    const baseScaleX = sprite.scale.x;
+    const baseScaleY = sprite.scale.y;
+    // Rotate about the body's centre for the flight. The anchor is at the
+    // feet (0.5, 0.9); moving it to the middle would shift the art up by 40%
+    // of its height, so the sprite drops by the same to stay put on screen.
+    const h = sprite.height;
+    sprite.anchor.set(0.5, 0.5);
+    sprite.y = baseY - 0.4 * h;
+    const flightY = sprite.y;
+    // Tumble BACKWARDS relative to the throw: thrown right, it rolls
+    // counter-clockwise, heels over head away from the blast.
+    const dir = to.x >= from.x ? -1 : 1;
+    const facing = Math.sign(baseScaleX) || 1;
+
+    const land = () => {
+      sprite.rotation = 0;
+      sprite.anchor.set(0.5, 0.9);
+      sprite.y = baseY;
+      sprite.scale.set(baseScaleX, baseScaleY);
+      this.playAnim('damage');
+      // The bounce: squash on impact, overshoot tall, settle — and one small
+      // hop off the ground so the landing has weight.
+      const tl = gsap.timeline({
+        onComplete: () => {
+          sprite.scale.set(baseScaleX, baseScaleY);
+          sprite.y = baseY;
+          this.isMoving = false;
+          const next = this.afterMove;
+          this.afterMove = null;
+          if (next) next();
+          else this.playAnim('idle');
+          onComplete?.();
+        },
+      });
+      tl.to(sprite.scale, {
+        x: facing * Math.abs(baseScaleX) * KNOCK_SQUASH_X,
+        y: baseScaleY * KNOCK_SQUASH_Y,
+        duration: 0.07,
+        ease: 'power2.out',
+      }, 0);
+      tl.to(sprite.scale, { x: baseScaleX, y: baseScaleY, duration: 0.45, ease: 'elastic.out(1.1, 0.45)' }, 0.07);
+      tl.to(sprite, { y: baseY - KNOCK_BOUNCE_PX, duration: 0.11, ease: 'power1.out' }, 0.07);
+      tl.to(sprite, { y: baseY, duration: 0.22, ease: 'bounce.out' }, 0.18);
+    };
+
+    const tl = gsap.timeline({ onComplete: land });
+    // The ground track: straight across, easing out so the rabbit arrives
+    // slower than it left — a throw loses speed.
+    tl.to(this.container, { x: to.x, y: to.y, duration: KNOCK_FLIGHT_S, ease: 'power1.out' }, 0);
+    // The air track: up fast, down heavier.
+    tl.to(sprite, { y: flightY - KNOCK_HEIGHT_PX, duration: KNOCK_FLIGHT_S * 0.42, ease: 'power2.out' }, 0);
+    tl.to(sprite, { y: flightY, duration: KNOCK_FLIGHT_S * 0.58, ease: 'power2.in' }, KNOCK_FLIGHT_S * 0.42);
+    // The tumble: whole turns, quick, evening out as it comes down.
+    tl.to(sprite, { rotation: dir * Math.PI * 2 * KNOCK_SPINS, duration: KNOCK_FLIGHT_S, ease: 'power1.out' }, 0);
   }
 
   /** Run `fn` now, or once the hop in flight has landed — see `afterMove`. */

@@ -1094,8 +1094,10 @@ export class IslandScene implements Scene {
   bombHit(playerId: string, landedOn: number, stunnedUntil?: number): void {
     const rabbit = this.rabbits.get(playerId);
     if (!rabbit) return;
+    // The throw, not a teleport — see `playKnockback`. The `rabbit_moved`
+    // that follows carries the same tile and is swallowed by the flight.
     rabbit.playDamage();
-    rabbit.setPosition(landedOn);
+    rabbit.playKnockback(landedOn);
     if (playerId === this.data?.playerId) {
       this.myTile = landedOn;
       if (stunnedUntil !== undefined) this.stunnedUntil = stunnedUntil;
