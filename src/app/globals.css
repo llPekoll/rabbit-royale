@@ -1208,6 +1208,19 @@ body:has(.rr-loop-bar) .rr-sound {
   z-index: 20;
 }
 
+/* THE WAY BACK, bottom-left on every screen that has one (back-button.tsx).
+   Above the floor furniture (20) so the centred kit can never sit over it. */
+.rr-back-btn {
+  position: fixed;
+  left: calc(10px + env(safe-area-inset-left));
+  bottom: calc(10px + env(safe-area-inset-bottom));
+  z-index: 22;
+}
+/* The global `button:active` nudge would move a fixed slab; the face sinks instead. */
+.rr-back-btn:active { transform: none; }
+.rr-back-btn:active .rr-back-face { transform: translateY(4px); }
+.rr-back-btn:disabled .rr-back-face { transform: none; }
+
 .rr-topbar {
   /* THREE ZONES, as the mock lays them out: the player at the LEFT edge, the
      carrot pill centred, the season and sound controls at the right.
@@ -1806,7 +1819,16 @@ body:has(.rr-loop-bar) .rr-sound {
 
 .rr-kit-row {
   position: fixed;
-  left: 10px;
+  /* CENTRED, AND AT THUMB SIZE. The row sat in the bottom-left corner with
+     its bottles pushed to the far right, at 32px (26 on the Seeker) — eight
+     little squares split across two corners of the floor, too small to read
+     and nowhere near where the eye is. It is the one control set this mode
+     has, so it takes the middle of the floor at the 44px touch floor, and the
+     way back moved to the corner (`.rr-back-btn`). The long history below is
+     kept for why the corners are crowded. */
+  left: 50%;
+  transform: translateX(-50%);
+  --rr-slot: 44px;
   /* ON THE FLOOR ITSELF, because what it used to stand on is gone.
      The raid kit shows only while PLACING now, and placing unmounts the four
      launcher tiles — so an anchor that reserved their height would have left
@@ -1829,7 +1851,7 @@ body:has(.rr-loop-bar) .rr-sound {
      landed behind its two buttons with a sliver of watering can showing
      between them. Clearing its width plus a gap puts them beside it instead,
      on the same line, which is the only free space on that side of the floor. */
-  right: calc(10px + var(--rr-mute-w) + 8px);
+  right: auto;
   /* The same z as the doors below it: one piece of floor furniture, above the
      board and GO FARM, below an open drawer. */
   z-index: 20;

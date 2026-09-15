@@ -78,6 +78,17 @@ const PLUS = '#e47422';
 const PLUS_LIP = '#ffd6ae';
 const PLUS_SHADOW = '#9a4810';
 
+/**
+ * A season gap, short enough to always fit the pill's rank line: whole with
+ * separators below 10,000, then "12.3k", "123k", "1.2M".
+ */
+export function shortGap(n: number): string {
+  const v = Math.max(0, Math.ceil(n));
+  if (v < 10_000) return groupDigits(v);
+  if (v < 1_000_000) return `${(v / 1000).toFixed(v < 100_000 ? 1 : 0).replace(/\.0$/, '')}k`;
+  return `${(v / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+}
+
 function Carrot({ height }: { height: number }) {
   // Width follows the sprite's own aspect, so it is never squashed.
   const width = Math.round((CARROT_SIZE.width / CARROT_SIZE.height) * height);
@@ -152,13 +163,28 @@ export function CarrotPill({
         {/* Keyed on the RANK so a change remounts the line and replays its
             pop (`rr-rank-pop`): climbing a place is the one thing this line
             exists to report, and it used to change as quietly as a clock. */}
-        {rank !== null && toPass !== null && (
-          <span key={rank} className="rr-rank-pop" style={rankText}>
-            #{rank} &middot; {groupDigits(toPass)} to pass
+        {/* THE CLIMB, as a badge and a named target.
+            "#2 · 5,560 to pass" ran past the pill's fixed width and was cut to
+            "to pa...", and even whole it did not say WHO there was to pass.
+            The rank is a gold chip; the line names the place it chases
+            ("to #1"), shortened past four digits so it always fits. The unit
+            is season points, not carrots — said in the tooltip, and kept off
+            the line so it never reads as a carrot count. */}
+        {rank !== null && (rank === 1 || toPass !== null) && (
+          <span
+            key={rank}
+            className="rr-rank-pop"
+            style={rankRow}
+            title={rank === 1
+              ? 'Season rank #1: leading the board'
+              : `Season rank #${rank}: ${groupDigits(Math.max(1, toPass ?? 1))} season points to pass #${rank - 1}`}
+          >
+            <span style={rankChip}>#{rank}</span>
+            {/* At least 1: a gap of 0 is a TIE, and passing a tied player takes
+                one more point. "0 to #91" read as nothing to do. */}
+            {rank === 1 ? 'leading' : <>{shortGap(Math.max(1, toPass ?? 1))} to #{rank - 1}</>}
           </span>
         )}
-        {/* Top of the board: there is no gap, and saying so is worth a row. */}
-        {rank === 1 && <span key="lead" className="rr-rank-pop" style={rankText}>#1 &middot; leading</span>}
       </span>
 
     </div>
@@ -250,4 +276,25 @@ const rankText: CSSProperties = {
   color: SUB,
   lineHeight: 1.3,
   whiteSpace: 'nowrap',
+};
+
+/** The rank line: the chip, then the target, on one row. */
+const rankRow: CSSProperties = {
+  ...rankText,
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 4,
+  marginTop: 2,
+  color: '#d8c3ab',
+};
+
+/** The rank itself, as the gold badge the season board gives your own row. */
+const rankChip: CSSProperties = {
+  display: 'inline-block',
+  padding: '1px 4px',
+  borderRadius: 4,
+  background: '#ffd138',
+  color: '#2a180e',
+  fontSize: 10,
+  lineHeight: 1.2,
 };

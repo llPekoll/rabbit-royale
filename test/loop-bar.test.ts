@@ -34,12 +34,14 @@ describe('the loop bar', () => {
     expect(PAGE).toMatch(/<LoopBar/);
     expect(PAGE).not.toMatch(/<HubTabs/);
     expect(PAGE).not.toMatch(/label="Go farm"/);
-    // The BACK slab survives: it is the way out of placement, not a loop.
-    expect(PAGE).toMatch(/<FarmButton label="Back"/);
+    // The way out of placement survives, as the shared back button.
+    expect(PAGE).toMatch(/<BackButton label="Back" onClick=\{stopPlacing\} \/>/);
   });
 
   it('keeps one verb per loop on the island too', () => {
-    expect(PAGE).toMatch(/'Stop watching' : 'Home'/);
+    // Watching gets the shared way back; playing keeps the run's own exit.
+    expect(PAGE).toMatch(/<BackButton label="Stop watching" onClick=\{stopSpectating\} \/>/);
+    expect(PAGE).toMatch(/<GoButton dir="down" label="Home" onClick=\{stopSpectating\} \/>/);
     expect(read('../src/components/run-recap.tsx')).toMatch(/Home &middot; stack it/);
   });
 

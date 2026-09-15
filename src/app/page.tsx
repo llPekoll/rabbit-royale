@@ -22,7 +22,7 @@ import { GameCanvas, type GameHandles } from '@/components/game-canvas';
 import { WalletButton } from '@/components/wallet-button';
 import { LeaderboardDrawer, type Me } from '@/components/leaderboard-drawer';
 import { GoButton } from '@/components/go-button';
-import { FarmButton } from '@/components/farm-button';
+import { BackButton } from '@/components/back-button';
 import { CarrotPill } from '@/components/carrot-pill';
 import { RaidedStamp, raidedNews, type RaidedNews } from '@/components/raided-stamp';
 import { TopbarReserve } from '@/components/topbar-reserve';
@@ -2113,11 +2113,12 @@ function Burrow() {
               (where it is just `goTo`): a second exit path that forgot to clear
               the target would strand the session as a viewer with no way back
               into its own game. */}
-          <GoButton
-            dir="down"
-            label={spectating ? 'Stop watching' : 'Home'}
-            onClick={stopSpectating}
-          />
+          {/* Watching is a mode with a way BACK (the shared button, bottom
+              left); playing has the run's own exit, which banks the haul and
+              keeps the big arrow in the middle of the floor. */}
+          {spectating
+            ? <BackButton label="Stop watching" onClick={stopSpectating} />
+            : <GoButton dir="down" label="Home" onClick={stopSpectating} />}
         </div>
       )}
 
@@ -2127,16 +2128,15 @@ function Burrow() {
 
       {/* THE WAY OUT OF PLACEMENT, on the floor the loop bar vacates.
           
-          Same component, same geometry, same spot — `tone="back"` is a sprite
-          and a palette (see `FarmButton`). The two never coexist: GO slides
-          away as this arrives, so the centre of the floor always holds exactly
-          one slab and it is always the one thing this mode is for.
+          The shared way back (`BackButton`), bottom-left like on every other
+          screen that has one. The centre of the floor belongs to the kit while
+          placing — the one set of controls this mode has.
           
           NOT given `away`, because it is unmounted rather than slid: the exit
           and the mode end together, and a button easing out after the board
           has already closed is a control outliving its screen. */}
       {!crossing && !shownRaid && where === 'burrow' && showCanvas && placing && (
-        <FarmButton label="Back" onClick={stopPlacing} tone="back" />
+        <BackButton label="Back" onClick={stopPlacing} />
       )}
 
       {/* The small "out of energy" dialog. Above the shop in the tree and
@@ -2191,6 +2191,10 @@ function Burrow() {
           note={raid.note}
           onLeave={raid.leave}
         />
+      )}
+      {/* The way out mid-raid — the shared back button. See RaidHud. */}
+      {player && shownRaid && !shownRaid.finished && (
+        <BackButton label="Retreat" onClick={raid.leave} disabled={raid.busy} />
       )}
 
       {/* The raid's ceremony, over everything — including the board it was won

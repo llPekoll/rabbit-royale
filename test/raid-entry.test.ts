@@ -98,7 +98,9 @@ describe('leaving a raid', () => {
   it('offers a way out mid-raid', () => {
     // Without this a raider who changed their mind was stuck on someone else's
     // board until their energy ran out.
-    expect(PANEL).toMatch(/!raid\.finished && \([\s\S]{0,200}rr-raid-quit/);
+    // The shared back button, rendered by the page while the raid is live.
+    const PAGE = readFileSync('src/app/page.tsx', 'utf8');
+    expect(PAGE).toMatch(/shownRaid && !shownRaid\.finished && \([\s\S]{0,120}<BackButton label="Retreat" onClick=\{raid\.leave\}/);
   });
 
   it('can end a raid server-side', () => {

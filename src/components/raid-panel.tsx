@@ -172,18 +172,10 @@ export function RaidHud({ raid, busy, note, onLeave }: RaidHudProps) {
 
       {note && !raid.finished && <p className="rr-raid-note">{note}</p>}
 
-      {/* The way out, MID-RAID.
-          It only existed on the finished card, so a raider who walked in and
-          changed their mind was stuck on someone else's board until their
-          energy ran out — there was no button, and the burrow column that
-          normally carries the way home is (correctly) hidden during a raid.
-          Being able to walk away is not a courtesy here: energy spent is
-          energy not spent digging, so retreating is a real decision. */}
-      {!raid.finished && (
-        <button className="rr-raid-quit" onClick={onLeave} disabled={busy}>
-          Retreat
-        </button>
-      )}
+      {/* The way out, MID-RAID, is the shared BackButton now ("Retreat",
+          bottom-left — page.tsx), not a small text button in this HUD. It
+          exists for the same reason it always did: a raider who changed their
+          mind was stuck on someone else's board until their energy ran out. */}
 
       {/* The end, WITHOUT a button — and only for a LOSS.
           The board carries the moment (the rabbit collapses where its energy

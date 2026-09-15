@@ -302,10 +302,15 @@ export async function createBurrowTerrain(
       shield.visible = false;
       return;
     }
+    // NAMED. A bare "47H 46M" over the house read as a season clock or a
+    // build timer — the crest above it is small, and a player had no way to
+    // tell that the number was how long raids still bounce off. The word says
+    // what is running; the time keeps only its largest unit, which is all a
+    // two-day window needs and what keeps the plate narrow.
     const mins = Math.ceil(ms / 60_000);
     shieldTime.text = (mins < 60
-      ? `${mins}M`
-      : `${Math.floor(mins / 60)}H ${mins % 60}M`).toUpperCase();
+      ? `SHIELD ${mins}M`
+      : `SHIELD ${Math.floor(mins / 60)}H`).toUpperCase();
 
     // Laid out AFTER the text is set, because the plate is sized to it.
     shieldCrest.y = 4;

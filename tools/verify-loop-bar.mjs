@@ -58,9 +58,9 @@ await session('desktop', { width: 1376, height: 768 }, async (page, shot) => {
   // HOME -> placing: the bar slides away, BACK takes the floor.
   await page.click('.rr-loop-home');
   await page.waitForTimeout(900);
-  console.log('[placing] bar away?', await page.locator('.rr-loop-bar.rr-loop-away').count(), '| back slab:', await text(page, '.rr-farm-btn'));
+  console.log('[placing] bar away?', await page.locator('.rr-loop-bar.rr-loop-away').count(), '| back slab:', await text(page, '.rr-back-btn'));
   await shot('3-home-placing');
-  await page.click('.rr-farm-btn:has-text("Back")');
+  await page.click('.rr-back-btn:has-text("Back")');
   await page.waitForTimeout(700);
 
   // RAID -> the target list.

@@ -268,15 +268,17 @@ function BottleSlot({
 }
 
 /**
- * What pushes the garden half to the far edge: the first bottle eats the row's
- * leftover width. A wrapper rather than a style on `ItemSlot` itself, because
- * the slot is shared with the garden card and knows nothing about this row.
+ * What sets the garden half apart. The row is centred and only as wide as its
+ * slots now (see `.rr-kit-row`), so the split is a wider gap before the first
+ * bottle rather than the whole floor between two corners. A wrapper rather
+ * than a style on `ItemSlot` itself, because the slot is shared with the
+ * garden card and knows nothing about this row.
  *
  * `display: flex` so the wrapper hugs the square instead of adding a line box
  * under it, which would knock the two groups out of vertical alignment.
  */
 const bottleStart: CSSProperties = {
-  marginLeft: 'auto',
+  marginLeft: 14,
   display: 'flex',
   // The gap between the two bottles is the row's own; this wrapper only moves
   // the pair, so it must not introduce a second one.
@@ -286,7 +288,7 @@ const bottleStart: CSSProperties = {
 const row: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  gap: 6,
+  gap: 10,
   /* The row is furniture on the floor, so WHERE it sits belongs to
      globals.css (`.rr-kit-row`) alongside the launcher tiles it stands on and
      the mute it shares the corner with — those three have to agree, and they
