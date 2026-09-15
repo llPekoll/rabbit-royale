@@ -254,6 +254,15 @@ export class Tile {
    * height reads as printed on the ground behind it.
    */
   private static readonly HINT_BOB = 1.6;
+  /**
+   * How big the count is drawn, as a multiple of the face's 8px cell.
+   *
+   * 1.2, down from 1.4: with the outline ring around every glyph (see
+   * `outlinedPixelText`) the numbers read from further away than they used to,
+   * and at 1.4 they crowded the tiles they belong to. A whole 8px cell times
+   * 1.2 still lands on clean pixel edges at the island's camera.
+   */
+  private static readonly HINT_SCALE = 1.2;
   private hintBob: gsap.core.Tween | null = null;
 
   constructor(index: number, fogStyle?: FogStyle, lift = 0, tier = 0, hintLayer?: Container) {
@@ -497,9 +506,9 @@ export class Tile {
 
     if (animate) {
       label.group.scale.set(0);
-      gsap.to(label.group.scale, { x: 1.4, y: 1.4, duration: 0.22, ease: 'back.out(2)' });
+      gsap.to(label.group.scale, { x: Tile.HINT_SCALE, y: Tile.HINT_SCALE, duration: 0.22, ease: 'back.out(2)' });
     } else {
-      label.group.scale.set(1.4);
+      label.group.scale.set(Tile.HINT_SCALE);
     }
   }
 
