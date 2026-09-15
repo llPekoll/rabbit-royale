@@ -1,14 +1,31 @@
 import { Application, Assets, Container, Graphics, Texture } from 'pixi.js';
 import gsap from 'gsap';
+import { createSeaGradient, type SeaGradient } from './fx/SeaGradient';
+import { SEA_GRADIENT_LOOK } from '@/config/waterLook';
 import { SceneManager } from './SceneManager';
 import { BootScene } from './scenes/BootScene';
 import { CarrotWipe } from './fx/CarrotWipe';
 import * as Keys from '@/config/assetKeys';
 
-/** Background color. The video's feathered edges (alpha-masked on all
- *  four sides in GameScene) hide any subtle hue mismatch between the
- *  video's sea and this fill, so an approximate match is sufficient. */
-export const BG_COLOR = 0x1eaac4;
+/**
+ * Background color: the OPEN SEA, far from any land.
+ *
+ * This was the shallow teal the island sits in, painted edge to edge, and that
+ * flatness is what made the island read as pasted onto blue paper rather than
+ * floating in water. The sea now carries a gradient (`fx/SeaGradient`) that is
+ * pale under the island and deepens outward, so the colour that reaches the
+ * EDGES of the frame is the deep one — and this fill, which covers the
+ * letterbox past the gradient's plane, has to be that same colour or the frame
+ * shows a rim in the old blue.
+ *
+ * Kept in `waterLook.ts` with the rest of the sea's numbers; re-exported here
+ * because half the codebase already imports `BG_COLOR` from this module.
+ *
+ * The video's feathered edges (alpha-masked on all four sides in GameScene)
+ * hide any subtle hue mismatch between the video's sea and this fill, so an
+ * approximate match is sufficient.
+ */
+export const BG_COLOR = SEA_GRADIENT_LOOK.sea;
 
 /**
  * Ceiling on the renderer's pixel ratio.
@@ -139,6 +156,38 @@ export async function createApp(
   bgFill.zIndex = -1000;
   pixi.stage.addChild(bgFill);
 
+  /**
+   * The sea's depth, over that fill and under everything else.
+   *
+   * On the STAGE rather than in the scene's container, and this is the whole
+   * point: the island's container carries the camera (`IslandScene` sets its
+   * scale and position from the pan/zoom state), so a gradient parented there
+   * would slide and scale with the board — the pale pool would drift off the
+   * island the moment the player dragged, which is exactly the tell that gives
+   * away a painted backdrop. Anchored to the screen, the light stays where the
+   * light is and the island moves through it.
+   *
+   * Sized to the VIEWPORT, not to the design space, for the same reason
+   * `bgFill` is: the letterbox is part of the picture.
+   */
+  const seaDepth: SeaGradient = createSeaGradient(
+    window.innerWidth, window.innerHeight,
+    {
+      mode: SEA_GRADIENT_LOOK.mode,
+      sea: SEA_GRADIENT_LOOK.sea,
+      deep: SEA_GRADIENT_LOOK.deep,
+      center: SEA_GRADIENT_LOOK.center,
+      radius: SEA_GRADIENT_LOOK.radius,
+      aspect: SEA_GRADIENT_LOOK.aspect,
+      softness: SEA_GRADIENT_LOOK.softness,
+      strength: SEA_GRADIENT_LOOK.strength,
+      angle: (SEA_GRADIENT_LOOK.angleDeg * Math.PI) / 180,
+      steps: SEA_GRADIENT_LOOK.steps,
+    },
+  );
+  seaDepth.view.zIndex = -999;
+  pixi.stage.addChild(seaDepth.view);
+
   // Root container: scales the 960×540 design space to fit the viewport.
   // All scene content is added as children of gameRoot — their coordinates
   // stay in the original 960×540 design space.
@@ -159,6 +208,10 @@ export async function createApp(
     bgFill.clear();
     bgFill.rect(0, 0, w, h);
     bgFill.fill(BG_COLOR);
+    // The gradient covers the same area. Its dials are shares of the plane, so
+    // resizing is all it needs — the pool stays centred on the island and keeps
+    // its proportions on any viewport.
+    seaDepth.resize(w, h);
 
     // Swap design canvas per orientation so small portrait viewports (e.g.
     // 390×719 Telegram mini-app) don't end up scaling a landscape canvas to
@@ -248,6 +301,9 @@ export async function createApp(
       const g = globalThis as { __PIXI_APP__?: Application };
       if (g.__PIXI_APP__ === pixi) delete g.__PIXI_APP__;
       wipe?.destroy();
+      // Before `pixi.destroy`, which takes the display list but not the
+      // geometry and shader this built for itself.
+      seaDepth.destroy();
       scenes.destroyAll();
       gsap.globalTimeline.clear();
       pixi.destroy(true, { children: true });

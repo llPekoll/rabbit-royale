@@ -45,3 +45,43 @@ export const DUCK_LOOK = {
    */
   scale: 0.8,
 } as const;
+
+/**
+ * The depth under the island, as `createSeaGradient` takes it.
+ *
+ * Tuned in `Island/Sea gradient` against the real island, the real surf and
+ * the game's own sea colour, then written here so the story's defaults and
+ * the game's constants are the same numbers.
+ *
+ * Note the direction: `sea` is the DARK one. The water is pale where the
+ * island sits and deepens outward to the open sea, which is the reading a
+ * painter would give it — the shelf under the coast catching light, the deep
+ * water beyond it not. The earlier draft had these the other way round.
+ *
+ * `sea` is therefore what the viewport is cleared to (`BG_COLOR`), because the
+ * gradient reaches its far colour at the edges and anything past the plane has
+ * to agree with it or the frame shows a rim in the old blue.
+ */
+export const SEA_GRADIENT_LOOK = {
+  mode: 'radial',
+  /** The open sea, far from land — and the canvas clear colour. */
+  sea: 0x0d5f8c,
+  /** The shallow water the island stands in. */
+  deep: 0x1eaac4,
+  center: [0.5, 0.55],
+  radius: 0.5,
+  /**
+   * A true ellipse ratio, measured in pixels.
+   *
+   * Not the board's 44/24: the pool is wider than the lattice because it is
+   * standing in for depth falling away, not for the island's own footprint.
+   */
+  aspect: 3.25,
+  softness: 0.56,
+  strength: 1,
+  /** Tilted onto the island's diagonal, which is what puts it in perspective
+   *  rather than square to the screen. Degrees; the shader takes radians. */
+  angleDeg: 175,
+  /** Enough steps to read as a ramp, few enough to stay pixel art. */
+  steps: 40,
+} as const;
