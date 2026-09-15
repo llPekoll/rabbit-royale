@@ -105,9 +105,12 @@ describe('the burrow has its moments', () => {
 
 describe('the small pops', () => {
   it('badges pop on arrival, tiles pop on news, ranks pop on change', () => {
-    expect(read('../src/components/hub-tab.tsx')).toMatch(/className="rr-hub-badge"/);
+    expect(read('../src/components/loop-bar.tsx')).toMatch(/className="rr-hub-badge"/);
     expect(CSS).toMatch(/\.rr-hub-badge \{ animation: rr-badge-pop/);
-    expect(read('../src/components/hub-tabs.tsx')).toMatch(/pulseKey=\{Math\.max\(storyPulseKey, pulseAt\('story'\)\)\}/);
+    // The quest's slab pops when the quest lands on it; the STORY icon pops
+    // when a chapter opens.
+    expect(read('../src/components/loop-bar.tsx')).toMatch(/rr-tab-pop/);
+    expect(PAGE).toMatch(/className=\{lorePulseKey > 0 \? 'rr-tab-pop' : undefined\}/);
     expect(read('../src/components/carrot-pill.tsx')).toMatch(/className="rr-rank-pop"/);
     expect(read('../src/components/leaderboard-drawer.tsx')).toMatch(/rr-crown-glint/);
   });

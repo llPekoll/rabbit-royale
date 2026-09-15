@@ -73,6 +73,15 @@ export function useAudioSettings(): AudioSettings {
   const [musicMuted, setMusicMuted] = useState(false);
   const [sfxMuted, setSfxMuted] = useState(false);
   const [volume, setVolumeState] = useState(DEFAULT_VOLUME);
+  /**
+   * The stored preference has been read. NOTHING is pushed into the engine
+   * before this: the state above starts at "not muted" for the sake of the
+   * server render, and pushing that default meant every mount of this hook
+   * (the page and the sound button both use it) briefly UNMUTED the music
+   * and restarted the loop for a player who had switched it off — reported
+   * as "the music restarts even with the toggle OFF".
+   */
+  const [ready, setReady] = useState(false);
 
   // Read the stored preference AFTER mount: there is no localStorage during
   // SSR, and seeding state from it directly would make the server and the
@@ -83,19 +92,22 @@ export function useAudioSettings(): AudioSettings {
     // everything muted before the buses were split stays fully muted.
     setSfxMuted(readBool(SFX_MUTED_KEY, readBool(MUSIC_MUTED_KEY, false)));
     setVolumeState(readVolume());
+    setReady(true);
   }, []);
 
-  // Push whatever we hold down into the game's audio engine.
+  // Push whatever we hold down into the game's audio engine — once it is
+  // what the player actually chose.
   useEffect(() => {
+    if (!ready) return;
     setGlobalAudio({ musicMuted, sfxMuted, musicVolume: volume });
-  }, [musicMuted, sfxMuted, volume]);
+  }, [ready, musicMuted, sfxMuted, volume]);
 
   // Every browser refuses audio until the player has interacted with the page,
   // so the loop cannot simply be started on mount — it is armed here and takes
   // on the first tap or key, whichever comes first. Once it is playing the
   // listeners are done, which is why they remove themselves.
   useEffect(() => {
-    if (musicMuted) return;
+    if (!ready || musicMuted) return;
     // Try immediately: a soft navigation from another page in the app already
     // carries the interaction, and then there is nothing to wait for.
     startAmbientMusic();
@@ -119,7 +131,7 @@ export function useAudioSettings(): AudioSettings {
       window.removeEventListener('pointerdown', go);
       window.removeEventListener('keydown', go);
     };
-  }, [musicMuted]);
+  }, [ready, musicMuted]);
 
   // Inside the arcade the hub is the control the player can see, so it wins.
   useEffect(() => {

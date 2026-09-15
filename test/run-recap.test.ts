@@ -43,8 +43,9 @@ describe('run recap', () => {
 
   it('offers a refill AND a free way out', () => {
     expect(RECAP).toMatch(/Get more energy/);
-    // The free route must survive alongside the paid one.
-    expect(RECAP).toMatch(/Back to the burrow/);
+    // The free route must survive alongside the paid one — named with the
+    // loop's own verb (HOME), and what home is for.
+    expect(RECAP).toMatch(/Home &middot; stack it/);
   });
 
   it('says WHY there is no "Again"', () => {

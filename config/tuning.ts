@@ -988,6 +988,21 @@ export const QUESTS = {
 } as const;
 
 /**
+ * THE NEXT STRIP after the quests — when the burrow's "now do this" line
+ * comes from the state rather than from the arc (config/next-action.ts).
+ */
+export const NEXT_ACTION = {
+  /** The garden counts as "nearly full" above this share of its ceiling. */
+  GARDEN_FULL_SHARE: 0.8,
+  /** The shield is "about to lift" under this. */
+  SHIELD_WARNING_MS: 60 * 60 * 1000,
+  /** Traps standing below which the shield warning fires. */
+  TRAPS_WANTED: 3,
+  /** A target's garden has to hold this much to be named as worth a raid. */
+  RAID_WORTH_GARDEN: 100,
+} as const;
+
+/**
  * Single accessor so a caller never reaches into a tier by index. Returns the
  * richest tier the player has unlocked.
  */

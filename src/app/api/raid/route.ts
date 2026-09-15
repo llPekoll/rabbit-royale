@@ -129,6 +129,13 @@ export async function GET(req: Request) {
       avatar: players.avatar,
       stock: players.stock,
       shieldedUntil: players.shieldedUntil,
+      // What the garden holds is DERIVED from these — see `gardenYield`. A
+      // raid is for the garden first (RAID.GARDEN_LOOT_SHARE), so the list
+      // has to say what is standing outside, not only what is banked.
+      gardenCollectedAt: players.gardenCollectedAt,
+      burrowLevel: players.burrowLevel,
+      wateredUntil: players.wateredUntil,
+      fertilisedUntil: players.fertilisedUntil,
     })
     .from(players)
     .where(ne(players.id, session.sub))
@@ -143,6 +150,8 @@ export async function GET(req: Request) {
       name: t.name,
       avatar: t.avatar,
       stock: t.stock,
+      /** Carrots standing in their garden right now — the purse a raid is for. */
+      garden: gardenYield(t, now),
       /** Shielded targets are LISTED but not attackable — hiding them would
        *  make the board look empty for no visible reason. */
       shielded: !!t.shieldedUntil && t.shieldedUntil.getTime() > now,

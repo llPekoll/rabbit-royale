@@ -103,7 +103,7 @@ const CHEST_DROP_HEIGHT = 90;
  * breathes as the shine plays. A fixed scale keeps every frame at the same
  * pixel size AND on the pixel grid (integer, so the art stays crisp).
  */
-const CHEST_SCALE = 2;
+const CHEST_SCALE = 1.25;
 /**
  * The closed chest's frames, or null while the atlas is still coming.
  *
@@ -635,6 +635,31 @@ export class Tile {
     }
   }
 
+  /**
+   * A rabbit is standing here: lift the hint above its head.
+   *
+   * The number is the whole game and the rabbit's sprite covers it the
+   * moment it lands, so the count rides up to the palier's old perch (the
+   * same PALIER_RAISED_Y, tuned to clear the sprite's silhouette) and comes
+   * back down when the rabbit leaves. No-op without a hint, or already up.
+   */
+  raiseHint(): void {
+    if (!this.hintGroup || this.hintRaised) return;
+    this.hintRaised = true;
+    gsap.killTweensOf(this.hintGroup.position);
+    gsap.to(this.hintGroup.position, { y: Tile.PALIER_RAISED_Y, duration: 0.22, ease: 'power3.out' });
+  }
+
+  /** The rabbit left: the hint drops back onto its tile, with a small bounce. */
+  lowerHint(): void {
+    if (!this.hintGroup || !this.hintRaised) return;
+    this.hintRaised = false;
+    gsap.killTweensOf(this.hintGroup.position);
+    gsap.to(this.hintGroup.position, { y: 0, duration: 0.35, ease: 'bounce.out' });
+  }
+
+  private hintRaised = false;
+
   /** Drop the multiplier onto the tile (rabbit is leaving — nothing is
    *  hiding it anymore). No-op if the tile has no multiplier or it's
    *  already resting on the tile. */
@@ -814,7 +839,10 @@ export class Tile {
       // code to read the board.
       const label = pixelText(0, -flair.beam - 12, tier.toUpperCase());
       label.anchor.set(0.5);
-      label.scale.set(1.6);
+      // Sized with the box (CHEST_SCALE): at 1.6 the word was wider than
+      // the tile and read from across the island where the chest itself was
+      // the thing meant to.
+      label.scale.set(1.1);
       label.tint = tint;
       label.zIndex = 62;
       this.chestLabel = label;

@@ -40,6 +40,9 @@ export interface Target {
   name: string;
   avatar: string | null;
   stock: number;
+  /** Carrots standing in their garden — what a raid takes first. Optional
+   *  so a server that predates it reads as "nothing outside". */
+  garden?: number;
   shielded: boolean;
 }
 

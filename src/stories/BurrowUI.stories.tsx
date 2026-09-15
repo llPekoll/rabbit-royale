@@ -25,7 +25,9 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { EnergyCard } from '@/components/energy-card';
 import { GardenCard } from '@/components/garden-card';
 import { BurrowPanel } from '@/components/burrow-card-panel';
-import { HubTabs } from '@/components/hub-tabs';
+import { LoopBar } from '@/components/loop-bar';
+import { NextStrip } from '@/components/next-strip';
+import { nextAction } from '@/config/next-action';
 import { KitRow } from '@/components/kit-row';
 import { CarrotPill } from '@/components/carrot-pill';
 import { FarmButton } from '@/components/farm-button';
@@ -124,22 +126,31 @@ function BurrowColumn({
           the same thing and only one of them stands on the thing being
           protected. See `BurrowTerrain`'s `setShield`. */}
 
-      {/* Energy is its OWN object now — see energy-card.tsx. It does not share
-          the wooden frame the cards below use, which is the whole point: the
-          screen's most-read number stopped looking like the upgrade price. */}
+      {/* THE NEXT STRIP, first: the one line that says what to do now. In the
+          app the quest card takes this slot while the arc runs; after it the
+          line comes from `nextAction`, which this story drives from the same
+          controls the cards read. */}
       <div style={{ marginBottom: 10 }}>
-        <EnergyCard
-          energy={energy}
-          maxEnergy={maxEnergy}
-          note={
-            nextEnergyMins <= 0
-              ? undefined
-              : energy <= 0
-                ? `Out of energy. Next in ${formatWait(nextEnergyMins * 60_000)}.`
-                : `+1 in ${formatWait(nextEnergyMins * 60_000)}.`
-          }
+        <NextStrip
+          action={nextAction({
+            energy,
+            runCost: 25,
+            nextRunInMs: energy >= 25 ? null : nextEnergyMins * 60_000 * (25 - energy),
+            gardenReady,
+            gardenCapacity,
+            shieldMs: shieldHours > 0 ? shieldHours * 3_600_000 : null,
+            trapsLive: trapsPlaced,
+            trapsPlaced,
+            targets: Array.from({ length: openTargets }, (_, i) => ({
+              name: `Burrow ${i}`, garden: 120 * (i + 1), shielded: false,
+            })),
+          })}
         />
       </div>
+
+      {/* NO ENERGY CARD. The bar lives on the DIG slab of the loop bar now —
+          the number is read at the moment of deciding to dig, which is the
+          slab, not a card above the garden. */}
 
       <div style={{ marginBottom: 10 }}>
         <GardenCard
@@ -185,41 +196,38 @@ function BurrowColumn({
         />
       )}
 
-      {/* The four doors — and NOT while placing, which is what the app does
-          (`!placing` on its own mount). That is what frees the corner for the
-          raid kit above: the first cut left both mounted and the six slots sat
-          BEHIND the four tiles with only their edges showing. */}
-      {!placing && (
-        <HubTabs
-          /* Fed from the same story args, so the badges can be driven to their
-             edge cases (an empty shed, no open targets) from the controls
-             rather than by reaching a game state. */
-          shop={{
-            traps: { held: trapsHeld, placed: trapsPlaced, maxPlaced: 8 },
-          } as never}
-          targets={Array.from({ length: openTargets }, (_, i) => ({
-            id: `t${i}`, name: `Burrow ${i}`, stock: 500, shielded: false,
-          })) as never}
-          lifetime={lifetime}
-          onShop={() => {}}
-          onProtect={() => {}}
-          onRaid={() => {}}
-          onStory={() => {}}
-        />
+      {/* THE LOOP BAR — DIG ▸ HOME ▸ RAID — on the floor, exactly as the app
+          mounts it, and slid away while PLACING (the BACK slab takes the
+          floor then). Fed from the same story args, so each slab's line can
+          be driven to its edge cases (an empty bank, no open burrow, a full
+          garden) from the controls rather than by reaching a game state. */}
+      <LoopBar
+        dig={{
+          energy, maxEnergy, runCost: 25,
+          nextRunInMs: energy >= 25 ? null : nextEnergyMins * 60_000 * (25 - energy),
+        }}
+        home={{
+          gardenReady,
+          shieldMs: shieldHours > 0 ? shieldHours * 3_600_000 : null,
+          trapsLive: trapsPlaced,
+          trapsPlaced,
+        }}
+        raid={{
+          open: openTargets,
+          best: openTargets > 0 ? { name: `Burrow ${openTargets - 1}`, garden: 120 * openTargets } : null,
+          bombs: bombHeld,
+        }}
+        questDoor={lifetime < 500 ? 'garden' : null}
+        away={placing}
+        onDig={() => {}}
+        onHome={() => {}}
+        onRaid={() => {}}
+      />
+      {placing && (
+        <div style={{ marginTop: 10 }}>
+          <FarmButton label="Back" onClick={() => {}} tone="back" />
+        </div>
       )}
-
-      {/* GO FARM sits centred at the bottom in the app; here it follows the
-          row so the two can be seen at the same scale.
-          
-          While PLACING it is the BACK slab instead — same component, same
-          spot, `tone="back"`. The pair is what the `Placing` story is for:
-          the centre of the floor must hold exactly one slab, and it must be
-          the one the current mode is about. */}
-      <div style={{ marginTop: 10 }}>
-        {placing
-          ? <FarmButton label="Back" onClick={() => {}} tone="back" />
-          : <FarmButton label="Go farm" onClick={() => {}} />}
-      </div>
     </section>
   );
 }

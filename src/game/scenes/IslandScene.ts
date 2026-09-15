@@ -577,6 +577,7 @@ export class IslandScene implements Scene {
     this.tiles.clear();
     for (const rabbit of this.rabbits.values()) rabbit.destroy();
     this.rabbits.clear();
+    this.standing.clear();
 
     this.arrows?.destroy();
     this.arrows = new MoveArrows(this.container, this.shape);
@@ -1155,8 +1156,10 @@ export class IslandScene implements Scene {
       // Teleport, not `moveTo`: a respawn is not a hop, and the spawn is
       // usually nowhere near the tile the last run ended on.
       known.cancelMove();
+      this.leaveTile(playerId);
       known.setPosition(index);
       known.playSpawnDrop();
+      this.standOn(playerId, index);
       if (playerId === this.data?.playerId) {
         this.myTile = index;
         this.stunnedUntil = 0;
@@ -1172,6 +1175,7 @@ export class IslandScene implements Scene {
     this.rabbits.set(playerId, rabbit);
     this.container.addChild(rabbit.container);
     rabbit.playSpawnDrop();
+    this.standOn(playerId, index);
     if (playerId === this.data?.playerId) {
       this.myTile = index;
       // A fresh rabbit is never stunned, whatever the last run ended in.
@@ -1194,7 +1198,11 @@ export class IslandScene implements Scene {
   moveRabbit(playerId: string, index: number, energy?: number): void {
     const rabbit = this.rabbits.get(playerId);
     if (!rabbit) return;
-    rabbit.moveTo(index);
+    // The hint on the tile being left drops now; the one on the landing
+    // tile rises once the hop has landed, so the number is never lifted
+    // over an empty tile.
+    this.leaveTile(playerId);
+    rabbit.moveTo(index, () => this.standOn(playerId, index));
     if (playerId === this.data?.playerId) {
       this.myTile = index;
       if (energy !== undefined) this.myEnergy = energy;
@@ -1231,7 +1239,8 @@ export class IslandScene implements Scene {
     // The throw, not a teleport — see `playKnockback`. The `rabbit_moved`
     // that follows carries the same tile and is swallowed by the flight.
     rabbit.playDamage();
-    rabbit.playKnockback(landedOn);
+    this.leaveTile(playerId);
+    rabbit.playKnockback(landedOn, () => this.standOn(playerId, landedOn));
     if (playerId === this.data?.playerId) {
       this.myTile = landedOn;
       if (stunnedUntil !== undefined) this.stunnedUntil = stunnedUntil;
@@ -1260,8 +1269,34 @@ export class IslandScene implements Scene {
   }
 
   removeRabbit(playerId: string): void {
+    this.leaveTile(playerId);
     this.rabbits.get(playerId)?.destroy();
     this.rabbits.delete(playerId);
+  }
+
+  /**
+   * WHO STANDS WHERE, for the hints.
+   *
+   * A hint under a rabbit is hidden by the rabbit, so the tile lifts it
+   * above the head (`Tile.raiseHint`) while someone stands there and drops
+   * it when they leave. Tracked per rabbit rather than asked of the sprites,
+   * because a hop is in flight for a fifth of a second and the tile it left
+   * has to drop its number the moment the hop starts. A tile shared by two
+   * rabbits keeps its hint up until the last one goes.
+   */
+  private standing = new Map<string, number>();
+
+  private standOn(playerId: string, index: number): void {
+    this.standing.set(playerId, index);
+    this.tiles.get(index)?.raiseHint();
+  }
+
+  private leaveTile(playerId: string): void {
+    const was = this.standing.get(playerId);
+    if (was === undefined) return;
+    this.standing.delete(playerId);
+    for (const other of this.standing.values()) if (other === was) return;
+    this.tiles.get(was)?.lowerHint();
   }
 
   /** Pixi's ticker, in real milliseconds. */

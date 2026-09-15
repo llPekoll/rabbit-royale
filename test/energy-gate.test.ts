@@ -140,11 +140,12 @@ describe('the farm button answers an empty tank', () => {
    * says why not and sells the way out when there is not.
    */
   it('is never disabled', () => {
-    expect(PAGE).not.toMatch(/label="Go farm"[\s\S]{0,160}disabled/);
+    // The control is the DIG slab of the loop bar now; the rule is the same.
+    expect(PAGE).not.toMatch(/<LoopBar[\s\S]{0,900}disabled/);
   });
 
   it('opens the popup instead of crossing when the tank is empty', () => {
-    expect(PAGE).toMatch(/onClick=\{goFarm\}/);
+    expect(PAGE).toMatch(/onDig=\{goFarm\}/);
     const gate = PAGE.slice(PAGE.indexOf('const goFarm'));
     expect(gate.slice(0, 200)).toMatch(/if \(!hasEnergy\) \{ setEnergyOpen\(true\); return; \}/);
   });

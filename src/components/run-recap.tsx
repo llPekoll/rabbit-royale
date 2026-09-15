@@ -81,8 +81,12 @@ export function Recap({
       {/* Leaving was always possible — the arrow below does it — but a player
           who has just finished is deciding between two things, and only one of
           them was written down. */}
+      {/* HOME, the loop's own word for it, and what home is FOR: the haul is
+          banked already, and stacking it (harvest, upgrade, bury) is the next
+          verb. "Back to the burrow" named a door without saying what was
+          behind it. */}
       <button className={cleared ? undefined : 'rr-btn ghost'} onClick={onHome} style={{ width: '100%' }}>
-        Back to the burrow
+        Home &middot; stack it
       </button>
     </div>
   );

@@ -128,8 +128,12 @@ export function BurrowPanel({
       {/* The vault strip: what a raid cannot reach. Given its own ground
           rather than set as another line of fine print, because it is the one
           number on this card that is about KEEPING things. */}
+      {/* The floor AND what stands above it: "safe 1 200" alone said what a
+          raid cannot take and left the player to work out what it can. */}
       <div className="rr-hub-strip" style={vaultStrip}>
-        <span style={vaultLabel}>SAFE</span>
+        <span style={vaultLabel}>
+          {stock - safe > 0 ? <><span style={{ color: '#ff8a7a' }}>{groupDigits(stock - safe)} EXPOSED</span> &middot; SAFE</> : 'SAFE'}
+        </span>
         <span style={vaultValue}>
           {groupDigits(safe)}
           <img className="pixelated" src={CARROT_MARK} alt="" aria-hidden style={carrotMark} />

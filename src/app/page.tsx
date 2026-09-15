@@ -33,10 +33,13 @@ import { CarrotField } from '@/components/carrot-field';
 import { ShopPanel } from '@/components/shop-card';
 import { EnergyPopup } from '@/components/energy-popup';
 import { LoreCodex } from '@/components/lore-codex';
-import { HubTabs } from '@/components/hub-tabs';
+import { LoopBar } from '@/components/loop-bar';
+import { NextStrip } from '@/components/next-strip';
+import { HubIconButton } from '@/components/hub-icon-button';
+import { nextAction } from '@/config/next-action';
+import { LORE } from '@/config/lore';
 import { KitRow } from '@/components/kit-row';
 import { LoreCrawl } from '@/components/lore-crawl';
-import { EnergyCard } from '@/components/energy-card';
 import { GardenCard } from '@/components/garden-card';
 import { BurrowPanel } from '@/components/burrow-card-panel';
 import { QuestCard } from '@/components/quest-card';
@@ -447,6 +450,43 @@ function Burrow() {
    * takes at the crossing. Null burrow means "still loading", not "empty".
    */
   const hasEnergy = burrow === null || burrow.energy >= burrow.runCost;
+
+  /**
+   * THE LOOP'S OWN READINGS, for the bar and the NEXT strip.
+   *
+   * Open targets and the richest of them by what stands in their garden —
+   * the raid's real purse — come from the same list the target picker
+   * draws, so the slab's line and the list agree. The next action is only
+   * computed once the quest arc is claimed; while it runs, the quest IS the
+   * next action.
+   */
+  const openTargets = useMemo(() => raid.targets.filter((t) => !t.shielded), [raid.targets]);
+  const bestTarget = useMemo(() => {
+    const rich = openTargets
+      .filter((t) => (t.garden ?? 0) > 0)
+      .sort((a, b) => (b.garden ?? 0) - (a.garden ?? 0))[0];
+    return rich ? { name: rich.name, garden: rich.garden ?? 0 } : null;
+  }, [openTargets]);
+  const next = useMemo(() => {
+    if (!burrow || quest?.active) return null;
+    return nextAction({
+      energy: burrow.energy,
+      runCost: burrow.runCost,
+      nextRunInMs: burrow.nextRunInMs,
+      gardenReady: burrow.gardenReady,
+      gardenCapacity: burrow.gardenCapacity,
+      shieldMs: burrow.shieldMs,
+      trapsLive: shop.traps?.armed.length ?? 0,
+      trapsPlaced: shop.traps?.placed.length ?? 0,
+      targets: raid.targets.map((t) => ({ name: t.name, garden: t.garden ?? 0, shielded: t.shielded })),
+    });
+  }, [burrow, quest?.active, shop.traps, raid.targets]);
+  /** A fresh chapter for the STORY icon's badge — the codex's own rule. */
+  const freshChapter = useMemo(() => {
+    const lifetime = burrow?.lifetime ?? 0;
+    const open = unlockedCount(lifetime);
+    return open > 0 && lifetime - LORE[open - 1].unlockAt < 500;
+  }, [burrow?.lifetime]);
 
   /**
    * A tile was tapped on the island.
@@ -886,6 +926,25 @@ function Burrow() {
     if (!hasEnergy) { setEnergyOpen(true); return; }
     goTo('island');
   }, [hasEnergy, goTo]);
+
+  /**
+   * A tap on the NEXT strip goes where the line points: the island, the
+   * harvest, the trap floor, or the target list. The strip is a pointer, and
+   * a pointer you cannot follow with the finger that read it is a label.
+   */
+  const onNextAction = useCallback(() => {
+    switch (next?.door) {
+      case 'farm': goFarm(); break;
+      case 'garden': void act('harvest'); break;
+      case 'base': startPlacing(); break;
+      case 'raid': setPickingTarget(true); void raid.refresh(); break;
+      default: break;
+    }
+    // `act` is a plain async function on the component, re-created per
+    // render; listing it would re-create this handler every render for no
+    // change in behaviour.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [next?.door, goFarm, startPlacing, raid]);
 
   /**
    * THE FIRST TRIP IS NOT A CHOICE. A player who has never been on an island
@@ -1421,10 +1480,33 @@ function Burrow() {
             onAdd={() => setShopOpen(true)}
           />
         )}
-        {/* The right-hand end. The season board hangs its own tab here and the
-            sound control rides above both screens, so this is the spacer that
-            keeps the player chip at the LEFT edge rather than centred. */}
-        <span aria-hidden style={{ width: 1 }} />
+        {/* The right-hand end: the SHOP and the STORY, as icons beside the
+            season board's trophy (which pins itself at the corner, hence the
+            padding). Neither is a loop — a store and a codex — so neither
+            belongs on the floor with DIG, HOME and RAID; up here they are
+            reachable without being mistaken for a step of the game. */}
+        {showCanvas && where === 'burrow' && !placing ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingRight: 56 }}>
+            <HubIconButton
+              label="Shop"
+              count={shop.shop?.traps.held ?? 0}
+              onClick={() => setShopOpen(true)}
+            >
+              🛒
+            </HubIconButton>
+            <span key={lorePulseKey} className={lorePulseKey > 0 ? 'rr-tab-pop' : undefined} style={{ display: 'inline-flex' }}>
+              <HubIconButton
+                label="Story"
+                count={freshChapter ? 1 : 0}
+                onClick={() => setLoreOpen(true)}
+              >
+                📜
+              </HubIconButton>
+            </span>
+          </div>
+        ) : (
+          <span aria-hidden style={{ width: 1 }} />
+        )}
       </div>
       {/* Tells the island's overlay where this bar and the pill end. */}
       {showCanvas && <TopbarReserve />}
@@ -1512,34 +1594,18 @@ function Burrow() {
                   repeating it spent the column's scarcest space saying nothing
                   new. See `BurrowTerrain`'s `setShield` for the sign. */}
 
-              {/* ENERGY IS ITS OWN OBJECT — see energy-card.tsx.
-                  
-                  It deliberately does NOT wear the wooden frame the cards
-                  below use: a big bolt at the left, the count beside it, the
-                  bar in the right-hand column only. Energy is the number this
-                  screen is read for, and sharing the upgrade price's shape is
-                  what stopped it being findable. */}
-              <div style={{ marginBottom: 10 }}>
-                <EnergyCard
-                  energy={burrow?.energy ?? 0}
-                  maxEnergy={burrow?.maxEnergy ?? 0}
-                  note={
-                    burrow?.nextEnergyInMs == null
-                      ? undefined
-                      : !hasEnergy
-                        ? `A run takes ${burrow.runCost}. Ready in ${formatWait(burrow.nextRunInMs ?? burrow.nextEnergyInMs)}.`
-                        : `+1 in ${formatWait(burrow.nextEnergyInMs)}.`
-                  }
-                />
-              </div>
+              {/* NO ENERGY CARD. The bar lives on the DIG slab of the loop
+                  bar (see loop-bar.tsx): the number is read at the moment of
+                  deciding to dig, and that moment is the slab, not a card
+                  above the garden. The empty case still opens the popup. */}
 
-              {/* THE NEXT THING TO DO — see quest-card.tsx. Under energy,
-                  because energy is what the screen is read for, and above the
-                  garden, because the ask is what a new player is looking for.
-                  Gone once every reward is taken: a card that says "all done"
-                  for the life of the account is wallpaper. */}
-              {quest?.active && (
-                <div style={{ marginBottom: 10 }}>
+              {/* THE NEXT THING TO DO, first. While the quest arc runs it is
+                  the quest card (quest-card.tsx); once every reward is taken
+                  it is the next-action line (config/next-action.ts) — the
+                  strip never goes away, because a burrow with nothing
+                  pointing anywhere is a column of readings. */}
+              <div style={{ marginBottom: 10 }}>
+                {quest?.active ? (
                   <QuestCard
                     quest={quest.active}
                     pending={pending}
@@ -1547,8 +1613,10 @@ function Burrow() {
                     claimKey={questClaimKey}
                     onClaim={() => void claimQuest(quest.active!.id)}
                   />
-                </div>
-              )}
+                ) : next && (
+                  <NextStrip action={next} onClick={onNextAction} />
+                )}
+              </div>
 
               {/* The garden, in the mock's slab — see garden-card.tsx. HARVEST
                   is a full-width carrot button rather than a nine-slice the
@@ -1713,18 +1781,34 @@ function Burrow() {
         />
       )}
 
-      {!crossing && !shownRaid && where === 'burrow' && showCanvas && !placing && (
-        <HubTabs
-          shop={shop.shop}
-          targets={raid.targets}
-          lifetime={burrow?.lifetime ?? 0}
-          questDoor={quest?.active?.door ?? null}
+      {/* THE LOOP BAR — DIG ▸ HOME ▸ RAID — on the floor. See loop-bar.tsx.
+          Slid away while placing rather than unmounted, on the same curve the
+          camera pulls back on; the BACK slab takes the floor then. */}
+      {showCanvas && where === 'burrow' && !shownRaid && !crossing && (
+        burrow && <LoopBar
+          dig={{
+            energy: burrow.energy,
+            maxEnergy: burrow.maxEnergy,
+            runCost: burrow.runCost,
+            nextRunInMs: burrow.nextRunInMs,
+          }}
+          home={{
+            gardenReady: burrow.gardenReady,
+            shieldMs: burrow.shieldMs,
+            trapsLive: shop.traps?.armed.length ?? 0,
+            trapsPlaced: shop.traps?.placed.length ?? 0,
+          }}
+          raid={{
+            open: openTargets.length,
+            best: bestTarget,
+            bombs: shop.shop?.items.find((i) => i.kind === 'bomb')?.held ?? 0,
+          }}
+          questDoor={quest?.active?.door ?? next?.door ?? null}
           questPulseKey={questPulseKey}
-          storyPulseKey={lorePulseKey}
-          onShop={() => setShopOpen(true)}
-          onProtect={startPlacing}
+          away={placing}
+          onDig={goFarm}
+          onHome={startPlacing}
           onRaid={() => { setPickingTarget(true); void raid.refresh(); }}
-          onStory={() => setLoreOpen(true)}
         />
       )}
 
@@ -1799,28 +1883,17 @@ function Burrow() {
               into its own game. */}
           <GoButton
             dir="down"
-            label={spectating ? 'Stop watching' : 'Back home'}
+            label={spectating ? 'Stop watching' : 'Home'}
             onClick={stopSpectating}
           />
         </div>
       )}
 
-      {showCanvas && where === 'burrow' && !shownRaid && !crossing && (
-        // Never disabled, and never hidden. It is the one control anchored to
-        // this screen, and a dead arrow was the game's worst answer to its
-        // most common dead end — an empty tank now opens the popup that says
-        // so and offers the way out. It still waits out a crossing with the
-        // rest of the burrow's chrome.
-        //
-        // `away` while placing rather than unmounting it: farming is not on
-        // offer while you are mining the board, but the camera is pulling back
-        // in that same moment, and the button rides down with it on the same
-        // curve (see .rr-go-away). Unmounted, it would blink out halfway
-        // through the zoom.
-        <FarmButton label="Go farm" onClick={goFarm} away={placing} />
-      )}
+      {/* NO GO FARM SLAB: DIG on the loop bar is that control now, with the
+          bank and the run's cost written on it. It is never disabled and
+          never hidden — an empty tank opens the popup that says so. */}
 
-      {/* THE WAY OUT OF PLACEMENT, on the slab GO FARM vacates.
+      {/* THE WAY OUT OF PLACEMENT, on the floor the loop bar vacates.
           
           Same component, same geometry, same spot — `tone="back"` is a sprite
           and a palette (see `FarmButton`). The two never coexist: GO slides

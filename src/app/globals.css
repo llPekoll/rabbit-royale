@@ -427,6 +427,51 @@ button { min-height: 44px; min-width: 44px; }
   100% { opacity: 1; transform: none; }
 }
 
+/* ── The loop bar: DIG ▸ HOME ▸ RAID on the floor ─────────────────────────
+   Replaces the four launcher tiles and the GO FARM slab. Centred, one row,
+   the width GO FARM and the tiles used to share between them. See
+   loop-bar.tsx for what each slab says. */
+.rr-loop-bar {
+  position: fixed;
+  left: 50%;
+  bottom: calc(10px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: min(94vw, 1040px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 20;
+  pointer-events: none;
+  transition: transform 320ms cubic-bezier(0.4, 0, 0.2, 1), opacity 240ms linear;
+}
+.rr-loop-bar > * { pointer-events: auto; }
+.rr-loop-away {
+  transform: translateX(-50%) translateY(160%);
+  opacity: 0;
+  pointer-events: none;
+}
+.rr-loop-slab:active .rr-loop-face { transform: translateY(4px); }
+/* The sound control keeps clear of the bar's right end. */
+body:has(.rr-loop-bar) .rr-sound {
+  bottom: calc(10px + env(safe-area-inset-bottom) + clamp(52px, 10.4svh, 80px) + 12px);
+}
+/* Upright phone: the three slabs stack, each a full-width row, and the
+   arrows turn into a column between them. */
+@media (max-width: 720px) and (orientation: portrait) {
+  .rr-loop-bar { flex-direction: column; gap: 6px; width: calc(100vw - 20px); }
+  .rr-loop-bar > .rr-loop-slab { width: 100%; height: 48px; }
+  .rr-loop-bar > span, .rr-loop-bar > svg { display: none; }
+  .rr-loop-away { transform: translateX(-50%) translateY(120%); }
+  /* The stacked bar is three rows tall; the sound cluster sat on the lower
+     two (seen on a 390x844 drive). It clears the whole stack here. */
+  body:has(.rr-loop-bar) .rr-sound {
+    bottom: calc(10px + env(safe-area-inset-bottom) + 3 * 48px + 2 * 6px + 12px);
+  }
+  body:has(.rr-loop-bar) .rr-burrow {
+    padding-bottom: calc(10px + env(safe-area-inset-bottom) + 3 * 48px + 2 * 6px + 20px);
+  }
+}
+
 /* ── Juice: the small pops that make a change an EVENT ──────────────────
    All keyed to mount or to a React `key` change, so a component fires one by
    re-rendering rather than by holding a timer. Every one respects

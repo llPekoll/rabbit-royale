@@ -60,6 +60,8 @@ const BTN_OFF_INK = '#9a8270';
 /** The carrot mark beside the count — the game's own silhouette. */
 const CARROT_MARK = '/assets/misc/carrote_silouhette.png';
 const GARDEN_ART = '/assets/ui/icons/garden.webp';
+/** The risk line: the burrow's danger red, lifted to read on the dark face. */
+const RISK_INK = '#ff8a7a';
 
 export function GardenCard({
   ready, yieldPerHour, capacity, capHours, onHarvest, pending,
@@ -125,9 +127,15 @@ export function GardenCard({
         </span>
       </HubRow>
 
-      {/* The RATE, not just the pile: "+0" alone reads as a broken garden. */}
-      <p className={SUB_CLASS} style={subText}>
-        {yieldPerHour}/hour &middot; holds {capacity} ({capHours}h)
+      {/* THE RISK, while there is one; the RATE otherwise. What is standing
+          outside is what a raid takes first (RAID.GARDEN_LOOT_SHARE), and a
+          card that only ever said "72/hour" never gave the player the one
+          reason to press HARVEST now rather than later. With nothing to take,
+          "+0" alone reads as a broken garden, so the rate line comes back. */}
+      <p className={SUB_CLASS} style={{ ...subText, color: ready > 0 ? RISK_INK : undefined }}>
+        {ready > 0
+          ? <>stealable until harvested &middot; {yieldPerHour}/hour</>
+          : <>{yieldPerHour}/hour &middot; holds {capacity} ({capHours}h)</>}
       </p>
     </HubCard>
   );
