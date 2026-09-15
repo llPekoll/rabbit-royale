@@ -1944,10 +1944,11 @@ body:has(.rr-lb.open:not(.rr-profile)) .rr-lb-launch {
   inset: 0;
   margin: auto;
   width: min(380px, calc(100vw - 32px));
-  /* Tall enough for the avatar grid, never taller than the screen — the body
-     inside already scrolls. */
-  height: max-content;
-  max-height: min(640px, calc(100dvh - 32px));
+  /* ONE HEIGHT FOR BOTH TABS, never taller than the screen — the body inside
+     scrolls. It was `max-content`, so the box took the height of whichever tab
+     was showing: Profile to History dropped it 200px and, centred, the header
+     jumped under the pointer that had just pressed the tab. */
+  height: min(640px, calc(100dvh - 32px));
   border: 1px solid var(--border);
   border-radius: 14px;
   overflow: hidden;
@@ -2090,10 +2091,15 @@ body:has(.rr-lb.open:not(.rr-profile)) .rr-lb-launch {
 }
 
 /* A fixed track rather than wrapping flex: the rabbits are all one size, so a
-   grid keeps them on an even rhythm instead of leaving a ragged last row. */
+   grid keeps them on an even rhythm instead of leaving a ragged last row.
+
+   `auto-fit` at the 44px tap floor: the five rabbits share ONE row at every
+   width the panel takes. At 64px `auto-fill` put four on a row and the fifth
+   alone below, and that orphan row was the ~90px that pushed the guest note's
+   buttons out of the panel. More avatars still wrap. */
 .rr-avatar-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(44px, 1fr));
   gap: 8px;
   width: 100%;
 }
@@ -2137,6 +2143,18 @@ body:has(.rr-lb.open:not(.rr-profile)) .rr-lb-launch {
 }
 .rr-warn { margin: 0; font-size: 12px; color: var(--danger); }
 .rr-empty { margin: 0; font-size: 12px; color: var(--muted); }
+/* A LINE, not the doorstep. `.rr-empty` is also the signed-out screen's
+   full-height column (height 100%, content pushed down, 8vh under it), and in
+   the history that turned "Nobody has crossed your burrow yet." into a centred
+   block with a hole beneath it. */
+.rr-profile .rr-empty {
+  height: auto;
+  display: block;
+  padding: 0;
+  text-align: left;
+  line-height: 1.6;
+  pointer-events: auto;
+}
 
 /* The pixel face reports a `normal` line box SHORTER than the glyphs it draws,
    so a paragraph that wraps lands its second line on top of its first — which
