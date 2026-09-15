@@ -20,9 +20,10 @@ import { randomUUID } from 'node:crypto';
 import { Server, type Socket } from 'socket.io';
 import { and, eq, isNull, sql as raw } from 'drizzle-orm';
 
-import { ENERGY, ERUPTION, MIRAGE, MULTIPLAYER } from '../config/tuning';
+import { ENERGY, ERUPTION, MIRAGE, MULTIPLAYER, OUT_OF_RUN_ENERGY } from '../config/tuning';
 import { mulberry32, seedFrom } from '../src/lib/game/rng';
-import { dugFraction, publicView } from '../src/lib/game/island';
+import { cascadeHints, dugFraction, publicView } from '../src/lib/game/island';
+import { firstIslandSeed, isFirstIsland } from '../src/lib/game/first-island';
 import { resolveMove, spawnRabbit } from '../src/lib/game/run';
 import { mirageActive, planMirage, shownAdjacent } from '../src/lib/game/mirage';
 import { strike } from '../src/lib/game/lightning';
@@ -122,6 +123,19 @@ function newIsland(lifetimeCarrots: number): LiveIsland {
   return store.create(randomUUID(), lifetimeCarrots);
 }
 
+/**
+ * The first island a player ever sees — theirs alone, dealt by hand.
+ *
+ * The seed carries the `first:` prefix, which is what the terrain and the
+ * generator read to cut it small and lay it out (see FIRST_RUN in tuning and
+ * `firstIslandLayout` in island.ts). The prefix travels to the client like
+ * any seed, so the coastline it draws is the same one; what is buried stays
+ * behind the content seed as always.
+ */
+function newFirstIsland(): LiveIsland {
+  return store.create(firstIslandSeed(randomUUID()), 0, { solo: true });
+}
+
 /** Everything a client needs to draw the island it just joined. */
 function snapshot(live: LiveIsland) {
   const view = publicView(live.island);
@@ -131,6 +145,13 @@ function snapshot(live: LiveIsland) {
     seed: view.seed,
     tier: view.tier,
     revealed: view.revealed,
+    // Chests are announced before they are dug — see `publicView`. Already
+    // read by the client's snapshot type; it was simply never sent here.
+    chests: view.chests,
+    // Numbers the cascade has opened on undug ground — see `cascadeHints`.
+    hinted: view.hinted,
+    /** The tutorial island. The client runs its captions off this alone. */
+    first: isFirstIsland(view.seed),
     warnStage: live.warnStage,
     rabbits: [...live.rabbits.values()].map(publicRabbit),
     // Where the flock stands NOW, not where the seed first put it. A player
@@ -275,6 +296,7 @@ async function bankRun(rabbit: Rabbit) {
     lifetimeCarrots: raw`${players.lifetimeCarrots} + ${carrots}`,
     runsPlayed: raw`${players.runsPlayed} + 1`,
     tilesDug: raw`${players.tilesDug} + ${run.tilesDug}`,
+    chestsOpened: raw`${players.chestsOpened} + ${run.chests ?? 0}`,
     lastSeenAt: new Date(),
   }).where(eq(players.id, playerId));
 
@@ -349,7 +371,7 @@ async function bankRun(rabbit: Rabbit) {
 async function payForRun(
   playerId: string,
   first: { energy: number; energyUpdatedAt: Date },
-): Promise<{ ok: true } | { ok: false; energy: number; nextRunInMs: number | null }> {
+): Promise<{ ok: true; energy: number } | { ok: false; energy: number; nextRunInMs: number | null }> {
   let row = first;
   for (let attempt = 0; attempt < 3; attempt++) {
     const now = Date.now();
@@ -371,7 +393,9 @@ async function payForRun(
         raw`date_trunc('milliseconds', ${players.energyUpdatedAt}) = ${row.energyUpdatedAt.toISOString()}::timestamptz`,
       ))
       .returning({ id: players.id });
-    if (charged) return { ok: true };
+    // The bar AFTER the charge rides back so the island can say what the
+    // run cost — the one moment the number is news rather than a status.
+    if (charged) return { ok: true, energy: paid.energy };
 
     const fresh = await db.query.players.findFirst({
       where: eq(players.id, playerId),
@@ -404,7 +428,16 @@ io.on('connection', (socket: Socket) => {
     // reconnecting player is dropped onto the fullest island instead and ends
     // up with TWO rabbits: the new one here, and the old seat ticking away
     // until the grace sweep banks it.
-    const live = store.seatOf(data.playerId) ?? store.findJoinable() ?? newIsland(player.lifetimeCarrots);
+    //
+    // A player with NO RUNS behind them is the exception to drop-in: they get
+    // the first island (theirs alone, authored — see `newFirstIsland`) rather
+    // than the fullest one. `runsPlayed` is bumped when a run banks, so a
+    // first-timer who refreshes mid-run still finds their seat above, and one
+    // who walks home and comes straight back gets the real ladder.
+    const live = store.seatOf(data.playerId)
+      ?? (player.runsPlayed === 0 ? newFirstIsland() : undefined)
+      ?? store.findJoinable()
+      ?? newIsland(player.lifetimeCarrots);
 
     /**
      * A refresh returns to the same rabbit; walking back in starts a new run.
@@ -431,6 +464,16 @@ io.on('connection', (socket: Socket) => {
     // Refused, the socket joins no room and owns no rabbit: the client goes
     // back to the burrow, which shows the wait and sells the refill. The
     // island is deliberately not where a player learns they cannot afford it.
+    /**
+     * What this crossing took out of the burrow's bar, and what is left.
+     *
+     * Sent with the snapshot rather than left for the client to fetch: the
+     * charge is the ONE thing about the burrow that happens while the player
+     * is looking at the island, and it used to happen in silence — the bar
+     * dropped by a run's worth and nothing on screen said so until they got
+     * home. Undefined on a reconnect, which is the same run and paid nothing.
+     */
+    let bank: { energy: number; cost: number; max: number } | undefined;
     if (!existing) {
       const paid = await payForRun(data.playerId, player);
       if (!paid.ok) {
@@ -441,6 +484,7 @@ io.on('connection', (socket: Socket) => {
           nextRunInMs: paid.nextRunInMs,
         });
       }
+      bank = { energy: paid.energy, cost: ENERGY.RUN_COST, max: OUT_OF_RUN_ENERGY.MAX };
     }
 
     const rabbit = existing ?? spawnRabbit(data.playerId, player.name, ENERGY.START, live.island.seed);
@@ -470,7 +514,7 @@ io.on('connection', (socket: Socket) => {
     // a run — this used to throw straight out of the handler and take the whole
     // process, and everyone else's live island, with it.
     await optional('markOnline', () => markOnline(data.playerId!));
-    socket.emit('island', snapshot(live));
+    socket.emit('island', { ...snapshot(live), bank });
     socket.to(roomFor(live.island.id)).emit('rabbit_joined', publicRabbit(rabbit));
   }));
 
@@ -576,6 +620,9 @@ io.on('connection', (socket: Socket) => {
         }
       }
     }
+    // A strike that opened a zero opens the ground around it, like a dig.
+    const hinted = cascadeHints(live.island, out.struck.map((s) => s.tile));
+    if (hinted.length) io.to(room).emit('hints_revealed', { tiles: hinted });
   }));
 
   /**
@@ -699,6 +746,7 @@ io.on('connection', (socket: Socket) => {
           adjacent: shove.dig.adjacent,
           dugBy: shove.playerId,
         });
+        if (shove.dig.hinted?.length) io.to(room).emit('hints_revealed', { tiles: shove.dig.hinted });
       }
       io.to(room).emit('rabbit_pushed', {
         playerId: shove.playerId,
@@ -746,6 +794,10 @@ io.on('connection', (socket: Socket) => {
           socketOf(seated)?.emit('tile_revealed', { ...reveal, adjacent: bent });
         }
       }
+      // The cascade: numbers opened on undug ground around a zero. To the
+      // whole room, like the reveal — what the ground says is a shared fact,
+      // and the tiles themselves are still there for anyone to dig.
+      if (out.dig.hinted?.length) io.to(room).emit('hints_revealed', { tiles: out.dig.hinted });
       // The blast is its own event: the client plays a damage animation and a
       // knockback, which a plain move would not distinguish from a walk.
       if (out.dig.knockback) {

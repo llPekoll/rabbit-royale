@@ -58,12 +58,18 @@ export interface LiveIsland {
    */
   sheep: Map<string, { x: number; y: number }>;
   emptySince: number | null;
+  /**
+   * Nobody else is ever seated here. The first island a player sees is
+   * theirs alone — a tutorial with a stranger racing across it is not a
+   * tutorial — so `findJoinable` skips it. Torn down like any other.
+   */
+  solo: boolean;
 }
 
 export interface IslandStore {
   get(id: string): LiveIsland | undefined;
   all(): Iterable<LiveIsland>;
-  create(seed: string, lifetimeCarrots: number): LiveIsland;
+  create(seed: string, lifetimeCarrots: number, opts?: { solo?: boolean }): LiveIsland;
   delete(id: string): void;
   /**
    * The island a joining player belongs on: the fullest island that still has
@@ -103,8 +109,9 @@ export class MemoryIslandStore implements IslandStore {
     forgetTerrain(id);
   }
 
-  create(seed: string, lifetimeCarrots: number): LiveIsland {
+  create(seed: string, lifetimeCarrots: number, opts: { solo?: boolean } = {}): LiveIsland {
     const live: LiveIsland = {
+      solo: opts.solo ?? false,
       // Two seeds, and the second one never leaves this process. `seed` is the
       // island id and travels in every snapshot so the client can cut the same
       // coastline; `contentSeed` decides where the bombs are and is generated
@@ -144,6 +151,7 @@ export class MemoryIslandStore implements IslandStore {
     let best: LiveIsland | undefined;
     for (const live of this.islands.values()) {
       if (live.erupting) continue;
+      if (live.solo) continue;
       const seats = live.rabbits.size;
       if (seats >= MULTIPLAYER.MAX_PLAYERS_PER_ISLAND) continue;
       // Nearly cleared: whoever is on it finishes it, but it is not worth a

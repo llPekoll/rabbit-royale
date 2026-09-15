@@ -23,14 +23,15 @@
  * appears in `publicView` or in any payload, and is the ONLY thing that decides
  * where a bomb sits. Publishing `seed` is then harmless by construction.
  */
-import { CHEST_TIER_WEIGHTS, ISLAND, tierFor } from '@config/tuning';
+import { CHEST_TIER_WEIGHTS, FIRST_RUN, ISLAND, tierFor } from '@config/tuning';
 import {
-  COLS, ROWS, SPAWN_INDEX, makeShape, isForbidden, neighbors,
+  COLS, ROWS, SPAWN_INDEX, makeShape, isForbidden, neighbors, toColRow, toIndex,
   type IslandShape,
 } from '@/config/gridConfig';
 import { farmableTiles, spawnTile, terrainNeighbors } from './terrainBoard';
-import { mulberry32, pickWeighted, seedFrom, shuffle } from './rng';
-import type { Island, Tile } from './types';
+import { isFirstIsland } from './first-island';
+import { mulberry32, pickWeighted, seedFrom, shuffle, type Rng } from './rng';
+import type { HintReveal, Island, Tile } from './types';
 
 export interface GenerateOptions {
   /** PUBLIC. Cuts the land the client draws; travels in every snapshot. */
@@ -72,28 +73,32 @@ export function generateIsland(opts: GenerateOptions): Island {
   const spawn = spawnTile(opts.seed);
   const safe = new Set<number>([spawn, ...terrainNeighbors(opts.seed, spawn)]);
 
-  // Deal contents by shuffling the eligible tiles once and slicing. Simpler
-  // than rejection-sampling per item, and it cannot loop forever at the high
-  // densities of the late tiers.
-  const pool = shuffle(rng, [...tiles.keys()].filter((i) => !safe.has(i)));
-  let cursor = 0;
-  const take = (n: number) => pool.slice(cursor, (cursor += n));
-  const total = tiles.size;
+  if (isFirstIsland(opts.seed)) {
+    firstIslandLayout(opts.seed, tiles, spawn, safe, rng);
+  } else {
+    // Deal contents by shuffling the eligible tiles once and slicing. Simpler
+    // than rejection-sampling per item, and it cannot loop forever at the high
+    // densities of the late tiers.
+    const pool = shuffle(rng, [...tiles.keys()].filter((i) => !safe.has(i)));
+    let cursor = 0;
+    const take = (n: number) => pool.slice(cursor, (cursor += n));
+    const total = tiles.size;
 
-  for (const i of take(Math.floor(total * tier.bombDensity))) tiles.get(i)!.content = 'bomb';
+    for (const i of take(Math.floor(total * tier.bombDensity))) tiles.get(i)!.content = 'bomb';
 
-  const carrots = Math.floor(total * tier.carrotDensity);
-  const golden = Math.floor(carrots * tier.goldenShare);
-  for (const i of take(golden)) tiles.get(i)!.content = 'golden';
-  for (const i of take(carrots - golden)) tiles.get(i)!.content = 'carrot';
-  // Each chest draws its own tier, which decides both what it may hold and how
-  // loudly it announces itself. Drawn from the CONTENT rng like everything else
-  // buried here: the tier is shown on the board, but which tile got the crown
-  // must not be derivable from the public seed.
-  for (const i of take(Math.floor(total * ISLAND.CHEST_DENSITY))) {
-    const t = tiles.get(i)!;
-    t.content = 'chest';
-    t.chestTier = pickWeighted(rng, CHEST_TIER_WEIGHTS).kind;
+    const carrots = Math.floor(total * tier.carrotDensity);
+    const golden = Math.floor(carrots * tier.goldenShare);
+    for (const i of take(golden)) tiles.get(i)!.content = 'golden';
+    for (const i of take(carrots - golden)) tiles.get(i)!.content = 'carrot';
+    // Each chest draws its own tier, which decides both what it may hold and how
+    // loudly it announces itself. Drawn from the CONTENT rng like everything else
+    // buried here: the tier is shown on the board, but which tile got the crown
+    // must not be derivable from the public seed.
+    for (const i of take(Math.floor(total * ISLAND.CHEST_DENSITY))) {
+      const t = tiles.get(i)!;
+      t.content = 'chest';
+      t.chestTier = pickWeighted(rng, CHEST_TIER_WEIGHTS).kind;
+    }
   }
 
   const island: Island = {
@@ -108,18 +113,213 @@ export function generateIsland(opts: GenerateOptions): Island {
   recomputeAdjacency(island, shape);
   // You always land somewhere you can read.
   for (const i of safe) revealTile(island, i);
+  // And the ring's zeros open the ground around them, the way a first click
+  // does in minesweeper — the same rule a dig applies, applied at birth.
+  cascadeHints(island, safe);
   return island;
 }
+
+/**
+ * Open the hints around every ZERO in `from`, and around every zero those
+ * hints turn out to be, out to the first real number.
+ *
+ * Minesweeper's cascade, minus the digging. A tile whose count is zero has
+ * no bomb beside it, so showing its neighbours' numbers gives away nothing a
+ * player could not deduce in eight safe steps — it only saves the steps. The
+ * neighbours are HINTED, not revealed: whatever they hold stays in the
+ * ground for whoever walks there, and they still count as safe tiles left
+ * (`islandProgress`), so the island's clock does not move. A bomb is never
+ * hinted, by construction: it is never the neighbour of a zero.
+ *
+ * Starts only from tiles that are open (dug or already hinted) AND zero;
+ * anything else in `from` is ignored, so a caller can pass the tiles it just
+ * touched without sorting them first. Returns what it opened, in the order
+ * it opened it — the wire payload.
+ */
+export function cascadeHints(island: Island, from: Iterable<number>): HintReveal[] {
+  const opened: HintReveal[] = [];
+  const isZero = (t: Tile) => t.content !== 'bomb' && t.adjacent === 0;
+  // The walk runs over EVERY open zero it meets, dug or hinted, seen before or
+  // not — the zone is the connected region of zeros, and a zero that was dug
+  // an hour ago is as much a bridge as one hinted this instant. Marking is
+  // separate from walking: only an unopened tile gets a hint written on it.
+  const seen = new Set<number>();
+  const queue: number[] = [];
+  for (const i of from) {
+    const t = island.tiles.get(i);
+    if (t && (t.revealed || t.hinted) && isZero(t) && !seen.has(i)) { seen.add(i); queue.push(i); }
+  }
+  for (let head = 0; head < queue.length; head++) {
+    for (const nb of boardNeighbors(island, queue[head])) {
+      const t = island.tiles.get(nb)!;
+      if (!t.revealed && !t.hinted) {
+        t.hinted = true;
+        opened.push({ tile: nb, adjacent: t.adjacent });
+      }
+      if (isZero(t) && !seen.has(nb)) { seen.add(nb); queue.push(nb); }
+    }
+  }
+  return opened;
+}
+
+/**
+ * Steps from `from` to every reachable tile, over the terrain's own moves.
+ *
+ * Distance in STEPS rather than in grid squares, so "two tiles out" means two
+ * moves a rabbit can actually make — a tile across a cliff is far however
+ * close its index looks.
+ */
+function stepsFrom(seed: string, from: number, tiles: ReadonlyMap<number, Tile>): Map<number, number> {
+  const dist = new Map<number, number>([[from, 0]]);
+  const queue = [from];
+  for (let head = 0; head < queue.length; head++) {
+    const here = queue[head];
+    const d = dist.get(here)!;
+    for (const nb of terrainNeighbors(seed, here)) {
+      if (!tiles.has(nb) || dist.has(nb)) continue;
+      dist.set(nb, d + 1);
+      queue.push(nb);
+    }
+  }
+  return dist;
+}
+
+/**
+ * The first island, dealt BY HAND — see FIRST_RUN in tuning for the beats.
+ *
+ * Four placements are authored and the rest is dealt like any island, at the
+ * first island's own densities:
+ *
+ *   THE TAUGHT BOMB sits two steps from the spawn, touching as few ring tiles
+ *   as the ground allows (ideally one). Nothing else explosive comes within
+ *   two steps, so the pre-revealed ring reads all zeros and a single "1" — the
+ *   first number a player ever sees has exactly one thing to mean, and the
+ *   tile it points at is one step from safe ground.
+ *
+ *   THE GOLDEN CARROT is a neighbour of that bomb, off the ring. Whether the
+ *   player reads the "1" and walks around, or steps on it and is thrown, the
+ *   heart back is right there — the lesson costs a heart only briefly.
+ *
+ *   THE CHEST is within FIRST_RUN.CHEST_MAX_DISTANCE steps and always the
+ *   lowest tier: it is announced on the board (that is what a tier does), so
+ *   the walk-to-a-prize decision gets made once on a board with almost nothing
+ *   to fear, and a bronze box cannot roll the crown's NFT on a tutorial.
+ *
+ * Everything else — the remaining bombs, the carrots — is shuffled from the
+ * content rng over the tiles that are three or more steps out, so two first
+ * islands are still two islands and the private seed still decides them.
+ */
+function firstIslandLayout(
+  seed: string,
+  tiles: Map<number, Tile>,
+  spawn: number,
+  safe: ReadonlySet<number>,
+  rng: Rng,
+): void {
+  const dist = stepsFrom(seed, spawn, tiles);
+  const at = (d: number) => [...dist].filter(([, n]) => n === d).map(([i]) => i);
+  const board = { tiles };
+  // How many ring tiles a bomb here would light — counted the way the hints
+  // are counted (`boardNeighbors`), across cliffs included.
+  const ringTouches = (i: number) =>
+    boardNeighbors(board, i).filter((n) => safe.has(n) && n !== spawn).length;
+  // Every tile whose hint the safe ring can see. Nothing dealt at random may
+  // land here, or the ring wakes up reading a number the lesson did not write.
+  const seenFromRing = new Set<number>();
+  for (const s of safe) for (const nb of boardNeighbors(board, s)) seenFromRing.add(nb);
+
+  const reserved = new Set<number>();
+
+  // The taught bomb: two steps out — so the player can walk to it — but not a
+  // cell the spawn itself can see, and touching the fewest ring tiles. Sorted
+  // rather than shuffled so the SAME ground always teaches the same way; the
+  // tie-break still comes from the content rng, so the exact tile is private.
+  const twoOut = shuffle(rng, at(2))
+    .filter((i) => !boardNeighbors(board, spawn).includes(i))
+    .sort((a, b) => ringTouches(a) - ringTouches(b));
+  const taught = twoOut[0];
+  if (taught !== undefined) {
+    tiles.get(taught)!.content = 'bomb';
+    reserved.add(taught);
+
+    // The heart back: a neighbour of the bomb that is not on the ring.
+    const golden = shuffle(rng, terrainNeighbors(seed, taught))
+      .find((n) => tiles.has(n) && !safe.has(n) && !reserved.has(n));
+    if (golden !== undefined) {
+      tiles.get(golden)!.content = 'golden';
+      reserved.add(golden);
+    }
+  }
+
+  // The chest: as far out as the cap allows, so it is a walk and not a gift,
+  // and never beside the taught bomb — the two lessons are not the same one.
+  const chestCandidates = [...dist]
+    .filter(([i, d]) => d >= 3 && d <= FIRST_RUN.CHEST_MAX_DISTANCE && !reserved.has(i)
+      && !boardNeighbors(board, i).includes(taught ?? -1))
+    .sort((a, b) => b[1] - a[1])
+    .map(([i]) => i);
+  const chest = chestCandidates.length ? chestCandidates[0] : undefined;
+  if (chest !== undefined) {
+    const t = tiles.get(chest)!;
+    t.content = 'chest';
+    t.chestTier = CHEST_TIER_WEIGHTS[0].kind;
+    reserved.add(chest);
+  }
+
+  // The rest is dealt from three steps out AND out of the ring's sight — so
+  // the numbers the player wakes up reading are the ones written above, and
+  // a bomb on a shelf above the ring cannot light a second "1".
+  const pool = shuffle(rng, [...dist]
+    .filter(([i, d]) => d >= 3 && !reserved.has(i) && !seenFromRing.has(i))
+    .map(([i]) => i));
+  let cursor = 0;
+  const take = (n: number) => pool.slice(cursor, (cursor += n));
+  const total = tiles.size;
+
+  for (const i of take(Math.floor(total * FIRST_RUN.BOMB_DENSITY))) tiles.get(i)!.content = 'bomb';
+  for (const i of take(Math.floor(total * FIRST_RUN.CARROT_DENSITY))) tiles.get(i)!.content = 'carrot';
+}
+
+/**
+ * A tile's neighbours ON THE BOARD: the eight cells around it that the island
+ * actually holds, climbable or not.
+ *
+ * This is the set a hint counts over, and it is deliberately NOT
+ * `terrainNeighbors`, which lists the cells a rabbit may STEP to. The two
+ * differ at a cliff: a tile on the shelf above is one cell away and plainly
+ * visible, but two tiers up and unclimbable, so a hint that only counted
+ * steps read "0" beside a bomb — reported as "a tile next to a bomb shows
+ * nothing". Minesweeper's number has always meant the eight cells around it,
+ * and reachability has nothing to do with where a bomb is. Sea, rock and a
+ * tree's cell are still excluded, because the island has no tile there and
+ * nothing can be buried in them.
+ */
+export function boardNeighbors(island: Pick<Island, 'tiles'>, index: number): number[] {
+  const { col, row } = toColRow(index);
+  const out: number[] = [];
+  for (const [dc, dr] of BOARD_STEPS) {
+    const nc = col + dc;
+    const nr = row + dr;
+    if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) continue;
+    const nb = toIndex(nc, nr);
+    if (island.tiles.has(nb)) out.push(nb);
+  }
+  return out;
+}
+
+const BOARD_STEPS: readonly (readonly [number, number])[] = [
+  [-1, -1], [0, -1], [1, -1],
+  [-1, 0], [1, 0],
+  [-1, 1], [0, 1], [1, 1],
+];
 
 /** Bombs among a tile's 8 neighbours. */
 export function countAdjacent(island: Island, index: number, shape: IslandShape): number {
   let n = 0;
-  // Counted over the TERRAIN's neighbours, not the flat silhouette's. A hint
-  // that counted tiles which are not on the board would be unsolvable: the
-  // player would read a "2" with only one diggable cell beside it. `shape` is
-  // kept in the signature because the sabotage path still passes it, and
-  // because the two agree on everything except the cells terrain removes.
-  for (const nb of terrainNeighbors(island.seed, index)) {
+  // `shape` is kept in the signature because the sabotage path still passes
+  // it; the count itself reads the board — see `boardNeighbors`.
+  void shape;
+  for (const nb of boardNeighbors(island, index)) {
     if (island.tiles.get(nb)?.content === 'bomb') n++;
   }
   return n;
@@ -199,13 +399,20 @@ export const dugFraction = (island: Island) => islandProgress(island).fraction;
 export function publicView(island: Island) {
   const revealed: Array<{ tile: number; content: string; adjacent: number; dugBy?: string }> = [];
   const chests: Array<{ tile: number; tier: string }> = [];
+  // Hinted tiles carry their NUMBER and nothing else — the cascade's whole
+  // bargain is that the number is safe to show and the content is not.
+  const hinted: HintReveal[] = [];
   for (const [index, tile] of island.tiles) {
     // An undug chest still advertises its position and tier — and nothing else.
     if (!tile.revealed && tile.content === 'chest' && tile.chestTier) {
       chests.push({ tile: index, tier: tile.chestTier });
+      // A chest can be hinted too: it is still undug, and its number is a
+      // number like any other. Fall through to the hint below.
+    }
+    if (!tile.revealed) {
+      if (tile.hinted) hinted.push({ tile: index, adjacent: tile.adjacent });
       continue;
     }
-    if (!tile.revealed) continue;
     revealed.push({ tile: index, content: tile.content, adjacent: tile.adjacent, dugBy: tile.dugBy });
   }
   return {
@@ -214,6 +421,7 @@ export function publicView(island: Island) {
     dugFraction: dugFraction(island),
     revealed,
     chests,
+    hinted,
   };
 }
 

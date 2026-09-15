@@ -1,0 +1,58 @@
+'use client';
+
+/**
+ * The strip under the HUD that speaks during the first run.
+ *
+ * ONE LINE, and only on the tutorial island (`game.firstRun`). It names what
+ * the player just did — the first dig, the first bomb, the heart back — from
+ * the mover's own tally, so a stranger's bomb is never the player's lesson.
+ * On every later island it renders nothing at all: the first run is the
+ * tutorial, and a tutorial that follows you around is a nag.
+ *
+ * The line FADES on a clock, except the first one, which holds until the
+ * first dig — "tap a tile" has to stay up for as long as nothing has been
+ * tapped. Fading rather than stacking because a strip that fills up with
+ * everything the island ever said stops being read at all.
+ */
+import { useEffect, useState } from 'react';
+import { firstRunBeat, type FirstRunState } from '@/config/first-run';
+import type { MyDigs } from './use-game-socket';
+
+/** How long a non-sticky beat stays on screen. */
+const CAPTION_MS = 4500;
+
+export interface FirstRunCaptionProps {
+  firstRun: boolean;
+  digs: MyDigs;
+  warnStage: number;
+}
+
+export function useFirstRunCaption({ firstRun, digs, warnStage }: FirstRunCaptionProps): string | null {
+  const state: FirstRunState = { ...digs, warnStage };
+  const beat = firstRun ? firstRunBeat(state) : null;
+  const key = beat?.id ?? null;
+  const [shown, setShown] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!beat) { setShown(null); return; }
+    setShown(beat.text);
+    if (beat.sticky) return;
+    const t = setTimeout(() => setShown((cur) => (cur === beat.text ? null : cur)), CAPTION_MS);
+    return () => clearTimeout(t);
+    // Keyed on the BEAT, not on the tally: another carrot dug while "the
+    // number counts the bombs" is up must not restart its clock.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, firstRun]);
+
+  return shown;
+}
+
+export function FirstRunCaption(props: FirstRunCaptionProps) {
+  const text = useFirstRunCaption(props);
+  if (!text) return null;
+  return (
+    <p className="rr-caption" role="status" aria-live="polite">
+      {text}
+    </p>
+  );
+}

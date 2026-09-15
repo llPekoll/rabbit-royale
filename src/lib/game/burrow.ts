@@ -15,6 +15,9 @@ export interface BurrowRow extends RegenRow {
   lifetimeCarrots: number;
   /** Raids bounce off until this instant, or null if never shielded. */
   shieldedUntil?: Date | null;
+  /** Runs banked so far. Optional so older fixtures still type; zero means
+   *  a player who has never been on an island. */
+  runsPlayed?: number;
 }
 
 export interface BurrowView {
@@ -73,6 +76,13 @@ export interface BurrowView {
   /** What the next level buys, so the price has something to sit against. A
    *  cost with no stated benefit is a number the player cannot judge. */
   next: { yieldPerHour: number } | null;
+  /**
+   * Runs banked. Zero is the one value that matters: a player who has never
+   * been on an island is sent to one straight from sign-in rather than shown
+   * a burrow they have nothing to do in yet (see the first-trip effect in
+   * page.tsx). The first island is the tutorial; the burrow is its reward.
+   */
+  runs: number;
 }
 
 /**
@@ -179,6 +189,7 @@ export function burrowView(row: BurrowRow, now = Date.now()): BurrowView {
     upgradeCost: cost,
     canUpgrade: cost !== null && row.stock >= cost,
     next: atMax ? null : { yieldPerHour: yieldPerHour(row.burrowLevel + 1) },
+    runs: row.runsPlayed ?? 0,
   };
 }
 

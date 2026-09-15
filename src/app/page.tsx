@@ -38,6 +38,10 @@ import { LoreCrawl } from '@/components/lore-crawl';
 import { EnergyCard } from '@/components/energy-card';
 import { GardenCard } from '@/components/garden-card';
 import { BurrowPanel } from '@/components/burrow-card-panel';
+import { QuestCard } from '@/components/quest-card';
+import { FirstRunCaption } from '@/components/first-run-caption';
+import { RunCostNote } from '@/components/run-cost-note';
+import { QUEST_MARK, codexMark, type QuestBoard } from '@/config/quests';
 import { TRAPS } from '@config/tuning';
 import { useShop, type ItemKind } from '@/components/use-shop';
 import type { PayTokenId } from '@/lib/pay/tokens';
@@ -70,6 +74,8 @@ interface Burrow {
   upgradeCost: number | null;
   canUpgrade: boolean;
   next: { yieldPerHour: number } | null;
+  /** Runs banked — zero means never been on an island. */
+  runs: number;
 }
 
 /** Which of the two places is on screen. Not a route: a scene swap. */
@@ -115,6 +121,12 @@ function Burrow() {
    */
   const [spectating, setSpectating] = useState<string | null>(null);
   const [burrow, setBurrow] = useState<Burrow | null>(null);
+  /**
+   * The quest board, read with the burrow — `/api/burrow` carries both, and
+   * every response that hands back a burrow hands back the board beside it,
+   * so the two can never be one fetch apart.
+   */
+  const [quest, setQuest] = useState<QuestBoard | null>(null);
   const [pending, setPending] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   // Bumped on every successful harvest: it replays the rising "+N" and
@@ -268,7 +280,10 @@ function Burrow() {
     if (!token) return;
     fetch('/api/burrow', auth())
       .then((r) => r.json())
-      .then((d) => d.burrow && setBurrow(d.burrow))
+      .then((d) => {
+        if (d.burrow) setBurrow(d.burrow);
+        if (d.quest) setQuest(d.quest);
+      })
       .catch(() => {});
   }, [token, auth]);
 
@@ -311,6 +326,7 @@ function Burrow() {
       const res = await fetch('/api/burrow', auth({ method: 'POST', body: JSON.stringify({ action }) }))
         .then((r) => r.json());
       if (res.burrow) setBurrow(res.burrow);
+      if (res.quest) setQuest(res.quest);
       if (res.harvested) {
         setNote(`+${res.harvested} 🥕`);
         setBurstAmount(res.harvested);
@@ -539,7 +555,51 @@ function Burrow() {
     if (!token) return;
     fetch('/api/burrow', auth())
       .then((r) => r.json())
-      .then((d) => d.burrow && setBurrow(d.burrow))
+      .then((d) => {
+        if (d.burrow) setBurrow(d.burrow);
+        if (d.quest) setQuest(d.quest);
+      })
+      .catch(() => {});
+  }, [token, auth]);
+
+  /**
+   * Take the active quest's reward.
+   *
+   * The server recomputes the condition and writes the claim in one guarded
+   * statement, so a double tap is answered `already_claimed` rather than paid
+   * twice. The island's line for the quest is said HERE, once, as the toast:
+   * the card is an instruction, and the story belongs to the moment the
+   * reward lands, not to the card that asked for it.
+   */
+  const claimQuest = useCallback(async (id: string) => {
+    if (!token) return;
+    setPending(true);
+    try {
+      const res = await fetch('/api/quests', auth({ method: 'POST', body: JSON.stringify({ action: 'claim', id }) }))
+        .then((r) => r.json());
+      if (res.burrow) setBurrow(res.burrow);
+      if (res.quest) setQuest(res.quest);
+      if (res.line) setNote(res.line);
+      if (res.reward?.carrots) {
+        setBurstAmount(res.reward.carrots);
+        setBurstKey((k) => k + 1);
+      }
+      if (res.reward?.item) void shop.refresh();
+    } finally {
+      setPending(false);
+    }
+  }, [token, auth, shop]);
+
+  /**
+   * Tell the server something only the browser saw — the season board opened,
+   * a chapter read. Fired on every open, and a repeat is a no-op server-side,
+   * so the callers do not have to remember whether they already did.
+   */
+  const markQuest = useCallback((mark: string) => {
+    if (!token) return;
+    fetch('/api/quests', auth({ method: 'POST', body: JSON.stringify({ action: 'mark', mark }) }))
+      .then((r) => r.json())
+      .then((d) => { if (d.quest) setQuest(d.quest); })
       .catch(() => {});
   }, [token, auth]);
 
@@ -585,6 +645,19 @@ function Burrow() {
     if (!game.islandSeed) return;
     refreshBurrow();
   }, [game.islandSeed, refreshBurrow]);
+
+  /**
+   * A trap went into the ground (or came out), so the quest board may have
+   * moved — "Bury something" and "Hold the door" both count placements, and
+   * the board is read with the burrow. Keyed on the COUNT the shop hook
+   * reports rather than wired into the placement handler, which is declared
+   * above this refresher and cannot reach it.
+   */
+  const placedCount = shop.traps?.placed.length ?? null;
+  useEffect(() => {
+    if (placedCount === null) return;
+    refreshBurrow();
+  }, [placedCount, refreshBurrow]);
 
   /**
    * The same refresher, reachable from the finished-raid effect.
@@ -649,6 +722,44 @@ function Burrow() {
     if (!hasEnergy) { setEnergyOpen(true); return; }
     goTo('island');
   }, [hasEnergy, goTo]);
+
+  /**
+   * THE FIRST TRIP IS NOT A CHOICE. A player who has never been on an island
+   * starts on one — no GO FARM to find, no column of cards about a garden
+   * they have not earned, and no burrow shown first, not even for the length
+   * of a wipe. The first island is the tutorial (see FIRST_RUN in tuning),
+   * and the burrow is what the recap sends them home to: seen AFTER the run,
+   * when its carrot counter finally has something in it.
+   *
+   * Decided at the sign-in curtain's CUT, which is when the canvas mounts:
+   * `firstTimer` is read there, the boot is told to open on the island
+   * (`openOn`), the chrome flips to the island's in the same instant, and a
+   * seat is asked for — the same three moves `goTo('island')` makes, minus
+   * the iris, because the curtain IS the iris this time.
+   *
+   * `runs` comes from the server, so a player who played their first run on
+   * another device is not sent again. If the bar has not been read by the
+   * cut (a slow first fetch), the effect below is the fallback: it crosses
+   * from the burrow the moment everything is standing, which shows the
+   * burrow for one wipe rather than never — the lesser failure.
+   */
+  const firstTimer = burrow?.runs === 0;
+  const firstTrip = useRef(false);
+  const onCurtainCut = useCallback(() => {
+    setShowCanvas(true);
+    if (!firstTimer || firstTrip.current || spectating) return;
+    firstTrip.current = true;
+    setWhere('island');
+    game.join();
+  }, [firstTimer, spectating, game]);
+
+  useEffect(() => {
+    if (firstTrip.current) return;
+    if (!showCanvas || arriving || !ready || crossing || spectating) return;
+    if (where !== 'burrow' || !firstTimer) return;
+    firstTrip.current = true;
+    goFarm();
+  }, [showCanvas, arriving, ready, crossing, spectating, where, firstTimer, goFarm]);
 
   /**
    * A refill bought from the popup.
@@ -1067,6 +1178,10 @@ function Burrow() {
           onMoveIntent={onMoveIntent}
           onToggleTrap={onToggleTrap}
           onReady={(h) => { handles.current = h; setReady(true); }}
+          // Read once at mount, which is the curtain's cut — the same
+          // instant `onCurtainCut` flips `where`. The two agree by
+          // construction: both read `firstTimer` on the same render.
+          openOn={firstTimer ? SCENE.island : SCENE.burrow}
         />
       )}
 
@@ -1104,7 +1219,7 @@ function Burrow() {
       {/* Over everything, including the fixed overlays. See .rr-curtain. */}
       <CarrotCurtain
         play={arriving}
-        onCut={() => setShowCanvas(true)}
+        onCut={onCurtainCut}
         onDone={() => setArriving(false)}
       />
 
@@ -1154,6 +1269,7 @@ function Burrow() {
           playerId={player.id}
           onSpectate={spectate}
           onMe={setMe}
+          onOpen={() => markQuest(QUEST_MARK.LEADERBOARD)}
         />
       )}
 
@@ -1246,6 +1362,21 @@ function Burrow() {
                   }
                 />
               </div>
+
+              {/* THE NEXT THING TO DO — see quest-card.tsx. Under energy,
+                  because energy is what the screen is read for, and above the
+                  garden, because the ask is what a new player is looking for.
+                  Gone once every reward is taken: a card that says "all done"
+                  for the life of the account is wallpaper. */}
+              {quest?.active && (
+                <div style={{ marginBottom: 10 }}>
+                  <QuestCard
+                    quest={quest.active}
+                    pending={pending}
+                    onClaim={() => void claimQuest(quest.active!.id)}
+                  />
+                </div>
+              )}
 
               {/* The garden, in the mock's slab — see garden-card.tsx. HARVEST
                   is a full-width carrot button rather than a nine-slice the
@@ -1380,6 +1511,7 @@ function Burrow() {
           shop={shop.shop}
           targets={raid.targets}
           lifetime={burrow?.lifetime ?? 0}
+          questDoor={quest?.active?.door ?? null}
           onShop={() => setShopOpen(true)}
           onProtect={startPlacing}
           onRaid={() => { setPickingTarget(true); void raid.refresh(); }}
@@ -1394,6 +1526,16 @@ function Burrow() {
       {!crossing && !shownRaid && where !== 'burrow' && showCanvas && (
         <div className="rr-overlay">
           <RunHud game={game} name={player?.name ?? ''} spectating={spectating} />
+          {/* The first run's one-line captions. Renders nothing on any island
+              but the first, and never for a spectator — the tally it reads is
+              the mover's own. */}
+          {/* What the crossing just cost the burrow, said once. Above the
+              first-run captions, so on the tutorial island the order reads
+              "this is what it cost" then "this is what to do". */}
+          {!spectating && <RunCostNote bank={game.bank} seed={game.islandSeed} />}
+          {!spectating && (
+            <FirstRunCaption firstRun={game.firstRun} digs={game.digs} warnStage={game.warnStage} />
+          )}
           {/* The way back to your own rabbit once a drag has lost it. The camera
               follows a STEP, and a rabbit panned off a phone screen has no tile
               in reach to step onto. Only while it is actually out of frame.
@@ -1420,6 +1562,11 @@ function Burrow() {
           {game.recap && !spectating && (
             <Recap
               recap={game.recap}
+              first={game.firstRun}
+              // The burrow's bar as last read — refreshed at the crossing, so
+              // it already carries this run's charge. What the next decision
+              // (again, or home) is actually made against.
+              bank={burrow ? { energy: burrow.energy, max: burrow.maxEnergy, cost: burrow.runCost } : null}
               onShop={goShopping}
               onHome={stopSpectating}
             />
@@ -1571,6 +1718,7 @@ function Burrow() {
         <LoreCodex
           lifetime={burrow?.lifetime ?? 0}
           onClose={() => setLoreOpen(false)}
+          onRead={(id) => markQuest(codexMark(id))}
         />
       )}
 

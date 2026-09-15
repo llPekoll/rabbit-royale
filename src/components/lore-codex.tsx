@@ -32,7 +32,7 @@
  * dialog in the arcade; the chapter numerals use `BitmapText`, which is exactly
  * the short-label case it is good at.
  */
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import {
   NineSlicePanel,
@@ -122,6 +122,13 @@ export function LoreButton({ lifetime, onOpen }: LoreButtonProps) {
 export interface LoreCodexProps {
   lifetime: number;
   onClose(): void;
+  /**
+   * An UNLOCKED chapter is on the page — fired on open and on every change
+   * of chapter. The quest "Read the stones" (config/quests.ts) listens for
+   * chapter II; the codex itself keeps no read marks, so this is the only
+   * record that a chapter was ever looked at.
+   */
+  onRead?(chapterId: string): void;
 }
 
 /**
@@ -132,7 +139,7 @@ export interface LoreCodexProps {
  * becomes a horizontal strip of numerals above the text. That is handled in CSS
  * rather than in a JS breakpoint, matching how the rest of this codebase decides.
  */
-export function LoreCodex({ lifetime, onClose }: LoreCodexProps) {
+export function LoreCodex({ lifetime, onClose, onRead }: LoreCodexProps) {
   const open = unlockedCount(lifetime);
   const next = nextChapter(lifetime);
   const fontReady = usePixelFont();
@@ -141,6 +148,15 @@ export function LoreCodex({ lifetime, onClose }: LoreCodexProps) {
   // reason to open the codex is the thing they have not read yet; making them
   // walk back down the list to find it is the panel's one obvious failure mode.
   const [selected, setSelected] = useState(() => Math.max(0, open - 1));
+
+  // Through a ref so the page can pass an inline arrow without re-firing
+  // this on every render — the effect is keyed on the CHAPTER changing.
+  const onReadRef = useRef(onRead);
+  onReadRef.current = onRead;
+  useEffect(() => {
+    const c = LORE[selected];
+    if (c && lifetime >= c.unlockAt) onReadRef.current?.(c.id);
+  }, [selected, lifetime]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

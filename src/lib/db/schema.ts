@@ -115,6 +115,34 @@ export const players = pgTable('players', {
   runsPlayed: integer('runs_played').notNull().default(0),
   tilesDug: bigint('tiles_dug', { mode: 'number' }).notNull().default(0),
 
+  /**
+   * THE FIRST-WEEK COUNTERS — what the quest board reads (config/quests.ts).
+   *
+   * Plain lifetime counts, one per verb the game teaches: harvest, bury, open,
+   * knock. Each is bumped in the same statement as the thing it counts, so a
+   * quest's progress can never disagree with what the player actually did,
+   * and a quest is never "lost" — it is recomputed from these on every read.
+   *
+   * Counters rather than booleans because the numbers are also the playtest
+   * instrument for the funnel: "how many players ever placed a trap" is a
+   * query on this column, not on a log.
+   */
+  harvests: integer('harvests').notNull().default(0),
+  trapsPlaced: integer('traps_placed').notNull().default(0),
+  chestsOpened: integer('chests_opened').notNull().default(0),
+  raidsPlayed: integer('raids_played').notNull().default(0),
+  /**
+   * Quests whose reward has been TAKEN, by id. The condition is derived from
+   * the counters above; only the claim needs storing, because a reward paid
+   * twice is the one thing recomputation cannot protect against.
+   */
+  questsClaimed: text('quests_claimed').array().notNull().default([]),
+  /**
+   * Things the CLIENT saw that the server cannot count — the season board
+   * opened, a chapter read. Named marks, appended once, never removed.
+   */
+  questMarks: text('quest_marks').array().notNull().default([]),
+
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [

@@ -53,13 +53,22 @@ export interface GameCanvasProps {
   /** A minable tile was tapped while placing. `mined` says whether it already
    *  holds a bomb — the tap takes it back up rather than putting one down. */
   onToggleTrap(tile: number, mined: boolean): void;
-  /** Both scenes are built and the burrow is showing. */
+  /** Both scenes are built and `openOn` is showing. */
   onReady(handles: GameHandles): void;
+  /**
+   * The scene the boot ends on. Read ONCE, at mount — like the seed, a later
+   * change is not a reason to rebuild the game; the crossing is `wipeTo`.
+   * Defaults to the burrow (see `BootData.openOn`).
+   */
+  openOn?: SceneKey;
 }
 
-export function GameCanvas({ seed, playerId, onMoveIntent, onToggleTrap, onReady }: GameCanvasProps) {
+export function GameCanvas({
+  seed, playerId, onMoveIntent, onToggleTrap, onReady, openOn,
+}: GameCanvasProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<GameApp | null>(null);
+  const openOnRef = useRef(openOn);
 
   // Callbacks are read through refs rather than captured. The mount effect
   // deliberately does not re-run when their identity changes — rebuilding the
@@ -104,6 +113,7 @@ export function GameCanvas({ seed, playerId, onMoveIntent, onToggleTrap, onReady
           placing: false,
           onToggle: (tile, mined) => trapRef.current(tile, mined),
         },
+        openOn: openOnRef.current,
         onReady: () => {
           if (disposed) return;
           const scenes = ref.scenes;

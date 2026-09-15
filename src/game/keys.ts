@@ -18,6 +18,14 @@ export type SceneKey = (typeof SCENE)[keyof typeof SCENE];
 export interface BootData {
   burrow?: BurrowSceneData;
   island?: IslandSceneData;
-  /** Fired once both scenes are built and the burrow is on screen. */
+  /**
+   * Which scene the boot ends on. The burrow, unless told otherwise: it is
+   * home, and where a returning player lands. A brand-new player is opened
+   * on the ISLAND instead — their first run is the tutorial, and a burrow
+   * they have nothing to do in yet must not be the first thing they see, not
+   * even for the length of a wipe.
+   */
+  openOn?: SceneKey;
+  /** Fired once both scenes are built and `openOn` is on screen. */
   onReady?: () => void;
 }

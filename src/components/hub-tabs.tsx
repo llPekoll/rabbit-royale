@@ -22,6 +22,7 @@
 import { HubTab, HubTabRow } from './hub-tab';
 import { LootChest } from './loot-chest';
 import { LORE, unlockedCount } from '@/config/lore';
+import type { QuestDoor } from '@/config/quests';
 import type { ShopState } from './use-shop';
 import type { Target } from './use-raid';
 
@@ -34,6 +35,15 @@ export interface HubTabsProps {
   targets: Target[];
   /** Lifetime carrots — what unlocks the story's chapters. */
   lifetime: number;
+  /**
+   * The door the ACTIVE quest lives behind, or null.
+   *
+   * The quest card names the next thing to do; this is what points at it.
+   * A quest is the one thing that genuinely is "waiting for you" behind a
+   * door, so it earns the badge the rule above reserves — including on BASE,
+   * which otherwise never carries one.
+   */
+  questDoor?: QuestDoor | null;
   onShop(): void;
   onProtect(): void;
   onRaid(): void;
@@ -41,9 +51,11 @@ export interface HubTabsProps {
 }
 
 export function HubTabs({
-  shop, targets, lifetime, onShop, onProtect, onRaid, onStory,
+  shop, targets, lifetime, questDoor = null, onShop, onProtect, onRaid, onStory,
 }: HubTabsProps) {
   const traps = shop?.traps;
+  /** One on the quest's door — never added to a count, only a floor under it. */
+  const questAt = (door: QuestDoor) => (questDoor === door ? 1 : 0);
 
   /* ── SHOP ──────────────────────────────────────────────────────────────
      The badge is what is ON THE SHELF waiting to be used, which is what the
@@ -106,7 +118,7 @@ export function HubTabs({
           />
         )}
         label="SHOP"
-        count={inShed}
+        count={Math.max(inShed, questAt('shop'))}
         onClick={onShop}
         ariaLabel="Shop"
       />
@@ -115,20 +127,21 @@ export function HubTabs({
         label="BASE"
         disabled={!traps}
         muted={!canEditBase}
+        count={questAt('base')}
         onClick={canEditBase ? onProtect : onShop}
         ariaLabel={canEditBase ? 'Protect your base' : 'Protect your base: no traps yet, open the shop'}
       />
       <HubTab
         sprite={SWORDS}
         label="RAIDING"
-        count={openTargets}
+        count={Math.max(openTargets, questAt('raid'))}
         onClick={onRaid}
         ariaLabel="Raid another burrow"
       />
       <HubTab
         sprite={SCROLL}
         label="STORY"
-        count={freshChapter ? 1 : 0}
+        count={Math.max(freshChapter ? 1 : 0, questAt('story'))}
         onClick={onStory}
         ariaLabel="The Cursed Crown lore"
       />

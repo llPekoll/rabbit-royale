@@ -20,6 +20,8 @@
 import { COLS, ROWS, TIER_LIFT, screenToTile, tilePos, toColRow, toIndex } from '@/config/gridConfig';
 import { IslandBoard } from '@/game/island/board';
 import { generateTerrain, type Terrain } from '@/game/island/terrain';
+import { FIRST_RUN } from '@config/tuning';
+import { isFirstIsland } from './first-island';
 
 /**
  * How the playable island is shaped.
@@ -65,7 +67,12 @@ export function terrainFor(seed: string): Terrain {
 function cached(seed: string) {
   let entry = cache.get(seed);
   if (!entry) {
-    const terrain = generateTerrain({ seed, ...TERRAIN_OPTIONS });
+    // The first island is cut SMALL — a board to clear in one sitting, so
+    // the eruption can teach that the island is the clock. Read off the seed
+    // rather than passed in, because the client rebuilds this from the seed
+    // alone and has to cut the same coastline (see first-island.ts).
+    const land = isFirstIsland(seed) ? FIRST_RUN.LAND : TERRAIN_OPTIONS.land;
+    const terrain = generateTerrain({ seed, ...TERRAIN_OPTIONS, land });
     entry = { terrain, board: new IslandBoard(terrain.map, terrain.placements) };
     cache.set(seed, entry);
   }

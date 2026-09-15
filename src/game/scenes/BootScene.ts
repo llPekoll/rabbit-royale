@@ -62,8 +62,9 @@ export class BootScene implements Scene {
     await this.sceneManager.resident_add(SCENE.burrow, BurrowScene, this.data?.burrow);
     await this.sceneManager.resident_add(SCENE.island, IslandScene, this.data?.island);
 
-    // The burrow is home: it is where a returning player lands.
-    this.sceneManager.show(SCENE.burrow);
+    // The burrow is home: it is where a returning player lands. A first-timer
+    // is opened on the island instead — see `BootData.openOn`.
+    this.sceneManager.show(this.data?.openOn ?? SCENE.burrow);
     this.data?.onReady?.();
   }
 

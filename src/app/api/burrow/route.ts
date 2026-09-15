@@ -11,6 +11,7 @@ import { players } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
 import { applyRegen, gardenYield } from '@/lib/game/regen';
 import { burrowView, upgradeBlocker } from '@/lib/game/burrow';
+import { questBoardOf } from '@/lib/game/quests';
 import { upgradeCost } from '@config/tuning';
 
 export async function GET(req: Request) {
@@ -20,7 +21,10 @@ export async function GET(req: Request) {
   const player = await db.query.players.findFirst({ where: eq(players.id, session.sub) });
   if (!player) return Response.json({ error: 'unknown player' }, { status: 404 });
 
-  return Response.json({ burrow: burrowView(player), player: applyRegen(player) });
+  // The quest board rides on the same read as the burrow: every moment the
+  // client re-reads its carrots is also a moment a quest may have moved, and
+  // one fetch that answers both is one fewer wire to forget.
+  return Response.json({ burrow: burrowView(player), player: applyRegen(player), quest: questBoardOf(player) });
 }
 
 /** `{ action: 'upgrade' | 'harvest' }`. */
@@ -46,10 +50,13 @@ export async function POST(req: Request) {
       seasonScore: raw`${players.seasonScore} + ${ready}`,
       lifetimeCarrots: raw`${players.lifetimeCarrots} + ${ready}`,
       gardenCollectedAt: now,
+      // Counted in the same statement as the carrots: the quest board reads
+      // this, and a harvest the board did not see is a bug report.
+      harvests: raw`${players.harvests} + 1`,
     }).where(eq(players.id, session.sub));
 
     const after = await db.query.players.findFirst({ where: eq(players.id, session.sub) });
-    return Response.json({ harvested: ready, burrow: burrowView(after!) });
+    return Response.json({ harvested: ready, burrow: burrowView(after!), quest: questBoardOf(after!) });
   }
 
   if (action === 'upgrade') {
@@ -68,7 +75,7 @@ export async function POST(req: Request) {
     }).where(eq(players.id, session.sub));
 
     const after = await db.query.players.findFirst({ where: eq(players.id, session.sub) });
-    return Response.json({ spent: cost, burrow: burrowView(after!) });
+    return Response.json({ spent: cost, burrow: burrowView(after!), quest: questBoardOf(after!) });
   }
 
   return Response.json({ error: 'unknown action' }, { status: 400 });

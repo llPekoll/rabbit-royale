@@ -913,6 +913,80 @@ export const CROWN = {
   LOOT_MULT: 1.5,
 } as const;
 
+// ── Onboarding: the first island and the first-week quests ───────────────────
+
+/**
+ * THE FIRST ISLAND — the run that is the tutorial.
+ *
+ * A player with no runs behind them is not dropped onto the fullest island;
+ * they get one of their own, cut smaller and dealt by hand rather than by
+ * density (see `firstIslandLayout` in island.ts). Nobody reads a tutorial
+ * card; everybody remembers the first bomb. So the island is authored to make
+ * the beats land in order and inside two minutes:
+ *
+ *   1. the spawn ring shows exactly ONE "1", beside exactly one bomb — the
+ *      first number the player ever reads has one honest meaning;
+ *   2. a golden carrot sits two steps past that bomb, so the heart a bomb
+ *      takes is given back before the lesson has time to hurt;
+ *   3. a chest is visible from the spawn, so the walk-to-a-prize decision is
+ *      made once on safe ground;
+ *   4. the island is small enough to CLEAR, because "the island is the clock"
+ *      is the rule nobody guesses and the eruption is the only way to say it.
+ *
+ * Private (nobody else is seated on it) and served exactly once: the second
+ * run is the real game, on the real ladder, at Meadow. The GDD's line is that
+ * the first session decides whether there is a second — this is that session.
+ */
+export const FIRST_RUN = {
+  /** Share of the box the first island covers — the ladder's islands use
+   *  TERRAIN_OPTIONS.land (0.62, ~500 tiles). Smaller is the point: at 0.08
+   *  the terrain cuts ~65 connected tiles, which is one sitting, and the
+   *  eruption lands inside a few minutes. Measured, not derived: the
+   *  coastline's falloff and its tidying both eat into the share. */
+  LAND: 0.08,
+  /** Bombs beyond the taught one, as a share of tiles. Meadow is 0.14;
+   *  the first board asks for one lesson, not fourteen. */
+  BOMB_DENSITY: 0.06,
+  /** Richer than Meadow on purpose: the first recap should show a haul. */
+  CARROT_DENSITY: 0.40,
+  /** Steps from the spawn to the visible chest, at most. */
+  CHEST_MAX_DISTANCE: 5,
+} as const;
+
+/**
+ * THE QUEST BOARD: one ask at a time, in the order the game teaches its
+ * rules (config/quests.ts holds the words; this holds the numbers).
+ *
+ * Every reward feeds the three counters like a harvest does — a quest is a
+ * carrot event, not a coupon. The two item rewards are placed where the item
+ * is about to matter: a SHIELD lands right before the onboarding shield lifts,
+ * a BOMB lands the moment the player has raided someone and learned what
+ * revenge is for.
+ */
+export const QUESTS = {
+  /** Tiles to dig for the first ask — done inside the first island. */
+  FIRST_DIG_TILES: 10,
+  /** Traps standing before the onboarding shield lifts. TRAPS.FREE_PER_DAY
+   *  covers it on day one, so this is never a purchase. */
+  HOLD_THE_DOOR_TRAPS: 3,
+  /** Carrot rewards, by quest id. */
+  CARROTS: {
+    'break-ground': 50,
+    'come-home': 100,
+    'bring-it-in': 75,
+    'bury-something': 100,
+    'look-up': 50,
+    'read-the-stones': 100,
+    'hold-the-door': 150,
+    'the-thicket': 250,
+  },
+  /** Item rewards, by quest id. */
+  ITEMS: {
+    'open-a-chest': { kind: 'shield', qty: 1 },
+    'knock-on-a-door': { kind: 'bomb', qty: 1 },
+  },
+} as const;
+
 /**
  * Single accessor so a caller never reaches into a tier by index. Returns the
  * richest tier the player has unlocked.

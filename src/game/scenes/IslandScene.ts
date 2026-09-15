@@ -610,6 +610,18 @@ export class IslandScene implements Scene {
   }
 
   /**
+   * The cascade opened this tile's number without digging it.
+   *
+   * The tile stays covered and still holds whatever it holds; only the count
+   * is written on the lid, and the lid thins so the board reads "known, not
+   * yet walked" beside "unknown". No sound, no shake: a zone opening is a
+   * reading, not an event.
+   */
+  hintTile(index: number, adjacent: number): void {
+    this.tiles.get(index)?.revealHint(adjacent);
+  }
+
+  /**
    * A sheep moved, because the server said so.
    *
    * No rules here: the flight logic lives on the server (`flee.ts`), and the

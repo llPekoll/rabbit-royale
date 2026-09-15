@@ -12,7 +12,7 @@
  * `spendTrap` decides whether this placement eats a free one (pushing the claim
  * stamp forward by exactly one trap's worth) or a bought one.
  */
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql as raw } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { players, traps } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
@@ -95,7 +95,11 @@ export async function POST(req: Request) {
   try {
     await db.transaction(async (tx) => {
       await tx.insert(traps).values({ ownerId: session.sub, tile });
-      await tx.update(players).set(spend).where(eq(players.id, session.sub));
+      // `trapsPlaced` is a LIFETIME count for the quest board — a trap lifted
+      // later was still placed, and the lesson was still learned.
+      await tx.update(players)
+        .set({ ...spend, trapsPlaced: raw`${players.trapsPlaced} + 1` })
+        .where(eq(players.id, session.sub));
     });
   } catch (err) {
     if (String(err).includes('traps_owner_tile_idx')) {

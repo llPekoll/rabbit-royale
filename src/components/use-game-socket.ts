@@ -55,6 +55,34 @@ export interface IslandSnapshot {
    * not. Optional so a client stays compatible with a server that predates it.
    */
   chests?: Array<{ tile: number; tier: string }>;
+  /**
+   * Numbers the cascade has opened on UNDUG tiles — see `cascadeHints`.
+   * Tile and count only; what the tile holds is still the server's secret.
+   */
+  hinted?: Array<{ tile: number; adjacent: number }>;
+  /**
+   * The tutorial island — a player's very first run, on ground dealt by hand
+   * (see FIRST_RUN in tuning). The captions over the board run off this and
+   * nothing else. Optional so an older server simply means "not the first".
+   */
+  first?: boolean;
+  /**
+   * What this crossing took out of the burrow's bar, and what is left there.
+   *
+   * Present only when a run was just PAID for — absent on a reconnect, which
+   * is the same run continuing. The island says it once on arrival (see
+   * `RunCostNote`), because the charge is the one change to the burrow that
+   * happens while the player is looking somewhere else.
+   */
+  bank?: RunBank;
+}
+
+export interface RunBank {
+  /** The bar after the charge. */
+  energy: number;
+  /** What the run took — ENERGY.RUN_COST as the server applied it. */
+  cost: number;
+  max: number;
 }
 
 /**
@@ -64,6 +92,8 @@ export interface IslandSnapshot {
  */
 export interface MoveResult {
   dig?: {
+    /** What the tile held — the first-run captions read this. */
+    content?: TileContent;
     /**
      * `announced` is optional HERE and required on `ChestPrize`: a server that
      * predates the flag simply omits it, and the handler resolves that to the
@@ -74,6 +104,23 @@ export interface MoveResult {
     nft?: boolean;
   };
 }
+
+/**
+ * What THIS rabbit has dug this run, by kind — the private tally.
+ *
+ * Counted from `move_result` (sent to the mover alone), never from
+ * `tile_revealed` (sent to the island), so a stranger's bomb is not the
+ * player's lesson. Reset on every island snapshot. The first-run captions are
+ * the consumer: "your first dig", "your first bomb", "your first chest".
+ */
+export interface MyDigs {
+  tiles: number;
+  bombs: number;
+  goldens: number;
+  chests: number;
+}
+
+const NO_DIGS: MyDigs = { tiles: 0, bombs: 0, goldens: 0, chests: 0 };
 
 /**
  * A chest's contents, waiting to be shown.
@@ -195,6 +242,12 @@ export function useGameSocket(
   const [chestPrize, setChestPrize] = useState<ChestPrize | null>(null);
   /** The last time the server turned a `join` down, or null. */
   const [refused, setRefused] = useState<JoinRefusal | null>(null);
+  /** Whether the island on screen is the player's first — see `IslandSnapshot.first`. */
+  const [firstRun, setFirstRun] = useState(false);
+  /** This rabbit's own digs on this island — see `MyDigs`. */
+  const [digs, setDigs] = useState<MyDigs>(NO_DIGS);
+  /** What the current run cost the burrow, or null when nothing was charged. */
+  const [bank, setBank] = useState<RunBank | null>(null);
 
   /**
    * Whether the player has ASKED for a seat and not given it up.
@@ -295,11 +348,15 @@ export function useGameSocket(
       setIslandSeed(snap.seed);
       setWarnStage(snap.warnStage);
       setRecap(null);
+      setFirstRun(snap.first === true);
+      setDigs(NO_DIGS);
+      setBank(snap.bank ?? null);
       setRabbits(new Map(snap.rabbits.map((r) => [r.playerId, r])));
       // A joiner lands mid-run on an island others have been digging, so the
       // snapshot carries what is already uncovered.
       toScene((s) => {
         for (const t of snap.revealed) s.revealTile(t.tile, t.content, t.adjacent);
+        for (const h of snap.hinted ?? []) s.hintTile(h.tile, h.adjacent);
         // Chests are drawn before they are dug — they DROP in here, which reads
         // as the island being dealt to the player who just joined it.
         s.showChests(snap.chests ?? [], true);
@@ -315,6 +372,14 @@ export function useGameSocket(
     });
 
     /**
+     * The cascade opened numbers on undug ground — a zero was dug somewhere.
+     * Shared like a reveal: everyone on the island reads the same numbers.
+     */
+    socket.on('hints_revealed', (p: { tiles: Array<{ tile: number; adjacent: number }> }) => {
+      toScene((s) => { for (const h of p.tiles) s.hintTile(h.tile, h.adjacent); });
+    });
+
+    /**
      * The private half of a dig — sent to the mover alone.
      *
      * `tile_revealed` goes to the whole island, because uncovering ground is a
@@ -324,6 +389,15 @@ export function useGameSocket(
      * take-over for a prize somebody else won.
      */
     socket.on('move_result', (r: MoveResult) => {
+      if (r.dig) {
+        const c = r.dig.content;
+        setDigs((d) => ({
+          tiles: d.tiles + 1,
+          bombs: d.bombs + (c === 'bomb' ? 1 : 0),
+          goldens: d.goldens + (c === 'golden' ? 1 : 0),
+          chests: d.chests + (c === 'chest' ? 1 : 0),
+        }));
+      }
       if (!r.dig?.loot) return;
       // Carrots already land on the rabbit and animate on the tile — a
       // full-screen ceremony for a handful of them would stop the run dead
@@ -446,6 +520,7 @@ export function useGameSocket(
     const scene = sceneRef.current();
     if (!snap || !scene) return;
     for (const t of snap.revealed) scene.revealTile(t.tile, t.content, t.adjacent);
+    for (const h of snap.hinted ?? []) scene.hintTile(h.tile, h.adjacent);
     // No drop on a resync: these chests were already standing there, and
     // replaying the arrival would announce something that did not happen.
     scene.showChests(snap.chests ?? [], false);
@@ -500,6 +575,7 @@ export function useGameSocket(
   const me = playerId ? rabbits.get(playerId) ?? null : null;
   return {
     islandSeed, rabbits, me, warnStage, recap, banked, connected, refused,
+    firstRun, digs, bank,
     chestPrize, clearChestPrize: () => setChestPrize(null),
     moveTo, restart, join, leave, bindScene, resync,
   };

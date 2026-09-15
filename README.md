@@ -66,6 +66,9 @@ lie to itself and to nothing else.
 | `src/lib/game/island.ts` | Seed-deterministic generation. Server-only — it knows where the bombs are. |
 | `src/lib/game/run.ts` | The rule set: move, dig, knockback, first-digger-wins. |
 | `src/lib/game/regen.ts` | Energy / HP / garden, derived from timestamps. No cron. |
+| `src/config/quests.ts` | The first-week quest board: ten asks in teaching order, recomputed from the player's counters. See [Onboarding](#onboarding). |
+| `src/config/first-run.ts` | What the island says during the first run — one line per beat. |
+| `src/lib/game/first-island.ts` | The `first:` seed prefix that names the tutorial island on both sides. |
 | `server/index.ts` | The authoritative loop. |
 | `server/islands/store.ts` | Where island state lives — the seam for sharding. |
 | `src/lib/auth/wallet-login.ts` | Sign-in. ed25519 over a single-use nonce. |
@@ -188,6 +191,39 @@ offering a payment that cannot complete.
 purchases, refusals, trap placement, and quoting — in-process, so it needs
 Postgres and no running server. It covers both configurations; set the three
 variables to exercise the money path.
+
+## Onboarding
+
+Three layers, none of which blocks. A veteran who ignores all of it plays the
+same game.
+
+**The first island is the tutorial.** A player with `runsPlayed = 0` is not
+dropped onto the fullest island: `join` deals them one of their own, seeded
+`first:<uuid>` and cut to ~65 tiles (`FIRST_RUN.LAND`), with the board laid out
+by hand in `firstIslandLayout` — the spawn ring shows exactly one "1" beside
+exactly one bomb, a golden carrot sits next to that bomb, a bronze chest stands
+a short walk away, and the rest is dealt at gentle densities. Nobody else is
+seated on it. One-line captions (`config/first-run.ts`) name each beat as it
+happens; `test/first-island.test.ts` pins the layout across thirty seeds.
+
+**The quest board shows one ask at a time.** `config/quests.ts` holds ten
+quests in the order the game teaches its rules — dig, bank, harvest, bury,
+open, raid, look up, read, hold, climb. A quest is DONE when a predicate over
+the player's own counters says so (`harvests`, `trapsPlaced`, `chestsOpened`,
+`raidsPlayed`, plus the two client-observed marks in `questMarks`); the only
+thing stored is the claim (`questsClaimed`), written in one guarded statement
+so a double tap cannot pay twice (`api/quests`). Rewards feed the three carrot
+counters like a harvest, except two items placed where they are about to
+matter. The card lives in the burrow column and the active quest badges the
+hub door it lives behind. `test/quests.test.ts` pins the arc.
+
+**Lore follows the mechanic.** The codex already opens on lifetime carrots;
+the quests quote the rule the player just lived and, at 500 carrots, ask them
+to read chapter II. The crown is never explained here — "Look up" makes the
+player see it, and chapter IV is 8 000 carrots away.
+
+Migration `0014` adds the counters. Run `bun db:migrate` before deploying the
+web tier: `/api/burrow` reads the new columns on every load.
 
 ## Traps: the burrow is a board
 

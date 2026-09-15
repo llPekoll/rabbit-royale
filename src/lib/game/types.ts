@@ -16,6 +16,18 @@ export type TileContent = 'empty' | 'carrot' | 'golden' | 'bomb' | 'chest';
 export interface Tile {
   /** Has this tile been dug? Revealed tiles are walkable for free. */
   revealed: boolean;
+  /**
+   * The hint is KNOWN but the tile is not dug — the cascade's state.
+   *
+   * Minesweeper's open-a-zone rule, kept without its "dig everything" half:
+   * a dug tile with no bomb around it shows the numbers of its neighbours,
+   * and theirs if they are zero too, out to the first real number. What it
+   * does not do is dig them: a hinted tile still holds its carrot or its
+   * chest, still costs a step to collect, and still counts as ground left
+   * for the eruption. The island stays the clock and the race stays
+   * physical; only the reading gets faster. See `cascadeHints`.
+   */
+  hinted?: boolean;
   content: TileContent;
   /** Minesweeper hint: bombs among the 8 neighbours. Valid once revealed. */
   adjacent: number;
@@ -85,6 +97,12 @@ export interface Rabbit {
     tilesDug: number;
     bombsHit: number;
     /**
+     * Chests this rabbit was FIRST to open. Banked onto `players.chestsOpened`
+     * for the quest board; optional so a fixture built before it counts as
+     * zero rather than failing to type.
+     */
+    chests?: number;
+    /**
      * Items pulled from chests this run, by kind, banked with the carrots.
      *
      * Held here rather than written at the dig for the same reason the carrots
@@ -127,6 +145,12 @@ export function isLootItemKind(v: string): v is LootItemKind {
   return (LOOT_ITEM_KINDS as readonly string[]).includes(v);
 }
 
+/** A hint the cascade opened on an UNDUG tile — the number, never the content. */
+export interface HintReveal {
+  tile: number;
+  adjacent: number;
+}
+
 /** What a dig produced. The server sends this back; the client only animates. */
 export interface DigResult {
   tile: number;
@@ -134,6 +158,11 @@ export interface DigResult {
   adjacent: number;
   energyDelta: number;
   carrotDelta: number;
+  /**
+   * Hints the cascade opened because this dig landed on a zero. Broadcast to
+   * the island like the reveal itself: what the ground says is a shared fact.
+   */
+  hinted?: HintReveal[];
   /** Set when the tile was a bomb: the tile the blast threw the rabbit onto. */
   knockback?: { tile: number; stunnedUntil: number };
   /**

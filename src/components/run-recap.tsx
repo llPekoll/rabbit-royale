@@ -1,6 +1,7 @@
 'use client';
 
 import type { RunRecap } from './use-game-socket';
+import { FIRST_RUN_RECAP } from '@/config/first-run';
 
 /**
  * The end of a run, and the way out of it.
@@ -25,11 +26,25 @@ import type { RunRecap } from './use-game-socket';
  * or the wait becomes a toll.
  */
 export function Recap({
-  recap, onShop, onHome,
+  recap, onShop, onHome, first = false, bank = null,
 }: {
   recap: RunRecap;
   onShop: () => void;
   onHome: () => void;
+  /**
+   * The first run ever. The card adds one line pointing home, because the
+   * burrow is a place the player has not been told exists yet — the first
+   * island opens straight from sign-in, and "Back to the burrow" alone names
+   * a door without saying what is behind it.
+   */
+  first?: boolean;
+  /**
+   * The burrow's bar, and what a run takes from it. SHOWN, never decided on:
+   * whether the run is over is the hearts' business (see above), but whether
+   * there is another run in the bank is exactly the question this card's two
+   * buttons ask, and the number was nowhere on the island until now.
+   */
+  bank?: { energy: number; max: number; cost: number } | null;
 }) {
   // Two endings since the island became a level: the hearts ran out, or the
   // island did. The second is a win, and the card has to read like one — the
@@ -49,7 +64,15 @@ export function Recap({
           no explanation reads as a broken screen. */}
       <p className="rr-note" style={{ margin: '0 0 10px' }}>
         {cleared ? 'Every tile worth digging is dug. The volcano took the rest.' : 'Out of hearts.'}
+        {first && <> {FIRST_RUN_RECAP}</>}
       </p>
+      {/* The bar at home, beside what the next crossing would take from it —
+          the figure both buttons below are really about. */}
+      {bank && (
+        <p className="rr-note" style={{ margin: '0 0 10px', color: '#ffd138' }}>
+          ⚡ {bank.energy}/{bank.max} at the burrow &middot; a run takes {bank.cost}
+        </p>
+      )}
       {!cleared && (
         <button onClick={onShop} style={{ width: '100%', marginBottom: 8 }}>
           Get more energy

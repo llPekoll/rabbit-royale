@@ -13,7 +13,7 @@
 import { BOMB, CHEST_LOOT, CHEST_LOOT_BY_TIER, CHEST_NFT_ODDS, ENERGY, MULTIPLAYER, RUN } from '@config/tuning';
 import { SPAWN_INDEX, neighbors, toColRow, type IslandShape } from '@/config/gridConfig';
 import { pickWeighted, randInt, type Rng } from './rng';
-import { revealTile } from './island';
+import { cascadeHints, revealTile } from './island';
 import { spawnTile, terrainNeighbors } from './terrainBoard';
 import { canDig } from './reachable';
 import { occupancyOf, planPush } from './push';
@@ -177,6 +177,10 @@ export function resolveMove(
           victim.alive = false;
           entry.runOver = true;
         }
+      } else if (landing.adjacent === 0) {
+        // A shove onto a zero opens the ground like any other dig would.
+        const hinted = cascadeHints(island, [step.to]);
+        if (hinted.length) dug.hinted = hinted;
       }
       entry.dig = dug;
       entry.energy = victim.energy;
@@ -246,6 +250,7 @@ export function resolveMove(
         const table = chestTier ? CHEST_LOOT_BY_TIER[chestTier] : CHEST_LOOT;
         const roll = pickWeighted(rng, table);
         const amount = randInt(rng, roll.min, roll.max);
+        if (rabbit.run) rabbit.run.chests = (rabbit.run.chests ?? 0) + 1;
         // A tiered chest was drawn on the board with its colour and word above
         // it; an untiered one was buried like anything else. The client shows
         // the walked-to prize and lets the hidden one fly past.
@@ -279,6 +284,14 @@ export function resolveMove(
     }
     default:
       rabbit.tile = to;
+  }
+
+  // A zero opens its surroundings — the cascade, see `cascadeHints`. Not on a
+  // bomb (a bomb tile's own count says nothing about it being safe to stand
+  // beside), and never digging anything: the hints are the whole gift.
+  if (tile.content !== 'bomb' && tile.adjacent === 0) {
+    const hinted = cascadeHints(island, [to]);
+    if (hinted.length) dig.hinted = hinted;
   }
 
   if (rabbit.energy <= 0) {

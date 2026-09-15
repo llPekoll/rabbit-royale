@@ -64,6 +64,12 @@ export interface LeaderboardDrawerProps {
    * request that already happens hands its answer up instead.
    */
   onMe?: (me: Me | null) => void;
+  /**
+   * The board was opened by hand. The quest "Look up" (config/quests.ts) is
+   * done the first time this fires — the one fact about the board the server
+   * cannot see for itself.
+   */
+  onOpen?: () => void;
 }
 
 /** The viewer's own standing, as `/api/leaderboard` reports it. */
@@ -74,7 +80,7 @@ export interface Me {
   toPass: number | null;
 }
 
-export function LeaderboardDrawer({ token, playerId, onSpectate, onMe }: LeaderboardDrawerProps) {
+export function LeaderboardDrawer({ token, playerId, onSpectate, onMe, onOpen }: LeaderboardDrawerProps) {
   // One piece of state for both layouts. It only differs in where it STARTS:
   // on a wide screen the board is furniture and begins out, on a phone it
   // covers the island and begins away. Either way the handle and the [x] move
@@ -152,7 +158,10 @@ export function LeaderboardDrawer({ token, playerId, onSpectate, onMe }: Leaderb
           label={open ? 'Hide the season board' : 'Show the season board'}
           pressed={open}
           count={me?.rank ?? 0}
-          onClick={() => setOpen((v) => !v)}
+          onClick={() => {
+            if (!open) onOpen?.();
+            setOpen((v) => !v);
+          }}
         >
           🏆
         </HubIconButton>

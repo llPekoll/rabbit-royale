@@ -38,8 +38,20 @@ const CARROT_BOB_SECONDS = 1.15;
 const CARROT_POP_SECONDS = 0.16;
 const CARROT_HOLD_SECONDS = 0.30;
 const CARROT_FADE_SECONDS = 0.34;
-/** The skull left on a tile that killed someone. */
-const SKULL_SCALE = 0.6;
+/**
+ * The crater left where a bomb went off — see `markBombSite`.
+ * Burnt earth at the rim, black in the pit; the pit is this share of the tile.
+ */
+const CRATER_RIM = 0x1a100a;
+const CRATER_PIT = 0x050302;
+const CRATER_PIT_SCALE = 0.72;
+/**
+ * The crater is translucent, not painted: a solid black diamond on a bright
+ * island read as a hole in the RENDER rather than a hole in the ground.
+ * Letting the grass through at the rim keeps it on the terrain.
+ */
+const CRATER_RIM_ALPHA = 0.55;
+const CRATER_PIT_ALPHA = 0.75;
 
 /** Contact shadow: an ellipse a little narrower than the art. */
 const CARROT_SHADOW_RX = 5;
@@ -67,6 +79,11 @@ const CARROT_SHADOW_ALPHA = 0.3;
  */
 export const FOG_COLOR = 0x10241a;
 export const FOG_ALPHA = 0.32;
+/**
+ * How much of the lid a HINTED tile keeps — see `revealHint`. Enough to still
+ * read as undug beside dug ground, thin enough to read as known beside fog.
+ */
+const HINTED_FOG_SHARE = 0.45;
 
 
 /** How an undug tile is veiled. Omitted fields keep the defaults above. */
@@ -158,7 +175,8 @@ export class Tile {
   private fog: Sprite;
   private highlightGfx: Sprite;
   private blinkGfx: Sprite;
-  private contentSprite: Sprite | null = null;
+  /** What is drawn on a dug tile: a bomb, a carrot — or the crater's container. */
+  private contentSprite: Container | null = null;
   private chestSprite: Sprite | null = null;
   private chestGlow: Sprite | null = null;
   private chestRing: Sprite | null = null;
@@ -196,6 +214,8 @@ export class Tile {
   carrotSprite: Sprite | null = null;
   index: number;
   revealed = false;
+  /** The number is on the lid but the tile is undug — see `revealHint`. */
+  hinted = false;
   private palierRaised = false;
   /** Y offset used to float the multiplier above the rabbit's head while
    *  the rabbit sits on this tile. Tuned so the text clears the sprite's
@@ -353,17 +373,43 @@ export class Tile {
       // pickup was a coin), so the golden-coin frames stand in until one is
       // drawn. Golden carrots are the same art, larger and brighter.
       this.addCarrot(content === 'golden');
-    } else if (content === 'empty' && adjacent > 0) {
+    }
+
+    // THE NUMBER, on every dug tile that is not a bomb — carrot and chest
+    // tiles included. It used to be drawn for empty ground only, so a dug
+    // carrot beside two bombs showed the carrot lifting away and then
+    // nothing: a blank that read as "0" on the one tile the player had just
+    // paid attention to. Reported as "a tile next to a bomb shows nothing".
+    // The carrot pops over it for a beat and lifts; the number stays.
+    // A hint the cascade already wrote on the lid is kept, not drawn twice.
+    if (content !== 'bomb' && adjacent > 0 && !this.hintGroup) {
       this.addHint(adjacent, animate);
     }
+  }
+
+  /**
+   * The cascade opened this tile's number WITHOUT digging it.
+   *
+   * The lid stays — the tile is still undug, still holds its content, still
+   * costs a step — but it thins to say "read, not walked", and the count is
+   * written on it. A zero writes nothing (a bare thinner lid is the zero, as
+   * on dug ground). When the tile is later dug, `revealContent` keeps the
+   * number and only clears the lid.
+   */
+  revealHint(adjacent: number): void {
+    if (this.revealed || this.hinted) return;
+    this.hinted = true;
+    gsap.to(this.fog, { alpha: this.fog.alpha * HINTED_FOG_SHARE, duration: 0.25, ease: 'power2.out' });
+    if (adjacent > 0) this.addHint(adjacent, true);
   }
 
   private addContentSprite(key: string): void {
     const tex = Assets.get(key);
     if (!tex) return;
-    this.contentSprite = new Sprite(tex);
-    this.contentSprite.anchor.set(0.5);
-    this.container.addChild(this.contentSprite);
+    const sprite = new Sprite(tex);
+    sprite.anchor.set(0.5);
+    this.container.addChild(sprite);
+    this.contentSprite = sprite;
   }
 
   /**
@@ -381,7 +427,7 @@ export class Tile {
    * not opened reads as a bug, not as sabotage.
    */
   setHint(count: number): void {
-    if (!this.revealed || !this.hintGroup) return;
+    if (!(this.revealed || this.hinted) || !this.hintGroup) return;
     this.hintGroup.destroy({ children: true });
     this.hintGroup = null;
     if (count > 0) this.addHint(count, false);
@@ -512,16 +558,18 @@ export class Tile {
   }
 
   /**
-   * What a bomb leaves behind.
+   * What a bomb leaves behind: a HOLE.
    *
    * The explosion is over in half a second, and the tile has to keep saying
-   * "someone died here" long after — for the player who walked it, and for the
-   * three others reading the same board. The skull is that record.
+   * "a bomb went off here" long after — for the player who walked it, and for
+   * the three others reading the same board. It used to be a skull, which
+   * said "someone died here" about a run that a bomb does not end (one heart,
+   * not the rabbit). A crater says what actually happened: the ground is
+   * gone. Drawn as the tile's own diamond, near-black, with a thinner darker
+   * one inside it sitting a pixel lower — the two shades are what make it
+   * read as depth rather than as a tile painted black.
    */
   markBombSite(): void {
-    const tex = Assets.get<import('pixi.js').Texture>(Keys.DEAD_SKULL);
-    if (!tex) return;
-
     // The bomb sprite drawn by revealContent has done its job.
     if (this.contentSprite) {
       gsap.killTweensOf(this.contentSprite);
@@ -529,18 +577,24 @@ export class Tile {
       this.contentSprite = null;
     }
 
-    const skull = new Sprite(tex);
-    skull.anchor.set(0.5);
-    skull.scale.set(SKULL_SCALE);
-    skull.zIndex = 39;   // above the tile, below a rabbit standing on it
-    this.container.addChild(skull);
-    this.contentSprite = skull;
+    const hole = new Container();
+    hole.zIndex = 39;   // above the tile, below a rabbit standing on it
+    // The rim: the full diamond, the colour of burnt earth.
+    hole.addChild(diamondFill(CRATER_RIM, CRATER_RIM_ALPHA));
+    // The pit: smaller, black, and a touch lower — the far wall of the hole
+    // catches no light, so the offset reads as the near edge overhanging it.
+    const pit = diamondFill(CRATER_PIT, CRATER_PIT_ALPHA);
+    pit.scale.set(pit.scale.x * CRATER_PIT_SCALE, pit.scale.y * CRATER_PIT_SCALE);
+    pit.y += 1;
+    hole.addChild(pit);
+    this.container.addChild(hole);
+    this.contentSprite = hole;
 
     // Fade in UNDER the blast rather than popping in after it: the explosion is
-    // still playing over this tile, and a skull appearing on its last frame
+    // still playing over this tile, and a hole appearing on its last frame
     // reads as a second, separate event.
-    skull.alpha = 0;
-    gsap.to(skull, { alpha: 1, duration: 0.4, delay: 0.25 });
+    hole.alpha = 0;
+    gsap.to(hole, { alpha: 1, duration: 0.4, delay: 0.25 });
   }
 
   /** Kept for the palier ladder the casino used; unused by this game. */

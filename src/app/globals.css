@@ -387,6 +387,36 @@ button { min-height: 44px; min-width: 44px; }
   pointer-events: none;
 }
 
+/* The first run's caption: one line under the HUD strip, the same glass as the
+   strip so the two read as one instrument. A readout like the strip — nothing
+   in it is tappable, and a finger landing on it reaches the board. */
+.rr-overlay > .rr-caption {
+  align-self: center;
+  max-width: 560px;
+  margin: 6px 0 0;
+  padding: 6px 14px;
+  border-radius: 10px;
+  background: rgba(13, 17, 23, 0.82);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid var(--border);
+  color: var(--fg, #f5e6d3);
+  font-size: 14px;
+  text-align: center;
+  pointer-events: none;
+  animation: rr-caption-in 220ms ease-out;
+}
+@keyframes rr-caption-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+/* The run's cost, on arrival: the same strip, in the energy bar's own yellow
+   so the bolt and the figure read as the burrow's bar speaking, not the
+   island's. See run-cost-note.tsx. */
+.rr-overlay > .rr-caption-cost {
+  color: #ffd138;
+}
+
 /* "Find my rabbit": small and centred under the HUD strip, only while the
    rabbit is out of frame. */
 .rr-overlay > .rr-recentre {

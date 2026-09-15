@@ -308,12 +308,18 @@ export async function PATCH(req: Request) {
         : new Date(now.getTime() + RAID_RUN.SHIELD_AFTER_RAID_MS),
     }).where(eq(players.id, run.defenderId)).returning({ stock: players.stock });
 
-    if (robbed && outcome.loot > 0) {
-      await tx.update(players).set({
-        stock: raw`${players.stock} + ${outcome.loot}`,
-        seasonScore: raw`${players.seasonScore} + ${outcome.loot}`,
-      }).where(eq(players.id, session.sub));
-    }
+    // The attacker's side: the haul, if any, and the raid COUNTED either way.
+    // "Knock on a door" (config/quests.ts) asks for a raid at any depth — dying
+    // on the doorstep is still a raid, and the lesson it teaches is the point.
+    await tx.update(players).set({
+      ...(robbed && outcome.loot > 0
+        ? {
+          stock: raw`${players.stock} + ${outcome.loot}`,
+          seasonScore: raw`${players.seasonScore} + ${outcome.loot}`,
+        }
+        : {}),
+      raidsPlayed: raw`${players.raidsPlayed} + 1`,
+    }).where(eq(players.id, session.sub));
 
     await tx.update(raidRuns).set({
       tile: to, energy: Math.max(0, energy), visited, trapsSprung: sprung,

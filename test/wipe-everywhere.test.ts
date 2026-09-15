@@ -111,7 +111,13 @@ describe('the iris covers every crossing', () => {
     // than dropped on top of it.
     expect(PAGE).toMatch(/\{player && showCanvas && \(/);
     expect(PAGE).toMatch(/\{!showCanvas && \(/);
-    expect(PAGE).toMatch(/onCut=\{\(\) => setShowCanvas\(true\)\}/);
+    // The cut handler is named now (a first-timer's cut also opens the canvas
+    // on the island), but flipping `showCanvas` is still its FIRST act.
+    expect(PAGE).toMatch(/onCut=\{onCurtainCut\}/);
+    expect(PAGE).toMatch(/const onCurtainCut = useCallback\(\(\) => \{\s*setShowCanvas\(true\);/);
+    // And nothing else flips it on: the sign-in screen hands over at the cut
+    // and nowhere earlier.
+    expect(PAGE.match(/setShowCanvas\(true\)/g)).toHaveLength(1);
   });
 
   it('hands the WHOLE screen over at the midpoint, not just the canvas', () => {

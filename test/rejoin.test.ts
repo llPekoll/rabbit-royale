@@ -69,7 +69,12 @@ describe('the server only reuses a rabbit for a genuine reconnect', () => {
   });
 
   it('prefers the island already holding the seat', () => {
-    expect(SERVER).toMatch(/store\.seatOf\(data\.playerId\)\s*\?\?\s*store\.findJoinable\(\)/);
+    // The seat comes FIRST in the chain — before the first-timer's own island
+    // and before drop-in. A first-timer who refreshes mid-run has a seat, and
+    // must not be dealt a second tutorial island on top of it.
+    expect(SERVER).toMatch(
+      /store\.seatOf\(data\.playerId\)\s*\?\?\s*\(player\.runsPlayed === 0 \? newFirstIsland\(\) : undefined\)\s*\?\?\s*store\.findJoinable\(\)/,
+    );
   });
 
   it('banks the abandoned rabbit rather than dropping its carrots', () => {
