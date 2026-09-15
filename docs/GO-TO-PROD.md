@@ -254,6 +254,39 @@ Prod et local sont depuis à **13 migrations** toutes les deux. C'est le compte
 à vérifier avant toute migration future ; s'il diverge de nouveau, la cause est
 une écriture non notée dans ce journal.
 
+### 2026-09-15 — migration `0014` (les compteurs de quêtes), passée APRÈS le push
+
+`0014_tidy_magik.sql` ajoute six colonnes à `players` : `harvests`,
+`traps_placed`, `chests_opened`, `raids_played`, `quests_claimed`,
+`quest_marks`. Le tableau de quêtes et la première île les lisent à chaque
+chargement du terrier.
+
+**L'ordre a été inversé, et ça a cassé la prod.** Le code (`7eefbd0`, puis
+deux déploiements par-dessus) est parti avant la migration : `bun db:check`
+avait été lancé en local seulement, et la machine qui poussait n'avait pas
+l'alias `datemeee`. Pendant la fenêtre, `POST /api/auth/guest` et
+`GET /api/burrow` répondaient 500 — plus de nouveaux invités, plus de terrier
+pour personne, et `bankRun` ne pouvait pas créditer une run finie
+(`chests_opened` dans le même UPDATE que les carottes). Exactement l'incident
+du 2026-09-10, avec le même symptôme : le site répondait 200.
+
+Appliqué à la main, en une transaction avec `ADD COLUMN IF NOT EXISTS`, et
+la ligne du registre insérée avec le hash local :
+
+```sql
+-- hash 69c858c1a73a915f59364094b585b7d9b318e39a2c98c3fa0b3ce0ed8c7d9832
+-- created_at 1789464979037
+```
+
+Vérifié de l'extérieur après coup : `POST /api/auth/guest` → 200, puis
+`GET /api/burrow` → 200 avec le champ `quest` rempli et `runs: 0`. Prod et
+local sont à **15 migrations** toutes les deux.
+
+La leçon, pour ne pas la repayer : quand le push part d'une machine sans
+accès prod, le SQL est écrit dans le message de livraison et **rien n'est
+poussé** tant qu'une réponse ne confirme pas qu'il est passé. « Migré ? »
+n'est pas une question à laquelle on répond par défaut oui.
+
 ### Changer un réglage à chaud (ce n'est PAS une écriture à noter)
 
 > Les commandes complètes sont dans [TUNING.md](./TUNING.md) — c'est là qu'on
