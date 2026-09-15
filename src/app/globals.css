@@ -997,6 +997,13 @@ button { min-height: 44px; min-width: 44px; }
   .rr-carrot-pill .banked { animation: none; }
   /* The gain still appears and still says +N — it simply does not travel. */
 }
+
+/* An item out of a chest nobody could see rises off the board with its name.
+   Its layout, type and z-index are INLINE in components/loot-fly, not here:
+   the drop portals to `document.body` and Storybook's preview never loads this
+   stylesheet, so a class-styled version reviewed in a story is not the thing
+   that ships. The class is left as a hook for finding it in the DOM. */
+
 /* The masthead: the wordmark at the top of the signed-out screen.
    FIXED, and above the crawl (z 1 against the crawl's 0), because the crawl is
    a full-screen fixed layer of its own and the column under it scrolls. In

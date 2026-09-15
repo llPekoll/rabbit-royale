@@ -27,9 +27,18 @@
  * take-over several times a minute would stop the run dead — the filtering
  * happens in `use-game-socket`, at the event, so nothing renders and unmounts
  * for a drop that was never going to be shown.
+ *
+ * And chests that were never VISIBLE. A tiered box advertises its position and
+ * colour on the board, so walking to it is a decision the player made and the
+ * ceremony is the answer to it. A chest they could not see is something they
+ * found while digging for something else — that one hands the item up with its
+ * name (`LootFly`) and lets the run carry on. The split is `prize.announced`,
+ * which the server derives from the tier; a Genesis piece overrides it, since
+ * one turns up in a session or two and is worth any interruption.
  */
 import { ChestReveal, type RevealPhase, type RevealRarity } from '@domin8/arcade-kit';
 import { ChestOpening } from './chest-opening';
+import { LootFly } from './loot-fly';
 import type { ChestPrize as Prize } from './use-game-socket';
 
 /**
@@ -65,6 +74,24 @@ export interface ChestPrizeProps {
 
 export function ChestPrize({ prize, onDone }: ChestPrizeProps) {
   const drop = DROP[prize.kind];
+
+  // A chest nobody could see is a find, not a destination: the player was
+  // digging for something else and this turned up. It rises off the board with
+  // its name and the run never stops. A Genesis piece is the exception at any
+  // depth — it happens once in many sessions and it IS the event.
+  if (!prize.announced && !prize.nft) {
+    if (!drop) return null;
+    return (
+      <LootFly
+        src={drop.src}
+        label={drop.label}
+        amount={prize.amount}
+        aspect={drop.aspect}
+        fireKey={prize.at}
+        onDone={onDone}
+      />
+    );
+  }
 
   // A piece outranks whatever else the chest held: it is the rarer half of the
   // drop and the reason the player crossed the island, so it is what the

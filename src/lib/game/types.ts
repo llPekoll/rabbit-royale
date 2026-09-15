@@ -136,8 +136,17 @@ export interface DigResult {
   carrotDelta: number;
   /** Set when the tile was a bomb: the tile the blast threw the rabbit onto. */
   knockback?: { tile: number; stunnedUntil: number };
-  /** Chest contents. Carrots land immediately; items are banked with the run. */
-  loot?: { kind: string; amount: number };
+  /**
+   * Chest contents. Carrots land immediately; items are banked with the run.
+   *
+   * `announced` says whether the box was VISIBLE before the dig — a tiered
+   * chest advertises its position and colour through `publicView`, so the
+   * player crossed the island on purpose to open it. That walk is what earns
+   * the full ceremony; a chest nobody could see pays out without taking the
+   * screen. Derived from `chestTier` rather than stored separately, because
+   * the tier IS what makes a chest public.
+   */
+  loot?: { kind: string; amount: number; announced: boolean };
   /**
    * A crown chest also gave up an RR Genesis piece.
    *

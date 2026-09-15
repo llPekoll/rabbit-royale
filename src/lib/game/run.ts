@@ -246,7 +246,10 @@ export function resolveMove(
         const table = chestTier ? CHEST_LOOT_BY_TIER[chestTier] : CHEST_LOOT;
         const roll = pickWeighted(rng, table);
         const amount = randInt(rng, roll.min, roll.max);
-        dig.loot = { kind: roll.kind, amount };
+        // A tiered chest was drawn on the board with its colour and word above
+        // it; an untiered one was buried like anything else. The client shows
+        // the walked-to prize and lets the hidden one fly past.
+        dig.loot = { kind: roll.kind, amount, announced: chestTier !== undefined };
 
         // The Genesis piece is a SEPARATE roll on top of a crown chest's
         // guaranteed item, never instead of it: folding it into the table would

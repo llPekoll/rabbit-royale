@@ -64,7 +64,12 @@ export interface IslandSnapshot {
  */
 export interface MoveResult {
   dig?: {
-    loot?: { kind: string; amount: number };
+    /**
+     * `announced` is optional HERE and required on `ChestPrize`: a server that
+     * predates the flag simply omits it, and the handler resolves that to the
+     * old behaviour once rather than leaving every reader to wonder.
+     */
+    loot?: { kind: string; amount: number; announced?: boolean };
     /** A crown chest also gave up an RR Genesis piece. */
     nft?: boolean;
   };
@@ -82,6 +87,14 @@ export interface ChestPrize {
   kind: string;
   amount: number;
   nft: boolean;
+  /**
+   * The chest was visible on the board before the dig.
+   *
+   * Drives WHICH celebration runs: a box the player could see and walked to
+   * gets the full ceremony, a buried one gets the item flying up with its
+   * name. See `DigResult.loot`.
+   */
+  announced: boolean;
   at: number;
 }
 
@@ -316,7 +329,15 @@ export function useGameSocket(
       // full-screen ceremony for a handful of them would stop the run dead
       // several times a minute. Only items and pieces earn the take-over.
       if (r.dig.loot.kind === 'carrots' && !r.dig.nft) return;
-      setChestPrize({ ...r.dig.loot, nft: r.dig.nft === true, at: Date.now() });
+      setChestPrize({
+        ...r.dig.loot,
+        nft: r.dig.nft === true,
+        // A server older than this client sends no flag. Treating that as
+        // announced keeps the ceremony it used to play, rather than silently
+        // demoting every chest on a version skew.
+        announced: r.dig.loot.announced !== false,
+        at: Date.now(),
+      });
     });
 
     /**
