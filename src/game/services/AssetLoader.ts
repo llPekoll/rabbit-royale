@@ -27,6 +27,10 @@ const IMAGES = [
   { key: Keys.LOGO, src: '/assets/ui/rr-logo-1x.webp' },
   { key: Keys.LOGO_BANNER, src: '/assets/ui/rr-logo-banner.webp' },
   { key: Keys.LOOT_BOX, src: '/assets/fx/loot-box.webp' },
+  // The pointer hand, for the burrow's "tap here" glove on touch screens.
+  // Nearest-neighbour like every texture here (see the default above): it is
+  // 27x32 pixel art drawn several times its size.
+  { key: Keys.HAND_POINTER, src: '/assets/ui/cursors/hand.png' },
   // The carrot comes from the shared kit rather than public/: it is the same
   // prop the hub's season pass draws, and one copy means one carrot.
   { key: Keys.CARROT, src: CARROT_URL },

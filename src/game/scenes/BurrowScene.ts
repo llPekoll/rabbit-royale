@@ -24,6 +24,7 @@
  */
 import {
   Application, Assets, Container, Graphics, Rectangle, Sprite, Texture, Polygon,
+  type FederatedPointerEvent,
 } from 'pixi.js';
 import gsap from 'gsap';
 import type { Scene } from '../SceneManager';
@@ -47,6 +48,9 @@ import {
   homeCam, boardCam, placeCam, panPlaceCam, zoomPlaceCam, clampPlaceCam, type BurrowCam,
 } from './burrowCamera';
 import { PanZoomGestures, type Point } from '../input/PanZoomGestures';
+import {
+  GhostBomb, GloveHint, isTouchPrimary, nearestTo, prefersReducedMotion, type GloveTarget,
+} from '../ui/PlacementHints';
 
 /**
  * A diamond sprite sized for THIS board.
@@ -112,6 +116,40 @@ const REARMING_ALPHA = 0.3;
  */
 const PLACEABLE_TINT = 0x8fd6ff;
 const PLACEABLE_ALPHA = 0.42;
+
+/**
+ * The free cell under the mouse, while placing.
+ *
+ * GOLD, the colour a placed trap's marker wears (`TRAP_TINT`), and not merely
+ * a brighter blue: the hovered cell is showing what it will BECOME, and the
+ * ghost bomb standing on it says the same thing. Blue is "you could", gold is
+ * "this one is yours if you click".
+ */
+const HOVER_TINT = TRAP_TINT;
+const HOVER_ALPHA = 0.85;
+/**
+ * A mined cell under the mouse: a click LIFTS this bomb.
+ *
+ * Warm red on the marker and the bomb raised off the ground. The two moves are
+ * the whole sentence — red is "this undoes something", the rise is "it comes
+ * out" — and neither can be mistaken for the gold preview on a free cell, which
+ * is the one confusion that would bury a second bomb where the player meant to
+ * dig one up.
+ */
+const LIFT_TINT = 0xff6b4a;
+/** How far the bomb rises, in the cell's own px — clear, but it stays on its cell. */
+const LIFT_PX = 5;
+
+/** A trap's bomb is anchored at its foot: this far down the art is the ground. */
+const BOMB_ANCHOR_Y = 0.78;
+/**
+ * The bomb's scale for a texture, off the CELL rather than the texture's own
+ * pixels. Shared by the buried bomb and the hover ghost, so the preview is
+ * exactly the size of what a click buries.
+ */
+function trapBombScale(tex: Texture): number {
+  return (BURROW_HALF_W * 0.62) / tex.width;
+}
 
 // ── Raiding someone else's burrow ────────────────────────────────────────────
 //
@@ -271,6 +309,40 @@ export class BurrowScene implements Scene {
    *  fraction. Kept per trap: the stagger means no two share a window. */
   private trapRearmTotalMs = new Map<number, number>();
   private hints: Sprite[] = [];
+  /** tile -> its placement diamond. `tileOfHint` walks the grid; hover needs
+   *  the other direction on every pointermove, so it gets a map. */
+  private hintByTile = new Map<number, Sprite>();
+
+  // ── Placement hints ──────────────────────────────────────────────────────
+  //
+  // A mouse gets a PREVIEW (the cell under it turns gold with a faint bomb on
+  // it, or a mined cell turns red with its bomb lifted); a finger, which has
+  // no hover to preview with, gets a GLOVE pressing a cell. See
+  // `ui/PlacementHints` for why each device gets the one it does.
+
+  /** The cell the mouse is over while placing, or -1. */
+  private hoverTile = -1;
+  /**
+   * The cell the player just clicked, which shows no preview until the mouse
+   * leaves it.
+   *
+   * Without this, burying a bomb would instantly turn the same cell red and
+   * offer to lift it — the answer to the click would read as a question about
+   * undoing it. Leaving the cell and coming back is a new intent.
+   */
+  private hoverMuted = -1;
+  /** The cell the mouse button last went down on — see `onHintHover`. */
+  private pressTile = -1;
+  private ghost: GhostBomb | null = null;
+  /** The placed bomb currently raised by a lift preview, kept by reference so
+   *  its tweens can be killed even after the tile has left `trapSprites`. */
+  private lifted: { tile: number; parts: Sprite[] } | null = null;
+  private glove: GloveHint | null = null;
+  /** The glove has done its job this placement session — the player tapped a
+   *  cell, or it ran out of presses. Reset when placement closes. */
+  private gloveDone = false;
+  /** The ripples a glove press leaves on a cell, for teardown mid-animation. */
+  private pressFx = new Set<Sprite>();
   /**
    * The raid board: one cell per walkable tile of the DEFENDER's ground,
    * built once per raid and updated on every step. Empty when at home.
@@ -350,12 +422,17 @@ export class BurrowScene implements Scene {
     this.data.seed = seed;
     this.data.level = level;
 
+    // Before the terrain goes: the ghost, the ripples and a lifted bomb all
+    // live inside its blocks, and would be destroyed out from under their own
+    // tweens.
+    this.teardownPlacementHints();
     this.terrain?.destroy();
     this.terrain = null;
     this.crop?.destroy();
     this.crop = null;
     for (const hint of this.hints) hint.destroy();
     this.hints = [];
+    this.hintByTile.clear();
 
     await this.buildTerrain();
     this.buildCrop();
@@ -435,10 +512,14 @@ export class BurrowScene implements Scene {
       {
         onPan: (dx, dy) => {
           if (!this.data.placing || this.raiding) return;
+          // A drag is not a click: the preview of what a click would do goes
+          // until the button is up again (see `onHintHover`).
+          this.clearHover();
           this.setPlaceCam(panPlaceCam(this.cam, dx, dy, this.data.seed));
         },
         onPinch: (factor, at) => {
           if (!this.data.placing || this.raiding) return;
+          this.clearHover();
           this.setPlaceCam(zoomPlaceCam(this.cam, factor, at, this.data.seed));
         },
         // Taps stay with the tiles' own `pointertap` handlers, which know
@@ -641,8 +722,24 @@ export class BurrowScene implements Scene {
         // sprites — so without this, sliding the board would bury a trap on
         // whichever cell the finger stopped over.
         if (this.gestures?.didDrag) return;
+        // The player has done the thing the glove was showing: it goes, and
+        // does not come back this session.
+        this.dismissGlove();
+        // The preview answered its question; the real bomb (or its absence)
+        // is about to replace it. Muted until the mouse leaves — see
+        // `hoverMuted`.
+        this.hoverMuted = i;
+        this.clearHover();
         this.data.onToggle(i, this.trapSprites.has(i));
       });
+      // Hover, for a mouse only — see `onHintHover`. `pointermove` as well as
+      // `pointerover` so the preview comes back after a drag ends over a cell,
+      // where no fresh `pointerover` fires.
+      hint.on('pointerdown', () => { this.pressTile = i; });
+      hint.on('pointerover', (e: FederatedPointerEvent) => this.onHintHover(i, e));
+      hint.on('pointermove', (e: FederatedPointerEvent) => this.onHintHover(i, e));
+      hint.on('pointerout', () => this.onHintOut(i));
+      this.hintByTile.set(i, hint);
       // Into the cell's own terrain block when the ground will take it, so a
       // raised cell's diamond is covered by the grass of the cell in front
       // instead of lapping over it. The farm solved the identical problem this
@@ -678,12 +775,305 @@ export class BurrowScene implements Scene {
       // Invisible, NOT hidden: `visible = false` takes a sprite out of hit
       // testing, and this is the one cell that most needs to answer a tap. The
       // farm relies on the same distinction for a dug tile (see `Tile`).
-      const mined = this.trapSprites.has(tile);
       hint.visible = usable;
       hint.cursor = usable ? 'pointer' : 'default';
-      gsap.killTweensOf(hint);
-      gsap.to(hint, { alpha: usable && !mined ? PLACEABLE_ALPHA : 0, duration: 0.2 });
+      this.styleHint(tile, hint, 0.2);
     });
+    // Runs on every trap added or removed, so this is also where a preview is
+    // kept honest: a bomb that landed under the mouse from elsewhere turns the
+    // ghost into a lift, and leaving placement takes both away.
+    if (!placing || this.raiding) {
+      this.clearHover();
+      this.hoverMuted = -1;
+    }
+    this.syncHover();
+    this.syncGlove(placing);
+  }
+
+  /**
+   * One diamond's tint and alpha, from the state it is in. The only place that
+   * decides it, so `setPlacing` re-running on every trap cannot wipe a hover
+   * highlight and a hover cannot outlive the state that justified it.
+   */
+  private styleHint(tile: number, hint: Sprite, duration: number): void {
+    const usable = this.data.placing && !this.raiding && isTrappable(this.data.seed, tile);
+    // A mined tile's diamond stays at alpha 0 — its own marker shows it, and
+    // the lift preview tints that marker (see `paintTrap`).
+    const mined = this.trapSprites.has(tile);
+    const hovered = usable && !mined && tile === this.hoverTile;
+    hint.tint = hovered ? HOVER_TINT : PLACEABLE_TINT;
+    gsap.killTweensOf(hint);
+    const alpha = !usable || mined ? 0 : hovered ? HOVER_ALPHA : PLACEABLE_ALPHA;
+    if (duration <= 0) hint.alpha = alpha;
+    else gsap.to(hint, { alpha, duration });
+  }
+
+  /**
+   * The mouse is over a placement cell.
+   *
+   * MOUSE only, decided per event rather than per device: a touch laptop's
+   * finger sends `pointerover` too, on the way to a tap, and a ghost flashed up
+   * under a finger that is already committing would be noise. A mouse is the
+   * pointer that can look before it clicks, so it is the one that gets shown
+   * what the click will do.
+   */
+  private onHintHover(tile: number, e: FederatedPointerEvent): void {
+    if (e.pointerType !== 'mouse') return;
+    if (!this.data.placing || this.raiding || !isTrappable(this.data.seed, tile)) {
+      this.clearHover();
+      return;
+    }
+    // Mid-drag the board is sliding under a still pointer, and a preview
+    // flickering across every cell it passes says "click" while the player is
+    // panning.
+    if (this.gestures?.active && this.gestures.didDrag) {
+      this.clearHover();
+      return;
+    }
+    // The button is held and the pointer has left the cell it went down on.
+    // A press that starts ON a diamond never reaches the drag surface (it is
+    // the board's sibling, not its parent), so the recogniser above does not
+    // see this drag — but Pixi will not fire `pointertap` on a different cell
+    // either, so releasing here does nothing and a ghost would promise a bomb
+    // that never comes. Measured: without this the ghost walked cell to cell
+    // under a held button.
+    if ((e.buttons & 1) !== 0 && tile !== this.pressTile) {
+      this.clearHover();
+      return;
+    }
+    if (tile === this.hoverMuted || tile === this.hoverTile) return;
+    const was = this.hoverTile;
+    this.hoverTile = tile;
+    // Moving straight from one cell to the next: the old one drops back in
+    // the same frame the new one lights, so two cells are never gold at once.
+    if (was >= 0) this.restyleHint(was);
+    this.restyleHint(tile);
+    this.syncHover();
+  }
+
+  private onHintOut(tile: number): void {
+    if (this.hoverMuted === tile) this.hoverMuted = -1;
+    if (this.hoverTile === tile) this.clearHover();
+  }
+
+  private restyleHint(tile: number): void {
+    const hint = this.hintByTile.get(tile);
+    if (hint && !hint.destroyed) this.styleHint(tile, hint, 0.1);
+  }
+
+  /** No cell is hovered any more: back to the plain grid. */
+  private clearHover(): void {
+    if (this.hoverTile < 0 && !this.lifted && !this.ghost?.holder.visible) return;
+    const was = this.hoverTile;
+    this.hoverTile = -1;
+    if (was >= 0) this.restyleHint(was);
+    this.syncHover();
+  }
+
+  /**
+   * Make the ghost and the lift match `hoverTile`. Idempotent — it is run from
+   * pointer events, from `setPlacing` and from teardown alike.
+   */
+  private syncHover(): void {
+    const tile = this.hoverTile;
+    const active = tile >= 0 && this.data.placing && !this.raiding;
+    const mined = active && this.trapSprites.has(tile);
+
+    // A free cell: the ghost of the bomb a click would bury.
+    if (active && !mined) {
+      const ghost = this.ensureGhost();
+      ghost?.showOn(tile, (holder) => {
+        // Through the SAME call a real trap is mounted with, at the same depth
+        // in the cell — so the preview and the bomb that replaces it share a
+        // position to the pixel (see `addTrap` on why that matters).
+        if (!this.terrain?.mountVeil(tile, holder, 3)) {
+          const { x, y } = burrowTileScreen(this.data.seed, tile);
+          holder.position.set(x, y);
+          holder.zIndex = burrowDepth(this.data.seed, tile) + 0.5;
+          this.board.addChild(holder);
+        }
+      });
+    } else {
+      this.ghost?.hide();
+    }
+
+    // A mined cell: its bomb rises, its marker goes red.
+    const liftWanted = mined ? tile : -1;
+    if ((this.lifted?.tile ?? -1) !== liftWanted) {
+      this.lowerLifted();
+      if (liftWanted >= 0) this.raiseTrap(liftWanted);
+    }
+  }
+
+  /** The ghost, built on first use — a touch player never needs one. */
+  private ensureGhost(): GhostBomb | null {
+    if (this.ghost && !this.ghost.holder.destroyed) return this.ghost;
+    const tex = Assets.get<Texture>(Keys.BOMB_SMALL);
+    if (!tex) return null;
+    this.ghost = new GhostBomb(tex, trapBombScale(tex), BOMB_ANCHOR_Y);
+    return this.ghost;
+  }
+
+  /** The lift preview on a placed trap: raised, and a slow breath while held. */
+  private raiseTrap(tile: number): void {
+    const group = this.trapSprites.get(tile);
+    if (!group) return;
+    // The bomb and its charge crop move together; the marker stays on the
+    // ground, which is what makes the bomb read as coming OUT of the cell.
+    const parts = group.children.slice(1).filter((c): c is Sprite => c instanceof Sprite);
+    this.lifted = { tile, parts };
+    this.paintTrap(tile);
+    gsap.killTweensOf(parts);
+    const still = prefersReducedMotion();
+    gsap.to(parts, {
+      y: -LIFT_PX,
+      duration: still ? 0 : 0.14,
+      ease: 'power2.out',
+      onComplete: () => {
+        if (still || this.lifted?.tile !== tile) return;
+        gsap.to(parts, { y: -LIFT_PX - 2, duration: 0.5, ease: 'sine.inOut', yoyo: true, repeat: -1 });
+      },
+    });
+  }
+
+  private lowerLifted(): void {
+    const lifted = this.lifted;
+    if (!lifted) return;
+    this.lifted = null;
+    gsap.killTweensOf(lifted.parts);
+    const alive = lifted.parts.filter((p) => !p.destroyed);
+    if (alive.length) gsap.to(alive, { y: 0, duration: 0.12, ease: 'power2.in' });
+    this.paintTrap(lifted.tile);
+  }
+
+  /**
+   * Start the glove when a finger-first player opens placement, and stop it
+   * the moment placement is no longer the job.
+   *
+   * `setPlacing(true)` re-runs on every trap added or removed, so starting is
+   * guarded: one glove per session, never a second over the first, and never
+   * again once the player has tapped a cell.
+   */
+  private syncGlove(placing: boolean): void {
+    if (!placing || this.raiding) {
+      this.stopGlove();
+      // Closing placement is the end of the session; the next visit teaches
+      // again only if the player never tapped — a raid is not a closing.
+      if (!placing && !this.raiding) this.gloveDone = false;
+      return;
+    }
+    if (this.glove || this.gloveDone || !isTouchPrimary()) return;
+    const tex = Assets.get<Texture>(Keys.HAND_POINTER);
+    if (!tex) return;
+    this.glove = new GloveHint(this.container, tex, {
+      pickTarget: () => this.gloveTarget(),
+      onPress: (tile) => this.pressRipple(tile),
+      scale: () => this.gloveScale(),
+      onDone: () => {
+        this.gloveDone = true;
+        this.stopGlove();
+      },
+    });
+  }
+
+  /** The player tapped a cell: the glove has taught what it came to teach. */
+  private dismissGlove(): void {
+    this.gloveDone = true;
+    this.stopGlove();
+  }
+
+  private stopGlove(): void {
+    this.glove?.destroy();
+    this.glove = null;
+    for (const fx of this.pressFx) {
+      gsap.killTweensOf(fx);
+      gsap.killTweensOf(fx.scale);
+      if (!fx.destroyed) fx.destroy();
+    }
+    this.pressFx.clear();
+  }
+
+  /**
+   * The free cell nearest the middle of the SCREEN, in the scene container's
+   * space (the glove's parent).
+   *
+   * Measured on screen rather than on the board because the player may have
+   * panned: the middle of the board can be off the edge, and a hint pressed
+   * where nobody is looking teaches nothing. Only cells actually on screen are
+   * candidates, with a margin so the hand is never cut by the edge.
+   */
+  private gloveTarget(): GloveTarget | null {
+    const screen = this.app.screen;
+    const margin = 40;
+    const cells: Array<{ tile: number; x: number; y: number }> = [];
+    for (const [tile, hint] of this.hintByTile) {
+      if (hint.destroyed || !hint.visible || this.trapSprites.has(tile)) continue;
+      if (!isTrappable(this.data.seed, tile)) continue;
+      const g = hint.getGlobalPosition();
+      if (g.x < margin || g.y < margin || g.x > screen.width - margin || g.y > screen.height - margin) continue;
+      cells.push({ tile, x: g.x, y: g.y });
+    }
+    const best = nearestTo(cells, { x: screen.width / 2, y: screen.height / 2 });
+    if (!best) return null;
+    const local = this.container.toLocal({ x: best.x, y: best.y });
+    return { tile: best.tile, x: local.x, y: local.y };
+  }
+
+  /**
+   * The glove's scale in the scene container, so each art pixel is a WHOLE
+   * number of screen pixels whatever the camera's zoom — 3 on a roomy screen,
+   * 2 on a landscape phone, where a hand three times its art would cover the
+   * cells around the one it presses.
+   */
+  private gloveScale(): number {
+    const world = Math.abs(this.container.worldTransform.a) || 1;
+    const px = this.app.screen.height < 600 ? 2 : 3;
+    return px / world;
+  }
+
+  /**
+   * What a glove press does to the cell: a gold ring spreading out of it, and
+   * the diamond flashing gold underneath — the colour the cell turns when a
+   * bomb is really buried there.
+   */
+  private pressRipple(tile: number): void {
+    if (!this.data.placing || this.raiding) return;
+    const ring = burrowDiamond();
+    ring.tint = HOVER_TINT;
+    const flash = burrowDiamondSolid();
+    flash.tint = HOVER_TINT;
+    for (const [fx, z] of [[flash, 3], [ring, 4]] as const) {
+      fx.eventMode = 'none';
+      if (!this.terrain?.mountVeil(tile, fx, z)) {
+        const { x, y } = burrowTileScreen(this.data.seed, tile);
+        fx.position.set(x, y);
+        fx.zIndex = burrowDepth(this.data.seed, tile) + z / 10;
+        this.board.addChild(fx);
+      }
+      this.pressFx.add(fx);
+    }
+    const done = (fx: Sprite) => () => {
+      this.pressFx.delete(fx);
+      if (!fx.destroyed) fx.destroy();
+    };
+    // Relative to the diamond's own scale — it is pre-sized to the burrow's
+    // cell, see `springTrap`.
+    gsap.to(ring.scale, { x: ring.scale.x * 1.7, y: ring.scale.y * 1.7, duration: 0.55, ease: 'power2.out' });
+    gsap.fromTo(ring, { alpha: 0.95 }, { alpha: 0, duration: 0.55, ease: 'power1.in', onComplete: done(ring) });
+    gsap.fromTo(flash, { alpha: 0.5 }, { alpha: 0, duration: 0.4, ease: 'power1.out', onComplete: done(flash) });
+  }
+
+  /** Every placement hint off the board — before the ground goes, and on destroy. */
+  private teardownPlacementHints(): void {
+    this.hoverTile = -1;
+    this.hoverMuted = -1;
+    if (this.lifted) {
+      gsap.killTweensOf(this.lifted.parts);
+      this.lifted = null;
+    }
+    this.ghost?.destroy();
+    this.ghost = null;
+    this.stopGlove();
   }
 
   /**
@@ -831,20 +1221,20 @@ export class BurrowScene implements Scene {
       // Scaled off the cell, not off the texture's own pixels: the tile size is
       // a tuning knob (`setBurrowTileSize`), and a sprite pinned to a pixel
       // count stops matching the ground the moment that slider moves.
-      const k = (BURROW_HALF_W * 0.62) / bombTex.width;
+      const k = trapBombScale(bombTex);
 
       // THE BOMB, TWICE. The dim copy is what has not charged yet; the solid
       // one is clipped to a waterline that rises as it does. Same texture,
       // same anchor, same scale — so the two line up exactly and the only
       // thing the eye sees is the boundary between them.
       const bomb = new Sprite(bombTex);
-      bomb.anchor.set(0.5, 0.78);
+      bomb.anchor.set(0.5, BOMB_ANCHOR_Y);
       bomb.scale.set(k);
       group.addChild(bomb);
 
       this.bombTexture = bombTex;
       const filled = new Sprite(bombTex);
-      filled.anchor.set(0.5, 0.78);
+      filled.anchor.set(0.5, BOMB_ANCHOR_Y);
       filled.scale.set(k);
       // NO MASK. The filled copy shows a CROP of the texture instead: its
       // frame is narrowed to the bottom `t` of the art and the sprite is
@@ -1360,8 +1750,13 @@ export class BurrowScene implements Scene {
     // fading the marker hard made a rearming trap disappear into the grass,
     // which is the failure this whole treatment exists to avoid.
     if (marker) {
-      marker.tint = TRAP_TINT;
-      marker.alpha = 0.55 + 0.2 * t;
+      // Red while the mouse offers to lift it (see `LIFT_TINT`). Decided here,
+      // not by whoever started the preview: a rearming trap is repainted every
+      // frame by `advanceRearm`, and a tint set anywhere else would be gold
+      // again one frame later.
+      const lifting = this.lifted?.tile === tile;
+      marker.tint = lifting ? LIFT_TINT : TRAP_TINT;
+      marker.alpha = lifting ? 0.95 : 0.55 + 0.2 * t;
     }
     if (bomb) bomb.alpha = REARMING_ALPHA;
 
@@ -1401,6 +1796,12 @@ export class BurrowScene implements Scene {
     this.trapRearmTotalMs.delete(tile);
     // ...and off the data, or a raid would bring back a bomb that was lifted.
     this.data.traps = this.data.traps.filter((t) => t !== tile);
+    // A lift preview still breathing on this bomb would tween sprites the fade
+    // below is about to destroy.
+    if (this.lifted?.tile === tile) {
+      gsap.killTweensOf(this.lifted.parts);
+      this.lifted = null;
+    }
     gsap.to(group, {
       alpha: 0,
       duration: 0.25,
@@ -1446,6 +1847,7 @@ export class BurrowScene implements Scene {
   }
 
   destroy(): void {
+    this.teardownPlacementHints();
     this.clearRaid();
     if (this.onResize) {
       window.removeEventListener('resize', this.onResize);
