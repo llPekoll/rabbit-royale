@@ -15,6 +15,11 @@
  * where the button leads, and the arrow pointed DOWN at a screen that is not
  * below anything.
  *
+ * IT IS ALSO THE BACK BUTTON. `tone="back"` drops the carrot and takes the
+ * soil palette, for the way out of placement — see `tone` on the props. The
+ * slab's geometry is the thing worth sharing; the sprite and the hexes are all
+ * that ever differed.
+ *
  * WHAT IT KEEPS. `away`, which slides the button off the bottom during
  * placement. That is not decoration: the camera pulls back at the same moment,
  * and a control that blinks out mid-pull reads as a glitch in a move that is
@@ -30,6 +35,16 @@ export interface FarmButtonProps {
   disabled?: boolean;
   /** Send the button off the bottom of the screen — see the header. */
   away?: boolean;
+  /**
+   * Drop the carrot and wear the second palette — the BACK button.
+   *
+   * One component rather than two, because the slab IS the shape: 22% of the
+   * width, the plinth, the face that sinks 4px, the centring, the slide. A
+   * copy would be that whole geometry written twice, and the two would part
+   * company the first time either was retuned. What actually differs between
+   * GO FARM and BACK is a sprite and five hexes.
+   */
+  tone?: 'carrot' | 'back';
 }
 
 /* ── Sampled from the reference ────────────────────────────────────────── */
@@ -43,8 +58,31 @@ const OFF = '#6b4a33';
 const OFF_SHADOW = '#33210f';
 const OFF_INK = '#a99483';
 
-export function FarmButton({ label, onClick, disabled, away }: FarmButtonProps) {
+/**
+ * BACK's palette: the burrow's own soil, not a second saturated slab.
+ *
+ * Deliberately quieter than the carrot. GO FARM is orange because it is the
+ * one thing to do on a screen full of readouts, and the mock's whole argument
+ * is that the saturated shape is the findable one. BACK is the way OUT of a
+ * mode the player chose on purpose — they know it is there, and lighting it
+ * as loudly as GO FARM would put two "press me" slabs on one floor and make
+ * neither of them mean anything. Sampled off `burrow-chrome`'s PLANK and SOIL,
+ * so it belongs to the same earth as the panels it sits under.
+ */
+const BACK_FACE = '#5a3a24';
+const BACK_FACE_LIT = '#6d4830';
+const BACK_LIP = '#8a5f3d';
+const BACK_SHADOW = '#2a1810';
+
+export function FarmButton({
+  label, onClick, disabled, away, tone = 'carrot',
+}: FarmButtonProps) {
   const live = !disabled;
+  const back = tone === 'back';
+  const lip = back ? BACK_LIP : LIP;
+  const faceTop = back ? BACK_FACE_LIT : FACE_LIT;
+  const faceBottom = back ? BACK_FACE : FACE;
+  const faceShadow = back ? BACK_SHADOW : SHADOW;
   /* The carrot is 81% of the button's height in the mock (65px of 80), not the
      37% the first cut used — it is half of what makes this button findable,
      and a small one beside a large label read as a bullet point. Width follows
@@ -67,7 +105,7 @@ export function FarmButton({ label, onClick, disabled, away }: FarmButtonProps) 
         ...button,
         // The PLINTH: the salmon band the face sinks into. It is the button's
         // own background and it never moves — that is the whole trick.
-        background: live ? LIP : OFF_SHADOW,
+        background: live ? lip : OFF_SHADOW,
         /* Travels with the camera's pull-back rather than blinking out.
            The X half is the CENTRING (globals.css pins this button to the
            middle of the floor): a bare `translateY` here would replace that
@@ -91,24 +129,29 @@ export function FarmButton({ label, onClick, disabled, away }: FarmButtonProps) 
         style={{
           ...face,
           background: live
-            ? `linear-gradient(180deg, ${FACE_LIT} 0%, ${FACE} 100%)`
+            ? `linear-gradient(180deg, ${faceTop} 0%, ${faceBottom} 100%)`
             : OFF,
           color: live ? '#ffffff' : OFF_INK,
-          boxShadow: `inset 0 -3px 0 ${live ? SHADOW : OFF_SHADOW}`,
+          boxShadow: `inset 0 -3px 0 ${live ? faceShadow : OFF_SHADOW}`,
         }}
       >
         {/* Turned 45° clockwise, matching the carrot in the count above — the
-            two are the same object and should be held the same way. */}
-        <img
-          className="rr-carrot-px"
-          src={CARROT_URL}
-          alt=""
-          aria-hidden
-          draggable={false}
-          width={carrotW}
-          height={carrotH}
-          style={{ display: 'block', flexShrink: 0, transform: 'rotate(45deg)' }}
-        />
+            two are the same object and should be held the same way.
+            BACK carries no sprite: the carrot means "go and dig", and putting
+            it on the button that ENDS a job would be one picture saying two
+            opposite things. The label is the whole content there. */}
+        {!back && (
+          <img
+            className="rr-carrot-px"
+            src={CARROT_URL}
+            alt=""
+            aria-hidden
+            draggable={false}
+            width={carrotW}
+            height={carrotH}
+            style={{ display: 'block', flexShrink: 0, transform: 'rotate(45deg)' }}
+          />
+        )}
         <span style={labelText}>{label}</span>
       </span>
     </button>

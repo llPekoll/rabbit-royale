@@ -1208,6 +1208,69 @@ button { min-height: 44px; min-width: 44px; }
   z-index: 20;
 }
 
+/* THE KIT, ON THE FLOOR ABOVE THE FOUR DOORS.
+
+   What you are CARRYING sits with the things you can DO, not up in the column
+   with what your burrow produces. That is the split the corner already makes:
+   cards report the place, the floor is where the hands go — and a bag of
+   consumables is a hand thing. It is also where every game of this shape puts
+   an inventory bar, which is reason enough on its own.
+
+   Anchored off `--rr-kit-h` rather than a literal, because three different
+   rules have to agree on the row's height: its own `bottom`, the strip the
+   column reserves, and the mute's lift. They were three copies of `38px` for
+   about a minute, which is exactly how the corner's earlier overlaps happened.
+
+   `fixed` and a SIBLING of the column, for the same reason the launcher row
+   is: `.rr-burrow` carries `z-index: 1` and is therefore a stacking context,
+   so a row nested inside it can never rise above GO FARM. */
+:root {
+  /* THE KIT SLOT, and the row's height derived from it.
+     One source for both, because the row's `bottom`, the strip the column
+     reserves and the mute's lift all measure against the same square — three
+     copies of a literal is how this corner's earlier overlaps happened.
+     32px is comfortable for a thumb-height row on the floor; `ItemSlot`'s hit
+     area covers the rest of the 44px touch target. */
+  --rr-slot: 32px;
+  /* The square plus the 8px of air the row sits on. */
+  --rr-kit-h: calc(var(--rr-slot) + 8px);
+  /* The mute cluster's width — its 52px button, the 44px "more" beside it and
+     the 6px between them. The kit row stops short of it; stated once here
+     because a second copy would drift the day the cluster changes. */
+  --rr-mute-w: calc(52px + 6px + 44px);
+}
+
+.rr-kit-row {
+  position: fixed;
+  left: 10px;
+  /* ON THE FLOOR ITSELF, because what it used to stand on is gone.
+     The raid kit shows only while PLACING now, and placing unmounts the four
+     launcher tiles — so an anchor that reserved their height would have left
+     the row hovering over an empty corner. It takes the tiles' own margin
+     instead, and lands exactly where SHOP sits the rest of the time. */
+  bottom: calc(10px + env(safe-area-inset-bottom));
+  /* EDGE TO EDGE, because the two halves go to opposite corners.
+     The raid kit stays at the left margin and the garden's bottles are pushed
+     to the right one, so the empty water between them is what separates the
+     two groups — no divider, no second row, and no label. `justify-content`
+     cannot do that from a box only as wide as its own slots, so the row spans
+     the floor and `.rr-kit-garden` takes the slack (see below).
+
+     A `fixed` box this wide would swallow every click on the sea it covers, so
+     the row itself is transparent to the pointer (`pointer-events: none` in
+     `kit-row.tsx`) and only the slots take taps.
+
+     The right end stops SHORT of the margin, because the mute owns that corner
+     and has since it was chased out of the left one. Pushed flush the bottles
+     landed behind its two buttons with a sliver of watering can showing
+     between them. Clearing its width plus a gap puts them beside it instead,
+     on the same line, which is the only free space on that side of the floor. */
+  right: calc(10px + var(--rr-mute-w) + 8px);
+  /* The same z as the doors below it: one piece of floor furniture, above the
+     board and GO FARM, below an open drawer. */
+  z-index: 20;
+}
+
 /* ON THE BURROW THE BOTTOM-LEFT CORNER IS SHARED.
 
    The column now ends in a row of launcher tiles (`hub-tab.tsx`) occupying
@@ -1226,7 +1289,9 @@ button { min-height: 44px; min-width: 44px; }
    them leaving the place players look for it. */
 body:has(.rr-burrow) .rr-burrow {
   /* Clear of the launcher row on the floor, which is `position: fixed` and so
-     takes no space of its own — the column has to leave it. */
+     takes no space of its own — the column has to leave it.
+     The raid kit needs no strip of its own: it appears only while PLACING,
+     and the column steps aside entirely in that mode. */
   padding-bottom: 108px;
 }
 
@@ -1246,7 +1311,7 @@ body:has(.rr-burrow) .rr-burrow {
      the strip it has to leave is both of them, not just the row. At 4px the
      burrow card ran under the mute and its UPGRADE button was half covered. */
   /* Room for the launcher row; the mute shares its band rather than taking
-     one of its own. */
+     one of its own. (The raid kit is a placing-mode row and needs none.) */
   body:has(.rr-burrow) .rr-burrow { padding-bottom: calc(12.4svh + 30px); }
 
   /* Cards sit closer together. On the Seeker the column has 228px of visible
@@ -1257,6 +1322,13 @@ body:has(.rr-burrow) .rr-burrow {
 
   /* ...and the cards give up the last few percent — see `heightBox`. */
   body:has(.rr-burrow) { --rr-card-scale: 0.93; }
+
+  /* The kit gives up a few pixels too. On the Seeker the floor already carries
+     the launcher row and the mute, and every pixel this row takes comes off
+     the column above it — which is the part that clips first. 26px still reads
+     as a slot and still takes a tap, because the hit area is independent of
+     the square (see `ItemSlot`). */
+  :root { --rr-slot: 26px; }
 
 
 }
@@ -1318,6 +1390,15 @@ body:has(.rr-empty) .rr-sound { display: none; }
   }
   .rr-hub-row { max-width: none; }
   .rr-farm-btn { bottom: var(--rr-floor); }
+  /* UPRIGHT THE FLOOR IS STACKED, so the raid kit clears GO FARM's band.
+     GO is CENTRED on the band just above the tiles here rather than off to the
+     side, and its 400px box covered the last three slots outright. GO only
+     slides away while placing (`.rr-go-away`), it does not unmount, so the row
+     still has to clear it. */
+  .rr-kit-row {
+    bottom: calc(var(--rr-floor) + var(--rr-go-h) + 8px);
+  }
+
   body:has(.rr-hub-row) .rr-sound {
     bottom: calc(var(--rr-floor) + var(--rr-go-h) + 8px);
   }

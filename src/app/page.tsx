@@ -34,6 +34,7 @@ import { ShopPanel } from '@/components/shop-card';
 import { EnergyPopup } from '@/components/energy-popup';
 import { LoreCodex } from '@/components/lore-codex';
 import { HubTabs } from '@/components/hub-tabs';
+import { KitRow } from '@/components/kit-row';
 import { LoreCrawl } from '@/components/lore-crawl';
 import { EnergyCard } from '@/components/energy-card';
 import { GardenCard } from '@/components/garden-card';
@@ -69,8 +70,16 @@ interface Burrow {
   /** Milliseconds of shield left, or null when raids can land right now. */
   shieldMs: number | null;
   yieldPerHour: number;
+  /** The LIVE ceiling in hours — fertiliser included while a feeding runs. */
   capHours: number;
   gardenCapacity: number;
+  /** What the garden holds right now, fertiliser included. */
+  gardenCeiling: number;
+  /** The two things you can pour on it: bottles held, window running. */
+  boosts: {
+    water: { held: number; activeMs: number | null };
+    fertiliser: { held: number; activeMs: number | null };
+  };
   upgradeCost: number | null;
   canUpgrade: boolean;
   next: { yieldPerHour: number } | null;
@@ -319,7 +328,7 @@ function Burrow() {
       .catch(() => {});
   }, []);
 
-  const act = async (action: 'harvest' | 'upgrade') => {
+  const act = async (action: 'harvest' | 'upgrade' | 'water' | 'fertilise' | 'shield') => {
     setPending(true);
     setNote(null);
     try {
@@ -333,9 +342,25 @@ function Burrow() {
         setBurstKey((k) => k + 1);
       }
       else if (res.spent) setNote(`Burrow deepened: ${res.spent} 🥕`);
+      else if (res.raised === 'shield') {
+        setNote('Shield up. Raids bounce off.');
+        // The shield came OUT OF THE BAG, and the bag is the shop's state, not
+        // the burrow's — without this the kit row keeps drawing a shield the
+        // server has already spent. The burrow response carries the new
+        // `shieldMs`, so only the count needs re-fetching.
+        void shop.refresh();
+      }
+      else if (res.poured === 'water') setNote('Watered. The garden fills faster.');
+      else if (res.poured === 'fertiliser') setNote('Fed. The garden holds more.');
       else if (res.error === 'insufficient_carrots') setNote(`Need ${res.need - res.have} more 🥕`);
       else if (res.error === 'nothing_to_harvest') setNote('The garden is empty. Come back later.');
       else if (res.error === 'max_level') setNote('Your burrow is as deep as it goes.');
+      // The two boost refusals. `boost_capped` is the one worth a sentence:
+      // the press was declined to SAVE the bottle, which is the opposite of
+      // what a silent failure would look like.
+      else if (res.error === 'already_shielded') setNote('A shield is already up.');
+      else if (res.error === 'none_held') setNote('None left. Chests drop them.');
+      else if (res.error === 'boost_capped') setNote('Already topped up. Save it for later.');
     } finally {
       setPending(false);
     }
@@ -1386,7 +1411,11 @@ function Burrow() {
                 <GardenCard
                   ready={burrow?.gardenReady ?? 0}
                   yieldPerHour={burrow?.yieldPerHour ?? 0}
-                  capacity={burrow?.gardenCapacity ?? 0}
+                  /* The LIVE ceiling, not the base one: the line reads "holds
+                     N (Xh)" and both halves have to describe the same garden.
+                     `gardenCapacity` is what the FIELD is drawn against and
+                     deliberately ignores fertiliser — see `BurrowView`. */
+                  capacity={burrow?.gardenCeiling ?? 0}
                   capHours={burrow?.capHours ?? 0}
                   pending={pending}
                   onHarvest={() => act('harvest')}
@@ -1411,31 +1440,28 @@ function Burrow() {
               )}
 
               {/* Placing takes over the screen, so the way into the shop
-                  steps aside for the way out of placement. */}
-              {placing ? (
-                <>
-                  <button className="rr-btn" onClick={stopPlacing}>
-                    Done placing
-                  </button>
-                  {/* Clear the board in one press.
-                      
-                      Rearranging a defence means lifting several bombs, and
-                      tapping them off one diamond at a time on a 19x19 grid is
-                      the chore that stands between a player and changing their
-                      mind. The traps come back to the bag, exactly as lifting
-                      one does, so this costs nothing but the gesture.
-                      
-                      Only offered when there is something to clear — a button
-                      that does nothing is worse than no button. */}
-                  {(shop.traps?.placed.length ?? 0) > 0 && (
-                    <button className="rr-btn ghost" onClick={clearTraps}>
-                      Clear all mines
-                    </button>
-                  )}
-                </>
-              ) : (
-                <>
-                </>
+                  steps aside for the way out of placement.
+                  
+                  The way OUT is no longer here: "Done placing" was an
+                  `rr-btn` stranded in a column that is dimmed and pushed aside
+                  during placement, which put the exit in the least prominent
+                  place on the screen. It is a floor slab at the centre now,
+                  standing exactly where GO FARM does the rest of the time —
+                  see the `FarmButton` at the bottom of this file. */}
+              {/* Clear the board in one press.
+                  
+                  Rearranging a defence means lifting several bombs, and
+                  tapping them off one diamond at a time on a 19x19 grid is
+                  the chore that stands between a player and changing their
+                  mind. The traps come back to the bag, exactly as lifting one
+                  does, so this costs nothing but the gesture.
+                  
+                  Only offered when there is something to clear — a button
+                  that does nothing is worse than no button. */}
+              {placing && (shop.traps?.placed.length ?? 0) > 0 && (
+                <button className="rr-btn ghost" onClick={clearTraps}>
+                  Clear all mines
+                </button>
               )}
 
               {/* While placing, this is the only instruction on screen — the
@@ -1506,6 +1532,40 @@ function Burrow() {
           
           Same conditions as the column above: not while placing, not during a
           raid or a crossing, and only once there is a board to stand on. */}
+      {/* THE RAID KIT — ONLY WHILE YOU ARE WORKING ON THE BASE.
+          
+          It sat on the resting burrow first, on the reasoning that owning a
+          bomb is a fact about you and a fact should be visible. That put six
+          squares of raid gear on the screen whose job is the garden and the
+          house, where not one of them could be used: the bombs and the mirage
+          are thrown on somebody else's island, and the traps are buried in the
+          mode this row now belongs to.
+          
+          So it appears with PLACING, which is the moment the kit is the thing
+          being handled — the board is open, the traps are going into the
+          ground, and what is in the bag is exactly what the screen is about.
+          The rest of the time the burrow stays a place rather than a loadout.
+          The garden's bottles are the exception and keep their corner: they
+          are poured ON the burrow, so they belong to it. */}
+      {!crossing && !shownRaid && where === 'burrow' && showCanvas && placing && burrow && (
+        <KitRow
+          held={shop.shop ? Object.fromEntries(
+            shop.shop.items.map((i) => [i.kind, i.held]),
+          ) : {}}
+          shieldMs={burrow.shieldMs}
+          /* Smoke is reported as days by `holdings`, and the shop's shelf is
+             where that number already crosses the wire. */
+          smokeDays={shop.shop?.items.find((i) => i.kind === 'smoke')?.held ?? 0}
+          trapsPlaced={shop.shop?.traps.placed}
+          trapsMaxPlaced={shop.shop?.traps.maxPlaced}
+          onShield={() => act('shield')}
+          water={burrow.boosts.water}
+          fertiliser={burrow.boosts.fertiliser}
+          onPour={(kind) => act(kind === 'water' ? 'water' : 'fertilise')}
+          pending={pending}
+        />
+      )}
+
       {!crossing && !shownRaid && where === 'burrow' && showCanvas && !placing && (
         <HubTabs
           shop={shop.shop}
@@ -1602,6 +1662,20 @@ function Burrow() {
         // curve (see .rr-go-away). Unmounted, it would blink out halfway
         // through the zoom.
         <FarmButton label="Go farm" onClick={goFarm} away={placing} />
+      )}
+
+      {/* THE WAY OUT OF PLACEMENT, on the slab GO FARM vacates.
+          
+          Same component, same geometry, same spot — `tone="back"` is a sprite
+          and a palette (see `FarmButton`). The two never coexist: GO slides
+          away as this arrives, so the centre of the floor always holds exactly
+          one slab and it is always the one thing this mode is for.
+          
+          NOT given `away`, because it is unmounted rather than slid: the exit
+          and the mode end together, and a button easing out after the board
+          has already closed is a control outliving its screen. */}
+      {!crossing && !shownRaid && where === 'burrow' && showCanvas && placing && (
+        <FarmButton label="Back" onClick={stopPlacing} tone="back" />
       )}
 
       {/* The small "out of energy" dialog. Above the shop in the tree and
