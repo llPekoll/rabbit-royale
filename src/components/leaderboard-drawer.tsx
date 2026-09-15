@@ -30,7 +30,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { CloseButton, NineSlicePanel, PanelTitle } from '@domin8/arcade-kit';
 import { HubIconButton } from './hub-icon-button';
-import { PxPanel } from './px';
+import { PX, PxPanel } from './px';
 
 /** The board's surface (`.rr-lb`), now filling the codex's pixel frame. */
 const BOARD = '#161b1f';
@@ -214,7 +214,7 @@ export function LeaderboardDrawer({ token, playerId, onSpectate, onMe, onOpen }:
           through because the frame sets `relative` inline. */}
       <NineSlicePanel
         color={BOARD}
-        pixelScale="var(--rr-dlg-px, 3px)"
+        pixelScale={PX}
         id="rr-leaderboard"
         className={`rr-lb rr-px-dialog${open ? ' open' : ''}`}
         style={{ position: 'fixed' }}

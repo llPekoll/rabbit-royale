@@ -8,13 +8,11 @@
    globals.css still gives the old class names — and re-spacing the insides
    for a frame that is thicker than a 1px border. */
 
-/* The dialogs' frame pixel (DIALOG_PX in shop-card.tsx). A whole pixel at
-   both sizes: 4 on a desktop — chunkier than the burrow cards' 3, because a
-   dialog is a bigger object, as the codex's 5 is — and 3 on a short screen. */
-:root { --rr-dlg-px: 4px; }
-@media (max-height: 520px) {
-  :root { --rr-dlg-px: 3px; }
-}
+/* The frame pixel is `PX` (src/components/px.tsx) — one 2px stroke on every
+   surface, whatever its size or the screen. The dialogs used to set a chunkier
+   one of their own here; the variable is kept only so any stray reference
+   lands on the same value. */
+:root { --rr-dlg-px: 2px; }
 
 /* ── The frame, and nothing under it ───────────────────────────────────────
    The frame's sprite has transparent rounded corners: a background, a radius

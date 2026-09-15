@@ -44,6 +44,7 @@ import {
 } from '@domin8/arcade-kit';
 import { LORE, nextChapter, unlockedCount, type LoreChapter } from '@/config/lore';
 import { LauncherTab } from './burrow-chrome';
+import { PX } from './px';
 
 /** The sprite, at its native 30x31. Drawn `pixelated`, never resampled soft. */
 const SCROLL_SRC = '/assets/ui/scroll.png';
@@ -186,7 +187,10 @@ export function LoreCodex({ lifetime, onClose, onRead }: LoreCodexProps) {
         aria-label="The Cursed Crown lore"
         onClick={(e) => e.stopPropagation()}
       >
-        <NineSlicePanel color={SHEET} scale={5} style={{ position: 'relative' }}>
+        {/* The game's one stroke (`PX`), not a chunkier 5: this panel is the
+            reference every other surface was cut from, so it wears the same
+            line they do. */}
+        <NineSlicePanel color={SHEET} pixelScale={PX} style={{ position: 'relative' }}>
           <div className="rr-lore-inner">
             <header className="rr-lore-head">
               <span className="rr-lore-head-title">

@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from 'react';
 import { NineSlicePanel, PanelTitle } from '@domin8/arcade-kit';
-import { PxButton, pxLabel } from './px';
+import { PX, PxButton, pxLabel } from './px';
 import type { RunRecap } from './use-game-socket';
 import { FIRST_RUN_RECAP } from '@/config/first-run';
 
@@ -59,7 +59,7 @@ export function Recap({
        screen can tighten them. */
     <NineSlicePanel
       color={GLASS}
-      pixelScale="var(--rr-dlg-px, 3px)"
+      pixelScale={PX}
       className="rr-card rr-recap"
       style={{ textAlign: 'center' }}
     >

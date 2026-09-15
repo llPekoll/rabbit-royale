@@ -25,11 +25,21 @@ import {
 import { NineSliceButton, NineSlicePanel, type NineSliceButtonProps } from '@domin8/arcade-kit';
 
 /**
- * One source pixel of chrome. 3px on a desktop, 2px on the Seeker's 400px-tall
- * screen, where every card is already measured to the pixel and a 6px frame
- * would clip its contents.
+ * ONE SOURCE PIXEL OF CHROME, EVERYWHERE: 2 CSS px.
+ *
+ * The frame and the bevel are drawn in source pixels, so their thickness is
+ * whatever each surface asks for — and the rollout ended up with three
+ * answers: 2-3px on the cards and buttons (a clamp on viewport height), 4px on
+ * the dialogs, 5 in the codex. Side by side that reads as three different
+ * materials rather than one game: a thicker line on a bigger panel looks like
+ * a different border, not a bigger panel. Paul's call is one line at every
+ * size, on every screen, and the number is 2 — which is also what the kit's
+ * own [X] is baked at, so it matches without being told.
+ *
+ * Fixed, not responsive: a stroke that thins on a short screen is the same
+ * inconsistency measured a different way.
  */
-export const PX = 'clamp(2px, 0.4svh, 3px)';
+export const PX = '2px';
 
 export interface PxPanelProps {
   /** The panel's fill — the colour it had before it wore the frame. */

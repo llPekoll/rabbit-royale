@@ -28,7 +28,7 @@
 import { useEffect, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { CloseButton, NineSlicePanel, PanelTitle } from '@domin8/arcade-kit';
-import { PxButton, PxPanel, pxLabel } from './px';
+import { PX, PxButton, PxPanel, pxLabel } from './px';
 import type { ItemKind, ShopItem, ShopState } from './use-shop';
 import { ITEM_META, heldLabel } from './item-meta';
 import type { PayStage } from './use-usdc-pay';
@@ -96,12 +96,12 @@ export const CHALK = '#f5e6d3';
 const COIN = '#7fd1ff';
 
 /**
- * The dialogs' frame pixel. Chunkier than the burrow cards' `PX` because a
- * dialog is a bigger object (the codex runs at 5), and set per viewport in
- * px-dialogs.css so it lands on a whole pixel: 4 on a desktop, 3 on a short
- * screen where every row of the Seeker's 400 is spoken for.
+ * The dialogs' frame pixel — THE frame pixel, `PX`. It was chunkier here (4px,
+ * 3 on a short screen) on the reasoning that a dialog is a bigger object; side
+ * by side with the cards that read as a different material. One stroke at
+ * every size now: see `PX`.
  */
-export const DIALOG_PX = 'var(--rr-dlg-px, 3px)';
+export const DIALOG_PX = PX;
 
 /**
  * The carrot price: the lamp-lit gradient it always was, top as the face and
