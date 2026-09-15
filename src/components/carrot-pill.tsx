@@ -56,6 +56,13 @@ export interface CarrotPillProps {
    * its rim flushes red — the number that said no, saying it.
    */
   denyKey?: number;
+  /**
+   * Carrots dug this run and not home yet. A small chip BESIDE the stock, not
+   * a second figure the size of it: they join the stock on the walk home, and
+   * a bomb-ending run still banks them, but until then they are a haul, not a
+   * balance. Re-keyed per gain so each dig pops it. Hidden at 0 and off-run.
+   */
+  carrying?: number | null;
 }
 
 /* ── Sampled from the reference ────────────────────────────────────────── */
@@ -88,7 +95,7 @@ function Carrot({ height }: { height: number }) {
 }
 
 export function CarrotPill({
-  stock, fireKey, gain, rank, toPass, onAdd, denyKey = 0,
+  stock, fireKey, gain, rank, toPass, onAdd, denyKey = 0, carrying = null,
 }: CarrotPillProps) {
   const ref = useRef<HTMLDivElement>(null);
   // The shake rides `translate`, not `transform`: the stylesheet centres the
@@ -106,6 +113,16 @@ export function CarrotPill({
   return (
     <div ref={ref} className="rr-carrot-pill" style={pill} title={`${stock} carrots banked`}>
       {denyKey > 0 && <span key={denyKey} className="rr-pill-deny" aria-hidden />}
+      {carrying ? (
+        <span
+          key={carrying}
+          className="rr-pill-carrying"
+          title="Carried this run: banked when you walk home"
+          aria-label={`${carrying} carrots carried, not banked yet`}
+        >
+          +{groupDigits(carrying)}
+        </span>
+      ) : null}
       {/* Carrots fly up behind the figure as it climbs — the loot arriving,
           with the number as its result. */}
       <CarrotBurst fireKey={fireKey} amount={gain} />

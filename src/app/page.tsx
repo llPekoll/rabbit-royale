@@ -1683,6 +1683,9 @@ function Burrow() {
             toPass={me?.toPass ?? null}
             onAdd={() => setShopOpen(true)}
             denyKey={pillDenyKey}
+            // The run's haul, on the island only and only your own: a
+            // spectator's pill is still their own stock.
+            carrying={where === 'island' && !spectating && !crossing ? game.me?.carrots ?? null : null}
           />
         )}
         {/* The right-hand end: the SHOP and the STORY, as icons beside the

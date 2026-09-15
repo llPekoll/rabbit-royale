@@ -441,8 +441,14 @@ button { min-height: 44px; min-width: 44px; }
    Capped here rather than on `.rr-hud`, which the burrow reuses inside a
    column that already has a width of its own. */
 .rr-overlay > .rr-hud {
-  width: 100%;
+  /* SIZED TO WHAT IT HOLDS. It was full width to 560px with its items pushed
+     to the ends, so three hearts sat in a long empty bar that read as a
+     gauge with nothing in it. Now it is the hearts (and the rabbit count or
+     the volcano when there is one), centred under the pill. */
+  width: auto;
   max-width: 560px;
+  justify-content: center;
+  gap: 16px;
   align-self: center;
   /* A READOUT, not a control — nothing in it is tappable. Left catching the
      pointer, a finger that landed on it never reached the board: a pinch with
@@ -604,6 +610,28 @@ body:has(.rr-loop-bar) .rr-sound {
   animation: rr-pill-deny 700ms ease-out both;
 }
 @keyframes rr-pill-deny { 0% { opacity: 1; } 100% { opacity: 0; } }
+/* The run's haul, beside the stock it will join (carrot-pill.tsx `carrying`).
+   Smaller than the pill's figure and off its face: a haul, not a balance. */
+.rr-pill-carrying {
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 50%;
+  translate: 0 -50%;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(13, 17, 23, 0.82);
+  border: 1px solid rgba(255, 140, 66, 0.6);
+  color: var(--carrot);
+  font-family: var(--font-pixel), ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: rr-caption-pop 300ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rr-pill-carrying { animation: none; }
+}
 /* The defence line stays in the column — it is a status, not news — but it
    gets a ground of its own: grey straight on the sea was 1.4:1. */
 .rr-burrow .rr-note {

@@ -58,18 +58,12 @@ export function RunHud({
       {/* Hearts first: the run's life, one lost per bomb. Digging is free, so
           this is the only thing on the strip that can end the run. */}
       <Hearts energy={subject?.energy ?? 0} />
-      {/* SIGNED, because there are two carrot figures on this screen.
-          The topbar sits directly above this strip and carries the banked
-          stock — also in carrot orange, also reading 0 on a fresh account, and
-          about 50px away. Two identical numbers next to each other are not two
-          readings, they are one ambiguity: neither says whether it is what you
-          own or what you are carrying.
-
-          A leading `+` settles it without a label. `+12` is plainly a haul in
-          progress and `312 carrots` is plainly a balance, which is the
-          distinction that actually matters mid-run — the bank is what a bomb
-          cannot touch, and this is what a walk home turns into it. */}
-      <span style={{ color: 'var(--carrot)' }}>🥕 +{subject?.carrots ?? 0}</span>
+      {/* The run's haul is NOT here any more. It sat in this strip at the same
+          size as the hearts, and read as a second life gauge: the one number
+          that is about carrots, in the one panel that is about staying alive.
+          It rides beside the carrot pill now (`CarrotPill.carrying`), next to
+          the stock a walk home turns it into, smaller than the stock because
+          it is not banked yet. */}
       {!solo && <span style={{ color: 'var(--muted)' }}>🐰 {game.rabbits.size}</span>}
       {game.warnStage > 0 && (
         <span style={{ color: 'var(--danger)' }}>🌋 {'!'.repeat(game.warnStage)}</span>

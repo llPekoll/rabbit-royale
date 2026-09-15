@@ -237,6 +237,24 @@ export class Tile {
   private hintLayer: Container | null;
   /** The hint's resting y in its parent: the tile's own y on the shared layer, 0 on the tile. */
   private hintBaseY = 0;
+  /**
+   * How far above its tile a lifted hint floats: just clear of the rabbit.
+   *
+   * It borrowed the palier's perch (PALIER_RAISED_Y, -39), a good half-tile
+   * higher than the rabbit's ears — high enough that the number read as the
+   * count of the tile to the NORTH. The rabbit's art stands ~16 units tall
+   * (idle frame top at y18 of 32, RABBIT_SCALE 1.5) and the glyph is ~11
+   * units tall at the hint's 1.4 scale, so -26 leaves ~3 units of air
+   * between the ears and the number's foot.
+   */
+  private static readonly HINT_RAISED_Y = -26;
+  /**
+   * The lifted hint's levitation, in the group's own units (x1.4 on screen).
+   * A number that hovers reads as carried BY the rabbit; a still one at that
+   * height reads as printed on the ground behind it.
+   */
+  private static readonly HINT_BOB = 1.6;
+  private hintBob: gsap.core.Tween | null = null;
 
   constructor(index: number, fogStyle?: FogStyle, lift = 0, tier = 0, hintLayer?: Container) {
     this.index = index;
@@ -442,9 +460,20 @@ export class Tile {
    */
   setHint(count: number): void {
     if (!(this.revealed || this.hinted) || !this.hintGroup) return;
+    this.stopHintBob();
     this.hintGroup.destroy({ children: true });
     this.hintGroup = null;
     if (count > 0) this.addHint(count, false);
+    // Redrawn under a rabbit: the new number goes straight back to hovering
+    // over its head, not onto the tile it is covering.
+    if (this.hintRaised) {
+      if (this.hintGroup) {
+        (this.hintGroup as Container).position.y = this.hintBaseY + Tile.HINT_RAISED_Y;
+        this.startHintBob();
+      } else {
+        this.hintRaised = false;
+      }
+    }
   }
 
   private addHint(count: number, animate: boolean): void {
@@ -665,23 +694,55 @@ export class Tile {
    * A rabbit is standing here: lift the hint above its head.
    *
    * The number is the whole game and the rabbit's sprite covers it the
-   * moment it lands, so the count rides up to the palier's old perch (the
-   * same PALIER_RAISED_Y, tuned to clear the sprite's silhouette) and comes
-   * back down when the rabbit leaves. No-op without a hint, or already up.
+   * moment it lands, so the count rides up just over the rabbit's head
+   * (HINT_RAISED_Y), hovers there, and comes back down when the rabbit
+   * leaves. No-op without a hint, or already up.
    */
   raiseHint(): void {
     if (!this.hintGroup || this.hintRaised) return;
     this.hintRaised = true;
     gsap.killTweensOf(this.hintGroup.position);
-    gsap.to(this.hintGroup.position, { y: this.hintBaseY + Tile.PALIER_RAISED_Y, duration: 0.22, ease: 'power3.out' });
+    gsap.to(this.hintGroup.position, {
+      y: this.hintBaseY + Tile.HINT_RAISED_Y,
+      duration: 0.22,
+      ease: 'power3.out',
+      onComplete: () => this.startHintBob(),
+    });
   }
 
   /** The rabbit left: the hint drops back onto its tile, with a small bounce. */
   lowerHint(): void {
     if (!this.hintGroup || !this.hintRaised) return;
     this.hintRaised = false;
+    this.stopHintBob();
     gsap.killTweensOf(this.hintGroup.position);
     gsap.to(this.hintGroup.position, { y: this.hintBaseY, duration: 0.35, ease: 'bounce.out' });
+  }
+
+  /**
+   * Levitate the lifted hint. On the PIVOT, not the position: raise and lower
+   * own `position.y`, and a bob there would fight them (and be killed by
+   * their `killTweensOf`). A positive pivot lifts the glyphs off their perch.
+   */
+  private startHintBob(): void {
+    const group = this.hintGroup;
+    if (!group || !this.hintRaised || this.hintBob) return;
+    // Under reduced motion it still sits over the head, it just holds still.
+    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    group.pivot.y = 0;
+    this.hintBob = gsap.to(group.pivot, {
+      y: Tile.HINT_BOB,
+      duration: 0.8,
+      ease: 'sine.inOut',
+      yoyo: true,
+      repeat: -1,
+    });
+  }
+
+  private stopHintBob(): void {
+    this.hintBob?.kill();
+    this.hintBob = null;
+    if (this.hintGroup && !this.hintGroup.destroyed) this.hintGroup.pivot.y = 0;
   }
 
   private hintRaised = false;
@@ -1145,6 +1206,7 @@ export class Tile {
     gsap.killTweensOf(this.fog);
     // A hint on the shared layer is not this container's child either.
     if (this.hintGroup && this.hintGroup.parent !== this.container && !this.hintGroup.destroyed) {
+      this.stopHintBob();
       gsap.killTweensOf(this.hintGroup.position);
       this.hintGroup.destroy({ children: true });
       this.hintGroup = null;
