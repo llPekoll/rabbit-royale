@@ -16,8 +16,9 @@ const BAR = read('../src/components/loop-bar.tsx');
 
 describe('the loop bar', () => {
   it('holds exactly three verbs, in loop order', () => {
-    const verbs = [...BAR.matchAll(/>(DIG|HOME|RAID|SHOP|STORY|BASE)<\/span>/g)].map((m) => m[1]);
-    expect(verbs).toEqual(['DIG', 'HOME', 'RAID']);
+    // Three VERBS: the middle slab was "HOME" (a place) until it became DEFEND.
+    const verbs = [...BAR.matchAll(/>(DIG|HOME|DEFEND|RAID|SHOP|STORY|BASE)<\/span>/g)].map((m) => m[1]);
+    expect(verbs).toEqual(['DIG', 'DEFEND', 'RAID']);
   });
 
   it('maps every quest door onto a slab, or nowhere', () => {

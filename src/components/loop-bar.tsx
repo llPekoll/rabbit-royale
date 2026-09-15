@@ -265,7 +265,7 @@ export function LoopBar({
         key={`home:${pulse('home')}`}
         className={`rr-loop-slab rr-loop-home${pulse('home') ? ' rr-tab-pop' : ''}`}
         onClick={onHome}
-        aria-label={`Home: bury traps. ${homeLine}`}
+        aria-label={`Defend: bury traps. ${homeLine}`}
         style={{ ...slab, background: TILE_SHADOW, boxShadow: `0 0 0 2px ${LAMP}` }}
       >
         <span
@@ -278,7 +278,11 @@ export function LoopBar({
           }}
         >
           <span style={textCol}>
-            <span style={{ ...verb, color: LAMP }}>HOME</span>
+            {/* DEFEND, not HOME: the three slabs are three VERBS now, like DIG
+                and RAID. "HOME" named the place you were already standing in;
+                what the slab does is open the floor to bury traps. The class
+                and the `home` key keep their name — only the word changed. */}
+            <span style={{ ...verb, color: LAMP }}>DEFEND</span>
             <span style={{ ...line, color: home.gardenReady > 0 ? DANGER_INK : INK_DIM }}><Parts parts={homeParts} /></span>
           </span>
         </span>

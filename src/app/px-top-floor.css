@@ -1,0 +1,3 @@
+/* Pixel chrome overrides for the top bar and the floor (carrot pill, wallet
+   chip, icon buttons, loop bar, back button, kit, HUD strip). Owned by one
+   rollout pass; see src/components/px.tsx. Loaded after globals.css. */

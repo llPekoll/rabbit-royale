@@ -2474,6 +2474,31 @@ body:has(.rr-lb.open:not(.rr-profile)) .rr-lb-launch {
   55%  { opacity: 1; transform: translateX(5px) scale(1.04, 0.96); }
   100% { opacity: 1; transform: none; }
 }
+/* The same entrance for the other edges: the floor's slabs rise from below,
+   the top bar's pieces drop from above, a right-hand piece swings in from the
+   right. Same timing and the same `--rr-toon-delay`. Use on an element whose
+   own `transform` is not doing layout work (wrap it if it is). */
+.rr-toon-in-up { animation: rr-toon-in-up 380ms cubic-bezier(0.34, 1.56, 0.64, 1) both; animation-delay: var(--rr-toon-delay, 0ms); }
+.rr-toon-in-down { animation: rr-toon-in-down 380ms cubic-bezier(0.34, 1.56, 0.64, 1) both; animation-delay: var(--rr-toon-delay, 0ms); }
+.rr-toon-in-right { animation: rr-toon-in-right 380ms cubic-bezier(0.34, 1.56, 0.64, 1) both; animation-delay: var(--rr-toon-delay, 0ms); }
+@keyframes rr-toon-in-up {
+  0%   { opacity: 0; transform: translateY(36px) scale(1.08, 0.86); }
+  55%  { opacity: 1; transform: translateY(-5px) scale(0.96, 1.04); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes rr-toon-in-down {
+  0%   { opacity: 0; transform: translateY(-36px) scale(1.08, 0.86); }
+  55%  { opacity: 1; transform: translateY(5px) scale(0.96, 1.04); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes rr-toon-in-right {
+  0%   { opacity: 0; transform: translateX(32px) scale(0.86, 1.08); }
+  55%  { opacity: 1; transform: translateX(-5px) scale(1.04, 0.96); }
+  100% { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rr-toon-in-up, .rr-toon-in-down, .rr-toon-in-right { animation: none; }
+}
 @media (prefers-reduced-motion: reduce) {
   .rr-px-btn, .rr-px-btn:active:not(:disabled), .rr-px-btn:hover:not(:disabled) { transition: none; transform: none; }
   .rr-toon-in { animation: none; }

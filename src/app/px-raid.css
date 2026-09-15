@@ -1,0 +1,3 @@
+/* Pixel chrome overrides for raids and ceremonies (target list, raid HUD,
+   raid victory, launcher tabs). Owned by one rollout pass; see
+   src/components/px.tsx. Loaded after globals.css. */

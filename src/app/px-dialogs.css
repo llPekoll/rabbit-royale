@@ -1,0 +1,3 @@
+/* Pixel chrome overrides for the dialogs (the Shed, the energy popup, the run
+   recap, the profile panel, the season board). Owned by one rollout pass; see
+   src/components/px.tsx. Loaded after globals.css. */

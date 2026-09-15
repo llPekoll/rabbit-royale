@@ -2,6 +2,12 @@ import type { Metadata, Viewport } from 'next';
 import { PixelFont } from '@/components/pixel-font';
 import { RotateGate } from '@/components/rotate-gate';
 import './globals.css';
+// The pixel chrome rollout, one file per surface group so each can be restyled
+// without touching the others — after globals.css, so they win at equal
+// specificity. See src/components/px.tsx.
+import './px-top-floor.css';
+import './px-dialogs.css';
+import './px-raid.css';
 
 export const metadata: Metadata = {
   title: 'Rabbit Royale: The Cursed Crown',
