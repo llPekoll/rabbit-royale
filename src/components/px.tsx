@@ -18,12 +18,11 @@ import {
   forwardRef,
   useCallback,
   useRef,
-  type ButtonHTMLAttributes,
   type CSSProperties,
   type MouseEvent,
   type ReactNode,
 } from 'react';
-import { NineSliceButton, NineSlicePanel } from '@domin8/arcade-kit';
+import { NineSliceButton, NineSlicePanel, type NineSliceButtonProps } from '@domin8/arcade-kit';
 
 /**
  * One source pixel of chrome. 3px on a desktop, 2px on the Seeker's 400px-tall
@@ -52,13 +51,14 @@ export const PxPanel = forwardRef<HTMLDivElement, PxPanelProps>(function PxPanel
   );
 });
 
-export interface PxButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'color'> {
+/**
+ * Everything the kit's button takes (`pressed` for a toggle, `highlightColor`
+ * for the gloss, `height`, `labelPixel`…), with the face colour REQUIRED —
+ * every PxButton keeps the colour its button had — and a wiggle on top.
+ */
+export interface PxButtonProps extends Omit<NineSliceButtonProps, 'color'> {
   /** The face — the colour the button had before. */
   color: string;
-  /** The bevel under it. Defaults to the kit's darkened face. */
-  shadowColor?: string;
-  /** The label ink. */
-  textColor?: string;
   /**
    * A little shake after the press, for the loud actions (claim, harvest,
    * upgrade, buy). Not for every button: a toolbar that wiggles on every tap
@@ -80,7 +80,7 @@ function reducedMotion(): boolean {
  * font, which has no glyph for a carrot.
  */
 export const PxButton = forwardRef<HTMLButtonElement, PxButtonProps>(function PxButton(
-  { color, shadowColor, textColor = '#ffffff', wiggle = false, className, onClick, ...rest },
+  { color, shadowColor, textColor = '#ffffff', wiggle = false, pixelScale = PX, className, onClick, ...rest },
   ref,
 ) {
   const local = useRef<HTMLButtonElement | null>(null);
@@ -115,7 +115,7 @@ export const PxButton = forwardRef<HTMLButtonElement, PxButtonProps>(function Px
       color={color}
       shadowColor={shadowColor}
       textColor={textColor}
-      pixelScale={PX}
+      pixelScale={pixelScale}
       className={`rr-px-btn${className ? ` ${className}` : ''}`}
       onClick={handleClick}
       {...rest}
