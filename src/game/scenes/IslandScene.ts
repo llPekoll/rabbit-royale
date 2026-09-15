@@ -30,6 +30,7 @@ import { KeyboardControls } from '../services/KeyboardControls';
 import { createTerrainBackground, type TerrainBackground } from '../services/TerrainBackground';
 import { MoveArrows } from '../ui/MoveArrows';
 import { CloudField } from '../fx/Clouds';
+import { Drain } from '../fx/Drain';
 import {
   initBlastTextures, playBlast, knockBack, impactShake, blastDepth, SHAKE_PX,
 } from '../fx/Blast';
@@ -157,6 +158,8 @@ export class IslandScene implements Scene {
   private stunTimer: ReturnType<typeof setTimeout> | null = null;
   private arrows: MoveArrows | null = null;
   private clouds: CloudField | null = null;
+  /** The map's grey once the local run has ended — see `drainMap`. */
+  private readonly drain = new Drain();
   private onResize: (() => void) | null = null;
   /** Last canvas size the ground was laid out for. */
   private lastW = 0;
@@ -592,6 +595,7 @@ export class IslandScene implements Scene {
     this.shape = makeShape(seed);
 
     // Tear down what belonged to the old island, keep everything else.
+    this.drain.clear();
     this.clearHighlights();
     for (const tile of this.tiles.values()) tile.destroy();
     this.tiles.clear();
@@ -1290,7 +1294,33 @@ export class IslandScene implements Scene {
       // invite clicks the server will refuse.
       this.clearHighlights();
       this.arrows?.update(null);
+      this.drainMap();
     }
+  }
+
+  /**
+   * The world goes grey: this run is over for YOU.
+   *
+   * Only for the local rabbit — another player running dry is their ending,
+   * and greying everyone's map for it would say the island closed. Started
+   * here rather than on the stumble's completion, because `playAnim` returns
+   * early on a sheet without the row and its callback would never fire.
+   *
+   * The scene's container and whatever the stage paints BEHIND the design
+   * root (the sea fill and its depth gradient): the map, the whole of it. The
+   * carrot wipe sits in front of the root and keeps its colour.
+   */
+  private drainMap(): void {
+    const root = this.container.parent;
+    const behind = root?.parent
+      ? root.parent.children.filter((c) => c !== root && c.zIndex < root.zIndex)
+      : [];
+    this.drain.start([this.container, ...behind]);
+  }
+
+  /** Leaving for the burrow: the grey belonged to the run that just ended. */
+  hide(): void {
+    this.drain.clear();
   }
 
   removeRabbit(playerId: string): void {
@@ -1355,6 +1385,9 @@ export class IslandScene implements Scene {
     // outlive an island change and fire a bolt into a destroyed container.
     for (const timer of this.lightningTimers) window.clearTimeout(timer);
     this.lightningTimers.clear();
+    // Off the sea before the scene goes: those layers belong to the stage and
+    // outlive it.
+    this.drain.destroy();
     // Same reason as the bolts: a blast's debris, smoke and scorch land up to
     // 150ms after the bang, which easily outlives an island change.
     for (const cancel of this.blastCancels) cancel();

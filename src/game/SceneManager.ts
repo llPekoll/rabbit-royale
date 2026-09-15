@@ -5,6 +5,12 @@ export interface Scene {
   init?(data?: unknown): Promise<void> | void;
   create(): Promise<void> | void;
   update?(delta: number): void;
+  /**
+   * The scene has just been hidden by `show` (a resident scene is never torn
+   * down, so this is where it lets go of a moment that belongs to its last
+   * visit — the island's grey, for one).
+   */
+  hide?(): void;
   destroy(): void;
 }
 
@@ -88,7 +94,11 @@ export class SceneManager {
     const next = this.resident.get(key);
     if (!next) return null;
 
-    for (const [k, scene] of this.resident) scene.container.visible = k === key;
+    for (const [k, scene] of this.resident) {
+      const visible = k === key;
+      if (scene.container.visible && !visible) scene.hide?.();
+      scene.container.visible = visible;
+    }
 
     if (this.tickerCallback) {
       this.app.ticker.remove(this.tickerCallback);
