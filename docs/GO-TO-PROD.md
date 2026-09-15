@@ -287,6 +287,30 @@ accès prod, le SQL est écrit dans le message de livraison et **rien n'est
 poussé** tant qu'une réponse ne confirme pas qu'il est passé. « Migré ? »
 n'est pas une question à laquelle on répond par défaut oui.
 
+### 2026-09-16 — migration `0015` (données seulement), à passer en prod
+
+`0015_rename_undefined_guests.sql` ne touche pas au schéma : un seul UPDATE
+qui rebaptise les invités nés « undefined… » (l'ancien générateur de noms
+indexait ses adjectifs avec un hash signé). Le déploiement ne dépend PAS
+d'elle — l'ancien et le nouveau code lisent les mêmes colonnes — mais le
+registre, lui, en dépend : sans la ligne, `bun db:check` dira BEHIND et la
+prochaine personne croira la prod en retard sur une vraie migration.
+
+Le SQL est dans le fichier, ré-exécutable sans effet (`WHERE name LIKE
+'undefined%'`). Hash local à reporter tel quel :
+
+```sql
+INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
+SELECT 'c5e4aa5f238a55cbeef168ee8fa4e45f2e73a28778ff41541f02e8ca73fa1be5', 1789489665760
+WHERE NOT EXISTS (
+  SELECT 1 FROM drizzle.__drizzle_migrations
+  WHERE hash = 'c5e4aa5f238a55cbeef168ee8fa4e45f2e73a28778ff41541f02e8ca73fa1be5'
+);
+```
+
+Local à **16 migrations** après application. Compléter cette entrée avec la
+date du passage en prod.
+
 ### Changer un réglage à chaud (ce n'est PAS une écriture à noter)
 
 > Les commandes complètes sont dans [TUNING.md](./TUNING.md) — c'est là qu'on

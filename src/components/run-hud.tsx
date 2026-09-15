@@ -32,12 +32,18 @@ export interface HudGame {
 }
 
 export function RunHud({
-  game, name, spectating,
+  game, name, spectating, solo = false,
 }: {
   game: HudGame;
   name: string;
   /** The watched player's id, or null while playing your own run. */
   spectating: string | null;
+  /**
+   * Nobody else can be seated here (the first island). The rabbit count is
+   * a fact about the race, and "🐰 1" on a board nobody can join is a
+   * number with nothing to mean.
+   */
+  solo?: boolean;
 }) {
   const watched = spectating ? game.rabbits.get(spectating) ?? null : null;
   const subject = spectating ? watched : game.me;
@@ -64,7 +70,7 @@ export function RunHud({
           distinction that actually matters mid-run — the bank is what a bomb
           cannot touch, and this is what a walk home turns into it. */}
       <span style={{ color: 'var(--carrot)' }}>🥕 +{subject?.carrots ?? 0}</span>
-      <span style={{ color: 'var(--muted)' }}>🐰 {game.rabbits.size}</span>
+      {!solo && <span style={{ color: 'var(--muted)' }}>🐰 {game.rabbits.size}</span>}
       {game.warnStage > 0 && (
         <span style={{ color: 'var(--danger)' }}>🌋 {'!'.repeat(game.warnStage)}</span>
       )}

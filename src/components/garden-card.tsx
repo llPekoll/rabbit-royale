@@ -132,10 +132,13 @@ export function GardenCard({
           card that only ever said "72/hour" never gave the player the one
           reason to press HARVEST now rather than later. With nothing to take,
           "+0" alone reads as a broken garden, so the rate line comes back. */}
+      {/* Empty, it says what an empty field IS: a promise, not a blank. A
+          newcomer's first look at the burrow is "+0", and "20/hour" alone
+          left them to guess whether the number would ever move. */}
       <p className={SUB_CLASS} style={{ ...subText, color: ready > 0 ? RISK_INK : undefined }}>
         {ready > 0
           ? <>stealable until harvested &middot; {yieldPerHour}/hour</>
-          : <>{yieldPerHour}/hour &middot; holds {capacity} ({capHours}h)</>}
+          : <>grows while you dig &middot; {yieldPerHour}/hour &middot; holds {capacity}</>}
       </p>
     </HubCard>
   );

@@ -1818,7 +1818,7 @@ function Burrow() {
           into siblings only so the launcher row can sit between them. */}
       {!crossing && !shownRaid && where !== 'burrow' && showCanvas && (
         <div className="rr-overlay">
-          <RunHud game={game} name={player?.name ?? ''} spectating={spectating} />
+          <RunHud game={game} name={player?.name ?? ''} spectating={spectating} solo={game.firstRun} />
           {/* The first run's one-line captions. Renders nothing on any island
               but the first, and never for a spectator — the tally it reads is
               the mover's own. */}

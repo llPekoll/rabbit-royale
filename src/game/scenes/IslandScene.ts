@@ -15,6 +15,7 @@ import { AnimatedSprite, Application, Assets, Container, Sprite } from 'pixi.js'
 import gsap from 'gsap';
 import { GOLDEN_COIN_ALIASES } from '@domin8/arcade-kit/pixi';
 import { shadowedPixelText } from '../ui/PixelText';
+import { isFirstIsland } from '@/lib/game/first-island';
 import type { Scene } from '../SceneManager';
 import { SceneManager } from '../SceneManager';
 import { GAME_W, GAME_H } from '../Application';
@@ -84,6 +85,8 @@ const LIGHTNING_FPS = 14;
 
 /** Coins thrown off a golden carrot — see `coinSpray`. */
 const COIN_SPRAY_COUNT = 7;
+/** How far past the rabbit the first island's opening shot looks, in scene px. */
+const FIRST_ISLAND_LOOK_NORTH = 48;
 /** Seconds between blinks as the sweep travels round the rabbit. */
 const SWEEP_STEP_SECONDS = 0.25;
 
@@ -948,7 +951,12 @@ export class IslandScene implements Scene {
       return;
     }
     const me = this.data ? this.rabbits.get(this.data.playerId) : null;
-    const focus = me ? tileScreenPos(this.seed, this.myTile) : undefined;
+    let focus = me ? tileScreenPos(this.seed, this.myTile) : undefined;
+    // The first island opens a little NORTH of the rabbit: the chest is dealt
+    // a few steps out and, centred on the spawn, it landed under the HUD
+    // strip and the tutorial's captions. Looking past the rabbit brings the
+    // top of the island down into the clear. The clamp keeps the board on.
+    if (focus && isFirstIsland(this.seed)) focus = { x: focus.x, y: focus.y - FIRST_ISLAND_LOOK_NORTH };
     this.setCam(islandCam(this.seed, this.canvasW, this.canvasH, focus));
   }
 

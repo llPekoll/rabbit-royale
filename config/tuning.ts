@@ -66,9 +66,15 @@ export const ENERGY = {
    * reason. A player short of this many points is shown the wait and the
    * refill on the burrow, before they cross — not an island that refuses them.
    *
+   * 20, NOT 25 (16 September 2026): 25 was written as "a third" and was not
+   * one — 60 / 25 is two runs and ten points over, and with the first island
+   * being the first run a newcomer got exactly ONE real game before a
+   * three-hour wait, ten minutes in. Watched happen on a fresh guest. Three
+   * runs is what the comment above always meant.
+   *
    * Unrelated to START: what a run costs to ENTER is not what it opens with.
    */
-  RUN_COST: 25,
+  RUN_COST: 20,
 } as const;
 
 /*
