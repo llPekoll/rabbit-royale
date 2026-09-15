@@ -17,6 +17,15 @@
  * harvested, and the mock has no state for that, so the choice is this file's:
  * the button keeps its shape and loses its light, which reads as "not yet"
  * rather than as "broken". Colour carries it, as everywhere else here.
+ *
+ * THE BOTTLES ARE NOT HERE ANY MORE. Water and fertiliser sat on this card's
+ * action row for a while, beside HARVEST, on the reasoning that a watering is
+ * decided while reading what the garden holds. Then the floor grew a kit row in
+ * each corner, and the bottles were in two places at once. The card is the one
+ * that gave: a burrow card reports the PLACE — what it makes, what it holds,
+ * what a raid cannot take — and a thing in your bag is not a property of the
+ * place. They are poured from the bottom-right corner now (`GardenKitRow`),
+ * and this card is GARDEN plus HARVEST again.
  */
 import type { CSSProperties } from 'react';
 import {
@@ -85,25 +94,25 @@ export function GardenCard({
       // `.rr-slab-btn` in globals.css.
       footer={
         <button
-          type="button"
-          className="rr-hub-btn rr-slab-btn"
-          onClick={onHarvest}
-          disabled={!canHarvest}
-          style={{
-            ...harvestButton,
-            background: canHarvest ? BTN_LIP : BTN_OFF_SHADOW,
-          }}
-        >
-          <span
-            className="rr-slab-face"
+            type="button"
+            className="rr-hub-btn rr-slab-btn"
+            onClick={onHarvest}
+            disabled={!canHarvest}
             style={{
-              ...harvestFace,
-              background: canHarvest ? BTN : BTN_OFF,
-              color: canHarvest ? '#ffffff' : BTN_OFF_INK,
-              boxShadow: `inset 0 -3px 0 ${canHarvest ? BTN_SHADOW : BTN_OFF_SHADOW}`,
+              ...harvestButton,
+              background: canHarvest ? BTN_LIP : BTN_OFF_SHADOW,
             }}
           >
-            HARVEST
+            <span
+              className="rr-slab-face"
+              style={{
+                ...harvestFace,
+                background: canHarvest ? BTN : BTN_OFF,
+                color: canHarvest ? '#ffffff' : BTN_OFF_INK,
+                boxShadow: `inset 0 -3px 0 ${canHarvest ? BTN_SHADOW : BTN_OFF_SHADOW}`,
+              }}
+            >
+              HARVEST
           </span>
         </button>
       }

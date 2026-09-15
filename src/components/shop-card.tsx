@@ -28,69 +28,21 @@
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { ItemKind, ShopItem, ShopState } from './use-shop';
+import { ITEM_META, heldLabel } from './item-meta';
 import type { PayStage } from './use-usdc-pay';
 import { LauncherTab, DANGER, LAMP } from './burrow-chrome';
 import { PAY_TOKENS, priceLabel, type PayTokenId } from '@/lib/pay/tokens';
 import { LootChest, CHEST_ASPECT } from './loot-chest';
 
 /**
- * Icons are picked for COVERAGE, not for taste.
+ * The shelf's names, icons and tints — now shared with the burrow's kit row.
  *
- * The interface renders in a monospace stack, and an emoji it has no glyph for
- * comes out as a blank box — a hole and a shopping trolley both did, which is
- * invisible in review and obvious in a screenshot.
- *
- * `tint` is the tile's own colour. Each says what the thing DOES: the trap is
- * buried earth, the bomb is fuse-red, lightning is storm-yellow, the shield is
- * cold steel, energy is carrot. A shelf where every card was the same grey is
- * the version this replaces.
+ * It lived here as a private const while the shop was the only place an item
+ * had a face. The kit row shows the same holdings on the burrow screen, so the
+ * registry moved to `item-meta.ts`; a second copy would have drifted on the
+ * first retint. See that file for why the icons are what they are.
  */
-const ITEMS: Record<ItemKind, {
-  icon: string; name: string; blurb: string; tint: string;
-}> = {
-  trap: {
-    icon: '🪤',
-    name: 'Trap',
-    blurb: 'Bury one in your burrow. It drains the raider who steps on it.',
-    tint: '#8a5a2b',
-  },
-  bomb: {
-    icon: '💣',
-    name: 'Bomb',
-    blurb: "Plant one on someone's island mid-run. They see it was you.",
-    tint: '#c1442e',
-  },
-  lightning: {
-    icon: '⚡',
-    name: 'Lightning',
-    blurb: 'Calls a strike on a rival\u2019s island. It opens the ground around it.',
-    tint: '#e0a020',
-  },
-  shield: {
-    icon: '🛡️',
-    name: 'Shield',
-    blurb: 'Raids bounce off your burrow while it holds.',
-    tint: '#4a7fa5',
-  },
-  energy: {
-    icon: '🥕',
-    name: 'Energy',
-    blurb: 'Fill the bar and dig now, instead of waiting it out.',
-    tint: '#e07a2f',
-  },
-  smoke: {
-    icon: '🌫️',
-    name: 'Smoke screen',
-    blurb: 'Hides your burrow\u2019s numbers for a day. Raiders cross it blind.',
-    tint: '#6b7a8f',
-  },
-  mirage: {
-    icon: '🌀',
-    name: 'Mirage',
-    blurb: 'Makes a few of a rival\u2019s numbers lie, mid-run. They can spot it.',
-    tint: '#9a6bd6',
-  },
-};
+const ITEMS = ITEM_META;
 
 /**
  * The way in: a button in the burrow column that also reports your defence.
@@ -270,13 +222,9 @@ function Row({
   const meta = ITEMS[item.kind];
   const full = !item.hasRoom;
   // Three different things to report, because three different things are being
-  // sold: a count for carried items, refills LEFT for energy, and days of cover
-  // remaining for smoke, which is time rather than a thing at all.
-  const held = item.kind === 'energy'
-    ? `${item.cap - item.held} today`
-    : item.kind === 'smoke'
-      ? (item.held > 0 ? `${item.held}d left` : 'off')
-      : `${item.held}/${item.cap}`;
+  // sold — a count, refills left, days of cover. Which one this kind gets is
+  // `ITEM_META[kind].counts`; see `heldLabel`.
+  const held = heldLabel(item.kind, item.held, item.cap);
 
   /**
    * What the carrot price means right now, in one sentence.

@@ -26,6 +26,7 @@ import { EnergyCard } from '@/components/energy-card';
 import { GardenCard } from '@/components/garden-card';
 import { BurrowPanel } from '@/components/burrow-card-panel';
 import { HubTabs } from '@/components/hub-tabs';
+import { KitRow } from '@/components/kit-row';
 import { CarrotPill } from '@/components/carrot-pill';
 import { FarmButton } from '@/components/farm-button';
 import { LeaderboardDrawer } from '@/components/leaderboard-drawer';
@@ -60,6 +61,14 @@ interface Args {
   yieldPerHour: number;
   /** How much it holds before it stops making more. */
   gardenCapacity: number;
+  /** Waterings in the bag — the left slot's count. */
+  waterHeld: number;
+  /** Hours of watering still running; 0 for "none". */
+  waterMins: number;
+  /** Feedings in the bag — the right slot's count. */
+  fertiliserHeld: number;
+  /** Minutes of feeding still running; 0 for "none". */
+  fertiliserMins: number;
   /** The burrow's level — picks the building and names the card. */
   level: number;
   /** Carrots banked. The card derives the safe share from it. */
@@ -80,6 +89,18 @@ interface Args {
   rank: number;
   /** Season score needed to pass the place above; 0 for "nothing to chase". */
   toPass: number;
+  /**
+   * Mining the board — the mode the raid kit belongs to.
+   *
+   * A control rather than a separate story, because what is checked is the
+   * DIFFERENCE between the two floors.
+   */
+  placing: boolean;
+  /** The kit row on the floor — shields held, and hours of one standing. */
+  shieldHeld: number;
+  shieldHours: number;
+  smokeDays: number;
+  bombHeld: number;
 }
 
 /**
@@ -90,8 +111,10 @@ interface Args {
  */
 function BurrowColumn({
   energy, maxEnergy, nextEnergyMins, gardenReady, yieldPerHour, gardenCapacity,
+  waterHeld, waterMins, fertiliserHeld, fertiliserMins,
   level, stock, upgradeCost, canUpgrade,
   trapsHeld, trapsPlaced, openTargets, lifetime, rank, toPass,
+  shieldHeld, shieldHours, smokeDays, bombHeld, placing,
 }: Args) {
   const capHours = yieldPerHour > 0 ? Math.round(gardenCapacity / yieldPerHour) : 0;
   return (
@@ -135,27 +158,67 @@ function BurrowColumn({
         canUpgrade={canUpgrade}
       />
 
-      {/* The four doors. Fed from the same story args, so the badges can be
-          driven to their edge cases (an empty shed, no open targets) from the
-          controls rather than by reaching a game state. */}
-      <HubTabs
-        shop={{
-          traps: { held: trapsHeld, placed: trapsPlaced, maxPlaced: 8 },
-        } as never}
-        targets={Array.from({ length: openTargets }, (_, i) => ({
-          id: `t${i}`, name: `Burrow ${i}`, stock: 500, shielded: false,
-        })) as never}
-        lifetime={lifetime}
-        onShop={() => {}}
-        onProtect={() => {}}
-        onRaid={() => {}}
-        onStory={() => {}}
-      />
+      {/* THE RAID KIT — only while PLACING, exactly as the app mounts it.
+          
+          It is in this story as well as its own because the floor is the only
+          place its POSITION can be judged: its own story unpins it to read the
+          slots, and here it is fixed to the corner it ships in. `placing` is a
+          control so both modes can be seen — the resting burrow, which must
+          NOT carry raid gear, and the placing screen, which must. */}
+      {placing && (
+        <KitRow
+          held={{ shield: shieldHeld, trap: trapsHeld, bomb: bombHeld, lightning: 0, mirage: 0 }}
+          shieldMs={shieldHours > 0 ? shieldHours * 3_600_000 : null}
+          smokeDays={smokeDays}
+          trapsPlaced={trapsPlaced}
+          trapsMaxPlaced={8}
+          onShield={() => {}}
+          /* Null rather than 0 for "no window": the slot reads the absence,
+             and a zero-length window would ring the icon in lamplight while
+             saying "0m left". */
+          water={{ held: waterHeld, activeMs: waterMins > 0 ? waterMins * 60_000 : null }}
+          fertiliser={{
+            held: fertiliserHeld,
+            activeMs: fertiliserMins > 0 ? fertiliserMins * 60_000 : null,
+          }}
+          onPour={() => {}}
+        />
+      )}
+
+      {/* The four doors — and NOT while placing, which is what the app does
+          (`!placing` on its own mount). That is what frees the corner for the
+          raid kit above: the first cut left both mounted and the six slots sat
+          BEHIND the four tiles with only their edges showing. */}
+      {!placing && (
+        <HubTabs
+          /* Fed from the same story args, so the badges can be driven to their
+             edge cases (an empty shed, no open targets) from the controls
+             rather than by reaching a game state. */
+          shop={{
+            traps: { held: trapsHeld, placed: trapsPlaced, maxPlaced: 8 },
+          } as never}
+          targets={Array.from({ length: openTargets }, (_, i) => ({
+            id: `t${i}`, name: `Burrow ${i}`, stock: 500, shielded: false,
+          })) as never}
+          lifetime={lifetime}
+          onShop={() => {}}
+          onProtect={() => {}}
+          onRaid={() => {}}
+          onStory={() => {}}
+        />
+      )}
 
       {/* GO FARM sits centred at the bottom in the app; here it follows the
-          row so the two can be seen at the same scale. */}
+          row so the two can be seen at the same scale.
+          
+          While PLACING it is the BACK slab instead — same component, same
+          spot, `tone="back"`. The pair is what the `Placing` story is for:
+          the centre of the floor must hold exactly one slab, and it must be
+          the one the current mode is about. */}
       <div style={{ marginTop: 10 }}>
-        <FarmButton label="Go farm" onClick={() => {}} />
+        {placing
+          ? <FarmButton label="Back" onClick={() => {}} tone="back" />
+          : <FarmButton label="Go farm" onClick={() => {}} />}
       </div>
     </section>
   );
@@ -259,6 +322,10 @@ const meta: Meta<Args> = {
     gardenReady: 0,
     yieldPerHour: 40,
     gardenCapacity: 480,
+    waterHeld: 2,
+    waterMins: 0,
+    fertiliserHeld: 0,
+    fertiliserMins: 0,
     level: 1,
     stock: 1_940,
     upgradeCost: 250,
@@ -269,6 +336,11 @@ const meta: Meta<Args> = {
     lifetime: 3_200,
     rank: 5,
     toPass: 340,
+    placing: false,
+    shieldHeld: 1,
+    shieldHours: 0,
+    smokeDays: 0,
+    bombHeld: 3,
   },
   argTypes: {
     energy: { control: { type: 'range', min: 0, max: 120, step: 1 } },
@@ -277,6 +349,10 @@ const meta: Meta<Args> = {
     gardenReady: { control: { type: 'range', min: 0, max: 2000, step: 10 } },
     yieldPerHour: { control: { type: 'range', min: 0, max: 400, step: 4 } },
     gardenCapacity: { control: { type: 'range', min: 0, max: 4000, step: 40 } },
+    waterHeld: { control: { type: 'range', min: 0, max: 9, step: 1 } },
+    waterMins: { control: { type: 'range', min: 0, max: 240, step: 5 } },
+    fertiliserHeld: { control: { type: 'range', min: 0, max: 9, step: 1 } },
+    fertiliserMins: { control: { type: 'range', min: 0, max: 720, step: 15 } },
     level: { control: { type: 'range', min: 1, max: 10, step: 1 } },
     stock: { control: { type: 'range', min: 0, max: 200_000, step: 500 } },
     upgradeCost: { control: { type: 'range', min: 0, max: 5000, step: 50 } },
@@ -286,6 +362,10 @@ const meta: Meta<Args> = {
     lifetime: { control: { type: 'range', min: 0, max: 50_000, step: 100 } },
     rank: { control: { type: 'range', min: 0, max: 50, step: 1 } },
     toPass: { control: { type: 'range', min: 0, max: 5_000, step: 20 } },
+    shieldHeld: { control: { type: 'range', min: 0, max: 20, step: 1 } },
+    shieldHours: { control: { type: 'range', min: 0, max: 48, step: 1 } },
+    smokeDays: { control: { type: 'range', min: 0, max: 3, step: 1 } },
+    bombHeld: { control: { type: 'range', min: 0, max: 20, step: 1 } },
   },
 };
 export default meta;
@@ -318,6 +398,36 @@ export const Flush: Story = {
 };
 
 /**
+ * THE TWO BOTTLES, in the three states the slot has.
+ *
+ * Water is RUNNING with more in the bag (ringed, counting down, still
+ * pressable — a second pour extends the first); fertiliser is EMPTY, which is
+ * the state most worth looking at: it has to read as "a thing you do not have
+ * yet" rather than as a broken image, because a player who has never opened
+ * the right chest sees only this.
+ */
+export const Boosts: Story = {
+  args: {
+    gardenReady: 320, waterHeld: 3, waterMins: 95, fertiliserHeld: 0, fertiliserMins: 0,
+  },
+};
+
+/**
+ * Both running, and both bags empty — the slots carry the time instead of a
+ * count. This is where the corner chip has to stay legible with "1h" in it
+ * rather than a single digit.
+ */
+export const BoostsRunning: Story = {
+  args: {
+    // 1296 over 72/hour is the 18-hour ceiling a FED garden has — the column
+    // derives `capHours` from these two, so setting them is how the story
+    // shows a fertilised garden without a second control for it.
+    gardenReady: 700, yieldPerHour: 72, gardenCapacity: 1296,
+    waterHeld: 0, waterMins: 70, fertiliserHeld: 0, fertiliserMins: 480,
+  },
+};
+
+/**
  * Freshly raided — and the column says NOTHING about it.
  *
  * Kept as a story precisely because that is the claim worth checking: the
@@ -326,6 +436,18 @@ export const Flush: Story = {
  */
 export const Shielded: Story = {
   args: { energy: 12, gardenReady: 120 },
+};
+
+/**
+ * MINING THE BASE — the one screen the raid kit belongs to.
+ *
+ * The pair to look at is this against `Default`: the resting burrow carries
+ * NOTHING in the bottom-left (the garden's bottles keep their own corner on the
+ * right), and here the six raid slots appear on the floor where the launcher
+ * tiles normally sit. If both floors look the same, the split has not happened.
+ */
+export const Placing: Story = {
+  args: { placing: true, shieldHeld: 2, shieldHours: 0, smokeDays: 1, bombHeld: 5 },
 };
 
 /** The end of the upgrade ladder — the price prints MAX, not a number. */

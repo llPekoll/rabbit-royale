@@ -39,9 +39,18 @@ export function isShopKind(v: unknown): v is ShopKind {
 }
 
 /**
- * The garden boosts. Held as TIME on the player row, not as rows in the bag —
- * same storage decision as the smoke screen, for the same reason: what a
- * watering gives you is a window, and a count would have to be spent by hand.
+ * The garden boosts.
+ *
+ * HELD AS A COUNT, spent by hand. They were TIME on the player row — the smoke
+ * screen's storage, chosen for the smoke screen's reason — and a chest applied
+ * them the instant it was opened. That made them the only drops in the game
+ * the player never decides anything about: the best of them landed on a garden
+ * that was already full, where `gardenYield` correctly pays a watering
+ * nothing, so the drop the chest promised was quietly worth zero.
+ *
+ * So the bag holds the bottles and the player pours them. What remains on the
+ * row is the WINDOW a poured one opened (`wateredUntil`, `fertilisedUntil`) —
+ * that part was always right, and `gardenYield` still reads it unchanged.
  */
 export const GARDEN_KINDS = ['water', 'fertiliser'] as const;
 export type GardenKind = (typeof GARDEN_KINDS)[number];
@@ -136,6 +145,28 @@ export function extendGardenBoost(
 export type Holdings = Record<ItemKind, number>;
 
 /**
+ * Why a shield cannot be raised right now, or null when it can.
+ *
+ * A REASON rather than a boolean, like every other blocker here.
+ *
+ * The second clause is the one worth stating: a shield is a FIXED window
+ * (`RAID.ITEM_SHIELD_MS`), not a bank. Raising a second one over a standing
+ * shield would overwrite an instant the burrow already owns with one computed
+ * from `now` — at best worth nothing, at worst SHORTER than what it replaced,
+ * with a shield consumed either way. So a burrow that is already covered
+ * refuses the press rather than eating the item.
+ */
+export function shieldBlocker(
+  bag: Holdings,
+  shieldedUntil: Date | null | undefined,
+  now = Date.now(),
+): string | null {
+  if (bag.shield < 1) return 'none_held';
+  if (shieldedUntil && shieldedUntil.getTime() > now) return 'already_shielded';
+  return null;
+}
+
+/**
  * Paid refills already taken in the current rolling window.
  *
  * A ROLLING window, like the trap allowance and for the same reason: a midnight
@@ -190,10 +221,10 @@ export function holdings(
   bag.trap = availableTraps(row, now);
   bag.energy = energyPacksUsed(row, now);
   bag.smoke = smokeDaysLeft(row, now);
-  // The garden boosts are instants too, reported as whole hours still to run so
-  // the HUD can say "watered, 3h" the way the shelf says "2 of 3 days".
-  bag.water = boostHoursLeft(row.wateredUntil, now);
-  bag.fertiliser = boostHoursLeft(row.fertilisedUntil, now);
+  // The garden boosts are NOT overridden: they are real rows now, and the
+  // count the loop above read off the table is how many bottles are in the bag.
+  // What the row's timestamps hold is the window a poured one opened, which is
+  // a different fact and is reported by `gardenBoostView`.
   return bag;
 }
 
@@ -202,6 +233,76 @@ export function boostHoursLeft(until: Date | null | undefined, now = Date.now())
   if (!until) return 0;
   const ms = until.getTime() - now;
   return ms > 0 ? Math.ceil(ms / 3_600_000) : 0;
+}
+
+/** What the garden screen shows for ONE boost: bottles held, window running. */
+export interface GardenBoostState {
+  /** Bottles in the bag, waiting to be poured. */
+  held: number;
+  /** Milliseconds of window still running, or null when none is. */
+  activeMs: number | null;
+  /** How long one bottle runs for — what a press is worth. */
+  durationMs: number;
+}
+
+/**
+ * Both boosts, as the burrow screen reads them.
+ *
+ * Two facts per boost, deliberately kept apart: a bottle you HOLD and a window
+ * that RUNS are different things, and collapsing them into one number is what
+ * the old storage did. The icon needs both — how many presses are left, and
+ * whether pressing again would stack onto something already live.
+ */
+export function gardenBoostView(
+  bag: Holdings,
+  row: GardenBoostRow,
+  now = Date.now(),
+): Record<GardenKind, GardenBoostState> {
+  const msLeft = (until: Date | null | undefined) => {
+    if (!until) return null;
+    const left = until.getTime() - now;
+    return left > 0 ? left : null;
+  };
+  return {
+    water: {
+      held: bag.water,
+      activeMs: msLeft(row.wateredUntil),
+      durationMs: GARDEN_DURATION_MS.water,
+    },
+    fertiliser: {
+      held: bag.fertiliser,
+      activeMs: msLeft(row.fertilisedUntil),
+      durationMs: GARDEN_DURATION_MS.fertiliser,
+    },
+  };
+}
+
+/**
+ * Why a boost cannot be poured right now, or null when it can.
+ *
+ * A REASON rather than a boolean, the same choice `upgradeBlocker` and
+ * `purchaseBlocker` make, so the API can say WHICH thing is missing.
+ *
+ * The cap is the one that needs explaining: `extendGardenBoost` already clips
+ * the new expiry to `MAX_BANKED_MS`, so pouring onto an almost-full window
+ * would silently destroy the bottle — the row would barely move and the count
+ * would drop by one. Refusing the press is the honest version of the same
+ * ceiling.
+ */
+export function gardenBoostBlocker(
+  kind: GardenKind,
+  bag: Holdings,
+  row: GardenBoostRow,
+  now = Date.now(),
+): string | null {
+  if (bag[kind] < 1) return 'none_held';
+  const until = kind === 'water' ? row.wateredUntil : row.fertilisedUntil;
+  const live = !!until && until.getTime() > now;
+  const from = live ? until!.getTime() : now;
+  // No room for a WHOLE bottle is what makes it a refusal rather than a
+  // partial pour: half a window for a whole drop is the loss this prevents.
+  if (from + GARDEN_DURATION_MS[kind] > now + GARDEN_BOOST.MAX_BANKED_MS) return 'boost_capped';
+  return null;
 }
 
 export interface ShopItem {

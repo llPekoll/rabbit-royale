@@ -5,9 +5,10 @@
  * "can I afford this?" and the tests. The numbers themselves all live in
  * config/tuning.ts — nothing here invents one.
  */
-import { BURROW, ENERGY, GARDEN, OUT_OF_RUN_ENERGY, upgradeCost } from '../../../config/tuning';
-import { currentEnergy, gardenYield, type RegenRow } from './regen';
+import { BURROW, ENERGY, OUT_OF_RUN_ENERGY, upgradeCost } from '../../../config/tuning';
+import { capHoursFor, currentEnergy, gardenYield, type RegenRow } from './regen';
 import { gardenCapacity, yieldPerHour } from './garden-growth';
+import { gardenBoostView, type GardenBoostState, type GardenKind, type Holdings } from './inventory';
 
 export interface BurrowRow extends RegenRow {
   stock: number;
@@ -55,11 +56,40 @@ export interface BurrowView {
   nextRunInMs: number | null;
   /** Carrots the garden makes per hour at this level. */
   yieldPerHour: number;
-  /** Hours of production the garden holds before it stops — the reason to
-   *  come back daily rather than weekly. */
+  /**
+   * Hours of production the garden holds before it stops — the reason to
+   * come back daily rather than weekly.
+   *
+   * The LIVE ceiling, fertiliser included, rather than the bare constant. It
+   * reported `GARDEN.CAP_HOURS` flat, so a fed garden told the player it held
+   * twelve hours while `gardenYield` was already paying it eighteen — the one
+   * number on the screen that was a picture of a rule the server had stopped
+   * following.
+   */
   capHours: number;
-  /** Carrots waiting when the garden is completely full. */
+  /**
+   * Carrots waiting when the garden is completely full.
+   *
+   * The BASE ceiling, fertiliser excluded, and deliberately so: the picture of
+   * the field divides by this (`gardenProgress`), and a capacity that grew and
+   * shrank with a boost would make the crop thin out the moment a feeding
+   * lapsed — the garden visibly emptying while nothing was harvested. What
+   * fertiliser buys is reported by `capHours` and `gardenCeiling` instead.
+   */
   gardenCapacity: number;
+  /**
+   * What the garden holds RIGHT NOW, fertiliser included — the number the card
+   * prints beside "holds". Equal to `gardenCapacity` with no feeding running.
+   */
+  gardenCeiling: number;
+  /**
+   * The two things you can pour on the garden: bottles held, window running.
+   *
+   * On the burrow view rather than on the shop's bag because this is where
+   * they are SPENT. The shop never sells them (they are chest drops), so the
+   * garden card is the only surface either one has.
+   */
+  boosts: Record<GardenKind, GardenBoostState>;
   /**
    * Milliseconds of shield left, or null when raids can land right now.
    *
@@ -168,9 +198,20 @@ export function msOfShield(until: Date | null, now = Date.now()): number | null 
  */
 export { yieldPerHour, gardenCapacity };
 
-export function burrowView(row: BurrowRow, now = Date.now()): BurrowView {
+/**
+ * `bag` is optional: the boosts read zero without it.
+ *
+ * Every caller that shows the burrow to its owner passes one. The ones that do
+ * not are looking at SOMEONE ELSE's burrow (a raid target, a spectated run),
+ * where what the owner has in their bag is neither known nor any of the
+ * viewer's business — so the default is the honest answer for those, not a
+ * shortcut for the owner's screen.
+ */
+export function burrowView(row: BurrowRow, now = Date.now(), bag?: Holdings): BurrowView {
   const atMax = row.burrowLevel >= BURROW.MAX_LEVEL;
   const cost = atMax ? null : upgradeCost(row.burrowLevel);
+  const empty = { trap: 0, bomb: 0, lightning: 0, shield: 0, energy: 0, smoke: 0,
+    mirage: 0, water: 0, fertiliser: 0 } as Holdings;
   return {
     level: row.burrowLevel,
     maxLevel: BURROW.MAX_LEVEL,
@@ -183,8 +224,10 @@ export function burrowView(row: BurrowRow, now = Date.now()): BurrowView {
     runCost: ENERGY.RUN_COST,
     nextRunInMs: msToRun(row, now),
     yieldPerHour: yieldPerHour(row.burrowLevel),
-    capHours: GARDEN.CAP_HOURS,
+    capHours: capHoursFor(row, now),
     gardenCapacity: gardenCapacity(row.burrowLevel),
+    gardenCeiling: Math.floor(capHoursFor(row, now) * yieldPerHour(row.burrowLevel)),
+    boosts: gardenBoostView(bag ?? empty, row, now),
     shieldMs: msOfShield(row.shieldedUntil ?? null, now),
     upgradeCost: cost,
     canUpgrade: cost !== null && row.stock >= cost,

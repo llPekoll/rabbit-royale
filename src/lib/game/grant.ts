@@ -18,8 +18,8 @@ import { inventory, players, purchases } from '@/lib/db/schema';
 import { ENERGY_PACK, OUT_OF_RUN_ENERGY } from '@config/tuning';
 import { currentEnergy } from './regen';
 import {
-  extendGardenBoost, extendSmoke, isGardenKind, spendEnergyPack,
-  type EnergyPackRow, type GardenBoostRow, type ItemKind, type SmokeRow,
+  extendSmoke, spendEnergyPack,
+  type EnergyPackRow, type ItemKind, type SmokeRow,
 } from './inventory';
 
 /**
@@ -37,8 +37,6 @@ export interface GrantResult {
   energy: number | null;
   /** For a smoke screen: when the numbers come back. Null otherwise. */
   smokeUntil?: Date | null;
-  /** For a garden boost: when it lapses. Null otherwise. */
-  boostUntil?: Date | null;
 }
 
 /**
@@ -123,26 +121,12 @@ export async function grantItem(
     return { kind, qty, energy: null, smokeUntil };
   }
 
-  // Water and fertiliser are TIME on the player row, like the smoke screen —
-  // there is no bag row to increment. A chest that drops two waterings buys two
-  // windows, and `extendGardenBoost` is what makes the second one count rather
-  // than restart the first.
-  if (isGardenKind(kind)) {
-    const player = await tx.query.players.findFirst({ where: eq(players.id, playerId) });
-    if (!player) throw new Error('unknown player');
-
-    const row = player as GardenBoostRow;
-    const until = extendGardenBoost(
-      kind,
-      kind === 'water' ? row.wateredUntil : row.fertilisedUntil,
-      qty,
-      now,
-    );
-    await tx.update(players)
-      .set(kind === 'water' ? { wateredUntil: until } : { fertilisedUntil: until })
-      .where(eq(players.id, playerId));
-    return { kind, qty, energy: null, boostUntil: until };
-  }
+  // Water and fertiliser fall through to the bag below, like a bomb or a
+  // shield. They used to be applied HERE — the drop opened its own window the
+  // instant the chest was opened — which spent the best drops in the game on
+  // whatever state the garden happened to be in, usually a full one, where a
+  // watering is correctly worth nothing. The player pours them now, from the
+  // burrow; see `gardenBoostBlocker` and the `water`/`fertilise` actions.
 
   if (kind === 'trap') {
     await tx.update(players)
