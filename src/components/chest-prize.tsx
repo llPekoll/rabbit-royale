@@ -36,7 +36,9 @@
  * which the server derives from the tier; a Genesis piece overrides it, since
  * one turns up in a session or two and is worth any interruption.
  */
+import { useEffect } from 'react';
 import { ChestReveal, type RevealPhase, type RevealRarity } from '@domin8/arcade-kit';
+import { playUiSfx } from '@/game/services/SoundManager';
 import { ChestOpening } from './chest-opening';
 import { LootFly } from './loot-fly';
 import type { ChestPrize as Prize } from './use-game-socket';
@@ -70,6 +72,17 @@ export interface ChestPrizeProps {
   prize: Prize;
   /** The player tapped through — the run continues. */
   onDone: () => void;
+}
+
+/**
+ * The chest, heard. The ceremony had no sound at all: the coin chirp as the
+ * box arrives, the chime as it blows open. A component rather than a call in
+ * the render prop, so the sounds follow mount and `open`, not every render.
+ */
+function SoundedChest({ open }: { open: boolean }) {
+  useEffect(() => { playUiSfx('coinStart'); }, []);
+  useEffect(() => { if (open) playUiSfx('chime'); }, [open]);
+  return <ChestOpening open={open} size={180} />;
 }
 
 export function ChestPrize({ prize, onDone }: ChestPrizeProps) {
@@ -114,7 +127,7 @@ export function ChestPrize({ prize, onDone }: ChestPrizeProps) {
   return (
     <ChestReveal
       rarity={rarity}
-      chest={(phase: RevealPhase) => <ChestOpening open={phase === 'blow'} size={180} />}
+      chest={(phase: RevealPhase) => <SoundedChest open={phase === 'blow'} />}
       item={
         <img
           src={art}

@@ -1,4 +1,4 @@
-import { Howl } from 'howler';
+import { Howl, Howler } from 'howler';
 import * as Keys from '@/config/assetKeys';
 import { INSERT_COIN_SFX_URL } from '@domin8/arcade-kit/sfx';
 
@@ -171,7 +171,7 @@ export function isSfxMuted(): boolean {
  * first use (never at import, so server rendering never touches Howler),
  * gives every card the same bus, the same mute and the same level.
  */
-export type UiSfx = 'chime' | 'chimeQuick' | 'match' | 'coin' | 'coinStart' | 'step' | 'die';
+export type UiSfx = 'chime' | 'chimeQuick' | 'match' | 'coin' | 'coinStart' | 'step' | 'die' | 'deny' | 'explosion';
 
 let ui: SoundManager | null = null;
 
@@ -186,6 +186,8 @@ export function playUiSfx(kind: UiSfx): void {
     case 'coinStart': ui.playCoinStart(); break;
     case 'step': ui.playStep(); break;
     case 'die': ui.playDie(); break;
+    case 'deny': ui.playDeny(); break;
+    case 'explosion': ui.playExplosion(); break;
   }
 }
 
@@ -279,6 +281,52 @@ export class SoundManager {
   playMatch(): void { this.playSfx(Keys.SFX_MATCH); }
   playCoinStart(): void { this.playSfx(Keys.SFX_COIN_START); }
   playInsertCoin(): void { this.playSfx(Keys.SFX_INSERT_COIN); }
+
+  /**
+   * "No." Two falling square-wave blips, drawn rather than loaded.
+   *
+   * There is no refusal in the sample set, and a refusal answered with silence
+   * reads as a dropped tap — the one thing a refused press must never feel
+   * like. Synthesised on Howler's own context so it rides the same master
+   * gain, and gated on the SFX bus and level like every one-shot.
+   */
+  playDeny(): void {
+    if (sfxMuted || sfxLevel <= 0) return;
+    const ctx = Howler.ctx;
+    if (!ctx || ctx.state !== 'running') return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(220, t);
+    osc.frequency.setValueAtTime(155, t + 0.08);
+    const peak = Math.max(0.0002, 0.07 * sfxLevel);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(peak, t + 0.01);
+    gain.gain.setValueAtTime(peak, t + 0.14);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
+    osc.connect(gain);
+    gain.connect(Howler.masterGain ?? ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.22);
+  }
+
+  /**
+   * The volcano, heard: the blast sample slowed to a growl, louder per stage.
+   *
+   * The warning stages only shook the ground, and a phone on a table does not
+   * show a shake. Pitched down so it cannot be mistaken for a bomb — that
+   * sound means the player just lost a heart, and this one means "hurry".
+   */
+  playRumble(stage: number): void {
+    if (sfxMuted) return;
+    const h = this.sounds.get(Keys.SFX_EXPLOSION);
+    if (!h) return;
+    const id = h.play();
+    const base = SOUND_MAP[Keys.SFX_EXPLOSION]?.volume ?? 1;
+    h.rate(0.5, id);
+    h.volume(base * sfxLevel * (1 + 0.8 * Math.max(1, Math.min(3, stage))), id);
+  }
 
   /** Does this instance have a track of its own going? */
   hasMusic(): boolean {

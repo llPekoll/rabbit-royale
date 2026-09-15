@@ -14,7 +14,7 @@
 import { AnimatedSprite, Application, Assets, Container, Sprite } from 'pixi.js';
 import gsap from 'gsap';
 import { GOLDEN_COIN_ALIASES } from '@domin8/arcade-kit/pixi';
-import { shadowedPixelText } from '../ui/PixelText';
+import { outlinedPixelText, shadowedPixelText } from '../ui/PixelText';
 import { isFirstIsland } from '@/lib/game/first-island';
 import type { Scene } from '../SceneManager';
 import { SceneManager } from '../SceneManager';
@@ -48,6 +48,7 @@ import { PanZoomGestures } from '../input/PanZoomGestures';
 import type { TileContent } from '@/lib/game/types';
 import { ENERGY, LIGHTNING } from '@config/tuning';
 import { canDig, reachableTiles } from '@/lib/game/reachable';
+import type { MoveRejection } from '@/lib/game/run';
 
 /** What the scene needs from the outside world. The socket layer supplies it. */
 export interface IslandSceneData {
@@ -435,6 +436,36 @@ export class IslandScene implements Scene {
     for (const index of this.highlighted) this.tiles.get(index)?.blink();
   }
 
+  /** The tile the last sent tap asked for — where a refusal is shown. */
+  private lastIntent: number | null = null;
+
+  /**
+   * The server said no to a move.
+   *
+   * It was never listened for: the tapped tile flashed white as if accepted,
+   * and then nothing happened. Now the tile goes red, the rabbit shakes its
+   * head, the speaker buzzes and the ring pulses to show what WOULD work.
+   *
+   * `too-fast` is left silent: it is a second tap landing while the first hop
+   * is still in flight, the first move IS happening, and a "no" over a move
+   * the player can see being made would be a contradiction.
+   */
+  moveRejected(reason: MoveRejection): void {
+    if (reason === 'too-fast') return;
+    const tile = this.lastIntent;
+    this.lastIntent = null;
+    if (tile !== null) this.tiles.get(tile)?.deny();
+    this.denyMove();
+  }
+
+  /** The local "no": head shake, buzz, and the ring saying where yes is. */
+  private denyMove(): void {
+    const me = this.data ? this.rabbits.get(this.data.playerId) : null;
+    me?.shakeHead();
+    this.sound.playDeny();
+    this.pulseRing();
+  }
+
   private clearHighlights(): void {
     this.stopSweep();
     if (this.stunTimer) {
@@ -568,6 +599,15 @@ export class IslandScene implements Scene {
     }
     if (!this.tiles.has(to)) return;
 
+    // Stunned: the server will refuse this, and the stars over the head say
+    // why. Answered here rather than flashing a tile that can never open.
+    if (this.isStunned()) {
+      this.tiles.get(to)?.deny();
+      this.denyMove();
+      return;
+    }
+
+    this.lastIntent = to;
     // Flash the tile immediately, before the server has answered. The move may
     // still be refused, but a tap with NO feedback until a round trip reads as
     // a dropped input — and on a phone that is the difference between "this
@@ -615,6 +655,8 @@ export class IslandScene implements Scene {
     this.syncFlock();
     this.buildTiles();
     this.refreshReachable();
+    // A new run's music: the last one may have ended on the sting.
+    this.sound.startMusic(Keys.MUSIC_ISLAND);
 
     // The shot is solved from the SEED's own terrain — where its spawn is, how
     // far its lattice reaches — so a new island needs a new one. Without this
@@ -1083,16 +1125,22 @@ export class IslandScene implements Scene {
     const tile = this.tiles.get(index);
     if (!tile || amount <= 0) return;
     const { x, y } = tile.container.position;
-    const label = shadowedPixelText(x, y - 18, `+${amount}`);
+    // Outlined, and ABOVE the hint layer: at the tile's own depth + 60 the
+    // gain rose straight through the neighbours' numbers and the two read as
+    // one smudge. It is the freshest fact on the board for the half-second it
+    // lives; nothing draws over it.
+    const label = outlinedPixelText(x, y - 18, `+${amount}`);
     label.face.tint = golden ? 0xffd138 : 0xffffff;
-    label.group.zIndex = tile.container.zIndex + 60;
-    const scale = golden ? 2.2 : 1.4;
+    label.group.zIndex = this.hintLayer.zIndex + 1;
+    const scale = golden ? 2.2 : 1.6;
     label.group.scale.set(0);
     this.container.addChild(label.group);
     const tl = gsap.timeline({ onComplete: () => label.group.destroy({ children: true }) });
     tl.to(label.group.scale, { x: scale, y: scale, duration: 0.22, ease: 'back.out(2.5)' }, 0);
-    tl.to(label.group, { y: y - (golden ? 52 : 40), duration: golden ? 1.1 : 0.8, ease: 'power1.out' }, 0);
-    tl.to(label.group, { alpha: 0, duration: 0.3, ease: 'power1.in' }, golden ? 0.8 : 0.5);
+    // Held long enough to read: 0.8s with the fade starting at 0.5 was gone
+    // before the eye came back from the HUD's counter.
+    tl.to(label.group, { y: y - (golden ? 56 : 44), duration: golden ? 1.4 : 1.1, ease: 'power1.out' }, 0);
+    tl.to(label.group, { alpha: 0, duration: 0.3, ease: 'power1.in' }, golden ? 1.1 : 0.8);
   }
 
   /**
@@ -1104,6 +1152,7 @@ export class IslandScene implements Scene {
    */
   rumble(stage: number): void {
     if (stage <= 0) return;
+    this.sound.playRumble(stage);
     gsap.killTweensOf(this.container.position);
     const kick = (SHAKE_PX * 0.5 * stage) / this.container.scale.x;
     gsap.to(this.container.position, {
@@ -1272,7 +1321,10 @@ export class IslandScene implements Scene {
     rabbit.playKnockback(landedOn, () => this.standOn(playerId, landedOn));
     if (playerId === this.data?.playerId) {
       this.myTile = landedOn;
-      if (stunnedUntil !== undefined) this.stunnedUntil = stunnedUntil;
+      if (stunnedUntil !== undefined) {
+        this.stunnedUntil = stunnedUntil;
+        rabbit.playStunned(stunnedUntil - Date.now());
+      }
       this.refreshReachable();
       // A knockback can throw the rabbit clean out of the frame.
       this.keepInView();
@@ -1295,7 +1347,19 @@ export class IslandScene implements Scene {
       this.clearHighlights();
       this.arrows?.update(null);
       this.drainMap();
+      // Heard as well as seen: the island's loop gives way to the sting. It
+      // used to keep looping, cheerfully, under "Out of hearts".
+      this.sound.startMusic(Keys.MUSIC_GAMEOVER);
     }
+  }
+
+  /**
+   * The island was dug out — the run ended on a win, not on a bomb. The
+   * victory track was loaded and never played; "Island cleared!" had no
+   * fanfare at all.
+   */
+  celebrateClear(): void {
+    this.sound.startMusic(Keys.MUSIC_VICTORY);
   }
 
   /**
@@ -1318,15 +1382,22 @@ export class IslandScene implements Scene {
     this.drain.start([this.container, ...behind]);
   }
 
-  /** Leaving for the burrow: the grey belonged to the run that just ended. */
+  /**
+   * Leaving for the burrow: the grey, and the sting or fanfare, belonged to
+   * the run that just ended. `stopMusic` hands the room back to the app's
+   * own loop.
+   */
   hide(): void {
     this.drain.clear();
+    this.sound.stopMusic();
   }
 
   removeRabbit(playerId: string): void {
     this.leaveTile(playerId);
-    this.rabbits.get(playerId)?.destroy();
+    const rabbit = this.rabbits.get(playerId);
     this.rabbits.delete(playerId);
+    // Out of the map first, so nothing addresses it while it fades.
+    rabbit?.vanish();
   }
 
   /**

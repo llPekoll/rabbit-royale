@@ -24,6 +24,7 @@ import { LeaderboardDrawer, type Me } from '@/components/leaderboard-drawer';
 import { GoButton } from '@/components/go-button';
 import { FarmButton } from '@/components/farm-button';
 import { CarrotPill } from '@/components/carrot-pill';
+import { RaidedStamp, raidedNews, type RaidedNews } from '@/components/raided-stamp';
 import { TopbarReserve } from '@/components/topbar-reserve';
 import { SoundButton } from '@/components/sound-button';
 import { LoadingScreen } from '@/components/loading-screen';
@@ -115,6 +116,8 @@ const RAID_OVER_MS = 2000;
 const RAID_TOAST_MS = 4000;
 /** How long the run's haul sits over the DIG slab. Matches `.rr-home-haul`'s animation. */
 const BROUGHT_HOME_MS = 4000;
+/** How long a burrow toast stands under the pill before it clears itself. */
+const NOTE_MS = 4000;
 
 export default function Home() {
   return (
@@ -147,7 +150,45 @@ function Burrow() {
    */
   const [quest, setQuest] = useState<QuestBoard | null>(null);
   const [pending, setPending] = useState(false);
-  const [note, setNote] = useState<string | null>(null);
+  /**
+   * THE BURROW'S TOAST — one line under the carrot pill, and it clears itself.
+   *
+   * It was a `.rr-note` at the foot of the card column: grey on the moving sea
+   * (1.4:1 measured), far from whatever was pressed, and it stayed until the
+   * next message replaced it — a claimed quest's line was still there minutes
+   * later, behind the energy dialog. Under the pill it sits beside the number
+   * nearly every one of these lines is about, on the island captions' glass.
+   *
+   * A REFUSAL is a different kind of news from a harvest and now looks and
+   * sounds like one: red, a buzz, and — when it is about carrots — the pill
+   * itself shakes. `noteKey` re-pops the same sentence said twice.
+   */
+  const [note, setNoteText] = useState<string | null>(null);
+  const [noteRefused, setNoteRefused] = useState(false);
+  const [noteKey, setNoteKey] = useState(0);
+  const [pillDenyKey, setPillDenyKey] = useState(0);
+  const setNote = useCallback((next: string | null | ((n: string | null) => string | null)) => {
+    // A functional update only ever CLEARS its own line (see the raid toast),
+    // so it leaves the tone and the key alone.
+    if (typeof next !== 'function') {
+      setNoteRefused(false);
+      if (next) setNoteKey((k) => k + 1);
+    }
+    setNoteText(next);
+  }, []);
+  const refuse = useCallback((text: string, aboutCarrots = false) => {
+    setNoteText(text);
+    setNoteRefused(true);
+    setNoteKey((k) => k + 1);
+    if (aboutCarrots) setPillDenyKey((k) => k + 1);
+    playUiSfx('deny');
+  }, []);
+  useEffect(() => {
+    if (!note) return;
+    const shown = note;
+    const done = setTimeout(() => setNoteText((n) => (n === shown ? null : n)), NOTE_MS);
+    return () => clearTimeout(done);
+  }, [note, noteKey]);
   // Bumped whenever carrots ARRIVE in the bank — a harvest, a run brought
   // home, a quest's reward: it replays the rising "+N" and re-keys the
   // figure so it pops as the carrots land.
@@ -170,6 +211,15 @@ function Burrow() {
   const [questNote, setQuestNote] = useState<string | null>(null);
   /** The burrow just went up: the stamp over the screen. */
   const [levelUp, setLevelUp] = useState<{ level: number; key: number } | null>(null);
+  /**
+   * When a run's worth of energy lands, on the wall clock. The server sends a
+   * DURATION as of its answer; pinned to now when that answer is set, so the
+   * loop bar can count it down without asking again.
+   */
+  const nextRunAt = useMemo(
+    () => (burrow?.nextRunInMs == null ? null : Date.now() + burrow.nextRunInMs),
+    [burrow],
+  );
   /** The run just banked, shown over the DIG slab that sends the next one. */
   const [broughtHome, setBroughtHome] = useState<{ amount: number; key: number } | null>(null);
   /** A chapter opened this session — the STORY tile pops. */
@@ -394,15 +444,15 @@ function Burrow() {
       }
       else if (res.poured === 'water') setNote('Watered. The garden fills faster.');
       else if (res.poured === 'fertiliser') setNote('Fed. The garden holds more.');
-      else if (res.error === 'insufficient_carrots') setNote(`Need ${res.need - res.have} more 🥕`);
-      else if (res.error === 'nothing_to_harvest') setNote('The garden is empty. Come back later.');
-      else if (res.error === 'max_level') setNote('Your burrow is as deep as it goes.');
+      else if (res.error === 'insufficient_carrots') refuse(`Need ${res.need - res.have} more 🥕`, true);
+      else if (res.error === 'nothing_to_harvest') refuse('The garden is empty. Come back later.');
+      else if (res.error === 'max_level') refuse('Your burrow is as deep as it goes.');
       // The two boost refusals. `boost_capped` is the one worth a sentence:
       // the press was declined to SAVE the bottle, which is the opposite of
       // what a silent failure would look like.
-      else if (res.error === 'already_shielded') setNote('A shield is already up.');
-      else if (res.error === 'none_held') setNote('None left. Chests drop them.');
-      else if (res.error === 'boost_capped') setNote('Already topped up. Save it for later.');
+      else if (res.error === 'already_shielded') refuse('A shield is already up.');
+      else if (res.error === 'none_held') refuse('None left. Chests drop them.');
+      else if (res.error === 'boost_capped') refuse('Already topped up. Save it for later.');
     } finally {
       setPending(false);
     }
@@ -938,8 +988,11 @@ function Burrow() {
    */
   const goFarm = useCallback(() => {
     if (!hasEnergy) { setEnergyOpen(true); return; }
+    // A dropped socket cannot seat a rabbit: crossing then landed on the old
+    // board with nothing to play (seen live). Say so, and stay home.
+    if (game.dropped) { refuse('Reconnecting... try again in a moment.'); return; }
     goTo('island');
-  }, [hasEnergy, goTo]);
+  }, [hasEnergy, goTo, game.dropped, refuse]);
 
   /**
    * A tap on the NEXT strip goes where the line points: the island, the
@@ -1173,7 +1226,9 @@ function Burrow() {
         // Through a REF, so this effect does not depend on the callback.
         // `step` changes identity whenever the hook re-renders, and depending
         // on it here rebuilt the defender's terrain mid-raid.
-        onStep: (tile) => void stepRef.current(tile),
+        // Each raid step is heard, as a hop is on the island: the raid was
+        // the one walk in the game with no sound under it.
+        onStep: (tile) => { playUiSfx('step'); void stepRef.current(tile); },
       }).then(() => {
         // The raid is over: the rabbit says so on the board — a dance on the
         // field, a collapse short of it — before the trip home, which the
@@ -1321,6 +1376,64 @@ function Burrow() {
   useEffect(() => {
     if (raid.sprung) handles.current?.burrow?.springTrap(raid.sprung.tile);
   }, [raid.sprung]);
+
+  // A refused placement buzzes like every other refusal on this screen. Only
+  // placing sets a note from the floor (`placeTrap` / `removeTrap`); purchase
+  // receipts are set in the drawer, where `placing` is false.
+  useEffect(() => {
+    if (placing && shop.note) playUiSfx('deny');
+  }, [placing, shop.note]);
+  // The raid's refusals ("too far", a shielded door) are notes in its own
+  // panels; the buzz is what makes them read as a no rather than as a tip.
+  useEffect(() => {
+    if (raid.note) playUiSfx('deny');
+  }, [raid.note]);
+
+  /**
+   * THE BURROW'S CLOCKS KEEP RUNNING while it is on screen.
+   *
+   * The burrow was read after an action and never again, so a player looking
+   * at it watched nothing happen: "run in 23m" stayed 23m, the garden never
+   * filled, and a run's worth of energy arriving went unannounced. The DIG
+   * line now counts down on its own (LoopBar `nextRunAt`) and fetches the
+   * burrow the moment it lands; the rest is re-read once a minute, only while
+   * the tab is actually visible.
+   */
+  useEffect(() => {
+    if (!ready || where !== 'burrow' || crossing) return;
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') refreshBurrow();
+    }, 60_000);
+    return () => clearInterval(id);
+  }, [ready, where, crossing, refreshBurrow]);
+
+  /**
+   * RAIDED WHILE AWAY — said once, on the first look at the burrow.
+   *
+   * Being robbed overnight arrived as a smaller number and a badge on the
+   * name chip: the story (who, how much) was two taps deep in the history.
+   * The stamp tells it over the screen the first time the burrow is seen with
+   * unread raids against it. Nothing is marked read here — the history tab
+   * still owns that, so the badge stays until the player looks.
+   */
+  const [raided, setRaided] = useState<RaidedNews | null>(null);
+  const raidedChecked = useRef(false);
+  useEffect(() => { raidedChecked.current = false; }, [token]);
+  useEffect(() => {
+    if (!token || !ready || where !== 'burrow' || crossing || raidedChecked.current) return;
+    raidedChecked.current = true;
+    fetch('/api/player/history', auth())
+      .then((r) => (r.ok ? r.json() : null))
+      .then((h) => {
+        const news = raidedNews(h?.raids);
+        if (!news) return;
+        setRaided(news);
+        playUiSfx(news.carrots > 0 ? 'explosion' : 'chime');
+      })
+      .catch(() => {});
+    // `auth` is rebuilt from the token, which is already a dependency.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, ready, where, crossing]);
 
   // Raiding happens ON the burrow board, so entering one crosses to that scene
   // and closes everything that was covering it.
@@ -1492,6 +1605,7 @@ function Burrow() {
             rank={me?.rank ?? null}
             toPass={me?.toPass ?? null}
             onAdd={() => setShopOpen(true)}
+            denyKey={pillDenyKey}
           />
         )}
         {/* The right-hand end: the SHOP and the STORY, as icons beside the
@@ -1703,20 +1817,8 @@ function Burrow() {
                   deliver. Lifting still works — that is the whole reason the
                   board opens at zero — and telling someone to mine a tile when
                   every tap will be refused is worse than saying nothing. */}
-              {placing && shop.shop && (
-                <p className="rr-note">
-                  {shop.shop.traps.held > 0
-                    ? <>Tap a tile to mine it, tap a mine to lift it &middot; {shop.shop.traps.held} left</>
-                    : <>No traps left &middot; tap a mine to lift it and bury it elsewhere</>}
-                </p>
-              )}
-
-              {/* Outside the drawer, only a REFUSAL is worth showing: a receipt
-                  for a purchase the player just watched happen in the panel is
-                  noise on the burrow screen. */}
-              {placing && shop.note && <p className="rr-shop-pay">{shop.note}</p>}
-
-              {note && <p className="rr-note">{note}</p>}
+              {/* The placing instruction, its refusals and the toast moved out
+                  of the column to `.rr-toasts` under the pill — see `note`. */}
 
               {/* THE STATE OF THE DEFENCE, last line on the column.
                   
@@ -1820,11 +1922,43 @@ function Burrow() {
           questDoor={quest?.active?.door ?? next?.door ?? null}
           questPulseKey={questPulseKey}
           broughtHome={broughtHome}
+          nextRunAt={nextRunAt}
+          onRunReady={refreshBurrow}
           away={placing}
           onDig={goFarm}
           onHome={startPlacing}
           onRaid={() => { setPickingTarget(true); void raid.refresh(); }}
         />
+      )}
+
+      {raided && where === 'burrow' && !crossing && (
+        <RaidedStamp news={raided} onDone={() => setRaided(null)} />
+      )}
+
+      {/* The socket fell over. Said, rather than leaving every tap to vanish. */}
+      {showCanvas && game.dropped && !spectating && (
+        <div className="rr-reconnecting" role="status">Reconnecting...</div>
+      )}
+
+      {/* THE BURROW'S TOASTS, under the carrot pill — see `note`. The placing
+          instruction leads while placing (it is the only thing on screen that
+          says what a tap will do, and how to take one back); a refused
+          placement and the latest toast follow it. */}
+      {showCanvas && where === 'burrow' && !shownRaid && !crossing && (note || (placing && shop.shop)) && (
+        <div className="rr-toasts" aria-live="polite">
+          {placing && shop.shop && (
+            <p className="rr-toast rr-toast-hint">
+              {shop.shop.traps.held > 0
+                ? <>Tap a tile to mine it, tap a mine to lift it &middot; {shop.shop.traps.held} left</>
+                : <>No traps left &middot; tap a mine to lift it and bury it elsewhere</>}
+            </p>
+          )}
+          {/* Outside the drawer, only a REFUSAL is worth showing: a receipt
+              for a purchase the player just watched happen in the panel is
+              noise on the burrow screen. */}
+          {placing && shop.note && <p key={shop.note} className="rr-toast refused">{shop.note}</p>}
+          {note && <p key={noteKey} className={`rr-toast${noteRefused ? ' refused' : ''}`}>{note}</p>}
+        </div>
       )}
 
       {/* On the island the chrome is a thin HUD over the board, so it uses the

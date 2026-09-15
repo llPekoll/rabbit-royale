@@ -138,6 +138,59 @@ export function shadowedPixelText(
   return { group, face, shadow };
 }
 
+/** The outline's eight neighbours, one source pixel out. */
+const OUTLINE_OFFSETS = [
+  [-1, -1], [0, -1], [1, -1],
+  [-1, 0], [1, 0],
+  [-1, 1], [0, 1], [1, 1],
+] as const;
+/** Near-black, the kit's ink rather than pure #000, so it sits with the art. */
+const OUTLINE_TINT = 0x0c0a12;
+
+/**
+ * A body label with a solid one-pixel OUTLINE: eight opaque copies around the
+ * face, then the face.
+ *
+ * The drop shadow above is 30% black on one side, which gives a glyph no edge
+ * at all where the face and the ground are close in brightness — measured on
+ * the island, the blue "1" hint came to 1.2–1.6:1 on grass and a chest's GOLD
+ * label to 1.8:1. A closed dark ring gives every glyph an edge on every ground
+ * the island has, whatever the tint.
+ *
+ * Same contract as `shadowedPixelText`: transform the GROUP, tint the `face`.
+ */
+export function outlinedPixelText(
+  x: number,
+  y: number,
+  text: string,
+): { group: Container; face: BitmapText; outline: BitmapText[] } {
+  const group = new Container();
+  group.position.set(x, y);
+
+  const outline = OUTLINE_OFFSETS.map(([dx, dy]) => {
+    const copy = pixelText(dx, dy, text);
+    copy.anchor.set(0.5);
+    copy.tint = OUTLINE_TINT;
+    group.addChild(copy); // all behind the face
+    return copy;
+  });
+
+  const face = pixelText(0, 0, text);
+  face.anchor.set(0.5);
+  group.addChild(face);
+
+  return { group, face, outline };
+}
+
+/** Retext an `outlinedPixelText` — every copy, or the ring shows the old glyphs. */
+export function setOutlinedText(
+  t: { face: BitmapText; outline: BitmapText[] },
+  text: string,
+): void {
+  setPixelText(t.face, text);
+  for (const copy of t.outline) setPixelText(copy, text);
+}
+
 /** Retext a `shadowedPixelText` — both copies, or the shadow goes stale. */
 export function setShadowedText(
   t: { face: BitmapText; shadow: BitmapText },

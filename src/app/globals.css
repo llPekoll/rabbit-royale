@@ -536,6 +536,91 @@ body:has(.rr-loop-bar) .rr-sound {
   }
 }
 
+/* THE BURROW'S TOASTS, under the carrot pill (page.tsx `note`). The island
+   captions' glass, so a line from the game reads the same on both screens.
+   A readout: nothing in it is tappable, and a finger on it reaches the board.
+   Placed under the MEASURED top chrome (TopbarReserve), not a guessed
+   height, so a two-row top bar cannot slide under it. */
+.rr-toasts {
+  position: fixed;
+  top: calc(var(--rr-chrome-top, calc(env(safe-area-inset-top) + var(--rr-topbar-h))) + 6px);
+  left: 0;
+  right: 0;
+  width: max-content;
+  /* Clear of the card column on BOTH sides, so a centred toast never lands on
+     a card. The column is `max(25vw, 220px)` plus its inset (see
+     `.rr-burrow`); at the Seeker's 890px a flat 560px cap put the toast's left
+     edge 50px into the quest card. */
+  max-width: min(560px, calc(100vw - 2 * (max(25vw, 220px) + 24px)));
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  z-index: 21;
+  pointer-events: none;
+}
+.rr-toast {
+  margin: 0;
+  padding: 7px 14px;
+  border-radius: 10px;
+  background: rgba(13, 17, 23, 0.82);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid var(--border);
+  color: #f5e6d3;
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: center;
+  animation: rr-caption-pop 380ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+/* The instruction stays up for the whole of placing: it slides in once and
+   does not bounce, it is not news. Gold, the placing markers' own colour. */
+.rr-toast-hint {
+  color: var(--crown);
+  animation: rr-caption-in 220ms ease-out both;
+}
+/* A refusal: the danger red on the rim and the ink, and a shake after the pop. */
+.rr-toast.refused {
+  color: #ffb3a8;
+  border-color: rgba(255, 107, 107, 0.65);
+  animation:
+    rr-caption-pop 380ms cubic-bezier(0.34, 1.56, 0.64, 1) both,
+    rr-toast-shake 360ms ease-out 380ms;
+}
+@keyframes rr-toast-shake {
+  0%, 100% { translate: 0 0; }
+  25% { translate: -5px 0; }
+  50% { translate: 4px 0; }
+  75% { translate: -2px 0; }
+}
+/* The pill that said no: its rim flushes red and fades (carrot-pill.tsx). */
+.rr-pill-deny {
+  position: absolute;
+  inset: -2px;
+  border-radius: 14px;
+  box-shadow: 0 0 0 2px #ff6b6b, 0 0 18px rgba(255, 107, 107, 0.7);
+  pointer-events: none;
+  animation: rr-pill-deny 700ms ease-out both;
+}
+@keyframes rr-pill-deny { 0% { opacity: 1; } 100% { opacity: 0; } }
+/* The defence line stays in the column — it is a status, not news — but it
+   gets a ground of its own: grey straight on the sea was 1.4:1. */
+.rr-burrow .rr-note {
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(13, 17, 23, 0.82);
+  border: 1px solid var(--border);
+  color: #d9c9b4;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.rr-burrow .rr-note.danger { color: #ff8a7a; }
+@media (prefers-reduced-motion: reduce) {
+  .rr-toast, .rr-toast.refused, .rr-toast-hint, .rr-pill-deny { animation: none; }
+}
+
 /* THE HAUL, ON THE DIG SLAB. A run's carrots arriving home, said above the
    slab they came from and that sends the next run — the same glass as the
    island's captions, the figure in the energy gold at a pixel-grid 24px.
@@ -667,6 +752,23 @@ body:has(.rr-loop-bar) .rr-sound {
   animation: rr-levelup-flash 900ms ease-out both;
 }
 @keyframes rr-levelup-flash { 0% { opacity: 0; } 15% { opacity: 1; } 100% { opacity: 0; } }
+/* Raided while away (raided-stamp.tsx): the level-up stamp in the danger red,
+   held a second longer — it is a story with a name in it, not a cheer. Gold
+   again when every raid bounced off. */
+.rr-raided .rr-levelup-flash {
+  background: radial-gradient(circle at 50% 55%, rgba(255, 90, 90, 0.6), rgba(255, 90, 90, 0) 62%);
+}
+.rr-raided .rr-levelup-stamp {
+  color: #ff6b6b;
+  text-shadow: 0 3px 0 #5a0f14, 0 0 24px rgba(255, 80, 80, 0.7);
+  animation: rr-victory-stamp 520ms cubic-bezier(0.34, 1.56, 0.64, 1) both, rr-levelup-out 400ms ease-in 2150ms both;
+}
+.rr-raided .rr-levelup-stamp small { color: #ffd9d4; text-shadow: 0 2px 0 #5a0f14; }
+.rr-raided.defended .rr-levelup-flash {
+  background: radial-gradient(circle at 50% 55%, rgba(255, 236, 170, 0.75), rgba(255, 236, 170, 0) 60%);
+}
+.rr-raided.defended .rr-levelup-stamp { color: #ffd138; text-shadow: 0 3px 0 #7a3a10, 0 0 24px rgba(255, 209, 56, 0.8); }
+.rr-raided.defended .rr-levelup-stamp small { color: #fde7bd; text-shadow: 0 2px 0 #7a3a10; }
 .rr-levelup-stamp {
   font-family: var(--font-pixel), ui-monospace, monospace;
   font-size: clamp(22px, 6vw, 44px); letter-spacing: 0.08em; color: #ffd138;
@@ -777,6 +879,65 @@ body:has(.rr-loop-bar) .rr-sound {
    counters beside it crowd a phone. */
 .rr-hearts { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; }
 .rr-hearts img { width: 38px; height: 32px; image-rendering: pixelated; display: block; }
+/* A heart lost: it flares, jolts and settles grey (hearts.tsx). */
+.rr-hearts img.rr-heart-break { animation: rr-heart-break 520ms ease-out both; }
+@keyframes rr-heart-break {
+  0%   { transform: scale(1.5); filter: brightness(2.2); }
+  30%  { transform: scale(0.8) translateY(2px) rotate(-12deg); filter: none; }
+  60%  { transform: scale(1.1) rotate(8deg); }
+  100% { transform: none; }
+}
+/* The last heart beats — the one line of the HUD that says "careful". */
+.rr-hearts img.rr-heart-last { animation: rr-heart-beat 900ms ease-in-out infinite; }
+@keyframes rr-heart-beat {
+  0%, 100% { transform: scale(1); }
+  15% { transform: scale(1.18); }
+  30% { transform: scale(1); }
+  45% { transform: scale(1.1); }
+}
+/* The screen's edges flush red on the hit, and let go. */
+.rr-hurt {
+  position: fixed;
+  inset: 0;
+  z-index: 25;
+  pointer-events: none;
+  box-shadow: inset 0 0 90px 24px rgba(230, 33, 50, 0.55);
+  animation: rr-hurt 560ms ease-out both;
+}
+@keyframes rr-hurt { 0% { opacity: 1; } 100% { opacity: 0; } }
+/* Lost, not reconnecting silently (page.tsx, `game.dropped`). Above the floor,
+   clear of the island's HOME arrow and the burrow's loop bar. */
+.rr-reconnecting {
+  position: fixed;
+  left: 0;
+  right: 0;
+  width: max-content;
+  margin-inline: auto;
+  bottom: calc(10px + env(safe-area-inset-bottom) + clamp(52px, 10.4svh, 80px) + 64px);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(13, 17, 23, 0.9);
+  border: 1px solid rgba(255, 107, 107, 0.6);
+  color: #ffb3a8;
+  font-size: 12px;
+  pointer-events: none;
+}
+.rr-reconnecting::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff6b6b;
+  animation: rr-reconnect-blink 1s ease-in-out infinite;
+}
+@keyframes rr-reconnect-blink { 50% { opacity: 0.25; } }
+@media (prefers-reduced-motion: reduce) {
+  .rr-hearts img.rr-heart-break, .rr-hearts img.rr-heart-last, .rr-reconnecting::before { animation: none; }
+}
 
 /* One knob for the whole gauge: every length below is a multiple of the source
    pixel, so the art can never land on a half-pixel and go soft.
@@ -2893,7 +3054,9 @@ button { font-family: var(--font-pixel); }
   padding: 0;
   min-height: 0;
   font-size: 11px;
-  color: var(--chalk-dim);
+  /* Chalk, not chalk-dim: the dim ink measured 4.47:1 on the plank, just
+     under the line, and this is the popup's way out to the shed. */
+  color: var(--chalk);
   text-decoration: underline;
 }
 .rr-energy-more:hover { color: var(--lamp); }

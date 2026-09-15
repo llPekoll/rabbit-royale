@@ -1,4 +1,4 @@
-import { AnimatedSprite, Container } from 'pixi.js';
+import { AnimatedSprite, Container, Graphics } from 'pixi.js';
 import { tilePos, tileDepth, toColRow, ISO_TILE_W, RABBIT_SCALE } from '@/config/gridConfig';
 import { levelTierAt, tileScreenPos } from '@/lib/game/terrainBoard';
 import * as Keys from '@/config/assetKeys';
@@ -319,7 +319,94 @@ export class PlayerRabbit {
     this.container.zIndex = this.depthFor(tileIndex);
   }
 
+  /**
+   * "No": a quick side-to-side of the sprite, settling where it stood.
+   *
+   * The answer to a move the server refused. Only the sprite's x, so a hop or
+   * a knockback in flight (which move the container) is never fought.
+   */
+  shakeHead(): void {
+    if (this.isMoving) return;
+    gsap.killTweensOf(this.sprite, 'x');
+    gsap.fromTo(this.sprite, { x: -4 }, { x: 0, duration: 0.35, ease: 'elastic.out(1.4, 0.25)' });
+  }
+
+  private stunRing: Container | null = null;
+  private stunSpin: gsap.core.Tween | null = null;
+  private stunTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * Stars round the head for exactly as long as the server's stun holds.
+   *
+   * The stun used to show only as the ring going dark around the rabbit —
+   * a thing ABSENT, which does not read as a state. Three gold pixels
+   * orbiting a flattened circle do, and they leave on the server's own clock.
+   */
+  playStunned(ms: number): void {
+    this.clearStun();
+    if (ms <= 0) return;
+    const ring = new Container();
+    // The rabbit's art fills the bottom of its 32px cell (see profile-menu's
+    // ART crop): its head is about a third of the sprite's height above the
+    // feet the anchor sits on.
+    ring.y = -this.sprite.height * 0.42;
+    for (let i = 0; i < 3; i++) {
+      ring.addChild(new Graphics().rect(-1, -3, 2, 6).rect(-3, -1, 6, 2).fill({ color: 0xffd138 }));
+    }
+    this.container.addChild(ring);
+    this.stunRing = ring;
+    const spin = { a: 0 };
+    this.stunSpin = gsap.to(spin, {
+      a: Math.PI * 2,
+      duration: 0.7,
+      repeat: -1,
+      ease: 'none',
+      onUpdate: () => {
+        ring.children.forEach((star, i) => {
+          const a = spin.a + (i / 3) * Math.PI * 2;
+          star.position.set(Math.cos(a) * 11, Math.sin(a) * 4);
+          // The far side of the orbit passes behind the head.
+          star.alpha = Math.sin(a) < -0.2 ? 0.45 : 1;
+        });
+      },
+    });
+    this.stunTimer = setTimeout(() => this.clearStun(), ms);
+  }
+
+  private clearStun(): void {
+    if (this.stunTimer) clearTimeout(this.stunTimer);
+    this.stunTimer = null;
+    this.stunSpin?.kill();
+    this.stunSpin = null;
+    if (this.stunRing && !this.stunRing.destroyed) this.stunRing.destroy({ children: true });
+    this.stunRing = null;
+  }
+
+  /**
+   * Leave the island: squeeze up and fade, then go.
+   *
+   * `destroy` in one frame made a rabbit that walked home blink out mid-board,
+   * which reads as a rendering fault rather than as somebody leaving.
+   */
+  vanish(): void {
+    this.cancelMove();
+    this.clearStun();
+    this.sprite.stop();
+    gsap.to(this.container, { alpha: 0, duration: 0.3, ease: 'power1.in' });
+    gsap.to(this.sprite.scale, {
+      x: this.sprite.scale.x * 0.6,
+      y: this.sprite.scale.y * 1.3,
+      duration: 0.3,
+      ease: 'power1.in',
+      onComplete: () => {
+        if (!this.container.destroyed) this.container.destroy({ children: true });
+      },
+    });
+  }
+
   destroy(): void {
+    this.clearStun();
+    if (this.container.destroyed) return;
     this.sprite.stop();
     this.container.destroy({ children: true });
   }

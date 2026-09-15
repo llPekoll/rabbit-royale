@@ -18,7 +18,14 @@
  * Pixel art at a whole multiple — the sprite is 19×16, drawn at 2× — because a
  * heart scaled by a fraction is a soft heart, and this is the one thing on the
  * strip that must read from across the room.
+ *
+ * LOSING ONE IS AN EVENT. The image used to swap to grey in a single frame,
+ * while the blast played somewhere off to the side of the board. The heart
+ * that goes now breaks (a flash, a jolt), the edges of the screen flush red
+ * for half a second, and the LAST heart beats for as long as it is the last.
  */
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ENERGY, HEARTS } from '@config/tuning';
 
 export interface HeartsProps {
@@ -29,6 +36,19 @@ export interface HeartsProps {
 
 export function Hearts({ energy, total = HEARTS }: HeartsProps) {
   const full = Math.max(0, Math.min(total, Math.ceil(energy / ENERGY.BOMB_LOSS)));
+
+  // Which heart just broke, keyed so two losses in a row are two breaks. Only
+  // a DROP counts: a respawn or a golden carrot refilling the row is not hurt.
+  const prev = useRef(full);
+  const [broke, setBroke] = useState<{ index: number; key: number } | null>(null);
+  useEffect(() => {
+    if (full < prev.current) setBroke((b) => ({ index: full, key: (b?.key ?? 0) + 1 }));
+    prev.current = full;
+  }, [full]);
+
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   return (
     <div
       className="rr-hearts"
@@ -41,12 +61,21 @@ export function Hearts({ energy, total = HEARTS }: HeartsProps) {
     >
       {Array.from({ length: total }, (_, i) => (
         <img
-          key={i}
+          key={broke?.index === i ? `broke-${broke.key}` : i}
+          className={
+            broke?.index === i ? 'rr-heart-break'
+              : full === 1 && i === 0 ? 'rr-heart-last'
+                : undefined
+          }
           src={i < full ? '/assets/ui/heart.png' : '/assets/ui/heart-empty.png'}
           alt=""
           draggable={false}
         />
       ))}
+      {/* Portalled: the HUD strip is frosted glass, and a backdrop-filter
+          makes it the containing block for anything `fixed` inside it — the
+          flush would have been the size of the strip, not of the screen. */}
+      {mounted && broke && createPortal(<div key={broke.key} className="rr-hurt" aria-hidden />, document.body)}
     </div>
   );
 }

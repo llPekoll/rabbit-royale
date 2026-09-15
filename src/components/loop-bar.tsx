@@ -24,8 +24,9 @@
  * `away` slides the whole bar off the floor during trap placement, the same
  * curve GO FARM rode down (the camera pulls back at that moment).
  */
-import type { CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { CARROT_URL, CARROT_SIZE } from '@domin8/arcade-kit/game';
+import { playUiSfx } from '@/game/services/SoundManager';
 import type { QuestDoor } from '@/config/quests';
 
 export type Loop = 'dig' | 'home' | 'raid';
@@ -61,6 +62,13 @@ export interface LoopBarProps {
    * there, and it is the next thing the player presses. Re-keyed per haul.
    */
   broughtHome?: { amount: number; key: number } | null;
+  /**
+   * When a run's worth of energy lands, on the wall clock (null when there
+   * already is one). The DIG line counts down to it on its own, and
+   * `onRunReady` fires when it arrives so the page can re-read the burrow.
+   */
+  nextRunAt?: number | null;
+  onRunReady?(): void;
   away?: boolean;
   onDig(): void;
   onHome(): void;
@@ -83,6 +91,8 @@ const DIG_FACE = '#ed7b23';
 const DIG_FACE_LIT = '#f4913f';
 const DIG_LIP = '#ffc48c';
 const DIG_SHADOW = '#652f09';
+/** The DIG slab's state line: dark on the orange, ~5:1 where cream gave 2:1. */
+const DIG_INK = '#3d1d06';
 const TILE_TOP = '#4a3d2e';
 const TILE_BOTTOM = '#332619';
 const TILE_SHADOW = '#1b1009';
@@ -101,11 +111,49 @@ function formatWait(ms: number): string {
 }
 
 export function LoopBar({
-  dig, home, raid, questDoor = null, questPulseKey = 0, broughtHome = null, away, onDig, onHome, onRaid,
+  dig, home, raid, questDoor = null, questPulseKey = 0, broughtHome = null, nextRunAt = null, onRunReady,
+  away, onDig, onHome, onRaid,
 }: LoopBarProps) {
   const pointed = loopOf(questDoor);
-  const pulse = (loop: Loop) => (pointed === loop && questPulseKey > 0 ? questPulseKey : 0);
   const canDig = dig.energy >= dig.runCost;
+
+  // The wait, counted down here rather than frozen at the server's last word.
+  // A tick every 15s is plenty for a line rendered to the minute; the timeout
+  // is what lands exactly on the moment, and asks for the fresh burrow.
+  const [now, setNow] = useState(() => Date.now());
+  const runReady = useRef(onRunReady);
+  runReady.current = onRunReady;
+  useEffect(() => {
+    if (nextRunAt == null) return;
+    setNow(Date.now());
+    const tick = setInterval(() => setNow(Date.now()), 15_000);
+    const land = setTimeout(() => {
+      setNow(Date.now());
+      runReady.current?.();
+    }, Math.max(0, nextRunAt - Date.now()) + 250);
+    return () => { clearInterval(tick); clearTimeout(land); };
+  }, [nextRunAt]);
+  const waitMs = nextRunAt == null ? dig.nextRunInMs : Math.max(0, nextRunAt - now);
+
+  // A slab that BECOMES worth pressing pops and chimes once: DIG when a run
+  // becomes affordable, HOME when the garden goes from empty to something to
+  // take. Never on mount — only on the change, which is the news.
+  const [readyKey, setReadyKey] = useState({ dig: 0, home: 0 });
+  const was = useRef({ canDig, garden: home.gardenReady > 0 });
+  useEffect(() => {
+    const garden = home.gardenReady > 0;
+    const digBecame = canDig && !was.current.canDig;
+    const homeBecame = garden && !was.current.garden;
+    was.current = { canDig, garden };
+    if (!digBecame && !homeBecame) return;
+    setReadyKey((k) => ({ dig: k.dig + (digBecame ? 1 : 0), home: k.home + (homeBecame ? 1 : 0) }));
+    playUiSfx('chimeQuick');
+  }, [canDig, home.gardenReady]);
+  const pulse = (loop: Loop) => {
+    const quest = pointed === loop && questPulseKey > 0 ? questPulseKey : 0;
+    const ready = loop === 'dig' ? readyKey.dig : loop === 'home' ? readyKey.home : 0;
+    return quest || ready ? `${quest}.${ready}` : 0;
+  };
   const carrotH = 30;
   const carrotW = Math.round((CARROT_SIZE.width / CARROT_SIZE.height) * carrotH);
 
@@ -119,7 +167,7 @@ export function LoopBar({
     `${dig.energy}/${dig.maxEnergy} energy`,
     canDig
       ? `run costs ${dig.runCost}`
-      : `run in ${dig.nextRunInMs === null ? 'a moment' : formatWait(dig.nextRunInMs)}`,
+      : `run in ${waitMs === null || waitMs <= 0 ? 'a moment' : formatWait(waitMs)}`,
   ];
   const homeParts = [
     home.gardenReady > 0 ? `garden +${home.gardenReady}` : 'garden empty',
@@ -142,7 +190,9 @@ export function LoopBar({
       className={`rr-loop-bar${away ? ' rr-loop-away' : ''}`}
       aria-label="Dig, home, raid"
       aria-hidden={away || undefined}
-      {...(away ? { inert: '' as unknown as boolean } : {})}
+      // A real boolean: React 19 takes `inert` as one, and the empty-string
+      // spelling (for React 18) logged an error every time placing began.
+      {...(away ? { inert: true } : {})}
     >
       {/* DIG: the carrot slab, the one saturated shape on the floor. */}
       <button
@@ -173,8 +223,12 @@ export function LoopBar({
             style={{ display: 'block', flexShrink: 0, transform: 'rotate(45deg)' }}
           />
           <span style={textCol}>
-            <span style={verb}>DIG</span>
-            <span style={{ ...line, color: canDig ? '#ffe0c2' : '#ffd6ae' }}><Parts parts={digParts} /></span>
+            {/* The verb keeps its white and gets the slab's own shadow under
+                it; the state line goes to DARK ink. Cream on this orange
+                measured 2:1, and the line is the one that says whether the
+                next run is affordable. */}
+            <span style={{ ...verb, textShadow: `0 2px 0 ${DIG_SHADOW}` }}>DIG</span>
+            <span style={{ ...line, color: DIG_INK }}><Parts parts={digParts} /></span>
           </span>
         </span>
         {pointed === 'dig' && <span className="rr-hub-badge" style={badge} aria-hidden>!</span>}

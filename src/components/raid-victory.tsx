@@ -53,6 +53,7 @@ import gsap from 'gsap';
 import { BitmapText, TitleText, NineSliceButton, TYPE_SCALE } from '@domin8/arcade-kit';
 import { CARROT_URL, CARROT_SIZE } from '@domin8/arcade-kit/game';
 import { avatarSrc, AVATAR_FRAME } from '@/lib/game/avatars';
+import { playUiSfx } from '@/game/services/SoundManager';
 
 const OCEAN_INK = '#0a2a3a';
 const CARROT_ORANGE = '#ff8c2e';
@@ -139,6 +140,11 @@ export function RaidVictory({
   const [phase, setPhase] = useState<Phase>(reduced ? 'shown' : 'burst');
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+
+  // Heard, not only seen: the biggest win in the game was a silent ceremony.
+  // The coin chirp as the burst opens, the chime as RAID WON! lands.
+  useEffect(() => { playUiSfx('coinStart'); }, []);
+  useEffect(() => { if (phase === 'shown') playUiSfx('chime'); }, [phase]);
 
   // The chain. Each beat schedules the next; reduced motion starts at the end
   // and this never runs.

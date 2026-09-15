@@ -380,8 +380,10 @@ export const valueText: CSSProperties = {
 export const subText: CSSProperties = {
   margin: 0,
   fontFamily: 'var(--font-pixel), ui-monospace, monospace',
-  // The fine print, held a step under the heading at every size.
-  fontSize: 'clamp(7px, 10.5cqh, 11px)',
+  // The fine print, held a step under the heading at every size — and never
+  // under the face's own 8px cell: at 7.8px ("Dig 10 tiles.") every glyph was
+  // resampled off the grid and the smallest words on the card went soft.
+  fontSize: 'clamp(8px, 10.5cqh, 11px)',
   lineHeight: 1.4,
   color: SUB,
 };

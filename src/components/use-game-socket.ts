@@ -179,6 +179,16 @@ export interface Banked {
   carrots: number;
 }
 
+/**
+ * How long the recap waits after the last heart.
+ *
+ * `run_over` lands in the same instant as `rabbit_died`, so the card used to
+ * cover the rabbit's slump, the map draining to grey and the sting before any
+ * of them had been seen. A cleared island needs no beat: the eruption already
+ * held one (ERUPTION.SEQUENCE_MS).
+ */
+const RECAP_BEAT_MS = 900;
+
 export interface RunRecap {
   carrots: number;
   tilesDug: number;
@@ -228,6 +238,14 @@ export function useGameSocket(
   const [warnStage, setWarnStage] = useState(0);
   const [recap, setRecap] = useState<RunRecap | null>(null);
   const [connected, setConnected] = useState(false);
+  /**
+   * The socket was up and fell over (not closed by us). `connected` alone
+   * cannot say it: it is also false before the first connect, and a banner
+   * saying "reconnecting" during the boot would be a lie.
+   */
+  const [dropped, setDropped] = useState(false);
+  /** The recap held back for its beat — see RECAP_BEAT_MS. */
+  const recapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /**
    * Bumped each time a run's carrots land in the database.
    *
@@ -316,6 +334,7 @@ export function useGameSocket(
 
     socket.on('connect', () => {
       setConnected(true);
+      setDropped(false);
       if (spectate) {
         // Watching, not playing: whatever seat was wanted before is not.
         wantSeat.current = false;
@@ -326,7 +345,16 @@ export function useGameSocket(
         socket.emit('join');
       }
     });
-    socket.on('disconnect', () => setConnected(false));
+    socket.on('disconnect', (reason: string) => {
+      setConnected(false);
+      // Our own `disconnect()` (sign-out, a token change) is not a drop.
+      setDropped(reason !== 'io client disconnect');
+    });
+
+    // The server refused a move — see `IslandScene.moveRejected`.
+    socket.on('move_rejected', ({ reason }: { reason: Parameters<IslandScene['moveRejected']>[0] }) => {
+      toScene((s) => s.moveRejected(reason));
+    });
 
     /**
      * The server said no to a seat.
@@ -530,7 +558,16 @@ export function useGameSocket(
       // The seat is spent. A reconnect from the recap must not ask again —
       // that would start, and pay for, a run the player has not chosen.
       wantSeat.current = false;
-      setRecap(r);
+      if (recapTimer.current) clearTimeout(recapTimer.current);
+      if (r.cleared) {
+        toScene((s) => s.celebrateClear());
+        setRecap(r);
+        return;
+      }
+      recapTimer.current = setTimeout(() => {
+        recapTimer.current = null;
+        setRecap(r);
+      }, RECAP_BEAT_MS);
     });
     // The carrots are in Postgres NOW, so whatever shows the total may go and
     // read it. See `Banked`: this is deliberately not `run_over`.
@@ -539,7 +576,12 @@ export function useGameSocket(
       setBanked((n) => n + 1);
     });
 
-    return () => { socket.disconnect(); socketRef.current = null; };
+    return () => {
+      if (recapTimer.current) clearTimeout(recapTimer.current);
+      recapTimer.current = null;
+      socket.disconnect();
+      socketRef.current = null;
+    };
   }, [token, wsUrl, spectate, toScene]);
 
   /**
@@ -603,11 +645,17 @@ export function useGameSocket(
     // disconnected socket, so the emit below is a no-op until `connect`.
     wantSeat.current = true;
     socketRef.current?.emit('join');
+    // A new crossing never shows the last run's card. It was cleared only when
+    // the next island ARRIVED, so a DIG on a dropped socket landed on the old
+    // board with "Run over" still up (seen live).
+    if (recapTimer.current) clearTimeout(recapTimer.current);
+    recapTimer.current = null;
+    setRecap(null);
   }, []);
 
   const me = playerId ? rabbits.get(playerId) ?? null : null;
   return {
-    islandSeed, rabbits, me, warnStage, recap, banked, bankedCarrots, connected, refused,
+    islandSeed, rabbits, me, warnStage, recap, banked, bankedCarrots, connected, dropped, refused,
     firstRun, digs, bank, erupting,
     chestPrize, clearChestPrize: () => setChestPrize(null),
     moveTo, restart, join, leave, bindScene, resync,

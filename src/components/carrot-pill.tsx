@@ -30,7 +30,7 @@
  * that was never ambiguous. What sits there now is the rank line, which says
  * something the number cannot.
  */
-import type { CSSProperties } from 'react';
+import { useEffect, useRef, type CSSProperties } from 'react';
 import { CARROT_URL, CARROT_SIZE } from '@domin8/arcade-kit/game';
 import { CarrotBurst } from '@/components/carrot-burst';
 import { groupDigits } from './hub-card';
@@ -51,6 +51,11 @@ export interface CarrotPillProps {
   toPass: number | null;
   /** Opens the shop. The [+] is the pill's one control, as in the mock. */
   onAdd?(): void;
+  /**
+   * Bumped when a press was refused for want of carrots: the pill shakes and
+   * its rim flushes red — the number that said no, saying it.
+   */
+  denyKey?: number;
 }
 
 /* ── Sampled from the reference ────────────────────────────────────────── */
@@ -83,10 +88,24 @@ function Carrot({ height }: { height: number }) {
 }
 
 export function CarrotPill({
-  stock, fireKey, gain, rank, toPass, onAdd,
+  stock, fireKey, gain, rank, toPass, onAdd, denyKey = 0,
 }: CarrotPillProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  // The shake rides `translate`, not `transform`: the stylesheet centres the
+  // pill with a transform, and animating that would fling it off its centre.
+  // Web Animations rather than a class, so a second refusal replays it.
+  useEffect(() => {
+    if (!denyKey || !ref.current) return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    ref.current.animate(
+      [{ translate: '0 0' }, { translate: '-6px 0' }, { translate: '5px 0' }, { translate: '-3px 0' }, { translate: '0 0' }],
+      { duration: 360, easing: 'ease-out' },
+    );
+  }, [denyKey]);
+
   return (
-    <div className="rr-carrot-pill" style={pill} title={`${stock} carrots banked`}>
+    <div ref={ref} className="rr-carrot-pill" style={pill} title={`${stock} carrots banked`}>
+      {denyKey > 0 && <span key={denyKey} className="rr-pill-deny" aria-hidden />}
       {/* Carrots fly up behind the figure as it climbs — the loot arriving,
           with the number as its result. */}
       <CarrotBurst fireKey={fireKey} amount={gain} />

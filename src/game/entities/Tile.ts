@@ -1,7 +1,7 @@
 import { Container, Sprite, Assets, BitmapText, Polygon, AnimatedSprite, Graphics, type Texture } from 'pixi.js';
 import { HALF_W, HALF_H, tilePos, tileDepth } from '@/config/gridConfig';
 import * as Keys from '@/config/assetKeys';
-import { pixelText, shadowedPixelText, formatMult, TINT_MULT } from '../ui/PixelText';
+import { outlinedPixelText, shadowedPixelText, formatMult, TINT_MULT } from '../ui/PixelText';
 import { getDiamondFill, getDiamondOutline } from '../services/TileTextures';
 import { lootBoxSheet } from '../services/AssetLoader';
 import type { TileContent } from '@/lib/game/types';
@@ -193,7 +193,7 @@ export class Tile {
   private chestBeamTween: gsap.core.Tween | null = null;
   private chestRingTween: gsap.core.Tween | null = null;
   private chestMotes: Graphics[] = [];
-  private chestLabel: BitmapText | null = null;
+  private chestLabel: Container | null = null;
   private chestLabelTween: gsap.core.Tween | null = null;
   private chestShineCall: gsap.core.Tween | null = null;
   private palierHolder: Container | null = null;
@@ -448,7 +448,10 @@ export class Tile {
   }
 
   private addHint(count: number, animate: boolean): void {
-    const label = shadowedPixelText(0, 0, String(count));
+    // Outlined, not shadowed: the numbers ARE the game, and the classic ladder's
+    // blue "1" on grass measured 1.2–1.6:1 behind a 30% shadow. The ring gives
+    // every tint an edge on every ground (see outlinedPixelText).
+    const label = outlinedPixelText(0, 0, String(count));
     label.face.tint = HINT_TINTS[Math.min(count, HINT_TINTS.length - 1)];
     label.group.zIndex = 40;
     if (this.hintLayer) {
@@ -751,6 +754,26 @@ export class Tile {
     });
   }
 
+  /**
+   * The server refused a step onto this tile. Red where the tap's white flash
+   * had promised a move: without it the promise was simply never kept, and a
+   * refused step looked exactly like a dropped tap.
+   */
+  deny(): void {
+    const red = diamondFill(0xff4d4d, 0.55);
+    red.zIndex = 51;
+    this.container.addChild(red);
+    gsap.to(red, {
+      alpha: 0,
+      duration: 0.45,
+      ease: 'power2.out',
+      onComplete: () => {
+        this.container.removeChild(red);
+        red.destroy();
+      },
+    });
+  }
+
   setHighlight(on: boolean): void {
     this.highlightGfx.visible = on;
     gsap.killTweensOf(this.blinkGfx);
@@ -860,13 +883,15 @@ export class Tile {
       // The rarity SPELLED OUT above the chest — the flair says "valuable",
       // the word says exactly how much, and no player has to learn a colour
       // code to read the board.
-      const label = pixelText(0, -flair.beam - 12, tier.toUpperCase());
-      label.anchor.set(0.5);
+      // Outlined: plain tinted glyphs measured 1.8:1 (GOLD) and 2.3:1 (SILVER)
+      // on grass — the word that says how much the chest is worth was the
+      // hardest thing on the tile to read.
+      const { group: label, face } = outlinedPixelText(0, -flair.beam - 12, tier.toUpperCase());
       // Sized with the box (CHEST_SCALE): at 1.6 the word was wider than
       // the tile and read from across the island where the chest itself was
       // the thing meant to.
       label.scale.set(1.1);
-      label.tint = tint;
+      face.tint = tint;
       label.zIndex = 62;
       this.chestLabel = label;
       this.container.addChild(label);
@@ -1060,7 +1085,8 @@ export class Tile {
     this.chestSprite = null;
     this.stopChestTweens();
     for (const deco of [this.chestGlow, this.chestRing, this.chestShadow, this.chestBeam, this.chestLabel, ...this.chestMotes]) {
-      if (deco) gsap.to(deco, { alpha: 0, duration: 0.3, onComplete: () => deco.destroy() });
+      // With children: the label is an outlined group of nine glyphs now.
+      if (deco) gsap.to(deco, { alpha: 0, duration: 0.3, onComplete: () => deco.destroy({ children: true }) });
     }
     this.chestGlow = null;
     this.chestRing = null;

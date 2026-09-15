@@ -33,6 +33,7 @@ import { CloudField } from '../fx/Clouds';
 import { CarrotCrop } from '../entities/CarrotCrop';
 import { getDiamondFill, getDiamondOutline, diamondScaleFor } from '../services/TileTextures';
 import { shadowedPixelText } from '../ui/PixelText';
+import { playUiSfx } from '../services/SoundManager';
 import { PlayerRabbit } from '../entities/PlayerRabbit';
 import { FOG_COLOR, FOG_ALPHA, HIGHLIGHT_COLOR, HINT_TINTS } from '../entities/Tile';
 import * as Keys from '@/config/assetKeys';
@@ -1235,6 +1236,9 @@ export class BurrowScene implements Scene {
    */
   springTrap(tile: number): void {
     this.raider?.playDamage();
+    // It went off silently: the moment a raid turns was the one blast in the
+    // game with no bang. The island's bomb sound, so a trap reads as a bomb.
+    playUiSfx('explosion');
     const { x, y } = burrowTileScreen(this.data.seed, tile);
     const blast = burrowDiamond();
     blast.position.set(x, y);
