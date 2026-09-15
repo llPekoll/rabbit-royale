@@ -1825,7 +1825,10 @@ function Burrow() {
           {/* What the crossing just cost the burrow, said once. Above the
               first-run captions, so on the tutorial island the order reads
               "this is what it cost" then "this is what to do". */}
-          {!spectating && <RunCostNote bank={game.bank} seed={game.islandSeed} />}
+          {/* Not on the first island: a player who has never seen the burrow
+              cannot read "35/60 left at the burrow", and the tutorial's own
+              captions need the strip. The first recap states the bank. */}
+          {!spectating && !game.firstRun && <RunCostNote bank={game.bank} seed={game.islandSeed} />}
           {!spectating && (
             <FirstRunCaption firstRun={game.firstRun} digs={game.digs} warnStage={game.warnStage} />
           )}

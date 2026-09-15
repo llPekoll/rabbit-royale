@@ -225,8 +225,22 @@ export class Tile {
    *  floating over the rabbit's head. */
   private static readonly PALIER_BOB_AMP = 2.5;
 
-  constructor(index: number, fogStyle?: FogStyle, lift = 0, tier = 0) {
+  /**
+   * Where the NUMBER is drawn, when not on the tile itself.
+   *
+   * The island hands every tile one shared layer that sorts above all the
+   * rabbits, because a hint inside the tile's own container sorts with the
+   * tile — and a rabbit standing one cell south of it draws over it. The
+   * number is the whole game; a sprite must never be able to cover one. The
+   * burrow's raid board passes nothing and keeps the hint on the tile.
+   */
+  private hintLayer: Container | null;
+  /** The hint's resting y in its parent: the tile's own y on the shared layer, 0 on the tile. */
+  private hintBaseY = 0;
+
+  constructor(index: number, fogStyle?: FogStyle, lift = 0, tier = 0, hintLayer?: Container) {
     this.index = index;
+    this.hintLayer = hintLayer ?? null;
     const { x, y: flatY } = tilePos(index);
     // Raised onto its own terrace. Without this the board is a flat
     // chequerboard lying across a landscape with plateaus: the ground rises,
@@ -437,7 +451,16 @@ export class Tile {
     const label = shadowedPixelText(0, 0, String(count));
     label.face.tint = HINT_TINTS[Math.min(count, HINT_TINTS.length - 1)];
     label.group.zIndex = 40;
-    this.container.addChild(label.group);
+    if (this.hintLayer) {
+      // On the shared layer the group carries the tile's world position
+      // itself; raise/lower move it relative to that.
+      this.hintBaseY = this.container.y;
+      label.group.position.set(this.container.x, this.container.y);
+      this.hintLayer.addChild(label.group);
+    } else {
+      this.hintBaseY = 0;
+      this.container.addChild(label.group);
+    }
     this.hintGroup = label.group;
 
     if (animate) {
@@ -647,7 +670,7 @@ export class Tile {
     if (!this.hintGroup || this.hintRaised) return;
     this.hintRaised = true;
     gsap.killTweensOf(this.hintGroup.position);
-    gsap.to(this.hintGroup.position, { y: Tile.PALIER_RAISED_Y, duration: 0.22, ease: 'power3.out' });
+    gsap.to(this.hintGroup.position, { y: this.hintBaseY + Tile.PALIER_RAISED_Y, duration: 0.22, ease: 'power3.out' });
   }
 
   /** The rabbit left: the hint drops back onto its tile, with a small bounce. */
@@ -655,7 +678,7 @@ export class Tile {
     if (!this.hintGroup || !this.hintRaised) return;
     this.hintRaised = false;
     gsap.killTweensOf(this.hintGroup.position);
-    gsap.to(this.hintGroup.position, { y: 0, duration: 0.35, ease: 'bounce.out' });
+    gsap.to(this.hintGroup.position, { y: this.hintBaseY, duration: 0.35, ease: 'bounce.out' });
   }
 
   private hintRaised = false;
@@ -1094,6 +1117,12 @@ export class Tile {
   destroy(): void {
     gsap.killTweensOf(this.blinkGfx);
     gsap.killTweensOf(this.fog);
+    // A hint on the shared layer is not this container's child either.
+    if (this.hintGroup && this.hintGroup.parent !== this.container && !this.hintGroup.destroyed) {
+      gsap.killTweensOf(this.hintGroup.position);
+      this.hintGroup.destroy({ children: true });
+      this.hintGroup = null;
+    }
     // A diamond mounted in a terrain block is not this container's child, so
     // destroying the container would leave it behind on the island. All three
     // mount now (see `mountVeil`), so all three have to be checked — the fog

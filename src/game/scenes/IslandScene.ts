@@ -277,13 +277,30 @@ export class IslandScene implements Scene {
    * off behind a plateau all get nothing — not a hidden tile. The server buries
    * content on exactly this set, so a tile here is a tile it knows about.
    */
+  /**
+   * The layer every number is drawn on, above every rabbit.
+   *
+   * A hint drawn inside its tile sorts WITH the tile, so a rabbit one cell
+   * south of a numbered tile covered the number — seen on the first island,
+   * where the one "1" the tutorial is built around sat behind the rabbit's
+   * own sprite from the opening camera. The numbers are the game; nothing
+   * may draw over them. Added lazily so a scene rebuilt for a new island
+   * keeps the same layer.
+   */
+  private hintLayer = new Container();
+
   private buildTiles(): void {
+    if (!this.hintLayer.parent) {
+      this.hintLayer.zIndex = 1_000_000;
+      this.hintLayer.sortableChildren = false;
+      this.container.addChild(this.hintLayer);
+    }
     for (const i of farmableTiles(this.data?.seed ?? '')) {
       // Lifted onto the terrace the terrain puts it on, so the board follows
       // the landscape instead of lying flat across it.
       const seed = this.data?.seed ?? '';
       const { col, row } = toColRow(i);
-      const tile = new Tile(i, undefined, tierLift(seed, i), levelTierAt(seed, col, row));
+      const tile = new Tile(i, undefined, tierLift(seed, i), levelTierAt(seed, col, row), this.hintLayer);
       // Per-tile press, on the VEIL: the pointer follows the tile as drawn,
       // and a wall over it catches the press instead (see Tile's constructor).
       // The Seeker is a touch device, so this — not the keyboard — is how the
