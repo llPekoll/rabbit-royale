@@ -50,10 +50,11 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import gsap from 'gsap';
-import { BitmapText, TitleText, NineSliceButton, TYPE_SCALE } from '@domin8/arcade-kit';
+import { BitmapText, TitleText, TYPE_SCALE } from '@domin8/arcade-kit';
 import { CARROT_URL, CARROT_SIZE } from '@domin8/arcade-kit/game';
 import { avatarSrc, AVATAR_FRAME } from '@/lib/game/avatars';
 import { playUiSfx } from '@/game/services/SoundManager';
+import { PxButton } from './px';
 
 const OCEAN_INK = '#0a2a3a';
 const CARROT_ORANGE = '#ff8c2e';
@@ -224,11 +225,23 @@ export function RaidVictory({
               style={{ ...actionsStyle, animationDelay: `${STAMP_DELAY_MS + 260}ms` }}
               onClick={(e) => e.stopPropagation()}
             >
-              <NineSliceButton color={CARROT_ORANGE} shadowColor={CARROT_DEEP} scale={2} onClick={onDone} aria-label={actionLabel}>
+              {/* The codex's pixel button (`PxButton`) in the carrot it always
+                  wore, at the game's one pixel size and with its squash on the
+                  press. No wiggle: this is the way home, not the win — the
+                  stage behind it already made all the noise. */}
+              <PxButton
+                type="button"
+                color={CARROT_ORANGE}
+                shadowColor={CARROT_DEEP}
+                textColor={OCEAN_INK}
+                onClick={onDone}
+                aria-label={actionLabel}
+                style={actionButtonStyle}
+              >
                 <BitmapText scale={TYPE_SCALE.caption} style={{ color: OCEAN_INK }}>
                   {actionLabel}
                 </BitmapText>
-              </NineSliceButton>
+              </PxButton>
             </div>
           )}
         </div>
@@ -609,6 +622,12 @@ const actionsStyle: CSSProperties = {
   gap: 10,
   flexWrap: 'wrap',
   justifyContent: 'center',
+};
+
+/** The way home: the kit's pixel height, never under the 44px touch floor
+ *  (on the Seeker one chrome pixel is 2px, so the native 16 would be 32). */
+const actionButtonStyle: CSSProperties = {
+  minHeight: 44,
 };
 
 const flashStyle: CSSProperties = {

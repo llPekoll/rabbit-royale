@@ -12,11 +12,13 @@
  * slate, because a raid and a shop are the two screens that are about somebody
  * else's carrots, and they should feel like the same world.
  */
-import { useEffect } from 'react';
+import { useEffect, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
+import { CloseButton, PanelTitle } from '@domin8/arcade-kit';
 import type { RaidState, Target } from './use-raid';
-import { LauncherTab, CARROT, DANGER, LAMP } from './burrow-chrome';
+import { LauncherTab, CARROT, DANGER, LAMP, PLANK, SOIL, SOIL_DEEP } from './burrow-chrome';
 import { LootChest, CHEST_ASPECT } from './loot-chest';
+import { PxButton, PxPanel, pxLabel } from './px';
 
 export interface RaidButtonProps {
   targets: Target[];
@@ -95,40 +97,85 @@ export function TargetList({ targets, busy, onEnter, onClose, note }: TargetList
         aria-label="Choose a burrow"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="rr-shop-top">
-          <h2>Whose burrow?</h2>
-          <button className="rr-shop-x" onClick={onClose} aria-label="Close">&times;</button>
-        </header>
+        {/* THE CODEX'S FRAME (`PxPanel`) in the soil this dialog always was.
+            The rows inside are nested panels in plank, the raised-block tone
+            that used to draw their dividers; the footer is one too. The title
+            and the [X] are the codex's own `PanelTitle` and `CloseButton`. */}
+        <PxPanel color={SOIL} className="rr-raid-pick-frame">
+          <header className="rr-shop-top">
+            <h2 aria-label="Whose burrow?">
+              <PanelTitle>WHOSE BURROW?</PanelTitle>
+            </h2>
+            <CloseButton
+              inline
+              className="rr-px-btn"
+              onClick={onClose}
+              aria-label="Close"
+              style={{ height: 44, minWidth: 44 }}
+            />
+          </header>
 
-        {targets.length === 0 ? (
-          <p className="rr-shop-pay">Nobody else has a burrow yet.</p>
-        ) : (
-          <ul className="rr-raid-list">
-            {targets.map((t) => (
-              <li key={t.id} className={t.shielded ? 'shielded' : ''}>
-                <span className="rr-raid-name">{t.name}</span>
-                <span className="rr-raid-stock">{t.stock.toLocaleString()} 🥕</span>
-                {/* Shielded targets are shown but not attackable: hiding them
-                    would make the list look empty for no visible reason. */}
-                <button
-                  onClick={() => onEnter(t.id)}
-                  disabled={busy || t.shielded}
-                >
-                  {t.shielded ? 'Shielded' : 'Raid'}
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+          {targets.length === 0 ? (
+            <p className="rr-shop-pay">Nobody else has a burrow yet.</p>
+          ) : (
+            <ul className="rr-raid-list">
+              {targets.map((t) => {
+                const off = busy || t.shielded;
+                return (
+                  <li key={t.id} className={t.shielded ? 'shielded' : ''}>
+                    <PxPanel color={PLANK} className="rr-raid-row">
+                      <span className="rr-raid-name">{t.name}</span>
+                      <span className="rr-raid-stock">{t.stock.toLocaleString()} 🥕</span>
+                      {/* Shielded targets are shown but not attackable: hiding
+                          them would make the list look empty for no visible
+                          reason. RAID wiggles — it is the loudest thing on
+                          this screen, the tap that starts a robbery. */}
+                      <PxButton
+                        type="button"
+                        onClick={() => onEnter(t.id)}
+                        disabled={off}
+                        color={off ? RAID_OFF : DANGER}
+                        shadowColor={off ? RAID_OFF_SHADOW : RAID_SHADOW}
+                        textColor={off ? RAID_OFF_INK : RAID_INK}
+                        wiggle={!off}
+                        style={raidButton}
+                      >
+                        <span style={raidLabel}>{t.shielded ? 'Shielded' : 'Raid'}</span>
+                      </PxButton>
+                    </PxPanel>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
 
-        <footer className="rr-shop-foot">
-          <span>{note ?? 'Reach the carrot field. Their traps are buried and unmarked.'}</span>
-        </footer>
+          <PxPanel color={PLANK} className="rr-shop-foot">
+            <span>{note ?? 'Reach the carrot field. Their traps are buried and unmarked.'}</span>
+          </PxPanel>
+        </PxPanel>
       </section>
     </div>,
     document.body,
   );
 }
+
+/* The RAID button's colours, kept from the outline button it was: its red rim
+   (DANGER) is now the face, the darker raid red under it is the bevel, and the
+   salmon ink is lifted a step so it still reads on a filled red face. Off (a
+   shielded target, or a raid already starting) keeps the off colours it had —
+   the app's slate rim and muted ink. */
+const RAID_SHADOW = '#6b2f24';
+const RAID_INK = '#ffe9e2';
+const RAID_OFF = '#30363d';
+const RAID_OFF_SHADOW = '#1c2024';
+const RAID_OFF_INK = '#8b949e';
+
+/** 44px tall — the touch floor — at any chrome pixel size. */
+const raidButton: CSSProperties = {
+  height: 44,
+  minWidth: 84,
+};
+const raidLabel: CSSProperties = { ...pxLabel, fontSize: 12 };
 
 export interface RaidHudProps {
   raid: RaidState;
@@ -146,7 +193,10 @@ export interface RaidHudProps {
  */
 export function RaidHud({ raid, busy, note, onLeave }: RaidHudProps) {
   return (
-    <div className="rr-raid-hud">
+    // The codex's frame in the HUD's own dark soil. `position: fixed` rides
+    // inline because the frame sets `relative` on itself; where it sits (under
+    // the MEASURED top chrome, clear of the carrot pill) is px-raid.css.
+    <PxPanel color={SOIL_DEEP} className="rr-raid-hud" style={{ position: 'fixed' }}>
       <header>
         <span className="rr-raid-target">{raid.defender.name}'s burrow</span>
         {/* NAMED, not just a number behind a bolt. This is the crossing's own
@@ -203,6 +253,6 @@ export function RaidHud({ raid, busy, note, onLeave }: RaidHudProps) {
           </span>
         </div>
       )}
-    </div>
+    </PxPanel>
   );
 }
