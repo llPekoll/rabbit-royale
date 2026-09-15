@@ -69,8 +69,15 @@ export const TIER_LIFT = 18;
  * has to stay legible even as the board grows. So the rabbit slightly
  * OVERFLOWS its tile, which is also how it reads as standing on the island
  * rather than being embedded in it.
+ *
+ * But not by much. The terrain is 64px art drawn into a 44px tile — about 0.7
+ * scene px per texel — and at 2.4 every rabbit pixel was 2.4 scene px, three
+ * and a half times coarser than the ground under it: a blocky sticker on a
+ * finely drawn island. 1.5 keeps the bunny (about 14px of its 32px frame)
+ * half a tile wide, still legible, while its pixels sit much closer to the
+ * world's.
  */
-export const RABBIT_SCALE = 2.4;
+export const RABBIT_SCALE = 1.5;
 
 // Center of the isometric diamond (useful for overlays)
 export const GRID_CENTER_X = ISO_ORIGIN_X;
