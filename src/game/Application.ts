@@ -6,6 +6,7 @@ import { SceneManager } from './SceneManager';
 import { BootScene } from './scenes/BootScene';
 import { CarrotWipe } from './fx/CarrotWipe';
 import * as Keys from '@/config/assetKeys';
+import { PORTRAIT_GATE_QUERY } from '@/config/orientation';
 
 /**
  * Background color: the OPEN SEA, far from any land.
@@ -199,9 +200,18 @@ export async function createApp(
   // after the boot, which is what loads the carrot it is cut from.
   let wipe: CarrotWipe | null = null;
 
+  // A phone held upright is refused, not laid out (see PORTRAIT_GATE_QUERY):
+  // the gate covers the page and the board keeps the landscape layout it had,
+  // so turning back is instant rather than a re-frame into a canvas nobody
+  // plays on. A phone OPENED upright still needs a first layout, and gets the
+  // landscape one — its own screen, turned.
+  let laidOut = false;
   function resize() {
-    const w = window.innerWidth;
-    const h = window.innerHeight;
+    const gated = window.matchMedia?.(PORTRAIT_GATE_QUERY).matches ?? false;
+    if (gated && laidOut) return;
+    laidOut = true;
+    const w = gated ? window.innerHeight : window.innerWidth;
+    const h = gated ? window.innerWidth : window.innerHeight;
     pixi.renderer.resize(w, h);
 
     // Redraw the background rect to cover the whole viewport.

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { PixelFont } from '@/components/pixel-font';
+import { RotateGate } from '@/components/rotate-gate';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -26,6 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <PixelFont />
         {children}
+        <RotateGate />
       </body>
     </html>
   );

@@ -49,6 +49,70 @@
 
 * { box-sizing: border-box; }
 
+/* ── Landscape only, on a phone ────────────────────────────────────────────
+   A phone held upright gets this instead of the game (rotate-gate.tsx). The
+   query is PORTRAIT_GATE_QUERY in src/config/orientation.ts, verbatim — the
+   Pixi app stops laying itself out on the same condition, and
+   test/rotate-gate.test.ts holds the two together.
+
+   Opaque and above everything (the next highest layer is 9000), and the rest
+   of the page is hidden rather than merely covered, so it cannot be tabbed
+   into or read out from behind the gate. */
+.rr-rotate-gate { display: none; }
+@media (orientation: portrait) and (pointer: coarse) {
+  .rr-rotate-gate {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding:
+      calc(24px + env(safe-area-inset-top))
+      calc(24px + env(safe-area-inset-right))
+      calc(24px + env(safe-area-inset-bottom))
+      calc(24px + env(safe-area-inset-left));
+    background: var(--bg);
+    color: var(--text);
+    text-align: center;
+  }
+  body > :not(.rr-rotate-gate) { visibility: hidden; }
+}
+.rr-rotate-phone {
+  width: 40px;
+  height: 64px;
+  margin-bottom: 8px;
+  border: 4px solid var(--text);
+  border-radius: 8px;
+  /* The speaker slot: which way is "up" on the drawing. */
+  background: linear-gradient(var(--text), var(--text)) 50% 6px / 12px 4px no-repeat;
+  animation: rr-rotate-phone 2400ms ease-in-out infinite;
+}
+@keyframes rr-rotate-phone {
+  0%, 25%   { transform: none; }
+  55%, 85%  { transform: rotate(-90deg); border-color: var(--crown); }
+  100%      { transform: none; }
+}
+.rr-rotate-title {
+  margin: 0;
+  max-width: 20ch;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--crown);
+}
+.rr-rotate-sub {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Drawn already turned: the picture still says which way to hold it. */
+  .rr-rotate-phone { animation: none; transform: rotate(-90deg); border-color: var(--crown); }
+}
+
 html, body {
   margin: 0;
   padding: 0;

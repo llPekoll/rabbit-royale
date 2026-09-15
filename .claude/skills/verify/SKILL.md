@@ -32,8 +32,12 @@ drives; copy their shape. Key facts:
   join is a normal island. The burrow shows `.rr-loop-bar` with slabs
   `.rr-loop-dig / .rr-loop-home / .rr-loop-raid`; the top bar has
   `[aria-label="Shop"]` and `[aria-label="Story"]`.
-- Energy: a guest starts at 60, each crossing costs 25 → the third DIG opens
-  the "Out of energy" dialog (`[aria-label="Out of energy"]`).
+- Energy: a guest starts at 60, each crossing costs 20 (`ENERGY.RUN_COST`) →
+  the fourth DIG opens the "Out of energy" dialog
+  (`[aria-label="Out of energy"]`). Inside a run the hearts are a life bar:
+  24, a bomb takes 8, digging is free — so a run ends on the third bomb, when
+  the map drains to grey. A walk that re-treads dug tiles never meets one:
+  prefer lit tiles you have not stepped on.
 - The Pixi app is exposed as `globalThis.__PIXI_APP__`. Fog sprites are
   labelled `tile-<index>` and live INSIDE the terrain block, not the tile's
   container — match hints/rabbits to tiles by `getGlobalPosition()`, not by
@@ -43,8 +47,13 @@ drives; copy their shape. Key facts:
 - Expect one console error on load (a 401 from an auth probe) and WebGL
   driver warnings; both are noise.
 
-## Portrait
+## Phones are landscape
 
-Viewport 390×844 stacks the loop bar into three rows; the sound cluster
-must sit above it (`body:has(.rr-loop-bar) .rr-sound` in the portrait
-media block).
+A touch phone held upright gets the rotate gate, not a layout
+(`PORTRAIT_GATE_QUERY`, `src/config/orientation.ts`). Check phones at the
+Seeker's **890×400** with `isMobile: true, hasTouch: true` — without them
+Chromium reports a fine pointer and the gate never applies. Use `page.tap`.
+
+The portrait media blocks in globals.css still serve a desktop window
+dragged tall and narrow (no gate there); 390×844 WITHOUT touch emulation is
+that case, not a phone.
