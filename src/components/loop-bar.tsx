@@ -28,6 +28,7 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { CARROT_URL, CARROT_SIZE } from '@domin8/arcade-kit/game';
 import { playUiSfx } from '@/game/services/SoundManager';
 import type { QuestDoor } from '@/config/quests';
+import { PX, PxButton, PxPanel } from './px';
 
 export type Loop = 'dig' | 'home' | 'raid';
 
@@ -88,17 +89,17 @@ export function loopOf(door: QuestDoor | null | undefined): Loop | null {
 
 /* ── Palette: the GO FARM slab, the hub tile, the soil ─────────────────── */
 const DIG_FACE = '#ed7b23';
-const DIG_FACE_LIT = '#f4913f';
 const DIG_LIP = '#ffc48c';
 const DIG_SHADOW = '#652f09';
 /** The DIG slab's state line: dark on the orange, ~5:1 where cream gave 2:1. */
 const DIG_INK = '#3d1d06';
 const TILE_TOP = '#4a3d2e';
-const TILE_BOTTOM = '#332619';
 const TILE_SHADOW = '#1b1009';
 const INK = '#e9dabd';
 const INK_DIM = '#a8977f';
 const LAMP = '#ffd138';
+/** The haul toast's glass — the island captions' ground. */
+const GLASS = 'rgba(13, 17, 23, 0.82)';
 const BADGE = '#e62132';
 const DANGER_INK = '#ff8a7a';
 
@@ -194,141 +195,145 @@ export function LoopBar({
       // spelling (for React 18) logged an error every time placing began.
       {...(away ? { inert: true } : {})}
     >
+      {/* THE CODEX'S BUTTONS. Each slab is a `PxButton` in the colour it had:
+          its face, its old shadow as the bevel, its old lip as the gloss. It
+          stands in a CELL that rises into place on arrival (`.rr-toon-in-up`,
+          staggered), so the slab's own transform stays free for the press
+          squash, the wiggle after it, and the quest pop. These three are THE
+          actions, so they wiggle. */}
       {/* DIG: the carrot slab, the one saturated shape on the floor. */}
-      <button
-        type="button"
-        key={`dig:${pulse('dig')}`}
-        className={`rr-loop-slab rr-loop-dig${pulse('dig') ? ' rr-tab-pop' : ''}`}
-        onClick={onDig}
-        aria-label={`Dig. ${digLine}`}
-        style={{ ...slab, background: DIG_LIP }}
-      >
-        <span
-          className="rr-loop-face"
-          style={{
-            ...face,
-            background: `linear-gradient(180deg, ${DIG_FACE_LIT} 0%, ${DIG_FACE} 100%)`,
-            boxShadow: `inset 0 -3px 0 ${DIG_SHADOW}`,
-            color: '#ffffff',
-          }}
+      <div className="rr-loop-cell rr-toon-in-up" style={enter(0)}>
+        <PxButton
+          type="button"
+          key={`dig:${pulse('dig')}`}
+          className={`rr-loop-slab rr-loop-dig rr-ptf-fill${pulse('dig') ? ' rr-tab-pop' : ''}`}
+          onClick={onDig}
+          aria-label={`Dig. ${digLine}`}
+          color={DIG_FACE}
+          shadowColor={DIG_SHADOW}
+          highlightColor={DIG_LIP}
+          textColor="#ffffff"
+          wiggle
+          style={slab}
         >
-          <img
-            className="rr-carrot-px"
-            src={CARROT_URL}
-            alt=""
-            aria-hidden
-            draggable={false}
-            width={carrotW}
-            height={carrotH}
-            style={{ display: 'block', flexShrink: 0, transform: 'rotate(45deg)' }}
-          />
-          <span style={textCol}>
-            {/* The verb keeps its white and gets the slab's own shadow under
-                it; the state line goes to DARK ink. Cream on this orange
-                measured 2:1, and the line is the one that says whether the
-                next run is affordable. */}
-            <span style={{ ...verb, textShadow: `0 2px 0 ${DIG_SHADOW}` }}>DIG</span>
-            <span style={{ ...line, color: DIG_INK }}><Parts parts={digParts} /></span>
+          <span style={face}>
+            <img
+              className="rr-carrot-px"
+              src={CARROT_URL}
+              alt=""
+              aria-hidden
+              draggable={false}
+              width={carrotW}
+              height={carrotH}
+              style={{ display: 'block', flexShrink: 0, transform: 'rotate(45deg)' }}
+            />
+            <span style={textCol}>
+              {/* The verb keeps its white and gets the slab's own shadow under
+                  it; the state line goes to DARK ink. Cream on this orange
+                  measured 2:1, and the line is the one that says whether the
+                  next run is affordable. */}
+              <span style={{ ...verb, textShadow: `0 2px 0 ${DIG_SHADOW}` }}>DIG</span>
+              <span style={{ ...line, color: DIG_INK }}><Parts parts={digParts} /></span>
+            </span>
           </span>
-        </span>
-        {pointed === 'dig' && <span className="rr-hub-badge" style={badge} aria-hidden>!</span>}
-        {/* The haul, standing on the slab it came from. Outside the slab's
-            box (see `.rr-home-haul`) and transparent to the pointer, so it
-            never takes a press meant for DIG. */}
+          {pointed === 'dig' && <PxPanel color={BADGE} className="rr-hub-badge" style={badge}>!</PxPanel>}
+        </PxButton>
+        {/* The haul, standing on the slab it came from. In the cell, outside
+            the slab's box (see `.rr-home-haul`), and transparent to the
+            pointer, so it never takes a press meant for DIG. */}
         {broughtHome && (
           <span key={broughtHome.key} className="rr-home-haul" role="status">
-            <span className="rr-home-haul-n">
-              <img
-                className="rr-carrot-px"
-                src={CARROT_URL}
-                alt=""
-                aria-hidden
-                draggable={false}
-                width={Math.round((CARROT_SIZE.width / CARROT_SIZE.height) * 20)}
-                height={20}
-                style={{ display: 'block', transform: 'rotate(45deg)' }}
-              />
-              +{broughtHome.amount}
-            </span>
-            <span>brought home</span>
+            <PxPanel color={GLASS} className="rr-home-haul-plate">
+              <span className="rr-home-haul-n">
+                <img
+                  className="rr-carrot-px"
+                  src={CARROT_URL}
+                  alt=""
+                  aria-hidden
+                  draggable={false}
+                  width={Math.round((CARROT_SIZE.width / CARROT_SIZE.height) * 20)}
+                  height={20}
+                  style={{ display: 'block', transform: 'rotate(45deg)' }}
+                />
+                +{broughtHome.amount}
+              </span>
+              <span>brought home</span>
+            </PxPanel>
           </span>
         )}
-      </button>
+      </div>
 
-      <span style={arrow} aria-hidden>▸</span>
+      <span className="rr-toon-in-up" style={{ ...arrow, ...enter(30) }} aria-hidden>▸</span>
 
       {/* HOME — the place you are standing in: lit, not filled. Tapping it
           opens the floor to bury traps, which is the one thing HOME does that
-          the column's cards do not. */}
-      <button
-        type="button"
-        key={`home:${pulse('home')}`}
-        className={`rr-loop-slab rr-loop-home${pulse('home') ? ' rr-tab-pop' : ''}`}
-        onClick={onHome}
-        aria-label={`Defend: bury traps. ${homeLine}`}
-        style={{ ...slab, background: TILE_SHADOW, boxShadow: `0 0 0 2px ${LAMP}` }}
-      >
-        <span
-          className="rr-loop-face"
-          style={{
-            ...face,
-            background: `linear-gradient(180deg, ${TILE_TOP} 0%, ${TILE_BOTTOM} 100%)`,
-            boxShadow: `inset 0 -3px 0 ${TILE_SHADOW}`,
-            color: INK,
-          }}
+          the column's cards do not. The lamp's gold is a pixel ring around
+          the slab (`.rr-loop-cell-lit`). */}
+      <div className="rr-loop-cell rr-loop-cell-lit rr-toon-in-up" style={enter(60)}>
+        <PxButton
+          type="button"
+          key={`home:${pulse('home')}`}
+          className={`rr-loop-slab rr-loop-home rr-ptf-fill${pulse('home') ? ' rr-tab-pop' : ''}`}
+          onClick={onHome}
+          aria-label={`Defend: bury traps. ${homeLine}`}
+          color={TILE_TOP}
+          shadowColor={TILE_SHADOW}
+          textColor={INK}
+          wiggle
+          style={slab}
         >
-          <span style={textCol}>
-            {/* DEFEND, not HOME: the three slabs are three VERBS now, like DIG
-                and RAID. "HOME" named the place you were already standing in;
-                what the slab does is open the floor to bury traps. The class
-                and the `home` key keep their name — only the word changed. */}
-            <span style={{ ...verb, color: LAMP }}>DEFEND</span>
-            <span style={{ ...line, color: home.gardenReady > 0 ? DANGER_INK : INK_DIM }}><Parts parts={homeParts} /></span>
+          <span style={face}>
+            <span style={textCol}>
+              {/* DEFEND, not HOME: the three slabs are three VERBS now, like DIG
+                  and RAID. "HOME" named the place you were already standing in;
+                  what the slab does is open the floor to bury traps. The class
+                  and the `home` key keep their name — only the word changed. */}
+              <span style={{ ...verb, color: LAMP }}>DEFEND</span>
+              <span style={{ ...line, color: home.gardenReady > 0 ? DANGER_INK : INK_DIM }}><Parts parts={homeParts} /></span>
+            </span>
           </span>
-        </span>
-        {pointed === 'home' && <span className="rr-hub-badge" style={badge} aria-hidden>!</span>}
-      </button>
+          {pointed === 'home' && <PxPanel color={BADGE} className="rr-hub-badge" style={badge}>!</PxPanel>}
+        </PxButton>
+      </div>
 
-      <span style={arrow} aria-hidden>▸</span>
+      <span className="rr-toon-in-up" style={{ ...arrow, ...enter(90) }} aria-hidden>▸</span>
 
       {/* RAID — takes what others left outside. The badge is the count of
           doors that will open; the line is the one worth walking to. */}
-      <button
-        type="button"
-        key={`raid:${pulse('raid')}`}
-        className={`rr-loop-slab rr-loop-raid${pulse('raid') ? ' rr-tab-pop' : ''}`}
-        onClick={onRaid}
-        aria-label={`Raid. ${raidLine}`}
-        style={{ ...slab, background: TILE_SHADOW }}
-      >
-        <span
-          className="rr-loop-face"
-          style={{
-            ...face,
-            background: `linear-gradient(180deg, ${TILE_TOP} 0%, ${TILE_BOTTOM} 100%)`,
-            boxShadow: `inset 0 -3px 0 ${TILE_SHADOW}`,
-            color: INK,
-          }}
+      <div className="rr-loop-cell rr-toon-in-up" style={enter(120)}>
+        <PxButton
+          type="button"
+          key={`raid:${pulse('raid')}`}
+          className={`rr-loop-slab rr-loop-raid rr-ptf-fill${pulse('raid') ? ' rr-tab-pop' : ''}`}
+          onClick={onRaid}
+          aria-label={`Raid. ${raidLine}`}
+          color={TILE_TOP}
+          shadowColor={TILE_SHADOW}
+          textColor={INK}
+          wiggle
+          style={slab}
         >
-          <span style={textCol}>
-            <span style={verb}>RAID</span>
-            <span style={{ ...line, color: raid.best ? DANGER_INK : INK_DIM }}><Parts parts={raidParts} /></span>
-            {raid.bombs > 0 && <span style={{ ...line, color: INK_DIM }}>{raid.bombs} bomb{raid.bombs === 1 ? '' : 's'} in the bag</span>}
+          <span style={face}>
+            <span style={textCol}>
+              <span style={verb}>RAID</span>
+              <span style={{ ...line, color: raid.best ? DANGER_INK : INK_DIM }}><Parts parts={raidParts} /></span>
+              {raid.bombs > 0 && <span style={{ ...line, color: INK_DIM }}>{raid.bombs} bomb{raid.bombs === 1 ? '' : 's'} in the bag</span>}
+            </span>
           </span>
-        </span>
-        {/* RED ONLY FOR NEWS. The quest pointing here is a "!" in red, like
-            DIG and HOME. The number of open burrows is a standing count, so it
-            takes the quiet chip — a red "20" read as twenty unread things,
-            and the target list has nothing marked new to match it. */}
-        {pointed === 'raid' ? (
-          <span className="rr-hub-badge" style={badge} aria-hidden>!</span>
-        ) : raid.open > 0 ? (
-          <span style={countChip} aria-hidden>{raid.open}</span>
-        ) : null}
-      </button>
+          {/* RED ONLY FOR NEWS. The quest pointing here is a "!" in red, like
+              DIG and HOME. The number of open burrows is a standing count, so it
+              takes the quiet chip — a red "20" read as twenty unread things,
+              and the target list has nothing marked new to match it. */}
+          {pointed === 'raid' ? (
+            <PxPanel color={BADGE} className="rr-hub-badge" style={badge}>!</PxPanel>
+          ) : raid.open > 0 ? (
+            <PxPanel color={CHIP} style={{ ...badge, color: CHIP_INK }}>{raid.open}</PxPanel>
+          ) : null}
+        </PxButton>
+      </div>
 
       {/* The loop closes: a drawn arrow, not a glyph the pixel face lacks. */}
-      <svg style={{ ...arrow, opacity: 0.6 }} width="18" height="18" viewBox="0 0 18 18" aria-hidden>
+      <svg className="rr-toon-in-up" style={{ ...arrow, opacity: 0.6, ...enter(150) }} width="18" height="18" viewBox="0 0 18 18" aria-hidden>
         <path d="M14 9a5 5 0 1 1-1.5-3.5" fill="none" stroke="#f5e6d3" strokeWidth="2" strokeLinecap="round" />
         <path d="M12 2v4h-4" fill="none" stroke="#f5e6d3" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
@@ -347,34 +352,39 @@ function Parts({ parts }: { parts: string[] }) {
   );
 }
 
+/** The entrance's stagger, per piece: the whole floor is up in ~0.5s. */
+function enter(ms: number): CSSProperties {
+  return { ['--rr-toon-delay' as string]: `${ms}ms` } as CSSProperties;
+}
+
+/** Size only: the look is `PxButton`'s. The cell gives it its share of the bar. */
 const slab: CSSProperties = {
-  position: 'relative',
-  display: 'block',
-  flex: '1 1 0',
+  width: '100%',
   minWidth: 0,
   height: 'clamp(52px, 10.4svh, 80px)',
   padding: 0,
-  border: 'none',
-  borderRadius: 14,
-  overflow: 'visible',
   pointerEvents: 'auto',
-  boxSizing: 'border-box',
 };
 
+/**
+ * The slab's contents over its face (`.rr-ptf-fill` stretches the kit's
+ * content box to the face). The kit's button type is uppercase, bold and
+ * tracked; the state lines are the web pixel face in their own case, so this
+ * resets all three.
+ */
 const face: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: 10,
   width: '100%',
-  height: 'calc(100% - 4px)',
-  padding: '0 14px',
+  height: '100%',
+  padding: `0 calc(${PX} * 5)`,
   boxSizing: 'border-box',
-  borderRadius: 14,
-  position: 'absolute',
-  top: 0,
-  left: 0,
-  transition: 'transform 90ms ease-out',
   textAlign: 'left',
+  textTransform: 'none',
+  letterSpacing: 'normal',
+  fontWeight: 400,
+  whiteSpace: 'normal',
 };
 
 const textCol: CSSProperties = {
@@ -413,29 +423,29 @@ const arrow: CSSProperties = {
   textShadow: '0 2px 0 rgba(0,0,0,0.4)',
 };
 
+/** A standing number's chip: the badge's shape in dark and cream, not red. */
+const CHIP = '#2a1810';
+const CHIP_INK = '#fde7bd';
+
+/**
+ * The corner badge, as a small pixel panel. Hung off the slab's top-right
+ * corner: the content box starts one button-pixel down (`.rr-ptf-fill`), so
+ * the offset reaches back up by that much.
+ */
 const badge: CSSProperties = {
   position: 'absolute',
-  right: -6,
-  top: -6,
+  right: -7,
+  top: 'calc(-8px - var(--u))',
   minWidth: 22,
-  height: 22,
-  padding: '0 6px',
+  padding: '3px 4px 2px',
   boxSizing: 'border-box',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  background: BADGE,
   color: '#ffffff',
-  borderRadius: 11,
   fontFamily: 'var(--font-pixel), ui-monospace, monospace',
   fontSize: 11,
-  boxShadow: '0 2px 0 rgba(0,0,0,0.4)',
-};
-
-/** A standing number on a slab: the badge's shape in dark and cream, not red. */
-const countChip: CSSProperties = {
-  ...badge,
-  background: '#2a1810',
-  color: '#fde7bd',
-  border: '2px solid #6b4526',
+  lineHeight: 1,
+  letterSpacing: 'normal',
+  pointerEvents: 'none',
 };

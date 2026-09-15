@@ -12,10 +12,31 @@
  * Top-right because that is where a wallet lives in every app a Solana player
  * has already used — this is not the place to be original.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { useWalletLogin } from '@/components/use-wallet-login';
 import { ProfileMenu } from '@/components/profile-menu';
 import { avatarSrc, AVATAR_FRAME } from '@/lib/game/avatars';
+import { PX, PxButton, pxLabel } from '@/components/px';
+
+/* The chip's colours, as the stylesheet gave them: the dark panel face, the
+   page ground under it for a bevel, the border's grey for its gloss, and the
+   crown gold for a signed-in name. */
+const FACE = '#161b22';
+const BEVEL = '#0d1117';
+const GLOSS = '#30363d';
+const INK = '#e6edf3';
+const CROWN = '#ffd45c';
+
+/** The codex's pixel button at the top bar's 44px chip height, in web type. */
+const chip: CSSProperties = {
+  height: 44,
+  padding: `0 calc(${PX} * 4) calc(${PX} * 5)`,
+  fontFamily: pxLabel.fontFamily,
+  fontSize: 12,
+  fontWeight: 400,
+  letterSpacing: 'normal',
+  textTransform: 'none',
+};
 
 export function WalletButton() {
   const { player, token, busy, error, takenBy, login, linkWallet, logout, applyProfile } =
@@ -41,16 +62,30 @@ export function WalletButton() {
 
   if (!player) {
     return (
-      <button className="rr-wallet" onClick={login} disabled={busy}>
-        {busy ? 'Waiting...' : 'Connect wallet'}
-      </button>
+      <PxButton
+        className="rr-wallet"
+        onClick={login}
+        disabled={busy}
+        color={FACE}
+        shadowColor={BEVEL}
+        highlightColor={GLOSS}
+        textColor={INK}
+        style={chip}
+      >
+        <span>{busy ? 'Waiting...' : 'Connect wallet'}</span>
+      </PxButton>
     );
   }
 
   return (
     <>
-      <button
+      <PxButton
         className="rr-wallet connected"
+        color={FACE}
+        shadowColor={BEVEL}
+        highlightColor={GLOSS}
+        textColor={CROWN}
+        style={chip}
         onClick={() => setOpen(true)}
         title={error ?? player.wallet ?? 'Guest burrow. Connect a wallet to keep it.'}
         aria-haspopup="dialog"
@@ -79,7 +114,7 @@ export function WalletButton() {
         {/* Unread raids ride on the chip: being robbed while away is only
             useful news if the game tells you before you go looking. */}
         {unseen > 0 && <em className="rr-badge">{unseen}</em>}
-      </button>
+      </PxButton>
 
       {open && token && (
         <ProfileMenu

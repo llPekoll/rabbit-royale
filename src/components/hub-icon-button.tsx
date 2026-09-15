@@ -16,12 +16,17 @@
  * against the cards' warm `#2a180e`. That is deliberate in the reference and
  * worth keeping — these are the CHROME (settings, standings), not the burrow's
  * own furniture, and the colour is what says so before the icon does.
+ *
+ * THE CODEX'S BUTTON (`PxButton`), in that same cool grey: the rim is its
+ * gloss, the cast shadow its bevel. It squashes on a press but does not
+ * wiggle — a toolbar that shakes on every tap is noise. It drops in from above
+ * when it mounts (`.rr-ptf-drop`, px-top-floor.css).
  */
 import type { CSSProperties, ReactNode } from 'react';
+import { PxButton, PxPanel } from './px';
 
 /* ── Sampled from the reference ────────────────────────────────────────── */
 const FACE_TOP = '#3a3936';
-const FACE_BOTTOM = '#24231f';
 /** The lit top edge — these slabs catch light the way the cards' rims do. */
 const RIM = '#4e5158';
 const SHADOW = '#121210';
@@ -55,26 +60,30 @@ export function HubIconButton({
 }: HubIconButtonProps) {
   const corner = badgeText ?? (count && count > 0 ? (count > 99 ? '99+' : String(count)) : null);
   return (
-    <button
+    <PxButton
       type="button"
-      className="rr-hub-icon"
+      className="rr-hub-icon rr-ptf-fill rr-ptf-drop"
       onClick={onClick}
       aria-label={label}
       aria-pressed={pressed}
-      style={{
-        ...button,
-        // Open reads as pressed: the face lifts rather than the border
-        // changing, so the button does not appear to resize.
-        background: pressed
-          ? `linear-gradient(180deg, ${RIM} 0%, ${FACE_TOP} 100%)`
-          : `linear-gradient(180deg, ${FACE_TOP} 0%, ${FACE_BOTTOM} 100%)`,
-      }}
+      // Open reads as pressed: the cap sinks and the face takes the rim's
+      // lighter grey, so the button does not appear to resize.
+      pressed={pressed}
+      color={pressed ? RIM : FACE_TOP}
+      shadowColor={SHADOW}
+      highlightColor={RIM}
+      style={button}
     >
       <span style={glyph} aria-hidden>{children}</span>
       {corner && (
-        <span style={tone === 'news' ? badge : countChip} aria-hidden>{corner}</span>
+        <PxPanel
+          color={tone === 'news' ? BADGE : '#2a1810'}
+          style={{ ...badge, color: tone === 'news' ? '#ffffff' : '#fde7bd' }}
+        >
+          {corner}
+        </PxPanel>
       )}
-    </button>
+    </PxButton>
   );
 }
 
@@ -84,18 +93,13 @@ export function HubIconButton({
  * square would be a quarter of the screen's height.
  */
 const button: CSSProperties = {
-  position: 'relative',
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
   width: 'clamp(34px, 11svh, 68px)',
   height: 'clamp(34px, 11svh, 68px)',
+  minWidth: 'clamp(34px, 11svh, 68px)',
   flexShrink: 0,
   padding: 0,
-  border: `2px solid ${RIM}`,
-  borderRadius: 12,
-  boxShadow: `0 3px 0 ${SHADOW}`,
   pointerEvents: 'auto',
+  letterSpacing: 'normal',
 };
 
 const glyph: CSSProperties = {
@@ -106,32 +110,29 @@ const glyph: CSSProperties = {
   lineHeight: 1,
 };
 
-/** Hangs off the top-right corner, like the launcher tiles' own badge. */
+/**
+ * Hangs off the top-right corner, like the launcher tiles' own badge — a
+ * small pixel panel in the red (news) or in the chrome's dark and cream
+ * (a standing number). Transparent to the pointer: the corner is still the
+ * button's.
+ */
 const badge: CSSProperties = {
   position: 'absolute',
-  top: -6,
-  right: -6,
+  /* The content box starts one button-pixel down (`.rr-ptf-fill`); this puts
+     the badge back on the button's own corner. */
+  top: 'calc(-7px - var(--u))',
+  right: -7,
   minWidth: 18,
-  height: 18,
-  paddingInline: 4,
+  padding: '2px 3px',
   boxSizing: 'border-box',
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  borderRadius: 9,
-  background: BADGE,
-  color: '#ffffff',
   fontFamily: 'var(--font-pixel), ui-monospace, monospace',
   fontSize: 9,
+  fontWeight: 400,
   fontVariantNumeric: 'tabular-nums',
   lineHeight: 1,
-  border: '2px solid #ddccbc',
-};
-
-/** A standing number, not news: the same corner, in the chrome's own dark and cream. */
-const countChip: CSSProperties = {
-  ...badge,
-  background: '#2a1810',
-  color: '#fde7bd',
-  border: '2px solid #6b4526',
+  letterSpacing: 'normal',
+  pointerEvents: 'none',
 };

@@ -16,6 +16,14 @@
  * not move" is exactly the kind of bug that hides there.
  */
 import { Hearts } from './hearts';
+import { PxPanel } from './px';
+
+/**
+ * The strip's glass — the ground `.rr-overlay .rr-hud` gave it — now inside the
+ * codex's pixel frame. The header keeps the class and the placement; the plate
+ * carries the look and the row (`.rr-hud-plate`, px-top-floor.css).
+ */
+const GLASS = 'rgba(13, 17, 23, 0.82)';
 import type { ClientRabbit } from './use-game-socket';
 
 /**
@@ -55,6 +63,7 @@ export function RunHud({
     /* `watching` is a MODE of this strip, not decoration: it turns the row
        into two, so the label can say whose run this is in full. See the CSS. */
     <header className={`rr-hud${spectating ? ' watching' : ''}`}>
+      <PxPanel color={GLASS} className="rr-hud-plate">
       {/* Hearts first: the run's life, one lost per bomb. Digging is free, so
           this is the only thing on the strip that can end the run. */}
       <Hearts energy={subject?.energy ?? 0} />
@@ -93,6 +102,7 @@ export function RunHud({
       {spectating && (
         <small style={{ color: 'var(--crown)' }}>👁 watching {label}</small>
       )}
+      </PxPanel>
     </header>
   );
 }

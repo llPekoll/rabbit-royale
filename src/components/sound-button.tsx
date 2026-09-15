@@ -102,7 +102,9 @@ export function SoundButton() {
           shadowColor={musicMuted ? undefined : CARROT_DEEP}
           scale={UI_PIXEL}
           height={`${UI_PIXEL * 20}px`}
-          className="rr-sound-btn"
+          // The codex button's squash on a press (`.rr-px-btn`); no wiggle — a
+          // mute that shakes every time it is pressed is noise.
+          className="rr-sound-btn rr-px-btn"
           onClick={toggleMusic}
           aria-label={musicMuted ? 'Unmute music' : 'Mute music'}
           aria-pressed={musicMuted}
@@ -127,7 +129,7 @@ export function SoundButton() {
           scale={UI_PIXEL}
           height={`${UI_PIXEL * 20}px`}
           textColor={LAMP}
-          className="rr-sound-more"
+          className="rr-sound-more rr-px-btn"
           // Inline, because the kit sets its own `minWidth` inline (16 units,
           // 32px here) and that beats the stylesheet — it measured 32px wide,
           // under the 44px tap-target minimum.
@@ -163,6 +165,7 @@ function SoundToggle({
         scale={UI_PIXEL}
         labelPixel={`${UI_PIXEL}px`}
         pressed={!on}
+        className="rr-px-btn"
         onClick={onToggle}
         role="switch"
         aria-checked={on}

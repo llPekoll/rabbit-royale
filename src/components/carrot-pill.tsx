@@ -34,6 +34,7 @@ import { useEffect, useRef, type CSSProperties } from 'react';
 import { CARROT_URL, CARROT_SIZE } from '@domin8/arcade-kit/game';
 import { CarrotBurst } from '@/components/carrot-burst';
 import { groupDigits } from './hub-card';
+import { PxPanel } from './px';
 
 export interface CarrotPillProps {
   /** Carrots banked, as the server has them. */
@@ -67,16 +68,14 @@ export interface CarrotPillProps {
 
 /* ── Sampled from the reference ────────────────────────────────────────── */
 const FACE_TOP = '#3a2415';
-const FACE_BOTTOM = '#2a180e';
-const RIM = '#ddccbc';
 /** The figure — cream, the same ink the cards give a live value. */
 const INK = '#fde7bd';
 /** "carrots", and the rank line: a step quieter than the number. */
 const SUB = '#a28b7b';
-/** The [+] — the one saturated thing in the pill, because it is the action. */
-const PLUS = '#e47422';
-const PLUS_LIP = '#ffd6ae';
-const PLUS_SHADOW = '#9a4810';
+/** The rank chip: the gold badge the season board gives your own row. */
+const RANK_GOLD = '#ffd138';
+/** The carrying chip's glass — the island captions' ground. */
+const CARRY_GLASS = 'rgba(13, 17, 23, 0.82)';
 
 /**
  * A season gap, short enough to always fit the pill's rank line: whole with
@@ -123,6 +122,11 @@ export function CarrotPill({
 
   return (
     <div ref={ref} className="rr-carrot-pill" style={pill} title={`${stock} carrots banked`}>
+      {/* THE PLATE: the codex's pixel frame in the pill's own soil. Inside the
+          fixed box rather than being it, so the plate can drop in on arrival
+          (`.rr-pill-plate`, px-top-floor.css) without touching the transform
+          that centres the pill. */}
+      <PxPanel color={FACE_TOP} className="rr-pill-plate" style={plate}>
       {denyKey > 0 && <span key={denyKey} className="rr-pill-deny" aria-hidden />}
       {carrying ? (
         <span
@@ -131,7 +135,7 @@ export function CarrotPill({
           title="Carried this run: banked when you walk home"
           aria-label={`${carrying} carrots carried, not banked yet`}
         >
-          +{groupDigits(carrying)}
+          <PxPanel color={CARRY_GLASS} style={carryPlate}>+{groupDigits(carrying)}</PxPanel>
         </span>
       ) : null}
       {/* Carrots fly up behind the figure as it climbs — the loot arriving,
@@ -186,7 +190,7 @@ export function CarrotPill({
           </span>
         )}
       </span>
-
+      </PxPanel>
     </div>
   );
 }
@@ -196,18 +200,23 @@ const pill: CSSProperties = {
      It was `relative` here, which is an INLINE style and so beat the
      stylesheet's `position: fixed` outright — the pill stayed in the topbar's
      flow and sat at x 1206 of a 1376px screen instead of on its centre. The
-     burst inside it still positions against this box either way. */
+     burst inside it positions against the plate. */
   position: 'fixed',
-  display: 'inline-flex',
+  pointerEvents: 'auto',
+};
+
+/**
+ * The pill's face. The frame (`PxPanel`) replaced a 2px bone rim, a 14px
+ * radius and a soil gradient; the fill is the gradient's top tone, the one
+ * the pill read as. The padding gives back the pixel or so the frame is wider
+ * than the old rim (two source pixels, 4-6px), so the pill keeps its height.
+ */
+const plate: CSSProperties = {
+  display: 'flex',
   alignItems: 'center',
   gap: 10,
-  padding: '6px 8px 6px 12px',
+  padding: '3px 8px 3px 10px',
   boxSizing: 'border-box',
-  border: `2px solid ${RIM}`,
-  borderRadius: 14,
-  background: `linear-gradient(180deg, ${FACE_TOP} 0%, ${FACE_BOTTOM} 100%)`,
-  boxShadow: '0 3px 0 rgba(0, 0, 0, 0.35)',
-  pointerEvents: 'auto',
 };
 
 const artBox: CSSProperties = {
@@ -288,13 +297,27 @@ const rankRow: CSSProperties = {
   color: '#d8c3ab',
 };
 
-/** The rank itself, as the gold badge the season board gives your own row. */
+/**
+ * The rank itself, as the gold badge the season board gives your own row.
+ *
+ * FLAT, NOT FRAMED. It is a 10px chip on a 10px line: the codex's frame is two
+ * source pixels a side (up to 12px of height), which made the chip 23px tall
+ * and the pill 15px taller than its figure needs. Square corners and a
+ * one-pixel dark edge keep it pixel art at the size the line has.
+ */
 const rankChip: CSSProperties = {
   display: 'inline-block',
-  padding: '1px 4px',
-  borderRadius: 4,
-  background: '#ffd138',
+  padding: '2px 4px 1px',
+  background: RANK_GOLD,
+  boxShadow: '0 0 0 1px #2a180e',
   color: '#2a180e',
   fontSize: 10,
-  lineHeight: 1.2,
+  lineHeight: 1,
+};
+
+/** The haul beside the pill: a small glass plate in the pixel frame. */
+const carryPlate: CSSProperties = {
+  display: 'block',
+  padding: '1px 6px',
+  lineHeight: 1,
 };

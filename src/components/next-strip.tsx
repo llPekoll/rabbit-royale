@@ -9,41 +9,68 @@
  * the island. It never disappears: a burrow with nothing pointing anywhere is
  * a column of readings, and the loop is what this line is for.
  *
- * Gold rim like the quest card when it is done, because they are the same
- * object at two moments: "here is the next thing".
+ * Gold like the quest card when it is done, because they are the same object
+ * at two moments: "here is the next thing". It wears the codex's pixel button
+ * (`PxButton`) in the cards' soil, and the gold that was its rim is the
+ * button's gloss (and its label's ink).
  */
 import type { CSSProperties } from 'react';
 import type { NextAction } from '@/config/next-action';
+import { PX, PxButton, pxLabel } from './px';
+
+const FACE = '#2d1610';
+const BEVEL = '#1c0d08';
+const GOLD = '#ffd138';
+const INK = '#f5e6d3';
 
 export function NextStrip({ action, onClick }: { action: NextAction; onClick?(): void }) {
   return (
-    <button type="button" className="rr-next-strip" onClick={onClick} style={strip} aria-label={`Next: ${action.text}`}>
-      <span style={label}>NEXT</span>
-      <span style={text}>{action.text}</span>
-    </button>
+    <PxButton
+      type="button"
+      className="rr-next-strip"
+      onClick={onClick}
+      aria-label={`Next: ${action.text}`}
+      color={FACE}
+      shadowColor={BEVEL}
+      highlightColor={GOLD}
+      textColor={INK}
+      style={strip}
+    >
+      <span style={row}>
+        <span style={label}>NEXT</span>
+        <span style={text}>{action.text}</span>
+      </span>
+    </PxButton>
   );
 }
 
 const strip: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 10,
   width: '100%',
-  padding: '10px 14px',
+  height: 'auto',
+  minHeight: 44,
+  justifyContent: 'flex-start',
+  padding: `calc(${PX} * 3) calc(${PX} * 5) calc(${PX} * 7)`,
   boxSizing: 'border-box',
-  background: 'linear-gradient(180deg, #2d1610 0%, #1c0d08 100%)',
-  border: '2px solid #ffd138',
-  borderRadius: 12,
-  boxShadow: '0 3px 0 rgba(0, 0, 0, 0.35)',
   textAlign: 'left',
+  whiteSpace: 'normal',
+  textTransform: 'none',
+  letterSpacing: 'normal',
+  fontWeight: 400,
   pointerEvents: 'auto',
 };
 
+const row: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  minWidth: 0,
+};
+
 const label: CSSProperties = {
-  fontFamily: 'var(--font-pixel), ui-monospace, monospace',
+  ...pxLabel,
   fontSize: 11,
   letterSpacing: '0.1em',
-  color: '#ffd138',
+  color: GOLD,
   flexShrink: 0,
 };
 
@@ -51,6 +78,6 @@ const text: CSSProperties = {
   fontFamily: 'var(--font-pixel), ui-monospace, monospace',
   fontSize: 'clamp(10px, 1.6svh, 12px)',
   lineHeight: 1.3,
-  color: '#f5e6d3',
+  color: INK,
   minWidth: 0,
 };

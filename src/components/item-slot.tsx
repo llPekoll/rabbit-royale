@@ -33,6 +33,7 @@
  * of the target, overflowing the square on every side.
  */
 import type { CSSProperties, ReactNode } from 'react';
+import { PX, PxButton, PxPanel } from './px';
 
 /** A live window's ring — the lamplight the burrow uses for things running. */
 export const SLOT_LIVE = '#ffb238';
@@ -40,6 +41,15 @@ export const SLOT_LIVE = '#ffb238';
 export const SLOT_OFF = '#4a2f1d';
 /** A held count's chip — the carrot the rest of the column uses for counts. */
 export const SLOT_CHIP = '#e4762b';
+/** The square's ground — packed soil. */
+const SLOT_FACE = '#2a1810';
+/** Its bevel: the soil's underside. */
+const SLOT_BEVEL = '#1d100a';
+
+/** A pixel ring in lamplight that follows the button's stepped silhouette. */
+const LIVE_RING = [`${PX} 0`, `calc(-1 * ${PX}) 0`, `0 ${PX}`, `0 calc(-1 * ${PX})`]
+  .map((o) => `drop-shadow(${o} 0 ${SLOT_LIVE})`)
+  .join(' ');
 
 export interface ItemSlotProps {
   /** The sprite, when the game has one for this thing. */
@@ -70,15 +80,26 @@ export function ItemSlot({
   const dim = !pressable && !live && !lit;
 
   return (
-    <button
+    /* THE CODEX'S BUTTON (`PxButton`) in the soil the square always had. Its
+       old border is now its gloss — lamplight when a window is running, the
+       plank edge otherwise — and a running slot also takes a pixel ring
+       (`filter`) following the button's stepped silhouette, because the gloss
+       alone is too quiet for the one place the fact appears. A slot with
+       nothing to press sits SUNK (`pressed`): a recess, not a key. */
+    <PxButton
       type="button"
+      className="rr-item-slot rr-ptf-fill"
       onClick={pressable ? onClick : undefined}
       disabled={!pressable}
+      pressed={!pressable}
       aria-label={label}
       title={label}
+      color={SLOT_FACE}
+      shadowColor={SLOT_BEVEL}
+      highlightColor={live ? SLOT_LIVE : SLOT_OFF}
       style={{
         ...slotButton,
-        borderColor: live ? SLOT_LIVE : SLOT_OFF,
+        filter: live ? LIVE_RING : undefined,
         /* DIMMED BY ITS CONTENTS, NOT BY ITS OPACITY.
            `button:disabled { opacity: 0.5 }` in globals.css is right for a
            slab on a panel and wrong here: these squares sit over the island,
@@ -87,7 +108,8 @@ export function ItemSlot({
            opposite of what "you have none" should look like. (The launcher
            tiles opt out of the same rule, for the same reason, a few lines
            further down that file.) So the square keeps its opaque ground and
-           the ART fades instead. */
+           the ART fades instead. The kit's own disabled grey is lifted in
+           px-top-floor.css for the same reason. */
         opacity: 1,
         // A read-only slot must not wear the denied cursor: it is not refusing
         // a press, it was never a control.
@@ -104,7 +126,7 @@ export function ItemSlot({
           aria-hidden
           style={{
             ...slotArt,
-            width: `calc(var(--rr-slot) * 0.66 * ${aspect})`,
+            width: `calc(var(--rr-slot) * 0.56 * ${aspect})`,
             opacity: dim ? 0.4 : 1,
           }}
         />
@@ -114,11 +136,11 @@ export function ItemSlot({
         </span>
       )}
       {chip && (
-        <span style={{ ...slotChip, background: live ? SLOT_LIVE : SLOT_CHIP }}>
+        <PxPanel color={live ? SLOT_LIVE : SLOT_CHIP} style={slotChip}>
           {chip}
-        </span>
+        </PxPanel>
       )}
-    </button>
+    </PxButton>
   );
 }
 
@@ -144,10 +166,7 @@ const slotButton: CSSProperties = {
   alignItems: 'center',
   justifyContent: 'center',
   padding: 0,
-  borderRadius: 5,
-  borderStyle: 'solid',
-  borderWidth: 2,
-  background: '#2a1810',
+  letterSpacing: 'normal',
   /* The slots sit inside a container the HUD lays over the canvas, which turns
      pointer events off wholesale; anything that wants presses turns them on. */
   pointerEvents: 'auto',
@@ -166,13 +185,15 @@ const slotArt: CSSProperties = {
   // Height is the constraint (the square is the square); the width follows the
   // art's own aspect so nothing is stretched — the same rule
   // `chest-prize.tsx` applies to the identical files.
-  height: 'calc(var(--rr-slot) * 0.66)',
+  // 0.56, not the old bordered square's 0.66: the pixel frame and the bevel
+  // take more of the square than a 2px border did.
+  height: 'calc(var(--rr-slot) * 0.56)',
   display: 'block',
 };
 
 /** The emoji stand-in, for the kinds the game has no sprite for. */
 const slotGlyph: CSSProperties = {
-  fontSize: 'calc(var(--rr-slot) * 0.5)',
+  fontSize: 'calc(var(--rr-slot) * 0.44)',
   lineHeight: 1,
   // Emoji ignore `color`, so nothing here tints it; the square around it is
   // what carries the state.
@@ -187,19 +208,21 @@ const slotGlyph: CSSProperties = {
  */
 const slotChip: CSSProperties = {
   position: 'absolute',
-  right: -3,
-  bottom: -3,
+  right: -4,
+  // The content box stops above the bevel (`.rr-ptf-fill`); this reaches back
+  // past it to the square's own bottom edge.
+  bottom: 'calc(-4px - var(--u) * 4)',
   minWidth: 11,
-  height: 11,
-  paddingInline: 2,
+  padding: 0,
   boxSizing: 'border-box',
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  borderRadius: 3,
   fontFamily: 'var(--font-pixel), ui-monospace, monospace',
   fontSize: 8,
+  fontWeight: 400,
   lineHeight: 1,
   color: '#2a1810',
   fontVariantNumeric: 'tabular-nums',
+  pointerEvents: 'none',
 };

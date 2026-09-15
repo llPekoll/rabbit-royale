@@ -17,6 +17,14 @@
  * the same alphabet.
  */
 import { ARROW_URLS, ARROW_SIZE, type ArrowDir } from '@domin8/arcade-kit';
+import { PxPanel } from './px';
+
+/**
+ * The word's plate: the codex's pixel frame in the island captions' glass, so
+ * "HOME" stands on a panel over any art instead of on a text-shadow alone. The
+ * arrow under it stays bare — it is the sprite that moves.
+ */
+const PLATE = 'rgba(13, 17, 23, 0.82)';
 
 export interface GoButtonProps {
   dir: Extract<ArrowDir, 'up' | 'down'>;
@@ -63,7 +71,9 @@ export function GoButton({ dir, label, onClick, disabled, away }: GoButtonProps)
           <button> itself stays still so its hit area does not travel under
           the thumb. */}
       <span className="rr-go-inner">
-        <span className="rr-go-label">{label}</span>
+        <PxPanel color={PLATE} className="rr-go-label" style={{ padding: '4px 10px 3px', lineHeight: 1 }}>
+          {label}
+        </PxPanel>
         <Arrow dir={dir} size={size} />
       </span>
     </button>

@@ -1,3 +1,160 @@
 /* Pixel chrome overrides for the top bar and the floor (carrot pill, wallet
    chip, icon buttons, loop bar, back button, kit, HUD strip). Owned by one
    rollout pass; see src/components/px.tsx. Loaded after globals.css. */
+
+/* ── A kit button whose content fills its face ─────────────────────────────
+   The kit centres its children in an inline span sized to them, so a corner
+   badge or a count chip positioned inside it hung off the GLYPH, not the
+   button. `.rr-ptf-fill` stretches that span over the face — one button-pixel
+   down from the top, four up from the bottom, which is the same centre the
+   kit's own padding gives a label — so absolute children land on the
+   button's corners. `!important` because the kit writes the span's position
+   inline. The press still sinks it (the kit's :active transform). */
+.rr-ptf-fill > .nine-btn__content {
+  position: absolute !important;
+  top: calc(var(--u) * 1) !important;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--u) * 4);
+  justify-content: center;
+}
+
+/* ── Toon entrances: the top bar drops in ──────────────────────────────────
+   `backwards`, not the shared classes' `both`: these land on the buttons
+   themselves, and an animation that holds `transform: none` after it ends
+   would override the press squash (`.rr-px-btn:active`) forever. Same curve
+   and timing as `.rr-toon-in-down`; the whole bar is in place by ~0.57s. */
+.rr-ptf-drop {
+  animation: rr-toon-in-down 380ms cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+  animation-delay: var(--rr-toon-delay, 0ms);
+}
+.rr-topbar .rr-hub-icon[aria-label="Shop"] { --rr-toon-delay: 90ms; }
+.rr-topbar .rr-hub-icon[aria-label="Story"] { --rr-toon-delay: 140ms; }
+.rr-lb-launch .rr-hub-icon { --rr-toon-delay: 190ms; }
+/* The chip and the pill live on every screen, so a mount animation would play
+   once per session. Keyed on the loop bar instead: the animation's NAME
+   appears when the burrow's floor does, which starts it — every arrival home
+   (from the island, from a raid) drops them in again, and placing, which keeps
+   the bar mounted, does not. The pill animates its inner plate: the outer box
+   is centred by a transform. */
+body:has(.rr-loop-bar) .rr-wallet,
+body:has(.rr-loop-bar) .rr-pill-plate {
+  animation: rr-toon-in-down 380ms cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+}
+body:has(.rr-loop-bar) .rr-pill-plate { animation-delay: 45ms; }
+
+/* ── The loop bar ──────────────────────────────────────────────────────────
+   Each slab stands in a cell: the cell rises (`.rr-toon-in-up`, which holds
+   its transform), the slab inside squashes and wiggles on its own. The cell
+   also holds the haul toast, outside the slab's box. */
+.rr-loop-cell {
+  position: relative;
+  display: flex;
+  flex: 1 1 0;
+  min-width: 0;
+}
+.rr-loop-cell > .rr-loop-slab { flex: 1 1 auto; min-width: 0; }
+/* The face-sink rule for the old plinth slabs; the kit sinks its own cap. */
+.rr-loop-slab:active .rr-loop-face { transform: none; }
+/* DEFEND is the place you stand in, lit with the lamp: a gold pixel ring that
+   follows the button's own stepped silhouette (four hard drop-shadows). On
+   the cell, because the kit's hover writes `filter` on the button. */
+.rr-loop-cell-lit {
+  --rr-ring: clamp(2px, 0.4svh, 3px);
+  filter:
+    drop-shadow(var(--rr-ring) 0 0 #ffd138)
+    drop-shadow(calc(-1 * var(--rr-ring)) 0 0 #ffd138)
+    drop-shadow(0 var(--rr-ring) 0 #ffd138)
+    drop-shadow(0 calc(-1 * var(--rr-ring)) 0 #ffd138);
+}
+/* A pop's `both` fill would pin the slab's transform after it ends and kill
+   the squash on every later press. */
+.rr-px-btn.rr-tab-pop { animation-fill-mode: backwards; }
+@media (max-width: 720px) and (orientation: portrait) {
+  .rr-loop-bar > .rr-loop-cell { width: 100%; flex: none; }
+  .rr-loop-cell > .rr-loop-slab { height: 48px !important; }
+}
+
+/* The haul toast: the glass moves onto a pixel plate inside it, so the outer
+   box keeps only its placement and its animation. */
+.rr-home-haul {
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.rr-home-haul-plate {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 12px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+@media (max-width: 720px) and (orientation: portrait) {
+  .rr-home-haul-plate { flex-direction: column; align-items: flex-start; gap: 6px; }
+}
+
+/* ── The carrot pill ───────────────────────────────────────────────────── */
+/* The refusal flush follows the pixel frame's outer edge, not a 14px round. */
+.rr-pill-deny {
+  inset: calc(-1 * clamp(2px, 0.4svh, 3px));
+  border-radius: 4px;
+}
+/* The carrying chip's glass is its inner plate's now. */
+.rr-pill-carrying {
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+}
+
+/* ── The wallet chip ───────────────────────────────────────────────────── */
+/* The name ellipsises inside the kit's content span, which must be allowed to
+   shrink under the chip's 20% cap. */
+.rr-wallet > .nine-btn__content { min-width: 0; max-width: 100%; }
+.rr-wallet .rr-guest-tag { border-radius: 0; border-width: 2px; line-height: 12px; }
+.rr-wallet .rr-badge { border-radius: 0; box-shadow: 0 0 0 2px #0d1117; }
+
+/* ── The kit's slots ───────────────────────────────────────────────────── */
+/* A read-only slot is disabled, and the kit greys and darkens a disabled
+   button. A readout is not a refusal: the art fades instead (item-slot.tsx). */
+.rr-item-slot.nine-btn:disabled { filter: none; }
+
+/* ── The island's HUD strip ───────────────────────────────────────────────
+   The glass and the layout move onto the pixel plate inside the header. */
+.rr-hud:has(> .rr-hud-plate),
+.rr-overlay .rr-hud:has(> .rr-hud-plate) {
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.rr-hud-plate {
+  display: flex;
+  align-items: center;
+  justify-content: inherit;
+  gap: inherit;
+  row-gap: inherit;
+  flex-wrap: inherit;
+  min-width: 0;
+  padding: 5px 10px;
+  box-sizing: border-box;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.rr-hud.watching .rr-hud-plate > small {
+  flex-basis: 100%;
+  text-align: center;
+  margin-top: -2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rr-ptf-drop,
+  body:has(.rr-loop-bar) .rr-wallet,
+  body:has(.rr-loop-bar) .rr-pill-plate { animation: none; }
+}
