@@ -94,6 +94,35 @@ export class PanZoomGestures {
    * cancelled touch would turn the NEXT single finger into a pinch.
    */
   private readonly onCancel = (e: PointerEvent) => { this.pointers.delete(e.pointerId); };
+  /**
+   * The DOM saw a pointer lift. Pixi's own `pointerup` is the one that resolves
+   * a tap, and this does NOT resolve anything — it only makes sure the map
+   * cannot keep a pointer Pixi never told us about.
+   *
+   * Pixi delivers `pointerup` to a container only while the pointer is over
+   * something it hit-tests, and `pointerupoutside` only to the container the
+   * press started on. A second finger that goes down on the HUD, on a tile
+   * whose sprite is re-parented mid-gesture, or outside the canvas entirely,
+   * can therefore lift without either firing — and the entry it left behind is
+   * indistinguishable from a finger still on the glass. The next single touch
+   * then sees `size >= 1`, is classified as the second half of a pinch, and
+   * `dragged` latches true: every tap from then on is refused and no trap can
+   * ever be placed again. That is the placement deadlock this guards.
+   *
+   * WHY IT IS DEFERRED. Pixi's own `pointerup` listener is bound on `window`
+   * in the capture phase too, so whether it or this one runs first is decided
+   * purely by which was registered first — Pixi's `EventSystem` at app
+   * startup, this at scene setup, so today Pixi wins and `up()` resolves the
+   * tap before this can empty the map. That is the correct order and it is an
+   * accident of setup order. Draining on a microtask makes it the order by
+   * construction: every synchronous listener, Pixi's included, has run by the
+   * time this does, so a real tap is always resolved and only a pointer that
+   * nobody claimed is swept.
+   */
+  private readonly onDomUp = (e: PointerEvent) => {
+    const id = e.pointerId;
+    queueMicrotask(() => this.pointers.delete(id));
+  };
   private readonly onBlur = () => { this.pointers.clear(); };
 
   constructor(
@@ -116,6 +145,8 @@ export class PanZoomGestures {
     this.target.on('pointerupoutside', this.onUp);
     if (typeof window !== 'undefined') {
       window.addEventListener('pointercancel', this.onCancel);
+      // Capture, so it runs even if something downstream stops propagation.
+      window.addEventListener('pointerup', this.onDomUp, true);
       window.addEventListener('blur', this.onBlur);
     }
   }
@@ -127,6 +158,7 @@ export class PanZoomGestures {
     this.target.off('pointerupoutside', this.onUp);
     if (typeof window !== 'undefined') {
       window.removeEventListener('pointercancel', this.onCancel);
+      window.removeEventListener('pointerup', this.onDomUp, true);
       window.removeEventListener('blur', this.onBlur);
     }
     this.pointers.clear();

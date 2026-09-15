@@ -40,9 +40,9 @@
  * landscape space that is a 47-54px tile filling 65-82% of the frame.
  *
  * Placement is the one screen where a cell is a TARGET rather than a thing to
- * look at, so it now opens twice as close (`PLACE_ZOOM`) and is driven like the
- * island: pinch/wheel to zoom, drag to pan, within limits that cannot lose the
- * board. Zoomed all the way out is exactly the old fit, so nothing is taken
+ * look at, so it opens closer than the fit (`PLACE_ZOOM_OPEN`) and is driven
+ * like the island: pinch/wheel to zoom, drag to pan, within limits that cannot
+ * lose the board. Zoomed all the way out is exactly the old fit, so nothing is taken
  * away — the shot the screen used to open on is one gesture from where it now
  * opens.
  */
@@ -137,17 +137,33 @@ export function boardCam(seed: string, W: number = GAME_W, H: number = GAME_H): 
 }
 
 /**
- * How much closer placement opens than the fit `boardCam` gives.
+ * The closest placement may be pinched in to, as a multiple of the fit.
  *
- * Two, asked for directly and confirmed by measurement: the fit spends the
- * frame's height on sea (65-82% filled in landscape, and the width is what
- * binds), so doubling the scale is what it takes for a cell to read as a
- * target. It is a MULTIPLE of the fit rather than a tile size like the
- * island's `DEFAULT_TILE_PX`, because the fit already absorbs the seed's shape
- * and the viewport's — a constant tile size would re-introduce the per-seed
- * framing problem the fit exists to solve.
+ * It is a MULTIPLE of the fit rather than a tile size like the island's
+ * `DEFAULT_TILE_PX`, because the fit already absorbs the seed's shape and the
+ * viewport's — a constant tile size would re-introduce the per-seed framing
+ * problem the fit exists to solve.
+ *
+ * WHY THE CEILING IS ABOVE THE OPENING SHOT. It used to be the same number,
+ * and that is what made the pinch feel broken: the screen opened AT the
+ * ceiling, so half of every pinch — the half that pulls the board closer —
+ * moved nothing at all. A gesture that answers in one direction only reads as
+ * a stuck board rather than as a limit, and the fix is to open inside the
+ * range instead of on its edge.
  */
-const PLACE_ZOOM = 2;
+const PLACE_ZOOM_MAX = 3;
+
+/**
+ * How close placement OPENS, as a multiple of the fit.
+ *
+ * The fit spends the frame's height on sea (65-82% filled in landscape, and
+ * the width is what binds), so it takes more than the fit for a cell to read
+ * as a target. 1.5 rather than the 2 this opened on at first: at 2 the board
+ * is a keyhole on a phone — the outer cells are off-screen, so the first thing
+ * the screen asks of the player is a pan, before they have seen what they are
+ * choosing between. Both directions of the pinch now answer from here.
+ */
+const PLACE_ZOOM_OPEN = 1.5;
 
 /**
  * How far past the board's edge it may be dragged, as a share of the frame.
@@ -164,18 +180,20 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v
  * The zoom range placement may move in, for this homestead on this screen.
  *
  * `min` is the old fit — the whole homestead in frame, which is where the
- * screen used to be nailed. `max` is the opening shot, so the player may zoom
- * OUT from where they start but not further in: past `PLACE_ZOOM` the pixel
- * art is a wall of blocks and the board becomes a keyhole, and unlike the
- * island there is nothing to inspect up close — a cell is either trappable or
- * it is not.
+ * screen used to be nailed. `max` is `PLACE_ZOOM_MAX`, comfortably ABOVE the
+ * shot placement opens on (`PLACE_ZOOM_OPEN`) so that a pinch answers in both
+ * directions from the start — when the two were the same number, pinching
+ * closer moved nothing and the board read as stuck. The ceiling still exists
+ * because past it the pixel art is a wall of blocks and the board becomes a
+ * keyhole; unlike the island there is nothing to inspect up close — a cell is
+ * either trappable or it is not.
  *
  * `Math.max` guards the degenerate screen where the fit is already past the
  * ceiling, so the range can never come back inverted.
  */
 export function placeZoomLimits(seed: string, W: number = GAME_W, H: number = GAME_H) {
   const min = boardCam(seed, W, H).scale;
-  return { min, max: Math.max(min * PLACE_ZOOM, min) };
+  return { min, max: Math.max(min * PLACE_ZOOM_MAX, min) };
 }
 
 /**
@@ -216,7 +234,11 @@ export function clampPlaceCam(
  */
 export function placeCam(seed: string, W: number = GAME_W, H: number = GAME_H): BurrowCam {
   const b = boardBounds(seed);
-  const scale = placeZoomLimits(seed, W, H).max;
+  const { min, max } = placeZoomLimits(seed, W, H);
+  // Clamped into the range rather than assumed inside it: on a screen whose
+  // fit is already past the ceiling the two collapse, and the opening shot
+  // must still be a scale the pinch can move away from in both directions.
+  const scale = clamp(min * PLACE_ZOOM_OPEN, min, max);
   return clampPlaceCam({
     scale,
     x: W / 2 - scale * (b.minX + b.maxX) / 2,
