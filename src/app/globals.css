@@ -2893,6 +2893,9 @@ button { font-family: var(--font-pixel); }
 }
 .rr-raid-target { flex: 1; }
 .rr-raid-energy { color: #ffb238; font-variant-numeric: tabular-nums; }
+/* The unit, quiet beside the figure: it exists to say which bar this is (the
+   crossing's, not the burrow's), so it must read without competing. */
+.rr-raid-energy small { font-size: 10px; opacity: .75; margin-left: 4px; }
 .rr-raid-sprung { color: #ff8a7a; font-variant-numeric: tabular-nums; }
 
 /* Smoke has to announce itself: a board with no numbers and no explanation

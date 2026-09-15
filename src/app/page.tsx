@@ -567,6 +567,27 @@ function Burrow() {
   }, [game.banked, refreshBurrow]);
 
   /**
+   * A seat was granted, so the burrow just PAID for it — go and read the bar.
+   *
+   * The other missing half, and the mirror of the effect above. Energy leaves
+   * the burrow at the crossing (`payForRun`, server/index.ts), while the only
+   * refresh was keyed on `banked`, which the server sends when a run's carrots
+   * are written — much later, and not at all for a run that banked nothing. So
+   * the bar sat at its pre-run figure for the whole run, and a player who came
+   * home empty-handed kept reading a full bank until something unrelated
+   * re-fetched it. The energy really had been spent; only the number lied.
+   *
+   * `islandSeed` is the signal because the server sends the island snapshot
+   * ONLY after the charge succeeds — a refused join gets `no_energy` instead,
+   * which has its own refresh below. Watching the seed rather than a "joined"
+   * flag also covers landing on a second island later in the same session.
+   */
+  useEffect(() => {
+    if (!game.islandSeed) return;
+    refreshBurrow();
+  }, [game.islandSeed, refreshBurrow]);
+
+  /**
    * The same refresher, reachable from the finished-raid effect.
    *
    * That effect is keyed on the raid's ID ALONE, deliberately — it must fire
