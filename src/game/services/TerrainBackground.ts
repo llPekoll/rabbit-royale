@@ -23,7 +23,7 @@ import { terrainFor, TIER_LIFT, levelTierAt } from '@/lib/game/terrainBoard';
 import { mulberry32, seedFrom } from '@/lib/game/rng';
 import { createPackWater, loadPackWater, type PackWater } from '@/game/fx/PackWater';
 import { createDucks, loadDucks, type Ducks } from '@/game/fx/Ducks';
-import { mountCloudShadows } from '@/game/fx/CloudShadowsNoise';
+import { mountSkyLight } from '@/game/fx/GodRays';
 import { WATER_LOOK, DUCK_LOOK } from '@/config/waterLook';
 import type { IslandBackground } from './IslandBackground';
 
@@ -241,8 +241,10 @@ export async function createTerrainBackground(
   sea.addChild(ducks.view);
 
   // The weather over it: cloud shadows crossing the board, sea and land
-  // alike. In the scene's container so they pan and zoom with the ground.
-  const shadows = mountCloudShadows(container, GRID_CENTER_X, GRID_CENTER_Y, {
+  // alike, AND the shafts of light that come through the gaps between them.
+  // One call because they are one sky — see `mountSkyLight`. In the scene's
+  // container so they pan and zoom with the ground.
+  const sky = mountSkyLight(container, GRID_CENTER_X, GRID_CENTER_Y, {
     halfW: HALF_W, halfH: HALF_H,
   });
 
@@ -270,13 +272,13 @@ export async function createTerrainBackground(
       island.update(deltaMs);
       water.update(deltaMs);
       ducks.update(deltaMs);
-      shadows.update(deltaMs);
+      sky.update(deltaMs);
     },
     destroy() {
       island.destroy();
       water.destroy();
       ducks.destroy();
-      shadows.destroy();
+      sky.destroy();
       sea.destroy({ children: true });
     },
   };

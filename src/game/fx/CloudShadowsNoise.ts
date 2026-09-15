@@ -246,6 +246,17 @@ export interface CloudShadowsNoise {
   readonly view: Mesh<Geometry, Shader>;
   update(deltaMs: number): void;
   set(name: keyof CloudShadowNoiseOptions, value: number): void;
+  /**
+   * La couverture EFFECTIVE de cette frame, pas celle passee aux options.
+   *
+   * La meteo la fait deriver entre `coverageMin` et `coverageMax` a chaque
+   * `update`, donc la valeur de depart ne dit plus ou est le seuil au bout de
+   * quelques secondes. Les rais de lumiere lisent ce meme seuil pour savoir
+   * ou s'eteindre (voir `fx/GodRays.ts`) : sans ce getter ils resteraient sur
+   * la couverture initiale et les deux effets decriraient deux ciels
+   * differents des que le temps change.
+   */
+  readonly coverage: number;
   destroy(): void;
 }
 
@@ -321,6 +332,7 @@ export function createCloudShadowsNoise(
 
   return {
     view,
+    get coverage() { return uniforms.uCoverage as number; },
     update(deltaMs) {
       elapsed += deltaMs / 1000;
       uniforms.uTime = elapsed;

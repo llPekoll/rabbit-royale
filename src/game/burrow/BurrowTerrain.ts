@@ -28,7 +28,7 @@ import { burrowFor, burrowColRow, burrowIndex, burrowCell } from './board';
 import { mulberry32, seedFrom } from '@/lib/game/rng';
 import { createPackWater, loadPackWater } from '@/game/fx/PackWater';
 import { createDucks, loadDucks } from '@/game/fx/Ducks';
-import { mountCloudShadows } from '@/game/fx/CloudShadowsNoise';
+import { mountSkyLight } from '@/game/fx/GodRays';
 import { WATER_LOOK, DUCK_LOOK } from '@/config/waterLook';
 import { burrowBuilding } from './buildings';
 import { burrowDepth } from './screen';
@@ -336,8 +336,9 @@ export async function createBurrowTerrain(
   sea.addChild(ducks.view);
 
   // The same weather as over the island: cloud shadows crossing the
-  // homestead, in the scene's container so they move with the camera.
-  const shadows = mountCloudShadows(
+  // homestead and the light coming through between them, in the scene's
+  // container so they move with the camera.
+  const sky = mountSkyLight(
     container,
     BURROW_ORIGIN_X,
     BURROW_ORIGIN_Y + ((BURROW_COLS + BURROW_ROWS - 2) / 2) * BURROW_HALF_H,
@@ -385,7 +386,7 @@ export async function createBurrowTerrain(
     },
     update(deltaMs) {
       island.update(deltaMs);
-      shadows.update(deltaMs);
+      sky.update(deltaMs);
       // Skipped while hidden: a raid keeps the sea invisible for its whole
       // length, and animating a flock nobody can see is work for nothing.
       if (!sea.visible) return;
@@ -397,7 +398,7 @@ export async function createBurrowTerrain(
       home.destroy();
       water.destroy();
       ducks.destroy();
-      shadows.destroy();
+      sky.destroy();
       sea.destroy({ children: true });
       island.destroy();
     },
