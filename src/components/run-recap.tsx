@@ -1,5 +1,8 @@
 'use client';
 
+import type { CSSProperties } from 'react';
+import { NineSlicePanel, PanelTitle } from '@domin8/arcade-kit';
+import { PxButton, pxLabel } from './px';
 import type { RunRecap } from './use-game-socket';
 import { FIRST_RUN_RECAP } from '@/config/first-run';
 
@@ -51,9 +54,19 @@ export function Recap({
   // refill offer would be nonsense under "Island cleared".
   const cleared = !!recap.cleared;
   return (
-    <div className="rr-card" style={{ textAlign: 'center' }}>
-      <h2 style={{ margin: '0 0 4px' }}>{cleared ? 'Island cleared!' : 'Run over'}</h2>
-      <p style={{ color: 'var(--muted)', margin: '0 0 10px' }}>
+    /* The codex's frame in the dark glass this card always sat on over the
+       board. Margins live in px-dialogs.css (`.rr-recap`), where a short
+       screen can tighten them. */
+    <NineSlicePanel
+      color={GLASS}
+      pixelScale="var(--rr-dlg-px, 3px)"
+      className="rr-card rr-recap"
+      style={{ textAlign: 'center' }}
+    >
+      <h2 className="rr-recap-title">
+        <PanelTitle>{cleared ? 'ISLAND CLEARED!' : 'RUN OVER'}</PanelTitle>
+      </h2>
+      <p className="rr-recap-stats">
         {/* The separator before the duration was missing, so a 3-bomb, 214s
             run printed "💣 3 214s" — which reads as one four-digit number. */}
         🥕 {recap.carrots} &middot; {recap.tilesDug} dug &middot; 💣 {recap.bombsHit}
@@ -62,21 +75,23 @@ export function Recap({
 
       {/* Why there is no "Again", said plainly — a button that vanished with
           no explanation reads as a broken screen. */}
-      <p className="rr-note" style={{ margin: '0 0 10px' }}>
+      <p className="rr-note">
         {cleared ? 'Every tile worth digging is dug. The volcano took the rest.' : 'Out of hearts.'}
         {first && <> {FIRST_RUN_RECAP}</>}
       </p>
       {/* The bar at home, beside what the next crossing would take from it —
           the figure both buttons below are really about. */}
       {bank && (
-        <p className="rr-note" style={{ margin: '0 0 10px', color: '#ffd138' }}>
+        <p className="rr-note" style={{ color: '#ffd138' }}>
           ⚡ {bank.energy}/{bank.max} at the burrow &middot; a run takes {bank.cost}
         </p>
       )}
+      <div className="rr-recap-actions">
       {!cleared && (
-        <button onClick={onShop} style={{ width: '100%', marginBottom: 8 }}>
-          Get more energy
-        </button>
+        // The loud one: it wiggles when pressed.
+        <PxButton color={BTN} textColor={INK} wiggle onClick={onShop} style={wide}>
+          <span style={btnText}>Get more energy</span>
+        </PxButton>
       )}
       {/* Leaving was always possible — the arrow below does it — but a player
           who has just finished is deciding between two things, and only one of
@@ -85,12 +100,31 @@ export function Recap({
           banked already, and stacking it (harvest, upgrade, bury) is the next
           verb. "Back to the burrow" named a door without saying what was
           behind it. */}
-      <button className={cleared ? undefined : 'rr-btn ghost'} onClick={onHome} style={{ width: '100%' }}>
-        Home &middot; stack it
-      </button>
-    </div>
+      {/* A ghost button was a transparent face on the card — so its face is
+          the card's own glass, with the muted ink it always had. */}
+      <PxButton
+        className={cleared ? undefined : 'rr-btn ghost'}
+        color={cleared ? BTN : GLASS}
+        textColor={cleared ? INK : MUTED}
+        onClick={onHome}
+        style={wide}
+      >
+        <span style={btnText}>Home &middot; stack it</span>
+      </PxButton>
+      </div>
+    </NineSlicePanel>
   );
 }
+
+/* ── The recap's colours, as they were ─────────────────────────────────── */
+/** The card: the overlay's dark glass (rgba(13,17,23,.82) over the board). */
+const GLASS = '#0d1117';
+/** A plain button: the app's panel face, bright ink. */
+const BTN = '#161b22';
+const INK = '#e6edf3';
+const MUTED = '#8b949e';
+const wide: CSSProperties = { width: '100%' };
+const btnText: CSSProperties = { ...pxLabel, fontSize: 13 };
 
 
 /**

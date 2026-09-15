@@ -21,6 +21,11 @@
  */
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { CloseButton, NineSlicePanel, PanelTitle } from '@domin8/arcade-kit';
+import { PxButton, PxPanel, pxLabel } from './px';
+import {
+  CARROT_BTN, CHALK, COIN_BTN, DIALOG_PX, PLANK, PLANK_LIT, SOIL, SOIL_DEEP, priceText,
+} from './shop-card';
 import type { ShopItem, ShopState } from './use-shop';
 import type { PayStage } from './use-usdc-pay';
 import { priceLabel, type PayTokenId } from '@/lib/pay/tokens';
@@ -84,23 +89,29 @@ export function EnergyPopup({
 
   return createPortal(
     <div className="rr-shop-scrim" onClick={onClose}>
-      <section
-        className="rr-shop-modal rr-energy-modal"
+      <NineSlicePanel
+        color={SOIL}
+        pixelScale={DIALOG_PX}
+        className="rr-shop-modal rr-energy-modal rr-px-dialog"
         role="dialog"
         aria-modal="true"
         aria-label="Out of energy"
         onClick={(e) => e.stopPropagation()}
       >
         <header className="rr-shop-top">
-          <h2>Out of energy</h2>
+          <h2><PanelTitle>OUT OF ENERGY</PanelTitle></h2>
           <span className="rr-shop-purse">{stock.toLocaleString()} 🥕</span>
-          <button className="rr-shop-x" onClick={onClose} aria-label="Close">&times;</button>
+          <CloseButton inline className="rr-shop-x" onClick={onClose} aria-label="Close" style={{ minWidth: 44 }} />
         </header>
 
+        {/* The middle scrolls, so a short screen keeps the title, the [X] and
+            the way to the shed on it whatever the copy wraps to. */}
+        <div className="rr-energy-body">
         {/* The bar, then the wait. Both are the reason the dialog is open, and
             the free route is stated BEFORE the paid one — a refill offered
             without the wait beside it is a toll rather than a shortcut. */}
-        <div className="rr-energy-state">
+        {/* A nested panel in the deep soil its band always was. */}
+        <PxPanel color={SOIL_DEEP} className="rr-energy-state">
           <span className="rr-energy-count">
             {energy}<i>/{maxEnergy}</i>
           </span>
@@ -113,7 +124,7 @@ export function EnergyPopup({
               : <>The bar is empty. One point comes back on its own in{' '}
                 {formatWait(nextEnergyInMs)}. Or fill it now and keep digging.</>}
           </span>
-        </div>
+        </PxPanel>
 
         <div className="rr-energy-buy">
           <span className="rr-energy-blurb">
@@ -123,32 +134,49 @@ export function EnergyPopup({
             )}
           </span>
           <div className="rr-shop-tile-buy">
-            <button
+            <PxButton
               className="rr-pay-carrot"
+              {...CARROT_BTN}
+              wiggle
               onClick={onBuy}
               disabled={busyNow || !item || !item.canBuy}
             >
-              {item ? `${item.price.toLocaleString()} 🥕` : '...'}
-            </button>
+              <span style={priceText}>{item ? `${item.price.toLocaleString()} 🥕` : '...'}</span>
+            </PxButton>
             {onPayUsdc && item && (
-              <button
+              <PxButton
                 className="rr-pay-usdc"
+                {...COIN_BTN}
+                wiggle
                 onClick={onPayUsdc}
                 disabled={busyNow || !item.hasRoom}
                 title={`$${item.usdc.toFixed(2)}`}
               >
-                {priceLabel(item.usdc, payToken, shop?.rates?.[payToken])}
-              </button>
+                <span style={priceText}>{priceLabel(item.usdc, payToken, shop?.rates?.[payToken])}</span>
+              </PxButton>
             )}
           </div>
+        </div>
         </div>
 
         <footer className="rr-shop-foot">
           {status
-            ? <span className={error ? 'bad' : 'good'}>{status}</span>
-            : <button className="rr-energy-more" onClick={onOpenShop}>Open the shed</button>}
+            ? <PxPanel color={PLANK} className="rr-px-note"><span className={error ? 'bad' : 'good'}>{status}</span></PxPanel>
+            /* A door, not a second offer: a quiet board in the lamp-lit plank
+               of the stall it opens, chalk ink. */
+            : (
+              <PxButton
+                className="rr-energy-more"
+                color={PLANK_LIT}
+                shadowColor={PLANK}
+                textColor={CHALK}
+                onClick={onOpenShop}
+              >
+                <span style={{ ...pxLabel, fontSize: 11 }}>Open the shed</span>
+              </PxButton>
+            )}
         </footer>
-      </section>
+      </NineSlicePanel>
     </div>,
     document.body,
   );

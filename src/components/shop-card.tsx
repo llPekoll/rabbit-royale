@@ -25,8 +25,10 @@
  * The dollar figure is still what everything is priced in, and it is one hover
  * away on every button.
  */
-import { useEffect } from 'react';
+import { useEffect, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
+import { CloseButton, NineSlicePanel, PanelTitle } from '@domin8/arcade-kit';
+import { PxButton, PxPanel, pxLabel } from './px';
 import type { ItemKind, ShopItem, ShopState } from './use-shop';
 import { ITEM_META, heldLabel } from './item-meta';
 import type { PayStage } from './use-usdc-pay';
@@ -81,6 +83,44 @@ export function ShopButton({ shop, onOpen }: ShopButtonProps) {
   );
 }
 
+/* ── The stall's palette, now carried by the pixel frame ──────────────────
+   The same tokens `.rr-shop-modal` declares in globals.css, restated here
+   because the codex's nine-slice frame bakes its fill on a canvas and cannot
+   read a CSS variable. The look is the codex's; the colours are the Shed's. */
+export const SOIL = '#2a1810';
+export const SOIL_DEEP = '#1d100a';
+export const PLANK = '#4a2f1d';
+export const PLANK_LIT = '#6b4526';
+export const LAMP_INK = '#ffb238';
+export const CHALK = '#f5e6d3';
+const COIN = '#7fd1ff';
+
+/**
+ * The dialogs' frame pixel. Chunkier than the burrow cards' `PX` because a
+ * dialog is a bigger object (the codex runs at 5), and set per viewport in
+ * px-dialogs.css so it lands on a whole pixel: 4 on a desktop, 3 on a short
+ * screen where every row of the Seeker's 400 is spoken for.
+ */
+export const DIALOG_PX = 'var(--rr-dlg-px, 3px)';
+
+/**
+ * The carrot price: the lamp-lit gradient it always was, top as the face and
+ * foot as the bevel, brown ink. The money price: kept cold — the cyan it wore
+ * as a rim and ink, on a dark coin-slate face the kit's outline can sit on.
+ */
+export const CARROT_BTN = { color: '#ffc45c', shadowColor: '#e8912a', textColor: '#3a1f08' } as const;
+export const COIN_BTN = { color: '#1f3a4a', shadowColor: '#10222e', textColor: COIN } as const;
+
+/** A price label: the game's pixel face (the kit's bitmap one has no carrot). */
+export const priceText: CSSProperties = { ...pxLabel, fontSize: 12, fontVariantNumeric: 'tabular-nums' };
+
+/** `a` over `b` at `t` — hex only, because the frame's colour is baked on a canvas. */
+function mixHex(a: string, b: string, t: number): string {
+  const p = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const [x, y] = [p(a), p(b)];
+  return `#${x.map((v, i) => Math.round(v * t + y[i] * (1 - t)).toString(16).padStart(2, '0')).join('')}`;
+}
+
 export interface ShopCardProps {
   shop: ShopState | null;
   /** The rail every purchase in this shop settles on. */
@@ -116,15 +156,17 @@ export function ShopPanel({
       {/* The dialog swallows its own clicks so tapping inside does not dismiss
           it — the scrim above is the tap-away, and a dialog whose only exit is
           its [x] is a trap. */}
-      <section
-        className="rr-shop-modal"
+      <NineSlicePanel
+        color={SOIL}
+        pixelScale={DIALOG_PX}
+        className="rr-shop-modal rr-px-dialog"
         role="dialog"
         aria-modal="true"
         aria-label="Shop"
         onClick={(e) => e.stopPropagation()}
       >
         <header className="rr-shop-top">
-          <h2>The Shed</h2>
+          <h2><PanelTitle>THE SHED</PanelTitle></h2>
           {/* The purse, in the header. Every price below is read against it, and
               making the player close the shop to check it is the one thing a
               shop must never do. */}
@@ -136,19 +178,29 @@ export function ShopPanel({
               Hidden below two rails: a "switch" with one option is furniture. */}
           {(shop?.tokens?.length ?? 0) > 1 && (
             <span className="rr-shop-rails" role="group" aria-label="Pay with">
-              {shop!.tokens.map((t) => (
-                <button
-                  key={t}
-                  className={`rr-shop-rail${t === payToken ? ' on' : ''}`}
-                  onClick={() => onPayTokenChange(t)}
-                  aria-pressed={t === payToken}
-                >
-                  {PAY_TOKENS[t].symbol}
-                </button>
-              ))}
+              {shop!.tokens.map((t) => {
+                const on = t === payToken;
+                return (
+                  <PxButton
+                    key={t}
+                    // `nine-btn--pressed` is the kit's sunken state: the chosen
+                    // rail sits IN the board, the others stand on it.
+                    className={`rr-shop-rail${on ? ' on nine-btn--pressed' : ''}`}
+                    color={on ? COIN_BTN.color : PLANK}
+                    shadowColor={on ? COIN_BTN.shadowColor : SOIL_DEEP}
+                    textColor={on ? COIN : '#8b949e'}
+                    onClick={() => onPayTokenChange(t)}
+                    aria-pressed={on}
+                  >
+                    <span style={{ ...pxLabel, fontSize: 10 }}>{PAY_TOKENS[t].symbol}</span>
+                  </PxButton>
+                );
+              })}
             </span>
           )}
-          <button className="rr-shop-x" onClick={onClose} aria-label="Close">&times;</button>
+          {/* minWidth inline: the kit's own inline 32px beats any stylesheet
+              floor, and this is the way out of a full-screen dialog. */}
+          <CloseButton inline className="rr-shop-x" onClick={onClose} aria-label="Close" style={{ minWidth: 44 }} />
         </header>
 
         <ul className="rr-shop-grid">
@@ -182,17 +234,21 @@ export function ShopPanel({
             knows whether a button was actually rendered, so it is what decides
             the sentence. */}
         <footer className="rr-shop-foot">
-          {status ? (
-            <span className={error ? 'bad' : 'good'}>{status}</span>
-          ) : shop && !shop.usdcEnabled ? (
-            <span>Card payments are not switched on yet. Carrots only for now.</span>
-          ) : shop && !onPayUsdc ? (
-            <span>Connect a wallet to pay by card. Everything here is diggable anyway.</span>
-          ) : (
-            <span>Carrots you dig, or card. Same goods either way.</span>
-          )}
+          {/* The strapline on its own board — a nested panel in the plank the
+              footer band always was. */}
+          <PxPanel color={PLANK} className="rr-px-note">
+            {status ? (
+              <span className={error ? 'bad' : 'good'}>{status}</span>
+            ) : shop && !shop.usdcEnabled ? (
+              <span>Card payments are not switched on yet. Carrots only for now.</span>
+            ) : shop && !onPayUsdc ? (
+              <span>Connect a wallet to pay by card. Everything here is diggable anyway.</span>
+            ) : (
+              <span>Carrots you dig, or card. Same goods either way.</span>
+            )}
+          </PxPanel>
         </footer>
-      </section>
+      </NineSlicePanel>
     </div>,
     document.body,
   );
@@ -244,6 +300,9 @@ function Row({
       className={`rr-shop-tile${full ? ' full' : ''}`}
       style={{ '--tile': meta.tint } as React.CSSProperties}
     >
+      {/* A nested panel in the tile's own colour: its tint washed into the
+          stall's deep soil, which is the tone the old gradient read as. */}
+      <PxPanel color={mixHex(meta.tint, SOIL_DEEP, 0.2)} className="rr-shop-tile-face">
       <div className="rr-shop-tile-head">
         <span className="rr-shop-tile-icon" aria-hidden>{meta.icon}</span>
         <h3>{meta.name}</h3>
@@ -251,8 +310,11 @@ function Row({
       </div>
       <p className="rr-shop-tile-blurb">{meta.blurb}</p>
       <div className="rr-shop-tile-buy">
-        <button
+        <PxButton
           className="rr-pay-carrot"
+          {...CARROT_BTN}
+          // Buying is the loud action on this screen — the one that wiggles.
+          wiggle
           onClick={onBuy}
           disabled={busy || !item.canBuy}
           /* WHY it is dead, when it is dead.
@@ -268,11 +330,13 @@ function Row({
           title={reason}
           aria-label={reason}
         >
-          {item.price.toLocaleString()} 🥕
-        </button>
+          <span style={priceText}>{item.price.toLocaleString()} 🥕</span>
+        </PxButton>
         {onPayUsdc && (
-          <button
+          <PxButton
             className="rr-pay-usdc"
+            {...COIN_BTN}
+            wiggle
             onClick={onPayUsdc}
             disabled={busy || full}
             /* The dollar price, always, on hover: the shop's prices ARE dollars
@@ -280,10 +344,11 @@ function Row({
                charges in stays one hover away however it is displayed. */
             title={`$${item.usdc.toFixed(2)}`}
           >
-            {priceLabel(item.usdc, payToken, rate)}
-          </button>
+            <span style={priceText}>{priceLabel(item.usdc, payToken, rate)}</span>
+          </PxButton>
         )}
       </div>
+      </PxPanel>
     </li>
   );
 }

@@ -1,3 +1,226 @@
 /* Pixel chrome overrides for the dialogs (the Shed, the energy popup, the run
    recap, the profile panel, the season board). Owned by one rollout pass; see
-   src/components/px.tsx. Loaded after globals.css. */
+   src/components/px.tsx. Loaded after globals.css.
+
+   Every one of these surfaces now wears the codex's nine-slice frame, filled
+   with the colour it had. What is left here is taking the SMOOTH chrome off
+   underneath it — the rounded rim, the flat background, the soft shadow that
+   globals.css still gives the old class names — and re-spacing the insides
+   for a frame that is thicker than a 1px border. */
+
+/* The dialogs' frame pixel (DIALOG_PX in shop-card.tsx). A whole pixel at
+   both sizes: 4 on a desktop — chunkier than the burrow cards' 3, because a
+   dialog is a bigger object, as the codex's 5 is — and 3 on a short screen. */
+:root { --rr-dlg-px: 4px; }
+@media (max-height: 520px) {
+  :root { --rr-dlg-px: 3px; }
+}
+
+/* ── The frame, and nothing under it ───────────────────────────────────────
+   The frame's sprite has transparent rounded corners: a background, a radius
+   or a box-shadow left on the element shows through them as a smooth box
+   behind a pixel one. The drop shadow follows the sprite's alpha instead. */
+.rr-px-dialog {
+  background: none;
+  border-radius: 0;
+  box-shadow: none;
+  box-sizing: border-box;
+  filter: drop-shadow(0 12px 22px rgba(0, 0, 0, 0.5));
+}
+/* The kit's CloseButton at the tap floor: the global `button` rule already
+   makes it 44px, this only keeps the header rules from shrinking it. */
+.rr-px-dialog .rr-shop-x,
+.rr-px-dialog .rr-lb-close {
+  min-width: 44px;
+  min-height: 44px;
+  flex: none;
+}
+/* Dialog titles are the kit's bitmap face: no line box of their own. */
+.rr-px-dialog h2,
+.rr-px-dialog .rr-lb-head strong,
+.rr-recap-title {
+  line-height: 0;
+}
+
+/* ── The Shed ─────────────────────────────────────────────────────────── */
+.rr-px-dialog .rr-shop-top {
+  background: none;
+  border-bottom: none;
+  padding: 10px 14px 6px 16px;
+  gap: 10px;
+}
+.rr-px-dialog .rr-shop-top h2 {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.rr-px-dialog .rr-shop-grid { padding: 4px 14px 10px; }
+/* The tile is the grid cell; its nested panel is the tile. */
+.rr-px-dialog .rr-shop-tile {
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+  display: block;
+}
+.rr-shop-tile-face {
+  height: 100%;
+  box-sizing: border-box;
+  padding: 9px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.rr-px-dialog .rr-shop-tile-buy { margin-top: auto; }
+.rr-px-dialog .rr-shop-tile-buy > button { padding-block: 0; }
+.rr-px-dialog .rr-shop-rails { gap: 4px; }
+.rr-px-dialog .rr-shop-foot {
+  background: none;
+  border-top: none;
+  padding: 0 14px 12px;
+  min-height: 0;
+  display: flex;
+  justify-content: center;
+}
+.rr-px-note {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 6px 12px;
+  text-align: center;
+  line-height: 1.4;
+  font-size: 11px;
+  color: #b39877;
+}
+.rr-px-note .good { color: #7cb342; }
+.rr-px-note .bad { color: #ff8a7a; }
+
+/* ── Out of energy ────────────────────────────────────────────────────────
+   Wider than its 380 so the bitmap title, the purse and the [X] share a row;
+   capped to the scrim so a short screen scrolls the middle instead of losing
+   the top or bottom of the dialog. */
+.rr-px-dialog.rr-energy-modal {
+  width: min(440px, 100%);
+  max-height: 100%;
+}
+.rr-energy-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.rr-px-dialog .rr-energy-state {
+  margin: 0 14px;
+  padding: 10px 12px;
+  background: none;
+  border-bottom: none;
+}
+.rr-px-dialog .rr-energy-buy { padding: 10px 14px 12px; }
+.rr-px-dialog .rr-energy-more {
+  min-height: 44px;
+  text-decoration: none;
+}
+@media (max-width: 560px) {
+  .rr-px-dialog.rr-energy-modal { border-radius: 0; }
+}
+
+/* ── The run recap ────────────────────────────────────────────────────── */
+.rr-overlay .rr-card.rr-recap {
+  background: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-radius: 0;
+  box-sizing: border-box;
+  padding: 10px 14px 12px;
+  margin-bottom: 8px;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.45));
+}
+.rr-recap-title { margin: 0 0 6px; }
+.rr-recap-stats { color: var(--muted); margin: 0 0 8px; }
+.rr-recap .rr-note { margin: 0 0 8px; }
+.rr-recap-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+/* The Seeker: the island's overlay is already full to the floor, so the card
+   takes back from its own margins what the thicker frame adds. */
+@media (max-height: 520px) {
+  .rr-overlay .rr-card.rr-recap { padding: 6px 12px 8px; margin-bottom: 4px; }
+  .rr-recap-title { margin-bottom: 3px; }
+  .rr-recap-stats, .rr-recap .rr-note { margin-bottom: 4px; }
+  .rr-recap-actions { gap: 5px; }
+}
+
+/* ── The profile panel and the season board (both `.rr-lb`) ─────────────── */
+.rr-px-dialog .rr-lb-head {
+  border-bottom: none;
+  border-radius: 0;
+  padding: clamp(4px, 1.2svh, 10px) clamp(6px, 1.4svh, 12px) clamp(2px, 0.6svh, 6px);
+}
+.rr-px-dialog .rr-lb-head strong {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.rr-px-dialog .rr-lb-list { padding: 0 4px 4px; }
+/* On the Seeker the board is 231px wide: the bitmap SEASON, the days left and
+   the [X] need all of it, and the crown beside the title ran the title into
+   the "10d". The crown is decoration (the #1 row still wears one); the title
+   and the countdown are what the header is read for. */
+@media (max-height: 520px) {
+  .rr-lb-title > span[aria-hidden] { display: none; }
+}
+
+/* Tabs: two pixel buttons side by side, not a ruled strip. */
+.rr-px-dialog .rr-tabs {
+  border-bottom: none;
+  gap: 6px;
+  padding: 0 12px 2px;
+}
+.rr-px-dialog .rr-tabs button { flex: 1; }
+.rr-px-dialog .rr-tabs button.on { box-shadow: none; }
+
+/* Tighter than the old 14/10: the pixel buttons are a few px taller than the
+   flat ones were, and on a desktop the whole Profile tab still has to fit the
+   panel's fixed height without scrolling, as it did before. */
+.rr-px-dialog .rr-profile-body { padding: 4px 14px 10px; gap: 8px; }
+.rr-px-dialog .rr-avatar-grid { gap: 6px; }
+.rr-px-dialog .rr-guest-note { gap: 6px; margin-top: 4px; }
+
+/* The name field sits in its well. */
+.rr-field-box {
+  width: 100%;
+  box-sizing: border-box;
+}
+.rr-field-box:focus-within {
+  outline: 2px solid var(--crown);
+  outline-offset: 2px;
+}
+.rr-px-dialog .rr-field input {
+  width: 100%;
+  box-sizing: border-box;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  outline: none;
+  padding: 6px 10px;
+  min-height: 36px;
+}
+
+.rr-px-dialog .rr-guest-note {
+  box-sizing: border-box;
+  border: none;
+  border-radius: 0;
+  background: none;
+  padding: 8px 10px;
+}
+.rr-px-dialog .rr-avatar-pick { border: none; }
+.rr-px-dialog .rr-day-bar { border-radius: 0; }
+
+/* A dead panel button keeps the off look it had — the same face at half
+   strength — rather than the kit's grey wash on top of that. */
+.rr-profile .nine-btn:disabled { filter: none; }
+
+/* Your own row: a framed board inside the list. */
+.rr-lb-me-frame { margin: 2px 0; }

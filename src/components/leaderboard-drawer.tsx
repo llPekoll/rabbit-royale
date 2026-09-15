@@ -28,7 +28,14 @@
  * the tab.
  */
 import { useEffect, useRef, useState } from 'react';
+import { CloseButton, NineSlicePanel, PanelTitle } from '@domin8/arcade-kit';
 import { HubIconButton } from './hub-icon-button';
+import { PxPanel } from './px';
+
+/** The board's surface (`.rr-lb`), now filling the codex's pixel frame. */
+const BOARD = '#161b1f';
+/** Your own row's warm cast (`.rr-lb-row.me`), now a nested panel of its own. */
+const ME = '#2e2e24';
 
 /** The width below which the board is a slide-over rather than a column. */
 const WIDE = '(min-width: 860px)';
@@ -203,17 +210,25 @@ export function LeaderboardDrawer({ token, playerId, onSpectate, onMe, onOpen }:
           slide-in animation is kept (which `display: none` would have cost) and
           the panel stops existing for everyone else while it is away. The CSS
           hides it from the picture with `visibility` on the same condition. */}
-      <aside
+      {/* The codex's frame in the board's own colour. `position: fixed` passed
+          through because the frame sets `relative` inline. */}
+      <NineSlicePanel
+        color={BOARD}
+        pixelScale="var(--rr-dlg-px, 3px)"
         id="rr-leaderboard"
-        className={`rr-lb${open ? ' open' : ''}`}
+        className={`rr-lb rr-px-dialog${open ? ' open' : ''}`}
+        style={{ position: 'fixed' }}
         inert={!open}
       >
         <header className="rr-lb-head">
-          <strong>👑 Season</strong>
+          <strong className="rr-lb-title">
+            <span aria-hidden>👑</span>
+            <PanelTitle>SEASON</PanelTitle>
+          </strong>
           {daysLeft !== null && <span style={{ color: 'var(--muted)' }}>{daysLeft}d</span>}
           {/* Every screen can put the board away now — on a phone it is covering
               the island, on a desktop it is eating a third of the burrow. */}
-          <button className="rr-lb-close" onClick={() => setOpen(false)} aria-label="Close">&times;</button>
+          <CloseButton inline className="rr-lb-close" onClick={() => setOpen(false)} aria-label="Close" style={{ minWidth: 44 }} />
         </header>
 
         <div className="rr-lb-list">
@@ -222,7 +237,8 @@ export function LeaderboardDrawer({ token, playerId, onSpectate, onMe, onOpen }:
               Nobody has scored yet. Be the first.
             </p>
           )}
-          {entries.map((e) => (
+          {entries.map((e) => {
+            const row = (
             <button
               key={e.playerId}
               className={
@@ -272,9 +288,15 @@ export function LeaderboardDrawer({ token, playerId, onSpectate, onMe, onOpen }:
               </span>
               <span style={{ color: 'var(--carrot)' }}>{e.score}</span>
             </button>
-          ))}
+            );
+            // YOUR row stands out as its own little framed board, in the warm
+            // cast it always had — found at a glance in a list of fifty.
+            return e.playerId === playerId
+              ? <PxPanel key={e.playerId} color={ME} className="rr-lb-me-frame">{row}</PxPanel>
+              : row;
+          })}
         </div>
-      </aside>
+      </NineSlicePanel>
 
       {/* Tap-away, phone only: a drawer with no way out but its own [x] is a trap. */}
       {open && <div className="rr-scrim" onClick={() => setOpen(false)} />}

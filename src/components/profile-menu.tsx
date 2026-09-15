@@ -20,12 +20,51 @@
  * middle and dims the rest. It still borrows the board's surface (.rr-lb) so
  * the two feel like the same game.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { CloseButton, NineSlicePanel, PanelTitle } from '@domin8/arcade-kit';
+import { PxButton, PxPanel, pxLabel } from './px';
 import { AVATARS, avatarSrc, AVATAR_FRAME } from '@/lib/game/avatars';
 import { nameProblem, nameProblemMessage, NAME_MAX } from '@/lib/game/player-name';
 
 type Tab = 'profile' | 'history';
+
+/* ── The panel's colours, as they were ─────────────────────────────────────
+   Now worn by the codex's pixel frame and bevelled buttons (see px.tsx). */
+/** The season board's surface, which this panel borrows (`.rr-lb`). */
+const PANEL = '#161b1f';
+/** A plain button's face (`--panel`) and ink (`--text`). */
+const BTN = '#161b22';
+const INK = '#e6edf3';
+const MUTED = '#8b949e';
+const CROWN = '#ffd45c';
+/** The selected tab: the board's zebra lift, so "on" is a lit board, not a new colour. */
+const LIFT = '#22272b';
+/** The chosen rabbit: the crown's 12% wash it always had. */
+const PICKED = '#323129';
+/** The name field's well. */
+const WELL = '#0b0f14';
+/** The guest note: 3% white over the panel. */
+const NOTE = '#1c2125';
+
+const btnText: CSSProperties = { ...pxLabel, fontSize: 13, whiteSpace: 'normal', lineHeight: 1.2 };
+
+/** A full-width panel button: plain (bright ink) or ghost (the panel's own face, muted ink). */
+function PanelButton({
+  ghost = false, children, ...rest
+}: { ghost?: boolean; children: ReactNode; disabled?: boolean; onClick?: () => void }) {
+  return (
+    <PxButton
+      className={ghost ? 'rr-btn ghost' : 'rr-btn'}
+      color={ghost ? PANEL : BTN}
+      textColor={ghost ? MUTED : INK}
+      style={{ width: '100%', flexShrink: 0 }}
+      {...rest}
+    >
+      <span style={btnText}>{children}</span>
+    </PxButton>
+  );
+}
 
 interface Day {
   day: string;
@@ -223,38 +262,44 @@ export function ProfileMenu({
           back to — so clicking it has to work. */}
       <div className="rr-profile-scrim" onClick={onClose} aria-hidden />
 
-      <aside
-        className={`rr-lb rr-profile${shown ? ' open' : ''}`}
+      {/* The codex's frame, in the board's surface colour. Fixed and centred
+          by `.rr-profile`, so the frame's own `position: relative` is
+          overridden here. Same fixed height on both tabs (see globals.css). */}
+      <NineSlicePanel
+        color={PANEL}
+        pixelScale="var(--rr-dlg-px, 3px)"
+        className={`rr-lb rr-profile rr-px-dialog${shown ? ' open' : ''}`}
+        style={{ position: 'fixed' }}
         id="rr-profile"
         role="dialog"
         aria-modal="true"
         aria-label="Your burrow"
       >
         <header className="rr-lb-head">
-          <strong>Your burrow</strong>
-          <button className="rr-lb-close" onClick={onClose} aria-label="Close">
-            &times;
-          </button>
+          <strong><PanelTitle>YOUR BURROW</PanelTitle></strong>
+          <CloseButton inline className="rr-lb-close" onClick={onClose} aria-label="Close" style={{ minWidth: 44 }} />
         </header>
 
+        {/* Two pixel buttons; the open tab is pressed INTO the board (the kit's
+            sunken state) on the lifted face, in the crown ink it always wore. */}
         <div className="rr-tabs" role="tablist">
-          <button
-            role="tab"
-            aria-selected={tab === 'profile'}
-            className={tab === 'profile' ? 'on' : ''}
-            onClick={() => setTab('profile')}
-          >
-            Profile
-          </button>
-          <button
-            role="tab"
-            aria-selected={tab === 'history'}
-            className={tab === 'history' ? 'on' : ''}
-            onClick={() => setTab('history')}
-          >
-            History
-            {!!history?.raids.unseen && <em className="rr-badge">{history.raids.unseen}</em>}
-          </button>
+          {(['profile', 'history'] as const).map((t) => {
+            const on = tab === t;
+            return (
+              <PxButton
+                key={t}
+                role="tab"
+                aria-selected={on}
+                className={on ? 'on nine-btn--pressed' : ''}
+                color={on ? LIFT : PANEL}
+                textColor={on ? CROWN : MUTED}
+                onClick={() => setTab(t)}
+              >
+                <span style={{ ...pxLabel, fontSize: 14 }}>{t === 'profile' ? 'Profile' : 'History'}</span>
+                {t === 'history' && !!history?.raids.unseen && <em className="rr-badge">{history.raids.unseen}</em>}
+              </PxButton>
+            );
+          })}
         </div>
 
         {tab === 'profile' ? (
@@ -263,41 +308,51 @@ export function ProfileMenu({
 
             <label className="rr-field">
               <span>Name</span>
-              <input
-                value={name}
-                maxLength={NAME_MAX}
-                onChange={(e) => setName(e.target.value)}
-                spellCheck={false}
-              />
+              {/* The field is a well: a nested panel in the dark it always was. */}
+              <PxPanel color={WELL} className="rr-field-box">
+                <input
+                  value={name}
+                  maxLength={NAME_MAX}
+                  onChange={(e) => setName(e.target.value)}
+                  spellCheck={false}
+                />
+              </PxPanel>
             </label>
             {/* Only complain once they have typed something wrong, not while
                 they are still on the way to something right. */}
             {renamed && problem && <p className="rr-warn">{nameProblemMessage(problem)}</p>}
-            <button
-              className="rr-btn"
+            <PanelButton
               disabled={saving || !renamed || !!problem}
               onClick={() => save({ name: name.trim() })}
             >
               {saving ? 'Saving...' : 'Save name'}
-            </button>
+            </PanelButton>
 
             <h3 className="rr-profile-h">Rabbit</h3>
             <div className="rr-avatar-grid">
-              {AVATARS.map((a) => (
-                <button
-                  key={a.key}
-                  className={`rr-avatar-pick${(picked ?? avatar) === a.key ? ' on' : ''}`}
-                  aria-label={a.label}
-                  aria-pressed={(picked ?? avatar) === a.key}
-                  disabled={saving}
-                  onClick={() => {
-                    setPicked(a.key);
-                    save({ avatar: a.key });
-                  }}
-                >
-                  <Avatar src={a.src} size={2} />
-                </button>
-              ))}
+              {AVATARS.map((a) => {
+                const on = (picked ?? avatar) === a.key;
+                return (
+                  <PxButton
+                    key={a.key}
+                    className={`rr-avatar-pick${on ? ' on nine-btn--pressed' : ''}`}
+                    color={on ? PICKED : BTN}
+                    textColor={CROWN}
+                    // Picking your rabbit is a small celebration, not a setting.
+                    wiggle
+                    aria-label={a.label}
+                    aria-pressed={on}
+                    disabled={saving}
+                    style={avatarCell}
+                    onClick={() => {
+                      setPicked(a.key);
+                      save({ avatar: a.key });
+                    }}
+                  >
+                    <Avatar src={a.src} size={2} />
+                  </PxButton>
+                );
+              })}
             </div>
             {/* The minted NFTs land here later — the column already stores a
                 plain key, so they are a second kind of value, not a migration. */}
@@ -311,21 +366,20 @@ export function ProfileMenu({
                 panel is already where a player comes to make their account
                 theirs. */}
             {player.guest ? (
-              <div className="rr-guest-note">
+              <PxPanel color={NOTE} className="rr-guest-note">
                 <p>
                   Guest burrow. It lives in this browser only: connect a wallet
                   to keep it, play on any device, and unlock the shop.
                 </p>
                 {onConnectWallet && (
-                  <button
-                    className="rr-btn"
+                  <PanelButton
                     disabled={connecting}
                     onClick={() => {
                       void onConnectWallet();
                     }}
                   >
                     {connecting ? 'Waiting for wallet...' : 'Connect wallet'}
-                  </button>
+                  </PanelButton>
                 )}
                 {/* The refusal, where the press happened. Silence here reads as
                     a dead button, which is the one thing it must never do. */}
@@ -338,11 +392,11 @@ export function ProfileMenu({
                     Their guest burrow is NOT destroyed by this: it keeps its
                     row, and this browser simply stops being signed into it. */}
                 {takenBy !== null && onSwitchToOwner && (
-                  <button className="rr-btn ghost" onClick={onSwitchToOwner}>
+                  <PanelButton ghost onClick={onSwitchToOwner}>
                     {takenBy ? `Play as "${takenBy}"` : 'Sign in with that wallet'}
-                  </button>
+                  </PanelButton>
                 )}
-              </div>
+              </PxPanel>
             ) : (
               <p className="rr-wallet-line" title={player.wallet ?? undefined}>
                 {player.wallet?.slice(0, 4)}...{player.wallet?.slice(-4)}
@@ -351,8 +405,8 @@ export function ProfileMenu({
             {/* "Disconnect" is a wallet word, and a guest has no wallet to
                 disconnect from — for them this ENDS the account, which is worth
                 both naming plainly and asking twice about. */}
-            <button
-              className="rr-btn ghost"
+            <PanelButton
+              ghost
               onClick={() => {
                 if (!player.guest) return onLogout();
                 if (confirmingAbandon) return onLogout();
@@ -364,16 +418,26 @@ export function ProfileMenu({
                 : confirmingAbandon
                   ? 'Really abandon? This cannot be undone'
                   : 'Abandon this burrow'}
-            </button>
+            </PanelButton>
           </div>
         ) : (
           <HistoryTab history={history} failed={historyFailed} newCount={newRaids} />
         )}
-      </aside>
+      </NineSlicePanel>
     </>,
     document.body,
   );
 }
+
+/** A rabbit's cell: square, sized by the grid rather than by the kit's unit height. */
+const avatarCell: CSSProperties = {
+  width: '100%',
+  height: 'auto',
+  aspectRatio: '1',
+  minWidth: 0,
+  minHeight: 0,
+  padding: 0,
+};
 
 /**
  * One frame of a bunny sheet, cropped to the first idle pose.
