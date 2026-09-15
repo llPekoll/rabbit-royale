@@ -92,8 +92,12 @@ export interface RunBank {
  */
 export interface MoveResult {
   dig?: {
+    /** The tile that was dug. */
+    tile?: number;
     /** What the tile held — the first-run captions read this. */
     content?: TileContent;
+    /** What THIS rabbit was paid for it; 0 when someone else dug it first. */
+    carrotDelta?: number;
     /**
      * `announced` is optional HERE and required on `ChestPrize`: a server that
      * predates the flag simply omits it, and the handler resolves that to the
@@ -248,6 +252,10 @@ export function useGameSocket(
   const [digs, setDigs] = useState<MyDigs>(NO_DIGS);
   /** What the current run cost the burrow, or null when nothing was charged. */
   const [bank, setBank] = useState<RunBank | null>(null);
+  /** Carrots the last `banked` event carried — what the burrow celebrates on arrival. */
+  const [bankedCarrots, setBankedCarrots] = useState(0);
+  /** The island is going down: the server's beat before the recap, in ms. */
+  const [erupting, setErupting] = useState<number | null>(null);
 
   /**
    * Whether the player has ASKED for a seat and not given it up.
@@ -351,6 +359,8 @@ export function useGameSocket(
       setFirstRun(snap.first === true);
       setDigs(NO_DIGS);
       setBank(snap.bank ?? null);
+      setErupting(null);
+      toScene((s) => s.resetEruption());
       setRabbits(new Map(snap.rabbits.map((r) => [r.playerId, r])));
       // A joiner lands mid-run on an island others have been digging, so the
       // snapshot carries what is already uncovered.
@@ -391,6 +401,12 @@ export function useGameSocket(
     socket.on('move_result', (r: MoveResult) => {
       if (r.dig) {
         const c = r.dig.content;
+        // The gain, said on the tile — for the digger alone, which is who
+        // this event reaches. See `IslandScene.floatGain`.
+        if (r.dig.tile !== undefined && (r.dig.carrotDelta ?? 0) > 0) {
+          const { tile, carrotDelta } = r.dig;
+          toScene((s) => s.floatGain(tile, carrotDelta!, c === 'golden'));
+        }
         setDigs((d) => ({
           tiles: d.tiles + 1,
           bombs: d.bombs + (c === 'bomb' ? 1 : 0),
@@ -495,7 +511,21 @@ export function useGameSocket(
       toScene((s) => s.exhaustRabbit(spent));
     });
 
-    socket.on('volcano', ({ stage }: { stage: number }) => setWarnStage(stage));
+    socket.on('volcano', ({ stage }: { stage: number }) => {
+      setWarnStage(stage);
+      // Felt as well as read: the ground rumbles harder at each stage.
+      toScene((s) => s.rumble(stage));
+    });
+    /**
+     * The island is sinking. The server holds this beat (ERUPTION.SEQUENCE_MS)
+     * before banking and sending `run_over`; the scene plays the sink and the
+     * page darkens the sky over it. Never handled before — four seconds of a
+     * still board, then a recap.
+     */
+    socket.on('eruption', ({ durationMs }: { islandId: string; durationMs: number }) => {
+      setErupting(durationMs);
+      toScene((s) => s.playEruption(durationMs));
+    });
     socket.on('run_over', (r: RunRecap) => {
       // The seat is spent. A reconnect from the recap must not ask again —
       // that would start, and pay for, a run the player has not chosen.
@@ -504,7 +534,10 @@ export function useGameSocket(
     });
     // The carrots are in Postgres NOW, so whatever shows the total may go and
     // read it. See `Banked`: this is deliberately not `run_over`.
-    socket.on('banked', (_b: Banked) => setBanked((n) => n + 1));
+    socket.on('banked', (b: Banked) => {
+      setBankedCarrots(b?.carrots ?? 0);
+      setBanked((n) => n + 1);
+    });
 
     return () => { socket.disconnect(); socketRef.current = null; };
   }, [token, wsUrl, spectate, toScene]);
@@ -574,8 +607,8 @@ export function useGameSocket(
 
   const me = playerId ? rabbits.get(playerId) ?? null : null;
   return {
-    islandSeed, rabbits, me, warnStage, recap, banked, connected, refused,
-    firstRun, digs, bank,
+    islandSeed, rabbits, me, warnStage, recap, banked, bankedCarrots, connected, refused,
+    firstRun, digs, bank, erupting,
     chestPrize, clearChestPrize: () => setChestPrize(null),
     moveTo, restart, join, leave, bindScene, resync,
   };

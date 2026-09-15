@@ -140,6 +140,32 @@ export function isSfxMuted(): boolean {
   return sfxMuted;
 }
 
+/**
+ * One-shots for the DOM chrome — the burrow column, the shop, the quest card.
+ *
+ * The React layer was entirely silent while a full SFX bus sat here unused:
+ * only the island scene ever played anything. A shared instance, built on
+ * first use (never at import, so server rendering never touches Howler),
+ * gives every card the same bus, the same mute and the same level.
+ */
+export type UiSfx = 'chime' | 'chimeQuick' | 'match' | 'coin' | 'coinStart' | 'step' | 'die';
+
+let ui: SoundManager | null = null;
+
+export function playUiSfx(kind: UiSfx): void {
+  if (typeof window === 'undefined') return;
+  ui ??= new SoundManager();
+  switch (kind) {
+    case 'chime': ui.playChime(); break;
+    case 'chimeQuick': ui.playChimeQuick(); break;
+    case 'match': ui.playMatch(); break;
+    case 'coin': ui.playCoin(); break;
+    case 'coinStart': ui.playCoinStart(); break;
+    case 'step': ui.playStep(); break;
+    case 'die': ui.playDie(); break;
+  }
+}
+
 const SOUND_MAP: Record<string, { src: string; volume: number; format?: string[] }> = {
   // The shared arcade "insert coin" chirp from the kit — every game plays it
   // when a bet is committed. Ships as a data: URL, so Howler needs the

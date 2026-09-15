@@ -44,6 +44,10 @@ export interface HubTabsProps {
    * which otherwise never carries one.
    */
   questDoor?: QuestDoor | null;
+  /** Bumped when a chapter opens this session — the STORY tile pops. */
+  storyPulseKey?: number;
+  /** Bumped when the active quest moves to a new door — that tile pops. */
+  questPulseKey?: number;
   onShop(): void;
   onProtect(): void;
   onRaid(): void;
@@ -51,8 +55,11 @@ export interface HubTabsProps {
 }
 
 export function HubTabs({
-  shop, targets, lifetime, questDoor = null, onShop, onProtect, onRaid, onStory,
+  shop, targets, lifetime, questDoor = null, storyPulseKey = 0, questPulseKey = 0,
+  onShop, onProtect, onRaid, onStory,
 }: HubTabsProps) {
+  /** The quest's door pops when the quest arrives on it; the others do not. */
+  const pulseAt = (door: QuestDoor) => (questDoor === door ? questPulseKey : 0);
   const traps = shop?.traps;
   /** One on the quest's door — never added to a count, only a floor under it. */
   const questAt = (door: QuestDoor) => (questDoor === door ? 1 : 0);
@@ -119,6 +126,7 @@ export function HubTabs({
         )}
         label="SHOP"
         count={Math.max(inShed, questAt('shop'))}
+        pulseKey={pulseAt('shop')}
         onClick={onShop}
         ariaLabel="Shop"
       />
@@ -128,6 +136,7 @@ export function HubTabs({
         disabled={!traps}
         muted={!canEditBase}
         count={questAt('base')}
+        pulseKey={pulseAt('base')}
         onClick={canEditBase ? onProtect : onShop}
         ariaLabel={canEditBase ? 'Protect your base' : 'Protect your base: no traps yet, open the shop'}
       />
@@ -135,6 +144,7 @@ export function HubTabs({
         sprite={SWORDS}
         label="RAIDING"
         count={Math.max(openTargets, questAt('raid'))}
+        pulseKey={pulseAt('raid')}
         onClick={onRaid}
         ariaLabel="Raid another burrow"
       />
@@ -142,6 +152,7 @@ export function HubTabs({
         sprite={SCROLL}
         label="STORY"
         count={Math.max(freshChapter ? 1 : 0, questAt('story'))}
+        pulseKey={Math.max(storyPulseKey, pulseAt('story'))}
         onClick={onStory}
         ariaLabel="The Cursed Crown lore"
       />

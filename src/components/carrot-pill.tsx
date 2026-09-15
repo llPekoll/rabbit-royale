@@ -113,11 +113,16 @@ export function CarrotPill({
         {/* Only when there is something to chase. A rank with no gap beside it
             is the standing the season drawer already shows, and an empty row
             here would be a permanent blank under the count. */}
+        {/* Keyed on the RANK so a change remounts the line and replays its
+            pop (`rr-rank-pop`): climbing a place is the one thing this line
+            exists to report, and it used to change as quietly as a clock. */}
         {rank !== null && toPass !== null && (
-          <span style={rankText}>#{rank} &middot; {groupDigits(toPass)} to pass</span>
+          <span key={rank} className="rr-rank-pop" style={rankText}>
+            #{rank} &middot; {groupDigits(toPass)} to pass
+          </span>
         )}
         {/* Top of the board: there is no gap, and saying so is worth a row. */}
-        {rank === 1 && <span style={rankText}>#1 &middot; leading</span>}
+        {rank === 1 && <span key="lead" className="rr-rank-pop" style={rankText}>#1 &middot; leading</span>}
       </span>
 
     </div>

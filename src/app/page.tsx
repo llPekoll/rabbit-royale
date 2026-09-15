@@ -42,6 +42,11 @@ import { BurrowPanel } from '@/components/burrow-card-panel';
 import { QuestCard } from '@/components/quest-card';
 import { FirstRunCaption } from '@/components/first-run-caption';
 import { RunCostNote } from '@/components/run-cost-note';
+import { LevelUpStamp } from '@/components/level-up-stamp';
+import { EruptionOverlay } from '@/components/eruption-overlay';
+import { LootFly } from '@/components/loot-fly';
+import { playUiSfx } from '@/game/services/SoundManager';
+import { unlockedCount } from '@/config/lore';
 import { QUEST_MARK, codexMark, type QuestBoard } from '@/config/quests';
 import { TRAPS } from '@config/tuning';
 import { useShop, type ItemKind } from '@/components/use-shop';
@@ -138,10 +143,32 @@ function Burrow() {
   const [quest, setQuest] = useState<QuestBoard | null>(null);
   const [pending, setPending] = useState(false);
   const [note, setNote] = useState<string | null>(null);
-  // Bumped on every successful harvest: it replays the rising "+N" and
-  // re-keys the figure so it pops as the carrots land.
+  // Bumped whenever carrots ARRIVE in the bank — a harvest, a run brought
+  // home, a quest's reward: it replays the rising "+N" and re-keys the
+  // figure so it pops as the carrots land.
   const [burstKey, setBurstKey] = useState(0);
   const [burstAmount, setBurstAmount] = useState(0);
+  /**
+   * Bumped on a HARVEST only. It used to be `burstKey` that emptied the
+   * field on the board, which was right while harvest was the only burst —
+   * and wrong the day a quest reward burst the counter and quietly mowed the
+   * garden's art with it. The two are separate events now.
+   */
+  const [harvestKey, setHarvestKey] = useState(0);
+  /** The active quest just became DONE — the card lights, the island says so. */
+  const [questDoneKey, setQuestDoneKey] = useState(0);
+  /** A quest's reward was just taken — confetti, and the next ask slides in. */
+  const [questClaimKey, setQuestClaimKey] = useState(0);
+  /** The active quest moved to a new door — that hub tile pops. */
+  const [questPulseKey, setQuestPulseKey] = useState(0);
+  /** One line over the island when a quest finishes out there. */
+  const [questNote, setQuestNote] = useState<string | null>(null);
+  /** The burrow just went up: the stamp over the screen. */
+  const [levelUp, setLevelUp] = useState<{ level: number; key: number } | null>(null);
+  /** A chapter opened this session — the STORY tile pops. */
+  const [lorePulseKey, setLorePulseKey] = useState(0);
+  /** An item reward in flight to the bag. */
+  const [flyItem, setFlyItem] = useState<{ kind: 'bomb' | 'shield'; qty: number; key: number } | null>(null);
   const [ready, setReady] = useState(false);
   /**
    * The sign-in crossing: shutter running, and who the screen belongs to.
@@ -340,8 +367,16 @@ function Burrow() {
         setNote(`+${res.harvested} 🥕`);
         setBurstAmount(res.harvested);
         setBurstKey((k) => k + 1);
+        setHarvestKey((k) => k + 1);
+        playUiSfx('coin');
       }
-      else if (res.spent) setNote(`Burrow deepened: ${res.spent} 🥕`);
+      else if (res.spent) {
+        // The biggest purchase in the game gets the stage, not a toast: the
+        // stamp over the screen, the sting, and the board's own building
+        // popping (BurrowScene.setLevel → celebrateLevel).
+        playUiSfx('match');
+        if (res.burrow?.level) setLevelUp((l) => ({ level: res.burrow.level, key: (l?.key ?? 0) + 1 }));
+      }
       else if (res.raised === 'shield') {
         setNote('Shield up. Raids bounce off.');
         // The shield came OUT OF THE BAG, and the bag is the shop's state, not
@@ -447,7 +482,11 @@ function Burrow() {
       return;
     }
     const ok = await shop.placeTrap(tile);
-    if (ok) handles.current?.burrow?.addTrap(tile);
+    if (ok) {
+      handles.current?.burrow?.addTrap(tile);
+      // The thud of it going into the ground; the scene throws the dust.
+      playUiSfx('step');
+    }
   }, [shop]);
 
   /**
@@ -605,15 +644,111 @@ function Burrow() {
       if (res.burrow) setBurrow(res.burrow);
       if (res.quest) setQuest(res.quest);
       if (res.line) setNote(res.line);
+      if (res.claimed) {
+        playUiSfx('match');
+        setQuestClaimKey((k) => k + 1);
+      }
       if (res.reward?.carrots) {
         setBurstAmount(res.reward.carrots);
         setBurstKey((k) => k + 1);
       }
-      if (res.reward?.item) void shop.refresh();
+      if (res.reward?.item) {
+        // The item is in the bag; the flight is what says so — it used to
+        // land in silence and only show up on the SHOP tile's badge.
+        const item = res.reward.item as { kind: 'bomb' | 'shield'; qty: number };
+        setFlyItem((f) => ({ ...item, key: (f?.key ?? 0) + 1 }));
+        void shop.refresh();
+      }
     } finally {
       setPending(false);
     }
   }, [token, auth, shop]);
+
+  /**
+   * THE QUEST'S TWO MOMENTS, detected from the board rather than reported
+   * by the server: DONE is a property of the counters, and the page sees the
+   * board before and after every refresh.
+   *
+   * Done: once per quest id, the first time the active card reads done —
+   * the card lights (`questDoneKey`), a chime, and on the island one line
+   * under the HUD, because the player is not looking at the card there.
+   * Door: when the active quest changes to one that is not done, its door's
+   * tile pops so the eye is sent where the next ask lives.
+   */
+  const lastDone = useRef<string | null>(null);
+  const lastActive = useRef<string | null>(null);
+  const activeId = quest?.active?.id ?? null;
+  const activeDone = quest?.active?.done ?? false;
+  const activeTitle = quest?.active?.title ?? '';
+  useEffect(() => {
+    if (activeId && activeDone && lastDone.current !== activeId) {
+      lastDone.current = activeId;
+      setQuestDoneKey((k) => k + 1);
+      playUiSfx('chime');
+      if (where === 'island') {
+        setQuestNote(`Quest done: ${activeTitle}`);
+        const t = setTimeout(() => setQuestNote(null), 5000);
+        return () => clearTimeout(t);
+      }
+    }
+  }, [activeId, activeDone, activeTitle, where]);
+  useEffect(() => {
+    if (activeId && lastActive.current && lastActive.current !== activeId && !activeDone) {
+      setQuestPulseKey((k) => k + 1);
+    }
+    lastActive.current = activeId;
+  }, [activeId, activeDone]);
+
+  /**
+   * A chapter OPENED this session: chime, and the STORY tile pops. Compared
+   * against the previous read, so a returning player's already-open chapters
+   * are not re-announced on load.
+   */
+  const lastOpen = useRef<number | null>(null);
+  const openChapters = burrow ? unlockedCount(burrow.lifetime) : null;
+  useEffect(() => {
+    if (openChapters === null) return;
+    if (lastOpen.current !== null && openChapters > lastOpen.current) {
+      playUiSfx('chime');
+      setLorePulseKey((k) => k + 1);
+    }
+    lastOpen.current = openChapters;
+  }, [openChapters]);
+
+  /**
+   * Climbing a place on the season board: a quick chime. The pill's rank
+   * line pops on its own (`rr-rank-pop`, keyed on the rank); this is the
+   * sound to go with it. Only UP — falling a place is somebody else's news.
+   */
+  const lastRank = useRef<number | null | undefined>(undefined);
+  useEffect(() => {
+    const now = me?.rank ?? null;
+    const before = lastRank.current;
+    if (before !== undefined && before !== null && now !== null && now < before) playUiSfx('chimeQuick');
+    lastRank.current = now;
+  }, [me?.rank]);
+
+  /**
+   * COMING HOME WITH CARROTS. The run's haul banks while the player is still
+   * on the island (the recap), and the burrow's counter used to just READ
+   * differently on arrival — the biggest number of the session changed as
+   * quietly as a clock. The amount is parked when `banked` fires and spent
+   * on the first render of the burrow after it: the burst, the pill's pop,
+   * the coin. Deliberately not the harvest key: nothing was harvested.
+   */
+  const pendingHome = useRef(0);
+  useEffect(() => {
+    if (game.banked > 0 && game.bankedCarrots > 0) pendingHome.current = game.bankedCarrots;
+  }, [game.banked, game.bankedCarrots]);
+  useEffect(() => {
+    if (where !== 'burrow' || crossing || !showCanvas || pendingHome.current <= 0) return;
+    const amount = pendingHome.current;
+    pendingHome.current = 0;
+    setBurstAmount(amount);
+    setBurstKey((k) => k + 1);
+    setNote(`+${amount} 🥕 brought home`);
+    playUiSfx('coin');
+  }, [where, crossing, showCanvas]);
 
   /**
    * Tell the server something only the browser saw — the season board opened,
@@ -723,12 +858,16 @@ function Burrow() {
 
   const buyWithCarrots = useCallback(async (kind: ItemKind) => {
     const res = await shop.buy(kind);
-    if (res) refreshBurrow();
+    if (res) {
+      playUiSfx('chimeQuick');
+      refreshBurrow();
+    }
   }, [shop, refreshBurrow]);
 
   const buyWithUsdc = useCallback(async (kind: ItemKind) => {
     const res = await usdc.pay(kind, 1, payToken);
     if (res) {
+      playUiSfx('chime');
       await shop.refresh();
       refreshBurrow();
     }
@@ -1011,6 +1150,9 @@ function Burrow() {
   leaveRef.current = raid.leave;
   const finishedRaid = useRef(raid.raid);
   finishedRaid.current = raid.raid;
+  /** How far the raid got — lands in the same answer as `finished`. */
+  const finishedOutcome = useRef(raid.outcome);
+  finishedOutcome.current = raid.outcome;
 
   /**
    * THE WIN GETS A CEREMONY; a loss keeps the quiet exit.
@@ -1044,11 +1186,14 @@ function Burrow() {
     if (!finishedRaidId) return;
     const r = finishedRaid.current;
     const won = r?.succeeded ?? false;
+    // A loss says HOW FAR: a raid is scored by depth, and "nothing taken"
+    // alone reads as nothing happened. The sting plays for the collapse.
     const haul = r
       ? r.carrotsLooted > 0
         ? `+${r.carrotsLooted.toLocaleString()} 🥕 stolen from ${r.defender.name}`
-        : `Nothing taken from ${r.defender.name}'s burrow`
+        : `Fell ${Math.round((finishedOutcome.current?.progress ?? 0) * 100)}% of the way to ${r.defender.name}'s field`
       : null;
+    if (r && !won) playUiSfx('die');
 
     /**
      * The haul is in the database — go and read the total.
@@ -1184,8 +1329,8 @@ function Burrow() {
   // next refresh to notice the number fell — collecting has to have an
   // immediate consequence on the place, not just on a counter.
   useEffect(() => {
-    if (burstKey > 0) handles.current?.burrow?.harvestGarden();
-  }, [burstKey]);
+    if (harvestKey > 0) handles.current?.burrow?.harvestGarden();
+  }, [harvestKey]);
 
   return (
     <main className="rr-home">
@@ -1398,6 +1543,8 @@ function Burrow() {
                   <QuestCard
                     quest={quest.active}
                     pending={pending}
+                    celebrateKey={questDoneKey}
+                    claimKey={questClaimKey}
                     onClaim={() => void claimQuest(quest.active!.id)}
                   />
                 </div>
@@ -1572,6 +1719,8 @@ function Burrow() {
           targets={raid.targets}
           lifetime={burrow?.lifetime ?? 0}
           questDoor={quest?.active?.door ?? null}
+          questPulseKey={questPulseKey}
+          storyPulseKey={lorePulseKey}
           onShop={() => setShopOpen(true)}
           onProtect={startPlacing}
           onRaid={() => { setPickingTarget(true); void raid.refresh(); }}
@@ -1596,6 +1745,13 @@ function Burrow() {
           {!spectating && (
             <FirstRunCaption firstRun={game.firstRun} digs={game.digs} warnStage={game.warnStage} />
           )}
+          {/* A quest finishing while the player is out here — the card is at
+              home, so the island says it. */}
+          {questNote && !spectating && (
+            <p className="rr-caption rr-caption-quest" role="status" aria-live="polite">{questNote}</p>
+          )}
+          {/* The sky during the eruption; the scene sinks the island under it. */}
+          {game.erupting !== null && <EruptionOverlay ms={game.erupting} />}
           {/* The way back to your own rabbit once a drag has lost it. The camera
               follows a STEP, and a rabbit panned off a phone screen has no tile
               in reach to step onto. Only while it is actually out of frame.
@@ -1788,6 +1944,26 @@ function Burrow() {
         />
       )}
 
+      {/* The level-up stamp, over everything, once per upgrade. */}
+      {levelUp && (
+        <LevelUpStamp key={levelUp.key} level={levelUp.level} onDone={() => setLevelUp(null)} />
+      )}
+
+      {/* A quest's item reward flying into the bag. Same flight as a buried
+          chest's drop, so a shield from a quest and a shield from the ground
+          are one object arriving the same way. */}
+      {flyItem && (
+        <LootFly
+          key={flyItem.key}
+          src={QUEST_ITEM_ART[flyItem.kind].src}
+          aspect={QUEST_ITEM_ART[flyItem.kind].aspect}
+          label={flyItem.kind.toUpperCase()}
+          amount={flyItem.qty}
+          fireKey={flyItem.key}
+          onDone={() => setFlyItem(null)}
+        />
+      )}
+
       {player && loreOpen && (
         <LoreCodex
           lifetime={burrow?.lifetime ?? 0}
@@ -1819,6 +1995,12 @@ function formatWait(ms: number | null): string {
   const rest = mins % 60;
   return rest ? `${hours}h ${rest}m` : `${hours}h`;
 }
+
+/** The art a quest's item reward flies in as — the same icons the chest uses. */
+const QUEST_ITEM_ART = {
+  bomb: { src: '/assets/ui/icons/bolt.webp', aspect: 29 / 24 },
+  shield: { src: '/assets/ui/icons/shield.webp', aspect: 1 },
+} as const;
 
 /** The burrow, painted. Stands in for the canvas before sign-in. */
 // The BARE-soil cut of the art: the crop is drawn live over it by CarrotField,

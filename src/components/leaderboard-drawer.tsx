@@ -142,6 +142,24 @@ export function LeaderboardDrawer({ token, playerId, onSpectate, onMe, onOpen }:
     ? Math.max(0, Math.ceil((new Date(season.endsAt).getTime() - Date.now()) / 86_400_000))
     : null;
 
+  /**
+   * Whether the viewer's rank changed on the last poll — their row flashes
+   * once. Compared against the previous poll, not against page load, so a
+   * board opened for the first time does not flash a rank that did not move.
+   */
+  const lastRank = useRef<number | null | undefined>(undefined);
+  const [rankMoved, setRankMoved] = useState(false);
+  useEffect(() => {
+    const now = me?.rank ?? null;
+    if (lastRank.current !== undefined && lastRank.current !== now) {
+      setRankMoved(true);
+      const t = setTimeout(() => setRankMoved(false), 1000);
+      lastRank.current = now;
+      return () => clearTimeout(t);
+    }
+    lastRank.current = now;
+  }, [me?.rank]);
+
   return (
     <>
       {/* The way in: a square slab in the top-right corner beside the other
@@ -209,6 +227,7 @@ export function LeaderboardDrawer({ token, playerId, onSpectate, onMe, onOpen }:
                 `rr-lb-row${e.crowned ? ' crown' : ''}`
                 + `${e.playerId === playerId ? ' me' : ''}`
                 + `${e.digging ? ' digging' : ''}`
+                + `${e.playerId === playerId && rankMoved ? ' rr-rank-moved' : ''}`
               }
               // Watching your own run from here would just be the game, and
               // there is nothing to watch on someone who is not on an island —
@@ -225,7 +244,11 @@ export function LeaderboardDrawer({ token, playerId, onSpectate, onMe, onOpen }:
                 if (!window.matchMedia?.(WIDE).matches) setOpen(false);
               }}
             >
-              <span className="rr-lb-rank">{e.crowned ? '👑' : e.rank}</span>
+              {/* The crown glints on a slow loop: it is a thing being watched,
+                  which is what the lore says it is for. */}
+              <span className="rr-lb-rank">
+                {e.crowned ? <span className="rr-crown-glint">👑</span> : e.rank}
+              </span>
               <span className="rr-lb-name">
                 {e.name}
                 {/* The live dot rides the NAME, not the rank column: it is a

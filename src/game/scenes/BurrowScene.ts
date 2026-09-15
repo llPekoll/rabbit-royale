@@ -23,7 +23,7 @@
  * is what `BurrowSceneData.seed` carries.
  */
 import {
-  Application, Assets, Container, Rectangle, Sprite, Texture, Polygon,
+  Application, Assets, Container, Graphics, Rectangle, Sprite, Texture, Polygon,
 } from 'pixi.js';
 import gsap from 'gsap';
 import type { Scene } from '../SceneManager';
@@ -525,9 +525,13 @@ export class BurrowScene implements Scene {
     // castle.
     if (this.data.seed !== this.ownSeed) return;
     const grew = level !== this.data.level;
+    // Louder than a swap: the building it grew INTO announces itself. Only
+    // upward — a level read for the first time (null before) is not news.
+    const celebrate = grew && typeof level === 'number' && typeof this.data.level === 'number' && level > this.data.level;
     this.data.level = level;
     this.terrain?.setLevel(level);
     if (grew && this.crop) this.resowCrop();
+    if (celebrate) this.terrain?.celebrateLevel();
   }
 
   /**
@@ -893,9 +897,33 @@ export class BurrowScene implements Scene {
     if (animate) {
       group.scale.set(0);
       gsap.to(group.scale, { x: 1, y: 1, duration: 0.28, ease: 'back.out(2)' });
+      // Dust off the ground as it goes in: a bomb BURIED, not a marker placed.
+      this.dustPuff(group);
     }
     // The tile it sits on is no longer placeable.
     this.setPlacing(this.data.placing);
+  }
+
+  /**
+   * A puff of dust out of a cell — the sound of digging, drawn.
+   *
+   * Six small discs thrown up and out, fading as they fall. Added to the
+   * group so they ride whatever positioned it (the terrain block or the
+   * board); `zIndex` keeps them over the bomb they are announcing.
+   */
+  private dustPuff(at: Container): void {
+    for (let i = 0; i < 6; i++) {
+      const puff = new Graphics().circle(0, 0, 2 + Math.random() * 2).fill({ color: 0xc9b48a, alpha: 0.85 });
+      puff.zIndex = 5;
+      puff.position.set(0, -2);
+      at.addChild(puff);
+      const dx = (i / 5 - 0.5) * 26 + (Math.random() - 0.5) * 6;
+      const tl = gsap.timeline({ onComplete: () => puff.destroy() });
+      tl.to(puff, { x: dx, duration: 0.42, ease: 'power1.out' }, 0);
+      tl.to(puff, { y: -12 - Math.random() * 8, duration: 0.18, ease: 'power2.out' }, 0);
+      tl.to(puff, { y: 2, duration: 0.24, ease: 'power1.in' }, 0.18);
+      tl.to(puff, { alpha: 0, duration: 0.2 }, 0.22);
+    }
   }
 
   // ── Raiding ───────────────────────────────────────────────────────────────

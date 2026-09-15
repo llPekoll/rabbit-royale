@@ -11,8 +11,10 @@
  * answers, arriving as events. A tile is drawn face-down until the server says
  * otherwise, because the client is never told what it has not dug.
  */
-import { AnimatedSprite, Application, Container } from 'pixi.js';
+import { AnimatedSprite, Application, Assets, Container, Sprite } from 'pixi.js';
 import gsap from 'gsap';
+import { GOLDEN_COIN_ALIASES } from '@domin8/arcade-kit/pixi';
+import { shadowedPixelText } from '../ui/PixelText';
 import type { Scene } from '../SceneManager';
 import { SceneManager } from '../SceneManager';
 import { GAME_W, GAME_H } from '../Application';
@@ -80,6 +82,8 @@ export interface IslandSceneData {
 /** Frames per second the bolt plays at. Six frames, so this is its whole life. */
 const LIGHTNING_FPS = 14;
 
+/** Coins thrown off a golden carrot — see `coinSpray`. */
+const COIN_SPRAY_COUNT = 7;
 /** Seconds between blinks as the sweep travels round the rabbit. */
 const SWEEP_STEP_SECONDS = 0.25;
 
@@ -701,7 +705,15 @@ export class IslandScene implements Scene {
       // The blast is over in half a second; the tile has to go on saying
       // "someone died here" for the rest of the run.
       tile.markBombSite();
-    } else if (content === 'carrot' || content === 'golden') {
+    } else if (content === 'golden') {
+      // Worth five carrots, and it used to sound and look like one. The sting,
+      // a flash on the tile and a spray of coins are what say "that was the
+      // big one" — the "+75" itself rides `floatGain`, for the digger alone.
+      this.sound.playCoinStart();
+      tile.flash();
+      this.coinSpray(index);
+      tile.collectCarrot();
+    } else if (content === 'carrot') {
       this.sound.playCoin();
       // Show it, then let it go. Digging a carrot IS taking it — there is no
       // second step — so the pickup animation starts with the reveal.
@@ -992,6 +1004,131 @@ export class IslandScene implements Scene {
     this.follow?.kill();
     this.follow = null;
   }
+
+  /**
+   * A spray of golden coins off a tile — the golden carrot's fanfare.
+   *
+   * The kit's coin frames, a handful thrown up and out in a fan, falling back
+   * past the tile and fading. Short and local: the coin RAIN the casino used
+   * covered the screen for a jackpot, and a golden carrot is a good dig, not
+   * a jackpot.
+   */
+  private coinSpray(index: number): void {
+    const tile = this.tiles.get(index);
+    if (!tile) return;
+    const { x, y } = tile.container.position;
+    for (let i = 0; i < COIN_SPRAY_COUNT; i++) {
+      const tex = Assets.get(GOLDEN_COIN_ALIASES[i % GOLDEN_COIN_ALIASES.length]);
+      if (!tex) return;
+      const coin = new Sprite(tex);
+      coin.anchor.set(0.5);
+      coin.position.set(x, y - 6);
+      coin.scale.set(1.6);
+      coin.zIndex = tile.container.zIndex + 50;
+      this.container.addChild(coin);
+      // A fan: each coin gets its own lane and its own height.
+      const t = i / Math.max(1, COIN_SPRAY_COUNT - 1) - 0.5;
+      const dx = t * 56 + gsap.utils.random(-6, 6);
+      const peak = gsap.utils.random(34, 52);
+      const tl = gsap.timeline({ onComplete: () => coin.destroy() });
+      tl.to(coin, { x: x + dx, duration: 0.7, ease: 'none' }, 0);
+      tl.to(coin, { y: y - peak, duration: 0.3, ease: 'power2.out' }, 0);
+      tl.to(coin, { y: y + 8, duration: 0.4, ease: 'power2.in' }, 0.3);
+      tl.to(coin, { rotation: gsap.utils.random(-4, 4), duration: 0.7, ease: 'none' }, 0);
+      tl.to(coin, { alpha: 0, duration: 0.18, ease: 'power1.in' }, 0.52);
+    }
+  }
+
+  /**
+   * "+N" rising off the tile the local rabbit just dug — the gain, said where
+   * it happened.
+   *
+   * For the digger ONLY (driven from `move_result`, which is private): the
+   * carrot goes to the first digger, and a stranger reading "+15" over a tile
+   * they did not get paid for would be a lie. A golden carrot's figure is
+   * bigger and gold; an ordinary one is small and white, so the two read as
+   * different amounts before the digits are read at all.
+   */
+  floatGain(index: number, amount: number, golden: boolean): void {
+    const tile = this.tiles.get(index);
+    if (!tile || amount <= 0) return;
+    const { x, y } = tile.container.position;
+    const label = shadowedPixelText(x, y - 18, `+${amount}`);
+    label.face.tint = golden ? 0xffd138 : 0xffffff;
+    label.group.zIndex = tile.container.zIndex + 60;
+    const scale = golden ? 2.2 : 1.4;
+    label.group.scale.set(0);
+    this.container.addChild(label.group);
+    const tl = gsap.timeline({ onComplete: () => label.group.destroy({ children: true }) });
+    tl.to(label.group.scale, { x: scale, y: scale, duration: 0.22, ease: 'back.out(2.5)' }, 0);
+    tl.to(label.group, { y: y - (golden ? 52 : 40), duration: golden ? 1.1 : 0.8, ease: 'power1.out' }, 0);
+    tl.to(label.group, { alpha: 0, duration: 0.3, ease: 'power1.in' }, golden ? 0.8 : 0.5);
+  }
+
+  /**
+   * The volcano's warning, felt: a rumble that grows with the stage.
+   *
+   * The HUD's "🌋 !!" says it; this makes the ground say it too. Stage one is
+   * a tremor, stage three is a proper shake — and none of them is the blast's
+   * shake, which stays for bombs.
+   */
+  rumble(stage: number): void {
+    if (stage <= 0) return;
+    gsap.killTweensOf(this.container.position);
+    const kick = (SHAKE_PX * 0.5 * stage) / this.container.scale.x;
+    gsap.to(this.container.position, {
+      x: this.cam.x + kick,
+      y: this.cam.y + kick * 0.4,
+      duration: 0.06,
+      repeat: 4 + stage * 2,
+      yoyo: true,
+      ease: 'none',
+      onComplete: () => this.container.position.set(this.cam.x, this.cam.y),
+    });
+  }
+
+  /**
+   * The island goes down.
+   *
+   * ERUPTION.SEQUENCE_MS is the server's beat between "the last safe tile is
+   * dug" and the recap, and it was four seconds of nothing: the board sat
+   * still and then a card appeared. Now the ground shakes harder and harder
+   * for the first part, then the whole island sinks and fades under the
+   * darkening sky (the DOM overlay does the sky and the ash). The recap lands
+   * on a board that has visibly gone. `resetEruption` puts it back for the
+   * next island.
+   */
+  playEruption(durationMs: number): void {
+    const s = Math.max(1, durationMs) / 1000;
+    gsap.killTweensOf(this.container.position);
+    gsap.killTweensOf(this.container);
+    const kick = (SHAKE_PX * 2) / this.container.scale.x;
+    const tl = gsap.timeline();
+    // The shake: a growing tremor for the first 55%, restored to the camera
+    // between beats so a pan mid-eruption is not undone.
+    tl.to(this.container.position, {
+      x: this.cam.x + kick, y: this.cam.y + kick * 0.6,
+      duration: 0.05, repeat: Math.floor((s * 0.55) / 0.05), yoyo: true, ease: 'none',
+    }, 0);
+    // The sink: down and gone over the last 45%.
+    tl.to(this.container.position, {
+      y: this.cam.y + 90 / this.container.scale.x, duration: s * 0.45, ease: 'power2.in',
+    }, s * 0.55);
+    tl.to(this.container, { alpha: 0, duration: s * 0.4, ease: 'power1.in' }, s * 0.6);
+    this.sound.playExplosion();
+    this.eruption = tl;
+  }
+
+  /** The next island: the board is back where it was, whole and lit. */
+  resetEruption(): void {
+    this.eruption?.kill();
+    this.eruption = null;
+    gsap.killTweensOf(this.container);
+    this.container.alpha = 1;
+    this.container.position.set(this.cam.x, this.cam.y);
+  }
+
+  private eruption: gsap.core.Timeline | null = null;
 
   private shakeScreen(): void {
     // One hard hit that DECAYS, rather than the same jolt eight times — see

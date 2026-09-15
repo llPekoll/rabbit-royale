@@ -19,6 +19,7 @@
  * board's — is the same idea, and the comments there are the long version.
  */
 import { Assets, Container, Graphics, Sprite, Texture, type BitmapText } from 'pixi.js';
+import gsap from 'gsap';
 import { IsoIslandView, loadIslandTileset, isoProject } from '@/game/island';
 import {
   BURROW_HALF_W, BURROW_HALF_H, BURROW_TIER_LIFT,
@@ -58,6 +59,11 @@ export interface BurrowTerrainView {
   view: Container;
   /** The burrow building, so the scene can swap it on an upgrade. */
   setLevel(level: number | null | undefined): void;
+  /**
+   * The building just GREW: pop it, flash it, throw dust off its foot. Called
+   * after `setLevel` by the scene, only on an upgrade the player made.
+   */
+  celebrateLevel(): void;
   /**
    * The shield sign that floats over the burrow, or null to take it down.
    *
@@ -219,6 +225,40 @@ export async function createBurrowTerrain(
   };
 
   /**
+   * The upgrade, on the ground. The new building rises through the old one's
+   * footprint (scale from 0.8 with an overshoot), a warm flash blooms behind
+   * it, and dust is thrown off its foot — so the bigger house is something
+   * that HAPPENED to the place, not a texture that changed.
+   */
+  const celebrateLevel = () => {
+    gsap.killTweensOf(home.scale);
+    home.scale.set(DECO_SCALE * 0.8);
+    gsap.to(home.scale, { x: DECO_SCALE, y: DECO_SCALE, duration: 0.55, ease: 'elastic.out(1, 0.5)' });
+
+    const foot = { x: home.position.x, y: home.position.y };
+    const flash = new Graphics().circle(0, 0, 60).fill({ color: 0xffe9a8, alpha: 0.7 });
+    flash.position.set(foot.x, foot.y - 30);
+    flash.zIndex = home.zIndex - 0.5;
+    flash.scale.set(0.2);
+    container.addChild(flash);
+    gsap.to(flash.scale, { x: 1.6, y: 1.6, duration: 0.5, ease: 'power2.out' });
+    gsap.to(flash, { alpha: 0, duration: 0.5, ease: 'power1.in', onComplete: () => flash.destroy() });
+
+    for (let i = 0; i < 10; i++) {
+      const puff = new Graphics().circle(0, 0, 3 + Math.random() * 3).fill({ color: 0xc9b48a, alpha: 0.9 });
+      puff.position.set(foot.x, foot.y - 2);
+      puff.zIndex = home.zIndex + 0.5;
+      container.addChild(puff);
+      const dx = (i / 9 - 0.5) * 90 + (Math.random() - 0.5) * 10;
+      const tl = gsap.timeline({ onComplete: () => puff.destroy() });
+      tl.to(puff, { x: foot.x + dx, duration: 0.6, ease: 'power1.out' }, 0);
+      tl.to(puff, { y: foot.y - 18 - Math.random() * 14, duration: 0.25, ease: 'power2.out' }, 0);
+      tl.to(puff, { y: foot.y + 4, duration: 0.35, ease: 'power1.in' }, 0.25);
+      tl.to(puff, { alpha: 0, duration: 0.25 }, 0.35);
+    }
+  };
+
+  /**
    * The shield sign over the burrow.
    *
    * Drawn as a plaque rather than text alone: a bare string over a painted
@@ -348,6 +388,7 @@ export async function createBurrowTerrain(
   return {
     view: island.view,
     setLevel: place,
+    celebrateLevel,
     setShield,
     mountVeil(tile, veil, zIndex) {
       const { col, row } = burrowColRow(tile);

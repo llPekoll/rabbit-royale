@@ -66,16 +66,23 @@ export interface HubTabProps {
   muted?: boolean;
   onClick?(): void;
   ariaLabel?: string;
+  /**
+   * Bump to make the tile POP once — a chapter opened, a quest landed on
+   * this door. The tile re-keys its animation class on the change, so a
+   * second bump plays a second pop rather than nothing.
+   */
+  pulseKey?: number;
 }
 
 export function HubTab({
-  sprite, art, label, count, disabled, muted, onClick, ariaLabel,
+  sprite, art, label, count, disabled, muted, onClick, ariaLabel, pulseKey = 0,
 }: HubTabProps) {
   const showBadge = !!count && count > 0;
   const off = disabled || muted;
   return (
     <button
       type="button"
+      key={pulseKey}
       onClick={disabled ? undefined : onClick}
       disabled={disabled}
       aria-label={ariaLabel ?? label}
@@ -85,7 +92,7 @@ export function HubTab({
          dimmed tile came out blue — lighter than its neighbours instead of
          darker. Dimming the face and the ink separately keeps the row's four
          squares the same object in two states. */
-      className="rr-hub-tab"
+      className={`rr-hub-tab${pulseKey > 0 ? ' rr-tab-pop' : ''}`}
       style={{
         ...tile,
         background: off
@@ -99,7 +106,9 @@ export function HubTab({
       <span style={{ ...labelText, color: off ? INK_OFF : INK }}>{label}</span>
 
       {showBadge && (
-        <span style={badge}>
+        // `rr-hub-badge` pops on mount: a badge that simply appears is a
+        // status, one that arrives is news. See globals.css.
+        <span className="rr-hub-badge" style={badge}>
           {/* Over 99 the digits stop being readable at this size and the badge
               stops being a glyph, so it says "lots" instead of a number. */}
           {count > 99 ? '99+' : count}
