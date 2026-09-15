@@ -16,6 +16,7 @@
  */
 import { useEffect, useState } from 'react';
 import { firstRunBeat, type FirstRunState } from '@/config/first-run';
+import { PxPanel } from './px';
 import type { MyDigs } from './use-game-socket';
 
 /** How long a non-sticky beat stays on screen. */
@@ -51,8 +52,10 @@ export function FirstRunCaption(props: FirstRunCaptionProps) {
   const text = useFirstRunCaption(props);
   if (!text) return null;
   return (
-    <p className="rr-caption" role="status" aria-live="polite">
-      {text}
-    </p>
+    // The island's caption glass in the codex's pixel frame; `.rr-caption`
+    // still places it, the inline pair stops the old smooth chrome under it.
+    <PxPanel color="rgba(13, 17, 23, 0.86)" className="rr-caption" style={{ background: 'none', borderRadius: 0 }}>
+      <span role="status" aria-live="polite">{text}</span>
+    </PxPanel>
   );
 }

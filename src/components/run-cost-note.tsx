@@ -21,6 +21,7 @@
  */
 import { useEffect, useState } from 'react';
 import type { RunBank } from './use-game-socket';
+import { PxPanel } from './px';
 
 /** How long the line stays up. Long enough to read twice, short enough to
  *  be gone before the first number is worth reading. */
@@ -40,8 +41,11 @@ export function RunCostNote({ bank, seed }: { bank: RunBank | null; seed: string
 
   if (!shown) return null;
   return (
-    <p className="rr-caption rr-caption-cost" role="status" aria-live="polite">
-      ⚡ -{shown.cost} for this run &middot; {shown.energy}/{shown.max} left at the burrow
-    </p>
+    // Same pixel glass as the other island captions — see first-run-caption.
+    <PxPanel color="rgba(13, 17, 23, 0.86)" className="rr-caption rr-caption-cost" style={{ background: 'none', borderRadius: 0 }}>
+      <span role="status" aria-live="polite">
+        ⚡ -{shown.cost} for this run &middot; {shown.energy}/{shown.max} left at the burrow
+      </span>
+    </PxPanel>
   );
 }

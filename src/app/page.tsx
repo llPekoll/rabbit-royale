@@ -23,6 +23,7 @@ import { WalletButton } from '@/components/wallet-button';
 import { LeaderboardDrawer, type Me } from '@/components/leaderboard-drawer';
 import { GoButton } from '@/components/go-button';
 import { BackButton } from '@/components/back-button';
+import { PxButton, PxPanel, pxLabel } from '@/components/px';
 import { CarrotPill } from '@/components/carrot-pill';
 import { RaidedStamp, raidedNews, type RaidedNews } from '@/components/raided-stamp';
 import { TopbarReserve } from '@/components/topbar-reserve';
@@ -114,6 +115,15 @@ type Where = 'burrow' | 'island';
 const RAID_OVER_MS = 2000;
 /** How long the haul is announced in the burrow once home. */
 const RAID_TOAST_MS = 4000;
+/**
+ * The page's own glass panels (toasts, the quest caption, the defence line,
+ * the reconnect pill) in the codex's pixel frame. Their CSS classes still
+ * place them; these two lines stop the old smooth chrome drawing under the
+ * frame — a background under a translucent fill, and a radius the pixel
+ * corners do not have.
+ */
+const PX_GLASS = { background: 'none', borderRadius: 0 } as const;
+
 /** How a held crossing ended — see `waitForIsland`. */
 type IslandArrival = 'ready' | 'refused' | 'late';
 
@@ -1771,12 +1781,32 @@ function Burrow() {
                   that a signature is a steep price for a game you have not
                   played yet. That reasoning still holds; this ordering is a
                   deliberate call that the wallet is the front door. */}
-              <button className="rr-btn rr-play" onClick={login} disabled={busy}>
-                Connect wallet
-              </button>
-              <button className="rr-btn ghost" onClick={playAsGuest} disabled={busy}>
-                {busy ? 'Digging in...' : 'Play as a guest'}
-              </button>
+              {/* The doorstep's two buttons in the codex's pixel bevel, in the
+                  colours they had: the carrot one to press, the quiet one under
+                  it. The front door wiggles when it is pressed. */}
+              <PxButton
+                className="rr-btn rr-play"
+                onClick={login}
+                disabled={busy}
+                color="#ff8c42"
+                shadowColor="#a8521c"
+                textColor="#2a1206"
+                wiggle
+                style={{ height: 52 }}
+              >
+                <span style={{ ...pxLabel, fontSize: 18 }}>Connect wallet</span>
+              </PxButton>
+              <PxButton
+                className="rr-btn ghost"
+                onClick={playAsGuest}
+                disabled={busy}
+                color="#161b22"
+                shadowColor="#0b0f14"
+                textColor="#b1bac4"
+                style={{ height: 44 }}
+              >
+                <span style={{ ...pxLabel, fontSize: 14 }}>{busy ? 'Digging in...' : 'Play as a guest'}</span>
+              </PxButton>
               {signInError && <p className="rr-warn">{signInError}</p>}
             </div>
           ) : (
@@ -1885,9 +1915,16 @@ function Burrow() {
                   Only offered when there is something to clear — a button
                   that does nothing is worse than no button. */}
               {placing && (shop.traps?.placed.length ?? 0) > 0 && (
-                <button className="rr-btn ghost" onClick={clearTraps}>
-                  Clear all mines
-                </button>
+                <PxButton
+                  className="rr-btn ghost"
+                  onClick={clearTraps}
+                  color="#161b22"
+                  shadowColor="#0b0f14"
+                  textColor="#b1bac4"
+                  style={{ height: 44 }}
+                >
+                  <span style={{ ...pxLabel, fontSize: 13 }}>Clear all mines</span>
+                </PxButton>
               )}
 
               {/* While placing, this is the only instruction on screen — the
@@ -1920,7 +1957,11 @@ function Burrow() {
                   who does not know the bombs come back free will go and buy
                   replacements for traps they never lost. */}
               {shop.traps && shop.traps.placed.length > 0 && (
-                <p className={`rr-note${shop.traps.armed.length === 0 ? ' danger' : ''}`}>
+                <PxPanel
+                  color="rgba(13, 17, 23, 0.86)"
+                  className={`rr-note${shop.traps.armed.length === 0 ? ' danger' : ''}`}
+                  style={PX_GLASS}
+                >
                   {shop.traps.armed.length} bomb{shop.traps.armed.length === 1 ? '' : 's'} live
                   {shop.traps.rearming.length > 0 && (
                     <>
@@ -1929,7 +1970,7 @@ function Burrow() {
                       {' '}&middot; costs you nothing
                     </>
                   )}
-                </p>
+                </PxPanel>
               )}
             </>
           )}
@@ -2020,7 +2061,9 @@ function Burrow() {
 
       {/* The socket fell over. Said, rather than leaving every tap to vanish. */}
       {showCanvas && game.dropped && !spectating && (
-        <div className="rr-reconnecting" role="status">Reconnecting...</div>
+        <PxPanel color="rgba(13, 17, 23, 0.9)" className="rr-reconnecting" style={{ ...PX_GLASS, position: 'fixed' }}>
+          <span role="status">Reconnecting...</span>
+        </PxPanel>
       )}
 
       {/* THE BURROW'S TOASTS, under the carrot pill — see `note`. The placing
@@ -2030,17 +2073,30 @@ function Burrow() {
       {showCanvas && where === 'burrow' && !shownRaid && !crossing && (note || (placing && shop.shop)) && (
         <div className="rr-toasts" aria-live="polite">
           {placing && shop.shop && (
-            <p className="rr-toast rr-toast-hint">
+            <PxPanel color="rgba(13, 17, 23, 0.86)" className="rr-toast rr-toast-hint" style={PX_GLASS}>
               {shop.shop.traps.held > 0
                 ? <>Tap a tile to mine it, tap a mine to lift it &middot; {shop.shop.traps.held} left</>
                 : <>No traps left &middot; tap a mine to lift it and bury it elsewhere</>}
-            </p>
+            </PxPanel>
           )}
           {/* Outside the drawer, only a REFUSAL is worth showing: a receipt
               for a purchase the player just watched happen in the panel is
               noise on the burrow screen. */}
-          {placing && shop.note && <p key={shop.note} className="rr-toast refused">{shop.note}</p>}
-          {note && <p key={noteKey} className={`rr-toast${noteRefused ? ' refused' : ''}`}>{note}</p>}
+          {placing && shop.note && (
+            <PxPanel key={shop.note} color="rgba(40, 14, 14, 0.9)" className="rr-toast refused" style={PX_GLASS}>
+              {shop.note}
+            </PxPanel>
+          )}
+          {note && (
+            <PxPanel
+              key={noteKey}
+              color={noteRefused ? 'rgba(40, 14, 14, 0.9)' : 'rgba(13, 17, 23, 0.86)'}
+              className={`rr-toast${noteRefused ? ' refused' : ''}`}
+              style={PX_GLASS}
+            >
+              {note}
+            </PxPanel>
+          )}
         </div>
       )}
 
@@ -2067,7 +2123,9 @@ function Burrow() {
           {/* A quest finishing while the player is out here — the card is at
               home, so the island says it. */}
           {questNote && !spectating && (
-            <p className="rr-caption rr-caption-quest" role="status" aria-live="polite">{questNote}</p>
+            <PxPanel color="rgba(13, 17, 23, 0.86)" className="rr-caption rr-caption-quest" style={PX_GLASS}>
+              <span role="status" aria-live="polite">{questNote}</span>
+            </PxPanel>
           )}
           {/* The sky during the eruption; the scene sinks the island under it. */}
           {game.erupting !== null && <EruptionOverlay ms={game.erupting} />}
@@ -2078,13 +2136,17 @@ function Burrow() {
               bottom band is shared with the lifted sound control, and the two
               overlapped. */}
           {rabbitAway && !spectating && (
-            <button
+            <PxButton
               type="button"
               className="rr-btn rr-recentre"
               onClick={() => handles.current?.island?.recentre()}
+              color="#161b22"
+              shadowColor="#0b0f14"
+              textColor="#e6edf3"
+              style={{ height: 40, width: 'auto' }}
             >
-              Find my rabbit
-            </button>
+              <span style={{ ...pxLabel, fontSize: 12 }}>Find my rabbit</span>
+            </PxButton>
           )}
           {/* Pushes the recap and the arrow to the bottom. Explicitly
               transparent to input: it covers the whole board, and the CSS
