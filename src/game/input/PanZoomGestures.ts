@@ -84,6 +84,20 @@ export class PanZoomGestures {
    */
   get didDrag(): boolean { return this.dragged; }
 
+  /**
+   * Start a gesture from a press that landed OUTSIDE the target's subtree.
+   *
+   * For a board whose cells own their own taps and sit beside the target
+   * rather than inside it (the burrow's diamonds over its drag surface): Pixi
+   * bubbles a press only to the pressed object's ancestors, so without this the
+   * recogniser never saw a drag that started on a cell. Only the press needs
+   * handing over — moves arrive through `globalpointermove` wherever the
+   * pointer is, and a release the target never hears is swept by `onDomUp`.
+   */
+  press(e: FederatedPointerEvent): void {
+    this.down(e);
+  }
+
   private readonly onDown = (e: FederatedPointerEvent) => this.down(e);
   private readonly onMove = (e: FederatedPointerEvent) => this.move(e);
   private readonly onUp = (e: FederatedPointerEvent) => this.up(e);

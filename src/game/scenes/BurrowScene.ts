@@ -506,6 +506,13 @@ export class BurrowScene implements Scene {
     // every diamond is hit-tested before it.
     this.dragSurface.zIndex = -1e6;
     this.container.addChild(this.dragSurface);
+    // A PRESS ON A CELL REACHES THIS TOO — see the hint's own `pointerdown`,
+    // which hands it over with `press`. The surface is a SIBLING of the board,
+    // and Pixi bubbles an event up through the target's ancestors only, so a
+    // drag started on a diamond never reached a recogniser bound here: only a
+    // press on open sea panned. Binding on the scene container instead does not
+    // work (measured): a `passive` container emits nothing, and a `static` one
+    // hit-tests its sprites by bounds — the trees trap every tap (see above).
     this.gestures = new PanZoomGestures(
       this.dragSurface,
       (g) => this.designPoint(g),
@@ -735,7 +742,15 @@ export class BurrowScene implements Scene {
       // Hover, for a mouse only — see `onHintHover`. `pointermove` as well as
       // `pointerover` so the preview comes back after a drag ends over a cell,
       // where no fresh `pointerover` fires.
-      hint.on('pointerdown', () => { this.pressTile = i; });
+      // The press also starts a possible DRAG: the recogniser listens on the
+      // drag surface behind the board, which a press on a cell never reaches
+      // by bubbling. Moves arrive on the surface anyway (`globalpointermove`),
+      // and the release is swept from the DOM — so this one hand-over is what
+      // lets a drag started on the board itself pan it.
+      hint.on('pointerdown', (e: FederatedPointerEvent) => {
+        this.pressTile = i;
+        this.gestures?.press(e);
+      });
       hint.on('pointerover', (e: FederatedPointerEvent) => this.onHintHover(i, e));
       hint.on('pointermove', (e: FederatedPointerEvent) => this.onHintHover(i, e));
       hint.on('pointerout', () => this.onHintOut(i));
