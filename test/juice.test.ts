@@ -89,7 +89,12 @@ describe('the burrow has its moments', () => {
   it('bursts the counter when a run is brought home', () => {
     expect(HOOK).toMatch(/setBankedCarrots\(b\?\.carrots \?\? 0\)/);
     expect(PAGE).toMatch(/pendingHome\.current = game\.bankedCarrots/);
-    expect(PAGE).toMatch(/brought home/);
+    // The haul stands on the DIG slab, not in the card column's grey note.
+    expect(PAGE).toMatch(/setBroughtHome\(\{ amount, key: Date\.now\(\) \}\)/);
+    expect(PAGE).toMatch(/broughtHome=\{broughtHome\}/);
+    expect(PAGE).not.toMatch(/setNote\(`\+\$\{amount\} 🥕 brought home`\)/);
+    expect(read('../src/components/loop-bar.tsx')).toMatch(/className="rr-home-haul"[\s\S]{0,700}brought home/);
+    expect(CSS).toMatch(/@keyframes rr-home-haul/);
   });
 
   it('stamps a level-up and pops the building', () => {

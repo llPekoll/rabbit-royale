@@ -113,6 +113,8 @@ type Where = 'burrow' | 'island';
 const RAID_OVER_MS = 2000;
 /** How long the haul is announced in the burrow once home. */
 const RAID_TOAST_MS = 4000;
+/** How long the run's haul sits over the DIG slab. Matches `.rr-home-haul`'s animation. */
+const BROUGHT_HOME_MS = 4000;
 
 export default function Home() {
   return (
@@ -168,6 +170,8 @@ function Burrow() {
   const [questNote, setQuestNote] = useState<string | null>(null);
   /** The burrow just went up: the stamp over the screen. */
   const [levelUp, setLevelUp] = useState<{ level: number; key: number } | null>(null);
+  /** The run just banked, shown over the DIG slab that sends the next one. */
+  const [broughtHome, setBroughtHome] = useState<{ amount: number; key: number } | null>(null);
   /** A chapter opened this session — the STORY tile pops. */
   const [lorePulseKey, setLorePulseKey] = useState(0);
   /** An item reward in flight to the bag. */
@@ -786,9 +790,19 @@ function Burrow() {
     pendingHome.current = 0;
     setBurstAmount(amount);
     setBurstKey((k) => k + 1);
-    setNote(`+${amount} 🥕 brought home`);
+    // Over DIG, not at the foot of the card column. It used to be a `.rr-note`
+    // there: grey on the moving sea (1.4:1 measured), 175px from the slab the
+    // player reaches for next, and it never went away.
+    setBroughtHome({ amount, key: Date.now() });
     playUiSfx('coin');
   }, [where, crossing, showCanvas]);
+  // Clears itself — only itself: a newer haul re-keys it and owns the clock.
+  useEffect(() => {
+    if (!broughtHome) return;
+    const { key } = broughtHome;
+    const done = setTimeout(() => setBroughtHome((b) => (b?.key === key ? null : b)), BROUGHT_HOME_MS);
+    return () => clearTimeout(done);
+  }, [broughtHome]);
 
   /**
    * Tell the server something only the browser saw — the season board opened,
@@ -1805,6 +1819,7 @@ function Burrow() {
           }}
           questDoor={quest?.active?.door ?? next?.door ?? null}
           questPulseKey={questPulseKey}
+          broughtHome={broughtHome}
           away={placing}
           onDig={goFarm}
           onHome={startPlacing}

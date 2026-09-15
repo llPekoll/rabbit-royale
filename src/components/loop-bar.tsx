@@ -56,6 +56,11 @@ export interface LoopBarProps {
   questDoor?: QuestDoor | null;
   /** Bumped when the quest moves to a new door — that slab pops once. */
   questPulseKey?: number;
+  /**
+   * The run that just banked. Shown ON the DIG slab — the carrots came from
+   * there, and it is the next thing the player presses. Re-keyed per haul.
+   */
+  broughtHome?: { amount: number; key: number } | null;
   away?: boolean;
   onDig(): void;
   onHome(): void;
@@ -96,7 +101,7 @@ function formatWait(ms: number): string {
 }
 
 export function LoopBar({
-  dig, home, raid, questDoor = null, questPulseKey = 0, away, onDig, onHome, onRaid,
+  dig, home, raid, questDoor = null, questPulseKey = 0, broughtHome = null, away, onDig, onHome, onRaid,
 }: LoopBarProps) {
   const pointed = loopOf(questDoor);
   const pulse = (loop: Loop) => (pointed === loop && questPulseKey > 0 ? questPulseKey : 0);
@@ -173,6 +178,27 @@ export function LoopBar({
           </span>
         </span>
         {pointed === 'dig' && <span className="rr-hub-badge" style={badge} aria-hidden>!</span>}
+        {/* The haul, standing on the slab it came from. Outside the slab's
+            box (see `.rr-home-haul`) and transparent to the pointer, so it
+            never takes a press meant for DIG. */}
+        {broughtHome && (
+          <span key={broughtHome.key} className="rr-home-haul" role="status">
+            <span className="rr-home-haul-n">
+              <img
+                className="rr-carrot-px"
+                src={CARROT_URL}
+                alt=""
+                aria-hidden
+                draggable={false}
+                width={Math.round((CARROT_SIZE.width / CARROT_SIZE.height) * 20)}
+                height={20}
+                style={{ display: 'block', transform: 'rotate(45deg)' }}
+              />
+              +{broughtHome.amount}
+            </span>
+            <span>brought home</span>
+          </span>
+        )}
       </button>
 
       <span style={arrow} aria-hidden>▸</span>

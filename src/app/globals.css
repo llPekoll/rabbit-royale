@@ -472,6 +472,67 @@ body:has(.rr-loop-bar) .rr-sound {
   }
 }
 
+/* THE HAUL, ON THE DIG SLAB. A run's carrots arriving home, said above the
+   slab they came from and that sends the next run — the same glass as the
+   island's captions, the figure in the energy gold at a pixel-grid 24px.
+   Centred without a transform (left/right 0 + auto margins), so the
+   animation below owns `transform` outright. Pops in, holds, lifts away;
+   React unmounts it at BROUGHT_HOME_MS (page.tsx), which matches. */
+.rr-home-haul {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 0;
+  right: 0;
+  width: max-content;
+  margin-inline: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 14px;
+  border-radius: 10px;
+  background: rgba(13, 17, 23, 0.82);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid var(--border);
+  color: #f5e6d3;
+  font-family: var(--font-pixel), ui-monospace, monospace;
+  font-size: 16px;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  transform-origin: 50% 100%;
+  animation: rr-home-haul 4000ms linear both;
+}
+.rr-home-haul-n {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 24px;
+  color: #ffd138;
+}
+@keyframes rr-home-haul {
+  0%   { opacity: 0; transform: translateY(8px) scale(0.7); animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1); }
+  10%  { opacity: 1; transform: none; }
+  88%  { opacity: 1; transform: none; animation-timing-function: ease-in; }
+  100% { opacity: 0; transform: translateY(-8px); }
+}
+/* Upright phone: DIG is the full-width top row and the sound pair sits at its
+   right end, so the haul stacks to two lines and starts from the left edge. */
+@media (max-width: 720px) and (orientation: portrait) {
+  .rr-home-haul {
+    right: auto;
+    margin-inline: 0;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    transform-origin: 0 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Still there for its four seconds, it just does not travel. */
+  .rr-home-haul { animation: none; }
+}
+
 /* ── Juice: the small pops that make a change an EVENT ──────────────────
    All keyed to mount or to a React `key` change, so a component fires one by
    re-rendering rather than by holding a timer. Every one respects
