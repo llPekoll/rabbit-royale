@@ -21,7 +21,13 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { boardCamFraming, MIN_TILE_PX } from '../src/game/scenes/burrowCamera';
+import {
+  boardCamFraming, MIN_TILE_PX, placeCam, placeZoomLimits,
+  panPlaceCam, zoomPlaceCam, clampPlaceCam,
+} from '../src/game/scenes/burrowCamera';
+import { BURROW_COLS, BURROW_ROWS, BURROW_HALF_W, BURROW_HALF_H } from '../src/config/burrowConfig';
+import { burrowCell } from '../src/game/burrow/board';
+import { burrowTileScreen } from '../src/game/burrow/screen';
 
 /** The design spaces the game actually runs in — see Application. */
 const VIEWPORTS = [
@@ -120,4 +126,156 @@ describe('burrow camera', () => {
     const done = page.indexOf('onClick={stopPlacing}');
     expect(done, 'the exit must be outside the gate').toBeGreaterThan(close);
   });
+});
+
+/**
+ * PLACEMENT'S OWN CAMERA.
+ *
+ * Placement stopped being a fit. The homestead is a wide, flat diamond, so the
+ * fit above is decided by the WIDTH on every screen and spends the frame's
+ * height on sea — a 47-54px tile in landscape. A cell being a tap target is
+ * what this screen is for, so it opens at twice the fit and is driven by the
+ * same gestures as the island.
+ *
+ * What these guard is the pair of promises that makes that safe: you cannot
+ * lose the board by dragging, and zooming out returns you exactly to the shot
+ * the screen used to be nailed to.
+ */
+describe('placement camera', () => {
+  /** The played ground's box — the same cells `boardBounds` measures. */
+  function bounds(seed: string) {
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (let i = 0; i < BURROW_COLS * BURROW_ROWS; i++) {
+      if (burrowCell(seed, i) === 'blocked') continue;
+      const { x, y } = burrowTileScreen(seed, i);
+      minX = Math.min(minX, x - BURROW_HALF_W);
+      maxX = Math.max(maxX, x + BURROW_HALF_W);
+      minY = Math.min(minY, y - BURROW_HALF_H);
+      maxY = Math.max(maxY, y + BURROW_HALF_H);
+    }
+    return { minX, maxX, minY, maxY };
+  }
+
+  /** How much of the screen the board covers under `cam`, as a share. */
+  function covered(seed: string, cam: { scale: number; x: number; y: number }, W: number, H: number) {
+    const b = bounds(seed);
+    const visW = Math.max(0, Math.min(cam.x + cam.scale * b.maxX, W) - Math.max(cam.x + cam.scale * b.minX, 0));
+    const visH = Math.max(0, Math.min(cam.y + cam.scale * b.maxY, H) - Math.max(cam.y + cam.scale * b.minY, 0));
+    return (visW * visH) / (W * H);
+  }
+
+  for (const v of VIEWPORTS) {
+    describe(v.name, () => {
+      it('opens twice as close as the fit', () => {
+        // The whole point of the change, and the number the player asked for.
+        for (const seed of SEEDS) {
+          const fit = boardCamFraming(seed, v.w, v.h);
+          const place = placeCam(seed, v.w, v.h);
+          expect(place.scale / fit.cam.scale, seed).toBeCloseTo(2, 5);
+        }
+      });
+
+      it('draws a tile at least as big as the fit could tap', () => {
+        // Zooming IN cannot make a target smaller, so this is a floor that
+        // cannot fail while the ratio above holds — it is here to fail loudly
+        // if PLACE_ZOOM is ever taken below 1.
+        for (const seed of SEEDS) {
+          const place = placeCam(seed, v.w, v.h);
+          expect(BURROW_HALF_W * 2 * place.scale, seed).toBeGreaterThanOrEqual(MIN_TILE_PX);
+        }
+      });
+
+      it('cannot be dragged until the board leaves the screen', () => {
+        // Eight directions, far harder than a thumb could flick. The board
+        // must still cover a real share of the frame at the end of each.
+        for (const seed of SEEDS) {
+          for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
+            let cam = placeCam(seed, v.w, v.h);
+            for (let i = 0; i < 40; i++) cam = panPlaceCam(cam, dx * 300, dy * 300, seed, v.w, v.h);
+            expect(covered(seed, cam, v.w, v.h), `${seed} ${dx},${dy}`).toBeGreaterThan(0.25);
+          }
+        }
+      });
+
+      it('zooms out to exactly the old fit, and no further', () => {
+        // The fit is the floor, so nothing was taken away: the shot the screen
+        // used to open on is one gesture from where it now opens.
+        for (const seed of SEEDS) {
+          const fit = boardCamFraming(seed, v.w, v.h);
+          let cam = placeCam(seed, v.w, v.h);
+          for (let i = 0; i < 60; i++) cam = zoomPlaceCam(cam, 0.9, { x: v.w / 2, y: v.h / 2 }, seed, v.w, v.h);
+          expect(cam.scale, seed).toBeCloseTo(fit.cam.scale, 5);
+        }
+      });
+
+      it('does not zoom past the opening shot', () => {
+        for (const seed of SEEDS) {
+          const open = placeCam(seed, v.w, v.h);
+          let cam = open;
+          for (let i = 0; i < 60; i++) cam = zoomPlaceCam(cam, 1.1, { x: v.w / 2, y: v.h / 2 }, seed, v.w, v.h);
+          expect(cam.scale, seed).toBeCloseTo(open.scale, 5);
+          expect(cam.scale, seed).toBeCloseTo(placeZoomLimits(seed, v.w, v.h).max, 5);
+        }
+      });
+
+      it('keeps the scene point under a pinch put, on an axis that can pan', () => {
+        // The invariant that makes a pinch feel like grabbing the board rather
+        // than working a slider — solve for the scene point under the fingers
+        // before, and it is still under them after.
+        //
+        // Only on an axis the board OVERFLOWS. Where the board is smaller than
+        // the screen `clampAxis` centres it, and centring deliberately
+        // overrides the anchor: the alternative is letting a pinch park a
+        // board that fits off to one side. Portrait zoomed out is exactly that
+        // case, which is why the axis is tested rather than assumed.
+        for (const seed of SEEDS) {
+          const at = { x: v.w * 0.3, y: v.h * 0.7 };
+          const before = placeCam(seed, v.w, v.h);
+          // Zoom OUT: the opening shot is already at the ceiling, so an
+          // inward pinch is clamped and would move nothing to measure.
+          const after = zoomPlaceCam(before, 0.5, at, seed, v.w, v.h);
+          const b = bounds(seed);
+          const scenePt = { x: (at.x - before.x) / before.scale, y: (at.y - before.y) / before.scale };
+          if ((b.maxX - b.minX) * after.scale > v.w) {
+            expect(after.x + after.scale * scenePt.x, seed).toBeCloseTo(at.x, 3);
+          } else {
+            // Centred instead — and that IS the contract on this axis.
+            expect(Math.abs((after.x + after.scale * b.minX) - (v.w - (after.x + after.scale * b.maxX))), seed)
+              .toBeLessThan(1);
+          }
+          if ((b.maxY - b.minY) * after.scale > v.h) {
+            expect(after.y + after.scale * scenePt.y, seed).toBeCloseTo(at.y, 3);
+          } else {
+            expect(Math.abs((after.y + after.scale * b.minY) - (v.h - (after.y + after.scale * b.maxY))), seed)
+              .toBeLessThan(1);
+          }
+        }
+      });
+
+      it('centres the board on the shot it opens with', () => {
+        for (const seed of SEEDS) {
+          const cam = placeCam(seed, v.w, v.h);
+          const b = bounds(seed);
+          const left = cam.x + cam.scale * b.minX;
+          const right = cam.x + cam.scale * b.maxX;
+          const top = cam.y + cam.scale * b.minY;
+          const bottom = cam.y + cam.scale * b.maxY;
+          expect(Math.abs(left - (v.w - right)), seed).toBeLessThan(1);
+          expect(Math.abs(top - (v.h - bottom)), seed).toBeLessThan(1);
+        }
+      });
+
+      it('brings an out-of-range camera back rather than trusting it', () => {
+        // `wantedCam` re-clamps the player's own framing on every trap buried,
+        // so this is the path that runs most often in practice.
+        for (const seed of SEEDS) {
+          const wild = clampPlaceCam({ scale: 99, x: -9000, y: 9000 }, seed, v.w, v.h);
+          const { min, max } = placeZoomLimits(seed, v.w, v.h);
+          expect(wild.scale, seed).toBeLessThanOrEqual(max + 1e-9);
+          expect(wild.scale, seed).toBeGreaterThanOrEqual(min - 1e-9);
+          expect(covered(seed, wild, v.w, v.h), seed).toBeGreaterThan(0.25);
+        }
+      });
+    });
+  }
 });

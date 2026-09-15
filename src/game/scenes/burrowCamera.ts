@@ -29,6 +29,22 @@
  *
  * The board's extent is also no longer a constant. Every player's homestead is
  * a different shape, so the framing is solved per seed rather than once.
+ *
+ * ## Placement is no longer a fit
+ *
+ * `boardCam` frames the whole homestead, and for a RAID that is still the shot:
+ * a raider is choosing a route and needs to see the ground it crosses. For
+ * PLACEMENT it was measured and found wanting. The homestead is a wide, flat
+ * isometric diamond (~787x350 scene px), so the `Math.min` below is decided by
+ * the WIDTH on every screen, and the height is spent on sea. In the 960x540
+ * landscape space that is a 47-54px tile filling 65-82% of the frame.
+ *
+ * Placement is the one screen where a cell is a TARGET rather than a thing to
+ * look at, so it now opens twice as close (`PLACE_ZOOM`) and is driven like the
+ * island: pinch/wheel to zoom, drag to pan, within limits that cannot lose the
+ * board. Zoomed all the way out is exactly the old fit, so nothing is taken
+ * away — the shot the screen used to open on is one gesture from where it now
+ * opens.
  */
 import { GAME_W, GAME_H } from '../Application';
 import { BURROW_COLS, BURROW_ROWS, BURROW_HALF_W, BURROW_HALF_H } from '@/config/burrowConfig';
@@ -118,6 +134,120 @@ export function boardCam(seed: string, W: number = GAME_W, H: number = GAME_H): 
     x: W / 2 - scale * (b.minX + b.maxX) / 2,
     y: H / 2 - scale * (b.minY + b.maxY) / 2,
   };
+}
+
+/**
+ * How much closer placement opens than the fit `boardCam` gives.
+ *
+ * Two, asked for directly and confirmed by measurement: the fit spends the
+ * frame's height on sea (65-82% filled in landscape, and the width is what
+ * binds), so doubling the scale is what it takes for a cell to read as a
+ * target. It is a MULTIPLE of the fit rather than a tile size like the
+ * island's `DEFAULT_TILE_PX`, because the fit already absorbs the seed's shape
+ * and the viewport's — a constant tile size would re-introduce the per-seed
+ * framing problem the fit exists to solve.
+ */
+const PLACE_ZOOM = 2;
+
+/**
+ * How far past the board's edge it may be dragged, as a share of the frame.
+ *
+ * Borrowed from the island's `PAN_SLACK`, for the same reason: pinning the
+ * coast to the screen's edge puts the outermost cells under the window's own
+ * rim, where a thumb has to reach past the bezel to hit them.
+ */
+const PAN_SLACK = 0.25;
+
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+/**
+ * The zoom range placement may move in, for this homestead on this screen.
+ *
+ * `min` is the old fit — the whole homestead in frame, which is where the
+ * screen used to be nailed. `max` is the opening shot, so the player may zoom
+ * OUT from where they start but not further in: past `PLACE_ZOOM` the pixel
+ * art is a wall of blocks and the board becomes a keyhole, and unlike the
+ * island there is nothing to inspect up close — a cell is either trappable or
+ * it is not.
+ *
+ * `Math.max` guards the degenerate screen where the fit is already past the
+ * ceiling, so the range can never come back inverted.
+ */
+export function placeZoomLimits(seed: string, W: number = GAME_W, H: number = GAME_H) {
+  const min = boardCam(seed, W, H).scale;
+  return { min, max: Math.max(min * PLACE_ZOOM, min) };
+}
+
+/**
+ * Hold one axis inside the frame: centred while the board is smaller than the
+ * screen, otherwise held so its edge cannot pass the screen's by more than the
+ * slack. The same arithmetic as the island's `clampAxis`, and the reason it is
+ * a copy rather than an import is that the two cameras measure different
+ * things — this one has no land/sea split to clamp against, only the board.
+ */
+function clampAxis(pos: number, scale: number, lo: number, hi: number, size: number): number {
+  const span = (hi - lo) * scale;
+  if (span <= size) return size / 2 - scale * (lo + hi) / 2;
+  const slack = size * PAN_SLACK;
+  return clamp(pos, size - slack - scale * hi, slack - scale * lo);
+}
+
+/** Bring a placement camera back inside its zoom range and its pan bounds. */
+export function clampPlaceCam(
+  cam: BurrowCam, seed: string, W: number = GAME_W, H: number = GAME_H,
+): BurrowCam {
+  const { min, max } = placeZoomLimits(seed, W, H);
+  const scale = clamp(cam.scale, min, max);
+  const b = boardBounds(seed);
+  return {
+    scale,
+    x: clampAxis(cam.x, scale, b.minX, b.maxX, W),
+    y: clampAxis(cam.y, scale, b.minY, b.maxY, H),
+  };
+}
+
+/**
+ * The shot placement OPENS on: the fit, twice as close, centred on the board.
+ *
+ * Centred rather than aimed at anything in particular — unlike the island,
+ * which opens on the spawn tile, a homestead has no cell the player is about
+ * to act from. Every trappable cell is equally a candidate, so the middle is
+ * the fairest place to start and the pan reaches the rest.
+ */
+export function placeCam(seed: string, W: number = GAME_W, H: number = GAME_H): BurrowCam {
+  const b = boardBounds(seed);
+  const scale = placeZoomLimits(seed, W, H).max;
+  return clampPlaceCam({
+    scale,
+    x: W / 2 - scale * (b.minX + b.maxX) / 2,
+    y: H / 2 - scale * (b.minY + b.maxY) / 2,
+  }, seed, W, H);
+}
+
+/**
+ * Zoom about a point, keeping the scene under it PUT.
+ *
+ * That invariant is what makes a pinch feel like grabbing the board rather
+ * than like working a slider: solve for the scene point under `at` before the
+ * change, then place that same point back under `at` after it.
+ */
+export function zoomPlaceCam(
+  cam: BurrowCam, factor: number, at: { x: number; y: number }, seed: string,
+  W: number = GAME_W, H: number = GAME_H,
+): BurrowCam {
+  const { min, max } = placeZoomLimits(seed, W, H);
+  const scale = clamp(cam.scale * factor, min, max);
+  const sceneX = (at.x - cam.x) / cam.scale;
+  const sceneY = (at.y - cam.y) / cam.scale;
+  return clampPlaceCam({ scale, x: at.x - sceneX * scale, y: at.y - sceneY * scale }, seed, W, H);
+}
+
+/** Slide the placement camera by a design-space delta, clamped. */
+export function panPlaceCam(
+  cam: BurrowCam, dx: number, dy: number, seed: string,
+  W: number = GAME_W, H: number = GAME_H,
+): BurrowCam {
+  return clampPlaceCam({ scale: cam.scale, x: cam.x + dx, y: cam.y + dy }, seed, W, H);
 }
 
 /**

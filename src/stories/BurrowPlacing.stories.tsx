@@ -40,7 +40,7 @@ import {
 import { burrowCell, isTrappable } from '@/game/burrow/board';
 import { burrowTileScreen } from '@/game/burrow/screen';
 import { GAME_W, GAME_H } from '@/game/Application';
-import { boardCamFraming } from '@/game/scenes/burrowCamera';
+import { boardCamFraming, placeCam } from '@/game/scenes/burrowCamera';
 
 interface Args {
   /** Whose burrow. The ground is grown from it — see game/burrow/board. */
@@ -61,6 +61,15 @@ interface Args {
    * camera pulling back to keep it framed.
    */
   tile: number;
+  /**
+   * Show a live readout of the camera, updated as it is dragged and zoomed.
+   *
+   * Off by default, because the other stories are about the BOARD and a set of
+   * numbers over it is noise. On for `Gestures`, where the numbers ARE the
+   * thing being checked: a camera that moved can be seen, but a camera that
+   * stopped at the right limit cannot.
+   */
+  showCamera: boolean;
   /**
    * Traps already in the ground when the story opens, and how many of them are
    * still REARMING.
@@ -116,8 +125,10 @@ function boardReport(seed: string) {
   };
 }
 
-function Scene({ seed, placing, tile, preplaced, rearming, rearmSeconds }: Args) {
+function Scene({ seed, placing, tile, preplaced, rearming, rearmSeconds, showCamera }: Args) {
   const [placed, setPlaced] = useState<number[]>([]);
+  /** The live camera, polled while `showCamera` is on — see the readout below. */
+  const [cam, setCam] = useState<{ scale: number; x: number; y: number } | null>(null);
 
   // The tiles the story pre-mines.
   //
@@ -131,7 +142,12 @@ function Scene({ seed, placing, tile, preplaced, rearming, rearmSeconds }: Args)
   // and walk them in a stride so the set is spread across the board rather
   // than clumped in one corner.
   const seeded = (() => {
-    const framing = boardCamFraming(seed, GAME_W, GAME_H);
+    // The camera PLACEMENT opens on, which is twice as close as the fit
+    // `boardCamFraming` reports — so the window this walks is the smaller one
+    // the player actually sees. Selecting against the fit put most of the
+    // pre-mined traps off the edge of the opening shot, which reads exactly
+    // like the arming tint failing.
+    const cam = placeCam(seed, GAME_W, GAME_H);
     const visible: number[] = [];
     for (let i = 0; i < BURROW_COLS * BURROW_ROWS; i++) {
       if (!isTrappable(seed, i)) continue;
@@ -140,8 +156,8 @@ function Scene({ seed, placing, tile, preplaced, rearming, rearmSeconds }: Args)
       // by (W/2 - scale*centre), so a tile's screen point is cam + scale*tile —
       // the same form `framing.board` uses. Treating cam as a point to
       // subtract put every cell off-canvas and selected nothing at all.
-      const sx = framing.cam.x + framing.cam.scale * x;
-      const sy = framing.cam.y + framing.cam.scale * y;
+      const sx = cam.x + cam.scale * x;
+      const sy = cam.y + cam.scale * y;
       if (sx > 80 && sx < GAME_W - 80 && sy > 90 && sy < GAME_H - 90) visible.push(i);
     }
     const step = Math.max(1, Math.floor(visible.length / Math.max(1, preplaced)));
@@ -233,6 +249,27 @@ function Scene({ seed, placing, tile, preplaced, rearming, rearmSeconds }: Args)
             raf = requestAnimationFrame(tick);
             stopLoop = () => cancelAnimationFrame(raf);
           });
+          /* The camera readout, polled off the scene's own container.
+             
+             Polled rather than pushed because the gestures write the transform
+             straight onto the container (a drag is continuous; a callback per
+             pointermove would be the same numbers at a worse time). Reading it
+             back each frame is also the honest test: it reports what is ON
+             SCREEN, not what the camera code believes it asked for. */
+          let camRaf = 0;
+          if (showCamera) {
+            const readCam = () => {
+              const c = scenes.currentScene?.container;
+              if (c) setCam({ scale: c.scale.x, x: c.position.x, y: c.position.y });
+              camRaf = requestAnimationFrame(readCam);
+            };
+            camRaf = requestAnimationFrame(readCam);
+          }
+
+          const stopCam = () => cancelAnimationFrame(camRaf);
+          const prevStop = stopLoop;
+          stopLoop = () => { prevStop(); stopCam(); };
+
           return () => { stopLoop(); scenes.destroyCurrent(); };
         }}
       />
@@ -273,11 +310,37 @@ function Scene({ seed, placing, tile, preplaced, rearming, rearmSeconds }: Args)
       }}>
 {`grid ${r.grid}   tile ${r.tile}   walkable ${r.cells}   trappable ${r.trappable}
 board spans x ${r.minX.toFixed(0)}..${r.maxX.toFixed(0)}  y ${r.minY.toFixed(0)}..${r.maxY.toFixed(0)}   (canvas ${GAME_W}x${GAME_H})
-through the placement camera: x ${r.framing.board.left.toFixed(0)}..${r.framing.board.right.toFixed(0)}  y ${r.framing.board.top.toFixed(0)}..${r.framing.board.bottom.toFixed(0)}
-cell ${tile}px in the art -> ${r.framing.tileWidth.toFixed(1)}px on screen   (camera fixed at ${r.framing.cam.scale.toFixed(2)}x)
-${ok ? 'the whole board is on screen' : 'OFF SCREEN - cells fall outside the canvas, and those are the tiles that go missing'}
+zoomed OUT (the floor, = the old fit): x ${r.framing.board.left.toFixed(0)}..${r.framing.board.right.toFixed(0)}  y ${r.framing.board.top.toFixed(0)}..${r.framing.board.bottom.toFixed(0)}
+cell ${tile}px in the art -> ${r.framing.tileWidth.toFixed(1)}px zoomed out, ${(r.framing.tileWidth * 2).toFixed(1)}px on the opening shot
+zoom ${r.framing.cam.scale.toFixed(2)}x..${(r.framing.cam.scale * 2).toFixed(2)}x   drag to pan, wheel/pinch to zoom
+${ok ? 'the whole board fits when zoomed out' : 'OFF SCREEN - cells fall outside the canvas, and those are the tiles that go missing'}
 ${up.length + placed.length} armed   ${down.length} rearming (drawn faint)   ${placed.length} placed by hand`}
       </pre>
+
+      {/* THE CAMERA, LIVE — only for the gesture story.
+          
+          Top-right so it does not sit under the board report, and reading the
+          container's transform straight back: `zoom` is where in the allowed
+          range the camera is, so "1.00x of 1.35..2.71" says zoomed all the way
+          out and "2.00x" says the shot it opened on. A drag that hits the pan
+          limit shows as x/y that stop moving while the mouse keeps going,
+          which is the one thing a screenshot cannot show. */}
+      {showCamera && cam && (
+        <pre style={{
+          position: 'absolute', right: 8, top: 8, margin: 0, zIndex: 2,
+          color: '#cfe8ff', background: 'rgba(0,0,0,0.55)',
+          padding: '6px 8px', borderRadius: 4,
+          font: '11px ui-monospace, monospace', whiteSpace: 'pre',
+          pointerEvents: 'none', textAlign: 'right',
+        }}>
+{`zoom ${cam.scale.toFixed(3)}x   of ${r.framing.cam.scale.toFixed(2)}..${(r.framing.cam.scale * 2).toFixed(2)}
+cell ${(BURROW_HALF_W * 2 * cam.scale).toFixed(1)}px on screen
+pan  x ${cam.x.toFixed(0)}   y ${cam.y.toFixed(0)}
+${cam.scale > r.framing.cam.scale * 1.99 ? 'at the opening shot (max zoom)'
+  : cam.scale < r.framing.cam.scale * 1.01 ? 'zoomed out - the old fixed shot'
+  : 'between the two'}`}
+        </pre>
+      )}
     </div>
   );
 }
@@ -296,6 +359,7 @@ const meta: Meta<Args> = {
   args: {
     seed: SEEDS[0], placing: true, tile: 40,
     preplaced: 0, rearming: 0, rearmSeconds: 20,
+    showCamera: false,
   },
   argTypes: {
     seed: { control: 'select', options: SEEDS },
@@ -303,6 +367,7 @@ const meta: Meta<Args> = {
     preplaced: { control: { type: 'range', min: 0, max: 8, step: 1 } },
     rearming: { control: { type: 'range', min: 0, max: 8, step: 1 } },
     rearmSeconds: { control: { type: 'range', min: 4, max: 90, step: 2 } },
+    showCamera: { control: 'boolean' },
   },
 };
 export default meta;
@@ -327,6 +392,48 @@ export const AnotherPlayer: Story = { args: { seed: SEEDS[2] } };
 
 /** The same board with the grid down — a home, not a spreadsheet. */
 export const AtRest: Story = { args: { placing: false } };
+
+/**
+ * ZOOM AND PAN — the placement camera, by hand.
+ *
+ * ## What changed, and why
+ *
+ * Placement used to be a FIT: the camera framed the whole homestead and held
+ * there, with no way to move it. The homestead is a wide, flat isometric
+ * diamond, so that fit is decided by the WIDTH on every screen and spends the
+ * frame's height on sea — a 47-54px cell in landscape, on the one screen where
+ * a cell is a tap target rather than scenery.
+ *
+ * So it now opens at TWICE the fit, and moves like the farm: drag to pan,
+ * wheel or pinch to zoom.
+ *
+ * ## What to try
+ *
+ *  - **It opens close.** Cells are ~108px rather than ~54px. The readout in
+ *    the top right says `at the opening shot (max zoom)`.
+ *  - **Drag the board.** It follows the pointer and cannot be thrown away:
+ *    keep dragging in one direction and `pan x/y` stops moving while the mouse
+ *    keeps going. The board always stays on screen.
+ *  - **Wheel down to zoom out.** It stops exactly at the OLD shot — the whole
+ *    homestead framed, `zoomed out - the old fixed shot`. Nothing was taken
+ *    away; the view the screen used to be nailed to is one gesture from where
+ *    it now opens.
+ *  - **Wheel up.** Nothing happens past the opening shot. Closer than that is
+ *    a keyhole, and unlike the farm there is nothing to inspect up close — a
+ *    cell either takes a trap or it does not.
+ *  - **A drag must NOT bury a trap.** This is the one that would have shipped
+ *    broken: Pixi fires a tile's `pointertap` at the end of a drag as readily
+ *    as after a tap, and the board is panned by dragging across exactly those
+ *    tiles. Drag from a lit cell and release: the counter under the board must
+ *    stay put. Then click that same cell without moving — it must take a trap.
+ *
+ * `preplaced` is wound up so there is something to drag past, and the camera
+ * readout is on because a camera that STOPPED at the right limit is invisible
+ * in a screenshot.
+ */
+export const Gestures: Story = {
+  args: { preplaced: 6, rearming: 0, showCamera: true },
+};
 
 /**
  * THE RECHARGE, PLAYED AT SPEED — watch the bombs fill back up.

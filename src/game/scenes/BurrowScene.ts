@@ -42,7 +42,10 @@ import {
 } from '@/game/burrow/board';
 import { burrowTileScreen, burrowDepth } from '@/game/burrow/screen';
 import { createBurrowTerrain, type BurrowTerrainView } from '@/game/burrow/BurrowTerrain';
-import { homeCam, boardCam, type BurrowCam } from './burrowCamera';
+import {
+  homeCam, boardCam, placeCam, panPlaceCam, zoomPlaceCam, clampPlaceCam, type BurrowCam,
+} from './burrowCamera';
+import { PanZoomGestures, type Point } from '../input/PanZoomGestures';
 
 /**
  * A diamond sprite sized for THIS board.
@@ -137,6 +140,16 @@ const PLACEABLE_ALPHA = 0.42;
 const RAID_SWEEP_SECONDS = 0.25;
 /** The island's hint pops in at this size; the raid's clue is the same glyph. */
 const CLUE_SCALE = 1.4;
+
+/**
+ * How hard one wheel notch zooms while placing, and the trackpad's correction.
+ *
+ * The island's numbers, unchanged, because the gesture is the same gesture on
+ * the same hardware — a notch that moved the island by 15% should not move the
+ * burrow by some other amount. See `IslandScene` for the derivation.
+ */
+const WHEEL_ZOOM_PER_UNIT = 0.0015;
+const TRACKPAD_PINCH_BOOST = 6;
 /**
  * The ring of cells around the carrot field, marked from the first frame.
  *
@@ -276,6 +289,20 @@ export class BurrowScene implements Scene {
   /** Where the camera is now, so a re-entry does not re-tween to where it sits. */
   private cam: BurrowCam = homeCam();
   private onResize: (() => void) | null = null;
+  /** Drag / pinch on the board while placing. Null outside placement. */
+  private gestures: PanZoomGestures | null = null;
+  /** The all-covering surface BEHIND the board that catches drags — see create. */
+  private dragSurface: Container | null = null;
+  private onWheel: ((e: WheelEvent) => void) | null = null;
+  /**
+   * True once the player has moved the placement camera themselves.
+   *
+   * `setPlacing` runs on every trap added or removed, and it asks `wantedCam`
+   * for the shot — so without this flag, burying a trap would yank the board
+   * back to the opening framing and lose the corner the player had just
+   * dragged to. Cleared when placement ends, so the next visit opens centred.
+   */
+  private camMovedByPlayer = false;
   private data: BurrowSceneData = {
     seed: 'burrow', traps: [], placing: false, onToggle: () => {},
   };
@@ -359,6 +386,84 @@ export class BurrowScene implements Scene {
       this.moveCamera(this.wantedCam(), true);
     };
     window.addEventListener('resize', this.onResize);
+
+    /* ── Drag and pinch the board while placing ──────────────────────────
+       The board is drawn closer than it fits now (see `placeCam`), so the
+       cells off the edge have to be reachable. The recogniser is the island's,
+       unchanged: it is the piece that tells a tap from a drag, which matters
+       more here than there — a tile's own `pointertap` fires at the end of a
+       drag too, so without it, panning across the board would bury a trap
+       wherever the finger happened to stop.
+
+       Bound on the CONTAINER, not a tile: a drag that starts on the sea
+       between two diamonds is still a drag. Each hint keeps its own handler
+       and sees the press first, then it bubbles up to here.
+
+       WHY A SURFACE OF ITS OWN, and not the container.
+       The island puts an all-covering `hitArea` on its scene container,
+       because its tiles carry no handlers at all: it resolves a tap from
+       COORDINATES (`terrainTileAt`). The burrow is built the other way round
+       on purpose — every hint owns a polygon hit area and its own
+       `pointertap`, and `burrow/screen.ts` says at `burrowTileAt` why: with
+       the diamonds answering, there is only ever ONE projection to keep in
+       step with the drawing.
+
+       So the island's trick does not port. Measured, both halves of it fail:
+       a covering `hitArea` on the container swallows the presses before any
+       diamond sees them (placement goes dead — no `pointerdown` on the hint,
+       no trap, no error), and `eventMode: 'passive'` — children only — gives
+       the tiles back but leaves the container deaf, so a drag moves nothing.
+
+       The surface below is the shape that satisfies both. It is added FIRST,
+       so it sits under every diamond: Pixi hit-tests front to back, so a
+       press over a cell finds the hint and a press over sea falls through to
+       this. It covers everything, so a drag can start anywhere; it is behind
+       everything, so it never takes a tap that a cell wanted. */
+    this.dragSurface = new Container();
+    this.dragSurface.eventMode = 'static';
+    this.dragSurface.hitArea = { contains: () => true };
+    // The container SORTS its children (`sortableChildren`), so the index this
+    // is inserted at decides nothing — `zIndex` does. Far below any tile's
+    // depth (`burrowDepth`), so the surface is genuinely behind the board and
+    // every diamond is hit-tested before it.
+    this.dragSurface.zIndex = -1e6;
+    this.container.addChild(this.dragSurface);
+    this.gestures = new PanZoomGestures(
+      this.dragSurface,
+      (g) => this.designPoint(g),
+      {
+        onPan: (dx, dy) => {
+          if (!this.data.placing || this.raiding) return;
+          this.setPlaceCam(panPlaceCam(this.cam, dx, dy, this.data.seed));
+        },
+        onPinch: (factor, at) => {
+          if (!this.data.placing || this.raiding) return;
+          this.setPlaceCam(zoomPlaceCam(this.cam, factor, at, this.data.seed));
+        },
+        // Taps stay with the tiles' own `pointertap` handlers, which know
+        // which tile they are. This one only has a point.
+        onTap: () => {},
+      },
+    );
+    this.gestures.attach();
+
+    // The wheel is bound on the DOM rather than through Pixi, whose own wheel
+    // listener is passive: a trackpad pinch (a wheel event with `ctrlKey`)
+    // has to be `preventDefault`ed or the browser zooms the page instead.
+    const canvas = this.app.canvas as HTMLCanvasElement;
+    this.onWheel = (e: WheelEvent) => {
+      if (!this.data.placing || this.raiding) return;
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const at = this.designPoint({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+      // A `deltaMode` of lines (Firefox with a mouse) reports ~3 per notch
+      // where pixels report ~100; normalise so a notch is a notch.
+      const units = e.deltaMode === WheelEvent.DOM_DELTA_LINE ? e.deltaY * 33 : e.deltaY;
+      const rate = WHEEL_ZOOM_PER_UNIT * (e.ctrlKey ? TRACKPAD_PINCH_BOOST : 1);
+      this.setPlaceCam(zoomPlaceCam(this.cam, Math.exp(-units * rate), at, this.data.seed));
+    };
+    canvas.addEventListener('wheel', this.onWheel, { passive: false });
+
     this.setPlacing(this.data.placing);
     for (const tile of this.data.traps) this.addTrap(tile, false);
   }
@@ -526,6 +631,11 @@ export class BurrowScene implements Scene {
       hint.hitArea = new Polygon([0, -hh, hw, 0, 0, hh, -hw, 0]);
       hint.on('pointertap', () => {
         if (!this.data.placing || !isTrappable(this.data.seed, i)) return;
+        // Pixi fires `pointertap` at the end of a DRAG as readily as after a
+        // tap, and the board is panned by dragging across exactly these
+        // sprites — so without this, sliding the board would bury a trap on
+        // whichever cell the finger stopped over.
+        if (this.gestures?.didDrag) return;
         this.data.onToggle(i, this.trapSprites.has(i));
       });
       // Into the cell's own terrain block when the ground will take it, so a
@@ -547,6 +657,9 @@ export class BurrowScene implements Scene {
    * grid appears exactly when it is the thing being decided.
    */
   setPlacing(placing: boolean): void {
+    // Leaving placement forgets the player's framing, so the next visit opens
+    // on the centred shot rather than on a corner they dragged to minutes ago.
+    if (!placing) this.camMovedByPlayer = false;
     this.data.placing = placing;
     this.moveCamera(this.wantedCam());
     this.hints.forEach((hint, n) => {
@@ -628,8 +741,45 @@ export class BurrowScene implements Scene {
    * route needs the whole homestead in frame.
    */
   private wantedCam(): BurrowCam {
-    if (this.raiding || this.data.placing) return boardCam(this.data.seed);
+    // A RAID is still a fit: the raider is choosing a route across ground they
+    // do not own, and a route needs the whole homestead in frame.
+    if (this.raiding) return boardCam(this.data.seed);
+    if (this.data.placing) {
+      // Once the player has dragged or pinched, their framing is the right
+      // one — `setPlacing` runs again on every trap buried, and re-solving the
+      // shot there would snatch the board back from under them.
+      return this.camMovedByPlayer
+        ? clampPlaceCam(this.cam, this.data.seed)
+        : placeCam(this.data.seed);
+    }
     return homeCam();
+  }
+
+  /**
+   * Renderer px -> design px, through the root that fits the design space to
+   * the window — the space the camera's arithmetic lives in. Before the scene
+   * is mounted there is no root and the point is already in design px, which
+   * is what a story sees.
+   */
+  private designPoint(g: Point): Point {
+    const root = this.container.parent;
+    if (!root) return { x: g.x, y: g.y };
+    const p = root.toLocal(g);
+    return { x: p.x, y: p.y };
+  }
+
+  /** Apply a camera the PLAYER moved: no tween, and remember they moved it. */
+  private setPlaceCam(to: BurrowCam): void {
+    if (!this.data.placing || this.raiding) return;
+    this.camMovedByPlayer = true;
+    this.cam = to;
+    // Set directly rather than through `moveCamera`: a drag is continuous and
+    // a half-second ease on every pointermove would lag the finger.
+    gsap.killTweensOf(this.container);
+    gsap.killTweensOf(this.container.scale);
+    this.container.position.set(to.x, to.y);
+    this.container.scale.set(to.scale);
+    this.pinSky();
   }
 
   /** The board skips blocked tiles, so hint order is not tile order. */
@@ -1268,6 +1418,13 @@ export class BurrowScene implements Scene {
     if (this.onResize) {
       window.removeEventListener('resize', this.onResize);
       this.onResize = null;
+    }
+    this.gestures?.destroy();
+    this.gestures = null;
+    this.dragSurface = null;
+    if (this.onWheel) {
+      (this.app.canvas as HTMLCanvasElement).removeEventListener('wheel', this.onWheel);
+      this.onWheel = null;
     }
     // The camera tweens the container itself, which is about to go.
     gsap.killTweensOf(this.container);

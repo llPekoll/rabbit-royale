@@ -70,6 +70,20 @@ export class PanZoomGestures {
   private dragged = false;
   private readonly slop: number;
 
+  /**
+   * Did the gesture that just ended travel?
+   *
+   * For a listener that is NOT this recogniser — a sprite with its own
+   * `pointertap`, which Pixi fires at the end of a drag as readily as after a
+   * tap. Such a handler cannot tell the two apart on its own, and the burrow's
+   * trap tiles would bury a trap wherever a pan happened to stop. Reading this
+   * is what lets them decline.
+   *
+   * Stays true until the next press, so a handler running after the release
+   * still sees the drag that preceded it.
+   */
+  get didDrag(): boolean { return this.dragged; }
+
   private readonly onDown = (e: FederatedPointerEvent) => this.down(e);
   private readonly onMove = (e: FederatedPointerEvent) => this.move(e);
   private readonly onUp = (e: FederatedPointerEvent) => this.up(e);
