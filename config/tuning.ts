@@ -132,6 +132,30 @@ export const ISLAND = {
 /**
  * Difficulty tiers, unlocked by lifetime carrots (Phase 6). Each overrides the
  * base ISLAND densities: richer AND more dangerous, never one without the other.
+ *
+ * RE-SPACED 15 September 2026, for two reasons.
+ *
+ * The thresholds were set when a dug carrot was worth 1. At RUN.CARROT_VALUE a
+ * day of play (four runs plus a garden) is worth ~700 lifetime carrots, so the
+ * ladder is walked in about a fortnight: Thicket on day 3, Ashland on day 8,
+ * Caldera on day 14. That is the intended pace — a player sees every island the
+ * game has inside two weeks, and the long progression after that is the burrow
+ * ladder (BURROW.MAX_LEVEL, costs growing at UPGRADE_GROWTH), not the terrain.
+ *
+ * And the carrot densities had to climb. Meadow went to 30 % while the tiers
+ * above it sat at 13-22 %, so crossing a threshold made the game POORER and
+ * more dangerous at once — the exact inverse of the line above. Worse, with
+ * hearts (ENERGY.START / BOMB_LOSS) more bombs means a SHORTER run, not a
+ * harder one: the bomb density is now the metronome. So each tier lifts
+ * carrots faster than bombs, and a run up the ladder pays a little more for a
+ * lot less board — 21 tiles at Meadow down to 13 at Caldera, 120 carrots up to
+ * 139. The tension rises; the yield barely does.
+ *
+ * NOT reset between seasons: `lifetimeCarrots` never resets (see the Economy
+ * section of gdd.md), so a returning player starts season two already in
+ * Caldera. That is deliberate for now — the tiers are an account's progression,
+ * not a season's — and it is the thing to revisit if picking your island per
+ * run ever ships.
  */
 export interface IslandTier {
   readonly name: string;
@@ -143,10 +167,10 @@ export interface IslandTier {
 }
 
 export const ISLAND_TIERS: readonly IslandTier[] = [
-  { name: 'Meadow',  minLifetime: 0,     bombDensity: 0.14, carrotDensity: 0.30, goldenShare: 0.06 },
-  { name: 'Thicket', minLifetime: 2_000, bombDensity: 0.18, carrotDensity: 0.13, goldenShare: 0.09 },
-  { name: 'Ashland', minLifetime: 10_000, bombDensity: 0.22, carrotDensity: 0.17, goldenShare: 0.13 },
-  { name: 'Caldera', minLifetime: 40_000, bombDensity: 0.27, carrotDensity: 0.22, goldenShare: 0.18 },
+  { name: 'Meadow',  minLifetime: 0,      bombDensity: 0.14, carrotDensity: 0.30, goldenShare: 0.06 },
+  { name: 'Thicket', minLifetime: 2_000,  bombDensity: 0.17, carrotDensity: 0.34, goldenShare: 0.09 },
+  { name: 'Ashland', minLifetime: 6_000,  bombDensity: 0.20, carrotDensity: 0.38, goldenShare: 0.13 },
+  { name: 'Caldera', minLifetime: 10_000, bombDensity: 0.24, carrotDensity: 0.43, goldenShare: 0.18 },
 ] as const;
 
 // ── Phase 2: island life cycle ───────────────────────────────────────────────
@@ -867,7 +891,17 @@ export const GARDEN_BOOST = {
 // ── Phase 6: leaderboard, crown, seasons ─────────────────────────────────────
 
 export const SEASON = {
-  DURATION_MS: 14 * 24 * 60 * 60 * 1000,
+  /**
+   * A MONTH, as the GDD has always said — the file said a fortnight, and the
+   * file is what created the season rows.
+   *
+   * Deliberately longer than the ISLAND_TIERS ladder, which is walked in about
+   * two weeks: a player should have seen every island the game has, and be
+   * playing its hardest one, well before the crown is decided. The Sacrifice
+   * at season's end is a contest between players who know the board, not a
+   * race to unlock it.
+   */
+  DURATION_MS: 30 * 24 * 60 * 60 * 1000,
   /** Leaderboard rows served to a client. */
   TOP_N: 100,
 } as const;
