@@ -27,14 +27,27 @@ const config: NextConfig = {
    * Finland — from south-east Asia the handshakes alone cost more than the
    * bytes. The art is immutable (a change ships under a new filename), so it is
    * safe to tell the browser to keep it for a year and never ask again.
+   *
+   * PRODUCTION ONLY. In dev the art is anything but immutable: a tile sheet
+   * gets regenerated a dozen times an hour under the SAME filename, and its
+   * cache-buster (`?layout=N`, `?v=N` — see isoworld/sheet.ts and decor.ts)
+   * is bumped at commit time, not at every regeneration. With this header on
+   * in dev, the browser kept the first version it saw of each URL for a year
+   * and no reload could shake it: the local board showed a sheet several
+   * revisions old, sliced with the current offsets, while the deployed site —
+   * which only ever served each URL once — was fine. Dev asks the browser to
+   * revalidate instead; Next's ETag turns that into a cheap 304 when nothing
+   * has changed.
    */
   async headers() {
+    const artwork =
+      process.env.NODE_ENV === 'production'
+        ? 'public, max-age=31536000, immutable'
+        : 'no-cache';
     return [
       {
         source: '/assets/:path*',
-        headers: [
-          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
-        ],
+        headers: [{ key: 'Cache-Control', value: artwork }],
       },
     ];
   },
