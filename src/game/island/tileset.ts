@@ -32,11 +32,28 @@ const TERRAIN = '/assets/terrain';
 const DECO = '/assets/deco';
 const UNITS = '/assets/units';
 
+/**
+ * The terrain sheets' revision, carried in the URL.
+ *
+ * `/assets/` is served IMMUTABLE for a year (next.config.ts), on the promise
+ * that art changes under a new filename. The terrain broke that promise on
+ * 2026-09-12: the flat and elevation sheets and all five palettes were baked
+ * into blocks and written back under their old names, same 640x256, new
+ * pixels. Every browser that had seen the island before kept the old sheets
+ * and sliced them with the new grid — a board of one repeated wrong tile,
+ * on a machine where the deployed site looked fine only because that
+ * browser had never seen the old files. Bump this whenever a sheet under
+ * `${TERRAIN}` is rewritten in place; a browser that cached the old URL then
+ * simply never asks for it again.
+ */
+const TERRAIN_REV = '?v=2';
+const terrain = (file: string) => `${TERRAIN}/${file}${TERRAIN_REV}`;
+
 export const ISLAND_SHEETS = {
-  flat: `${TERRAIN}/tilemap-flat.webp`,
-  elevation: `${TERRAIN}/tilemap-elevation.webp`,
-  water: `${TERRAIN}/water.webp`,
-  foam: `${TERRAIN}/foam.webp`,
+  flat: terrain('tilemap-flat.webp'),
+  elevation: terrain('tilemap-elevation.webp'),
+  water: terrain('water.webp'),
+  foam: terrain('foam.webp'),
   trees: `${DECO}/trees.png`,
 } as const;
 
@@ -113,7 +130,7 @@ const BUSH_FOOT_PX = 79;
 
 /** Four little rocks that bob in open water. */
 export const SEA_ROCK_COUNT = 4;
-export const seaRockUrl = (n: number) => `${TERRAIN}/sea-rock-0${n}.webp`;
+export const seaRockUrl = (n: number) => terrain(`sea-rock-0${n}.webp`);
 
 /**
  * The free pack's five grass palettes — the same tiles painted five ways.
@@ -128,7 +145,7 @@ export const seaRockUrl = (n: number) => `${TERRAIN}/sea-rock-0${n}.webp`;
  * Update 010's cliffs costs nothing.
  */
 export const TIER_PALETTE_COUNT = 5;
-export const tierPaletteUrl = (n: number) => `${TERRAIN}/palette-${n}.webp`;
+export const tierPaletteUrl = (n: number) => terrain(`palette-${n}.webp`);
 
 /**
  * The palette sheets are 9x6. Columns 0-3 are the shoreline set, whose white
