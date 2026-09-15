@@ -21,12 +21,15 @@ import { CHEST_TIER_COLOR, isChestTier } from '@/config/chestConfig';
 import { PlayerRabbit } from '../entities/PlayerRabbit';
 import { SoundManager } from '../services/SoundManager';
 import {
-  getExplosionTextures, getLightningTextures, LIGHTNING_FOOT, LIGHTNING_SHAPES,
+  getLightningTextures, LIGHTNING_FOOT, LIGHTNING_SHAPES,
 } from '../services/AssetLoader';
 import { KeyboardControls } from '../services/KeyboardControls';
 import { createTerrainBackground, type TerrainBackground } from '../services/TerrainBackground';
 import { MoveArrows } from '../ui/MoveArrows';
 import { CloudField } from '../fx/Clouds';
+import {
+  initBlastTextures, playBlast, knockBack, impactShake, blastDepth, SHAKE_PX,
+} from '../fx/Blast';
 import * as Keys from '@/config/assetKeys';
 import {
   COLS, ROWS, SPAWN_INDEX, GRID_CENTER_X, GRID_CENTER_Y, HALF_W,
@@ -77,13 +80,6 @@ export interface IslandSceneData {
 /** Frames per second the bolt plays at. Six frames, so this is its whole life. */
 const LIGHTNING_FPS = 14;
 
-/** Explosion presentation. The art is a 48x48 sheet — see AssetLoader. */
-const EXPLOSION_SCALE = 1.6;
-/** Lifted off the tile centre so the blast reads as going OFF, not lying flat. */
-const EXPLOSION_LIFT = 20;
-const EXPLOSION_FPS = 20;
-/** Peak offset of the board kick, in design px. */
-const SHAKE_PX = 4;
 /** Seconds between blinks as the sweep travels round the rabbit. */
 const SWEEP_STEP_SECONDS = 0.25;
 
@@ -127,6 +123,8 @@ export class IslandScene implements Scene {
   private shape: IslandShape = makeShape('default');
   private tiles = new Map<number, Tile>();
   private rabbits = new Map<string, PlayerRabbit>();
+  /** Pending beats of blasts still in flight, cancelled on teardown. */
+  private blastCancels = new Set<() => void>();
   private data: IslandSceneData | null = null;
 
   /**
@@ -227,6 +225,8 @@ export class IslandScene implements Scene {
     // seed alone, so what blocks a tile here is what the server refuses.
     this.background = await createTerrainBackground(this.container, this.data?.seed ?? '');
     this.syncFlock();
+    // The blast's smoke and flash discs, generated once against this renderer.
+    initBlastTextures(this.app.renderer);
 
     // The sky, behind everything: the island already moves (surf, volcano
     // smoke), so a dead blue border around it makes the frame look like a
@@ -751,31 +751,36 @@ export class IslandScene implements Scene {
   }
 
   /**
-   * The blast. Drawn ABOVE everything on the tile (zIndex 55, over the rabbits'
-   * 50) and lifted off the tile's centre, because an explosion whose middle
-   * sits on the ground reads as a puddle rather than as something going off.
+   * The blast — every layer of it. See `fx/Blast.ts` for what each one is for
+   * and why the old single-sprite version read as weak.
    *
-   * Fire-and-forget: it removes and destroys itself on the last frame, so
-   * nothing has to track it.
+   * The local rabbit is knocked back when it is standing NEXT to the tile: it
+   * is the only thing on screen that can say the blast had a direction. A
+   * rabbit standing ON the tile is the death, which the server answers with
+   * `playExhausted` and a respawn — not this.
    */
   private playExplosion(index: number): void {
-    const textures = getExplosionTextures();
-    if (textures.length === 0) return;
-
-    const { x, y } = tilePos(index);
-    const boom = new AnimatedSprite(textures);
-    boom.anchor.set(0.5);
-    boom.position.set(x, y - EXPLOSION_LIFT);
-    boom.scale.set(EXPLOSION_SCALE);
-    boom.zIndex = 55;
-    boom.animationSpeed = EXPLOSION_FPS / 60;
-    boom.loop = false;
-    boom.onComplete = () => {
-      this.container.removeChild(boom);
-      boom.destroy();
-    };
-    this.container.addChild(boom);
-    boom.play();
+    const seed = this.data?.seed ?? '';
+    const me = this.data ? this.rabbits.get(this.data.playerId) : null;
+    const hitMe = me != null && this.isNeighborOfMine(index);
+    const cancel = playBlast(this.container, seed, index, {
+      onShockwave: hitMe
+        ? (origin) => { me.playDamage(); knockBack(me.container, origin); }
+        : undefined,
+    });
+    // A scene torn down mid-blast must not fire the later beats into a
+    // destroyed container — the run ends on a bomb often enough that this is
+    // the common path, not the edge case.
+    //
+    // The forget-timer goes in `lightningTimers`, which `destroy` already
+    // clears: parked on a bare `setTimeout` it would be the one callback left
+    // reaching into a dead scene, which is the bug this block exists to stop.
+    this.blastCancels.add(cancel);
+    const forget = window.setTimeout(() => {
+      this.lightningTimers.delete(forget);
+      this.blastCancels.delete(cancel);
+    }, 1500);
+    this.lightningTimers.add(forget);
   }
 
   /**
@@ -816,7 +821,11 @@ export class IslandScene implements Scene {
     // has to land on the tile.
     bolt.anchor.set(0.5, LIGHTNING_FOOT);
     bolt.position.set(x, y - tierLift(this.data?.seed ?? '', index));
-    bolt.zIndex = 60;
+    // On the TERRAIN's depth ruler, not a literal — the bolt shares a sorted
+    // container with the ground, whose blocks sit in the hundreds. At 60 it
+    // was drawn UNDER the island everywhere but the back corner, the same bug
+    // the blast had. See `blastDepth`.
+    bolt.zIndex = blastDepth(this.data?.seed ?? '', index, 9);
     bolt.animationSpeed = LIGHTNING_FPS / 60;
     bolt.loop = false;
     bolt.onComplete = () => {
@@ -985,23 +994,11 @@ export class IslandScene implements Scene {
   }
 
   private shakeScreen(): void {
-    gsap.killTweensOf(this.container.position);
-    // Kick by a constant on SCREEN, not in board space: the container is now
-    // scaled by the camera, so a fixed offset in its own coordinates would be
-    // a harder jolt the further the camera is zoomed in.
-    const kick = SHAKE_PX / this.container.scale.x;
-    gsap.to(this.container.position, {
-      x: this.cam.x + kick,
-      y: this.cam.y + kick * 0.6,
-      duration: 0.05,
-      repeat: 7,
-      yoyo: true,
-      ease: 'none',
-      // Restores to the CAMERA's framing rather than to a position captured
-      // when the shake began — a pan mid-blast moves the camera, and
-      // returning to the old spot would undo it.
-      onComplete: () => this.container.position.set(this.cam.x, this.cam.y),
-    });
+    // One hard hit that DECAYS, rather than the same jolt eight times — see
+    // `impactShake`. Restores to the CAMERA's framing rather than to a
+    // position captured when the shake began: a pan mid-blast moves the
+    // camera, and returning to the old spot would undo it.
+    impactShake(this.container, this.cam, SHAKE_PX);
   }
 
   /**
@@ -1161,6 +1158,10 @@ export class IslandScene implements Scene {
     // outlive an island change and fire a bolt into a destroyed container.
     for (const timer of this.lightningTimers) window.clearTimeout(timer);
     this.lightningTimers.clear();
+    // Same reason as the bolts: a blast's debris, smoke and scorch land up to
+    // 150ms after the bang, which easily outlives an island change.
+    for (const cancel of this.blastCancels) cancel();
+    this.blastCancels.clear();
     this.stopFollow();
     this.gestures?.destroy();
     this.gestures = null;
