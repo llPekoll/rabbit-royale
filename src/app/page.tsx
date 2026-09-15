@@ -38,7 +38,6 @@ import { LoreCrawl } from '@/components/lore-crawl';
 import { EnergyCard } from '@/components/energy-card';
 import { GardenCard } from '@/components/garden-card';
 import { BurrowPanel } from '@/components/burrow-card-panel';
-import { ShieldCard } from '@/components/shield-card';
 import { TRAPS } from '@config/tuning';
 import { useShop, type ItemKind } from '@/components/use-shop';
 import type { PayTokenId } from '@/lib/pay/tokens';
@@ -1218,23 +1217,14 @@ function Burrow() {
                   things placement itself needs. */}
               {!placing && (
               <>
-              {/* SHIELD, where HIT POINTS used to be.
+              {/* NO SHIELD CARD. The badge over the homestead already says it.
                   
-                  The HP bar promised a fortress the game does not have: traps
-                  are what a raider fights, and the damage roll changed neither
-                  his loot nor his progress. The one thing HP ever decided was
-                  how soon the next raid could land — so that is what the card
-                  says now, in the only unit the player can act on: time.
-                  
-                  It renders ONLY while the shield holds. An always-present
-                  "not shielded" row would be a permanent reminder of a thing
-                  the player cannot buy or build, which is the same mistake as
-                  the gauge it replaced. */}
-              {burrow?.shieldMs != null && (
-                <div style={{ marginBottom: 10 }}>
-                  <ShieldCard ms={burrow.shieldMs} />
-                </div>
-              )}
+                  The card and the sign carried the same countdown, one in the
+                  panel and one on the board, and the board's is the one the
+                  player is looking at — it stands on the roof of the thing
+                  being protected, which is the whole fact. A panel row
+                  repeating it spent the column's scarcest space saying nothing
+                  new. See `BurrowTerrain`'s `setShield` for the sign. */}
 
               {/* ENERGY IS ITS OWN OBJECT — see energy-card.tsx.
                   

@@ -18,7 +18,7 @@
  * art so it interleaves with the board, aligning the terrain's origin with the
  * board's — is the same idea, and the comments there are the long version.
  */
-import { Container, Graphics, Sprite, Texture, type BitmapText } from 'pixi.js';
+import { Assets, Container, Graphics, Sprite, Texture, type BitmapText } from 'pixi.js';
 import { IsoIslandView, loadIslandTileset, isoProject } from '@/game/island';
 import {
   BURROW_HALF_W, BURROW_HALF_H, BURROW_TIER_LIFT,
@@ -42,6 +42,16 @@ import { pixelText } from '@/game/ui/PixelText';
  * to read.
  */
 const DECO_SCALE = 0.44;
+
+/** The shield badge's crest, and how tall it is drawn on the plaque. */
+const SHIELD_ICON_URL = '/assets/ui/icons/shield.webp';
+/**
+ * 18px against the countdown's 8px cell — roughly the width of the time string
+ * beside it, which is what makes the crest read as the badge's SUBJECT and the
+ * time as its caption. At 14 the two were the same visual weight and the sign
+ * looked like two captions stacked.
+ */
+const SHIELD_CREST_H = 18;
 
 export interface BurrowTerrainView {
   /** The ground container, to be added under the board. */
@@ -99,6 +109,14 @@ export async function createBurrowTerrain(
   level: number | null | undefined,
 ): Promise<BurrowTerrainView> {
   const tileset = await loadIslandTileset();
+  // Awaited with the tileset rather than fetched lazily: the badge's plaque is
+  // sized from the crest's own height, so a texture that arrives after layout
+  // would be measured at 1x1 and boxed wrong.
+  const shieldIcon = await Assets.load<Texture>(SHIELD_ICON_URL);
+  // Pixel art, like everything else on this board: bilinear would soften the
+  // crest's edges while the plaque and the font beside it stay hard.
+  shieldIcon.source.scaleMode = 'nearest';
+  shieldIcon.source.autoGenerateMipmaps = false;
   const { map, placements, field } = burrowFor(seed);
   const metrics = { w: BURROW_HALF_W * 2, h: BURROW_HALF_H * 2, z: BURROW_TIER_LIFT };
 
@@ -214,12 +232,21 @@ export async function createBurrowTerrain(
   shield.visible = false;
   shield.zIndex = 100_000;
   const shieldPlate = new Graphics();
-  const shieldLabel: BitmapText = pixelText(0, 0, 'SHIELD');
-  shieldLabel.anchor.set(0.5, 0);
-  shieldLabel.tint = 0x8fe3ff;
+  // The CREST, not the word. The badge used to spell SHIELD above the
+  // countdown, which is the panel's voice on a board that does not speak: the
+  // player reads the sign at a glance from the resting camera, and a glance
+  // takes a shape faster than six letters. It is the same crest the shop and
+  // the raid screens use, so the thing on the roof and the thing you bought
+  // are recognisably one object.
+  const shieldCrest = new Sprite(shieldIcon);
+  shieldCrest.anchor.set(0.5, 0);
+  // Drawn at a fixed HEIGHT rather than a scale: the icon is authored far
+  // larger than a pixel badge, and a hardcoded scale would have to be
+  // re-guessed the day the art is re-exported.
+  shieldCrest.scale.set(SHIELD_CREST_H / shieldIcon.height);
   const shieldTime: BitmapText = pixelText(0, 0, '');
   shieldTime.anchor.set(0.5, 0);
-  shield.addChild(shieldPlate, shieldLabel, shieldTime);
+  shield.addChild(shieldPlate, shieldCrest, shieldTime);
   container.addChild(shield);
 
   /** Park the sign above the building's head, whatever level it is. */
@@ -241,9 +268,9 @@ export async function createBurrowTerrain(
       : `${Math.floor(mins / 60)}H ${mins % 60}M`).toUpperCase();
 
     // Laid out AFTER the text is set, because the plate is sized to it.
-    shieldLabel.y = 4;
-    shieldTime.y = shieldLabel.y + shieldLabel.height + 2;
-    const w = Math.max(shieldLabel.width, shieldTime.width) + 12;
+    shieldCrest.y = 4;
+    shieldTime.y = shieldCrest.y + shieldCrest.height + 2;
+    const w = Math.max(shieldCrest.width, shieldTime.width) + 12;
     const h = shieldTime.y + shieldTime.height + 4;
     shieldPlate.clear();
     shieldPlate.roundRect(-w / 2, 0, w, h, 3).fill({ color: 0x0d1117, alpha: 0.82 });

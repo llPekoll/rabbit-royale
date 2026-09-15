@@ -22,9 +22,6 @@
  * app gives it.
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import {
-  BurrowCard, CardRow, CardNote, CARROT,
-} from '@/components/burrow-chrome';
 import { EnergyCard } from '@/components/energy-card';
 import { GardenCard } from '@/components/garden-card';
 import { BurrowPanel } from '@/components/burrow-card-panel';
@@ -71,8 +68,6 @@ interface Args {
   upgradeCost: number;
   /** Can the player actually afford it right now. */
   canUpgrade: boolean;
-  /** Hours of shield left. 0 hides the card — it only renders while it holds. */
-  shieldHours: number;
   /** Traps on the shelf — the SHOP tile's badge. */
   trapsHeld: number;
   /** Traps already buried — with `trapsHeld`, decides whether BASE is lit. */
@@ -95,18 +90,16 @@ interface Args {
  */
 function BurrowColumn({
   energy, maxEnergy, nextEnergyMins, gardenReady, yieldPerHour, gardenCapacity,
-  level, stock, upgradeCost, canUpgrade, shieldHours,
+  level, stock, upgradeCost, canUpgrade,
   trapsHeld, trapsPlaced, openTargets, lifetime, rank, toPass,
 }: Args) {
   const capHours = yieldPerHour > 0 ? Math.round(gardenCapacity / yieldPerHour) : 0;
   return (
     <section className="rr-burrow">
-      {shieldHours > 0 && (
-        <BurrowCard>
-          <CardRow label="SHIELD" value={formatWait(shieldHours * 3600_000)} tone={CARROT} />
-          <CardNote>You were raided. Raids bounce off until it runs out.</CardNote>
-        </BurrowCard>
-      )}
+      {/* NO SHIELD CARD — the board's own badge over the homestead carries the
+          countdown now. It was dropped from the column because the two said
+          the same thing and only one of them stands on the thing being
+          protected. See `BurrowTerrain`'s `setShield`. */}
 
       {/* Energy is its OWN object now — see energy-card.tsx. It does not share
           the wooden frame the cards below use, which is the whole point: the
@@ -270,7 +263,6 @@ const meta: Meta<Args> = {
     stock: 1_940,
     upgradeCost: 250,
     canUpgrade: false,
-    shieldHours: 0,
     trapsHeld: 4,
     trapsPlaced: 2,
     openTargets: 14,
@@ -288,7 +280,6 @@ const meta: Meta<Args> = {
     level: { control: { type: 'range', min: 1, max: 10, step: 1 } },
     stock: { control: { type: 'range', min: 0, max: 200_000, step: 500 } },
     upgradeCost: { control: { type: 'range', min: 0, max: 5000, step: 50 } },
-    shieldHours: { control: { type: 'range', min: 0, max: 48, step: 1 } },
     trapsHeld: { control: { type: 'range', min: 0, max: 20, step: 1 } },
     trapsPlaced: { control: { type: 'range', min: 0, max: 8, step: 1 } },
     openTargets: { control: { type: 'range', min: 0, max: 30, step: 1 } },
@@ -326,9 +317,15 @@ export const Flush: Story = {
   args: { energy: 45, gardenReady: 864, yieldPerHour: 72, gardenCapacity: 864, canUpgrade: true },
 };
 
-/** Freshly raided: the shield card appears above everything else. */
+/**
+ * Freshly raided — and the column says NOTHING about it.
+ *
+ * Kept as a story precisely because that is the claim worth checking: the
+ * shield now lives only on the board (see `Burrow.stories` → `Shielded`), so
+ * the column under a shield must look exactly like the column without one.
+ */
 export const Shielded: Story = {
-  args: { shieldHours: 48, energy: 12, gardenReady: 120 },
+  args: { energy: 12, gardenReady: 120 },
 };
 
 /** The end of the upgrade ladder — the price prints MAX, not a number. */
