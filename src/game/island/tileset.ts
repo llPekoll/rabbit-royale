@@ -128,6 +128,32 @@ const BUSH_FRAME = 128;
 const BUSH_FRAMES = 8;
 const BUSH_FOOT_PX = 79;
 
+/**
+ * The loose grass tufts — four little clumps that grow straight out of the turf.
+ *
+ * Not part of the Tiny Swords pack: these are RR's own pixel art, exported from
+ * Aseprite as a trimmed atlas (`grass.png` + `grass.json`). Trimmed means each
+ * frame's texture is NOT its 32x32 cel — Aseprite crops to the opaque pixels and
+ * records the crop — so the frames are four different sizes and the atlas is
+ * what says where each one lives on the sheet.
+ *
+ * It does not complicate the ANCHOR, though: cropping to the opaque pixels puts
+ * the lowest blade on the texture's bottom row by construction, so all four
+ * plant at 1. (The art agrees — every frame leaves the same 6px of empty cel
+ * underneath, which the trim removes.)
+ *
+ * The four frames are a CYCLE, not four variants — the atlas gives each a
+ * `duration`, which is Aseprite for "this is an animation". So they ship as a
+ * `Texture[]` to be played, exactly like the bushes and the trees, rather than
+ * as a list to pick one from. Picking one and keeping it draws a still.
+ */
+const GRASS_TUFT_URL = '/assets/bunnies/grass.png';
+const GRASS_TUFT_ATLAS = '/assets/bunnies/grass.json';
+
+interface AsepriteAtlas {
+  frames: { frame: { x: number; y: number; w: number; h: number } }[];
+}
+
 /** Four little rocks that bob in open water. */
 export const SEA_ROCK_COUNT = 4;
 export const seaRockUrl = (n: number) => terrain(`sea-rock-0${n}.webp`);
@@ -256,6 +282,8 @@ export interface IslandTileset {
   units: Record<UnitKind, UnitSprite>;
   /** Four bushes, eight sway frames each, sharing one standing anchor. */
   bushes: UnitSprite[];
+  /** The grass tuft's sway: four frames to play, and the anchor that plants it. */
+  grassTufts: UnitSprite;
 }
 
 /** Cut a texture into `cols x rows` cells of `w x h`, row-major. */
@@ -293,9 +321,14 @@ export async function loadIslandTileset(): Promise<IslandTileset> {
     ...Array.from({ length: SEA_ROCK_COUNT }, (_, i) => seaRockUrl(i + 1)),
     ...Array.from({ length: TIER_PALETTE_COUNT }, (_, i) => tierPaletteUrl(i + 1)),
     ...Array.from({ length: BUSH_COUNT }, (_, i) => bushUrl(i + 1)),
+    GRASS_TUFT_URL,
     ...Object.values(UNIT_SHEETS),
   ];
   const loaded = await Assets.load<Texture>(urls);
+  // The tuft atlas is JSON beside the sheet, not a Pixi spritesheet: fetched
+  // rather than `Assets.load`ed so the slicing below stays the same explicit
+  // arithmetic as every other sheet in this file.
+  const tuftAtlas = (await fetch(GRASS_TUFT_ATLAS).then((r) => r.json())) as AsepriteAtlas;
 
   const flatSheet = loaded[ISLAND_SHEETS.flat];
   const flatCells = sliceGrid(flatSheet, TILE, TILE, 10, 4);
@@ -351,6 +384,21 @@ export async function loadIslandTileset(): Promise<IslandTileset> {
       frames: sliceStrip(loaded[bushUrl(i + 1)], BUSH_FRAME, BUSH_FRAMES),
       anchorY: BUSH_FOOT_PX / BUSH_FRAME,
     })),
+    grassTufts: {
+      frames: tuftAtlas.frames.map(
+        (f) =>
+          new Texture({
+            source: loaded[GRASS_TUFT_URL].source,
+            frame: new Rectangle(f.frame.x, f.frame.y, f.frame.w, f.frame.h),
+          }),
+      ),
+      // 1, not a computed fraction: trimming crops to the opaque pixels, so
+      // the lowest blade IS the texture's bottom row. The four frames confirm
+      // it — each leaves the same 6px of empty cel below, which the trim then
+      // removes. Should a future tuft be drawn with a shadow or a clod of
+      // earth padding its base, measure it here rather than assuming.
+      anchorY: 1,
+    },
     units: Object.fromEntries(
       (Object.keys(UNIT_SHEETS) as UnitKind[]).map((kind) => {
         const g = UNIT_GEOMETRY[kind];

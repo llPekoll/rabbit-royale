@@ -35,13 +35,16 @@
 /**
  * The classic 2:1 isometric cell, the one the eye reads as iso without effort.
  *
- * `z` is 32 rather than a rounder number because that is how tall the solid
- * part of the pack's cliff face actually draws (`FACE_SOLID_H`). Lift a tier
- * by less and the face overshoots, leaving a band of rock hanging below the
- * shelf it belongs to; lift it by more and the column comes up short and the
- * sea shows through the gap. Matching the art is what makes a plateau close.
+ * `z` was 32 — the solid height of the pack's cliff face (`FACE_SOLID_H`),
+ * so that a stacked column closed exactly. It is 26 now, settled by eye in
+ * `Island/Palette 2` once the ground was grown to cover its cell
+ * (`groundScale`): the baked tile carries its own side, and at 32 the shelf
+ * stood on a band of rock taller than the side drawn into it. Lift by less
+ * and the face overshoots below its shelf; by more and the column comes up
+ * short and the sea shows through. The game's board keeps its own lift
+ * (`TIER_LIFT`), which is a board dimension and not this workbench's.
  */
-export const ISO_TILE = { w: 64, h: 32, z: 32 } as const;
+export const ISO_TILE = { w: 64, h: 32, z: 26 } as const;
 
 export interface IsoMetrics {
   /** Width of one cell's diamond, in pixels. */
