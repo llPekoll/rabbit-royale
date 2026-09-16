@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0d1117">
+  <title>Rabbit Royale: offline</title>
+  <style>
+    html, body { height: 100%; margin: 0; }
+    body {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 16px; padding: 16px; box-sizing: border-box;
+      background: #0d1117; color: #f5e6d3; text-align: center;
+      font: 15px/1.4 ui-monospace, Menlo, Consolas, monospace;
+    }
+    img { width: 96px; height: 96px; image-rendering: pixelated; }
+    h1 { margin: 0; font-size: 18px; letter-spacing: 0.08em; text-transform: uppercase; }
+    p { margin: 0; color: #b39877; max-width: 32em; }
+    button {
+      font: inherit; text-transform: uppercase; letter-spacing: 0.08em;
+      padding: 10px 20px; border: 0; background: #ffc45c; color: #3a1f08; cursor: pointer;
+      box-shadow: 0 4px 0 #e8912a;
+    }
+  </style>
+</head>
+<body>
+  <!-- Precached by sw.js and shown only when a page load cannot reach the
+       server. The icon is inlined by reference: it may not be cached, and a
+       broken image here is harmless. -->
+  <img src="/icons/icon-192.png" alt="">
+  <h1>No connection</h1>
+  <p>The warren is out of reach. Check your connection and try again.</p>
+  <button type="button" onclick="location.reload()">Try again</button>
+</body>
+</html>

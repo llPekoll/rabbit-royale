@@ -1,39 +1,34 @@
 'use client';
 
 /**
- * The sound control, bottom-left on every screen.
+ * The sound control: two squares at the right end of the top bar.
  *
  * One tap mutes the music, which is the thing a player actually reaches for —
  * someone playing on a phone in public wants the sound off NOW, not after
- * finding a settings screen. The chevron beside it opens the rest (the SFX bus
+ * finding a settings screen. The arrow beside it opens the rest (the SFX bus
  * and the volume), so the common case costs one tap and the rare case is still
  * reachable.
  *
- * BOTTOM-LEFT, LIFTED. It used to sit at `bottom: 10px`, flush in the corner —
- * which put it underneath two other things at once: the full-width GO FARM
- * button (whose 400px-wide box reaches the left edge on a phone and ends within
- * two pixels of the mute's own box), and, in development, Next's own dev-tools
- * indicator, which owns exactly that corner. The corner is contested, so this
- * control steps out of it: `--rr-sound-lift` clears the GO button's band, and
- * the whole cluster sits above it. See globals.css.
+ * TOP-RIGHT, IN THE ROW. It spent its life moving round the bottom corners,
+ * a cluster of its own shape lifted over whatever the floor held that week.
+ * It is chrome, like the shop, the story and the season board, so it is now
+ * built like them — `HubIconButton` squares at `--rr-icon` — and pinned to the
+ * top bar's right end. It is the one piece of that row on EVERY screen, so it
+ * owns the corner and the others line up to its left (`.rr-lb-launch`, and the
+ * bar's reserve in page.tsx). The panel drops DOWN from it.
  *
- * DRAWN FROM THE KIT. Everything else on this screen is pixel art cut from
- * `@domin8/arcade-kit` — nine-slice buttons, nine-slice panels, the bitmap
- * face. This control was the exception: a rounded-rect `<button>` with an emoji
- * in it, over a panel of native checkboxes and a native range slider, which is
- * the same "web UI wearing a game's art" problem burrow-chrome.tsx was written
- * to fix. It now builds from the same three primitives as the burrow, wears the
- * burrow's soil palette, and its speaker glyph is a real 16x16 sprite on the
- * kit's own grid (tools/gen_sound_icon.py) rather than a font-dependent emoji
- * that renders differently on every platform.
+ * The speaker is a real 16x16 sprite (tools/gen_sound_icon.py) and the arrow
+ * is the kit's, rather than font-dependent glyphs.
  */
 import { useEffect, useRef, useState } from 'react';
-import { NineSliceButton, NineSlicePanel } from '@domin8/arcade-kit';
+import { ARROW_URLS, NineSliceButton, NineSlicePanel } from '@domin8/arcade-kit';
+import { HubIconButton, hubIconArt } from './hub-icon-button';
+import { InstallRow } from './install-guide';
 import { PixelText as BitmapText } from './pixel-text';
 import { useAudioSettings } from '@/components/use-audio-settings';
 import { useT } from '@/i18n/provider';
 import {
-  UI_PIXEL, SOIL, PLANK, CHALK, CARROT, CARROT_DEEP, LAMP,
+  UI_PIXEL, SOIL, PLANK, CHALK, CARROT, CARROT_DEEP,
 } from '@/components/burrow-chrome';
 
 /** The two states of the speaker, on the kit's 16px button grid. */
@@ -65,6 +60,38 @@ export function SoundButton() {
 
   return (
     <div className="rr-sound" ref={root}>
+      <div className="rr-sound-cluster">
+        {/* Muted reads as pressed: the cap sinks and the speaker loses its
+            waves, so the state is in the shape and not only in the sprite. */}
+        <HubIconButton
+          label={musicMuted ? t.sound.unmute : t.sound.mute}
+          pressed={musicMuted}
+          onClick={toggleMusic}
+        >
+          <img
+            className="rr-sound-glyph"
+            src={musicMuted ? SPEAKER_OFF : SPEAKER_ON}
+            alt=""
+            draggable={false}
+            style={hubIconArt}
+          />
+        </HubIconButton>
+
+        {/* Points the way the panel will go: down to open, up to fold it. */}
+        <HubIconButton
+          label={t.sound.settings}
+          pressed={open}
+          onClick={() => setOpen((v) => !v)}
+        >
+          <img
+            src={open ? ARROW_URLS.up : ARROW_URLS.down}
+            alt=""
+            draggable={false}
+            style={{ ...hubIconArt, height: 'clamp(16px, 5.5svh, 32px)' }}
+          />
+        </HubIconButton>
+      </div>
+
       {open && (
         <NineSlicePanel
           color={SOIL}
@@ -95,65 +122,13 @@ export function SoundButton() {
                 aria-label={t.sound.volume}
               />
             </label>
+
+            {/* The standing door to the installed app, where the browser has
+                one. The panel is the game's settings in all but name. */}
+            <InstallRow />
           </div>
         </NineSlicePanel>
       )}
-
-      <div className="rr-sound-cluster">
-        <NineSliceButton
-          color={musicMuted ? PLANK : CARROT}
-          shadowColor={musicMuted ? undefined : CARROT_DEEP}
-          scale={UI_PIXEL}
-          // SIZED BY WHAT IT HOLDS, against the 44px floor in globals.css. It
-          // was pinned at 40px, which cannot hold the 32px speaker plus the
-          // uniform label pad — the sprite would have been cropped. `auto`
-          // lets the button take the pad and keep the glyph whole.
-          height="auto"
-          // The codex button's squash on a press (`.rr-px-btn`); no wiggle — a
-          // mute that shakes every time it is pressed is noise.
-          className="rr-sound-btn rr-px-btn"
-          // The same air round the sprite as round any other button's label.
-          // Inline because globals zeroes the padding on these two.
-          style={{ padding: 'var(--rr-btn-pad)' }}
-          onClick={toggleMusic}
-          aria-label={musicMuted ? t.sound.unmute : t.sound.mute}
-          aria-pressed={musicMuted}
-          title={musicMuted ? t.sound.musicOff : t.sound.musicOn}
-        >
-          {/* Not a label: a sprite, so it never depends on which emoji font
-              the device happens to ship. */}
-          <img
-            className="rr-sound-glyph"
-            src={musicMuted ? SPEAKER_OFF : SPEAKER_ON}
-            alt=""
-            width={16 * UI_PIXEL}
-            height={16 * UI_PIXEL}
-            draggable={false}
-          />
-        </NineSliceButton>
-
-        {/* The disclosure is secondary to the mute, so it is narrower and
-            wears the soil face rather than the carrot one. */}
-        <NineSliceButton
-          color={PLANK}
-          scale={UI_PIXEL}
-          // Sized by its contents, like the mute beside it: the cluster
-          // stretches the two to one height, so both have to grow together.
-          height="auto"
-          textColor={LAMP}
-          className="rr-sound-more rr-px-btn"
-          // Inline, because the kit sets its own `minWidth` inline (16 units,
-          // 32px here) and that beats the stylesheet — it measured 32px wide,
-          // under the 44px tap-target minimum. The padding is inline for the
-          // same reason: globals zeroes it on this pair.
-          style={{ minWidth: 44, padding: 'var(--rr-btn-pad)' }}
-          onClick={() => setOpen((v) => !v)}
-          aria-label={t.sound.settings}
-          aria-expanded={open}
-        >
-          {open ? 'v' : '^'}
-        </NineSliceButton>
-      </div>
     </div>
   );
 }

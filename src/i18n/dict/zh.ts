@@ -49,6 +49,7 @@ export const zh: Dict = {
   chrome: {
     loading: '加载中',
     waking: '唤醒兔群',
+    moreBelow: '向下滚动查看更多',
     reconnecting: '重新连接...',
     back: '返回',
     close: '关闭',
@@ -58,6 +59,49 @@ export const zh: Dict = {
     logoAlt: '兔子皇战',
     rotateTitle: '请横放手机',
     rotateBody: '兔子皇战以横屏游玩。',
+  },
+
+  install: {
+    title: {
+      ios: '添加到主屏幕',
+      macSafari: '添加到程序坞',
+      chromiumDesktop: '安装应用',
+      androidChromium: '添加到主屏幕',
+    },
+    line: {
+      ios: '全屏游玩，没有浏览器栏，从主屏幕一点即开。',
+      macSafari: 'Rabbit Royale 在独立窗口中运行，从程序坞直接打开。',
+      chromiumDesktop: 'Rabbit Royale 在独立窗口中运行，从程序坞一点即开。',
+      androidChromium: '全屏游玩，没有浏览器栏，从主屏幕一点即开。',
+    },
+    steps: {
+      ios: [
+        '点击"分享"按钮（Safari 在底部工具栏，Chrome 在地址栏）。',
+        '向下滚动，点击"添加到主屏幕"。',
+        '点击"添加"。Rabbit Royale 会从主屏幕全屏打开。',
+      ],
+      macSafari: [
+        '在菜单栏中选择 文件 > 添加到程序坞（或 分享 > 添加到程序坞）。',
+        '点击"添加"。Rabbit Royale 会从程序坞在独立窗口中打开。',
+        '需要 Safari 17 或更高版本。',
+      ],
+      prompt: ['点击下方的"安装"，然后在浏览器弹窗中确认。'],
+      chromiumDesktop: [
+        '点击地址栏右端的安装图标，或打开浏览器菜单 > 投放、保存和分享 > 将网页作为应用安装。',
+        '点击"安装"确认。',
+        '已经安装？那个图标会显示"在应用中打开"。',
+      ],
+      androidChromium: [
+        '打开浏览器菜单（三个点），点击"添加到主屏幕"。',
+        '点击"安装"。Rabbit Royale 会从主屏幕全屏打开。',
+      ],
+    },
+    install: '安装',
+    installing: '安装中...',
+    showMe: '查看步骤',
+    gotIt: '知道了',
+    close: '关闭',
+    app: '应用',
   },
 
   sound: {

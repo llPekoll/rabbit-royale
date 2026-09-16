@@ -624,10 +624,6 @@ button { min-height: 44px; min-width: 44px; }
   pointer-events: none;
 }
 .rr-loop-slab:active .rr-loop-face { transform: translateY(4px); }
-/* The sound control keeps clear of the bar's right end. */
-body:has(.rr-loop-bar) .rr-sound {
-  bottom: calc(var(--rr-edge) + env(safe-area-inset-bottom) + clamp(52px, 10.4svh, 80px) + 12px);
-}
 /* Upright phone: the three slabs stack, each a full-width row, and the
    arrows turn into a column between them. */
 @media (max-width: 720px) and (orientation: portrait) {
@@ -635,11 +631,6 @@ body:has(.rr-loop-bar) .rr-sound {
   .rr-loop-bar > .rr-loop-slab { width: 100%; height: 48px; }
   .rr-loop-bar > span, .rr-loop-bar > svg { display: none; }
   .rr-loop-away { transform: translateX(-50%) translateY(120%); }
-  /* The stacked bar is three rows tall; the sound cluster sat on the lower
-     two (seen on a 390x844 drive). It clears the whole stack here. */
-  body:has(.rr-loop-bar) .rr-sound {
-    bottom: calc(var(--rr-edge) + env(safe-area-inset-bottom) + 3 * 48px + 2 * 6px + 12px);
-  }
   body:has(.rr-loop-bar) .rr-burrow {
     padding-bottom: calc(10px + env(safe-area-inset-bottom) + 3 * 48px + 2 * 6px + 20px);
   }
@@ -1601,6 +1592,57 @@ body:has(.rr-loop-bar) .rr-sound {
 }
 .rr-burrow > * { pointer-events: auto; }
 
+/* ── MORE BELOW ────────────────────────────────────────────────────────────
+   The column is a scroll box, and on a landscape phone its cards run past the
+   floor with nothing to say so: the last card simply stops at the loop bar,
+   which reads as the end of the column. This is the hint — the kit's down
+   arrow, bobbing on a small card-coloured chip at the column's visible foot,
+   shown only while there is more below (page.tsx `colMore`). A tap scrolls.
+
+   STICKY ON A ZERO-HEIGHT SHELF. The shelf is the column's last child, stuck
+   to its foot, and has no height, so it adds nothing to what scrolls. The
+   chip hangs UP from it, over the last card's lower edge. `bottom: 0` is
+   already above the loop bar: a sticky box is held inside the scroll box's
+   PADDING, and the column's padding-bottom is the floor's reserve. */
+.rr-col-more {
+  display: block;
+  position: sticky;
+  bottom: 0;
+  height: 0;
+  /* Beats the short-screen `> div` gutter rule by not being a div, and
+     takes no pointer itself: only the chip does. */
+  pointer-events: none !important;
+  z-index: 2;
+}
+.rr-col-more-btn {
+  position: absolute;
+  left: 50%;
+  bottom: var(--rr-pad-tight);
+  transform: translateX(-50%);
+  pointer-events: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: var(--cur-hand);
+  animation: rr-shop-in 200ms ease-out backwards;
+}
+.rr-col-more-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px var(--rr-pad-tight);
+}
+.rr-col-more-chip img {
+  display: block;
+  height: 14px;
+  width: auto;
+  image-rendering: pixelated;
+  animation: rr-arrow-down 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rr-col-more-chip img { animation: none; }
+}
+
 /* On a phone there is no room to sit beside anything, so the column recentres
    and the wash goes flat and darker to keep the text legible over the art. */
 @media (max-width: 720px) {
@@ -2062,31 +2104,26 @@ body:has(.rr-burrow) .rr-burrow {
 
 }
 .rr-sound {
-  /* BOTTOM-RIGHT, on every screen.
-     
-     It spent this session being moved around the bottom-LEFT corner — above
-     the launcher row, beside it, between it and GO FARM — because that corner
-     filled up: four tiles at the left, GO centred, and a column of cards above
-     them. Each placement cost something (the four doors went dead under it
-     once, and it sat on the burrow card's UPGRADE button twice).
-     
-     The bottom-right is empty on both screens. The season board is up there on
-     the right but stops well short of the floor, and nothing else claims that
-     corner — so the control finally has a place of its own rather than a gap
-     between other people's furniture. */
+  /* TOP-RIGHT, the last squares of the top bar's icon row, on every screen.
+     It is the one piece of that row that never unmounts, so it owns the
+     corner and the season board's trophy stands to its left
+     (`.rr-lb-launch`). Same inset as the trophy, so the row shares a centre
+     line. Below the drawers (29+): a drawer that is open is what is being
+     read. */
   position: fixed;
+  top: var(--rr-pad-tight);
   right: var(--rr-edge);
-  bottom: calc(var(--rr-edge) + env(safe-area-inset-bottom));
-  /* Above the GO button and the burrow column, below the drawers (29+) —
-     this is chrome, and a drawer that is open is the thing being read. */
   z-index: 28;
+  /* The panel is laid out in flow UNDER the squares (the kit's panel sets its
+     own position inline, so it cannot be lifted out), right-aligned so it
+     grows inward from the edge. */
   display: flex;
   flex-direction: column;
-  /* Right-aligned, so the panel it opens grows INWARD from that edge instead
-     of off the screen. */
   align-items: flex-end;
-  gap: 6px;
+  gap: var(--rr-pad-tight);
 }
+/* Open, it hangs over the trophy (31) and must not be cut by it. */
+.rr-sound:has(.rr-sound-panel) { z-index: 32; }
 
 /* ...but NOT over the sign-in screen.
    
@@ -2127,10 +2164,6 @@ body:has(.rr-empty) .rr-sound { display: none; }
   .rr-kit-row {
     bottom: calc(var(--rr-floor) + var(--rr-go-h) + 8px);
   }
-
-  body:has(.rr-hub-row) .rr-sound {
-    bottom: calc(var(--rr-floor) + var(--rr-go-h) + 8px);
-  }
   body:has(.rr-burrow) .rr-burrow {
     padding-bottom: calc(var(--rr-floor) + var(--rr-go-h) + 8px + 44px + 10px);
   }
@@ -2147,30 +2180,13 @@ body:has(.rr-empty) .rr-sound { display: none; }
      against the 400px box the old floating HOME arrow occupied here. */
 }
 
-/* The two controls sit side by side; the panel stacks above them. */
+/* The two squares sit side by side at the row's own gap; the panel drops
+   below them. */
 .rr-sound-cluster {
   display: flex;
-  align-items: stretch;
-  gap: 4px;
+  align-items: center;
+  gap: var(--rr-pad-tight);
 }
-
-/* Both are kit buttons now, so they bring their own 9-slice face — these rules
-   only give them a tap target. 44px is the accessible minimum, and this is a
-   control people reach for one-handed on a phone. */
-.rr-sound-btn, .rr-sound-more {
-  min-height: 44px;
-  padding: 0;
-  /* The kit's button paints its own background and outline. The global
-     `button` rule's panel fill and 1px border would sit UNDER that sprite and
-     leak out at its transparent corners. */
-  background: none;
-  border: none;
-  border-radius: 0;
-}
-.rr-sound-btn { min-width: 52px; }
-/* The disclosure is secondary to the mute, but it is still a tap target: at
-   34px it measured 32 wide, under the 44px minimum. */
-.rr-sound-more { min-width: 44px; }
 
 /* The speaker sprite: 16px of source art, scaled by whole numbers only, so it
    never lands between pixels. */
@@ -2183,9 +2199,6 @@ body:has(.rr-empty) .rr-sound { display: none; }
 /* The panel is a kit nine-slice, so it carries no fill or radius of its own
    here — only its placement above the cluster. */
 .rr-sound-panel {
-  position: absolute;
-  left: 0;
-  bottom: calc(100% + 6px);
   width: 200px;
 }
 /* The panel's decorative frame is 2 source px — 4px at UI_PIXEL — and the
@@ -2494,7 +2507,8 @@ body:has(.rr-lb.open:not(.rr-profile)) .rr-lb-launch {
      icons share a centre line. The side stays `--rr-edge`: that IS the bar's
      side gutter. */
   top: var(--rr-pad-tight);
-  right: var(--rr-edge);
+  /* Two squares in from the edge: the sound control owns the corner. */
+  right: calc(var(--rr-edge) + 2 * (var(--rr-icon) + var(--rr-pad-tight)));
   /* Above the panel it opens (29), so it is never buried by its own drawer. */
   z-index: 31;
   display: inline-flex;
@@ -3389,6 +3403,76 @@ button { font-family: var(--font-pixel); }
     padding-bottom: env(safe-area-inset-bottom);
   }
   .rr-shop-grid { grid-template-columns: 1fr; }
+}
+
+/* ── INSTALL THE APP ───────────────────────────────────────────────────────
+   install-guide.tsx. The steps ride the Shed's scrim and modal like the
+   energy popup, and stay small on a phone for the same reason. */
+.rr-install-modal {
+  width: min(440px, 100%);
+  max-height: 100%;
+}
+.rr-install-modal .rr-shop-top { gap: 12px; }
+.rr-install-title { flex: 1; min-width: 0; margin: 0; }
+.rr-install-icon {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  image-rendering: pixelated;
+}
+.rr-install-body {
+  padding: 4px 18px 0;
+  overflow-y: auto;
+}
+.rr-install-line {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--chalk-dim, #b39877);
+}
+.rr-install-steps {
+  margin: 12px 0 4px;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--chalk, #f5e6d3);
+}
+.rr-install-foot {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* The nudge: under the top bar, centred, in the toasts' slot and clear of the
+   card column the same way they are (`.rr-toasts`). */
+.rr-install-nudge {
+  position: fixed;
+  top: calc(var(--rr-chrome-top, calc(env(safe-area-inset-top) + var(--rr-topbar-h))) + var(--rr-pad-tight));
+  left: 0;
+  right: 0;
+  margin-inline: auto;
+  width: max-content;
+  max-width: min(420px, calc(100vw - 2 * (max(25vw, 220px) + 24px)));
+  z-index: 21;
+  animation: rr-shop-in 200ms ease-out backwards;
+}
+.rr-install-nudge-panel {
+  padding: var(--rr-pad-tight) var(--rr-pad);
+  color: #f5e6d3;
+}
+.rr-install-nudge-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rr-pad);
+}
+.rr-install-nudge .rr-install-line { margin-top: 4px; }
+.rr-install-nudge-act {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--rr-pad-tight);
 }
 
 /* ── OUT OF ENERGY ─────────────────────────────────────────────────────────

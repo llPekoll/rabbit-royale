@@ -28,6 +28,8 @@ import { RaidedStamp, raidedNews, type RaidedNews } from '@/components/raided-st
 import { TopbarReserve } from '@/components/topbar-reserve';
 import { SoundButton } from '@/components/sound-button';
 import { LoadingScreen } from '@/components/loading-screen';
+import { ScrollMoreHint } from '@/components/scroll-more-hint';
+import { InstallNudge } from '@/components/install-guide';
 import { LogoBanner } from '@/components/logo-banner';
 import { LanguageSelect } from '@/components/language-select';
 import { RunHud } from '@/components/run-hud';
@@ -1754,10 +1756,11 @@ function Burrow() {
             season board's trophy. Neither is a loop — a store and a codex — so
             neither belongs on the floor with DIG, HOME and RAID; up here they
             are reachable without being mistaken for a step of the game.
-            THE TROPHY IS NOT IN THIS ROW: it pins itself to the corner
-            (`.rr-lb-launch`, fixed at `--rr-edge`) so its own drawer can hide
-            it. So the row reserves its square plus one gap on the right, and
-            the three read as one evenly spaced group. The reserve used to be a
+            THE TROPHY AND THE SOUND ARE NOT IN THIS ROW: they pin themselves
+            (`.rr-lb-launch`, `.rr-sound`) — the trophy so its own drawer can
+            hide it, the sound because it stays on every screen and owns the
+            corner. So the row reserves their three squares and gaps on the
+            right, and the five read as one evenly spaced group. The reserve used to be a
             flat 56 for a button that grew to 68, and the trophy sat 2px on top
             of the story. Derived now, so it cannot drift again. */}
         {showCanvas && where === 'burrow' && !placing ? (
@@ -1765,7 +1768,8 @@ function Burrow() {
             display: 'flex',
             alignItems: 'center',
             gap: 'var(--rr-pad-tight)',
-            paddingRight: 'calc(var(--rr-icon) + var(--rr-pad-tight))',
+            // The trophy and the two sound squares, each with its gap.
+            paddingRight: 'calc(3 * (var(--rr-icon) + var(--rr-pad-tight)))',
           }}>
             <HubIconButton
               label={t.chrome.shop}
@@ -2057,6 +2061,9 @@ function Burrow() {
               )}
             </>
           )}
+          {/* Last, so it measures the whole column. Not on the doorstep,
+              which is a different layout sharing this element. */}
+          {showCanvas && <ScrollMoreHint />}
         </section>
       ) : null}
 
@@ -2182,6 +2189,14 @@ function Burrow() {
           )}
         </div>
       )}
+
+      {/* "Put it on your home screen", once the player has a reason to keep
+          the game: two runs home. Only on a quiet burrow — never over a
+          crossing, a placement, a dialog or another toast, which would bury
+          both. It keeps coming back until answered; see install-guide.tsx. */}
+      {showCanvas && where === 'burrow' && !shownRaid && !crossing && !placing && !note
+        && !shopOpen && !loreOpen && !energyOpen && !pickingTarget
+        && (burrow?.runs ?? 0) >= 2 && <InstallNudge />}
 
       {/* On the island the chrome is a thin HUD over the board, so it uses the
           overlay layer rather than the burrow's column. The condition mirrors

@@ -43,6 +43,7 @@ export const fr: Dict = {
   chrome: {
     loading: 'Chargement',
     waking: 'On réveille la garenne',
+    moreBelow: 'Faire défiler pour voir la suite',
     reconnecting: 'Reconnexion...',
     back: 'Retour',
     close: 'Fermer',
@@ -52,6 +53,49 @@ export const fr: Dict = {
     logoAlt: 'Rabbit Royale',
     rotateTitle: 'Tourne ton téléphone',
     rotateBody: 'Rabbit Royale se joue en paysage.',
+  },
+
+  install: {
+    title: {
+      ios: 'Écran d\'accueil',
+      macSafari: 'Dans le Dock',
+      chromiumDesktop: 'Installer l\'app',
+      androidChromium: 'Écran d\'accueil',
+    },
+    line: {
+      ios: 'Plein écran, sans barre de navigateur, à un geste de ton écran d\'accueil.',
+      macSafari: 'Rabbit Royale dans sa propre fenêtre, depuis ton Dock.',
+      chromiumDesktop: 'Rabbit Royale dans sa propre fenêtre, à un clic de ton dock.',
+      androidChromium: 'Plein écran, sans barre de navigateur, à un geste de ton écran d\'accueil.',
+    },
+    steps: {
+      ios: [
+        'Touche le bouton Partager (dans Safari, la barre du bas ; dans Chrome, la barre d\'adresse).',
+        'Fais défiler et touche Sur l\'écran d\'accueil.',
+        'Touche Ajouter. Rabbit Royale s\'ouvre en plein écran depuis ton écran d\'accueil.',
+      ],
+      macSafari: [
+        'Dans la barre des menus, choisis Fichier > Ajouter au Dock (ou Partager > Ajouter au Dock).',
+        'Clique sur Ajouter. Rabbit Royale s\'ouvre dans sa fenêtre depuis ton Dock.',
+        'Il faut Safari 17 ou plus récent.',
+      ],
+      prompt: ['Appuie sur Installer ci-dessous et confirme dans la fenêtre du navigateur.'],
+      chromiumDesktop: [
+        'Clique sur l\'icône d\'installation au bout de la barre d\'adresse, ou ouvre le menu du navigateur > Caster, enregistrer et partager > Installer la page en tant qu\'application.',
+        'Confirme avec Installer.',
+        'Déjà installée ? L\'icône dit alors Ouvrir dans l\'application.',
+      ],
+      androidChromium: [
+        'Ouvre le menu du navigateur (les trois points) et touche Ajouter à l\'écran d\'accueil.',
+        'Touche Installer. Rabbit Royale s\'ouvre en plein écran depuis ton écran d\'accueil.',
+      ],
+    },
+    install: 'Installer',
+    installing: 'Installation...',
+    showMe: 'Montre-moi',
+    gotIt: 'Compris',
+    close: 'Fermer',
+    app: 'App',
   },
 
   sound: {

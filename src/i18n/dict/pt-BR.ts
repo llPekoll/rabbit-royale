@@ -47,6 +47,7 @@ export const ptBR: Dict = {
   chrome: {
     loading: 'Carregando',
     waking: 'Acordando a coelheira',
+    moreBelow: 'Role para ver mais',
     reconnecting: 'Reconectando...',
     back: 'Voltar',
     close: 'Fechar',
@@ -56,6 +57,49 @@ export const ptBR: Dict = {
     logoAlt: 'Rabbit Royale',
     rotateTitle: 'Vire o celular de lado',
     rotateBody: 'Rabbit Royale se joga na horizontal.',
+  },
+
+  install: {
+    title: {
+      ios: 'Tela de Início',
+      macSafari: 'Adicionar ao Dock',
+      chromiumDesktop: 'Instalar o app',
+      androidChromium: 'Tela inicial',
+    },
+    line: {
+      ios: 'Tela cheia, sem barra do navegador, a um toque da sua Tela de Início.',
+      macSafari: 'Rabbit Royale na própria janela, direto do seu Dock.',
+      chromiumDesktop: 'Rabbit Royale na própria janela, a um clique do seu dock.',
+      androidChromium: 'Tela cheia, sem barra do navegador, a um toque da sua tela inicial.',
+    },
+    steps: {
+      ios: [
+        'Toque no botão Compartilhar (no Safari fica na barra de baixo; no Chrome, na barra de endereço).',
+        'Role a lista e toque em Adicionar à Tela de Início.',
+        'Toque em Adicionar. Rabbit Royale abre em tela cheia pela Tela de Início.',
+      ],
+      macSafari: [
+        'Na barra de menus, escolha Arquivo > Adicionar ao Dock (ou Compartilhar > Adicionar ao Dock).',
+        'Clique em Adicionar. Rabbit Royale abre na própria janela pelo Dock.',
+        'Precisa do Safari 17 ou mais recente.',
+      ],
+      prompt: ['Toque em Instalar abaixo e confirme na janela do navegador.'],
+      chromiumDesktop: [
+        'Clique no ícone de instalação no fim da barra de endereço, ou abra o menu do navegador > Transmitir, salvar e compartilhar > Instalar página como app.',
+        'Confirme com Instalar.',
+        'Já instalado? O ícone mostra Abrir no app.',
+      ],
+      androidChromium: [
+        'Abra o menu do navegador (os três pontos) e toque em Adicionar à tela inicial.',
+        'Toque em Instalar. Rabbit Royale abre em tela cheia pela tela inicial.',
+      ],
+    },
+    install: 'Instalar',
+    installing: 'Instalando...',
+    showMe: 'Mostrar como',
+    gotIt: 'Entendi',
+    close: 'Fechar',
+    app: 'App',
   },
 
   sound: {

@@ -1,6 +1,9 @@
 import type { Metadata, Viewport } from 'next';
 import { PixelFont } from '@/components/pixel-font';
 import { RotateGate } from '@/components/rotate-gate';
+import { FullscreenOnTap } from '@/components/fullscreen-on-tap';
+import { InstallGuideHost } from '@/components/install-guide';
+import Script from 'next/script';
 import { LocaleProvider } from '@/i18n/provider';
 import './globals.css';
 // The pixel chrome rollout, one file per surface group so each can be restyled
@@ -13,6 +16,24 @@ import './px-raid.css';
 export const metadata: Metadata = {
   title: 'Rabbit Royale: The Cursed Crown',
   description: 'Competitive minesweeper. Dig, hoard, raid, wear the crown.',
+  // Added to the home screen, iOS runs the page as an app with no Safari bars
+  // — the only way to a full screen on an iPhone. See app/manifest.ts.
+  // `black-translucent` draws the page under the status bar, which the
+  // safe-area insets (`viewportFit: 'cover'` below) already make room for.
+  appleWebApp: {
+    capable: true,
+    title: 'Rabbit Royale',
+    statusBarStyle: 'black-translucent',
+  },
+  icons: {
+    apple: '/icons/apple-touch-icon.png',
+  },
+  // Next now writes only the standard `mobile-web-app-capable`; iOS before 17
+  // still looks for Apple's own name, and without it a home-screen launch
+  // opens in Safari with its bars.
+  other: {
+    'apple-mobile-web-app-capable': 'yes',
+  },
 };
 
 // The Seeker is the target device: no zooming, no bounce, and the page extends
@@ -37,12 +58,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
        the kit's ASCII face cannot draw three of the four languages. */
     <html lang="en">
       <body>
+        {/* Chromium's `beforeinstallprompt`, caught ahead of every app chunk:
+            it fires once, early, and can beat the bundle on a slow line. */}
+        <Script src="/install-prompt.js" strategy="beforeInteractive" />
         {/* Above everything, including <PixelFont/>, which asks it which face
             this language can actually use. */}
         <LocaleProvider>
           <PixelFont />
           {children}
           <RotateGate />
+          <FullscreenOnTap />
+          {/* The install steps and the service worker — install-guide.tsx. */}
+          <InstallGuideHost />
         </LocaleProvider>
       </body>
     </html>

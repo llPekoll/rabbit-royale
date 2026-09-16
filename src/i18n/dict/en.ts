@@ -60,6 +60,7 @@ export const en = {
   chrome: {
     loading: 'Loading',
     waking: 'Waking the warren',
+    moreBelow: 'Scroll for more',
     reconnecting: 'Reconnecting...',
     back: 'Back',
     close: 'Close',
@@ -72,6 +73,52 @@ export const en = {
   },
 
   /* ── Sound ────────────────────────────────────────────────────────────── */
+  /* ── Installing the game as an app (install-guide.tsx) ────────────────
+     Titles are drawn by the bitmap face, so they are capitals. The steps name
+     the platform's own buttons exactly as the platform spells them. */
+  install: {
+    title: {
+      ios: 'ADD TO HOME SCREEN',
+      macSafari: 'ADD TO DOCK',
+      chromiumDesktop: 'INSTALL THE APP',
+      androidChromium: 'ADD TO HOME SCREEN',
+    },
+    line: {
+      ios: 'Full screen, no browser bar, one tap from your Home Screen.',
+      macSafari: 'Rabbit Royale in its own window, straight from your Dock.',
+      chromiumDesktop: 'Rabbit Royale in its own window, one click from your dock.',
+      androidChromium: 'Full screen, no browser bar, one tap from your home screen.',
+    },
+    steps: {
+      ios: [
+        'Tap the Share button (in Safari it is in the bottom toolbar, in Chrome in the address bar).',
+        'Scroll the sheet and tap Add to Home Screen.',
+        'Tap Add. Rabbit Royale opens full screen from your Home Screen.',
+      ],
+      macSafari: [
+        'In the menu bar, choose File > Add to Dock (or Share > Add to Dock).',
+        'Click Add. Rabbit Royale opens in its own window from your Dock.',
+        'Needs Safari 17 or newer.',
+      ],
+      prompt: ['Press INSTALL below and confirm in the browser popup.'],
+      chromiumDesktop: [
+        'Click the install icon at the right end of the address bar, or open the browser menu > Cast, save and share > Install page as app.',
+        'Confirm with Install.',
+        'Already installed? That icon says Open in app instead.',
+      ],
+      androidChromium: [
+        'Open the browser menu (the three dots) and tap Add to Home screen.',
+        'Tap Install. Rabbit Royale opens full screen from your home screen.',
+      ],
+    },
+    install: 'INSTALL',
+    installing: 'INSTALLING...',
+    showMe: 'SHOW ME',
+    gotIt: 'GOT IT',
+    close: 'Close',
+    app: 'App',
+  },
+
   sound: {
     group: 'Sound',
     music: 'Music',
