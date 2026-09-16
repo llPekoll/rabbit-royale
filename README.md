@@ -290,6 +290,35 @@ The palette lives beside the code it paints, in
 `src/components/loop-bar.tsx`; the spacing tokens (`--rr-edge`, `--rr-pad`,
 `--rr-pad-tight`) are in `src/app/globals.css`.
 
+## The screen's shape: the board is drawn for the phone you hold
+
+**The landscape design canvas is 960 wide and as tall as the screen's shape
+makes it** (`landscapeCanvas` in `src/game/Application.ts`, floor 400 / cap
+720). It used to be a fixed 960x540 *contained* in the window, and a phone is
+not 16:9: on a 20:9 Seeker (890x400) the fit was bound by the height and drew
+every tile, rabbit and glyph at 0.74 of its size, with 89px of bare sea down
+each side that no camera could see. Now a design pixel is the same share of
+the screen's *width* on every landscape screen, so a tile the camera opens at
+60 design px is 56 CSS px on the Seeker (it was 44) — and the cameras frame
+against the pixels the player actually has. Portrait keeps its own 480x860
+canvas behind the rotate gate. Camera tests carry a `960x431` viewport for
+exactly this reason: keep it when you add one.
+
+**At home the homestead is a backdrop, drawn beside the cards** (`homeCam` in
+`src/game/scenes/burrowCamera.ts`): fitted into the window the chrome leaves —
+right of the card column, under the top bar, above the loop bar — and never
+closer than the laid-out 1:1. Placing and raiding keep their own fits and the
+pinch. The window is stated as shares of the canvas (0.27 / 0.14 / 0.145,
+the Seeker's chrome), which is the one place the board knows where the DOM's
+chrome is; a backdrop can afford that approximation, a tap target could not.
+
+**On a short screen the run's HUD strip sits beside the carrot pill**, not
+under it (`@media (max-height: 520px) and (min-width: 820px)` in
+`globals.css`): stacked, the two took the top 30% of a 400px phone, dead
+centre over the tiles. Sizes that other things clear are tokens —
+`--rr-loop-h` is the loop bar's height, and the burrow column's bottom reserve
+measures against it rather than a typed number.
+
 ## Staying up
 
 `rr-ws` died repeatedly in production — Coolify reported **Exited / Restart

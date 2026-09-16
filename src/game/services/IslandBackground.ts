@@ -24,14 +24,16 @@ const LANDS = [
   '/assets/island/land3.webp',
 ] as const;
 
-/** The design canvas the ground has to cover. */
-const DESIGN_W = 960;
-const DESIGN_H = 540;
+/** The design canvas the ground has to cover — the LIVE one. Landscape is
+ *  960 wide and as tall as the screen's shape makes it (see Application), so
+ *  a pinned 960x540 here would compute the root's fit against a canvas the
+ *  root is no longer scaling. */
+import { GAME_W, GAME_H } from '../Application';
 
 /** Guarded: this runs before the first resize, and a zero collapses the sprite. */
 const defaultViewport = () => ({
-  width: (typeof window === 'undefined' ? 0 : window.innerWidth) || DESIGN_W,
-  height: (typeof window === 'undefined' ? 0 : window.innerHeight) || DESIGN_H,
+  width: (typeof window === 'undefined' ? 0 : window.innerWidth) || GAME_W,
+  height: (typeof window === 'undefined' ? 0 : window.innerHeight) || GAME_H,
 });
 
 /**
@@ -87,15 +89,15 @@ export async function createIslandBackground(
   ground.zIndex = -10;
   container.addChild(ground);
 
-  const nativeW = img.naturalWidth || DESIGN_W;
-  const nativeH = img.naturalHeight || DESIGN_H;
+  const nativeW = img.naturalWidth || GAME_W;
+  const nativeH = img.naturalHeight || GAME_H;
 
   const api: IslandBackground = {
     layout(cx, cy, zoom = ISLAND_ZOOM) {
       // Cover the CANVAS, not the design box and not the window.
       //
-      // The design space is 960x540 and the root scales it to FIT, so on any
-      // canvas that is not 16:9 there is bare space left over — it showed as a
+      // The root scales the design space to FIT, so on any canvas whose shape
+      // is not the design's there is bare space left over — it showed as a
       // flat blue band under the island. The window is the wrong thing to
       // measure too: the season board takes 330px of it on a wide screen, so
       // the renderer is narrower than `innerWidth` and the ground came out
@@ -104,7 +106,7 @@ export async function createIslandBackground(
       // `viewport()` is injected so this stays testable and so it can be told
       // the truth by whoever owns the renderer.
       const { width: vw, height: vh } = viewport();
-      const rootScale = Math.min(vw / DESIGN_W, vh / DESIGN_H);
+      const rootScale = Math.min(vw / GAME_W, vh / GAME_H);
       // What the canvas measures in DESIGN units after that scale.
       const needW = vw / rootScale;
       const needH = vh / rootScale;

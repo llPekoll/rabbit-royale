@@ -86,4 +86,17 @@ describe('the backdrop covers the frame', () => {
     expect(SCENE).toMatch(/lastW/);
     expect(SCENE).toMatch(/addEventListener\('resize'/);
   });
+
+  it('takes the boot off the stage when a resident scene is shown', () => {
+    // The boot's loading bar is a Graphics at the centre of the design canvas.
+    // Left on the root under the boards, it showed through wherever the
+    // terrain left that spot bare — a yellow bar in the sea.
+    const show = MANAGER.slice(MANAGER.indexOf('show(key: string)'));
+    const body = show.slice(0, show.indexOf('\n  }'));
+    expect(body).toMatch(/this\.retireTransient\(\)/);
+    const retire = MANAGER.slice(MANAGER.indexOf('private retireTransient()'));
+    // ...and only a scene that is NOT resident.
+    expect(retire).toMatch(/\[\.\.\.this\.resident\.values\(\)\]\.includes\(gone\)\) return/);
+    expect(retire).toMatch(/gone\.destroy\(\)/);
+  });
 });

@@ -24,6 +24,8 @@ import { join } from 'node:path';
 import {
   boardCamFraming, MIN_TILE_PX, placeCam, placeZoomLimits,
   panPlaceCam, zoomPlaceCam, clampPlaceCam,
+  homeCam,
+  boardBounds,
 } from '../src/game/scenes/burrowCamera';
 import { BURROW_COLS, BURROW_ROWS, BURROW_HALF_W, BURROW_HALF_H } from '../src/config/burrowConfig';
 import { burrowCell } from '../src/game/burrow/board';
@@ -32,6 +34,7 @@ import { burrowTileScreen } from '../src/game/burrow/screen';
 /** The design spaces the game actually runs in — see Application. */
 const VIEWPORTS = [
   { name: 'landscape', w: 960, h: 540 },
+  { name: 'phone landscape', w: 960, h: 431 },
   { name: 'portrait', w: 480, h: 860 },
 ] as const;
 
@@ -329,4 +332,27 @@ describe('placement camera', () => {
       });
     });
   }
+});
+
+describe('the home shot', () => {
+  it('is the laid-out identity until the scene has a seed', () => {
+    expect(homeCam()).toEqual({ scale: 1, x: 0, y: 0 });
+  });
+
+  it('shows the whole homestead beside the cards, under the top bar and above the loop bar', () => {
+    for (const v of VIEWPORTS) {
+      for (const seed of SEEDS) {
+        const c = homeCam(seed, v.w, v.h);
+        const b = boardBounds(seed);
+        const tag = `${v.name} ${seed}`;
+        // Never closer than the layout's own 1:1 — a backdrop, not a board.
+        expect(c.scale, tag).toBeLessThanOrEqual(1);
+        // Right of the card column, and inside the frame on every side.
+        expect(b.minX * c.scale + c.x, tag).toBeGreaterThanOrEqual(v.w * 0.27 - 1e-6);
+        expect(b.maxX * c.scale + c.x, tag).toBeLessThanOrEqual(v.w + 1e-6);
+        expect(b.minY * c.scale + c.y, tag).toBeGreaterThanOrEqual(v.h * 0.14 - 1e-6);
+        expect(b.maxY * c.scale + c.y, tag).toBeLessThanOrEqual(v.h * (1 - 0.145) + 1e-6);
+      }
+    }
+  });
 });

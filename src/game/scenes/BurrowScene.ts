@@ -1251,7 +1251,7 @@ export class BurrowScene implements Scene {
         ? clampPlaceCam(this.cam, this.data.seed)
         : placeCam(this.data.seed);
     }
-    return homeCam();
+    return homeCam(this.data.seed);
   }
 
   /**

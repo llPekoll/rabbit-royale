@@ -463,8 +463,10 @@ const slab: CSSProperties = {
      air. Only the floor moved, which is why this touches phones alone: at
      768px tall, 10.4svh is already ~80 and the clamp never reaches its floor. */
   /* 48, not 44: at 44 the state line sat 0.6px off the bevel on a 397px
-     screen. Paul's floor is 2px of air inside every frame. */
-  height: 'clamp(48px, 10.4svh, 80px)',
+     screen. Paul's floor is 2px of air inside every frame.
+     The clamp lives in globals.css as `--rr-loop-h`: the burrow column's
+     bottom reserve measures against it, and a height typed twice drifts. */
+  height: 'var(--rr-loop-h, clamp(48px, 10.4svh, 80px))',
   padding: 0,
   pointerEvents: 'auto',
 };

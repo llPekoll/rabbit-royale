@@ -53,11 +53,35 @@ const MAX_RESOLUTION = 2;
 const TARGET_FPS = 60;
 
 /** Design-space reference dimensions for each orientation. Scene code
- *  reads the live GAME_W / GAME_H below, which resize() swaps on rotation. */
+ *  reads the live GAME_W / GAME_H below, which resize() swaps on rotation.
+ *
+ *  LANDSCAPE IS 960 WIDE AND AS TALL AS THE SCREEN'S SHAPE MAKES IT. The
+ *  canvas used to be a fixed 960x540 CONTAINED in the window, and a phone is
+ *  not 16:9: the Seeker's 890x400 is 20:9, so the fit was bound by the height
+ *  (400/540) and drew every tile, rabbit and glyph at 0.74 of its size, with
+ *  89px of bare sea down each side that the cameras could not see and never
+ *  used. Paul (2026-09-16): the UI takes the screen and the tiles are too
+ *  small to play. Letting the height follow the aspect ratio makes the fit
+ *  bind on the WIDTH on every landscape screen from 16:9 to 2.4:1, so a
+ *  design px is the same share of the screen's width everywhere — 0.93 CSS px
+ *  on the Seeker, a quarter bigger than before — and the cameras frame against
+ *  the pixels the player actually has. A 16:9 window still gets 960x540. */
 export const LANDSCAPE_W = 960;
 export const LANDSCAPE_H = 540;
+/** The landscape canvas's height floor and ceiling: 2.4:1 to 4:3. Past either,
+ *  the fit goes back to containing the canvas, so an absurd window is
+ *  letterboxed rather than handed a design space nothing was drawn for. */
+export const LANDSCAPE_H_MIN = 400;
+export const LANDSCAPE_H_MAX = 720;
 export const PORTRAIT_W = 480;
 export const PORTRAIT_H = 860;
+
+/** The landscape canvas for a window of this shape — see LANDSCAPE_W. */
+export function landscapeCanvas(w: number, h: number): { w: number; h: number } {
+  const ratio = w > 0 ? h / w : LANDSCAPE_H / LANDSCAPE_W;
+  const height = Math.round(LANDSCAPE_W * ratio);
+  return { w: LANDSCAPE_W, h: Math.min(LANDSCAPE_H_MAX, Math.max(LANDSCAPE_H_MIN, height)) };
+}
 
 /** Current design-space dimensions. Mutated by resize() — consumers import
  *  these as ES-module live bindings and see the updated value. */
@@ -258,8 +282,9 @@ export async function createApp(
     // 390×719 Telegram mini-app) don't end up scaling a landscape canvas to
     // ~0.4× and rendering everything tiny.
     const portrait = h > w;
-    GAME_W = portrait ? PORTRAIT_W : LANDSCAPE_W;
-    GAME_H = portrait ? PORTRAIT_H : LANDSCAPE_H;
+    const canvas = portrait ? { w: PORTRAIT_W, h: PORTRAIT_H } : landscapeCanvas(w, h);
+    GAME_W = canvas.w;
+    GAME_H = canvas.h;
 
     // Scale design space to fit (uniform), center horizontally, anchor to top
     const scale = Math.min(w / GAME_W, h / GAME_H);

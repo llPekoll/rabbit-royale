@@ -22,6 +22,9 @@ import { ISO_TILE_W } from '../src/config/gridConfig';
 /** The design spaces the game actually runs in — see Application. */
 const VIEWPORTS = [
   { name: 'landscape', w: 960, h: 540 },
+  // A 20:9 phone held sideways (the Seeker at 890x400): the landscape canvas
+  // follows the screen's shape, so this is the height it really gets.
+  { name: 'phone landscape', w: 960, h: 431 },
   { name: 'portrait', w: 480, h: 860 },
   // The real one the first camera bug was reported on: a Telegram mini-app.
   { name: 'telegram portrait', w: 390, h: 719 },

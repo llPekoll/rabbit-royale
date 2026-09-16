@@ -72,6 +72,13 @@
      the wallet chip rather than across it. 44px chip + 12px padding. */
   --rr-topbar-h: 56px;
 
+  /* THE LOOP BAR'S SLAB HEIGHT, stated once because two rules measure it: the
+     slab itself (loop-bar.tsx) and the burrow column's bottom reserve, which
+     has to clear it. The reserve used to be typed by hand against a launcher
+     row that no longer mounts (`12.4svh + 30px`, 80px on the Seeker for a
+     58px bar) — the drift this token exists to prevent. */
+  --rr-loop-h: clamp(48px, 10.4svh, 80px);
+
   /* The kit's own pointers. The system arrow was the last piece of desktop
      chrome left on screen, and it sat on top of a game drawn entirely in
      8px cells. Used at the source's own 22×30 — doubling it made the art
@@ -516,6 +523,37 @@ button { min-height: 44px; min-width: 44px; }
      one finger on the strip became a 200px pan, and a drag starting there did
      nothing. Transparent, the strip is just more board. */
   pointer-events: none;
+}
+
+/* ON A SHORT SCREEN THE STRIP SITS BESIDE THE PILL, not under it.
+   Stacked, the pill (54px) and the strip (52px) took the top 120px of a
+   400px phone — 30% of the height, dead centre, over the tiles the rabbit is
+   about to step onto. The top band already holds the wallet chip, the pill
+   and the sound controls with ~240px of air between the pill and the sound,
+   so the strip moves into that air and the chrome is one band, not two.
+   Paul, 2026-09-16: "the UI is taking up a lot of space".
+
+   Fixed to the viewport like the pill, at the pill's own top, hung off the
+   pill's right edge through `--rr-pill-w` rather than a typed offset. The
+   width guard is the strip's own need: 150px plus its gap, right of the
+   pill's edge at 50% + 100px, before the sound controls at
+   `right: --rr-edge` — under ~820px it would run into them, so it stays
+   under the pill there. Captions and toasts keep hanging off
+   `--rr-chrome-top`, which is the pill's bottom either way. */
+@media (max-height: 520px) and (min-width: 820px) {
+  .rr-overlay > .rr-hud {
+    position: fixed;
+    top: var(--rr-edge);
+    left: calc(50% + var(--rr-pill-w) / 2 + var(--rr-pad));
+    align-self: auto;
+    margin: 0;
+    /* Match the pill's height so the two plates read as one row. */
+    min-height: 54px;
+    align-items: center;
+  }
+  /* The overlay's stack now starts at the top of the strip's old slot; the
+     first caption should not float mid-air where the strip was, so the padding
+     already given by `--rr-chrome-top` is the whole reserve. */
 }
 
 /* The first run's caption: one line under the HUD strip, the same glass as the
@@ -2083,7 +2121,9 @@ body:has(.rr-burrow) .rr-burrow {
      burrow card ran under the mute and its UPGRADE button was half covered. */
   /* Room for the launcher row; the mute shares its band rather than taking
      one of its own. (The raid kit is a placing-mode row and needs none.) */
-  body:has(.rr-burrow) .rr-burrow { padding-bottom: calc(12.4svh + 30px); }
+  body:has(.rr-burrow) .rr-burrow {
+    padding-bottom: calc(var(--rr-loop-h) + var(--rr-edge) + var(--rr-pad-tight) + env(safe-area-inset-bottom));
+  }
 
   /* Cards sit closer together. On the Seeker the column has 228px of visible
      height and the four cards need 224 of it — the 10px gutters between them

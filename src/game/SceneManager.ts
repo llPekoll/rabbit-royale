@@ -94,6 +94,8 @@ export class SceneManager {
     const next = this.resident.get(key);
     if (!next) return null;
 
+    this.retireTransient();
+
     for (const [k, scene] of this.resident) {
       const visible = k === key;
       if (scene.container.visible && !visible) scene.hide?.();
@@ -110,6 +112,23 @@ export class SceneManager {
       this.app.ticker.add(this.tickerCallback);
     }
     return next;
+  }
+
+  /**
+   * THE BOOT LEAVES THE STAGE when a resident scene takes over. It is the one
+   * scene that is not resident — `start` put it on the root and only
+   * `destroyCurrent` took it off, which nothing called once the burrow was
+   * shown. So its loading bar (300x20 design px, dead centre) stayed drawn
+   * under both boards for the whole session, and showed wherever the terrain
+   * left that spot bare: the "intermittent yellow bar at screen centre" seen
+   * after a pan, and on every phone once the home shot moved the homestead
+   * out from under it. Resident scenes are never touched here.
+   */
+  private retireTransient(): void {
+    const gone = this.current;
+    if (!gone || [...this.resident.values()].includes(gone)) return;
+    this.root.removeChild(gone.container);
+    gone.destroy();
   }
 
   /** A resident scene, whether or not it is the visible one. */

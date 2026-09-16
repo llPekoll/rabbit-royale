@@ -65,7 +65,7 @@ export interface BurrowCam {
  * tiles are included at their lifted position, so a shelf at the top of the
  * homestead is not cropped off.
  */
-function boardBounds(seed: string) {
+export function boardBounds(seed: string) {
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   for (let i = 0; i < BURROW_COLS * BURROW_ROWS; i++) {
     if (burrowCell(seed, i) === 'blocked') continue;
@@ -104,9 +104,53 @@ const BOARD_MARGIN = 0.82;
  */
 export const MIN_TILE_PX = 23;
 
-/** At home: the framing the scene is laid out in, untouched. */
-export function homeCam(): BurrowCam {
-  return { scale: 1, x: 0, y: 0 };
+/**
+ * THE HOME SHOT'S WINDOW: the part of the frame the chrome leaves bare, as
+ * shares of the design canvas.
+ *
+ * At home the homestead is a backdrop. The burrow's cards stand on the left
+ * quarter of the screen (`.rr-burrow` is `max(25vw, 220px)` plus its inset),
+ * the top bar takes the first band and the loop bar the last, and a homestead
+ * framed against the whole canvas put its western shore under the cards and
+ * its southern one under DIG / DEFEND / RAID — on the Seeker the land ran to y
+ * 498 of a 431px canvas. Paul (2026-09-16): "the player's island is too big".
+ * So the shot fits the land into the window between those three, and the
+ * whole homestead is seen beside the cards rather than behind them.
+ *
+ * Shares rather than a measurement handed over from the DOM: this is the one
+ * place the board has to know where the chrome is, and a backdrop can afford
+ * the approximation where a tap target could not. The numbers are the
+ * Seeker's (890x400): 25vw + 10px of edge + 12px of padding = 0.27 of the
+ * width; a 56px top bar = 0.14 and a 48px bar over a 10px edge = 0.145 of the
+ * height. On taller screens the bands are proportionally smaller than this
+ * says, which only costs a little sea.
+ */
+const HOME_LEFT = 0.27;
+const HOME_TOP = 0.14;
+const HOME_BOTTOM = 0.145;
+
+/** Air around the land inside that window, as a share of it. */
+const HOME_MARGIN = 0.9;
+
+/**
+ * At home: the homestead fitted into the window the chrome leaves, centred in
+ * it, never closer than the laid-out 1:1 — that is placement's job. Without a
+ * seed (the scene's first frame, before its data lands) it is the identity the
+ * layout was drawn in.
+ */
+export function homeCam(seed?: string, W: number = GAME_W, H: number = GAME_H): BurrowCam {
+  if (seed === undefined) return { scale: 1, x: 0, y: 0 };
+  const b = boardBounds(seed);
+  const win = {
+    x: W * HOME_LEFT, y: H * HOME_TOP,
+    w: W * (1 - HOME_LEFT), h: H * (1 - HOME_TOP - HOME_BOTTOM),
+  };
+  const scale = Math.min(1, (win.w * HOME_MARGIN) / b.w, (win.h * HOME_MARGIN) / b.h);
+  return {
+    scale,
+    x: win.x + win.w / 2 - scale * (b.minX + b.maxX) / 2,
+    y: win.y + win.h / 2 - scale * (b.minY + b.maxY) / 2,
+  };
 }
 
 /**
