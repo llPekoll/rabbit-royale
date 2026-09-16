@@ -260,6 +260,36 @@ raid game, and one column to avoid it.
 
 ---
 
+## The screen's colour grammar
+
+**Orange is ACTION, everywhere in the game.** The carrot's orange (`#ed7b23`)
+marks the thing you press to make something happen — the DIG slab, the sound
+controls, a primary button anywhere. It is deliberately *reused* rather than
+reserved for a single surface: DIG is the loop with the most action in it, so
+the two readings agree instead of competing (Paul, 2026-09-16).
+
+The three loop slabs take **one hue per verb**, all three filled the same way:
+
+| slab | face | what the colour says |
+|---|---|---|
+| DIG | carrot orange `#ed7b23` | action — the one thing the screen exists for |
+| DEFEND | garden green `#4f7a34` | the garden, the shield, the traps |
+| RAID | dark red `#8c2f38` | the danger the rest of the game already paints red |
+
+DIG stays the loudest of the three: the most saturated face, and the only one
+carrying the carrot itself.
+
+**An outline means STATE, never identity.** A ring around a control reads as
+"selected" in every interface anyone has ever used, so it is kept for that.
+DEFEND wore a gold ring for a while to say "you are standing here", and it was
+read as the current tab instead; it is deleted (`.rr-loop-cell-lit`) and should
+not come back. The quest points with a red `!` badge — which is also why RAID's
+face is kept dark, since a bright red face would swallow that badge.
+
+The palette lives beside the code it paints, in
+`src/components/loop-bar.tsx`; the spacing tokens (`--rr-edge`, `--rr-pad`,
+`--rr-pad-tight`) are in `src/app/globals.css`.
+
 ## Staying up
 
 `rr-ws` died repeatedly in production — Coolify reported **Exited / Restart

@@ -550,6 +550,48 @@ button { min-height: 44px; min-width: 44px; }
   transition: transform 320ms cubic-bezier(0.4, 0, 0.2, 1), opacity 240ms linear;
 }
 .rr-loop-bar > * { pointer-events: auto; }
+
+/* THE STATE LINE UNDER EACH VERB: ONE row, and it travels when it overruns.
+   It wrapped to two rows before, which cost each slab a row of height on a
+   400px-tall screen and still ran out of room when three facts went long —
+   see `StateLine` in loop-bar.tsx for the measuring, and for why a line that
+   fits never moves. */
+.rr-loop-line {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+}
+/* The CHILD is transformed, not the box: moving the box would carry the text
+   out from under its own clipping and across the slab's face. */
+.rr-loop-line > span {
+  display: inline-block;
+  will-change: transform;
+}
+/* Only a line that MEASURED an overrun wears this (StateLine sets the class
+   and the distance together, so the two can never disagree). */
+.rr-loop-line-run {
+  animation: rr-loop-scroll var(--rr-scroll-ms, 3s) ease-in-out infinite alternate;
+}
+/* It rests at both ends — the pauses are where the line is actually read, and
+   `alternate` walks it back rather than snapping it home. */
+@keyframes rr-loop-scroll {
+  0%, 16%   { transform: translateX(0); }
+  84%, 100% { transform: translateX(calc(-1 * var(--rr-scroll, 0px))); }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Back to the two rows it used to wrap into. Cutting the line off to spare
+     these players the movement would trade one problem for a worse one: this
+     line is the reason to press the slab. */
+  .rr-loop-line {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .rr-loop-line > span { display: inline; }
+  .rr-loop-line-run { animation: none; }
+}
 .rr-loop-away {
   transform: translateX(-50%) translateY(160%);
   opacity: 0;

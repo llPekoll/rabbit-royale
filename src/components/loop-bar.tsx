@@ -203,6 +203,10 @@ export function LoopBar({
       : raid.open > 0
         ? `${raid.open} burrow${raid.open === 1 ? '' : 's'} open`
         : 'every burrow is shielded',
+    // The bag JOINS the line instead of taking a row of its own. Each slab
+    // holds one travelling row now, and a second row is exactly the vertical
+    // space this change exists to hand back.
+    ...(raid.bombs > 0 ? [`${raid.bombs} bomb${raid.bombs === 1 ? '' : 's'} in the bag`] : []),
   ];
   const digLine = digParts.join(', ');
   const homeLine = homeParts.join(', ');
@@ -255,7 +259,7 @@ export function LoopBar({
                   measured 2:1, and the line is the one that says whether the
                   next run is affordable. */}
               <span style={{ ...verb, textShadow: `0 2px 0 ${DIG_SHADOW}` }}>DIG</span>
-              <span style={{ ...line, color: DIG_INK }}><Parts parts={digParts} /></span>
+              <StateLine parts={digParts} color={DIG_INK} />
             </span>
           </span>
           {pointed === 'dig' && <PxPanel color={BADGE} className="rr-hub-badge" style={badge}>!</PxPanel>}
@@ -312,7 +316,7 @@ export function LoopBar({
               <span style={{ ...verb, textShadow: `0 2px 0 ${DEF_SHADOW}` }}>DEFEND</span>
               {/* The garden with something standing in it is the alarm: what is
                   out there is what a raider can take. */}
-              <span style={{ ...line, color: home.gardenReady > 0 ? DANGER_INK : DEF_INK }}><Parts parts={homeParts} /></span>
+              <StateLine parts={homeParts} color={home.gardenReady > 0 ? DANGER_INK : DEF_INK} />
             </span>
           </span>
           {pointed === 'home' && <PxPanel color={BADGE} className="rr-hub-badge" style={badge}>!</PxPanel>}
@@ -342,8 +346,7 @@ export function LoopBar({
               <span style={{ ...verb, textShadow: `0 2px 0 ${RAID_SHADOW}` }}>RAID</span>
               {/* GOLD for the burrow worth walking to. The salmon this line used
                   to take is a shade of the face now, and read as nothing. */}
-              <span style={{ ...line, color: raid.best ? LAMP : RAID_INK }}><Parts parts={raidParts} /></span>
-              {raid.bombs > 0 && <span style={{ ...line, color: RAID_INK }}>{raid.bombs} bomb{raid.bombs === 1 ? '' : 's'} in the bag</span>}
+              <StateLine parts={raidParts} color={raid.best ? LAMP : RAID_INK} />
             </span>
           </span>
           {/* RED ONLY FOR NEWS. The quest pointing here is a "!" in red, like
@@ -367,6 +370,75 @@ export function LoopBar({
   );
 }
 
+/**
+ * A slab's state line: ONE row, and it TRAVELS when it does not fit.
+ *
+ * It used to wrap to two rows (`-webkit-line-clamp: 2`). That cost every slab
+ * a second row of height on a 400px-tall screen, and it still ran out of room
+ * when three facts went long — on the Seeker, DEFEND's third fact landed alone
+ * against the slab's bevel. One row that travels says all of it and gives the
+ * row back (Paul, 2026-09-16: "on economise de la place sur mobile car on en a
+ * cruellement besoin").
+ *
+ * IT ONLY MOVES WHEN IT OVERRUNS. A line that fits sits still: text sliding
+ * for no reason is harder to read than text that does not. The overrun is
+ * MEASURED, not guessed, and measured again whenever the line changes (the
+ * energy count ticks down on its own) or the slab is resized.
+ *
+ * One SPEED rather than one duration, so a long line does not race a short
+ * one, and it rests at both ends — the pauses are where it is actually read.
+ *
+ * Under `prefers-reduced-motion` it returns to the two-row clamp (see
+ * `.rr-loop-line` in globals.css). Cutting the line off for those players to
+ * spare them the movement would trade one problem for a worse one: this line
+ * is the reason to press the slab.
+ */
+function StateLine({ parts, color }: { parts: string[]; color: string }) {
+  const box = useRef<HTMLSpanElement>(null);
+  const text = useRef<HTMLSpanElement>(null);
+  const [over, setOver] = useState(0);
+  // The joined text is the measuring trigger: the parts array is rebuilt every
+  // render, so depending on it directly would re-run this on every tick.
+  const joined = parts.join(' . ');
+
+  useEffect(() => {
+    const b = box.current;
+    const t = text.current;
+    if (!b || !t) return;
+    const measure = () => {
+      const d = Math.max(0, Math.ceil(t.scrollWidth - b.clientWidth));
+      // A pixel of slack: sub-pixel text metrics would otherwise flip this
+      // between 0 and 1 forever, and each flip is a re-render.
+      setOver((was) => (Math.abs(was - d) > 1 ? d : was));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(b);
+    ro.observe(t);
+    return () => ro.disconnect();
+  }, [joined]);
+
+  return (
+    <span ref={box} className="rr-loop-line" style={{ ...line, color }}>
+      <span
+        ref={text}
+        className={over > 0 ? 'rr-loop-line-run' : undefined}
+        style={
+          over > 0
+            ? ({
+                ['--rr-scroll' as string]: `${over}px`,
+                /* ~26px a second, plus the rests at each end. */
+                ['--rr-scroll-ms' as string]: `${1400 + over * 38}ms`,
+              } as CSSProperties)
+            : undefined
+        }
+      >
+        <Parts parts={parts} />
+      </span>
+    </span>
+  );
+}
+
 /** A slab's state line: its parts, a middot between them. */
 function Parts({ parts }: { parts: string[] }) {
   return (
@@ -387,7 +459,15 @@ function enter(ms: number): CSSProperties {
 const slab: CSSProperties = {
   width: '100%',
   minWidth: 0,
-  height: 'clamp(52px, 10.4svh, 80px)',
+  /* THE FLOOR CAME DOWN 52 -> 44 once the state line stopped taking two rows
+     (Paul, 2026-09-16: "on economise de la place sur mobile car on en a
+     cruellement besoin"). Dropping a row freed CONTENT height, not screen
+     height — the slab's height is set here, so the room came back only when
+     this number did. Measured on the Seeker: 27px of content in a 52px slab,
+     so 44 (the project's touch floor, and never below it) still leaves 17px of
+     air. Only the floor moved, which is why this touches phones alone: at
+     768px tall, 10.4svh is already ~80 and the clamp never reaches its floor. */
+  height: 'clamp(44px, 10.4svh, 80px)',
   padding: 0,
   pointerEvents: 'auto',
 };
@@ -436,18 +516,14 @@ const verb: CSSProperties = {
 };
 
 /**
- * The state line: up to TWO rows, never an ellipsis. A slab's line is the
- * reason to press it, and a reason cut off at "a run take..." is no reason.
+ * The state line's TYPE only. One row, never an ellipsis — the row itself, and
+ * how it travels when it overruns, is `.rr-loop-line` in globals.css; see
+ * `StateLine` above for why it moves at all.
  */
 const line: CSSProperties = {
   fontFamily: 'var(--font-pixel), ui-monospace, monospace',
   fontSize: 'clamp(9px, 1.5svh, 11px)',
   lineHeight: 1.25,
-  display: '-webkit-box',
-  WebkitBoxOrient: 'vertical',
-  WebkitLineClamp: 2,
-  overflow: 'hidden',
-  overflowWrap: 'anywhere',
 };
 
 const arrow: CSSProperties = {
