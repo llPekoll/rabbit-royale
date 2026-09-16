@@ -65,8 +65,15 @@ interface Args {
   reach: number;
   near: number;
   falloff: number;
-  /** Le grain qui vit dans le faisceau. */
+  /** Le grain qui vit dans le faisceau. De la fumee. */
   dust: number;
+  /** Les poussieres : des grains distincts qui flottent et montent. */
+  motes: number;
+  moteCell: number;
+  moteSize: number;
+  moteDensity: number;
+  moteRise: number;
+  moteBlink: number;
 
   /**
    * Partages avec les ombres de nuages — ces quatre-la vont AUX DEUX shaders.
@@ -166,6 +173,12 @@ function Scene(args: Args) {
               near: args.near,
               falloff: args.falloff,
               dust: args.dust,
+              motes: args.motes,
+              moteCell: args.moteCell,
+              moteSize: args.moteSize,
+              moteDensity: args.moteDensity,
+              moteRise: args.moteRise,
+              moteBlink: args.moteBlink,
               color: hex(args.color),
               alpha: args.alpha,
               // Applique APRES le `coverage` accorde, donc un detune non nul
@@ -213,6 +226,12 @@ const meta: Meta<Args> = {
     near: { control: { type: 'range', min: 0, max: 1.5, step: 0.01 } },
     falloff: { control: { type: 'range', min: 0.2, max: 4, step: 0.05 } },
     dust: { control: { type: 'range', min: 0, max: 1, step: 0.02 } },
+    motes: { control: { type: 'range', min: 0, max: 2, step: 0.05 } },
+    moteCell: { control: { type: 'range', min: 8, max: 80, step: 1 } },
+    moteSize: { control: { type: 'range', min: 0.5, max: 8, step: 0.1 } },
+    moteDensity: { control: { type: 'range', min: 0, max: 1, step: 0.02 } },
+    moteRise: { control: { type: 'range', min: 0, max: 40, step: 0.5 } },
+    moteBlink: { control: { type: 'range', min: 0, max: 1, step: 0.01 } },
     coverage: { control: { type: 'range', min: 0.2, max: 0.9, step: 0.01 } },
     edge: { control: { type: 'range', min: 0.01, max: 0.4, step: 0.01 } },
     morph: { control: { type: 'range', min: 0, max: 0.5, step: 0.005 } },
@@ -232,6 +251,12 @@ const meta: Meta<Args> = {
     near: R.near,
     falloff: R.falloff,
     dust: R.dust,
+    motes: R.motes,
+    moteCell: R.moteCell,
+    moteSize: R.moteSize,
+    moteDensity: R.moteDensity,
+    moteRise: R.moteRise,
+    moteBlink: R.moteBlink,
     coverage: C.coverage,
     edge: R.edge,
     morph: C.morph,
@@ -313,4 +338,19 @@ export const Desaccorde: Story = {
 export const Lisse: Story = {
   name: '05 · Sans pixelisation',
   args: { pixel: 0 },
+};
+
+/**
+ * Les poussieres, appuyees, dans les rais seuls.
+ *
+ * Ce n'est pas un reglage : c'est pour VOIR ce que les grains font — naitre,
+ * monter en se balancant, s'eteindre — avant de les juger en discret dans
+ * la story 01. A regarder bouger : un grain fixe n'est qu'un pixel clair.
+ *
+ * `dust` a 0 pour que le seul grain a l'image soit celui-ci ; le fbm de
+ * `dust`, lui, fait des trainees (c'est devenu la mer, voir SeaGradient).
+ */
+export const Poussieres: Story = {
+  name: '06 · Poussieres',
+  args: { shadows: false, dust: 0, motes: 1.4, moteDensity: 0.3 },
 };

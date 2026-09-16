@@ -91,6 +91,12 @@ uniform float uReach;
 uniform float uNear;
 uniform float uFalloff;
 uniform float uDust;
+uniform float uMotes;
+uniform float uMoteCell;
+uniform float uMoteSize;
+uniform float uMoteDensity;
+uniform float uMoteRise;
+uniform float uMoteBlink;
 uniform float uPixel;
 uniform vec3  uColor;
 uniform float uAlpha;
@@ -162,6 +168,90 @@ float fbm(vec3 p) {
     return sum / max(norm, 1e-4);
 }
 
+/**
+ * Un hash 2D vers 0..1 : le tirage d'une cellule, independant de ses voisines.
+ * Pas un bruit — un bruit interpole, et des positions correlees alignent les
+ * grains en chapelets.
+ */
+float hash21(vec2 p) {
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+}
+
+/**
+ * Les POUSSIERES : des grains distincts qui flottent dans la lumiere.
+ *
+ * A distinguer de uDust plus bas, qui est un fbm fin module sur le faisceau.
+ * Ce fbm ne peut PAS faire des particules : c'est un champ continu, donc
+ * monter son dial epaissit une fumee au lieu de detacher des points — pousse
+ * au maximum il fait des trainees striees (assez justes pour une mer, c'est
+ * devenu SeaGradient, mais pas de la poussiere). Il fallait l'autre famille
+ * de bruit : des cellules hachees, un point par cellule.
+ *
+ * ## En espace ECRAN, pas en (bande, distance)
+ *
+ * Le faisceau est lu depuis la source, en angle et distance, et c'est ce
+ * qu'il faut pour des colonnes. Pas pour des grains : une grille posee dans
+ * cet espace s'evase avec la distance et les points du bas sortent trois fois
+ * plus gros que ceux du haut. Une poussiere est un point de deux pixels quel
+ * que soit l'endroit ou elle flotte — donc la grille est en pixels, et c'est
+ * le masque shaft * fade, applique apres, qui la confine dans la lumiere.
+ *
+ * ## Ce qui les rend vivantes
+ *
+ * Trois choses, et chacune s'est verifiee necessaire :
+ *  - une DUREE DE VIE : chaque grain nait, brille, s'eteint (le sinus sur
+ *    fract du temps). Des grains permanents qui ne font que deriver se
+ *    lisent comme une texture de bruit qui glisse ;
+ *  - une MONTEE lente avec un leger balancement lateral — l'air chaud d'un
+ *    rai porte la poussiere vers le haut, elle ne file pas le long du rai ;
+ *  - une DENSITE basse : la plupart des cellules sont vides. Une grille
+ *    pleine laisse voir sa trame en une seconde.
+ *
+ * Deux couches, de pas et de vitesse differents, pour casser l'alignement de
+ * la grille sans en ajouter une troisieme.
+ */
+float motes(vec2 p) {
+    if (uMotes <= 0.0) return 0.0;
+
+    float sum = 0.0;
+    for (int i = 0; i < 2; i++) {
+        float L = float(i);
+        float cellPx = uMoteCell * (1.0 + 0.6 * L);
+
+        vec2 q = p;
+        // La grille descend, donc les points montent. La seconde couche plus
+        // lentement : c'est elle qui donne la profondeur.
+        q.y += uTime * uMoteRise * (1.0 - 0.4 * L);
+        // Un balancement lateral lie a la hauteur, pour que les grains ne
+        // montent pas en rang comme des bulles dans un verre.
+        q.x += sin(uTime * 0.35 + L * 2.1 + p.y * 0.012) * cellPx * 0.18;
+
+        vec2 g = q / cellPx + L * 0.37;
+        vec2 cell = floor(g);
+        vec2 f = fract(g);
+
+        float h1 = hash21(cell + L * 17.0);
+        float h2 = hash21(cell.yx + L * 53.0);
+        float h3 = hash21(cell * 1.3 + L * 29.0);
+        // La plupart des cellules n'ont pas de grain.
+        if (h3 > uMoteDensity) continue;
+
+        // Le point, tenu a l'ecart des bords de la cellule pour qu'un grain ne
+        // soit jamais coupe en deux par la frontiere.
+        vec2 pt = vec2(h1, h2) * 0.7 + 0.15;
+        float r = uMoteSize / cellPx;
+        float d = length(f - pt);
+        float grain = 1.0 - smoothstep(r * 0.4, r, d);
+
+        // Naitre, briller, s'eteindre — chacun a son rythme et sa phase.
+        float life = fract(uTime * uMoteBlink * (0.6 + 0.8 * h1) + h2 * 7.0);
+        float bright = sin(life * 3.14159);
+
+        sum += grain * bright * (1.0 - 0.35 * L);
+    }
+    return sum * uMotes;
+}
+
 void main(void) {
     vec2 p = vScreen;
     if (uPixel > 0.0) p = floor(p / uPixel) * uPixel + uPixel * 0.5;
@@ -214,7 +304,16 @@ void main(void) {
         dust = mix(1.0, g * 1.6, uDust);
     }
 
-    float a = shaft * fade * dust * uAlpha;
+    // Les poussieres, AJOUTEES au faisceau et confinees dedans par le meme
+    // masque. Ajoutees et non multipliees : un grain est un point PLUS CLAIR
+    // que la lumiere qui le porte, c'est la seule facon de lire une particule
+    // eclairee ; multiplie il ne ferait qu'un trou sombre. Hors de la lumiere
+    // il n'y a rien a eclairer, d'ou shaft * fade.
+    //
+    // Pas ponderees par uAlpha : le faisceau est volontairement un voile a
+    // 0.22, et une poussiere qui n'aurait droit qu'a 22 pour cent ne se
+    // detacherait jamais de lui. uMotes est sa propre intensite.
+    float a = shaft * fade * (dust * uAlpha + motes(p));
     // Premultiplie : le mesh est en blend additif, donc c'est la couleur
     // ponderee qui compte et l'alpha ne sert qu'a ne rien ajouter a zero.
     finalColor = vec4(uColor * a, a);
@@ -260,8 +359,23 @@ export interface GodRaysOptions {
   near?: number;
   /** Courbure de l'extinction. Au-dessus de 1 la lumiere meurt plus tot. */
   falloff?: number;
-  /** Grain dans le faisceau, 0 a 1. */
+  /** Grain dans le faisceau, 0 a 1. De la fumee ; pour des particules, `motes`. */
   dust?: number;
+  /**
+   * Les poussieres : des grains distincts qui flottent dans la lumiere.
+   * C'est leur intensite (0 les eteint) ; voir `motes()` dans le fragment.
+   */
+  motes?: number;
+  /** Le pas de la grille des grains, en pixels. Grand = plus epars. */
+  moteCell?: number;
+  /** Rayon d'un grain, en pixels — avant le snap de `pixel`. */
+  moteSize?: number;
+  /** Part des cellules qui portent un grain, 0 a 1. Bas, ou la trame se voit. */
+  moteDensity?: number;
+  /** Vitesse de montee, en pixels par seconde. Lente. */
+  moteRise?: number;
+  /** Cycles de vie par seconde : 0.12 = un grain vit environ huit secondes. */
+  moteBlink?: number;
   /** Pas de quantification en pixels, 0 pour aucun. */
   pixel?: number;
   color?: number;
@@ -324,7 +438,22 @@ export const GOD_RAYS_DEFAULTS = {
   // est une crypte ou la poussiere est le seul relief. Sur un pixel art en
   // plein jour elle se lit comme du bruit de compression : reglee a l'oeil a
   // 0.04, soit juste assez pour que le faisceau ne soit pas un aplat.
-  dust: 0.04,
+  dust: 0.18,
+  /**
+   * Les poussieres, discretes mais presentes.
+   *
+   * Le fbm de `dust` a du redescendre a 0.04 parce qu'un grain CONTINU en
+   * plein jour se lit comme du bruit de compression. Un grain DISCRET n'a pas
+   * ce probleme — il se lit comme un flocon dans un rayon — donc celui-ci peut
+   * etre franchement visible sans salir l'image. Le dial est `motes` ;
+   * `moteDensity` est le second, et il doit rester bas.
+   */
+  motes: 0.15,
+  moteCell: 26,
+  moteSize: 2.2,
+  moteDensity: 0.25,
+  moteRise: 6,
+  moteBlink: 0.12,
   pixel: 4,
   color: 0xfff2cf,
   alpha: 0.22,
@@ -418,6 +547,12 @@ export function createGodRays(
         uNear: { value: o.near, type: 'f32' },
         uFalloff: { value: o.falloff, type: 'f32' },
         uDust: { value: o.dust, type: 'f32' },
+        uMotes: { value: o.motes, type: 'f32' },
+        uMoteCell: { value: o.moteCell, type: 'f32' },
+        uMoteSize: { value: o.moteSize, type: 'f32' },
+        uMoteDensity: { value: o.moteDensity, type: 'f32' },
+        uMoteRise: { value: o.moteRise, type: 'f32' },
+        uMoteBlink: { value: o.moteBlink, type: 'f32' },
         uPixel: { value: o.pixel, type: 'f32' },
         uColor: { value: new Float32Array(rgb(o.color)), type: 'vec3<f32>' },
         uAlpha: { value: o.alpha, type: 'f32' },
@@ -436,6 +571,8 @@ export function createGodRays(
     scale: 'uScale', morph: 'uMorph', octaves: 'uOctaves', warp: 'uWarp',
     coverage: 'uCoverage', edge: 'uEdge', softness: 'uSoftness', spread: 'uSpread',
     reach: 'uReach', near: 'uNear', falloff: 'uFalloff', dust: 'uDust',
+    motes: 'uMotes', moteCell: 'uMoteCell', moteSize: 'uMoteSize',
+    moteDensity: 'uMoteDensity', moteRise: 'uMoteRise', moteBlink: 'uMoteBlink',
     pixel: 'uPixel', alpha: 'uAlpha',
   };
 
