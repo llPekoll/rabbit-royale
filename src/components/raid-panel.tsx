@@ -223,7 +223,7 @@ export function RaidHud({ raid, busy, note, onLeave }: RaidHudProps) {
       {note && !raid.finished && <p className="rr-raid-note">{note}</p>}
 
       {/* The way out, MID-RAID, is the shared BackButton now ("Retreat",
-          bottom-left — page.tsx), not a small text button in this HUD. It
+          bottom-CENTRE — page.tsx), not a small text button in this HUD. It
           exists for the same reason it always did: a raider who changed their
           mind was stuck on someone else's board until their energy ran out. */}
 
