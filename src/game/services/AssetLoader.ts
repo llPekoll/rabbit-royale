@@ -1,6 +1,7 @@
 import { Assets, Spritesheet, Texture, TextureSource } from 'pixi.js';
 import { loadButtonAssets, loadArcadeFonts, loadCoinAssets } from '@domin8/arcade-kit/pixi';
 import { CARROT_URL } from '@domin8/arcade-kit/game';
+import { ARROW_URLS } from '@domin8/arcade-kit';
 import * as Keys from '@/config/assetKeys';
 import { BURROW_BUILDING_URLS } from '@/game/burrow/buildings';
 
@@ -34,6 +35,12 @@ const IMAGES = [
   // The carrot comes from the shared kit rather than public/: it is the same
   // prop the hub's season pass draws, and one copy means one carrot.
   { key: Keys.CARROT, src: CARROT_URL },
+  // The hub's own nav arrow, from the shared kit rather than a sprite of RR's
+  // own: the raid's goal marker is the same chevron the hub flanks its cabinet
+  // carousel with, so the two screens point with one shape. It ships grey (a
+  // luminosity model — see the kit's `PixelArrow`), which a Pixi tint turns
+  // gold without a second sprite existing.
+  { key: Keys.ARROW_DOWN, src: ARROW_URLS.down },
   // The iris aperture. Generated (tools/gen_carrot_mask.py) rather than taken
   // from the kit's carrot: a mask keeps only alpha, and the sprite's shape
   // lives partly in its shading.

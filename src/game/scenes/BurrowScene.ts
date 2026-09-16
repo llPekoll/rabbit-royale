@@ -233,10 +233,11 @@ const GOAL_ARROW_BOB_SECONDS = 0.9;
 /**
  * Past the depth of any cell on the board, so the arrow tops its own layer.
  *
- * The burrow is 19x19 and `burrowDepth` runs on (col + row), so nothing on
- * this layer reaches four figures — see `BURROW_COLS`. This is not the depth
- * ruler being broken: the arrow is not IN the world (it is mounted over the
- * terrain, not in a cell's block), so there is nothing for it to sort against.
+ * Mirrors `dragSurface`'s -1e6 at the other end of the same layer: both are
+ * siblings of the board that opt OUT of depth rather than taking a place in
+ * it. This is not the depth ruler being broken — the arrow is not IN the
+ * world (it is not mounted in a cell's block), so there is nothing for it to
+ * sort against.
  */
 const GOAL_ARROW_Z = 10000;
 
@@ -1605,12 +1606,18 @@ export class BurrowScene implements Scene {
    * that — the arrow was simply swallowed, and a signpost you cannot see is
    * not a signpost.
    *
-   * So it goes on `board`, which is added after the terrain and therefore
-   * draws over all of it. A raider is not looking THROUGH the world at the
-   * arrow; the arrow is a mark ON the picture, like the clue numbers, and
-   * occluding it would be as wrong as occluding those. It stays anchored to
-   * the garden's cell in the same projection, so it still points at real
-   * ground — it just refuses to be hidden by what grows in front of it.
+   * So it goes on `container` as a SIBLING of the board and the terrain, with
+   * a zIndex far above either — the exact mirror of `dragSurface`, which sits
+   * on the same layer at -1e6 to stay behind everything. Adding it to `board`
+   * is not enough and was the first attempt: `container.sortableChildren` is
+   * on, so the board and the terrain are sorted against each other and a high
+   * zIndex INSIDE the board only wins among the board's own children.
+   *
+   * A raider is not looking THROUGH the world at the arrow; the arrow is a
+   * mark ON the picture, like the clue numbers, and occluding it would be as
+   * wrong as occluding those. It stays anchored to the garden's cell in the
+   * same projection, so it still points at real ground — it just refuses to be
+   * hidden by what grows in front of it.
    */
   private buildGoalArrow(seed: string, field: ReadonlySet<number>): void {
     this.goalArrow?.destroy({ children: true });
@@ -1654,18 +1661,19 @@ export class BurrowScene implements Scene {
     arrow.y = -BURROW_HALF_H * GOAL_ARROW_LIFT;
     group.addChild(arrow);
 
-    // On the board, over the terrain entirely. Positioned in the same
-    // projection the cells use so it still sits on the garden, and given a
-    // zIndex past any tile's depth so nothing else on this layer — the trap
-    // markers, the raider — can come out in front of it.
+    // Over the terrain entirely. Positioned in the same projection the cells
+    // use — and therefore in the BOARD's space, which is the board's own
+    // position and scale away from the container's. The board is not offset or
+    // scaled relative to the container (both are moved as one by the camera,
+    // which drives `container`), so the coordinates carry across unchanged.
     const { x, y } = burrowTileScreen(seed, tile);
     group.position.set(x, y);
     group.zIndex = GOAL_ARROW_Z;
-    this.board.addChild(group);
+    this.container.addChild(group);
     this.goalArrow = group;
 
-    // The bob, on the SPRITE rather than the group, so the thing the terrain
-    // positioned keeps sitting exactly where it was put.
+    // The bob, on the SPRITE rather than the group, so the group's origin
+    // stays pinned to the garden cell and only the chevron rides up and down.
     gsap.to(arrow, {
       y: arrow.y - GOAL_ARROW_BOB,
       duration: GOAL_ARROW_BOB_SECONDS,

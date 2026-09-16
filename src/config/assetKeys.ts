@@ -34,6 +34,16 @@ export const CARROT_MASK = 'carrot-mask';
  *  Distinct from CARROT, which is the single picked-carrot prop. */
 export const CARROT_GROWTH = 'carrot-growth';
 
+/**
+ * The hub's nav arrow, pointing DOWN — the shared kit's `ARROW_URLS.down`.
+ *
+ * Grey on purpose where it ships: the kit draws its arrows as a LUMINOSITY
+ * MODEL so one sprite serves every colour, which is exactly what a Pixi `tint`
+ * does to it for free. RR tints it gold and hangs it over the carrot field a
+ * raider is crossing towards (see `BurrowScene`'s goal arrow).
+ */
+export const ARROW_DOWN = 'arrow-down';
+
 /** The eight drifting cloud sprites, keyed `cloud-1`..`cloud-8`. */
 export const CLOUD_COUNT = 8;
 export const cloudKey = (n: number) => `cloud-${n}`;

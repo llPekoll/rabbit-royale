@@ -336,3 +336,151 @@ export const CameraLoop: StoryObj = { render: () => <CameraHarness loop /> };
  * check the camera does not re-tween when it is already where it is going.
  */
 export const Camera: StoryObj = { render: () => <CameraHarness loop={false} /> };
+
+/**
+ * THE GOLDEN ARROW over the garden — the raid's one long-range signpost.
+ *
+ * `Camera` can already reach a raid, but it is built to judge the camera: the
+ * arrow only appears once you press a button, and its raider stops four steps
+ * off the entrance. What the arrow has to be judged on is different, and needs
+ * its own controls:
+ *
+ *  - **Does it land on the garden, on every burrow?** The cell is picked by
+ *    screen-space distance to the patch's centre, and the patch is cut from a
+ *    seed — so an L-shaped field on one seed is the case that breaks a naive
+ *    "first tile in the list". Flip `seed` and check the arrow stays over the
+ *    tilled soil rather than drifting to a corner of it.
+ *  - **Is it readable from the far end of the board?** That is the whole claim
+ *    the arrow makes over the red goal ring, and it can only be answered at
+ *    `walked: 0`, standing at the door, which is exactly where `Camera` will
+ *    not let you stand.
+ *  - **Is it ever swallowed?** It must NOT be. `player-1` (behind the cliff by
+ *    the house) and `player-3` (behind a pine) are the two seeds that proved
+ *    this: mounted in its cell's terrain block, the arrow sorted correctly and
+ *    was therefore invisible on both, because a tree reaches ~280px above its
+ *    cell and the arrow floats ~24px. It is deliberately exempt from depth
+ *    now — a sibling of the board, drawn over the whole world. Check every
+ *    seed, not just the one that looked fine.
+ *
+ * The bob is the reason this is a story and not a screenshot in a PR.
+ */
+function GoalArrowHarness() {
+  const [seed, setSeed] = useState<string>(SEEDS[0]);
+  const [walked, setWalked] = useState(0);
+  const sceneRef = useRef<BurrowScene | null>(null);
+
+  const traps = defaultTraps(seed, 4);
+  const crossing = shortestRaidPath(seed);
+
+  /**
+   * The raider `walked` steps along the greedy route to the field.
+   *
+   * Greedy rather than the true shortest path because it is what a real raider
+   * does — and, more to the point here, because it walks TOWARDS the arrow,
+   * which is the thing being checked. `walked: 0` leaves them on the doorstep.
+   */
+  const raid = (steps: number) => {
+    const dist = distanceToField(seed);
+    const start = entranceTile(seed);
+    const visited = [start];
+    let at = start;
+    for (let i = 0; i < steps; i++) {
+      const next = burrowNeighbors(seed, at)
+        .sort((a, b) => (dist.get(a) ?? 99) - (dist.get(b) ?? 99))[0];
+      if (next === undefined || (dist.get(next) ?? 99) >= (dist.get(at) ?? 99)) break;
+      at = next;
+      visited.push(at);
+    }
+    return {
+      view: raiderView(seed, visited, trapClues(seed, traps), false),
+      at,
+      seed,
+      steps: burrowNeighbors(seed, at),
+      onStep: () => {},
+    };
+  };
+
+  // Re-driven rather than re-mounted: the arrow's bob and the fade on the
+  // veils are both things a remount would hide by restarting them.
+  useEffect(() => {
+    void sceneRef.current?.setRaid(raid(walked));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- seed remounts the stage
+  }, [walked]);
+
+  return (
+    <div>
+      <PixiStage
+        key={seed}
+        width={960}
+        height={540}
+        background="#1eaac4"
+        prepare={() => loadAllAssets()}
+        setup={(stage, app) => {
+          initTileTextures(app.renderer);
+          const scenes = new SceneManager(app, stage);
+          void scenes.start(BurrowScene, {
+            seed,
+            traps,
+            placing: false,
+            onToggle: () => {},
+          }).then(() => {
+            const scene = scenes.currentScene as BurrowScene;
+            sceneRef.current = scene;
+            // Straight into the raid: this story has nothing to say about the
+            // burrow at home, and a first frame without the arrow is a frame
+            // spent looking at the wrong thing.
+            void scene.setRaid(raid(walked));
+          });
+          return () => {
+            sceneRef.current = null;
+            scenes.destroyCurrent();
+          };
+        }}
+      />
+      <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        {SEEDS.map((s) => (
+          <button
+            key={s}
+            onClick={() => { setSeed(s); setWalked(0); }}
+            style={{
+              font: '12px ui-monospace, monospace',
+              padding: '6px 12px',
+              cursor: 'pointer',
+              background: seed === s ? '#ffd45c' : '#21262d',
+              color: seed === s ? '#1a1a1a' : '#c9d1d9',
+              border: '1px solid #30363d',
+            }}
+          >
+            {s.split(':')[0]}
+          </button>
+        ))}
+      </div>
+      <label
+        style={{
+          display: 'flex', gap: 8, alignItems: 'center', marginTop: 8,
+          color: '#c9d1d9', font: '12px ui-monospace, monospace',
+        }}
+      >
+        walked
+        <input
+          type="range"
+          min={0}
+          max={crossing}
+          step={1}
+          value={Math.min(walked, crossing)}
+          onChange={(e) => setWalked(Number(e.target.value))}
+          style={{ width: 240 }}
+        />
+        {Math.min(walked, crossing)} / {crossing}
+      </label>
+      <p style={{ color: '#8b949e', font: '12px ui-monospace, monospace', marginTop: 8 }}>
+        The arrow must sit over the TILLED SOIL on every seed, be findable from
+        the doorstep at walked 0, and never be hidden by a tree, a cliff or the
+        house &mdash; try player-1 and player-3, which is where that broke.
+      </p>
+    </div>
+  );
+}
+
+/** The goal arrow, on any burrow, from any distance. */
+export const GoalArrow: StoryObj = { render: () => <GoalArrowHarness /> };
