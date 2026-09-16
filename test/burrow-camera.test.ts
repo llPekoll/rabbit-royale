@@ -106,14 +106,22 @@ describe('burrow camera', () => {
     expect(gate, 'the cards must sit behind a !placing gate').toBeGreaterThan(-1);
 
     // The first card inside the gate. It was the HP card; HP are gone (they
-    // defended nothing), then the SHIELD card held the slot — and that one is
-    // gone too, because the badge over the homestead already counts the shield
-    // down and standing on the thing it protects says it better than a row in
-    // a column. ENERGY is what leads the column now. Anchored on the COMPONENT
-    // rather than on the word "ENERGY", which also appears in the comments
-    // explaining all this — matching prose would let this test pass after the
-    // card itself was deleted.
-    const first = page.indexOf('<EnergyCard');
+    // defended nothing), then the SHIELD card held the slot — gone too,
+    // because the badge over the homestead already counts the shield down.
+    // ENERGY led the column after that, and has now gone the same way: the
+    // bar lives on the DIG slab of the loop bar, because the number is read
+    // at the moment of deciding to dig and that moment is the slab, not a
+    // card above the garden.
+    //
+    // What leads the column now is THE NEXT THING TO DO — the quest card
+    // while the arc runs, the next-action line once every reward is taken.
+    // That strip is the one thing the gate is promised to hold, because a
+    // burrow with nothing pointing anywhere is just a column of readings.
+    //
+    // Anchored on the COMPONENT rather than on a word, which also appears in
+    // the comments explaining all this — matching prose would let this test
+    // pass after the card itself was deleted.
+    const first = page.indexOf('<QuestCard');
     expect(first, 'the first card must sit inside the gate').toBeGreaterThan(gate);
 
     // And the gate closes before the way out, so "Done placing" is still

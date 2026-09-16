@@ -54,6 +54,15 @@ export interface IsoIslandViewOptions {
   /** Scatter trees, props and sea rocks. On by default. */
   deco?: boolean;
   /**
+   * Scatter loose grass tufts over the turf. On by default.
+   *
+   * Separate from `deco` because it is a different KIND of thing: `deco` puts
+   * objects on cells and takes those cells away from the player, while grass
+   * is texture — it blocks nothing, claims nothing, and survives the
+   * `placements` path where the rest of the scatter is switched off.
+   */
+  grass?: boolean;
+  /**
    * How large the standing art is drawn, as a multiple of its own pixels.
    *
    * The props and trees are cut for 64px tiles. On a board whose cells are
@@ -62,6 +71,49 @@ export interface IsoIslandViewOptions {
    * cell keeps scenery reading as scenery. 1 leaves the art at native size.
    */
   decoScale?: number;
+  /**
+   * How large each ground tile is drawn, as a multiple of its own pixels.
+   *
+   * 1 is the art at native size, and native size does NOT fill the cell: the
+   * Tiny Swords terrain paints roughly 42x42 of every 64px box and leaves the
+   * rest transparent. Top-down that is invisible, because the neighbour's own
+   * margin covers the gap. Projected into diamonds the margins line up with
+   * each other instead, and the background shows through the seams as a
+   * checkerboard — the tiles look too small for the lattice they sit on.
+   *
+   * Raising this scales each tile about the centre of its diamond so the
+   * painted part covers the cell. It buys a closed surface at the price of
+   * pixel fidelity: anything but 1 resamples the art, and a non-integer
+   * factor puts the pack's pixels on a grid that is not their own. The real
+   * fix is terrain drawn to fill its cell; this is the dial for finding out
+   * how much coverage is missing, and for living with it until then.
+   *
+   * Defaults to `metrics.w / GROUND_PAINTED_W` — the factor that makes the
+   * painted diamond exactly as wide as the cell. Settled in the
+   * `Island/Palette 2` story at 1.52 on the 64px workbench; the same rule
+   * gives the game's 44px board 1.05, a 2px grow that closes its hairline
+   * seams without visibly resampling anything.
+   */
+  groundScale?: number;
+  /**
+   * How large the surf is drawn, as a multiple of the cell's own size.
+   *
+   * Separate from `groundScale` because the two sheets are cut to different
+   * measures: the terrain paints ~42 of its 64px box and has to grow to cover
+   * its cell, while the foam is baked for the 44x24 diamond of
+   * `tools/gen_iso_sheets.py` and needs its own factor to land on a 64x32
+   * one. Tying them together makes the surf overshoot by half again.
+   *
+   * Too small and each shore cell paints a separate lozenge, so the coast
+   * reads as a dotted ring; too large and the surf swallows the shoreline it
+   * is supposed to edge.
+   *
+   * Defaults to `metrics.w / FOAM_FIT_W`: 1.8 on the 64px workbench, where
+   * it was settled alongside `groundScale`, and 1.24 on the game's 44px
+   * board — the same band of surf past the shore, which is also where
+   * `WATER_LOOK.overlap` (1.2) landed for `PackWater` independently.
+   */
+  foamScale?: number;
   /**
    * Override the ground of individual cells, as `(x, y) => GroundKind | null`.
    *
@@ -171,6 +223,111 @@ const DEFAULT_FRAME_MS = 130;
 const WIND = { x: 1, y: 0.6 };
 const WIND_TILES_PER_FRAME = 1.7;
 
+/**
+ * How often a free cell grows a tuft of grass.
+ *
+ * Grass is the only scatter here that is not an OBJECT: it takes no cell, so
+ * the budget that governs trees, props and livestock does not apply and the
+ * only thing holding it back is taste. Which makes it the easiest thing in the
+ * file to overdo — push it past ~0.35 and the island reads as a lawn nobody
+ * mows, with the tufts competing with the board for the eye.
+ *
+ * About a fifth of the free cells, measured rather than guessed: 0.08 was the
+ * first try and it put twelve tufts on a 24x24 island, which at a tuft's size
+ * (~17px) simply did not register as texture — the ground still read as a flat
+ * green sheet. A fifth is sparse enough that most cells are still bare turf and
+ * a player scanning for a bomb or a carrot never looks past it.
+ */
+const GRASS_CHANCE = 0.22;
+
+/**
+ * How far a tuft may wander off the centre of its cell, in cells.
+ *
+ * Everything else the scatter places is an OCCUPANT: a tree, a bush, a sheep
+ * stands in the middle of its cell because the cell is the thing it claims, and
+ * a player has to be able to tell which one that is. Grass claims nothing, so
+ * centring it only makes the island look gridded — tufts lined up on the same
+ * lattice as the tiles, which is precisely what the turf should be hiding.
+ *
+ * 0.42 lets a tuft sit anywhere in its cell and, at the extremes, read as
+ * growing on the seam between two. Not 0.5: at exactly half a cell a tuft
+ * straddles the boundary, and since depth is still its OWN cell's, one sitting
+ * on the far edge can draw over a neighbour that should cover it. Short of the
+ * boundary the sprite stays within the cell whose depth it is sorted by.
+ *
+ * The offset is in CELL space, not pixels, and goes through `isoProject` like
+ * everything else — nudging a sprite by raw screen pixels would slide it off
+ * the ground plane, so a tuft on a plateau would drift away from its shelf.
+ */
+const GRASS_JITTER = 0.42;
+
+/**
+ * Extra size for a tuft, on top of the `decoScale` every deco sprite rides.
+ *
+ * `decoScale` is calibrated for the pack's 64px boxes and this art is 32, so a
+ * tuft already draws at half a prop's height before this applies. 0.75 takes it
+ * down again: about 6-7px on a 44px cell, against the ~17px a mushroom stands
+ * at. Grass is the SMALLEST thing on the island, deliberately — at 17px it
+ * competed with the mine numbers, and the job here is turf the eye passes over.
+ *
+ * 0.75 rather than 0.5, which was tried and is past the floor: at ~4px the
+ * blades stop resolving and a tuft reads as a smudge on the turf rather than
+ * as a plant. The art is only ~21px tall to begin with, so there is far less
+ * headroom below than the numbers suggest.
+ */
+const GRASS_SIZE = 0.75;
+
+/**
+ * The greens a tuft can be tinted, and why tinting is safe here.
+ *
+ * The sprite is UNICOLOUR — every opaque pixel is `#6abe30`, one flat green —
+ * so a Pixi `tint` does not shade the art, it replaces the colour outright.
+ * That makes a palette the cheapest variety available: four textures become
+ * four textures in five greens without another byte of art or a second upload.
+ *
+ * Sampled around the art's own green rather than picked freely: a spread of
+ * hue and lightness (deeper, olive, fresher, paler) narrow enough that the
+ * tufts still read as one plant growing in different light. Widen it and the
+ * meadow stops looking like grass and starts looking like several species.
+ *
+ * Note this is the one place a tuft's colour comes from — tint the base green
+ * too, rather than leaving one variant untinted, so the palette is the whole
+ * story and nothing silently depends on the art's own value.
+ */
+const GRASS_GREENS = [0x5d9921, 0x69be30, 0x76a534, 0x6bcf42, 0x89c967] as const;
+
+/**
+ * How much a tuft's size may vary from `GRASS_SIZE`, either way.
+ *
+ * Same intent as `GRASS_JITTER` and `GRASS_GREENS`: four frames of art have to
+ * furnish a whole island, and identical copies on a grid read as a texture
+ * someone stamped rather than as something growing. Size is the third axis of
+ * variety, after position and colour, and the cheapest — it is one multiply.
+ *
+ * +/-25%, so a tuft runs from about 5 to 8px against the 6-7 of `GRASS_SIZE`.
+ * Kept narrow on purpose: the art is pixel art at roughly 6px, where scaling
+ * lands on fractional pixels and the blades soften. A wider spread would buy
+ * variety by making half the meadow mushy, and the small one is enough — what
+ * the eye picks up is that no two neighbours match, not the range itself.
+ */
+const GRASS_SIZE_VARY = 0.25;
+
+/**
+ * How long one frame of the grass sway lasts, in ms.
+ *
+ * Slower than the island's `DEFAULT_FRAME_MS` (130), and the reason is scale
+ * rather than taste. The sway is a four-frame cycle whatever it is drawn on,
+ * but a tree moves that cycle across ~50px of canopy while a 6px tuft moves it
+ * across two or three pixels. The same tempo therefore reads as a sway on the
+ * tree and as a FLICKER on the grass — the blades have nowhere far to travel,
+ * so all the eye catches is the switch.
+ *
+ * Stretching the frame roughly doubles the cycle and puts the tufts back to
+ * breathing with the wind instead of buzzing in it. Kept well short of a stall:
+ * far slower and the four frames read as four separate stills.
+ */
+const GRASS_FRAME_MS = 260;
+
 const TREE_CHANCE = 0.08;
 const BUSH_CHANCE = 0.05;
 const PROP_CHANCE = 0.11;
@@ -273,6 +430,30 @@ const FACE_SOLID_H = 32;
 const FOAM_ALPHA = 0.55;
 
 /**
+ * How wide a ground tile actually paints inside its 64px box, measured off
+ * the sheets' alpha: the diamond is cut for a 44px cell and comes out 42
+ * solid. `groundScale` defaults to the cell width over this, so the painted
+ * diamond spans the cell whatever the metrics — see the option's doc.
+ */
+const GROUND_PAINTED_W = 42;
+
+/**
+ * The cell width at which the surf needs no scaling to show the rim that
+ * was settled on: 48px of painted foam grown to ~1.35 cells, i.e. 64 / 1.8.
+ * `foamScale` defaults to the cell width over this.
+ */
+const FOAM_FIT_W = 64 / 1.8;
+
+/**
+ * Where the surf sorts: under the whole island, in one flat layer.
+ *
+ * Below every `isoDepth`, which is `(x + y) * 16 + tier` and so never
+ * negative on the board. See `buildFoam` for why one shared depth rather
+ * than a per-cell one.
+ */
+const FOAM_DEPTH = -1;
+
+/**
  * How tall the thing being hidden is, in pixels, for `facesHiding`.
  *
  * A rabbit, which is the only thing that asks. Deliberately a constant: the
@@ -289,6 +470,15 @@ interface AnimatedProp {
   frames: Texture[];
   /** Frames of head start, fractional — see `WIND`. */
   phase: number;
+  /**
+   * How long one frame lasts, in ms. Defaults to the view's `frameMs`.
+   *
+   * Per prop rather than per view because the island's animations are not one
+   * clock: the trees' sway sets the pace of the place, and grass at that pace
+   * flickers (see `GRASS_FRAME_MS`). Anything that leaves this unset keeps the
+   * shared tempo, so adding the field changed nothing that existed.
+   */
+  frameMs?: number;
 }
 
 /**
@@ -532,6 +722,11 @@ export class IsoIslandView {
         this.buildDeco(deco);
         this.buildInhabitants(deco);
       }
+      // Both paths, unlike everything above it. Grass claims no cell and the
+      // server therefore has no opinion about it — so it is the one piece of
+      // scatter that can stay when `placements` takes over the rest, and the
+      // board keeps its turf instead of going bald in the actual game.
+      if (options.grass ?? true) this.buildGrass(deco);
     }
   }
 
@@ -1044,8 +1239,10 @@ export class IsoIslandView {
     if (this.destroyed) return;
     this.advanceWalks(deltaMs);
     this.elapsed += deltaMs;
-    const t = this.elapsed / this.frameMs;
     for (const item of this.animated) {
+      // Each prop divides the same elapsed time by its OWN frame length, so a
+      // slower one is genuinely slower rather than merely offset.
+      const t = this.elapsed / (item.frameMs ?? this.frameMs);
       // Floor AFTER adding the phase, not before: a fractional phase has to
       // survive into the sample or every sprite snaps back onto the same tick.
       const n = item.frames.length;
@@ -1210,11 +1407,29 @@ export class IsoIslandView {
   }
 
   /**
-   * Surf on every sea cell that touches land.
+   * Surf under every LAND cell at the water's edge, on the sea plane.
    *
-   * The pack draws foam as a 192px frame centred on the 64px tile it edges, so
-   * the surf spills a whole tile past the shore on every side — that overspill
-   * is what makes a coastline look wet rather than cut out with scissors.
+   * Two choices here, and both were made the wrong way first:
+   *
+   * WHICH cells. The outermost land, not the sea beside it. On a sea cell the
+   * surf is a full tile out from the coast — a chain of lozenges floating
+   * offshore, one cell larger than the island all the way round. On the shore
+   * cell itself the sprite's own overhang does the work: the land covers the
+   * middle and the ragged rim spills into the water past it. `PackWater`
+   * reached the same rule for the game, and for the same reason.
+   *
+   * WHICH tier. The land's own level, so the surf lies in the same plane as
+   * the grass it edges and the rim shows all the way round the diamond. At
+   * the cell's flat footprint instead — a tier lower — the raised grass
+   * overhung it on the north and west and it only ever showed at the foot of
+   * the south and east faces, as a fringe a full `z` below the shoreline it
+   * was supposed to break on. `PackWater` places at the footprint because
+   * the game draws the sea itself as a shader at that height; this view has
+   * no such plane, and the surf reads as surf only level with the shore.
+   *
+   * The pack draws foam as a frame larger than the tile it edges, so the surf
+   * spills past the shore on every side — that overspill is what makes a
+   * coastline look wet rather than cut out with scissors.
    *
    * It goes through `stampGround`, the same projection as the ground itself.
    * Drawn as an upright sprite instead, each cell's surf came out as a little
@@ -1230,14 +1445,34 @@ export class IsoIslandView {
     if (!tileset.foam?.length) return;
     for (let y = 0; y < map.height; y++) {
       for (let x = 0; x < map.width; x++) {
-        if (levelAt(map, x, y) !== 0) continue;
-        if (!touchesLand(map, x, y)) continue;
+        const tier = levelAt(map, x, y);
+        if (tier === 0) continue;
+        if (!touchesSea(map, x, y)) continue;
         const frames = tileset.foam;
         // Already projected in the sheet, so it is PLACED, not sheared — the
         // same reason the ground stopped being sheared once it was baked.
-        const sprite = this.stamp(world, frames[0], x, y, 0, isoDepth(x, y, 0) - 1, 0.5);
+        // Under EVERY land cell, not just its own.
+        //
+        // `isoDepth - 1` only sinks the surf below the cell it sits on, which
+        // is enough while a tile paints inside its diamond: the foam then
+        // overlaps only its own cell. It stops being enough once the ground
+        // is grown to cover the lattice (`groundScale`) — a shore cell's surf
+        // spills onto the neighbours too, and against those it sorts by
+        // position, passing IN FRONT of the land to its north and west while
+        // hiding behind the land to its south and east. The coast came out as
+        // a staircase of surf climbing over the island.
+        //
+        // Foam lies on the water, and the water is under all of the land, so
+        // the whole layer belongs below the whole island rather than one step
+        // below one cell. Negative puts it under the lowest block there can
+        // be, since `isoDepth` is never negative for a cell on the board.
+        const sprite = this.stamp(world, frames[0], x, y, tier, FOAM_DEPTH, 0.5);
         sprite.anchor.set(0.5);
-        sprite.scale.set(this.metrics.w / TILE);
+        // Its OWN factor, not `groundScale` — see `foamScale`. Riding the
+        // ground's made the surf half again too wide, a ring tracing the
+        // island's outline a tile out instead of edging its cells.
+        const fs = this.options.foamScale ?? this.metrics.w / FOAM_FIT_W;
+        sprite.scale.set((this.metrics.w / TILE) * fs);
         sprite.alpha = FOAM_ALPHA;
         // Phased by position so the whole coast does not pulse as one — the
         // same trick the wind uses on the trees.
@@ -1466,6 +1701,108 @@ export class IsoIslandView {
   }
 
   /**
+   * Loose tufts of grass over the turf — texture, not scenery.
+   *
+   * Everything else in this file that stands on a cell TAKES it: a tree, a
+   * bush, a sheep all end up in `occupied` or `inhabited`, because the board
+   * has to agree with the picture about where a rabbit may stand. Grass is the
+   * exception on purpose — it is never registered, never blocks, and is not
+   * drawn into `livestock`. A rabbit hops straight through it, which is what
+   * grass should do.
+   *
+   * Two consequences worth knowing before changing anything here:
+   *
+   * **Its own RNG stream.** `${seed}:grass`, not `${seed}:deco`. Sharing the
+   * deco stream would pull rolls out of it and reshuffle every tree and prop on
+   * every island the moment this function's roll count changed — the same trap
+   * `buildInhabitants` documents. A separate stream means adding, removing or
+   * retuning grass cannot move anything that was already there.
+   *
+   * **It runs last and reads `occupied`.** Tufts skip whatever the scatter
+   * already claimed, so grass grows in the gaps rather than through the trunk
+   * of a pine. That ordering is the only coupling; it is why the call sits
+   * after `buildDeco` and `buildInhabitants` rather than beside them.
+   */
+  private buildGrass(world: Container): void {
+    const { map, tileset } = this.options;
+    const tufts = tileset.grassTufts;
+    if (!tufts?.frames.length) return;
+    const rng = mulberry32(seedFrom(`${map.seed}:grass`));
+    const keepClear = this.options.keepClear;
+
+    for (let y = 0; y < map.height; y++) {
+      for (let x = 0; x < map.width; x++) {
+        const tier = levelAt(map, x, y);
+        // Land only, and never on the rock face below a shelf: a tuft stamped
+        // on a cell the cliff draws over ends up growing out of the wall.
+        if (tier === 0 || underCliff(map, x, y, tier)) continue;
+        // Every roll this cell will ever need, drawn BEFORE the tests that
+        // skip — same reason `buildDeco` does it, and the reason they are all
+        // here rather than beside their uses: a cell that draws fewer rolls
+        // when it skips than when it plants shifts the stream for every cell
+        // after it, so masking a board would reshuffle the grass outside it.
+        // Fixed cost per cell is what keeps a seed's meadow a seed's.
+        const roll = rng();
+        const jitterX = rng();
+        const jitterY = rng();
+        const green = rng();
+        const size = rng();
+        if (keepClear?.(x, y) || this.occupied.has(key(x, y))) continue;
+        if (roll > GRASS_CHANCE) continue;
+
+        // One step nearer than the cell's own ground, like the rest of the
+        // deco — so a tuft draws over its turf and under anything standing on
+        // the cell in front of it.
+        const depth = isoDepth(x, y, tier) + 1;
+        // No contact shadow: the ellipse is sized against the CELL, so under a
+        // tuft this small it is wider than the plant and reads as a patch of
+        // dirt someone spilled rather than as grass touching the ground.
+        const sprite = this.foot(
+          world,
+          { texture: tufts.frames[0], anchorY: tufts.anchorY },
+          x, y, tier, depth,
+          false,
+        );
+        // Unicolour art, so this REPLACES the green rather than shading it.
+        sprite.tint = GRASS_GREENS[Math.floor(green * GRASS_GREENS.length)];
+        // `decoScale` is ALREADY the cell fit — it exists because the pack's
+        // scenery is cut for 64px tiles and the board's are 44x24 — so the
+        // tuft rides it exactly like a tree or a prop does, and multiplying by
+        // `metrics.w / TILE` on top would apply that same correction twice.
+        // `GRASS_SIZE` is the only extra factor — see its note — and every tuft
+        // takes its own wobble around it, so no two neighbours are one sprite
+        // twice. Uniform rather than centred: a bell would cluster them back
+        // onto the nominal size, which is the thing being broken up.
+        const vary = 1 + (size * 2 - 1) * GRASS_SIZE_VARY;
+        sprite.scale.set(GRASS_SIZE * vary * (this.options.decoScale ?? 1));
+
+        // Off the centre, in CELL space — see `GRASS_JITTER`. The delta is the
+        // difference between two projections rather than a raw pixel nudge, so
+        // the tuft slides along the GROUND PLANE and stays on its shelf.
+        const dx = (jitterX * 2 - 1) * GRASS_JITTER;
+        const dy = (jitterY * 2 - 1) * GRASS_JITTER;
+        const from = isoProject(x + 0.5, y + 0.5, tier, this.metrics);
+        const to = isoProject(x + 0.5 + dx, y + 0.5 + dy, tier, this.metrics);
+        sprite.x += to.x - from.x;
+        sprite.y += to.y - from.y;
+
+        // The four frames are a CYCLE, not four variants: the atlas gives each
+        // a `duration`, so a tuft that picked one and kept it is a still of an
+        // animation rather than a choice among four. Played on the wind phase,
+        // like the trees and bushes — the sway then arrives at one tuft after
+        // another and crosses the island as a gust instead of the whole meadow
+        // blinking on the same tick.
+        this.animated.push({
+          sprite,
+          frames: tufts.frames,
+          phase: this.windPhase(x, y),
+          frameMs: GRASS_FRAME_MS,
+        });
+      }
+    }
+  }
+
+  /**
    * Sheep and soldiers, placed against a budget rather than by per-cell rolls.
    *
    * The island has to stay PLAYABLE, so this works the opposite way round from
@@ -1624,6 +1961,16 @@ export class IsoIslandView {
     tier: number,
     depth: number,
     anchorY = 0.5,
+    /**
+     * Whether this sprite may take a contact shadow at all.
+     *
+     * The anchor test below decides whether something STANDS; this decides
+     * whether a standing thing should cast. Grass is the case that separates
+     * them: it is anchored at the foot like a tree, but an ellipse under a
+     * 4px tuft is a smudge the size of the plant, which reads as dirt rather
+     * than as contact.
+     */
+    shadow = true,
   ): Sprite {
     const sprite = new Sprite(texture);
     sprite.anchor.set(0.5, anchorY);
@@ -1653,7 +2000,7 @@ export class IsoIslandView {
      * integer per cell, so there is room between a sprite and its ground and
      * nowhere else for a neighbour to slip in.
      */
-    if (this.options.decoShadows && anchorY > 0.9) {
+    if (shadow && this.options.decoShadows && anchorY > 0.9) {
       const shadow = new Graphics()
         .ellipse(0, 0, this.metrics.w * SHADOW_RX, this.metrics.h * SHADOW_RY)
         .fill({ color: 0x000000, alpha: SHADOW_ALPHA });
@@ -1712,14 +2059,33 @@ export class IsoIslandView {
     // its in-box position gives the box's top-left.
     const p = isoProject(x, y, tier, this.metrics);
     sprite.position.set(p.x - TILE / 2, p.y - (TILE - h) / 2);
+    // Grown about the CENTRE of the box, not its corner: the diamond is
+    // centred in the cell, so scaling from the top-left would slide every
+    // tile down-right and open the seams it was meant to close.
+    const gs = this.options.groundScale ?? this.metrics.w / GROUND_PAINTED_W;
+    if (gs !== 1) {
+      sprite.scale.set(gs);
+      sprite.position.set(
+        sprite.position.x - (TILE * (gs - 1)) / 2,
+        sprite.position.y - (TILE * (gs - 1)) / 2,
+      );
+    }
     sprite.zIndex = depth;
     world.addChild(sprite);
     return sprite;
   }
 
   /** A prop, standing on its own feet rather than on its box's bottom edge. */
-  private foot(world: Container, prop: FootSprite, x: number, y: number, tier: number, depth: number): Sprite {
-    return this.stamp(world, prop.texture, x, y, tier, depth, prop.anchorY);
+  private foot(
+    world: Container,
+    prop: FootSprite,
+    x: number,
+    y: number,
+    tier: number,
+    depth: number,
+    shadow = true,
+  ): Sprite {
+    return this.stamp(world, prop.texture, x, y, tier, depth, prop.anchorY, shadow);
   }
 }
 
@@ -1736,6 +2102,11 @@ function key(x: number, y: number): string {
 
 function touchesLand(map: IslandMap, x: number, y: number): boolean {
   return NEIGHBOURS_8.some(([dx, dy]) => levelAt(map, x + dx, y + dy) > 0);
+}
+
+/** True for a land cell with open sea among its eight neighbours — the coast. */
+function touchesSea(map: IslandMap, x: number, y: number): boolean {
+  return NEIGHBOURS_8.some(([dx, dy]) => levelAt(map, x + dx, y + dy) === 0);
 }
 
 /** True when the cell above is higher, so a cliff face is drawn over this one. */

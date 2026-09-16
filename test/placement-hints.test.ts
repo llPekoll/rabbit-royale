@@ -47,7 +47,13 @@ describe('placement hints in the burrow', () => {
   it('dismisses the glove on the first toggle and tears everything down', () => {
     expect(SCENE).toMatch(/this\.dismissGlove\(\);[\s\S]{0,400}this\.data\.onToggle\(i/);
     // Before the ground is rebuilt (a raid) and on destroy.
-    expect(SCENE).toMatch(/this\.teardownPlacementHints\(\);\s*this\.terrain\?\.destroy\(\)/);
+    //
+    // BEFORE, not immediately before: other bookkeeping that also dies with
+    // the terrain is torn down in the same run of statements (the trap sprites
+    // mounted inside its blocks — see trap-persistence), so this asserts the
+    // ORDER the two calls happen in rather than that they are adjacent lines.
+    // What matters is that no hint is left tweening a destroyed block.
+    expect(SCENE).toMatch(/this\.teardownPlacementHints\(\);[\s\S]{0,1200}?this\.terrain\?\.destroy\(\)/);
     expect(SCENE).toMatch(/destroy\(\): void \{\s*this\.teardownPlacementHints\(\)/);
   });
 

@@ -76,8 +76,8 @@ export const CHEST_TIER_COLOR: Record<ChestTier, number> = {
  */
 export const CHEST_TIER_PROMISE: Record<ChestTier, string> = {
   bronze: 'Carrots',
-  silver: 'A garden consumable — water or fertiliser',
-  gold: 'A raid item — bomb, shield or lightning',
+  silver: 'A garden consumable - water or fertiliser',
+  gold: 'A raid item - bomb, shield or lightning',
   crown: 'A raid item, and a chance at an RR Genesis piece',
 };
 

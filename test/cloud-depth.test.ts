@@ -76,45 +76,35 @@ describe('island layering', () => {
 });
 
 /**
- * Whether the bottom of the frame actually gets weather.
+ * That the sky stays a sky.
  *
- * The bug this guards: the two lower bands were parked at `h * 1.04..1.34`, a
- * fraction of the canvas height, while the sprites stay 256px tall whatever the
- * canvas is. On the 860-tall portrait design space the burrow uses, that puts
- * the `bottom` band ~1150px down — far enough that a cloud at the small end of
- * SCALE_RANGE never reaches back into frame, so the bottom of the screen was
- * bare. Source-read for the same reason as the rest of this file.
+ * The frame used to get four bands: two hanging off the top edge and two more
+ * parked under the bottom one, poking a sliver of puff back up over the board's
+ * near corner. The bottom pair never read as weather — a cloud is something you
+ * look UP at — so it is gone, and this guards against it creeping back the next
+ * time someone decides the bottom of the frame looks empty. Source-read for the
+ * same reason as the rest of this file.
  */
-describe('the bottom of the sky', () => {
-  it('anchors the lower bands to the sprite, not to a fraction of the canvas', () => {
-    // The regression is specifically an `s.y` ASSIGNED a multiple of the height,
-    // which drifts away from a fixed-size sprite as the canvas grows. Matched on
-    // the assignment rather than on the bare text, so the prose above `lower`
-    // explaining the old numbers does not trip it.
-    expect(CLOUDS).not.toMatch(/s\.y = rand\(\[h \* 1\./);
-    // Both lower bands go through the sprite-relative helper instead.
-    expect(CLOUDS).toMatch(/case 'lower':[\s\S]*?this\.showBelow\(/);
-    expect(CLOUDS).toMatch(/case 'bottom':[\s\S]*?this\.showBelow\(/);
+describe('the top of the sky', () => {
+  it('only knows bands that hang off the top edge', () => {
+    expect(CLOUDS).toMatch(/export type CloudBand = 'top' \| 'upper';/);
+    expect(CLOUDS).toMatch(/const bands: CloudBand\[\] = \['top', 'upper'\];/);
   });
 
-  it('measures the overhang off the PAINT, not off the sprite frame', () => {
-    // The textures are 576x256 boxes with the puff floating inside and dozens
-    // of fully transparent rows below it. Measuring off the frame parks empty
-    // padding at the edge — eight sprites overlapping the bottom of the canvas
-    // and zero cloud pixels rendered there.
-    expect(CLOUDS).toMatch(/const PAINTED_TOP = \d+;/);
-    expect(CLOUDS).toMatch(/PAINTED_TOP - s\.texture\.height \/ 2/);
-    // scale.x is mirrored on half the field, so it must not be the one used.
-    expect(CLOUDS).toMatch(/Math\.abs\(s\.scale\.y\)/);
-    expect(CLOUDS).not.toMatch(/Math\.abs\(s\.scale\.x\)/);
+  it('parks every band ABOVE the frame', () => {
+    // Both bands assign a NEGATIVE fraction of the height: the cloud sits over
+    // the top edge and hangs the rest of itself into the margin. A positive one
+    // is a band reaching back into the frame, over the tiles.
+    const ys = [...CLOUDS.matchAll(/s\.y = rand\(\[([^\]]+)\]\)/g)].map((m) => m[1]);
+    expect(ys.length).toBe(2);
+    for (const y of ys) expect(y).toMatch(/^-h \* 0\.\d+, -h \* 0\.\d+$/);
   });
 
-  it('anchors the puff by its top edge, so the body hangs off the frame', () => {
-    // Anchoring the puff's BOTTOM inside the frame is the same instruction as
-    // "put the whole cloud on screen": the body is 105-335px tall once scaled,
-    // so it lands over the board — the one thing this module must never do.
-    expect(CLOUDS).toMatch(/this\.opts\.height - toPaintedTop - rand\(visible\)/);
-    expect(CLOUDS).not.toMatch(/PAINTED_BOTTOM/);
+  it('keeps no machinery for measuring an overhang off the bottom', () => {
+    // showBelow/PAINTED_TOP existed only to park the lower pair against the
+    // frame's bottom edge. Left behind, they are an invitation to re-add it.
+    expect(CLOUDS).not.toMatch(/showBelow/);
+    expect(CLOUDS).not.toMatch(/PAINTED_TOP/);
   });
 
   it('re-solves the field when the design space is swapped', () => {
