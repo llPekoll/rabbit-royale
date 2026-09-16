@@ -21,7 +21,6 @@ import { ChestPrize } from '@/components/chest-prize';
 import { GameCanvas, type GameHandles } from '@/components/game-canvas';
 import { WalletButton } from '@/components/wallet-button';
 import { LeaderboardDrawer, type Me } from '@/components/leaderboard-drawer';
-import { GoButton } from '@/components/go-button';
 import { BackButton } from '@/components/back-button';
 import { PxButton, PxPanel, pxLabel } from '@/components/px';
 import { CarrotPill } from '@/components/carrot-pill';
@@ -2190,12 +2189,21 @@ function Burrow() {
               (where it is just `goTo`): a second exit path that forgot to clear
               the target would strand the session as a viewer with no way back
               into its own game. */}
-          {/* Watching is a mode with a way BACK (the shared button, bottom
-              left); playing has the run's own exit, which banks the haul and
-              keeps the big arrow in the middle of the floor. */}
-          {spectating
-            ? <BackButton label="Stop watching" onClick={stopSpectating} />
-            : <GoButton dir="down" label="Home" onClick={stopSpectating} />}
+          {/* THE SAME WAY BACK AS EVERY OTHER SCREEN, bottom-left.
+
+              It was the big animated HOME arrow, centred on the floor, on the
+              grounds that banking the haul is the run's main action. On a phone
+              that reasoning cost more than it bought: the arrow's 400px box and
+              its bouncing sprite sat in the middle of the bottom band, which is
+              exactly where the island's near tiles are and where the thumb digs.
+              Taps meant for a tile landed on HOME, and the bob kept pulling the
+              eye off the board. Placement already solved this — its exit is the
+              small soil slab in the corner — so the island uses it too, and the
+              floor belongs to the board again. */}
+          <BackButton
+            label={spectating ? 'Stop watching' : 'Home'}
+            onClick={stopSpectating}
+          />
         </div>
       )}
 

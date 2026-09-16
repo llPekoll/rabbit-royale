@@ -1991,11 +1991,11 @@ body:has(.rr-empty) .rr-sound { display: none; }
   body:has(.rr-burrow) .rr-burrow {
     padding-bottom: calc(var(--rr-floor) + var(--rr-go-h) + 8px + 44px + 10px);
   }
-  /* On the island the floor is BACK HOME, a full-width box, and the mute sat
-     on its right end. Lifted clear of that band. */
-  body:has(.rr-overlay) .rr-sound {
-    bottom: calc(env(safe-area-inset-bottom) + 110px);
-  }
+  /* The island's floor used to be a full-width HOME box and the mute sat on
+     its right end, so the mute was lifted 110px clear of that band. The way
+     home is the corner slab now (`.rr-back-btn`, bottom-LEFT), so the mute
+     keeps its own corner at the standard height on the island like everywhere
+     else — lifted, it was a control floating in the middle of the art. */
 }
 
 /* The two controls sit side by side; the panel stacks above them. */

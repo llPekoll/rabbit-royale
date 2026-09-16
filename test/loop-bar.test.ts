@@ -40,9 +40,11 @@ describe('the loop bar', () => {
   });
 
   it('keeps one verb per loop on the island too', () => {
-    // Watching gets the shared way back; playing keeps the run's own exit.
-    expect(PAGE).toMatch(/<BackButton label="Stop watching" onClick=\{stopSpectating\} \/>/);
-    expect(PAGE).toMatch(/<GoButton dir="down" label="Home" onClick=\{stopSpectating\} \/>/);
+    // Watching and playing both leave by the SHARED corner button now: the big
+    // centred HOME arrow sat in the bottom band where the near tiles are, and
+    // on a phone it took the taps meant for digging.
+    expect(PAGE).toMatch(/label=\{spectating \? 'Stop watching' : 'Home'\}/);
+    expect(PAGE).not.toMatch(/<GoButton/);
     expect(read('../src/components/run-recap.tsx')).toMatch(/Home &middot; stack it/);
   });
 
