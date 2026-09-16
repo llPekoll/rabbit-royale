@@ -40,6 +40,7 @@ import { CARROT_URL, CARROT_SIZE } from '@domin8/arcade-kit/game';
 import { CarrotBurst } from '@/components/carrot-burst';
 import { groupDigits, shortGap } from '@/i18n/format';
 import { PxPanel } from './px';
+import { CarrotMark } from './carrot-mark';
 
 export interface CarrotPillProps {
   /** Carrots banked, as the server has them. */
@@ -109,7 +110,7 @@ function ClimbLine({ gap, line }: { gap: string; line: string }) {
   return (
     <>
       {line.slice(0, at + gap.length)}
-      <span style={climbMark} aria-hidden><Carrot height={14} /></span>
+      <CarrotMark size={10} />
       {line.slice(at + gap.length)}
     </>
   );
@@ -310,17 +311,6 @@ const topRow: CSSProperties = {
   alignItems: 'center',
   gap: 'var(--rr-pad-tight)',
   maxWidth: '100%',
-};
-
-/**
- * The carrot in the climb line: the pill's own carrot, small and lying the
- * same way, so the line reads as "that many of THESE". The cards' price mark
- * was tried first and at 10px its silhouette read as a pencil.
- */
-const climbMark: CSSProperties = {
-  ...artBox,
-  width: 10,
-  height: 10,
 };
 
 const figure: CSSProperties = {

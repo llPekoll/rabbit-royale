@@ -118,7 +118,7 @@ export function QuestCard({
     // It wiggles: taking a reward is one of the loud moments.
     <PxButton
       type="button"
-      className="rr-hub-btn"
+      className="rr-hub-btn rr-carrot-price"
       onClick={onClaim}
       disabled={!canClaim}
       aria-label={t.quest.aria(rewardLabel(t, quest), quest.title)}

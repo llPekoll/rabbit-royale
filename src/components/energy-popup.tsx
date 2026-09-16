@@ -27,7 +27,7 @@ import { CloseButton, NineSlicePanel } from '@domin8/arcade-kit';
 import { PanelTitle } from './pixel-text';
 import { PxButton, PxPanel, pxLabel } from './px';
 import {
-  CARROT_BTN, CHALK, COIN_BTN, DIALOG_PX, PLANK, PLANK_LIT, SOIL, SOIL_DEEP, priceText,
+  CARROT_BTN, CARROT_BTN_OFF, CHALK, COIN_BTN, DIALOG_PX, PLANK, PLANK_LIT, SOIL, SOIL_DEEP, priceText,
 } from './shop-card';
 import type { ShopItem, ShopState } from './use-shop';
 import { payStageLine, type PayStage } from './use-usdc-pay';
@@ -140,8 +140,8 @@ export function EnergyPopup({
           </span>
           <div className="rr-shop-tile-buy">
             <PxButton
-              className="rr-pay-carrot"
-              {...CARROT_BTN}
+              className="rr-pay-carrot rr-carrot-price"
+              {...(busyNow || !item || !item.canBuy ? CARROT_BTN_OFF : CARROT_BTN)}
               wiggle
               onClick={onBuy}
               disabled={busyNow || !item || !item.canBuy}

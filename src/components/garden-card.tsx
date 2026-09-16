@@ -29,6 +29,7 @@
  */
 import type { CSSProperties } from 'react';
 import { useT } from '@/i18n/provider';
+import { CarrotMark } from './carrot-mark';
 import { PxButton, pxLabel } from './px';
 import {
   HubCard, HubRow, headingText, valueText, subText, SUB_CLASS, cardSize,
@@ -59,8 +60,6 @@ const BTN_SHADOW = '#9a4810';
 const BTN_OFF = '#5a3320';
 const BTN_OFF_SHADOW = '#2f1a10';
 const BTN_OFF_INK = '#9a8270';
-/** The carrot mark beside the count — the game's own silhouette. */
-const CARROT_MARK = '/assets/misc/carrote_silouhette.png';
 const GARDEN_ART = '/assets/ui/icons/garden.webp';
 /** The risk line: the burrow's danger red, lifted to read on the dark face. */
 const RISK_INK = '#ff8a7a';
@@ -119,7 +118,7 @@ export function GardenCard({
         <span style={headingText}>{t.burrow.garden}</span>
         <span style={valueText}>
           +{ready}
-          <img className="pixelated" src={CARROT_MARK} alt="" aria-hidden style={carrotMark} />
+          <CarrotMark size={CARROT_MARK_SIZE} />
         </span>
       </HubRow>
 
@@ -162,13 +161,8 @@ const harvestFace: CSSProperties = {
   transition: 'transform 90ms ease-out',
 };
 
-const carrotMark: CSSProperties = {
-  // Tied to the card like the type beside it, so a 49px card does not carry a
-  // mark drawn for a 95px one.
-  width: cardSize(12, 7, 12),
-  height: 'auto',
-  display: 'block',
-};
+/** The carrot beside a figure: the game's own, in colour (`CarrotMark`). */
+const CARROT_MARK_SIZE = cardSize(12, 7, 12);
 
 /**
  * The button is 40% of the CARD in the mock (45px of 111); 50cqh is what lands

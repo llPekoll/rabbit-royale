@@ -352,3 +352,14 @@
 
 /* Your own row: a framed board inside the list. */
 .rr-lb-me-frame { margin: 2px 0; }
+
+/* A DEAD CARROT PRICE KEEPS ITS CARROT IN COLOUR. The kit greys a disabled
+   button with a filter, and so did the shop tile (`grayscale(0.7)`, opacity
+   0.45) — and a filter on the button takes the carrot inside it too. These
+   buttons say "not now" with their face colour instead (`CARROT_BTN_OFF`,
+   the quest card's BTN_OFF), so the filter and the fade come off. */
+.nine-btn.rr-carrot-price:disabled,
+.rr-shop-tile-buy > button.rr-carrot-price:disabled {
+  filter: none;
+  opacity: 1;
+}

@@ -113,6 +113,15 @@ export const DIALOG_PX = PX;
  * as a rim and ink, on a dark coin-slate face the kit's outline can sit on.
  */
 export const CARROT_BTN = { color: '#ffc45c', shadowColor: '#e8912a', textColor: '#3a1f08' } as const;
+/**
+ * A carrot price that cannot be paid: the lamp gone out, as a FACE colour.
+ * The dead state used to be a grayscale filter over the whole button, and a
+ * filter cannot spare a child, so the carrot beside the price went grey with
+ * it (Paul, 2026-09-16: the carrot stays in colour, however small). The face
+ * says "not now"; the carrot still says what it costs. `.rr-carrot-price`
+ * turns the filter off in px-dialogs.css.
+ */
+export const CARROT_BTN_OFF = { color: '#6b5440', shadowColor: '#4a3828', textColor: '#d8c3ab' } as const;
 export const COIN_BTN = { color: '#1f3a4a', shadowColor: '#10222e', textColor: COIN } as const;
 
 /** A price label: the game's pixel face (the kit's bitmap one has no carrot). */
@@ -332,8 +341,8 @@ function Row({
       <p className="rr-shop-tile-blurb">{t.items[item.kind].blurb}</p>
       <div className="rr-shop-tile-buy">
         <PxButton
-          className="rr-pay-carrot"
-          {...CARROT_BTN}
+          className="rr-pay-carrot rr-carrot-price"
+          {...(busy || !item.canBuy ? CARROT_BTN_OFF : CARROT_BTN)}
           // Buying is the loud action on this screen — the one that wiggles.
           wiggle
           onClick={onBuy}

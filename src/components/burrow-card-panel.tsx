@@ -25,6 +25,7 @@
  */
 import type { CSSProperties } from 'react';
 import { useT } from '@/i18n/provider';
+import { CarrotMark } from './carrot-mark';
 import { PxButton, pxLabel } from './px';
 import {
   HubCard, HubRow, RIM, headingText, valueText, subText, SUB_CLASS, groupDigits, cardSize,
@@ -59,7 +60,6 @@ const VAULT = '#43261a';
 /** Safe carrots read in the game's lamplight, not in the warning red. */
 const SAFE_INK = '#ffd138';
 
-const CARROT_MARK = '/assets/misc/carrote_silouhette.png';
 
 export function BurrowPanel({
   level, stock, yieldPerHour, upgradeCost, canUpgrade, onUpgrade, pending,
@@ -115,7 +115,7 @@ export function BurrowPanel({
         {!maxed && (
           <span style={valueText}>
             {upgradeCost}
-            <img className="pixelated" src={CARROT_MARK} alt="" aria-hidden style={carrotMark} />
+            <CarrotMark size={CARROT_MARK_SIZE} />
           </span>
         )}
       </HubRow>
@@ -135,20 +135,15 @@ export function BurrowPanel({
         </span>
         <span style={vaultValue}>
           {groupDigits(safe)}
-          <img className="pixelated" src={CARROT_MARK} alt="" aria-hidden style={carrotMark} />
+          <CarrotMark size={CARROT_MARK_SIZE} />
         </span>
       </div>
     </HubCard>
   );
 }
 
-const carrotMark: CSSProperties = {
-  // Tied to the card like the type beside it, so a 49px card does not carry a
-  // mark drawn for a 95px one.
-  width: cardSize(12, 7, 12),
-  height: 'auto',
-  display: 'block',
-};
+/** The carrot beside a figure: the game's own, in colour (`CarrotMark`). */
+const CARROT_MARK_SIZE = cardSize(12, 7, 12);
 
 /**
  * The safe line, in a sunken strip.
