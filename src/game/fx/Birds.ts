@@ -49,8 +49,16 @@ const Z = 7_490;
 /** La diagonale iso que suit le vol : vers le fond-gauche. */
 const DIR = [-2, -1] as const;
 
-/** Vitesse de croisiere, en px/s du plan. Lent : ils planent, ils ne filent pas. */
-const SPEED_RANGE = [3.4, 6.8] as const;
+/**
+ * Vitesse de croisiere, en px/s du plan.
+ *
+ * Bien plus rapide que les nuages (4 a 11 px/s), et c'est le point : un nuage
+ * est de la meteo, un oiseau VOLE. Le premier jet tournait a 3.4-6.8 px/s,
+ * soit plus d'une minute pour traverser le cadre — a l'oeil l'oiseau faisait
+ * du surplace. A cette allure-ci il met une dizaine de secondes : il file
+ * franchement, tout en gardant son plane long entre deux battements.
+ */
+const SPEED_RANGE = [45, 70] as const;
 
 /** Amplitude de l'ondulation, en pixels. */
 const SWAY = 6;

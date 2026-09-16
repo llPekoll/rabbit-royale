@@ -511,7 +511,7 @@ export const Feuille: StoryObj<{ zoom: number }> = {
  * quand il passe devant un nuage.
  */
 export const DansLaScene: StoryObj<FlockArgs> = {
-  args: { count: 1, scale: 2, aboveClouds: false, perBand: 4, jitter: 6, speed: 0.13, rays: true },
+  args: { count: 1, scale: 2, aboveClouds: false, perBand: 4, jitter: 6, speed: 1.7, rays: true },
   argTypes: {
     count: { control: { type: 'range', min: 1, max: 14, step: 1 } },
     scale: { control: { type: 'range', min: 0.5, max: 6, step: 0.5 } },
