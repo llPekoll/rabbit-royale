@@ -2064,9 +2064,15 @@ body:has(.rr-empty) .rr-sound { display: none; }
   }
   /* The island's floor used to be a full-width HOME box and the mute sat on
      its right end, so the mute was lifted 110px clear of that band. The way
-     home is the corner slab now (`.rr-back-btn`, bottom-LEFT), so the mute
-     keeps its own corner at the standard height on the island like everywhere
-     else — lifted, it was a control floating in the middle of the art. */
+     home is the shared slab now (`.rr-back-btn`), so the mute keeps its own
+     corner at the standard height on the island like everywhere else —
+     lifted, it was a control floating in the middle of the art.
+     That slab said bottom-LEFT when this was written; it moved to bottom
+     CENTRE the same day (Paul). The reasoning above survives the move intact,
+     and then some: a centred exit is further from the mute's corner than a
+     left one ever was. Measured on the island after the merge — the exit is
+     123x64 on desktop and 103x50 on the Seeker, 9-12% of the board's width,
+     against the 400px box the old floating HOME arrow occupied here. */
 }
 
 /* The two controls sit side by side; the panel stacks above them. */
