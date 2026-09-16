@@ -6,13 +6,41 @@
    with the colour it had. What is left here is taking the SMOOTH chrome off
    underneath it — the rounded rim, the flat background, the soft shadow that
    globals.css still gives the old class names — and re-spacing the insides
-   for a frame that is thicker than a 1px border. */
+   for a frame that is thicker than a 1px border.
+
+   ── THE SPACING, AND WHY IT IS THREE NUMBERS ────────────────────────────────
+   Measured before this pass, no two dialogs agreed: the Shed's header sat on
+   10/14/6/16, its grid on 4/14/10/14, a tile on 9/11, a price button on
+   0/8/12/8, the footer on 0/14/12/14; the recap on 10/14/12; the profile body
+   on 4/14/10; the board's head on a three-way clamp; the tabs on 0/12/2. Nine
+   surfaces, nine answers, none of them chosen.
+
+   They all come from `:root` in globals.css now, and nothing here states a
+   padding as a literal:
+
+     --rr-edge       the gap between a fixed piece of chrome and the screen
+                     (plus the safe-area inset on the side it touches)
+     --rr-pad        the air inside a panel — a dialog's header, body and
+                     footer, and any panel nested in one, all take this
+     --rr-pad-tight  chips, badges and one-line strips, where the full pad
+                     leaves no room for the text
+
+   The rhythm that falls out: 10 from the frame to anything, 10 between a
+   nested panel's frame and its contents, so a tile inside a grid inside a
+   dialog reads as one system rather than three. */
 
 /* The frame pixel is `PX` (src/components/px.tsx) — one 2px stroke on every
    surface, whatever its size or the screen. The dialogs used to set a chunkier
    one of their own here; the variable is kept only so any stray reference
    lands on the same value. */
-:root { --rr-dlg-px: 2px; }
+:root {
+  --rr-dlg-px: 2px;
+  /* What a kit button reserves at its foot for the bevel lip: `BEVEL` (6)
+     source pixels at the chrome's own pixel. The kit writes it as bottom
+     padding, so any pad we want UNDER the label has to be added on top of it
+     — see the button rule below. */
+  --rr-btn-bevel: calc(var(--rr-dlg-px) * 6);
+}
 
 /* ── The frame, and nothing under it ───────────────────────────────────────
    The frame's sprite has transparent rounded corners: a background, a radius
@@ -40,19 +68,69 @@
   line-height: 0;
 }
 
+/* ── EVERY BUTTON IN A DIALOG, ONE INSET ────────────────────────────────────
+   A kit button reserves its bevel as BOTTOM padding — `padding: 0 calc(PX*4)
+   calc(PX*6)`, i.e. 0/8/12/8 — so its label rides the light face with no air
+   above it and eight px at the sides. Four different insets on four sides of
+   the one thing a player aims at.
+
+   What the label needs is to look EVENLY inset, which is not the same as
+   equal numbers: the bottom `--rr-btn-bevel` is the lip, not air, so the pad
+   goes on all four sides and the bevel is added underneath it. The label then
+   centres on the face itself (the box is 44px at the tap floor, the face is
+   the top 32 of it, and the label lands at 16 — dead centre of the face).
+
+   `!important` because the kit writes that padding as an INLINE style, which
+   no stylesheet rule can otherwise reach. (The old `padding-block: 0` on the
+   price buttons lost to it silently and had never done anything.) */
+.rr-px-dialog .rr-px-btn:not(.rr-avatar-pick):not(.rr-shop-rail),
+.rr-px-dialog .rr-shop-x,
+.rr-px-dialog .rr-lb-close,
+.rr-recap .rr-px-btn {
+  padding:
+    var(--rr-pad)
+    var(--rr-pad)
+    calc(var(--rr-pad) + var(--rr-btn-bevel)) !important;
+}
+/* The rail chips are a one-line strip of 10px type, so they take the tight
+   pad — the full one would make three currency chips as tall as the title. */
+.rr-px-dialog .rr-shop-rail {
+  padding:
+    var(--rr-pad-tight)
+    var(--rr-pad-tight)
+    calc(var(--rr-pad-tight) + var(--rr-btn-bevel)) !important;
+}
+/* The square cells take none: the art IS the label, and it is cropped to the
+   cell on purpose (see `avatarCell` in profile-menu.tsx). */
+.rr-px-dialog .rr-avatar-pick { padding: 0 !important; }
+
+/* ── OFF THE SCREEN'S EDGE ──────────────────────────────────────────────────
+   The scrim's padding is the only thing holding a centred dialog off the
+   glass, so it is `--rr-edge` plus whatever the notch takes on that side. The
+   `:has()` arm carries the same value at the specificity globals.css uses to
+   give the energy popup its own inset. */
+.rr-shop-scrim,
+.rr-shop-scrim:has(.rr-energy-modal) {
+  padding:
+    calc(var(--rr-edge) + env(safe-area-inset-top))
+    calc(var(--rr-edge) + env(safe-area-inset-right))
+    calc(var(--rr-edge) + env(safe-area-inset-bottom))
+    calc(var(--rr-edge) + env(safe-area-inset-left));
+}
+
 /* ── The Shed ─────────────────────────────────────────────────────────── */
 .rr-px-dialog .rr-shop-top {
   background: none;
   border-bottom: none;
-  padding: 10px 14px 6px 16px;
-  gap: 10px;
+  padding: var(--rr-pad);
+  gap: var(--rr-pad);
 }
 .rr-px-dialog .rr-shop-top h2 {
   display: flex;
   align-items: center;
   min-width: 0;
 }
-.rr-px-dialog .rr-shop-grid { padding: 4px 14px 10px; }
+.rr-px-dialog .rr-shop-grid { padding: var(--rr-pad); gap: var(--rr-pad); }
 /* The tile is the grid cell; its nested panel is the tile. */
 .rr-px-dialog .rr-shop-tile {
   padding: 0;
@@ -64,26 +142,33 @@
 .rr-shop-tile-face {
   height: 100%;
   box-sizing: border-box;
-  padding: 9px 11px;
+  padding: var(--rr-pad);
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--rr-pad-tight);
 }
-.rr-px-dialog .rr-shop-tile-buy { margin-top: auto; }
-.rr-px-dialog .rr-shop-tile-buy > button { padding-block: 0; }
-.rr-px-dialog .rr-shop-rails { gap: 4px; }
+/* The item's art sits at the text's own inset, one tight gap from its name —
+   the same gap the two prices keep from each other. */
+.rr-px-dialog .rr-shop-tile-head { gap: var(--rr-pad-tight); }
+.rr-px-dialog .rr-shop-tile-buy { margin-top: auto; gap: var(--rr-pad-tight); }
+.rr-px-dialog .rr-shop-rails { gap: var(--rr-pad-tight); }
 .rr-px-dialog .rr-shop-foot {
   background: none;
   border-top: none;
-  padding: 0 14px 12px;
+  padding: var(--rr-pad);
   min-height: 0;
   display: flex;
   justify-content: center;
+  /* NEVER THE THING THAT GIVES. The footer is a flex item in the dialog's
+     column, so on the Seeker it was the strip that shrank — its own inset
+     squeezed out and the strapline clipped inside it. The grid above is the
+     part that is allowed to lose height, because the grid scrolls. */
+  flex: none;
 }
 .rr-px-note {
   box-sizing: border-box;
   width: 100%;
-  padding: 6px 12px;
+  padding: var(--rr-pad);
   text-align: center;
   line-height: 1.4;
   font-size: 11px;
@@ -100,19 +185,27 @@
   width: min(440px, 100%);
   max-height: 100%;
 }
+/* The body is the dialog's own inset, once — the state band and the offer
+   under it are blocks inside it rather than two strips each carrying their
+   own margins. */
 .rr-energy-body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+  padding: var(--rr-pad);
+  display: flex;
+  flex-direction: column;
+  gap: var(--rr-pad);
 }
 .rr-px-dialog .rr-energy-state {
-  margin: 0 14px;
-  padding: 10px 12px;
+  margin: 0;
+  padding: var(--rr-pad);
+  gap: var(--rr-pad);
   background: none;
   border-bottom: none;
 }
-.rr-px-dialog .rr-energy-buy { padding: 10px 14px 12px; }
+.rr-px-dialog .rr-energy-buy { padding: 0; gap: var(--rr-pad-tight); }
 .rr-px-dialog .rr-energy-more {
   min-height: 44px;
   text-decoration: none;
@@ -128,7 +221,7 @@
   -webkit-backdrop-filter: none;
   border-radius: 0;
   box-sizing: border-box;
-  padding: 10px 14px 12px;
+  padding: var(--rr-pad);
   margin-bottom: 8px;
   filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.45));
 }
@@ -138,30 +231,50 @@
 .rr-recap-actions {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--rr-pad-tight);
 }
 /* The Seeker: the island's overlay is already full to the floor, so the card
-   takes back from its own margins what the thicker frame adds. */
+   takes back from its own MARGINS what the thicker frame adds. The padding
+   stays `--rr-pad` — a card that quietly re-spaces itself on a short screen is
+   the inconsistency this pass exists to remove, and the margins are the part
+   that was never anyone's inset. */
 @media (max-height: 520px) {
-  .rr-overlay .rr-card.rr-recap { padding: 6px 12px 8px; margin-bottom: 4px; }
+  .rr-overlay .rr-card.rr-recap {
+    margin-bottom: 4px;
+    /* THE CARD GIVES, AND SCROLLS INSIDE — it used to run off the floor.
+       Measured on the Seeker (890x400): at the old 6/12/8 the card's foot
+       already sat 1px past the bottom of the screen and the HOME arrow under
+       it was 59px off it, so the way out of a finished run was somewhere
+       nobody could reach. It is a flex item in `.rr-overlay`'s column, and a
+       flex item will not shrink below its content without `min-height: 0` —
+       with it the card takes the height that is actually there and scrolls
+       the middle, which is what every other dialog here does. Nothing is
+       clipped, the arrow comes back on screen, and the padding stays the
+       same 10 it is on every other screen. */
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
   .rr-recap-title { margin-bottom: 3px; }
   .rr-recap-stats, .rr-recap .rr-note { margin-bottom: 4px; }
-  .rr-recap-actions { gap: 5px; }
 }
 
 /* ── The profile panel and the season board (both `.rr-lb`) ─────────────── */
 .rr-px-dialog .rr-lb-head {
   border-bottom: none;
   border-radius: 0;
-  padding: clamp(4px, 1.2svh, 10px) clamp(6px, 1.4svh, 12px) clamp(2px, 0.6svh, 6px);
+  padding: var(--rr-pad);
+  gap: var(--rr-pad-tight);
 }
 .rr-px-dialog .rr-lb-head strong {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--rr-pad-tight);
   min-width: 0;
 }
-.rr-px-dialog .rr-lb-list { padding: 0 4px 4px; }
+.rr-px-dialog .rr-lb-list { padding: var(--rr-pad); }
+/* A row is a one-line strip inside that list, not a panel of its own. */
+.rr-px-dialog .rr-lb-list .rr-lb-row { padding: var(--rr-pad-tight); }
 /* On the Seeker the board is 231px wide: the bitmap SEASON, the days left and
    the [X] need all of it, and the crown beside the title ran the title into
    the "10d". The crown is decoration (the #1 row still wears one); the title
@@ -170,21 +283,36 @@
   .rr-lb-title > span[aria-hidden] { display: none; }
 }
 
-/* Tabs: two pixel buttons side by side, not a ruled strip. */
+/* THE SCREEN'S EDGE, for the two panels that are fixed to it rather than
+   centred on a scrim: the board hangs off the right edge, and the profile
+   panel sizes itself against the viewport. Both used their own literal (10px
+   and a 32px pair); both are `--rr-edge` now. The profile keeps ONE height
+   across both tabs — that is what stops the header jumping under the pointer
+   that just pressed a tab — so this only restates where that height comes
+   from. */
+.rr-px-dialog.rr-lb:not(.rr-profile) {
+  right: calc(var(--rr-edge) + env(safe-area-inset-right));
+}
+.rr-px-dialog.rr-profile {
+  width: min(380px, calc(100vw - 2 * var(--rr-edge)));
+  height: min(640px, calc(100dvh - 2 * var(--rr-edge)));
+}
+
+/* Tabs: two pixel buttons side by side, not a ruled strip. No inset of their
+   own top or bottom — the header's pad above and the body's pad below already
+   give them the same 10 as everything else, and a third one here would push
+   the Profile tab past the panel's fixed height. */
 .rr-px-dialog .rr-tabs {
   border-bottom: none;
-  gap: 6px;
-  padding: 0 12px 2px;
+  gap: var(--rr-pad-tight);
+  padding: 0 var(--rr-pad);
 }
 .rr-px-dialog .rr-tabs button { flex: 1; }
 .rr-px-dialog .rr-tabs button.on { box-shadow: none; }
 
-/* Tighter than the old 14/10: the pixel buttons are a few px taller than the
-   flat ones were, and on a desktop the whole Profile tab still has to fit the
-   panel's fixed height without scrolling, as it did before. */
-.rr-px-dialog .rr-profile-body { padding: 4px 14px 10px; gap: 8px; }
-.rr-px-dialog .rr-avatar-grid { gap: 6px; }
-.rr-px-dialog .rr-guest-note { gap: 6px; margin-top: 4px; }
+.rr-px-dialog .rr-profile-body { padding: var(--rr-pad); gap: var(--rr-pad-tight); }
+.rr-px-dialog .rr-avatar-grid { gap: var(--rr-pad-tight); }
+.rr-px-dialog .rr-guest-note { gap: var(--rr-pad-tight); margin-top: var(--rr-pad-tight); }
 
 /* The name field sits in its well. */
 .rr-field-box {
@@ -195,6 +323,8 @@
   outline: 2px solid var(--crown);
   outline-offset: 2px;
 }
+/* The input is a one-line strip in that well: the tight pad keeps its 36px
+   line while the sides match every other inset. */
 .rr-px-dialog .rr-field input {
   width: 100%;
   box-sizing: border-box;
@@ -202,7 +332,7 @@
   border: none;
   border-radius: 0;
   outline: none;
-  padding: 6px 10px;
+  padding: var(--rr-pad-tight) var(--rr-pad);
   min-height: 36px;
 }
 
@@ -211,7 +341,7 @@
   border: none;
   border-radius: 0;
   background: none;
-  padding: 8px 10px;
+  padding: var(--rr-pad);
 }
 .rr-px-dialog .rr-avatar-pick { border: none; }
 .rr-px-dialog .rr-day-bar { border-radius: 0; }

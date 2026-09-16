@@ -154,8 +154,15 @@ const vaultStrip: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-  gap: 8,
-  paddingInline: 8,
+  /* A ONE-LINE STRIP, so it takes the tight pad rather than the card's full
+     one — the token set names this case exactly. Inline only: the strip's
+     height is a `cqh` share of the card (22cqh, floored at 18px, 14 on a short
+     screen) and its single line is centred in it, so block padding would fight
+     that height rather than add air to it — at the Seeker's 14px it would
+     leave the label a negative content box. The air above and below the ink is
+     the strip's height doing its job; the air left and right is this. */
+  gap: 'var(--rr-pad-tight)',
+  paddingInline: 'var(--rr-pad-tight)',
   // A hair under a quarter of the card, with a floor that keeps its two labels
   // on one line.
   height: '22cqh',
@@ -183,7 +190,9 @@ const vaultValue: CSSProperties = {
   lineHeight: 1,
   display: 'inline-flex',
   alignItems: 'center',
-  gap: 4,
+  // The carrot mark's gap to its figure — the same one `valueText` uses in the
+  // heading above, so the two carrot marks on this card sit alike.
+  gap: 'var(--rr-pad-tight)',
 };
 
 /** The face — see `harvestFace` in garden-card.tsx, which it mirrors. */

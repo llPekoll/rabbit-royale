@@ -101,10 +101,17 @@ export function SoundButton() {
           color={musicMuted ? PLANK : CARROT}
           shadowColor={musicMuted ? undefined : CARROT_DEEP}
           scale={UI_PIXEL}
-          height={`${UI_PIXEL * 20}px`}
+          // SIZED BY WHAT IT HOLDS, against the 44px floor in globals.css. It
+          // was pinned at 40px, which cannot hold the 32px speaker plus the
+          // uniform label pad — the sprite would have been cropped. `auto`
+          // lets the button take the pad and keep the glyph whole.
+          height="auto"
           // The codex button's squash on a press (`.rr-px-btn`); no wiggle — a
           // mute that shakes every time it is pressed is noise.
           className="rr-sound-btn rr-px-btn"
+          // The same air round the sprite as round any other button's label.
+          // Inline because globals zeroes the padding on these two.
+          style={{ padding: 'var(--rr-btn-pad)' }}
           onClick={toggleMusic}
           aria-label={musicMuted ? 'Unmute music' : 'Mute music'}
           aria-pressed={musicMuted}
@@ -127,13 +134,16 @@ export function SoundButton() {
         <NineSliceButton
           color={PLANK}
           scale={UI_PIXEL}
-          height={`${UI_PIXEL * 20}px`}
+          // Sized by its contents, like the mute beside it: the cluster
+          // stretches the two to one height, so both have to grow together.
+          height="auto"
           textColor={LAMP}
           className="rr-sound-more rr-px-btn"
           // Inline, because the kit sets its own `minWidth` inline (16 units,
           // 32px here) and that beats the stylesheet — it measured 32px wide,
-          // under the 44px tap-target minimum.
-          style={{ minWidth: 44 }}
+          // under the 44px tap-target minimum. The padding is inline for the
+          // same reason: globals zeroes it on this pair.
+          style={{ minWidth: 44, padding: 'var(--rr-btn-pad)' }}
           onClick={() => setOpen((v) => !v)}
           aria-label="Sound settings"
           aria-expanded={open}

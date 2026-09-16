@@ -123,7 +123,9 @@ const badge: CSSProperties = {
   top: 'calc(-7px - var(--u))',
   right: -7,
   minWidth: 18,
-  padding: '2px 3px',
+  /* The game's chip inset — the same one the pill's rank badge and the loop
+     bar's corner badges take. */
+  padding: '2px var(--rr-pad-tight)',
   boxSizing: 'border-box',
   display: 'inline-flex',
   alignItems: 'center',

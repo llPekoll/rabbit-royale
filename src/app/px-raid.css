@@ -25,17 +25,26 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 8px 12px 10px;
+  /* The dialog's body air: `--rr-pad`, the game's one answer, on all four
+     sides. It was 8/12/10 — three numbers for one frame, and none of them the
+     number the panel beside it used. Everything nested inside now measures
+     from this edge, so the header, the list and the footer carry no inset of
+     their own. */
+  gap: var(--rr-pad-tight);
+  padding: var(--rr-pad);
   box-sizing: border-box;
 }
 
 /* Title and [X] sit straight on the soil, as they do in the codex. */
 .rr-raid-pick .rr-shop-top {
-  padding: 0 0 0 4px;
+  /* NO inset of its own. The title sat 4px further in than everything under
+     it, which read as a misaligned heading rather than as a choice; the frame
+     above already holds the whole body off the edge by `--rr-pad`, and the
+     title starts on that line like every other row. */
+  padding: 0;
   background: none;
   border: 0;
-  gap: 12px;
+  gap: var(--rr-pad);
 }
 .rr-raid-pick .rr-shop-top h2 {
   display: flex;
@@ -45,10 +54,12 @@
 
 /* The rows: a nested plank panel each, a pixel gap between them. */
 .rr-raid-pick .rr-raid-list {
-  padding: 0 2px 0 0;
+  /* Flush with the frame's pad, like the header and the footer. The old 2px on
+     the right was room for a scrollbar that this list does not draw. */
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--rr-pad-tight);
 }
 .rr-raid-pick .rr-raid-list > li {
   display: block;
@@ -59,8 +70,14 @@
   display: grid;
   grid-template-columns: 1fr auto auto;
   align-items: center;
-  gap: 10px;
-  padding: 2px 4px 2px 10px;
+  /* A ROW IS A NESTED PANEL, so it takes the same `--rr-pad` as the body it
+     sits in. It was 2/4/2/10 — a name pushed 10px in, a button 4px from the
+     edge and 2px of air top and bottom, so a row's contents sat closer to its
+     own frame than to anything else on the screen. The row grows a little
+     taller for it (the 44px button plus the pad), which the list absorbs by
+     scrolling. */
+  gap: var(--rr-pad);
+  padding: var(--rr-pad);
   box-sizing: border-box;
   color: var(--chalk, #f5e6d3);
 }
@@ -78,16 +95,17 @@
 
 .rr-raid-pick .rr-shop-pay {
   margin: 0;
-  padding: 16px 8px;
+  padding: var(--rr-pad);
   text-align: center;
   color: var(--chalk-dim, #b39877);
 }
 
 /* The footer: a plank panel, no longer a band with a rule. */
 .rr-raid-pick .rr-shop-foot {
+  /* The footer note is a nested panel too — same pad as the rows above it. */
   background: none;
   border-top: 0;
-  padding: 2px 10px;
+  padding: var(--rr-pad);
   min-height: 34px;
 }
 
@@ -103,8 +121,16 @@
    (`--rr-chrome-top`, TopbarReserve), with the same 6px of air the burrow's
    toasts take under it. */
 .rr-raid-hud {
-  top: calc(var(--rr-chrome-top, calc(env(safe-area-inset-top) + var(--rr-topbar-h, 56px))) + 6px);
-  padding: 4px 10px;
+  top: calc(var(--rr-chrome-top, calc(env(safe-area-inset-top) + var(--rr-topbar-h, 56px))) + var(--rr-pad-tight));
+  /* The HUD is a panel, so its body takes `--rr-pad` like every other. It was
+     4/10 — tight enough that the burrow's name nearly touched its own frame.
+     The bar grows a few px taller; it hangs off the measured bottom of the top
+     chrome, so nothing below it moves. */
+  padding: var(--rr-pad);
+  /* The edge rule, stated in the token: the HUD is fixed chrome, so it keeps
+     `--rr-edge` from the glass on each side. Same 20px it computed before,
+     said in the game's own language. Overrides the literal in globals.css. */
+  width: min(420px, calc(100% - 2 * var(--rr-edge)));
   box-sizing: border-box;
   border-radius: 0;
   background: none;
@@ -113,4 +139,47 @@
 }
 .rr-raid-hud .rr-raid-over {
   border-top: 2px solid #4a2f1d;
+}
+
+/* ── One pad around every label in this pass's buttons ──────────────────────
+   The kit writes its own `padding: 0 calc(PX*4) calc(PX*BEVEL)` INLINE on
+   every `NineSliceButton` — 0/8/12/8 at the game's 2px chrome pixel. The
+   bottom 12 is not air, it is the bevel lip the face is drawn on, and it has
+   to stay exactly that or the label rides down onto the shadow. The 8 each
+   side IS air, and it was the one number in this pass that disagreed with
+   everything around it.
+
+   So only the sides move, to `--rr-pad`. `padding-left`/`right` rather than
+   the `padding` shorthand: they override their half of the kit's inline
+   shorthand and leave the lip untouched, which means this rule never has to
+   restate the bevel and can never drift from it.
+
+   What that buys, measured: the raid row's 44px button is 12px of lip plus a
+   12px label, leaving 10px of face above and below the ink — the same 10 as
+   the sides. The air reads even on all four sides because the number is the
+   same number, not because it was nudged until it looked right.
+
+   SCOPED, not global. Two other agents are in the dialogs and the top bar this
+   session, and `.rr-px-btn` is on every button in the game; this names only
+   the buttons in the files this pass owns. */
+.rr-hub-btn,
+.rr-raid-pick .rr-raid-list button,
+.rr-victory-rise .rr-px-btn {
+  padding-left: var(--rr-pad) !important;
+  padding-right: var(--rr-pad) !important;
+}
+
+/* ── The burrow cards on a short screen ─────────────────────────────────────
+   The three cards take `--rr-pad` on all four sides (hub-card.tsx), which is
+   right everywhere the card has room. On the Seeker (890x400) a card is 54px
+   and the tallest is 67, and 10px top and bottom would eat the UPGRADE button
+   — the burrow card has about 5px of slack there and the full pad wants 11.
+
+   `--rr-pad-tight` is exactly the case the token set describes: a card too
+   short to afford the full pad. Set as a VARIABLE the card's inline style
+   already reads, so the cascade can reach into an inline `padding` without an
+   `!important` fight. Same 520px threshold the button and strip floors in
+   globals.css already use, so the three relaxations happen together. */
+@media (max-height: 520px) {
+  .rr-hub-card { --rr-card-pad: var(--rr-pad-tight); }
 }

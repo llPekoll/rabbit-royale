@@ -16,10 +16,12 @@
  * the richest open burrow. The shop and the codex are not loops and moved to
  * the top bar as icons.
  *
- * DIG is the saturated one: it is still the one action the screen exists
- * for, and the mock's argument holds — the findable shape is the orange one.
- * HOME is the place you are standing in, so it is lit with the lamp's gold
- * rim rather than filled. RAID takes the danger red on its badge only.
+ * THREE VERBS, THREE HUES: DIG the carrot's orange, DEFEND the garden's green,
+ * RAID the danger red the rest of the game already uses. All three FILLED the
+ * same way, so none of them looks picked. DIG stays the loudest — the most
+ * saturated face and the only one carrying the carrot — because it is still
+ * the one action the screen exists for. See the palette below for why the gold
+ * ring that used to mark DEFEND had to go.
  *
  * `away` slides the whole bar off the floor during trap placement, the same
  * curve GO FARM rode down (the camera pulls back at that moment).
@@ -28,7 +30,7 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { CARROT_URL, CARROT_SIZE } from '@domin8/arcade-kit/game';
 import { playUiSfx } from '@/game/services/SoundManager';
 import type { QuestDoor } from '@/config/quests';
-import { PX, PxButton, PxPanel } from './px';
+import { PxButton, PxPanel } from './px';
 
 export type Loop = 'dig' | 'home' | 'raid';
 
@@ -87,16 +89,36 @@ export function loopOf(door: QuestDoor | null | undefined): Loop | null {
   }
 }
 
-/* ── Palette: the GO FARM slab, the hub tile, the soil ─────────────────── */
+/* ── Palette: ONE HUE PER VERB ─────────────────────────────────────────────
+   COLOUR IS THE IDENTITY, AND NOTHING ELSE IS (Paul, 2026-09-16).
+   DEFEND and RAID used to share one face (#4a3d2e) and were told apart by
+   their ink and by a gold ring around DEFEND. Two problems, one cause: two of
+   the three verbs were the same button, and a ring around a control means
+   SELECTED in every interface anyone has ever used — so the floor announced a
+   state DEFEND did not have. ("why is DEFEND seemingly highlighted with a
+   yellow outline?")
+   Now each verb owns a hue and all three are FILLED the same way. An outline
+   is free to mean state again; the quest still points with its red "!".
+   DIG stays the loudest — the most saturated face, and the only one carrying
+   the carrot — because it is still the one action the screen exists for. */
 const DIG_FACE = '#ed7b23';
 const DIG_LIP = '#ffc48c';
 const DIG_SHADOW = '#652f09';
 /** The DIG slab's state line: dark on the orange, ~5:1 where cream gave 2:1. */
 const DIG_INK = '#3d1d06';
-const TILE_TOP = '#4a3d2e';
-const TILE_SHADOW = '#1b1009';
-const INK = '#e9dabd';
-const INK_DIM = '#a8977f';
+/** DEFEND: the garden it exists to protect. */
+const DEF_FACE = '#4f7a34';
+const DEF_LIP = '#8fbf5f';
+const DEF_SHADOW = '#22381a';
+const DEF_INK = '#dcecc4';
+/** RAID: the danger this game already paints red. Kept DARK deliberately —
+    the quest badge is #e62132, and a bright red face would have swallowed the
+    one mark that tells you the quest points here. */
+const RAID_FACE = '#8c2f38';
+const RAID_LIP = '#d4676f';
+const RAID_SHADOW = '#3d0e14';
+const RAID_INK = '#f0c9c9';
+/** The lamp's gold, now spent only on what is WORTH TAKING. */
 const LAMP = '#ffd138';
 /** The haul toast's glass — the island captions' ground. */
 const GLASS = 'rgba(13, 17, 23, 0.82)';
@@ -265,20 +287,19 @@ export function LoopBar({
 
       <span className="rr-toon-in-up" style={{ ...arrow, ...enter(30) }} aria-hidden>▸</span>
 
-      {/* HOME — the place you are standing in: lit, not filled. Tapping it
-          opens the floor to bury traps, which is the one thing HOME does that
-          the column's cards do not. The lamp's gold is a pixel ring around
-          the slab (`.rr-loop-cell-lit`). */}
-      <div className="rr-loop-cell rr-loop-cell-lit rr-toon-in-up" style={enter(60)}>
+      {/* DEFEND — burying traps in the floor you are standing on. It wears the
+          garden's green: filled like the other two, with no ring around it. */}
+      <div className="rr-loop-cell rr-toon-in-up" style={enter(60)}>
         <PxButton
           type="button"
           key={`home:${pulse('home')}`}
           className={`rr-loop-slab rr-loop-home rr-ptf-fill${pulse('home') ? ' rr-tab-pop' : ''}`}
           onClick={onHome}
           aria-label={`Defend: bury traps. ${homeLine}`}
-          color={TILE_TOP}
-          shadowColor={TILE_SHADOW}
-          textColor={INK}
+          color={DEF_FACE}
+          shadowColor={DEF_SHADOW}
+          highlightColor={DEF_LIP}
+          textColor="#ffffff"
           wiggle
           style={slab}
         >
@@ -288,8 +309,10 @@ export function LoopBar({
                   and RAID. "HOME" named the place you were already standing in;
                   what the slab does is open the floor to bury traps. The class
                   and the `home` key keep their name — only the word changed. */}
-              <span style={{ ...verb, color: LAMP }}>DEFEND</span>
-              <span style={{ ...line, color: home.gardenReady > 0 ? DANGER_INK : INK_DIM }}><Parts parts={homeParts} /></span>
+              <span style={{ ...verb, textShadow: `0 2px 0 ${DEF_SHADOW}` }}>DEFEND</span>
+              {/* The garden with something standing in it is the alarm: what is
+                  out there is what a raider can take. */}
+              <span style={{ ...line, color: home.gardenReady > 0 ? DANGER_INK : DEF_INK }}><Parts parts={homeParts} /></span>
             </span>
           </span>
           {pointed === 'home' && <PxPanel color={BADGE} className="rr-hub-badge" style={badge}>!</PxPanel>}
@@ -307,17 +330,20 @@ export function LoopBar({
           className={`rr-loop-slab rr-loop-raid rr-ptf-fill${pulse('raid') ? ' rr-tab-pop' : ''}`}
           onClick={onRaid}
           aria-label={`Raid. ${raidLine}`}
-          color={TILE_TOP}
-          shadowColor={TILE_SHADOW}
-          textColor={INK}
+          color={RAID_FACE}
+          shadowColor={RAID_SHADOW}
+          highlightColor={RAID_LIP}
+          textColor="#ffffff"
           wiggle
           style={slab}
         >
           <span style={face}>
             <span style={textCol}>
-              <span style={verb}>RAID</span>
-              <span style={{ ...line, color: raid.best ? DANGER_INK : INK_DIM }}><Parts parts={raidParts} /></span>
-              {raid.bombs > 0 && <span style={{ ...line, color: INK_DIM }}>{raid.bombs} bomb{raid.bombs === 1 ? '' : 's'} in the bag</span>}
+              <span style={{ ...verb, textShadow: `0 2px 0 ${RAID_SHADOW}` }}>RAID</span>
+              {/* GOLD for the burrow worth walking to. The salmon this line used
+                  to take is a shade of the face now, and read as nothing. */}
+              <span style={{ ...line, color: raid.best ? LAMP : RAID_INK }}><Parts parts={raidParts} /></span>
+              {raid.bombs > 0 && <span style={{ ...line, color: RAID_INK }}>{raid.bombs} bomb{raid.bombs === 1 ? '' : 's'} in the bag</span>}
             </span>
           </span>
           {/* RED ONLY FOR NEWS. The quest pointing here is a "!" in red, like
@@ -375,10 +401,18 @@ const slab: CSSProperties = {
 const face: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  gap: 10,
+  /* The one image-to-label gap: the carrot to the verb beside it. */
+  gap: 'var(--rr-pad)',
   width: '100%',
   height: '100%',
-  padding: `0 calc(${PX} * 5)`,
+  /* SIDES ONLY, and this is the one button that cannot take the vertical pad.
+     `.rr-ptf-fill` already centres this box optically on the face, and the
+     slab is 52px on the Seeker holding a verb over a two-line state line —
+     measured at 38.5px of type in a 42px box. Another 12px of vertical pad
+     would crop the second line, which is the line that says whether the next
+     run is affordable. The air above and below is the centring; the full pad
+     each side is the same inset every other surface takes. */
+  padding: '0 var(--rr-pad)',
   boxSizing: 'border-box',
   textAlign: 'left',
   textTransform: 'none',
@@ -437,7 +471,8 @@ const badge: CSSProperties = {
   right: -7,
   top: 'calc(-8px - var(--u))',
   minWidth: 22,
-  padding: '3px 4px 2px',
+  /* The game's chip inset, as on every other badge. */
+  padding: '2px var(--rr-pad-tight)',
   boxSizing: 'border-box',
   display: 'flex',
   alignItems: 'center',

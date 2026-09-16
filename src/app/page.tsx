@@ -1699,12 +1699,22 @@ function Burrow() {
           />
         )}
         {/* The right-hand end: the SHOP and the STORY, as icons beside the
-            season board's trophy (which pins itself at the corner, hence the
-            padding). Neither is a loop — a store and a codex — so neither
-            belongs on the floor with DIG, HOME and RAID; up here they are
-            reachable without being mistaken for a step of the game. */}
+            season board's trophy. Neither is a loop — a store and a codex — so
+            neither belongs on the floor with DIG, HOME and RAID; up here they
+            are reachable without being mistaken for a step of the game.
+            THE TROPHY IS NOT IN THIS ROW: it pins itself to the corner
+            (`.rr-lb-launch`, fixed at `--rr-edge`) so its own drawer can hide
+            it. So the row reserves its square plus one gap on the right, and
+            the three read as one evenly spaced group. The reserve used to be a
+            flat 56 for a button that grew to 68, and the trophy sat 2px on top
+            of the story. Derived now, so it cannot drift again. */}
         {showCanvas && where === 'burrow' && !placing ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingRight: 56 }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--rr-pad-tight)',
+            paddingRight: 'calc(var(--rr-icon) + var(--rr-pad-tight))',
+          }}>
             <HubIconButton
               label="Shop"
               count={shop.shop?.traps.held ?? 0}

@@ -213,7 +213,9 @@ const slotChip: CSSProperties = {
   // past it to the square's own bottom edge.
   bottom: 'calc(-4px - var(--u) * 4)',
   minWidth: 11,
-  padding: 0,
+  /* The game's chip inset. Vertically 2px is all an 8px glyph can spare; the
+     tight pad each side is what every other chip in the game takes. */
+  padding: '2px var(--rr-pad-tight)',
   boxSizing: 'border-box',
   display: 'inline-flex',
   alignItems: 'center',

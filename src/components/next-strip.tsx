@@ -16,7 +16,7 @@
  */
 import type { CSSProperties } from 'react';
 import type { NextAction } from '@/config/next-action';
-import { PX, PxButton, pxLabel } from './px';
+import { PxButton, pxLabel } from './px';
 
 const FACE = '#2d1610';
 const BEVEL = '#1c0d08';
@@ -49,7 +49,8 @@ const strip: CSSProperties = {
   height: 'auto',
   minHeight: 44,
   justifyContent: 'flex-start',
-  padding: `calc(${PX} * 3) calc(${PX} * 5) calc(${PX} * 7)`,
+  /* The one label pad, as on every button. */
+  padding: 'var(--rr-btn-pad)',
   boxSizing: 'border-box',
   textAlign: 'left',
   whiteSpace: 'normal',
@@ -62,7 +63,8 @@ const strip: CSSProperties = {
 const row: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  gap: 10,
+  /* The one gap between a label and the text beside it. */
+  gap: 'var(--rr-pad)',
   minWidth: 0,
 };
 

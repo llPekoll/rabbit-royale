@@ -584,7 +584,12 @@ const centreColumnStyle: CSSProperties = {
   alignItems: 'center',
   justifyContent: 'center',
   gap: 22,
-  padding: 24,
+  /* The stage's gutter against the screen — `--rr-edge`, the same distance
+     every other fixed thing in the game keeps from the glass. The 22px gap
+     above is NOT a padding and is deliberately left alone: it is this
+     ceremony's vertical rhythm between the rabbit, the haul and the way home,
+     and squeezing it to a panel's pad would crowd a full-screen moment. */
+  padding: 'var(--rr-edge)',
   boxSizing: 'border-box',
 };
 
@@ -619,7 +624,7 @@ const stampStyle: CSSProperties = {
 
 const actionsStyle: CSSProperties = {
   display: 'flex',
-  gap: 10,
+  gap: 'var(--rr-pad)',
   flexWrap: 'wrap',
   justifyContent: 'center',
 };
@@ -648,7 +653,8 @@ const captionStyle: CSSProperties = {
   position: 'absolute',
   left: 0,
   right: 0,
-  bottom: 'calc(28px + env(safe-area-inset-bottom, 0px))',
+  // The edge rule, with the safe-area inset on the side it touches.
+  bottom: 'calc(var(--rr-edge) + env(safe-area-inset-bottom, 0px))',
   display: 'flex',
   justifyContent: 'center',
   pointerEvents: 'none',
@@ -663,9 +669,11 @@ const spoilsStyle: CSSProperties = {
 };
 
 const haulStyle: CSSProperties = {
+  // The carrot sprite's gap to the number it belongs to — an image next to its
+  // label, at the game's one pad, like every other pairing in this pass.
   display: 'inline-flex',
   alignItems: 'center',
-  gap: 10,
+  gap: 'var(--rr-pad)',
 };
 
 /**

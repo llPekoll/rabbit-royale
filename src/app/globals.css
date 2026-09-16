@@ -13,6 +13,41 @@
   --crown: #ffd45c;
   --danger: #ff6b6b;
 
+  /* ── SPACING: three numbers for the whole game ───────────────────────────
+     Every surface used to carry its own: the HUD strip sat on 5/10, the
+     island's caption on 6/14, the pill on 3/8/3/10, the Shed's header on
+     10/14/6/16 and its grid on 4/14/10/14 — measured, not chosen, and no two
+     panels agreed. The same went for the screen's edges (10px nearly
+     everywhere, 8 for the raid HUD, 12 and 18 for the top bar).
+
+     `--rr-edge` is the gap between ANY fixed piece of chrome and the screen
+     (add the safe-area inset on the side it touches). `--rr-pad` is the air
+     inside a panel or under a button's label. `--rr-pad-tight` is for the
+     small stuff — chips, badges, a one-line strip — where the full pad would
+     leave no room for the text.
+
+     They land on the game's own grid: the face is an 8px cell and the chrome
+     is a 2px stroke (see `PX`), so 6 and 10 are whole strokes off the cell. */
+  --rr-edge: 10px;
+  --rr-pad: 10px;
+  --rr-pad-tight: 6px;
+  /* An icon button's square (the shop, the story, the season board's trophy).
+     Declared here because things that must SIT BESIDE one have to reserve its
+     width, and a reserve typed as a number drifts the moment the button is
+     resized — which is exactly what happened: the top bar held 56px for a
+     68px trophy and the two overlapped by 2px. Keep in step with
+     `hub-icon-button.tsx`'s own clamp. */
+  --rr-icon: clamp(34px, 11svh, 68px);
+  /* THE WAY BACK'S HEIGHT, stated once because two rules measure against it:
+     the button's own `min-height` (back-button.tsx) and the placement kit row
+     that now stacks directly on top of it. The button is content-sized, and
+     its contents come to 49px on the Seeker — a 25px arrow plus the 24px of
+     label pad — so the floor is 50, not the 48 it used to carry: at 48 the
+     content won and the button was one pixel taller than anything measuring
+     it. Three copies of a height is how the top bar ended up holding 56px for
+     a 68px trophy. */
+  --rr-back-h: clamp(50px, 9svh, 64px);
+
   /* The top bar's band — the one measurement two layers have to agree on.
      `.rr-topbar` holds it open as a `min-height`, and the island's fixed
      `.rr-overlay` reserves it at the top so the run's HUD strip lands under
@@ -278,7 +313,7 @@ button { min-height: 44px; min-width: 44px; }
      the row can grow past its box on a narrow screen instead of the bar
      shrinking, which is what pushed the name off the edge. */
   min-width: 0;
-  padding: 8px 12px;
+  padding: var(--rr-pad-tight) var(--rr-pad);
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -463,8 +498,8 @@ button { min-height: 44px; min-width: 44px; }
 .rr-overlay > .rr-caption {
   align-self: center;
   max-width: 560px;
-  margin: 6px 0 0;
-  padding: 6px 14px;
+  margin: var(--rr-pad-tight) 0 0;
+  padding: var(--rr-pad-tight) var(--rr-pad);
   border-radius: 10px;
   background: rgba(13, 17, 23, 0.82);
   backdrop-filter: blur(6px);
@@ -504,7 +539,7 @@ button { min-height: 44px; min-width: 44px; }
 .rr-loop-bar {
   position: fixed;
   left: 50%;
-  bottom: calc(10px + env(safe-area-inset-bottom));
+  bottom: calc(var(--rr-edge) + env(safe-area-inset-bottom));
   transform: translateX(-50%);
   width: min(94vw, 1040px);
   display: flex;
@@ -523,7 +558,7 @@ button { min-height: 44px; min-width: 44px; }
 .rr-loop-slab:active .rr-loop-face { transform: translateY(4px); }
 /* The sound control keeps clear of the bar's right end. */
 body:has(.rr-loop-bar) .rr-sound {
-  bottom: calc(10px + env(safe-area-inset-bottom) + clamp(52px, 10.4svh, 80px) + 12px);
+  bottom: calc(var(--rr-edge) + env(safe-area-inset-bottom) + clamp(52px, 10.4svh, 80px) + 12px);
 }
 /* Upright phone: the three slabs stack, each a full-width row, and the
    arrows turn into a column between them. */
@@ -535,7 +570,7 @@ body:has(.rr-loop-bar) .rr-sound {
   /* The stacked bar is three rows tall; the sound cluster sat on the lower
      two (seen on a 390x844 drive). It clears the whole stack here. */
   body:has(.rr-loop-bar) .rr-sound {
-    bottom: calc(10px + env(safe-area-inset-bottom) + 3 * 48px + 2 * 6px + 12px);
+    bottom: calc(var(--rr-edge) + env(safe-area-inset-bottom) + 3 * 48px + 2 * 6px + 12px);
   }
   body:has(.rr-loop-bar) .rr-burrow {
     padding-bottom: calc(10px + env(safe-area-inset-bottom) + 3 * 48px + 2 * 6px + 20px);
@@ -549,7 +584,7 @@ body:has(.rr-loop-bar) .rr-sound {
    height, so a two-row top bar cannot slide under it. */
 .rr-toasts {
   position: fixed;
-  top: calc(var(--rr-chrome-top, calc(env(safe-area-inset-top) + var(--rr-topbar-h))) + 6px);
+  top: calc(var(--rr-chrome-top, calc(env(safe-area-inset-top) + var(--rr-topbar-h))) + var(--rr-pad-tight));
   left: 0;
   right: 0;
   width: max-content;
@@ -568,7 +603,7 @@ body:has(.rr-loop-bar) .rr-sound {
 }
 .rr-toast {
   margin: 0;
-  padding: 7px 14px;
+  padding: var(--rr-pad-tight) var(--rr-pad);
   border-radius: 10px;
   background: rgba(13, 17, 23, 0.82);
   backdrop-filter: blur(6px);
@@ -617,7 +652,7 @@ body:has(.rr-loop-bar) .rr-sound {
   left: calc(100% + 8px);
   top: 50%;
   translate: 0 -50%;
-  padding: 4px 9px;
+  padding: 2px var(--rr-pad-tight);
   border-radius: 999px;
   background: rgba(13, 17, 23, 0.82);
   border: 1px solid rgba(255, 140, 66, 0.6);
@@ -636,7 +671,7 @@ body:has(.rr-loop-bar) .rr-sound {
    gets a ground of its own: grey straight on the sea was 1.4:1. */
 .rr-burrow .rr-note {
   margin: 0;
-  padding: 6px 10px;
+  padding: var(--rr-pad-tight) var(--rr-pad);
   border-radius: 8px;
   background: rgba(13, 17, 23, 0.82);
   border: 1px solid var(--border);
@@ -657,7 +692,7 @@ body:has(.rr-loop-bar) .rr-sound {
    React unmounts it at BROUGHT_HOME_MS (page.tsx), which matches. */
 .rr-home-haul {
   position: absolute;
-  bottom: calc(100% + 10px);
+  bottom: calc(100% + var(--rr-pad-tight));
   left: 0;
   right: 0;
   width: max-content;
@@ -665,7 +700,7 @@ body:has(.rr-loop-bar) .rr-sound {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 7px 14px;
+  padding: var(--rr-pad-tight) var(--rr-pad);
   border-radius: 10px;
   background: rgba(13, 17, 23, 0.82);
   backdrop-filter: blur(6px);
@@ -793,18 +828,22 @@ body:has(.rr-loop-bar) .rr-sound {
   81%  { opacity: 1; }
   100% { opacity: 0; }
 }
-/* The burst: brighter, wider and held longer than the old 0.75 wash, and
-   SCREENED over the dim so it reads as light thrown on the scene rather than
-   as a pale fog laid on top of it. */
+/* The burst, SCREENED over the dim so it reads as light thrown on the scene
+   rather than as a pale fog laid on top of it.
+   PULLED BACK (Paul, 2026-09-16: "the glow is too strong"). It had a pure
+   white core at full alpha screened over the whole screen, which blew out the
+   burrow behind it — the stamp was announcing itself by erasing the thing it
+   was congratulating you for. The light still blooms from the middle and still
+   reaches the corners; it just no longer clips to white. */
 .rr-levelup-flash {
   position: absolute; inset: 0;
   /* In vmin, not percentages: a percentage gradient is sized by the corner
      distance, so on a 1376px desktop the same stops spread the light so thin
      it barely registered, while a phone got a blinding one. */
   background: radial-gradient(circle at 50% 50%,
-    rgba(255, 248, 214, 1) 0,
-    rgba(255, 214, 92, 0.9) 14vmin,
-    rgba(255, 160, 40, 0.45) 32vmin,
+    rgba(255, 248, 214, 0.7) 0,
+    rgba(255, 214, 92, 0.5) 14vmin,
+    rgba(255, 160, 40, 0.24) 32vmin,
     rgba(255, 160, 40, 0) 58vmin);
   mix-blend-mode: screen;
   animation: rr-levelup-flash 1200ms ease-out both;
@@ -858,15 +897,16 @@ body:has(.rr-loop-bar) .rr-sound {
   position: relative;
   font-family: var(--font-pixel), ui-monospace, monospace;
   font-size: clamp(22px, 6vw, 44px); letter-spacing: 0.08em; color: #ffd138;
-  /* The glow in three rings — a hot core tight to the glyphs, the gold bloom,
-     and a wide orange halo — where one soft 24px shadow barely lifted the
-     letters off the ground. The dark drop stays first, for the edge. */
+  /* The glow in two rings — a hot core tight to the glyphs and the gold bloom
+     — where one soft 24px shadow barely lifted the letters off the ground.
+     The dark drop stays first, for the edge. The wide 48/90px orange rings
+     came off with the flash: stacked under a screened burst they turned the
+     whole middle of the screen into one orange smear, and the letters lost
+     the hard pixel edge that is the point of this typeface. */
   text-shadow:
     0 3px 0 #7a3a10,
-    0 0 6px rgba(255, 248, 214, 0.95),
-    0 0 20px rgba(255, 209, 56, 1),
-    0 0 48px rgba(255, 170, 40, 0.85),
-    0 0 90px rgba(255, 140, 30, 0.6);
+    0 0 6px rgba(255, 248, 214, 0.9),
+    0 0 20px rgba(255, 209, 56, 0.8);
   text-align: center;
   /* Held to 1700ms before it lifts — at 1100 the stamp was gone before a
      player had finished reading the second line. */
@@ -880,7 +920,7 @@ body:has(.rr-loop-bar) .rr-sound {
   inset: -45% -14%;
   z-index: -1;
   border-radius: 50%;
-  background: radial-gradient(ellipse at center, rgba(255, 214, 92, 0.6) 0%, rgba(255, 160, 40, 0.25) 45%, rgba(255, 160, 40, 0) 72%);
+  background: radial-gradient(ellipse at center, rgba(255, 214, 92, 0.38) 0%, rgba(255, 160, 40, 0.14) 45%, rgba(255, 160, 40, 0) 72%);
   filter: blur(6px);
   animation: rr-levelup-halo 900ms ease-in-out infinite alternate;
 }
@@ -927,8 +967,8 @@ body:has(.rr-loop-bar) .rr-sound {
 .rr-overlay > .rr-recentre {
   align-self: center;
   width: auto;
-  margin: 8px 0 0;
-  padding: 8px 16px;
+  margin: var(--rr-pad-tight) 0 0;
+  padding: var(--rr-pad-tight) var(--rr-pad);
   font-size: 12px;
 }
 
@@ -1032,12 +1072,12 @@ body:has(.rr-loop-bar) .rr-sound {
   right: 0;
   width: max-content;
   margin-inline: auto;
-  bottom: calc(10px + env(safe-area-inset-bottom) + clamp(52px, 10.4svh, 80px) + 64px);
+  bottom: calc(var(--rr-edge) + env(safe-area-inset-bottom) + clamp(52px, 10.4svh, 80px) + 64px);
   z-index: 40;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
+  gap: var(--rr-pad-tight);
+  padding: var(--rr-pad-tight) var(--rr-pad);
   border-radius: 999px;
   background: rgba(13, 17, 23, 0.9);
   border: 1px solid rgba(255, 107, 107, 0.6);
@@ -1178,7 +1218,7 @@ body:has(.rr-loop-bar) .rr-sound {
   height: 100%;
   display: flex;
   flex-direction: column;
-  padding: env(safe-area-inset-top) 12px env(safe-area-inset-bottom);
+  padding: env(safe-area-inset-top) var(--rr-edge) env(safe-area-inset-bottom);
   overflow: hidden;
 }
 /* The page content sits above the painting.
@@ -1204,7 +1244,7 @@ body:has(.rr-loop-bar) .rr-sound {
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  bottom: calc(10px + env(safe-area-inset-bottom));
+  bottom: calc(var(--rr-edge) + env(safe-area-inset-bottom));
   z-index: 20;
 }
 
@@ -1212,8 +1252,30 @@ body:has(.rr-loop-bar) .rr-sound {
    Above the floor furniture (20) so the centred kit can never sit over it. */
 .rr-back-btn {
   position: fixed;
-  left: calc(10px + env(safe-area-inset-left));
-  bottom: calc(10px + env(safe-area-inset-bottom));
+  /* BOTTOM CENTRE (Paul, 2026-09-16: "ramene les boutons back, retreat, etc.
+     bottom centre"). It sat in the bottom-LEFT corner, which is where the eye
+     goes last on a screen whose every other control is centred on the floor —
+     the one control every screen shares was the one you had to hunt for.
+     The middle is free wherever this button appears: placing slides the loop
+     bar away, a raid has no loop bar, and the island's own HOME is never on
+     screen at the same time as this (page.tsx renders one or the other). The
+     placement kit row does want the same spot, so it stacks ABOVE this button
+     rather than beside it — see `.rr-kit-row` and `--rr-back-h`.
+
+     CENTRED WITHOUT A TRANSFORM, and that is the whole point of these four
+     lines. `left: 50%` + `translateX(-50%)` measured 60px off centre on
+     desktop and dead centre on the Seeker — the kit's button writes its own
+     `transform` on :hover, which replaces the centring outright, and a touch
+     screen never hovers. Chasing that with a `:hover` override would only wait
+     for the next state that animates a transform (:active already needed one).
+     Margin centring cannot be clobbered, so the kit keeps its transform for
+     the squash and the button stays put. */
+  left: 0;
+  right: 0;
+  margin-inline: auto;
+  width: fit-content;
+  bottom: calc(var(--rr-edge) + env(safe-area-inset-bottom));
+  min-height: var(--rr-back-h);
   z-index: 22;
 }
 /* The global `button:active` nudge would move a fixed slab; the face sinks instead. */
@@ -1236,7 +1298,8 @@ body:has(.rr-loop-bar) .rr-sound {
   /* 18px from each edge in the mock (x 18 on the left, 1358 of 1376 on the
      right) — the panels sit close to the corners, not floating inside a
      gutter. */
-  padding: 8px 18px 4px;
+  /* The sides are the screen's own gutter, like every other piece of chrome. */
+  padding: var(--rr-pad-tight) var(--rr-edge) 4px;
   /* PINNED, not content-driven. The island's overlay reserves exactly this
      band at its top so the run's HUD starts below the bar instead of on top of
      it, and a band whose height depends on whether a carrot gain is mid-flight
@@ -1268,7 +1331,7 @@ body:has(.rr-loop-bar) .rr-sound {
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  top: 10px;
+  top: var(--rr-edge);
   /* Above the board and the column, below the drawers — same band as the
      launcher row, for the same reason. */
   z-index: 20;
@@ -1629,7 +1692,7 @@ body:has(.rr-loop-bar) .rr-sound {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-top: calc(env(safe-area-inset-top) + 10px);
+  padding-top: calc(env(safe-area-inset-top) + var(--rr-edge));
   pointer-events: none;
 }
 
@@ -1766,8 +1829,8 @@ body:has(.rr-loop-bar) .rr-sound {
    so the row lines up with the cards above it. */
 .rr-hub-row {
   position: fixed;
-  left: 10px;
-  bottom: calc(10px + env(safe-area-inset-bottom));
+  left: var(--rr-edge);
+  bottom: calc(var(--rr-edge) + env(safe-area-inset-bottom));
   /* Sized to the TILES, not to a column width, and stated rather than
      inferred: four squares of `12.4svh` plus three 8px gaps. `fit-content`
      was the first attempt and a `position: fixed` flex row reports width 0
@@ -1833,8 +1896,16 @@ body:has(.rr-loop-bar) .rr-sound {
      The raid kit shows only while PLACING now, and placing unmounts the four
      launcher tiles — so an anchor that reserved their height would have left
      the row hovering over an empty corner. It takes the tiles' own margin
-     instead, and lands exactly where SHOP sits the rest of the time. */
-  bottom: calc(10px + env(safe-area-inset-bottom));
+     instead, and lands exactly where SHOP sits the rest of the time.
+
+     IT NOW STANDS ON THE WAY BACK (Paul, 2026-09-16: "layout les options
+     actuellement en bas de l'ecran juste en dessus du bouton back"). Both the
+     row and the exit want the middle of the floor, so they stack instead of
+     competing for it: the exit on the floor, the options directly above it,
+     one column in the middle of the screen. The offset is `--rr-back-h` and
+     not a number, because the button is content-sized and grew by a pixel the
+     last time its arrow changed. */
+  bottom: calc(var(--rr-edge) + env(safe-area-inset-bottom) + var(--rr-back-h) + var(--rr-pad));
   /* EDGE TO EDGE, because the two halves go to opposite corners.
      The raid kit stays at the left margin and the garden's bottles are pushed
      to the right one, so the empty water between them is what separates the
@@ -1932,8 +2003,8 @@ body:has(.rr-burrow) .rr-burrow {
      corner — so the control finally has a place of its own rather than a gap
      between other people's furniture. */
   position: fixed;
-  right: 10px;
-  bottom: calc(10px + env(safe-area-inset-bottom));
+  right: var(--rr-edge);
+  bottom: calc(var(--rr-edge) + env(safe-area-inset-bottom));
   /* Above the GO button and the burrow column, below the drawers (29+) —
      this is chrome, and a drawer that is open is the thing being read. */
   z-index: 28;
@@ -2244,7 +2315,7 @@ body:has(.rr-empty) .rr-sound { display: none; }
      water like the cards do. */
   position: fixed;
   top: clamp(52px, 13svh, 100px);
-  right: 10px;
+  right: var(--rr-edge);
   bottom: clamp(12px, 8svh, 60px);
   /* 26% of the width, which is the share the mock holds (360px of 1376) —
      not a flat 330px, which was right only at the window it was drawn for and
@@ -2338,8 +2409,14 @@ body:has(.rr-lb.open:not(.rr-profile)) .rr-lb-launch {
 .rr-lb-launch {
   transition: opacity 200ms ease, visibility 200ms;
   position: fixed;
-  top: 10px;
-  right: 10px;
+  /* IT SITS IN THE TOP BAR'S ROW, not against the screen's edge. Pinned at
+     `--rr-edge` it centred 4px below the shop and the story beside it — it was
+     measuring off the corner while they measured off the bar. The bar's own
+     top inset is `--rr-pad-tight`, so this takes the same one and the three
+     icons share a centre line. The side stays `--rr-edge`: that IS the bar's
+     side gutter. */
+  top: var(--rr-pad-tight);
+  right: var(--rr-edge);
   /* Above the panel it opens (29), so it is never buried by its own drawer. */
   z-index: 31;
   display: inline-flex;
@@ -2526,7 +2603,8 @@ body:has(.rr-lb.open:not(.rr-profile)) .rr-lb-launch {
 .rr-guest-tag {
   display: inline-block;
   margin-left: 6px;
-  padding: 1px 5px;
+  /* The same chip inset as the other two (`.rr-badge`, `.rr-new-tag`). */
+  padding: 1px 4px;
   border: 1px solid var(--border);
   border-radius: 6px;
   color: var(--muted);
@@ -2976,7 +3054,9 @@ button { font-family: var(--font-pixel); }
   z-index: 40;
   display: grid;
   place-items: center;
-  padding: 16px;
+  /* The gutter that keeps a dialog off the screen's edge — the same one every
+     piece of fixed chrome uses. */
+  padding: var(--rr-edge);
   background: rgba(10, 6, 4, 0.78);
   backdrop-filter: blur(3px);
   -webkit-backdrop-filter: blur(3px);
@@ -3374,7 +3454,9 @@ button { font-family: var(--font-pixel); }
   z-index: 40;
   display: grid;
   place-items: center;
-  padding: 16px;
+  /* The gutter that keeps a dialog off the screen's edge — the same one every
+     piece of fixed chrome uses. */
+  padding: var(--rr-edge);
   background: rgba(10, 6, 4, 0.78);
   backdrop-filter: blur(3px);
   -webkit-backdrop-filter: blur(3px);
@@ -3673,12 +3755,12 @@ button { font-family: var(--font-pixel); }
    walked. Fixed, because the board behind it is a canvas that fills the screen. */
 .rr-raid-hud {
   position: fixed;
-  top: calc(8px + env(safe-area-inset-top));
+  top: calc(var(--rr-edge) + env(safe-area-inset-top));
   left: 50%;
   transform: translateX(-50%);
   z-index: 20;
-  width: min(420px, calc(100% - 20px));
-  padding: 10px 12px;
+  width: min(420px, calc(100% - 2 * var(--rr-edge)));
+  padding: var(--rr-pad-tight) var(--rr-pad);
   border-radius: 12px;
   background: rgba(29, 16, 10, 0.88);
   border: 1px solid #4a2f1d;

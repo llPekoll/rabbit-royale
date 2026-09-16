@@ -214,8 +214,12 @@ const pill: CSSProperties = {
 const plate: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  gap: 10,
-  padding: '3px 8px 3px 10px',
+  /* The one gap between an image and the text it belongs to, everywhere on the
+     top bar and the floor. */
+  gap: 'var(--rr-pad)',
+  /* A one-line plate: the tight pad above and below, the full pad each side.
+     It was 3/8/3/10 — four different numbers on one small panel. */
+  padding: 'var(--rr-pad-tight) var(--rr-pad)',
   boxSizing: 'border-box',
 };
 
@@ -307,7 +311,9 @@ const rankRow: CSSProperties = {
  */
 const rankChip: CSSProperties = {
   display: 'inline-block',
-  padding: '2px 4px 1px',
+  /* The game's chip inset: 2px of vertical room — all a 10px line can spare —
+     and the tight pad each side, the same as every other badge and tag. */
+  padding: '2px var(--rr-pad-tight)',
   background: RANK_GOLD,
   boxShadow: '0 0 0 1px #2a180e',
   color: '#2a180e',
@@ -318,6 +324,7 @@ const rankChip: CSSProperties = {
 /** The haul beside the pill: a small glass plate in the pixel frame. */
 const carryPlate: CSSProperties = {
   display: 'block',
-  padding: '1px 6px',
+  /* A chip, on the game's chip inset. */
+  padding: '2px var(--rr-pad-tight)',
   lineHeight: 1,
 };

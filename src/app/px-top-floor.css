@@ -2,6 +2,81 @@
    chip, icon buttons, loop bar, back button, kit, HUD strip). Owned by one
    rollout pass; see src/components/px.tsx. Loaded after globals.css. */
 
+/* ── THE TWO DERIVED SPACING VALUES ────────────────────────────────────────
+   globals.css owns the three numbers (`--rr-edge`, `--rr-pad`,
+   `--rr-pad-tight`). These two are what a KIT BUTTON needs on top of them,
+   and they live here because they are facts about the kit's construction
+   rather than about the game's spacing.
+
+   `--rr-bevel` is the dark lip the kit paints along a button's bottom edge:
+   BEVEL (6 source pixels) at whatever pixel that button is drawn at. `--u` is
+   the pixel each kit button publishes inline, so this follows a button drawn
+   at another scale (the mute is `UI_PIXEL`, the rest are `PX`); the 2px
+   fallback is `PX` itself, for use outside a button.
+
+   `--rr-btn-pad` is a label's air. The kit's own padding is `0 u(4) u(6)` —
+   no top air at all, and the whole bottom reserved for the lip — so a label
+   sat high on the face. The tight pad above, the full pad each side, and the
+   tight pad again BELOW THE LIP puts the same air on all four sides of the
+   face. Custom properties resolve where they are used, so a button that
+   declares its own `--u` gets its own bevel out of this one definition. */
+:root {
+  --rr-bevel: calc(var(--u, 2px) * 6);
+  --rr-btn-pad: var(--rr-pad-tight) var(--rr-pad) calc(var(--rr-pad-tight) + var(--rr-bevel));
+}
+
+/* ── The screen's edges, for the two rules globals still states in literals ─
+   Both belong in globals.css beside the rest of the sweep (see the report);
+   they are overridden here because this file owns the top bar and the floor
+   and loads last.
+
+   THE TOP BAR held `8px 18px 4px` — three numbers, and its own top and bottom
+   air differed by 4px. The band's height does not move here: 6 + the 44px chip
+   + 6 is the 56px `--rr-topbar-h` that the island's overlay reserves.
+
+   NO SIDE PADDING, because the bar is already inside the edge gutter. The page
+   (`.rr-home`) pads itself by `--rr-edge`, so ANY side padding on the bar is a
+   second gutter: at 18px the wallet chip stood 28px from the screen, and at
+   `--rr-edge` it would still stand at 20, where the pill, the loop bar, the
+   BACK button, the kit and the mute all stand at 10. Vertical only, and the
+   chip and the icon buttons land on the same line as the rest of the chrome. */
+.rr-topbar { padding: var(--rr-pad-tight) 0; }
+/* A NARROW WINDOW KEEPS ITS SECOND ROW. Under 480px the bar reserves 60px
+   below itself for the carrot pill, which drops out of the centre and sits
+   left-aligned under the chip (globals.css). That reserve is a `padding-bottom`
+   at the same specificity as the rule above, in an EARLIER sheet — so the
+   shorthand here would silently win and put the pill back on top of the chip.
+   Restated, not removed: this file may only make the bar's air uniform, not
+   take a row away from a layout that needs it. */
+@media (max-width: 480px) {
+  .rr-topbar { padding-bottom: 60px; }
+}
+
+/* THE ISLAND'S ONE ACTION (go-button.tsx) held `14px 16px` — a fifth and a
+   sixth number for the same job. Its plate and arrow are the content; this is
+   the air around them. It also stood 6px off the bottom of the screen — its
+   own `margin: 10px auto 6px` — where every other piece of chrome stands at
+   `--rr-edge`. */
+.rr-go {
+  padding: var(--rr-pad-tight) var(--rr-pad);
+  margin-bottom: var(--rr-edge);
+}
+/* The word to the sprite under it: the one image-to-label gap, as on the
+   carrot pill, the BACK button and the DIG slab. */
+.rr-go-inner { gap: var(--rr-pad); }
+
+/* THE SOUND PANEL held `12px 14px 14px` — three numbers on one small panel.
+   The full pad all round is the air every panel in the game now takes; the
+   frame it sits inside is 2 source px, which the pad clears on every side. */
+.rr-sound-panel-inner { gap: var(--rr-pad); padding: var(--rr-pad); }
+
+/* ── Chips and tags, on the game's chip inset ──────────────────────────────
+   2px is all a 14px line can spare vertically; the tight pad each side is
+   what every badge in the game now takes. Matches `.rr-pill-carrying` in
+   globals.css, and the badges set from carrot-pill/hub-icon-button/loop-bar. */
+.rr-wallet .rr-guest-tag,
+.rr-wallet .rr-badge { padding: 2px var(--rr-pad-tight); }
+
 /* ── A kit button whose content fills its face ─────────────────────────────
    The kit centres its children in an inline span sized to them, so a corner
    badge or a count chip positioned inside it hung off the GLYPH, not the
@@ -56,17 +131,13 @@ body:has(.rr-loop-bar) .rr-pill-plate { animation-delay: 45ms; }
 .rr-loop-cell > .rr-loop-slab { flex: 1 1 auto; min-width: 0; }
 /* The face-sink rule for the old plinth slabs; the kit sinks its own cap. */
 .rr-loop-slab:active .rr-loop-face { transform: none; }
-/* DEFEND is the place you stand in, lit with the lamp: a gold pixel ring that
-   follows the button's own stepped silhouette (four hard drop-shadows). On
-   the cell, because the kit's hover writes `filter` on the button. */
-.rr-loop-cell-lit {
-  --rr-ring: clamp(2px, 0.4svh, 3px);
-  filter:
-    drop-shadow(var(--rr-ring) 0 0 #ffd138)
-    drop-shadow(calc(-1 * var(--rr-ring)) 0 0 #ffd138)
-    drop-shadow(0 var(--rr-ring) 0 #ffd138)
-    drop-shadow(0 calc(-1 * var(--rr-ring)) 0 #ffd138);
-}
+/* `.rr-loop-cell-lit` WAS HERE: a gold pixel ring around DEFEND, to mark it as
+   the place you were standing in. It is gone, and should not come back — a
+   ring around a control reads as SELECTED, so the floor kept announcing a
+   state DEFEND did not have ("why is DEFEND seemingly highlighted with a
+   yellow outline?"). The three slabs are told apart by their FACE now, one hue
+   per verb; see the palette in loop-bar.tsx. An outline on this floor is free
+   to mean state again — so if you need one, that is what it is for. */
 /* A pop's `both` fill would pin the slab's transform after it ends and kill
    the squash on every later press. */
 .rr-px-btn.rr-tab-pop { animation-fill-mode: backwards; }
@@ -88,8 +159,9 @@ body:has(.rr-loop-bar) .rr-pill-plate { animation-delay: 45ms; }
 .rr-home-haul-plate {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 5px 12px;
+  /* The one image-to-label gap, and the one one-line-plate inset. */
+  gap: var(--rr-pad);
+  padding: var(--rr-pad-tight) var(--rr-pad);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
 }
@@ -115,7 +187,7 @@ body:has(.rr-loop-bar) .rr-pill-plate { animation-delay: 45ms; }
 /* The name ellipsises inside the kit's content span, which must be allowed to
    shrink under the chip's 20% cap. */
 .rr-wallet > .nine-btn__content { min-width: 0; max-width: 100%; }
-.rr-wallet .rr-guest-tag { border-radius: 0; border-width: 2px; line-height: 12px; }
+.rr-wallet .rr-guest-tag { border-radius: 0; border-width: 2px; line-height: 12px; margin-left: var(--rr-pad-tight); }
 .rr-wallet .rr-badge { border-radius: 0; box-shadow: 0 0 0 2px #0d1117; }
 
 /* ── The kit's slots ───────────────────────────────────────────────────── */
@@ -142,7 +214,9 @@ body:has(.rr-loop-bar) .rr-pill-plate { animation-delay: 45ms; }
   row-gap: inherit;
   flex-wrap: inherit;
   min-width: 0;
-  padding: 5px 10px;
+  /* The island's strip on the same one-line-plate inset as the caption under
+     it and the pill above it; it was 5/10. */
+  padding: var(--rr-pad-tight) var(--rr-pad);
   box-sizing: border-box;
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);

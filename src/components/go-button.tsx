@@ -71,7 +71,8 @@ export function GoButton({ dir, label, onClick, disabled, away }: GoButtonProps)
           <button> itself stays still so its hit area does not travel under
           the thumb. */}
       <span className="rr-go-inner">
-        <PxPanel color={PLATE} className="rr-go-label" style={{ padding: '4px 10px 3px', lineHeight: 1 }}>
+        {/* A one-line plate, on the game's panel inset (it was 4/10/3). */}
+        <PxPanel color={PLATE} className="rr-go-label" style={{ padding: 'var(--rr-pad-tight) var(--rr-pad)', lineHeight: 1 }}>
           {label}
         </PxPanel>
         <Arrow dir={dir} size={size} />

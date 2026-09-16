@@ -232,8 +232,10 @@ export function LeaderboardDrawer({ token, playerId, onSpectate, onMe, onOpen }:
         </header>
 
         <div className="rr-lb-list">
+          {/* The empty note is the list's only content, so it takes the list's
+              own inset rather than a literal of its own. */}
           {entries.length === 0 && (
-            <p style={{ color: 'var(--muted)', padding: 12, margin: 0 }}>
+            <p style={{ color: 'var(--muted)', padding: 'var(--rr-pad)', margin: 0 }}>
               Nobody has scored yet. Be the first.
             </p>
           )}

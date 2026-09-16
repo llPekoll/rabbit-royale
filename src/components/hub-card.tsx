@@ -116,7 +116,7 @@ export function HubCard({
   // the simple row the energy card needs.
   if (footer) {
     return (
-      <PxPanel color={FACE_TOP} style={{ ...cardBase, ...stacked, ...heightBox(ratio), ...style }}>
+      <PxPanel color={FACE_TOP} className="rr-hub-card" style={{ ...cardBase, ...stacked, ...heightBox(ratio), ...style }}>
         <div style={band}>
           {sprite}
           <div style={column}>{children}</div>
@@ -127,7 +127,7 @@ export function HubCard({
   }
 
   return (
-    <PxPanel color={FACE_TOP} style={{ ...cardBase, ...heightBox(ratio), ...style }}>
+    <PxPanel color={FACE_TOP} className="rr-hub-card" style={{ ...cardBase, ...heightBox(ratio), ...style }}>
       {sprite}
       <div style={column}>{children}</div>
     </PxPanel>
@@ -204,23 +204,30 @@ const stacked: CSSProperties = {
      the Seeker it was still 12px of gutter inside a 54px card, and the button
      was clipped. `svh` is what the height itself is measured in, so the gap
      holds its proportion at every size. */
-  gap: '0.6svh',
+  /* The band-to-footer gap. `0.6svh` held its proportion but was, again, a
+     number only this file knew (4.6px desktop, 2.4px Seeker). `--rr-pad-tight`
+     is the game's answer for the small stuff and it is what separates the two
+     rows of a card, everywhere, at every size. */
+  gap: 'var(--rr-pad-tight)',
 };
 
 /** The art-and-text row inside a stacked card. */
 const band: CSSProperties = {
   display: 'flex',
   alignItems: 'flex-start',
-  gap: '5%',
+  // The same art-to-label gap the unstacked card uses — see `cardBase`.
+  gap: 'var(--rr-card-pad, var(--rr-pad))',
 };
 
 const cardBase: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  // 17px between the art and the text block in the mock, against an 18px pad.
-  // Horizontal, so a %-of-width is exactly right here — it is the one gap in
-  // this file that is not measuring against the card's height.
-  gap: '5%',
+  /* The art-to-label gap, and it is the SAME length as the pad around them.
+     A %-of-width put 16.6px here on the desktop and 10.5 on the Seeker, so the
+     sprite stood at a different distance from its own text on every screen.
+     The sprite is an element in a panel like any other: it takes the panel's
+     pad as its inset and the panel's pad as its gap. */
+  gap: 'var(--rr-card-pad, var(--rr-pad))',
   /* 18px of a 334px inner in the mock ≈ 5% across, and ~13% of the card's
      height down.
      The vertical pad must scale with the card's HEIGHT, which a percentage
@@ -239,7 +246,23 @@ const cardBase: CSSProperties = {
      for. 1.1svh is ~8px at desktop and ~4px on the Seeker — the mock's
      proportion, and small enough that a 46px-tall card still has room for its
      contents. */
-  padding: '1.1svh 5%',
+  /* THE GAME'S ONE PAD, not this card's own number.
+     Everything above is the record of how `1.1svh 5%` was arrived at, and it
+     was never wrong so much as PRIVATE: a share of the viewport down and a
+     share of the card's own width across means no two cards on the screen —
+     and no two screens — ever agreed on the air inside them. The burrow's
+     three cards measured 8.4/16.6 on the desktop and 4.4/10.5 on the Seeker,
+     four different numbers for one gesture. `--rr-pad` is the whole game's
+     answer to "how much air inside a panel", so the card takes it on all four
+     sides and stops having an opinion.
+     The card is still a `size` container whose height comes from the viewport,
+     so a pad that does not scale is a real risk on a short screen — that is
+     what `--rr-card-pad` is for: px-raid.css swaps it to `--rr-pad-tight`
+     under `@media (max-height: 520px)`, where the Seeker's cards are ~54px and
+     the full pad would eat the button. A variable rather than an `!important`
+     override because this padding is an inline style, and the cascade can only
+     reach INTO it through a custom property. */
+  padding: 'var(--rr-card-pad, var(--rr-pad))',
   boxSizing: 'border-box',
   width: '100%',
   /* THE FRAME IS THE CODEX'S NOW (`PxPanel`): the kit's nine-slice pixel
@@ -280,12 +303,11 @@ const column: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   justifyContent: 'center',
-  /* 11% of the CARD's height — the mock leaves 12px of a 111px card between a
-     heading's ink and the line under it. `cqh`, not `%`: this column's own
-     height is set by its contents, so a percentage gap resolved to zero and
-     welded the sub-line to the heading. Same trap as the energy trough and the
-     garden's plant; `cqh` always means the card. */
-  gap: '6cqh',
+  /* The heading-to-fine-print gap. `6cqh` landed on 6.7px in a desktop card,
+     which is `--rr-pad-tight` to within a rounding error — so this was already
+     the game's small gap, measured the long way round. Stated as the token now,
+     which also stops it drifting with the card's height. */
+  gap: 'var(--rr-pad-tight)',
   flex: 1,
   minWidth: 0,
 };
@@ -324,7 +346,7 @@ const headRow: CSSProperties = {
   display: 'flex',
   alignItems: 'baseline',
   justifyContent: 'space-between',
-  gap: 10,
+  gap: 'var(--rr-pad)',
 };
 
 /**
@@ -357,7 +379,9 @@ export const valueText: CSSProperties = {
   lineHeight: 1,
   display: 'inline-flex',
   alignItems: 'center',
-  gap: 4,
+  // The carrot mark's gap to the number it marks — an image beside a label
+  // takes the game's small gap, the same one every other pairing here uses.
+  gap: 'var(--rr-pad-tight)',
 };
 
 /** The line under a heading that says what the number MEANS. */

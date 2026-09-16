@@ -288,7 +288,8 @@ const bottleStart: CSSProperties = {
 const row: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  gap: 10,
+  /* The one gap the top bar and the floor use between neighbouring pieces. */
+  gap: 'var(--rr-pad)',
   /* The row is furniture on the floor, so WHERE it sits belongs to
      globals.css (`.rr-kit-row`) alongside the launcher tiles it stands on and
      the mute it shares the corner with — those three have to agree, and they

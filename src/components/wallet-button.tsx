@@ -16,7 +16,7 @@ import { useEffect, useState, type CSSProperties } from 'react';
 import { useWalletLogin } from '@/components/use-wallet-login';
 import { ProfileMenu } from '@/components/profile-menu';
 import { avatarSrc, AVATAR_FRAME } from '@/lib/game/avatars';
-import { PX, PxButton, pxLabel } from '@/components/px';
+import { PxButton, pxLabel } from '@/components/px';
 
 /* The chip's colours, as the stylesheet gave them: the dark panel face, the
    page ground under it for a bevel, the border's grey for its gloss, and the
@@ -30,7 +30,10 @@ const CROWN = '#ffd45c';
 /** The codex's pixel button at the top bar's 44px chip height, in web type. */
 const chip: CSSProperties = {
   height: 44,
-  padding: `0 calc(${PX} * 4) calc(${PX} * 5)`,
+  /* The label's air, the same on every button in the game: the tight pad above
+     and each side at the full pad, with the kit's bevel lip reserved under it
+     so the text sits optically centred on the face rather than on the box. */
+  padding: 'var(--rr-btn-pad)',
   fontFamily: pxLabel.fontFamily,
   fontSize: 12,
   fontWeight: 400,
