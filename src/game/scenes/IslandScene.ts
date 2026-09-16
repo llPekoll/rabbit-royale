@@ -30,6 +30,7 @@ import { KeyboardControls } from '../services/KeyboardControls';
 import { createTerrainBackground, type TerrainBackground } from '../services/TerrainBackground';
 import { MoveArrows } from '../ui/MoveArrows';
 import { CloudField } from '../fx/Clouds';
+import { BirdFlock } from '../fx/Birds';
 import { Drain } from '../fx/Drain';
 import {
   initBlastTextures, playBlast, knockBack, impactShake, blastDepth, SHAKE_PX,
@@ -159,6 +160,7 @@ export class IslandScene implements Scene {
   private stunTimer: ReturnType<typeof setTimeout> | null = null;
   private arrows: MoveArrows | null = null;
   private clouds: CloudField | null = null;
+  private birds: BirdFlock | null = null;
   /** The map's grey once the local run has ended — see `drainMap`. */
   private readonly drain = new Drain();
   private onResize: (() => void) | null = null;
@@ -244,6 +246,9 @@ export class IslandScene implements Scene {
     // screenshot. Clouds only ever cross the SEA — never the board, where they
     // would hide the numbers the game is read from.
     this.clouds = new CloudField(this.container, { width: this.canvasW, height: this.canvasH });
+    // Sous les rais de lumiere, au-dessus du sol : le vol baigne dans le
+    // soleil au lieu de se poser par-dessus.
+    this.birds = new BirdFlock(this.container, { width: this.canvasW, height: this.canvasH });
 
     // The design space is scaled to FIT the window, so a viewport that is not
     // 16:9 leaves bare canvas the ground has to reach across. That margin
@@ -253,6 +258,7 @@ export class IslandScene implements Scene {
       // Same reason as the ground: the sky's bands are fractions of the design
       // space, so a rotation that swaps it leaves them solved for the old one.
       this.clouds?.resize(this.canvasW, this.canvasH);
+      this.birds?.resize(this.canvasW, this.canvasH);
       this.reframe();
     };
     window.addEventListener('resize', this.onResize);
@@ -950,6 +956,7 @@ export class IslandScene implements Scene {
     this.container.scale.set(cam.scale);
     this.container.position.set(cam.x, cam.y);
     this.clouds?.counterCamera(cam.scale, cam.x, cam.y);
+    this.birds?.counterCamera(cam.scale, cam.x, cam.y);
 
     const inView = this.isRabbitInView();
     if (inView !== this.rabbitInView) {
@@ -1428,6 +1435,7 @@ export class IslandScene implements Scene {
   /** Pixi's ticker, in real milliseconds. */
   update(deltaTime: number): void {
     this.clouds?.update(deltaTime * (1000 / 60));
+    this.birds?.update(deltaTime * (1000 / 60));
     // The island breathes: trees sway, bushes rustle, the flock shifts.
     this.background?.update(deltaTime * (1000 / 60));
 
@@ -1442,6 +1450,7 @@ export class IslandScene implements Scene {
       this.lastH = h;
       this.background?.layout(this.canvasW / 2, this.canvasH / 2);
       this.clouds?.resize(this.canvasW, this.canvasH);
+      this.birds?.resize(this.canvasW, this.canvasH);
       this.reframe();
     }
   }
@@ -1471,6 +1480,7 @@ export class IslandScene implements Scene {
       this.onWheel = null;
     }
     this.clouds?.destroy();
+    this.birds?.destroy();
     this.arrows?.destroy();
     this.controls?.destroy();
     this.background?.destroy();

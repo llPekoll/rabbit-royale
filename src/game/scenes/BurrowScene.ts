@@ -31,6 +31,7 @@ import type { Scene } from '../SceneManager';
 import { SceneManager } from '../SceneManager';
 import { GAME_W, GAME_H } from '../Application';
 import { CloudField } from '../fx/Clouds';
+import { BirdFlock } from '../fx/Birds';
 import { CarrotCrop } from '../entities/CarrotCrop';
 import { getDiamondFill, getDiamondOutline, diamondScaleFor } from '../services/TileTextures';
 import { shadowedPixelText } from '../ui/PixelText';
@@ -326,6 +327,7 @@ function veilAlpha(veil: RaidCell['veil'], seen: boolean): number {
 export class BurrowScene implements Scene {
   container: Container;
   private clouds: CloudField | null = null;
+  private birds: BirdFlock | null = null;
   private terrain: BurrowTerrainView | null = null;
   private crop: CarrotCrop | null = null;
   private board = new Container();
@@ -512,6 +514,9 @@ export class BurrowScene implements Scene {
     this.buildCrop();
     // The same sky as the island, so the two screens are the same world.
     this.clouds = new CloudField(this.container, { width: GAME_W, height: GAME_H });
+    // Le meme ciel que l'ile, donc les memes oiseaux : c'est en partie ce qui
+    // fait que les deux ecrans se lisent comme un seul monde.
+    this.birds = new BirdFlock(this.container, { width: GAME_W, height: GAME_H });
 
     this.container.addChild(this.board);
     this.buildBoard();
@@ -529,6 +534,7 @@ export class BurrowScene implements Scene {
     // and the bottom of the screen goes bare.
     this.onResize = () => {
       this.clouds?.resize(GAME_W, GAME_H);
+      this.birds?.resize(GAME_W, GAME_H);
       this.moveCamera(this.wantedCam(), true);
     };
     window.addEventListener('resize', this.onResize);
@@ -1201,6 +1207,9 @@ export class BurrowScene implements Scene {
   /** Hold the clouds against the frame while the camera moves under them. */
   private pinSky(): void {
     this.clouds?.counterCamera(
+      this.container.scale.x, this.container.position.x, this.container.position.y,
+    );
+    this.birds?.counterCamera(
       this.container.scale.x, this.container.position.x, this.container.position.y,
     );
   }
@@ -2006,6 +2015,7 @@ export class BurrowScene implements Scene {
     const ms = deltaTime * (1000 / 60);
     this.advanceRearm(ms);
     this.clouds?.update(ms);
+    this.birds?.update(ms);
     this.crop?.update(ms);
     // The terrain sways: the same wind that crosses the island crosses the
     // homestead, which is half of what makes the two read as one world.
@@ -2056,6 +2066,7 @@ export class BurrowScene implements Scene {
     gsap.killTweensOf(this.container);
     gsap.killTweensOf(this.container.scale);
     this.clouds?.destroy();
+    this.birds?.destroy();
     for (const g of this.trapSprites.values()) gsap.killTweensOf(g);
     this.trapSprites.clear();
     for (const h of this.hints) gsap.killTweensOf(h);

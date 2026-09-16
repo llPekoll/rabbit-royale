@@ -1,43 +1,32 @@
 /**
- * L'oiseau du ciel : une feuille rendue hors ligne, pas de la 3D en jeu.
+ * L'oiseau du ciel : une feuille Aseprite de quatre frames.
  *
- * Le modele de depart est un glTF anime (120 verts, un skin, un cycle de
- * battement). Le jeu tourne sur Pixi seul : l'afficher en 3D demanderait un
- * second moteur pour un oiseau de 140 triangles, et le pixeliser en direct
- * ferait baver le quadrillage de pixels sur un objet qui se deplace — le
- * pixel crawl du faux pixel art temps reel.
+ * ## Ce que porte la feuille
  *
- * Il est donc rendu par `scripts/render-bird.sh` (Blender headless, rejouable
- * et versionne) en une feuille de 4 angles x 10 frames, que ce fichier joue
- * comme n'importe quel `AnimatedSprite`.
+ * Un seul angle, un seul tag (`fly`), quatre frames sur une toile de 32x29.
+ * Le cycle n'est pas un battement regulier : la frame 0 tient 1000 ms et les
+ * trois autres 100 ms chacune, soit un PLANE long coupe d'un battement bref.
+ * Il faut donc respecter les durees individuelles du JSON — un
+ * `animationSpeed` unique ferait defiler le plane aussi vite qu'un battement
+ * et l'oiseau moulinerait.
  *
- * ## Ce que la feuille garantit, et pourquoi
+ * Pixi sait le faire : un `AnimatedSprite` accepte des `FrameObject`, chacun
+ * avec son `time`.
  *
- * La camera est ORTHOGRAPHIQUE et calee sur la projection du jeu : les nuages
- * de `isoworld/clouds.ts` courent sur les axes [2, 1] et [2, -1], donc une iso
- * 2:1, donc une elevation de atan(1/2) = 26.57 degres. Un 30 degres generique
- * — la valeur qu'on ecrit par reflexe — mettrait l'oiseau dans une autre
- * perspective que le ciel qu'il traverse.
+ * ## Les frames sont ROGNEES, et c'est ce qui les aligne
  *
- * Le rendu sort DIRECTEMENT a 48 px avec le filtre Box a zero, au lieu d'etre
- * reduit depuis une grande image : c'est ce qui donne 0 pixel semi-transparent
- * sur toute la feuille, la ou une reduction laisserait une frange laveuse qui
- * se verrait sur le ciel.
+ * Aseprite a empaquete les quatre frames au plus serre (17x9, 7x14, 14x7,
+ * 7x12) et note pour chacune son decalage dans `spriteSourceSize`. Pixi lit ce
+ * decalage et rend chaque texture a sa taille d'origine, 32x29 : les frames se
+ * superposent donc toutes seules, sans que rien ici n'ait a refaire le calcul
+ * de l'empaquetage. C'est pour ca que la vue feuille pose simplement une
+ * grille de cellules 32x29.
  *
- * Le materiau est en EMISSION PURE, sans aucune lampe. Baisser le speculaire
- * d'un Principled ne suffisait pas : il restait un BSDF eclaire par deux
- * soleils, donc une arete claire sur le dessus des ailes, qui a 12 paliers de
- * quantification devenait un lisere franc. Sans calcul de lumiere il n'y a
- * plus de reflet possible.
+ * ## L'oiseau est presque blanc
  *
- * ## Les tags d'angle ont ete verifies sur le rendu
- *
- * Le glTF pose l'oiseau face a la camera a 0 degre, pas de profil : le premier
- * jet taguait donc les quatre rangees a 90 degres de ce qu'elles montrent. La
- * mesure qui tranche est la LARGEUR de la silhouette au fil du cycle — de
- * profil l'envergure apparente ne bouge pas (variation 2 px), de face elle
- * s'ouvre et se referme (variation 20 px). C'est ce qui fixe `ANGLES` dans le
- * script.
+ * Les 30 couleurs de la feuille sont des blancs teintes de cyan, sans un seul
+ * pixel semi-transparent. Sur un ciel clair il disparait, sur la mer il
+ * ressort : c'est la scene qui tranche, d'ou le fond reglable.
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { AnimatedSprite, Assets, Container, type FrameObject, Graphics, Sprite, Spritesheet, Texture } from 'pixi.js';
@@ -45,6 +34,7 @@ import { PixiStage } from './PixiStage';
 import { CloudField } from '@/game/fx/Clouds';
 import { loadAllAssets } from '@/game/services/AssetLoader';
 import { generateIsland, IsoIslandView, loadIslandTileset, type IslandTileset } from '@/game/island';
+import { createGodRays, type GodRays } from '@/game/fx/GodRays';
 
 const WIDTH = 960;
 const HEIGHT = 540;
@@ -52,16 +42,15 @@ const HEIGHT = 540;
 const SHEET = '/assets/fx/bird.png';
 const DATA = '/assets/fx/bird.json';
 
-/** Les rangees de la feuille, dans l'ordre ou le script les rend. */
-const ANGLES = ['side', 'front34', 'back34', 'front'] as const;
-type Angle = (typeof ANGLES)[number];
+/** La toile d'origine des frames, celle que Pixi restitue via le trim. */
+const CELL = 32;
 
 /**
  * Charge la feuille et la decoupe.
  *
- * Le JSON est au format Aseprite — celui que produisent deja les autres
- * feuilles du jeu — donc Pixi le parse sans adaptateur, et les `frameTags`
- * donnent les quatre animations d'un coup.
+ * Le JSON est au format Aseprite en mode TABLEAU : `frames` est une liste, pas
+ * un objet. Pixi la parse quand meme — il prend `Object.keys`, donc les
+ * textures sont nommees `'0'`..`'3'` et le champ `filename` est ignore.
  */
 async function loadBird(): Promise<Spritesheet> {
   const [texture, data] = await Promise.all([
@@ -69,7 +58,7 @@ async function loadBird(): Promise<Spritesheet> {
     fetch(DATA).then((r) => r.json()),
   ]);
   // Voisin le plus proche : la feuille est du pixel art, l'interpoler
-  // reintroduirait exactement les bords laveux que le rendu evite.
+  // ferait baver ses bords francs.
   texture.source.scaleMode = 'nearest';
   const sheet = new Spritesheet(texture, data);
   await sheet.parse();
@@ -77,54 +66,49 @@ async function loadBird(): Promise<Spritesheet> {
 }
 
 /**
- * Les frames d'un angle, avec la duree de chacune.
+ * Les frames du tag, avec la duree de chacune.
  *
- * La feuille compose un battement d'ailes suivi d'une pose de PLANE tenue :
- * dix frames a 80 ms puis une a 1120 ms, soit 58% du cycle passe a planer.
- * Il faut donc respecter les durees individuelles — un `animationSpeed`
- * unique ferait defiler le plane aussi vite qu'un battement et l'oiseau
- * moulinerait a nouveau.
- *
- * Pixi sait le faire : un `AnimatedSprite` accepte des `FrameObject`, chacun
- * avec son `time`.
+ * Pixi ne lit PAS `frameTags` (il ne connait que `animations`), donc le tag se
+ * decoupe ici, a l'index. Les textures etant nommees par leur index, `from` et
+ * `to` s'y appliquent directement.
  */
-function framesFor(sheet: Spritesheet, angle: Angle): FrameObject[] {
+function framesFor(sheet: Spritesheet): FrameObject[] {
   const meta = sheet.data.meta as {
     frameTags?: { name: string; from: number; to: number }[];
   };
-  const tag = meta.frameTags?.find((t) => t.name === angle);
-  const names = Object.keys(sheet.textures);
-  const slice = tag ? names.slice(tag.from, tag.to + 1) : names;
+  const tag = meta.frameTags?.find((t) => t.name === 'fly');
+  const keys = Object.keys(sheet.textures);
+  const slice = tag ? keys.slice(tag.from, tag.to + 1) : keys;
 
-  const durations = sheet.data.frames as Record<string, { duration?: number }>;
-  return slice.map((n) => ({
-    texture: sheet.textures[n],
-    time: durations[n]?.duration ?? 80,
+  const frames = sheet.data.frames as unknown as { duration?: number }[];
+  return slice.map((k) => ({
+    texture: sheet.textures[k],
+    time: frames[Number(k)]?.duration ?? 100,
   }));
 }
 
 interface Args {
-  /** Quelle rangee de la feuille jouer. */
-  angle: Angle;
-  /** Grossissement du sprite. La feuille est a 48 px. */
+  /** Grossissement du sprite. La toile est a 32 px. */
   scale: number;
-  /** Millisecondes par frame. Le script ecrit 80 dans le JSON. */
-  frameMs: number;
+  /**
+   * Multiplie les durees du JSON. 1 = le rythme d'origine, plane long
+   * compris ; au-dela le battement s'etire.
+   */
+  speedFactor: number;
   /** Vitesse de traversee, en pixels par seconde. 0 = immobile au centre. */
   speed: number;
-  /**
-   * Retourne le sprite. La feuille ne contient qu'un sens, et elle regarde a
-   * GAUCHE : `flip` le fait donc regarder a droite.
-   */
+  /** Retourne le sprite, pour qu'il regarde dans le sens ou il va. */
   flip: boolean;
+  /** Le ciel derriere : c'est lui qui dit si un oiseau blanc se voit. */
+  background: string;
 }
 
-function Scene({ angle, scale, frameMs, speed, flip }: Args) {
+function Scene({ scale, speedFactor, speed, flip, background }: Args) {
   return (
     <PixiStage
       width={WIDTH}
       height={HEIGHT}
-      background="#8fc7e8"
+      background={background}
       setup={(stage, app) => {
         let bird: AnimatedSprite | null = null;
         let ticker: ((t: { deltaTime: number }) => void) | null = null;
@@ -132,13 +116,12 @@ function Scene({ angle, scale, frameMs, speed, flip }: Args) {
         void loadBird().then((sheet) => {
           if (!stage.parent) return;
 
-          bird = new AnimatedSprite(framesFor(sheet, angle));
+          bird = new AnimatedSprite(framesFor(sheet));
           bird.anchor.set(0.5);
           bird.scale.set(scale * (flip ? -1 : 1), scale);
-          // Le JSON porte la duree de CHAQUE frame (le plane est tenu bien
-          // plus longtemps qu'un battement) ; `frameMs` ne fait donc que
-          // ralentir ou accelerer l'ensemble, 80 laissant le rythme d'origine.
-          bird.animationSpeed = 80 / frameMs;
+          // Les durees viennent du JSON ; `animationSpeed` ne fait que les
+          // dilater en bloc, ce qui preserve le rapport plane / battement.
+          bird.animationSpeed = 1 / speedFactor;
           bird.x = WIDTH / 2;
           bird.y = HEIGHT / 2;
           bird.play();
@@ -168,10 +151,10 @@ function Scene({ angle, scale, frameMs, speed, flip }: Args) {
 }
 
 /**
- * Toutes les frames a plat, une rangee par angle.
+ * Les quatre frames a plat.
  *
  * C'est la vue qui rend les defauts visibles : un bord rogne, une pose
- * cassee, un angle mal tague. L'animation seule les fait passer trop vite.
+ * cassee, un decalage de trim. L'animation seule les fait passer trop vite.
  */
 function Sheet({ zoom }: { zoom: number }) {
   return (
@@ -183,32 +166,29 @@ function Sheet({ zoom }: { zoom: number }) {
         void loadBird().then((sheet) => {
           if (!stage.parent) return;
 
-          const names = Object.keys(sheet.textures);
-          const cols = names.length / ANGLES.length;
-          const cell = 48 * zoom;
+          const keys = Object.keys(sheet.textures);
+          const cell = CELL * zoom;
           const grid = new Container();
 
           // Un damier sous les sprites : sans lui l'alpha et le fond sombre
-          // se confondent, et on ne voit pas ou s'arrete la silhouette.
+          // se confondent, et on ne voit pas ou s'arrete la silhouette. Il
+          // montre aussi la toile de 32x29, donc le trim de chaque frame.
           const board = new Graphics();
-          for (let row = 0; row < ANGLES.length; row++) {
-            for (let col = 0; col < cols; col++) {
-              board.rect(col * cell, row * cell, cell, cell)
-                .fill({ color: (row + col) % 2 ? 0x3a4350 : 0x323b48 });
-            }
-          }
+          keys.forEach((_, col) => {
+            board.rect(col * cell, 0, cell, cell)
+              .fill({ color: col % 2 ? 0x3a4350 : 0x323b48 });
+          });
           grid.addChild(board);
 
-          names.forEach((name, i) => {
-            const s = new Sprite(sheet.textures[name]);
+          keys.forEach((key, i) => {
+            const s = new Sprite(sheet.textures[key]);
             s.scale.set(zoom);
-            s.x = (i % cols) * cell;
-            s.y = Math.floor(i / cols) * cell;
+            s.x = i * cell;
             grid.addChild(s);
           });
 
-          grid.x = (WIDTH - cols * cell) / 2;
-          grid.y = (HEIGHT - ANGLES.length * cell) / 2;
+          grid.x = (WIDTH - keys.length * cell) / 2;
+          grid.y = (HEIGHT - cell) / 2;
           stage.addChild(grid);
         });
       }}
@@ -219,52 +199,68 @@ function Sheet({ zoom }: { zoom: number }) {
 /**
  * Les oiseaux dans la vraie scene : l'ile isometrique, sa mer, ses nuages.
  *
- * C'est la seule vue qui permette de juger la taille et la couleur. Sur fond
+ * C'est la seule vue qui permette de juger la TAILLE et la COULEUR. Sur fond
  * uni un sprite parait toujours correct ; c'est contre la mer, a cote d'une
- * ile dont l'echelle est deja acquise, qu'on voit s'il est trop gros, trop
- * clair ou trop lent.
+ * ile dont l'echelle est deja acquise, qu'on voit s'il est trop gros ou — le
+ * risque propre a cet oiseau-ci, qui est quasi blanc — qu'il se confond avec
+ * les nuages.
  *
- * L'ile ISOMETRIQUE et pas `createIslandBackground` : ce dernier remplit tout
- * le cadre de terrain, il n'y reste aucun ciel, et des oiseaux poses dessus se
- * lisent comme des bestioles dans l'herbe plutot que comme du vol. Il faut de
- * la mer autour de l'ile pour qu'un oiseau ait quelque chose a survoler.
- *
- * Les nuages sont a `zIndex` 10000 (voir `fx/Clouds.ts`). Les oiseaux se
- * placent par rapport a ca : au-dessous ils passent DERRIERE les nuages,
- * au-dessus ils leur passent devant. La bonne reponse depend de la hauteur
- * qu'on veut leur donner, d'ou le controle plutot qu'une constante.
+ * L'ile ISOMETRIQUE et pas un fond de terrain plein cadre : il faut de la mer
+ * autour pour qu'un oiseau ait quelque chose a survoler, sinon il se lit comme
+ * une bestiole dans l'herbe plutot que comme du vol.
  */
-const CLOUD_Z = 10_000;
 const SEA = '#0d8296';
 
+/** Les nuages sont a `zIndex` 10000 (voir `fx/Clouds.ts`). */
+const CLOUD_Z = 10_000;
+
 /**
- * Les axes isometriques de l'ile, en direction ecran.
- *
- * Les memes que ceux des nuages (`isoworld/clouds.ts`) : la projection est
- * 2:1, donc les deux diagonales du damier descendent ou montent d'une unite
- * ecran pour deux en largeur. Un oiseau qui traverse a l'horizontale coupe ce
- * quadrillage en biais et se lit comme colle sur l'image ; suivre un axe le
- * fait voler DANS la perspective, le long des aretes que le joueur voit deja.
+ * Les god rays sont a `zIndex` 7500 (voir `fx/GodRays.ts`), en `blendMode`
+ * additif : la lumiere s'AJOUTE a ce qu'elle traverse. Passer l'oiseau
+ * au-dessous, c'est donc le faire baigner dedans plutot que le poser par
+ * devant — un oiseau qui volerait par-dessus des rais serait un oiseau
+ * au-dessus du soleil.
  */
-const ISO_AXES = [
-  [2, 1],
-  [2, -1],
-] as const;
+const RAYS_Z = 7_500;
+
+/**
+ * La diagonale que suit le vol : vers le FOND-GAUCHE.
+ *
+ * La projection est 2:1, donc une diagonale du damier monte d'une unite ecran
+ * pour deux en largeur — `[-2, -1]` longe exactement une arete que le joueur
+ * voit deja sur le sol. Un vol strictement vertical, ou horizontal, couperait
+ * ce quadrillage et se lirait comme colle sur l'image.
+ *
+ * UNE SEULE direction, pas deux : des oiseaux qui se croisent en sens inverse
+ * se lisent comme deux groupes qui s'ignorent. Un vol qui part tout entier du
+ * meme cote est un vol qui VA quelque part.
+ */
+const ISO_UP = [-2, -1] as const;
 
 interface FlockArgs {
   /** Combien traversent le ciel. */
   count: number;
-  /** Grossissement. La feuille est a 48 px. */
+  /** Grossissement. La toile est a 32 px. */
   scale: number;
   /** Devant les nuages, ou derriere. */
   aboveClouds: boolean;
+  /** Les rais de lumiere, sous lesquels l'oiseau passe. */
+  rays: boolean;
   /** Densite du ciel, comme dans la story Clouds. */
   perBand: number;
-  /** Suivre les diagonales de l'ile, ou traverser a plat. */
-  followIso: boolean;
+  /**
+   * Amplitude de l'ondulation, en pixels. 0 = trajectoire parfaitement
+   * rectiligne, et c'est la comparaison qui montre ce que le jitter apporte.
+   */
+  jitter: number;
+  /**
+   * Multiplie la vitesse de croisiere (26 a 52 px/s selon l'oiseau). 1 = le
+   * rythme d'origine, 0.5 = deux fois plus lent.
+   */
+  speed: number;
 }
 
-function Flock({ count, scale, aboveClouds, perBand, followIso }: FlockArgs) {
+function Flock({ count, scale, aboveClouds, perBand, jitter, speed, rays }: FlockArgs) {
   let tileset: IslandTileset | null = null;
 
   return (
@@ -273,11 +269,28 @@ function Flock({ count, scale, aboveClouds, perBand, followIso }: FlockArgs) {
       height={HEIGHT}
       background={SEA}
       prepare={async () => {
+        // `loadAllAssets` en plus du tileset : les nuages vont chercher leurs
+        // textures par `Assets.get`, et sans elles `CloudField` ne spawn rien
+        // — un ciel vide, sans erreur, donc un defaut difficile a voir.
         [tileset] = await Promise.all([loadIslandTileset(), loadAllAssets()]);
       }}
       setup={(stage, app) => {
-        const birds: { sprite: AnimatedSprite; vx: number; vy: number }[] = [];
+        interface Bird {
+          sprite: AnimatedSprite;
+          /** La vitesse le long de la diagonale, en px/s. */
+          vx: number; vy: number;
+          /** La ligne de vol : la position SANS l'ondulation. */
+          baseX: number; baseY: number;
+          /** La normale a la trajectoire, sur laquelle porte l'ondulation. */
+          nx: number; ny: number;
+          phase: number; swayAmp: number; swayHz: number;
+        }
+        const birds: Bird[] = [];
         let ticker: ((t: { deltaTime: number }) => void) | null = null;
+        // Une horloge partagee plutot qu'un compteur par oiseau : les phases
+        // sont deja decalees a la construction, et un temps commun garde les
+        // ondulations stables les unes par rapport aux autres.
+        let elapsed = 0;
         let island: IsoIslandView | null = null;
 
         if (tileset) {
@@ -296,41 +309,42 @@ function Flock({ count, scale, aboveClouds, perBand, followIso }: FlockArgs) {
 
         const sky = new CloudField(stage, { width: WIDTH, height: HEIGHT, perBand });
 
-        // L'ile est a zIndex 0, les oiseaux vers 10000 : ils lui passent
-        // toujours devant, ce qui est voulu — un oiseau en vol que le sol
-        // masquerait casserait l'illusion. Le choix ne porte que sur les
-        // nuages, qui eux sont a la meme altitude.
+        let beams: GodRays | null = null;
+        if (rays) {
+          beams = createGodRays(WIDTH, HEIGHT);
+          beams.view.zIndex = RAYS_Z;
+          stage.addChild(beams.view);
+        }
+
+        // L'ile est a zIndex 0, les oiseaux juste SOUS les rais : ils passent
+        // devant le sol — un oiseau en vol que le terrain masquerait casserait
+        // l'illusion — mais la lumiere leur passe dessus. Les nuages sont plus
+        // haut encore (10000), d'ou le choix qui reste ouvert quand les rais
+        // sont eteints.
         const layer = new Container();
-        layer.zIndex = aboveClouds ? CLOUD_Z + 10 : CLOUD_Z - 10;
+        layer.zIndex = rays
+          ? RAYS_Z - 10
+          : aboveClouds ? CLOUD_Z + 10 : CLOUD_Z - 10;
         stage.addChild(layer);
 
         void loadBird().then((sheet) => {
           if (!stage.parent) return;
 
+          const frames = framesFor(sheet);
           for (let i = 0; i < count; i++) {
-            // Un peu de 3/4 parmi les profils : un vol ou tous les oiseaux
-            // sont exactement de profil se lit comme une frise.
-            const angle: Angle = i % 3 === 2 ? 'front34' : 'side';
-            const sprite = new AnimatedSprite(framesFor(sheet, angle));
+            const sprite = new AnimatedSprite(frames);
             sprite.anchor.set(0.5);
 
-            // Chacun sa taille et son sens, pour que quelques sprites ne se
-            // lisent pas comme le meme sprite copie n fois.
-            //
-            // LA FEUILLE REGARDE A GAUCHE : sur les frames rendues la masse
-            // du corps est du cote gauche et la queue s'effile vers la
-            // droite. Un scale.x positif fait donc voler l'oiseau vers la
-            // GAUCHE, et il faut le retourner pour aller a droite — l'inverse
-            // de la convention habituelle, et la raison pour laquelle les
-            // oiseaux volaient queue en avant.
+            // Chacun sa taille, pour que quelques sprites ne se lisent pas
+            // comme le meme sprite copie n fois. L'orientation vient plus bas,
+            // une fois la direction connue.
             const size = scale * (0.75 + Math.random() * 0.5);
-            const rightwards = Math.random() < 0.5;
-            sprite.scale.set(size * (rightwards ? -1 : 1), size);
 
-            // animationSpeed 1 = les durees du JSON sont respectees telles
-            // quelles, ce qui preserve le plane long. On ne varie donc plus
-            // la vitesse par oiseau ; le decalage de phase ci-dessous suffit
-            // a ce qu'ils ne battent pas tous ensemble.
+            // animationSpeed 1 = les durees du JSON telles quelles, ce qui
+            // preserve le plane long. On ne varie donc pas la vitesse par
+            // oiseau ; le decalage de phase ci-dessous suffit a ce qu'ils ne
+            // battent pas tous ensemble — sans quoi le vol se lit comme une
+            // frise mecanique.
             sprite.animationSpeed = 1;
             sprite.currentFrame = Math.floor(Math.random() * sprite.totalFrames);
             sprite.play();
@@ -341,41 +355,88 @@ function Flock({ count, scale, aboveClouds, perBand, followIso }: FlockArgs) {
             // du cadre plutot que comme un ciel habite.
             sprite.y = 30 + Math.random() * (HEIGHT - 90);
 
-            // La direction : une des deux diagonales de l'ile, prise dans le
-            // sens ou regarde le sprite. Normalisee, sinon un oiseau suivant
-            // une diagonale parcourrait plus de chemin par seconde qu'un autre
-            // a vitesse egale.
-            const speed = 26 + Math.random() * 26;
-            const [ax, ay] = ISO_AXES[i % ISO_AXES.length];
+            // La direction : la diagonale qui remonte. Normalisee, sinon un
+            // oiseau suivant une diagonale parcourrait plus de chemin par
+            // seconde qu'un autre a vitesse egale.
+            const cruise = (26 + Math.random() * 26) * speed;
+            const [ax, ay] = ISO_UP;
             const norm = Math.hypot(ax, ay);
-            const dir = rightwards ? 1 : -1;
-            const vx = followIso ? (dir * speed * ax) / norm : dir * speed;
-            const vy = followIso ? (dir * speed * ay) / norm : 0;
+            const vx = (cruise * ax) / norm;
+            const vy = (cruise * ay) / norm;
 
-            // Penche le sprite le long de sa trajectoire, sinon il descend
-            // la diagonale a plat et se lit comme glissant en crabe. Le signe
-            // suit le sens : le sprite est retourne pour aller a droite, et
-            // sans ca l'inclinaison partirait du mauvais cote.
-            if (followIso) sprite.rotation = Math.atan2(vy, vx * dir) * dir;
+            // Le jitter : une ondulation PERPENDICULAIRE a la trajectoire.
+            //
+            // Un bruit tire au hasard a chaque frame ferait vibrer le sprite —
+            // du gresillement, pas du vol. Une sinusoide lente donne au
+            // contraire la derive d'un oiseau qui se laisse porter : il monte,
+            // redescend, et revient toujours sur sa ligne.
+            //
+            // Perpendiculaire et pas verticale : sur une diagonale iso, une
+            // oscillation verticale se lirait comme un rebond contre le sol.
+            // La normale a (vx, vy) est (-vy, vx), normalisee ici pour que
+            // l'amplitude soit bien en pixels.
+            const nx = -vy / cruise;
+            const ny = vx / cruise;
+            // Chacun sa phase, son amplitude et sa periode : sans ca les deux
+            // oiseaux ondulent a l'unisson et redeviennent une frise.
+            const phase = Math.random() * Math.PI * 2;
+            const swayAmp = jitter * (0.6 + Math.random() * 0.8);
+            const swayHz = 0.18 + Math.random() * 0.16;
+            // La ligne de vol, que l'ondulation vient decorer : c'est ELLE qui
+            // avance, le sway n'etant qu'un decalage applique par-dessus. Sans
+            // cette ligne de reference, ajouter le sway a la position reelle
+            // le cumulerait frame apres frame et l'oiseau derivera pour de bon
+            // hors de sa trajectoire.
+            const baseX = sprite.x;
+            const baseY = sprite.y;
+
+            // Le sprite est pose TEL QUEL : ni rotation, ni retournement.
+            //
+            // La feuille est dessinee de PROFIL STRICT. Pivotee pour pointer le
+            // long de la diagonale, la silhouette se reduit a un trait, et
+            // au-dela d'un quart de tour l'oiseau se retrouve tete en bas —
+            // c'est ce que faisait `rotation = atan2(vy, vx)`, qui vaut ici
+            // -2.68 rad, soit -153 degres. A plat, il garde sa lecture
+            // d'oiseau et le deplacement suffit a dire la trajectoire.
+            //
+            // Il regarde donc a droite tout en derivant vers le fond-gauche.
+            // C'est voulu : a cette taille la silhouette compte plus que la
+            // coherence du cap, et un sprite retourne se lisait moins bien.
+            sprite.scale.set(size, size);
 
             layer.addChild(sprite);
-            birds.push({ sprite, vx, vy });
+            birds.push({ sprite, vx, vy, baseX, baseY, nx, ny, phase, swayAmp, swayHz });
           }
 
           ticker = (t) => {
             const dt = t.deltaTime / 60;
-            for (const { sprite, vx, vy } of birds) {
-              sprite.x += vx * dt;
-              sprite.y += vy * dt;
+            elapsed += dt;
+            for (const b of birds) {
+              // La ligne de vol avance, puis l'ondulation s'y ajoute. Deux
+              // temps distincts : c'est ce qui empeche le sway de se cumuler.
+              b.baseX += b.vx * dt;
+              b.baseY += b.vy * dt;
+              const sway = Math.sin(elapsed * b.swayHz * Math.PI * 2 + b.phase) * b.swayAmp;
+              const sprite = b.sprite;
+              sprite.x = b.baseX + b.nx * sway;
+              sprite.y = b.baseY + b.ny * sway;
+
               const w = Math.abs(sprite.width);
               const h = Math.abs(sprite.height);
-              // Reboucle sur les deux axes : en diagonale un oiseau sort
-              // aussi par le haut ou par le bas, et le seul rebouclage
-              // horizontal le faisait disparaitre pour de bon.
-              if (sprite.x > WIDTH + w) sprite.x = -w;
-              if (sprite.x < -w) sprite.x = WIDTH + w;
-              if (sprite.y > HEIGHT + h) sprite.y = -h;
-              if (sprite.y < -h) sprite.y = HEIGHT + h;
+              // Reboucle sur les DEUX axes : en diagonale un oiseau sort par le
+              // haut ET par un cote, et ne traiter que l'un des deux le ferait
+              // disparaitre pour de bon. Ils montent tous, donc celui qui sort
+              // par le haut revient par le BAS. Le rebouclage porte sur la
+              // LIGNE, pas sur le sprite : c'est elle qui fait foi.
+              if (b.baseY < -h) {
+                b.baseY = HEIGHT + h;
+                // Reparti a une abscisse neuve : sans ca les oiseaux repassent
+                // eternellement sur la meme trace et le vol se lit comme une
+                // boucle, pas comme un ciel.
+                b.baseX = Math.random() * WIDTH;
+              }
+              if (b.baseX > WIDTH + w) b.baseX = -w;
+              if (b.baseX < -w) b.baseX = WIDTH + w;
             }
           };
           app.ticker.add(ticker);
@@ -384,6 +445,7 @@ function Flock({ count, scale, aboveClouds, perBand, followIso }: FlockArgs) {
         const clouds = (t: { deltaTime: number; deltaMS: number }) => {
           sky.update(t.deltaTime * (1000 / 60));
           island?.update(t.deltaMS);
+          beams?.update(t.deltaMS);
         };
         app.ticker.add(clouds);
 
@@ -393,6 +455,7 @@ function Flock({ count, scale, aboveClouds, perBand, followIso }: FlockArgs) {
           for (const { sprite } of birds) sprite.destroy();
           sky.destroy();
           island?.destroy();
+          beams?.destroy();
         };
       }}
     />
@@ -403,66 +466,60 @@ const meta: Meta<Args> = {
   title: 'FX/Bird',
   parameters: { layout: 'centered' },
   argTypes: {
-    angle: { control: 'inline-radio', options: ANGLES },
-    scale: { control: { type: 'range', min: 1, max: 8, step: 1 } },
-    frameMs: { control: { type: 'range', min: 30, max: 300, step: 10 } },
+    scale: { control: { type: 'range', min: 1, max: 12, step: 1 } },
+    speedFactor: { control: { type: 'range', min: 0.25, max: 4, step: 0.25 } },
     speed: { control: { type: 'range', min: -300, max: 300, step: 10 } },
     flip: { control: 'boolean' },
+    background: { control: 'color' },
   },
 };
 export default meta;
 
 type Story = StoryObj<Args>;
 
-/** Le profil qui traverse : ce a quoi l'oiseau sert dans le ciel. */
+/** Le vol qui traverse : ce a quoi l'oiseau sert dans le ciel. */
 export const Vol: Story = {
-  // Vitesse positive donc vers la droite, et `flip` pour que le bec y soit
-  // aussi : sans lui l'oiseau traverse queue en avant.
-  args: { angle: 'side', scale: 4, frameMs: 80, speed: 90, flip: true },
+  args: { scale: 4, speedFactor: 1, speed: 90, flip: false, background: '#8fc7e8' },
   render: (args) => <Scene {...args} />,
 };
 
 /**
  * Immobile et grossi : pour juger la palette et les bords.
  *
- * 12 paliers de quantification donnent une dizaine de bruns — assez pour le
- * modele, assez peu pour que les aplats restent francs.
+ * Fond sombre a dessein — l'oiseau etant quasi blanc, c'est la seule facon de
+ * voir sa silhouette entiere et de verifier qu'aucun pixel ne bave.
  */
 export const Pose: Story = {
-  args: { angle: 'side', scale: 8, frameMs: 200, speed: 0, flip: false },
+  args: { scale: 12, speedFactor: 2, speed: 0, flip: false, background: '#2a3340' },
   render: (args) => <Scene {...args} />,
 };
 
-/**
- * La feuille entiere.
- *
- * La rangee `front` porte le defaut connu : ailes completement repliees, la
- * silhouette se disloque en fragments (frames 5 et 7). A 48 px un oiseau vu de
- * face ailes fermees n'a presque plus de forme — c'est une limite du modele a
- * cette taille, pas du pipeline, et elle ne gene que s'il vole droit vers la
- * camera.
- */
+/** La feuille entiere, frame par frame. */
 export const Feuille: StoryObj<{ zoom: number }> = {
-  args: { zoom: 2 },
-  argTypes: { zoom: { control: { type: 'range', min: 1, max: 4, step: 1 } } },
+  args: { zoom: 6 },
+  argTypes: { zoom: { control: { type: 'range', min: 2, max: 12, step: 1 } } },
   render: (args) => <Sheet {...args} />,
 };
 
 /**
- * Dans la scene : l'ile, les nuages, les oiseaux.
+ * Dans la scene : l'ile, la mer, les nuages, et les oiseaux qui la traversent.
  *
  * La vue qui permet de decider de la taille et de la couleur. Le reglage se
- * fait ici, pas sur la feuille : `scale` contre des nuages dont l'echelle est
- * deja acquise, et `aboveClouds` pour la hauteur qu'on leur donne.
+ * fait ICI, pas sur la feuille : `scale` contre une ile dont l'echelle est
+ * deja acquise, et `aboveClouds` pour la hauteur qu'on leur donne. L'oiseau
+ * etant quasi blanc, c'est aussi la seule vue qui dise s'il se detache encore
+ * quand il passe devant un nuage.
  */
 export const DansLaScene: StoryObj<FlockArgs> = {
-  args: { count: 5, scale: 2, aboveClouds: false, perBand: 4, followIso: true },
+  args: { count: 1, scale: 2, aboveClouds: false, perBand: 4, jitter: 6, speed: 0.13, rays: true },
   argTypes: {
     count: { control: { type: 'range', min: 1, max: 14, step: 1 } },
-    scale: { control: { type: 'range', min: 1, max: 6, step: 0.5 } },
+    scale: { control: { type: 'range', min: 0.5, max: 6, step: 0.5 } },
     perBand: { control: { type: 'range', min: 0, max: 9, step: 1 } },
+    jitter: { control: { type: 'range', min: 0, max: 40, step: 2 } },
+    speed: { control: { type: 'range', min: 0.1, max: 3, step: 0.1 } },
     aboveClouds: { control: 'boolean' },
-    followIso: { control: 'boolean' },
+    rays: { control: 'boolean' },
   },
   render: (args) => <Flock key={JSON.stringify(args)} {...args} />,
 };
