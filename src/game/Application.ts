@@ -188,26 +188,10 @@ export async function createApp(
       strength: SEA_GRADIENT_LOOK.strength,
       angle: (SEA_GRADIENT_LOOK.angleDeg * Math.PI) / 180,
       steps: SEA_GRADIENT_LOOK.steps,
-      streaks: SEA_GRADIENT_LOOK.streaks,
-      streakScale: SEA_GRADIENT_LOOK.streakScale,
-      streakStretch: SEA_GRADIENT_LOOK.streakStretch,
-      streakSpeed: SEA_GRADIENT_LOOK.streakSpeed,
-      streakMorph: SEA_GRADIENT_LOOK.streakMorph,
-      streakColor: SEA_GRADIENT_LOOK.streakColor,
-      streakAxis: SEA_GRADIENT_LOOK.streakAxis,
-      streakPixel: SEA_GRADIENT_LOOK.streakPixel,
-      halfTile: SEA_GRADIENT_LOOK.halfTile,
     },
   );
   seaDepth.view.zIndex = -999;
   pixi.stage.addChild(seaDepth.view);
-
-  // Les trainees derivent. Ce plan etait immobile par construction jusqu'a
-  // ce qu'il en porte : sans ce ticker la mer reste figee sur sa premiere
-  // frame, ce qui ne ressemble pas a un bug mais a une texture — donc a un
-  // choix — et se cherche longtemps.
-  const seaTick = (t: { deltaMS: number }) => seaDepth.update(t.deltaMS);
-  pixi.ticker.add(seaTick);
 
   // Root container: scales the 960×540 design space to fit the viewport.
   // All scene content is added as children of gameRoot — their coordinates
@@ -408,7 +392,6 @@ export async function createApp(
       wipe?.destroy();
       // Before `pixi.destroy`, which takes the display list but not the
       // geometry and shader this built for itself.
-      pixi.ticker.remove(seaTick);
       seaDepth.destroy();
       // Same reason: a filter is not a child, so the display list's teardown
       // never reaches it. Detached first so nothing renders through a filter

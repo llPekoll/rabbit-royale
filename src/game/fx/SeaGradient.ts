@@ -61,11 +61,6 @@ void main(void) {
 }
 `;
 
-// PAS DE BACKTICK dans le GLSL ci-dessous, meme en commentaire : c'est un
-// template literal, un backtick le ferme au milieu du shader et TypeScript
-// signale des erreurs de syntaxe partout sauf sur la ligne fautive. En
-// Storybook la story ne charge plus du tout (ecran vide), ce qui envoie
-// chercher du mauvais cote.
 const fragment = `
 precision highp float;
 
@@ -84,145 +79,6 @@ uniform float uAngle;     // radial: tilt of the ellipse's long axis.
                           // linear: 0 = deep at the bottom. Radians, both.
 uniform float uMode;      // 0 = radial, 1 = linear
 uniform float uSteps;     // palette steps; 0 leaves the ramp smooth
-
-// --- Les trainees, par-dessus le degrade ------------------------------
-uniform float uTime;          // secondes
-uniform float uStreaks;       // force, 0 les eteint (et fige le plan)
-uniform vec2  uHalfTile;      // la demi-dalle du damier, pour lire au sol
-uniform float uStreakScale;   // finesse du bruit, en cellules
-uniform float uStreakStretch; // etirement le long de l'axe x du damier
-uniform float uStreakSpeed;   // derive le long de cet axe, cellules/s
-uniform float uStreakMorph;   // vitesse a laquelle le motif se deforme
-uniform vec3  uStreakColor;   // la couleur vers laquelle une trainee tire
-uniform float uStreakAxis;    // 0 = le long de x du damier, 1 = le long de y
-uniform float uStreakPixel;   // pas de quantification en pixels, 0 pour aucun
-
-// --- Ashima simplex 3D (Ian McEwan / Stefan Gustavson), verbatim ---------
-// Le meme que CloudShadowsNoise.ts, recopie plutot qu'importe : les deux
-// fichiers sont des sources GLSL, il n'y a pas de #include a l'execution.
-vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
-vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
-vec4 permute(vec4 x) { return mod289(((x * 34.0) + 1.0) * x); }
-vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
-
-float snoise(vec3 v) {
-    const vec2 C = vec2(1.0 / 6.0, 1.0 / 3.0);
-    const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
-    vec3 i  = floor(v + dot(v, C.yyy));
-    vec3 x0 = v - i + dot(i, C.xxx);
-    vec3 g = step(x0.yzx, x0.xyz);
-    vec3 l = 1.0 - g;
-    vec3 i1 = min(g.xyz, l.zxy);
-    vec3 i2 = max(g.xyz, l.zxy);
-    vec3 x1 = x0 - i1 + C.xxx;
-    vec3 x2 = x0 - i2 + C.yyy;
-    vec3 x3 = x0 - D.yyy;
-    i = mod289(i);
-    vec4 p = permute(permute(permute(
-        i.z + vec4(0.0, i1.z, i2.z, 1.0))
-      + i.y + vec4(0.0, i1.y, i2.y, 1.0))
-      + i.x + vec4(0.0, i1.x, i2.x, 1.0));
-    float n_ = 0.142857142857;
-    vec3 ns = n_ * D.wyz - D.xzx;
-    vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
-    vec4 x_ = floor(j * ns.z);
-    vec4 y_ = floor(j - 7.0 * x_);
-    vec4 x = x_ * ns.x + ns.yyyy;
-    vec4 y = y_ * ns.x + ns.yyyy;
-    vec4 h = 1.0 - abs(x) - abs(y);
-    vec4 b0 = vec4(x.xy, y.xy);
-    vec4 b1 = vec4(x.zw, y.zw);
-    vec4 s0 = floor(b0) * 2.0 + 1.0;
-    vec4 s1 = floor(b1) * 2.0 + 1.0;
-    vec4 sh = -step(h, vec4(0.0));
-    vec4 a0 = b0.xzyw + s0.xzyw * sh.xxyy;
-    vec4 a1 = b1.xzyw + s1.xzyw * sh.zzww;
-    vec3 p0 = vec3(a0.xy, h.x);
-    vec3 p1 = vec3(a0.zw, h.y);
-    vec3 p2 = vec3(a1.xy, h.z);
-    vec3 p3 = vec3(a1.zw, h.w);
-    vec4 norm = taylorInvSqrt(vec4(dot(p0, p0), dot(p1, p1), dot(p2, p2), dot(p3, p3)));
-    p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
-    vec4 m = max(0.6 - vec4(dot(x0, x0), dot(x1, x1), dot(x2, x2), dot(x3, x3)), 0.0);
-    m = m * m;
-    return 42.0 * dot(m * m, vec4(dot(p0, x0), dot(p1, x1), dot(p2, x2), dot(p3, x3)));
-}
-// -------------------------------------------------------------------------
-
-// Somme fractale, identique a celle des ombres de nuages : chaque octave deux
-// fois plus fine et deux fois moins forte, la derniere fondue pour que le dial
-// soit continu.
-float fbm(vec3 p) {
-    float sum = 0.0, amp = 0.5, norm = 0.0;
-    for (int i = 0; i < 4; i++) {
-        float w = clamp(3.0 - float(i), 0.0, 1.0);
-        sum += amp * w * snoise(p);
-        norm += amp * w;
-        p = p * 2.03 + vec3(17.0, 31.0, 7.0);
-        amp *= 0.5;
-    }
-    return sum / max(norm, 1e-4);
-}
-
-/**
- * Les trainees : le dust des rais de lumiere, couche sur la mer.
- *
- * Ce motif a ete trouve par accident. Le dial dust de GodRays pousse au
- * maximum ne fait pas de la poussiere atmospherique (c'est ce qu'il etait
- * cense faire, et il rate) : il fait des trainees douces, striees, qui
- * courent dans le sens du rai. Rate pour un rai, tres juste pour une mer vue
- * de haut — c'est la texture qu'on cherchait ici, et cette fonction est ce
- * dust-la, sorti du faisceau et pose sur le sol.
- *
- * La recette qui fait la strie est l'ANISOTROPIE, pas le bruit. Dans GodRays
- * la distance est divisee par softness (3.7) avant d'entrer dans le fbm, donc
- * le bruit varie lentement le long du rai et vite en travers : les taches
- * deviennent des trainees. Ici uStreakStretch joue ce role. Avec le meme fbm
- * et stretch a 1 on retrouve des taches rondes, ce qui est precisement le
- * motif a ne pas faire.
- *
- * ## Dans le plan du sol
- *
- * Le pixel est d'abord ramene en cellules du damier (l'inverse de la
- * projection du plateau, comme GodotCausticWater), et l'etirement se fait sur
- * l'axe x DES CELLULES. Les trainees longent donc une diagonale que le joueur
- * voit deja sur le sol, et derivent le long d'elle : la mer appartient au
- * meme monde que l'ile. Etiree en espace ecran, la meme texture ferait des
- * stries horizontales, posees devant l'image.
- */
-float streaks(vec2 px) {
-    if (uStreaks <= 0.0) return 0.0;
-
-    // Le mode pixel : la position est snappee sur une grille AVANT d'entrer
-    // dans le bruit, exactement comme uPixel dans GodRays. Le bruit est lu
-    // une fois par bloc, donc les trainees sortent en marches d'escalier de
-    // la taille d'un pixel d'art au lieu d'un fondu continu — c'est ce qui
-    // les fait appartenir au meme dessin que les tuiles.
-    if (uStreakPixel > 0.0) {
-        px = floor(px / uStreakPixel) * uStreakPixel + uStreakPixel * 0.5;
-    }
-
-    float u = px.x / (2.0 * uHalfTile.x);
-    float v = px.y / (2.0 * uHalfTile.y);
-    vec2 cell = vec2(u + v, v - u);
-
-    // L'axe le long duquel la trainee court : x ou y du damier, soit l'une
-    // ou l'autre des deux diagonales du sol. Les deux sont legitimes, il n'y
-    // a pas de "bon" sens a priori — c'est un choix de lecture, d'ou le dial.
-    float along  = mix(cell.x, cell.y, uStreakAxis);
-    float across = mix(cell.y, cell.x, uStreakAxis);
-
-    // La derive le long de l'axe, puis l'etirement sur ce meme axe : l'ordre
-    // compte, la vitesse est voulue en cellules par seconde et l'etirement
-    // la diviserait.
-    along -= uTime * uStreakSpeed;
-    along /= max(uStreakStretch, 1.0);
-
-    // 0..1. La troisieme coordonnee fait respirer la forme sur place, comme
-    // le t * 2.0 du dust.
-    float n = fbm(vec3(vec2(along, across) * uStreakScale, uTime * uStreakMorph));
-    return (n * 0.5 + 0.5) * uStreaks;
-}
 
 void main(void) {
     vec2 uv = vUv / uSize;
@@ -271,26 +127,7 @@ void main(void) {
     // shader did) is what gave banding a slight colour of its own.
     if (uSteps > 0.5) t = floor(t * uSteps + 0.5) / uSteps;
 
-    vec3 water = mix(uSea, uDeep, clamp(t, 0.0, 1.0));
-
-    // Les trainees par-dessus, quantifiees sur LEUR echelle.
-    //
-    // Pas sur uSteps (40) : une trainee vaut 0.1 a 0.3, et arrondie au
-    // quarantieme puis melangee vers une couleur voisine de la mer elle tombe
-    // sous le pas et disparait — sans erreur, et sans qu'aucun dial ne la
-    // ramene. Quelques marches comptees sur la trainee elle-meme lui donnent
-    // les paliers francs du pixel art sans avoir le droit de l'effacer.
-    //
-    // Melangees et non ajoutees : de l'additif sur la mer claire sature vers
-    // le blanc ; le mix garde la trainee dans la palette de l'eau.
-    float s = streaks(vUv);
-    if (uSteps > 0.5) {
-        float n = max(floor(uSteps * 0.15), 3.0);
-        s = floor(s * n + 0.5) / n;
-    }
-    water = mix(water, uStreakColor, clamp(s, 0.0, 1.0));
-
-    finalColor = vec4(water, 1.0);
+    finalColor = vec4(mix(uSea, uDeep, clamp(t, 0.0, 1.0)), 1.0);
 }
 `;
 
@@ -325,28 +162,6 @@ export interface SeaGradientOptions {
   angle?: number;
   /** Palette steps in the ramp. 0 leaves it smooth. */
   steps?: number;
-
-  /**
-   * Les trainees : le dust des rais de lumiere, couche sur la mer. Voir
-   * `streaks()` dans le fragment. 0 les eteint et rend le plan immobile.
-   */
-  streaks?: number;
-  /** La demi-dalle du damier, pour lire le bruit au sol. */
-  halfTile?: readonly [number, number];
-  /** Finesse du bruit, en cellules. Petit = larges nappes. */
-  streakScale?: number;
-  /** Etirement le long de l'axe x du damier. 1 = des taches, pas des stries. */
-  streakStretch?: number;
-  /** Derive le long de cet axe, en cellules par seconde. */
-  streakSpeed?: number;
-  /** Vitesse a laquelle la forme se deforme sur place. */
-  streakMorph?: number;
-  /** La couleur vers laquelle une trainee tire. Melangee, pas ajoutee. */
-  streakColor?: number;
-  /** La diagonale du sol que les trainees longent : l'axe x ou y du damier. */
-  streakAxis?: 'x' | 'y';
-  /** Pas de quantification en pixels, comme `pixel` dans GodRays. 0 = lisse. */
-  streakPixel?: number;
 }
 
 const rgb = (hex: number) => [
@@ -358,14 +173,6 @@ const rgb = (hex: number) => [
 export interface SeaGradient {
   /** Add this UNDER everything else on the sea, over the background. */
   readonly view: Mesh<Geometry, Shader>;
-  /**
-   * Avance les trainees. A appeler chaque frame, en millisecondes.
-   *
-   * Ce plan etait immobile par definition ; les trainees changent ce contrat.
-   * L'oublier laisse une mer figee sur sa premiere frame, ce qui ne ressemble
-   * pas a un bug mais a une texture. Sans effet quand `streaks` est a 0.
-   */
-  update(deltaMs: number): void;
   /** Resize the plane. */
   resize(width: number, height: number): void;
   /** Set one dial by uniform name, for the story's controls. */
@@ -381,9 +188,8 @@ export interface SeaGradient {
  * A plane of deep water, to lie under everything on the sea.
  *
  * Sized in pixels and positioned by the caller like any other display object.
- * Il FAUT l'`update` chaque frame depuis que le plan porte les trainees :
- * elles derivent au sol et un plan jamais mis a jour reste fige. L'ecume de la
- * cote appartient toujours a `SurfaceTexture` ; ceci est le fond dessous.
+ * There is no `update`: nothing here moves. The water's motion is
+ * `SurfaceTexture`'s job, and this is the ground it moves over.
  */
 export function createSeaGradient(
   width: number,
@@ -413,21 +219,6 @@ export function createSeaGradient(
      *  perspective rather than square to the screen. */
     angle: (175 * Math.PI) / 180,
     steps: 40,
-    /**
-     * Les trainees, discretes. Le regle est dans `Island/Sea gradient` et
-     * recopie dans `waterLook.ts` ; ces valeurs-ci ne servent qu'a un appel
-     * sans options.
-     */
-    streaks: 0.18,
-    halfTile: [22, 12] as const,
-    streakScale: 0.55,
-    /** Le 3.7 de softness dans GodRays, arrondi : c'est lui qui fait la strie. */
-    streakStretch: 4,
-    streakSpeed: 0.12,
-    streakMorph: 0.05,
-    streakColor: 0x5fd3e0,
-    streakAxis: 'y' as const,
-    streakPixel: 3,
     ...options,
   };
 
@@ -456,16 +247,6 @@ export function createSeaGradient(
         uAngle: { value: o.angle, type: 'f32' },
         uMode: { value: o.mode === 'linear' ? 1 : 0, type: 'f32' },
         uSteps: { value: o.steps, type: 'f32' },
-        uTime: { value: 0, type: 'f32' },
-        uStreaks: { value: o.streaks, type: 'f32' },
-        uHalfTile: { value: new Float32Array(o.halfTile), type: 'vec2<f32>' },
-        uStreakScale: { value: o.streakScale, type: 'f32' },
-        uStreakStretch: { value: o.streakStretch, type: 'f32' },
-        uStreakSpeed: { value: o.streakSpeed, type: 'f32' },
-        uStreakMorph: { value: o.streakMorph, type: 'f32' },
-        uStreakColor: { value: new Float32Array(rgb(o.streakColor)), type: 'vec3<f32>' },
-        uStreakAxis: { value: o.streakAxis === 'y' ? 1 : 0, type: 'f32' },
-        uStreakPixel: { value: o.streakPixel, type: 'f32' },
       },
     },
   });
@@ -473,14 +254,8 @@ export function createSeaGradient(
   const view = new Mesh({ geometry, shader });
   const uniforms = shader.resources.gradientUniforms.uniforms as Record<string, unknown>;
 
-  let elapsed = 0;
-
   return {
     view,
-    update(deltaMs) {
-      elapsed += deltaMs / 1000;
-      uniforms.uTime = elapsed;
-    },
     resize(w, h) {
       const buf = geometry.getBuffer('aPosition');
       buf.data = quad(w, h);
