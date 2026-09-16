@@ -25,6 +25,13 @@
  *     on the seam between two. Centred, the grass would line up on the same
  *     grid as the tiles and make the turf look gridded — which is the opposite
  *     of what ground cover is for.
+ *   - **No two alike.** Four frames of art furnish a whole island, so each tuft
+ *     also takes its own green (the sprite is unicolour, so a `tint` replaces
+ *     the colour outright) and its own size wobble. What should read is that
+ *     neighbours differ — never that there are several kinds of plant.
+ *   - **No contact shadow**, unlike every other standing thing here. The
+ *     ellipse is sized against the CELL, so under a tuft this small it is wider
+ *     than the plant and reads as spilled dirt.
  *
  * The metrics are the BOARD's (44x24, `decoScale` 0.4), not the 64px workbench
  * default, because the size question only has an answer at the scale the thing

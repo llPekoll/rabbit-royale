@@ -264,19 +264,69 @@ const GRASS_JITTER = 0.42;
 /**
  * Extra size for a tuft, on top of the `decoScale` every deco sprite rides.
  *
- * `decoScale` is calibrated for the pack's 64px boxes and this art is 32, so
- * riding it alone halves a tuft against the props: ~9px on a 44px cell, against
- * the ~17px a mushroom stands at. That is the intent here — grass is the
- * SMALLEST thing on the island, below the loose props, well below the bushes
- * (~51px, and they BLOCK). At 17px it was reading as clutter competing with the
- * board; at 9 it is a texture the eye passes over, which is what turf should be.
+ * `decoScale` is calibrated for the pack's 64px boxes and this art is 32, so a
+ * tuft already draws at half a prop's height before this applies. 0.75 takes it
+ * down again: about 6-7px on a 44px cell, against the ~17px a mushroom stands
+ * at. Grass is the SMALLEST thing on the island, deliberately — at 17px it
+ * competed with the mine numbers, and the job here is turf the eye passes over.
  *
- * The floor is legibility, not taste: much under this and a tuft is a stray
- * green pixel rather than a plant. It is a named constant because the 32-vs-64
- * ratio is the thing being leaned on — re-export the art at 64px and this must
- * become 0.5 to hold the same size.
+ * 0.75 rather than 0.5, which was tried and is past the floor: at ~4px the
+ * blades stop resolving and a tuft reads as a smudge on the turf rather than
+ * as a plant. The art is only ~21px tall to begin with, so there is far less
+ * headroom below than the numbers suggest.
  */
-const GRASS_SIZE = 1;
+const GRASS_SIZE = 0.75;
+
+/**
+ * The greens a tuft can be tinted, and why tinting is safe here.
+ *
+ * The sprite is UNICOLOUR — every opaque pixel is `#6abe30`, one flat green —
+ * so a Pixi `tint` does not shade the art, it replaces the colour outright.
+ * That makes a palette the cheapest variety available: four textures become
+ * four textures in five greens without another byte of art or a second upload.
+ *
+ * Sampled around the art's own green rather than picked freely: a spread of
+ * hue and lightness (deeper, olive, fresher, paler) narrow enough that the
+ * tufts still read as one plant growing in different light. Widen it and the
+ * meadow stops looking like grass and starts looking like several species.
+ *
+ * Note this is the one place a tuft's colour comes from — tint the base green
+ * too, rather than leaving one variant untinted, so the palette is the whole
+ * story and nothing silently depends on the art's own value.
+ */
+const GRASS_GREENS = [0x5d9921, 0x69be30, 0x76a534, 0x6bcf42, 0x89c967] as const;
+
+/**
+ * How much a tuft's size may vary from `GRASS_SIZE`, either way.
+ *
+ * Same intent as `GRASS_JITTER` and `GRASS_GREENS`: four frames of art have to
+ * furnish a whole island, and identical copies on a grid read as a texture
+ * someone stamped rather than as something growing. Size is the third axis of
+ * variety, after position and colour, and the cheapest — it is one multiply.
+ *
+ * +/-25%, so a tuft runs from about 5 to 8px against the 6-7 of `GRASS_SIZE`.
+ * Kept narrow on purpose: the art is pixel art at roughly 6px, where scaling
+ * lands on fractional pixels and the blades soften. A wider spread would buy
+ * variety by making half the meadow mushy, and the small one is enough — what
+ * the eye picks up is that no two neighbours match, not the range itself.
+ */
+const GRASS_SIZE_VARY = 0.25;
+
+/**
+ * How long one frame of the grass sway lasts, in ms.
+ *
+ * Slower than the island's `DEFAULT_FRAME_MS` (130), and the reason is scale
+ * rather than taste. The sway is a four-frame cycle whatever it is drawn on,
+ * but a tree moves that cycle across ~50px of canopy while a 6px tuft moves it
+ * across two or three pixels. The same tempo therefore reads as a sway on the
+ * tree and as a FLICKER on the grass — the blades have nowhere far to travel,
+ * so all the eye catches is the switch.
+ *
+ * Stretching the frame roughly doubles the cycle and puts the tufts back to
+ * breathing with the wind instead of buzzing in it. Kept well short of a stall:
+ * far slower and the four frames read as four separate stills.
+ */
+const GRASS_FRAME_MS = 260;
 
 const TREE_CHANCE = 0.08;
 const BUSH_CHANCE = 0.05;
@@ -420,6 +470,15 @@ interface AnimatedProp {
   frames: Texture[];
   /** Frames of head start, fractional — see `WIND`. */
   phase: number;
+  /**
+   * How long one frame lasts, in ms. Defaults to the view's `frameMs`.
+   *
+   * Per prop rather than per view because the island's animations are not one
+   * clock: the trees' sway sets the pace of the place, and grass at that pace
+   * flickers (see `GRASS_FRAME_MS`). Anything that leaves this unset keeps the
+   * shared tempo, so adding the field changed nothing that existed.
+   */
+  frameMs?: number;
 }
 
 /**
@@ -1180,8 +1239,10 @@ export class IsoIslandView {
     if (this.destroyed) return;
     this.advanceWalks(deltaMs);
     this.elapsed += deltaMs;
-    const t = this.elapsed / this.frameMs;
     for (const item of this.animated) {
+      // Each prop divides the same elapsed time by its OWN frame length, so a
+      // slower one is genuinely slower rather than merely offset.
+      const t = this.elapsed / (item.frameMs ?? this.frameMs);
       // Floor AFTER adding the phase, not before: a fractional phase has to
       // survive into the sample or every sprite snaps back onto the same tick.
       const n = item.frames.length;
@@ -1676,14 +1737,16 @@ export class IsoIslandView {
         // on a cell the cliff draws over ends up growing out of the wall.
         if (tier === 0 || underCliff(map, x, y, tier)) continue;
         // Every roll this cell will ever need, drawn BEFORE the tests that
-        // skip — same reason `buildDeco` does it, and the reason all three are
-        // here rather than beside their uses: a cell that draws two rolls when
-        // it skips and three when it plants shifts the stream by one for every
-        // cell after it, so masking a board would reshuffle the grass outside
-        // it. Fixed cost per cell is what keeps a seed's meadow a seed's.
+        // skip — same reason `buildDeco` does it, and the reason they are all
+        // here rather than beside their uses: a cell that draws fewer rolls
+        // when it skips than when it plants shifts the stream for every cell
+        // after it, so masking a board would reshuffle the grass outside it.
+        // Fixed cost per cell is what keeps a seed's meadow a seed's.
         const roll = rng();
         const jitterX = rng();
         const jitterY = rng();
+        const green = rng();
+        const size = rng();
         if (keepClear?.(x, y) || this.occupied.has(key(x, y))) continue;
         if (roll > GRASS_CHANCE) continue;
 
@@ -1691,13 +1754,27 @@ export class IsoIslandView {
         // deco — so a tuft draws over its turf and under anything standing on
         // the cell in front of it.
         const depth = isoDepth(x, y, tier) + 1;
-        const sprite = this.foot(world, { texture: tufts.frames[0], anchorY: tufts.anchorY }, x, y, tier, depth);
+        // No contact shadow: the ellipse is sized against the CELL, so under a
+        // tuft this small it is wider than the plant and reads as a patch of
+        // dirt someone spilled rather than as grass touching the ground.
+        const sprite = this.foot(
+          world,
+          { texture: tufts.frames[0], anchorY: tufts.anchorY },
+          x, y, tier, depth,
+          false,
+        );
+        // Unicolour art, so this REPLACES the green rather than shading it.
+        sprite.tint = GRASS_GREENS[Math.floor(green * GRASS_GREENS.length)];
         // `decoScale` is ALREADY the cell fit — it exists because the pack's
         // scenery is cut for 64px tiles and the board's are 44x24 — so the
         // tuft rides it exactly like a tree or a prop does, and multiplying by
         // `metrics.w / TILE` on top would apply that same correction twice.
-        // `GRASS_SIZE` is the only extra factor — see its note.
-        sprite.scale.set(GRASS_SIZE * (this.options.decoScale ?? 1));
+        // `GRASS_SIZE` is the only extra factor — see its note — and every tuft
+        // takes its own wobble around it, so no two neighbours are one sprite
+        // twice. Uniform rather than centred: a bell would cluster them back
+        // onto the nominal size, which is the thing being broken up.
+        const vary = 1 + (size * 2 - 1) * GRASS_SIZE_VARY;
+        sprite.scale.set(GRASS_SIZE * vary * (this.options.decoScale ?? 1));
 
         // Off the centre, in CELL space — see `GRASS_JITTER`. The delta is the
         // difference between two projections rather than a raw pixel nudge, so
@@ -1715,7 +1792,12 @@ export class IsoIslandView {
         // like the trees and bushes — the sway then arrives at one tuft after
         // another and crosses the island as a gust instead of the whole meadow
         // blinking on the same tick.
-        this.animated.push({ sprite, frames: tufts.frames, phase: this.windPhase(x, y) });
+        this.animated.push({
+          sprite,
+          frames: tufts.frames,
+          phase: this.windPhase(x, y),
+          frameMs: GRASS_FRAME_MS,
+        });
       }
     }
   }
@@ -1879,6 +1961,16 @@ export class IsoIslandView {
     tier: number,
     depth: number,
     anchorY = 0.5,
+    /**
+     * Whether this sprite may take a contact shadow at all.
+     *
+     * The anchor test below decides whether something STANDS; this decides
+     * whether a standing thing should cast. Grass is the case that separates
+     * them: it is anchored at the foot like a tree, but an ellipse under a
+     * 4px tuft is a smudge the size of the plant, which reads as dirt rather
+     * than as contact.
+     */
+    shadow = true,
   ): Sprite {
     const sprite = new Sprite(texture);
     sprite.anchor.set(0.5, anchorY);
@@ -1908,7 +2000,7 @@ export class IsoIslandView {
      * integer per cell, so there is room between a sprite and its ground and
      * nowhere else for a neighbour to slip in.
      */
-    if (this.options.decoShadows && anchorY > 0.9) {
+    if (shadow && this.options.decoShadows && anchorY > 0.9) {
       const shadow = new Graphics()
         .ellipse(0, 0, this.metrics.w * SHADOW_RX, this.metrics.h * SHADOW_RY)
         .fill({ color: 0x000000, alpha: SHADOW_ALPHA });
@@ -1984,8 +2076,16 @@ export class IsoIslandView {
   }
 
   /** A prop, standing on its own feet rather than on its box's bottom edge. */
-  private foot(world: Container, prop: FootSprite, x: number, y: number, tier: number, depth: number): Sprite {
-    return this.stamp(world, prop.texture, x, y, tier, depth, prop.anchorY);
+  private foot(
+    world: Container,
+    prop: FootSprite,
+    x: number,
+    y: number,
+    tier: number,
+    depth: number,
+    shadow = true,
+  ): Sprite {
+    return this.stamp(world, prop.texture, x, y, tier, depth, prop.anchorY, shadow);
   }
 }
 
