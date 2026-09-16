@@ -20,7 +20,7 @@
  *
  * `tint` is the item's own colour, and each says what the thing DOES: the trap
  * is buried earth, the bomb is fuse-red, lightning is storm-yellow, the shield
- * is cold steel, energy is carrot. A shelf where every card was the same grey
+ * is cold steel, energy is carrot-orange. A shelf where every card was the same grey
  * is the version this replaces.
  */
 import type { ItemKind } from './use-shop';
@@ -98,11 +98,15 @@ export const ITEM_META: Record<ItemKind, ItemMeta> = {
     aspect: 1,
   },
   energy: {
-    icon: '🥕',
+    icon: '❤️',
     tint: '#e07a2f',
     counts: 'daily',
-    /* The bolt belongs to LIGHTNING in the kit row, so energy does not take it
-       either — and energy has the whole energy card to itself anyway. */
+    /* THE RUN'S HEART, not a carrot. Energy is PAID in carrots, so a carrot on
+       its tile read as the price, or as buying carrots — and it is not one.
+       The bolt belongs to LIGHTNING, which sits on the same shelf, so energy
+       takes the heart the run's life bar is drawn with (`hearts.tsx`). */
+    art: '/assets/ui/heart.png',
+    aspect: 19 / 16,
   },
   smoke: {
     icon: '🌫️',
