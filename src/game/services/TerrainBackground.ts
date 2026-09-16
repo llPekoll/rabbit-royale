@@ -193,13 +193,21 @@ export async function createTerrainBackground(
 
   const isLand = (x: number, y: number) =>
     x >= 0 && y >= 0 && x < COLS && y < ROWS && levelTierAt(seed, x, y) > 0;
-  // The terrain's own projection, flat: the surf lies at sea level, not lifted
-  // onto whatever tier the land behind it rose to.
+  // The terrain's own projection, flat: where a cell's diamond lies at sea
+  // level. This is the ducks' plane — they swim on the water.
   const metrics = { w: HALF_W * 2, h: HALF_H * 2, z: TIER_LIFT };
   const at = (x: number, y: number) => isoProject(x + 0.5, y + 0.5, 0, metrics);
+  // The surf is NOT on that plane. It sits on the shore cells (see
+  // `createPackWater`), and those are drawn a tier up from their footprint —
+  // so placed flat, the surf hung a full `TIER_LIFT` below the grass it was
+  // meant to edge: hidden behind the raised land on the north and west, a
+  // detached fringe under the cliff on the south and east. Lifted to the
+  // cell's own tier it lies level with the grass and shows all round.
+  const foamAt = (x: number, y: number) =>
+    isoProject(x + 0.5, y + 0.5, levelTierAt(seed, x, y), metrics);
 
   const water = createPackWater(
-    await loadPackWater(), COLS, ROWS, isLand, at, WATER_LOOK,
+    await loadPackWater(), COLS, ROWS, isLand, foamAt, WATER_LOOK,
   );
   sea.addChild(water.view);
 

@@ -20,7 +20,7 @@
  */
 import { Assets, Container, Graphics, Sprite, Texture, type BitmapText } from 'pixi.js';
 import gsap from 'gsap';
-import { IsoIslandView, loadIslandTileset, isoProject } from '@/game/island';
+import { IsoIslandView, loadIslandTileset, isoProject, levelAt } from '@/game/island';
 import {
   BURROW_HALF_W, BURROW_HALF_H, BURROW_TIER_LIFT,
   BURROW_ORIGIN_X, BURROW_ORIGIN_Y, BURROW_COLS, BURROW_ROWS,
@@ -361,12 +361,17 @@ export async function createBurrowTerrain(
   // instead of a line on it. This is the same call `IsoIslandView.stamp`
   // makes, so the surf lands on exactly the diamonds the ground was drawn on.
   //
-  // Flat (tier 0): the surf lies at sea level, not lifted onto whatever tier
-  // the land behind it rose to.
+  // Flat (tier 0): the water's plane, where the ducks swim.
   const at = (x: number, y: number) => isoProject(x + 0.5, y + 0.5, 0, metrics);
+  // The surf sits on the shore cells, which are drawn a tier above their
+  // footprint — placed flat it hung `BURROW_TIER_LIFT` below the grass, as a
+  // detached fringe under the south and east faces. Lifted to the cell's own
+  // tier it lies level with the turf it edges. Same fix as the island's.
+  const foamAt = (x: number, y: number) =>
+    isoProject(x + 0.5, y + 0.5, levelAt(map, x, y), metrics);
 
   const water = createPackWater(
-    await loadPackWater(), BURROW_COLS, BURROW_ROWS, isLand, at, WATER_LOOK,
+    await loadPackWater(), BURROW_COLS, BURROW_ROWS, isLand, foamAt, WATER_LOOK,
   );
   sea.addChild(water.view);
 
