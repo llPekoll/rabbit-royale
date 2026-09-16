@@ -155,7 +155,7 @@ export default function Home() {
 
 function Burrow() {
   const t = useT();
-  const { player, token, busy, error: signInError, login, playAsGuest } = useWalletLogin();
+  const { player, token, busy, error: signInError, login, playAsGuest, checking, restored } = useWalletLogin();
   const [where, setWhere] = useState<Where>('burrow');
   /**
    * Whose run is being watched, or null to play your own.
@@ -1611,11 +1611,17 @@ function Burrow() {
    * would turn a flourish into an indefinite black screen. The curtain runs to
    * its own beat; the canvas mounts at the midpoint and boots behind it, which
    * is the same bargain the burrow/island crossing already makes.
+   *
+   * A RELOAD IS NOT A SIGN-IN. A session restored from `/me` had no doorstep
+   * on screen to cross from — only the loader — so the canvas takes the frame
+   * at once and the loader stays up over its boot. Running the iris there
+   * meant flashing the sign-in screen just to wipe it away.
    */
   useEffect(() => {
     if (!player || showCanvas || arriving) return;
-    setArriving(true);
-  }, [player, showCanvas, arriving]);
+    if (restored) onCurtainCut();
+    else setArriving(true);
+  }, [player, showCanvas, arriving, restored, onCurtainCut]);
 
   useEffect(() => {
     if (player) return;
@@ -1689,7 +1695,9 @@ function Burrow() {
 
       {/* The story, told to whoever has not signed in yet. It is the only thing
           on this screen that is not a request — see lore-crawl.tsx. */}
-      {!showCanvas && <LoreCrawl />}
+      {/* Held until the session check is over, so the crawl starts from its
+          first line when the loader lifts rather than halfway up the sky. */}
+      {!showCanvas && !checking && <LoreCrawl />}
 
       {/* The wordmark, at the TOP of the screen and in its own fixed layer.
           It used to ride in the sign-in column at the bottom, under the crawl's
@@ -1822,7 +1830,11 @@ function Burrow() {
       {crossing || shownRaid ? null : where === 'burrow' || !showCanvas ? (
         <section className="rr-burrow">
           {!showCanvas ? (
-            <div className="rr-empty">
+            // Hidden, not unmounted, while the session check runs: the loader
+            // is over it anyway, but a returning player's reload must not
+            // leave live sign-in buttons in the page (or its served HTML) for
+            // a tap or a screen reader to find.
+            <div className="rr-empty" style={checking ? { visibility: 'hidden' } : undefined}>
               {/* The wordmark is NOT here any more — it is the masthead above,
                   so what is left at the bottom is only the ask. The subtitle
                   goes with the logo for the same reason it always did: it names
@@ -2429,8 +2441,13 @@ function Burrow() {
       {/* Nothing to load until the canvas owns the frame; after that, wait for
           both scenes. Keyed on `showCanvas` rather than `player` so it does not
           throw a loading screen over the sign-in art while the curtain is still
-          closing — the boot it reports on has not started yet at that point. */}
-      <LoadingScreen ready={!showCanvas || ready} label={t.chrome.waking} />
+          closing — the boot it reports on has not started yet at that point.
+          Before either, it covers the session check: nobody knows yet whether
+          this is the doorstep or the burrow, so neither is shown.
+          Bare (no label) for the check AND for a restored session's boot: a
+          reload lands where the player already was, and a "Waking…" line
+          flashed in between is noise. */}
+      <LoadingScreen ready={!checking && (!showCanvas || ready)} bare={checking || restored} label={t.chrome.waking} />
     </main>
   );
 }

@@ -59,6 +59,13 @@ declare global {
 const TOKEN_KEY = 'rr_token';
 
 /**
+ * The longest a reload waits on `/me` before giving up and showing the
+ * doorstep. Past it the player is probably offline, and a loader with no end
+ * is worse than a sign-in screen that turns out to be unnecessary.
+ */
+export const RESTORE_WAIT_MS = 3000;
+
+/**
  * What to do with a stored token after the server has answered.
  *
  * Pulled out of the effect so it can be tested: this is the decision that broke
@@ -90,6 +97,21 @@ function useWalletSession() {
    * caught the race, and the winner's row is not read back for one).
    */
   const [takenBy, setTakenBy] = useState<string | null>(null);
+  /**
+   * True until `/me` has answered (or `RESTORE_WAIT_MS` has run out).
+   *
+   * `player === null` alone cannot tell "signed out" from "not asked yet", and
+   * the page read it as the first: a returning player saw the doorstep flash
+   * before their burrow. Starts TRUE, so the server-rendered HTML is the
+   * loader, never the sign-in buttons.
+   */
+  const [checking, setChecking] = useState(true);
+  /**
+   * True when the player on screen came back from a stored session rather
+   * than from a button press. Nothing was on screen to cross FROM, so the page
+   * skips the carrot curtain and goes straight to the game.
+   */
+  const [restored, setRestored] = useState(false);
 
   // Restore a previous session before deciding to show a login button — the
   // token is what the WS handshake needs, so it is kept where JS can read it.
@@ -97,6 +119,15 @@ function useWalletSession() {
     const saved = localStorage.getItem(TOKEN_KEY);
     if (saved) setToken(saved);
     let alive = true;
+    // Mirrors `checking` for the answer below: an answer that lands after the
+    // timeout arrives on a doorstep that is already showing, and has to be
+    // treated like a sign-in, curtain and all.
+    let waiting = true;
+    const done = () => {
+      waiting = false;
+      setChecking(false);
+    };
+    const giveUp = setTimeout(done, RESTORE_WAIT_MS);
     /**
      * ASK EVEN WITH NO TOKEN IN HAND.
      *
@@ -127,6 +158,7 @@ function useWalletSession() {
               wallet: d.player.wallet ?? null,
               guest: Boolean(d.player.guest),
             });
+            setRestored(waiting);
             return;
           }
         }
@@ -137,9 +169,15 @@ function useWalletSession() {
       })
       // A network failure is NOT a bad token — the player may simply be offline,
       // so the session is kept and only the sign-in state stays unresolved.
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        if (!alive) return;
+        clearTimeout(giveUp);
+        done();
+      });
     return () => {
       alive = false;
+      clearTimeout(giveUp);
     };
   }, []);
 
@@ -182,6 +220,7 @@ function useWalletSession() {
   const adopt = useCallback((res: { token: string; player: Player }) => {
     localStorage.setItem(TOKEN_KEY, res.token);
     setToken(res.token);
+    setRestored(false);
     setPlayer({
       id: res.player.id,
       name: res.player.name,
@@ -286,6 +325,7 @@ function useWalletSession() {
     localStorage.removeItem(TOKEN_KEY);
     setToken(null);
     setPlayer(null);
+    setRestored(false);
     // The cookie has to go too, or `/me` signs the player straight back in on
     // the next reload. Fire-and-forget: the local state is already cleared, and
     // a failed request must not leave the player looking signed in.
@@ -308,7 +348,7 @@ function useWalletSession() {
   }, []);
 
   return {
-    player, token, busy, error, takenBy,
+    player, token, busy, error, takenBy, checking, restored,
     login, playAsGuest, linkWallet, logout, applyProfile,
   };
 }
@@ -332,7 +372,7 @@ export function WalletSessionProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => session,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [session.player, session.token, session.busy, session.error],
+    [session.player, session.token, session.busy, session.error, session.checking, session.restored],
   );
   return (
     <WalletSessionContext.Provider value={value}>

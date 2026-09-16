@@ -197,7 +197,7 @@ describe('the iris covers every crossing', () => {
     // things that need a session (a token, an id) — those may pair the two, but
     // none of them may test `player` alone to decide which screen is up.
     for (const gate of [
-      /\{!showCanvas && <LoreCrawl \/>\}/,
+      /\{!showCanvas && !checking && <LoreCrawl \/>\}/,
       /\{!showCanvas && \(/,                       // the sign-in art
       /\{player && showCanvas && \(/,               // the canvas itself
       /\{showCanvas && where === 'burrow' && !shownRaid && !crossing && \(/,
@@ -214,7 +214,17 @@ describe('the iris covers every crossing', () => {
     // The boot it reports on has not started while the curtain is closing —
     // the canvas is not mounted yet. Keyed on `player` it threw "Waking the
     // warren" over the screen the curtain was still working on.
-    expect(PAGE).toMatch(/<LoadingScreen ready=\{!showCanvas \|\| ready\}/);
+    // `!checking &&` in front is the reload's veil, lifted before any sign-in.
+    expect(PAGE).toMatch(/<LoadingScreen ready=\{!checking && \(!showCanvas \|\| ready\)\}/);
+  });
+
+  it('does not flash the sign-in screen on a reload, nor wipe over it', () => {
+    // A returning player's reload showed the doorstep until `/me` answered,
+    // then ran the sign-in iris over it. The loader holds the frame while the
+    // session is checked, the doorstep is hidden under it, and a RESTORED
+    // session skips the curtain and takes the frame at once.
+    expect(PAGE).toMatch(/className="rr-empty" style=\{checking \? \{ visibility: 'hidden' \}/);
+    expect(PAGE).toMatch(/if \(restored\) onCurtainCut\(\);\s*else setArriving\(true\);/);
   });
 
   it('does not hold the sign-in curtain open until the canvas boots', () => {

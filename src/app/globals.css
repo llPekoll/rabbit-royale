@@ -3070,18 +3070,21 @@ button { font-family: var(--font-pixel); }
   background: var(--bg);
   transition: opacity 420ms ease;
 }
+/* The sheet alone, for the session check and a restored boot: no label. The
+   label fades in if the wait is one the player started. See LoadingScreen's
+   `bare`. */
+.rr-loading p {
+  transition: opacity 420ms ease;
+}
+.rr-loading.bare p {
+  opacity: 0;
+}
 .rr-loading.done {
   opacity: 0;
   /* Stop eating taps the moment it starts to fade — the screen underneath is
      already live, and a transparent overlay that still blocks input is the
      most confusing state a loader can be in. */
   pointer-events: none;
-}
-.rr-loading img {
-  width: min(84vw, 520px);
-  image-rendering: pixelated;
-  /* The art is a lit island on a dark page; the glow ties them together. */
-  filter: drop-shadow(0 0 40px rgba(80, 190, 220, 0.28));
 }
 .rr-loading p {
   margin: 0;
