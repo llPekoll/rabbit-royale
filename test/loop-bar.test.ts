@@ -61,6 +61,9 @@ describe('the loop bar', () => {
     expect(PAGE).toMatch(/label=\{spectating \? t\.run\.stopWatching : t\.run\.home\}/);
     expect(PAGE).not.toMatch(/<GoButton/);
     expect(read('../src/components/run-recap.tsx')).toMatch(/t\.recap\.goHome/);
+    // ...and the slab steps aside while the recap is up: the card's own last
+    // row is the same exit, and the two HOMEs were drawn over each other.
+    expect(PAGE).toMatch(/\{!\(game\.recap && !spectating\) && \([\s\S]{0,80}<BackButton[\s\S]{0,120}label=\{spectating \? t\.run\.stopWatching : t\.run\.home\}/);
   });
 
   it('moves the shop and the codex off the floor, to the top bar', () => {

@@ -200,7 +200,11 @@ export function CarrotPill({
       <span style={stack}>
         {/* THE FOLDED PILL: the figure, the rank beside it. */}
         <span style={topRow}>
-          <span key={fireKey} className={fireKey ? 'banked' : undefined} style={figure}>
+          <span
+            key={fireKey}
+            className={fireKey ? 'banked' : undefined}
+            style={{ ...figure, fontSize: figureSize(groupDigits(stock), hasRank ? String(rank) : null) }}
+          >
             {groupDigits(stock)}
           </span>
           {/* Keyed on the RANK so a change remounts the chip and replays its
@@ -323,7 +327,47 @@ const figure: CSSProperties = {
   fontVariantNumeric: 'tabular-nums',
   color: INK,
   lineHeight: 1,
+  /* ONE LINE. The digits are grouped with a space ("1 683"), and a flex row
+     short of room broke the figure AT THAT SPACE — "1" over "683", the rank
+     chip pushed out of the plate (Paul, 2026-09-16). The size steps down
+     instead; see `figureSize`. */
+  whiteSpace: 'nowrap',
 };
+
+/**
+ * The pixel face's advance per character at each size the interface uses,
+ * measured in the game (the font is monospace, so a space is a digit's width).
+ * Sizes are the kit's own steps — whole multiples of its 8px cell read
+ * crispest — so the figure moves between them rather than shrinking freely.
+ */
+const FIGURE_STEPS: ReadonlyArray<readonly [size: number, perChar: number]> = [
+  [22, 16.2], [16, 12.1], [12, 9.1], [10, 7.7],
+];
+
+/** The chip: its inset, the "#" (a wide glyph), then the rank's digits at the
+ *  10px face — measured as 31 / 42 / 56px for "#5" / "#211" / "#1234". */
+const CHIP_PER_DIGIT = 8;
+const CHIP_INSET = 12 + 9;
+/** Caret and the two gaps around the chip, in the folded row. */
+const ROW_FURNITURE = 8 + 12;
+const STACK_W = 132;
+
+/**
+ * The largest step at which the grouped figure still fits its row beside the
+ * rank chip, inside the pill's fixed stack. The pill's width is FIXED so the
+ * counter never walks (see `stack`); when the pile outgrows the face, it is
+ * the face that gives, one step at a time, never the line. A total past even
+ * the smallest step (nine figures beside a four-figure rank) is clipped by the
+ * stack rather than wrapped.
+ */
+export function figureSize(grouped: string, rank: string | null): number {
+  const chip = rank === null ? 0 : CHIP_INSET + rank.length * CHIP_PER_DIGIT + ROW_FURNITURE;
+  const room = STACK_W - chip;
+  for (const [size, perChar] of FIGURE_STEPS) {
+    if (grouped.length * perChar <= room) return size;
+  }
+  return FIGURE_STEPS[FIGURE_STEPS.length - 1][0];
+}
 
 /**
  * The climb line. Same size as "carrots" and a shade warmer, so it reads as a
@@ -365,6 +409,9 @@ const rankRow: CSSProperties = {
  */
 const rankChip: CSSProperties = {
   display: 'inline-block',
+  /* The chip never gives: it is the figure's face that steps down. */
+  flexShrink: 0,
+  whiteSpace: 'nowrap',
   /* The game's chip inset: 2px of vertical room — all a 10px line can spare —
      and the tight pad each side, the same as every other badge and tag. */
   padding: '2px var(--rr-pad-tight)',

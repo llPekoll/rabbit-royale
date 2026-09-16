@@ -2286,11 +2286,18 @@ function Burrow() {
               Taps meant for a tile landed on HOME, and the bob kept pulling the
               eye off the board. Placement already solved this — its exit is the
               small soil slab in the corner — so the island uses it too, and the
-              floor belongs to the board again. */}
-          <BackButton
-            label={spectating ? t.run.stopWatching : t.run.home}
-            onClick={stopSpectating}
-          />
+              floor belongs to the board again.
+
+              NOT UNDER THE RECAP. The recap's own last row is this same exit
+              ("Home or quit", `onHome` = `stopSpectating`), and the slab sat
+              across it on a phone — two HOMEs, one drawn over the other (Paul,
+              2026-09-16). While the recap is up, the card is the way out. */}
+          {!(game.recap && !spectating) && (
+            <BackButton
+              label={spectating ? t.run.stopWatching : t.run.home}
+              onClick={stopSpectating}
+            />
+          )}
         </div>
       )}
 
