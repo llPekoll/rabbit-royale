@@ -12,7 +12,9 @@
  * and keeps them out of this scan's way — so the rule is about RAW characters
  * in source strings.
  *
- * The scan covers `src/` AND `src/config/` prose tables. The lore codex put its
+ * The scan covers `src/` AND `src/config/` prose tables, but NOT `src/stories/`:
+ * a story's prose is Storybook's chrome, drawn by the system font in a
+ * developer tool rather than by the kit's bitmap face in the game. The lore codex put its
  * chapters in config/lore.ts rather than in the component that renders them,
  * which is the right place for a content table — and it walked straight past a
  * scan that only read components. Every em-dash in it shipped as a blank, and
@@ -37,6 +39,14 @@ function uiFiles(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
     const path = join(dir, name);
     if (statSync(path).isDirectory()) {
+      // NOT the stories. A story's prose is Storybook's own chrome — panel
+      // copy, control labels, the names in its sidebar — drawn by the system
+      // font in a developer tool, never by the kit's bitmap face in the game.
+      // Scanning them reported 40-odd "offenders" whose em dashes and middots
+      // render perfectly well where they actually appear, which buries the
+      // handful of real ones in the same list. The rule this file enforces is
+      // about copy that reaches a PLAYER.
+      if (name === 'stories') continue;
       uiFiles(path, out);
     } else if (
       /\.tsx$/.test(name)
@@ -98,6 +108,12 @@ describe('pixel font coverage', () => {
           if (/\*\//.test(t)) inComment = false;
           return;
         }
+        // A JSX comment that OPENS AND CLOSES on one line is prose too, and
+        // is skipped outright rather than opening a block: `{/* … */}` beside
+        // a line of markup was the one comment shape this scan still read as
+        // copy, so an em dash in a note above a button was reported as a
+        // glyph the player would see.
+        if (/\{\/\*/.test(t) && /\*\/\}/.test(t)) return;
         if (/\{\/\*/.test(t) && !/\*\/\}/.test(t)) { inComment = true; return; }
         // A TRAILING comment is prose too. `const SOIL = '#2a1810'; // earth —
         // packed` is a colour, not a string that reaches the screen, and

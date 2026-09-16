@@ -117,7 +117,7 @@ export function ChestPrize({ prize, onDone }: ChestPrizeProps) {
     ? 'RR GENESIS'
     : drop?.label ?? prize.kind.toUpperCase();
   const caption = prize.nft
-    ? `A PIECE IS YOURS — PLUS ${prize.amount}x ${drop?.label ?? prize.kind.toUpperCase()}`
+    ? `A PIECE IS YOURS - PLUS ${prize.amount}x ${drop?.label ?? prize.kind.toUpperCase()}`
     : `+${prize.amount} ${drop?.label ?? ''}`.trim();
 
   // An unknown kind means a server newer than this client. Say something true
