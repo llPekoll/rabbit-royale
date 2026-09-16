@@ -694,12 +694,6 @@ function Burrow() {
   // `readyAt` the server hands over.
   const REARM_TOTAL_MS = TRAPS.REARM_MS;
 
-  const nextRearmLabel = useMemo(() => {
-    const next = shop.traps?.rearming[0];
-    if (!next) return null;
-    return formatWait(new Date(next.readyAt).getTime() - Date.now());
-  }, [shop.traps]);
-
   /**
    * Lift every bomb off the board at once.
    *
@@ -2027,38 +2021,10 @@ function Burrow() {
               {/* The placing instruction, its refusals and the toast moved out
                   of the column to `.rr-toasts` under the pill — see `note`. */}
 
-              {/* THE STATE OF THE DEFENCE, last line on the column.
-                  
-                  At the BOTTOM and always on — not only while placing. A
-                  defender's first question on opening their burrow is whether
-                  it is still guarded, and answering it only once they had
-                  already decided to rearrange their bombs was answering it too
-                  late. It sits under everything else because it is a status
-                  line, not a control: nothing here is tapped.
-                  
-                  It reports what is STANDING, not what is buried — those
-                  differ while traps rearm, and a board claiming 8/8 with five
-                  of them down would be a lie told in the player's favour.
-                  
-                  The rearming half names its own cost, which is none: a player
-                  who does not know the bombs come back free will go and buy
-                  replacements for traps they never lost. */}
-              {shop.traps && shop.traps.placed.length > 0 && (
-                <PxPanel
-                  color="rgba(13, 17, 23, 0.86)"
-                  className={`rr-note${shop.traps.armed.length === 0 ? ' danger' : ''}`}
-                  style={PX_GLASS}
-                >
-                  {shop.traps.armed.length} bomb{shop.traps.armed.length === 1 ? '' : 's'} live
-                  {shop.traps.rearming.length > 0 && (
-                    <>
-                      {' '}&middot; {shop.traps.rearming.length} rearming
-                      {nextRearmLabel && <> (next in {nextRearmLabel})</>}
-                      {' '}&middot; costs you nothing
-                    </>
-                  )}
-                </PxPanel>
-              )}
+              {/* No status line under the cards: "N bombs live · M rearming"
+                  duplicated the DEFEND slab, which already carries the trap
+                  count, and cost the phone's column a row (Paul, 2026-09-16).
+                  The rearming detail lives in the shop's trap section. */}
             </>
           )}
           {/* Last, so it measures the whole column. Not on the doorstep,
@@ -2472,21 +2438,6 @@ function Burrow() {
       <LoadingScreen ready={!checking && (!showCanvas || ready)} bare={checking || restored} label={t.chrome.waking} />
     </main>
   );
-}
-
-/**
- * A wait, in the coarsest unit that is still honest.
- *
- * "23m" rather than "23m 14s": the player is deciding whether to wait or close
- * the tab, and a ticking second-hand invites them to watch it.
- */
-function formatWait(ms: number | null): string {
-  if (ms === null) return 'a moment';
-  const mins = Math.ceil(ms / 60_000);
-  if (mins < 60) return `${mins}m`;
-  const hours = Math.floor(mins / 60);
-  const rest = mins % 60;
-  return rest ? `${hours}h ${rest}m` : `${hours}h`;
 }
 
 /** The art a quest's item reward flies in as — the same icons the chest uses. */

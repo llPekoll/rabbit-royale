@@ -6,30 +6,26 @@
  * mais ses DEFAUTS et les constantes du jeu sont les memes nombres, pour que
  * ce qui a ete regle la-bas soit ce qui ship ici.
  *
- * ## Le reglage retenu : SANS SEUIL, en tres doux
+ * ## Le reglage retenu : SEUIL A 0.7, en tres doux
  *
- * `threshold` a 0, donc tous les pixels participent au halo — c'est le mode
- * que `BloomFilter` documente comme son contre-exemple, et c'est pourtant
- * celui qui a ete choisi a l'oeil. Ce n'est pas une erreur, c'est un choix
- * esthetique, et il se tient pour une raison precise : a `strength` 0.35 le
- * halo ne DELAVE pas, il ajoute une brume lumineuse uniforme sur toute l'ile.
- * Le ratage decrit dans `BloomFilter` (l'image qui blanchit) arrive a forte
- * intensite ; a un tiers de force, la meme absence de seuil se lit comme une
- * lumiere ambiante diurne.
+ * Le bloom a d'abord shippe SANS seuil (`threshold` 0) : tous les pixels
+ * nourrissaient le halo, ce qui a `strength` 0.35 se lisait comme une brume
+ * lumineuse diurne plutot qu'un delavage. Le cout etait connu et ecrit ici :
+ * l'herbe et la roche participaient au halo comme le reste, donc les verts
+ * que la palette 2 separe se rapprochaient d'un cheveu.
  *
- * Ce que ca coute, et qu'il faut savoir : l'herbe et la roche participent au
- * halo comme le reste, donc les verts que la palette 2 separe se rapprochent
- * d'un cheveu. Si un jour les terrasses deviennent dures a distinguer en jeu,
- * c'est le premier suspect — monter `threshold` vers 0.7 rend leur contraste
- * sans toucher au reste.
+ * Le 2026-09-16, Paul a compare sur le vrai plateau de DIG (890x400) trois
+ * captures cote a cote — bloom sans seuil, sans bloom, seuil 0.7 — et a
+ * retenu 0.7 : les terrasses et la falaise retrouvent le contraste de l'image
+ * sans filtre, et le halo ne reste que sur ce qui brille vraiment, l'anneau
+ * dore des cases atteignables, l'ecume, les chiffres. `knee` reste a 0 : la
+ * bascule est franche, et a un tiers de force elle ne se voit pas.
  */
 export const BLOOM_LOOK = {
-  /**
-   * 0 : aucun seuil, toute l'image nourrit le halo. Voir l'en-tete — c'est
-   * deliberé, et c'est ce qui rend l'effet atmospherique plutot que ponctuel.
-   */
-  threshold: 0,
-  /** Sans objet a seuil nul : il n'y a pas de bascule a adoucir. */
+  /** Seuls les pixels au-dessus de 0.7 de luminance nourrissent le halo —
+   *  l'anneau dore, l'ecume, les chiffres ; pas l'herbe. Voir l'en-tete. */
+  threshold: 0.7,
+  /** Bascule franche : a un tiers de force, un genou ne se verrait pas. */
   knee: 0,
   /** Rayon du halo, en pixels de l'espace design (960x540). */
   radius: 6.5,

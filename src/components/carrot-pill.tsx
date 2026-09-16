@@ -167,10 +167,10 @@ export function CarrotPill({
           (`.rr-pill-plate`, px-top-floor.css) without touching the transform
           that centres the pill. */}
       <PxPanel color={FACE_TOP} className="rr-pill-plate" style={plate}>
-      {denyKey > 0 && <span key={denyKey} className="rr-pill-deny" aria-hidden />}
+      {denyKey > 0 && <span key={`deny-${denyKey}`} className="rr-pill-deny" aria-hidden />}
       {carrying ? (
         <span
-          key={carrying}
+          key={`carry-${carrying}`}
           className="rr-pill-carrying"
           title={t.pill.carryNote}
           aria-label={t.pill.carrying(carrying)}
@@ -201,7 +201,7 @@ export function CarrotPill({
         {/* THE FOLDED PILL: the figure, the rank beside it. */}
         <span style={topRow}>
           <span
-            key={fireKey}
+            key={`fig-${fireKey}`}
             className={fireKey ? 'banked' : undefined}
             style={{ ...figure, fontSize: figureSize(groupDigits(stock), hasRank ? String(rank) : null) }}
           >
@@ -209,9 +209,14 @@ export function CarrotPill({
           </span>
           {/* Keyed on the RANK so a change remounts the chip and replays its
               pop (`rr-rank-pop`): climbing a place is the one thing it exists
-              to report, and it used to change as quietly as a clock. */}
+              to report, and it used to change as quietly as a clock.
+              PREFIXED, like every key in this plate: the figure beside it is
+              keyed on `fireKey`, and the two are siblings — when the second
+              bank landed for a player ranked #2, both children were key `2`
+              and React kept the OLD figure next to the new one. Paul saw
+              "265 1263" for a stock of 1263 (2026-09-16). */}
           {hasRank && (
-            <span key={rank} className="rr-rank-pop" style={rankChip}>#{rank}</span>
+            <span key={`rank-${rank}`} className="rr-rank-pop" style={rankChip}>#{rank}</span>
           )}
           {hasRank && <span className={`rr-pill-caret${open ? ' open' : ''}`} aria-hidden />}
         </span>
