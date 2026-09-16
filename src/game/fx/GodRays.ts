@@ -448,7 +448,7 @@ export const GOD_RAYS_DEFAULTS = {
    * etre franchement visible sans salir l'image. Le dial est `motes` ;
    * `moteDensity` est le second, et il doit rester bas.
    */
-  motes: 0.15,
+  motes: 0.3,
   moteCell: 26,
   moteSize: 2.2,
   moteDensity: 0.25,
