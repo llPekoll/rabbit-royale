@@ -2,6 +2,8 @@ import { Application, Assets, Container, Graphics, Texture } from 'pixi.js';
 import gsap from 'gsap';
 import { createSeaGradient, type SeaGradient } from './fx/SeaGradient';
 import { SEA_GRADIENT_LOOK } from '@/config/waterLook';
+import { BloomFilter } from './fx/BloomFilter';
+import { BLOOM_LOOK } from '@/config/bloomLook';
 import { SceneManager } from './SceneManager';
 import { BootScene } from './scenes/BootScene';
 import { SCENE } from './keys';
@@ -198,6 +200,33 @@ export async function createApp(
   gameRoot.sortableChildren = true;
   pixi.stage.addChild(gameRoot);
 
+  /**
+   * Le bloom, sur `gameRoot` et pas sur le stage.
+   *
+   * Sur `gameRoot`, donc il voit tout le contenu de scene — l'ile, l'ecume, la
+   * deco — mais NI le fond (`bgFill`), NI le degrade de mer (`seaDepth`), qui
+   * sont poses directement sur le stage sous lui, NI le wipe (zIndex 1000) qui
+   * est au-dessus.
+   *
+   * C'est le bon decoupage, et chacune des trois exclusions compte :
+   *
+   *  - le fond et le degrade sont des aplats calcules ; les faire passer dans
+   *    un halo ne leur ajoute rien et ferait payer le filtre sur toute la
+   *    surface du viewport, letterbox comprise ;
+   *  - le WIPE surtout : c'est un rideau plein ecran, souvent clair. Sous le
+   *    bloom il deborderait sur lui-meme a chaque transition, et le fondu
+   *    ramasserait un flash a mi-course.
+   */
+  const bloom = new BloomFilter({
+    threshold: BLOOM_LOOK.threshold,
+    knee: BLOOM_LOOK.knee,
+    radius: BLOOM_LOOK.radius,
+    strength: BLOOM_LOOK.strength,
+    tint: BLOOM_LOOK.tint,
+    saturation: BLOOM_LOOK.saturation,
+  });
+  gameRoot.filters = [bloom];
+
   // Declared before resize() so that function can close over it; filled in
   // after the boot, which is what loads the silhouettes it is cut from.
   let wipe: RandomWipe | null = null;
@@ -239,6 +268,22 @@ export async function createApp(
       Math.round((w - GAME_W * scale) / 2),
       0,
     );
+
+    // Le rayon du bloom suit le zoom du plateau, et il FAUT le recalculer ici.
+    //
+    // `BLOOM_LOOK.radius` est en pixels de l'espace design (960x540), qui est
+    // l'unite dans laquelle la story l'a regle. Mais un filtre travaille sur
+    // la texture rendue de son conteneur, donc APRES le scale de `gameRoot` :
+    // laisse fixe, le halo ferait 6.5 pixels d'ecran sur un telephone comme
+    // sur un 27 pouces, soit un effet deux fois plus discret sur le grand
+    // ecran alors que tout le reste de l'image a double. Multiplier par
+    // `scale` est ce qui fait que le bloom grandit avec l'art qu'il eclaire.
+    //
+    // `setResolution` par-dessus, pour le ratio de pixels du canvas (jusqu'a
+    // MAX_RESOLUTION) : c'est la seconde conversion, et elle est independante
+    // de celle-ci.
+    bloom.radius = BLOOM_LOOK.radius * scale;
+    bloom.setResolution(pixi.renderer.resolution);
 
     // The shutter is built after this function (it needs the booted textures)
     // but resize runs once before that, so it is optional here rather than
@@ -348,6 +393,11 @@ export async function createApp(
       // Before `pixi.destroy`, which takes the display list but not the
       // geometry and shader this built for itself.
       seaDepth.destroy();
+      // Same reason: a filter is not a child, so the display list's teardown
+      // never reaches it. Detached first so nothing renders through a filter
+      // whose program has just gone.
+      gameRoot.filters = [];
+      bloom.destroy();
       scenes.destroyAll();
       gsap.globalTimeline.clear();
       pixi.destroy(true, { children: true });
