@@ -141,8 +141,12 @@ const LIFT_TINT = 0xff6b4a;
 /** How far the bomb rises, in the cell's own px — clear, but it stays on its cell. */
 const LIFT_PX = 5;
 
-/** A trap's bomb is anchored at its foot: this far down the art is the ground. */
-const BOMB_ANCHOR_Y = 0.78;
+/**
+ * A trap's bomb is anchored at its foot: this far down the art is the ground.
+ * 0.78 on the first 20x23 bomb; the 27x36 art spends its top third on the
+ * fuse, so the body's foot sits lower down the image.
+ */
+const BOMB_ANCHOR_Y = 0.86;
 /**
  * The bomb's scale for a texture, off the CELL rather than the texture's own
  * pixels. Shared by the buried bomb and the hover ghost, so the preview is

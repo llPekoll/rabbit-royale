@@ -102,6 +102,18 @@ const button: CSSProperties = {
   letterSpacing: 'normal',
 };
 
+/**
+ * A sprite in place of the emoji: the glyph's box, drawn pixelated. The shop
+ * stall (33px) and the gold cup (16px) are both scaled to one height so the
+ * row reads as a set; `width: auto` keeps each at its own aspect.
+ */
+export const hubIconArt: CSSProperties = {
+  height: 'clamp(22px, 7.5svh, 46px)',
+  width: 'auto',
+  display: 'block',
+  imageRendering: 'pixelated',
+};
+
 const glyph: CSSProperties = {
   display: 'flex',
   alignItems: 'center',

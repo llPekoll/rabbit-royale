@@ -321,7 +321,11 @@ function Row({
           stall's deep soil, which is the tone the old gradient read as. */}
       <PxPanel color={mixHex(meta.tint, SOIL_DEEP, 0.2)} className="rr-shop-tile-face">
       <div className="rr-shop-tile-head">
-        <span className="rr-shop-tile-icon" aria-hidden>{meta.icon}</span>
+        <span className="rr-shop-tile-icon" aria-hidden>
+          {/* The kind's pixel art where it has some, as the kit row shows it;
+              the emoji otherwise. */}
+          {meta.art ? <img src={meta.art} alt="" draggable={false} /> : meta.icon}
+        </span>
         <h3>{name}</h3>
         <span className="rr-shop-tile-held">{held}</span>
       </div>
@@ -430,11 +434,11 @@ export function ProtectButton({ shop, onPlace, onNone }: ProtectButtonProps) {
   return (
     <LauncherTab
       // The bomb itself, at the tab's own pixel — the object the tap buries.
-      // 20x23 source, so the height is the larger side and the bleed geometry
+      // 27x36 source, so the height is the larger side and the bleed geometry
       // needs telling, exactly as the chest does.
       sprite={BOMB_SRC}
       spriteSize={34}
-      spriteHeight={Math.round(34 * (23 / 20))}
+      spriteHeight={Math.round(34 * (36 / 27))}
       label={t.shop.protect}
       sub={
         !traps ? undefined
@@ -459,4 +463,5 @@ export function ProtectButton({ shop, onPlace, onNone }: ProtectButtonProps) {
   );
 }
 
-const BOMB_SRC = '/assets/misc/RR-Bomb-Small.webp';
+/** The buried bomb — unlit, as it waits in the ground. */
+const BOMB_SRC = '/assets/ui/icons/bomb.png';

@@ -850,7 +850,7 @@ body:has(.rr-loop-bar) .rr-sound {
 }
 /* The confetti host over the card: a zero-size layer the chips fly out of. */
 .rr-confetti-burst { position: absolute; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; z-index: 5; }
-.rr-confetti-burst > span { position: absolute; left: 0; top: 0; border-radius: 1px; will-change: transform; }
+.rr-confetti-burst > * { position: absolute; left: 0; top: 0; will-change: transform; }
 
 /* The rank line on the carrot pill when the rank CHANGES. */
 .rr-rank-pop { display: inline-block; animation: rr-rank-pop 520ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
@@ -3289,7 +3289,14 @@ button { font-family: var(--font-pixel); }
 .rr-shop-tile-icon {
   font-size: 18px;
   line-height: 1;
+  display: inline-flex;
   filter: drop-shadow(0 0 6px color-mix(in srgb, var(--tile) 60%, transparent));
+}
+.rr-shop-tile-icon img {
+  height: 22px;
+  width: auto;
+  display: block;
+  image-rendering: pixelated;
 }
 .rr-shop-tile-head h3 {
   flex: 1;

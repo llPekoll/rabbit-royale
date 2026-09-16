@@ -61,7 +61,7 @@ const DROP: Record<string, { src: string; label: ChestLabel; rarity: RevealRarit
   carrots: { src: '/assets/ui/icons/carrot.webp', label: 'carrots', rarity: 'common', aspect: 30 / 32 },
   water: { src: '/assets/ui/icons/water.webp', label: 'watering', rarity: 'rare', aspect: 33 / 32 },
   fertiliser: { src: '/assets/ui/icons/fertiliser.webp', label: 'fertiliser', rarity: 'rare', aspect: 29 / 32 },
-  bomb: { src: '/assets/ui/icons/bolt.webp', label: 'bomb', rarity: 'epic', aspect: 29 / 24 },
+  bomb: { src: '/assets/ui/icons/bomb-lit.png', label: 'bomb', rarity: 'epic', aspect: 36 / 43 },
   shield: { src: '/assets/ui/icons/shield.webp', label: 'shield', rarity: 'epic', aspect: 1 },
   lightning: { src: '/assets/ui/icons/bolt.webp', label: 'lightning', rarity: 'epic', aspect: 29 / 24 },
 };

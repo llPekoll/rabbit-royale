@@ -29,6 +29,7 @@ import {
 import type { QuestView } from '@/config/quests';
 import { useT } from '@/i18n/provider';
 import type { Dict } from '@/i18n/dictionaries';
+import { treasurePiece } from './treasure-piece';
 
 export interface QuestCardProps {
   quest: QuestView;
@@ -46,13 +47,13 @@ export interface QuestCardProps {
   claimKey?: number;
 }
 
-/** The chips thrown when a reward is claimed. The victory stage's palette. */
-const CONFETTI = ['#ffd138', '#e07a2f', '#f5e6d3', '#3ecf7f', '#4aa3ff'];
-const CONFETTI_COUNT = 22;
+/** How many pieces of loot a claim throws. */
+const CONFETTI_COUNT = 18;
 
 /**
- * A burst of paper from the card's centre — a claim is a small win, and a
- * small win gets a small stage. Fires on `fireKey`; nothing on mount.
+ * A burst of loot from the card's centre — a claim is a small win, and a
+ * small win gets a small stage. Coins and jewels (`treasurePiece`), where it
+ * used to throw flat paper chips. Fires on `fireKey`; nothing on mount.
  */
 function ConfettiBurst({ fireKey }: { fireKey: number }) {
   const host = useRef<HTMLDivElement>(null);
@@ -60,14 +61,11 @@ function ConfettiBurst({ fireKey }: { fireKey: number }) {
     const el = host.current;
     if (!fireKey || !el) return;
     if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
-    const chips: HTMLSpanElement[] = [];
+    const chips: HTMLElement[] = [];
     const tl = gsap.timeline({ onComplete: () => chips.forEach((c) => c.remove()) });
     for (let i = 0; i < CONFETTI_COUNT; i++) {
-      const chip = document.createElement('span');
-      const size = gsap.utils.random(4, 8, 1);
-      chip.style.width = `${size}px`;
-      chip.style.height = `${Math.random() < 0.4 ? size * 2 : size}px`;
-      chip.style.background = CONFETTI[i % CONFETTI.length];
+      // 1x or 2x the native pixel: a card-sized burst, not the raid's stage.
+      const chip = treasurePiece(i, Math.random() < 0.5 ? 1 : 2);
       el.appendChild(chip);
       chips.push(chip);
       const angle = gsap.utils.random(-Math.PI, 0);

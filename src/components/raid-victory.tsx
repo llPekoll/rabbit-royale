@@ -55,6 +55,7 @@ import { PixelText as BitmapText, PixelTitle as TitleText } from './pixel-text';
 import { useT, usePixelFace } from '@/i18n/provider';
 import { groupDigits } from '@/i18n/format';
 import { CARROT_URL, CARROT_SIZE } from '@domin8/arcade-kit/game';
+import { treasurePiece } from './treasure-piece';
 import { avatarSrc, AVATAR_FRAME } from '@/lib/game/avatars';
 import { playUiSfx } from '@/game/services/SoundManager';
 import { PxButton } from './px';
@@ -440,20 +441,26 @@ export function Confetti() {
     // field is exactly the motion that makes some people ill.
     if (!el || reduced) return;
 
-    const chips: HTMLSpanElement[] = [];
+    const chips: HTMLElement[] = [];
     const tweens: gsap.core.Tween[] = [];
 
     for (let i = 0; i < CONFETTI_COUNT; i++) {
-      const chip = document.createElement('span');
+      // ONE PIECE IN FOUR IS LOOT — a coin or a jewel (`treasurePiece`), at
+      // 2-3x its pixel. A raid is a heist, and the paper alone said party;
+      // the rest stays paper so the field still reads as a celebration.
+      const loot = i % 4 === 0;
       const size = gsap.utils.random(5, 11, 1);
+      const chip: HTMLElement = loot ? treasurePiece(i, gsap.utils.random(2, 3, 1)) : document.createElement('span');
       chip.style.cssText = [
         'position:absolute',
         'top:-8vh',
-        `width:${size}px`,
         // A mix of squares and ribbons: a field of identical chips reads as a
         // texture rather than as paper.
-        `height:${Math.random() < 0.35 ? size * 2 : size}px`,
-        `background:${CONFETTI_COLORS[i % CONFETTI_COLORS.length]}`,
+        ...(loot ? ['image-rendering:pixelated'] : [
+          `width:${size}px`,
+          `height:${Math.random() < 0.35 ? size * 2 : size}px`,
+          `background:${CONFETTI_COLORS[i % CONFETTI_COLORS.length]}`,
+        ]),
         `left:${gsap.utils.random(0, 100, 0.1)}%`,
         'will-change:transform',
       ].join(';');

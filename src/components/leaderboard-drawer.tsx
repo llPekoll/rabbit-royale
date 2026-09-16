@@ -29,9 +29,9 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { useT } from '@/i18n/provider';
-import { CloseButton, NineSlicePanel } from '@domin8/arcade-kit';
+import { CloseButton, GOLD_CUP_URL, NineSlicePanel } from '@domin8/arcade-kit';
 import { PanelTitle } from './pixel-text';
-import { HubIconButton } from './hub-icon-button';
+import { HubIconButton, hubIconArt } from './hub-icon-button';
 import { PX, PxPanel } from './px';
 
 /** The board's surface (`.rr-lb`), now filling the codex's pixel frame. */
@@ -193,7 +193,8 @@ export function LeaderboardDrawer({ token, playerId, onSpectate, onMe, onOpen }:
             setOpen((v) => !v);
           }}
         >
-          🏆
+          {/* The kit's gold cup, in the same pixel as the rest of the chrome. */}
+          <img src={GOLD_CUP_URL} alt="" draggable={false} style={hubIconArt} />
         </HubIconButton>
       </span>
 

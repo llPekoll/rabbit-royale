@@ -37,7 +37,7 @@ import { EnergyPopup } from '@/components/energy-popup';
 import { LoreCodex } from '@/components/lore-codex';
 import { LoopBar } from '@/components/loop-bar';
 import { NextStrip } from '@/components/next-strip';
-import { HubIconButton } from '@/components/hub-icon-button';
+import { HubIconButton, hubIconArt } from '@/components/hub-icon-button';
 import { nextAction } from '@/config/next-action';
 import { LORE } from '@/config/lore';
 import { KitRow } from '@/components/kit-row';
@@ -65,6 +65,11 @@ import { burrowArt } from '@/config/burrowArt';
 import { SCENE } from '@/game/keys';
 import { useT } from '@/i18n/provider';
 import { groupDigits } from '@/i18n/format';
+
+/** The Shed's door on the top bar: a market stall, drawn for the game. */
+const SHOP_ICON = '/assets/ui/icons/shop.png';
+/** The Story's door: the scroll the codex is drawn from. */
+const SCROLL_ICON = '/assets/ui/scroll.png';
 
 interface Burrow {
   level: number;
@@ -1759,7 +1764,9 @@ function Burrow() {
               count={shop.shop?.traps.held ?? 0}
               onClick={() => setShopOpen(true)}
             >
-              🛒
+              {/* The stall, not a cart: a market cart is a web shop's icon,
+                  and the Shed is a place in the world. */}
+              <img src={SHOP_ICON} alt="" draggable={false} style={hubIconArt} />
             </HubIconButton>
             <span key={lorePulseKey} className={lorePulseKey > 0 ? 'rr-tab-pop' : undefined} style={{ display: 'inline-flex' }}>
               <HubIconButton
@@ -1768,7 +1775,8 @@ function Burrow() {
                 tone="news"
                 onClick={() => setLoreOpen(true)}
               >
-                📜
+                {/* The same pixel scroll the quest card and the codex wear. */}
+                <img src={SCROLL_ICON} alt="" draggable={false} style={hubIconArt} />
               </HubIconButton>
             </span>
           </div>

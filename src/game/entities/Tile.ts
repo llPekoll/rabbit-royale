@@ -8,6 +8,9 @@ import { lootBoxSheet } from '../services/AssetLoader';
 import type { TileContent } from '@/lib/game/types';
 import gsap from 'gsap';
 
+/** A bomb's width on a tile, in the tile's px — the size the first bomb art had. */
+const BOMB_TILE_W = 20;
+
 /**
  * Minesweeper's classic hint ladder. Kept exactly: a player reads "3 = danger"
  * from the COLOUR before they read the glyph, and that mapping is decades of
@@ -450,6 +453,10 @@ export class Tile {
     if (!tex) return;
     const sprite = new Sprite(tex);
     sprite.anchor.set(0.5);
+    // The bomb is drawn at the WIDTH the old 20px sprite had on a tile. The new
+    // art is 27x36 with a longer fuse; at its native size it overhung the
+    // diamond. Width, not height, so the fuse adds height and not bulk.
+    if (key === Keys.BOMB_SMALL) sprite.scale.set(BOMB_TILE_W / tex.width);
     this.container.addChild(sprite);
     this.contentSprite = sprite;
   }

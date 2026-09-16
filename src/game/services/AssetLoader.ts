@@ -25,7 +25,9 @@ const IMAGES = [
   { key: Keys.DEAD_SKULL, src: '/assets/bunnies/RR-Skull.webp' },
   { key: Keys.GHOST_DOWN, src: '/assets/bunnies/RR-Ghost-Down.webp' },
   { key: Keys.GHOST_UP, src: '/assets/bunnies/RR-Ghost-Up.webp' },
-  { key: Keys.BOMB_SMALL, src: '/assets/misc/RR-Bomb-Small.webp' },
+  // The buried bomb: fuse UNLIT. Its lit twin (bomb-lit.png) is the item you
+  // throw, in the shop and the kit row.
+  { key: Keys.BOMB_SMALL, src: '/assets/ui/icons/bomb.png' },
   { key: Keys.LOGO, src: '/assets/ui/rr-logo-1x.webp' },
   { key: Keys.LOGO_BANNER, src: '/assets/ui/rr-logo-banner.webp' },
   { key: Keys.LOOT_BOX, src: '/assets/fx/loot-box.webp' },

@@ -76,14 +76,12 @@ export const ITEM_META: Record<ItemKind, ItemMeta> = {
     icon: '💣',
     tint: '#c1442e',
     counts: 'carried',
-    /* NO `art`, deliberately — the emoji stands in.
-       `chest-prize.tsx` gives the bomb `bolt.webp`, the same file it gives
-       lightning, which is survivable in a reveal that names the drop in type
-       underneath it. In a row of six silhouettes with no labels it is not: the
-       two slots came out as one identical yellow bolt twice, and a row whose
-       whole job is "what am I carrying" cannot answer it with a picture that
-       means two things. Until the bomb has art of its own the emoji is the
-       honest option, because it is at least distinct. */
+    /* THE LIT BOMB. The bomb you carry is the one you throw, so its fuse is
+       burning; the one buried in a burrow or found under a tile is the unlit
+       `bomb.png`. It used to have no art at all — the chest borrowed
+       lightning's bolt, and a kit row showed two identical bolts. */
+    art: '/assets/ui/icons/bomb-lit.png',
+    aspect: 36 / 43,
   },
   lightning: {
     icon: '⚡',
