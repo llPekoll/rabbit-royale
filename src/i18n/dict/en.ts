@@ -210,6 +210,8 @@ export const en = {
     rank: (rank: number, gap: string) =>
       `Season rank #${rank}: ${gap} season points to pass #${rank - 1}`,
     toPass: (gap: string, rank: number) => `${gap} to #${rank - 1}`,
+    showClimb: (n: number, rank: number) => `${n} carrots banked, season rank ${rank}. Show what it takes to climb`,
+    hideClimb: (n: number, rank: number) => `${n} carrots banked, season rank ${rank}. Hide what it takes to climb`,
   },
 
   /* ── The season board ─────────────────────────────────────────────────── */

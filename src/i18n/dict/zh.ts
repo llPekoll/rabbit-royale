@@ -183,6 +183,8 @@ export const zh: Dict = {
     rankFirst: '赛季排名第 1：领跑榜单',
     rank: (rank, gap) => `赛季排名第 ${rank}：再得 ${gap} 分可超越第 ${rank - 1}`,
     toPass: (gap, rank) => `差 ${gap} 到第 ${rank - 1}`,
+    showClimb: (n, rank) => `已存入 ${n} 根胡萝卜，赛季排名第 ${rank}。显示升名次所需`,
+    hideClimb: (n, rank) => `已存入 ${n} 根胡萝卜，赛季排名第 ${rank}。隐藏升名次所需`,
   },
 
   board: {

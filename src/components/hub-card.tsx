@@ -58,7 +58,7 @@ export const SUB = '#a28b7b';
  * collapsed the energy trough to 4px before this was understood.
  */
 export function HubCard({
-  ratio, art, artHeight, artAlign = 'center', children, footer, style,
+  ratio, floor = 44, art, artHeight, artAlign = 'center', children, footer, style,
 }: {
   /**
    * The card's height as a percentage of the viewport's height — see
@@ -66,6 +66,12 @@ export function HubCard({
    * that carry a button. NOT an aspect ratio, despite the name it kept.
    */
   ratio: number;
+  /**
+   * The card's height floor in px: what its contents need to keep 2px of air
+   * inside the frame. The viewport share wins wherever it is taller, which is
+   * everywhere but a short landscape phone.
+   */
+  floor?: number;
   /** The sprite standing at the card's left. */
   art: string;
   /**
@@ -105,7 +111,7 @@ export function HubCard({
       aria-hidden
       style={{
         ...artBase,
-        height: artHeight,
+        height: cardLength(artHeight),
         alignSelf: artAlign === 'start' ? 'flex-start' : 'center',
       }}
     />
@@ -116,7 +122,7 @@ export function HubCard({
   // the simple row the energy card needs.
   if (footer) {
     return (
-      <PxPanel color={FACE_TOP} className="rr-hub-card" style={{ ...cardBase, ...stacked, ...heightBox(ratio), ...style }}>
+      <PxPanel color={FACE_TOP} className="rr-hub-card" style={{ ...cardBase, ...stacked, ...heightBox(ratio, floor), ...style }}>
         <div style={band}>
           {sprite}
           <div style={column}>{children}</div>
@@ -127,7 +133,7 @@ export function HubCard({
   }
 
   return (
-    <PxPanel color={FACE_TOP} className="rr-hub-card" style={{ ...cardBase, ...heightBox(ratio), ...style }}>
+    <PxPanel color={FACE_TOP} className="rr-hub-card" style={{ ...cardBase, ...heightBox(ratio, floor), ...style }}>
       {sprite}
       <div style={column}>{children}</div>
     </PxPanel>
@@ -158,7 +164,7 @@ export function HubCard({
  * `overflow: hidden` keeps the contents inside the frame the way the old
  * ratio box did.
  */
-function heightBox(shareOfViewport: number): CSSProperties {
+function heightBox(shareOfViewport: number, floor: number): CSSProperties {
   /* `min-height` rather than `height`, though the card is a `size` container
      and so cannot actually grow past it — see `cardBase`. Written this way
      because it states the intent (this share is a floor, not a cage) and
@@ -186,9 +192,39 @@ function heightBox(shareOfViewport: number): CSSProperties {
        an inline style and a stylesheet cannot override it without
        `!important`; and scaling the CARD is enough, because everything inside
        is a `cqh` share of the card and follows it down. */
-    height: `max(calc(${shareOfViewport}svh * var(--rr-card-scale, 1)), 44px)`,
+    /* THE FLOOR IS THE CARD'S OWN, in px (`floor`). It was a flat 44 for
+       every card, and on a short landscape phone (855x397, 890x400) the
+       shares came out 54-67px against contents that need 66-92: headings sat
+       on the frame, button labels ran into their bevel, and the burrow card's
+       heading was cut off the top (Paul, 2026-09-16: 2px of air between text
+       and a panel's border, at least). The column has the room below — it
+       ended 100px above the loop bar. */
+    height: `max(calc(${shareOfViewport}svh * var(--rr-card-scale, 1)), ${floor}px)`,
+    /* One card-percent AS THE SHARE WOULD HAVE MADE IT. Where the floor lifts
+       the card past its share, `cqh` grows with it and the type and art would
+       swell into the width they share with the heading ("BURROW - LVL 1" wrapped
+       under a bigger hut). `cardSize`/`cardLength` read `min(cqh, this)`, so
+       the extra height goes to AIR and to the buttons, not to the type. Where
+       the share wins, the two agree and nothing changes. */
+    /* Of the CONTENT box, as `cqh` is: the share less the pad and the 2px frame
+       each side, or the type came out a hair bigger and the heading wrapped. */
+    ['--rr-card-u' as string]: `calc((${shareOfViewport}svh * var(--rr-card-scale, 1) - 2 * var(--rr-card-pad, var(--rr-pad)) - 4px) / 100)`,
     overflow: 'hidden',
   };
+}
+
+/**
+ * A type or mark size tied to the card: `n`cqh, clamped, and never larger than
+ * the card's viewport share would have made it — see `--rr-card-u` above.
+ */
+export function cardSize(n: number, min: number, max: number): string {
+  return `clamp(${min}px, min(${n}cqh, calc(var(--rr-card-u, 1cqh) * ${n})), ${max}px)`;
+}
+
+/** `cardSize` without the clamp, for an art height given as "62cqh". */
+function cardLength(cqh: string): string {
+  const n = parseFloat(cqh);
+  return cqh.endsWith('cqh') ? `min(${cqh}, calc(var(--rr-card-u, 1cqh) * ${n}))` : cqh;
 }
 
 /** The stacked form: the band on top, the footer strip under it. */
@@ -350,7 +386,7 @@ export const headingText: CSSProperties = {
      card becomes all text. `cqh` is the card (see `containerType` on
      `cardBase`); the clamp keeps it legible at the small end and stops it
      ballooning on a tall desktop window. */
-  fontSize: 'clamp(9px, 14cqh, 14px)',
+  fontSize: cardSize(14, 9, 14),
   letterSpacing: '0.06em',
   color: LABEL,
   lineHeight: 1,
@@ -358,7 +394,7 @@ export const headingText: CSSProperties = {
 
 export const valueText: CSSProperties = {
   fontFamily: 'var(--font-pixel), ui-monospace, monospace',
-  fontSize: 'clamp(9px, 14cqh, 14px)',
+  fontSize: cardSize(14, 9, 14),
   // Tabular digits, for the same reason the web face is used at all.
   fontVariantNumeric: 'tabular-nums',
   color: VALUE,
@@ -392,7 +428,7 @@ export const subText: CSSProperties = {
   // The fine print, held a step under the heading at every size — and never
   // under the face's own 8px cell: at 7.8px ("Dig 10 tiles.") every glyph was
   // resampled off the grid and the smallest words on the card went soft.
-  fontSize: 'clamp(8px, 10.5cqh, 11px)',
+  fontSize: cardSize(10.5, 8, 11),
   lineHeight: 1.4,
   color: SUB,
 };

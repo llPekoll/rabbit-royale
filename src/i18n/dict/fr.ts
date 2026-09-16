@@ -177,6 +177,8 @@ export const fr: Dict = {
     rankFirst: 'Rang de saison n°1 : en tête du classement',
     rank: (rank, gap) => `Rang de saison n°${rank} : ${gap} points pour passer n°${rank - 1}`,
     toPass: (gap, rank) => `${gap} pour le n°${rank - 1}`,
+    showClimb: (n, rank) => `${n} carottes en réserve, rang de saison n°${rank}. Afficher ce qu'il faut pour monter`,
+    hideClimb: (n, rank) => `${n} carottes en réserve, rang de saison n°${rank}. Masquer ce qu'il faut pour monter`,
   },
 
   board: {

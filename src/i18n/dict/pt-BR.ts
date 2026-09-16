@@ -181,6 +181,8 @@ export const ptBR: Dict = {
     rankFirst: 'Posição na temporada #1: liderando',
     rank: (rank, gap) => `Posição #${rank}: ${gap} pontos para passar o #${rank - 1}`,
     toPass: (gap, rank) => `${gap} para o #${rank - 1}`,
+    showClimb: (n, rank) => `${n} cenouras guardadas, posição #${rank}. Mostrar quanto falta para subir`,
+    hideClimb: (n, rank) => `${n} cenouras guardadas, posição #${rank}. Esconder quanto falta para subir`,
   },
 
   board: {

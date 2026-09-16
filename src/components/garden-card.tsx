@@ -31,7 +31,7 @@ import type { CSSProperties } from 'react';
 import { useT } from '@/i18n/provider';
 import { PxButton, pxLabel } from './px';
 import {
-  HubCard, HubRow, headingText, valueText, subText, SUB_CLASS,
+  HubCard, HubRow, headingText, valueText, subText, SUB_CLASS, cardSize,
 } from './hub-card';
 
 export interface GardenCardProps {
@@ -80,6 +80,8 @@ export function GardenCard({
     // than floating mid-card.
     <HubCard
       ratio={14.5}
+      // Frame and pad twice, heading 9, a gap, the 30px button.
+      floor={66}
       art={GARDEN_ART}
       /* The plant is 31% of the card in the mock, and is asked for here as
          39cqh. Not a contradiction: `cqh` measures the card's CONTENT box,
@@ -109,7 +111,7 @@ export function GardenCard({
           wiggle
           style={harvestButton}
         >
-          <span style={{ ...pxLabel, fontSize: 'clamp(9px, 15cqh, 15px)' }}>{t.burrow.harvest}</span>
+          <span style={{ ...pxLabel, fontSize: cardSize(15, 9, 15) }}>{t.burrow.harvest}</span>
         </PxButton>
       }
     >
@@ -155,7 +157,7 @@ const harvestFace: CSSProperties = {
   left: 0,
   borderRadius: 8,
   fontFamily: 'var(--font-pixel), ui-monospace, monospace',
-  fontSize: 'clamp(9px, 15cqh, 15px)',
+  fontSize: cardSize(15, 9, 15),
   letterSpacing: '0.08em',
   transition: 'transform 90ms ease-out',
 };
@@ -163,7 +165,7 @@ const harvestFace: CSSProperties = {
 const carrotMark: CSSProperties = {
   // Tied to the card like the type beside it, so a 49px card does not carry a
   // mark drawn for a 95px one.
-  width: 'clamp(7px, 12cqh, 12px)',
+  width: cardSize(12, 7, 12),
   height: 'auto',
   display: 'block',
 };

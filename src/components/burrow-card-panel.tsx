@@ -27,7 +27,7 @@ import type { CSSProperties } from 'react';
 import { useT } from '@/i18n/provider';
 import { PxButton, pxLabel } from './px';
 import {
-  HubCard, HubRow, RIM, headingText, valueText, subText, SUB_CLASS, groupDigits,
+  HubCard, HubRow, RIM, headingText, valueText, subText, SUB_CLASS, groupDigits, cardSize,
 } from './hub-card';
 import { burrowBuildingArt } from '@/game/burrow/buildings';
 import { safeStock } from '@/lib/game/raid';
@@ -79,6 +79,9 @@ export function BurrowPanel({
        lost its top row on the Seeker. */
     <HubCard
       ratio={18}
+      // Frame 4 + pad 6, heading 9, strip 20, button 30, their two gaps and
+      // the pad and frame again: the least that keeps 2px of air on a phone.
+      floor={94}
       art={art.url}
       // The buildings are tall sprites (128x192, the castle 320x256) where the
       // bolt and the plant are small marks. Height is capped well under theirs
@@ -100,7 +103,7 @@ export function BurrowPanel({
           wiggle
           style={{ height: '34cqh', minHeight: 32, flexShrink: 0, width: '100%' }}
         >
-          <span style={{ ...pxLabel, fontSize: 'clamp(9px, 15cqh, 15px)' }}>{maxed ? t.burrow.maxLevel : t.burrow.upgrade}</span>
+          <span style={{ ...pxLabel, fontSize: cardSize(15, 9, 15) }}>{maxed ? t.burrow.maxLevel : t.burrow.upgrade}</span>
         </PxButton>
       }
     >
@@ -142,7 +145,7 @@ export function BurrowPanel({
 const carrotMark: CSSProperties = {
   // Tied to the card like the type beside it, so a 49px card does not carry a
   // mark drawn for a 95px one.
-  width: 'clamp(7px, 12cqh, 12px)',
+  width: cardSize(12, 7, 12),
   height: 'auto',
   display: 'block',
 };
@@ -180,7 +183,7 @@ const vaultStrip: CSSProperties = {
 
 const vaultLabel: CSSProperties = {
   fontFamily: 'var(--font-pixel), ui-monospace, monospace',
-  fontSize: 'clamp(7px, 10cqh, 11px)',
+  fontSize: cardSize(10, 7, 11),
   letterSpacing: '0.08em',
   color: '#b39877',
   lineHeight: 1,
@@ -188,7 +191,7 @@ const vaultLabel: CSSProperties = {
 
 const vaultValue: CSSProperties = {
   fontFamily: 'var(--font-pixel), ui-monospace, monospace',
-  fontSize: 'clamp(8px, 11cqh, 12px)',
+  fontSize: cardSize(11, 8, 12),
   fontVariantNumeric: 'tabular-nums',
   color: SAFE_INK,
   lineHeight: 1,
@@ -212,7 +215,7 @@ const upgradeFace: CSSProperties = {
   left: 0,
   borderRadius: 8,
   fontFamily: 'var(--font-pixel), ui-monospace, monospace',
-  fontSize: 'clamp(9px, 15cqh, 15px)',
+  fontSize: cardSize(15, 9, 15),
   letterSpacing: '0.08em',
   transition: 'transform 90ms ease-out',
 };

@@ -52,6 +52,10 @@
      68px trophy and the two overlapped by 2px. Keep in step with
      `hub-icon-button.tsx`'s own clamp. */
   --rr-icon: clamp(34px, 11svh, 68px);
+  /* THE CARROT PILL'S WIDTH, for the same reason: the wallet chip beside it
+     grows up to the pill's left edge, so it reserves this. carrot-pill.tsx
+     sets its plate to it. */
+  --rr-pill-w: 200px;
   /* THE WAY BACK'S HEIGHT, stated once because two rules measure against it:
      the button's own `min-height` (back-button.tsx) and the placement kit row
      that now stacks directly on top of it. The button is content-sized, and
@@ -233,8 +237,16 @@ button:disabled { opacity: 0.5; cursor: var(--cur-denied); }
    Paired with `min-height` in the components rather than replacing it: the
    component states the intent, this states what a small screen can afford. */
 @media (max-height: 520px) {
-  .rr-hub-btn { min-height: 24px !important; }
-  .rr-hub-strip { min-height: 14px !important; }
+  /* 30 and 20, not 24 and 14: at those the labels touched the face's edge
+     and the bevel (measured with tools/probe-padding.mjs). The cards now carry
+     a px floor tall enough for these (`floor` on HubCard), so the room comes
+     out of the column's empty bottom rather than out of the labels. */
+  .rr-hub-btn { min-height: 30px !important; }
+  .rr-hub-strip { min-height: 20px !important; }
+  /* A floored card is taller than 70px without having room for the fine
+     print — its height went to air and buttons — so the card query alone
+     would bring the line back into a card that cannot hold it. */
+  .rr-hub-sub { display: none; }
 }
 
 /* THE CARD'S FINE PRINT HIDES WHEN THE CARD IS SHORT.
@@ -1455,7 +1467,11 @@ body:has(.rr-loop-bar) .rr-sound {
    its content, which is the whole name. */
 .rr-wallet {
   min-width: 0;
-  max-width: 20%;
+  /* UP TO THE PILL, not a fifth of the bar. The 20% cap cut "CursedRoot" to
+     "Curs..." on an 855px phone with 150px of empty bar between the chip and
+     the pill (Paul, 2026-09-16). The bar is centred on the screen, as the pill
+     is, so half the bar less half the pill less a gap is exactly the room. */
+  max-width: calc(50% - var(--rr-pill-w) / 2 - var(--rr-pad));
   flex-shrink: 1;
 }
 /* ONE LINE. Under that cap the GUEST tag wrapped under the name and the chip

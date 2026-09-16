@@ -13,6 +13,10 @@
  * call rather than a slip: the row is where you go to browse, the [+] is where
  * you go when the number beside it is too small for what you wanted to buy.
  *
+ * FOLDED, IT IS A COUNT AND A PLACE. The figure and the gold rank chip share
+ * one row; a tap (or Enter) unfolds the climb under them, "17 [carrot] to #11",
+ * and a second tap folds it away. Paul's call, 2026-09-16.
+ *
  * THE RANK LINE IS NOT IN THE MOCK. It is the one addition here, and it earns
  * its row: a rank alone ("#5") says where you stand, which the season drawer
  * already tells you. What it does not say is what to DO, and the gap to the
@@ -30,7 +34,7 @@
  * that was never ambiguous. What sits there now is the rank line, which says
  * something the number cannot.
  */
-import { useEffect, useRef, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import { useT } from '@/i18n/provider';
 import { CARROT_URL, CARROT_SIZE } from '@domin8/arcade-kit/game';
 import { CarrotBurst } from '@/components/carrot-burst';
@@ -94,11 +98,38 @@ function Carrot({ height }: { height: number }) {
   );
 }
 
+/**
+ * The climb line with the carrot right after the gap, in any language: the
+ * sentence comes whole from the dictionary ("17 to #11", "差 17 到第 11"), and
+ * the mark is slotted in after the figure wherever that language put it.
+ */
+function ClimbLine({ gap, line }: { gap: string; line: string }) {
+  const at = line.indexOf(gap);
+  if (at < 0) return <>{line}</>;
+  return (
+    <>
+      {line.slice(0, at + gap.length)}
+      <span style={climbMark} aria-hidden><Carrot height={14} /></span>
+      {line.slice(at + gap.length)}
+    </>
+  );
+}
+
 export function CarrotPill({
   stock, fireKey, gain, rank, toPass, onAdd, denyKey = 0, carrying = null,
 }: CarrotPillProps) {
   const t = useT();
   const ref = useRef<HTMLDivElement>(null);
+  /* FOLDED BY DEFAULT (Paul, 2026-09-16). The pill says the two things a
+     glance needs — how many carrots, what place — and the climb ("17 to #11")
+     waits behind a tap. A second row that is always there is a second row the
+     top of a 400px-tall phone pays for on every screen. */
+  const [open, setOpen] = useState(false);
+  const hasRank = rank !== null && (rank === 1 || toPass !== null);
+  const toggle = () => setOpen((o) => !o);
+  const onKey = (e: KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+  };
   // The shake rides `translate`, not `transform`: the stylesheet centres the
   // pill with a transform, and animating that would fling it off its centre.
   // Web Animations rather than a class, so a second refusal replays it.
@@ -112,7 +143,24 @@ export function CarrotPill({
   }, [denyKey]);
 
   return (
-    <div ref={ref} className="rr-carrot-pill" style={pill} title={t.pill.banked(stock)}>
+    <div
+      ref={ref}
+      className="rr-carrot-pill"
+      style={pill}
+      title={t.pill.banked(stock)}
+      /* A BUTTON only when there is a climb to show. Unranked, the pill has
+         nothing behind the tap, and a control that does nothing is worse than
+         a readout. A div with the role rather than a <button>: the plate is a
+         block (the kit's panel), which a button may not hold. */
+      {...(hasRank ? {
+        role: 'button',
+        tabIndex: 0,
+        'aria-expanded': open,
+        'aria-label': open ? t.pill.hideClimb(stock, rank!) : t.pill.showClimb(stock, rank!),
+        onClick: toggle,
+        onKeyDown: onKey,
+      } : {})}
+    >
       {/* THE PLATE: the codex's pixel frame in the pill's own soil. Inside the
           fixed box rather than being it, so the plate can drop in on arrival
           (`.rr-pill-plate`, px-top-floor.css) without touching the transform
@@ -149,35 +197,37 @@ export function CarrotPill({
       </span>
 
       <span style={stack}>
-        <span key={fireKey} className={fireKey ? 'banked' : undefined} style={figure}>
-          {groupDigits(stock)}
+        {/* THE FOLDED PILL: the figure, the rank beside it. */}
+        <span style={topRow}>
+          <span key={fireKey} className={fireKey ? 'banked' : undefined} style={figure}>
+            {groupDigits(stock)}
+          </span>
+          {/* Keyed on the RANK so a change remounts the chip and replays its
+              pop (`rr-rank-pop`): climbing a place is the one thing it exists
+              to report, and it used to change as quietly as a clock. */}
+          {hasRank && (
+            <span key={rank} className="rr-rank-pop" style={rankChip}>#{rank}</span>
+          )}
+          {hasRank && <span className={`rr-pill-caret${open ? ' open' : ''}`} aria-hidden />}
         </span>
-        {/* Only when there is something to chase. A rank with no gap beside it
-            is the standing the season drawer already shows, and an empty row
-            here would be a permanent blank under the count. */}
-        {/* Keyed on the RANK so a change remounts the line and replays its
-            pop (`rr-rank-pop`): climbing a place is the one thing this line
-            exists to report, and it used to change as quietly as a clock. */}
-        {/* THE CLIMB, as a badge and a named target.
-            "#2 · 5,560 to pass" ran past the pill's fixed width and was cut to
-            "to pa...", and even whole it did not say WHO there was to pass.
-            The rank is a gold chip; the line names the place it chases
-            ("to #1"), shortened past four digits so it always fits. The unit
-            is season points, not carrots — said in the tooltip, and kept off
-            the line so it never reads as a carrot count. */}
-        {rank !== null && (rank === 1 || toPass !== null) && (
+        {/* THE CLIMB, unfolded: what it takes to pass the place ahead. The
+            gap is in SEASON SCORE, which a harvest and a raid move with the
+            carrots — so it wears the carrot mark, as Paul asked, and the
+            tooltip keeps the exact unit. Shortened past four digits so it
+            always fits the fixed width. */}
+        {hasRank && open && (
           <span
-            key={rank}
-            className="rr-rank-pop"
+            className="rr-pill-climb"
             style={rankRow}
             title={rank === 1
               ? t.pill.rankFirst
-              : t.pill.rank(rank, groupDigits(Math.max(1, toPass ?? 1)))}
+              : t.pill.rank(rank!, groupDigits(Math.max(1, toPass ?? 1)))}
           >
-            <span style={rankChip}>#{rank}</span>
-            {/* At least 1: a gap of 0 is a TIE, and passing a tied player takes
-                one more point. "0 to #91" read as nothing to do. */}
-            {rank === 1 ? t.pill.leading : t.pill.toPass(shortGap(Math.max(1, toPass ?? 1)), rank)}
+            {/* At least 1: a gap of 0 is a TIE, and passing a tied player
+                takes one more point. "0 to #91" read as nothing to do. */}
+            {rank === 1 ? t.pill.leading : (
+              <ClimbLine gap={shortGap(Math.max(1, toPass ?? 1))} line={t.pill.toPass(shortGap(Math.max(1, toPass ?? 1)), rank!)} />
+            )}
           </span>
         )}
       </span>
@@ -212,6 +262,8 @@ const plate: CSSProperties = {
      It was 3/8/3/10 — four different numbers on one small panel. */
   padding: 'var(--rr-pad-tight) var(--rr-pad)',
   boxSizing: 'border-box',
+  /* Fixed, and a token: the wallet chip grows up to it (globals.css). */
+  width: 'var(--rr-pill-w)',
 };
 
 const artBox: CSSProperties = {
@@ -252,6 +304,25 @@ const stack: CSSProperties = {
   overflow: 'hidden',
 };
 
+/** The folded pill's one row: the figure, the rank chip, the caret. */
+const topRow: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 'var(--rr-pad-tight)',
+  maxWidth: '100%',
+};
+
+/**
+ * The carrot in the climb line: the pill's own carrot, small and lying the
+ * same way, so the line reads as "that many of THESE". The cards' price mark
+ * was tried first and at 10px its silhouette read as a pencil.
+ */
+const climbMark: CSSProperties = {
+  ...artBox,
+  width: 10,
+  height: 10,
+};
+
 const figure: CSSProperties = {
   position: 'relative',
   // Over the burst: the carrots fly BEHIND the figure, so it stays readable
@@ -288,7 +359,9 @@ const rankRow: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   gap: 4,
-  marginTop: 2,
+  /* The row's own air under the figure, so unfolding reads as a line joining
+     the pill rather than a second panel. */
+  marginTop: 'var(--rr-pad-tight)',
   color: '#d8c3ab',
 };
 
@@ -305,6 +378,7 @@ const rankChip: CSSProperties = {
   /* The game's chip inset: 2px of vertical room — all a 10px line can spare —
      and the tight pad each side, the same as every other badge and tag. */
   padding: '2px var(--rr-pad-tight)',
+  fontFamily: 'var(--font-pixel), ui-monospace, monospace',
   background: RANK_GOLD,
   boxShadow: '0 0 0 1px #2a180e',
   color: '#2a180e',

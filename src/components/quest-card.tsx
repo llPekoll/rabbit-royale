@@ -24,7 +24,7 @@ import { useEffect, useRef, type CSSProperties } from 'react';
 import gsap from 'gsap';
 import { PxButton, pxLabel } from './px';
 import {
-  HubCard, HubRow, headingText, valueText, subText, SUB_CLASS,
+  HubCard, HubRow, headingText, valueText, subText, SUB_CLASS, cardSize,
 } from './hub-card';
 import type { QuestView } from '@/config/quests';
 import { useT } from '@/i18n/provider';
@@ -130,7 +130,7 @@ export function QuestCard({
       wiggle
       style={slab}
     >
-      <span style={{ ...pxLabel, fontSize: 'clamp(9px, 15cqh, 15px)' }}>{rewardLabel(t, quest)}</span>
+      <span style={{ ...pxLabel, fontSize: cardSize(15, 9, 15) }}>{rewardLabel(t, quest)}</span>
     </PxButton>
   ) : undefined;
 
@@ -153,6 +153,8 @@ export function QuestCard({
           no slab is a hole in the column. */}
       <HubCard
         ratio={quest.done ? 14.5 : 12.4}
+        // The garden card's floor when it holds the same button.
+        floor={quest.done ? 66 : 44}
         art={SCROLL_ART}
         artHeight={quest.done ? '39cqh' : '59cqh'}
         artAlign={quest.done ? 'start' : 'center'}

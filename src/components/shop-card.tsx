@@ -118,6 +118,17 @@ export const COIN_BTN = { color: '#1f3a4a', shadowColor: '#10222e', textColor: C
 /** A price label: the game's pixel face (the kit's bitmap one has no carrot). */
 export const priceText: CSSProperties = { ...pxLabel, fontSize: 12, fontVariantNumeric: 'tabular-nums' };
 
+/**
+ * ENERGY LEADS THE SHELF (Paul, 2026-09-16). It is the refill players buy most,
+ * and the "Out of energy" dialog sends them here for it — so it must be the
+ * first tile they see, not the fifth under the fold on a phone. Sorted here
+ * rather than in `SHOP_KINDS`: that list is the server's, and this is only
+ * the order the stall displays; the rest keep the server's order.
+ */
+function shelfOrder(items: ShopItem[]): ShopItem[] {
+  return [...items].sort((a, b) => Number(b.kind === 'energy') - Number(a.kind === 'energy'));
+}
+
 /** `a` over `b` at `mix` — hex only, because the frame's colour is baked on a canvas. */
 function mixHex(a: string, b: string, mix: number): string {
   const p = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
@@ -211,7 +222,7 @@ export function ShopPanel({
         </header>
 
         <ul className="rr-shop-grid">
-          {shop?.items.map((item) => (
+          {shop && shelfOrder(shop.items).map((item) => (
             <Row
               key={item.kind}
               item={item}

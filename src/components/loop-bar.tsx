@@ -462,7 +462,9 @@ const slab: CSSProperties = {
      so 44 (the project's touch floor, and never below it) still leaves 17px of
      air. Only the floor moved, which is why this touches phones alone: at
      768px tall, 10.4svh is already ~80 and the clamp never reaches its floor. */
-  height: 'clamp(44px, 10.4svh, 80px)',
+  /* 48, not 44: at 44 the state line sat 0.6px off the bevel on a 397px
+     screen. Paul's floor is 2px of air inside every frame. */
+  height: 'clamp(48px, 10.4svh, 80px)',
   padding: 0,
   pointerEvents: 'auto',
 };
