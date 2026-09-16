@@ -28,6 +28,7 @@
  * and this card is GARDEN plus HARVEST again.
  */
 import type { CSSProperties } from 'react';
+import { useT } from '@/i18n/provider';
 import { PxButton, pxLabel } from './px';
 import {
   HubCard, HubRow, headingText, valueText, subText, SUB_CLASS,
@@ -67,6 +68,7 @@ const RISK_INK = '#ff8a7a';
 export function GardenCard({
   ready, yieldPerHour, capacity, capHours, onHarvest, pending,
 }: GardenCardProps) {
+  const t = useT();
   // Nothing to take: the button has no work to do. `pending` blocks a second
   // press while the first is still in flight.
   const canHarvest = ready > 0 && !pending;
@@ -107,12 +109,12 @@ export function GardenCard({
           wiggle
           style={harvestButton}
         >
-          <span style={{ ...pxLabel, fontSize: 'clamp(9px, 15cqh, 15px)' }}>HARVEST</span>
+          <span style={{ ...pxLabel, fontSize: 'clamp(9px, 15cqh, 15px)' }}>{t.burrow.harvest}</span>
         </PxButton>
       }
     >
       <HubRow>
-        <span style={headingText}>GARDEN</span>
+        <span style={headingText}>{t.burrow.garden}</span>
         <span style={valueText}>
           +{ready}
           <img className="pixelated" src={CARROT_MARK} alt="" aria-hidden style={carrotMark} />

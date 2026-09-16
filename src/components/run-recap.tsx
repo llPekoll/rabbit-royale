@@ -1,10 +1,12 @@
 'use client';
 
 import type { CSSProperties } from 'react';
-import { NineSlicePanel, PanelTitle } from '@domin8/arcade-kit';
+import { NineSlicePanel } from '@domin8/arcade-kit';
+import { PanelTitle } from './pixel-text';
 import { PX, PxButton, pxLabel } from './px';
 import type { RunRecap } from './use-game-socket';
-import { FIRST_RUN_RECAP } from '@/config/first-run';
+import { useT } from '@/i18n/provider';
+import { formatRunTime } from '@/i18n/format';
 
 /**
  * The end of a run, and the way out of it.
@@ -49,6 +51,7 @@ export function Recap({
    */
   bank?: { energy: number; max: number; cost: number } | null;
 }) {
+  const t = useT();
   // Two endings since the island became a level: the hearts ran out, or the
   // island did. The second is a win, and the card has to read like one — the
   // refill offer would be nonsense under "Island cleared".
@@ -64,33 +67,39 @@ export function Recap({
       style={{ textAlign: 'center' }}
     >
       <h2 className="rr-recap-title">
-        <PanelTitle>{cleared ? 'ISLAND CLEARED!' : 'RUN OVER'}</PanelTitle>
+        <PanelTitle>{cleared ? t.recap.cleared : t.recap.over}</PanelTitle>
       </h2>
       <p className="rr-recap-stats">
         {/* The separator before the duration was missing, so a 3-bomb, 214s
-            run printed "💣 3 214s" — which reads as one four-digit number. */}
-        🥕 {recap.carrots} &middot; {recap.tilesDug} dug &middot; 💣 {recap.bombsHit}
-        {' '}&middot; {formatRunTime(recap.durationMs)}
+            run printed "💣 3 214s" — which reads as one four-digit number.
+            One string now: the order of a count and its unit is not the same
+            in every language. */}
+        {t.recap.stats(
+          recap.carrots,
+          recap.tilesDug,
+          recap.bombsHit,
+          formatRunTime(recap.durationMs, t.units),
+        )}
       </p>
 
       {/* Why there is no "Again", said plainly — a button that vanished with
           no explanation reads as a broken screen. */}
       <p className="rr-note">
-        {cleared ? 'Every tile worth digging is dug. The volcano took the rest.' : 'Out of hearts.'}
-        {first && <> {FIRST_RUN_RECAP}</>}
+        {cleared ? t.recap.clearedNote : t.recap.overNote}
+        {first && <> {t.firstRun.recap}</>}
       </p>
       {/* The bar at home, beside what the next crossing would take from it —
           the figure both buttons below are really about. */}
       {bank && (
         <p className="rr-note" style={{ color: '#ffd138' }}>
-          ⚡ {bank.energy}/{bank.max} at the burrow &middot; a run takes {bank.cost}
+          {t.recap.bank(bank.energy, bank.max, bank.cost)}
         </p>
       )}
       <div className="rr-recap-actions">
       {!cleared && (
         // The loud one: it wiggles when pressed.
         <PxButton color={BTN} textColor={INK} wiggle onClick={onShop} style={wide}>
-          <span style={btnText}>Get more energy</span>
+          <span style={btnText}>{t.recap.getEnergy}</span>
         </PxButton>
       )}
       {/* Leaving was always possible — the arrow below does it — but a player
@@ -109,7 +118,7 @@ export function Recap({
         onClick={onHome}
         style={wide}
       >
-        <span style={btnText}>Home &middot; stack it</span>
+        <span style={btnText}>{t.recap.goHome}</span>
       </PxButton>
       </div>
     </NineSlicePanel>
@@ -125,20 +134,3 @@ const INK = '#e6edf3';
 const MUTED = '#8b949e';
 const wide: CSSProperties = { width: '100%' };
 const btnText: CSSProperties = { ...pxLabel, fontSize: 13 };
-
-
-/**
- * How long the run lasted, in minutes and seconds.
- *
- * Raw seconds are fine for a stopwatch and wrong for a result: "214s" makes
- * the reader do the division, and session length is the thing this game asks
- * players to get better at — so it is stated in the unit they think in.
- * Under a minute stays in seconds, where "47s" is already the natural form.
- */
-function formatRunTime(ms: number): string {
-  const total = Math.max(0, Math.round(ms / 1000));
-  if (total < 60) return `${total}s`;
-  const mins = Math.floor(total / 60);
-  const secs = total % 60;
-  return `${mins}m ${secs}s`;
-}

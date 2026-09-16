@@ -17,6 +17,7 @@
 import type { CSSProperties } from 'react';
 import type { NextAction } from '@/config/next-action';
 import { PxButton, pxLabel } from './px';
+import { useT } from '@/i18n/provider';
 
 const FACE = '#2d1610';
 const BEVEL = '#1c0d08';
@@ -24,12 +25,13 @@ const GOLD = '#ffd138';
 const INK = '#f5e6d3';
 
 export function NextStrip({ action, onClick }: { action: NextAction; onClick?(): void }) {
+  const t = useT();
   return (
     <PxButton
       type="button"
       className="rr-next-strip"
       onClick={onClick}
-      aria-label={`Next: ${action.text}`}
+      aria-label={t.next.aria(action.text)}
       color={FACE}
       shadowColor={BEVEL}
       highlightColor={GOLD}
@@ -37,7 +39,7 @@ export function NextStrip({ action, onClick }: { action: NextAction; onClick?():
       style={strip}
     >
       <span style={row}>
-        <span style={label}>NEXT</span>
+        <span style={label}>{t.next.label}</span>
         <span style={text}>{action.text}</span>
       </span>
     </PxButton>

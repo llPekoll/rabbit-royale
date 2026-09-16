@@ -1,7 +1,8 @@
-import { Container, Sprite, Assets, BitmapText, Polygon, AnimatedSprite, Graphics, type Texture } from 'pixi.js';
+import { Container, Sprite, Assets, Polygon, AnimatedSprite, Graphics, type Texture } from 'pixi.js';
 import { HALF_W, HALF_H, tilePos, tileDepth } from '@/config/gridConfig';
 import * as Keys from '@/config/assetKeys';
 import { outlinedPixelText, shadowedPixelText, formatMult, TINT_MULT } from '../ui/PixelText';
+import type { Label } from '@/game/ui/textFace';
 import { getDiamondFill, getDiamondOutline } from '../services/TileTextures';
 import { lootBoxSheet } from '../services/AssetLoader';
 import type { TileContent } from '@/lib/game/types';
@@ -197,7 +198,7 @@ export class Tile {
   private chestLabelTween: gsap.core.Tween | null = null;
   private chestShineCall: gsap.core.Tween | null = null;
   private palierHolder: Container | null = null;
-  private palierText: BitmapText | null = null;
+  private palierText: Label | null = null;
   /** Holds the palier label AND its drop shadow. Every transform (the pop-in
    *  scale, the idle bob) rides this, so the shadow can never drift off the
    *  face it belongs to. */

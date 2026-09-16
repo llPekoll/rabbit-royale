@@ -20,6 +20,7 @@
  * COLOURS ARE MEASURED, NOT CHOSEN — sampled off the reference image.
  */
 import type { CSSProperties } from 'react';
+import { useT } from '@/i18n/provider';
 import {
   HubCard, HubRow, RIM, headingText, valueText, subText, SUB_CLASS,
 } from './hub-card';
@@ -54,6 +55,7 @@ const DANGER_BOTTOM = '#8f2f1f';
 const BOLT = '/assets/ui/icons/bolt.webp';
 
 export function EnergyCard({ energy, maxEnergy, note }: EnergyCardProps) {
+  const t = useT();
   const pct = maxEnergy > 0 ? Math.max(0, Math.min(1, energy / maxEnergy)) : 0;
   const empty = energy <= 0;
 
@@ -70,7 +72,7 @@ export function EnergyCard({ energy, maxEnergy, note }: EnergyCardProps) {
        standing in its own margin, not a half of the card. */
     <HubCard ratio={12.4} art={BOLT} artHeight="59cqh">
       <HubRow>
-        <span style={headingText}>ENERGY</span>
+        <span style={headingText}>{t.burrow.energy}</span>
         <span style={{ ...valueText, color: empty ? DANGER_TOP : undefined }}>
           {energy}/{maxEnergy}
         </span>
@@ -82,7 +84,7 @@ export function EnergyCard({ energy, maxEnergy, note }: EnergyCardProps) {
         aria-valuenow={energy}
         aria-valuemin={0}
         aria-valuemax={maxEnergy}
-        aria-label="Energy"
+        aria-label={t.burrow.energy}
       >
         {/* Hidden rather than zero-width: a 0% fill still paints its rounded
             cap, which reads as a sliver of charge in an empty tube. */}

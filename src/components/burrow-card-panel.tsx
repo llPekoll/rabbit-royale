@@ -24,6 +24,7 @@
  * visible. When a real vault arrives, this line is where it lands.
  */
 import type { CSSProperties } from 'react';
+import { useT } from '@/i18n/provider';
 import { PxButton, pxLabel } from './px';
 import {
   HubCard, HubRow, RIM, headingText, valueText, subText, SUB_CLASS, groupDigits,
@@ -63,6 +64,7 @@ const CARROT_MARK = '/assets/misc/carrote_silouhette.png';
 export function BurrowPanel({
   level, stock, yieldPerHour, upgradeCost, canUpgrade, onUpgrade, pending,
 }: BurrowPanelProps) {
+  const t = useT();
   const art = burrowBuildingArt(level);
   const maxed = upgradeCost === null;
   const safe = safeStock(stock);
@@ -98,12 +100,12 @@ export function BurrowPanel({
           wiggle
           style={{ height: '34cqh', minHeight: 32, flexShrink: 0, width: '100%' }}
         >
-          <span style={{ ...pxLabel, fontSize: 'clamp(9px, 15cqh, 15px)' }}>{maxed ? 'MAX LEVEL' : 'UPGRADE'}</span>
+          <span style={{ ...pxLabel, fontSize: 'clamp(9px, 15cqh, 15px)' }}>{maxed ? t.burrow.maxLevel : t.burrow.upgrade}</span>
         </PxButton>
       }
     >
       <HubRow>
-        <span style={headingText}>BURROW - LVL {level}</span>
+        <span style={headingText}>{t.burrow.level(level)}</span>
         {/* The PRICE, which is what the button is about. At the top of the
             ladder there is no price, and printing a dash there would be a
             blank where a number used to be — the button says MAX instead. */}
@@ -124,7 +126,9 @@ export function BurrowPanel({
           raid cannot take and left the player to work out what it can. */}
       <div className="rr-hub-strip" style={vaultStrip}>
         <span style={vaultLabel}>
-          {stock - safe > 0 ? <><span style={{ color: '#ff8a7a' }}>{groupDigits(stock - safe)} EXPOSED</span> &middot; SAFE</> : 'SAFE'}
+          {stock - safe > 0
+            ? <><span style={{ color: '#ff8a7a' }}>{t.burrow.exposed(groupDigits(stock - safe))}</span> &middot; {t.burrow.safe}</>
+            : t.burrow.safe}
         </span>
         <span style={vaultValue}>
           {groupDigits(safe)}

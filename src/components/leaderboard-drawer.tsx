@@ -28,7 +28,9 @@
  * the tab.
  */
 import { useEffect, useRef, useState } from 'react';
-import { CloseButton, NineSlicePanel, PanelTitle } from '@domin8/arcade-kit';
+import { useT } from '@/i18n/provider';
+import { CloseButton, NineSlicePanel } from '@domin8/arcade-kit';
+import { PanelTitle } from './pixel-text';
 import { HubIconButton } from './hub-icon-button';
 import { PX, PxPanel } from './px';
 
@@ -88,6 +90,7 @@ export interface Me {
 }
 
 export function LeaderboardDrawer({ token, playerId, onSpectate, onMe, onOpen }: LeaderboardDrawerProps) {
+  const t = useT();
   // One piece of state for both layouts. It only differs in where it STARTS:
   // on a wide screen the board is furniture and begins out, on a phone it
   // covers the island and begins away. Either way the handle and the [x] move
@@ -180,7 +183,7 @@ export function LeaderboardDrawer({ token, playerId, onSpectate, onMe, onOpen }:
           to move. */}
       <span className="rr-lb-launch">
         <HubIconButton
-          label={open ? 'Hide the season board' : 'Show the season board'}
+          label={open ? t.board.hide : t.board.show}
           pressed={open}
           // A standing, not news: "#59" in the quiet chip. It was a bare red
           // "59", which read as fifty-nine unread things on the board.
@@ -223,7 +226,7 @@ export function LeaderboardDrawer({ token, playerId, onSpectate, onMe, onOpen }:
         <header className="rr-lb-head">
           <strong className="rr-lb-title">
             <span aria-hidden>👑</span>
-            <PanelTitle>SEASON</PanelTitle>
+            <PanelTitle>{t.chrome.season}</PanelTitle>
           </strong>
           {daysLeft !== null && <span style={{ color: 'var(--muted)' }}>{daysLeft}d</span>}
           {/* Every screen can put the board away now — on a phone it is covering
@@ -254,7 +257,7 @@ export function LeaderboardDrawer({ token, playerId, onSpectate, onMe, onOpen }:
               // a spectate that lands on an empty board is the server's
               // `not_playing` error dressed up as a feature.
               disabled={e.playerId === playerId || !onSpectate || !e.digging}
-              title={e.digging ? `Watch ${e.name} dig` : `${e.name} is not out right now`}
+              title={e.digging ? t.board.watch(e.name) : t.board.notOut(e.name)}
               onClick={() => {
                 onSpectate?.(e.playerId);
                 // On a phone the board is covering the island, so leaving it up
@@ -286,7 +289,7 @@ export function LeaderboardDrawer({ token, playerId, onSpectate, onMe, onOpen }:
                     mock's rows are one line each: a rank, a name, a score.
                     What survives is the one line worth a tap, because it is an
                     invitation rather than a description. */}
-                {e.digging && <small>digging now &middot; tap to watch</small>}
+                {e.digging && <small>{t.board.diggingNow}</small>}
               </span>
               <span style={{ color: 'var(--carrot)' }}>{e.score}</span>
             </button>

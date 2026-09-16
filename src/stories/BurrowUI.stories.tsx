@@ -28,6 +28,7 @@ import { BurrowPanel } from '@/components/burrow-card-panel';
 import { LoopBar } from '@/components/loop-bar';
 import { NextStrip } from '@/components/next-strip';
 import { nextAction } from '@/config/next-action';
+import { DICTIONARIES } from '@/i18n/dictionaries';
 import { KitRow } from '@/components/kit-row';
 import { CarrotPill } from '@/components/carrot-pill';
 import { FarmButton } from '@/components/farm-button';
@@ -132,7 +133,7 @@ function BurrowColumn({
           controls the cards read. */}
       <div style={{ marginBottom: 10 }}>
         <NextStrip
-          action={nextAction({
+          action={nextAction(DICTIONARIES.en, {
             energy,
             runCost: 25,
             nextRunInMs: energy >= 25 ? null : nextEnergyMins * 60_000 * (25 - energy),

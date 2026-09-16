@@ -13,6 +13,7 @@
  * has already used — this is not the place to be original.
  */
 import { useEffect, useState, type CSSProperties } from 'react';
+import { useT } from '@/i18n/provider';
 import { useWalletLogin } from '@/components/use-wallet-login';
 import { ProfileMenu } from '@/components/profile-menu';
 import { avatarSrc, AVATAR_FRAME } from '@/lib/game/avatars';
@@ -42,6 +43,7 @@ const chip: CSSProperties = {
 };
 
 export function WalletButton() {
+  const t = useT();
   const { player, token, busy, error, takenBy, login, linkWallet, logout, applyProfile } =
     useWalletLogin();
   const [open, setOpen] = useState(false);
@@ -75,7 +77,7 @@ export function WalletButton() {
         textColor={INK}
         style={chip}
       >
-        <span>{busy ? 'Waiting...' : 'Connect wallet'}</span>
+        <span>{busy ? t.auth.waiting : t.auth.connect}</span>
       </PxButton>
     );
   }
@@ -90,7 +92,7 @@ export function WalletButton() {
         textColor={CROWN}
         style={chip}
         onClick={() => setOpen(true)}
-        title={error ?? player.wallet ?? 'Guest burrow. Connect a wallet to keep it.'}
+        title={error ?? player.wallet ?? t.auth.guestNote}
         aria-haspopup="dialog"
         aria-expanded={open}
       >
@@ -113,7 +115,7 @@ export function WalletButton() {
             the corner is where a player already looks to see who they are —
             leaving it unsaid is how somebody loses a week of digging to a
             cleared browser without ever having been told it could happen. */}
-        {player.guest && <em className="rr-guest-tag">GUEST</em>}
+        {player.guest && <em className="rr-guest-tag">{t.auth.guestTag}</em>}
         {/* Unread raids ride on the chip: being robbed while away is only
             useful news if the game tells you before you go looking. */}
         {unseen > 0 && <em className="rr-badge">{unseen}</em>}

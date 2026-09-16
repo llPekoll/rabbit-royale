@@ -30,6 +30,8 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { CARROT_URL, CARROT_SIZE } from '@domin8/arcade-kit/game';
 import { playUiSfx } from '@/game/services/SoundManager';
 import type { QuestDoor } from '@/config/quests';
+import { useT } from '@/i18n/provider';
+import { formatWait, groupDigits } from '@/i18n/format';
 import { PxButton, PxPanel } from './px';
 
 export type Loop = 'dig' | 'home' | 'raid';
@@ -125,18 +127,11 @@ const GLASS = 'rgba(13, 17, 23, 0.82)';
 const BADGE = '#e62132';
 const DANGER_INK = '#ff8a7a';
 
-function formatWait(ms: number): string {
-  const mins = Math.ceil(ms / 60_000);
-  if (mins < 60) return `${mins}m`;
-  const h = Math.floor(mins / 60);
-  const rest = mins % 60;
-  return rest ? `${h}h ${rest}m` : `${h}h`;
-}
-
 export function LoopBar({
   dig, home, raid, questDoor = null, questPulseKey = 0, broughtHome = null, nextRunAt = null, onRunReady,
   away, onDig, onHome, onRaid,
 }: LoopBarProps) {
+  const t = useT();
   const pointed = loopOf(questDoor);
   const canDig = dig.energy >= dig.runCost;
 
@@ -187,26 +182,26 @@ export function LoopBar({
   // wraps to two rows at most (`line` below), so every part is a couple of
   // words. Verified on screen: "35/60 energy · a run takes 25" clipped.
   const digParts = [
-    `${dig.energy}/${dig.maxEnergy} energy`,
+    t.loop.energyOf(dig.energy, dig.maxEnergy),
     canDig
-      ? `run costs ${dig.runCost}`
-      : `run in ${waitMs === null || waitMs <= 0 ? 'a moment' : formatWait(waitMs)}`,
+      ? t.loop.runCosts(dig.runCost)
+      : t.loop.runIn(waitMs === null || waitMs <= 0 ? t.loop.aMoment : formatWait(waitMs, t.units)),
   ];
   const homeParts = [
-    home.gardenReady > 0 ? `garden +${home.gardenReady}` : 'garden empty',
-    home.shieldMs !== null ? `shield ${formatWait(home.shieldMs)}` : 'no shield',
-    `${home.trapsLive} trap${home.trapsLive === 1 ? '' : 's'}`,
+    home.gardenReady > 0 ? t.loop.gardenPlus(groupDigits(home.gardenReady)) : t.loop.gardenEmpty,
+    home.shieldMs !== null ? t.loop.shieldFor(formatWait(home.shieldMs, t.units)) : t.loop.noShield,
+    t.loop.traps(home.trapsLive),
   ];
   const raidParts = [
     raid.best
-      ? `${raid.best.name} left ${raid.best.garden} outside`
+      ? t.loop.leftOutside(raid.best.name, groupDigits(raid.best.garden))
       : raid.open > 0
-        ? `${raid.open} burrow${raid.open === 1 ? '' : 's'} open`
-        : 'every burrow is shielded',
+        ? t.loop.burrowsOpen(raid.open)
+        : t.loop.allShielded,
     // The bag JOINS the line instead of taking a row of its own. Each slab
     // holds one travelling row now, and a second row is exactly the vertical
     // space this change exists to hand back.
-    ...(raid.bombs > 0 ? [`${raid.bombs} bomb${raid.bombs === 1 ? '' : 's'} in the bag`] : []),
+    ...(raid.bombs > 0 ? [t.loop.bombsInBag(raid.bombs)] : []),
   ];
   const digLine = digParts.join(', ');
   const homeLine = homeParts.join(', ');
@@ -215,7 +210,7 @@ export function LoopBar({
   return (
     <nav
       className={`rr-loop-bar${away ? ' rr-loop-away' : ''}`}
-      aria-label="Dig, home, raid"
+      aria-label={t.loop.ariaGroup}
       aria-hidden={away || undefined}
       // A real boolean: React 19 takes `inert` as one, and the empty-string
       // spelling (for React 18) logged an error every time placing began.
@@ -234,7 +229,7 @@ export function LoopBar({
           key={`dig:${pulse('dig')}`}
           className={`rr-loop-slab rr-loop-dig rr-ptf-fill${pulse('dig') ? ' rr-tab-pop' : ''}`}
           onClick={onDig}
-          aria-label={`Dig. ${digLine}`}
+          aria-label={t.loop.ariaDig(digLine)}
           color={DIG_FACE}
           shadowColor={DIG_SHADOW}
           highlightColor={DIG_LIP}
@@ -258,7 +253,7 @@ export function LoopBar({
                   it; the state line goes to DARK ink. Cream on this orange
                   measured 2:1, and the line is the one that says whether the
                   next run is affordable. */}
-              <span style={{ ...verb, textShadow: `0 2px 0 ${DIG_SHADOW}` }}>DIG</span>
+              <span style={{ ...verb, textShadow: `0 2px 0 ${DIG_SHADOW}` }}>{t.loop.dig}</span>
               <StateLine parts={digParts} color={DIG_INK} />
             </span>
           </span>
@@ -283,7 +278,7 @@ export function LoopBar({
                 />
                 +{broughtHome.amount}
               </span>
-              <span>brought home</span>
+              <span>{t.loop.broughtHome}</span>
             </PxPanel>
           </span>
         )}
@@ -299,7 +294,7 @@ export function LoopBar({
           key={`home:${pulse('home')}`}
           className={`rr-loop-slab rr-loop-home rr-ptf-fill${pulse('home') ? ' rr-tab-pop' : ''}`}
           onClick={onHome}
-          aria-label={`Defend: bury traps. ${homeLine}`}
+          aria-label={t.loop.ariaDefend(homeLine)}
           color={DEF_FACE}
           shadowColor={DEF_SHADOW}
           highlightColor={DEF_LIP}
@@ -313,7 +308,7 @@ export function LoopBar({
                   and RAID. "HOME" named the place you were already standing in;
                   what the slab does is open the floor to bury traps. The class
                   and the `home` key keep their name — only the word changed. */}
-              <span style={{ ...verb, textShadow: `0 2px 0 ${DEF_SHADOW}` }}>DEFEND</span>
+              <span style={{ ...verb, textShadow: `0 2px 0 ${DEF_SHADOW}` }}>{t.loop.defend}</span>
               {/* The garden with something standing in it is the alarm: what is
                   out there is what a raider can take. */}
               <StateLine parts={homeParts} color={home.gardenReady > 0 ? DANGER_INK : DEF_INK} />
@@ -333,7 +328,7 @@ export function LoopBar({
           key={`raid:${pulse('raid')}`}
           className={`rr-loop-slab rr-loop-raid rr-ptf-fill${pulse('raid') ? ' rr-tab-pop' : ''}`}
           onClick={onRaid}
-          aria-label={`Raid. ${raidLine}`}
+          aria-label={t.loop.ariaRaid(raidLine)}
           color={RAID_FACE}
           shadowColor={RAID_SHADOW}
           highlightColor={RAID_LIP}
@@ -343,7 +338,7 @@ export function LoopBar({
         >
           <span style={face}>
             <span style={textCol}>
-              <span style={{ ...verb, textShadow: `0 2px 0 ${RAID_SHADOW}` }}>RAID</span>
+              <span style={{ ...verb, textShadow: `0 2px 0 ${RAID_SHADOW}` }}>{t.loop.raid}</span>
               {/* GOLD for the burrow worth walking to. The salmon this line used
                   to take is a shade of the face now, and read as nothing. */}
               <StateLine parts={raidParts} color={raid.best ? LAMP : RAID_INK} />

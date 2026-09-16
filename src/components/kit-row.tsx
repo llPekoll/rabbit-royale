@@ -42,15 +42,8 @@ import type { CSSProperties } from 'react';
 import { ItemSlot } from './item-slot';
 import { ITEM_META } from './item-meta';
 import type { ItemKind } from './use-shop';
-
-/** Hours and minutes, the shortest form that is still true. */
-function shortWait(ms: number): string {
-  const mins = Math.max(1, Math.round(ms / 60_000));
-  if (mins < 60) return `${mins}m`;
-  const hrs = Math.round(mins / 60);
-  if (hrs < 48) return `${hrs}h`;
-  return `${Math.round(hrs / 24)}d`;
-}
+import { useT } from '@/i18n/provider';
+import { shortWait } from '@/i18n/format';
 
 /** One garden bottle's two facts, as `gardenBoostView` reports them. */
 export interface BoostState {
@@ -93,8 +86,9 @@ export function KitRow({
   held, shieldMs, smokeDays, trapsPlaced, trapsMaxPlaced, onShield,
   water, fertiliser, onPour, pending,
 }: KitRowProps) {
+  const t = useT();
   return (
-    <div className="rr-kit-row" style={row} role="group" aria-label="What you are carrying">
+    <div className="rr-kit-row" style={row} role="group" aria-label={t.kit.aria}>
       {ORDER.map((kind) => (
         <KitSlot
           key={kind}
@@ -144,7 +138,9 @@ function KitSlot({
   onShield?(): void;
   pending?: boolean;
 }) {
+  const t = useT();
   const meta = ITEM_META[kind];
+  const wait = (ms: number) => shortWait(ms, t.units);
 
   if (kind === 'shield') {
     const live = shieldMs !== null;
@@ -153,16 +149,16 @@ function KitSlot({
     // already has. `RAID.ITEM_SHIELD_MS` is a fixed window, not a bank.
     const canRaise = held > 0 && !live && !!onShield && !pending;
     const said = live
-      ? `Shield: holding, ${shortWait(shieldMs)} left. ${held} in the bag.`
+      ? t.kit.shieldHolding(wait(shieldMs), held)
       : held > 0
-        ? `Shield: ${held} in the bag. Raise one. Raids bounce off while it holds.`
-        : 'Shield: none. Buy one in the shop.';
+        ? t.kit.shieldReady(held)
+        : t.kit.shieldNone;
     return (
       <ItemSlot
         art={meta.art}
         aspect={meta.aspect}
         fallback={meta.icon}
-        chip={live ? shortWait(shieldMs) : held > 0 ? String(held) : null}
+        chip={live ? wait(shieldMs) : held > 0 ? String(held) : null}
         live={live}
         label={said}
         onClick={onShield}
@@ -178,11 +174,9 @@ function KitSlot({
     return (
       <ItemSlot
         fallback={meta.icon}
-        chip={live ? `${smokeDays}d` : null}
+        chip={live ? `${smokeDays}${t.units.d}` : null}
         live={live}
-        label={live
-          ? `Smoke screen: up, ${smokeDays} day${smokeDays === 1 ? '' : 's'} left. Raiders cross your burrow blind.`
-          : 'Smoke screen: off. Buy one in the shop to hide your numbers.'}
+        label={live ? t.kit.smokeUp(smokeDays) : t.kit.smokeOff}
       />
     );
   }
@@ -200,7 +194,7 @@ function KitSlot({
         fallback={meta.icon}
         chip={placed > 0 ? `${placed}` : held > 0 ? String(held) : null}
         lit={placed > 0}
-        label={`Traps: ${placed}${max ? ` of ${max}` : ''} in the ground, ${held} in the shed. Bury them from BASE.`}
+        label={t.kit.trapsLine(placed, max || null, held)}
       />
     );
   }
@@ -216,16 +210,16 @@ function KitSlot({
       chip={held > 0 ? String(held) : null}
       lit={held > 0}
       label={held > 0
-        ? `${meta.name}: ${held} in the bag. ${meta.blurb}`
-        : `${meta.name}: none. ${meta.blurb}`}
+        ? t.kit.carried(t.items[kind].name, held, t.items[kind].blurb)
+        : t.kit.carriedNone(t.items[kind].name, t.items[kind].blurb)}
     />
   );
 }
 
 /** The garden bottles' own art — the chest's files, as `chest-prize` flies them. */
 const BOTTLE = {
-  water: { src: '/assets/ui/icons/water.webp', aspect: 33 / 32, name: 'Watering' },
-  fertiliser: { src: '/assets/ui/icons/fertiliser.webp', aspect: 29 / 32, name: 'Fertiliser' },
+  water: { src: '/assets/ui/icons/water.webp', aspect: 33 / 32 },
+  fertiliser: { src: '/assets/ui/icons/fertiliser.webp', aspect: 29 / 32 },
 } as const;
 
 /**
@@ -244,7 +238,10 @@ function BottleSlot({
   onPour?(kind: 'water' | 'fertiliser'): void;
   pending?: boolean;
 }) {
+  const t = useT();
   const art = BOTTLE[kind];
+  // The bottle's name is the dictionary's; its art stays in BOTTLE.
+  const name = kind === 'water' ? t.kit.watering : t.kit.fertiliser;
   const count = state?.held ?? 0;
   const activeMs = state?.activeMs ?? null;
   const live = activeMs !== null;
@@ -253,14 +250,14 @@ function BottleSlot({
     <ItemSlot
       art={art.src}
       aspect={art.aspect}
-      chip={live ? shortWait(activeMs) : count > 0 ? String(count) : null}
+      chip={live ? shortWait(activeMs, t.units) : count > 0 ? String(count) : null}
       live={live}
       lit={count > 0}
       label={live
-        ? `${art.name}: running, ${shortWait(activeMs)} left. ${count} in the bag.`
+        ? t.kit.bottleRunning(name, shortWait(activeMs, t.units), count)
         : count > 0
-          ? `${art.name}: ${count} in the bag. Pour one on the garden.`
-          : `${art.name}: none. Found in chests.`}
+          ? t.kit.bottleHeld(name, count)
+          : t.kit.bottleNone(name)}
       onClick={() => onPour?.(kind)}
       disabled={!canPour}
     />

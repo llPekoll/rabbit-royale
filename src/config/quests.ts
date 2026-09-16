@@ -75,15 +75,39 @@ export interface QuestReward {
   item?: { kind: 'bomb' | 'shield'; qty: number };
 }
 
+/**
+ * Every quest's key, as a union rather than `string`.
+ *
+ * `questsClaimed` persists these, so they are never renamed — and each
+ * language's quest table is keyed by this union, so a translation that misses
+ * one cannot compile. The tuning tables in config/tuning.ts key their rewards
+ * by the same strings.
+ */
+export type QuestId =
+  | 'break-ground'
+  | 'come-home'
+  | 'bring-it-in'
+  | 'bury-something'
+  | 'open-a-chest'
+  | 'knock-on-a-door'
+  | 'look-up'
+  | 'read-the-stones'
+  | 'hold-the-door'
+  | 'the-thicket';
+
+/**
+ * A quest's SHAPE — what it counts, not what it says.
+ *
+ * The three prose fields (`title`, `ask`, `line`) moved to the dictionaries
+ * (i18n/dict/*.ts, keyed by `QuestId`) when the game learned four languages,
+ * and `questText` in i18n/content.ts puts the halves back together. The split
+ * is what keeps THIS file importable by the server: the claim route asks
+ * whether a quest is done, which is a predicate over counters and never needed
+ * a sentence.
+ */
 export interface Quest {
   /** Stable key — persisted in `questsClaimed`, so never renamed. */
-  id: string;
-  /** Two or three words. The card's heading. */
-  title: string;
-  /** The ask, as an instruction. Twelve words at most: it is read at a glance. */
-  ask: string;
-  /** What the island says once it is done. Its voice, second person, dry. */
-  line: string;
+  id: QuestId;
   door: QuestDoor;
   /** What `progress` has to reach. */
   goal: number;
@@ -109,9 +133,6 @@ const THICKET = ISLAND_TIERS[1];
 export const QUESTS_ARC: readonly Quest[] = [
   {
     id: 'break-ground',
-    title: 'Break ground',
-    ask: `Dig ${QUESTS.FIRST_DIG_TILES} tiles.`,
-    line: 'Every dug tile tells you how many bombs touch it. Exactly. The numbers are honest.',
     door: 'farm',
     goal: QUESTS.FIRST_DIG_TILES,
     progress: (f) => f.tilesDug,
@@ -119,9 +140,6 @@ export const QUESTS_ARC: readonly Quest[] = [
   },
   {
     id: 'come-home',
-    title: 'Come home',
-    ask: 'Finish a run.',
-    line: 'What you carried is in the burrow now. Nothing on the island can reach it.',
     door: 'farm',
     goal: 1,
     progress: (f) => f.runsPlayed,
@@ -129,9 +147,6 @@ export const QUESTS_ARC: readonly Quest[] = [
   },
   {
     id: 'bring-it-in',
-    title: 'Bring it in',
-    ask: 'Harvest the garden.',
-    line: 'The garden grows while you are away. So does what a thief can carry off it.',
     door: 'garden',
     goal: 1,
     progress: (f) => f.harvests,
@@ -139,9 +154,6 @@ export const QUESTS_ARC: readonly Quest[] = [
   },
   {
     id: 'bury-something',
-    title: 'Bury something',
-    ask: 'Place a trap on your floor.',
-    line: 'A trap nobody can see is the only wall worth building. A wall gets walked around.',
     door: 'base',
     goal: 1,
     progress: (f) => f.trapsPlaced,
@@ -149,9 +161,6 @@ export const QUESTS_ARC: readonly Quest[] = [
   },
   {
     id: 'open-a-chest',
-    title: 'Open a chest',
-    ask: 'Dig up a chest on an island.',
-    line: 'A chest is a promise. It is also a walk across ground you have not read yet.',
     door: 'farm',
     goal: 1,
     progress: (f) => f.chestsOpened,
@@ -159,9 +168,6 @@ export const QUESTS_ARC: readonly Quest[] = [
   },
   {
     id: 'knock-on-a-door',
-    title: 'Knock on a door',
-    ask: 'Raid a burrow. Any depth counts.',
-    line: 'The only thing that can be taken from a rabbit is what it left behind. Now you have been on both sides of that.',
     door: 'raid',
     goal: 1,
     progress: (f) => f.raidsPlayed,
@@ -169,9 +175,6 @@ export const QUESTS_ARC: readonly Quest[] = [
   },
   {
     id: 'look-up',
-    title: 'Look up',
-    ask: 'Open the season board.',
-    line: 'Someone wears the crown. It puts a light on every map, and it never goes out.',
     door: 'season',
     goal: 1,
     progress: (f) => has(f, QUEST_MARK.LEADERBOARD),
@@ -179,9 +182,6 @@ export const QUESTS_ARC: readonly Quest[] = [
   },
   {
     id: 'read-the-stones',
-    title: 'Read the stones',
-    ask: `Open chapter ${NUMBERS_CHAPTER.numeral} of the codex.`,
-    line: 'The island does not kill the unlucky. It kills the hurried, and it keeps a careful record of the difference.',
     door: 'story',
     goal: 1,
     progress: (f) => has(f, codexMark(NUMBERS_CHAPTER.id)),
@@ -189,9 +189,6 @@ export const QUESTS_ARC: readonly Quest[] = [
   },
   {
     id: 'hold-the-door',
-    title: 'Hold the door',
-    ask: `Have ${QUESTS.HOLD_THE_DOOR_TRAPS} traps in the ground before your shield lifts.`,
-    line: 'Your shield lifts soon. After that, the floor is all you have. Make it expensive.',
     door: 'base',
     goal: QUESTS.HOLD_THE_DOOR_TRAPS,
     progress: (f) => f.trapsPlaced,
@@ -199,9 +196,6 @@ export const QUESTS_ARC: readonly Quest[] = [
   },
   {
     id: 'the-thicket',
-    title: `The ${THICKET.name}`,
-    ask: `Reach ${THICKET.minLifetime.toLocaleString('en-GB')} lifetime carrots.`,
-    line: 'Richer ground, and more of it buried. The island calls that a fair trade and does not wait for your answer.',
     door: 'farm',
     goal: THICKET.minLifetime,
     progress: (f) => f.lifetimeCarrots,
@@ -213,6 +207,11 @@ export function questById(id: string): Quest | undefined {
   return QUESTS_ARC.find((q) => q.id === id);
 }
 
+/** Is this one of the arc's ids? Guards what the claim route answers with. */
+export function isQuestId(id: unknown): id is QuestId {
+  return typeof id === 'string' && QUESTS_ARC.some((q) => q.id === id);
+}
+
 export function isQuestDone(quest: Quest, facts: QuestFacts): boolean {
   return quest.progress(facts) >= quest.goal;
 }
@@ -220,6 +219,7 @@ export function isQuestDone(quest: Quest, facts: QuestFacts): boolean {
 /** A quest as the burrow draws it: the definition plus where this player stands. */
 export interface QuestView {
   id: string;
+  /** The prose. Empty from `questView` here; filled by i18n/content.ts. */
   title: string;
   ask: string;
   line: string;
@@ -247,9 +247,12 @@ export function questView(quest: Quest, facts: QuestFacts): QuestView {
   const raw = quest.progress(facts);
   return {
     id: quest.id,
-    title: quest.title,
-    ask: quest.ask,
-    line: quest.line,
+    // The words are the dictionary's, and this file is imported by the server,
+    // which has no player to pick a language for. `questView` in
+    // i18n/content.ts wraps this and fills them in.
+    title: '',
+    ask: '',
+    line: '',
     door: quest.door,
     goal: quest.goal,
     progress: Math.max(0, Math.min(quest.goal, raw)),

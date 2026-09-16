@@ -13,8 +13,11 @@
  * else's carrots, and they should feel like the same world.
  */
 import { useEffect, type CSSProperties } from 'react';
+import { useT } from '@/i18n/provider';
+import { groupDigits } from '@/i18n/format';
 import { createPortal } from 'react-dom';
-import { CloseButton, PanelTitle } from '@domin8/arcade-kit';
+import { CloseButton } from '@domin8/arcade-kit';
+import { PanelTitle } from './pixel-text';
 import type { RaidState, Target } from './use-raid';
 import { LauncherTab, CARROT, DANGER, LAMP, PLANK, SOIL, SOIL_DEEP } from './burrow-chrome';
 import { LootChest, CHEST_ASPECT } from './loot-chest';
@@ -38,6 +41,9 @@ export interface RaidButtonProps {
  * street is empty reads as a broken feature rather than a quiet night.
  */
 export function RaidButton({ targets, onOpen }: RaidButtonProps) {
+  // `d`, not `t`: in this file `t` is already a raid TARGET in the list's
+  // own map callbacks, and shadowing it there would be a real bug.
+  const d = useT();
   const open = targets.filter((t) => !t.shielded);
   const loot = open.reduce((n, t) => n + t.stock, 0);
   const fat = open.length > 0 ? Math.max(...open.map((t) => t.stock)) : 0;
@@ -50,18 +56,18 @@ export function RaidButton({ targets, onOpen }: RaidButtonProps) {
       art={<LootChest size={46} />}
       spriteSize={46}
       spriteHeight={Math.round(46 * CHEST_ASPECT)}
-      label="GO RAIDING"
+      label={d.raid.go}
       sub={
         open.length === 0
-          ? (targets.length > 0 ? 'ALL BURROWS SHIELDED' : 'NOBODY TO ROB')
-          : `${short(loot)} UNGUARDED`
+          ? (targets.length > 0 ? d.raid.allShielded : d.raid.nobody)
+          : d.raid.unguarded(short(loot))
       }
       // Lit only when there is something to take. A warm tab over an empty
       // street is the same lie as a count of unreachable targets.
       ink={open.length === 0 ? DANGER : fat >= 1000 ? CARROT : LAMP}
       count={open.length || undefined}
       onClick={onOpen}
-      ariaLabel="Raid another burrow"
+      ariaLabel={d.raid.another}
     />
   );
 }
@@ -82,6 +88,9 @@ export interface TargetListProps {
 
 /** Who is worth robbing. Ordered by stock, because that is the reason to go. */
 export function TargetList({ targets, busy, onEnter, onClose, note }: TargetListProps) {
+  // `d`, not `t`: in this file `t` is already a raid TARGET in the list's
+  // own map callbacks, and shadowing it there would be a real bug.
+  const d = useT();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
@@ -94,7 +103,7 @@ export function TargetList({ targets, busy, onEnter, onClose, note }: TargetList
         className="rr-shop-modal rr-raid-pick"
         role="dialog"
         aria-modal="true"
-        aria-label="Choose a burrow"
+        aria-label={d.raid.choose}
         onClick={(e) => e.stopPropagation()}
       >
         {/* THE CODEX'S FRAME (`PxPanel`) in the soil this dialog always was.
@@ -103,20 +112,20 @@ export function TargetList({ targets, busy, onEnter, onClose, note }: TargetList
             and the [X] are the codex's own `PanelTitle` and `CloseButton`. */}
         <PxPanel color={SOIL} className="rr-raid-pick-frame">
           <header className="rr-shop-top">
-            <h2 aria-label="Whose burrow?">
-              <PanelTitle>WHOSE BURROW?</PanelTitle>
+            <h2 aria-label={d.raid.whose}>
+              <PanelTitle>{d.raid.whose}</PanelTitle>
             </h2>
             <CloseButton
               inline
               className="rr-px-btn"
               onClick={onClose}
-              aria-label="Close"
+              aria-label={d.chrome.close}
               style={{ height: 44, minWidth: 44 }}
             />
           </header>
 
           {targets.length === 0 ? (
-            <p className="rr-shop-pay">Nobody else has a burrow yet.</p>
+            <p className="rr-shop-pay">{d.raid.nobodyYet}</p>
           ) : (
             <ul className="rr-raid-list">
               {targets.map((t) => {
@@ -125,7 +134,7 @@ export function TargetList({ targets, busy, onEnter, onClose, note }: TargetList
                   <li key={t.id} className={t.shielded ? 'shielded' : ''}>
                     <PxPanel color={PLANK} className="rr-raid-row">
                       <span className="rr-raid-name">{t.name}</span>
-                      <span className="rr-raid-stock">{t.stock.toLocaleString()} 🥕</span>
+                      <span className="rr-raid-stock">{groupDigits(t.stock)} 🥕</span>
                       {/* Shielded targets are shown but not attackable: hiding
                           them would make the list look empty for no visible
                           reason. RAID wiggles — it is the loudest thing on
@@ -140,7 +149,7 @@ export function TargetList({ targets, busy, onEnter, onClose, note }: TargetList
                         wiggle={!off}
                         style={raidButton}
                       >
-                        <span style={raidLabel}>{t.shielded ? 'Shielded' : 'Raid'}</span>
+                        <span style={raidLabel}>{t.shielded ? d.raid.shielded : d.raid.raidIt}</span>
                       </PxButton>
                     </PxPanel>
                   </li>
@@ -150,7 +159,7 @@ export function TargetList({ targets, busy, onEnter, onClose, note }: TargetList
           )}
 
           <PxPanel color={PLANK} className="rr-shop-foot">
-            <span>{note ?? 'Reach the carrot field. Their traps are buried and unmarked.'}</span>
+            <span>{note ?? d.raid.brief}</span>
           </PxPanel>
         </PxPanel>
       </section>
@@ -192,6 +201,9 @@ export interface RaidHudProps {
  * island's HUD, because it is the same decision.
  */
 export function RaidHud({ raid, busy, note, onLeave }: RaidHudProps) {
+  // `d`, not `t`: in this file `t` is already a raid TARGET in the list's
+  // own map callbacks, and shadowing it there would be a real bug.
+  const d = useT();
   return (
     // The codex's frame in the HUD's own dark soil. `position: fixed` rides
     // inline because the frame sets `relative` on itself; where it sits (under
@@ -206,7 +218,7 @@ export function RaidHud({ raid, busy, note, onLeave }: RaidHudProps) {
             walked out at 10 read it as their burrow having been emptied. The
             word is what tells the two bars apart. */}
         <span className="rr-raid-energy">
-          &#9889; {raid.energy}<small>pas</small>
+          &#9889; {raid.energy}<small>{d.raid.steps}</small>
         </span>
         {raid.trapsSprung > 0 && (
           <span className="rr-raid-sprung">🪤 {raid.trapsSprung}</span>
@@ -245,11 +257,11 @@ export function RaidHud({ raid, busy, note, onLeave }: RaidHudProps) {
           energy" to a raid the player had just won. */}
       {raid.finished && !raid.succeeded && (
         <div className="rr-raid-over">
-          <strong>Out of energy</strong>
+          <strong>{d.raid.outOfEnergy}</strong>
           <span className="rr-raid-haul">
             {raid.carrotsLooted > 0
-              ? `+${raid.carrotsLooted.toLocaleString()} 🥕`
-              : 'Nothing taken'}
+              ? d.raid.looted(groupDigits(raid.carrotsLooted))
+              : d.raid.nothingTaken}
           </span>
         </div>
       )}

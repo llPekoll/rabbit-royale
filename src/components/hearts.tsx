@@ -25,6 +25,7 @@
  * for half a second, and the LAST heart beats for as long as it is the last.
  */
 import { useEffect, useRef, useState } from 'react';
+import { useT } from '@/i18n/provider';
 import { createPortal } from 'react-dom';
 import { ENERGY, HEARTS } from '@config/tuning';
 
@@ -35,6 +36,7 @@ export interface HeartsProps {
 }
 
 export function Hearts({ energy, total = HEARTS }: HeartsProps) {
+  const t = useT();
   const full = Math.max(0, Math.min(total, Math.ceil(energy / ENERGY.BOMB_LOSS)));
 
   // Which heart just broke, keyed so two losses in a row are two breaks. Only
@@ -56,8 +58,8 @@ export function Hearts({ energy, total = HEARTS }: HeartsProps) {
       aria-valuenow={full}
       aria-valuemin={0}
       aria-valuemax={total}
-      aria-label={`${full} of ${total} hearts`}
-      title={`${full} / ${total} hearts`}
+      aria-label={t.run.hearts(full, total)}
+      title={t.run.heartsShort(full, total)}
     >
       {Array.from({ length: total }, (_, i) => (
         <img

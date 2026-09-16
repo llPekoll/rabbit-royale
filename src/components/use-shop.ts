@@ -14,6 +14,8 @@
  * purchase refreshes everything in the same round trip.
  */
 import { useCallback, useEffect, useState } from 'react';
+import { useT } from '@/i18n/provider';
+import type { Dict } from '@/i18n/dictionaries';
 import type { PayTokenId } from '@/lib/pay/tokens';
 
 export type ItemKind = 'trap' | 'bomb' | 'lightning' | 'shield' | 'energy' | 'smoke' | 'mirage';
@@ -83,35 +85,23 @@ export interface TrapState {
   drain: number;
 }
 
-/** What the player is told when something is refused. One place, so the same
- *  failure never gets two different wordings. */
-const MESSAGES: Record<string, string> = {
-  insufficient_carrots: 'Not enough carrots.',
-  inventory_full: 'Your bag is full of those.',
-  daily_energy_limit: 'No more refills today. The garden still grows.',
-  smoke_capped: 'Your burrow is hidden as long as it can be.',
-  too_many_at_once: 'Too many at once.',
-  bad_quantity: 'That is not a quantity.',
-  no_traps: 'No traps left. Buy one, or wait for tomorrow.',
-  board_full: 'Your burrow cannot hold another trap.',
-  tile_not_trappable: 'Nothing to mine there.',
-  tile_already_trapped: 'Already mined.',
-  no_trap_there: 'No trap there.',
-  payments_unavailable: 'Card payments are not set up yet.',
-  quote_expired: 'That quote expired. Try again.',
-  signature_already_used: 'That payment was already used.',
-  not_confirmed_yet: 'Still confirming on chain...',
-  wrong_reference: 'That transaction does not match this purchase.',
-  no_matching_transfer: 'No matching USDC transfer found.',
-  failed_on_chain: 'The transaction failed on chain.',
-};
-
-export function shopMessage(error: string | undefined): string | null {
+/**
+ * What the player is told when something is refused.
+ *
+ * The server answers with a CODE (`insufficient_carrots`), never a sentence —
+ * it has no idea which of the four languages this player reads. The wording
+ * for each code lives in the dictionaries under `shopErrors`, which is also
+ * what guarantees a language cannot ship one of them missing.
+ */
+export function shopMessage(t: Dict, error: string | undefined): string | null {
   if (!error) return null;
-  return MESSAGES[error] ?? 'That did not work.';
+  // A code the dictionary has no line for still says something: a silent
+  // refusal is the one outcome a player cannot act on.
+  return t.shopErrors[error as keyof Dict['shopErrors']] ?? t.shopErrors.fallback;
 }
 
 export function useShop(token: string | null) {
+  const t = useT();
   const [shop, setShop] = useState<ShopState | null>(null);
   const [traps, setTraps] = useState<TrapState | null>(null);
   const [busy, setBusy] = useState(false);
@@ -153,13 +143,13 @@ export function useShop(token: string | null) {
       })).then((r) => r.json());
 
       if (res.error) {
-        setNote(shopMessage(res.error));
+        setNote(shopMessage(t, res.error));
         return null;
       }
       setShop(res);
       // A trap purchase changes the board's allowance too.
       if (kind === 'trap') void refresh();
-      setNote(purchaseNote(kind, qty, res.spent));
+      setNote(purchaseNote(t, kind, qty, res.spent));
       return res;
     } finally {
       setBusy(false);
@@ -181,7 +171,7 @@ export function useShop(token: string | null) {
     })).then((r) => r.json()).catch(() => ({ error: 'network' }));
 
     if (res.error) {
-      setNote(shopMessage(res.error));
+      setNote(shopMessage(t, res.error));
       return false;
     }
     setTraps(res);
@@ -209,7 +199,7 @@ export function useShop(token: string | null) {
     })).then((r) => r.json()).catch(() => ({ error: 'network' }));
 
     if (res.error) {
-      setNote(shopMessage(res.error));
+      setNote(shopMessage(t, res.error));
       return false;
     }
     setTraps(res);
@@ -237,7 +227,7 @@ export function useShop(token: string | null) {
       .then((r) => r.json()).catch(() => ({ error: 'network' }));
 
     if (res.error) {
-      setNote(shopMessage(res.error));
+      setNote(shopMessage(t, res.error));
       return null;
     }
     setTraps(res);
@@ -251,18 +241,15 @@ export function useShop(token: string | null) {
 
 /** What a successful purchase says. Named per item, because "bought 1 item" is
  *  a receipt and this is a game. */
-function purchaseNote(kind: ItemKind, qty: number, spent: number): string {
-  const n = qty > 1 ? `${qty} ` : '';
-  // Plain ASCII '-', not a minus sign: the pixel face cannot draw U+2212 and it
-  // renders as a blank box on the device. See test/pixel-font-glyphs.
-  const paid = `-${spent} 🥕`;
+function purchaseNote(t: Dict, kind: ItemKind, qty: number, spent: number): string {
+  const paid = t.shop.paid(spent);
   switch (kind) {
-    case 'energy': return `Energy refilled. ${paid}`;
-    case 'trap': return `${n}trap${qty > 1 ? 's' : ''} in the shed. ${paid}`;
-    case 'bomb': return `${n}bomb${qty > 1 ? 's' : ''} armed. ${paid}`;
-    case 'lightning': return `${n}lightning bolt${qty > 1 ? 's' : ''} bottled. ${paid}`;
-    case 'shield': return `${n}shield${qty > 1 ? 's' : ''} ready. ${paid}`;
-    case 'smoke': return `The numbers are hidden. ${paid}`;
-    case 'mirage': return `${n}mirage${qty > 1 ? 's' : ''} ready to throw. ${paid}`;
+    case 'energy': return t.shop.boughtEnergy(paid);
+    case 'trap': return t.shop.boughtTrap(qty, paid);
+    case 'bomb': return t.shop.boughtBomb(qty, paid);
+    case 'lightning': return t.shop.boughtLightning(qty, paid);
+    case 'shield': return t.shop.boughtShield(qty, paid);
+    case 'smoke': return t.shop.boughtSmoke(paid);
+    case 'mirage': return t.shop.boughtMirage(qty, paid);
   }
 }

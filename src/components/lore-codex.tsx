@@ -36,13 +36,17 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom';
 import {
   NineSlicePanel,
-  PanelTitle,
   CloseButton,
   BitmapText,
   loadPixelWebFont,
   PIXEL_FONT_FAMILY,
 } from '@domin8/arcade-kit';
+// The panel's title is player-facing copy; the chapter NUMERALS below stay on
+// the kit's own atlas, which draws "IV" perfectly well in any language.
+import { PanelTitle } from './pixel-text';
 import { LORE, nextChapter, unlockedCount, type LoreChapter } from '@/config/lore';
+import { useT } from '@/i18n/provider';
+import { groupDigits } from '@/i18n/format';
 import { LauncherTab } from './burrow-chrome';
 import { PX } from './px';
 
@@ -141,6 +145,7 @@ export interface LoreCodexProps {
  * rather than in a JS breakpoint, matching how the rest of this codebase decides.
  */
 export function LoreCodex({ lifetime, onClose, onRead }: LoreCodexProps) {
+  const t = useT();
   const open = unlockedCount(lifetime);
   const next = nextChapter(lifetime);
   const fontReady = usePixelFont();
@@ -168,6 +173,8 @@ export function LoreCodex({ lifetime, onClose, onRead }: LoreCodexProps) {
   }, [onClose]);
 
   const chapter = LORE[selected];
+  /* The thresholds are the chapter's; the prose is this language's. */
+  const words = t.lore[chapter.id];
   const locked = lifetime < chapter.unlockAt;
   // The same rule as the STORY icon's NEW badge (page.tsx `freshChapter`), so
   // the chapter the badge promised is the one marked NEW on the shelf.
@@ -202,14 +209,14 @@ export function LoreCodex({ lifetime, onClose, onRead }: LoreCodexProps) {
                   height={31}
                   aria-hidden
                 />
-                <PanelTitle style={{ color: INK }}>THE CURSED CROWN</PanelTitle>
+                <PanelTitle style={{ color: INK }}>{t.codex.title}</PanelTitle>
               </span>
-              <CloseButton inline onClick={onClose} aria-label="Close the codex" />
+              <CloseButton inline onClick={onClose} aria-label={t.codex.close} />
             </header>
 
             <div className="rr-lore-body">
               {/* ── The shelf ─────────────────────────────────────────── */}
-              <nav className="rr-lore-list" aria-label="Chapters">
+              <nav className="rr-lore-list" aria-label={t.codex.chapters}>
                 {LORE.map((c, i) => (
                   <ChapterTab
                     key={c.id}
@@ -228,7 +235,7 @@ export function LoreCodex({ lifetime, onClose, onRead }: LoreCodexProps) {
               {/* ── The page ──────────────────────────────────────────── */}
               <article className="rr-lore-page" style={bodyFont}>
                 <h2 className="rr-lore-title" style={{ color: INK }}>
-                  {chapter.title}
+                  {words.title}
                 </h2>
 
                 {locked ? (
@@ -237,15 +244,14 @@ export function LoreCodex({ lifetime, onClose, onRead }: LoreCodexProps) {
                      whether it is worth digging for. */
                   <>
                     <p className="rr-lore-teaser" style={{ color: INK_DIM }}>
-                      {chapter.teaser}
+                      {words.teaser}
                     </p>
                     <p className="rr-lore-locked" style={{ color: INK_DIM }}>
-                      Sealed until {chapter.unlockAt.toLocaleString('en-US')} lifetime
-                      carrots. You have {lifetime.toLocaleString('en-US')}.
+                      {t.codex.sealed(groupDigits(chapter.unlockAt), groupDigits(lifetime))}
                     </p>
                   </>
                 ) : (
-                  chapter.body.map((para, i) => (
+                  words.body.map((para, i) => (
                     <p key={i} className="rr-lore-para" style={{ color: INK }}>
                       {para}
                     </p>
@@ -261,21 +267,20 @@ export function LoreCodex({ lifetime, onClose, onRead }: LoreCodexProps) {
             <footer className="rr-lore-foot" style={bodyFont}>
               {next ? (
                 <>
+                  {/* ONE STRING, not a sentence split around a <b>. The
+                      number used to be wrapped mid-phrase, which fixes the
+                      word order in English and cannot be translated — the
+                      count lands in a different place in Chinese. The whole
+                      line is the dictionary's; the emphasis went with it. */}
                   <span style={{ color: INK_DIM }}>
-                    Next chapter in{' '}
-                    <b style={{ color: SEAL }}>
-                      {next.remaining.toLocaleString('en-US')}
-                    </b>{' '}
-                    carrots
+                    {t.codex.nextIn(groupDigits(next.remaining))}
                   </span>
                   <span className="rr-lore-foot-note" style={{ color: INK_DIM }}>
-                    Lifetime carrots only. Nothing here can be raided away.
+                    {t.codex.lifetimeOnly}
                   </span>
                 </>
               ) : (
-                <span style={{ color: SEAL }}>
-                  The codex is complete. The island is still waiting.
-                </span>
+                <span style={{ color: SEAL }}>{t.codex.done}</span>
               )}
             </footer>
           </div>
@@ -298,6 +303,7 @@ function ChapterTab({
   active: boolean;
   onSelect(): void;
 }) {
+  const t = useT();
   return (
     <button
       className={`rr-lore-tab${active ? ' active' : ''}${locked ? ' locked' : ''}`}
@@ -316,13 +322,13 @@ function ChapterTab({
       </span>
       <span className="rr-lore-tab-text">
         <span className="rr-lore-tab-title" style={{ color: locked ? INK_DIM : INK }}>
-          {locked ? `Chapter ${index + 1}` : chapter.title}
-          {fresh && <em className="rr-new-tag">NEW</em>}
+          {locked ? t.codex.chapterN(index + 1) : t.lore[chapter.id].title}
+          {fresh && <em className="rr-new-tag">{t.codex.isNew}</em>}
         </span>
         <span className="rr-lore-tab-sub" style={{ color: INK_DIM }}>
           {locked
-            ? `${chapter.unlockAt.toLocaleString('en-US')} carrots`
-            : chapter.teaser}
+            ? t.codex.carrotsAt(groupDigits(chapter.unlockAt))
+            : t.lore[chapter.id].teaser}
         </span>
       </span>
     </button>

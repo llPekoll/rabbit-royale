@@ -31,9 +31,10 @@
  * something the number cannot.
  */
 import { useEffect, useRef, type CSSProperties } from 'react';
+import { useT } from '@/i18n/provider';
 import { CARROT_URL, CARROT_SIZE } from '@domin8/arcade-kit/game';
 import { CarrotBurst } from '@/components/carrot-burst';
-import { groupDigits } from './hub-card';
+import { groupDigits, shortGap } from '@/i18n/format';
 import { PxPanel } from './px';
 
 export interface CarrotPillProps {
@@ -77,17 +78,6 @@ const RANK_GOLD = '#ffd138';
 /** The carrying chip's glass — the island captions' ground. */
 const CARRY_GLASS = 'rgba(13, 17, 23, 0.82)';
 
-/**
- * A season gap, short enough to always fit the pill's rank line: whole with
- * separators below 10,000, then "12.3k", "123k", "1.2M".
- */
-export function shortGap(n: number): string {
-  const v = Math.max(0, Math.ceil(n));
-  if (v < 10_000) return groupDigits(v);
-  if (v < 1_000_000) return `${(v / 1000).toFixed(v < 100_000 ? 1 : 0).replace(/\.0$/, '')}k`;
-  return `${(v / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
-}
-
 function Carrot({ height }: { height: number }) {
   // Width follows the sprite's own aspect, so it is never squashed.
   const width = Math.round((CARROT_SIZE.width / CARROT_SIZE.height) * height);
@@ -107,6 +97,7 @@ function Carrot({ height }: { height: number }) {
 export function CarrotPill({
   stock, fireKey, gain, rank, toPass, onAdd, denyKey = 0, carrying = null,
 }: CarrotPillProps) {
+  const t = useT();
   const ref = useRef<HTMLDivElement>(null);
   // The shake rides `translate`, not `transform`: the stylesheet centres the
   // pill with a transform, and animating that would fling it off its centre.
@@ -121,7 +112,7 @@ export function CarrotPill({
   }, [denyKey]);
 
   return (
-    <div ref={ref} className="rr-carrot-pill" style={pill} title={`${stock} carrots banked`}>
+    <div ref={ref} className="rr-carrot-pill" style={pill} title={t.pill.banked(stock)}>
       {/* THE PLATE: the codex's pixel frame in the pill's own soil. Inside the
           fixed box rather than being it, so the plate can drop in on arrival
           (`.rr-pill-plate`, px-top-floor.css) without touching the transform
@@ -132,8 +123,8 @@ export function CarrotPill({
         <span
           key={carrying}
           className="rr-pill-carrying"
-          title="Carried this run: banked when you walk home"
-          aria-label={`${carrying} carrots carried, not banked yet`}
+          title={t.pill.carryNote}
+          aria-label={t.pill.carrying(carrying)}
         >
           <PxPanel color={CARRY_GLASS} style={carryPlate}>+{groupDigits(carrying)}</PxPanel>
         </span>
@@ -180,13 +171,13 @@ export function CarrotPill({
             className="rr-rank-pop"
             style={rankRow}
             title={rank === 1
-              ? 'Season rank #1: leading the board'
-              : `Season rank #${rank}: ${groupDigits(Math.max(1, toPass ?? 1))} season points to pass #${rank - 1}`}
+              ? t.pill.rankFirst
+              : t.pill.rank(rank, groupDigits(Math.max(1, toPass ?? 1)))}
           >
             <span style={rankChip}>#{rank}</span>
             {/* At least 1: a gap of 0 is a TIE, and passing a tied player takes
                 one more point. "0 to #91" read as nothing to do. */}
-            {rank === 1 ? 'leading' : <>{shortGap(Math.max(1, toPass ?? 1))} to #{rank - 1}</>}
+            {rank === 1 ? t.pill.leading : t.pill.toPass(shortGap(Math.max(1, toPass ?? 1)), rank)}
           </span>
         )}
       </span>

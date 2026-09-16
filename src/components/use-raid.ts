@@ -10,6 +10,8 @@
  * client that could move its own rabbit could walk to the field for free.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useT } from '@/i18n/provider';
+import type { Dict } from '@/i18n/dictionaries';
 
 export interface RaidTile {
   tile: number;
@@ -53,22 +55,20 @@ export interface RaidOutcome {
   progress: number;
 }
 
-const MESSAGES: Record<string, string> = {
-  target_shielded: 'Their burrow is shielded. Try someone else.',
-  cannot_raid_yourself: 'That is your own burrow.',
-  raid_in_progress: 'You are already inside a burrow.',
-  cooldown: 'You raided them too recently.',
-  not_adjacent: 'Too far. One step at a time.',
-  no_raid: 'That raid is over.',
-  unknown_player: 'They are gone.',
-};
-
-export function raidMessage(error?: string): string | null {
+/**
+ * The refusals, keyed by the code the raid routes answer with.
+ *
+ * The wording lives in the dictionaries under `raidErrors` — the server sends
+ * a code and never a sentence, because it does not know which of the four
+ * languages this player reads.
+ */
+export function raidMessage(t: Dict, error?: string): string | null {
   if (!error) return null;
-  return MESSAGES[error] ?? 'That did not work.';
+  return t.raidErrors[error as keyof Dict['raidErrors']] ?? t.raidErrors.fallback;
 }
 
 export function useRaid(token: string | null) {
+  const t = useT();
   const [raid, setRaid] = useState<RaidState | null>(null);
   const [targets, setTargets] = useState<Target[]>([]);
   const [outcome, setOutcome] = useState<RaidOutcome | null>(null);
@@ -124,7 +124,7 @@ export function useRaid(token: string | null) {
       })).then((r) => r.json());
 
       if (res.error) {
-        setNote(raidMessage(res.error));
+        setNote(raidMessage(t, res.error));
         // A raid already in progress comes back WITH that raid, so the player
         // is put back inside it rather than told off and left nowhere.
         if (res.raid) setRaid(res.raid);
@@ -147,7 +147,7 @@ export function useRaid(token: string | null) {
       })).then((r) => r.json());
 
       if (res.error) {
-        setNote(raidMessage(res.error));
+        setNote(raidMessage(t, res.error));
         return;
       }
       if (res.sprungTrap) setSprung({ tile, key: Date.now() });

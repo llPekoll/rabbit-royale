@@ -1,11 +1,16 @@
 /**
- * WHAT EACH ITEM IS CALLED, WHAT IT LOOKS LIKE, AND WHAT ITS COUNT MEANS.
+ * WHAT EACH ITEM LOOKS LIKE, AND WHAT ITS COUNT MEANS.
  *
- * One registry, because two surfaces now read it: the shop, which sells these
+ * One registry, because two surfaces read it: the shop, which sells these
  * things, and the burrow's kit row, which shows what you are carrying. It used
  * to live inside `shop-card.tsx` as a private const — correct while the shop
  * was the only place an item had a face, and wrong the moment a second surface
- * needed the same names. A copy would have drifted on the first retint.
+ * needed the same one. A copy would have drifted on the first retint.
+ *
+ * THE NAMES ARE NOT HERE. An item's name and its blurb are the two things
+ * about it that change with the language, so they live in the dictionaries
+ * (`t.items[kind]`), keyed by the same `ItemKind` this table is — which is
+ * what makes a missing translation a compile error.
  *
  * ICONS ARE PICKED FOR COVERAGE, NOT FOR TASTE. The interface renders in a
  * monospace stack, and an emoji it has no glyph for comes out as a blank box —
@@ -19,6 +24,7 @@
  * is the version this replaces.
  */
 import type { ItemKind } from './use-shop';
+import type { Dict } from '@/i18n/dictionaries';
 
 /**
  * How an item's count should be READ, which differs by what is being counted.
@@ -36,10 +42,14 @@ import type { ItemKind } from './use-shop';
  */
 export type CountKind = 'carried' | 'daily' | 'time';
 
+/**
+ * WHAT AN ITEM LOOKS LIKE. Its NAME and its blurb are in the dictionaries
+ * (`t.items[kind]`), keyed by the same `ItemKind` — they are the only two
+ * things about an item that change with the language. Everything here is the
+ * same in all four.
+ */
 export interface ItemMeta {
   icon: string;
-  name: string;
-  blurb: string;
   tint: string;
   counts: CountKind;
   /**
@@ -59,15 +69,11 @@ export interface ItemMeta {
 export const ITEM_META: Record<ItemKind, ItemMeta> = {
   trap: {
     icon: '🪤',
-    name: 'Trap',
-    blurb: 'Bury one in your burrow. It drains the raider who steps on it.',
     tint: '#8a5a2b',
     counts: 'carried',
   },
   bomb: {
     icon: '💣',
-    name: 'Bomb',
-    blurb: "Plant one on someone's island mid-run. They see it was you.",
     tint: '#c1442e',
     counts: 'carried',
     /* NO `art`, deliberately — the emoji stands in.
@@ -81,8 +87,6 @@ export const ITEM_META: Record<ItemKind, ItemMeta> = {
   },
   lightning: {
     icon: '⚡',
-    name: 'Lightning',
-    blurb: 'Calls a strike on a rival\u2019s island. It opens the ground around it.',
     tint: '#e0a020',
     counts: 'carried',
     art: '/assets/ui/icons/bolt.webp',
@@ -90,8 +94,6 @@ export const ITEM_META: Record<ItemKind, ItemMeta> = {
   },
   shield: {
     icon: '🛡️',
-    name: 'Shield',
-    blurb: 'Raids bounce off your burrow while it holds.',
     tint: '#4a7fa5',
     counts: 'carried',
     art: '/assets/ui/icons/shield.webp',
@@ -99,8 +101,6 @@ export const ITEM_META: Record<ItemKind, ItemMeta> = {
   },
   energy: {
     icon: '🥕',
-    name: 'Energy',
-    blurb: 'Fill the bar and dig now, instead of waiting it out.',
     tint: '#e07a2f',
     counts: 'daily',
     /* The bolt belongs to LIGHTNING in the kit row, so energy does not take it
@@ -108,15 +108,11 @@ export const ITEM_META: Record<ItemKind, ItemMeta> = {
   },
   smoke: {
     icon: '🌫️',
-    name: 'Smoke screen',
-    blurb: 'Hides your burrow\u2019s numbers for a day. Raiders cross it blind.',
     tint: '#6b7a8f',
     counts: 'time',
   },
   mirage: {
     icon: '🌀',
-    name: 'Mirage',
-    blurb: 'Makes a few of a rival\u2019s numbers lie, mid-run. They can spot it.',
     tint: '#9a6bd6',
     counts: 'carried',
   },
@@ -127,11 +123,12 @@ export const ITEM_META: Record<ItemKind, ItemMeta> = {
  *
  * Shared so the shop's tile and the burrow's kit slot say the same thing about
  * the same holdings — they were two independent ternaries over `kind`, which is
- * exactly the shape that drifts.
+ * exactly the shape that drifts. The words are the dictionary's; which of the
+ * three readings applies is still `counts`.
  */
-export function heldLabel(kind: ItemKind, held: number, cap: number): string {
+export function heldLabel(t: Dict, kind: ItemKind, held: number, cap: number): string {
   const meta = ITEM_META[kind];
-  if (meta.counts === 'daily') return `${cap - held} today`;
-  if (meta.counts === 'time') return held > 0 ? `${held}d left` : 'off';
-  return `${held}/${cap}`;
+  if (meta.counts === 'daily') return t.shop.heldToday(cap - held);
+  if (meta.counts === 'time') return held > 0 ? t.shop.heldDaysLeft(held) : t.shop.heldOff;
+  return t.shop.heldOf(held, cap);
 }

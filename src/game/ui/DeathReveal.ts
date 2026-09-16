@@ -1,6 +1,7 @@
-import { Container, Graphics, BitmapText } from 'pixi.js';
+import { Container, Graphics } from 'pixi.js';
 import gsap from 'gsap';
 import { pixelText } from './PixelText';
+import type { Label } from './textFace';
 
 export interface CharTintRange {
   start: number;
@@ -17,7 +18,7 @@ export interface CharTintRange {
 export class DeathReveal {
   private revealGroup: Container | null = null;
   private darkenOverlay: Graphics | null = null;
-  private waveChars: BitmapText[] = [];
+  private waveChars: Label[] = [];
   private waveTweens: gsap.core.Tween[] = [];
 
   constructor(private parent: Container) {}

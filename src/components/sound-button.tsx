@@ -28,8 +28,10 @@
  * that renders differently on every platform.
  */
 import { useEffect, useRef, useState } from 'react';
-import { NineSliceButton, NineSlicePanel, BitmapText } from '@domin8/arcade-kit';
+import { NineSliceButton, NineSlicePanel } from '@domin8/arcade-kit';
+import { PixelText as BitmapText } from './pixel-text';
 import { useAudioSettings } from '@/components/use-audio-settings';
+import { useT } from '@/i18n/provider';
 import {
   UI_PIXEL, SOIL, PLANK, CHALK, CARROT, CARROT_DEEP, LAMP,
 } from '@/components/burrow-chrome';
@@ -39,6 +41,7 @@ const SPEAKER_ON = '/assets/sound/speaker-on.webp';
 const SPEAKER_OFF = '/assets/sound/speaker-off.webp';
 
 export function SoundButton() {
+  const t = useT();
   const { musicMuted, sfxMuted, volume, toggleMusic, toggleSfx, setVolume } = useAudioSettings();
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -68,11 +71,11 @@ export function SoundButton() {
           scale={UI_PIXEL}
           className="rr-sound-panel"
           role="group"
-          aria-label="Sound"
+          aria-label={t.sound.group}
         >
           <div className="rr-sound-panel-inner">
-            <SoundToggle label="Music" on={!musicMuted} onToggle={toggleMusic} />
-            <SoundToggle label="Effects" on={!sfxMuted} onToggle={toggleSfx} />
+            <SoundToggle label={t.sound.music} on={!musicMuted} onToggle={toggleMusic} />
+            <SoundToggle label={t.sound.effects} on={!sfxMuted} onToggle={toggleSfx} />
 
             {/* The one setting that is not a yes/no. Kept as a real
                 <input type="range"> — it is the one control a native element
@@ -80,7 +83,7 @@ export function SoundButton() {
                 readers, all for free) — but retinted to the burrow's palette
                 so it stops arriving in system blue. */}
             <label className="rr-sound-row">
-              <BitmapText scale={1.25} style={{ color: CHALK }}>Volume</BitmapText>
+              <BitmapText scale={1.25} style={{ color: CHALK }}>{t.sound.volume}</BitmapText>
               <input
                 className="rr-sound-range"
                 type="range"
@@ -89,7 +92,7 @@ export function SoundButton() {
                 step={0.05}
                 value={volume}
                 onChange={(e) => setVolume(Number(e.target.value))}
-                aria-label="Volume"
+                aria-label={t.sound.volume}
               />
             </label>
           </div>
@@ -113,9 +116,9 @@ export function SoundButton() {
           // Inline because globals zeroes the padding on these two.
           style={{ padding: 'var(--rr-btn-pad)' }}
           onClick={toggleMusic}
-          aria-label={musicMuted ? 'Unmute music' : 'Mute music'}
+          aria-label={musicMuted ? t.sound.unmute : t.sound.mute}
           aria-pressed={musicMuted}
-          title={musicMuted ? 'Music off' : 'Music on'}
+          title={musicMuted ? t.sound.musicOff : t.sound.musicOn}
         >
           {/* Not a label: a sprite, so it never depends on which emoji font
               the device happens to ship. */}
@@ -145,7 +148,7 @@ export function SoundButton() {
           // same reason: globals zeroes it on this pair.
           style={{ minWidth: 44, padding: 'var(--rr-btn-pad)' }}
           onClick={() => setOpen((v) => !v)}
-          aria-label="Sound settings"
+          aria-label={t.sound.settings}
           aria-expanded={open}
         >
           {open ? 'v' : '^'}
@@ -165,6 +168,10 @@ export function SoundButton() {
 function SoundToggle({
   label, on, onToggle,
 }: { label: string; on: boolean; onToggle(): void }) {
+  // Its own `useT` rather than the parent's, passed down: the label is already
+  // a prop, and threading the whole dictionary through for two words is how a
+  // component ends up with a `t` prop on every row.
+  const t = useT();
   return (
     <div className="rr-sound-row">
       <BitmapText scale={1.25} style={{ color: CHALK }}>{label}</BitmapText>
@@ -181,7 +188,7 @@ function SoundToggle({
         aria-checked={on}
         aria-label={label}
       >
-        {on ? 'ON' : 'OFF'}
+        {on ? t.sound.on : t.sound.off}
       </NineSliceButton>
     </div>
   );

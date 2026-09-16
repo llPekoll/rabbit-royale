@@ -31,6 +31,8 @@
  * simply did not do.
  */
 import { useCallback, useState } from 'react';
+import { useT } from '@/i18n/provider';
+import type { Dict } from '@/i18n/dictionaries';
 import {
   Connection, PublicKey, SystemProgram, Transaction, TransactionInstruction,
 } from '@solana/web3.js';
@@ -85,6 +87,7 @@ export type PayStage = 'idle' | 'quoting' | 'signing' | 'confirming' | 'done';
 const RPC_RELAY = '/api/rpc';
 
 export function useUsdcPay(token: string | null, enabled: boolean) {
+  const t = useT();
   const [stage, setStage] = useState<PayStage>('idle');
   const [error, setError] = useState<string | null>(null);
 
@@ -96,17 +99,17 @@ export function useUsdcPay(token: string | null, enabled: boolean) {
     // no transaction path yet. Saying so beats a button that fails obscurely on
     // the one device this game is actually aimed at.
     if (isNative()) {
-      setError('Paying in the app needs the next build. Buy with carrots for now.');
+      setError(t.pay.needsBuild);
       return null;
     }
 
     const wallet = (window as unknown as { solana?: PayingWallet }).solana;
     if (!wallet) {
-      setError('No Solana wallet found. Install Phantom to pay with USDC.');
+      setError(t.pay.noWallet);
       return null;
     }
     if (!enabled) {
-      setError('Payments are not configured on this server.');
+      setError(t.pay.notConfigured);
       return null;
     }
 
@@ -221,10 +224,10 @@ export function useUsdcPay(token: string | null, enabled: boolean) {
         await new Promise((r) => setTimeout(r, 2500));
       }
       throw new Error(
-        'Paid, but still confirming. Reopen the shop in a minute. Nothing is lost.',
+        t.pay.stillConfirming,
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Payment failed');
+      setError(e instanceof Error ? e.message : t.pay.failed);
       return null;
     } finally {
       setStage((s) => (s === 'done' ? 'done' : 'idle'));
@@ -232,4 +235,19 @@ export function useUsdcPay(token: string | null, enabled: boolean) {
   }, [token, enabled]);
 
   return { pay, stage, error, setError };
+}
+
+/**
+ * What a payment in flight is doing, in words.
+ *
+ * Both the shop and the out-of-energy popup show this, and each used to hold
+ * its own copy of the same three lines. `idle` and `done` have nothing to say
+ * — they are not states the player is waiting through — so they return null
+ * and the caller falls back to whatever note it already had.
+ */
+export function payStageLine(t: Dict, stage: string): string | null {
+  if (stage === 'quoting') return t.shop.pricing;
+  if (stage === 'signing') return t.shop.approve;
+  if (stage === 'confirming') return t.shop.confirming;
+  return null;
 }

@@ -13,6 +13,9 @@ import {
 } from '../src/config/quests';
 import { ISLAND_TIERS, QUESTS } from '../config/tuning';
 import { LORE } from '../src/config/lore';
+import { DICTIONARIES } from '../src/i18n/dictionaries';
+import { questText } from '../src/i18n/content';
+import { LOCALES } from '../src/i18n/locales';
 
 const fresh = (over: Partial<QuestFacts> = {}): QuestFacts => ({
   runsPlayed: 0,
@@ -44,10 +47,33 @@ describe('the arc', () => {
     expect(bury).toBeLessThan(raid);
   });
 
-  it('keeps every ask short enough to read at a glance', () => {
-    for (const q of QUESTS_ARC) {
-      expect(q.ask.split(/\s+/).length).toBeLessThanOrEqual(12);
-      expect(q.title.split(/\s+/).length).toBeLessThanOrEqual(4);
+  /**
+   * IN EVERY LANGUAGE, not just the one the copy was written in.
+   *
+   * The budget is not a style note: the quest card is a fixed-height container
+   * with `overflow: hidden`, so an ask that runs long is an ask with its last
+   * line cut off. A translation is exactly where that regresses, and it does
+   * so on a device nobody testing in English will look at.
+   *
+   * Chinese is measured in CHARACTERS, not whitespace-separated words — it
+   * does not put spaces between them, so the word count of any Chinese
+   * sentence is 1 and the check would pass no matter how long it got.
+   */
+  it('keeps every ask short enough to read at a glance, in every language', () => {
+    for (const locale of LOCALES) {
+      const t = DICTIONARIES[locale];
+      for (const q of QUESTS_ARC) {
+        const { title, ask } = questText(t, q);
+        if (locale === 'zh') {
+          // Twelve English words is about twenty-four sinograms of the same
+          // content, and a title of four words about eight.
+          expect([...ask].length, `${locale} ${q.id} ask`).toBeLessThanOrEqual(24);
+          expect([...title].length, `${locale} ${q.id} title`).toBeLessThanOrEqual(8);
+        } else {
+          expect(ask.split(/\s+/).length, `${locale} ${q.id} ask`).toBeLessThanOrEqual(12);
+          expect(title.split(/\s+/).length, `${locale} ${q.id} title`).toBeLessThanOrEqual(4);
+        }
+      }
     }
   });
 
@@ -61,8 +87,13 @@ describe('the arc', () => {
   });
 
   it('never explains the crown — that is chapter IV, 8 000 carrots away', () => {
+    // English only: the rule is about what the ARC gives away, and the English
+    // wording is the one the other three are translated from. A per-language
+    // keyword list would be checking the translator's vocabulary, not the
+    // design rule.
     for (const q of QUESTS_ARC) {
-      expect(q.line.toLowerCase()).not.toMatch(/sacrifice|coin flip|tomb/);
+      expect(questText(DICTIONARIES.en, q).line.toLowerCase())
+        .not.toMatch(/sacrifice|coin flip|tomb/);
     }
   });
 });

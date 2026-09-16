@@ -14,6 +14,8 @@
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { DICTIONARIES } from '../src/i18n/dictionaries';
+import { LOCALES } from '../src/i18n/locales';
 
 const SERVER = readFileSync('server/index.ts', 'utf8');
 const PAGE = readFileSync('src/app/page.tsx', 'utf8');
@@ -79,8 +81,15 @@ describe('raiding is reachable', () => {
 
   it('still shows the door when there is nobody to rob', () => {
     // A control that vanishes on a quiet night reads as a broken feature.
-    expect(PANEL).toMatch(/NOBODY TO ROB/);
-    expect(PANEL).toMatch(/ALL BURROWS SHIELDED/);
+    expect(PANEL).toMatch(/d\.raid\.nobody/);
+    expect(PANEL).toMatch(/d\.raid\.allShielded/);
+    // Both states say something in every language: a blank sub-line on a quiet
+    // night is the same broken-feature reading this test exists to prevent.
+    for (const locale of LOCALES) {
+      const { raid } = DICTIONARIES[locale];
+      expect(raid.nobody.trim(), locale).not.toBe('');
+      expect(raid.allShielded.trim(), locale).not.toBe('');
+    }
   });
 });
 
@@ -100,7 +109,7 @@ describe('leaving a raid', () => {
     // board until their energy ran out.
     // The shared back button, rendered by the page while the raid is live.
     const PAGE = readFileSync('src/app/page.tsx', 'utf8');
-    expect(PAGE).toMatch(/shownRaid && !shownRaid\.finished && \([\s\S]{0,120}<BackButton label="Retreat" onClick=\{raid\.leave\}/);
+    expect(PAGE).toMatch(/shownRaid && !shownRaid\.finished && \([\s\S]{0,120}<BackButton label=\{t\.run\.retreat\} onClick=\{raid\.leave\}/);
   });
 
   it('can end a raid server-side', () => {

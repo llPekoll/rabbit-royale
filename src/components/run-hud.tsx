@@ -16,6 +16,7 @@
  * not move" is exactly the kind of bug that hides there.
  */
 import { Hearts } from './hearts';
+import { useT } from '@/i18n/provider';
 import { PxPanel } from './px';
 
 /**
@@ -53,11 +54,12 @@ export function RunHud({
    */
   solo?: boolean;
 }) {
+  const t = useT();
   const watched = spectating ? game.rabbits.get(spectating) ?? null : null;
   const subject = spectating ? watched : game.me;
   // The target may not be on the board yet (the snapshot is still in flight) or
   // may have just finished. Their name is still the honest label either way.
-  const label = spectating ? (watched?.name ?? 'their run') : name;
+  const label = spectating ? (watched?.name ?? t.run.theirRun) : name;
 
   return (
     /* `watching` is a MODE of this strip, not decoration: it turns the row
@@ -100,7 +102,7 @@ export function RunHud({
           screen. Your own run keeps the single thin row, because that is when
           board is worth something. */}
       {spectating && (
-        <small style={{ color: 'var(--crown)' }}>👁 watching {label}</small>
+        <small style={{ color: 'var(--crown)' }}>{t.run.watching(label)}</small>
       )}
       </PxPanel>
     </header>

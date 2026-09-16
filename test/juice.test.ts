@@ -39,7 +39,7 @@ describe('the DOM layer has a voice', () => {
 describe('the quest speaks', () => {
   it('lights the card when the ask is done, and says so on the island', () => {
     expect(PAGE).toMatch(/setQuestDoneKey\(\(k\) => k \+ 1\)/);
-    expect(PAGE).toMatch(/setQuestNote\(`Quest done: \$\{activeTitle\}`\)/);
+    expect(PAGE).toMatch(/setQuestNote\(t\.notes\.questDone\(activeTitle\)\)/);
     expect(CSS).toMatch(/@keyframes rr-quest-glow/);
   });
 
@@ -93,7 +93,8 @@ describe('the burrow has its moments', () => {
     expect(PAGE).toMatch(/setBroughtHome\(\{ amount, key: Date\.now\(\) \}\)/);
     expect(PAGE).toMatch(/broughtHome=\{broughtHome\}/);
     expect(PAGE).not.toMatch(/setNote\(`\+\$\{amount\} 🥕 brought home`\)/);
-    expect(read('../src/components/loop-bar.tsx')).toMatch(/className="rr-home-haul"[\s\S]{0,700}brought home/);
+    expect(read('../src/components/loop-bar.tsx'))
+      .toMatch(/className="rr-home-haul"[\s\S]{0,700}t\.loop\.broughtHome/);
     expect(CSS).toMatch(/@keyframes rr-home-haul/);
   });
 

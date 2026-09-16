@@ -27,6 +27,8 @@ import {
   HubCard, HubRow, headingText, valueText, subText, SUB_CLASS,
 } from './hub-card';
 import type { QuestView } from '@/config/quests';
+import { useT } from '@/i18n/provider';
+import type { Dict } from '@/i18n/dictionaries';
 
 export interface QuestCardProps {
   quest: QuestView;
@@ -98,16 +100,19 @@ const LIT = '#ffd138';
 const SCROLL_ART = '/assets/ui/scroll.png';
 
 /** The reward, as the slab names it: what you get, not what it is called. */
-export function rewardLabel(quest: QuestView): string {
+export function rewardLabel(t: Dict, quest: QuestView): string {
   const { carrots, item } = quest.reward;
-  if (item) return `CLAIM ${item.qty} ${item.kind.toUpperCase()}${item.qty > 1 ? 'S' : ''}`;
-  if (carrots) return `CLAIM +${carrots}`;
-  return 'CLAIM';
+  // The item's NAME comes from the dictionary, not from its key upper-cased:
+  // "BOMBS" was built by bolting an English plural S onto an id.
+  if (item) return t.quest.claimItem(item.qty, t.items[item.kind].name);
+  if (carrots) return t.quest.claimCarrots(carrots);
+  return t.quest.claim;
 }
 
 export function QuestCard({
   quest, onClaim, pending, celebrateKey = 0, claimKey = 0,
 }: QuestCardProps) {
+  const t = useT();
   const canClaim = quest.done && !pending;
 
   const footer = quest.done ? (
@@ -118,14 +123,14 @@ export function QuestCard({
       className="rr-hub-btn"
       onClick={onClaim}
       disabled={!canClaim}
-      aria-label={`${rewardLabel(quest)} for ${quest.title}`}
+      aria-label={t.quest.aria(rewardLabel(t, quest), quest.title)}
       color={canClaim ? BTN : BTN_OFF}
       shadowColor={canClaim ? BTN_SHADOW : BTN_OFF_SHADOW}
       textColor={canClaim ? '#ffffff' : BTN_OFF_INK}
       wiggle
       style={slab}
     >
-      <span style={{ ...pxLabel, fontSize: 'clamp(9px, 15cqh, 15px)' }}>{rewardLabel(quest)}</span>
+      <span style={{ ...pxLabel, fontSize: 'clamp(9px, 15cqh, 15px)' }}>{rewardLabel(t, quest)}</span>
     </PxButton>
   ) : undefined;
 
@@ -154,9 +159,9 @@ export function QuestCard({
         footer={footer}
       >
         <HubRow>
-          <span style={headingText}>QUEST {quest.index}/{quest.total}</span>
+          <span style={headingText}>{t.quest.counter(quest.index, quest.total)}</span>
           <span style={{ ...valueText, color: quest.done ? LIT : undefined }}>
-            {quest.done ? 'DONE' : quest.goal > 1 ? `${quest.progress}/${quest.goal}` : ''}
+            {quest.done ? t.quest.done : quest.goal > 1 ? t.quest.progress(quest.progress, quest.goal) : ''}
           </span>
         </HubRow>
         {/* The ASK, not the title: on a card this size there is room for one

@@ -25,7 +25,8 @@
  * The lore codex keeps its parchment for the same reason: it is a scroll.
  */
 import type { CSSProperties, ReactNode } from 'react';
-import { NineSlicePanel, NineSliceButton, BitmapText } from '@domin8/arcade-kit';
+import { NineSlicePanel, NineSliceButton } from '@domin8/arcade-kit';
+import { PixelText as BitmapText } from './pixel-text';
 
 /** Two CSS px per source pixel, everywhere in the burrow. See the header. */
 export const UI_PIXEL = 2;

@@ -7,6 +7,8 @@
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { DICTIONARIES } from '../src/i18n/dictionaries';
+import { LOCALES } from '../src/i18n/locales';
 import { ENERGY, OUT_OF_RUN_ENERGY } from '../config/tuning';
 import { burrowView, chargeRun, msToNextEnergy, msToRun } from '../src/lib/game/burrow';
 
@@ -163,7 +165,15 @@ describe('the out-of-energy popup', () => {
   it('states the free route beside the paid one', () => {
     // A refill offered without the wait next to it is a toll, not a shortcut.
     expect(POPUP).toMatch(/nextEnergyInMs/);
-    expect(POPUP).toMatch(/comes back on its own/);
+    // The words are the dictionary's now, so the KEY is what the component is
+    // checked for — and every language is checked for naming the wait, which
+    // is the thing that makes the refill a shortcut rather than a toll.
+    expect(POPUP).toMatch(/t\.shop\.energySay(Empty)?\(/);
+    for (const locale of LOCALES) {
+      const dict = DICTIONARIES[locale];
+      expect(dict.shop.energySay(25, '12m'), locale).toContain('12m');
+      expect(dict.shop.energySayEmpty('12m'), locale).toContain('12m');
+    }
   });
 
   it('offers the carrot price, and money only when the rail is on', () => {

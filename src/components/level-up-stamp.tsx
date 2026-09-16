@@ -13,12 +13,14 @@
  * Keyed by the caller so two upgrades in a row are two stamps.
  */
 import { useEffect } from 'react';
+import { useT } from '@/i18n/provider';
 import { createPortal } from 'react-dom';
 
 /** How long the stamp stays, matched to the CSS (`rr-levelup-out` delay + run). */
 const STAMP_MS = 2200;
 
 export function LevelUpStamp({ level, onDone }: { level: number; onDone(): void }) {
+  const t = useT();
   useEffect(() => {
     const t = setTimeout(onDone, STAMP_MS);
     return () => clearTimeout(t);
@@ -32,7 +34,7 @@ export function LevelUpStamp({ level, onDone }: { level: number; onDone(): void 
       <div className="rr-levelup-flash" />
       <div className="rr-levelup-stamp">
         BURROW LEVEL {level}
-        <small>THE GARDEN GROWS FASTER</small>
+        <small>{t.burrow.gardenGrows}</small>
       </div>
     </div>,
     document.body,

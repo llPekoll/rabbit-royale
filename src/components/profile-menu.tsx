@@ -21,8 +21,16 @@
  * the two feel like the same game.
  */
 import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+// `dict`, not `t` and not `d`: in this file `t` is already the profile/history
+// TAB in the tab row's map callback, and `d` is a history DAY in another —
+// shadowing either would be a real bug.
+import { useT, useLocale } from '@/i18n/provider';
+import { groupDigits } from '@/i18n/format';
+import { intlTag, type Locale } from '@/i18n/locales';
+import type { Dict } from '@/i18n/dictionaries';
 import { createPortal } from 'react-dom';
-import { CloseButton, NineSlicePanel, PanelTitle } from '@domin8/arcade-kit';
+import { CloseButton, NineSlicePanel } from '@domin8/arcade-kit';
+import { PanelTitle } from './pixel-text';
 import { PxButton, PxPanel, pxLabel } from './px';
 import { AVATARS, avatarSrc, AVATAR_FRAME } from '@/lib/game/avatars';
 import { nameProblem, nameProblemMessage, NAME_MAX } from '@/lib/game/player-name';
@@ -149,6 +157,7 @@ export function ProfileMenu({
   onClose,
   onLogout,
 }: ProfileMenuProps) {
+  const dict = useT();
   const [tab, setTab] = useState<Tab>('profile');
   const [name, setName] = useState(player.name);
   const [picked, setPicked] = useState<string | null>(avatar ?? null);
@@ -273,11 +282,11 @@ export function ProfileMenu({
         id="rr-profile"
         role="dialog"
         aria-modal="true"
-        aria-label="Your burrow"
+        aria-label={dict.burrow.title}
       >
         <header className="rr-lb-head">
-          <strong><PanelTitle>YOUR BURROW</PanelTitle></strong>
-          <CloseButton inline className="rr-lb-close" onClick={onClose} aria-label="Close" style={{ minWidth: 44 }} />
+          <strong><PanelTitle>{dict.burrow.title}</PanelTitle></strong>
+          <CloseButton inline className="rr-lb-close" onClick={onClose} aria-label={dict.chrome.close} style={{ minWidth: 44 }} />
         </header>
 
         {/* Two pixel buttons; the open tab is pressed INTO the board (the kit's
@@ -295,7 +304,7 @@ export function ProfileMenu({
                 textColor={on ? CROWN : MUTED}
                 onClick={() => setTab(t)}
               >
-                <span style={{ ...pxLabel, fontSize: 14 }}>{t === 'profile' ? 'Profile' : 'History'}</span>
+                <span style={{ ...pxLabel, fontSize: 14 }}>{t === 'profile' ? dict.profile.tabProfile : dict.profile.tabHistory}</span>
                 {t === 'history' && !!history?.raids.unseen && <em className="rr-badge">{history.raids.unseen}</em>}
               </PxButton>
             );
@@ -325,7 +334,7 @@ export function ProfileMenu({
               disabled={saving || !renamed || !!problem}
               onClick={() => save({ name: name.trim() })}
             >
-              {saving ? 'Saving...' : 'Save name'}
+              {saving ? dict.profile.saving : dict.profile.save}
             </PanelButton>
 
             <h3 className="rr-profile-h">Rabbit</h3>
@@ -340,7 +349,8 @@ export function ProfileMenu({
                     textColor={CROWN}
                     // Picking your rabbit is a small celebration, not a setting.
                     wiggle
-                    aria-label={a.label}
+                    // The colour's name in this language; `a.label` is the key.
+                    aria-label={dict.avatars[a.key as keyof typeof dict.avatars] ?? a.label}
                     aria-pressed={on}
                     disabled={saving}
                     style={avatarCell}
@@ -378,7 +388,7 @@ export function ProfileMenu({
                       void onConnectWallet();
                     }}
                   >
-                    {connecting ? 'Waiting for wallet...' : 'Connect wallet'}
+                    {connecting ? dict.profile.waitingWallet : dict.auth.connect}
                   </PanelButton>
                 )}
                 {/* The refusal, where the press happened. Silence here reads as
@@ -393,7 +403,7 @@ export function ProfileMenu({
                     row, and this browser simply stops being signed into it. */}
                 {takenBy !== null && onSwitchToOwner && (
                   <PanelButton ghost onClick={onSwitchToOwner}>
-                    {takenBy ? `Play as "${takenBy}"` : 'Sign in with that wallet'}
+                    {takenBy ? dict.profile.taken(takenBy) : dict.profile.signInWith}
                   </PanelButton>
                 )}
               </PxPanel>
@@ -414,10 +424,10 @@ export function ProfileMenu({
               }}
             >
               {!player.guest
-                ? 'Disconnect'
+                ? dict.profile.disconnect
                 : confirmingAbandon
-                  ? 'Really abandon? This cannot be undone'
-                  : 'Abandon this burrow'}
+                  ? dict.profile.abandonConfirm
+                  : dict.profile.abandon}
             </PanelButton>
           </div>
         ) : (
@@ -478,11 +488,13 @@ function Avatar({ src, size }: { src: string; size: number }) {
 }
 
 function HistoryTab({ history, failed, newCount = 0 }: { history: History | null; failed: boolean; newCount?: number }) {
+  const dict = useT();
+  const { locale } = useLocale();
   // A history that failed to load is not a history that is empty, and neither
   // is one still in flight — saying "Loading..." forever is the worst of the
   // three, because it is the one the player waits on.
-  if (failed) return <p className="rr-warn">Could not load your history.</p>;
-  if (!history) return <p className="rr-empty">Loading...</p>;
+  if (failed) return <p className="rr-warn">{dict.profile.historyFailed}</p>;
+  if (!history) return <p className="rr-empty">{dict.profile.loading}</p>;
 
   // Both directions on one timeline: a feud reads as a feud, not as two lists.
   const raids = [...history.raids.against, ...history.raids.by].sort(
@@ -498,12 +510,12 @@ function HistoryTab({ history, failed, newCount = 0 }: { history: History | null
     <div className="rr-profile-body">
       <h3 className="rr-profile-h">Carrots dug</h3>
       {history.days.length === 0 ? (
-        <p className="rr-empty">No finished runs yet.</p>
+        <p className="rr-empty">{dict.profile.noRuns}</p>
       ) : (
         <ul className="rr-days">
           {history.days.map((d) => (
             <li key={d.day}>
-              <span className="rr-day">{shortDay(d.day)}</span>
+              <span className="rr-day">{shortDay(dict, locale, d.day)}</span>
               {/* The bar is the comparison; the number is the fact. Scaled to
                   the player's own best day, because a fixed ceiling would make
                   every day look like nothing early on. */}
@@ -518,13 +530,13 @@ function HistoryTab({ history, failed, newCount = 0 }: { history: History | null
 
       <h3 className="rr-profile-h">Raids</h3>
       {raids.length === 0 ? (
-        <p className="rr-empty">Nobody has crossed your burrow yet.</p>
+        <p className="rr-empty">{dict.profile.noRaids}</p>
       ) : (
         <ul className="rr-raids">
           {raids.map((r) => (
             <li key={r.id} className={r.direction === 'against' ? 'hit' : 'mine'}>
               <span className="rr-raid-who">
-                {r.direction === 'against' ? r.otherName : `You hit ${r.otherName}`}
+                {r.direction === 'against' ? r.otherName : dict.profile.youHit(r.otherName)}
                 {fresh.has(r.id) && <em className="rr-new-tag">NEW</em>}
               </span>
               <span className="rr-raid-what">
@@ -532,9 +544,9 @@ function HistoryTab({ history, failed, newCount = 0 }: { history: History | null
                   ? 'blocked'
                   : r.carrotsLooted > 0
                     ? `${r.direction === 'against' ? '-' : '+'}${r.carrotsLooted} 🥕`
-                    : `${r.damage} dmg`}
+                    : dict.profile.damage(r.damage)}
               </span>
-              <span className="rr-raid-when">{ago(r.createdAt)}</span>
+              <span className="rr-raid-when">{ago(dict, r.createdAt)}</span>
             </li>
           ))}
         </ul>
@@ -550,17 +562,17 @@ function HistoryTab({ history, failed, newCount = 0 }: { history: History | null
           not shipped `purchases` yet, and an empty section is a better answer
           than a crashed panel. */}
       {bought.length === 0 ? (
-        <p className="rr-empty">Nothing from the shed yet.</p>
+        <p className="rr-empty">{dict.profile.noPurchases}</p>
       ) : (
         <ul className="rr-raids">
           {bought.map((p) => (
             <li key={p.id} className="mine">
               <span className="rr-raid-who">
-                {ITEM_LABEL[p.kind] ?? p.kind}
+                {itemLabel(dict, p.kind)}
                 {p.qty > 1 ? ` x${p.qty}` : ''}
               </span>
-              <span className="rr-raid-what">{priceOf(p)}</span>
-              <span className="rr-raid-when">{ago(p.createdAt)}</span>
+              <span className="rr-raid-what">{priceOf(dict, p)}</span>
+              <span className="rr-raid-when">{ago(dict, p.createdAt)}</span>
             </li>
           ))}
         </ul>
@@ -569,14 +581,16 @@ function HistoryTab({ history, failed, newCount = 0 }: { history: History | null
   );
 }
 
-/** The shop's own names, so a receipt reads like the thing that was bought. */
-const ITEM_LABEL: Record<string, string> = {
-  trap: 'Trap',
-  bomb: 'Bomb',
-  lightning: 'Lightning',
-  shield: 'Shield',
-  energy: 'Energy',
-};
+/**
+ * The shop's own names, so a receipt reads like the thing that was bought.
+ *
+ * Read straight off the dictionary's item table rather than copied: these were
+ * a second list of the same five names, which is the shape that drifts the
+ * first time one is renamed.
+ */
+function itemLabel(dict: Dict, kind: string): string {
+  return dict.items[kind as keyof Dict['items']]?.name ?? kind;
+}
 
 /**
  * What a purchase cost, in the currency it was actually paid in.
@@ -585,28 +599,33 @@ const ITEM_LABEL: Record<string, string> = {
  * a USDC row is base units (6 dp) and has to come back to dollars here. Reading
  * one as the other would report a 40-cent bomb as 400 000 carrots.
  */
-function priceOf(p: Purchase): string {
+function priceOf(dict: Dict, p: Purchase): string {
   return p.currency === 'usdc'
-    ? `$${(p.cost / 1e6).toFixed(2)}`
-    : `-${p.cost.toLocaleString()} 🥕`;
+    ? dict.profile.usd((p.cost / 1e6).toFixed(2))
+    : dict.profile.spent(groupDigits(p.cost));
 }
 
-/** "Mon 14" — the weekday is what a player actually remembers a run by. */
-function shortDay(iso: string): string {
-  const d = new Date(`${iso}T00:00:00`);
+/**
+ * "Mon 14" — the weekday is what a player actually remembers a run by.
+ *
+ * The locale is PASSED IN rather than left to `undefined`, which takes the
+ * environment's: in a Chinese interface the row would still have come back as
+ * "Mon 14" because the browser's own language had not changed.
+ */
+function shortDay(dict: Dict, locale: Locale, iso: string): string {
+  const day = new Date(`${iso}T00:00:00`);
   const today = new Date();
-  const isToday = d.toDateString() === today.toDateString();
-  return isToday
-    ? 'Today'
-    : d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' });
+  return day.toDateString() === today.toDateString()
+    ? dict.profile.today
+    : day.toLocaleDateString(intlTag(locale), { weekday: 'short', day: 'numeric' });
 }
 
 /** Coarse on purpose: "3d" is the answer, the exact minute never is. */
-function ago(iso: string): string {
+function ago(dict: Dict, iso: string): string {
   const mins = Math.floor((Date.now() - +new Date(iso)) / 60_000);
-  if (mins < 1) return 'now';
-  if (mins < 60) return `${mins}m`;
+  if (mins < 1) return dict.profile.now;
+  if (mins < 60) return `${mins}${dict.units.m}`;
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h`;
-  return `${Math.floor(hrs / 24)}d`;
+  if (hrs < 24) return `${hrs}${dict.units.h}`;
+  return `${Math.floor(hrs / 24)}${dict.units.d}`;
 }

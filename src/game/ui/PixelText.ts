@@ -1,5 +1,6 @@
-import { BitmapText, Container } from 'pixi.js';
+import { Container } from 'pixi.js';
 import * as Keys from '@/config/assetKeys';
+import { arcadeCase, makeLabel, usingBitmapFace, type Label } from './textFace';
 
 // Two faces, per the shared @domin8/arcade-kit typography convention:
 //   • BODY (flat basic font) — the DEFAULT for all normal HUD/game text.
@@ -9,50 +10,46 @@ const BODY_CELL = 8;
 const TITLE_CELL = 12;
 
 /**
- * Create a pixel-perfect BODY BitmapText (the flat font) — normal text.
- * Auto-uppercases. Returns a PIXI.BitmapText.
+ * THE FACE IS A LANGUAGE CHOICE, and it is made in ui/textFace.ts.
+ *
+ * Both atlases here are printable ASCII, so they cannot draw a sinogram or an
+ * accent: outside English every label built through this file is a rasterised
+ * `Text` instead of a `BitmapText`. Everything below returns `Label`, the
+ * union of the two — the callers only ever touch `.text`, `.tint`, `.anchor`
+ * and the transform, which both classes have.
+ */
+
+/**
+ * Create a pixel-perfect BODY label (the flat font) — normal text.
+ * Upper-cases where the atlas requires it (see `arcadeCase`).
  */
 export function pixelText(
   x: number,
   y: number,
   text: string,
-): BitmapText {
-  const t = new BitmapText({
-    text: text.toUpperCase(),
-    style: {
-      fontFamily: Keys.FONT_BASIC,
-      fontSize: BODY_CELL, // native cell height
-      fill: 0xffffff,
-    },
-  });
+): Label {
+  const t = makeLabel(arcadeCase(text), Keys.FONT_BASIC, BODY_CELL);
   t.position.set(x, y);
   return t;
 }
 
 /**
- * Create a TITLE BitmapText (the bevelled outline font) — for big hero text
- * only (GAME OVER, the big win multiplier). Auto-uppercases.
+ * Create a TITLE label (the bevelled outline font) — for big hero text
+ * only (GAME OVER, the big win multiplier).
  */
 export function titleText(
   x: number,
   y: number,
   text: string,
-): BitmapText {
-  const t = new BitmapText({
-    text: text.toUpperCase(),
-    style: {
-      fontFamily: Keys.FONT_PIXEL_S,
-      fontSize: TITLE_CELL, // native cell height
-      fill: 0xffffff,
-    },
-  });
+): Label {
+  const t = makeLabel(arcadeCase(text), Keys.FONT_PIXEL_S, TITLE_CELL);
   t.position.set(x, y);
   return t;
 }
 
-/** Update text (auto-uppercase). */
-export function setPixelText(t: BitmapText, text: string): void {
-  t.text = text.toUpperCase();
+/** Update text. */
+export function setPixelText(t: Label, text: string): void {
+  t.text = arcadeCase(text);
 }
 
 /** xAdvance for a character at scale 1. Body font is a uniform 8-px cell; the
@@ -64,10 +61,27 @@ export function charAdvance(ch: string, title = false): number {
   return 8;
 }
 
-/** Total rendered width of `text` at the given scale (body font by default). */
+/**
+ * Total rendered width of `text` at the given scale (body font by default).
+ *
+ * AN ESTIMATE OUTSIDE ENGLISH, and knowingly so. The atlases are fixed-cell,
+ * so summing advances is exact for them; a rasterised fallback face is
+ * proportional, and a sinogram is about twice as wide as a Latin letter. The
+ * callers use this to CENTRE and to SPACE, never to clip, so a few pixels of
+ * drift moves a label slightly off-centre rather than cutting it — and a
+ * layout measured per-glyph on the CPU every frame is not worth that. Wide
+ * scripts are counted double, which is the one correction that matters.
+ */
 export function measureText(text: string, scale: number, title = false): number {
   let w = 0;
-  for (let i = 0; i < text.length; i++) w += charAdvance(text[i], title);
+  const bitmap = usingBitmapFace();
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    // CJK, Hangul and the full-width forms occupy two cells in every face that
+    // draws them. Everything else is close enough to the Latin cell.
+    const wide = !bitmap && /[\u1100-\u115F\u2E80-\uA4CF\uAC00-\uD7A3\uF900-\uFAFF\uFE30-\uFE4F\uFF00-\uFF60\uFFE0-\uFFE6]/.test(ch);
+    w += charAdvance(ch, title) * (wide ? 2 : 1);
+  }
   return w * scale;
 }
 
@@ -121,7 +135,7 @@ export function shadowedPixelText(
   x: number,
   y: number,
   text: string,
-): { group: Container; face: BitmapText; shadow: BitmapText } {
+): { group: Container; face: Label; shadow: Label } {
   const group = new Container();
   group.position.set(x, y);
 
@@ -163,7 +177,7 @@ export function outlinedPixelText(
   x: number,
   y: number,
   text: string,
-): { group: Container; face: BitmapText; outline: BitmapText[] } {
+): { group: Container; face: Label; outline: Label[] } {
   const group = new Container();
   group.position.set(x, y);
 
@@ -184,7 +198,7 @@ export function outlinedPixelText(
 
 /** Retext an `outlinedPixelText` — every copy, or the ring shows the old glyphs. */
 export function setOutlinedText(
-  t: { face: BitmapText; outline: BitmapText[] },
+  t: { face: Label; outline: Label[] },
   text: string,
 ): void {
   setPixelText(t.face, text);
@@ -193,7 +207,7 @@ export function setOutlinedText(
 
 /** Retext a `shadowedPixelText` — both copies, or the shadow goes stale. */
 export function setShadowedText(
-  t: { face: BitmapText; shadow: BitmapText },
+  t: { face: Label; shadow: Label },
   text: string,
 ): void {
   setPixelText(t.face, text);

@@ -16,6 +16,9 @@
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { formatRunTime } from '../src/i18n/format';
+import { DICTIONARIES } from '../src/i18n/dictionaries';
+import { LOCALES } from '../src/i18n/locales';
 
 const read = (p: string) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const RECAP = read('../src/components/run-recap.tsx');
@@ -42,15 +45,21 @@ describe('run recap', () => {
   });
 
   it('offers a refill AND a free way out', () => {
-    expect(RECAP).toMatch(/Get more energy/);
+    // Both doors are drawn — asserted on the KEYS, since the words moved into
+    // the dictionaries. That every language has both is the type's job.
+    expect(RECAP).toMatch(/t\.recap\.getEnergy/);
     // The free route must survive alongside the paid one — named with the
     // loop's own verb (HOME), and what home is for.
-    expect(RECAP).toMatch(/Home &middot; stack it/);
+    expect(RECAP).toMatch(/t\.recap\.goHome/);
   });
 
   it('says WHY there is no "Again"', () => {
-    // A button that simply vanished reads as a broken screen.
-    expect(RECAP).toMatch(/Out of hearts\./);
+    // A button that simply vanished reads as a broken screen. Every language
+    // has to say it, and none may leave it blank.
+    expect(RECAP).toMatch(/t\.recap\.overNote/);
+    for (const locale of LOCALES) {
+      expect(DICTIONARIES[locale].recap.overNote.trim(), locale).not.toBe('');
+    }
   });
 
   it('crosses home before opening the shop', () => {
@@ -61,9 +70,17 @@ describe('run recap', () => {
   });
 
   it('states the duration in the unit a player thinks in', () => {
-    // "214s" makes the reader do the division, and it used to print with no
-    // separator before it: "💣 3 214s" reads as one four-digit number.
-    expect(RECAP).toMatch(/function formatRunTime/);
-    expect(RECAP).toMatch(/&middot; \{formatRunTime\(recap\.durationMs\)\}/);
+    // "214s" makes the reader do the division. Tested on the FUNCTION rather
+    // than on the source text: it moved to i18n/format.ts, where it replaced
+    // six near-identical copies, and what matters is what it returns.
+    const { units } = DICTIONARIES.en;
+    expect(formatRunTime(47_000, units)).toBe('47s');
+    expect(formatRunTime(214_000, units)).toBe('3m 34s');
+    // And the separator before it, which was once missing: "💣 3 214s" reads
+    // as one four-digit number. Every language's stats line has it.
+    for (const locale of LOCALES) {
+      expect(DICTIONARIES[locale].recap.stats(3, 40, 3, '3m 34s'), locale)
+        .toMatch(/3\u00a0?·\s*3m 34s|· 3m 34s/);
+    }
   });
 });

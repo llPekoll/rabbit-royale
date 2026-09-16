@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { PixelFont } from '@/components/pixel-font';
 import { RotateGate } from '@/components/rotate-gate';
+import { LocaleProvider } from '@/i18n/provider';
 import './globals.css';
 // The pixel chrome rollout, one file per surface group so each can be restyled
 // without touching the others — after globals.css, so they win at equal
@@ -29,11 +30,20 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
+    /* `lang` starts as English and is rewritten by <LocaleProvider/> once the
+       stored choice is read — it cannot be right on the server, which has no
+       way of knowing what this player picked last time. It matters beyond the
+       screen reader: globals.css hangs the fallback font stack off it, because
+       the kit's ASCII face cannot draw three of the four languages. */
     <html lang="en">
       <body>
-        <PixelFont />
-        {children}
-        <RotateGate />
+        {/* Above everything, including <PixelFont/>, which asks it which face
+            this language can actually use. */}
+        <LocaleProvider>
+          <PixelFont />
+          {children}
+          <RotateGate />
+        </LocaleProvider>
       </body>
     </html>
   );

@@ -1,6 +1,6 @@
-import { BitmapText } from 'pixi.js';
 import gsap from 'gsap';
 import { pixelText, setPixelText } from './PixelText';
+import { isLabel, type Label } from './textFace';
 import { NineButton as KitNineButton, measureButtonLabel } from '@domin8/arcade-kit/pixi';
 import * as Keys from '@/config/assetKeys';
 
@@ -76,7 +76,7 @@ const BADGE_SCALE = 0.75;
 export class NineButton extends KitNineButton {
   private tone: ButtonTone;
   private labelNudgeY = 0;
-  private keyBadge: BitmapText | null = null;
+  private keyBadge: Label | null = null;
   private enabled = true;
   private blink: gsap.core.Timeline | null = null;
 
@@ -163,10 +163,10 @@ export class NineButton extends KitNineButton {
   }
 
   private applyLabelNudge(): void {
-    // `!== this.keyBadge`: the badge is a BitmapText too, and nudging IT here
+    // `!== this.keyBadge`: the badge is a label too, and nudging IT here
     // would drag it off the baseline `placeKeyBadge` just put it on.
     const label = this.container.children.find(
-      (c) => c instanceof BitmapText && c !== this.keyBadge,
+      (c) => isLabel(c) && c !== this.keyBadge,
     );
     if (label) label.position.y = -this.bevelPx / 2 + this.labelNudgeY;
   }

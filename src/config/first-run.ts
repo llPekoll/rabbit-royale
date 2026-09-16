@@ -12,9 +12,15 @@
  * the player skips (they read the "1" and never step on the bomb) simply
  * never speaks — the lesson was learned the other way.
  */
+/**
+ * One beat of the first run.
+ *
+ * THE WORDS ARE NOT HERE. A beat's caption is the dictionary's
+ * (`t.firstRun[id]`), keyed by this `id`; what stays is the CONDITION, which
+ * is the same in every language. See i18n/dict/en.ts.
+ */
 export interface FirstRunBeat {
-  id: string;
-  text: string;
+  id: FirstRunBeatId;
   when(s: FirstRunState): boolean;
   /** Holds until the next beat rather than fading on a clock. */
   sticky?: boolean;
@@ -28,42 +34,17 @@ export interface FirstRunState {
   warnStage: number;
 }
 
-export const FIRST_RUN_BEATS: readonly FirstRunBeat[] = [
-  {
-    id: 'tap',
-    text: 'Tap a tile beside you to dig it.',
-    when: () => true,
-    sticky: true,
-  },
-  {
-    id: 'numbers',
-    text: 'The number counts the bombs touching that tile.',
-    when: (s) => s.tiles >= 1,
-  },
-  {
-    id: 'bomb',
-    text: 'One heart gone. The 1 was pointing at it.',
-    when: (s) => s.bombs >= 1,
-  },
-  {
-    id: 'golden',
-    text: 'Gold gives a heart back.',
-    when: (s) => s.goldens >= 1,
-  },
-  {
-    id: 'chest',
-    text: 'A chest. Whatever it holds goes home with you.',
-    when: (s) => s.chests >= 1,
-  },
-  {
-    id: 'clock',
-    text: 'The island is the clock. Dig it out and it sinks.',
-    when: (s) => s.warnStage >= 1,
-  },
-];
+/** Every beat's key — what the dictionaries are keyed by. */
+export type FirstRunBeatId = 'tap' | 'numbers' | 'bomb' | 'golden' | 'chest' | 'clock';
 
-/** The recap's extra line, the first time. */
-export const FIRST_RUN_RECAP = 'Your carrots are home now. Go and see.';
+export const FIRST_RUN_BEATS: readonly FirstRunBeat[] = [
+  { id: 'tap', when: () => true, sticky: true },
+  { id: 'numbers', when: (s) => s.tiles >= 1 },
+  { id: 'bomb', when: (s) => s.bombs >= 1 },
+  { id: 'golden', when: (s) => s.goldens >= 1 },
+  { id: 'chest', when: (s) => s.chests >= 1 },
+  { id: 'clock', when: (s) => s.warnStage >= 1 },
+];
 
 /**
  * The beat to show for a state: the LAST one whose condition holds.

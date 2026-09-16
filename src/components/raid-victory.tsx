@@ -50,7 +50,10 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import gsap from 'gsap';
-import { BitmapText, TitleText, TYPE_SCALE } from '@domin8/arcade-kit';
+import { TYPE_SCALE } from '@domin8/arcade-kit';
+import { PixelText as BitmapText, PixelTitle as TitleText } from './pixel-text';
+import { useT, usePixelFace } from '@/i18n/provider';
+import { groupDigits } from '@/i18n/format';
 import { CARROT_URL, CARROT_SIZE } from '@domin8/arcade-kit/game';
 import { avatarSrc, AVATAR_FRAME } from '@/lib/game/avatars';
 import { playUiSfx } from '@/game/services/SoundManager';
@@ -124,6 +127,7 @@ export interface RaidVictoryProps {
   trapsSprung?: number;
   /** Tapped through, pressed Escape, or hit the button. */
   onDone: () => void;
+  /** Overrides the default ("back to the burrow"), which is the dictionary's. */
   actionLabel?: string;
   zIndex?: number;
 }
@@ -134,9 +138,13 @@ export function RaidVictory({
   avatar,
   trapsSprung = 0,
   onDone,
-  actionLabel = 'BACK TO THE BURROW',
+  actionLabel,
   zIndex = 1000,
 }: RaidVictoryProps) {
+  const t = useT();
+  // Defaulted here rather than in the parameter list: a default cannot call a
+  // hook, and the label is this language's.
+  const action = actionLabel ?? t.raid.backToBurrow;
   const reduced = useReducedMotion();
   const [phase, setPhase] = useState<Phase>(reduced ? 'shown' : 'burst');
   const [mounted, setMounted] = useState(false);
@@ -182,7 +190,7 @@ export function RaidVictory({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={`Raid won - ${carrots} carrots looted from ${defender}`}
+      aria-label={t.raid.wonAria(carrots, defender)}
       className="rr-victory-backdrop"
       // Always swallow the click: this may be raised inside somebody else's
       // tap-to-close overlay, and the screen under it must not close first.
@@ -215,7 +223,7 @@ export function RaidVictory({
                     it, which is exactly why it is here: the stamp is supposed
                     to be the one element on the stage wearing the arcade's own
                     lettering rather than the scene's palette. */}
-                <TitleText scale={TYPE_SCALE.title}>RAID WON!</TitleText>
+                <TitleText scale={TYPE_SCALE.title}>{t.raid.won}</TitleText>
               </div>
             )}
           </div>
@@ -235,11 +243,11 @@ export function RaidVictory({
                 shadowColor={CARROT_DEEP}
                 textColor={OCEAN_INK}
                 onClick={onDone}
-                aria-label={actionLabel}
+                aria-label={action}
                 style={actionButtonStyle}
               >
                 <BitmapText scale={TYPE_SCALE.caption} style={{ color: OCEAN_INK }}>
-                  {actionLabel}
+                  {action}
                 </BitmapText>
               </PxButton>
             </div>
@@ -288,6 +296,9 @@ function Spoils({
   avatar?: string | null;
   trapsSprung: number;
 }) {
+  const t = useT();
+  const atlas = usePixelFace();
+  const who = displayName(defender, atlas, t.raid.aRival);
   return (
     <span style={spoilsStyle}>
       <HoppingRabbit avatar={avatar} />
@@ -314,21 +325,21 @@ function Spoils({
                 mask, so it takes the tint. At `display` it still out-sizes
                 everything else on the stage bar the stamp. */}
             <BitmapText scale={TYPE_SCALE.display} style={{ color: CARROT_ORANGE, textShadow: '0 4px 0 rgba(0,0,0,0.6)' }}>
-              {`+${carrots.toLocaleString('en-US')}`}
+              {`+${groupDigits(carrots)}`}
             </BitmapText>
           </span>
           <BitmapText scale={TYPE_SCALE.body} style={{ color: FLUFF }}>
-            {`LOOTED FROM ${asciiName(defender)}`}
+            {t.raid.lootedFrom(who)}
           </BitmapText>
         </>
       ) : (
         <BitmapText scale={TYPE_SCALE.body} style={{ color: FLUFF }}>
-          {`${asciiName(defender)}'S BURROW WAS EMPTY`}
+          {t.raid.wasEmpty(who)}
         </BitmapText>
       )}
       {trapsSprung > 0 && (
         <BitmapText scale={TYPE_SCALE.caption} style={{ color: SEA }}>
-          {trapsSprung === 1 ? '1 TRAP SPRUNG ON THE WAY IN' : `${trapsSprung} TRAPS SPRUNG ON THE WAY IN`}
+          {t.raid.trapsSprung(trapsSprung)}
         </BitmapText>
       )}
     </span>
@@ -349,6 +360,7 @@ function Spoils({
  * square.
  */
 function HoppingRabbit({ avatar }: { avatar?: string | null }) {
+  const t = useT();
   const ref = useRef<HTMLSpanElement>(null);
   const [frame, setFrame] = useState(HAPPY_FROM);
   const src = useMemo(() => avatarSrc(avatar), [avatar]);
@@ -387,7 +399,7 @@ function HoppingRabbit({ avatar }: { avatar?: string | null }) {
       <span
         ref={ref}
         role="img"
-        aria-label="Your rabbit, celebrating"
+        aria-label={t.raid.rabbitAria}
         style={{
           width: RABBIT_PX,
           height: RABBIT_PX,
@@ -529,10 +541,25 @@ function RayBurst() {
   return <canvas ref={ref} className="rr-victory-rays" style={raysStyle} />;
 }
 
-/** `BitmapText` covers printable ASCII 32-126 only, and a defender's name is
- *  whatever they typed. */
-function asciiName(name: string): string {
-  return name.toUpperCase().replace(/[^\x20-\x7e]/g, '').slice(0, 20) || 'A RIVAL';
+/**
+ * A defender's name, as this screen can draw it.
+ *
+ * STRIPPING NON-ASCII IS CONDITIONAL NOW. The kit's atlas covers printable
+ * ASCII 32-126 and a name is whatever its owner typed, so on the atlas
+ * anything else has to go or it renders as blanks. But the atlas is only used
+ * for English (see components/pixel-text.tsx): in the other three the label is
+ * an ordinary span, and stripping there would delete a Chinese player's entire
+ * name and replace them with "A RIVAL" — on the victory screen of the person
+ * who just raided them.
+ *
+ * The 20-character cap stays in both: it is about the width of the line, not
+ * about the atlas.
+ */
+function displayName(name: string, atlas: boolean, fallback: string): string {
+  const cleaned = atlas
+    ? name.toUpperCase().replace(/[^\x20-\x7e]/g, '')
+    : name;
+  return cleaned.trim().slice(0, 20) || fallback;
 }
 
 function useReducedMotion(): boolean {

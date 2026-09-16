@@ -85,7 +85,10 @@ export async function POST(req: Request) {
     return Response.json({
       claimed: id,
       reward: quest.reward,
-      line: quest.line,
+      // The id, not the sentence: the server has no idea which of the four
+      // languages this player reads, and the words for a quest live in the
+      // dictionaries now. The client looks it up (see i18n/content.ts).
+      lineFor: quest.id,
       quest: questBoardOf(after!),
       burrow: burrowView(after!),
     });

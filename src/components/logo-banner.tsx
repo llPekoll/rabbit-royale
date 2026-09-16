@@ -23,7 +23,8 @@
  * it is `96px * an integer`, chosen from the space available.
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { TAGLINES, nextTagline } from '@/config/taglines';
+import { useT } from '@/i18n/provider';
+import { nextTagline } from '@/config/taglines';
 
 const LOGO_SRC = '/assets/ui/rr-logo-1x.webp';
 
@@ -78,6 +79,7 @@ const MAX_SCALE = 3;
 const MAX_VH = 0.28;
 
 export function LogoBanner() {
+  const t = useT();
   const hostRef = useRef<HTMLDivElement>(null);
 
   const [scale, setScale] = useState(1);
@@ -96,11 +98,13 @@ export function LogoBanner() {
    */
   const [phrase, setPhrase] = useState<string | null>(null);
 
+  // Keyed on the LIST, so switching language rerolls into the new one rather
+  // than leaving the old phrase on screen until the next interval fires.
   useEffect(() => {
-    setPhrase(nextTagline());
-    const id = setInterval(() => setPhrase((p) => nextTagline(p ?? undefined)), TAGLINE_MS);
+    setPhrase(nextTagline(t.taglines));
+    const id = setInterval(() => setPhrase((p) => nextTagline(t.taglines, p ?? undefined)), TAGLINE_MS);
     return () => clearInterval(id);
-  }, []);
+  }, [t.taglines]);
 
   /** Largest whole multiple of the artwork that fits the space we are given. */
   useLayoutEffect(() => {
@@ -168,7 +172,7 @@ export function LogoBanner() {
       <img
         className="rr-logo"
         src={LOGO_SRC}
-        alt="Rabbit Royale"
+        alt={t.chrome.logoAlt}
         // The file's OWN pixels in the attributes, and the scaled size in the
         // style. The attributes are what the server renders, and the server
         // cannot know the viewport -- it always says scale 1, while the client

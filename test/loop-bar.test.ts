@@ -8,6 +8,8 @@
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { DICTIONARIES } from '../src/i18n/dictionaries';
+import { LOCALES } from '../src/i18n/locales';
 import { loopOf } from '../src/components/loop-bar';
 
 const read = (p: string) => readFileSync(new URL(p, import.meta.url), 'utf8');
@@ -17,8 +19,18 @@ const BAR = read('../src/components/loop-bar.tsx');
 describe('the loop bar', () => {
   it('holds exactly three verbs, in loop order', () => {
     // Three VERBS: the middle slab was "HOME" (a place) until it became DEFEND.
-    const verbs = [...BAR.matchAll(/>(DIG|HOME|DEFEND|RAID|SHOP|STORY|BASE)<\/span>/g)].map((m) => m[1]);
-    expect(verbs).toEqual(['DIG', 'DEFEND', 'RAID']);
+    // Matched on the dictionary KEYS, since the words are translated — the
+    // order is the design, and it is the same in every language.
+    const verbs = [...BAR.matchAll(/\{t\.loop\.(dig|home|defend|raid)\}<\/span>/g)].map((m) => m[1]);
+    expect(verbs).toEqual(['dig', 'defend', 'raid']);
+    // And every language actually fills all three, with a verb rather than a
+    // place — the middle one was "HOME" until it became DEFEND.
+    for (const locale of LOCALES) {
+      const { loop } = DICTIONARIES[locale];
+      for (const verb of [loop.dig, loop.defend, loop.raid]) {
+        expect(verb.trim(), locale).not.toBe('');
+      }
+    }
   });
 
   it('maps every quest door onto a slab, or nowhere', () => {
@@ -43,15 +55,18 @@ describe('the loop bar', () => {
     // Watching and playing both leave by the SHARED corner button now: the big
     // centred HOME arrow sat in the bottom band where the near tiles are, and
     // on a phone it took the taps meant for digging.
-    expect(PAGE).toMatch(/label=\{spectating \? 'Stop watching' : 'Home'\}/);
+    // Matched on the STRUCTURE, not the words: the labels moved into the
+    // dictionaries when the game learned four languages, so asserting the
+    // English would only prove that English still exists.
+    expect(PAGE).toMatch(/label=\{spectating \? t\.run\.stopWatching : t\.run\.home\}/);
     expect(PAGE).not.toMatch(/<GoButton/);
-    expect(read('../src/components/run-recap.tsx')).toMatch(/Home &middot; stack it/);
+    expect(read('../src/components/run-recap.tsx')).toMatch(/t\.recap\.goHome/);
   });
 
   it('moves the shop and the codex off the floor, to the top bar', () => {
     const top = PAGE.slice(PAGE.indexOf('className="rr-topbar"'), PAGE.indexOf('<TopbarReserve'));
-    expect(top).toMatch(/label="Shop"/);
-    expect(top).toMatch(/label="Story"/);
+    expect(top).toMatch(/label=\{t\.chrome\.shop\}/);
+    expect(top).toMatch(/label=\{t\.chrome\.story\}/);
   });
 
   it('falls back to the next action once the quests are claimed', () => {

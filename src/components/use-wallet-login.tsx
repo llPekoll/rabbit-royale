@@ -33,6 +33,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import bs58 from 'bs58';
 import { isNative, nativeWallet } from './native-bridge';
+import { useT } from '@/i18n/provider';
 
 export interface Player {
   id: string;
@@ -75,6 +76,7 @@ export function restoreDecision(status: number): 'keep' | 'discard' {
 }
 
 function useWalletSession() {
+  const t = useT();
   const [player, setPlayer] = useState<Player | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -154,7 +156,7 @@ function useWalletSession() {
     // present the same interface — see native-bridge.ts.
     const native = isNative() ? nativeWallet() : null;
     const wallet = native ?? window.solana;
-    if (!wallet) throw new Error('No wallet found. Open in the Rabbit Royale app or install a Solana wallet.');
+    if (!wallet) throw new Error(t.auth.noWallet);
 
     const { publicKey } = await wallet.connect();
     const address = publicKey.toString();
@@ -204,7 +206,7 @@ function useWalletSession() {
 
       adopt(res);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Sign-in failed');
+      setError(e instanceof Error ? e.message : t.auth.signInFailed);
     } finally {
       setBusy(false);
     }
@@ -225,7 +227,7 @@ function useWalletSession() {
       if (res.error) throw new Error(res.error);
       adopt(res);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not start a guest burrow');
+      setError(e instanceof Error ? e.message : t.auth.guestFailed);
     } finally {
       setBusy(false);
     }
@@ -261,19 +263,19 @@ function useWalletSession() {
         setTakenBy(typeof res.takenBy === 'string' && res.takenBy ? res.takenBy : '');
         throw new Error(
           res.takenBy
-            ? `That wallet already digs for "${res.takenBy}".`
-            : 'That wallet already has a burrow.',
+            ? t.auth.walletDigsFor(res.takenBy)
+            : t.auth.walletTaken,
         );
       }
       if (res.error === 'already_linked') {
-        throw new Error('This burrow already has a wallet.');
+        throw new Error(t.auth.alreadyLinked);
       }
       if (res.error) throw new Error(res.error);
 
       adopt(res);
       return true;
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not connect that wallet');
+      setError(e instanceof Error ? e.message : t.auth.linkFailed);
       return false;
     } finally {
       setBusy(false);

@@ -4,6 +4,20 @@
      never arrives, tabular digits keep the HUD from jittering. */
   --font-pixel: ui-monospace, "SF Mono", Menlo, monospace;
 
+  /* THE FACE FOR A LANGUAGE THE KIT CANNOT DRAW.
+
+     The kit's face is generated from an 8x8 atlas covering printable ASCII and
+     nothing else, so an accent and a sinogram alike come out as blanks. French,
+     Portuguese and Chinese therefore do not get it — they get this, a stack
+     chosen to stay as close to the game's look as a system font can: the
+     squarest faces each platform ships, ending in the same monospace fallback
+     as above so digits stay tabular in the HUD.
+
+     <PixelFont/> is what decides between the two: it only points --font-pixel
+     at the kit's face for a language the atlas covers. See i18n/locales.ts. */
+  --font-fallback: "DotGothic16", "Silkscreen", "Zpix", ui-monospace, "SF Mono",
+    Menlo, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", monospace;
+
   --bg: #0d1117;
   --panel: #161b22;
   --border: #30363d;
@@ -2804,6 +2818,25 @@ body:has(.rr-lb.open:not(.rr-profile)) .rr-lb-launch {
    just not in a panel. */
 .rr-empty .rr-btn { width: min(300px, 100%); }
 
+/* THE LABEL FITS THE BUTTON, in every language.
+
+   The two doorstep buttons are a fixed 300px and their labels were sized in
+   fixed px, which English fitted and nothing else did: "CONNECT WALLET" is 14
+   characters and "CONNECTER UN PORTEFEUILLE" is 25 — it ran out past both
+   edges of the slab. The label now shrinks with the width it is given rather
+   than overflowing it, down to a floor that is still legible pixel type, and
+   the whole of it stays on one line. */
+.rr-empty .rr-btn > span {
+  display: block;
+  max-width: 100%;
+  font-size: clamp(9px, 5.6cqw, 18px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+}
+.rr-empty .rr-btn { container-type: inline-size; }
+.rr-empty .rr-btn.ghost > span { font-size: clamp(9px, 4.6cqw, 14px); }
+
 /* PLAY: the one thing to press on this screen, and it should look like it.
    Carrot on dark rather than another outlined chip — the wallet sign-in below
    it is deliberately quieter, because the whole point of the guest door is
@@ -4339,4 +4372,74 @@ button { font-family: var(--font-pixel); }
   .rr-victory-glow, .rr-victory-item, .rr-victory-stamp, .rr-victory-rise,
   .rr-victory-blink, .rr-victory-rays-pulse, .rr-victory-rays { animation: none; }
   .rr-victory-flash-in, .rr-victory-flash-suck { opacity: 0; }
+}
+
+/* ── THE LANGUAGE PICKER, on the sign-in screen ────────────────────────────
+
+   A native <select> retinted to the burrow's palette. Native because the
+   platform's own language list beats anything drawn here for the one control
+   a player reaches for when they cannot read the screen (see
+   components/language-select.tsx); retinted because the default control
+   arrives as system chrome in the middle of pixel art.
+
+   It sits in the masthead, which is `pointer-events: none` so the crawl can be
+   read behind it — this is the one thing up there that takes a press, so it
+   turns them back on for itself. */
+.rr-lang {
+  pointer-events: auto;
+  display: inline-flex;
+  margin-top: var(--rr-pad-tight);
+}
+
+.rr-lang-select {
+  font: inherit;
+  /* The face, drawn like every other block on this screen: soil, a hard
+     one-pixel outline, no radius. `appearance: none` is what removes the
+     platform's rounded bezel and its gradient; the arrow goes with it, so one
+     is drawn back as a background triangle. */
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: #2a1810;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #f5e6d3 50%),
+    linear-gradient(135deg, #f5e6d3 50%, transparent 50%);
+  background-position: right 14px top 50%, right 9px top 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  color: #f5e6d3;
+  border: 2px solid #1d100a;
+  border-radius: 0;
+  /* Room on the right for the arrow drawn above. */
+  padding: 8px 26px 8px 10px;
+  /* The 44px tap-target floor the rest of the chrome keeps. */
+  min-height: 44px;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  cursor: var(--cur-hand);
+}
+
+.rr-lang-select:focus-visible {
+  outline: 2px solid #ffb238;
+  outline-offset: 2px;
+}
+
+/* The open list is drawn by the platform, not by us — but the options inherit
+   whatever the page sets, and white-on-white is a real outcome on some
+   Androids. Stated explicitly so the list is legible wherever it is drawn. */
+.rr-lang-select option {
+  background-color: #2a1810;
+  color: #f5e6d3;
+}
+
+/* Visible to a screen reader, to nothing else. */
+.rr-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }

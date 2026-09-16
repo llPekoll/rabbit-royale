@@ -15,7 +15,8 @@
  * everything the island ever said stops being read at all.
  */
 import { useEffect, useState } from 'react';
-import { firstRunBeat, type FirstRunState } from '@/config/first-run';
+import { firstRunBeat, type FirstRunBeatId, type FirstRunState } from '@/config/first-run';
+import { useT } from '@/i18n/provider';
 import { PxPanel } from './px';
 import type { MyDigs } from './use-game-socket';
 
@@ -29,23 +30,32 @@ export interface FirstRunCaptionProps {
 }
 
 export function useFirstRunCaption({ firstRun, digs, warnStage }: FirstRunCaptionProps): string | null {
+  const t = useT();
   const state: FirstRunState = { ...digs, warnStage };
   const beat = firstRun ? firstRunBeat(state) : null;
   const key = beat?.id ?? null;
-  const [shown, setShown] = useState<string | null>(null);
+  /**
+   * The beat's ID is held, not its words.
+   *
+   * Holding the sentence meant the caption on screen was whatever language was
+   * current when the beat fired, and it would sit there in the old language
+   * after a switch. The id is language-independent; the words are looked up on
+   * every render, so the line follows the choice immediately.
+   */
+  const [shown, setShown] = useState<FirstRunBeatId | null>(null);
 
   useEffect(() => {
     if (!beat) { setShown(null); return; }
-    setShown(beat.text);
+    setShown(beat.id);
     if (beat.sticky) return;
-    const t = setTimeout(() => setShown((cur) => (cur === beat.text ? null : cur)), CAPTION_MS);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setShown((cur) => (cur === beat.id ? null : cur)), CAPTION_MS);
+    return () => clearTimeout(timer);
     // Keyed on the BEAT, not on the tally: another carrot dug while "the
     // number counts the bombs" is up must not restart its clock.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, firstRun]);
 
-  return shown;
+  return shown ? t.firstRun[shown] : null;
 }
 
 export function FirstRunCaption(props: FirstRunCaptionProps) {

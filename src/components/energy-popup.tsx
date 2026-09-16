@@ -20,14 +20,17 @@
  * second game.
  */
 import { useEffect } from 'react';
+import { useT } from '@/i18n/provider';
+import { formatWait, groupDigits } from '@/i18n/format';
 import { createPortal } from 'react-dom';
-import { CloseButton, NineSlicePanel, PanelTitle } from '@domin8/arcade-kit';
+import { CloseButton, NineSlicePanel } from '@domin8/arcade-kit';
+import { PanelTitle } from './pixel-text';
 import { PxButton, PxPanel, pxLabel } from './px';
 import {
   CARROT_BTN, CHALK, COIN_BTN, DIALOG_PX, PLANK, PLANK_LIT, SOIL, SOIL_DEEP, priceText,
 } from './shop-card';
 import type { ShopItem, ShopState } from './use-shop';
-import type { PayStage } from './use-usdc-pay';
+import { payStageLine, type PayStage } from './use-usdc-pay';
 import { priceLabel, type PayTokenId } from '@/lib/pay/tokens';
 
 export interface EnergyPopupProps {
@@ -72,6 +75,8 @@ export function EnergyPopup({
   shop, stock, energy, maxEnergy, nextEnergyInMs, runCost, nextRunInMs, busy, payToken, payStage = 'idle',
   note, error, onBuy, onPayUsdc, onOpenShop, onClose,
 }: EnergyPopupProps) {
+  const t = useT();
+  const wait = (ms: number | null) => (ms === null ? t.loop.aMoment : formatWait(ms, t.units));
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
@@ -85,7 +90,9 @@ export function EnergyPopup({
   const left = item ? item.cap - item.held : null;
   const capped = left !== null && left <= 0;
   const status = error
-    ?? (payStage !== 'idle' && payStage !== 'done' ? PAY_STAGE[payStage] : note);
+    // One table for both surfaces, in the dictionary: the shop and this popup
+    // each carried their own copy of the same three lines.
+    ?? (payStage !== 'idle' && payStage !== 'done' ? payStageLine(t, payStage) : note);
 
   return createPortal(
     <div className="rr-shop-scrim" onClick={onClose}>
@@ -95,12 +102,12 @@ export function EnergyPopup({
         className="rr-shop-modal rr-energy-modal rr-px-dialog"
         role="dialog"
         aria-modal="true"
-        aria-label="Out of energy"
+        aria-label={t.shop.outOfEnergy}
         onClick={(e) => e.stopPropagation()}
       >
         <header className="rr-shop-top">
-          <h2><PanelTitle>OUT OF ENERGY</PanelTitle></h2>
-          <span className="rr-shop-purse">{stock.toLocaleString()} 🥕</span>
+          <h2><PanelTitle>{t.shop.outOfEnergy}</PanelTitle></h2>
+          <span className="rr-shop-purse">{groupDigits(stock)} 🥕</span>
           <CloseButton inline className="rr-shop-x" onClick={onClose} aria-label="Close" style={{ minWidth: 44 }} />
         </header>
 
@@ -119,18 +126,16 @@ export function EnergyPopup({
               draws one as a blank box. See test/pixel-font-glyphs. */}
           <span className="rr-energy-say">
             {runCost
-              ? <>A run takes {runCost}. Enough comes back on its own in{' '}
-                {formatWait(nextRunInMs ?? nextEnergyInMs)}. Or fill it now and keep digging.</>
-              : <>The bar is empty. One point comes back on its own in{' '}
-                {formatWait(nextEnergyInMs)}. Or fill it now and keep digging.</>}
+              ? t.shop.energySay(runCost, wait(nextRunInMs ?? nextEnergyInMs))
+              : t.shop.energySayEmpty(wait(nextEnergyInMs))}
           </span>
         </PxPanel>
 
         <div className="rr-energy-buy">
           <span className="rr-energy-blurb">
-            Fills the bar to {maxEnergy}.
+            {t.shop.fillsTo(maxEnergy)}
             {left !== null && (
-              <i>{capped ? ' No refills left today.' : ` ${left} refill${left > 1 ? 's' : ''} left today.`}</i>
+              <i>{capped ? t.shop.noRefills : t.shop.refillsLeft(left)}</i>
             )}
           </span>
           <div className="rr-shop-tile-buy">
@@ -141,7 +146,7 @@ export function EnergyPopup({
               onClick={onBuy}
               disabled={busyNow || !item || !item.canBuy}
             >
-              <span style={priceText}>{item ? `${item.price.toLocaleString()} 🥕` : '...'}</span>
+              <span style={priceText}>{item ? `${groupDigits(item.price)} 🥕` : '...'}</span>
             </PxButton>
             {onPayUsdc && item && (
               <PxButton
@@ -172,7 +177,7 @@ export function EnergyPopup({
                 textColor={CHALK}
                 onClick={onOpenShop}
               >
-                <span style={{ ...pxLabel, fontSize: 11 }}>Open the shed</span>
+                <span style={{ ...pxLabel, fontSize: 11 }}>{t.shop.openShed}</span>
               </PxButton>
             )}
         </footer>
@@ -182,18 +187,3 @@ export function EnergyPopup({
   );
 }
 
-/** Same wording as the burrow's own energy card — one clock, said one way. */
-function formatWait(ms: number | null): string {
-  if (ms === null) return 'a moment';
-  const mins = Math.ceil(ms / 60_000);
-  if (mins < 60) return `${mins}m`;
-  const hours = Math.floor(mins / 60);
-  const rest = mins % 60;
-  return rest ? `${hours}h ${rest}m` : `${hours}h`;
-}
-
-const PAY_STAGE: Record<string, string> = {
-  quoting: 'Pricing...',
-  signing: 'Approve it in your wallet...',
-  confirming: 'Confirming on chain...',
-};

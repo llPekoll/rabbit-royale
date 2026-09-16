@@ -27,11 +27,14 @@
  */
 import { useEffect, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
-import { CloseButton, NineSlicePanel, PanelTitle } from '@domin8/arcade-kit';
+import { CloseButton, NineSlicePanel } from '@domin8/arcade-kit';
+import { PanelTitle } from './pixel-text';
 import { PX, PxButton, PxPanel, pxLabel } from './px';
 import type { ItemKind, ShopItem, ShopState } from './use-shop';
 import { ITEM_META, heldLabel } from './item-meta';
-import type { PayStage } from './use-usdc-pay';
+import { useT } from '@/i18n/provider';
+import { groupDigits } from '@/i18n/format';
+import { payStageLine, type PayStage } from './use-usdc-pay';
 import { LauncherTab, DANGER, LAMP } from './burrow-chrome';
 import { PAY_TOKENS, priceLabel, type PayTokenId } from '@/lib/pay/tokens';
 import { LootChest, CHEST_ASPECT } from './loot-chest';
@@ -59,6 +62,7 @@ export interface ShopButtonProps {
 }
 
 export function ShopButton({ shop, onOpen }: ShopButtonProps) {
+  const t = useT();
   const traps = shop?.traps;
   return (
     <LauncherTab
@@ -68,17 +72,17 @@ export function ShopButton({ shop, onOpen }: ShopButtonProps) {
       art={<LootChest size={52} />}
       spriteSize={52}
       spriteHeight={Math.round(52 * CHEST_ASPECT)}
-      label="SHOP"
+      label={t.shop.title}
       // The defence state moved to PROTECT BASE, which is the tab that can now
       // act on it. It used to live here because the shed was the only door to
       // the board; two tabs reporting the same "2/8 buried" is one of them
       // repeating the other, and the alarm belongs on the tab that fixes it.
       // What is left is the shed's own business: what is on the shelf.
-      sub={traps ? `${traps.held} IN THE SHED` : undefined}
+      sub={traps ? t.shop.inShed(traps.held) : undefined}
       ink={LAMP}
       count={traps?.held}
       onClick={onOpen}
-      ariaLabel="Shop"
+      ariaLabel={t.shop.aria}
     />
   );
 }
@@ -114,11 +118,11 @@ export const COIN_BTN = { color: '#1f3a4a', shadowColor: '#10222e', textColor: C
 /** A price label: the game's pixel face (the kit's bitmap one has no carrot). */
 export const priceText: CSSProperties = { ...pxLabel, fontSize: 12, fontVariantNumeric: 'tabular-nums' };
 
-/** `a` over `b` at `t` — hex only, because the frame's colour is baked on a canvas. */
-function mixHex(a: string, b: string, t: number): string {
+/** `a` over `b` at `mix` — hex only, because the frame's colour is baked on a canvas. */
+function mixHex(a: string, b: string, mix: number): string {
   const p = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
   const [x, y] = [p(a), p(b)];
-  return `#${x.map((v, i) => Math.round(v * t + y[i] * (1 - t)).toString(16).padStart(2, '0')).join('')}`;
+  return `#${x.map((v, i) => Math.round(v * mix + y[i] * (1 - mix)).toString(16).padStart(2, '0')).join('')}`;
 }
 
 export interface ShopCardProps {
@@ -139,6 +143,7 @@ export function ShopPanel({
   shop, busy, onBuy, onPayUsdc, payStage = 'idle', note, error,
   payToken, onPayTokenChange, onClose,
 }: ShopCardProps) {
+  const t = useT();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -149,7 +154,9 @@ export function ShopPanel({
 
   const busyNow = busy || payStage !== 'idle';
   const status = error
-    ?? (payStage !== 'idle' && payStage !== 'done' ? PAY_STAGE[payStage] : note);
+    // One table for both surfaces, in the dictionary: the shop and this popup
+    // each carried their own copy of the same three lines.
+    ?? (payStage !== 'idle' && payStage !== 'done' ? payStageLine(t, payStage) : note);
 
   return createPortal(
     <div className="rr-shop-scrim" onClick={onClose}>
@@ -162,22 +169,22 @@ export function ShopPanel({
         className="rr-shop-modal rr-px-dialog"
         role="dialog"
         aria-modal="true"
-        aria-label="Shop"
+        aria-label={t.shop.aria}
         onClick={(e) => e.stopPropagation()}
       >
         <header className="rr-shop-top">
-          <h2><PanelTitle>THE SHED</PanelTitle></h2>
+          <h2><PanelTitle>{t.shop.shed}</PanelTitle></h2>
           {/* The purse, in the header. Every price below is read against it, and
               making the player close the shop to check it is the one thing a
               shop must never do. */}
-          <span className="rr-shop-purse">{(shop?.stock ?? 0).toLocaleString()} 🥕</span>
+          <span className="rr-shop-purse">{groupDigits(shop?.stock ?? 0)} 🥕</span>
           {/* THE CURRENCY, once for the whole shop.
               Per-item currency buttons would be six items times three rails on
               a phone. Switching it re-prices every tile below, since a rail the
               player cannot read a price in is a rail they will not pick.
               Hidden below two rails: a "switch" with one option is furniture. */}
           {(shop?.tokens?.length ?? 0) > 1 && (
-            <span className="rr-shop-rails" role="group" aria-label="Pay with">
+            <span className="rr-shop-rails" role="group" aria-label={t.shop.payWith}>
               {shop!.tokens.map((t) => {
                 const on = t === payToken;
                 return (
@@ -240,11 +247,11 @@ export function ShopPanel({
             {status ? (
               <span className={error ? 'bad' : 'good'}>{status}</span>
             ) : shop && !shop.usdcEnabled ? (
-              <span>Card payments are not switched on yet. Carrots only for now.</span>
+              <span>{t.shop.cardsOff}</span>
             ) : shop && !onPayUsdc ? (
-              <span>Connect a wallet to pay by card. Everything here is diggable anyway.</span>
+              <span>{t.shop.connectForCard}</span>
             ) : (
-              <span>Carrots you dig, or card. Same goods either way.</span>
+              <span>{t.shop.eitherWay}</span>
             )}
           </PxPanel>
         </footer>
@@ -256,12 +263,6 @@ export function ShopPanel({
 
 /** What the player is told during a USDC payment. Named per step, because
  *  "loading" over a wallet transaction is where people start clicking twice. */
-const PAY_STAGE: Record<string, string> = {
-  quoting: 'Pricing...',
-  signing: 'Approve it in your wallet...',
-  confirming: 'Confirming on chain...',
-};
-
 function Row({
   item, busy, payToken, rate, onBuy, onPayUsdc,
 }: {
@@ -275,12 +276,13 @@ function Row({
   onBuy(): void;
   onPayUsdc?(): void;
 }) {
+  const t = useT();
   const meta = ITEMS[item.kind];
   const full = !item.hasRoom;
   // Three different things to report, because three different things are being
   // sold — a count, refills left, days of cover. Which one this kind gets is
   // `ITEM_META[kind].counts`; see `heldLabel`.
-  const held = heldLabel(item.kind, item.held, item.cap);
+  const held = heldLabel(t, item.kind, item.held, item.cap);
 
   /**
    * What the carrot price means right now, in one sentence.
@@ -288,12 +290,16 @@ function Row({
    * Ordered by which refusal the player can do something about: a full shelf is
    * finished business, a short purse is a reason to go and dig.
    */
-  const price = `${item.price.toLocaleString()} carrots`;
+  // Grouped by hand, never `toLocaleString()`: the separator has to be the
+  // same on the server and in the browser or the tree is thrown away. See
+  // i18n/format.ts.
+  const price = t.shop.priceLabel(groupDigits(item.price));
+  const name = t.items[item.kind].name;
   const reason = full
-    ? `${meta.name}: ${price}. You are holding as many as you can.`
+    ? t.shop.capped(name, price)
     : item.canBuy
-      ? `Buy ${meta.name} for ${price}`
-      : `${meta.name}: ${price}. Not enough carrots yet. Dig for more.`;
+      ? t.shop.buy(name, price)
+      : t.shop.tooPoor(name, price);
 
   return (
     <li
@@ -305,10 +311,10 @@ function Row({
       <PxPanel color={mixHex(meta.tint, SOIL_DEEP, 0.2)} className="rr-shop-tile-face">
       <div className="rr-shop-tile-head">
         <span className="rr-shop-tile-icon" aria-hidden>{meta.icon}</span>
-        <h3>{meta.name}</h3>
+        <h3>{name}</h3>
         <span className="rr-shop-tile-held">{held}</span>
       </div>
-      <p className="rr-shop-tile-blurb">{meta.blurb}</p>
+      <p className="rr-shop-tile-blurb">{t.items[item.kind].blurb}</p>
       <div className="rr-shop-tile-buy">
         <PxButton
           className="rr-pay-carrot"
@@ -330,7 +336,7 @@ function Row({
           title={reason}
           aria-label={reason}
         >
-          <span style={priceText}>{item.price.toLocaleString()} 🥕</span>
+          <span style={priceText}>{groupDigits(item.price)} 🥕</span>
         </PxButton>
         {onPayUsdc && (
           <PxButton
@@ -393,6 +399,7 @@ export interface ProtectButtonProps {
 }
 
 export function ProtectButton({ shop, onPlace, onNone }: ProtectButtonProps) {
+  const t = useT();
   const traps = shop?.traps;
   // Undefended RIGHT NOW — nothing standing, whether or not traps are on their
   // way back. That is the fact the alarm colour is about: a raider arriving
@@ -417,18 +424,18 @@ export function ProtectButton({ shop, onPlace, onNone }: ProtectButtonProps) {
       sprite={BOMB_SRC}
       spriteSize={34}
       spriteHeight={Math.round(34 * (23 / 20))}
-      label="PROTECT BASE"
+      label={t.shop.protect}
       sub={
         !traps ? undefined
           // Says what the tap will DO, not just what the ground is like. "NO
           // TRAPS - GET ONE" is the whole state in four words: the burrow is
           // open, you cannot fix it from here, and this is still the way to.
-          : healing ? `REARMING - ${traps.rearming} COMING BACK`
-            : empty ? 'NO TRAPS - GET ONE'
-              : bare ? 'NOTHING BURIED'
+          : healing ? t.shop.rearming(traps.rearming)
+            : empty ? t.shop.noTraps
+              : bare ? t.shop.nothingBuried
                 : traps.rearming > 0
-                  ? `${traps.armed} UP - ${traps.rearming} REARMING`
-                  : `${traps.armed}/${traps.maxPlaced} IN THE GROUND`
+                  ? t.shop.upAndRearming(traps.armed, traps.rearming)
+                  : t.shop.inGround(traps.armed, traps.maxPlaced)
       }
       // Still alarmed on a bare burrow — that is the fact worth alarming about,
       // and it is true whether or not the player can act on it from here. Only
@@ -436,7 +443,7 @@ export function ProtectButton({ shop, onPlace, onNone }: ProtectButtonProps) {
       // as "nothing to see" on the one state that most needs pressing.
       ink={bare ? DANGER : LAMP}
       onClick={canEdit ? onPlace : (onNone ?? onPlace)}
-      ariaLabel={empty ? 'Protect your base - buy a trap' : 'Protect your base'}
+      ariaLabel={empty ? t.shop.protectBuyAria : t.shop.protectAria}
     />
   );
 }

@@ -12,6 +12,7 @@
  * an empty page and THEN starting the load is the flicker this avoids.
  */
 import { useEffect, useState } from 'react';
+import { useT } from '@/i18n/provider';
 
 /**
  * JPEG, not PNG. The source was a 512KB RGBA PNG for an opaque, photo-like
@@ -28,7 +29,10 @@ export interface LoadingScreenProps {
   label?: string;
 }
 
-export function LoadingScreen({ ready, label = 'Loading' }: LoadingScreenProps) {
+export function LoadingScreen({ ready, label }: LoadingScreenProps) {
+  const t = useT();
+  // Defaulted here, not in the parameter list: a default cannot call a hook.
+  const said = label ?? t.chrome.loading;
   // Kept mounted through the fade so the transition is visible; only then
   // removed, so it costs nothing for the rest of the session.
   const [gone, setGone] = useState(false);
@@ -45,7 +49,7 @@ export function LoadingScreen({ ready, label = 'Loading' }: LoadingScreenProps) 
     <div className={`rr-loading${ready ? ' done' : ''}`} aria-hidden={ready}>
       <img src={ART} alt="" draggable={false} />
       <p>
-        {label}
+        {said}
         {/* Three dots that fill in, rather than a spinner: a spinner promises a
             duration this cannot know, and the pixel font has no spinner glyph. */}
         <span className="rr-loading-dots" />

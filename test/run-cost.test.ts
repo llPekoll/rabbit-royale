@@ -8,6 +8,8 @@
  * freshness test, because what was missing is a WIRE, not a computation.
  */
 import { describe, expect, it } from 'vitest';
+import { DICTIONARIES } from '../src/i18n/dictionaries';
+import { LOCALES } from '../src/i18n/locales';
 import { readFileSync } from 'node:fs';
 
 const read = (p: string) => readFileSync(new URL(p, import.meta.url), 'utf8');
@@ -38,7 +40,17 @@ describe('the run cost reaches the island', () => {
   it('is said on the island and again in the recap', () => {
     expect(PAGE).toMatch(/<RunCostNote bank=\{game\.bank\} seed=\{game\.islandSeed\} \/>/);
     expect(PAGE).toMatch(/bank=\{burrow \? \{ energy: burrow\.energy, max: burrow\.maxEnergy, cost: burrow\.runCost \} : null\}/);
-    expect(RECAP).toMatch(/at the burrow &middot; a run takes \{bank\.cost\}/);
+    // The key, not the sentence: the line moved into the dictionaries, where
+    // each language decides how a bar reading and a cost sit in one phrase.
+    expect(RECAP).toMatch(/t\.recap\.bank\(bank\.energy, bank\.max, bank\.cost\)/);
+    // And every language still states BOTH numbers — the bar and what the
+    // crossing takes out of it — which is the whole point of the line.
+    for (const locale of LOCALES) {
+      const line = DICTIONARIES[locale].recap.bank(35, 60, 25);
+      expect(line, locale).toContain('35');
+      expect(line, locale).toContain('60');
+      expect(line, locale).toContain('25');
+    }
   });
 
   it('is never a second gauge on the strip', () => {

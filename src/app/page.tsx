@@ -29,6 +29,7 @@ import { TopbarReserve } from '@/components/topbar-reserve';
 import { SoundButton } from '@/components/sound-button';
 import { LoadingScreen } from '@/components/loading-screen';
 import { LogoBanner } from '@/components/logo-banner';
+import { LanguageSelect } from '@/components/language-select';
 import { RunHud } from '@/components/run-hud';
 import { CarrotField } from '@/components/carrot-field';
 import { ShopPanel } from '@/components/shop-card';
@@ -51,7 +52,7 @@ import { EruptionOverlay } from '@/components/eruption-overlay';
 import { LootFly } from '@/components/loot-fly';
 import { playUiSfx } from '@/game/services/SoundManager';
 import { unlockedCount } from '@/config/lore';
-import { QUEST_MARK, codexMark, type QuestBoard } from '@/config/quests';
+import { QUEST_MARK, codexMark, isQuestId, type QuestBoard } from '@/config/quests';
 import { TRAPS } from '@config/tuning';
 import { useShop, type ItemKind } from '@/components/use-shop';
 import type { PayTokenId } from '@/lib/pay/tokens';
@@ -62,6 +63,8 @@ import { RaidVictory } from '@/components/raid-victory';
 import { gardenProgress } from '@/lib/game/garden-growth';
 import { burrowArt } from '@/config/burrowArt';
 import { SCENE } from '@/game/keys';
+import { useT } from '@/i18n/provider';
+import { groupDigits } from '@/i18n/format';
 
 interface Burrow {
   level: number;
@@ -146,6 +149,7 @@ export default function Home() {
 }
 
 function Burrow() {
+  const t = useT();
   const { player, token, busy, error: signInError, login, playAsGuest } = useWalletLogin();
   const [where, setWhere] = useState<Where>('burrow');
   /**
@@ -488,7 +492,7 @@ function Burrow() {
       if (res.burrow) setBurrow(res.burrow);
       if (res.quest) setQuest(res.quest);
       if (res.harvested) {
-        setNote(`+${res.harvested} 🥕`);
+        setNote(t.notes.harvested(res.harvested));
         setBurstAmount(res.harvested);
         setBurstKey((k) => k + 1);
         setHarvestKey((k) => k + 1);
@@ -502,24 +506,24 @@ function Burrow() {
         if (res.burrow?.level) setLevelUp((l) => ({ level: res.burrow.level, key: (l?.key ?? 0) + 1 }));
       }
       else if (res.raised === 'shield') {
-        setNote('Shield up. Raids bounce off.');
+        setNote(t.notes.shieldUp);
         // The shield came OUT OF THE BAG, and the bag is the shop's state, not
         // the burrow's — without this the kit row keeps drawing a shield the
         // server has already spent. The burrow response carries the new
         // `shieldMs`, so only the count needs re-fetching.
         void shop.refresh();
       }
-      else if (res.poured === 'water') setNote('Watered. The garden fills faster.');
-      else if (res.poured === 'fertiliser') setNote('Fed. The garden holds more.');
-      else if (res.error === 'insufficient_carrots') refuse(`Need ${res.need - res.have} more 🥕`, true);
-      else if (res.error === 'nothing_to_harvest') refuse('The garden is empty. Come back later.');
-      else if (res.error === 'max_level') refuse('Your burrow is as deep as it goes.');
+      else if (res.poured === 'water') setNote(t.notes.watered);
+      else if (res.poured === 'fertiliser') setNote(t.notes.fed);
+      else if (res.error === 'insufficient_carrots') refuse(t.notes.needMore(res.need - res.have), true);
+      else if (res.error === 'nothing_to_harvest') refuse(t.notes.gardenEmpty);
+      else if (res.error === 'max_level') refuse(t.notes.maxDepth);
       // The two boost refusals. `boost_capped` is the one worth a sentence:
       // the press was declined to SAVE the bottle, which is the opposite of
       // what a silent failure would look like.
-      else if (res.error === 'already_shielded') refuse('A shield is already up.');
-      else if (res.error === 'none_held') refuse('None left. Chests drop them.');
-      else if (res.error === 'boost_capped') refuse('Already topped up. Save it for later.');
+      else if (res.error === 'already_shielded') refuse(t.notes.shieldAlready);
+      else if (res.error === 'none_held') refuse(t.notes.noneLeft);
+      else if (res.error === 'boost_capped') refuse(t.notes.toppedUp);
     } finally {
       setPending(false);
     }
@@ -577,7 +581,7 @@ function Burrow() {
         // Nothing came. Turn round rather than open on a board with no rabbit
         // on it — and say why, or the trip home reads as the game giving up.
         if (arrival === 'late') {
-          refuse('The island did not answer. Try again in a moment.');
+          refuse(t.notes.islandSilent);
           goToRef.current('burrow');
         }
       });
@@ -609,7 +613,7 @@ function Burrow() {
   }, [openTargets]);
   const next = useMemo(() => {
     if (!burrow || quest?.active) return null;
-    return nextAction({
+    return nextAction(t, {
       energy: burrow.energy,
       runCost: burrow.runCost,
       nextRunInMs: burrow.nextRunInMs,
@@ -823,7 +827,10 @@ function Burrow() {
         .then((r) => r.json());
       if (res.burrow) setBurrow(res.burrow);
       if (res.quest) setQuest(res.quest);
-      if (res.line) setNote(res.line);
+      // The claim route answers with the quest's id; the island's line for it
+      // is this language's. See config/quests.ts on why the words moved out.
+      const lineFor: unknown = res.lineFor;
+      if (isQuestId(lineFor)) setNote(t.quests[lineFor].line);
       if (res.claimed) {
         playUiSfx('match');
         setQuestClaimKey((k) => k + 1);
@@ -866,9 +873,9 @@ function Burrow() {
       setQuestDoneKey((k) => k + 1);
       playUiSfx('chime');
       if (where === 'island') {
-        setQuestNote(`Quest done: ${activeTitle}`);
-        const t = setTimeout(() => setQuestNote(null), 5000);
-        return () => clearTimeout(t);
+        setQuestNote(t.notes.questDone(activeTitle));
+        const timer = setTimeout(() => setQuestNote(null), 5000);
+        return () => clearTimeout(timer);
       }
     }
   }, [activeId, activeDone, activeTitle, where]);
@@ -1076,7 +1083,7 @@ function Burrow() {
     if (!hasEnergy) { setEnergyOpen(true); return; }
     // A dropped socket cannot seat a rabbit: crossing then landed on the old
     // board with nothing to play (seen live). Say so, and stay home.
-    if (game.dropped) { refuse('Reconnecting... try again in a moment.'); return; }
+    if (game.dropped) { refuse(t.notes.reconnecting); return; }
     goTo('island');
   }, [hasEnergy, goTo, game.dropped, refuse]);
 
@@ -1177,6 +1184,25 @@ function Burrow() {
   // interval and then jump. The deadline is computed ONCE per payload and the
   // countdown is derived from the clock, which keeps it honest across a tab
   // that was backgrounded — a timer counting itself down would drift or pause.
+  /**
+   * The shield badge's words, for the canvas.
+   *
+   * Memoised on the dictionary alone so the countdown effect below does not
+   * restart every render — it owns an interval, and a new function identity
+   * each pass would tear it down and rebuild it once a frame.
+   */
+  const shieldBadge = useCallback(
+    (ms: number) => {
+      const mins = Math.ceil(ms / 60_000);
+      // The largest unit only: a two-day window needs nothing finer, and it
+      // is what keeps the plate narrow enough to sit over the house.
+      return t.loop.shieldBadge(
+        mins < 60 ? `${mins}${t.units.m}` : `${Math.floor(mins / 60)}${t.units.h}`,
+      );
+    },
+    [t],
+  );
+
   useEffect(() => {
     if (!ready) return;
     const handle = handles.current?.burrow;
@@ -1188,7 +1214,9 @@ function Burrow() {
     const until = Date.now() + burrow.shieldMs;
     const tick = () => {
       const left = until - Date.now();
-      handle.setShield(left > 0 ? left : null);
+      // The badge's words go down with the number: the scene draws on a
+      // canvas and cannot read the dictionary itself.
+      handle.setShield(left > 0 ? left : null, shieldBadge);
       return left;
     };
     if (tick() <= 0) return;
@@ -1198,7 +1226,7 @@ function Burrow() {
       if (tick() <= 0) clearInterval(id);
     }, 60_000);
     return () => clearInterval(id);
-  }, [ready, burrow?.shieldMs]);
+  }, [ready, burrow?.shieldMs, shieldBadge]);
 
   // The backdrop follows the level, so an upgrade is visible in the PLACE and
   // not only in the panel: the fence around your field becomes railings, then a
@@ -1416,8 +1444,8 @@ function Burrow() {
     // alone reads as nothing happened. The sting plays for the collapse.
     const haul = r
       ? r.carrotsLooted > 0
-        ? `+${r.carrotsLooted.toLocaleString()} 🥕 stolen from ${r.defender.name}`
-        : `Fell ${Math.round((finishedOutcome.current?.progress ?? 0) * 100)}% of the way to ${r.defender.name}'s field`
+        ? t.raid.stolen(groupDigits(r.carrotsLooted), r.defender.name)
+        : t.raid.fellShort(Math.round((finishedOutcome.current?.progress ?? 0) * 100), r.defender.name)
       : null;
     if (r && !won) playUiSfx('die');
 
@@ -1727,7 +1755,7 @@ function Burrow() {
             paddingRight: 'calc(var(--rr-icon) + var(--rr-pad-tight))',
           }}>
             <HubIconButton
-              label="Shop"
+              label={t.chrome.shop}
               count={shop.shop?.traps.held ?? 0}
               onClick={() => setShopOpen(true)}
             >
@@ -1735,7 +1763,7 @@ function Burrow() {
             </HubIconButton>
             <span key={lorePulseKey} className={lorePulseKey > 0 ? 'rr-tab-pop' : undefined} style={{ display: 'inline-flex' }}>
               <HubIconButton
-                label="Story"
+                label={t.chrome.story}
                 badge={freshChapter ? 'NEW' : null}
                 tone="news"
                 onClick={() => setLoreOpen(true)}
@@ -1815,7 +1843,11 @@ function Burrow() {
                 wiggle
                 style={{ height: 52 }}
               >
-                <span style={{ ...pxLabel, fontSize: 18 }}>Connect wallet</span>
+                {/* No inline `fontSize`: the label is sized by the button's
+                    own width in globals.css (`.rr-empty .rr-btn > span`), so
+                    a longer translation shrinks to fit instead of running off
+                    both ends of the slab. An inline size would win over that. */}
+                <span style={pxLabel}>{t.auth.connect}</span>
               </PxButton>
               <PxButton
                 className="rr-btn ghost"
@@ -1826,9 +1858,19 @@ function Burrow() {
                 textColor="#b1bac4"
                 style={{ height: 44 }}
               >
-                <span style={{ ...pxLabel, fontSize: 14 }}>{busy ? 'Digging in...' : 'Play as a guest'}</span>
+                <span style={pxLabel}>{busy ? t.auth.connecting : t.auth.guest}</span>
               </PxButton>
               {signInError && <p className="rr-warn">{signInError}</p>}
+              {/* THE LANGUAGE, under the two doors and above nothing.
+                  It belongs in this column rather than up in the masthead: the
+                  masthead is `position: fixed` at the top of the screen and
+                  this column is pinned to the bottom of the same screen, so on
+                  the Seeker (890x400, the target device) they meet in the
+                  middle — the picker rendered underneath the CONNECT WALLET
+                  button, which is the one control it must never hide behind.
+                  Here it sits with the decision it belongs to: someone who
+                  cannot read the buttons fixes that a line below them. */}
+              <LanguageSelect />
             </div>
           ) : (
             <>
@@ -1944,7 +1986,7 @@ function Burrow() {
                   textColor="#b1bac4"
                   style={{ height: 44 }}
                 >
-                  <span style={{ ...pxLabel, fontSize: 13 }}>Clear all mines</span>
+                  <span style={{ ...pxLabel, fontSize: 13 }}>{t.run.goFarm}</span>
                 </PxButton>
               )}
 
@@ -2083,7 +2125,7 @@ function Burrow() {
       {/* The socket fell over. Said, rather than leaving every tap to vanish. */}
       {showCanvas && game.dropped && !spectating && (
         <PxPanel color="rgba(13, 17, 23, 0.9)" className="rr-reconnecting" style={{ ...PX_GLASS, position: 'fixed' }}>
-          <span role="status">Reconnecting...</span>
+          <span role="status">{t.chrome.reconnecting}</span>
         </PxPanel>
       )}
 
@@ -2096,8 +2138,8 @@ function Burrow() {
           {placing && shop.shop && (
             <PxPanel color="rgba(13, 17, 23, 0.86)" className="rr-toast rr-toast-hint" style={PX_GLASS}>
               {shop.shop.traps.held > 0
-                ? <>Tap a tile to mine it, tap a mine to lift it &middot; {shop.shop.traps.held} left</>
-                : <>No traps left &middot; tap a mine to lift it and bury it elsewhere</>}
+                ? t.run.trapHint(shop.shop.traps.held)
+                : t.run.trapHintEmpty}
             </PxPanel>
           )}
           {/* Outside the drawer, only a REFUSAL is worth showing: a receipt
@@ -2166,7 +2208,7 @@ function Burrow() {
               textColor="#e6edf3"
               style={{ height: 40, width: 'auto' }}
             >
-              <span style={{ ...pxLabel, fontSize: 12 }}>Find my rabbit</span>
+              <span style={{ ...pxLabel, fontSize: 12 }}>{t.run.findMe}</span>
             </PxButton>
           )}
           {/* Pushes the recap and the arrow to the bottom. Explicitly
@@ -2211,7 +2253,7 @@ function Burrow() {
               small soil slab in the corner — so the island uses it too, and the
               floor belongs to the board again. */}
           <BackButton
-            label={spectating ? 'Stop watching' : 'Home'}
+            label={spectating ? t.run.stopWatching : t.run.home}
             onClick={stopSpectating}
           />
         </div>
@@ -2289,7 +2331,7 @@ function Burrow() {
       )}
       {/* The way out mid-raid — the shared back button. See RaidHud. */}
       {player && shownRaid && !shownRaid.finished && (
-        <BackButton label="Retreat" onClick={raid.leave} disabled={raid.busy} />
+        <BackButton label={t.run.retreat} onClick={raid.leave} disabled={raid.busy} />
       )}
 
       {/* The raid's ceremony, over everything — including the board it was won
@@ -2380,7 +2422,7 @@ function Burrow() {
           both scenes. Keyed on `showCanvas` rather than `player` so it does not
           throw a loading screen over the sign-in art while the curtain is still
           closing — the boot it reports on has not started yet at that point. */}
-      <LoadingScreen ready={!showCanvas || ready} label="Waking the warren" />
+      <LoadingScreen ready={!showCanvas || ready} label={t.chrome.waking} />
     </main>
   );
 }

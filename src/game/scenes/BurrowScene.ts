@@ -329,6 +329,13 @@ export class BurrowScene implements Scene {
   private clouds: CloudField | null = null;
   private birds: BirdFlock | null = null;
   private terrain: BurrowTerrainView | null = null;
+  /**
+   * How to word the shield badge — supplied by React, which knows the
+   * language. Held rather than passed on every redraw, because `applyShield`
+   * is also called from the scene's own lifecycle (a crossing, a level-up),
+   * where there is nobody to hand it in again.
+   */
+  private shieldLabel: ((ms: number) => string) | undefined;
   private crop: CarrotCrop | null = null;
   private board = new Container();
   private trapSprites = new Map<number, Container>();
@@ -656,12 +663,13 @@ export class BurrowScene implements Scene {
    */
   private applyShield(): void {
     const own = this.data.seed === this.ownSeed;
-    this.terrain?.setShield(own ? this.data.shieldMs ?? null : null);
+    this.terrain?.setShield(own ? this.data.shieldMs ?? null : null, this.shieldLabel);
   }
 
   /** The shield went up, ticked down, or ran out. */
-  setShield(ms: number | null): void {
+  setShield(ms: number | null, label?: (ms: number) => string): void {
     this.data.shieldMs = ms;
+    this.shieldLabel = label ?? this.shieldLabel;
     this.applyShield();
   }
 

@@ -8,7 +8,7 @@
  * big season cannot bring the ellipsis back.
  */
 import { describe, expect, it } from 'vitest';
-import { shortGap } from '../src/components/carrot-pill';
+import { shortGap } from '../src/i18n/format';
 
 describe('the rank line fits', () => {
   it('keeps small gaps whole, with the pill\'s own thin-space separators', () => {

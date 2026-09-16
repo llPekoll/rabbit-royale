@@ -37,6 +37,7 @@
  * one turns up in a session or two and is worth any interruption.
  */
 import { useEffect } from 'react';
+import { useT } from '@/i18n/provider';
 import { ChestReveal, type RevealPhase, type RevealRarity } from '@domin8/arcade-kit';
 import { playUiSfx } from '@/game/services/SoundManager';
 import { ChestOpening } from './chest-opening';
@@ -49,13 +50,20 @@ import type { ChestPrize as Prize } from './use-game-socket';
  * `rarity` drives the kit's ray palette — poorest to richest, matching how much
  * the drop is worth rather than naming anything the player sees.
  */
-const DROP: Record<string, { src: string; label: string; rarity: RevealRarity; aspect: number }> = {
-  carrots: { src: '/assets/ui/icons/carrot.webp', label: 'CARROTS', rarity: 'common', aspect: 30 / 32 },
-  water: { src: '/assets/ui/icons/water.webp', label: 'WATERING', rarity: 'rare', aspect: 33 / 32 },
-  fertiliser: { src: '/assets/ui/icons/fertiliser.webp', label: 'FERTILISER', rarity: 'rare', aspect: 29 / 32 },
-  bomb: { src: '/assets/ui/icons/bolt.webp', label: 'BOMB', rarity: 'epic', aspect: 29 / 24 },
-  shield: { src: '/assets/ui/icons/shield.webp', label: 'SHIELD', rarity: 'epic', aspect: 1 },
-  lightning: { src: '/assets/ui/icons/bolt.webp', label: 'LIGHTNING', rarity: 'epic', aspect: 29 / 24 },
+/** Which line in `t.chest` names this drop. */
+type ChestLabel = 'carrots' | 'watering' | 'fertiliser' | 'bomb' | 'shield' | 'lightning';
+
+/**
+ * A drop's ART and rarity. Its NAME is the dictionary's (`t.chest[label]`) —
+ * the name of the thing is the half that changes with the language.
+ */
+const DROP: Record<string, { src: string; label: ChestLabel; rarity: RevealRarity; aspect: number }> = {
+  carrots: { src: '/assets/ui/icons/carrot.webp', label: 'carrots', rarity: 'common', aspect: 30 / 32 },
+  water: { src: '/assets/ui/icons/water.webp', label: 'watering', rarity: 'rare', aspect: 33 / 32 },
+  fertiliser: { src: '/assets/ui/icons/fertiliser.webp', label: 'fertiliser', rarity: 'rare', aspect: 29 / 32 },
+  bomb: { src: '/assets/ui/icons/bolt.webp', label: 'bomb', rarity: 'epic', aspect: 29 / 24 },
+  shield: { src: '/assets/ui/icons/shield.webp', label: 'shield', rarity: 'epic', aspect: 1 },
+  lightning: { src: '/assets/ui/icons/bolt.webp', label: 'lightning', rarity: 'epic', aspect: 29 / 24 },
 };
 
 /**
@@ -86,7 +94,11 @@ function SoundedChest({ open }: { open: boolean }) {
 }
 
 export function ChestPrize({ prize, onDone }: ChestPrizeProps) {
+  const t = useT();
   const drop = DROP[prize.kind];
+  /* A kind this client does not know is a server newer than the app; its own
+     key, upper-cased, is the only honest thing left to show. */
+  const dropName = drop ? t.chest[drop.label] : prize.kind.toUpperCase();
 
   // A chest nobody could see is a find, not a destination: the player was
   // digging for something else and this turned up. It rises off the board with
@@ -97,7 +109,7 @@ export function ChestPrize({ prize, onDone }: ChestPrizeProps) {
     return (
       <LootFly
         src={drop.src}
-        label={drop.label}
+        label={dropName}
         amount={prize.amount}
         aspect={drop.aspect}
         fireKey={prize.at}
@@ -114,11 +126,11 @@ export function ChestPrize({ prize, onDone }: ChestPrizeProps) {
   const stamp = prize.nft
     // The rarity of the piece is not known until it is minted, so the stamp
     // names the collection rather than guessing a tier it may not have.
-    ? 'RR GENESIS'
-    : drop?.label ?? prize.kind.toUpperCase();
+    ? t.chest.genesis
+    : dropName;
   const caption = prize.nft
-    ? `A PIECE IS YOURS - PLUS ${prize.amount}x ${drop?.label ?? prize.kind.toUpperCase()}`
-    : `+${prize.amount} ${drop?.label ?? ''}`.trim();
+    ? t.chest.piece(prize.amount, dropName)
+    : `+${prize.amount} ${drop ? dropName : ''}`.trim();
 
   // An unknown kind means a server newer than this client. Say something true
   // and plain rather than rendering an empty ceremony over a missing image.

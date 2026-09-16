@@ -1,27 +1,34 @@
-import { Container, Graphics, BitmapText, Sprite } from 'pixi.js';
+import { Container, Graphics, Sprite } from 'pixi.js';
 import gsap from 'gsap';
 import * as Keys from '@/config/assetKeys';
 import { GAME_W } from '../Application';
-import { TAGLINES, nextTagline } from '@/config/taglines';
+import { nextTagline } from '@/config/taglines';
+import { makeLabel, type Label } from './textFace';
 
 /**
  * Scrolling tagline rendered inside the logo banner ribbon. Picks a random
  * phrase, centers it when it fits, or scrolls it right-to-left when it
  * overflows. Size follows the logo scale so the text always sits in the
  * ribbon artwork.
+ *
+ * THE PHRASES ARE PASSED IN, one language's worth (`t.taglines`): this file
+ * draws on a canvas and has no React context to read them from. It also draws
+ * through `makeLabel`, so a language the kit's atlas cannot render falls back
+ * to a real font rather than to a row of blanks. See ui/textFace.ts.
  */
 export class TaglineRibbon {
-  private text: BitmapText;
+  private text: Label;
   private wrap: Container;
   private mask: Graphics;
   private scrollTween: gsap.core.Tween | null = null;
 
-  constructor(parent: Container, private logoSprite: Sprite) {
-    const initial = TAGLINES[Math.floor(Math.random() * TAGLINES.length)];
-    this.text = new BitmapText({
-      text: initial,
-      style: { fontFamily: Keys.FONT_BASIC, fontSize: 8, fill: 0xffffff, letterSpacing: -1 },
-    });
+  constructor(
+    parent: Container,
+    private logoSprite: Sprite,
+    private taglines: readonly string[],
+  ) {
+    const initial = taglines[Math.floor(Math.random() * taglines.length)] ?? '';
+    this.text = makeLabel(initial, Keys.FONT_BASIC, 8);
     this.text.anchor.set(0.5);
     this.text.tint = 0x4a3a2a;
 
@@ -44,7 +51,7 @@ export class TaglineRibbon {
 
   /** Swap to a fresh random phrase (not the current one) and relayout. */
   reroll(logoScale: number): void {
-    this.text.text = nextTagline(this.text.text);
+    this.text.text = nextTagline(this.taglines, this.text.text);
     this.relayout(logoScale);
   }
 

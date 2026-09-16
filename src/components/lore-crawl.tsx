@@ -26,6 +26,7 @@
  */
 import { useEffect, useState } from 'react';
 import { LORE } from '@/config/lore';
+import { useT } from '@/i18n/provider';
 
 /**
  * How long one pass takes, in seconds.
@@ -55,6 +56,10 @@ export interface LoreCrawlProps {
 }
 
 export function LoreCrawl({ className }: LoreCrawlProps) {
+  const t = useT();
+  /* The chapter's words, in this language. The thresholds are OPENING's; the
+     prose is the dictionary's. See i18n/content.ts. */
+  const opening = t.lore[OPENING.id];
   // Nothing is animated until the component is on screen for a frame, so the
   // crawl always starts from below the fold. Mounted mid-animation (a fast
   // refresh, a re-render on sign-out) it would otherwise pop in at whatever
@@ -127,13 +132,13 @@ export function LoreCrawl({ className }: LoreCrawlProps) {
             animationPlayState: started ? 'running' : 'paused',
           }}
         >
-          <p className="rr-crawl-ep">Chapter {OPENING.numeral}</p>
-          <h2 className="rr-crawl-title">{OPENING.title}</h2>
+          <p className="rr-crawl-ep">{t.codex.chapterN(1)}</p>
+          <h2 className="rr-crawl-title">{opening.title}</h2>
           {/* Printed exactly as the codex writes it, `--` and all. The pixel
               face's atlas is ASCII 32-126 and has no em dash — swapping one in
               here draws a blank box, which is the bug test/pixel-font-glyphs
               exists to catch. Two hyphens are the dash in this typeface. */}
-          {OPENING.body.map((para, i) => (
+          {opening.body.map((para, i) => (
             <p key={i}>{para}</p>
           ))}
         </div>

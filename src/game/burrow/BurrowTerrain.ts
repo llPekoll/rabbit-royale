@@ -18,7 +18,7 @@
  * art so it interleaves with the board, aligning the terrain's origin with the
  * board's — is the same idea, and the comments there are the long version.
  */
-import { Assets, Container, Graphics, Sprite, Texture, type BitmapText } from 'pixi.js';
+import { Assets, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import gsap from 'gsap';
 import { IsoIslandView, loadIslandTileset, isoProject, levelAt } from '@/game/island';
 import {
@@ -34,6 +34,7 @@ import { WATER_LOOK, DUCK_LOOK } from '@/config/waterLook';
 import { burrowBuilding } from './buildings';
 import { burrowDepth } from './screen';
 import { pixelText } from '@/game/ui/PixelText';
+import type { Label } from '@/game/ui/textFace';
 
 /**
  * Scenery is cut for 64px tiles; the burrow's are 40x22.
@@ -72,7 +73,8 @@ export interface BurrowTerrainView {
    * are on the board. `ms` is the time left, so the sign can count down in the
    * one unit the player can act on.
    */
-  setShield(ms: number | null): void;
+  /** `label` words the badge; it comes from React, which knows the language. */
+  setShield(ms: number | null, label?: (ms: number) => string): void;
   /**
    * Show only these tiles of the homestead, hiding the rest entirely.
    *
@@ -173,7 +175,9 @@ export async function createBurrowTerrain(
     // occupied.
     sea: false,
     foam: false,
-    decoShadows: true,
+    // Off: every standing sprite in the kit is drawn with its own shadow, so
+    // the generated ellipse only doubled it.
+    decoShadows: false,
     groundAt: (x, y) => (soil.has(`${x},${y}`) ? 'sand' : null),
   });
 
@@ -266,7 +270,7 @@ export async function createBurrowTerrain(
    * this has to be legible from the resting camera without being tapped.
    *
    * Built once and hidden, not created on demand — a badge that appears every
-   * time the countdown ticks would rebuild a BitmapText every second.
+   * time the countdown ticks would rebuild a label every second.
    */
   const shield = new Container();
   shield.visible = false;
@@ -284,7 +288,7 @@ export async function createBurrowTerrain(
   // larger than a pixel badge, and a hardcoded scale would have to be
   // re-guessed the day the art is re-exported.
   shieldCrest.scale.set(SHIELD_CREST_H / shieldIcon.height);
-  const shieldTime: BitmapText = pixelText(0, 0, '');
+  const shieldTime: Label = pixelText(0, 0, '');
   shieldTime.anchor.set(0.5, 0);
   shield.addChild(shieldPlate, shieldCrest, shieldTime);
   container.addChild(shield);
@@ -297,7 +301,7 @@ export async function createBurrowTerrain(
     shield.position.set(home.position.x, home.position.y - lift);
   };
 
-  const setShield = (ms: number | null) => {
+  const setShield = (ms: number | null, label?: (ms: number) => string) => {
     if (ms === null || ms <= 0) {
       shield.visible = false;
       return;
@@ -307,10 +311,14 @@ export async function createBurrowTerrain(
     // tell that the number was how long raids still bounce off. The word says
     // what is running; the time keeps only its largest unit, which is all a
     // two-day window needs and what keeps the plate narrow.
+    //
+    // THE WORDS COME FROM REACT. This file draws on a canvas and has no
+    // dictionary to read, so the caller formats the whole badge and passes it
+    // down; the English below is the fallback for a caller that does not.
     const mins = Math.ceil(ms / 60_000);
-    shieldTime.text = (mins < 60
-      ? `SHIELD ${mins}M`
-      : `SHIELD ${Math.floor(mins / 60)}H`).toUpperCase();
+    shieldTime.text = label
+      ? label(ms)
+      : (mins < 60 ? `SHIELD ${mins}M` : `SHIELD ${Math.floor(mins / 60)}H`);
 
     // Laid out AFTER the text is set, because the plate is sized to it.
     shieldCrest.y = 4;

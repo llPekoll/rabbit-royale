@@ -313,29 +313,15 @@ const column: CSSProperties = {
 };
 
 /**
- * Group a number with thin separators, the SAME WAY on the server and in the
- * browser.
+ * Group a number with thin separators — RE-EXPORTED, defined once.
  *
- * `toLocaleString()` was used first and caused a hydration mismatch: with no
- * locale argument it takes the environment's, and Node's default is not
- * necessarily the browser's — so "1,940" rendered on the server could arrive
- * as "1 940" on the client and React threw the whole tree away. Formatting by
- * hand is deterministic, which is the only property that matters here.
- *
- * A plain space, not a comma: the pixel face draws it, and it reads in every
- * locale the game is played in.
+ * It lives in i18n/format.ts now, beside the duration and plural helpers,
+ * because grouping is a language decision and the game speaks four. The
+ * re-export is here so the several cards that already import it from their own
+ * neighbour keep working; the comment explaining WHY it is hand-rolled rather
+ * than `toLocaleString()` (a hydration mismatch) went with the code.
  */
-export function groupDigits(n: number): string {
-  if (!Number.isFinite(n)) return '0';
-  const sign = n < 0 ? '-' : '';
-  const digits = Math.abs(Math.round(n)).toString();
-  let out = '';
-  for (let i = 0; i < digits.length; i += 1) {
-    if (i > 0 && (digits.length - i) % 3 === 0) out += '\u2009';
-    out += digits[i];
-  }
-  return sign + out;
-}
+export { groupDigits } from '@/i18n/format';
 
 /** A card's heading line: the name on the left, its live value on the right. */
 export function HubRow({ children }: { children: ReactNode }) {

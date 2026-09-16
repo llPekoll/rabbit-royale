@@ -1,6 +1,7 @@
-import { Container, Graphics, BitmapText } from 'pixi.js';
+import { Container, Graphics } from 'pixi.js';
 import gsap from 'gsap';
 import { pixelText, titleText, formatMult, TINT_AMOUNT, TINT_MULT } from './PixelText';
+import type { Label } from './textFace';
 
 /**
  * Cash-out celebration overlay: dark rect, big "xN" palier text scaling in,
@@ -10,8 +11,8 @@ import { pixelText, titleText, formatMult, TINT_AMOUNT, TINT_MULT } from './Pixe
  */
 export class WinOverlay {
   private overlay: Graphics | null = null;
-  private bigText: BitmapText | null = null;
-  private amountText: BitmapText | null = null;
+  private bigText: Label | null = null;
+  private amountText: Label | null = null;
 
   constructor(private parent: Container) {}
 

@@ -15,6 +15,8 @@
  */
 import { NEXT_ACTION } from '@config/tuning';
 import type { QuestDoor } from './quests';
+import type { Dict } from '@/i18n/dictionaries';
+import { formatWait, groupDigits } from '@/i18n/format';
 
 export interface NextActionInput {
   energy: number;
@@ -36,26 +38,19 @@ export interface NextAction {
   text: string;
 }
 
-function wait(ms: number): string {
-  const mins = Math.ceil(ms / 60_000);
-  if (mins < 60) return `${mins}m`;
-  const h = Math.floor(mins / 60);
-  const rest = mins % 60;
-  return rest ? `${h}h ${rest}m` : `${h}h`;
-}
-
-export function nextAction(s: NextActionInput): NextAction {
+export function nextAction(t: Dict, s: NextActionInput): NextAction {
+  const wait = (ms: number) => formatWait(ms, t.units);
   // The garden: the purse a raid is for, and the one that empties by being
   // ignored. Says "before a raider does", which is the whole reason to come
   // home rather than dig again.
   if (s.gardenCapacity > 0 && s.gardenReady >= s.gardenCapacity * NEXT_ACTION.GARDEN_FULL_SHARE) {
-    return { door: 'garden', text: `Garden nearly full. Bring it in before a raider does.` };
+    return { door: 'garden', text: t.next.gardenFull };
   }
 
   // The shield: while it holds, traps are the only thing that will matter
   // after it. Only when the floor is not already standing.
   if (s.shieldMs !== null && s.shieldMs <= NEXT_ACTION.SHIELD_WARNING_MS && s.trapsLive < NEXT_ACTION.TRAPS_WANTED) {
-    return { door: 'base', text: `Shield lifts in ${wait(s.shieldMs)}. Bury traps.` };
+    return { door: 'base', text: t.next.shieldLifts(wait(s.shieldMs)) };
   }
 
   // Somebody left carrots outside. Named, because a name is a temptation and
@@ -64,17 +59,17 @@ export function nextAction(s: NextActionInput): NextAction {
     .filter((t) => !t.shielded && t.garden >= NEXT_ACTION.RAID_WORTH_GARDEN)
     .sort((a, b) => b.garden - a.garden)[0];
   if (richest) {
-    return { door: 'raid', text: `${richest.name} left ${richest.garden} in the garden. Raid.` };
+    return { door: 'raid', text: t.next.raidTarget(richest.name, groupDigits(richest.garden)) };
   }
 
   // Otherwise the island, or the wait for it.
   if (s.energy >= s.runCost) {
-    return { door: 'farm', text: `${s.energy} energy: a run's worth. Dig.` };
+    return { door: 'farm', text: t.next.dig(s.energy) };
   }
   return {
     door: 'farm',
     text: s.nextRunInMs === null
-      ? 'Dig.'
-      : `A run in ${wait(s.nextRunInMs)}. The garden grows meanwhile.`,
+      ? t.next.digPlain
+      : t.next.runIn(wait(s.nextRunInMs)),
   };
 }
