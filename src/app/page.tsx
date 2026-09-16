@@ -1297,6 +1297,18 @@ function Burrow() {
       // so nothing but this shared call can keep them in step — the iris covers
       // the canvas and cannot cover the DOM at all.
       setShownRaid(raid.raid);
+      // The drawn-traps cache describes a BOARD, and `setRaid` replaces it.
+      //
+      // Entering a raid swaps in the defender's ground and leaving grows the
+      // player's own back, and either way the scene's trap sprites went down
+      // with the terrain they hung in. The cache below is a ref, so it
+      // survives that teardown and would go on claiming the bombs it last drew
+      // are still on screen — the sync effect then sees an unchanged key and
+      // pushes nothing, leaving the board bare while the panel counts the
+      // server's traps correctly. Emptied here rather than in the effect
+      // because this is the call that invalidates it: the next run compares
+      // against "nothing drawn" and re-adds every tile.
+      drawnTraps.current = '';
       if (!raid.raid) return burrow.setRaid(null);
       const r = raid.raid;
       return burrow.setRaid({

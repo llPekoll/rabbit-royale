@@ -202,6 +202,44 @@ const TRACKPAD_PINCH_BOOST = 6;
 const GOAL_TINT = 0xff3b3b;
 const GOAL_ALPHA = 0.5;
 
+/**
+ * THE GOLDEN ARROW, hanging over the garden.
+ *
+ * The red ring above says "one step from the win" to a raider already standing
+ * there; it says nothing at all to one who has just walked in the door and is
+ * looking at a whole homestead. A ring is read once you are near enough to
+ * read the cell — a marker in the AIR is read from across the board, which is
+ * exactly where the question "which way?" is asked.
+ *
+ * It is the hub's own nav arrow (`ARROW_URLS.down` from the shared kit, the
+ * same chevron the cabinet carousel is flanked with), not a shape drawn here:
+ * the two screens point with one sprite. Gold rather than the ring's red,
+ * because gold is already what this game means by YOURS-TO-TAKE — the crown,
+ * the carrot count, the step ring, the traps. Red is the fence around the
+ * prize; gold is the prize.
+ *
+ * It bobs, because a still sprite over busy pixel grass reads as scenery.
+ */
+const GOAL_ARROW_TINT = 0xffd45c;
+/** Arrow width as a share of the tile, so it follows `setBurrowTileSize`
+ *  rather than pinning itself to a pixel count the tuner can move. */
+const GOAL_ARROW_SCALE = 0.7;
+/** How high the tip floats above the cell, in tile-halves: clear of the crop
+ *  growing under it, close enough to still belong to that ground. */
+const GOAL_ARROW_LIFT = 2.4;
+/** The bob: distance in px and seconds for one leg of the round trip. */
+const GOAL_ARROW_BOB = 5;
+const GOAL_ARROW_BOB_SECONDS = 0.9;
+/**
+ * Past the depth of any cell on the board, so the arrow tops its own layer.
+ *
+ * The burrow is 19x19 and `burrowDepth` runs on (col + row), so nothing on
+ * this layer reaches four figures — see `BURROW_COLS`. This is not the depth
+ * ruler being broken: the arrow is not IN the world (it is mounted over the
+ * terrain, not in a cell's block), so there is nothing for it to sort against.
+ */
+const GOAL_ARROW_Z = 10000;
+
 /** One tile as a raider may see it. `clue` null means a smoke screen hides it. */
 export interface RaidTile {
   tile: number;
@@ -350,6 +388,8 @@ export class BurrowScene implements Scene {
   private raidCells = new Map<number, RaidCell>();
   /** Whose ground the cells were built for — a different seed is a rebuild. */
   private raidCellsSeed: string | null = null;
+  /** The gold chevron hanging over the garden — see `GOAL_ARROW_TINT`. */
+  private goalArrow: Container | null = null;
   /** The raider: the island's own rabbit, kept across steps so it HOPS. */
   private raider: PlayerRabbit | null = null;
   private raiderAt = -1;
@@ -426,6 +466,33 @@ export class BurrowScene implements Scene {
     // live inside its blocks, and would be destroyed out from under their own
     // tweens.
     this.teardownPlacementHints();
+    // THE TRAP SPRITES GO WITH THE TERRAIN, and so must the record of them.
+    //
+    // Every bomb is mounted INSIDE its cell's terrain block (`mountVeil`), so
+    // destroying the terrain destroys the markers too — but `trapSprites` went
+    // on holding the dead containers, and `addTrap` opens with a
+    // `trapSprites.has(tile)` guard. So the ground came back and every re-add
+    // was refused as already-drawn: the board returned bare while the panel
+    // went on counting "3 bombs live" off the server's list, which was right
+    // all along. Reported from production: bombs placed in DEFEND vanish the
+    // moment the player leaves the mode and comes back.
+    //
+    // Cleared rather than re-parented because the blocks they hung in no
+    // longer exist: what comes next is a fresh `addTrap` per tile, from
+    // `data.traps` on the way home from a raid and from the server's list
+    // through the page's sync effect. Killing the tweens first — a bomb caught
+    // mid-pop or mid-fade would otherwise leave gsap ticking a destroyed
+    // sprite, which is the same rule `destroy` follows below.
+    for (const group of this.trapSprites.values()) gsap.killTweensOf(group);
+    this.trapSprites.clear();
+    this.trapCharge.clear();
+    this.trapRearmMsLeft.clear();
+    this.trapRearmTotalMs.clear();
+    // The lift preview points at sprites that are about to stop existing.
+    if (this.lifted) {
+      gsap.killTweensOf(this.lifted.parts);
+      this.lifted = null;
+    }
     this.terrain?.destroy();
     this.terrain = null;
     this.crop?.destroy();
@@ -1511,6 +1578,101 @@ export class BurrowScene implements Scene {
       }
       this.raidCells.set(tile, { veil, fog, ring, blink, clue: null, clueCount: null });
     }
+
+    this.buildGoalArrow(seed, field);
+  }
+
+  /**
+   * Hang the gold arrow over the middle of the garden.
+   *
+   * ONE arrow over one cell, not a marker on each of the twelve: the field is
+   * a patch, and a dozen chevrons over a dozen cells would read as twelve
+   * separate objectives rather than one place. The cell it picks is the one
+   * CLOSEST TO THE PATCH'S CENTRE (by iso screen position, which is what the
+   * player actually sees) rather than the first tile in the list — the field
+   * is grown from a seed and its tiles arrive in generation order, so the
+   * first one is an arbitrary corner and the arrow would sit off to one side
+   * of the thing it names.
+   *
+   * ABOVE THE TERRAIN, not inside the cell's block — the one mark on this
+   * board that is deliberately exempt from the depth ruler.
+   *
+   * The first cut mounted it through `mountVeil` like every other overlay, so
+   * it sorted correctly against the ground and everything standing on it. That
+   * is exactly what broke it: on two of the five story seeds the garden's
+   * centre cell sits behind a pine or under the cliff by the house, and a tree
+   * reaches ~280px above its cell where the arrow floats ~24px. No lift wins
+   * that — the arrow was simply swallowed, and a signpost you cannot see is
+   * not a signpost.
+   *
+   * So it goes on `board`, which is added after the terrain and therefore
+   * draws over all of it. A raider is not looking THROUGH the world at the
+   * arrow; the arrow is a mark ON the picture, like the clue numbers, and
+   * occluding it would be as wrong as occluding those. It stays anchored to
+   * the garden's cell in the same projection, so it still points at real
+   * ground — it just refuses to be hidden by what grows in front of it.
+   */
+  private buildGoalArrow(seed: string, field: ReadonlySet<number>): void {
+    this.goalArrow?.destroy({ children: true });
+    this.goalArrow = null;
+
+    const texture = Assets.get<Texture>(Keys.ARROW_DOWN);
+    if (!texture || field.size === 0) return;
+
+    // The patch's centre in screen space, then the real cell nearest to it —
+    // the centre of a seed-cut field is not itself guaranteed to BE a field
+    // cell (an L-shaped patch's centre falls outside it).
+    const tiles = [...field];
+    const points = tiles.map((t) => burrowTileScreen(seed, t));
+    const cx = points.reduce((a, p) => a + p.x, 0) / points.length;
+    const cy = points.reduce((a, p) => a + p.y, 0) / points.length;
+    let best = 0;
+    let bestD = Infinity;
+    points.forEach((p, i) => {
+      const d = (p.x - cx) ** 2 + (p.y - cy) ** 2;
+      if (d < bestD) { bestD = d; best = i; }
+    });
+    const tile = tiles[best];
+
+    const group = new Container();
+    // Transparent to the pointer: the field's own cells are tappable (reaching
+    // one ends the raid), and an arrow that swallowed that tap would make the
+    // marker for the goal the one thing standing between the raider and it.
+    group.eventMode = 'none';
+    group.label = 'raid-goal-arrow';
+
+    const arrow = new Sprite(texture);
+    // Anchored at its TIP, which is what the arrow is actually pointing with:
+    // anchored centrally the bob would swing the tip through the crop, and a
+    // taller arrow would point at a different cell than a shorter one.
+    arrow.anchor.set(0.5, 1);
+    // Scaled off the tile, not the texture's pixels — `setBurrowTileSize` is a
+    // live tuning knob, and a sprite pinned to a pixel count stops matching
+    // the ground the moment it moves.
+    arrow.scale.set((BURROW_HALF_W * GOAL_ARROW_SCALE) / texture.width);
+    arrow.tint = GOAL_ARROW_TINT;
+    arrow.y = -BURROW_HALF_H * GOAL_ARROW_LIFT;
+    group.addChild(arrow);
+
+    // On the board, over the terrain entirely. Positioned in the same
+    // projection the cells use so it still sits on the garden, and given a
+    // zIndex past any tile's depth so nothing else on this layer — the trap
+    // markers, the raider — can come out in front of it.
+    const { x, y } = burrowTileScreen(seed, tile);
+    group.position.set(x, y);
+    group.zIndex = GOAL_ARROW_Z;
+    this.board.addChild(group);
+    this.goalArrow = group;
+
+    // The bob, on the SPRITE rather than the group, so the thing the terrain
+    // positioned keeps sitting exactly where it was put.
+    gsap.to(arrow, {
+      y: arrow.y - GOAL_ARROW_BOB,
+      duration: GOAL_ARROW_BOB_SECONDS,
+      ease: 'sine.inOut',
+      repeat: -1,
+      yoyo: true,
+    });
   }
 
   /**
@@ -1674,6 +1836,13 @@ export class BurrowScene implements Scene {
       if (cell.clue) { gsap.killTweensOf(cell.clue.scale); cell.clue.destroy({ children: true }); }
     }
     this.raidCells.clear();
+    // The bob is an endless tween, so it has to be killed by hand — the group
+    // going down would otherwise leave gsap ticking a destroyed sprite.
+    if (this.goalArrow) {
+      for (const child of this.goalArrow.children) gsap.killTweensOf(child);
+      this.goalArrow.destroy({ children: true });
+      this.goalArrow = null;
+    }
     this.raidCellsSeed = null;
     this.onRaidStep = null;
     if (this.raider) {
