@@ -71,6 +71,21 @@ interface Args {
   /** Palette steps in the ramp. 0 leaves it smooth, which reads as CGI. */
   steps: number;
 
+  /**
+   * Les trainees : le dust des rais, couche sur la mer et lu au sol.
+   * 0 les eteint ; le plan redevient le degrade immobile qu'il etait.
+   */
+  streaks: number;
+  streakScale: number;
+  streakStretch: number;
+  streakSpeed: number;
+  streakMorph: number;
+  streakColor: string;
+  /** L'une ou l'autre diagonale du sol. */
+  streakAxis: 'x' | 'y';
+  /** Snap du bruit en pixels, 0 = lisse. */
+  streakPixel: number;
+
   /** The surf and the contour lines, so the gradient is judged in context. */
   foam: boolean;
   surface: boolean;
@@ -121,6 +136,18 @@ function Scene(args: Args) {
               strength,
               angle: (angle * Math.PI) / 180,
               steps,
+              streaks: args.streaks,
+              streakScale: args.streakScale,
+              streakStretch: args.streakStretch,
+              streakSpeed: args.streakSpeed,
+              streakMorph: args.streakMorph,
+              streakColor: Number(args.streakColor.replace('#', '0x')),
+              streakAxis: args.streakAxis,
+              streakPixel: args.streakPixel,
+              // La demi-dalle du plateau, la meme que `metrics` : c'est ce
+              // qui fait longer aux trainees EXACTEMENT les diagonales des
+              // tuiles dessinees, au lieu de courir de travers.
+              halfTile: [HALF_W, HALF_H],
             });
             stage.addChild(depth.view);
           }
@@ -174,6 +201,8 @@ function Scene(args: Args) {
           island.placeDeco(0, 0);
 
           tick.current = (ms) => {
+            // Le degrade aussi, depuis qu'il porte les trainees.
+            depth?.update(ms);
             sea?.update(ms);
             water?.update(ms);
             island?.update(ms);
@@ -215,6 +244,14 @@ const meta: Meta<Args> = {
     centerY: { control: { type: 'range', min: 0, max: 1, step: 0.01 } },
     angle: { control: { type: 'range', min: -180, max: 180, step: 1 } },
     steps: { control: { type: 'range', min: 0, max: 40, step: 1 } },
+    streaks: { control: { type: 'range', min: 0, max: 0.8, step: 0.01 } },
+    streakScale: { control: { type: 'range', min: 0.1, max: 3, step: 0.05 } },
+    streakStretch: { control: { type: 'range', min: 1, max: 12, step: 0.5 } },
+    streakSpeed: { control: { type: 'range', min: 0, max: 1, step: 0.01 } },
+    streakMorph: { control: { type: 'range', min: 0, max: 0.5, step: 0.01 } },
+    streakColor: { control: 'color' },
+    streakAxis: { control: 'inline-radio', options: ['x', 'y'] },
+    streakPixel: { control: { type: 'range', min: 0, max: 12, step: 1 } },
     foam: { control: 'boolean' },
     surface: { control: 'boolean' },
   },
@@ -229,7 +266,15 @@ const meta: Meta<Args> = {
     // — `config/waterLook.ts` holds the same ones for the game.
     strength: 1, softness: 0.56, radius: 0.5, aspect: 3.25,
     centerX: 0.5, centerY: 0.55, angle: 175, steps: 40,
-    foam: true, surface: true,
+    // Les trainees. Les memes nombres que `SEA_GRADIENT_LOOK` dans le jeu.
+    streaks: 0.18, streakScale: 0.55, streakStretch: 4,
+    streakSpeed: 0.12, streakMorph: 0.05, streakColor: '#5fd3e0',
+    streakAxis: 'y', streakPixel: 3,
+    // Les anneaux de `SurfaceTexture` ETEINTS par defaut. Ils ne sont pas dans
+    // le jeu — seule cette story les montait — et allumes ils recouvrent la
+    // mer de cercles clairs qui noient tout ce que le plan dessous fait. Le
+    // toggle reste pour qui veut les revoir.
+    foam: true, surface: false,
   },
   render: (args) => <Scene {...args} />,
 };
