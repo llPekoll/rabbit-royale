@@ -132,9 +132,10 @@ export async function createTerrainBackground(
     // Off rather than restyled: leaving it on would draw the old coastline
     // UNDER the new one the moment that work lands.
     foam: false,
-    // Over a playing board a tree without one hovers between two lit
-    // diamonds and the eye cannot tell which cell it stands on.
-    decoShadows: true,
+    // Off: the kit's standing art already carries its own painted shadow, and
+    // the ellipse on top of it read as a second, rounder shadow sliding out
+    // from under every tree. The sprite's own shadow does the anchoring.
+    decoShadows: false,
   });
 
   // Line the terrain up with the BOARD's grid: project the board's origin
