@@ -4,7 +4,8 @@ import { createSeaGradient, type SeaGradient } from './fx/SeaGradient';
 import { SEA_GRADIENT_LOOK } from '@/config/waterLook';
 import { SceneManager } from './SceneManager';
 import { BootScene } from './scenes/BootScene';
-import { CarrotWipe } from './fx/CarrotWipe';
+import { SCENE } from './keys';
+import { RandomWipe } from './fx/RandomWipe';
 import * as Keys from '@/config/assetKeys';
 import { PORTRAIT_GATE_QUERY } from '@/config/orientation';
 
@@ -67,9 +68,10 @@ export interface GameApp {
   scenes: SceneManager;
   /** Root container that scales design-space → screen. */
   gameRoot: Container;
-  /** The carrot iris that hides the cut between the two places. Absent only if
-   *  its texture failed to load — the game still crosses, just bare. */
-  wipe: CarrotWipe | null;
+  /** The shutter that hides the cut between the two places — a different one
+   *  of four each crossing (see RandomWipe). Absent only if the boot never got
+   *  far enough to build it; the game still crosses, just bare. */
+  wipe: RandomWipe | null;
 }
 
 // Patch GSAP Tween.render to silently kill tweens targeting destroyed Pixi objects
@@ -197,8 +199,8 @@ export async function createApp(
   pixi.stage.addChild(gameRoot);
 
   // Declared before resize() so that function can close over it; filled in
-  // after the boot, which is what loads the carrot it is cut from.
-  let wipe: CarrotWipe | null = null;
+  // after the boot, which is what loads the silhouettes it is cut from.
+  let wipe: RandomWipe | null = null;
 
   // A phone held upright is refused, not laid out (see PORTRAIT_GATE_QUERY):
   // the gate covers the page and the board keeps the landscape layout it had,
@@ -279,25 +281,57 @@ export async function createApp(
   onScenes?.(scenes);
   await scenes.start(BootScene, boot);
 
-  // The iris sits on the STAGE, not in gameRoot: it has to cover the letterbox
-  // as well as the board, and gameRoot is only the scaled design space. Added
-  // after the boot so the carrot texture the loader fetched is already there,
-  // and given the top zIndex so no scene can ever draw over the shutter.
-  // A decorative shutter must never be the reason the game fails to boot: if
-  // the carrot is somehow missing, cross bare (see GameHandles.wipeTo) rather
-  // than take the whole app down for a transition.
-  const carrot = Assets.get<Texture>(Keys.CARROT_MASK);
-  if (carrot) {
-    wipe = new CarrotWipe({
-      width: window.innerWidth,
-      height: window.innerHeight,
-      texture: carrot,
-    });
-    wipe.view.zIndex = 1000;
-    pixi.stage.addChild(wipe.view);
-  } else {
-    console.warn('[rr] no carrot texture: crossing between scenes without the iris');
-  }
+  // The shutter sits on the STAGE, not in gameRoot: it has to cover the
+  // letterbox as well as the board, and gameRoot is only the scaled design
+  // space. Added after the boot so the silhouettes the loader fetched are
+  // already there, and given the top zIndex so no scene can ever draw over it.
+  //
+  // A missing silhouette is not fatal: RandomWipe drops that shape and draws
+  // from the rest, and the curtain in the set needs no texture at all — so
+  // there is always something to cross with, and a decorative shutter is never
+  // the reason the game fails to boot.
+  wipe = new RandomWipe({
+    width: window.innerWidth,
+    height: window.innerHeight,
+    textures: {
+      carrot: Assets.get<Texture>(Keys.CARROT_MASK),
+      bunny: Assets.get<Texture>(Keys.BUNNY_MASK),
+      bomb: Assets.get<Texture>(Keys.BOMB_MASK),
+    },
+    /**
+     * The pair the sand dissolve crumbles between — the only variant that
+     * needs to know anything about the world it is crossing.
+     *
+     * Read at the moment of the crossing, NOT captured here: `currentScene` is
+     * still the outgoing one at that point (the swap is the `midpoint`, which
+     * has not run yet), which is exactly the fact this needs. Captured at boot
+     * it would name whatever was on screen when the game started and dissolve
+     * that for the rest of the session.
+     *
+     * `to` is the OTHER resident scene, and that is sound because there are
+     * exactly two of them — the burrow and the island. A third would make this
+     * ambiguous, and the honest fix then is to pass the destination key down
+     * from `wipeTo` rather than to guess; hence the explicit null below rather
+     * than a silent pick, so the day that happens the variant drops out of the
+     * rotation instead of dissolving to the wrong place.
+     */
+    scenes: () => {
+      const from = scenes.currentScene;
+      if (!from) return null;
+      const keys = [SCENE.burrow, SCENE.island];
+      const residents = keys
+        .map((k) => scenes.resident_get(k))
+        .filter((s): s is NonNullable<typeof s> => s !== null);
+      if (residents.length !== 2) return null;
+      const to = residents.find((s) => s !== from);
+      // The crossing is not between two places — `wipeOver` stays on one scene
+      // (a raid, the trap grid), and there is nothing to reveal underneath.
+      if (!to) return null;
+      return { from: from.container, to: to.container };
+    },
+  });
+  wipe.view.zIndex = 1000;
+  pixi.stage.addChild(wipe.view);
 
   return {
     pixi,

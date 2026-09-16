@@ -26,6 +26,12 @@
  *
  * These are behavioural assertions, not source greps: the failure is entirely
  * about promise settlement, and only running the thing shows it.
+ *
+ * Run against BOTH shutters. The curtain was written after this bug was found
+ * and carries its own copy of the same settle-then-kill machinery — because
+ * what has to settle a promise is whatever kills its tween, and that is three
+ * different methods in each class. A second implementation of a fix is a second
+ * chance to get it wrong, so both are put through the same three crossings.
  */
 import { describe, expect, it, vi } from 'vitest';
 import { Container, Graphics, Sprite, Texture } from 'pixi.js';
@@ -33,7 +39,7 @@ import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 /**
  * The wipe reaches into Pixi for real textures and a renderer. None of that
  * matters to promise settlement, so the display objects are stubbed down to
- * the handful of members `CarrotWipe` touches.
+ * the handful of members the two shutters touch.
  */
 vi.mock('pixi.js', async () => {
   class FakeContainer {
@@ -54,6 +60,10 @@ vi.mock('pixi.js', async () => {
   class FakeSprite extends FakeContainer {
     anchor = { set: () => {} };
     position = { set: () => {} };
+    // The curtain masks with a gradient SPRITE and mirrors it by flipping the
+    // x-scale, so the stub needs a real scale object rather than the bare
+    // width/height the irises make do with.
+    scale = { x: 1, y: 1 };
     width = 0; height = 0; x = 0; y = 0;
     texture: { width: number; height: number };
     constructor(t?: { width?: number; height?: number }) {
@@ -68,21 +78,36 @@ vi.mock('pixi.js', async () => {
     Container: FakeContainer,
     Graphics: FakeGraphics,
     Sprite: FakeSprite,
-    Texture: class { width = 64; height = 64; source = { scaleMode: 'linear' }; },
+    Texture: class {
+      width = 64; height = 64;
+      source = { scaleMode: 'linear', addressMode: 'clamp-to-edge' };
+      // The curtain builds its ramp from raw pixels at construction.
+      static from() { return new this(); }
+    },
   };
 });
 
-const { CarrotWipe } = await import('../src/game/fx/CarrotWipe');
+const { ShapeWipe } = await import('../src/game/fx/ShapeWipe');
+const { CurtainWipe } = await import('../src/game/fx/CurtainWipe');
 
-function makeWipe() {
-  return new CarrotWipe({
+/** The shutter contract these tests care about — the part `Application` and
+ *  `GameCanvas.wipeTo` rely on, and the part the bug broke. */
+interface Shutter {
+  view: { visible: boolean };
+  play(midpoint: () => void | Promise<void>): Promise<void>;
+}
+
+const SHUTTERS: Array<[string, () => Shutter]> = [
+  ['ShapeWipe', () => new ShapeWipe({
     width: 800,
     height: 600,
     texture: new (Texture as unknown as new () => Texture)(),
-  });
-}
+    openScale: 2.6,
+  })],
+  ['CurtainWipe', () => new CurtainWipe({ width: 800, height: 600 })],
+];
 
-describe('overlapping crossings', () => {
+describe.each(SHUTTERS)('overlapping crossings (%s)', (_name, makeWipe) => {
   it('settles the first crossing when a second interrupts it', async () => {
     const wipe = makeWipe();
 

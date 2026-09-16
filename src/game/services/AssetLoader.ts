@@ -4,6 +4,7 @@ import { CARROT_URL } from '@domin8/arcade-kit/game';
 import { ARROW_URLS } from '@domin8/arcade-kit';
 import * as Keys from '@/config/assetKeys';
 import { BURROW_BUILDING_URLS } from '@/game/burrow/buildings';
+import { WIPE_MASK_URLS } from '@/config/wipe';
 
 // Force nearest-neighbor (pixelated) scaling for all textures
 TextureSource.defaultOptions.scaleMode = 'nearest';
@@ -41,10 +42,17 @@ const IMAGES = [
   // luminosity model — see the kit's `PixelArrow`), which a Pixi tint turns
   // gold without a second sprite existing.
   { key: Keys.ARROW_DOWN, src: ARROW_URLS.down },
-  // The iris aperture. Generated (tools/gen_carrot_mask.py) rather than taken
-  // from the kit's carrot: a mask keeps only alpha, and the sprite's shape
-  // lives partly in its shading.
-  { key: Keys.CARROT_MASK, src: '/assets/fx/carrot-mask.webp' },
+  // The iris apertures, one per shape the wipe draws from. The carrot is
+  // generated (tools/gen_carrot_mask.py) rather than taken from the kit's
+  // carrot: a mask keeps only alpha, and that sprite's shape lives partly in
+  // its shading. The rabbit and the bomb ARE derived from their sprites
+  // (tools/gen_wipe_masks.py), because ears and a fuse are holes in the alpha
+  // channel and survive the trip. All three load at boot rather than on the
+  // first crossing: which one a crossing draws is decided at the moment it
+  // starts, so any of them can be the one needed next.
+  { key: Keys.CARROT_MASK, src: WIPE_MASK_URLS.carrot },
+  { key: Keys.BUNNY_MASK, src: WIPE_MASK_URLS.bunny },
+  { key: Keys.BOMB_MASK, src: WIPE_MASK_URLS.bomb },
   // The field's crop, as a growth animation. Loaded here rather than by the
   // scene so the burrow never paints a frame of bare dirt while it arrives.
   { key: Keys.CARROT_GROWTH, src: '/assets/carottes/carrote.png' },

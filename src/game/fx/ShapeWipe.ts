@@ -1,12 +1,13 @@
 /**
- * The carrot iris — the cartoon wipe between the burrow and the island.
+ * The shape iris — a cartoon wipe that closes on a silhouette.
  *
- * A black sheet over the whole screen with a CARROT-SHAPED HOLE in it. The hole
- * shrinks to nothing (iris out), the screen is briefly all black, then it opens
- * again on the other place (iris in). It is the "That's all folks!" circle from
- * a Looney Tunes short, except the aperture is the thing this game is about.
+ * A black sheet over the whole screen with a HOLE in it, cut in the shape of
+ * something the game is about: a carrot, a rabbit, a bomb. The hole shrinks to
+ * nothing (iris out), the screen is briefly all black, then it opens again on
+ * the other place (iris in). It is the "That's all folks!" circle from a Looney
+ * Tunes short, except the aperture is a thing rather than a circle.
  *
- * Why a hole and not a carrot: the shape has to be what you SEE THROUGH.
+ * Why a hole and not a sprite: the shape has to be what you SEE THROUGH.
  * Drawing a carrot over the screen would be a sticker; cutting one out of the
  * dark makes the dark the object and the game the light behind it. The whole
  * trick is the negative.
@@ -20,42 +21,59 @@
  * render target, so without its own render group it eats the game as well, and
  * with one the group still composites its opaque black over everything. Both
  * were tried against the pixels; both came out solid black. An inverse mask
- * keeps the carrot's edges hard, which was the only reason to avoid it.
+ * keeps the silhouette's edges hard, which was the only reason to avoid it.
+ *
+ * One class, three shapes: which silhouette a given crossing uses is not this
+ * file's business, it is `RandomWipe`'s. What IS this file's business is that
+ * every shape moves on the same beat, which is why the timings are constants
+ * here and not options.
  */
 import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import gsap from 'gsap';
-import {
-  WIPE_CLOSE_MS, WIPE_OPEN_MS, WIPE_HOLD_MS, WIPE_OPEN_SCALE,
-} from '@/config/wipe';
+import { WIPE_CLOSE_MS, WIPE_OPEN_MS, WIPE_HOLD_MS } from '@/config/wipe';
 
 // The timings live in config/wipe so the DOM iris over the sign-in screen can
 // share them without importing Pixi. The first cut of these was faster and the
-// carrot went by before the eye could name it — which wastes the one flourish
+// shape went by before the eye could name it — which wastes the one flourish
 // the transition has.
 const CLOSE_MS = WIPE_CLOSE_MS;
 const OPEN_MS = WIPE_OPEN_MS;
 const HOLD_MS = WIPE_HOLD_MS;
-const OPEN_SCALE = WIPE_OPEN_SCALE;
 
-export interface CarrotWipeOptions {
+export interface ShapeWipeOptions {
   /** Viewport size in screen pixels — NOT design space: the sheet must cover
    *  the letterbox too, which lives outside the scaled game root. */
   width: number;
   height: number;
   /**
-   * The aperture mask (`/assets/fx/carrot-mask.webp`, from
-   * tools/gen_carrot_mask.py), already loaded. Its ALPHA is the shape; the
-   * white it is drawn in is never seen.
+   * The aperture mask, already loaded. Its ALPHA is the shape; the white it is
+   * drawn in is never seen. See `config/wipe` for the three the game ships and
+   * the generators that produce them.
    *
-   * NOT the kit's carrot sprite. That one is drawn to be looked at — it carries
-   * its shape in shading as much as in its outline — and an alpha channel keeps
-   * only the outline, so as a mask it came out a soft blob with its leaves
-   * shattering into specks the moment the iris got small.
+   * NOT a sprite straight off the kit. The carrot's is drawn to be looked at —
+   * it carries its shape in shading as much as in its outline — and an alpha
+   * channel keeps only the outline, so as a mask it came out a soft blob with
+   * its leaves shattering into specks the moment the iris got small. Hence a
+   * hand-drawn silhouette for that one (tools/gen_carrot_mask.py). The rabbit
+   * and the bomb survive the trip from their sprites because their form IS
+   * their outline — ears and a fuse are holes in the alpha channel — so those
+   * two are derived (tools/gen_wipe_masks.py).
    */
   texture: Texture;
+  /**
+   * How wide the hole opens, as a multiple of the screen's diagonal.
+   *
+   * Passed in rather than read from config here, because the right value is a
+   * property of the SILHOUETTE and this class does not know which one it was
+   * handed. See `WIPE_OPEN_SCALE` for why the three shapes need three numbers:
+   * a slim carrot needs its box blown up nearly three diagonals before its
+   * narrow part clears the screen's corners, a nearly-solid rabbit barely one
+   * and a half.
+   */
+  openScale: number;
 }
 
-export class CarrotWipe {
+export class ShapeWipe {
   /** Add this to the stage, above every scene. */
   readonly view = new Container();
 
@@ -63,20 +81,22 @@ export class CarrotWipe {
   private readonly hole: Sprite;
   private w: number;
   private h: number;
+  private readonly openScale: number;
   /** 0 = hole closed (all black), 1 = hole wide open (screen clear). */
   private aperture = 1;
   private tween: gsap.core.Tween | null = null;
 
-  constructor(options: CarrotWipeOptions) {
+  constructor(options: ShapeWipeOptions) {
     this.w = options.width;
     this.h = options.height;
+    this.openScale = options.openScale;
 
     // A missing texture is the one failure this effect cannot survive quietly:
     // the mask would have no area, the sheet would stay opaque, and crossing to
     // the island would look like the game had frozen on a black screen. Say so
     // rather than shipping a shutter that never opens.
     if (!options.texture) {
-      throw new Error('CarrotWipe: no carrot texture — was the boot loader run?');
+      throw new Error('ShapeWipe: no aperture texture — was the boot loader run?');
     }
 
     this.hole = new Sprite(options.texture);
@@ -224,7 +244,7 @@ export class CarrotWipe {
   private settle: (() => void) | null = null;
 
   /**
-   * Repaint: fill the screen black, and size the carrot that is cut out of it.
+   * Repaint: fill the screen black, and size the shape that is cut out of it.
    *
    * Sized by HEIGHT with the width derived from the mask's own aspect, so
    * retuning the shape in the generator needs no matching edit here — and so
@@ -236,7 +256,7 @@ export class CarrotWipe {
     this.sheet.fill(0x000000);
 
     const open = Math.max(0, this.aperture);
-    const height = Math.hypot(this.w, this.h) * OPEN_SCALE * open;
+    const height = Math.hypot(this.w, this.h) * this.openScale * open;
 
     // At zero the mask has no area, and a zero-sized mask is a degenerate
     // transform rather than a closed shutter: drop the mask and let the sheet

@@ -27,8 +27,12 @@ export const BUNNY_ANIMS = {
 /** The pixel carrot — RR's own food prop, from the shared kit. TALL (13x29):
  *  size it by HEIGHT and derive the width, or it renders squashed. */
 export const CARROT = 'carrot';
-/** The iris aperture's silhouette — see tools/gen_carrot_mask.py. */
+/** The iris aperture's silhouettes, one per shape in the wipe's rotation.
+ *  The carrot is drawn by hand (tools/gen_carrot_mask.py); the other two are
+ *  derived from the game's own sprites (tools/gen_wipe_masks.py). */
 export const CARROT_MASK = 'carrot-mask';
+export const BUNNY_MASK = 'bunny-mask';
+export const BOMB_MASK = 'bomb-mask';
 
 /** The 12-frame carrot GROWTH sheet — the burrow's field, sprout to ripe.
  *  Distinct from CARROT, which is the single picked-carrot prop. */
