@@ -393,8 +393,70 @@ export class PlayerRabbit {
     });
   }
 
+  /**
+   * Take the rabbit's own art out of shot, leaving everything else it carries
+   * — name plate, crown, position, depth — exactly where it is.
+   *
+   * For effects that REPLACE the animal rather than dress it: the burrow's
+   * electrocution swaps in a flickering pose at the same size and anchor, and
+   * the rabbit showing through it would read as two sprites overlapping. The
+   * sprite is hidden rather than destroyed because it has to come back — the
+   * raider is still the scene's, still standing on its tile.
+   */
+  hideSprite(hidden: boolean): void {
+    if (this.sprite.destroyed) return;
+    this.sprite.visible = !hidden;
+  }
+
+  /**
+   * Flinch.
+   *
+   * Leaves the rabbit ON the last frame of the `damage` row, and the last three
+   * frames of that row are EMPTY — so the animal ends up invisible, still
+   * standing where it was. That suits the island, where a hit is followed by
+   * the run ending or the rabbit being moved, but anywhere it has to remain on
+   * screen the caller must follow this with something that draws: `playAnim`
+   * with an `idle` completion, or `playDeath`, which ends on a full frame.
+   */
   playDamage(): void {
     this.playAnim('damage');
+  }
+
+  /**
+   * Put the rabbit back on its feet once a flinch has played out.
+   *
+   * Pairs with `playDamage` wherever the animal has to still be there
+   * afterwards — see the note above on the `damage` row's empty tail. Kept
+   * separate rather than folded into `playDamage` because the island's uses of
+   * it genuinely want the rabbit gone: a hit there is followed by the run
+   * ending or the rabbit being moved.
+   */
+  recoverFromDamage(): void {
+    const frames = getBunnyAnimTextures(this.sheetKey, 'damage').length;
+    const fps = BUNNY_ANIM_DEFS.damage?.[2] ?? 12;
+    if (frames === 0) return;
+    if (this.recoverTimer) clearTimeout(this.recoverTimer);
+    this.recoverTimer = setTimeout(() => {
+      this.recoverTimer = null;
+      if (this.sprite.destroyed) return;
+      this.playAnim('idle');
+    }, (frames / fps) * 1000);
+  }
+
+  /** The pending `recoverFromDamage`, so a second hit does not stack two. */
+  private recoverTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * Go down and STAY down.
+   *
+   * Unlike `damage`, the `death` row ends on a full frame — the rabbit flat on
+   * its side, drawn low in the cell — so it holds by itself with nothing to
+   * restore afterwards, and the caller decides how long the body lies there.
+   * `onComplete` fires when the last frame is reached, which is the cue to
+   * start counting that hold rather than to put the animal back on its feet.
+   */
+  playDeath(onComplete?: () => void): void {
+    this.playAnim('death', onComplete);
   }
 
   playEat(): void {
@@ -626,6 +688,8 @@ export class PlayerRabbit {
 
   destroy(): void {
     this.clearStun();
+    // Would otherwise fire onto a destroyed sprite after the rabbit is gone.
+    if (this.recoverTimer) { clearTimeout(this.recoverTimer); this.recoverTimer = null; }
     // The bob outlives the sprite otherwise: gsap holds the crown alive and
     // keeps writing `y` to a destroyed display object.
     this.crownBob?.kill();

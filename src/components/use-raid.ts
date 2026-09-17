@@ -9,7 +9,7 @@
  * same rule the island run follows: a raid decides who loses carrots, so a
  * client that could move its own rabbit could walk to the field for free.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useT } from '@/i18n/provider';
 import type { Dict } from '@/i18n/dictionaries';
 
@@ -35,6 +35,28 @@ export interface RaidState {
   finished: boolean;
   succeeded: boolean;
   carrotsLooted: number;
+  /**
+   * Ended by the DEFENDER's lightning. Optional so a server that predates the
+   * flag reads as "not struck" rather than as a missing field.
+   */
+  struck?: boolean;
+}
+
+/** Whether two readings of the same raid draw the same board. */
+function sameRaid(a: RaidState | null, b: RaidState | null): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return a.raidId === b.raidId
+    && a.tile === b.tile
+    && a.energy === b.energy
+    && a.trapsSprung === b.trapsSprung
+    && a.finished === b.finished
+    && a.succeeded === b.succeeded
+    && (a.struck ?? false) === (b.struck ?? false)
+    && a.smoked === b.smoked
+    && a.view.length === b.view.length
+    && a.walked.length === b.walked.length
+    && a.steps.length === b.steps.length;
 }
 
 export interface Target {
@@ -81,6 +103,15 @@ export function useRaid(token: string | null) {
   const [busy, setBusy] = useState(false);
   /** Bumped when a trap goes off, so the scene can play the blast once. */
   const [sprung, setSprung] = useState<{ tile: number; key: number } | null>(null);
+  /**
+   * The struck raid the player has already left.
+   *
+   * A raid ended by lightning keeps being answered by `GET /api/raid` for a
+   * while (see `STRUCK_SHOWN_MS`) so the raider is sure to see it; once they
+   * have, the same answer must not put them back on that board every time
+   * the list is refreshed. A ref, not state: nothing draws it.
+   */
+  const dismissed = useRef<string | null>(null);
 
   /**
    * TEMPORARY — carry `?reveal=1` through to the raid API.
@@ -111,11 +142,22 @@ export function useRaid(token: string | null) {
     if (!token) return;
     const res = await fetch(`/api/raid${q}`, auth()).then((r) => r.json()).catch(() => null);
     if (!res || res.error) return;
-    setRaid(res.raid ?? null);
+    const next: RaidState | null = res.raid ?? null;
+    if (next?.finished && next.raidId === dismissed.current) {
+      setRaid(null);
+    } else {
+      // Identity-stable while nothing changed: the page redraws the board off
+      // this object, and a re-read that handed it a fresh copy of the same
+      // raid would rebuild what the player is looking at.
+      setRaid((prev) => (sameRaid(prev, next) ? prev : next));
+    }
     setTargets(res.targets ?? []);
   }, [token, auth, q]);
 
   useEffect(() => { void refresh(); }, [refresh]);
+  // A raid is never polled. The one change that can happen to it between two
+  // of the raider's own requests — the defender's lightning — arrives on the
+  // socket as `raid_struck`, and the page calls `refresh` once on it.
 
   const enter = useCallback(async (defenderId: string) => {
     if (!token) return;
@@ -175,7 +217,12 @@ export function useRaid(token: string | null) {
    * reloads the target list, which is where leaving is meant to land.
    */
   const leave = useCallback(() => {
-    setRaid(null);
+    // A struck raid stays answered by the server for a while; remembered here
+    // so the refresh below does not hand it straight back.
+    setRaid((current) => {
+      if (current?.struck) dismissed.current = current.raidId;
+      return null;
+    });
     setOutcome(null);
     setSprung(null);
     void fetch('/api/raid', auth({ method: 'DELETE' }))

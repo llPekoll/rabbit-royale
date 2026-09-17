@@ -11,7 +11,7 @@
  * answers, arriving as events. A tile is drawn face-down until the server says
  * otherwise, because the client is never told what it has not dug.
  */
-import { AnimatedSprite, Application, Assets, Container, Graphics, Sprite } from 'pixi.js';
+import { AnimatedSprite, Application, Assets, Container, Graphics, Rectangle, Sprite } from 'pixi.js';
 import gsap from 'gsap';
 import { GOLDEN_COIN_ALIASES } from '@domin8/arcade-kit/pixi';
 import { outlinedPixelText, shadowedPixelText } from '../ui/PixelText';
@@ -40,6 +40,7 @@ import { CloudField } from '../fx/Clouds';
 import { BirdFlock } from '../fx/Birds';
 import { Drain } from '../fx/Drain';
 import { DepthHole } from '../fx/DepthHole';
+import { electrocute } from '../fx/Electrocute';
 import { DEPTH_HOLE_LOOK } from '@/config/depthHoleLook';
 import { ChestPointer } from '../fx/ChestPointer';
 import {
@@ -47,9 +48,7 @@ import {
 } from '../fx/Blast';
 import * as Keys from '@/config/assetKeys';
 import {
-  COLS, ROWS, SPAWN_INDEX, GRID_CENTER_X, GRID_CENTER_Y, HALF_W,
-  isForbidden, makeShape, screenToTile, tilePos, tileInScreenDirection,
-  toColRow, type IslandShape,
+  COLS, ROWS, SPAWN_INDEX, GRID_CENTER_X, GRID_CENTER_Y, HALF_W, isForbidden, makeShape, screenToTile, tilePos, tileInScreenDirection, toColRow, type IslandShape, RABBIT_SCALE, ISO_TILE_W,
 } from '@/config/gridConfig';
 import { farmableTiles, levelTierAt, spawnTile, terrainTileAt, tierLift, tileScreenPos } from '@/lib/game/terrainBoard';
 import {
@@ -61,12 +60,23 @@ import { ENERGY, LIGHTNING } from '@config/tuning';
 import { canDig, reachableTiles } from '@/lib/game/reachable';
 import type { MoveRejection } from '@/lib/game/run';
 
+/** What an armed tap does: strike the tile (and whoever stands in its square), or bury a bomb under it. */
+export type AimMode = 'strike' | 'plant' | null;
+
 /** What the scene needs from the outside world. The socket layer supplies it. */
 export interface IslandSceneData {
   /** Seed the island's coastline is cut from — the server's island id. */
   seed: string;
   /** Called when the player wants to step to a tile. The server decides. */
   onMoveIntent(index: number): void;
+  /**
+   * Called when the player, with a strike ARMED (`setAiming`), taps a tile —
+   * or a rival standing on one. The server spends the item and decides who
+   * was in the way; the scene only says where the tap landed.
+   */
+  onStrikeIntent?(index: number): void;
+  /** Called when the player, with a bomb ARMED (`setAiming('plant')`), taps undug ground. */
+  onPlantIntent?(index: number): void;
   /** The local player's id, so their own rabbit can be told apart. */
   playerId: string;
   /**
@@ -173,6 +183,23 @@ export class IslandScene implements Scene {
    * easily long enough to cross an island change.
    */
   private readonly lightningTimers = new Set<number>();
+  /** The electrocutions' pending waits — see `fx/Electrocute`. */
+  private readonly shockTimers = new Set<number>();
+  /**
+   * Whether the next tap STRIKES instead of digging.
+   *
+   * A mode, and a short one: armed from the HUD's bolt, spent by the tap that
+   * fires, and read by `onTap` before anything else — a strike is aimed at a
+   * tile the rabbit could never step to, so it cannot share the move's rules.
+   * Rivals become pressable while it is on, so a tap on the animal itself
+   * lands on the animal's tile rather than on whatever ground its art overlaps.
+   */
+  private aiming: AimMode = null;
+  /**
+   * The planter's own bombs, drawn for them alone — a dim bomb on the tile,
+   * until somebody digs it. Nobody else on the island is sent them.
+   */
+  private readonly planted = new Map<number, Sprite>();
 
   /** The tiles currently lit as reachable, and the sweep running over them. */
   private highlighted: number[] = [];
@@ -641,6 +668,9 @@ export class IslandScene implements Scene {
    * plateau, not the grass drawn below it.
    */
   private onTap(at: Point): void {
+    // Armed, the tap is a strike, not a step — its own resolver, so the move's
+    // one-press-one-tile rule below stays exactly as the layering test pins it.
+    if (this.aiming) { this.aimedTap(at); return; }
     const pressed = this.pressTile;
     this.pressTile = null;
     if (pressed !== null) {
@@ -650,6 +680,142 @@ export class IslandScene implements Scene {
     const local = this.data?.noCamera ? at : toScene(this.cam, at);
     const idx = terrainTileAt(this.seed, local.x, local.y);
     if (idx !== null) this.requestMove(idx);
+  }
+
+  /**
+   * A tap with the strike armed: the tap is a TARGET, wherever it lands.
+   *
+   * A rabbit under the finger wins over the ground (see `rivalAt`); failing
+   * that, the veil the press landed on, walls and terraces included; failing
+   * that, the flat resolver — the same order of trust a move uses, so a
+   * strike lands on the cell the player sees rather than on the one in front.
+   * The press is consumed here exactly once, as it is for a move.
+   */
+  private aimedTap(at: Point): void {
+    const pressed = this.pressTile;
+    this.pressTile = null;
+    const local = this.data?.noCamera ? at : toScene(this.cam, at);
+    if (this.aiming === 'strike') {
+      const idx = this.rivalAt(local) ?? pressed ?? terrainTileAt(this.seed, local.x, local.y);
+      if (idx !== null) this.data?.onStrikeIntent?.(idx);
+      return;
+    }
+    // A bomb goes under GROUND, never under a rabbit: no rival lookup.
+    const idx = pressed ?? terrainTileAt(this.seed, local.x, local.y);
+    if (idx !== null) this.data?.onPlantIntent?.(idx);
+  }
+
+  /**
+   * One of OUR bombs went into the ground — mark it, for us alone.
+   *
+   * The server tells the planter and nobody else (`bomb_planted`), so the
+   * marker is private by construction. It comes off when the tile is dug,
+   * whoever digs it: the bomb has gone off, or somebody else found it first.
+   */
+  markPlanted(index: number): void {
+    if (this.planted.has(index)) return;
+    const { x, y } = tilePos(index);
+    const seed = this.data?.seed ?? '';
+    const mark = Sprite.from(Keys.BOMB_SMALL);
+    mark.anchor.set(0.5, 0.7);
+    mark.position.set(x, y - tierLift(seed, index));
+    // Half a tile wide, and dim: a note to self, not a thing on the board.
+    mark.scale.set((ISO_TILE_W * 0.45) / Math.max(1, mark.texture.width));
+    mark.alpha = 0.55;
+    mark.zIndex = blastDepth(seed, index, 1);
+    this.container.addChild(mark);
+    this.planted.set(index, mark);
+  }
+
+  private clearPlanted(index: number): void {
+    const mark = this.planted.get(index);
+    if (!mark) return;
+    this.planted.delete(index);
+    if (!mark.destroyed) mark.destroy();
+  }
+
+  /**
+   * Arm (or disarm) the strike. See `aiming`.
+   *
+   * Every rival on the board becomes a target while it is on: pressable, with
+   * a box the size of the animal (the same one the burrow's raider wears — see
+   * `BurrowScene.buildRaider`), so a tap on a rabbit mid-hop is a tap on the
+   * cell it stands on. Disarmed, they go back to being scenery the pointer
+   * looks straight through, because the ground under them is what a move
+   * taps.
+   */
+  setAiming(mode: AimMode): void {
+    if (this.aiming === mode) return;
+    this.aiming = mode;
+    // The whole board is one pointer surface (see `attachControls`), so the
+    // cursor is set once on it rather than per rabbit.
+    this.container.cursor = mode === 'strike' ? 'crosshair' : mode === 'plant' ? 'cell' : 'default';
+  }
+
+  /**
+   * The rival standing under a point, if any — so a tap ON a rabbit strikes
+   * the tile it stands on rather than whatever ground its art happens to
+   * overlap (a rabbit mid-hop, or on a terrace, covers a cell it is not on).
+   *
+   * Resolved by geometry against the rabbits' own containers rather than by
+   * giving each rabbit a hit area and a tap listener: every press on this
+   * board goes through the one gesture recogniser, which is what tells a tap
+   * from a drag that happened to end on a tile — a per-rabbit `pointertap`
+   * would swallow that drag (see pointer-input.test). The box is the animal's
+   * (14px of art at RABBIT_SCALE, feet at the origin), the same one the
+   * burrow's raider wears.
+   */
+  private rivalAt(local: { x: number; y: number }): number | null {
+    const w = 14 * RABBIT_SCALE;
+    const h = 14 * RABBIT_SCALE;
+    for (const [playerId, rabbit] of this.rabbits) {
+      if (playerId === this.data?.playerId) continue;
+      const c = rabbit.container;
+      if (c.destroyed) continue;
+      const box = new Rectangle(c.x - w / 2, c.y - h, w, h);
+      if (!box.contains(local.x, local.y)) continue;
+      const tile = this.standing.get(playerId);
+      if (tile !== undefined) return tile;
+    }
+    return null;
+  }
+
+  /**
+   * A rabbit was caught in a strike — see `fx/Electrocute`.
+   *
+   * The bolt stands on the tile the rabbit was struck on, sorted on the
+   * terrain's own ruler like every other blast (`blastDepth`), and the pose
+   * plays inside the rabbit's container so it goes wherever the rabbit is.
+   * `fatal` is the server's word — the rabbit's last heart went with it — and
+   * the `rabbit_died` that follows is the ordinary ending. Survived, the rabbit
+   * gets up stunned for `stunMs`: the ring goes dark for the local player
+   * exactly as it does after a bomb.
+   */
+  electrocuteRabbit(playerId: string, tile: number, opts: { fatal: boolean; stunMs: number }): void {
+    const rabbit = this.rabbits.get(playerId);
+    if (!rabbit) return;
+    const seed = this.data?.seed ?? '';
+    const { x, y } = tilePos(tile);
+    if (playerId === this.data?.playerId) {
+      this.stunnedUntil = Date.now() + opts.stunMs;
+      this.refreshReachable();
+    }
+    void electrocute({
+      rabbit,
+      x,
+      y: y - tierLift(seed, tile),
+      layer: this.container,
+      boltDepth: blastDepth(seed, tile, 9),
+      holdMs: Math.min(opts.stunMs, 1400),
+      fatal: opts.fatal,
+      timers: this.shockTimers,
+      alive: () => this.rabbits.get(playerId) === rabbit,
+    }).then(() => {
+      if (opts.fatal || this.rabbits.get(playerId) !== rabbit) return;
+      // Back on its feet, and visibly held for what is left of the stun.
+      const left = this.stunnedUntil - Date.now();
+      if (playerId === this.data?.playerId && left > 0) rabbit.playStunned(left);
+    });
   }
 
   /**
@@ -922,6 +1088,7 @@ export class IslandScene implements Scene {
   revealTile(index: number, content: TileContent, adjacent: number): void {
     const tile = this.tiles.get(index);
     if (!tile) return;
+    this.clearPlanted(index);
     // A dug chest has been opened — take the box, its beam and its label off
     // the board. Left standing it would go on advertising a prize that is
     // already in somebody's bag, and on a shared island that is a lie the next
@@ -1740,6 +1907,10 @@ export class IslandScene implements Scene {
     // outlive an island change and fire a bolt into a destroyed container.
     for (const timer of this.lightningTimers) window.clearTimeout(timer);
     this.lightningTimers.clear();
+    for (const timer of this.shockTimers) window.clearTimeout(timer);
+    this.shockTimers.clear();
+    for (const mark of this.planted.values()) if (!mark.destroyed) mark.destroy();
+    this.planted.clear();
     // Off the sea before the scene goes: those layers belong to the stage and
     // outlive it.
     this.drain.destroy();

@@ -538,6 +538,26 @@ export const RAID_RUN = {
    */
   LOOT_SHARE_MIN: 0.08,
   /**
+   * How long a raid ended BY LIGHTNING is still answered to the raider, in ms.
+   *
+   * The defender's strike closes the run from the other side of the wire: the
+   * raider learns of it on their next step or poll, not the instant it lands.
+   * So a struck run keeps answering `GET /api/raid` — as a finished raid,
+   * flagged `struck` — for this long, which is what lets the raider's screen
+   * play the shock they were dealt rather than a bare "no raid" refusal. Two
+   * minutes covers a phone that was locked mid-crossing.
+   */
+  STRUCK_SHOWN_MS: 2 * 60 * 1000,
+  /**
+   * How long a FINISHED raid is still reported to the burrow it was on, in ms.
+   *
+   * The defender watches a live raid by polling `/api/raid/incoming`; once the
+   * run ends, one more answer has to carry the ending (the field reached, the
+   * energy gone, the strike) or their screen would simply see the rabbit
+   * vanish. Ten seconds is a few polls' worth.
+   */
+  ENDED_SHOWN_MS: 10 * 1000,
+  /**
    * A raid that dies on the doorstep still pays this share of the maximum, so
    * attacking is never pure loss — otherwise nobody attacks a defended burrow
    * twice and the PvP loop stops.
@@ -706,6 +726,23 @@ export const LIGHTNING = {
   RADIUS: 1,
   /** Milliseconds between each tile in the area going off, for the eye. */
   STAGGER_MS: 60,
+  /**
+   * What a rabbit CAUGHT in the strike loses: one heart, the same as stepping
+   * on a bomb (ENERGY.BOMB_LOSS).
+   *
+   * The strike used to open ground only. It now also electrocutes any rival
+   * standing in its square, which is what makes it a weapon aimed at a PLAYER
+   * rather than at a patch of dirt — and a bomb's worth is the right price for
+   * a hit the victim could not have read on the board: more, and one item
+   * ends a run outright; less, and it is not worth carrying.
+   */
+  SHOCK_LOSS: 8,
+  /**
+   * How long a struck rabbit is held, in ms. Longer than a bomb's stun
+   * (BOMB.STUN_MS): the current has to be SEEN holding them, and the
+   * electrocuted pose reads as a flicker under a second.
+   */
+  SHOCK_STUN_MS: 2000,
 } as const;
 
 export const MIRAGE = {
@@ -888,12 +925,16 @@ export function itemCap(kind: keyof typeof SHOP.PRICES): number {
 }
 
 export const SABOTAGE = {
-  /** Bombs a single saboteur may have live on one victim's island. */
-  MAX_PLANTED_PER_TARGET: 3,
-  /** Cooldown between sabotage actions on the same victim. */
-  COOLDOWN_MS: 5 * 60 * 1000,
-  /** Tiles a lightning strike scrambles (re-hides revealed tiles). */
-  LIGHTNING_RADIUS: 2,
+  /**
+   * Bombs a single saboteur may have LIVE (unrevealed) on one island.
+   *
+   * The island is shared, so the ceiling is per island rather than per
+   * victim — there is no one victim to count against. Three is enough to
+   * mine an approach and not enough to mine a board: a saboteur who could
+   * salt every undug tile would end the island for everyone, themself
+   * included. See `lib/game/sabotage`.
+   */
+  MAX_PLANTED_PER_ISLAND: 3,
 } as const;
 
 /**

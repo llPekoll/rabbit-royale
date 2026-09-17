@@ -23,7 +23,7 @@ import { LIGHTNING } from '@config/tuning';
 import { COLS, ROWS, toColRow, toIndex } from '@/config/gridConfig';
 import { revealTile } from './island';
 import { isPlayable } from './terrainBoard';
-import type { Island, TileContent } from './types';
+import type { Island, Rabbit, TileContent } from './types';
 
 /** One tile the strike opened, and what was under it. */
 export interface StruckTile {
@@ -107,4 +107,33 @@ export function strike(island: Island, castBy: string, target: number): StrikeRe
   }
 
   return { castBy, target, struck, bombs };
+}
+
+/**
+ * The rabbits a strike on `target` ELECTROCUTES.
+ *
+ * Everyone alive and standing inside the strike's square (see `strikeArea`)
+ * except the caster themself — a strike is aimed at rivals, and a player who
+ * calls it down on their own feet is refused the self-harm rather than charged
+ * for it. Read off the roster the server holds, never off tile ownership: a
+ * rabbit is struck for WHERE IT STANDS, whether or not the ground under it was
+ * still buried.
+ *
+ * Pure, and separate from `strike` on purpose: that one mutates the island and
+ * reports what it opened, this one only names who was in the way. The server
+ * applies the damage, because the damage is the server's to apply.
+ */
+export function struckRabbits<R extends Pick<Rabbit, 'playerId' | 'tile' | 'alive'>>(
+  seed: string,
+  target: number,
+  rabbits: Iterable<R>,
+  casterId: string,
+): R[] {
+  const area = new Set(strikeArea(seed, target));
+  const out: R[] = [];
+  for (const r of rabbits) {
+    if (r.playerId === casterId || !r.alive) continue;
+    if (area.has(r.tile)) out.push(r);
+  }
+  return out;
 }

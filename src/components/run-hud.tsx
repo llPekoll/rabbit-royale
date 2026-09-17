@@ -40,19 +40,63 @@ export interface HudGame {
   warnStage: number;
 }
 
+/**
+ * The strike, as the strip offers it.
+ *
+ * `held` is how many lightnings are in the bag; `aiming` is whether the next
+ * tap on the board fires one instead of digging. The strip only shows the
+ * count and takes the toggle — WHAT the tap hits is the scene's business
+ * (`IslandScene.setAiming`), and the server's after that.
+ */
+export type HudAimMode = 'strike' | 'plant' | null;
+
+export interface HudArm {
+  /** Lightnings in the bag. */
+  lightning: number;
+  /** Bombs in the bag. */
+  bombs: number;
+  /** Which of the two the next tap fires, if either. */
+  aiming: HudAimMode;
+  /** Arm this one — or disarm it, if it was the one armed. */
+  onToggle(mode: 'strike' | 'plant'): void;
+}
+
+/** One armable item on the strip: the count, and whether it is the armed one. */
+function ArmButton({
+  glyph, held, armed, title, onClick,
+}: { glyph: string; held: number; armed: boolean; title: string; onClick(): void }) {
+  return (
+    <button
+      type="button"
+      className={`rr-hud-arm${armed ? ' aiming' : ''}`}
+      onClick={onClick}
+      disabled={held <= 0}
+      aria-pressed={armed}
+      title={title}
+      style={{
+        font: 'inherit',
+        color: armed ? '#ffd45c' : held > 0 ? 'inherit' : 'var(--muted)',
+        background: armed ? 'rgba(255, 212, 92, 0.18)' : 'transparent',
+        border: `1px solid ${armed ? '#ffd45c' : 'rgba(255,255,255,0.25)'}`,
+        borderRadius: 4,
+        padding: '0 6px',
+        cursor: held > 0 ? 'pointer' : 'default',
+      }}
+    >
+      {glyph} {held}
+    </button>
+  );
+}
+
 export function RunHud({
-  game, name, spectating,
+  game, name, spectating, arm,
 }: {
   game: HudGame;
   name: string;
   /** The watched player's id, or null while playing your own run. */
   spectating: string | null;
-  /**
-   * Nobody else can be seated here (the first island). The rabbit count is
-   * a fact about the race, and "🐰 1" on a board nobody can join is a
-   * number with nothing to mean.
-   */
-  solo?: boolean;
+  /** The bolt and the bomb. Absent while watching, and on the first island. */
+  arm?: HudArm;
 }) {
   const t = useT();
   const watched = spectating ? game.rabbits.get(spectating) ?? null : null;
@@ -72,6 +116,38 @@ export function RunHud({
           plate with two counters (Paul, 2026-09-17: "sors la de son panel,
           car elle est trop petite"). */}
       <EnergyBar energy={subject?.energy ?? 0} />
+      {/* THE BOLT AND THE BOMB, in a plate of their own — NOT in the one
+          below, which only exists when the volcano or a watch has something
+          to say and would take the two buttons down with it the rest of the
+          time. Shown even at zero, so the player learns the items exist from
+          the one screen they are used on rather than from the shop's copy;
+          at zero they are disabled, and the shop is where it says to go.
+          Armed, a button reads as a MODE — the next tap strikes or buries
+          instead of digging — which is why it changes colour rather than
+          merely pressing in. */}
+      {arm && (
+        <PxPanel color={GLASS} className="rr-hud-plate rr-hud-arm-plate">
+          <ArmButton
+            glyph={"\u26A1"}
+            held={arm.lightning}
+            armed={arm.aiming === 'strike'}
+            title={t.run.strike}
+            onClick={() => arm.onToggle('strike')}
+          />
+          <ArmButton
+            glyph={"\u{1F4A3}"}
+            held={arm.bombs}
+            armed={arm.aiming === 'plant'}
+            title={t.run.plant}
+            onClick={() => arm.onToggle('plant')}
+          />
+          {arm.aiming && (
+            <span style={{ color: '#ffd45c' }}>
+              {arm.aiming === 'strike' ? t.run.aiming : t.run.aimingPlant}
+            </span>
+          )}
+        </PxPanel>
+      )}
       {/* The plate only exists when it has something to SAY: the volcano's
           warning, or whose run this is. The head-count that used to sit here
           ("🐰 1") is gone — the other rabbits are on the board, where they

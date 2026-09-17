@@ -45,6 +45,8 @@ import {
   burrowCell, isTrappable, walkableTiles, fieldTiles, burrowAround,
 } from '@/game/burrow/board';
 import { burrowTileScreen, burrowDepth } from '@/game/burrow/screen';
+import { RABBIT_SCALE } from '@/config/gridConfig';
+import { electrocute } from '../fx/Electrocute';
 import { createBurrowTerrain, type BurrowTerrainView } from '@/game/burrow/BurrowTerrain';
 import {
   homeCam, boardCam, placeCam, panPlaceCam, zoomPlaceCam, clampPlaceCam, type BurrowCam,
@@ -424,6 +426,14 @@ export class BurrowScene implements Scene {
   private dying = false;
   /** The raider: the island's own rabbit, kept across steps so it HOPS. */
   private raider: PlayerRabbit | null = null;
+  /**
+   * Timers the electrocution is waiting on.
+   *
+   * Held so `destroy` can cut them: the effect is a chain of awaits across more
+   * than a second, and a scene torn down mid-shock would otherwise come back to
+   * a raider that no longer exists.
+   */
+  private shockTimers = new Set<number>();
   private raiderAt = -1;
   /** The tiles currently lit as steppable, and the sweep running over them. */
   private raidLit: number[] = [];
@@ -621,14 +631,14 @@ export class BurrowScene implements Scene {
       (g) => this.designPoint(g),
       {
         onPan: (dx, dy) => {
-          if (!this.data.placing || this.raiding) return;
+          if (!this.canMoveCam()) return;
           // A drag is not a click: the preview of what a click would do goes
           // until the button is up again (see `onHintHover`).
           this.clearHover();
           this.setPlaceCam(panPlaceCam(this.cam, dx, dy, this.data.seed));
         },
         onPinch: (factor, at) => {
-          if (!this.data.placing || this.raiding) return;
+          if (!this.canMoveCam()) return;
           this.clearHover();
           this.setPlaceCam(zoomPlaceCam(this.cam, factor, at, this.data.seed));
         },
@@ -644,7 +654,7 @@ export class BurrowScene implements Scene {
     // has to be `preventDefault`ed or the browser zooms the page instead.
     const canvas = this.app.canvas as HTMLCanvasElement;
     this.onWheel = (e: WheelEvent) => {
-      if (!this.data.placing || this.raiding) return;
+      if (!this.canMoveCam()) return;
       e.preventDefault();
       const rect = canvas.getBoundingClientRect();
       const at = this.designPoint({ x: e.clientX - rect.left, y: e.clientY - rect.top });
@@ -1275,10 +1285,33 @@ export class BurrowScene implements Scene {
    * the right shot: the raider is choosing a route across a homestead, and a
    * route needs the whole homestead in frame.
    */
+  /**
+   * Whether the player may pan and pinch right now.
+   *
+   * Placing traps and RAIDING both qualify. A raid used to be excluded, on the
+   * grounds that a route needs the whole homestead in frame — true of the
+   * opening shot, which is still the fit (see `wantedCam`), and not true of
+   * what happens on it: a trap going off, or the burrow's lightning answering
+   * back, are small events on a board drawn small, and the player could not
+   * lean in to watch them. They can now; the floor on the zoom is that same fit
+   * (`placeZoomLimits` takes its `min` from `boardCam`), so leaning in never
+   * costs them the overview they were given.
+   */
+  private canMoveCam(): boolean {
+    return this.raiding || this.data.placing;
+  }
+
   private wantedCam(): BurrowCam {
-    // A RAID is still a fit: the raider is choosing a route across ground they
-    // do not own, and a route needs the whole homestead in frame.
-    if (this.raiding) return boardCam(this.data.seed);
+    // A RAID OPENS on the fit: the raider is choosing a route across ground
+    // they do not own, and a route needs the whole homestead in frame. But the
+    // shot is theirs to change from there — `setRaid` runs on every single
+    // step, so re-solving the fit here would snatch the board back the moment
+    // they leaned in, exactly as it would between two buried traps below.
+    if (this.raiding) {
+      return this.camMovedByPlayer
+        ? clampPlaceCam(this.cam, this.data.seed)
+        : boardCam(this.data.seed);
+    }
     if (this.data.placing) {
       // Once the player has dragged or pinched, their framing is the right
       // one — `setPlacing` runs again on every trap buried, and re-solving the
@@ -1305,7 +1338,7 @@ export class BurrowScene implements Scene {
 
   /** Apply a camera the PLAYER moved: no tween, and remember they moved it. */
   private setPlaceCam(to: BurrowCam): void {
-    if (!this.data.placing || this.raiding) return;
+    if (!this.canMoveCam()) return;
     this.camMovedByPlayer = true;
     this.cam = to;
     // Set directly rather than through `moveCamera`: a drag is continuous and
@@ -1533,12 +1566,18 @@ export class BurrowScene implements Scene {
 
     // A raider must not see the OWNER's traps. They are hidden rather than
     // never drawn, because the same scene serves both sides and the owner may
-    // have been looking at their own burrow a moment ago.
-    for (const group of this.trapSprites.values()) group.visible = false;
+    // have been looking at their own burrow a moment ago. The owner DOES see
+    // them — they are the defence being aimed, and a defender who cannot tell
+    // which cells are already mined is burying bombs blind.
+    for (const group of this.trapSprites.values()) group.visible = this.defending;
     // Set before setPlacing: it reframes, and a raid wants the pulled-back
     // board — without this the camera would fly home and straight back out.
     this.raiding = true;
-    this.setPlacing(false);
+    // The grid comes down for a RAIDER, who has no business burying anything
+    // on somebody else's ground. A DEFENDER keeps it: mining a cell ahead of
+    // the rabbit crossing their homestead is half of the defence, and taking
+    // the grid away the moment a raid began left them nothing to do but watch.
+    if (!this.defending) this.setPlacing(false);
 
     const fresh = this.raidCellsSeed !== state.seed;
     if (fresh) this.buildRaidCells(state.seed);
@@ -1633,7 +1672,12 @@ export class BurrowScene implements Scene {
       // covers. Interactive whether or not it is lit — the hit test does not
       // read alpha — and the handler checks the ring, so a tap on dark ground
       // is silently nothing rather than a refused request.
-      fog.eventMode = 'static';
+      // Interactive for the RAIDER, who steps by tapping these; transparent
+      // for the DEFENDER, who is not walking anywhere. The veil covers every
+      // walkable cell and is mounted over the placement diamonds, so leaving
+      // it static on the defender's screen swallowed every attempt to bury a
+      // bomb while a raid was on — the one moment they most need to.
+      fog.eventMode = this.defending ? 'none' : 'static';
       fog.label = `raid-step-${tile}`;
       fog.hitArea = hit();
       fog.on('pointerdown', () => {
@@ -1862,11 +1906,125 @@ export class BurrowScene implements Scene {
    * island sorts it.
    */
   private buildRaider(seed: string, at: number): PlayerRabbit {
-    return new PlayerRabbit(at, Keys.BUNNY_WHITE, '', {
+    const raider = new PlayerRabbit(at, Keys.BUNNY_WHITE, '', {
       at: (tile) => burrowTileScreen(seed, tile),
       depth: (tile) => burrowDepth(seed, tile) + 0.6,
     });
+
+    /* THE RAIDER IS A TARGET.
+     *
+     * The defender can strike whoever is crossing their ground by tapping
+     * them, so the rabbit itself has to be pressable. Two things make that
+     * work on this board:
+     *
+     *   - a `hitArea` rather than the sprite's bounds. The rabbit's frame is
+     *     32x32 with the animal drawn low in it, so bounds would hand a third
+     *     of the target to empty air above its ears — and, worse, that empty
+     *     air overlaps the cell behind, whose own veil is pressable.
+     *   - the press is REPORTED, not acted on: `onRaiderTap` is set by whoever
+     *     owns the rules (the page, or a story), because whether a strike is
+     *     allowed — what it costs, how often — is not the board's to decide.
+     */
+    // Sized to the ANIMAL, from the sheet: the bunny frames draw a 14x14 body
+    // low in a 32x32 cell, so the target is that body at `RABBIT_SCALE` and no
+    // more. An earlier box a whole tile tall swallowed the cell the rabbit
+    // stands on — and the defender's own step taps with it, since the raider
+    // sits on top of a tile that is itself pressable.
+    const w = 14 * RABBIT_SCALE;
+    const h = 14 * RABBIT_SCALE;
+    // Anchored like the sprite above it (feet at the origin, art rising from
+    // there), so the box sits on the body rather than floating over its head.
+    raider.container.hitArea = new Rectangle(-w / 2, -h, w, h);
+    raider.container.on('pointertap', () => {
+      // A drag that happens to end on the rabbit is a camera move, not a tap —
+      // the same test the placement diamonds make on their own `pointertap`.
+      if (this.gestures?.didDrag) return;
+      this.onRaiderTap?.(this.raiderAt);
+    });
+    // Only a DEFENDER can press it. The rabbit stands on a tile that is itself
+    // pressable — it is how the raider takes their next step — and a sprite on
+    // top of that tile takes the press first. So on a client with no strike
+    // wired up the rabbit is transparent to the pointer, and the step
+    // underneath keeps working; `setRaiderTap` is what turns it on.
+    //
+    // Passed the container rather than read off `this.raider`, which the caller
+    // has not assigned yet: this runs while the rabbit is still being built.
+    this.applyRaiderTargetable(raider.container);
+    return raider;
   }
+
+  /**
+   * Called when the defender taps the rabbit crossing their ground.
+   *
+   * Set by the owner of the rules rather than acted on here — see
+   * `buildRaider`. Null means taps are ignored, which is what a raider's own
+   * client wants: they are not allowed to strike themselves.
+   */
+  onRaiderTap: ((tile: number) => void) | null = null;
+
+  /**
+   * Whether the rabbit takes pointer presses at all.
+   *
+   * Off unless a strike is actually wired up — see the note in `buildRaider`:
+   * a targetable rabbit eats the press meant for the tile it is standing on,
+   * which on the raider's own screen is the step they were trying to take.
+   */
+  private applyRaiderTargetable(container?: Container): void {
+    const target = container ?? this.raider?.container;
+    if (!target || target.destroyed) return;
+    const on = this.onRaiderTap !== null;
+    target.eventMode = on ? 'static' : 'none';
+    target.cursor = on ? 'pointer' : 'default';
+  }
+
+  /**
+   * Say who is watching: a defender (who may strike the raider) or the raider
+   * themselves. Re-applied to the rabbit currently on the board, so it can be
+   * set before or after a raid begins.
+   */
+  setRaiderTap(handler: ((tile: number) => void) | null): void {
+    this.onRaiderTap = handler;
+    this.applyRaiderTargetable();
+  }
+
+  /**
+   * Replace what a press on a placement cell does.
+   *
+   * The handler normally arrives with the scene's init data, which is right
+   * for the burrow screen: it is built once and the page owns it for its whole
+   * life. A DEFENCE is different — the rules change while the board is up (a
+   * raid begins, bombs run out, the cell the raider has already crossed stops
+   * being a legal place to bury one), and the owner of those rules is not
+   * necessarily the code that started the scene.
+   */
+  setToggleHandler(handler: (tile: number, mined: boolean) => void): void {
+    this.data.onToggle = handler;
+  }
+
+  /**
+   * Whose side this screen is on while a raid runs.
+   *
+   * A raid is watched from two chairs and they want opposite things. The
+   * RAIDER gets the board a route is read from: no grid, no traps in sight,
+   * fog over what they have not walked. The DEFENDER is at home — they may
+   * bury a bomb ahead of the rabbit and call the lightning down on it, so the
+   * placement grid stays up and the raid is something they act on rather than
+   * something they watch.
+   *
+   * Set before `setRaid`, which is where the grid is decided.
+   */
+  setDefending(defending: boolean): void {
+    this.defending = defending;
+    // The veils are built once per raid, so a screen that declares itself late
+    // (or changes sides) has to have them re-flagged — see the note where they
+    // are created.
+    for (const cell of this.raidCells.values()) {
+      cell.fog.eventMode = defending ? 'none' : 'static';
+    }
+  }
+
+  /** See `setDefending`. Raider's view unless told otherwise. */
+  private defending = false;
 
   /**
    * The raid is over, and the board says so before the trip home.
@@ -1891,7 +2049,13 @@ export class BurrowScene implements Scene {
    * rabbit takes the hit the way it takes a bomb on the island.
    */
   springTrap(tile: number): void {
+    // Flinch and RECOVER. `playDamage` alone leaves the rabbit on the last
+    // frame of the `damage` row, and its last three frames are empty — so a
+    // raider that survived a trap simply vanished from the tile it was still
+    // standing on, and the next step hopped an invisible rabbit. (The
+    // electrocution ends on `playDeath` instead, which holds a full frame.)
     this.raider?.playDamage();
+    this.raider?.recoverFromDamage();
     // It went off silently: the moment a raid turns was the one blast in the
     // game with no bang. The island's bomb sound, so a trap reads as a bomb.
     playUiSfx('explosion');
@@ -1915,6 +2079,51 @@ export class BurrowScene implements Scene {
       duration: 0.45,
       onComplete: () => blast.destroy(),
     });
+  }
+
+  /**
+   * The burrow answers back: a bolt lands on the raider and holds them in it.
+   *
+   * The effect itself — bolt, flickering pose, rattle, the drop — is
+   * `fx/Electrocute`, shared with the island so a rabbit struck on either board
+   * is struck the same way. What this knows is only where the raider stands on
+   * THIS ground and how a bolt sorts against it: the tile's screen position on
+   * terraced ground, and the board's depth ruler.
+   *
+   * Always FATAL here: the current is what ends the raid, and a raider that
+   * shrugged off a lightning bolt would make the bolt look harmless.
+   *
+   * Resolves when the body has dropped, so a caller can finish the raid on it.
+   */
+  async electrocuteRaider(ms = 1400): Promise<void> {
+    const raider = this.raider;
+    if (!raider) return;
+    const tile = this.raiderAt;
+    const { x, y } = burrowTileScreen(this.data.seed, tile);
+    await electrocute({
+      rabbit: raider,
+      x,
+      y,
+      layer: this.board,
+      boltDepth: burrowDepth(this.data.seed, tile) + 2,
+      holdMs: ms,
+      fatal: true,
+      timers: this.shockTimers,
+      // The raider can be gone by the time an await returns — a raid that
+      // ended, or a scene torn down under it.
+      alive: () => this.raider === raider,
+    });
+  }
+
+  /**
+   * Cut the electrocution's pending waits.
+   *
+   * The effect is a chain of awaits across more than a second, so one left
+   * running past a teardown would wake to a raider that no longer exists.
+   */
+  private clearShock(): void {
+    for (const t of this.shockTimers) window.clearTimeout(t);
+    this.shockTimers.clear();
   }
 
   /** Tear the raid overlay down. */
@@ -1943,6 +2152,11 @@ export class BurrowScene implements Scene {
     if (this.raiding) {
       for (const group of this.trapSprites.values()) group.visible = true;
       this.raiding = false;
+      // As leaving placement does: the framing the raider leaned in with is
+      // theirs for that raid only, and the homestead behind it is somebody's
+      // home again — it opens on its own shot, not on a corner of a board the
+      // player was peering at.
+      this.camMovedByPlayer = false;
     }
     // The raid is over and this is somebody's home again.
     if (!this.home && !this.dying && !this.container.destroyed) {
@@ -2131,6 +2345,7 @@ export class BurrowScene implements Scene {
     // about to be torn down — and a fresh one built here would outlive the
     // scene, ticking its own timer against a destroyed container.
     this.dying = true;
+    this.clearShock();
     this.clearRaid();
     this.home?.destroy();
     this.home = null;

@@ -284,6 +284,17 @@ export const raidRuns = pgTable('raid_runs', {
   carrotsLooted: bigint('carrots_looted', { mode: 'number' }).notNull().default(0),
   startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
   endedAt: timestamp('ended_at', { withTimezone: true }),
+  /**
+   * Set when the DEFENDER ended this run with a lightning strike.
+   *
+   * The one way a raid ends from the other side of the wire. Every other
+   * ending is the raider's own doing (a step that reached the field or spent
+   * the last energy, a retreat), so the raider's client learns of it from the
+   * answer to its own request. A strike lands between two of those requests,
+   * and this stamp is how the next one is answered with the shock instead of
+   * with "no raid" — see `STRUCK_SHOWN_MS`.
+   */
+  struckAt: timestamp('struck_at', { withTimezone: true }),
 }, (t) => [
   index('raid_runs_defender_idx').on(t.defenderId, t.startedAt),
   index('raid_runs_attacker_idx').on(t.attackerId, t.startedAt),

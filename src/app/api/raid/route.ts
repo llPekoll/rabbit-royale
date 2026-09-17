@@ -17,7 +17,9 @@
  * dropped connection is the kind of thing players do not forgive.
  */
 import { and, desc, eq, isNull, ne, sql as raw } from 'drizzle-orm';
-import { db } from '@/lib/db';
+import { db, sql } from '@/lib/db';
+import { pushToPlayer } from '@/lib/game/raid-events';
+import { defenderRaidView } from '@/lib/game/defence';
 import { players, raidRuns, raids, traps } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
 import {
@@ -102,7 +104,51 @@ async function raidView(runId: string, revealAll = false) {
     finished: run.endedAt !== null,
     succeeded: run.succeeded,
     carrotsLooted: run.carrotsLooted,
+    /**
+     * The DEFENDER ended it, with lightning. A finished, failed raid either
+     * way — but the raider's screen plays the shock rather than the collapse,
+     * and says who did it.
+     */
+    struck: run.struckAt !== null,
   };
+}
+
+/**
+ * Tell the DEFENDER, if they are online, what just happened on their ground.
+ *
+ * On every change: the raid starting, each step, and every ending. Sent after
+ * the row is written, over the Postgres push bus (`raid-events`), so a burrow
+ * whose owner is at home draws the intruder live — and one whose owner is not
+ * hears nothing and loses nothing, the row being the truth either way.
+ */
+async function tellDefender(runId: string): Promise<void> {
+  const run = await db.query.raidRuns.findFirst({ where: eq(raidRuns.id, runId) });
+  if (!run) return;
+  const attacker = await db.query.players.findFirst({ where: eq(players.id, run.attackerId) });
+  if (!attacker) return;
+  await pushToPlayer(sql, {
+    to: run.defenderId,
+    event: 'raid_incoming',
+    payload: defenderRaidView(run, attacker),
+  });
+}
+
+/**
+ * The raider's latest run, if the defender ended it by lightning recently.
+ *
+ * A strike closes a run from the OTHER side of the wire, between two of the
+ * raider's own requests — so with no open run to answer with, the next request
+ * is answered with this one instead, for `RAID_RUN.STRUCK_SHOWN_MS`. Without
+ * it a struck raider got a bare `no_raid` and never saw what hit them.
+ */
+async function recentlyStruck(attackerId: string) {
+  const last = await db.query.raidRuns.findFirst({
+    where: eq(raidRuns.attackerId, attackerId),
+    orderBy: desc(raidRuns.startedAt),
+  });
+  if (!last?.struckAt || !last.endedAt) return null;
+  if (Date.now() - last.struckAt.getTime() > RAID_RUN.STRUCK_SHOWN_MS) return null;
+  return last;
 }
 
 export async function GET(req: Request) {
@@ -119,6 +165,12 @@ export async function GET(req: Request) {
     orderBy: desc(raidRuns.startedAt),
   });
   if (open) return Response.json({ raid: await raidView(open.id, reveal) });
+
+  // No open raid, but one that was just ended BY LIGHTNING is still the
+  // raider's news: answered as the finished raid it is, flagged `struck`, so
+  // the client can play the shock. The client dismisses it by id on leaving.
+  const struck = await recentlyStruck(session.sub);
+  if (struck) return Response.json({ raid: await raidView(struck.id, reveal) });
 
   // Otherwise: who is worth attacking. Ordered by stock, because the reason to
   // raid somebody is what they are holding.
@@ -216,6 +268,8 @@ export async function POST(req: Request) {
     visited: [start],
   }).returning({ id: raidRuns.id });
 
+  await tellDefender(run.id);
+
   // TEMPORARY: the flag has to ride the POST as well. This is the response
   // that draws the board on ARRIVAL, so without it a revealed raid showed the
   // usual nine cells until the first step.
@@ -234,7 +288,13 @@ export async function PATCH(req: Request) {
     where: and(eq(raidRuns.attackerId, session.sub), isNull(raidRuns.endedAt)),
     orderBy: desc(raidRuns.startedAt),
   });
-  if (!run) return Response.json({ error: 'no_raid' }, { status: 404 });
+  if (!run) {
+    // The step that lands after the defender's strike: the raid it was meant
+    // for is gone, and the answer is the strike, not a refusal.
+    const struck = await recentlyStruck(session.sub);
+    if (struck) return Response.json({ raid: await raidView(struck.id), struck: true });
+    return Response.json({ error: 'no_raid' }, { status: 404 });
+  }
 
   // Adjacency is checked SERVER-SIDE. `burrowNeighbors` already excludes walls
   // and off-board indices, so a client naming a distant or blocked tile is
@@ -272,6 +332,7 @@ export async function PATCH(req: Request) {
     await db.update(raidRuns)
       .set({ tile: to, energy, visited, trapsSprung: sprung })
       .where(eq(raidRuns.id, run.id));
+    await tellDefender(run.id);
     return Response.json({
       raid: await raidView(run.id, new URL(req.url).searchParams.get('reveal') !== null),
       sprungTrap: !!trap,
@@ -357,6 +418,8 @@ export async function PATCH(req: Request) {
     });
   });
 
+  await tellDefender(run.id);
+
   return Response.json({
     raid: await raidView(run.id, new URL(req.url).searchParams.get('reveal') !== null),
     sprungTrap: !!trap,
@@ -404,6 +467,8 @@ export async function DELETE(req: Request) {
   await db.update(raidRuns)
     .set({ endedAt: new Date(), succeeded: false, carrotsLooted: 0 })
     .where(eq(raidRuns.id, run.id));
+  // The defender sees them turn back, rather than a rabbit that simply stops.
+  await tellDefender(run.id);
 
   return Response.json({ raid: null });
 }

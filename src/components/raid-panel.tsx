@@ -310,7 +310,9 @@ export function RaidHud({ raid, busy, note, onLeave }: RaidHudProps) {
           energy" to a raid the player had just won. */}
       {raid.finished && !raid.succeeded && (
         <div className="rr-raid-over">
-          <strong>{d.raid.outOfEnergy}</strong>
+          {/* Struck says STRUCK: the defender did this, from their own screen,
+              and "Out of energy" would blame a bar that was not empty. */}
+          <strong>{raid.struck ? d.raid.struck : d.raid.outOfEnergy}</strong>
           <span className="rr-raid-haul">
             {raid.carrotsLooted > 0
               ? d.raid.looted(groupDigits(raid.carrotsLooted))

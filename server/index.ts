@@ -20,13 +20,14 @@ import { randomUUID } from 'node:crypto';
 import { Server, type Socket } from 'socket.io';
 import { and, eq, isNull, sql as raw } from 'drizzle-orm';
 
-import { ENERGY, ERUPTION, MIRAGE, MULTIPLAYER, OUT_OF_RUN_ENERGY } from '../config/tuning';
+import { ENERGY, ERUPTION, LIGHTNING, MIRAGE, MULTIPLAYER, OUT_OF_RUN_ENERGY } from '../config/tuning';
 import { mulberry32, seedFrom } from '../src/lib/game/rng';
 import { cascadeAround, dugFraction, publicView } from '../src/lib/game/island';
 import { firstIslandSeed, isFirstIsland } from '../src/lib/game/first-island';
 import { flagTile, resolveMove, spawnRabbit } from '../src/lib/game/run';
 import { mirageActive, planMirage, shownAdjacent } from '../src/lib/game/mirage';
-import { strike } from '../src/lib/game/lightning';
+import { strike, struckRabbits } from '../src/lib/game/lightning';
+import { plantBlocker, plantBomb } from '../src/lib/game/sabotage';
 import { makeShape, toColRow, toIndex } from '../src/config/gridConfig';
 import { GRAZE_CHANCE, isSpooked, planFlock, type Ground } from '../src/lib/game/flee';
 import { boardFor, terrainFor } from '../src/lib/game/terrainBoard';
@@ -37,7 +38,8 @@ import { grantItem } from '../src/lib/game/grant';
 import { refreshTuning } from '../src/lib/tuning/live';
 import type { ItemKind } from '../src/lib/game/inventory';
 import { verifySession } from '../src/lib/auth/jwt';
-import { db } from '../src/lib/db';
+import { db, sql } from '../src/lib/db';
+import { decodePush, PLAYER_PUSH_CHANNEL } from '../src/lib/game/raid-events';
 import { inventory, players, runs, seasons } from '../src/lib/db/schema';
 import { MemoryIslandStore, type LiveIsland } from './islands/store';
 import { roomFor } from './islands/router';
@@ -289,6 +291,34 @@ function socketOf(playerId: string): Socket | undefined {
   }
   return undefined;
 }
+
+// ── The push bus ─────────────────────────────────────────────────────────────
+
+/**
+ * Relay what the HTTP side tells a player — see `lib/game/raid-events`.
+ *
+ * One `LISTEN` on a dedicated connection, held for the life of the process
+ * (postgres.js re-establishes it after a drop). A raid is decided over HTTP
+ * in the web process; this is how its every change reaches the socket of a
+ * defender who is at home, and how a raider hears the lightning that ended
+ * their run between two of their own steps. Nothing is asked twice: a player
+ * with no socket here is simply not told, and reads the row later.
+ *
+ * OPTIONAL, like presence: a database that will not take the LISTEN must not
+ * stop the process from seating anyone. The bus being down costs the live
+ * picture and nothing else.
+ */
+function listenForPushes(): void {
+  sql.listen(PLAYER_PUSH_CHANNEL, (wire) => {
+    const push = decodePush(wire);
+    if (!push) return;
+    socketOf(push.to)?.emit(push.event, push.payload);
+  }).then(
+    () => console.log('[rr-ws] push bus listening on', PLAYER_PUSH_CHANNEL),
+    (e) => console.error('[rr-ws] push bus unavailable (live raids off):', e),
+  );
+}
+listenForPushes();
 
 // ── Persistence ──────────────────────────────────────────────────────────────
 
@@ -674,6 +704,114 @@ io.on('connection', (socket: Socket) => {
     // Bounded around the point of impact, like a dig is around the rabbit.
     const hinted = cascadeAround(live.island, target);
     if (hinted.length) io.to(room).emit('hints_revealed', { tiles: hinted });
+
+    /* AND WHOEVER WAS STANDING THERE.
+     *
+     * The strike used to open ground only. It is aimed at a RIVAL now: every
+     * other rabbit inside its square is electrocuted — a heart, the same as a
+     * bomb (LIGHTNING.SHOCK_LOSS), and held for the current's duration. The
+     * roster decides who was in the way (`struckRabbits`), never the tiles:
+     * a rabbit is struck for where it stands, dug ground or not.
+     *
+     * Told AFTER the reveals, so a client plays the bolts, then the ground
+     * opening, then the rabbit going down in it — the order the eye expects.
+     * A victim whose last heart this took is ended the way a shove ends a
+     * run (see `rabbit_pushed`): the room sees the slump, the victim alone
+     * gets the recap, and the run is banked by whichever exit fires first.
+     */
+    const nowMs = Date.now();
+    for (const victim of struckRabbits(live.island.seed, target, live.rabbits.values(), data.playerId)) {
+      victim.energy = Math.max(0, victim.energy - LIGHTNING.SHOCK_LOSS);
+      victim.stunnedUntil = nowMs + LIGHTNING.SHOCK_STUN_MS;
+      const runOver = victim.energy <= 0;
+      if (runOver) victim.alive = false;
+      io.to(room).emit('rabbit_struck', {
+        playerId: victim.playerId,
+        // Rule 7 of the shoves applies here too: the victim always knows who
+        // did it — revenge is the point.
+        by: data.playerId,
+        tile: victim.tile,
+        energy: victim.energy,
+        // A REMAINING duration, not the server's deadline: the two clocks are
+        // unrelated (see `bomb_hit`).
+        stunMs: LIGHTNING.SHOCK_STUN_MS,
+        runOver,
+      });
+      if (!runOver) continue;
+      io.to(room).emit('rabbit_died', { playerId: victim.playerId });
+      void bankRun(victim).catch((e) => console.error('[bankRun:struck]', e));
+      socketOf(victim.playerId)?.emit('run_over', {
+        carrots: victim.carrots,
+        tilesDug: victim.run?.tilesDug ?? 0,
+        bombsHit: victim.run?.bombsHit ?? 0,
+        durationMs: nowMs - (victim.run?.startedAt ?? nowMs),
+      });
+    }
+  }));
+
+  /**
+   * Bury a bomb under an undug tile of this island.
+   *
+   * The quiet sabotage — see `lib/game/sabotage` for the rule, and for why a
+   * plant recounts the numbers around it: the board must never un-deduce
+   * itself, so whatever shown number the bomb changed is redrawn for everyone
+   * at once. That redraw is the only trace a plant leaves; the tile itself
+   * looks like any other until somebody digs it.
+   *
+   * REFUSED BEFORE IT IS PAID FOR, unlike the strike: every refusal here is a
+   * legitimate play the player could not have known was illegal (the cap, a
+   * chest they aimed at), and charging for it would teach them to stop trying.
+   * The one thing never refused is a tile that already holds a bomb — that
+   * refusal would be a free probe.
+   */
+  socket.on('plant', guard('plant', async (payload: { tile?: unknown }) => {
+    if (!data.playerId || !data.islandId || data.spectating) return;
+    const target = payload?.tile;
+    if (typeof target !== 'number' || !Number.isInteger(target)) return;
+
+    const live = store.get(data.islandId);
+    if (!live || live.erupting) return;
+    // Only somebody actually digging this island may mine it.
+    if (!live.rabbits.get(data.playerId)?.alive) return;
+
+    const blocker = plantBlocker(live.island, data.playerId, target);
+    if (blocker) return socket.emit('plant_rejected', { reason: blocker });
+
+    // Spend it — conditional on the row still holding one, so two sockets
+    // racing the same last bomb cannot both plant.
+    const spent = await db
+      .update(inventory)
+      .set({ qty: raw`${inventory.qty} - 1` })
+      .where(and(
+        eq(inventory.playerId, data.playerId),
+        eq(inventory.kind, 'bomb'),
+        raw`${inventory.qty} > 0`,
+      ))
+      .returning({ qty: inventory.qty });
+    if (spent.length === 0) return socket.emit('plant_rejected', { reason: 'none-held' });
+
+    const out = plantBomb(live.island, live.shape, data.playerId, target);
+
+    // The planter alone is told where it went — it is their ambush.
+    socket.emit('bomb_planted', { tile: out.tile });
+
+    // Everyone gets the numbers the bomb changed — except a victim under a
+    // mirage, whose bent copy is bent again, exactly as a dig's reveal is.
+    if (out.changed.length === 0) return;
+    const room = roomFor(live.island.id);
+    if (live.mirages.size === 0) {
+      io.to(room).emit('hints_changed', { tiles: out.changed });
+      return;
+    }
+    const now = Date.now();
+    for (const seated of live.rabbits.keys()) {
+      socketOf(seated)?.emit('hints_changed', {
+        tiles: out.changed.map((c) => ({
+          tile: c.tile,
+          adjacent: shownAdjacent(live.mirages.get(seated), c.tile, c.adjacent, now),
+        })),
+      });
+    }
   }));
 
   /**

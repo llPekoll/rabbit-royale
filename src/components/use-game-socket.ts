@@ -21,6 +21,7 @@ import type { TileContent } from '@/lib/game/types';
 import type { IslandScene } from '@/game/scenes/IslandScene';
 import { toIndex } from '@/config/gridConfig';
 import { FLAG } from '@config/tuning';
+import { sameIncoming, type IncomingRaid } from './use-incoming-raid';
 
 export interface ClientRabbit {
   playerId: string;
@@ -119,6 +120,8 @@ export interface MoveResult {
     loot?: { kind: string; amount: number; announced?: boolean };
     /** A crown chest also gave up an RR Genesis piece. */
     nft?: boolean;
+    /** The bomb was a saboteur's — who. The victim is told; revenge is the point. */
+    plantedBy?: string;
   };
   /**
    * The tutorial's chest was just opened — the run ends on a win.
@@ -313,6 +316,22 @@ export function useGameSocket(
   const [bankedCarrots, setBankedCarrots] = useState(0);
   /** The island is going down: the server's beat before the recap, in ms. */
   const [erupting, setErupting] = useState<number | null>(null);
+  /** Strikes of OURS that landed — a counter, so the bag can be re-read each time. */
+  const [casts, setCasts] = useState(0);
+  /** The last strike the server refused, or null. */
+  const [strikeRefused, setStrikeRefused] = useState<{ reason: string; at: number } | null>(null);
+  /** The last time WE were struck, and by whom — for the toast that names them. */
+  const [struckBy, setStruckBy] = useState<{ by: string; at: number } | null>(null);
+  /** Bombs of OURS that went into the ground — a counter, so the bag is re-read each time. */
+  const [plants, setPlants] = useState(0);
+  /** The last plant the server refused, or null. */
+  const [plantRefused, setPlantRefused] = useState<{ reason: string; at: number } | null>(null);
+  /** The last saboteur's bomb WE stepped on, and whose it was. */
+  const [bombedBy, setBombedBy] = useState<{ by: string; at: number } | null>(null);
+  /** The raid on OUR burrow as last pushed, or null — see `raid_incoming`. */
+  const [incomingRaid, setIncomingRaid] = useState<IncomingRaid | null>(null);
+  /** Bumped when the defender's lightning ends our raid — see `raid_struck`. */
+  const [struckRaid, setStruckRaid] = useState(0);
 
   /**
    * Whether the player has ASKED for a seat and not given it up.
@@ -504,6 +523,7 @@ export function useGameSocket(
      * take-over for a prize somebody else won.
      */
     socket.on('move_result', (r: MoveResult) => {
+      if (r.dig?.plantedBy) setBombedBy({ by: r.dig.plantedBy, at: Date.now() });
       if (r.dig) {
         const c = r.dig.content;
         // The gain, said on the tile — for the digger alone, which is who
@@ -556,9 +576,67 @@ export function useGameSocket(
      * opened ground is the consequence, and a flash arriving after its own
      * result reads as a delayed effect rather than as a strike.
      */
-    socket.on('lightning_struck', (p: { target: number; tiles: number[] }) => {
+    socket.on('lightning_struck', (p: { target: number; tiles: number[]; castBy?: string }) => {
       toScene((s) => s.playLightning(p.target, p.tiles));
+      // Our own strike landed: the item is gone from the bag, and whatever
+      // shows the count may go and re-read it.
+      if (p.castBy && p.castBy === playerId) setCasts((n) => n + 1);
     });
+
+    /**
+     * A rabbit was caught in a strike.
+     *
+     * Separate from `lightning_struck`, which is the bolt on the ground: this
+     * is the ANIMAL, and the scene plays the electrocution on it — the pose,
+     * the rattle, the drop. `runOver` says whether the drop is for good; the
+     * `rabbit_died` and `run_over` that follow a fatal one are the ordinary
+     * ending, exactly as a bomb's would be.
+     */
+    socket.on('rabbit_struck', (
+      p: { playerId: string; by: string; tile: number; energy: number; stunMs: number; runOver: boolean },
+    ) => {
+      setRabbits((prev) => {
+        const known = prev.get(p.playerId);
+        if (!known) return prev;
+        return new Map(prev).set(p.playerId, { ...known, energy: p.energy, alive: !p.runOver });
+      });
+      if (p.playerId === playerId) setStruckBy({ by: p.by, at: Date.now() });
+      toScene((s) => s.electrocuteRabbit(p.playerId, p.tile, { fatal: p.runOver, stunMs: p.stunMs }));
+    });
+
+    /** The server would not fire the strike — none held, or aimed off the island. */
+    socket.on('lightning_rejected', ({ reason }: { reason: string }) => {
+      setStrikeRefused({ reason, at: Date.now() });
+    });
+
+    /** One of OUR bombs is in the ground. Sent to the planter alone. */
+    socket.on('bomb_planted', ({ tile }: { tile: number }) => {
+      toScene((s) => s.markPlanted(tile));
+      setPlants((n) => n + 1);
+    });
+    /** The server would not plant it — see `plantBlocker` for the reasons. */
+    socket.on('plant_rejected', ({ reason }: { reason: string }) => {
+      setPlantRefused({ reason, at: Date.now() });
+    });
+
+    /**
+     * Somebody is raiding YOUR burrow — every change of it, pushed.
+     *
+     * Not an island event: it comes from the HTTP side over the Postgres
+     * push bus (`lib/game/raid-events`) and reaches whichever socket is this
+     * player's. Kept as state for the burrow page to draw from; the scene
+     * that draws it is the burrow's, not the island's, so nothing goes to
+     * `toScene` here.
+     */
+    socket.on('raid_incoming', (raid: IncomingRaid) => {
+      setIncomingRaid((prev) => (sameIncoming(prev, raid) ? prev : raid));
+    });
+
+    /**
+     * The defender's lightning ended OUR raid. The raid hook re-reads once and
+     * plays the shock; a counter, so two strikes in a session are two events.
+     */
+    socket.on('raid_struck', () => setStruckRaid((n) => n + 1));
 
     socket.on('hints_changed', (p: { tiles: Array<{ tile: number; adjacent: number }> }) => {
       toScene((s) => { for (const t of p.tiles) s.setHint(t.tile, t.adjacent); });
@@ -731,6 +809,20 @@ export function useGameSocket(
     socketRef.current?.emit('move', { tile });
   }, [setFlagMode]);
 
+  /**
+   * Call a lightning strike down on a tile — and on whoever stands in its
+   * square. The server spends the item and decides everything that follows;
+   * a refusal comes back as `lightning_rejected`.
+   */
+  const strike = useCallback((tile: number) => {
+    socketRef.current?.emit('lightning', { tile });
+  }, []);
+
+  /** Bury a bomb under a tile. The server spends the item and decides whether it may. */
+  const plant = useCallback((tile: number) => {
+    socketRef.current?.emit('plant', { tile });
+  }, []);
+
   const restart = useCallback(() => {
     const socket = socketRef.current;
     if (!socket) return;
@@ -787,6 +879,9 @@ export function useGameSocket(
     islandSeed, islandKey, rabbits, me, warnStage, recap, banked, bankedCarrots, connected, dropped, refused,
     firstRun, digs, bank, erupting,
     chestPrize, clearChestPrize: () => setChestPrize(null),
-    moveTo, restart, join, leave, bindScene, resync, flagMode, setFlagMode, flagNothing,
+    casts, strikeRefused, struckBy, plants, plantRefused, bombedBy, incomingRaid, struckRaid,
+    // Let the burrow page forget a raid it has finished showing.
+    clearIncomingRaid: () => setIncomingRaid(null),
+    moveTo, restart, join, leave, strike, plant, bindScene, resync, flagMode, setFlagMode, flagNothing,
   };
 }

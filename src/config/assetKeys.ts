@@ -82,6 +82,10 @@ export const LOGO_BANNER = 'logo-banner';
 /** The animated loot box (shared with the arena): idle frames + a `highlight`
  *  shine tag. Its atlas ships beside it as `loot-box.json`. */
 export const LOOT_BOX = 'loot-box';
+/** The rabbit's ELECTROCUTED pose (2 frames, 32x32 in a padded Aseprite
+ *  atlas): the skeleton flash a strike leaves behind, alternated fast. Same
+ *  frame size as the bunny sheets, so it drops straight over a rabbit. */
+export const ELECTROCUTED = 'electrocuted';
 /** The game's pixel pointer hand (27x32, fingertip up-left). The same art the
  *  CSS cursor uses; loaded as a texture too so the burrow's placement glove can
  *  show a finger pressing a cell on devices that have no cursor at all. */

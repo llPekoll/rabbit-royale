@@ -204,6 +204,22 @@ export const zh: Dict = {
     energyLow: '能量不足。标对一个炸弹会还你一些。',
     trapHint: (left) => `点格子埋雷，点雷收回 · 还剩 ${left}`,
     trapHintEmpty: '没有雷了 · 再买一颗，或点一颗雷收回改埋别处',
+    strike: '雷击',
+    aiming: '点一个对手施放雷击',
+    strikeNone: '没有闪电可召。小屋有售。',
+    plant: '埋雷',
+    aimingPlant: '点一块未挖的地埋雷',
+    plantNone: '没有雷可埋。小屋有售。',
+    planted: '雷已埋下。只有你知道在哪。',
+    plantRefused: {
+      'off-island': '不在岛上。',
+      revealed: '那块地已经挖过了。',
+      hinted: '棋盘已经标明那块地是安全的。',
+      chest: '不能埋在宝箱下。',
+      'too-many': '这里最多只能有三颗雷。',
+    } as Record<string, string>,
+    plantedBy: (name) => `${name} 埋的雷！`,
+    struckBy: (name) => `${name} 用闪电击中了你`,
   },
 
   firstRun: {
@@ -380,6 +396,23 @@ export const zh: Dict = {
     byWho: (who, n) => `被${who} · -${n} 胡萝卜`,
     byWhoNothing: (who) => `被${who}`,
     bounced: (n) => `弹开了 ${n} 次掠夺`,
+    struck: '被闪电击中',
+    struckBy: (name) => `${name} 召来闪电击中了你`,
+  },
+
+  /* ── 你的洞穴正被袭击，从家里看 ───────────────────────────────────────── */
+  defend: {
+    underAttack: (name) => `${name.toUpperCase()} 正在掠夺你`,
+    theirSteps: '对方步数',
+    hint: '在它前方埋一颗雷，或点兔子召来闪电。',
+    strike: '雷击',
+    held: (n) => `持有 ${n}`,
+    struckDown: '已击倒',
+    ranDry: '对方耗尽了能量',
+    looted: (n) => `对方拿走了 ${n} 🥕`,
+    lost: '你的洞穴被洗劫了',
+    held_: '洞穴守住了',
+    incoming: (name) => `${name} 正在掠夺你的洞穴！`,
   },
 
   raidErrors: {
@@ -389,6 +422,8 @@ export const zh: Dict = {
     raid_in_progress: '你已经在一个兔窝里了。',
     cooldown: '你刚刚才掠夺过他们。',
     not_adjacent: '太远了。一步一步来。',
+    raid_over: '这次掠夺已经结束了。',
+    none_held: '没有闪电可召。小屋有售。',
     no_raid: '这次掠夺已经结束。',
     unknown_player: '他们已经不在了。',
   },

@@ -198,6 +198,22 @@ export const fr: Dict = {
     energyLow: 'Énergie basse. Un X juste sur une bombe en rend.',
     trapHint: (left) => `Touche une case pour la miner, une mine pour la reprendre · ${left} restant`,
     trapHintEmpty: 'Plus de bombes · achètes-en une autre, ou touche une mine pour la reprendre et la poser ailleurs',
+    strike: 'Foudroyer',
+    aiming: 'Touche un rival pour le foudroyer',
+    strikeNone: 'Pas d’éclair à appeler. La remise en vend.',
+    plant: 'Poser une bombe',
+    aimingPlant: 'Touche une case non creusée pour y enterrer une bombe',
+    plantNone: 'Pas de bombe à poser. La remise en vend.',
+    planted: 'Bombe enterrée. Toi seul sais où.',
+    plantRefused: {
+      'off-island': 'Pas sur l’île.',
+      revealed: 'Ce sol est déjà creusé.',
+      hinted: 'Le plateau dit déjà que cette case est sûre.',
+      chest: 'Pas sous un coffre.',
+      'too-many': 'Trois bombes actives, c’est le maximum ici.',
+    } as Record<string, string>,
+    plantedBy: (name) => `La bombe de ${name} !`,
+    struckBy: (name) => `${name} t’a foudroyé`,
   },
 
   firstRun: {
@@ -384,6 +400,23 @@ export const fr: Dict = {
     byWho: (who, n) => `PAR ${who} · -${n} CAROTTES`,
     byWhoNothing: (who) => `PAR ${who}`,
     bounced: (n) => `${n} PILLAGE${n < 2 ? '' : 'S'} REPOUSSÉ${n < 2 ? '' : 'S'}`,
+    struck: 'Foudroyé',
+    struckBy: (name) => `${name} a appelé la foudre sur toi`,
+  },
+
+  /* ── Ton terrier attaqué, vu de chez toi ─────────────────────────────── */
+  defend: {
+    underAttack: (name) => `${name.toUpperCase()} PILLE TON TERRIER`,
+    theirSteps: 'ses pas',
+    hint: 'Enterre une bombe devant lui, ou touche le lapin pour le foudroyer.',
+    strike: 'Foudroyer',
+    held: (n) => (n < 2 ? `${n} en stock` : `${n} en stock`),
+    struckDown: 'FOUDROYÉ',
+    ranDry: 'À COURT D’ÉNERGIE',
+    looted: (n) => `IL A PRIS ${n} 🥕`,
+    lost: 'Ton terrier a été pillé',
+    held_: 'Terrier tenu',
+    incoming: (name) => `${name} pille ton terrier !`,
   },
 
   raidErrors: {
@@ -393,6 +426,8 @@ export const fr: Dict = {
     raid_in_progress: 'Tu es déjà dans un terrier.',
     cooldown: 'Tu les as pillés trop récemment.',
     not_adjacent: 'Trop loin. Un pas à la fois.',
+    raid_over: 'Ce pillage est déjà terminé.',
+    none_held: 'Pas d’éclair à appeler. La remise en vend.',
     no_raid: 'Ce pillage est terminé.',
     unknown_player: 'Ils ont disparu.',
   },

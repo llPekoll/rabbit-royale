@@ -64,7 +64,11 @@ import { useShop, type ItemKind } from '@/components/use-shop';
 import type { PayTokenId } from '@/lib/pay/tokens';
 import { useUsdcPay } from '@/components/use-usdc-pay';
 import { RaidHud, TargetList } from '@/components/raid-panel';
-import { useRaid, type RaidState } from '@/components/use-raid';
+import { useRaid, raidMessage, type RaidState } from '@/components/use-raid';
+import { useIncomingRaid } from '@/components/use-incoming-raid';
+import { DefendHud } from '@/components/defend-hud';
+import { raiderView, trapClues } from '@/lib/game/raid';
+import { walkableTiles } from '@/game/burrow/board';
 import { RaidVictory } from '@/components/raid-victory';
 import { gardenProgress } from '@/lib/game/garden-growth';
 import { burrowArt } from '@/config/burrowArt';
@@ -126,6 +130,10 @@ type Where = 'burrow' | 'island';
  * on the field, or its collapse short of it — before the trip home.
  */
 const RAID_OVER_MS = 2000;
+/** The same, for a raid ended by the defender's lightning — long enough for
+ *  the shock to play out (see `fx/Electrocute`): bolt, hold, fall, and the
+ *  body left a beat. */
+const RAID_STRUCK_OVER_MS = 4400;
 /** How long the haul is announced in the burrow once home. */
 const RAID_TOAST_MS = 4000;
 /**
@@ -656,6 +664,67 @@ function Burrow() {
     if (spectating) return;
     game.moveTo(tile);
   }, [game, spectating]);
+
+  /**
+   * THE STRIKE, armed from the HUD's bolt and fired by the next tap.
+   *
+   * `aiming` is the mode; the scene is told (`setAiming`) so rivals become
+   * targets and the tap resolves to a strike instead of a step. One tap fires
+   * it and disarms — a strike is not a brush the player paints with.
+   */
+  const [aiming, setAiming] = useState<'strike' | 'plant' | null>(null);
+  const onStrikeIntent = useCallback((tile: number) => {
+    if (spectating) return;
+    game.strike(tile);
+    setAiming(null);
+  }, [game, spectating]);
+  const onPlantIntent = useCallback((tile: number) => {
+    if (spectating) return;
+    game.plant(tile);
+    setAiming(null);
+  }, [game, spectating]);
+  useEffect(() => {
+    if (!ready) return;
+    handles.current?.island.setAiming(aiming);
+  }, [ready, aiming]);
+  // Off the island, nothing is armed.
+  useEffect(() => { if (where !== 'island') setAiming(null); }, [where]);
+  // A bomb of ours went in: the bag is lighter, and the strip says so.
+  useEffect(() => {
+    if (game.plants <= 0) return;
+    void shop.refresh();
+    setNote(t.run.planted);
+  }, [game.plants, shop, t]);
+  useEffect(() => {
+    if (!game.plantRefused) return;
+    const { reason } = game.plantRefused;
+    setNote(reason === 'none-held' ? t.run.plantNone : (t.run.plantRefused[reason] ?? t.run.plantNone));
+    playUiSfx('deny');
+  }, [game.plantRefused, t]);
+  // WE stepped on a saboteur's bomb: the blast already played; say whose.
+  useEffect(() => {
+    if (!game.bombedBy) return;
+    const who = game.rabbits.get(game.bombedBy.by)?.name ?? t.raid.aRival;
+    setNote(t.run.plantedBy(who));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [game.bombedBy, t]);
+  // A strike of ours landed: the bag is lighter, and the count on the strip
+  // reads from the shop's shelf.
+  useEffect(() => { if (game.casts > 0) void shop.refresh(); }, [game.casts, shop]);
+  useEffect(() => {
+    if (!game.strikeRefused) return;
+    setNote(t.run.strikeNone);
+    playUiSfx('deny');
+  }, [game.strikeRefused, t]);
+  // WE were struck: say by whom. The rabbit is already playing it.
+  useEffect(() => {
+    if (!game.struckBy) return;
+    const who = game.rabbits.get(game.struckBy.by)?.name ?? t.raid.aRival;
+    setNote(t.run.struckBy(who));
+    // `rabbits` is read for the name only; keying on it would repeat the toast
+    // on every move.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [game.struckBy, t]);
   /**
    * A tile was tapped while placing: a bare one takes a bomb, a mined one
    * gives it back.
@@ -1414,8 +1483,11 @@ function Burrow() {
       }).then(() => {
         // The raid is over: the rabbit says so on the board — a dance on the
         // field, a collapse short of it — before the trip home, which the
-        // effect below makes by itself.
-        if (r.finished) burrow.finishRaid(r.succeeded);
+        // effect below makes by itself. STRUCK, it is the defender's lightning
+        // that says so, and the shock ends on the body: no collapse after it.
+        if (!r.finished) return;
+        if (r.struck) return burrow.electrocuteRaider();
+        burrow.finishRaid(r.succeeded);
       });
     };
 
@@ -1442,6 +1514,116 @@ function Burrow() {
     // was whatever the last finished build happened to be. It is also why taps
     // did nothing — every diamond they hit had already been destroyed.
   }, [ready, raid.raid]);
+
+  /* ── YOUR BURROW UNDER ATTACK, watched from home ─────────────────────────
+     The defending half of the raid. A raid on THIS burrow is pushed over
+     the socket (`raid_incoming`) as it changes; when one is, the board
+     becomes the defender's: the intruder is drawn on it and hops as each
+     push reports, the placement grid comes up so a bomb can be buried ahead
+     of them, and a tap on the rabbit (or the bar's button) calls the
+     lightning. */
+  const defence = useIncomingRaid(
+    token,
+    ready && where === 'burrow' && !spectating && !shownRaid && !crossing,
+    // The live picture, off the socket the burrow already holds.
+    game.incomingRaid,
+  );
+  // The defender's lightning ended OUR raid: one re-read, which comes back
+  // as the finished, struck raid and plays the shock (see the draw effect).
+  useEffect(() => {
+    if (game.struckRaid > 0) void raid.refresh();
+    // `raid` is the whole hook object; `refresh` is what is wanted and it is
+    // stable in the token.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [game.struckRaid]);
+  /** The live strike, reachable from the scene's captured tap handler. */
+  const strikeAndShowRef = useRef<() => Promise<void>>(async () => {});
+  /** Whether the board was showing a raid on the previous run of the effect. */
+  const wasDefending = useRef(false);
+  /** Traps sprung as of the last reading, so each new one is played once. */
+  const sprungSeen = useRef(0);
+  /** The raid whose ending has been played, so a poll cannot replay it. */
+  const endedShown = useRef<string | null>(null);
+  const burrowLevel = burrow?.level;
+
+  useEffect(() => {
+    const burrow = handles.current?.burrow;
+    if (!ready || !burrow || !player) return;
+    const inc = defence.incoming;
+
+    // AWAITED, like every other `setRaid` on this page: what follows a redraw
+    // (a trap going off on the tile the rabbit just reached, the ending) has
+    // to land on the board that was drawn, not on the one being replaced.
+    const show = async () => {
+      if (!inc) {
+        if (!wasDefending.current) return;
+        // Over, and the ending has been shown: the homestead is a home again.
+        wasDefending.current = false;
+        sprungSeen.current = 0;
+        burrow.setRaiderTap(null);
+        burrow.setDefending(false);
+        await burrow.setRaid(null);
+        if (placing) stopPlacing();
+        // The stock moved if they reached the field; the shield moved either way.
+        refreshBurrow();
+        return;
+      }
+
+      if (!wasDefending.current) {
+        wasDefending.current = true;
+        sprungSeen.current = inc.trapsSprung;
+        burrow.setDefending(true);
+        burrow.setRaiderTap(() => { void strikeAndShowRef.current(); });
+        // The grid comes up by itself: a raid is the moment a bomb is worth
+        // burying, and the player should not have to find the button first.
+        if (!placing && !inc.finished) startPlacing();
+        setNote(t.defend.incoming(inc.attacker.name));
+        playUiSfx('explosion');
+      }
+
+      const seed = player.id;
+      await burrow.setRaid({
+        // The whole homestead, with the numbers a raider would earn: it is the
+        // defender's own ground, and the clues are what the intruder's route
+        // is read against.
+        view: raiderView(seed, walkableTiles(seed), trapClues(seed, shop.traps?.placed ?? []), false),
+        at: inc.tile,
+        steps: [],
+        seed,
+        level: burrowLevel ?? 1,
+        onStep: () => {},
+      });
+      if (inc.trapsSprung > sprungSeen.current) {
+        sprungSeen.current = inc.trapsSprung;
+        burrow.springTrap(inc.tile);
+      }
+      if (!inc.finished || endedShown.current === inc.raidId) return;
+      endedShown.current = inc.raidId;
+      // The ending, once. A strike was already played by the tap that called
+      // it; the other two endings are the rabbit's to show.
+      if (!inc.struck) burrow.finishRaid(inc.succeeded);
+      playUiSfx(inc.succeeded ? 'die' : 'chime');
+    };
+    void show();
+    // `shop.traps` is read for the clue numbers only: re-drawing on every
+    // change of it would rebuild the raid cells under the player's finger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, player, defence.incoming]);
+
+  // The strike's own refusals, worded like the raid's: a code, never a sentence.
+  useEffect(() => {
+    if (!defence.refusal) return;
+    setNote(raidMessage(t, defence.refusal));
+    playUiSfx('deny');
+  }, [defence.refusal, t]);
+
+  // A struck raider drops on the defender's board too — off the CALL, not off
+  // the poll: the poll only confirms the ending a couple of seconds later.
+  const strikeAndShow = useCallback(async () => {
+    const ok = await defence.strike();
+    if (ok) void handles.current?.burrow.electrocuteRaider();
+  }, [defence]);
+  strikeAndShowRef.current = strikeAndShow;
 
   /**
    * A finished raid goes home BY ITSELF.
@@ -1501,9 +1683,15 @@ function Burrow() {
     const haul = r
       ? r.carrotsLooted > 0
         ? t.raid.stolen(groupDigits(r.carrotsLooted), r.defender.name)
-        : t.raid.fellShort(Math.round((finishedOutcome.current?.progress ?? 0) * 100), r.defender.name)
+        : r.struck
+          ? t.raid.struckBy(r.defender.name)
+          : t.raid.fellShort(Math.round((finishedOutcome.current?.progress ?? 0) * 100), r.defender.name)
       : null;
     if (r && !won) playUiSfx('die');
+    // The shock runs past the ordinary beat (bolt, hold, the fall, the body
+    // left a moment): going home under it would cut the one thing the
+    // defender paid an item to have the raider see.
+    const overMs = r?.struck ? RAID_STRUCK_OVER_MS : RAID_OVER_MS;
 
     /**
      * The haul is in the database — go and read the total.
@@ -1543,12 +1731,12 @@ function Burrow() {
     const home = setTimeout(() => {
       leaveRef.current();
       if (haul) setNote(haul);
-    }, RAID_OVER_MS);
+    }, overMs);
     // The toast clears itself — but only ITSELF, so a harvest message that
     // replaced it in the meantime is left alone.
     const clear = setTimeout(() => {
       setNote((n) => (n === haul ? null : n));
-    }, RAID_OVER_MS + RAID_TOAST_MS);
+    }, overMs + RAID_TOAST_MS);
     return () => { clearTimeout(home); clearTimeout(clear); };
   }, [finishedRaidId]);
 
@@ -1734,6 +1922,8 @@ function Burrow() {
           playerId={player.id}
           onMoveIntent={onMoveIntent}
           onToggleTrap={onToggleTrap}
+          onStrikeIntent={onStrikeIntent}
+          onPlantIntent={onPlantIntent}
           onReady={(h) => { handles.current = h; setReady(true); }}
           // Read once at mount, which is the curtain's cut — the same
           // instant `onCurtainCut` flips `where`. The two agree by
@@ -2246,7 +2436,19 @@ function Burrow() {
           into siblings only so the launcher row can sit between them. */}
       {!crossing && !shownRaid && where !== 'burrow' && showCanvas && (
         <div className="rr-overlay">
-          <RunHud game={game} name={player?.name ?? ''} spectating={spectating} solo={game.firstRun} />
+          <RunHud
+            game={game}
+            name={player?.name ?? ''}
+            spectating={spectating}
+            // The bolt: not while watching (no rabbit to fire from), not on
+            // the tutorial island (nobody to fire at).
+            arm={!spectating && !game.firstRun ? {
+              lightning: shop.shop?.items.find((i) => i.kind === 'lightning')?.held ?? 0,
+              bombs: shop.shop?.items.find((i) => i.kind === 'bomb')?.held ?? 0,
+              aiming,
+              onToggle: (mode) => setAiming((a) => (a === mode ? null : mode)),
+            } : undefined}
+          />
           {/* The first run's one-line captions. Renders nothing on any island
               but the first, and never for a spectator — the tally it reads is
               the mover's own. */}
@@ -2419,6 +2621,18 @@ function Burrow() {
 
       {/* The board is the Pixi scene behind this, so the HUD is deliberately
           thin — a raid is walked on the ground, not in a list. */}
+      {/* YOUR burrow being raided — the defender's bar. Same place as the
+          raid's, because it is the same kind of thing seen from the other
+          chair; never both, since a player cannot be in a raid and at home. */}
+      {player && !shownRaid && !crossing && where === 'burrow' && showCanvas && defence.incoming && (
+        <DefendHud
+          raid={defence.incoming}
+          held={shop.shop?.items.find((i) => i.kind === 'lightning')?.held ?? 0}
+          striking={defence.striking}
+          note={defence.refusal ? raidMessage(t, defence.refusal) : null}
+          onStrike={() => void strikeAndShow()}
+        />
+      )}
       {player && shownRaid && (
         <RaidHud
           raid={shownRaid}

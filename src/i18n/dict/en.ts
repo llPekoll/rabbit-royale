@@ -228,6 +228,22 @@ export const en = {
     energyLow: 'Low energy. A right X on a bomb gives some back.',
     trapHint: (left: number) => `Tap a tile to mine it, tap a mine to lift it · ${left} left`,
     trapHintEmpty: 'No bombs left · buy another, or tap a mine to lift it and bury it elsewhere',
+    strike: 'Strike',
+    aiming: 'Tap a rival to strike',
+    strikeNone: 'No lightning to call. The shed sells it.',
+    plant: 'Plant a bomb',
+    aimingPlant: 'Tap undug ground to bury a bomb',
+    plantNone: 'No bombs to plant. The shed sells them.',
+    planted: 'Bomb buried. Only you know where.',
+    plantRefused: {
+      'off-island': 'Not on the island.',
+      revealed: 'That ground is already dug.',
+      hinted: 'The board already says that tile is safe.',
+      chest: 'Not under a chest.',
+      'too-many': 'Three bombs live is the most you may have here.',
+    } as Record<string, string>,
+    plantedBy: (name: string) => `${name}'s bomb!`,
+    struckBy: (name: string) => `${name} struck you with lightning`,
   },
 
   /* ── What the island says during the very first run ───────────────────── */
@@ -447,6 +463,23 @@ export const en = {
     byWho: (who: string, n: number) => `BY ${who} · -${n} CARROTS`,
     byWhoNothing: (who: string) => `BY ${who}`,
     bounced: (n: number) => `${n} RAID${n === 1 ? '' : 'S'} BOUNCED OFF`,
+    struck: 'Struck by lightning',
+    struckBy: (name: string) => `${name} called lightning down on you`,
+  },
+
+  /* ── Your burrow under attack, watched from home ──────────────────────── */
+  defend: {
+    underAttack: (name: string) => `${name.toUpperCase()} IS RAIDING YOU`,
+    theirSteps: 'their steps',
+    hint: 'Bury a bomb ahead of them, or tap the rabbit to strike it.',
+    strike: 'Strike',
+    held: (n: number) => (n === 1 ? '1 held' : `${n} held`),
+    struckDown: 'STRUCK DOWN',
+    ranDry: 'THEY RAN OUT OF ENERGY',
+    looted: (n: string) => `THEY TOOK ${n} 🥕`,
+    lost: 'Your burrow was sacked',
+    held_: 'Burrow held',
+    incoming: (name: string) => `${name} is raiding your burrow!`,
   },
 
   raidErrors: {
@@ -456,6 +489,8 @@ export const en = {
     raid_in_progress: 'You are already inside a burrow.',
     cooldown: 'You raided them too recently.',
     not_adjacent: 'Too far. One step at a time.',
+    raid_over: 'That raid is already over.',
+    none_held: 'No lightning to call. The shed sells it.',
     no_raid: 'That raid is over.',
     unknown_player: 'They are gone.',
   },

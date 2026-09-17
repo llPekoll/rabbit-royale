@@ -1,0 +1,1 @@
+ALTER TABLE "raid_runs" ADD COLUMN "struck_at" timestamp with time zone;

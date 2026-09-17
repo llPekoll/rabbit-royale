@@ -9,7 +9,7 @@
 import { describe, expect, it } from 'vitest';
 import { LIGHTNING } from '../config/tuning';
 import { generateIsland, revealTile } from '../src/lib/game/island';
-import { strike, strikeArea } from '../src/lib/game/lightning';
+import { strike, strikeArea, struckRabbits } from '../src/lib/game/lightning';
 import { farmableTiles, spawnTile } from '../src/lib/game/terrainBoard';
 import { toColRow } from '../src/config/gridConfig';
 
@@ -110,5 +110,41 @@ describe('what a strike does', () => {
     const out = strike(island, 'attacker', spawnTile(SEED));
     expect(out.struck).toEqual([]);
     expect(out.bombs).toBe(0);
+  });
+});
+
+describe('who a strike electrocutes', () => {
+  // `struckRabbits` reads the ROSTER: a rabbit is hit for where it stands.
+  const seed = SEED;
+  const target = farmableTiles(seed)[12];
+  const area = strikeArea(seed, target);
+  const outside = farmableTiles(seed).find((t) => !area.includes(t))!;
+
+  it('hits every living rival inside the square', () => {
+    const hit = struckRabbits(seed, target, [
+      { playerId: 'a', tile: area[0], alive: true },
+      { playerId: 'b', tile: area[area.length - 1], alive: true },
+      { playerId: 'c', tile: outside, alive: true },
+    ], 'caster');
+    expect(hit.map((r) => r.playerId).sort()).toEqual(['a', 'b']);
+  });
+
+  it('never strikes the caster, even standing on the target', () => {
+    const hit = struckRabbits(seed, target, [{ playerId: 'me', tile: target, alive: true }], 'me');
+    expect(hit).toEqual([]);
+  });
+
+  it('leaves the already-spent alone', () => {
+    // A rabbit whose run is over is scenery; ending it twice would bank twice.
+    const hit = struckRabbits(seed, target, [{ playerId: 'a', tile: target, alive: false }], 'caster');
+    expect(hit).toEqual([]);
+  });
+
+  it('is a matter of standing, not of dug ground', () => {
+    // The strike's REVEAL skips tiles already open; the shock must not.
+    const island = generateIsland({ seed, contentSeed: 'x', lifetimeCarrots: 0 });
+    revealTile(island, target, 'someone');
+    const hit = struckRabbits(seed, target, [{ playerId: 'a', tile: target, alive: true }], 'caster');
+    expect(hit.map((r) => r.playerId)).toEqual(['a']);
   });
 });

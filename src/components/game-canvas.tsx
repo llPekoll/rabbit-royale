@@ -53,6 +53,10 @@ export interface GameCanvasProps {
   /** A minable tile was tapped while placing. `mined` says whether it already
    *  holds a bomb — the tap takes it back up rather than putting one down. */
   onToggleTrap(tile: number, mined: boolean): void;
+  /** A tile was tapped with a strike ARMED — see `IslandScene.setAiming`. */
+  onStrikeIntent?(tileIndex: number): void;
+  /** A tile was tapped with a bomb ARMED — see `IslandScene.setAiming`. */
+  onPlantIntent?(tileIndex: number): void;
   /** Both scenes are built and `openOn` is showing. */
   onReady(handles: GameHandles): void;
   /**
@@ -64,7 +68,7 @@ export interface GameCanvasProps {
 }
 
 export function GameCanvas({
-  seed, playerId, onMoveIntent, onToggleTrap, onReady, openOn,
+  seed, playerId, onMoveIntent, onToggleTrap, onStrikeIntent, onPlantIntent, onReady, openOn,
 }: GameCanvasProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<GameApp | null>(null);
@@ -79,9 +83,13 @@ export function GameCanvas({
   const seedRef = useRef(seed);
   const moveRef = useRef(onMoveIntent);
   const trapRef = useRef(onToggleTrap);
+  const strikeRef = useRef(onStrikeIntent);
+  const plantRef = useRef(onPlantIntent);
   const readyRef = useRef(onReady);
   moveRef.current = onMoveIntent;
   trapRef.current = onToggleTrap;
+  strikeRef.current = onStrikeIntent;
+  plantRef.current = onPlantIntent;
   readyRef.current = onReady;
 
   useEffect(() => {
@@ -103,6 +111,8 @@ export function GameCanvas({
           seed: seedRef.current,
           playerId,
           onMoveIntent: (tile) => moveRef.current(tile),
+          onStrikeIntent: (tile) => strikeRef.current?.(tile),
+          onPlantIntent: (tile) => plantRef.current?.(tile),
         },
         burrow: {
           // The player's own id IS their burrow's seed: the ground is grown

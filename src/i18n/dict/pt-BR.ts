@@ -202,6 +202,22 @@ export const ptBR: Dict = {
     energyLow: 'Energia baixa. Um X certo numa bomba devolve um pouco.',
     trapHint: (left) => `Toque num quadrado para minar, numa mina para tirar · restam ${left}`,
     trapHintEmpty: 'Sem bombas · compre outra, ou toque numa mina para tirar e enterrar noutro lugar',
+    strike: 'Raio',
+    aiming: 'Toque num rival para atingi-lo',
+    strikeNone: 'Sem raio para chamar. O galpão vende.',
+    plant: 'Plantar bomba',
+    aimingPlant: 'Toque num chão não cavado para enterrar uma bomba',
+    plantNone: 'Sem bombas para plantar. O galpão vende.',
+    planted: 'Bomba enterrada. Só você sabe onde.',
+    plantRefused: {
+      'off-island': 'Fora da ilha.',
+      revealed: 'Esse chão já foi cavado.',
+      hinted: 'O tabuleiro já diz que essa casa é segura.',
+      chest: 'Não embaixo de um baú.',
+      'too-many': 'Três bombas ativas é o máximo aqui.',
+    } as Record<string, string>,
+    plantedBy: (name) => `Bomba de ${name}!`,
+    struckBy: (name) => `${name} te atingiu com um raio`,
   },
 
   firstRun: {
@@ -388,6 +404,23 @@ export const ptBR: Dict = {
     byWho: (who, n) => `POR ${who} · -${n} CENOURAS`,
     byWhoNothing: (who) => `POR ${who}`,
     bounced: (n) => `${n} SAQUE${n === 1 ? '' : 'S'} RICOCHETEARAM`,
+    struck: 'Atingido por um raio',
+    struckBy: (name) => `${name} chamou um raio em cima de você`,
+  },
+
+  /* ── Sua toca sob ataque, vista de casa ──────────────────────────────── */
+  defend: {
+    underAttack: (name) => `${name.toUpperCase()} ESTÁ SAQUEANDO VOCÊ`,
+    theirSteps: 'passos dele',
+    hint: 'Enterre uma bomba na frente dele, ou toque no coelho para chamar um raio.',
+    strike: 'Raio',
+    held: (n) => (n === 1 ? '1 na bolsa' : `${n} na bolsa`),
+    struckDown: 'DERRUBADO',
+    ranDry: 'FICOU SEM ENERGIA',
+    looted: (n) => `LEVARAM ${n} 🥕`,
+    lost: 'Sua toca foi saqueada',
+    held_: 'Toca defendida',
+    incoming: (name) => `${name} está saqueando sua toca!`,
   },
 
   raidErrors: {
@@ -397,6 +430,8 @@ export const ptBR: Dict = {
     raid_in_progress: 'Você já está dentro de uma toca.',
     cooldown: 'Você saqueou essa pessoa faz pouco tempo.',
     not_adjacent: 'Longe demais. Um passo por vez.',
+    raid_over: 'Esse saque já acabou.',
+    none_held: 'Sem raio para chamar. O galpão vende.',
     no_raid: 'Esse saque acabou.',
     unknown_player: 'Sumiram.',
   },

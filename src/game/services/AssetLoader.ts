@@ -144,6 +144,8 @@ export const lightningSheets: Spritesheet[] = [];
 export let lightningBoltSheet: Spritesheet | null = null;
 /** The loot box's parsed atlas — `lootBoxFrames('idle'|'shine')` reads it. */
 export let lootBoxSheet: Spritesheet | null = null;
+/** The electrocuted pose's parsed atlas — `getElectrocutedTextures()` reads it. */
+export let electrocutedSheet: Spritesheet | null = null;
 
 /**
  * Parse the loot box's Aseprite atlas. Its JSON is the source of truth for
@@ -186,6 +188,82 @@ export async function loadLootBoxSheet(): Promise<Spritesheet | null> {
     console.warn('[rr] loot-box atlas failed to load:', e);
     return null;
   }
+}
+
+/**
+ * Parse the ELECTROCUTED pose's Aseprite atlas.
+ *
+ * Loaded on demand rather than in `loadAllAssets`, the way the loot box is: it
+ * is a two-frame flash used by one effect, and the boot screen already waits on
+ * everything the board needs to draw its first frame.
+ *
+ * The frame rects come from the JSON rather than from a hand-written grid, and
+ * they must: Aseprite exported this sheet with a 1px border around every cell
+ * (34x34 rects for 32x32 art in a 71x36 image), so a naive `i * 32` slice would
+ * walk off by a pixel per frame and drag its neighbour's sparks into shot.
+ * `spriteSourceSize` is what says how much of that rect is the art.
+ */
+export async function loadElectrocutedSheet(): Promise<Spritesheet | null> {
+  if (electrocutedSheet) return electrocutedSheet;
+  try {
+    if (!Assets.get<Texture>(Keys.ELECTROCUTED)) {
+      Assets.add({ alias: Keys.ELECTROCUTED, src: '/assets/bunnies/electrocuted.png' });
+      await Assets.load(Keys.ELECTROCUTED);
+    }
+    const json = (await fetch('/assets/bunnies/electrocuted.json').then((r) => r.json())) as {
+      frames: Record<
+        string,
+        {
+          frame: { x: number; y: number; w: number; h: number };
+          spriteSourceSize: { x: number; y: number; w: number; h: number };
+        }
+      >;
+    };
+    const frames: Record<string, { frame: { x: number; y: number; w: number; h: number } }> = {};
+    // Aseprite keys its frames by name; the export order is the animation
+    // order, which `Object.values` on a plain object preserves for string keys
+    // in insertion order. Re-keyed by INDEX all the same, so the lookup below
+    // never depends on what the artist called a layer.
+    Object.values(json.frames).forEach((f, i) => {
+      const inset = { x: (f.frame.w - f.spriteSourceSize.w) / 2, y: (f.frame.h - f.spriteSourceSize.h) / 2 };
+      frames[`${Keys.ELECTROCUTED}-${i}`] = {
+        frame: {
+          x: f.frame.x + inset.x,
+          y: f.frame.y + inset.y,
+          w: f.spriteSourceSize.w,
+          h: f.spriteSourceSize.h,
+        },
+      };
+    });
+    const sheet = new Spritesheet(Assets.get<Texture>(Keys.ELECTROCUTED), {
+      frames,
+      meta: { scale: 1 },
+    });
+    await sheet.parse();
+    electrocutedSheet = sheet;
+    return sheet;
+  } catch (e) {
+    console.warn('[rr] electrocuted atlas failed to load:', e);
+    return null;
+  }
+}
+
+/**
+ * The electrocuted pose's frames, in export order.
+ *
+ * Two of them: the effect is the ALTERNATION, not a sequence going anywhere, so
+ * the caller plays them fast and on a loop for as long as the shock lasts.
+ */
+export function getElectrocutedTextures(): Texture[] {
+  if (!electrocutedSheet) return [];
+  const sheet = electrocutedSheet;
+  const out: Texture[] = [];
+  for (let i = 0; ; i++) {
+    const tex = sheet.textures[`${Keys.ELECTROCUTED}-${i}`];
+    if (!tex) break;
+    out.push(tex);
+  }
+  return out;
 }
 
 function buildBunnySpritesheetData(
