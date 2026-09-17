@@ -110,7 +110,7 @@ const meta: Meta<Args> = {
     sea: true,
     tileW: 64,
     tileH: 32,
-    tileZ: 26,
+    tileZ: 6,
   },
   argTypes: {
     seed: { control: 'text' },
@@ -135,7 +135,7 @@ export const Default: Story = {};
 
 /**
  * The claim the whole module rests on, and the only way to see it: drag
- * `tileZ` from 26 down to 0. At 0 the projection is still isometric — the
+ * `tileZ` from 6 up to 26 and back to 0. At 0 the projection is still isometric — the
  * lattice does not change — and the island goes completely flat, because the
  * lift is the only thing separating a shelf from the ground it stands on.
  * Between them, at 8 or 12, is a plateau with a visible but shallow side.

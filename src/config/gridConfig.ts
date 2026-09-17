@@ -57,8 +57,14 @@ export const ISO_ORIGIN_Y = 150;
  * Here with HALF_W and HALF_H because it is a board dimension, not a rendering
  * choice: the ground, the playable tiles and the click resolver all have to
  * agree on it, and they all read it from here.
+ *
+ * 6, down from 18 (2026-09-18, chosen on the `Playable board` slider): at 18
+ * a terrace read as a wall and the plateaus were hard to tell apart from the
+ * cliffs holding them up. A quarter of a tile's height is enough to say
+ * "shelf" and no more. Mirrored by `BURROW_TIER_LIFT` and by
+ * `tools/gen_gabarits.py`; `test/gabarit-metrics` pins all three together.
  */
-export const TIER_LIFT = 18;
+export const TIER_LIFT = 6;
 
 /**
  * How large a rabbit is drawn, as a multiple of its 32px sprite.

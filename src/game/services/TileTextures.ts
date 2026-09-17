@@ -70,11 +70,21 @@ export function initTileTextures(renderer: Renderer): void {
 
   // Outline = 30% fill + 2px stroke, both white. Tinted gold for the
   // reachable-neighbour highlight, red for the killer-mine highlight.
+  //
+  // The stroke is drawn INSIDE the diamond. Centred on the edge, half of it
+  // fell outside and the baked texture came out 42x25 against the fill's 38x21
+  // — taller than the 44x24 cell itself — so a lit tile's ring spilled over
+  // the fog of its neighbours and read as a diamond one size up from the one
+  // it was lighting. Inside, both textures share one footprint and the ring
+  // sits exactly on the lid it replaces.
+  //
+  // `alignment: 1` is INNER in Pixi v8 (0 is outer) — the reverse of v7's
+  // line style, and 0 here bakes a 47x29 diamond, worse than the default.
   const outlineG = new Graphics()
     .poly([0, -DH, DW, 0, 0, DH, -DW, 0])
     .fill({ color: 0xffffff, alpha: 0.3 })
     .poly([0, -DH, DW, 0, 0, DH, -DW, 0])
-    .stroke({ color: 0xffffff, width: 2 });
+    .stroke({ color: 0xffffff, width: 2, alignment: 1 });
   outlineTex = renderer.generateTexture({
     target: outlineG,
     resolution: 1,

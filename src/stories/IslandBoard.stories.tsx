@@ -22,7 +22,7 @@
  * for is everything above it.
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { Container, Graphics } from 'pixi.js';
+import { Container, Sprite } from 'pixi.js';
 import { PixiStage } from './PixiStage';
 import {
   generateIsland,
@@ -36,6 +36,8 @@ import {
 import { PlayerRabbit } from '@/game/entities/PlayerRabbit';
 import { loadAllAssets } from '@/game/services/AssetLoader';
 import { HALF_W, HALF_H } from '@/config/gridConfig';
+import { FOG_COLOR, FOG_ALPHA, HIGHLIGHT_COLOR } from '@/game/entities/Tile';
+import { initTileTextures, getDiamondFill, getDiamondOutline } from '@/game/services/TileTextures';
 
 const WIDTH = 960;
 const HEIGHT = 540;
@@ -58,6 +60,29 @@ interface Args {
   wander: boolean;
   /** Scenery. Off is the bare board, for judging the ring against grass. */
   deco: boolean;
+  /** The game's lid over every cell not yet walked. Off shows the bare terrain. */
+  fog: boolean;
+}
+
+/**
+ * How much of the lid a cell IN THE RING keeps: the same share `Tile` gives a
+ * hinted cell, so "you may step here" reads a shade lighter than "unknown"
+ * without going clear, which is reserved for cells actually walked.
+ */
+const RING_FOG_SHARE = 0.45;
+
+/**
+ * The game's own diamond, not a Graphics polygon: the baked texture is a few
+ * pixels smaller than the cell and scales nearest-neighbour, so the lids leave
+ * the same thin grass seam between them as the real board, and the ring's
+ * edge is as chunky as the sprites around it rather than GPU-smooth.
+ */
+function diamond(color: number, alpha: number, outline = false): Sprite {
+  const s = new Sprite(outline ? getDiamondOutline() : getDiamondFill());
+  s.anchor.set(0.5);
+  s.tint = color;
+  s.alpha = alpha;
+  return s;
 }
 
 function Scene(args: Args) {
@@ -74,6 +99,7 @@ function Scene(args: Args) {
       }}
       setup={(stage, app) => {
         if (!tileset) return;
+        initTileTextures(app.renderer);
 
         const map = generateIsland({
           seed: args.seed,
@@ -93,6 +119,10 @@ function Scene(args: Args) {
           deco: args.deco,
           decoScale: 0.4,
           inhabitedShare: args.inhabitedShare,
+          // No water tiles, as in the game (`TerrainBackground`): the stage
+          // already paints the sea, and the pack's teal is a different shade,
+          // so stamped per cell it drew a lighter diamond the size of the grid.
+          sea: false,
         });
 
         // Fit the whole island: the board is only judgeable whole.
@@ -127,9 +157,42 @@ function Scene(args: Args) {
         rabbit.container.zIndex = 1e6 + 1;
         island.view.addChild(rabbit.container);
 
+        /**
+         * The fog, one lid per land cell, mounted INSIDE the cell's terrain
+         * block exactly as the game does it (`IslandScene` → `mountVeil`).
+         *
+         * Not in the overlay: a lid that floats above the terrain is drawn at
+         * the cell's centre but sorted with nothing, so on a terrace edge the
+         * raised cell's lid lies across the lower cell's and the seam reads
+         * twice as dark. In the block it sits between the cell's grass and
+         * whatever the next cell paints over it, and the lift the block already
+         * has is the lift the lid gets — change `tileZ` and the fog follows.
+         */
+        const lids = new Map<string, Sprite>();
+        const walked = new Set<string>();
+        if (args.fog) {
+          for (let y = 0; y < map.height; y++) {
+            for (let x = 0; x < map.width; x++) {
+              if (levelAt(map, x, y) === 0) continue;
+              const lid = diamond(FOG_COLOR, FOG_ALPHA);
+              if (island.mountVeil(x, y, lid, 2)) lids.set(`${x},${y}`, lid);
+            }
+          }
+        }
+        /** Clear where the rabbit has been, thin where it may go, full elsewhere. */
+        const shadeFog = (ring: Iterable<{ x: number; y: number }>) => {
+          if (!lids.size) return;
+          const offered = new Set<string>();
+          for (const c of ring) offered.add(`${c.x},${c.y}`);
+          for (const [k, lid] of lids) {
+            lid.alpha = FOG_ALPHA * (walked.has(k) ? 0 : offered.has(k) ? RING_FOG_SHARE : 1);
+          }
+        };
+
         const place = () => {
           const p = at(rabbitCell.x, rabbitCell.y);
           rabbit.container.position.set(p.x, p.y);
+          walked.add(`${rabbitCell.x},${rabbitCell.y}`);
         };
         place();
 
@@ -149,13 +212,11 @@ function Scene(args: Args) {
          */
         const drawRing = () => {
           overlay.removeChildren().forEach((c) => c.destroy());
-          for (const cell of board.stepsFrom(rabbitCell.x, rabbitCell.y)) {
+          const steps = board.stepsFrom(rabbitCell.x, rabbitCell.y);
+          shadeFog(steps);
+          for (const cell of steps) {
             const p = at(cell.x, cell.y);
-            const g = new Graphics()
-              .poly([0, -HALF_H, HALF_W, 0, 0, HALF_H, -HALF_W, 0])
-              .fill({ color: 0xffd700, alpha: 0.28 })
-              .poly([0, -HALF_H, HALF_W, 0, 0, HALF_H, -HALF_W, 0])
-              .stroke({ color: 0xffd700, width: 1.5, alpha: 0.9 });
+            const g = diamond(HIGHLIGHT_COLOR, 1, true);
             g.position.set(p.x, p.y);
             g.eventMode = 'static';
             g.cursor = 'pointer';
@@ -221,10 +282,11 @@ const meta: Meta<Args> = {
     land: 0.55,
     rise: 0.45,
     raggedness: 0.35,
-    tileZ: 24,
+    tileZ: 6,
     inhabitedShare: 0.025,
     wander: true,
     deco: true,
+    fog: true,
   },
   argTypes: {
     seed: { control: 'text' },

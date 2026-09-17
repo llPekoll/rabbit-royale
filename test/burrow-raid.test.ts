@@ -125,7 +125,7 @@ describe('burrow layout', () => {
     // The bug this pins down: a placement hint used to be its own click
     // target, and a Sprite is hit-tested by its BOUNDING BOX rather than by
     // the diamond inside it. On terraced ground that stopped being imprecise
-    // and became simply wrong — a shelf tile is lifted BURROW_TIER_LIFT (18px)
+    // and became simply wrong — a shelf tile is lifted BURROW_TIER_LIFT (6px)
     // while a tile is 24px tall, so a lifted diamond lands on the cell a row
     // behind it and the bomb went there instead.
     //

@@ -11,7 +11,7 @@ by 45%, and no amount of repainting fixes a tile that is the wrong SHAPE.
 ## Why templates rather than art
 
 The numbers here are not style, they are contract. `gridConfig.ts` places tiles
-at `(col - row) * 22, (col + row) * 12` and lifts a shelf by `TIER_LIFT = 18`.
+at `(col - row) * 22, (col + row) * 12` and lifts a shelf by `TIER_LIFT = 6`.
 A tile drawn 2px too tall leaves a seam under every plateau in the game, and
 that is invisible in the drawing app and obvious on the board. So the geometry
 is generated from the config's own numbers (mirrored below, and pinned by
@@ -65,7 +65,7 @@ import os
 # ---------------------------------------------------------------------------
 TILE_W = 44
 TILE_H = 24
-TIER_LIFT = 18
+TIER_LIFT = 6
 
 OUT = "art-source/gabarits"
 SCALES = (1, 4)
@@ -185,7 +185,7 @@ def gen_ground(scale):
 # draw it taller and a band of rock hangs below the shelf it belongs to.
 #
 # The template therefore carries the whole silhouette — the diamond's lower V
-# at the top, the 18px band below it, the closing V at the bottom — so the
+# at the top, the 6px band below it, the closing V at the bottom — so the
 # artist can see the exact quadrilateral the rock has to fill.
 # ---------------------------------------------------------------------------
 def gen_cliff(scale):
