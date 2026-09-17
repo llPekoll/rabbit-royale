@@ -51,13 +51,18 @@ describe('wallet session', () => {
   });
 
   it('clears player AND token on logout', () => {
-    const logout = HOOK.slice(HOOK.indexOf('const logout ='));
-    const body = logout.slice(0, logout.indexOf('}, []'));
     // A logout that drops the token but keeps the player (or the reverse) is
-    // the same half-signed-out screen by another route.
+    // the same half-signed-out screen by another route. The three live in
+    // `forget`, which both `logout` and `abandon` go through.
+    const forget = HOOK.slice(HOOK.indexOf('const forget ='));
+    const body = forget.slice(0, forget.indexOf('}, []'));
     expect(body).toMatch(/removeItem\(TOKEN_KEY\)/);
     expect(body).toMatch(/setToken\(null\)/);
     expect(body).toMatch(/setPlayer\(null\)/);
+    const logout = HOOK.slice(HOOK.indexOf('const logout ='));
+    expect(logout.slice(0, logout.indexOf('}, ['))).toMatch(/forget\(\)/);
+    const abandon = HOOK.slice(HOOK.indexOf('const abandon ='));
+    expect(abandon.slice(0, abandon.indexOf('}, ['))).toMatch(/forget\(\)/);
   });
 
   it('puts the page back on the doorstep when the session ends', () => {
@@ -66,20 +71,14 @@ describe('wallet session', () => {
     // are open -- and that state outlived the sign-out: logging out on the
     // island left the island's HUD and its arrow floating over the sign-in
     // screen, and a shop drawer left open reopened for whoever signed in next.
-    const reset = PAGE.slice(PAGE.indexOf('if (player) return;'));
-    const body = reset.slice(0, reset.indexOf('}, [player]);'));
-    expect(body).toMatch(/setWhere\('burrow'\)/);
-    expect(body).toMatch(/setCrossing\(false\)/);
-    expect(body).toMatch(/setShopOpen\(false\)/);
-    expect(body).toMatch(/setPickingTarget\(false\)/);
-    expect(body).toMatch(/setLoreOpen\(false\)/);
-    expect(body).toMatch(/setPlacing\(false\)/);
-    // The burrow's own numbers are the previous player's. Left in place they
-    // would flash on screen for the NEXT one before the fetch answers.
-    expect(body).toMatch(/setBurrow\(null\)/);
-    // The canvas is unmounted with the player, so a kept handle points at a
-    // destroyed Pixi app and `ready` would let the chrome draw over nothing.
-    expect(body).toMatch(/handles\.current = null/);
-    expect(body).toMatch(/setReady\(false\)/);
+    //
+    // The reset is no longer a list: the page is REMOUNTED when the player
+    // signs out, so every piece of state and every ref goes at once — the
+    // list was never complete (a raid on screen, the first trip, the last
+    // rank chimed all survived it). See session-scope.test.ts.
+    expect(PAGE).toMatch(/<Burrow key=\{generation\} \/>/);
+    expect(PAGE).not.toMatch(/if \(player\) return;[\s\S]{0,200}setWhere\('burrow'\)/);
+    // And the canvas goes with the player: it is only ever mounted under one.
+    expect(PAGE).toMatch(/\{player && showCanvas && \(\s*<GameCanvas/);
   });
 });

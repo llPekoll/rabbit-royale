@@ -142,6 +142,13 @@ export interface ProfileMenuProps {
   onUpdated(patch: { name?: string; avatar?: string; token?: string }): void;
   onClose(): void;
   onLogout(): void;
+  /**
+   * A guest's exit. Not `onLogout`: logging out keeps the row for a wallet
+   * that can come back, and a guest's row without its cookie is a ghost — so
+   * theirs is DELETED. The second press of the button calls this for a guest
+   * and `onLogout` for everyone else.
+   */
+  onAbandon(): void;
 }
 
 export function ProfileMenu({
@@ -156,6 +163,7 @@ export function ProfileMenu({
   onUpdated,
   onClose,
   onLogout,
+  onAbandon,
 }: ProfileMenuProps) {
   const dict = useT();
   const [tab, setTab] = useState<Tab>('profile');
@@ -399,8 +407,9 @@ export function ProfileMenu({
                     — so the honest thing to do was also the tedious thing, and
                     pressing Connect again was easier and could only fail. The
                     burrow they were sent to find is one press away instead.
-                    Their guest burrow is NOT destroyed by this: it keeps its
-                    row, and this browser simply stops being signed into it. */}
+                    Their guest burrow is NOT destroyed by this (unlike
+                    ABANDON below): it keeps its row, and this browser simply
+                    stops being signed into it. */}
                 {takenBy !== null && onSwitchToOwner && (
                   <PanelButton ghost onClick={onSwitchToOwner}>
                     {takenBy ? dict.profile.taken(takenBy) : dict.profile.signInWith}
@@ -413,13 +422,14 @@ export function ProfileMenu({
               </p>
             )}
             {/* "Disconnect" is a wallet word, and a guest has no wallet to
-                disconnect from — for them this ENDS the account, which is worth
-                both naming plainly and asking twice about. */}
+                disconnect from — for them this ENDS the account: the row is
+                deleted (see `onAbandon`), which is worth both naming plainly
+                and asking twice about. */}
             <PanelButton
               ghost
               onClick={() => {
                 if (!player.guest) return onLogout();
-                if (confirmingAbandon) return onLogout();
+                if (confirmingAbandon) return onAbandon();
                 setConfirmingAbandon(true);
               }}
             >

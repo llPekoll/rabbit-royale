@@ -44,7 +44,7 @@ const chip: CSSProperties = {
 
 export function WalletButton() {
   const t = useT();
-  const { player, token, busy, error, takenBy, login, linkWallet, logout, applyProfile } =
+  const { player, token, busy, error, takenBy, login, linkWallet, logout, abandon, applyProfile } =
     useWalletLogin();
   const [open, setOpen] = useState(false);
   const [avatar, setAvatar] = useState<string | null>(null);
@@ -168,6 +168,10 @@ export function WalletButton() {
           onLogout={() => {
             setOpen(false);
             logout();
+          }}
+          onAbandon={() => {
+            setOpen(false);
+            void abandon();
           }}
         />
       )}

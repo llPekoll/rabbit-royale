@@ -44,10 +44,13 @@ describe('chrome across the wipe', () => {
     // The iris used to open on a fixed beat, and a slow join opened it on the
     // last island with no rabbit and the old recap. The midpoint awaits the
     // island, and the shutter awaits the midpoint.
-    expect(PAGE).toMatch(/if \(holdForIsland\) arrival = await waitForIsland\(seenBefore, askedAt\);/);
-    expect(PAGE).toMatch(/if \(arrival === 'late'\) \{[\s\S]{0,200}goToRef\.current\('burrow'\)/);
+    expect(PAGE).toMatch(/if \(!holdForIsland\) return;\s*arrival = await waitForIsland\(seenBefore, askedAt\);/);
+    // No island: the crossing turns round UNDER the black (the cut answers
+    // with the burrow) rather than opening on the old board and wiping again.
+    expect(PAGE).toMatch(/if \(arrival === 'ready'\) return;[\s\S]{0,600}return SCENE\.burrow;/);
+    expect(PAGE).toMatch(/if \(arrival === 'late'\) refuse\(/);
     const CANVAS = readFileSync(new URL('../src/components/game-canvas.tsx', import.meta.url), 'utf8');
-    expect(CANVAS).toMatch(/wipe\.play\(async \(\) => \{ scenes\.show\(key\); await atCut\?\.\(\); \}\)/);
+    expect(CANVAS).toMatch(/wipe\.play\(async \(\) => \{\s*scenes\.show\(key\);\s*const back = await atCut\?\.\(\);/);
   });
 
   it('shows neither screen while crossing', () => {
@@ -74,11 +77,11 @@ describe('chrome across the wipe', () => {
     // instant the wallet answered — a HUD over the sign-in art for the length
     // of the wipe. See wipe-everywhere for the rest of that family.
     expect(PAGE).toMatch(/where === 'burrow' \|\| !showCanvas \?/);
-    // ...and `where` itself is reset when the session ends, so a later sign-in
-    // does not land back on the island. The window is generous because the
-    // same block also tears down the sign-in curtain — what is pinned is that
-    // the reset lives in the no-player branch, not how many lines precede it.
-    expect(PAGE).toMatch(/if \(player\) return;[\s\S]{0,400}setWhere\('burrow'\)/);
+    // ...and `where` itself goes with the session: the page is remounted on
+    // sign-out (session-scope.test.ts), so a later sign-in starts from the
+    // burrow like every fresh mount does.
+    expect(PAGE).toMatch(/<Burrow key=\{generation\} \/>/);
+    expect(PAGE).toMatch(/useState<Where>\('burrow'\)/);
   });
 
   it('holds the burrow-anchored controls too', () => {

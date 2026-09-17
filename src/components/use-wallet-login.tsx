@@ -330,16 +330,44 @@ function useWalletSession() {
     }
   }, [adopt, proveWallet, token]);
 
-  const logout = useCallback(() => {
+  /** Forget the session on this side — shared by signing out and abandoning. */
+  const forget = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY);
     setToken(null);
     setPlayer(null);
     setRestored(false);
+  }, []);
+
+  const logout = useCallback(() => {
+    forget();
     // The cookie has to go too, or `/me` signs the player straight back in on
     // the next reload. Fire-and-forget: the local state is already cleared, and
     // a failed request must not leave the player looking signed in.
     void fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
-  }, []);
+  }, [forget]);
+
+  /**
+   * A guest ends their account — the row and everything hanging off it.
+   *
+   * Signing a guest out used to be `logout`, which only drops the cookie: the
+   * burrow stayed in the database with nobody able to open it, ranked on the
+   * season board and offered as a raid target. The server deletes it now
+   * (see /api/auth/abandon), and the cookie comes down in the same answer.
+   *
+   * The DELETE is awaited BEFORE the session is forgotten locally: it needs
+   * the token, and a request sent after `forget` would go out unauthenticated.
+   * A failed request still ends the session here — the player asked to leave,
+   * and the janitor will find the row once its cookie has lapsed.
+   */
+  const abandon = useCallback(async () => {
+    if (token) {
+      await fetch('/api/auth/abandon', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => {});
+    }
+    forget();
+  }, [token, forget]);
 
   /**
    * Adopt a profile change made elsewhere (the profile menu renaming the
@@ -358,7 +386,7 @@ function useWalletSession() {
 
   return {
     player, token, busy, error, takenBy, checking, restored,
-    login, playAsGuest, linkWallet, logout, applyProfile,
+    login, playAsGuest, linkWallet, logout, abandon, applyProfile,
   };
 }
 

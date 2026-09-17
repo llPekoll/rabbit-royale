@@ -14,12 +14,26 @@ import { players } from '@/lib/db/schema';
 import { getSession, signSession } from '@/lib/auth/jwt';
 import { applyRegen } from '@/lib/game/regen';
 
+const SEEN_THROTTLE_MS = 60 * 60 * 1000;
+
 export async function GET(req: Request) {
   const session = await getSession(req);
   if (!session) return Response.json({ error: 'unauthenticated' }, { status: 401 });
 
   const player = await db.query.players.findFirst({ where: eq(players.id, session.sub) });
   if (!player) return Response.json({ error: 'unknown player' }, { status: 404 });
+
+  /**
+   * Mark the visit. `lastSeenAt` is what the guest janitor reads
+   * (lib/auth/abandon.ts), and it used to move only at sign-in and when a run
+   * banked — a guest restored from the cookie every day and never digging
+   * looked unseen for weeks. Throttled to once an hour: this route is called
+   * on every page load, and a write per load is not worth a column that is
+   * only ever read to the day.
+   */
+  if (Date.now() - player.lastSeenAt.getTime() > SEEN_THROTTLE_MS) {
+    await db.update(players).set({ lastSeenAt: new Date() }).where(eq(players.id, player.id));
+  }
 
   /**
    * Hand the token BACK when the caller proved itself with the cookie alone.

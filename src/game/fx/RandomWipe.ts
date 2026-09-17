@@ -134,6 +134,20 @@ export class RandomWipe {
     if (this.scenes) this.variants.push('curtain', 'sand');
   }
 
+  /**
+   * Change where the crossing in flight ENDS — called from inside `midpoint`.
+   *
+   * The irises do not care: they cover the screen and open on whatever the
+   * manager left visible. The sand and the curtain were handed a `{from, to}`
+   * pair when the crossing began and reveal `to` by hand, so a caller that
+   * turned round at the cut (see `GameHandles.wipeTo`) has to tell them, or
+   * they would uncover the scene that was just hidden again.
+   */
+  retarget(to: Container): void {
+    if (this.lastPlayed === 'sand') this.sand.retarget(to);
+    if (this.lastPlayed === 'curtain') this.curtain.retarget(to);
+  }
+
   /** Follow a viewport change. Every variant, not just the next one: a resize
    *  can land between crossings, and a shutter sized for the old viewport
    *  would leave a strip of live game showing down one edge. */

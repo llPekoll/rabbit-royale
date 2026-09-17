@@ -91,8 +91,11 @@ describe('every crossing out to the island asks for a seat', () => {
   });
 
   it('pairs the join on the way out with the leave on the way in', () => {
-    expect(PAGE).toMatch(/next === 'burrow' && where === 'island' && !spectating\) game\.leave\(\)/);
-    expect(PAGE).toMatch(/next === 'island' && where === 'burrow' && !spectating\) game\.join\(\)/);
+    // `watching`, the crossing's own argument, not the `spectating` state:
+    // a spectate sets the state and crosses in the same breath, and the
+    // closure it calls still read "playing" — see session-scope.test.ts.
+    expect(PAGE).toMatch(/next === 'burrow' && where === 'island' && !watching\) game\.leave\(\)/);
+    expect(PAGE).toMatch(/next === 'island' && where === 'burrow' && !watching\) game\.join\(\)/);
   });
 });
 

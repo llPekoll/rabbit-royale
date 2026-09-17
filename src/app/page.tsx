@@ -162,9 +162,40 @@ const ISLAND_WAIT_MS = 8000;
 export default function Home() {
   return (
     <WalletSessionProvider>
-      <Burrow />
+      <SessionScoped />
     </WalletSessionProvider>
   );
+}
+
+/**
+ * ONE MOUNT PER SESSION. Signing out remounts the whole burrow.
+ *
+ * The page below holds forty-odd pieces of state and a dozen refs, and every
+ * one of them describes the player who is signed in: which raid is on screen,
+ * whether the first trip was made, the last rank chimed for. Signing out used
+ * to reset a hand-kept list of them, and the list was never complete — a
+ * guest who abandoned mid-raid left `shownRaid` standing and the doorstep
+ * rendered without its buttons; a second first-timer in the same tab found
+ * `firstTrip` already spent and landed on the burrow's chrome over the
+ * tutorial island. A new key throws ALL of it away, hooks included: the
+ * socket, the shop, the raid — nothing of one session reaches the next.
+ *
+ * Bumped on the way OUT only. Keying on the player id would remount at
+ * sign-in too, and that restarts the doorstep (the crawl jumps back to its
+ * first line) half a second before the curtain closes over it. The bump is
+ * derived during render rather than in an effect, so the signed-out frame
+ * never paints with the old session's chrome still on it.
+ */
+function SessionScoped() {
+  const { player } = useWalletLogin();
+  const [generation, setGeneration] = useState(0);
+  const [hadPlayer, setHadPlayer] = useState(false);
+  if (player && !hadPlayer) setHadPlayer(true);
+  if (!player && hadPlayer) {
+    setHadPlayer(false);
+    setGeneration((g) => g + 1);
+  }
+  return <Burrow key={generation} />;
 }
 
 function Burrow() {
@@ -557,9 +588,16 @@ function Burrow() {
    * other place. React's own chrome flips at the same midpoint, so the HUD
    * never appears over the screen it does not belong to.
    */
-  const goTo = useCallback((next: Where) => {
+  const goTo = useCallback((next: Where, watching: string | null = spectating) => {
     const h = handles.current;
     if (!h) return;
+    // `watching` is passed rather than read off state, because the one caller
+    // that changes it (`spectate`) sets it and crosses in the same breath —
+    // and the closure it calls still holds the OLD value. Read from state,
+    // a spectate asked for a seat of its own on the way out: the server
+    // charged a run, sat a rabbit down, and the socket was then rebuilt as a
+    // viewer, leaving that rabbit to be swept. Watching cost a run.
+    //
     // TWO moments, not one, because the two halves of the chrome want opposite
     // things.
     //
@@ -577,7 +615,7 @@ function Burrow() {
     // recap, giving up a spectate), which is why it lives in the crossing
     // rather than on one button: a run banked from only some exits is the bug
     // this fixes, one door further along.
-    if (next === 'burrow' && where === 'island' && !spectating) game.leave();
+    if (next === 'burrow' && where === 'island' && !watching) game.leave();
     // And the way back OUT asks for a new seat, because the way in gave the old
     // one up. Not needed on the very first trip — the socket's `connect` joins
     // once — but harmless there: the server answers a join it already granted
@@ -586,27 +624,33 @@ function Burrow() {
     // still counts as this crossing's island (see `waitForIsland`).
     const seenBefore = islandSeen.current;
     const askedAt = Date.now();
-    if (next === 'island' && where === 'burrow' && !spectating) game.join();
-    const holdForIsland = next === 'island' && !spectating;
+    if (next === 'island' && where === 'burrow' && !watching) game.join();
+    const holdForIsland = next === 'island' && !watching;
     let arrival: IslandArrival = 'ready';
     setCrossing(true);
     void h
       .wipeTo(next === 'island' ? SCENE.island : SCENE.burrow, async () => {
         setWhere(next);
-        if (holdForIsland) arrival = await waitForIsland(seenBefore, askedAt);
+        if (!holdForIsland) return;
+        arrival = await waitForIsland(seenBefore, askedAt);
+        if (arrival === 'ready') return;
+        // Nothing to open on. TURN ROUND UNDER THE BLACK rather than opening
+        // on the last island — its dug tiles, no rabbit — and starting a
+        // second wipe home, which read as two irises and a flash of a board
+        // nobody is on. The seat is given up in case the answer is merely
+        // late: an island that lands after this would otherwise sit held
+        // until the next crossing paid for it twice over.
+        game.leave();
+        setWhere('burrow');
+        return SCENE.burrow;
       })
       .finally(() => {
         setCrossing(false);
-        // Nothing came. Turn round rather than open on a board with no rabbit
-        // on it — and say why, or the trip home reads as the game giving up.
-        if (arrival === 'late') {
-          refuse(t.notes.islandSilent);
-          goToRef.current('burrow');
-        }
+        // Say why the trip went nowhere, or it reads as the game giving up.
+        // A refusal has its own effect (the energy popup, below).
+        if (arrival === 'late') refuse(t.notes.islandSilent);
       });
-  }, [where, spectating, game, waitForIsland, refuse]);
-  const goToRef = useRef(goTo);
-  goToRef.current = goTo;
+  }, [where, spectating, game, waitForIsland, refuse, t]);
 
   /**
    * Enough for a run — a whole one, ENERGY.RUN_COST of it, which the server
@@ -866,7 +910,10 @@ function Burrow() {
   const spectate = useCallback((targetId: string) => {
     if (targetId === player?.id) return;   // watching yourself is just playing
     setSpectating(targetId);
-    goTo('island');
+    // Named to the crossing: the state set above is not in `goTo`'s closure
+    // yet, and a crossing that thinks it is playing asks for (and pays for) a
+    // seat. See `goTo`.
+    goTo('island', targetId);
   }, [player?.id, goTo]);
 
   /**
@@ -1576,6 +1623,12 @@ function Burrow() {
         burrow.setRaiderTap(() => { void strikeAndShowRef.current(); });
         // The grid comes up by itself: a raid is the moment a bomb is worth
         // burying, and the player should not have to find the button first.
+        // And whatever drawer was open comes down — the target list, the
+        // codex, the energy popup stayed up over the defence and the player
+        // read about their shield while their garden was being walked to.
+        setPickingTarget(false);
+        setLoreOpen(false);
+        setEnergyOpen(false);
         if (!placing && !inc.finished) startPlacing();
         setNote(t.defend.incoming(inc.attacker.name));
         playUiSfx('explosion');
@@ -1824,24 +1877,13 @@ function Burrow() {
     // The popup belongs to the burrow's arrow, so it leaves with the screen —
     // the recap on the island has its own way of asking the same question.
     setEnergyOpen(false);
+    // The target list and the codex are drawers over the burrow too. They
+    // used to be the two left out here, so a list opened and then left behind
+    // by a spectate was still up over the island.
+    setPickingTarget(false);
+    setLoreOpen(false);
   }, [where, placing, stopPlacing]);
 
-  /**
-   * Signing out puts the app back on the doorstep — every screen, not just the
-   * ones drawn from `player`.
-   *
-   * `where` is the one piece of state that outlived a session: it is not
-   * derived from the player, so logging out on the island left it on 'island'
-   * and the signed-out screen kept the island's HUD and its "Back home"
-   * arrow floating over the sign-in art. Everything else here is the same
-   * class of leftover — a shop drawer, a half-picked raid target, a codex
-   * scrolled to chapter four — all of which would still be open behind the
-   * login screen and would reappear, mid-flow, for whoever signs in next.
-   *
-   * The canvas handles go with them: the scenes are unmounted with the player
-   * (no `player`, no <GameCanvas/>), so a stale ref would let a control call
-   * `wipeTo` on a Pixi app that no longer exists.
-   */
   /**
    * Signing in: run the iris, and hand the screen over at its midpoint.
    *
@@ -1862,30 +1904,8 @@ function Burrow() {
     else setArriving(true);
   }, [player, showCanvas, arriving, restored, onCurtainCut]);
 
-  useEffect(() => {
-    if (player) return;
-    // Signing out is the same crossing in reverse, and it is instant: the
-    // canvas is torn down with the player, so there is nothing to wipe over.
-    setShowCanvas(false);
-    setArriving(false);
-    setWhere('burrow');
-    setCrossing(false);
-    setShopOpen(false);
-    setPickingTarget(false);
-    setLoreOpen(false);
-    setEnergyOpen(false);
-    setShopOnArrival(false);
-    // Or the next player to sign in inherits the watch and lands on a
-    // stranger's island with no idea why.
-    setSpectating(null);
-    setPlacing(false);
-    setBurrow(null);
-    setNote(null);
-    setPending(false);
-    handles.current = null;
-    shownSeed.current = null;
-    setReady(false);
-  }, [player]);
+  // Signing out is not handled here at all: the whole page is remounted on
+  // it (see `SessionScoped`), which is the only reset that cannot miss a field.
 
   // A harvest empties the field NOW, on the action, rather than waiting for the
   // next refresh to notice the number fell — collecting has to have an

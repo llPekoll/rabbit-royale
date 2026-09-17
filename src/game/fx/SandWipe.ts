@@ -241,6 +241,19 @@ export class SandWipe {
    * unlike in the curtain, precisely because there genuinely are two movements
    * with a turn between them rather than one continuous travel.
    */
+  /**
+   * Re-aim the crossing in flight at another scene — from inside `midpoint`.
+   *
+   * The second half reads `stacked.to` AFTER the swap, so replacing it here
+   * is enough: the scene revealed is the one named, and `clear` leaves that
+   * one visible. `to` may equal `from` (a crossing that turned round) — the
+   * pass then rebuilds the scene it dissolved, which is exactly the picture
+   * of a trip that went nowhere.
+   */
+  retarget(to: Container): void {
+    if (this.stacked) this.stacked.to = to;
+  }
+
   async play(midpoint: () => void | Promise<void>): Promise<void> {
     const run = ++this.runId;
     const stack = this.stacked;

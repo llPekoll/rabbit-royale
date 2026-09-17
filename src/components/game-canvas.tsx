@@ -32,8 +32,15 @@ export interface GameHandles {
    * is where a caller puts its OWN change of screen (React chrome, say), so
    * the HUD never appears over the place it does not belong to. Resolves once
    * the shutter is fully open again.
+   *
+   * IT MAY TURN ROUND. `atCut` can answer with a scene key, and the shutter
+   * then opens on THAT scene instead of `key`. This is the crossing to an
+   * island the server never sent (refused, or too slow): the old way was to
+   * open on the stale board and start a second wipe home, which read as two
+   * irises and a flash of an island with no rabbit on it. Turning round under
+   * the black is one crossing that simply ends where it started.
    */
-  wipeTo(key: SceneKey, atCut?: () => void | Promise<void>): Promise<void>;
+  wipeTo(key: SceneKey, atCut?: () => void | Promise<void | SceneKey>): Promise<void>;
   /**
    * The same iris, over a change that stays on ONE scene.
    *
@@ -139,10 +146,22 @@ export function GameCanvas({
                 const wipe = ref.app?.wipe;
                 // No shutter yet (an early press during boot) is not a reason
                 // to refuse the move — cross bare rather than not at all.
-                if (!wipe) { scenes.show(key); return Promise.resolve(atCut?.()).then(() => {}); }
+                if (!wipe) {
+                  scenes.show(key);
+                  return Promise.resolve(atCut?.()).then((back) => { if (back && back !== key) scenes.show(back); });
+                }
                 // AWAITED: a crossing out holds the shutter shut until its
                 // island has arrived (page.tsx `waitForIsland`).
-                return wipe.play(async () => { scenes.show(key); await atCut?.(); });
+                return wipe.play(async () => {
+                  scenes.show(key);
+                  const back = await atCut?.();
+                  if (!back || back === key) return;
+                  // Turned round: the shutter opens on the scene we left. The
+                  // scene-based variants (sand, curtain) were handed a pair at
+                  // the start of the crossing and would reveal the wrong one.
+                  const scene = scenes.show(back);
+                  if (scene) wipe.retarget(scene.container);
+                });
               },
               wipeOver: (atCut) => {
                 const wipe = ref.app?.wipe;

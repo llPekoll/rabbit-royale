@@ -120,6 +120,7 @@ function Harness({
         onUpdated={() => {}}
         onClose={() => {}}
         onLogout={() => {}}
+        onAbandon={() => {}}
       />
     </div>
   );

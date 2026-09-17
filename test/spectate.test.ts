@@ -51,7 +51,10 @@ describe('spectating', () => {
     const fn = PAGE.slice(PAGE.indexOf('const spectate = useCallback'));
     const body = fn.slice(0, fn.indexOf('}, ['));
     expect(body).toMatch(/setSpectating\(targetId\)/);
-    expect(body).toMatch(/goTo\('island'\)/);
+    // The target is NAMED to the crossing: `goTo` reads `spectating` off a
+    // closure that predates the line above, and a crossing that thinks it is
+    // playing asks for — and pays for — a seat.
+    expect(body).toMatch(/goTo\('island', targetId\)/);
   });
 
   it('feeds the target to the socket so the session switches mode', () => {
@@ -68,9 +71,9 @@ describe('spectating', () => {
     const body = stop.slice(0, stop.indexOf('}, ['));
     expect(body).toMatch(/setSpectating\(null\)/);
     expect(body).toMatch(/goTo\('burrow'\)/);
-    // Signing out drops it too, or the next player inherits the watch.
-    const reset = PAGE.slice(PAGE.indexOf('if (player) return;'));
-    expect(reset.slice(0, reset.indexOf('}, [player]);'))).toMatch(/setSpectating\(null\)/);
+    // Signing out drops it too, or the next player inherits the watch: the
+    // whole page is remounted on sign-out (see session-scope.test.ts).
+    expect(PAGE).toMatch(/<Burrow key=\{generation\} \/>/);
   });
 
   it('does not let a viewer light up tiles they cannot dig', () => {
