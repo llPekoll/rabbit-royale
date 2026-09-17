@@ -31,6 +31,7 @@
  */
 import { burrowFor, burrowColRow, BURROW_COLS, BURROW_ROWS } from './board';
 import { levelAt } from '@/game/island/generate';
+import { seaDistance } from './generate';
 
 const BUILDINGS = '/assets/buildings';
 
@@ -112,6 +113,9 @@ export function burrowBuilding(seed: string, level: number | null | undefined): 
   return { ...art, anchorY: art.foot / art.h, x, y, tier };
 }
 
+/** Ground the building keeps between itself and the water, in cells. */
+const BUILDING_INLAND = 2;
+
 /** Cached per seed — the search below walks the board. */
 const cells = new Map<string, { x: number; y: number; tier: number }>();
 
@@ -134,30 +138,40 @@ function buildingCell(seed: string): { x: number; y: number; tier: number } {
   let best: { x: number; y: number; tier: number } | null = null;
   let bestScore = -Infinity;
 
-  for (let tile = 0; tile < BURROW_COLS * BURROW_ROWS; tile++) {
-    // It stands on ground the raid does not use: never the field (it would
-    // bury the objective) and never the entrance.
-    if (kinds[tile] !== 'ground') continue;
-    const { col, row } = burrowColRow(tile);
+  // Two passes: the strict wish first, then the same search with the sea
+  // allowed one cell closer, so a thin homestead still gets a house rather
+  // than the fallback below.
+  for (const inland of [BUILDING_INLAND, BUILDING_INLAND - 1]) {
+    for (let tile = 0; tile < BURROW_COLS * BURROW_ROWS; tile++) {
+      // It stands on ground the raid does not use: never the field (it would
+      // bury the objective) and never the entrance.
+      if (kinds[tile] !== 'ground') continue;
+      const { col, row } = burrowColRow(tile);
 
-    // Room for the sprite: a building on the very rim is drawn half off the
-    // board, and its own footprint would hang over the sea.
-    if (col < 1 || row < 1 || col >= BURROW_COLS - 1 || row >= BURROW_ROWS - 1) continue;
+      // Room for the sprite. A building on the shore is drawn with its
+      // footprint hanging over the sea, and one on the board's rim is drawn
+      // half off the board — so it keeps `inland` cells of ground on every
+      // side, which covers the rim too.
+      const toSea = seaDistance(map, col, row);
+      if (toSea < inland) continue;
 
-    const toField = Math.min(
-      ...fieldCells.map((f) => Math.max(Math.abs(f.col - col), Math.abs(f.row - row))),
-    );
-    // Beside the garden, not in it and not across the homestead from it.
-    if (toField < 1 || toField > 3) continue;
+      const toField = Math.min(
+        ...fieldCells.map((f) => Math.max(Math.abs(f.col - col), Math.abs(f.row - row))),
+      );
+      // Beside the garden: touching it, or at worst one cell off it.
+      if (toField < 1 || toField > 2) continue;
 
-    const toDoor = Math.max(Math.abs(door.col - col), Math.abs(door.row - row));
-    // Nearness to the field first, then distance from the door: the building
-    // marks the garden, and the raider should be walking towards it.
-    const score = toDoor - toField * 2;
-    if (score > bestScore) {
-      bestScore = score;
-      best = { x: col, y: row, tier: levelAt(map, col, row) };
+      const toDoor = Math.max(Math.abs(door.col - col), Math.abs(door.row - row));
+      // Touching the field first, then inland, then away from the door: the
+      // building marks the garden, it must never look like it is about to
+      // fall in the water, and the raider should be walking towards it.
+      const score = -toField * 8 + Math.min(toSea, 3) * 2 + toDoor * 0.5;
+      if (score > bestScore) {
+        bestScore = score;
+        best = { x: col, y: row, tier: levelAt(map, col, row) };
+      }
     }
+    if (best) break;
   }
 
   // Every burrow has a field with ground beside it — `generate.ts` grows the

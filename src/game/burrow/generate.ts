@@ -54,12 +54,17 @@ export const BURROW_ROWS = 19;
 /**
  * How much of the box is land.
  *
- * Much higher than the island's 0.46. An island is a shape in an ocean and its
+ * Higher than the island's 0.46. An island is a shape in an ocean and its
  * coastline is the point; a burrow is a homestead, and a raider who has to
  * walk round a bay to reach a carrot patch is walking round the developer's
  * noise function. The sea here is a rim, not a feature.
+ *
+ * Not so high that the homestead fills its box, though: at 0.86 the land ran
+ * to the second column on every side and the rim of sea was a hairline, so
+ * the whole thing read as a green square rather than as an island. Room for
+ * water round it is what makes it a place.
  */
-const LAND = 0.86;
+const LAND = 0.72;
 
 /**
  * Two tiers, not three.
@@ -70,8 +75,17 @@ const LAND = 0.86;
  * staircase, and the top shelf ends up too small to hold anything.
  */
 const TIERS = 2;
-const RISE = 0.34;
-const RAGGEDNESS = 0.3;
+/**
+ * A low shelf and a smooth coast.
+ *
+ * `rise` is the shelf's share of the ground: a fifth is a step in the garden,
+ * a third was a second storey with the homestead perched on it. `raggedness`
+ * is how much the coast listens to noise rather than to the ellipse; at 0.3
+ * the shore was all inlets and spits, and the building ended up on one of
+ * them. The homestead is a lawn, not a fjord.
+ */
+const RISE = 0.2;
+const RAGGEDNESS = 0.12;
 
 /**
  * Scenery share.
@@ -353,10 +367,21 @@ const edgeDistance = (col: number, row: number) =>
 function pickField(map: IslandMap, main: Set<number>, entrance: number): number[] {
   const dist = stepDistances(map, main, entrance);
 
+  // The farthest cell from the door is, by construction, on the far SHORE —
+  // and a garden grown from the shore has its building on the shore too, half
+  // its footprint over the water. So the walk is measured, but the patch is
+  // seeded from the farthest cell that keeps `FIELD_INLAND` cells of ground
+  // between it and the sea, falling back a ring at a time if the island is too
+  // thin to have one. The crossing is still checked after; a seed that cannot
+  // afford both is thrown away, not squeezed.
   let farthest = -1;
-  let best = -1;
-  for (const [tile, d] of dist) {
-    if (d > best) { best = d; farthest = tile; }
+  for (let inland = FIELD_INLAND; inland >= 0 && farthest < 0; inland--) {
+    let best = -1;
+    for (const [tile, d] of dist) {
+      const { col, row } = colRow(tile);
+      if (seaDistance(map, col, row) < inland) continue;
+      if (d > best) { best = d; farthest = tile; }
+    }
   }
   if (farthest < 0) return [];
 
@@ -384,6 +409,28 @@ function pickField(map: IslandMap, main: Set<number>, entrance: number): number[
     }
   }
   return [...patch].sort((a, b) => a - b);
+}
+
+/** How many cells of ground the field wants between it and the water. */
+const FIELD_INLAND = 3;
+
+/**
+ * Chebyshev distance from a cell to the nearest open sea, capped at `cap`.
+ *
+ * Rings rather than a flood fill, because every caller wants a small number
+ * and stops caring past it. Off the board counts as sea, as it does for the
+ * autotiler.
+ */
+export function seaDistance(map: IslandMap, col: number, row: number, cap = 4): number {
+  for (let d = 0; d < cap; d++) {
+    for (let dc = -d; dc <= d; dc++) {
+      for (let dr = -d; dr <= d; dr++) {
+        if (Math.max(Math.abs(dc), Math.abs(dr)) !== d) continue;
+        if (levelAt(map, col + dc, row + dr) === 0) return d;
+      }
+    }
+  }
+  return cap;
 }
 
 /** Steps from `start` to every reachable cell of the main body. */
