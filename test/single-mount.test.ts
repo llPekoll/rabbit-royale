@@ -57,8 +57,19 @@ describe('one mount', () => {
   it('does not wait for the game server before mounting', () => {
     // Gating the canvas on the island's seed deadlocked the boot: nothing asks
     // the server for an island until the scene exists, and the scene was
-    // waiting for the island.
-    expect(PAGE).toMatch(/game\.islandSeed \?\? player\.id/);
+    // waiting for the island. What matters is the FALLBACK, not which seed it
+    // is — see the next test for that half.
+    expect(PAGE).toMatch(/seed=\{game\.islandSeed \?\?/);
+  });
+
+  it('falls back to a first-SIZED island for a first-timer', () => {
+    // The fallback used to be a bare `player.id`, which cuts an ordinary
+    // ~500-tile island. Harmless while the first screen was the burrow; once
+    // the first-timer started opening ON the island, they were shown a
+    // full-size island until the server answered and then it was re-cut under
+    // them into the small tutorial one — a place that visibly changed size on
+    // the first screen of the game.
+    expect(PAGE).toMatch(/firstTimer \? firstIslandSeed\(player\.id\) : player\.id/);
   });
 });
 

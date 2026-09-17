@@ -49,6 +49,7 @@ import { BurrowPanel } from '@/components/burrow-card-panel';
 import { QuestCard } from '@/components/quest-card';
 import { FirstRunCaption } from '@/components/first-run-caption';
 import { RunCostNote } from '@/components/run-cost-note';
+import { firstIslandSeed } from '@/lib/game/first-island';
 import { LevelUpStamp } from '@/components/level-up-stamp';
 import { EruptionOverlay } from '@/components/eruption-overlay';
 import { LootFly } from '@/components/loot-fly';
@@ -1691,12 +1692,25 @@ function Burrow() {
           Deliberately NOT gated on the island's seed: the burrow is playable
           without a game server, and waiting for one deadlocked the boot —
           nothing asks the server for an island until the scene exists, and the
-          scene was waiting for the island. The seed only decides which ground
-          the island is painted on, so a placeholder until the server answers
-          costs nothing. */}
+          scene was waiting for the island.
+
+          THE PLACEHOLDER IS THE RIGHT SIZE OF ISLAND. The seed decides which
+          ground is painted, and it used to fall back to `player.id` — an
+          ordinary seed, which cuts an ordinary ~500-tile island. That was free
+          while the first screen was the burrow. It stopped being free when the
+          first-timer started opening ON the island (`openOn` below): they were
+          shown a full-size island for as long as the server took to answer,
+          and then it was re-cut under them into the small tutorial one. A
+          visible, unexplained change of place, on the first screen of the game.
+
+          So the fallback carries the `first:` prefix when the player is a
+          first-timer, which is the same thing the server's own first island
+          carries — `terrainBoard` reads it and cuts the same small coastline.
+          The snapshot then only fills in what is BURIED, which was always
+          private and was never on screen to change. */}
       {player && showCanvas && (
         <GameCanvas
-          seed={game.islandSeed ?? player.id}
+          seed={game.islandSeed ?? (firstTimer ? firstIslandSeed(player.id) : player.id)}
           playerId={player.id}
           onMoveIntent={onMoveIntent}
           onToggleTrap={onToggleTrap}
