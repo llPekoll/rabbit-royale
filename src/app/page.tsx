@@ -1133,11 +1133,30 @@ function Burrow() {
    * Deliberately not `burstKey`: that one also empties the burrow's garden
    * (see the harvest effect below), and a run's carrots come from the island,
    * not from the field outside the door.
+   *
+   * THE SHED READS THE SAME TOTAL, and was missed the first time this was
+   * fixed. `refreshBurrow` re-reads /api/burrow, which feeds the HUD's carrot
+   * pill and nothing else; the shop keeps its OWN copy of the stock, fetched
+   * once when `useShop` mounted. So a player who banked a run saw the pill go
+   * up and then found every shelf greyed out at "Not enough carrots yet" —
+   * the purse in the Shed's header still reading the figure from before they
+   * dug. It was worst for a guest, who mounts the page at zero and therefore
+   * had a shop permanently convinced they were broke until a reload.
+   *
+   * Both are stale for one reason — a run banked — so both are refreshed at
+   * the one moment that says so.
+   *
+   * Keyed on `shop.refresh` and NOT on `shop`: the hook hands back a fresh
+   * object every render, so depending on the whole of it would re-run this on
+   * the very render its own fetch causes — an endless /api/shop poll. The
+   * callback itself is stable (`useCallback` on the token).
    */
+  const refreshShop = shop.refresh;
   useEffect(() => {
     if (!game.banked) return;
     refreshBurrow();
-  }, [game.banked, refreshBurrow]);
+    void refreshShop();
+  }, [game.banked, refreshBurrow, refreshShop]);
 
   /**
    * A seat was granted, so the burrow just PAID for it — go and read the bar.

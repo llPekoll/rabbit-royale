@@ -7,6 +7,7 @@
  * survive any retune: every line has both prices, caps apply to money exactly
  * as they apply to carrots, and the energy window is rolling.
  */
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { ENERGY_PACK, SHOP, SMOKE, itemCap, itemPrice, itemUsdcPrice, usdcBaseUnits } from '../config/tuning';
 import {
@@ -266,5 +267,49 @@ describe('the smoke screen', () => {
   it('refuses a purchase past the cap, and says which limit it hit', () => {
     const capped = bag({ smoke: itemCap('smoke') });
     expect(purchaseBlocker('smoke', 1, capped, 1e6)).toBe('smoke_capped');
+  });
+});
+
+/**
+ * THE SHED'S PURSE WENT STALE THE MOMENT A RUN BANKED.
+ *
+ * `useShop` fetches the shelf once, at mount, and keeps its own copy of the
+ * carrot stock — the purse in the Shed's header and the `canBuy` on every tile
+ * are computed from THAT number, not from the one the burrow HUD shows. The
+ * banking effect re-read /api/burrow (the HUD's pill) and nothing else, so a
+ * player who dug a run watched the pill go up and then found every shelf
+ * greyed out at "Not enough carrots yet", the purse still reading the figure
+ * from before they played.
+ *
+ * It bit a GUEST hardest, and that is how it was reported: a guest mounts the
+ * page with a stock of zero, so their shop was convinced they were broke for
+ * the whole session — a reload was the only way to buy anything.
+ *
+ * Pinned in the source because it is a dependency-array bug: the effect looks
+ * complete without the shop half, and the failure is invisible until someone
+ * plays a run and opens the Shed in the same visit.
+ */
+describe('banking a run refreshes the shed, not just the HUD', () => {
+  const PAGE = readFileSync(
+    new URL('../src/app/page.tsx', import.meta.url), 'utf8',
+  );
+  /** The effect that fires when the server says a run was banked. */
+  const banked = PAGE.slice(
+    PAGE.indexOf('if (!game.banked) return;'),
+  ).slice(0, 220);
+
+  it('re-reads the shop as well as the burrow', () => {
+    expect(banked).toMatch(/refreshBurrow\(\)/);
+    // The half that was missing: without it the purse keeps a pre-run total.
+    expect(banked).toMatch(/refreshShop\(\)/);
+  });
+
+  it('depends on the stable callback, never the whole hook object', () => {
+    // `useShop` returns a fresh object every render, so `[game.banked, shop]`
+    // would re-run this effect on the very render its own fetch causes — an
+    // endless /api/shop poll (observed). `refresh` is a useCallback on the
+    // token, so depending on it is what keeps the effect firing once.
+    expect(PAGE).toMatch(/const refreshShop = shop\.refresh;/);
+    expect(banked).not.toMatch(/shop\.refresh\(\)/);
   });
 });
