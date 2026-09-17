@@ -22,7 +22,7 @@ export async function GET(req: Request) {
 
   // Redis holds the ORDERING; the player rows still come from Postgres, because
   // a name or a burrow level has no business living in a sorted set.
-  let rows: Array<{ id: string; name: string; seasonScore: number; lifetimeCarrots: number; burrowLevel: number }>;
+  let rows: Array<{ id: string; name: string; avatar: string | null; seasonScore: number; lifetimeCarrots: number; burrowLevel: number }>;
   const ranked = season ? await topPlayers(season.id, limit) : [];
 
   // Postgres is asked for the top `limit` REGARDLESS of what Redis said.
@@ -39,7 +39,8 @@ export async function GET(req: Request) {
   // the one it was never entitled to (deciding who exists). Both sources are
   // merged below, so a player shows up if EITHER knows about them.
   const fromDb = await db.select({
-    id: players.id, name: players.name, seasonScore: players.seasonScore,
+    id: players.id, name: players.name, avatar: players.avatar,
+    seasonScore: players.seasonScore,
     lifetimeCarrots: players.lifetimeCarrots, burrowLevel: players.burrowLevel,
   }).from(players).orderBy(desc(players.seasonScore)).limit(limit);
 
@@ -52,7 +53,8 @@ export async function GET(req: Request) {
     const missing = ranked.map((r) => r.playerId).filter((id) => !known.has(id));
     const extra = missing.length > 0
       ? await db.select({
-          id: players.id, name: players.name, seasonScore: players.seasonScore,
+          id: players.id, name: players.name, avatar: players.avatar,
+          seasonScore: players.seasonScore,
           lifetimeCarrots: players.lifetimeCarrots, burrowLevel: players.burrowLevel,
         }).from(players).where(inArray(players.id, missing))
       : [];
@@ -76,6 +78,16 @@ export async function GET(req: Request) {
     rank: i + 1,
     playerId: p.id,
     name: p.name,
+    /**
+     * Which rabbit they picked, or null for a player who never chose.
+     *
+     * The board's top three are DRAWN now rather than listed, so the face has
+     * to be the one they actually wear — a podium of three identical rabbits
+     * says nothing, and a player who changed their colour would not recognise
+     * themselves on it. Null is fine: the renderer falls back to the default
+     * sheet, which is what a new player is anyway.
+     */
+    avatar: p.avatar,
     score: p.seasonScore,
     lifetime: p.lifetimeCarrots,
     burrowLevel: p.burrowLevel,

@@ -1238,6 +1238,18 @@ function Burrow() {
     void handles.current?.burrow?.setLevel(burrow.level);
   }, [ready, burrow?.level]);
 
+  // WHO LIVES HERE: the owner's name over their rabbit, and the crown if they
+  // are the season's #1.
+  //
+  // Pushed rather than passed at mount: `GameCanvas` builds the scenes once and
+  // both of these arrive later and keep changing — the name when the player
+  // renames themselves, the crown when the lead changes hands on a poll the
+  // season board is already making (`onMe`).
+  useEffect(() => {
+    if (!ready) return;
+    handles.current?.burrow?.setHomePlayer(player?.name ?? '', me?.rank === 1);
+  }, [ready, player?.name, me?.rank]);
+
   // The traps on the ground, SYNCHRONISED with the server's list.
   //
   // Both directions, which is the whole point. This used to only ever add, and

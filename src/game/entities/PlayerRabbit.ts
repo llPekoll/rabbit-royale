@@ -1,8 +1,9 @@
-import { AnimatedSprite, Container, Graphics } from 'pixi.js';
+import { AnimatedSprite, Assets, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { tilePos, tileDepth, toColRow, ISO_TILE_W, RABBIT_SCALE } from '@/config/gridConfig';
 import { levelTierAt, tileScreenPos } from '@/lib/game/terrainBoard';
 import * as Keys from '@/config/assetKeys';
 import { getBunnyAnimTextures, BUNNY_ANIM_DEFS } from '../services/AssetLoader';
+import { outlinedPixelText } from '../ui/PixelText';
 import gsap from 'gsap';
 
 /**
@@ -34,6 +35,79 @@ const KNOCK_SQUASH_Y = 0.7;
 /** The small hop off the ground after the squash, in px. */
 const KNOCK_BOUNCE_PX = 6;
 
+/* ── THE SEASON LEADER'S CROWN ────────────────────────────────────────────
+   Tuned in `stories/CrownedRabbit.stories.tsx`, which has a camera for the
+   purpose — every one of these numbers looked fine at the size the game draws
+   a rabbit and wrong once magnified. */
+
+/**
+ * The crown's width, as a share of the rabbit's ART.
+ *
+ * Sized to the HEAD, not the body: the head spans ~11 of the sheet's pixels
+ * against the art's 14, and a crown matched to the whole body swallows the
+ * ears.
+ */
+const CROWN_SCALE = 0.32;
+/**
+ * Where the band's underside sits, in the container's units, measured from the
+ * rabbit's feet.
+ *
+ * The art stands ~16 units tall (idle frame top at y18 of 32, times
+ * RABBIT_SCALE — the measurement `Tile.HINT_RAISED_Y` is also taken from), so
+ * this is a couple of units INSIDE the ears. The overlap is the point: a crown
+ * level with the ear tips hovers, and a hovering crown reads as a marker
+ * floating over a rabbit rather than as headwear.
+ */
+const CROWN_Y = -12.5;
+/**
+ * How far right of the art's centre the head actually is, in source pixels.
+ *
+ * The sprite's anchor is 0.5 of the whole frame, which centres on the BODY —
+ * and the haunches stick out to the left, so the head's centre is a pixel to
+ * the right of it. Without this the crown leans off the side of the skull.
+ */
+const CROWN_DX = 1;
+/** The jaunty lean. A crown square to the pixel grid reads as a hat. */
+const CROWN_TILT = -14;
+/** The float's amplitude and period — felt rather than seen, and always less
+ *  than the overlap above, or the bob lifts the band clear of the head. */
+const CROWN_BOB_PX = 0.6;
+const CROWN_BOB_MS = 520;
+/**
+ * How much bigger the crowned rabbit is drawn than everyone else.
+ *
+ * The leader is not merely marked, they are LARGER — the same claim the season
+ * board's podium makes. 2 rather than more: past that the king starts to cover
+ * the tiles around them, and those are the game.
+ *
+ * It is a COMPARISON, which is why it is not applied everywhere: see
+ * `setCrownGrows`. On the island there are other rabbits to be bigger than; on
+ * your own homestead you are the only one there, so the size says nothing and
+ * only costs the art — at 1.8 x 2 the rabbit stood taller than the trees.
+ */
+const CROWN_LEAD_SCALE = 2;
+
+/* ── THE NAME PLATE ───────────────────────────────────────────────────────── */
+
+/**
+ * How far above the feet the name floats.
+ *
+ * Clear of the crown rather than of the ears: a leader wears both, and a plate
+ * measured against a bare head is a plate the crown grows through.
+ */
+const NAME_Y = -30;
+/**
+ * The plate's size, in the container's units.
+ *
+ * Small on purpose. Four of these can be on screen at once and they are labels
+ * on top of the board the game is actually read from — a name that competes
+ * with the hint numbers is a name that costs the player the run.
+ */
+const NAME_SCALE = 0.55;
+/** Your own name reads gold, everyone else's white — the game's own YOURS ink. */
+const NAME_TINT_ME = 0xffd45c;
+const NAME_TINT_OTHER = 0xffffff;
+
 export class PlayerRabbit {
   sprite: AnimatedSprite;
   container: Container;
@@ -51,6 +125,22 @@ export class PlayerRabbit {
    * tween left the rabbit dancing a cell short of the field it had reached.
    */
   private afterMove: (() => void) | null = null;
+  /** The season leader's crown, when this rabbit wears one. */
+  private crown: Sprite | null = null;
+  private crownBob: gsap.core.Tween | null = null;
+  /**
+   * The container's scale with no crown on it.
+   *
+   * Crowning MULTIPLIES this rather than replacing it: the burrow draws its
+   * idle rabbit larger than the island does, and a crown that set an absolute
+   * scale silently undid that the moment the season leader walked onto their
+   * own homestead.
+   */
+  private baseScale = 1;
+  /** Whether the crown also makes this rabbit bigger — see `CROWN_LEAD_SCALE`. */
+  private crownGrows = true;
+  /** The floating name plate, when this rabbit has been given one. */
+  private nameplate: Container | null = null;
 
   constructor(tileIndex: number, sheetKey = Keys.BUNNY_WHITE, seed = '', grid?: RabbitGrid) {
     this.sheetKey = sheetKey;
@@ -373,6 +463,133 @@ export class PlayerRabbit {
     this.stunTimer = setTimeout(() => this.clearStun(), ms);
   }
 
+  /**
+   * Wear the season's crown — or take it off.
+   *
+   * Idempotent, because the crown arrives with every island snapshot and the
+   * same rabbit is told it more than once; and reversible, because the lead
+   * changes hands mid-season and the sprite has to give the crown up when it
+   * does.
+   *
+   * The crown is parented to the CONTAINER, never to the sprite. The sprite's
+   * `scale.x` flips on every direction change (`moveTo`) and its anchor moves
+   * to the body's centre mid-flight (`playKnockback`), so a child of it would
+   * mirror its own crown and swing about the wrong pivot when a bomb throws
+   * the rabbit. The container only ever moves and sorts, which is exactly what
+   * the crown should inherit — including its z-order among the tiles.
+   *
+   * The leader is also drawn bigger, and that is scaled on the container too,
+   * so the crown grows with the head it sits on and the rabbit keeps standing
+   * on its own tile (the sprite is anchored at the feet).
+   */
+  setCrowned(on: boolean): void {
+    if (this.container.destroyed) return;
+    if (on === !!this.crown) return;
+
+    if (!on) {
+      this.crownBob?.kill();
+      this.crownBob = null;
+      if (this.crown && !this.crown.destroyed) this.crown.destroy();
+      this.crown = null;
+      this.container.scale.set(this.baseScale);
+      this.applyNameScale();
+      return;
+    }
+
+    const texture = Assets.get<Texture>(Keys.CROWN);
+    // No crown art loaded is not a reason to lose the rabbit: the size still
+    // marks the leader, and the sprite renders as it always did.
+    if (texture) {
+      const crown = new Sprite(texture);
+      // Anchored at the BAND'S UNDERSIDE, which is the part that rests on the
+      // head — so that is the point worth positioning by.
+      crown.anchor.set(0.5, 1);
+      crown.scale.set(RABBIT_SCALE * CROWN_SCALE);
+      crown.position.set(CROWN_DX * RABBIT_SCALE, CROWN_Y);
+      crown.angle = CROWN_TILT;
+      this.container.addChild(crown);
+      this.crown = crown;
+
+      this.crownBob = gsap.to(crown, {
+        y: CROWN_Y - CROWN_BOB_PX,
+        duration: CROWN_BOB_MS / 1000,
+        repeat: -1,
+        yoyo: true,
+        ease: 'sine.inOut',
+      });
+    }
+
+    this.container.scale.set(this.baseScale * this.crownFactor());
+    this.applyNameScale();
+  }
+
+  /**
+   * Float this rabbit's name above its head.
+   *
+   * A child of the CONTAINER, like the crown, so it travels with every hop,
+   * knockback and tumble for free — a plate parented to the board would need
+   * its own follow, and would drift for the length of each tween.
+   *
+   * The scale is DIVIDED BY the container's, so the plate is the same size on
+   * everyone. Crowning doubles the container (see `setCrowned`), and a name
+   * that inherited that would shout the leader's name twice as loud as the
+   * rest — the crown already says who leads, and the label is only there to
+   * say who is who.
+   *
+   * Passing an empty name removes the plate: a guest with no name set is
+   * better served by no label than by an empty ring of outline.
+   */
+  setName(name: string, isMe = false): void {
+    if (this.container.destroyed) return;
+
+    if (this.nameplate) {
+      this.nameplate.destroy({ children: true });
+      this.nameplate = null;
+    }
+    if (!name) return;
+
+    const plate = outlinedPixelText(0, NAME_Y, name);
+    plate.face.tint = isMe ? NAME_TINT_ME : NAME_TINT_OTHER;
+    this.nameplate = plate.group;
+    this.container.addChild(plate.group);
+    this.applyNameScale();
+  }
+
+  /**
+   * Say whether wearing the crown should also make this rabbit bigger.
+   *
+   * On by default, for the island. The burrow turns it off: its rabbit is
+   * already drawn large and has nobody to be compared with.
+   */
+  setCrownGrows(on: boolean): void {
+    this.crownGrows = on;
+    this.container.scale.set(this.baseScale * (this.crown ? this.crownFactor() : 1));
+    this.applyNameScale();
+  }
+
+  private crownFactor(): number {
+    return this.crownGrows ? CROWN_LEAD_SCALE : 1;
+  }
+
+  /** Keep the plate the same size on screen whatever the container is doing. */
+  private applyNameScale(): void {
+    if (!this.nameplate) return;
+    const k = this.container.scale.x || 1;
+    this.nameplate.scale.set(NAME_SCALE / k);
+  }
+
+  /**
+   * How big this rabbit is drawn, before any crown.
+   *
+   * Set rather than assigning `container.scale` directly, so that crowning
+   * still multiplies the right number — see `baseScale`.
+   */
+  setBaseScale(scale: number): void {
+    this.baseScale = scale;
+    this.container.scale.set(this.crown ? scale * this.crownFactor() : scale);
+    this.applyNameScale();
+  }
+
   private clearStun(): void {
     if (this.stunTimer) clearTimeout(this.stunTimer);
     this.stunTimer = null;
@@ -391,6 +608,9 @@ export class PlayerRabbit {
   vanish(): void {
     this.cancelMove();
     this.clearStun();
+    this.crownBob?.kill();
+    this.crownBob = null;
+    this.crown = null;
     this.sprite.stop();
     gsap.to(this.container, { alpha: 0, duration: 0.3, ease: 'power1.in' });
     gsap.to(this.sprite.scale, {
@@ -406,6 +626,12 @@ export class PlayerRabbit {
 
   destroy(): void {
     this.clearStun();
+    // The bob outlives the sprite otherwise: gsap holds the crown alive and
+    // keeps writing `y` to a destroyed display object.
+    this.crownBob?.kill();
+    this.crownBob = null;
+    this.crown = null;
+    this.nameplate = null;
     if (this.container.destroyed) return;
     this.sprite.stop();
     this.container.destroy({ children: true });

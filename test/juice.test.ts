@@ -118,7 +118,11 @@ describe('the small pops', () => {
     expect(read('../src/components/loop-bar.tsx')).toMatch(/rr-tab-pop/);
     expect(PAGE).toMatch(/className=\{lorePulseKey > 0 \? 'rr-tab-pop' : undefined\}/);
     expect(read('../src/components/carrot-pill.tsx')).toMatch(/className="rr-rank-pop"/);
-    expect(read('../src/components/leaderboard-drawer.tsx')).toMatch(/rr-crown-glint/);
+    // The leader's crown still glints, but it is worn on their rabbit's head
+    // now rather than filed in the rank column as an emoji — so the mark moved
+    // to `podium-rabbit.tsx` and took its own keyframe with it (the placement
+    // transform and the glint have to live in one declaration; see globals.css).
+    expect(read('../src/components/podium-rabbit.tsx')).toMatch(/rr-crown-worn/);
   });
 
   it('respects reduced motion for every one of them', () => {
@@ -126,7 +130,7 @@ describe('the small pops', () => {
     const guard = CSS.match(/@media \(prefers-reduced-motion: reduce\) \{[\s\S]{0,600}?animation: none;\s*\}/g) ?? [];
     const mine = guard.find((g) => g.includes('rr-hub-badge'));
     expect(mine).toBeDefined();
-    for (const cls of ['rr-hub-badge', 'rr-tab-pop', 'rr-quest-done', 'rr-rank-pop', 'rr-crown-glint', 'rr-levelup-stamp', 'rr-eruption-line']) {
+    for (const cls of ['rr-hub-badge', 'rr-tab-pop', 'rr-quest-done', 'rr-rank-pop', 'rr-crown-glint', 'rr-crown-worn', 'rr-levelup-stamp', 'rr-eruption-line']) {
       expect(mine, cls).toContain(cls);
     }
   });

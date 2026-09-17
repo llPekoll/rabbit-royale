@@ -19,11 +19,11 @@ import { LeaderboardDrawer, type Entry } from '@/components/leaderboard-drawer';
 import '@/app/globals.css';
 
 const ROWS: Entry[] = [
-  { rank: 1, playerId: 'a', name: 'Thistle', score: 25000, lifetime: 25000, burrowLevel: 3, crowned: true, digging: false },
-  { rank: 2, playerId: 'b', name: 'Bramble', score: 6480, lifetime: 7310, burrowLevel: 4, crowned: false, digging: true },
-  { rank: 3, playerId: 'c', name: 'Clementine', score: 3140, lifetime: 9260, burrowLevel: 5, crowned: false, digging: false },
-  { rank: 4, playerId: 'd', name: 'mamadou', score: 1172, lifetime: 1172, burrowLevel: 3, crowned: false, digging: true },
-  { rank: 5, playerId: 'me', name: 'undefinedBuck15', score: 57, lifetime: 57, burrowLevel: 1, crowned: false, digging: false },
+  { rank: 1, playerId: 'a', name: 'Thistle', score: 25000, lifetime: 25000, burrowLevel: 3, avatar: 'brown', crowned: true, digging: false },
+  { rank: 2, playerId: 'b', name: 'Bramble', score: 6480, lifetime: 7310, burrowLevel: 4, avatar: 'gray', crowned: false, digging: true },
+  { rank: 3, playerId: 'c', name: 'Clementine', score: 3140, lifetime: 9260, burrowLevel: 5, avatar: 'orange', crowned: false, digging: false },
+  { rank: 4, playerId: 'd', name: 'mamadou', score: 1172, lifetime: 1172, burrowLevel: 3, avatar: 'yellow', crowned: false, digging: true },
+  { rank: 5, playerId: 'me', name: 'undefinedBuck15', score: 57, lifetime: 57, burrowLevel: 1, avatar: null, crowned: false, digging: false },
 ];
 
 /**

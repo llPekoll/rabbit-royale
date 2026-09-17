@@ -37,6 +37,7 @@ import { getDiamondFill, getDiamondOutline, diamondScaleFor } from '../services/
 import { shadowedPixelText } from '../ui/PixelText';
 import { playUiSfx } from '../services/SoundManager';
 import { PlayerRabbit } from '../entities/PlayerRabbit';
+import { HomeRabbit } from '@/game/burrow/HomeRabbit';
 import { FOG_COLOR, FOG_ALPHA, HIGHLIGHT_COLOR, HINT_TINTS } from '../entities/Tile';
 import * as Keys from '@/config/assetKeys';
 import { BURROW_COLS, BURROW_ROWS, BURROW_HALF_W, BURROW_HALF_H, burrowColRow } from '@/config/burrowConfig';
@@ -404,6 +405,23 @@ export class BurrowScene implements Scene {
   private raidCellsSeed: string | null = null;
   /** The gold chevron hanging over the garden — see `GOAL_ARROW_TINT`. */
   private goalArrow: Container | null = null;
+  /**
+   * YOUR rabbit, pottering about the homestead between runs.
+   *
+   * Scenery, not an entity: it has no tile to defend and the server never
+   * hears about it. See `HomeRabbit` for why the burrow wanted one.
+   */
+  private home: HomeRabbit | null = null;
+  /**
+   * Who lives here, as the page last said.
+   *
+   * Kept on the scene rather than only pushed at the rabbit, because the rabbit
+   * is rebuilt whenever the ground is (`buildBoard`) — a name set once would be
+   * lost the first time the owner levelled up.
+   */
+  private homeWho: { name: string; crowned: boolean } = { name: '', crowned: false };
+  /** Set while the scene is being torn down, so `clearRaid` does not rebuild. */
+  private dying = false;
   /** The raider: the island's own rabbit, kept across steps so it HOPS. */
   private raider: PlayerRabbit | null = null;
   private raiderAt = -1;
@@ -768,6 +786,24 @@ export class BurrowScene implements Scene {
    * chest shines and minesweeper hints that mean nothing here.
    */
   private buildBoard(): void {
+    // Your rabbit comes back with the ground it stands on. `buildBoard` runs
+    // on first paint AND on every `showGround` (a level-up, or crossing to
+    // someone else's plot), and the old rabbit's cells no longer exist by
+    // then — so it is rebuilt rather than kept.
+    this.home?.destroy();
+    this.home = null;
+    // Only on YOUR OWN homestead. The burrow doubles as the raid board and as
+    // the view of a plot you are attacking, and a rabbit wandering peacefully
+    // around a farm you are raiding would read as a defender who is not there.
+    // Not while a raid is on this board: the burrow doubles as the view of a
+    // plot being attacked, and a rabbit pottering about peacefully on it would
+    // read as a defender who is not really there. `setRaid` clears it, and
+    // `clearRaid` puts it back.
+    if (this.raidCellsSeed === null) {
+      this.home = new HomeRabbit(this.board, this.data.seed);
+      this.applyHomeWho();
+    }
+
     for (let i = 0; i < BURROW_COLS * BURROW_ROWS; i++) {
       if (burrowCell(this.data.seed, i) === 'blocked') continue;
 
@@ -1544,8 +1580,32 @@ export class BurrowScene implements Scene {
    * block so they sort with the ground rather than lapping over the cell
    * behind (see `Tile.mountVeil` for the double-dark wedge this avoids).
    */
+  /**
+   * Name the rabbit standing on this homestead, and say whether it wears the
+   * season's crown.
+   *
+   * Pushed from the page rather than taken from `BurrowSceneData`: both facts
+   * arrive AFTER the scene is built (the name from the player row, the crown
+   * from the leaderboard poll) and both change while it is on screen — a
+   * rename, or somebody taking the lead off you.
+   */
+  setHomePlayer(name: string, crowned: boolean): void {
+    this.homeWho = { name, crowned };
+    this.applyHomeWho();
+  }
+
+  private applyHomeWho(): void {
+    // Your own homestead, so the name is always in the "me" ink.
+    this.home?.setName(this.homeWho.name, true);
+    this.home?.setCrowned(this.homeWho.crowned);
+  }
+
   private buildRaidCells(seed: string): void {
     this.raidCellsSeed = seed;
+    // The board becomes a raid board: your idle rabbit steps off it, or it
+    // would be wandering about underneath somebody's attack.
+    this.home?.destroy();
+    this.home = null;
     const hit = () => {
       // The diamond is scaled to the burrow's tile; the hit polygon is in the
       // sprite's own space, so it is scaled back — see `buildBoard`.
@@ -1884,6 +1944,11 @@ export class BurrowScene implements Scene {
       for (const group of this.trapSprites.values()) group.visible = true;
       this.raiding = false;
     }
+    // The raid is over and this is somebody's home again.
+    if (!this.home && !this.dying && !this.container.destroyed) {
+      this.home = new HomeRabbit(this.board, this.data.seed);
+      this.applyHomeWho();
+    }
   }
 
   /**
@@ -2062,7 +2127,13 @@ export class BurrowScene implements Scene {
 
   destroy(): void {
     this.teardownPlacementHints();
+    // BEFORE `clearRaid`, which puts an idle rabbit back on a board that is
+    // about to be torn down — and a fresh one built here would outlive the
+    // scene, ticking its own timer against a destroyed container.
+    this.dying = true;
     this.clearRaid();
+    this.home?.destroy();
+    this.home = null;
     if (this.onResize) {
       window.removeEventListener('resize', this.onResize);
       this.onResize = null;

@@ -33,6 +33,8 @@ import { CloseButton, GOLD_CUP_URL, NineSlicePanel } from '@domin8/arcade-kit';
 import { PanelTitle } from './pixel-text';
 import { HubIconButton, hubIconArt } from './hub-icon-button';
 import { PX, PxPanel } from './px';
+import { PodiumRabbit } from './podium-rabbit';
+import { FACE_COL, LEAD_SIZE, PODIUM, PODIUM_MIN_PANEL, PODIUM_SIZE, crownBox } from '@/lib/game/podium';
 
 /** The board's surface (`.rr-lb`), now filling the codex's pixel frame. */
 const BOARD = '#161b1f';
@@ -49,6 +51,8 @@ export interface Entry {
   score: number;
   lifetime: number;
   burrowLevel: number;
+  /** Which rabbit they wear, or null for a player who never picked one. */
+  avatar?: string | null;
   crowned: boolean;
   /** Out on an island right now — the only column that is live. */
   digging?: boolean;
@@ -157,6 +161,26 @@ export function LeaderboardDrawer({ token, playerId, onSpectate, onMe, onOpen }:
    * once. Compared against the previous poll, not against page load, so a
    * board opened for the first time does not flash a rank that did not move.
    */
+  /**
+   * Whether the list is wide enough to carry the podium's faces.
+   *
+   * Measured rather than assumed from the viewport: the board is a column on a
+   * desktop and a slide-over on a phone, and it is the LIST's width that
+   * decides whether a face fits beside a name and a score — see
+   * `PODIUM_MIN_PANEL`.
+   */
+  const listRef = useRef<HTMLDivElement>(null);
+  const [roomy, setRoomy] = useState(true);
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(([entry]) => {
+      setRoomy(entry.contentRect.width >= PODIUM_MIN_PANEL);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const lastRank = useRef<number | null | undefined>(undefined);
   const [rankMoved, setRankMoved] = useState(false);
   useEffect(() => {
@@ -235,7 +259,7 @@ export function LeaderboardDrawer({ token, playerId, onSpectate, onMe, onOpen }:
           <CloseButton inline className="rr-lb-close" onClick={() => setOpen(false)} aria-label="Close" style={{ minWidth: 44 }} />
         </header>
 
-        <div className="rr-lb-list">
+        <div className="rr-lb-list" ref={listRef}>
           {/* The empty note is the list's only content, so it takes the list's
               own inset rather than a literal of its own. */}
           {entries.length === 0 && (
@@ -244,6 +268,12 @@ export function LeaderboardDrawer({ token, playerId, onSpectate, onMe, onOpen }:
             </p>
           )}
           {entries.map((e) => {
+            // The head of the list is DRAWN, the tail stays text. A face on
+            // every row would be a face on no row — and fifty cropped sheets
+            // in a scrolling column is a cost paid for nothing below the top
+            // few. See `lib/game/podium.ts`.
+            const onPodium = roomy && e.rank <= PODIUM;
+            const size = e.crowned ? LEAD_SIZE : PODIUM_SIZE;
             const row = (
             <button
               key={e.playerId}
@@ -253,6 +283,16 @@ export function LeaderboardDrawer({ token, playerId, onSpectate, onMe, onOpen }:
                 + `${e.digging ? ' digging' : ''}`
                 + `${e.playerId === playerId && rankMoved ? ' rr-rank-moved' : ''}`
               }
+              // The face needs a column of its own, or it grows the rank slot
+              // and the numbers below stop lining up. The leader's row also
+              // reserves headroom for the crown, computed from the crown
+              // itself so the two cannot drift apart — `.rr-lb-list` clips,
+              // and row 1 has no row above it to bleed into.
+              style={onPodium ? {
+                gridTemplateColumns: `clamp(18px, 2.6svh, 30px) ${FACE_COL}px minmax(0, 1fr) auto`,
+                paddingTop: e.crowned ? crownBox(size).rise + 4 : 8,
+                paddingBottom: 8,
+              } : undefined}
               // Watching your own run from here would just be the game, and
               // there is nothing to watch on someone who is not on an island —
               // a spectate that lands on an empty board is the server's
@@ -268,11 +308,16 @@ export function LeaderboardDrawer({ token, playerId, onSpectate, onMe, onOpen }:
                 if (!window.matchMedia?.(WIDE).matches) setOpen(false);
               }}
             >
-              {/* The crown glints on a slow loop: it is a thing being watched,
-                  which is what the lore says it is for. */}
-              <span className="rr-lb-rank">
-                {e.crowned ? <span className="rr-crown-glint">👑</span> : e.rank}
-              </span>
+              {/* The rank column keeps the NUMBER, even for #1.
+                  The crown used to live here as an emoji; it is worn on the
+                  leader's own head now (see `PodiumRabbit`), which is both
+                  where a crown goes and the same art the island puts on them.
+                  Leaving the digit in place keeps the ranks a readable run of
+                  numbers instead of a glyph followed by 2, 3, 4. */}
+              <span className="rr-lb-rank">{e.rank}</span>
+              {onPodium && (
+                <PodiumRabbit avatar={e.avatar} size={size} crowned={e.crowned} />
+              )}
               <span className="rr-lb-name">
                 {e.name}
                 {/* The live dot rides the NAME, not the rank column: it is a

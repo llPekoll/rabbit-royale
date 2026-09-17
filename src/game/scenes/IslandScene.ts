@@ -1235,9 +1235,20 @@ export class IslandScene implements Scene {
    * not where the server thought they were, and every move they made was
    * answered from the spawn.
    */
-  addRabbit(playerId: string, name: string, index: number, seatIndex: number, energy?: number): void {
+  addRabbit(
+    playerId: string,
+    name: string,
+    index: number,
+    seatIndex: number,
+    energy?: number,
+    crowned = false,
+  ): void {
     const known = this.rabbits.get(playerId);
     if (known) {
+      // The crown can change hands between snapshots, so it is re-applied on
+      // every one rather than only when the rabbit is first seen.
+      known.setCrowned(crowned);
+      known.setName(name, playerId === this.data?.playerId);
       // Teleport, not `moveTo`: a respawn is not a hop, and the spawn is
       // usually nowhere near the tile the last run ended on.
       known.cancelMove();
@@ -1257,6 +1268,11 @@ export class IslandScene implements Scene {
     }
     const sheet = BUNNY_SHEETS[seatIndex % BUNNY_SHEETS.length];
     const rabbit = new PlayerRabbit(index, sheet, this.data?.seed ?? '');
+    rabbit.setCrowned(crowned);
+    // Who is who. Four rabbits on a board, three of them strangers, and until
+    // now the only thing telling them apart was the colour of the sheet they
+    // happened to be handed.
+    rabbit.setName(name, playerId === this.data?.playerId);
     this.rabbits.set(playerId, rabbit);
     this.container.addChild(rabbit.container);
     rabbit.playSpawnDrop();

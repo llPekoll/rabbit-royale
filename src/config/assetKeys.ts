@@ -86,6 +86,9 @@ export const LOOT_BOX = 'loot-box';
  *  CSS cursor uses; loaded as a texture too so the burrow's placement glove can
  *  show a finger pressing a cell on devices that have no cursor at all. */
 export const HAND_POINTER = 'hand-pointer';
+/** The season leader's crown (29x22), worn above the head — see `PlayerRabbit`.
+ *  Borrowed from the arena, which marks its own round winner with it. */
+export const CROWN = 'crown';
 // The shared arcade-kit 9-slice button sprites now load via the kit's
 // `loadButtonAssets()` under its own aliases (see AssetLoader) — RR no longer
 // keeps its own keys or `public/` copies for them.

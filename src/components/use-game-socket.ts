@@ -406,7 +406,7 @@ export function useGameSocket(
         // Chests are drawn before they are dug — they DROP in here, which reads
         // as the island being dealt to the player who just joined it.
         s.showChests(snap.chests ?? [], true);
-        snap.rabbits.forEach((r, i) => s.addRabbit(r.playerId, r.name, r.tile, i, r.energy));
+        snap.rabbits.forEach((r, i) => s.addRabbit(r.playerId, r.name, r.tile, i, r.energy, r.crowned));
         // Where the flock is NOW. The seed only says where it started, and a
         // joiner arrives after it has bolted around for a while.
         for (const one of snap.sheep ?? []) s.moveSheep(one.id, toIndex(one.x, one.y));
@@ -512,7 +512,7 @@ export function useGameSocket(
     socket.on('rabbit_joined', (r: ClientRabbit) => {
       setRabbits((prev) => {
         const next = new Map(prev).set(r.playerId, r);
-        toScene((s) => s.addRabbit(r.playerId, r.name, r.tile, next.size - 1, r.energy));
+        toScene((s) => s.addRabbit(r.playerId, r.name, r.tile, next.size - 1, r.energy, r.crowned));
         return next;
       });
     });
@@ -607,7 +607,7 @@ export function useGameSocket(
     // No drop on a resync: these chests were already standing there, and
     // replaying the arrival would announce something that did not happen.
     scene.showChests(snap.chests ?? [], false);
-    snap.rabbits.forEach((r, i) => scene.addRabbit(r.playerId, r.name, r.tile, i, r.energy));
+    snap.rabbits.forEach((r, i) => scene.addRabbit(r.playerId, r.name, r.tile, i, r.energy, r.crowned));
   }, []);
 
   /** Ask to step onto a tile. The server decides whether it happens. */
