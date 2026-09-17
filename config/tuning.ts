@@ -47,16 +47,17 @@ export const ENERGY = {
   /** Ordinary carrot: score, not fuel. The X is the pump; see FLAG. */
   CARROT_GAIN: 0,
   /**
-   * Golden carrot: ten digs back — a snack, not a second tank.
+   * Golden carrot: five digs back — a snack, not a second tank.
    *
    * It was a bomb's worth (30), a leftover of the hearts. Counted over an
    * island that is 9 goldens on Meadow and 39 on Caldera: 1 170 points of
    * energy on the hardest board, more than every red X on it put together. The
    * pump was the carrot, not the puzzle, and lowering the X's pay changed
-   * nothing (simulated). At 10 it is still worth walking to — it is 75 carrots
+   * nothing (simulated). At 10 a practised player's bar still sat at 96 on
+   * Caldera, so it went to 5. It is still worth walking to — it is 75 carrots
    * first — and the X is what keeps a rabbit digging.
    */
-  GOLDEN_GAIN: 10,
+  GOLDEN_GAIN: 5,
   /** Stepping on a bomb. Three and a bit end a fresh run; nobody gets four. */
   BOMB_LOSS: 30,
   /** Ceiling — a full bar. Gains past it are lost: an easy shore cannot be banked. */
@@ -257,18 +258,33 @@ export const FLAG = {
  * floods the last: per safe tile dug a Meadow island buries 0.16 bombs and a
  * Caldera one 0.32. With a flat +8 the robot reader's bar averaged 90 and
  * never fell below 41 on Meadow — no pump to feel — while flat and LOW made
- * Meadow the hardest tier there is. 6 / 5 / 4 / 4 keeps the income per dig
+ * Meadow the hardest tier there is. 7 / 5 / 4 / 3 keeps the income per dig
  * just above the dig's cost everywhere, so the bar sags across a field of
- * zeros and climbs back at the next cluster of bombs. Measured on 14 islands
- * a tier, for a robot that reads one number at a time (a person reads better):
+ * zeros and climbs back at the next cluster of bombs — and the first island,
+ * where the X is learned, is the forgiving one.
  *
- *            cleared   run lost   bar: mean / lowest
- *   Meadow     98 %      14 %         78 / 32
- *   Thicket    98 %      14 %         86 / 38
- *   Ashland    96 %      36 %         87 / 31
- *   Caldera    82 %      43 %         84 / 19
+ * Measured on 14 islands a tier (tools/sim-dig.sim.ts) for three players: one
+ * who reads a number at a time, one who also compares two (the 1-2 pattern),
+ * and one who, with nothing certain left, places an X on the likeliest tile
+ * as a PROBE. Share of runs lost, and carrots banked:
  *
- * A player who never places an X digs ~120 tiles on Meadow and ~60 on Caldera.
+ *            one number      two numbers     + probing
+ *   Meadow    7 %  3 750      0 %  3 800      0 %  3 800
+ *   Thicket  14 %  4 400      0 %  4 600      0 %  4 600
+ *   Ashland  43 %  5 100     14 %  5 750      0 %  5 750
+ *   Caldera  79 %  4 150     50 %  6 200      0 %  7 000
+ *
+ * Every tier pays every player more than Meadow does, so a door is never a
+ * punishment; what the ladder asks for is better reading. A player who never
+ * places an X digs ~110 tiles on Meadow and ~60 on Caldera.
+ *
+ * THE DEAL WAS LEFT ALONE, on evidence. Forced guesses looked like the thing
+ * to fix on Caldera, and three ways of dealing the bombs were simulated: never
+ * adjacent (no zeros left, no cascade: the one-number reader lost 83 % of its
+ * runs), a gentler gradient (worse too), and looser clumps (fewer guesses,
+ * each one deadlier: no gain). Most of what looked forced was the robot being
+ * naive — comparing two numbers leaves 3 guesses on a Meadow island and 26 on
+ * Caldera — and the probe answers the rest. The tool was already in the game.
  *
  * RE-SPACED AGAIN 17 September 2026 — same intended pace, measured income.
  *
@@ -330,10 +346,10 @@ export interface IslandTier {
 }
 
 export const ISLAND_TIERS: readonly IslandTier[] = [
-  { name: 'Meadow',  minLifetime: 0,      bombDensity: 0.14, carrotDensity: 0.30, goldenShare: 0.06, xGain: 6 },
+  { name: 'Meadow',  minLifetime: 0,      bombDensity: 0.14, carrotDensity: 0.30, goldenShare: 0.06, xGain: 7 },
   { name: 'Thicket', minLifetime: 30_000,  bombDensity: 0.17, carrotDensity: 0.34, goldenShare: 0.09, xGain: 5 },
   { name: 'Ashland', minLifetime: 90_000,  bombDensity: 0.20, carrotDensity: 0.38, goldenShare: 0.13, xGain: 4 },
-  { name: 'Caldera', minLifetime: 175_000, bombDensity: 0.24, carrotDensity: 0.43, goldenShare: 0.18, xGain: 4 },
+  { name: 'Caldera', minLifetime: 175_000, bombDensity: 0.24, carrotDensity: 0.43, goldenShare: 0.18, xGain: 3 },
 ] as const;
 
 // ── Phase 2: island life cycle ───────────────────────────────────────────────

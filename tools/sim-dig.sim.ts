@@ -13,6 +13,13 @@
  *
  *   walker   never places an X. Digs what it knows is safe, guesses the rest.
  *   reader   places an X on every bomb it can prove. Never bets an X.
+ *   solver   a reader who also compares TWO numbers (the 1-2 pattern: when one
+ *            number's unknown tiles all lie inside another's, the difference
+ *            is known). Closer to a practised player; what it still has to
+ *            guess is close to what the board truly forces.
+ *   prober   a solver who, with nothing certain left, places an X on the tile
+ *            MOST likely to be a bomb when that is at least a coin-flip — the
+ *            X as a probe: wrong costs half a blast and reads the tile.
  *   gambler  never reads: Xs and digs at random among what it can reach.
  */
 import { test } from 'vitest';
@@ -25,7 +32,7 @@ import { terrainNeighbors } from '../src/lib/game/terrainBoard';
 import { mulberry32 } from '../src/lib/game/rng';
 import type { Island } from '../src/lib/game/types';
 
-type Policy = 'walker' | 'reader' | 'gambler';
+type Policy = 'walker' | 'reader' | 'solver' | 'prober' | 'gambler';
 const mut = <O extends object>(o: O) => o as { -readonly [K in keyof O]: O[K] };
 
 function play(seed: string, lifetime: number, policy: Policy, rand: () => number) {
@@ -50,6 +57,7 @@ function play(seed: string, lifetime: number, policy: Policy, rand: () => number
     }
     // One-number deductions.
     const safe = new Set<number>(), mines = new Set<number>(), risk = new Map<number, number>();
+    const constraints: Array<{ cells: number[]; left: number }> = [];
     for (const [i, t] of tiles) {
       if (!(t.revealed || t.hinted) || t.content === 'bomb' && t.revealed) continue;
       const nbs = boardNeighbors(island, i);
@@ -57,9 +65,27 @@ function play(seed: string, lifetime: number, policy: Policy, rand: () => number
       const unknown = nbs.filter((n) => { const u = tiles.get(n)!; return !u.revealed && !u.hinted && !u.flagged; });
       if (!unknown.length) continue;
       const left = t.adjacent - known;
+      constraints.push({ cells: unknown, left });
       if (left <= 0) unknown.forEach((n) => safe.add(n));
       else if (left === unknown.length) unknown.forEach((n) => mines.add(n));
       for (const n of unknown) risk.set(n, Math.max(risk.get(n) ?? 0, left / unknown.length));
+    }
+    if (policy === 'solver' || policy === 'prober') {
+      // Subset rule, to a fixed point: A inside B => B minus A holds (B.left - A.left).
+      for (let pass = 0; pass < 3; pass++) {
+        let found = false;
+        for (const a of constraints) for (const b of constraints) {
+          if (a === b || a.cells.length >= b.cells.length) continue;
+          const inB = new Set(b.cells);
+          if (!a.cells.every((c) => inB.has(c))) continue;
+          const inA = new Set(a.cells);
+          const rest = b.cells.filter((c) => !inA.has(c));
+          const left = b.left - a.left;
+          if (left === 0) for (const c of rest) { if (!safe.has(c)) { safe.add(c); found = true; } }
+          else if (left === rest.length) for (const c of rest) { if (!mines.has(c)) { mines.add(c); found = true; } }
+        }
+        if (!found) break;
+      }
     }
     for (const [i, t] of tiles) if (t.hinted && !t.revealed) safe.add(i);
 
@@ -91,7 +117,7 @@ function play(seed: string, lifetime: number, policy: Policy, rand: () => number
       else if (!dig(diggable[Math.floor(rand() * diggable.length)])) break;
       continue;
     }
-    if (policy === 'reader') {
+    if (policy === 'reader' || policy === 'solver' || policy === 'prober') {
       const proven = markable.find((i) => mines.has(i));
       if (proven !== undefined) { mark(proven); continue; }
     }
@@ -102,6 +128,10 @@ function play(seed: string, lifetime: number, policy: Policy, rand: () => number
     if (!bets.length) break;
     bets.sort((a, b) => (risk.get(a) ?? 0.2) - (risk.get(b) ?? 0.2));
     guesses++;
+    if (policy === 'prober') {
+      const hot = markable.filter((i) => (risk.get(i) ?? 0) >= 0.5).sort((a, b) => risk.get(b)! - risk.get(a)!)[0];
+      if (hot !== undefined) { mark(hot); continue; }
+    }
     if (!dig(bets[0])) break;
   }
   const p = islandProgress(island);
@@ -109,10 +139,11 @@ function play(seed: string, lifetime: number, policy: Policy, rand: () => number
 }
 
 test('simulate', () => {
-  type Set = { name: string; START: number; MAX: number; DIG: number; BOMB: number; GOLDEN: number; GAINS: number[]; LOSS: number };
+  type Set = { name: string; START: number; MAX: number; DIG: number; BOMB: number; GOLDEN: number; GAINS: number[]; LOSS: number; TOUCH: number; FAR: number };
   const live: Omit<Set, 'name'> = {
     START: T.ENERGY.START, MAX: T.ENERGY.MAX, DIG: T.ENERGY.DIG_COST, BOMB: T.ENERGY.BOMB_LOSS,
     GOLDEN: T.ENERGY.GOLDEN_GAIN, GAINS: T.ISLAND_TIERS.map((t) => t.xGain), LOSS: T.FLAG.LOSS,
+    TOUCH: T.ISLAND.BOMB_MAX_TOUCHING, FAR: T.RISK_GRADIENT.BOMB.FAR,
   };
   const sets = (JSON.parse(process.env.SIM_SETS ?? '[{"name":"live"}]') as Array<Partial<Set> & { name: string }>)
     .map((s) => ({ ...live, ...s }));
@@ -122,7 +153,10 @@ test('simulate', () => {
     Object.assign(mut(T.ENERGY), { START: s.START, MAX: s.MAX, DIG_COST: s.DIG, BOMB_LOSS: s.BOMB, GOLDEN_GAIN: s.GOLDEN });
     Object.assign(mut(T.FLAG), { LOSS: s.LOSS });
     T.ISLAND_TIERS.forEach((t, k) => { mut(t).xGain = s.GAINS[k]; });
-    lines.push(`\n## ${s.name}  (start ${s.START}, max ${s.MAX}, dig ${s.DIG}, bomb ${s.BOMB}, golden +${s.GOLDEN}, X +${s.GAINS.join('/')} by tier, -${s.LOSS})`);
+    mut(T.ISLAND).BOMB_MAX_TOUCHING = s.TOUCH as 1;
+    mut(T.RISK_GRADIENT.BOMB).FAR = s.FAR as 1.5;
+    mut(T.RISK_GRADIENT.BOMB).NEAR = (2 - s.FAR) as 0.5;
+    lines.push(`\n## ${s.name}  (start ${s.START}, max ${s.MAX}, dig ${s.DIG}, bomb ${s.BOMB}, golden +${s.GOLDEN}, X +${s.GAINS.join('/')} by tier, -${s.LOSS}, touch ${s.TOUCH}, gradient ${(2 - s.FAR).toFixed(1)}-${s.FAR})`);
     for (const tier of T.ISLAND_TIERS.map((t) => t.name)) {
       const lifetime = T.ISLAND_TIERS.find((t) => t.name === tier)!.minLifetime;
       const policies = (process.env.SIM_POLICIES?.split(',') ?? ['walker', 'reader', 'gambler']) as Policy[];
