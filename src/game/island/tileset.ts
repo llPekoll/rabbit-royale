@@ -118,9 +118,9 @@ export const propUrl = (n: number) => `${DECO}/prop-${String(n).padStart(2, '0')
  * The classic pack's bushes: waist-high scenery a rabbit cannot walk through.
  *
  * Eight frames of 128 in a 1024x128 strip, sitting at y=79 — measured, like
- * every other number in this file. They are the reason `fadeTo` exists in
- * `blocking.ts`: tall enough to hide the player, too small to be worth losing
- * a cell to invisibly, so they block AND go see-through.
+ * every other number in this file. Tall enough to hide the player, too small
+ * to be worth losing a cell to invisibly — so they do not block, and the
+ * window `fx/DepthHole.ts` punches around the rabbit is what keeps it seen.
  */
 export const BUSH_COUNT = 4;
 export const bushUrl = (n: number) => `${DECO}/bushes/bushe${n}.webp`;

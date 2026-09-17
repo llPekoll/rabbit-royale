@@ -36,7 +36,7 @@ import { atOrAbove, levelAt, type IslandMap } from './generate';
 import { columnFaces, isoBounds, isoDepth, isoProject, ISO_TILE, type IsoMetrics } from './iso';
 import type { Occupant, OccupantKind } from './board';
 import type { Placement } from './terrain';
-import { blocksCell, fadeAlpha } from './blocking';
+import { blocksCell } from './blocking';
 import { TILE, SEA_ROCK_FRAME, type FootSprite, type GroundKind, type IslandTileset, type UnitKind } from './tileset';
 
 export interface IsoIslandViewOptions {
@@ -601,10 +601,10 @@ export class IsoIslandView {
    *
    * Kept for the same reason `livestock` is: a cliff is the OTHER thing on this
    * island tall enough to hide a rabbit, and until now nothing outside this
-   * view could reach one. `fadeBehind` only ever knew about occupants, so a
-   * player walking along the foot of a plateau went behind a wall of rock that
-   * had no idea it was covering anybody — the one case the fade was invented
-   * for that it never actually handled.
+   * view could reach one. The old per-kind fade only ever knew about
+   * occupants, so a player walking along the foot of a plateau went behind a
+   * wall of rock that had no idea it was covering anybody — the one case the
+   * fade was invented for that it never actually handled.
    *
    * The whole COLUMN rather than its faces, and that distinction was a visible
    * bug before it was a design note: a cell's grass is drawn on top of its own
@@ -880,33 +880,6 @@ export class IsoIslandView {
     });
     this.lastShadow = undefined;
     if (blocksCell(kind)) this.occupied.add(key(x, y));
-  }
-
-  /**
-   * Fade whatever the rabbit is standing behind.
-   *
-   * A pine is three cells tall and the rabbit is one: standing north of one
-   * puts the player inside the trunk, which reads as the sprite being broken
-   * rather than as cover. So the things tall enough to hide someone go
-   * see-through while they would — `fadeTo` per kind in `blocking.ts`, 1 for
-   * anything short enough not to need it.
-   *
-   * The cell stays blocked either way. Fading is about being able to SEE the
-   * rabbit, never about being allowed to walk there.
-   */
-  fadeBehind(rabbitX: number, rabbitY: number): void {
-    for (const { occupant, sprite } of this.livestock) {
-      const target = fadeAlpha(occupant.kind);
-      if (target >= 1) continue;
-      // "In front of" on this projection is the cell one step nearer the
-      // camera, plus the two beside it — the span a tall sprite covers.
-      const hides =
-        occupant.y >= rabbitY &&
-        occupant.y <= rabbitY + 2 &&
-        Math.abs(occupant.x - rabbitX) <= 1 &&
-        !(occupant.x === rabbitX && occupant.y === rabbitY);
-      sprite.alpha = hides ? target : 1;
-    }
   }
 
   /**

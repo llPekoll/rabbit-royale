@@ -40,15 +40,6 @@ export interface ThingRule {
    * soldier's never will — that difference is the whole reason both exist.
    */
   wanders: boolean;
-  /**
-   * Fade to this alpha while the rabbit is behind it, 1 to never fade.
-   *
-   * For things tall enough to hide the player. A bush is waist-high scenery a
-   * rabbit disappears into, which reads as a bug rather than as cover unless
-   * the bush gets out of the way — so it goes see-through instead of being
-   * made walkable, and the cell stays honestly blocked.
-   */
-  fadeTo: number;
 }
 
 /**
@@ -62,22 +53,23 @@ export interface ThingRule {
  * a bush is drawn bigger than a signpost and stops nobody.
  */
 export const THING_RULES: Record<ThingKind, ThingRule> = {
-  tree:     { blocks: true,  wanders: false, fadeTo: 0.45 },
-  stump:    { blocks: true,  wanders: false, fadeTo: 1 },
-  rock:     { blocks: true,  wanders: false, fadeTo: 1 },
+  tree:     { blocks: true,  wanders: false },
+  stump:    { blocks: true,  wanders: false },
+  rock:     { blocks: true,  wanders: false },
   // Waist-high, and a rabbit pushes through it. Blocking looked right on
   // paper and was wrong in play: bushes are the most-scattered thing on the
   // island, so at 5% they were taking roughly 8% of the board out of the game
   // on their own — more than trees, cliffs and livestock combined. Meadows
   // came out fenced off for no reason a player could see.
   //
-  // They still FADE, which is what they were really for: a rabbit standing
-  // behind one has to stay visible.
-  bush:     { blocks: false, wanders: false, fadeTo: 0.4 },
-  prop:     { blocks: false, wanders: false, fadeTo: 1 },
-  landmark: { blocks: true,  wanders: false, fadeTo: 0.5 },
-  sheep:    { blocks: true,  wanders: true,  fadeTo: 1 },
-  soldier:  { blocks: true,  wanders: false, fadeTo: 1 },
+  // A rabbit standing behind one still has to stay visible, but that is no
+  // longer a rule per kind: `fx/DepthHole.ts` punches a window through
+  // WHATEVER is drawn in front of the player, bush or not.
+  bush:     { blocks: false, wanders: false },
+  prop:     { blocks: false, wanders: false },
+  landmark: { blocks: true,  wanders: false },
+  sheep:    { blocks: true,  wanders: true  },
+  soldier:  { blocks: true,  wanders: false },
 };
 
 /** Does a thing of this kind take its cell out of play? */
@@ -85,6 +77,3 @@ export const blocksCell = (kind: ThingKind): boolean => THING_RULES[kind].blocks
 
 /** Does a thing of this kind move around on its own? */
 export const wanders = (kind: ThingKind): boolean => THING_RULES[kind].wanders;
-
-/** What a thing of this kind fades to when the rabbit is behind it. */
-export const fadeAlpha = (kind: ThingKind): number => THING_RULES[kind].fadeTo;

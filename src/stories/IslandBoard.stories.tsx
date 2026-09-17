@@ -130,9 +130,6 @@ function Scene(args: Args) {
         const place = () => {
           const p = at(rabbitCell.x, rabbitCell.y);
           rabbit.container.position.set(p.x, p.y);
-          // Anything tall standing between the rabbit and the camera goes
-          // see-through, so the player is never lost inside a pine.
-          island.fadeBehind(rabbitCell.x, rabbitCell.y);
         };
         place();
 

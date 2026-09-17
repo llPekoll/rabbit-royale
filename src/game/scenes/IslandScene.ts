@@ -28,10 +28,12 @@ import {
 } from '../services/AssetLoader';
 import { KeyboardControls } from '../services/KeyboardControls';
 import { createTerrainBackground, type TerrainBackground } from '../services/TerrainBackground';
-import { MoveArrows } from '../ui/MoveArrows';
+import { MoveArrows, MOVE_ARROW_LABEL } from '../ui/MoveArrows';
 import { CloudField } from '../fx/Clouds';
 import { BirdFlock } from '../fx/Birds';
 import { Drain } from '../fx/Drain';
+import { DepthHole } from '../fx/DepthHole';
+import { DEPTH_HOLE_LOOK } from '@/config/depthHoleLook';
 import { ChestPointer } from '../fx/ChestPointer';
 import {
   initBlastTextures, playBlast, knockBack, impactShake, blastDepth, SHAKE_PX,
@@ -139,6 +141,17 @@ export class IslandScene implements Scene {
   private sound = new SoundManager();
   private controls: KeyboardControls | null = null;
   private background: TerrainBackground | null = null;
+  /**
+   * The window through whatever is drawn over OUR rabbit — trees, bushes,
+   * livestock, other players, the lot. A depth test on the scene's own sort
+   * order, re-cut every frame in `update`; see `fx/DepthHole.ts`. The
+   * keyboard arrows are UI that happens to live in the same sorted layer,
+   * and are left alone.
+   */
+  private hole = new DepthHole({
+    ...DEPTH_HOLE_LOOK,
+    exempt: (child) => child.label === MOVE_ARROW_LABEL,
+  });
 
   private shape: IslandShape = makeShape('default');
   private tiles = new Map<number, Tile>();
@@ -406,11 +419,6 @@ export class IslandScene implements Scene {
     // The keyboard marks follow the same rule — pointing at a tile the ring
     // has gone dark on would put the two hints in contradiction.
     this.arrows?.update(reachable.length > 0 ? this.myTile : null, reachable);
-
-    // Anything tall between the rabbit and the camera goes see-through, so the
-    // player is never lost inside a pine they cannot walk into anyway.
-    const standing = toColRow(this.myTile);
-    this.background?.fadeBehind(standing.col, standing.row);
     this.startSweep();
   }
 
@@ -1577,6 +1585,16 @@ export class IslandScene implements Scene {
     // The island breathes: trees sway, bushes rustle, the flock shifts.
     this.background?.update(deltaTime * (1000 / 60));
 
+    // The window over our rabbit, re-cut every frame rather than per step:
+    // the hop tweens the container between tiles, and a hole placed on
+    // arrival would sit a cell behind for the length of the hop.
+    const me = this.data ? this.rabbits.get(this.data.playerId) : null;
+    if (me && !me.container.destroyed) {
+      this.hole.update(this.container, me.container.zIndex, DepthHole.centreOf(me), this.app.renderer);
+    } else {
+      this.hole.clear();
+    }
+
     // The canvas can change size WITHOUT a window resize — the season board
     // mounting or unmounting beside it does exactly that, and the ground was
     // left sized for the old box, showing bare sea at the bottom. Cheap to
@@ -1624,6 +1642,7 @@ export class IslandScene implements Scene {
     this.controls?.destroy();
     this.background?.destroy();
     this.sound.stopMusic();
+    this.hole.destroy();
     for (const r of this.rabbits.values()) r.destroy();
     this.container.destroy({ children: true });
   }

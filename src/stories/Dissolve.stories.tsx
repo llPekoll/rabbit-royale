@@ -129,7 +129,7 @@ interface Args {
  * and (10,11), and column 10 walks straight down past its western foot: at
  * row 9 the rabbit stands on tier-1 ground with that shelf's cliff face
  * between it and the camera. That is the case this story was asked for and
- * the one the shipped fade never handled at all — `fadeBehind` only ever
+ * the one the old per-kind fade never handled at all — it only ever
  * looked at trees and livestock, so the rock simply swallowed the player.
  *
  * Which cell that is was found by asking the projection (see `facesHiding`),
@@ -379,7 +379,7 @@ function Scene(args: Args) {
 /**
  * The things standing near enough to the rabbit to be hiding it.
  *
- * The same span `IsoIslandView.fadeBehind` uses — the cell one step nearer the
+ * The same span the old per-kind fade used — the cell one step nearer the
  * camera plus the two beside it, which is what a sprite three cells tall
  * actually covers. Reused rather than reinvented so that this story is judging
  * the EFFECT and not a second, subtly different idea of "behind".

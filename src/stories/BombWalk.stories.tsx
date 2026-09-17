@@ -49,6 +49,8 @@ import { PlayerRabbit } from '@/game/entities/PlayerRabbit';
 import { loadAllAssets } from '@/game/services/AssetLoader';
 import { initTileTextures } from '@/game/services/TileTextures';
 import { createTerrainBackground } from '@/game/services/TerrainBackground';
+import { DepthHole } from '@/game/fx/DepthHole';
+import { DEPTH_HOLE_LOOK } from '@/config/depthHoleLook';
 import {
   initBlastTextures, playBlast, hitFlash, impactShake, blinkOutVisibleAt, SHAKE_PX,
 } from '@/game/fx/Blast';
@@ -230,23 +232,18 @@ function Scene(args: Args) {
         cleanups.push(() => { for (const t of timers) window.clearTimeout(t); });
 
         let rabbit: PlayerRabbit | null = null;
-        /** The terrain, kept so the take can fade what the rabbit stands behind. */
-        let terrain: { fadeBehind(x: number, y: number): void } | null = null;
 
         /**
-         * Fade the scenery the rabbit is standing behind, for the cell it is on.
+         * The window through whatever the rabbit lands behind.
          *
-         * `IslandScene` calls this on every step and the story did not, which
-         * is why the rabbit "disappeared" after the blast: it was lying on its
-         * landing cell behind an opaque bush, present and visible in the scene
-         * graph the whole time. Fading is exactly what the game does about
-         * that, so the fix is to do what the game does rather than to move the
-         * bush or re-sort the rabbit over it.
+         * `IslandScene` cuts this every frame and an earlier take of the story
+         * did not, which is why the rabbit "disappeared" after the blast: it
+         * was lying on its landing cell behind an opaque bush, present and
+         * visible in the scene graph the whole time. Doing what the game does
+         * is the fix, rather than moving the bush or re-sorting the rabbit.
          */
-        const faceCell = (tile: number) => {
-          const { col, row } = toColRow(tile);
-          terrain?.fadeBehind(col, row);
-        };
+        const hole = new DepthHole(DEPTH_HOLE_LOOK);
+        cleanups.push(() => hole.destroy());
 
         /**
          * The victim's knock: THROWN BACK onto the tile it came from.
@@ -326,15 +323,11 @@ function Scene(args: Args) {
           r.container.visible = true;
           r.container.alpha = 1;
           r.setPosition(start);
-          faceCell(start);
 
           const stepTo = (tile: number, then: () => void) => {
             after(args.beat * 1000, () => {
               if (gone) return;
               r.moveTo(tile, then);
-              // On departure rather than on arrival: the hop is 200ms and the
-              // cover has to be gone before the rabbit is inside it.
-              faceCell(tile);
             });
           };
 
@@ -350,9 +343,6 @@ function Scene(args: Args) {
               r.playDamage();
               if (args.knock) {
                 victimKnock(r.container, bomb, mid);
-                // Thrown back onto `mid`, so whatever stands over THAT cell is
-                // what has to get out of the way for the hold.
-                faceCell(mid);
               }
               // UNDER the fire rather than after it — the flash is what marks
               // the rabbit, and it has to be spent while there is still a
@@ -380,8 +370,16 @@ function Scene(args: Args) {
         void createTerrainBackground(world, SEED, { decoScale: 0.4 }).then((bg) => {
           if (gone) { bg.destroy(); return; }
           cleanups.push(() => bg.destroy());
-          terrain = bg;
-          const ticker = (t: { deltaMS: number }) => bg.update(t.deltaMS);
+          const ticker = (t: { deltaMS: number }) => {
+            bg.update(t.deltaMS);
+            // Cut around the rabbit wherever the take has it — mid-hop, mid-arc,
+            // lying on the landing cell — and off again once it has blinked out.
+            if (rabbit && rabbit.container.visible) {
+              hole.update(world, rabbit.container.zIndex, DepthHole.centreOf(rabbit), app.renderer);
+            } else {
+              hole.clear();
+            }
+          };
           app.ticker.add(ticker);
           cleanups.push(() => app.ticker.remove(ticker));
 

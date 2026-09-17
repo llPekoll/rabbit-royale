@@ -1,10 +1,10 @@
 /**
  * Making something see-through the way pixel art does it: by REMOVING PIXELS.
  *
- * The island already fades whatever the rabbit is standing behind — a pine is
- * three cells tall and the player ends up inside the trunk, so the trunk goes
- * to `fadeTo` and you can see who is back there (`blocking.ts`). That works,
- * and it looks like a PNG with its opacity slider pulled down: every pixel of
+ * The island used to fade whatever the rabbit was standing behind — a pine is
+ * three cells tall and the player ends up inside the trunk, so the trunk went
+ * to 45% alpha and you could see who was back there. That worked, and it
+ * looked like a PNG with its opacity slider pulled down: every pixel of
  * the tree goes equally milky, the grass behind shows through everywhere at
  * once, and nothing about it belongs to a game drawn at 64px with a fixed
  * palette. A pixel has no half — the medium's whole grammar is that a pixel is

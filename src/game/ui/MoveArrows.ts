@@ -47,6 +47,9 @@ const ALPHA_USED = 0.08;
 const W = HALF_W * 0.44;
 const H = HALF_H * 0.62;
 
+/** The label every arrow carries, for anything that has to recognise one. */
+export const MOVE_ARROW_LABEL = 'move-arrow';
+
 export class MoveArrows {
   private arrows: Graphics[] = [];
   private alpha = ALPHA_IDLE;
@@ -69,6 +72,11 @@ export class MoveArrows {
 
     for (const [dx, dy] of HEADINGS) {
       const g = new Graphics();
+      // Named so the depth hole can leave them alone: an arrow sits half a
+      // step above its tile, which puts the southern one "in front" of the
+      // rabbit on the sort ruler — and a hint dithered away at the exact
+      // moment it points at the obvious move is a hint that lied.
+      g.label = MOVE_ARROW_LABEL;
       // Point the triangle along its own heading. Screen-space, so `dy` is
       // already "down the screen" — no iso maths here on purpose: these mark
       // where the KEY goes, and the key is read in screen space too.

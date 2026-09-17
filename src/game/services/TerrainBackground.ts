@@ -31,8 +31,6 @@ import type { IslandBackground } from './IslandBackground';
 const DECO_SCALE = 0.4;
 
 export interface TerrainBackground extends IslandBackground {
-  /** Fade whatever the rabbit is standing behind. */
-  fadeBehind(tileX: number, tileY: number): void;
   /** Advance the sway. `deltaMs` is real milliseconds. */
   update(deltaMs: number): void;
   /**
@@ -263,7 +261,6 @@ export async function createTerrainBackground(
       // on resize — the scene rescales its whole container instead. Nothing to
       // recompute, unlike the painting, which had to re-cover the viewport.
     },
-    fadeBehind: (x, y) => island.fadeBehind(x, y),
     moveSheep(id, x, y) {
       // Straight onto the cell, and any walk in progress dropped with it: a
       // surviving walk keeps drawing the sprite along its old route and undoes
