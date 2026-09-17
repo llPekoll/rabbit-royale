@@ -5,8 +5,23 @@ import { loadPixelWebFont, PIXEL_FONT_FAMILY } from '@domin8/arcade-kit';
 // those; in Storybook's browser bundle `process` is undefined and the read
 // throws. Stub it before any story module is imported (same fix as the hub's
 // Storybook), so config modules resolve to their fallbacks.
-const g = globalThis as { process?: { env: Record<string, string | undefined> } };
+const g = globalThis as {
+  process?: { env: Record<string, string | undefined> };
+  Buffer?: unknown;
+};
 if (!g.process) g.process = { env: {} };
+
+// ...and `Buffer`, for the same reason one step further down the import graph.
+// `use-shop` types its rails against `lib/pay/tokens`, which imports
+// `@solana/web3.js` for a `PublicKey` — and web3.js touches `Buffer` at import
+// time. Node has it, Next polyfills it, and Storybook's browser bundle has
+// neither: every story that reached the shop (its own, and now the placement
+// ones) rendered "Buffer is not defined" instead of a panel. A story that
+// cannot mount is not evidence of anything, which is the whole point of them.
+if (!g.Buffer) {
+  const { Buffer } = await import('buffer');
+  g.Buffer = Buffer;
+}
 
 // The kit's pixel face. The app loads it in its root layout; Storybook has no
 // layout, so without this every story renders the chrome in the fallback

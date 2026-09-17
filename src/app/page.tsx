@@ -709,6 +709,28 @@ function Burrow() {
   }, [shop]);
 
   /**
+   * Buy one more bomb WITHOUT leaving the board.
+   *
+   * A player who has buried their last bomb is standing in front of the one
+   * screen where the decision to buy another is actually being made, and until
+   * now the only way to act on it was to back out to the burrow, open the shed,
+   * find the defence strip, buy, and walk back in — five gestures away from the
+   * tile they were looking at.
+   *
+   * It goes through the same `shop.buy` as the shelf does, so the server prices
+   * it and refuses it exactly as it would there: nothing here knows what a trap
+   * costs beyond what it prints on the button. A refusal (not enough carrots,
+   * bag full) lands in `shop.note`, which placement mode already shows as a
+   * toast — so the failure path needed no new wiring.
+   */
+  const buyTrap = useCallback(async () => {
+    const res = await shop.buy('trap');
+    // The thud of it landing in the bag. Only on success — a refusal already
+    // plays `deny` through the note effect above.
+    if (res) playUiSfx('step');
+  }, [shop]);
+
+  /**
    * Start placing traps.
    *
    * Closes the shop on the way: the ground being mined is the burrow board,
@@ -2082,6 +2104,14 @@ function Burrow() {
           trapsPlaced={shop.shop?.traps.placed}
           trapsMaxPlaced={shop.shop?.traps.maxPlaced}
           onShield={() => act('shield')}
+          /* The trap slot becomes a BUY while the board is being mined — the
+             row is already the thing reporting the count, so it is also where
+             the count gets changed. See `onBuyTrap` in kit-row.tsx for why it
+             is a slot rather than a slab on the floor. */
+          onBuyTrap={buyTrap}
+          trapCost={TRAPS.CARROT_COST}
+          trapsMaxHeld={TRAPS.MAX_HELD}
+          stock={burrow.stock}
           water={burrow.boosts.water}
           fertiliser={burrow.boosts.fertiliser}
           onPour={(kind) => act(kind === 'water' ? 'water' : 'fertilise')}

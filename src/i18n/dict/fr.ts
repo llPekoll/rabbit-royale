@@ -189,7 +189,7 @@ export const fr: Dict = {
     hearts: (full, total) => `${full} cœurs sur ${total}`,
     heartsShort: (full, total) => `${full} / ${total} cœurs`,
     trapHint: (left) => `Touche une case pour la miner, une mine pour la reprendre · ${left} restant`,
-    trapHintEmpty: 'Plus de pièges · touche une mine pour la reprendre et la poser ailleurs',
+    trapHintEmpty: 'Plus de bombes · achètes-en une autre, ou touche une mine pour la reprendre et la poser ailleurs',
   },
 
   firstRun: {
@@ -326,6 +326,13 @@ export const fr: Dict = {
     trapsLine: (placed, max, held) =>
       `Pièges : ${placed}${max ? ` sur ${max}` : ''} en terre, ${held} à la remise.`
       + ' Enterre-les depuis BASE.',
+    trapsBuy: (held, price) =>
+      (held > 0
+        ? `Pièges : ${held} à la remise. Achètes-en un autre pour ${price} carottes.`
+        : `Pièges : la remise est vide. Achètes-en un pour ${price} carottes.`),
+    trapsBuyBroke: (price) =>
+      `Pièges : plus aucun. Un piège coûte ${price} carottes - va en creuser.`,
+    trapsBuyFull: (held) => `Pièges : ${held} à la remise. La remise est pleine.`,
     bottleRunning: (name, wait, count) => `${name} : en cours, ${wait} restant. ${count} en sac.`,
     bottleHeld: (name, count) => `${name} : ${count} en sac. Verse-en un sur le potager.`,
     bottleNone: (name) => `${name} : aucun. On en trouve dans les coffres.`,

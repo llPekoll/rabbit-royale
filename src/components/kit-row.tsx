@@ -43,7 +43,7 @@ import { ItemSlot } from './item-slot';
 import { ITEM_META } from './item-meta';
 import type { ItemKind } from './use-shop';
 import { useT } from '@/i18n/provider';
-import { shortWait } from '@/i18n/format';
+import { groupDigits, shortWait } from '@/i18n/format';
 
 /** One garden bottle's two facts, as `gardenBoostView` reports them. */
 export interface BoostState {
@@ -64,6 +64,26 @@ export interface KitRowProps {
   trapsMaxPlaced?: number;
   /** Raise a shield from the bag. Omitted, the slot is a readout. */
   onShield?(): void;
+  /**
+   * Buy one more trap, from the row — only while the board is being MINED.
+   *
+   * Omitted, the trap slot stays the readout it has always been. Passed, it
+   * becomes the one press that restocks a defender who has just buried their
+   * last bomb, without sending them out to the shed and back.
+   *
+   * It is a slot rather than a slab on the floor because the floor already has
+   * its one saturated shape (the BACK button, see farm-button.tsx): a second
+   * carrot slab beside it would make neither of them mean anything. The row is
+   * also where the trap COUNT already lives, so the number and the way to
+   * change it are the same square.
+   */
+  onBuyTrap?(): void;
+  /** What one costs, in carrots — the number, for deciding affordability. */
+  trapCost?: number;
+  /** The shed's ceiling — at it, buying is refused and the line says so. */
+  trapsMaxHeld?: number;
+  /** Carrots in the bank, so the slot can dim what cannot be afforded. */
+  stock?: number;
   /** The garden bottles, at the end of the row. */
   water?: BoostState;
   fertiliser?: BoostState;
@@ -84,6 +104,7 @@ const ORDER: ItemKind[] = ['shield', 'smoke', 'trap', 'bomb', 'lightning', 'mira
 
 export function KitRow({
   held, shieldMs, smokeDays, trapsPlaced, trapsMaxPlaced, onShield,
+  onBuyTrap, trapCost, trapsMaxHeld, stock,
   water, fertiliser, onPour, pending,
 }: KitRowProps) {
   const t = useT();
@@ -99,6 +120,10 @@ export function KitRow({
           trapsPlaced={trapsPlaced}
           trapsMaxPlaced={trapsMaxPlaced}
           onShield={onShield}
+          onBuyTrap={onBuyTrap}
+          trapCost={trapCost}
+          trapsMaxHeld={trapsMaxHeld}
+          stock={stock}
           pending={pending}
         />
       ))}
@@ -127,7 +152,8 @@ export function KitRow({
  * urgent fact and the held count is one shop-tile away.
  */
 function KitSlot({
-  kind, held, shieldMs, smokeDays, trapsPlaced, trapsMaxPlaced, onShield, pending,
+  kind, held, shieldMs, smokeDays, trapsPlaced, trapsMaxPlaced, onShield,
+  onBuyTrap, trapCost, trapsMaxHeld, stock, pending,
 }: {
   kind: ItemKind;
   held: number;
@@ -136,6 +162,10 @@ function KitSlot({
   trapsPlaced?: number;
   trapsMaxPlaced?: number;
   onShield?(): void;
+  onBuyTrap?(): void;
+  trapCost?: number;
+  trapsMaxHeld?: number;
+  stock?: number;
   pending?: boolean;
 }) {
   const t = useT();
@@ -186,9 +216,45 @@ function KitSlot({
     // burrow reads as defended, and "0" with eight in the ground reads as
     // undefended. Placed is the one the corner carries — it is what a raider
     // would actually walk into — and `lit` keeps the slot bright while the
-    // ground is defended even though nothing is pressable here.
+    // ground is defended.
     const placed = trapsPlaced ?? 0;
     const max = trapsMaxPlaced ?? 0;
+
+    // WHILE MINING, the slot is the way to another bomb.
+    //
+    // The rest of the time it stays the readout it has always been: traps are
+    // buried from the BASE tile, and a shop button on the resting burrow would
+    // be a second shelf competing with the real one. But on the placing floor
+    // the player is holding the decision already — they have just run out, and
+    // the shed is five gestures away — so the square that reports the count
+    // becomes the square that changes it.
+    if (onBuyTrap) {
+      const full = trapsMaxHeld !== undefined && held >= trapsMaxHeld;
+      const price = groupDigits(trapCost ?? 0);
+      // `stock` is only a HINT for dimming: the server prices and refuses the
+      // purchase regardless, exactly as it does for the shelf.
+      const broke = stock !== undefined && trapCost !== undefined && stock < trapCost;
+      return (
+        <ItemSlot
+          fallback={meta.icon}
+          chip={placed > 0 ? `${placed}` : held > 0 ? String(held) : null}
+          lit={placed > 0}
+          /* Keyed on what the player can DO, not on what they hold. An empty
+             shed with carrots in the bank is one press from full, so it gets
+             the same offer as a part-full one — "dig for more" is only true
+             when the carrots are actually short, and saying it to someone
+             holding 4 200 of them reads as the game being broken. */
+          label={
+            full ? t.kit.trapsBuyFull(held)
+              : broke ? t.kit.trapsBuyBroke(price)
+                : t.kit.trapsBuy(held, price)
+          }
+          onClick={onBuyTrap}
+          disabled={full || broke || pending}
+        />
+      );
+    }
+
     return (
       <ItemSlot
         fallback={meta.icon}

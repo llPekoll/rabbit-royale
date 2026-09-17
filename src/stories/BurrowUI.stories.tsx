@@ -28,6 +28,7 @@ import { BurrowPanel } from '@/components/burrow-card-panel';
 import { LoopBar } from '@/components/loop-bar';
 import { NextStrip } from '@/components/next-strip';
 import { nextAction } from '@/config/next-action';
+import { TRAPS } from '@config/tuning';
 import { DICTIONARIES } from '@/i18n/dictionaries';
 import { KitRow } from '@/components/kit-row';
 import { CarrotPill } from '@/components/carrot-pill';
@@ -183,8 +184,18 @@ function BurrowColumn({
           shieldMs={shieldHours > 0 ? shieldHours * 3_600_000 : null}
           smokeDays={smokeDays}
           trapsPlaced={trapsPlaced}
-          trapsMaxPlaced={8}
+          trapsMaxPlaced={TRAPS.MAX_PLACED}
           onShield={() => {}}
+          /* THE TRAP SLOT AS A BUY — the placing floor's own affordance.
+             Passing `onBuyTrap` is what turns the square from a readout into
+             a press; the app passes it for exactly the same reason, and only
+             while placing. Without these four props this story would show the
+             resting readout on a placing floor, which is the drift the header
+             warns about. */
+          onBuyTrap={() => {}}
+          trapCost={TRAPS.CARROT_COST}
+          trapsMaxHeld={TRAPS.MAX_HELD}
+          stock={stock}
           /* Null rather than 0 for "no window": the slot reads the absence,
              and a zero-length window would ring the icon in lamplight while
              saying "0m left". */
@@ -481,4 +492,76 @@ export const EnergyLadder: Story = {
       ))}
     </div>
   ),
+};
+
+/**
+ * OUT OF BOMBS, MID-PLACEMENT — the state the trap slot's press exists for.
+ *
+ * The shed is empty and two bombs are already buried, which is where a
+ * defender lands after their third free trap of the day. Until now the only
+ * answer on this screen was to leave it: back out of placement, open the shed,
+ * find the defence strip, buy, walk back in. Now the square that has always
+ * REPORTED the count is the square that changes it.
+ *
+ * Why the row and not a slab on the floor: the floor has exactly one saturated
+ * shape at a time, and while placing that shape is BACK (see farm-button.tsx —
+ * "two 'press me' slabs on one floor make neither of them mean anything"). The
+ * count and the way to change it also belong in the same place, and the count
+ * was already here.
+ *
+ * What to judge: hover or focus the trap slot — its line should read "none
+ * left. One costs 150 carrots". Does the slot look PRESSABLE next to the five
+ * readouts beside it? That is the whole question: if it reads as just another
+ * readout the affordance has failed, and if it shouts louder than BACK it has
+ * failed the other way.
+ */
+export const PlacingOutOfBombs: Story = {
+  args: {
+    placing: true, trapsHeld: 0, trapsPlaced: 2,
+    stock: 4_200, shieldHeld: 1, smokeDays: 0, bombHeld: 2,
+  },
+};
+
+/**
+ * OUT OF BOMBS AND OUT OF CARROTS — the slot dims rather than disappearing.
+ *
+ * `stock` is below one trap's price, so the square goes disabled. It is still
+ * THERE, and its line still names the price: a player who cannot afford one
+ * needs to learn what they are saving towards, and a slot that vanished would
+ * teach nothing and read as the feature being missing.
+ *
+ * The dimming is only a hint — the server prices and refuses the purchase
+ * regardless, exactly as it does for the shelf. This is the client being
+ * polite, not the client being in charge.
+ *
+ * What to judge: does the dimmed slot read as "not yet" rather than "broken"?
+ * It sits beside `smoke`, which is genuinely empty and inert, so the two
+ * should NOT look the same — one is a door you cannot afford, the other is not
+ * a door at all.
+ */
+export const PlacingBroke: Story = {
+  args: {
+    placing: true, trapsHeld: 0, trapsPlaced: 2,
+    stock: 40, shieldHeld: 1, smokeDays: 0, bombHeld: 0,
+  },
+};
+
+/**
+ * THE SHED IS FULL — twelve held, and the press closes.
+ *
+ * MAX_HELD is a ceiling neither the grind nor money can pass, so there is
+ * nothing to offer and the slot says so outright ("The shed is full") instead
+ * of taking a press that would only be refused. Unlike the broke case this is
+ * not a "not yet": it is the end of the line, and the wording is different for
+ * that reason.
+ *
+ * What to judge: the slot should still carry its COUNT — a full shed is a good
+ * state, and dimming it to look like an empty one would report success as
+ * failure.
+ */
+export const PlacingShedFull: Story = {
+  args: {
+    placing: true, trapsHeld: 12, trapsPlaced: 8,
+    stock: 999_999, shieldHeld: 2, smokeDays: 1, bombHeld: 5,
+  },
 };

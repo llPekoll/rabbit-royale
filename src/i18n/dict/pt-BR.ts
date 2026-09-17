@@ -193,7 +193,7 @@ export const ptBR: Dict = {
     hearts: (full, total) => `${full} de ${total} corações`,
     heartsShort: (full, total) => `${full} / ${total} corações`,
     trapHint: (left) => `Toque num quadrado para minar, numa mina para tirar · restam ${left}`,
-    trapHintEmpty: 'Sem armadilhas · toque numa mina para tirar e enterrar noutro lugar',
+    trapHintEmpty: 'Sem bombas · compre outra, ou toque numa mina para tirar e enterrar noutro lugar',
   },
 
   firstRun: {
@@ -330,6 +330,13 @@ export const ptBR: Dict = {
     trapsLine: (placed, max, held) =>
       `Armadilhas: ${placed}${max ? ` de ${max}` : ''} no chão, ${held} no galpão.`
       + ' Enterre pela BASE.',
+    trapsBuy: (held, price) =>
+      (held > 0
+        ? `Armadilhas: ${held} no galpão. Compre outra por ${price} cenouras.`
+        : `Armadilhas: galpão vazio. Compre uma por ${price} cenouras.`),
+    trapsBuyBroke: (price) =>
+      `Armadilhas: nenhuma. Uma custa ${price} cenouras - va cavar mais.`,
+    trapsBuyFull: (held) => `Armadilhas: ${held} no galpão. O galpão está cheio.`,
     bottleRunning: (name, wait, count) => `${name}: em curso, restam ${wait}. ${count} na bolsa.`,
     bottleHeld: (name, count) => `${name}: ${count} na bolsa. Despeje uma na horta.`,
     bottleNone: (name) => `${name}: nenhuma. Encontradas em baús.`,

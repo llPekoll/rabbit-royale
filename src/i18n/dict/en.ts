@@ -219,7 +219,7 @@ export const en = {
     hearts: (full: number, total: number) => `${full} of ${total} hearts`,
     heartsShort: (full: number, total: number) => `${full} / ${total} hearts`,
     trapHint: (left: number) => `Tap a tile to mine it, tap a mine to lift it · ${left} left`,
-    trapHintEmpty: 'No traps left · tap a mine to lift it and bury it elsewhere',
+    trapHintEmpty: 'No bombs left · buy another, or tap a mine to lift it and bury it elsewhere',
   },
 
   /* ── What the island says during the very first run ───────────────────── */
@@ -380,6 +380,19 @@ export const en = {
     trapsLine: (placed: number, max: number | null, held: number) =>
       `Traps: ${placed}${max ? ` of ${max}` : ''} in the ground, ${held} in the shed.`
       + ' Bury them from BASE.',
+    /* The same slot while PLACING, when it is a button rather than a readout.
+       It names the PRICE, because that is the whole decision being made — and
+       it says "buy" rather than "more", so a player reads what pressing it
+       spends before they press it. */
+    trapsBuy: (held: number, price: string) =>
+      (held > 0
+        ? `Traps: ${held} in the shed. Buy another for ${price} carrots.`
+        // "another" is a lie at zero, and this is the state the press exists
+        // for — so it gets the sentence that names the empty shed outright.
+        : `Traps: none in the shed. Buy one for ${price} carrots.`),
+    trapsBuyBroke: (price: string) =>
+      `Traps: none left. One costs ${price} carrots - dig for more.`,
+    trapsBuyFull: (held: number) => `Traps: ${held} in the shed. The shed is full.`,
     bottleRunning: (name: string, wait: string, count: number) =>
       `${name}: running, ${wait} left. ${count} in the bag.`,
     bottleHeld: (name: string, count: number) => `${name}: ${count} in the bag. Pour one on the garden.`,

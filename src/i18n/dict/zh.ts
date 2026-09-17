@@ -195,7 +195,7 @@ export const zh: Dict = {
     hearts: (full, total) => `${total} 颗心中剩 ${full} 颗`,
     heartsShort: (full, total) => `${full} / ${total} 心`,
     trapHint: (left) => `点格子埋雷，点雷收回 · 还剩 ${left}`,
-    trapHintEmpty: '没有陷阱了 · 点一颗雷收回，改埋别处',
+    trapHintEmpty: '没有雷了 · 再买一颗，或点一颗雷收回改埋别处',
   },
 
   firstRun: {
@@ -325,6 +325,11 @@ export const zh: Dict = {
     carriedNone: (name, blurb) => `${name}：没有。${blurb}`,
     trapsLine: (placed, max, held) =>
       `陷阱：地下 ${placed}${max ? ` / ${max}` : ''} 个，棚里 ${held} 个。从「基地」埋设。`,
+    trapsBuy: (held, price) => (held > 0
+      ? `陷阱：棚里 ${held} 个。再买一个，${price} 胡萝卜。`
+      : `陷阱：棚里空了。买一个，${price} 胡萝卜。`),
+    trapsBuyBroke: (price) => `陷阱：没有了。一个 ${price} 胡萝卜 - 去挖点回来。`,
+    trapsBuyFull: (held) => `陷阱：棚里 ${held} 个。棚子满了。`,
     bottleRunning: (name, wait, count) => `${name}：生效中，还剩${wait}。包里有 ${count} 个。`,
     bottleHeld: (name, count) => `${name}：包里有 ${count} 个。往菜园浇一个。`,
     bottleNone: (name) => `${name}：没有。宝箱里能找到。`,
