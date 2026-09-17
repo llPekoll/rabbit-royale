@@ -96,6 +96,15 @@ export interface FogStyle {
   alpha?: number;
 }
 export const HIGHLIGHT_COLOR = 0xffd700;
+/**
+ * The ring on a tile whose step is a BET: undug, and no number written on it.
+ * Gold says "you can go there"; this says "and a heart rides on it". It only
+ * repeats what the board already shows — a hinted tile is never a bomb, an
+ * unread one might be — so it solves nothing for the player, it prices the step.
+ */
+export const RISK_COLOR = 0xff5a4a;
+/** A defused bomb: the same sprite, gone cold. */
+const DEFUSED_TINT = 0x8a93a6;
 const MINE_TINT = 0xff3333;
 /** How far above its tile a chest starts when it DROPS in with the board. */
 const CHEST_DROP_HEIGHT = 90;
@@ -430,6 +439,29 @@ export class Tile {
     if (content !== 'bomb' && adjacent > 0 && !this.hintGroup) {
       this.addHint(adjacent, animate);
     }
+  }
+
+  /**
+   * A bomb that was SURROUNDED and so never went off: drawn where it lay, grey
+   * and still. No blast, no crater — nobody was hurt here, and the tile must
+   * not read as a death. Walkable like any dug ground.
+   */
+  revealDefused(animate = true): void {
+    if (this.revealed) return;
+    this.revealContent('bomb', 0, animate);
+    const sprite = this.contentSprite as Sprite | null;
+    if (!sprite) return;
+    sprite.tint = DEFUSED_TINT;
+    if (animate) {
+      const to = sprite.scale.x;
+      sprite.scale.set(to * 1.6);
+      gsap.to(sprite.scale, { x: to, y: to, duration: 0.35, ease: 'back.out(2)' });
+    }
+  }
+
+  /** Whether a chest is standing on this tile — a chest is never a bomb. */
+  get hasChest(): boolean {
+    return this.chestSprite !== null && this.chestSprite !== undefined;
   }
 
   /**
@@ -852,7 +884,10 @@ export class Tile {
     });
   }
 
-  setHighlight(on: boolean): void {
+  setHighlight(on: boolean, risky = false): void {
+    const color = on && risky ? RISK_COLOR : HIGHLIGHT_COLOR;
+    this.highlightGfx.tint = color;
+    this.blinkGfx.tint = color;
     this.highlightGfx.visible = on;
     gsap.killTweensOf(this.blinkGfx);
     this.blinkGfx.alpha = 0;

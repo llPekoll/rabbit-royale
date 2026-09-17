@@ -133,6 +133,66 @@ export const ISLAND = {
   CHEST_DENSITY: 0.02,
   /** Radius around each spawn that is guaranteed bomb-free and pre-revealed. */
   SAFE_RADIUS: 1,
+  /**
+   * How far from the RABBIT the cascade writes numbers, in grid squares.
+   *
+   * The cascade used to run to the end of every connected region of zeros. At
+   * Meadow's density a third of the board is zeros, so an island was born with
+   * 23 % of its numbers already written (measured over 40 islands) — a hundred
+   * tiles of reading the player never did. Bounded, the same region still
+   * opens, but as the rabbit walks into it: the rule is unchanged, only its
+   * reach is. 3 keeps every classic pattern (1-2-1, 1-1 on a wall) readable
+   * at once; at 1 there is nothing to deduce from. See `cascadeHints`.
+   */
+  CASCADE_RADIUS: 3,
+  /**
+   * A bomb is dealt touching at most this many other bombs (while the deal
+   * can afford it). Spreads the same number of bombs over more of the board:
+   * fewer fields of zeros to walk round a puzzle through, fewer 4s and 5s
+   * that can only be guessed at. See the deal in `generateIsland`.
+   */
+  BOMB_MAX_TOUCHING: 1,
+} as const;
+
+/**
+ * Risk rises with the walk from the spawn — and so does what is worth having.
+ *
+ * Bombs and golden carrots are dealt WEIGHTED by how many steps out a tile is;
+ * the COUNTS are still the tier's densities, so an island holds exactly as
+ * many of each as before. The weight runs linearly from NEAR at the spawn to
+ * FAR at the furthest tile. With three hearts, how deep to go becomes the
+ * player's own call, and the hearts back are out where they get spent.
+ * Ordinary carrots and chests stay uniform: the shore must still pay.
+ */
+export const RISK_GRADIENT = {
+  BOMB: { NEAR: 0.5, FAR: 1.5 },
+  GOLDEN: { NEAR: 0.3, FAR: 1.7 },
+} as const;
+
+/**
+ * Surrounding a bomb defuses it, and pays.
+ *
+ * A bomb is SURROUNDED when every tile around it that is not itself a bomb has
+ * been dug. Doing that without stepping on it means the player knew where it
+ * was — so this is the payout for deduction, which the game did not have: a
+ * known bomb used to be worth exactly nothing.
+ *
+ * It pays CARROTS, never hearts. A heart per bomb would make a careful player
+ * immortal (see ENERGY.CARROT_GAIN for the same argument); the golden carrot
+ * stays the only way to heal. The bounty climbs with the STREAK — bombs
+ * defused in a row this run — and stepping on a bomb resets it, so a blast
+ * costs a heart and the multiplier. Every ITEM_EVERY-th bomb of a streak is
+ * dug up whole and kept: a raid bomb, the DIG loop feeding the RAID loop.
+ */
+export const DEFUSE = {
+  /** Carrots for the first bomb of a streak. */
+  BASE: 10,
+  /** Added per further bomb in the streak. */
+  STEP: 5,
+  /** Ceiling on a single bounty (reached at a streak of 5). */
+  MAX: 30,
+  /** Every n-th bomb of a streak also yields one raid bomb. */
+  ITEM_EVERY: 10,
 } as const;
 
 /**

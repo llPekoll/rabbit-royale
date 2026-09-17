@@ -413,7 +413,9 @@ export class IslandScene implements Scene {
     for (const index of reachable) {
       const tile = this.tiles.get(index);
       if (!tile) continue;
-      tile.setHighlight(true);
+      // Undug and unread: the step is a bet, and the ring says so — see
+      // RISK_COLOR. A standing chest is known ground; it is never a bomb.
+      tile.setHighlight(true, !tile.revealed && !tile.hinted && !tile.hasChest);
       this.highlighted.push(index);
     }
     // The keyboard marks follow the same rule — pointing at a tile the ring
@@ -826,6 +828,25 @@ export class IslandScene implements Scene {
       const { col, row } = toColRow(tile);
       if (!this.background?.moveSheep(id, col, row)) this.sheepTiles.delete(id);
     }
+  }
+
+  /**
+   * A bomb was surrounded and defused — by anyone on the island.
+   *
+   * Not `revealTile`: that one plays a blast, shakes the screen and leaves a
+   * crater, which is the picture of someone losing a heart. This is the
+   * opposite event and sounds like it. `animate` is off for a snapshot.
+   */
+  defuseBomb(index: number, animate = true): void {
+    const tile = this.tiles.get(index);
+    if (!tile || tile.revealed) return;
+    tile.revealDefused(animate);
+    if (animate) {
+      this.sound.playChimeQuick();
+      tile.flash();
+    }
+    // Dug ground is free to walk onto: the ring may have a new tile to light.
+    this.refreshReachable();
   }
 
   revealTile(index: number, content: TileContent, adjacent: number): void {

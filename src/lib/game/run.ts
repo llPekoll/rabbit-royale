@@ -13,12 +13,12 @@
 import { BOMB, CHEST_LOOT, CHEST_LOOT_BY_TIER, CHEST_NFT_ODDS, ENERGY, MULTIPLAYER, RUN } from '@config/tuning';
 import { SPAWN_INDEX, neighbors, toColRow, type IslandShape } from '@/config/gridConfig';
 import { pickWeighted, randInt, type Rng } from './rng';
-import { cascadeHints, revealTile } from './island';
+import { cascadeAround, defuseSurrounded, revealTile } from './island';
 import { isFirstIsland } from './first-island';
 import { spawnTile, terrainNeighbors } from './terrainBoard';
 import { canDig } from './reachable';
 import { occupancyOf, planPush } from './push';
-import type { DigResult, Island, Rabbit } from './types';
+import type { DigResult, HintReveal, Island, Rabbit } from './types';
 import { isLootItemKind } from './types';
 
 export type MoveRejection =
@@ -36,6 +36,12 @@ export interface MoveOutcome {
   rejection?: MoveRejection;
   /** Set when the move dug a fresh tile. Absent when walking revealed ground. */
   dig?: DigResult;
+  /**
+   * Numbers the cascade wrote because of a plain WALK. The cascade only
+   * reaches ISLAND.CASCADE_RADIUS from the rabbit, so walking through open
+   * zeros is what carries it on. A dig's hints ride in `dig.hinted` instead.
+   */
+  hinted?: HintReveal[];
   /** Where the rabbit ended up (post-knockback). */
   tile: number;
   energy: number;
@@ -187,15 +193,20 @@ export function resolveMove(
         victim.energy -= ENERGY.BOMB_LOSS;
         dug.energyDelta = -ENERGY.BOMB_LOSS;
         victim.stunnedUntil = now + BOMB.STUN_MS;
+        if (victim.run) victim.run.defuseStreak = 0;
         if (victim.energy <= 0) {
           victim.energy = 0;
           victim.alive = false;
           entry.runOver = true;
         }
-      } else if (landing.adjacent === 0) {
-        // A shove onto a zero opens the ground like any other dig would.
-        const hinted = cascadeHints(island, [step.to]);
+      } else {
+        // A shove onto a zero opens the ground like any other dig would, and
+        // a shove onto a bomb's last safe neighbour defuses it — paid to the
+        // one standing there, who is the one the dig is recorded against.
+        const hinted = cascadeAround(island, step.to);
         if (hinted.length) dug.hinted = hinted;
+        const defused = defuseSurrounded(island, step.to, victim);
+        if (defused.length) dug.defused = defused;
       }
       entry.dig = dug;
       entry.energy = victim.energy;
@@ -206,7 +217,11 @@ export function resolveMove(
   // Walking revealed ground is free — that is the whole reason to read numbers.
   if (tile.revealed) {
     rabbit.tile = to;
-    return { ok: true, tile: to, energy: rabbit.energy, carrots: rabbit.carrots, runOver: false, pushed };
+    const hinted = cascadeAround(island, to);
+    return {
+      ok: true, tile: to, energy: rabbit.energy, carrots: rabbit.carrots, runOver: false, pushed,
+      ...(hinted.length ? { hinted } : {}),
+    };
   }
 
   // Digging costs. You may not spend your last point of energy into nothing —
@@ -233,6 +248,8 @@ export function resolveMove(
       rabbit.energy -= ENERGY.BOMB_LOSS;
       dig.energyDelta -= ENERGY.BOMB_LOSS;
       rabbit.stunnedUntil = now + BOMB.STUN_MS;
+      // A blast costs the heart AND the defuse streak — see DEFUSE.
+      if (rabbit.run) rabbit.run.defuseStreak = 0;
       // Thrown backwards from where it STOOD — the rabbit never enters the
       // bomb tile.
       const landing = knockbackTarget(island, rabbit.tile, to, shape);
@@ -326,9 +343,21 @@ export function resolveMove(
   // A zero opens its surroundings — the cascade, see `cascadeHints`. Not on a
   // bomb (a bomb tile's own count says nothing about it being safe to stand
   // beside), and never digging anything: the hints are the whole gift.
-  if (tile.content !== 'bomb' && tile.adjacent === 0) {
-    const hinted = cascadeHints(island, [to]);
-    if (hinted.length) dig.hinted = hinted;
+  //
+  // Run from wherever the rabbit came to REST rather than from `to`: the
+  // cascade is bounded around the rabbit, and after a blast that is the
+  // landing tile. A revealed bomb is never a zero, so nothing starts from it.
+  const hinted = cascadeAround(island, rabbit.tile);
+  if (hinted.length) dig.hinted = hinted;
+
+  // The dig that closes the ring round a bomb defuses it. Not on a blast:
+  // stepping on one bomb is not how you earn the one beside it.
+  if (tile.content !== 'bomb') {
+    const defused = defuseSurrounded(island, to, rabbit);
+    if (defused.length) {
+      dig.defused = defused;
+      for (const d of defused) dig.carrotDelta += d.carrots;
+    }
   }
 
   if (rabbit.energy <= 0) {

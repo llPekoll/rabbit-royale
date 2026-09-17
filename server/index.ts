@@ -22,7 +22,7 @@ import { and, eq, isNull, sql as raw } from 'drizzle-orm';
 
 import { ENERGY, ERUPTION, MIRAGE, MULTIPLAYER, OUT_OF_RUN_ENERGY } from '../config/tuning';
 import { mulberry32, seedFrom } from '../src/lib/game/rng';
-import { cascadeHints, dugFraction, publicView } from '../src/lib/game/island';
+import { cascadeAround, defuseSurrounded, dugFraction, publicView } from '../src/lib/game/island';
 import { firstIslandSeed, isFirstIsland } from '../src/lib/game/first-island';
 import { resolveMove, spawnRabbit } from '../src/lib/game/run';
 import { mirageActive, planMirage, shownAdjacent } from '../src/lib/game/mirage';
@@ -669,8 +669,17 @@ io.on('connection', (socket: Socket) => {
       }
     }
     // A strike that opened a zero opens the ground around it, like a dig.
-    const hinted = cascadeHints(live.island, out.struck.map((s) => s.tile));
+    // Bounded around the point of impact, like a dig is around the rabbit.
+    const hinted = cascadeAround(live.island, target);
     if (hinted.length) io.to(room).emit('hints_revealed', { tiles: hinted });
+    // A strike can open a bomb's last safe neighbour. The bomb is defused —
+    // the board must not keep a surrounded bomb nobody can ever close — but
+    // nobody is paid: the bounty is for getting there on foot.
+    for (const s of out.struck) {
+      for (const d of defuseSurrounded(live.island, s.tile)) {
+        io.to(room).emit('bomb_defused', { tile: d.tile, adjacent: live.island.tiles.get(d.tile)?.adjacent ?? 0 });
+      }
+    }
   }));
 
   /**
@@ -795,6 +804,9 @@ io.on('connection', (socket: Socket) => {
           dugBy: shove.playerId,
         });
         if (shove.dig.hinted?.length) io.to(room).emit('hints_revealed', { tiles: shove.dig.hinted });
+        for (const d of shove.dig.defused ?? []) {
+          io.to(room).emit('bomb_defused', { tile: d.tile, by: shove.playerId });
+        }
       }
       io.to(room).emit('rabbit_pushed', {
         playerId: shove.playerId,
@@ -806,6 +818,10 @@ io.on('connection', (socket: Socket) => {
         runOver: shove.runOver,
       });
       const victim = live.rabbits.get(shove.playerId);
+      // A shove that closed the ring round a bomb paid the shoved rabbit.
+      // Sent AFTER the push so the client has already put them on the tile:
+      // this only carries the new count.
+      if (victim && shove.dig?.defused?.length) io.to(room).emit('rabbit_moved', publicRabbit(victim));
       if (victim && shove.runOver) {
         void bankRun(victim).catch((e) => console.error('[bankRun:pushed]', e));
       }
@@ -846,6 +862,11 @@ io.on('connection', (socket: Socket) => {
       // whole room, like the reveal — what the ground says is a shared fact,
       // and the tiles themselves are still there for anyone to dig.
       if (out.dig.hinted?.length) io.to(room).emit('hints_revealed', { tiles: out.dig.hinted });
+      // Bombs this dig finished surrounding: shown to the whole island as
+      // what they are. What they PAID rides in `move_result`, to the digger.
+      for (const d of out.dig.defused ?? []) {
+        io.to(room).emit('bomb_defused', { tile: d.tile, by: data.playerId });
+      }
       // The blast is its own event: the client plays a damage animation and a
       // knockback, which a plain move would not distinguish from a walk.
       if (out.dig.knockback) {
@@ -868,6 +889,8 @@ io.on('connection', (socket: Socket) => {
       console.log('[dig]', data.playerId, 'tile', to, out.dig.content,
         'carrots', rabbit.carrots, `(+${out.dig.carrotDelta})`);
     }
+    // A plain walk can carry the cascade on — see `MoveOutcome.hinted`.
+    if (out.hinted?.length) io.to(room).emit('hints_revealed', { tiles: out.hinted });
     io.to(room).emit('rabbit_moved', publicRabbit(rabbit));
     // The mover alone gets the private detail (their loot, their knockback).
     socket.emit('move_result', out);

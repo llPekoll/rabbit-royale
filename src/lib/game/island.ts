@@ -23,7 +23,7 @@
  * appears in `publicView` or in any payload, and is the ONLY thing that decides
  * where a bomb sits. Publishing `seed` is then harmless by construction.
  */
-import { CHEST_TIER_WEIGHTS, FIRST_RUN, ISLAND, tierFor } from '@config/tuning';
+import { CHEST_TIER_WEIGHTS, DEFUSE, FIRST_RUN, ISLAND, RISK_GRADIENT, tierFor } from '@config/tuning';
 import {
   COLS, ROWS, SPAWN_INDEX, makeShape, isForbidden, neighbors, toColRow, toIndex,
   type IslandShape,
@@ -31,7 +31,7 @@ import {
 import { farmableTiles, spawnTile, terrainNeighbors } from './terrainBoard';
 import { isFirstIsland } from './first-island';
 import { mulberry32, pickWeighted, seedFrom, shuffle, type Rng } from './rng';
-import type { HintReveal, Island, Tile } from './types';
+import type { DefusedBomb, HintReveal, Island, Rabbit, Tile } from './types';
 
 export interface GenerateOptions {
   /** PUBLIC. Cuts the land the client draws; travels in every snapshot. */
@@ -79,16 +79,54 @@ export function generateIsland(opts: GenerateOptions): Island {
     // Deal contents by shuffling the eligible tiles once and slicing. Simpler
     // than rejection-sampling per item, and it cannot loop forever at the high
     // densities of the late tiers.
-    const pool = shuffle(rng, [...tiles.keys()].filter((i) => !safe.has(i)));
-    let cursor = 0;
-    const take = (n: number) => pool.slice(cursor, (cursor += n));
+    //
+    // Bombs and goldens are drawn FIRST and weighted by the walk from the spawn
+    // (RISK_GRADIENT): the counts are the tier's, where they fall is not
+    // uniform any more. What is left is shuffled and sliced as before.
     const total = tiles.size;
+    const eligible = [...tiles.keys()].filter((i) => !safe.has(i));
+    const dist = stepsFrom(opts.seed, spawn, tiles);
+    let furthest = 1;
+    for (const d of dist.values()) if (d > furthest) furthest = d;
+    // A tile the walk never reached is treated as the far edge — it cannot
+    // happen on terrain `farmableTiles` cut, and must not divide by zero if it does.
+    const depth = (i: number) => (dist.get(i) ?? furthest) / furthest;
+    const weighted = (from: number[], g: { NEAR: number; FAR: number }) =>
+      weightedOrder(rng, from, (i) => g.NEAR + (g.FAR - g.NEAR) * depth(i));
 
-    for (const i of take(Math.floor(total * tier.bombDensity))) tiles.get(i)!.content = 'bomb';
-
+    const bombCount = Math.floor(total * tier.bombDensity);
     const carrots = Math.floor(total * tier.carrotDensity);
     const golden = Math.floor(carrots * tier.goldenShare);
-    for (const i of take(golden)) tiles.get(i)!.content = 'golden';
+
+    // SPREAD, not clumped: a candidate already touching ISLAND.BOMB_MAX_TOUCHING
+    // bombs is passed over. Two bombs side by side light mostly the same
+    // tiles, so a clump buys fewer numbers than the same bombs apart — and the
+    // ground it leaves unlit is a field of zeros, a way round every puzzle.
+    // Same count, more of the board worth reading. The passed-over are only
+    // deferred: at Caldera's density the cap cannot always hold, and the
+    // island must never be dealt short.
+    const board = { tiles };
+    const bombTiles: number[] = [];
+    const deferred: number[] = [];
+    for (const i of weighted(eligible, RISK_GRADIENT.BOMB)) {
+      if (bombTiles.length >= bombCount) break;
+      const touching = boardNeighbors(board, i).filter((n) => tiles.get(n)!.content === 'bomb').length;
+      if (touching > ISLAND.BOMB_MAX_TOUCHING) { deferred.push(i); continue; }
+      tiles.get(i)!.content = 'bomb';
+      bombTiles.push(i);
+    }
+    for (const i of deferred) {
+      if (bombTiles.length >= bombCount) break;
+      tiles.get(i)!.content = 'bomb';
+      bombTiles.push(i);
+    }
+    const taken = new Set(bombTiles);
+    const goldenTiles = weighted(eligible.filter((i) => !taken.has(i)), RISK_GRADIENT.GOLDEN).slice(0, golden);
+    for (const i of goldenTiles) { tiles.get(i)!.content = 'golden'; taken.add(i); }
+
+    const pool = shuffle(rng, eligible.filter((i) => !taken.has(i)));
+    let cursor = 0;
+    const take = (n: number) => pool.slice(cursor, (cursor += n));
     for (const i of take(carrots - golden)) tiles.get(i)!.content = 'carrot';
     // Each chest draws its own tier, which decides both what it may hold and how
     // loudly it announces itself. Drawn from the CONTENT rng like everything else
@@ -114,9 +152,23 @@ export function generateIsland(opts: GenerateOptions): Island {
   // You always land somewhere you can read.
   for (const i of safe) revealTile(island, i);
   // And the ring's zeros open the ground around them, the way a first click
-  // does in minesweeper — the same rule a dig applies, applied at birth.
-  cascadeHints(island, safe);
+  // does in minesweeper — the same rule a dig applies, applied at birth, and
+  // with the same reach: what a rabbit standing on the spawn would be shown.
+  cascadeHints(island, safe, spawn);
   return island;
+}
+
+/**
+ * `items` in a random order that favours the heavy: the first n of it are a
+ * weighted sample WITHOUT replacement (exponential clocks — each item rings at
+ * -ln(u)/w, earliest first). One rng draw per item, in input order, so the
+ * deal stays a pure function of the content seed.
+ */
+function weightedOrder(rng: Rng, items: readonly number[], weight: (i: number) => number): number[] {
+  return items
+    .map((i) => ({ i, at: -Math.log(1 - rng()) / Math.max(weight(i), 1e-6) }))
+    .sort((a, b) => a.at - b.at)
+    .map((e) => e.i);
 }
 
 /**
@@ -136,9 +188,19 @@ export function generateIsland(opts: GenerateOptions): Island {
  * touched without sorting them first. Returns what it opened, in the order
  * it opened it — the wire payload.
  */
-export function cascadeHints(island: Island, from: Iterable<number>): HintReveal[] {
+export function cascadeHints(island: Island, from: Iterable<number>, around?: number): HintReveal[] {
   const opened: HintReveal[] = [];
   const isZero = (t: Tile) => t.content !== 'bomb' && t.adjacent === 0;
+  // BOUNDED to ISLAND.CASCADE_RADIUS squares of `around` — where the rabbit
+  // stands. Nothing past it is written or walked; the region is not lost, it
+  // is resumed from its open zeros the next time someone moves (`cascadeAround`).
+  // Without `around` the walk is unbounded, which is what the pure tests pin.
+  const centre = around === undefined ? null : toColRow(around);
+  const inReach = (i: number) => {
+    if (!centre) return true;
+    const { col, row } = toColRow(i);
+    return Math.max(Math.abs(col - centre.col), Math.abs(row - centre.row)) <= ISLAND.CASCADE_RADIUS;
+  };
   // The walk runs over EVERY open zero it meets, dug or hinted, seen before or
   // not — the zone is the connected region of zeros, and a zero that was dug
   // an hour ago is as much a bridge as one hinted this instant. Marking is
@@ -151,6 +213,7 @@ export function cascadeHints(island: Island, from: Iterable<number>): HintReveal
   }
   for (let head = 0; head < queue.length; head++) {
     for (const nb of boardNeighbors(island, queue[head])) {
+      if (!inReach(nb)) continue;
       const t = island.tiles.get(nb)!;
       if (!t.revealed && !t.hinted) {
         t.hinted = true;
@@ -160,6 +223,73 @@ export function cascadeHints(island: Island, from: Iterable<number>): HintReveal
     }
   }
   return opened;
+}
+
+/**
+ * The cascade as seen from `tile`: every open zero within reach opens its
+ * neighbours, within reach. Called wherever a rabbit comes to rest, which is
+ * what lets a bounded cascade finish the region it started — a step into a
+ * field of zeros writes the next row of numbers.
+ */
+export function cascadeAround(island: Island, tile: number): HintReveal[] {
+  const { col, row } = toColRow(tile);
+  const r = ISLAND.CASCADE_RADIUS;
+  const seeds: number[] = [];
+  for (let dr = -r; dr <= r; dr++) {
+    for (let dc = -r; dc <= r; dc++) {
+      const c = col + dc;
+      const w = row + dr;
+      if (c < 0 || c >= COLS || w < 0 || w >= ROWS) continue;
+      const i = toIndex(c, w);
+      if (island.tiles.has(i)) seeds.push(i);
+    }
+  }
+  return cascadeHints(island, seeds, tile);
+}
+
+/**
+ * Defuse every bomb that digging `dug` has just finished SURROUNDING.
+ *
+ * Surrounded: each of its board neighbours is either dug or a bomb itself. A
+ * player who got there without stepping on it knew where it was, and this is
+ * what that knowledge pays — see DEFUSE in tuning for the why and the sums.
+ * The bomb is revealed (so it is drawn, and free to walk over, like one that
+ * went off) and flagged `defused`.
+ *
+ * `digger` is paid and their streak moves; without one (a lightning strike,
+ * which digs nothing by foot) the bomb is defused and nobody is paid.
+ */
+export function defuseSurrounded(island: Island, dug: number, digger?: Rabbit): DefusedBomb[] {
+  const out: DefusedBomb[] = [];
+  for (const nb of boardNeighbors(island, dug)) {
+    const bomb = island.tiles.get(nb)!;
+    if (bomb.content !== 'bomb' || bomb.revealed) continue;
+    const surrounded = boardNeighbors(island, nb).every((n) => {
+      const t = island.tiles.get(n)!;
+      return t.revealed || t.content === 'bomb';
+    });
+    if (!surrounded) continue;
+    revealTile(island, nb, digger?.playerId);
+    bomb.defused = true;
+    const entry: DefusedBomb = { tile: nb, carrots: 0, streak: 0 };
+    if (digger) {
+      const run = digger.run;
+      const streak = (run?.defuseStreak ?? 0) + 1;
+      entry.streak = streak;
+      entry.carrots = Math.min(DEFUSE.MAX, DEFUSE.BASE + DEFUSE.STEP * (streak - 1));
+      digger.carrots += entry.carrots;
+      if (run) {
+        run.defuseStreak = streak;
+        run.bombsDefused = (run.bombsDefused ?? 0) + 1;
+        if (streak % DEFUSE.ITEM_EVERY === 0) {
+          run.loot.bomb = (run.loot.bomb ?? 0) + 1;
+          entry.item = true;
+        }
+      }
+    }
+    out.push(entry);
+  }
+  return out;
 }
 
 /**
@@ -397,7 +527,7 @@ export const dugFraction = (island: Island) => islandProgress(island).fraction;
  * around it. Walking to a visible chest is as dangerous as walking anywhere.
  */
 export function publicView(island: Island) {
-  const revealed: Array<{ tile: number; content: string; adjacent: number; dugBy?: string }> = [];
+  const revealed: Array<{ tile: number; content: string; adjacent: number; dugBy?: string; defused?: boolean }> = [];
   const chests: Array<{ tile: number; tier: string }> = [];
   // Hinted tiles carry their NUMBER and nothing else — the cascade's whole
   // bargain is that the number is safe to show and the content is not.
@@ -413,7 +543,10 @@ export function publicView(island: Island) {
       if (tile.hinted) hinted.push({ tile: index, adjacent: tile.adjacent });
       continue;
     }
-    revealed.push({ tile: index, content: tile.content, adjacent: tile.adjacent, dugBy: tile.dugBy });
+    revealed.push({
+      tile: index, content: tile.content, adjacent: tile.adjacent, dugBy: tile.dugBy,
+      ...(tile.defused ? { defused: true } : {}),
+    });
   }
   return {
     seed: island.seed,

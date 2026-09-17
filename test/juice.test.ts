@@ -67,7 +67,10 @@ describe('the island has its moments', () => {
   it('floats the gain for the digger alone', () => {
     // From `move_result` (private), never from `tile_revealed` (shared).
     const mover = HOOK.slice(HOOK.indexOf("socket.on('move_result'"), HOOK.indexOf("socket.on('hints_changed'"));
-    expect(mover).toMatch(/s\.floatGain\(tile, carrotDelta!, c === 'golden'\)/);
+    // The tile's own gain, with any defuse bounty taken off it — the bounty
+    // floats over the bomb it came from.
+    expect(mover).toMatch(/s\.floatGain\(tile, own, c === 'golden'\)/);
+    expect(mover).toMatch(/s\.floatGain\(d\.tile, d\.carrots, /);
     const shared = HOOK.slice(HOOK.indexOf("socket.on('tile_revealed'"), HOOK.indexOf("socket.on('hints_revealed'"));
     expect(shared).not.toMatch(/floatGain/);
   });
