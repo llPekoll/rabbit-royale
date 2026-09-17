@@ -7,6 +7,7 @@
  * file is what says so when a change to the terrain or the densities quietly
  * breaks the deal. See FIRST_RUN in tuning for the beats in prose.
  */
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { generateIsland, islandProgress } from '../src/lib/game/island';
 import { farmableTiles, spawnTile, terrainNeighbors } from '../src/lib/game/terrainBoard';
@@ -146,6 +147,41 @@ describe('the first island', () => {
     expect(out.ok).toBe(true);
     expect(out.tutorialDone).toBeUndefined();
     expect(out.runOver).toBe(false);
+  });
+
+  it('celebrates the chest on the DIG, not on the recap', () => {
+    // The jump and the fanfare belong to the moment the box opens. Pinned to
+    // the source because a Pixi scene needs a GL context to test directly, and
+    // the WIRING is the part that breaks: `move_result` is private to the
+    // mover, while `tile_revealed` goes to the whole island — celebrating from
+    // the broadcast would have every rabbit dancing for somebody else's chest.
+    const socket = readFileSync(new URL('../src/components/use-game-socket.ts', import.meta.url), 'utf8');
+    const handler = socket.slice(socket.indexOf("socket.on('move_result'"));
+    const body = handler.slice(0, handler.indexOf('\n    });'));
+    expect(body).toMatch(/tutorialDone.*celebrateChest/s);
+    // The call must come BEFORE the loot early-return — the tutorial's chest is
+    // bronze and pays plain carrots, which that return skips, so a call placed
+    // after it would never run. Asserted on the CODE either side of the return
+    // rather than on string positions: the comment above the call travels with
+    // it, so comparing indexOf() offsets cannot tell the two orders apart
+    // (verified by mutating the source — the offset check passed both ways).
+    const beforeReturn = body.slice(0, body.indexOf('if (!r.dig?.loot) return;'));
+    expect(beforeReturn).toMatch(/if \(r\.tutorialDone\) toScene/);
+
+    // And the scene plays the win track rather than inventing a second one.
+    const scene = readFileSync(new URL('../src/game/scenes/IslandScene.ts', import.meta.url), 'utf8');
+    const celebrate = scene.slice(scene.indexOf('celebrateChest()'));
+    expect(celebrate.slice(0, 400)).toMatch(/MUSIC_VICTORY/);
+    expect(celebrate.slice(0, 400)).toMatch(/celebrate\(\)/);
+  });
+
+  it('points at the chest with the game\'s own arrow sprite', () => {
+    // A hand-drawn Graphics triangle stood here first and read as a debug
+    // marker beside the game's art. The kit chevron (ARROW_DOWN) is what the
+    // burrow already hangs over a raid's goal — same job, same picture.
+    const fx = readFileSync(new URL('../src/game/fx/ChestPointer.ts', import.meta.url), 'utf8');
+    expect(fx).toMatch(/Keys\.ARROW_DOWN/);
+    expect(fx).not.toMatch(/new Graphics\(\)/);
   });
 
   it('is gentler than Meadow and richer, so the first recap shows a haul', () => {

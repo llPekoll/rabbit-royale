@@ -886,6 +886,28 @@ export class IslandScene implements Scene {
     this.pointedChest = first.tile;
   }
 
+  /**
+   * The tutorial is finished: the rabbit jumps and the fanfare plays.
+   *
+   * For the DIGGER alone, which is why it is called from `move_result` (private
+   * to the mover) and not from `revealTile` (broadcast to the island). On the
+   * first island that is always its one player, but a celebration fired from
+   * the shared event would have every rabbit dancing for somebody else's box.
+   *
+   * `celebrate` is the raid's own win animation — the happy row, looped, held
+   * until the scene takes the player home. Reusing it rather than inventing a
+   * second victory pose: reaching the chest and reaching a raided field are
+   * the same beat, and the recap lands on top of both.
+   *
+   * MUSIC_VICTORY is literally "Crown Chest Fanfare" — it was loaded for the
+   * cleared island and is exactly the cue this moment was missing.
+   */
+  celebrateChest(): void {
+    const me = this.data ? this.rabbits.get(this.data.playerId) : null;
+    me?.celebrate();
+    this.sound.startMusic(Keys.MUSIC_VICTORY);
+  }
+
   /** Take the arrow down. The chest it pointed at is open, or the island is gone. */
   private clearChestPointer(): void {
     this.chestPointer?.destroy();

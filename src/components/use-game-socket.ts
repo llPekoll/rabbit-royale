@@ -107,6 +107,15 @@ export interface MoveResult {
     /** A crown chest also gave up an RR Genesis piece. */
     nft?: boolean;
   };
+  /**
+   * The tutorial's chest was just opened — the run ends on a win.
+   *
+   * Read HERE rather than off `run_over` (which carries the same flag) because
+   * the celebration belongs to the DIG: the rabbit jumps and the fanfare plays
+   * the instant the box opens, while the recap is deliberately held back a
+   * beat (RECAP_BEAT_MS) so the player sees it happen first.
+   */
+  tutorialDone?: boolean;
 }
 
 /**
@@ -458,6 +467,11 @@ export function useGameSocket(
           chests: d.chests + (c === 'chest' ? 1 : 0),
         }));
       }
+      // The jump and the fanfare, on the beat the box opens — see
+      // `IslandScene.celebrateChest`. Before the loot early-return below,
+      // which skips a plain carrot payout: the tutorial's chest is bronze and
+      // pays exactly that, so anything after it would never run.
+      if (r.tutorialDone) toScene((s) => s.celebrateChest());
       if (!r.dig?.loot) return;
       // Carrots already land on the rabbit and animate on the tile — a
       // full-screen ceremony for a handful of them would stop the run dead
