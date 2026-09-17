@@ -727,8 +727,10 @@ export const LIGHTNING = {
   /** Milliseconds between each tile in the area going off, for the eye. */
   STAGGER_MS: 60,
   /**
-   * What a rabbit CAUGHT in the strike loses: one heart, the same as stepping
-   * on a bomb (ENERGY.BOMB_LOSS).
+   * What a rabbit CAUGHT in the strike loses: exactly what stepping on a bomb
+   * costs, and TIED to it rather than copied — the economy is recalibrated by
+   * moving `ENERGY.BOMB_LOSS`, and a strike that kept an older bomb's price
+   * would silently become the cheap or the ruinous way to lose a run.
    *
    * The strike used to open ground only. It now also electrocutes any rival
    * standing in its square, which is what makes it a weapon aimed at a PLAYER
@@ -736,7 +738,7 @@ export const LIGHTNING = {
    * a hit the victim could not have read on the board: more, and one item
    * ends a run outright; less, and it is not worth carrying.
    */
-  SHOCK_LOSS: 8,
+  SHOCK_LOSS: ENERGY.BOMB_LOSS,
   /**
    * How long a struck rabbit is held, in ms. Longer than a bomb's stun
    * (BOMB.STUN_MS): the current has to be SEEN holding them, and the
