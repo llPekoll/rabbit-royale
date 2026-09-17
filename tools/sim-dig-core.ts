@@ -13,7 +13,15 @@ import type { Island } from '../src/lib/game/types';
 export type Policy = 'walker' | 'reader' | 'solver' | 'prober' | 'gambler';
 export const mut = <O extends object>(o: O) => o as { -readonly [K in keyof O]: O[K] };
 
-export function play(seed: string, lifetime: number, policy: Policy, rand: () => number) {
+/**
+ * What-if stocks, for tools/gold-x.sim.ts. Neither exists in the game.
+ *   gold      golden Xs carried into the run: a wrong one costs nothing and keeps the streak.
+ *   goldAt    spend one on the tile the robot would otherwise have to bet on, when its risk is at least this.
+ *   redCap    red Xs the robot may place in the run (a stocked red X).
+ */
+export type Stocks = { gold?: number; goldAt?: number; redCap?: number };
+
+export function play(seed: string, lifetime: number, policy: Policy, rand: () => number, stocks: Stocks = {}) {
   const island: Island = generateIsland({ seed, contentSeed: `c:${seed}`, lifetimeCarrots: lifetime });
   const shape = makeShape(seed);
   const rabbit = spawnRabbit('bot', 'bot', T.ENERGY.START, seed);
@@ -21,6 +29,8 @@ export function play(seed: string, lifetime: number, policy: Policy, rand: () =>
   let now = 1_000_000;
   let digs = 0, bombs = 0, right = 0, wrong = 0, guesses = 0, wasted = 0, low = rabbit.energy, ticks = 0, full = 0, sum = 0;
   const tiles = island.tiles;
+  let gold = stocks.gold ?? 0, goldUsed = 0, goldHit = 0, reds = 0;
+  const goldAt = stocks.goldAt ?? 0.25, redCap = stocks.redCap ?? Infinity;
 
   for (let guard = 0; guard < 5000 && rabbit.alive; guard++) {
     ticks++; sum += rabbit.energy; if (rabbit.energy >= T.ENERGY.MAX - 2) full++; if (rabbit.energy < low) low = rabbit.energy;
@@ -77,9 +87,20 @@ export function play(seed: string, lifetime: number, policy: Policy, rand: () =>
     if (!diggable.length) break;
 
     const mark = (i: number) => {
+      reds++;
       rabbit.tile = standFor(i, boardNeighbors(island, i))!;
       const out = flagTile(island, rabbit, i, (now += 10_000));
       if (out.flag?.correct) { right++; if (out.flag.energyDelta === 0) wasted++; } else if (out.ok) wrong++;
+    };
+    // The golden X, modelled outside the rules: the loss is lifted for one call and the streak put back.
+    const markGold = (i: number) => {
+      gold--; goldUsed++;
+      rabbit.tile = standFor(i, boardNeighbors(island, i))!;
+      const loss = T.FLAG.LOSS, streak = rabbit.run!.flagStreak;
+      mut(T.FLAG).LOSS = 0 as typeof loss;
+      const out = flagTile(island, rabbit, i, (now += 10_000));
+      mut(T.FLAG).LOSS = loss;
+      if (out.flag?.correct) goldHit++; else rabbit.run!.flagStreak = streak;
     };
     const dig = (i: number) => {
       rabbit.tile = standFor(i, terrainNeighbors(seed, i))!;
@@ -97,7 +118,7 @@ export function play(seed: string, lifetime: number, policy: Policy, rand: () =>
     }
     if (policy === 'reader' || policy === 'solver' || policy === 'prober') {
       const proven = markable.find((i) => mines.has(i));
-      if (proven !== undefined) { mark(proven); continue; }
+      if (proven !== undefined && reds < redCap) { mark(proven); continue; }
     }
     const sure = diggable.find((i) => safe.has(i));
     if (sure !== undefined) { if (!dig(sure)) break; continue; }
@@ -106,6 +127,7 @@ export function play(seed: string, lifetime: number, policy: Policy, rand: () =>
     if (!bets.length) break;
     bets.sort((a, b) => (risk.get(a) ?? 0.2) - (risk.get(b) ?? 0.2));
     guesses++;
+    if (gold > 0 && (risk.get(bets[0]) ?? 0.2) >= goldAt && markable.includes(bets[0])) { markGold(bets[0]); continue; }
     if (policy === 'prober') {
       const hot = markable.filter((i) => (risk.get(i) ?? 0) >= 0.5).sort((a, b) => risk.get(b)! - risk.get(a)!)[0];
       if (hot !== undefined) { mark(hot); continue; }
@@ -113,6 +135,6 @@ export function play(seed: string, lifetime: number, policy: Policy, rand: () =>
     if (!dig(bets[0])) break;
   }
   const p = islandProgress(island);
-  return { digs, bombs, right, wrong, guesses, wasted, low, atFull: full / Math.max(1, ticks), mean: sum / Math.max(1, ticks), cleared: p.fraction, carrots: rabbit.carrots, died: !rabbit.alive, energy: rabbit.energy };
+  return { goldUsed, goldHit, digs, bombs, right, wrong, guesses, wasted, low, atFull: full / Math.max(1, ticks), mean: sum / Math.max(1, ticks), cleared: p.fraction, carrots: rabbit.carrots, died: !rabbit.alive, energy: rabbit.energy };
 }
 
