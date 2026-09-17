@@ -1,18 +1,15 @@
 'use client';
 
 /**
- * What to do about a bar that is running out — said once, when it matters.
+ * "Low energy" — said once, when there is still time to do something about it.
  *
- * Two moments, both pointing at the same exit, the red X:
- *
- *   LOW   the bar has just dropped to one bomb's worth or less. A line for a
- *         few seconds. A player who never places an X (a third of a Meadow
- *         island is their whole run) used to meet the end of it as a surprise;
- *         this is the warning, and it names the pump.
- *   DRY   the bar is at zero and the rabbit is still alive — digging emptied
- *         it, no bomb did (see `resolveMove`). The line stays for as long as
- *         that is true, because the board has changed rules: no more digging,
- *         a right X revives, a wrong one ends the run, home banks the haul.
+ * Zero ends the run (`resolveMove`), and the only thing that pushes zero away
+ * is a right red X. So the moment worth marking is not the end but the
+ * approach: when the bar drops to one bomb's worth or less, a line names the
+ * pump for a few seconds, and the X button starts to beat (`urge`, see
+ * mark-bomb-button.tsx). A player who never places an X used to meet the end
+ * of their run as a surprise; this makes it a countdown they can answer —
+ * "twenty left: find a bomb I can prove, or lose the run".
  *
  * Nothing on the first island: its own captions own that strip.
  */
@@ -23,29 +20,28 @@ import { PxPanel } from './px';
 
 const LOW_MS = 5000;
 
-export function EnergyCoach({ energy, alive }: { energy: number; alive: boolean }) {
+export function EnergyCoach({ energy }: { energy: number }) {
   const t = useT();
   const prev = useRef(energy);
   const [low, setLow] = useState(false);
+  // The clock lives in a ref, not in the effect's cleanup: energy changes on
+  // the very next dig, and a cleanup would cancel the timer with nothing left
+  // to start it again — the line would never leave.
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
   useEffect(() => {
     const crossed = prev.current > ENERGY.BOMB_LOSS && energy <= ENERGY.BOMB_LOSS && energy > 0;
     prev.current = energy;
     if (!crossed) return;
     setLow(true);
-    const timer = setTimeout(() => setLow(false), LOW_MS);
-    return () => clearTimeout(timer);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => setLow(false), LOW_MS);
   }, [energy]);
 
-  const dry = alive && energy <= 0;
-  const text = dry ? t.run.energyDry : low ? t.run.energyLow : null;
-  if (!text) return null;
+  if (!low) return null;
   return (
-    <PxPanel
-      color={dry ? 'rgba(74, 21, 18, 0.92)' : 'rgba(13, 17, 23, 0.86)'}
-      className="rr-caption"
-      style={{ background: 'none', borderRadius: 0 }}
-    >
-      <span role="status" aria-live="polite">{text}</span>
+    <PxPanel color="rgba(13, 17, 23, 0.86)" className="rr-caption" style={{ background: 'none', borderRadius: 0 }}>
+      <span role="status" aria-live="polite">{t.run.energyLow}</span>
     </PxPanel>
   );
 }

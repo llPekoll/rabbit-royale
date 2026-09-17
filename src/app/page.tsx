@@ -2269,7 +2269,7 @@ function Burrow() {
             />
           )}
           {!spectating && !game.firstRun && game.me && !game.recap && (
-            <EnergyCoach energy={game.me.energy} alive={game.me.alive} />
+            <EnergyCoach energy={game.me.energy} />
           )}
           {!spectating && (
             <FirstRunCaption firstRun={game.firstRun} digs={game.digs} warnStage={game.warnStage} />

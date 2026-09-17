@@ -443,16 +443,18 @@ export function resolveMove(
   const hinted = cascadeAround(island, rabbit.tile);
   if (hinted.length) dig.hinted = hinted;
 
-  // RUNNING DRY IS NOT DYING. Only a blast can end a run here: a bar emptied
-  // by the digging itself leaves the rabbit ALIVE and out of fuel. It can
-  // still walk dug ground for free, and a right red X puts energy back — so
-  // the way out of an empty bar is the puzzle, which is the whole idea of the
-  // X. What it cannot do is dig (`canDig`), and a WRONG X at zero ends the run
-  // (`flagTile`), so the last mark is a real bet. It used to end right here,
-  // on a step like any other, with nothing the player had decided.
+  // ZERO ENDS THE RUN, whatever emptied the bar — a blast or the digging
+  // itself. One rule, sayable in one sentence: no energy, no more exploring.
+  // For a day a bar emptied by digging left the rabbit alive and "dry", to be
+  // revived by a right X. It was withdrawn: it needed three sentences on
+  // screen to explain, it let a player bank proven bombs as a reserve tank so
+  // energy stopped being a limit, and it took the run's ending — and the
+  // recap's refill offer — away from the moment a player most wants to go on.
+  // The X still saves a run; it has to do it BEFORE the bar is empty, which is
+  // what the low-energy warning is for (`EnergyCoach`).
   if (rabbit.energy <= 0) {
     rabbit.energy = 0;
-    if (tile.content === 'bomb') rabbit.alive = false;
+    rabbit.alive = false;
   }
 
   return {
