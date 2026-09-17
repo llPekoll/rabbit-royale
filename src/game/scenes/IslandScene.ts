@@ -658,6 +658,28 @@ export class IslandScene implements Scene {
    * costs no reload at all.
    */
   async setIsland(seed: string): Promise<void> {
+    const swap = this.swapIsland(seed, ++this.islandRun);
+    this.islandSwap = swap;
+    return swap;
+  }
+
+  /**
+   * Which `setIsland` is the newest, so a build it overtook knows to stop.
+   *
+   * The ground is built behind an `await`, and a second seed landing during
+   * it used to interleave two builds on one scene: the first's ground was
+   * assigned AFTER the second had torn down everything it could see, so both
+   * grounds stayed in the container and the tiles were laid twice — two
+   * islands drawn one over the other, the rabbit standing on whichever layout
+   * its tile was solved against (seen live, on a first run whose join was
+   * answered twice). Only the newest call may finish now; an older one drops
+   * the ground it built and waits on the newest, so its caller still resolves
+   * once the board on screen is real.
+   */
+  private islandRun = 0;
+  private islandSwap: Promise<void> | null = null;
+
+  private async swapIsland(seed: string, run: number): Promise<void> {
     if (this.data) this.data.seed = seed;
     this.shape = makeShape(seed);
 
@@ -681,7 +703,19 @@ export class IslandScene implements Scene {
 
     // A new island, generated from the new seed.
     this.background?.destroy();
-    this.background = await createTerrainBackground(this.container, seed);
+    // Let go of at once, not when the new ground lands: a call overtaken
+    // during the build below must not find, and destroy again, a ground that
+    // is already gone.
+    this.background = null;
+    const background = await createTerrainBackground(this.container, seed);
+    if (run !== this.islandRun) {
+      // Overtaken while building. This ground was never shown; the newest
+      // call owns the scene from here, and this one only reports when it does.
+      background.destroy();
+      await this.islandSwap;
+      return;
+    }
+    this.background = background;
 
     this.syncFlock();
     this.buildTiles();

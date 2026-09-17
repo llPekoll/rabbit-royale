@@ -42,6 +42,13 @@ export interface Player {
   wallet: string | null;
   /** True while this account lives only in this browser. See `playAsGuest`. */
   guest: boolean;
+  /**
+   * Runs banked so far, as the sign-in answered. Zero is a FIRST-TIMER, who
+   * opens on the tutorial island rather than the burrow (page.tsx). Absent
+   * when the answer did not carry it, which the page reads as "not first" —
+   * a returning player sent through the tutorial is the worse mistake.
+   */
+  runsPlayed?: number;
 }
 
 interface InjectedWallet {
@@ -157,6 +164,7 @@ function useWalletSession() {
               name: d.player.name,
               wallet: d.player.wallet ?? null,
               guest: Boolean(d.player.guest),
+              runsPlayed: typeof d.player.runsPlayed === 'number' ? d.player.runsPlayed : undefined,
             });
             setRestored(waiting);
             return;
@@ -226,6 +234,7 @@ function useWalletSession() {
       name: res.player.name,
       wallet: res.player.wallet ?? null,
       guest: Boolean(res.player.guest),
+      runsPlayed: typeof res.player.runsPlayed === 'number' ? res.player.runsPlayed : undefined,
     });
   }, []);
 

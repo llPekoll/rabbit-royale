@@ -61,6 +61,18 @@ interface SocketData {
   /** Set when this socket is WATCHING someone: it receives the island's events
    *  but owns no rabbit, so every gameplay handler falls through. */
   spectating?: string;
+  /**
+   * A `join` is being answered on this socket right now.
+   *
+   * One ask has to buy one seat. The client sends `join` once, but socket.io
+   * BUFFERS an emit made before the socket is connected and flushes it on
+   * `connect` — the very moment the client's own `connect` handler asks
+   * again. Two joins then ran side by side: neither found the other's seat,
+   * a first-timer was dealt two tutorial islands and shown both at once, and
+   * anyone else paid for two runs. The second ask is dropped while the first
+   * is still seating — see `oneAtATime`.
+   */
+  joining?: boolean;
 }
 
 /**
@@ -132,8 +144,44 @@ function newIsland(lifetimeCarrots: number): LiveIsland {
  * any seed, so the coastline it draws is the same one; what is buried stays
  * behind the content seed as always.
  */
-function newFirstIsland(): LiveIsland {
-  return store.create(firstIslandSeed(randomUUID()), 0, { solo: true });
+function newFirstIsland(playerId: string): LiveIsland {
+  // Named after the PLAYER, not dealt at random. The client cuts a placeholder
+  // from `firstIslandSeed(player.id)` while it waits for this answer (see
+  // page.tsx), and with the same name on both sides the placeholder IS the
+  // island: nothing is re-cut under the player on the first screen of the
+  // game, and two asks for a first island can only ever name one.
+  const seed = firstIslandSeed(playerId);
+  // A first island left behind by a run that never banked (the server
+  // survived, the player did not come back) is torn down rather than reused
+  // with its holes already dug. Solo, so nobody else can be standing on it.
+  if (store.get(seed)) store.delete(seed);
+  return store.create(seed, 0, { solo: true });
+}
+
+/**
+ * Answer one ask at a time on a socket — see `SocketData.joining`.
+ *
+ * The duplicate is DROPPED, not queued: it is the same ask, and the seat it
+ * wants is the one the first is in the middle of taking. Queued, it would run
+ * after the first and find a held seat with no drop behind it, which is the
+ * walk-home-and-back shape — the run would be banked, re-paid and restarted.
+ */
+function oneAtATime<A extends unknown[]>(
+  data: SocketData,
+  handler: (...args: A) => Promise<unknown>,
+): (...args: A) => Promise<unknown> {
+  return async (...args: A) => {
+    if (data.joining) {
+      console.warn('[rr-ws] join dropped: one is already being answered', data.playerId);
+      return;
+    }
+    data.joining = true;
+    try {
+      return await handler(...args);
+    } finally {
+      data.joining = false;
+    }
+  };
 }
 
 /** Everything a client needs to draw the island it just joined. */
@@ -416,7 +464,7 @@ io.on('connection', (socket: Socket) => {
    * Join a run. Drop-in: no lobby, no matchmaking — you land on the fullest
    * island that has room, or a new one if they are all full.
    */
-  socket.on('join', guard('join', async () => {
+  socket.on('join', guard('join', oneAtATime(data, async () => {
     if (!data.playerId) return socket.emit('error_msg', { code: 'unauthenticated' });
 
     const player = await db.query.players.findFirst({ where: eq(players.id, data.playerId) });
@@ -435,7 +483,7 @@ io.on('connection', (socket: Socket) => {
     // first-timer who refreshes mid-run still finds their seat above, and one
     // who walks home and comes straight back gets the real ladder.
     const live = store.seatOf(data.playerId)
-      ?? (player.runsPlayed === 0 ? newFirstIsland() : undefined)
+      ?? (player.runsPlayed === 0 ? newFirstIsland(player.id) : undefined)
       ?? store.findJoinable()
       ?? newIsland(player.lifetimeCarrots);
 
@@ -516,7 +564,7 @@ io.on('connection', (socket: Socket) => {
     await optional('markOnline', () => markOnline(data.playerId!));
     socket.emit('island', { ...snapshot(live), bank });
     socket.to(roomFor(live.island.id)).emit('rabbit_joined', publicRabbit(rabbit));
-  }));
+  })));
 
   /**
    * Watch someone else's run.

@@ -36,7 +36,9 @@ export async function POST(req: Request) {
   return Response.json(
     // `guest` is stated rather than inferred from a null wallet: the client
     // reads ONE field to decide whether to nag about connecting one.
-    { token, player: { id: playerId, name: player!.name, wallet: address, guest: false } },
+    // `runsPlayed` rides along so the page knows AT SIGN-IN whether this is a
+    // first run, rather than after a second fetch it used to race.
+    { token, player: { id: playerId, name: player!.name, wallet: address, guest: false, runsPlayed: player!.runsPlayed } },
     {
       headers: {
         'Set-Cookie': `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${60 * 60 * 24 * 30}${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`,

@@ -23,7 +23,9 @@ export async function POST() {
   const token = await signSession({ sub: id, wallet: null, name });
 
   return Response.json(
-    { token, player: { id, name, wallet: null, guest: true } },
+    // A guest is minted here, so their count of runs is zero by construction:
+    // the page opens them on the tutorial island off this answer alone.
+    { token, player: { id, name, wallet: null, guest: true, runsPlayed: 0 } },
     {
       headers: {
         'Set-Cookie': `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${COOKIE_MAX_AGE}${

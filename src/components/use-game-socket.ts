@@ -671,10 +671,15 @@ export function useGameSocket(
   const join = useCallback(() => {
     // Remembered even when there is no socket yet: `connect` sends it. A
     // socket that exists but is between reconnects also gets it on `connect`,
-    // and a live one gets it now. Never both — socket.io queues nothing on a
-    // disconnected socket, so the emit below is a no-op until `connect`.
+    // and a live one gets it now. NEVER BOTH, and that takes the `connected`
+    // check: socket.io does not drop an emit made on a socket that is still
+    // connecting, it buffers it and flushes it on `connect` — the same instant
+    // the handler above asks again. Two joins then reached the server side by
+    // side, and a first-timer (whose first island is created on the ask) was
+    // dealt two of them and shown both, one over the other.
     wantSeat.current = true;
-    socketRef.current?.emit('join');
+    const socket = socketRef.current;
+    if (socket?.connected) socket.emit('join');
     // A new crossing never shows the last run's card. It was cleared only when
     // the next island ARRIVED, so a DIG on a dropped socket landed on the old
     // board with "Run over" still up (seen live).

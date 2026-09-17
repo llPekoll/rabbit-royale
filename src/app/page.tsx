@@ -1145,12 +1145,15 @@ function Burrow() {
    * the iris, because the curtain IS the iris this time.
    *
    * `runs` comes from the server, so a player who played their first run on
-   * another device is not sent again. If the bar has not been read by the
-   * cut (a slow first fetch), the effect below is the fallback: it crosses
-   * from the burrow the moment everything is standing, which shows the
-   * burrow for one wipe rather than never — the lesser failure.
+   * another device is not sent again. It is read off the PLAYER at the cut
+   * (the sign-in answer carries `runsPlayed`), not off the burrow's bar, which
+   * is a second fetch that used to lose the race to the cut and open a
+   * first-timer on the burrow. The effect below is only a belt for the
+   * braces now: a session where neither answer named the count crosses from
+   * the burrow the moment everything is standing — the burrow for one wipe
+   * rather than never, the lesser failure.
    */
-  const firstTimer = burrow?.runs === 0;
+  const firstTimer = burrow ? burrow.runs === 0 : player?.runsPlayed === 0;
   const firstTrip = useRef(false);
   const onCurtainCut = useCallback(() => {
     setShowCanvas(true);
