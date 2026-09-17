@@ -191,6 +191,34 @@ export function playUiSfx(kind: UiSfx): void {
   }
 }
 
+/**
+ * VOLUMES ARE SET BY EAR-LEVEL, NOT BY NUMBER.
+ *
+ * What is heard is the FILE's level times the volume here, and the files are
+ * nowhere near each other: measured with ffmpeg `volumedetect`, the samples'
+ * mean levels run from -13.6 dB (coin) to -45.2 dB (step). With volumes that
+ * looked alike (0.4, 0.5, 0.5) the coin, the golden sting and the death sound
+ * came out 10 to 18 dB hotter than the chimes and the hop — and the coin plays
+ * on every carrot, a third of all digs (Paul, 2026-09-17: "some sound FX are
+ * WAY too loud"). Each volume below is chosen so that
+ *
+ *     file mean (dB) + 20*log10(volume)
+ *
+ * lands near -32 dB for an event, a little above for the rare ones that
+ * should stand out (golden, death: -30), and well under for what repeats on
+ * every step. Re-measure before adding a sample; do not copy a neighbour's number.
+ *
+ *   sample            file mean   volume   heard
+ *   coin                -13.6      0.11    -32.8
+ *   coin_start          -16.7      0.22    -29.9
+ *   die                 -17.4      0.23    -30.2
+ *   explosion_small     -15.5      0.15    -32.0
+ *   chime_positive      -24.0      0.50    -30.0
+ *   chime_quick         -25.2      0.40    -33.2
+ *   Jump                -28.5      0.30    -39.0
+ *   match_synth_1       -34.5      0.50    -40.5
+ *   step_grass_1        -45.2      0.20    -59.2   (barely audible; untouched)
+ */
 const SOUND_MAP: Record<string, { src: string; volume: number; format?: string[] }> = {
   // The shared arcade "insert coin" chirp from the kit — every game plays it
   // when a bet is committed. Ships as a data: URL, so Howler needs the
@@ -198,14 +226,14 @@ const SOUND_MAP: Record<string, { src: string; volume: number; format?: string[]
   [Keys.SFX_INSERT_COIN]: { src: INSERT_COIN_SFX_URL, volume: 0.4, format: ['mp3'] },
   [Keys.SFX_HOP]: { src: '/assets/sfx/Jump.mp3', volume: 0.3 },
   [Keys.SFX_STEP]: { src: '/assets/sfx/04_step_grass_1.mp3', volume: 0.2 },
-  [Keys.SFX_COIN]: { src: '/assets/sfx/coin.mp3', volume: 0.4 },
-  [Keys.SFX_COIN_START]: { src: '/assets/sfx/coin_start.mp3', volume: 0.5 },
+  [Keys.SFX_COIN]: { src: '/assets/sfx/coin.mp3', volume: 0.11 },
+  [Keys.SFX_COIN_START]: { src: '/assets/sfx/coin_start.mp3', volume: 0.22 },
   [Keys.SFX_CHIME]: { src: '/assets/sfx/8_bit_chime_positive.mp3', volume: 0.5 },
   [Keys.SFX_CHIME_QUICK]: { src: '/assets/sfx/8_bit_chime_quick.mp3', volume: 0.4 },
   // Kept low: the death reveal fires one per revealed mine (≈10 overlapping
   // instances in a cascade), so the per-instance volume must stay quiet.
   [Keys.SFX_EXPLOSION]: { src: '/assets/sfx/explosion_small.mp3', volume: 0.15 },
-  [Keys.SFX_DIE]: { src: '/assets/sfx/die.mp3', volume: 0.5 },
+  [Keys.SFX_DIE]: { src: '/assets/sfx/die.mp3', volume: 0.23 },
   [Keys.SFX_MATCH]: { src: '/assets/sfx/match_synth_1.mp3', volume: 0.5 },
 };
 
@@ -300,7 +328,10 @@ export class SoundManager {
     osc.type = 'square';
     osc.frequency.setValueAtTime(220, t);
     osc.frequency.setValueAtTime(155, t + 0.08);
-    const peak = Math.max(0.0002, 0.07 * sfxLevel);
+    // A square wave at 0.07 sits near -23 dB RMS, a good 9 dB over the samples
+    // (see SOUND_MAP), and a square is the harshest shape there is. 0.035 puts
+    // the "no" level with the rest.
+    const peak = Math.max(0.0002, 0.035 * sfxLevel);
     gain.gain.setValueAtTime(0.0001, t);
     gain.gain.exponentialRampToValueAtTime(peak, t + 0.01);
     gain.gain.setValueAtTime(peak, t + 0.14);
@@ -325,7 +356,9 @@ export class SoundManager {
     const id = h.play();
     const base = SOUND_MAP[Keys.SFX_EXPLOSION]?.volume ?? 1;
     h.rate(0.5, id);
-    h.volume(base * sfxLevel * (1 + 0.8 * Math.max(1, Math.min(3, stage))), id);
+    // Louder per stage, but capped at about +7 dB over a bomb: at 1 + 0.8 * stage
+    // the third warning was +10.6 dB, the loudest thing in the game by far.
+    h.volume(base * sfxLevel * (1 + 0.4 * Math.max(1, Math.min(3, stage))), id);
   }
 
   /** Does this instance have a track of its own going? */
