@@ -211,6 +211,8 @@ export const ptBR: Dict = {
     over: 'FIM DA SAÍDA',
     clearedNote: 'Tudo que valia cavar foi cavado. O vulcão levou o resto.',
     overNote: 'Sem corações.',
+    tutorialDone: 'VOCÊ PEGOU!',
+    tutorialDoneNote: 'O baú era a ilha inteira. Suas cenouras esperam na toca.',
     stats: (carrots, dug, bombs, time) => `🥕 ${carrots} · ${dug} cavados · 💣 ${bombs} · ${time}`,
     bank: (energy, max, cost) => `⚡ ${energy}/${max} na toca · uma saída leva ${cost}`,
     getEnergy: 'Pegar mais energia',

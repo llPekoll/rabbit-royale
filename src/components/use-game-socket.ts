@@ -196,6 +196,14 @@ export interface RunRecap {
   durationMs: number;
   /** The island was dug out, and the run ended with it — not on a bomb. */
   cleared?: boolean;
+  /**
+   * The tutorial's chest was opened, which is what ends the first run.
+   *
+   * A third ending, next to "out of energy" and "the island is gone": the
+   * player finished what the first island was for. The recap reads it to
+   * congratulate rather than commiserate — see `run-recap`.
+   */
+  tutorialDone?: boolean;
 }
 
 /** Resolves the live scene, or null before Pixi has finished booting. */

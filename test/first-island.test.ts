@@ -11,6 +11,9 @@ import { describe, expect, it } from 'vitest';
 import { generateIsland, islandProgress } from '../src/lib/game/island';
 import { farmableTiles, spawnTile, terrainNeighbors } from '../src/lib/game/terrainBoard';
 import { firstIslandSeed, isFirstIsland } from '../src/lib/game/first-island';
+import { resolveMove, spawnRabbit } from '../src/lib/game/run';
+import { makeShape } from '../src/config/gridConfig';
+import { mulberry32 } from '../src/lib/game/rng';
 import { CHEST_TIER_WEIGHTS, FIRST_RUN, ISLAND_TIERS } from '../config/tuning';
 
 const SEEDS = Array.from({ length: 30 }, (_, i) => firstIslandSeed(`test-${i}`));
@@ -99,6 +102,50 @@ describe('the first island', () => {
       expect(dist.get(tile)!).toBeGreaterThanOrEqual(3);
       expect(dist.get(tile)!).toBeLessThanOrEqual(FIRST_RUN.CHEST_MAX_DISTANCE);
     }
+  });
+
+  it('ends the run when its chest is opened', () => {
+    // THE CHEST IS THE ENDING. Everything before it is the lesson — walk, read
+    // the numbers, survive the bomb — and once the box is open the island has
+    // nothing left to teach. Letting it run on would leave a first-time player
+    // in a field of ordinary carrots waiting for an eruption clock they have
+    // no reason to sit through, when the recap (and the burrow behind it) is
+    // what they should be looking at.
+    for (const seed of SEEDS) {
+      const island = generateIsland({ seed, contentSeed: `content-${seed}` });
+      const shape = makeShape(seed);
+      const [chest] = [...island.tiles].find(([, t]) => t.content === 'chest')!;
+      const rabbit = spawnRabbit('p1', 'Test', undefined, seed);
+      // Walked to the chest's doorstep — the walk itself is `run.test.ts`'s
+      // business, and what is under test here is the DIG.
+      rabbit.tile = terrainNeighbors(seed, chest)[0];
+
+      const out = resolveMove(island, rabbit, chest, shape, mulberry32(1), 1_000_000);
+      expect(out.ok, seed).toBe(true);
+      expect(out.tutorialDone, seed).toBe(true);
+      expect(out.runOver, seed).toBe(true);
+      // ALIVE on the prize: the rabbit is standing on the chest it just opened,
+      // and the server reads this to withhold `rabbit_died` — which would slump
+      // it and drain the map to grey, the picture of running out of energy.
+      expect(rabbit.alive, seed).toBe(true);
+    }
+  });
+
+  it('does not end an ORDINARY island on a chest', () => {
+    // The rule is the tutorial's alone. On any other board a chest is one
+    // prize among many and the run goes on — ending it there would cut every
+    // run short at its first box.
+    const seed = 'plain';
+    const island = generateIsland({ seed, contentSeed: 'content-plain' });
+    const shape = makeShape(seed);
+    const [chest] = [...island.tiles].find(([, t]) => t.content === 'chest')!;
+    const rabbit = spawnRabbit('p1', 'Test', undefined, seed);
+    rabbit.tile = terrainNeighbors(seed, chest)[0];
+
+    const out = resolveMove(island, rabbit, chest, shape, mulberry32(1), 1_000_000);
+    expect(out.ok).toBe(true);
+    expect(out.tutorialDone).toBeUndefined();
+    expect(out.runOver).toBe(false);
   });
 
   it('is gentler than Meadow and richer, so the first recap shows a haul', () => {

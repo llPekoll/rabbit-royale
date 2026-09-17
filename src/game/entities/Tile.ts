@@ -1156,6 +1156,23 @@ export class Tile {
     });
   }
 
+  /**
+   * Take the tier word off this chest, keeping everything else.
+   *
+   * For the TUTORIAL island alone, where an arrow is planted over the chest
+   * (`fx/ChestPointer`) and the two land in the same place above the box. The
+   * word is what gives way: on the first island there is exactly one chest and
+   * it is always bronze, so "BRONZE" grades a prize against a ladder the
+   * player has not been shown yet — while the arrow is saying the one thing
+   * that island needs to say. Everywhere else the word stays, because there
+   * the tier is a real decision about how far to walk.
+   */
+  hideChestTier(): void {
+    if (this.chestLabelTween) { this.chestLabelTween.kill(); this.chestLabelTween = null; }
+    this.chestLabel?.destroy({ children: true });
+    this.chestLabel = null;
+  }
+
   /** The chest was collected — pop it off the board. */
   clearChest(animate = true): void {
     const s = this.chestSprite;

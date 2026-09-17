@@ -14,6 +14,7 @@ import { BOMB, CHEST_LOOT, CHEST_LOOT_BY_TIER, CHEST_NFT_ODDS, ENERGY, MULTIPLAY
 import { SPAWN_INDEX, neighbors, toColRow, type IslandShape } from '@/config/gridConfig';
 import { pickWeighted, randInt, type Rng } from './rng';
 import { cascadeHints, revealTile } from './island';
+import { isFirstIsland } from './first-island';
 import { spawnTile, terrainNeighbors } from './terrainBoard';
 import { canDig } from './reachable';
 import { occupancyOf, planPush } from './push';
@@ -39,8 +40,22 @@ export interface MoveOutcome {
   tile: number;
   energy: number;
   carrots: number;
-  /** The run ended on this move — energy hit zero. */
+  /**
+   * The run ended on this move — energy hit zero, or the tutorial was finished.
+   *
+   * The second case is the first island only: its chest IS its ending, see
+   * `tutorialDone` below.
+   */
   runOver: boolean;
+  /**
+   * The tutorial's chest has just been dug, so the run ended on a WIN.
+   *
+   * Carried apart from `runOver` because the two endings are not the same
+   * ending: an exhausted rabbit is out of energy and the recap asks whether
+   * they want more, while this one has finished what the island was for. Only
+   * ever set on the first island.
+   */
+  tutorialDone?: boolean;
   /**
    * Rabbits this move shoved, and what it cost them.
    *
@@ -210,6 +225,9 @@ export function resolveMove(
     carrotDelta: 0,
   };
 
+  /** Set by the chest branch on the first island — see there. */
+  let tutorialDone = false;
+
   switch (tile.content) {
     case 'bomb': {
       rabbit.energy -= ENERGY.BOMB_LOSS;
@@ -280,6 +298,25 @@ export function resolveMove(
         }
       }
       rabbit.tile = to;
+      // THE TUTORIAL ENDS ON ITS CHEST.
+      //
+      // The first island is dealt one chest, a walk from the spawn, and an
+      // arrow points at it (`fx/ChestPointer`): going and getting it IS the
+      // lesson — walk, read the numbers, survive the bomb, open the box. Once
+      // it is open the island has nothing left to teach, and what it had left
+      // to offer was a field of ordinary carrots and an eruption clock that a
+      // first-time player has no reason to sit through.
+      //
+      // Ending here also puts the recap on screen at the best possible moment:
+      // right after the prize, with a haul to show (FIRST_RUN.CARROT_DENSITY is
+      // generous on purpose) — and the recap is what sends them to the burrow,
+      // which is the first time that place has anything in it.
+      //
+      // `firstDigger` gates it with the loot above: the run ends for whoever
+      // actually opened the box. On the first island that is always its one
+      // player (`solo`), but the rule is written so it cannot end somebody
+      // else's run on a board that is ever shared.
+      if (firstDigger && isFirstIsland(island.seed)) tutorialDone = true;
       break;
     }
     default:
@@ -305,7 +342,11 @@ export function resolveMove(
     tile: rabbit.tile,
     energy: rabbit.energy,
     carrots: rabbit.carrots,
-    runOver: !rabbit.alive,
+    // Either ending closes the run. The rabbit is left ALIVE on a tutorial
+    // win — it is standing on the chest it just opened, and drawing it slumped
+    // would tell the player they died on the prize.
+    runOver: !rabbit.alive || tutorialDone,
+    ...(tutorialDone ? { tutorialDone } : {}),
     pushed,
   };
 }

@@ -32,6 +32,7 @@ import { MoveArrows } from '../ui/MoveArrows';
 import { CloudField } from '../fx/Clouds';
 import { BirdFlock } from '../fx/Birds';
 import { Drain } from '../fx/Drain';
+import { ChestPointer } from '../fx/ChestPointer';
 import {
   initBlastTextures, playBlast, knockBack, impactShake, blastDepth, SHAKE_PX,
 } from '../fx/Blast';
@@ -88,8 +89,17 @@ const LIGHTNING_FPS = 14;
 
 /** Coins thrown off a golden carrot — see `coinSpray`. */
 const COIN_SPRAY_COUNT = 7;
-/** How far past the rabbit the first island's opening shot looks, in scene px. */
-const FIRST_ISLAND_LOOK_NORTH = 48;
+/**
+ * How far past the rabbit the first island's opening shot looks, in scene px.
+ *
+ * The chest is dealt as far from the spawn as the cap allows (`firstIslandLayout`),
+ * which on most seeds puts it up-board, so the shot leans that way to get it in
+ * frame at all. Raised from 48 once the arrow was planted over it: the arrow
+ * stands ~40px above the box, and at 48 the chest was in shot while the thing
+ * pointing at it was clipped by the top of the canvas — which is the one part
+ * a first-time player is meant to notice.
+ */
+const FIRST_ISLAND_LOOK_NORTH = 78;
 /** Seconds between blinks as the sweep travels round the rabbit. */
 const SWEEP_STEP_SECONDS = 0.25;
 
@@ -159,6 +169,17 @@ export class IslandScene implements Scene {
   /** Re-lights the ring the moment a stun expires. */
   private stunTimer: ReturnType<typeof setTimeout> | null = null;
   private arrows: MoveArrows | null = null;
+  /**
+   * The bobbing arrow over the tutorial's chest, or null.
+   *
+   * Only ever on the first island, and only until that chest is dug — see
+   * `fx/ChestPointer`. Held so it can be taken down on the dig, which is the
+   * one moment it has to go: an arrow still pointing at an opened box says the
+   * player has somewhere to go when they have just arrived.
+   */
+  private chestPointer: ChestPointer | null = null;
+  /** The tile the pointer is planted on, so a dig elsewhere does not clear it. */
+  private pointedChest: number | null = null;
   private clouds: CloudField | null = null;
   private birds: BirdFlock | null = null;
   /** The map's grey once the local run has ended — see `drainMap`. */
@@ -649,6 +670,10 @@ export class IslandScene implements Scene {
     this.rabbits.clear();
     this.standing.clear();
 
+    // The previous island's chest is not on this board — and on the way OUT of
+    // the tutorial there is no chest to point at at all.
+    this.clearChestPointer();
+
     this.arrows?.destroy();
     this.arrows = new MoveArrows(this.container, this.shape);
     this.arrows.setSeed(this.data?.seed ?? '');
@@ -769,6 +794,10 @@ export class IslandScene implements Scene {
     // already in somebody's bag, and on a shared island that is a lie the next
     // player would walk several tiles for. No-op on every other tile.
     tile.clearChest();
+    // And the arrow that was pointing at it, on the tutorial island. Paired
+    // with `clearChest` on purpose: the box and the thing pointing at the box
+    // have to leave on the same frame, or the arrow hangs over bare ground.
+    if (this.pointedChest === index) this.clearChestPointer();
     tile.revealContent(content, adjacent);
 
     if (content === 'bomb') {
@@ -825,6 +854,43 @@ export class IslandScene implements Scene {
       const tier = isChestTier(c.tier) ? c.tier : 'bronze';
       tile.setChest(CHEST_TIER_COLOR[tier], drop, tier);
     }
+    this.pointAtTutorialChest(chests);
+  }
+
+  /**
+   * Plant the arrow over the first island's chest.
+   *
+   * ONLY on the first island, which is the only board where "go and get that"
+   * is a thing the game still has to say — everywhere else a chest is a
+   * priced decision the player makes for themselves, and an arrow over each
+   * one would be the game playing for them.
+   *
+   * The first island is dealt exactly one chest (`firstIslandLayout`), so the
+   * first of the list is it; if a later island ever hands us several, the
+   * arrow still marks one rather than growing a forest of them.
+   *
+   * Idempotent for the same reason `showChests` is: both the join snapshot and
+   * every reconnect call this with the same list, and a second arrow on the
+   * same tile would just be a brighter one.
+   */
+  private pointAtTutorialChest(chests: ReadonlyArray<{ tile: number }>): void {
+    if (!isFirstIsland(this.seed)) return;
+    const first = chests.find((c) => this.tiles.has(c.tile));
+    if (!first || this.pointedChest === first.tile) return;
+    // The word and the arrow both sit above the box, and they collided — the
+    // arrow read as pointing at "BRONZE" rather than at the chest. The word
+    // gives way here and only here; see `Tile.hideChestTier`.
+    this.tiles.get(first.tile)?.hideChestTier();
+    this.chestPointer?.destroy();
+    this.chestPointer = new ChestPointer(this.container, this.seed, first.tile);
+    this.pointedChest = first.tile;
+  }
+
+  /** Take the arrow down. The chest it pointed at is open, or the island is gone. */
+  private clearChestPointer(): void {
+    this.chestPointer?.destroy();
+    this.chestPointer = null;
+    this.pointedChest = null;
   }
 
   /** Is this tile one of the local rabbit's eight? */
@@ -1497,6 +1563,7 @@ export class IslandScene implements Scene {
     }
     this.clouds?.destroy();
     this.birds?.destroy();
+    this.clearChestPointer();
     this.arrows?.destroy();
     this.controls?.destroy();
     this.background?.destroy();

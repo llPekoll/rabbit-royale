@@ -825,13 +825,20 @@ io.on('connection', (socket: Socket) => {
     socket.emit('move_result', out);
 
     if (out.runOver) {
-      io.to(room).emit('rabbit_died', { playerId: data.playerId });
+      // NOT on a tutorial win. `rabbit_died` slumps the rabbit and drains the
+      // map to grey — the picture of running out of energy, which is exactly
+      // what did NOT happen here: the player is standing on the chest they
+      // came for. The cleared-island ending (`erupt`) takes the same care.
+      if (!out.tutorialDone) io.to(room).emit('rabbit_died', { playerId: data.playerId });
       void bankRun(rabbit).catch((e) => console.error('[bankRun]', e));
       socket.emit('run_over', {
         carrots: rabbit.carrots,
         tilesDug: data.tilesDug ?? 0,
         bombsHit: data.bombsHit ?? 0,
         durationMs: Date.now() - (data.runStartedAt ?? Date.now()),
+        // The tutorial was finished, not survived — the recap reads it to say
+        // so, and it is the same "you got to the end" shape as a cleared island.
+        ...(out.tutorialDone ? { tutorialDone: true } : {}),
       });
     }
 

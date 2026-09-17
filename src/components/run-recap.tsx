@@ -52,10 +52,15 @@ export function Recap({
   bank?: { energy: number; max: number; cost: number } | null;
 }) {
   const t = useT();
-  // Two endings since the island became a level: the hearts ran out, or the
-  // island did. The second is a win, and the card has to read like one — the
-  // refill offer would be nonsense under "Island cleared".
+  // THREE endings now: the hearts ran out, the island did, or the tutorial's
+  // chest was opened. The last two are WINS, and the card has to read like one
+  // — the refill offer would be nonsense under "Island cleared", and worse
+  // under the first chest a player has ever dug, where it would turn the end
+  // of the tutorial into a sales pitch.
   const cleared = !!recap.cleared;
+  const done = !!recap.tutorialDone;
+  /** Won, either way: no refill offer, and HOME is the loud button. */
+  const won = cleared || done;
   return (
     /* The codex's frame in the dark glass this card always sat on over the
        board. Margins live in px-dialogs.css (`.rr-recap`), where a short
@@ -67,7 +72,7 @@ export function Recap({
       style={{ textAlign: 'center' }}
     >
       <h2 className="rr-recap-title">
-        <PanelTitle>{cleared ? t.recap.cleared : t.recap.over}</PanelTitle>
+        <PanelTitle>{done ? t.recap.tutorialDone : cleared ? t.recap.cleared : t.recap.over}</PanelTitle>
       </h2>
       <p className="rr-recap-stats">
         {/* The separator before the duration was missing, so a 3-bomb, 214s
@@ -85,8 +90,10 @@ export function Recap({
       {/* Why there is no "Again", said plainly — a button that vanished with
           no explanation reads as a broken screen. */}
       <p className="rr-note">
-        {cleared ? t.recap.clearedNote : t.recap.overNote}
-        {first && <> {t.firstRun.recap}</>}
+        {done ? t.recap.tutorialDoneNote : cleared ? t.recap.clearedNote : t.recap.overNote}
+        {/* NOT after the tutorial's own note, which already says where to go:
+            two sentences pointing home is one more than the player needs. */}
+        {first && !done && <> {t.firstRun.recap}</>}
       </p>
       {/* The bar at home, beside what the next crossing would take from it —
           the figure both buttons below are really about. */}
@@ -96,7 +103,7 @@ export function Recap({
         </p>
       )}
       <div className="rr-recap-actions">
-      {!cleared && (
+      {!won && (
         // The loud one: it wiggles when pressed.
         <PxButton color={BTN} textColor={INK} wiggle onClick={onShop} style={wide}>
           <span style={btnText}>{t.recap.getEnergy}</span>
@@ -112,9 +119,9 @@ export function Recap({
       {/* A ghost button was a transparent face on the card — so its face is
           the card's own glass, with the muted ink it always had. */}
       <PxButton
-        className={cleared ? undefined : 'rr-btn ghost'}
-        color={cleared ? BTN : GLASS}
-        textColor={cleared ? INK : MUTED}
+        className={won ? undefined : 'rr-btn ghost'}
+        color={won ? BTN : GLASS}
+        textColor={won ? INK : MUTED}
         onClick={onHome}
         style={wide}
       >

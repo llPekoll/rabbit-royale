@@ -207,6 +207,8 @@ export const fr: Dict = {
     over: 'SORTIE FINIE',
     clearedNote: 'Tout ce qui valait la peine est creusé. Le volcan a pris le reste.',
     overNote: 'Plus de cœurs.',
+    tutorialDone: 'TU L\u2019AS EU !',
+    tutorialDoneNote: 'Le coffre, c\u2019était toute l\u2019île. Tes carottes t\u2019attendent au terrier.',
     stats: (carrots, dug, bombs, time) => `🥕 ${carrots} · ${dug} creusées · 💣 ${bombs} · ${time}`,
     bank: (energy, max, cost) => `⚡ ${energy}/${max} au terrier · une sortie prend ${cost}`,
     getEnergy: 'Prendre de l’énergie',

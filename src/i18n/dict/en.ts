@@ -239,6 +239,9 @@ export const en = {
     over: 'RUN OVER',
     clearedNote: 'Every tile worth digging is dug. The volcano took the rest.',
     overNote: 'Out of hearts.',
+    /** The first island's chest, which is what ends the tutorial run. */
+    tutorialDone: 'YOU GOT IT!',
+    tutorialDoneNote: 'The chest was the whole island. Your carrots are waiting at the burrow.',
     stats: (carrots: number, dug: number, bombs: number, time: string) =>
       `🥕 ${carrots} · ${dug} dug · 💣 ${bombs} · ${time}`,
     bank: (energy: number, max: number, cost: number) =>

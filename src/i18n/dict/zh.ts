@@ -213,6 +213,8 @@ export const zh: Dict = {
     over: '出行结束',
     clearedNote: '值得挖的都挖了。剩下的被火山带走了。',
     overNote: '心用完了。',
+    tutorialDone: '到手了！',
+    tutorialDoneNote: '宝箱就是这座岛的全部。你的胡萝卜在兔窝等着。',
     stats: (carrots, dug, bombs, time) => `🥕 ${carrots} · 挖了 ${dug} · 💣 ${bombs} · ${time}`,
     bank: (energy, max, cost) => `⚡ 兔窝里 ${energy}/${max} · 一次出行需要 ${cost}`,
     getEnergy: '补充体力',
