@@ -1200,6 +1200,33 @@ function Burrow() {
    * Each refusal is spent once (`at`): re-running on a later crossing would
    * otherwise march the player home again for an answer they already had.
    */
+  /**
+   * A RUN LEFT BEHIND BY A RELOAD is picked up again.
+   *
+   * The server keeps the seat for a grace window (RECONNECT_GRACE_MS), but
+   * a reloaded page opened on the burrow and asked for nothing — the run was
+   * only recovered if DIG happened to be pressed in time, and was banked by
+   * the sweep otherwise. `seat_held` arrives on connect when a live rabbit of
+   * ours is still standing; the page crosses back to it on its own, and the
+   * `join` finds the same rabbit at no cost. Spent once per announcement, and
+   * only from a settled burrow: a first-timer's reload already opens on the
+   * island and sends its own join, so on the island there is nothing to do.
+   */
+  const spentSeat = useRef(0);
+  useEffect(() => {
+    const s = game.seatHeld;
+    if (!s || s.at === spentSeat.current) return;
+    if (!ready || !showCanvas || arriving || crossing || spectating || game.dropped) return;
+    spentSeat.current = s.at;
+    if (where !== 'burrow') return;
+    // Said on the island, where the player lands: the burrow's toasts are
+    // hidden by the crossing that starts on the next line.
+    setQuestNote(t.notes.runResumed);
+    if (questNoteTimer.current) clearTimeout(questNoteTimer.current);
+    questNoteTimer.current = setTimeout(() => setQuestNote(null), 5000);
+    goTo('island');
+  }, [game.seatHeld, game.dropped, ready, showCanvas, arriving, crossing, spectating, where, goTo, t]);
+
   const spentRefusal = useRef(0);
   useEffect(() => {
     const r = game.refused;

@@ -322,6 +322,12 @@ export function useGameSocket(
   const [chestPrize, setChestPrize] = useState<ChestPrize | null>(null);
   /** The last time the server turned a `join` down, or null. */
   const [refused, setRefused] = useState<JoinRefusal | null>(null);
+  /**
+   * The server says a run of ours is still standing — announced on connect
+   * after a reload (see `seat_held`, server/index.ts). The page answers by
+   * crossing back to it; `at` makes each announcement spendable once.
+   */
+  const [seatHeld, setSeatHeld] = useState<{ seed: string; at: number } | null>(null);
   /** Whether the island on screen is the player's first — see `IslandSnapshot.first`. */
   const [firstRun, setFirstRun] = useState(false);
   /** This rabbit's own digs on this island — see `MyDigs`. */
@@ -452,9 +458,15 @@ export function useGameSocket(
       console.warn('[rr-ws]', e?.code ?? 'error');
     });
 
+    socket.on('seat_held', ({ seed }: { seed: string }) => {
+      setSeatHeld({ seed, at: Date.now() });
+    });
+
     socket.on('island', (snap: IslandSnapshot) => {
       snapshotRef.current = snap;
       setRefused(null);
+      // Seated: whatever was held is what we are on now.
+      setSeatHeld(null);
       setIslandSeed(snap.seed);
       setIslandKey((k) => k + 1);
       setWarnStage(snap.warnStage);
@@ -860,6 +872,7 @@ export function useGameSocket(
    */
   const leave = useCallback(() => {
     wantSeat.current = false;
+    setSeatHeld(null);
     socketRef.current?.emit('leave');
   }, []);
 
@@ -896,6 +909,7 @@ export function useGameSocket(
   const me = playerId ? rabbits.get(playerId) ?? null : null;
   return {
     islandSeed, islandKey, rabbits, me, warnStage, dugFraction, recap, banked, bankedCarrots, connected, dropped, refused,
+    seatHeld,
     firstRun, digs, bank, erupting,
     chestPrize, clearChestPrize: () => setChestPrize(null),
     casts, strikeRefused, struckBy, plants, plantRefused, bombedBy, incomingRaid, struckRaid,

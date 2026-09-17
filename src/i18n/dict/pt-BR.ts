@@ -176,6 +176,7 @@ export const ptBR: Dict = {
     noneLeft: 'Acabou. Baús soltam desses.',
     toppedUp: 'Já está cheio. Guarde para depois.',
     islandSilent: 'A ilha não respondeu. Tente de novo daqui a pouco.',
+    runResumed: 'De volta à sua partida.',
     reconnecting: 'Reconectando... tente daqui a pouco.',
     harvested: (n) => `+${n} 🥕`,
     needMore: (n) => `Faltam ${n} 🥕`,

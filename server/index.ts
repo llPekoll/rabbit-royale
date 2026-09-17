@@ -44,6 +44,7 @@ import { inventory, players, runs, seasons } from '../src/lib/db/schema';
 import { MemoryIslandStore, type LiveIsland } from './islands/store';
 import { roomFor } from './islands/router';
 import { markOffline, markOnline, setScore } from '../src/lib/leaderboard';
+import { purgeOrphanGuests } from '../src/lib/auth/abandon';
 import { guard, installProcessGuards, optional } from './resilience';
 
 const PORT = Number(process.env.WS_PORT ?? 3010);
@@ -496,6 +497,25 @@ async function payForRun(
 
 io.on('connection', (socket: Socket) => {
   const data = socket.data as SocketData;
+
+  /**
+   * A RUN LEFT BEHIND BY A RELOAD is announced on arrival.
+   *
+   * The seat survives the socket (`disconnectedAt`, and the grace sweep) so
+   * that a refresh does not end a run — but the client after a refresh opens
+   * on the burrow and never asks for a seat, so the promise was only kept if
+   * DIG was pressed inside the grace window. Told here, the page crosses back
+   * by itself and the `join` finds `existing`: same rabbit, same run, nothing
+   * paid. Only a LIVE rabbit is worth going back to; a dead one's run is over
+   * and the join would bank it and charge a new one.
+   */
+  if (data.playerId) {
+    const held = store.seatOf(data.playerId);
+    const rabbit = held?.rabbits.get(data.playerId);
+    if (held && rabbit?.alive && held.disconnectedAt.has(data.playerId)) {
+      socket.emit('seat_held', { seed: held.island.seed });
+    }
+  }
 
   /**
    * Join a run. Drop-in: no lobby, no matchmaking — you land on the fullest
@@ -1326,6 +1346,24 @@ setInterval(guard('sweep', () => {
   }
   for (const dead of store.reapable(now)) store.delete(dead.island.id);
 }), 5000);
+
+/**
+ * The third janitor: guest burrows nobody can open any more.
+ *
+ * A guest's cookie is their only key. Once it has lapsed (or was never used
+ * past the first look — see `isOrphanGuest`), the row is a ghost: ranked on
+ * the season board, listed as a raid target, and reachable by nobody. Swept
+ * here rather than from a web route because this process is the one that is
+ * always up, and once at boot so a deploy clears the backlog without waiting
+ * a night. `guard` because a failed sweep is a log line, never a dead server.
+ */
+const GUEST_SWEEP_MS = 6 * 60 * 60 * 1000;
+const sweepGuests = guard('sweep-guests', async () => {
+  const gone = await purgeOrphanGuests();
+  if (gone.length) console.log(`[rr-ws] purged ${gone.length} orphan guest burrow(s)`);
+});
+setTimeout(sweepGuests, 15_000);
+setInterval(sweepGuests, GUEST_SWEEP_MS);
 
 /**
  * The last line of defence.

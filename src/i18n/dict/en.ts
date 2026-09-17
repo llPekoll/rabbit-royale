@@ -201,6 +201,7 @@ export const en = {
     noneLeft: 'None left. Chests drop them.',
     toppedUp: 'Already topped up. Save it for later.',
     islandSilent: 'The island did not answer. Try again in a moment.',
+    runResumed: 'Back to your run.',
     reconnecting: 'Reconnecting... try again in a moment.',
     harvested: (n: number) => `+${n} 🥕`,
     needMore: (n: number) => `Need ${n} more 🥕`,

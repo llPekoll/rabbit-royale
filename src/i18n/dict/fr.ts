@@ -172,6 +172,7 @@ export const fr: Dict = {
     noneLeft: 'Plus rien. Les coffres en lâchent.',
     toppedUp: 'Déjà plein. Garde-le pour plus tard.',
     islandSilent: "L'île n'a pas répondu. Réessaie dans un instant.",
+    runResumed: 'Retour à ta partie.',
     reconnecting: 'Reconnexion... réessaie dans un instant.',
     harvested: (n) => `+${n} 🥕`,
     needMore: (n) => `Il manque ${n} 🥕`,

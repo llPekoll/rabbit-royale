@@ -178,6 +178,7 @@ export const zh: Dict = {
     noneLeft: '没有了。宝箱里会掉。',
     toppedUp: '已经满了。留着以后用。',
     islandSilent: '岛屿没有回应。稍后再试。',
+    runResumed: '回到你的这局。',
     reconnecting: '重新连接中...稍后再试。',
     harvested: (n) => `+${n} 🥕`,
     needMore: (n) => `还差 ${n} 🥕`,
