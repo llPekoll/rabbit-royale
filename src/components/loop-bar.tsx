@@ -172,7 +172,12 @@ export function LoopBar({
     const ready = loop === 'dig' ? readyKey.dig : loop === 'home' ? readyKey.home : 0;
     return quest || ready ? `${quest}.${ready}` : 0;
   };
-  const carrotH = 30;
+  // 40 at the phone floor, up from 30 (Paul, 2026-09-16: "make the carrot on
+  // DIG big button bigger", "put more padding around this carrot"). These are
+  // the intrinsic size for layout before paint; on screen the carrot GROWS
+  // with the slab (`carrotBox` below), so on a desktop slab of 80px it is not
+  // a phone carrot marooned in orange.
+  const carrotH = 40;
   const carrotW = Math.round((CARROT_SIZE.width / CARROT_SIZE.height) * carrotH);
 
   // Each line is PARTS, joined on screen with a middot entity (the bitmap
@@ -246,7 +251,7 @@ export function LoopBar({
               draggable={false}
               width={carrotW}
               height={carrotH}
-              style={{ display: 'block', flexShrink: 0, transform: 'rotate(45deg)' }}
+              style={carrotBox}
             />
             <span style={textCol}>
               {/* The verb keeps its white and gets the slab's own shadow under
@@ -477,6 +482,22 @@ const slab: CSSProperties = {
  * tracked; the state lines are the web pixel face in their own case, so this
  * resets all three.
  */
+/**
+ * The DIG carrot's box: the slab's height less 24px of air, held between the
+ * phone size and a cap, so it reads as THE picture on the floor at every slab
+ * height rather than as a 40px icon on an 80px button. Rotated 45° its tips
+ * reach past the box, so it carries its own side margin on top of the face's
+ * pad and the gap to the verb — without it they sat on the bevel and against
+ * the text.
+ */
+const carrotBox: CSSProperties = {
+  display: 'block',
+  flexShrink: 0,
+  height: 'clamp(40px, calc(var(--rr-loop-h, 48px) - 24px), 52px)',
+  width: 'auto',
+  transform: 'rotate(45deg)',
+  margin: '0 calc(var(--rr-pad) / 2)',
+};
 const face: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
