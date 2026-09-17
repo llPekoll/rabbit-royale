@@ -109,19 +109,25 @@ export const ENERGY = {
 /**
  * What a dug carrot is WORTH, in carrots.
  *
- * Wired on 15 September 2026. It was a hard-coded `+= 1`, and at 1 a whole
- * run paid two carrots against a garden that grew 960 a day: playing was 1 %
- * of the income, so the best strategy was not to play. At 15 a five-minute run
- * is worth about as much as a raid or a garden visit — the three reasons to
- * come back carry similar weight (docs/economy-tuning.html).
+ * 3, since 17 September 2026 — and this one number is what re-seats the whole
+ * economy. Everything else that is priced in carrots (the garden, a raid's
+ * haul, the shop, the burrow ladder, quests, chests, the codex) was tuned
+ * around "a run is worth about what a raid or a garden visit is". That stayed
+ * true of the MODEL, which had a rabbit digging blind for 21 tiles; a played
+ * run digs 100 to 200. At 15 a carrot, measured (`tools/economy-day.sim.ts`),
+ * runs were 84 % of a regular player's income against a ceiling of 70, a run
+ * paid 1 250 against a 460 raid and a 240 garden visit, the 400-carrot refill
+ * bought three runs worth 3 750, and burrow level 5 took a third of a day.
  *
- * The island tiers (ISLAND_TIERS.minLifetime) were sized when a carrot was 1;
- * they climb 15× faster now and may want re-spacing once real numbers exist.
+ * At 3 a run pays 170 without the X, ~500 to a reader, ~340 to the player in
+ * between — beside a 240 garden visit and a ~200 raid — and runs are 68 % of
+ * the day. It was 1 once ("a whole run paid two carrots": that was the blind
+ * model again) and then 15 (the same model, multiplied).
  */
 export const RUN = {
-  CARROT_VALUE: 15,
+  CARROT_VALUE: 3,
   /** Five ordinary carrots: rare, it shines, and it should pay like a small chest. */
-  GOLDEN_VALUE: 75,
+  GOLDEN_VALUE: 15,
 } as const;
 
 /** Whole bombs a fresh run survives. The HUD draws a bar now (energy-bar.tsx);
@@ -224,13 +230,15 @@ export const FLAG = {
    * The carrot side is kept SMALL on purpose: energy is the X's real pay, and
    * a reader already digs two or three times the tiles a non-reader does. At
    * 10/+5/30 the bounties alone added ~1 900 carrots to a cleared Meadow
-   * island, on top of that; at these values they add about 600.
+   * island. They are counted in DUG CARROTS (RUN.CARROT_VALUE): a third of one
+   * to start, a whole one at a streak of three. Left at 5-10 when the carrot
+   * went from 15 to 3, they had become 40 % of a reader's income.
    */
-  CARROTS_BASE: 5,
+  CARROTS_BASE: 1,
   /** Added per further X in the streak. */
   CARROTS_STEP: 1,
-  /** Ceiling on a single bounty (reached at a streak of 6). */
-  CARROTS_MAX: 10,
+  /** Ceiling on a single bounty (reached at a streak of 3): one dug carrot's worth. */
+  CARROTS_MAX: 3,
   /** Every n-th X of a streak also yields one raid bomb: two or three on a
    *  flawless island, about what its chests give. */
   ITEM_EVERY: 25,
@@ -274,25 +282,16 @@ export const FLAG = {
  * 3 guesses on a Meadow island and 26 on Caldera — and an X placed as a PROBE
  * on the likeliest tile answers the rest. The tool was already in the game.
  *
- * RE-SPACED AGAIN 17 September 2026 — same intended pace, measured income.
+ * RE-SPACED 17 September 2026 — same intended pace, measured income.
  *
  * The pace below (Thicket on day 3, Ashland on day 8, Caldera on day 14) is
  * still the goal. What was wrong was the income it was computed from: "a run
- * is 21 digs and 120 carrots" is a rabbit digging BLIND until its third bomb.
- * Nobody who reads the numbers plays like that. Simulated on real islands with
- * the real rules (`tools/sim-dig.sim.ts`), a run pays 1 150 carrots to a
- * player who never places an X and 3 900 to one who marks what they can
- * prove — and it did before the red X too (2 450 and 5 000 under the hearts
- * tuning). At ~700 a day the old thresholds (2 000 / 6 000 / 10 000) were
- * being crossed inside the FIRST island, not on day 3.
- *
- * Taking the middle of those two players as a day's player — four runs plus a
- * garden — a day is worth ~10 000 on Meadow, ~12 600 on Thicket and ~14 200
- * on Ashland, which puts the three doors at 30 000, 90 000 and 175 000.
- * LIVE PLAYERS: `tierFor` reads lifetime carrots at the moment an island is
- * dealt, so anyone between the old and new thresholds goes back to an easier
- * island on their next run. Nothing is lost and it reverses by editing these
- * three numbers, but it is visible — say so in the patch notes.
+ * is 21 digs and 120 carrots" is a rabbit digging BLIND until its third bomb,
+ * and nobody who reads the numbers plays like that. `tools/economy-day.sim.ts`
+ * walks the ladder a day at a time as the regular player — four runs halfway
+ * between no X and a reader, a full garden, one raid — and prints where the
+ * doors have to stand for those three days: 6 000, 19 500 and 37 500. Run it
+ * again after touching RUN, FLAG, GARDEN or RAID; the doors move with them.
  *
  * Re-spaced once before, on 15 September 2026, for two reasons.
  *
@@ -335,9 +334,9 @@ export interface IslandTier {
 
 export const ISLAND_TIERS: readonly IslandTier[] = [
   { name: 'Meadow',  minLifetime: 0,      bombDensity: 0.14, carrotDensity: 0.30, goldenShare: 0.06, xGain: 3 },
-  { name: 'Thicket', minLifetime: 30_000,  bombDensity: 0.17, carrotDensity: 0.34, goldenShare: 0.09, xGain: 3 },
-  { name: 'Ashland', minLifetime: 90_000,  bombDensity: 0.20, carrotDensity: 0.38, goldenShare: 0.13, xGain: 2 },
-  { name: 'Caldera', minLifetime: 175_000, bombDensity: 0.24, carrotDensity: 0.43, goldenShare: 0.18, xGain: 2 },
+  { name: 'Thicket', minLifetime: 6_000,   bombDensity: 0.17, carrotDensity: 0.34, goldenShare: 0.09, xGain: 3 },
+  { name: 'Ashland', minLifetime: 19_500,  bombDensity: 0.20, carrotDensity: 0.38, goldenShare: 0.13, xGain: 2 },
+  { name: 'Caldera', minLifetime: 37_500,  bombDensity: 0.24, carrotDensity: 0.43, goldenShare: 0.18, xGain: 2 },
 ] as const;
 
 // ── Phase 2: island life cycle ───────────────────────────────────────────────
@@ -404,7 +403,9 @@ export const BURROW = {
   HP_PER_LEVEL: 100,
   MAX_LEVEL: 20,
   /** Cost in carrots to go from level N to N+1: BASE * GROWTH^(N-1). */
-  UPGRADE_BASE_COST: 250,
+  // 500, from 250: level 5 in about two days of a regular player's income
+  // (it was a third of a day), level 10 in about fifteen.
+  UPGRADE_BASE_COST: 500,
   UPGRADE_GROWTH: 1.45,
   /** Burrow HP regenerates this fraction of max per hour (timestamp-derived). */
   HP_REGEN_PER_HOUR: 0.20,
@@ -525,7 +526,9 @@ export const RAID_RUN = {
    * haul instead of deciding the whole thing, which is the gradient the design
    * needs and cannot be tuned back into a cliff.
    */
-  LOOT_SHARE: 0.08,
+  // 8-10 % of the exposed stock, from 6-8: raids were 8 % of a regular day's
+  // income against a floor of 10 (`tools/economy-day.sim.ts`).
+  LOOT_SHARE: 0.10,
   /**
    * The share is ROLLED between this and `LOOT_SHARE` on every settled raid,
    * so two raids on the same stock do not pay the same round number — a haul
@@ -533,7 +536,7 @@ export const RAID_RUN = {
    * in a band reads as a robbery. `LOOT_SHARE` stays the ceiling every
    * worst-case figure (`maxRaidLoss`, the "safe" stock) is computed from.
    */
-  LOOT_SHARE_MIN: 0.06,
+  LOOT_SHARE_MIN: 0.08,
   /**
    * A raid that dies on the doorstep still pays this share of the maximum, so
    * attacking is never pure loss — otherwise nobody attacks a defended burrow
@@ -768,7 +771,10 @@ export const SHOP = {
     bomb: 300,
     lightning: 500,
     shield: 600,
-    energy: 400,
+    // Three runs' worth of carrots, give or take — 3 x ~340 for the player in the
+    // middle. At 400 it bought runs worth 3 750 (carrot at 15) and made the
+    // paid refill pointless. `tools/economy-day.sim.ts` checks the ratio.
+    energy: 900,
     /**
      * The dearest thing in the shed, and the only one that is dear for a
      * DESIGN reason rather than an economic one: it takes information away

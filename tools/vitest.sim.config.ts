@@ -3,7 +3,8 @@
 // Standalone rather than merged with ../vitest.config.ts — merging APPENDS to
 // `include`, and the whole suite then runs alongside the simulator.
 //
-//   SIM_OUT=/tmp/sim.txt npx vitest run -c tools/vitest.sim.config.ts
+//   SIM_OUT=/tmp/sim.txt npx vitest run -c tools/vitest.sim.config.ts tools/sim-dig.sim.ts
+//   ECON_OUT=/tmp/day.txt npx vitest run -c tools/vitest.sim.config.ts tools/economy-day.sim.ts
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 

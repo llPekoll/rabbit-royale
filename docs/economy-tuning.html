@@ -235,8 +235,8 @@
       why:'Objectif produit : un joueur qui revient matin et soir. Tout le reste se déduit de ce nombre.' },
     { id:'runsPerSession', g:'rythme', name:'Parties par session', path:'+cible', cur:3, prop:3, min:1, max:10, step:1, unit:'parties',
       why:'Combien de parties une session contient. Avec 5 min par partie, 3 parties font un quart d’heure.' },
-    { id:'secPerDig', g:'rythme', name:'Secondes par case creusée', path:'+estimation', cur:12, prop:12, min:4, max:30, step:1, unit:'s',
-      why:'Marche + lecture des chiffres + creusage. Sert à convertir l’énergie de départ en minutes. À mesurer sur de vraies parties (runs.durationMs / tilesDug).' },
+    { id:'secPerDig', g:'rythme', name:'Secondes par case creusée', path:'+estimation', cur:3, prop:3, min:1, max:30, step:1, unit:'s',
+      why:'ESTIMATION, jamais mesurée. Elle valait 12 s quand une partie faisait 21 cases ; une partie en fait 100 à 200, dont une bonne part dans des champs de zéros déjà lus par la cascade, où l’on creuse aussi vite qu’on tape. À 3 s, ≈ 5 min sans X et ≈ 9 min en lisant. À remplacer par la vraie durée des runs dès qu’un humain aura joué.' },
     { id:'raidsPerSession', g:'rythme', name:'Raids par session', path:'+cible', cur:1, prop:1, min:0, max:5, step:1, unit:'raids',
       why:'Un raid n’est PAS une partie sur l’île : c’est une traversée du terrier adverse (src/app/api/raid/route.ts), 26 d’énergie, 1 par pas, 8 par piège, sans creusage et sans carotte. ENERGY.DIG_COST et CARROT_GAIN ne le touchent pas. Il ne coûte rien au terrier et n’a pas de limite quotidienne ; ce chiffre est ce qu’un joueur en fait par session, pas ce que le jeu autorise.' },
     { id:'raidMinutes', g:'rythme', name:'Minutes par raid', path:'+estimation', cur:1, prop:1, min:0.25, max:6, step:0.25, unit:'min',
@@ -251,16 +251,20 @@
       why:'Débité du terrier à l’entrée sur l’île (server/index.ts, payForRun). À 30 pour 60 de plafond la banque ne tenait que deux parties et le joueur arrivait à sec ; passé à 20 le 14 septembre, elle en tient trois, ce qui est la session visée. Attention : déclaré surchargeable dans la table tuning, mais src/lib/game/burrow.ts lit la constante du fichier — changer ce chiffre demande un déploiement.' },
 
     // la partie
-    { id:'runStart', g:'partie', name:'Énergie de départ d’une partie', path:'ENERGY.START', cur:24, prop:24, min:8, max:120, step:8, unit:'pts',
-      why:'Se lit en CŒURS : départ ÷ perte par bombe, et le HUD dessine des cœurs entiers — garder un multiple de 8. À 24, trois cœurs : trois bombes et c’est fini, un chiffre qu’un joueur peut se dire. Avec 14 % de bombes, trois bombes arrivent en 21 cases environ. Indépendant du coût d’entrée : ce que la partie ouvre n’est pas ce qu’elle coûte.' },
-    { id:'digCost', g:'partie', name:'Énergie perdue par case creusée', path:'ENERGY.DIG_COST', cur:0, prop:0, min:0, max:5, step:1, unit:'pts',
-      why:'À 1, chaque pas vidait la barre et, avec 14 % de bombes par-dessus, une partie tenait 17 cases : « on peut à peine jouer une partie ». Passé à 0 le 14 septembre : creuser est gratuit, les cœurs ne tombent que sur les bombes. Un joueur qui lit les chiffres et évite les bombes n’est plus arrêté par ses cœurs — c’est l’île vidée qui le termine, et c’est voulu. Remettre 1 ici, c’est réintroduire une horloge par case, avec des cœurs qui ne seraient plus entiers.' },
+    { id:'runStart', g:'partie', name:'Énergie de départ d’une partie', path:'ENERGY.START', cur:100, prop:100, min:20, max:200, step:5, unit:'pts',
+      why:'Une BARRE de 100 depuis le 17 septembre, plus des cœurs : chaque case creusée en coûte 1 et un X rouge bien posé en rend un peu. Sans X, ≈ 100 cases ; en lisant, à peu près le double. Elle finit TOUJOURS par se vider (la « run plafonnée ») : plus d’énergie, plus d’exploration, et le récap propose la recharge. Mesuré par tools/sim-dig.sim.ts.' },
+    { id:'digCost', g:'partie', name:'Énergie perdue par case creusée', path:'ENERGY.DIG_COST', cur:1, prop:1, min:0, max:5, step:1, unit:'pts',
+      why:'À 1 sur une barre de 30, une partie tenait 17 cases. À 0, la barre était une jauge de vie et le puzzle devenait facultatif : sans rien déduire, on nettoyait 83 % d’une île Meadow (simulé). À 1 sur une barre de 100, avec un X rouge qui rend de l’énergie, lire les chiffres est ce qui fait aller plus loin. À 2, Meadow a trop peu de bombes pour le payer : le premier palier devient le plus dur.' },
     { id:'carrotGain', g:'partie', name:'Énergie rendue par carotte', path:'ENERGY.CARROT_GAIN', cur:0, prop:0, min:0, max:12, step:1, unit:'pts',
       why:'À 0 depuis le 15 septembre : la carotte normale est du score, pas du soin. Positif, il lie la durée d’une partie à la densité de carottes, et un joueur soigné à chaque carotte ne meurt plus jamais aux bombes. La dorée, elle, rend un cœur : rare, elle brille, et le cœur qui revient se voit.' },
-    { id:'goldenGain', g:'partie', name:'Énergie rendue par carotte dorée', path:'ENERGY.GOLDEN_GAIN', cur:8, prop:8, min:0, max:40, step:8, unit:'pts',
-      why:'Un cœur, donc un multiple de 8. Plafonné par ENERGY.MAX = 24 : une dorée à pleine vie ne fait que du score.' },
-    { id:'bombLoss', g:'partie', name:'Énergie perdue sur une bombe', path:'ENERGY.BOMB_LOSS', cur:8, prop:8, min:1, max:30, step:1, unit:'pts',
-      why:'La taille d’un cœur. Le nombre de cœurs est départ ÷ ce chiffre ; changer l’un sans l’autre casse les cœurs entiers du HUD.' },
+    { id:'goldenGain', g:'partie', name:'Énergie rendue par carotte dorée', path:'ENERGY.GOLDEN_GAIN', cur:0, prop:0, min:0, max:40, step:1, unit:'pts',
+      why:'À 0 depuis le 17 septembre : la dorée est du score, seul le X recharge. À +30 (un cœur), puis +10, puis +5, les 39 dorées d’une île Caldera couvraient encore la moitié du coût du creusage, et aucun réglage du X ne pouvait plus plafonner la partie.' },
+    { id:'bombLoss', g:'partie', name:'Énergie perdue sur une bombe', path:'ENERGY.BOMB_LOSS', cur:30, prop:30, min:1, max:60, step:1, unit:'pts',
+      why:'30 sur 100 : trois bombes et un peu plus terminent une partie neuve. Un X faux coûte 15, la moitié : devant un vrai 50/50, sonder coûte moins cher que marcher.' },
+    { id:'xGain', g:'partie', name:'Énergie rendue par un X rouge juste (Meadow)', path:'ISLAND_TIERS[0].xGain', cur:3, prop:3, min:0, max:12, step:1, unit:'pts',
+      why:'Le X rouge : marquer une case voisine comme bombe, le serveur répond tout de suite. Juste, il rend ceci ; faux, il coûte 15. Par palier : 3 / 3 / 2 / 2. Doit rester SOUS ce que le creusage a coûté pour trouver la bombe, sinon un bon lecteur ne tombe jamais à court, nettoie l’île sur un seul ticket et ne voit jamais l’offre de recharge (c’était le cas à +8).' },
+    { id:'reading', g:'partie', name:'Part des bombes que le joueur prouve et marque', path:'+estimation', cur:0.5, prop:0.5, min:0, max:1, step:0.05, unit:'',
+      why:'0 : ne pose jamais de X (≈ 100 cases, 165 carottes). 1 : marque tout ce qui se prouve (≈ 175-200 cases, 480 carottes). 0,5 est le joueur « du milieu » que tools/economy-day.sim.ts prend pour régulier. Calé sur les robots de tools/sim-dig.sim.ts ; à remplacer par runs.tilesDug quand il y aura de vrais joueurs.' },
     { id:'tilesLeftEnd', g:'partie', name:'Cases sûres restantes sous lesquelles plus personne ne rejoint', path:'ERUPTION.JOIN_MIN_TILES_LEFT', cur:20, prop:20, min:0, max:120, step:5, unit:'cases',
       why:'En cases, pas en pourcentage : ce qu’on offre à un joueur qui arrive tard se compte en cases, et une partie de dix cases ne vaut pas 20 d’énergie. Sous ce seuil, personne de nouveau n’arrive et une île vide est retirée tout de suite ; ceux qui sont dessus, eux, finissent. L’île est « vidée » quand toutes les cases sans bombe sont creusées — les bombes qui restent sont connues par les chiffres, on ne demande à personne de marcher dessus.' },
     { id:'playersOnIsland', g:'partie', name:'Joueurs sur l’île (moyenne)', path:'+estimation', cur:2, prop:2, min:1, max:4, step:0.5, unit:'joueurs',
@@ -269,11 +273,11 @@
       why:'Une carotte pour dix cases contre une bombe pour sept : le plateau du premier palier punissait plus qu’il ne payait. À 30 % la carotte devient franchement le motif dominant, ce qui est le sens du mot « Meadow » — presque une case sur trois paie. Ce curseur ne touche à la durée de la partie QUE si les carottes rendent de l’énergie (curseur au-dessus) : à gain 0 il règle uniquement ce qu’une partie rapporte.' },
     { id:'goldenShare', g:'partie', name:'Part dorée parmi les carottes', path:'ISLAND.GOLDEN_SHARE', cur:0.06, prop:0.06, min:0, max:0.5, step:0.01, unit:'' },
     { id:'bombDensity', g:'partie', name:'Cases bombe (palier Meadow)', path:'ISLAND.BOMB_DENSITY', cur:0.14, prop:0.14, min:0.02, max:0.40, step:0.01, unit:'des cases',
-      why:'Depuis que creuser est gratuit, c’est LE métronome de la partie : à 14 %, une bombe toutes les sept cases, donc trois vies durent 26 cases. Baisser à 12 % allonge la partie à 30 cases sans rien changer d’autre. À 30 % de carottes en face, le rapport est déjà de deux carottes pour une bombe. Les paliers suivants (ISLAND_TIERS) remontent la difficulté, c’est leur rôle.' },
-    { id:'carrotValue', g:'partie', name:'Carottes gagnées par carotte déterrée', path:'RUN.CARROT_VALUE', cur:15, prop:15, min:1, max:100, step:1, unit:'carottes',
-      why:'LE chiffre qui décide si le jeu se joue ou s’attend. Câblé le 15 septembre (RUN.CARROT_VALUE dans run.ts) : à 1, une partie rapportait 2 carottes quand le jardin en donnait 960 par jour — jouer pesait 1 % du revenu. À 15 une partie vaut de l’ordre d’une visite au jardin ou d’un raid. Attention aux paliers d’île (ISLAND_TIERS.minLifetime), dimensionnés quand une carotte valait 1 : ils se montent 15 fois plus vite.' },
-    { id:'goldenValue', g:'partie', name:'Carottes gagnées par carotte dorée', path:'RUN.GOLDEN_VALUE', cur:75, prop:75, min:1, max:500, step:1, unit:'carottes',
-      why:'Même +1 que la carotte normale aujourd’hui : la dorée est rare, brille, rend 12 points d’énergie — et paie comme une carotte ordinaire. À cinq fois la normale elle vaut un petit coffre, ce que sa rareté (6 % des carottes) promet déjà à l’œil.' },
+      why:'Les bombes sont le DANGER et, depuis le X rouge, le CARBURANT de qui sait les prouver : par case sûre creusée, Meadow en enterre 0,16 et Caldera 0,32. C’est pourquoi le gain du X baisse avec les paliers (3 / 3 / 2 / 2) : un prix unique affame le premier palier ou inonde le dernier.' },
+    { id:'carrotValue', g:'partie', name:'Carottes gagnées par carotte déterrée', path:'RUN.CARROT_VALUE', cur:3, prop:3, min:1, max:100, step:1, unit:'carottes',
+      why:'LE chiffre qui recale toute l’économie. Tout le reste (jardin, raid, boutique, terrier, quêtes, coffres) a été réglé pour « une partie vaut à peu près un raid ou une visite au jardin ». C’était vrai du MODÈLE, qui faisait creuser un lapin à l’aveugle sur 21 cases ; une partie JOUÉE en creuse 100 à 200. À 15, mesuré : les parties pesaient 84 % du revenu, une partie payait 1 250 contre un raid à 460, et la recharge à 400 carottes achetait trois parties qui en valaient 3 750. À 3 : ≈ 170 sans X, ≈ 500 en lisant, 65 % du revenu. Vérifier avec tools/economy-day.sim.ts.' },
+    { id:'goldenValue', g:'partie', name:'Carottes gagnées par carotte dorée', path:'RUN.GOLDEN_VALUE', cur:15, prop:15, min:1, max:500, step:1, unit:'carottes',
+      why:'Cinq carottes normales : rare, elle brille, elle paie comme un petit coffre. Elle ne rend plus d’énergie.' },
 
     // jardin
     { id:'yieldBase', g:'jardin', name:'Rendement du jardin au niveau 1', path:'GARDEN.YIELD_PER_HOUR_BASE', cur:20, prop:20, min:0, max:200, step:1, unit:'carottes / h',
@@ -283,9 +287,9 @@
       why:'Le collecteur plein de Clash of Clans. À 24 h ÷ sessions par jour, chaque retour trouve un jardin juste plein : ni gaspillage, ni raison d’attendre.' },
 
     // raid & entrepôt
-    { id:'lootShare', g:'raid', name:'Part du stock volable (max)', path:'RAID_RUN.LOOT_SHARE', cur:0.08, prop:0.08, min:0.01, max:0.6, step:0.01, unit:'',
+    { id:'lootShare', g:'raid', name:'Part du stock volable (max)', path:'RAID_RUN.LOOT_SHARE', cur:0.10, prop:0.10, min:0.01, max:0.6, step:0.01, unit:'',
       why:'Clash of Clans pille 20 % des stockages au début et descend à 10 % au niveau 11 : le pourcentage BAISSE quand le joueur monte, pour que le riche ne soit pas la cible évidente. Ici il monte à 25 % et ne bouge jamais. À 6-8 % sur un stock au-dessus du plancher, un raid rapporte l’ordre de grandeur d’une partie — payant, jamais un braquage.' },
-    { id:'lootShareMin', g:'raid', name:'Part du stock volable (min)', path:'RAID_RUN.LOOT_SHARE_MIN', cur:0.06, prop:0.06, min:0.0, max:0.6, step:0.01, unit:'',
+    { id:'lootShareMin', g:'raid', name:'Part du stock volable (min)', path:'RAID_RUN.LOOT_SHARE_MIN', cur:0.08, prop:0.08, min:0.0, max:0.6, step:0.01, unit:'',
       why:'Tirée entre min et max à chaque raid pour que deux raids ne paient jamais le même chiffre rond.' },
     { id:'minLootFraction', g:'raid', name:'Part payée à un raid mort sur le seuil', path:'RAID_RUN.MIN_LOOT_FRACTION', cur:0.15, prop:0.15, min:0, max:0.5, step:0.01, unit:'du max' },
     { id:'lootCap', g:'raid', name:'Plafond d’un seul raid', path:'RAID.LOOT_CAP', cur:1200, prop:1200, min:100, max:50000, step:100, unit:'carottes',
@@ -309,7 +313,7 @@
     { id:'burrowSize', g:'terrier', name:'Côté du plateau du terrier', path:'BURROW_COLS / BURROW_ROWS', cur:19, prop:19, min:11, max:31, step:2, unit:'cases',
       why:'Dans src/game/burrow/generate.ts, pas dans tuning.ts, et verrouillé : les index de cases sont stockés en base. MIN_CROSSING = 6 pas et FIELD_CELLS = 12 vivent au même endroit et pèsent directement sur la difficulté d’un raid.' },
     { id:'maxLevel', g:'terrier', name:'Niveau max du terrier', path:'BURROW.MAX_LEVEL', cur:20, prop:20, min:5, max:50, step:1, unit:'niveaux' },
-    { id:'upBase', g:'terrier', name:'Coût du niveau 2', path:'BURROW.UPGRADE_BASE_COST', cur:250, prop:250, min:50, max:5000, step:10, unit:'carottes' },
+    { id:'upBase', g:'terrier', name:'Coût du niveau 2', path:'BURROW.UPGRADE_BASE_COST', cur:500, prop:500, min:50, max:5000, step:10, unit:'carottes' },
     { id:'upGrowth', g:'terrier', name:'Croissance du coût par niveau', path:'BURROW.UPGRADE_GROWTH', cur:1.45, prop:1.45, min:1.1, max:2.5, step:0.01, unit:'×',
       why:'À 1,55 le niveau 20 seul coûte 666 000 carottes : 517 jours de revenu pour une saison qui en dure 30, donc les dix derniers niveaux n’existent pas. À 1,45 une saison jouée deux fois par jour finit vers le niveau 12 — il reste de la marge sans que le palier 20 soit une décoration. C’est ICI qu’est la progression longue : les paliers d’île, eux, sont tous vus en une quinzaine de jours (ISLAND_TIERS).' },
     { id:'trapFree', g:'terrier', name:'Pièges gratuits par jour', path:'TRAPS.FREE_PER_DAY', cur:3, prop:3, min:0, max:12, step:1, unit:'pièges' },
@@ -333,11 +337,11 @@
     { kind:'bomb',      label:'Bombe',     effect:'Sabotage sur une île adverse',            c:300,  u:0.40 },
     { kind:'lightning', label:'Éclair',    effect:'Frappe 3×3 sur une île adverse',          c:500,  u:0.60 },
     { kind:'shield',    label:'Bouclier',  effect:'6 h hors PvP (vendu mais jamais consommé : RAID.ITEM_SHIELD_MS est mort)', c:600,  u:0.90 },
-    { kind:'energy',    label:'Énergie',   effect:'Un plein du terrier, 5 par jour max',     c:400,  u:0.99 },
+    { kind:'energy',    label:'Énergie',   effect:'Un plein du terrier, 5 par jour max',     c:900,  u:0.99 },
     { kind:'mirage',    label:'Mirage',    effect:'90 s de chiffres faux chez l’adversaire', c:1000, u:0.99 },
     { kind:'smoke',     label:'Fumée',     effect:'24 h de terrier illisible',               c:2000, u:1.99 },
   ];
-  const SHOP_PROP = { trap:[150,0.25], bomb:[300,0.40], lightning:[500,0.60], shield:[600,0.90], energy:[400,0.99], mirage:[1000,0.99], smoke:[2000,1.99] };
+  const SHOP_PROP = { trap:[150,0.25], bomb:[300,0.40], lightning:[500,0.60], shield:[600,0.90], energy:[900,0.99], mirage:[1000,0.99], smoke:[2000,1.99] };
 
   // ───────────────────────── sections & benchmarks ─────────────────────────
   const SECTIONS = [
@@ -442,12 +446,26 @@
     return { tot, ev };
   }
 
+  /** Part du coût du creusage qu'un joueur qui marque TOUTES les bombes regagne. */
+  function xPerDigAtOne(v) { return (v.bombDensity / (1 - v.bombDensity)) * (v.xGain ?? 3) / Math.max(1, v.digCost); }
+
   function compute() {
     const m = {};
     // one run
     const golden = v.carrotDensity * v.goldenShare;
     const plain = v.carrotDensity - golden;
-    const netPerDig = -v.digCost + plain * v.carrotGain + golden * v.goldenGain - v.bombDensity * v.bombLoss;
+    // UNE PARTIE JOUÉE, pas un lapin qui creuse à l'aveugle. Le joueur lit les
+    // chiffres : il ne marche presque jamais sur une bombe (≈ 1 % d'entre elles,
+    // les paris forcés), et il en MARQUE une part `reading`, chacune rendant
+    // `xGain`. Par case sûre creusée il rencontre d/(1-d) bombes. Calé sur
+    // tools/sim-dig.sim.ts : à reading 0, ≈ 100 cases ; à 1, ≈ 190.
+    const safe = 1 - v.bombDensity;
+    const bombsPerDig = v.bombDensity / safe;
+    const xPerDig = bombsPerDig * (v.reading ?? 0.5);
+    const hitPerDig = bombsPerDig * 0.01;
+    const netPerDig = -v.digCost + (plain / safe) * v.carrotGain + (golden / safe) * v.goldenGain
+                    + xPerDig * (v.xGain ?? 3) - hitPerDig * v.bombLoss;
+    m.xPerRun = 0;
     m.digsByHearts = netPerDig >= 0 ? Infinity : v.runStart / -netPerDig;
     // L'île est un niveau : ce qu'il y reste à creuser, partagé entre ceux qui
     // sont dessus, borne la partie même quand les cœurs tiennent.
@@ -461,8 +479,12 @@
     const { ev: chestEv, tot } = chestEV();
     m.chestsPerRun = m.digs * v.chestDensity;
     m.chestsPerIsland = m.tilesPerIsland * v.chestDensity;
-    m.carrotsPerRun = m.digs * (plain * v.carrotValue + golden * v.goldenValue) + m.chestsPerRun * chestEv;
-    m.bombsPerRun = m.digs * v.bombDensity;
+    // Densités PAR CASE SÛRE (on ne creuse pas les bombes), plus la prime des X :
+    // un tiers de carotte au premier, une carotte entière à partir du troisième d'affilée.
+    m.xPerRun = m.digs * xPerDig;
+    m.carrotsPerRun = m.digs * ((plain / safe) * v.carrotValue + (golden / safe) * v.goldenValue)
+                    + m.xPerRun * Math.min(3, 2) + m.chestsPerRun * chestEv;
+    m.bombsPerRun = m.digs * hitPerDig;
     // energy gate
     if (v.eCost > 0) {
       const perSession = Math.floor(Math.min(v.eMax, v.eMax) / v.eCost);
@@ -553,7 +575,7 @@
     const DERIVED = {
       rythme: [['minutesDay','minutes de jeu par jour, parties et raids'], ['runsDay','parties par jour'], ['raidsDay','raids par jour'], ['runMinutes','minutes par partie sur l’île'], ['avgOutingMinutes','minutes par sortie, parties et raids confondus']],
       energie: [['refillHours','plein refait en'], ['runsPerSessionMax','parties par plein'], ['runsPerSession','parties jouables par session']],
-      partie: [['digs','cases creusées par partie'], ['runMinutes','minutes par partie'], ['digsByHearts','cases avant le dernier cœur'], ['digsByIsland','cases avant que l’île soit vidée'], ['carrotsPerRun','carottes par partie'], ['bombsPerRun','bombes prises par partie'], ['runCarrotsDay','carottes des parties par jour']],
+      partie: [['digs','cases creusées par partie'], ['runMinutes','minutes par partie'], ['digsByHearts','cases avant la barre vide'], ['digsByIsland','cases avant que l’île soit vidée'], ['carrotsPerRun','carottes par partie'], ['bombsPerRun','bombes prises par partie'], ['runCarrotsDay','carottes des parties par jour']],
       jardin: [['gardenPerSession','carottes à chaque retour'], ['gardenDay','carottes du jardin par jour'], ['gardenWasteH','heures perdues jardin plein']],
       raid: [['raidGain','gain moyen d’un raid abouti sur le stock d’exemple'], ['crossover','stock où le plafond prend le relais']],
       coffres: [['chestsPerIsland','coffres par île (17×17)'], ['chestsPerRun','coffres ouverts par partie'], ['chestEv','carottes moyennes par coffre']],
@@ -788,10 +810,11 @@
     else if (m.runsPerSession < v.runsPerSession) add('', '!', `L’énergie ne suffit pas pour ${v.runsPerSession} parties par session : ${m.runsPerSession} seulement. Monter le plafond ou la régénération.`);
     else if (Math.abs(m.refillHours - 24 / v.sessions) / (24 / v.sessions) < 0.25) add('ok', '✓', 'Le plein se refait à peu près entre deux sessions : rien n’est perdu à revenir au bon rythme.');
     else if (m.refillHours < 24 / v.sessions * 0.6) add('', '!', `Plein en ${hours(m.refillHours)} pour un retour toutes les ${hours(24 / v.sessions)} : l’énergie plafonne longtemps, le joueur ne perd rien à jouer plus souvent que voulu.`);
-    const endsBy = m.endsBy === 'hearts' ? 'par les cœurs' : 'par l’île vidée';
-    if (Math.abs(m.runMinutes - 5) > 1.5) add('', '!', `Une partie dure ≈ ${fmt(m.runMinutes, 1)} min (${fmt(m.digs)} cases), finie ${endsBy}. La cible est 5. ${m.endsBy === 'hearts' ? 'Régler le nombre de cœurs ou la densité de bombes.' : 'La durée vient de la taille de l’île et du nombre de joueurs dessus, pas des cœurs.'}`);
+    const endsBy = m.endsBy === 'hearts' ? 'par l’énergie' : 'par l’île vidée';
+    if (m.runMinutes < 3.5 || m.runMinutes > 10.5) add('', '!', `Une partie dure ≈ ${fmt(m.runMinutes, 1)} min (${fmt(m.digs)} cases), finie ${endsBy}. La cible est 5 à 10. ${m.endsBy === 'hearts' ? 'Régler le coût du creusage ou le gain du X.' : 'La durée vient de la taille de l’île et du nombre de joueurs dessus, pas des cœurs.'}`);
     else add('ok', '✓', `Une partie dure ≈ ${fmt(m.runMinutes, 1)} min (${fmt(m.digs)} cases), finie ${endsBy}.`);
-    if (!Number.isFinite(m.digsByHearts)) add('', '·', 'Les cœurs ne finissent jamais une partie avec ce réglage : les carottes soignent au moins autant que les bombes ne blessent. Seule l’île vidée termine, et le joueur ne risque rien. Baisser le gain par carotte.');
+    if (!Number.isFinite(m.digsByHearts)) add('bad', '!', 'L’énergie ne finit jamais une partie avec ce réglage : ce que rendent les X (et les carottes) couvre le coût du creusage. C’est la run plafonnée qui saute : un bon lecteur nettoie l’île sur un seul ticket et ne voit jamais l’offre de recharge. Baisser le gain du X.');
+    else { const back = xPerDigAtOne(v) ; add(back < 0.75 ? 'ok' : '', back < 0.75 ? '✓' : '!', `Un marqueur parfait regagne ${fmt(100 * back)} % de ce que le creusage coûte (cible 40-75 %) : le X allonge la partie, il ne la rend pas infinie.`); }
     if (v.digCost === 0 && v.bombLoss > 0) {
       const hearts = v.runStart / v.bombLoss;
       add('', '·', `${fmt(hearts, 1)} cœur${hearts > 1 ? 's' : ''} (départ ÷ perte par bombe)${Number.isInteger(hearts) ? '' : ' — PAS ENTIER, le HUD dessine des cœurs entiers'}. Un joueur qui lit les chiffres et évite les bombes va jusqu’au bout de l’île : c’est le minesweeper qui paie.`);

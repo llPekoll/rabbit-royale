@@ -50,14 +50,12 @@ describe('the island ladder', () => {
   });
 
   it('is fully walked well inside a season', () => {
-    // A day of play is worth roughly 10 000 lifetime carrots: four runs plus a
-    // garden, at the run income MEASURED by tools/sim-dig.sim.ts (the middle
-    // of a player who never marks a bomb and one who marks what they can
-    // prove). It was 700, from a model of a rabbit digging blind — see the
-    // note on ISLAND_TIERS. The last tier must land inside the season, with room to play it
-    // — the crown is decided between players who know the hardest board, not
-    // between players still unlocking it.
-    const perDay = 10_000;
+    // A day of play is worth roughly 2 000 lifetime carrots on the first
+    // island and 3 500 on the last — four runs, a garden and a raid, at the
+    // run income MEASURED by tools/economy-day.sim.ts — so about 2 700 across
+    // the ladder. (It was 700, from a model of a rabbit digging blind.) The
+    // last tier must land inside the season, with room to play it
+    const perDay = 2_700;
     const last = ISLAND_TIERS[ISLAND_TIERS.length - 1];
     const daysToLast = last.minLifetime / perDay;
     const seasonDays = SEASON.DURATION_MS / 86_400_000;
