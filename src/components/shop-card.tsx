@@ -202,8 +202,15 @@ export function ShopPanel({
               Per-item currency buttons would be six items times three rails on
               a phone. Switching it re-prices every tile below, since a rail the
               player cannot read a price in is a rail they will not pick.
-              Hidden below two rails: a "switch" with one option is furniture. */}
-          {(shop?.tokens?.length ?? 0) > 1 && (
+              Hidden below two rails: a "switch" with one option is furniture.
+
+              AND HIDDEN WITH NO CARD BUTTON AT ALL. A guest has no wallet to
+              send money from, so every tile below shows one price — the rail
+              chips then pick the currency of a button that is not on the
+              shelf. `onPayUsdc` is what actually decides whether a money price
+              was rendered (the footer leans on the same fact), so it is what
+              decides whether there is a rail to choose. */}
+          {onPayUsdc && (shop?.tokens?.length ?? 0) > 1 && (
             <span className="rr-shop-rails" role="group" aria-label={t.shop.payWith}>
               {shop!.tokens.map((t) => {
                 const on = t === payToken;
