@@ -37,6 +37,12 @@ export interface ClientRabbit {
 export interface IslandSnapshot {
   seed: string;
   warnStage: number;
+  /**
+   * Share of the island already dug, 0 → 1. Optional so a client stays
+   * compatible with a server that predates it — absent simply reads as 0%,
+   * and the first dig anybody makes corrects it.
+   */
+  dugFraction?: number;
   rabbits: ClientRabbit[];
   revealed: Array<{ tile: number; content: TileContent; adjacent: number }>;
   /**
@@ -271,6 +277,16 @@ export function useGameSocket(
   const [islandSeed, setIslandSeed] = useState<string | null>(null);
   const [rabbits, setRabbits] = useState<Map<string, ClientRabbit>>(new Map());
   const [warnStage, setWarnStage] = useState(0);
+  /**
+   * How much of the island is gone, 0 → 1.
+   *
+   * Its own state rather than something derived from the scene's tiles: the
+   * client only knows the tiles it has SEEN revealed, and the denominator —
+   * how many safe tiles the island holds — is the server's secret (counting
+   * it would count the bombs). So the figure arrives from the server or not
+   * at all.
+   */
+  const [dugFraction, setDugFraction] = useState(0);
   const [recap, setRecap] = useState<RunRecap | null>(null);
   const [connected, setConnected] = useState(false);
   /**
@@ -442,6 +458,7 @@ export function useGameSocket(
       setIslandSeed(snap.seed);
       setIslandKey((k) => k + 1);
       setWarnStage(snap.warnStage);
+      setDugFraction(snap.dugFraction ?? 0);
       setRecap(null);
       setFirstRun(snap.first === true);
       setDigs(NO_DIGS);
@@ -700,8 +717,10 @@ export function useGameSocket(
       toScene((s) => s.exhaustRabbit(spent));
     });
 
-    socket.on('volcano', ({ stage }: { stage: number }) => {
+    socket.on('volcano', ({ stage, dugFraction: dug }: { stage: number; dugFraction?: number }) => {
       setWarnStage(stage);
+      // Sent on every dig now, while the stage only changes three times a run.
+      if (typeof dug === 'number') setDugFraction(dug);
       // Felt as well as read: the ground rumbles harder at each stage.
       toScene((s) => s.rumble(stage));
     });
@@ -876,7 +895,7 @@ export function useGameSocket(
 
   const me = playerId ? rabbits.get(playerId) ?? null : null;
   return {
-    islandSeed, islandKey, rabbits, me, warnStage, recap, banked, bankedCarrots, connected, dropped, refused,
+    islandSeed, islandKey, rabbits, me, warnStage, dugFraction, recap, banked, bankedCarrots, connected, dropped, refused,
     firstRun, digs, bank, erupting,
     chestPrize, clearChestPrize: () => setChestPrize(null),
     casts, strikeRefused, struckBy, plants, plantRefused, bombedBy, incomingRaid, struckRaid,

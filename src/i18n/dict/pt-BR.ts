@@ -189,6 +189,8 @@ export const ptBR: Dict = {
     home: 'Toca',
     stopWatching: 'Parar de assistir',
     theirRun: 'a saída deles',
+    dug: (pct: number) => `${pct}% cavado`,
+    dugTitle: 'Quanto desta ilha já foi cavado — por todos nela. Em 100% ela afunda.',
     watching: (label) => `👁 assistindo ${label}`,
     hearts: (full, total) => `${full} de ${total} corações`,
     heartsShort: (full, total) => `${full} / ${total} corações`,

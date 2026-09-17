@@ -38,6 +38,13 @@ export interface HudGame {
   rabbits: Map<string, ClientRabbit>;
   me: ClientRabbit | null;
   warnStage: number;
+  /**
+   * How much of the island is already dug, 0 → 1 — everyone's digging, not
+   * just the reader's. The island is the clock AND the stock: it sinks when
+   * it is cleared, and every tile somebody else takes is a tile of yours.
+   * The smoke stages said this in three steps; this says it in one number.
+   */
+  dugFraction: number;
 }
 
 /**
@@ -148,12 +155,33 @@ export function RunHud({
           )}
         </PxPanel>
       )}
-      {/* The plate only exists when it has something to SAY: the volcano's
-          warning, or whose run this is. The head-count that used to sit here
-          ("🐰 1") is gone — the other rabbits are on the board, where they
-          can be counted by looking, and a lone "1" read as a mystery stat. */}
-      {(game.warnStage > 0 || spectating) && (
+      {/* The plate only exists when it has something to SAY: how far the
+          island is gone, the volcano's warning, or whose run this is. The
+          head-count that used to sit here ("🐰 1") is gone — the other
+          rabbits are on the board, where they can be counted by looking, and
+          a lone "1" read as a mystery stat. */}
       <PxPanel color={GLASS} className="rr-hud-plate">
+      {/* HOW MUCH OF THE ISLAND IS LEFT, as a percentage dug.
+          The island is both the clock and the stock — it sinks when the last
+          safe tile goes, and every tile a rival takes is one the reader will
+          not — and until now the only word it got was the volcano's smoke,
+          which speaks three times in a whole run. A player landing on a
+          shared island had no way to tell a fresh one from one that was
+          four-fifths eaten; they read exactly the same.
+
+          Dug rather than left, because it is the number the eruption counts
+          up to, and because "82%" of ground gone reads as a race being lost
+          in a way "18% left" does not. It goes red once the volcano is
+          smoking so the two readings agree with each other rather than
+          competing: at that point the percentage IS the warning, said
+          precisely. Bombs are not in the denominator — nobody is asked to
+          dig those — so it does reach 100. See `islandProgress`. */}
+      <span
+        style={{ color: game.warnStage > 0 ? 'var(--danger)' : 'var(--muted)' }}
+        title={t.run.dugTitle}
+      >
+        {t.run.dug(Math.round(game.dugFraction * 100))}
+      </span>
       {game.warnStage > 0 && (
         <span style={{ color: 'var(--danger)' }}>🌋 {'!'.repeat(game.warnStage)}</span>
       )}
@@ -183,7 +211,6 @@ export function RunHud({
         <small style={{ color: 'var(--crown)' }}>{t.run.watching(label)}</small>
       )}
       </PxPanel>
-      )}
     </header>
   );
 }

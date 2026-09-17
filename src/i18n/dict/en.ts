@@ -215,6 +215,16 @@ export const en = {
     home: 'Home',
     stopWatching: 'Stop watching',
     theirRun: 'their run',
+    /**
+     * How much of the island is dug — the strip's one number about the GROUND
+     * rather than about the rabbit standing on it.
+     *
+     * Kept to "82% dug" rather than a sentence: it sits in a strip measured in
+     * pixels on a phone, beside a gauge and two item buttons, and the word
+     * that explains it belongs in the tooltip. See `run-hud.tsx`.
+     */
+    dug: (pct: number) => `${pct}% dug`,
+    dugTitle: 'How much of this island is already dug — by everyone on it. At 100% it sinks.',
     watching: (label: string) => `👁 watching ${label}`,
     hearts: (full: number, total: number) => `${full} of ${total} hearts`,
     heartsShort: (full: number, total: number) => `${full} / ${total} hearts`,

@@ -34,6 +34,15 @@ export interface LiveIsland {
   /** Warning stage 0-3, broadcast only when it changes (the volcano smokes). */
   warnStage: number;
   /**
+   * Share of the safe tiles already dug, 0 → 1 — the number the HUD shows.
+   *
+   * Cached rather than recomputed for the snapshot: `islandProgress` walks
+   * every tile, and a join would pay that walk for a figure the dig handler
+   * has just worked out anyway. Written on every dig, read when somebody
+   * joins mid-run.
+   */
+  dugFraction: number;
+  /**
    * Mirages currently bending the numbers, by VICTIM.
    *
    * Per victim rather than per island: a mirage is thrown at one rival, and
@@ -125,6 +134,7 @@ export class MemoryIslandStore implements IslandStore {
       disconnectedAt: new Map(),
       erupting: false,
       warnStage: 0,
+      dugFraction: 0,
       mirages: new Map(),
       // The flock the seed describes, taken as a STARTING position rather than
       // as the truth: from here on the server moves them and tells everyone.

@@ -185,6 +185,8 @@ export const fr: Dict = {
     home: 'Terrier',
     stopWatching: 'Arrêter de regarder',
     theirRun: 'leur sortie',
+    dug: (pct: number) => `${pct}% creusé`,
+    dugTitle: "Ce qui est déjà creusé sur cette île — par tout le monde. À 100% elle coule.",
     watching: (label) => `👁 tu regardes ${label}`,
     hearts: (full, total) => `${full} cœurs sur ${total}`,
     heartsShort: (full, total) => `${full} / ${total} cœurs`,

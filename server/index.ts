@@ -44,6 +44,7 @@ import { inventory, players, runs, seasons } from '../src/lib/db/schema';
 import { MemoryIslandStore, type LiveIsland } from './islands/store';
 import { roomFor } from './islands/router';
 import { markOffline, markOnline, setScore } from '../src/lib/leaderboard';
+import { purgeOrphanGuests } from '../src/lib/auth/abandon';
 import { guard, installProcessGuards, optional } from './resilience';
 
 const PORT = Number(process.env.WS_PORT ?? 3010);
@@ -205,6 +206,11 @@ function snapshot(live: LiveIsland) {
     /** The tutorial island. The client runs its captions off this alone. */
     first: isFirstIsland(view.seed),
     warnStage: live.warnStage,
+    // How much of the island is already dug, 0 → 1. A joiner lands mid-run on
+    // ground others have been working: without this the strip would open at
+    // 0% on an island that is half gone, and only correct itself on the next
+    // dig anybody made.
+    dugFraction: live.dugFraction,
     rabbits: [...live.rabbits.values()].map(publicRabbit),
     // Where the flock stands NOW, not where the seed first put it. A player
     // joining a run in progress has to see the sheep everyone else sees —
@@ -1081,10 +1087,14 @@ io.on('connection', (socket: Socket) => {
     if (out.dig) {
       const fraction = dugFraction(live.island);
       const stage = warnStageFor(fraction);
-      if (stage !== live.warnStage) {
-        live.warnStage = stage;
-        io.to(room).emit('volcano', { stage, dugFraction: fraction });
-      }
+      // The fraction goes out on EVERY dig, the stage only when it changes.
+      // They used to travel together, which meant the HUD's percentage would
+      // have moved three times in a run — the smoke stages are the only thing
+      // that cared about a change. A player digging a shared island needs to
+      // see the ground go while their rivals dig it, not in three jumps.
+      live.dugFraction = fraction;
+      if (stage !== live.warnStage) live.warnStage = stage;
+      io.to(room).emit('volcano', { stage, dugFraction: fraction });
       // 1 means every safe tile is dug — the bombs left are known, and nobody
       // is asked to step on them. See `islandProgress`.
       if (fraction >= 1) void erupt(live);
@@ -1317,6 +1327,24 @@ setInterval(guard('sweep', () => {
   }
   for (const dead of store.reapable(now)) store.delete(dead.island.id);
 }), 5000);
+
+/**
+ * The third janitor: guest burrows nobody can open any more.
+ *
+ * A guest's cookie is their only key. Once it has lapsed (or was never used
+ * past the first look — see `isOrphanGuest`), the row is a ghost: ranked on
+ * the season board, listed as a raid target, and reachable by nobody. Swept
+ * here rather than from a web route because this process is the one that is
+ * always up, and once at boot so a deploy clears the backlog without waiting
+ * a night. `guard` because a failed sweep is a log line, never a dead server.
+ */
+const GUEST_SWEEP_MS = 6 * 60 * 60 * 1000;
+const sweepGuests = guard('sweep-guests', async () => {
+  const gone = await purgeOrphanGuests();
+  if (gone.length) console.log(`[rr-ws] purged ${gone.length} orphan guest burrow(s)`);
+});
+setTimeout(sweepGuests, 15_000);
+setInterval(sweepGuests, GUEST_SWEEP_MS);
 
 /**
  * The last line of defence.

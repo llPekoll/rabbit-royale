@@ -191,6 +191,8 @@ export const zh: Dict = {
     home: '兔窝',
     stopWatching: '停止观战',
     theirRun: '他们的出行',
+    dug: (pct: number) => `已挖 ${pct}%`,
+    dugTitle: '这座岛已被岛上所有人挖掉的比例。到 100% 它就会沉没。',
     watching: (label) => `👁 正在观看 ${label}`,
     hearts: (full, total) => `${total} 颗心中剩 ${full} 颗`,
     heartsShort: (full, total) => `${full} / ${total} 心`,
