@@ -3995,8 +3995,11 @@ button { font-family: var(--font-pixel); }
 }
 .rr-raid-list > li:last-child { border-bottom: none; }
 /* Shielded targets are listed but out of reach — visible so the board does not
-   look empty, dimmed so the eye skips them. */
-.rr-raid-list > li.shielded { opacity: 0.45; }
+   look empty, dimmed so the eye skips them.
+   0.45 was too deep once the row started carrying a COUNTDOWN: at that weight
+   the one number a raider comes back for ("4h") was grey mush. Dim enough to
+   skip, legible enough to read when you stop on it. */
+.rr-raid-list > li.shielded { opacity: 0.68; }
 .rr-raid-name { font-size: 13px; }
 .rr-raid-stock {
   font-size: 12px;

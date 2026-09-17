@@ -155,6 +155,13 @@ export async function GET(req: Request) {
       /** Shielded targets are LISTED but not attackable — hiding them would
        *  make the board look empty for no visible reason. */
       shielded: !!t.shieldedUntil && t.shieldedUntil.getTime() > now,
+      /** How long that shield still has to run, in ms — 0 when there is none.
+       *  A raider's question about a shielded burrow is never "is it shielded"
+       *  (the row already says so) but "is it worth coming back tonight", and
+       *  a shield here lasts anywhere from 6h to 48h. Sent as a DURATION and
+       *  not as the timestamp, so a client whose clock is wrong still counts
+       *  down correctly from the moment the list arrived. */
+      shieldedFor: t.shieldedUntil ? Math.max(0, t.shieldedUntil.getTime() - now) : 0,
     })),
   });
 }

@@ -46,6 +46,11 @@ export interface Target {
    *  so a server that predates it reads as "nothing outside". */
   garden?: number;
   shielded: boolean;
+  /** Milliseconds left on their shield when the list was fetched — 0, or
+   *  absent from a server that predates it, when they are open. The list
+   *  counts it down itself rather than re-fetching, so a shield that lifts
+   *  while the panel is open turns into a raidable row on its own. */
+  shieldedFor?: number;
 }
 
 export interface RaidOutcome {

@@ -12,9 +12,9 @@
  * slate, because a raid and a shop are the two screens that are about somebody
  * else's carrots, and they should feel like the same world.
  */
-import { useEffect, type CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { useT } from '@/i18n/provider';
-import { groupDigits } from '@/i18n/format';
+import { groupDigits, shortWait } from '@/i18n/format';
 import { createPortal } from 'react-dom';
 import { CloseButton } from '@domin8/arcade-kit';
 import { PanelTitle } from './pixel-text';
@@ -97,6 +97,23 @@ export function TargetList({ targets, busy, onEnter, onClose, note }: TargetList
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  // HOW LONG THE SHIELDS STILL HAVE TO RUN, ticked here rather than re-fetched.
+  //
+  // `shieldedFor` is a duration measured when the list arrived, so what is left
+  // is that minus however long this panel has been open. One minute is the
+  // right grain: the label is rounded to minutes at its finest, so a faster
+  // clock would re-render the whole list to draw the same string.
+  //
+  // The tick matters beyond the label: a shield that lifts while the panel is
+  // open unlocks its RAID button on its own, instead of leaving a row that
+  // refuses a burrow which is in fact open.
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    setElapsed(0);
+    const id = window.setInterval(() => setElapsed((ms) => ms + 60_000), 60_000);
+    return () => window.clearInterval(id);
+  }, [targets]);
+
   return createPortal(
     <div className="rr-shop-scrim" onClick={onClose}>
       <section
@@ -129,9 +146,16 @@ export function TargetList({ targets, busy, onEnter, onClose, note }: TargetList
           ) : (
             <ul className="rr-raid-list">
               {targets.map((t) => {
-                const off = busy || t.shielded;
+                // What is left of their shield right now. A target with no
+                // `shieldedFor` (an older server) keeps the flag it was sent,
+                // and simply shows no clock.
+                const left = t.shieldedFor === undefined
+                  ? undefined
+                  : Math.max(0, t.shieldedFor - elapsed);
+                const shielded = left === undefined ? t.shielded : left > 0;
+                const off = busy || shielded;
                 return (
-                  <li key={t.id} className={t.shielded ? 'shielded' : ''}>
+                  <li key={t.id} className={shielded ? 'shielded' : ''}>
                     <PxPanel color={PLANK} className="rr-raid-row">
                       <span className="rr-raid-name">{t.name}</span>
                       <span className="rr-raid-stock">{groupDigits(t.stock)} 🥕</span>
@@ -149,7 +173,19 @@ export function TargetList({ targets, busy, onEnter, onClose, note }: TargetList
                         wiggle={!off}
                         style={raidButton}
                       >
-                        <span style={raidLabel}>{t.shielded ? d.raid.shielded : d.raid.raidIt}</span>
+                        {/* WHEN the shield lifts, not merely that it is up.
+                            The row already says a burrow is out of reach; the
+                            raider's actual question is whether it is worth
+                            coming back tonight, and these shields run from 6h
+                            to 48h. The wait rides UNDER the word so the button
+                            keeps its width — a stack of two short lines, not
+                            one long one that would push the list sideways. */}
+                        <span style={raidLabel}>
+                          {shielded ? d.raid.shielded : d.raid.raidIt}
+                          {shielded && left ? (
+                            <small style={raidWait}>{shortWait(left, d.units)}</small>
+                          ) : null}
+                        </span>
                       </PxButton>
                     </PxPanel>
                   </li>
@@ -185,6 +221,23 @@ const raidButton: CSSProperties = {
   minWidth: 84,
 };
 const raidLabel: CSSProperties = { ...pxLabel, fontSize: 12 };
+/**
+ * The shield's remaining wait, under the word on the same dead button.
+ *
+ * NOT dimmed. The row it rides on is already at 0.45 opacity — that is what
+ * says "out of reach" — and a second veil on top of it left the clock as grey
+ * mush on a grey face, which is the one thing here the player has to be able
+ * to read. The size alone (10 against the label's 12) makes it the footnote.
+ */
+const raidWait: CSSProperties = {
+  display: 'block',
+  fontSize: 11,
+  marginTop: 3,
+  // Lamplight, the same warm ink the rest of this world states a WAIT in. The
+  // button's own off-ink is slate, and a slate clock on a slate face is the
+  // one thing on this row the player actually came back to read.
+  color: LAMP,
+};
 
 export interface RaidHudProps {
   raid: RaidState;
