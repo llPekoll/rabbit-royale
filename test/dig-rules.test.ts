@@ -20,6 +20,8 @@ import { mulberry32 } from '../src/lib/game/rng';
 import type { Island } from '../src/lib/game/types';
 
 const SEED = 'dig-rules';
+/** Every island here is dealt at zero lifetime carrots: the first tier. */
+const X_GAIN = ISLAND_TIERS[0].xGain;
 const squares = (a: number, b: number) => {
   const p = toColRow(a);
   const q = toColRow(b);
@@ -122,7 +124,7 @@ describe('the red X', () => {
     island.tiles.get(bomb)!.content = 'bomb';
     recount(island);
     // Well under the ceiling, so a gain is never clipped by ENERGY.MAX.
-    const rabbit = spawnRabbit('p1', 'P1', ENERGY.START - 3 * FLAG.GAIN, SEED);
+    const rabbit = spawnRabbit('p1', 'P1', ENERGY.START - 3 * X_GAIN, SEED);
     rabbit.run = { startedAt: 0, tilesDug: 0, bombsHit: 0, loot: {}, nfts: [] };
     const far = [...island.tiles.keys()].find((i) => squares(i, spawn) > 2)!;
     return { island, spawn, bomb, plain, far, rabbit };
@@ -133,9 +135,9 @@ describe('the red X', () => {
     const energy = rabbit.energy;
     const out = flagTile(island, rabbit, bomb, 10_000);
     expect(out.flag).toEqual({
-      tile: bomb, correct: true, energyDelta: FLAG.GAIN, carrotDelta: FLAG.CARROTS_BASE, streak: 1,
+      tile: bomb, correct: true, energyDelta: X_GAIN, carrotDelta: FLAG.CARROTS_BASE, streak: 1,
     });
-    expect(rabbit.energy).toBe(energy + FLAG.GAIN);
+    expect(rabbit.energy).toBe(energy + X_GAIN);
     expect(rabbit.carrots).toBe(FLAG.CARROTS_BASE);
     const t = island.tiles.get(bomb)!;
     expect(t.flagged).toBe(true);
@@ -152,7 +154,7 @@ describe('the red X', () => {
     expect(ENERGY.DIG_COST).toBeGreaterThan(0);
     expect(rabbit.energy).toBe(energy - ENERGY.DIG_COST);
     // One proven bomb funds a handful of digs — the loop the tuning is built on.
-    expect(FLAG.GAIN / ENERGY.DIG_COST).toBeGreaterThanOrEqual(5);
+    expect(X_GAIN / ENERGY.DIG_COST).toBeGreaterThanOrEqual(5);
     // And the bomb is still markable from the tile the rabbit walked onto, if
     // it is still beside it; from the spawn ring it always was.
     rabbit.tile = spawnTile(SEED);
@@ -166,14 +168,14 @@ describe('the red X', () => {
     expect(rabbit.energy).toBe(ENERGY.MAX);
     expect(out.flag?.energyDelta).toBe(1);
     // Seven points the bar had no room for: a right X always pays something.
-    expect(out.flag?.carrotDelta).toBe(FLAG.CARROTS_BASE + (FLAG.GAIN - 1) * FLAG.OVERFLOW_CARROTS);
+    expect(out.flag?.carrotDelta).toBe(FLAG.CARROTS_BASE + (X_GAIN - 1) * FLAG.OVERFLOW_CARROTS);
     expect(rabbit.carrots).toBe(out.flag!.carrotDelta);
   });
 
   it('pays no overflow while the bar has room', () => {
     const { island, bomb, rabbit } = beside();
     const out = flagTile(island, rabbit, bomb, 10_000);
-    expect(out.flag?.energyDelta).toBe(FLAG.GAIN);
+    expect(out.flag?.energyDelta).toBe(X_GAIN);
     expect(out.flag?.carrotDelta).toBe(FLAG.CARROTS_BASE);
   });
 
@@ -197,8 +199,8 @@ describe('the red X', () => {
   it('prices a blind guess to lose and a sure thing to win', () => {
     // q*GAIN - (1-q)*LOSS: negative at a coin flip, positive on a certainty,
     // and a wrong X is cheaper than the blast it stands in for.
-    expect(0.5 * FLAG.GAIN - 0.5 * FLAG.LOSS).toBeLessThan(0);
-    expect(FLAG.GAIN).toBeGreaterThan(0);
+    expect(0.5 * X_GAIN - 0.5 * FLAG.LOSS).toBeLessThan(0);
+    expect(X_GAIN).toBeGreaterThan(0);
     expect(FLAG.LOSS).toBeLessThan(ENERGY.BOMB_LOSS);
   });
 

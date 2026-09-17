@@ -486,7 +486,7 @@ export function useGameSocket(
       // Gold once the STREAK has reached the bounty's ceiling — read off the
       // streak, not the sum, which also carries any overflow (OVERFLOW_CARROTS).
       const capAt = Math.ceil((FLAG.CARROTS_MAX - FLAG.CARROTS_BASE) / FLAG.CARROTS_STEP) + 1;
-      toScene((s) => s.flagAnswered(r.tile, r.correct, r.energyDelta, r.carrotDelta, r.streak >= capAt));
+      toScene((s) => s.flagAnswered(r.tile, r.correct, r.energyDelta, r.carrotDelta, r.streak >= capAt, r.streak));
     });
 
     /** The X was refused (known ground, out of reach, stunned): a plain "no". */

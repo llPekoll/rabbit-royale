@@ -46,8 +46,17 @@ export const ENERGY = {
   DIG_COST: 1,
   /** Ordinary carrot: score, not fuel. The X is the pump; see FLAG. */
   CARROT_GAIN: 0,
-  /** Golden carrot (rare): a bomb's worth back. */
-  GOLDEN_GAIN: 30,
+  /**
+   * Golden carrot: ten digs back — a snack, not a second tank.
+   *
+   * It was a bomb's worth (30), a leftover of the hearts. Counted over an
+   * island that is 9 goldens on Meadow and 39 on Caldera: 1 170 points of
+   * energy on the hardest board, more than every red X on it put together. The
+   * pump was the carrot, not the puzzle, and lowering the X's pay changed
+   * nothing (simulated). At 10 it is still worth walking to — it is 75 carrots
+   * first — and the X is what keeps a rabbit digging.
+   */
+  GOLDEN_GAIN: 10,
   /** Stepping on a bomb. Three and a bit end a fresh run; nobody gets four. */
   BOMB_LOSS: 30,
   /** Ceiling — a full bar. Gains past it are lost: an easy shore cannot be banked. */
@@ -187,9 +196,11 @@ export const RISK_GRADIENT = {
  * side of the ledger. Now reading the board fills the bar that the unreadable
  * corners drain: energy is the fuel of exploring, and the X is the pump.
  *
- * LOSS is twice GAIN on purpose. A blind X on a tile that is a bomb with
- * probability q returns q*GAIN - (1-q)*LOSS, which is only positive above
- * q = 2/3: guessing loses, knowing wins. And LOSS is HALF a blast, so at a true
+ * LOSS is well over twice the gain on purpose (the gain is per tier, 6 down to
+ * 4 — see `IslandTier.xGain`). A blind X on a tile that is a bomb with
+ * probability q returns q*gain - (1-q)*LOSS, which is only positive above
+ * q = 0.71 on Meadow and 0.79 on Caldera: guessing loses, knowing wins. And
+ * LOSS is HALF a blast, so at a true
  * coin-flip an X is the cheaper way to find out — a probe with a price — which
  * is what keeps a careful player marking rather than praying.
  *
@@ -199,9 +210,7 @@ export const RISK_GRADIENT = {
  * streak digs the bomb up whole: a raid bomb, the DIG loop feeding RAID.
  */
 export const FLAG = {
-  /** Energy for a right X: eight digs' worth, about a quarter of a blast. */
-  GAIN: 8,
-  /** Energy a wrong X costs. Half a blast, about twice GAIN (break-even 0.65). */
+  /** Energy a wrong X costs, on every tier. Half a blast. */
   LOSS: 15,
   /**
    * The carrot side is kept SMALL on purpose: energy is the X's real pay, and
@@ -241,6 +250,25 @@ export const FLAG = {
 /**
  * Difficulty tiers, unlocked by lifetime carrots (Phase 6). Each overrides the
  * base ISLAND densities: richer AND more dangerous, never one without the other.
+ *
+ * THE X PAYS LESS AS THE BOMBS THICKEN (`xGain`, 17 September 2026).
+ *
+ * Bombs are a reader's fuel, so one price for every tier starves the first and
+ * floods the last: per safe tile dug a Meadow island buries 0.16 bombs and a
+ * Caldera one 0.32. With a flat +8 the robot reader's bar averaged 90 and
+ * never fell below 41 on Meadow — no pump to feel — while flat and LOW made
+ * Meadow the hardest tier there is. 6 / 5 / 4 / 4 keeps the income per dig
+ * just above the dig's cost everywhere, so the bar sags across a field of
+ * zeros and climbs back at the next cluster of bombs. Measured on 14 islands
+ * a tier, for a robot that reads one number at a time (a person reads better):
+ *
+ *            cleared   run lost   bar: mean / lowest
+ *   Meadow     98 %      14 %         78 / 32
+ *   Thicket    98 %      14 %         86 / 38
+ *   Ashland    96 %      36 %         87 / 31
+ *   Caldera    82 %      43 %         84 / 19
+ *
+ * A player who never places an X digs ~120 tiles on Meadow and ~60 on Caldera.
  *
  * RE-SPACED AGAIN 17 September 2026 — same intended pace, measured income.
  *
@@ -293,13 +321,19 @@ export interface IslandTier {
   readonly bombDensity: number;
   readonly carrotDensity: number;
   readonly goldenShare: number;
+  /**
+   * Energy a RIGHT red X gives back on this tier — see FLAG and the note on
+   * ISLAND_TIERS. Per tier because bombs are a reader's fuel: the more of
+   * them an island buries, the less each one may be worth.
+   */
+  readonly xGain: number;
 }
 
 export const ISLAND_TIERS: readonly IslandTier[] = [
-  { name: 'Meadow',  minLifetime: 0,      bombDensity: 0.14, carrotDensity: 0.30, goldenShare: 0.06 },
-  { name: 'Thicket', minLifetime: 30_000,  bombDensity: 0.17, carrotDensity: 0.34, goldenShare: 0.09 },
-  { name: 'Ashland', minLifetime: 90_000,  bombDensity: 0.20, carrotDensity: 0.38, goldenShare: 0.13 },
-  { name: 'Caldera', minLifetime: 175_000, bombDensity: 0.24, carrotDensity: 0.43, goldenShare: 0.18 },
+  { name: 'Meadow',  minLifetime: 0,      bombDensity: 0.14, carrotDensity: 0.30, goldenShare: 0.06, xGain: 6 },
+  { name: 'Thicket', minLifetime: 30_000,  bombDensity: 0.17, carrotDensity: 0.34, goldenShare: 0.09, xGain: 5 },
+  { name: 'Ashland', minLifetime: 90_000,  bombDensity: 0.20, carrotDensity: 0.38, goldenShare: 0.13, xGain: 4 },
+  { name: 'Caldera', minLifetime: 175_000, bombDensity: 0.24, carrotDensity: 0.43, goldenShare: 0.18, xGain: 4 },
 ] as const;
 
 // ── Phase 2: island life cycle ───────────────────────────────────────────────
@@ -1135,6 +1169,12 @@ export const NEXT_ACTION = {
  * Single accessor so a caller never reaches into a tier by index. Returns the
  * richest tier the player has unlocked.
  */
+/** What a right red X pays on an island of this tier (by its `name`, which is
+ *  what an `Island` carries). An unknown name reads as the first tier. */
+export function xGainFor(tierName: string): number {
+  return (ISLAND_TIERS.find((t) => t.name === tierName) ?? ISLAND_TIERS[0]).xGain;
+}
+
 export function tierFor(lifetimeCarrots: number): IslandTier {
   let tier = ISLAND_TIERS[0];
   for (const t of ISLAND_TIERS) if (lifetimeCarrots >= t.minLifetime) tier = t;

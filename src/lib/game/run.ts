@@ -10,7 +10,7 @@
  * two objects it is handed and returns what happened, so a caller can broadcast
  * a delta rather than diffing whole islands.
  */
-import { BOMB, CHEST_LOOT, CHEST_LOOT_BY_TIER, CHEST_NFT_ODDS, ENERGY, FLAG, MULTIPLAYER, RUN } from '@config/tuning';
+import { BOMB, CHEST_LOOT, CHEST_LOOT_BY_TIER, CHEST_NFT_ODDS, ENERGY, FLAG, MULTIPLAYER, RUN, xGainFor } from '@config/tuning';
 import { SPAWN_INDEX, neighbors, toColRow, type IslandShape } from '@/config/gridConfig';
 import { pickWeighted, randInt, type Rng } from './rng';
 import { boardNeighbors, cascadeAround, revealTile } from './island';
@@ -137,10 +137,12 @@ export function flagTile(island: Island, rabbit: Rabbit, at: number, now: number
     tile.flagged = true;
     tile.flaggedBy = rabbit.playerId;
     const before = rabbit.energy;
-    rabbit.energy = Math.min(ENERGY.MAX, rabbit.energy + FLAG.GAIN);
+    // Per tier — see `IslandTier.xGain`.
+    const gain = xGainFor(island.tier);
+    rabbit.energy = Math.min(ENERGY.MAX, rabbit.energy + gain);
     const streak = (run?.flagStreak ?? 0) + 1;
     // What the full bar turned away is paid as carrots — see OVERFLOW_CARROTS.
-    const overflow = FLAG.GAIN - (rabbit.energy - before);
+    const overflow = gain - (rabbit.energy - before);
     const carrots = Math.min(FLAG.CARROTS_MAX, FLAG.CARROTS_BASE + FLAG.CARROTS_STEP * (streak - 1))
       + overflow * FLAG.OVERFLOW_CARROTS;
     rabbit.carrots += carrots;

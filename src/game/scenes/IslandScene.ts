@@ -901,12 +901,17 @@ export class IslandScene implements Scene {
    * The server answered MY X. Right: the energy it paid, in the bar's yellow,
    * and the carrots over it. Wrong: what it cost, in red, and the "no".
    */
-  flagAnswered(index: number, correct: boolean, energy: number, carrots: number, topStreak: boolean): void {
+  flagAnswered(index: number, correct: boolean, energy: number, carrots: number, topStreak: boolean, streak = 0): void {
     if (correct) {
       this.sound.playChimeQuick();
       this.tiles.get(index)?.flash();
       if (energy > 0) this.floatText(index, `+${energy}`, ENERGY_YELLOW, 1.6, 0, true);
       if (carrots > 0) this.floatText(index, `+${carrots}`, topStreak ? 0xffd138 : 0xffffff, 1.6, -16);
+      // The streak, said out loud from the second X in a row. It was in the
+      // rules and in the bounty and nowhere on screen — a combo nobody can see
+      // is a combo nobody protects, and protecting it is the point: a blast or
+      // a wrong X resets it.
+      if (streak >= 2) this.floatText(index, `x${streak}`, 0xffd138, 1.3, -34);
     } else {
       this.tiles.get(index)?.deny();
       this.denyMove();
