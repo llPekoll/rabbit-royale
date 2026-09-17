@@ -13,24 +13,33 @@
 // ── Phase 1: the solo run ────────────────────────────────────────────────────
 
 /**
- * A run's energy: THE FUEL OF EXPLORING, on a bar of 100.
+ * A run's energy: THE FUEL OF EXPLORING, on a bar of 100 — and it always runs
+ * out. That is the design (the "capped run", 17 September 2026).
  *
- * Since 17 September 2026 every dig costs a point and a well-placed red X
- * (see FLAG) gives some back, so reading the board is what keeps a rabbit
- * moving. Three things drain the bar — digging, a wrong X, a bomb — and two
- * fill it: a right X and a golden carrot. An ordinary carrot is score only.
+ * Every dig costs a point. A well-placed red X (see FLAG) gives some back, but
+ * never as much as the digging that found it cost: reading the board roughly
+ * DOUBLES a run, it does not make it endless. So every run, at every level of
+ * play, ends on the same sentence — no energy, no more exploring — and on the
+ * recap that offers more. An island is a level several runs finish, alone over
+ * a day or four rabbits at once, not something one ticket clears.
  *
- * It was three hearts for three days (24 points, a bomb took 8, digging was
- * free). Simulated with robot players on real islands (`tools/sim-dig.sim.ts`),
- * that tuning let a player who never deduced anything clear 83 % of a Meadow
- * island: the numbers were decoration. With the values below the same
- * non-reader stops around 40 % (~165 tiles, still a full sitting), a player
- * who marks what they can prove clears the island, and one who marks and digs
- * at random is out inside 25 tiles. Dig 2 was tried and rejected: Meadow has
- * too few bombs to pay for it, which made the first tier the hardest.
+ * How it got here. Three hearts (24 points, digging free) let a player who
+ * deduced nothing clear 83 % of a Meadow island: the numbers were decoration.
+ * A dig cost with a generous X (+8) fixed that and broke something else: a
+ * good reader never ran dry, cleared the island in fifteen minutes on one
+ * 20-energy ticket, and never once saw the refill offer — runs became 85-90 %
+ * of all income against a target of 70 at most, and a 400-carrot refill bought
+ * three runs worth thousands. Measured with robot players on real islands
+ * (`tools/sim-dig.sim.ts`), at the values below:
  *
- * What ENDS a run is the bar or the island being cleared (see ERUPTION),
- * never a clock.
+ *              no X         reads        reads + probes
+ *   Meadow   100 / 660    175 / 1 470     181 / 1 530     (tiles dug / carrots)
+ *   Thicket   91 / 800    204 / 2 100     236 / 2 490
+ *   Ashland   79 / 820    155 / 1 990     175 / 2 280
+ *   Caldera   55 / 720    141 / 2 270     198 / 3 450
+ *
+ * About four minutes without the X and eight to ten with it — the GDD's "5-10
+ * min runs". Nobody clears an island alone; skill pays in carrots per ticket.
  */
 export const ENERGY = {
   /** Energy a run starts with: a full bar. */
@@ -47,17 +56,15 @@ export const ENERGY = {
   /** Ordinary carrot: score, not fuel. The X is the pump; see FLAG. */
   CARROT_GAIN: 0,
   /**
-   * Golden carrot: five digs back — a snack, not a second tank.
+   * Golden carrot: SCORE ONLY. Only a right red X puts energy back.
    *
-   * It was a bomb's worth (30), a leftover of the hearts. Counted over an
-   * island that is 9 goldens on Meadow and 39 on Caldera: 1 170 points of
-   * energy on the hardest board, more than every red X on it put together. The
-   * pump was the carrot, not the puzzle, and lowering the X's pay changed
-   * nothing (simulated). At 10 a practised player's bar still sat at 96 on
-   * Caldera, so it went to 5. It is still worth walking to — it is 75 carrots
-   * first — and the X is what keeps a rabbit digging.
+   * It was a bomb's worth (30) under the hearts, then 10, then 5. Counted over
+   * an island — 9 goldens on Meadow, 39 on Caldera — even 5 covered half of
+   * what digging costs on the hardest board, which no tuning of the X could
+   * then cap. At 0 the rule is one sentence ("the X is the only pump") and the
+   * golden carrot is what it looks like: five carrots in one.
    */
-  GOLDEN_GAIN: 5,
+  GOLDEN_GAIN: 0,
   /** Stepping on a bomb. Three and a bit end a fresh run; nobody gets four. */
   BOMB_LOSS: 30,
   /** Ceiling — a full bar. Gains past it are lost: an easy shore cannot be banked. */
@@ -256,35 +263,16 @@ export const FLAG = {
  *
  * Bombs are a reader's fuel, so one price for every tier starves the first and
  * floods the last: per safe tile dug a Meadow island buries 0.16 bombs and a
- * Caldera one 0.32. With a flat +8 the robot reader's bar averaged 90 and
- * never fell below 41 on Meadow — no pump to feel — while flat and LOW made
- * Meadow the hardest tier there is. 7 / 5 / 4 / 3 keeps the income per dig
- * just above the dig's cost everywhere, so the bar sags across a field of
- * zeros and climbs back at the next cluster of bombs — and the first island,
- * where the X is learned, is the forgiving one.
- *
- * Measured on 14 islands a tier (tools/sim-dig.sim.ts) for three players: one
- * who reads a number at a time, one who also compares two (the 1-2 pattern),
- * and one who, with nothing certain left, places an X on the likeliest tile
- * as a PROBE. Share of runs lost, and carrots banked:
- *
- *            one number      two numbers     + probing
- *   Meadow    7 %  3 750      0 %  3 800      0 %  3 800
- *   Thicket  14 %  4 400      0 %  4 600      0 %  4 600
- *   Ashland  43 %  5 100     14 %  5 750      0 %  5 750
- *   Caldera  79 %  4 150     50 %  6 200      0 %  7 000
- *
- * Every tier pays every player more than Meadow does, so a door is never a
- * punishment; what the ladder asks for is better reading. A player who never
- * places an X digs ~110 tiles on Meadow and ~60 on Caldera.
+ * Caldera one 0.32. 3 / 3 / 2 / 2 puts what a perfect marker earns back at
+ * 50-60 % of what the digging cost on every tier — the capped run, see ENERGY.
  *
  * THE DEAL WAS LEFT ALONE, on evidence. Forced guesses looked like the thing
  * to fix on Caldera, and three ways of dealing the bombs were simulated: never
- * adjacent (no zeros left, no cascade: the one-number reader lost 83 % of its
- * runs), a gentler gradient (worse too), and looser clumps (fewer guesses,
- * each one deadlier: no gain). Most of what looked forced was the robot being
- * naive — comparing two numbers leaves 3 guesses on a Meadow island and 26 on
- * Caldera — and the probe answers the rest. The tool was already in the game.
+ * adjacent (no zeros left, no cascade: far worse), a gentler gradient (worse
+ * too), and looser clumps (fewer guesses, each one deadlier: no gain). Most of
+ * what looked forced was the robot being naive — comparing two numbers leaves
+ * 3 guesses on a Meadow island and 26 on Caldera — and an X placed as a PROBE
+ * on the likeliest tile answers the rest. The tool was already in the game.
  *
  * RE-SPACED AGAIN 17 September 2026 — same intended pace, measured income.
  *
@@ -346,10 +334,10 @@ export interface IslandTier {
 }
 
 export const ISLAND_TIERS: readonly IslandTier[] = [
-  { name: 'Meadow',  minLifetime: 0,      bombDensity: 0.14, carrotDensity: 0.30, goldenShare: 0.06, xGain: 7 },
-  { name: 'Thicket', minLifetime: 30_000,  bombDensity: 0.17, carrotDensity: 0.34, goldenShare: 0.09, xGain: 5 },
-  { name: 'Ashland', minLifetime: 90_000,  bombDensity: 0.20, carrotDensity: 0.38, goldenShare: 0.13, xGain: 4 },
-  { name: 'Caldera', minLifetime: 175_000, bombDensity: 0.24, carrotDensity: 0.43, goldenShare: 0.18, xGain: 3 },
+  { name: 'Meadow',  minLifetime: 0,      bombDensity: 0.14, carrotDensity: 0.30, goldenShare: 0.06, xGain: 3 },
+  { name: 'Thicket', minLifetime: 30_000,  bombDensity: 0.17, carrotDensity: 0.34, goldenShare: 0.09, xGain: 3 },
+  { name: 'Ashland', minLifetime: 90_000,  bombDensity: 0.20, carrotDensity: 0.38, goldenShare: 0.13, xGain: 2 },
+  { name: 'Caldera', minLifetime: 175_000, bombDensity: 0.24, carrotDensity: 0.43, goldenShare: 0.18, xGain: 2 },
 ] as const;
 
 // ── Phase 2: island life cycle ───────────────────────────────────────────────

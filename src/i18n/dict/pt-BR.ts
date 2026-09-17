@@ -210,7 +210,7 @@ export const ptBR: Dict = {
     mark: 'Sabe onde está uma bomba? Aperte o X vermelho e marque: devolve energia.',
     marked: 'Certo! Um bom X devolve energia. É assim que se cava mais longe.',
     bomb: 'Isso custou energia. O 1 apontava para ela.',
-    golden: 'O ouro devolve energia.',
+    golden: 'Ouro! Uma cenoura dourada vale cinco.',
     chest: 'Um baú. O que tiver dentro vai para casa com você.',
     clock: 'A ilha é o relógio. Cave até o fim e ela afunda.',
     recap: 'Suas cenouras já estão em casa. Vá ver.',

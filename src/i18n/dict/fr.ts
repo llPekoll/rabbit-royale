@@ -206,7 +206,7 @@ export const fr: Dict = {
     mark: 'Tu sais où est une bombe ? Appuie sur le X rouge et marque-la : ça rend de l’énergie.',
     marked: 'Juste ! Un bon X rend de l’énergie. C’est comme ça qu’on creuse plus loin.',
     bomb: 'Ça coûte de l’énergie. Le 1 la désignait.',
-    golden: 'L’or rend de l’énergie.',
+    golden: 'De l’or ! Une carotte dorée en vaut cinq.',
     chest: 'Un coffre. Ce qu’il contient rentre avec toi.',
     clock: 'L’île est l’horloge. Creuse-la et elle coule.',
     recap: 'Tes carottes sont au terrier. Va voir.',

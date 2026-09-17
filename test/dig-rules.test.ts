@@ -153,12 +153,27 @@ describe('the red X', () => {
     expect(dug.ok).toBe(true);
     expect(ENERGY.DIG_COST).toBeGreaterThan(0);
     expect(rabbit.energy).toBe(energy - ENERGY.DIG_COST);
-    // One proven bomb funds a handful of digs — the loop the tuning is built on.
-    expect(X_GAIN / ENERGY.DIG_COST).toBeGreaterThanOrEqual(5);
+    // One proven bomb funds more than one dig...
+    expect(X_GAIN / ENERGY.DIG_COST).toBeGreaterThanOrEqual(2);
     // And the bomb is still markable from the tile the rabbit walked onto, if
     // it is still beside it; from the spawn ring it always was.
     rabbit.tile = spawnTile(SEED);
     expect(flagTile(island, rabbit, bomb, 20_000).flag?.correct).toBe(true);
+  });
+
+  it('extends a run and never sustains it: the capped run, on every tier', () => {
+    // A player who marks EVERY bomb earns back, per safe tile dug,
+    // (bombs per safe tile) x xGain. Under 1 the bar always runs out — every
+    // run ends on "no energy", which is the rule and the recap's refill offer.
+    // Over ~0.4 the X still about doubles a run, so reading is worth it.
+    // And no other source may refill the bar, or this bound means nothing.
+    expect(ENERGY.GOLDEN_GAIN).toBe(0);
+    expect(ENERGY.CARROT_GAIN).toBe(0);
+    for (const tier of ISLAND_TIERS) {
+      const back = (tier.bombDensity / (1 - tier.bombDensity)) * tier.xGain / ENERGY.DIG_COST;
+      expect(back, tier.name).toBeGreaterThan(0.4);
+      expect(back, tier.name).toBeLessThan(0.75);
+    }
   });
 
   it('never fills the bar past its ceiling, and pays the overflow in carrots', () => {

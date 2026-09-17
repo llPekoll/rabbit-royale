@@ -237,7 +237,7 @@ export const en = {
     mark: 'Sure where a bomb is? Press the red X and mark it: energy back.',
     marked: 'Right! A good X gives energy back. That is how you dig further.',
     bomb: 'That cost energy. The 1 was pointing at it.',
-    golden: 'Gold gives energy back.',
+    golden: 'Gold! One golden carrot is worth five.',
     chest: 'A chest. Whatever it holds goes home with you.',
     clock: 'The island is the clock. Dig it out and it sinks.',
     recap: 'Your carrots are home now. Go and see.',
