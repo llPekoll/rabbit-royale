@@ -118,14 +118,16 @@ def project_cell(cell: Image.Image, w: int, h: int, box: int = TILE) -> Image.Im
 # painted, and the artist is editing two files to see one object.
 #
 # So the block is baked. Each tile carries its top face and the two sides this
-# camera sees (south-west and south-east), `LIFT` pixels tall — the same 18 the
-# board lifts a tier by, which is what makes a stack of them close with no seam.
+# camera sees (south-west and south-east), `LIFT` pixels tall — the same 6 the
+# board lifts a tier by (`TIER_LIFT`), which is what makes a stack of them
+# close with no seam. The shipped sheets were baked at 18 and retouched by
+# hand since; `trim_iso_lift.py` is what cut them down to 6 in place.
 #
 # The sides are shaded from the top's own pixels rather than filled flat: a
 # column of rock lit like the grass above it reads as one object, and it keeps
 # whatever palette the tile is painted in without a second colour decision.
 # ---------------------------------------------------------------------------
-LIFT = 18
+LIFT = 6
 
 # Row of the elevation sheet holding the tall cliff face.
 FACE_SHEET_ROW = 3

@@ -46,7 +46,9 @@ const UNITS = '/assets/units';
  * `${TERRAIN}` is rewritten in place; a browser that cached the old URL then
  * simply never asks for it again.
  */
-const TERRAIN_REV = '?v=2';
+// v3 (2026-09-18): the rock band under every block trimmed from 18 to 6 px,
+// the new `TIER_LIFT` — see `tools/trim_iso_lift.py`.
+const TERRAIN_REV = '?v=3';
 const terrain = (file: string) => `${TERRAIN}/${file}${TERRAIN_REV}`;
 
 export const ISLAND_SHEETS = {
