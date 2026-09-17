@@ -308,8 +308,18 @@ WHERE NOT EXISTS (
 );
 ```
 
-Local à **16 migrations** après application. Compléter cette entrée avec la
-date du passage en prod.
+**Passée en prod le 2026-09-17**, en une transaction (l'UPDATE puis l'INSERT
+ci-dessus) : `UPDATE 0` — la prod n'avait plus aucun invité « undefined » —
+et la ligne du registre insérée. Prod à **17 lignes** dans le registre, local
+aussi ; les deux comptent 16 fichiers, la 17e ligne étant `0011` enregistrée
+deux fois (voir l'entrée du 2026-09-14 : le hash divergé `06e047d4…` et le
+hash du fichier `fb04d307…`).
+
+Le même jour, le registre **local** a été réaligné de la même façon : il ne
+portait que le hash divergé de `0011`, donc `bun db:check` disait BEHIND sur
+une colonne (`traps.sprung_at`) qui existait déjà. La ligne au hash du fichier
+a été insérée sans rejouer le SQL, et `db:check` dit de nouveau
+« all 16 migrations applied ».
 
 ### Changer un réglage à chaud (ce n'est PAS une écriture à noter)
 
