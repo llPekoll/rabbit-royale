@@ -1180,6 +1180,11 @@ button { min-height: 44px; min-width: 44px; }
   right: max(var(--rr-pad), env(safe-area-inset-right));
   bottom: max(var(--rr-pad), env(safe-area-inset-bottom));
 }
+/* URGED: the bar is low and this is the exit. A stepped two-frame lift, the
+   kit's own idea of motion — no glow, no easing. */
+.rr-mark-btn.urge { animation: rr-mark-urge 700ms steps(1, end) infinite; }
+@keyframes rr-mark-urge { 50% { transform: translateY(-4px); } }
+@media (prefers-reduced-motion: reduce) { .rr-mark-btn.urge { animation: none; } }
 .rr-mark-btn:focus-visible { outline: 2px solid #ffd60a; outline-offset: 2px; }
 .rr-mark-hint {
   position: fixed;

@@ -27,9 +27,11 @@ export interface MarkBombButtonProps {
   onToggle(armed: boolean): void;
   /** Armed a moment ago with nothing around to mark — say so instead. */
   nothing?: boolean;
+  /** The bar is low: this button is the way out, and should say so. */
+  urge?: boolean;
 }
 
-export function MarkBombButton({ armed, onToggle, nothing = false }: MarkBombButtonProps) {
+export function MarkBombButton({ armed, onToggle, nothing = false, urge = false }: MarkBombButtonProps) {
   const t = useT();
 
   useEffect(() => {
@@ -55,7 +57,7 @@ export function MarkBombButton({ armed, onToggle, nothing = false }: MarkBombBut
       {!armed && nothing && <p className="rr-mark-hint" role="status">{t.run.markNothing}</p>}
       <PxButton
         type="button"
-        className={`rr-mark-btn${armed ? ' armed' : ''}`}
+        className={`rr-mark-btn${armed ? ' armed' : ''}${urge && !armed ? ' urge' : ''}`}
         aria-pressed={armed}
         title={`${t.run.markBomb} (X)`}
         onClick={() => onToggle(!armed)}

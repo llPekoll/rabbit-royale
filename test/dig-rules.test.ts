@@ -224,6 +224,47 @@ describe('the red X', () => {
     expect(flagTile(island, rabbit, bomb, 10_000).rejection).toBe('stunned');
   });
 
+  it('running dry by digging leaves the rabbit alive, and a right X revives it', () => {
+    const { island, plain, bomb, rabbit } = beside();
+    rabbit.energy = ENERGY.DIG_COST;
+    rabbit.lastMoveAt = 0;
+    const dug = resolveMove(island, rabbit, plain, makeShape(SEED), mulberry32(1), 10_000);
+    expect(rabbit.energy).toBe(0);
+    expect(rabbit.alive).toBe(true);
+    expect(dug.runOver).toBe(false);
+    // Dry: no more digging...
+    const fresh = boardNeighbors(island, rabbit.tile).find((n) => {
+      const t = island.tiles.get(n)!;
+      return !t.revealed && t.content !== 'bomb' && terrainNeighbors(SEED, rabbit.tile).includes(n);
+    });
+    if (fresh !== undefined) {
+      rabbit.lastMoveAt = 0;
+      expect(resolveMove(island, rabbit, fresh, makeShape(SEED), mulberry32(1), 20_000).rejection).toBe('no-energy');
+    }
+    // ...but the puzzle still pays, and what it pays is the way back in.
+    rabbit.tile = spawnTile(SEED);
+    const out = flagTile(island, rabbit, bomb, 30_000);
+    expect(out.flag?.correct).toBe(true);
+    expect(rabbit.energy).toBe(X_GAIN);
+    expect(rabbit.alive).toBe(true);
+  });
+
+  it('a blast on the last of the energy still ends the run, and so does a wrong X at zero', () => {
+    const a = beside();
+    a.rabbit.energy = ENERGY.DIG_COST;
+    a.rabbit.lastMoveAt = 0;
+    const hit = resolveMove(a.island, a.rabbit, a.bomb, makeShape(SEED), mulberry32(1), 10_000);
+    expect(hit.dig?.content).toBe('bomb');
+    expect(a.rabbit.alive).toBe(false);
+    expect(hit.runOver).toBe(true);
+
+    const b = beside();
+    b.rabbit.energy = 0;
+    const wrong = flagTile(b.island, b.rabbit, b.plain, 10_000);
+    expect(wrong.flag?.correct).toBe(false);
+    expect(wrong.runOver).toBe(true);
+  });
+
   it('will not let anyone walk onto a marked bomb', () => {
     const { island, bomb, rabbit } = beside();
     flagTile(island, rabbit, bomb, 10_000);

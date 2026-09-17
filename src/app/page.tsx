@@ -44,6 +44,7 @@ import { nextAction } from '@/config/next-action';
 import { LORE } from '@/config/lore';
 import { KitRow } from '@/components/kit-row';
 import { MarkBombButton } from '@/components/mark-bomb-button';
+import { EnergyCoach } from '@/components/energy-coach';
 import { LoreCrawl } from '@/components/lore-crawl';
 import { GardenCard } from '@/components/garden-card';
 import { BurrowPanel } from '@/components/burrow-card-panel';
@@ -58,7 +59,7 @@ import { playUiSfx } from '@/game/services/SoundManager';
 import { unlockedCount } from '@/config/lore';
 import { questText } from '@/i18n/content';
 import { QUEST_MARK, QUESTS_ARC, codexMark, isQuestId, type QuestBoard } from '@/config/quests';
-import { TRAPS } from '@config/tuning';
+import { ENERGY, TRAPS } from '@config/tuning';
 import { useShop, type ItemKind } from '@/components/use-shop';
 import type { PayTokenId } from '@/lib/pay/tokens';
 import { useUsdcPay } from '@/components/use-usdc-pay';
@@ -2259,7 +2260,16 @@ function Burrow() {
           {/* The red X. Only with a live rabbit of your own: a spectator has
               nothing to mark with, and a finished run nothing to spend. */}
           {!spectating && game.me?.alive && !game.recap && game.erupting === null && (
-            <MarkBombButton armed={game.flagMode} onToggle={game.setFlagMode} nothing={game.flagNothing} />
+            <MarkBombButton
+              armed={game.flagMode}
+              onToggle={game.setFlagMode}
+              nothing={game.flagNothing}
+              // The way out of a low bar is this button: it beats until used.
+              urge={(game.me?.energy ?? ENERGY.MAX) <= ENERGY.BOMB_LOSS}
+            />
+          )}
+          {!spectating && !game.firstRun && game.me && !game.recap && (
+            <EnergyCoach energy={game.me.energy} alive={game.me.alive} />
           )}
           {!spectating && (
             <FirstRunCaption firstRun={game.firstRun} digs={game.digs} warnStage={game.warnStage} />

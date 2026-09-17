@@ -443,9 +443,16 @@ export function resolveMove(
   const hinted = cascadeAround(island, rabbit.tile);
   if (hinted.length) dig.hinted = hinted;
 
+  // RUNNING DRY IS NOT DYING. Only a blast can end a run here: a bar emptied
+  // by the digging itself leaves the rabbit ALIVE and out of fuel. It can
+  // still walk dug ground for free, and a right red X puts energy back — so
+  // the way out of an empty bar is the puzzle, which is the whole idea of the
+  // X. What it cannot do is dig (`canDig`), and a WRONG X at zero ends the run
+  // (`flagTile`), so the last mark is a real bet. It used to end right here,
+  // on a step like any other, with nothing the player had decided.
   if (rabbit.energy <= 0) {
     rabbit.energy = 0;
-    rabbit.alive = false;
+    if (tile.content === 'bomb') rabbit.alive = false;
   }
 
   return {

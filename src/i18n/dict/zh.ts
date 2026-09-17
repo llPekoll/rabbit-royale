@@ -201,6 +201,8 @@ export const zh: Dict = {
     markHint: '点一块你认为有炸弹的格子 · 对：+能量 · 错：-能量',
     markCancel: '取消',
     markNothing: '这里没有可标记的：你周围的格子都已读过。',
+    energyLow: '能量不足。标对一个炸弹会还你一些。',
+    energyDry: '能量耗尽：不能再挖了。标记一个你能确定的炸弹才能继续，或者带着胡萝卜回家。标错会结束本局。',
     trapHint: (left) => `点格子埋雷，点雷收回 · 还剩 ${left}`,
     trapHintEmpty: '没有雷了 · 再买一颗，或点一颗雷收回改埋别处',
   },
