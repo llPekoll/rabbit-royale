@@ -1114,6 +1114,34 @@ installProcessGuards({
 void refreshTuning();
 setInterval(() => { void refreshTuning(); }, 30_000).unref();
 
+/**
+ * Le port occupe doit le DIRE.
+ *
+ * `next dev` tourne sur 3010 et WS_PORT a longtemps valu 3010 par defaut :
+ * `bun ws` mourait alors sur un `uncaughtException: Error at serve` qui ne
+ * nommait ni le port ni la cause. Le jeu paraissait installe — le site
+ * repondait, la page s'affichait — mais aucune ile n'arrivait jamais et
+ * personne ne pouvait jouer, sans qu'une seule ligne ne dise pourquoi.
+ *
+ * Un serveur qui ne peut pas ecouter n'est pas une exception anonyme : c'est
+ * une erreur de configuration, et elle se repare en dix secondes quand on la
+ * lit. D'ou le message, et la sortie en code 1 plutot qu'un processus zombie.
+ */
+httpServer.on('error', (err: NodeJS.ErrnoException) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(
+      `[rr-ws] le port ${PORT} est deja pris.\n` +
+      `        WS_PORT=${PORT} dans .env, mais quelque chose ecoute deja la — ` +
+      `souvent 'next dev' (3010) ou un 'bun ws' encore vivant.\n` +
+      `        Choisis un autre WS_PORT (3011 en local), et fais pointer ` +
+      `NEXT_PUBLIC_WS_URL sur le meme port.`,
+    );
+  } else {
+    console.error('[rr-ws] impossible de demarrer:', err);
+  }
+  process.exit(1);
+});
+
 httpServer.listen(PORT, () => {
   console.log(`[rr-ws] listening on :${PORT}`);
 });
