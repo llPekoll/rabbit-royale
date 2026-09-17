@@ -1325,6 +1325,22 @@ button { min-height: 44px; min-width: 44px; }
      each other hides how much a single dig cost. */
   transition: width 120ms linear;
 }
+/* HIT: three hard red blinks in ~0.7s, then gone. Stepped, never eased — a
+   fade is the one thing pixel art does not do — and it ends transparent, so
+   the bar is readable again the moment the alarm stops. */
+.rr-energy-hit {
+  position: absolute;
+  inset: 0;
+  background: #ff2d2d;
+  opacity: 0;
+  pointer-events: none;
+  animation: rr-energy-hit 720ms steps(1, end) 1 both;
+}
+@keyframes rr-energy-hit-still { 0% { opacity: 0.9; } 100% { opacity: 0; } }
+@keyframes rr-energy-hit {
+  0%, 33%, 66% { opacity: 0.9; }
+  17%, 50%, 83%, 100% { opacity: 0; }
+}
 .rr-energy-fill.tone-warn { --fill: #ff9f1c; --lit: #ffd08a; --shade: #a85a00; }
 .rr-energy-fill.tone-danger { --fill: #ff4d3d; --lit: #ffa79a; --shade: #9c1410; }
 /* An empty bar draws nothing: at zero width the crest would still show a
@@ -1358,6 +1374,8 @@ button { min-height: 44px; min-width: 44px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* One held flash instead of three blinks: the event is still said. */
+  .rr-energy-hit { animation: rr-energy-hit-still 500ms steps(1, end) 1 both; }
   .rr-energy-fill { transition: none; }
   .rr-energy-fill.critical { animation: none; }
 }

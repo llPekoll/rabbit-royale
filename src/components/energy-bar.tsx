@@ -22,7 +22,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ENERGY } from '@config/tuning';
+import { ENERGY, FLAG } from '@config/tuning';
 import { useT } from '@/i18n/provider';
 import { PxPanel } from './px';
 
@@ -34,6 +34,9 @@ export interface EnergyBarProps {
 
 /** The bar's full-scale value: the ceiling, which is also where a run opens. */
 const SCALE = ENERGY.MAX;
+
+/** The smallest drop that counts as being HURT: a wrong red X. A bomb is twice it. */
+const HURT_DROP = Math.min(FLAG.LOSS, ENERGY.BOMB_LOSS);
 
 /**
  * The bolt off a battery, as pixels: eight rows on a 7-wide grid, drawn with
@@ -59,14 +62,16 @@ export function EnergyBar({ energy, bombCost = ENERGY.BOMB_LOSS }: EnergyBarProp
   const t = useT();
   const pct = Math.max(0, Math.min(1, energy / SCALE));
 
-  // LOSING ENERGY IS AN EVENT — the screen's edges flush red for half a
-  // second, as they did when a heart broke. Only a DROP counts: an X that
-  // paid, a golden carrot or a respawn is not hurt. Keyed so two losses in a
-  // row are two flushes.
+  // A REAL LOSS IS AN EVENT: the bar blinks red and the screen's edges flush
+  // (Paul, 2026-09-17: "energy bar should blink red when the rabbit is hit by
+  // a bomb or loses significant energy"). "Real" is a wrong X or worse — a
+  // drop of at least FLAG.LOSS. A dig costs a point and happens every step:
+  // an alarm on each of those is an alarm nobody hears when the bomb comes.
+  // Keyed, so two losses in a row are two blinks; a gain is never hurt.
   const prev = useRef(energy);
   const [hurt, setHurt] = useState(0);
   useEffect(() => {
-    if (energy < prev.current) setHurt((k) => k + 1);
+    if (prev.current - energy >= HURT_DROP) setHurt((k) => k + 1);
     prev.current = energy;
   }, [energy]);
   const [mounted, setMounted] = useState(false);
@@ -93,6 +98,10 @@ export function EnergyBar({ energy, bombCost = ENERGY.BOMB_LOSS }: EnergyBarProp
           {/* The death line: one bomb's worth, over the fill so a full bar
               cannot hide the thing the player most needs to see. */}
           <span className="rr-energy-mark" style={{ left: `${(bombCost / SCALE) * 100}%` }} />
+          {/* The blink: a red wash over the WHOLE track, fill and empty alike,
+              so it reads even when the bar is nearly dry. Re-keyed per loss,
+              which is what restarts the animation. */}
+          {hurt > 0 && <i key={hurt} className="rr-energy-hit" aria-hidden />}
         </div>
       </PxPanel>
       <span className="rr-energy-value">{energy}</span>
