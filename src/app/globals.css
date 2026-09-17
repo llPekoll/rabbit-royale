@@ -1168,42 +1168,21 @@ button { min-height: 44px; min-width: 44px; }
   filter: drop-shadow(1px 0 0 #3a2a00) drop-shadow(-1px 0 0 #3a2a00) drop-shadow(0 1px 0 #3a2a00) drop-shadow(0 -1px 0 #3a2a00);
 }
 
-/* THE RED X (mark-bomb-button.tsx). Right edge, mid-height: the landscape
-   thumb's resting place, clear of the bottom band. 56px — over the 44px floor,
-   because a miss here lands on the board, and on the board a tap is a step. */
-.rr-overlay > .rr-mark-btn {
-  position: absolute;
-  right: max(12px, env(safe-area-inset-right));
-  top: 50%;
-  transform: translateY(-50%);
-  width: 56px;
-  height: 56px;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  background: #161b22;
-  border: 2px solid #0b0f14;
-  border-radius: 6px;
-  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.08), 0 3px 0 #0b0f14;
-  cursor: pointer;
+/* MARK A BOMB (mark-bomb-button.tsx). Bottom RIGHT: the landscape thumb's
+   corner, on the same floor as HOME and in the same pixel button, so it reads
+   as one of the run's two verbs. It was a bare 56px X on the right edge and
+   read as "close". */
+.rr-mark-btn {
+  position: fixed;
+  right: max(var(--rr-pad), env(safe-area-inset-right));
+  bottom: max(var(--rr-pad), env(safe-area-inset-bottom));
 }
-.rr-overlay > .rr-mark-btn svg { image-rendering: pixelated; display: block; }
-.rr-overlay > .rr-mark-btn:active { transform: translateY(calc(-50% + 2px)); box-shadow: 0 1px 0 #0b0f14; }
-/* Armed is a STATE, and says so three ways: the face turns the X's red, the
-   ring matches the board's, and `aria-pressed` tells anyone not looking. */
-.rr-overlay > .rr-mark-btn.armed {
-  background: #4a1512;
-  border-color: #ff5a4a;
-  animation: rr-mark-armed 900ms steps(2, end) infinite;
-}
-@keyframes rr-mark-armed { 50% { box-shadow: 0 0 0 3px rgba(255, 90, 74, 0.45), 0 3px 0 #0b0f14; } }
-.rr-overlay > .rr-mark-btn:focus-visible { outline: 2px solid #ffd60a; outline-offset: 2px; }
+.rr-mark-btn:focus-visible { outline: 2px solid #ffd60a; outline-offset: 2px; }
 .rr-mark-hint {
-  position: absolute;
-  right: max(80px, calc(env(safe-area-inset-right) + 68px));
-  top: 50%;
-  transform: translateY(-50%);
-  max-width: min(260px, 46vw);
+  position: fixed;
+  right: max(var(--rr-pad), env(safe-area-inset-right));
+  bottom: calc(max(var(--rr-pad), env(safe-area-inset-bottom)) + var(--rr-back-h) + 20px);
+  max-width: min(280px, 46vw);
   margin: 0;
   padding: 6px 10px;
   font-size: 12px;
@@ -1214,7 +1193,6 @@ button { min-height: 44px; min-width: 44px; }
   border-radius: 6px;
   pointer-events: none;
 }
-@media (prefers-reduced-motion: reduce) { .rr-overlay > .rr-mark-btn.armed { animation: none; } }
 
 /* The run's hearts (see hearts.tsx). Whole-multiple pixel art: the sprite is
    19×16, drawn at exactly 2× so no source pixel straddles a screen pixel. The

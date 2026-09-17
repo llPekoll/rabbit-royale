@@ -64,6 +64,7 @@ await page.screenshot({ path: `${OUT}/x-${tag}-1-spawn.png` });
 // Dig a few tiles first, so the bar is off its ceiling and a gain can show.
 // Towards the "1": it is the tile that touches the taught bomb. Only ground
 // the board calls safe (gold ring) is stepped on.
+const toggle = async () => { const b = (await hud()).button; await press(b.x + b.width / 2, b.y + b.height / 2); await page.waitForTimeout(350); };
 const caption = () => page.evaluate(() => document.querySelector('.rr-caption:not(.rr-caption-cost) [role="status"]')?.textContent ?? null);
 const seen = new Set();
 for (let step = 0; step < 9; step++) {
@@ -77,15 +78,17 @@ for (let step = 0; step < 9; step++) {
   await press(target.x, target.y);
   await page.waitForTimeout(1300);
   console.log(`[${tag}] step ${step + 1} onto ${target.label}: energy ${e0} -> ${(await hud()).energy} | caption: ${await caption()}`);
+  // The ring is gold while moving; only X mode shows what can be marked. So
+  // arm it to look, and leave it armed if there is something to mark.
+  await toggle();
   if ((await scan()).red.length) break;
+  await toggle();
 }
 s = await scan();
-console.log(`[${tag}] now: gold ${s.gold.length}, red ${s.red.length} (red = unread ground, a bet)`);
+console.log(`[${tag}] now: gold ${s.gold.length}, red ${s.red.length} (red only shows in X mode)`);
 
-// Arm the X.
-const b = (await hud()).button;
-await press(b.x + b.width / 2, b.y + b.height / 2);
-await page.waitForTimeout(400);
+// Armed by the loop above when something is markable; arm it anyway if not.
+if ((await hud()).armed !== 'true') await toggle();
 const armed = await scan();
 console.log(`[${tag}] armed:`, JSON.stringify({ ...(await hud()), button: undefined }), `| ring now gold ${armed.gold.length}, red ${armed.red.length}`);
 await page.screenshot({ path: `${OUT}/x-${tag}-2-armed.png` });
@@ -93,6 +96,7 @@ await page.screenshot({ path: `${OUT}/x-${tag}-2-armed.png` });
 // Mark one red tile and read the answer off the bar.
 const before = (await hud()).energy;
 const pick = armed.red[0];
+
 if (pick) console.log(`[${tag}] pick`, JSON.stringify(pick), 'element there:', await page.evaluate(([x, y]) => { const e = document.elementFromPoint(x, y); return e ? `${e.tagName}.${e.className}` : null; }, [pick.x, pick.y]));
 page.on('console', (m) => { if (/flag|move/i.test(m.text())) console.log('  [browser]', m.text()); });
 if (pick) {

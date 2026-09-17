@@ -97,10 +97,8 @@ export interface FogStyle {
 }
 export const HIGHLIGHT_COLOR = 0xffd700;
 /**
- * The ring on a tile whose step is a BET: undug, and no number written on it.
- * Gold says "you can go there"; this says "and a heart rides on it". It only
- * repeats what the board already shows — a hinted tile is never a bomb, an
- * unread one might be — so it solves nothing for the player, it prices the step.
+ * The X's red: the mark itself, and the ring in X MODE on every tile an X may
+ * land on. Nothing else on the board is this colour.
  */
 export const RISK_COLOR = 0xff5a4a;
 const MINE_TINT = 0xff3333;

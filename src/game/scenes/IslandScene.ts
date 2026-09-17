@@ -443,9 +443,11 @@ export class IslandScene implements Scene {
       // A red X is a proven bomb: the server refuses the step, so the ring
       // does not offer it.
       if (tile.flagged) continue;
-      // Undug and unread: the step is a bet, and the ring says so — see
-      // RISK_COLOR. A standing chest is known ground; it is never a bomb.
-      tile.setHighlight(true, !tile.revealed && !tile.hinted && !tile.hasChest);
+      // Always gold. For a day the ring went red on undug, unread ground
+      // ("this step is a bet"); unexplained, it read as an error, and it spent
+      // the one colour X mode needs to itself. Red now means exactly one
+      // thing on this board: an X can go there.
+      tile.setHighlight(true);
       this.highlighted.push(index);
     }
     // The keyboard marks follow the same rule — pointing at a tile the ring
