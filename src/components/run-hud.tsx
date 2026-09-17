@@ -41,7 +41,7 @@ export interface HudGame {
 }
 
 export function RunHud({
-  game, name, spectating, solo = false,
+  game, name, spectating,
 }: {
   game: HudGame;
   name: string;
@@ -65,19 +65,19 @@ export function RunHud({
     /* `watching` is a MODE of this strip, not decoration: it turns the row
        into two, so the label can say whose run this is in full. See the CSS. */
     <header className={`rr-hud${spectating ? ' watching' : ''}`}>
-      <PxPanel color={GLASS} className="rr-hud-plate">
-      {/* Energy first: the bolt and its yellow bar. It was three hearts while
-          a bomb was the only thing that moved it; since the red X it moves by
-          twos and fours — a right X pays a little, a wrong one costs — and a
-          heart cannot show a quarter of itself. See FLAG in tuning. */}
+      {/* Energy first, and ON ITS OWN — outside the glass plate. It is the
+          run's fuel since the red X: it moves on every dig and it is the one
+          reading checked before each step, so it gets the width to show a
+          single point. It was three hearts, then a 70px gauge sharing the
+          plate with two counters (Paul, 2026-09-17: "sors la de son panel,
+          car elle est trop petite"). */}
       <EnergyBar energy={subject?.energy ?? 0} />
-      {/* The run's haul is NOT here any more. It sat in this strip at the same
-          size as the hearts, and read as a second life gauge: the one number
-          that is about carrots, in the one panel that is about staying alive.
-          It rides beside the carrot pill now (`CarrotPill.carrying`), next to
-          the stock a walk home turns it into, smaller than the stock because
-          it is not banked yet. */}
-      {!solo && <span style={{ color: 'var(--muted)' }}>🐰 {game.rabbits.size}</span>}
+      {/* The plate only exists when it has something to SAY: the volcano's
+          warning, or whose run this is. The head-count that used to sit here
+          ("🐰 1") is gone — the other rabbits are on the board, where they
+          can be counted by looking, and a lone "1" read as a mystery stat. */}
+      {(game.warnStage > 0 || spectating) && (
+      <PxPanel color={GLASS} className="rr-hud-plate">
       {game.warnStage > 0 && (
         <span style={{ color: 'var(--danger)' }}>🌋 {'!'.repeat(game.warnStage)}</span>
       )}
@@ -107,6 +107,7 @@ export function RunHud({
         <small style={{ color: 'var(--crown)' }}>{t.run.watching(label)}</small>
       )}
       </PxPanel>
+      )}
     </header>
   );
 }

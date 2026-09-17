@@ -439,6 +439,41 @@ export class Tile {
     }
   }
 
+  private unknownMark: Container | null = null;
+
+  /**
+   * A "?" on a tile the ring offers but nobody has READ.
+   *
+   * The board has three kinds of undug ground and told them apart by the
+   * veil's darkness alone: dug (none), read by the cascade (thin), unread
+   * (full). Around a rabbit standing on a number that comes out as a ring of
+   * tiles some of which are greyer than others for no stated reason — Paul,
+   * 2026-09-17: "des cases autour du lapin qui sont grisees sans aucune raison
+   * apparente". The reason is the whole game: a grey one may hide a bomb. So
+   * the ring says it, in minesweeper's own word, on the tiles it lights and
+   * nowhere else.
+   */
+  setUnknownMark(on: boolean): void {
+    if (!on) {
+      this.unknownMark?.destroy({ children: true });
+      this.unknownMark = null;
+      return;
+    }
+    if (this.unknownMark) return;
+    const label = outlinedPixelText(0, 0, '?');
+    label.face.tint = 0xd9dde6;
+    label.group.alpha = 0.9;
+    label.group.zIndex = 38;
+    label.group.scale.set(Tile.HINT_SCALE * 0.8);
+    if (this.hintLayer) {
+      label.group.position.set(this.container.x, this.container.y);
+      this.hintLayer.addChild(label.group);
+    } else {
+      this.container.addChild(label.group);
+    }
+    this.unknownMark = label.group;
+  }
+
   /** A red X stands here: a bomb a player marked and the server confirmed. */
   flagged = false;
   private flagMark: Graphics | null = null;

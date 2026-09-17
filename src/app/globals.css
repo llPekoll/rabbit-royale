@@ -1115,12 +1115,22 @@ button { min-height: 44px; min-width: 44px; }
 
 /* The board is played through, so the chrome over it has to stay readable
    against pixel art of any colour without hiding half the island. */
-.rr-overlay .rr-hud,
 .rr-overlay .rr-card,
 .rr-overlay .rr-back {
   background: rgba(13, 17, 23, 0.82);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
+}
+/* THE RUN'S STRIP HAS NO PLATE OF ITS OWN any more. It holds the energy bar,
+   which carries its own pixel frame and outlined figure and stands straight on
+   the board (Paul, 2026-09-17: "sors la de son panel"), plus — only when there
+   is something to say — a glass PxPanel for the volcano or a watched name. A
+   slab behind both was a panel around a panel. */
+.rr-overlay > .rr-hud {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
 }
 
 
@@ -1146,19 +1156,12 @@ button { min-height: 44px; min-width: 44px; }
 .rr-energy {
   display: flex;
   align-items: center;
-  gap: 7px;
-  /* The bar takes the row's slack: it is the reading that matters most, and
-     the counters beside it are fixed-width glances. It still may not shrink
-     below its content — a flex item will not, unless told to. */
-  flex: 1 1 auto;
-  min-width: 140px;
-  /* ...but only up to a point. The HUD was drawn for a phone, where there is
-     no slack to take and the bar lands the right size by accident. Give it a
-     desktop's width and it grows without limit: a run's 30 points then fill a
-     third of the screen, and the eye has to travel the whole way to read a
-     value the gauge is meant to give at a glance. The cap is a reading
-     distance, not a layout preference. */
-  max-width: 320px;
+  gap: 8px;
+  flex: 0 0 auto;
+  /* A READING DISTANCE, not the row's slack: wide enough that one dig (1 %)
+     is a visible step, narrow enough to take in at a glance. It stands alone
+     now (see energy-bar.tsx), so it has the room. */
+  width: clamp(200px, 24vw, 320px);
 }
 .rr-energy-icon {
   display: block;
@@ -1293,33 +1296,39 @@ button { min-height: 44px; min-width: 44px; }
   --rr-gauge-wall: calc(11px * var(--rr-gauge-px));
 }
 
-.rr-energy-tube {
+/* The track is a PxPanel: the kit's nine-slice frame at the kit's 2px pixel.
+   Its frame is 2 source pixels = 4 CSS px, which is what the meter is inset by
+   so the fill seats inside the line rather than over it. */
+.rr-energy-track {
   position: relative;
-  flex: 1;
-  height: var(--rr-gauge-h);
-  /* The three shell slices in one layer: fixed ends pinned left and right, the
-     1px middle repeated across the gap between them. */
-  background:
-    url('/assets/gauge/bar-shell-base.webp') left center / auto 100% no-repeat,
-    url('/assets/gauge/bar-shell-cap.webp') right center / auto 100% no-repeat,
-    url('/assets/gauge/bar-shell-mid.webp') left center / auto 100% repeat-x;
-  image-rendering: pixelated;
+  flex: 1 1 auto;
+  height: 28px;
+  padding: 0;
+}
+.rr-energy-meter {
+  position: absolute;
+  inset: 4px;
 }
 .rr-energy-fill {
   position: absolute;
-  /* Sits in the channel the shell's walls leave, never on top of them. The
-     top and bottom differ because the wooden frame's rails do. */
-  top: var(--rr-gauge-wall-top);
-  bottom: var(--rr-gauge-wall-bottom);
-  left: var(--rr-gauge-wall);
-  image-rendering: pixelated;
-  /* Short, not smooth: energy changes in discrete steps (a dig, a carrot, a
-     blast) and easing them into each other hides how much a single dig cost. */
+  top: 0;
+  bottom: 0;
+  left: 0;
+  --fill: #ffd60a;
+  --lit: #fff3a6;
+  --shade: #b8860b;
+  background: var(--fill);
+  /* One kit pixel of light on top, one of shade below — the button faces'
+     own shading. Hard bands, never a gradient. */
+  box-shadow: inset 0 2px 0 var(--lit), inset 0 -2px 0 var(--shade);
+  /* Short, not smooth: energy moves in discrete steps and easing them into
+     each other hides how much a single dig cost. */
   transition: width 120ms linear;
 }
+.rr-energy-fill.tone-warn { --fill: #ff9f1c; --lit: #ffd08a; --shade: #a85a00; }
+.rr-energy-fill.tone-danger { --fill: #ff4d3d; --lit: #ffa79a; --shade: #9c1410; }
 /* An empty bar draws nothing: at zero width the crest would still show a
    sliver of fill in a tube that is supposed to be empty. */
-.rr-energy-fill[hidden] { display: none; }
 
 /* Under one bomb's worth the next blast ends the run — the bar says so itself
    rather than leaving the player to do the arithmetic. */
@@ -1329,29 +1338,23 @@ button { min-height: 44px; min-width: 44px; }
 
 .rr-energy-mark {
   position: absolute;
-  /* Inside the channel, not across the frame: the shell is the housing and the
-     notch is a marking ON the gauge, so it stops where the fill stops. */
-  top: var(--rr-gauge-wall-top);
-  bottom: var(--rr-gauge-wall-bottom);
-  /* A whole screen pixel, not a source one. Everything else here scales with
-     --rr-gauge-px, but that is now a fraction (0.55) and a notch scaled by it
-     would be half a pixel wide — which a browser draws as a grey smear, the
-     one thing this art never does. The death line is a marking, not part of
-     the sprite, so it is allowed its own unit. */
-  width: 1px;
-  /* Opaque and hard-edged: a translucent hairline is anti-aliasing by another
-     name, and there is none anywhere else in this art. Two columns — the
-     outline colour and a light one beside it — so the notch stays readable
-     both against the empty channel AND against a fill sitting on top of it. */
+  top: 0;
+  bottom: 0;
+  /* One kit pixel wide, opaque, with a light column beside it so it reads on
+     the empty track AND on a fill sitting over it. */
+  width: 2px;
   background: #0a0814;
-  box-shadow: 1px 0 0 rgba(214, 210, 255, 0.85);
+  box-shadow: 2px 0 0 rgba(255, 255, 255, 0.55);
 }
 .rr-energy-value {
+  font-family: var(--font-pixel), ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
-  font-size: 12px;
-  min-width: 2ch;
+  font-size: 18px;
+  line-height: 1;
+  min-width: 3ch;
   text-align: right;
-  color: var(--muted);
+  color: #fff3a6;
+  text-shadow: 2px 0 0 #1d1608, -2px 0 0 #1d1608, 0 2px 0 #1d1608, 0 -2px 0 #1d1608;
 }
 
 @media (prefers-reduced-motion: reduce) {

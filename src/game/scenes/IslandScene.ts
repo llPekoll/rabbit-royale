@@ -429,6 +429,7 @@ export class IslandScene implements Scene {
           if (index === this.myTile || Math.abs(p.col - col) > 1 || Math.abs(p.row - row) > 1) continue;
           if (tile.revealed || tile.hinted || tile.flagged || tile.hasChest) continue;
           tile.setHighlight(true, true);
+          tile.setUnknownMark(true);
           this.highlighted.push(index);
         }
       }
@@ -448,6 +449,9 @@ export class IslandScene implements Scene {
       // the one colour X mode needs to itself. Red now means exactly one
       // thing on this board: an X can go there.
       tile.setHighlight(true);
+      // Unread ground says so — see `Tile.setUnknownMark`. A standing chest is
+      // known: it is never a bomb.
+      tile.setUnknownMark(!tile.revealed && !tile.hinted && !tile.hasChest);
       this.highlighted.push(index);
     }
     // The keyboard marks follow the same rule — pointing at a tile the ring
@@ -541,7 +545,11 @@ export class IslandScene implements Scene {
       clearTimeout(this.stunTimer);
       this.stunTimer = null;
     }
-    for (const index of this.highlighted) this.tiles.get(index)?.setHighlight(false);
+    for (const index of this.highlighted) {
+      const tile = this.tiles.get(index);
+      tile?.setHighlight(false);
+      tile?.setUnknownMark(false);
+    }
     this.highlighted = [];
   }
 

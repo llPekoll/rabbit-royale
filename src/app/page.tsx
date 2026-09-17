@@ -56,7 +56,8 @@ import { EruptionOverlay } from '@/components/eruption-overlay';
 import { LootFly } from '@/components/loot-fly';
 import { playUiSfx } from '@/game/services/SoundManager';
 import { unlockedCount } from '@/config/lore';
-import { QUEST_MARK, codexMark, isQuestId, type QuestBoard } from '@/config/quests';
+import { questText } from '@/i18n/content';
+import { QUEST_MARK, QUESTS_ARC, codexMark, isQuestId, type QuestBoard } from '@/config/quests';
 import { TRAPS } from '@config/tuning';
 import { useShop, type ItemKind } from '@/components/use-shop';
 import type { PayTokenId } from '@/lib/pay/tokens';
@@ -891,19 +892,33 @@ function Burrow() {
   const lastActive = useRef<string | null>(null);
   const activeId = quest?.active?.id ?? null;
   const activeDone = quest?.active?.done ?? false;
-  const activeTitle = quest?.active?.title ?? '';
+  // The title is the DICTIONARY's. `quest.active.title` is the server's view,
+  // and the server has no language to pick one in: it has been the empty
+  // string since the prose moved to i18n (see `questView` in config/quests.ts).
+  // Reading it here is what put "Quest done: " and nothing else on the island.
+  const activeTitle = useMemo(() => {
+    const arc = QUESTS_ARC.find((q) => q.id === activeId);
+    return arc ? questText(t, arc).title : '';
+  }, [activeId, t]);
+  // The note's clock lives in a ref, NOT in the effect's cleanup. As a cleanup
+  // it was cancelled by the very next change to any dependency — and with
+  // `lastDone` already set, nothing ever started it again, so the line stayed
+  // on the island for good.
+  const questNoteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (questNoteTimer.current) clearTimeout(questNoteTimer.current); }, []);
   useEffect(() => {
     if (activeId && activeDone && lastDone.current !== activeId) {
       lastDone.current = activeId;
       setQuestDoneKey((k) => k + 1);
       playUiSfx('chime');
-      if (where === 'island') {
+      // Nothing to name, nothing to say: a bare "Quest done:" is worse than silence.
+      if (where === 'island' && activeTitle) {
         setQuestNote(t.notes.questDone(activeTitle));
-        const timer = setTimeout(() => setQuestNote(null), 5000);
-        return () => clearTimeout(timer);
+        if (questNoteTimer.current) clearTimeout(questNoteTimer.current);
+        questNoteTimer.current = setTimeout(() => setQuestNote(null), 5000);
       }
     }
-  }, [activeId, activeDone, activeTitle, where]);
+  }, [activeId, activeDone, activeTitle, where, t]);
   useEffect(() => {
     if (activeId && lastActive.current && lastActive.current !== activeId && !activeDone) {
       setQuestPulseKey((k) => k + 1);

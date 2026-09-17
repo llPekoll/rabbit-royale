@@ -46,7 +46,8 @@ const scan = () => page.evaluate(() => {
 const hud = () => page.evaluate(() => ({
   energy: document.querySelector('.rr-energy-value')?.textContent ?? null,
   bar: !!document.querySelector('.rr-hud .rr-energy'),
-  fill: getComputedStyle(document.querySelector('.rr-energy-fill') ?? document.body).backgroundImage.match(/bar-fill-(\w+)-/)?.[1] ?? null,
+  fill: [...(document.querySelector('.rr-energy-fill')?.classList ?? [])].find((c) => c.startsWith('tone-')) ?? null,
+  inPlate: !!document.querySelector('.rr-hud-plate .rr-energy'),
   hearts: !!document.querySelector('.rr-hud .rr-hearts'),
   button: document.querySelector('.rr-mark-btn')?.getBoundingClientRect().toJSON() ?? null,
   armed: document.querySelector('.rr-mark-btn')?.getAttribute('aria-pressed'),
