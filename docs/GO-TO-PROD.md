@@ -321,6 +321,44 @@ une colonne (`traps.sprung_at`) qui existait déjà. La ligne au hash du fichier
 a été insérée sans rejouer le SQL, et `db:check` dit de nouveau
 « all 16 migrations applied ».
 
+### 2026-09-17 — migration `0016` (schéma), à passer en prod AVANT le push
+
+`0016_bright_morlocks.sql` ajoute une colonne : `raid_runs.struck_at`, le
+moment où le défenseur a foudroyé le raider (`feat(defense)`, `7fb50b9`). Le
+nouveau code de `rr-web` la LIT sur chaque lecture d'un raid (`raidView`,
+`/api/raid/incoming`, `/api/raid/strike`) : déployé avant la colonne, chaque
+raid échouerait avec `column "struck_at" does not exist` — le cas exact du
+2026-09-10. La migration est additive et nullable, l'ancien code l'ignore :
+elle passe sans risque avant le push.
+
+Vérifié le 2026-09-17 avant d'écrire : prod à **17 lignes** dans le registre,
+les 17 hashes identiques aux 17 historiques du local (dont `0011` en double,
+voir l'entrée du 2026-09-14) ; local à 18, la 18e étant `0016`. Colonne
+absente en prod (`0`). Hash local à reporter tel quel :
+
+```bash
+ssh datemeee "docker exec -i 8eskt0v2sx156yrsrqyuam8t \
+  psql -U rr -d rr_crown -v ON_ERROR_STOP=1 <<'SQL'
+BEGIN;
+ALTER TABLE \"raid_runs\" ADD COLUMN IF NOT EXISTS \"struck_at\" timestamp with time zone;
+INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
+SELECT 'ec7a4357e5f48517997b0e333c175fea6fae9beeedf6f60c44e4226d905d05a0', 1789644643741
+WHERE NOT EXISTS (
+  SELECT 1 FROM drizzle.__drizzle_migrations
+  WHERE hash = 'ec7a4357e5f48517997b0e333c175fea6fae9beeedf6f60c44e4226d905d05a0'
+);
+COMMIT;
+SQL"
+```
+
+Attendu après : la colonne présente (`timestamp with time zone`) et **18
+lignes** dans le registre, comme en local.
+
+**Passée en prod le 2026-09-17**, en une transaction (l'ALTER puis l'INSERT
+ci-dessus) : `ALTER TABLE`, `INSERT 0 1`, `COMMIT`. Vérifié après : la colonne
+`struck_at timestamp with time zone` présente, prod à **18 lignes** dans le
+registre, local aussi. Poussé (`7fb50b9`, rebasé sur les 17 commits du jour) seulement après.
+
 ### Changer un réglage à chaud (ce n'est PAS une écriture à noter)
 
 > Les commandes complètes sont dans [TUNING.md](./TUNING.md) — c'est là qu'on
