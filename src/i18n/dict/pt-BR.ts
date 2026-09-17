@@ -198,6 +198,7 @@ export const ptBR: Dict = {
     markBomb: 'Marcar uma bomba',
     markHint: 'Toque na casa onde você acha que há uma bomba · certo: +energia · errado: -energia',
     markCancel: 'Cancelar',
+    markNothing: 'Nada para marcar aqui: todas as casas ao seu redor já foram lidas.',
     trapHint: (left) => `Toque num quadrado para minar, numa mina para tirar · restam ${left}`,
     trapHintEmpty: 'Sem bombas · compre outra, ou toque numa mina para tirar e enterrar noutro lugar',
   },

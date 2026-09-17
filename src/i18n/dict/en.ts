@@ -224,6 +224,7 @@ export const en = {
     markBomb: 'Mark a bomb',
     markHint: 'Tap a tile you think hides a bomb · right: +energy · wrong: -energy',
     markCancel: 'Cancel',
+    markNothing: 'Nothing to mark here: every tile around you is already read.',
     trapHint: (left: number) => `Tap a tile to mine it, tap a mine to lift it · ${left} left`,
     trapHintEmpty: 'No bombs left · buy another, or tap a mine to lift it and bury it elsewhere',
   },

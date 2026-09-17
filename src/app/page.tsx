@@ -2259,7 +2259,7 @@ function Burrow() {
           {/* The red X. Only with a live rabbit of your own: a spectator has
               nothing to mark with, and a finished run nothing to spend. */}
           {!spectating && game.me?.alive && !game.recap && game.erupting === null && (
-            <MarkBombButton armed={game.flagMode} onToggle={game.setFlagMode} />
+            <MarkBombButton armed={game.flagMode} onToggle={game.setFlagMode} nothing={game.flagNothing} />
           )}
           {!spectating && (
             <FirstRunCaption firstRun={game.firstRun} digs={game.digs} warnStage={game.warnStage} />

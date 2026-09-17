@@ -200,6 +200,7 @@ export const zh: Dict = {
     markBomb: '标记炸弹',
     markHint: '点一块你认为有炸弹的格子 · 对：+能量 · 错：-能量',
     markCancel: '取消',
+    markNothing: '这里没有可标记的：你周围的格子都已读过。',
     trapHint: (left) => `点格子埋雷，点雷收回 · 还剩 ${left}`,
     trapHintEmpty: '没有雷了 · 再买一颗，或点一颗雷收回改埋别处',
   },

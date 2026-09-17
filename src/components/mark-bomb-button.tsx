@@ -25,9 +25,11 @@ import { PxButton, pxLabel } from './px';
 export interface MarkBombButtonProps {
   armed: boolean;
   onToggle(armed: boolean): void;
+  /** Armed a moment ago with nothing around to mark — say so instead. */
+  nothing?: boolean;
 }
 
-export function MarkBombButton({ armed, onToggle }: MarkBombButtonProps) {
+export function MarkBombButton({ armed, onToggle, nothing = false }: MarkBombButtonProps) {
   const t = useT();
 
   useEffect(() => {
@@ -50,6 +52,7 @@ export function MarkBombButton({ armed, onToggle }: MarkBombButtonProps) {
   return (
     <>
       {armed && <p className="rr-mark-hint" role="status">{t.run.markHint}</p>}
+      {!armed && nothing && <p className="rr-mark-hint" role="status">{t.run.markNothing}</p>}
       <PxButton
         type="button"
         className={`rr-mark-btn${armed ? ' armed' : ''}`}

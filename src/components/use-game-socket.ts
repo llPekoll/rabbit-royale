@@ -698,10 +698,28 @@ export function useGameSocket(
    */
   const [flagMode, setFlagModeState] = useState(false);
   const flagModeRef = useRef(false);
+  /** Set for a moment when X mode was armed with nothing around to mark. */
+  const [flagNothing, setFlagNothing] = useState(false);
+  const flagNothingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (flagNothingTimer.current) clearTimeout(flagNothingTimer.current); }, []);
   const setFlagMode = useCallback((on: boolean) => {
+    let markable = -1;
+    toScene((s) => { markable = s.setFlagMode(on); });
+    // Every tile around the rabbit is already dug, read or marked: there is
+    // nothing an X could mean. Arming anyway lit an empty ring and explained
+    // nothing, so the mode refuses, and says why for a few seconds.
+    if (on && markable === 0) {
+      toScene((s) => { s.setFlagMode(false); });
+      flagModeRef.current = false;
+      setFlagModeState(false);
+      setFlagNothing(true);
+      if (flagNothingTimer.current) clearTimeout(flagNothingTimer.current);
+      flagNothingTimer.current = setTimeout(() => setFlagNothing(false), 3000);
+      return;
+    }
+    setFlagNothing(false);
     flagModeRef.current = on;
     setFlagModeState(on);
-    toScene((s) => s.setFlagMode(on));
   }, [toScene]);
 
   const moveTo = useCallback((tile: number) => {
@@ -769,6 +787,6 @@ export function useGameSocket(
     islandSeed, islandKey, rabbits, me, warnStage, recap, banked, bankedCarrots, connected, dropped, refused,
     firstRun, digs, bank, erupting,
     chestPrize, clearChestPrize: () => setChestPrize(null),
-    moveTo, restart, join, leave, bindScene, resync, flagMode, setFlagMode,
+    moveTo, restart, join, leave, bindScene, resync, flagMode, setFlagMode, flagNothing,
   };
 }

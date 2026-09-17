@@ -194,6 +194,7 @@ export const fr: Dict = {
     markBomb: 'Marquer une bombe',
     markHint: 'Touche la case où tu penses qu’il y a une bombe · juste : +énergie · faux : -énergie',
     markCancel: 'Annuler',
+    markNothing: 'Rien à marquer ici : toutes les cases autour de toi sont déjà lues.',
     trapHint: (left) => `Touche une case pour la miner, une mine pour la reprendre · ${left} restant`,
     trapHintEmpty: 'Plus de bombes · achètes-en une autre, ou touche une mine pour la reprendre et la poser ailleurs',
   },

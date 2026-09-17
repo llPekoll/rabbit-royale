@@ -887,10 +887,14 @@ export class IslandScene implements Scene {
    * — and all of them are red, because every one of them is a bet. The switch
    * itself lives in the socket hook; this only draws it.
    */
-  setFlagMode(on: boolean): void {
-    if (this.flagMode === on) return;
-    this.flagMode = on;
-    this.refreshReachable();
+  setFlagMode(on: boolean): number {
+    if (this.flagMode !== on) {
+      this.flagMode = on;
+      this.refreshReachable();
+    }
+    // How many tiles an X could land on right now. The caller disarms and says
+    // so when it is none — a mode that lights nothing reads as a broken button.
+    return on ? this.highlighted.length : 0;
   }
 
   /**
