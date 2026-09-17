@@ -159,12 +159,22 @@ describe('the red X', () => {
     expect(flagTile(island, rabbit, bomb, 20_000).flag?.correct).toBe(true);
   });
 
-  it('never fills the bar past its ceiling', () => {
+  it('never fills the bar past its ceiling, and pays the overflow in carrots', () => {
     const { island, bomb, rabbit } = beside();
     rabbit.energy = ENERGY.MAX - 1;
     const out = flagTile(island, rabbit, bomb, 10_000);
     expect(rabbit.energy).toBe(ENERGY.MAX);
     expect(out.flag?.energyDelta).toBe(1);
+    // Seven points the bar had no room for: a right X always pays something.
+    expect(out.flag?.carrotDelta).toBe(FLAG.CARROTS_BASE + (FLAG.GAIN - 1) * FLAG.OVERFLOW_CARROTS);
+    expect(rabbit.carrots).toBe(out.flag!.carrotDelta);
+  });
+
+  it('pays no overflow while the bar has room', () => {
+    const { island, bomb, rabbit } = beside();
+    const out = flagTile(island, rabbit, bomb, 10_000);
+    expect(out.flag?.energyDelta).toBe(FLAG.GAIN);
+    expect(out.flag?.carrotDelta).toBe(FLAG.CARROTS_BASE);
   });
 
   it('costs energy when it is wrong, and writes the number it paid for', () => {

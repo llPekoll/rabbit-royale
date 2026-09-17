@@ -108,6 +108,7 @@ if (pick) {
   const after = await hud();
   const s2 = await scan();
   console.log(`[${tag}] marked ${pick.label}: energy ${before} -> ${after.energy}, armed=${after.armed}, numbers: ${nums(s2)}`);
+  console.log(`[${tag}] carrot pill after the X: ${JSON.stringify((await hud()).carrots)} (full bar: base bounty + the energy the bar had no room for)`);
   console.log(`[${tag}] caption after the X: ${await caption()}`);
   console.log(`[${tag}] verdict: ${Number(after.energy) < Number(before) ? 'WRONG X (energy paid, number written)' : 'RIGHT X (bomb marked)'}; ring back to gold ${s2.gold.length} / red ${s2.red.length}`);
   await page.screenshot({ path: `${OUT}/x-${tag}-4-after.png` });

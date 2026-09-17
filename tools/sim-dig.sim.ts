@@ -34,7 +34,7 @@ function play(seed: string, lifetime: number, policy: Policy, rand: () => number
   const rabbit = spawnRabbit('bot', 'bot', T.ENERGY.START, seed);
   rabbit.run = { startedAt: 0, tilesDug: 0, bombsHit: 0, loot: {}, nfts: [] };
   let now = 1_000_000;
-  let digs = 0, bombs = 0, right = 0, wrong = 0, guesses = 0;
+  let digs = 0, bombs = 0, right = 0, wrong = 0, guesses = 0, wasted = 0;
   const tiles = island.tiles;
 
   for (let guard = 0; guard < 5000 && rabbit.alive; guard++) {
@@ -74,7 +74,7 @@ function play(seed: string, lifetime: number, policy: Policy, rand: () => number
     const mark = (i: number) => {
       rabbit.tile = standFor(i, boardNeighbors(island, i))!;
       const out = flagTile(island, rabbit, i, (now += 10_000));
-      if (out.flag?.correct) right++; else if (out.ok) wrong++;
+      if (out.flag?.correct) { right++; if (out.flag.energyDelta === 0) wasted++; } else if (out.ok) wrong++;
     };
     const dig = (i: number) => {
       rabbit.tile = standFor(i, terrainNeighbors(seed, i))!;
@@ -104,13 +104,13 @@ function play(seed: string, lifetime: number, policy: Policy, rand: () => number
     if (!dig(bets[0])) break;
   }
   const p = islandProgress(island);
-  return { digs, bombs, right, wrong, guesses, cleared: p.fraction, carrots: rabbit.carrots, died: !rabbit.alive, energy: rabbit.energy };
+  return { digs, bombs, right, wrong, guesses, wasted, cleared: p.fraction, carrots: rabbit.carrots, died: !rabbit.alive, energy: rabbit.energy };
 }
 
 test('simulate', () => {
-  type Set = { name: string; START: number; DIG: number; BOMB: number; GOLDEN: number; GAIN: number; LOSS: number };
+  type Set = { name: string; START: number; MAX: number; DIG: number; BOMB: number; GOLDEN: number; GAIN: number; LOSS: number };
   const live: Omit<Set, 'name'> = {
-    START: T.ENERGY.START, DIG: T.ENERGY.DIG_COST, BOMB: T.ENERGY.BOMB_LOSS,
+    START: T.ENERGY.START, MAX: T.ENERGY.MAX, DIG: T.ENERGY.DIG_COST, BOMB: T.ENERGY.BOMB_LOSS,
     GOLDEN: T.ENERGY.GOLDEN_GAIN, GAIN: T.FLAG.GAIN, LOSS: T.FLAG.LOSS,
   };
   const sets = (JSON.parse(process.env.SIM_SETS ?? '[{"name":"live"}]') as Array<Partial<Set> & { name: string }>)
@@ -118,15 +118,16 @@ test('simulate', () => {
   const N = Number(process.env.SIM_N ?? 12);
   const lines: string[] = [];
   for (const s of sets) {
-    Object.assign(mut(T.ENERGY), { START: s.START, MAX: s.START, DIG_COST: s.DIG, BOMB_LOSS: s.BOMB, GOLDEN_GAIN: s.GOLDEN });
+    Object.assign(mut(T.ENERGY), { START: s.START, MAX: s.MAX, DIG_COST: s.DIG, BOMB_LOSS: s.BOMB, GOLDEN_GAIN: s.GOLDEN });
     Object.assign(mut(T.FLAG), { GAIN: s.GAIN, LOSS: s.LOSS });
-    lines.push(`\n## ${s.name}  (start ${s.START}, dig ${s.DIG}, bomb ${s.BOMB}, golden +${s.GOLDEN}, X +${s.GAIN}/-${s.LOSS})`);
-    for (const [tier, lifetime] of [['Meadow', 0], ['Ashland', 6000], ['Caldera', 10000]] as const) {
+    lines.push(`\n## ${s.name}  (start ${s.START}, max ${s.MAX}, dig ${s.DIG}, bomb ${s.BOMB}, golden +${s.GOLDEN}, X +${s.GAIN}/-${s.LOSS})`);
+    for (const tier of T.ISLAND_TIERS.map((t) => t.name)) {
+      const lifetime = T.ISLAND_TIERS.find((t) => t.name === tier)!.minLifetime;
       for (const policy of ['walker', 'reader', 'gambler'] as const) {
         const rand = mulberry32(7);
         const runs = Array.from({ length: N }, (_, k) => play(`sim-${tier}-${k}`, lifetime, policy, rand));
         const avg = (f: (r: (typeof runs)[number]) => number) => runs.reduce((a, r) => a + f(r), 0) / runs.length;
-        lines.push(`${tier.padEnd(8)} ${policy.padEnd(8)} digs ${avg((r) => r.digs).toFixed(0).padStart(4)}  cleared ${(100 * avg((r) => r.cleared)).toFixed(0).padStart(3)}%  died ${(100 * avg((r) => +r.died)).toFixed(0).padStart(3)}%  bombs ${avg((r) => r.bombs).toFixed(1).padStart(5)}  X ok/ko ${avg((r) => r.right).toFixed(0)}/${avg((r) => r.wrong).toFixed(0)}  guesses ${avg((r) => r.guesses).toFixed(0).padStart(3)}  carrots ${avg((r) => r.carrots).toFixed(0)}`);
+        lines.push(`${tier.padEnd(8)} ${policy.padEnd(8)} digs ${avg((r) => r.digs).toFixed(0).padStart(4)}  cleared ${(100 * avg((r) => r.cleared)).toFixed(0).padStart(3)}%  died ${(100 * avg((r) => +r.died)).toFixed(0).padStart(3)}%  bombs ${avg((r) => r.bombs).toFixed(1).padStart(5)}  X ok/ko ${avg((r) => r.right).toFixed(0)}/${avg((r) => r.wrong).toFixed(0)} (paid 0: ${avg((r) => r.wasted).toFixed(0)})  guesses ${avg((r) => r.guesses).toFixed(0).padStart(3)}  carrots ${avg((r) => r.carrots).toFixed(0)}`);
       }
     }
   }

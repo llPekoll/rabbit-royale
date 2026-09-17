@@ -139,7 +139,10 @@ export function flagTile(island: Island, rabbit: Rabbit, at: number, now: number
     const before = rabbit.energy;
     rabbit.energy = Math.min(ENERGY.MAX, rabbit.energy + FLAG.GAIN);
     const streak = (run?.flagStreak ?? 0) + 1;
-    const carrots = Math.min(FLAG.CARROTS_MAX, FLAG.CARROTS_BASE + FLAG.CARROTS_STEP * (streak - 1));
+    // What the full bar turned away is paid as carrots — see OVERFLOW_CARROTS.
+    const overflow = FLAG.GAIN - (rabbit.energy - before);
+    const carrots = Math.min(FLAG.CARROTS_MAX, FLAG.CARROTS_BASE + FLAG.CARROTS_STEP * (streak - 1))
+      + overflow * FLAG.OVERFLOW_CARROTS;
     rabbit.carrots += carrots;
     const flag: FlagResult = {
       tile: at, correct: true, energyDelta: rabbit.energy - before, carrotDelta: carrots, streak,

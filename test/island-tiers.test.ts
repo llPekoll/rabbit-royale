@@ -9,8 +9,11 @@
 import { describe, expect, it } from 'vitest';
 import { ENERGY, ISLAND, ISLAND_TIERS, RUN, SEASON, tierFor } from '../config/tuning';
 
-/** What one run pays on a tier, and how much board it covers. Hearts decide
- *  the length: a run ends on its last heart, so more bombs means FEWER tiles. */
+/** What one run pays on a tier, and how much board it covers, for a rabbit
+ *  digging BLIND: it meets a bomb every 1/density tiles and stops when the bar
+ *  is spent. A floor, not a forecast — real income is measured by
+ *  tools/sim-dig.sim.ts — but the ORDER it puts the tiers in is what is
+ *  asserted here, and that holds for any player. */
 function runOn(tier: typeof ISLAND_TIERS[number]) {
   const hearts = ENERGY.START / ENERGY.BOMB_LOSS;
   const digs = hearts / tier.bombDensity;
@@ -47,11 +50,14 @@ describe('the island ladder', () => {
   });
 
   it('is fully walked well inside a season', () => {
-    // A day of play is worth roughly 700 lifetime carrots (four runs plus a
-    // garden). The last tier must land inside the season, with room to play it
+    // A day of play is worth roughly 10 000 lifetime carrots: four runs plus a
+    // garden, at the run income MEASURED by tools/sim-dig.sim.ts (the middle
+    // of a player who never marks a bomb and one who marks what they can
+    // prove). It was 700, from a model of a rabbit digging blind — see the
+    // note on ISLAND_TIERS. The last tier must land inside the season, with room to play it
     // — the crown is decided between players who know the hardest board, not
     // between players still unlocking it.
-    const perDay = 700;
+    const perDay = 10_000;
     const last = ISLAND_TIERS[ISLAND_TIERS.length - 1];
     const daysToLast = last.minLifetime / perDay;
     const seasonDays = SEASON.DURATION_MS / 86_400_000;

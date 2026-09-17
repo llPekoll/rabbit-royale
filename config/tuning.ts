@@ -217,13 +217,52 @@ export const FLAG = {
   /** Every n-th X of a streak also yields one raid bomb: two or three on a
    *  flawless island, about what its chests give. */
   ITEM_EVERY: 25,
+  /**
+   * Carrots paid per point of energy a right X could NOT deliver because the
+   * bar was already full.
+   *
+   * A good reader lives at the ceiling: simulated, 6 of 69 right Xs on a Meadow
+   * island and 25 of 108 on Caldera paid no energy at all, and the first X of
+   * every run is placed on a full bar — the game's central reward, invisible
+   * at the moment it is taught. Raising ENERGY.MAX was tried and rejected: at
+   * 150 the same 24 Xs were still wasted (the reader simply sits at the new
+   * ceiling) and nobody died on Caldera any more, which was the last tension
+   * a reader had. So the ceiling stays and the overflow becomes score: an X
+   * that is right ALWAYS pays, in fuel while there is room and in carrots
+   * when there is not.
+   *
+   * 1, not 2: a reader is at the ceiling so often that at 2 the overflow alone
+   * added 16 % to a Caldera island's haul. At 1 it adds about 8 %, and a full-
+   * bar X still reads "+13" against a plain "+5".
+   */
+  OVERFLOW_CARROTS: 1,
 } as const;
 
 /**
  * Difficulty tiers, unlocked by lifetime carrots (Phase 6). Each overrides the
  * base ISLAND densities: richer AND more dangerous, never one without the other.
  *
- * RE-SPACED 15 September 2026, for two reasons.
+ * RE-SPACED AGAIN 17 September 2026 — same intended pace, measured income.
+ *
+ * The pace below (Thicket on day 3, Ashland on day 8, Caldera on day 14) is
+ * still the goal. What was wrong was the income it was computed from: "a run
+ * is 21 digs and 120 carrots" is a rabbit digging BLIND until its third bomb.
+ * Nobody who reads the numbers plays like that. Simulated on real islands with
+ * the real rules (`tools/sim-dig.sim.ts`), a run pays 1 150 carrots to a
+ * player who never places an X and 3 900 to one who marks what they can
+ * prove — and it did before the red X too (2 450 and 5 000 under the hearts
+ * tuning). At ~700 a day the old thresholds (2 000 / 6 000 / 10 000) were
+ * being crossed inside the FIRST island, not on day 3.
+ *
+ * Taking the middle of those two players as a day's player — four runs plus a
+ * garden — a day is worth ~10 000 on Meadow, ~12 600 on Thicket and ~14 200
+ * on Ashland, which puts the three doors at 30 000, 90 000 and 175 000.
+ * LIVE PLAYERS: `tierFor` reads lifetime carrots at the moment an island is
+ * dealt, so anyone between the old and new thresholds goes back to an easier
+ * island on their next run. Nothing is lost and it reverses by editing these
+ * three numbers, but it is visible — say so in the patch notes.
+ *
+ * Re-spaced once before, on 15 September 2026, for two reasons.
  *
  * The thresholds were set when a dug carrot was worth 1. At RUN.CARROT_VALUE a
  * day of play (four runs plus a garden) is worth ~700 lifetime carrots, so the
@@ -258,9 +297,9 @@ export interface IslandTier {
 
 export const ISLAND_TIERS: readonly IslandTier[] = [
   { name: 'Meadow',  minLifetime: 0,      bombDensity: 0.14, carrotDensity: 0.30, goldenShare: 0.06 },
-  { name: 'Thicket', minLifetime: 2_000,  bombDensity: 0.17, carrotDensity: 0.34, goldenShare: 0.09 },
-  { name: 'Ashland', minLifetime: 6_000,  bombDensity: 0.20, carrotDensity: 0.38, goldenShare: 0.13 },
-  { name: 'Caldera', minLifetime: 10_000, bombDensity: 0.24, carrotDensity: 0.43, goldenShare: 0.18 },
+  { name: 'Thicket', minLifetime: 30_000,  bombDensity: 0.17, carrotDensity: 0.34, goldenShare: 0.09 },
+  { name: 'Ashland', minLifetime: 90_000,  bombDensity: 0.20, carrotDensity: 0.38, goldenShare: 0.13 },
+  { name: 'Caldera', minLifetime: 175_000, bombDensity: 0.24, carrotDensity: 0.43, goldenShare: 0.18 },
 ] as const;
 
 // ── Phase 2: island life cycle ───────────────────────────────────────────────
