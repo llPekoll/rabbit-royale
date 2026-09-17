@@ -43,6 +43,7 @@ import { HubIconButton, hubIconArt } from '@/components/hub-icon-button';
 import { nextAction } from '@/config/next-action';
 import { LORE } from '@/config/lore';
 import { KitRow } from '@/components/kit-row';
+import { MarkBombButton } from '@/components/mark-bomb-button';
 import { LoreCrawl } from '@/components/lore-crawl';
 import { GardenCard } from '@/components/garden-card';
 import { BurrowPanel } from '@/components/burrow-card-panel';
@@ -2240,6 +2241,11 @@ function Burrow() {
               cannot read "35/60 left at the burrow", and the tutorial's own
               captions need the strip. The first recap states the bank. */}
           {!spectating && !game.firstRun && <RunCostNote bank={game.bank} seed={game.islandSeed} />}
+          {/* The red X. Only with a live rabbit of your own: a spectator has
+              nothing to mark with, and a finished run nothing to spend. */}
+          {!spectating && game.me?.alive && !game.recap && game.erupting === null && (
+            <MarkBombButton armed={game.flagMode} onToggle={game.setFlagMode} />
+          )}
           {!spectating && (
             <FirstRunCaption firstRun={game.firstRun} digs={game.digs} warnStage={game.warnStage} />
           )}

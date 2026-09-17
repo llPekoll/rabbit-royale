@@ -22,9 +22,9 @@ import { and, eq, isNull, sql as raw } from 'drizzle-orm';
 
 import { ENERGY, ERUPTION, MIRAGE, MULTIPLAYER, OUT_OF_RUN_ENERGY } from '../config/tuning';
 import { mulberry32, seedFrom } from '../src/lib/game/rng';
-import { cascadeAround, defuseSurrounded, dugFraction, publicView } from '../src/lib/game/island';
+import { cascadeAround, dugFraction, publicView } from '../src/lib/game/island';
 import { firstIslandSeed, isFirstIsland } from '../src/lib/game/first-island';
-import { resolveMove, spawnRabbit } from '../src/lib/game/run';
+import { flagTile, resolveMove, spawnRabbit } from '../src/lib/game/run';
 import { mirageActive, planMirage, shownAdjacent } from '../src/lib/game/mirage';
 import { strike } from '../src/lib/game/lightning';
 import { makeShape, toColRow, toIndex } from '../src/config/gridConfig';
@@ -198,6 +198,8 @@ function snapshot(live: LiveIsland) {
     chests: view.chests,
     // Numbers the cascade has opened on undug ground — see `cascadeHints`.
     hinted: view.hinted,
+    // Red Xs that were RIGHT — see FLAG in tuning. A wrong one leaves no mark.
+    flagged: view.flagged,
     /** The tutorial island. The client runs its captions off this alone. */
     first: isFirstIsland(view.seed),
     warnStage: live.warnStage,
@@ -672,14 +674,6 @@ io.on('connection', (socket: Socket) => {
     // Bounded around the point of impact, like a dig is around the rabbit.
     const hinted = cascadeAround(live.island, target);
     if (hinted.length) io.to(room).emit('hints_revealed', { tiles: hinted });
-    // A strike can open a bomb's last safe neighbour. The bomb is defused —
-    // the board must not keep a surrounded bomb nobody can ever close — but
-    // nobody is paid: the bounty is for getting there on foot.
-    for (const s of out.struck) {
-      for (const d of defuseSurrounded(live.island, s.tile)) {
-        io.to(room).emit('bomb_defused', { tile: d.tile, adjacent: live.island.tiles.get(d.tile)?.adjacent ?? 0 });
-      }
-    }
   }));
 
   /**
@@ -762,6 +756,50 @@ io.on('connection', (socket: Socket) => {
    * A spectator has no rabbit on the island, so this falls through harmlessly:
    * watching cannot move anyone.
    */
+  /**
+   * A red X — "there is a bomb under that one". See FLAG in tuning.
+   *
+   * Answered at once and by the server alone: the client sends a tile and
+   * learns whether it was right, exactly as it does for a dig. A RIGHT X goes
+   * to the whole island (`bomb_flagged`) — it was checked, so it is a fact
+   * about the board, and the move onto it is refused for everyone. A WRONG one
+   * leaves no X at all: the room only sees the number it uncovered.
+   */
+  socket.on('flag', guard('flag', (payload: { tile?: unknown }) => {
+    if (!data.playerId || !data.islandId || data.spectating) return;
+    const at = payload?.tile;
+    if (typeof at !== 'number' || !Number.isInteger(at)) return;
+
+    const live = store.get(data.islandId);
+    if (!live || live.erupting) return;
+    const rabbit = live.rabbits.get(data.playerId);
+    if (!rabbit) return;
+
+    const out = flagTile(live.island, rabbit, at);
+    if (!out.ok || !out.flag) return socket.emit('flag_rejected', { reason: out.rejection });
+
+    const room = roomFor(live.island.id);
+    if (out.flag.correct) io.to(room).emit('bomb_flagged', { tile: at, by: data.playerId });
+    if (out.flag.hinted?.length) io.to(room).emit('hints_revealed', { tiles: out.flag.hinted });
+    console.log('[flag]', data.playerId, 'tile', at, out.flag.correct ? 'right' : 'wrong',
+      'energy', rabbit.energy, 'streak', out.flag.streak);
+    // Same tile, new energy and carrots: the roster and the ring both read it.
+    io.to(room).emit('rabbit_energy', { playerId: data.playerId, energy: rabbit.energy, carrots: rabbit.carrots });
+    // The private half, like `move_result`: what it paid is the marker's business.
+    socket.emit('flag_result', out.flag);
+
+    if (out.runOver) {
+      io.to(room).emit('rabbit_died', { playerId: data.playerId });
+      void bankRun(rabbit).catch((e) => console.error('[bankRun:flag]', e));
+      socket.emit('run_over', {
+        carrots: rabbit.carrots,
+        tilesDug: data.tilesDug ?? 0,
+        bombsHit: data.bombsHit ?? 0,
+        durationMs: Date.now() - (data.runStartedAt ?? Date.now()),
+      });
+    }
+  }));
+
   socket.on('move', guard('move', (payload: { tile?: unknown }) => {
     if (!data.playerId || !data.islandId || data.spectating) return;
     const to = payload?.tile;
@@ -804,9 +842,6 @@ io.on('connection', (socket: Socket) => {
           dugBy: shove.playerId,
         });
         if (shove.dig.hinted?.length) io.to(room).emit('hints_revealed', { tiles: shove.dig.hinted });
-        for (const d of shove.dig.defused ?? []) {
-          io.to(room).emit('bomb_defused', { tile: d.tile, by: shove.playerId });
-        }
       }
       io.to(room).emit('rabbit_pushed', {
         playerId: shove.playerId,
@@ -818,10 +853,6 @@ io.on('connection', (socket: Socket) => {
         runOver: shove.runOver,
       });
       const victim = live.rabbits.get(shove.playerId);
-      // A shove that closed the ring round a bomb paid the shoved rabbit.
-      // Sent AFTER the push so the client has already put them on the tile:
-      // this only carries the new count.
-      if (victim && shove.dig?.defused?.length) io.to(room).emit('rabbit_moved', publicRabbit(victim));
       if (victim && shove.runOver) {
         void bankRun(victim).catch((e) => console.error('[bankRun:pushed]', e));
       }
@@ -862,11 +893,6 @@ io.on('connection', (socket: Socket) => {
       // whole room, like the reveal — what the ground says is a shared fact,
       // and the tiles themselves are still there for anyone to dig.
       if (out.dig.hinted?.length) io.to(room).emit('hints_revealed', { tiles: out.dig.hinted });
-      // Bombs this dig finished surrounding: shown to the whole island as
-      // what they are. What they PAID rides in `move_result`, to the digger.
-      for (const d of out.dig.defused ?? []) {
-        io.to(room).emit('bomb_defused', { tile: d.tile, by: data.playerId });
-      }
       // The blast is its own event: the client plays a damage animation and a
       // knockback, which a plain move would not distinguish from a walk.
       if (out.dig.knockback) {

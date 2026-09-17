@@ -20,7 +20,7 @@ import { io, type Socket } from 'socket.io-client';
 import type { TileContent } from '@/lib/game/types';
 import type { IslandScene } from '@/game/scenes/IslandScene';
 import { toIndex } from '@/config/gridConfig';
-import { DEFUSE } from '@config/tuning';
+import { FLAG } from '@config/tuning';
 
 export interface ClientRabbit {
   playerId: string;
@@ -37,7 +37,7 @@ export interface IslandSnapshot {
   seed: string;
   warnStage: number;
   rabbits: ClientRabbit[];
-  revealed: Array<{ tile: number; content: TileContent; adjacent: number; defused?: boolean }>;
+  revealed: Array<{ tile: number; content: TileContent; adjacent: number }>;
   /**
    * Where the flock stands, by placement id.
    *
@@ -61,6 +61,8 @@ export interface IslandSnapshot {
    * Tile and count only; what the tile holds is still the server's secret.
    */
   hinted?: Array<{ tile: number; adjacent: number }>;
+  /** Bombs under a red X — marked by a player and confirmed by the server. */
+  flagged?: number[];
   /**
    * The tutorial island — a player's very first run, on ground dealt by hand
    * (see FIRST_RUN in tuning). The captions over the board run off this and
@@ -91,6 +93,16 @@ export interface RunBank {
  *
  * Mirrors `DigResult` on the server, narrowed to what the client acts on.
  */
+/** The private answer to a red X — mirrors `FlagResult` on the server. */
+export interface FlagResultMsg {
+  tile: number;
+  correct: boolean;
+  energyDelta: number;
+  carrotDelta: number;
+  streak: number;
+  item?: boolean;
+}
+
 export interface MoveResult {
   dig?: {
     /** The tile that was dug. */
@@ -107,8 +119,6 @@ export interface MoveResult {
     loot?: { kind: string; amount: number; announced?: boolean };
     /** A crown chest also gave up an RR Genesis piece. */
     nft?: boolean;
-    /** Bombs this dig finished surrounding, and what each paid — see DEFUSE. */
-    defused?: Array<{ tile: number; carrots: number; streak: number; item?: boolean }>;
   };
   /**
    * The tutorial's chest was just opened — the run ends on a win.
@@ -421,7 +431,8 @@ export function useGameSocket(
       // A joiner lands mid-run on an island others have been digging, so the
       // snapshot carries what is already uncovered.
       toScene((s) => {
-        for (const t of snap.revealed) t.defused ? s.defuseBomb(t.tile, false) : s.revealTile(t.tile, t.content, t.adjacent);
+        for (const t of snap.revealed) s.revealTile(t.tile, t.content, t.adjacent);
+        for (const f of snap.flagged ?? []) s.flagBomb(f, false);
         for (const h of snap.hinted ?? []) s.hintTile(h.tile, h.adjacent);
         // Chests are drawn before they are dug — they DROP in here, which reads
         // as the island being dealt to the player who just joined it.
@@ -445,9 +456,36 @@ export function useGameSocket(
       toScene((s) => { for (const h of p.tiles) s.hintTile(h.tile, h.adjacent); });
     });
 
-    /** A bomb was surrounded, and is out of the game — shown to everyone. */
-    socket.on('bomb_defused', (p: { tile: number }) => {
-      toScene((s) => s.defuseBomb(p.tile));
+    /** Somebody's red X was RIGHT: the bomb is marked for the whole island. */
+    socket.on('bomb_flagged', (p: { tile: number }) => {
+      toScene((s) => s.flagBomb(p.tile));
+    });
+
+    /**
+     * A rabbit's energy or carrots changed WITHOUT a step — an X paid or cost.
+     * `rabbit_moved` would replay a hop onto the tile they are standing on.
+     */
+    socket.on('rabbit_energy', (p: { playerId: string; energy: number; carrots: number }) => {
+      setRabbits((prev) => {
+        const was = prev.get(p.playerId);
+        if (!was) return prev;
+        return new Map(prev).set(p.playerId, { ...was, energy: p.energy, carrots: p.carrots });
+      });
+      if (p.playerId === playerId) toScene((s) => s.setEnergy(p.energy));
+    });
+
+    /**
+     * What MY red X was worth — private, like `move_result`. The energy is
+     * said on the tile in the bar's own yellow, the carrots beside it; a wrong
+     * one is said in red, and the scene shakes its head.
+     */
+    socket.on('flag_result', (r: FlagResultMsg) => {
+      toScene((s) => s.flagAnswered(r.tile, r.correct, r.energyDelta, r.carrotDelta, r.carrotDelta >= FLAG.CARROTS_MAX));
+    });
+
+    /** The X was refused (known ground, out of reach, stunned): a plain "no". */
+    socket.on('flag_rejected', () => {
+      toScene((s) => s.moveRejected('blocked'));
     });
 
     /**
@@ -464,19 +502,9 @@ export function useGameSocket(
         const c = r.dig.content;
         // The gain, said on the tile — for the digger alone, which is who
         // this event reaches. See `IslandScene.floatGain`.
-        //
-        // `carrotDelta` is the whole dig, bounties included; the bounties are
-        // said on the BOMBS they came from, so they are taken off the tile's.
-        const bounty = (r.dig.defused ?? []).reduce((n, d) => n + d.carrots, 0);
-        const own = (r.dig.carrotDelta ?? 0) - bounty;
-        if (r.dig.tile !== undefined && own > 0) {
-          const { tile } = r.dig;
-          toScene((s) => s.floatGain(tile, own, c === 'golden'));
-        }
-        for (const d of r.dig.defused ?? []) {
-          // In gold once the streak has reached its ceiling: that is the
-          // number a blast would cost them, worth seeing as different.
-          if (d.carrots > 0) toScene((s) => s.floatGain(d.tile, d.carrots, d.carrots >= DEFUSE.MAX));
+        if (r.dig.tile !== undefined && (r.dig.carrotDelta ?? 0) > 0) {
+          const { tile, carrotDelta } = r.dig;
+          toScene((s) => s.floatGain(tile, carrotDelta!, c === 'golden'));
         }
         setDigs((d) => ({
           tiles: d.tiles + 1,
@@ -642,7 +670,8 @@ export function useGameSocket(
     const snap = snapshotRef.current;
     const scene = sceneRef.current();
     if (!snap || !scene) return;
-    for (const t of snap.revealed) t.defused ? scene.defuseBomb(t.tile, false) : scene.revealTile(t.tile, t.content, t.adjacent);
+    for (const t of snap.revealed) scene.revealTile(t.tile, t.content, t.adjacent);
+    for (const f of snap.flagged ?? []) scene.flagBomb(f, false);
     for (const h of snap.hinted ?? []) scene.hintTile(h.tile, h.adjacent);
     // No drop on a resync: these chests were already standing there, and
     // replaying the arrival would announce something that did not happen.
@@ -651,9 +680,31 @@ export function useGameSocket(
   }, []);
 
   /** Ask to step onto a tile. The server decides whether it happens. */
+  /**
+   * X MODE: the next tap on the ring MARKS a tile instead of stepping onto it.
+   *
+   * One-shot — it drops after a single X, right or wrong. A mode that stayed
+   * armed would turn the very next "walk there" into a bet the player did not
+   * mean to place, and a wrong X costs energy. The scene is told so the ring
+   * can show what an X may land on; the decision to send `flag` rather than
+   * `move` is made HERE, so the tap path through the page stays one path.
+   */
+  const [flagMode, setFlagModeState] = useState(false);
+  const flagModeRef = useRef(false);
+  const setFlagMode = useCallback((on: boolean) => {
+    flagModeRef.current = on;
+    setFlagModeState(on);
+    toScene((s) => s.setFlagMode(on));
+  }, [toScene]);
+
   const moveTo = useCallback((tile: number) => {
+    if (flagModeRef.current) {
+      socketRef.current?.emit('flag', { tile });
+      setFlagMode(false);
+      return;
+    }
     socketRef.current?.emit('move', { tile });
-  }, []);
+  }, [setFlagMode]);
 
   const restart = useCallback(() => {
     const socket = socketRef.current;
@@ -711,6 +762,6 @@ export function useGameSocket(
     islandSeed, islandKey, rabbits, me, warnStage, recap, banked, bankedCarrots, connected, dropped, refused,
     firstRun, digs, bank, erupting,
     chestPrize, clearChestPrize: () => setChestPrize(null),
-    moveTo, restart, join, leave, bindScene, resync,
+    moveTo, restart, join, leave, bindScene, resync, flagMode, setFlagMode,
   };
 }

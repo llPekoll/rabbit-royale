@@ -31,7 +31,7 @@ describe('run recap', () => {
     // test is the thing that should notice.
     const RUN = read('../src/lib/game/run.ts');
     expect(RUN).toMatch(/rabbit\.energy <= 0/);
-    expect(RUN.match(/alive = false/g) ?? []).toHaveLength(2); // the victim's, and the mover's
+    expect(RUN.match(/alive = false/g) ?? []).toHaveLength(3); // the victim's, the mover's, and a wrong red X — all at energy 0
     expect(RECAP).not.toMatch(/onAgain/);
     expect(RECAP).not.toMatch(/>\s*Again\s*</);
   });

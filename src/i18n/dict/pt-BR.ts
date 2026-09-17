@@ -192,6 +192,12 @@ export const ptBR: Dict = {
     watching: (label) => `👁 assistindo ${label}`,
     hearts: (full, total) => `${full} de ${total} corações`,
     heartsShort: (full, total) => `${full} / ${total} corações`,
+    /** The run's energy bar, read aloud. */
+    energy: (n, max) => `${n} de ${max} de energia`,
+    /** The red X — see FLAG in tuning. */
+    markBomb: 'Marcar uma bomba',
+    markHint: 'Toque na casa onde você acha que há uma bomba · certo: +energia · errado: -energia',
+    markCancel: 'Cancelar',
     trapHint: (left) => `Toque num quadrado para minar, numa mina para tirar · restam ${left}`,
     trapHintEmpty: 'Sem bombas · compre outra, ou toque numa mina para tirar e enterrar noutro lugar',
   },
@@ -210,7 +216,7 @@ export const ptBR: Dict = {
     cleared: 'ILHA LIMPA!',
     over: 'FIM DA SAÍDA',
     clearedNote: 'Tudo que valia cavar foi cavado. O vulcão levou o resto.',
-    overNote: 'Sem corações.',
+    overNote: 'Sem energia.',
     tutorialDone: 'VOCÊ PEGOU!',
     tutorialDoneNote: 'O baú era a ilha inteira. Suas cenouras esperam na toca.',
     stats: (carrots, dug, bombs, time) => `🥕 ${carrots} · ${dug} cavados · 💣 ${bombs} · ${time}`,

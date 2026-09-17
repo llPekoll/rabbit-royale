@@ -10,15 +10,15 @@
  * two objects it is handed and returns what happened, so a caller can broadcast
  * a delta rather than diffing whole islands.
  */
-import { BOMB, CHEST_LOOT, CHEST_LOOT_BY_TIER, CHEST_NFT_ODDS, ENERGY, MULTIPLAYER, RUN } from '@config/tuning';
+import { BOMB, CHEST_LOOT, CHEST_LOOT_BY_TIER, CHEST_NFT_ODDS, ENERGY, FLAG, MULTIPLAYER, RUN } from '@config/tuning';
 import { SPAWN_INDEX, neighbors, toColRow, type IslandShape } from '@/config/gridConfig';
 import { pickWeighted, randInt, type Rng } from './rng';
-import { cascadeAround, defuseSurrounded, revealTile } from './island';
+import { boardNeighbors, cascadeAround, revealTile } from './island';
 import { isFirstIsland } from './first-island';
 import { spawnTile, terrainNeighbors } from './terrainBoard';
 import { canDig } from './reachable';
 import { occupancyOf, planPush } from './push';
-import type { DigResult, HintReveal, Island, Rabbit } from './types';
+import type { DigResult, FlagResult, HintReveal, Island, Rabbit } from './types';
 import { isLootItemKind } from './types';
 
 export type MoveRejection =
@@ -29,7 +29,9 @@ export type MoveRejection =
   | 'too-fast'
   | 'not-adjacent'
   | 'off-island'
-  | 'no-energy';
+  | 'no-energy'
+  /** A red X stands there: a known bomb, and the game will not let you walk in. */
+  | 'flagged';
 
 export interface MoveOutcome {
   ok: boolean;
@@ -88,6 +90,91 @@ export interface PushedRabbit {
   runOver: boolean;
 }
 
+export type FlagRejection =
+  | 'dead'
+  | 'stunned'
+  | 'off-island'
+  /** Not one of the eight cells around the rabbit. */
+  | 'not-adjacent'
+  /** Dug, read, already marked, or a standing chest: nothing to claim there. */
+  | 'known';
+
+export interface FlagOutcome {
+  ok: boolean;
+  rejection?: FlagRejection;
+  flag?: FlagResult;
+  energy: number;
+  carrots: number;
+  /** A wrong X on the last of the energy ends the run, like a blast would. */
+  runOver: boolean;
+}
+
+/**
+ * Resolve one red X — see FLAG in tuning for the why and the sums.
+ *
+ * Reach is the BOARD's eight neighbours, not the terrain's steps: a bomb on
+ * the shelf above is counted by the number under the rabbit's feet, so it has
+ * to be markable from there too, climbable or not.
+ *
+ * Only ground that says nothing may be marked. A dug tile is known, a hinted
+ * one is known SAFE (the cascade never writes on a bomb), a chest is never a
+ * bomb, and an X already stands where an X stands. Refusing those is a
+ * kindness, not a rule of the puzzle: an X there could only lose.
+ */
+export function flagTile(island: Island, rabbit: Rabbit, at: number, now: number = Date.now()): FlagOutcome {
+  const reject = (rejection: FlagRejection): FlagOutcome => ({
+    ok: false, rejection, energy: rabbit.energy, carrots: rabbit.carrots, runOver: !rabbit.alive,
+  });
+  if (!rabbit.alive) return reject('dead');
+  if (now < rabbit.stunnedUntil) return reject('stunned');
+  const tile = island.tiles.get(at);
+  if (!tile) return reject('off-island');
+  if (!boardNeighbors(island, rabbit.tile).includes(at)) return reject('not-adjacent');
+  if (tile.revealed || tile.hinted || tile.flagged || tile.content === 'chest') return reject('known');
+
+  const run = rabbit.run;
+  if (tile.content === 'bomb') {
+    tile.flagged = true;
+    tile.flaggedBy = rabbit.playerId;
+    const before = rabbit.energy;
+    rabbit.energy = Math.min(ENERGY.MAX, rabbit.energy + FLAG.GAIN);
+    const streak = (run?.flagStreak ?? 0) + 1;
+    const carrots = Math.min(FLAG.CARROTS_MAX, FLAG.CARROTS_BASE + FLAG.CARROTS_STEP * (streak - 1));
+    rabbit.carrots += carrots;
+    const flag: FlagResult = {
+      tile: at, correct: true, energyDelta: rabbit.energy - before, carrotDelta: carrots, streak,
+    };
+    if (run) {
+      run.flagStreak = streak;
+      run.bombsFlagged = (run.bombsFlagged ?? 0) + 1;
+      if (streak % FLAG.ITEM_EVERY === 0) {
+        run.loot.bomb = (run.loot.bomb ?? 0) + 1;
+        flag.item = true;
+      }
+    }
+    return { ok: true, flag, energy: rabbit.energy, carrots: rabbit.carrots, runOver: false };
+  }
+
+  // Wrong. The tile is safe, and paying for that is what buys the knowledge:
+  // its number is written on it, exactly as the cascade would have, and if it
+  // is a zero the cascade runs on from it. Nothing is dug.
+  rabbit.energy -= FLAG.LOSS;
+  if (run) run.flagStreak = 0;
+  tile.hinted = true;
+  const hinted: HintReveal[] = [{ tile: at, adjacent: tile.adjacent }, ...cascadeAround(island, rabbit.tile)];
+  if (rabbit.energy <= 0) {
+    rabbit.energy = 0;
+    rabbit.alive = false;
+  }
+  return {
+    ok: true,
+    flag: { tile: at, correct: false, energyDelta: -FLAG.LOSS, carrotDelta: 0, streak: 0, hinted },
+    energy: rabbit.energy,
+    carrots: rabbit.carrots,
+    runOver: !rabbit.alive,
+  };
+}
+
 /**
  * Resolve one move intent.
  *
@@ -135,6 +222,11 @@ export function resolveMove(
 
   const tile = island.tiles.get(to);
   if (!tile) return reject('off-island');
+  // A red X is a bomb somebody PROVED. Walking onto it can only be a slip of
+  // the thumb, and a slip must not cost a heart the player already earned the
+  // right to keep. (A shove can still land a rabbit there — see `planPush`;
+  // that is the pusher's doing, and it goes off like any bomb.)
+  if (tile.flagged && !tile.revealed) return reject('flagged');
   // One step only, and onto ground the TERRAIN allows. Checked here rather
   // than trusted from the client, which is the entire reason this function
   // exists: the ring the player taps is drawn from the same rule, so a client
@@ -193,20 +285,16 @@ export function resolveMove(
         victim.energy -= ENERGY.BOMB_LOSS;
         dug.energyDelta = -ENERGY.BOMB_LOSS;
         victim.stunnedUntil = now + BOMB.STUN_MS;
-        if (victim.run) victim.run.defuseStreak = 0;
+        if (victim.run) victim.run.flagStreak = 0;
         if (victim.energy <= 0) {
           victim.energy = 0;
           victim.alive = false;
           entry.runOver = true;
         }
       } else {
-        // A shove onto a zero opens the ground like any other dig would, and
-        // a shove onto a bomb's last safe neighbour defuses it — paid to the
-        // one standing there, who is the one the dig is recorded against.
+        // A shove onto a zero opens the ground like any other dig would.
         const hinted = cascadeAround(island, step.to);
         if (hinted.length) dug.hinted = hinted;
-        const defused = defuseSurrounded(island, step.to, victim);
-        if (defused.length) dug.defused = defused;
       }
       entry.dig = dug;
       entry.energy = victim.energy;
@@ -248,8 +336,8 @@ export function resolveMove(
       rabbit.energy -= ENERGY.BOMB_LOSS;
       dig.energyDelta -= ENERGY.BOMB_LOSS;
       rabbit.stunnedUntil = now + BOMB.STUN_MS;
-      // A blast costs the heart AND the defuse streak — see DEFUSE.
-      if (rabbit.run) rabbit.run.defuseStreak = 0;
+      // A blast costs the energy AND the X streak — see FLAG.
+      if (rabbit.run) rabbit.run.flagStreak = 0;
       // Thrown backwards from where it STOOD — the rabbit never enters the
       // bomb tile.
       const landing = knockbackTarget(island, rabbit.tile, to, shape);
@@ -349,16 +437,6 @@ export function resolveMove(
   // landing tile. A revealed bomb is never a zero, so nothing starts from it.
   const hinted = cascadeAround(island, rabbit.tile);
   if (hinted.length) dig.hinted = hinted;
-
-  // The dig that closes the ring round a bomb defuses it. Not on a blast:
-  // stepping on one bomb is not how you earn the one beside it.
-  if (tile.content !== 'bomb') {
-    const defused = defuseSurrounded(island, to, rabbit);
-    if (defused.length) {
-      dig.defused = defused;
-      for (const d of defused) dig.carrotDelta += d.carrots;
-    }
-  }
 
   if (rabbit.energy <= 0) {
     rabbit.energy = 0;

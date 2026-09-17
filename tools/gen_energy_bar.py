@@ -48,6 +48,10 @@ BANDS = ((0, 2, "dark"), (3, 4, "body"), (5, 7, "spec"), (8, 13, "body"), (14, 2
 # picks a meaning and this file decides what that looks like. Each is
 # (dark, body, spec) — the same three roles the source's banding uses.
 FILLS = {
+    # The run's energy since the red X: battery yellow, to go with the bolt.
+    # Apart from "carrot" (amber) on purpose — that one still draws the
+    # burrow's bar, and energy is no longer a thing carrots refill.
+    "energy": ((140, 104, 0, 255), (255, 214, 10, 255), (255, 244, 170, 255)),
     "carrot": ((150, 86, 0, 255), (255, 176, 0, 255), (255, 230, 150, 255)),
     "warn":   ((150, 70, 0, 255), (255, 138, 0, 255), (255, 205, 130, 255)),
     "danger": ((150, 12, 46, 255), (255, 62, 62, 255), (255, 167, 98, 255)),

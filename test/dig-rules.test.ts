@@ -5,14 +5,15 @@
  *      carried on by walking — an island is no longer born a quarter read.
  *   2. Bombs and golden carrots thicken with the walk from the spawn; the
  *      counts stay the tier's.
- *   3. Surrounding a bomb defuses it and pays carrots on a streak, never hearts.
+ *   3. The red X: mark a bomb around you. Right pays a little energy and a
+ *      carrot bounty on a streak; wrong costs energy and reads the tile.
  */
 import { describe, expect, it } from 'vitest';
-import { DEFUSE, ENERGY, ISLAND, ISLAND_TIERS } from '../config/tuning';
+import { ENERGY, FLAG, ISLAND, ISLAND_TIERS } from '../config/tuning';
 import {
-  boardNeighbors, cascadeAround, cascadeHints, defuseSurrounded, generateIsland, islandProgress,
+  boardNeighbors, cascadeAround, cascadeHints, generateIsland, islandProgress, publicView,
 } from '../src/lib/game/island';
-import { resolveMove, spawnRabbit } from '../src/lib/game/run';
+import { flagTile, resolveMove, spawnRabbit } from '../src/lib/game/run';
 import { makeShape, toColRow } from '../src/config/gridConfig';
 import { spawnTile, terrainNeighbors } from '../src/lib/game/terrainBoard';
 import { mulberry32 } from '../src/lib/game/rng';
@@ -29,7 +30,7 @@ const squares = (a: number, b: number) => {
 function quiet(seed = SEED): Island {
   const island = generateIsland({ seed, contentSeed: 'quiet' });
   for (const t of island.tiles.values()) {
-    t.content = 'empty'; t.adjacent = 0; t.hinted = false; t.revealed = false; t.defused = false;
+    t.content = 'empty'; t.adjacent = 0; t.hinted = false; t.revealed = false; t.flagged = false;
   }
   island.dugCount = 0;
   return island;
@@ -110,75 +111,115 @@ describe('risk rises with the walk from the spawn', () => {
   });
 });
 
-describe('surrounding a bomb defuses it', () => {
-  /** A bomb in open ground, everything round it dug but `last`. */
-  function ringed() {
+describe('the red X', () => {
+  /** A rabbit beside one buried bomb and one plain tile, nothing read yet. */
+  function beside() {
     const island = quiet();
     const spawn = spawnTile(SEED);
-    // A bomb whose eight neighbours all exist, away from the spawn.
-    const bomb = [...island.tiles.keys()].find((i) =>
-      boardNeighbors(island, i).length === 8 && squares(i, spawn) > 4
-      && terrainNeighbors(SEED, i).length >= 4)!;
+    island.tiles.get(spawn)!.revealed = true;
+    const around = boardNeighbors(island, spawn);
+    const [bomb, plain] = around;
     island.tiles.get(bomb)!.content = 'bomb';
     recount(island);
-    const ring = boardNeighbors(island, bomb);
-    // The last one must be steppable from another ring tile.
-    const last = ring.find((n) => terrainNeighbors(SEED, n).some((m) => ring.includes(m)))!;
-    const from = terrainNeighbors(SEED, last).find((m) => ring.includes(m))!;
-    for (const n of ring) if (n !== last) { island.tiles.get(n)!.revealed = true; island.dugCount++; }
-    const rabbit = spawnRabbit('p1', 'P1', ENERGY.START, SEED);
-    rabbit.tile = from;
-    rabbit.lastMoveAt = 0;
-    return { island, bomb, last, rabbit };
+    const rabbit = spawnRabbit('p1', 'P1', ENERGY.START - 6, SEED);
+    rabbit.run = { startedAt: 0, tilesDug: 0, bombsHit: 0, loot: {}, nfts: [] };
+    const far = [...island.tiles.keys()].find((i) => squares(i, spawn) > 2)!;
+    return { island, spawn, bomb, plain, far, rabbit };
   }
 
-  it('pays carrots to whoever digs the last safe neighbour, and no hearts', () => {
-    const { island, bomb, last, rabbit } = ringed();
-    const before = rabbit.carrots;
-    const out = resolveMove(island, rabbit, last, makeShape(SEED), mulberry32(1), 10_000);
-    expect(out.ok).toBe(true);
-    expect(out.dig?.defused).toEqual([{ tile: bomb, carrots: DEFUSE.BASE, streak: 1 }]);
-    expect(rabbit.carrots - before).toBe(DEFUSE.BASE);
-    expect(out.dig?.carrotDelta).toBe(DEFUSE.BASE);
-    expect(rabbit.energy).toBe(ENERGY.START);
+  it('pays a little energy and a carrot bounty when it is right, and digs nothing', () => {
+    const { island, bomb, rabbit } = beside();
+    const energy = rabbit.energy;
+    const out = flagTile(island, rabbit, bomb, 10_000);
+    expect(out.flag).toEqual({
+      tile: bomb, correct: true, energyDelta: FLAG.GAIN, carrotDelta: FLAG.CARROTS_BASE, streak: 1,
+    });
+    expect(rabbit.energy).toBe(energy + FLAG.GAIN);
+    expect(rabbit.carrots).toBe(FLAG.CARROTS_BASE);
     const t = island.tiles.get(bomb)!;
-    expect(t.revealed && t.defused).toBe(true);
-    // A defused bomb is still a bomb to the numbers around it.
-    expect(island.tiles.get(last)!.adjacent).toBe(1);
-    // And never was a safe tile: the island's clock did not move for it.
-    expect(islandProgress(island).safeTotal).toBe(island.tiles.size - 1);
+    expect(t.flagged).toBe(true);
+    expect(t.revealed).toBe(false);
+    expect(publicView(island).flagged).toEqual([bomb]);
   });
 
-  it('does nothing while a safe neighbour is still in the ground', () => {
-    const { island, bomb, last } = ringed();
-    const other = boardNeighbors(island, bomb).find((n) => n !== last)!;
-    island.tiles.get(other)!.revealed = false;
-    island.tiles.get(last)!.revealed = true;
-    expect(defuseSurrounded(island, last)).toEqual([]);
-    expect(island.tiles.get(bomb)!.revealed).toBe(false);
+  it('never fills the bar past its ceiling', () => {
+    const { island, bomb, rabbit } = beside();
+    rabbit.energy = ENERGY.MAX - 1;
+    const out = flagTile(island, rabbit, bomb, 10_000);
+    expect(rabbit.energy).toBe(ENERGY.MAX);
+    expect(out.flag?.energyDelta).toBe(1);
   });
 
-  it('climbs with the streak, caps, drops a raid bomb, and a blast resets it', () => {
-    const { island, last, rabbit } = ringed();
-    rabbit.run = { startedAt: 0, tilesDug: 0, bombsHit: 0, loot: {}, nfts: [], defuseStreak: DEFUSE.ITEM_EVERY - 1 };
-    const out = resolveMove(island, rabbit, last, makeShape(SEED), mulberry32(1), 10_000);
-    expect(out.dig?.defused?.[0]).toMatchObject({ carrots: DEFUSE.MAX, streak: DEFUSE.ITEM_EVERY, item: true });
-    expect(rabbit.run.loot.bomb).toBe(1);
-
-    // Now step on a bomb: the streak is gone with the heart.
-    const next = terrainNeighbors(SEED, rabbit.tile).find((n) => island.tiles.has(n) && !island.tiles.get(n)!.revealed);
-    if (next !== undefined) {
-      island.tiles.get(next)!.content = 'bomb';
-      const hit = resolveMove(island, rabbit, next, makeShape(SEED), mulberry32(1), 20_000);
-      expect(hit.dig?.content).toBe('bomb');
-      expect(hit.dig?.defused).toBeUndefined();
-      expect(rabbit.run.defuseStreak).toBe(0);
-    }
+  it('costs energy when it is wrong, and writes the number it paid for', () => {
+    const { island, plain, rabbit } = beside();
+    rabbit.run!.flagStreak = 4;
+    const energy = rabbit.energy;
+    const out = flagTile(island, rabbit, plain, 10_000);
+    expect(out.flag).toMatchObject({ correct: false, energyDelta: -FLAG.LOSS, carrotDelta: 0, streak: 0 });
+    expect(rabbit.energy).toBe(energy - FLAG.LOSS);
+    expect(rabbit.run!.flagStreak).toBe(0);
+    const t = island.tiles.get(plain)!;
+    expect(t.hinted).toBe(true);
+    expect(t.revealed).toBe(false);
+    expect(t.flagged).toBeFalsy();
+    expect(out.flag?.hinted?.[0]).toEqual({ tile: plain, adjacent: t.adjacent });
+    // The carrot, if any, is still in the ground: a wrong X reads, it does not dig.
+    expect(islandProgress(island).safeLeft).toBe(island.tiles.size - 2);
   });
 
-  it('pays nobody when nobody dug it by foot (a lightning strike)', () => {
-    const { island, bomb, last } = ringed();
-    island.tiles.get(last)!.revealed = true;
-    expect(defuseSurrounded(island, last)).toEqual([{ tile: bomb, carrots: 0, streak: 0 }]);
+  it('prices a blind guess to lose and a sure thing to win', () => {
+    // q*GAIN - (1-q)*LOSS: negative at a coin flip, positive on a certainty,
+    // and a wrong X is cheaper than the blast it stands in for.
+    expect(0.5 * FLAG.GAIN - 0.5 * FLAG.LOSS).toBeLessThan(0);
+    expect(FLAG.GAIN).toBeGreaterThan(0);
+    expect(FLAG.LOSS).toBeLessThan(ENERGY.BOMB_LOSS);
+  });
+
+  it('ends the run when a wrong X spends the last of the energy', () => {
+    const { island, plain, rabbit } = beside();
+    rabbit.energy = FLAG.LOSS;
+    const out = flagTile(island, rabbit, plain, 10_000);
+    expect(out.runOver).toBe(true);
+    expect(rabbit.alive).toBe(false);
+  });
+
+  it('refuses ground that already says something, and ground out of reach', () => {
+    const { island, spawn, bomb, plain, far, rabbit } = beside();
+    expect(flagTile(island, rabbit, far, 10_000).rejection).toBe('not-adjacent');
+    expect(flagTile(island, rabbit, spawn, 10_000).rejection).toBe('not-adjacent');
+    island.tiles.get(plain)!.hinted = true;
+    expect(flagTile(island, rabbit, plain, 10_000).rejection).toBe('known');
+    flagTile(island, rabbit, bomb, 10_000);
+    expect(flagTile(island, rabbit, bomb, 10_000).rejection).toBe('known');
+    rabbit.stunnedUntil = 99_999;
+    expect(flagTile(island, rabbit, bomb, 10_000).rejection).toBe('stunned');
+  });
+
+  it('will not let anyone walk onto a marked bomb', () => {
+    const { island, bomb, rabbit } = beside();
+    flagTile(island, rabbit, bomb, 10_000);
+    rabbit.lastMoveAt = 0;
+    const energy = rabbit.energy;
+    const out = resolveMove(island, rabbit, bomb, makeShape(SEED), mulberry32(1), 20_000);
+    expect(out.ok).toBe(false);
+    expect(out.rejection).toBe('flagged');
+    expect(rabbit.energy).toBe(energy);
+  });
+
+  it('climbs with the streak, caps, digs up a raid bomb, and a blast resets it', () => {
+    const { island, bomb, rabbit } = beside();
+    rabbit.run!.flagStreak = FLAG.ITEM_EVERY - 1;
+    const out = flagTile(island, rabbit, bomb, 10_000);
+    expect(out.flag).toMatchObject({ carrotDelta: FLAG.CARROTS_MAX, streak: FLAG.ITEM_EVERY, item: true });
+    expect(rabbit.run!.loot.bomb).toBe(1);
+
+    // A second bomb, stepped on: the streak goes with the energy.
+    const spawn = spawnTile(SEED);
+    const next = terrainNeighbors(SEED, spawn).find((n) => island.tiles.has(n) && n !== bomb)!;
+    island.tiles.get(next)!.content = 'bomb';
+    rabbit.lastMoveAt = 0;
+    const hit = resolveMove(island, rabbit, next, makeShape(SEED), mulberry32(1), 20_000);
+    expect(hit.dig?.content).toBe('bomb');
+    expect(rabbit.run!.flagStreak).toBe(0);
   });
 });

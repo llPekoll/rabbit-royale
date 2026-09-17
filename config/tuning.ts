@@ -170,28 +170,42 @@ export const RISK_GRADIENT = {
 } as const;
 
 /**
- * Surrounding a bomb defuses it, and pays.
+ * The red X: say where a bomb is, and be paid — or be wrong, and pay.
  *
- * A bomb is SURROUNDED when every tile around it that is not itself a bomb has
- * been dug. Doing that without stepping on it means the player knew where it
- * was — so this is the payout for deduction, which the game did not have: a
- * known bomb used to be worth exactly nothing.
+ * A player may mark any undug, unread tile AROUND their rabbit. The server
+ * answers at once. Right: the bomb stays in the ground under its X, nobody
+ * can step on it any more, and the marker earns a little ENERGY and a carrot
+ * bounty. Wrong: it costs energy, the tile's number is written on it (it is
+ * safe, and now everyone knows), and the streak is gone.
  *
- * It pays CARROTS, never hearts. A heart per bomb would make a careful player
- * immortal (see ENERGY.CARROT_GAIN for the same argument); the golden carrot
- * stays the only way to heal. The bounty climbs with the STREAK — bombs
- * defused in a row this run — and stepping on a bomb resets it, so a blast
- * costs a heart and the multiplier. Every ITEM_EVERY-th bomb of a streak is
- * dug up whole and kept: a raid bomb, the DIG loop feeding the RAID loop.
+ * This is what deduction PAYS. Minesweeper has forced guesses — corners no
+ * number resolves — and until now they cost a heart with nothing on the other
+ * side of the ledger. Now reading the board fills the bar that the unreadable
+ * corners drain: energy is the fuel of exploring, and the X is the pump.
+ *
+ * LOSS is twice GAIN on purpose. A blind X on a tile that is a bomb with
+ * probability q returns q*GAIN - (1-q)*LOSS, which is only positive above
+ * q = 2/3: guessing loses, knowing wins. And LOSS is HALF a blast, so at a true
+ * coin-flip an X is the cheaper way to find out — a probe with a price — which
+ * is what keeps a careful player marking rather than praying.
+ *
+ * Energy stays capped at ENERGY.MAX, so an easy shore cannot be banked
+ * against the far side. The carrot bounty climbs with the STREAK (right Xs in
+ * a row this run); a wrong X or a blast resets it. Every ITEM_EVERY-th X of a
+ * streak digs the bomb up whole: a raid bomb, the DIG loop feeding RAID.
  */
-export const DEFUSE = {
-  /** Carrots for the first bomb of a streak. */
-  BASE: 10,
-  /** Added per further bomb in the streak. */
-  STEP: 5,
+export const FLAG = {
+  /** Energy for a right X. A quarter of a blast. */
+  GAIN: 2,
+  /** Energy a wrong X costs. Half a blast. */
+  LOSS: 4,
+  /** Carrots for the first right X of a streak. */
+  CARROTS_BASE: 10,
+  /** Added per further X in the streak. */
+  CARROTS_STEP: 5,
   /** Ceiling on a single bounty (reached at a streak of 5). */
-  MAX: 30,
-  /** Every n-th bomb of a streak also yields one raid bomb. */
+  CARROTS_MAX: 30,
+  /** Every n-th X of a streak also yields one raid bomb. */
   ITEM_EVERY: 10,
 } as const;
 

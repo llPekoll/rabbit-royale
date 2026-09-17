@@ -188,6 +188,12 @@ export const fr: Dict = {
     watching: (label) => `👁 tu regardes ${label}`,
     hearts: (full, total) => `${full} cœurs sur ${total}`,
     heartsShort: (full, total) => `${full} / ${total} cœurs`,
+    /** The run's energy bar, read aloud. */
+    energy: (n, max) => `${n} d'énergie sur ${max}`,
+    /** The red X — see FLAG in tuning. */
+    markBomb: 'Marquer une bombe',
+    markHint: 'Touche la case où tu penses qu’il y a une bombe · juste : +énergie · faux : -énergie',
+    markCancel: 'Annuler',
     trapHint: (left) => `Touche une case pour la miner, une mine pour la reprendre · ${left} restant`,
     trapHintEmpty: 'Plus de bombes · achètes-en une autre, ou touche une mine pour la reprendre et la poser ailleurs',
   },
@@ -206,7 +212,7 @@ export const fr: Dict = {
     cleared: 'ÎLE DÉMINÉE !',
     over: 'SORTIE FINIE',
     clearedNote: 'Tout ce qui valait la peine est creusé. Le volcan a pris le reste.',
-    overNote: 'Plus de cœurs.',
+    overNote: 'Plus d’énergie.',
     tutorialDone: 'TU L\u2019AS EU !',
     tutorialDoneNote: 'Le coffre, c\u2019était toute l\u2019île. Tes carottes t\u2019attendent au terrier.',
     stats: (carrots, dug, bombs, time) => `🥕 ${carrots} · ${dug} creusées · 💣 ${bombs} · ${time}`,

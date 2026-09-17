@@ -34,11 +34,13 @@ export interface Tile {
   /** Who planted this bomb, if a saboteur did (Phase 5). Victims see the name. */
   plantedBy?: string;
   /**
-   * A bomb that was SURROUNDED — every safe tile around it dug — and so went
-   * off the board without hurting anyone. Revealed like a stepped-on bomb, and
-   * as free to walk over. See `defuseSurrounded`.
+   * A player marked this bomb with a red X, and was RIGHT — see FLAG in tuning
+   * and `flagTile`. Only ever set on a bomb: a wrong X is answered on the spot
+   * and leaves no mark. The bomb stays buried; nobody may step onto it.
    */
-  defused?: boolean;
+  flagged?: boolean;
+  /** Who placed the X. */
+  flaggedBy?: string;
   /** Whoever first dug it — carrots go to the first digger only. */
   dugBy?: string;
   /**
@@ -102,10 +104,10 @@ export interface Rabbit {
     startedAt: number;
     tilesDug: number;
     bombsHit: number;
-    /** Bombs defused in a row without stepping on one — see DEFUSE in tuning. */
-    defuseStreak?: number;
-    /** Bombs defused this run, for the recap. */
-    bombsDefused?: number;
+    /** Right Xs in a row, with no wrong X and no blast — see FLAG in tuning. */
+    flagStreak?: number;
+    /** Bombs correctly marked this run, for the recap. */
+    bombsFlagged?: number;
     /**
      * Chests this rabbit was FIRST to open. Banked onto `players.chestsOpened`
      * for the quest board; optional so a fixture built before it counts as
@@ -161,15 +163,24 @@ export interface HintReveal {
   adjacent: number;
 }
 
-/** A bomb this dig finished surrounding — see `defuseSurrounded`. */
-export interface DefusedBomb {
+/** What a red X turned out to be worth — see FLAG in tuning and `flagTile`. */
+export interface FlagResult {
   tile: number;
-  /** Carrots paid to the digger. 0 when nobody is paid (a lightning strike). */
-  carrots: number;
-  /** The digger's streak AFTER this bomb. */
+  /** Was there a bomb under it? */
+  correct: boolean;
+  /** Energy gained (right) or lost (wrong), signed. */
+  energyDelta: number;
+  /** Carrots paid. 0 on a wrong X. */
+  carrotDelta: number;
+  /** The marker's streak AFTER this X. 0 on a wrong one. */
   streak: number;
-  /** Set when this one was dug up whole: a raid bomb for the run's bag. */
+  /** A right X that dug the bomb up whole: a raid bomb for the run's bag. */
   item?: boolean;
+  /**
+   * Numbers written because of a WRONG X: the tile itself (it is safe, and now
+   * says so), and whatever the cascade opens if it turned out to be a zero.
+   */
+  hinted?: HintReveal[];
 }
 
 /** What a dig produced. The server sends this back; the client only animates. */
@@ -184,8 +195,6 @@ export interface DigResult {
    * the island like the reveal itself: what the ground says is a shared fact.
    */
   hinted?: HintReveal[];
-  /** Bombs this dig finished surrounding, and what each paid. */
-  defused?: DefusedBomb[];
   /** Set when the tile was a bomb: the tile the blast threw the rabbit onto. */
   knockback?: { tile: number; stunnedUntil: number };
   /**

@@ -194,6 +194,12 @@ export const zh: Dict = {
     watching: (label) => `👁 正在观看 ${label}`,
     hearts: (full, total) => `${total} 颗心中剩 ${full} 颗`,
     heartsShort: (full, total) => `${full} / ${total} 心`,
+    /** The run's energy bar, read aloud. */
+    energy: (n, max) => `能量 ${n} / ${max}`,
+    /** The red X — see FLAG in tuning. */
+    markBomb: '标记炸弹',
+    markHint: '点一块你认为有炸弹的格子 · 对：+能量 · 错：-能量',
+    markCancel: '取消',
     trapHint: (left) => `点格子埋雷，点雷收回 · 还剩 ${left}`,
     trapHintEmpty: '没有雷了 · 再买一颗，或点一颗雷收回改埋别处',
   },
@@ -212,7 +218,7 @@ export const zh: Dict = {
     cleared: '全岛清空！',
     over: '出行结束',
     clearedNote: '值得挖的都挖了。剩下的被火山带走了。',
-    overNote: '心用完了。',
+    overNote: '能量用完了。',
     tutorialDone: '到手了！',
     tutorialDoneNote: '宝箱就是这座岛的全部。你的胡萝卜在兔窝等着。',
     stats: (carrots, dug, bombs, time) => `🥕 ${carrots} · 挖了 ${dug} · 💣 ${bombs} · ${time}`,

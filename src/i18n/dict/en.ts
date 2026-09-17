@@ -218,6 +218,12 @@ export const en = {
     watching: (label: string) => `👁 watching ${label}`,
     hearts: (full: number, total: number) => `${full} of ${total} hearts`,
     heartsShort: (full: number, total: number) => `${full} / ${total} hearts`,
+    /** The run's energy bar, read aloud. */
+    energy: (n: number, max: number) => `${n} of ${max} energy`,
+    /** The red X — see FLAG in tuning. */
+    markBomb: 'Mark a bomb',
+    markHint: 'Tap a tile you think hides a bomb · right: +energy · wrong: -energy',
+    markCancel: 'Cancel',
     trapHint: (left: number) => `Tap a tile to mine it, tap a mine to lift it · ${left} left`,
     trapHintEmpty: 'No bombs left · buy another, or tap a mine to lift it and bury it elsewhere',
   },
@@ -238,7 +244,7 @@ export const en = {
     cleared: 'ISLAND CLEARED!',
     over: 'RUN OVER',
     clearedNote: 'Every tile worth digging is dug. The volcano took the rest.',
-    overNote: 'Out of hearts.',
+    overNote: 'Out of energy.',
     /** The first island's chest, which is what ends the tutorial run. */
     tutorialDone: 'YOU GOT IT!',
     tutorialDoneNote: 'The chest was the whole island. Your carrots are waiting at the burrow.',

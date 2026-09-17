@@ -161,7 +161,7 @@ describe('the client draws the number on every dug tile', () => {
     expect(HOOK.match(/s(cene)?\.hintTile\(h\.tile, h\.adjacent\)/g)?.length).toBe(3);
     expect(HOOK).toMatch(/socket\.on\('hints_revealed'/);
     const SERVER = readFileSync(new URL('../server/index.ts', import.meta.url), 'utf8');
-    expect(SERVER.match(/emit\('hints_revealed'/g)?.length).toBe(4); // dig, shove, strike, walk
+    expect(SERVER.match(/emit\('hints_revealed'/g)?.length).toBe(5); // dig, shove, strike, walk, wrong X
     expect(SERVER).toMatch(/hinted: view\.hinted/);
   });
 });

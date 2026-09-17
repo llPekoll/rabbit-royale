@@ -103,8 +103,6 @@ export const HIGHLIGHT_COLOR = 0xffd700;
  * unread one might be — so it solves nothing for the player, it prices the step.
  */
 export const RISK_COLOR = 0xff5a4a;
-/** A defused bomb: the same sprite, gone cold. */
-const DEFUSED_TINT = 0x8a93a6;
 const MINE_TINT = 0xff3333;
 /** How far above its tile a chest starts when it DROPS in with the board. */
 const CHEST_DROP_HEIGHT = 90;
@@ -413,6 +411,8 @@ export class Tile {
   ): void {
     if (this.revealed) return;
     this.revealed = true;
+    // A shove can still set off a marked bomb; the X goes with the lid.
+    this.clearFlag();
 
     if (animate) {
       gsap.to(this.fog, { alpha: 0, duration: 0.25, ease: 'power2.out' });
@@ -441,22 +441,47 @@ export class Tile {
     }
   }
 
+  /** A red X stands here: a bomb a player marked and the server confirmed. */
+  flagged = false;
+  private flagMark: Graphics | null = null;
+
   /**
-   * A bomb that was SURROUNDED and so never went off: drawn where it lay, grey
-   * and still. No blast, no crater — nobody was hurt here, and the tile must
-   * not read as a death. Walkable like any dug ground.
+   * Put the red X on this tile — the lid stays, the bomb stays under it.
+   *
+   * Drawn, not a sprite: two thick strokes with a dark edge, squashed to the
+   * diamond so it lies ON the ground rather than standing on it. It has to
+   * read at a glance from across the board as "not there", on grass and on
+   * sand, which is the job the outlined numbers already do the same way.
    */
-  revealDefused(animate = true): void {
-    if (this.revealed) return;
-    this.revealContent('bomb', 0, animate);
-    const sprite = this.contentSprite as Sprite | null;
-    if (!sprite) return;
-    sprite.tint = DEFUSED_TINT;
-    if (animate) {
-      const to = sprite.scale.x;
-      sprite.scale.set(to * 1.6);
-      gsap.to(sprite.scale, { x: to, y: to, duration: 0.35, ease: 'back.out(2)' });
+  setFlag(animate = true): void {
+    if (this.flagged || this.revealed) return;
+    this.flagged = true;
+    const g = new Graphics();
+    const r = HALF_H * 0.62;
+    for (const [w, c] of [[7, 0x3a0d0d], [4, RISK_COLOR]] as const) {
+      g.moveTo(-r, -r).lineTo(r, r).moveTo(r, -r).lineTo(-r, r)
+        .stroke({ width: w, color: c, cap: 'round' });
     }
+    // Twice as wide as tall: the diamond's own proportions.
+    g.scale.set(animate ? 0 : 1.5, animate ? 0 : 0.75);
+    // On the numbers' layer, for the numbers' reason: an X behind the pine on
+    // the next cell is an X nobody reads. There it carries the tile's world
+    // position itself.
+    if (this.hintLayer) {
+      g.position.set(this.container.x, this.container.y);
+      g.zIndex = 39;
+      this.hintLayer.addChild(g);
+    } else {
+      this.container.addChild(g);
+    }
+    this.flagMark = g;
+    if (animate) gsap.to(g.scale, { x: 1.5, y: 0.75, duration: 0.3, ease: 'back.out(3)' });
+  }
+
+  private clearFlag(): void {
+    this.flagMark?.destroy();
+    this.flagMark = null;
+    this.flagged = false;
   }
 
   /** Whether a chest is standing on this tile — a chest is never a bomb. */

@@ -19,7 +19,10 @@ import { isFirstIsland } from '@/lib/game/first-island';
 import type { Scene } from '../SceneManager';
 import { SceneManager } from '../SceneManager';
 import { GAME_W, GAME_H } from '../Application';
-import { Tile } from '../entities/Tile';
+import { Tile, RISK_COLOR } from '../entities/Tile';
+
+/** The energy bar's yellow, for a gain said on the board — see `flagAnswered`. */
+const ENERGY_YELLOW = 0xffd23a;
 import { CHEST_TIER_COLOR, isChestTier } from '@/config/chestConfig';
 import { PlayerRabbit } from '../entities/PlayerRabbit';
 import { SoundManager } from '../services/SoundManager';
@@ -169,6 +172,8 @@ export class IslandScene implements Scene {
 
   /** The tiles currently lit as reachable, and the sweep running over them. */
   private highlighted: number[] = [];
+  /** X mode is armed: the ring shows what an X may land on. See `setFlagMode`. */
+  private flagMode = false;
   private sweep: gsap.core.Tween | null = null;
 
   /**
@@ -410,9 +415,30 @@ export class IslandScene implements Scene {
     // long as the server will keep refusing. It re-lights itself on expiry.
     if (this.isStunned()) this.scheduleStunRefresh();
 
+    // X mode lights what an X may land on instead — the same gate `flagTile`
+    // applies on the server: the eight cells around, saying nothing yet.
+    if (this.flagMode) {
+      if (!this.isStunned()) {
+        const { col, row } = toColRow(this.myTile);
+        for (const [index, tile] of this.tiles) {
+          const p = toColRow(index);
+          if (index === this.myTile || Math.abs(p.col - col) > 1 || Math.abs(p.row - row) > 1) continue;
+          if (tile.revealed || tile.hinted || tile.flagged || tile.hasChest) continue;
+          tile.setHighlight(true, true);
+          this.highlighted.push(index);
+        }
+      }
+      this.arrows?.update(null);
+      this.startSweep();
+      return;
+    }
+
     for (const index of reachable) {
       const tile = this.tiles.get(index);
       if (!tile) continue;
+      // A red X is a proven bomb: the server refuses the step, so the ring
+      // does not offer it.
+      if (tile.flagged) continue;
       // Undug and unread: the step is a bet, and the ring says so — see
       // RISK_COLOR. A standing chest is known ground; it is never a bomb.
       tile.setHighlight(true, !tile.revealed && !tile.hinted && !tile.hasChest);
@@ -831,22 +857,43 @@ export class IslandScene implements Scene {
   }
 
   /**
-   * A bomb was surrounded and defused — by anyone on the island.
-   *
-   * Not `revealTile`: that one plays a blast, shakes the screen and leaves a
-   * crater, which is the picture of someone losing a heart. This is the
-   * opposite event and sounds like it. `animate` is off for a snapshot.
+   * A red X that was RIGHT — anyone's. The bomb is marked for the whole island
+   * and the ring stops offering the tile. `animate` is off for a snapshot.
    */
-  defuseBomb(index: number, animate = true): void {
+  flagBomb(index: number, animate = true): void {
     const tile = this.tiles.get(index);
-    if (!tile || tile.revealed) return;
-    tile.revealDefused(animate);
-    if (animate) {
-      this.sound.playChimeQuick();
-      tile.flash();
-    }
-    // Dug ground is free to walk onto: the ring may have a new tile to light.
+    if (!tile || tile.revealed || tile.flagged) return;
+    tile.setFlag(animate);
     this.refreshReachable();
+  }
+
+  /**
+   * X MODE, as the ring shows it: while on, the lit tiles are the ones an X
+   * may land on — undug, unread, unmarked, around the rabbit, cliffs included
+   * — and all of them are red, because every one of them is a bet. The switch
+   * itself lives in the socket hook; this only draws it.
+   */
+  setFlagMode(on: boolean): void {
+    if (this.flagMode === on) return;
+    this.flagMode = on;
+    this.refreshReachable();
+  }
+
+  /**
+   * The server answered MY X. Right: the energy it paid, in the bar's yellow,
+   * and the carrots over it. Wrong: what it cost, in red, and the "no".
+   */
+  flagAnswered(index: number, correct: boolean, energy: number, carrots: number, topStreak: boolean): void {
+    if (correct) {
+      this.sound.playChimeQuick();
+      this.tiles.get(index)?.flash();
+      if (energy > 0) this.floatText(index, `+${energy}⚡`, ENERGY_YELLOW, 1.6, 0);
+      if (carrots > 0) this.floatText(index, `+${carrots}`, topStreak ? 0xffd138 : 0xffffff, 1.6, -16);
+    } else {
+      this.tiles.get(index)?.deny();
+      this.denyMove();
+      this.floatText(index, `${energy}⚡`, RISK_COLOR, 1.8, 0);
+    }
   }
 
   revealTile(index: number, content: TileContent, adjacent: number): void {
@@ -1267,6 +1314,22 @@ export class IslandScene implements Scene {
       tl.to(coin, { rotation: gsap.utils.random(-4, 4), duration: 0.7, ease: 'none' }, 0);
       tl.to(coin, { alpha: 0, duration: 0.18, ease: 'power1.in' }, 0.52);
     }
+  }
+
+  /** A short line of text rising off a tile — the X's answer. See `floatGain`. */
+  private floatText(index: number, text: string, tint: number, scale: number, dy: number): void {
+    const tile = this.tiles.get(index);
+    if (!tile) return;
+    const { x, y } = tile.container.position;
+    const label = outlinedPixelText(x, y - 18 + dy, text);
+    label.face.tint = tint;
+    label.group.zIndex = this.hintLayer.zIndex + 1;
+    label.group.scale.set(0);
+    this.container.addChild(label.group);
+    const tl = gsap.timeline({ onComplete: () => label.group.destroy({ children: true }) });
+    tl.to(label.group.scale, { x: scale, y: scale, duration: 0.22, ease: 'back.out(2.5)' }, 0);
+    tl.to(label.group, { y: y - 48 + dy, duration: 1.2, ease: 'power1.out' }, 0);
+    tl.to(label.group, { alpha: 0, duration: 0.3, ease: 'power1.in' }, 0.9);
   }
 
   /**

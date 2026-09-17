@@ -15,7 +15,7 @@
  * to a socket event was to play the real game — and "the carrot counter does
  * not move" is exactly the kind of bug that hides there.
  */
-import { Hearts } from './hearts';
+import { EnergyBar } from './energy-bar';
 import { useT } from '@/i18n/provider';
 import { PxPanel } from './px';
 
@@ -66,9 +66,11 @@ export function RunHud({
        into two, so the label can say whose run this is in full. See the CSS. */
     <header className={`rr-hud${spectating ? ' watching' : ''}`}>
       <PxPanel color={GLASS} className="rr-hud-plate">
-      {/* Hearts first: the run's life, one lost per bomb. Digging is free, so
-          this is the only thing on the strip that can end the run. */}
-      <Hearts energy={subject?.energy ?? 0} />
+      {/* Energy first: the bolt and its yellow bar. It was three hearts while
+          a bomb was the only thing that moved it; since the red X it moves by
+          twos and fours — a right X pays a little, a wrong one costs — and a
+          heart cannot show a quarter of itself. See FLAG in tuning. */}
+      <EnergyBar energy={subject?.energy ?? 0} />
       {/* The run's haul is NOT here any more. It sat in this strip at the same
           size as the hearts, and read as a second life gauge: the one number
           that is about carrots, in the one panel that is about staying alive.

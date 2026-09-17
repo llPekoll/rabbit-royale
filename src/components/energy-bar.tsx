@@ -16,7 +16,10 @@
  * The threshold is the low-energy line: below it a bomb ends the run outright,
  * which is the fact the player needs before they choose a tile, not after.
  */
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ENERGY } from '@config/tuning';
+import { useT } from '@/i18n/provider';
 
 export interface EnergyBarProps {
   energy: number;
@@ -34,23 +37,58 @@ const SCALE = ENERGY.MAX;
 /** The fill sprites, by what the bar is saying. */
 const FILL = '/assets/gauge/bar-fill';
 
+/**
+ * The bolt off a battery, as pixels: eight rows on a 7-wide grid, drawn with
+ * crisp edges at a whole multiple. Not the emoji it replaces — that one is
+ * orange on one phone, purple-shadowed on another, and never the bar's yellow.
+ */
+/** The bolt's lit pixels, row by row: [first column, last column] on an 8-wide grid. */
+const BOLT_ROWS: ReadonlyArray<readonly [number, number]> = [
+  [4, 6], [3, 5], [2, 4], [1, 6], [3, 6], [3, 5], [2, 4], [1, 3], [1, 2], [1, 1],
+];
+
+function Bolt() {
+  return (
+    <svg className="rr-energy-icon" viewBox="0 0 8 10" width="16" height="20" shapeRendering="crispEdges" aria-hidden>
+      {BOLT_ROWS.map(([from, to], y) => (
+        <rect key={y} x={from} y={y} width={to - from + 1} height={1} fill="#ffd60a" />
+      ))}
+    </svg>
+  );
+}
+
 export function EnergyBar({ energy, bombCost = ENERGY.BOMB_LOSS }: EnergyBarProps) {
+  const t = useT();
   const pct = Math.max(0, Math.min(1, energy / SCALE));
+
+  // LOSING ENERGY IS AN EVENT — the screen's edges flush red for half a
+  // second, as they did when a heart broke. Only a DROP counts: an X that
+  // paid, a golden carrot or a respawn is not hurt. Keyed so two losses in a
+  // row are two flushes.
+  const prev = useRef(energy);
+  const [hurt, setHurt] = useState(0);
+  useEffect(() => {
+    if (energy < prev.current) setHurt((k) => k + 1);
+    prev.current = energy;
+  }, [energy]);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   // Below one bomb's worth, the next blast ends the run. That is the moment the
   // bar exists to announce.
   const critical = energy <= bombCost;
-  const tone = critical ? 'danger' : energy <= bombCost * 2 ? 'warn' : 'carrot';
+  const tone = critical ? 'danger' : energy <= bombCost * 2 ? 'warn' : 'energy';
 
   return (
-    <div className="rr-energy" title={`${energy} energy`}>
-      <span className="rr-energy-icon" aria-hidden>⚡</span>
+    <div className="rr-energy" title={t.run.energy(energy, SCALE)}>
+      <Bolt />
       <div
         className="rr-energy-tube"
         role="meter"
         aria-valuenow={energy}
         aria-valuemin={0}
         aria-valuemax={SCALE}
-        aria-label="Energy"
+        aria-label={t.run.energy(energy, SCALE)}
       >
         {/* Same 9-slice as the shell: the crest pinned to the leading edge, the
             1px middle repeated back to the start. The fill is inset to the
@@ -82,6 +120,9 @@ export function EnergyBar({ energy, bombCost = ENERGY.BOMB_LOSS }: EnergyBarProp
         />
       </div>
       <span className="rr-energy-value">{energy}</span>
+      {/* Portalled: the HUD strip is frosted glass, and a backdrop-filter
+          makes it the containing block for anything `fixed` inside it. */}
+      {mounted && hurt > 0 && createPortal(<div key={hurt} className="rr-hurt" aria-hidden />, document.body)}
     </div>
   );
 }

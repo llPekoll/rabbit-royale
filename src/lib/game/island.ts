@@ -23,7 +23,7 @@
  * appears in `publicView` or in any payload, and is the ONLY thing that decides
  * where a bomb sits. Publishing `seed` is then harmless by construction.
  */
-import { CHEST_TIER_WEIGHTS, DEFUSE, FIRST_RUN, ISLAND, RISK_GRADIENT, tierFor } from '@config/tuning';
+import { CHEST_TIER_WEIGHTS, FIRST_RUN, ISLAND, RISK_GRADIENT, tierFor } from '@config/tuning';
 import {
   COLS, ROWS, SPAWN_INDEX, makeShape, isForbidden, neighbors, toColRow, toIndex,
   type IslandShape,
@@ -31,7 +31,7 @@ import {
 import { farmableTiles, spawnTile, terrainNeighbors } from './terrainBoard';
 import { isFirstIsland } from './first-island';
 import { mulberry32, pickWeighted, seedFrom, shuffle, type Rng } from './rng';
-import type { DefusedBomb, HintReveal, Island, Rabbit, Tile } from './types';
+import type { HintReveal, Island, Tile } from './types';
 
 export interface GenerateOptions {
   /** PUBLIC. Cuts the land the client draws; travels in every snapshot. */
@@ -245,51 +245,6 @@ export function cascadeAround(island: Island, tile: number): HintReveal[] {
     }
   }
   return cascadeHints(island, seeds, tile);
-}
-
-/**
- * Defuse every bomb that digging `dug` has just finished SURROUNDING.
- *
- * Surrounded: each of its board neighbours is either dug or a bomb itself. A
- * player who got there without stepping on it knew where it was, and this is
- * what that knowledge pays — see DEFUSE in tuning for the why and the sums.
- * The bomb is revealed (so it is drawn, and free to walk over, like one that
- * went off) and flagged `defused`.
- *
- * `digger` is paid and their streak moves; without one (a lightning strike,
- * which digs nothing by foot) the bomb is defused and nobody is paid.
- */
-export function defuseSurrounded(island: Island, dug: number, digger?: Rabbit): DefusedBomb[] {
-  const out: DefusedBomb[] = [];
-  for (const nb of boardNeighbors(island, dug)) {
-    const bomb = island.tiles.get(nb)!;
-    if (bomb.content !== 'bomb' || bomb.revealed) continue;
-    const surrounded = boardNeighbors(island, nb).every((n) => {
-      const t = island.tiles.get(n)!;
-      return t.revealed || t.content === 'bomb';
-    });
-    if (!surrounded) continue;
-    revealTile(island, nb, digger?.playerId);
-    bomb.defused = true;
-    const entry: DefusedBomb = { tile: nb, carrots: 0, streak: 0 };
-    if (digger) {
-      const run = digger.run;
-      const streak = (run?.defuseStreak ?? 0) + 1;
-      entry.streak = streak;
-      entry.carrots = Math.min(DEFUSE.MAX, DEFUSE.BASE + DEFUSE.STEP * (streak - 1));
-      digger.carrots += entry.carrots;
-      if (run) {
-        run.defuseStreak = streak;
-        run.bombsDefused = (run.bombsDefused ?? 0) + 1;
-        if (streak % DEFUSE.ITEM_EVERY === 0) {
-          run.loot.bomb = (run.loot.bomb ?? 0) + 1;
-          entry.item = true;
-        }
-      }
-    }
-    out.push(entry);
-  }
-  return out;
 }
 
 /**
@@ -527,11 +482,12 @@ export const dugFraction = (island: Island) => islandProgress(island).fraction;
  * around it. Walking to a visible chest is as dangerous as walking anywhere.
  */
 export function publicView(island: Island) {
-  const revealed: Array<{ tile: number; content: string; adjacent: number; dugBy?: string; defused?: boolean }> = [];
+  const revealed: Array<{ tile: number; content: string; adjacent: number; dugBy?: string }> = [];
   const chests: Array<{ tile: number; tier: string }> = [];
   // Hinted tiles carry their NUMBER and nothing else — the cascade's whole
   // bargain is that the number is safe to show and the content is not.
   const hinted: HintReveal[] = [];
+  const flagged: number[] = [];
   for (const [index, tile] of island.tiles) {
     // An undug chest still advertises its position and tier — and nothing else.
     if (!tile.revealed && tile.content === 'chest' && tile.chestTier) {
@@ -541,12 +497,12 @@ export function publicView(island: Island) {
     }
     if (!tile.revealed) {
       if (tile.hinted) hinted.push({ tile: index, adjacent: tile.adjacent });
+      // A red X is public: it was checked when it was placed, so it is a fact
+      // about the board and not a player's private note. Only RIGHT ones exist.
+      if (tile.flagged) flagged.push(index);
       continue;
     }
-    revealed.push({
-      tile: index, content: tile.content, adjacent: tile.adjacent, dugBy: tile.dugBy,
-      ...(tile.defused ? { defused: true } : {}),
-    });
+    revealed.push({ tile: index, content: tile.content, adjacent: tile.adjacent, dugBy: tile.dugBy });
   }
   return {
     seed: island.seed,
@@ -555,6 +511,7 @@ export function publicView(island: Island) {
     revealed,
     chests,
     hinted,
+    flagged,
   };
 }
 
