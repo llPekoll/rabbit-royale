@@ -205,8 +205,10 @@ export const ptBR: Dict = {
   firstRun: {
     tap: 'Toque num quadrado ao seu lado para cavar.',
     numbers: 'O número conta as bombas que encostam nesse quadrado.',
-    bomb: 'Um coração a menos. O 1 apontava para ela.',
-    golden: 'O ouro devolve um coração.',
+    mark: 'Sabe onde está uma bomba? Aperte o X vermelho e marque: devolve energia.',
+    marked: 'Certo! Um bom X devolve energia. É assim que se cava mais longe.',
+    bomb: 'Isso custou energia. O 1 apontava para ela.',
+    golden: 'O ouro devolve energia.',
     chest: 'Um baú. O que tiver dentro vai para casa com você.',
     clock: 'A ilha é o relógio. Cave até o fim e ela afunda.',
     recap: 'Suas cenouras já estão em casa. Vá ver.',

@@ -13,42 +13,45 @@
 // ── Phase 1: the solo run ────────────────────────────────────────────────────
 
 /**
- * A run's energy, read as HEARTS.
+ * A run's energy: THE FUEL OF EXPLORING, on a bar of 100.
  *
- * Since 14 September 2026 the bar is a Zelda-style life: START / BOMB_LOSS
- * hearts, one lost per bomb, and the run ends on the last one. Digging is
- * free (DIG_COST 0) and an ordinary carrot heals nothing, so the numbers here
- * are only ever multiples of one heart — keep them that way, the HUD draws
- * whole hearts and nothing in between. A golden carrot gives one heart back.
+ * Since 17 September 2026 every dig costs a point and a well-placed red X
+ * (see FLAG) gives some back, so reading the board is what keeps a rabbit
+ * moving. Three things drain the bar — digging, a wrong X, a bomb — and two
+ * fill it: a right X and a golden carrot. An ordinary carrot is score only.
  *
- * What ENDS a run is therefore the hearts or the island being cleared (see
- * ERUPTION), never a clock: a player who reads the numbers and avoids every
- * bomb finishes the island, and that is the point.
+ * It was three hearts for three days (24 points, a bomb took 8, digging was
+ * free). Simulated with robot players on real islands (`tools/sim-dig.sim.ts`),
+ * that tuning let a player who never deduced anything clear 83 % of a Meadow
+ * island: the numbers were decoration. With the values below the same
+ * non-reader stops around 40 % (~165 tiles, still a full sitting), a player
+ * who marks what they can prove clears the island, and one who marks and digs
+ * at random is out inside 25 tiles. Dig 2 was tried and rejected: Meadow has
+ * too few bombs to pay for it, which made the first tier the hardest.
+ *
+ * What ENDS a run is the bar or the island being cleared (see ERUPTION),
+ * never a clock.
  */
 export const ENERGY = {
-  /** Energy a run starts with: three hearts. */
-  START: 24,
+  /** Energy a run starts with: a full bar. */
+  START: 100,
   /**
    * A dug tile costs this. Walking a revealed tile is free.
    *
-   * ZERO since 14 September 2026: digging itself is free, so a run's energy is
-   * a LIFE bar that only bombs eat and carrots refill, and the run ends when
-   * the bombs win. At 1 the bar drained on every step and, with 14 % bombs on
-   * top, a run lasted ~17 tiles — under four minutes, which read as "you can
-   * barely play one game". Run length is now set by BOMB_LOSS, BOMB_DENSITY
-   * and CARROT_GAIN alone; keep their net per tile NEGATIVE or a run never
-   * ends (docs/economy-tuning.html shows the slope).
+   * It was 1 on a bar of 30 (a run lasted ~17 tiles, "you can barely play one
+   * game"), then 0 (the bar became a life gauge and the puzzle optional). 1 on
+   * a bar of 100 is the third answer: long enough to play, short enough that
+   * the X is how you go further.
    */
-  DIG_COST: 0,
-  /** Ordinary carrot: score, not life. Anything above 0 lets a careful player
-   *  out-heal the bombs and never finish — see docs/economy-tuning.html. */
+  DIG_COST: 1,
+  /** Ordinary carrot: score, not fuel. The X is the pump; see FLAG. */
   CARROT_GAIN: 0,
-  /** Golden carrot (rare): one heart back. */
-  GOLDEN_GAIN: 8,
-  /** Stepping on a bomb: one heart. */
-  BOMB_LOSS: 8,
-  /** Ceiling — the full set of hearts. A golden carrot on full life is score only. */
-  MAX: 24,
+  /** Golden carrot (rare): a bomb's worth back. */
+  GOLDEN_GAIN: 30,
+  /** Stepping on a bomb. Three and a bit end a fresh run; nobody gets four. */
+  BOMB_LOSS: 30,
+  /** Ceiling — a full bar. Gains past it are lost: an easy shore cannot be banked. */
+  MAX: 100,
   /**
    * What the BURROW pays to start a run — drawn from `OUT_OF_RUN_ENERGY`, not
    * from the run's own tank, which always opens at START.
@@ -104,8 +107,9 @@ export const RUN = {
   GOLDEN_VALUE: 75,
 } as const;
 
-/** Hearts a run opens with — what the HUD draws. */
-export const HEARTS = ENERGY.START / ENERGY.BOMB_LOSS;
+/** Whole bombs a fresh run survives. The HUD draws a bar now (energy-bar.tsx);
+ *  this remains for the hearts component its stories still show. */
+export const HEARTS = Math.floor(ENERGY.START / ENERGY.BOMB_LOSS);
 
 export const BOMB = {
   /** Tiles the rabbit is thrown backwards. Revealed terrain is preferred. */
@@ -195,18 +199,24 @@ export const RISK_GRADIENT = {
  * streak digs the bomb up whole: a raid bomb, the DIG loop feeding RAID.
  */
 export const FLAG = {
-  /** Energy for a right X. A quarter of a blast. */
-  GAIN: 2,
-  /** Energy a wrong X costs. Half a blast. */
-  LOSS: 4,
-  /** Carrots for the first right X of a streak. */
-  CARROTS_BASE: 10,
+  /** Energy for a right X: eight digs' worth, about a quarter of a blast. */
+  GAIN: 8,
+  /** Energy a wrong X costs. Half a blast, about twice GAIN (break-even 0.65). */
+  LOSS: 15,
+  /**
+   * The carrot side is kept SMALL on purpose: energy is the X's real pay, and
+   * a reader already digs two or three times the tiles a non-reader does. At
+   * 10/+5/30 the bounties alone added ~1 900 carrots to a cleared Meadow
+   * island, on top of that; at these values they add about 600.
+   */
+  CARROTS_BASE: 5,
   /** Added per further X in the streak. */
-  CARROTS_STEP: 5,
-  /** Ceiling on a single bounty (reached at a streak of 5). */
-  CARROTS_MAX: 30,
-  /** Every n-th X of a streak also yields one raid bomb. */
-  ITEM_EVERY: 10,
+  CARROTS_STEP: 1,
+  /** Ceiling on a single bounty (reached at a streak of 6). */
+  CARROTS_MAX: 10,
+  /** Every n-th X of a streak also yields one raid bomb: two or three on a
+   *  flawless island, about what its chests give. */
+  ITEM_EVERY: 25,
 } as const;
 
 /**

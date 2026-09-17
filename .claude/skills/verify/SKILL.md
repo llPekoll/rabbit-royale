@@ -34,10 +34,12 @@ drives; copy their shape. Key facts:
   `[aria-label="Shop"]` and `[aria-label="Story"]`.
 - Energy: a guest starts at 60, each crossing costs 20 (`ENERGY.RUN_COST`) →
   the fourth DIG opens the "Out of energy" dialog
-  (`[aria-label="Out of energy"]`). Inside a run the hearts are a life bar:
-  24, a bomb takes 8, digging is free — so a run ends on the third bomb, when
-  the map drains to grey. A walk that re-treads dug tiles never meets one:
-  prefer lit tiles you have not stepped on.
+  (`[aria-label="Out of energy"]`). Inside a run the HUD shows a yellow
+  energy BAR (`.rr-energy`, value in `.rr-energy-value`), not hearts: 100 to
+  start, a dig costs 1, a bomb 30, a right red X gives 8 back, a wrong one
+  costs 15. Re-treading dug tiles is free. The X button is `.rr-mark-btn`
+  (`aria-pressed` while armed); armed, the ring is red (tint `0xff5a4a`) on
+  what can be marked. `tools/verify-red-x.mjs` drives the whole path.
 - The Pixi app is exposed as `globalThis.__PIXI_APP__`. Fog sprites are
   labelled `tile-<index>` and live INSIDE the terrain block, not the tile's
   container — match hints/rabbits to tiles by `getGlobalPosition()`, not by

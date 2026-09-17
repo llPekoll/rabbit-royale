@@ -61,13 +61,26 @@ console.log(`[${tag}] spawn: gold ring ${s.gold.length}, red ring ${s.red.length
 console.log(`[${tag}] hud:`, JSON.stringify(await hud()));
 await page.screenshot({ path: `${OUT}/x-${tag}-1-spawn.png` });
 
-// Walk towards the "1": it is the tile that touches the taught bomb.
-const ones = s.texts.filter((t) => t.t === '1');
-const all = [...s.gold, ...s.red];
-const target = all.map((l) => ({ ...l, d: Math.min(...ones.map((o) => Math.hypot(o.x - l.x, o.y - l.y))) })).sort((a, b) => a.d - b.d)[0];
-if (target) { await press(target.x, target.y); await page.waitForTimeout(1400); }
+// Dig a few tiles first, so the bar is off its ceiling and a gain can show.
+// Towards the "1": it is the tile that touches the taught bomb. Only ground
+// the board calls safe (gold ring) is stepped on.
+const caption = () => page.evaluate(() => document.querySelector('.rr-caption:not(.rr-caption-cost) [role="status"]')?.textContent ?? null);
+const seen = new Set();
+for (let step = 0; step < 9; step++) {
+  s = await scan();
+  const ones = s.texts.filter((t) => t.t === '1');
+  const fresh = s.gold.filter((l) => !seen.has(l.label));
+  if (!fresh.length || !ones.length) break;
+  const target = fresh.map((l) => ({ ...l, d: Math.min(...ones.map((o) => Math.hypot(o.x - l.x, o.y - l.y))) })).sort((a, b) => a.d - b.d)[0];
+  seen.add(target.label);
+  const e0 = (await hud()).energy;
+  await press(target.x, target.y);
+  await page.waitForTimeout(1300);
+  console.log(`[${tag}] step ${step + 1} onto ${target.label}: energy ${e0} -> ${(await hud()).energy} | caption: ${await caption()}`);
+  if ((await scan()).red.length) break;
+}
 s = await scan();
-console.log(`[${tag}] on the 1: gold ${s.gold.length}, red ${s.red.length} (red = unread ground, a bet)`);
+console.log(`[${tag}] now: gold ${s.gold.length}, red ${s.red.length} (red = unread ground, a bet)`);
 
 // Arm the X.
 const b = (await hud()).button;
@@ -90,8 +103,21 @@ if (pick) {
   const after = await hud();
   const s2 = await scan();
   console.log(`[${tag}] marked ${pick.label}: energy ${before} -> ${after.energy}, armed=${after.armed}, numbers: ${nums(s2)}`);
+  console.log(`[${tag}] caption after the X: ${await caption()}`);
   console.log(`[${tag}] verdict: ${Number(after.energy) < Number(before) ? 'WRONG X (energy paid, number written)' : 'RIGHT X (bomb marked)'}; ring back to gold ${s2.gold.length} / red ${s2.red.length}`);
   await page.screenshot({ path: `${OUT}/x-${tag}-4-after.png` });
 } else console.log(`[${tag}] no red tile to mark`);
+// Then keep digging known-safe ground: every fresh tile should cost a point.
+for (let step = 0; step < 6; step++) {
+  const now = await scan();
+  const fresh = now.gold.filter((l) => !seen.has(l.label));
+  if (!fresh.length) break;
+  seen.add(fresh[0].label);
+  const e0 = (await hud()).energy;
+  await press(fresh[0].x, fresh[0].y);
+  await page.waitForTimeout(1300);
+  console.log(`[${tag}] dig ${fresh[0].label}: energy ${e0} -> ${(await hud()).energy}`);
+}
+await page.screenshot({ path: `${OUT}/x-${tag}-5-dug.png` });
 console.log(`[${tag}] errors:`, errors.join(' | ') || 'none');
 await browser.close();

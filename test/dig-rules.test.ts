@@ -121,7 +121,8 @@ describe('the red X', () => {
     const [bomb, plain] = around;
     island.tiles.get(bomb)!.content = 'bomb';
     recount(island);
-    const rabbit = spawnRabbit('p1', 'P1', ENERGY.START - 6, SEED);
+    // Well under the ceiling, so a gain is never clipped by ENERGY.MAX.
+    const rabbit = spawnRabbit('p1', 'P1', ENERGY.START - 3 * FLAG.GAIN, SEED);
     rabbit.run = { startedAt: 0, tilesDug: 0, bombsHit: 0, loot: {}, nfts: [] };
     const far = [...island.tiles.keys()].find((i) => squares(i, spawn) > 2)!;
     return { island, spawn, bomb, plain, far, rabbit };
@@ -140,6 +141,22 @@ describe('the red X', () => {
     expect(t.flagged).toBe(true);
     expect(t.revealed).toBe(false);
     expect(publicView(island).flagged).toEqual([bomb]);
+  });
+
+  it('is what pays for digging: a dig costs, a right X buys several', () => {
+    const { island, plain, bomb, rabbit } = beside();
+    const energy = rabbit.energy;
+    rabbit.lastMoveAt = 0;
+    const dug = resolveMove(island, rabbit, plain, makeShape(SEED), mulberry32(1), 10_000);
+    expect(dug.ok).toBe(true);
+    expect(ENERGY.DIG_COST).toBeGreaterThan(0);
+    expect(rabbit.energy).toBe(energy - ENERGY.DIG_COST);
+    // One proven bomb funds a handful of digs — the loop the tuning is built on.
+    expect(FLAG.GAIN / ENERGY.DIG_COST).toBeGreaterThanOrEqual(5);
+    // And the bomb is still markable from the tile the rabbit walked onto, if
+    // it is still beside it; from the spawn ring it always was.
+    rabbit.tile = spawnTile(SEED);
+    expect(flagTile(island, rabbit, bomb, 20_000).flag?.correct).toBe(true);
   });
 
   it('never fills the bar past its ceiling', () => {

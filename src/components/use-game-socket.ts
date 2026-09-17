@@ -144,9 +144,11 @@ export interface MyDigs {
   bombs: number;
   goldens: number;
   chests: number;
+  /** Red Xs that were right — the first-run captions read it. */
+  flags: number;
 }
 
-const NO_DIGS: MyDigs = { tiles: 0, bombs: 0, goldens: 0, chests: 0 };
+const NO_DIGS: MyDigs = { tiles: 0, bombs: 0, goldens: 0, chests: 0, flags: 0 };
 
 /**
  * A chest's contents, waiting to be shown.
@@ -480,6 +482,7 @@ export function useGameSocket(
      * one is said in red, and the scene shakes its head.
      */
     socket.on('flag_result', (r: FlagResultMsg) => {
+      if (r.correct) setDigs((d) => ({ ...d, flags: d.flags + 1 }));
       toScene((s) => s.flagAnswered(r.tile, r.correct, r.energyDelta, r.carrotDelta, r.carrotDelta >= FLAG.CARROTS_MAX));
     });
 
@@ -507,6 +510,7 @@ export function useGameSocket(
           toScene((s) => s.floatGain(tile, carrotDelta!, c === 'golden'));
         }
         setDigs((d) => ({
+          ...d,
           tiles: d.tiles + 1,
           bombs: d.bombs + (c === 'bomb' ? 1 : 0),
           goldens: d.goldens + (c === 'golden' ? 1 : 0),

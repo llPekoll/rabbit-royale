@@ -11,7 +11,7 @@
  * answers, arriving as events. A tile is drawn face-down until the server says
  * otherwise, because the client is never told what it has not dug.
  */
-import { AnimatedSprite, Application, Assets, Container, Sprite } from 'pixi.js';
+import { AnimatedSprite, Application, Assets, Container, Graphics, Sprite } from 'pixi.js';
 import gsap from 'gsap';
 import { GOLDEN_COIN_ALIASES } from '@domin8/arcade-kit/pixi';
 import { outlinedPixelText, shadowedPixelText } from '../ui/PixelText';
@@ -22,7 +22,11 @@ import { GAME_W, GAME_H } from '../Application';
 import { Tile, RISK_COLOR } from '../entities/Tile';
 
 /** The energy bar's yellow, for a gain said on the board — see `flagAnswered`. */
-const ENERGY_YELLOW = 0xffd23a;
+const ENERGY_YELLOW = 0xffd60a;
+/** The bolt's lit pixels by row, [first, last] column — same as energy-bar.tsx. */
+const BOLT_ROWS: ReadonlyArray<readonly [number, number]> = [
+  [4, 6], [3, 5], [2, 4], [1, 6], [3, 6], [3, 5], [2, 4], [1, 3], [1, 2], [1, 1],
+];
 import { CHEST_TIER_COLOR, isChestTier } from '@/config/chestConfig';
 import { PlayerRabbit } from '../entities/PlayerRabbit';
 import { SoundManager } from '../services/SoundManager';
@@ -887,12 +891,12 @@ export class IslandScene implements Scene {
     if (correct) {
       this.sound.playChimeQuick();
       this.tiles.get(index)?.flash();
-      if (energy > 0) this.floatText(index, `+${energy}⚡`, ENERGY_YELLOW, 1.6, 0);
+      if (energy > 0) this.floatText(index, `+${energy}`, ENERGY_YELLOW, 1.6, 0, true);
       if (carrots > 0) this.floatText(index, `+${carrots}`, topStreak ? 0xffd138 : 0xffffff, 1.6, -16);
     } else {
       this.tiles.get(index)?.deny();
       this.denyMove();
-      this.floatText(index, `${energy}⚡`, RISK_COLOR, 1.8, 0);
+      this.floatText(index, `${energy}`, RISK_COLOR, 1.8, 0, true);
     }
   }
 
@@ -1317,12 +1321,24 @@ export class IslandScene implements Scene {
   }
 
   /** A short line of text rising off a tile — the X's answer. See `floatGain`. */
-  private floatText(index: number, text: string, tint: number, scale: number, dy: number): void {
+  private floatText(index: number, text: string, tint: number, scale: number, dy: number, bolt = false): void {
     const tile = this.tiles.get(index);
     if (!tile) return;
     const { x, y } = tile.container.position;
     const label = outlinedPixelText(x, y - 18 + dy, text);
     label.face.tint = tint;
+    if (bolt) {
+      // The HUD's bolt, pixel for pixel (energy-bar.tsx), so the figure reads
+      // as ENERGY and not as one more carrot count. Drawn: the pixel font has
+      // no such glyph.
+      const g = new Graphics();
+      BOLT_ROWS.forEach(([from, to], row) => g.rect(from - 1, row - 1, to - from + 3, 3));
+      g.fill(0x3a2a00);
+      BOLT_ROWS.forEach(([from, to], row) => g.rect(from, row, to - from + 1, 1));
+      g.fill(tint);
+      g.position.set(label.group.width / 2 + 1, -5);
+      label.group.addChild(g);
+    }
     label.group.zIndex = this.hintLayer.zIndex + 1;
     label.group.scale.set(0);
     this.container.addChild(label.group);

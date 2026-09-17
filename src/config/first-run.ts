@@ -31,15 +31,23 @@ export interface FirstRunState {
   bombs: number;
   goldens: number;
   chests: number;
+  /** Red Xs this player got RIGHT. Optional: older fixtures predate the X. */
+  flags?: number;
   warnStage: number;
 }
 
 /** Every beat's key — what the dictionaries are keyed by. */
-export type FirstRunBeatId = 'tap' | 'numbers' | 'bomb' | 'golden' | 'chest' | 'clock';
+export type FirstRunBeatId = 'tap' | 'numbers' | 'mark' | 'marked' | 'bomb' | 'golden' | 'chest' | 'clock';
 
 export const FIRST_RUN_BEATS: readonly FirstRunBeat[] = [
   { id: 'tap', when: () => true, sticky: true },
   { id: 'numbers', when: (s) => s.tiles >= 1 },
+  // The red X, taught on the second dig: by then a number is on screen and
+  // the taught bomb is one tile from it. Digging costs energy now, so this is
+  // not an extra — it is how the run goes on. `marked` answers the first
+  // right one, because a bar that moved by eight is easy to miss.
+  { id: 'mark', when: (s) => s.tiles >= 2 },
+  { id: 'marked', when: (s) => (s.flags ?? 0) >= 1 },
   { id: 'bomb', when: (s) => s.bombs >= 1 },
   { id: 'golden', when: (s) => s.goldens >= 1 },
   { id: 'chest', when: (s) => s.chests >= 1 },

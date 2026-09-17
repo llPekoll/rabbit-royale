@@ -201,8 +201,10 @@ export const fr: Dict = {
   firstRun: {
     tap: 'Touche une case à côté de toi pour creuser.',
     numbers: 'Le chiffre compte les bombes qui touchent la case.',
-    bomb: 'Un cœur en moins. Le 1 la désignait.',
-    golden: 'L’or rend un cœur.',
+    mark: 'Tu sais où est une bombe ? Appuie sur le X rouge et marque-la : ça rend de l’énergie.',
+    marked: 'Juste ! Un bon X rend de l’énergie. C’est comme ça qu’on creuse plus loin.',
+    bomb: 'Ça coûte de l’énergie. Le 1 la désignait.',
+    golden: 'L’or rend de l’énergie.',
     chest: 'Un coffre. Ce qu’il contient rentre avec toi.',
     clock: 'L’île est l’horloge. Creuse-la et elle coule.',
     recap: 'Tes carottes sont au terrier. Va voir.',

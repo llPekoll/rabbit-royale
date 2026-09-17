@@ -232,8 +232,10 @@ export const en = {
   firstRun: {
     tap: 'Tap a tile beside you to dig it.',
     numbers: 'The number counts the bombs touching that tile.',
-    bomb: 'One heart gone. The 1 was pointing at it.',
-    golden: 'Gold gives a heart back.',
+    mark: 'Sure where a bomb is? Press the red X and mark it: energy back.',
+    marked: 'Right! A good X gives energy back. That is how you dig further.',
+    bomb: 'That cost energy. The 1 was pointing at it.',
+    golden: 'Gold gives energy back.',
     chest: 'A chest. Whatever it holds goes home with you.',
     clock: 'The island is the clock. Dig it out and it sinks.',
     recap: 'Your carrots are home now. Go and see.',
