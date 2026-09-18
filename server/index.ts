@@ -739,7 +739,10 @@ io.on('connection', (socket: Socket) => {
     // A strike that opened a zero opens the ground around it, like a dig.
     // Bounded around the point of impact, like a dig is around the rabbit.
     const hinted = cascadeAround(live.island, target);
-    if (hinted.length) io.to(room).emit('hints_revealed', { tiles: hinted });
+    // `from` is where the opening STARTED — the point of impact here. The
+    // client plays the zone as a ripple spreading out of it, so without it the
+    // swell has no centre and falls back to opening flat.
+    if (hinted.length) io.to(room).emit('hints_revealed', { tiles: hinted, from: target });
 
     /* AND WHOEVER WAS STANDING THERE.
      *
@@ -954,7 +957,7 @@ io.on('connection', (socket: Socket) => {
 
     const room = roomFor(live.island.id);
     if (out.flag.correct) io.to(room).emit('bomb_flagged', { tile: at, by: data.playerId });
-    if (out.flag.hinted?.length) io.to(room).emit('hints_revealed', { tiles: out.flag.hinted });
+    if (out.flag.hinted?.length) io.to(room).emit('hints_revealed', { tiles: out.flag.hinted, from: at });
     console.log('[flag]', data.playerId, 'tile', at, out.flag.correct ? 'right' : 'wrong',
       'energy', rabbit.energy, 'streak', out.flag.streak);
     // Same tile, new energy and carrots: the roster and the ring both read it.
@@ -1015,7 +1018,7 @@ io.on('connection', (socket: Socket) => {
           adjacent: shove.dig.adjacent,
           dugBy: shove.playerId,
         });
-        if (shove.dig.hinted?.length) io.to(room).emit('hints_revealed', { tiles: shove.dig.hinted });
+        if (shove.dig.hinted?.length) io.to(room).emit('hints_revealed', { tiles: shove.dig.hinted, from: shove.dig.tile });
       }
       io.to(room).emit('rabbit_pushed', {
         playerId: shove.playerId,
@@ -1066,7 +1069,7 @@ io.on('connection', (socket: Socket) => {
       // The cascade: numbers opened on undug ground around a zero. To the
       // whole room, like the reveal — what the ground says is a shared fact,
       // and the tiles themselves are still there for anyone to dig.
-      if (out.dig.hinted?.length) io.to(room).emit('hints_revealed', { tiles: out.dig.hinted });
+      if (out.dig.hinted?.length) io.to(room).emit('hints_revealed', { tiles: out.dig.hinted, from: to });
       // The blast is its own event: the client plays a damage animation and a
       // knockback, which a plain move would not distinguish from a walk.
       if (out.dig.knockback) {
@@ -1090,7 +1093,7 @@ io.on('connection', (socket: Socket) => {
         'carrots', rabbit.carrots, `(+${out.dig.carrotDelta})`);
     }
     // A plain walk can carry the cascade on — see `MoveOutcome.hinted`.
-    if (out.hinted?.length) io.to(room).emit('hints_revealed', { tiles: out.hinted });
+    if (out.hinted?.length) io.to(room).emit('hints_revealed', { tiles: out.hinted, from: to });
     io.to(room).emit('rabbit_moved', publicRabbit(rabbit));
     // The mover alone gets the private detail (their loot, their knockback).
     socket.emit('move_result', out);

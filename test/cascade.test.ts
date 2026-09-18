@@ -158,10 +158,20 @@ describe('the client draws the number on every dug tile', () => {
 
   it('is told about the cascade on join, on the event, and on a resync', () => {
     const HOOK = readFileSync(new URL('../src/components/use-game-socket.ts', import.meta.url), 'utf8');
-    expect(HOOK.match(/s(cene)?\.hintTile\(h\.tile, h\.adjacent\)/g)?.length).toBe(3);
+    // The two SNAPSHOT paths — a join and a resync — write the numbers one
+    // tile at a time: that ground was opened before the player got here, and
+    // replaying it as an event would announce old news.
+    expect(HOOK.match(/s(cene)?\.hintTile\(h\.tile, h\.adjacent\)/g)?.length).toBe(2);
+    // The LIVE path hands the zone over whole, so the scene can play it as a
+    // ripple spreading from where it was opened (`IslandScene.openZone`).
+    expect(HOOK).toMatch(/s\.openZone\(p\.tiles, p\.from\)/);
     expect(HOOK).toMatch(/socket\.on\('hints_revealed'/);
     const SERVER = readFileSync(new URL('../server/index.ts', import.meta.url), 'utf8');
     expect(SERVER.match(/emit\('hints_revealed'/g)?.length).toBe(5); // dig, shove, strike, walk, wrong X
+    // Every one of them says WHERE the zone opened. The ripple spreads from
+    // that tile; without it the client has a region and no centre, and opens
+    // it flat.
+    expect(SERVER.match(/emit\('hints_revealed', \{ tiles: [^}]*from:/g)?.length).toBe(5);
     expect(SERVER).toMatch(/hinted: view\.hinted/);
   });
 });

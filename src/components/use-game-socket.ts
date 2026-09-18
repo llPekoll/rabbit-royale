@@ -502,8 +502,12 @@ export function useGameSocket(
      * The cascade opened numbers on undug ground — a zero was dug somewhere.
      * Shared like a reveal: everyone on the island reads the same numbers.
      */
-    socket.on('hints_revealed', (p: { tiles: Array<{ tile: number; adjacent: number }> }) => {
-      toScene((s) => { for (const h of p.tiles) s.hintTile(h.tile, h.adjacent); });
+    socket.on('hints_revealed', (p: { tiles: Array<{ tile: number; adjacent: number }>; from?: number }) => {
+      // As ONE zone, not as a list of tiles: the scene plays it as a ripple
+      // spreading from `from`, which is where the dig (or the strike) opened
+      // it. An older server sends no `from`, and the scene then opens the
+      // zone flat — the way it always did.
+      toScene((s) => s.openZone(p.tiles, p.from));
     });
 
     /** Somebody's red X was RIGHT: the bomb is marked for the whole island. */

@@ -1011,6 +1011,32 @@ export class IsoIslandView {
   }
 
   /**
+   * Nudge a whole cell up or down the screen, without moving it on the grid.
+   *
+   * For the cascade's ripple: a zone opening lifts the ground it opens and
+   * sets it back down, so the reading travels outward as a swell rather than
+   * appearing all at once (see `IslandScene.rippleCell`).
+   *
+   * The BLOCK is what moves, which is the only way this reads right. A cell's
+   * ground, its cliff face, its rock rim and its veil are all children of the
+   * block; lifting the board's `Tile` container alone would raise the number
+   * and the highlight off a surface that stayed put. The block's own position
+   * is (0,0) — its children carry absolute positions — so `offset` IS the
+   * displacement, and `zIndex` is `depth`, computed from the cell rather than
+   * from where it sits, so a lifted cell never re-sorts against its
+   * neighbours.
+   *
+   * False when there is no block here, exactly as `mountVeil` reports it, so a
+   * caller can skip a cell that is sea or off the map.
+   */
+  liftCell(x: number, y: number, offset: number): boolean {
+    const block = this.blocks.get(key(x, y));
+    if (!block) return false;
+    block.y = offset;
+    return true;
+  }
+
+  /**
    * Put a sheep on the sheet that matches how it is moving.
    *
    * Every sheep spawns on one of the two sheets at random and used to keep it

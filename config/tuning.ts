@@ -182,6 +182,46 @@ export const ISLAND = {
 } as const;
 
 /**
+ * How a zone ANNOUNCES itself when the cascade opens one.
+ *
+ * Digging a zero opens a region of numbers at once, and the client used to
+ * write all of them on the same frame — a dozen tiles changed state with a
+ * blink, and the board's biggest moment was the one it said least about. It
+ * now arrives as a ripple spreading from the dig: the numbers in order of
+ * distance, and the ground rising and falling under the front.
+ *
+ * Tuned on `Island/Cascade wave` in Storybook, which plays the real cascade
+ * over a real island, and against the SCALE that decides all of it: a zone is
+ * bounded to CASCADE_RADIUS (3) cells, so it is three rings and about forty
+ * tiles — not the hundred "a whole zone" suggests. A wave over three rings has
+ * room for three beats and no more.
+ */
+export const RIPPLE = {
+  /**
+   * Seconds of delay per step out from the dig. With three rings this is
+   * close to "how long the whole thing takes, divided by three" rather than a
+   * fine-grained stagger.
+   *
+   * Read against the lid's own fade, which `Tile.revealHint` fixes at 0.25s:
+   * below about a third of that the rings overlap into a single bloom and the
+   * wave stops being a wave.
+   */
+  PER_STEP: 0.12,
+  /** Cap on the total spread, so a wide zone cannot outlive the player's attention. */
+  MAX_DELAY: 0.6,
+  /**
+   * How far a cell rises as the front passes, in px.
+   *
+   * Small, and it has to be: the board draws at HALF_H = 12px per cell, so a
+   * tile lifting 6px has travelled half a cell and starts to read as leaving
+   * the ground rather than as swelling under it. 5 is just under that.
+   */
+  HEIGHT: 5,
+  /** Seconds of the up-and-down itself — how long the crest sits on one cell. */
+  TIME: 0.45,
+} as const;
+
+/**
  * Risk rises with the walk from the spawn — and so does what is worth having.
  *
  * Bombs and golden carrots are dealt WEIGHTED by how many steps out a tile is;

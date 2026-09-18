@@ -56,7 +56,7 @@ import {
 } from './islandCamera';
 import { PanZoomGestures } from '../input/PanZoomGestures';
 import type { TileContent } from '@/lib/game/types';
-import { ENERGY, LIGHTNING } from '@config/tuning';
+import { ENERGY, LIGHTNING, RIPPLE } from '@config/tuning';
 import { canDig, reachableTiles } from '@/lib/game/reachable';
 import type { MoveRejection } from '@/lib/game/run';
 
@@ -158,6 +158,22 @@ export class IslandScene implements Scene {
   private sound = new SoundManager();
   private controls: KeyboardControls | null = null;
   private background: TerrainBackground | null = null;
+  /**
+   * The ripple's live tweens — the delayed hints and the cells in the air.
+   *
+   * Held so a new island can cut them. The terrain is destroyed and rebuilt on
+   * every swap, and a swell still running would write a lift onto a block that
+   * no longer exists — or, worse, onto the new island's block, leaving a cell
+   * of fresh ground parked above the board. See `stopRipples`.
+   */
+  private rippleTweens: gsap.core.Tween[] = [];
+  /**
+   * How to put each lifted cell back down, one entry per lift in flight.
+   *
+   * The lift is the only thing that knows where its cell was resting, so it
+   * hands back the undo rather than leaving the scene to reconstruct it.
+   */
+  private rippleRestores: Array<() => void> = [];
   /**
    * The window through whatever is drawn over OUR rabbit — trees, bushes,
    * livestock, other players, the lot. A depth test on the scene's own sort
@@ -951,7 +967,9 @@ export class IslandScene implements Scene {
     this.arrows.setSeed(this.data?.seed ?? '');
     this.arrows.setVisible(true);
 
-    // A new island, generated from the new seed.
+    // A new island, generated from the new seed. Any swell still travelling
+    // belongs to the old one and must not outlive its ground.
+    this.stopRipples();
     this.background?.destroy();
     // Let go of at once, not when the new ground lands: a call overtaken
     // during the build below must not find, and destroy again, a ground that
@@ -1005,6 +1023,152 @@ export class IslandScene implements Scene {
    */
   hintTile(index: number, adjacent: number): void {
     this.tiles.get(index)?.revealHint(adjacent);
+  }
+
+  /**
+   * A whole zone just opened — play it as a ripple spreading from `from`.
+   *
+   * The cascade opens a region at once and the client used to write every
+   * number on the same frame: a dozen tiles changed state with a blink, and
+   * the board's biggest moment was the one it said least about. Paul, watching
+   * it: "la c'est instant ca serait bien que ca fasse comme une wave".
+   *
+   * So the numbers arrive in order of distance from the dig, and the GROUND
+   * under them rises and falls as that front passes. Nothing about WHAT opens
+   * changes — the region is the server's, and every tile in `tiles` is written
+   * either way. Only when each one is drawn.
+   *
+   * `from` is the tile the opening started on. Without it (an older server, or
+   * a caller that has no origin to give) the zone opens flat, exactly as it
+   * did before — the effect is an enhancement, never a precondition.
+   *
+   * NOT used for reconnect snapshots: those call `hintTile` per tile, because
+   * ground that was opened before you arrived did not just happen, and a
+   * board that rippled on every reconnect would be announcing old news.
+   */
+  openZone(tiles: ReadonlyArray<{ tile: number; adjacent: number }>, from?: number): void {
+    if (from === undefined) {
+      for (const h of tiles) this.hintTile(h.tile, h.adjacent);
+      return;
+    }
+
+    const far = Math.max(...tiles.map((h) => this.rippleDistance(from, h.tile)));
+    // A zone one tile wide has no front to travel: open it flat rather than
+    // dividing by zero working out the spread.
+    if (!(far > 0)) {
+      for (const h of tiles) this.hintTile(h.tile, h.adjacent);
+      return;
+    }
+    const scale = far * RIPPLE.PER_STEP > RIPPLE.MAX_DELAY
+      ? RIPPLE.MAX_DELAY / (far * RIPPLE.PER_STEP)
+      : 1;
+    const delayFor = (i: number) => this.rippleDistance(from, i) * RIPPLE.PER_STEP * scale;
+
+    // Anything still in flight belongs to an older opening. Two zones can
+    // overlap — a dig on the edge of a region someone else just opened — and
+    // the cells they share would otherwise take two lifts at once and travel
+    // twice as high.
+    this.stopRipples();
+
+    for (const h of tiles) {
+      const delay = delayFor(h.tile);
+      if (delay <= 0) { this.hintTile(h.tile, h.adjacent); continue; }
+      this.rippleTweens.push(gsap.delayedCall(delay, () => this.hintTile(h.tile, h.adjacent)) as gsap.core.Tween);
+    }
+
+    /**
+     * The swell runs over the GROUND, not over the news.
+     *
+     * `tiles` is only what this dig wrote a number on. Lifting just those
+     * makes the wave stop dead at the edge of whatever happened to be unread —
+     * ground already dug, and the dug tile itself, stay flat while everything
+     * around them heaves. Water does not ask which part of the pond is new.
+     *
+     * So every cell the front actually reaches is lifted, opened or not.
+     */
+    const reach = new Set<number>(tiles.map((h) => h.tile));
+    reach.add(from);
+    for (const i of this.tiles.keys()) {
+      if (!reach.has(i) && this.rippleDistance(from, i) <= far) reach.add(i);
+    }
+    for (const i of reach) this.rippleCell(i, delayFor(i));
+  }
+
+  /**
+   * Kill every ripple in flight and put the board back on its lattice.
+   *
+   * A tween cut mid-swell would leave its cell wherever it happened to be, so
+   * every lift registers how to undo itself (`rippleRestores`) and that is run
+   * here. Dropping the tweens alone would strand cells in the air.
+   */
+  private stopRipples(): void {
+    // Each lift knows the resting position it borrowed and puts it back — the
+    // scene does not recompute it. A tile's y is `tilePos` minus its terrace
+    // lift, a sum made inside `Tile`'s constructor; redoing it here would be a
+    // second copy of a private calculation, free to drift from the first.
+    for (const done of this.rippleRestores.splice(0)) done();
+    for (const t of this.rippleTweens) t.kill();
+    this.rippleTweens = [];
+  }
+
+  /**
+   * Distance for the ripple, as the crow flies over the grid.
+   *
+   * EUCLIDEAN, not the cascade's own Chebyshev. The bound on what opens is a
+   * square (`ISLAND.CASCADE_RADIUS`), but a square front reads as a box being
+   * drawn rather than as something spreading; rounding it puts the corners
+   * last and gives the swell a circular edge on the diamond lattice.
+   */
+  private rippleDistance(from: number, to: number): number {
+    const a = toColRow(from);
+    const b = toColRow(to);
+    return Math.hypot(a.col - b.col, a.row - b.row);
+  }
+
+  /**
+   * Lift one cell and set it back down, `delay` seconds from now.
+   *
+   * The TERRAIN BLOCK moves, not the tile's container: a cell's grass, its
+   * cliff face and its veil are the block's children, so lifting the container
+   * alone would raise the number and the highlight off a surface that stayed
+   * put. See `IsoIslandView.liftCell`.
+   *
+   * The tile's own container rides along so the number stays planted on the
+   * ground it belongs to — the two are separate subtrees and nothing else
+   * keeps them together.
+   */
+  private rippleCell(index: number, delay: number): void {
+    const tile = this.tiles.get(index);
+    if (!tile || !this.background) return;
+    const rest = tile.container.y;
+    const state = { lift: 0 };
+    // Land exactly, not near enough: a cell left a hundredth of a pixel off
+    // its lattice has left the grid, and repeated waves compound it. Kept as a
+    // closure so `stopRipples` can run it on a swell cut short.
+    const settle = () => {
+      this.background?.liftCell(index, 0);
+      tile.container.y = rest;
+    };
+    this.rippleRestores.push(settle);
+    this.rippleTweens.push(gsap.to(state, {
+      lift: RIPPLE.HEIGHT,
+      duration: RIPPLE.TIME / 2,
+      delay,
+      ease: 'sine.inOut',
+      yoyo: true,
+      repeat: 1,
+      onUpdate: () => {
+        this.background?.liftCell(index, -state.lift);
+        tile.container.y = rest - state.lift;
+      },
+      onComplete: () => {
+        settle();
+        // Done: drop the undo so a later `stopRipples` does not walk a list
+        // that grows for the life of the run.
+        const at = this.rippleRestores.indexOf(settle);
+        if (at >= 0) this.rippleRestores.splice(at, 1);
+      },
+    }));
   }
 
   /**
@@ -1972,6 +2136,7 @@ export class IslandScene implements Scene {
     this.clearChestPointer();
     this.arrows?.destroy();
     this.controls?.destroy();
+    this.stopRipples();
     this.background?.destroy();
     this.sound.stopMusic();
     this.hole.destroy();
