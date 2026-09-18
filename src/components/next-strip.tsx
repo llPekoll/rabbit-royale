@@ -16,6 +16,7 @@
  */
 import type { CSSProperties } from 'react';
 import type { NextAction } from '@/config/next-action';
+import type { QuestDoor } from '@/config/quests';
 import { PxButton, pxLabel } from './px';
 import { useT } from '@/i18n/provider';
 
@@ -24,13 +25,28 @@ const BEVEL = '#1c0d08';
 const GOLD = '#ffd138';
 const INK = '#f5e6d3';
 
-export function NextStrip({ action, onClick }: { action: NextAction; onClick?(): void }) {
+/**
+ * THE DOOR IS HANDED BACK, not looked up again.
+ *
+ * The strip's line and its destination are the SAME reading, and they have to
+ * travel together. `onClick` used to take nothing, so the page re-read
+ * `next.door` inside the handler — and `next` is recomputed whenever the
+ * burrow, the shop or the target list is refreshed, which happens on a 60s
+ * timer and on half a dozen events besides. A target that shielded (or had its
+ * garden emptied) between the render and the finger dropped the door from
+ * 'raid' to 'farm': the strip still SAID "Raid X" and the tap started a dig.
+ *
+ * Passing the action's own door closes that window for good. Whatever the
+ * player read is what runs, however stale it has become by the time they
+ * reach it — a tap that does what the line promised, or nothing at all.
+ */
+export function NextStrip({ action, onClick }: { action: NextAction; onClick?(door: QuestDoor): void }) {
   const t = useT();
   return (
     <PxButton
       type="button"
       className="rr-next-strip"
-      onClick={onClick}
+      onClick={() => onClick?.(action.door)}
       aria-label={t.next.aria(action.text)}
       color={FACE}
       shadowColor={BEVEL}

@@ -58,7 +58,7 @@ import { LootFly } from '@/components/loot-fly';
 import { playUiSfx } from '@/game/services/SoundManager';
 import { unlockedCount } from '@/config/lore';
 import { questText } from '@/i18n/content';
-import { QUEST_MARK, QUESTS_ARC, codexMark, isQuestId, type QuestBoard } from '@/config/quests';
+import { QUEST_MARK, QUESTS_ARC, codexMark, isQuestId, type QuestBoard, type QuestDoor } from '@/config/quests';
 import { ENERGY, TRAPS } from '@config/tuning';
 import { useShop, type ItemKind } from '@/components/use-shop';
 import type { PayTokenId } from '@/lib/pay/tokens';
@@ -1236,6 +1236,27 @@ function Burrow() {
     const s = game.seatHeld;
     if (!s || s.at === spentSeat.current) return;
     if (!ready || !showCanvas || arriving || crossing || spectating || game.dropped) return;
+    /**
+     * A RAID OUTRANKS A HELD SEAT, and does not spend it.
+     *
+     * A raid is crossed on the burrow scene, so `where` is 'burrow' and
+     * `crossing` is false for its whole length — neither guard above sees it.
+     * A socket reconnect (mobile network, tab resumed, a server restart) then
+     * announced the held seat and this effect marched the player off to the
+     * island mid-crossing, leaving a raid open server-side while the dig was
+     * on screen. That is the "I open a raid and it opens the dig" report.
+     *
+     * `raid.busy` covers the window the other flags cannot: `enter()` is a
+     * POST, and between the tap and its answer there is no raid to see yet.
+     * `pickingTarget` covers the target list standing open.
+     *
+     * Returned BEFORE `spentSeat` is written, deliberately. The announcement
+     * is not consumed, so the seat is still there to go back to once the raid
+     * is over — the run is only lost if the grace window closes first, which
+     * is the same bargain a player who keeps reading their burrow already
+     * makes. Spending it here would drop the run for good.
+     */
+    if (raid.raid || shownRaid || pickingTarget || raid.busy) return;
     spentSeat.current = s.at;
     if (where !== 'burrow') return;
     // Said on the island, where the player lands: the burrow's toasts are
@@ -1244,7 +1265,8 @@ function Burrow() {
     if (questNoteTimer.current) clearTimeout(questNoteTimer.current);
     questNoteTimer.current = setTimeout(() => setQuestNote(null), 5000);
     goTo('island');
-  }, [game.seatHeld, game.dropped, ready, showCanvas, arriving, crossing, spectating, where, goTo, t]);
+  }, [game.seatHeld, game.dropped, ready, showCanvas, arriving, crossing, spectating, where, goTo, t,
+    raid.raid, raid.busy, shownRaid, pickingTarget]);
 
   const spentRefusal = useRef(0);
   useEffect(() => {
@@ -1295,8 +1317,16 @@ function Burrow() {
    * harvest, the trap floor, or the target list. The strip is a pointer, and
    * a pointer you cannot follow with the finger that read it is a label.
    */
-  const onNextAction = useCallback(() => {
-    switch (next?.door) {
+  const onNextAction = useCallback((door: QuestDoor) => {
+    // THE DOOR COMES FROM THE STRIP, not from `next` read again here.
+    //
+    // `next` is recomputed on every burrow/shop/target refresh — a 60s timer,
+    // each bank, each trap laid, each run that comes due. Reading `next.door`
+    // inside this handler meant the line the player READ and the door the tap
+    // OPENED were two different readings, and a target that shielded in
+    // between turned "Raid X" into a dig. The strip hands back the door it
+    // drew, so the tap can only ever do what the line said.
+    switch (door) {
       case 'farm': goFarm(); break;
       case 'garden': void act('harvest'); break;
       case 'base': startPlacing(); break;
@@ -1307,7 +1337,7 @@ function Burrow() {
     // render; listing it would re-create this handler every render for no
     // change in behaviour.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [next?.door, goFarm, startPlacing, raid]);
+  }, [goFarm, startPlacing, raid]);
 
   /**
    * THE FIRST TRIP IS NOT A CHOICE. A player who has never been on an island
@@ -1346,9 +1376,17 @@ function Burrow() {
     if (firstTrip.current) return;
     if (!showCanvas || arriving || !ready || crossing || spectating) return;
     if (where !== 'burrow' || !firstTimer) return;
+    // A raid outranks the first trip too, and for the same reason as the held
+    // seat above: a raid runs ON the burrow, so `where` and `crossing` cannot
+    // see it. `firstTimer` reads `player.runsPlayed` while the burrow is still
+    // loading, so a raid entered from a fresh account could be shoved aside by
+    // this belt. The ref is left unset: the first island is still owed, and it
+    // is taken the moment the raid is done with.
+    if (raid.raid || shownRaid || pickingTarget || raid.busy) return;
     firstTrip.current = true;
     goFarm();
-  }, [showCanvas, arriving, ready, crossing, spectating, where, firstTimer, goFarm]);
+  }, [showCanvas, arriving, ready, crossing, spectating, where, firstTimer, goFarm,
+    raid.raid, raid.busy, shownRaid, pickingTarget]);
 
   /**
    * A refill bought from the popup.
@@ -2258,7 +2296,11 @@ function Burrow() {
                     onClaim={() => void claimQuest(quest.active!.id)}
                   />
                 ) : next && (
-                  <NextStrip action={next} onClick={onNextAction} />
+                  /* Deaf while a raid is being asked for, like the loop bar
+                     below: the door it hands back is frozen at the render, but
+                     a second tap during the POST would still re-open the target
+                     list over a raid that is already landing. */
+                  <NextStrip action={next} onClick={raid.busy ? undefined : onNextAction} />
                 )}
               </div>
 
@@ -2411,8 +2453,17 @@ function Burrow() {
 
       {/* THE LOOP BAR — DIG ▸ HOME ▸ RAID — on the floor. See loop-bar.tsx.
           Slid away while placing rather than unmounted, on the same curve the
-          camera pulls back on; the BACK slab takes the floor then. */}
-      {showCanvas && where === 'burrow' && !shownRaid && !crossing && (
+          camera pulls back on; the BACK slab takes the floor then.
+
+          `raid.busy` TAKES THE FLOOR AWAY AS THE RAID IS ASKED FOR. The other
+          three flags only describe a raid that has already landed: `enter()`
+          is a POST, and for its whole round trip there was no raid yet, no
+          `shownRaid` and no crossing — so DIG sat live and pressable under the
+          target list's scrim, one stray tap away from sending the player to
+          the island with a raid opening behind them. Unmounted rather than
+          disabled: a slab that is merely dead still takes the press and reads
+          as a broken button. */}
+      {showCanvas && where === 'burrow' && !shownRaid && !crossing && !raid.busy && (
         burrow && <LoopBar
           dig={{
             energy: burrow.energy,
