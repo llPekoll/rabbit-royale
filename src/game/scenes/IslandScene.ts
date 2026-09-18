@@ -371,12 +371,27 @@ export class IslandScene implements Scene {
    * keeps the same layer.
    */
   private hintLayer = new Container();
+  /**
+   * Where the rabbits' name plates are drawn.
+   *
+   * Its own layer for the same reason the hints have one, and a rank BELOW
+   * them: the plate sits under its rabbit's feet, which puts it over the next
+   * cell down the diagonal — a cell that sorts after the rabbit and would
+   * otherwise clip the name mid-letter. Under the counts, because a name may
+   * never be the thing that hides a number.
+   */
+  private nameLayer = new Container();
 
   private buildTiles(): void {
     if (!this.hintLayer.parent) {
       this.hintLayer.zIndex = 1_000_000;
       this.hintLayer.sortableChildren = false;
       this.container.addChild(this.hintLayer);
+    }
+    if (!this.nameLayer.parent) {
+      this.nameLayer.zIndex = 999_000;
+      this.nameLayer.sortableChildren = false;
+      this.container.addChild(this.nameLayer);
     }
     for (const i of farmableTiles(this.data?.seed ?? '')) {
       // Lifted onto the terrace the terrain puts it on, so the board follows
@@ -1684,6 +1699,9 @@ export class IslandScene implements Scene {
     }
     const sheet = BUNNY_SHEETS[seatIndex % BUNNY_SHEETS.length];
     const rabbit = new PlayerRabbit(index, sheet, this.data?.seed ?? '');
+    // Before `setName`: the plate is mounted wherever it is told to at that
+    // moment, and this board has a sort for it to stay out of.
+    rabbit.setNameLayer(this.nameLayer);
     rabbit.setCrowned(crowned);
     // Who is who. Four rabbits on a board, three of them strangers, and until
     // now the only thing telling them apart was the colour of the sheet they
@@ -1868,6 +1886,11 @@ export class IslandScene implements Scene {
   update(deltaTime: number): void {
     this.clouds?.update(deltaTime * (1000 / 60));
     this.birds?.update(deltaTime * (1000 / 60));
+
+    // The name plates ride on their own layer (see `nameLayer`), so they have
+    // to be walked back under their rabbits every frame: a hop is a GSAP tween
+    // straight onto the container, with no event to hang this on.
+    for (const rabbit of this.rabbits.values()) rabbit.syncName();
     // The island breathes: trees sway, bushes rustle, the flock shifts.
     this.background?.update(deltaTime * (1000 / 60));
 

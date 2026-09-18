@@ -325,6 +325,20 @@ function IslandScene({ seed, rabbits, stepMs, crowned, bob, zoom, leadScale }: I
           board.addChild(new Tile(i).container);
         }
 
+        /**
+         * The plates' own layer, as `IslandScene` gives it.
+         *
+         * Since the name moved under the feet (2026-09-18) it reaches into the
+         * next cell down the diagonal, which sorts AFTER the rabbit — parented
+         * to the rabbit it came out clipped mid-letter. The scene draws them on
+         * a layer over the board instead, and a story that skipped it would be
+         * showing an arrangement the game does not use.
+         */
+        const nameLayer = new Container();
+        nameLayer.zIndex = 999_000;
+        nameLayer.sortableChildren = false;
+        board.addChild(nameLayer);
+
         const SHEETS = [
           Keys.BUNNY_WHITE, Keys.BUNNY_BROWN, Keys.BUNNY_GRAY,
           Keys.BUNNY_ORANGE, Keys.BUNNY_YELLOW,
@@ -335,6 +349,8 @@ function IslandScene({ seed, rabbits, stepMs, crowned, bob, zoom, leadScale }: I
         // makes this cheap to ship.
         const walkers = Array.from({ length: rabbits }, (_, n) => {
           const rabbit = new PlayerRabbit(SPAWN_INDEX, SHEETS[n % SHEETS.length]);
+          // Before `setName`, exactly as the scene does it.
+          rabbit.setNameLayer(nameLayer);
           board.addChild(rabbit.container);
           // NO spawn drop under the camera.
           //
@@ -363,9 +379,10 @@ function IslandScene({ seed, rabbits, stepMs, crowned, bob, zoom, leadScale }: I
             rabbit.container.scale.set(leadScale);
           }
 
-          // The name plate, exactly as `IslandScene.addRabbit` gives it. Walker 0
-          // is "me", so the gold ink and the white are both on screen to compare
-          // — and the leader's plate proves it does NOT grow with the rabbit.
+          // The name plate, exactly as `IslandScene.addRabbit` gives it: cut to
+          // four characters, under the feet, on the layer. Walker 0 is "me", so
+          // the gold ink and the white are both on screen to compare — and the
+          // leader's plate proves it does NOT grow with the rabbit.
           rabbit.setName(ROWS_DATA[n]?.name ?? `rabbit ${n}`, n === 0);
 
           if (n === 0 && crowned && crownTexture) {
@@ -388,6 +405,14 @@ function IslandScene({ seed, rabbits, stepMs, crowned, bob, zoom, leadScale }: I
           }
           return { rabbit, at: SPAWN_INDEX, rng: mulberry32(seedFrom(`${seed}:${n}`)) };
         });
+
+        /**
+         * Walk the deported plates back under their rabbits, as the scene's
+         * `update` does. Unconditional, unlike the camera below: the plates
+         * need it at every zoom, and a walker moves by tween.
+         */
+        const names = () => { for (const w of walkers) w.rabbit.syncName(); };
+        app.ticker.add(names);
 
         /* THE CAMERA.
 
@@ -429,6 +454,7 @@ function IslandScene({ seed, rabbits, stepMs, crowned, bob, zoom, leadScale }: I
 
         return () => {
           clearInterval(timer);
+          app.ticker.remove(names);
           if (camera) app.ticker.remove(camera);
           bg?.destroy();
         };

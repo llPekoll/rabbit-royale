@@ -90,12 +90,19 @@ const CROWN_LEAD_SCALE = 2;
 /* ── THE NAME PLATE ───────────────────────────────────────────────────────── */
 
 /**
- * How far above the feet the name floats.
+ * How far BELOW the feet the name sits.
  *
- * Clear of the crown rather than of the ears: a leader wears both, and a plate
- * measured against a bare head is a plate the crown grows through.
+ * It floated over the head until 2026-09-18, and above the head is where the
+ * board is: the plate spanned three cells of counts and wiped out the numbers
+ * behind it — "avec nom du joueur c'est illisible", on a shot where
+ * CURSEDWHISKERS2 crossed the whole top of the screen. Under the feet it lands
+ * on the rabbit's OWN tile, the one cell whose count is already covered by the
+ * rabbit standing on it (`raiseHint` lifts that one clear anyway).
+ *
+ * Positive, because the sprite is anchored at 0.9 — the feet are y 0 — so this
+ * is measured down from the contact point, just past the tile's own half-height.
  */
-const NAME_Y = -30;
+const NAME_Y = 13;
 /**
  * The plate's size, in the container's units.
  *
@@ -104,9 +111,45 @@ const NAME_Y = -30;
  * with the hint numbers is a name that costs the player the run.
  */
 const NAME_SCALE = 0.55;
+/**
+ * How many characters of a name are drawn before it is cut.
+ *
+ * The plate is an identifier, not a signature: four letters tell two rabbits
+ * apart at a glance, and a full handle is available everywhere it can be read
+ * properly (the leaderboard, the raid panel). This is what keeps the label
+ * inside its own cell instead of across the neighbours' counts.
+ */
+const NAME_MAX_CHARS = 4;
+/**
+ * The cut mark. Three periods, NOT the single-glyph ellipsis.
+ *
+ * The kit's basic atlas is 0x20–0x7E (see arcade-kit's bitmap-fonts), and a
+ * BitmapText drops a glyph it does not have SILENTLY — so "…" would render as
+ * nothing at all in English, the one language that uses the atlas, and the
+ * name would read as cut by accident rather than on purpose.
+ */
+const NAME_ELLIPSIS = '...';
 /** Your own name reads gold, everyone else's white — the game's own YOURS ink. */
 const NAME_TINT_ME = 0xffd45c;
 const NAME_TINT_OTHER = 0xffffff;
+
+/**
+ * A name cut to the plate: the first `NAME_MAX_CHARS`, then the mark.
+ *
+ * `Array.from` rather than `slice`, because a string indexes by UTF-16 code
+ * unit and a name is not guaranteed to be Latin — a player called 兎小屋 or one
+ * with an emoji in their handle would be cut mid-surrogate by `slice(0, 4)`,
+ * which yields half a character: a lone surrogate that draws as a blank box or
+ * as nothing. Iterating gives whole code points.
+ *
+ * Exported for the test, which is the only way to assert the cut without
+ * building a Pixi application to read a glyph back off a texture.
+ */
+export function shortName(name: string): string {
+  const chars = Array.from(name);
+  if (chars.length <= NAME_MAX_CHARS) return name;
+  return chars.slice(0, NAME_MAX_CHARS).join('') + NAME_ELLIPSIS;
+}
 
 export class PlayerRabbit {
   sprite: AnimatedSprite;
@@ -141,6 +184,14 @@ export class PlayerRabbit {
   private crownGrows = true;
   /** The floating name plate, when this rabbit has been given one. */
   private nameplate: Container | null = null;
+  /**
+   * Where the plate is drawn, when the scene wants it out of the sort.
+   *
+   * Null keeps it inside the rabbit, which is right for a lone rabbit with no
+   * board under it (the burrow's HomeRabbit, the stories) — the deported plate
+   * costs a per-frame sync and buys nothing when nothing can cover it.
+   */
+  private nameLayer: Container | null = null;
 
   constructor(tileIndex: number, sheetKey = Keys.BUNNY_WHITE, seed = '', grid?: RabbitGrid) {
     this.sheetKey = sheetKey;
@@ -586,21 +637,31 @@ export class PlayerRabbit {
   }
 
   /**
-   * Float this rabbit's name above its head.
+   * Put this rabbit's name under its feet.
    *
-   * A child of the CONTAINER, like the crown, so it travels with every hop,
-   * knockback and tumble for free — a plate parented to the board would need
-   * its own follow, and would drift for the length of each tween.
+   * Cut to four characters (`shortName`), because the plate is an identifier
+   * and not a signature — the whole handle is readable in the leaderboard and
+   * the raid panel, where there is room for it.
    *
-   * The scale is DIVIDED BY the container's, so the plate is the same size on
-   * everyone. Crowning doubles the container (see `setCrowned`), and a name
-   * that inherited that would shout the leader's name twice as loud as the
-   * rest — the crown already says who leads, and the label is only there to
-   * say who is who.
+   * The plate is the same size on everyone, whatever the container is doing:
+   * crowning doubles the rabbit (see `setCrowned`), and a name that inherited
+   * that would shout the leader's name twice as loud as the rest. The crown
+   * already says who leads; the label is only there to say who is who.
    *
    * Passing an empty name removes the plate: a guest with no name set is
    * better served by no label than by an empty ring of outline.
    */
+  /**
+   * Draw this rabbit's plate on `layer` instead of inside the rabbit.
+   *
+   * Set by a scene that has a sorted board, BEFORE the name — the plate is
+   * mounted where it is told to at `setName` time, and re-mounting a live one
+   * is work nobody needs. The scene then calls `syncName` each frame.
+   */
+  setNameLayer(layer: Container | null): void {
+    this.nameLayer = layer;
+  }
+
   setName(name: string, isMe = false): void {
     if (this.container.destroyed) return;
 
@@ -610,11 +671,47 @@ export class PlayerRabbit {
     }
     if (!name) return;
 
-    const plate = outlinedPixelText(0, NAME_Y, name);
+    const plate = outlinedPixelText(0, NAME_Y, shortName(name));
     plate.face.tint = isMe ? NAME_TINT_ME : NAME_TINT_OTHER;
     this.nameplate = plate.group;
-    this.container.addChild(plate.group);
+    /**
+     * ON THE SHARED LAYER when the scene hands one over, in the rabbit's
+     * container otherwise.
+     *
+     * Under the feet the plate reaches into the NEXT cell down the diagonal,
+     * and that cell sorts AFTER the rabbit — so a plate parented to the rabbit
+     * was drawn and then half covered by the neighbour's ground, which reads
+     * as a name clipped mid-letter. Above the head this never happened, which
+     * is why the layer was not needed until the plate moved.
+     *
+     * Same arrangement the counts already use (`Tile`'s hintLayer): a layer
+     * over everything, with the plate carrying the rabbit's world position
+     * itself. `syncName` is what keeps it there.
+     */
+    if (this.nameLayer) {
+      this.nameLayer.addChild(plate.group);
+      this.syncName();
+    } else {
+      this.container.addChild(plate.group);
+    }
     this.applyNameScale();
+  }
+
+  /**
+   * Put the deported plate back under its rabbit.
+   *
+   * Called every frame by the scene, because the rabbit is moved by GSAP —
+   * hops, knockback, the spawn drop, the stun spin all write `container`
+   * straight — and there is no event to hang this on. Cheap: two adds and a
+   * write, for at most a handful of rabbits.
+   */
+  syncName(): void {
+    const plate = this.nameplate;
+    if (!plate || plate.destroyed || plate.parent !== this.nameLayer) return;
+    plate.position.set(this.container.x, this.container.y + NAME_Y * this.container.scale.y);
+    // A rabbit that fades (see `playDeath`) takes its name with it.
+    plate.alpha = this.container.alpha;
+    plate.visible = this.container.visible;
   }
 
   /**
@@ -633,9 +730,21 @@ export class PlayerRabbit {
     return this.crownGrows ? CROWN_LEAD_SCALE : 1;
   }
 
-  /** Keep the plate the same size on screen whatever the container is doing. */
+  /**
+   * Keep the plate the same size on screen whatever the container is doing.
+   *
+   * Two cases, because the plate has two possible parents. Inside the rabbit
+   * it INHERITS the container's scale, so it has to be divided back out —
+   * crowning doubles the container and a name that rode that would shout the
+   * leader's name twice as loud as everyone else's. On the shared layer it
+   * inherits nothing, so the figure is used as it stands.
+   */
   private applyNameScale(): void {
     if (!this.nameplate) return;
+    if (this.nameplate.parent === this.nameLayer) {
+      this.nameplate.scale.set(NAME_SCALE);
+      return;
+    }
     const k = this.container.scale.x || 1;
     this.nameplate.scale.set(NAME_SCALE / k);
   }
@@ -675,12 +784,26 @@ export class PlayerRabbit {
     this.crown = null;
     this.sprite.stop();
     gsap.to(this.container, { alpha: 0, duration: 0.3, ease: 'power1.in' });
+    /**
+     * The plate fades on its own, and is dropped by hand.
+     *
+     * Deported, it is not a child of the container, so neither the alpha tween
+     * above nor the `destroy({ children: true })` below reaches it — and the
+     * scene has already taken this rabbit out of `rabbits` by now, so
+     * `syncName` is not running either. Left to itself the name would stay at
+     * full strength through the fade and then hang over empty grass for the
+     * life of the island.
+     */
+    const plate = this.nameplate;
+    if (plate && !plate.destroyed) gsap.to(plate, { alpha: 0, duration: 0.3, ease: 'power1.in' });
     gsap.to(this.sprite.scale, {
       x: this.sprite.scale.x * 0.6,
       y: this.sprite.scale.y * 1.3,
       duration: 0.3,
       ease: 'power1.in',
       onComplete: () => {
+        if (plate && !plate.destroyed) plate.destroy({ children: true });
+        this.nameplate = null;
         if (!this.container.destroyed) this.container.destroy({ children: true });
       },
     });
@@ -695,6 +818,10 @@ export class PlayerRabbit {
     this.crownBob?.kill();
     this.crownBob = null;
     this.crown = null;
+    // Deported, the plate is NOT a child of the container, so destroying the
+    // container leaves it on the layer: a name hanging over empty ground for
+    // the life of the island. Dropped explicitly, before the handle is let go.
+    if (this.nameplate && !this.nameplate.destroyed) this.nameplate.destroy({ children: true });
     this.nameplate = null;
     if (this.container.destroyed) return;
     this.sprite.stop();
