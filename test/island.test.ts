@@ -5,7 +5,7 @@
  * this file.
  */
 import { describe, expect, it } from 'vitest';
-import { boardNeighbors, generateIsland, dugFraction, publicView, recomputeAdjacency } from '../src/lib/game/island';
+import { boardNeighbors, chestProgress, generateIsland, dugFraction, publicView, recomputeAdjacency } from '../src/lib/game/island';
 import { makeShape, isForbidden, toColRow, COLS, ROWS } from '../src/config/gridConfig';
 import { spawnTile, terrainNeighbors, farmableTiles } from '../src/lib/game/terrainBoard';
 
@@ -120,6 +120,31 @@ describe('generateIsland', () => {
     expect(dugFraction(island)).toBeLessThan(1);
     island.tiles.get(chests[chests.length - 1])!.revealed = true;
     expect(dugFraction(island)).toBe(1);
+  });
+
+  it('a fully dug island has no chest left, so the eruption always fires', () => {
+    // The failure this pins is the one a player actually hit: "je viens de
+    // terminer la map et je suis toujours la". If a chest could ever sit on a
+    // tile that digging everything does not reach, the island would have no
+    // ending at all — the clock would stop at 0.9 and stay there.
+    //
+    // It cannot, by construction: chests are dealt onto `farmableTiles` like
+    // every other content, and `chestProgress` counts a chest as taken the
+    // moment its tile is revealed. Pinned over several seeds anyway, because
+    // this is the invariant the whole win condition rests on.
+    for (const seed of ['end-a', 'end-b', 'end-c', 'end-d', 'end-e']) {
+      const island = generateIsland({ seed });
+      const chests = chestProgress(island);
+      // An island with no chests would erupt instantly; one is not a level.
+      expect(chests.total).toBeGreaterThan(1);
+      expect(chests.fraction).toBe(0);
+
+      for (const tile of island.tiles.values()) {
+        if (tile.content !== 'bomb') tile.revealed = true;
+      }
+      expect(chestProgress(island).left).toBe(0);
+      expect(dugFraction(island)).toBe(1);
+    }
   });
 
   it('puts every chest out on the rim, and spread around it', () => {
