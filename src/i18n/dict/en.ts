@@ -224,8 +224,8 @@ export const en = {
      * pixels on a phone, beside a gauge and two item buttons, and the word
      * that explains it belongs in the tooltip. See `run-hud.tsx`.
      */
-    dug: (pct: number) => `${pct}% dug`,
-    dugTitle: 'How much of this island is already dug — by everyone on it. At 100% it sinks.',
+    chests: (taken: number, total: number) => `${taken}/${total} chests`,
+    chestsTitle: 'Chests taken on this island — by everyone on it. Take them all and it sinks.',
     watching: (label: string) => `👁 watching ${label}`,
     hearts: (full: number, total: number) => `${full} of ${total} hearts`,
     heartsShort: (full: number, total: number) => `${full} / ${total} hearts`,

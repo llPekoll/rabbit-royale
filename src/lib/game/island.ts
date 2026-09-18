@@ -124,19 +124,27 @@ export function generateIsland(opts: GenerateOptions): Island {
     const goldenTiles = weighted(eligible.filter((i) => !taken.has(i)), RISK_GRADIENT.GOLDEN).slice(0, golden);
     for (const i of goldenTiles) { tiles.get(i)!.content = 'golden'; taken.add(i); }
 
+    // CHESTS BEFORE CARROTS, and on the rim — the chests are the island's win
+    // condition now (see `chestProgress`), so where they sit IS the level's
+    // shape. Dealt from the uniform pool they landed anywhere, which let a run
+    // end without ever leaving the middle. `rimTiles` spreads them round the
+    // coast instead, so collecting them is a lap of the island.
+    for (const i of rimTiles(opts.seed, spawn, tiles, eligible.filter((i) => !taken.has(i)),
+                            Math.round(total * ISLAND.CHEST_DENSITY))) {
+      const t = tiles.get(i)!;
+      t.content = 'chest';
+      // Each chest draws its own tier, which decides both what it may hold and how
+      // loudly it announces itself. Drawn from the CONTENT rng like everything else
+      // buried here: the tier is shown on the board, but which tile got the crown
+      // must not be derivable from the public seed.
+      t.chestTier = pickWeighted(rng, CHEST_TIER_WEIGHTS).kind;
+      taken.add(i);
+    }
+
     const pool = shuffle(rng, eligible.filter((i) => !taken.has(i)));
     let cursor = 0;
     const take = (n: number) => pool.slice(cursor, (cursor += n));
     for (const i of take(carrots - golden)) tiles.get(i)!.content = 'carrot';
-    // Each chest draws its own tier, which decides both what it may hold and how
-    // loudly it announces itself. Drawn from the CONTENT rng like everything else
-    // buried here: the tier is shown on the board, but which tile got the crown
-    // must not be derivable from the public seed.
-    for (const i of take(Math.floor(total * ISLAND.CHEST_DENSITY))) {
-      const t = tiles.get(i)!;
-      t.content = 'chest';
-      t.chestTier = pickWeighted(rng, CHEST_TIER_WEIGHTS).kind;
-    }
   }
 
   const island: Island = {
@@ -271,6 +279,65 @@ function stepsFrom(seed: string, from: number, tiles: ReadonlyMap<number, Tile>)
     }
   }
   return dist;
+}
+
+/**
+ * `count` tiles on the island's RIM, spread round the coast rather than
+ * clustered on whichever headland happens to reach furthest.
+ *
+ * This is where the chests go, and the two halves of that sentence are both
+ * load-bearing. FAR, because a chest is what ends the island: one sitting two
+ * steps from the spawn is a level that can be finished without ever walking
+ * out, and the walk is the game. SPREAD, because "far" alone is not enough —
+ * the distance field peaks on the longest peninsula, so taking the furthest n
+ * tiles puts every chest on the same spit of land and the lap becomes one trip
+ * down a corridor and back.
+ *
+ * So the coast is cut into `count` angular slices around the spawn and each
+ * slice contributes its own furthest tile. Every chest is then in a different
+ * DIRECTION as well as far away, which is what makes collecting them a lap of
+ * the island. A slice with nothing eligible in it is skipped rather than
+ * back-filled from a neighbour: two chests in one bay reads worse than one
+ * bay with none, and the island is never dealt short in a way that matters
+ * because the count is a density, not a promise.
+ *
+ * Distance is in STEPS (`stepsFrom`), not grid squares: a tile across a cliff
+ * is far however close its index looks, and the rim we want is the rim a
+ * rabbit actually walks to.
+ */
+function rimTiles(
+  seed: string,
+  spawn: number,
+  tiles: ReadonlyMap<number, Tile>,
+  eligible: readonly number[],
+  count: number,
+): number[] {
+  if (count <= 0) return [];
+  const dist = stepsFrom(seed, spawn, tiles);
+  let furthest = 1;
+  for (const d of dist.values()) if (d > furthest) furthest = d;
+
+  // Only the outer band is in the running. Without this floor a slice whose
+  // coast is close to the spawn (the island is not a disc) would still hand
+  // back its own furthest tile, however near that is.
+  const floor = furthest * ISLAND.CHEST_MIN_DEPTH;
+  const origin = toColRow(spawn);
+
+  // Best (furthest) tile per angular slice.
+  const best = new Map<number, { tile: number; d: number }>();
+  for (const i of eligible) {
+    const d = dist.get(i);
+    if (d === undefined || d < floor) continue;
+    const { col, row } = toColRow(i);
+    // Screen angle, not grid angle: the slices should read as compass points
+    // on the island the player sees, and the board is drawn isometric.
+    const angle = Math.atan2((col - origin.col) + (row - origin.row),
+                             (col - origin.col) - (row - origin.row));
+    const slice = Math.floor(((angle + Math.PI) / (Math.PI * 2)) * count) % count;
+    const cur = best.get(slice);
+    if (!cur || d > cur.d) best.set(slice, { tile: i, d });
+  }
+  return [...best.values()].map((e) => e.tile);
 }
 
 /**
@@ -465,8 +532,52 @@ export function islandProgress(island: Island): { safeLeft: number; safeTotal: n
 /** Safe tiles still in the ground. Below ERUPTION.JOIN_MIN_TILES_LEFT nobody new joins. */
 export const safeTilesLeft = (island: Island) => islandProgress(island).safeLeft;
 
-/** Share of the safe tiles dug — drives the smoke stages and, at 1, the eruption. */
-export const dugFraction = (island: Island) => islandProgress(island).fraction;
+/**
+ * THE WIN CONDITION: how many chests are still buried, and how far along the
+ * island that makes it, 0 → 1, where 1 is the eruption.
+ *
+ * The island used to end when every safe tile had been dug, which is a goal
+ * nobody could see. A player asked what they were doing on an island could
+ * only answer "digging" — the finish line was a number in the HUD going up by
+ * fractions of a percent, and 300 tiles of it. Testers read the volcano as a
+ * timer rather than as progress and had no idea what would make it go off.
+ *
+ * Chests are a goal you can SEE: they announce themselves across the board
+ * (`publicView` leaks their tile and tier on purpose), they sit on the rim
+ * (`rimTiles`), and there are about ten. "Get the chests" is the whole rule,
+ * and the walk between them is the island.
+ *
+ * A DUG chest counts however it was opened — by you, by a rival, on a raid.
+ * The island is a shared level and whoever takes the last one ends it for
+ * everyone, which is exactly the race the eruption was always meant to be.
+ *
+ * An island with no chests at all (a tiny one, where the density rounds to
+ * zero) reads as finished rather than as never-ending: safer to erupt an empty
+ * board than to strand its players on it.
+ */
+export function chestProgress(island: Island): { left: number; total: number; fraction: number } {
+  let total = 0;
+  let left = 0;
+  for (const tile of island.tiles.values()) {
+    if (tile.content !== 'chest') continue;
+    total++;
+    if (!tile.revealed) left++;
+  }
+  return { left, total, fraction: total === 0 ? 1 : 1 - left / total };
+}
+
+/** Chests still buried — 0 means the island is done. */
+export const chestsLeft = (island: Island) => chestProgress(island).left;
+
+/**
+ * Share of the island's chests collected — drives the smoke stages and, at 1,
+ * the eruption.
+ *
+ * Still called `dugFraction` on the wire and in the HUD because that is the
+ * name the snapshot, the `volcano` event and the client state all use; what
+ * changed is what it MEASURES. See `chestProgress`.
+ */
+export const dugFraction = (island: Island) => chestProgress(island).fraction;
 
 /**
  * The island as a CLIENT may see it: only what is already REVEALED. An

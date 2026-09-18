@@ -67,6 +67,10 @@ describe('what may NOT be overridden', () => {
       'ISLAND.BOMB_DENSITY',
       'ISLAND.GOLDEN_SHARE',
       'ISLAND.CHEST_DENSITY',
+      // Where the chests sit is cut at generation like the densities, and the
+      // island now ENDS on them — a live change would move the finish line of
+      // a board somebody is standing on.
+      'ISLAND.CHEST_MIN_DEPTH',
       'ENERGY.START',
       'ENERGY.CARROT_GAIN',
       'ENERGY.GOLDEN_GAIN',

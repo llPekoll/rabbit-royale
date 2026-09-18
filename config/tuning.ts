@@ -156,8 +156,28 @@ export const ISLAND = {
   CARROT_DENSITY: 0.30,
   /** Of the carrots, this fraction are golden. */
   GOLDEN_SHARE: 0.06,
-  /** Fraction of tiles holding a chest. */
+  /**
+   * Fraction of tiles holding a chest.
+   *
+   * Now the island's win condition rather than a bonus: the last chest out of
+   * the ground ends the run for everyone on it (`chestProgress`), so this is
+   * really "how many stops the lap has". 0.02 is about 10 chests on a full
+   * island — enough that the coast is worth circling, few enough that a player
+   * can hold how many are left in their head.
+   */
   CHEST_DENSITY: 0.02,
+  /**
+   * How far out a chest must sit, as a share of the walk to the island's
+   * furthest tile.
+   *
+   * The point of the rule change is that finishing an island means travelling
+   * it. 0.6 puts every chest in the outer two fifths of the walk — off the
+   * middle for certain, while still leaving enough eligible coast in each
+   * angular slice that a lumpy island still gets its full count. Higher and
+   * the thin bays run out of candidates and the lap loses stops. See
+   * `rimTiles`.
+   */
+  CHEST_MIN_DEPTH: 0.6,
   /** Radius around each spawn that is guaranteed bomb-free and pre-revealed. */
   SAFE_RADIUS: 1,
   /**
@@ -397,7 +417,8 @@ export const ISLAND_TIERS: readonly IslandTier[] = [
  * START on it, not about ending anyone's run.
  */
 export const ERUPTION = {
-  /** Share of the safe tiles dug at which the volcano starts smoking (3 stages). */
+  /** Share of the island's CHESTS collected at which the volcano starts
+   *  smoking (3 stages). See `chestProgress`. */
   WARN_STAGES: [0.45, 0.62, 0.78],
   /**
    * Safe tiles left below which nobody new joins, and an island with nobody
@@ -407,8 +428,21 @@ export const ERUPTION = {
    * in tiles, and a run of a dozen tiles is not worth what a run costs. So this
    * is also the shortest run the game can sell — anyone already there keeps
    * digging past it to the end.
+   *
+   * Kept on TILES although the island now ends on chests (`chestProgress`),
+   * and the two say different things on purpose. This one asks "is there still
+   * ground worth digging here" — a joiner wants carrots and room to move, not
+   * only the last chest. `JOIN_MIN_CHESTS_LEFT` answers the other half.
    */
   JOIN_MIN_TILES_LEFT: 20,
+  /**
+   * Chests left below which nobody new joins.
+   *
+   * The island ends on the last chest, so a board with one left may be seconds
+   * from erupting however much ground it still has. Sending someone to it buys
+   * them a recap, not a run.
+   */
+  JOIN_MIN_CHESTS_LEFT: 2,
   /** Length of the eruption cutscene before players land on the new island. */
   SEQUENCE_MS: 4000,
 } as const;

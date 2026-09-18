@@ -15,7 +15,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { ERUPTION, MULTIPLAYER } from '../../config/tuning';
-import { generateIsland, safeTilesLeft } from '../../src/lib/game/island';
+import { chestProgress, chestsLeft, generateIsland, safeTilesLeft } from '../../src/lib/game/island';
 import { makeShape, type IslandShape } from '../../src/config/gridConfig';
 import { forgetTerrain, terrainFor } from '../../src/lib/game/terrainBoard';
 import type { ActiveMirage } from '../../src/lib/game/mirage';
@@ -34,14 +34,19 @@ export interface LiveIsland {
   /** Warning stage 0-3, broadcast only when it changes (the volcano smokes). */
   warnStage: number;
   /**
-   * Share of the safe tiles already dug, 0 → 1 — the number the HUD shows.
+   * Share of the island's chests already collected, 0 → 1 — what drives the
+   * smoke and, at 1, the eruption. See `chestProgress`.
    *
-   * Cached rather than recomputed for the snapshot: `islandProgress` walks
+   * Cached rather than recomputed for the snapshot: the progress walk covers
    * every tile, and a join would pay that walk for a figure the dig handler
    * has just worked out anyway. Written on every dig, read when somebody
    * joins mid-run.
    */
   dugFraction: number;
+  /** Chests taken and chests in total — the HUD's goal line, cached beside
+   *  the fraction they are computed with. */
+  chestsTaken: number;
+  chestsTotal: number;
   /**
    * Mirages currently bending the numbers, by VICTIM.
    *
@@ -119,22 +124,25 @@ export class MemoryIslandStore implements IslandStore {
   }
 
   create(seed: string, lifetimeCarrots: number, opts: { solo?: boolean } = {}): LiveIsland {
+    // Two seeds, and the second one never leaves this process. `seed` is the
+    // island id and travels in every snapshot so the client can cut the same
+    // coastline; `contentSeed` decides where the bombs are and is generated
+    // fresh here. Without the split, publishing the id published the bomb map:
+    // the generator is pure and every primitive it uses is already in the
+    // browser bundle, so a player could re-run it in a console. See the note
+    // at the top of `island.ts`.
+    const island = generateIsland({ seed, contentSeed: randomUUID(), lifetimeCarrots });
     const live: LiveIsland = {
       solo: opts.solo ?? false,
-      // Two seeds, and the second one never leaves this process. `seed` is the
-      // island id and travels in every snapshot so the client can cut the same
-      // coastline; `contentSeed` decides where the bombs are and is generated
-      // fresh here. Without the split, publishing the id published the bomb map:
-      // the generator is pure and every primitive it uses is already in the
-      // browser bundle, so a player could re-run it in a console. See the note
-      // at the top of `island.ts`.
-      island: generateIsland({ seed, contentSeed: randomUUID(), lifetimeCarrots }),
+      island,
       shape: makeShape(seed),
       rabbits: new Map(),
       disconnectedAt: new Map(),
       erupting: false,
       warnStage: 0,
       dugFraction: 0,
+      chestsTaken: 0,
+      chestsTotal: chestProgress(island).total,
       mirages: new Map(),
       // The flock the seed describes, taken as a STARTING position rather than
       // as the truth: from here on the server moves them and tells everyone.
@@ -165,8 +173,11 @@ export class MemoryIslandStore implements IslandStore {
       const seats = live.rabbits.size;
       if (seats >= MULTIPLAYER.MAX_PLAYERS_PER_ISLAND) continue;
       // Nearly cleared: whoever is on it finishes it, but it is not worth a
-      // run to anyone new. See ERUPTION.JOIN_MIN_TILES_LEFT.
+      // run to anyone new. Both halves — ground left to dig, and chests left
+      // before the island ends on someone else's spade. See
+      // ERUPTION.JOIN_MIN_TILES_LEFT and JOIN_MIN_CHESTS_LEFT.
       if (safeTilesLeft(live.island) < ERUPTION.JOIN_MIN_TILES_LEFT) continue;
+      if (chestsLeft(live.island) < ERUPTION.JOIN_MIN_CHESTS_LEFT) continue;
       // Fullest-with-room: pack players together.
       if (!best || seats > best.rabbits.size) best = live;
     }
@@ -181,7 +192,8 @@ export class MemoryIslandStore implements IslandStore {
       // An empty island lives out its day so someone can come back and finish
       // it — unless there is nothing left worth coming back for, in which case
       // nobody would be sent to it anyway (see `findJoinable`) and it goes now.
-      const spent = safeTilesLeft(live.island) < ERUPTION.JOIN_MIN_TILES_LEFT;
+      const spent = safeTilesLeft(live.island) < ERUPTION.JOIN_MIN_TILES_LEFT
+        || chestsLeft(live.island) < ERUPTION.JOIN_MIN_CHESTS_LEFT;
       if (spent || now - live.emptySince > MULTIPLAYER.EMPTY_ISLAND_TTL_MS) out.push(live);
     }
     return out;

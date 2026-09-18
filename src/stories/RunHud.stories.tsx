@@ -40,8 +40,10 @@ interface Args {
   spectating: boolean;
   /** Break the id the HUD looks itself up by — the suspected failure. */
   mismatchedId: boolean;
-  /** How much of the island is dug, 0-100 — the strip's ground reading. */
-  dug: number;
+  /** Chests already taken on the island — the strip's goal reading. */
+  chestsTaken: number;
+  /** How many chests the island holds. */
+  chestsTotal: number;
   /** The volcano's smoke, 0-3. At 1 and up the percentage turns red with it. */
   warnStage: number;
 }
@@ -50,7 +52,7 @@ interface Args {
  * Replays what the socket hook does on `rabbit_moved`:
  * `setRabbits(prev => new Map(prev).set(r.playerId, r))`.
  */
-function Scene({ carrots, every, spectating, mismatchedId, dug, warnStage }: Args) {
+function Scene({ carrots, every, spectating, mismatchedId, chestsTaken, chestsTotal, warnStage }: Args) {
   const [rabbits, setRabbits] = useState<Map<string, ClientRabbit>>(
     () => new Map([
       [ME, rabbit()],
@@ -92,7 +94,9 @@ function Scene({ carrots, every, spectating, mismatchedId, dug, warnStage }: Arg
     rabbits,
     me: rabbits.get(lookupId) ?? null,
     warnStage,
-    dugFraction: dug / 100,
+    dugFraction: chestsTotal === 0 ? 1 : chestsTaken / chestsTotal,
+    chestsTaken,
+    chestsTotal,
   };
 
   return (
@@ -111,11 +115,12 @@ function Scene({ carrots, every, spectating, mismatchedId, dug, warnStage }: Arg
 const meta: Meta<Args> = {
   title: 'HUD/Run HUD',
   render: (args) => <Scene key={JSON.stringify(args)} {...args} />,
-  args: { carrots: 1, every: 1, spectating: false, mismatchedId: false, dug: 0, warnStage: 0 },
+  args: { carrots: 1, every: 1, spectating: false, mismatchedId: false, chestsTaken: 0, chestsTotal: 10, warnStage: 0 },
   argTypes: {
     carrots: { control: { type: 'range', min: 0, max: 5, step: 1 } },
     every: { control: { type: 'range', min: 1, max: 5, step: 1 } },
-    dug: { control: { type: 'range', min: 0, max: 100, step: 1 } },
+    chestsTaken: { control: { type: 'range', min: 0, max: 20, step: 1 } },
+    chestsTotal: { control: { type: 'range', min: 0, max: 20, step: 1 } },
     warnStage: { control: { type: 'range', min: 0, max: 3, step: 1 } },
   },
 };
@@ -154,15 +159,15 @@ export const Spectating: Story = { args: { spectating: true } };
 export const Fresh: Story = { args: { carrots: 0 } };
 
 /**
- * An island four-fifths eaten, with the volcano smoking over it.
+ * An island down to its last two chests, with the volcano smoking over it.
  *
- * The reading this percentage exists for: before it, this strip and the one on
- * a fresh island differed by three exclamation marks, and a player dropping in
+ * The reading this line exists for: before it, this strip and the one on a
+ * fresh island differed by three exclamation marks, and a player dropping in
  * had no way to tell a run worth taking from the tail of somebody else's. The
- * number goes red WITH the smoke rather than competing with it — at that point
+ * count goes red WITH the smoke rather than competing with it — at that point
  * it is the same warning, said precisely.
  */
-export const NearlyEaten: Story = { args: { dug: 82, warnStage: 2 } };
+export const NearlyEaten: Story = { args: { chestsTaken: 8, chestsTotal: 10, warnStage: 2 } };
 
-/** Mid-run on a shared island: half the ground gone, no smoke yet. */
-export const HalfDug: Story = { args: { dug: 47 } };
+/** Mid-run on a shared island: half the chests gone, no smoke yet. */
+export const HalfDug: Story = { args: { chestsTaken: 5, chestsTotal: 10 } };

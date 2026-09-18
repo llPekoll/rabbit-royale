@@ -109,12 +109,20 @@ describe('a snapshot repositions a rabbit the scene already holds', () => {
   });
 });
 
-/** Dig every safe tile but `leave` of them, so the island is nearly cleared. */
+/**
+ * Dig every safe tile but `leave` of them, so the island is nearly cleared.
+ *
+ * CHESTS ARE LEFT IN THE GROUND. They are the island's win condition now
+ * (`chestProgress`) and `findJoinable` gates on them separately, so digging
+ * them here would test that gate instead of the tile floor these cases are
+ * about — and an island with no chests left is one the eruption has already
+ * claimed, not a nearly-cleared one.
+ */
 function nearlyClear(island: { tiles: Map<number, { revealed: boolean; content: string }> }, leave: number) {
   let left = safeTilesLeft(island as never);
   for (const tile of island.tiles.values()) {
     if (left <= leave) break;
-    if (tile.content === 'bomb' || tile.revealed) continue;
+    if (tile.content === 'bomb' || tile.content === 'chest' || tile.revealed) continue;
     tile.revealed = true;
     left--;
   }
@@ -144,6 +152,18 @@ describe('a nearly cleared island is not worth a run to anyone new', () => {
     const live = store.create('edge', 0);
     nearlyClear(live.island, ERUPTION.JOIN_MIN_TILES_LEFT);
     expect(store.findJoinable()).toBe(live);
+  });
+
+  it('is skipped on its last chest, however much ground is left', () => {
+    // The other half of the floor, and the one the new rule needs: an island
+    // can be barely touched and still be one spade from erupting, because it
+    // ends on the chests. A joiner sent there buys a recap, not a run.
+    const store = new MemoryIslandStore();
+    const doomed = store.create('doomed', 0);
+    const chests = [...doomed.island.tiles.values()].filter((t) => t.content === 'chest');
+    for (const t of chests.slice(0, chests.length - 1)) t.revealed = true;
+    expect(safeTilesLeft(doomed.island)).toBeGreaterThan(ERUPTION.JOIN_MIN_TILES_LEFT);
+    expect(store.findJoinable()).toBeUndefined();
   });
 });
 

@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { boardNeighbors, generateIsland, dugFraction, publicView, recomputeAdjacency } from '../src/lib/game/island';
-import { makeShape, isForbidden, COLS, ROWS } from '../src/config/gridConfig';
+import { makeShape, isForbidden, toColRow, COLS, ROWS } from '../src/config/gridConfig';
 import { spawnTile, terrainNeighbors, farmableTiles } from '../src/lib/game/terrainBoard';
 
 describe('generateIsland', () => {
@@ -105,10 +105,52 @@ describe('generateIsland', () => {
     expect(island.tiles.get(victim)!.adjacent).toBe(before + 1);
   });
 
-  it('counts the pre-revealed spawn ring in dugFraction', () => {
+  it('starts at zero chests taken, and reaches 1 only when the last one is dug', () => {
     const island = generateIsland({ seed: 'dug' });
-    expect(dugFraction(island)).toBeGreaterThan(0);
-    expect(dugFraction(island)).toBeLessThan(0.1);
+    // A fresh island is 0 however much of the spawn ring is pre-revealed: the
+    // clock counts CHESTS now, and the ring never opens one.
+    expect(dugFraction(island)).toBe(0);
+
+    const chests = [...island.tiles].filter(([, t]) => t.content === 'chest').map(([i]) => i);
+    expect(chests.length).toBeGreaterThan(0);
+
+    // Every chest but the last leaves the island running — the eruption is the
+    // LAST one, which is what makes whoever takes it end the run for the room.
+    for (const i of chests.slice(0, -1)) island.tiles.get(i)!.revealed = true;
+    expect(dugFraction(island)).toBeLessThan(1);
+    island.tiles.get(chests[chests.length - 1])!.revealed = true;
+    expect(dugFraction(island)).toBe(1);
+  });
+
+  it('puts every chest out on the rim, and spread around it', () => {
+    // The rule the placement exists for: finishing an island means walking it.
+    // Pinned over several seeds because one lucky coastline proves nothing.
+    for (const seed of ['rim-a', 'rim-b', 'rim-c', 'rim-d']) {
+      const island = generateIsland({ seed });
+      const chests = [...island.tiles].filter(([, t]) => t.content === 'chest').map(([i]) => i);
+      expect(chests.length).toBeGreaterThan(1);
+
+      const spawn = spawnTile(seed);
+      const origin = toColRow(spawn);
+      const far = Math.max(...[...island.tiles.keys()].map((i) => {
+        const { col, row } = toColRow(i);
+        return Math.hypot(col - origin.col, row - origin.row);
+      }));
+
+      // FAR: nothing near the middle, where a run could end without leaving it.
+      for (const i of chests) {
+        const { col, row } = toColRow(i);
+        expect(Math.hypot(col - origin.col, row - origin.row)).toBeGreaterThan(far * 0.35);
+      }
+
+      // SPREAD: not all on one headland. Two chests in opposite screen
+      // quadrants is the cheapest honest statement of "this is a lap".
+      const quadrants = new Set(chests.map((i) => {
+        const { col, row } = toColRow(i);
+        return `${col + row >= origin.col + origin.row}:${col - row >= origin.col - origin.row}`;
+      }));
+      expect(quadrants.size).toBeGreaterThan(2);
+    }
   });
 });
 

@@ -43,6 +43,7 @@ import { DepthHole } from '../fx/DepthHole';
 import { electrocute } from '../fx/Electrocute';
 import { DEPTH_HOLE_LOOK } from '@/config/depthHoleLook';
 import { ChestPointer } from '../fx/ChestPointer';
+import { ChestCompass, type CompassTarget } from '../fx/ChestCompass';
 import {
   initBlastTextures, playBlast, knockBack, impactShake, blastDepth, SHAKE_PX,
 } from '../fx/Blast';
@@ -254,6 +255,15 @@ export class IslandScene implements Scene {
    * player has somewhere to go when they have just arrived.
    */
   private chestPointer: ChestPointer | null = null;
+  /**
+   * Edge chevrons for the chests the camera cannot show — see `ChestCompass`.
+   *
+   * Held with the chest list it was built from: the compass is re-laid out on
+   * every camera change, and it has to know which chests are still buried
+   * without walking the tile map each frame.
+   */
+  private compass: ChestCompass | null = null;
+  private chestTargets: CompassTarget[] = [];
   /** The tile the pointer is planted on, so a dig elsewhere does not clear it. */
   private pointedChest: number | null = null;
   private clouds: CloudField | null = null;
@@ -1342,6 +1352,12 @@ export class IslandScene implements Scene {
     // with `clearChest` on purpose: the box and the thing pointing at the box
     // have to leave on the same frame, or the arrow hangs over bare ground.
     if (this.pointedChest === index) this.clearChestPointer();
+    // And out of the compass, for the same reason: a chevron still pointing at
+    // an opened chest sends the next player across the island for nothing.
+    if (this.chestTargets.some((t) => t.tile === index)) {
+      this.chestTargets = this.chestTargets.filter((t) => t.tile !== index);
+      this.syncCompass();
+    }
     tile.revealContent(content, adjacent);
 
     if (content === 'bomb') {
@@ -1420,6 +1436,30 @@ export class IslandScene implements Scene {
     // whole reason it is drawn before it is dug.
     if (placed.length) this.background?.clearDecoOver(placed);
     this.pointAtTutorialChest(chests);
+    // The chests are the island's goal and they sit on the rim, so at the
+    // opening zoom every one of them is off-screen. The compass is what makes
+    // the goal findable — see `ChestCompass`.
+    this.chestTargets = chests
+      .filter((c) => this.tiles.has(c.tile))
+      .map((c) => ({
+        tile: c.tile,
+        tint: CHEST_TIER_COLOR[isChestTier(c.tier) ? c.tier : 'bronze'],
+      }));
+    this.syncCompass();
+  }
+
+  /**
+   * Hand the compass the current chest list, building it on first use.
+   *
+   * Not on the tutorial island: it deals exactly one chest, a short walk from
+   * the spawn, and `ChestPointer` already has an arrow on it. Two markers for
+   * one box is not twice the guidance, it is a board arguing with itself.
+   */
+  private syncCompass(): void {
+    if (isFirstIsland(this.seed)) return;
+    if (!this.compass) this.compass = new ChestCompass(this.container);
+    this.compass.setTargets(this.seed, this.chestTargets);
+    this.compass.update(this.cam, this.canvasW, this.canvasH);
   }
 
   /**
@@ -1473,11 +1513,34 @@ export class IslandScene implements Scene {
     this.sound.startMusic(Keys.MUSIC_VICTORY);
   }
 
-  /** Take the arrow down. The chest it pointed at is open, or the island is gone. */
+  /**
+   * Take down everything pointing at a chest: the tutorial arrow, and the edge
+   * chevrons.
+   *
+   * One method rather than two calls at each site, because the two markers
+   * answer the same question ("the box is over there") and there is no path
+   * where one should survive the other. Every teardown already called this for
+   * the arrow — the compass gets those paths for free, which is the point.
+   *
+   * The compass OBJECT is kept and merely emptied: a swap rebuilds its targets
+   * from the next island's snapshot (`showChests`), and destroying it here
+   * would leave the field null for a scene that is about to need it.
+   */
   private clearChestPointer(): void {
     this.chestPointer?.destroy();
     this.chestPointer = null;
     this.pointedChest = null;
+    this.chestTargets = [];
+    // DESTROYED, not merely emptied.
+    //
+    // `swapIsland` keeps `this.container` and rebuilds its contents, so a
+    // compass left alive across the swap kept its layer in the tree — and
+    // `showChests` on the next island then built a SECOND one. Two layers,
+    // both holding chevrons, the older one frozen on the previous island's
+    // geometry. The next `showChests` makes a fresh one; this is the only
+    // place that has to let go of the old.
+    this.compass?.destroy();
+    this.compass = null;
   }
 
   /** Is this tile one of the local rabbit's eight? */
@@ -1611,6 +1674,7 @@ export class IslandScene implements Scene {
     this.container.position.set(cam.x, cam.y);
     this.clouds?.counterCamera(cam.scale, cam.x, cam.y);
     this.birds?.counterCamera(cam.scale, cam.x, cam.y);
+    this.compass?.update(cam, this.canvasW, this.canvasH);
 
     const inView = this.isRabbitInView();
     if (inView !== this.rabbitInView) {
@@ -2242,6 +2306,8 @@ export class IslandScene implements Scene {
     this.clouds?.destroy();
     this.birds?.destroy();
     this.clearChestPointer();
+    this.compass?.destroy();
+    this.compass = null;
     this.arrows?.destroy();
     this.controls?.destroy();
     this.stopRipples();

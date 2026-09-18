@@ -39,12 +39,14 @@ export interface HudGame {
   me: ClientRabbit | null;
   warnStage: number;
   /**
-   * How much of the island is already dug, 0 → 1 — everyone's digging, not
-   * just the reader's. The island is the clock AND the stock: it sinks when
-   * it is cleared, and every tile somebody else takes is a tile of yours.
-   * The smoke stages said this in three steps; this says it in one number.
+   * Share of the island's chests collected, 0 → 1 — everyone's digging, not
+   * just the reader's. Drives the volcano; the strip prints the counts below
+   * instead, because a goal is read as "3 of 10 left", not as a percentage.
    */
   dugFraction: number;
+  /** Chests out of the ground, and how many the island holds — the goal line. */
+  chestsTaken: number;
+  chestsTotal: number;
 }
 
 /**
@@ -161,26 +163,25 @@ export function RunHud({
           rabbits are on the board, where they can be counted by looking, and
           a lone "1" read as a mystery stat. */}
       <PxPanel color={GLASS} className="rr-hud-plate">
-      {/* HOW MUCH OF THE ISLAND IS LEFT, as a percentage dug.
-          The island is both the clock and the stock — it sinks when the last
-          safe tile goes, and every tile a rival takes is one the reader will
-          not — and until now the only word it got was the volcano's smoke,
-          which speaks three times in a whole run. A player landing on a
-          shared island had no way to tell a fresh one from one that was
-          four-fifths eaten; they read exactly the same.
+      {/* THE GOAL, stated: how many chests are out of the island's ground.
+          Take them all and it sinks (`chestProgress`), so this line is both
+          the objective and the clock — and every chest a rival opens is one
+          the reader will not. It used to read "82% dug", which was honest
+          about the old rule and useless as a goal: nobody can picture a
+          percentage of three hundred tiles, and testers read it as a timer
+          running down on them rather than as work anybody was doing.
 
-          Dug rather than left, because it is the number the eruption counts
-          up to, and because "82%" of ground gone reads as a race being lost
-          in a way "18% left" does not. It goes red once the volcano is
-          smoking so the two readings agree with each other rather than
-          competing: at that point the percentage IS the warning, said
-          precisely. Bombs are not in the denominator — nobody is asked to
-          dig those — so it does reach 100. See `islandProgress`. */}
+          A COUNT, not a percentage, because that is how a goal is held in the
+          head — "three more" is a plan, "70%" is a mood. Taken rather than
+          left for the same reason the old line counted up: it is the number
+          the eruption counts to. It goes red once the volcano is smoking so
+          the two readings agree rather than compete — at that point the count
+          IS the warning, said precisely. */}
       <span
         style={{ color: game.warnStage > 0 ? 'var(--danger)' : 'var(--muted)' }}
-        title={t.run.dugTitle}
+        title={t.run.chestsTitle}
       >
-        {t.run.dug(Math.round(game.dugFraction * 100))}
+        {t.run.chests(game.chestsTaken, game.chestsTotal)}
       </span>
       {game.warnStage > 0 && (
         <span style={{ color: 'var(--danger)' }}>🌋 {'!'.repeat(game.warnStage)}</span>

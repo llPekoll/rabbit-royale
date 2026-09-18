@@ -22,7 +22,7 @@ import { and, eq, isNull, sql as raw } from 'drizzle-orm';
 
 import { ENERGY, ERUPTION, LIGHTNING, MIRAGE, MULTIPLAYER, OUT_OF_RUN_ENERGY } from '../config/tuning';
 import { mulberry32, seedFrom } from '../src/lib/game/rng';
-import { cascadeAround, dugFraction, publicView } from '../src/lib/game/island';
+import { cascadeAround, chestProgress, publicView } from '../src/lib/game/island';
 import { firstIslandSeed, isFirstIsland } from '../src/lib/game/first-island';
 import { flagTile, resolveMove, spawnRabbit } from '../src/lib/game/run';
 import { mirageActive, planMirage, shownAdjacent } from '../src/lib/game/mirage';
@@ -213,6 +213,10 @@ function snapshot(live: LiveIsland) {
     // 0% on an island that is half gone, and only correct itself on the next
     // dig anybody made.
     dugFraction: live.dugFraction,
+    // The goal line, in plain counts: a joiner has to read "3/10 chests" the
+    // moment they land, not on the next dig anybody makes.
+    chestsTaken: live.chestsTaken,
+    chestsTotal: live.chestsTotal,
     rabbits: [...live.rabbits.values()].map(publicRabbit),
     // Where the flock stands NOW, not where the seed first put it. A player
     // joining a run in progress has to see the sheep everyone else sees —
@@ -254,10 +258,16 @@ function warnStageFor(fraction: number): number {
  * This used to move the survivors onto a fresh island with their energy and
  * carrots, which made a run endless for anyone who could avoid the bombs —
  * digging is free, so nothing but a bomb ever drained the bar. Now the island
- * IS the level: when its last safe tile is dug (`islandProgress`) the runs are
- * banked, each player gets their recap, and the island is deleted. What is
- * left to dig is what a run is worth, which is also why a late joiner gets a
- * short one — and why, below ERUPTION.JOIN_MIN_TILES_LEFT, nobody new is sent.
+ * IS the level: when its last CHEST is dug (`chestProgress`) the runs are
+ * banked, each player gets their recap, and the island is deleted.
+ *
+ * The chests, and no longer every safe tile. The old rule was a finish line
+ * nobody could see — three hundred tiles of digging, ending whenever the last
+ * one happened to go. The chests are visible from across the board and sit on
+ * the rim (`rimTiles`), so the island states its own goal: collect these, and
+ * it blows. What is left to collect is what a run is worth, which is also why
+ * a late joiner gets a short one — and why, below ERUPTION.JOIN_MIN_TILES_LEFT,
+ * nobody new is sent.
  *
  * The recap is built from the SOCKET's tallies, the same way a death is, so
  * the two endings print the same numbers for the same run. A rabbit whose run
@@ -1126,7 +1136,8 @@ io.on('connection', (socket: Socket) => {
 
     // Eruption clock. Checked per dig because a dig is the only thing that moves it.
     if (out.dig) {
-      const fraction = dugFraction(live.island);
+      const chests = chestProgress(live.island);
+      const fraction = chests.fraction;
       const stage = warnStageFor(fraction);
       // The fraction goes out on EVERY dig, the stage only when it changes.
       // They used to travel together, which meant the HUD's percentage would
@@ -1134,10 +1145,18 @@ io.on('connection', (socket: Socket) => {
       // that cared about a change. A player digging a shared island needs to
       // see the ground go while their rivals dig it, not in three jumps.
       live.dugFraction = fraction;
+      live.chestsTaken = chests.total - chests.left;
+      live.chestsTotal = chests.total;
       if (stage !== live.warnStage) live.warnStage = stage;
-      io.to(room).emit('volcano', { stage, dugFraction: fraction });
-      // 1 means every safe tile is dug — the bombs left are known, and nobody
-      // is asked to step on them. See `islandProgress`.
+      io.to(room).emit('volcano', {
+        stage,
+        dugFraction: fraction,
+        chestsTaken: live.chestsTaken,
+        chestsTotal: chests.total,
+      });
+      // 1 means every chest on the island is out of the ground — the island's
+      // win condition, and whoever took the last one ended it for the room.
+      // See `chestProgress`.
       if (fraction >= 1) void erupt(live);
     }
   }));

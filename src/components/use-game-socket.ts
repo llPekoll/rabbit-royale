@@ -50,11 +50,14 @@ export interface IslandSnapshot {
   seed: string;
   warnStage: number;
   /**
-   * Share of the island already dug, 0 → 1. Optional so a client stays
-   * compatible with a server that predates it — absent simply reads as 0%,
+   * Share of the island's chests collected, 0 → 1. Optional so a client stays
+   * compatible with a server that predates it — absent simply reads as 0,
    * and the first dig anybody makes corrects it.
    */
   dugFraction?: number;
+  /** The goal line: chests taken, and how many the island holds. */
+  chestsTaken?: number;
+  chestsTotal?: number;
   rabbits: ClientRabbit[];
   revealed: Array<{ tile: number; content: TileContent; adjacent: number }>;
   /**
@@ -327,6 +330,14 @@ export function useGameSocket(
    * at all.
    */
   const [dugFraction, setDugFraction] = useState(0);
+  /**
+   * The island's goal, in chests: how many are out of the ground and how many
+   * there were. Both from the server — how many chests an island holds is
+   * counted over tiles the client is never sent, the same reason `dugFraction`
+   * cannot be worked out locally.
+   */
+  const [chestsTaken, setChestsTaken] = useState(0);
+  const [chestsTotal, setChestsTotal] = useState(0);
   const [recap, setRecap] = useState<RunRecap | null>(null);
   const [connected, setConnected] = useState(false);
   /**
@@ -514,6 +525,8 @@ export function useGameSocket(
       // baseline, not a warning to play.
       rumbledStage.current = snap.warnStage;
       setDugFraction(snap.dugFraction ?? 0);
+      setChestsTaken(snap.chestsTaken ?? 0);
+      setChestsTotal(snap.chestsTotal ?? 0);
       setRecap(null);
       setFirstRun(snap.first === true);
       setDigs(NO_DIGS);
@@ -808,10 +821,14 @@ export function useGameSocket(
       toScene((s) => s.exhaustRabbit(spent));
     });
 
-    socket.on('volcano', ({ stage, dugFraction: dug }: { stage: number; dugFraction?: number }) => {
+    socket.on('volcano', ({ stage, dugFraction: dug, chestsTaken: taken, chestsTotal: total }: {
+      stage: number; dugFraction?: number; chestsTaken?: number; chestsTotal?: number;
+    }) => {
       setWarnStage(stage);
       // Sent on every dig now, while the stage only changes three times a run.
       if (typeof dug === 'number') setDugFraction(dug);
+      if (typeof taken === 'number') setChestsTaken(taken);
+      if (typeof total === 'number') setChestsTotal(total);
       // Felt as well as read: the ground rumbles harder at each stage — and
       // ONLY when the stage climbs. This event arrives on every dig; playing
       // the growl on each was the bug where the "bomb" went off on every step
@@ -998,7 +1015,7 @@ export function useGameSocket(
 
   const me = playerId ? rabbits.get(playerId) ?? null : null;
   return {
-    islandSeed, islandKey, rabbits, me, warnStage, dugFraction, recap, banked, bankedCarrots, connected, dropped, refused,
+    islandSeed, islandKey, rabbits, me, warnStage, dugFraction, chestsTaken, chestsTotal, recap, banked, bankedCarrots, connected, dropped, refused,
     seatHeld,
     firstRun, digs, bank, erupting,
     chestPrize, clearChestPrize: () => setChestPrize(null),
