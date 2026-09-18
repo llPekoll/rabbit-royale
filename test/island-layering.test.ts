@@ -286,3 +286,78 @@ describe('nothing hides a chest', () => {
     expect(SCENE).toMatch(/const i = tileIndexOf\(child\);\s*return i !== null && this\.tiles\.get\(i\)\?\.hasChest === true;/);
   });
 });
+
+/**
+ * The hit area rides up the ramp with the pixels.
+ *
+ * With slopes, a low cell touching higher ground has its shared corners
+ * lifted and its veil warped onto that wedge — the diamond is DRAWN up to a
+ * full tier above the cell's flat base plane. An explicit `hitArea` is tested
+ * in the sprite's own space, before the anchor, so the anchor `rampOverlay`
+ * hands back moved the picture and left the polygon behind on the flat plane.
+ * The diamond you could see and the diamond you could press came apart, and a
+ * tap on the raised part of a slope cell hit nothing at all: those were the
+ * tiles along the terraces that would not answer.
+ *
+ * Geometry rather than a source read: this is arithmetic over `cornerLifts`,
+ * and the bug was a number being in the wrong place, not a line being absent.
+ */
+describe('a slope tile can be pressed where it is drawn', () => {
+  /** The veil's hit polygon on flat ground — `Tile`'s four corners, N/E/S/W. */
+  const FLAT: [number, number][] = [
+    [0, -HALF_H], [HALF_W, 0], [0, HALF_H], [-HALF_W, 0],
+  ];
+
+  /** The polygon `warpVeil` now installs: each corner up by its own lift. */
+  const lifted = (lifts: readonly number[]) =>
+    FLAT.map(([px, py], i) => [px, py - lifts[i] * TIER_LIFT] as [number, number]);
+
+  /** Even-odd point-in-polygon, so we ask the shape the way Pixi asks it. */
+  const contains = (poly: [number, number][], x: number, y: number) => {
+    let inside = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const [xi, yi] = poly[i];
+      const [xj, yj] = poly[j];
+      if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) {
+        inside = !inside;
+      }
+    }
+    return inside;
+  };
+
+  // A cell whose NORTH corner is a tier up: the common ramp onto a shelf.
+  const RAMP = [1, 0, 0, 0] as const;
+
+  it('presses where a flat tile is drawn, unchanged', () => {
+    // No lift, no displacement: the flat case must not move at all.
+    expect(lifted([0, 0, 0, 0])).toEqual(FLAT);
+  });
+
+  it('answers a tap on the raised half of the ramp', () => {
+    // The point the player aims at: inside the drawn diamond, a little above
+    // the flat plane, on the side that the lift raised.
+    const y = -HALF_H - TIER_LIFT / 2;
+    expect(contains(lifted(RAMP), 0, y)).toBe(true);
+    // ...and this is precisely what the flat polygon missed. Without the fix
+    // the tap fell straight through the tile and nothing answered it.
+    expect(contains(FLAT, 0, y)).toBe(false);
+  });
+
+  it('keeps the corners the ramp did not lift exactly where they were', () => {
+    // Only the raised corner moves: lifting the whole diamond would float the
+    // hit area off the low edge, trading one dead strip for another.
+    const poly = lifted(RAMP);
+    expect(poly[1]).toEqual(FLAT[1]);
+    expect(poly[2]).toEqual(FLAT[2]);
+    expect(poly[3]).toEqual(FLAT[3]);
+    expect(poly[0]).toEqual([0, -HALF_H - TIER_LIFT]);
+  });
+
+  it('measures the lift from the flat polygon, not from the lifted one', () => {
+    // `warpVeil` can run twice on the same sprite (the board rebuilds). Each
+    // run must start from the flat original, or the hit area walks up the
+    // screen a tier at a time and the tile becomes unpressable again.
+    expect(VIEW).toMatch(/const flat = this\.flatHits\.get\(veil\) \?\? hit\.points\.slice\(\);/);
+    expect(VIEW).toMatch(/lifted\[i \* 2 \+ 1\] = flat\[i \* 2 \+ 1\] - lifts\[i\]/);
+  });
+});

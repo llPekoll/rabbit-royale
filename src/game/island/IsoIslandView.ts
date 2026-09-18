@@ -29,7 +29,7 @@
  * a tree on a low cell must be able to come out in front of a cliff behind it
  * and no stack of layers can express that.
  */
-import { Container, Graphics, Rectangle, Sprite, type Texture } from 'pixi.js';
+import { Container, Graphics, Polygon, Rectangle, Sprite, type Texture } from 'pixi.js';
 import { mulberry32, seedFrom } from '@/lib/game/rng';
 import { blobCol, blobRow, edgeMask, ELEVATION_SURFACE_ROW } from './autotile';
 import { atOrAbove, levelAt, type IslandMap } from './generate';
@@ -707,6 +707,18 @@ export class IsoIslandView {
    */
   private readonly cliffFaces = new Map<string, { faces: Sprite[]; x: number; y: number }>();
   /**
+   * Each warped veil's hit polygon as it was on FLAT ground.
+   *
+   * `warpVeil` lifts a veil's hit area onto the ramp, and it can run more than
+   * once on the same sprite — the board rebuilds, or a cell's relief changes
+   * under it. Lifting the already-lifted polygon would walk the hit area up
+   * the screen a tier at a time, so the displacement is always measured from
+   * the flat original kept here rather than from whatever the veil carries
+   * now. Keyed by the sprite, and weak so a veil that goes away takes its
+   * entry with it.
+   */
+  private readonly flatHits = new WeakMap<Container, number[]>();
+  /**
    * Where `view` was moved to, mirrored onto the deported sprites.
    *
    * Sprites inside `view` follow it for free; deported ones are in another
@@ -1018,6 +1030,38 @@ export class IsoIslandView {
     });
     veil.texture = warped.texture;
     veil.anchor.set(0.5, warped.anchorY);
+
+    /**
+     * The HIT AREA rides up the ramp with the pixels.
+     *
+     * An explicit `hitArea` is tested in the sprite's own space, before the
+     * anchor: Pixi inverts the world transform and asks the polygon, so the
+     * anchor `rampOverlay` hands back moves the picture and leaves the
+     * polygon behind on the flat base plane. On a ramp the veil is drawn up
+     * to a full tier above that plane, so the diamond you can see and the
+     * diamond you can press come apart — and a tap on the upper half of a
+     * slope cell hits nothing at all. That is the unpressable ground along
+     * the terraces.
+     *
+     * So the polygon gets the same displacement the pixels got: each corner
+     * rises by ITS OWN lift, which is what makes the shape follow the warped
+     * surface rather than merely float above the old one. Corner order is
+     * the polygon's and `cornerLifts`' alike — top, right, bottom, left.
+     *
+     * In the sprite's own space, so the lift is divided by the scale exactly
+     * as the texture's was. A veil with no `hitArea` (an overlay that is not
+     * a tile's) keeps having none.
+     */
+    const hit = veil.hitArea;
+    if (!(hit instanceof Polygon)) return;
+    const flat = this.flatHits.get(veil) ?? hit.points.slice();
+    this.flatHits.set(veil, flat);
+    const lifted = flat.slice();
+    // Four corners, two numbers each; the y of corner `i` is at `2i + 1`.
+    for (let i = 0; i < 4 && i * 2 + 1 < lifted.length; i++) {
+      lifted[i * 2 + 1] = flat[i * 2 + 1] - lifts[i] * (this.metrics.z / sy);
+    }
+    veil.hitArea = new Polygon(lifted);
   }
 
   /** How far above its tier the middle of a cell sits, in tiers — 0 when flat. */
