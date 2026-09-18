@@ -20,6 +20,7 @@
 import { COLS, ROWS, TIER_LIFT, screenToTile, tilePos, toColRow, toIndex } from '@/config/gridConfig';
 import { IslandBoard } from '@/game/island/board';
 import { generateTerrain, type Terrain } from '@/game/island/terrain';
+import { surfaceLift } from '@/game/island/relief';
 import { FIRST_RUN } from '@config/tuning';
 import { isFirstIsland } from './first-island';
 
@@ -104,7 +105,11 @@ export function forgetTerrain(seed: string): void {
  */
 export function tierLift(seed: string, index: number): number {
   const { col, row } = toColRow(index);
-  return levelTierAt(seed, col, row) * TIER_LIFT;
+  const { map } = cached(seed).terrain;
+  // Plus the ramp: tiers join by slopes (`IsoIslandView`'s `slopes`), so a
+  // cell beside a plateau rises part-way toward it, and whatever stands in
+  // its middle stands at the mean of its corners.
+  return (levelTierAt(seed, col, row) + surfaceLift(map, col, row)) * TIER_LIFT;
 }
 
 /** The terrain tier of a tile: 0 is sea, 1 sea-level ground, 2+ a plateau. */

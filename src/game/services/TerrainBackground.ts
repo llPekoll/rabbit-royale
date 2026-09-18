@@ -26,6 +26,7 @@ import { createDucks, loadDucks, type Ducks } from '@/game/fx/Ducks';
 import { mountSkyLight } from '@/game/fx/GodRays';
 import { WATER_LOOK, DUCK_LOOK } from '@/config/waterLook';
 import type { IslandBackground } from './IslandBackground';
+import { getDiamondPixels } from './TileTextures';
 
 /** Scenery is cut for 64px tiles; the board's are 44x24. */
 const DECO_SCALE = 0.4;
@@ -158,6 +159,12 @@ export async function createTerrainBackground(
     // the ellipse on top of it read as a second, rounder shadow sliding out
     // from under every tree. The sprite's own shadow does the anchoring.
     decoShadows: false,
+    // Tiers join by RAMPS, not steps. A rabbit walks straight up a terrace,
+    // and a cliff face said "wall" where the rules say "path" — see
+    // `slopes.ts`. The lids and highlights the scene mounts follow the ramp
+    // through `overlayPixels`.
+    slopes: true,
+    overlayPixels: getDiamondPixels,
   });
 
   // Line the terrain up with the BOARD's grid: project the board's origin

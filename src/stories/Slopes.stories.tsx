@@ -22,7 +22,7 @@
  * may be able to take it back up.
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { Container, Sprite } from 'pixi.js';
+import { Container, Sprite, Text } from 'pixi.js';
 import { PixiStage } from './PixiStage';
 import {
   generateIsland,
@@ -34,7 +34,8 @@ import {
   ELEVATION_SURFACE_ROW,
   type IslandTileset,
 } from '@/game/island';
-import { bevelSet, cornerLifts, meanLift, rampOverlay } from '@/game/island/slopes';
+import { bevelSet, meanLift, rampOverlay } from '@/game/island/slopes';
+import { mulberry32, seedFrom } from '@/lib/game/rng';
 import { HALF_W, HALF_H, TIER_LIFT } from '@/config/gridConfig';
 import { PlayerRabbit } from '@/game/entities/PlayerRabbit';
 import { loadAllAssets } from '@/game/services/AssetLoader';
@@ -45,7 +46,7 @@ const SEA = '#1eaac4';
 const WIDTH = 960;
 const HEIGHT = 540;
 
-type Edge = 'cliff' | 'bevel' | 'ramp';
+type Edge = 'cliff' | 'bevel' | 'ramp' | 'mixed';
 
 interface Args {
   edge: Edge;
@@ -68,6 +69,12 @@ interface Args {
   board: boolean;
   /** The game's lid over every cell not yet walked. */
   fog: boolean;
+  /** `mixed` only: share of the border that ramps rather than drops. */
+  rampShare: number;
+  /** `mixed` only: cells per patch — the decision is taken per patch, so runs form. */
+  rampGrain: number;
+  /** Write each land cell's `x,y` on it, for pointing at one. */
+  labels: boolean;
 }
 
 /** Share of the lid a cell in the ring keeps — same as `Island/Playable board`. */
@@ -122,6 +129,19 @@ function Scene(args: Args) {
   const { edge, seed, width, height, tiers, land, rise, raggedness, tileZ, deco, grass, zoom, panX, panY } = args;
   const withBoard = args.board;
   const withFog = args.board && args.fog;
+  const slopes = edge === 'ramp' || edge === 'mixed';
+  /**
+   * `mixed`: one roll per patch of `rampGrain` cells, from the seed. Patches
+   * rather than cells so a plateau's flank is a run of ramp or a run of rock,
+   * not a comb of both.
+   */
+  const rampAt = edge === 'mixed'
+    ? (x: number, y: number) => {
+        const grain = Math.max(1, args.rampGrain);
+        const roll = mulberry32(seedFrom(`${seed}:ramps:${Math.floor(x / grain)},${Math.floor(y / grain)}`))();
+        return roll < args.rampShare;
+      }
+    : undefined;
   let tileset: IslandTileset | null = null;
 
   return (
@@ -149,10 +169,33 @@ function Scene(args: Args) {
           foam: false,
           decoShadows: false,
           decoScale: 0.4,
-          slopes: edge === 'ramp',
+          slopes,
+          rampAt,
           metrics,
         });
         stage.addChild(island.view);
+
+        if (args.labels) {
+          const tags = new Container();
+          tags.zIndex = 1e6 + 2;
+          island.view.sortableChildren = true;
+          island.view.addChild(tags);
+          for (let y = 0; y < map.height; y++) {
+            for (let x = 0; x < map.width; x++) {
+              const tier = levelAt(map, x, y);
+              if (tier === 0) continue;
+              const lifts = island.liftsAt(x, y);
+              const p = isoProject(x + 0.5, y + 0.5, tier + (lifts ? meanLift(lifts) : 0), metrics);
+              const t = new Text({
+                text: `${x},${y}${lifts ? 'r' : ''}`,
+                style: { fontSize: 6, fill: 0xffffff, stroke: { color: 0x000000, width: 2 } },
+              });
+              t.anchor.set(0.5);
+              t.position.set(p.x + island.originX, p.y + island.originY);
+              tags.addChild(t);
+            }
+          }
+        }
 
         if (withBoard) {
           // The board, as `Island/Playable board` mounts it: lids inside the
@@ -161,8 +204,8 @@ function Scene(args: Args) {
           const board = new IslandBoard(map, island.occupants());
           /** A cell's centre inside the island's container, at its tier. */
           const at = (x: number, y: number, onSurface = false) => {
-            const tier = levelAt(map, x, y)
-              + (onSurface && edge === 'ramp' ? meanLift(cornerLifts(map, x, y)) : 0);
+            const lifts = onSurface ? island.liftsAt(x, y) : null;
+            const tier = levelAt(map, x, y) + (lifts ? meanLift(lifts) : 0);
             const p = isoProject(x + 0.5, y + 0.5, tier, metrics);
             return { x: p.x + island.originX, y: p.y + island.originY };
           };
@@ -173,9 +216,8 @@ function Scene(args: Args) {
            */
           const flatPixels = new Map<number, HTMLCanvasElement>();
           const onRamp = (sprite: Sprite, x: number, y: number) => {
-            if (edge !== 'ramp') return sprite;
-            const lifts = cornerLifts(map, x, y);
-            if (!(lifts[0] || lifts[1] || lifts[2] || lifts[3])) return sprite;
+            const lifts = island.liftsAt(x, y);
+            if (!lifts) return sprite;
             let pixels = flatPixels.get(sprite.texture.uid);
             if (!pixels) {
               pixels = app.renderer.extract.canvas(sprite.texture) as HTMLCanvasElement;
@@ -281,12 +323,15 @@ const meta: Meta<Args> = {
     panY: -60,
     board: true,
     fog: true,
+    rampShare: 0.5,
+    rampGrain: 3,
+    labels: false,
   },
   argTypes: {
     edge: {
       control: 'inline-radio',
-      options: ['cliff', 'bevel', 'ramp'],
-      description: 'cliff = what ships, bevel = grass over the step, ramp = true slope.',
+      options: ['cliff', 'bevel', 'ramp', 'mixed'],
+      description: 'cliff = what ships, bevel = grass over the step, ramp = true slope, mixed = ramps on some flanks, rock on the others.',
     },
     seed: { control: 'text' },
     width: { control: { type: 'range', min: 8, max: 40, step: 1 } },
@@ -300,6 +345,8 @@ const meta: Meta<Args> = {
       description: 'Lift per tier, px. The cliff arm only closes at 6.',
     },
     zoom: { control: { type: 'range', min: 0, max: 4, step: 0.25 } },
+    rampShare: { control: { type: 'range', min: 0, max: 1, step: 0.05 } },
+    rampGrain: { control: { type: 'range', min: 1, max: 8, step: 1 } },
     panX: { control: { type: 'range', min: -1500, max: 1500, step: 10 } },
     panY: { control: { type: 'range', min: -1500, max: 1500, step: 10 } },
   },
@@ -316,6 +363,12 @@ export const Bevel: Story = { args: { edge: 'bevel' } };
 
 /** True ramps on the low side of every plateau. */
 export const Ramp: Story = { args: { edge: 'ramp' } };
+
+/** Ramps on some flanks, cliffs on the others, per seed. */
+export const Mixed: Story = { args: { edge: 'mixed' } };
+
+/** The same mix with the lift doubled. */
+export const MixedTall: Story = { args: { edge: 'mixed', tileZ: 12 } };
 
 /** The ramps with the lift doubled — a slope can carry more height than a step. */
 export const RampTall: Story = { args: { edge: 'ramp', tileZ: 12 } };

@@ -21,6 +21,7 @@
 import { Assets, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import gsap from 'gsap';
 import { IsoIslandView, loadIslandTileset, isoProject, levelAt } from '@/game/island';
+import { getDiamondPixels } from '@/game/services/TileTextures';
 import {
   BURROW_HALF_W, BURROW_HALF_H, BURROW_TIER_LIFT,
   BURROW_ORIGIN_X, BURROW_ORIGIN_Y, BURROW_COLS, BURROW_ROWS,
@@ -178,6 +179,9 @@ export async function createBurrowTerrain(
     // Off: every standing sprite in the kit is drawn with its own shadow, so
     // the generated ellipse only doubled it.
     decoShadows: false,
+    // Ramps between tiers, as on the island — see `TerrainBackground`.
+    slopes: true,
+    overlayPixels: getDiamondPixels,
     groundAt: (x, y) => (soil.has(`${x},${y}`) ? 'sand' : null),
   });
 

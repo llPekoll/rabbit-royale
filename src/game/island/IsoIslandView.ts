@@ -37,7 +37,7 @@ import { columnFaces, isoBounds, isoDepth, isoProject, ISO_TILE, type IsoMetrics
 import type { Occupant, OccupantKind } from './board';
 import type { Placement } from './terrain';
 import { blocksCell, wanders } from './blocking';
-import { cornerLifts, meanLift, rampTexture } from './slopes';
+import { BAKED_LIFT, cornerLifts, meanLift, rampOverlay, rampTexture } from './slopes';
 import { TILE, SEA_ROCK_FRAME, type FootSprite, type GroundKind, type IslandTileset, type UnitKind } from './tileset';
 import { blinkOutVisibleAt } from '../fx/Blast';
 
@@ -63,6 +63,19 @@ export interface IsoIslandViewOptions {
    * trial, off by default; the game's board does not pass it.
    */
   slopes?: boolean;
+  /**
+   * With `slopes`: which LOW cells may rise toward a higher neighbour. A cell
+   * this refuses keeps a cliff there instead. Absent, every cell ramps. This
+   * is how one plateau gets a path up one flank and rock on the others.
+   */
+  rampAt?: (x: number, y: number) => boolean;
+  /**
+   * With `slopes`: the pixels behind a mounted veil's texture, so `mountVeil`
+   * can warp the veil onto its ramp. Null for a texture it does not know,
+   * which leaves that veil flat. The game's lids are render textures with no
+   * image behind them, hence a hook rather than reading the texture itself.
+   */
+  overlayPixels?: (texture: Texture) => CanvasImageSource | null;
   /** Scatter trees, props and sea rocks. On by default. */
   deco?: boolean;
   /**
@@ -983,12 +996,58 @@ export class IsoIslandView {
     return true;
   }
 
+  /**
+   * Lay a flat veil onto its cell's ramp, if the cell has one and the veil is
+   * a sprite whose pixels `overlayPixels` can hand over. The lift goes into
+   * the texture and the anchor keeps the sprite's centre where it was, so a
+   * caller that positions the veil by its centre is unaffected. The sprite's
+   * scale is divided out, for a board whose diamonds are scaled to a smaller
+   * cell (the burrow's) — the lift is a screen quantity, not a texture one.
+   */
+  private warpVeil(veil: Container, x: number, y: number): void {
+    const read = this.options.overlayPixels;
+    if (!read || !(veil instanceof Sprite)) return;
+    const lifts = this.liftsAt(x, y);
+    if (!lifts) return;
+    const pixels = read(veil.texture);
+    if (!pixels) return;
+    const sx = veil.scale.x || 1;
+    const sy = veil.scale.y || 1;
+    const warped = rampOverlay(veil.texture, pixels, lifts, this.metrics.z / sy, {
+      w: this.metrics.w / sx, h: this.metrics.h / sy,
+    });
+    veil.texture = warped.texture;
+    veil.anchor.set(0.5, warped.anchorY);
+  }
+
+  /** How far above its tier the middle of a cell sits, in tiers — 0 when flat. */
+  private surfaceAt(x: number, y: number): number {
+    const lifts = this.liftsAt(x, y);
+    return lifts ? meanLift(lifts) : 0;
+  }
+
+  /** Whether this low cell rises toward its higher neighbours — see `rampAt`. */
+  ramps(x: number, y: number): boolean {
+    return !!this.options.slopes && (this.options.rampAt?.(x, y) ?? true);
+  }
+
+  /**
+   * The cell's corner lifts when it is a ramp, null when it is flat — a cliff
+   * cell, a cell with no higher neighbour, or a view without slopes.
+   */
+  liftsAt(x: number, y: number): [number, number, number, number] | null {
+    if (!this.ramps(x, y)) return null;
+    const lifts = cornerLifts(this.options.map, x, y);
+    return lifts[0] || lifts[1] || lifts[2] || lifts[3] ? lifts : null;
+  }
+
   mountVeil(x: number, y: number, veil: Container, zIndex = 2): boolean {
     const block = this.blocks.get(key(x, y));
     if (!block) return false;
     const tier = levelAt(this.options.map, x, y);
     const p = isoProject(x + 0.5, y + 0.5, tier, this.metrics);
     veil.position.set(p.x, p.y);
+    this.warpVeil(veil, x, y);
     // Inside the block, and above the ground it covers. `zIndex` is a
     // parameter because a cell can carry more than one mounted thing: the
     // burrow puts a placement diamond AND, on top of it, the marker for the
@@ -1163,7 +1222,16 @@ export class IsoIslandView {
           )
         : levelAt(this.options.map, occupant.x, occupant.y);
       entry.tier = tier;
-      const p = isoProject(dx + 0.5, dy + 0.5, tier, this.metrics);
+      // And the ramp under it, blended the same way, so a sheep crossing a
+      // ramp cell rides its surface rather than sinking into it.
+      const surface = walk && walk.cells.length
+        ? lerp(
+            this.surfaceAt(walk.from.x, walk.from.y),
+            this.surfaceAt(walk.cells[0].x, walk.cells[0].y),
+            Math.min(1, walk.elapsed / walk.legMs),
+          )
+        : this.surfaceAt(occupant.x, occupant.y);
+      const p = isoProject(dx + 0.5, dy + 0.5, tier + surface, this.metrics);
       // Through the same shift the sprite was stamped with: a deported sheep
       // moved by raw projection would snap back to the terrain's inner origin
       // the first time it wandered.
@@ -1660,14 +1728,15 @@ export class IsoIslandView {
         if (tier === 0) continue;
 
         const depth = isoDepth(x, y, tier);
-        // With slopes the only edge is the coast: a cell autotiles against
-        // land, and a tier boundary inland is a ramp, not a cut-corner rim.
+        // With slopes, a lower neighbour that ramps up to this cell counts as
+        // the same ground: no cut corner, no rim on that side. One that keeps
+        // its cliff, or the sea, is an edge as before.
         const inTier = this.options.slopes
-          ? (cx: number, cy: number) => levelAt(map, cx, cy) > 0
+          ? (cx: number, cy: number) =>
+              levelAt(map, cx, cy) >= tier || (levelAt(map, cx, cy) > 0 && this.ramps(cx, cy))
           : atOrAbove(map, tier);
         const mask = edgeMask(inTier, x, y);
-        const lifts = this.options.slopes ? cornerLifts(map, x, y) : null;
-        const ramp = lifts !== null && (lifts[0] || lifts[1] || lifts[2] || lifts[3]) ? lifts : null;
+        const ramp = this.liftsAt(x, y);
 
         // Everything this cell draws, as one group.
         //
@@ -1801,8 +1870,23 @@ export class IsoIslandView {
               ? tileset.tierGrass[Math.min(tier - 1, tileset.tierGrass.length - 1)]
               : tileset.flat[ground];
           const grass = flat[blobRow(mask)][blobCol(mask)];
+          // With slopes the cell hangs its own rock: a ramp's side where it
+          // meets a cliff, and a cliff's face when the lift outgrows the
+          // 6 rows the sheets are baked with. The plain bake otherwise.
+          const rock = tileset.elevation[FACE_ROW][blobCol(mask)];
+          const hangs = this.options.slopes && (ramp || (drop > 0 && this.metrics.z > BAKED_LIFT));
+          // Only toward LOWER LAND: the shore stays the shore, and a level
+          // neighbour covers whatever hangs its way. A ramp hangs toward any
+          // land, since its wedge opens against a level neighbour too.
+          const faces = (nx: number, ny: number) => {
+            const there = levelAt(map, nx, ny);
+            return there > 0 && (ramp !== null || there < tier);
+          };
+          const sides = { sw: faces(x, y + 1), se: faces(x + 1, y) };
           column.push(this.stampGround(
-            block, ramp ? rampTexture(grass, ramp, this.metrics.z) : grass, x, y, tier, 1,
+            block,
+            hangs ? rampTexture(grass, ramp ?? [0, 0, 0, 0], this.metrics.z, rock, sides) : grass,
+            x, y, tier, 1,
           ));
         }
 
@@ -2154,9 +2238,8 @@ export class IsoIslandView {
     // On a ramp the middle of the cell is part-way up: anything standing
     // there rests at the mean of the corner lifts. Cliff faces are the one
     // caller anchored at 0, and they hang from the cell's own tier.
-    const surface = this.options.slopes && anchorY !== 0
-      ? tier + meanLift(cornerLifts(this.options.map, x, y))
-      : tier;
+    const lifts = anchorY !== 0 ? this.liftsAt(x, y) : null;
+    const surface = lifts ? tier + meanLift(lifts) : tier;
     const p = isoProject(x + 0.5, y + 0.5, surface, this.metrics);
     sprite.zIndex = depth;
 

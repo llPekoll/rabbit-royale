@@ -27,7 +27,6 @@
  * texture's pixels and hand a new one back.
  */
 import { CanvasSource, Texture } from 'pixi.js';
-import { levelAt, type IslandMap } from './generate';
 import { TILE } from './tileset';
 
 /** The diamond the sheets are baked for, inside their 64px cell. */
@@ -49,37 +48,8 @@ function edgeY(col: number): number {
   return OY + Math.floor(DIAMOND_H - 1 - t * (DIAMOND_H / 2 - 1));
 }
 
-// ---------------------------------------------------------------------------
-// Vertex heights
-// ---------------------------------------------------------------------------
-
-/**
- * Lift of a cell's four corners above its own tier, in tiers: `[n, e, s, w]`
- * for the top, right, bottom and left vertices of its diamond on screen.
- *
- * A vertex stands at the HIGHEST of the four cells that share it. A cell in
- * the middle of a plateau, or of the low ground, has four corners at its own
- * height and is flat. A low cell touching a plateau has the corners it shares
- * with it lifted, and becomes the ramp up. The plateau's own corners are its
- * own height, so it stays flat and keeps a clean outline.
- *
- * Sea is tier 0 and never lifts anything, so a coast cell is flat toward the
- * water and keeps its rock face there.
- */
-export function cornerLifts(map: IslandMap, x: number, y: number): [number, number, number, number] {
-  const tier = levelAt(map, x, y);
-  const v = (vx: number, vy: number) =>
-    Math.max(
-      levelAt(map, vx - 1, vy - 1), levelAt(map, vx, vy - 1),
-      levelAt(map, vx - 1, vy), levelAt(map, vx, vy),
-    ) - tier;
-  return [v(x, y), v(x + 1, y), v(x + 1, y + 1), v(x, y + 1)];
-}
-
-/** Mean corner lift: where something standing in the middle of the cell rests. */
-export function meanLift(lifts: readonly number[]): number {
-  return (lifts[0] + lifts[1] + lifts[2] + lifts[3]) / 4;
-}
+export { cornerLifts, meanLift, surfaceLift } from './relief';
+export type { CornerLifts } from './relief';
 
 // ---------------------------------------------------------------------------
 // Pixel work
@@ -184,8 +154,80 @@ export function bevelCell(src: ImageData, lift: number): ImageData {
  * the rock band follows the edge it hangs from, and they are NOT shaded: the
  * band is the coast's rock, and it stays rock under a ramp.
  */
-export function rampCell(src: ImageData, lifts: readonly [number, number, number, number]): ImageData {
-  return warpToRamp(src, lifts, { cx: TILE / 2, cy: TILE / 2, w: DIAMOND_W, h: DIAMOND_H, shade: true });
+/** Which of a cell's two lower edges face LAND — the only ones that need rock. */
+export interface BandSides {
+  /** The south-west edge, toward the south neighbour. */
+  sw: boolean;
+  /** The south-east edge, toward the east neighbour. */
+  se: boolean;
+}
+
+export function rampCell(
+  src: ImageData,
+  lifts: readonly [number, number, number, number],
+  /** The pack's cliff face, for the rock hung under the cell — see `ensureBand`. */
+  rock?: ImageData,
+  /** How tall that rock must be, in px: at least one tier's lift. */
+  bandRows = 0,
+  sides: BandSides = { sw: true, se: true },
+): ImageData {
+  const rows = Math.max(bandRows, ...lifts);
+  const base = rock && rows > 0 && (sides.sw || sides.se) ? ensureBand(src, rows, rock, sides) : src;
+  return warpToRamp(base, lifts, { cx: TILE / 2, cy: TILE / 2, w: DIAMOND_W, h: DIAMOND_H, shade: true });
+}
+
+/** How much the two visible faces darken — the baker's `FACE_SHADE`, verbatim. */
+const FACE_SHADE = { sw: 0.62, se: 0.8 };
+
+/**
+ * Make sure `rows` of rock hang under the cell's two lower edges.
+ *
+ * The shipped sheets are uneven here: the plateau palettes carry a 6-row
+ * band under every tile, the sea-level palette none at all (its edge is the
+ * shore, not a cliff). A ramp needs one whatever its palette: where it meets
+ * a CLIFF along the same edge, its lifted corner leaves a wedge open under
+ * its lower edge, and the band is what fills it — the ramp's own side,
+ * showing as rock. Where the band is not needed, the neighbour drawn after
+ * this cell covers it, as the baked ones always were.
+ *
+ * Pixels already there are kept; only transparent ones under a column that
+ * has ground are filled, from the top rows of the pack's face tile (the
+ * solid part — the baker's `rock_band`), shaded per side like the bake.
+ */
+function ensureBand(src: ImageData, rows: number, rock: ImageData, sides: BandSides): ImageData {
+  const out = new ImageData(new Uint8ClampedArray(src.data), src.width, src.height);
+  const D = out.data;
+  const R = rock.data;
+  const W = src.width;
+  for (let col = 0; col < DIAMOND_W; col++) {
+    // Toward the sea the shore is the edge, not a cliff — the sea-level
+    // palette hangs nothing there, and a ramp at the coast should not either.
+    if (!(col < DIAMOND_W / 2 ? sides.sw : sides.se)) continue;
+    const x = OX + col;
+    const edge = edgeY(col);
+    // Hang from the LAST PAINTED row, not from the diamond's computed edge:
+    // the art paints ~42 of the 44px and stops a row short of the formula
+    // at its sides, and a band hung from the formula left that row open —
+    // a one-pixel slit of sea along every ramp that met a flat neighbour.
+    let last = -1;
+    for (let y = Math.min(src.height, edge + rows + 1) - 1; y >= OY; y--) {
+      if (D[(y * W + x) * 4 + 3] > 0) { last = y; break; }
+    }
+    if (last < 0) continue;
+    const shade = col < DIAMOND_W / 2 ? FACE_SHADE.sw : FACE_SHADE.se;
+    for (let y = last + 1; y <= edge + rows && y < src.height; y++) {
+      const di = (y * W + x) * 4;
+      // The face is baked at the diamond's width in the same 64px box, so
+      // the same column serves; the row is the band's own depth.
+      const ri = (Math.min(rock.height - 1, y - last - 1) * rock.width + x) * 4;
+      if (R[ri + 3] === 0) continue;
+      D[di] = R[ri] * shade;
+      D[di + 1] = R[ri + 1] * shade;
+      D[di + 2] = R[ri + 2] * shade;
+      D[di + 3] = R[ri + 3];
+    }
+  }
+  return out;
 }
 
 /** Where a cell's diamond sits in the pixels being warped, and whether to shade. */
@@ -317,13 +359,23 @@ export function textureFrom(pixels: ImageData, like: Texture): Texture {
 
 const rampCache = new Map<string, Texture>();
 
-/** `texture` warped into the ramp `lifts` (in tiers) at `z` px per tier. Cached. */
-export function rampTexture(texture: Texture, lifts: readonly [number, number, number, number], z: number): Texture {
+/**
+ * `texture` warped into the ramp `lifts` (in tiers) at `z` px per tier, with
+ * `z` px of `rock` hung under it. All-zero lifts is a flat cell that only
+ * needs the rock — a cliff edge at a lift taller than the bake. Cached.
+ */
+export function rampTexture(
+  texture: Texture,
+  lifts: readonly [number, number, number, number],
+  z: number,
+  rock?: Texture,
+  sides: BandSides = { sw: true, se: true },
+): Texture {
   const px = lifts.map((l) => l * z) as [number, number, number, number];
-  const k = `${texture.uid}:${px.join(',')}`;
+  const k = `${texture.uid}:${px.join(',')}:${z}:${rock?.uid ?? '-'}:${+sides.sw}${+sides.se}`;
   let out = rampCache.get(k);
-  if (!out) {
-    out = textureFrom(rampCell(readCell(texture), px), texture);
+  if (!out || out.destroyed) {
+    out = textureFrom(rampCell(readCell(texture), px, rock && readCell(rock), z, sides), texture);
     rampCache.set(k, out);
   }
   return out;

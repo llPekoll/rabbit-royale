@@ -13,9 +13,10 @@
  * same reason, as the island's `tileScreenPos` / `terrainTileAt`.
  */
 import {
-  BURROW_HALF_H, BURROW_TIER_LIFT, burrowTilePos, burrowScreenToTile, burrowTileDepth,
+  BURROW_HALF_H, BURROW_TIER_LIFT, burrowTilePos, burrowScreenToTile, burrowTileDepth, burrowColRow,
 } from '@/config/burrowConfig';
 import { burrowFor, burrowTier, isWalkable } from './board';
+import { surfaceLift } from '@/game/island/relief';
 
 /**
  * How far up the screen a tile sits, for the tier it stands on.
@@ -29,8 +30,13 @@ import { burrowFor, burrowTier, isWalkable } from './board';
  * in a terrain block — the raider, the carrots, a blast — landed 18px below
  * the ground it was standing on. A small rabbit hid it; the island's did not.
  */
-export const burrowLift = (seed: string, tile: number) =>
-  Math.max(0, burrowTier(seed, tile)) * BURROW_TIER_LIFT;
+export const burrowLift = (seed: string, tile: number) => {
+  const tier = Math.max(0, burrowTier(seed, tile));
+  if (tier === 0) return 0;
+  // Plus the ramp, as the island's `tierLift` — see `relief.ts`.
+  const { col, row } = burrowColRow(tile);
+  return (tier + surfaceLift(burrowFor(seed).map, col, row)) * BURROW_TIER_LIFT;
+};
 
 /** Where a tile's centre sits on screen, terrace included. */
 export function burrowTileScreen(seed: string, tile: number): { x: number; y: number } {
