@@ -1352,6 +1352,11 @@ export class IslandScene implements Scene {
       // the hole is already the permanent mark, and the scorch fading in and
       // out over it is a second, temporary one saying the same thing worse.
       const dug = tile.markBombSite(() => this.background?.digCell(index) ?? false);
+      // And whatever was standing on the tile goes with the ground. A bush and
+      // a prop do not block, so the board deals bombs under them freely (they
+      // could not be withheld without turning the scatter into a public map of
+      // the safe cells) — leaving one planted in its own crater.
+      this.background?.blastDeco(index);
       this.playExplosion(index, dug);
       this.shakeScreen();
     } else if (content === 'golden') {

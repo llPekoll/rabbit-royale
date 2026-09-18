@@ -36,9 +36,10 @@ import { atOrAbove, levelAt, type IslandMap } from './generate';
 import { columnFaces, isoBounds, isoDepth, isoProject, ISO_TILE, type IsoMetrics } from './iso';
 import type { Occupant, OccupantKind } from './board';
 import type { Placement } from './terrain';
-import { blocksCell } from './blocking';
+import { blocksCell, wanders } from './blocking';
 import { cornerLifts, meanLift, rampTexture } from './slopes';
 import { TILE, SEA_ROCK_FRAME, type FootSprite, type GroundKind, type IslandTileset, type UnitKind } from './tileset';
+import { blinkOutVisibleAt } from '../fx/Blast';
 
 export interface IsoIslandViewOptions {
   map: IslandMap;
@@ -372,6 +373,16 @@ const SEA_ROCK_CHANCE = 0.025;
 const SEA_ROCK_SIZE = 3;
 const NATURAL_PROPS = 15;
 const LANDMARK_CHANCE = 0.08;
+
+/**
+ * How long a bush blown off a bomb takes to flicker out — see `blastDeco`.
+ *
+ * Cut to outlast the blast's own beats (the scorch lands at 150ms) so the
+ * flicker is still going when the smoke clears: the bush has to be seen
+ * leaving, or the crater simply arrives with one fewer bush and reads as a
+ * sprite that failed to draw.
+ */
+const DECO_BLAST_SECONDS = 0.45;
 
 /**
  * How much of the island the scatter is allowed to take.
@@ -1190,6 +1201,7 @@ export class IsoIslandView {
   update(deltaMs: number): void {
     if (this.destroyed) return;
     this.advanceWalks(deltaMs);
+    this.advanceBlasts(deltaMs);
     this.elapsed += deltaMs;
     for (const item of this.animated) {
       // Each prop divides the same elapsed time by its OWN frame length, so a
@@ -1280,6 +1292,88 @@ export class IsoIslandView {
   }
 
   /**
+   * Blow the scenery off ONE cell — a bomb went off under it.
+   *
+   * The other half of the problem `clearDecoOver` solves, and for the same
+   * reason: the scatter comes from the PUBLIC seed and the bombs from the
+   * private one, so the two cannot be reconciled when the island is generated
+   * without leaking the board. A bush and a prop leave their cell farmable
+   * (`blocking.ts` — a rabbit walks through them), so a bomb is happily
+   * buried under one, and `digCell` repaints the ground while the bush, which
+   * lives in the deported `decoLayer`, went on standing in the crater.
+   *
+   * Cleared on the BLAST rather than never dealt: withholding bombs from
+   * decorated cells would make the scatter a map of the safe ground, readable
+   * from the public seed before a single dig — precisely the property
+   * `lib/game/island.ts` is built to deny. Removing it afterwards says only
+   * what the explosion already said.
+   *
+   * The exit is `blinkOutVisibleAt`'s accelerating flicker, not a fade: a
+   * fade reads as the bush being drawn wrong, a flicker reads as the bush
+   * losing its grip on the ground. Driven by the view's own clock — this file
+   * holds no tweening library, and the flicker is a pure function of `t`.
+   *
+   * A cell with nothing on it is a no-op, which is the common case: most
+   * bombs go off on bare ground.
+   */
+  blastDeco(x: number, y: number, seconds = DECO_BLAST_SECONDS): boolean {
+    const k = key(x, y);
+    // `livestock` is the standing scatter — the same list `clearCell` sweeps,
+    // and the reason this does not go through `onCell` (which holds ground).
+    //
+    // SCENERY ONLY, and that exclusion is load-bearing: a sheep leaves its
+    // cell farmable too (it wanders, so `isFixed` is false — see `board.ts`),
+    // and roughly one bomb in fifty goes off under one. Sweeping it here
+    // would destroy a sprite the SERVER still owns and still broadcasts
+    // `sheep_moved` for, leaving this client short one animal for the rest of
+    // the run. What a blast does to the flock is the server's to say.
+    const hit = this.livestock.some(
+      (e) => key(e.occupant.x, e.occupant.y) === k && !wanders(e.occupant.kind),
+    );
+    if (!hit) return false;
+    if (seconds <= 0) { this.clearCell(k, wanders); return true; }
+    // Blinking, not yet gone: the entries stay in `livestock` for the exit so
+    // that one path — `clearCell` — still does every teardown there is.
+    this.blasting.push({ cell: k, t: 0, seconds });
+    return true;
+  }
+
+  /**
+   * Scenery mid-exit, advanced by `update`.
+   *
+   * A list rather than a field: two bombs can go off a few frames apart, and
+   * the second must not cut the first one's flicker short.
+   */
+  private readonly blasting: Array<{ cell: string; t: number; seconds: number }> = [];
+
+  /** Step the blink-outs, and clear each cell the moment its exit lands. */
+  private advanceBlasts(deltaMs: number): void {
+    for (let i = this.blasting.length - 1; i >= 0; i--) {
+      const b = this.blasting[i];
+      b.t += deltaMs / (b.seconds * 1000);
+      if (b.t >= 1) {
+        this.blasting.splice(i, 1);
+        // Ends on the teardown every other removal uses, so a blasted cell
+        // and a cleared one leave the view in exactly the same state.
+        this.clearCell(b.cell, wanders);
+        continue;
+      }
+      const visible = blinkOutVisibleAt(b.t);
+      for (const entry of this.livestock) {
+        if (key(entry.occupant.x, entry.occupant.y) !== b.cell) continue;
+        // A sheep that wandered onto the cell mid-flicker is not part of this
+        // exit: blinking it would make the flock stutter for no reason the
+        // player can see, and it is not the thing being removed.
+        if (wanders(entry.occupant.kind)) continue;
+        entry.sprite.visible = visible;
+        // The contact shadow goes with its sprite. Left on, it stays painted
+        // in the crater — a shadow cast by nothing.
+        if (entry.shadow) entry.shadow.visible = visible;
+      }
+    }
+  }
+
+  /**
    * Strip one cell of the SCATTER standing on it — sprite, shadow, obstacle.
    *
    * Driven off `livestock` rather than off `onCell`, and that is the whole
@@ -1289,12 +1383,15 @@ export class IsoIslandView {
    * water under a coastal chest and leave a hole in the sea. `livestock` is
    * exactly the standing things, each already paired with its shadow.
    */
-  private clearCell(k: string): void {
+  private clearCell(k: string, keep?: (kind: OccupantKind) => boolean): void {
     const doomed: Container[] = [];
     for (let i = this.livestock.length - 1; i >= 0; i--) {
       const entry = this.livestock[i];
       const { x, y } = entry.occupant;
       if (key(x, y) !== k) continue;
+      // `keep` spares a kind the caller does not own. The chests clear a cell
+      // outright (no filter); a bomb spares the flock — see `blastDeco`.
+      if (keep?.(entry.occupant.kind)) continue;
       doomed.push(entry.sprite);
       if (entry.shadow) doomed.push(entry.shadow);
       this.livestock.splice(i, 1);

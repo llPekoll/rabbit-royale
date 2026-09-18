@@ -76,6 +76,14 @@ export interface TerrainBackground extends IslandBackground {
    */
   digCell(index: number): boolean;
   /**
+   * Blow the scenery off one tile — see `IsoIslandView.blastDeco`.
+   *
+   * Paired with `digCell` at the bomb: the ground becomes the crater and
+   * whatever was standing on it flickers out. False when the tile carried no
+   * scenery, which is most of them.
+   */
+  blastDeco(index: number): boolean;
+  /**
    * Take the scenery off whatever would draw over these tiles — see
    * `IsoIslandView.clearDecoOver`.
    *
@@ -293,6 +301,10 @@ export async function createTerrainBackground(
     digCell(index) {
       const { col, row } = toColRow(index);
       return island.digCell(col, row);
+    },
+    blastDeco(index) {
+      const { col, row } = toColRow(index);
+      return island.blastDeco(col, row);
     },
     clearDecoOver(indices) {
       const cells: Array<{ x: number; y: number }> = [];
