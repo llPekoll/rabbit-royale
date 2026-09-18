@@ -53,7 +53,7 @@ const CROWN_SCALE = 0.32;
  * rabbit's feet.
  *
  * The art stands ~16 units tall (idle frame top at y18 of 32, times
- * RABBIT_SCALE — the measurement `Tile.HINT_RAISED_Y` is also taken from), so
+ * RABBIT_SCALE), so
  * this is a couple of units INSIDE the ears. The overlap is the point: a crown
  * level with the ear tips hovers, and a hovering crown reads as a marker
  * floating over a rabbit rather than as headwear.

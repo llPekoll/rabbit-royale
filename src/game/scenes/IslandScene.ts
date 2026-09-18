@@ -2151,18 +2151,18 @@ export class IslandScene implements Scene {
   /**
    * WHO STANDS WHERE, for the hints.
    *
-   * A hint under a rabbit is hidden by the rabbit, so the tile lifts it
-   * above the head (`Tile.raiseHint`) while someone stands there and drops
-   * it when they leave. Tracked per rabbit rather than asked of the sprites,
-   * because a hop is in flight for a fifth of a second and the tile it left
-   * has to drop its number the moment the hop starts. A tile shared by two
-   * rabbits keeps its hint up until the last one goes.
+   * A rabbit covers the tile it stands on, so the tile hides its number
+   * (`Tile.coverHint`) while someone stands there and shows it again when
+   * they leave. Tracked per rabbit rather than asked of the sprites, because a
+   * hop is in flight for a fifth of a second and the tile it left has to show
+   * its number the moment the hop starts. A tile shared by two rabbits keeps
+   * its number hidden until the last one goes.
    */
   private standing = new Map<string, number>();
 
   private standOn(playerId: string, index: number): void {
     this.standing.set(playerId, index);
-    this.tiles.get(index)?.raiseHint();
+    this.tiles.get(index)?.coverHint();
   }
 
   private leaveTile(playerId: string): void {
@@ -2170,7 +2170,7 @@ export class IslandScene implements Scene {
     if (was === undefined) return;
     this.standing.delete(playerId);
     for (const other of this.standing.values()) if (other === was) return;
-    this.tiles.get(was)?.lowerHint();
+    this.tiles.get(was)?.uncoverHint();
   }
 
   /** Pixi's ticker, in real milliseconds. */

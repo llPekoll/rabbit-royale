@@ -244,8 +244,7 @@ function makeCrown(texture: Texture): Container {
  * How far above the rabbit's feet the crown sits.
  *
  * The art stands ~16 units tall from the anchor (idle frame top at y18 of 32,
- * times RABBIT_SCALE 1.5 — the same measurement `Tile.HINT_RAISED_Y` is taken
- * from), so the ears top out around -16 from the feet.
+ * times RABBIT_SCALE 1.5), so the ears top out around -16 from the feet.
  *
  * The crown is anchored at its BASE (0.5, 1), so this is where the band's
  * underside lands. -12.5 puts it a few units inside the ears rather than level
