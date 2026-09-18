@@ -73,8 +73,22 @@ describe('Pixi receives events at all', () => {
     const TILE = readFileSync(new URL('../src/game/entities/Tile.ts', import.meta.url), 'utf8');
     expect(TILE).not.toMatch(/onTap\(/);
     expect(SCENE).toMatch(/tile\.onPress\(\(\) => \{ this\.pressTile = i; \}\)/);
-    expect(SCENE).not.toMatch(/this\.container\.on\('pointerdown'/);
+    // The scene's own `pointerdown` only REMEMBERS what the press landed on
+    // — its whole body is that one assignment. No move fires from it.
+    const pressHandlers = SCENE.match(/this\.container\.on\('pointerdown', \(e\) => \{[\s\S]*?\}\);/g) ?? [];
+    expect(pressHandlers).toHaveLength(1);
+    expect(pressHandlers[0]).toMatch(/^this\.container\.on\('pointerdown', \(e\) => \{\s*this\.pressTile = pressedTileOf\(\(e\.target as Container \| null\)\?\.label\);\s*\}\);$/);
     expect(SCENE).toMatch(/new PanZoomGestures\(/);
+  });
+
+  it('forgets a stale press when the next one lands off a veil', () => {
+    // A press that started on a tile and turned into a drag left the tile
+    // remembered. The next tap that hit a sprite instead of a veil (a number,
+    // a name plate, a chest, a bird — Pixi stops the hit test at the topmost
+    // sprite containing the point) then moved the rabbit to the tile of the
+    // DRAG, or did nothing when that tile was out of reach. Every press now
+    // names its tile afresh off the event's target, or names none.
+    expect(SCENE).toMatch(/this\.pressTile = pressedTileOf\(/);
   });
 
   it('never uses pointertap, which would swallow a drag that ended on a tile', () => {

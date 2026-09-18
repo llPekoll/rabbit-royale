@@ -232,6 +232,10 @@ const publicRabbit = (r: Rabbit) => ({
   carrots: r.carrots,
   alive: r.alive,
   crowned: r.crowned,
+  // What is left of a stun, as a REMAINING duration (see `bomb_hit` for why
+  // never a deadline). A snapshot taken mid-stun used to say nothing, and a
+  // client reconnecting right after a blast lit its ring at once.
+  stunMs: Math.max(0, r.stunnedUntil - Date.now()),
 });
 
 /**
@@ -1020,6 +1024,7 @@ io.on('connection', (socket: Socket) => {
         });
         if (shove.dig.hinted?.length) io.to(room).emit('hints_revealed', { tiles: shove.dig.hinted, from: shove.dig.tile });
       }
+      const victim = live.rabbits.get(shove.playerId);
       io.to(room).emit('rabbit_pushed', {
         playerId: shove.playerId,
         from: shove.from,
@@ -1028,8 +1033,11 @@ io.on('connection', (socket: Socket) => {
         pushedBy: shove.pushedBy,
         energy: shove.energy,
         runOver: shove.runOver,
+        // A landing on a bomb stuns (rule 2: a shove digs). Sent as what is
+        // LEFT of it, like `bomb_hit`, so the victim's ring goes dark for
+        // exactly as long as their moves will be refused.
+        stunMs: victim ? Math.max(0, victim.stunnedUntil - Date.now()) : 0,
       });
-      const victim = live.rabbits.get(shove.playerId);
       if (victim && shove.runOver) {
         void bankRun(victim).catch((e) => console.error('[bankRun:pushed]', e));
       }

@@ -153,7 +153,28 @@ describe('the client draws the number on every dug tile', () => {
     const TILE = readFileSync(new URL('../src/game/entities/Tile.ts', import.meta.url), 'utf8');
     expect(TILE).not.toMatch(/content === 'empty' && adjacent > 0/);
     expect(TILE).toMatch(/content !== 'bomb' && adjacent > 0 && !this\.hintGroup/);
-    expect(TILE).toMatch(/revealHint\(adjacent: number\)/);
+    expect(TILE).toMatch(/revealHint\(adjacent: number, delay = 0\)/);
+  });
+
+  it('marks a tile known the moment the zone opens, and only DRAWS it on the ripple', () => {
+    // The ripple delays each number by its distance from the dig. For a while
+    // the whole `hintTile` call rode that timer, in a list the next zone
+    // opening cut short — a step through open ground carries the cascade on,
+    // so the next zone came within the delay all the time. The tiles whose
+    // timers were killed never learned they were read: they kept their "?",
+    // X mode kept offering them, and every X put on one was refused by a
+    // server that had held them as known since the first zone.
+    const TILE = readFileSync(new URL('../src/game/entities/Tile.ts', import.meta.url), 'utf8');
+    const SCENE = readFileSync(new URL('../src/game/scenes/IslandScene.ts', import.meta.url), 'utf8');
+    // State first, drawing later — inside the tile, which nothing else cuts.
+    expect(TILE).toMatch(/this\.hinted = true;[\s\S]*?if \(delay > 0\) this\.pendingHint = gsap\.delayedCall\(delay, draw\);/);
+    // The scene hands the delay over and never queues the number itself.
+    expect(SCENE).toMatch(/revealHint\(h\.adjacent, delayFor\(h\.tile\)\)/);
+    expect(SCENE).not.toMatch(/gsap\.delayedCall\(delay, \(\) => this\.hintTile/);
+    // And the ring is re-read at once: X mode must stop offering the tiles.
+    expect(SCENE).toMatch(/revealHint\(h\.adjacent, delayFor\(h\.tile\)\);\s*(\/\/[^\n]*\n\s*)*this\.refreshReachable\(\);/);
+    // A dig in the meantime draws its own number; the pending one is dropped.
+    expect(TILE).toMatch(/this\.revealed = true;\s*(\/\/[^\n]*\n\s*)*this\.dropPendingHint\(\);/);
   });
 
   it('is told about the cascade on join, on the event, and on a resync', () => {

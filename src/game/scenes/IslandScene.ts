@@ -55,6 +55,7 @@ import {
   islandCam, lookAt, panCam, zoomCam, toScene, toScreen, type IslandCam, type Point,
 } from './islandCamera';
 import { PanZoomGestures } from '../input/PanZoomGestures';
+import { pressedTileOf } from '../input/pressedTile';
 import type { TileContent } from '@/lib/game/types';
 import { ENERGY, LIGHTNING, RIPPLE } from '@config/tuning';
 import { canDig, reachableTiles } from '@/lib/game/reachable';
@@ -651,6 +652,19 @@ export class IslandScene implements Scene {
     // frequent on a phone and would otherwise feel like the game ignoring you.
     this.container.eventMode = 'static';
     this.container.hitArea = { contains: () => true };
+    // EVERY press names its tile afresh, or names none. The veil's own
+    // `pointerdown` (see `buildTiles`) runs first and remembers the tile; this
+    // runs as the same press bubbles up, and reads the same veil back off the
+    // event's target — or nothing, when the press landed on a number, a name
+    // plate, a chest, a bird or a cliff's wall, all of which stop Pixi's hit
+    // test before it reaches the diamond under them. That "nothing" matters:
+    // a press that started on a tile and turned into a drag used to leave the
+    // tile remembered, and the next tap that hit a sprite instead of a veil
+    // moved the rabbit to the tile of the drag rather than the one under the
+    // finger — or, when that tile was out of reach, did nothing at all.
+    this.container.on('pointerdown', (e) => {
+      this.pressTile = pressedTileOf((e.target as Container | null)?.label);
+    });
     this.gestures = new PanZoomGestures(
       this.container,
       // Renderer px -> design px, through the root that fits the design space
@@ -720,12 +734,12 @@ export class IslandScene implements Scene {
     if (this.aiming) { this.aimedTap(at); return; }
     const pressed = this.pressTile;
     this.pressTile = null;
-    if (pressed !== null) {
-      this.requestMove(pressed);
-      return;
-    }
     const local = this.data?.noCamera ? at : toScene(this.cam, at);
-    const idx = terrainTileAt(this.seed, local.x, local.y);
+    // The same order of trust a strike uses. A rabbit under the finger names
+    // the tile it STANDS on — a tap on a rival is a shove, and its art
+    // overlaps the cell behind it, which is where a bare hit test sent the
+    // step. Then the veil the press landed on, then the flat resolver.
+    const idx = this.rivalAt(local) ?? pressed ?? terrainTileAt(this.seed, local.x, local.y);
     if (idx !== null) this.requestMove(idx);
   }
 
@@ -838,13 +852,20 @@ export class IslandScene implements Scene {
    * gets up stunned for `stunMs`: the ring goes dark for the local player
    * exactly as it does after a bomb.
    */
-  electrocuteRabbit(playerId: string, tile: number, opts: { fatal: boolean; stunMs: number }): void {
+  electrocuteRabbit(
+    playerId: string,
+    tile: number,
+    opts: { fatal: boolean; stunMs: number; energy?: number },
+  ): void {
     const rabbit = this.rabbits.get(playerId);
     if (!rabbit) return;
     const seed = this.data?.seed ?? '';
     const { x, y } = tilePos(tile);
     if (playerId === this.data?.playerId) {
       this.stunnedUntil = Date.now() + opts.stunMs;
+      // The heart the current took, so the ring prices the next dig from the
+      // bar the server holds — no `rabbit_energy` follows a strike.
+      if (opts.energy !== undefined) this.myEnergy = opts.energy;
       this.refreshReachable();
     }
     void electrocute({
@@ -1059,6 +1080,7 @@ export class IslandScene implements Scene {
   openZone(tiles: ReadonlyArray<{ tile: number; adjacent: number }>, from?: number): void {
     if (from === undefined) {
       for (const h of tiles) this.hintTile(h.tile, h.adjacent);
+      this.refreshReachable();
       return;
     }
 
@@ -1067,6 +1089,7 @@ export class IslandScene implements Scene {
     // dividing by zero working out the spread.
     if (!(far > 0)) {
       for (const h of tiles) this.hintTile(h.tile, h.adjacent);
+      this.refreshReachable();
       return;
     }
     const scale = far * RIPPLE.PER_STEP > RIPPLE.MAX_DELAY
@@ -1077,14 +1100,18 @@ export class IslandScene implements Scene {
     // Anything still in flight belongs to an older opening. Two zones can
     // overlap — a dig on the edge of a region someone else just opened — and
     // the cells they share would otherwise take two lifts at once and travel
-    // twice as high.
+    // twice as high. Only the LIFTS are cut: the numbers are each tile's own
+    // business (`Tile.revealHint`), and a tile marked known stays known
+    // whatever happens to the swell. The numbers used to ride the same list,
+    // and a second zone cut the first's short — tiles the server held as
+    // read kept their "?" for the rest of the run, and every X put on one
+    // bounced.
     this.stopRipples();
 
-    for (const h of tiles) {
-      const delay = delayFor(h.tile);
-      if (delay <= 0) { this.hintTile(h.tile, h.adjacent); continue; }
-      this.rippleTweens.push(gsap.delayedCall(delay, () => this.hintTile(h.tile, h.adjacent)) as gsap.core.Tween);
-    }
+    for (const h of tiles) this.tiles.get(h.tile)?.revealHint(h.adjacent, delayFor(h.tile));
+    // Known ground NOW: X mode must stop offering these tiles and the ring
+    // must drop their "?", or the next tap is one the server refuses.
+    this.refreshReachable();
 
     /**
      * The swell lifts THE TILES THAT OPENED, and nothing else.
@@ -1892,7 +1919,14 @@ export class IslandScene implements Scene {
     seatIndex: number,
     energy?: number,
     crowned = false,
+    /**
+     * What is left of a stun, in ms — a snapshot taken mid-stun (a reconnect
+     * right after a blast) used to arrive with the ring lit, and the first
+     * tap bounced.
+     */
+    stunMs = 0,
   ): void {
+    const stunnedUntil = stunMs > 0 ? Date.now() + stunMs : 0;
     const known = this.rabbits.get(playerId);
     if (known) {
       // The crown can change hands between snapshots, so it is re-applied on
@@ -1908,7 +1942,8 @@ export class IslandScene implements Scene {
       this.standOn(playerId, index);
       if (playerId === this.data?.playerId) {
         this.myTile = index;
-        this.stunnedUntil = 0;
+        this.stunnedUntil = stunnedUntil;
+        if (stunMs > 0) known.playStunned(stunMs);
         if (energy !== undefined) this.myEnergy = energy;
         this.refreshReachable();
         // A respawn is a cut, not a hop: the camera cuts with it.
@@ -1932,8 +1967,10 @@ export class IslandScene implements Scene {
     this.standOn(playerId, index);
     if (playerId === this.data?.playerId) {
       this.myTile = index;
-      // A fresh rabbit is never stunned, whatever the last run ended in.
-      this.stunnedUntil = 0;
+      // A fresh rabbit is never stunned, whatever the last run ended in —
+      // only a snapshot taken mid-stun says otherwise, and says by how much.
+      this.stunnedUntil = stunnedUntil;
+      if (stunMs > 0) rabbit.playStunned(stunMs);
       if (energy !== undefined) this.myEnergy = energy;
       this.refreshReachable();
       // Open on the rabbit, wherever the spawn came out on this island.
@@ -2005,6 +2042,36 @@ export class IslandScene implements Scene {
       // A knockback can throw the rabbit clean out of the frame.
       this.keepInView();
     }
+  }
+
+  /**
+   * A rabbit was SHOVED — somebody stepped onto it (see `docs/bumping.md`).
+   *
+   * Played as a throw, the way a blast moves a rabbit: the victim did not
+   * choose the step. For the victim's own client this is the ONLY word on
+   * where it now stands — no `rabbit_moved` follows a shove — and it was
+   * never listened for: a shoved player's ring stayed lit around the tile
+   * they had been pushed off, every tap after that was refused as out of
+   * reach, and nothing short of a reconnect put the two back together.
+   *
+   * `stunMs` is set when the landing set off a bomb under them (rule 2: a
+   * shove digs), and holds the ring dark for exactly as long as the server
+   * will refuse a move.
+   */
+  pushRabbit(playerId: string, to: number, energy?: number, stunMs?: number): void {
+    const rabbit = this.rabbits.get(playerId);
+    if (!rabbit) return;
+    this.leaveTile(playerId);
+    rabbit.playKnockback(to, () => this.standOn(playerId, to));
+    if (playerId !== this.data?.playerId) return;
+    this.myTile = to;
+    if (energy !== undefined) this.myEnergy = energy;
+    if (stunMs !== undefined && stunMs > 0) {
+      this.stunnedUntil = Date.now() + stunMs;
+      rabbit.playStunned(stunMs);
+    }
+    this.refreshReachable();
+    this.keepInView();
   }
 
   /**

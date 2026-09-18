@@ -180,12 +180,14 @@ describe('the pointer sees the veil', () => {
   });
 
   it('resolves a tap once', () => {
-    // A press that landed on a veil names that tile — the one Pixi's hit test
-    // found, walls and terraces included. Only a press that hit NO tile is
-    // resolved geometrically, and never both: resolving a veil's press again
-    // through the flat resolver could name a different tile and fire a
-    // second move at it.
-    expect(SCENE).toMatch(/const pressed = this\.pressTile;\s*this\.pressTile = null;\s*if \(pressed !== null\) \{\s*this\.requestMove\(pressed\);\s*return;\s*\}/);
+    // One resolution, one move. A rabbit under the finger names the tile it
+    // stands on (a tap on a rival is a shove); failing that, the veil the
+    // press landed on — the one Pixi's hit test found, walls and terraces
+    // included; failing that, the flat resolver. Never two of them: resolving
+    // a veil's press again through the flat resolver could name a different
+    // tile and fire a second move at it.
+    expect(SCENE).toMatch(/const pressed = this\.pressTile;\s*this\.pressTile = null;/);
+    expect(SCENE).toMatch(/const idx = this\.rivalAt\(local\) \?\? pressed \?\? terrainTileAt\(this\.seed, local\.x, local\.y\);\s*if \(idx !== null\) this\.requestMove\(idx\);/);
   });
 });
 

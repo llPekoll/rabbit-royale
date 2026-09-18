@@ -31,6 +31,18 @@ export interface ClientRabbit {
   carrots: number;
   alive: boolean;
   crowned: boolean;
+  /**
+   * What is left of a stun, in ms, at the moment the server described this
+   * rabbit. Optional so a server that predates it reads as "not stunned".
+   */
+  stunMs?: number;
+  /**
+   * The same stun as a deadline on OUR clock — written by the hook, never by
+   * the server (see `bomb_hit` for why the wire only ever carries durations).
+   * What `resync` reads, so a board repainted late in a stun darkens the
+   * ring for what is LEFT and not for the whole of it again.
+   */
+  stunUntil?: number;
 }
 
 /** What the server sends when you land on an island. */
@@ -255,6 +267,15 @@ export interface JoinRefusal {
   at: number;
 }
 
+/** A rabbit as the server described it, with its stun put on OUR clock. */
+const withStun = (r: ClientRabbit): ClientRabbit => ({
+  ...r,
+  stunUntil: r.stunMs ? Date.now() + r.stunMs : 0,
+});
+
+/** What is left of a rabbit's stun, in ms, right now. */
+const stunLeft = (r: ClientRabbit): number => Math.max(0, (r.stunUntil ?? 0) - Date.now());
+
 export function useGameSocket(
   token: string | null,
   playerId: string | null,
@@ -276,6 +297,16 @@ export function useGameSocket(
   const snapshotRef = useRef<IslandSnapshot | null>(null);
   const [islandSeed, setIslandSeed] = useState<string | null>(null);
   const [rabbits, setRabbits] = useState<Map<string, ClientRabbit>>(new Map());
+  /**
+   * The roster as it stands NOW, for `resync` — which repaints the board
+   * after an island swap and used to take its rabbits from the snapshot.
+   * Every step, shove and blast between the snapshot and the swap's end had
+   * been applied to a scene that was being torn down, and the repaint then
+   * put the rabbit back where the snapshot had it: one or more tiles behind
+   * where the server holds it, with the ring lit around that stale tile.
+   */
+  const rabbitsRef = useRef(rabbits);
+  useEffect(() => { rabbitsRef.current = rabbits; }, [rabbits]);
   const [warnStage, setWarnStage] = useState(0);
   /**
    * The stage the ground last rumbled for. `volcano` travels on EVERY dig now
@@ -489,7 +520,7 @@ export function useGameSocket(
       setBank(snap.bank ?? null);
       setErupting(null);
       toScene((s) => s.resetEruption());
-      setRabbits(new Map(snap.rabbits.map((r) => [r.playerId, r])));
+      setRabbits(new Map(snap.rabbits.map((r) => [r.playerId, withStun(r)])));
       // A joiner lands mid-run on an island others have been digging, so the
       // snapshot carries what is already uncovered.
       toScene((s) => {
@@ -499,7 +530,7 @@ export function useGameSocket(
         // Chests are drawn before they are dug — they DROP in here, which reads
         // as the island being dealt to the player who just joined it.
         s.showChests(snap.chests ?? [], true);
-        snap.rabbits.forEach((r, i) => s.addRabbit(r.playerId, r.name, r.tile, i, r.energy, r.crowned));
+        snap.rabbits.forEach((r, i) => s.addRabbit(r.playerId, r.name, r.tile, i, r.energy, r.crowned, r.stunMs));
         // Where the flock is NOW. The seed only says where it started, and a
         // joiner arrives after it has bolted around for a while.
         for (const one of snap.sheep ?? []) s.moveSheep(one.id, toIndex(one.x, one.y));
@@ -643,10 +674,12 @@ export function useGameSocket(
       setRabbits((prev) => {
         const known = prev.get(p.playerId);
         if (!known) return prev;
-        return new Map(prev).set(p.playerId, { ...known, energy: p.energy, alive: !p.runOver });
+        return new Map(prev).set(p.playerId, {
+          ...known, energy: p.energy, alive: !p.runOver, stunUntil: Date.now() + p.stunMs,
+        });
       });
       if (p.playerId === playerId) setStruckBy({ by: p.by, at: Date.now() });
-      toScene((s) => s.electrocuteRabbit(p.playerId, p.tile, { fatal: p.runOver, stunMs: p.stunMs }));
+      toScene((s) => s.electrocuteRabbit(p.playerId, p.tile, { fatal: p.runOver, stunMs: p.stunMs, energy: p.energy }));
     });
 
     /** The server would not fire the strike — none held, or aimed off the island. */
@@ -707,10 +740,33 @@ export function useGameSocket(
       toScene((s) => s.moveRabbit(r.playerId, r.tile, r.energy));
     });
 
+    /**
+     * Somebody stepped onto a rabbit and shoved it — see `docs/bumping.md`.
+     *
+     * The one event that moves a rabbit WITHOUT a `rabbit_moved`, and it was
+     * never handled: the victim's board kept them on the tile they had been
+     * pushed off, the ring lit around it, and every tap after that came back
+     * refused as out of reach. The roster, the scene and (for the victim) the
+     * ring all move on this.
+     */
+    socket.on('rabbit_pushed', (
+      p: { playerId: string; from: number; to: number; pushedBy: string; energy: number; runOver: boolean; stunMs?: number },
+    ) => {
+      setRabbits((prev) => {
+        const known = prev.get(p.playerId);
+        if (!known) return prev;
+        return new Map(prev).set(p.playerId, {
+          ...known, tile: p.to, energy: p.energy, alive: !p.runOver,
+          stunUntil: p.stunMs ? Date.now() + p.stunMs : 0,
+        });
+      });
+      toScene((s) => s.pushRabbit(p.playerId, p.to, p.energy, p.stunMs));
+    });
+
     socket.on('rabbit_joined', (r: ClientRabbit) => {
       setRabbits((prev) => {
-        const next = new Map(prev).set(r.playerId, r);
-        toScene((s) => s.addRabbit(r.playerId, r.name, r.tile, next.size - 1, r.energy, r.crowned));
+        const next = new Map(prev).set(r.playerId, withStun(r));
+        toScene((s) => s.addRabbit(r.playerId, r.name, r.tile, next.size - 1, r.energy, r.crowned, r.stunMs));
         return next;
       });
     });
@@ -735,6 +791,13 @@ export function useGameSocket(
       // put on OUR clock here, so a skewed client still darkens the ring for
       // the right length of time.
       const until = stunMs === undefined ? undefined : Date.now() + stunMs;
+      // The roster too, so a board repainted mid-stun (see `resync`) keeps
+      // the ring dark for what is left of it.
+      setRabbits((prev) => {
+        const known = prev.get(hit);
+        if (!known) return prev;
+        return new Map(prev).set(hit, { ...known, tile, stunUntil: until ?? 0 });
+      });
       toScene((s) => s.bombHit(hit, tile, until));
     });
 
@@ -813,7 +876,13 @@ export function useGameSocket(
     // No drop on a resync: these chests were already standing there, and
     // replaying the arrival would announce something that did not happen.
     scene.showChests(snap.chests ?? [], false);
-    snap.rabbits.forEach((r, i) => scene.addRabbit(r.playerId, r.name, r.tile, i, r.energy, r.crowned));
+    // The rabbits as they stand NOW, not as the snapshot had them: everything
+    // that moved them while the ground was being rebuilt landed on a scene
+    // that no longer had them (see `rabbitsRef`). The seat order — which
+    // sheet a rabbit wears — is the map's insertion order, which the roster
+    // keeps from the snapshot on.
+    const roster = rabbitsRef.current.size ? [...rabbitsRef.current.values()] : snap.rabbits;
+    roster.forEach((r, i) => scene.addRabbit(r.playerId, r.name, r.tile, i, r.energy, r.crowned, stunLeft(r)));
   }, []);
 
   /** Ask to step onto a tile. The server decides whether it happens. */

@@ -488,6 +488,9 @@ export class Tile {
   ): void {
     if (this.revealed) return;
     this.revealed = true;
+    // A dig writes its own number below; a hint still waiting on the ripple
+    // would write a second one over it.
+    this.dropPendingHint();
     // A shove can still set off a marked bomb; the X goes with the lid.
     this.clearFlag();
 
@@ -621,11 +624,34 @@ export class Tile {
    * on dug ground). When the tile is later dug, `revealContent` keeps the
    * number and only clears the lid.
    */
-  revealHint(adjacent: number): void {
+  revealHint(adjacent: number, delay = 0): void {
     if (this.revealed || this.hinted) return;
+    // The STATE turns now; only the drawing waits for the ripple. `hinted` is
+    // what the ring and X mode read, and the server already holds this tile
+    // as known — an X sent at it in the meantime is refused. For a while the
+    // whole call waited on the ripple's timer, and a zone opening on top of
+    // it (a step through the open ground carries the cascade on) killed that
+    // timer: the number never arrived, the tile kept its "?", and every X
+    // put on it bounced for the rest of the run.
     this.hinted = true;
-    gsap.to(this.fog, { alpha: this.fog.alpha * HINTED_FOG_SHARE, duration: 0.25, ease: 'power2.out' });
-    if (adjacent > 0) this.addHint(adjacent, true);
+    this.pendingAdjacent = adjacent;
+    const draw = () => {
+      this.pendingHint = null;
+      gsap.to(this.fog, { alpha: this.fog.alpha * HINTED_FOG_SHARE, duration: 0.25, ease: 'power2.out' });
+      if (this.pendingAdjacent > 0) this.addHint(this.pendingAdjacent, true);
+    };
+    if (delay > 0) this.pendingHint = gsap.delayedCall(delay, draw);
+    else draw();
+  }
+
+  /** The drawing of a hint the ripple has not reached yet — see `revealHint`. */
+  private pendingHint: gsap.core.Tween | null = null;
+  /** The count that drawing will write; a `setHint` in the meantime replaces it. */
+  private pendingAdjacent = 0;
+
+  private dropPendingHint(): void {
+    this.pendingHint?.kill();
+    this.pendingHint = null;
   }
 
   private addContentSprite(key: string): void {
@@ -656,6 +682,11 @@ export class Tile {
    * not opened reads as a bug, not as sabotage.
    */
   setHint(count: number): void {
+    // Not drawn yet: the ripple will write this count instead of the old one.
+    if (this.pendingHint) {
+      this.pendingAdjacent = count;
+      return;
+    }
     if (!(this.revealed || this.hinted) || !this.hintGroup) return;
     this.stopHintBob();
     this.hintGroup.destroy({ children: true });
@@ -1447,6 +1478,7 @@ export class Tile {
   }
 
   destroy(): void {
+    this.dropPendingHint();
     gsap.killTweensOf(this.blinkGfx);
     gsap.killTweensOf(this.fog);
     // A hint on the shared layer is not this container's child either.

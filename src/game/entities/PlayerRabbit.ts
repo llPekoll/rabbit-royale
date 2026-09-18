@@ -176,6 +176,25 @@ export class PlayerRabbit {
    * tween left the rabbit dancing a cell short of the field it had reached.
    */
   private afterMove: (() => void) | null = null;
+  /**
+   * Where the hop (or throw) in flight is landing, while one is.
+   *
+   * A `moveTo` for THIS tile while it is in the air is the server repeating a
+   * landing the client is already playing — the `rabbit_moved` that follows a
+   * blast names the knockback's tile — and is swallowed. A `moveTo` for any
+   * OTHER tile is a second step the server accepted while the first was
+   * still being drawn, and it is queued (`pendingHop`), never dropped.
+   *
+   * It used to be dropped. The server re-lights the ring the instant it
+   * answers a step, so a quick player taps the next tile while the hop is
+   * still in the air; the second answer arrived mid-flight and was thrown
+   * away, leaving the sprite one cell behind where the game had it. Every
+   * tap after that was judged from a tile the player could not see, and the
+   * ring around it lit cells beside an empty patch of grass.
+   */
+  private flightTarget: number | null = null;
+  /** The step to play once the one in flight lands — see `flightTarget`. */
+  private pendingHop: { tile: number; onComplete?: () => void } | null = null;
   /** The season leader's crown, when this rabbit wears one. */
   private crown: Sprite | null = null;
   private crownBob: gsap.core.Tween | null = null;
@@ -286,10 +305,20 @@ export class PlayerRabbit {
 
   moveTo(tileIndex: number, onComplete?: () => void): void {
     if (this.isMoving) {
-      onComplete?.();
+      // The landing already in the air: nothing new to draw.
+      if (tileIndex === this.flightTarget) {
+        onComplete?.();
+        return;
+      }
+      // A further step, accepted mid-flight: it plays once this one lands.
+      // Only the LAST one asked for is kept — three answers in one flight
+      // still end on the tile the server has the rabbit on, and a hop through
+      // the middle cell would only put the sprite further behind the game.
+      this.pendingHop = { tile: tileIndex, onComplete };
       return;
     }
     this.isMoving = true;
+    this.flightTarget = tileIndex;
 
     const { x, y } = this.at(tileIndex);
     // Re-sorted as it goes: a rabbit that kept its old depth would walk behind
@@ -309,6 +338,14 @@ export class PlayerRabbit {
       ease: 'quad.inOut',
       onComplete: () => {
         this.isMoving = false;
+        this.flightTarget = null;
+        // A further step was accepted while this one was in the air: it goes
+        // straight on, and this landing's bookkeeping is skipped — the rabbit
+        // never rests here, so the scene must not be told it did.
+        if (this.pendingHop) {
+          this.takePendingHop();
+          return;
+        }
         const next = this.afterMove;
         this.afterMove = null;
         if (next) next();
@@ -318,12 +355,21 @@ export class PlayerRabbit {
     });
   }
 
+  /** Start the hop queued behind the one that just landed — see `pendingHop`. */
+  private takePendingHop(): void {
+    const hop = this.pendingHop;
+    this.pendingHop = null;
+    if (hop) this.moveTo(hop.tile, hop.onComplete);
+  }
+
   /** Cancel any in-progress movement tween so it won't override the next animation. */
   cancelMove(): void {
     gsap.killTweensOf(this.container);
     gsap.killTweensOf(this.sprite);
     gsap.killTweensOf(this.sprite.scale);
     this.isMoving = false;
+    this.flightTarget = null;
+    this.pendingHop = null;
     this.afterMove = null;
   }
 
@@ -347,6 +393,7 @@ export class PlayerRabbit {
   playKnockback(tileIndex: number, onComplete?: () => void): void {
     this.cancelMove();
     this.isMoving = true;
+    this.flightTarget = tileIndex;
 
     const from = { x: this.container.x, y: this.container.y };
     const to = this.at(tileIndex);
@@ -381,6 +428,11 @@ export class PlayerRabbit {
           sprite.scale.set(baseScaleX, baseScaleY);
           sprite.y = baseY;
           this.isMoving = false;
+          this.flightTarget = null;
+          if (this.pendingHop) {
+            this.takePendingHop();
+            return;
+          }
           const next = this.afterMove;
           this.afterMove = null;
           if (next) next();
