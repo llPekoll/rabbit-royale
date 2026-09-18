@@ -272,6 +272,51 @@ export class Tile {
    * 1.2 still lands on clean pixel edges at the island's camera.
    */
   private static readonly HINT_SCALE = 1.2;
+  /**
+   * THE NUMBERS LIE ON THE GROUND, in the lattice's own plane.
+   *
+   * Upright, each count was a HUD marker parked over a tile rather than a
+   * thing belonging to it: a field of vertical glyphs, each with its own black
+   * ring, reported as "tout les nombres c'est hyper messy" (2026-09-18) on a
+   * board where 30-odd of them were up at once. Laid flat they read as painted
+   * on the grass, and the board goes quiet.
+   *
+   * Expressed as SKEW rather than as a matrix on purpose. `setFromMatrix`
+   * replaces the whole transform — position and pivot included — and those two
+   * are spoken for: `raiseHint` tweens `position.y` to lift the count over a
+   * rabbit's head and `startHintBob` tweens `pivot.y` to make it hover. Skew
+   * composes with both, so the lift still travels straight UP the screen. A
+   * matrix would have sent it off along the lattice's diagonal.
+   *
+   * The values are the decomposition of the iso projection at the board's own
+   * cell (`isoProject` with HALF_W/HALF_H): x goes (+HALF_W, +HALF_H), y goes
+   * (-HALF_W, +HALF_H). Pixi builds its transform as
+   *     a = cos(rot + skewY) * sx      c = -sin(rot - skewX) * sy
+   *     b = sin(rot + skewY) * sx      d =  cos(rot - skewX) * sy
+   * so at rotation 0 that projection is exactly the angles below, with both
+   * axes scaled by `hypot(HALF_W, HALF_H) / HALF_W`. Derived rather than
+   * eyeballed: the glyphs share the ground's vanishing lines, so they sit in
+   * the picture instead of on it.
+   */
+  private static readonly HINT_SKEW_X = -Math.atan2(HALF_W, HALF_H);
+  private static readonly HINT_SKEW_Y = Math.atan2(HALF_H, HALF_W);
+  /** What the skew costs in glyph size, so HINT_SCALE still means what it did. */
+  private static readonly HINT_SKEW_SCALE = Math.hypot(HALF_W, HALF_H) / HALF_W;
+  /**
+   * The ring under multiply, pale rather than the kit's ink.
+   *
+   * White is multiply's identity, so a pale ring darkens nothing and reads as
+   * a halo of UNTOUCHED ground around the glyph — which is the separation the
+   * dark ring was there to give. The ink ring multiplied is a disaster and was
+   * the first thing tried: near-black times grass is near-black, so every
+   * count came out as a black lozenge with a coloured scratch in it (kept as
+   * `Island/HintPerspective` → MultiplyWithInkRing so nobody retries it).
+   *
+   * Not pure white: at 0xffffff the ring is exactly the identity and vanishes,
+   * losing the glyph its edge on pale ground (sand, dug dirt). A touch under
+   * leaves a whisper of darkening that still separates.
+   */
+  private static readonly HINT_RING_TINT = 0xf2f4ff;
   private hintBob: gsap.core.Tween | null = null;
 
   constructor(index: number, fogStyle?: FogStyle, lift = 0, tier = 0, hintLayer?: Container) {
@@ -464,7 +509,18 @@ export class Tile {
     label.face.tint = 0xd9dde6;
     label.group.alpha = 0.9;
     label.group.zIndex = 38;
-    label.group.scale.set(Tile.HINT_SCALE * 0.8);
+    /**
+     * Laid on the diamond like the counts, so the marks on a board read as one
+     * family — but NOT multiplied, and keeping its ink ring.
+     *
+     * The difference is what the two are drawn on. A count is painted on
+     * ground the player has opened, and multiply is what makes it belong to
+     * that grass. A "?" sits on a LID: undug ground under the veil, which is
+     * already darkened. Multiplying a pale glyph into a dark veil would leave
+     * almost nothing, and the mark exists precisely to say a tile is unread.
+     */
+    label.group.skew.set(Tile.HINT_SKEW_X, Tile.HINT_SKEW_Y);
+    label.group.scale.set(Tile.HINT_SCALE * 0.8 * Tile.HINT_SKEW_SCALE);
     if (this.hintLayer) {
       label.group.position.set(this.container.x, this.container.y);
       this.hintLayer.addChild(label.group);
@@ -590,6 +646,22 @@ export class Tile {
     const label = outlinedPixelText(0, 0, String(count));
     label.face.tint = HINT_TINTS[Math.min(count, HINT_TINTS.length - 1)];
     label.group.zIndex = 40;
+
+    /**
+     * MULTIPLIED INTO THE GROUND, ring and all.
+     *
+     * Drawn normally a number sits ON the picture; multiplied it DARKENS the
+     * picture, so the grass reads through it and the count belongs to the tile
+     * it names. Per-renderable in Pixi v8 — setting it on the group does not
+     * reach the labels — so every copy is told, the ring included: a
+     * normal-blended ring around a multiplied face is the worst of both, an
+     * opaque edge over ground the face is only tinting.
+     */
+    for (const child of label.group.children) child.blendMode = 'multiply';
+    for (const copy of label.outline) copy.tint = Tile.HINT_RING_TINT;
+
+    // Laid flat on the cell's diamond. Skew, not a matrix — see HINT_SKEW_X.
+    label.group.skew.set(Tile.HINT_SKEW_X, Tile.HINT_SKEW_Y);
     if (this.hintLayer) {
       // On the shared layer the group carries the tile's world position
       // itself; raise/lower move it relative to that.
@@ -602,11 +674,12 @@ export class Tile {
     }
     this.hintGroup = label.group;
 
+    const scale = Tile.HINT_SCALE * Tile.HINT_SKEW_SCALE;
     if (animate) {
       label.group.scale.set(0);
-      gsap.to(label.group.scale, { x: Tile.HINT_SCALE, y: Tile.HINT_SCALE, duration: 0.22, ease: 'back.out(2)' });
+      gsap.to(label.group.scale, { x: scale, y: scale, duration: 0.22, ease: 'back.out(2)' });
     } else {
-      label.group.scale.set(Tile.HINT_SCALE);
+      label.group.scale.set(scale);
     }
   }
 

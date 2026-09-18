@@ -108,6 +108,16 @@ interface Args {
   alpha: number;
   /** Current style on the left half, the knobs on the right. */
   compare: boolean;
+  /**
+   * Draw the hints EXACTLY as `Tile` ships them — no restyling at all.
+   *
+   * Since the ground+multiply pass landed in `Tile.addHint` (2026-09-18), this
+   * is what the game actually looks like, and it is the story to shoot when
+   * the question is "what does the board do now" rather than "what if". The
+   * knobs above still work, and still override it, which is what keeps this a
+   * workbench rather than a screenshot.
+   */
+  asShipped: boolean;
   seed: string;
   /** How much of the board is dug (and therefore numbered). */
   dug: number;
@@ -137,6 +147,7 @@ const meta: Meta<Args> = {
     scale: 1.2,
     alpha: 1,
     compare: true,
+    asShipped: false,
     seed: 'messy',
     dug: 0.75,
     zoom: 2,
@@ -245,7 +256,7 @@ const meta: Meta<Args> = {
            * is where `compare` gets its seam — screen space, so the seam is a
            * vertical line and not a diagonal of the lattice.
            */
-          for (const group of hintLayer.children as Container[]) {
+          for (const group of args.asShipped ? [] : (hintLayer.children as Container[])) {
             const untouched = args.compare && group.x < mid.x;
             const face = group.children[group.children.length - 1];
             const ring = group.children.slice(0, group.children.length - 1);
@@ -304,6 +315,11 @@ type Story = StoryObj<Args>;
 
 /** The knobs, against today's numbers on the left half. */
 export const Compare: Story = {};
+
+/** What the board draws now, straight out of `Tile`. No restyling. */
+export const AsShipped: Story = {
+  args: { asShipped: true, compare: false },
+};
 
 /** Laid flat on the diamond, no split — the full commitment. */
 export const Ground: Story = {
