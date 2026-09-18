@@ -278,6 +278,15 @@ export function useGameSocket(
   const [rabbits, setRabbits] = useState<Map<string, ClientRabbit>>(new Map());
   const [warnStage, setWarnStage] = useState(0);
   /**
+   * The stage the ground last rumbled for. `volcano` travels on EVERY dig now
+   * (it carries the percentage), while the stage itself only climbs three
+   * times a run — so the rumble has to be gated here, on a change, or every
+   * spade past the first warning shakes the board and plays the growl. It is
+   * a ref rather than the state above because the socket handlers are bound
+   * once and would read a stale `warnStage`.
+   */
+  const rumbledStage = useRef(0);
+  /**
    * How much of the island is gone, 0 → 1.
    *
    * Its own state rather than something derived from the scene's tiles: the
@@ -470,6 +479,9 @@ export function useGameSocket(
       setIslandSeed(snap.seed);
       setIslandKey((k) => k + 1);
       setWarnStage(snap.warnStage);
+      // A joiner lands at whatever stage the island has reached; that is the
+      // baseline, not a warning to play.
+      rumbledStage.current = snap.warnStage;
       setDugFraction(snap.dugFraction ?? 0);
       setRecap(null);
       setFirstRun(snap.first === true);
@@ -737,7 +749,12 @@ export function useGameSocket(
       setWarnStage(stage);
       // Sent on every dig now, while the stage only changes three times a run.
       if (typeof dug === 'number') setDugFraction(dug);
-      // Felt as well as read: the ground rumbles harder at each stage.
+      // Felt as well as read: the ground rumbles harder at each stage — and
+      // ONLY when the stage climbs. This event arrives on every dig; playing
+      // the growl on each was the bug where the "bomb" went off on every step
+      // past the first warning.
+      if (stage === rumbledStage.current) return;
+      rumbledStage.current = stage;
       toScene((s) => s.rumble(stage));
     });
     /**

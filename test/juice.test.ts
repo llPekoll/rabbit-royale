@@ -80,8 +80,12 @@ describe('the island has its moments', () => {
     expect(PAGE).toMatch(/<EruptionOverlay ms=\{game\.erupting\} \/>/);
   });
 
-  it('rumbles at each volcano stage', () => {
+  it('rumbles at each volcano stage, and only when the stage changes', () => {
     expect(HOOK).toMatch(/s\.rumble\(stage\)/);
+    // `volcano` arrives on every dig (it carries the percentage); the growl and
+    // the shake used to play on each of them past the first warning.
+    expect(HOOK).toMatch(/if \(stage === rumbledStage\.current\) return;/);
+    expect(HOOK).toMatch(/rumbledStage\.current = snap\.warnStage;/);
   });
 });
 
