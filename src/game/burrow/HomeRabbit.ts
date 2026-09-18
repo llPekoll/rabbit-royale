@@ -47,16 +47,6 @@ const ROAM = 3;
 /** The odds a beat is a meal rather than a step. */
 const EAT_CHANCE = 0.3;
 
-/**
- * How much bigger than a raider this rabbit is drawn.
- *
- * The raider is sized so that four of them and a board full of cells fit one
- * screen; this one is alone on a homestead the camera is pulled back from, and
- * at the raider's scale it read as a speck of scenery rather than as YOU. The
- * burrow is a portrait of your place, and the rabbit is the subject of it.
- */
-const HOME_SCALE = 1.8;
-
 export class HomeRabbit {
   private rabbit: PlayerRabbit;
   private at: number;
@@ -77,14 +67,15 @@ export class HomeRabbit {
       at: (tile) => burrowTileScreen(seed, tile),
       depth: (tile) => burrowDepth(seed, tile) + 0.6,
     });
-    // Through `setBaseScale`, not by writing `container.scale`: crowning
-    // multiplies the base, so a season leader standing on their own homestead
-    // keeps this size instead of silently dropping back to the island's.
-    this.rabbit.setBaseScale(HOME_SCALE);
-    // The crown marks you here; it does not also enlarge you. This rabbit is
-    // already drawn big and stands alone, so doubling it again put it through
-    // the treetops — and there is no one beside it for the size to mean
-    // anything against.
+    // No scale of its own: the island's rabbit at the island's size. It used
+    // to be drawn 1.8x, for being alone on a pulled-back homestead, but both
+    // boards share the 44px diamond, so that made it nearly a cell tall here
+    // and on DEFEND and half one on DIG. Paul (2026-09-18): DIG's size is
+    // right, the others follow it.
+    //
+    // The crown marks you here; it does not also enlarge you. On the island it
+    // grows the leader among other rabbits; this one stands alone, with no one
+    // beside it for the size to mean anything against.
     this.rabbit.setCrownGrows(false);
     parent.addChild(this.rabbit.container);
     this.schedule();
