@@ -21,9 +21,11 @@ import { getSession } from '@/lib/auth/jwt';
 import { holdings, isShopKind, purchaseBlocker, purchaseUsdc } from '@/lib/game/inventory';
 import { grantItem } from '@/lib/game/grant';
 import { USDC, usdcBaseUnits } from '@config/tuning';
-import { findPaidSignature, payEnabled, treasuryAddress, usdcMint, verifyPayment } from '@/lib/pay/solana';
 import {
-  PAY_TOKENS, baseUnitsFor, enabledTokens, isPayTokenId, mintFor, wholeFor,
+  findPaidSignature, mintFor, payEnabled, treasuryAddress, usdcMint, verifyPayment,
+} from '@/lib/pay/solana';
+import {
+  PAY_TOKENS, baseUnitsFor, enabledTokens, isPayTokenId, mintAddressFor, wholeFor,
   type PayTokenId,
 } from '@/lib/pay/tokens';
 import { usdPriceFor } from '@/lib/pay/rates';
@@ -129,7 +131,7 @@ export async function POST(req: Request) {
     /** The rail, and what the wallet must actually move on it. */
     token,
     /** Null for native SOL — the client sends lamports, not a token transfer. */
-    mint: mintFor(token)?.toBase58() ?? null,
+    mint: mintAddressFor(token),
     amount,
     decimals: PAY_TOKENS[token].decimals,
     /** The dollar price, unchanged by the rail: the tile still says $0.25. */

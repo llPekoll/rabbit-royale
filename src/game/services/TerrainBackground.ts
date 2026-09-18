@@ -108,7 +108,19 @@ export async function createTerrainBackground(
    *  exist to show what the wrong size looks like. The game never passes it. */
   options: { decoScale?: number } = {},
 ): Promise<TerrainBackground> {
-  const tileset = await loadIslandTileset();
+  // All three fetches are ISSUED here and awaited where they are needed, far
+  // below. They do not depend on each other, but each `await` used to sit at
+  // its own use site — so the water waited for the whole tileset to land, and
+  // the ducks waited for the water, three round trips deep. Started together
+  // they overlap, and the terrain solving in between runs while they fly.
+  //
+  // No floating rejection: each promise is awaited unconditionally below, on
+  // the same path, so a failure surfaces from this function as it did before.
+  const tilesetLoad = loadIslandTileset();
+  const packWaterLoad = loadPackWater();
+  const ducksLoad = loadDucks();
+
+  const tileset = await tilesetLoad;
   const { map, placements } = terrainFor(seed);
 
   /**
@@ -237,7 +249,7 @@ export async function createTerrainBackground(
     isoProject(x + 0.5, y + 0.5, levelTierAt(seed, x, y), metrics);
 
   const water = createPackWater(
-    await loadPackWater(), COLS, ROWS, isLand, foamAt, WATER_LOOK,
+    await packWaterLoad, COLS, ROWS, isLand, foamAt, WATER_LOOK,
   );
   sea.addChild(water.view);
 
@@ -268,7 +280,7 @@ export async function createTerrainBackground(
   };
 
   const ducks = createDucks(
-    await loadDucks(), COLS, ROWS,
+    await ducksLoad, COLS, ROWS,
     openSea,
     at,
     // Seeded from the island, so the same island always puts its ducks in the

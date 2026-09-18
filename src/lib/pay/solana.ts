@@ -26,6 +26,7 @@
  */
 import { Connection, PublicKey } from '@solana/web3.js';
 import { USDC } from '@config/tuning';
+import { mintAddressFor, type PayTokenId } from './tokens';
 
 /**
  * The treasury and the mint come from the environment, never from source.
@@ -248,4 +249,18 @@ export async function findPaidSignature(opts: {
     if (entry.memo?.includes(opts.reference)) return entry.signature;
   }
   return null;
+}
+
+/**
+ * The mint for a token as a `PublicKey`, or null when it is not configured.
+ *
+ * The SERVER's half of `mintAddressFor` — that one lives in `./tokens`, which
+ * is shared with the client and therefore must not import the Solana SDK. The
+ * address is validated there; this only parses it into the object the chain
+ * calls want. Kept here because this module is already server-only (the API
+ * routes are its only importers), so the SDK stays out of the browser bundle.
+ */
+export function mintFor(id: PayTokenId): PublicKey | null {
+  const raw = mintAddressFor(id);
+  return raw ? new PublicKey(raw) : null;
 }

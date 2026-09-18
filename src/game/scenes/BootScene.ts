@@ -59,8 +59,15 @@ export class BootScene implements Scene {
     // WebGL state — a visible pause on a move that should be instant. Paying
     // for both up front, behind the loading screen the player is already
     // watching, buys a game that never stalls again.
-    await this.sceneManager.resident_add(SCENE.burrow, BurrowScene, this.data?.burrow);
-    await this.sceneManager.resident_add(SCENE.island, IslandScene, this.data?.island);
+    // TOGETHER, not one then the other. The two builds are mostly waiting on
+    // the network — both call `loadIslandTileset`, and Pixi's `Assets` both
+    // dedupes a URL already in flight and caches it after, so the second scene
+    // rides the first one's fetches instead of queueing behind them. Serially
+    // this was two round trips of the same tileset back to back.
+    await Promise.all([
+      this.sceneManager.resident_add(SCENE.burrow, BurrowScene, this.data?.burrow),
+      this.sceneManager.resident_add(SCENE.island, IslandScene, this.data?.island),
+    ]);
 
     // The burrow is home: it is where a returning player lands. A first-timer
     // is opened on the island instead — see `BootData.openOn`.

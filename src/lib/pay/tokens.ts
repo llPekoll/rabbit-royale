@@ -18,7 +18,6 @@
  * double is a price that can be off by a lamport, and lamports are what the
  * chain actually compares.
  */
-import { PublicKey } from '@solana/web3.js';
 
 export type PayTokenId = 'usdc' | 'sol' | 'skr';
 
@@ -66,28 +65,39 @@ export function isPayTokenId(v: unknown): v is PayTokenId {
 }
 
 /**
- * The mint for a token, or null when it is not configured.
+ * The mint for a token as a BASE58 STRING, or null when it is not configured.
  *
  * Absent config DISABLES that rail rather than falling back to a default. A
  * default mint address in source is how a testnet build takes real money, and
  * how a rotated address keeps paying somewhere nobody controls.
+ *
+ * A string rather than a `PublicKey` so this module imports no Solana SDK.
+ * It is shared with the CLIENT — `shop-card`, `energy-popup` and `page` read
+ * `PAY_TOKENS` and `priceLabel` from here — and a single `import { PublicKey }`
+ * at the top pulled ~464KB of web3.js into the first load for a shop nobody
+ * had opened. `mintFor` in `./solana` wraps this for the server, which is the
+ * only side that ever needed the object.
+ *
+ * The validation stays here, where the env var is read: a malformed address
+ * must disable the rail, not reach the chain.
  */
-export function mintFor(id: PayTokenId): PublicKey | null {
+export function mintAddressFor(id: PayTokenId): string | null {
   const token = PAY_TOKENS[id];
   if (token.native) return null;
   const raw = token.mintEnv ? process.env[token.mintEnv] : undefined;
   if (!raw) return null;
-  try {
-    return new PublicKey(raw);
-  } catch {
+  // Base58, 32 bytes — the shape `new PublicKey` accepts. Checked without the
+  // SDK so this module stays free of it; `mintFor` does the real parse.
+  if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(raw)) {
     console.error(`[pay] ${token.mintEnv} is not a valid public key`);
     return null;
   }
+  return raw;
 }
 
 /** Is this rail usable on this deployment? Native SOL needs no mint. */
 export function tokenEnabled(id: PayTokenId): boolean {
-  return PAY_TOKENS[id].native || mintFor(id) !== null;
+  return PAY_TOKENS[id].native || mintAddressFor(id) !== null;
 }
 
 /** Every rail this deployment can actually take money on. */

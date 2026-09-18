@@ -117,11 +117,19 @@ export async function createBurrowTerrain(
   seed: string,
   level: number | null | undefined,
 ): Promise<BurrowTerrainView> {
-  const tileset = await loadIslandTileset();
+  // Issued together, awaited where each is needed — see the same hoist in
+  // `createTerrainBackground`. Four independent fetches that used to run one
+  // after the other, each waiting on a round trip it had no reason to.
+  const tilesetLoad = loadIslandTileset();
+  const shieldIconLoad = Assets.load<Texture>(SHIELD_ICON_URL);
+  const packWaterLoad = loadPackWater();
+  const ducksLoad = loadDucks();
+
+  const tileset = await tilesetLoad;
   // Awaited with the tileset rather than fetched lazily: the badge's plaque is
   // sized from the crest's own height, so a texture that arrives after layout
   // would be measured at 1x1 and boxed wrong.
-  const shieldIcon = await Assets.load<Texture>(SHIELD_ICON_URL);
+  const shieldIcon = await shieldIconLoad;
   // Pixel art, like everything else on this board: bilinear would soften the
   // crest's edges while the plaque and the font beside it stay hard.
   shieldIcon.source.scaleMode = 'nearest';
@@ -383,12 +391,12 @@ export async function createBurrowTerrain(
     isoProject(x + 0.5, y + 0.5, levelAt(map, x, y), metrics);
 
   const water = createPackWater(
-    await loadPackWater(), BURROW_COLS, BURROW_ROWS, isLand, foamAt, WATER_LOOK,
+    await packWaterLoad, BURROW_COLS, BURROW_ROWS, isLand, foamAt, WATER_LOOK,
   );
   sea.addChild(water.view);
 
   const ducks = createDucks(
-    await loadDucks(), BURROW_COLS, BURROW_ROWS,
+    await ducksLoad, BURROW_COLS, BURROW_ROWS,
     (x, y) => !isLand(x, y),
     at,
     // Seeded from the homestead, so a player's own pond is always the same.

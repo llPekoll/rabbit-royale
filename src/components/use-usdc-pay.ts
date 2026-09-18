@@ -33,21 +33,40 @@
 import { useCallback, useState } from 'react';
 import { useT } from '@/i18n/provider';
 import type { Dict } from '@/i18n/dictionaries';
-import {
-  Connection, PublicKey, SystemProgram, Transaction, TransactionInstruction,
-} from '@solana/web3.js';
-import {
-  createTransferCheckedInstruction,
-  getAssociatedTokenAddress,
-  getAccount,
-  createAssociatedTokenAccountInstruction,
-} from '@solana/spl-token';
+import type { Transaction } from '@solana/web3.js';
 import { isNative } from './native-bridge';
 import { PAY_TOKENS, type PayTokenId } from '@/lib/pay/tokens';
 
-/** The memo program — where the reference goes, so the server can match the
- *  transfer to the quote it issued. */
-const MEMO_PROGRAM = new PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr');
+/**
+ * The Solana SDK is loaded ON THE FIRST PAYMENT, not at import.
+ *
+ * `@solana/web3.js` + `@solana/spl-token` weigh ~464KB raw (~140KB gzipped) —
+ * the single largest chunk in the app. This module is reached from `page.tsx`,
+ * so a static import put all of it in the FIRST load: every player downloaded
+ * and parsed the payment SDK before the first frame, including the ones who
+ * never open the shop. The import above is `import type`, which is erased at
+ * compile time and pulls in nothing.
+ *
+ * `pay()` is already async and already behind a click, so awaiting the module
+ * there costs a network fetch the player does not perceive — it overlaps the
+ * `/api/shop/pay` quote round trip that follows. The browser caches the chunk,
+ * so a second purchase pays nothing.
+ */
+async function solana() {
+  const [web3, splToken] = await Promise.all([
+    import('@solana/web3.js'),
+    import('@solana/spl-token'),
+  ]);
+  return {
+    ...web3,
+    ...splToken,
+    /** The memo program — where the reference goes, so the server can match
+     *  the transfer to the quote it issued. Built here rather than at module
+     *  scope: `new PublicKey(...)` at the top level would defeat the whole
+     *  split by forcing the SDK to load with the module. */
+    MEMO_PROGRAM: new web3.PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr'),
+  };
+}
 
 interface Quote {
   paymentId: string;
@@ -115,11 +134,27 @@ export function useUsdcPay(token: string | null, enabled: boolean) {
 
     try {
       setStage('quoting');
+      // The SDK chunk and the quote fly together: the import is started here,
+      // not awaited, so its download overlaps the server round trip instead of
+      // being added to it. By the time there is a transaction to build, it has
+      // landed.
+      // `catch(() => {})` on the handle, not on the value awaited below: a
+      // failed quote skips straight to the catch, and an import rejection with
+      // nobody listening is an unhandled rejection in the console. This marks
+      // it as handled without swallowing it — the real `await` below still
+      // throws if the chunk did not load.
+      const sdk = solana();
+      sdk.catch(() => {});
       const quote: Quote & { error?: string } = await fetch('/api/shop/pay', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ kind, qty, token: rail }),
       }).then((r) => r.json());
+      const {
+        Connection, PublicKey, SystemProgram, Transaction, TransactionInstruction,
+        createTransferCheckedInstruction, getAssociatedTokenAddress, getAccount,
+        createAssociatedTokenAccountInstruction, MEMO_PROGRAM,
+      } = await sdk;
       if (quote.error) throw new Error(quote.error);
 
       const { publicKey } = await wallet.connect();

@@ -19,7 +19,7 @@
  *  - A dead feed degrades to the last good price, then to the baked fallback.
  *    It never degrades to zero, which would make everything free.
  */
-import { PAY_TOKENS, PAY_TOKEN_IDS, mintFor, type PayTokenId } from './tokens';
+import { PAY_TOKENS, PAY_TOKEN_IDS, mintAddressFor, type PayTokenId } from './tokens';
 
 /**
  * Jupiter's price API, keyed by MINT.
@@ -86,7 +86,7 @@ const WRAPPED_SOL = 'So11111111111111111111111111111111111111112';
 
 function priceMint(id: PayTokenId): string | null {
   if (id === 'sol') return WRAPPED_SOL;
-  return mintFor(id)?.toBase58() ?? null;
+  return mintAddressFor(id);
 }
 
 const CACHE_TTL_MS = 5 * 60_000;
