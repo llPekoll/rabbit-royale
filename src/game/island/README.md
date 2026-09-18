@@ -54,7 +54,11 @@ uses them exactly this way — sampling it finds sea level at `#9bb94e` (palette
 Sheet layout, all cells 64px:
 
 ```
-tilemap-flat        640x256   grass blob at cols 0-3, sand at 5-8, tufts at 4 and 9
+tilemap-flat        704x256   grass blob at cols 0-3, sand at 5-8, tufts at 4 and 9
+                              col 10 is RR's own, painted straight into the baked
+                              sheet in iso (see `FLAT_CUSTOM_COL`); the flat source
+                              stays 10 wide and `gen_iso_sheets.py` carries the
+                              column across with `keep_cols`
 tilemap-elevation   256x512   surfaces on rows 0/1/2 and 4
                               cliff faces on rows 3 (tall shelf) and 5 (one row deep)
                               row 7 stacks a second storey of face

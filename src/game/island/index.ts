@@ -19,7 +19,7 @@ export type { IslandMap, IslandOptions } from './generate';
 export { blobCol, blobRow, edgeMask, elevationWallRow, ELEVATION_SURFACE_ROW, ELEVATION_WALL_STACK_ROW } from './autotile';
 export type { BlobIndex, EdgeMask, RegionTest } from './autotile';
 
-export { loadIslandTileset, TILE, ISLAND_SHEETS, UNIT_SHEETS, propUrl, seaRockUrl, PROP_COUNT, SEA_ROCK_COUNT } from './tileset';
+export { loadIslandTileset, TILE, ISLAND_SHEETS, UNIT_SHEETS, propUrl, seaRockUrl, PROP_COUNT, SEA_ROCK_COUNT, FLAT_CUSTOM_COL } from './tileset';
 export type { IslandTileset, GroundKind, FootSprite, UnitKind, UnitSprite } from './tileset';
 
 export { IslandView } from './IslandView';

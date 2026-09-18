@@ -37,6 +37,7 @@ import { columnFaces, isoBounds, isoDepth, isoProject, ISO_TILE, type IsoMetrics
 import type { Occupant, OccupantKind } from './board';
 import type { Placement } from './terrain';
 import { blocksCell } from './blocking';
+import { cornerLifts, meanLift, rampTexture } from './slopes';
 import { TILE, SEA_ROCK_FRAME, type FootSprite, type GroundKind, type IslandTileset, type UnitKind } from './tileset';
 
 export interface IsoIslandViewOptions {
@@ -51,6 +52,16 @@ export interface IsoIslandViewOptions {
    * screenshot. `grass` or `sand` paints every level from one flat set.
    */
   ground?: 'tiered' | GroundKind;
+  /**
+   * Join tiers with RAMPS instead of steps — see `slopes.ts`.
+   *
+   * Heights move to the vertices: a low cell beside a plateau has the corners
+   * it shares with it lifted and its diamond warped up to meet the plateau's
+   * edge. Inland, cells autotile against LAND rather than against their own
+   * tier, so the blob edges and the rock rim only appear at the coast. A
+   * trial, off by default; the game's board does not pass it.
+   */
+  slopes?: boolean;
   /** Scatter trees, props and sea rocks. On by default. */
   deco?: boolean;
   /**
@@ -128,6 +139,21 @@ export interface IsoIslandViewOptions {
    * lying on a lawn.
    */
   groundAt?: (x: number, y: number) => GroundKind | null;
+  /**
+   * Replace a cell's ground with one of RR's own tiles, as
+   * `(x, y) => number | null` giving a row of the flat sheet's column 10.
+   *
+   * Distinct from `groundAt`, which swaps in a blob SET and autotiles it: the
+   * dug pit is a single cell that owes nothing to its neighbours, so there is
+   * no mask to compute and no set to pick from. It is also the one ground
+   * texture on the sheet that was painted already-isometric rather than
+   * projected (see `FLAT_CUSTOM_COL`), which is why it is stamped in place of
+   * the grass rather than over it — laid on top, its transparent middle would
+   * show the untouched meadow through the hole.
+   *
+   * Returning null leaves the cell to the normal ground rule.
+   */
+  customAt?: (x: number, y: number) => number | null;
   /**
    * Cells that must stay clear of trees and props, as `(x, y) => boolean`.
    *
@@ -993,6 +1019,34 @@ export class IsoIslandView {
    * False when there is no block here (sea, or a map without this cell), so a
    * caller can keep the veil where it was.
    */
+  /**
+   * Swap one cell's ground for one of RR's own iso tiles — the dug pit.
+   *
+   * `buildGround` runs once at mount, and a cell is dug in the middle of a
+   * game, so the pit cannot come from the initial pass. It could have been a
+   * sprite laid over the grass, and that is the obvious shape; it is also
+   * wrong, because the pit's middle is the hole and a hole is transparent.
+   * Laid on top, the meadow shows straight through it. So the cell's existing
+   * ground sprite has its TEXTURE replaced, which keeps the position, the
+   * scale, the depth and the block membership that `stampGround` worked out.
+   *
+   * The ground is the block child at local depth 1 — the rim is 0, veils are
+   * 2 and up (see `mountVeil`). Returns false for a cell with no block, i.e.
+   * open sea, exactly as `mountVeil` does.
+   */
+  digCell(x: number, y: number, row = 0): boolean {
+    const texture = this.options.tileset.custom[row];
+    if (!texture) return false;
+    const block = this.blocks.get(key(x, y));
+    if (!block) return false;
+    const ground = block.children.find(
+      (c): c is Sprite => c instanceof Sprite && c.zIndex === 1,
+    );
+    if (!ground) return false;
+    ground.texture = texture;
+    return true;
+  }
+
   mountVeil(x: number, y: number, veil: Container, zIndex = 2): boolean {
     const block = this.blocks.get(key(x, y));
     if (!block) return false;
@@ -1472,8 +1526,14 @@ export class IsoIslandView {
         if (tier === 0) continue;
 
         const depth = isoDepth(x, y, tier);
-        const inTier = atOrAbove(map, tier);
+        // With slopes the only edge is the coast: a cell autotiles against
+        // land, and a tier boundary inland is a ramp, not a cut-corner rim.
+        const inTier = this.options.slopes
+          ? (cx: number, cy: number) => levelAt(map, cx, cy) > 0
+          : atOrAbove(map, tier);
         const mask = edgeMask(inTier, x, y);
+        const lifts = this.options.slopes ? cornerLifts(map, x, y) : null;
+        const ramp = lifts !== null && (lifts[0] || lifts[1] || lifts[2] || lifts[3]) ? lifts : null;
 
         // Everything this cell draws, as one group.
         //
@@ -1573,7 +1633,9 @@ export class IsoIslandView {
 
         // Rock rim under the grass, exactly as the top-down view does it: the
         // grass corners are transparent, so a thin lip of stone survives.
-        if (tier > 1) {
+        // Not under a ramp: the rim is flat, and a flat lip under a warped
+        // surface would show below its lifted edge.
+        if (tier > 1 && !ramp) {
           column.push(this.stampGround(
             block,
             tileset.elevation[ELEVATION_SURFACE_ROW[blobRow(mask)]][blobCol(mask)],
@@ -1584,8 +1646,13 @@ export class IsoIslandView {
         // A cell may ask for its own ground — the burrow's tilled field does.
         // It is autotiled against ITS OWN patch rather than against the land,
         // so the soil gets rounded edges where it meets the meadow.
+        // RR's own iso tiles come first: a dug cell is a hole, and nothing
+        // about the meadow's autotiling applies to it.
+        const custom = this.options.customAt?.(x, y) ?? null;
         const override = this.options.groundAt?.(x, y) ?? null;
-        if (override) {
+        if (custom !== null && tileset.custom[custom]) {
+          column.push(this.stampGround(block, tileset.custom[custom], x, y, tier, 1));
+        } else if (override) {
           const patch = edgeMask(
             (cx, cy) => this.options.groundAt?.(cx, cy) === override,
             x, y,
@@ -1599,7 +1666,10 @@ export class IsoIslandView {
             ground === 'tiered'
               ? tileset.tierGrass[Math.min(tier - 1, tileset.tierGrass.length - 1)]
               : tileset.flat[ground];
-          column.push(this.stampGround(block, flat[blobRow(mask)][blobCol(mask)], x, y, tier, 1));
+          const grass = flat[blobRow(mask)][blobCol(mask)];
+          column.push(this.stampGround(
+            block, ramp ? rampTexture(grass, ramp, this.metrics.z) : grass, x, y, tier, 1,
+          ));
         }
 
         // Only cells that actually SHOW rock are worth remembering: a cell in
@@ -1947,7 +2017,13 @@ export class IsoIslandView {
   ): Sprite {
     const sprite = new Sprite(texture);
     sprite.anchor.set(0.5, anchorY);
-    const p = isoProject(x + 0.5, y + 0.5, tier, this.metrics);
+    // On a ramp the middle of the cell is part-way up: anything standing
+    // there rests at the mean of the corner lifts. Cliff faces are the one
+    // caller anchored at 0, and they hang from the cell's own tier.
+    const surface = this.options.slopes && anchorY !== 0
+      ? tier + meanLift(cornerLifts(this.options.map, x, y))
+      : tier;
+    const p = isoProject(x + 0.5, y + 0.5, surface, this.metrics);
     sprite.zIndex = depth;
 
     // Every deco sprite funnels through here, so this is the one place that

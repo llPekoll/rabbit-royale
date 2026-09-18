@@ -210,10 +210,27 @@ def add_volume(top: Image.Image, rock: Optional[Image.Image] = None,
 
 
 def project_sheet(path_in: str, path_out: str, cols: int, rows: int,
-                  w=DIAMOND_W, h=DIAMOND_H, volume: bool = True) -> str:
+                  w=DIAMOND_W, h=DIAMOND_H, volume: bool = True,
+                  keep_cols: int = 0) -> str:
+    """Project one flat sheet's cells onto diamonds.
+
+    `keep_cols` widens the output by that many columns and carries them over
+    from the PREVIOUS bake untouched. Those columns are not in the flat source
+    at all: they are RR's own tiles, painted straight into the baked sheet in
+    iso, because a dug pit is a hole in the ground rather than a block — drawn
+    flat and run through here it would come back extruded, with a rock band
+    under a shape that has no underside. Without this the first re-bake after
+    painting one would quietly drop it.
+    """
     src = Image.open(path_in).convert("RGBA")
     elevation = Image.open(f"{SRC}/tilemap-elevation.webp").convert("RGBA")
-    dst = Image.new("RGBA", (cols * TILE, rows * TILE), (0, 0, 0, 0))
+    dst = Image.new("RGBA", ((cols + keep_cols) * TILE, rows * TILE), (0, 0, 0, 0))
+    if keep_cols and os.path.exists(path_out):
+        prev = Image.open(path_out).convert("RGBA")
+        for c in range(cols, cols + keep_cols):
+            box = (c * TILE, 0, (c + 1) * TILE, rows * TILE)
+            if box[2] <= prev.size[0]:
+                dst.alpha_composite(prev.crop(box), (c * TILE, 0))
     for r in range(rows):
         for c in range(cols):
             cell = src.crop((c * TILE, r * TILE, (c + 1) * TILE, (r + 1) * TILE))
@@ -419,8 +436,12 @@ def main():
         made.append(project_sheet(
             f"{SRC}/palette-{i}.webp", f"{OUT}/palette-{i}.png", 9, 6,
             volume=(i > 1)))
+    # 10 projected columns from the pack, plus column 10 kept from the last
+    # bake — see `keep_cols`. The sheet is therefore 704 wide, which
+    # `src/game/island/tileset.ts` slices as FLAT_COLS = 11.
     made.append(project_sheet(
-        f"{SRC}/tilemap-flat.webp", f"{OUT}/tilemap-flat.png", 10, 4))
+        f"{SRC}/tilemap-flat.webp", f"{OUT}/tilemap-flat.png", 10, 4,
+        keep_cols=1))
     made.append(project_faces(
         f"{SRC}/tilemap-elevation.webp", f"{OUT}/tilemap-elevation.png"))
     made.append(project_foam(f"{SRC}/foam.webp", f"{OUT}/foam.png"))

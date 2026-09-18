@@ -282,6 +282,124 @@ ELEVATION_WINDOWS = [
 ]
 
 
+# The baked flat sheet's own column: RR's tiles, painted already-isometric.
+#
+# Everything else in 04-feuilles is a FLAT sheet — a full-bleed 64x64 square
+# that `IsoIslandView` shears into a diamond. Column 10 of `tilemap-flat` is
+# not that. It is painted straight into the BAKED sheet, in iso, because the
+# shapes that go there are holes rather than blocks: a dug pit has no underside,
+# so running it through `gen_iso_sheets.py` would extrude a rock band under a
+# shape that should not have one.
+#
+# So this template draws the opposite guide from the others: not the square to
+# fill edge to edge, but the 44x24 diamond as it lands in the baked cell —
+# centred, top-left at ((64-44)/2, (64-24)/2) = (10, 20) — plus the 6px rock
+# band under it, which is where a pit's inner wall goes. Measured against the
+# real sheet: a baked grass cell's alpha bounds are (13, 22, 53, 50).
+FLAT_ISO_COL = 10
+FLAT_ISO_ROWS = 4
+
+
+def gen_flat_iso(scale):
+    """The hand-painted iso column of `tilemap-flat`, one cell per row."""
+    cell = SHEET_CELL * scale
+    dw, dh = TILE_W * scale, TILE_H * scale
+    lift = TIER_LIFT * scale
+    img = Image.new("RGBA", (cell, FLAT_ISO_ROWS * cell), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+
+    for r in range(FLAT_ISO_ROWS):
+        y0 = r * cell
+        ox, oy = (cell - dw) // 2, (cell - dh) // 2
+        d.rectangle([0, y0, cell - 1, y0 + cell - 1], outline=BOX)
+        # The diamond, where the baked tile's lid actually sits.
+        top    = (ox + dw // 2, y0 + oy)
+        right  = (ox + dw - 1,  y0 + oy + dh // 2)
+        bottom = (ox + dw // 2, y0 + oy + dh - 1)
+        left   = (ox,           y0 + oy + dh // 2)
+        d.polygon([top, right, bottom, left], outline=EDGE)
+        # The 6px band below it: a block's rock sides, a pit's inner wall.
+        d.line([left, (left[0], left[1] + lift)], fill=BAND)
+        d.line([right, (right[0], right[1] + lift)], fill=BAND)
+        d.line([bottom, (bottom[0], bottom[1] + lift)], fill=BAND)
+        d.line([(left[0], left[1] + lift), (bottom[0], bottom[1] + lift)], fill=BAND)
+        d.line([(bottom[0], bottom[1] + lift), (right[0], right[1] + lift)], fill=BAND)
+        # The anchor: the cell's centre, which is the sprite's (0.5, 0.5).
+        d.point((cell // 2, y0 + cell // 2), fill=ANCHOR)
+        # Only at 4x: at 1x the glyphs are taller than the 20px of clear cel
+        # above the diamond and would be painted over.
+        if scale > 1:
+            d.text((3 * scale, y0 + 3 * scale), f"col10 r{r}", fill=BAND)
+
+    return [save(img, f"{OUT}/04-feuilles/{scale}x/tilemap-flat-iso-col10.png")]
+
+
+# The pixel grid: the same cell, drawn big, with every REAL pixel outlined.
+#
+# `gen_flat_iso` at 1x is geometrically right and useless to draw on — 64px on
+# screen is smaller than a thumbnail. At 4x it is comfortable and lies: nothing
+# stops a 1px brush, so the hand paints detail at four times the resolution the
+# tile will ever be seen at, and the whole thing turns to static when it is
+# reduced. That is exactly what happened to the first pit.
+#
+# So this template draws the grid ITSELF. Each real pixel of the 64x64 cell is
+# a PIXEL_ZOOM-sized box with a faint outline, which makes painting outside the
+# grid visibly wrong rather than merely wrong later. Work at this size, keep
+# every shape aligned to a box, and the NEAREST reduction back to 1x is exact:
+# what is drawn is what ships.
+PIXEL_ZOOM = 8
+GRID = (60, 60, 60, 120)      # the per-pixel lattice, deliberately dim
+
+
+def gen_flat_iso_grid():
+    """The iso cell at PIXEL_ZOOM with every real pixel outlined."""
+    z = PIXEL_ZOOM
+    cell = SHEET_CELL * z
+    img = Image.new("RGBA", (cell, cell), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+
+    # The lattice first, so the geometry guides sit on top of it.
+    for i in range(SHEET_CELL + 1):
+        d.line([(i * z, 0), (i * z, cell)], fill=GRID)
+        d.line([(0, i * z), (cell, i * z)], fill=GRID)
+
+    # The lid, and the band, at the geometry the BAKE actually produces —
+    # measured off a real baked cell (`art-source/iso-sheets/tilemap-flat.png`,
+    # column 0 row 3) rather than derived, because the derivation was wrong
+    # twice. That cell's alpha runs y=22..49, is widest (x=13..52, so 40px) on
+    # rows 31..39, and tapers to a single pixel at y=49.
+    #
+    # The important consequence, which is not obvious from TILE_W/TILE_H: the
+    # rock band is NOT a skirt hanging below the diamond. It is the lower half
+    # of the silhouette — the lid's top face occupies roughly y=22..31, and the
+    # vertical sides run y=32..39 before the bottom point tapers away. A pit
+    # therefore does not add anything below the diamond; it darkens that same
+    # lower half into an inner wall.
+    dw, dh = TILE_W * z, TILE_H * z
+    ox, oy = (cell - dw) // 2, (cell - dh) // 2
+    lift = TIER_LIFT * z
+
+    top    = (ox + dw // 2, oy)
+    right  = (ox + dw,      oy + dh // 2)
+    bottom = (ox + dw // 2, oy + dh)
+    left   = (ox,           oy + dh // 2)
+
+    # The band: from the lid's widest row down by TIER_LIFT, on the two lower
+    # edges only. These are the rows where the real tile's sides are vertical.
+    for (ax, ay), (bx, by) in ((left, bottom), (bottom, right)):
+        d.polygon(
+            [(ax, ay), (bx, by), (bx, by + lift), (ax, ay + lift)],
+            outline=BAND,
+        )
+
+    # The lid itself, over the band so the silhouette stays readable.
+    d.polygon([top, right, bottom, left], outline=EDGE, width=z // 4)
+    d.rectangle([cell // 2 - z // 2, cell // 2 - z // 2,
+                 cell // 2 + z // 2, cell // 2 + z // 2], outline=ANCHOR)
+
+    return [save(img, f"{OUT}/04-feuilles/grille/tilemap-flat-iso-col10-grille.png")]
+
+
 def gen_sheets(scale):
     """Blank sheets at the exact geometry the loader slices."""
     made = []
@@ -420,6 +538,9 @@ def main():
         total += gen_cliff(scale)
         total += gen_prop(scale)
         total += gen_sheets(scale)
+        total += gen_flat_iso(scale)
+    # Scale-independent: one grid template, not one per scale.
+    total += gen_flat_iso_grid()
     print(f"{len(total)} fichiers")
     for p in total[:4]:
         print("  ", p)

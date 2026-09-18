@@ -5,8 +5,9 @@
  * `tools/consolidate_tiny_swords.py`, whose `manifest.json` records each
  * image's size and alpha bounds) rather than guessed. The two that matter:
  *
- *   tilemap-flat        640x256  — grass blob at columns 0-3, sand at 5-8,
- *                                  loose tufts at column 4 and 9
+ *   tilemap-flat        704x256  — grass blob at columns 0-3, sand at 5-8,
+ *                                  loose tufts at column 4 and 9, and column
+ *                                  10 free for RR's own hand-painted tiles
  *   tilemap-elevation   256x512  — 4 columns; surface rows 0/1/2 and 4,
  *                                  cliff faces on rows 3/5, stacking face row 7
  *   tilemap-color-1..5  576x384  — the same grass in five palettes, one per
@@ -48,7 +49,10 @@ const UNITS = '/assets/units';
  */
 // v3 (2026-09-18): the rock band under every block trimmed from 18 to 6 px,
 // the new `TIER_LIFT` — see `tools/trim_iso_lift.py`.
-const TERRAIN_REV = '?v=3';
+// v4 (2026-09-18): the flat sheet widened from 10 to 11 columns. Column 10 is
+// not from the pack — it is where RR's own tiles are painted straight into the
+// baked sheet, in iso, rather than drawn flat and projected.
+const TERRAIN_REV = '?v=4';
 const terrain = (file: string) => `${TERRAIN}/${file}${TERRAIN_REV}`;
 
 export const ISLAND_SHEETS = {
@@ -188,6 +192,20 @@ const PALETTE_ROWS = 6;
 const FLAT_ORIGIN = { grass: 0, sand: 5 } as const;
 export type GroundKind = keyof typeof FLAT_ORIGIN;
 
+/**
+ * The flat sheet's grid. Eleven columns, not the pack's ten: column 10 is RR's
+ * own, appended by widening both the source and the baked sheet, and it is
+ * painted directly in ISO — the shapes that go there (a dug pit, say) are drawn
+ * as the diamond they are rather than as a square for `gen_iso_sheets.py` to
+ * project and extrude a rock band under. `project_sheet` copies it across
+ * untouched so a re-bake keeps it.
+ */
+const FLAT_COLS = 11;
+const FLAT_ROWS = 4;
+
+/** Column 10, row by row: RR's hand-painted iso tiles. */
+export const FLAT_CUSTOM_COL = 10;
+
 /** Foam is eight frames of 192x192, each centred on the 64px tile it edges. */
 /**
  * Foam is re-cut for the diamond by `tools/gen_iso_sheets.py`.
@@ -269,6 +287,14 @@ export interface IslandTileset {
   foam: Texture[];
   /** Flat ground blob sets, indexed `[row][col]` — see `blobRow` / `blobCol`. */
   flat: Record<GroundKind, Texture[][]>;
+  /**
+   * Column 10 of the flat sheet: RR's own tiles, one per row.
+   *
+   * Already isometric — these are painted into the baked sheet rather than
+   * projected from a flat cell, so they are drawn as-is at the same size and
+   * anchor as any other ground tile, with no shear applied.
+   */
+  custom: Texture[];
   /** One grass blob set per palette, so each terrain tier can have its own. */
   tierGrass: Texture[][][];
   /** The elevation sheet, indexed `[row][col]`: 8 rows, 4 columns. */
@@ -333,7 +359,7 @@ export async function loadIslandTileset(): Promise<IslandTileset> {
   const tuftAtlas = (await fetch(GRASS_TUFT_ATLAS).then((r) => r.json())) as AsepriteAtlas;
 
   const flatSheet = loaded[ISLAND_SHEETS.flat];
-  const flatCells = sliceGrid(flatSheet, TILE, TILE, 10, 4);
+  const flatCells = sliceGrid(flatSheet, TILE, TILE, FLAT_COLS, FLAT_ROWS);
   const blobSet = (originCol: number) =>
     flatCells.map((line) => line.slice(originCol, originCol + 4));
 
@@ -358,6 +384,7 @@ export async function loadIslandTileset(): Promise<IslandTileset> {
       grass: blobSet(FLAT_ORIGIN.grass),
       sand: blobSet(FLAT_ORIGIN.sand),
     },
+    custom: flatCells.map((line) => line[FLAT_CUSTOM_COL]),
     tierGrass: Array.from({ length: TIER_PALETTE_COUNT }, (_, i) => {
       const cells = sliceGrid(loaded[tierPaletteUrl(i + 1)], TILE, TILE, PALETTE_COLS, PALETTE_ROWS);
       return cells
