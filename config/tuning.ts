@@ -502,6 +502,29 @@ export const TRAPS = {
    *  rather than a gauntlet, and no raid is ever winnable — which kills the
    *  attacking half of the game. */
   MAX_PLACED: 8,
+  /**
+   * The DOORSTEP: how many steps in from the entrance stay free of traps.
+   *
+   * Without it the best defence was the same in every burrow — eight bombs in
+   * a ring round the door, and a raider dead on the tile they arrived on, with
+   * no step taken and no number read. A raid is meant to be a crossing that is
+   * read one clue at a time; that only starts once there is open ground to
+   * read it from.
+   *
+   * Counted in STEPS a raider can take (the raid's own metric, cliffs
+   * included), not in cells, and cut by the generator (`game/burrow/generate`)
+   * so the client's grid and the server's refusal name the same tiles. Steps
+   * go eight ways, so the doorstep is a BLOB round the door, not a corridor:
+   * 1 → the entrance and its ring (3..9 cells, 6 typical); 2 → 7..20 cells;
+   * 4 → ~38 of ~195, a fifth of the ground. It opened at 4 and was settled
+   * at 2 on sight: a four-step blob read as a quarter of the homestead handed
+   * to the raider, one step was just the landing tile, two is a lawn in front
+   * of the door with the first real decision one step past it. The generator
+   * caps it two short of the crossing, so the ring round the field stays
+   * minable whatever this says — measured over 300 seeds the crossing is
+   * 8..13 steps, so the cap never bites in practice.
+   */
+  DOORSTEP: 2,
   /** Carrot price of one extra trap. */
   CARROT_COST: 150,
   /**

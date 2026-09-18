@@ -38,6 +38,7 @@ import { mulberry32, seedFrom, type Rng } from '@/lib/game/rng';
 import { generateTerrain, type Placement } from '@/game/island/terrain';
 import { levelAt, type IslandMap } from '@/game/island/generate';
 import { blocksCell } from '@/game/island/blocking';
+import { TRAPS } from '@config/tuning';
 
 /**
  * The burrow's grid, kept at the size the whole game already speaks.
@@ -115,9 +116,13 @@ const FIELD_CELLS = 12;
 /** How many terrains to cut before giving up on a seed. */
 const MAX_ATTEMPTS = 24;
 
-/** What a cell is, for everything downstream. The same four names the
- *  hand-drawn layout used, so callers did not have to learn new ones. */
-export type BurrowCell = 'ground' | 'blocked' | 'entrance' | 'field';
+/**
+ * What a cell is, for everything downstream. The four names the hand-drawn
+ * layout used, so callers did not have to learn new ones — plus `doorstep`,
+ * the open ground just inside the entrance, which is walked like ground and
+ * refused to a bomb (see `TRAPS.DOORSTEP`, and the rule itself in `cells.ts`).
+ */
+export type BurrowCell = 'ground' | 'blocked' | 'entrance' | 'field' | 'doorstep';
 
 export interface BurrowTerrain {
   /** The terrain tiers, exactly as the island's renderer wants them. */
@@ -130,6 +135,12 @@ export interface BurrowTerrain {
   entrance: number;
   /** The objective: reaching any of these wins the raid. */
   field: number[];
+  /**
+   * The doorstep: every walkable tile within `TRAPS.DOORSTEP` steps of the
+   * entrance, the entrance included. A raider crosses these before the first
+   * bomb can be under them; the owner may not mine them.
+   */
+  doorstep: number[];
   /** Steps in the shortest unobstructed crossing. */
   crossing: number;
   /** The seed this was grown from. */
@@ -191,42 +202,115 @@ function tryBuild(seed: string, attempt: number): BurrowTerrain | null {
     inhabitedShare: INHABITED_SHARE,
   });
 
-  // Walkable ground: land, with nothing solid standing on it. Clutter
-  // (mushrooms, bones) does not block, exactly as on the island — the answer
-  // comes from `blocking.ts` so the two screens cannot disagree about what a
-  // bush does.
-  const solid = new Set(
-    placements.filter((p) => blocksCell(p.kind)).map((p) => `${p.x},${p.y}`),
-  );
-  const walkable = (col: number, row: number): boolean =>
-    levelAt(map, col, row) > 0 && !solid.has(`${col},${row}`);
-
   // The main body, so a cove cut off by a cliff is not counted as ground the
   // defender should be mining.
-  const main = mainBody(map, walkable);
-  if (main.size < MIN_BODY) return null;
+  const first = mainBody(map, walkableWith(map, placements));
+  if (first.size < MIN_BODY) return null;
 
   const rng = mulberry32(seedFrom(`${terrainSeed}:layout`));
-  const entrance = pickEntrance(map, main, rng);
+  const entrance = pickEntrance(map, first, rng);
   if (entrance === null) return null;
+
+  // The door stands clear — and the ground is measured AGAIN once it does.
+  // A tree pulled out from beside the entrance gives its cell back, and a
+  // cell the board still called blocked with nothing drawn on it would be an
+  // invisible wall (the failure `onTheHomestead` was written against). The
+  // body can only grow here, so the entrance is still in it.
+  const cleared = clearTheDoor(placements, entrance);
+  const main = mainBody(map, walkableWith(map, cleared));
 
   const field = pickField(map, main, entrance);
   if (field.length < FIELD_CELLS / 2) return null;
 
-  const cells = paint(main, entrance, field);
-  const crossing = shortestPath(cells, map, entrance, new Set(field));
+  const steps = stepDistances(map, main, entrance);
+  const crossing = Math.min(...field.map((tile) => steps.get(tile) ?? Infinity));
   if (crossing < MIN_CROSSING || crossing === Infinity) return null;
+
+  const doorstep = pickDoorstep(steps, crossing, new Set(field));
+  const cells = paint(main, entrance, field, doorstep);
 
   return {
     map,
-    placements: onTheHomestead(placements, main, field, entrance),
+    placements: onTheHomestead(cleared, main, field, entrance),
     cells,
     entrance,
     field,
+    doorstep,
     crossing,
     seed,
   };
 }
+
+/**
+ * The doorstep: the open ground a raider is owed before the first bomb.
+ *
+ * `TRAPS.DOORSTEP` steps in from the entrance, measured along the same
+ * walk the raid measures everything by (`stepsFrom` — cliffs are detours
+ * here too, so a doorstep on terraced ground follows the ramp rather than
+ * cutting across the shelf).
+ *
+ * Capped two short of the crossing, so the ring of cells round the field is
+ * always the defender's to mine whatever the constant says: those cells are
+ * the last decision a raider makes, and the one a defence is built around.
+ * The field itself is never doorstep — it is where the raid ENDS, and the
+ * rule about where it starts has no business there.
+ */
+function pickDoorstep(
+  steps: Map<number, number>,
+  crossing: number,
+  field: Set<number>,
+): number[] {
+  const reach = Math.min(TRAPS.DOORSTEP, crossing - 2);
+  const out: number[] = [];
+  for (const [tile, d] of steps) {
+    if (d <= reach && !field.has(tile)) out.push(tile);
+  }
+  return out.sort((a, b) => a - b);
+}
+
+/**
+ * Walkable ground: land, with nothing solid standing on it. Clutter
+ * (mushrooms, bones) does not block, exactly as on the island — the answer
+ * comes from `blocking.ts` so the two screens cannot disagree about what a
+ * bush does.
+ */
+function walkableWith(map: IslandMap, placements: Placement[]) {
+  const solid = new Set(
+    placements.filter((p) => blocksCell(p.kind)).map((p) => `${p.x},${p.y}`),
+  );
+  return (col: number, row: number): boolean =>
+    levelAt(map, col, row) > 0 && !solid.has(`${col},${row}`);
+}
+
+/**
+ * Nothing stands in front of the door.
+ *
+ * The entrance is where a raid starts and where the defender's marker hangs,
+ * and on a third of the seeds it was under a pine: the tree stood a cell or
+ * two in FRONT of it (further down the screen), and a pine's canopy reaches
+ * several cells up the picture, so the door, the rabbit arriving on it and
+ * the chevron above were all behind foliage. `onTheHomestead` only ever
+ * cleared the entrance cell itself, which is the one cell a tree cannot hide
+ * it from.
+ *
+ * So: nothing at all within `DOOR_CLEARING` of the door — the doorstep reads
+ * as a lawn, which is what it is — and no TREE within `DOOR_CLEARING_TREES`,
+ * because a tree is the only thing tall enough to cover a cell from that far.
+ * Chebyshev distance, in cells: this is about what the picture covers, not
+ * about where a rabbit can walk.
+ */
+function clearTheDoor(placements: Placement[], entrance: number): Placement[] {
+  const door = colRow(entrance);
+  return placements.filter((p) => {
+    const d = Math.max(Math.abs(p.x - door.col), Math.abs(p.y - door.row));
+    if (d <= DOOR_CLEARING) return false;
+    return !(p.kind === 'tree' && d <= DOOR_CLEARING_TREES);
+  });
+}
+
+/** Cells round the door kept bare of everything, and of trees. */
+const DOOR_CLEARING = 2;
+const DOOR_CLEARING_TREES = 3;
 
 /**
  * Scenery the homestead actually wants standing on it.
@@ -443,6 +527,12 @@ function stepDistances(map: IslandMap, main: Set<number>, start: number): Map<nu
     for (const [dc, dr] of STEPS) {
       const nc = col + dc;
       const nr = row + dr;
+      // Off the board is off the board: `index` would fold column -1 onto the
+      // end of the row above. Never bites today (the sea rim keeps every
+      // walkable cell off the rim, measured over 400 seeds), and this is now
+      // the crossing's own ruler as well as the field's, so it is not left to
+      // luck.
+      if (nc < 0 || nc >= BURROW_COLS || nr < 0 || nr >= BURROW_ROWS) continue;
       const i = index(nc, nr);
       if (dist.has(i) || !main.has(i)) continue;
       if (Math.abs(levelAt(map, nc, nr) - levelAt(map, col, row)) > MAX_STEP) continue;
@@ -453,49 +543,30 @@ function stepDistances(map: IslandMap, main: Set<number>, start: number): Map<nu
   return dist;
 }
 
-/** Every tile's kind, row-major. */
-function paint(main: Set<number>, entrance: number, field: number[]): BurrowCell[] {
+/**
+ * Every tile's kind, row-major.
+ *
+ * The entrance keeps its own name rather than being one more doorstep cell:
+ * the scene hangs the door marker on it, and the raid starts there. It is
+ * refused to a bomb all the same — see `cells.ts`.
+ */
+function paint(
+  main: Set<number>,
+  entrance: number,
+  field: number[],
+  doorstep: number[],
+): BurrowCell[] {
   const inField = new Set(field);
+  const onDoorstep = new Set(doorstep);
   const cells: BurrowCell[] = [];
   for (let tile = 0; tile < BURROW_COLS * BURROW_ROWS; tile++) {
     if (tile === entrance) cells.push('entrance');
     else if (inField.has(tile)) cells.push('field');
+    else if (onDoorstep.has(tile)) cells.push('doorstep');
     else if (main.has(tile)) cells.push('ground');
     else cells.push('blocked');
   }
   return cells;
-}
-
-/** Steps in the shortest crossing from the entrance to any field tile. */
-function shortestPath(
-  cells: BurrowCell[],
-  map: IslandMap,
-  entrance: number,
-  goal: Set<number>,
-): number {
-  const seen = new Set([entrance]);
-  let frontier = [entrance];
-  let steps = 0;
-  while (frontier.length) {
-    steps++;
-    const next: number[] = [];
-    for (const tile of frontier) {
-      const { col, row } = colRow(tile);
-      for (const [dc, dr] of STEPS) {
-        const nc = col + dc;
-        const nr = row + dr;
-        if (nc < 0 || nc >= BURROW_COLS || nr < 0 || nr >= BURROW_ROWS) continue;
-        const i = index(nc, nr);
-        if (seen.has(i) || cells[i] === 'blocked') continue;
-        if (Math.abs(levelAt(map, nc, nr) - levelAt(map, col, row)) > MAX_STEP) continue;
-        if (goal.has(i)) return steps;
-        seen.add(i);
-        next.push(i);
-      }
-    }
-    frontier = next;
-  }
-  return Infinity;
 }
 
 export { index as burrowIndex, colRow as burrowColRow, STEPS as BURROW_STEPS, MAX_STEP };

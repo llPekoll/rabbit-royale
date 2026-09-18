@@ -326,6 +326,7 @@ export const zh: Dict = {
     no_traps: '没有陷阱了。去买一个，或等明天。',
     board_full: '你的兔窝再放不下一个陷阱了。',
     tile_not_trappable: '那里没东西可埋。',
+    tile_doorstep: '离入口太近。门口的头几步不能埋。',
     tile_already_trapped: '已经埋过了。',
     no_trap_there: '那里没有陷阱。',
     payments_unavailable: '刷卡支付尚未开通。',

@@ -12,7 +12,7 @@
  * `spendTrap` decides whether this placement eats a free one (pushing the claim
  * stamp forward by exactly one trap's worth) or a bought one.
  */
-import { and, eq, sql as raw } from 'drizzle-orm';
+import { and, eq, inArray, sql as raw } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { players, traps } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
@@ -20,7 +20,7 @@ import {
   armedTraps, availableTraps, isArmed, placementBlocker, refundTrap, refundTraps, rearmingTraps,
   spendTrap,
 } from '@/lib/game/traps';
-import { isTrappable } from '@/game/burrow/board';
+import { isDoorstep, isTrappable } from '@/game/burrow/board';
 import { TRAPS } from '@config/tuning';
 
 async function trapState(playerId: string) {
@@ -51,10 +51,46 @@ async function trapState(playerId: string) {
   };
 }
 
+/**
+ * Lift the traps the RULES moved out from under, and hand them back.
+ *
+ * A bomb buried on the entrance was legal until the doorstep existed
+ * (`TRAPS.DOORSTEP`); its row is still in the table. The raid endpoint already
+ * refuses to spring it (`standingTraps`), so what is left is the owner's side:
+ * a marker on a cell the grid now paints orange, for a trap that defends
+ * nothing. Lifted the first time the owner looks, in one transaction, and
+ * refunded as stock whether or not it was mid-rearm — the lift-refund rule
+ * (`DELETE`) exists to stop a player buying an instant rearm, and a player
+ * whose ground changed under them is not doing that.
+ *
+ * Runs on every GET rather than once, because it costs one read on a board
+ * with nothing to evict, and a rule that keeps a list of "already migrated"
+ * players would be a second source of truth for what the seed already says.
+ */
+async function evictDoorstep(playerId: string): Promise<void> {
+  const placed = await db.query.traps.findMany({ where: eq(traps.ownerId, playerId) });
+  const evicted = placed.filter((t) => !isTrappable(playerId, t.tile)).map((t) => t.tile);
+  if (!evicted.length) return;
+  const player = await db.query.players.findFirst({ where: eq(players.id, playerId) });
+  if (!player) return;
+  await db.transaction(async (tx) => {
+    // The DELETE's `returning` says how many were actually there, so two GETs
+    // racing on the same board cannot refund the same trap twice.
+    const rows = await tx.delete(traps)
+      .where(and(eq(traps.ownerId, playerId), inArray(traps.tile, evicted)))
+      .returning({ tile: traps.tile });
+    if (!rows.length) return;
+    await tx.update(players)
+      .set(refundTraps(player, rows.length))
+      .where(eq(players.id, playerId));
+  });
+}
+
 export async function GET(req: Request) {
   const session = await getSession(req);
   if (!session) return Response.json({ error: 'unauthenticated' }, { status: 401 });
 
+  await evictDoorstep(session.sub);
   const state = await trapState(session.sub);
   if (!state) return Response.json({ error: 'unknown player' }, { status: 404 });
   return Response.json(state);
@@ -83,6 +119,10 @@ export async function POST(req: Request) {
     // own ground, and `isTrappable` is asked about exactly that ground.
     isTrappable(session.sub, tile),
     placed.some((t) => t.tile === tile),
+    Date.now(),
+    // The doorstep is walkable ground the board shows the owner: refused by
+    // name, so the answer is "too near the door" and not "nothing there".
+    isDoorstep(session.sub, tile),
   );
   if (blocker) return Response.json({ error: blocker }, { status: 400 });
 

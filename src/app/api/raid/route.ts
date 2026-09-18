@@ -28,7 +28,7 @@ import {
 } from '@/lib/game/raid';
 import { burrowNeighbors, entranceTile, burrowCell, walkableTiles } from '@/game/burrow/board';
 import { smokeActive } from '@/lib/game/inventory';
-import { armedTraps } from '@/lib/game/traps';
+import { standingTraps } from '@/lib/game/traps';
 import { RAID, RAID_RUN, TRAPS } from '@config/tuning';
 import { gardenAfterLoot, gardenYield } from '@/lib/game/regen';
 
@@ -48,7 +48,7 @@ async function raidView(runId: string, revealAll = false) {
   // ARMED traps only. A trap still rearming cannot drain anyone, so counting
   // it in the clues would hand the raider a number no step could ever justify
   // — and worse, it would let them read the position of a trap that is down.
-  const clues = trapClues(seed, armedTraps(mined).map((t) => t.tile));
+  const clues = trapClues(seed, standingTraps(seed, mined).map((t) => t.tile));
   const smoked = smokeActive(defender);
 
   return {
@@ -346,7 +346,7 @@ export async function PATCH(req: Request) {
   // Only a STANDING trap can be stepped on, and it is found the same way the
   // clues above were built. Asking the same function twice is what keeps the
   // board the raider reads and the board the server settles against identical.
-  const trap = armedTraps(mined).find((t) => t.tile === to);
+  const trap = standingTraps(run.defenderId, mined).find((t) => t.tile === to);
 
   let energy = run.energy - RAID_RUN.STEP_COST;
   let sprung = run.trapsSprung;

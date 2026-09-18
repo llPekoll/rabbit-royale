@@ -42,7 +42,7 @@ import { FOG_COLOR, FOG_ALPHA, HIGHLIGHT_COLOR, HINT_TINTS } from '../entities/T
 import * as Keys from '@/config/assetKeys';
 import { BURROW_COLS, BURROW_ROWS, BURROW_HALF_W, BURROW_HALF_H, burrowColRow } from '@/config/burrowConfig';
 import {
-  burrowCell, isTrappable, walkableTiles, fieldTiles, burrowAround,
+  burrowCell, isTrappable, isDoorstep, entranceTile, walkableTiles, fieldTiles, burrowAround,
 } from '@/game/burrow/board';
 import { burrowTileScreen, burrowDepth } from '@/game/burrow/screen';
 import { RABBIT_SCALE } from '@/config/gridConfig';
@@ -120,6 +120,30 @@ const REARMING_ALPHA = 0.3;
  */
 const PLACEABLE_TINT = 0x8fd6ff;
 const PLACEABLE_ALPHA = 0.42;
+
+/**
+ * THE DOORSTEP: the cells a raider crosses before a bomb may be under them
+ * (`TRAPS.DOORSTEP` steps in from the entrance — see `game/burrow/cells`).
+ *
+ * Shown, not left dark. The first carve-out of the entrance was undone partly
+ * because a cell that ignores a tap with nothing to say for itself reads as a
+ * broken board; the rule only works if the defender can SEE where the fight
+ * starts, and set the bombs behind it. So while placing the doorstep wears
+ * its own colour, and a chevron hangs over the door itself — the same sprite
+ * as the gold one over the garden, the other end of the same walk.
+ *
+ * ORANGE, because every other colour on this board already means something:
+ * blue is "yours to mine", gold is a bomb (and the prize), red is the fence
+ * the raider sees round the field, navy is "not read yet". Warm against the
+ * navy fog so a raider reads it as ground they were given, not as sea.
+ *
+ * Two alphas: the placement diamond is an OUTLINE and needs more of it to be
+ * seen on grass; the raid veil is a solid fill and the same alpha would paint
+ * the doorstep louder than the fence round the goal.
+ */
+const DOOR_TINT = 0xff8a3d;
+const DOORSTEP_ALPHA = 0.55;
+const DOORSTEP_VEIL_ALPHA = 0.22;
 
 /**
  * The free cell under the mouse, while placing.
@@ -248,6 +272,23 @@ const GOAL_ARROW_BOB_SECONDS = 0.9;
  * sort against.
  */
 const GOAL_ARROW_Z = 10000;
+/**
+ * The shadow under a hung arrow — see `hangArrow`. Black at a little under
+ * half, so it darkens whatever the cell is (grass, sand, the doorstep's
+ * orange) rather than painting it; `LIFTED` is what is left of its size and
+ * alpha at the top of the bob.
+ */
+const ARROW_SHADOW_TINT = 0x000000;
+const ARROW_SHADOW_ALPHA = 0.45;
+const ARROW_SHADOW_LIFTED = 0.7;
+
+/** A chevron in the air and its shadow on the cell — the two go up and down together. */
+interface HungArrow {
+  /** On `container`, above everything (`GOAL_ARROW_Z`). */
+  group: Container;
+  /** In the cell's terrain block, sorted with the ground. */
+  shadow: Sprite;
+}
 
 /** One tile as a raider may see it. `clue` null means a smoke screen hides it. */
 export interface RaidTile {
@@ -261,7 +302,7 @@ interface RaidCell {
    * What the veil says: `fog` lifts as the raider is sent the tile, `goal`
    * stays red for the whole raid, `none` is the field — bare, and tappable.
    */
-  veil: 'fog' | 'goal' | 'none';
+  veil: 'fog' | 'goal' | 'doorstep' | 'none';
   /** The lid over the ground — navy fog, or the goal ring's red. */
   fog: Sprite;
   /** The gold outline on a tile they may step onto. */
@@ -328,6 +369,11 @@ export interface BurrowSceneData {
 function veilAlpha(veil: RaidCell['veil'], seen: boolean): number {
   if (veil === 'none') return 0;
   if (veil === 'goal') return GOAL_ALPHA;
+  // Seen or not: the doorstep is ground the raider was GIVEN, and the
+  // rule is public (a raider's client cuts the same doorstep from the same
+  // seed). Fogging it would hide the one thing about the board that is
+  // meant to be read from the door.
+  if (veil === 'doorstep') return DOORSTEP_VEIL_ALPHA;
   return seen ? 0 : FOG_ALPHA;
 }
 
@@ -406,7 +452,13 @@ export class BurrowScene implements Scene {
   /** Whose ground the cells were built for — a different seed is a rebuild. */
   private raidCellsSeed: string | null = null;
   /** The gold chevron hanging over the garden — see `GOAL_ARROW_TINT`. */
-  private goalArrow: Container | null = null;
+  private goalArrow: HungArrow | null = null;
+  /**
+   * The orange chevron over the ENTRANCE — see `DOOR_TINT`. Built with the
+   * board (it belongs to the ground, not to a raid) and shown whenever the
+   * board is being read as a board: placing, or a raid on either side.
+   */
+  private doorArrow: HungArrow | null = null;
   /**
    * YOUR rabbit, pottering about the homestead between runs.
    *
@@ -896,6 +948,10 @@ export class BurrowScene implements Scene {
       if (!this.terrain?.mountVeil(i, hint)) this.board.addChild(hint);
       this.hints.push(hint);
     }
+
+    // The door is a fact about THIS ground, so its marker is rebuilt with the
+    // board (every `showGround` lands here) rather than with a raid.
+    this.buildDoorArrow();
   }
 
   /**
@@ -914,6 +970,12 @@ export class BurrowScene implements Scene {
     this.hints.forEach((hint, n) => {
       const tile = this.tileOfHint(n);
       const usable = placing && isTrappable(this.data.seed, tile);
+      // The doorstep's diamonds stay UP while placing, though nothing can be
+      // buried under them: they are what says "the raider walks in here" —
+      // and they still take a press, so a drag that starts on one pans the
+      // board like a drag from anywhere else. The tap itself is refused by
+      // the handler (`isTrappable`).
+      const doorstep = placing && isDoorstep(this.data.seed, tile);
       // A mined tile keeps its diamond — tapping it lifts the bomb — but the
       // diamond is drawn at alpha 0, because its own gold marker already says
       // the cell is taken and a blue outline under it would read as "free to
@@ -922,10 +984,11 @@ export class BurrowScene implements Scene {
       // Invisible, NOT hidden: `visible = false` takes a sprite out of hit
       // testing, and this is the one cell that most needs to answer a tap. The
       // farm relies on the same distinction for a dug tile (see `Tile`).
-      hint.visible = usable;
+      hint.visible = usable || doorstep;
       hint.cursor = usable ? 'pointer' : 'default';
       this.styleHint(tile, hint, 0.2);
     });
+    this.syncDoorArrow();
     // Runs on every trap added or removed, so this is also where a preview is
     // kept honest: a bomb that landed under the mouse from elsewhere turns the
     // ghost into a lift, and leaving placement takes both away.
@@ -944,13 +1007,18 @@ export class BurrowScene implements Scene {
    */
   private styleHint(tile: number, hint: Sprite, duration: number): void {
     const usable = this.data.placing && !this.raiding && isTrappable(this.data.seed, tile);
+    // The doorstep wears orange while placing, and steps aside once a raid is
+    // on: the raid veils paint it then (see `buildRaidCells`), and an outline
+    // under a fill of the same colour would only muddy it.
+    const doorstep = this.data.placing && !this.raiding && isDoorstep(this.data.seed, tile);
     // A mined tile's diamond stays at alpha 0 — its own marker shows it, and
     // the lift preview tints that marker (see `paintTrap`).
     const mined = this.trapSprites.has(tile);
     const hovered = usable && !mined && tile === this.hoverTile;
-    hint.tint = hovered ? HOVER_TINT : PLACEABLE_TINT;
+    hint.tint = hovered ? HOVER_TINT : doorstep ? DOOR_TINT : PLACEABLE_TINT;
     gsap.killTweensOf(hint);
-    const alpha = !usable || mined ? 0 : hovered ? HOVER_ALPHA : PLACEABLE_ALPHA;
+    const alpha = doorstep ? DOORSTEP_ALPHA
+      : !usable || mined ? 0 : hovered ? HOVER_ALPHA : PLACEABLE_ALPHA;
     if (duration <= 0) hint.alpha = alpha;
     else gsap.to(hint, { alpha, duration });
   }
@@ -1578,6 +1646,8 @@ export class BurrowScene implements Scene {
     // the rabbit crossing their homestead is half of the defence, and taking
     // the grid away the moment a raid began left them nothing to do but watch.
     if (!this.defending) this.setPlacing(false);
+    // The door marker stays up for both sides whatever the grid does.
+    this.syncDoorArrow();
 
     const fresh = this.raidCellsSeed !== state.seed;
     if (fresh) this.buildRaidCells(state.seed);
@@ -1663,9 +1733,15 @@ export class BurrowScene implements Scene {
       for (const n of burrowAround(seed, f)) if (!field.has(n)) goal.add(n);
     }
     for (const tile of walkableTiles(seed)) {
-      const veil = field.has(tile) ? 'none' : goal.has(tile) ? 'goal' : 'fog';
+      // The two ends of the walk wear their own colours from the first frame:
+      // red round the field (one step from the win), orange on the doorstep
+      // (the steps the raider was given). Everything between is fog.
+      const veil = field.has(tile) ? 'none'
+        : goal.has(tile) ? 'goal'
+        : isDoorstep(seed, tile) ? 'doorstep'
+        : 'fog';
       const fog = burrowDiamondSolid();
-      fog.tint = veil === 'goal' ? GOAL_TINT : FOG_COLOR;
+      fog.tint = veil === 'goal' ? GOAL_TINT : veil === 'doorstep' ? DOOR_TINT : FOG_COLOR;
       fog.alpha = veilAlpha(veil, false);
       // The VEIL is what the pointer sees, as on the island: it sorts with
       // the ground, so a raised tile's veil answers before the lower one it
@@ -1745,11 +1821,9 @@ export class BurrowScene implements Scene {
    * hidden by what grows in front of it.
    */
   private buildGoalArrow(seed: string, field: ReadonlySet<number>): void {
-    this.goalArrow?.destroy({ children: true });
+    this.dropArrow(this.goalArrow);
     this.goalArrow = null;
-
-    const texture = Assets.get<Texture>(Keys.ARROW_DOWN);
-    if (!texture || field.size === 0) return;
+    if (field.size === 0) return;
 
     // The patch's centre in screen space, then the real cell nearest to it —
     // the centre of a seed-cut field is not itself guaranteed to BE a field
@@ -1764,14 +1838,106 @@ export class BurrowScene implements Scene {
       const d = (p.x - cx) ** 2 + (p.y - cy) ** 2;
       if (d < bestD) { bestD = d; best = i; }
     });
-    const tile = tiles[best];
+
+    this.goalArrow = this.hangArrow(seed, tiles[best], GOAL_ARROW_TINT, 'raid-goal-arrow');
+  }
+
+  /**
+   * The orange chevron over the ENTRANCE — the other end of the walk the gold
+   * one names, for both sides of it.
+   *
+   * For the DEFENDER it is the answer to "where do they come in?", which is
+   * the first thing a defence is built around and which the ground alone
+   * never said (the entrance is a plain tile of grass, picked by the seed).
+   * For the RAIDER it names where they started once they have walked away
+   * from it, and with the doorstep tint under it says how far the free ground
+   * runs. Built with the board — see `buildBoard` — and shown only while the
+   * board is being read as one (`syncDoorArrow`): at rest this screen is a
+   * picture of a home, and a home does not need its door pointed out.
+   */
+  private buildDoorArrow(): void {
+    this.dropDoorArrow();
+    const seed = this.data.seed;
+    this.doorArrow = this.hangArrow(seed, entranceTile(seed), DOOR_TINT, 'burrow-door-arrow');
+    this.syncDoorArrow();
+  }
+
+  /** Shown while placing, and through a raid on either side. */
+  private syncDoorArrow(): void {
+    if (!this.doorArrow) return;
+    const shown = this.data.placing || this.raiding;
+    this.doorArrow.group.visible = shown;
+    this.doorArrow.shadow.visible = shown;
+  }
+
+  private dropDoorArrow(): void {
+    this.dropArrow(this.doorArrow);
+    this.doorArrow = null;
+  }
+
+  /** Take a hung arrow down: the bob and the breath are endless tweens,
+   *  killed by hand or gsap goes on ticking a destroyed sprite. */
+  private dropArrow(hung: HungArrow | null): void {
+    if (!hung) return;
+    for (const child of hung.group.children) gsap.killTweensOf(child);
+    hung.group.destroy({ children: true });
+    gsap.killTweensOf(hung.shadow);
+    gsap.killTweensOf(hung.shadow.scale);
+    // The shadow lives in the cell's terrain block, which may already have
+    // gone down with the ground (`showGround` destroys the terrain first).
+    if (!hung.shadow.destroyed) hung.shadow.destroy();
+  }
+
+  /**
+   * Hang a bobbing chevron over one cell, above everything — the one kind of
+   * mark on this board that is exempt from the depth ruler (see
+   * `buildGoalArrow` for why) — and lay its SHADOW on the cell itself.
+   *
+   * The shadow is what says WHICH cell. An arrow floating two tiles up over
+   * busy pixel grass points at a region, not a tile: with the bob it drifts,
+   * and the eye has nothing on the ground to land on. So a dark diamond sits
+   * on the cell, mounted in the cell's own terrain block (`mountVeil`) so it
+   * sorts with the ground like every other veil — a tree standing in front
+   * of the cell covers it, as it should, where the arrow above refuses to be
+   * covered. It breathes against the bob: smaller and fainter as the arrow
+   * rises, as a shadow does under a thing lifting away from the ground.
+   *
+   * Returns null before the kit's arrow is loaded.
+   */
+  private hangArrow(seed: string, tile: number, tint: number, label: string): HungArrow | null {
+    const texture = Assets.get<Texture>(Keys.ARROW_DOWN);
+    if (!texture) return null;
+
+    const shadow = burrowDiamondSolid();
+    shadow.tint = ARROW_SHADOW_TINT;
+    shadow.alpha = ARROW_SHADOW_ALPHA;
+    shadow.eventMode = 'none';
+    shadow.label = `${label}-shadow`;
+    // Local depth 3 in the block: over the fog (2), under the step ring (4)
+    // — see `buildRaidCells` for the ladder.
+    if (!this.terrain?.mountVeil(tile, shadow, 3)) {
+      const at = burrowTileScreen(seed, tile);
+      shadow.position.set(at.x, at.y);
+      shadow.zIndex = burrowDepth(seed, tile) + 0.3;
+      this.board.addChild(shadow);
+    }
+    const rest = { x: shadow.scale.x, y: shadow.scale.y };
+    gsap.to(shadow.scale, {
+      x: rest.x * ARROW_SHADOW_LIFTED, y: rest.y * ARROW_SHADOW_LIFTED,
+      duration: GOAL_ARROW_BOB_SECONDS, ease: 'sine.inOut', repeat: -1, yoyo: true,
+    });
+    gsap.to(shadow, {
+      alpha: ARROW_SHADOW_ALPHA * ARROW_SHADOW_LIFTED,
+      duration: GOAL_ARROW_BOB_SECONDS, ease: 'sine.inOut', repeat: -1, yoyo: true,
+    });
 
     const group = new Container();
-    // Transparent to the pointer: the field's own cells are tappable (reaching
-    // one ends the raid), and an arrow that swallowed that tap would make the
-    // marker for the goal the one thing standing between the raider and it.
+    // Transparent to the pointer: the cells under an arrow are tappable (a
+    // field cell ends the raid, a doorstep cell is a step), and an arrow that
+    // swallowed the tap would make the marker for a place the one thing
+    // standing between the player and it.
     group.eventMode = 'none';
-    group.label = 'raid-goal-arrow';
+    group.label = label;
 
     const arrow = new Sprite(texture);
     // Anchored at its TIP, which is what the arrow is actually pointing with:
@@ -1782,7 +1948,7 @@ export class BurrowScene implements Scene {
     // live tuning knob, and a sprite pinned to a pixel count stops matching
     // the ground the moment it moves.
     arrow.scale.set((BURROW_HALF_W * GOAL_ARROW_SCALE) / texture.width);
-    arrow.tint = GOAL_ARROW_TINT;
+    arrow.tint = tint;
     arrow.y = -BURROW_HALF_H * GOAL_ARROW_LIFT;
     group.addChild(arrow);
 
@@ -1795,10 +1961,9 @@ export class BurrowScene implements Scene {
     group.position.set(x, y);
     group.zIndex = GOAL_ARROW_Z;
     this.container.addChild(group);
-    this.goalArrow = group;
 
     // The bob, on the SPRITE rather than the group, so the group's origin
-    // stays pinned to the garden cell and only the chevron rides up and down.
+    // stays pinned to the cell and only the chevron rides up and down.
     gsap.to(arrow, {
       y: arrow.y - GOAL_ARROW_BOB,
       duration: GOAL_ARROW_BOB_SECONDS,
@@ -1806,6 +1971,7 @@ export class BurrowScene implements Scene {
       repeat: -1,
       yoyo: true,
     });
+    return { group, shadow };
   }
 
   /**
@@ -2136,11 +2302,8 @@ export class BurrowScene implements Scene {
     this.raidCells.clear();
     // The bob is an endless tween, so it has to be killed by hand — the group
     // going down would otherwise leave gsap ticking a destroyed sprite.
-    if (this.goalArrow) {
-      for (const child of this.goalArrow.children) gsap.killTweensOf(child);
-      this.goalArrow.destroy({ children: true });
-      this.goalArrow = null;
-    }
+    this.dropArrow(this.goalArrow);
+    this.goalArrow = null;
     this.raidCellsSeed = null;
     this.onRaidStep = null;
     if (this.raider) {
@@ -2158,6 +2321,8 @@ export class BurrowScene implements Scene {
       // player was peering at.
       this.camMovedByPlayer = false;
     }
+    // Back to what placement alone decides — see `syncDoorArrow`.
+    this.syncDoorArrow();
     // The raid is over and this is somebody's home again.
     if (!this.home && !this.dying && !this.container.destroyed) {
       this.home = new HomeRabbit(this.board, this.data.seed);
@@ -2369,6 +2534,7 @@ export class BurrowScene implements Scene {
     this.trapSprites.clear();
     for (const h of this.hints) gsap.killTweensOf(h);
     this.hints = [];
+    this.dropDoorArrow();
     this.crop?.destroy();
     this.terrain?.destroy();
     this.container.destroy({ children: true });

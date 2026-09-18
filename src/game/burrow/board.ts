@@ -91,15 +91,31 @@ export const entranceTile = (seed: string) => burrowFor(seed).entrance;
 export const fieldTiles = (seed: string) => burrowFor(seed).field;
 
 /**
- * Where the OWNER may bury a bomb: every cell a rabbit can move onto.
+ * Where the OWNER may bury a bomb: every cell a rabbit can move onto, less
+ * the doorstep.
  *
  * The rule itself is in `cells.ts`, next to what makes a cell walkable in the
- * first place — the two answers are now the same sentence, which is the whole
- * reason they live together. This is kept as its own name because a future
- * rule (nothing under the doorstep, say) belongs there without every caller
- * learning about it.
+ * first place, so the grid the owner is shown and the server's refusal can
+ * never disagree. The doorstep is the "future rule" this name was kept for:
+ * it arrived without a single caller learning about it.
  */
 export const isTrappable = (seed: string, tile: number) => cellIsMinable(burrowCell(seed, tile));
+
+/**
+ * Is this tile on the DOORSTEP — walkable, but refused to a bomb because it is
+ * within `TRAPS.DOORSTEP` steps of the entrance (the entrance included)?
+ *
+ * Asked separately from `isTrappable` where the ANSWER differs: the board
+ * paints these cells rather than leaving them dark, and the server names the
+ * refusal (`tile_doorstep`) rather than calling open ground "nothing to mine".
+ */
+export function isDoorstep(seed: string, tile: number): boolean {
+  const cell = burrowCell(seed, tile);
+  return cell === 'doorstep' || cell === 'entrance';
+}
+
+/** The doorstep, as tiles — the entrance and everything within reach of it. */
+export const doorstepTiles = (seed: string) => burrowFor(seed).doorstep;
 
 /**
  * The 8 steps, minus walls, edges and cliffs.

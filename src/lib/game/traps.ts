@@ -10,6 +10,7 @@
  * are never punished for playing at the wrong hour, and there is no stampede.
  */
 import { TRAPS } from '@config/tuning';
+import { isTrappable } from '@/game/burrow/board';
 
 export interface TrapRow {
   /** Traps bought or looted — these never expire. */
@@ -114,7 +115,15 @@ export function placementBlocker(
   tileIsTrappable: boolean,
   tileAlreadyTrapped: boolean,
   now = Date.now(),
+  /**
+   * The tile is walkable but on the DOORSTEP (`TRAPS.DOORSTEP` steps in from
+   * the entrance). Named apart from "not trappable" because it is open ground
+   * the player can see and walk, and "nothing to mine there" would be a lie
+   * about it — the refusal has to say WHY.
+   */
+  tileIsDoorstep = false,
 ): string | null {
+  if (tileIsDoorstep) return 'tile_doorstep';
   if (!tileIsTrappable) return 'tile_not_trappable';
   if (tileAlreadyTrapped) return 'tile_already_trapped';
   if (placedCount >= TRAPS.MAX_PLACED) return 'board_full';
@@ -181,6 +190,25 @@ export function armedTraps<T extends PlacedTrap>(traps: readonly T[], now = Date
     .sort((a, b) => a.sprungAt!.getTime() - b.sprungAt!.getTime());
   const rank = new Map(down.map((t, i) => [t, i] as const));
   return traps.filter((t) => isArmed(t, now, rank.get(t) ?? 0));
+}
+
+/**
+ * The traps a RAID meets: armed, AND on ground a bomb may still sit under.
+ *
+ * The second filter is for rows the rules moved out from under. A bomb buried
+ * on the entrance before the doorstep existed (`TRAPS.DOORSTEP`) is still a
+ * row until its owner next opens their burrow (`api/traps` lifts it then, and
+ * hands it back), and a defender asleep through the deploy must not keep a
+ * defence nobody may build any more. Clues and springing both go through
+ * here, for the same reason they both go through `armedTraps`: one function,
+ * one board.
+ */
+export function standingTraps<T extends PlacedTrap>(
+  seed: string,
+  traps: readonly T[],
+  now = Date.now(),
+): T[] {
+  return armedTraps(traps, now).filter((t) => isTrappable(seed, t.tile));
 }
 
 /**

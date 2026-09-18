@@ -108,6 +108,10 @@ export const OVERRIDABLE: readonly TuningSpec[] = [
   // ── Traps: the defensive half. Read when a trap is placed, bought or springs.
   { path: 'TRAPS.FREE_PER_DAY', kind: 'int', min: 0, max: 100, note: 'Pièges gratuits par jour' },
   { path: 'TRAPS.MAX_PLACED', kind: 'int', min: 1, max: 100, note: 'Pièges posés au maximum' },
+  // Read by the GENERATOR, which is cached per seed and per process — so a
+  // row here changes nothing until the next deploy, and is listed so the table
+  // mirrors the file (docs/TUNING.md), not for a hot change.
+  { path: 'TRAPS.DOORSTEP', kind: 'int', min: 0, max: 6, note: 'Pas depuis l\'entrée où aucun piège ne peut être posé' },
   { path: 'TRAPS.MAX_HELD', kind: 'int', min: 1, max: 500, note: 'Pièges détenus au maximum' },
   { path: 'TRAPS.CARROT_COST', kind: 'int', min: 1, max: 100_000, note: 'Prix d\'un piège supplémentaire' },
 

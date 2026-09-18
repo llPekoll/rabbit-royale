@@ -383,6 +383,7 @@ export const en = {
     no_traps: 'No traps left. Buy one, or wait for tomorrow.',
     board_full: 'Your burrow cannot hold another trap.',
     tile_not_trappable: 'Nothing to mine there.',
+    tile_doorstep: 'Too near the door. The first steps inside stay open.',
     tile_already_trapped: 'Already mined.',
     no_trap_there: 'No trap there.',
     payments_unavailable: 'Card payments are not set up yet.',

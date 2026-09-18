@@ -18,8 +18,8 @@ import {
   BURROW_COLS, BURROW_ROWS, burrowIndex, burrowTilePos, burrowScreenToTile,
 } from '../src/config/burrowConfig';
 import {
-  burrowCell, burrowNeighbors, burrowTier, entranceTile, fieldTiles, isTrappable,
-  isWalkable, shortestRaidPath, walkableTiles,
+  burrowCell, burrowNeighbors, burrowTier, doorstepTiles, entranceTile, fieldTiles, isDoorstep,
+  isTrappable, isWalkable, shortestRaidPath, walkableTiles,
 } from '../src/game/burrow/board';
 import { burrowTileScreen, burrowTileAt } from '../src/game/burrow/screen';
 import { MIN_CROSSING } from '../src/game/burrow/generate';
@@ -74,20 +74,48 @@ describe('burrow layout', () => {
     expect(shortestRaidPath(seed)).toBeGreaterThanOrEqual(MIN_CROSSING);
   });
 
-  forEachBurrow('lets the defender mine every tile a rabbit can walk on', (seed) => {
+  forEachBurrow('lets the defender mine every walkable tile except the doorstep', (seed) => {
     // The rule a player can learn in one sentence, and the reason `cells.ts`
-    // exists: walkable and minable are the same answer, so the board can never
-    // offer a tile the server then refuses.
-    //
-    // The field and the entrance used to be carved out — a bomb on the
-    // objective was called a coin flip on the last step, one on the entrance a
-    // raid that dies before it begins. What the exclusions actually did was
-    // fence off the two areas a defender most wants to defend, on a board that
-    // could not explain why those tiles ignored a tap. MAX_PLACED is what
-    // keeps a burrow from becoming a maze, whatever the bombs sit on.
-    for (const t of walkableTiles(seed)) expect(isTrappable(seed, t)).toBe(true);
+    // exists: walkable and minable are one answer, so the board can never
+    // offer a tile the server then refuses. The one carve-out is the
+    // DOORSTEP: the few steps inside the door, which the board paints rather
+    // than hides. The field stays minable — a bomb on the objective is the
+    // last step made hard, which is the defender's to do.
+    const doorstep = new Set(doorstepTiles(seed));
+    for (const t of walkableTiles(seed)) expect(isTrappable(seed, t)).toBe(!doorstep.has(t));
     for (const i of fieldTiles(seed)) expect(isTrappable(seed, i)).toBe(true);
-    expect(isTrappable(seed, entranceTile(seed))).toBe(true);
+    expect(isTrappable(seed, entranceTile(seed))).toBe(false);
+  });
+
+  forEachBurrow('cuts the doorstep TRAPS.DOORSTEP steps in from the entrance', (seed) => {
+    // Measured the way the raid measures — `burrowNeighbors`, cliffs and all
+    // — so the doorstep follows a ramp rather than cutting across a shelf.
+    const dist = new Map<number, number>([[entranceTile(seed), 0]]);
+    const queue = [entranceTile(seed)];
+    while (queue.length) {
+      const here = queue.shift()!;
+      for (const n of burrowNeighbors(seed, here)) {
+        if (!dist.has(n)) { dist.set(n, dist.get(here)! + 1); queue.push(n); }
+      }
+    }
+    const reach = Math.min(TRAPS.DOORSTEP, shortestRaidPath(seed) - 2);
+    const doorstep = new Set(doorstepTiles(seed));
+    const field = new Set(fieldTiles(seed));
+    for (const [t, d] of dist) {
+      expect(doorstep.has(t)).toBe(d <= reach && !field.has(t));
+      expect(isDoorstep(seed, t)).toBe(doorstep.has(t));
+    }
+    expect(doorstep.has(entranceTile(seed))).toBe(true);
+    expect(doorstep.size).toBeGreaterThan(1);
+  });
+
+  forEachBurrow('leaves the ring round the field to the defender', (seed) => {
+    // Whatever TRAPS.DOORSTEP says, the last step before the carrots is the
+    // defender's to make hard — the generator caps the doorstep short of it.
+    const doorstep = new Set(doorstepTiles(seed));
+    for (const f of fieldTiles(seed)) {
+      for (const n of burrowNeighbors(seed, f)) expect(doorstep.has(n)).toBe(false);
+    }
   });
 
   forEachBurrow('still refuses a tile that is not on the board at all', (seed) => {

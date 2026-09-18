@@ -328,6 +328,7 @@ export const ptBR: Dict = {
     no_traps: 'Sem armadilhas. Compre uma, ou espere amanhã.',
     board_full: 'Sua toca não cabe mais uma armadilha.',
     tile_not_trappable: 'Nada para minar aí.',
+    tile_doorstep: 'Perto demais da porta. Os primeiros passos ficam livres.',
     tile_already_trapped: 'Já minado.',
     no_trap_there: 'Não tem armadilha aí.',
     payments_unavailable: 'Pagamento com cartão ainda não está configurado.',

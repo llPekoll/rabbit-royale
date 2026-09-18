@@ -8,8 +8,9 @@
 import { describe, expect, it } from 'vitest';
 import { TRAPS } from '../config/tuning';
 import {
-  availableTraps, freeTraps, spendTrap, refundTrap, refundTraps, placementBlocker,
+  availableTraps, freeTraps, spendTrap, refundTrap, refundTraps, placementBlocker, standingTraps,
 } from '../src/lib/game/traps';
+import { entranceTile, isTrappable, walkableTiles } from '../src/game/burrow/board';
 
 const HOUR = 3_600_000;
 const ago = (ms: number) => new Date(Date.now() - ms);
@@ -78,10 +79,20 @@ describe('placementBlocker', () => {
   });
 
   it('refuses a tile off the board, and one that already holds a bomb', () => {
-    // Not the field or the entrance any more — those are minable now (see
-    // game/burrow/cells). What is left is ground that is not ground at all.
+    // Not the field (minable) and not the doorstep (refused by name, below).
+    // What is left is ground that is not ground at all.
     expect(placementBlocker(rich, 0, false, false)).toBe('tile_not_trappable');
     expect(placementBlocker(rich, 0, true, true)).toBe('tile_already_trapped');
+  });
+
+  it('refuses the doorstep by name — open ground, but too near the door', () => {
+    // `tile_doorstep` rather than `tile_not_trappable`: the player can see
+    // and walk this ground, so "nothing to mine there" would be a lie about
+    // it. The doorstep is asked before anything else, so a full board or an
+    // empty bag never hides the reason the tile itself refused.
+    expect(placementBlocker(rich, 0, false, false, Date.now(), true)).toBe('tile_doorstep');
+    expect(placementBlocker(rich, TRAPS.MAX_PLACED, false, false, Date.now(), true))
+      .toBe('tile_doorstep');
   });
 
   it('refuses past the board cap — a maze is not a gauntlet', () => {
@@ -227,5 +238,18 @@ describe('a newly created player', () => {
     }
     expect(freeTraps(row)).toBe(0);
     expect(spendTrap(row)).toBeNull();
+  });
+});
+
+describe('standingTraps', () => {
+  it('drops a trap the rules moved out from under — one buried on the doorstep', () => {
+    // The row survives the deploy; the defence does not. A defender asleep
+    // through the change must not keep a bomb nobody may bury any more, and
+    // the raider's clues must not count it either — both read this function.
+    const seed = 'player-1';
+    const door = entranceTile(seed);
+    const ground = walkableTiles(seed).find((t) => isTrappable(seed, t))!;
+    expect(standingTraps(seed, [{ tile: door }, { tile: ground }]).map((t) => t.tile))
+      .toEqual([ground]);
   });
 });

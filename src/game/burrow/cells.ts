@@ -34,17 +34,26 @@ export interface CellRule {
   /**
    * Can the owner bury a bomb here?
    *
-   * Every cell a rabbit can move onto. This used to be ground only, with the
-   * entrance and the field carved out — a bomb on the objective was called a
-   * coin flip on the last step, a bomb on the entrance a raid that dies before
-   * it begins. Both were true as WORST cases and neither was the common one:
-   * what the exclusions actually did was fence off the two areas a defender
-   * most wants to defend, with no way for the board to explain why those tiles
-   * refused the tap. MAX_PLACED is what keeps a burrow from becoming a maze,
-   * and it does that job whatever the bombs sit on.
+   * Every cell a rabbit can move onto, EXCEPT the doorstep. For a while the
+   * entrance and the field were both carved out; then both were opened up,
+   * because fencing off the two areas a defender most wants to defend, on a
+   * board that could not explain why those tiles ignored a tap, was worse
+   * than either worst case. The field stays open — a bomb on the objective is
+   * a coin flip on the last step, and the last step is the defender's to
+   * make hard.
    *
-   * The rule a player can now learn in one sentence: if a rabbit can walk
-   * there, you can mine it.
+   * The entrance is closed again, and this time with the ground round it,
+   * because the worst case turned out to be the ONLY case: with the door
+   * minable the winning defence was the same in every burrow, a ring of bombs
+   * round the tile the raider arrives on, and the crossing ended before a
+   * single clue was read. `TRAPS.DOORSTEP` steps of open ground is what
+   * makes it a crossing. The board is expected to SHOW that ground, which is
+   * what the carve-out lacked the first time (see `BurrowScene`'s door
+   * marker), so a refused tap is a rule the player can see rather than a
+   * board that does not answer.
+   *
+   * The rule a player can learn in one sentence: if a rabbit can walk there
+   * you can mine it, except the few steps inside the door.
    */
   minable: boolean;
 }
@@ -52,7 +61,8 @@ export interface CellRule {
 /** The rules, one line per kind. */
 export const CELL_RULES: Record<BurrowCell, CellRule> = {
   ground:   { walkable: true,  minable: true },
-  entrance: { walkable: true,  minable: true },
+  entrance: { walkable: true,  minable: false },
+  doorstep: { walkable: true,  minable: false },
   field:    { walkable: true,  minable: true },
   // Not a cell at all: a wall, a cliff face, or sea. Nothing stands on it and
   // nothing is buried under it.

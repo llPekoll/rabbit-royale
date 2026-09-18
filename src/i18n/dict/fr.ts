@@ -324,6 +324,7 @@ export const fr: Dict = {
     no_traps: 'Plus de pièges. Achètes-en un, ou attends demain.',
     board_full: 'Ton terrier ne peut pas tenir un piège de plus.',
     tile_not_trappable: 'Rien à miner là.',
+    tile_doorstep: 'Trop près de l\'entrée. Les premiers pas restent libres.',
     tile_already_trapped: 'Déjà miné.',
     no_trap_there: 'Pas de piège là.',
     payments_unavailable: 'Le paiement par carte n’est pas encore en place.',
