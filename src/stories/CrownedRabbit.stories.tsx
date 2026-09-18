@@ -328,14 +328,14 @@ function IslandScene({ seed, rabbits, stepMs, crowned, bob, zoom, leadScale }: I
         /**
          * The plates' own layer, as `IslandScene` gives it.
          *
-         * Since the name moved under the feet (2026-09-18) it reaches into the
-         * next cell down the diagonal, which sorts AFTER the rabbit — parented
-         * to the rabbit it came out clipped mid-letter. The scene draws them on
-         * a layer over the board instead, and a story that skipped it would be
-         * showing an arrangement the game does not use.
+         * Parented to the rabbit, a plate sorts at the rabbit's own depth and
+         * whatever draws after it covers the name mid-letter. The scene puts
+         * them on a layer over the board — over the counts too, so the leader
+         * line is not cut wherever it crosses a dug tile. A story that skipped
+         * it would be showing an arrangement the game does not use.
          */
         const nameLayer = new Container();
-        nameLayer.zIndex = 999_000;
+        nameLayer.zIndex = 1_100_000;
         nameLayer.sortableChildren = false;
         board.addChild(nameLayer);
 

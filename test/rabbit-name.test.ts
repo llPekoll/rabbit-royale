@@ -16,6 +16,7 @@
  * CROWN_Y): the art stands ~16 units tall from the feet at y 0, so anything
  * between -16 and 0 is INSIDE the sprite.
  */
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { NAME_Y, NAME_STEM_TOP, NAME_STEM_BOTTOM } from '@/game/entities/PlayerRabbit';
 
@@ -44,5 +45,31 @@ describe('the name plate above a rabbit', () => {
     // The failure this catches: someone lifts the plate without lifting the
     // line, and the name floats free above a stub that points at nothing.
     expect(NAME_STEM_TOP - NAME_Y).toBeLessThanOrEqual(8);
+  });
+});
+
+/**
+ * The leader line crosses the counts, and must not be cut by them.
+ *
+ * The plate floats most of a tile above its rabbit, so the line spans whatever
+ * lies between — on a dug board, that is numbers. Drawn under them the line
+ * came out in pieces: a dash over the head, a dash under the plate, and the
+ * name joined to nothing wherever the rabbit stood next to a cleared tile.
+ *
+ * The rule everywhere else in this scene is that nothing may hide a number, so
+ * this is the one deliberate exception and it is worth stating where a later
+ * reader will find it: a one-pixel white hairline costs a glyph nothing, and
+ * a broken leader line costs the label its whole purpose.
+ */
+describe('the name layer', () => {
+  const SCENE = readFileSync(new URL('../src/game/scenes/IslandScene.ts', import.meta.url), 'utf8');
+
+  it('draws above the hint layer', () => {
+    const hint = SCENE.match(/hintLayer\.zIndex = ([\d_]+)/);
+    const name = SCENE.match(/nameLayer\.zIndex = ([\d_]+)/);
+    expect(hint).not.toBeNull();
+    expect(name).not.toBeNull();
+    const value = (m: RegExpMatchArray) => Number(m[1].replaceAll('_', ''));
+    expect(value(name!)).toBeGreaterThan(value(hint!));
   });
 });

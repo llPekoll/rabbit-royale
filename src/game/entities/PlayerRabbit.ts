@@ -101,11 +101,14 @@ const CROWN_LEAD_SCALE = 2;
  * (see NAME_STEM_*) doing the work the proximity used to do.
  *
  * Negative: the sprite is anchored at 0.9, so the feet are y 0 and up is less.
- * The rabbit's art stands ~16 units tall, so this leaves roughly a tile's own
+ * The rabbit's art stands ~16 units tall, so this leaves well over a tile's own
  * height of air between the ears and the plate's foot — which is the gap the
- * line is drawn in, and the reason the name no longer reads as a hat.
+ * line is drawn in, and the reason the name no longer reads as a hat. Raised
+ * again from -46 once the line proved it could carry the distance: the further
+ * up the plate goes, the more of the board around the rabbit stays readable,
+ * and the line is what makes that free.
  */
-export const NAME_Y = -46;
+export const NAME_Y = -62;
 /**
  * The plate's size, in the container's units.
  *
@@ -125,12 +128,16 @@ const NAME_SCALE = 0.55;
  * afford to be this far up at all.
  *
  * White rather than the name's own ink: the line is structure, not text, and
- * a gold line under a gold name reads as part of the glyphs. It carries the
- * plate's dark outline for the same reason the glyphs do — a hairline of pure
- * white vanishes against the sky, the sand and the sheep.
+ * a gold line under a gold name reads as part of the glyphs.
+ *
+ * BARE white, with no dark edge. It wore the plate's outline at first, on the
+ * argument that a hairline needs one to survive pale ground — but an outlined
+ * hairline is mostly outline: two dark pixels around one white one read as a
+ * dark post, which is the opposite of the light touch this wants. Drawn over
+ * the counts (see the name layer's rank in IslandScene) it has the board's own
+ * art behind it rather than the sky, and white alone holds.
  */
 const NAME_STEM_TINT = 0xffffff;
-const NAME_STEM_EDGE = 0x0c0a12;
 /**
  * Where the line starts and stops, in the container's units — from just under
  * the plate down to just over the ears, so it touches neither.
@@ -144,19 +151,10 @@ const NAME_STEM_EDGE = 0x0c0a12;
 export const NAME_STEM_TOP = NAME_Y + 6;
 export const NAME_STEM_BOTTOM = -18;
 /**
- * The line's own width, and its dark edge's.
- *
- * Both thin, and this is the whole difference between a leader line and a
- * post: at 1 over a 3px edge the first cut drew a black bar with a white seam
- * down it, which read as a fence the rabbit was tied to. The white has to be
- * the thing you see, with just enough dark either side to keep it off pale
- * ground — so the edge is one pixel wider than the line, no more.
- *
- * Whole numbers, because the art is pixels and a 1.5px line renders as two
- * grey ones.
+ * The line's width. A whole number, because the art is pixels and a 1.5px line
+ * renders as two grey ones.
  */
 const NAME_STEM_W = 1;
-const NAME_STEM_EDGE_W = 2;
 /** Your own name reads gold, everyone else's white — the game's own YOURS ink. */
 const NAME_TINT_ME = 0xffd45c;
 const NAME_TINT_OTHER = 0xffffff;
@@ -701,17 +699,25 @@ export class PlayerRabbit {
      * a few units into where the glyphs sit, and a line drawn after them would
      * cross the first letter's foot.
      *
-     * A child of the CONTAINER, unlike the plate — it belongs to the rabbit's
-     * own art the way the crown does, so it flips, hops and tumbles with the
-     * sprite for free. The plate is deported because it must not be clipped;
-     * the line is short enough that nothing can clip it.
+     * It goes wherever the plate goes, and for the same reason. Inside the
+     * rabbit it sorted at the rabbit's own depth — which put it UNDER the
+     * counts, so a line crossing a dug tile was interrupted by the number on
+     * it and the plate looked joined to nothing. On the layer it draws over
+     * them, whole, which is what a leader line has to do to be one.
+     *
+     * Its coordinates stay the rabbit's, not the world's: `syncName` walks the
+     * pair down together, so the two keep the relationship the constants give
+     * them however the rabbit moves.
      */
-    const stem = new Graphics()
-      .moveTo(0, NAME_STEM_TOP).lineTo(0, NAME_STEM_BOTTOM)
-      .stroke({ color: NAME_STEM_EDGE, width: NAME_STEM_EDGE_W, cap: 'square' })
-      .moveTo(0, NAME_STEM_TOP).lineTo(0, NAME_STEM_BOTTOM)
-      .stroke({ color: NAME_STEM_TINT, width: NAME_STEM_W, cap: 'square' });
-    this.container.addChild(stem);
+    const stem = new Graphics();
+    if (this.nameLayer) this.nameLayer.addChild(stem);
+    else {
+      // Un-deported, the line lives in the rabbit's units and never changes:
+      // parent and plate scale together, so the gap between them is fixed.
+      stem.moveTo(0, NAME_STEM_TOP).lineTo(0, NAME_STEM_BOTTOM)
+        .stroke({ color: NAME_STEM_TINT, width: NAME_STEM_W, cap: 'square' });
+      this.container.addChild(stem);
+    }
     this.nameStem = stem;
 
     const plate = outlinedPixelText(0, NAME_Y, name);
@@ -751,10 +757,48 @@ export class PlayerRabbit {
   syncName(): void {
     const plate = this.nameplate;
     if (!plate || plate.destroyed || plate.parent !== this.nameLayer) return;
-    plate.position.set(this.container.x, this.container.y + NAME_Y * this.container.scale.y);
+    const k = this.container.scale.y;
+    /**
+     * NAME_Y straight, with no scale on it.
+     *
+     * The plate is drawn at a fixed size on screen (`applyNameScale`), so its
+     * height above the rabbit has to be fixed too — multiplying it by the
+     * container's scale sent the crowned leader's name to twice the height of
+     * everyone else's while its line, correctly pinned to the head, stopped a
+     * plate's worth of air short of it. Every rabbit's name now sits at the
+     * same height, which is also what makes a row of them readable.
+     */
+    plate.position.set(this.container.x, this.container.y + NAME_Y);
     // A rabbit that fades (see `playDeath`) takes its name with it.
     plate.alpha = this.container.alpha;
     plate.visible = this.container.visible;
+
+    const stem = this.nameStem;
+    if (!stem || stem.destroyed || stem.parent !== this.nameLayer) return;
+    /**
+     * REDRAWN each frame, because its two ends do not move together.
+     *
+     * The plate is a fixed size on screen whatever the rabbit does
+     * (`applyNameScale`), so its foot is always NAME_Y screen-pixels up. The
+     * line's other end is pinned to the HEAD, which is the rabbit's own
+     * geometry and rides the container's scale — a crowned rabbit is twice as
+     * big and its ears are twice as far up.
+     *
+     * So the length is a difference between one number that scales and one
+     * that does not, and it cannot be baked into the path. Drawn once at
+     * `setName` with the rabbit's scale folded in, the crowned leader's line
+     * ran to NAME_Y * 2 — a mast standing a whole plate's height above its own
+     * name, while every other rabbit's line was right.
+     */
+    stem.position.set(this.container.x, this.container.y);
+    stem.clear()
+      // The top is the plate's own frame — unscaled, like the plate.
+      .moveTo(0, NAME_STEM_TOP)
+      // The bottom is the rabbit's — scaled, so it tracks the ears.
+      .lineTo(0, NAME_STEM_BOTTOM * k)
+      .stroke({ color: NAME_STEM_TINT, width: NAME_STEM_W, cap: 'square' });
+    stem.alpha = this.container.alpha;
+    stem.visible = this.container.visible;
   }
 
   /**

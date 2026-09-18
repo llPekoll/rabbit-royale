@@ -372,13 +372,19 @@ export class IslandScene implements Scene {
    */
   private hintLayer = new Container();
   /**
-   * Where the rabbits' name plates are drawn.
+   * Where the rabbits' name plates and their leader lines are drawn.
    *
-   * Its own layer for the same reason the hints have one, and a rank BELOW
-   * them: the plate sits under its rabbit's feet, which puts it over the next
-   * cell down the diagonal — a cell that sorts after the rabbit and would
-   * otherwise clip the name mid-letter. Under the counts, because a name may
-   * never be the thing that hides a number.
+   * Its own layer for the same reason the hints have one: parented to the
+   * rabbit, a plate sorts at the rabbit's own depth and anything drawn after
+   * it — a neighbour's ground, a tree, another rabbit — covers it mid-letter.
+   *
+   * ABOVE the counts, which is the one place it has been on both sides of.
+   * The rule everywhere else in this scene is that nothing may hide a number,
+   * so the plates started under them; but the plate now floats most of a tile
+   * above the rabbit and is joined to it by a hairline, and a line broken
+   * wherever it crosses a dug tile joins nothing — it reads as a dash over the
+   * head and a dash under the plate. The line has to be whole to do its job,
+   * and it is one pixel wide: it costs a number nothing to be crossed by it.
    */
   private nameLayer = new Container();
 
@@ -389,7 +395,7 @@ export class IslandScene implements Scene {
       this.container.addChild(this.hintLayer);
     }
     if (!this.nameLayer.parent) {
-      this.nameLayer.zIndex = 999_000;
+      this.nameLayer.zIndex = 1_100_000;
       this.nameLayer.sortableChildren = false;
       this.container.addChild(this.nameLayer);
     }
