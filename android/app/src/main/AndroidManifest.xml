@@ -17,8 +17,20 @@
         </intent>
     </queries>
 
+    <!-- hardwareAccelerated est declare EXPLICITEMENT, aux deux niveaux.
+         Le defaut d'Android est certes true au-dessus de targetSdk 14, mais
+         c'est un defaut que des surcouches constructeur et les modes
+         d'economie de batterie retrogradent sans le dire. Une WebView
+         retrogradee perd WebGL et Pixi tombe sur un chemin CPU, ou chaque
+         texture passe par le processeur.
+         Ce n'etait PAS la cause de la lenteur au demarrage (la sonde de
+         MainActivity mesure Mali-G615, webgl2=true, LOGICIEL=false sur un
+         Seeker) : c'est une ceinture, pas un correctif. Un jeu WebGL ne peut
+         pas laisser ce point a un defaut implicite. -->
+
     <application
         android:allowBackup="false"
+        android:hardwareAccelerated="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
@@ -28,6 +40,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:hardwareAccelerated="true"
             android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|uiMode"
             android:screenOrientation="sensorLandscape"
             android:launchMode="singleTask"

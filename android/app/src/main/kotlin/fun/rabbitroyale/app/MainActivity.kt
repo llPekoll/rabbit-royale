@@ -64,10 +64,28 @@ class MainActivity : AppCompatActivity() {
                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
 
+        // 4. Inspection depuis chrome://inspect — en build debug UNIQUEMENT.
+        //    Sans ca, une lenteur dans la WebView ne se diagnostique pas : on
+        //    ne voit ni la timeline reseau, ni le contexte WebGL reellement
+        //    obtenu. Jamais en release : ce serait ouvrir la page a qui
+        //    branche un cable.
+        if (BuildConfig.DEBUG) WebView.setWebContentsDebuggingEnabled(true)
+
         webView = WebView(this).apply {
+            // Couche materielle explicite, pour la meme raison que le manifeste :
+            // c'est ce qui garantit le contexte WebGL dont Pixi a besoin.
+            setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
             settings.apply {
                 javaScriptEnabled = true
                 domStorageEnabled = true   // localStorage : la session survit au kill
+                // Le cache HTTP de la WebView, d'un lancement a l'autre. C'est
+                // la mesure la plus rentable du boot : sans lui les 18 chunks
+                // JS et l'art repartent sur le reseau a chaque demarrage, et
+                // chaque requete paie un aller-retour vers Helsinki (~370ms de
+                // TCP+TLS mesures). Avec, le second lancement ne demande plus
+                // un octet (0Ko reseau, 17/18 en cache) et `load` tombe de
+                // ~6800ms a ~1400ms sur un Seeker.
+                databaseEnabled = true
                 mediaPlaybackRequiresUserGesture = false
                 cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
             }
@@ -85,6 +103,10 @@ class MainActivity : AppCompatActivity() {
                     startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, request.url))
                     return true
                 }
+
+                override fun onPageFinished(view: WebView, url: String) {
+                    if (BuildConfig.DEBUG) probeRendering(view)
+                }
             }
             addJavascriptInterface(WalletBridge(this@MainActivity, this, walletSender), "AndroidWallet")
         }
@@ -92,6 +114,102 @@ class MainActivity : AppCompatActivity() {
         webView.loadUrl(BuildConfig.GAME_URL)
 
         askNotificationPermission()
+    }
+
+    /**
+     * Le rapport de demarrage, dans logcat : ou passe le temps du boot.
+     *
+     * Quatre choses, dans cet ordre : le chemin de RENDU (materiel ou logiciel
+     * — un renderer SwiftShader ou llvmpipe fait passer chaque texture Pixi par
+     * le CPU), le HTML phase par phase, la ventilation des requetes par type
+     * avec ce qui sort du cache, et les cinq ressources les plus lentes.
+     *
+     * Comment le lire : un `attente` eleve en face de peu d'octets designe la
+     * LATENCE du lien, pas le poids du jeu — ce sont deux problemes differents
+     * et un seul se corrige en optimisant le code. La colonne `en cache` dit si
+     * le cache de la WebView fait son travail d'un lancement a l'autre.
+     *
+     * Debug uniquement (voir l'appel), et sans effet sur le jeu : la sonde lit
+     * un contexte jetable et les compteurs que le navigateur tient deja.
+     *
+     * Lecture :  adb logcat -s RRBoot
+     */
+    private fun probeRendering(view: WebView) {
+        val js = """
+            (function () {
+              try {
+                var out = [];
+                var ms = function (n) { return Math.round(n || 0) + 'ms'; };
+                var ko = function (n) { return Math.round((n || 0) / 1024) + 'Ko'; };
+
+                // --- Rendu : materiel ou logiciel ---
+                var c = document.createElement('canvas');
+                var gl = c.getContext('webgl2') || c.getContext('webgl');
+                if (!gl) {
+                  out.push('RENDU: aucun contexte WebGL — logiciel certain');
+                } else {
+                  var dbg = gl.getExtension('WEBGL_debug_renderer_info');
+                  var r = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : 'masque';
+                  out.push('RENDU: ' + r + ' | webgl2=' + !!c.getContext('webgl2')
+                    + ' | LOGICIEL=' + /swiftshader|llvmpipe|software|mesa/i.test(r));
+                }
+
+                // --- Le HTML, phase par phase. C'est ici que se voit la latence :
+                //     un `attente` eleve pour un `octets` faible = le lien, pas le poids.
+                var nav = performance.getEntriesByType('navigation')[0];
+                if (nav) {
+                  out.push('HTML: dns=' + ms(nav.domainLookupEnd - nav.domainLookupStart)
+                    + ' tcp=' + ms(nav.connectEnd - nav.connectStart)
+                    + ' tls=' + ms(nav.secureConnectionStart > 0 ? nav.connectEnd - nav.secureConnectionStart : 0)
+                    + ' attente=' + ms(nav.responseStart - nav.requestStart)
+                    + ' download=' + ms(nav.responseEnd - nav.responseStart)
+                    + ' total=' + ms(nav.responseEnd));
+                  out.push('PAGE: domReady=' + ms(nav.domContentLoadedEventEnd)
+                    + ' load=' + ms(nav.loadEventEnd));
+                }
+
+                // --- Ventilation par type, avec ce qui sort DU CACHE.
+                //     transferSize 0 avec decodedBodySize > 0 = servi par le cache :
+                //     c'est la mesure qui dit si le cache WebView fait son travail.
+                var res = performance.getEntriesByType('resource');
+                var g = {};
+                res.forEach(function (e) {
+                  var k = e.initiatorType === 'xmlhttprequest' || e.initiatorType === 'fetch' ? 'api'
+                        : /\.js(\?|$)/.test(e.name) ? 'js'
+                        : /\.(png|webp|jpg|svg|avif)(\?|$)/.test(e.name) ? 'img'
+                        : /\.css(\?|$)/.test(e.name) ? 'css'
+                        : /\.(mp3|ogg|wav)(\?|$)/.test(e.name) ? 'audio' : 'autre';
+                  var a = g[k] || (g[k] = { n: 0, ms: 0, octets: 0, cache: 0 });
+                  a.n++; a.ms += e.duration; a.octets += e.transferSize || 0;
+                  if ((e.transferSize || 0) === 0 && (e.decodedBodySize || 0) > 0) a.cache++;
+                });
+                Object.keys(g).sort().forEach(function (k) {
+                  var a = g[k];
+                  out.push('  ' + k + ': ' + a.n + ' req, ' + ms(a.ms) + ' cumule, '
+                    + ko(a.octets) + ' reseau, ' + a.cache + '/' + a.n + ' en cache');
+                });
+                out.push('TOTAL: ' + res.length + ' requetes');
+
+                // --- Les 5 plus lentes, pour savoir QUOI attaquer.
+                res.slice().sort(function (a, b) { return b.duration - a.duration; })
+                  .slice(0, 5).forEach(function (e) {
+                    out.push('  lent: ' + ms(e.duration) + ' ' + e.name.split('/').pop().slice(0, 48));
+                  });
+
+                return out.join('\n');
+              } catch (e) { return 'sonde en echec: ' + e.message; }
+            })();
+        """.trimIndent()
+        view.evaluateJavascript(js) { result ->
+            // evaluateJavascript rend une chaine JSON : les \n y sont echappes.
+            // On les redeplie pour que logcat affiche un vrai rapport multi-lignes.
+            val report = result
+                .removeSurrounding("\"")
+                .replace("\\n", "\n")
+                .replace("\\\"", "\"")
+                .replace("\\\\", "\\")
+            for (line in report.lines()) android.util.Log.i("RRBoot", line)
+        }
     }
 
     /**
