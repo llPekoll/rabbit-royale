@@ -1,58 +1,48 @@
 /**
- * The name under a rabbit is CUT, and cut safely.
+ * The name floats high above its rabbit, joined to it by a line.
  *
- * The plate exists to tell four rabbits apart at a glance, not to carry a
- * handle: a full name spanned three cells of counts and hid the numbers behind
- * it, which on a minesweeper board is the run. So it is trimmed to four
- * characters and marked.
+ * The plate has moved twice in one day and each move broke something the
+ * previous position hid: over the head it covered the counts, under the feet
+ * it read as part of the sprite. It now sits a good half-tile up with a leader
+ * line down to the ears — which only works while three numbers stay in the
+ * right order, and nothing on screen says so when they stop.
  *
- * Worth a test rather than an eye, for two reasons the picture does not show:
+ * That is what this asserts. The height itself is a matter of taste and is
+ * judged by eye in `Island/CrownedRabbit`; the RELATIONSHIP is not, because a
+ * retune of any one of them gives either a name joined to nothing or a stick
+ * driven through the rabbit's head.
  *
- *   - the mark is three PERIODS, not the single-glyph ellipsis. The kit's
- *     bitmap atlas is 0x20–0x7E and a BitmapText drops an unknown glyph
- *     silently, so "…" would render as nothing in English — the name would
- *     read as accidentally truncated instead of deliberately shortened, and
- *     nothing on screen would say why.
- *   - a string indexes by UTF-16 code unit. `slice(0, 4)` through a name whose
- *     fourth character is an emoji or a sinogram cuts mid-surrogate and yields
- *     half a character, which draws as a blank box. Names are user input and
- *     this game ships in four languages, so that case is real.
+ * The rabbit's own measurements are the ones the crown is placed against (see
+ * CROWN_Y): the art stands ~16 units tall from the feet at y 0, so anything
+ * between -16 and 0 is INSIDE the sprite.
  */
 import { describe, expect, it } from 'vitest';
-import { shortName } from '@/game/entities/PlayerRabbit';
+import { NAME_Y, NAME_STEM_TOP, NAME_STEM_BOTTOM } from '@/game/entities/PlayerRabbit';
 
-describe('the name plate under a rabbit', () => {
-  it('leaves a short name alone', () => {
-    expect(shortName('BRAM')).toBe('BRAM');
-    expect(shortName('AB')).toBe('AB');
-    expect(shortName('')).toBe('');
+/** How tall the rabbit's art stands above its feet, in container units. */
+const RABBIT_TOP = -16;
+
+describe('the name plate above a rabbit', () => {
+  it('floats above the head, not on it', () => {
+    // Clear of the ears by a real gap — this is the whole point of the move.
+    expect(NAME_Y).toBeLessThan(RABBIT_TOP);
+    // And by enough to read as a separate label rather than as a hat.
+    expect(RABBIT_TOP - NAME_Y).toBeGreaterThanOrEqual(24);
   });
 
-  it('cuts a long one to four characters and marks it', () => {
-    expect(shortName('CURSEDWHISKERS2')).toBe('CURS...');
-    expect(shortName('BRAMBLE')).toBe('BRAM...');
+  it('draws the line from inside the plate down to above the ears', () => {
+    // Up is negative, so the top is the SMALLER number.
+    expect(NAME_STEM_TOP).toBeLessThan(NAME_STEM_BOTTOM);
+    // Tucked into the glyphs, so the line and the name read as one object
+    // instead of as a label hovering over an unrelated stick.
+    expect(NAME_STEM_TOP).toBeGreaterThan(NAME_Y);
+    // Stops before the art: a line into the sprite is a spike through the head.
+    expect(NAME_STEM_BOTTOM).toBeLessThan(RABBIT_TOP);
   });
 
-  it('marks with three periods, never the ellipsis glyph', () => {
-    // The atlas cannot draw "…", and drops it without a word.
-    expect(shortName('CURSEDWHISKERS2')).not.toContain('…');
-    expect(shortName('CURSEDWHISKERS2').endsWith('...')).toBe(true);
-  });
-
-  it('counts code points, so a wide name is not cut in half', () => {
-    // Five sinograms: cut to four whole ones, not to four code units.
-    expect(shortName('兎小屋兎小')).toBe('兎小屋兎...');
-    // An emoji is a surrogate PAIR — `slice` would leave a lone half here.
-    const emoji = shortName('🐰🐰🐰🐰🐰');
-    expect(emoji).toBe('🐰🐰🐰🐰...');
-    // No lone surrogate survived the cut.
-    expect(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(emoji)).toBe(false);
-  });
-
-  it('keeps a name of exactly the limit whole, with no mark', () => {
-    // The boundary: four is kept, five is cut. An off-by-one here would put a
-    // mark on a name that fits, which looks like a bug to the player.
-    expect(shortName('ABCD')).toBe('ABCD');
-    expect(shortName('ABCDE')).toBe('ABCD...');
+  it('leaves no gap between the line and the plate', () => {
+    // The failure this catches: someone lifts the plate without lifting the
+    // line, and the name floats free above a stub that points at nothing.
+    expect(NAME_STEM_TOP - NAME_Y).toBeLessThanOrEqual(8);
   });
 });

@@ -90,19 +90,22 @@ const CROWN_LEAD_SCALE = 2;
 /* ── THE NAME PLATE ───────────────────────────────────────────────────────── */
 
 /**
- * How far BELOW the feet the name sits.
+ * How far ABOVE the feet the name floats.
  *
- * It floated over the head until 2026-09-18, and above the head is where the
- * board is: the plate spanned three cells of counts and wiped out the numbers
- * behind it — "avec nom du joueur c'est illisible", on a shot where
- * CURSEDWHISKERS2 crossed the whole top of the screen. Under the feet it lands
- * on the rabbit's OWN tile, the one cell whose count is already covered by the
- * rabbit standing on it (`raiseHint` lifts that one clear anyway).
+ * It went UNDER the feet on 2026-09-18, to get it off the board — over the
+ * head it had spanned three cells of counts and wiped out the numbers behind
+ * it. Under the feet it was legible but wrong: the plate sat in the rabbit's
+ * lap, close enough to read as part of the sprite rather than as a label for
+ * it ("c'est null"). So it goes back up, but MUCH higher than it ever was —
+ * clear of the head by a good half-tile, with a leader line down to the ears
+ * (see NAME_STEM_*) doing the work the proximity used to do.
  *
- * Positive, because the sprite is anchored at 0.9 — the feet are y 0 — so this
- * is measured down from the contact point, just past the tile's own half-height.
+ * Negative: the sprite is anchored at 0.9, so the feet are y 0 and up is less.
+ * The rabbit's art stands ~16 units tall, so this leaves roughly a tile's own
+ * height of air between the ears and the plate's foot — which is the gap the
+ * line is drawn in, and the reason the name no longer reads as a hat.
  */
-const NAME_Y = 13;
+export const NAME_Y = -46;
 /**
  * The plate's size, in the container's units.
  *
@@ -112,44 +115,51 @@ const NAME_Y = 13;
  */
 const NAME_SCALE = 0.55;
 /**
- * How many characters of a name are drawn before it is cut.
+ * THE LEADER LINE, from the plate down to the rabbit's head.
  *
- * The plate is an identifier, not a signature: four letters tell two rabbits
- * apart at a glance, and a full handle is available everywhere it can be read
- * properly (the leaderboard, the raid panel). This is what keeps the label
- * inside its own cell instead of across the neighbours' counts.
+ * A label parked a half-tile above a sprite, on a board with four rabbits on
+ * it, belongs to NOBODY: at that distance the eye has to guess which rabbit a
+ * name goes with, and on a crowded island it guesses wrong. The line is what
+ * makes the pairing unambiguous without moving the plate back down into the
+ * art — the same trick a map's callout uses, and the reason the plate can
+ * afford to be this far up at all.
+ *
+ * White rather than the name's own ink: the line is structure, not text, and
+ * a gold line under a gold name reads as part of the glyphs. It carries the
+ * plate's dark outline for the same reason the glyphs do — a hairline of pure
+ * white vanishes against the sky, the sand and the sheep.
  */
-const NAME_MAX_CHARS = 4;
+const NAME_STEM_TINT = 0xffffff;
+const NAME_STEM_EDGE = 0x0c0a12;
 /**
- * The cut mark. Three periods, NOT the single-glyph ellipsis.
+ * Where the line starts and stops, in the container's units — from just under
+ * the plate down to just over the ears, so it touches neither.
  *
- * The kit's basic atlas is 0x20–0x7E (see arcade-kit's bitmap-fonts), and a
- * BitmapText drops a glyph it does not have SILENTLY — so "…" would render as
- * nothing at all in English, the one language that uses the atlas, and the
- * name would read as cut by accident rather than on purpose.
+ * Exported, with NAME_Y, because the three are a GEOMETRY and not three loose
+ * numbers: the line has to reach from inside the plate to above the head, and
+ * getting one of them wrong gives either a floating name joined to nothing or
+ * a stick through the rabbit's skull. `test/rabbit-name.test.ts` asserts the
+ * relationship, which is the kind of thing a later retune breaks silently.
  */
-const NAME_ELLIPSIS = '...';
+export const NAME_STEM_TOP = NAME_Y + 6;
+export const NAME_STEM_BOTTOM = -18;
+/**
+ * The line's own width, and its dark edge's.
+ *
+ * Both thin, and this is the whole difference between a leader line and a
+ * post: at 1 over a 3px edge the first cut drew a black bar with a white seam
+ * down it, which read as a fence the rabbit was tied to. The white has to be
+ * the thing you see, with just enough dark either side to keep it off pale
+ * ground — so the edge is one pixel wider than the line, no more.
+ *
+ * Whole numbers, because the art is pixels and a 1.5px line renders as two
+ * grey ones.
+ */
+const NAME_STEM_W = 1;
+const NAME_STEM_EDGE_W = 2;
 /** Your own name reads gold, everyone else's white — the game's own YOURS ink. */
 const NAME_TINT_ME = 0xffd45c;
 const NAME_TINT_OTHER = 0xffffff;
-
-/**
- * A name cut to the plate: the first `NAME_MAX_CHARS`, then the mark.
- *
- * `Array.from` rather than `slice`, because a string indexes by UTF-16 code
- * unit and a name is not guaranteed to be Latin — a player called 兎小屋 or one
- * with an emoji in their handle would be cut mid-surrogate by `slice(0, 4)`,
- * which yields half a character: a lone surrogate that draws as a blank box or
- * as nothing. Iterating gives whole code points.
- *
- * Exported for the test, which is the only way to assert the cut without
- * building a Pixi application to read a glyph back off a texture.
- */
-export function shortName(name: string): string {
-  const chars = Array.from(name);
-  if (chars.length <= NAME_MAX_CHARS) return name;
-  return chars.slice(0, NAME_MAX_CHARS).join('') + NAME_ELLIPSIS;
-}
 
 export class PlayerRabbit {
   sprite: AnimatedSprite;
@@ -184,6 +194,14 @@ export class PlayerRabbit {
   private crownGrows = true;
   /** The floating name plate, when this rabbit has been given one. */
   private nameplate: Container | null = null;
+  /**
+   * The line joining the plate to the head.
+   *
+   * Inside the container rather than on the name layer, so it moves with the
+   * sprite for free. It is destroyed WITH the container (it is a child), so
+   * unlike the plate it needs no hand cleanup — only the handle is dropped.
+   */
+  private nameStem: Graphics | null = null;
   /**
    * Where the plate is drawn, when the scene wants it out of the sort.
    *
@@ -637,21 +655,6 @@ export class PlayerRabbit {
   }
 
   /**
-   * Put this rabbit's name under its feet.
-   *
-   * Cut to four characters (`shortName`), because the plate is an identifier
-   * and not a signature — the whole handle is readable in the leaderboard and
-   * the raid panel, where there is room for it.
-   *
-   * The plate is the same size on everyone, whatever the container is doing:
-   * crowning doubles the rabbit (see `setCrowned`), and a name that inherited
-   * that would shout the leader's name twice as loud as the rest. The crown
-   * already says who leads; the label is only there to say who is who.
-   *
-   * Passing an empty name removes the plate: a guest with no name set is
-   * better served by no label than by an empty ring of outline.
-   */
-  /**
    * Draw this rabbit's plate on `layer` instead of inside the rabbit.
    *
    * Set by a scene that has a sorted board, BEFORE the name — the plate is
@@ -662,6 +665,24 @@ export class PlayerRabbit {
     this.nameLayer = layer;
   }
 
+  /**
+   * Float this rabbit's name high above its head, on a leader line.
+   *
+   * Drawn WHOLE. It was cut to four characters earlier the same day, to keep
+   * it from covering the board — but a name is who somebody is, and "CURS..."
+   * names nobody. What buys the room is the height, not the trimming: this far
+   * up the plate clears the counts around the rabbit instead of lying across
+   * them, and the line (see NAME_STEM_*) says whose it is.
+   *
+   * The plate is the same size on everyone, whatever the container is doing:
+   * crowning doubles the rabbit (see `setCrowned`), and a name that inherited
+   * that would shout the leader's name twice as loud as the rest. The crown
+   * already says who leads; the label is only there to say who is who.
+   *
+   * Passing an empty name removes the plate AND its line: a guest with no name
+   * set is better served by no label than by an empty ring of outline hanging
+   * off a stick.
+   */
   setName(name: string, isMe = false): void {
     if (this.container.destroyed) return;
 
@@ -669,20 +690,42 @@ export class PlayerRabbit {
       this.nameplate.destroy({ children: true });
       this.nameplate = null;
     }
+    if (this.nameStem) {
+      this.nameStem.destroy();
+      this.nameStem = null;
+    }
     if (!name) return;
 
-    const plate = outlinedPixelText(0, NAME_Y, shortName(name));
+    /**
+     * The line first, so it is BEHIND the plate: it runs up to NAME_STEM_TOP,
+     * a few units into where the glyphs sit, and a line drawn after them would
+     * cross the first letter's foot.
+     *
+     * A child of the CONTAINER, unlike the plate — it belongs to the rabbit's
+     * own art the way the crown does, so it flips, hops and tumbles with the
+     * sprite for free. The plate is deported because it must not be clipped;
+     * the line is short enough that nothing can clip it.
+     */
+    const stem = new Graphics()
+      .moveTo(0, NAME_STEM_TOP).lineTo(0, NAME_STEM_BOTTOM)
+      .stroke({ color: NAME_STEM_EDGE, width: NAME_STEM_EDGE_W, cap: 'square' })
+      .moveTo(0, NAME_STEM_TOP).lineTo(0, NAME_STEM_BOTTOM)
+      .stroke({ color: NAME_STEM_TINT, width: NAME_STEM_W, cap: 'square' });
+    this.container.addChild(stem);
+    this.nameStem = stem;
+
+    const plate = outlinedPixelText(0, NAME_Y, name);
     plate.face.tint = isMe ? NAME_TINT_ME : NAME_TINT_OTHER;
     this.nameplate = plate.group;
     /**
      * ON THE SHARED LAYER when the scene hands one over, in the rabbit's
      * container otherwise.
      *
-     * Under the feet the plate reaches into the NEXT cell down the diagonal,
-     * and that cell sorts AFTER the rabbit — so a plate parented to the rabbit
-     * was drawn and then half covered by the neighbour's ground, which reads
-     * as a name clipped mid-letter. Above the head this never happened, which
-     * is why the layer was not needed until the plate moved.
+     * A plate parented to the rabbit is drawn at the rabbit's own depth, so
+     * anything sorting after it draws over the top — a neighbour's ground, a
+     * tree, another rabbit one cell down. Whole names are long, and a long
+     * label at this height reaches well into the cells around it, so the odds
+     * of something covering a letter are high.
      *
      * Same arrangement the counts already use (`Tile`'s hintLayer): a layer
      * over everything, with the plate carrying the rabbit's world position
@@ -804,6 +847,8 @@ export class PlayerRabbit {
       onComplete: () => {
         if (plate && !plate.destroyed) plate.destroy({ children: true });
         this.nameplate = null;
+        // The line fades with the container it hangs in, and goes with it.
+        this.nameStem = null;
         if (!this.container.destroyed) this.container.destroy({ children: true });
       },
     });
@@ -823,6 +868,9 @@ export class PlayerRabbit {
     // the life of the island. Dropped explicitly, before the handle is let go.
     if (this.nameplate && !this.nameplate.destroyed) this.nameplate.destroy({ children: true });
     this.nameplate = null;
+    // A child of the container, so `destroy({ children: true })` below takes
+    // it — only the handle is let go here.
+    this.nameStem = null;
     if (this.container.destroyed) return;
     this.sprite.stop();
     this.container.destroy({ children: true });
