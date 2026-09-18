@@ -226,25 +226,29 @@ export function cascadeHints(island: Island, from: Iterable<number>, around?: nu
 }
 
 /**
- * The cascade as seen from `tile`: every open zero within reach opens its
- * neighbours, within reach. Called wherever a rabbit comes to rest, which is
- * what lets a bounded cascade finish the region it started — a step into a
- * field of zeros writes the next row of numbers.
+ * The cascade as seen from `tile`: the WHOLE connected region of zeros opens,
+ * out to the first real number on every side.
+ *
+ * Unbounded, which is minesweeper's own rule. It used to stop at
+ * `ISLAND.CASCADE_RADIUS` squares of the rabbit, so a wide field of zeros came
+ * open in slices as the player walked into it — and a zone half opened reads
+ * as a zone that failed to open. Paul, watching the ripple run over one:
+ * "quand tu clean une zone faut nettoyer toute la zone".
+ *
+ * What that costs is real and was the reason for the bound: a region can be
+ * large (35 tiles on average, 193 at the worst measured), and every tile it
+ * opens is reading the player did not have to do. The trade was made
+ * deliberately — a zone that opens fully is one the player can trust, and the
+ * ripple now says where it went.
+ *
+ * The island's BIRTH still bounds its cascade (see `generateIsland`): a board
+ * dealt unbounded is born with a quarter of its numbers already written, which
+ * is a different thing entirely from a zone opening under a spade.
  */
 export function cascadeAround(island: Island, tile: number): HintReveal[] {
-  const { col, row } = toColRow(tile);
-  const r = ISLAND.CASCADE_RADIUS;
-  const seeds: number[] = [];
-  for (let dr = -r; dr <= r; dr++) {
-    for (let dc = -r; dc <= r; dc++) {
-      const c = col + dc;
-      const w = row + dr;
-      if (c < 0 || c >= COLS || w < 0 || w >= ROWS) continue;
-      const i = toIndex(c, w);
-      if (island.tiles.has(i)) seeds.push(i);
-    }
-  }
-  return cascadeHints(island, seeds, tile);
+  // Seeded from the tile itself: the walk spreads over every open zero it
+  // meets, so one foot in the region is enough to open all of it.
+  return cascadeHints(island, [tile]);
 }
 
 /**

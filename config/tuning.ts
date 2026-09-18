@@ -193,16 +193,16 @@ export const ISLAND = {
  * island visibly heaved around every dig.
  *
  * Tuned on `Island/Cascade wave` in Storybook, which plays the real cascade
- * over a real island, and against the SCALE that decides all of it: a zone is
- * bounded to CASCADE_RADIUS (3) cells, so it is three rings and about forty
- * tiles — not the hundred "a whole zone" suggests. A wave over three rings has
- * room for three beats and no more.
+ * over a real island. A zone is now the WHOLE connected region of zeros (see
+ * `cascadeAround`) — 35 tiles on average and up to ~190 — so MAX_DELAY, not
+ * PER_STEP, is what decides how long the front takes on a wide one: past about
+ * five rings the spread is compressed to fit the cap. Measured in game, a big
+ * zone's front runs 3 → 10 → 19 → 20 → 11 → 5 lids over ~350ms.
  */
 export const RIPPLE = {
   /**
-   * Seconds of delay per step out from the dig. With three rings this is
-   * close to "how long the whole thing takes, divided by three" rather than a
-   * fine-grained stagger.
+   * Seconds of delay per step out from the dig, before MAX_DELAY scales it
+   * down on a wide zone.
    *
    * Read against the lid's own fade, which `Tile.revealHint` fixes at 0.25s:
    * below about a third of that the rings overlap into a single bloom and the

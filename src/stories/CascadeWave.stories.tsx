@@ -16,12 +16,13 @@
  * The two stories are the comparison; the sliders are for picking the numbers
  * that would go into the scene.
  *
- * SCALE, because it decides every timing here: a zone is bounded to
- * `ISLAND.CASCADE_RADIUS` (3) squares of the dig, so it is at most three rings
- * and in practice a dozen tiles — not the hundred the phrase "a whole zone"
- * suggests. A wave over three rings has room for three beats and no more, so
- * the delay per step has to be big enough to separate them. Tuned that way and
- * not by what looks right on an imagined larger region.
+ * SCALE, because it decides every timing here. A zone is the whole connected
+ * region of zeros — 35 tiles on average, and the largest measured was 193 — so
+ * the front has real distance to cross and `maxDelay` is what keeps a wide one
+ * from outliving the player's attention.
+ *
+ * This story still opens the zone `cascadeAround` gives it, so it shows
+ * whatever the rules currently deal.
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Container } from 'pixi.js';
@@ -48,9 +49,8 @@ interface Args {
    * Seconds of delay added per step away from the dig. 0 is today's behaviour:
    * every tile starts on the same frame.
    *
-   * There are only ever three rings (see the header), so this is close to "how
-   * long the whole wave takes, divided by three" rather than a fine-grained
-   * per-tile stagger.
+   * Scaled down by `maxDelay` on a zone wide enough that the full spread would
+   * outrun the cap.
    *
    * Read against the lid's OWN fade, which `revealHint` fixes at 0.25s and
    * this story deliberately does not touch: below about a third of that the

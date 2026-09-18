@@ -43,24 +43,58 @@ const recount = (island: Island) => {
   }
 };
 
-describe('the cascade is bounded around the rabbit', () => {
-  it('writes nothing further than CASCADE_RADIUS squares out', () => {
+describe('a zone opens whole', () => {
+  it('can still be bounded, which is what the island BIRTH uses', () => {
+    // `cascadeHints` keeps its optional bound: the deal uses it so a board is
+    // not born half read (see the newborn test below). Play does not.
     const island = quiet();
     const spawn = spawnTile(SEED);
     island.tiles.get(spawn)!.revealed = true;
     const opened = cascadeHints(island, [spawn], spawn);
     expect(opened.length).toBeGreaterThan(8);
     for (const h of opened) expect(squares(h.tile, spawn)).toBeLessThanOrEqual(ISLAND.CASCADE_RADIUS);
-    // Unbounded, the same field opens to the shore — that is what was cut.
+    // Unbounded, the same field opens to the shore — and that is now what a
+    // dig does.
     const rest = cascadeHints(island, [spawn]);
     expect(rest.length).toBeGreaterThan(opened.length);
+  });
+
+  it('opens the whole connected region, not a square around the rabbit', () => {
+    // The zone used to come open in slices as the rabbit walked into it, and
+    // a zone half opened reads as one that failed to open. One foot in the
+    // region now opens all of it.
+    const island = quiet();
+    const spawn = spawnTile(SEED);
+    island.tiles.get(spawn)!.revealed = true;
+    const whole = cascadeAround(island, spawn);
+    expect(whole.length).toBeGreaterThan(0);
+    // Strictly more than the bounded walk would have written, and reaching
+    // past the old radius — the two facts the bound used to forbid. Measured
+    // on a fresh copy of the same board, since the walk above consumed this one.
+    const fresh = quiet();
+    fresh.tiles.get(spawn)!.revealed = true;
+    const bounded = cascadeHints(fresh, [spawn], spawn);
+    expect(whole.length).toBeGreaterThan(bounded.length);
+    expect(Math.max(...whole.map((h) => squares(h.tile, spawn)))).toBeGreaterThan(ISLAND.CASCADE_RADIUS);
+    // And nothing it opened is a bomb: a zero never neighbours one.
+    for (const h of whole) expect(island.tiles.get(h.tile)!.content).not.toBe('bomb');
+  });
+
+  it('has nothing left to open once the zone is open', () => {
+    // The walk paid for the whole region at once, so standing on it again
+    // opens nothing: the second call is the idempotence the client relies on
+    // (a re-sent move must not re-announce a zone).
+    const island = quiet();
+    const spawn = spawnTile(SEED);
+    island.tiles.get(spawn)!.revealed = true;
+    expect(cascadeAround(island, spawn).length).toBeGreaterThan(0);
+    expect(cascadeAround(island, spawn)).toEqual([]);
   });
 
   it('is carried on by a plain walk over dug ground', () => {
     const island = quiet();
     const spawn = spawnTile(SEED);
     island.tiles.get(spawn)!.revealed = true;
-    cascadeHints(island, [spawn], spawn);
     const step = terrainNeighbors(SEED, spawn).find((n) => island.tiles.has(n))!;
     island.tiles.get(step)!.revealed = true;
     island.dugCount++;
@@ -70,8 +104,7 @@ describe('the cascade is bounded around the rabbit', () => {
     expect(out.ok).toBe(true);
     expect(out.dig).toBeUndefined();
     expect(out.hinted?.length).toBeGreaterThan(0);
-    for (const h of out.hinted!) expect(squares(h.tile, step)).toBeLessThanOrEqual(ISLAND.CASCADE_RADIUS);
-    // Standing still opens nothing more: the walk is what pays for the read.
+    // Standing still opens nothing more — the region is already open.
     expect(cascadeAround(island, step)).toEqual([]);
   });
 
