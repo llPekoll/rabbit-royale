@@ -157,7 +157,22 @@ export function TargetList({ targets, busy, onEnter, onClose, note }: TargetList
                 return (
                   <li key={t.id} className={shielded ? 'shielded' : ''}>
                     <PxPanel color={PLANK} className="rr-raid-row">
-                      <span className="rr-raid-name">{t.name}</span>
+                      {/* WHERE THE OWNER IS STANDING, next to their name.
+                          The list ranked burrows by stock alone, which answers
+                          "how much" and not "what kind of raid is this". They
+                          are different raids: an owner out on an island cannot
+                          see you coming, while one at home is told the moment
+                          you step in (`tellDefender`) and can end the crossing
+                          with lightning. Same green dot as the season board,
+                          because it means the same thing in both places —
+                          out digging right now. */}
+                      <span className="rr-raid-name">
+                        {t.name}
+                        {t.digging && <i className="rr-live" aria-hidden />}
+                        {t.digging && (
+                          <small className="rr-raid-where">{d.raid.outDigging}</small>
+                        )}
+                      </span>
                       <span className="rr-raid-stock">{groupDigits(t.stock)} 🥕</span>
                       {/* Shielded targets are shown but not attackable: hiding
                           them would make the list look empty for no visible

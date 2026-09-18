@@ -450,6 +450,14 @@ export const en = {
     allShielded: 'ALL BURROWS SHIELDED',
     nobody: 'NOBODY TO ROB',
     shielded: 'Shielded',
+    /**
+     * The owner is out on an island while you rob them.
+     *
+     * Says the CONSEQUENCE, not the status: "online" is a fact about an
+     * account, "out digging" is a fact about the burrow you are about to
+     * walk into — nobody home to stop you, but they will be told you came.
+     */
+    outDigging: 'out digging',
     raidIt: 'Raid',
     brief: 'Reach the carrot field. Their traps are buried and unmarked.',
     outOfEnergy: 'Out of energy',

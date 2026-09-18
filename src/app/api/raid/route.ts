@@ -22,6 +22,7 @@ import { pushToPlayer } from '@/lib/game/raid-events';
 import { defenderRaidView } from '@/lib/game/defence';
 import { players, raidRuns, raids, traps } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
+import { onlineAmong } from '@/lib/leaderboard';
 import {
   distanceToField, raiderView, settleRaid, trapClues,
 } from '@/lib/game/raid';
@@ -195,6 +196,20 @@ export async function GET(req: Request) {
     .limit(20);
 
   const now = Date.now();
+  /**
+   * WHO IS OUT ON AN ISLAND RIGHT NOW — the one thing this list never said.
+   *
+   * A raider's real question is not only "how much are they holding" but
+   * "where is the owner standing while I take it". The two answers lead to
+   * two different raids: a burrow whose owner is away is a walk, and one
+   * whose owner is at home can answer live — they see the intruder
+   * (`tellDefender`) and they have the lightning to end the crossing.
+   *
+   * One round trip for all twenty rows, and an empty set when Redis is down
+   * (see `onlineAmong`): a target simply reads as away, which is the same thing
+   * the list said before this existed.
+   */
+  const digging = await onlineAmong(targets.map((t) => t.id));
   return Response.json({
     raid: null,
     targets: targets.map((t) => ({
@@ -214,6 +229,13 @@ export async function GET(req: Request) {
        *  not as the timestamp, so a client whose clock is wrong still counts
        *  down correctly from the moment the list arrived. */
       shieldedFor: t.shieldedUntil ? Math.max(0, t.shieldedUntil.getTime() - now) : 0,
+      /**
+       * Out digging an island right now — so their burrow is unattended AND
+       * they are in a position to be told. `onlineAmong` reads the set a player joins on landing, so it means "on an island",
+       * not "has the tab open", which is exactly the distinction that matters
+       * here: it is the difference between a quiet robbery and a fight.
+       */
+      digging: digging.has(t.id),
     })),
   });
 }

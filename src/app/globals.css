@@ -4043,22 +4043,51 @@ button { font-family: var(--font-pixel); }
   margin: 0;
   padding: 8px 14px;
 }
+/* The `li` only SPACES the rows now. The three-column grid lives one level
+   down, on `.rr-raid-row`, because the row grew a `PxPanel` frame between the
+   `li` and its contents: the name, the stock and the RAID button are children
+   of that panel, so a grid on the `li` was laying out a single item (the
+   panel) and letting the three real cells fall back to `block` inside it —
+   the name on one line, the stock and the button stacked under it. */
 .rr-raid-list > li {
-  display: grid;
-  grid-template-columns: 1fr auto auto;
-  align-items: center;
-  gap: 10px;
   padding: 10px 0;
   border-bottom: 1px solid var(--plank, #4a2f1d);
 }
 .rr-raid-list > li:last-child { border-bottom: none; }
+.rr-raid-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+}
 /* Shielded targets are listed but out of reach — visible so the board does not
    look empty, dimmed so the eye skips them.
    0.45 was too deep once the row started carrying a COUNTDOWN: at that weight
    the one number a raider comes back for ("4h") was grey mush. Dim enough to
    skip, legible enough to read when you stop on it. */
 .rr-raid-list > li.shielded { opacity: 0.68; }
-.rr-raid-name { font-size: 13px; }
+.rr-raid-name { font-size: 13px; min-width: 0; }
+/* WHERE THE OWNER IS, under their name.
+   A second line rather than a third grid column: the row is `1fr auto auto`
+   (name, stock, button) and a column for a word that only some rows carry
+   would either sit empty on the rest or shift the stock left and right as the
+   list refreshed.
+
+   The line break is made by THIS element alone (`display: block` inside an
+   inline parent), never by turning `.rr-raid-name` into a block — tried that,
+   and a block in the `1fr` track claimed the full width on EVERY row, pushing
+   the stock and the RAID button onto a second line even on rows with no
+   sub-text at all.
+
+   Amber, not the dot's green: the green says "live", this says what being
+   live COSTS you — the owner is home to answer. */
+.rr-raid-where {
+  display: block;
+  font-size: 10px;
+  color: rgba(255, 178, 56, 0.85);
+  line-height: 1.3;
+}
 .rr-raid-stock {
   font-size: 12px;
   color: #ffb238;

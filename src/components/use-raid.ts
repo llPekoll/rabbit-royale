@@ -73,6 +73,15 @@ export interface Target {
    *  counts it down itself rather than re-fetching, so a shield that lifts
    *  while the panel is open turns into a raidable row on its own. */
   shieldedFor?: number;
+  /**
+   * They are out on an island right now, not at home.
+   *
+   * Changes what the raid IS rather than whether it is allowed: an absent
+   * owner is a walk, a digging one can be told the moment you step in
+   * (`tellDefender`) and can end the crossing with lightning. Optional so a
+   * server that predates it reads as "away" — the silence the list had before.
+   */
+  digging?: boolean;
 }
 
 export interface RaidOutcome {

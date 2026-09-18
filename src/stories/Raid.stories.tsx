@@ -18,11 +18,17 @@ const ART = '/assets/island/burrow_generated.webp';
 // Two shielded rows, and DELIBERATELY at opposite ends of the range a shield
 // can run (6h for an item, up to 48h for a burrow that was sacked): the point
 // of the clock is that it tells those two apart, so the story has to hold both.
+/**
+ * A mix on purpose: the richest target is HOME (so the raid is a fight), the
+ * second is away (so it is a walk), and two are shielded. Ordered by stock,
+ * because that is the reason to go — the dot is what tells you which kind of
+ * raid each row actually is.
+ */
 const TARGETS: Target[] = [
-  { id: 'a', name: 'Thistle', avatar: null, stock: 48_200, shielded: false },
+  { id: 'a', name: 'Thistle', avatar: null, stock: 48_200, shielded: false, digging: true },
   { id: 'b', name: 'Bramble', avatar: null, stock: 31_050, shielded: false },
   { id: 'c', name: 'Clover', avatar: null, stock: 12_400, shielded: true, shieldedFor: 5 * 60 * 60 * 1000 },
-  { id: 'd', name: 'Sorrel', avatar: null, stock: 9_870, shielded: false },
+  { id: 'd', name: 'Sorrel', avatar: null, stock: 9_870, shielded: false, digging: true },
   { id: 'e', name: 'Nettle', avatar: null, stock: 7_320, shielded: true, shieldedFor: 41 * 60 * 60 * 1000 },
 ];
 
