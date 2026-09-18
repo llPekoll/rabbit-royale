@@ -75,6 +75,15 @@ export interface TerrainBackground extends IslandBackground {
    * only this adapter knows the grid. False when the cell has no block.
    */
   digCell(index: number): boolean;
+  /**
+   * Take the scenery off whatever would draw over these tiles — see
+   * `IsoIslandView.clearDecoOver`.
+   *
+   * By index, like everything else on this adapter: the board thinks in tiles
+   * and only this seam knows the grid. Called with the CHESTS, which is the
+   * one thing on the island that must never be hidden by a tree.
+   */
+  clearDecoOver(indices: Iterable<number>): void;
 }
 
 /**
@@ -284,6 +293,14 @@ export async function createTerrainBackground(
     digCell(index) {
       const { col, row } = toColRow(index);
       return island.digCell(col, row);
+    },
+    clearDecoOver(indices) {
+      const cells: Array<{ x: number; y: number }> = [];
+      for (const index of indices) {
+        const { col, row } = toColRow(index);
+        cells.push({ x: col, y: row });
+      }
+      island.clearDecoOver(cells);
     },
     update(deltaMs) {
       island.update(deltaMs);

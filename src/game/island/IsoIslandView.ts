@@ -1221,6 +1221,118 @@ export class IsoIslandView {
   }
 
   /**
+   * How many rows NEARER the camera a sprite can still reach back over.
+   *
+   * The scatter is drawn foot-down on its own cell, and the art hangs well
+   * above that foot: a pine is about three cells tall on this projection, so
+   * the one standing three rows in front of a chest still covers the box.
+   * Two rows is where it stops mattering in practice — a bush or a prop at
+   * that distance reaches nothing — but the trees are the whole problem, so
+   * the window is cut for them.
+   */
+  private static readonly COVER_REACH = 3;
+
+  /**
+   * Take the scenery off the cells that would draw over these ones.
+   *
+   * For the CHESTS. A chest is the one thing on the island a player picks out
+   * from across the board and walks towards on purpose, and the scatter knew
+   * nothing about it: the chest tiles are dealt from the private content seed
+   * (see `lib/game/island.ts` — where a chest is must not be derivable from
+   * the public seed), while the trees come from the public one. So the two
+   * cannot be reconciled when the island is GENERATED without leaking the
+   * board, and this is the other end: once the server has said where the
+   * chests are, whatever stands in front of one is removed.
+   *
+   * Removed, not hidden: the sprite, its contact shadow, its place in the
+   * sway and its occupant entry all go at once, so nothing is left animating
+   * or casting on a cell whose tree is gone. What does NOT change is what the
+   * game walks on — that is the board's, built from the placements on both
+   * ends of the wire; `clearCell` says why at length.
+   *
+   * Which cells cover a chest is read off the one ruler the whole island
+   * sorts by (`isoDepth`): anything drawn AFTER the chest's own cell and
+   * within `COVER_REACH` rows of it. Cells behind it are behind it, and the
+   * chest's own cell never carries blocking scenery anyway — the board only
+   * ever deals content onto walkable ground.
+   */
+  clearDecoOver(cells: Iterable<{ x: number; y: number }>): void {
+    const doomed = new Set<string>();
+    for (const c of cells) {
+      // The cell itself is never cleared: the chest stands on it, nothing
+      // blocking does, and the tufts of grass under the box are wanted.
+      for (let dx = 0; dx <= IsoIslandView.COVER_REACH; dx++) {
+        for (let dy = 0; dy <= IsoIslandView.COVER_REACH; dy++) {
+          // NEARER the camera, by the island's own ruler: screen y grows with
+          // (x + y), so that sum is what decides who draws over whom.
+          const nearer = dx + dy;
+          if (nearer === 0 || nearer > IsoIslandView.COVER_REACH) continue;
+          // And ACTUALLY over the box, not merely in front of it. Screen x is
+          // (x - y) * w/2, so a cell offset by (dx - dy) sits that many half
+          // widths sideways — at two it is a full cell clear of the chest and
+          // covers nothing, however tall it is.
+          if (Math.abs(dx - dy) > 1) continue;
+          doomed.add(key(c.x + dx, c.y + dy));
+        }
+      }
+    }
+    for (const k of doomed) this.clearCell(k);
+  }
+
+  /**
+   * Strip one cell of the SCATTER standing on it — sprite, shadow, obstacle.
+   *
+   * Driven off `livestock` rather than off `onCell`, and that is the whole
+   * care in this function. `onCell` is the reveal's index and holds the
+   * GROUND too — the sea diamonds register there so a hidden burrow hides its
+   * water (see `buildSea`) — so sweeping a cell by that list would delete the
+   * water under a coastal chest and leave a hole in the sea. `livestock` is
+   * exactly the standing things, each already paired with its shadow.
+   */
+  private clearCell(k: string): void {
+    const doomed: Container[] = [];
+    for (let i = this.livestock.length - 1; i >= 0; i--) {
+      const entry = this.livestock[i];
+      const { x, y } = entry.occupant;
+      if (key(x, y) !== k) continue;
+      doomed.push(entry.sprite);
+      if (entry.shadow) doomed.push(entry.shadow);
+      this.livestock.splice(i, 1);
+    }
+    if (doomed.length === 0) return;
+
+    const gone = new Set<Container>(doomed);
+    // The sway is keyed by sprite, so it is filtered against the same set
+    // rather than searched once per entry.
+    for (let i = this.animated.length - 1; i >= 0; i--) {
+      if (gone.has(this.animated[i].sprite)) this.animated.splice(i, 1);
+    }
+    const list = this.onCell.get(k);
+    if (list) {
+      const kept = list.filter((sprite) => !gone.has(sprite));
+      if (kept.length) this.onCell.set(k, kept);
+      else this.onCell.delete(k);
+    }
+    for (const sprite of doomed) {
+      this.decoSprites.delete(sprite);
+      if (!sprite.destroyed) sprite.destroy();
+    }
+    // `occupied` and `inhabited` are deliberately LEFT ALONE.
+    //
+    // They are this view's own scratch sets, read while the scatter and the
+    // grass are being laid down — work that finished long before a chest was
+    // ever announced. What the game actually walks on is decided from the
+    // PLACEMENTS, by an `IslandBoard` the server and the client each build
+    // from the seed (see `lib/game/terrainBoard.ts`), and no terrain crosses
+    // the wire. Marking the cell free here would therefore free it on this
+    // client only: the highlight would offer a step the server then refuses.
+    //
+    // Nothing is lost by that. A cell carrying blocking scenery was never
+    // walkable on either side, and it does not become walkable now — the tree
+    // stops being DRAWN, which is all that was in the chest's way.
+  }
+
+  /**
    * Show only these cells, and hide the rest of the island completely.
    *
    * For a board a player is meant to discover by WALKING it — the burrow a

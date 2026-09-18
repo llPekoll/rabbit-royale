@@ -188,3 +188,99 @@ describe('the pointer sees the veil', () => {
     expect(SCENE).toMatch(/const pressed = this\.pressTile;\s*this\.pressTile = null;\s*if \(pressed !== null\) \{\s*this\.requestMove\(pressed\);\s*return;\s*\}/);
   });
 });
+
+/**
+ * A chest is never hidden — not by a tree in front of it, and not by the
+ * window the rabbit punches through its cover.
+ *
+ * A chest is the one thing on the board drawn BEFORE it is dug, and the reason
+ * is the whole decision: the player has to be able to price the walk from
+ * across the island (`showChests`). Two separate things were covering it up.
+ *
+ * The scatter, because the trees are rolled from the PUBLIC seed and the chest
+ * tiles are dealt from the private content seed — so the generator cannot be
+ * taught to leave a gap without telling every client where the chests are.
+ * And the depth hole, which stipples away whatever is drawn over the rabbit
+ * and cannot tell a pine from a prize.
+ *
+ * Geometry-read here rather than rendered, like everything else in this file:
+ * `Island/DepthHole` and `Island/ChestTier` show both for the eye.
+ */
+describe('nothing hides a chest', () => {
+  const SCENE = readFileSync(new URL('../src/game/scenes/IslandScene.ts', import.meta.url), 'utf8');
+
+  /** The cells `clearDecoOver` strips, recomputed from its own two rules. */
+  function covering(reach: number): Array<{ dx: number; dy: number }> {
+    const out: Array<{ dx: number; dy: number }> = [];
+    for (let dx = 0; dx <= reach; dx++) {
+      for (let dy = 0; dy <= reach; dy++) {
+        const nearer = dx + dy;
+        if (nearer === 0 || nearer > reach) continue;
+        if (Math.abs(dx - dy) > 1) continue;
+        out.push({ dx, dy });
+      }
+    }
+    return out;
+  }
+
+  const REACH = 3;
+  const CLEARED = covering(REACH);
+
+  it('clears only cells that draw in FRONT of the chest', () => {
+    // Screen y is (x + y) * h/2, so a greater sum is nearer the camera and
+    // draws later — the same ruler `isoDepth` sorts the whole island by. A
+    // cell behind the chest cannot cover it and must keep its tree.
+    for (const { dx, dy } of CLEARED) expect(dx + dy).toBeGreaterThan(0);
+  });
+
+  it('leaves the chest its own cell', () => {
+    // Nothing blocking is ever dealt onto a chest tile (the board only buries
+    // content in walkable ground), and the tufts under the box are wanted.
+    expect(CLEARED.some((c) => c.dx === 0 && c.dy === 0)).toBe(false);
+  });
+
+  it('spares cells a full cell clear of the box', () => {
+    // Screen x is (x - y) * w/2, so (dx - dy) is the sideways offset in half
+    // widths. At two the cell is a whole cell to the side and covers nothing,
+    // however tall its pine — clearing it would cut holes in the scenery for
+    // no gain.
+    for (const { dx, dy } of CLEARED) expect(Math.abs(dx - dy)).toBeLessThanOrEqual(1);
+    expect(CLEARED.some((c) => c.dx === 2 && c.dy === 0)).toBe(false);
+  });
+
+  it('reaches back as far as a pine is tall, and no further', () => {
+    // A pine is about three cells tall on this projection, so the one three
+    // rows in front still hangs over the box.
+    expect(VIEW).toMatch(/COVER_REACH = 3;/);
+    expect(CLEARED.some((c) => c.dx + c.dy === REACH)).toBe(true);
+    // Five cells per chest: the two front neighbours, the diagonal, and the
+    // two deep ones where a tall tree still reaches. A wider net would strip
+    // the island bare around every box.
+    expect(CLEARED).toHaveLength(5);
+  });
+
+  it('strips the scatter without touching the ground under it', () => {
+    // `onCell` is the reveal's index and the sea diamonds register there too,
+    // so sweeping a cell by that list would delete the water beside a coastal
+    // chest. `livestock` is exactly the standing things.
+    expect(VIEW).toMatch(/for \(let i = this\.livestock\.length - 1; i >= 0; i--\)/);
+  });
+
+  it('leaves walkability to the board, which both sides build from the seed', () => {
+    // No terrain crosses the wire: freeing the cell on this client only would
+    // make the highlight promise a step the server refuses.
+    expect(VIEW).not.toMatch(/this\.occupied\.delete\(/);
+    expect(VIEW).not.toMatch(/this\.inhabited\.delete\(/);
+  });
+
+  it('clears in front of every chest the moment the server names them', () => {
+    expect(SCENE).toMatch(/if \(placed\.length\) this\.background\?\.clearDecoOver\(placed\);/);
+  });
+
+  it('spares a chest tile from the depth hole', () => {
+    // The hole dithers away whatever covers the rabbit. Walking up to a chest
+    // put the box, its glow and its tier label inside that disc — hiding the
+    // target at the exact moment it is being reached for.
+    expect(SCENE).toMatch(/const i = tileIndexOf\(child\);\s*return i !== null && this\.tiles\.get\(i\)\?\.hasChest === true;/);
+  });
+});

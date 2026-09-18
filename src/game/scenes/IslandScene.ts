@@ -19,7 +19,7 @@ import { isFirstIsland } from '@/lib/game/first-island';
 import type { Scene } from '../SceneManager';
 import { SceneManager } from '../SceneManager';
 import { GAME_W, GAME_H } from '../Application';
-import { Tile, RISK_COLOR } from '../entities/Tile';
+import { Tile, RISK_COLOR, tileIndexOf } from '../entities/Tile';
 
 /** The energy bar's yellow, for a gain said on the board — see `flagAnswered`. */
 const ENERGY_YELLOW = 0xffd60a;
@@ -177,13 +177,23 @@ export class IslandScene implements Scene {
   /**
    * The window through whatever is drawn over OUR rabbit — trees, bushes,
    * livestock, other players, the lot. A depth test on the scene's own sort
-   * order, re-cut every frame in `update`; see `fx/DepthHole.ts`. The
-   * keyboard arrows are UI that happens to live in the same sorted layer,
-   * and are left alone.
+   * order, re-cut every frame in `update`; see `fx/DepthHole.ts`.
+   *
+   * Two things in that layer are spared. The keyboard arrows are UI that
+   * happens to sort with the scenery. And a tile carrying a CHEST: the chest
+   * is the one thing on the board the player is aiming at, and the hole was
+   * stippling away the box, its glow and the word above it whenever the
+   * rabbit walked up to the cell just behind it — hiding the target at the
+   * exact moment it is being reached for. The scenery keeps its window; the
+   * prize stays whole.
    */
   private hole = new DepthHole({
     ...DEPTH_HOLE_LOOK,
-    exempt: (child) => child.label === MOVE_ARROW_LABEL,
+    exempt: (child) => {
+      if (child.label === MOVE_ARROW_LABEL) return true;
+      const i = tileIndexOf(child);
+      return i !== null && this.tiles.get(i)?.hasChest === true;
+    },
   });
 
   private shape: IslandShape = makeShape('default');
@@ -1357,12 +1367,25 @@ export class IslandScene implements Scene {
    * arrived when nothing did.
    */
   showChests(chests: ReadonlyArray<{ tile: number; tier: string }>, drop = false): void {
+    const placed: number[] = [];
     for (const c of chests) {
       const tile = this.tiles.get(c.tile);
       if (!tile) continue;
       const tier = isChestTier(c.tier) ? c.tier : 'bronze';
       tile.setChest(CHEST_TIER_COLOR[tier], drop, tier);
+      placed.push(c.tile);
     }
+    // Clear the trees that stand in front of the boxes.
+    //
+    // The scatter comes from the PUBLIC seed and the chests from the private
+    // content seed, so the two cannot meet when the island is generated
+    // without telling every client where the chests are (`lib/game/island.ts`).
+    // They meet here instead, the first moment both are known. The depth hole
+    // already spares a chest tile when the rabbit walks up to it
+    // (`hole`'s `exempt`), but that only helps while the player is standing
+    // there — a chest has to be visible from across the island, which is the
+    // whole reason it is drawn before it is dug.
+    if (placed.length) this.background?.clearDecoOver(placed);
     this.pointAtTutorialChest(chests);
   }
 
