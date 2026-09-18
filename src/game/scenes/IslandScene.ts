@@ -928,6 +928,19 @@ export class IslandScene implements Scene {
     for (const rabbit of this.rabbits.values()) rabbit.destroy();
     this.rabbits.clear();
     this.standing.clear();
+    /**
+     * And sweep the name layer, belt and braces.
+     *
+     * Every plate and line SHOULD have gone with its rabbit just above — but
+     * they are the only things in this scene that outlive their owner's
+     * container by design (they have to, to draw over the counts), so a path
+     * that loses one leaves it on screen for the rest of the session rather
+     * than for a frame. That is exactly what happened on 2026-09-18: white
+     * sticks standing on empty grass, with no rabbit under them. Cheap, and it
+     * makes the layer's emptiness a property of the swap rather than a promise
+     * every teardown path has to keep.
+     */
+    this.nameLayer.removeChildren().forEach((child) => child.destroy({ children: true }));
 
     // The previous island's chest is not on this board — and on the way OUT of
     // the tutorial there is no chest to point at at all.

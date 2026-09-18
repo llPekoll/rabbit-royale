@@ -882,7 +882,9 @@ export class PlayerRabbit {
      * life of the island.
      */
     const plate = this.nameplate;
+    const stem = this.nameStem;
     if (plate && !plate.destroyed) gsap.to(plate, { alpha: 0, duration: 0.3, ease: 'power1.in' });
+    if (stem && !stem.destroyed) gsap.to(stem, { alpha: 0, duration: 0.3, ease: 'power1.in' });
     gsap.to(this.sprite.scale, {
       x: this.sprite.scale.x * 0.6,
       y: this.sprite.scale.y * 1.3,
@@ -891,7 +893,9 @@ export class PlayerRabbit {
       onComplete: () => {
         if (plate && !plate.destroyed) plate.destroy({ children: true });
         this.nameplate = null;
-        // The line fades with the container it hangs in, and goes with it.
+        // The line is deported with the plate, so the container's own destroy
+        // does not reach it either — dropped by hand, like the plate.
+        if (stem && !stem.destroyed) stem.destroy();
         this.nameStem = null;
         if (!this.container.destroyed) this.container.destroy({ children: true });
       },
@@ -912,8 +916,11 @@ export class PlayerRabbit {
     // the life of the island. Dropped explicitly, before the handle is let go.
     if (this.nameplate && !this.nameplate.destroyed) this.nameplate.destroy({ children: true });
     this.nameplate = null;
-    // A child of the container, so `destroy({ children: true })` below takes
-    // it — only the handle is let go here.
+    // The line is on that same layer (it has to draw over the counts), so it
+    // is no more a child of the container than the plate is. Left to itself it
+    // stayed behind as a white stick standing on empty grass — one per rabbit,
+    // per island, for the life of the scene.
+    if (this.nameStem && !this.nameStem.destroyed) this.nameStem.destroy();
     this.nameStem = null;
     if (this.container.destroyed) return;
     this.sprite.stop();
