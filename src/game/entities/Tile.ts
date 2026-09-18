@@ -838,7 +838,7 @@ export class Tile {
    * one inside it sitting a pixel lower — the two shades are what make it
    * read as depth rather than as a tile painted black.
    */
-  markBombSite(dug?: () => boolean): void {
+  markBombSite(dug?: () => boolean): boolean {
     // The bomb sprite drawn by revealContent has done its job.
     if (this.contentSprite) {
       gsap.killTweensOf(this.contentSprite);
@@ -854,7 +854,7 @@ export class Tile {
     // rather than a dark stain the grass shows through. The painted one stays
     // for every surface the art does not cover (the burrow, the farm) and for
     // a cell with no terrain block under it.
-    if (dug?.()) return;
+    if (dug?.()) return true;
 
     const hole = new Container();
     hole.zIndex = 39;   // above the tile, below a rabbit standing on it
@@ -874,6 +874,7 @@ export class Tile {
     // reads as a second, separate event.
     hole.alpha = 0;
     gsap.to(hole, { alpha: 1, duration: 0.4, delay: 0.25 });
+    return false;
   }
 
   /** Kept for the palier ladder the casino used; unused by this game. */

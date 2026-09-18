@@ -154,6 +154,17 @@ export interface BlastOptions {
    * thing on screen that can say the blast had a direction.
    */
   onShockwave?: (origin: { x: number; y: number }) => void;
+  /**
+   * Skip the scorch — the dark ellipse burnt onto the tile face.
+   *
+   * It exists to say "the ground here is charred" on a cell that otherwise
+   * goes back to being plain grass. Where the terrain swaps in the painted
+   * pit (`IsoIslandView.digCell`) the ground already says it, permanently and
+   * in the island's own palette, and the scorch becomes a dark blob fading in
+   * and out over a hole that is staying — two marks for one event, the
+   * temporary one on top.
+   */
+  noScorch?: boolean;
 }
 
 /**
@@ -303,7 +314,7 @@ export function playBlast(
   //
   // Parented to `world` rather than to the Tile because it outlives nothing in
   // particular and has to sort against the terrain, same as every layer above.
-  after(AT_SCORCH, () => {
+  if (!opts.noScorch) after(AT_SCORCH, () => {
     const g = new Graphics();
     g.ellipse(0, 0, HALF_W * 0.8, HALF_H * 0.8).fill({ color: 0x1a1209, alpha: SCORCH_ALPHA });
     g.position.set(bx, groundY);

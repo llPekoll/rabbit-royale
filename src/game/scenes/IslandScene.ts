@@ -1319,13 +1319,14 @@ export class IslandScene implements Scene {
 
     if (content === 'bomb') {
       this.sound.playExplosion();
-      this.playExplosion(index);
+      // The mark goes down BEFORE the blast plays, because what it turns out
+      // to be decides one of the blast's layers. Where the terrain can swap
+      // the cell's ground for the painted pit, the blast skips its scorch:
+      // the hole is already the permanent mark, and the scorch fading in and
+      // out over it is a second, temporary one saying the same thing worse.
+      const dug = tile.markBombSite(() => this.background?.digCell(index) ?? false);
+      this.playExplosion(index, dug);
       this.shakeScreen();
-      // The blast is over in half a second; the tile has to go on saying
-      // "someone died here" for the rest of the run.
-      // Hand it the terrain's own swap: the painted crater is the fallback
-      // for surfaces the art does not cover.
-      tile.markBombSite(() => this.background?.digCell(index) ?? false);
     } else if (content === 'golden') {
       // Worth five carrots, and it used to sound and look like one. The sting,
       // a flash on the tile and a spray of coins are what say "that was the
@@ -1464,11 +1465,12 @@ export class IslandScene implements Scene {
    * rabbit standing ON the tile is the death, which the server answers with
    * `playExhausted` and a respawn — not this.
    */
-  private playExplosion(index: number): void {
+  private playExplosion(index: number, noScorch = false): void {
     const seed = this.data?.seed ?? '';
     const me = this.data ? this.rabbits.get(this.data.playerId) : null;
     const hitMe = me != null && this.isNeighborOfMine(index);
     const cancel = playBlast(this.container, seed, index, {
+      noScorch,
       onShockwave: hitMe
         ? (origin) => { me.playDamage(); knockBack(me.container, origin); }
         : undefined,
