@@ -18,6 +18,7 @@
  * be wasted work on both ends.
  */
 import { COLS, ROWS, TIER_LIFT, screenToTile, tilePos, toColRow, toIndex } from '@/config/gridConfig';
+import type { IslandShape } from '@/config/gridConfig';
 import { IslandBoard } from '@/game/island/board';
 import { generateTerrain, type Terrain } from '@/game/island/terrain';
 import { surfaceLift } from '@/game/island/relief';
@@ -133,6 +134,15 @@ export function tileScreenPos(seed: string, index: number): { x: number; y: numb
 }
 
 /**
+ * No coastline at all — the mask `terrainTileAt` hands `screenToTile`.
+ *
+ * `IslandShape` is the set of FORBIDDEN cells, so an empty one forbids
+ * nothing and the inversion answers pure geometry. Built once and shared:
+ * it is read on every pointer press.
+ */
+const NO_SHAPE: IslandShape = new Set<string>();
+
+/**
  * Which tile a point on screen names, terraces included.
  *
  * `screenToTile` inverts a FLAT projection, so on raised ground it answers
@@ -140,6 +150,20 @@ export function tileScreenPos(seed: string, index: number): { x: number; y: numb
  * and the move goes to the grass below it. Corrected by trying the tiers from
  * the top down: the first one whose lifted diamond contains the point wins,
  * which is also what the eye picks, since a higher tile is drawn over a lower.
+ *
+ * The shape mask is left OFF on purpose (`NO_SHAPE`).
+ *
+ * `screenToTile` masks against `DEFAULT_SHAPE` when it is given no shape —
+ * the coastline of `makeShape('default')`, which is one arbitrary island and
+ * not the one being played. Every cell that is land on THIS seed but sea on
+ * that default one came back null, and the null returned before the very next
+ * lines could consult the real board: those taps died in the resolver with no
+ * tile named and nothing to answer them. Whole stretches of coast simply did
+ * not respond, which is what a player sees as dead ground.
+ *
+ * So the inversion is asked for pure geometry — which diamond holds this
+ * point — and WHICH ISLAND is answered below by `boardFor(seed)`, the same
+ * board the server resolves a move against. One authority, consulted once.
  */
 export function terrainTileAt(seed: string, sx: number, sy: number): number | null {
   const { map } = cached(seed).terrain;
@@ -147,7 +171,7 @@ export function terrainTileAt(seed: string, sx: number, sy: number): number | nu
   for (const tier of map.level) if (tier > tallest) tallest = tier;
 
   for (let tier = tallest; tier >= 1; tier--) {
-    const index = screenToTile(sx, sy + tier * TIER_LIFT);
+    const index = screenToTile(sx, sy + tier * TIER_LIFT, NO_SHAPE);
     if (index === null) continue;
     const { col, row } = toColRow(index);
     if (levelTierAt(seed, col, row) !== tier) continue;

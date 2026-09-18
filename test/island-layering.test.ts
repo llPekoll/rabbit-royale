@@ -33,7 +33,9 @@ describe('the tier lift is one number everywhere', () => {
     // `terrainTileAt` steps the tiers in TIER_LIFT, so the drawn face has to be
     // TIER_LIFT tall or the picture and the input disagree by the difference.
     const BOARD = readFileSync(new URL('../src/lib/game/terrainBoard.ts', import.meta.url), 'utf8');
-    expect(BOARD).toMatch(/screenToTile\(sx, sy \+ tier \* TIER_LIFT\)/);
+    // The shape argument rides along now (see `NO_SHAPE` there); what this
+    // pins is the STEP, which must stay one TIER_LIFT per tier.
+    expect(BOARD).toMatch(/screenToTile\(sx, sy \+ tier \* TIER_LIFT[,)]/);
     expect(METRICS.z).toBe(TIER_LIFT);
   });
 });
