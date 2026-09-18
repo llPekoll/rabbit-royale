@@ -383,6 +383,18 @@ export class Tile {
   }
 
   /**
+   * The veil itself — the diamond that covers undug ground.
+   *
+   * Exposed so the cascade's ripple can lift the LID and nothing else: the
+   * veil is mounted in the cell's terrain block (`mountVeil`) beside the grass
+   * and the cliff face, so moving the block would heave the landscape. What
+   * rises as a zone opens is the cover coming off, not the island breathing.
+   */
+  get veil(): Sprite {
+    return this.fog;
+  }
+
+  /**
    * Run `fn` when a pointer goes DOWN on the tile. Bound to the veil — see the
    * constructor.
    *

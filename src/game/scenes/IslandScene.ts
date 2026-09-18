@@ -1077,29 +1077,28 @@ export class IslandScene implements Scene {
     }
 
     /**
-     * The swell runs over the GROUND, not over the news.
+     * The swell lifts THE TILES THAT OPENED, and nothing else.
      *
-     * `tiles` is only what this dig wrote a number on. Lifting just those
-     * makes the wave stop dead at the edge of whatever happened to be unread —
-     * ground already dug, and the dug tile itself, stay flat while everything
-     * around them heaves. Water does not ask which part of the pond is new.
+     * It first ran over every cell within the front's reach, on the theory
+     * that a wave does not ask which part of the pond is new — which is true
+     * of water and false of this board. A zone opening is news about the
+     * ground it opened; spreading the motion to ground that did not change
+     * made the whole island heave around the dig, and said something had
+     * happened to tiles where nothing had. Paul, seeing it in the game: "la
+     * wave marche sur toutes les tiles pas seulement quand tu découvres une
+     * zone".
      *
-     * So every cell the front actually reaches is lifted, opened or not.
+     * So the lift follows the reveal exactly: one tile, one lid coming off.
      */
-    const reach = new Set<number>(tiles.map((h) => h.tile));
-    reach.add(from);
-    for (const i of this.tiles.keys()) {
-      if (!reach.has(i) && this.rippleDistance(from, i) <= far) reach.add(i);
-    }
-    for (const i of reach) this.rippleCell(i, delayFor(i));
+    for (const h of tiles) this.rippleCell(h.tile, delayFor(h.tile));
   }
 
   /**
    * Kill every ripple in flight and put the board back on its lattice.
    *
-   * A tween cut mid-swell would leave its cell wherever it happened to be, so
+   * A tween cut mid-swell would leave its lid wherever it happened to be, so
    * every lift registers how to undo itself (`rippleRestores`) and that is run
-   * here. Dropping the tweens alone would strand cells in the air.
+   * here. Dropping the tweens alone would strand veils in the air.
    */
   private stopRipples(): void {
     // Each lift knows the resting position it borrowed and puts it back — the
@@ -1126,28 +1125,31 @@ export class IslandScene implements Scene {
   }
 
   /**
-   * Lift one cell and set it back down, `delay` seconds from now.
+   * Lift one tile's LID and set it back down, `delay` seconds from now.
    *
-   * The TERRAIN BLOCK moves, not the tile's container: a cell's grass, its
-   * cliff face and its veil are the block's children, so lifting the container
-   * alone would raise the number and the highlight off a surface that stayed
-   * put. See `IsoIslandView.liftCell`.
+   * The veil moves, and the tile's container with it — never the terrain. The
+   * first cut lifted the whole cell through `IsoIslandView.liftCell`, which
+   * meant the grass and the cliff face travelled too and the island visibly
+   * heaved around every dig. A zone opening is a cover coming off, so only the
+   * cover moves.
    *
-   * The tile's own container rides along so the number stays planted on the
-   * ground it belongs to — the two are separate subtrees and nothing else
-   * keeps them together.
+   * The container rides along because the NUMBER lives there: a count left
+   * behind while its lid rises comes apart from the tile it belongs to. The
+   * two are separate subtrees and nothing else keeps them together.
    */
   private rippleCell(index: number, delay: number): void {
     const tile = this.tiles.get(index);
-    if (!tile || !this.background) return;
-    const rest = tile.container.y;
+    if (!tile) return;
+    const veil = tile.veil;
+    const restVeil = veil.y;
+    const restTile = tile.container.y;
     const state = { lift: 0 };
-    // Land exactly, not near enough: a cell left a hundredth of a pixel off
-    // its lattice has left the grid, and repeated waves compound it. Kept as a
+    // Land exactly, not near enough: a lid left a hundredth of a pixel off its
+    // cell has left the grid, and repeated waves compound it. Kept as a
     // closure so `stopRipples` can run it on a swell cut short.
     const settle = () => {
-      this.background?.liftCell(index, 0);
-      tile.container.y = rest;
+      veil.y = restVeil;
+      tile.container.y = restTile;
     };
     this.rippleRestores.push(settle);
     this.rippleTweens.push(gsap.to(state, {
@@ -1158,8 +1160,15 @@ export class IslandScene implements Scene {
       yoyo: true,
       repeat: 1,
       onUpdate: () => {
-        this.background?.liftCell(index, -state.lift);
-        tile.container.y = rest - state.lift;
+        // THE LID, not the cell. The veil is mounted in the terrain block
+        // beside the grass and the cliff face, so lifting the block heaved the
+        // landscape itself — hills and all — where all that should move is the
+        // cover coming off the ground.
+        veil.y = restVeil - state.lift;
+        // The number rides with its lid: it is the thing being uncovered, and
+        // a count left behind while its veil rises comes apart from the tile
+        // it belongs to.
+        tile.container.y = restTile - state.lift;
       },
       onComplete: () => {
         settle();

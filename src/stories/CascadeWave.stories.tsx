@@ -254,28 +254,18 @@ function Scene({ seed, background, perStep, metric, maxDelay, bob, bobTime }: Ar
           }
 
           /**
-           * The ripple runs over the GROUND, not over the news.
+           * The ripple lifts THE TILES THAT OPENED, and nothing else.
            *
-           * `opened` is only the tiles whose number this dig wrote. Lifting
-           * just those makes the swell stop dead at the edge of what happened
-           * to be unread — ground already dug, and the dug tile itself, stay
-           * flat while everything around them heaves. A wave on water does not
-           * ask which part of the pond is new.
-           *
-           * So the lift is scheduled over every tile within the front's reach,
-           * opened or not, from the dig outward. `CASCADE_RADIUS` bounds the
-           * numbers; the swell is bounded by the same distance the front has
-           * actually travelled, which is what keeps the two reading as one
-           * event.
+           * It first ran over every tile within the front's reach, on the
+           * theory that a wave does not ask which part of the pond is new —
+           * true of water, false of this board. In the game that made the
+           * whole island heave around every dig, and claimed something had
+           * happened to ground that had not changed. The lift follows the
+           * reveal exactly: one tile, one lid coming off.
            */
-          const rippled = new Set<number>([index, ...opened.map((h) => h.tile)]);
-          for (const [i] of tiles) {
-            if (rippled.has(i)) continue;
-            if (distance(index, i, metric) <= far) rippled.add(i);
-          }
-          for (const i of rippled) {
-            const target = tiles.get(i);
-            if (target) lift(target, delayFor(i));
+          for (const h of opened) {
+            const target = tiles.get(h.tile);
+            if (target) lift(target, delayFor(h.tile));
           }
         };
 

@@ -188,7 +188,9 @@ export const ISLAND = {
  * write all of them on the same frame — a dozen tiles changed state with a
  * blink, and the board's biggest moment was the one it said least about. It
  * now arrives as a ripple spreading from the dig: the numbers in order of
- * distance, and the ground rising and falling under the front.
+ * distance, and each LID rising and falling as the front reaches it. The
+ * terrain never moves — the first cut lifted the cells themselves and the
+ * island visibly heaved around every dig.
  *
  * Tuned on `Island/Cascade wave` in Storybook, which plays the real cascade
  * over a real island, and against the SCALE that decides all of it: a zone is
@@ -210,11 +212,11 @@ export const RIPPLE = {
   /** Cap on the total spread, so a wide zone cannot outlive the player's attention. */
   MAX_DELAY: 0.6,
   /**
-   * How far a cell rises as the front passes, in px.
+   * How far a lid rises as the front passes, in px.
    *
    * Small, and it has to be: the board draws at HALF_H = 12px per cell, so a
-   * tile lifting 6px has travelled half a cell and starts to read as leaving
-   * the ground rather than as swelling under it. 5 is just under that.
+   * lid lifting 6px has travelled half a cell and starts to read as peeling
+   * off its tile rather than lifting from it. 5 is just under that.
    */
   HEIGHT: 5,
   /** Seconds of the up-and-down itself — how long the crest sits on one cell. */

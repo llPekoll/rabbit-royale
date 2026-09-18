@@ -68,15 +68,6 @@ export interface TerrainBackground extends IslandBackground {
    * island still stacked overlays outside the blocks.
    */
   mountVeil(index: number, veil: Container, zIndex?: number): boolean;
-  /**
-   * Offset a cell's whole block up or down the screen — see
-   * `IsoIslandView.liftCell`. False when the cell has no block.
-   *
-   * The ground moves, not the board's tile: the veil, the grass and the cliff
-   * face are the block's children, so this is the only displacement that takes
-   * the cell's visible surface with it.
-   */
-  liftCell(index: number, offset: number): boolean;
 }
 
 /**
@@ -282,10 +273,6 @@ export async function createTerrainBackground(
     mountVeil(index, veil, zIndex) {
       const { col, row } = toColRow(index);
       return island.mountVeil(col, row, veil, zIndex);
-    },
-    liftCell(index, offset) {
-      const { col, row } = toColRow(index);
-      return island.liftCell(col, row, offset);
     },
     update(deltaMs) {
       island.update(deltaMs);

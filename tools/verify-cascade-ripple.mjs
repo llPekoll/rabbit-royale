@@ -34,26 +34,33 @@ await page.waitForSelector('.rr-hud', { timeout: 90_000 });
 const scan = () => page.evaluate(() => {
   const app = globalThis.__PIXI_APP__;
   if (!app) return null;
+  // The LID's own y, and — separately — the y of the terrain block holding it.
+  // The ripple must move the first and never the second: lifting the block
+  // heaves the grass and the cliff face with it, which is the bug this drive
+  // exists to catch.
+  const veils = new Map();
   const blocks = new Map();
   let numbers = 0;
   const walk = (n) => {
     if (typeof n.label === 'string' && n.label.startsWith('tile-') && n.parent) {
+      veils.set(n.label, n.y);
       blocks.set(n.label, n.parent.y);
     }
     if (n.constructor?.name === 'BitmapText' && n.visible && /^\d$/.test(n.text ?? '')) numbers++;
     n.children?.forEach(walk);
   };
   walk(app.stage);
-  return { blocks: [...blocks], numbers };
+  return { veils: [...veils], blocks: [...blocks], numbers };
 });
 
 // Wait for the BOARD, not just the app: the HUD mounts well before the tiles
 // exist, and a scan that lands in between finds an app with no cells and
 // reports a flat board that simply had not been dealt yet.
 let s = await scan();
-for (let i = 0; i < 60 && (!s || s.blocks.length === 0); i++) { await page.waitForTimeout(1000); s = await scan(); }
-if (!s || s.blocks.length === 0) { console.log('board never came up'); await browser.close(); process.exit(1); }
-const rest = new Map(s.blocks);
+for (let i = 0; i < 60 && (!s || s.veils.length === 0); i++) { await page.waitForTimeout(1000); s = await scan(); }
+if (!s || s.veils.length === 0) { console.log('board never came up'); await browser.close(); process.exit(1); }
+const rest = new Map(s.veils);
+const restBlocks = new Map(s.blocks);
 console.log(`board up: ${rest.size} cells, ${s.numbers} numbers showing`);
 
 // The lit ring, in page coords — the tiles the board will actually accept.
@@ -79,13 +86,18 @@ const ring = () => page.evaluate(() => {
 /** The biggest lift any cell is showing right now, and how many are moving. */
 const motion = async () => {
   const now = await scan();
-  if (!now) return { moving: 0, peak: 0, numbers: 0 };
-  let moving = 0, peak = 0;
-  for (const [label, y] of now.blocks) {
+  if (!now) return { moving: 0, peak: 0, numbers: 0, ground: 0 };
+  let moving = 0, peak = 0, ground = 0;
+  for (const [label, y] of now.veils) {
     const d = Math.abs(y - (rest.get(label) ?? y));
     if (d > 0.01) { moving++; peak = Math.max(peak, d); }
   }
-  return { moving, peak, numbers: now.numbers };
+  // Any terrain block that shifted at all is a regression: the landscape must
+  // stay put while the lids come off.
+  for (const [label, y] of now.blocks) {
+    if (Math.abs(y - (restBlocks.get(label) ?? y)) > 0.01) ground++;
+  }
+  return { moving, peak, numbers: now.numbers, ground };
 };
 
 // Dig until a cascade fires. A zero is what opens a zone, and which tile is a
@@ -93,6 +105,7 @@ const motion = async () => {
 // number count jump by more than the one tile it just dug.
 const dug = new Set();
 let best = { moving: 0, peak: 0 };
+let groundMoved = 0;
 let zoneAt = -1;
 for (let step = 0; step < 14; step++) {
   const lit = (await ring()).filter((t) => !dug.has(t.label));
@@ -107,6 +120,7 @@ for (let step = 0; step < 14; step++) {
   for (let i = 0; i < 30; i++) {
     const m = await motion();
     if (m.moving > best.moving) best = m;
+    groundMoved = Math.max(groundMoved, m.ground);
     // A zone, not a single tile: the dig writes one number, so a jump of
     // three or more says the cascade ran. Recorded per dig rather than once,
     // because the first digs on a board often open nothing at all.
@@ -121,12 +135,14 @@ await page.waitForTimeout(2000);
 const settled = await motion();
 const after = await scan();
 let drift = 0;
-for (const [label, y] of after.blocks) {
+for (const [label, y] of after.veils) {
   if (Math.abs(y - (rest.get(label) ?? y)) > 0.001) drift++;
 }
 
 console.log(`zone opened on dig #${zoneAt}`);
-console.log(`peak: ${best.moving} cells moving, max lift ${best.peak.toFixed(2)}px`);
+console.log(`peak: ${best.moving} LIDS moving, max lift ${best.peak.toFixed(2)}px`);
+console.log(`terrain blocks that moved: ${groundMoved}  (must be 0 — the ground stays put)`);
+console.log(`board has ${rest.size} cells; a zone is bounded to ~40, so a peak near ${rest.size} means the whole island rippled`);
 console.log(`after settle: ${settled.moving} moving, drift ${drift} cells`);
 console.log('errors:', errors.filter((e) => !/401/.test(e)).slice(0, 3));
 await page.screenshot({ path: `${OUT}/cascade-ripple.png` });
