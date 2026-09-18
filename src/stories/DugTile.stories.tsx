@@ -24,7 +24,7 @@
  * amount of colour work fixes that.
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { Assets, Container, Rectangle, Sprite, Texture, Text } from 'pixi.js';
+import { Assets, Container, Graphics, Rectangle, Sprite, Texture, Text } from 'pixi.js';
 import { PixiStage } from './PixiStage';
 import {
   generateIsland,
@@ -362,6 +362,80 @@ export const Default: Story = {};
 /** A real island with cells dug through `digCell`, as the game will do it. */
 export const OnIsland: Story = {
   render: (args) => <IslandScene key={JSON.stringify(args)} {...args} />,
+};
+
+/**
+ * Craters side by side: the painted fallback against the hand-painted tile.
+ *
+ * `Tile.markBombSite` draws two translucent diamonds — burnt earth at the rim,
+ * near-black in the pit — and that is what a bomb site looked like before this
+ * tile existed. It is a good impression of a hole and it is still the fallback
+ * for surfaces the art does not cover (the burrow, the farm), so it is worth
+ * being able to see the two together rather than only remembering the old one.
+ *
+ * The difference that matters is not the drawing, it is the OPACITY: the
+ * painted crater is translucent, so the grass beneath shows through and the
+ * hole reads as a stain on the ground. The tile is opaque, and replaces the
+ * ground rather than tinting it.
+ */
+function CraterScene(args: Args) {
+  let cells: Texture[][] | null = null;
+
+  return (
+    <PixiStage
+      width={WIDTH}
+      height={HEIGHT}
+      background={SEA}
+      prepare={async () => {
+        cells = await loadSheet();
+      }}
+      setup={(stage) => {
+        if (!cells) return;
+        const grass = cells[REFERENCE.row][REFERENCE.col];
+        const pit = cells[args.row][CUSTOM_COL];
+        const z = 4;
+        const c = new Container();
+
+        // Left: grass with the painted crater's two diamonds over it, at the
+        // same alphas `Tile.markBombSite` uses.
+        const lx = WIDTH * 0.3;
+        c.addChild(tile(grass, lx, HEIGHT / 2, z));
+        // The two diamonds `Tile.markBombSite` draws, at its own colours and
+        // alphas. Drawn as real diamonds rather than as tinted boxes: the
+        // point of the comparison is the shape AND the translucency, and a
+        // rectangle standing in for the rim misrepresents both.
+        const crater = new Graphics();
+        const hw = (DIAMOND.w * z) / 2;
+        const hh = (DIAMOND.h * z) / 2;
+        const diamond = (g: Graphics, sx: number, dy: number, colour: number, alpha: number) => {
+          g.moveTo(0, -hh * sx + dy)
+            .lineTo(hw * sx, dy)
+            .lineTo(0, hh * sx + dy)
+            .lineTo(-hw * sx, dy)
+            .closePath()
+            .fill({ color: colour, alpha });
+        };
+        diamond(crater, 1, 0, 0x1a100a, 0.55);
+        diamond(crater, 0.72, z, 0x050302, 0.75);
+        crater.position.set(lx, HEIGHT / 2);
+        c.addChild(crater);
+
+        // Right: the same grass cell replaced by the painted tile.
+        c.addChild(tile(pit, WIDTH * 0.7, HEIGHT / 2, z));
+
+        stage.addChild(c);
+        stage.addChild(label('cratere peint (repli)', WIDTH * 0.3 - 70, HEIGHT - 48));
+        stage.addChild(label('ta tuile (le jeu)', WIDTH * 0.7 - 55, HEIGHT - 48));
+        stage.addChild(label('markBombSite — avant / apres', 12, 12));
+        return () => c.destroy({ children: true });
+      }}
+    />
+  );
+}
+
+/** The old painted crater beside the new tile. */
+export const Crater: Story = {
+  render: (args) => <CraterScene key={JSON.stringify(args)} {...args} />,
 };
 
 /** Side by side with the pack's grass, magnified: is the grain too fine? */

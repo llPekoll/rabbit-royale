@@ -68,6 +68,13 @@ export interface TerrainBackground extends IslandBackground {
    * island still stacked overlays outside the blocks.
    */
   mountVeil(index: number, veil: Container, zIndex?: number): boolean;
+  /**
+   * Turn a cell's ground into the dug pit — see `IsoIslandView.digCell`.
+   *
+   * By index like everything else here, because the board thinks in tiles and
+   * only this adapter knows the grid. False when the cell has no block.
+   */
+  digCell(index: number): boolean;
 }
 
 /**
@@ -273,6 +280,10 @@ export async function createTerrainBackground(
     mountVeil(index, veil, zIndex) {
       const { col, row } = toColRow(index);
       return island.mountVeil(col, row, veil, zIndex);
+    },
+    digCell(index) {
+      const { col, row } = toColRow(index);
+      return island.digCell(col, row);
     },
     update(deltaMs) {
       island.update(deltaMs);

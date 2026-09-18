@@ -1313,7 +1313,9 @@ export class IslandScene implements Scene {
       this.shakeScreen();
       // The blast is over in half a second; the tile has to go on saying
       // "someone died here" for the rest of the run.
-      tile.markBombSite();
+      // Hand it the terrain's own swap: the painted crater is the fallback
+      // for surfaces the art does not cover.
+      tile.markBombSite(() => this.background?.digCell(index) ?? false);
     } else if (content === 'golden') {
       // Worth five carrots, and it used to sound and look like one. The sting,
       // a flash on the tile and a spray of coins are what say "that was the

@@ -101,6 +101,24 @@ export const HIGHLIGHT_COLOR = 0xffd700;
  * land on. Nothing else on the board is this colour.
  */
 export const RISK_COLOR = 0xff5a4a;
+
+/**
+ * Prefix on a tile container's `label`, followed by the tile index.
+ *
+ * The island's sorted layer holds tiles, rabbits, bolts and coins as
+ * siblings, and the depth hole walks that layer deciding what to dither away.
+ * It is handed a `Container`, not a `Tile`, so this is how the one is read
+ * back from the other — `tileIndexOf` does the parse.
+ */
+export const TILE_CONTAINER_LABEL = 'tile-container-';
+
+/** The tile index behind a sorted child, or null if it is not a tile. */
+export function tileIndexOf(child: { label?: string | null }): number | null {
+  const label = child.label;
+  if (!label || !label.startsWith(TILE_CONTAINER_LABEL)) return null;
+  const i = Number(label.slice(TILE_CONTAINER_LABEL.length));
+  return Number.isInteger(i) ? i : null;
+}
 const MINE_TINT = 0xff3333;
 /** How far above its tile a chest starts when it DROPS in with the board. */
 const CHEST_DROP_HEIGHT = 90;
@@ -336,6 +354,10 @@ export class Tile {
     this.container = new Container();
     this.container.position.set(x, y);
     this.container.zIndex = depth;
+    // Named so the island can find the TILE behind one of its sorted children
+    // — the depth window punches holes in whatever covers the rabbit, and a
+    // tile holding a chest has to be spared (see `tileIndexOf`).
+    this.container.label = `${TILE_CONTAINER_LABEL}${index}`;
 
     // Fog diamond
     this.fog = diamondFill(fogStyle?.color ?? FOG_COLOR, fogStyle?.alpha ?? FOG_ALPHA);
@@ -816,13 +838,23 @@ export class Tile {
    * one inside it sitting a pixel lower — the two shades are what make it
    * read as depth rather than as a tile painted black.
    */
-  markBombSite(): void {
+  markBombSite(dug?: () => boolean): void {
     // The bomb sprite drawn by revealContent has done its job.
     if (this.contentSprite) {
       gsap.killTweensOf(this.contentSprite);
       this.contentSprite.destroy();
       this.contentSprite = null;
     }
+
+    // The painted crater below is the FALLBACK. Where the terrain can swap the
+    // cell's ground for the hand-painted pit it does that instead, because the
+    // two diamonds are a good impression of a hole and the art is an actual
+    // one: it is drawn in the island's own palette, sits in the cell's block,
+    // and is opaque where the painted crater is translucent — a real pit
+    // rather than a dark stain the grass shows through. The painted one stays
+    // for every surface the art does not cover (the burrow, the farm) and for
+    // a cell with no terrain block under it.
+    if (dug?.()) return;
 
     const hole = new Container();
     hole.zIndex = 39;   // above the tile, below a rabbit standing on it
