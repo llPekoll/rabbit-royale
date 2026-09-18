@@ -1338,6 +1338,14 @@ export class Tile {
       this.hintGroup.destroy({ children: true });
       this.hintGroup = null;
     }
+    // The red X and the "?" live on that same shared layer, so destroying the
+    // container leaves them standing too. Left behind, an X survives the
+    // change of island and marks a tile of the NEXT run that nobody flagged;
+    // when that tile is flagged for real, two X's overlap, offset by the two
+    // islands' lifts. That is the "doubled X" of 2026-09-18.
+    if (this.flagMark) gsap.killTweensOf(this.flagMark.scale);
+    this.clearFlag();
+    this.setUnknownMark(false);
     // A diamond mounted in a terrain block is not this container's child, so
     // destroying the container would leave it behind on the island. All three
     // mount now (see `mountVeil`), so all three have to be checked — the fog
