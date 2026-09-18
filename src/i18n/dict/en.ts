@@ -451,13 +451,20 @@ export const en = {
     nobody: 'NOBODY TO ROB',
     shielded: 'Shielded',
     /**
-     * The owner is out on an island while you rob them.
+     * WHERE THE OWNER IS, one word per row — never a blank.
      *
-     * Says the CONSEQUENCE, not the status: "online" is a fact about an
-     * account, "out digging" is a fact about the burrow you are about to
-     * walk into — nobody home to stop you, but they will be told you came.
+     * Each says the CONSEQUENCE, not the status: "online" is a fact about an
+     * account, while these are facts about the burrow you are about to walk
+     * into. `away` is nobody to stop you; `home` is the owner at the keyboard,
+     * who is told you came and can end the crossing with lightning; `digging`
+     * is a burrow standing empty while its owner is out on an island — they
+     * are still told, and can break off their own run to come back.
      */
-    outDigging: 'out digging',
+    presence: {
+      away: 'away',
+      home: 'home',
+      digging: 'out digging',
+    },
     raidIt: 'Raid',
     brief: 'Reach the carrot field. Their traps are buried and unmarked.',
     outOfEnergy: 'Out of energy',

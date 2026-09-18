@@ -19,17 +19,21 @@ const ART = '/assets/island/burrow_generated.webp';
 // can run (6h for an item, up to 48h for a burrow that was sacked): the point
 // of the clock is that it tells those two apart, so the story has to hold both.
 /**
- * A mix on purpose: the richest target is HOME (so the raid is a fight), the
- * second is away (so it is a walk), and two are shielded. Ordered by stock,
- * because that is the reason to go — the dot is what tells you which kind of
- * raid each row actually is.
+ * ALL THREE PRESENCES, plus the two shields. Ordered by stock, because that is
+ * the reason to go — the badge is what tells you which kind of raid each row
+ * actually is, and the story is only worth looking at if the three sit side by
+ * side where their colours can be compared.
+ *
+ * The last row carries NEITHER field, which is the pre-`presence` server: it
+ * has to fall back to "away" rather than render a blank badge.
  */
 const TARGETS: Target[] = [
-  { id: 'a', name: 'Thistle', avatar: null, stock: 48_200, shielded: false, digging: true },
-  { id: 'b', name: 'Bramble', avatar: null, stock: 31_050, shielded: false },
-  { id: 'c', name: 'Clover', avatar: null, stock: 12_400, shielded: true, shieldedFor: 5 * 60 * 60 * 1000 },
-  { id: 'd', name: 'Sorrel', avatar: null, stock: 9_870, shielded: false, digging: true },
-  { id: 'e', name: 'Nettle', avatar: null, stock: 7_320, shielded: true, shieldedFor: 41 * 60 * 60 * 1000 },
+  { id: 'a', name: 'Thistle', avatar: null, stock: 48_200, shielded: false, presence: 'digging' },
+  { id: 'b', name: 'Bramble', avatar: null, stock: 31_050, shielded: false, presence: 'home' },
+  { id: 'c', name: 'Clover', avatar: null, stock: 12_400, shielded: true, shieldedFor: 5 * 60 * 60 * 1000, presence: 'away' },
+  { id: 'd', name: 'Sorrel', avatar: null, stock: 9_870, shielded: false, presence: 'away' },
+  { id: 'e', name: 'Nettle', avatar: null, stock: 7_320, shielded: true, shieldedFor: 41 * 60 * 60 * 1000, presence: 'digging' },
+  { id: 'f', name: 'Bracken', avatar: null, stock: 4_010, shielded: false },
 ];
 
 const RAID: RaidState = {

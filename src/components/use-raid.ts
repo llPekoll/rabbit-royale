@@ -59,6 +59,26 @@ function sameRaid(a: RaidState | null, b: RaidState | null): boolean {
     && a.steps.length === b.steps.length;
 }
 
+/**
+ * Where a target's owner is standing — the three raids, in one word each.
+ *
+ * Ordered here the way a raider ranks them: `away` is a walk, `home` is the
+ * door to avoid, `digging` is the hunt.
+ */
+export type Presence = 'away' | 'home' | 'digging';
+
+/**
+ * A target's presence, whatever the server was old enough to send.
+ *
+ * Written once here rather than at each call site: the panel reads this in two
+ * places (the dot and the word), and the fallback chain is exactly the kind of
+ * thing that gets copied to one of them and not the other.
+ */
+export function presenceOf(t: Target): Presence {
+  if (t.presence) return t.presence;
+  return t.digging ? 'digging' : 'away';
+}
+
 export interface Target {
   id: string;
   name: string;
@@ -74,13 +94,21 @@ export interface Target {
    *  while the panel is open turns into a raidable row on its own. */
   shieldedFor?: number;
   /**
-   * They are out on an island right now, not at home.
+   * Where the owner is standing right now.
    *
-   * Changes what the raid IS rather than whether it is allowed: an absent
-   * owner is a walk, a digging one can be told the moment you step in
-   * (`tellDefender`) and can end the crossing with lightning. Optional so a
-   * server that predates it reads as "away" — the silence the list had before.
+   * Changes what the raid IS rather than whether it is allowed:
+   *   `away`    — nobody home. A walk.
+   *   `home`    — connected and not digging: they see you land
+   *               (`tellDefender`) and can end the crossing with lightning.
+   *   `digging` — out on an island: the burrow is unattended, but they are
+   *               told you came and can break off their run to defend it.
+   *
+   * Optional so a server that predates it falls back to `digging` below, and
+   * failing that reads as `away` — the silence the list had before any of it.
    */
+  presence?: Presence;
+  /** @deprecated The pre-`presence` boolean. Still read as a fallback so a
+   *  client that loads against an older server keeps its dot. */
   digging?: boolean;
 }
 

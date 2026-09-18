@@ -22,7 +22,7 @@ import { pushToPlayer } from '@/lib/game/raid-events';
 import { defenderRaidView } from '@/lib/game/defence';
 import { players, raidRuns, raids, traps } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
-import { onlineAmong } from '@/lib/leaderboard';
+import { connectedAmong, onlineAmong } from '@/lib/leaderboard';
 import {
   distanceToField, raiderView, settleRaid, trapClues,
 } from '@/lib/game/raid';
@@ -197,19 +197,29 @@ export async function GET(req: Request) {
 
   const now = Date.now();
   /**
-   * WHO IS OUT ON AN ISLAND RIGHT NOW — the one thing this list never said.
+   * WHERE EACH OWNER IS STANDING — the one thing this list never said.
    *
    * A raider's real question is not only "how much are they holding" but
-   * "where is the owner standing while I take it". The two answers lead to
-   * two different raids: a burrow whose owner is away is a walk, and one
-   * whose owner is at home can answer live — they see the intruder
-   * (`tellDefender`) and they have the lightning to end the crossing.
+   * "where is the owner while I take it". Three answers, three different
+   * raids, so the row carries three states rather than a flag:
    *
-   * One round trip for all twenty rows, and an empty set when Redis is down
-   * (see `onlineAmong`): a target simply reads as away, which is the same thing
-   * the list said before this existed.
+   *   away    — no socket. A walk. Nobody is coming.
+   *   home    — connected, not on an island. The worst door to pick: they see
+   *             the intruder land (`tellDefender`) and can end the crossing
+   *             with lightning.
+   *   digging — connected AND out on an island. Their burrow is unattended,
+   *             but they will be told, and they can break off their own run to
+   *             come back. The hunt.
+   *
+   * A flag could not say this: with one boolean, "not digging" had to mean
+   * both away and home-and-watching, which is opposite advice.
+   *
+   * Two round trips for all twenty rows, and EMPTY sets when Redis is down
+   * (see `membersAmong`), in which case every target reads as `away` — the
+   * silence the list had before any of this existed.
    */
-  const digging = await onlineAmong(targets.map((t) => t.id));
+  const ids = targets.map((t) => t.id);
+  const [connected, digging] = await Promise.all([connectedAmong(ids), onlineAmong(ids)]);
   return Response.json({
     raid: null,
     targets: targets.map((t) => ({
@@ -230,11 +240,18 @@ export async function GET(req: Request) {
        *  down correctly from the moment the list arrived. */
       shieldedFor: t.shieldedUntil ? Math.max(0, t.shieldedUntil.getTime() - now) : 0,
       /**
-       * Out digging an island right now — so their burrow is unattended AND
-       * they are in a position to be told. `onlineAmong` reads the set a player joins on landing, so it means "on an island",
-       * not "has the tab open", which is exactly the distinction that matters
-       * here: it is the difference between a quiet robbery and a fight.
+       * Where the owner is: `away`, `home`, or `digging`. See the block above
+       * the sets for what each one costs a raider.
+       *
+       * `digging` is checked FIRST and stands on its own: the two sets are
+       * written by different events (the handshake, and landing on an island),
+       * so a player can briefly sit in one and not the other — and of the two
+       * readings, "out on an island" is the one that changes the raid.
        */
+      presence: digging.has(t.id) ? 'digging' : connected.has(t.id) ? 'home' : 'away',
+      /** The old boolean, kept for one release: a client from before `presence`
+       *  is still reading this field, and dropping it would blank the dot for
+       *  anyone who has not reloaded. */
       digging: digging.has(t.id),
     })),
   });

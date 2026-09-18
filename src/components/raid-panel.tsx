@@ -18,7 +18,7 @@ import { groupDigits, shortWait } from '@/i18n/format';
 import { createPortal } from 'react-dom';
 import { CloseButton } from '@domin8/arcade-kit';
 import { PanelTitle } from './pixel-text';
-import type { RaidState, Target } from './use-raid';
+import { presenceOf, type RaidState, type Target } from './use-raid';
 import { LauncherTab, CARROT, DANGER, LAMP, PLANK, SOIL, SOIL_DEEP } from './burrow-chrome';
 import { LootChest, CHEST_ASPECT } from './loot-chest';
 import { PxButton, PxPanel, pxLabel } from './px';
@@ -154,24 +154,29 @@ export function TargetList({ targets, busy, onEnter, onClose, note }: TargetList
                   : Math.max(0, t.shieldedFor - elapsed);
                 const shielded = left === undefined ? t.shielded : left > 0;
                 const off = busy || shielded;
+                // Doubles as the badge's class and its dictionary key, so the
+                // three states cannot drift apart between the word and the
+                // colour that is supposed to mean the same thing.
+                const where = presenceOf(t);
                 return (
                   <li key={t.id} className={shielded ? 'shielded' : ''}>
                     <PxPanel color={PLANK} className="rr-raid-row">
-                      {/* WHERE THE OWNER IS STANDING, next to their name.
+                      {/* WHERE THE OWNER IS STANDING, under their name.
                           The list ranked burrows by stock alone, which answers
-                          "how much" and not "what kind of raid is this". They
-                          are different raids: an owner out on an island cannot
-                          see you coming, while one at home is told the moment
-                          you step in (`tellDefender`) and can end the crossing
-                          with lightning. Same green dot as the season board,
-                          because it means the same thing in both places —
-                          out digging right now. */}
+                          "how much" and not "what kind of raid is this" — and
+                          those are three different raids (see `Presence`).
+
+                          ALWAYS a word, on every row, including `away`. The
+                          first cut only marked the diggers, which left the
+                          blank rows saying two opposite things at once: nobody
+                          home, and home and watching. A raider cannot act on
+                          that, so silence is not one of the three states. */}
                       <span className="rr-raid-name">
                         {t.name}
-                        {t.digging && <i className="rr-live" aria-hidden />}
-                        {t.digging && (
-                          <small className="rr-raid-where">{d.raid.outDigging}</small>
-                        )}
+                        <small className={`rr-raid-where ${where}`}>
+                          <i aria-hidden />
+                          {d.raid.presence[where]}
+                        </small>
                       </span>
                       <span className="rr-raid-stock">{groupDigits(t.stock)} 🥕</span>
                       {/* Shielded targets are shown but not attackable: hiding

@@ -376,7 +376,11 @@ export const zh: Dict = {
     allShielded: '所有兔窝都有护盾',
     nobody: '没人可抢',
     shielded: '有护盾',
-    outDigging: '正在外面挖',
+    presence: {
+      away: '离线',
+      home: '在窝里',
+      digging: '正在外面挖',
+    },
     raidIt: '掠夺',
     brief: '抵达胡萝卜田。他们的陷阱埋在地下，没有标记。',
     outOfEnergy: '体力耗尽',

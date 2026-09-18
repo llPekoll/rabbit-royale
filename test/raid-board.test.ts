@@ -7,6 +7,7 @@
  * every clue at once and the crossing is solved before the first step.
  */
 import { describe, expect, it } from 'vitest';
+import { presenceOf, type Target } from '../src/components/use-raid';
 import { trapClues, raiderView } from '../src/lib/game/raid';
 import {
   burrowNeighbors, entranceTile, fieldTiles, isTrappable, walkableTiles,
@@ -111,5 +112,49 @@ describe('raiderView', () => {
     const mined = walkableTiles(SEED).filter((t) => isTrappable(SEED, t)).slice(0, 4);
     const view = raiderView(SEED, [entranceTile(SEED)], trapClues(SEED, mined), false);
     expect(Object.keys(view[0])).toEqual(['tile', 'clue', 'tier']);
+  });
+});
+
+/**
+ * WHERE THE OWNER IS STANDING, as the target list reports it.
+ *
+ * Three states rather than a flag, because they are three different raids:
+ * `away` is a walk, `home` is an owner who sees you land (`tellDefender`) and
+ * can end the crossing with lightning, `digging` is a burrow standing empty
+ * whose owner is nonetheless told and can come back for you.
+ *
+ * The reason this is pinned: a single boolean made "not digging" mean both
+ * away AND home-and-watching, which is opposite advice to a raider. Collapsing
+ * the three back into two would be a silent return to that.
+ */
+describe('a target\'s presence', () => {
+  const target = (extra: Partial<Target>): Target => ({
+    id: 'p', name: 'Thistle', avatar: null, stock: 10, shielded: false, ...extra,
+  });
+
+  it('reports each of the three states as the server sent it', () => {
+    expect(presenceOf(target({ presence: 'away' }))).toBe('away');
+    expect(presenceOf(target({ presence: 'home' }))).toBe('home');
+    expect(presenceOf(target({ presence: 'digging' }))).toBe('digging');
+  });
+
+  it('falls back to the old boolean from a server that predates `presence`', () => {
+    // A client can load against the previous deployment for as long as it
+    // takes the rollout to finish. The dot must not go blank in between.
+    expect(presenceOf(target({ digging: true }))).toBe('digging');
+    expect(presenceOf(target({ digging: false }))).toBe('away');
+  });
+
+  it('reads as away when the server says nothing at all', () => {
+    // Redis down sends every row without presence (`membersAmong` returns an
+    // empty set). "Away" is the honest answer there: it is what the list said
+    // before any of this existed, and it never invents a defender at home.
+    expect(presenceOf(target({}))).toBe('away');
+  });
+
+  it('prefers `presence` over the deprecated boolean when both arrive', () => {
+    // They disagree only mid-rollout, and the newer field is the one that can
+    // express `home` — the state the boolean had no way to say.
+    expect(presenceOf(target({ presence: 'home', digging: false }))).toBe('home');
   });
 });

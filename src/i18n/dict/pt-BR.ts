@@ -383,7 +383,11 @@ export const ptBR: Dict = {
     allShielded: 'TODAS AS TOCAS COM ESCUDO',
     nobody: 'NINGUÉM PARA ROUBAR',
     shielded: 'Com escudo',
-    outDigging: 'cavando fora',
+    presence: {
+      away: 'ausente',
+      home: 'na toca',
+      digging: 'cavando fora',
+    },
     raidIt: 'Saquear',
     brief: 'Alcance a plantação de cenouras. As armadilhas deles estão enterradas e sem marca.',
     outOfEnergy: 'Sem energia',

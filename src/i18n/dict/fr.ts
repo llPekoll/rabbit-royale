@@ -379,7 +379,11 @@ export const fr: Dict = {
     allShielded: 'TOUS LES TERRIERS PROTÉGÉS',
     nobody: 'PERSONNE À VOLER',
     shielded: 'Protégé',
-    outDigging: 'parti creuser',
+    presence: {
+      away: 'absent',
+      home: 'au terrier',
+      digging: 'parti creuser',
+    },
     raidIt: 'Piller',
     brief: 'Atteins le champ de carottes. Leurs pièges sont enterrés et invisibles.',
     outOfEnergy: 'Plus d’énergie',

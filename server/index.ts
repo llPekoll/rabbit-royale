@@ -43,7 +43,9 @@ import { decodePush, PLAYER_PUSH_CHANNEL } from '../src/lib/game/raid-events';
 import { inventory, players, runs, seasons } from '../src/lib/db/schema';
 import { MemoryIslandStore, type LiveIsland } from './islands/store';
 import { roomFor } from './islands/router';
-import { markOffline, markOnline, setScore } from '../src/lib/leaderboard';
+import {
+  markConnected, markDisconnected, markOffline, markOnline, setScore,
+} from '../src/lib/leaderboard';
 import { purgeOrphanGuests } from '../src/lib/auth/abandon';
 import { guard, installProcessGuards, optional } from './resilience';
 
@@ -497,6 +499,15 @@ async function payForRun(
 
 io.on('connection', (socket: Socket) => {
   const data = socket.data as SocketData;
+
+  // AT THE KEYBOARD, wherever they are standing — the handshake has already
+  // named them by here, and this lasts until the socket closes. It is what
+  // lets the raid list tell a burrow whose owner is away from one whose owner
+  // is home and watching; `markOnline` below is the narrower "on an island".
+  // Spectators have no playerId and are nobody's target, so they are skipped.
+  if (data.playerId) {
+    void optional('markConnected', () => markConnected(data.playerId!));
+  }
 
   /**
    * A RUN LEFT BEHIND BY A RELOAD is announced on arrival.
@@ -1180,6 +1191,11 @@ io.on('connection', (socket: Socket) => {
     // single bad second from Redis was enough to kill the server and end every
     // live run on it. Presence is not worth a run, let alone all of them.
     await optional('markOffline', () => markOffline(data.playerId!));
+    // Out of BOTH sets: the socket is gone, so they are neither digging nor at
+    // the keyboard. Left behind, a closed tab would haunt the raid list as a
+    // defender who is home and watching — the one row a raider avoids, and the
+    // safest burrow in the game would be an abandoned one.
+    await optional('markDisconnected', () => markDisconnected(data.playerId!));
     // A spectator holds no seat, so there is nothing to keep warm for them.
     if (data.spectating) return;
     const live = data.islandId ? store.get(data.islandId) : undefined;

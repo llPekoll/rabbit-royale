@@ -47,7 +47,22 @@ export async function redis(): Promise<RedisClientType | null> {
 }
 
 const SEASON_KEY = (season: number) => `rr:season:${season}:scores`;
+/** On an island right now — see `markOnline`. */
 const ONLINE_KEY = 'rr:online';
+/**
+ * Has a live socket, ANYWHERE — island, burrow, shop, staring at the map.
+ *
+ * The companion to `rr:online`, and deliberately a second set rather than a
+ * widening of the first: the two answer different questions and the raid list
+ * needs both. `rr:online` says "out digging", which is a burrow left
+ * unattended; this one says "at the keyboard", which is someone who will see
+ * the intruder land (`tellDefender`) and can reach for the lightning.
+ *
+ * Without it the list could only say "digging" or nothing, and nothing had to
+ * carry two meanings at once — away, and here-but-home. Those are opposite
+ * advice to a raider, so they cannot share a blank.
+ */
+const CONNECTED_KEY = 'rr:connected';
 
 /** Mirror a player's season score into the sorted set. */
 export async function setScore(season: number, playerId: string, score: number) {
@@ -159,6 +174,24 @@ export async function onlineCount(): Promise<number> {
 }
 
 /**
+ * They have a socket. Called once the handshake names them, not on `join`.
+ *
+ * Separate from `markOnline` because the two have different lifetimes: this
+ * one runs the moment a tab authenticates and lasts until the socket closes,
+ * while `markOnline` comes and goes with each island. A player who walks off
+ * an island back to their burrow leaves `rr:online` and stays here.
+ */
+export async function markConnected(playerId: string) {
+  const r = await redis();
+  await r?.sAdd(CONNECTED_KEY, playerId);
+}
+
+export async function markDisconnected(playerId: string) {
+  const r = await redis();
+  await r?.sRem(CONNECTED_KEY, playerId);
+}
+
+/**
  * Which of `ids` are out on an island right now.
  *
  * One round trip for the whole board rather than one per row: `SMISMEMBER`
@@ -169,18 +202,36 @@ export async function onlineCount(): Promise<number> {
  * the moment they land on an island — and removed on disconnect, so it is
  * "currently digging", not "has the tab open". That is the more useful of the
  * two: it is the difference between a row worth watching and a row that is
- * merely someone's account.
- *
- * Redis down returns an EMPTY set, never a throw. Presence is decoration on a
- * board that must render regardless; the failure mode is "nobody looks online",
- * which is wrong quietly rather than a page that will not load.
+ * merely someone's account. For "has the tab open", see `connectedAmong`.
  */
 export async function onlineAmong(ids: string[]): Promise<Set<string>> {
+  return membersAmong(ONLINE_KEY, ids);
+}
+
+/**
+ * Which of `ids` have a live socket right now, wherever they are standing.
+ *
+ * A SUPERSET of `onlineAmong`: everyone out on an island is also connected,
+ * so the raid list reads the two together — connected and digging is "out
+ * digging", connected and not digging is "home", neither is "away".
+ */
+export async function connectedAmong(ids: string[]): Promise<Set<string>> {
+  return membersAmong(CONNECTED_KEY, ids);
+}
+
+/**
+ * `SMISMEMBER` for one set, with presence's failure rule applied once.
+ *
+ * Redis down returns an EMPTY set, never a throw. Presence is decoration on a
+ * board that must render regardless; the failure mode is "nobody looks
+ * online", which is wrong quietly rather than a page that will not load.
+ */
+async function membersAmong(key: string, ids: string[]): Promise<Set<string>> {
   if (ids.length === 0) return new Set();
   try {
     const r = await redis();
     if (!r) return new Set();
-    const flags = await r.smIsMember(ONLINE_KEY, ids);
+    const flags = await r.smIsMember(key, ids);
     return new Set(ids.filter((_, i) => flags[i]));
   } catch {
     return new Set();

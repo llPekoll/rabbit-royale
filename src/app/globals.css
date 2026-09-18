@@ -4080,13 +4080,37 @@ button { font-family: var(--font-pixel); }
    the stock and the RAID button onto a second line even on rows with no
    sub-text at all.
 
-   Amber, not the dot's green: the green says "live", this says what being
-   live COSTS you — the owner is home to answer. */
+   Carries its own dot (the `i`) rather than borrowing `.rr-live` from the
+   season board: there the dot only ever means "digging", here it has to take
+   three colours, and one class that means one thing in one place and three in
+   another is how the two drift apart. */
 .rr-raid-where {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 5px;
   font-size: 10px;
-  color: rgba(255, 178, 56, 0.85);
   line-height: 1.3;
+}
+.rr-raid-where i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+/* THE THREE STATES, coloured by what they cost the raider rather than by
+   whether someone is "on". Away is the quiet one and recedes; home is the
+   door to think twice about, in the same red the RAID button is; digging is
+   the green of the season board's live dot, which already means "out on an
+   island right now" everywhere else in the game. */
+.rr-raid-where.away { color: rgba(139, 148, 158, 0.75); }
+.rr-raid-where.home { color: rgba(255, 138, 118, 0.95); }
+.rr-raid-where.digging { color: rgba(74, 222, 128, 0.95); }
+/* Only the live one pulses. A blinking "away" would be a light advertising an
+   absence, and three pulsing rows in a list read as an error state. */
+.rr-raid-where.digging i { animation: rr-live-pulse 1.8s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .rr-raid-where.digging i { animation: none; }
 }
 .rr-raid-stock {
   font-size: 12px;

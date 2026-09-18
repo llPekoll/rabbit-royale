@@ -152,15 +152,19 @@ describe('digging presence', () => {
 
   it('asks Redis once for the whole page', () => {
     // One SMISMEMBER, not one SISMEMBER per row — the board asks about fifty
-    // players every time it opens.
-    expect(LIB).toMatch(/smIsMember\(ONLINE_KEY, ids\)/);
+    // players every time it opens. Asked of `membersAmong`, which is where
+    // both presence sets (`rr:online` and `rr:connected`) go through.
+    expect(LIB).toMatch(/smIsMember\(key, ids\)/);
+    expect(LIB).toMatch(/membersAmong\(ONLINE_KEY, ids\)/);
     expect(ROUTE).toMatch(/onlineAmong\(rows\.map/);
   });
 
   it('never lets presence break the board', () => {
     // Redis is decoration here. A throw would take down a leaderboard that is
     // perfectly serveable from Postgres, so the failure mode is an empty set.
-    const fn = LIB.slice(LIB.indexOf('export async function onlineAmong'));
+    // On `membersAmong` now: both sets are read through it, so one guard
+    // covers them and neither can be added later without it.
+    const fn = LIB.slice(LIB.indexOf('async function membersAmong'));
     const body = fn.slice(0, fn.indexOf('\n}'));
     expect(body).toMatch(/try \{/);
     expect(body).toMatch(/catch \{[\s\S]*return new Set\(\)/);
