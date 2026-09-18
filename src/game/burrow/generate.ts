@@ -222,16 +222,24 @@ function tryBuild(seed: string, attempt: number): BurrowTerrain | null {
   const field = pickField(map, main, entrance);
   if (field.length < FIELD_CELLS / 2) return null;
 
-  const steps = stepDistances(map, main, entrance);
+  // The garden stands clear too, for the same reason as the door — and the
+  // ground is measured a third time, since a bush pulled off the field's
+  // rim is a cell given back. The field was grown on `main` and the body
+  // only grows, so every field cell is still on it; what CAN change is the
+  // crossing, which is why it is measured after and not before.
+  const tidied = clearAround(cleared, field, FIELD_CLEARING, FIELD_CLEARING_TREES);
+  const homestead = mainBody(map, walkableWith(map, tidied));
+
+  const steps = stepDistances(map, homestead, entrance);
   const crossing = Math.min(...field.map((tile) => steps.get(tile) ?? Infinity));
   if (crossing < MIN_CROSSING || crossing === Infinity) return null;
 
   const doorstep = pickDoorstep(steps, crossing, new Set(field));
-  const cells = paint(main, entrance, field, doorstep);
+  const cells = paint(homestead, entrance, field, doorstep);
 
   return {
     map,
-    placements: onTheHomestead(cleared, main, field, entrance),
+    placements: onTheHomestead(tidied, homestead, field, entrance),
     cells,
     entrance,
     field,
@@ -299,18 +307,52 @@ function walkableWith(map: IslandMap, placements: Placement[]) {
  * Chebyshev distance, in cells: this is about what the picture covers, not
  * about where a rabbit can walk.
  */
-function clearTheDoor(placements: Placement[], entrance: number): Placement[] {
-  const door = colRow(entrance);
-  return placements.filter((p) => {
-    const d = Math.max(Math.abs(p.x - door.col), Math.abs(p.y - door.row));
-    if (d <= DOOR_CLEARING) return false;
-    return !(p.kind === 'tree' && d <= DOOR_CLEARING_TREES);
-  });
-}
+const clearTheDoor = (placements: Placement[], entrance: number): Placement[] =>
+  clearAround(placements, [entrance], DOOR_CLEARING, DOOR_CLEARING_TREES);
 
 /** Cells round the door kept bare of everything, and of trees. */
 const DOOR_CLEARING = 2;
 const DOOR_CLEARING_TREES = 3;
+
+/**
+ * Nothing stands over the garden either.
+ *
+ * The field is the objective, and it is painted as one — turned soil, the
+ * crop, a red veil during the raid, a gold arrow above. All of it is on the
+ * ground, and a pine a cell or two in front of the patch put half of it
+ * behind foliage: the raider crossing towards the win could not see where
+ * the win was, and the defender placing bombs round it could not see the
+ * cells they were choosing between. `onTheHomestead` clears the field's own
+ * cells, which is the one place a tree cannot cover the field FROM.
+ *
+ * Tighter than the door's clearing: the ring round the field is the last
+ * decision of the raid and the one a defence is built around, and a bush on
+ * it is a route closed — that is ground worth keeping in play. So nothing
+ * touching the field, and no tree close enough to reach over it.
+ */
+const FIELD_CLEARING = 1;
+const FIELD_CLEARING_TREES = 3;
+
+/**
+ * Placements with a clearing round some cells: nothing within `bare` of any
+ * of them, and no tree within `trees`. Chebyshev distance, in cells.
+ */
+function clearAround(
+  placements: Placement[],
+  cells: number[],
+  bare: number,
+  trees: number,
+): Placement[] {
+  const around = cells.map(colRow);
+  return placements.filter((p) => {
+    let d = Infinity;
+    for (const { col, row } of around) {
+      d = Math.min(d, Math.max(Math.abs(p.x - col), Math.abs(p.y - row)));
+    }
+    if (d <= bare) return false;
+    return !(p.kind === 'tree' && d <= trees);
+  });
+}
 
 /**
  * Scenery the homestead actually wants standing on it.

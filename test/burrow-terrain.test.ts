@@ -124,6 +124,20 @@ describe('burrow terrain', () => {
     expect(tiers.size).toBe(1);
   });
 
+  forEachBurrow('keeps scenery off the garden and out from in front of it', (seed) => {
+    // The field is the objective and everything that says so is on the
+    // ground: soil, crop, the raid's red, the arrow's shadow. A bush on its
+    // rim or a pine a couple of cells in front puts that behind foliage, for
+    // the raider aiming at it and the defender mining round it alike.
+    const { placements } = burrowFor(seed);
+    const field = fieldTiles(seed).map((t) => ({ col: t % BURROW_COLS, row: Math.floor(t / BURROW_COLS) }));
+    for (const p of placements) {
+      const d = Math.min(...field.map((f) => Math.max(Math.abs(p.x - f.col), Math.abs(p.y - f.row))));
+      expect(d, `${p.kind} at ${p.x},${p.y} touches the field`).toBeGreaterThan(1);
+      if (p.kind === 'tree') expect(d, `tree at ${p.x},${p.y} leans over the field`).toBeGreaterThan(3);
+    }
+  });
+
   forEachBurrow('keeps the field in one connected patch', (seed) => {
     // Reaching ANY field tile wins the raid, so a garden in two halves would
     // quietly mean two objectives at two different distances.

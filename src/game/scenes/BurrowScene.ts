@@ -42,7 +42,7 @@ import { FOG_COLOR, FOG_ALPHA, HIGHLIGHT_COLOR, HINT_TINTS } from '../entities/T
 import * as Keys from '@/config/assetKeys';
 import { BURROW_COLS, BURROW_ROWS, BURROW_HALF_W, BURROW_HALF_H, burrowColRow } from '@/config/burrowConfig';
 import {
-  burrowCell, isTrappable, isDoorstep, entranceTile, walkableTiles, fieldTiles, burrowAround,
+  burrowCell, isTrappable, isDoorstep, entranceTile, walkableTiles, fieldTiles,
 } from '@/game/burrow/board';
 import { burrowTileScreen, burrowDepth } from '@/game/burrow/screen';
 import { RABBIT_SCALE } from '@/config/gridConfig';
@@ -133,13 +133,13 @@ const PLACEABLE_ALPHA = 0.42;
  * as the gold one over the garden, the other end of the same walk.
  *
  * ORANGE, because every other colour on this board already means something:
- * blue is "yours to mine", gold is a bomb (and the prize), red is the fence
- * the raider sees round the field, navy is "not read yet". Warm against the
+ * blue is "yours to mine", gold is a bomb (and the prize), red is the field
+ * the raider is heading for, navy is "not read yet". Warm against the
  * navy fog so a raider reads it as ground they were given, not as sea.
  *
  * Two alphas: the placement diamond is an OUTLINE and needs more of it to be
  * seen on grass; the raid veil is a solid fill and the same alpha would paint
- * the doorstep louder than the fence round the goal.
+ * the doorstep louder than the goal itself.
  */
 const DOOR_TINT = 0xff8a3d;
 const DOORSTEP_ALPHA = 0.55;
@@ -222,14 +222,20 @@ const CLUE_SCALE = 1.4;
 const WHEEL_ZOOM_PER_UNIT = 0.0015;
 const TRACKPAD_PINCH_BOOST = 6;
 /**
- * The ring of cells around the carrot field, marked from the first frame.
+ * The carrot field, marked red from the first frame.
  *
  * A raid is a trip TO somewhere, and on a full map the garden reads as one
  * more patch of scenery: the raider could see the whole island and still not
- * know which corner ended the trip. So the cells that touch the field wear
- * red instead of the navy fog, always — the fog says "not read yet", this
- * says "one step from the win", and the two must not be the same colour.
- * The field itself wears nothing: it is the prize, in plain sight.
+ * know which corner ended the trip. So the field wears red instead of the
+ * navy fog, always — the fog says "not read yet", this says "step here and
+ * you have won", and the two must not be the same colour.
+ *
+ * It was the RING round the field that wore the red, with the field bare in
+ * the middle: a fence around the prize. Played, that read backwards — the
+ * red cells were the last ones a raider had to cross and survive, and the
+ * win was the one patch NOT painted as the goal. The red is on the win now,
+ * and the ring is ordinary ground: the defender's to mine, the raider's to
+ * read, nothing about it announced.
  */
 const GOAL_TINT = 0xff3b3b;
 const GOAL_ALPHA = 0.5;
@@ -237,18 +243,18 @@ const GOAL_ALPHA = 0.5;
 /**
  * THE GOLDEN ARROW, hanging over the garden.
  *
- * The red ring above says "one step from the win" to a raider already standing
- * there; it says nothing at all to one who has just walked in the door and is
- * looking at a whole homestead. A ring is read once you are near enough to
- * read the cell — a marker in the AIR is read from across the board, which is
- * exactly where the question "which way?" is asked.
+ * The red above says "this is the win" to a raider near enough to read the
+ * cell; it says little to one who has just walked in the door and is looking
+ * at a whole homestead behind trees and shelves. A marker in the AIR is read
+ * from across the board, which is exactly where the question "which way?" is
+ * asked.
  *
  * It is the hub's own nav arrow (`ARROW_URLS.down` from the shared kit, the
  * same chevron the cabinet carousel is flanked with), not a shape drawn here:
  * the two screens point with one sprite. Gold rather than the ring's red,
  * because gold is already what this game means by YOURS-TO-TAKE — the crown,
- * the carrot count, the step ring, the traps. Red is the fence around the
- * prize; gold is the prize.
+ * the carrot count, the step ring, the traps. Red is the ground the prize
+ * stands on; gold is the prize.
  *
  * It bobs, because a still sprite over busy pixel grass reads as scenery.
  */
@@ -300,10 +306,11 @@ export interface RaidTile {
 interface RaidCell {
   /**
    * What the veil says: `fog` lifts as the raider is sent the tile, `goal`
-   * stays red for the whole raid, `none` is the field — bare, and tappable.
+   * is the field and stays red for the whole raid, `doorstep` is the ground
+   * inside the door and stays orange.
    */
-  veil: 'fog' | 'goal' | 'doorstep' | 'none';
-  /** The lid over the ground — navy fog, or the goal ring's red. */
+  veil: 'fog' | 'goal' | 'doorstep';
+  /** The lid over the ground — navy fog, the goal's red, the doorstep's orange. */
   fog: Sprite;
   /** The gold outline on a tile they may step onto. */
   ring: Sprite;
@@ -367,7 +374,6 @@ export interface BurrowSceneData {
 
 /** How opaque a cell's veil is, for what it says and whether the raider has been sent it. */
 function veilAlpha(veil: RaidCell['veil'], seen: boolean): number {
-  if (veil === 'none') return 0;
   if (veil === 'goal') return GOAL_ALPHA;
   // Seen or not: the doorstep is ground the raider was GIVEN, and the
   // rule is public (a raider's client cuts the same doorstep from the same
@@ -1726,18 +1732,13 @@ export class BurrowScene implements Scene {
         -BURROW_HALF_W / k.x, 0,
       ]);
     };
-    // The field, and the ring of walkable cells touching it — see `GOAL_TINT`.
+    // The field — see `GOAL_TINT`.
     const field = new Set(fieldTiles(seed));
-    const goal = new Set<number>();
-    for (const f of field) {
-      for (const n of burrowAround(seed, f)) if (!field.has(n)) goal.add(n);
-    }
     for (const tile of walkableTiles(seed)) {
       // The two ends of the walk wear their own colours from the first frame:
-      // red round the field (one step from the win), orange on the doorstep
-      // (the steps the raider was given). Everything between is fog.
-      const veil = field.has(tile) ? 'none'
-        : goal.has(tile) ? 'goal'
+      // red on the field (the win), orange on the doorstep (the steps the
+      // raider was given). Everything between is fog.
+      const veil = field.has(tile) ? 'goal'
         : isDoorstep(seed, tile) ? 'doorstep'
         : 'fog';
       const fog = burrowDiamondSolid();
