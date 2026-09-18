@@ -479,18 +479,6 @@ const FOAM_FIT_W = 64 / 1.8;
  */
 const FOAM_DEPTH = -1;
 
-/**
- * How tall the thing being hidden is, in pixels, for `facesHiding`.
- *
- * A rabbit, which is the only thing that asks. Deliberately a constant: the
- * question is "would a player-sized sprite be covered on this cell", and a
- * caller checking a cell before anything stands on it has nothing to measure.
- */
-const RABBIT_H = 26;
-
-/** How far `facesHiding` looks for rock, in cells. */
-const RADIUS = 3;
-
 interface AnimatedProp {
   sprite: Sprite;
   frames: Texture[];
@@ -937,69 +925,6 @@ export class IsoIslandView {
    */
   spriteFor(id: string): Sprite | undefined {
     return this.livestock.find((entry) => entry.occupant.id === id)?.sprite;
-  }
-
-  /**
-   * The cliff faces standing between the camera and a cell — the rock a
-   * rabbit on this cell is walking behind.
-   *
-   * Decided from where the sprites actually LAND rather than from a fixed
-   * neighbourhood, because on this projection the two are not the same thing
-   * and guessing the offsets got it wrong twice. A face closes the drop on its
-   * cell's south and east sides, so it hangs below that cell — but the cell it
-   * belongs to is also lifted by its own tier, and the two cancel out to
-   * different amounts depending on how deep the drop is. The cells whose rock
-   * ends up in front of a given rabbit are not a neat "one row north" or "one
-   * row south"; they are wherever that arithmetic puts them.
-   *
-   * So this asks the projection directly. A face is in the way when it
-   *
-   *   - stands on higher ground than the rabbit (lower rock is behind it),
-   *   - sorts AFTER the rabbit (`isoDepth`, the same ruler the renderer uses,
-   *     so this can never disagree with what is actually drawn on top), and
-   *   - overlaps the rabbit vertically on screen, within the band its own art
-   *     covers.
-   *
-   * `RABBIT_H` is how tall the thing being hidden is. It is a constant rather
-   * than a measurement because the answer wanted is "is a player-sized sprite
-   * covered here", not "is this particular texture covered" — and a caller
-   * asking about a cell has no sprite to measure yet.
-   */
-  facesHiding(x: number, y: number): Sprite[] {
-    const { map } = this.options;
-    const here = levelAt(map, x, y);
-    const hereDepth = isoDepth(x, y, here);
-    const hereY = isoProject(x + 0.5, y + 0.5, here, this.metrics).y;
-    const out: Sprite[] = [];
-
-    // Only cells near enough to matter: a face more than a few cells away
-    // cannot reach across the screen to cover this one, and walking the whole
-    // map every frame for every occluder is the kind of cost that turns a nice
-    // effect into a dropped frame.
-    for (let cy = y - RADIUS; cy <= y + RADIUS; cy++) {
-      for (let cx = x - RADIUS; cx <= x + RADIUS; cx++) {
-        const tier = levelAt(map, cx, cy);
-        if (tier <= here) continue;
-        if (isoDepth(cx, cy, tier) <= hereDepth) continue;
-
-        const stack = this.faces.get(key(cx, cy));
-        if (!stack) continue;
-
-        // The band this column of rock covers: from the top of its face down
-        // through however many tiles were stacked to close the drop.
-        const topY = isoProject(cx + 0.5, cy + 0.5, tier, this.metrics).y;
-        const bottomY = topY + stack.length * FACE_SOLID_H;
-        // The rabbit's body, not its feet: standing at `hereY`, it occupies the
-        // band above that point.
-        if (bottomY < hereY - RABBIT_H || topY > hereY) continue;
-
-        // The whole stack or none of it: a window through the top slab of a
-        // three-deep column shows the two below, which is worse than no
-        // window at all.
-        out.push(...stack);
-      }
-    }
-    return out;
   }
 
   /**

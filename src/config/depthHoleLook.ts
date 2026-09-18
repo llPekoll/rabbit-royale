@@ -22,7 +22,7 @@
  */
 export const DEPTH_HOLE_LOOK = {
   /** Rayon du disque entièrement ouvert, en pixels du plateau (une case fait 44 de large). */
-  radius: 17,
+  radius: 35,
   /** Largeur de la couronne tramée, au-delà du rayon, en pixels du plateau. */
   feather: 11,
   /** Taille d'un point de trame, en pixels d'art (1 = un pixel du sprite à l'écran). */

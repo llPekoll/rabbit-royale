@@ -1,52 +1,55 @@
 /**
  * Making something see-through the way pixel art does it: by REMOVING PIXELS.
  *
- * The island used to fade whatever the rabbit was standing behind — a pine is
- * three cells tall and the player ends up inside the trunk, so the trunk went
- * to 45% alpha and you could see who was back there. That worked, and it
- * looked like a PNG with its opacity slider pulled down: every pixel of
- * the tree goes equally milky, the grass behind shows through everywhere at
- * once, and nothing about it belongs to a game drawn at 64px with a fixed
- * palette. A pixel has no half — the medium's whole grammar is that a pixel is
- * either there or it is not.
+ * This filter does not lower alpha. It KEEPS OR DROPS each pixel, and decides
+ * which with an ordered dither: the classic Bayer matrix, the same one that
+ * let four-colour machines paint gradients. A pixel has no half — the medium's
+ * whole grammar is that a pixel is either there or it is not, and a sprite at
+ * 45% alpha reads as a PNG with its opacity slider pulled down rather than as
+ * anything belonging to a game drawn at 64px on a fixed palette.
  *
- * So this filter does not lower alpha. It KEEPS OR DROPS each pixel, and
- * decides which with an ordered dither: the classic Bayer matrix, the same one
- * that let four-colour machines paint gradients. Pixels vanish in the matrix's
- * fixed order, so at 40% dissolved the same 40% of the pattern is always the
- * part that went — a stable stipple, never noise crawling over the sprite.
+ * Pixels vanish in the matrix's fixed order, so at 40% dissolved the same 40%
+ * of the pattern is always the part that went — a stable stipple, never noise
+ * crawling over the picture.
+ *
+ * ## What uses this
+ *
+ * `SandWipe` — the scene crossing where the outgoing screen crumbles away
+ * grain by grain. It drives `amount` from 0 to 1 over the whole scene, with
+ * `holeRadius` 0 (everything dissolves evenly) and no rim tint.
+ *
+ * That is the ONLY caller, and it is worth knowing why the hole machinery
+ * below exists anyway. This filter was first written to solve occlusion: a
+ * pine is three cells tall, the player ends up inside the trunk, and the
+ * trunk needed to open a window exactly where the rabbit stood. That
+ * experiment is gone — occlusion is `fx/DepthHole.ts` now, which does it
+ * properly by DEPTH TEST over a sorted layer instead of by asking the island
+ * which sprites might be in front. Do not reach for the hole here for
+ * occlusion; reach for DepthHole.
  *
  * ## Why the threshold is compared in SCREEN space
  *
  * The matrix is sampled at `gl_FragCoord`, not at the texture coordinate, and
  * that is the load-bearing decision. Sampled in texture space the pattern is
- * glued to the sprite: it scales with it, and a tree drawn at `decoScale` 0.7
- * carries a squashed 3-pixel checker that reads as a JPEG artefact. Sampled in
- * screen space the stipple is the SCREEN's own grid — the dots stay square and
- * one device-pixel-block wide no matter how the sprite is scaled, which is what
- * makes it read as the picture being made of pixels rather than as a texture
- * painted onto the tree.
+ * glued to the sprite: it scales with it, and a sprite drawn at 0.7 carries a
+ * squashed 3-pixel checker that reads as a JPEG artefact. Sampled in screen
+ * space the stipple is the SCREEN's own grid — the dots stay square and one
+ * device-pixel-block wide however the sprite is scaled, which is what makes it
+ * read as the picture being made of pixels rather than as a texture painted on.
  *
  * `uPixelSize` is how many device pixels one dither dot spans. The canvas is
  * rendered at up to 2x (see `Application.ts`) and `image-rendering: pixelated`
  * blows that up again, so a dot of 1 comes out finer than any art pixel on
  * screen and shimmers. Matching it to the on-screen size of an art pixel is
- * what makes the holes look punched out of the sprite itself.
+ * what makes the holes look punched out of the picture itself.
  *
- * ## The edge
+ * ## The hole
  *
- * Dissolving to a flat 40% leaves a tree that is uniformly moth-eaten, which
- * reads as damage rather than as transparency. Real dissolve shaders (the ones
- * the reference footage shows eating a hole through a wall) drive the
- * threshold from a MASK, so the hole opens where you want it and the rest of
- * the wall stays solid. `uHole` is that mask, in screen pixels: a disc centred
- * on `uHoleCenter` with radius `uHoleRadius`, soft over `uHoleFeather`, inside
- * which the sprite dissolves and outside which it is untouched.
- *
- * Set `holeRadius` to 0 and the whole sprite dissolves evenly, which is the
- * simple mode and what a bush wants. Point the hole at the rabbit and the tree
- * opens a window exactly where the player is standing, which is what the eye
- * actually wants from occlusion: see the player, keep the tree.
+ * `uHole` is an optional mask, in screen pixels: a disc centred on
+ * `uHoleCenter` with radius `uHoleRadius`, soft over `uHoleFeather`, inside
+ * which the sprite dissolves and outside which it is untouched. Set
+ * `holeRadius` to 0 — as `SandWipe` does — and the whole thing dissolves
+ * evenly.
  */
 import { Filter, GlProgram } from 'pixi.js';
 
