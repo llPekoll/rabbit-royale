@@ -87,6 +87,29 @@ const INSET = 34;
 const IN_VIEW_TILES = 3.5;
 
 /**
+ * How wide the fade-out band is, as a share of the hand-off distance.
+ *
+ * The chevron used to vanish on a single frame the moment its chest crossed
+ * the line — a pop, right in the corner of the player's eye, which reads as a
+ * glitch rather than as a hand-off. Now it thins out over the last stretch of
+ * the approach and is gone by the time the chest is comfortably in view.
+ *
+ * Driven by DISTANCE, not by a tween. `layout` already runs on every camera
+ * frame and recomputes each chevron from scratch, so a gsap tween on the
+ * sprite would be overwritten the next frame — and worse, the pool reuses
+ * sprites between chests, so a half-faded slot would hand its alpha to
+ * whatever chest took it next. Solving alpha from the geometry makes the fade
+ * a pure function of where the camera is, which is exactly what it should be:
+ * pan back and the chevron fades back IN, at the same rate, with no state to
+ * get out of step.
+ *
+ * 0.45 — the last 45 % of the approach to the hand-off line. Short enough that
+ * a chevron still reads as solid while it is doing its job, long enough that
+ * the disappearance is a fade and not a cut.
+ */
+const FADE_BAND = 0.45;
+
+/**
  * Chevron size as a share of its texture.
  *
  * 1.4, not the board arrow's 0.7. `ChestPointer` bobs directly over a box the
@@ -248,7 +271,31 @@ export class ChestCompass {
       // island, where a rectangular frame test had let corner chests through.
       if (dist <= 0 || reach - margin < atFrame) continue;
 
+      /**
+       * Thin out as the chest comes in, rather than cutting.
+       *
+       * `headroom` is how far the chest still is BEYOND the point where its
+       * chevron would be dropped (`reach - margin === atFrame`, the test just
+       * above). A chest way out at sea has plenty and the arrow is solid; as
+       * the camera pulls back and the chest comes in, headroom shrinks to zero
+       * and the alpha rides it down — so the sprite is already invisible on
+       * the frame the geometry stops drawing it, and the two never disagree.
+       *
+       * The subtraction order matters and was wrong the first time: written
+       * the other way round it went NEGATIVE for distant chests, i.e. the
+       * arrows that should be the most solid were the ones being hidden. The
+       * clamp below would mask that as "everything invisible", so the probe
+       * printed alphas like -2.1 rather than a fade.
+       *
+       * Written to `alpha` on EVERY placed chevron, never only on the fading
+       * ones: the pool hands the same sprite to a different chest as the list
+       * churns, and a slot left at 0.2 would make the next chest's marker
+       * arrive half transparent.
+       */
+      const headroom = (reach - margin) - atFrame;
+      const band = atFrame * FADE_BAND;
       const sprite = this.take(used++);
+      sprite.alpha = band <= 0 ? 1 : Math.max(0, Math.min(1, headroom / band));
       sprite.tint = target.tint;
       sprite.position.set(cx + ux * dist, cy + uy * dist);
       // The kit's chevron points DOWN at rest, so the angle is measured from
