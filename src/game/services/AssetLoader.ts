@@ -303,7 +303,48 @@ export const BUNNY_ANIM_DEFS: Record<
   death: [56, 61, 8, false],
 };
 
-export async function loadAllAssets(
+/**
+ * The one in-flight (or finished) load, so two callers share it.
+ *
+ * There are two now: the page starts this the moment it mounts, to fetch the
+ * artwork while `/api/auth/me` is still in flight, and `BootScene` calls it
+ * again for real once the canvas exists. Pixi's `Assets` already dedupes the
+ * DOWNLOADS, but the parsing below is not re-entrant — `lightningSheets` is
+ * truncated and refilled, so a second pass running through it while the first
+ * still holds the array would empty it under the first's feet. One promise for
+ * everyone removes the question.
+ *
+ * Deliberately not reset on failure: a rejected load rejects for both callers,
+ * and `BootScene` surfaces it the way it always did.
+ */
+let allAssetsLoad: Promise<void> | null = null;
+
+/**
+ * Where the shared load has got to, and who wants to hear about it.
+ *
+ * The PREFETCH starts the load without a progress callback, and the loading
+ * bar asks for one afterwards — so the bar would have watched a load already
+ * running and been told nothing, sitting at zero until it jumped to done. The
+ * listener is registered late and immediately caught up to `lastProgress`.
+ */
+let lastProgress = 0;
+const progressListeners = new Set<(progress: number) => void>();
+
+export function loadAllAssets(onProgress?: (progress: number) => void): Promise<void> {
+  if (onProgress) {
+    progressListeners.add(onProgress);
+    // Catch up: a load that is already part-done (or finished) has to say so,
+    // or a bar that joined late never moves.
+    onProgress(lastProgress);
+  }
+  allAssetsLoad ??= loadAllAssetsOnce((progress) => {
+    lastProgress = progress;
+    for (const listener of progressListeners) listener(progress);
+  });
+  return allAssetsLoad;
+}
+
+async function loadAllAssetsOnce(
   onProgress?: (progress: number) => void
 ): Promise<void> {
   // Register all assets

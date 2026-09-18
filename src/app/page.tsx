@@ -533,6 +533,35 @@ function Burrow() {
       .catch(() => {});
   }, []);
 
+  /**
+   * Start fetching the ARTWORK now, while the auth check is still in flight.
+   *
+   * The boot used to be four strictly serial stages: parse the JS, wait for
+   * `/api/auth/me`, create the Pixi app, and only THEN ask for the first byte
+   * of art. But none of that art depends on who the player is — the tileset,
+   * the bunnies, the fx sheets are the same for everyone; only the SEED is
+   * personal, and the seed decides how the tiles are arranged, not which files
+   * to fetch. So the whole download sat behind a round trip it had no reason
+   * to wait for.
+   *
+   * This warms Pixi's `Assets` cache by URL. When `BootScene` later calls
+   * `loadAllAssets` for real it finds the textures already there (or already
+   * in flight, which `Assets` dedupes) and resolves without a second fetch.
+   * The loading bar still measures the real load; it simply has less to wait
+   * for. Nothing here touches the renderer — `loadAllAssets` never does — so
+   * it is safe long before the canvas exists.
+   *
+   * Failures are swallowed on purpose: this is an optimisation, and the real
+   * load behind the loading screen is what reports a genuine problem.
+   */
+  useEffect(() => {
+    let alive = true;
+    import('@/game/services/AssetLoader')
+      .then((m) => { if (alive) return m.loadAllAssets(); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
   const act = async (action: 'harvest' | 'upgrade' | 'water' | 'fertilise' | 'shield') => {
     setPending(true);
     setNote(null);
