@@ -11,11 +11,23 @@ import { readFileSync, readdirSync } from 'node:fs';
 const DIR = new URL('../src/game/fx/', import.meta.url);
 
 /** The fragment shader's source, as a plain string. */
-function fragmentSource(file = 'WaterShader.ts'): string {
+function fragmentSource(file: string): string {
   const src = readFileSync(new URL(file, DIR), 'utf8');
   const open = src.indexOf('const fragment = `');
   return src.slice(open, src.indexOf('\n`;', open));
 }
+
+/**
+ * Every fx file that actually holds a fragment shader, by name.
+ *
+ * These checks used to run against ONE sample (`WaterShader.ts`, deleted
+ * 2026-09-19 as unused). Reading the directory instead means a new shader is
+ * covered the day it lands rather than the day someone remembers this file,
+ * and it cannot rot when a single named file goes away again.
+ */
+const FRAGMENT_FILES = readdirSync(DIR)
+  .filter((f) => f.endsWith('.ts'))
+  .filter((f) => readFileSync(new URL(f, DIR), 'utf8').includes('const fragment = `'));
 
 describe('shader source', () => {
   /**
@@ -46,20 +58,22 @@ describe('shader source', () => {
    * all. The all-on picture looks right and every per-step story is wrong.
    */
   it('never feeds a step dial straight into smoothstep bounds', () => {
-    const frag = fragmentSource();
-    for (const line of frag.split('\n')) {
-      const code = line.trim();
-      if (code.startsWith('//') || !code.includes('smoothstep(')) continue;
-      // A dial passed straight in is the bug; one wrapped in `max(dial, eps)`
-      // — or used inside a block guarded on itself — is fine.
-      const m = code.match(/smoothstep\(\s*(u[A-Z]\w*)\s*,/);
-      if (!m) continue;
-      const guarded = frag.includes(`if (${m[1]} > 0.0)`);
-      expect(
-        guarded,
-        `${m[1]} is a smoothstep bound with no guard: at zero it paints at full strength. `
-        + 'Wrap it as `max(dial, 0.001)` or put it inside `if (dial > 0.0)`.',
-      ).toBe(true);
+    for (const file of FRAGMENT_FILES) {
+      const frag = fragmentSource(file);
+      for (const line of frag.split('\n')) {
+        const code = line.trim();
+        if (code.startsWith('//') || !code.includes('smoothstep(')) continue;
+        // A dial passed straight in is the bug; one wrapped in `max(dial, eps)`
+        // — or used inside a block guarded on itself — is fine.
+        const m = code.match(/smoothstep\(\s*(u[A-Z]\w*)\s*,/);
+        if (!m) continue;
+        const guarded = frag.includes(`if (${m[1]} > 0.0)`);
+        expect(
+          guarded,
+          `${file}: ${m[1]} is a smoothstep bound with no guard: at zero it paints at full `
+          + 'strength. Wrap it as `max(dial, 0.001)` or put it inside `if (dial > 0.0)`.',
+        ).toBe(true);
+      }
     }
   });
 
@@ -74,16 +88,17 @@ describe('shader source', () => {
       'half', 'input', 'output', 'filter', 'sampler', 'buffer', 'shared',
       'active', 'asm', 'cast', 'common', 'partition', 'union', 'namespace',
     ];
-    const frag = fragmentSource();
-    for (const line of frag.split('\n')) {
-      const code = line.trim();
-      if (code.startsWith('//')) continue;
-      const m = code.match(/^(?:float|vec2|vec3|vec4|int|bool)\s+(\w+)\s*[=;]/);
-      if (!m) continue;
-      expect(
-        RESERVED,
-        `"${m[1]}" is a GLSL reserved word: the shader will not compile`,
-      ).not.toContain(m[1]);
+    for (const file of FRAGMENT_FILES) {
+      for (const line of fragmentSource(file).split('\n')) {
+        const code = line.trim();
+        if (code.startsWith('//')) continue;
+        const m = code.match(/^(?:float|vec2|vec3|vec4|int|bool)\s+(\w+)\s*[=;]/);
+        if (!m) continue;
+        expect(
+          RESERVED,
+          `${file}: "${m[1]}" is a GLSL reserved word: the shader will not compile`,
+        ).not.toContain(m[1]);
+      }
     }
   });
 
@@ -93,17 +108,20 @@ describe('shader source', () => {
    * renders BLACK with no message anywhere in the app.
    */
   it('declares each local name once per shader', () => {
-    const body = fragmentSource().slice(fragmentSource().indexOf('void main'));
-    const seen = new Map<string, number>();
-    for (const line of body.split('\n')) {
-      const code = line.trim();
-      if (code.startsWith('//')) continue;
-      const m = code.match(/^(?:float|vec2|vec3|vec4|int)\s+(\w+)\s*=/);
-      if (!m) continue;
-      seen.set(m[1], (seen.get(m[1]) ?? 0) + 1);
+    for (const file of FRAGMENT_FILES) {
+      const frag = fragmentSource(file);
+      const body = frag.slice(frag.indexOf('void main'));
+      const seen = new Map<string, number>();
+      for (const line of body.split('\n')) {
+        const code = line.trim();
+        if (code.startsWith('//')) continue;
+        const m = code.match(/^(?:float|vec2|vec3|vec4|int)\s+(\w+)\s*=/);
+        if (!m) continue;
+        seen.set(m[1], (seen.get(m[1]) ?? 0) + 1);
+      }
+      const dupes = [...seen.entries()].filter(([, n]) => n > 1).map(([k]) => k);
+      expect(dupes, `${file}: redeclared in main(): ${dupes.join(', ')}`).toEqual([]);
     }
-    const dupes = [...seen.entries()].filter(([, n]) => n > 1).map(([k]) => k);
-    expect(dupes, `redeclared in main(): ${dupes.join(', ')}`).toEqual([]);
   });
 });
 

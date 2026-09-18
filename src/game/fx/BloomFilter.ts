@@ -114,7 +114,8 @@ const fragment = `
  *
  * DissolveFilter a rencontre le meme mur et l'a contourne en n'utilisant pas
  * uInputSize du tout (il se fait passer la taille depuis TypeScript) ;
- * WaterShader fait ce qu'on fait ici. Le bloom a besoin de la vraie taille de
+ * WaterShader (supprime le 2026-09-19) faisait ce qu'on fait ici. Le bloom a
+ * besoin de la vraie taille de
  * la texture pour convertir son rayon en UV, donc c'est cette voie-la.
  */
 precision highp float;

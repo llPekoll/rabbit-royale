@@ -11,6 +11,20 @@ export interface Scene {
    * visit — the island's grey, for one).
    */
   hide?(): void;
+  /**
+   * The scene has just been SHOWN by `show` — the twin of `hide`.
+   *
+   * Both resident scenes are built during boot, behind the loading screen, but
+   * only one of them is ever the one the player lands on. Work that belongs to
+   * being LOOKED AT rather than to existing goes here, so the scene nobody
+   * opened does not pay for it: the island's music bed is 839KB, and starting
+   * it in `create()` spent that download inside boot, competing with the
+   * tileset, for a track the burrow-bound player would not hear.
+   *
+   * Called on every show, including the first, so it must be idempotent —
+   * `startMusic` already no-ops when its track is the one playing.
+   */
+  show?(): void;
   destroy(): void;
 }
 
@@ -101,6 +115,10 @@ export class SceneManager {
       if (scene.container.visible && !visible) scene.hide?.();
       scene.container.visible = visible;
     }
+    // After the sweep, not inside it: `show` may start work that assumes the
+    // scene it is entering is the visible one, and the loop above is still
+    // hiding the others while it runs.
+    next.show?.();
 
     if (this.tickerCallback) {
       this.app.ticker.remove(this.tickerCallback);

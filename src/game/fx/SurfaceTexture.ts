@@ -19,9 +19,10 @@
  *
  * ## Why its own layer and not the old shader's step 6
  *
- * `fx/WaterShader.ts` has a step 6 already (cellular/Worley), and it is part
- * of a seventeen-step filter that paints the whole sea — colour, depth, surf,
- * rings. Reviving it to get the lines back would bring all of that with it,
+ * `fx/WaterShader.ts` (deleted 2026-09-19, unused) had a step 6 already
+ * (cellular/Worley), and it was part of a seventeen-step filter that painted
+ * the whole sea — colour, depth, surf, rings. Reviving it to get the lines
+ * back would have brought all of that with it,
  * and the commit before this one removed that filter ON PURPOSE: three
  * mechanisms fighting over the same pixels is what produced the halo, the
  * unresponsive shadow and the un-hollowable ring.

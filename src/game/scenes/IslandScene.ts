@@ -386,6 +386,13 @@ export class IslandScene implements Scene {
     this.arrows.setVisible(true);
     this.attachControls();
     this.refreshReachable();
+    // The music bed starts in `show()`, not here: see the Scene interface.
+    // Both scenes are built during boot and only one is landed on, so the
+    // 839KB track is fetched when the island is actually entered.
+  }
+
+  /** The island is on screen: give it its music bed. */
+  show(): void {
     this.sound.startMusic(Keys.MUSIC_ISLAND);
   }
 

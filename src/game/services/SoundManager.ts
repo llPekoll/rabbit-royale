@@ -257,9 +257,26 @@ export class SoundManager {
   private musicId: number | null = null;
 
   constructor() {
-    // Pre-load SFX
+    /**
+     * The one-shots are DECLARED here and fetched on first play.
+     *
+     * Howler's default is `preload: true`, so building these Howls used to
+     * fire nine MP3 requests the moment a scene was constructed — which is
+     * inside boot, on the same connection as the tileset, and invisible to
+     * the loading bar (it only tracks `loadAllAssets`). The bytes are small
+     * (~53KB) but the REQUESTS are not free while the board is still loading.
+     *
+     * `preload: false` keeps the map and the lookup in `playSfx` exactly as
+     * they were; Howler loads a sound on its first `play()`. The cost is that
+     * the very first hop or coin may be silent if its file has not landed —
+     * acceptable for a one-shot, and the same trade the electrocuted sheet
+     * already makes.
+     */
     for (const [key, { src, volume, format }] of Object.entries(SOUND_MAP)) {
-      this.sounds.set(key, new Howl({ src: [src], volume, ...(format ? { format } : {}) }));
+      this.sounds.set(
+        key,
+        new Howl({ src: [src], volume, preload: false, ...(format ? { format } : {}) }),
+      );
     }
     instances.add(this);
     // No mute sync needed here: both buses gate at play time against the
@@ -271,6 +288,12 @@ export class SoundManager {
     if (sfxMuted) return;
     const h = this.sounds.get(key);
     if (!h) return;
+    // These Howls are built with `preload: false` (see the constructor), and
+    // Howler does NOT load on play: its `play()` QUEUES the request when the
+    // state is not 'loaded' and waits for a `load()` that, without this line,
+    // nobody ever calls — the sound would stay silent for the whole session.
+    // `load()` is a no-op once the state has left 'unloaded'.
+    if (h.state() === 'unloaded') h.load();
     const id = h.play();
     // Scale this shot by the global level, on top of its own mix. At level 1
     // this is the sound's base volume — unchanged from before the field.
