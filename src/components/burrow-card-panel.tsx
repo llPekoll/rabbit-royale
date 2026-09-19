@@ -116,7 +116,7 @@ export function BurrowPanel({
              which the stylesheet hides — they are what the disabled state and
              the kit's own ink still read. */
           style={{
-            height: '34cqh',
+            height: '30cqh',
             minHeight: 32,
             flexShrink: 0,
             width: '100%',

@@ -207,7 +207,7 @@ const harvestButton: CSSProperties = {
      the contents were clipped. 32px is below the 44px touch-target ideal, but
      the whole tile is the target on a card this small and the alternative was
      a button with no card around it. */
-  height: '50cqh',
+  height: '38cqh',
   minHeight: 32,
   // The button must not be what shrinks when the band above it is tight —
   // flex compressed it back to 33% of the card and undid the measurement.

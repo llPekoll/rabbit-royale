@@ -4818,6 +4818,12 @@ button { font-family: var(--font-pixel); }
     inset 0 -3px 0 var(--rr-btn-lip),
     0 2px 0 var(--rr-btn-shadow);
   color: var(--rr-btn-ink);
+  /* THE KIT'S BEVEL PADDING GOES WITH THE BEVEL. `PxButton` pads its foot by
+     12px inline to leave room for the pixel bevel it draws; that bevel is
+     hidden above, so the padding was 12px of nothing holding the slab open —
+     which is most of why the buttons read as too big ("c'est un peu gros").
+     Centred instead, with a modest inset of its own. */
+  padding: 0 10px !important;
 }
 .rr-hub-btn.nine-btn > span:not(.nine-btn__content) { display: none !important; }
 /* The press: the slab sinks into its own drop rather than squashing, which is

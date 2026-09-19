@@ -195,7 +195,7 @@ export function QuestCard({
 
 /** The claim button's size in its card; the look is `PxButton`'s. */
 const slab: CSSProperties = {
-  height: '50cqh',
+  height: '38cqh',
   minHeight: 32,
   flexShrink: 0,
   width: '100%',
