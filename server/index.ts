@@ -21,6 +21,7 @@ import { Server, type Socket } from 'socket.io';
 import { and, eq, isNull, sql as raw } from 'drizzle-orm';
 
 import { ENERGY, ERUPTION, LIGHTNING, MIRAGE, MULTIPLAYER, OUT_OF_RUN_ENERGY } from '../config/tuning';
+import { servirApi } from './api-router';
 import { mulberry32, seedFrom } from '../src/lib/game/rng';
 import { cascadeAround, chestProgress, publicView } from '../src/lib/game/island';
 import { firstIslandSeed, isFirstIsland } from '../src/lib/game/first-island';
@@ -93,6 +94,19 @@ interface SocketData {
  * below and in the logs, where a human can act on them.
  */
 const httpServer = http.createServer((req, res) => {
+  /**
+   * Les routes /api/* du jeu, servies ici a cote du WebSocket : une seule
+   * origine pour l'app native. Asynchrone, donc on rend la main tout de
+   * suite — `servirApi` repond lui-meme quand il prend la requete.
+   * Voir server/api-router.ts.
+   */
+  if ((req.url ?? '').startsWith('/api/')) {
+    void servirApi(req, res).then((pris) => {
+      if (!pris) res.writeHead(404).end();
+    });
+    return;
+  }
+
   if (req.url === '/health') {
     const islands = [...store.all()];
     res.writeHead(200, { 'Content-Type': 'application/json' });

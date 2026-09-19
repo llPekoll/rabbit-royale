@@ -1,5 +1,13 @@
-# The authoritative game server. Bun compiles runtime + code + deps into ONE
-# binary, so the runtime image carries no node_modules, no source, no toolchain.
+# The authoritative game server, AND the game's /api/* routes.
+#
+# Bun compiles runtime + code + deps into ONE binary, so the runtime image
+# carries no node_modules, no source, no toolchain.
+#
+# The 21 API routes of src/app/api are served here alongside the WebSocket
+# (see server/api-router.ts): they never imported anything from Next, and the
+# native app needs ONE origin for both. Bun's compiler follows the router's
+# dynamic imports, so `COPY src` below is what puts them in the binary — do
+# not narrow it.
 #
 #   docker build -f Dockerfile.ws -t rr-ws .
 #

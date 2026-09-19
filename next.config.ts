@@ -39,6 +39,27 @@ const config: NextConfig = {
    * revalidate instead; Next's ETag turns that into a cheap 304 when nothing
    * has changed.
    */
+  /**
+   * Les routes /api/* vivent desormais dans le serveur socket.
+   *
+   * Elles n'importaient rien de Next (que du `Request -> Response`), et
+   * l'app native a besoin d'UNE seule origine pour l'API et le WebSocket :
+   * elles sont donc servies par `server/index.ts` (voir server/api-router.ts).
+   *
+   * Next les renvoie la-bas plutot que de les servir lui-meme, pour qu'il
+   * n'existe qu'une implementation pendant la migration. Les fichiers de
+   * `src/app/api` restent en place : ce sont eux que le serveur importe.
+   *
+   * Quand le web passera sous Expo, ce bloc et `src/app/api` disparaissent
+   * ensemble.
+   */
+  async rewrites() {
+    const cible = process.env.API_SERVER_URL ?? process.env.NEXT_PUBLIC_WS_URL;
+    if (!cible) return [];
+    const base = cible.replace(/\/+$/, '');
+    return [{ source: '/api/:path*', destination: `${base}/api/:path*` }];
+  },
+
   async headers() {
     const artwork =
       process.env.NODE_ENV === 'production'
