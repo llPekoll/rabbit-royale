@@ -416,6 +416,17 @@ const headRow: CSSProperties = {
   alignItems: 'baseline',
   justifyContent: 'space-between',
   gap: 'var(--rr-pad)',
+  /* The row must be allowed to shrink inside the card's column, or its
+     children's content widths become its floor and the heading's `nowrap`
+     overflows the frame. */
+  minWidth: 0,
+  /* WRAP RATHER THAN CLIP. The heading and its value do not fit side by side
+     in the 165px the art and frame leave (measured); given the choice between
+     truncating the name, clipping the value, or letting the value drop to its
+     own line, the last is the only one that loses no information. Most cards
+     still fit on one line and are unaffected. */
+  flexWrap: 'wrap',
+  rowGap: '2px',
 };
 
 /**
@@ -434,9 +445,29 @@ export const headingText: CSSProperties = {
      `cardBase`); the clamp keeps it legible at the small end and stops it
      ballooning on a tall desktop window. */
   fontSize: cardSize(14, 9, 14),
-  letterSpacing: '0.06em',
+  /* Tighter than it was (0.06em), for the same reason the buttons' tracking
+     came down: on an all-caps pixel face, tracking is what pushes a heading
+     onto a second line. "BURROW - LVL 1" wrapped in 99px and ate a row the
+     card could not spare — Paul's mock keeps every heading on one line. */
+  letterSpacing: '0.02em',
   color: LABEL,
   lineHeight: 1,
+  /* ONE LINE, ALWAYS. A heading that wraps steals a row from the card and
+     makes the button below it look oversized by comparison, which is what
+     "les bouttons sont toujours trop gros" was actually showing.
+
+     AND THE ROW GIVES IT THE WIDTH. `nowrap` alone pushed the value beside it
+     off the card (DONE and the burrow's price were clipped at the rim), and
+     ellipsising the heading instead only traded a clipped value for a truncated
+     name — "BURRO…" tells the player less than a wrapped line did.
+
+     The text column is 165-172px once the art (46-53) and the frame (68) have
+     taken theirs, against a heading of ~122 plus a value of ~60. They do not
+     fit side by side, so `headRow` lets them STACK when they cannot — see
+     there. The heading keeps its one line; the value drops under it, which is
+     what Paul's mock does with the burrow's own price. */
+  whiteSpace: 'nowrap',
+  minWidth: 0,
 };
 
 export const valueText: CSSProperties = {

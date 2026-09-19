@@ -4825,6 +4825,22 @@ button { font-family: var(--font-pixel); }
      Centred instead, with a modest inset of its own. */
   padding: 0 10px !important;
 }
+/* THE LABEL, LIGHTENED TO MATCH THE MOCK'S AIR.
+
+   The button's height was already right — measured against Paul's mock at the
+   column's scale, both come to 39px on a ~125px card, 31-32% of it. What made
+   the slab read as heavy was the TYPE: the kit sets `font-weight: 700` and a
+   0.12em `letter-spacing` inline, which on an all-caps pixel face fills the
+   slab edge to edge.
+
+   The face itself cannot do the mock's mixed case — it is an 8x8 ASCII atlas
+   with no lowercase (see pixel-font.tsx) — so the air has to come from weight
+   and tracking instead. */
+.rr-hub-btn.nine-btn,
+.rr-hub-btn.nine-btn * {
+  font-weight: 400 !important;
+  letter-spacing: 0.02em !important;
+}
 .rr-hub-btn.nine-btn > span:not(.nine-btn__content) { display: none !important; }
 /* The press: the slab sinks into its own drop rather than squashing, which is
    what a flat face with a cast shadow should do. */
