@@ -12,27 +12,24 @@
  * corner read as a toolbar; one lozenge halfway down an edge reads as a tab
  * somebody forgot to style.
  *
- * DARKER AND COOLER THAN THE BURROW'S PANELS. Sampled off the mock: `#2f2e2c`
- * against the cards' warm `#2a180e`. That is deliberate in the reference and
- * worth keeping — these are the CHROME (settings, standings), not the burrow's
- * own furniture, and the colour is what says so before the icon does.
+ * IT IS A STONE RING NOW, not a cool grey slab (Paul, 2026-09-19). The face
+ * was the codex's `PxButton` in `#2f2e2c`, chosen to say "chrome" rather than
+ * "burrow furniture"; the mossy stone frames say the same thing better, by
+ * being made of the island instead of being a darker shade of the app.
  *
- * THE CODEX'S BUTTON (`PxButton`), in that same cool grey: the rim is its
- * gloss, the cast shadow its bevel. It squashes on a press but does not
- * wiggle — a toolbar that shakes on every tap is noise. It drops in from above
- * when it mounts (`.rr-ptf-drop`, px-top-floor.css).
+ * Each button draws one of THREE rings, picked by hashing its label so the row
+ * looks hand-laid without ever changing under the player — see `ringFor`. The
+ * art carries its own rim, lit edge and cast shadow, which is why the kit's
+ * button underneath it had to go rather than be tinted: two faces, one square
+ * and one round, showed the square's corners on every side.
+ *
+ * It still drops in from above when it mounts (`.rr-ptf-drop`,
+ * px-top-floor.css).
  */
 import type { CSSProperties, ReactNode } from 'react';
-import { PxButton, PxPanel } from './px';
+import { PxPanel } from './px';
 import { LeafBadge } from './leaf-badge';
 
-/* ── Sampled from the reference ────────────────────────────────────────── */
-const FACE_TOP = '#3a3936';
-/** The lit top edge — these slabs catch light the way the cards' rims do. */
-const RIM = '#4e5158';
-const SHADOW = '#121210';
-/** The badge: the same saturated red the launcher tiles use, for one reason. */
-const BADGE = '#e62132';
 
 export interface HubIconButtonProps {
   /** The glyph. An emoji or a sprite — whatever the caller has. */
@@ -56,24 +53,69 @@ export interface HubIconButtonProps {
   onClick?(): void;
 }
 
+/**
+ * THE THREE STONE RINGS, from Paul's sheet of six (2026-09-19).
+ *
+ * Three rather than six because the corner only ever holds five buttons: with
+ * six frames most would be unique anyway, and the point of the set is that the
+ * row looks hand-laid rather than stamped. These three are the most DIFFERENT
+ * of the six — measured by where the leaves sit, in quadrants: 1 is heavy
+ * bottom-left (0.42), 2 is bottom-right (0.48), 3 is the balanced one with the
+ * most foliage top-right (0.14). Picking three that happened to be adjacent on
+ * the sheet would have given three near-identical rings.
+ */
+export const RING_URLS = [
+  '/assets/ui/ring-1.webp',
+  '/assets/ui/ring-2.webp',
+  '/assets/ui/ring-3.webp',
+] as const;
+
+/**
+ * WHICH RING A BUTTON WEARS — random-looking, but STABLE.
+ *
+ * Hashed from the button's own label, not `Math.random()`. A random draw would
+ * be re-rolled on every render, so a ring would change while you looked at it:
+ * the shop's frame would jump the moment its trap count ticked, and the story's
+ * the moment a chapter opened. Hashing the label means each button keeps its
+ * ring for good, the assignment still looks unplanned across the row, and the
+ * server and the client agree on it — a `Math.random()` here would render one
+ * ring in the HTML and a different one on hydration.
+ */
+function ringFor(label: string): string {
+  /* FNV-1a, not the usual `h * 31 + c`. Four of the five labels in the corner
+     start with "S" ("Shop", "Story", "Show the season board", "Sound
+     settings"), and a `*31` hash weights the leading characters heavily enough
+     that it handed Shop and Story — which sit side by side — the same ring, and
+     never used ring 1 at all. FNV mixes each character into the whole word, and
+     spreads these five labels across all three. */
+  let h = 0x811c9dc5;
+  for (let i = 0; i < label.length; i += 1) {
+    h ^= label.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return RING_URLS[h % RING_URLS.length];
+}
+
 export function HubIconButton({
   children, label, count, badge: badgeText, tone = 'count', pressed, onClick,
 }: HubIconButtonProps) {
   const corner = badgeText ?? (count && count > 0 ? (count > 99 ? '99+' : String(count)) : null);
+  const ring = ringFor(label);
   return (
-    <PxButton
+    <button
       type="button"
-      className="rr-hub-icon rr-ptf-fill rr-ptf-drop"
+      className={`rr-hub-icon rr-ring-btn rr-ptf-drop${pressed ? ' is-pressed' : ''}`}
       onClick={onClick}
       aria-label={label}
       aria-pressed={pressed}
-      // Open reads as pressed: the cap sinks and the face takes the rim's
-      // lighter grey, so the button does not appear to resize.
-      pressed={pressed}
-      color={pressed ? RIM : FACE_TOP}
-      shadowColor={SHADOW}
-      highlightColor={RIM}
-      style={button}
+      /* THE STONE RING IS THE BUTTON'S FACE, so this is a plain <button> and
+         no longer the kit's `PxButton`. Wearing both would stack two faces:
+         the kit paints a bevelled square through a canvas nine-slice, and the
+         ring would sit on top of it as a second, round object — the corners of
+         the square would show past the circle on every side. The ring's art
+         already carries its own rim, lit top edge and cast shadow, which is
+         exactly what the kit's face was providing. */
+      style={{ ...button, backgroundImage: `url(${ring})` }}
     >
       <span style={glyph} aria-hidden>{children}</span>
       {/* THE NEWS BADGE IS THE PAINTED RED PILL (leaf-badge.tsx); the COUNT
@@ -93,7 +135,7 @@ export function HubIconButton({
           {corner}
         </PxPanel>
       )}
-    </PxButton>
+    </button>
   );
 }
 
@@ -110,6 +152,18 @@ const button: CSSProperties = {
   padding: 0,
   pointerEvents: 'auto',
   letterSpacing: 'normal',
+  /* The ring is the face. `contain` because the art is square and must stay
+     round: `cover` would crop the stones off at the narrow side. */
+  backgroundSize: 'contain',
+  backgroundRepeat: 'no-repeat',
+  backgroundPosition: 'center',
+  backgroundColor: 'transparent',
+  border: 'none',
+  cursor: 'pointer',
+  position: 'relative',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
 };
 
 /**

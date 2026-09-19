@@ -259,3 +259,22 @@ body:has(.rr-loop-bar) .rr-pill-plate { animation-delay: 45ms; }
   body:has(.rr-loop-bar) .rr-wallet,
   body:has(.rr-loop-bar) .rr-pill-plate { animation: none; }
 }
+
+/* ── The stone ring buttons ────────────────────────────────────────────────
+   The corner icons wear one of three painted stone frames (hub-icon-button.tsx)
+   instead of the kit's bevelled square, so the press has to be restated here:
+   `PxButton` used to supply it, and a plain <button> has none.
+
+   A SINK, NOT A SQUASH. The kit's button squashed its face; this art is a ring
+   with a drawn cast shadow under it, so it presses by moving DOWN into that
+   shadow — scaling it would stretch the stones. 2px is the shadow's own depth,
+   measured off the sprite. */
+.rr-ring-btn { transition: transform 90ms ease, filter 90ms ease; }
+.rr-ring-btn:active,
+.rr-ring-btn.is-pressed { transform: translateY(2px); filter: brightness(0.88); }
+/* Open reads as pressed and stays there, so it also loses the hover lift. */
+.rr-ring-btn:hover:not(.is-pressed) { filter: brightness(1.08); }
+.rr-ring-btn:focus-visible { outline: 2px solid #ffd45c; outline-offset: 3px; }
+/* The glyph rides the press with the stone, or it floats free of its own
+   button for 90ms. */
+.rr-ring-btn > span { transition: inherit; }
