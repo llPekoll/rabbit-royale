@@ -299,19 +299,29 @@ body:has(.rr-loop-bar) .rr-pill-plate { animation-delay: 45ms; }
 
    The hub's wood is solid out to a radius of ~16 source px before the groove
    starts, and a wxh sprite turned 45deg needs a circle of radius
-   hypot(w,h)/2 to clear. At 0.26 of the art the carrot is 11.9x26.5 and needs
-   14.5 — inside the wood. 0.30 needs 16.8 and would touch the gauge. */
+   hypot(w,h)/2 to clear.
+
+   0.26 sat inside that wood and read as too small on the real bar (Paul,
+   2026-09-19: "c'est trop petit"). 0.38 needs a radius of 21 against the
+   wood's 16, so the carrot now crosses the inner groove — which is the point:
+   it lies ACROSS the dial like the hand of a gauge, rather than being parked
+   in the hub. It still clears the coloured band, which starts further out. */
 .rr-loop-cell > .rr-loop-dial-carrot {
   position: absolute;
   left: calc(var(--rr-dial-art) * 0.5);
   /* From the cell's top edge, which is where the art starts — the box was
      pulled up by `--rr-dial-over-top` so the medallion could overflow. */
   top: calc(var(--rr-dial-art) * 0.5196 - var(--rr-dial-over-top));
-  height: calc(var(--rr-dial-art) * 0.26);
+  height: calc(var(--rr-dial-art) * 0.38);
   width: auto;
   /* Centred on that point, then laid across it. 45deg is the angle the haul
      badge's carrot already uses, so the two read as the same object. */
-  transform: translate(-50%, -50%) rotate(45deg);
+  /* The drop is a VARIABLE, not a second transform: this element already
+     carries its centring and its 45deg, and the press rules below only need
+     to change how far it sinks. Writing the press as its own `transform`
+     would drop the rotate and the carrot would snap upright under the
+     finger. */
+  transform: translate(-50%, calc(-50% + var(--rr-dial-press, 0px))) rotate(45deg);
   /* Over the coloured ring (z-index 2), which is over the board. */
   z-index: 3;
   pointer-events: none;

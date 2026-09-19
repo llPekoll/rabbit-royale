@@ -28,6 +28,7 @@
  */
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { CARROT_URL, CARROT_SIZE } from '@domin8/arcade-kit/game';
+import { LeafBadge } from './leaf-badge';
 import { playUiSfx } from '@/game/services/SoundManager';
 import type { QuestDoor } from '@/config/quests';
 import { useT } from '@/i18n/provider';
@@ -114,8 +115,8 @@ const DEF_LIP = '#8fbf5f';
 const DEF_SHADOW = '#22381a';
 const DEF_INK = '#dcecc4';
 /** RAID: the danger this game already paints red. Kept DARK deliberately —
-    the quest badge is #e62132, and a bright red face would have swallowed the
-    one mark that tells you the quest points here. */
+    the quest badge is the painted red pill (leaf-badge.tsx), and a bright red
+    face would have swallowed the one mark that says the quest points here. */
 const RAID_FACE = '#8c2f38';
 const RAID_LIP = '#d4676f';
 const RAID_SHADOW = '#3d0e14';
@@ -124,7 +125,6 @@ const RAID_INK = '#f0c9c9';
 const LAMP = '#ffd138';
 /** The haul toast's glass — the island captions' ground. */
 const GLASS = 'rgba(13, 17, 23, 0.82)';
-const BADGE = '#e62132';
 const DANGER_INK = '#ff8a7a';
 
 export function LoopBar({
@@ -262,7 +262,7 @@ export function LoopBar({
               <StateLine parts={digParts} color={DIG_INK} />
             </span>
           </span>
-          {pointed === 'dig' && <PxPanel color={BADGE} className="rr-hub-badge" style={badge}>!</PxPanel>}
+          {pointed === 'dig' && <LeafBadge height={20} className="rr-hub-badge" style={badgeSeat}>!</LeafBadge>}
         </PxButton>
         {/* THE LIVE RING — the ONE thing the board cannot draw.
             
@@ -400,7 +400,7 @@ export function LoopBar({
               takes the quiet chip — a red "20" read as twenty unread things,
               and the target list has nothing marked new to match it. */}
           {pointed === 'raid' ? (
-            <PxPanel color={BADGE} className="rr-hub-badge" style={badge}>!</PxPanel>
+            <LeafBadge height={20} className="rr-hub-badge" style={badgeSeat}>!</LeafBadge>
           ) : raid.open > 0 ? (
             <PxPanel color={CHIP} style={{ ...badge, color: CHIP_INK }}>{raid.open}</PxPanel>
           ) : null}
@@ -439,7 +439,7 @@ export function LoopBar({
  * spare them the movement would trade one problem for a worse one: this line
  * is the reason to press the slab.
  */
-function StateLine({ parts, color }: { parts: string[]; color: string }) {
+function StateLine({ parts, color, danger = false }: { parts: string[]; color: string; danger?: boolean }) {
   const box = useRef<HTMLSpanElement>(null);
   const text = useRef<HTMLSpanElement>(null);
   const [over, setOver] = useState(0);
@@ -602,6 +602,23 @@ const arrow: CSSProperties = {
 /** A standing number's chip: the badge's shape in dark and cream, not red. */
 const CHIP = '#2a1810';
 const CHIP_INK = '#fde7bd';
+
+/**
+ * WHERE THE ALERT BADGE SITS, and nothing about how it looks.
+ *
+ * The "!" pointers wear the painted red pill now (leaf-badge.tsx), the same
+ * one the story button's NEW wears — they are the same thing, an alert, and
+ * they were the kit's flat chip in the same red. `LeafBadge` owns its padding,
+ * minimum width and figure size, because that geometry is what keeps the
+ * pill's painted ends the right shape; handing it the full `badge` object
+ * below would override all three (a spread style wins) and squash the art.
+ */
+const badgeSeat: CSSProperties = {
+  position: 'absolute',
+  right: -7,
+  top: 'calc(-8px - var(--u))',
+  pointerEvents: 'none',
+};
 
 /**
  * The corner badge, as a small pixel panel. Hung off the slab's top-right
