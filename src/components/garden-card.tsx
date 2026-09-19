@@ -120,7 +120,16 @@ export function GardenCard({
           shadowColor={canHarvest ? BTN_SHADOW : BTN_OFF_SHADOW}
           textColor={canHarvest ? '#ffffff' : BTN_OFF_INK}
           wiggle
-          style={harvestButton}
+          /* The flat face's colours — see burrow-card-panel.tsx for why these
+             are variables and not a stylesheet rule. */
+          style={{
+            ...harvestButton,
+            '--rr-btn-face': canHarvest ? BTN : BTN_OFF,
+            '--rr-btn-lip': canHarvest ? BTN_LIP : BTN_OFF_SHADOW,
+            '--rr-btn-shadow': canHarvest ? BTN_SHADOW : BTN_OFF_SHADOW,
+            '--rr-btn-line': canHarvest ? BTN_SHADOW : BTN_OFF_SHADOW,
+            '--rr-btn-ink': canHarvest ? '#ffffff' : BTN_OFF_INK,
+          } as CSSProperties}
         >
           <span style={{ ...pxLabel, fontSize: cardSize(15, 9, 15) }}>{t.burrow.harvest}</span>
         </PxButton>

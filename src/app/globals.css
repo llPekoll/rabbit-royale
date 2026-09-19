@@ -4779,3 +4779,51 @@ button { font-family: var(--font-pixel); }
    on its own — no transform, which would fight the drawn shadow. */
 .rr-leaf-close { transition: filter 90ms ease; }
 .rr-leaf-close:focus-visible { outline: 2px solid #ffd45c; outline-offset: 2px; }
+
+/* ── THE CARD BUTTONS, FLAT ────────────────────────────────────────────────
+   CLAIM, HARVEST and UPGRADE wear Paul's reference (2026-09-19): a flat face
+   with rounded corners, a dark outline and a lit bottom edge — not the kit's
+   hard pixel bevel.
+
+   WHY THIS IS CSS AND NOT A COLOUR CHANGE. The face was already being given
+   the right colours, and the buttons still looked identical ("t'as pas changer
+   les boutton!"): `PxButton` paints its face with the KIT'S NINE-SLICE, as a
+   `border-image` on an anonymous span, so a `color` prop only TINTS that
+   sprite and the bevel it draws is the kit's shape whatever tint it gets.
+   Replacing the shape means hiding that sprite and painting the face here.
+
+   The colours still come from each card's own constants, handed over as
+   `--rr-btn-*` so the three cards keep their own tones (quest-card.tsx,
+   garden-card.tsx, burrow-card-panel.tsx) and this file stays the shape. */
+.rr-hub-btn.nine-btn {
+  /* Hide the kit's painted face. Its border-image lives on an anonymous span,
+     which is why this is a `:not(.nine-btn__content)` sweep rather than a
+     class — the same reach the loop bar's slabs needed. */
+  /* `!important` on both, and it is not laziness: `PxButton` writes
+     `background: none` and `border-style: none` as INLINE styles (verified in
+     the DOM), which a stylesheet rule cannot beat. Everything else here — the
+     radius, the shadow, the variables — lands without it. */
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--rr-btn-face) 88%, #fff) 0%,
+    var(--rr-btn-face) 34%,
+    var(--rr-btn-face) 72%,
+    color-mix(in srgb, var(--rr-btn-face) 86%, #000) 100%
+  ) !important;
+  border: 2px solid var(--rr-btn-line) !important;
+  border-radius: 10px;
+  /* The lit bottom edge, inside the outline, and the drop that gives the slab
+     its thickness. */
+  box-shadow:
+    inset 0 -3px 0 var(--rr-btn-lip),
+    0 2px 0 var(--rr-btn-shadow);
+  color: var(--rr-btn-ink);
+}
+.rr-hub-btn.nine-btn > span:not(.nine-btn__content) { display: none !important; }
+/* The press: the slab sinks into its own drop rather than squashing, which is
+   what a flat face with a cast shadow should do. */
+.rr-hub-btn.nine-btn:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: inset 0 -2px 0 var(--rr-btn-lip), 0 0 0 var(--rr-btn-shadow);
+}
+.rr-hub-btn.nine-btn:disabled { box-shadow: inset 0 -3px 0 var(--rr-btn-lip); }

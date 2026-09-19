@@ -109,7 +109,23 @@ export function BurrowPanel({
           shadowColor={canUpgrade && !pending ? BTN_SHADOW : BTN_OFF_SHADOW}
           textColor={canUpgrade && !pending ? '#ffffff' : BTN_OFF_INK}
           wiggle
-          style={{ height: '34cqh', minHeight: 32, flexShrink: 0, width: '100%' }}
+          /* The flat face's colours (globals.css, `.rr-hub-btn.nine-btn`).
+             Handed over as variables rather than baked into the stylesheet, so
+             each card keeps its own tone and the SHAPE lives in one place. The
+             `color`/`shadowColor` props above still feed the kit's sprite,
+             which the stylesheet hides — they are what the disabled state and
+             the kit's own ink still read. */
+          style={{
+            height: '34cqh',
+            minHeight: 32,
+            flexShrink: 0,
+            width: '100%',
+            '--rr-btn-face': canUpgrade && !pending ? BTN : BTN_OFF,
+            '--rr-btn-lip': canUpgrade && !pending ? BTN_LIP : BTN_OFF_SHADOW,
+            '--rr-btn-shadow': canUpgrade && !pending ? BTN_SHADOW : BTN_OFF_SHADOW,
+            '--rr-btn-line': canUpgrade && !pending ? BTN_SHADOW : BTN_OFF_SHADOW,
+            '--rr-btn-ink': canUpgrade && !pending ? '#ffffff' : BTN_OFF_INK,
+          } as CSSProperties}
         >
           <span style={{ ...pxLabel, fontSize: cardSize(15, 9, 15) }}>{maxed ? t.burrow.maxLevel : t.burrow.upgrade}</span>
         </PxButton>

@@ -131,7 +131,16 @@ export function QuestCard({
       shadowColor={canClaim ? BTN_SHADOW : BTN_OFF_SHADOW}
       textColor={canClaim ? '#ffffff' : BTN_OFF_INK}
       wiggle
-      style={slab}
+      /* The flat face's colours — see burrow-card-panel.tsx for why these are
+         variables and not a stylesheet rule. */
+      style={{
+        ...slab,
+        '--rr-btn-face': canClaim ? BTN : BTN_OFF,
+        '--rr-btn-lip': canClaim ? BTN_LIP : BTN_OFF_SHADOW,
+        '--rr-btn-shadow': canClaim ? BTN_SHADOW : BTN_OFF_SHADOW,
+        '--rr-btn-line': canClaim ? BTN_SHADOW : BTN_OFF_SHADOW,
+        '--rr-btn-ink': canClaim ? '#ffffff' : BTN_OFF_INK,
+      } as CSSProperties}
     >
       <span style={{ ...pxLabel, fontSize: cardSize(15, 9, 15) }}>{rewardLabel(t, quest)}</span>
     </PxButton>
