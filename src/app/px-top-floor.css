@@ -323,7 +323,7 @@ body:has(.rr-loop-bar) .rr-pill-plate { animation-delay: 45ms; }
   /* From the cell's top edge, which is where the art starts — the box was
      pulled up by `--rr-dial-over-top` so the medallion could overflow. */
   top: calc(var(--rr-dial-art) * 0.5196 - var(--rr-dial-over-top));
-  height: calc(var(--rr-dial-art) * 0.54);
+  height: calc(var(--rr-dial-art) * 0.64);
   width: auto;
   /* Centred on that point, then laid across it. 45deg is the angle the haul
      badge's carrot already uses, so the two read as the same object. */
@@ -332,9 +332,45 @@ body:has(.rr-loop-bar) .rr-pill-plate { animation-delay: 45ms; }
      to change how far it sinks. Writing the press as its own `transform`
      would drop the rotate and the carrot would snap upright under the
      finger. */
-  transform: translate(-50%, calc(-50% + var(--rr-dial-press, 0px))) rotate(45deg);
+  transform:
+    translate(-50%, calc(-50% + var(--rr-dial-press, 0px)))
+    rotate(45deg)
+    scale(var(--rr-dial-pulse, 1));
   /* Over the coloured ring (z-index 2), which is over the board. */
   z-index: 3;
   pointer-events: none;
   image-rendering: pixelated;
+}
+
+/* THE CARROT BREATHES, once every 5 seconds.
+
+   THROUGH A VARIABLE, NOT A `transform` KEYFRAME. The carrot already carries
+   its centring, its 45deg and the press drop in one `transform`, and an
+   animation on that property would REPLACE all of it — the carrot would snap
+   upright and jump to the corner for the length of the pulse. `@property`
+   makes `--rr-dial-pulse` a real number the browser can interpolate, so the
+   scale animates inside the transform the element already has.
+
+   Most of the 5s is spent at rest: the swell is ~0.7s of it, so the dial is
+   still most of the time and the movement reads as a heartbeat rather than a
+   throb. */
+@property --rr-dial-pulse {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 1;
+}
+.rr-loop-cell > .rr-loop-dial-carrot {
+  animation: rr-carrot-pulse 5s ease-in-out infinite;
+}
+@keyframes rr-carrot-pulse {
+  0%, 88%, 100% { --rr-dial-pulse: 1; }
+  94%           { --rr-dial-pulse: 1.12; }
+}
+/* A press should feel like a press, not a pause in the idle: the pulse stops
+   while the slab is held. */
+.rr-loop-cell:has(> .rr-loop-slab.rr-loop-dig:active) > .rr-loop-dial-carrot {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rr-loop-cell > .rr-loop-dial-carrot { animation: none; }
 }
