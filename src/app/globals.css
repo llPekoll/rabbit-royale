@@ -453,9 +453,11 @@ button { min-height: 44px; min-width: 44px; }
   border-radius: 8px;
   font-variant-numeric: tabular-nums;
 }
-.rr-lb-row + .rr-lb-row { border-top: 1px solid var(--border); }
-.rr-lb-row.me { background: rgba(255, 212, 92, 0.08); }
-.rr-lb-rank { color: var(--muted); text-align: right; }
+/* On parchment the slate rule and the warm-on-dark stripe both read as
+   grime; they become a faint bark hairline and a soft bark wash. */
+.rr-lb-row + .rr-lb-row { border-top: 1px solid rgba(74, 53, 36, 0.18); }
+.rr-lb-row.me { background: rgba(122, 88, 48, 0.16); border-radius: 8px; }
+.rr-lb-rank { color: rgba(74, 53, 36, 0.62); text-align: right; }
 .rr-lb-row.crown .rr-lb-rank { color: var(--crown); }
 
 /* ── The in-game overlay ───────────────────────────────────────────────────
@@ -2547,11 +2549,16 @@ body:has(.rr-empty) .rr-sound { display: none; }
   z-index: 30;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  background: #161b1f;
-  border: 2px solid #ddccbc;
-  border-radius: 14px;
-  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
+  /* THE BOARD STANDS ON PARCHMENT (leaf-frame.tsx), so the dark box it used to
+     be is gone: a fill would cover the frame's middle slice, a border would
+     draw a second rim inside the bark, and a radius would clip the corners the
+     leaves hang off. `overflow` must stay visible for the same reason — the
+     clusters overhang the border box — so the LIST scrolls instead. */
+  overflow: visible;
+  box-shadow: none;
+  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.45));
+  /* Dark-room ink on a cream ground is unreadable: the rows go to bark brown. */
+  color: #4a3524;
   /* Slides out past its own right inset, so nothing peeks. */
   transform: translateX(calc(100% + 14px));
   transition: transform 200ms ease;
@@ -3080,9 +3087,11 @@ body:has(.rr-lb.open:not(.rr-profile)) .rr-lb-launch {
   text-align: left;
   font-variant-numeric: tabular-nums;
 }
-.rr-lb-row + .rr-lb-row { border-top: 1px solid var(--border); }
-.rr-lb-row.me { background: rgba(255, 212, 92, 0.08); }
-.rr-lb-rank { color: var(--muted); text-align: right; }
+/* On parchment the slate rule and the warm-on-dark stripe both read as
+   grime; they become a faint bark hairline and a soft bark wash. */
+.rr-lb-row + .rr-lb-row { border-top: 1px solid rgba(74, 53, 36, 0.18); }
+.rr-lb-row.me { background: rgba(122, 88, 48, 0.16); border-radius: 8px; }
+.rr-lb-rank { color: rgba(74, 53, 36, 0.62); text-align: right; }
 .rr-lb-row.crown .rr-lb-rank { color: var(--crown); }
 .rr-lb-name small { display: block; color: var(--muted); font-size: clamp(6px, 1.3svh, 11px); }
 
@@ -3097,15 +3106,21 @@ body:has(.rr-lb.open:not(.rr-profile)) .rr-lb-launch {
    `:nth-child(odd)` over a border, and the border goes: two ways of separating
    the same rows is one of them repeating the other. */
 .rr-lb-row + .rr-lb-row { border-top: none; }
-.rr-lb-list .rr-lb-row:nth-child(odd) { background: #22272b; }
+/* The zebra, restated for parchment: #22272b was the panel's old cool grey
+   nudged one step lighter, and on cream it is a slab of the dark theme left
+   behind. A translucent bark wash is the same IDEA — one band darker than the
+   ground — in the board's new material. */
+.rr-lb-list .rr-lb-row:nth-child(odd) { background: rgba(122, 88, 48, 0.10); }
 
 /* YOUR OWN ROW is warm, not brighter.
    
    #2e2e24 in the mock — a green-gold cast against the panel's cool grey, which
    reads as "this one is yours" rather than as "this one is selected". It wins
    over the stripe whichever side of the zebra it lands on. */
+/* Yours stays WARM against that wash rather than merely darker: a green-gold
+   cast, which is the mock's distinction carried onto cream. */
 .rr-lb-list .rr-lb-row.me,
-.rr-lb-list .rr-lb-row.me:nth-child(odd) { background: #2e2e24; }
+.rr-lb-list .rr-lb-row.me:nth-child(odd) { background: rgba(150, 120, 40, 0.26); }
 
 /* ── Out on an island right now ───────────────────────────────────────────
    The only live fact on the board. Every other column describes a player;

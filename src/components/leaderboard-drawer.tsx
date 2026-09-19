@@ -33,6 +33,7 @@ import { CloseButton, GOLD_CUP_URL, NineSlicePanel } from '@domin8/arcade-kit';
 import { PanelTitle } from './pixel-text';
 import { HubIconButton, hubIconArt } from './hub-icon-button';
 import { PX, PxPanel } from './px';
+import { LeafFrame } from './leaf-frame';
 import { PodiumRabbit } from './podium-rabbit';
 import { FACE_COL, LEAD_SIZE, PODIUM, PODIUM_MIN_PANEL, PODIUM_SIZE, crownBox } from '@/lib/game/podium';
 
@@ -240,9 +241,22 @@ export function LeaderboardDrawer({ token, playerId, onSpectate, onMe, onOpen }:
           hides it from the picture with `visibility` on the same condition. */}
       {/* The codex's frame in the board's own colour. `position: fixed` passed
           through because the frame sets `relative` inline. */}
-      <NineSlicePanel
-        color={BOARD}
-        pixelScale={PX}
+      {/* THE BOARD WEARS THE LEAF FRAME, at a SMALL CORNER — and the number is
+          the whole lesson of this panel.
+
+          It measures 333x700, which "fits" the art's full 90px corners by the
+          floor in leaf-frame.tsx. It fits them and is ruined by them: a 90px
+          corner costs 90px of border on EACH side, leaving 153px of the 333 to
+          hold a rank, a face, a name and a score. Every name was clipped
+          mid-word and the [x] landed on the title.
+
+          So the floor is necessary and not sufficient: a frame must also leave
+          the CONTENT its room. 34px corners leave 265px, against the 329 the
+          drawer had bare — the leaves are small here, but the board is still
+          a board. A wide panel like the shop can afford 90; a narrow column
+          cannot, and that is a property of the column, not of the art. */}
+      <LeafFrame
+        corner={34}
         id="rr-leaderboard"
         className={`rr-lb rr-px-dialog${open ? ' open' : ''}`}
         style={{ position: 'fixed' }}
@@ -347,7 +361,7 @@ export function LeaderboardDrawer({ token, playerId, onSpectate, onMe, onOpen }:
               : row;
           })}
         </div>
-      </NineSlicePanel>
+      </LeafFrame>
 
       {/* Tap-away, phone only: a drawer with no way out but its own [x] is a trap. */}
       {open && <div className="rr-scrim" onClick={() => setOpen(false)} />}
