@@ -3325,18 +3325,29 @@ button { font-family: var(--font-pixel); }
   max-height: min(660px, 100%);
   display: flex;
   flex-direction: column;
-  color: var(--chalk);
-  background: var(--soil);
-  border: 2px solid var(--plank);
-  border-radius: 14px;
-  /* A lamp above the stall, not a CSS drop-shadow under a card: the glow is
-     warm and sits INSIDE the top edge, which is where the light would be. */
-  box-shadow:
-    inset 0 1px 0 rgba(255, 178, 56, 0.22),
-    0 18px 50px rgba(0, 0, 0, 0.6);
-  overflow: hidden;
+  /* THE STALL NOW STANDS ON PARCHMENT, not soil (leaf-frame.tsx). Everything
+     below is what that change costs:
+
+     NO BACKGROUND, NO BORDER, NO RADIUS. The frame paints its own centre from
+     the art's middle slice, so a fill here would cover it, a border would draw
+     a second rim inside the bark, and a radius would clip the corners the
+     leaves hang off.
+
+     THE INK FLIPS. The tokens above are a dark-room palette — `--chalk` on
+     `--soil`. On cream, pale chalk is invisible, so the text goes to the
+     board's own brown. The tokens stay declared because the TILES inside still
+     wear the dark kit panel and read them. */
+  color: #4a3524;
+  /* The lamp glow was an inset on a dark box and would read as a smear on
+     parchment; what is left is the drop under the whole object. */
+  filter: drop-shadow(0 18px 34px rgba(0, 0, 0, 0.55));
+  /* NOT `hidden`: the leaves overhang the border box at the corners, and
+     clipping here would shave them off. */
+  overflow: visible;
   animation: rr-shop-rise 160ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
 }
+/* The scroll lives on the grid instead, which is inside the frame's border. */
+.rr-shop-modal > .rr-shop-grid { overflow-y: auto; }
 
 @keyframes rr-shop-in { from { opacity: 0; } }
 @keyframes rr-shop-rise {
@@ -3353,28 +3364,33 @@ button { font-family: var(--font-pixel); }
   align-items: center;
   gap: 12px;
   padding: 14px 18px;
-  background: var(--plank);
-  border-bottom: 2px solid var(--soil-deep);
+  /* The dark plank bar and its hard rule are gone: on parchment they read as a
+     strip of another material laid over the board. The title is separated by a
+     hairline of the frame's own bark instead. */
+  border-bottom: 2px solid rgba(74, 53, 36, 0.28);
 }
 .rr-shop-top h2 {
   flex: 1;
   margin: 0;
   font-size: 17px;
   letter-spacing: 0.04em;
-  color: var(--lamp);
+  /* Lamp-amber was legible on soil and is not on cream: the title takes the
+     deepest bark brown, which is the board's own darkest note. */
+  color: #3a2617;
 }
 /* The purse is the number every price is judged against, so it is set like a
-   figure rather than like a label. */
+   figure rather than like a label. Amber on parchment is too pale to be that
+   figure, so it takes the bark brown like the title. */
 .rr-shop-purse {
   font-size: 15px;
-  color: var(--lamp);
+  color: #3a2617;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 .rr-shop-x {
   border: none;
   background: none;
-  color: var(--chalk-dim);
+  color: rgba(74, 53, 36, 0.72);
   font-size: 24px;
   line-height: 1;
   padding: 0 4px;
@@ -3383,7 +3399,7 @@ button { font-family: var(--font-pixel); }
   min-height: 44px;
   min-width: 44px;
 }
-.rr-shop-x:hover { color: var(--chalk); }
+.rr-shop-x:hover { color: #3a2617; }
 
 /* The goods. Two columns on a wide screen, one on a phone — five items do not
    divide evenly, so the last tile spans the row rather than sitting alone. */

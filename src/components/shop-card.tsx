@@ -30,6 +30,7 @@ import { createPortal } from 'react-dom';
 import { CloseButton, NineSlicePanel } from '@domin8/arcade-kit';
 import { PanelTitle } from './pixel-text';
 import { PX, PxButton, PxPanel, pxLabel } from './px';
+import { LeafFrame, LEAF_FRAME_CORNER } from './leaf-frame';
 import type { ItemKind, ShopItem, ShopState } from './use-shop';
 import { ITEM_META, heldLabel } from './item-meta';
 import { useT } from '@/i18n/provider';
@@ -183,9 +184,12 @@ export function ShopPanel({
       {/* The dialog swallows its own clicks so tapping inside does not dismiss
           it — the scrim above is the tap-away, and a dialog whose only exit is
           its [x] is a trap. */}
-      <NineSlicePanel
-        color={SOIL}
-        pixelScale={DIALOG_PX}
+      {/* THE STALL WEARS THE LEAF FRAME, not the kit's pixel border. It is the
+          biggest panel in the game (measured at 720x660), so it is the one
+          surface with room for the art's full 90px corners — the size the
+          leaves were drawn for. See leaf-frame.tsx. */}
+      <LeafFrame
+        corner={LEAF_FRAME_CORNER}
         className="rr-shop-modal rr-px-dialog"
         role="dialog"
         aria-modal="true"
@@ -282,7 +286,7 @@ export function ShopPanel({
             )}
           </PxPanel>
         </footer>
-      </NineSlicePanel>
+      </LeafFrame>
     </div>,
     document.body,
   );
@@ -335,6 +339,12 @@ function Row({
     >
       {/* A nested panel in the tile's own colour: its tint washed into the
           stall's deep soil, which is the tone the old gradient read as. */}
+      {/* THE TILES DO NOT WEAR THE FRAME, though they are big enough to.
+          Tried it (2026-09-19) and it was wrong twice over: leaves inside
+          leaves is visual noise, and the tile's own frame ate 75px of top
+          border, which pushed the grid wide enough to clip the right column.
+          A panel INSIDE a parchment panel wants to be a quiet inset, not a
+          second frame — so these keep the kit's flat fill. */}
       <PxPanel color={mixHex(meta.tint, SOIL_DEEP, 0.2)} className="rr-shop-tile-face">
       <div className="rr-shop-tile-head">
         <span className="rr-shop-tile-icon" aria-hidden>
