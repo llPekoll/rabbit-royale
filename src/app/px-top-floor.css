@@ -390,7 +390,16 @@ body:has(.rr-loop-bar) .rr-pill-plate { animation-delay: 45ms; }
    ON THE BOARD LAYER ONLY (`::before`). The coloured ring and the carrot sit
    on the same silhouette, so shadowing those too would print three offset
    copies of one object. The shadow is painted on the layer that MOVES, so it
-   follows the press down instead of staying behind. */
+   follows the press down instead of staying behind.
+
+   FAR ENOUGH OUT TO BE SEEN. The first cut was `0 3px` at 55%, and Paul's
+   answer was "ya pas d'ombre". It WAS being drawn — measured under the rim at
+   (15,74,111) against the sea's (21,109,149), 31% darker — but only across
+   6px hugging the edge, which at the real size reads as part of the bark
+   rather than as a cast. Pushed to 5px with a soft second pass behind it, and
+   deepened: a shadow on water has to clear the object before it starts. */
 .rr-loop-slab.rr-loop-dig::before {
-  filter: drop-shadow(0 3px 0 rgba(12, 46, 78, 0.55));
+  filter:
+    drop-shadow(0 5px 0 rgba(8, 38, 68, 0.7))
+    drop-shadow(0 7px 6px rgba(8, 38, 68, 0.45));
 }
