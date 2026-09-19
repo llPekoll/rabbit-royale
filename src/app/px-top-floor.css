@@ -374,3 +374,23 @@ body:has(.rr-loop-bar) .rr-pill-plate { animation-delay: 45ms; }
 @media (prefers-reduced-motion: reduce) {
   .rr-loop-cell > .rr-loop-dial-carrot { animation: none; }
 }
+
+/* A COOL SHADOW A FEW PIXELS UNDER THE MEDALLION.
+
+   `drop-shadow` is the "take it in black and white, tint it, multiply it
+   underneath" of CSS: it reads the layer's ALPHA — so the cast is the dial's
+   own round silhouette and its plank, not a rectangle — fills it with one
+   colour and draws it behind at an offset.
+
+   BLUE RATHER THAN BLACK because the floor it falls on is the island's water.
+   A neutral shadow on a blue ground reads as dirt; the same shape in a deep
+   water-blue reads as the board sitting above it. Translucent, so the sea's
+   own motion still shows through.
+
+   ON THE BOARD LAYER ONLY (`::before`). The coloured ring and the carrot sit
+   on the same silhouette, so shadowing those too would print three offset
+   copies of one object. The shadow is painted on the layer that MOVES, so it
+   follows the press down instead of staying behind. */
+.rr-loop-slab.rr-loop-dig::before {
+  filter: drop-shadow(0 3px 0 rgba(12, 46, 78, 0.55));
+}
