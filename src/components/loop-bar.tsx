@@ -264,6 +264,52 @@ export function LoopBar({
           </span>
           {pointed === 'dig' && <PxPanel color={BADGE} className="rr-hub-badge" style={badge}>!</PxPanel>}
         </PxButton>
+        {/* THE LIVE RING — the ONE thing the board cannot draw.
+            
+            DIG wears the whole dial board now (px-top-floor.css), the same
+            way DEFEND wears the parchment and RAID the skull: the orange
+            face is gone and the art is the slab. A board is one flat picture
+            though, so the coloured ring is a SECOND copy of that art laid
+            over the first and clipped to what is left in the tank.
+            
+            IT IS THE BUTTON'S SIBLING, not its child. The kit wraps every
+            child of a `PxButton` in its own content span, which `.rr-ptf-fill`
+            then insets — so a ring placed inside would be measured against a
+            box the board's caps have already moved, and the two would drift
+            apart at every size. As a sibling in the cell it takes the same
+            box as the slab and the SAME 3-slice, which is the only way they
+            stay registered (Paul, 2026-09-19: "c'est la même taille pourquoi
+            tu met pas ca dans le même container?").
+            
+            Transparent to the pointer, so it never takes a press meant for
+            DIG. The fill fraction is the one thing React still owns. */}
+        <span
+          className="rr-loop-dial"
+          style={{ '--rr-dial-fill': `${dialFill}turn` } as CSSProperties}
+          aria-hidden
+        />
+        {/* THE CARROT, LYING ACROSS THE MEDALLION'S HUB.
+
+            The dial replaced the carrot that used to stand at the slab's left
+            end (energy-dial.tsx still says so in its header), and the middle
+            of the board has been an empty wooden disc since — Paul, 2026-09-19:
+            "il nous manque la carotte de travers au milieu du cercle".
+
+            A SIBLING IN THE CELL, exactly like the ring above it and for the
+            same reason: it is positioned against the same box the 3-slice
+            lands on, so it stays on the hub at every slab height instead of
+            drifting as the caps resize. Placed inside the button it would be
+            measured against the kit's inset content span.
+
+            Transparent to the pointer, so it never takes a press meant for
+            DIG. */}
+        <img
+          className="rr-loop-dial-carrot rr-carrot-px"
+          src={CARROT_URL}
+          alt=""
+          aria-hidden
+          draggable={false}
+        />
         {/* The haul, standing on the slab it came from. In the cell, outside
             the slab's box (see `.rr-home-haul`), and transparent to the
             pointer, so it never takes a press meant for DIG. */}

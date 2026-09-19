@@ -278,3 +278,42 @@ body:has(.rr-loop-bar) .rr-pill-plate { animation-delay: 45ms; }
 /* The glyph rides the press with the stone, or it floats free of its own
    button for 90ms. */
 .rr-ring-btn > span { transition: inherit; }
+
+/* THE CARROT ON THE MEDALLION'S HUB.
+
+   The middle of the dial is a bare wooden disc: the art draws the rim, the
+   groove and the gauge, and nothing in the centre. The carrot that used to
+   stand at the slab's left end goes there instead (Paul, 2026-09-19).
+
+   MEASURED IN UNITS OF THE ART, like the mask above it and for the same
+   reason. The hub sits at x=51, y=53 of the 102-tall source — the same 0.5
+   and 0.5196 the conic gradient is centred on, which is why it is written
+   the same way. Measuring against the SLAB's height instead would put it
+   where the mask bug put the wedge: the medallion overflows the plank, so
+   the two boxes do not share a centre.
+
+   SIZED BY HEIGHT, NOT WIDTH, and the number comes out of the rotation.
+   The carrot's art is 13x29 — tall and narrow — so setting its WIDTH to a
+   share of the art made the sprite 98px tall on a 143px dial and it lay
+   across the whole gauge. Its height is the dimension to pin.
+
+   The hub's wood is solid out to a radius of ~16 source px before the groove
+   starts, and a wxh sprite turned 45deg needs a circle of radius
+   hypot(w,h)/2 to clear. At 0.26 of the art the carrot is 11.9x26.5 and needs
+   14.5 — inside the wood. 0.30 needs 16.8 and would touch the gauge. */
+.rr-loop-cell > .rr-loop-dial-carrot {
+  position: absolute;
+  left: calc(var(--rr-dial-art) * 0.5);
+  /* From the cell's top edge, which is where the art starts — the box was
+     pulled up by `--rr-dial-over-top` so the medallion could overflow. */
+  top: calc(var(--rr-dial-art) * 0.5196 - var(--rr-dial-over-top));
+  height: calc(var(--rr-dial-art) * 0.26);
+  width: auto;
+  /* Centred on that point, then laid across it. 45deg is the angle the haul
+     badge's carrot already uses, so the two read as the same object. */
+  transform: translate(-50%, -50%) rotate(45deg);
+  /* Over the coloured ring (z-index 2), which is over the board. */
+  z-index: 3;
+  pointer-events: none;
+  image-rendering: pixelated;
+}
