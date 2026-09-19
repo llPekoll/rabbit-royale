@@ -127,9 +127,16 @@ export function HubCard({
     />
   );
 
-  // With a footer the card becomes two STACKED rows — the art-and-text band,
-  // then a full-width strip — rather than one flex row. Without one it stays
-  // the simple row the energy card needs.
+  // With a footer the card is the art beside a COLUMN that holds the text and
+  // the button; without one it stays the simple row the energy card needs.
+  //
+  // THE BUTTON SITS IN THE TEXT COLUMN, NOT ACROSS THE CARD. It used to be a
+  // sibling of the band, so it ran the full width — under the sprite and out
+  // to both rails — and that is what read as "tous les boutons sont trop gros"
+  // (Paul, 2026-09-19): not its height, which already matched his mock, but a
+  // slab spanning a card where his starts after the icon. Measured on his mock
+  // side by side with the game: his CLAIM begins level with "Quest 1 / 10",
+  // mine began level with the scroll.
   if (footer) {
     return (
       <LeafBanner
@@ -140,9 +147,11 @@ export function HubCard({
       >
         <div style={band}>
           {sprite}
-          <div style={column}>{children}</div>
+          <div style={column}>
+            {children}
+            {footer}
+          </div>
         </div>
-        {footer}
       </LeafBanner>
     );
   }
