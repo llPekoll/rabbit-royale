@@ -24,6 +24,7 @@
  */
 import type { CSSProperties, ReactNode } from 'react';
 import { PxButton, PxPanel } from './px';
+import { LeafBadge } from './leaf-badge';
 
 /* ── Sampled from the reference ────────────────────────────────────────── */
 const FACE_TOP = '#3a3936';
@@ -75,11 +76,20 @@ export function HubIconButton({
       style={button}
     >
       <span style={glyph} aria-hidden>{children}</span>
-      {corner && (
-        <PxPanel
-          color={tone === 'news' ? BADGE : '#2a1810'}
-          style={{ ...badge, color: tone === 'news' ? '#ffffff' : '#fde7bd' }}
-        >
+      {/* THE NEWS BADGE IS THE PAINTED RED PILL (leaf-badge.tsx); the COUNT
+          badge stays on the kit.
+
+          Not a hedge: the sheet draws one badge and it is red, which is the
+          "something new" tone. A standing count — traps in the shed, your rank
+          — is deliberately quieter than that (see `tone` above), and painting
+          it red would undo the distinction the two tones exist to make. */}
+      {corner && tone === 'news' && (
+        <LeafBadge height={18} style={badgeSeat}>
+          {corner}
+        </LeafBadge>
+      )}
+      {corner && tone !== 'news' && (
+        <PxPanel color="#2a1810" style={{ ...badge, color: '#fde7bd' }}>
           {corner}
         </PxPanel>
       )}
@@ -128,6 +138,21 @@ const glyph: CSSProperties = {
  * (a standing number). Transparent to the pointer: the corner is still the
  * button's.
  */
+/**
+ * WHERE THE BADGE SITS, and nothing about how it looks.
+ *
+ * `LeafBadge` owns its own padding, minimum width and figure size — the pill's
+ * geometry is what keeps its painted ends the right shape. Handing it the full
+ * `badge` object below would override all three (a spread style wins) and
+ * squash the art, so the painted badge gets only the corner placement.
+ */
+const badgeSeat: CSSProperties = {
+  position: 'absolute',
+  top: 'calc(-7px - var(--u))',
+  right: -7,
+  pointerEvents: 'none',
+};
+
 const badge: CSSProperties = {
   position: 'absolute',
   /* The content box starts one button-pixel down (`.rr-ptf-fill`); this puts

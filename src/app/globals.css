@@ -2600,13 +2600,11 @@ body:has(.rr-empty) .rr-sound { display: none; }
   border-bottom: 1px solid var(--border);
 }
 .rr-lb-head strong { flex: 1; }
+/* Same as `.rr-shop-x`: the [x] is a painted sprite now, so only its hit box
+   is set here. See leaf-badge.tsx. */
 .rr-lb-close {
-  border: none;
-  background: none;
-  font-size: clamp(13px, 2.9svh, 22px);
-  line-height: 1;
-  padding: 0 6px;
-  color: var(--muted);
+  min-height: 44px;
+  min-width: 44px;
 }
 .rr-lb-list { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 
@@ -3402,19 +3400,15 @@ button { font-family: var(--font-pixel); }
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+/* THE [X] IS NOW A PAINTED SPRITE (leaf-badge.tsx), so this no longer styles a
+   glyph: `background: none` would erase the art, and a `color`/`font-size`
+   would set type that is not there. What survives is the HIT TARGET — the way
+   OUT of a full-screen dialog on a phone is the last control that should be
+   under the accessible minimum. */
 .rr-shop-x {
-  border: none;
-  background: none;
-  color: rgba(74, 53, 36, 0.72);
-  font-size: 24px;
-  line-height: 1;
-  padding: 0 4px;
-  /* 44px — the way OUT of a full-screen dialog on a phone, so it is the last
-     control that should be under the accessible minimum. It was 32. */
   min-height: 44px;
   min-width: 44px;
 }
-.rr-shop-x:hover { color: #3a2617; }
 
 /* The goods. Two columns on a wide screen, one on a phone — five items do not
    divide evenly, so the last tile spans the row rather than sitting alone. */
@@ -4771,3 +4765,17 @@ button { font-family: var(--font-pixel); }
   white-space: nowrap;
   border: 0;
 }
+
+/* ── The leaf sheet's close button ─────────────────────────────────────────
+   The three states are separate files (leaf-badge.tsx), swapped here because
+   :hover and :active cannot be expressed as an inline style. The component
+   sets `default` as the background; these override it.
+
+   The art is a FIXED SPRITE, not a nine-slice: its X spans almost the whole
+   sprite, so there is no band to stretch that does not cut the glyph. */
+.rr-leaf-close:hover { background-image: url('/assets/ui/close-hover.webp'); }
+.rr-leaf-close:active { background-image: url('/assets/ui/close-pressed.webp'); }
+/* The pressed art is already drawn darker and sunken, so it carries the press
+   on its own — no transform, which would fight the drawn shadow. */
+.rr-leaf-close { transition: filter 90ms ease; }
+.rr-leaf-close:focus-visible { outline: 2px solid #ffd45c; outline-offset: 2px; }

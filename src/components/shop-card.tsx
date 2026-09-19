@@ -27,10 +27,10 @@
  */
 import { useEffect, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
-import { CloseButton, NineSlicePanel } from '@domin8/arcade-kit';
 import { PanelTitle } from './pixel-text';
 import { PX, PxButton, PxPanel, pxLabel } from './px';
 import { LeafFrame, LEAF_FRAME_CORNER } from './leaf-frame';
+import { LeafClose } from './leaf-badge';
 import type { ItemKind, ShopItem, ShopState } from './use-shop';
 import { ITEM_META, heldLabel } from './item-meta';
 import { useT } from '@/i18n/provider';
@@ -238,7 +238,7 @@ export function ShopPanel({
           )}
           {/* minWidth inline: the kit's own inline 32px beats any stylesheet
               floor, and this is the way out of a full-screen dialog. */}
-          <CloseButton inline className="rr-shop-x" onClick={onClose} aria-label="Close" style={{ minWidth: 44 }} />
+          <LeafClose className="rr-shop-x" onClick={onClose} aria-label="Close" size={40} />
         </header>
 
         <ul className="rr-shop-grid">

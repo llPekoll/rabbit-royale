@@ -29,11 +29,12 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { useT } from '@/i18n/provider';
-import { CloseButton, GOLD_CUP_URL, NineSlicePanel } from '@domin8/arcade-kit';
+import { GOLD_CUP_URL } from '@domin8/arcade-kit';
 import { PanelTitle } from './pixel-text';
 import { HubIconButton, hubIconArt } from './hub-icon-button';
 import { PX, PxPanel } from './px';
 import { LeafFrame } from './leaf-frame';
+import { LeafClose } from './leaf-badge';
 import { PodiumRabbit } from './podium-rabbit';
 import { FACE_COL, LEAD_SIZE, PODIUM, PODIUM_MIN_PANEL, PODIUM_SIZE, crownBox } from '@/lib/game/podium';
 
@@ -270,7 +271,7 @@ export function LeaderboardDrawer({ token, playerId, onSpectate, onMe, onOpen }:
           {daysLeft !== null && <span style={{ color: 'var(--muted)' }}>{daysLeft}d</span>}
           {/* Every screen can put the board away now — on a phone it is covering
               the island, on a desktop it is eating a third of the burrow. */}
-          <CloseButton inline className="rr-lb-close" onClick={() => setOpen(false)} aria-label="Close" style={{ minWidth: 44 }} />
+          <LeafClose className="rr-lb-close" onClick={() => setOpen(false)} aria-label="Close" size={34} />
         </header>
 
         <div className="rr-lb-list" ref={listRef}>
