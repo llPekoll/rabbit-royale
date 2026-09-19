@@ -282,28 +282,46 @@ function stepsFrom(seed: string, from: number, tiles: ReadonlyMap<number, Tile>)
 }
 
 /**
- * `count` tiles on the island's RIM, spread round the coast rather than
- * clustered on whichever headland happens to reach furthest.
+ * `count` tiles on the island's RIM, as far apart from EACH OTHER as the coast
+ * allows.
  *
- * This is where the chests go, and the two halves of that sentence are both
- * load-bearing. FAR, because a chest is what ends the island: one sitting two
- * steps from the spawn is a level that can be finished without ever walking
- * out, and the walk is the game. SPREAD, because "far" alone is not enough —
- * the distance field peaks on the longest peninsula, so taking the furthest n
- * tiles puts every chest on the same spit of land and the lap becomes one trip
- * down a corridor and back.
+ * This is where the chests go, and every word of that sentence is carrying
+ * weight. FAR FROM THE SPAWN, because a chest is what ends the island: one
+ * sitting two steps from the middle is a level that can be finished without
+ * ever walking out, and the walk is the game. FAR FROM EACH OTHER, because
+ * "far from the spawn" alone does not make a lap — it makes a ring of tiles
+ * that can still be bunched three-to-a-bay, and a bay you clear in one visit
+ * is one stop however many chests you carry out of it.
  *
- * So the coast is cut into `count` angular slices around the spawn and each
- * slice contributes its own furthest tile. Every chest is then in a different
- * DIRECTION as well as far away, which is what makes collecting them a lap of
- * the island. A slice with nothing eligible in it is skipped rather than
- * back-filled from a neighbour: two chests in one bay reads worse than one
- * bay with none, and the island is never dealt short in a way that matters
- * because the count is a density, not a promise.
+ * ## Why not angular slices
+ *
+ * The first cut divided the coast into `count` equal wedges around the spawn
+ * and took each wedge's furthest tile. That is the obvious way and it is
+ * subtly wrong, because an island is not a disc: a wide, close coast fills two
+ * neighbouring wedges, so both hand back tiles from the SAME stretch of shore
+ * and the two chests come out side by side. It showed up immediately in the
+ * `Island/Chest spawn` story — pairs touching on the north coast of half the
+ * seeds — because the rule only ever constrained a chest's ANGLE, never its
+ * distance to the chest next door.
+ *
+ * ## Farthest-point selection
+ *
+ * So the spacing is chosen directly instead. Start from the tile furthest out,
+ * then repeatedly take the candidate whose nearest ALREADY-CHOSEN chest is as
+ * far away as possible (a greedy max-min, the standard farthest-point
+ * traversal). Each pick is the emptiest remaining stretch of coast by
+ * construction, so the chests spread themselves around the island without
+ * anyone having to say where the compass points are — and on a lumpy island
+ * they follow the lumps, which is exactly what the wedges could not do.
  *
  * Distance is in STEPS (`stepsFrom`), not grid squares: a tile across a cliff
  * is far however close its index looks, and the rim we want is the rim a
- * rabbit actually walks to.
+ * rabbit actually walks to. The spacing between chests is measured on the grid
+ * (`hypot`) rather than by a second walk — a full BFS per candidate per pick
+ * would be `count` times the work for a tie-break that only has to be
+ * approximately right, and the two disagree only where a cliff splits two
+ * tiles that are close on the grid, which the depth floor has already pushed
+ * out to the coast.
  */
 function rimTiles(
   seed: string,
@@ -317,27 +335,52 @@ function rimTiles(
   let furthest = 1;
   for (const d of dist.values()) if (d > furthest) furthest = d;
 
-  // Only the outer band is in the running. Without this floor a slice whose
-  // coast is close to the spawn (the island is not a disc) would still hand
-  // back its own furthest tile, however near that is.
+  // Only the outer band is in the running — see `ISLAND.CHEST_MIN_DEPTH`.
+  // Without this floor the spacing rule alone would happily put a chest in the
+  // middle of the island, because the middle is a long way from the coast.
   const floor = furthest * ISLAND.CHEST_MIN_DEPTH;
-  const origin = toColRow(spawn);
-
-  // Best (furthest) tile per angular slice.
-  const best = new Map<number, { tile: number; d: number }>();
+  const pool: Array<{ tile: number; d: number; col: number; row: number }> = [];
   for (const i of eligible) {
     const d = dist.get(i);
     if (d === undefined || d < floor) continue;
     const { col, row } = toColRow(i);
-    // Screen angle, not grid angle: the slices should read as compass points
-    // on the island the player sees, and the board is drawn isometric.
-    const angle = Math.atan2((col - origin.col) + (row - origin.row),
-                             (col - origin.col) - (row - origin.row));
-    const slice = Math.floor(((angle + Math.PI) / (Math.PI * 2)) * count) % count;
-    const cur = best.get(slice);
-    if (!cur || d > cur.d) best.set(slice, { tile: i, d });
+    pool.push({ tile: i, d, col, row });
   }
-  return [...best.values()].map((e) => e.tile);
+  if (!pool.length) return [];
+
+  // Seed the traversal with the tile furthest from the spawn. Deterministic
+  // (ties break on the lower index, since `eligible` arrives in a fixed order),
+  // which matters because the whole generator is a pure function of its seeds.
+  let head = pool[0];
+  for (const c of pool) if (c.d > head.d) head = c;
+
+  const picked = [head];
+  // Each candidate's distance to the NEAREST chest picked so far, updated as
+  // the set grows rather than recomputed — this is the whole cost of the
+  // algorithm, and it stays linear per pick.
+  const near = pool.map((c) => Math.hypot(c.col - head.col, c.row - head.row));
+
+  while (picked.length < count) {
+    let bestAt = -1;
+    let bestGap = -1;
+    for (let k = 0; k < pool.length; k++) {
+      // The emptiest stretch of coast left. `>` not `>=` keeps the first of a
+      // tie, which is the lower tile index and so keeps the deal reproducible.
+      if (near[k] > bestGap) { bestGap = near[k]; bestAt = k; }
+    }
+    // Every remaining candidate is already touching a chosen chest: the coast
+    // has run out of room and the island is simply dealt short. Better than
+    // pairing up boxes to hit a count the player never sees.
+    if (bestAt < 0 || bestGap <= 0) break;
+
+    const chosen = pool[bestAt];
+    picked.push(chosen);
+    for (let k = 0; k < pool.length; k++) {
+      const gap = Math.hypot(pool[k].col - chosen.col, pool[k].row - chosen.row);
+      if (gap < near[k]) near[k] = gap;
+    }
+  }
+  return picked.map((c) => c.tile);
 }
 
 /**

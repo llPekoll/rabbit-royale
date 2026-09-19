@@ -147,6 +147,35 @@ describe('generateIsland', () => {
     }
   });
 
+  it('keeps the chests well apart from each other, not just from the spawn', () => {
+    // The failure this pins: the first placement bucketed the coast into equal
+    // angular wedges, and an island is not a disc — a wide, close shore filled
+    // two neighbouring wedges and both handed back tiles from the SAME stretch,
+    // so chests came out touching. Measured over 12 seeds the closest pair was
+    // 1.0 tile, i.e. adjacent. A bay cleared in one visit is one stop however
+    // many boxes are in it, which is not the lap the rule is meant to build.
+    //
+    // 4 tiles is a floor with headroom: the farthest-point traversal
+    // (`rimTiles`) actually delivers about 6, and pinning the measured value
+    // would fail on the first harmless tweak to the density or the depth floor.
+    for (const seed of ['gap-a', 'gap-b', 'gap-c', 'gap-d', 'gap-e', 'gap-f']) {
+      const island = generateIsland({ seed });
+      const chests = [...island.tiles]
+        .filter(([, t]) => t.content === 'chest')
+        .map(([i]) => toColRow(i));
+      expect(chests.length).toBeGreaterThan(1);
+
+      let closest = Infinity;
+      for (let a = 0; a < chests.length; a++) {
+        for (let b = a + 1; b < chests.length; b++) {
+          closest = Math.min(closest, Math.hypot(
+            chests[a].col - chests[b].col, chests[a].row - chests[b].row));
+        }
+      }
+      expect(closest).toBeGreaterThan(4);
+    }
+  });
+
   it('puts every chest out on the rim, and spread around it', () => {
     // The rule the placement exists for: finishing an island means walking it.
     // Pinned over several seeds because one lucky coastline proves nothing.
