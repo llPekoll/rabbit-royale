@@ -403,3 +403,17 @@ body:has(.rr-loop-bar) .rr-pill-plate { animation-delay: 45ms; }
     drop-shadow(0 5px 0 rgba(8, 38, 68, 0.7))
     drop-shadow(0 7px 6px rgba(8, 38, 68, 0.45));
 }
+/* THE CARROT CASTS ITS OWN, because it cannot borrow the board's.
+
+   `drop-shadow` filters the layer it is set on, and the carrot is a SIBLING of
+   the board (it has to be — see the note where it is positioned, it is
+   anchored to the cell so it stays on the hub at every slab height). A sibling
+   is outside the filtered layer, so the board's shadow drew the medallion and
+   the plank and left the carrot floating with nothing under it — Paul, looking
+   at the DOM: "il devrait avoir la carrote couleur et la carrote shadow non?".
+
+   Shorter and tighter than the board's: it lies ON the dial a few pixels above
+   it, not on the water a whole board's thickness up, so its cast is close. */
+.rr-loop-cell > .rr-loop-dial-carrot {
+  filter: drop-shadow(0 2px 1px rgba(8, 38, 68, 0.6));
+}
