@@ -51,11 +51,15 @@ export interface GardenCardProps {
 
 /* ── Sampled from the reference ────────────────────────────────────────── */
 /** The button's face — flat carrot, not a gradient. */
-const BTN = '#e4762b';
+/* HARVEST — the garden's green, sampled off Paul's mock (2026-09-19). It was
+   the same orange CLAIM wears; a harvest is not a reward being handed over, it
+   is the garden's own crop, and the green is what says so before the label is
+   read. See quest-card.tsx for why the three faces split. */
+const BTN = '#417f41';
 /** Its lit bottom edge, where the light catches. */
-const BTN_LIP = '#ffd6ae';
+const BTN_LIP = '#6ac07a';
 /** The shadow it casts, which is what gives it thickness. */
-const BTN_SHADOW = '#9a4810';
+const BTN_SHADOW = '#244220';
 /* SPENT, ON PARCHMENT. These were a dark-card palette — a near-black brown
    slab with a grey-brown ink, which read as "off" against the old soil face.
    The vine banner (leaf-banner.tsx) put a cream board behind them, and the

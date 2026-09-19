@@ -87,9 +87,14 @@ function ConfettiBurst({ fireKey }: { fireKey: number }) {
 }
 
 /* ── Sampled from the garden card, so the two slabs are one object ──────── */
-const BTN = '#e4762b';
-const BTN_LIP = '#ffd6ae';
-const BTN_SHADOW = '#9a4810';
+/* CLAIM — the carrot orange, sampled off Paul's mock (2026-09-19): the three
+   card buttons used to share ONE face (#e4762b), so the screen offered three
+   identical orange slabs and the colour said nothing about the action. Each
+   verb takes its own tone now: taking a reward is the carrot's orange, and it
+   stays the loudest of the three because it is the one that pays out. */
+const BTN = '#d96626';
+const BTN_LIP = '#ffa157';
+const BTN_SHADOW = '#793513';
 const BTN_OFF = '#5a3320';
 const BTN_OFF_SHADOW = '#2f1a10';
 const BTN_OFF_INK = '#9a8270';

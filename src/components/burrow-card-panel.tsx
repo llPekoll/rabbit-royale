@@ -49,9 +49,13 @@ export interface BurrowPanelProps {
 }
 
 /* ── Sampled from the reference ────────────────────────────────────────── */
-const BTN = '#e4762b';
-const BTN_LIP = '#ffd6ae';
-const BTN_SHADOW = '#9a4810';
+/* UPGRADE — the burrow's own earth brown, sampled off Paul's mock
+   (2026-09-19). The quietest of the three on purpose: spending carrots on the
+   burrow is an investment, not a payout, and it should not shout louder than
+   CLAIM. It was the same orange as the other two. See quest-card.tsx. */
+const BTN = '#635038';
+const BTN_LIP = '#92866e';
+const BTN_SHADOW = '#37291c';
 /* Spent, on parchment — the same warm stone the garden's HARVEST wears, and
    for the same reason: the old near-black slab plus the global
    `button:disabled { opacity: 0.5 }` washed out to an illegible grey on the
