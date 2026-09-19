@@ -160,14 +160,18 @@ export function QuestCard({
       >
         <HubRow>
           <span style={headingText}>{t.quest.counter(quest.index, quest.total)}</span>
-          <span style={{ ...valueText, color: quest.done ? LIT : undefined }}>
+          <span style={{ ...valueText, ...(quest.done ? { color: LIT } : null) }}>
             {quest.done ? t.quest.done : quest.goal > 1 ? t.quest.progress(quest.progress, quest.goal) : ''}
           </span>
         </HubRow>
         {/* The ASK, not the title: on a card this size there is room for one
             line, and "Dig 10 tiles." is the line that tells the player what to
             do. The title names the quest in the toast when it is claimed. */}
-        <p className={SUB_CLASS} style={{ ...subText, color: quest.done ? LIT : undefined }}>
+        {/* Spread-or-nothing, never `color: undefined`: React deletes an
+            undefined style property, so the line would inherit the page's
+            near-white instead of falling back to `subText`'s ink — invisible
+            on the vine banner's cream board. */}
+        <p className={SUB_CLASS} style={{ ...subText, ...(quest.done ? { color: LIT } : null) }}>
           {quest.done ? quest.title : quest.ask}
         </p>
       </HubCard>

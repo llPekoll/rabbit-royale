@@ -24,6 +24,7 @@
  */
 import type { CSSProperties, ReactNode } from 'react';
 import { PxPanel } from './px';
+import { LeafBanner, BANNER_CARD_CAP_RATIO } from './leaf-banner';
 
 /* ── Sampled from the reference ────────────────────────────────────────── */
 /** The card's face — near-black brown, warmer at the top where the light is. */
@@ -31,12 +32,21 @@ export const FACE_TOP = '#2d1610';
 export const FACE_BOTTOM = '#1c0d08';
 /** The 2px rim that lifts the card off the water. Bone, not white. */
 export const RIM = '#ddccbc';
-/** Headings: flat white. The card's name, not its news. */
-export const LABEL = '#ffffff';
-/** A live value — cream, brighter than the label it sits beside. */
-export const VALUE = '#fde7bd';
-/** The fine print under a heading. */
-export const SUB = '#a28b7b';
+/* ── THE INK, SINCE THE CARD IS PARCHMENT ─────────────────────────────────
+   These were a dark-room palette — white headings, cream values and a muted
+   brown sub — set against `FACE_TOP`'s near-black soil. The vine banner
+   (leaf-banner.tsx) put a cream board under them, where white on cream is
+   nearly invisible: the burrow's own heading and its body copy disappeared.
+
+   Same three ROLES, restated on the new ground: the heading is the darkest
+   note, the value sits just under it, and the fine print is a wash of the
+   same brown rather than a different colour. */
+/** Headings: the board's darkest bark. The card's name, not its news. */
+export const LABEL = '#3a2617';
+/** A live value — bark brown, a step under the heading it sits beside. */
+export const VALUE = '#4a3524';
+/** The fine print under a heading: the same brown, washed back. */
+export const SUB = 'rgba(74, 53, 36, 0.66)';
 
 /**
  * The slab.
@@ -122,21 +132,31 @@ export function HubCard({
   // the simple row the energy card needs.
   if (footer) {
     return (
-      <PxPanel color={FACE_TOP} className="rr-hub-card" style={{ ...cardBase, ...stacked, ...heightBox(ratio, floor), ...style }}>
+      <LeafBanner
+        height={cardHeight(ratio, floor)}
+        cap={cardCap(ratio, floor)}
+        className="rr-hub-card"
+        style={{ ...cardBase, ...stacked, ...heightBox(ratio, floor), ...style }}
+      >
         <div style={band}>
           {sprite}
           <div style={column}>{children}</div>
         </div>
         {footer}
-      </PxPanel>
+      </LeafBanner>
     );
   }
 
   return (
-    <PxPanel color={FACE_TOP} className="rr-hub-card" style={{ ...cardBase, ...heightBox(ratio, floor), ...style }}>
+    <LeafBanner
+      height={cardHeight(ratio, floor)}
+      cap={cardCap(ratio, floor)}
+      className="rr-hub-card"
+      style={{ ...cardBase, ...heightBox(ratio, floor), ...style }}
+    >
       {sprite}
       <div style={column}>{children}</div>
-    </PxPanel>
+    </LeafBanner>
   );
 }
 
@@ -164,6 +184,31 @@ export function HubCard({
  * `overflow: hidden` keeps the contents inside the frame the way the old
  * ratio box did.
  */
+/**
+ * THE CARD'S HEIGHT, as one CSS expression — the single source both the box and
+ * the banner's end caps are built from.
+ *
+ * It was inline inside `heightBox`. The vine banner needs the SAME value to
+ * size its ends (they are art and scale with the height, see leaf-banner.tsx),
+ * and the height is a `max(calc(...svh ...), ...px)` that only the browser
+ * resolves — so it has to be shared as text rather than as a number, or the
+ * ends would drift from the card on any viewport where the floor wins.
+ */
+function cardHeight(shareOfViewport: number, floor: number): string {
+  return `max(calc(${shareOfViewport}svh * var(--rr-card-scale, 1)), ${floor}px)`;
+}
+
+/**
+ * Each end of the banner: a fixed share of whatever the card's height is.
+ *
+ * `BANNER_CARD_CAP_RATIO`, not the art's own proportion — see leaf-banner.tsx
+ * for the measurement. At full proportion the two ends ate 142px of a 308px
+ * card and its contents were clipped.
+ */
+function cardCap(shareOfViewport: number, floor: number): string {
+  return `calc(${cardHeight(shareOfViewport, floor)} * ${BANNER_CARD_CAP_RATIO})`;
+}
+
 function heightBox(shareOfViewport: number, floor: number): CSSProperties {
   /* `min-height` rather than `height`, though the card is a `size` container
      and so cannot actually grow past it — see `cardBase`. Written this way
@@ -199,7 +244,7 @@ function heightBox(shareOfViewport: number, floor: number): CSSProperties {
        heading was cut off the top (Paul, 2026-09-16: 2px of air between text
        and a panel's border, at least). The column has the room below — it
        ended 100px above the loop bar. */
-    height: `max(calc(${shareOfViewport}svh * var(--rr-card-scale, 1)), ${floor}px)`,
+    height: cardHeight(shareOfViewport, floor),
     /* One card-percent AS THE SHARE WOULD HAVE MADE IT. Where the floor lifts
        the card past its share, `cqh` grows with it and the type and art would
        swell into the width they share with the heading ("BURROW - LVL 1" wrapped

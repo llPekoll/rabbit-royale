@@ -56,10 +56,18 @@ const BTN = '#e4762b';
 const BTN_LIP = '#ffd6ae';
 /** The shadow it casts, which is what gives it thickness. */
 const BTN_SHADOW = '#9a4810';
-/** Spent: the same slab with the light off. */
-const BTN_OFF = '#5a3320';
-const BTN_OFF_SHADOW = '#2f1a10';
-const BTN_OFF_INK = '#9a8270';
+/* SPENT, ON PARCHMENT. These were a dark-card palette — a near-black brown
+   slab with a grey-brown ink, which read as "off" against the old soil face.
+   The vine banner (leaf-banner.tsx) put a cream board behind them, and the
+   global `button:disabled { opacity: 0.5 }` then washed that dark slab to a
+   pale grey smear with an illegible label.
+
+   Restated as a WARM STONE rather than a dark hole: light enough that the
+   50% fade leaves it a solid object on cream, with ink dark enough to survive
+   the same fade. */
+const BTN_OFF = '#b9a288';
+const BTN_OFF_SHADOW = '#8a745c';
+const BTN_OFF_INK = '#4a3524';
 const GARDEN_ART = '/assets/ui/icons/garden.webp';
 /** The risk line: the burrow's danger red, lifted to read on the dark face. */
 const RISK_INK = '#ff8a7a';
@@ -130,7 +138,11 @@ export function GardenCard({
       {/* Empty, it says what an empty field IS: a promise, not a blank. A
           newcomer's first look at the burrow is "+0", and "20/hour" alone
           left them to guess whether the number would ever move. */}
-      <p className={SUB_CLASS} style={{ ...subText, color: ready > 0 ? RISK_INK : undefined }}>
+      {/* `color: undefined` would DELETE the colour rather than fall back to
+          `subText`'s: React drops an undefined style property, and the line
+          then inherited the app's near-white from the page — invisible on the
+          banner's cream board. It read fine only while the card was dark. */}
+      <p className={SUB_CLASS} style={{ ...subText, ...(ready > 0 ? { color: RISK_INK } : null) }}>
         {ready > 0
           ? <>stealable until harvested &middot; {yieldPerHour}/hour</>
           : <>grows while you dig &middot; {yieldPerHour}/hour &middot; holds {capacity}</>}

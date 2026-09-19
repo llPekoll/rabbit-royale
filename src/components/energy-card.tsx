@@ -73,7 +73,7 @@ export function EnergyCard({ energy, maxEnergy, note }: EnergyCardProps) {
     <HubCard ratio={12.4} art={BOLT} artHeight="59cqh">
       <HubRow>
         <span style={headingText}>{t.burrow.energy}</span>
-        <span style={{ ...valueText, color: empty ? DANGER_TOP : undefined }}>
+        <span style={{ ...valueText, ...(empty ? { color: DANGER_TOP } : null) }}>
           {energy}/{maxEnergy}
         </span>
       </HubRow>
@@ -106,7 +106,7 @@ export function EnergyCard({ energy, maxEnergy, note }: EnergyCardProps) {
           is recoverable: the gauge still shows empty, and the energy popup
           (which a tap on an empty bar opens) states the wait in full. */}
       {note && (
-        <p className={SUB_CLASS} style={{ ...subText, color: empty ? DANGER_TOP : undefined }}>
+        <p className={SUB_CLASS} style={{ ...subText, ...(empty ? { color: DANGER_TOP } : null) }}>
           {note}
         </p>
       )}

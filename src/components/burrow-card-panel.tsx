@@ -52,9 +52,13 @@ export interface BurrowPanelProps {
 const BTN = '#e4762b';
 const BTN_LIP = '#ffd6ae';
 const BTN_SHADOW = '#9a4810';
-const BTN_OFF = '#5a3320';
-const BTN_OFF_SHADOW = '#2f1a10';
-const BTN_OFF_INK = '#9a8270';
+/* Spent, on parchment — the same warm stone the garden's HARVEST wears, and
+   for the same reason: the old near-black slab plus the global
+   `button:disabled { opacity: 0.5 }` washed out to an illegible grey on the
+   vine banner's cream board. See garden-card.tsx. */
+const BTN_OFF = '#b9a288';
+const BTN_OFF_SHADOW = '#8a745c';
+const BTN_OFF_INK = '#4a3524';
 /** The safe line's own ground — a strongbox, darker than the card's face. */
 const VAULT = '#43261a';
 /** Safe carrots read in the game's lamplight, not in the warning red. */
