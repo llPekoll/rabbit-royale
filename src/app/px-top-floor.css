@@ -412,8 +412,24 @@ body:has(.rr-loop-bar) .rr-pill-plate { animation-delay: 45ms; }
    the plank and left the carrot floating with nothing under it — Paul, looking
    at the DOM: "il devrait avoir la carrote couleur et la carrote shadow non?".
 
-   Shorter and tighter than the board's: it lies ON the dial a few pixels above
-   it, not on the water a whole board's thickness up, so its cast is close. */
+   MEASURED IN SCREEN PIXELS AGAINST A SPRITE THAT IS SCALED UP. The first cut
+   was `0 2px`, and it was invisible for the same reason the board's `0 3px`
+   was: the art is 13x29 drawn at 94, so ONE SOURCE PIXEL IS 3.2 SCREEN PIXELS.
+   A 2px offset does not even clear a single pixel of the carrot — it lands
+   inside the sprite's own edge instead of beyond it, and the brown the eye
+   found under the carrot was the hub's wood, not a cast (sampled: 156,87,32
+   where the shadow would be 8,38,68).
+
+   6px is roughly two source pixels, which is what reads as a shadow at this
+   scale. Still shorter than the board's 5+7, because the carrot lies ON the
+   dial rather than a whole board's thickness above the water.
+
+   AND THE OFFSET IS PRE-ROTATED. A filter is applied in the ELEMENT'S OWN
+   space, and this element carries `rotate(45deg)` — so `0 6px` is "down" for
+   the carrot, which the rotation then throws out to the lower LEFT on screen.
+   Proved by forcing a magenta shadow: it appeared on the diagonal, not under
+   the sprite. To land straight down, the offset is rotated back by 45deg:
+   (0,6) becomes (4.24, 4.24), which the rotation returns to vertical. */
 .rr-loop-cell > .rr-loop-dial-carrot {
-  filter: drop-shadow(0 2px 1px rgba(8, 38, 68, 0.6));
+  filter: drop-shadow(4.24px 4.24px 2px rgba(8, 38, 68, 0.75));
 }
