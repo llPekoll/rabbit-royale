@@ -170,9 +170,18 @@ const button: CSSProperties = {
  * A sprite in place of the emoji: the glyph's box, drawn pixelated. The shop
  * stall (33px) and the gold cup (16px) are both scaled to one height so the
  * row reads as a set; `width: auto` keeps each at its own aspect.
+ *
+ * SMALLER THAN THE BUTTON'S SQUARE, because the button is no longer square.
+ * These sizes were set when the face was the kit's flat slab, where a glyph
+ * could fill the box corner to corner. The stone ring (`ringFor`) has a ROUND
+ * opening — measured at 76-88% of the art, and less than that once the mossy
+ * rim is allowed its own margin — so a sprite at the old height sat on the
+ * stones instead of inside them (Paul, 2026-09-19: "les icones au centre plus
+ * petite"). 5.6svh against the button's 11svh puts it at about half the ring,
+ * centred in the opening.
  */
 export const hubIconArt: CSSProperties = {
-  height: 'clamp(22px, 7.5svh, 46px)',
+  height: 'clamp(17px, 5.6svh, 34px)',
   width: 'auto',
   display: 'block',
   imageRendering: 'pixelated',
@@ -182,7 +191,9 @@ const glyph: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  fontSize: 'clamp(16px, 5.5svh, 32px)',
+  /* Down with `hubIconArt`, and for the same reason: an emoji glyph has to sit
+     inside the ring's opening rather than across its stones. */
+  fontSize: 'clamp(13px, 4.2svh, 24px)',
   lineHeight: 1,
 };
 
@@ -202,17 +213,32 @@ const glyph: CSSProperties = {
  */
 const badgeSeat: CSSProperties = {
   position: 'absolute',
-  top: 'calc(-7px - var(--u))',
-  right: -7,
+  /* ON THE TOP EDGE, CENTRED — not hanging off the top-right corner.
+     
+     The corner was the right place on a SQUARE button: a badge there sat in
+     the empty diagonal outside the slab. The stone ring has no such corner —
+     its art is round, so a badge pinned to the box's top-right floated in
+     transparent space away from the button it belongs to. Centred on the rim
+     it reads as pinned TO the stone (Paul, 2026-09-19: "les petits label en
+     haut"). */
+  /* `--u` HAS A FALLBACK BECAUSE IT NO LONGER EXISTS HERE. It was set by the
+     kit's `PxButton`, which this button dropped when it took the stone ring as
+     its face — so `calc(-8px - var(--u))` became invalid and the badge fell to
+     `top: 25px`, half way down the ring, sitting across the icon. Measured:
+     43px of a 68px button. The fallback keeps the arithmetic valid. */
+  top: 'calc(-8px - var(--u, 0px))',
+  left: '50%',
+  transform: 'translateX(-50%)',
   pointerEvents: 'none',
 };
 
 const badge: CSSProperties = {
   position: 'absolute',
-  /* The content box starts one button-pixel down (`.rr-ptf-fill`); this puts
-     the badge back on the button's own corner. */
-  top: 'calc(-7px - var(--u))',
-  right: -7,
+  /* On the top edge, centred — the same seat the painted pill takes, and for
+     the same reason: the ring has no corner to hang off. See `badgeSeat`. */
+  top: 'calc(-7px - var(--u, 0px))',
+  left: '50%',
+  transform: 'translateX(-50%)',
   minWidth: 18,
   /* The game's chip inset — the same one the pill's rank badge and the loop
      bar's corner badges take. */
