@@ -79,24 +79,31 @@ export function bannerMinWidth(height: number): number {
 export const BANNER_CAP_RATIO = BANNER_CAP / BANNER_SIZE.height;
 
 /**
- * THE CAP RATIO THE BURROW'S CARDS USE — deliberately slimmer than the art's
- * own 0.46, and this is the one number on this component worth arguing about.
+ * THE CAP THE BURROW'S CARDS USE — a share of the height, held under a hard
+ * pixel ceiling. This is the one number on this component worth arguing about.
  *
- * At the art's own proportion a 308px card spends 142px of its width on the
- * two ends. With the card's padding that leaves 146px of usable width against
- * contents that measure 214 — the burrow card's "20 carrots/hour" was clipped
- * mid-word, and every heading wrapped.
+ * WHY NOT THE ART'S OWN 0.46. At that proportion a 308px card spends 142px of
+ * its width on the two ends, leaving 146px of usable width against contents
+ * that need 234-248 (measured): every heading wrapped and the burrow card's
+ * "20 carrots/hour" was clipped mid-word.
  *
- * A 3-SLICE CANNOT SOLVE THIS BY ITSELF: the cap and the art scale together,
- * so the only way to buy width is to draw the whole frame slimmer. Rendering
- * the banner down the height range shows the vines survive it — they thin out
- * but stay legible as vines, where the frame at full proportion on a 308px
- * card reads as an ornament that ate its own card.
+ * WHY NOT A SMALLER RATIO EITHER. 0.22 bought the room but drew a MEAGRE
+ * frame — thin rails, sparse vines, and a long stretched middle whose grain
+ * smeared while the ends stayed sharp (Paul, 2026-09-19: "le cadre est
+ * vachement strecher c'est pas tres joli").
  *
- * 0.22 leaves 220-233px at both card heights (125 and 155), which clears the
- * 214 the contents need with room to spare.
+ * SO IT IS A RATIO WITH A CEILING. The ratio gives short cards a frame in
+ * proportion to them; the 34px ceiling is what the TALLEST card can afford —
+ * measured by squeezing the cards' border until text broke, which it does at
+ * 39px and badly at 49. Every card gets the thickest frame it can carry, and
+ * none of them clips.
+ *
+ * `repeat` IS NOT THE ANSWER to the stretch, though it looks like it should
+ * be: see the note on `borderImageRepeat` below.
  */
-export const BANNER_CARD_CAP_RATIO = 0.22;
+export const BANNER_CARD_CAP_RATIO = 0.32;
+/** The most any card can spend on one end before its contents clip. */
+export const BANNER_CARD_CAP_MAX = 34;
 
 export interface LeafBannerProps extends Omit<ComponentPropsWithoutRef<'div'>, 'children'> {
   /**
@@ -130,11 +137,23 @@ export function LeafBanner({ height, cap, children, className, style, ...rest }:
       className={`rr-leaf-banner${className ? ` ${className}` : ''}`}
       style={{
         /* THE 3-SLICE. Zero top and bottom: the board keeps its painted height
-           and only the wood between the ends stretches. `fill` paints the
+           and only the wood between the ends grows. `fill` paints the
            parchment in the middle. */
         borderImageSource: `url(${BANNER_URL})`,
         borderImageSlice: `0 ${BANNER_CAP} 0 ${BANNER_CAP} fill`,
         borderImageWidth: `0 ${ends}`,
+        /* `stretch`, and `repeat` IS NOT AN OPTION HERE — tried, 2026-09-19.
+
+           Repeating looked right in an offline render, which tiled the middle
+           band horizontally only. `border-image-repeat` does not work that way:
+           it tiles the middle slice in BOTH directions, so the top and bottom
+           rails repeated down the card's face and drew wooden bars straight
+           across the text. The board is a 3-slice with a zero vertical inset,
+           so its middle slice is the full height of the art — there is nothing
+           to tile vertically against.
+
+           The stretch is therefore the price of a 3-slice on a box wider than
+           the art, and `BANNER_CARD_CAP_RATIO` is where it is managed. */
         borderImageRepeat: 'stretch',
         borderStyle: 'solid',
         borderColor: 'transparent',

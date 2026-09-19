@@ -24,7 +24,7 @@
  */
 import type { CSSProperties, ReactNode } from 'react';
 import { PxPanel } from './px';
-import { LeafBanner, BANNER_CARD_CAP_RATIO } from './leaf-banner';
+import { LeafBanner, BANNER_CARD_CAP_RATIO, BANNER_CARD_CAP_MAX } from './leaf-banner';
 
 /* ── Sampled from the reference ────────────────────────────────────────── */
 /** The card's face — near-black brown, warmer at the top where the light is. */
@@ -206,7 +206,9 @@ function cardHeight(shareOfViewport: number, floor: number): string {
  * card and its contents were clipped.
  */
 function cardCap(shareOfViewport: number, floor: number): string {
-  return `calc(${cardHeight(shareOfViewport, floor)} * ${BANNER_CARD_CAP_RATIO})`;
+  /* `min()`, so a tall card does not spend its width on ends it cannot afford
+     — the ceiling is what the burrow card clips at. See leaf-banner.tsx. */
+  return `min(calc(${cardHeight(shareOfViewport, floor)} * ${BANNER_CARD_CAP_RATIO}), ${BANNER_CARD_CAP_MAX}px)`;
 }
 
 function heightBox(shareOfViewport: number, floor: number): CSSProperties {
