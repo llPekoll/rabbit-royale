@@ -301,18 +301,29 @@ body:has(.rr-loop-bar) .rr-pill-plate { animation-delay: 45ms; }
    starts, and a wxh sprite turned 45deg needs a circle of radius
    hypot(w,h)/2 to clear.
 
-   0.26 sat inside that wood and read as too small on the real bar (Paul,
-   2026-09-19: "c'est trop petit"). 0.38 needs a radius of 21 against the
-   wood's 16, so the carrot now crosses the inner groove — which is the point:
-   it lies ACROSS the dial like the hand of a gauge, rather than being parked
-   in the hub. It still clears the coloured band, which starts further out. */
+   THE BOUNDING BOX IS NOT THE ART. A 45deg rotation makes the sprite's
+   corners its furthest points, but the carrot's corners are TRANSPARENT: its
+   opaque pixels reach only 0.484 of its own height from the centre, measured
+   off the sprite rather than assumed from the box. That is what decides how
+   big it can be.
+
+   0.26 sat inside the hub's wood and read as too small; 0.38 still did
+   (Paul, 2026-09-19, twice). At 0.54 the carrot is 55px on a 102-unit dial
+   and its tips reach 26.7 — just into the coloured band, which lives at
+   radius 21..35.
+
+   CROSSING THE BAND IS FINE, and is the reason this can grow at all: the
+   gauge is a thin RING, not a disc, and the carrot crosses it along one
+   diagonal only. The arc that reports the tank stays readable on both sides
+   of it. The carrot lies ACROSS the dial like a gauge's hand, which is what
+   it is for. */
 .rr-loop-cell > .rr-loop-dial-carrot {
   position: absolute;
   left: calc(var(--rr-dial-art) * 0.5);
   /* From the cell's top edge, which is where the art starts — the box was
      pulled up by `--rr-dial-over-top` so the medallion could overflow. */
   top: calc(var(--rr-dial-art) * 0.5196 - var(--rr-dial-over-top));
-  height: calc(var(--rr-dial-art) * 0.38);
+  height: calc(var(--rr-dial-art) * 0.54);
   width: auto;
   /* Centred on that point, then laid across it. 45deg is the angle the haul
      badge's carrot already uses, so the two read as the same object. */
