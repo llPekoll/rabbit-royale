@@ -1,6 +1,29 @@
 import type { Preview } from '@storybook/react-vite';
 import { loadPixelWebFont, PIXEL_FONT_FAMILY } from '@domin8/arcade-kit';
 
+/**
+ * THE GAME'S OWN STYLESHEETS, in the game's own order.
+ *
+ * Storybook used to load NONE of them, and every story of a chrome component
+ * was quietly reviewing something the game does not ship: the pill, the HUD
+ * strip and the energy board all carry their layout, their colour and their
+ * pixel face in `globals.css`, so without it a story renders the markup in
+ * Times, black on wood, with none of the boxes that hold it together. The
+ * board's own screenshots had to be taken with the sheet injected by hand
+ * through Playwright to be worth looking at (2026-09-20), which is the moment
+ * a story stops being evidence and becomes a second thing to verify.
+ *
+ * THE ORDER IS `main.tsx`'s, and it is load-bearing: the px-* sheets deploy
+ * the pixel chrome one group of surfaces at a time and are written to win at
+ * EQUAL SPECIFICITY, which they only do by coming after globals. Swapped, the
+ * HUD's plate loses its glass. Kept in step with main.tsx by hand — there are
+ * four of them and they change about once a season.
+ */
+import '../src/app/globals.css';
+import '../src/app/px-top-floor.css';
+import '../src/app/px-dialogs.css';
+import '../src/app/px-raid.css';
+
 // RR is a Next app: modules read `process.env.*` at import time. Next inlines
 // those; in Storybook's browser bundle `process` is undefined and the read
 // throws. Stub it before any story module is imported (same fix as the hub's

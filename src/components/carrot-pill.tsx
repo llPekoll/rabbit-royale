@@ -40,8 +40,13 @@ import { CARROT_URL, CARROT_SIZE } from '@domin8/arcade-kit/game';
 import { CarrotBurst } from '@/components/carrot-burst';
 import { groupDigits, shortGap } from '@/i18n/format';
 import { PxPanel } from './px';
-import { Plank } from './plank';
+import {
+  Plank, PLANK_ENERGY_CAP_L, PLANK_ENERGY_CAP_R, PLANK_ENERGY_HEIGHT,
+  PLANK_ENERGY_LOW_L, PLANK_ENERGY_LOW_R, plankEnergyLow, plankEnergyTop,
+} from './plank';
 import { CarrotMark } from './carrot-mark';
+import { EnergyBar } from './energy-bar';
+import { ChestCount } from './chest-count';
 
 export interface CarrotPillProps {
   /** Carrots banked, as the server has them. */
@@ -71,6 +76,38 @@ export interface CarrotPillProps {
    * balance. Re-keyed per gain so each dig pops it. Hidden at 0 and off-run.
    */
   carrying?: number | null;
+  /**
+   * The run's energy, or null off-run — which is most of the time: the burrow,
+   * the shop and the season board all wear this pill and none of them has a
+   * rabbit to spend energy.
+   *
+   * WHY IT IS ON THE PILL AT ALL (Paul, 2026-09-20: "je veux que tu laisse la
+   * barre comme avant mais dans la planche de bois avec les carottes car ya de
+   * la place"). The gauge used to stand on its own over the board, in the HUD
+   * strip under this pill — two panels in the same top band, one of them a
+   * plank and one of them not. The board HAS the room: the wood between the
+   * leaves stretches, and the figure's stack is a fixed 132px that a two-digit
+   * total leaves mostly empty.
+   *
+   * IT IS THE SAME BAR, unchanged — the kit's pixel track, the bolt, the
+   * outlined figure, the notch at one bomb's worth, the blink on a real loss.
+   * Only where it hangs has moved.
+   */
+  energy?: number | null;
+  /**
+   * The island's chests — taken, and how many it holds — or null off-run.
+   *
+   * ON THE BOARD, UNDER THE CARROT COUNT (Paul, 2026-09-20: "met une icone de
+   * chest juste en dessous du nombre de carrote avec le 0/12 chest"). It used
+   * to sit in the HUD strip below, on its own glass plate, which put the
+   * run's two goals on two different grounds: the pile you are building and
+   * the chests that end the island.
+   *
+   * TWO NUMBERS, ONE COLUMN. The carrots say how the run is going; the chests
+   * say how long it has left. They belong to the same glance, which is what
+   * the board is for.
+   */
+  chests?: { taken: number; total: number; warnStage: number } | null;
 }
 
 /* ── Sampled from the reference ────────────────────────────────────────── */
@@ -119,6 +156,7 @@ function ClimbLine({ gap, line }: { gap: string; line: string }) {
 
 export function CarrotPill({
   stock, fireKey, gain, rank, toPass, onAdd, denyKey = 0, carrying = null,
+  energy = null, chests = null,
 }: CarrotPillProps) {
   const t = useT();
   const ref = useRef<HTMLDivElement>(null);
@@ -175,7 +213,11 @@ export function CarrotPill({
 
           Inside the fixed box rather than being it, so the plate can drop in
           on arrival without touching the transform that centres the pill. */}
-      <Plank className="rr-pill-plate" style={plate}>
+      <Plank
+        tall={energy !== null}
+        className={`rr-pill-plate${energy !== null ? ' has-energy' : ''}`}
+        style={plate}
+      >
       {denyKey > 0 && <span key={`deny-${denyKey}`} className="rr-pill-deny" aria-hidden />}
       {carrying ? (
         <span
@@ -184,12 +226,29 @@ export function CarrotPill({
           title={t.pill.carryNote}
           aria-label={t.pill.carrying(carrying)}
         >
-          <PxPanel color={CARRY_GLASS} style={carryPlate}>+{groupDigits(carrying)}</PxPanel>
+          {/* THE CARROT IS ON THE CHIP, not just in the tooltip.
+
+              It read as a bare "+18" in orange (Paul, 2026-09-20: "c'est quoi
+              le plus 18 je comprends pas"), which names no unit and no event
+              — and on this board it sits a few pixels from the chest count's
+              own figure, so the one thing it could be mistaken for is the
+              other number beside it. The mark says WHAT was carried; the
+              tooltip still says the rest ("banked when you walk home"). */}
+          <PxPanel color={CARRY_GLASS} style={carryPlate}>
+            +{groupDigits(carrying)}
+            <CarrotMark size={10} />
+          </PxPanel>
         </span>
       ) : null}
       {/* Carrots fly up behind the figure as it climbs — the loot arriving,
           with the number as its result. */}
       <CarrotBurst fireKey={fireKey} amount={gain} />
+
+      {/* THE COUNT'S ROW. On the plain board it is simply the plate's own
+          flex row; on the energy board it is PINNED to the upper plank, since
+          the two boards are separate surfaces and centring on the whole box
+          would drop the figure onto the seam between them. */}
+      <span style={energy !== null ? countRow : contents}>
 
       {/* 80% of the pill's height, measured off the mock. The mock's carrot is
           also a WIDE, reclining sprite (aspect 1.78) where the game's own is
@@ -202,9 +261,14 @@ export function CarrotPill({
           grows out of the ground); the mock's is reclining, and on a wide
           shallow panel a diagonal reads as an object at rest where a vertical
           one reads as a bullet point. */}
-      <span style={artBox} aria-hidden>
-        <Carrot height={44} />
-      </span>
+      {/* BEFORE the figure on the plain board, AFTER it on the run's — see
+          the twin below. The sprite names the unit either way; which side it
+          names it from is the board's business. */}
+      {energy === null && (
+        <span style={artBox} aria-hidden>
+          <Carrot height={44} />
+        </span>
+      )}
 
       <span style={stack}>
         {/* THE FOLDED PILL: the figure, the rank beside it. */}
@@ -224,6 +288,17 @@ export function CarrotPill({
               bank landed for a player ranked #2, both children were key `2`
               and React kept the OLD figure next to the new one. Paul saw
               "265 1263" for a stock of 1263 (2026-09-16). */}
+          {/* THE CARROT AFTER THE FIGURE on the run's board (Paul's Aseprite,
+              2026-09-20). It reads "0 carrots" — a figure and its unit, the
+              way the haul chip beside it reads "+6 carrot" — where the sprite
+              in front read as a bullet marking a row. The plain board keeps
+              the sprite in front, which is the mock's own arrangement and
+              where the burrow's eye already goes. */}
+          {energy !== null && (
+            <span style={artBoxInline} aria-hidden>
+              <Carrot height={40} />
+            </span>
+          )}
           {hasRank && (
             <span key={`rank-${rank}`} className="rr-rank-pop" style={rankChip}>#{rank}</span>
           )}
@@ -234,6 +309,19 @@ export function CarrotPill({
             carrots — so it wears the carrot mark, as Paul asked, and the
             tooltip keeps the exact unit. Shortened past four digits so it
             always fits the fixed width. */}
+        {/* THE ISLAND'S CHESTS, under the pile. The sprite names the unit, as
+            the carrot does for the figure above it — see chest-count.tsx for
+            why the word went. Run only: off the island there is no island to
+            count, and the line simply is not there. */}
+        {chests && (
+          <span style={chestLine}>
+            <ChestCount
+              taken={chests.taken}
+              total={chests.total}
+              warnStage={chests.warnStage}
+            />
+          </span>
+        )}
         {hasRank && open && (
           <span
             className="rr-pill-climb"
@@ -250,6 +338,26 @@ export function CarrotPill({
           </span>
         )}
       </span>
+
+      </span>
+
+      {/* THE RUN'S ENERGY, ON THE SAME BOARD, UNDER THE COUNT.
+
+          ONE PLANK, NOT TWO. Stacking a second board under the first read as
+          two objects with two pairs of leaves colliding in the middle (Paul,
+          2026-09-20: "c'est ca mais tu merge"), so Paul drew the board with
+          its lower plank attached — `plank+enegie.png`, "ya de la place pour
+          l'energie". The gauge sits on that lower plank.
+
+          PINNED TO IT, not laid out in a column: the two boards are painted
+          surfaces at fixed rows of the art (`plankEnergyLow`), and flex would
+          share the box's height between them instead of putting each row on
+          its own wood. */}
+      {energy !== null && (
+        <span style={energyRow}>
+          <EnergyBar energy={energy} />
+        </span>
+      )}
       </Plank>
     </div>
   );
@@ -297,9 +405,106 @@ const plate: CSSProperties = {
   gap: 'var(--rr-pad)',
   /* The caps sit OUTSIDE this width, not inside it. */
   boxSizing: 'content-box',
-  /* The ROW's width. `--rr-pill-w` is this plus the two caps — the board's
-     whole width, which is what the chrome beside the pill reserves. */
-  width: 'var(--rr-pill-row)',
+  /* THE WIDTH IS NOT STATED HERE. It belongs to `.rr-pill-plate` in
+     globals.css, because it has two values — the plain board, and the wider
+     one the island's energy bar needs — and an INLINE width beats any
+     stylesheet rule outright. Stated here, the run's board stayed 176px wide
+     and squeezed the gauge's track down to 8px: the bolt and the figure kept
+     their size, so what vanished was the bar itself (measured 2026-09-20). */
+};
+
+/**
+ * The gauge's row on the tall board — the lower of the two.
+ *
+ * It takes the row's full width so the track runs the length of the board,
+ * which is what a gauge wants and what the count above it does not: the
+ * figure is centred in a fixed stack so it cannot walk as it counts (see
+ * `stack`), while the bar has nothing to walk and every pixel of length is
+ * another pixel of resolution.
+ */
+/**
+ * The count's row, pinned to the UPPER plank of the energy board.
+ *
+ * `contents` on the plain board, so the figure and the carrot stay direct
+ * children of the plate's flex row and nothing about the pill's usual layout
+ * changes when there is no run.
+ */
+const contents: CSSProperties = { display: 'contents' };
+
+const countRow: CSSProperties = {
+  position: 'absolute',
+  /* The upper plank runs the board's FULL width, so this reaches back out
+     over both caps — same padding-box arithmetic as `energyRow`. */
+  left: -PLANK_ENERGY_CAP_L,
+  right: -PLANK_ENERGY_CAP_R,
+  ...plankEnergyTop(PLANK_ENERGY_HEIGHT),
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 'var(--rr-pad)',
+};
+
+/**
+ * The gauge's row, on the LOWER plank.
+ *
+ * Inset from the board's ends by more than the count's: the lower plank is
+ * narrower than the one above it (x=28..138 of 167 in the art), so a bar run
+ * to the full width would hang off both its ends into the leaves.
+ */
+/**
+ * The gauge's row, on the LOWER plank.
+ *
+ * THE OFFSETS ARE MEASURED FROM THE BOARD'S PAINTED EDGE, and an absolutely
+ * positioned child resolves against its parent's PADDING box — which on this
+ * plate is the 180px row alone, because the caps are `border-width` and a
+ * border is outside the padding box. Stated as plain `left`/`right` the row
+ * came out 22px wide inside a 438px board (measured 2026-09-20).
+ *
+ * So each side subtracts the cap it sits behind: the lower plank starts 84
+ * CSS px from the board's left edge, and the left cap is 118 of them, so the
+ * row starts 34px to the LEFT of the padding box. Same on the right.
+ */
+const energyRow: CSSProperties = {
+  position: 'absolute',
+  left: PLANK_ENERGY_LOW_L - PLANK_ENERGY_CAP_L,
+  right: PLANK_ENERGY_LOW_R - PLANK_ENERGY_CAP_R,
+  ...plankEnergyLow(PLANK_ENERGY_HEIGHT),
+  display: 'flex',
+  alignItems: 'center',
+};
+
+/**
+ * The carrot when it rides INSIDE the figure's row, on the run's board.
+ *
+ * IT KEEPS THE 45° LIE. Standing it upright was tried and rejected on sight
+ * (Paul, 2026-09-20: "ya plus l'angle") — the tilt is how this carrot is
+ * drawn everywhere in the chrome, and squaring it beside the figure made it a
+ * different object from the one on the burrow's board and in the haul chip.
+ * It moved along the row; it did not become a new sprite.
+ *
+ * The box is square and a little wider than the art, because a rotated sprite
+ * throws its corners past its own bounds and the row must not grow to contain
+ * a diagonal it only needs to show.
+ */
+const artBoxInline: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  lineHeight: 0,
+  flexShrink: 0,
+  /* LIFTED OFF THE ROW'S CENTRE, but only just (Paul, 2026-09-20). The
+     sprite's drawn pixels sit low in its box — the leaves are slimmer than
+     the root, so its visual mass is below its geometric middle — and centred
+     against a 28px figure it read as sitting a step lower than the number it
+     belongs to.
+
+     2px, not the 4 first tried: the upper plank's bark is close above this
+     row, and at 4 the leaves clipped against it. The lift is there to settle
+     the sprite against the figure, not to push it into the board's edge. The
+     tilt goes with it, so the two stay one transform. */
+  transform: 'translateY(-2px) rotate(45deg)',
+  width: 32,
+  height: 32,
 };
 
 const artBox: CSSProperties = {
@@ -363,7 +568,7 @@ const figure: CSSProperties = {
   // while they pass.
   zIndex: 2,
   fontFamily: 'var(--font-pixel), ui-monospace, monospace',
-  fontSize: 22,
+  fontSize: 28,
   fontVariantNumeric: 'tabular-nums',
   color: INK,
   lineHeight: 1,
@@ -381,7 +586,12 @@ const figure: CSSProperties = {
  * crispest — so the figure moves between them rather than shrinking freely.
  */
 const FIGURE_STEPS: ReadonlyArray<readonly [size: number, perChar: number]> = [
-  [22, 16.2], [16, 12.1], [12, 9.1], [10, 7.7],
+  /* 28 IS THE BOARD'S STEP. The pile is the pill's subject and the upper
+     plank gives it a row of its own now — Paul sized it up in Aseprite
+     (2026-09-20) and 22 read small against the wood, where it had read fine
+     against the old dark slab. The advance scales with the face: 16.2 at 22
+     is 0.736 per point, so 28 takes 20.6. */
+  [28, 20.6], [22, 16.2], [16, 12.1], [12, 9.1], [10, 7.7],
 ];
 
 /** The chip: its inset, the "#" (a wide glyph), then the rank's digits at the
@@ -463,9 +673,27 @@ const rankChip: CSSProperties = {
   lineHeight: 1,
 };
 
+/**
+ * THE CHEST LINE, under the pile with air between them.
+ *
+ * A row of its own rather than the stack's 1px gap: at 28 the figure has
+ * presence, and a count tucked right under it read as a subscript on the
+ * carrots rather than as the run's other goal. Paul set the distance in
+ * Aseprite (2026-09-20) — it clears the figure's descender and still belongs
+ * to the same column.
+ */
+const chestLine: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'center',
+  marginTop: 6,
+};
+
 /** The haul beside the pill: a small glass plate in the pixel frame. */
 const carryPlate: CSSProperties = {
-  display: 'block',
+  /* A row, so the figure and the carrot it counts sit on one line. */
+  display: 'flex',
+  alignItems: 'center',
+  gap: 3,
   /* A chip, on the game's chip inset. */
   padding: '2px var(--rr-pad-tight)',
   lineHeight: 1,

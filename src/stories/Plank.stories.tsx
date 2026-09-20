@@ -27,6 +27,7 @@ import { CarrotPill } from '@/components/carrot-pill';
 import { LocaleProvider } from '@/i18n/provider';
 import { PxPanel } from '@/components/px';
 import { CARROT_URL, CARROT_SIZE } from '@domin8/arcade-kit/game';
+import { ENERGY } from '@config/tuning';
 import '@/app/globals.css';
 
 const meta: Meta = {
@@ -202,6 +203,50 @@ export const RealPill: StoryObj = {
     <LocaleProvider>
       <span style={label}>THE SHIPPING PILL — ranked, with a climb to unfold</span>
       <CarrotPill stock={1263} fireKey={0} gain={0} rank={27} toPass={340} />
+    </LocaleProvider>
+  ),
+};
+
+/**
+ * THE BOARD IN A RUN — the bank and the tank on one plank.
+ *
+ * This is the arrangement Paul asked for on 2026-09-20 ("la barre comme avant
+ * mais dans la planche de bois avec les carottes car ya de la place"), and the
+ * three things to judge are:
+ *
+ *  1. DOES THE WOOD COVER IT? The board grows by the bar's 200px and the caps
+ *     do not move, so the leaves must be identical to `RealPill` above and the
+ *     grain between them must stay a hard-edged stretch.
+ *  2. DOES THE GROOVE READ AS CARVED? It separates two different readings — a
+ *     pile that persists, a tank that empties — and it has to look cut into
+ *     the board rather than drawn over it.
+ *  3. IS THE BAR STILL THE BAR? Same bolt, same track, same notch at one
+ *     bomb's worth, same outlined figure. Nothing about it changed but where
+ *     it hangs.
+ *
+ * At three energies, because the bar's own colour ladder has to survive the
+ * move onto wood: the amber and the red were picked against the sky, and the
+ * plank is the first thing that has ever been BEHIND them.
+ */
+export const RealPillInRun: StoryObj = {
+  parameters: { viewport: { defaultViewport: 'seeker' } },
+  render: () => (
+    <LocaleProvider>
+      <span style={label}>IN A RUN — the carrots, the groove, the energy</span>
+      {/* ONE pill, not a column of them: the real one is `position: fixed` and
+          centres itself on the viewport, so three copies would stack on the
+          same spot. The colour ladder is checked by dragging `energy` in the
+          controls, and by the bar's own story. */}
+      <CarrotPill
+        stock={1263}
+        fireKey={0}
+        gain={0}
+        rank={27}
+        toPass={340}
+        carrying={12}
+        energy={ENERGY.BOMB_LOSS * 2}
+        chests={{ taken: 0, total: 12, warnStage: 0 }}
+      />
     </LocaleProvider>
   ),
 };

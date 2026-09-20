@@ -70,6 +70,13 @@
      a custom property cannot be imported, and the story's `TooNarrow` is the
      check that catches them drifting apart. */
   --rr-plank-caps: 120px;
+  /* THE ENERGY BOARD'S CAPS, which are not the plain plank's: each carries a
+     leaf cluster AND the lower plank's rounded end, so they are 59 and 70
+     source px against 30. `PLANK_ENERGY_CAP_L/R` in plank.tsx are the same
+     numbers from the same measurement; they are stated here too because a
+     custom property cannot be imported. */
+  --rr-plank-energy-cap-l: 118px;
+  --rr-plank-energy-cap-r: 140px;
   /* THE ROW'S OWN WIDTH: the rotated carrot (34) + the gap (10) + the stack
      the figure and the rank chip share (132, `STACK_W` in carrot-pill.tsx).
      Not a leftover — sized at 80 once, which is what remained of the old
@@ -1186,6 +1193,149 @@ button { min-height: 44px; min-width: 44px; }
    still derive from it, but anything one pixel wide (the death-line notch, the
    fill's rounding step) is stated in screen pixels instead — scaled by 0.55 it
    would round away to a grey smear. */
+/* THE ENERGY BOARD: the count on the upper plank, the gauge on the lower one.
+
+   IT IS ONE PIECE OF ART (Paul, `plank+enegie.png`, 2026-09-20) — a plank
+   with a smaller one welded under it, drawn rather than composed, so the two
+   boards share a silhouette instead of reading as two objects.
+
+   THE ROWS ARE PINNED, NOT FLEXED. Each sits on a painted surface at a fixed
+   band of the art, so carrot-pill.tsx positions them off measured fractions
+   (`plankEnergyTop` / `plankEnergyLow`) and this only has to make the plate
+   their containing block.
+
+   IT DOES NOT WIDEN `--rr-pill-w`. The rows are stacked, so the chrome's
+   horizontal reserve is untouched and the wallet chip and the HUD strip keep
+   the numbers they had. What the second row costs is HEIGHT, which is
+   `--rr-chrome-top`'s business — measured by TopbarReserve off the real DOM,
+   so it picks this up without being told. */
+.rr-pill-plate.has-energy {
+  position: relative;
+  /* THE ROW ON THIS BOARD IS SIZED FOR THE LOWER PLANK, not for the count.
+
+     The count's 176px row was chosen for a board whose caps cost 30 source px
+     a side. This board's cost 59 and 70 — each carries a leaf cluster AND the
+     lower plank's rounded end — and the gauge then sits inside the lower
+     plank, which is inset a further 42 and 37 source px. So the bar's actual
+     room is the row plus the caps, less those two insets, and sizing the row
+     by the count alone crushed the gauge to a 90px track (photographed
+     2026-09-20).
+
+     Stated as what the GAUGE needs, worked back: 280px of lower plank is the
+     bolt, a 200px track (the bar's own designed reading distance) and the
+     figure, which comes out at a row of 180 — a hair over the count's own
+     176, so the top board is unchanged to the eye and the bottom one fits. */
+  width: 180px;
+}
+
+/* THE HAUL CHIP RIDES THE UPPER PLANK when the board carries the gauge.
+
+   It hangs off `left: 100%` — the far side of the count's row — which on the
+   plain board puts it just past the bark, in clear air. On the energy board
+   the row is inset inside much wider caps, so the same offset landed the chip
+   ON the wood, overlapping the right-hand leaves (photographed 2026-09-20).
+
+   Pinned to the upper plank's own right edge instead, and vertically to that
+   plank rather than to the whole box, whose middle is the seam between the
+   two boards. */
+/* HIGH ON THE UPPER PLANK, not on its middle (Paul, 2026-09-20: "le truc noir
+   est en haut et plus au centre"). Centred vertically it sat level with the
+   pile it is not part of — two figures on one line, one of them a haul and
+   one a balance, reading as a pair. Lifted to the plank's top edge it reads
+   as a note ABOUT the board rather than a second entry on it. */
+.rr-pill-plate.has-energy .rr-pill-carrying {
+  left: auto;
+  right: calc(-1 * var(--rr-plank-energy-cap-r) + 16px);
+  top: 14px;
+  translate: 0 0;
+}
+
+/* THE NEIGHBOURS' RESERVE FOLLOWS THE WIDER BOARD.
+
+   `--rr-pill-w` is the board's whole width, leaves included, and the wallet
+   chip's cap measures against it from the screen's centre. The energy board
+   is wider than the plain one — its caps carry the lower plank's ends as well
+   as a leaf cluster — so left behind, the chip grew up to where the OLD
+   board stopped and its right edge landed on the new one's leaves (measured
+   in the running game, 2026-09-20: chip to 227, board from 226).
+
+   On the BODY rather than recomputed per site, so every rule that reserves
+   the pill keeps reading one number. */
+body:has(.rr-pill-plate.has-energy) {
+  --rr-pill-w: calc(180px + var(--rr-plank-energy-cap-l) + var(--rr-plank-energy-cap-r));
+}
+
+/* The bar fills the lower plank rather than carrying the width it needed when
+   it stood alone over the tiles (`clamp(200px, 24vw, 320px)`): the board
+   states the width now, so the board is what measures. */
+.rr-pill-plate.has-energy .rr-energy {
+  width: auto;
+  flex: 1 1 auto;
+  min-width: 0;
+  /* A step tighter between the bolt, the track and the figure than the 8px
+     the bar used standing alone — the lower plank is a shallower surface and
+     the three parts read as one gauge rather than three objects on a shelf. */
+  gap: var(--rr-pad-tight);
+}
+
+/* THE TRACK IS SHORTER AND SHALLOWER ON THE BOARD (Paul, 2026-09-20: "l'energie
+   bar est un peu plus petite").
+
+   Standing on its own over the tiles the bar was the run's one reading and
+   took a 28px track to say so. On the plank it shares the board with the pile
+   and the chests, and at full height it filled the lower plank edge to edge —
+   a gauge wearing the plank rather than sitting on it. 22 leaves a margin of
+   wood above and below, which is what makes it read as an object ON the
+   board. The fill and its one-pixel light and shade bands scale with it. */
+.rr-pill-plate.has-energy .rr-energy-track {
+  height: 22px;
+}
+/* The bolt and the figure come down with it, or the track shrinks alone and
+   the row stops reading as one gauge. */
+.rr-pill-plate.has-energy .rr-energy-icon {
+  width: 20px;
+  height: 25px;
+}
+.rr-pill-plate.has-energy .rr-energy-value {
+  font-size: 16px;
+}
+/* The track is what gives when the board is tight, never the bolt or the
+   figure: a clipped number is unreadable, a shorter track is still a gauge. */
+.rr-pill-plate.has-energy .rr-energy-track { min-width: 0; }
+
+/* ── THE CHEST COUNT ───────────────────────────────────────────────────────
+   The goal line, with the game's own chest in place of the word
+   (chest-count.tsx). */
+.rr-chest-count {
+  display: inline-flex;
+  align-items: center;
+  /* The one gap between an image and the figure it belongs to, as everywhere
+     else on the strip. */
+  gap: var(--rr-pad-tight);
+  white-space: nowrap;
+  /* The strip's grey — the resting colour on glass. The board overrides it
+     below, and the volcano's red overrides both from the component. */
+  color: var(--muted);
+}
+
+/* ON THE BOARD, the count is read against WOOD, not against glass.
+
+   `var(--muted)` is the strip's grey, picked for a dark plate; on the plank
+   it came out a shade darker than the grain it sits on (photographed
+   2026-09-20). The board's own ink instead — the cream the figure above it
+   uses — a step quieter, with the wood's dark under it so it holds on the
+   grain the way every other label on this board does. */
+.rr-pill-plate .rr-chest-count {
+  color: #d8c3ab;
+  font-family: var(--font-pixel), ui-monospace, monospace;
+  font-size: 13px;
+  text-shadow: 0 2px 0 #3a2415;
+}
+/* The volcano's red still wins: `ChestCount` sets it inline when the island
+   is smoking, and an inline colour beats this rule outright — which is the
+   right way round, because at that point the count IS the warning. */
+
+
 .rr-energy {
   display: flex;
   align-items: center;

@@ -2135,6 +2135,26 @@ function Burrow() {
             // The run's haul, on the island only and only your own: a
             // spectator's pill is still their own stock.
             carrying={where === 'island' && !spectating && !crossing ? game.me?.carrots ?? null : null}
+            /* THE RUN'S ENERGY, on the board beside the carrots — the gauge
+               moved onto the plank (Paul, 2026-09-20), so it hangs off the
+               pill rather than off the strip below it.
+
+               ON THE ISLAND ONLY, and on the SUBJECT of the view: watching
+               somebody else, the bar is the watched rabbit's, exactly as the
+               strip's was — a spectator has no rabbit, and their own empty
+               gauge would describe a run nobody is having. `carrying` above
+               stays the reader's own, because the haul is a pile that will
+               land in THEIR burrow. */
+            energy={where === 'island' && !crossing
+              ? (spectating ? game.rabbits.get(spectating)?.energy ?? null : game.me?.energy ?? null)
+              : null}
+            /* THE ISLAND'S CHESTS, under the carrot count — the run's other
+               goal, on the same board as the first. Not per-player: the count
+               is the ISLAND's, so a spectator reads the same line as everyone
+               digging on it. */
+            chests={where === 'island' && !crossing
+              ? { taken: game.chestsTaken, total: game.chestsTotal, warnStage: game.warnStage }
+              : null}
           />
         )}
         {/* The right-hand end: the SHOP and the STORY, as icons beside the
