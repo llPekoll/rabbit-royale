@@ -3,6 +3,14 @@
 // dark caption pill now. This drives a fresh guest through the tutorial,
 // banks the run, opens DEFEND, and reads what the toasts are actually wearing.
 //   node tools/verify-toast-skin.mjs [outDir]
+//
+// CAVEAT, 2026-09-20: this does NOT reliably reach the burrow. The first
+// island only ends on its chest, and driving a rabbit to a rim tile through
+// the X lesson has not worked yet — it gives up with `toast-x-stuck.png` more
+// often than not. The shot it DOES get every time is the island caption, which
+// is the surface the toasts were made to match. What actually proves the
+// change is test/toast-surface.test.ts, which runs the surface picker over the
+// real classnames; this drive is here for the eyes, when it gets through.
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
 const OUT = process.argv[2] ?? 'verify-out';
@@ -51,26 +59,54 @@ const ring = () => p.evaluate(() => {
 
 // PLAY THE TUTORIAL OUT. It has no door in the corner (page.tsx: the first
 // run is one run with one ending), so the way to the burrow is its ending —
-// the chest, a dead rabbit or an empty tank — and then the recap's own HOME.
-// The X lesson stops digging until the mark is made, so the drive presses
-// MARK A BOMB whenever the board starts refusing.
+// the chest — and then the recap's own HOME.
+//
+// WALKING AT THE CHEST, not digging at random: the chests sit on the island's
+// RIM, so a random walk wanders the middle and never ends the run (measured —
+// 120 random digs, no chest). Each step takes the lit ring tile nearest the
+// chest, which is what a player does once the compass has pointed.
+const chestXY = () => p.evaluate(() => {
+  const app = globalThis.__PIXI_APP__;
+  if (!app) return null;
+  const rect = app.canvas.getBoundingClientRect();
+  const sx = rect.width / app.canvas.width, sy = rect.height / app.canvas.height;
+  let hit = null;
+  const walk = (n) => {
+    // The chest's own beam carries the tile index in its label.
+    if (typeof n.label === 'string' && /^chest(-arrow)?-\d+$/.test(n.label) && n.visible) {
+      const g = n.getGlobalPosition();
+      hit ??= { x: rect.left + g.x * sx, y: rect.top + g.y * sy };
+    }
+    n.children?.forEach(walk);
+  };
+  walk(app.stage);
+  return hit;
+});
+
 const recapHome = p.locator('.rr-recap button:has-text("Home")');
 let stuck = 0;
-for (let i = 0; i < 120 && !(await recapHome.count()); i++) {
+for (let i = 0; i < 150 && !(await recapHome.count()); i++) {
   const lit = await ring();
   if (!lit.length) { await p.waitForTimeout(1000); if (++stuck > 20) break; continue; }
+  const goal = await chestXY();
+  // Nearest the chest when the board shows one; otherwise push outward, since
+  // that is where the chests are.
+  const aim = goal
+    ? lit.slice().sort((a, b) => Math.hypot(a.x - goal.x, a.y - goal.y) - Math.hypot(b.x - goal.x, b.y - goal.y))[0]
+    : lit[Math.floor(Math.random() * lit.length)];
   const before = await p.evaluate(() => document.body.innerText);
-  const t = lit[Math.floor(Math.random() * lit.length)];
-  await p.mouse.click(t.x, t.y);
-  await p.waitForTimeout(650);
-  // Nothing moved: the lesson wants the red X pressed first.
+  await p.mouse.click(aim.x, aim.y);
+  await p.waitForTimeout(600);
+  // Nothing moved: the X lesson wants the mark made before digging resumes.
   if (await p.evaluate(() => document.body.innerText) === before) {
     const mark = p.locator('.rr-mark-btn');
     if (await mark.count()) { await mark.click(); await p.waitForTimeout(400); }
-    if (++stuck > 25) break;
+    if (++stuck > 30) break;
   } else stuck = 0;
 }
-console.log('[tutorial] recap reached:', await recapHome.count() > 0);
+const ended = await recapHome.count() > 0;
+console.log('[tutorial] recap reached:', ended);
+if (!ended) { console.log('[tutorial] GAVE UP — no burrow shots this run'); await p.screenshot({ path: `${OUT}/toast-x-stuck.png` }); await b.close(); process.exit(1); }
 await recapHome.first().click();
 await p.waitForSelector('.rr-loop-bar', { timeout: 60_000 });
 await p.waitForTimeout(2500);
