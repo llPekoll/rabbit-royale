@@ -1,0 +1,58 @@
+; Rabbit Royale — Godot port, first screen only.
+;
+; The doorstep, rebuilt from the web client's sign-in screen
+; (src/app/page.tsx `.rr-empty` + components/logo-banner.tsx): the emblem at
+; the top, a tagline that swaps on a timer, CONNECT WALLET over PLAY AS A
+; GUEST, and the language picker under both.
+
+config_version=5
+
+[application]
+
+config/name="Rabbit Royale"
+run/main_scene="res://scenes/title.tscn"
+config/features=PackedStringArray("4.4", "GL Compatibility")
+config/icon="res://assets/ui/rr-logo-1x.png"
+
+[display]
+
+; PORTRAIT, and sized off the Seeker itself (1200x2670 at density 480, i.e.
+; 400x890 in dp) — the target device, which is a phone held upright.
+;
+; The web client's doorstep notes say "890x400, the target device", and that is
+; the SAME screen described the other way round: the browser build is played in
+; landscape. The native app is not, so the base viewport is the dp size
+; upright, and the doorstep's column (emblem at the top, ask at the bottom) is
+; the arrangement that wants the tall frame anyway.
+;
+; `canvas_items` with `expand` keeps the pixel art crisp — it scales the 2D
+; canvas by an integer-friendly factor rather than stretching a fixed-size
+; framebuffer — while letting the column breathe on a shorter or wider screen.
+window/size/viewport_width=400
+window/size/viewport_height=890
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+; 1 is PORTRAIT. It was 0 here, which is LANDSCAPE — the enum does not start at
+; portrait — and the Seeker duly launched the doorstep sideways, with the ask
+; stranded in the middle of a 2670px-wide frame.
+window/handheld/orientation=1
+
+[rendering]
+
+; Pixel art: never smooth it. The emblem is scaled in whole multiples and a
+; bilinear filter would make its one-pixel strokes go uneven.
+textures/canvas_textures/default_texture_filter=0
+renderer/rendering_method="gl_compatibility"
+; Required for the Android export: the APK ships textures in a GPU format the
+; device can sample directly. Harmless to the look here — the art is imported
+; lossless (see each .import) and the emblem is nearest-filtered either way.
+textures/vram_compression/import_etc2_astc=true
+environment/defaults/default_clear_color=Color(0.051, 0.067, 0.09, 1)
+
+[autoload]
+
+I18N="*res://scripts/i18n.gd"
+
+[gui]
+
+theme/custom="res://assets/ui/theme.tres"

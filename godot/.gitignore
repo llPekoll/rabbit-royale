@@ -1,0 +1,4 @@
+# Godot's import cache and editor state. The .import files beside each asset
+# ARE committed — they carry the import settings (pixel filtering, the font's
+# detected metrics) that make the art look right on a fresh checkout.
+.godot/

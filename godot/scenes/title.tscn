@@ -1,0 +1,158 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/title.gd" id="1_title"]
+[ext_resource type="Script" path="res://scripts/px_button.gd" id="2_pxbutton"]
+[ext_resource type="Texture2D" path="res://assets/ui/rr-logo-1x.png" id="3_logo"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_lang"]
+bg_color = Color(0.164706, 0.094118, 0.062745, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.113725, 0.062745, 0.039216, 1)
+corner_radius_top_left = 0
+corner_radius_top_right = 0
+corner_radius_bottom_right = 0
+corner_radius_bottom_left = 0
+content_margin_left = 12.0
+content_margin_top = 10.0
+content_margin_right = 12.0
+content_margin_bottom = 10.0
+
+[node name="Title" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_title")
+
+[node name="Ground" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.050980, 0.066667, 0.090196, 1)
+
+[node name="Column" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 4
+
+[node name="Masthead" type="VBoxContainer" parent="Column"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Pad" type="Control" parent="Column/Masthead"]
+custom_minimum_size = Vector2(0, 16)
+layout_mode = 2
+
+[node name="LogoStack" type="Control" parent="Column/Masthead"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(96, 106)
+layout_mode = 2
+size_flags_horizontal = 4
+
+[node name="Logo" type="TextureRect" parent="Column/Masthead/LogoStack"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("3_logo")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Ribbon" type="Label" parent="Column/Masthead/LogoStack"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_right = 62.0
+offset_bottom = 5.0
+theme_override_colors/font_color = Color(0.290196, 0.227451, 0.164706, 1)
+theme_override_font_sizes/font_size = 4
+text = "THE CURSED CROWN"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 0
+
+[node name="Tagline" type="Label" parent="Column/Masthead"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.831373, 0.360784, 1)
+theme_override_font_sizes/font_size = 13
+text = "EVERY STEP COULD BE YOUR LAST... OR YOUR FORTUNE"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3
+
+[node name="Gap" type="Control" parent="Column"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Ask" type="VBoxContainer" parent="Column"]
+layout_mode = 2
+theme_override_constants/separation = 10
+alignment = 2
+
+[node name="Connect" type="Button" parent="Column/Ask"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(300, 52)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "CONNECT WALLET"
+script = ExtResource("2_pxbutton")
+face = Color(1, 0.549020, 0.258824, 1)
+shadow = Color(0.658824, 0.321569, 0.109804, 1)
+ink = Color(0.164706, 0.070588, 0.023529, 1)
+wiggle = true
+
+[node name="Guest" type="Button" parent="Column/Ask"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(300, 44)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "PLAY AS A GUEST"
+script = ExtResource("2_pxbutton")
+face = Color(0.086275, 0.105882, 0.129412, 1)
+shadow = Color(0.043137, 0.058824, 0.078431, 1)
+ink = Color(0.694118, 0.729412, 0.768627, 1)
+wiggle = false
+
+[node name="Status" type="Label" parent="Column/Ask"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 18)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.419608, 0.419608, 1)
+theme_override_font_sizes/font_size = 11
+horizontal_alignment = 1
+
+[node name="Language" type="OptionButton" parent="Column/Ask"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_colors/font_color = Color(0.960784, 0.901961, 0.827451, 1)
+theme_override_font_sizes/font_size = 12
+theme_override_styles/normal = SubResource("StyleBoxFlat_lang")
+theme_override_styles/hover = SubResource("StyleBoxFlat_lang")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_lang")
+theme_override_styles/focus = SubResource("StyleBoxFlat_lang")
+
+[node name="Foot" type="Control" parent="Column"]
+custom_minimum_size = Vector2(0, 24)
+layout_mode = 2
+
+[node name="TaglineTimer" type="Timer" parent="."]
+unique_name_in_owner = true
+wait_time = 6.0
