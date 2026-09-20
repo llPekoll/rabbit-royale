@@ -1,0 +1,63 @@
+<!doctype html>
+<!--
+  `lang` demarre en anglais et <LocaleProvider/> le reecrit une fois le choix
+  stocke relu. Cela depasse le lecteur d'ecran : globals.css accroche la pile
+  de polices de repli dessus, parce que la face ASCII du kit ne sait pas
+  dessiner trois des quatre langues.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="/favicon.ico" />
+
+    <!--
+      Le Seeker est l'appareil vise : pas de zoom, pas de rebond, et la page
+      s'etend DANS l'encoche. `viewport-fit=cover` est ce qui donne un sens aux
+      valeurs safe-area-inset de globals.css — sans lui le navigateur annonce
+      zero et le dessin sous l'encoche n'a rien a compenser.
+    -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#0d1117" />
+
+    <title>Rabbit Royale: The Cursed Crown</title>
+    <meta name="description" content="Competitive minesweeper. Dig, hoard, raid, wear the crown." />
+
+    <!--
+      LE JEU COMME APP, pour l'ecran d'accueil.
+
+      Un onglet ne peut pas prendre tout l'ecran d'un iPhone : Safari ne donne
+      aucun plein ecran aux pages web, et ses barres ne se retractent qu'au
+      defilement — ce qu'un plateau de jeu ne fait jamais. En paysage, la barre
+      d'adresse mangeait un cinquieme de la hauteur. Lancee depuis l'icone de
+      l'ecran d'accueil, la page tourne sans aucun chrome de navigateur.
+
+      `black-translucent` dessine la page sous la barre d'etat, ce a quoi les
+      safe-area ci-dessus font deja de la place.
+
+      iOS avant 17 cherche le nom d'Apple ; sans lui un lancement depuis
+      l'ecran d'accueil rouvre dans Safari avec ses barres. On garde donc les
+      deux noms.
+    -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Rabbit Royale" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+
+    <!--
+      Le `beforeinstallprompt` de Chromium, attrape avant tout chunk de l'app :
+      il ne se declenche qu'une fois, tot, et peut devancer le bundle sur une
+      ligne lente. C'etait <Script strategy="beforeInteractive"/> sous Next ;
+      un script classique dans le <head> tient le meme role.
+    -->
+    <script src="/install-prompt.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
