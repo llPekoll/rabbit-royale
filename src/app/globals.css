@@ -1338,13 +1338,14 @@ body:has(.rr-pill-plate.has-energy) {
 .rr-pill-plate.has-energy .rr-energy-track { min-width: 0; }
 
 /* A LAST LIFT OFF THE BOTTOM RIM (Paul, 2026-09-20, found by hand in the
-   inspector: `margin-bottom: 6px` on the track, "c'est mieux comme ca").
+   inspector, then settled at half of it: "je pense que 3px c'est mieux").
 
    Squaring the band on the wood (`ENERGY_LOW` in plank.tsx) centres the gauge
    between the plank's first and last row, but the board is not symmetrical:
    its bottom rim is a painted dark edge two source px deep, so an optically
-   centred bar still reads as leaning on it. Six px up hangs the gauge off the
-   top of the wood instead, which is where the eye puts it.
+   centred bar still reads as leaning on it. Three px up clears that rim
+   without pushing the gauge into the seam under the top board — 6 lifted it
+   off the bottom but crowded the join, which is why it came back down.
 
    ON THE WHOLE GAUGE, not on the track — the row centres the bolt, the track
    and the figure on one line (`align-items: center`), so a margin under the
@@ -1352,7 +1353,7 @@ body:has(.rr-pill-plate.has-energy) {
    number sitting low. The three move together or the gauge stops being one
    object. */
 .rr-pill-plate.has-energy .rr-energy {
-  margin-bottom: 6px;
+  margin-bottom: 3px;
 }
 
 /* ── THE CHEST COUNT ───────────────────────────────────────────────────────
