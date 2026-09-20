@@ -84,6 +84,28 @@ function groundMatrix(s: number, tx: number, ty: number): Matrix {
   return new Matrix(k * HALF_W, k * HALF_H, -k * HALF_W, k * HALF_H, tx, ty);
 }
 
+/**
+ * Deepen a hint tint for MULTIPLY, keeping its hue.
+ *
+ * Under multiply a tint darkens the ground by how far it is from white, so
+ * the ladder's bright colours barely mark bright grass: the "1" blue
+ * (0x4aa3ff) has a blue channel of 0xff, which multiplies the grass's blue by
+ * 1 and leaves it alone. Measured on the tutorial board at 2.6x zoom the glyph
+ * came out plainly there-but-unreadable, which matters because the first
+ * island's whole lesson points at it.
+ *
+ * Scaling every channel by the same factor keeps the RATIOS between them —
+ * so the colour ladder (blue 1, green 2, red 3: decades of muscle memory the
+ * GDD refuses to reinvent) survives, and only the weight changes.
+ */
+function deepenTint(tint: number, k: number): number {
+  if (k >= 1) return tint;
+  const r = Math.round(((tint >> 16) & 0xff) * k);
+  const g = Math.round(((tint >> 8) & 0xff) * k);
+  const b = Math.round((tint & 0xff) * k);
+  return (r << 16) | (g << 8) | b;
+}
+
 interface Args {
   lay: Lay;
   /** Multiply the glyphs into the ground instead of drawing them over it. */
@@ -106,6 +128,15 @@ interface Args {
   scale: number;
   /** Face opacity. Multiply at full strength is very heavy on dark ground. */
   alpha: number;
+  /**
+   * How far to DEEPEN the face tint for multiply. 1 = the shipped ladder.
+   *
+   * The knob that answers "why can I not see the 1". See `deepenTint`: under
+   * multiply a pale tint darkens almost nothing, and the ladder's colours were
+   * chosen for a glyph drawn ON the picture rather than into it. Lower values
+   * keep the hue and add weight.
+   */
+  deepen: number;
   /** Current style on the left half, the knobs on the right. */
   compare: boolean;
   /**
@@ -146,6 +177,7 @@ const meta: Meta<Args> = {
     outline: 'light',
     scale: 1.2,
     alpha: 1,
+    deepen: 1,
     compare: true,
     asShipped: false,
     seed: 'messy',
@@ -157,6 +189,7 @@ const meta: Meta<Args> = {
     outline: { control: 'inline-radio', options: ['ink', 'light', 'none'] },
     scale: { control: { type: 'range', min: 0.6, max: 2.4, step: 0.1 } },
     alpha: { control: { type: 'range', min: 0.2, max: 1, step: 0.05 } },
+    deepen: { control: { type: 'range', min: 0.3, max: 1, step: 0.05 } },
     dug: { control: { type: 'range', min: 0, max: 1, step: 0.05 } },
     zoom: { control: { type: 'range', min: 1, max: 4, step: 0.25 } },
   },
@@ -286,6 +319,11 @@ const meta: Meta<Args> = {
             }
 
             face.alpha = args.alpha;
+            // The face carries the ladder's colour; deepening it is what gives
+            // multiply something to darken WITH.
+            if (args.deepen < 1 && 'tint' in face) {
+              (face as { tint: number }).tint = deepenTint((face as { tint: number }).tint, args.deepen);
+            }
             if (args.multiply) {
               // Per-renderable in Pixi v8: setting it on the group does NOT
               // reach the labels, so every copy gets it. The ring included —

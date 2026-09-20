@@ -34,7 +34,7 @@ describe('the run cost reaches the island', () => {
 
   it('is exposed by the hook and reset per island', () => {
     expect(HOOK).toMatch(/setBank\(snap\.bank \?\? null\)/);
-    expect(HOOK).toMatch(/firstRun, digs, bank,/);
+    expect(HOOK).toMatch(/firstRun, taughtBomb, digs, bank,/);
   });
 
   it('is said on the island and again in the recap', () => {

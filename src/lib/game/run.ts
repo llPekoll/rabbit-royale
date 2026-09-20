@@ -31,7 +31,15 @@ export type MoveRejection =
   | 'off-island'
   | 'no-energy'
   /** A red X stands there: a known bomb, and the game will not let you walk in. */
-  | 'flagged';
+  | 'flagged'
+  /**
+   * The first island is holding the player at its lesson.
+   *
+   * Only ever returned on the tutorial board, and only until the taught bomb
+   * wears its X: the run does not go on until the one thing it is teaching has
+   * been done. See `teachingHold`.
+   */
+  | 'learn-first';
 
 export interface MoveOutcome {
   ok: boolean;
@@ -186,6 +194,71 @@ export function flagTile(island: Island, rabbit: Rabbit, at: number, now: number
  * `now` and `rng` are injected rather than read from globals so the whole rule
  * set is testable and reproducible: a playtest bug report replays exactly.
  */
+/**
+ * IS THE TUTORIAL HOLDING THE PLAYER AT ITS LESSON?
+ *
+ * The first island teaches one thing the rest of the game cannot: the red X.
+ * Every other rule is learned by accident — you walk, you dig, a bomb goes
+ * off and the caption names what happened — but nobody arms a MODE at random,
+ * so the X has to be provoked, and a player who walks past the taught bomb
+ * never learns it exists. Paul, 2026-09-20: "il faut plus que le joueur ne
+ * plus jouer tant qu'il a pas mis sa bomb."
+ *
+ * So the board holds. Until the taught bomb wears its X, the only steps
+ * allowed are onto ground that is already open — the player can still move,
+ * look around and read, they simply cannot DIG their way past the lesson.
+ *
+ * Returns the tile the hold is about (the taught bomb), or null when the run
+ * is free: not the first island, or the lesson is done.
+ *
+ * WHY "already open" AND NOT "everything but the bomb". Refusing only the bomb
+ * would let the player dig the whole island around it and never look at it;
+ * worse, the lesson's own sentence ("seven are already dug, so the bomb is the
+ * last one") stops being true the moment they open a ninth cell beside the
+ * witness. Holding them to read what is on screen is the lesson.
+ */
+/**
+ * Steps from `a` to `b` over ground a rabbit may actually walk.
+ *
+ * Breadth-first over `boardNeighbors`, which is the same adjacency the hints
+ * are counted over — so "closer" here means closer in the way the player
+ * experiences it, not in straight-line pixels. Returns Infinity when there is
+ * no path at all, which makes any step that opens one count as progress.
+ */
+function stepsBetween(island: Island, from: number, to: number): number {
+  if (from === to) return 0;
+  const seen = new Set<number>([from]);
+  let frontier = [from];
+  for (let depth = 1; depth <= island.tiles.size; depth++) {
+    const next: number[] = [];
+    for (const cell of frontier) {
+      for (const n of boardNeighbors(island, cell)) {
+        if (seen.has(n)) continue;
+        if (n === to) return depth;
+        seen.add(n);
+        next.push(n);
+      }
+    }
+    if (next.length === 0) break;
+    frontier = next;
+  }
+  return Infinity;
+}
+
+export function teachingHold(island: Island): number | null {
+  if (!isFirstIsland(island.seed)) return null;
+  for (const [index, tile] of island.tiles) {
+    if (tile.content !== 'bomb') continue;
+    // The taught bomb is the one whose edge the player can already read.
+    const visible = boardNeighbors(island, index)
+      .some((n) => { const t = island.tiles.get(n); return t?.revealed || t?.hinted; });
+    if (!visible) continue;
+    // Marked already — the lesson is done and the island lets go.
+    return tile.flagged ? null : index;
+  }
+  return null;
+}
+
 export function resolveMove(
   island: Island,
   rabbit: Rabbit,
@@ -232,6 +305,52 @@ export function resolveMove(
   // right to keep. (A shove can still land a rabbit there — see `planPush`;
   // that is the pusher's doing, and it goes off like any bomb.)
   if (tile.flagged && !tile.revealed) return reject('flagged');
+  /**
+   * THE TUTORIAL'S HOLD. Until the taught bomb is marked, a step may only land
+   * on ground that is already DUG — no digging past the lesson.
+   *
+   * `revealed`, NOT `revealed || hinted`, and that distinction is the whole
+   * bug this replaced. A hinted tile shows its number but is still in the
+   * ground: stepping on it DIGS it, and the dig cascades another ring open,
+   * which hints more tiles, which are then steppable too. The hold leaked one
+   * ring at a time until the player walked to the chest and finished the
+   * tutorial having never marked anything — observed in a live run on
+   * 2026-09-20 (tiles 497, 498, 467, then the chest at 436).
+   *
+   * Walking DUG ground stays free, which is what keeps this a hold rather than
+   * a freeze: the player can still move around what they have opened and read
+   * the numbers on it. They simply cannot open anything new.
+   */
+  const held = teachingHold(island);
+  if (held !== null && !tile.revealed) {
+    /**
+     * A hinted tile may be stepped on ONLY to reach the bomb.
+     *
+     * `flagTile` needs the rabbit standing NEXT to the cell it marks, and on a
+     * fresh board none of the taught bomb's neighbours is dug — holding to dug
+     * ground alone was a deadlock: 9 reachable tiles, none of them beside the
+     * bomb, and the lesson could never be completed. Caught in simulation
+     * before it shipped.
+     *
+     * So the hold opens exactly one door: a hinted cell that TOUCHES the
+     * taught bomb. That is the single step the lesson asks for, it cannot
+     * cascade the player across the island (a bomb's neighbour is never a
+     * zero, so digging it opens nothing), and every other direction stays
+     * shut. Anything already dug stays free to walk, as ever.
+     */
+    /**
+     * A hinted tile may be stepped on ONLY along the way to the bomb.
+     *
+     * "Touches the bomb" was too strict on the hand-drawn corridor: the walk
+     * to the lesson runs through hinted cells that are two and three steps
+     * out, so the player was stopped short of the tile they were being told
+     * to mark. The rule is now the honest one — a step is allowed when it
+     * brings the rabbit CLOSER to the taught bomb — which on a corridor is
+     * the corridor, and on any wider board still refuses every detour.
+     */
+    const closer = stepsBetween(island, to, held) < stepsBetween(island, rabbit.tile, held);
+    if (!(tile.hinted === true && closer)) return reject('learn-first');
+  }
   // One step only, and onto ground the TERRAIN allows. Checked here rather
   // than trusted from the client, which is the entire reason this function
   // exists: the ring the player taps is drawn from the same rule, so a client

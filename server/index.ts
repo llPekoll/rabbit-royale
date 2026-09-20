@@ -25,7 +25,7 @@ import { servirApi } from './api-router';
 import { mulberry32, seedFrom } from '../src/lib/game/rng';
 import { cascadeAround, chestProgress, publicView } from '../src/lib/game/island';
 import { firstIslandSeed, isFirstIsland } from '../src/lib/game/first-island';
-import { flagTile, resolveMove, spawnRabbit } from '../src/lib/game/run';
+import { flagTile, resolveMove, spawnRabbit, teachingHold } from '../src/lib/game/run';
 import { mirageActive, planMirage, shownAdjacent } from '../src/lib/game/mirage';
 import { strike, struckRabbits } from '../src/lib/game/lightning';
 import { plantBlocker, plantBomb } from '../src/lib/game/sabotage';
@@ -221,6 +221,19 @@ function snapshot(live: LiveIsland) {
     flagged: view.flagged,
     /** The tutorial island. The client runs its captions off this alone. */
     first: isFirstIsland(view.seed),
+    /**
+     * THE TAUGHT BOMB, while the first island is still holding the player
+     * there — the cell the client makes beat (`IslandScene.teachBomb`).
+     *
+     * Sending a bomb's position to a browser is normally the one thing this
+     * payload must never do. It is safe here and only here: the tutorial board
+     * is the same for everybody (`FIRST_ISLAND_GROUND`), so its layout is
+     * public by construction, and this particular bomb is one the player is
+     * being ASKED to identify — the numbers on screen already prove where it
+     * is. `teachingHold` returns null the moment it is marked, so the field
+     * disappears with the lesson and never appears on any other island.
+     */
+    taughtBomb: teachingHold(live.island) ?? undefined,
     warnStage: live.warnStage,
     // How much of the island is already dug, 0 → 1. A joiner lands mid-run on
     // ground others have been working: without this the strip would open at

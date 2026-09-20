@@ -13,10 +13,45 @@
  */
 const FIRST_SEED_PREFIX = 'first:';
 
+/**
+ * THE ONE TUTORIAL ISLAND — the same ground for every player who ever starts.
+ *
+ * The seed still carries the player's id, because each newcomer needs their
+ * OWN instance of it (they dig their own holes, solo, and two players must not
+ * share a board). But everything the ground is made of — the coastline, the
+ * spawn, where the taught bomb and its witness sit, where the chest is — is
+ * derived from this constant instead, so the island they land on is identical.
+ *
+ * WHY FIXED. The first island is a scripted lesson: the captions state a
+ * deduction out loud, the board has to prove it, and the run is blocked until
+ * the player marks the bomb. Every one of those depends on knowing exactly
+ * what the player is looking at. Dealt per player, the tutorial had to be
+ * defensive about ground it could not predict — and the one thing worse than a
+ * tutorial that is hard to tune is one whose behaviour differs between two
+ * players reporting the same bug.
+ *
+ * The cost is that the first island is spoilable: one player can tell another
+ * where the bomb is. It is a deliberate trade and a cheap one — the board is
+ * a lesson, not a prize, and it is played once.
+ */
+export const FIRST_ISLAND_GROUND = 'tutorial-v1';
+
 export function firstIslandSeed(id: string): string {
   return `${FIRST_SEED_PREFIX}${id}`;
 }
 
 export function isFirstIsland(seed: string): boolean {
   return seed.startsWith(FIRST_SEED_PREFIX);
+}
+
+/**
+ * The seed the GROUND is cut from, for any island seed.
+ *
+ * The first island's ground is the fixed one; every other island is its own.
+ * Terrain, shape and layout all go through here, so the two sides cannot
+ * disagree: the client rebuilds the coastline from the seed it was handed and
+ * lands on the same rule.
+ */
+export function groundSeed(seed: string): string {
+  return isFirstIsland(seed) ? `${FIRST_SEED_PREFIX}${FIRST_ISLAND_GROUND}` : seed;
 }

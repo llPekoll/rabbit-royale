@@ -29,9 +29,19 @@ export interface MarkBombButtonProps {
   nothing?: boolean;
   /** The bar is low: this button is the way out, and should say so. */
   urge?: boolean;
+  /**
+   * The first island is holding the player at its lesson and this button is
+   * the way through it.
+   *
+   * Beats on the same clock as the tile pulsing on the board (0.9s, see
+   * `TEACH_BEAT_SECONDS`), which is what ties the two together — a caption
+   * naming both cannot. Takes precedence over `urge`: on the tutorial the bar
+   * is never low, and if it somehow were, the lesson is still the thing to do.
+   */
+  teach?: boolean;
 }
 
-export function MarkBombButton({ armed, onToggle, nothing = false, urge = false }: MarkBombButtonProps) {
+export function MarkBombButton({ armed, onToggle, nothing = false, urge = false, teach = false }: MarkBombButtonProps) {
   const t = useT();
 
   useEffect(() => {
@@ -57,7 +67,7 @@ export function MarkBombButton({ armed, onToggle, nothing = false, urge = false 
       {!armed && nothing && <p className="rr-mark-hint" role="status">{t.run.markNothing}</p>}
       <PxButton
         type="button"
-        className={`rr-mark-btn${armed ? ' armed' : ''}${urge && !armed ? ' urge' : ''}`}
+        className={`rr-mark-btn${armed ? ' armed' : ''}${teach && !armed ? ' teach' : ''}${urge && !armed && !teach ? ' urge' : ''}`}
         aria-pressed={armed}
         title={`${t.run.markBomb} (X)`}
         onClick={() => onToggle(!armed)}

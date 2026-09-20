@@ -27,11 +27,20 @@ export interface FirstRunCaptionProps {
   firstRun: boolean;
   digs: MyDigs;
   warnStage: number;
+  /**
+   * X mode is armed right now — what the `aim` beat fires on.
+   *
+   * The only piece of state here that is not a tally, because the X is the one
+   * lesson about a MODE rather than about something that has happened: the
+   * caption has to hand over from the button ("press MARK A BOMB") to the
+   * board ("now tap the tile") at the moment the mode actually flips.
+   */
+  armed?: boolean;
 }
 
-export function useFirstRunCaption({ firstRun, digs, warnStage }: FirstRunCaptionProps): string | null {
+export function useFirstRunCaption({ firstRun, digs, warnStage, armed }: FirstRunCaptionProps): string | null {
   const t = useT();
-  const state: FirstRunState = { ...digs, warnStage };
+  const state: FirstRunState = { ...digs, warnStage, armed };
   const beat = firstRun ? firstRunBeat(state) : null;
   const key = beat?.id ?? null;
   /**

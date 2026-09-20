@@ -2634,13 +2634,24 @@ function Burrow() {
               nothing={game.flagNothing}
               // The way out of a low bar is this button: it beats until used.
               urge={(game.me?.energy ?? ENERGY.MAX) <= ENERGY.BOMB_LOSS}
+              // The first island's ask lives on the BOARD now — a ghost X on
+              // the tile itself (`Tile.setGhostFlag`), which says what to do
+              // where it has to be done. The button only lifts a little, so
+              // the eye finds it once the cross has been read; it does not
+              // compete with the cross for attention.
+              teach={game.taughtBomb !== null && !game.flagMode}
             />
           )}
           {!spectating && !game.firstRun && game.me && !game.recap && (
             <EnergyCoach energy={game.me.energy} />
           )}
           {!spectating && (
-            <FirstRunCaption firstRun={game.firstRun} digs={game.digs} warnStage={game.warnStage} />
+            <FirstRunCaption
+              firstRun={game.firstRun}
+              digs={game.digs}
+              warnStage={game.warnStage}
+              armed={game.flagMode}
+            />
           )}
           {/* A quest finishing while the player is out here — the card is at
               home, so the island says it. */}

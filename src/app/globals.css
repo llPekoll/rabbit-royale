@@ -1366,6 +1366,19 @@ body:has(.rr-pill-plate.has-energy) {
 /* URGED: the bar is low and this is the exit. A stepped two-frame lift, the
    kit's own idea of motion — no glow, no easing. */
 .rr-mark-btn.urge { animation: rr-mark-urge 700ms steps(1, end) infinite; }
+/* TAUGHT: the first island is asking for an X, and this button is how one is
+   placed. The ASK itself is on the board — a ghost X breathing on the tile
+   (`Tile.setGhostFlag`), which says what to do where it has to be done — so
+   this is only a nudge towards the control, deliberately quieter than the
+   cross. A button competing with the cross for attention was the version
+   before, and it read as "something is flashing" rather than as an
+   instruction. */
+.rr-mark-btn.teach { animation: rr-mark-teach 1200ms ease-in-out infinite; }
+@keyframes rr-mark-teach {
+  0%, 70%, 100% { transform: translateY(0); }
+  85% { transform: translateY(-3px); }
+}
+@media (prefers-reduced-motion: reduce) { .rr-mark-btn.teach { animation: none; } }
 @keyframes rr-mark-urge { 50% { transform: translateY(-4px); } }
 @media (prefers-reduced-motion: reduce) { .rr-mark-btn.urge { animation: none; } }
 .rr-mark-btn:focus-visible { outline: 2px solid #ffd60a; outline-offset: 2px; }

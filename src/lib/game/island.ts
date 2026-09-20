@@ -29,7 +29,8 @@ import {
   type IslandShape,
 } from '@/config/gridConfig';
 import { farmableTiles, spawnTile, terrainNeighbors } from './terrainBoard';
-import { isFirstIsland } from './first-island';
+import { FIRST_ISLAND_GROUND, groundSeed, isFirstIsland } from './first-island';
+import { TUTORIAL_BOMB, TUTORIAL_CHEST, TUTORIAL_CLUE } from './tutorial-map';
 import { mulberry32, pickWeighted, seedFrom, shuffle, type Rng } from './rng';
 import type { HintReveal, Island, Tile } from './types';
 
@@ -53,7 +54,24 @@ export interface GenerateOptions {
 }
 
 export function generateIsland(opts: GenerateOptions): Island {
-  const rng = mulberry32(seedFrom(`content:${opts.contentSeed ?? opts.seed}`));
+  /**
+   * THE FIRST ISLAND'S CONTENTS ARE FIXED TOO, not just its ground.
+   *
+   * Everywhere else the content seed is a fresh `randomUUID()` the server
+   * keeps to itself, so holding the public seed tells you nothing about the
+   * bombs. The tutorial is the one board where that secrecy is worth less
+   * than knowing exactly what the player is looking at: the captions state a
+   * deduction, the run is blocked until the bomb is marked, and every one of
+   * those needs the same board under every player.
+   *
+   * The ground already comes from `groundSeed`; without this the bombs still
+   * moved per player (measured: two of three test players got a different
+   * taught bomb on identical land).
+   */
+  const contentKey = isFirstIsland(opts.seed)
+    ? `first-content:${FIRST_ISLAND_GROUND}`
+    : `content:${opts.contentSeed ?? opts.seed}`;
+  const rng = mulberry32(seedFrom(contentKey));
   const tier = tierFor(opts.lifetimeCarrots ?? 0);
   const shape = makeShape(opts.seed);
 
@@ -74,7 +92,7 @@ export function generateIsland(opts: GenerateOptions): Island {
   const safe = new Set<number>([spawn, ...terrainNeighbors(opts.seed, spawn)]);
 
   if (isFirstIsland(opts.seed)) {
-    firstIslandLayout(opts.seed, tiles, spawn, safe, rng);
+    tutorialLayout(tiles);
   } else {
     // Deal contents by shuffling the eligible tiles once and slicing. Simpler
     // than rejection-sampling per item, and it cannot loop forever at the high
@@ -163,6 +181,7 @@ export function generateIsland(opts: GenerateOptions): Island {
   // does in minesweeper — the same rule a dig applies, applied at birth, and
   // with the same reach: what a rabbit standing on the spawn would be shown.
   cascadeHints(island, safe, spawn);
+  if (isFirstIsland(opts.seed)) openTaughtWitness(island);
   return island;
 }
 
@@ -384,99 +403,171 @@ function rimTiles(
 }
 
 /**
- * The first island, dealt BY HAND — see FIRST_RUN in tuning for the beats.
+ * THE TUTORIAL'S CONTENTS, read off its map.
  *
- * Four placements are authored and the rest is dealt like any island, at the
- * first island's own densities:
+ * Nothing is dealt here: `tutorial-map.ts` says where the clue, the bomb and
+ * the chest go, and this only writes them onto the board. That is the whole
+ * point of the hand-drawn island — the lesson's sentence ("the bomb is the
+ * last one") is a fact about a picture in this repo rather than a hope about
+ * generated ground.
  *
- *   THE TAUGHT BOMB sits two steps from the spawn, touching as few ring tiles
- *   as the ground allows (ideally one). Nothing else explosive comes within
- *   two steps, so the pre-revealed ring reads all zeros and a single "1" — the
- *   first number a player ever sees has exactly one thing to mean, and the
- *   tile it points at is one step from safe ground.
- *
- *   THE GOLDEN CARROT is a neighbour of that bomb, off the ring. Whether the
- *   player reads the "1" and walks around, or steps on it and is thrown, the
- *   heart back is right there — the lesson costs a heart only briefly.
- *
- *   THE CHEST is within FIRST_RUN.CHEST_MAX_DISTANCE steps and always the
- *   lowest tier: it is announced on the board (that is what a tier does), so
- *   the walk-to-a-prize decision gets made once on a board with almost nothing
- *   to fear, and a bronze box cannot roll the crown's NFT on a tutorial.
- *
- * Everything else — the remaining bombs, the carrots — is shuffled from the
- * content rng over the tiles that are three or more steps out, so two first
- * islands are still two islands and the private seed still decides them.
+ * The rest of the corridor is carrots, because the first recap should show a
+ * haul and there is nowhere on a 17-cell island for a carrot to be in the way.
  */
-function firstIslandLayout(
-  seed: string,
-  tiles: Map<number, Tile>,
-  spawn: number,
-  safe: ReadonlySet<number>,
-  rng: Rng,
-): void {
-  const dist = stepsFrom(seed, spawn, tiles);
-  const at = (d: number) => [...dist].filter(([, n]) => n === d).map(([i]) => i);
-  const board = { tiles };
-  // How many ring tiles a bomb here would light — counted the way the hints
-  // are counted (`boardNeighbors`), across cliffs included.
-  const ringTouches = (i: number) =>
-    boardNeighbors(board, i).filter((n) => safe.has(n) && n !== spawn).length;
-  // Every tile whose hint the safe ring can see. Nothing dealt at random may
-  // land here, or the ring wakes up reading a number the lesson did not write.
-  const seenFromRing = new Set<number>();
-  for (const s of safe) for (const nb of boardNeighbors(board, s)) seenFromRing.add(nb);
+function tutorialLayout(tiles: Map<number, Tile>): void {
+  const bomb = tiles.get(TUTORIAL_BOMB);
+  if (bomb) bomb.content = 'bomb';
 
-  const reserved = new Set<number>();
-
-  // The taught bomb: two steps out — so the player can walk to it — but not a
-  // cell the spawn itself can see, and touching the fewest ring tiles. Sorted
-  // rather than shuffled so the SAME ground always teaches the same way; the
-  // tie-break still comes from the content rng, so the exact tile is private.
-  const twoOut = shuffle(rng, at(2))
-    .filter((i) => !boardNeighbors(board, spawn).includes(i))
-    .sort((a, b) => ringTouches(a) - ringTouches(b));
-  const taught = twoOut[0];
-  if (taught !== undefined) {
-    tiles.get(taught)!.content = 'bomb';
-    reserved.add(taught);
-
-    // The heart back: a neighbour of the bomb that is not on the ring.
-    const golden = shuffle(rng, terrainNeighbors(seed, taught))
-      .find((n) => tiles.has(n) && !safe.has(n) && !reserved.has(n));
-    if (golden !== undefined) {
-      tiles.get(golden)!.content = 'golden';
-      reserved.add(golden);
-    }
+  const chest = tiles.get(TUTORIAL_CHEST);
+  if (chest) {
+    chest.content = 'chest';
+    chest.chestTier = CHEST_TIER_WEIGHTS[0].kind;
   }
 
-  // The chest: as far out as the cap allows, so it is a walk and not a gift,
-  // and never beside the taught bomb — the two lessons are not the same one.
-  const chestCandidates = [...dist]
-    .filter(([i, d]) => d >= 3 && d <= FIRST_RUN.CHEST_MAX_DISTANCE && !reserved.has(i)
-      && !boardNeighbors(board, i).includes(taught ?? -1))
-    .sort((a, b) => b[1] - a[1])
-    .map(([i]) => i);
-  const chest = chestCandidates.length ? chestCandidates[0] : undefined;
-  if (chest !== undefined) {
-    const t = tiles.get(chest)!;
-    t.content = 'chest';
-    t.chestTier = CHEST_TIER_WEIGHTS[0].kind;
-    reserved.add(chest);
+  for (const [index, tile] of tiles) {
+    if (index === TUTORIAL_BOMB || index === TUTORIAL_CHEST) continue;
+    // The clue stays EMPTY: it is the tile whose number the first lesson points
+    // at, and a carrot popping off it the moment it is dug would cover the one
+    // glyph the caption is talking about.
+    if (index === TUTORIAL_CLUE) continue;
+    tile.content = 'carrot';
   }
+}
 
-  // The rest is dealt from three steps out AND out of the ring's sight — so
-  // the numbers the player wakes up reading are the ones written above, and
-  // a bomb on a shelf above the ring cannot light a second "1".
-  const pool = shuffle(rng, [...dist]
-    .filter(([i, d]) => d >= 3 && !reserved.has(i) && !seenFromRing.has(i))
-    .map(([i]) => i));
-  let cursor = 0;
-  const take = (n: number) => pool.slice(cursor, (cursor += n));
-  const total = tiles.size;
+/**
+ * FINISH THE FIRST ISLAND'S PROOF: open the last cell that muddies its witness.
+ *
+ * The tutorial states a deduction out loud — "seven are already dug, so the
+ * bomb is the last one". `firstIslandLayout` chooses a bomb that CAN be proven
+ * that way, but whether the proof actually lands depends on the cascade, which
+ * only runs once every bomb is dealt and every count is computed. Measured
+ * across 60 boards before this: the witness was usually one cell short. Its
+ * number read "1" while pointing at two unopened neighbours, so the sentence
+ * on screen was false and the lesson taught guessing.
+ *
+ * So the last straggler is hinted here, after the cascade, and only on the
+ * first island. It is the same gift the cascade already makes — a number on an
+ * undug tile — and it gives nothing away that the player could not deduce: the
+ * cell it opens is not the bomb, because the bomb is what the witness's count
+ * is left pointing at.
+ *
+ * Pinned by test/first-island-teaches.test.ts.
+ */
+function openTaughtWitness(island: Island): void {
+  const open = (i: number) => {
+    const t = island.tiles.get(i);
+    return Boolean(t?.revealed || t?.hinted);
+  };
 
-  for (const i of take(Math.floor(total * FIRST_RUN.BOMB_DENSITY))) tiles.get(i)!.content = 'bomb';
-  for (const i of take(Math.floor(total * FIRST_RUN.CARROT_DENSITY))) tiles.get(i)!.content = 'carrot';
+  /**
+   * EVERY bomb the player can already read the edge of, in board order.
+   *
+   * Not just the one `firstIslandLayout` planted: on a small island the
+   * cascade reaches further than the layout predicted, and a far bomb can end
+   * up touching open ground too (measured: 4 of them on one 70-tile board).
+   * The first island's captions point at "the" bomb, and what they mean is
+   * whichever one the player meets first — so the proof is made for the first
+   * in board order, and the rest are left as ordinary danger.
+   */
+
+  const proven = (b: number) => boardNeighbors(island, b)
+    .some((w) => open(w) && boardNeighbors(island, w).every((n) => n === b || open(n)));
+
+  // EVERY visible bomb gets its proof, not just the one the layout planted.
+  //
+  // Proving only the first left boards where the player meets a DIFFERENT bomb
+  // first — the cascade decides which edges are visible, and it runs after the
+  // layout, so the two do not always agree on which bomb is "the" one. Proving
+  // each of them costs a handful of hints and removes the disagreement
+  // entirely: whichever bomb the player reaches, the number beside it resolves.
+  /**
+   * Repeat to a fixed point.
+   *
+   * Opening cells to prove one bomb changes what is open for the next, and can
+   * un-prove a bomb proven earlier by revealing a fresh unopened neighbour of
+   * its witness. One pass left 1 board in 60 short. The loop is bounded by the
+   * board (every round opens at least one cell or stops), and `visible` is
+   * small — four bombs on the widest board measured.
+   */
+  /**
+   * Bounded, but generously: each round opens at least one cell or stops, and
+   * the board is ~70 tiles. 8 rounds was measured too few — 7 boards in 250
+   * still had an unproven bomb — because proving one can expose another, and
+   * that chain is longer than it looks on a small island.
+   */
+  for (let round = 0; round < 40; round++) {
+    // RECOMPUTED each round, not reused: opening cells to prove one bomb can
+    // expose the edge of another that was not visible before, and that new one
+    // is now a bomb the player can meet — so it needs its proof too. Computing
+    // the list once left 1 board in 60 with an unprovable bomb that only
+    // became visible on the second pass.
+    const unproven = visibleBombs(island, open).filter((b) => !proven(b));
+    if (unproven.length === 0) return;
+    let changed = false;
+    for (const taught of unproven) changed = proveOne(island, taught, open) || changed;
+    if (!changed) return;
+  }
+}
+
+/** Every bomb whose edge the player can already read, in board order. */
+function visibleBombs(island: Island, open: (i: number) => boolean): number[] {
+  const out: number[] = [];
+  for (const [index, tile] of island.tiles) {
+    if (tile.content !== 'bomb') continue;
+    if (boardNeighbors(island, index).some((n) => open(n))) out.push(index);
+  }
+  return out;
+}
+
+/**
+ * Open the fewest cells that turn one of `taught`'s neighbours into a witness.
+ * Returns whether anything was opened.
+ */
+
+function proveOne(island: Island, taught: number, open: (i: number) => boolean): boolean {
+  const neighbours = boardNeighbors(island, taught);
+
+  /**
+   * Otherwise take the neighbour CLOSEST to being a witness and open what it
+   * is still waiting on.
+   *
+   * Any neighbour, open or not — on a board where every already-open one is
+   * blocked by a second bomb among its missing cells, the witness has to be
+   * made rather than found, and opening a shut cell is the same gift the
+   * cascade makes anyway. Bombs are still never opened: one would spoil the
+   * lesson outright and break `cascadeHints`'s invariant that a bomb is never
+   * hinted. A neighbour whose missing cells include one is skipped, and if
+   * that rules out every candidate the island simply teaches the old way —
+   * by the bomb going off.
+   */
+  let best: { witness: number; missing: number[]; cost: number } | undefined;
+  for (const w of neighbours) {
+    if (island.tiles.get(w)?.content === 'bomb') continue;
+    const missing = boardNeighbors(island, w).filter((n) => n !== taught && !open(n));
+    if (missing.some((n) => island.tiles.get(n)?.content === 'bomb')) continue;
+    /**
+     * Cost = how many cells this witness needs opened, itself included.
+     *
+     * Counting the witness's own cell is what makes an ALREADY-OPEN candidate
+     * with four stragglers lose to a shut one with a single straggler — and
+     * that ordering is the whole point. Preferring "already open" first picked
+     * a cell needing five hints over a neighbour needing two, and left two
+     * boards in sixty unprovable.
+     */
+    const cost = missing.length + (open(w) ? 0 : 1);
+    if (!best || cost < best.cost) best = { witness: w, missing, cost };
+  }
+  if (!best) return false;
+  let changed = false;
+  if (!open(best.witness)) {
+    const wt = island.tiles.get(best.witness);
+    if (wt) { wt.hinted = true; changed = true; }
+  }
+  for (const i of best.missing) {
+    const tile = island.tiles.get(i);
+    if (tile) { tile.hinted = true; changed = true; }
+  }
+  return changed;
 }
 
 /**

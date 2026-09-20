@@ -187,6 +187,9 @@ export async function createBurrowTerrain(
     // Off: every standing sprite in the kit is drawn with its own shadow, so
     // the generated ellipse only doubled it.
     decoShadows: false,
+    // And no grass tufts, for the reason the island gives — the homestead is
+    // the same board read the same way.
+    grass: false,
     // Ramps between tiers, as on the island — see `TerrainBackground`.
     slopes: true,
     overlayPixels: getDiamondPixels,

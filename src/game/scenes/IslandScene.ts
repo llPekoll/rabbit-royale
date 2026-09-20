@@ -13,6 +13,7 @@
  */
 import { AnimatedSprite, Application, Assets, Container, Graphics, Rectangle, Sprite } from 'pixi.js';
 import gsap from 'gsap';
+
 import { GOLDEN_COIN_ALIASES } from '@domin8/arcade-kit/pixi';
 import { outlinedPixelText, shadowedPixelText } from '../ui/PixelText';
 import { isFirstIsland } from '@/lib/game/first-island';
@@ -254,6 +255,11 @@ export class IslandScene implements Scene {
    * one moment it has to go: an arrow still pointing at an opened box says the
    * player has somewhere to go when they have just arrived.
    */
+  /**
+   * The taught bomb's cell while the first island is holding the player there,
+   * and the timer that makes it beat. Null everywhere else. See `teachBomb`.
+   */
+  private taughtBomb: number | null = null;
   private chestPointer: ChestPointer | null = null;
   /**
    * Edge chevrons for the chests the camera cannot show — see `ChestCompass`.
@@ -546,9 +552,19 @@ export class IslandScene implements Scene {
       tile.setUnknownMark(!tile.revealed && !tile.hinted && !tile.hasChest);
       this.highlighted.push(index);
     }
-    // The keyboard marks follow the same rule — pointing at a tile the ring
-    // has gone dark on would put the two hints in contradiction.
-    this.arrows?.update(reachable.length > 0 ? this.myTile : null, reachable);
+    /**
+     * The keyboard marks follow the same rule — pointing at a tile the ring
+     * has gone dark on would put the two hints in contradiction.
+     *
+     * ...and they stand down entirely while the tutorial is teaching its bomb.
+     * `MoveArrows` draws a white triangle on every reachable neighbour, and on
+     * a one-way corridor that lands on the very cell already wearing the ghost
+     * X — three marks on one tile, which is what "les arrow se superpose"
+     * (Paul, 2026-09-20) was about. The corridor has one way to go, so a hint
+     * about which way to go has nothing to add.
+     */
+    const teaching = this.taughtBomb !== null;
+    this.arrows?.update(!teaching && reachable.length > 0 ? this.myTile : null, reachable);
     this.startSweep();
   }
 
@@ -1487,6 +1503,21 @@ export class IslandScene implements Scene {
    */
   private pointAtTutorialChest(chests: ReadonlyArray<{ tile: number }>): void {
     if (!isFirstIsland(this.seed)) return;
+    /**
+     * ONE ARROW AT A TIME, and the lesson comes first.
+     *
+     * The chest's arrow used to go up the moment the chest list arrived, which
+     * on the tutorial is before the player has marked anything: two markers on
+     * screen at once, one pointing at a cross to place and one at a box three
+     * steps away. Paul, 2026-09-20: "les arrow sont melange et a cette etape
+     * la fleche doit etre sur mark a bomb pas sur le chest; des que tu as mis
+     * la croix tu vas sur le chest."
+     *
+     * So while the run is held at its bomb (`taughtBomb`), the chest waits.
+     * `teachBomb(null)` calls back here the moment the X lands, which is when
+     * "go and get it" becomes the only thing left to say.
+     */
+    if (this.taughtBomb !== null) return;
     const first = chests.find((c) => this.tiles.has(c.tile));
     if (!first || this.pointedChest === first.tile) return;
     // The word and the arrow both sit above the box, and they collided — the
@@ -1497,6 +1528,55 @@ export class IslandScene implements Scene {
     this.chestPointer = new ChestPointer(this.container, this.seed, first.tile);
     this.pointedChest = first.tile;
   }
+
+  /**
+   * THE TAUGHT BOMB, WEARING THE X THE BOARD WANTS.
+   *
+   * A ghost of the real mark, breathing on the cell (`Tile.setGhostFlag`) —
+   * not a highlight and not a blinking button. Paul, 2026-09-20: "ne fait pas
+   * mark a bomb blink c'est pas assez obvious met une bonne croix dessus".
+   *
+   * Showing the ANSWER rather than gesturing at it is what makes the lesson
+   * wordless: the player sees a red X hovering over one tile and has to make
+   * it real, which is exactly the verb the button performs. A pulsing tile
+   * said "look here" and left the action to be guessed; this says what to do.
+   *
+   * Null everywhere but the tutorial, and gone the moment the X is placed —
+   * `setFlag` clears the ghost itself, so the real mark lands in its place.
+   */
+  teachBomb(tile: number | null): void {
+    if (this.taughtBomb === tile) return;
+    if (this.taughtBomb !== null) {
+      this.tiles.get(this.taughtBomb)?.setGhostFlag(false);
+    }
+    this.taughtBomb = tile;
+    // The keyboard marks are suppressed while a bomb is taught, so the ring
+    // has to be re-laid when that flips — otherwise they only come back on
+    // the player's next step, which is after the moment they are wanted.
+    this.refreshReachable();
+
+    if (tile === null) {
+      // THE HANDOVER. The lesson is done, so the chest may finally ask for
+      // attention — and it is the only thing asking now.
+      this.pointAtTutorialChest(this.chestTargets.map((c) => ({ tile: c.tile })));
+      return;
+    }
+
+    /**
+     * THE CROSS IS THE MARK — no chevron over it.
+     *
+     * A chevron here stacked three signs on one cell: the ghost X, the gold
+     * arrow, and the keyboard hint's white triangle (`MoveArrows`, drawn on
+     * every reachable neighbour). Paul, 2026-09-20: "les arrow se superpose."
+     *
+     * The X already says both things an arrow could — WHICH cell, and WHAT to
+     * do to it — so the arrow was redundant before it was untidy. The chest
+     * keeps its chevron, because "go there" is all a chest needs to say, and
+     * by then the cross is gone.
+     */
+    this.tiles.get(tile)?.setGhostFlag(true);
+  }
+
 
   /**
    * The tutorial is finished: the rabbit jumps and the fanfare plays.
@@ -2288,6 +2368,7 @@ export class IslandScene implements Scene {
       this.onResize = null;
     }
     this.clearHighlights();
+    this.taughtBomb = null;
     // A strike is staggered over a few hundred ms — easily long enough to
     // outlive an island change and fire a bolt into a destroyed container.
     for (const timer of this.lightningTimers) window.clearTimeout(timer);

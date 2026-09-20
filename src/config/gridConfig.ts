@@ -13,6 +13,7 @@
  * work.
  */
 import { mulberry32, seedFrom } from '@/lib/game/rng';
+import { groundSeed } from '@/lib/game/first-island';
 
 /**
  * 32x32, up from 16x16.
@@ -155,7 +156,10 @@ const COAST_NOISE = 0.30;
  * sending the mask over the wire.
  */
 export function makeShape(seed: string): IslandShape {
-  const rng = mulberry32(seedFrom(`shape:${seed}`));
+  // The first island's coastline is the same for every player — see
+  // `groundSeed`. Substituted here so `makeShape` and `terrainFor` cannot
+  // disagree about which island they are cutting.
+  const rng = mulberry32(seedFrom(`shape:${groundSeed(seed)}`));
 
   // A handful of random phases turn the sum of sines below into a coastline
   // that never repeats, without needing a real noise library.

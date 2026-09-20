@@ -9,10 +9,13 @@
  */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { generateIsland, islandProgress } from '../src/lib/game/island';
+import { boardNeighbors, generateIsland, islandProgress } from '../src/lib/game/island';
 import { farmableTiles, spawnTile, terrainNeighbors } from '../src/lib/game/terrainBoard';
 import { firstIslandSeed, isFirstIsland } from '../src/lib/game/first-island';
-import { resolveMove, spawnRabbit } from '../src/lib/game/run';
+import {
+  TUTORIAL_BOMB, TUTORIAL_CHEST, TUTORIAL_CLUE, TUTORIAL_LAND, TUTORIAL_SPAWN,
+} from '../src/lib/game/tutorial-map';
+import { resolveMove, spawnRabbit, teachingHold } from '../src/lib/game/run';
 import { makeShape } from '../src/config/gridConfig';
 import { mulberry32 } from '../src/lib/game/rng';
 import { CHEST_TIER_WEIGHTS, FIRST_RUN, ISLAND_TIERS } from '../config/tuning';
@@ -43,7 +46,15 @@ describe('the first island', () => {
   it('is small enough to clear in one sitting, and all of a piece', () => {
     for (const seed of SEEDS) {
       const tiles = farmableTiles(seed);
-      expect(tiles.length).toBeGreaterThan(40);
+      // A CORRIDOR since 2026-09-20, not a pocket of coastline: the tutorial
+      // is drawn by hand in `tutorial-map.ts` so that the first steps have one
+      // place to go and the sea does the guiding. Seventeen cells, and the
+      // count is a fact about that picture rather than about a generator.
+      // Not every drawn cell becomes a tile: `farmableTiles` drops whatever
+      // the terrain put a tree or a rock on. The bar is that the corridor is
+      // tiny and whole, not an exact count that a scenery roll can move.
+      expect(tiles.length).toBeGreaterThanOrEqual(TUTORIAL_LAND.length - 6);
+      expect(tiles.length).toBeLessThanOrEqual(TUTORIAL_LAND.length);
       expect(tiles.length).toBeLessThan(100);
       // Every farmable tile is reachable from the spawn: a prize the player
       // can see and never reach is worse than no prize.
@@ -58,37 +69,43 @@ describe('the first island', () => {
     expect(first * 4).toBeLessThan(plain);
   });
 
-  it('opens on a ring of zeros and exactly one "1"', () => {
+  it('opens on ONE way to go — the corridor, not a ring', () => {
+    // The shape IS the lesson. A spawn with eight neighbours offers eight
+    // wrong turns; this one offers a single step, and the sea says so without
+    // a caption. Paul, 2026-09-20: "au debut t'as qu'une case ou aller tout le
+    // reste c'est de l'eau".
     for (const seed of SEEDS) {
-      const island = generateIsland({ seed, contentSeed: `content-${seed}` });
       const spawn = spawnTile(seed);
-      const ring = terrainNeighbors(seed, spawn);
-      const hints = ring.map((i) => island.tiles.get(i)!.adjacent);
-      expect(island.tiles.get(spawn)!.adjacent).toBe(0);
-      expect(hints.filter((h) => h === 1)).toHaveLength(1);
-      expect(hints.filter((h) => h === 0)).toHaveLength(ring.length - 1);
-      for (const i of [spawn, ...ring]) expect(island.tiles.get(i)!.revealed).toBe(true);
+      expect(spawn).toBe(TUTORIAL_SPAWN);
+      expect(terrainNeighbors(seed, spawn)).toHaveLength(1);
     }
   });
 
-  it('puts the taught bomb two steps out and nothing else explosive that close', () => {
+  it('forces the deduction: the clue reads 1 and only the bomb is left', () => {
     for (const seed of SEEDS) {
       const island = generateIsland({ seed, contentSeed: `content-${seed}` });
-      const dist = steps(seed, spawnTile(seed));
-      const near = [...island.tiles].filter(([i, t]) => t.content === 'bomb' && dist.get(i)! <= 2);
-      expect(near).toHaveLength(1);
-      expect(dist.get(near[0][0])).toBe(2);
+      const clue = island.tiles.get(TUTORIAL_CLUE)!;
+      expect(clue.adjacent).toBe(1);
+      // HINTED, not dug: the cascade writes its number on the lid from the
+      // spawn, so the player sees the "1" from where they land and walks to
+      // it. Reading it costs nothing; the tile is still theirs to dig.
+      expect(clue.revealed || clue.hinted).toBe(true);
+      // Every neighbour the clue has is open except the bomb, so its "1" can
+      // only be pointing at that one cell. This is the sentence the captions
+      // say out loud, pinned as a property of the board.
+      const shut = boardNeighbors(island, TUTORIAL_CLUE)
+        .filter((n) => { const t = island.tiles.get(n); return !t?.revealed && !t?.hinted; });
+      expect(shut).toEqual([TUTORIAL_BOMB]);
     }
   });
 
-  it('keeps the heart back beside the lesson', () => {
+  it('buries exactly ONE bomb, where the map puts it', () => {
+    // One bomb on the whole island: the tutorial teaches the X, and a second
+    // bomb is a second lesson nobody asked for on a 17-cell corridor.
     for (const seed of SEEDS) {
       const island = generateIsland({ seed, contentSeed: `content-${seed}` });
-      const dist = steps(seed, spawnTile(seed));
-      const taught = [...island.tiles].find(([i, t]) => t.content === 'bomb' && dist.get(i) === 2)![0];
-      const golden = [...island.tiles].filter(([, t]) => t.content === 'golden').map(([i]) => i);
-      expect(golden).toHaveLength(1);
-      expect(terrainNeighbors(seed, taught)).toContain(golden[0]);
+      const bombs = [...island.tiles].filter(([, t]) => t.content === 'bomb').map(([i]) => i);
+      expect(bombs).toEqual([TUTORIAL_BOMB]);
     }
   });
 
@@ -99,9 +116,10 @@ describe('the first island', () => {
       const chests = [...island.tiles].filter(([, t]) => t.content === 'chest');
       expect(chests).toHaveLength(1);
       const [tile, chest] = chests[0];
+      expect(tile).toBe(TUTORIAL_CHEST);
       expect(chest.chestTier).toBe(CHEST_TIER_WEIGHTS[0].kind);
+      // Past the bomb, so the lesson is behind the player when they reach it.
       expect(dist.get(tile)!).toBeGreaterThanOrEqual(3);
-      expect(dist.get(tile)!).toBeLessThanOrEqual(FIRST_RUN.CHEST_MAX_DISTANCE);
     }
   });
 
@@ -117,6 +135,12 @@ describe('the first island', () => {
       const shape = makeShape(seed);
       const [chest] = [...island.tiles].find(([, t]) => t.content === 'chest')!;
       const rabbit = spawnRabbit('p1', 'Test', undefined, seed);
+      // THE LESSON IS DONE FIRST. The first island holds the player until its
+      // taught bomb wears an X (`teachingHold`), so a rabbit teleported to the
+      // chest with the lesson still open has its dig refused — correctly. This
+      // test is about the DIG, so the X is granted here rather than walked to.
+      const held = teachingHold(island);
+      if (held !== null) island.tiles.get(held)!.flagged = true;
       // Walked to the chest's doorstep — the walk itself is `run.test.ts`'s
       // business, and what is under test here is the DIG.
       rabbit.tile = terrainNeighbors(seed, chest)[0];
@@ -200,10 +224,24 @@ describe('the first island', () => {
     }
   });
 
-  it('still hides the bombs behind the content seed', () => {
+  it('IGNORES the content seed — the tutorial is one fixed board', () => {
+    // The opposite of every other island, and deliberately so (2026-09-20).
+    // Elsewhere the content seed is a private randomUUID() so that holding the
+    // public seed tells you nothing about the bombs. The tutorial trades that
+    // secrecy for control: it is a scripted lesson whose captions state a
+    // deduction and whose run is held until the bomb is marked, and all of
+    // that needs the same board under every player. See FIRST_ISLAND_GROUND.
     const seed = firstIslandSeed('secret');
     const a = generateIsland({ seed, contentSeed: 'one' });
     const b = generateIsland({ seed, contentSeed: 'two' });
+    const bombsOf = (isl: typeof a) => [...isl.tiles].filter(([, t]) => t.content === 'bomb').map(([i]) => i);
+    expect(bombsOf(a)).toEqual(bombsOf(b));
+    expect(bombsOf(a).length).toBeGreaterThan(0);
+  });
+
+  it('still hides the bombs behind the content seed on every OTHER island', () => {
+    const a = generateIsland({ seed: 'meadow-secret', contentSeed: 'one' });
+    const b = generateIsland({ seed: 'meadow-secret', contentSeed: 'two' });
     const bombsOf = (isl: typeof a) => [...isl.tiles].filter(([, t]) => t.content === 'bomb').map(([i]) => i);
     expect(bombsOf(a)).not.toEqual(bombsOf(b));
   });

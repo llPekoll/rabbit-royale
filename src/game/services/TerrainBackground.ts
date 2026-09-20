@@ -171,6 +171,12 @@ export async function createTerrainBackground(
     // the ellipse on top of it read as a second, rounder shadow sliding out
     // from under every tree. The sprite's own shadow does the anchoring.
     decoShadows: false,
+    // No loose tufts on the turf. They are texture, not scenery — but at the
+    // board's cell size they read as specks of a darker green scattered over
+    // the tiles, and a minesweeper board is a thing you READ: every mark on a
+    // cell competes with the number it might be carrying. The scatter stays in
+    // `IsoIslandView` behind its flag for the stories that show the meadow.
+    grass: false,
     // Tiers join by RAMPS, not steps. A rabbit walks straight up a terrace,
     // and a cliff face said "wall" where the rules say "path" — see
     // `slopes.ts`. The lids and highlights the scene mounts follow the ramp

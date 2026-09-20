@@ -16,6 +16,42 @@ const BOMB_TILE_W = 20;
  * from the COLOUR before they read the glyph, and that mapping is decades of
  * muscle memory it would be perverse to reinvent.
  */
+/**
+ * How far the ladder's tints are DEEPENED before they are multiplied in.
+ *
+ * Multiply darkens the ground by how far a tint is from white, so the classic
+ * ladder — chosen for glyphs drawn ON a picture — barely marks bright grass
+ * once it is drawn INTO one. The "1" blue (0x4aa3ff) has a blue channel of
+ * 0xff, which multiplies the grass's blue by 1 and leaves it untouched.
+ *
+ * Measured against mid-meadow green: the shipped tints land at 1.36–1.85:1,
+ * which is the SAME band this comment's own note calls a failure ("the classic
+ * ladder's blue 1 on grass measured 1.2–1.6:1 behind a 30% shadow" — the thing
+ * the outline was introduced to fix). At 0.75 they land at 2.0–2.4:1.
+ *
+ * Reported by Paul on 2026-09-20, while judging the first island's tutorial:
+ * the lesson's opening line points AT the glyph ("this 1 means..."), which is
+ * where a number nobody can find stops being a nuisance and starts being a
+ * blocker.
+ *
+ * 0.75, not lower: every channel is scaled by the SAME factor, so the ratios
+ * between them — and therefore the hue — are untouched, and the colour ladder
+ * survives (a player reads "3 = danger" from the colour before the glyph, and
+ * the GDD refuses to reinvent that mapping). At 0.6 the numbers read even
+ * better and visibly drift towards brown, which is the point where the ladder
+ * starts paying for the legibility. Judged on `Island/HintPerspective`, whose
+ * `deepen` knob is this number.
+ */
+const HINT_DEEPEN = 0.75;
+
+/** Scale every channel alike: more weight for multiply, same hue. */
+function deepenForMultiply(tint: number): number {
+  const r = Math.round(((tint >> 16) & 0xff) * HINT_DEEPEN);
+  const g = Math.round(((tint >> 8) & 0xff) * HINT_DEEPEN);
+  const b = Math.round((tint & 0xff) * HINT_DEEPEN);
+  return (r << 16) | (g << 8) | b;
+}
+
 export const HINT_TINTS = [
   0xffffff, 0x4aa3ff, 0x3ecf7f, 0xff6b6b, 0xb46bff,
   0xffb03a, 0x3ecfcf, 0xdddddd, 0x888888,
@@ -27,6 +63,14 @@ export const HINT_TINTS = [
  * CHEST_SCALE comment describes).
  */
 const CARROT_SCALE = 0.7;
+
+/**
+ * The tutorial's ghost X: faint enough to read as a suggestion rather than as
+ * a mark already placed, strong enough to be the loudest thing on a 17-cell
+ * corridor. It breathes between the two.
+ */
+const GHOST_FLAG_ALPHA = 0.3;
+const GHOST_FLAG_ALPHA_PEAK = 0.72;
 /**
  * Where the carrot's tip rests at the BOTTOM of its hover, relative to the
  * tile's centre. Negative: the carrot floats ABOVE the tile face, which is what
@@ -563,6 +607,8 @@ export class Tile {
   /** A red X stands here: a bomb a player marked and the server confirmed. */
   flagged = false;
   private flagMark: Graphics | null = null;
+  /** The tutorial's ghost X, if this tile is the one it is asking for. */
+  private ghostFlag: Graphics | null = null;
 
   /**
    * Put the red X on this tile — the lid stays, the bomb stays under it.
@@ -574,6 +620,8 @@ export class Tile {
    */
   setFlag(animate = true): void {
     if (this.flagged || this.revealed) return;
+    // The board was asking for exactly this mark; the ask goes as it lands.
+    this.setGhostFlag(false);
     this.flagged = true;
     const g = new Graphics();
     const r = HALF_H * 0.62;
@@ -601,6 +649,59 @@ export class Tile {
     this.flagMark?.destroy();
     this.flagMark = null;
     this.flagged = false;
+  }
+
+  /**
+   * THE GHOST X — the tutorial showing the player the answer it wants.
+   *
+   * Literally `setFlag`'s drawing at a third of its opacity, breathing. Not a
+   * highlight, not an arrow: the mark the board is ASKING FOR, drawn where it
+   * belongs, so "mark that tile" needs no sentence at all. Paul, 2026-09-20:
+   * "ne fait pas mark a bomb blink c'est pas assez obvious met une bonne croix
+   * dessus."
+   *
+   * The same geometry as the real X on purpose — when the player finally
+   * places it, the ghost is replaced by an identical mark at full strength,
+   * which reads as the board confirming rather than as a second thing
+   * appearing.
+   */
+  setGhostFlag(on: boolean): void {
+    if (!on) {
+      if (this.ghostFlag) {
+        gsap.killTweensOf(this.ghostFlag);
+        this.ghostFlag.destroy();
+        this.ghostFlag = null;
+      }
+      return;
+    }
+    if (this.ghostFlag || this.flagged || this.revealed) return;
+
+    const g = new Graphics();
+    const r = HALF_H * 0.62;
+    for (const [w, c] of [[7, 0x3a0d0d], [4, RISK_COLOR]] as const) {
+      g.moveTo(-r, -r).lineTo(r, r).moveTo(r, -r).lineTo(-r, r)
+        .stroke({ width: w, color: c, cap: 'round' });
+    }
+    g.scale.set(1.5, 0.75);
+    g.alpha = GHOST_FLAG_ALPHA;
+    if (this.hintLayer) {
+      g.position.set(this.container.x, this.container.y);
+      // Just under the real X's 39, so a ghost can never hide a placed mark.
+      g.zIndex = 38;
+      this.hintLayer.addChild(g);
+    } else {
+      this.container.addChild(g);
+    }
+    this.ghostFlag = g;
+    // Breathing rather than blinking: this is an invitation, and a hard blink
+    // on a pixel board reads as an error state.
+    gsap.to(g, {
+      alpha: GHOST_FLAG_ALPHA_PEAK,
+      duration: 0.65,
+      ease: 'sine.inOut',
+      yoyo: true,
+      repeat: -1,
+    });
   }
 
   /** Whether a chest is standing on this tile — a chest is never a bomb. */
@@ -693,7 +794,7 @@ export class Tile {
     // blue "1" on grass measured 1.2–1.6:1 behind a 30% shadow. The ring gives
     // every tint an edge on every ground (see outlinedPixelText).
     const label = outlinedPixelText(0, 0, String(count));
-    label.face.tint = HINT_TINTS[Math.min(count, HINT_TINTS.length - 1)];
+    label.face.tint = deepenForMultiply(HINT_TINTS[Math.min(count, HINT_TINTS.length - 1)]);
     label.group.zIndex = 40;
 
     /**

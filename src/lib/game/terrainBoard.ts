@@ -23,7 +23,42 @@ import { IslandBoard } from '@/game/island/board';
 import { generateTerrain, type Terrain } from '@/game/island/terrain';
 import { surfaceLift } from '@/game/island/relief';
 import { FIRST_RUN } from '@config/tuning';
-import { isFirstIsland } from './first-island';
+import { groundSeed, isFirstIsland } from './first-island';
+import { TUTORIAL_LAND, TUTORIAL_SPAWN } from './tutorial-map';
+
+/**
+ * Cut the hand-drawn corridor out of a generated island.
+ *
+ * Sea everywhere the map does not mark land, every surviving cell flattened to
+ * tier 1, and any scenery left standing in the water removed. Flat on purpose:
+ * a cliff across a one-cell corridor is a wall, and the first island has
+ * nothing to say about climbing.
+ */
+function carveTutorial(terrain: Terrain): void {
+  const keep = new Set(TUTORIAL_LAND);
+  const { map } = terrain;
+  const level = map.level as unknown as Int8Array;
+  for (let row = 0; row < map.height; row++) {
+    for (let col = 0; col < map.width; col++) {
+      const i = row * map.width + col;
+      level[i] = keep.has(toIndex(col, row)) ? 1 : 0;
+    }
+  }
+  /**
+   * NOTHING STANDS ON THE CORRIDOR — not one tree.
+   *
+   * `farmableTiles` drops any cell with a tree or a rock on it, and on a
+   * one-cell-wide corridor that does not thin the scenery, it CUTS THE ISLAND
+   * IN HALF: measured, a single pine on cell 624 left the chest and its whole
+   * clearing unreachable, 11 tiles the player could see and never walk to.
+   *
+   * On a generated island scenery is texture because there is always a way
+   * round it. Here there is no way round anything, so the corridor is cleared
+   * outright and the decoration lives in the sea and on the wider clearing at
+   * the end — which is also where it can be seen without being in the way.
+   */
+  terrain.placements = [];
+}
 
 /**
  * How the playable island is shaped.
@@ -67,16 +102,43 @@ export function terrainFor(seed: string): Terrain {
 }
 
 function cached(seed: string) {
-  let entry = cache.get(seed);
+  /**
+   * EVERY first island is cut from the SAME ground (`groundSeed`).
+   *
+   * The seed still names the player, because each newcomer digs their own
+   * instance — but the coastline, the spawn and the cliffs all come from one
+   * constant, so the tutorial is the same lesson for everybody. This is the
+   * single chokepoint every terrain reader goes through, client and server
+   * alike, which is why the substitution belongs here rather than at each
+   * call site: one of them left out would be two sides disagreeing about
+   * where the land is.
+   */
+  const key = groundSeed(seed);
+  let entry = cache.get(key);
   if (!entry) {
     // The first island is cut SMALL — a board to clear in one sitting, so
     // the eruption can teach that the island is the clock. Read off the seed
     // rather than passed in, because the client rebuilds this from the seed
     // alone and has to cut the same coastline (see first-island.ts).
-    const land = isFirstIsland(seed) ? FIRST_RUN.LAND : TERRAIN_OPTIONS.land;
-    const terrain = generateTerrain({ seed, ...TERRAIN_OPTIONS, land });
+    const land = isFirstIsland(key) ? FIRST_RUN.LAND : TERRAIN_OPTIONS.land;
+    const terrain = generateTerrain({ seed: key, ...TERRAIN_OPTIONS, land });
+    /**
+     * THE TUTORIAL IS A CORRIDOR, cut by hand over the generated ground.
+     *
+     * Everything outside `TUTORIAL_LAND` is pushed back to sea, which is what
+     * gives the first island its one-way-to-go shape: the sea does the
+     * guidance, so there is no wrong turn to take because there is no turn.
+     * See `tutorial-map.ts` for the picture.
+     *
+     * Carved here rather than in the generator because the generator's job is
+     * noise, and this island is the one place the game wants a drawing. The
+     * scenery is scattered first and then filtered, so what is left still
+     * stands where the terrain put it — a tree that fell in the sea simply
+     * goes away.
+     */
+    if (isFirstIsland(key)) carveTutorial(terrain);
     entry = { terrain, board: new IslandBoard(terrain.map, terrain.placements) };
-    cache.set(seed, entry);
+    cache.set(key, entry);
   }
   return entry;
 }
@@ -211,6 +273,10 @@ export function farmableTiles(seed: string): number[] {
  * the same one because both build the same board.
  */
 export function spawnTile(seed: string): number {
+  // The tutorial's spawn is drawn on its map, not searched for: the corridor
+  // has a mouth, and "nearest the grid centre" lands somewhere in the middle
+  // of it instead. See `tutorial-map.ts`.
+  if (isFirstIsland(seed)) return TUTORIAL_SPAWN;
   const board = boardFor(seed);
   const mid = { col: (COLS - 1) / 2, row: (ROWS - 1) / 2 };
   let best = -1;

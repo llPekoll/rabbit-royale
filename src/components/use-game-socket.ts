@@ -92,6 +92,15 @@ export interface IslandSnapshot {
    */
   first?: boolean;
   /**
+   * The tutorial's taught bomb, while the lesson still stands.
+   *
+   * The cell the board makes beat and the run is held at, until it wears its
+   * X (`IslandScene.teachBomb`, `teachingHold`). Absent on every other island
+   * and gone the moment the bomb is marked, so its presence IS the lesson
+   * being open.
+   */
+  taughtBomb?: number;
+  /**
    * What this crossing took out of the burrow's bar, and what is left there.
    *
    * Present only when a run was just PAID for — absent on a reconnect, which
@@ -381,6 +390,14 @@ export function useGameSocket(
   const [seatHeld, setSeatHeld] = useState<{ seed: string; at: number } | null>(null);
   /** Whether the island on screen is the player's first — see `IslandSnapshot.first`. */
   const [firstRun, setFirstRun] = useState(false);
+  /**
+   * The tutorial's taught bomb while its lesson is open, else null.
+   *
+   * Held in React as well as pushed to the scene because the CHROME needs it
+   * too: the MARK A BOMB button beats with the tile, and that is a CSS class
+   * on a DOM node (see `page.tsx` and `.rr-mark-btn.teach`).
+   */
+  const [taughtBomb, setTaughtBomb] = useState<number | null>(null);
   /** This rabbit's own digs on this island — see `MyDigs`. */
   const [digs, setDigs] = useState<MyDigs>(NO_DIGS);
   /** What the current run cost the burrow, or null when nothing was charged. */
@@ -529,6 +546,11 @@ export function useGameSocket(
       setChestsTotal(snap.chestsTotal ?? 0);
       setRecap(null);
       setFirstRun(snap.first === true);
+      // The tutorial's beating cell. `undefined` on every other island, and on
+      // this one the moment the bomb is marked — so the scene is simply told
+      // the truth on every snapshot and `teachBomb` takes it down itself.
+      setTaughtBomb(snap.taughtBomb ?? null);
+      toScene((s) => s.teachBomb(snap.taughtBomb ?? null));
       setDigs(NO_DIGS);
       setBank(snap.bank ?? null);
       setErupting(null);
@@ -569,6 +591,14 @@ export function useGameSocket(
     /** Somebody's red X was RIGHT: the bomb is marked for the whole island. */
     socket.on('bomb_flagged', (p: { tile: number }) => {
       toScene((s) => s.flagBomb(p.tile));
+      // THE LESSON ENDS HERE. The taught bomb wearing its X is exactly what
+      // `teachingHold` watches for, so the beat stops and the run is free —
+      // without waiting for the next snapshot, which may be a whole move away.
+      setTaughtBomb((cur) => {
+        if (cur !== p.tile) return cur;
+        toScene((s) => s.teachBomb(null));
+        return null;
+      });
     });
 
     /**
@@ -1017,7 +1047,7 @@ export function useGameSocket(
   return {
     islandSeed, islandKey, rabbits, me, warnStage, dugFraction, chestsTaken, chestsTotal, recap, banked, bankedCarrots, connected, dropped, refused,
     seatHeld,
-    firstRun, digs, bank, erupting,
+    firstRun, taughtBomb, digs, bank, erupting,
     chestPrize, clearChestPrize: () => setChestPrize(null),
     casts, strikeRefused, struckBy, plants, plantRefused, bombedBy, incomingRaid, struckRaid,
     // Let the burrow page forget a raid it has finished showing.
