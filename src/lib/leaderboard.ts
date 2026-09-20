@@ -17,6 +17,13 @@
  * anyone's progress.
  */
 import { createClient, type RedisClientType } from 'redis';
+/* Postgres, for the ranking fallback. Redis orders the board; the record
+   answers when the cache cannot — see `rankOf`. */
+import { count, eq, gt } from 'drizzle-orm';
+/* RELATIVE, not the `@/` alias: this module is imported by the WS server too
+   (`server/index.ts`), which builds outside Next's path mapping. */
+import { db } from './db';
+import { players } from './db/schema';
 
 /**
  * The slice of the Redis client this module's ranking reads through.
@@ -77,12 +84,54 @@ export async function topPlayers(season: number, n: number) {
   return rows.map((row, i) => ({ rank: i + 1, playerId: row.value, score: row.score }));
 }
 
-/** 1-based rank, or null when the player has no score this season. */
+/**
+ * 1-based rank, or null when the player has no standing to report.
+ *
+ * REDIS ORDERS, POSTGRES DECIDES WHO EXISTS — the same split the board's own
+ * roster already makes (see the long note in api/leaderboard/route.ts). This
+ * function used to be Redis-only and returned null for everyone it could not
+ * find, which covered two very different cases with one blank:
+ *
+ *  - REDIS IS ABSENT. No `REDIS_URL` at all (every local dev run) or the cache
+ *    is down. Nobody has a rank, on a board that is otherwise fully populated
+ *    from Postgres. The pill simply lost its chip and its climb line.
+ *  - THE PLAYER HAS NOT BEEN MIRRORED. You only enter the sorted set when the
+ *    WS server pushes your score on join, so a player who has scored but not
+ *    started a run since — and every player sitting at zero — was unranked
+ *    next to a board that could see them.
+ *
+ * Postgres answers both: a rank is "how many players are strictly ahead of
+ * me, plus one", which is one indexed count. Redis is still asked first
+ * because it answers in O(log n) and is right whenever it knows the player.
+ *
+ * `null` now means what it says — there is no season, or no such player.
+ */
 export async function rankOf(season: number, playerId: string): Promise<number | null> {
   const r = await redis();
-  if (!r) return null;
-  const rank = await r.zRevRank(SEASON_KEY(season), playerId);
-  return rank === null ? null : rank + 1;
+  if (r) {
+    const rank = await r.zRevRank(SEASON_KEY(season), playerId);
+    if (rank !== null) return rank + 1;
+  }
+  return rankFromDb(playerId);
+}
+
+/**
+ * The rank straight from the record: one COUNT of the players ahead.
+ *
+ * Ties share the better rank — two players on 100 are both #1 and the next is
+ * #3 — which is what `zRevRank` does for the first of a tied pair and what a
+ * scoreboard is expected to do. A zero score still ranks: last place is a
+ * standing, and "#27" with a climb to chase is the whole reason the pill
+ * carries a rank at all.
+ */
+async function rankFromDb(playerId: string): Promise<number | null> {
+  const me = await db.query.players.findFirst({ where: eq(players.id, playerId) });
+  if (!me) return null;
+  const [{ ahead }] = await db
+    .select({ ahead: count() })
+    .from(players)
+    .where(gt(players.seasonScore, me.seasonScore));
+  return Number(ahead) + 1;
 }
 
 /**
@@ -112,13 +161,23 @@ export async function gapToNextRank(
    * cases (the leader, an unranked player, a tie) are what need checking, and
    * spinning up Redis to check them would test the wrong thing.
    */
-  client: Pick<RedisLike, 'zRevRank' | 'zScore' | 'zRangeWithScores'> | null = null,
+  client?: Pick<RedisLike, 'zRevRank' | 'zScore' | 'zRangeWithScores'> | null,
 ): Promise<{ rank: number; gap: number } | null> {
+  /* A CALLER THAT NAMED ITS CLIENT IS NEVER SECOND-GUESSED — including one
+     that named `null` to mean "no Redis". That is the unit tests' setup, and
+     reaching for Postgres there would drag a database into an exercise of
+     this function's arithmetic. Only an OMITTED argument (the app) falls
+     back to the record, which is where `undefined` differs from `null`. */
+  const told = client !== undefined;
   const r = client ?? await redis();
-  if (!r) return null;
+  if (!r) return told ? null : gapFromDb(playerId);
 
   const rank0 = await r.zRevRank(SEASON_KEY(season), playerId);
-  if (rank0 === null || rank0 === 0) return null; // unranked, or already #1
+  /* Not in the set: scored but never mirrored, or sitting at zero. The board
+     can still see them (Postgres has the row), so the climb comes from there
+     rather than being reported as "nothing to chase". */
+  if (rank0 === null) return told ? null : gapFromDb(playerId);
+  if (rank0 === 0) return null; // already #1
 
   const mine = await r.zScore(SEASON_KEY(season), playerId);
   if (mine === null) return null;
@@ -134,6 +193,32 @@ export async function gapToNextRank(
     // rather than as a negative target.
     gap: Math.max(0, Math.ceil(above.score - mine)),
   };
+}
+
+/**
+ * The climb, straight from the record: the smallest score STRICTLY ABOVE
+ * mine, less mine.
+ *
+ * Not "the player at rank - 1": with ties that row can hold my own score, and
+ * a gap of 0 would read as "you are there" to someone who has not passed
+ * anyone. Asking for the next score up instead skips the whole tied block,
+ * which is exactly who I have to overtake.
+ *
+ * Null when nothing is above — the leader, or a tie for the lead.
+ */
+async function gapFromDb(playerId: string): Promise<{ rank: number; gap: number } | null> {
+  const me = await db.query.players.findFirst({ where: eq(players.id, playerId) });
+  if (!me) return null;
+  const [above] = await db
+    .select({ score: players.seasonScore })
+    .from(players)
+    .where(gt(players.seasonScore, me.seasonScore))
+    .orderBy(players.seasonScore)
+    .limit(1);
+  if (!above) return null;
+  const rank = await rankFromDb(playerId);
+  if (rank === null) return null;
+  return { rank, gap: Math.max(0, Math.ceil(above.score - me.seasonScore)) };
 }
 
 /** The crowned player — the #1 of the current season. */

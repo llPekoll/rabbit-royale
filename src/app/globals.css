@@ -53,9 +53,30 @@
      `hub-icon-button.tsx`'s own clamp. */
   --rr-icon: clamp(34px, 11svh, 68px);
   /* THE CARROT PILL'S WIDTH, for the same reason: the wallet chip beside it
-     grows up to the pill's left edge, so it reserves this. carrot-pill.tsx
-     sets its plate to it. */
-  --rr-pill-w: 200px;
+     grows up to the pill's left edge, so it reserves this, and the island's
+     HUD strip hangs off it.
+
+     IT IS THE BOARD'S WHOLE WIDTH, leaves included. The pill wears the wood
+     plank now (plank.tsx), whose leafy caps are 60px of drawn art each and
+     sit OUTSIDE the row's own box — so the number's row gets
+     `--rr-pill-row` and the board comes out this, which is what the
+     neighbours must keep clear of. Reserving the row alone would let the
+     wallet chip slide under the left leaves.
+
+     Held at the 200px the pixel-framed pill used to be, so the board takes
+     the space the pill always had and nothing beside it moved. */
+  /* The two leafy caps, 60px of drawn art each. `PLANK_CAP` in plank.tsx is
+     the same number from the same measurement; it is stated here too because
+     a custom property cannot be imported, and the story's `TooNarrow` is the
+     check that catches them drifting apart. */
+  --rr-plank-caps: 120px;
+  /* THE ROW'S OWN WIDTH: the rotated carrot (34) + the gap (10) + the stack
+     the figure and the rank chip share (132, `STACK_W` in carrot-pill.tsx).
+     Not a leftover — sized at 80 once, which is what remained of the old
+     200px plate after the caps, the row overflowed and the board showed
+     "126" with the rank chip clipped off for a stock of 1263. */
+  --rr-pill-row: 176px;
+  --rr-pill-w: calc(var(--rr-pill-row) + var(--rr-plank-caps));
   /* THE WAY BACK'S HEIGHT, stated once because two rules measure against it:
      the button's own `min-height` (back-button.tsx) and the placement kit row
      that now stacks directly on top of it. The button is content-sized, and
@@ -528,9 +549,10 @@ button { min-height: 44px; min-width: 44px; }
 }
 
 /* ON A SHORT SCREEN THE STRIP SITS BESIDE THE PILL, not under it.
-   Stacked, the pill (54px) and the strip (52px) took the top 120px of a
-   400px phone — 30% of the height, dead centre, over the tiles the rabbit is
-   about to step onto. The top band already holds the wallet chip, the pill
+   Stacked, the pill (54px then, 90 now it wears the board) and the strip
+   (52px) took the top 120px of a 400px phone — 30% of the height, dead
+   centre, over the tiles the rabbit is about to step onto. Side by side the
+   board costs that band nothing: it is the same one row, just taller art. The top band already holds the wallet chip, the pill
    and the sound controls with ~240px of air between the pill and the sound,
    so the strip moves into that air and the chrome is one band, not two.
    Paul, 2026-09-16: "the UI is taking up a lot of space".
@@ -538,19 +560,28 @@ button { min-height: 44px; min-width: 44px; }
    Fixed to the viewport like the pill, at the pill's own top, hung off the
    pill's right edge through `--rr-pill-w` rather than a typed offset. The
    width guard is the strip's own need: 150px plus its gap, right of the
-   pill's edge at 50% + 100px, before the sound controls at
-   `right: --rr-edge` — under ~820px it would run into them, so it stays
-   under the pill there. Captions and toasts keep hanging off
-   `--rr-chrome-top`, which is the pill's bottom either way. */
-@media (max-height: 520px) and (min-width: 820px) {
+   pill's half-width, before the sound controls at `right: --rr-edge`.
+
+   THE GUARD FOLLOWS THE PILL'S WIDTH. It was a flat 820px, computed when the
+   pill was 200px wide; the board is 296 (its leaves are drawn art outside the
+   row), and at 890px — the Seeker, the target device — the strip ran under
+   the sound controls with "of chests" clipped off the right edge. Stated as
+   half the pill plus what the strip and the controls need, so the next panel
+   that changes the pill's width cannot leave this number behind.
+   Captions and toasts keep hanging off `--rr-chrome-top`, which is the
+   pill's bottom either way. */
+@media (max-height: 520px) and (min-width: 1020px) {
   .rr-overlay > .rr-hud {
     position: fixed;
     top: var(--rr-edge);
     left: calc(50% + var(--rr-pill-w) / 2 + var(--rr-pad));
     align-self: auto;
     margin: 0;
-    /* Match the pill's height so the two plates read as one row. */
-    min-height: 54px;
+    /* Match the pill's height so the two plates read as one row. The pill is
+       the wood board now (plank.tsx), which is drawn art at a fixed height —
+       90px, not the 54 the pixel frame came to. A strip left at 54 sat with
+       its top aligned and 36px of daylight under it, which read as two rows. */
+    min-height: 90px;
     align-items: center;
   }
   /* The overlay's stack now starts at the top of the strip's old slot; the
@@ -2756,7 +2787,20 @@ body:has(.rr-lb.open:not(.rr-profile)) .rr-lb-launch {
 .rr-px-btn {
   transition: transform 160ms cubic-bezier(0.34, 1.56, 0.64, 1), filter 90ms ease;
 }
-.rr-px-btn:active:not(:disabled) {
+/* THE SQUASH ONLY HOLDS WHILE THE POINTER IS STILL ON THE BUTTON.
+   
+   `:active` stays true for as long as the button is held, even after the
+   pointer has left it — the button keeps the implicit pointer capture. So a
+   press-and-drag-away left the slab frozen wide and short, which on the loop
+   bar's flex row read as the button stretching sideways (Paul, 2026-09-19:
+   "si tu click hold et stop hover alors le bouton se stretch en x").
+   
+   Pairing `:active` with `:hover` releases it the moment the pointer leaves,
+   which is also the truth the gesture is telling: slide off a button you are
+   holding and you have cancelled the press. Touch keeps the squash — a
+   finger that is still down reports both — and a keyboard press never had
+   it, because `:active` from the keyboard comes with no pointer at all. */
+.rr-px-btn:active:hover:not(:disabled) {
   transform: scale(1.04, 0.9);
   transition-duration: 60ms;
 }

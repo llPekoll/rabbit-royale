@@ -260,6 +260,436 @@ body:has(.rr-loop-bar) .rr-pill-plate { animation-delay: 45ms; }
   body:has(.rr-loop-bar) .rr-pill-plate { animation: none; }
 }
 
+
+/* ── DEFEND AND RAID WEAR PAINTED BOARDS ───────────────────────────────────
+   Paul, 2026-09-19: the shield-and-parchment board is DEFEND's (he first
+   pointed it at RAID and corrected it — the art argues for DEFEND, since the
+   shield is literally what the slab is about), and the skull board is RAID's.
+
+   THE TWO ARE ONE CONSTRUCTION, two images. Both are 104px-tall art with a
+   badge sunk into the left end — a shield at 0.82 of the art's height, a
+   skull at 0.817 — so the geometry below is shared and only the picture, the
+   slice and the ink differ. DIG keeps the kit's flat face: it is the loudest
+   verb and the one the screen exists for, and a third frame competing with
+   these two would flatten all three.
+
+   THE BUTTON IS KEPT, ONLY ITS SKIN IS REPLACED. `PxButton` owns the press
+   squash, the wiggle, the quest badge and the whole keyboard and screen
+   reader surface; rebuilding that around an <img> would mean rebuilding all
+   of it. So the kit's painted layers are hidden and the scroll is drawn in
+   their place, exactly as the carrot pill wears the plank — the art changes,
+   the control does not.
+
+   THE KIT PAINTS INTO ANONYMOUS SPANS. `NineSliceButton` renders its shadow,
+   its frame and its face as direct <span> children with NO class of their own
+   (verified in the DOM: the third holds the kit's own border-image, the
+   fourth the green face). There is nothing to name, so they are addressed
+   positionally — every direct span child that is not the content box. A first
+   attempt targeted `.nine-btn__face` and friends, which do not exist: the
+   green face stayed, the parchment never drew, and the re-inked type turned
+   dark-on-green and unreadable.
+
+   The scroll goes on a ::before rather than on the button's own box, so it
+   sits over the hidden layers and under the content without competing with
+   the kit for the button's `border-image` (which the kit itself may set).
+
+   The slices are the art's own measurements (scroll-plank.tsx): 107px of
+   shield-and-leaves on the left, 47 of leaves on the right, a 14px frame top
+   and bottom, on a 354x104 source. Asymmetric because the shield lives in the
+   left cap; a symmetric cut would halve it.
+
+   The frame's drawn width scales with the slab's height (`--rr-loop-h`, 48px
+   on the Seeker up to 80), so the shield keeps its shape at every size: the
+   fractions are the art's own caps over its 104px height. */
+.rr-loop-slab.rr-loop-home,
+.rr-loop-slab.rr-loop-raid {
+  --rr-scroll-h: var(--rr-loop-h, clamp(48px, 10.4svh, 80px));
+  background: none !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  position: relative;
+}
+/* The kit's own painted layers: every direct span but the content box. */
+.rr-loop-slab.rr-loop-home > span:not(.nine-btn__content),
+.rr-loop-slab.rr-loop-raid > span:not(.nine-btn__content) {
+  display: none !important;
+}
+.rr-loop-slab.rr-loop-home::before,
+.rr-loop-slab.rr-loop-raid::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-image-repeat: stretch;
+  border-style: solid;
+  border-color: transparent;
+  border-width:
+    calc(var(--rr-scroll-h) * 0.135)
+    calc(var(--rr-scroll-h) * 0.452)
+    calc(var(--rr-scroll-h) * 0.135)
+    calc(var(--rr-scroll-h) * 1.029);
+  border-image-width:
+    calc(var(--rr-scroll-h) * 0.135)
+    calc(var(--rr-scroll-h) * 0.452)
+    calc(var(--rr-scroll-h) * 0.135)
+    calc(var(--rr-scroll-h) * 1.029);
+  box-sizing: border-box;
+  pointer-events: none;
+}
+/* The two pictures, and the caps each one's own art asks for. DEFEND's
+   parchment is 354x104 with a 107px shield cap; RAID's skull board is
+   337x104, its skull ending at x=85, so 100 puts the cut in clean wood. */
+.rr-loop-slab.rr-loop-home::before {
+  border-image-source: url('/assets/ui/scroll-plank.webp');
+  border-image-slice: 14 47 14 107 fill;
+}
+.rr-loop-slab.rr-loop-raid::before {
+  border-image-source: url('/assets/ui/skull-plank.webp');
+  border-image-slice: 14 40 14 100 fill;
+}
+/* THE CONTENT SITS ON THE PARCHMENT, INSIDE ITS FRAME.
+   
+   `.rr-ptf-fill` above pins this box with `position: absolute` and its own
+   four offsets, so PADDING on it does nothing useful — the first cut set a
+   left pad and the text still ran out through the frame at both ends. The
+   offsets are what has to move, and they move to the parchment's own inner
+   edge.
+   
+   THE LEFT OFFSET CLEARS THE SHIELD, and the number is MEASURED, not guessed:
+   the shield's own red runs from x=46 to x=85 on the 354x104 art, so it ends
+   at 0.82 of the art's height. Plus a little air, that is the 0.9 below.
+   
+   Two earlier numbers were both wrong for the same reason — guessing from
+   the CAP rather than from the shield. The cap (107px, 1.029 of the height)
+   is measured to the end of the LEAVES, which reach well past the crest: it
+   threw 82px of a 321px slab away and cost the state line its first fact.
+   Halving it to 0.66 then put the verb UNDER the shield on the Seeker.
+   
+   The skull sits at 0.817 of its own art's height — near enough the shield's
+   0.82 that the two share one left offset. The RIGHT ends differ though, and
+   that one is per-board below: the parchment's leaves are a 47px cap, the
+   skull board's only 40, and sharing the wider number ran RAID's line into
+   its frame ("…left 624 outsi"). */
+.rr-loop-slab.rr-loop-home > .nine-btn__content,
+.rr-loop-slab.rr-loop-raid > .nine-btn__content {
+  z-index: 1;
+  top: calc(var(--rr-scroll-h) * 0.15) !important;
+  bottom: calc(var(--rr-scroll-h) * 0.15) !important;
+  left: calc(var(--rr-scroll-h) * 0.9) !important;
+  justify-content: center;
+}
+/* Each board's own right end: its cap, plus the same air the left gets. */
+.rr-loop-slab.rr-loop-home > .nine-btn__content {
+  right: calc(var(--rr-scroll-h) * 0.50) !important;
+}
+.rr-loop-slab.rr-loop-raid > .nine-btn__content {
+  right: calc(var(--rr-scroll-h) * 0.44) !important;
+}
+/* INK FOR PARCHMENT. `!important` because both are set INLINE by the
+   component (the verb carries a drop shadow meant for a dark face; the state
+   line's colour is a live value that turns to the alarm). The sheet has to
+   win on the paint and leave the rest alone. */
+.rr-loop-slab.rr-loop-home .rr-loop-verb {
+  color: #4a3524 !important;
+  text-shadow: none !important;
+}
+.rr-loop-slab.rr-loop-home .rr-loop-line { color: #6d5238 !important; }
+/* THE PARCHMENT IS A TIGHTER BOX THAN A FLAT SLAB. Its frame is drawn art at
+   both ends AND top and bottom, so a 48px Seeker slab offers ~34px of paper
+   where the green face offered the whole 48. The verb steps down a size
+   there so the two lines sit IN the parchment rather than against its frame;
+   above the fold-point the slab is tall enough to leave it alone. */
+@media (max-height: 520px) {
+  .rr-loop-slab.rr-loop-home .rr-loop-verb,
+  .rr-loop-slab.rr-loop-raid .rr-loop-verb { font-size: 12px !important; }
+  .rr-loop-slab.rr-loop-home .rr-loop-line,
+  .rr-loop-slab.rr-loop-raid .rr-loop-line { font-size: 9px !important; }
+}
+/* …except the alarm, which must stay loud: something is out there to lose.
+   Darkened for parchment rather than dropped. */
+.rr-loop-slab.rr-loop-home .rr-loop-line.rr-loop-danger { color: #a8301f !important; }
+
+
+/* ── DIG WEARS THE DIAL BOARD ──────────────────────────────────────────────
+   Paul, 2026-09-19: "il faut virer ce truc orange pour le remplacer
+   totalement". The orange face goes; the slab IS the art now, the same way
+   DEFEND wears the parchment and RAID the skull.
+
+   BOTH LAYERS ARE THE SAME 3-SLICE, IN THE SAME BOX. The board and the live
+   coloured ring are two images of identical size (268x102) that were drawn
+   registered to each other, so the only way they stay registered is to be
+   placed by the SAME mechanism — same slice, same caps, same box.
+
+   That is Paul's call (2026-09-19: "c'est la même taille pourquoi tu met pas
+   ca dans le même container? ça va être la merde sinon après avec le
+   responsive"), and he is right for a reason the earlier attempts proved the
+   hard way. Placing the board with a 3-slice and the ring with an absolute
+   offset means fighting the cap's PIXEL ROUNDING: the left cap is 1.125 of
+   the slab's height at both 80px and 48, but the top cap rounds to 0.300 at
+   80 and 0.2917 at 48. Every fraction tuned on desktop came out several
+   pixels off on the Seeker — measured at 9px across and 11 down — and no
+   fixed number fixes both, because the error is a rounding, not an offset.
+
+   As one slice on one box there is nothing to cancel: whatever the cap
+   rounds to, it rounds to the same thing for both images.
+
+   The slices are the art's own: the dial and its rim are a 116px left cap,
+   the rounded end a 36px right one, a 30/15 frame top and bottom. Only the
+   plank between them stretches, so the dial stays a circle at every width. */
+/* The geometry lives on the CELL, because the board (the slab's ::before)
+   and the live ring (the slab's sibling) both read it. Stated once so the
+   two layers cannot disagree. */
+/* The dial's geometry, published on :root so both the cell that draws it and
+   the bar that has to clear it can read the same numbers. */
+:root {
+  --rr-dial-h: var(--rr-loop-h, clamp(48px, 10.4svh, 80px));
+  --rr-dial-art: calc(var(--rr-dial-h) * 1.789);
+  --rr-dial-over-bottom: calc(var(--rr-dial-art) * 0.1471);
+}
+.rr-loop-cell:has(> .rr-loop-dial) {
+  /* THE SLAB IS THE PLANK; THE ART IS BIGGER THAN IT.
+     
+     In Paul's design the dial is a big medallion that overflows the plank
+     above and below — and the art already draws it that way: the plank
+     occupies rows 30..87 of the 102-tall image, i.e. 56% of it. So the art
+     is drawn at 1/0.559 = 1.789 times the slab's height and allowed to
+     overflow, which lands the PLANK on the slab and leaves the dial standing
+     proud of it, exactly as the mock does.
+     
+     Drawing the art at the slab's own height instead (the first cut) squashed
+     the whole medallion into the plank's band and lost the overflow that
+     makes it read as a dial bolted ON the board. */
+  --rr-dial-h: var(--rr-loop-h, clamp(48px, 10.4svh, 80px));
+  --rr-dial-art: calc(var(--rr-dial-h) * 1.789);
+  --rr-dial-slice: 30 36 15 116;
+  --rr-dial-caps:
+    calc(var(--rr-dial-art) * 0.2941)
+    calc(var(--rr-dial-art) * 0.3529)
+    calc(var(--rr-dial-art) * 0.1471)
+    calc(var(--rr-dial-art) * 1.1373);
+  /* How far the art hangs past the plank, top and bottom. */
+  --rr-dial-over-top: calc(var(--rr-dial-art) * 0.2941);
+  --rr-dial-over-bottom: calc(var(--rr-dial-art) * 0.1471);
+}
+.rr-loop-slab.rr-loop-dig {
+  background: none !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  position: relative;
+}
+.rr-loop-slab.rr-loop-dig > span:not(.nine-btn__content) { display: none !important; }
+/* The board, and the live ring over it — same inset, same slice, same caps. */
+/* NOT `> .rr-loop-dial`: the kit wraps every child of the button in its own
+   `.nine-btn__content` span, so the ring is a GRANDCHILD however it is
+   written in the JSX. Matched by class at any depth, and pulled back onto
+   the button's own box by `inset: 0` below — which works because the button
+   is the nearest positioned ancestor (`position: relative` above) and the
+   content span is made `static`. */
+.rr-loop-slab.rr-loop-dig::before,
+.rr-loop-cell > .rr-loop-dial {
+  content: '';
+  position: absolute;
+  /* OUT PAST THE SLAB, top and bottom, by exactly what the art hangs over.
+     The plank's own rows then land back on the slab's box and the dial
+     stands proud of it. Left and right stay flush: only the dial overflows,
+     the plank does not. */
+  top: calc(-1 * var(--rr-dial-over-top));
+  bottom: calc(-1 * var(--rr-dial-over-bottom));
+  left: 0;
+  right: 0;
+  border-image-slice: var(--rr-dial-slice) fill;
+  border-image-repeat: stretch;
+  border-style: solid;
+  border-color: transparent;
+  border-width: var(--rr-dial-caps);
+  border-image-width: var(--rr-dial-caps);
+  box-sizing: border-box;
+  pointer-events: none;
+}
+.rr-loop-slab.rr-loop-dig::before {
+  border-image-source: url('/assets/gauge/dial-empty.webp');
+}
+/* THE LIVE RING. Same box as the board, so the coloured band lands exactly
+   on the grey groove at any size.
+   
+   THE MASK IS THE ONLY LIVE PART: a conic wedge centred on the dial, keeping
+   the first `--rr-dial-fill` of the turn from 12 o'clock. What is left over
+   lands at the END of the turn — so the gap touches 12 from the LEFT and
+   widens anticlockwise as the tank drains, which is the reading Paul asked
+   for (2026-09-19).
+   
+   THE CENTRE IS IN UNITS OF THE ART, NOT OF THE SLAB. The dial's middle is
+   at x=51 and y=53 of the 102-tall source, so it is `--rr-dial-art` times
+   0.5 and 0.5196 — the same scale the caps are drawn at. Measuring it
+   against `--rr-dial-h` (the plank's height) put the cone's centre at 40px
+   where the medallion's is at 72: the wedge cut through empty board and left
+   the ring looking permanently full, whatever the tank said. Paul caught it
+   as "la jauge est remplie a 100%" at 40/60.
+   
+   The box the mask lands on starts ABOVE the slab — it was pulled out by
+   `--rr-dial-over-top` so the art could overflow — so the vertical centre is
+   measured from that top edge, not from the plank's. */
+.rr-loop-cell > .rr-loop-dial {
+  border-image-source: url('/assets/gauge/dial-full.webp');
+  z-index: 2;
+  --rr-dial-mask: conic-gradient(
+    at calc(var(--rr-dial-art) * 0.5) calc(var(--rr-dial-art) * 0.5196),
+    #000 0turn,
+    #000 var(--rr-dial-fill, 1turn),
+    transparent var(--rr-dial-fill, 1turn),
+    transparent 1turn
+  );
+  -webkit-mask-image: var(--rr-dial-mask);
+  mask-image: var(--rr-dial-mask);
+}
+/* THE BAR RIDES HIGHER NOW THAT THE MEDALLION HANGS BELOW IT.
+   
+   `.rr-loop-bar` sits `--rr-edge` off the bottom, which was the right gap
+   when every slab ended at its own box. The dial now overflows the plank
+   downwards, so that gap is measured from the PLANK and the medallion eats
+   into it — on a windowed browser it ran under the dock (Paul, 2026-09-19).
+   The bar is lifted by exactly what the art hangs over, so the gap under the
+   medallion is the one the floor always had. */
+body:has(.rr-loop-dial) .rr-loop-bar {
+  bottom: calc(var(--rr-edge) + env(safe-area-inset-bottom)
+    + var(--rr-dial-over-bottom, 0px));
+}
+
+/* The medallion stands out of the slab, so nothing may clip it and it has to
+   sit above the cells either side of it. */
+.rr-loop-cell:has(> .rr-loop-dial) {
+  overflow: visible;
+  z-index: 3;
+  /* AND IT IS THE WIDE ONE. The medallion eats a 1.1373-of-art left cap —
+     162px of a 321px slab at desktop — so an equal third left DIG with 109px
+     of plank where DEFEND and RAID have their whole width to write on. The
+     cell is grown by exactly what the dial costs, which is also how Paul's
+     design draws it: DIG is the long board, the other two are shorter. */
+  flex: 1 1 calc(var(--rr-dial-art) * 1.1373);
+}
+/* THE TEXT SITS ON THE PLANK, CLEAR OF THE MEDALLION.
+   
+   The inset is in units of the ART, not of the slab: the dial grew with the
+   art when it was scaled to 1.789, and a left inset still measured against
+   the slab's height left the verb sitting under the medallion (Paul's shot
+   showed "G" where DIG should be).
+   
+   Vertically the box is the slab itself — the content box is a child of the
+   button, which is the plank — so only the small frame inset applies there,
+   not the art's overflow. */
+.rr-loop-slab.rr-loop-dig > .nine-btn__content {
+  z-index: 1;
+  top: 0 !important;
+  bottom: 0 !important;
+  /* Past the medallion: its rim ends at 1.1373 of the art's height. */
+  left: calc(var(--rr-dial-art) * 1.16) !important;
+  right: calc(var(--rr-dial-art) * 0.22) !important;
+  justify-content: center;
+}
+/* The face's own row no longer holds a picture — the board draws it — so it
+   keeps no gap and no side pad. */
+.rr-loop-slab.rr-loop-dig > .nine-btn__content > span {
+  gap: 0 !important;
+  padding: 0 !important;
+}
+/* THE WHOLE BOARD SINKS ON A PRESS, MEDALLION INCLUDED.
+   
+   The kit's own press only moves `.nine-btn__content` (2 source pixels down,
+   nine-slice-button.css). That was the whole button when the face was the
+   kit's own paint — but the board is a `::before` now and the live ring is
+   the button's SIBLING, so neither followed: the text sank and the plank and
+   the dial stayed put, which read as the bottom of the button coming away
+   (Paul, 2026-09-19: "y a que le bas du bouton qui s'en va et pas la jauge
+   d'energie aussi").
+   
+   Both are given the same 2-pixel drop and the same easing, so the slab
+   presses as one object. `:has()` on the cell reaches the sibling ring from
+   the button's own `:active`, which no descendant selector could. */
+/* THE PRESS: the kit sinks its content 2 source pixels; the board and the
+   medallion take the same drop so the slab moves as one.
+   `!important` to match the base rules above, which need it to beat the
+   kit's own inline styles. */
+.rr-loop-slab.rr-loop-dig:active:hover:not(:disabled)::before,
+.rr-loop-cell:has(> .rr-loop-slab.rr-loop-dig:active:hover:not(:disabled)) > .rr-loop-dial {
+  transform: translateY(calc(var(--u, 2px) * 2)) !important;
+}
+/* The carrot sinks with the board it lies on — it is a sibling in the cell,
+   so it does not inherit the button's press and has to be told (Paul,
+   2026-09-19: "qd tu apuie sur le boutton la carrote ne suit pas"). Through
+   the variable, so it keeps its rotation. */
+.rr-loop-cell:has(> .rr-loop-slab.rr-loop-dig:active:hover:not(:disabled)) > .rr-loop-dial-carrot {
+  --rr-dial-press: calc(var(--u, 2px) * 2);
+}
+/* THE HOVER LIFT, for the same reason. `.rr-px-btn:hover` raises the button
+   1px (globals.css); without this the plank rose and the medallion stayed
+   behind, so the board visibly came away from its own dial (Paul,
+   2026-09-19: "la base monte pas la jauge sur un hover"). Under the same
+   `hover: hover` guard, so a touch screen — where hover is a lie — gets
+   neither. */
+@media (hover: hover) {
+  .rr-loop-slab.rr-loop-dig:hover:not(:disabled):not(:active)::before,
+  .rr-loop-cell:has(> .rr-loop-slab.rr-loop-dig:hover:not(:disabled):not(:active)) > .rr-loop-dial {
+    transform: translateY(-1px) !important;
+  }
+  .rr-loop-cell:has(> .rr-loop-slab.rr-loop-dig:hover:not(:disabled):not(:active)) > .rr-loop-dial-carrot {
+    --rr-dial-press: -1px;
+  }
+}
+/* Both layers follow the button's own easing: the press is quick, the
+   release springs back like the kit's. */
+.rr-loop-slab.rr-loop-dig::before,
+.rr-loop-cell > .rr-loop-dial,
+.rr-loop-cell > .rr-loop-dial-carrot {
+  transition: transform 160ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.rr-loop-slab.rr-loop-dig:active::before,
+.rr-loop-cell:has(> .rr-loop-slab.rr-loop-dig:active) > .rr-loop-dial,
+.rr-loop-cell:has(> .rr-loop-slab.rr-loop-dig:active) > .rr-loop-dial-carrot {
+  transition-duration: 60ms;
+}
+
+/* THE CARROT BREATHES, once every 5 seconds.
+
+   THROUGH A VARIABLE, NOT A `transform` KEYFRAME. The carrot already carries
+   its centring, its 45deg and the press drop in one `transform`, and an
+   animation on that property would REPLACE all of it — the carrot would snap
+   upright and jump to the corner for the length of the pulse. `@property`
+   makes `--rr-dial-pulse` a real number the browser can interpolate, so the
+   scale animates inside the transform the element already has.
+
+   Most of the 5s is spent at rest: the swell is ~0.7s of it, so the dial is
+   still most of the time and the movement reads as a heartbeat rather than a
+   throb. */
+@property --rr-dial-pulse {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 1;
+}
+.rr-loop-cell > .rr-loop-dial-carrot {
+  animation: rr-carrot-pulse 5s ease-in-out infinite;
+}
+@keyframes rr-carrot-pulse {
+  0%, 88%, 100% { --rr-dial-pulse: 1; }
+  94%           { --rr-dial-pulse: 1.12; }
+}
+/* A press should feel like a press, not a pause in the idle: the pulse stops
+   while the slab is held. */
+.rr-loop-cell:has(> .rr-loop-slab.rr-loop-dig:active) > .rr-loop-dial-carrot {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rr-loop-cell > .rr-loop-dial-carrot { animation: none; }
+}
+
+/* CREAM INK ON WOOD. The verb was white with a dark drop shadow for the
+   orange face; this board is mid-brown and busy, so the verb takes the same
+   cream every other dark surface gives a live value, and the state line one
+   step quieter. */
+.rr-loop-slab.rr-loop-dig .rr-loop-verb {
+  color: #fde7bd !important;
+  text-shadow: 0 2px 0 #2a180e !important;
+}
+.rr-loop-slab.rr-loop-dig .rr-loop-line { color: #e8c9a0 !important; }
+
 /* ── The stone ring buttons ────────────────────────────────────────────────
    The corner icons wear one of three painted stone frames (hub-icon-button.tsx)
    instead of the kit's bevelled square, so the press has to be restated here:
@@ -340,39 +770,6 @@ body:has(.rr-loop-bar) .rr-pill-plate { animation-delay: 45ms; }
   z-index: 3;
   pointer-events: none;
   image-rendering: pixelated;
-}
-
-/* THE CARROT BREATHES, once every 5 seconds.
-
-   THROUGH A VARIABLE, NOT A `transform` KEYFRAME. The carrot already carries
-   its centring, its 45deg and the press drop in one `transform`, and an
-   animation on that property would REPLACE all of it — the carrot would snap
-   upright and jump to the corner for the length of the pulse. `@property`
-   makes `--rr-dial-pulse` a real number the browser can interpolate, so the
-   scale animates inside the transform the element already has.
-
-   Most of the 5s is spent at rest: the swell is ~0.7s of it, so the dial is
-   still most of the time and the movement reads as a heartbeat rather than a
-   throb. */
-@property --rr-dial-pulse {
-  syntax: '<number>';
-  inherits: false;
-  initial-value: 1;
-}
-.rr-loop-cell > .rr-loop-dial-carrot {
-  animation: rr-carrot-pulse 5s ease-in-out infinite;
-}
-@keyframes rr-carrot-pulse {
-  0%, 88%, 100% { --rr-dial-pulse: 1; }
-  94%           { --rr-dial-pulse: 1.12; }
-}
-/* A press should feel like a press, not a pause in the idle: the pulse stops
-   while the slab is held. */
-.rr-loop-cell:has(> .rr-loop-slab.rr-loop-dig:active) > .rr-loop-dial-carrot {
-  animation-play-state: paused;
-}
-@media (prefers-reduced-motion: reduce) {
-  .rr-loop-cell > .rr-loop-dial-carrot { animation: none; }
 }
 
 /* A COOL SHADOW A FEW PIXELS UNDER THE MEDALLION.

@@ -172,13 +172,14 @@ export function LoopBar({
     const ready = loop === 'dig' ? readyKey.dig : loop === 'home' ? readyKey.home : 0;
     return quest || ready ? `${quest}.${ready}` : 0;
   };
-  // 40 at the phone floor, up from 30 (Paul, 2026-09-16: "make the carrot on
-  // DIG big button bigger", "put more padding around this carrot"). These are
-  // the intrinsic size for layout before paint; on screen the carrot GROWS
-  // with the slab (`carrotBox` below), so on a desktop slab of 80px it is not
-  // a phone carrot marooned in orange.
-  const carrotH = 40;
-  const carrotW = Math.round((CARROT_SIZE.width / CARROT_SIZE.height) * carrotH);
+  /* HOW FULL THE TANK IS, as a fraction of a turn — the one number the
+     board's art cannot hold. The ring itself is drawn and placed entirely in
+     CSS (`.rr-loop-dial`, px-top-floor.css); this only says how much of it
+     to keep. Clamped because energy is live: a bomb can take more than is
+     left, and a negative fraction would sweep the wedge backwards. */
+  const dialFill = dig.maxEnergy > 0
+    ? Math.max(0, Math.min(1, dig.energy / dig.maxEnergy))
+    : 0;
 
   // Each line is PARTS, joined on screen with a middot entity (the bitmap
   // face has no middot glyph, so the character never appears in source) and
@@ -243,16 +244,6 @@ export function LoopBar({
           style={slab}
         >
           <span style={face}>
-            <img
-              className="rr-carrot-px"
-              src={CARROT_URL}
-              alt=""
-              aria-hidden
-              draggable={false}
-              width={carrotW}
-              height={carrotH}
-              style={carrotBox}
-            />
             <span style={textCol}>
               {/* The verb keeps its white and gets the slab's own shadow under
                   it; the state line goes to DARK ink. Cream on this orange
@@ -359,13 +350,20 @@ export function LoopBar({
                   and RAID. "HOME" named the place you were already standing in;
                   what the slab does is open the floor to bury traps. The class
                   and the `home` key keep their name — only the word changed. */}
-              <span style={{ ...verb, textShadow: `0 2px 0 ${DEF_SHADOW}` }}>{t.loop.defend}</span>
+              {/* The class is how the parchment skin re-inks it: on paper the
+                  cream face and its dark drop shadow are both unreadable
+                  (px-top-floor.css). */}
+              <span className="rr-loop-verb" style={{ ...verb, textShadow: `0 2px 0 ${DEF_SHADOW}` }}>{t.loop.defend}</span>
               {/* The garden with something standing in it is the alarm: what is
                   out there is what a raider can take. */}
-              <StateLine parts={homeParts} color={home.gardenReady > 0 ? DANGER_INK : DEF_INK} />
+              <StateLine
+                parts={homeParts}
+                color={home.gardenReady > 0 ? DANGER_INK : DEF_INK}
+                danger={home.gardenReady > 0}
+              />
             </span>
           </span>
-          {pointed === 'home' && <PxPanel color={BADGE} className="rr-hub-badge" style={badge}>!</PxPanel>}
+          {pointed === 'home' && <LeafBadge height={20} className="rr-hub-badge" style={badgeSeat}>!</LeafBadge>}
         </PxButton>
       </div>
 
@@ -389,7 +387,12 @@ export function LoopBar({
         >
           <span style={face}>
             <span style={textCol}>
-              <span style={{ ...verb, textShadow: `0 2px 0 ${RAID_SHADOW}` }}>{t.loop.raid}</span>
+              {/* The class is how the skull board sizes it on a short screen
+                  (px-top-floor.css). The INK is left alone: that board's wood
+                  is near-black, so the cream face and its dark shadow are
+                  already right — unlike DEFEND, which had to go dark for
+                  parchment. */}
+              <span className="rr-loop-verb" style={{ ...verb, textShadow: `0 2px 0 ${RAID_SHADOW}` }}>{t.loop.raid}</span>
               {/* GOLD for the burrow worth walking to. The salmon this line used
                   to take is a shade of the face now, and read as nothing. */}
               <StateLine parts={raidParts} color={raid.best ? LAMP : RAID_INK} />
@@ -465,7 +468,15 @@ function StateLine({ parts, color, danger = false }: { parts: string[]; color: s
   }, [joined]);
 
   return (
-    <span ref={box} className="rr-loop-line" style={{ ...line, color }}>
+    <span
+      ref={box}
+      /* `danger` is carried as a CLASS as well as a colour: on the parchment
+         skin the sheet has to re-ink this line (light paper, dark type) while
+         still letting the alarm read as an alarm. A colour alone cannot be
+         overridden selectively. */
+      className={`rr-loop-line${danger ? ' rr-loop-danger' : ''}`}
+      style={{ ...line, color }}
+    >
       <span
         ref={text}
         className={over > 0 ? 'rr-loop-line-run' : undefined}
@@ -528,22 +539,6 @@ const slab: CSSProperties = {
  * tracked; the state lines are the web pixel face in their own case, so this
  * resets all three.
  */
-/**
- * The DIG carrot's box: the slab's height less 24px of air, held between the
- * phone size and a cap, so it reads as THE picture on the floor at every slab
- * height rather than as a 40px icon on an 80px button. Rotated 45° its tips
- * reach past the box, so it carries its own side margin on top of the face's
- * pad and the gap to the verb — without it they sat on the bevel and against
- * the text.
- */
-const carrotBox: CSSProperties = {
-  display: 'block',
-  flexShrink: 0,
-  height: 'clamp(40px, calc(var(--rr-loop-h, 48px) - 24px), 52px)',
-  width: 'auto',
-  transform: 'rotate(45deg)',
-  margin: '0 calc(var(--rr-pad) / 2)',
-};
 const face: CSSProperties = {
   display: 'flex',
   alignItems: 'center',

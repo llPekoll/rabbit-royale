@@ -40,6 +40,7 @@ import { CARROT_URL, CARROT_SIZE } from '@domin8/arcade-kit/game';
 import { CarrotBurst } from '@/components/carrot-burst';
 import { groupDigits, shortGap } from '@/i18n/format';
 import { PxPanel } from './px';
+import { Plank } from './plank';
 import { CarrotMark } from './carrot-mark';
 
 export interface CarrotPillProps {
@@ -162,11 +163,19 @@ export function CarrotPill({
         onKeyDown: onKey,
       } : {})}
     >
-      {/* THE PLATE: the codex's pixel frame in the pill's own soil. Inside the
-          fixed box rather than being it, so the plate can drop in on arrival
-          (`.rr-pill-plate`, px-top-floor.css) without touching the transform
-          that centres the pill. */}
-      <PxPanel color={FACE_TOP} className="rr-pill-plate" style={plate}>
+      {/* THE PLATE: the wood board (plank.tsx). It replaced the codex's pixel
+          frame in soil — Paul, 2026-09-19: the slab was "tout moche", and the
+          chrome moves onto painted wood one panel at a time, starting here.
+
+          It keeps the CLASS the frame had. Every rule the pill's plate already
+          owns — the arrival drop, the hover brighten, the press sinking it a
+          pixel (px-top-floor.css) — binds to `.rr-pill-plate` and is about
+          the plate's BEHAVIOUR, not its material, so all of it still applies
+          to the board without being restated.
+
+          Inside the fixed box rather than being it, so the plate can drop in
+          on arrival without touching the transform that centres the pill. */}
+      <Plank className="rr-pill-plate" style={plate}>
       {denyKey > 0 && <span key={`deny-${denyKey}`} className="rr-pill-deny" aria-hidden />}
       {carrying ? (
         <span
@@ -241,7 +250,7 @@ export function CarrotPill({
           </span>
         )}
       </span>
-      </PxPanel>
+      </Plank>
     </div>
   );
 }
@@ -257,23 +266,40 @@ const pill: CSSProperties = {
 };
 
 /**
- * The pill's face. The frame (`PxPanel`) replaced a 2px bone rim, a 14px
- * radius and a soil gradient; the fill is the gradient's top tone, the one
- * the pill read as. The padding gives back the pixel or so the frame is wider
- * than the old rim (two source pixels, 4-6px), so the pill keeps its height.
+ * The pill's face — the wood board.
+ *
+ * NO PADDING, AND NO HEIGHT. Both belong to the board now: it is drawn art,
+ * not a box with a rim, so its height is the height it was painted and the
+ * bark along the top and bottom is the only inset the content needs. The
+ * tight pad the pixel frame wanted would only push the row off the wood's
+ * centre.
+ *
+ * THE WIDTH IS THE BOARD'S, AND THE CAPS ARE PAID FOR ON TOP.
+ *
+ * A 3-slice reserves each cap as a BORDER, so `box-sizing: border-box` with a
+ * 200px width gave a 200px board whose caps ate 120 of it and left the row
+ * 80px to sit in — centred, correctly, on a content box two thirds of the way
+ * to the left of the board it is painted on. In the game the carrot and the
+ * figure sat in the board's left half with an empty plank beside them.
+ *
+ * `content-box` is the honest description: the number's row gets the pill's
+ * full token width, and the caps are the leaves' own room outside it. The
+ * board comes out `--rr-pill-w` plus two caps, which is why the token below
+ * shrank by exactly that much — the board on screen is the size the pill has
+ * always been.
  */
 const plate: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
+  justifyContent: 'center',
   /* The one gap between an image and the text it belongs to, everywhere on the
      top bar and the floor. */
   gap: 'var(--rr-pad)',
-  /* A one-line plate: the tight pad above and below, the full pad each side.
-     It was 3/8/3/10 — four different numbers on one small panel. */
-  padding: 'var(--rr-pad-tight) var(--rr-pad)',
-  boxSizing: 'border-box',
-  /* Fixed, and a token: the wallet chip grows up to it (globals.css). */
-  width: 'var(--rr-pill-w)',
+  /* The caps sit OUTSIDE this width, not inside it. */
+  boxSizing: 'content-box',
+  /* The ROW's width. `--rr-pill-w` is this plus the two caps — the board's
+     whole width, which is what the chrome beside the pill reserves. */
+  width: 'var(--rr-pill-row)',
 };
 
 const artBox: CSSProperties = {
@@ -290,22 +316,31 @@ const artBox: CSSProperties = {
 };
 
 /**
- * The number and the rank line — one left-aligned stack, at a FIXED width.
+ * The number and the rank line — one CENTRED stack, at a FIXED width.
  *
- * The pill is centred on the screen, so anything that changes its width moves
- * it: banking a harvest (1,940 -> 2,180), climbing a rank, or the rank line
- * appearing at all took the pill from 146px to 220px and slid it sideways
- * under the player's eye. A counter that walks when it counts is the one thing
- * a counter must not do.
+ * THE WIDTH IS FIXED, AND THAT PART IS NOT NEGOTIABLE. The pill is centred on
+ * the screen, so anything that changes its width moves it: banking a harvest
+ * (1,940 -> 2,180), climbing a rank, or the rank line appearing at all took
+ * the pill from 146px to 220px and slid it sideways under the player's eye. A
+ * counter that walks when it counts is the one thing a counter must not do.
  *
  * Wide enough for the longest thing either line holds — a seven-figure total,
  * and "#48 · 12,000 to pass" — so the content changes inside a box that does
  * not. `text-overflow` is the backstop for a season that outgrows even that.
+ *
+ * WHAT CHANGED IS THE ALIGNMENT INSIDE IT. The stack used to be left-aligned,
+ * which is invisible at four figures and glaring at two: "49" took 30px of a
+ * 132px box and left 100px of empty plank to its right, so the whole readout
+ * sat in the board's left half (Paul, 2026-09-19). Centred, a short total
+ * sits on the board's middle and a long one still grows into the same box —
+ * the counter holds its place either way, which was the point of fixing the
+ * width in the first place.
  */
 const stack: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
-  alignItems: 'flex-start',
+  /* Centred, so a two-figure total is not marooned at the left. */
+  alignItems: 'center',
   justifyContent: 'center',
   gap: 1,
   lineHeight: 1,
