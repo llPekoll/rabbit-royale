@@ -76,12 +76,22 @@ const ENERGY_CAP_R = 70;
  * content does not share one box, it sits on one board or the other.
  *
  * Measured off the alpha: the top board runs rows 1-44 and the lower one
- * 45-61 of 64. A caller centring on the whole box would land its text on the
+ * 44-61 of 64. A caller centring on the whole box would land its text on the
  * seam between them, which is the same mistake `plankRows` exists to prevent
  * on the energy dial.
+ *
+ * THE BAND STARTED ONE ROW LOW (Paul, 2026-09-20: "tu peux remonter la jauge
+ * d'energie un peu?"). Re-read off the alpha at the stretching column x=83:
+ * row 43 is the dark seam under the top board, the lower plank's wood runs
+ * 44..60, and row 61 is already transparent — so 61 as the exclusive bottom
+ * was right and only `from` was off. At 45 the band skipped the plank's first
+ * row while keeping its full bottom, and a gauge centred in that box hung
+ * toward the board's bottom edge instead of sitting on the middle of the
+ * wood. Photographed 2026-09-20: the bar crowded the lower rim and the figure
+ * beside it read as falling off the plank.
  */
 const ENERGY_TOP = { from: 1 / 64, to: 44 / 64 } as const;
-const ENERGY_LOW = { from: 45 / 64, to: 61 / 64 } as const;
+const ENERGY_LOW = { from: 44 / 64, to: 61 / 64 } as const;
 
 /** The top board's inset from the box, in CSS px at a given drawn height. */
 export function plankEnergyTop(height: number) {

@@ -1337,6 +1337,24 @@ body:has(.rr-pill-plate.has-energy) {
    figure: a clipped number is unreadable, a shorter track is still a gauge. */
 .rr-pill-plate.has-energy .rr-energy-track { min-width: 0; }
 
+/* A LAST LIFT OFF THE BOTTOM RIM (Paul, 2026-09-20, found by hand in the
+   inspector: `margin-bottom: 6px` on the track, "c'est mieux comme ca").
+
+   Squaring the band on the wood (`ENERGY_LOW` in plank.tsx) centres the gauge
+   between the plank's first and last row, but the board is not symmetrical:
+   its bottom rim is a painted dark edge two source px deep, so an optically
+   centred bar still reads as leaning on it. Six px up hangs the gauge off the
+   top of the wood instead, which is where the eye puts it.
+
+   ON THE WHOLE GAUGE, not on the track — the row centres the bolt, the track
+   and the figure on one line (`align-items: center`), so a margin under the
+   track alone lifts the bar out of its own row and leaves the bolt and the
+   number sitting low. The three move together or the gauge stops being one
+   object. */
+.rr-pill-plate.has-energy .rr-energy {
+  margin-bottom: 6px;
+}
+
 /* ── THE CHEST COUNT ───────────────────────────────────────────────────────
    The goal line, with the game's own chest in place of the word
    (chest-count.tsx). */
