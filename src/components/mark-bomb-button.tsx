@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * MARK A BOMB — arm it, then tap the tile you think hides one.
@@ -17,11 +17,11 @@
  * right thumb rests in. Armed, the whole face turns the X's red and the verb
  * becomes the way out.
  */
-import { useEffect } from 'react';
-import type { CSSProperties } from 'react';
-import { PixelArrow } from '@domin8/arcade-kit';
-import { useT } from '@/i18n/provider';
-import { PxButton, pxLabel } from './px';
+import { useEffect } from "react";
+import type { CSSProperties } from "react";
+import { PixelArrow } from "@domin8/arcade-kit";
+import { useT } from "@/i18n/provider";
+import { PxButton, pxLabel } from "./px";
 
 export interface MarkBombButtonProps {
   armed: boolean;
@@ -42,19 +42,31 @@ export interface MarkBombButtonProps {
   teach?: boolean;
 }
 
-export function MarkBombButton({ armed, onToggle, nothing = false, urge = false, teach = false }: MarkBombButtonProps) {
+export function MarkBombButton({
+  armed,
+  onToggle,
+  nothing = false,
+  urge = false,
+  teach = false,
+}: MarkBombButtonProps) {
   const t = useT();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
       const el = e.target as HTMLElement | null;
-      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
-      if (e.key === 'x' || e.key === 'X') onToggle(!armed);
-      else if (e.key === 'Escape' && armed) onToggle(false);
+      if (
+        el &&
+        (el.tagName === "INPUT" ||
+          el.tagName === "TEXTAREA" ||
+          el.isContentEditable)
+      )
+        return;
+      if (e.key === "x" || e.key === "X") onToggle(!armed);
+      else if (e.key === "Escape" && armed) onToggle(false);
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, [armed, onToggle]);
 
   // Disarm when the button leaves the screen (recap, eruption, watching): a
@@ -64,8 +76,16 @@ export function MarkBombButton({ armed, onToggle, nothing = false, urge = false,
 
   return (
     <>
-      {armed && <p className="rr-mark-hint" role="status">{t.run.markHint}</p>}
-      {!armed && nothing && <p className="rr-mark-hint" role="status">{t.run.markNothing}</p>}
+      {armed && (
+        <p className="rr-mark-hint" role="status">
+          {t.run.markHint}
+        </p>
+      )}
+      {!armed && nothing && (
+        <p className="rr-mark-hint" role="status">
+          {t.run.markNothing}
+        </p>
+      )}
       {/*
         THE ARROW, over the button, while the tutorial is asking for an X.
         Paul, 2026-09-20: "ya toujours pas la fleche sur mark a bomb."
@@ -92,23 +112,42 @@ export function MarkBombButton({ armed, onToggle, nothing = false, urge = false,
       */}
       <PxButton
         type="button"
-        className={`rr-mark-btn${armed ? ' armed' : ''}${urge && !armed && !teach ? ' urge' : ''}`}
+        className={`rr-mark-btn${armed ? " armed" : ""}${urge && !armed && !teach ? " urge" : ""}`}
         aria-pressed={armed}
         title={`${t.run.markBomb} (X)`}
         onClick={() => onToggle(!armed)}
-        color={armed ? '#a3261c' : '#3b2230'}
-        shadowColor={armed ? '#4a0f0a' : '#1a0f16'}
-        highlightColor={armed ? '#ff5a4a' : '#6b3f55'}
+        color={armed ? "#a3261c" : "#3b2230"}
+        shadowColor={armed ? "#4a0f0a" : "#1a0f16"}
+        highlightColor={armed ? "#ff5a4a" : "#6b3f55"}
         textColor="#ffffff"
         style={button}
       >
         <span style={row}>
           <span style={icon} aria-hidden>
-            <img src="/assets/ui/icons/bomb.png" alt="" width={27} height={36} draggable={false} style={pixel} />
+            <img
+              src="/assets/ui/icons/bomb.png"
+              alt=""
+              width={27}
+              height={36}
+              draggable={false}
+              style={pixel}
+            />
             {/* The X the board will draw on it. */}
-            <svg viewBox="0 0 9 9" width="27" height="27" shapeRendering="crispEdges" style={cross}>
-              <path d="M0 1h1V0h2v1h1v1h1V1h1V0h2v1h1v2H8v1H7v1h1v1h1v2H8v1H6V8H5V7H4v1H3v1H1V8H0V6h1V5h1V4H1V3H0z" fill="#3a0d0d" />
-              <path d="M1 1h2v1h1v1h1V2h1V1h2v2H7v1H6v1h1v1h1v2H6V7H5V6H4v1H3v1H1V6h1V5h1V4H2V3H1z" fill="#ff5a4a" />
+            <svg
+              viewBox="0 0 9 9"
+              width="27"
+              height="27"
+              shapeRendering="crispEdges"
+              style={cross}
+            >
+              <path
+                d="M0 1h1V0h2v1h1v1h1V1h1V0h2v1h1v2H8v1H7v1h1v1h1v2H8v1H6V8H5V7H4v1H3v1H1V8H0V6h1V5h1V4H1V3H0z"
+                fill="#3a0d0d"
+              />
+              <path
+                d="M1 1h2v1h1v1h1V2h1V1h2v2H7v1H6v1h1v1h1v2H6V7H5V6H4v1H3v1H1V6h1V5h1V4H2V3H1z"
+                fill="#ff5a4a"
+              />
             </svg>
           </span>
           <span style={label}>{armed ? t.run.markCancel : t.run.markBomb}</span>
@@ -125,20 +164,56 @@ export function MarkBombButton({ armed, onToggle, nothing = false, urge = false,
 
 const button: CSSProperties = {
   /* Placed by `.rr-mark-btn` (globals.css); the kit writes `position: relative`. */
-  position: 'fixed',
-  height: 'auto',
-  minHeight: 'var(--rr-back-h)',
-  padding: 'var(--rr-btn-pad)',
-  pointerEvents: 'auto',
+  position: "fixed",
+  height: "auto",
+  minHeight: "var(--rr-back-h)",
+  padding: "var(--rr-btn-pad)",
+  pointerEvents: "auto",
 };
-const row: CSSProperties = { display: 'flex', alignItems: 'center', gap: 'var(--rr-pad)' };
-const icon: CSSProperties = { position: 'relative', display: 'block', width: 27, height: 36, flexShrink: 0 };
-const pixel: CSSProperties = { display: 'block', imageRendering: 'pixelated' };
-const cross: CSSProperties = { position: 'absolute', left: 0, top: 9 };
+/* The row rides a little HIGH on the plank. `.wl-runtime-content` already
+   pushes it 6% down onto the painted board (globals.css), which centres the
+   bomb on the wood; this takes a few pixels back so the pair does not sit on
+   the board's bottom edge. Paul tuned both in DevTools, 2026-09-20. */
+const row: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: "var(--rr-pad)",
+  marginTop: -5,
+};
+/* THE BOMB RIDES UP, the words ride down, until the two sit on one line. They
+   did not, and the reason is that neither box is its own ink: this one is 36
+   tall for a 27px bomb — the extra 9 is the FUSE above it — so centring the
+   box puts the bomb's body ~4px below the row's middle, while the pixel face
+   below has no descenders and hangs its caps high in the opposite direction.
+   Measured before: bomb centre 25.4, label centre 28.9 in a 52px button.
+   Paul, 2026-09-20: "remonte la bomb et baisse le text pour les aligner". */
+const icon: CSSProperties = {
+  position: "relative",
+  display: "block",
+  width: 27,
+  height: 36,
+  flexShrink: 0,
+  marginTop: -5,
+};
+const pixel: CSSProperties = { display: "block", imageRendering: "pixelated" };
+const cross: CSSProperties = { position: "absolute", left: 0, top: 9 };
+// The verb rides lower than the bomb beside it: the pixel face has no
+// descenders and its caps sit high in their em box, so a row centred on the
+// glyphs reads as centred on their ink only for the icon. Paul, 2026-09-20:
+// "baisse le mark a bomb un peu", then "du coup ca a baisse la bomb aussi" —
+// hence here and not on `.wl-runtime-content`, which carries both.
+//
+// MARGIN, not `position: relative; top`. Offsetting a positioned box moves the
+// PAINTED GLYPHS and leaves the layout where it was, which was fine until the
+// text-shadow under them was measured against the same line: the ink dropped
+// and its shadow stayed, so the outline sat off the letters. A margin moves
+// the line itself, so the shadow follows. Paul, 2026-09-20: "faut aussi faire
+// ca a l'ombre".
 const label: CSSProperties = {
   ...pxLabel,
-  fontSize: 'clamp(13px, 2.8svh, 18px)',
+  marginTop: 7,
+  fontSize: "clamp(13px, 2.8svh, 18px)",
   fontWeight: 400,
-  letterSpacing: '0.06em',
-  textTransform: 'uppercase',
+  letterSpacing: "0.06em",
+  textTransform: "uppercase",
 };

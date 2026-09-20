@@ -1411,7 +1411,11 @@ body:has(.rr-pill-plate.has-energy) {
    c'est trop en haut".
    The fix is a share of the height, not a pixel count: the art is stretched to
    whatever the button is tall (the slice is `0 340` — no vertical cut), so the
-   6% offset holds at every size, while a 3px nudge would only be right at one. */
+   6% offset holds at every size, while a 3px nudge would only be right at one.
+   This moves the WHOLE row — bomb and words together. The words alone sitting
+   lower than that is the label's own business (`label` in mark-bomb-button),
+   because dropping the icon with them takes the bomb off the board's middle.
+   Paul, 2026-09-20: "du coup ca a baisse la bomb aussi". */
 .rr-mark-btn .wl-runtime-content { transform: translateY(6%); }
 /* URGED: the bar is low and this is the exit. A stepped two-frame lift, the
    kit's own idea of motion — no glow, no easing. */
