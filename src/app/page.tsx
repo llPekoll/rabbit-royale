@@ -2639,13 +2639,25 @@ function Burrow() {
               // where it has to be done. The button only lifts a little, so
               // the eye finds it once the cross has been read; it does not
               // compete with the cross for attention.
-              teach={game.taughtBomb !== null && !game.flagMode}
+              // Only once the rabbit is BESIDE the bomb: `flagTile` refuses a
+              // mark that is not adjacent, so asking earlier asks for
+              // something the server would not accept.
+              teach={game.teachReady && !game.flagMode}
             />
           )}
           {!spectating && !game.firstRun && game.me && !game.recap && (
             <EnergyCoach energy={game.me.energy} />
           )}
-          {!spectating && (
+          {/* NOT UNDER THE RECAP. The run is over and the card is reporting
+              it, so a strip still saying "the island is the clock" is the
+              board talking over its own ending — and, because these are flex
+              items in the overlay's column, they were also what stopped the
+              card from centring: with them mounted there was no free space
+              left for its auto margins to claim, and it sat on the floor
+              (Paul, 2026-09-20: "je le veux centre au milieu de l'ecran").
+              Measured live on the tutorial: card at 700-900 in a 900 viewport,
+              computed margin 0. */}
+          {!spectating && !game.recap && (
             <FirstRunCaption
               firstRun={game.firstRun}
               digs={game.digs}
@@ -2655,7 +2667,7 @@ function Burrow() {
           )}
           {/* A quest finishing while the player is out here — the card is at
               home, so the island says it. */}
-          {questNote && !spectating && (
+          {questNote && !spectating && !game.recap && (
             <PxPanel color="rgba(13, 17, 23, 0.86)" className="rr-caption rr-caption-quest" style={PX_GLASS}>
               <span role="status" aria-live="polite">{questNote}</span>
             </PxPanel>
@@ -2726,8 +2738,21 @@ function Burrow() {
               NOT UNDER THE RECAP. The recap's own last row is this same exit
               ("Home or quit", `onHome` = `stopSpectating`), and the slab sat
               across it on a phone — two HOMEs, one drawn over the other (Paul,
-              2026-09-16). While the recap is up, the card is the way out. */}
-          {!(game.recap && !spectating) && (
+              2026-09-16). While the recap is up, the card is the way out.
+
+              AND NOT WHILE THE TUTORIAL IS HOLDING THE PLAYER AT ITS LESSON.
+              The first island refuses every dig until its bomb is marked
+              (`teachingHold`), so a HOME button there is the one door that
+              still opens — and a new player who cannot make the board respond
+              takes it, having learned nothing and banking nothing. Paul,
+              2026-09-20: "cache le home button ici comme ca les joueurs
+              peuvent pas sortir de la."
+              
+              It comes back the instant the X lands, which is also the instant
+              the run becomes a normal run: `taughtBomb` is null from then on.
+              Nobody is trapped — the lesson is three steps and one tap, and
+              the board is showing exactly where to tap. */}
+          {!(game.recap && !spectating) && game.taughtBomb === null && (
             <BackButton
               label={spectating ? t.run.stopWatching : t.run.home}
               onClick={stopSpectating}

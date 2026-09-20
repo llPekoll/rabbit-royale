@@ -398,6 +398,16 @@ export function useGameSocket(
    * on a DOM node (see `page.tsx` and `.rr-mark-btn.teach`).
    */
   const [taughtBomb, setTaughtBomb] = useState<number | null>(null);
+  /**
+   * The rabbit is standing beside the taught bomb, so the X can actually be
+   * placed — what the arrow over MARK A BOMB waits for.
+   *
+   * Separate from `taughtBomb` because the two answer different questions:
+   * that one is "is a lesson open", this is "can the player obey it right
+   * now". `flagTile` refuses a mark that is not adjacent, so asking before the
+   * rabbit arrives is asking for something the server would refuse.
+   */
+  const [teachReady, setTeachReady] = useState(false);
   /** This rabbit's own digs on this island — see `MyDigs`. */
   const [digs, setDigs] = useState<MyDigs>(NO_DIGS);
   /** What the current run cost the burrow, or null when nothing was charged. */
@@ -550,7 +560,14 @@ export function useGameSocket(
       // this one the moment the bomb is marked — so the scene is simply told
       // the truth on every snapshot and `teachBomb` takes it down itself.
       setTaughtBomb(snap.taughtBomb ?? null);
-      toScene((s) => s.teachBomb(snap.taughtBomb ?? null));
+      toScene((s) => {
+        // The scene decides readiness (it knows where the rabbit stands) and
+        // reports it back, so the board's cross and the DOM's arrow can never
+        // disagree about when the ask is on.
+        s.onTeachReady = setTeachReady;
+        s.teachBomb(snap.taughtBomb ?? null);
+      });
+      if (!snap.taughtBomb) setTeachReady(false);
       setDigs(NO_DIGS);
       setBank(snap.bank ?? null);
       setErupting(null);
@@ -597,6 +614,7 @@ export function useGameSocket(
       setTaughtBomb((cur) => {
         if (cur !== p.tile) return cur;
         toScene((s) => s.teachBomb(null));
+        setTeachReady(false);
         return null;
       });
     });
@@ -882,6 +900,17 @@ export function useGameSocket(
       // that would start, and pay for, a run the player has not chosen.
       wantSeat.current = false;
       if (recapTimer.current) clearTimeout(recapTimer.current);
+      /**
+       * THE ERUPTION IS OVER WHEN THE RUN IS.
+       *
+       * `erupting` was only ever cleared on the next snapshot, so on a cleared
+       * island "THE ISLAND SINKS" went on pulsing over the board behind the
+       * recap — the banner announcing a thing that had already finished, under
+       * a card reporting it (Paul, 2026-09-20: "ca tourne en fond"). The
+       * server sends `run_over` at the end of that sequence, which is exactly
+       * the moment the sky should let go.
+       */
+      setErupting(null);
       if (r.cleared) {
         toScene((s) => s.celebrateClear());
         setRecap(r);
@@ -1047,7 +1076,7 @@ export function useGameSocket(
   return {
     islandSeed, islandKey, rabbits, me, warnStage, dugFraction, chestsTaken, chestsTotal, recap, banked, bankedCarrots, connected, dropped, refused,
     seatHeld,
-    firstRun, taughtBomb, digs, bank, erupting,
+    firstRun, taughtBomb, teachReady, digs, bank, erupting,
     chestPrize, clearChestPrize: () => setChestPrize(null),
     casts, strikeRefused, struckBy, plants, plantRefused, bombedBy, incomingRaid, struckRaid,
     // Let the burrow page forget a raid it has finished showing.

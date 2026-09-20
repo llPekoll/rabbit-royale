@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { NineSlicePanel } from '@domin8/arcade-kit';
 import { PanelTitle } from './pixel-text';
@@ -61,6 +62,20 @@ export function Recap({
   const done = !!recap.tutorialDone;
   /** Won, either way: no refill offer, and HOME is the loud button. */
   const won = cleared || done;
+  /**
+   * ON A WON RUN THE CARD LEAVES BY ITSELF.
+   *
+   * There is exactly one thing to press and nothing to decide, so a player who
+   * does not press it is not weighing an option — they are waiting to be told
+   * the screen is over. The count is shown on the button rather than run
+   * silently: a card that vanishes on its own is a card that took the choice
+   * away, and one that says "in 6" is a card keeping its promise.
+   *
+   * A LOSING recap never counts down. That one holds a real decision (buy a
+   * refill, or go home and let the garden fill the bar for free), and walking
+   * a player off a decision is how a shop ends up pressed by accident.
+   */
+  const secondsLeft = useAutoHome(won ? onHome : null);
   return (
     /* The codex's frame in the dark glass this card always sat on over the
        board. Margins live in px-dialogs.css (`.rr-recap`), where a short
@@ -116,17 +131,48 @@ export function Recap({
           banked already, and stacking it (harvest, upgrade, bury) is the next
           verb. "Back to the burrow" named a door without saying what was
           behind it. */}
-      {/* A ghost button was a transparent face on the card — so its face is
-          the card's own glass, with the muted ink it always had. */}
-      <PxButton
-        className={won ? undefined : 'rr-btn ghost'}
-        color={won ? BTN : GLASS}
-        textColor={won ? INK : MUTED}
-        onClick={onHome}
-        style={wide}
-      >
-        <span style={btnText}>{t.recap.goHome}</span>
-      </PxButton>
+      {/*
+        THE COLOURS WERE THE WRONG WAY ROUND.
+        
+        The comment on `won` has always said "HOME is the loud button", and the
+        code did the opposite: on a cleared island — the only screen where HOME
+        is the ONLY thing to press — it wore the card's own glass and muted
+        grey, which is the palette this app uses for a disabled control. Paul,
+        2026-09-20: "fait attention sur les couleurs on dirait que c'est
+        disable". The ghost face belongs to the case where HOME is the quiet
+        alternative to buying energy, and only there.
+      */}
+      {/*
+        NO ARROW ON THIS CARD.
+        
+        It was drawn over the note and the bank line rather than above the
+        button — the card is a column in flow, so an absolutely-placed chevron
+        anchored to the button's top simply landed on the text above it (Paul,
+        2026-09-20). And it had nothing to add: the recap is a dialog with one
+        live control on it, which is already the loudest thing on the screen.
+        An arrow earns its place over MARK A BOMB, where the button is one of
+        several things on a busy board; here it was decoration covering words.
+      */}
+      <div className="rr-recap-cta">
+        <PxButton
+          className={won ? undefined : 'rr-btn ghost'}
+          color={won ? BTN : GLASS}
+          textColor={won ? INK : MUTED}
+          wiggle={won}
+          onClick={onHome}
+          style={wide}
+        >
+            <span style={btnText}>
+            {t.recap.goHome}
+            {/* ASCII only: the kit's bitmap face has no middle dot, and
+                `pixel-font-glyphs` fails the build over exactly this. */}
+            {/* Not at 0: the card is already leaving, and "(0)" is a number
+                nobody reads as a countdown. */}
+            {secondsLeft !== null && secondsLeft > 0
+              && <span style={countdown}> ({secondsLeft})</span>}
+          </span>
+        </PxButton>
+      </div>
       </div>
     </NineSlicePanel>
   );
@@ -140,4 +186,55 @@ const BTN = '#161b22';
 const INK = '#e6edf3';
 const MUTED = '#8b949e';
 const wide: CSSProperties = { width: '100%' };
+/** The count, dimmer than the verb: it reports, it does not instruct. */
+const countdown: CSSProperties = { opacity: 0.66 };
+
+/** How long a won recap waits before it walks the player home. */
+const AUTO_HOME_SECONDS = 6;
+
+/**
+ * Count down to `go`, returning the seconds left — or null when there is
+ * nothing to count (a losing recap, which holds a real choice).
+ *
+ * The timer is rebuilt whenever `go` changes identity, and cleared on unmount,
+ * so a card dismissed by hand can never fire a navigation after it is gone.
+ */
+function useAutoHome(go: (() => void) | null): number | null {
+  const [left, setLeft] = useState<number | null>(go ? AUTO_HOME_SECONDS : null);
+  // Held in a ref so the interval below never has to be rebuilt just because
+  // the parent re-rendered with a new closure.
+  const goRef = useRef(go);
+  goRef.current = go;
+
+  useEffect(() => {
+    if (!go) { setLeft(null); return; }
+    setLeft(AUTO_HOME_SECONDS);
+    /**
+     * Counted from a DEADLINE rather than by decrementing.
+     *
+     * A browser throttles timers in a background tab, so a counter that takes
+     * one off per tick drifts: come back to the tab and the card is still
+     * sitting on "4". Reading the clock each tick means the count is right
+     * whenever it is looked at, and the card leaves on time.
+     *
+     * The navigation fires HERE and not inside the state updater it used to
+     * live in: an updater must be pure, and React runs it twice in StrictMode
+     * — which called `onHome` twice on a single expiry.
+     */
+    const until = Date.now() + AUTO_HOME_SECONDS * 1000;
+    const id = setInterval(() => {
+      const n = Math.ceil((until - Date.now()) / 1000);
+      if (n > 0) { setLeft(n); return; }
+      clearInterval(id);
+      setLeft(0);
+      goRef.current?.();
+    }, 250);
+    return () => clearInterval(id);
+    // Keyed on WHETHER there is somewhere to go, not on the callback's
+    // identity: a parent that re-creates `onHome` each render would otherwise
+    // restart the count for ever and the card would never leave.
+  }, [go !== null]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return left;
+}
 const btnText: CSSProperties = { ...pxLabel, fontSize: 13 };

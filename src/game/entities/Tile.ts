@@ -71,6 +71,42 @@ const CARROT_SCALE = 0.7;
  */
 const GHOST_FLAG_ALPHA = 0.3;
 const GHOST_FLAG_ALPHA_PEAK = 0.72;
+/** One breath out, one back: a full cycle matches the ring's slowest lap. */
+const GHOST_FLAG_BREATH_SECONDS = 0.8;
+/** How long the ask takes to arrive, and to leave. */
+const GHOST_FLAG_FADE_SECONDS = 0.28;
+/**
+ * The tutorial's ring round the clue.
+ *
+ * HINT_TINTS[1]'s blue, which is the "1" it circles — the ring and the glyph
+ * are one statement, so they are one colour. Never the reachable ring's gold:
+ * that colour means "you may step here", and this tile is a label rather than
+ * an invitation.
+ */
+const TEACH_RING_TINT = 0x4aa3ff;
+const TEACH_RING_ALPHA = 0.55;
+const TEACH_RING_ALPHA_PEAK = 1;
+/**
+ * How far the circle reaches, as a multiple of the tile's half-width.
+ *
+ * Well inside the cell: the circle hugs the glyph rather than the tile. At
+ * 1.15 it spilled onto the neighbours and the sea and read as a UI element
+ * dropped on the board; at 0.92 it still traced the cell's own width, which
+ * is close enough to the lozenge's edge to be mistaken for it. What makes it
+ * read as a circle is its SHAPE, not its size — the tile is a lozenge and
+ * this is round — so it can afford to be small and sit around the number.
+ */
+const TEACH_RING_SPAN = 0.72;
+/**
+ * Stroke weight of the circle, in board pixels.
+ *
+ * 2, not 5: at 5 the ring was "un peu trop fat" (Paul, 2026-09-20) — a heavy
+ * band that spilled onto the sea and read as a piece of UI dropped on the
+ * board rather than as a mark drawn on it. Thin and bright holds up better
+ * against pixel art than thick and loud, and the dark edge under it is what
+ * keeps it legible on grass and on sand alike.
+ */
+const TEACH_RING_WIDTH = 2;
 /**
  * Where the carrot's tip rests at the BOTTOM of its hover, relative to the
  * tile's centre. Negative: the carrot floats ABOVE the tile face, which is what
@@ -609,6 +645,8 @@ export class Tile {
   private flagMark: Graphics | null = null;
   /** The tutorial's ghost X, if this tile is the one it is asking for. */
   private ghostFlag: Graphics | null = null;
+  /** The tutorial's ring around the clue — see `setTeachRing`. */
+  private teachRing: Graphics | null = null;
 
   /**
    * Put the red X on this tile — the lid stays, the bomb stays under it.
@@ -652,6 +690,78 @@ export class Tile {
   }
 
   /**
+   * A RING ROUND THE TILE THE CAPTION IS TALKING ABOUT.
+   *
+   * The strip at the top says "the number counts the bombs touching that
+   * tile", and until now "that tile" was a guess: on a board of twenty cells
+   * the sentence floated free of the thing it named. Circling the clue binds
+   * the two, and needs no words to do it. Paul, 2026-09-20: "on peut entourer
+   * le premier 1, comme ca avec le texte en haut c'est hyper clair."
+   *
+   * The board's OWN outline sprite (`diamondOutline`, the same shape the
+   * reachable ring is drawn with), in the hint's blue rather than the ring's
+   * gold: gold means "you may step here" everywhere else in the game, and this
+   * is not an invitation to move — it is a label.
+   */
+  setTeachRing(on: boolean): void {
+    if (!on) {
+      const going = this.teachRing;
+      this.teachRing = null;
+      if (going) {
+        gsap.killTweensOf(going);
+        gsap.to(going, {
+          alpha: 0,
+          duration: GHOST_FLAG_FADE_SECONDS,
+          ease: 'sine.out',
+          onComplete: () => going.destroy(),
+        });
+      }
+      return;
+    }
+    if (this.teachRing) return;
+
+    /**
+     * A REAL CIRCLE, drawn — not the diamond's own outline.
+     *
+     * The first cut reused `diamondOutline`, which traces the cell's edge: at
+     * a glance that is not a ring round the number, it is the tile looking
+     * slightly different from its neighbours. Paul, 2026-09-20: "la tu as fait
+     * le contour, j'aimerais que tu fasses un vrai cercle visible."
+     *
+     * So: a stroked ellipse sitting inside the cell, around the glyph rather
+     * than around the tile, squashed 2:1 like every flat thing on this board
+     * so it lies ON the ground instead of standing up off it. Dark edge under
+     * the colour, the way the hints and the X are drawn, so it holds on grass
+     * and on sand alike.
+     */
+    const ring = new Graphics();
+    const rx = HALF_W * TEACH_RING_SPAN;
+    const ry = rx * (HALF_H / HALF_W);
+    for (const [width, color] of [
+      [TEACH_RING_WIDTH + 2, 0x0b2038],
+      [TEACH_RING_WIDTH, TEACH_RING_TINT],
+    ] as const) {
+      ring.ellipse(0, 0, rx, ry).stroke({ width, color, alignment: 0.5 });
+    }
+    ring.alpha = 0;
+    // Above the ground and its veil, below the number it is circling — the
+    // ring frames the glyph, it must never sit on top of it.
+    ring.zIndex = 37;
+    this.container.addChild(ring);
+    this.teachRing = ring;
+
+    gsap.timeline()
+      .to(ring, { alpha: TEACH_RING_ALPHA, duration: GHOST_FLAG_FADE_SECONDS, ease: 'sine.out' })
+      .to(ring, {
+        alpha: TEACH_RING_ALPHA_PEAK,
+        duration: GHOST_FLAG_BREATH_SECONDS,
+        ease: 'sine.inOut',
+        yoyo: true,
+        repeat: -1,
+      });
+  }
+
+  /**
    * THE GHOST X — the tutorial showing the player the answer it wants.
    *
    * Literally `setFlag`'s drawing at a third of its opacity, breathing. Not a
@@ -667,10 +777,28 @@ export class Tile {
    */
   setGhostFlag(on: boolean): void {
     if (!on) {
-      if (this.ghostFlag) {
-        gsap.killTweensOf(this.ghostFlag);
-        this.ghostFlag.destroy();
-        this.ghostFlag = null;
+      /**
+       * FADE OUT, then go.
+       *
+       * The ask follows the rabbit — it appears when the player steps beside
+       * the bomb and withdraws when they walk away — so on a small board it is
+       * switched often. Destroyed outright, that reads as a glitch: a red
+       * cross blinking in and out of existence as the rabbit paces. Faded, the
+       * same movement reads as the board answering where the player stands.
+       *
+       * The handle is dropped immediately so a `setGhostFlag(true)` arriving
+       * mid-fade builds a fresh mark rather than reviving a dying one.
+       */
+      const going = this.ghostFlag;
+      this.ghostFlag = null;
+      if (going) {
+        gsap.killTweensOf(going);
+        gsap.to(going, {
+          alpha: 0,
+          duration: GHOST_FLAG_FADE_SECONDS,
+          ease: 'sine.out',
+          onComplete: () => going.destroy(),
+        });
       }
       return;
     }
@@ -683,7 +811,8 @@ export class Tile {
         .stroke({ width: w, color: c, cap: 'round' });
     }
     g.scale.set(1.5, 0.75);
-    g.alpha = GHOST_FLAG_ALPHA;
+    // Fades UP into its breathing range rather than appearing at it.
+    g.alpha = 0;
     if (this.hintLayer) {
       g.position.set(this.container.x, this.container.y);
       // Just under the real X's 39, so a ghost can never hide a placed mark.
@@ -695,13 +824,27 @@ export class Tile {
     this.ghostFlag = g;
     // Breathing rather than blinking: this is an invitation, and a hard blink
     // on a pixel board reads as an error state.
-    gsap.to(g, {
-      alpha: GHOST_FLAG_ALPHA_PEAK,
-      duration: 0.65,
-      ease: 'sine.inOut',
-      yoyo: true,
-      repeat: -1,
-    });
+    // In from nothing, then the breath takes over. A timeline rather than two
+    // tweens on the same property, which would fight: the fade would be
+    // overwritten by the repeating one the moment it started.
+    gsap.timeline()
+      .to(g, { alpha: GHOST_FLAG_ALPHA, duration: GHOST_FLAG_FADE_SECONDS, ease: 'sine.out' })
+      // Half of SWEEP_MIN_LAP_SECONDS, so one breath out and back matches one
+      // lap of the ring under it. At 0.65 the two cycles were close enough to
+      // drift against each other, which reads as two things flickering rather
+      // than as one tile asking to be tapped.
+      .to(g, {
+        alpha: GHOST_FLAG_ALPHA_PEAK,
+        duration: GHOST_FLAG_BREATH_SECONDS,
+        ease: 'sine.inOut',
+        yoyo: true,
+        repeat: -1,
+      });
+  }
+
+  /** Is a number drawn on this tile? What the tutorial's ring looks for. */
+  get hasHint(): boolean {
+    return this.hintGroup !== null;
   }
 
   /** Whether a chest is standing on this tile — a chest is never a bomb. */

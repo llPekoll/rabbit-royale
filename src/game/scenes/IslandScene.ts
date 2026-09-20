@@ -122,8 +122,23 @@ const COIN_SPRAY_COUNT = 7;
  * a first-time player is meant to notice.
  */
 const FIRST_ISLAND_LOOK_NORTH = 78;
-/** Seconds between blinks as the sweep travels round the rabbit. */
+/**
+ * Seconds between blinks as the sweep travels round the rabbit.
+ *
+ * A pace PER TILE, which is right while the ring is full: eight lit cells at
+ * 0.25 make a lap of two seconds, and the light reads as travelling.
+ */
 const SWEEP_STEP_SECONDS = 0.25;
+/**
+ * The shortest a full lap may take, whatever the ring is made of.
+ *
+ * A per-tile pace alone is a strobe on a small ring: the tutorial corridor
+ * lights ONE cell, so the same tile blinked every 0.25s — "ca blink hyper
+ * vite" (Paul, 2026-09-20). The step is stretched so a lap never finishes
+ * faster than this, which leaves a full ring exactly as it was (8 x 0.25 = 2s,
+ * already past the floor) and slows only the rings small enough to flicker.
+ */
+const SWEEP_MIN_LAP_SECONDS = 1.6;
 
 /**
  * How hard one wheel notch zooms. A notch is ~100 units of `deltaY` on a
@@ -148,6 +163,64 @@ const TRACKPAD_PINCH_BOOST = 6;
 const FOLLOW_MARGIN = 0.3;
 /** How long the follow slide takes. Slower than a hop, faster than a thought. */
 const FOLLOW_SECONDS = 0.45;
+
+/**
+ * The establishing pan: how much further UP the island the camera is looking
+ * when it opens, in design px, before it sweeps down onto the resting shot.
+ *
+ * An island used to CUT in: the scene was built, the camera was solved, and
+ * the first frame was the shot the player would still be looking at a minute
+ * later. Nothing said "you have arrived somewhere" — a new island and a
+ * resize looked identical. A short sweep down onto the rabbit says it, and
+ * says it in the same language the eruption's rise answers in.
+ *
+ * Small on purpose. The board is only a screen and a half tall at the default
+ * zoom and the pan is clamped to the land, so a big number would spend most
+ * of itself against the clamp and arrive as a lurch; 110px is about two
+ * tiles of travel, which reads as a camera settling rather than as a swoop.
+ * The distance is in DESIGN px and applied to the camera's offset, so it is
+ * the same movement on screen whatever the zoom.
+ */
+export const ESTABLISH_DROP_PX = 110;
+/** How long the establishing pan takes. Long enough to be a move, not a cut. */
+const ESTABLISH_SECONDS = 1.1;
+/**
+ * How long the island takes to fade UP as the camera arrives, in seconds.
+ *
+ * The twin of the sink's fade, and deliberately the shorter of the two. A sink
+ * is the end of something and can afford to dissolve; an arrival is the board
+ * the player is about to work on, and every frame it spends translucent is a
+ * frame where the tile they are aiming at is half there. So the fade is over
+ * well before the pan is: it lands at a third of `ESTABLISH_SECONDS`, which
+ * puts the island fully lit while the camera is still settling onto it.
+ *
+ * Ridden on the container's alpha, the same property the sink fades — which is
+ * why `resetEruption` can keep doing the one thing it does (alpha back to 1)
+ * and still hand a clean board to the next arrival.
+ */
+const ESTABLISH_FADE_SECONDS = ESTABLISH_SECONDS / 3;
+/**
+ * The alpha an arriving island fades UP from.
+ *
+ * Not zero. From nothing the first frames of the arrival have no island in
+ * them at all, so the pan has nothing to be seen moving and the whole thing
+ * reads as a load finishing rather than as a camera coming down. Starting
+ * part-lit makes it a dissolve onto ground that was already there — and on
+ * the boards where the clamp leaves no pan, it is the only thing marking the
+ * arrival, so it has to look deliberate on its own.
+ */
+const ESTABLISH_FADE_FROM = 0.35;
+/**
+ * How far the camera rises off the island as it sinks, in design px.
+ *
+ * The answer to the arrival's drop, and bigger than it: an arrival settles
+ * into a shot the player is about to work in, so it has to stop somewhere
+ * usable; a sink is going nowhere, so it can keep travelling until the land
+ * is off the bottom of the frame. UNCLAMPED, unlike every other camera move
+ * here — the pan rules exist to stop the player losing the island, and this
+ * is the one moment the island is meant to be lost.
+ */
+const ERUPTION_RISE_PX = 260;
 
 /** The bunny sheets, handed out per player so four rabbits are distinguishable. */
 const BUNNY_SHEETS = [
@@ -260,6 +333,12 @@ export class IslandScene implements Scene {
    * and the timer that makes it beat. Null everywhere else. See `teachBomb`.
    */
   private taughtBomb: number | null = null;
+  /** Is the rabbit beside the taught bomb right now? Drives the ask. */
+  private teachReady = false;
+  /** Told when that flips, so the DOM's arrow can follow the board's cross. */
+  onTeachReady: ((ready: boolean) => void) | null = null;
+  /** The tile currently wearing the tutorial's ring, if any. */
+  private ringedClue: number | null = null;
   private chestPointer: ChestPointer | null = null;
   /**
    * Edge chevrons for the chests the camera cannot show — see `ChestCompass`.
@@ -375,6 +454,11 @@ export class IslandScene implements Scene {
       this.reframe();
     };
     window.addEventListener('resize', this.onResize);
+    // A CUT, not the arrival pan. This scene is RESIDENT: `resident_add`
+    // builds it during boot with `container.visible = false`, so a pan
+    // started here plays out its whole length behind the loading screen and
+    // the player is shown an island already sitting at its resting shot. The
+    // arrival the player actually sees is `show` — see `show`.
     this.solveCamera();
     // Seed the size watch in `update` with the size the shot was just solved
     // for. Left at 0 it reports a change on the very first frame and re-solves
@@ -400,7 +484,66 @@ export class IslandScene implements Scene {
   /** The island is on screen: give it its music bed. */
   show(): void {
     this.sound.startMusic(Keys.MUSIC_ISLAND);
+    // THE arrival, for a resident scene: this is the first frame the player
+    // sees of the island, whatever was built behind the loading screen. `init`
+    // only cuts the camera into place — a pan started there plays out its
+    // whole length while the container is still `visible = false`.
+    //
+    // Only for an island this scene has not yet SHOWN, which is what makes it
+    // an arrival rather than a re-entry. `show` fires on every crossing of the
+    // iris, including walking back into a run already in progress, and panning
+    // there would throw away the zoom and the corner of the board the player
+    // had chosen before they went home — the same reason `reframe` cuts rather
+    // than re-opens. `islandRun` ticks once per island (see `setIsland`), so
+    // it is exactly the question being asked.
+    this.arrive();
   }
+
+  /**
+   * Open the camera on this island, ONCE per island.
+   *
+   * Three things race to announce an arrival and all three are right to try:
+   * `show` (the iris opening on a resident scene), and `addRabbit` on either
+   * the spawn or a respawn — the island snapshot lands within a frame or two
+   * of the wipe, so in practice at least two of them fire. Left to themselves
+   * they each started a pan, and the second one snapped the camera back to
+   * the top and ran the fade again from 0.35: measured in the real game as
+   * y going -907 -> -923 -> -907 with the island flashing dim twice.
+   *
+   * So the guard lives here rather than in the callers. `islandRun` ticks once
+   * per island (see `setIsland`), which is exactly "have I already opened on
+   * this one" — and re-entering a run in progress through the iris is
+   * therefore not an arrival, which is what keeps a player's own zoom and pan
+   * from being thrown away when they walk back out of the burrow.
+   */
+  private arrive(): void {
+    if (this.data?.noCamera || this.shownRun === this.islandRun) return;
+    // Not until the scene has a seed the SERVER chose.
+    //
+    // The app mounts on a placeholder seed and the real island lands a beat
+    // later (see `setIsland`), and the snapshot's rabbits are applied to the
+    // placeholder board first — so "a rabbit is standing here" does not tell
+    // the two apart, and neither does visibility: both boards are on screen.
+    // Opening on the placeholder spent the pan on ground the player was about
+    // to have swapped out from under them and then ran the whole move again
+    // when it was, which is the doubled arrival this was measured doing:
+    // two `addRabbit` calls 111ms apart, run 0 from the snapshot and run 1
+    // from the `resync` that follows the swap.
+    //
+    // `setIsland` clears this, so the first board the server actually named is
+    // the one the camera opens on.
+    if (!this.seeded) return;
+    this.shownRun = this.islandRun;
+    this.solveCamera(true);
+  }
+
+  /** The `islandRun` already opened on — see `arrive`. */
+  private shownRun = -1;
+  /**
+   * Has the server named this scene's island yet? Until it has, the board is
+   * the mount-time placeholder and no arrival belongs to it — see `arrive`.
+   */
+  private seeded = false;
 
   /**
    * One Tile per PLAYABLE square.
@@ -496,6 +639,10 @@ export class IslandScene implements Scene {
    * applies (see resolveMove) decide what gets lit.
    */
   private refreshReachable(): void {
+    // The tutorial's ask follows the rabbit: the cross appears only once it is
+    // standing beside the bomb, because that is when `flagTile` would accept
+    // the mark. Here because this already runs on every move and every stun.
+    this.syncTeachMark();
     this.clearHighlights();
 
     const me = this.data ? this.rabbits.get(this.data.playerId) : null;
@@ -598,11 +745,15 @@ export class IslandScene implements Scene {
       return Math.atan2(p.row - rr, p.col - rc) - Math.atan2(q.row - rr, q.col - rc);
     });
 
+    // Pace by the LAP, not by the tile: a one-cell ring at the per-tile pace
+    // is the same tile flashing four times a second. See SWEEP_MIN_LAP_SECONDS.
+    const pace = Math.max(SWEEP_STEP_SECONDS, SWEEP_MIN_LAP_SECONDS / ring.length);
+
     let step = 0;
     const tick = () => {
       this.tiles.get(ring[step % ring.length])?.blink();
       step++;
-      this.sweep = gsap.delayedCall(SWEEP_STEP_SECONDS, tick);
+      this.sweep = gsap.delayedCall(pace, tick);
     };
     tick();
   }
@@ -975,6 +1126,8 @@ export class IslandScene implements Scene {
    * costs no reload at all.
    */
   async setIsland(seed: string): Promise<void> {
+    // The server has named an island: from here a board can be arrived at.
+    this.seeded = true;
     const swap = this.swapIsland(seed, ++this.islandRun);
     this.islandSwap = swap;
     return swap;
@@ -1059,7 +1212,19 @@ export class IslandScene implements Scene {
     // far its lattice reaches — so a new island needs a new one. Without this
     // the scene keeps the previous island's framing while drawing this one,
     // which is how the farm ended up zoomed into a corner.
-    this.solveCamera();
+    //
+    // Whether this is the arrival or merely the ground it will land on depends
+    // on whether anyone can see it yet. Under the iris — a crossing from the
+    // burrow — the scene is still hidden and `show` plays the pan when the
+    // wipe opens, so this only cuts. But the FIRST island swaps in while the
+    // scene is already visible: the board is built from a placeholder seed and
+    // the server's real seed lands a beat later, which is a new `islandRun`
+    // over ground the player is already looking at. Measured in the real game,
+    // opening on the placeholder and then swapping ran the pan twice —
+    // y -907 -> -1008, snapped back to -907, and down again. So the visible
+    // case pans and the hidden one waits for `show`.
+    if (this.container.visible) this.arrive();
+    else this.solveCamera();
   }
 
   // ── Server events ──────────────────────────────────────────────────────────
@@ -1445,6 +1610,12 @@ export class IslandScene implements Scene {
       if (!tile) continue;
       const tier = isChestTier(c.tier) ? c.tier : 'bronze';
       tile.setChest(CHEST_TIER_COLOR[tier], drop, tier);
+      // NO TIER WORD ON THE TUTORIAL, ever — not just once its arrow goes up.
+      // It used to be hidden inside `pointAtTutorialChest`, which now waits
+      // for the lesson to end, so "BRONZE" sat over the box for the whole
+      // first minute: a rarity nobody has a scale for yet, shouting next to
+      // the one cross the player is supposed to be looking at.
+      if (isFirstIsland(this.seed)) tile.hideChestTier();
       placed.push(c.tile);
     }
     // Clear the trees that stand in front of the boxes.
@@ -1520,9 +1691,8 @@ export class IslandScene implements Scene {
     if (this.taughtBomb !== null) return;
     const first = chests.find((c) => this.tiles.has(c.tile));
     if (!first || this.pointedChest === first.tile) return;
-    // The word and the arrow both sit above the box, and they collided — the
-    // arrow read as pointing at "BRONZE" rather than at the chest. The word
-    // gives way here and only here; see `Tile.hideChestTier`.
+    // Belt and braces: the word is already gone when the chest is drawn on
+    // this island (see `setChest` above), and a reconnect redraws it.
     this.tiles.get(first.tile)?.hideChestTier();
     this.chestPointer?.destroy();
     this.chestPointer = new ChestPointer(this.container, this.seed, first.tile);
@@ -1562,6 +1732,90 @@ export class IslandScene implements Scene {
       return;
     }
 
+    this.syncTeachMark();
+  }
+
+  /**
+   * SHOW THE CROSS ONLY WHEN THE PLAYER CAN ACTUALLY PLACE IT.
+   *
+   * `flagTile` refuses a mark that is not on a NEIGHBOURING cell, so a cross
+   * hovering two steps away is the board asking for something the player is
+   * not allowed to do — and the arrow over MARK A BOMB was asking for it too.
+   * Paul, 2026-09-20: "quand on est la ya pas encore la croix, c'est vraiment
+   * quand on est juste devant."
+   *
+   * So the ask appears when the rabbit is beside the bomb and withdraws if it
+   * walks away, which also makes the cross a reward for arriving rather than a
+   * sign visible from the spawn. Re-run on every move (`setRabbitTile`).
+   */
+  /**
+   * The open, numbered cell beside `bomb` — the "that tile" the caption means.
+   *
+   * A cell the rabbit is NOT standing on wins: by the time the player arrives
+   * they are standing on one of these, and a ring under their own feet reads
+   * as a marker for the rabbit rather than for the glyph.
+   */
+  private clueFor(bomb: number): number | null {
+    const { col: bc, row: br } = toColRow(bomb);
+    let fallback: number | null = null;
+    for (let dc = -1; dc <= 1; dc++) {
+      for (let dr = -1; dr <= 1; dr++) {
+        if (dc === 0 && dr === 0) continue;
+        const col = bc + dc;
+        const row = br + dr;
+        if (col < 0 || col >= COLS || row < 0 || row >= ROWS) continue;
+        const index = row * COLS + col;
+        if (!this.tiles.get(index)?.hasHint) continue;
+        if (index !== this.myTile) return index;
+        fallback = index;
+      }
+    }
+    return fallback;
+  }
+
+  /** Move the tutorial's ring onto `tile`, or take it down with null. */
+  private ringClue(tile: number | null): void {
+    if (this.ringedClue === tile) return;
+    if (this.ringedClue !== null) this.tiles.get(this.ringedClue)?.setTeachRing(false);
+    this.ringedClue = tile;
+    if (tile !== null) this.tiles.get(tile)?.setTeachRing(true);
+  }
+
+  private syncTeachMark(): void {
+    const tile = this.taughtBomb;
+    if (tile === null) { this.ringClue(null); return; }
+
+    /**
+     * CIRCLE THE CLUE while the lesson is open.
+     *
+     * The caption names "that tile"; the ring says which one. Until now the
+     * sentence floated free of the cell it was about, on a board where the
+     * player had to guess which number was meant. Paul, 2026-09-20: "on peut
+     * entourer le premier 1, comme ca avec le texte en haut c'est hyper
+     * clair."
+     *
+     * The clue is found the way the lesson's own sentence finds it — the open,
+     * numbered cell beside the bomb — rather than passed down from the map, so
+     * the ring can never circle a tile the deduction does not rest on.
+     */
+    this.ringClue(this.clueFor(tile));
+    /**
+     * The SAME adjacency `flagTile` checks — the eight cells around, cliffs
+     * included (`boardNeighbors`). Mirrored here from col/row rather than
+     * imported with the island's tile map, which the scene does not hold: what
+     * matters is that the cross never appears on a cell the server would
+     * refuse to mark, and "the eight around" is that rule.
+     */
+    const a = toColRow(this.myTile);
+    const b = toColRow(tile);
+    const near = Math.abs(a.col - b.col) <= 1 && Math.abs(a.row - b.row) <= 1
+      && this.myTile !== tile;
+    this.tiles.get(tile)?.setGhostFlag(near);
+    if (this.teachReady !== near) {
+      this.teachReady = near;
+      this.onTeachReady?.(near);
+    }
+
     /**
      * THE CROSS IS THE MARK — no chevron over it.
      *
@@ -1574,7 +1828,6 @@ export class IslandScene implements Scene {
      * keeps its chevron, because "go there" is all a chest needs to say, and
      * by then the cross is gone.
      */
-    this.tiles.get(tile)?.setGhostFlag(true);
   }
 
 
@@ -1800,8 +2053,13 @@ export class IslandScene implements Scene {
    * The opening shot for this island: the default zoom, centred on the local
    * rabbit if there is one and on the spawn otherwise — which is where the
    * rabbit is about to land.
+   *
+   * `establish` asks for the arrival PAN rather than a cut — see
+   * `establishingPan`. It is passed by the three places that are an arrival
+   * (the scene opening, a new island's ground, a respawn) and withheld by the
+   * one that is not (a rotation, which re-solves the same island mid-look).
    */
-  private solveCamera(): void {
+  private solveCamera(establish = false): void {
     this.stopFollow();
     this.lastPortrait = this.canvasH > this.canvasW;
     if (this.data?.noCamera) {
@@ -1815,7 +2073,92 @@ export class IslandScene implements Scene {
     // strip and the tutorial's captions. Looking past the rabbit brings the
     // top of the island down into the clear. The clamp keeps the board on.
     if (focus && isFirstIsland(this.seed)) focus = { x: focus.x, y: focus.y - FIRST_ISLAND_LOOK_NORTH };
-    this.setCam(islandCam(this.seed, this.canvasW, this.canvasH, focus));
+    const cam = islandCam(this.seed, this.canvasW, this.canvasH, focus);
+    if (establish) this.establishingPan(cam);
+    else this.setCam(cam);
+  }
+
+  /**
+   * Arriving on an island: the camera travels DOWN the board onto its shot.
+   *
+   * It starts looking `ESTABLISH_DROP_PX` further UP the island — the sea and
+   * the high ground north of the spawn — and sweeps down onto the rabbit,
+   * which is the direction the eruption's rise then answers in.
+   *
+   * The sign is the easy thing to get wrong here, and it was wrong first.
+   * Scene maps to design as `design = cam.y + scale * scene`, so a camera
+   * looking HIGHER up the board is one with a LARGER `cam.y`: it pushes the
+   * ground down the screen, and what comes into the top of the frame is the
+   * part of the island that was above the frame. Starting below the resting
+   * value runs the whole move backwards — bottom to top — which is a legible
+   * pan, just not this one.
+   *
+   * `power2.out` puts nearly all the travel in the first third and then lets
+   * it settle, which is a camera finding its frame; a linear pan of the same
+   * length reads as the ground sliding.
+   *
+   * The start is deliberately NOT clamped, and that is the whole lesson of
+   * this move. Clamping it first looked obviously right — every other camera
+   * position in this scene goes through `clampCam` — and it silently deleted
+   * the pan on the ONE island every player sees: the tutorial board is small
+   * and framed tight (scale ~2.3), so the shot already sits hard against the
+   * pan limits and there is no legal camera 110px above it. The clamp ate the
+   * whole drop, `from` came back equal to `to`, and the arrival cut in.
+   *
+   * The pan rules exist so a player cannot STRAND themselves looking at open
+   * sea. This is a transient the player does not steer, it lasts a second, and
+   * it ends on `to`, which is clamped — so the invariant those rules protect
+   * is never at risk. It is the same exemption the eruption's rise takes, and
+   * for the same reason.
+   *
+   * It runs on `this.follow`, the same slot as the rabbit-follow slide, so the
+   * two can never tween the camera at once and a player who grabs the screen
+   * mid-pan takes it (`stopFollow` on the first touch) instead of fighting it.
+   *
+   * The island also fades UP under the move — see `ESTABLISH_FADE_SECONDS`.
+   * The fade is unconditional, and runs even on the boards where the clamp
+   * leaves no pan at all: a cut that fades in is still an arrival, and the one
+   * thing that must never happen is an island appearing at half alpha because
+   * the move it was riding on was clamped away.
+   */
+  private establishingPan(to: IslandCam): void {
+    this.fadeUp();
+    const from: IslandCam = { scale: to.scale, x: to.x, y: to.y + ESTABLISH_DROP_PX };
+    this.setCam(from);
+    const proxy = { y: from.y };
+    this.follow = gsap.to(proxy, {
+      y: to.y,
+      duration: ESTABLISH_SECONDS,
+      ease: 'power2.out',
+      onUpdate: () => this.setCam({ scale: to.scale, x: to.x, y: proxy.y }),
+      onComplete: () => { this.follow = null; },
+    });
+  }
+
+  /**
+   * The island fades up as it arrives — the answer to the sink's fade out.
+   *
+   * Both ride the container's alpha, so this first KILLS whatever is tweening
+   * it. Without that, an arrival landing while the last island's sink was
+   * still fading would leave two tweens fighting over one property, and the
+   * loser is whichever finishes second: the board settles at whatever alpha
+   * the dying tween last wrote. `resetEruption` already handles the ordinary
+   * between-islands case, but it is not the only way here — a respawn arrives
+   * on its own — so this does not rely on having been cleaned up for.
+   *
+   * From a floor rather than from zero. A board that starts fully transparent
+   * reads as a load, and for the first few frames there is nothing on screen
+   * to tell the player the camera is even moving; starting part-lit makes it a
+   * dissolve onto ground that was already there.
+   */
+  private fadeUp(): void {
+    gsap.killTweensOf(this.container);
+    this.container.alpha = ESTABLISH_FADE_FROM;
+    gsap.to(this.container, {
+      alpha: 1,
+      duration: ESTABLISH_FADE_SECONDS,
+      ease: 'power1.out',
+    });
   }
 
   /**
@@ -2016,6 +2359,18 @@ export class IslandScene implements Scene {
    * darkening sky (the DOM overlay does the sky and the ash). The recap lands
    * on a board that has visibly gone. `resetEruption` puts it back for the
    * next island.
+   *
+   * The sink is a camera PAN UP — the mirror of the drop an island opens on
+   * (`establishingPan`). The board slides down out of the bottom of the frame
+   * while the camera holds the sky it leaves behind, which is what makes it
+   * read as the island going under rather than as the picture being dragged
+   * away: the sea and the sky stay put, and the land is what moves through
+   * them. `ERUPTION_RISE_PX` of travel against the old 90 — that one was a
+   * nudge the fade swallowed before the eye caught it.
+   *
+   * Moved in DESIGN px: the container's position is design-space, so the
+   * distance is divided by the scale to come out the same on screen whether
+   * the player watched the blast zoomed in or from the overview.
    */
   playEruption(durationMs: number): void {
     const s = Math.max(1, durationMs) / 1000;
@@ -2029,10 +2384,17 @@ export class IslandScene implements Scene {
       x: this.cam.x + kick, y: this.cam.y + kick * 0.6,
       duration: 0.05, repeat: Math.floor((s * 0.55) / 0.05), yoyo: true, ease: 'none',
     }, 0);
-    // The sink: down and gone over the last 45%.
+    // The sink: the camera rises off the board over the last 45%. `power2.in`
+    // holds it almost still at first and then lets go, so the island hangs
+    // for a beat after the shaking stops before it drops — the pause is what
+    // sells the weight.
     tl.to(this.container.position, {
-      y: this.cam.y + 90 / this.container.scale.x, duration: s * 0.45, ease: 'power2.in',
+      y: this.cam.y + ERUPTION_RISE_PX / this.container.scale.x,
+      duration: s * 0.45, ease: 'power2.in',
     }, s * 0.55);
+    // The fade trails the movement rather than racing it: at 0.6 the island is
+    // already on its way down when it starts to go, so what the player sees
+    // fade is a board that is leaving, not one dissolving in place.
     tl.to(this.container, { alpha: 0, duration: s * 0.4, ease: 'power1.in' }, s * 0.6);
     this.sound.playExplosion();
     this.eruption = tl;
@@ -2102,8 +2464,10 @@ export class IslandScene implements Scene {
         if (stunMs > 0) known.playStunned(stunMs);
         if (energy !== undefined) this.myEnergy = energy;
         this.refreshReachable();
-        // A respawn is a cut, not a hop: the camera cuts with it.
-        this.solveCamera();
+        // A respawn is an arrival, not a hop: the camera re-opens on the new
+        // spawn with the same pan down an island opens on — unless `show`
+        // already opened on this island, which `arrive` is what decides.
+        this.arrive();
       }
       return;
     }
@@ -2129,8 +2493,9 @@ export class IslandScene implements Scene {
       if (stunMs > 0) rabbit.playStunned(stunMs);
       if (energy !== undefined) this.myEnergy = energy;
       this.refreshReachable();
-      // Open on the rabbit, wherever the spawn came out on this island.
-      this.solveCamera();
+      // Open on the rabbit, wherever the spawn came out on this island —
+      // unless the iris already did, which `arrive` is what decides.
+      this.arrive();
     }
   }
 
@@ -2369,6 +2734,7 @@ export class IslandScene implements Scene {
     }
     this.clearHighlights();
     this.taughtBomb = null;
+    this.ringedClue = null;
     // A strike is staggered over a few hundred ms — easily long enough to
     // outlive an island change and fire a bolt into a destroyed container.
     for (const timer of this.lightningTimers) window.clearTimeout(timer);

@@ -222,7 +222,28 @@
   border-radius: 0;
   box-sizing: border-box;
   padding: var(--rr-pad);
-  margin-bottom: 8px;
+  /* CENTRED ON THE SCREEN, and taken OUT OF THE COLUMN to do it.
+     
+     Auto margins were tried twice and could not work here: the card is one
+     flex item among several (the HUD, the eruption layer, a spacer), and they
+     leave no free space for `auto` to claim — measured live at the end of the
+     tutorial, the computed margin came out 0 and the card sat at 700-900 in a
+     900px viewport, flush with the floor. Paul, 2026-09-20: "je le veux
+     centre au milieu de l'ecran."
+     
+     `position: fixed` takes it off the column entirely, so its placement no
+     longer depends on what else happens to be mounted beside it. The transform
+     is what centres it on its own height, which is not known in advance — the
+     card grows with its note and its language. */
+  /* `!important` because NineSlicePanel writes `position: relative` as an
+     INLINE style, which beats any selector however specific — the same trap
+     the MARK A BOMB button hit. Without it `top: 50%` resolved against the
+     card's flow position and put it 955px down a 900px screen. */
+  position: fixed !important;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
   filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.45));
 }
 .rr-recap-title { margin: 0 0 6px; }
@@ -240,7 +261,12 @@
    that was never anyone's inset. */
 @media (max-height: 520px) {
   .rr-overlay .rr-card.rr-recap {
-    margin-bottom: 4px;
+    /* On a screen this short the card is nearly as tall as the layer, so it
+       is pinned to the top of the available band and scrolls inside (below)
+       rather than being centred on a few spare pixels. */
+    top: var(--rr-chrome-top, 56px);
+    transform: translate(-50%, 0);
+    max-height: calc(100dvh - var(--rr-chrome-top, 56px) - 8px);
     /* THE CARD GIVES, AND SCROLLS INSIDE — it used to run off the floor.
        Measured on the Seeker (890x400): at the old 6/12/8 the card's foot
        already sat 1px past the bottom of the screen and the HOME arrow under

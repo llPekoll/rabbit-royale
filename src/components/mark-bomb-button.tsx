@@ -19,6 +19,7 @@
  */
 import { useEffect } from 'react';
 import type { CSSProperties } from 'react';
+import { PixelArrow } from '@domin8/arcade-kit';
 import { useT } from '@/i18n/provider';
 import { PxButton, pxLabel } from './px';
 
@@ -65,9 +66,33 @@ export function MarkBombButton({ armed, onToggle, nothing = false, urge = false,
     <>
       {armed && <p className="rr-mark-hint" role="status">{t.run.markHint}</p>}
       {!armed && nothing && <p className="rr-mark-hint" role="status">{t.run.markNothing}</p>}
+      {/*
+        THE ARROW, over the button, while the tutorial is asking for an X.
+        Paul, 2026-09-20: "ya toujours pas la fleche sur mark a bomb."
+
+        A 3px lift over 1.2s — what stood here before — is not a sign, it is a
+        twitch nobody reads. The board points at the CELL with a red cross and
+        this points at the CONTROL, with the same gold chevron the chest wears,
+        so the two halves of the gesture are marked in one visual language.
+      */}
+
+      {/*
+        THE ARROW, over the button, while the tutorial is asking for an X.
+        Paul, 2026-09-20: "ya toujours pas la fleche sur mark a bomb", then
+        "trop petit et pas centre".
+
+        Drawn as the button's OWN child so it centres on it: the button's width
+        follows its label, which changes with the language, so a fixed offset
+        from the screen edge can only be right for one string. `left: 50%` on
+        the button's own box is right for all of them.
+
+        The board points at the CELL with a red cross and this points at the
+        CONTROL, with the same gold chevron the chest wears, so the two halves
+        of the gesture are marked in one visual language.
+      */}
       <PxButton
         type="button"
-        className={`rr-mark-btn${armed ? ' armed' : ''}${teach && !armed ? ' teach' : ''}${urge && !armed && !teach ? ' urge' : ''}`}
+        className={`rr-mark-btn${armed ? ' armed' : ''}${urge && !armed && !teach ? ' urge' : ''}`}
         aria-pressed={armed}
         title={`${t.run.markBomb} (X)`}
         onClick={() => onToggle(!armed)}
@@ -88,6 +113,11 @@ export function MarkBombButton({ armed, onToggle, nothing = false, urge = false,
           </span>
           <span style={label}>{armed ? t.run.markCancel : t.run.markBomb}</span>
         </span>
+        {teach && !armed && (
+          <span className="rr-mark-arrow" aria-hidden>
+            <PixelArrow dir="down" size={72} color="#ffd45c" />
+          </span>
+        )}
       </PxButton>
     </>
   );

@@ -63,7 +63,12 @@ describe('the loop bar', () => {
     expect(read('../src/components/run-recap.tsx')).toMatch(/t\.recap\.goHome/);
     // ...and the slab steps aside while the recap is up: the card's own last
     // row is the same exit, and the two HOMEs were drawn over each other.
-    expect(PAGE).toMatch(/\{!\(game\.recap && !spectating\) && \([\s\S]{0,80}<BackButton[\s\S]{0,120}label=\{spectating \? t\.run\.stopWatching : t\.run\.home\}/);
+    expect(PAGE).toMatch(/\{!\(game\.recap && !spectating\) &&[\s\S]{0,120}<BackButton[\s\S]{0,120}label=\{spectating \? t\.run\.stopWatching : t\.run\.home\}/);
+    // ...and it also steps aside while the first island is holding the player
+    // at its lesson: with every dig refused until the bomb is marked, HOME
+    // would be the only door that still opens, and a new player takes it
+    // having learned nothing. It returns the instant the X lands.
+    expect(PAGE).toMatch(/game\.taughtBomb === null && \(/);
   });
 
   it('moves the shop and the codex off the floor, to the top bar', () => {

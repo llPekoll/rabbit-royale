@@ -356,3 +356,73 @@ describe('the tutorial points at ONE thing at a time', () => {
     expect(body).toMatch(/if \(tile === null\)[\s\S]*pointAtTutorialChest/);
   });
 });
+
+describe('the clue wears a ring', () => {
+  const SCENE = readFileSync('src/game/scenes/IslandScene.ts', 'utf8');
+  const TILE = readFileSync('src/game/entities/Tile.ts', 'utf8');
+
+  /**
+   * The strip says "the number counts the bombs touching that tile" and, until
+   * the ring, "that tile" was a guess. Paul, 2026-09-20: "on peut entourer le
+   * premier 1, comme ca avec le texte en haut c'est hyper clair."
+   */
+  it('circles the numbered cell the deduction rests on', () => {
+    expect(TILE).toMatch(/setTeachRing\(on: boolean\): void \{/);
+    expect(SCENE).toMatch(/this\.ringClue\(this\.clueFor\(tile\)\)/);
+    // Found from the board, not handed down from the map: the ring can then
+    // never circle a tile the deduction does not actually rest on.
+    expect(SCENE).toMatch(/if \(!this\.tiles\.get\(index\)\?\.hasHint\) continue;/);
+  });
+
+  it('is BLUE, not the reachable ring gold', () => {
+    // Gold means "you may step here" everywhere else on this board; the clue
+    // is a label, not an invitation. Blue is the "1" it circles.
+    expect(TILE).toMatch(/const TEACH_RING_TINT = 0x4aa3ff;/);
+  });
+
+  it('goes with the rest of the lesson', () => {
+    const fn = SCENE.slice(SCENE.indexOf('private syncTeachMark'));
+    expect(fn.slice(0, 200)).toMatch(/if \(tile === null\) \{ this\.ringClue\(null\); return; \}/);
+  });
+});
+
+describe('the clue ring is a circle, not the tile outline', () => {
+  const TILE = readFileSync('src/game/entities/Tile.ts', 'utf8');
+
+  it('is drawn as an ellipse rather than reusing the diamond sprite', () => {
+    /**
+     * The first cut reused `diamondOutline`, which traces the cell's own edge:
+     * at a glance that is not a ring round the number, it is the tile looking
+     * slightly different from its neighbours. Paul, 2026-09-20: "j'aimerais
+     * que tu fasses un vrai cercle visible."
+     */
+    // Bounded at the NEXT member, not at the first `}` that happens to sit at
+    // two spaces of indent — a tween's closing brace does, and the slice then
+    // ran on into the methods below.
+    const from = TILE.indexOf('setTeachRing(on: boolean)');
+    const body = TILE.slice(from, TILE.indexOf('THE GHOST X', from));
+    expect(body).toMatch(/\.ellipse\(0, 0, rx, ry\)/);
+    // The word still appears in the comment explaining what this replaced, so
+    // assert on the CALL rather than on the mention.
+    expect(body).not.toMatch(/=\s*diamondOutline\(/);
+  });
+
+  it('sits INSIDE the cell, so it never spills onto the sea', () => {
+    // At 1.15 it covered the neighbours and the water and read as a piece of
+    // UI dropped on the board ("un peu trop fat").
+    const span = Number(/const TEACH_RING_SPAN = ([\d.]+);/.exec(TILE)![1]);
+    expect(span).toBeLessThan(1);
+  });
+
+  it('is squashed to the ground, not standing up off it', () => {
+    // Every flat thing on this board is drawn 2:1, which is the iso lattice's
+    // own ratio; a true circle would read as a hoop standing on the tile.
+    const fn = TILE.slice(TILE.indexOf('setTeachRing(on: boolean)'));
+    expect(fn.slice(0, 1600)).toMatch(/const ry = rx \* \(HALF_H \/ HALF_W\);/);
+  });
+
+  it('keeps a dark edge under the colour, like the hints and the X', () => {
+    const fn = TILE.slice(TILE.indexOf('setTeachRing(on: boolean)'));
+    expect(fn.slice(0, 1600)).toMatch(/TEACH_RING_WIDTH \+ 2, 0x0b2038/);
+  });
+});
