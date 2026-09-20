@@ -1,0 +1,82 @@
+server {
+  listen 3010;
+  root /usr/share/nginx/html;
+  index index.html;
+
+  # L'ART, CACHE DUR.
+  #
+  # Le serveur est en Finlande ; depuis l'Asie du sud-est, une revalidation par
+  # image coute plus cher en aller-retours que les octets eux-memes. L'art est
+  # immuable (une modification sort sous un nouveau nom de fichier), donc le
+  # navigateur peut le garder un an sans jamais redemander.
+  # `expires` ecrit deja son propre Cache-Control : un add_header en plus et
+  # la reponse en porte DEUX, au choix du client. On garde le notre seul, qui
+  # dit `immutable` — ce qu'`expires` ne sait pas exprimer.
+  location /assets/ {
+    add_header Cache-Control "public, max-age=31536000, immutable";
+  }
+
+  # /api PART AU SERVEUR DE JEU, il n'est jamais servi d'ici.
+  #
+  # Sans ce bloc, le `try_files ... /index.html` plus bas attrape /api/* et
+  # rend la PAGE : le navigateur recoit du text/html la ou il attend du JSON,
+  # `res.json()` jette, et le jeu s'arrete sur "NO CONNECTION" — avec un 200
+  # dans les logs, ce qui ne ressemble a rien de casse. C'est le middleware
+  # Next qui tenait ce role avant.
+  #
+  # L'amont est une VARIABLE, et c'est deliberé : ecrit en dur dans un
+  # proxy_pass, nginx le resout AU DEMARRAGE et refuse de demarrer tant que le
+  # conteneur de jeu n'ecoute pas — l'ordre de demarrage deviendrait une
+  # dependance, et un redeploiement du serveur tuerait le web avec lui.
+  #
+  # Une variable oblige un resolver. Celui de Docker (127.0.0.11) resout les
+  # noms de services ; il est configurable parce qu'il n'existe PAS sur le
+  # reseau `bridge` par defaut, ou il donne un 502 plutot qu'une reponse.
+  location /api/ {
+    resolver ${DNS_RESOLVER} valid=10s ipv6=off;
+    set $amont "${API_UPSTREAM}";
+    proxy_pass $amont$request_uri;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    # Les routes lisent l'en-tete Authorization : Bearer, pas un cookie.
+    proxy_pass_request_headers on;
+  }
+
+  # LE SOCKET, MEME AMONT, PLUS LA BASCULE WebSocket.
+  #
+  # Le client demande /api/config puis se connecte a `wsUrl` — et quand cette
+  # valeur est vide il retombe sur `window.location.origin` (voir
+  # use-game-socket.ts), donc sur CE serveur. Sans ce bloc, socket.io frappe un
+  # 404 statique et le jeu reste sur l'ecran de connexion.
+  #
+  # Upgrade/Connection sont ce qui transforme la requete en WebSocket ; sans
+  # eux nginx repond en HTTP ordinaire et la poignee de main echoue. Le
+  # timeout long evite de couper une partie tranquille : par defaut nginx
+  # ferme une connexion muette au bout d'une minute.
+  location /socket.io/ {
+    resolver ${DNS_RESOLVER} valid=10s ipv6=off;
+    set $amont_ws "${API_UPSTREAM}";
+    proxy_pass $amont_ws$request_uri;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_read_timeout 1h;
+    proxy_send_timeout 1h;
+  }
+
+  # Le HTML, jamais en cache : c'est lui qui nomme les bundles hashes.
+  location = /index.html {
+    add_header Cache-Control "no-cache";
+  }
+
+  location / {
+    try_files $uri $uri/ /index.html;
+  }
+}
