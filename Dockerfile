@@ -20,8 +20,9 @@ RUN bun run build
 # Nginx sert les fichiers : ni Node ni Bun ne tournent en production ici.
 FROM nginx:alpine AS runtime
 COPY --from=build /app/dist /usr/share/nginx/html
-# `assets/world/` (1,7 Mo) est la planche de l'atelier /isoworld. L'atelier
-# reste servi, mais ses tuiles ne sont pas du jeu : hors de l'image.
+# `assets/world/` (1,7 Mo) est la planche de l'atelier /isoworld, que cette
+# image ne sert plus. Vite copie `public/` en entier, donc la planche arrive
+# quand meme ici : on la retire.
 RUN rm -rf /usr/share/nginx/html/assets/world
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 3010

@@ -16,8 +16,10 @@ const here = dirname(fileURLToPath(import.meta.url));
  * sur Vite — le repo avait donc DEUX chaines de build pour le meme code, qui
  * pouvaient diverger. Il n'en reste qu'une.
  *
- * Les trois entrees sont independantes : rien dans le jeu ne lie vers les
- * ateliers, ils s'ouvrent a la main.
+ * Les ateliers /island et /isoworld ne sont PAS construits : ce sont des
+ * outils de dev, rien dans le jeu n'y mene, et une image de production n'a
+ * pas a les porter. Ils restent servis par `bun run dev`, qui sert n'importe
+ * quel index.html du projet — leur code et leurs entrees sont intacts.
  */
 export default defineConfig({
   plugins: [react()],
@@ -62,14 +64,9 @@ export default defineConfig({
 
   build: {
     outDir: 'dist',
-    // Les ateliers /island et /isoworld sont des outils de dev, mais ils
-    // pesent peu et servent a juger le terrain : ils restent dans le build.
+    // Le jeu, et lui seul. Voir l'entete : les ateliers restent en dev.
     rollupOptions: {
-      input: {
-        main: join(here, 'index.html'),
-        island: join(here, 'island/index.html'),
-        isoworld: join(here, 'isoworld/index.html'),
-      },
+      input: { main: join(here, 'index.html') },
     },
   },
 });
