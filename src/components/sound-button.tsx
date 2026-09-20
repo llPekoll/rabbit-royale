@@ -1,5 +1,7 @@
 'use client';
 
+import { WoodlandAction as NineSliceButton, WoodlandSurface as NineSlicePanel } from '@/components/woodland/runtime';
+
 /**
  * The sound control: two squares at the right end of the top bar.
  *
@@ -21,7 +23,7 @@
  * is the kit's, rather than font-dependent glyphs.
  */
 import { useEffect, useRef, useState } from 'react';
-import { ARROW_URLS, NineSliceButton, NineSlicePanel } from '@domin8/arcade-kit';
+import { ARROW_URLS } from '@domin8/arcade-kit';
 import { HubIconButton, hubIconArt } from './hub-icon-button';
 import { InstallRow } from './install-guide';
 import { PixelText as BitmapText } from './pixel-text';

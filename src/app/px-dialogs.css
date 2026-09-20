@@ -35,11 +35,13 @@
    lands on the same value. */
 :root {
   --rr-dlg-px: 2px;
-  /* What a kit button reserves at its foot for the bevel lip: `BEVEL` (6)
-     source pixels at the chrome's own pixel. The kit writes it as bottom
-     padding, so any pad we want UNDER the label has to be added on top of it
-     — see the button rule below. */
-  --rr-btn-bevel: calc(var(--rr-dlg-px) * 6);
+  /* WAS the kit's bevel lip: 6 source pixels the old chrome reserved at a
+     button's foot, which the pad below had to sit on top of. The Woodland
+     plank has no lip — its art fills the box — so reserving that strip only
+     pushed the label off-centre and clipped descenders on the bottom edge.
+     Kept as a named zero so the four-sided inset below still reads as one
+     idea, and so a future skin with a lip has somewhere to declare it. */
+  --rr-btn-bevel: 0px;
 }
 
 /* ── The frame, and nothing under it ───────────────────────────────────────
@@ -69,20 +71,15 @@
 }
 
 /* ── EVERY BUTTON IN A DIALOG, ONE INSET ────────────────────────────────────
-   A kit button reserves its bevel as BOTTOM padding — `padding: 0 calc(PX*4)
-   calc(PX*6)`, i.e. 0/8/12/8 — so its label rides the light face with no air
-   above it and eight px at the sides. Four different insets on four sides of
-   the one thing a player aims at.
+   The label looks EVENLY inset: the same pad on all four sides, plus whatever
+   lip the skin reserves at the foot. On the Woodland plank that lip is zero
+   (see `--rr-btn-bevel`), so the label centres in the box — which is what the
+   flat plank art wants, its grain running edge to edge.
 
-   What the label needs is to look EVENLY inset, which is not the same as
-   equal numbers: the bottom `--rr-btn-bevel` is the lip, not air, so the pad
-   goes on all four sides and the bevel is added underneath it. The label then
-   centres on the face itself (the box is 44px at the tap floor, the face is
-   the top 32 of it, and the label lands at 16 — dead centre of the face).
-
-   `!important` because the kit writes that padding as an INLINE style, which
-   no stylesheet rule can otherwise reach. (The old `padding-block: 0` on the
-   price buttons lost to it silently and had never done anything.) */
+   `!important` survives from the kit, which wrote this padding as an INLINE
+   style no stylesheet could reach. The Woodland runtime writes it in CSS, so
+   these rules would now win on specificity alone; it stays because the one
+   thing worse than a redundant `!important` here is a half-removed one. */
 .rr-px-dialog .rr-px-btn:not(.rr-avatar-pick):not(.rr-shop-rail),
 .rr-px-dialog .rr-shop-x,
 .rr-px-dialog .rr-lb-close,
@@ -129,6 +126,9 @@
   display: flex;
   align-items: center;
   min-width: 0;
+  /* Shrinking the box is not enough: the atlas title keeps its intrinsic
+     width, so clip the overflow rather than let it run under the purse. */
+  overflow: hidden;
 }
 .rr-px-dialog .rr-shop-grid { padding: var(--rr-pad); gap: var(--rr-pad); }
 /* The tile is the grid cell; its nested panel is the tile. */
@@ -182,7 +182,10 @@
    capped to the scrim so a short screen scrolls the middle instead of losing
    the top or bottom of the dialog. */
 .rr-px-dialog.rr-energy-modal {
-  width: min(440px, 100%);
+  /* 440 fitted the three on a row inside the old flat frame. The Woodland
+     board spends ~32px more on its leafy border, so the row needs that back
+     or the atlas title gets clipped against the purse. */
+  width: min(476px, 100%);
   max-height: 100%;
 }
 /* The body is the dialog's own inset, once — the state band and the offer

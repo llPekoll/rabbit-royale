@@ -1,5 +1,7 @@
 'use client';
 
+import { WoodlandAction as NineSliceButton, WoodlandSurface as NineSlicePanel, type WoodlandActionProps as NineSliceButtonProps } from '@/components/woodland/runtime';
+
 /**
  * THE GAME'S PIXEL CHROME — every panel and every button, cut from the codex.
  *
@@ -21,8 +23,9 @@ import {
   type CSSProperties,
   type MouseEvent,
   type ReactNode,
+  type HTMLAttributes,
 } from 'react';
-import { NineSliceButton, NineSlicePanel, type NineSliceButtonProps } from '@domin8/arcade-kit';
+
 
 /**
  * ONE SOURCE PIXEL OF CHROME, EVERYWHERE: 2 CSS px.
@@ -41,7 +44,7 @@ import { NineSliceButton, NineSlicePanel, type NineSliceButtonProps } from '@dom
  */
 export const PX = '2px';
 
-export interface PxPanelProps {
+export interface PxPanelProps extends HTMLAttributes<HTMLDivElement> {
   /** The panel's fill — the colour it had before it wore the frame. */
   color: string;
   children?: ReactNode;
@@ -51,11 +54,11 @@ export interface PxPanelProps {
 
 /** A panel in the codex's frame, in its own colour. */
 export const PxPanel = forwardRef<HTMLDivElement, PxPanelProps>(function PxPanel(
-  { color, children, className, style },
+  { color, children, className, style, ...rest },
   ref,
 ) {
   return (
-    <NineSlicePanel ref={ref} color={color} pixelScale={PX} className={className} style={style}>
+    <NineSlicePanel {...rest} ref={ref} color={color} pixelScale={PX} className={className} style={style}>
       {children}
     </NineSlicePanel>
   );

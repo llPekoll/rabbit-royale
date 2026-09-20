@@ -71,9 +71,9 @@ export function FirstRunCaption(props: FirstRunCaptionProps) {
   const text = useFirstRunCaption(props);
   if (!text) return null;
   return (
-    // The island's caption glass in the codex's pixel frame; `.rr-caption`
-    // still places it, the inline pair stops the old smooth chrome under it.
-    <PxPanel color="rgba(13, 17, 23, 0.86)" className="rr-caption" style={{ background: 'none', borderRadius: 0 }}>
+    // `.rr-caption` still places it; the plank under it is the Woodland
+    // notice, painted by the runtime (see woodland/runtime.css).
+    <PxPanel color="rgba(13, 17, 23, 0.86)" className="rr-caption">
       <span role="status" aria-live="polite">{text}</span>
     </PxPanel>
   );

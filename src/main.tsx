@@ -28,6 +28,7 @@ import '@/app/globals.css';
 import '@/app/px-top-floor.css';
 import '@/app/px-dialogs.css';
 import '@/app/px-raid.css';
+import '@/components/woodland/runtime.css';
 
 const hote = document.getElementById('root');
 if (!hote) throw new Error('#root est absent de index.html');

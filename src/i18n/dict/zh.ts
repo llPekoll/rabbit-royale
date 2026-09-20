@@ -453,6 +453,9 @@ export const zh: Dict = {
   },
 
   profile: {
+    /* The panel's own heading. The tabs below it say Profile and History,
+       so the header names the panel, not the open tab. */
+    title: '资料',
     tabProfile: '资料',
     tabHistory: '记录',
     name: '名字',

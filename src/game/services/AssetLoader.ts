@@ -1,5 +1,6 @@
+import { loadWoodlandButtonAssets } from '../ui/NineButton';
 import { Assets, Spritesheet, Texture, TextureSource } from 'pixi.js';
-import { loadButtonAssets, loadArcadeFonts, loadCoinAssets } from '@domin8/arcade-kit/pixi';
+import { loadArcadeFonts, loadCoinAssets } from '@domin8/arcade-kit/pixi';
 import { CARROT_URL } from '@domin8/arcade-kit/game';
 import { ARROW_URLS } from '@domin8/arcade-kit';
 import * as Keys from '@/config/assetKeys';
@@ -361,13 +362,11 @@ async function loadAllAssetsOnce(
     Assets.add({ alias: item.key, src: item.src });
   }
 
-  // Load everything with progress. The shared 9-slice button sprites come from
-  // the kit (resting + pressed twins, under the kit's own aliases) — loaded in
-  // parallel so NineButton can bake from them.
+  // Load the Woodland button art alongside the game assets and fonts.
   const aliases = allItems.map((i) => i.key);
   await Promise.all([
     Assets.load(aliases, (progress) => onProgress?.(progress)),
-    loadButtonAssets(),
+    loadWoodlandButtonAssets(),
     loadArcadeFonts(),
     loadCoinAssets(),
   ]);

@@ -1,5 +1,7 @@
 'use client';
 
+import { WoodlandClose as CloseButton } from '@/components/woodland/runtime';
+
 /**
  * The raid: choosing a burrow, and the HUD while you are inside one.
  *
@@ -16,7 +18,7 @@ import { useEffect, useState, type CSSProperties } from 'react';
 import { useT } from '@/i18n/provider';
 import { groupDigits, shortWait } from '@/i18n/format';
 import { createPortal } from 'react-dom';
-import { CloseButton } from '@domin8/arcade-kit';
+
 import { PanelTitle } from './pixel-text';
 import { presenceOf, type RaidState, type Target } from './use-raid';
 import { LauncherTab, CARROT, DANGER, LAMP, PLANK, SOIL, SOIL_DEEP } from './burrow-chrome';
@@ -132,13 +134,7 @@ export function TargetList({ targets, busy, onEnter, onClose, note }: TargetList
             <h2 aria-label={d.raid.whose}>
               <PanelTitle>{d.raid.whose}</PanelTitle>
             </h2>
-            <CloseButton
-              inline
-              className="rr-px-btn"
-              onClick={onClose}
-              aria-label={d.chrome.close}
-              style={{ height: 44, minWidth: 44 }}
-            />
+            <CloseButton onClick={onClose} aria-label={d.chrome.close} />
           </header>
 
           {targets.length === 0 ? (

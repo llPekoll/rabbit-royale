@@ -457,6 +457,9 @@ export const fr: Dict = {
   },
 
   profile: {
+    /* The panel's own heading. The tabs below it say Profile and History,
+       so the header names the panel, not the open tab. */
+    title: 'PROFIL',
     tabProfile: 'Profil',
     tabHistory: 'Historique',
     name: 'Nom',

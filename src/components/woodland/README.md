@@ -34,3 +34,83 @@ Elle est disponible à l’import sans remplacer les écrans actuels.
 Les boutons utilisent uniquement la planche illustrée comme fond, sans
 rectangle coloré superposé. Le texte des onglets sélectionnés devient doré.
 La prop tone est conservée pour permettre de futurs sprites dédiés.
+
+## Boutique et récompenses
+
+Story **Design Kit / Woodland / Shop And Rewards** :
+
+- `WoodlandTabs` : `tabs` (id, label, icon, content), `value`, `onChange`,
+  `orientation="horizontal" | "vertical"`. Navigation flèches, Home et End,
+  panneaux associés et sélection contrôlée.
+- `WoodlandNotification` : `title`, `icon`, contenu descriptif, `onOpen`
+  optionnel et `actionLabel` pour nommer l’action.
+- `WoodlandHarvest` : bouton de récolte, `tone="green" | "gold" | "danger" | "blue"`,
+  props natives dont `onClick` et `disabled`.
+- `WoodlandNotice` : message passif, tons green, gold, danger, blue et wood.
+  Le ton wood affiche la carotte ; danger est annoncé comme alerte.
+
+Les bandeaux utilisent quatre images complètes notice-*.webp, reconstruites
+d’après la référence : doré, vert, rouge et bleu. Aucun filtre coloré ni
+rectangle ne se superpose au bois. Les extrémités restent fixes en 3-slice.
+Les exemples simulent les événements ; ils ne modifient pas les stocks du jeu.
+
+## Notifications illustrées compactes
+
+`WoodlandParchmentToast` propose `variant="quest" | "achievement"`, `title`,
+`description`, `onOpen` et `actionLabel`. Voir la story **Parchment Notifications**.
+Deux PNG transparents dédiés dans `public/assets/ui/notification-*.png` :
+parchemin avec étoile et flèche, ou étoiles de succès et petites feuilles, sans animal.
+Les images sont générées ; les textes restent en HTML. Utiliser un titre court
+et une description d’une ligne. Le format conserve les proportions de l’art,
+avec une largeur maximale de 320px. Pour des messages longs, utiliser
+`WoodlandNotification`, qui grandit avec son contenu.
+
+## Pastilles de coin
+
+`WoodlandCornerBadge` accepte `value` (nombre ou '!'), `shape` (round ou square)
+et `attached`. Les compteurs supérieurs à 99 affichent 99+. Pour une pastille
+attachée, entourer le bouton et la pastille avec `.wl-corner-anchor`.
+La pastille est décorative ; inclure son sens dans l’aria-label du bouton.
+Voir **Badges And Banners** pour les deux formes et les exemples au coin.
+
+## Le runtime : remplacer le 9-slice dans le jeu
+
+`woodland/index.tsx` est le kit — les composants qu'on écrit à neuf, montrés
+dans les stories. `woodland/runtime.tsx` est autre chose : la couche qui
+remplace l'ancien chrome arcade **dans les écrans déjà livrés**, sans les
+réécrire.
+
+Les écrans importaient `NineSlicePanel`, `NineSliceButton` et `CloseButton` de
+`@domin8/arcade-kit`. Le runtime exporte `WoodlandSurface`, `WoodlandAction` et
+`WoodlandClose` avec les mêmes props, donc chaque fichier ne change que son
+import :
+
+```tsx
+import { WoodlandSurface as NineSlicePanel } from '@/components/woodland/runtime';
+```
+
+Les props de l'ancien kit (`color`, `pixelScale`, `shadowColor`…) sont acceptées
+et ignorées : l'art décide de la couleur, plus le `color` du site d'appel. Le
+runtime choisit la bonne matière en lisant la `className` déjà présente —
+`rr-energy-track` devient une gouttière, `rr-hub-btn` une planche, un
+`role="tab"` un onglet doré. Aucun écran n'a eu besoin d'une prop en plus.
+
+`runtime.css` se charge **après** les feuilles de mise en page, dans
+`main.tsx` et dans `.storybook/preview.ts` : il ne reprend que la matière
+(fond, bordure, ombre) et laisse la taille et le comportement aux règles
+existantes.
+
+La légende de l'île (`.rr-caption`) est la seule surface qui ne prend PAS le
+bois : c'est une narration posée sur le plateau, donc une pastille sombre
+translucide à coins ronds (`.wl-runtime-caption`), texte blanc. Une planche à
+cet endroit se battait avec la barre d'énergie juste au-dessus et cachait le
+terrain. Les variantes dorées passent par `--wl-runtime-ink`, pas par `color` :
+le texte est dans un `span` que le runtime peint en `!important`.
+
+Le bevel : l'ancien bouton du kit réservait 6 pixels de lèvre sous son label, et
+`px-dialogs.css` ajoutait son inset par-dessus. La planche Woodland est plate,
+donc `--rr-btn-bevel` vaut désormais `0px` — sinon le label monte et les
+jambages se font couper par le bas de la planche.
+
+Vérification : `node tools/verify-woodland.mjs` (Storybook sur 6007) prend les
+captures et compte ce qui reste d'ancien chrome. `legacy: 0` partout.

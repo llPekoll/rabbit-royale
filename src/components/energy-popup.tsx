@@ -1,5 +1,7 @@
 'use client';
 
+import { WoodlandClose as CloseButton, WoodlandSurface as NineSlicePanel } from '@/components/woodland/runtime';
+
 /**
  * "Out of energy" — the small dialog, right where the player pressed.
  *
@@ -23,7 +25,7 @@ import { useEffect } from 'react';
 import { useT } from '@/i18n/provider';
 import { formatWait, groupDigits } from '@/i18n/format';
 import { createPortal } from 'react-dom';
-import { CloseButton, NineSlicePanel } from '@domin8/arcade-kit';
+
 import { PanelTitle } from './pixel-text';
 import { PxButton, PxPanel, pxLabel } from './px';
 import {
@@ -108,7 +110,7 @@ export function EnergyPopup({
         <header className="rr-shop-top">
           <h2><PanelTitle>{t.shop.outOfEnergy}</PanelTitle></h2>
           <span className="rr-shop-purse">{groupDigits(stock)} 🥕</span>
-          <CloseButton inline className="rr-shop-x" onClick={onClose} aria-label="Close" style={{ minWidth: 44 }} />
+          <CloseButton className="rr-shop-x" onClick={onClose} aria-label="Close" />
         </header>
 
         {/* The middle scrolls, so a short screen keeps the title, the [X] and

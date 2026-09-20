@@ -2740,19 +2740,25 @@ function Burrow() {
               across it on a phone — two HOMEs, one drawn over the other (Paul,
               2026-09-16). While the recap is up, the card is the way out.
 
-              AND NOT WHILE THE TUTORIAL IS HOLDING THE PLAYER AT ITS LESSON.
-              The first island refuses every dig until its bomb is marked
-              (`teachingHold`), so a HOME button there is the one door that
-              still opens — and a new player who cannot make the board respond
-              takes it, having learned nothing and banking nothing. Paul,
-              2026-09-20: "cache le home button ici comme ca les joueurs
-              peuvent pas sortir de la."
-              
-              It comes back the instant the X lands, which is also the instant
-              the run becomes a normal run: `taughtBomb` is null from then on.
-              Nobody is trapped — the lesson is three steps and one tap, and
-              the board is showing exactly where to tap. */}
-          {!(game.recap && !spectating) && game.taughtBomb === null && (
+              AND NOT ANYWHERE ON THE FIRST ISLAND. The tutorial is one run
+              with one ending — its chest — and every line it says is about
+              getting there. A door in the corner is an answer to a board the
+              player has not learned to read yet, and the ones who take it
+              leave having learned nothing and banked nothing. Paul,
+              2026-09-20: "vire le home pendant la first game tu ne doit pas
+              pouvoir sortir du tuto."
+
+              It was hidden only while the X lesson held (`taughtBomb`), which
+              covered the one screen where digging is refused and reopened the
+              door for the rest of the lesson — the chest, which is the part
+              that actually pays. Now the whole first run is the hold.
+
+              Nobody is trapped: the first island ENDS on its chest
+              (`tutorialDone` in run.ts), and it ends on a dead rabbit or an
+              empty tank like any other run. Every one of those raises the
+              recap, whose own last row is this same exit (`onHome`). The way
+              out is the ending, not the corner. */}
+          {(spectating || (!game.recap && !game.firstRun)) && (
             <BackButton
               label={spectating ? t.run.stopWatching : t.run.home}
               onClick={stopSpectating}

@@ -1,5 +1,7 @@
 'use client';
 
+import { WoodlandSurface as NineSlicePanel, WoodlandClose as CloseButton } from '@/components/woodland/runtime';
+
 /**
  * The codex: the scroll in the burrow, and the chapters behind it.
  *
@@ -34,13 +36,7 @@
  */
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
-import {
-  NineSlicePanel,
-  CloseButton,
-  BitmapText,
-  loadPixelWebFont,
-  PIXEL_FONT_FAMILY,
-} from '@domin8/arcade-kit';
+import { BitmapText, loadPixelWebFont, PIXEL_FONT_FAMILY } from '@domin8/arcade-kit';
 // The panel's title is player-facing copy; the chapter NUMERALS below stay on
 // the kit's own atlas, which draws "IV" perfectly well in any language.
 import { PanelTitle } from './pixel-text';
@@ -211,7 +207,7 @@ export function LoreCodex({ lifetime, onClose, onRead }: LoreCodexProps) {
                 />
                 <PanelTitle style={{ color: INK }}>{t.codex.title}</PanelTitle>
               </span>
-              <CloseButton inline onClick={onClose} aria-label={t.codex.close} />
+              <CloseButton onClick={onClose} aria-label={t.codex.close} />
             </header>
 
             <div className="rr-lore-body">

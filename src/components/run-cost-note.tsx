@@ -41,8 +41,8 @@ export function RunCostNote({ bank, seed }: { bank: RunBank | null; seed: string
 
   if (!shown) return null;
   return (
-    // Same pixel glass as the other island captions — see first-run-caption.
-    <PxPanel color="rgba(13, 17, 23, 0.86)" className="rr-caption rr-caption-cost" style={{ background: 'none', borderRadius: 0 }}>
+    // Same painted plank as the other island captions — see first-run-caption.
+    <PxPanel color="rgba(13, 17, 23, 0.86)" className="rr-caption rr-caption-cost">
       <span role="status" aria-live="polite">
         ⚡ -{shown.cost} for this run &middot; {shown.energy}/{shown.max} left at the burrow
       </span>

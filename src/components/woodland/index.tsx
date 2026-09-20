@@ -101,3 +101,22 @@ export function WoodlandHarvest({ tone = 'green', children, ...props }: Omit<Woo
     <WoodlandIcon name="carrot" size={32} /><span className="wl-notice-text">{children}</span>
   </button>;
 }
+
+/** Compact illustrated notification; the art scales whole to preserve its corner details. */
+export function WoodlandParchmentToast({ variant = 'quest', title, description, onOpen, actionLabel }: {
+  variant?: 'quest' | 'achievement'; title: string; description?: string;
+  onOpen?: () => void; actionLabel?: string;
+}) {
+  const content = <><img src={`/assets/ui/notification-${variant}.png`} alt="" draggable={false} /><span className="wl-parchment-copy"><strong>{title}</strong>{description && <span>{description}</span>}</span></>;
+  return <div className={`wl-parchment-toast wl-parchment-${variant}`}>
+    {onOpen ? <button type="button" onClick={onOpen} aria-label={actionLabel ?? [title, description].filter(Boolean).join('. ')}>{content}</button> : <div role="status">{content}</div>}
+  </div>;
+}
+
+/** Decorative counter. Give its parent control an accessible label with the count. */
+export function WoodlandCornerBadge({ value, shape = 'round', attached = false }: {
+  value: number | '!'; shape?: 'round' | 'square'; attached?: boolean;
+}) {
+  const text = typeof value === 'number' ? Math.max(0, Math.floor(value)) > 99 ? '99+' : Math.max(0, Math.floor(value)) : value;
+  return <span aria-hidden="true" className={`wl-corner-badge wl-corner-badge-${shape}${attached ? ' wl-corner-badge-attached' : ''}`}>{text}</span>;
+}

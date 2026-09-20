@@ -234,7 +234,7 @@ export function CarrotPill({
               own figure, so the one thing it could be mistaken for is the
               other number beside it. The mark says WHAT was carried; the
               tooltip still says the rest ("banked when you walk home"). */}
-          <PxPanel color={CARRY_GLASS} style={carryPlate}>
+          <PxPanel color={CARRY_GLASS} className="rr-carry-chip" style={carryPlate}>
             +{groupDigits(carrying)}
             <CarrotMark size={10} />
           </PxPanel>

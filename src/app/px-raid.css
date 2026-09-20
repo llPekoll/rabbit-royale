@@ -77,7 +77,13 @@
      taller for it (the 44px button plus the pad), which the list absorbs by
      scrolling. */
   gap: var(--rr-pad);
-  padding: var(--rr-pad);
+  /* HORIZONTALLY IT IS THE PLANK'S CAPS THAT SET THE INSET, not `--rr-pad`.
+     The plank is a 3-slice whose end caps (`/ 0 24px`, runtime.css) are painted
+     OUTSIDE the box — they reserve no width — so a 10px pad put the name and
+     the RAID button under the carved ends: the first letter of every row sat
+     on the left cap. 22px clears them, which is what `.wl-runtime-wood` asks
+     for by default; the vertical pad stays the frame's own number. */
+  padding: var(--rr-pad) 22px;
   box-sizing: border-box;
   color: var(--chalk, #f5e6d3);
 }
@@ -154,20 +160,25 @@
    shorthand and leave the lip untouched, which means this rule never has to
    restate the bevel and can never drift from it.
 
-   What that buys, measured: the raid row's 44px button is 12px of lip plus a
-   12px label, leaving 10px of face above and below the ink — the same 10 as
-   the sides. The air reads even on all four sides because the number is the
-   same number, not because it was nudged until it looked right.
+   What that buys, measured: a 44px button is 12px of lip plus a 12px label,
+   leaving 10px of face above and below the ink — the same 10 as the sides. The
+   air reads even on all four sides because the number is the same number, not
+   because it was nudged until it looked right.
 
    SCOPED, not global. Two other agents are in the dialogs and the top bar this
    session, and `.rr-px-btn` is on every button in the game; this names only
    the buttons in the files this pass owns. */
 .rr-hub-btn,
-.rr-raid-pick .rr-raid-list button,
 .rr-victory-rise .rr-px-btn {
   padding-left: var(--rr-pad) !important;
   padding-right: var(--rr-pad) !important;
 }
+/* THE RAID BUTTON KEEPS THE PLANK'S OWN SIDES. It is the one button in this
+   pass that is painted rather than drawn: its face is the plank 3-slice
+   (`::before`, `/ 0 25px`), whose end caps hang outside the box and reserve no
+   width. Narrowed to `--rr-pad` the label ran under them — "Raid" sat on the
+   right cap's leaves, and "Shielded / 14h" under both. The kit's 22px is the
+   number that clears a cap, so the sides are left alone here. */
 
 /* ── The burrow cards on a short screen ─────────────────────────────────────
    The three cards take `--rr-pad` on all four sides (hub-card.tsx), which is

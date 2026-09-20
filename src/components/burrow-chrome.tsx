@@ -1,5 +1,7 @@
 'use client';
 
+import { WoodlandSurface as NineSlicePanel, WoodlandAction as NineSliceButton } from '@/components/woodland/runtime';
+
 /**
  * The burrow's chrome: one palette, one pixel, and the parts every panel builds
  * from.
@@ -25,7 +27,7 @@
  * The lore codex keeps its parchment for the same reason: it is a scroll.
  */
 import type { CSSProperties, ReactNode } from 'react';
-import { NineSlicePanel, NineSliceButton } from '@domin8/arcade-kit';
+
 import { PixelText as BitmapText } from './pixel-text';
 
 /** Two CSS px per source pixel, everywhere in the burrow. See the header. */

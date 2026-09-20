@@ -113,7 +113,7 @@ export function GardenCard({
       footer={
         <PxButton
           type="button"
-          className="rr-hub-btn"
+          className="rr-hub-btn rr-harvest-btn"
           onClick={onHarvest}
           disabled={!canHarvest}
           color={canHarvest ? BTN : BTN_OFF}

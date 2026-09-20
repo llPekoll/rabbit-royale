@@ -540,6 +540,9 @@ export const en = {
 
   /* ── The profile ──────────────────────────────────────────────────────── */
   profile: {
+    /* The panel's own heading. The tabs below it say Profile and History,
+       so the header names the panel, not the open tab. */
+    title: 'PROFILE',
     tabProfile: 'Profile',
     tabHistory: 'History',
     name: 'Name',

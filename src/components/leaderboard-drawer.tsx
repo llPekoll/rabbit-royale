@@ -30,7 +30,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useT } from '@/i18n/provider';
 import { GOLD_CUP_URL } from '@domin8/arcade-kit';
-import { PanelTitle } from './pixel-text';
+import { PixelTitle } from './pixel-text';
 import { HubIconButton, hubIconArt } from './hub-icon-button';
 import { PX, PxPanel } from './px';
 import { LeafFrame } from './leaf-frame';
@@ -264,9 +264,16 @@ export function LeaderboardDrawer({ token, playerId, onSpectate, onMe, onOpen }:
         inert={!open}
       >
         <header className="rr-lb-head">
+          {/* SCALE 2, not `PanelTitle`'s 2.5. The board is ~234px wide and it
+              has to hold the title, the countdown and the [x] in its corner;
+              at 2.5 the atlas draws SEASON 120px wide and the three of them do
+              not fit, so the title was being painted under the knob (its
+              letter spans overflow the box the flex row measures, so no amount
+              of padding moved it). Smaller is the honest fix: it FITS, rather
+              than being clipped mid-letter. */}
           <strong className="rr-lb-title">
             <span aria-hidden>👑</span>
-            <PanelTitle>{t.chrome.season}</PanelTitle>
+            <PixelTitle scale={2}>{t.chrome.season}</PixelTitle>
           </strong>
           {daysLeft !== null && <span style={{ color: 'var(--muted)' }}>{daysLeft}d</span>}
           {/* Every screen can put the board away now — on a phone it is covering

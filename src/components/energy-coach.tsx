@@ -40,7 +40,7 @@ export function EnergyCoach({ energy }: { energy: number }) {
 
   if (!low) return null;
   return (
-    <PxPanel color="rgba(13, 17, 23, 0.86)" className="rr-caption" style={{ background: 'none', borderRadius: 0 }}>
+    <PxPanel color="rgba(13, 17, 23, 0.86)" className="rr-caption">
       <span role="status" aria-live="polite">{t.run.energyLow}</span>
     </PxPanel>
   );

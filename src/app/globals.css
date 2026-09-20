@@ -325,6 +325,18 @@ html, body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* LE HOTE DE REACT PREND TOUTE LA HAUTEUR.
+
+   Sous Next, `layout.tsx` posait l'arbre directement dans <body> et `.rr-home`
+   (`height: 100%`) se mesurait donc sur le body, qui fait 100%. Sous Vite il y
+   a un div #root entre les deux, sans hauteur : un bloc ordinaire qui se
+   dimensionne sur son contenu. `height: 100%` de `.rr-home` se resolvait alors
+   sur une hauteur AUTO, ce que CSS traite comme `auto` — l'ecran entier
+   s'effondrait a la taille de ses enfants (388px mesures dans une fenetre de
+   820px) et tout ce qui etait ancre en bas, dont la colonne de connexion,
+   remontait se coller sous le logo. */
+#root { height: 100%; }
+
 /* PANS YES, PAGE ZOOM NO — on every element, not just the page.
    It was `manipulation` on html/body, which still ALLOWS pinch-zoom. The canvas
    is `touch-action: none` (Pixi sets it), but a pinch with one finger on the
@@ -596,20 +608,20 @@ button { min-height: 44px; min-width: 44px; }
      already given by `--rr-chrome-top` is the whole reserve. */
 }
 
-/* The first run's caption: one line under the HUD strip, the same glass as the
-   strip so the two read as one instrument. A readout like the strip — nothing
-   in it is tappable, and a finger landing on it reaches the board. */
+/* The first run's caption: one line under the HUD strip, on the same painted
+   plank as the bar above it so the two read as one instrument. A readout like
+   the strip — nothing in it is tappable, and a finger landing on it reaches
+   the board.
+
+   A LINE OVER THE BOARD, NOT A PANEL. The caption is narration, so it is the
+   one island surface that stays OFF the painted wood: a plank here competed
+   with the energy bar above it and hid the terrain behind it. The dark
+   translucent pill comes from the runtime (`.wl-runtime-caption`), which owns
+   the fill, the radius and the white ink — this rule only places it. */
 .rr-overlay > .rr-caption {
   align-self: center;
   max-width: 560px;
   margin: var(--rr-pad-tight) 0 0;
-  padding: var(--rr-pad-tight) var(--rr-pad);
-  border-radius: 10px;
-  background: rgba(13, 17, 23, 0.82);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  border: 1px solid var(--border);
-  color: var(--fg, #f5e6d3);
   font-size: 14px;
   text-align: center;
   pointer-events: none;
@@ -622,13 +634,16 @@ button { min-height: 44px; min-width: 44px; }
 /* The run's cost, on arrival: the same strip, in the energy bar's own yellow
    so the bolt and the figure read as the burrow's bar speaking, not the
    island's. See run-cost-note.tsx. */
+/* The accent is set as the surface's INK, not as a colour on the element: the
+   text lives in a child span, and the runtime paints those from
+   `--wl-runtime-ink` with `!important`. Setting `color` here would lose. */
 .rr-overlay > .rr-caption-cost {
-  color: #ffd138;
+  --wl-runtime-ink: #ffd138;
 }
 /* A quest finishing while the player is on the island: the same strip, in
    the quest card's lit gold, with a pop rather than a slide. */
 .rr-overlay > .rr-caption-quest {
-  color: #ffd138;
+  --wl-runtime-ink: #ffd138;
   animation: rr-caption-pop 380ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 @keyframes rr-caption-pop {
@@ -1382,6 +1397,22 @@ body:has(.rr-pill-plate.has-energy) {
   right: max(var(--rr-pad), env(safe-area-inset-right));
   bottom: max(var(--rr-pad), env(safe-area-inset-bottom));
 }
+/* ARMED, on the red plank. The face is the same painted board in both states
+   — Paul, 2026-09-20: "pour ca utilise la rouge" — so the armed state is read
+   in the wood itself: the plank darkens and the label turns to CANCEL. A
+   second colour here would say "different button", and it is the same one
+   holding a different mode. */
+.rr-mark-btn.armed::before { filter: brightness(0.72) saturate(1.15); }
+/* THE LABEL SITS LOW IN THE PLANK, because the PLANK sits low in its own file.
+   In notice-danger.webp the painted board runs y=89..437 of a 467px canvas —
+   its middle is at 56%, not 50%, because the leafy caps hang further above the
+   board than below it. The button centres its content on the BOX, so centred
+   content reads as riding high on the wood. Paul, 2026-09-20: "centre en y la
+   c'est trop en haut".
+   The fix is a share of the height, not a pixel count: the art is stretched to
+   whatever the button is tall (the slice is `0 340` — no vertical cut), so the
+   6% offset holds at every size, while a 3px nudge would only be right at one. */
+.rr-mark-btn .wl-runtime-content { transform: translateY(6%); }
 /* URGED: the bar is low and this is the exit. A stepped two-frame lift, the
    kit's own idea of motion — no glow, no easing. */
 .rr-mark-btn.urge { animation: rr-mark-urge 700ms steps(1, end) infinite; }
@@ -2079,6 +2110,23 @@ body:has(.rr-pill-plate.has-energy) {
   z-index: 3;
 }
 
+/* ...ET PAS DE RESERVE EN BAS SUR LE PAS DE LA PORTE.
+
+   `body:has(.rr-burrow) .rr-burrow` garde un ourlet au pied de la colonne
+   pour la barre de boucle, la rangee de tuiles et le mute — du chrome qui
+   n'existe qu'une fois connecte. Sur l'ecran de connexion rien de tout cela
+   n'est monte, et la reserve montait quand meme : 271px mesures dans une
+   fenetre de 835, soit pres d'un tiers de l'ecran d'ourlet vide. Le bloc
+   s'ancrant en `flex-end` se posait sur le HAUT de cet ourlet, d'ou un menu
+   qui flottait loin du bas — et l'ecart variait avec la hauteur de la
+   fenetre, ce qui le rendait juste au bureau et trop haut ailleurs.
+
+   Meme forme de selecteur que la regle a annuler (`body:has(...)`), sinon la
+   specificite de celle-ci l'emporte et l'ourlet reste. */
+body:has(.rr-burrow) .rr-burrow:has(.rr-empty) {
+  padding-bottom: 0;
+}
+
 .rr-burrow-title { font-size: 20px; margin: 4px 0 12px; }
 
 /* The sign-in column. Anchored to the BOTTOM rather than centred: the crawl
@@ -2094,7 +2142,23 @@ body:has(.rr-pill-plate.has-energy) {
   justify-content: flex-end;
   text-align: center;
   gap: 4px;
-  padding-bottom: 8vh;
+  /* LE BLOC DE CONNEXION DANS LE QUART INFERIEUR, pas colle au bas du cadre.
+
+     Le bloc etait remonte a 18vh : trop haut, il mordait le milieu au lieu
+     de l'ouvrir. 14vh pose son centre vers 24% du bas — le menu tombe dans
+     le bas de l'ecran sans y etre colle, le generique garde tout le milieu,
+     et le pouce atteint toujours la premiere porte.
+
+     Ces 14vh se mesurent maintenant sur un vrai bas de colonne : l'ourlet de
+     271px que la colonne reservait au chrome connecte est annule plus haut
+     (`body:has(.rr-burrow) .rr-burrow:has(.rr-empty)`). Avant cela le meme
+     chiffre donnait un resultat different a chaque hauteur de fenetre.
+
+     En vh plutot qu'en %, parce que ce padding doit se mesurer sur l'ECRAN
+     (le quart dont parle la regle) et pas sur la colonne, dont la hauteur
+     depend du chrome au-dessus. Plancher en px pour la Seeker (400px de
+     haut), ou 8vh ne ferait que 32px. */
+  padding-bottom: max(14vh, 40px);
   /* TRANSPARENT TO THE POINTER, except on the buttons themselves.
      This box is `height: 100%` with its content pushed to the bottom, so the
      empty space above the buttons still covers the whole screen -- including
@@ -3652,7 +3716,11 @@ button { font-family: var(--font-pixel); }
   border-bottom: 2px solid rgba(74, 53, 36, 0.28);
 }
 .rr-shop-top h2 {
+  /* The title is a BITMAP, not text: it has its own intrinsic width and will
+     not wrap or ellipsize. Without `min-width: 0` the flex item refuses to
+     shrink past that width and the purse beside it lands on the letters. */
   flex: 1;
+  min-width: 0;
   margin: 0;
   font-size: 17px;
   letter-spacing: 0.04em;
@@ -3664,6 +3732,8 @@ button { font-family: var(--font-pixel); }
    figure rather than like a label. Amber on parchment is too pale to be that
    figure, so it takes the bark brown like the title. */
 .rr-shop-purse {
+  /* Never squeezed by the title beside it: the carrot count is a figure. */
+  flex: none;
   font-size: 15px;
   color: #3a2617;
   font-variant-numeric: tabular-nums;

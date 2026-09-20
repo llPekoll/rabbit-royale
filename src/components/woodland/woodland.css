@@ -49,14 +49,14 @@
 .wl-kit-footer { max-width: 1260px; margin: 30px auto 0; font: 14px/1.6 'Trebuchet MS', sans-serif; color: #c4d9b8; }
 @media (max-width: 1050px) { .wl-kit-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 600px) { .wl-kit-grid { grid-template-columns: minmax(0, 1fr); } .wl-kit-header { margin-bottom: 42px; } .wl-kit-logo { display: none; } }
-/* One painted surface: preserve the leafy ends, tint only the wood. */
-.wl-notice { position: relative; isolation: isolate; min-height: 64px; padding: 12px 28px; border: 0; border-radius: 0; background: none; box-shadow: none; color: #fff4d9; text-shadow: 0 2px #352011; font-size: 13px; line-height: 1.4; }
-.wl-notice::before, .wl-notice::after { content: ''; position: absolute; inset: 0; z-index: -1; border-image: url('/assets/ui/plank.webp') 0 30 fill / 0 40px stretch; }
-.wl-notice::after { clip-path: inset(8% 25px 12% round 8px); filter: var(--wl-tint, none); }
-.wl-notice.wl-green { --wl-tint: sepia(1) saturate(3) hue-rotate(38deg) brightness(1.15); }
-.wl-notice.wl-gold { --wl-tint: sepia(1) saturate(4) brightness(1.65); color: #352011; text-shadow: 0 1px #ffe599; }
-.wl-notice.wl-danger { --wl-tint: sepia(1) saturate(6) hue-rotate(320deg); }
-.wl-notice.wl-blue { --wl-tint: sepia(1) saturate(4) hue-rotate(155deg) brightness(1.2); }
+/* Each tone is a complete painted sprite, with no tint overlay. */
+.wl-notice { position: relative; isolation: isolate; min-height: 70px; padding: 16px 38px; border: 0; border-radius: 0; background: none; box-shadow: none; color: #fff4d9; text-shadow: 0 2px #352011; font-size: 13px; line-height: 1.4; }
+.wl-notice::before { content: ''; position: absolute; inset: 0; z-index: -1; border-image: var(--wl-notice-image) 0 340 fill / 0 48px stretch; }
+.wl-notice.wl-green { --wl-notice-image: url('/assets/ui/notice-green.webp'); }
+.wl-notice.wl-gold { --wl-notice-image: url('/assets/ui/notice-gold.webp'); color: #352011; text-shadow: 0 1px #ffe599; }
+.wl-notice.wl-danger { --wl-notice-image: url('/assets/ui/notice-danger.webp'); }
+.wl-notice.wl-blue { --wl-notice-image: url('/assets/ui/notice-blue.webp'); }
+.wl-notice.wl-wood::before { border-image: url('/assets/ui/plank.webp') 0 30 fill / 0 40px stretch; }
 .wl-notice > .wl-notice-symbol { display: grid; place-items: center; font-size: 26px; flex-shrink: 0; width: 30px; }
 .wl-notice > .wl-notice-text { font-size: inherit; }
 .wl-harvest { width: 100%; cursor: pointer; font-family: var(--font-pixel), sans-serif; text-align: left; }
@@ -75,3 +75,19 @@
 .wl-notification p { font: 13px/1.4 'Trebuchet MS', sans-serif; margin: 5px 0 0; }
 .wl-notification > button { border: 0; background: transparent; color: #6c3e22; font-size: 32px; min-width: 44px; min-height: 44px; cursor: pointer; }
 .wl-tablist > button:focus-visible, .wl-tabset [role=tabpanel]:focus-visible, .wl-notification > button:focus-visible, .wl-harvest:focus-visible { outline: 3px solid #268ab0; outline-offset: 3px; }
+.wl-parchment-toast { width: 320px; max-width: 100%; container-type: inline-size; font-family: var(--font-pixel), sans-serif; color: #352011; }
+.wl-parchment-toast > div, .wl-parchment-toast > button { position: relative; display: block; width: 100%; aspect-ratio: 3 / 1; background: none; border: 0; padding: 0; color: inherit; font: inherit; text-align: left; }
+.wl-parchment-toast img { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+.wl-parchment-copy { position: absolute; inset: 22% 18% 22% 28%; display: flex; flex-direction: column; justify-content: center; gap: 5px; overflow-wrap: anywhere; }
+.wl-parchment-copy strong { font: 800 clamp(12px, 4.8cqw, 16px)/1.25 'Trebuchet MS', sans-serif; }
+.wl-parchment-copy > span { font: clamp(10px, 3.5cqw, 14px)/1.3 'Trebuchet MS', sans-serif; }
+.wl-parchment-achievement .wl-parchment-copy { inset: 26% 24% 24% 24%; text-align: center; }
+.wl-parchment-toast button { cursor: pointer; }
+.wl-parchment-toast button:hover { filter: brightness(1.06); }
+.wl-parchment-toast button:active { transform: translateY(2px); }
+.wl-parchment-toast button:focus-visible { outline: 3px solid #ffd46a; outline-offset: 3px; border-radius: 12px; }
+
+.wl-corner-anchor { position: relative; display: inline-flex; width: fit-content; max-width: 100%; }
+.wl-corner-badge { display: inline-grid; place-items: center; box-sizing: border-box; min-width: 24px; height: 24px; padding: 0 5px; border: 2px solid #1d2a2d; border-radius: 50%; background: linear-gradient(#735337, #493321); color: #fff1bf; box-shadow: inset 0 0 0 2px #a4b1ae, inset 0 0 0 3px #302016, 0 1px 0 #d6e2d0; font: 800 12px/1 'Trebuchet MS', sans-serif; text-shadow: 0 1px #24190f; white-space: nowrap; }
+.wl-corner-badge-square { border-radius: 5px; }
+.wl-corner-badge-attached { position: absolute; z-index: 1; right: -3px; top: -3px; pointer-events: none; }

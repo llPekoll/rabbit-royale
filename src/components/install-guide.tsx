@@ -1,5 +1,7 @@
 'use client';
 
+import { WoodlandClose as CloseButton, WoodlandSurface as NineSlicePanel } from '@/components/woodland/runtime';
+
 /**
  * PUT THE GAME ON THE HOME SCREEN — everything that turns the site into an app,
  * per platform. Ported from the Domin8 hub (insertcoin.cc,
@@ -40,7 +42,7 @@
  */
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
-import { CloseButton, NineSlicePanel } from '@domin8/arcade-kit';
+
 import { useT } from '@/i18n/provider';
 import { PixelText as BitmapText, PixelTitle } from './pixel-text';
 import { PxButton, pxLabel } from './px';
@@ -291,7 +293,7 @@ function InstallGuideDialog({ target, onClose }: { target: InstallTarget; onClos
               SCREEN" is the longest heading in the game, and at the larger
               size it ran under the close button on a phone. */}
           <h2 className="rr-install-title"><PixelTitle scale={2}>{t.install.title[target]}</PixelTitle></h2>
-          <CloseButton inline className="rr-shop-x" onClick={onClose} aria-label={t.install.close} style={{ minWidth: 44 }} />
+          <CloseButton className="rr-shop-x" onClick={onClose} aria-label={t.install.close} />
         </header>
         <div className="rr-install-body">
           <p className="rr-install-line">{t.install.line[target]}</p>

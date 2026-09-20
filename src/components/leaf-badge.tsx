@@ -13,11 +13,15 @@
  * 9-slice is for.
  *
  * THE CLOSE BUTTON IS NOT. Its X is painted into the art and spans almost the
- * whole sprite — x 15..74 of 82, leaving 7px at the right — so there is no
- * band to stretch that does not cut through the glyph. The reference's own
- * dashed guides run straight through the X, which is a diagram of the slice,
- * not a slice that works. A close button is always the same size anyway, so it
- * is a FIXED SPRITE: one image, three states, no stretching.
+ * whole sprite, so there is no band to stretch that does not cut through the
+ * glyph. A close button is always the same size anyway, so it is a FIXED
+ * SPRITE: one image, three states, no stretching.
+ *
+ * The knob was REDRAWN (2026-09-20, "change de croix celle la est bugger"):
+ * the sheet's version was a dark rounded square at 82x76, and that odd ratio
+ * letterboxed inside the 44px hit box — a resampled rim, which is the "bug"
+ * you could see. It is now a round wooden knob drawn square on the pixel
+ * grid, in the kit's own palette (tools/draw-close.py).
  *
  * WHAT THE ART NEEDED BEFORE IT COULD BE SLICED.
  *
@@ -124,8 +128,12 @@ export const CLOSE_URL = {
   pressed: '/assets/ui/close-pressed.webp',
 } as const;
 
-/** The art's own size. Square-ish; the extra height is its drop shadow. */
-export const CLOSE_SIZE = { width: 82, height: 76 } as const;
+/* The knob is SQUARE (close-default.webp, 90x90). It was 82x76, and that odd
+   ratio is why the old sprite looked chewed: a 44px box letterboxed it and
+   resampled the rim. Square means the art lands on the pixel grid at any
+   size, so the height maths below is now a no-op that still reads correctly
+   if the art ever changes shape again. */
+export const CLOSE_SIZE = { width: 90, height: 90 } as const;
 
 export interface LeafCloseProps {
   onClick?: () => void;
@@ -158,18 +166,23 @@ export function LeafClose({
         /* THE TARGET IS AT LEAST 44px, THE ART IS `size` — and they are two
            different boxes on purpose.
 
-           The first cut set `width: size` with `min-width: 44`, which on a
-           40px button meant the box was forced to 44x44 while the art kept its
-           82x76 ratio: `background-size: contain` then fitted the sprite to the
-           SHORTER side and drew a small square adrift in a bigger box. Sizing
-           the BACKGROUND rather than the box, and letting the extra hit area be
-           padding around it, keeps the art at its own aspect and still hands a
-           phone the 44px it needs. */
+           Sizing the BACKGROUND rather than the box, and letting the extra hit
+           area be padding around it, keeps the art at its own aspect and still
+           hands a phone the 44px it needs. It mattered more when the art was
+           82x76 and `contain` fitted it to the shorter side; the knob is square
+           now, but a 40px sprite in a 44px target still wants this. */
         minWidth: 44,
         minHeight: 44,
         width: Math.max(44, size),
         height: Math.max(44, Math.round((size * CLOSE_SIZE.height) / CLOSE_SIZE.width)),
         border: 'none',
+        /* The global `button` rule paints a dark face with an 8px radius. The
+           old sprite was an opaque rounded square that covered it; this knob is
+           a ROUND cutout, so that plate showed around it as a dark box. The
+           sprite is the whole button — nothing behind it. */
+        backgroundColor: 'transparent',
+        borderRadius: 0,
+        boxShadow: 'none',
         backgroundImage: `url(${CLOSE_URL.default})`,
         backgroundRepeat: 'no-repeat',
         backgroundPosition: 'center',

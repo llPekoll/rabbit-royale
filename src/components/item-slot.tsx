@@ -136,7 +136,7 @@ export function ItemSlot({
         </span>
       )}
       {chip && (
-        <PxPanel color={live ? SLOT_LIVE : SLOT_CHIP} style={slotChip}>
+        <PxPanel color={live ? SLOT_LIVE : SLOT_CHIP} className="rr-slot-chip" style={slotChip}>
           {chip}
         </PxPanel>
       )}

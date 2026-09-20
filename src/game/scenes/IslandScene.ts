@@ -518,6 +518,22 @@ export class IslandScene implements Scene {
    */
   private arrive(): void {
     if (this.data?.noCamera || this.shownRun === this.islandRun) return;
+    // Nobody can see a hidden scene arrive.
+    //
+    // A DIG crossing does all its work under the iris: `waitForIsland` holds
+    // the wipe until the server's island has landed, so `setIsland`, the
+    // ground build and the `resync` that replays the rabbits all run while
+    // `container.visible` is still false — and `show` only comes afterwards.
+    // Without this the first of those callers CLAIMED the arrival, spent the
+    // pan behind the black, and the board the player was finally shown had
+    // already settled. That is the "no pan when you start a dig" this was
+    // reported as; the first island hid the bug because there the ground is
+    // built while the scene is already on screen.
+    //
+    // `show` calls `arrive` again the moment the iris opens, so nothing is
+    // lost by refusing here — the arrival simply belongs to the frame the
+    // player can actually see.
+    if (!this.container.visible) return;
     // Not until the scene has a seed the SERVER chose.
     //
     // The app mounts on a placeholder seed and the real island lands a beat
@@ -1213,18 +1229,12 @@ export class IslandScene implements Scene {
     // the scene keeps the previous island's framing while drawing this one,
     // which is how the farm ended up zoomed into a corner.
     //
-    // Whether this is the arrival or merely the ground it will land on depends
-    // on whether anyone can see it yet. Under the iris — a crossing from the
-    // burrow — the scene is still hidden and `show` plays the pan when the
-    // wipe opens, so this only cuts. But the FIRST island swaps in while the
-    // scene is already visible: the board is built from a placeholder seed and
-    // the server's real seed lands a beat later, which is a new `islandRun`
-    // over ground the player is already looking at. Measured in the real game,
-    // opening on the placeholder and then swapping ran the pan twice —
-    // y -907 -> -1008, snapped back to -907, and down again. So the visible
-    // case pans and the hidden one waits for `show`.
-    if (this.container.visible) this.arrive();
-    else this.solveCamera();
+    // Cut the camera onto the new ground, and let `arrive` decide whether this
+    // is also the moment to pan: it is when the board is already on screen
+    // (the FIRST island, whose real seed swaps in under the player), and it is
+    // not under the iris of a DIG, where `show` plays the arrival instead.
+    this.solveCamera();
+    this.arrive();
   }
 
   // ── Server events ──────────────────────────────────────────────────────────

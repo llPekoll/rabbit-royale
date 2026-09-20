@@ -1,5 +1,7 @@
 'use client';
 
+import { WoodlandClose as CloseButton, WoodlandSurface as NineSlicePanel } from '@/components/woodland/runtime';
+
 /**
  * The player's own panel, behind the wallet chip.
  *
@@ -29,7 +31,7 @@ import { groupDigits } from '@/i18n/format';
 import { intlTag, type Locale } from '@/i18n/locales';
 import type { Dict } from '@/i18n/dictionaries';
 import { createPortal } from 'react-dom';
-import { CloseButton, NineSlicePanel } from '@domin8/arcade-kit';
+
 import { PanelTitle } from './pixel-text';
 import { PxButton, PxPanel, pxLabel } from './px';
 import { AVATARS, avatarSrc, AVATAR_FRAME } from '@/lib/game/avatars';
@@ -290,11 +292,15 @@ export function ProfileMenu({
         id="rr-profile"
         role="dialog"
         aria-modal="true"
-        aria-label={dict.burrow.title}
+        aria-label={dict.profile.title}
       >
+        {/* The [x] rides the FRAME, not the header's flex row: it belongs to
+            the panel's top-right corner, where a dialog's close always is, and
+            a corner is not a thing the title can push around. `inline` keeps
+            it in flow; dropping it lets the kit pin it (see runtime.tsx). */}
+        <CloseButton className="rr-lb-close" onClick={onClose} aria-label={dict.chrome.close} />
         <header className="rr-lb-head">
-          <strong><PanelTitle>{dict.burrow.title}</PanelTitle></strong>
-          <CloseButton inline className="rr-lb-close" onClick={onClose} aria-label={dict.chrome.close} style={{ minWidth: 44 }} />
+          <strong><PanelTitle>{dict.profile.title}</PanelTitle></strong>
         </header>
 
         {/* Two pixel buttons; the open tab is pressed INTO the board (the kit's

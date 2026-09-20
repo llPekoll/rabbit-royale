@@ -1,8 +1,10 @@
 'use client';
 
+import { WoodlandSurface as NineSlicePanel } from '@/components/woodland/runtime';
+
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { NineSlicePanel } from '@domin8/arcade-kit';
+
 import { PanelTitle } from './pixel-text';
 import { PX, PxButton, pxLabel } from './px';
 import type { RunRecap } from './use-game-socket';

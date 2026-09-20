@@ -131,7 +131,21 @@ export function HubIconButton({
         </LeafBadge>
       )}
       {corner && tone !== 'news' && (
-        <PxPanel color="#2a1810" style={{ ...badge, color: '#fde7bd' }}>
+        /* `rr-hub-badge` NAMES IT A CHIP, and that is load-bearing.
+
+           The Woodland runtime restyles the kit's surfaces by reading their
+           class (woodland/runtime.tsx). Anything it cannot place falls through
+           to `parchment` — a 16px transparent border painted with the leaf
+           frame at 36px stretch. This badge matched nothing: it sizes by
+           `minWidth` and padding, so the classifier's numeric `height <= 30`
+           test never saw a height either. A 9px chip holding "3" therefore got
+           a 36px leaf frame on all four sides and inflated to 52x45 over a
+           44x44 button — a SECOND round frame, centred on the stone ring,
+           swallowing the ring and the icon both (Paul, 2026-09-20: "ya 2
+           images par dessus les boutton"). `tone="news"` escaped it only
+           because `LeafBadge` paints its own pill and never comes through
+           here. */
+        <PxPanel color="#2a1810" className="rr-hub-badge" style={{ ...badge, color: '#fde7bd' }}>
           {corner}
         </PxPanel>
       )}

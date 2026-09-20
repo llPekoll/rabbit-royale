@@ -461,6 +461,9 @@ export const ptBR: Dict = {
   },
 
   profile: {
+    /* The panel's own heading. The tabs below it say Profile and History,
+       so the header names the panel, not the open tab. */
+    title: 'PERFIL',
     tabProfile: 'Perfil',
     tabHistory: 'Histórico',
     name: 'Nome',

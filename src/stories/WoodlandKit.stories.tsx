@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { WoodlandButton, WoodlandTabs, WoodlandNotification, WoodlandHarvest, WoodlandIcon, WoodlandMeter, WoodlandNotice, WoodlandPanel, WoodlandSlot, WoodlandToggle, type WoodlandIconName } from '@/components/woodland';
+import { WoodlandButton, WoodlandCornerBadge, WoodlandParchmentToast, WoodlandTabs, WoodlandNotification, WoodlandHarvest, WoodlandIcon, WoodlandMeter, WoodlandNotice, WoodlandPanel, WoodlandSlot, WoodlandToggle, type WoodlandIconName } from '@/components/woodland';
 
 const meta = {
   title: 'Design Kit/Woodland',
@@ -85,8 +85,8 @@ function ShopAndRewardsDemo() {
         <WoodlandTabs label="Boutique verticale" tabs={tabs} value={verticalTab} onChange={setVerticalTab} orientation="vertical" />
       </div></WoodlandPanel>
       <WoodlandPanel title="Notifications"><div className="wl-stack">
-        <WoodlandNotification title="Nouvelle quête !" icon="garden" onOpen={() => setMessage('Quête suivie : récolter 12 carottes.')} actionLabel="Suivre la quête">Retrouve les carottes perdues.</WoodlandNotification>
-        <WoodlandNotification title="Succès débloqué !" icon="carrot">Ta toute première récolte.</WoodlandNotification>
+        <WoodlandParchmentToast title="Nouvelle quête !" description="Retrouve les carottes perdues." onOpen={() => setMessage('Quête suivie : récolter 12 carottes.')} actionLabel="Suivre la quête" />
+        <WoodlandParchmentToast variant="achievement" title="Succès débloqué !" description="Ta toute première récolte." />
         <WoodlandNotification title="Livraison arrivée" icon="shop" onOpen={() => setMessage('Livraison récupérée !')} actionLabel="Récupérer la livraison">Ton potager t’attend.</WoodlandNotification>
       </div></WoodlandPanel>
       <WoodlandPanel title="Récoltes"><div className="wl-stack">
@@ -105,3 +105,31 @@ function ShopAndRewardsDemo() {
   </main>;
 }
 export const ShopAndRewards: Story = { render: () => <ShopAndRewardsDemo /> };
+
+function ParchmentDemo() {
+  const [opened, setOpened] = useState(false);
+  return <main className="wl-kit"><header className="wl-kit-header"><div><h1>Quêtes & succès</h1><p>Les petites nouvelles du terrier.</p></div></header><div className="wl-stack" style={{ maxWidth: 440, margin: 'auto', gap: 24 }}>
+    <WoodlandParchmentToast title="Nouvelle quête !" description="Retrouve les carottes perdues." onOpen={() => setOpened(true)} actionLabel="Ouvrir la quête" />
+    <WoodlandParchmentToast variant="achievement" title="Succès débloqué !" description="Première récolte" />
+    {opened && <WoodlandPanel title="Carottes perdues"><p>Rapporte 12 carottes au terrier.</p><WoodlandButton onClick={() => setOpened(false)}>Fermer</WoodlandButton></WoodlandPanel>}
+  </div></main>;
+}
+export const ParchmentNotifications: Story = { render: () => <ParchmentDemo /> };
+
+export const BadgesAndBanners: Story = { render: () => <main className="wl-kit">
+  <header className="wl-kit-header"><div><h1>Récoltes & pastilles</h1><p>Des petits repères au coin des boutons.</p></div></header>
+  <div className="wl-kit-grid">
+    <WoodlandPanel title="Pastilles"><div className="wl-stack">
+      <div className="wl-row">{([1, 8, 24, 100, '!'] as const).map(value => <WoodlandCornerBadge key={value} value={value} />)}</div>
+      <div className="wl-row">{([1, 8, 24, 100, '!'] as const).map(value => <WoodlandCornerBadge key={value} value={value} shape="square" />)}</div>
+      <div className="wl-corner-anchor"><WoodlandButton icon="shop" aria-label="Boutique, 3 nouveautés">Boutique</WoodlandButton><WoodlandCornerBadge value={3} attached /></div>
+      <div className="wl-corner-anchor"><WoodlandButton icon="garden" aria-label="Récolte disponible">Potager</WoodlandButton><WoodlandCornerBadge value="!" shape="square" attached /></div>
+    </div></WoodlandPanel>
+    <WoodlandPanel title="Bandeaux"><div className="wl-stack">
+      <WoodlandNotice tone="gold">Récolte prête !</WoodlandNotice>
+      <WoodlandHarvest tone="green">Récolter 24 carottes</WoodlandHarvest>
+      <WoodlandNotice tone="danger">Énergie faible !</WoodlandNotice>
+      <WoodlandNotice tone="blue">Nouvel objet !</WoodlandNotice>
+    </div></WoodlandPanel>
+  </div>
+</main> };

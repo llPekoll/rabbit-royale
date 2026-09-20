@@ -1,0 +1,168 @@
+/* Loaded after the old layout sheets. The game keeps its sizing and behavior;
+   only its legacy arcade surfaces are replaced by the approved Woodland art. */
+.wl-runtime-surface { position: relative; box-sizing: border-box; --wl-runtime-ink: #fff0cb; color: var(--wl-runtime-ink); }
+.wl-runtime-parchment {
+  --wl-runtime-ink: #352011;
+  border: 16px solid transparent;
+  border-image: url('/assets/ui/leaf-frame.webp') 110 90 85 90 fill / 36px stretch;
+  background: none !important; border-radius: 0 !important; box-shadow: none !important;
+}
+.wl-runtime-wood, .wl-runtime-notice {
+  border: 0; border-image: url('/assets/ui/plank.webp') 0 30 fill / 0 24px stretch;
+  background: none !important; border-radius: 0 !important; box-shadow: none !important;
+  padding: 10px 22px;
+}
+.wl-runtime-notice { border-image: url('/assets/ui/notice-gold.webp') 0 340 fill / 0 30px stretch; --wl-runtime-ink: #352011; min-height: 44px; }
+.wl-runtime-notice.wl-runtime-danger { border-image-source: url('/assets/ui/notice-danger.webp'); --wl-runtime-ink: #fff0cb; }
+/* THE ISLAND CAPTION — not a plank. It is a line of narration floating over
+   the board, so it stays out of the way of the art: dark, translucent and
+   rounded, with the text doing the talking. A painted plank here fought the
+   energy bar above it and the terrain behind it. */
+.wl-runtime-caption {
+  --wl-runtime-ink: #fff;
+  border: 0; border-image: none;
+  background: rgba(16, 14, 12, 0.72) !important;
+  border-radius: 14px !important;
+  box-shadow: none !important;
+  padding: 7px 18px;
+}
+.wl-runtime-well { --wl-runtime-ink: #fff0cb; border: 3px solid #4a2918; border-radius: 8px; background: #6b432c !important; box-shadow: inset 2px 3px 5px #28170c99, 0 2px #cc9654; }
+.wl-runtime-badge { --wl-runtime-ink: #fff1bf; border: 2px solid #1d2a2d; border-radius: 5px; background: linear-gradient(#735337,#493321) !important; box-shadow: inset 0 0 0 2px #a4b1ae,inset 0 0 0 3px #302016; padding: 3px 5px; }
+.wl-runtime-track { border: 2px solid #352011; border-radius: 12px; background: #442d20 !important; box-shadow: 0 2px #efbd68,inset 0 2px #21150e; overflow: hidden; }
+.wl-runtime-surface :where(p, span, strong, label, h1, h2, h3, small, li, div) { color: var(--wl-runtime-ink) !important; }
+.wl-runtime-surface :where(.bad, .error) { color: #ffb4a2 !important; }
+.wl-runtime-parchment > :where(.bad, .error) { color: #a72e21 !important; }
+.wl-runtime-surface :where(input, textarea) { color: #fff0cb; }
+.wl-runtime-action {
+  --wl-runtime-ink: #fff0cb;
+  position: relative; isolation: isolate; box-sizing: border-box; display: inline-flex;
+  align-items: center; justify-content: center; gap: 6px;
+  background: none !important; border: 0 !important; border-radius: 0;
+  box-shadow: none !important; padding: 8px 22px !important; min-height: 44px;
+  color: var(--wl-runtime-ink) !important; font-family: var(--font-pixel), sans-serif;
+  cursor: pointer; text-shadow: 0 1px #352011;
+}
+.wl-runtime-action:not(.rr-loop-slab)::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  border: 0; border-image: url('/assets/ui/plank.webp') 0 30 fill / 0 25px stretch;
+}
+.wl-runtime-action .wl-runtime-content { position: relative; display: inline-flex; justify-content: inherit; align-items: center; width: 100%; min-width: 0; color: inherit; }
+.wl-runtime-action :where(span, strong, small) { color: var(--wl-runtime-ink) !important; }
+.wl-runtime-action-gold { --wl-runtime-ink: #352011; text-shadow: none; }
+.wl-runtime-action-gold:not(.rr-loop-slab)::before { border-image: url('/assets/ui/notice-gold.webp') 0 340 fill / 0 30px stretch; }
+.wl-runtime-action-green:not(.rr-loop-slab)::before { border-image: url('/assets/ui/notice-green.webp') 0 340 fill / 0 30px stretch; }
+.wl-runtime-action-danger:not(.rr-loop-slab)::before { border-image: url('/assets/ui/notice-danger.webp') 0 340 fill / 0 30px stretch; }
+.wl-runtime-action-slot { border: 3px solid #4a2918 !important; border-radius: 8px; background: #6b432c !important; box-shadow: inset 2px 3px 5px #28170c99,0 2px #cc9654 !important; padding: 3px !important; }
+.wl-runtime-action-slot::before, .wl-runtime-action-tab::before { display: none; }
+.wl-runtime-action-tab { background: repeating-linear-gradient(2deg,transparent 0 9px,#341c1022 10px 11px),linear-gradient(#805135,#583821) !important; border: 2px solid #392515 !important; border-radius: 6px 6px 3px 3px; box-shadow: inset 0 2px #ba8654,0 2px #281c13 !important; padding: 8px 12px !important; }
+.wl-runtime-action-tab:is([data-pressed], [aria-selected=true], .on) { --wl-runtime-ink: #352011; background: linear-gradient(#ffdc63,#f2ae25) !important; text-shadow: none; }
+.wl-runtime-action-slot:is([data-pressed], [aria-selected=true]) { border-color: #ffce44 !important; }
+.wl-runtime-action:hover:not(:disabled) { filter: brightness(1.1); }
+.wl-runtime-action:active:not(:disabled) { transform: translateY(2px); }
+.wl-runtime-action:disabled { opacity: .55; cursor: not-allowed; }
+.wl-runtime-action:focus-visible, .wl-runtime-close:focus-visible { outline: 3px solid #ffd46a; outline-offset: 3px; }
+.wl-runtime-close { width: 44px; height: 44px; min-height: 44px; flex-shrink: 0; padding: 0 !important; border: 0 !important; background: url('/assets/ui/close-default.webp') center / 40px auto no-repeat !important; box-shadow: none !important; cursor: pointer; }
+.wl-runtime-close:hover { background-image: url('/assets/ui/close-hover.webp') !important; }
+.wl-runtime-close:active { background-image: url('/assets/ui/close-pressed.webp') !important; }
+/* Preserve the existing art and inset geometry on the three island actions. */
+.wl-runtime-action.rr-loop-slab { padding: 0 !important; }
+.wl-runtime-action.rr-loop-home, .wl-runtime-action.rr-loop-raid { --wl-runtime-ink: #352011; }
+@media (prefers-reduced-motion: reduce) { .wl-runtime-action:active:not(:disabled) { transform: none; } }
+
+/* ── INK ON PARCHMENT ───────────────────────────────────────────────────────
+   The dialogs carry their old dark-theme constants: `--muted` (#8b949e) for a
+   field's label and a section heading, `--text` for the rest. Those were
+   picked to sit on #161b1f. On the leaf-framed parchment they read as a grey
+   wash — legible only because the paper is bright, and nothing like the brown
+   the frame, the title and the body text are already drawn in.
+   The parchment's own ink is that brown, so a secondary line takes it at the
+   weight the kit gives secondary text: `--wl-bark`, not a new colour. */
+.wl-runtime-parchment { --wl-runtime-muted: #6c3e22; }
+.wl-runtime-parchment :where(.rr-field span, .rr-profile-h, .rr-note, .rr-empty):not([style*='color']) {
+  color: var(--wl-runtime-muted) !important;
+}
+/* THE GUEST NOTE is named `wood` by the surface test, which hands it the
+   plank's cream ink — but `.rr-px-dialog .rr-guest-note` strips the plank
+   away (px-dialogs.css), so that cream ends up on bare parchment. It has no
+   board of its own here: it is a paragraph on the paper, so it takes the
+   paper's ink. */
+.wl-runtime-parchment .rr-guest-note { --wl-runtime-ink: #352011; }
+.wl-runtime-parchment .rr-guest-note :where(p, span, strong, label, small) {
+  color: var(--wl-runtime-ink) !important;
+}
+
+/* ── THE [X], ON THE FRAME ──────────────────────────────────────────────────
+   EVERY dialog's close sits in the same place: the top-right corner, hanging
+   off the frame rather than sitting in the header's flex row where the title
+   decides where it lands. It used to be pinned by an inline style in
+   runtime.tsx that no stylesheet could reach, so each panel that wanted the
+   corner passed its own offsets and they drifted. One rule now.
+
+   The offsets are NEGATIVE because a woodland frame's edge is painted art, not
+   a border: the knob overlaps the rim, which is where a button pressed INTO a
+   wooden panel belongs, and it clears the leaves that curl over the corner. */
+.wl-runtime-close {
+  position: absolute;
+  top: var(--wl-close-top, -20px);
+  right: var(--wl-close-right, -16px);
+  z-index: 4;
+  background-size: 40px auto !important;
+}
+/* The opt-out, for an [x] that really is a cell in a header row. */
+.wl-runtime-close-inline { position: static; }
+/* A header yields the knob's column, so a long title ends before the [x]
+   instead of running under it. */
+.wl-runtime-surface > :where(.rr-lb-head, .rr-shop-top, .rr-lore-head) {
+  padding-right: calc(var(--rr-pad) + 30px);
+}
+/* A frame the knob hangs off must not clip it. The leaf frame's corners
+   overhang their own box anyway — `.rr-lb` already says so — but the dialogs
+   kept an `overflow: hidden` from the smooth chrome they used to wear. */
+.wl-runtime-parchment:where(.rr-profile, .rr-shop-modal, .rr-lore-modal, .rr-raid-pick-frame) {
+  overflow: visible;
+}
+/* THE SHED AND THE SEASON BOARD use `LeafClose` directly (leaf-badge.tsx), not
+   the runtime's button, so they take the same corner by their own class. The
+   board is a narrow panel pinned to the screen's right edge, so its knob keeps
+   a smaller overhang — hanging it fully off would put it past the edge.
+
+   THE SHED'S FRAME IS A `LeafFrame`, and it needed BOTH fixes. It was
+   `position: static`, so an absolute knob resolved against some ancestor and
+   landed in the middle of the header, over the currency rails. And its leaves
+   are a 110px top / 90px right BORDER: an absolute child resolves against the
+   PADDING box, which is that far inside the art, so the shared -20/-16 put the
+   knob 90px down the panel. Its offsets are the border widths back out again,
+   plus the same overhang. (The art does fill the border box — measured: the
+   leaves reach row 0 and column W-1.) */
+.rr-shop-modal { position: relative; }
+/* Keyed on `.rr-leaf-frame`, NOT `.rr-shop-modal`: the energy popup and the
+   install guide share that class on a thin-bordered `NineSlicePanel`, where
+   the padding box and the border box are nearly the same and the standard
+   offsets already land on the corner. Only the Shed wears the leaf frame. */
+.rr-shop-modal.rr-leaf-frame { --wl-close-top: -130px; --wl-close-right: -106px; }
+.wl-runtime-surface > .rr-leaf-close,
+.rr-shop-modal > .rr-shop-top > .rr-shop-x,
+.rr-lb.rr-px-dialog:not(.rr-profile) > .rr-lb-head > .rr-lb-close {
+  position: absolute;
+  top: var(--wl-close-top, -20px);
+  right: var(--wl-close-right, -16px);
+  z-index: 4;
+}
+/* THE SEASON BOARD is pinned to the screen's right edge, so a knob hanging off
+   its corner would sit past the edge (or under the hub buttons above it). It
+   keeps the corner, INSIDE its own frame: clear of the leaves, and clear of
+   the title and the countdown, which the header's right pad now reserves. */
+.rr-lb.rr-px-dialog:not(.rr-profile) { --wl-close-top: 4px; --wl-close-right: 2px; }
+/* Only as much as the knob actually needs (it is drawn at 34 here, in a 44
+   target that overhangs the pad), or the 120px SEASON atlas has nowhere left
+   to go on a 234px board. */
+.rr-lb.rr-px-dialog:not(.rr-profile) > .rr-lb-head { padding-right: 46px; }
+/* THE BITMAP TITLE OVERFLOWS ITS OWN BOX. `PanelTitle` lays the atlas out as a
+   row of fixed-width letter spans inside a span that does not size to them: on
+   the season board the box measured 59px while the letters ran 120px, so the
+   header's padding reserved a column the title then painted straight through —
+   SEASON under the [x], whatever the flex row was told. Making the inner span
+   a flex box gives it the width it actually draws, so the row can shrink it
+   and the reserved column stays empty. */
+.rr-lb.rr-px-dialog:not(.rr-profile) .rr-lb-title { min-width: 0; }
+.rr-lb.rr-px-dialog:not(.rr-profile) .rr-lb-title > span { display: inline-flex; min-width: 0; }

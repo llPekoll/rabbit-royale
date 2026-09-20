@@ -405,7 +405,7 @@ export function LoopBar({
           {pointed === 'raid' ? (
             <LeafBadge height={20} className="rr-hub-badge" style={badgeSeat}>!</LeafBadge>
           ) : raid.open > 0 ? (
-            <PxPanel color={CHIP} style={{ ...badge, color: CHIP_INK }}>{raid.open}</PxPanel>
+            <PxPanel color={CHIP} className="rr-raid-chip" style={{ ...badge, color: CHIP_INK }}>{raid.open}</PxPanel>
           ) : null}
         </PxButton>
       </div>
