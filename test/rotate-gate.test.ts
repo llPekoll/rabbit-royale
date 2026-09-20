@@ -2,7 +2,7 @@
  * Landscape only, on a phone.
  *
  * The rule lives in three places that must agree — a CSS media query that
- * shows the gate, the root layout that mounts it, and the Pixi resize that
+ * shows the gate, the entry point that mounts it, and the Pixi resize that
  * stops laying the board out while it is up — and each can drift on its own
  * without anything on screen saying so until a phone is turned. Pinned
  * against the sources, like the juice test: what is being held is the wiring.
@@ -13,7 +13,7 @@ import { PORTRAIT_GATE_QUERY } from '../src/config/orientation';
 
 const read = (p: string) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const CSS = read('../src/app/globals.css');
-const LAYOUT = read('../src/app/layout.tsx');
+const ENTREE = read('../src/main.tsx');
 const APP = read('../src/game/Application.ts');
 
 describe('a phone held upright is refused, not laid out', () => {
@@ -38,7 +38,7 @@ describe('a phone held upright is refused, not laid out', () => {
   });
 
   it('is mounted on every page', () => {
-    expect(LAYOUT).toMatch(/<RotateGate \/>/);
+    expect(ENTREE).toMatch(/<RotateGate \/>/);
   });
 
   it('keeps the board in its landscape layout while the gate is up', () => {
