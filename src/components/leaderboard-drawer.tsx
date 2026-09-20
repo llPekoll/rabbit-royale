@@ -34,7 +34,6 @@ import { PixelTitle } from './pixel-text';
 import { HubIconButton, hubIconArt } from './hub-icon-button';
 import { PX, PxPanel } from './px';
 import { LeafFrame } from './leaf-frame';
-import { LeafClose } from './leaf-badge';
 import { PodiumRabbit } from './podium-rabbit';
 import { FACE_COL, LEAD_SIZE, PODIUM, PODIUM_MIN_PANEL, PODIUM_SIZE, crownBox } from '@/lib/game/podium';
 
@@ -265,20 +264,23 @@ export function LeaderboardDrawer({ token, playerId, onSpectate, onMe, onOpen }:
       >
         <header className="rr-lb-head">
           {/* SCALE 2, not `PanelTitle`'s 2.5. The board is ~234px wide and it
-              has to hold the title, the countdown and the [x] in its corner;
-              at 2.5 the atlas draws SEASON 120px wide and the three of them do
-              not fit, so the title was being painted under the knob (its
-              letter spans overflow the box the flex row measures, so no amount
-              of padding moved it). Smaller is the honest fix: it FITS, rather
-              than being clipped mid-letter. */}
+              still holds the crown, the title and the countdown; at 2.5 the
+              atlas draws SEASON 120px wide and they crowd. It is worth knowing
+              that the title CANNOT be squeezed by padding if it ever does: the
+              atlas lays out fixed-width letter spans in a box that does not
+              size to them, so the flex row measures 59px while 120 are drawn,
+              and the overflow lands on whatever is beside it. Scale is the
+              only honest lever. */}
           <strong className="rr-lb-title">
             <span aria-hidden>👑</span>
             <PixelTitle scale={2}>{t.chrome.season}</PixelTitle>
           </strong>
           {daysLeft !== null && <span style={{ color: 'var(--muted)' }}>{daysLeft}d</span>}
-          {/* Every screen can put the board away now — on a phone it is covering
-              the island, on a desktop it is eating a third of the burrow. */}
-          <LeafClose className="rr-lb-close" onClick={() => setOpen(false)} aria-label="Close" size={34} />
+          {/* NO [x] HERE. The trophy that opens the board closes it — it stays
+              on screen and lit while the panel is up, and its own click
+              toggles. A [x] in this corner was a second control for the one
+              action, sitting on the header it shared with the title and the
+              countdown on a 234px panel. */}
         </header>
 
         <div className="rr-lb-list" ref={listRef}>

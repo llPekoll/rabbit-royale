@@ -141,22 +141,12 @@
    offsets already land on the corner. Only the Shed wears the leaf frame. */
 .rr-shop-modal.rr-leaf-frame { --wl-close-top: -130px; --wl-close-right: -106px; }
 .wl-runtime-surface > .rr-leaf-close,
-.rr-shop-modal > .rr-shop-top > .rr-shop-x,
-.rr-lb.rr-px-dialog:not(.rr-profile) > .rr-lb-head > .rr-lb-close {
+.rr-shop-modal > .rr-shop-top > .rr-shop-x {
   position: absolute;
   top: var(--wl-close-top, -20px);
   right: var(--wl-close-right, -16px);
   z-index: 4;
 }
-/* THE SEASON BOARD is pinned to the screen's right edge, so a knob hanging off
-   its corner would sit past the edge (or under the hub buttons above it). It
-   keeps the corner, INSIDE its own frame: clear of the leaves, and clear of
-   the title and the countdown, which the header's right pad now reserves. */
-.rr-lb.rr-px-dialog:not(.rr-profile) { --wl-close-top: 4px; --wl-close-right: 2px; }
-/* Only as much as the knob actually needs (it is drawn at 34 here, in a 44
-   target that overhangs the pad), or the 120px SEASON atlas has nowhere left
-   to go on a 234px board. */
-.rr-lb.rr-px-dialog:not(.rr-profile) > .rr-lb-head { padding-right: 46px; }
 /* THE BITMAP TITLE OVERFLOWS ITS OWN BOX. `PanelTitle` lays the atlas out as a
    row of fixed-width letter spans inside a span that does not size to them: on
    the season board the box measured 59px while the letters ran 120px, so the

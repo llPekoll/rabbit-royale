@@ -2940,18 +2940,13 @@ body:has(.rr-empty) .rr-sound { display: none; }
    It does NOT travel with the panel any more: the panel covers the right edge
    when open, so the button sits clear of it (the panel starts below the top
    bar) and simply stays where the player left it. */
-/* Out of the way while the board is showing.
-   
-   The trophy is the way IN; once the panel is up it has a [x] of its own, and
-   two close buttons in the same corner is one of them repeating the other. It
-   also sat directly over the panel's own header. `visibility` rather than
-   `display`, so it keeps its box and does not make the corner reflow as it
-   goes — and it fades on the same 200ms the panel slides on, so the two read
-   as one movement. */
-body:has(.rr-lb.open:not(.rr-profile)) .rr-lb-launch {
-  opacity: 0;
-  visibility: hidden;
-}
+/* THE TROPHY STAYS PUT WHILE THE BOARD IS OPEN. It used to fade out, because
+   the panel carried a [x] of its own and two close buttons in one corner is
+   one repeating the other. The board has no [x] any more: the trophy is both
+   the way in and the way out (it is `pressed` while open, and its own click
+   toggles), so hiding it would leave the panel with no visible control at all.
+   Paul, 2026-09-20: "enleve la croix et ne fait pas disparaitre l'icone, et qd
+   on reclique ca ferme." */
 
 .rr-lb-launch {
   transition: opacity 200ms ease, visibility 200ms;
