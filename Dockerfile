@@ -28,13 +28,25 @@ RUN rm -rf /usr/share/nginx/html/assets/world
 # variables d'environnement au demarrage et ecrit le resultat dans conf.d.
 # C'est ce qui permet de pointer l'API sans reconstruire l'image.
 COPY docker/nginx.conf.template /etc/nginx/templates/default.conf.template
-# L'amont par defaut : le nom du service de jeu sur le reseau Docker. Coolify
-# peut le remplacer (https://ws.rabbit.rip si l'on sort par l'exterieur).
-ENV API_UPSTREAM=http://rr-ws:3010
-# Le DNS de Docker resout les noms de services sur un reseau utilisateur.
-ENV DNS_RESOLVER=127.0.0.11
+# L'amont par defaut : le DOMAINE PUBLIC du serveur de jeu.
+#
+# Un nom de service Docker (`http://rr-ws:3010`) serait plus direct, mais il
+# suppose que les deux conteneurs partagent un reseau et que le service porte
+# ce nom-la — deux choses que l'hebergeur decide, pas nous. Quand c'est faux,
+# nginx ne resout rien et rend un 502 sur CHAQUE appel d'API, le jeu compris.
+# Le domaine public, lui, marche partout ; il coute un aller-retour par le
+# reverse proxy, ce qui est peu a cote d'un site injoignable. A remplacer par
+# le nom de service interne si l'on sait que le reseau est partage.
+ENV API_UPSTREAM=https://ws.rabbit.rip
+# Un resolver PUBLIC, puisque l'amont par defaut est un nom public : celui de
+# Docker (127.0.0.11) ne resout que les noms de services, et ne repond meme
+# pas hors d'un reseau utilisateur.
+ENV DNS_RESOLVER="1.1.1.1 8.8.8.8"
 # L'entrypoint substitue TOUTES les $variables par defaut — y compris celles
 # de nginx ($host, $request_uri, $remote_addr), qu'il viderait. On lui dit de
 # ne toucher qu'aux notres.
-ENV NGINX_ENVSUBST_FILTER='(API_UPSTREAM|DNS_RESOLVER)'
+ENV NGINX_ENVSUBST_FILTER='(API_UPSTREAM|AMONT_HOTE|DNS_RESOLVER)'
+# Deduit API_UPSTREAM_HOST de l'URL ci-dessus. Le `10-` le fait passer avant
+# le `20-envsubst` de l'image, qui lira la variable ainsi posee.
+COPY docker/entrypoint-amont.sh /docker-entrypoint.d/10-amont.sh
 EXPOSE 3010

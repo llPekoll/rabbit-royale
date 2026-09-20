@@ -35,9 +35,16 @@ server {
   location /api/ {
     resolver ${DNS_RESOLVER} valid=10s ipv6=off;
     set $amont "${API_UPSTREAM}";
+    # L'hote de l'amont, sans le schema : l'en-tete Host et le SNI.
+    set $amont_hote "${AMONT_HOTE}";
     proxy_pass $amont$request_uri;
     proxy_http_version 1.1;
-    proxy_set_header Host $host;
+    # L'amont peut etre en HTTPS derriere un reverse proxy mutualise : il lui
+    # faut le SNI et un Host a SON nom, sinon il ne sait pas quel site servir
+    # et repond une erreur de certificat ou la mauvaise application. $host
+    # (rabbit.rip) ne lui dirait rien.
+    proxy_ssl_server_name on;
+    proxy_set_header Host $amont_hote;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
@@ -59,11 +66,13 @@ server {
   location /socket.io/ {
     resolver ${DNS_RESOLVER} valid=10s ipv6=off;
     set $amont_ws "${API_UPSTREAM}";
+    set $amont_hote "${AMONT_HOTE}";
     proxy_pass $amont_ws$request_uri;
     proxy_http_version 1.1;
+    proxy_ssl_server_name on;
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection "upgrade";
-    proxy_set_header Host $host;
+    proxy_set_header Host $amont_hote;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
