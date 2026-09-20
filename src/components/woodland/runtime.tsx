@@ -19,8 +19,14 @@ export const WoodlandSurface = forwardRef<HTMLDivElement, WoodlandSurfaceProps>(
   const kind = surface ?? (
     /energy-track/.test(className) ? 'track'
       : /field-box|shop-tile-face/.test(className) ? 'well'
-      : /caption/.test(className) ? 'caption'
-      : /toast|reconnecting/.test(className) ? 'notice'
+      /* A LINE THE GAME SAYS IS A CAPTION, wherever it is said. The burrow's
+         toasts and the reconnect notice used to take the painted `notice`
+         plank; on a screen that already carries planks (the carrot pill, the
+         trophy rings, the bomb rail) two more gold boards read as furniture
+         rather than as news, and the red one shouted (Paul, 2026-09-20). The
+         dark translucent pill is the island's own narration surface, and it
+         stays the same on the burrow, on a dig and on a raid. */
+      : /caption|toast|reconnecting/.test(className) ? 'caption'
       /* `chip` CATCHES THE SMALL COUNTERS BY NAME, because the height test
          below cannot: a chip sizes itself by `minWidth` and padding, so it
          arrives with no numeric height and falls through to `parchment` — a

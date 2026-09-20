@@ -26,6 +26,17 @@
   box-shadow: none !important;
   padding: 7px 18px;
 }
+/* A REFUSAL ON THE PILL. The burrow's toasts come through here too, and a
+   refusal used to arrive on the red `notice` board. The pill has no second
+   art to swap to, so the news is carried by the INK and a thin red rim —
+   loud enough to read as a no, quiet enough not to be a second billboard.
+   `.rr-toast.refused` (globals.css) sets the same ink at a higher
+   specificity; this is what the reconnect notice and any other danger
+   caption take. */
+.wl-runtime-caption.wl-runtime-danger {
+  --wl-runtime-ink: #ffb3a8;
+  box-shadow: inset 0 0 0 1px rgba(255, 107, 107, 0.55) !important;
+}
 .wl-runtime-well { --wl-runtime-ink: #fff0cb; border: 3px solid #4a2918; border-radius: 8px; background: #6b432c !important; box-shadow: inset 2px 3px 5px #28170c99, 0 2px #cc9654; }
 .wl-runtime-badge { --wl-runtime-ink: #fff1bf; border: 2px solid #1d2a2d; border-radius: 5px; background: linear-gradient(#735337,#493321) !important; box-shadow: inset 0 0 0 2px #a4b1ae,inset 0 0 0 3px #302016; padding: 3px 5px; }
 .wl-runtime-track { border: 2px solid #352011; border-radius: 12px; background: #442d20 !important; box-shadow: 0 2px #efbd68,inset 0 2px #21150e; overflow: hidden; }
