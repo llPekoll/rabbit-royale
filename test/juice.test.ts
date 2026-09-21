@@ -123,7 +123,10 @@ describe('the small pops', () => {
     // when a chapter opens.
     expect(read('../src/components/loop-bar.tsx')).toMatch(/rr-tab-pop/);
     expect(PAGE).toMatch(/className=\{lorePulseKey > 0 \? 'rr-tab-pop' : undefined\}/);
-    expect(read('../src/components/carrot-pill.tsx')).toMatch(/className="rr-rank-pop"/);
+    // The rank's own pop LEFT THE PILL with the climb line (2026-09-21, the
+    // dial and the plank one board: the wood has no row for it). The
+    // animation stays in the CSS and in the reduced-motion guard below.
+    expect(read('../src/components/carrot-pill.tsx')).not.toMatch(/className="rr-rank-pop"/);
     // The leader's crown still glints, but it is worn on their rabbit's head
     // now rather than filed in the rank column as an emoji — so the mark moved
     // to `podium-rabbit.tsx` and took its own keyframe with it (the placement
