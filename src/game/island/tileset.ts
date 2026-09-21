@@ -55,7 +55,9 @@ const UNITS = '/assets/units';
 // v5 (2026-09-21): `palette-1` repainted by hand — the white surf taken off
 // the shoreline set's edge, so the tile no longer draws a coastline of its own
 // under the animated foam.
-const TERRAIN_REV = '?v=5';
+// v6 (2026-09-21): that same rim taken further, on a sheet v5 had already
+// shipped — hence a second bump the same day rather than an amended one.
+const TERRAIN_REV = '?v=6';
 const terrain = (file: string) => `${TERRAIN}/${file}${TERRAIN_REV}`;
 
 export const ISLAND_SHEETS = {

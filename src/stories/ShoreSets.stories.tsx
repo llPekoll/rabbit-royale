@@ -45,7 +45,7 @@ const TIER = 1;
  * file instead — Aseprite does not write webp, and `loadBlobSets` unloads
  * before loading so each look picks up the latest save.
  */
-const SHEET = '/assets/terrain/palette-1.webp?v=5';
+const SHEET = '/assets/terrain/palette-1.webp?v=6';
 
 const PACK_FOAM = '/assets/terrain-iso/pack-foam.webp';
 const PACK_FOAM_FRAME = 128;
