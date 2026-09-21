@@ -563,17 +563,20 @@ button.rr-item-slot:active:hover:not(:disabled) { filter: var(--rr-live-ring,) v
   box-sizing: border-box;
   pointer-events: none;
 }
-/* The text on the plank, clear of the leaves at both ends: the same frame
-   inset DEFEND and RAID take, at the plank's own cap. */
+/* The text on the plank, CLEAR OF THE LEAVES at both ends. The plank's caps
+   are the leaves (30 of 167 source px each side, `--rr-dig-cap` at the
+   slab's height), and the first cut inset the text by 0.6 of a cap — the
+   verb sat on the left leaf (Paul, 2026-09-21). The whole cap plus a
+   little air, the way DEFEND's text starts past its shield. */
 .rr-loop-slab.rr-loop-dig {
   --rr-inset-t: calc(var(--rr-loop-h, clamp(52px, 10.4svh, 80px)) * 0.12);
-  --rr-inset-r: calc(var(--rr-dig-cap) * 0.6);
+  --rr-inset-r: calc(var(--rr-dig-cap) * 0.9);
 }
 .rr-loop-slab.rr-loop-dig > .nine-btn__content {
   z-index: 1;
   top: var(--rr-inset-t) !important;
   bottom: var(--rr-inset-t) !important;
-  left: calc(var(--rr-dig-cap) * 0.6) !important;
+  left: calc(var(--rr-dig-cap) * 1.15) !important;
   right: var(--rr-inset-r) !important;
   justify-content: center;
 }

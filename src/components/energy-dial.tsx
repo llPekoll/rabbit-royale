@@ -214,8 +214,18 @@ export interface EnergyRingProps {
    * ring would sit a pixel off the first and read as a double edge.
    */
   colourOnly?: boolean;
+  /** The bolt on the hub. Off where the surface draws its own middle. */
+  bolt?: boolean;
   className?: string;
   style?: CSSProperties;
+}
+
+/** The energy mark, as drawn for the shop's shelf and the run's bar. */
+const BOLT_URL = '/assets/ui/icons/bolt.webp';
+const BOLT_SIZE = { width: 24, height: 29 } as const;
+/** Whole multiples only: the bolt is 29px of art and the hub ~40% of the ring. */
+function boltScale(ringSize: number): number {
+  return Math.max(1, Math.floor((ringSize * 0.4) / BOLT_SIZE.height));
 }
 
 /**
@@ -225,7 +235,7 @@ export interface EnergyRingProps {
  * picture is cropped and the centre re-measured for it.
  */
 export function EnergyRing({
-  value, max, size, colourOnly = false, className, style,
+  value, max, size, colourOnly = false, bolt = false, className, style,
 }: EnergyRingProps) {
   const frac = max > 0 ? Math.max(0, Math.min(1, value / max)) : 0;
   const width = Math.round((RING_SIZE.width / RING_SIZE.height) * size);
@@ -240,6 +250,30 @@ export function EnergyRing({
     >
       {!colourOnly && <span style={layer(RING_EMPTY_URL)} />}
       <span style={{ ...layer(RING_FULL_URL), WebkitMaskImage: mask, maskImage: mask }} />
+      {/* THE BOLT ON THE HUB — what the ring measures, said in the game's own
+          mark for it (the same bolt the run's bar and the shop use). The hub
+          was a bare wooden disc once the carrot left it, and a ring with
+          nothing in its middle is a ring around nothing (Paul, 2026-09-21).
+          Scaled by whole pixels off the ring's height so the sprite stays
+          square-pixelled; centred on the ring's measured centre, not the
+          box's. */}
+      {bolt && (
+        <img
+          src={BOLT_URL}
+          alt=""
+          draggable={false}
+          style={{
+            position: 'absolute',
+            left: `${RING_ONLY_CX * 100}%`,
+            top: `${RING_CY * 100}%`,
+            width: BOLT_SIZE.width * boltScale(size),
+            height: BOLT_SIZE.height * boltScale(size),
+            transform: 'translate(-50%, -50%)',
+            imageRendering: 'pixelated',
+            pointerEvents: 'none',
+          }}
+        />
+      )}
     </span>
   );
 }

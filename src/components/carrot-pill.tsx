@@ -227,7 +227,7 @@ export function CarrotPill({
           aria-label={t.loop.energyOf(bank.energy, bank.max)}
           role="img"
         >
-          <EnergyRing value={bank.energy} max={bank.max} size={RING_SIZE.height} />
+          <EnergyRing value={bank.energy} max={bank.max} size={RING_SIZE.height} bolt />
         </span>
       )}
       {/* THE PLATE: the wood board (plank.tsx). It replaced the codex's pixel
