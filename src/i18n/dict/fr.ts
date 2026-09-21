@@ -438,6 +438,7 @@ export const fr: Dict = {
     cannot_raid_yourself: 'C’est ton propre terrier.',
     raid_in_progress: 'Tu es déjà dans un terrier.',
     cooldown: 'Tu les as pillés trop récemment.',
+    no_energy: 'Pas assez d\'énergie pour traverser. Attends, ou recharge.',
     not_adjacent: 'Trop loin. Un pas à la fois.',
     raid_over: 'Ce pillage est déjà terminé.',
     none_held: 'Pas d’éclair à appeler. La remise en vend.',

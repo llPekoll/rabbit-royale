@@ -434,6 +434,7 @@ export const zh: Dict = {
     cannot_raid_yourself: '那是你自己的兔窝。',
     raid_in_progress: '你已经在一个兔窝里了。',
     cooldown: '你刚刚才掠夺过他们。',
+    no_energy: '能量不足，无法出发。等一等，或者补充。',
     not_adjacent: '太远了。一步一步来。',
     raid_over: '这次掠夺已经结束了。',
     none_held: '没有闪电可召。小屋有售。',

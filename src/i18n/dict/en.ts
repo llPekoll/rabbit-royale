@@ -519,6 +519,7 @@ export const en = {
     cannot_raid_yourself: 'That is your own burrow.',
     raid_in_progress: 'You are already inside a burrow.',
     cooldown: 'You raided them too recently.',
+    no_energy: 'Not enough energy for a crossing. Wait, or refill.',
     not_adjacent: 'Too far. One step at a time.',
     raid_over: 'That raid is already over.',
     none_held: 'No lightning to call. The shed sells it.',

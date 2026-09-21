@@ -1245,6 +1245,22 @@ function Burrow() {
   refreshBurrowRef.current = refreshBurrow;
 
   /**
+   * A raid's FIRST STEP just paid the crossing — go and read the bar.
+   *
+   * The same lesson as the island's seat (see `game.islandKey` above): the
+   * burrow's bar is fetched, not pushed, so every moment the server moves it
+   * needs a matching re-read here or the number lies. A raid charges
+   * ENERGY.RUN_COST when the raider steps off the entrance tile (api/raid
+   * PATCH), and the raid panel sits ON the burrow, beside that very bar.
+   * Keyed on the boolean rather than on the walk's length so it fires once
+   * per raid, not once per step.
+   */
+  const raidCharged = (raid.raid?.walked.length ?? 0) >= 2;
+  useEffect(() => {
+    if (raidCharged) refreshBurrowRef.current();
+  }, [raidCharged]);
+
+  /**
    * The server would not seat us: the bar it holds is short of a run.
    *
    * The burrow's own gate (`hasEnergy`) asks the same question first, so this

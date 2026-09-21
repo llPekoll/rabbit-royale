@@ -219,6 +219,52 @@ describe('a raid that was never walked does not burn the target', () => {
     expect(walked.length).toBe(2); // the open raid, and the one just ended
   });
 
+  it('costs the burrow the same crossing as a run, paid at the first step', () => {
+    // "Pareil pour les raids" (21 September 2026): a raid used to cost the
+    // burrow's bar nothing at all — its own 26-point budget paid for the walk.
+    // The charge is ENERGY.RUN_COST, off the same bar, through the same
+    // conditional write the join uses, and it lands on the first PATCH — so
+    // opening a target to look at it stays free, and the cooldown, the
+    // defender's alert and the bill all start on the same step.
+    const patch = RAID.slice(RAID.indexOf('export async function PATCH'), RAID.indexOf('export async function DELETE'));
+    expect(patch).toMatch(/const firstStep = run\.visited\.length <= 1;/);
+    const charge = patch.slice(patch.indexOf('if (firstStep) {'), patch.indexOf('const mined ='));
+    expect(charge).toMatch(/await payCrossing\(session\.sub\)/);
+    expect(charge).toMatch(/error: 'no_energy'/);
+    // Before any step is written, so a refused bar leaves the raid where it stood.
+    expect(patch.indexOf('await payCrossing(')).toBeLessThan(patch.indexOf('const visited = [...run.visited, to]'));
+  });
+
+  it('refuses at the door, like the island, when the bar cannot afford one', () => {
+    const post = RAID.slice(RAID.indexOf('export async function POST'), RAID.indexOf('export async function PATCH'));
+    expect(post).toMatch(/if \(!canStartRun\(attacker, now\)\)/);
+    expect(post).toMatch(/error: 'no_energy'/);
+    expect(post).toMatch(/need: ENERGY\.RUN_COST/);
+    // Refused, nothing is inserted: the check sits before the insert.
+    expect(post.indexOf('canStartRun(')).toBeLessThan(post.indexOf('db.insert(raidRuns)'));
+  });
+
+  it('never charges the POST itself — looking stays free', () => {
+    const post = RAID.slice(RAID.indexOf('export async function POST'), RAID.indexOf('export async function PATCH'));
+    expect(post).not.toMatch(/payCrossing\(/);
+  });
+
+  it('is said in every language', () => {
+    for (const loc of ['en', 'fr', 'zh', 'pt-BR']) {
+      const dict = read(`../src/i18n/dict/${loc}.ts`);
+      const block = dict.slice(dict.indexOf('raidErrors: {'), dict.indexOf('}', dict.indexOf('raidErrors: {')));
+      expect(block, loc).toMatch(/no_energy: '/);
+    }
+  });
+
+  it('re-reads the burrow bar once the first step has paid', () => {
+    // The freshness rule (test/burrow-freshness.test.ts) seen from the raid:
+    // the panel sits on the burrow beside the very bar the step just moved.
+    const PAGE = read('../src/app/page.tsx');
+    expect(PAGE).toMatch(/const raidCharged = \(raid\.raid\?\.walked\.length \?\? 0\) >= 2;/);
+    expect(PAGE).toMatch(/if \(raidCharged\) refreshBurrowRef\.current\(\);/);
+  });
+
   it('keeps one-raid-at-a-time, which is a different guard', () => {
     // The abandoned row is still OPEN until it ends, and that check has
     // nothing to do with the cooldown — loosening the window must not quietly

@@ -442,6 +442,7 @@ export const ptBR: Dict = {
     cannot_raid_yourself: 'Essa é a sua própria toca.',
     raid_in_progress: 'Você já está dentro de uma toca.',
     cooldown: 'Você saqueou essa pessoa faz pouco tempo.',
+    no_energy: 'Energia insuficiente para a travessia. Espere, ou recarregue.',
     not_adjacent: 'Longe demais. Um passo por vez.',
     raid_over: 'Esse saque já acabou.',
     none_held: 'Sem raio para chamar. O galpão vende.',

@@ -29,7 +29,12 @@ describe('the run cost reaches the island', () => {
   });
 
   it('is the bar AFTER the charge, from the statement that charged it', () => {
-    expect(SERVER).toMatch(/if \(charged\) return \{ ok: true, energy: paid\.energy \}/);
+    // The debit moved to `payCrossing` on 21 September 2026, when a raid's
+    // first step came to cost the same crossing — one conditional write for
+    // both doors. The join still goes through it under its old name.
+    const PAY = read('../src/lib/game/pay-crossing.ts');
+    expect(PAY).toMatch(/if \(charged\) return \{ ok: true, energy: paid\.energy \}/);
+    expect(SERVER).toMatch(/return payCrossing\(playerId, first\)/);
   });
 
   it('is exposed by the hook and reset per island', () => {

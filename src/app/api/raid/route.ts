@@ -29,8 +29,10 @@ import {
 import { burrowNeighbors, entranceTile, burrowCell, walkableTiles } from '@/game/burrow/board';
 import { smokeActive } from '@/lib/game/inventory';
 import { standingTraps } from '@/lib/game/traps';
-import { RAID, RAID_RUN, TRAPS } from '@config/tuning';
-import { gardenAfterLoot, gardenYield } from '@/lib/game/regen';
+import { ENERGY, RAID, RAID_RUN, TRAPS } from '@config/tuning';
+import { currentEnergy, gardenAfterLoot, gardenYield } from '@/lib/game/regen';
+import { canStartRun, msToRun } from '@/lib/game/burrow';
+import { payCrossing } from '@/lib/game/pay-crossing';
 
 /** Everything the raid screen draws, for a raid in progress. */
 async function raidView(runId: string, revealAll = false) {
@@ -319,6 +321,32 @@ export async function POST(req: Request) {
     }, { status: 429 });
   }
 
+  /**
+   * A RAID COSTS THE BURROW THE SAME CROSSING AS A RUN — ENERGY.RUN_COST off
+   * the same bar. Until 21 September 2026 it cost nothing there: the raid's
+   * own 26-point budget paid for the walk, and the burrow's bar was never
+   * asked. "Pareil pour les raids": a crossing is a crossing.
+   *
+   * Refused HERE, at the door, when the bar cannot afford one — as the island
+   * refuses a join — so the player learns it on the burrow, beside the wait
+   * and the refill, and not on a board they cannot step onto. The charge
+   * itself lands on the FIRST STEP (see the PATCH), so that opening a target
+   * to look at it stays free.
+   */
+  const attacker = await db.query.players.findFirst({
+    where: eq(players.id, session.sub),
+    columns: { energy: true, energyUpdatedAt: true },
+  });
+  if (!attacker) return Response.json({ error: 'unknown_player' }, { status: 404 });
+  if (!canStartRun(attacker, now)) {
+    return Response.json({
+      error: 'no_energy',
+      energy: currentEnergy(attacker, now),
+      need: ENERGY.RUN_COST,
+      nextRunInMs: msToRun(attacker, now),
+    }, { status: 400 });
+  }
+
   const start = entranceTile(body.defenderId);
   const [run] = await db.insert(raidRuns).values({
     attackerId: session.sub,
@@ -374,6 +402,31 @@ export async function PATCH(req: Request) {
   // simply refused rather than teleported.
   if (!Number.isInteger(to) || !burrowNeighbors(run.defenderId, run.tile).includes(to)) {
     return Response.json({ error: 'not_adjacent' }, { status: 400 });
+  }
+
+  /**
+   * THE FIRST STEP PAYS THE CROSSING. `visited` opens holding the entrance
+   * tile alone, so a length of 1 is a raid nobody has stepped into yet — the
+   * same test the cooldown and the defender's alert use, so the three agree
+   * on the instant a raid begins.
+   *
+   * Charged BEFORE the step is written: a bar that cannot pay refuses the
+   * step and the raid stays where it stood, exactly as an unaffordable join
+   * leaves the player on the burrow. The POST already refused a bar short of
+   * this, so a refusal here is the rare race — a run joined from another tab
+   * between opening the target and stepping in.
+   */
+  const firstStep = run.visited.length <= 1;
+  if (firstStep) {
+    const paid = await payCrossing(session.sub);
+    if (!paid.ok) {
+      return Response.json({
+        error: 'no_energy',
+        energy: paid.energy,
+        need: ENERGY.RUN_COST,
+        nextRunInMs: paid.nextRunInMs,
+      }, { status: 400 });
+    }
   }
 
   const mined = await db.query.traps.findMany({ where: eq(traps.ownerId, run.defenderId) });
