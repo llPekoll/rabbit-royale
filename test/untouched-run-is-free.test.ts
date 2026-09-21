@@ -24,7 +24,7 @@ import { resolveMove, spawnRabbit } from '../src/lib/game/run';
 import { makeShape } from '../src/config/gridConfig';
 import { spawnTile, terrainNeighbors } from '../src/lib/game/terrainBoard';
 import { mulberry32 } from '../src/lib/game/rng';
-import { ENERGY, OUT_OF_RUN_ENERGY } from '../config/tuning';
+import { ENERGY, OUT_OF_RUN_ENERGY, RAID as RAID_TUNING, RAID_RUN as RAID_RUN_TUNING } from '../config/tuning';
 
 const read = (p: string) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const SERVER = read('../server/index.ts');
@@ -226,5 +226,31 @@ describe('a raid that was never walked does not burn the target', () => {
     const post = RAID.slice(RAID.indexOf('export async function POST'));
     expect(post).toMatch(/isNull\(raidRuns\.endedAt\)/);
     expect(post).toMatch(/error: 'raid_in_progress'/);
+  });
+});
+
+describe('the shield answers a loss, not a visit', () => {
+  /**
+   * 21 September 2026: "on peut se faire raid tant qu'on peut, le shield ne
+   * s'active que si on s'est fait prendre du butin". The settle used to shield
+   * the defender on EVERY finished raid, so a raider who died on the doorstep
+   * of an empty burrow still bought its owner twelve hours of peace.
+   */
+  it('is granted in the settle only when loot actually left', () => {
+    const settle = RAID.slice(RAID.indexOf('await db.transaction'));
+    const shield = settle.slice(settle.indexOf('...(outcome.loot > 0 ? {'), settle.indexOf('}).where(eq(players.id, run.defenderId))'));
+    expect(shield).toMatch(/shieldedUntil: reachedField/);
+    expect(shield).toMatch(/RAID\.BROKEN_SHIELD_MS/);
+    expect(shield).toMatch(/RAID_RUN\.SHIELD_AFTER_RAID_MS/);
+    // And nowhere else in the settle is a shield written unconditionally.
+    const unconditional = settle.replace(shield, '');
+    expect(unconditional).not.toMatch(/shieldedUntil:/);
+  });
+
+  it('still grades the shield by how deep the raider got', () => {
+    // Loot is the gate; depth still picks the length. A sacked field (16h)
+    // outranks a raid stopped short (12h) — the ordering `BROKEN_SHIELD_MS`
+    // exists to keep.
+    expect(RAID_TUNING.BROKEN_SHIELD_MS).toBeGreaterThan(RAID_RUN_TUNING.SHIELD_AFTER_RAID_MS);
   });
 });

@@ -453,9 +453,17 @@ export async function PATCH(req: Request) {
       // fights, and the damage roll moved neither his loot nor his progress),
       // so the long shield now keys on the thing that actually made the raid
       // grave: he walked all the way onto the carrot field.
-      shieldedUntil: reachedField
-        ? new Date(now.getTime() + RAID.BROKEN_SHIELD_MS)
-        : new Date(now.getTime() + RAID_RUN.SHIELD_AFTER_RAID_MS),
+      //
+      // ONLY WHEN SOMETHING WAS TAKEN (21 September 2026). A raid that ended
+      // with nothing in the sack — an empty burrow, a garden already brought
+      // in — did the defender no harm, and a shield for it was a reward for
+      // having nothing worth stealing. Until loot actually leaves, a burrow
+      // stays open to be raided; the shield answers a loss, not a visit.
+      ...(outcome.loot > 0 ? {
+        shieldedUntil: reachedField
+          ? new Date(now.getTime() + RAID.BROKEN_SHIELD_MS)
+          : new Date(now.getTime() + RAID_RUN.SHIELD_AFTER_RAID_MS),
+      } : {}),
     }).where(eq(players.id, run.defenderId)).returning({ stock: players.stock });
 
     // The attacker's side: the haul, if any, and the raid COUNTED either way.
