@@ -40,7 +40,58 @@
  * three numbers are the only link between the picture and the mask, so they
  * are stated once here and scaled with the board.
  */
+import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
+
+/**
+ * How long the ring takes to travel to a new reading, and how it gets there.
+ *
+ * Decelerating, so the ARRIVAL is the readable part: the needle leaves fast
+ * enough to catch the eye and settles slowly enough to be read.
+ */
+const SWEEP_MS = 340;
+const easeOut = (t: number) => 1 - (1 - t) ** 3;
+
+/**
+ * A number that SLIDES to its target instead of jumping to it, on rAF.
+ *
+ * THE RING CANNOT BE TRANSITIONED IN CSS. Its fill is a `conic-gradient` used
+ * as a mask (see above), and mask-image is not an animatable property: every
+ * browser snaps it. That is why the dial moved in one frame however the bar
+ * beside it was tuned — the value was correct on the first paint and there was
+ * simply nothing in between. So the tween happens HERE, on the number, and the
+ * mask is rebuilt each frame from a value that is already partway there.
+ *
+ * It re-aims rather than restarting: a second change mid-sweep runs from
+ * wherever the ring currently IS, so a burst of digs reads as one continuous
+ * drain rather than a stutter of overlapping animations.
+ */
+function useSweep(target: number): number {
+  const [shown, setShown] = useState(target);
+  const from = useRef(target);
+  const since = useRef(0);
+  const raf = useRef(0);
+
+  useEffect(() => {
+    // The first reading is not a movement: a gauge that winds up from zero on
+    // mount announces a change that never happened.
+    if (from.current === target && since.current === 0) return undefined;
+    from.current = shown;
+    since.current = performance.now();
+    const step = (now: number) => {
+      const t = Math.min(1, (now - since.current) / SWEEP_MS);
+      setShown(from.current + (target - from.current) * easeOut(t));
+      if (t < 1) raf.current = requestAnimationFrame(step);
+    };
+    raf.current = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf.current);
+    // `shown` is read to re-aim from the live position, never to re-run the
+    // effect — that would restart the sweep on its own every frame.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target]);
+
+  return shown;
+}
 
 export const DIAL_EMPTY_URL = '/assets/gauge/dial-empty.webp';
 export const DIAL_FULL_URL = '/assets/gauge/dial-full.webp';
@@ -77,8 +128,10 @@ export function EnergyDial({
   value, max, height, children, className, style,
 }: EnergyDialProps) {
   /* Clamped, because energy is a live value: a bomb can take more than is
-     left, and a negative fraction would sweep the wedge back the wrong way. */
-  const frac = max > 0 ? Math.max(0, Math.min(1, value / max)) : 0;
+     left, and a negative fraction would sweep the wedge back the wrong way.
+     Swept, because a mask cannot be transitioned — see useSweep. */
+  const shown = useSweep(value);
+  const frac = max > 0 ? Math.max(0, Math.min(1, shown / max)) : 0;
   const k = height / DIAL_SIZE.height;
   const width = DIAL_SIZE.width * k;
 
@@ -243,7 +296,11 @@ function boltScale(ringSize: number): number {
 export function EnergyRing({
   value, max, size, colourOnly = false, bolt = false, className, style,
 }: EnergyRingProps) {
-  const frac = max > 0 ? Math.max(0, Math.min(1, value / max)) : 0;
+  // The DRAWN value, sliding toward the real one — see useSweep. The reading
+  // the player is told (titles, aria) is always the true `value`; only the
+  // picture lags, and only for a third of a second.
+  const shown = useSweep(value);
+  const frac = max > 0 ? Math.max(0, Math.min(1, shown / max)) : 0;
   const width = Math.round((RING_SIZE.width / RING_SIZE.height) * size);
   const mask = `conic-gradient(at ${RING_ONLY_CX * 100}% ${RING_CY * 100}%, `
     + `#000 0turn, #000 ${frac}turn, `

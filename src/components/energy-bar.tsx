@@ -77,6 +77,30 @@ export function EnergyBar({ energy, bombCost = ENERGY.BOMB_LOSS }: EnergyBarProp
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
+  // THE WAKE: where the bar WAS, held for a moment behind where it now is.
+  //
+  // The fill alone moves too fast to be seen — it is one element whose width
+  // changes, and at a dig's single point the eye gets no event at all. The
+  // wake is a second, dimmer bar that lags: it sits at the old value while the
+  // fill slides to the new one, so a loss reads as a bright bar retreating out
+  // of a pale one and a gain as a bright bar advancing into it. It is the
+  // MOVEMENT that is drawn, which is the thing a plain width change cannot say.
+  //
+  // It renders at the outer edge of the two values (see `wakePct`), so it is
+  // always the span the energy crossed. The lag is CSS: the same duration as
+  // the fill, on a delay (see .rr-energy-wake), so the fill leads and the wake
+  // closes up behind it.
+  const [wake, setWake] = useState(energy);
+  useEffect(() => {
+    // Settle the wake onto the current value one frame later, so the browser
+    // gets a paint with the old width and actually runs a transition. Setting
+    // it in the same commit is a no-op: React batches, and the element mounts
+    // already at its final width.
+    const id = requestAnimationFrame(() => setWake(energy));
+    return () => cancelAnimationFrame(id);
+  }, [energy]);
+  const wakePct = Math.max(0, Math.min(1, wake / SCALE));
+
   // Below one bomb's worth, the next blast ends the run. That is the moment the
   // bar exists to announce.
   const critical = energy <= bombCost;
@@ -94,6 +118,15 @@ export function EnergyBar({ energy, bombCost = ENERGY.BOMB_LOSS }: EnergyBarProp
           aria-valuemax={SCALE}
           aria-label={t.run.energy(energy, SCALE)}
         >
+          {/* Behind the fill, and only while the two disagree: the span the
+              energy is crossing. `gaining` colours it — a pale wash of the
+              fill's own tone going up, a dim ember going down — so the
+              direction reads without reading the number. */}
+          <i
+            className={`rr-energy-wake tone-${tone}${wakePct > pct ? ' losing' : ' gaining'}`}
+            style={{ width: `${Math.max(pct, wakePct) * 100}%` }}
+            aria-hidden
+          />
           <i className={`rr-energy-fill tone-${tone}${critical ? ' critical' : ''}`} style={{ width: `${pct * 100}%` }} />
           {/* The death line: one bomb's worth, over the fill so a full bar
               cannot hide the thing the player most needs to see. */}

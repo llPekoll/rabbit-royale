@@ -1707,10 +1707,37 @@ body:has(.rr-pill-plate.has-energy) {
   /* One kit pixel of light on top, one of shade below — the button faces'
      own shading. Hard bands, never a gradient. */
   box-shadow: inset 0 2px 0 var(--lit), inset 0 -2px 0 var(--shade);
-  /* Short, not smooth: energy moves in discrete steps and easing them into
-     each other hides how much a single dig cost. */
-  transition: width 120ms linear;
+  /* Long enough to SEE, decelerating so the arrival is the readable part.
+     It was 120ms linear, which is a cut rather than a move: the bar simply
+     had a different width the next time you looked at it. The step-by-step
+     reading that short time was protecting is now carried by the wake behind
+     it (.rr-energy-wake), which draws the distance travelled. */
+  transition: width var(--rr-energy-slide, 340ms) cubic-bezier(0.22, 1, 0.36, 1);
 }
+/* THE WAKE: the span the energy is crossing, drawn behind the fill.
+   Same geometry as the fill, no shading — it is a trail, not a face — and it
+   moves on the SAME curve a beat later, so it is always closing the gap the
+   fill opened. */
+.rr-energy-wake {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  background: var(--wake, #6b5a12);
+  transition: width var(--rr-energy-slide, 340ms) cubic-bezier(0.22, 1, 0.36, 1)
+    var(--rr-energy-lag, 90ms);
+  pointer-events: none;
+}
+/* Going DOWN the wake is what the fill is leaving behind: a dim ember of the
+   tone, so the retreat is legible on the dark track. Going UP it is the space
+   the fill is about to take, lit from the tone so the bar reads as filling
+   INTO something rather than growing out of nothing. */
+.rr-energy-wake.losing { --wake: #6b5a12; }
+.rr-energy-wake.gaining { --wake: #8a7418; }
+.rr-energy-wake.tone-warn.losing { --wake: #6d3d06; }
+.rr-energy-wake.tone-warn.gaining { --wake: #8c5209; }
+.rr-energy-wake.tone-danger.losing { --wake: #6b1a14; }
+.rr-energy-wake.tone-danger.gaining { --wake: #8c241c; }
 /* HIT: three hard red blinks in ~0.7s, then gone. Stepped, never eased — a
    fade is the one thing pixel art does not do — and it ends transparent, so
    the bar is readable again the moment the alarm stops. */
@@ -1764,6 +1791,9 @@ body:has(.rr-pill-plate.has-energy) {
   .rr-energy-hit { animation: rr-energy-hit-still 500ms steps(1, end) 1 both; }
   .rr-energy-fill { transition: none; }
   .rr-energy-fill.critical { animation: none; }
+  /* No slide, so nothing trails: the wake would sit as a stale bar behind a
+     fill that has already jumped. Hidden outright rather than sped up. */
+  .rr-energy-wake { transition: none; display: none; }
 }
 
 /* The player's own name used to ride in this strip and is gone — not at one

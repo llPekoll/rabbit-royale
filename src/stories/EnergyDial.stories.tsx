@@ -147,6 +147,43 @@ export const Live: StoryObj = {
 };
 
 /**
+ * THE SWEEP — a BOMB, not a dig, because only a jump shows the travel.
+ *
+ * The `Live` story above steps one point every 140ms, which the ring can only
+ * draw as a crawl however it is animated. This one takes a bomb's worth at a
+ * time: the ring should visibly TRAVEL to the new reading over about a third
+ * of a second rather than cutting to it. That is the whole of what the sweep
+ * buys (see `useSweep` in energy-dial.tsx — the mask cannot be transitioned in
+ * CSS, so the number is tweened instead).
+ *
+ * Press the button rather than watching a timer: the thing being judged is one
+ * transition, and an interval hides a stutter inside the next step.
+ */
+export const Sweep: StoryObj = {
+  render: function Render() {
+    const [v, setV] = useState(MAX);
+    return (
+      <>
+        <span style={label}>
+          SWEEP — one bomb per press. The ring should travel, not cut.
+        </span>
+        <EnergyDial value={v} max={MAX} height={120}><Face height={120} value={v} /></EnergyDial>
+        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+          <button type="button" onClick={() => setV((x) => Math.max(0, x - ENERGY.BOMB_LOSS))}>
+            -1 bomb
+          </button>
+          <button type="button" onClick={() => setV((x) => Math.min(MAX, x + ENERGY.BOMB_LOSS))}>
+            +1 bomb
+          </button>
+          <button type="button" onClick={() => setV(MAX)}>full</button>
+          <button type="button" onClick={() => setV(0)}>empty</button>
+        </div>
+      </>
+    );
+  },
+};
+
+/**
  * THE SIZES — and the one thing this board does that the others do not.
  *
  * IT KEEPS ITS ASPECT. The scroll and the skull boards are 3-slices: their

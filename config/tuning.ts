@@ -13,10 +13,10 @@
 // ── Phase 1: the solo run ────────────────────────────────────────────────────
 
 /**
- * A run's energy: THE FUEL OF EXPLORING, on a bar of 150 — and it always runs
+ * A run's energy: THE FUEL OF EXPLORING, on a bar of 300 — and it always runs
  * out. That is the design (the "capped run", 17 September 2026). The bar was
- * 100 until 21 September 2026, when it was raised for length — 100 played
- * short in the hand.
+ * 100 until 21 September 2026, when it went to 150 for length, then to 300 the
+ * same day — 150 still played short in the hand.
  *
  * Every dig costs a point. A well-placed red X (see FLAG) gives some back, but
  * never as much as the digging that found it cost: reading the board roughly
@@ -40,25 +40,33 @@
  *   Ashland  106 / 236 / 27%   240 / 739 / 60%
  *   Caldera   68 / 177 / 19%   179 / 666 / 48%
  *
- * Re-run at the 150 bar, 21 September 2026. At 100 those were 100, 91, 79 and
- * 55 tiles for a walker and 175, 206, 156, 142 for a reader: the raise buys a
+ * Those were measured at the 150 bar. At 100 they were 100, 91, 79 and 55
+ * tiles for a walker and 175, 206, 156, 142 for a reader: the raise bought a
  * walker about 40 % more board and a reader about 30 %, and no robot ever
- * finishes with fuel left — every run still ends on "no energy", which is the
- * design. What it DOES move is how much of an island one reader takes: 78 % of
+ * finished with fuel left — every run still ended on "no energy", which is the
+ * design. What it DID move is how much of an island one reader takes: 78 % of
  * a Thicket in a single run, where the design says nobody clears an island
- * alone. Worth watching. Skill still pays in carrots per ticket.
+ * alone.
+ *
+ * 300, 21 September 2026 (Paul's call, for length). NOT yet re-simulated —
+ * re-run `tools/sim-dig.sim.ts` and replace the table above. The thing to look
+ * at is the Thicket reader, already at 78 % of the board on half this bar: if
+ * doubling it lets one reader clear an island alone, the bar is not what needs
+ * tuning — the island's size or the X's payback is. Skill still pays in
+ * carrots per ticket either way.
  */
 export const ENERGY = {
   /** Energy a run starts with: a full bar. */
-  START: 150,
+  START: 300,
   /**
    * A dug tile costs this. Walking a revealed tile is free.
    *
    * It was 1 on a bar of 30 (a run lasted ~17 tiles, "you can barely play one
    * game"), then 0 (the bar became a life gauge and the puzzle optional). 1 on
    * a bar of 100 was the third answer, and 100 still read as short in the hand
-   * — 21 September 2026 the bar went to 150 for length, the dig staying at 1
-   * so the X remains how you go further.
+   * — 21 September 2026 the bar went to 150 and then to 300, the dig staying
+   * at 1 throughout so the X remains how you go further. Length has always
+   * been bought with the bar, never by making the dig cheaper.
    */
   DIG_COST: 1,
   /** Ordinary carrot: score, not fuel. The X is the pump; see FLAG. */
@@ -73,10 +81,17 @@ export const ENERGY = {
    * golden carrot is what it looks like: five carrots in one.
    */
   GOLDEN_GAIN: 0,
-  /** Stepping on a bomb. Five end a fresh run on a 150 bar; nobody gets six. */
+  /**
+   * Stepping on a bomb. Ten of them end a fresh run on the 300 bar.
+   *
+   * Left at 30 when the bar doubled, so a blast is now a twentieth of a full
+   * tank rather than a fifth. That is the cost of the longer run: a single
+   * bomb stings less. Watch it — if blasts stop being frightening, this is the
+   * number to raise, not the bar to lower.
+   */
   BOMB_LOSS: 30,
   /** Ceiling — a full bar. Gains past it are lost: an easy shore cannot be banked. */
-  MAX: 150,
+  MAX: 300,
   /**
    * ONE TANK (21 September 2026, Paul's call). There used to be three pools
    * that never touched: the burrow's bank (60, a flat 20 per crossing), the
@@ -315,12 +330,16 @@ export const FLAG = {
    * A good reader lives at the ceiling: simulated, 6 of 69 right Xs on a Meadow
    * island and 25 of 108 on Caldera paid no energy at all, and the first X of
    * every run is placed on a full bar — the game's central reward, invisible
-   * at the moment it is taught. Raising ENERGY.MAX was tried and rejected: at
-   * 150 the same 24 Xs were still wasted (the reader simply sits at the new
-   * ceiling) and nobody died on Caldera any more, which was the last tension
-   * a reader had. So the ceiling stays and the overflow becomes score: an X
-   * that is right ALWAYS pays, in fuel while there is room and in carrots
-   * when there is not.
+   * at the moment it is taught. Raising ENERGY.MAX does not fix it: measured
+   * at 150, the same 24 Xs were still wasted, because a reader simply sits at
+   * whatever the new ceiling is. That is why the overflow became score — an X
+   * that is right ALWAYS pays, in fuel while there is room and in carrots when
+   * there is not — and why this rule matters MORE at 300, not less: a reader
+   * spends even longer pinned to the ceiling on the bigger bar. What the raise
+   * does cost is the other half of that finding: at 150 nobody died on Caldera
+   * any more, and Caldera was the last board with real tension for a reader.
+   * At 300 that is doubly true. Tension for readers now has to come from the
+   * board, not from the tank.
    *
    * 1, not 2: a reader is at the ceiling so often that at 2 the overflow alone
    * added 16 % to a Caldera island's haul. At 1 it adds about 8 %, and a full-
@@ -675,7 +694,7 @@ export const RAID_RUN = {
   TOLL: 15,
   /**
    * THE STAKE: the most a raid can draw from the tank, toll included. A full
-   * tank is 150 and a raid is ten steps; unlimited, a raider walked through
+   * tank is 300 and a raid is ten steps; unlimited, a raider walked through
    * five traps without noticing (measured: the loot ladder went flat past
    * three). So a raid is a BET of this much: the toll goes first, the rest is
    * what you walk with, and traps burn it — three end a raid, as they always
