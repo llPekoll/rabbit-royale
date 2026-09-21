@@ -1198,15 +1198,26 @@ function Burrow() {
    * home empty-handed kept reading a full bank until something unrelated
    * re-fetched it. The energy really had been spent; only the number lied.
    *
-   * `islandSeed` is the signal because the server sends the island snapshot
+   * `islandKey` is the signal because the server sends the island snapshot
    * ONLY after the charge succeeds — a refused join gets `no_energy` instead,
-   * which has its own refresh below. Watching the seed rather than a "joined"
-   * flag also covers landing on a second island later in the same session.
+   * which has its own refresh below.
+   *
+   * THE KEY, NOT THE SEED (21 September 2026). The seed was the first answer
+   * and it missed the commonest crossing of all: `findJoinable` hands a
+   * returning player the island they just left whenever it still has room, so
+   * the second trip out arrives on the SAME seed, the dependency does not
+   * change, and this effect never runs. The bar then sat at its pre-run figure
+   * for the whole run — 60 before the crossing, 60 on the island — and only
+   * came right at the next thing that happened to re-read the burrow, which is
+   * why it looked as though the charge landed on the first dig rather than at
+   * the door. `islandKey` is bumped by EVERY snapshot, same seed included,
+   * which is exactly the question being asked here: did the server just seat
+   * us, and therefore just charge us?
    */
   useEffect(() => {
-    if (!game.islandSeed) return;
+    if (!game.islandKey) return;
     refreshBurrow();
-  }, [game.islandSeed, refreshBurrow]);
+  }, [game.islandKey, refreshBurrow]);
 
   /**
    * A trap went into the ground (or came out), so the quest board may have

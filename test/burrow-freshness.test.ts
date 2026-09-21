@@ -79,7 +79,15 @@ describe('the burrow bar keeps up with the server', () => {
   });
 
   it('re-reads once a seat is granted — the charge just happened', () => {
-    expect(refreshesOn(PAGE, 'game.islandSeed')).toBe(true);
+    // ON THE KEY, NOT THE SEED. `findJoinable` seats a returning player back on
+    // the island they just left whenever it still has room, so a second trip
+    // out carries the SAME seed: keyed on the seed this effect does not re-run,
+    // and the bar holds its pre-run figure for the whole run. Reported again on
+    // 21 September 2026 — "si tu vas dig et que tu fais pas un mouvement ton
+    // energie est pas consomee, si tu etais a 60 tu restes a 60" — the charge
+    // having landed at the door all along. `islandKey` is bumped by every
+    // snapshot, which is the question this effect asks.
+    expect(refreshesOn(PAGE, 'game.islandKey')).toBe(true);
   });
 
   it('re-reads when a run banks its carrots', () => {
