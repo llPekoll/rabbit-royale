@@ -9,9 +9,11 @@ import { groupDigits } from '../src/i18n/format';
 
 describe('the pill figure', () => {
   it('keeps the full face for a short pile, ranked or not', () => {
-    expect(figureSize(groupDigits(683), null)).toBe(22);
-    expect(figureSize(groupDigits(683), '211')).toBe(22);
-    expect(figureSize(groupDigits(9999), null)).toBe(22);
+    // 28 since 2026-09-20: the upper plank gives the pile a row of its own
+    // and 22 read small against the wood (see FIGURE_STEPS).
+    expect(figureSize(groupDigits(683), null)).toBe(28);
+    expect(figureSize(groupDigits(683), '211')).toBe(28);
+    expect(figureSize(groupDigits(9999), null)).toBe(28);
   });
 
   it('steps down once the grouped figure would not fit beside the chip', () => {
@@ -26,7 +28,7 @@ describe('the pill figure', () => {
   it('only ever answers with a step of the kit', () => {
     for (const n of [0, 7, 42, 999, 1000, 1683, 25000, 999999, 5000000, 123456789]) {
       for (const r of [null, '1', '99', '211', '4321']) {
-        expect([22, 16, 12, 10]).toContain(figureSize(groupDigits(n), r));
+        expect([28, 22, 16, 12, 10]).toContain(figureSize(groupDigits(n), r));
       }
     }
   });

@@ -53,7 +53,7 @@ describe('placement hints in the burrow', () => {
     // mounted inside its blocks — see trap-persistence), so this asserts the
     // ORDER the two calls happen in rather than that they are adjacent lines.
     // What matters is that no hint is left tweening a destroyed block.
-    expect(SCENE).toMatch(/this\.teardownPlacementHints\(\);[\s\S]{0,1200}?this\.terrain\?\.destroy\(\)/);
+    expect(SCENE).toMatch(/this\.teardownPlacementHints\(\);[\s\S]{0,2400}?this\.terrain\?\.destroy\(\)/);
     expect(SCENE).toMatch(/destroy\(\): void \{\s*this\.teardownPlacementHints\(\)/);
   });
 

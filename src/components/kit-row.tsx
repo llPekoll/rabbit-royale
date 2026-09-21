@@ -81,7 +81,7 @@ export function KitRow(props: KitRowProps) {
 
   switch (selected) {
     case 'trap': {
-      status = copy.available(amount) + ' · ' + copy.placed(props.trapsPlaced ?? 0);
+      status = copy.available(amount) + ' \u00b7 ' + copy.placed(props.trapsPlaced ?? 0);
       hint = amount > 0 ? copy.trapHint : copy.trapEmpty;
       const full = props.trapsMaxHeld !== undefined && amount >= props.trapsMaxHeld;
       const broke = props.stock !== undefined && props.trapCost !== undefined && props.stock < props.trapCost;
@@ -93,7 +93,7 @@ export function KitRow(props: KitRowProps) {
       break;
     }
     case 'fence':
-      status = copy.available(amount) + ' · ' + copy.placed(props.fencesPlaced ?? 0);
+      status = copy.available(amount) + ' \u00b7 ' + copy.placed(props.fencesPlaced ?? 0);
       hint = copy.fenceHint;
       if (amount === 0 && !props.fencesPlaced) hint = copy.shopHint;
       else if (props.fenceOffers === 0 && (props.fencesPlaced ?? 0) > 0) hint = t.kit.fenceAllWalled(props.fencesPlaced!);
@@ -116,7 +116,7 @@ export function KitRow(props: KitRowProps) {
     default:
       hint = copy.attackHint;
   }
-  if (remaining !== null) status += ' · ' + copy.active(wait(remaining));
+  if (remaining !== null) status += ' \u00b7 ' + copy.active(wait(remaining));
 
   return (
     <section className="rr-kit-row rr-toolkit" aria-label={t.kit.aria}>
@@ -125,7 +125,7 @@ export function KitRow(props: KitRowProps) {
           <ToolArt kind={selected} />
           <div><strong>{name(selected)}</strong><span className="rr-toolkit-stock">{status}</span></div>
           <button type="button" className="rr-toolkit-disclosure" aria-label={t.chrome.close}
-            onClick={() => setExpanded(false)}>×</button>
+            onClick={() => setExpanded(false)}>&times;</button>
         </div>
         <div className="rr-toolkit-explanation">
           <p>{blurb}</p>

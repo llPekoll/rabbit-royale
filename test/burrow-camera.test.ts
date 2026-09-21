@@ -107,9 +107,11 @@ describe('burrow camera', () => {
     const page = readFileSync(join(__dirname, '..', 'src/app/page.tsx'), 'utf8');
     // `!walling` joined the gate when the fence mode arrived: walling is the
     // second board mode, and the cards are just as wrong over the potager as
-    // over the trap grid. What is pinned is still that the cards are BEHIND a
+    // over the trap grid. The two then folded into ONE flag, `editingKit`
+    // (placing or walling, or the kit open to inspect), which is what the
+    // gate reads now. What is pinned is still that the cards are BEHIND a
     // placement gate, not the exact list of modes in it.
-    const gate = page.indexOf('{!placing && !walling && (');
+    const gate = page.indexOf('{!editingKit && (');
     expect(gate, 'the cards must sit behind a !placing gate').toBeGreaterThan(-1);
 
     // The first card inside the gate. It was the HP card; HP are gone (they
@@ -140,11 +142,12 @@ describe('burrow camera', () => {
     // The BUTTON, not the word: "Done placing" also appears in the comment
     // explaining this very gate, which sits above it.
     //
-    // Matched on `stopPlacing` alone rather than on the whole handler: the
-    // exit became a ternary when walling arrived (one BackButton serves both
-    // board modes), and what this pins is that the way out is rendered
-    // OUTSIDE the gate — not how it picks which mode to leave.
-    const done = page.indexOf('stopPlacing}', close);
+    // Matched on the `stopPlacing()` CALL alone rather than on the whole
+    // handler: the exit became a ternary when walling arrived (one BackButton
+    // serves both board modes), then one handler that closes both, and what
+    // this pins is that the way out is rendered OUTSIDE the gate — not how it
+    // picks which mode to leave.
+    const done = page.indexOf('stopPlacing();', close);
     expect(done, 'the exit must be outside the gate').toBeGreaterThan(close);
   });
 });

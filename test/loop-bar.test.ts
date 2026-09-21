@@ -48,10 +48,11 @@ describe('the loop bar', () => {
     expect(PAGE).not.toMatch(/<HubTabs/);
     expect(PAGE).not.toMatch(/label="Go farm"/);
     // The way out of placement survives, as the shared back button. It now
-    // serves BOTH board modes — walling arrived with the fence — so the
-    // handler is a ternary; what is pinned is the one shared Back button, not
-    // which mode it happens to close.
-    expect(PAGE).toMatch(/<BackButton label="Back" onClick=\{walling \? stopWalling : stopPlacing\} \/>/);
+    // serves BOTH board modes — walling arrived with the fence — so the one
+    // handler closes both (and the kit's inspect state with them); what is
+    // pinned is the one shared Back button, not which mode it happens to
+    // close. Its label comes from the dictionary since the four languages.
+    expect(PAGE).toMatch(/<BackButton label=\{t\.chrome\.back\} onClick=\{\(\) => \{\s*stopPlacing\(\);\s*stopWalling\(\);/);
   });
 
   it('keeps one verb per loop on the island too', () => {
@@ -66,12 +67,17 @@ describe('the loop bar', () => {
     expect(read('../src/components/run-recap.tsx')).toMatch(/t\.recap\.goHome/);
     // ...and the slab steps aside while the recap is up: the card's own last
     // row is the same exit, and the two HOMEs were drawn over each other.
-    expect(PAGE).toMatch(/\{!\(game\.recap && !spectating\) &&[\s\S]{0,120}<BackButton[\s\S]{0,120}label=\{spectating \? t\.run\.stopWatching : t\.run\.home\}/);
-    // ...and it also steps aside while the first island is holding the player
-    // at its lesson: with every dig refused until the bomb is marked, HOME
-    // would be the only door that still opens, and a new player takes it
-    // having learned nothing. It returns the instant the X lands.
-    expect(PAGE).toMatch(/game\.taughtBomb === null && \(/);
+    // (The same gate also holds the corner shut during the first island —
+    // `!game.firstRun` — see the next assertion's note; the recap half is
+    // what this one pins.)
+    expect(PAGE).toMatch(/\{\(spectating \|\| \(!game\.recap && !game\.firstRun\)\) &&[\s\S]{0,120}<BackButton[\s\S]{0,120}label=\{spectating \? t\.run\.stopWatching : t\.run\.home\}/);
+    // ...and it also steps aside for the WHOLE first island, not only while
+    // the X lesson held (`taughtBomb`, once): with every dig refused until
+    // the bomb is marked, HOME would be the only door that still opens, and a
+    // new player takes it having learned nothing — and after the lesson the
+    // first island still ends on its chest, its recap being the way out.
+    expect(PAGE).toMatch(/!game\.recap && !game\.firstRun\)\) &&/);
+    expect(PAGE).not.toMatch(/game\.taughtBomb === null && \(/);
   });
 
   it('moves the shop and the codex off the floor, to the top bar', () => {
