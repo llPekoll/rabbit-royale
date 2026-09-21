@@ -3,7 +3,7 @@
  * See sim-dig.sim.ts for what each policy does.
  */
 import * as T from '../config/tuning';
-import { boardNeighbors, generateIsland, islandProgress } from '../src/lib/game/island';
+import { boardNeighbors, chestProgress, generateIsland, islandProgress } from '../src/lib/game/island';
 import { flagTile, resolveMove, spawnRabbit } from '../src/lib/game/run';
 import { makeShape } from '../src/config/gridConfig';
 import { terrainNeighbors } from '../src/lib/game/terrainBoard';
@@ -24,18 +24,24 @@ export type Stocks = { gold?: number; goldAt?: number; redCap?: number; leaveAt?
  *            "keep enough for a raid" play the one tank made possible
  *            (2026-09-21): what it leaves with comes home. */
 
-export function play(seed: string, lifetime: number, policy: Policy, rand: () => number, stocks: Stocks = {}) {
-  const island: Island = generateIsland({ seed, contentSeed: `c:${seed}`, lifetimeCarrots: lifetime });
-  const shape = makeShape(seed);
-  const rabbit = spawnRabbit('bot', 'bot', T.ENERGY.START, seed);
+/**
+ * One rabbit on an island it may share: its state, its tally, and `tick`,
+ * one decision of its policy. `play` runs one to the end; `playShared` deals
+ * several in turn on the SAME island, the way four players dig one live
+ * island — and stops everyone when the last chest is out, as the game does
+ * (`chestProgress`, the island's own end).
+ */
+function runner(island: Island, shape: ReturnType<typeof makeShape>, seed: string, id: string, policy: Policy, rand: () => number, stocks: Stocks) {
+  const rabbit = spawnRabbit(id, id, T.ENERGY.START, seed);
   rabbit.run = { startedAt: 0, tilesDug: 0, bombsHit: 0, loot: {}, nfts: [] };
   let now = 1_000_000;
   let digs = 0, bombs = 0, right = 0, wrong = 0, guesses = 0, wasted = 0, low = rabbit.energy, ticks = 0, full = 0, sum = 0;
   const tiles = island.tiles;
   let gold = stocks.gold ?? 0, goldUsed = 0, goldHit = 0, reds = 0;
   const goldAt = stocks.goldAt ?? 0.25, redCap = stocks.redCap ?? Infinity;
+  let stopped = false;
 
-  for (let guard = 0; guard < 5000 && rabbit.alive && !(stocks.leaveAt && rabbit.energy <= stocks.leaveAt); guard++) {
+  const tick = (): 'go' | 'stop' => {
     ticks++; sum += rabbit.energy; if (rabbit.energy >= T.ENERGY.MAX - 2) full++; if (rabbit.energy < low) low = rabbit.energy;
     // Ground the rabbit can walk for free from where it stands.
     const region = new Set<number>([rabbit.tile]);
@@ -87,7 +93,7 @@ export function play(seed: string, lifetime: number, policy: Policy, rand: () =>
       if (standFor(i, terrainNeighbors(seed, i)) !== undefined) diggable.push(i);
       if (!t.hinted && t.content !== 'chest' && standFor(i, boardNeighbors(island, i)) !== undefined) markable.push(i);
     }
-    if (!diggable.length) break;
+    if (!diggable.length) return 'stop';
 
     const mark = (i: number) => {
       reds++;
@@ -116,28 +122,59 @@ export function play(seed: string, lifetime: number, policy: Policy, rand: () =>
 
     if (policy === 'gambler') {
       if (markable.length && rand() < 0.3) mark(markable[Math.floor(rand() * markable.length)]);
-      else if (!dig(diggable[Math.floor(rand() * diggable.length)])) break;
-      continue;
+      else if (!dig(diggable[Math.floor(rand() * diggable.length)])) return 'stop';
+      return 'go';
     }
     if (policy === 'reader' || policy === 'solver' || policy === 'prober') {
       const proven = markable.find((i) => mines.has(i));
-      if (proven !== undefined && reds < redCap) { mark(proven); continue; }
+      if (proven !== undefined && reds < redCap) { mark(proven); return 'go'; }
     }
     const sure = diggable.find((i) => safe.has(i));
-    if (sure !== undefined) { if (!dig(sure)) break; continue; }
+    if (sure !== undefined) { if (!dig(sure)) return 'stop'; return 'go'; }
     // Nothing is certain: the least bad bet. Proven bombs are never stepped on.
     const bets = diggable.filter((i) => !mines.has(i));
-    if (!bets.length) break;
+    if (!bets.length) return 'stop';
     bets.sort((a, b) => (risk.get(a) ?? 0.2) - (risk.get(b) ?? 0.2));
     guesses++;
-    if (gold > 0 && (risk.get(bets[0]) ?? 0.2) >= goldAt && markable.includes(bets[0])) { markGold(bets[0]); continue; }
+    if (gold > 0 && (risk.get(bets[0]) ?? 0.2) >= goldAt && markable.includes(bets[0])) { markGold(bets[0]); return 'go'; }
     if (policy === 'prober') {
       const hot = markable.filter((i) => (risk.get(i) ?? 0) >= 0.5).sort((a, b) => risk.get(b)! - risk.get(a)!)[0];
-      if (hot !== undefined) { mark(hot); continue; }
+      if (hot !== undefined) { mark(hot); return 'go'; }
     }
-    if (!dig(bets[0])) break;
-  }
-  const p = islandProgress(island);
-  return { goldUsed, goldHit, digs, bombs, right, wrong, guesses, wasted, low, atFull: full / Math.max(1, ticks), mean: sum / Math.max(1, ticks), cleared: p.fraction, carrots: rabbit.carrots, died: !rabbit.alive, energy: rabbit.energy };
+    if (!dig(bets[0])) return 'stop';
+    return 'go';
+  };
+  const going = () => !stopped && rabbit.alive && !(stocks.leaveAt && rabbit.energy <= stocks.leaveAt);
+  const step = () => { if (!going()) return false; if (tick() === 'stop') stopped = true; return going(); };
+  const result = () => ({ goldUsed, goldHit, digs, bombs, right, wrong, guesses, wasted, low, atFull: full / Math.max(1, ticks), mean: sum / Math.max(1, ticks), carrots: rabbit.carrots, died: !rabbit.alive, energy: rabbit.energy });
+  return { rabbit, going, step, result };
 }
 
+export function play(seed: string, lifetime: number, policy: Policy, rand: () => number, stocks: Stocks = {}) {
+  const island: Island = generateIsland({ seed, contentSeed: `c:${seed}`, lifetimeCarrots: lifetime });
+  const shape = makeShape(seed);
+  const r = runner(island, shape, seed, 'bot', policy, rand, stocks);
+  for (let guard = 0; guard < 5000 && r.step(); guard++) { /* one decision a tick */ }
+  const p = islandProgress(island);
+  return { ...r.result(), cleared: p.fraction };
+}
+
+/**
+ * Several rabbits on ONE island, dealt in turn. Ends when every rabbit is
+ * dead, gone or stuck — or when the last chest is dug, which ends the run for
+ * everyone with whatever fuel they hold (the island IS the level).
+ */
+export function playShared(seed: string, lifetime: number, policies: Policy[], rand: () => number, stocks: Stocks = {}) {
+  const island: Island = generateIsland({ seed, contentSeed: `c:${seed}`, lifetimeCarrots: lifetime });
+  const shape = makeShape(seed);
+  const rs = policies.map((policy, k) => runner(island, shape, seed, `bot${k}`, policy, rand, stocks));
+  let rounds = 0, endedByChests = false;
+  for (let guard = 0; guard < 20000; guard++) {
+    let any = false;
+    for (const r of rs) { if (r.step()) any = true; if (chestProgress(island).left === 0) { endedByChests = true; break; } }
+    rounds++;
+    if (endedByChests || !any) break;
+  }
+  const p = islandProgress(island);
+  return { rabbits: rs.map((r) => r.result()), cleared: p.fraction, endedByChests, rounds };
+}
