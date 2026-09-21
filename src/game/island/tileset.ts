@@ -185,11 +185,19 @@ export const TIER_PALETTE_COUNT = 5;
 export const tierPaletteUrl = (n: number) => terrain(`palette-${n}.webp`);
 
 /**
- * The palette sheets are 9x6. Columns 0-3 are the shoreline set, whose white
- * surf is painted INTO the tiles; this island animates its own foam, so it
- * takes columns 5-8 instead — the same blob set with a plain grass edge.
+ * The palette sheets are 9x6, and carry the same grass blob set TWICE: once at
+ * columns 0-3 with a pale rim worked into the tile's edge, once at 5-8 with a
+ * bare one.
+ *
+ * The rimmed set is the one the island draws. It used to take 5-8, on the
+ * reasoning that a rim in the tile plus `PackWater`'s animated surf makes two
+ * coastlines for one shore — true, but it solved it from the wrong end: the
+ * surf is a sprite per shore cell and reads thick and saturated, where the
+ * painted rim is a couple of pixels that follow every tooth of the blob mask.
+ * Taking 0-3 puts that fine line back under the surf, which is the coast this
+ * game had before the surf existed (see `palette-1` before `d13f02d`).
  */
-const PALETTE_GRASS_ORIGIN = 5;
+const PALETTE_GRASS_ORIGIN = 0;
 const PALETTE_COLS = 9;
 const PALETTE_ROWS = 6;
 
