@@ -52,7 +52,10 @@ const UNITS = '/assets/units';
 // v4 (2026-09-18): the flat sheet widened from 10 to 11 columns. Column 10 is
 // not from the pack — it is where RR's own tiles are painted straight into the
 // baked sheet, in iso, rather than drawn flat and projected.
-const TERRAIN_REV = '?v=4';
+// v5 (2026-09-21): `palette-1` repainted by hand — the white surf taken off
+// the shoreline set's edge, so the tile no longer draws a coastline of its own
+// under the animated foam.
+const TERRAIN_REV = '?v=5';
 const terrain = (file: string) => `${TERRAIN}/${file}${TERRAIN_REV}`;
 
 export const ISLAND_SHEETS = {
