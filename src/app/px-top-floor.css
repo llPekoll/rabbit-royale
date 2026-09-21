@@ -23,6 +23,38 @@
 :root {
   --rr-bevel: calc(var(--u, 2px) * 6);
   --rr-btn-pad: var(--rr-pad-tight) var(--rr-pad) calc(var(--rr-pad-tight) + var(--rr-bevel));
+  /* THE ONE CAST SHADOW every piece of chrome on the water throws. Tuned on
+     the DIG medallion first (see "A COOL SHADOW" below for the why of the
+     colour and the two passes), then asked for everywhere (Paul, 2026-09-21:
+     "tu vois ce bouton ya une ombre, est-ce que tu peux mettre ca sur tous
+     les elements du menu"). One value, so the board, the pill, the chip,
+     the stone rings and the kit all sit at the same height above the sea.
+     Rules that ALSO filter for a hover or a press must prepend this, or the
+     shadow blinks out for the length of the hover. */
+  --rr-cast:
+    drop-shadow(0 5px 0 rgba(8, 38, 68, 0.7))
+    drop-shadow(0 7px 6px rgba(8, 38, 68, 0.45));
+  /* THE SAME SHADOW, PRESSED. A press sinks the object 2 source pixels
+     towards the water, and a shadow that rode down with it read as nothing
+     happening (Paul, 2026-09-21: "qd tu pousse le bouton l'ombre ne bouge
+     pas"). The cast on the GROUND does not move; the object closes on it.
+     So the offset shrinks by what the press drops (5 -> 1, 7 -> 3), the soft
+     pass tightens, and the object lands on its own shadow. Every `:active`
+     below swaps to this. */
+  --rr-cast-down:
+    drop-shadow(0 1px 0 rgba(8, 38, 68, 0.7))
+    drop-shadow(0 3px 3px rgba(8, 38, 68, 0.45));
+  /* THE PRESS ITSELF, the same on every element: the carrot pill's (Paul,
+     2026-09-21: "les ombres ne behave pas toutes pareil, prends celle-la
+     comme exemple"). The object sinks 2px onto its shadow and dims a
+     touch; both go down quick and come back the same way, no spring. The
+     kit's own press (`.wl-runtime-action:active`, runtime.css) is this same
+     2px, and `.rr-px-btn:active:hover` in globals.css replaces it with a
+     squash — so the menu's buttons restate it below, one notch above that
+     rule in specificity. */
+  --rr-press-y: 2px;
+  --rr-press-dim: brightness(0.97);
+  --rr-press-ease: transform 60ms ease, filter 90ms ease;
 }
 
 /* ── The screen's edges, for the two rules globals still states in literals ─
@@ -84,13 +116,24 @@
    down from the top, four up from the bottom, which is the same centre the
    kit's own padding gives a label — so absolute children land on the
    button's corners. `!important` because the kit writes the span's position
-   inline. The press still sinks it (the kit's :active transform). */
+   inline. The press still sinks it (the kit's :active transform).
+
+   WIDTH IS THE OFFSETS' TO DECIDE. The runtime gives this span `width: 100%`
+   (runtime.css), and an absolute box with `left`, `right` AND a width is
+   over-constrained: the width wins and `right` is thrown away. So a slab
+   whose content starts past its cap (DEFEND's shield, DIG's medallion) got
+   a span as wide as the whole plank, shifted by that cap, and everything
+   hung off the span's right end — the quest's "!" and the open-burrow count
+   — landed that far PAST the plank, on the neighbour's board (Paul,
+   2026-09-21: the "!" on DEFEND's shield, the "8" floating right of RAID).
+   `auto` hands the width back to `left` and `right`. */
 .rr-ptf-fill > .nine-btn__content {
   position: absolute !important;
   top: calc(var(--u) * 1) !important;
   left: 0;
   right: 0;
   bottom: calc(var(--u) * 4);
+  width: auto !important;
   justify-content: center;
 }
 
@@ -188,9 +231,10 @@ body:has(.rr-loop-bar) .rr-pill-plate { animation-delay: 45ms; }
    turns when the climb is out. `translate`, not `transform`: the plate's
    entrance animation owns `transform`. */
 .rr-carrot-pill[role="button"] { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.rr-pill-plate { filter: var(--rr-cast); }
 .rr-carrot-pill[role="button"] .rr-pill-plate { transition: translate 60ms ease, filter 90ms ease; }
-.rr-carrot-pill[role="button"]:hover .rr-pill-plate { filter: brightness(1.07); }
-.rr-carrot-pill[role="button"]:active .rr-pill-plate { translate: 0 2px; filter: brightness(0.97); }
+.rr-carrot-pill[role="button"]:hover .rr-pill-plate { filter: var(--rr-cast) brightness(1.07); }
+.rr-carrot-pill[role="button"]:active .rr-pill-plate { translate: 0 var(--rr-press-y); filter: var(--rr-cast-down) var(--rr-press-dim); }
 .rr-carrot-pill[role="button"]:focus-visible { outline: 2px solid #ffd138; outline-offset: 2px; }
 /* A pixel caret, drawn with borders so it needs no glyph from the face. */
 .rr-pill-caret {
@@ -210,9 +254,75 @@ body:has(.rr-loop-bar) .rr-pill-plate { animation-delay: 45ms; }
   .rr-pill-caret { transition: none; }
 }
 
+/* ── The menu's kit buttons press like the pill ─────────────────────────── */
+/* `button.` on each, to sit above `.rr-px-btn:active:hover:not(:disabled)`
+   (globals.css) which would otherwise squash them, and above the kit's own
+   hover filter (runtime.css), which loads after this sheet. Paired with
+   `:hover` for the reason globals gives: slide off a held button and the
+   press is cancelled. */
+button.rr-wallet,
+button.rr-next-strip,
+button.rr-item-slot,
+button.rr-loop-slab,
+button.rr-back-btn,
+button.rr-mark-btn {
+  transition: var(--rr-press-ease);
+}
+button.rr-wallet:active:hover:not(:disabled),
+button.rr-next-strip:active:hover:not(:disabled),
+button.rr-item-slot:active:hover:not(:disabled),
+button.rr-loop-slab:active:hover:not(:disabled),
+button.rr-back-btn:active:hover:not(:disabled),
+button.rr-mark-btn:active:hover:not(:disabled) {
+  transform: translateY(var(--rr-press-y));
+}
+/* The flat ones carry their cast on the button itself, so the press swaps
+   it there. The slabs' cast is on their board (`::before`, below). */
+button.rr-wallet:active:hover:not(:disabled),
+button.rr-next-strip:active:hover:not(:disabled),
+button.rr-item-slot:active:hover:not(:disabled),
+button.rr-back-btn:active:hover:not(:disabled),
+button.rr-mark-btn:active:hover:not(:disabled) {
+  filter: var(--rr-cast-down) var(--rr-press-dim);
+}
+
+/* ── The island's chrome, the same (Paul, 2026-09-21: "fais ca aussi dans
+   le dig mode") ─────────────────────────────────────────────────────────── */
+/* HOME / RETREAT / BACK, and MARK A BOMB: kit buttons on the water, so the
+   cast and the press above. `.rr-back-btn:active` in globals.css used to
+   sink the FACE 4px inside a still button; the button sinks now and the
+   face stays put on it, like every other press. */
+button.rr-back-btn,
+button.rr-mark-btn { filter: var(--rr-cast); }
+button.rr-back-btn:hover:not(:disabled),
+button.rr-mark-btn:hover:not(:disabled) { filter: var(--rr-cast) brightness(1.1); }
+button.rr-back-btn:active .rr-back-face { transform: none; }
+/* The plank at the top of the island is the carrot pill grown tall
+   (`.rr-pill-plate.has-energy`), so it already has the cast from above. The
+   glass `.rr-hud-plate` is left alone: a drop-shadow on a backdrop-blurred
+   box follows the box, not the art. */
+
+/* ── The column's cards ────────────────────────────────────────────────── */
+/* The quest, the garden and the burrow stand on the same water as the loop
+   bar, so they throw the same cast (see `--rr-cast`). On the card, not its
+   buttons: HARVEST and UPGRADE lie ON the parchment, and a second shadow
+   under each would print the plank twice. */
+.rr-hub-card { filter: var(--rr-cast); }
+/* The NEXT strip above them is a kit button (next-strip.tsx): same cast, kept
+   through the kit's hover filter, pressed on the press. */
+.rr-next-strip { filter: var(--rr-cast); }
+button.rr-next-strip:hover:not(:disabled) { filter: var(--rr-cast) brightness(1.1); }
+
 /* ── The wallet chip ───────────────────────────────────────────────────── */
 /* The name ellipsises inside the kit's content span, which must be allowed to
    shrink under the chip's 20% cap. */
+.rr-wallet { filter: var(--rr-cast); }
+/* The kit's hover (`.wl-runtime-action:hover`, runtime.css) is a `filter` of
+   its own, so it has to carry the cast or the shadow blinks out under the
+   pointer. The press swaps to the pressed cast. The `button` type on both,
+   because the kit's sheet loads AFTER this one and ties on specificity
+   otherwise — and Storybook's wallet has no `.rr-px-btn` to lean on. */
+button.rr-wallet:hover:not(:disabled) { filter: var(--rr-cast) brightness(1.1); }
 .rr-wallet > .nine-btn__content { min-width: 0; max-width: 100%; }
 .rr-wallet .rr-guest-tag { border-radius: 0; border-width: 2px; line-height: 12px; margin-left: var(--rr-pad-tight); }
 .rr-wallet .rr-badge { border-radius: 0; box-shadow: 0 0 0 2px #0d1117; }
@@ -220,7 +330,13 @@ body:has(.rr-loop-bar) .rr-pill-plate { animation-delay: 45ms; }
 /* ── The kit's slots ───────────────────────────────────────────────────── */
 /* A read-only slot is disabled, and the kit greys and darkens a disabled
    button. A readout is not a refusal: the art fades instead (item-slot.tsx). */
-.rr-item-slot.nine-btn:disabled { filter: none; }
+/* `--rr-live-ring` is the running slot's pixel ring, set inline by
+   item-slot.tsx; empty when the slot is not live, so only the cast remains.
+   A `filter` set inline would have replaced the cast instead of adding to
+   it, and the press could not have swapped it. */
+.rr-item-slot { filter: var(--rr-live-ring,) var(--rr-cast); }
+button.rr-item-slot:active:hover:not(:disabled) { filter: var(--rr-live-ring,) var(--rr-cast-down) var(--rr-press-dim); }
+.rr-item-slot.nine-btn:disabled { filter: var(--rr-live-ring,) var(--rr-cast); }
 
 /* ── The island's HUD strip ───────────────────────────────────────────────
    The glass and the layout move onto the pixel plate inside the header. */
@@ -304,6 +420,9 @@ body:has(.rr-loop-bar) .rr-pill-plate { animation-delay: 45ms; }
 .rr-loop-slab.rr-loop-home,
 .rr-loop-slab.rr-loop-raid {
   --rr-scroll-h: var(--rr-loop-h, clamp(48px, 10.4svh, 80px));
+  /* Where the content span sits inside the plank (used below, and by
+     `.rr-loop-corner` to reach back out of it). */
+  --rr-inset-t: calc(var(--rr-scroll-h) * 0.15);
   background: none !important;
   box-shadow: none !important;
   border: 0 !important;
@@ -372,18 +491,15 @@ body:has(.rr-loop-bar) .rr-pill-plate { animation-delay: 45ms; }
 .rr-loop-slab.rr-loop-home > .nine-btn__content,
 .rr-loop-slab.rr-loop-raid > .nine-btn__content {
   z-index: 1;
-  top: calc(var(--rr-scroll-h) * 0.15) !important;
-  bottom: calc(var(--rr-scroll-h) * 0.15) !important;
+  top: var(--rr-inset-t) !important;
+  bottom: var(--rr-inset-t) !important;
   left: calc(var(--rr-scroll-h) * 0.9) !important;
+  right: var(--rr-inset-r) !important;
   justify-content: center;
 }
 /* Each board's own right end: its cap, plus the same air the left gets. */
-.rr-loop-slab.rr-loop-home > .nine-btn__content {
-  right: calc(var(--rr-scroll-h) * 0.50) !important;
-}
-.rr-loop-slab.rr-loop-raid > .nine-btn__content {
-  right: calc(var(--rr-scroll-h) * 0.44) !important;
-}
+.rr-loop-slab.rr-loop-home { --rr-inset-r: calc(var(--rr-scroll-h) * 0.50); }
+.rr-loop-slab.rr-loop-raid { --rr-inset-r: calc(var(--rr-scroll-h) * 0.44); }
 /* INK FOR PARCHMENT. `!important` because both are set INLINE by the
    component (the verb carries a drop shadow meant for a dark face; the state
    line's colour is a live value that turns to the alarm). The sheet has to
@@ -576,20 +692,40 @@ body:has(.rr-loop-dial) .rr-loop-bar {
    Vertically the box is the slab itself — the content box is a child of the
    button, which is the plank — so only the small frame inset applies there,
    not the art's overflow. */
+.rr-loop-slab.rr-loop-dig {
+  --rr-inset-t: 0px;
+  --rr-inset-r: calc(var(--rr-dial-art) * 0.22);
+}
 .rr-loop-slab.rr-loop-dig > .nine-btn__content {
   z-index: 1;
-  top: 0 !important;
+  top: var(--rr-inset-t) !important;
   bottom: 0 !important;
   /* Past the medallion: its rim ends at 1.1373 of the art's height. */
   left: calc(var(--rr-dial-art) * 1.16) !important;
-  right: calc(var(--rr-dial-art) * 0.22) !important;
+  right: var(--rr-inset-r) !important;
   justify-content: center;
 }
 /* The face's own row no longer holds a picture — the board draws it — so it
-   keeps no gap and no side pad. */
-.rr-loop-slab.rr-loop-dig > .nine-btn__content > span {
+   keeps no gap and no side pad. THE FACE ONLY: the corner badge is a span in
+   the same box, and zeroing its padding squashed the pill's painted ends. */
+.rr-loop-slab.rr-loop-dig > .nine-btn__content > span:not(.rr-loop-corner) {
   gap: 0 !important;
   padding: 0 !important;
+}
+/* ── The corner badge ──────────────────────────────────────────────────────
+   The quest's "!" and RAID's open count. A CHILD of the button, so it
+   follows every move the button makes (wiggle, hover lift, quest pop, and
+   the press sinks the content span it lives in). Its nearest positioned box
+   is that span, which each board insets past its cap — so the offsets reach
+   back OUT by the same inset (the variables above are the ones the span
+   itself takes, so the two cannot drift) and then in: the pill sits ON the
+   plank's corner, over the leaves, 4px in from its right edge and 8px above
+   its top. Not hung off the end (Paul, 2026-09-21: "encore un peu a gauche"). */
+.rr-loop-slab > .nine-btn__content > .rr-loop-corner {
+  position: absolute;
+  right: calc(4px - var(--rr-inset-r, 0px));
+  top: calc(-8px - var(--rr-inset-t, 0px));
+  pointer-events: none;
 }
 /* THE WHOLE BOARD SINKS ON A PRESS, MEDALLION INCLUDED.
    
@@ -604,20 +740,24 @@ body:has(.rr-loop-dial) .rr-loop-bar {
    Both are given the same 2-pixel drop and the same easing, so the slab
    presses as one object. `:has()` on the cell reaches the sibling ring from
    the button's own `:active`, which no descendant selector could. */
-/* THE PRESS: the kit sinks its content 2 source pixels; the board and the
-   medallion take the same drop so the slab moves as one.
-   `!important` to match the base rules above, which need it to beat the
-   kit's own inline styles. */
-.rr-loop-slab.rr-loop-dig:active:hover:not(:disabled)::before,
+/* THE PRESS: the button sinks by `--rr-press-y` (the menu-wide rule near
+   the top of this file), and the board goes with it as its `::before`. The
+   medallion and the carrot are SIBLINGS in the cell, so they are told the
+   same drop here. `!important` to match the base rules above, which need it
+   to beat the kit's own inline styles. */
 .rr-loop-cell:has(> .rr-loop-slab.rr-loop-dig:active:hover:not(:disabled)) > .rr-loop-dial {
-  transform: translateY(calc(var(--u, 2px) * 2)) !important;
+  transform: translateY(var(--rr-press-y)) !important;
+  filter: var(--rr-press-dim);
 }
 /* The carrot sinks with the board it lies on — it is a sibling in the cell,
    so it does not inherit the button's press and has to be told (Paul,
    2026-09-19: "qd tu apuie sur le boutton la carrote ne suit pas"). Through
    the variable, so it keeps its rotation. */
 .rr-loop-cell:has(> .rr-loop-slab.rr-loop-dig:active:hover:not(:disabled)) > .rr-loop-dial-carrot {
-  --rr-dial-press: calc(var(--u, 2px) * 2);
+  --rr-dial-press: var(--rr-press-y);
+  /* Its own cast closes too (see the carrot's shadow below): 1px straight
+     down, pre-rotated. */
+  filter: drop-shadow(0.71px 0.71px 1px rgba(8, 38, 68, 0.75)) var(--rr-press-dim);
 }
 /* THE HOVER LIFT, for the same reason. `.rr-px-btn:hover` raises the button
    1px (globals.css); without this the plank rose and the medallion stayed
@@ -626,7 +766,6 @@ body:has(.rr-loop-dial) .rr-loop-bar {
    `hover: hover` guard, so a touch screen — where hover is a lie — gets
    neither. */
 @media (hover: hover) {
-  .rr-loop-slab.rr-loop-dig:hover:not(:disabled):not(:active)::before,
   .rr-loop-cell:has(> .rr-loop-slab.rr-loop-dig:hover:not(:disabled):not(:active)) > .rr-loop-dial {
     transform: translateY(-1px) !important;
   }
@@ -636,15 +775,9 @@ body:has(.rr-loop-dial) .rr-loop-bar {
 }
 /* Both layers follow the button's own easing: the press is quick, the
    release springs back like the kit's. */
-.rr-loop-slab.rr-loop-dig::before,
 .rr-loop-cell > .rr-loop-dial,
 .rr-loop-cell > .rr-loop-dial-carrot {
-  transition: transform 160ms cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-.rr-loop-slab.rr-loop-dig:active::before,
-.rr-loop-cell:has(> .rr-loop-slab.rr-loop-dig:active) > .rr-loop-dial,
-.rr-loop-cell:has(> .rr-loop-slab.rr-loop-dig:active) > .rr-loop-dial-carrot {
-  transition-duration: 60ms;
+  transition: var(--rr-press-ease);
 }
 
 /* THE CARROT BREATHES, once every 5 seconds.
@@ -699,11 +832,14 @@ body:has(.rr-loop-dial) .rr-loop-bar {
    with a drawn cast shadow under it, so it presses by moving DOWN into that
    shadow — scaling it would stretch the stones. 2px is the shadow's own depth,
    measured off the sprite. */
-.rr-ring-btn { transition: transform 90ms ease, filter 90ms ease; }
+.rr-ring-btn { transition: var(--rr-press-ease); filter: var(--rr-cast); }
 .rr-ring-btn:active,
-.rr-ring-btn.is-pressed { transform: translateY(2px); filter: brightness(0.88); }
-/* Open reads as pressed and stays there, so it also loses the hover lift. */
-.rr-ring-btn:hover:not(.is-pressed) { filter: brightness(1.08); }
+.rr-ring-btn.is-pressed { transform: translateY(var(--rr-press-y)); filter: var(--rr-cast-down) var(--rr-press-dim); }
+/* Open reads as pressed and stays there, so it also loses the hover lift.
+   `:not(:active)` because this and the press rule tie on specificity, and
+   this one is written after it: without it the hover won for the whole
+   press and the ring never sank. */
+.rr-ring-btn:hover:not(.is-pressed):not(:active) { filter: var(--rr-cast) brightness(1.08); }
 .rr-ring-btn:focus-visible { outline: 2px solid #ffd45c; outline-offset: 3px; }
 /* The glyph rides the press with the stone, or it floats free of its own
    button for 90ms. */
@@ -784,7 +920,9 @@ body:has(.rr-loop-dial) .rr-loop-bar {
    water-blue reads as the board sitting above it. Translucent, so the sea's
    own motion still shows through.
 
-   ON THE BOARD LAYER ONLY (`::before`). The coloured ring and the carrot sit
+   ON THE BOARD LAYER ONLY (`::before`), AND ON ALL THREE BOARDS: DEFEND's
+   parchment and RAID's skull plank are the same construction, and the
+   value itself lives in `--rr-cast` at the top of this file. The coloured ring and the carrot sit
    on the same silhouette, so shadowing those too would print three offset
    copies of one object. The shadow is painted on the layer that MOVES, so it
    follows the press down instead of staying behind.
@@ -795,10 +933,18 @@ body:has(.rr-loop-dial) .rr-loop-bar {
    6px hugging the edge, which at the real size reads as part of the bark
    rather than as a cast. Pushed to 5px with a soft second pass behind it, and
    deepened: a shadow on water has to clear the object before it starts. */
-.rr-loop-slab.rr-loop-dig::before {
-  filter:
-    drop-shadow(0 5px 0 rgba(8, 38, 68, 0.7))
-    drop-shadow(0 7px 6px rgba(8, 38, 68, 0.45));
+.rr-loop-slab.rr-loop-dig::before,
+.rr-loop-slab.rr-loop-home::before,
+.rr-loop-slab.rr-loop-raid::before {
+  filter: var(--rr-cast);
+  transition: var(--rr-press-ease);
+}
+/* Pressed, the board closes on its shadow and dims (see `--rr-press-*`).
+   The board rides down with the button, which is what sinks. */
+.rr-loop-slab.rr-loop-dig:active:hover:not(:disabled)::before,
+.rr-loop-slab.rr-loop-home:active:hover:not(:disabled)::before,
+.rr-loop-slab.rr-loop-raid:active:hover:not(:disabled)::before {
+  filter: var(--rr-cast-down) var(--rr-press-dim);
 }
 /* THE CARROT CASTS ITS OWN, because it cannot borrow the board's.
 

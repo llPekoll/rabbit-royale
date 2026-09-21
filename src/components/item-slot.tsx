@@ -99,7 +99,11 @@ export function ItemSlot({
       highlightColor={live ? SLOT_LIVE : SLOT_OFF}
       style={{
         ...slotButton,
-        filter: live ? LIVE_RING : undefined,
+        /* As a variable, not a `filter`: the sheet composes it with the cast
+           shadow every menu element throws, and swaps that cast on the press
+           (px-top-floor.css, `.rr-item-slot`). An inline `filter` would have
+           replaced both. */
+        ['--rr-live-ring' as string]: live ? LIVE_RING : undefined,
         /* DIMMED BY ITS CONTENTS, NOT BY ITS OPACITY.
            `button:disabled { opacity: 0.5 }` in globals.css is right for a
            slab on a panel and wrong here: these squares sit over the island,
