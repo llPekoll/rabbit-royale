@@ -223,9 +223,15 @@ export interface EnergyRingProps {
 /** The energy mark, as drawn for the shop's shelf and the run's bar. */
 const BOLT_URL = '/assets/ui/icons/bolt.webp';
 const BOLT_SIZE = { width: 24, height: 29 } as const;
-/** Whole multiples only: the bolt is 29px of art and the hub ~40% of the ring. */
+/**
+ * Whole multiples only, and BIGGER THAN THE HUB: the hub is ~47% of the ring
+ * and the bolt is sized to 56% of it, so its tips run a few pixels out over
+ * the coloured band — a mark stamped over the gauge, not a picture framed
+ * inside it (Paul, 2026-09-21: "bleed out over the gauge slightly"). On the
+ * 102px ring that is 2x, a 58px bolt on a 48px hub.
+ */
 function boltScale(ringSize: number): number {
-  return Math.max(1, Math.floor((ringSize * 0.4) / BOLT_SIZE.height));
+  return Math.max(1, Math.floor((ringSize * 0.56) / BOLT_SIZE.height));
 }
 
 /**
