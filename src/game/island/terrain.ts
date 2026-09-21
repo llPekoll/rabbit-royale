@@ -49,7 +49,11 @@ const TREE_CHANCE = 0.08;
 const BUSH_CHANCE = 0.05;
 const PROP_CHANCE = 0.11;
 const LANDMARK_CHANCE = 0.08;
-const DEFAULT_INHABITED_SHARE = 0.015;
+/** Sheep and soldiers share one pot, so this is the only real dial: lowering
+ *  the sheep's WEIGHT below just swaps each sheep for a soldier and leaves the
+ *  island as crowded. Measured over 12 seeds, 0.015 gave 5.2 sheep per island
+ *  and still read as a herd; halved, it gives 2.5. */
+const DEFAULT_INHABITED_SHARE = 0.0075;
 
 /** Sheep come in pairs; soldiers patrol alone or in pairs.
  *  The flock used to be 2-4, which out of a budget this size was one clump
