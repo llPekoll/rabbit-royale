@@ -13,8 +13,10 @@
 // ── Phase 1: the solo run ────────────────────────────────────────────────────
 
 /**
- * A run's energy: THE FUEL OF EXPLORING, on a bar of 100 — and it always runs
- * out. That is the design (the "capped run", 17 September 2026).
+ * A run's energy: THE FUEL OF EXPLORING, on a bar of 150 — and it always runs
+ * out. That is the design (the "capped run", 17 September 2026). The bar was
+ * 100 until 21 September 2026, when it was raised for length — 100 played
+ * short in the hand.
  *
  * Every dig costs a point. A well-placed red X (see FLAG) gives some back, but
  * never as much as the digging that found it cost: reading the board roughly
@@ -30,27 +32,33 @@
  * 20-energy ticket, and never once saw the refill offer — runs became 85-90 %
  * of all income against a target of 70 at most, and a 400-carrot refill bought
  * three runs worth thousands. Measured with robot players on real islands
- * (`tools/sim-dig.sim.ts`), at the values below:
+ * (`tools/sim-dig.sim.ts`):
  *
- *              no X         reads        reads + probes
- *   Meadow   100 / 660    175 / 1 470     181 / 1 530     (tiles dug / carrots)
- *   Thicket   91 / 800    204 / 2 100     236 / 2 490
- *   Ashland   79 / 820    155 / 1 990     175 / 2 280
- *   Caldera   55 / 720    141 / 2 270     198 / 3 450
+ *              no X              reads       (tiles dug / carrots / cleared)
+ *   Meadow   147 / 204 / 36%   260 / 576 / 62%
+ *   Thicket  128 / 227 / 32%   321 / 850 / 78%
+ *   Ashland  106 / 236 / 27%   240 / 739 / 60%
+ *   Caldera   68 / 177 / 19%   179 / 666 / 48%
  *
- * About four minutes without the X and eight to ten with it — the GDD's "5-10
- * min runs". Nobody clears an island alone; skill pays in carrots per ticket.
+ * Re-run at the 150 bar, 21 September 2026. At 100 those were 100, 91, 79 and
+ * 55 tiles for a walker and 175, 206, 156, 142 for a reader: the raise buys a
+ * walker about 40 % more board and a reader about 30 %, and no robot ever
+ * finishes with fuel left — every run still ends on "no energy", which is the
+ * design. What it DOES move is how much of an island one reader takes: 78 % of
+ * a Thicket in a single run, where the design says nobody clears an island
+ * alone. Worth watching. Skill still pays in carrots per ticket.
  */
 export const ENERGY = {
   /** Energy a run starts with: a full bar. */
-  START: 100,
+  START: 150,
   /**
    * A dug tile costs this. Walking a revealed tile is free.
    *
    * It was 1 on a bar of 30 (a run lasted ~17 tiles, "you can barely play one
    * game"), then 0 (the bar became a life gauge and the puzzle optional). 1 on
-   * a bar of 100 is the third answer: long enough to play, short enough that
-   * the X is how you go further.
+   * a bar of 100 was the third answer, and 100 still read as short in the hand
+   * — 21 September 2026 the bar went to 150 for length, the dig staying at 1
+   * so the X remains how you go further.
    */
   DIG_COST: 1,
   /** Ordinary carrot: score, not fuel. The X is the pump; see FLAG. */
@@ -65,10 +73,10 @@ export const ENERGY = {
    * golden carrot is what it looks like: five carrots in one.
    */
   GOLDEN_GAIN: 0,
-  /** Stepping on a bomb. Three and a bit end a fresh run; nobody gets four. */
+  /** Stepping on a bomb. Five end a fresh run on a 150 bar; nobody gets six. */
   BOMB_LOSS: 30,
   /** Ceiling — a full bar. Gains past it are lost: an easy shore cannot be banked. */
-  MAX: 100,
+  MAX: 150,
   /**
    * What the BURROW pays to start a run — drawn from `OUT_OF_RUN_ENERGY`, not
    * from the run's own tank, which always opens at START.
