@@ -86,10 +86,18 @@ export function BurrowPanel({
        bottom edge at every size, desktop included), and at 16.5 the heading
        lost its top row on the Seeker. */
     <HubCard
-      ratio={18}
+      /* 23, from 18, when the vault strip took its second row (the exposed
+         count under the safe figure, 2026-09-21) and the card started padding
+         for the frame's rail (hub-card.tsx `paddingBlock`): the strip is a
+         row taller and the parchment a rail shorter, on every screen. */
+      ratio={23}
       // Frame 4 + pad 6, heading 9, strip 20, button 30, their two gaps and
-      // the pad and frame again: the least that keeps 2px of air on a phone.
-      floor={94}
+      // the pad and frame again. 94 was "the least that keeps 2px of air on a
+      // phone" and had stopped being it: measured on an iPhone under Safari's
+      // bar (852x320) the contents centred in a 94px card and the heading's
+      // top row went under the frame (Paul, 2026-09-21). 106 puts the air
+      // back on both sides; the column scrolls, so the height is not a cost.
+      floor={124}
       art={art.url}
       // The buildings are tall sprites (128x192, the castle 320x256) where the
       // bolt and the plant are small marks. Height is capped well under theirs
@@ -151,16 +159,24 @@ export function BurrowPanel({
           number on this card that is about KEEPING things. */}
       {/* The floor AND what stands above it: "safe 1 200" alone said what a
           raid cannot take and left the player to work out what it can. */}
+      {/* TWO ROWS, NOT ONE SENTENCE. It read "121 EXPOSED · SAFE ..... 989"
+          on one line, and the text column beside the hut is ~105px on a
+          phone: the label broke into three lines and spilled over the
+          strip's rim (Paul, 2026-09-21). What is safe is the strip's own
+          figure and takes the row; what is out is a warning under it, in
+          the alarm red, and only there when something is. Each piece is
+          `nowrap`, so it fits or it does not — it never half-fits. */}
       <div className="rr-hub-strip" style={vaultStrip}>
-        <span style={vaultLabel}>
-          {stock - safe > 0
-            ? <><span style={{ color: '#ff8a7a' }}>{t.burrow.exposed(groupDigits(stock - safe))}</span> &middot; {t.burrow.safe}</>
-            : t.burrow.safe}
+        <span style={vaultRow}>
+          <span style={vaultLabel}>{t.burrow.safe}</span>
+          <span style={vaultValue}>
+            {groupDigits(safe)}
+            <CarrotMark size={CARROT_MARK_SIZE} />
+          </span>
         </span>
-        <span style={vaultValue}>
-          {groupDigits(safe)}
-          <CarrotMark size={CARROT_MARK_SIZE} />
-        </span>
+        {stock - safe > 0 && (
+          <span style={vaultExposed}>{t.burrow.exposed(groupDigits(stock - safe))}</span>
+        )}
       </div>
     </HubCard>
   );
@@ -178,26 +194,32 @@ const CARROT_MARK_SIZE = cardSize(12, 7, 12);
  */
 const vaultStrip: CSSProperties = {
   display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  /* A ONE-LINE STRIP, so it takes the tight pad rather than the card's full
-     one — the token set names this case exactly. Inline only: the strip's
-     height is a `cqh` share of the card (22cqh, floored at 18px, 14 on a short
-     screen) and its single line is centred in it, so block padding would fight
-     that height rather than add air to it — at the Seeker's 14px it would
-     leave the label a negative content box. The air above and below the ink is
-     the strip's height doing its job; the air left and right is this. */
-  gap: 'var(--rr-pad-tight)',
-  paddingInline: 'var(--rr-pad-tight)',
-  // A hair under a quarter of the card, with a floor that keeps its two labels
-  // on one line.
-  height: '22cqh',
-  minHeight: 18,
+  flexDirection: 'column',
+  justifyContent: 'center',
+  /* The row-to-warning gap: 2px is what two 7-8px lines can spare inside a
+     strip that must stay under a quarter of the card. */
+  gap: 2,
+  /* The tight pad at the sides — the token set names this case exactly. A
+     hair of block padding so the warning's second row keeps off the rim: the
+     strip's height is a FLOOR now (`minHeight`), not a fixed share, so the
+     padding adds to the content instead of fighting the height. One row at
+     7-8px plus this still sits inside the floor; two rows meet it exactly. */
+  padding: '3px var(--rr-pad-tight)',
+  // A hair under a quarter of the card, with a floor that keeps the row legible.
+  minHeight: 'max(22cqh, 18px)',
   flexShrink: 0,
   borderRadius: 6,
   border: `2px solid ${RIM}`,
   background: VAULT,
   boxSizing: 'border-box',
+};
+
+/** The strip's first row: the label at the left, the safe figure at the right. */
+const vaultRow: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 'var(--rr-pad-tight)',
 };
 
 const vaultLabel: CSSProperties = {
@@ -206,6 +228,13 @@ const vaultLabel: CSSProperties = {
   letterSpacing: '0.08em',
   color: '#b39877',
   lineHeight: 1,
+  whiteSpace: 'nowrap',
+};
+
+/** What a raid can reach: the label's type in the alarm red, on its own row. */
+const vaultExposed: CSSProperties = {
+  ...vaultLabel,
+  color: '#ff8a7a',
 };
 
 const vaultValue: CSSProperties = {
@@ -214,6 +243,7 @@ const vaultValue: CSSProperties = {
   fontVariantNumeric: 'tabular-nums',
   color: SAFE_INK,
   lineHeight: 1,
+  whiteSpace: 'nowrap',
   display: 'inline-flex',
   alignItems: 'center',
   // The carrot mark's gap to its figure — the same one `valueText` uses in the

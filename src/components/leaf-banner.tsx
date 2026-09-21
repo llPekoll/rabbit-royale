@@ -79,6 +79,21 @@ export function bannerMinWidth(height: number): number {
 export const BANNER_CAP_RATIO = BANNER_CAP / BANNER_SIZE.height;
 
 /**
+ * THE RAIL: the wood along the top and bottom, as a share of the height.
+ *
+ * The banner is a 3-slice with no vertical inset, so its middle slice is the
+ * whole 139px of art stretched to the card — the rails scale with the height
+ * exactly as the caps do. Measured down the art's middle columns: the
+ * parchment's light begins at row 13 and ends at row 127, so each rail is
+ * ~13 source rows. A card that pads a FIXED 10px inside this frame puts its
+ * first line on the wood once it is taller than ~110px — on a desktop the
+ * burrow card's heading sat with its top rows in the rail, dark on dark, and
+ * read as cut off (Paul, 2026-09-21). hub-card.tsx pads by this instead.
+ */
+export const BANNER_RAIL = 13;
+export const BANNER_RAIL_RATIO = BANNER_RAIL / BANNER_SIZE.height;
+
+/**
  * THE CAP THE BURROW'S CARDS USE — a share of the height, held under a hard
  * pixel ceiling. This is the one number on this component worth arguing about.
  *

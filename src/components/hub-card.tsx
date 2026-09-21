@@ -24,7 +24,7 @@
  */
 import type { CSSProperties, ReactNode } from 'react';
 import { PxPanel } from './px';
-import { LeafBanner, BANNER_CARD_CAP_RATIO, BANNER_CARD_CAP_MAX } from './leaf-banner';
+import { LeafBanner, BANNER_CARD_CAP_RATIO, BANNER_CARD_CAP_MAX, BANNER_RAIL_RATIO } from './leaf-banner';
 
 /* ── Sampled from the reference ────────────────────────────────────────── */
 /** The card's face — near-black brown, warmer at the top where the light is. */
@@ -256,6 +256,13 @@ function heightBox(shareOfViewport: number, floor: number): CSSProperties {
        and a panel's border, at least). The column has the room below — it
        ended 100px above the loop bar. */
     height: cardHeight(shareOfViewport, floor),
+    /* THE BLOCK PAD CLEARS THE RAIL. The frame's top and bottom wood scale
+       with the card (`BANNER_RAIL_RATIO`, leaf-banner.tsx); the game's pad
+       does not, so on a tall card the first line stood in the wood. The
+       larger of the two, plus the 2px of air every frame gets: the short
+       cards keep the pad they had, the tall ones move their text onto the
+       parchment. Inline, like the height it follows. */
+    paddingBlock: `max(var(--rr-card-pad, var(--rr-pad)), calc(${cardHeight(shareOfViewport, floor)} * ${BANNER_RAIL_RATIO} + 2px))`,
     /* One card-percent AS THE SHARE WOULD HAVE MADE IT. Where the floor lifts
        the card past its share, `cqh` grows with it and the type and art would
        swell into the width they share with the heading ("BURROW - LVL 1" wrapped
