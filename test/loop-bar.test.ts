@@ -62,7 +62,7 @@ describe('the loop bar', () => {
     // Matched on the STRUCTURE, not the words: the labels moved into the
     // dictionaries when the game learned four languages, so asserting the
     // English would only prove that English still exists.
-    expect(PAGE).toMatch(/label=\{spectating \? t\.run\.stopWatching : t\.run\.home\}/);
+    expect(PAGE).toMatch(/label=\{spectating \? t\.run\.stopWatching : raidReady \? t\.run\.homeRaid : t\.run\.home\}/);
     expect(PAGE).not.toMatch(/<GoButton/);
     expect(read('../src/components/run-recap.tsx')).toMatch(/t\.recap\.goHome/);
     // ...and the slab steps aside while the recap is up: the card's own last
@@ -70,7 +70,7 @@ describe('the loop bar', () => {
     // (The same gate also holds the corner shut during the first island —
     // `!game.firstRun` — see the next assertion's note; the recap half is
     // what this one pins.)
-    expect(PAGE).toMatch(/\{\(spectating \|\| \(!game\.recap && !game\.firstRun\)\) &&[\s\S]{0,120}<BackButton[\s\S]{0,120}label=\{spectating \? t\.run\.stopWatching : t\.run\.home\}/);
+    expect(PAGE).toMatch(/\{\(spectating \|\| \(!game\.recap && !game\.firstRun\)\) &&[\s\S]{0,700}<BackButton[\s\S]{0,160}label=\{spectating \? t\.run\.stopWatching : raidReady \? t\.run\.homeRaid : t\.run\.home\}/);
     // ...and it also steps aside for the WHOLE first island, not only while
     // the X lesson held (`taughtBomb`, once): with every dig refused until
     // the bomb is marked, HOME would be the only door that still opens, and a

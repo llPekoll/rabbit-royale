@@ -51,6 +51,8 @@ import { LoreCrawl } from '@/components/lore-crawl';
 import { GardenCard } from '@/components/garden-card';
 import { BurrowPanel } from '@/components/burrow-card-panel';
 import { IslandPicker } from '@/components/island-picker';
+import { EnergyPanel, RAID_FLOOR } from '@/components/energy-panel';
+import { formatWait } from '@/i18n/format';
 import type { IslandListing } from '@/components/use-game-socket';
 import { QuestCard } from '@/components/quest-card';
 import { FirstRunCaption } from '@/components/first-run-caption';
@@ -713,6 +715,9 @@ function Burrow() {
    * mirror of the tank, ticking with every step; at home it is the burrow's
    * bar as last read. Null only before the burrow has answered.
    */
+  /** On the island, under a third of the tank and still a raid's worth: leaving now is a raid. */
+  const raidReady = where === 'island' && !spectating && !crossing
+    && (game.me?.energy ?? 0) >= RAID_FLOOR && (game.me?.energy ?? 0) <= ENERGY.MAX / 3;
   const liveEnergy = useMemo(() => {
     const max = burrow?.maxEnergy ?? ENERGY.MAX;
     if (where === 'island' && !crossing) {
@@ -1461,6 +1466,23 @@ function Burrow() {
    * ordinary one — `goTo('island')` asks for the seat.
    */
   const [pickingIsland, setPickingIsland] = useState(false);
+  /** The energy panel, from a tap on the ring: what the tank buys right now. */
+  const [energyPanelOpen, setEnergyPanelOpen] = useState(false);
+  /**
+   * RAID without a raid's worth: say so on the spot, with the wait, instead
+   * of opening a list whose every row would then be refused (Paul,
+   * 21 September 2026: "taping 'raid' without energy should pop a message").
+   */
+  const openRaid = useCallback(() => {
+    const have = liveEnergy?.energy ?? 0;
+    if (have < RAID_FLOOR) {
+      const perHour = burrow?.regenPerHour ?? 1;
+      refuse(t.loop.raidNeeds(RAID_FLOOR, have, formatWait(((RAID_FLOOR - have) / perHour) * 3_600_000, t.units)));
+      return;
+    }
+    setPickingTarget(true);
+    void raid.refresh();
+  }, [liveEnergy, burrow?.regenPerHour, refuse, t, raid.refresh]);
   const [islandList, setIslandList] = useState<IslandListing | null>(null);
   const chooseIsland = useCallback((choice: { islandId?: string; tier?: string }) => {
     game.chooseIsland(choice);
@@ -1486,7 +1508,7 @@ function Burrow() {
       case 'farm': goFarm(); break;
       case 'garden': void act('harvest'); break;
       case 'base': startPlacing(); break;
-      case 'raid': setPickingTarget(true); void raid.refresh(); break;
+      case 'raid': openRaid(); break;
       default: break;
     }
     // `act` is a plain async function on the component, re-created per
@@ -2173,6 +2195,7 @@ function Burrow() {
     // by a spectate was still up over the island. The island list likewise.
     setPickingTarget(false);
     setPickingIsland(false);
+    setEnergyPanelOpen(false);
     setLoreOpen(false);
   }, [where, placing, stopPlacing, walling, stopWalling]);
 
@@ -2317,6 +2340,8 @@ function Burrow() {
                carries the run's own bar (`energy` below), and two gauges on
                one board would be the two-pools confusion made visible. */
             bank={liveEnergy}
+            onEnergyTap={() => setEnergyPanelOpen((o) => !o)}
+            energyMark={RAID_FLOOR}
             // The run's haul, on the island only and only your own: a
             // spectator's pill is still their own stock.
             carrying={where === 'island' && !spectating && !crossing ? game.me?.carrots ?? null : null}
@@ -2752,7 +2777,7 @@ function Burrow() {
           away={editingKit}
           onDig={goFarm}
           onHome={startPlacing}
-          onRaid={() => { setPickingTarget(true); void raid.refresh(); }}
+          onRaid={openRaid}
         />
       )}
 
@@ -2996,10 +3021,17 @@ function Burrow() {
               recap, whose own last row is this same exit (`onHome`). The way
               out is the ending, not the corner. */}
           {(spectating || (!game.recap && !game.firstRun)) && (
-            <BackButton
-              label={spectating ? t.run.stopWatching : t.run.home}
-              onClick={stopSpectating}
-            />
+            /* RAID READY on the way home: from a third of the tank down to the
+               raid line the exit says what leaving now buys, and pops once
+               when the bar enters that band — the standing cue Paul asked
+               for (21 September 2026: the coach's one line at the raid line
+               went unseen). Below the line it says nothing again. */
+            <span key={raidReady ? 'home-raid' : 'home'} className={raidReady ? 'rr-tab-pop' : undefined} style={{ display: 'contents' }}>
+              <BackButton
+                label={spectating ? t.run.stopWatching : raidReady ? t.run.homeRaid : t.run.home}
+                onClick={stopSpectating}
+              />
+            </span>
           )}
         </div>
       )}
@@ -3117,6 +3149,21 @@ function Burrow() {
             // saying what was taken, and repeating it in the corner would read
             // as a second, smaller announcement of the same thing.
           }}
+        />
+      )}
+
+      {player && energyPanelOpen && liveEnergy && (
+        <EnergyPanel
+          energy={liveEnergy.energy}
+          max={liveEnergy.max}
+          regenPerHour={burrow?.regenPerHour ?? 0}
+          nextRegenPerHour={burrow?.next?.regenPerHour ?? null}
+          level={burrow?.level ?? 1}
+          onIsland={where === 'island'}
+          runCost={burrow?.runCost ?? ENERGY.MIN_TO_CROSS}
+          crossingCost={burrow?.crossingCost ?? ENERGY.CROSSING_COST}
+          onRefill={() => { setEnergyPanelOpen(false); setEnergyOpen(true); }}
+          onClose={() => setEnergyPanelOpen(false)}
         />
       )}
 

@@ -5645,3 +5645,30 @@ button { font-family: var(--font-pixel); }
   box-shadow: inset 0 -2px 0 var(--rr-btn-lip), 0 0 0 var(--rr-btn-shadow);
 }
 .rr-hub-btn.nine-btn:disabled { box-shadow: inset 0 -3px 0 var(--rr-btn-lip); }
+
+/* THE ENERGY PANEL (energy-panel.tsx): the kit's explanation panel, hung
+   under the pill it explains. The kit's own rules are scoped to
+   `.rr-toolkit`, so the panel sets its place itself: centred under the
+   pill, above the scrims (40), scrollable on a short phone. */
+.rr-energy-panel {
+  position: fixed;
+  left: 50%;
+  top: 116px;
+  transform: translateX(-50%);
+  width: min(340px, calc(100vw - 32px));
+  max-height: calc(100svh - 140px);
+  overflow-y: auto;
+  z-index: 45;
+  pointer-events: auto;
+}
+.rr-energy-panel-body {
+  box-sizing: border-box;
+  padding: 14px 18px;
+  text-align: left;
+  font-size: 10px;
+  line-height: 1.6;
+}
+.rr-energy-panel .rr-toolkit-action {
+  display: block; width: 100%; min-height: 44px;
+  margin-top: 8px; padding: 8px 12px; font: inherit;
+}

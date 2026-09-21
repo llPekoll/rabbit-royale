@@ -79,6 +79,10 @@ export interface CarrotPillProps {
    * its rim flushes red — the number that said no, saying it.
    */
   denyKey?: number;
+  /** A tap on the energy ring opens the panel that explains the tank (page.tsx). */
+  onEnergyTap?: () => void;
+  /** The raid line, as a tick on the ring (RAID_RUN's toll plus the walk floor). */
+  energyMark?: number;
   /**
    * Carrots dug this run and not home yet. A small chip BESIDE the stock, not
    * a second figure the size of it: they join the stock on the walk home, and
@@ -204,7 +208,7 @@ function ClimbLine({ gap, line }: { gap: string; line: string }) {
 }
 
 export function CarrotPill({
-  stock, fireKey, gain, rank, toPass, onAdd, denyKey = 0, carrying = null, bank = null,
+  stock, fireKey, gain, rank, toPass, onAdd, denyKey = 0, carrying = null, bank = null, onEnergyTap, energyMark,
   energy = null, chests = null,
 }: CarrotPillProps) {
   const t = useT();
@@ -264,6 +268,9 @@ export function CarrotPill({
            on a screen that has no energy to spend. */
         hub={bank !== null}
         beat={bank !== null}
+        mark={bank !== null ? energyMark : undefined}
+        onTap={bank !== null ? onEnergyTap : undefined}
+        tapLabel={t.energyPanel.open}
         className={`rr-pill-plate${energy !== null ? ' has-energy' : ''}`}
         style={plate}
       >

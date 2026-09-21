@@ -184,6 +184,16 @@ export interface EnergyDialProps {
   children?: ReactNode;
   className?: string;
   style?: CSSProperties;
+  /**
+   * A TICK on the ring at this value — the raid line, on the game's dial:
+   * what the tank must hold to be let into a burrow. Always drawn, so the
+   * reading "enough for a raid" is a glance at the ring, not a line that
+   * fires once on the way down (the coach's, which stays as the last call).
+   */
+  mark?: number;
+  /** A tap on the ring — the energy panel that explains the situation. */
+  onTap?: () => void;
+  tapLabel?: string;
 }
 
 /**
@@ -193,7 +203,7 @@ export interface EnergyDialProps {
  * same contract the scroll board uses.
  */
 export function EnergyDial({
-  value, max, height, hub = false, beat = false, children, className, style,
+  value, max, height, hub = false, beat = false, children, className, style, mark, onTap, tapLabel,
 }: EnergyDialProps) {
   /* Clamped, because energy is a live value: a bomb can take more than is
      left, and a negative fraction would sweep the wedge back the wrong way.
@@ -326,6 +336,45 @@ export function EnergyDial({
             animationDuration: beatOn ? `${beatMs}ms` : undefined,
             imageRendering: 'pixelated',
             pointerEvents: 'none',
+          }}
+        />
+      )}
+      {mark !== undefined && max > 0 && (() => {
+        /* Clockwise from 12, like the arc: sin for x, -cos for y, on the
+           ring's middle radius so it sits ON the paint whichever side of
+           the reading it is. */
+        const a = 2 * Math.PI * Math.max(0, Math.min(1, mark / max));
+        const r = ((RING_INNER + RING_OUTER) / 2) * k;
+        const d = Math.max(4, Math.round(4.5 * k));
+        return (
+          <span
+            aria-hidden
+            className="rr-dial-mark"
+            style={{
+              position: 'absolute',
+              left: `calc(${RING_CX * 100}% + ${(Math.sin(a) * r).toFixed(1)}px)`,
+              top: `calc(${RING_CY * 100}% - ${(Math.cos(a) * r).toFixed(1)}px)`,
+              width: d, height: d, marginLeft: -d / 2, marginTop: -d / 2,
+              borderRadius: '50%',
+              background: '#2a1a0e',
+              boxShadow: '0 0 0 1px rgba(255, 236, 190, 0.85)',
+              pointerEvents: 'none',
+            }}
+          />
+        );
+      })()}
+      {onTap && (
+        <button
+          type="button"
+          className="rr-dial-tap"
+          aria-label={tapLabel}
+          onClick={onTap}
+          style={{
+            position: 'absolute',
+            left: `calc(${RING_CX * 100}% - ${((RING_OUTER + 6) * k).toFixed(1)}px)`,
+            top: `calc(${RING_CY * 100}% - ${((RING_OUTER + 6) * k).toFixed(1)}px)`,
+            width: Math.round((RING_OUTER + 6) * 2 * k), height: Math.round((RING_OUTER + 6) * 2 * k),
+            borderRadius: '50%', border: 0, padding: 0, background: 'transparent', cursor: 'pointer',
           }}
         />
       )}

@@ -75,6 +75,7 @@ export function IslandPicker({ listing, busy, onChoose, onClose }: IslandPickerP
                       <small className="rr-raid-where digging">
                         <i aria-hidden />
                         {t.islandPick.row(i.rabbits, i.chestsLeft, i.chestsTotal, Math.round(100 * i.dugFraction))}
+                        {(i.chestsLeft <= 3 || i.dugFraction >= 0.7) && <>{' \u00b7 '}{t.islandPick.almostDone}</>}
                       </small>
                     </span>
                     <PxButton

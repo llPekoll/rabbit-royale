@@ -44,7 +44,7 @@ describe('the list on DIG', () => {
   });
 
   it('closes with the burrow and says why a choice was refused', () => {
-    expect(PAGE).toMatch(/setPickingTarget\(false\);\s*setPickingIsland\(false\);\s*setLoreOpen\(false\);/);
+    expect(PAGE).toMatch(/setPickingTarget\(false\);\s*setPickingIsland\(false\);\s*setEnergyPanelOpen\(false\);\s*setLoreOpen\(false\);/);
     expect(PAGE).toMatch(/r\.code === 'island_gone' \? t\.islandPick\.gone : t\.islandPick\.tierLocked/);
   });
 });

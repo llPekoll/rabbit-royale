@@ -71,7 +71,8 @@ describe('raiding is reachable', () => {
   it('refreshes the targets when the door opens', () => {
     // The list is loaded once on mount; stock and shields move, and a raid on
     // a stale target is a wasted crossing.
-    expect(PAGE).toMatch(/setPickingTarget\(true\); void raid\.refresh\(\)/);
+    // Through `openRaid`, which first asks whether the tank holds a raid's worth.
+    expect(PAGE).toMatch(/const openRaid = useCallback\(\(\) => \{[\s\S]{0,600}setPickingTarget\(true\);\s*void raid\.refresh\(\);/);
   });
 
   it('counts only burrows that can actually be robbed', () => {
