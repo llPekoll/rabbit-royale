@@ -41,6 +41,7 @@ import type { ItemKind } from '../src/lib/game/inventory';
 import { verifySession } from '../src/lib/auth/jwt';
 import { db, sql } from '../src/lib/db';
 import { decodePush, PLAYER_PUSH_CHANNEL } from '../src/lib/game/raid-events';
+import { recordIslandKill } from '../src/lib/game/record-raid';
 import { inventory, players, runs, seasons } from '../src/lib/db/schema';
 import { MemoryIslandStore, type LiveIsland } from './islands/store';
 import { roomFor } from './islands/router';
@@ -833,11 +834,25 @@ io.on('connection', (socket: Socket) => {
       if (!runOver) continue;
       io.to(room).emit('rabbit_died', { playerId: victim.playerId });
       void bankRun(victim).catch((e) => console.error('[bankRun:struck]', e));
+      void recordIslandKill({
+        attackerId: data.playerId,
+        defenderId: victim.playerId,
+        kind: 'lightning',
+      }).catch((e) => console.error('[recordIslandKill:lightning]', e));
       socketOf(victim.playerId)?.emit('run_over', {
         carrots: victim.carrots,
         tilesDug: victim.run?.tilesDug ?? 0,
         bombsHit: victim.run?.bombsHit ?? 0,
         durationMs: nowMs - (victim.run?.startedAt ?? nowMs),
+        // Who threw the bolt, so the recap can say so rather than leaving the
+        // victim to guess which of four rabbits it was.
+        killedBy: {
+          id: data.playerId,
+          // The caster read off the roster, not from a `rabbit` in scope: this
+          // handler only ever holds the target tile and the caster's id.
+          name: live.rabbits.get(data.playerId)?.name ?? '',
+          how: 'lightning' as const,
+        },
       });
     }
   }));
@@ -1097,8 +1112,34 @@ io.on('connection', (socket: Socket) => {
         // exactly as long as their moves will be refused.
         stunMs: victim ? Math.max(0, victim.stunnedUntil - Date.now()) : 0,
       });
+      /* A SHOVE THAT KILLS ENDS A RUN LIKE ANY OTHER ENDING.
+       *
+       * It used to bank the run and stop there: no `rabbit_died` for the room,
+       * and — the part the victim actually noticed — no `run_over` for them.
+       * Their screen simply halted on the tile they had been shoved off, with
+       * no recap and no way forward, which reads as the game crashing rather
+       * than as having been beaten. Every other exit (a bomb, the eruption, a
+       * lightning strike) sends both; this one now does too.
+       *
+       * `killedBy` rides along so the card can NAME the culprit. Rule 7 of
+       * `docs/bumping.md` — the victim always knows who did it — held only for
+       * the instant of the shove before this; it now survives the run.
+       */
       if (victim && shove.runOver) {
         void bankRun(victim).catch((e) => console.error('[bankRun:pushed]', e));
+        io.to(room).emit('rabbit_died', { playerId: victim.playerId });
+        void recordIslandKill({
+          attackerId: rabbit.playerId,
+          defenderId: victim.playerId,
+          kind: 'shove',
+        }).catch((e) => console.error('[recordIslandKill:shove]', e));
+        socketOf(victim.playerId)?.emit('run_over', {
+          carrots: victim.carrots,
+          tilesDug: victim.run?.tilesDug ?? 0,
+          bombsHit: victim.run?.bombsHit ?? 0,
+          durationMs: Date.now() - (victim.run?.startedAt ?? Date.now()),
+          killedBy: { id: rabbit.playerId, name: rabbit.name, how: 'shove' as const },
+        });
       }
     }
 

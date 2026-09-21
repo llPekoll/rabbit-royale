@@ -5,9 +5,13 @@
  *  - `days`: carrots dug per day, so "how am I doing lately" has an answer that
  *    is not a single lifetime number;
  *  - `runs`: the individual runs behind those days;
- *  - `raids`: who crossed this burrow, what they took, and — the part that
+ *  - `raids`: who came after this player, what they took, and — the part that
  *    matters — WHO, by name, since being robbed while away is only a story if
- *    it has a culprit;
+ *    it has a culprit. Not burrow crossings alone: a shove into the water and a
+ *    lightning strike out on the island are rows here too (`kind`), because
+ *    they were the commonest way to be got at and the only one that left no
+ *    trace — this list used to answer "nobody has crossed your burrow" to a
+ *    player who had been drowned four times that morning;
  *  - `purchases`: where the carrots WENT. Digging is only half the ledger, and
  *    a player who spent thousands on traps could previously find nothing to
  *    show for it but a smaller number.
@@ -73,6 +77,7 @@ export async function GET(req: Request) {
     .select({
       id: raids.id,
       result: raids.result,
+      kind: raids.kind,
       damage: raids.damage,
       carrotsLooted: raids.carrotsLooted,
       scoreTransferred: raids.scoreTransferred,
@@ -95,6 +100,7 @@ export async function GET(req: Request) {
     .select({
       id: raids.id,
       result: raids.result,
+      kind: raids.kind,
       damage: raids.damage,
       carrotsLooted: raids.carrotsLooted,
       scoreTransferred: raids.scoreTransferred,

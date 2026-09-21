@@ -2606,6 +2606,23 @@ export class IslandScene implements Scene {
   }
 
   /**
+   * Point at whoever just did the shoving.
+   *
+   * Their name plate is on screen already, like everybody's, so this does not
+   * add a label — it lights the one that is there (see `blameName`). In a
+   * four-rabbit room that is the difference between knowing somebody pushed
+   * you and knowing WHICH of them did, which is what rule 7 of
+   * `docs/bumping.md` is for.
+   *
+   * Never our own rabbit: being told we shoved ourselves is not a fact anyone
+   * needs, and a shove always has somebody else at the far end of it.
+   */
+  blameRabbit(playerId: string): void {
+    if (playerId === this.data?.playerId) return;
+    this.rabbits.get(playerId)?.blameName();
+  }
+
+  /**
    * A run ended. The rabbit is spent, not dead — it drops where it stands.
    *
    * A run only ever ends on `energy <= 0` (`run.ts`), so there is nothing to

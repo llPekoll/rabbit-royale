@@ -78,6 +78,24 @@ export function Recap({
    * a player off a decision is how a shop ends up pressed by accident.
    */
   const secondsLeft = useAutoHome(won ? onHome : null);
+  /**
+   * BEATEN BY SOMEBODY, not by the island.
+   *
+   * A shove into the water and a bolt out of the sky both used to print "RUN
+   * OVER · Out of energy" — true of the hearts, and a lie about what happened.
+   * A rival did it, and a defeat with no culprit reads as the game breaking
+   * rather than as having been beaten by a player you can go and find.
+   *
+   * Never on a WON run: `cleared` and `tutorialDone` are endings of their own,
+   * and no rival can cause either.
+   */
+  const killer = won ? null : recap.killedBy ?? null;
+  const killedTitle = killer && (killer.how === 'shove' ? t.recap.shoved : t.recap.struck);
+  const killedNote = killer && (killer.name
+    ? (killer.how === 'shove' ? t.recap.shovedNote : t.recap.struckNote)(killer.name)
+    // The name can be missing if the culprit left the island before the wire
+    // caught up. Still better than silence: somebody did this to you.
+    : (killer.how === 'shove' ? t.recap.shovedNoteAnon : t.recap.struckNoteAnon));
   return (
     /* The codex's frame in the dark glass this card always sat on over the
        board. Margins live in px-dialogs.css (`.rr-recap`), where a short
@@ -89,7 +107,11 @@ export function Recap({
       style={{ textAlign: 'center' }}
     >
       <h2 className="rr-recap-title">
-        <PanelTitle>{done ? t.recap.tutorialDone : cleared ? t.recap.cleared : t.recap.over}</PanelTitle>
+        <PanelTitle>
+          {done ? t.recap.tutorialDone
+            : cleared ? t.recap.cleared
+            : killedTitle ?? t.recap.over}
+        </PanelTitle>
       </h2>
       <p className="rr-recap-stats">
         {/* The separator before the duration was missing, so a 3-bomb, 214s
@@ -107,7 +129,12 @@ export function Recap({
       {/* Why there is no "Again", said plainly — a button that vanished with
           no explanation reads as a broken screen. */}
       <p className="rr-note">
-        {done ? t.recap.tutorialDoneNote : cleared ? t.recap.clearedNote : t.recap.overNote}
+        {done ? t.recap.tutorialDoneNote
+          : cleared ? t.recap.clearedNote
+          // Not appended to "Out of energy": the hearts ran out BECAUSE of
+          // them, and two sentences would invite the player to read the
+          // drowning as a second, separate misfortune.
+          : killedNote ?? t.recap.overNote}
         {/* NOT after the tutorial's own note, which already says where to go:
             two sentences pointing home is one more than the player needs. */}
         {first && !done && <> {t.firstRun.recap}</>}

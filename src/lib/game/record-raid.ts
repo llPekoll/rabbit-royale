@@ -106,6 +106,48 @@ export async function recordRaid(opts: {
   });
 }
 
+/**
+ * Writing down a kill on the shared island.
+ *
+ * A shove into the water and a lightning strike end somebody's run, and until
+ * now ended it anonymously: the victim's screen stopped, and the profile went
+ * on answering "nobody has crossed your burrow" to a player who had been
+ * drowned four times that morning. The culprit is the whole point — rule 7 of
+ * `docs/bumping.md` already says the victim always knows who did it, and this
+ * is that rule surviving past the moment it happened.
+ *
+ * NOT a transaction, unlike `recordRaid`, because nothing moves: an island kill
+ * takes a run, not carrots. It is one insert, and a failed one must never take
+ * the run down with it — the kill already happened in the world, this is only
+ * the telling of it. Callers pass it to `void`.
+ *
+ * `result` is 'damaged' for both: the victim lost something real, and neither
+ * 'looted' (no carrots changed hands) nor 'blocked' (nothing was stopped)
+ * describes being pushed into the sea. The line's WORDS come from `kind` in the
+ * profile, not from this.
+ */
+export async function recordIslandKill(opts: {
+  attackerId: string;
+  defenderId: string;
+  kind: 'shove' | 'lightning';
+}): Promise<void> {
+  const { attackerId, defenderId, kind } = opts;
+  // A rabbit cannot drown itself: `pushedBy` is the mover, and a lightning
+  // strike skips its own caster — but the profile would read a self-raid as a
+  // stranger, so the guard is here rather than trusted upstream.
+  if (attackerId === defenderId) return;
+
+  await db.insert(raids).values({
+    attackerId,
+    defenderId,
+    kind,
+    result: 'damaged',
+    damage: 0,
+    carrotsLooted: 0,
+    scoreTransferred: 0,
+  });
+}
+
 /** Raids this player has not been told about yet — the badge on the profile button. */
 export async function unseenRaidCount(playerId: string): Promise<number> {
   const [row] = await db

@@ -640,6 +640,15 @@ button { min-height: 44px; min-width: 44px; }
 .rr-overlay > .rr-caption-cost {
   --wl-runtime-ink: #ffd138;
 }
+/* Being shoved: the same strip, in the bomb-red the board already uses for
+   damage, with the quest's pop rather than the narration's slide — a shove is
+   a hit, and it should land like one rather than drift in. See shove-toast.tsx.
+   The accent is the surface's INK for the reason above: the runtime paints the
+   child span with `!important`, so a `color` here would lose. */
+.rr-overlay > .rr-shove-toast {
+  --wl-runtime-ink: #ff6b5e;
+  animation: rr-caption-pop 380ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
 /* A quest finishing while the player is on the island: the same strip, in
    the quest card's lit gold, with a pop rather than a slide. */
 .rr-overlay > .rr-caption-quest {

@@ -4,6 +4,7 @@ import { levelTierAt, tileScreenPos } from '@/lib/game/terrainBoard';
 import * as Keys from '@/config/assetKeys';
 import { getBunnyAnimTextures, BUNNY_ANIM_DEFS } from '../services/AssetLoader';
 import { outlinedPixelText } from '../ui/PixelText';
+import type { Label } from '../ui/textFace';
 import gsap from 'gsap';
 
 /**
@@ -158,6 +159,29 @@ const NAME_STEM_W = 1;
 /** Your own name reads gold, everyone else's white — the game's own YOURS ink. */
 const NAME_TINT_ME = 0xffd45c;
 const NAME_TINT_OTHER = 0xffffff;
+/** What a shover's name goes, for a beat — the same red the toast uses. */
+const BLAME_TINT = 0xff6b5e;
+/** How long it takes to settle back. Long enough to catch out of the corner
+ *  of an eye, short enough not to outlast the shove it is about. */
+const BLAME_MS = 1400;
+
+/** One channel of `a` walked `t` of the way to `b`. */
+const mixChannel = (a: number, b: number, t: number, shift: number): number => {
+  const from = (a >> shift) & 0xff;
+  const to = (b >> shift) & 0xff;
+  return (Math.round(from + (to - from) * t) & 0xff) << shift;
+};
+
+/**
+ * A 24-bit tint `t` of the way from `a` to `b`.
+ *
+ * Per channel, not on the packed integer: interpolating 0xff6b5e towards
+ * 0xffffff as one number walks through every colour between them, which on a
+ * name plate reads as a glitch rather than as a fade.
+ */
+function lerpTint(a: number, b: number, t: number): number {
+  return mixChannel(a, b, t, 16) | mixChannel(a, b, t, 8) | mixChannel(a, b, t, 0);
+}
 
 export class PlayerRabbit {
   sprite: AnimatedSprite;
@@ -211,6 +235,18 @@ export class PlayerRabbit {
   private crownGrows = true;
   /** The floating name plate, when this rabbit has been given one. */
   private nameplate: Container | null = null;
+  /**
+   * The plate's GLYPHS, apart from the group, so the name can be recoloured.
+   *
+   * The group holds the outline copies too, and tinting those would fill the
+   * letters in rather than light them up — `blameName` wants the face alone.
+   */
+  private nameFace: Label | null = null;
+  /** The plate's resting colour, to put back when the blame has faded. */
+  private nameTint = NAME_TINT_OTHER;
+  /** The running blame flash, so a second shove restarts it rather than
+   *  fighting it for the tint. */
+  private blameFlash: gsap.core.Tween | null = null;
   /**
    * The line joining the plate to the head.
    *
@@ -773,7 +809,15 @@ export class PlayerRabbit {
     this.nameStem = stem;
 
     const plate = outlinedPixelText(0, NAME_Y, name);
-    plate.face.tint = isMe ? NAME_TINT_ME : NAME_TINT_OTHER;
+    // Kept apart from the group: `blameName` lights the LETTERS, and tinting
+    // the group would take the outline copies with them and fill the name in.
+    this.nameTint = isMe ? NAME_TINT_ME : NAME_TINT_OTHER;
+    this.nameFace = plate.face;
+    plate.face.tint = this.nameTint;
+    // A plate rebuilt mid-flash would otherwise be left holding the blame tint
+    // for good, the tween still writing to the glyphs it replaced.
+    this.blameFlash?.kill();
+    this.blameFlash = null;
     this.nameplate = plate.group;
     /**
      * ON THE SHARED LAYER when the scene hands one over, in the rabbit's
@@ -889,6 +933,52 @@ export class PlayerRabbit {
   }
 
   /**
+   * LIGHT THIS RABBIT'S NAME UP: they just shoved somebody.
+   *
+   * The plate is always on screen, and in a four-rabbit room four white names
+   * say nothing about which of them did it. So the blame is a COLOUR rather
+   * than a label that appears: the culprit's own name goes red for a beat and
+   * settles back, which points at them without adding anything new to read.
+   *
+   * Tints the glyphs and not the group — see `nameFace`. A rabbit with no
+   * plate (a guest who never set a name) simply has nothing to light, and the
+   * toast carries the blame alone.
+   */
+  blameName(): void {
+    const face = this.nameFace;
+    if (!face || face.destroyed) return;
+    // Restarted, not stacked: two shoves in a row are two flashes from the
+    // top, and a second tween left running against the first would hand the
+    // plate back whichever colour finished last.
+    this.blameFlash?.kill();
+    face.tint = BLAME_TINT;
+    /**
+     * A SCALAR IS TWEENED, and the colour written by hand.
+     *
+     * gsap's `pixi: { tint }` would be the obvious spelling and does nothing
+     * here: it needs PixiPlugin registered, which this project never does, and
+     * an unregistered plugin fails SILENTLY — the name would simply stay red
+     * for the life of the island. Mixing the channels here needs no plugin and
+     * cannot quietly stop working.
+     */
+    const mix = { t: 0 };
+    const rest = this.nameTint;
+    this.blameFlash = gsap.to(mix, {
+      t: 1,
+      duration: BLAME_MS / 1000,
+      ease: 'power1.out',
+      onUpdate: () => {
+        if (face.destroyed) return;
+        face.tint = lerpTint(BLAME_TINT, rest, mix.t);
+      },
+      onComplete: () => {
+        if (!face.destroyed) face.tint = rest;
+        this.blameFlash = null;
+      },
+    });
+  }
+
+  /**
    * How big this rabbit is drawn, before any crown.
    *
    * Set rather than assigning `container.scale` directly, so that crowning
@@ -963,6 +1053,11 @@ export class PlayerRabbit {
     this.crownBob?.kill();
     this.crownBob = null;
     this.crown = null;
+    // Same hazard, same fix: a blame flash left running keeps writing a tint
+    // onto glyphs that are destroyed with the plate a few lines below.
+    this.blameFlash?.kill();
+    this.blameFlash = null;
+    this.nameFace = null;
     // Deported, the plate is NOT a child of the container, so destroying the
     // container leaves it on the layer: a name hanging over empty ground for
     // the life of the island. Dropped explicitly, before the handle is let go.

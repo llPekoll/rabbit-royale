@@ -261,6 +261,34 @@ export interface RunRecap {
    * congratulate rather than commiserate — see `run-recap`.
    */
   tutorialDone?: boolean;
+  /**
+   * WHO ended this run, when a rival did.
+   *
+   * Absent for every solo ending — a bomb, an empty tank, the island going up.
+   * Present only when another player did it, because those are the two endings
+   * a player is owed an answer about: being shoved into the water and being
+   * struck by lightning both used to end a run in silence, and a defeat with no
+   * culprit reads as the game breaking rather than as somebody beating you.
+   */
+  killedBy?: { id: string; name: string; how: 'shove' | 'lightning' };
+}
+
+/**
+ * Somebody just got shoved, and it is worth saying out loud.
+ *
+ * Distinct from the recap's `killedBy`: this fires on EVERY shove, survived or
+ * not, and it is what makes revenge possible while the rival is still standing
+ * next to you. The name is resolved here, off the roster, because the wire
+ * carries only ids.
+ */
+export interface ShoveNote {
+  /** Who did the shoving. */
+  byId: string;
+  byName: string;
+  /** Did it end the run? The recap takes over from there. */
+  fatal: boolean;
+  /** Bumped per shove, so two shoves by the same rabbit are still two notes. */
+  at: number;
 }
 
 /** Resolves the live scene, or null before Pixi has finished booting. */
@@ -348,6 +376,8 @@ export function useGameSocket(
   const [chestsTaken, setChestsTaken] = useState(0);
   const [chestsTotal, setChestsTotal] = useState(0);
   const [recap, setRecap] = useState<RunRecap | null>(null);
+  /** The last shove taken BY THIS PLAYER, for the toast. Never a shove they gave. */
+  const [shoved, setShoved] = useState<ShoveNote | null>(null);
   const [connected, setConnected] = useState(false);
   /**
    * Bumped by every island snapshot, including one for the SAME seed. The
@@ -813,6 +843,23 @@ export function useGameSocket(
     socket.on('rabbit_pushed', (
       p: { playerId: string; from: number; to: number; pushedBy: string; energy: number; runOver: boolean; stunMs?: number },
     ) => {
+      /* NAME THE CULPRIT, while they are still standing next to you.
+       *
+       * The wire carries ids only, and rule 7 of `docs/bumping.md` (the victim
+       * always knows who did it) is worth nothing if the victim is handed a
+       * uuid — so the name is resolved off the roster ref, which is current
+       * outside the updater and does not make this a setState inside another
+       * component's render. Only OUR OWN shoves raise a note: being told about
+       * every bump in a four-rabbit room is noise, not revenge.
+       */
+      if (p.playerId === playerId) {
+        setShoved({
+          byId: p.pushedBy,
+          byName: rabbitsRef.current.get(p.pushedBy)?.name ?? '',
+          fatal: p.runOver,
+          at: Date.now(),
+        });
+      }
       setRabbits((prev) => {
         const known = prev.get(p.playerId);
         if (!known) return prev;
@@ -822,6 +869,9 @@ export function useGameSocket(
         });
       });
       toScene((s) => s.pushRabbit(p.playerId, p.to, p.energy, p.stunMs));
+      // The shover's name over THEIR rabbit, in the scene — the shove is a
+      // thing that happened on the board, and the board is where the eye is.
+      toScene((s) => s.blameRabbit?.(p.pushedBy));
     });
 
     socket.on('rabbit_joined', (r: ClientRabbit) => {
@@ -1070,11 +1120,14 @@ export function useGameSocket(
     if (recapTimer.current) clearTimeout(recapTimer.current);
     recapTimer.current = null;
     setRecap(null);
+    // Last run's grudge goes with last run's card — a fresh island must not
+    // open with a toast blaming somebody for a shove on a board that is gone.
+    setShoved(null);
   }, []);
 
   const me = playerId ? rabbits.get(playerId) ?? null : null;
   return {
-    islandSeed, islandKey, rabbits, me, warnStage, dugFraction, chestsTaken, chestsTotal, recap, banked, bankedCarrots, connected, dropped, refused,
+    islandSeed, islandKey, rabbits, me, warnStage, dugFraction, chestsTaken, chestsTotal, recap, shoved, banked, bankedCarrots, connected, dropped, refused,
     seatHeld,
     firstRun, taughtBomb, teachReady, digs, bank, erupting,
     chestPrize, clearChestPrize: () => setChestPrize(null),

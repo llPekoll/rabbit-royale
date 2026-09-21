@@ -28,6 +28,17 @@ export const currencyEnum = pgEnum('currency', ['carrots', 'usdc']);
 /** A USDC payment's life: quoted → paid → credited, or abandoned. */
 export const paymentStatusEnum = pgEnum('payment_status', ['pending', 'confirmed', 'failed', 'expired']);
 export const raidResultEnum = pgEnum('raid_result', ['damaged', 'looted', 'blocked']);
+/**
+ * WHERE one player got to another.
+ *
+ * 'burrow' is the raid this table was built for — a crossing of somebody's
+ * floor. The other two happen on the shared ISLAND, and until now left no trace
+ * at all: being shoved into the water or struck down by a rival ended a run and
+ * was then forgotten, so the profile could only ever answer "nobody has crossed
+ * your burrow" to a player who had in fact been drowned four times that
+ * morning. Being got at is being got at, and it belongs in one list.
+ */
+export const raidKindEnum = pgEnum('raid_kind', ['burrow', 'shove', 'lightning']);
 
 /**
  * A player. Identity is a proven Solana wallet OR a guest device.
@@ -204,6 +215,13 @@ export const raids = pgTable('raids', {
   attackerId: text('attacker_id').notNull().references(() => players.id, { onDelete: 'cascade' }),
   defenderId: text('defender_id').notNull().references(() => players.id, { onDelete: 'cascade' }),
   damage: integer('damage').notNull().default(0),
+  /**
+   * Burrow crossing, shove, or lightning — see `raidKindEnum`.
+   *
+   * Defaults to 'burrow' so every row written before the island kills existed
+   * keeps meaning exactly what it meant: they were all crossings.
+   */
+  kind: raidKindEnum('kind').notNull().default('burrow'),
   result: raidResultEnum('result').notNull(),
   carrotsLooted: bigint('carrots_looted', { mode: 'number' }).notNull().default(0),
   /** The season score moves WITH the carrots — a stolen carrot changes sides

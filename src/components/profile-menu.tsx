@@ -85,6 +85,13 @@ interface Day {
 
 interface RaidRow {
   id: string;
+  /**
+   * Where this happened: a burrow crossing, or a kill out on the island.
+   *
+   * Optional so a server that has not shipped the column yet reads as 'burrow',
+   * which is what every row written before it was.
+   */
+  kind?: 'burrow' | 'shove' | 'lightning';
   result: 'damaged' | 'looted' | 'blocked';
   damage: number;
   carrotsLooted: number;
@@ -552,16 +559,10 @@ function HistoryTab({ history, failed, newCount = 0 }: { history: History | null
           {raids.map((r) => (
             <li key={r.id} className={r.direction === 'against' ? 'hit' : 'mine'}>
               <span className="rr-raid-who">
-                {r.direction === 'against' ? r.otherName : dict.profile.youHit(r.otherName)}
+                {whoLine(dict, r)}
                 {fresh.has(r.id) && <em className="rr-new-tag">NEW</em>}
               </span>
-              <span className="rr-raid-what">
-                {r.result === 'blocked'
-                  ? 'blocked'
-                  : r.carrotsLooted > 0
-                    ? `${r.direction === 'against' ? '-' : '+'}${r.carrotsLooted} 🥕`
-                    : dict.profile.damage(r.damage)}
-              </span>
+              <span className="rr-raid-what">{whatLine(dict, r)}</span>
               <span className="rr-raid-when">{ago(dict, r.createdAt)}</span>
             </li>
           ))}
@@ -637,6 +638,46 @@ function shortDay(dict: Dict, locale: Locale, iso: string): string {
 }
 
 /** Coarse on purpose: "3d" is the answer, the exact minute never is. */
+/**
+ * WHO, on one line of the log.
+ *
+ * A burrow crossing names the other player and lets the right-hand column say
+ * what it cost. An island kill has no such figure, so the verb goes here, with
+ * the name: "Tim pushed you in the water" is one fact, and splitting it across
+ * two columns would leave a bare name beside a bare verb.
+ */
+function whoLine(dict: Dict, r: RaidRow): string {
+  const kind = r.kind ?? 'burrow';
+  if (kind === 'burrow') {
+    return r.direction === 'against' ? r.otherName : dict.profile.youHit(r.otherName);
+  }
+  if (r.direction === 'by') {
+    return kind === 'shove'
+      ? dict.profile.youShoved(r.otherName)
+      : dict.profile.youStruck(r.otherName);
+  }
+  return r.otherName;
+}
+
+/**
+ * WHAT it cost, on the right.
+ *
+ * An island kill takes a RUN, not carrots: `carrotsLooted` and `damage` are
+ * both zero on those rows, and the crossing's usual figure would print "0 dmg"
+ * — which reads as nothing having happened. Those lines say what was done
+ * instead, and only a crossing shows a number.
+ */
+function whatLine(dict: Dict, r: RaidRow): string {
+  const kind = r.kind ?? 'burrow';
+  if (kind === 'shove') return dict.profile.shovedIn;
+  if (kind === 'lightning') return dict.profile.struckDown;
+  if (r.result === 'blocked') return 'blocked';
+  if (r.carrotsLooted > 0) {
+    return `${r.direction === 'against' ? '-' : '+'}${r.carrotsLooted} 🥕`;
+  }
+  return dict.profile.damage(r.damage);
+}
+
 function ago(dict: Dict, iso: string): string {
   const mins = Math.floor((Date.now() - +new Date(iso)) / 60_000);
   if (mins < 1) return dict.profile.now;

@@ -289,6 +289,23 @@ export const en = {
       `⚡ ${energy}/${max} at the burrow · a run takes ${cost}`,
     getEnergy: 'Get more energy',
     goHome: 'Home · stack it',
+    /* BEATEN BY SOMEBODY, not by the island.
+       A shove into the water and a bolt out of the sky both used to end a run
+       under "RUN OVER · Out of energy", which is true of the hearts and a lie
+       about what happened: a rival did it, and a defeat with no culprit reads
+       as the game breaking rather than as being beaten. */
+    shoved: 'PUSHED IN!',
+    struck: 'STRUCK DOWN!',
+    shovedNote: (name: string) => `${name} shoved you into the water.`,
+    struckNote: (name: string) => `${name} called the lightning down on you.`,
+    /** The same two, when the culprit's name never arrived. */
+    shovedNoteAnon: 'Someone shoved you into the water.',
+    struckNoteAnon: 'Someone called the lightning down on you.',
+  },
+  /** The toast over the board, on a shove that was SURVIVED. */
+  shove: {
+    by: (name: string) => `${name} pushed you!`,
+    anon: 'Somebody pushed you!',
   },
 
   /* ── The carrot pill ──────────────────────────────────────────────────── */
@@ -559,11 +576,23 @@ export const en = {
     now: 'now',
     historyFailed: 'Could not load your history.',
     noRuns: 'No finished runs yet.',
-    noRaids: 'Nobody has crossed your burrow yet.',
+    /* The list is no longer burrow crossings alone — it holds every time
+       somebody got at you, island kills included — so the empty state cannot
+       promise a burrow. */
+    noRaids: 'Nobody has come after you yet.',
     noPurchases: 'Nothing from the shed yet.',
     today: 'Today',
     youHit: (name: string) => `You hit ${name}`,
     damage: (n: number) => `${n} dmg`,
+    /* WHAT the other player did, for a line that is not a burrow crossing.
+       A drowning has no loot and no damage, so the raid line's usual right-hand
+       figure ("-40 🥕", "35 dmg") would print "0 dmg" — which reads as nothing
+       having happened. These say what happened instead. */
+    shovedIn: 'pushed in the water',
+    struckDown: 'struck by lightning',
+    /** The same two the other way round, on a line this player caused. */
+    youShoved: (name: string) => `You pushed ${name} in`,
+    youStruck: (name: string) => `You struck ${name} down`,
     spent: (n: string) => `-${n} 🥕`,
     usd: (n: string) => `$${n}`,
   },

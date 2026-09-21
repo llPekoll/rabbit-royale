@@ -50,6 +50,7 @@ import { GardenCard } from '@/components/garden-card';
 import { BurrowPanel } from '@/components/burrow-card-panel';
 import { QuestCard } from '@/components/quest-card';
 import { FirstRunCaption } from '@/components/first-run-caption';
+import { ShoveToast } from '@/components/shove-toast';
 import { RunCostNote } from '@/components/run-cost-note';
 import { firstIslandSeed } from '@/lib/game/first-island';
 import { LevelUpStamp } from '@/components/level-up-stamp';
@@ -2692,6 +2693,12 @@ function Burrow() {
               armed={game.flagMode}
             />
           )}
+          {/* WHO JUST SHOVED YOU. Same strip, same place as the narration —
+              it is the board reporting something that happened on it. Not
+              under the recap, for the reason above and one of its own: a fatal
+              shove is named on the card itself, and the toast would be the
+              same sentence twice. */}
+          {!spectating && !game.recap && <ShoveToast shove={game.shoved} />}
           {/* A quest finishing while the player is out here — the card is at
               home, so the island says it. */}
           {questNote && !spectating && !game.recap && (
