@@ -3,7 +3,7 @@
  *
  * Clouds cross the sea ABOVE the island, at a speed you notice only if you
  * look. The point is to stop the water reading as a flat blue fill: the island
- * already moves (the video's surf, the volcano's smoke), and a dead border
+ * already moves (the video's surf, the spray off the reef), and a dead border
  * around it makes the whole frame look like a screenshot.
  *
  * They pass OVER everything, the board included — weather is the one thing in

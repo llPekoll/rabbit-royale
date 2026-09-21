@@ -43,7 +43,7 @@ Two processes, deliberately, because they scale on different axes.
           │  socket.io (JWT in the handshake)
           ▼
   server/index.ts ────────── authoritative game loop
-     islands in memory        moves, digs, eruptions
+     islands in memory        moves, digs, sinkings
           │
           ├──► Postgres   run boundaries only (carrots, runs, raids)
           └──► Redis      leaderboard ZSET, presence

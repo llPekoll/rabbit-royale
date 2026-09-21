@@ -1167,17 +1167,19 @@ button { min-height: 44px; min-width: 44px; }
 .rr-levelup-stamp small { display: block; font-size: 0.42em; color: #fde7bd; text-shadow: 0 2px 0 #7a3a10; letter-spacing: 0.12em; margin-top: 6px; }
 @keyframes rr-levelup-out { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.15) translateY(-10px); } }
 
-/* The eruption — see eruption-overlay.tsx. The sky darkens, ash falls, and
-   the line says what is happening in the island's own words. */
+/* The island going under — see eruption-overlay.tsx. The light goes cold and
+   green, spray is thrown up across the frame, and the line says what is
+   happening in the island's own words. */
 .rr-eruption { position: fixed; inset: 0; z-index: 30; pointer-events: none; overflow: hidden; }
 .rr-eruption-dark {
   position: absolute; inset: 0;
-  background: radial-gradient(circle at 50% 40%, rgba(60, 20, 10, 0.25), rgba(10, 5, 3, 0.85) 90%);
+  background: radial-gradient(circle at 50% 40%, rgba(20, 70, 90, 0.25), rgba(3, 14, 26, 0.85) 90%);
   animation: rr-eruption-dark 1200ms ease-in both;
 }
 @keyframes rr-eruption-dark { 0% { opacity: 0; } 100% { opacity: 1; } }
 .rr-eruption-ash { position: absolute; inset: 0; }
-.rr-eruption-ash > span { position: absolute; top: -3vh; background: #3a2a22; border-radius: 1px; will-change: transform; opacity: 0.9; }
+/* Thrown from BELOW the frame: the sea comes up, it does not fall. */
+.rr-eruption-ash > span { position: absolute; bottom: -3vh; background: #cfeaf2; border-radius: 1px; will-change: transform; opacity: 0.9; }
 /* ...and the line rides ABOVE the card rather than across its lid: the recap
    is now centred on the screen (px-dialogs), so a banner at 34% landed on its
    title. 34% of the viewport minus half a card's height is roughly a quarter,
@@ -1186,8 +1188,8 @@ button { min-height: 44px; min-width: 44px; }
 .rr-eruption-line {
   position: absolute; left: 0; right: 0; top: 24%; text-align: center;
   font-family: var(--font-pixel), ui-monospace, monospace;
-  font-size: clamp(16px, 4vw, 30px); letter-spacing: 0.1em; color: #ffb238;
-  text-shadow: 0 3px 0 #2a1810, 0 0 22px rgba(255, 120, 40, 0.8);
+  font-size: clamp(16px, 4vw, 30px); letter-spacing: 0.1em; color: #7fe3ff;
+  text-shadow: 0 3px 0 #0a2230, 0 0 22px rgba(60, 190, 255, 0.8);
   animation: rr-victory-stamp 520ms cubic-bezier(0.34, 1.56, 0.64, 1) 500ms both;
 }
 

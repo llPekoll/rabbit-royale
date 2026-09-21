@@ -234,7 +234,7 @@ export const fr: Dict = {
   recap: {
     cleared: 'ÎLE DÉMINÉE !',
     over: 'SORTIE FINIE',
-    clearedNote: 'Tout ce qui valait la peine est creusé. Le volcan a pris le reste.',
+    clearedNote: 'Tous les coffres sont sortis de terre. La mer a pris le reste.',
     overNote: 'Plus d’énergie.',
     tutorialDone: 'TU L\u2019AS EU !',
     tutorialDoneNote: 'Le coffre, c\u2019était toute l\u2019île. Tes carottes t\u2019attendent au terrier.',
@@ -637,8 +637,9 @@ export const fr: Dict = {
       teaser: 'Pourquoi le sol est généreux.',
       body: [
         'Personne n’a planté la première carotte. On a simplement trouvé l’île, un matin, '
-        + 'déjà pleine — des rangées de couronnes orange perçant une cendre encore tiède. '
-        + 'Les lapins qui l’ont trouvée ont fait la chose sensée. Ils ont creusé.',
+        + 'déjà pleine — des rangées de couronnes orange perçant un sable que la marée '
+        + 'venait de quitter. Les lapins qui l’ont trouvée ont fait la chose sensée. Ils '
+        + 'ont creusé.',
 
         'Elle n’a jamais cessé de donner. Creuse un trou et le sol offre quelque chose : une '
         + 'carotte, un coffre, une pierre avec un chiffre gravé dessus. Les chiffres sont '
@@ -690,39 +691,22 @@ export const fr: Dict = {
         + 'elle recule pour voir ce que les autres en feront.',
       ],
     },
-    'the-eruption': {
+    'the-tide': {
       title: 'Quand une île a assez donné',
-      teaser: 'Le sol solde son compte.',
+      teaser: 'La mer tient les comptes.',
       body: [
-        'Creuse assez une île et la montagne se réveille. On ne négocie pas et on ne '
-        + 'recouvre pas ce qui a été ouvert — une île est une chose qui n’arrive qu’une '
-        + 'fois. Elle donne jusqu’à n’être presque que trous, puis elle descend sous l’eau '
-        + 'sans cérémonie et les lapins nagent.',
+        'Une île flotte sur ce qu’elle garde. Chaque coffre est un lest, et la mer '
+        + 'attendait dessous depuis le début. Prends le dernier et l’eau monte sur le '
+        + 'sol que tu as creusé — on ne négocie pas et on ne recouvre pas ce qui a été '
+        + 'ouvert. Une île est une chose qui n’arrive qu’une fois. Elle donne jusqu’à '
+        + 'n’avoir plus un seul coffre, puis elle passe dessous sans cérémonie et les '
+        + 'lapins nagent.',
 
         'Les vieux lapins n’y voient pas un désastre. Ils y voient une facture réglée. '
         + 'Quelque chose a été retiré du monde, en quantité énorme, par des lapins à qui '
         + 'on avait dit la vérité exacte sur chaque pas et qui ont choisi de continuer. '
-        + 'L’île s’arrête, simplement, et une autre remonte quelque part, déjà pleine de '
-        + 'carottes, déjà tiède.',
-      ],
-    },
-    'the-sacrifice': {
-      title: 'Le sacrifice',
-      teaser: 'Ce à quoi servait la couronne.',
-      body: [
-        'À la fin de chaque saison, l’île réclame son Roi. Pas les carottes — elle n’a '
-        + 'jamais voulu les carottes, elle en a davantage. Elle voulait quelqu’un debout '
-        + 'tout en haut, là où tous peuvent le voir, et qui aurait pris goût à y être.',
-
-        'Un Roi qui accepte est enterré avec les honneurs, écrit ses derniers mots, et '
-        + 'garde dans le monde une tombe qu’aucune remise à zéro n’effacera. Un Roi qui '
-        + 'fuit obtient un tirage honnête — l’île ne trichera pas, elle n’a jamais triché — '
-        + 'et revient couronné, traqué et sans un seul bouclier, ou ne revient pas du tout.',
-
-        'Chaque fuite refroidit la pièce suivante. L’île apprend. Elle fait cela depuis '
-        + 'plus longtemps qu’il n’y a de lapins à qui le faire, et elle n’a jamais eu '
-        + 'besoin d’élever la voix : elle continue simplement de donner des carottes aux '
-        + 'ambitieux, et elle attend.',
+        + 'L’île retourne à l’eau, simplement, et une autre remonte quelque part, déjà '
+        + 'pleine de carottes, déjà tiède.',
       ],
     },
   },

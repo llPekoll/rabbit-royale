@@ -2337,10 +2337,10 @@ export class IslandScene implements Scene {
   }
 
   /**
-   * The volcano's warning, felt: a rumble that grows with the stage.
+   * The tide's warning, felt: a swell that grows with the stage.
    *
-   * The HUD's "🌋 !!" says it; this makes the ground say it too. Stage one is
-   * a tremor, stage three is a proper shake — and none of them is the blast's
+   * The HUD's "🌊 !!" says it; this makes the ground say it too. Stage one is
+   * a shiver, stage three is a proper heave — and none of them is the blast's
    * shake, which stays for bombs.
    */
   rumble(stage: number): void {
@@ -2362,11 +2362,11 @@ export class IslandScene implements Scene {
   /**
    * The island goes down.
    *
-   * ERUPTION.SEQUENCE_MS is the server's beat between "the last safe tile is
-   * dug" and the recap, and it was four seconds of nothing: the board sat
-   * still and then a card appeared. Now the ground shakes harder and harder
-   * for the first part, then the whole island sinks and fades under the
-   * darkening sky (the DOM overlay does the sky and the ash). The recap lands
+   * ERUPTION.SEQUENCE_MS is the server's beat between "the last chest is
+   * taken" and the recap, and it was four seconds of nothing: the board sat
+   * still and then a card appeared. Now the ground heaves harder and harder
+   * for the first part, then the whole island goes under and fades into the
+   * cold light (the DOM overlay does the sky and the spray). The recap lands
    * on a board that has visibly gone. `resetEruption` puts it back for the
    * next island.
    *
@@ -2388,8 +2388,8 @@ export class IslandScene implements Scene {
     gsap.killTweensOf(this.container);
     const kick = (SHAKE_PX * 2) / this.container.scale.x;
     const tl = gsap.timeline();
-    // The shake: a growing tremor for the first 55%, restored to the camera
-    // between beats so a pan mid-eruption is not undone.
+    // The heave: a growing swell for the first 55%, restored to the camera
+    // between beats so a pan mid-sink is not undone.
     tl.to(this.container.position, {
       x: this.cam.x + kick, y: this.cam.y + kick * 0.6,
       duration: 0.05, repeat: Math.floor((s * 0.55) / 0.05), yoyo: true, ease: 'none',

@@ -238,7 +238,7 @@ export const ptBR: Dict = {
   recap: {
     cleared: 'ILHA LIMPA!',
     over: 'FIM DA SAÍDA',
-    clearedNote: 'Tudo que valia cavar foi cavado. O vulcão levou o resto.',
+    clearedNote: 'Todos os baús saíram do chão. O mar levou o resto.',
     overNote: 'Sem energia.',
     tutorialDone: 'VOCÊ PEGOU!',
     tutorialDoneNote: 'O baú era a ilha inteira. Suas cenouras esperam na toca.',
@@ -641,8 +641,8 @@ export const ptBR: Dict = {
       teaser: 'Por que o chão é generoso.',
       body: [
         'Ninguém plantou a primeira cenoura. A ilha simplesmente foi encontrada, numa manhã, '
-        + 'já cheia delas — fileiras de coroas laranja empurrando por cinzas ainda mornas. '
-        + 'Os coelhos que a acharam fizeram a coisa sensata. Cavaram.',
+        + 'já cheia delas — fileiras de coroas laranja empurrando pela areia que a maré '
+        + 'tinha acabado de deixar. Os coelhos que a acharam fizeram a coisa sensata. Cavaram.',
 
         'Ela nunca parou de dar. Cave um buraco e o chão oferece alguma coisa: uma cenoura, '
         + 'um baú, uma pedra com um número riscado nela. Os números são honestos. Sempre '
@@ -693,38 +693,22 @@ export const ptBR: Dict = {
         + 'o que os outros vão fazer a respeito.',
       ],
     },
-    'the-eruption': {
+    'the-tide': {
       title: 'Quando uma ilha já deu o bastante',
-      teaser: 'O chão fecha a conta.',
+      teaser: 'O mar é quem conta.',
       body: [
-        'Cave o suficiente de uma ilha e a montanha acorda. Não há como negociar isso e '
-        + 'não há como cobrir de novo o que foi aberto — uma ilha é uma coisa que acontece '
-        + 'uma vez. Ela dá até ficar quase só buracos, depois desce para a água sem muita '
-        + 'cerimônia e os coelhos nadam.',
+        'Uma ilha flutua sobre o que está guardando. Cada baú é lastro, e o mar esteve '
+        + 'esperando embaixo de todos eles o tempo todo. Pegue o último e a água sobe '
+        + 'sobre o chão que você cavou — não há como negociar isso e não há como cobrir '
+        + 'de novo o que foi aberto. Uma ilha é uma coisa que acontece uma vez. Ela dá '
+        + 'até não sobrar nenhum baú, depois afunda sem muita cerimônia e os coelhos '
+        + 'nadam.',
 
         'Os coelhos velhos não tratam isso como desastre. Tratam como uma conta sendo '
         + 'acertada. Alguma coisa foi tirada do mundo, em quantidade enorme, por coelhos a '
         + 'quem se disse a verdade exata sobre cada passo e que escolheram seguir em '
-        + 'frente. A ilha simplesmente para, e outra emerge em algum lugar, já cheia de '
-        + 'cenouras, já morna.',
-      ],
-    },
-    'the-sacrifice': {
-      title: 'O sacrifício',
-      teaser: 'Para que servia a coroa.',
-      body: [
-        'No fim de cada temporada a ilha pede o seu Rei. Não as cenouras — ela nunca quis '
-        + 'as cenouras, tem mais. Ela queria alguém de pé lá em cima, onde todos pudessem '
-        + 'ver, e que tivesse criado gosto por ficar ali.',
-
-        'Um Rei que aceita é enterrado com honra, escreve as próprias últimas palavras, e '
-        + 'mantém no mundo um túmulo que nenhum reinício jamais apaga. Um Rei que foge '
-        + 'ganha um cara ou coroa honesto — a ilha não vai trapacear, nunca trapaceou — e '
-        + 'volta coroado, caçado e sem um único escudo, ou não volta de jeito nenhum.',
-
-        'Cada fuga deixa a moeda seguinte mais fria. A ilha aprende. Ela faz isso há mais '
-        + 'tempo do que existem coelhos para fazer, e nunca precisou levantar a voz: ela '
-        + 'simplesmente continua dando cenouras aos ambiciosos, e espera.',
+        + 'frente. A ilha simplesmente volta para a água, e outra emerge em algum lugar, '
+        + 'já cheia de cenouras, já morna.',
       ],
     },
   },

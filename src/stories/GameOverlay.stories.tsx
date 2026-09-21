@@ -44,7 +44,7 @@ function Overlay({ energy, carrots, rabbits, warnStage, spectating, recap }: Arg
           <span style={{ color: 'var(--carrot)' }}>🥕 {carrots}</span>
           <span style={{ color: 'var(--muted)' }}>🐰 {rabbits}</span>
           {warnStage > 0 && (
-            <span style={{ color: 'var(--danger)' }}>🌋 {'!'.repeat(warnStage)}</span>
+            <span style={{ color: 'var(--danger)' }}>🌊 {'!'.repeat(warnStage)}</span>
           )}
           {spectating
             ? <strong style={{ color: 'var(--crown)' }}>👁</strong>
@@ -92,7 +92,7 @@ type Story = StoryObj<Args>;
 /** Mid-run. The nav stays reachable — this is the check that matters. */
 export const Playing: Story = {};
 
-/** Nearly dead: the bar goes red and pulses, the volcano is smoking. */
+/** Nearly dead: the bar goes red and pulses, the tide is rising. */
 export const AboutToDie: Story = { args: { energy: 5, warnStage: 3, carrots: 41 } };
 
 /** The recap, sitting above the nav rather than replacing it. */

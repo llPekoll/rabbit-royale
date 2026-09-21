@@ -366,11 +366,14 @@ export class SoundManager {
   }
 
   /**
-   * The volcano, heard: the blast sample slowed to a growl, louder per stage.
+   * The rising tide, heard: the blast sample slowed to a swell, louder per
+   * stage.
    *
    * The warning stages only shook the ground, and a phone on a table does not
-   * show a shake. Pitched down so it cannot be mistaken for a bomb — that
-   * sound means the player just lost a heart, and this one means "hurry".
+   * show a shake. There is no water sample in the kit, so this is the blast at
+   * half rate — low and rolling enough to read as a heavy sea rather than as
+   * an explosion. Pitched down so it cannot be mistaken for a bomb: that sound
+   * means the player just lost energy, and this one means "hurry".
    */
   playRumble(stage: number): void {
     if (sfxMuted) return;

@@ -72,7 +72,7 @@ export const Halfway: Story = { args: { taken: 5, total: 10 } };
 /**
  * The volcano is smoking, so the count goes red WITH it — at that point the
  * count IS the warning, said precisely, rather than a second reading
- * competing with the 🌋 beside it.
+ * competing with the 🌊 beside it.
  */
 export const Warning: Story = { args: { taken: 8, total: 10, warnStage: 2 } };
 

@@ -171,7 +171,7 @@ export function RunHud({
           under the plank for the whole run (Paul, 2026-09-20: "ya un
           container vide qui traine au milieu ... faut le virer").
 
-          Two things can still fill it: the volcano's warning, and — while
+          Two things can still fill it: the tide's warning, and — while
           watching — whose run this is. Neither is on screen during a normal
           run, so normally there is no plate at all.
 
@@ -181,7 +181,7 @@ export function RunHud({
       {(game.warnStage > 0 || spectating) && (
         <PxPanel color={GLASS} className="rr-hud-plate">
           {game.warnStage > 0 && (
-            <span style={{ color: 'var(--danger)' }}>🌋 {'!'.repeat(game.warnStage)}</span>
+            <span style={{ color: 'var(--danger)' }}>🌊 {'!'.repeat(game.warnStage)}</span>
           )}
           {/* ONLY while watching, and in words rather than by an eye icon: a
               viewer who forgets they are watching reads every number on the

@@ -32,8 +32,7 @@ export type LoreId =
   | 'the-numbers'
   | 'the-burrow'
   | 'the-crown'
-  | 'the-eruption'
-  | 'the-sacrifice';
+  | 'the-tide';
 
 /**
  * A chapter's SHAPE — the thresholds, not the words.
@@ -58,8 +57,7 @@ export const LORE: LoreChapter[] = [
   { id: 'the-numbers', numeral: 'II', unlockAt: 500 },
   { id: 'the-burrow', numeral: 'III', unlockAt: 2_000 },
   { id: 'the-crown', numeral: 'IV', unlockAt: 8_000 },
-  { id: 'the-eruption', numeral: 'V', unlockAt: 25_000 },
-  { id: 'the-sacrifice', numeral: 'VI', unlockAt: 60_000 },
+  { id: 'the-tide', numeral: 'V', unlockAt: 25_000 },
 ];
 
 /** How many chapters a given lifetime total has opened. */

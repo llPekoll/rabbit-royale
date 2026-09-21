@@ -274,7 +274,7 @@ export const en = {
   recap: {
     cleared: 'ISLAND CLEARED!',
     over: 'RUN OVER',
-    clearedNote: 'Every tile worth digging is dug. The volcano took the rest.',
+    clearedNote: 'Every chest is out of the ground. The sea took the rest.',
     overNote: 'Out of energy.',
     /** The first island's chest, which is what ends the tutorial run. */
     tutorialDone: 'YOU GOT IT!',
@@ -745,8 +745,8 @@ export const en = {
       teaser: 'Why the ground is generous.',
       body: [
         'Nobody planted the first carrot. The island was simply found, one morning, '
-        + 'already full of them -- rows of orange crowns pushing up through ash that was '
-        + 'still warm. The rabbits who found it did the sensible thing. They dug.',
+        + 'already full of them -- rows of orange crowns pushing up through sand the tide '
+        + 'had just left. The rabbits who found it did the sensible thing. They dug.',
 
         'It has never stopped giving. Dig a hole and the ground offers something: a '
         + 'carrot, a chest, a stone with a number scratched on it. The numbers are '
@@ -798,41 +798,22 @@ export const en = {
         + 'it stands back to watch what the others do about it.',
       ],
     },
-    'the-eruption': {
+    'the-tide': {
       title: 'When an Island Has Given Enough',
-      teaser: 'The ground closes its account.',
+      teaser: 'The sea keeps the count.',
       body: [
-        'Dig enough of an island and the mountain wakes. There is no negotiating '
-        + 'with this and no re-covering what was opened -- an island is a thing that '
-        + 'happens once. It gives until it is mostly holes, then it goes down into '
-        + 'the water without much ceremony and the rabbits swim.',
+        'An island floats on what it is holding. Every chest is ballast, and the '
+        + 'sea has been waiting under all of them the whole time. Take the last one '
+        + 'and the water comes up over the ground you dug -- there is no negotiating '
+        + 'with this and no re-covering what was opened. An island is a thing that '
+        + 'happens once. It gives until its chests are gone, then it goes under '
+        + 'without much ceremony and the rabbits swim.',
 
         'The old rabbits do not treat this as a disaster. They treat it as a bill '
         + 'being settled. Something has been taken out of the world, in enormous '
         + 'quantity, by rabbits who were told the exact truth about every step and '
-        + 'chose to keep going. The island simply stops, and another one surfaces '
-        + 'somewhere, already full of carrots, already warm.',
-      ],
-    },
-    'the-sacrifice': {
-      title: 'The Sacrifice',
-      teaser: 'What the crown was for.',
-      body: [
-        'At the end of every season the island asks for its King. Not for the '
-        + 'carrots -- it never wanted the carrots, it has more. It wanted somebody to '
-        + 'stand at the top where everyone could see, and to have grown fond of '
-        + 'standing there.',
-
-        'A King who accepts is buried with honour, writes their own last words, and '
-        + 'keeps a tomb in the world that no reset will ever clear. A King who runs '
-        + 'gets one honest coin flip -- the island will not cheat, it has never '
-        + 'cheated -- and comes back crowned, hunted and without a single shield, or '
-        + 'does not come back at all.',
-
-        'Every escape makes the next coin colder. The island learns. It has been '
-        + 'doing this longer than there have been rabbits to do it to, and it has '
-        + 'never once needed to raise its voice: it simply keeps giving carrots to '
-        + 'the ambitious, and waits.',
+        + 'chose to keep going. The island simply goes back to the water, and '
+        + 'another one surfaces somewhere, already full of carrots, already warm.',
       ],
     },
   } satisfies LoreTable,

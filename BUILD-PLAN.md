@@ -38,8 +38,8 @@ Rabbit Royale: The Cursed Crown est un twist free-to-play non-gambling du jeu Ra
 
 **But : donner un rythme et une fin naturelle.**
 
-- [ ] Suivi du % de cases creusées ; seuil (tuning) → warning visuel progressif (le volcan fume : 3 paliers d'intensité)
-- [ ] Seuil atteint → éruption : petite séquence visuelle, l'île "coule", nouvelle île générée, le lapin respawn dessus
+- [ ] Suivi du % de coffres pris ; seuil (tuning) → warning visuel progressif (la marée monte : 3 paliers d'intensité)
+- [ ] Seuil atteint → l'île coule : petite séquence visuelle, l'eau monte, la run se termine et tout est mis en banque
 - [ ] Densités carottes/bombes par île dans `tuning.ts` (prépare les paliers de maps futurs)
 - [ ] Variation de la taille/forme des îles à la génération (éviter la monotonie)
 
