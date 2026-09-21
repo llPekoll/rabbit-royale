@@ -168,6 +168,16 @@ const FOLLOW_MARGIN = 0.3;
 const FOLLOW_SECONDS = 0.45;
 
 /**
+ * How long after a hit the camera waits before coming back to the rabbit.
+ *
+ * Long enough to let the blast's shake and the bolt's hold finish — a slide
+ * started under either one reads as the screen tearing rather than as a
+ * camera moving — and short enough that the player is not left staring at
+ * empty ground wondering what became of them. See `recentreAfterHit`.
+ */
+const RECENTRE_AFTER_HIT_MS = 700;
+
+/**
  * The establishing pan: how much further UP the island the camera is looking
  * when it opens, in design px, before it sweeps down onto the resting shot.
  *
@@ -1085,7 +1095,12 @@ export class IslandScene implements Scene {
       if (opts.fatal || this.rabbits.get(playerId) !== rabbit) return;
       // Back on its feet, and visibly held for what is left of the stun.
       const left = this.stunnedUntil - Date.now();
-      if (playerId === this.data?.playerId && left > 0) rabbit.playStunned(left);
+      if (playerId !== this.data?.playerId) return;
+      if (left > 0) rabbit.playStunned(left);
+      // A bolt is taken standing still, so no step follows to bring the
+      // camera back — see `recentreAfterHit`. Not on a fatal one: the run is
+      // over and the recap owns the screen from here.
+      this.recentreAfterHit();
     });
   }
 
@@ -1923,6 +1938,10 @@ export class IslandScene implements Scene {
         ? (origin) => { me.playDamage(); knockBack(me.container, origin); }
         : undefined,
     });
+    // Knocked about by a blast next door, the rabbit ends where it started —
+    // but the player is stunned, so no step follows to bring the camera back
+    // if the board had been panned away. See `recentreAfterHit`.
+    if (hitMe) this.recentreAfterHit();
     // A scene torn down mid-blast must not fire the later beats into a
     // destroyed container — the run ends on a bomb often enough that this is
     // the common path, not the edge case.
@@ -2060,6 +2079,34 @@ export class IslandScene implements Scene {
   recentre(): void {
     if (this.data?.noCamera) return;
     this.slideTo(tileScreenPos(this.seed, this.myTile));
+  }
+
+  /**
+   * Come back to the rabbit after something hit it, but only if it is off
+   * the frame.
+   *
+   * The follow only runs on a STEP, and a bomb or a bolt is the one moment a
+   * player CANNOT step: they are stunned for as long as the pose lasts. So a
+   * hit taken while the board was panned away left the player watching empty
+   * ground with no way back but dragging — the blast went off somewhere off
+   * screen and the game read as broken.
+   *
+   * Conditional on the rabbit being out of view so a player who is looking
+   * straight at their own rabbit never has the camera yanked out from under
+   * a zoom or a pan they set deliberately. Delayed to the END of the pose:
+   * sliding during the bolt would fight the shake and hide the very thing
+   * the player needs to see.
+   */
+  private recentreAfterHit(): void {
+    if (this.data?.noCamera || this.isRabbitInView()) return;
+    const timer = window.setTimeout(() => {
+      this.lightningTimers.delete(timer);
+      // Re-checked on arrival: the player may have dragged back to the rabbit
+      // themselves while the pose played, and stealing the camera then would
+      // undo their own correction.
+      if (!this.isRabbitInView()) this.recentre();
+    }, RECENTRE_AFTER_HIT_MS);
+    this.lightningTimers.add(timer);
   }
 
   /**
