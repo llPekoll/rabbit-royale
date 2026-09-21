@@ -124,6 +124,8 @@ export const OVERRIDABLE: readonly TuningSpec[] = [
   { path: 'ENERGY.MIN_TO_CROSS', kind: 'int', min: 0, max: 1_000, note: 'Énergie minimale dans le réservoir pour traverser' },
   { path: 'RAID_RUN.TOLL', kind: 'int', min: 0, max: 1_000, note: 'Péage d\'un raid, pris au premier pas' },
   { path: 'RAID_RUN.STAKE', kind: 'int', min: 1, max: 1_000, note: 'Mise maximale d\'un raid, péage compris' },
+  { path: 'RAID_RUN.WALK_FLOOR', kind: 'int', min: 0, max: 100, note: 'Pas de marche exigés en réserve au-delà du péage pour entrer en raid' },
+  { path: 'RAID_RUN.STEP_REFUND_AT_FIELD', kind: 'ratio', min: 0, max: 1, note: 'Part des pas rendue au réservoir quand le raid atteint le champ' },
 
   // ── Paid energy refills.
   { path: 'ENERGY_PACK.MAX_PER_DAY', kind: 'int', min: 0, max: 100, note: 'Pleins d\'énergie achetables par jour' },

@@ -1951,7 +1951,7 @@ function Burrow() {
    * it now reads `succeeded` too.
    */
   const [victory, setVictory] = useState<
-    { raidId: string; defender: string; carrots: number; trapsSprung: number } | null
+    { raidId: string; defender: string; carrots: number; trapsSprung: number; refunded: number } | null
   >(null);
 
   useEffect(() => {
@@ -2000,6 +2000,9 @@ function Burrow() {
           defender: r.defender.name,
           carrots: r.carrotsLooted,
           trapsSprung: r.trapsSprung,
+          // The steps given back at the field ride the outcome of the answer
+          // that ended the raid (use-raid.ts); a reload has none, and says nothing.
+          refunded: raid.outcome?.refunded ?? 0,
         });
       }, RAID_OVER_MS);
       return () => clearTimeout(ceremony);
@@ -3048,6 +3051,7 @@ function Burrow() {
           carrots={victory.carrots}
           avatar={avatar}
           trapsSprung={victory.trapsSprung}
+          refunded={victory.refunded}
           onDone={() => {
             setVictory(null);
             leaveRef.current();

@@ -126,6 +126,8 @@ export interface RaidVictoryProps {
   avatar?: string | null;
   /** Traps sprung on the way in — shown as the cost, when there was one. */
   trapsSprung?: number;
+  /** Steps' energy given back for reaching the field (RAID_RUN.STEP_REFUND_AT_FIELD). Zero says nothing. */
+  refunded?: number;
   /** Tapped through, pressed Escape, or hit the button. */
   onDone: () => void;
   /** Overrides the default ("back to the burrow"), which is the dictionary's. */
@@ -138,6 +140,7 @@ export function RaidVictory({
   carrots,
   avatar,
   trapsSprung = 0,
+  refunded = 0,
   onDone,
   actionLabel,
   zIndex = 1000,
@@ -215,7 +218,7 @@ export function RaidVictory({
               />
             )}
             <div className="rr-victory-item" style={{ position: 'relative', display: 'inline-flex' }}>
-              <Spoils defender={defender} carrots={carrots} avatar={avatar} trapsSprung={trapsSprung} />
+              <Spoils defender={defender} carrots={carrots} avatar={avatar} trapsSprung={trapsSprung} refunded={refunded} />
             </div>
             {shown && (
               <div className="rr-victory-stamp" style={{ ...stampStyle, animationDelay: `${STAMP_DELAY_MS}ms` }} aria-hidden>
@@ -291,9 +294,11 @@ function Spoils({
   carrots,
   avatar,
   trapsSprung,
+  refunded = 0,
 }: {
   defender: string;
   carrots: number;
+  refunded?: number;
   avatar?: string | null;
   trapsSprung: number;
 }) {
@@ -336,6 +341,15 @@ function Spoils({
       ) : (
         <BitmapText scale={TYPE_SCALE.body} style={{ color: FLUFF }}>
           {t.raid.wasEmpty(who)}
+        </BitmapText>
+      )}
+      {/* THE WALK COMES BACK. Reaching the field refunds the steps into the
+          tank (a trap's drain never) — reading the burrow pays energy the way
+          reading the island does, and the ceremony is where the player learns
+          it. Silent on a raid that took the long way through nothing. */}
+      {refunded > 0 && (
+        <BitmapText scale={TYPE_SCALE.body} style={{ color: FLUFF }}>
+          {t.raid.stepsBack(groupDigits(refunded))}
         </BitmapText>
       )}
       {trapsSprung > 0 && (

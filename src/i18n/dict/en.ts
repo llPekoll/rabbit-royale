@@ -233,6 +233,7 @@ export const en = {
     markCancel: 'Cancel',
     markNothing: 'Nothing to mark here: every tile around you is already read.',
     energyLow: 'Low energy. A right X on a bomb gives some back.',
+    energyRaidLeft: 'Still a raid in the tank. Head home now, or dig on.',
     trapHint: (left: number) => `Tap a tile to mine it, tap a mine to lift it · ${left} left`,
     trapHintEmpty: 'No bombs left · buy another, or tap a mine to lift it and bury it elsewhere',
     strike: 'Strike',
@@ -304,6 +305,7 @@ export const en = {
     tutorialDoneNote: 'The chest was the whole island. Your carrots are waiting at the burrow.',
     stats: (carrots: number, dug: number, bombs: number, time: string) =>
       `🥕 ${carrots} · ${dug} dug · 💣 ${bombs} · ${time}`,
+    raidLeft: (energy: number) => `⚡ ${energy} home: enough for a raid`,
     bank: (energy: number, max: number, cost: number) =>
       `⚡ ${energy}/${max} at the burrow · a run takes ${cost}`,
     getEnergy: 'Get more energy',
@@ -571,6 +573,7 @@ export const en = {
     unguarded: (amount: string) => `${amount} UNGUARDED`,
     nobodyYet: 'Nobody else has a burrow yet.',
     steps: 'steps',
+    stepsBack: (n: string) => `Field reached: your ${n} steps come back`,
     looted: (n: string) => `+${n} 🥕`,
     won: 'RAID WON!',
     backToBurrow: 'BACK TO THE BURROW',

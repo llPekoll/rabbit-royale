@@ -792,6 +792,17 @@ export const RAID_RUN = {
   /** Every step costs this, trap or not — distance itself is a defence. */
   STEP_COST: 1,
   /**
+   * READING THE BURROW PAYS BACK, like reading the island does: a raid that
+   * REACHES THE FIELD gets this share of its steps' cost back into the tank.
+   * The toll is the price, the walk is a deposit, and a trap burns its 8 for
+   * good — so a clean crossing costs the toll alone (45) and a blind one up
+   * to the stake (75). Nothing comes back from a raid that dies short of the
+   * field. Paul, 21 September 2026: the one tank made "keep enough for a
+   * raid" a real play, and this is what makes the raid itself a skill rather
+   * than a bet — in both loops, thinking is what refills the bar.
+   */
+  STEP_REFUND_AT_FIELD: 1,
+  /**
    * The most a raid can take, reached only by touching the carrot field.
    *
    * A raid is scored by HOW FAR it got, not by whether it "won" — the Clash of

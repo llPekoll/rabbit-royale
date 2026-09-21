@@ -19,7 +19,10 @@ export const mut = <O extends object>(o: O) => o as { -readonly [K in keyof O]: 
  *   goldAt    spend one on the tile the robot would otherwise have to bet on, when its risk is at least this.
  *   redCap    red Xs the robot may place in the run (a stocked red X).
  */
-export type Stocks = { gold?: number; goldAt?: number; redCap?: number };
+export type Stocks = { gold?: number; goldAt?: number; redCap?: number; leaveAt?: number };
+/*  leaveAt   the robot walks home as soon as the bar is at or under this — the
+ *            "keep enough for a raid" play the one tank made possible
+ *            (2026-09-21): what it leaves with comes home. */
 
 export function play(seed: string, lifetime: number, policy: Policy, rand: () => number, stocks: Stocks = {}) {
   const island: Island = generateIsland({ seed, contentSeed: `c:${seed}`, lifetimeCarrots: lifetime });
@@ -32,7 +35,7 @@ export function play(seed: string, lifetime: number, policy: Policy, rand: () =>
   let gold = stocks.gold ?? 0, goldUsed = 0, goldHit = 0, reds = 0;
   const goldAt = stocks.goldAt ?? 0.25, redCap = stocks.redCap ?? Infinity;
 
-  for (let guard = 0; guard < 5000 && rabbit.alive; guard++) {
+  for (let guard = 0; guard < 5000 && rabbit.alive && !(stocks.leaveAt && rabbit.energy <= stocks.leaveAt); guard++) {
     ticks++; sum += rabbit.energy; if (rabbit.energy >= T.ENERGY.MAX - 2) full++; if (rabbit.energy < low) low = rabbit.energy;
     // Ground the rabbit can walk for free from where it stands.
     const region = new Set<number>([rabbit.tile]);

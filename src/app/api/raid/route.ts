@@ -616,6 +616,16 @@ export async function PATCH(req: Request) {
     });
   });
 
+  // THE WALK COMES BACK AT THE FIELD (RAID_RUN.STEP_REFUND_AT_FIELD): the
+  // steps' cost, never a trap's, and only for a raid that got there. Paid
+  // into the tank with a negative charge, which `chargeEnergy` caps at the
+  // ceiling; `raidView` below reads the tank after it, so the medallion
+  // shows the refund on the same answer that shows the haul.
+  const refunded = reachedField
+    ? Math.round((visited.length - 1) * RAID_RUN.STEP_COST * RAID_RUN.STEP_REFUND_AT_FIELD)
+    : 0;
+  if (refunded > 0) await payEnergy(session.sub, { cost: -refunded, need: 0, floor: true });
+
   await tellDefender(run.id);
 
   return Response.json({
@@ -623,6 +633,7 @@ export async function PATCH(req: Request) {
     sprungTrap: !!trap,
     outcome: {
       reachedField,
+      refunded,
       loot: outcome.loot,
       lootFromGarden: outcome.lootFromGarden,
       damage: outcome.damage,

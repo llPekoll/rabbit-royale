@@ -193,7 +193,10 @@ export function chargeEnergy(
 ): { energy: number; energyUpdatedAt: Date } | null {
   const have = currentEnergy(row, now);
   if (!charge.floor && have < charge.need) return null;
-  return { energy: Math.max(0, have - charge.cost), energyUpdatedAt: new Date(now) };
+  // A NEGATIVE cost is a refund (a raid's steps given back at the field), and
+  // it stops at the ceiling like every other gain: the tank is capped, not
+  // the ledger.
+  return { energy: Math.min(OUT_OF_RUN_ENERGY.MAX, Math.max(0, have - charge.cost)), energyUpdatedAt: new Date(now) };
 }
 
 /** The crossing: the fee, behind the floor that makes it worth paying. */

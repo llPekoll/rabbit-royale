@@ -116,6 +116,8 @@ export interface Target {
 }
 
 export interface RaidOutcome {
+  /** Steps' energy given back to the tank for reaching the field (RAID_RUN.STEP_REFUND_AT_FIELD); 0 short of it. */
+  refunded?: number;
   reachedField: boolean;
   loot: number;
   damage: number;

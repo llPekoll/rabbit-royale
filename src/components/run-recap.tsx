@@ -1,5 +1,6 @@
 'use client';
 
+import { RAID_RUN } from '@config/tuning';
 import { WoodlandSurface as NineSlicePanel } from '@/components/woodland/runtime';
 
 import { useEffect, useRef, useState } from 'react';
@@ -144,6 +145,16 @@ export function Recap({
       {bank && (
         <p className="rr-note" style={{ color: '#ffd138' }}>
           {t.recap.bank(bank.energy, bank.max, bank.cost)}
+        </p>
+      )}
+      {/* WHAT CAME HOME IS A RAID: the one tank keeps what a run leaves, and
+          leaving with a raid's worth is the better play on every tier
+          (measured: the raid pays about twice a run per point). Said here,
+          on the screen where the player decides what to do next, and the
+          RAID slab on the loop bar pops when they land. */}
+      {bank && bank.energy >= RAID_RUN.TOLL + RAID_RUN.WALK_FLOOR * RAID_RUN.STEP_COST && (
+        <p className="rr-note" style={{ color: '#ffd138' }}>
+          {t.recap.raidLeft(bank.energy)}
         </p>
       )}
       <div className="rr-recap-actions">

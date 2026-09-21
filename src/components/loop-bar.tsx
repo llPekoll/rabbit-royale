@@ -1,5 +1,6 @@
 'use client';
 
+import { RAID_RUN } from '@config/tuning';
 /**
  * THE LOOP BAR — DIG ▸ HOME ▸ RAID, on the floor of the burrow.
  *
@@ -159,20 +160,25 @@ export function LoopBar({
   // A slab that BECOMES worth pressing pops and chimes once: DIG when a run
   // becomes affordable, HOME when the garden goes from empty to something to
   // take. Never on mount — only on the change, which is the news.
-  const [readyKey, setReadyKey] = useState({ dig: 0, home: 0 });
-  const was = useRef({ canDig, garden: home.gardenReady > 0 });
+  const [readyKey, setReadyKey] = useState({ dig: 0, home: 0, raid: 0 });
+  // A RAID'S WORTH in the tank, with somewhere to take it: the one tank keeps
+  // what a run leaves, so coming home with this much is coming home with a
+  // raid — the slab pops on landing, as DIG does when a crossing is affordable.
+  const canRaid = dig.energy >= RAID_RUN.TOLL + RAID_RUN.WALK_FLOOR * RAID_RUN.STEP_COST && raid.open > 0;
+  const was = useRef({ canDig, garden: home.gardenReady > 0, canRaid });
   useEffect(() => {
     const garden = home.gardenReady > 0;
     const digBecame = canDig && !was.current.canDig;
     const homeBecame = garden && !was.current.garden;
-    was.current = { canDig, garden };
-    if (!digBecame && !homeBecame) return;
-    setReadyKey((k) => ({ dig: k.dig + (digBecame ? 1 : 0), home: k.home + (homeBecame ? 1 : 0) }));
+    const raidBecame = canRaid && !was.current.canRaid;
+    was.current = { canDig, garden, canRaid };
+    if (!digBecame && !homeBecame && !raidBecame) return;
+    setReadyKey((k) => ({ dig: k.dig + (digBecame ? 1 : 0), home: k.home + (homeBecame ? 1 : 0), raid: k.raid + (raidBecame ? 1 : 0) }));
     playUiSfx('chimeQuick');
-  }, [canDig, home.gardenReady]);
+  }, [canDig, home.gardenReady, canRaid]);
   const pulse = (loop: Loop) => {
     const quest = pointed === loop && questPulseKey > 0 ? questPulseKey : 0;
-    const ready = loop === 'dig' ? readyKey.dig : loop === 'home' ? readyKey.home : 0;
+    const ready = loop === 'dig' ? readyKey.dig : loop === 'home' ? readyKey.home : readyKey.raid;
     return quest || ready ? `${quest}.${ready}` : 0;
   };
   // Each line is PARTS, joined on screen with a middot entity (the bitmap

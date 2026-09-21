@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs';
 import { DICTIONARIES } from '../src/i18n/dictionaries';
 import { LOCALES } from '../src/i18n/locales';
 import { ENERGY, OUT_OF_RUN_ENERGY } from '../config/tuning';
-import { burrowView, chargeRun, msToNextEnergy, msToRun } from '../src/lib/game/burrow';
+import { burrowView, chargeRun, msToNextEnergy, msToRun, chargeEnergy } from '../src/lib/game/burrow';
 
 const PAGE = readFileSync(new URL('../src/app/page.tsx', import.meta.url), 'utf8');
 const CSS = readFileSync(new URL('../src/app/globals.css', import.meta.url), 'utf8');
@@ -208,5 +208,17 @@ describe('the out-of-energy popup', () => {
     // The Shed goes full-screen there because it is seven shelves; one
     // question blown up to full-screen reads as a page to escape from.
     expect(CSS).toMatch(/\.rr-shop-scrim:has\(\.rr-energy-modal\)/);
+  });
+});
+
+describe('a refund into the one tank', () => {
+  it('is a negative charge, and stops at the ceiling', () => {
+    const now = Date.now();
+    const row = { energy: OUT_OF_RUN_ENERGY.MAX - 5, energyUpdatedAt: new Date(now) };
+    // A raid's steps given back at the field (RAID_RUN.STEP_REFUND_AT_FIELD)
+    // ride the same charge with the sign flipped; the tank is capped, not the
+    // ledger, so ten points into a bar five short of full lands on full.
+    expect(chargeEnergy(row, { cost: -10, need: 0, floor: true }, now)?.energy).toBe(OUT_OF_RUN_ENERGY.MAX);
+    expect(chargeEnergy({ energy: 20, energyUpdatedAt: new Date(now) }, { cost: -10, need: 0, floor: true }, now)?.energy).toBe(30);
   });
 });
