@@ -3777,20 +3777,15 @@ button { font-family: var(--font-pixel); }
    frame; the corner it is drawn at is picked in shop-card.tsx by the screen's
    height, and everything hung off the frame (sign, [x]) is placed inline from
    that same number. */
+/* The Seeker's stall, everywhere: 380 tall (400 less the scrim's gutter),
+   one row. A desktop window gets it centred. */
 .rr-stall {
   width: min(880px, 100%);
   max-width: 100%;
   min-width: 0;
-  height: min(660px, 100%);
-  max-height: 100%;
-  padding: 4px 8px 0;
-}
-/* The Seeker's stall: 380 tall, and the same 380 in any window under the
-   wrap threshold, so a laptop gets the phone's stall centred rather than one
-   row adrift in a frame with room for two. */
-.rr-stall.short {
-  padding-top: 2px;
   height: min(400px, 100%);
+  max-height: 100%;
+  padding: 2px 8px 0;
 }
 .rr-stall-sign {
   position: absolute;
@@ -3807,10 +3802,7 @@ button { font-family: var(--font-pixel); }
 }
 .rr-stall-head {
   flex: none;
-  height: 36px;
-  /* The purse's board is 45 tall; on the wrapped stall the head has the
-     room to hold it without leaning on the first row's name planks. */
-  margin-bottom: 2px;
+  height: 34px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -3830,8 +3822,10 @@ button { font-family: var(--font-pixel); }
   color: #f5e6d3;
   text-shadow: 0 1px 0 #2a1810;
 }
-/* THE SHELF. One row, slid sideways, snapping card to card; no scrollbar,
-   because the card cut by the edge is the affordance. */
+/* THE SHELF. One row, slid sideways: by finger, by dragging the row with
+   the mouse, or by the bar under it (StallShelf in stall-card.tsx). The
+   browser's own scrollbar is off — it is an overlay that hides itself on a
+   Mac — and the bar below stands in for it. No snap: a snap fights a drag. */
 .rr-stall-shelf {
   flex: 1;
   min-height: 0;
@@ -3844,21 +3838,38 @@ button { font-family: var(--font-pixel); }
   align-items: center;
   overflow-x: auto;
   overflow-y: hidden;
-  scroll-snap-type: x mandatory;
   overscroll-behavior-x: contain;
   scrollbar-width: none;
+  touch-action: pan-x;
+  cursor: grab;
 }
 .rr-stall-shelf::-webkit-scrollbar { display: none; }
-/* Room to spare: the shelf wraps and every card is on the board. The rows are
-   kept apart by the cards' own overhang margins. */
-.rr-stall:not(.short) .rr-stall-head { height: 46px; }
-.rr-stall:not(.short) .rr-stall-shelf {
-  flex-wrap: wrap;
-  justify-content: center;
-  align-content: center;
-  overflow: visible;
-  scroll-snap-type: none;
+.rr-stall-shelf.dragging { cursor: grabbing; }
+.rr-stall-shelf.dragging * { cursor: grabbing; }
+/* THE BAR. Its thumb is the visible share of the row; drawn as a groove in
+   the parchment with a wood thumb, in the stall's own colours. */
+.rr-stall-track {
+  flex: none;
+  position: relative;
+  height: 8px;
+  margin: 2px 28px 0;
+  border-radius: 4px;
+  background: rgba(74, 53, 36, 0.22);
+  box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.12);
+  cursor: pointer;
 }
+.rr-stall-thumb {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  min-width: 24px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #8a5a33, #6b4526);
+  box-shadow: inset 0 1px 0 rgba(255, 220, 160, 0.35), 0 1px 0 rgba(0, 0, 0, 0.35);
+  cursor: grab;
+  touch-action: none;
+}
+.rr-stall-thumb:active { cursor: grabbing; }
 .rr-stall-card {
   position: relative;
   flex: 0 0 auto;
@@ -3931,7 +3942,7 @@ button { font-family: var(--font-pixel); }
 }
 .rr-stall-foot {
   flex: none;
-  height: 22px;
+  height: 20px;
   display: grid;
   place-items: center;
   font-size: 11px;

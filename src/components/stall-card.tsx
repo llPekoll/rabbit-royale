@@ -25,7 +25,7 @@
  * well, so the body is soil in the item's own tint, rounded like every painted
  * frame in the kit ("les bords carrés c'est pas ouf").
  */
-import type { CSSProperties, ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { PLANK_URL, PLANK_SIZE } from './plank';
 import { LeafBadge } from './leaf-badge';
 import { PxButton, pxLabel } from './px';
@@ -81,18 +81,15 @@ export function WoodSign({
 export type StallRail = 'carrots' | PayTokenId;
 
 /**
- * Two sizes of card, because the stall lives on two very different screens:
- * the Seeker's 400px-tall landscape, where the frame's rails already take a
- * third of the height and the cards are one sliding row, and a desktop window
- * where they wrap into two rows of four and three (shop-card.tsx). The art
- * height is the number that matters; the rest keeps the card's proportions.
- * `tall` is sized so two rows fit a 660px dialog: 2 x (172 + 40 of overhang).
+ * ONE card size, ONE stall. There were two for a day — a taller card that
+ * wrapped into two rows on a desktop window — and Paul cut it (2026-09-21:
+ * "laisse-le toujours sur une ligne, pas de prise de tête à avoir deux
+ * systèmes différents"). The stall is the Seeker's stall everywhere: 380px
+ * tall, one row that slides. The card is sized for that: 164 + 40px of
+ * overhang (name above, price below) is what a 380px frame leaves under its
+ * rails, its head row, its scroll bar and its strapline.
  */
-export const CARD_SIZES = {
-  short: { width: 136, height: 168, art: 64 },
-  tall: { width: 150, height: 172, art: 70 },
-} as const;
-export type CardSize = keyof typeof CARD_SIZES;
+export const CARD = { width: 136, height: 164, art: 62 } as const;
 
 export interface StallCardProps {
   item: ShopItem;
@@ -102,7 +99,6 @@ export interface StallCardProps {
    *  to say. `priceLabel` falls back to dollars rather than inventing a rate. */
   rate?: number;
   busy: boolean;
-  size?: CardSize;
   /** Pay in carrots. */
   onBuy(): void;
   /** Pay on the money rail. Absent when there is no money rail to pay on. */
@@ -116,12 +112,12 @@ export interface StallCardProps {
  * object standing on the shelf rather than a box drawn on it.
  */
 export function StallCard({
-  item, rail, rate, busy, size = 'short', onBuy, onPayMoney,
+  item, rail, rate, busy, onBuy, onPayMoney,
 }: StallCardProps) {
   const t = useT();
   const meta = ITEM_META[item.kind];
   const name = t.items[item.kind].name;
-  const { width, height, art } = CARD_SIZES[size];
+  const { width, height, art } = CARD;
   const full = !item.hasRoom;
   const money = rail !== 'carrots' && !!onPayMoney;
 
@@ -263,5 +259,149 @@ export function StallPurse({ stock }: { stock: number }) {
         {groupDigits(stock)} 🥕
       </span>
     </WoodSign>
+  );
+}
+
+/**
+ * THE SHELF: the row the cards stand on, and the two ways to slide it.
+ *
+ * A finger slides it natively (`overflow-x: auto`, `touch-action: pan-x`).
+ * A mouse could not: a horizontal row has no wheel gesture most people know,
+ * and the first cut hid the scrollbar on the grounds that the card cut by the
+ * edge was hint enough. Paul (2026-09-21): "on devrait pouvoir click et drag
+ * avec la scroll bar en bas". So, two mouse gestures:
+ *
+ *   - DRAG THE ROW. Press anywhere on the shelf and pull. The row follows the
+ *     pointer, and a press that moved more than a few pixels is NOT a click:
+ *     `onClickCapture` swallows it, so dragging across a price button does
+ *     not buy the thing under the release.
+ *   - DRAG THE BAR. A bar under the row, drawn by us rather than the
+ *     browser: the native one is an overlay that hides itself on a Mac, and
+ *     "sometimes there is a scrollbar" is not an affordance. Its thumb is the
+ *     visible share of the row, its position the row's, and it can be pulled
+ *     or the track clicked to page.
+ *
+ * Mouse only for the row drag (`pointerType`): a touch is already sliding the
+ * row natively, and taking the pointer from it would fight the browser.
+ */
+export function StallShelf({ children }: { children: ReactNode }) {
+  const row = useRef<HTMLUListElement | null>(null);
+  const track = useRef<HTMLDivElement | null>(null);
+  /* The thumb, as shares of the track: how wide, and how far along. */
+  const [bar, setBar] = useState({ size: 1, at: 0 });
+  const drag = useRef<{ x: number; left: number; moved: boolean } | null>(null);
+  const [dragging, setDragging] = useState(false);
+
+  const measure = useCallback(() => {
+    const el = row.current;
+    if (!el) return;
+    const { scrollWidth, clientWidth, scrollLeft } = el;
+    if (scrollWidth <= clientWidth + 1) { setBar({ size: 1, at: 0 }); return; }
+    setBar({ size: clientWidth / scrollWidth, at: scrollLeft / scrollWidth });
+  }, []);
+
+  useEffect(() => {
+    const el = row.current;
+    if (!el) return;
+    measure();
+    el.addEventListener('scroll', measure, { passive: true });
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => { el.removeEventListener('scroll', measure); ro.disconnect(); };
+  }, [measure]);
+
+  /* ── Drag the row ── */
+  const onRowDown = (e: ReactPointerEvent<HTMLUListElement>) => {
+    if (e.pointerType !== 'mouse' || e.button !== 0) return;
+    drag.current = { x: e.clientX, left: row.current!.scrollLeft, moved: false };
+  };
+  const onRowMove = (e: ReactPointerEvent<HTMLUListElement>) => {
+    const d = drag.current;
+    if (!d) return;
+    const dx = e.clientX - d.x;
+    if (!d.moved) {
+      if (Math.abs(dx) <= 4) return;
+      /* NOT ON THE PRESS: capturing the pointer at pointerdown makes the row
+         the target of the pointerup, and a click is fired at the common
+         ancestor of the two targets — so every press on a price button became
+         a click on the row, and nothing bought anything. The row takes the
+         pointer only once the press has become a drag. */
+      d.moved = true;
+      row.current!.setPointerCapture(e.pointerId);
+      setDragging(true);
+    }
+    row.current!.scrollLeft = d.left - dx;
+  };
+  const onRowUp = () => {
+    /* The click that follows the release is still coming; `moved` has to
+       survive until it does — the click handler clears it. A press that
+       never moved is over now. */
+    if (drag.current && !drag.current.moved) drag.current = null;
+    setDragging(false);
+  };
+  const onRowClickCapture = (e: React.MouseEvent) => {
+    if (drag.current?.moved) {
+      e.stopPropagation();
+      e.preventDefault();
+      drag.current = null;
+    }
+  };
+
+  /* ── Drag the bar ── */
+  const thumbDrag = useRef<{ x: number; left: number } | null>(null);
+  const onThumbDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    thumbDrag.current = { x: e.clientX, left: row.current!.scrollLeft };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const onThumbMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const d = thumbDrag.current;
+    const el = row.current;
+    const tr = track.current;
+    if (!d || !el || !tr) return;
+    /* A pixel on the track is scrollWidth / trackWidth pixels of row. */
+    el.scrollLeft = d.left + (e.clientX - d.x) * (el.scrollWidth / tr.clientWidth);
+  };
+  const onThumbUp = () => { thumbDrag.current = null; };
+  const onTrackDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const el = row.current;
+    const tr = track.current;
+    if (!el || !tr) return;
+    /* A click beside the thumb pages toward it. */
+    const share = (e.clientX - tr.getBoundingClientRect().left) / tr.clientWidth;
+    const dir = share < bar.at ? -1 : 1;
+    el.scrollBy({ left: dir * el.clientWidth * 0.8, behavior: 'smooth' });
+  };
+
+  return (
+    <>
+      <ul
+        ref={row}
+        className={`rr-stall-shelf${dragging ? ' dragging' : ''}`}
+        onPointerDown={onRowDown}
+        onPointerMove={onRowMove}
+        onPointerUp={onRowUp}
+        onPointerCancel={onRowUp}
+        onClickCapture={onRowClickCapture}
+      >
+        {children}
+      </ul>
+      <div
+        ref={track}
+        className="rr-stall-track"
+        style={{ visibility: bar.size >= 1 ? 'hidden' : 'visible' }}
+        onPointerDown={onTrackDown}
+        aria-hidden
+      >
+        <div
+          className="rr-stall-thumb"
+          style={{ width: `${bar.size * 100}%`, left: `${bar.at * 100}%` }}
+          onPointerDown={onThumbDown}
+          onPointerMove={onThumbMove}
+          onPointerUp={onThumbUp}
+          onPointerCancel={onThumbUp}
+        />
+      </div>
+    </>
   );
 }

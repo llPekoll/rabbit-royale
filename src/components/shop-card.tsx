@@ -36,7 +36,7 @@ import { useT } from '@/i18n/provider';
 import { payStageLine, type PayStage } from './use-usdc-pay';
 import { LauncherTab, DANGER, LAMP } from './burrow-chrome';
 import type { PayTokenId } from '@/lib/pay/tokens';
-import { StallCard, StallPurse, StallRails, StallSign, type StallRail } from './stall-card';
+import { StallCard, StallPurse, StallRails, StallShelf, StallSign, type StallRail } from './stall-card';
 import { LootChest, CHEST_ASPECT } from './loot-chest';
 
 /**
@@ -97,40 +97,18 @@ function shelfOrder(items: ShopItem[]): ShopItem[] {
 }
 
 /**
- * TWO STALLS, BY THE SCREEN'S HEIGHT.
+ * ONE STALL, EVERY SCREEN: the Seeker's. 380px tall, one row that slides,
+ * the frame's leaves drawn as a sprig. The leaf frame's art is drawn for a
+ * 90px corner, and at that size its top and bottom rails take 195 of the
+ * Seeker's 400 — leaving a row of cards 185px, which is not a row of cards.
  *
- * SHORT (the Seeker, 400px): one row that slides sideways, the frame's
- * leaves drawn as a sprig. The leaf frame's art is drawn for a 90px corner,
- * and at that size its top and bottom rails take 195 of the 400 — leaving a
- * row of cards 185px, which is not a row of cards. The fifth card is cut by
- * the edge on purpose: that is what says there is more.
- *
- * TALL (a desktop window): the shelf WRAPS, four cards and three, so all
- * seven are on the board at once. The first cut showed four cards that fit
- * the width exactly, no scrollbar, and three more the eye had no reason to
- * suspect (Paul, 2026-09-21: "y avait plus de trucs dans le shop avant").
- * Two rows of cards need 424px, which is why the threshold is where it is
- * and why the corner is 65 rather than the art's 90: at 90 the rails take
- * 195 of a 660px dialog and the second row does not fit. Below the threshold
- * the stall is also SHORTER (`.rr-stall.short`), so a mid-sized window gets
- * the Seeker's stall centred rather than one row adrift in a tall frame.
+ * A desktop window gets the same stall, centred. For a day it got a taller
+ * one whose shelf wrapped into two rows, and Paul cut it (2026-09-21: one
+ * row everywhere, "pas de prise de tête à avoir deux systèmes différents").
+ * The row's own affordances — the card cut by the edge, the bar under it,
+ * the drag — are the same on both, which is the point.
  */
-const SHORT_SCREEN = '(max-height: 679px)';
-const SHORT_CORNER = 50;
-const TALL_CORNER = 65;
-
-function useShortScreen(): boolean {
-  const [short, setShort] = useState(() =>
-    typeof window !== 'undefined' && window.matchMedia(SHORT_SCREEN).matches);
-  useEffect(() => {
-    const mq = window.matchMedia(SHORT_SCREEN);
-    const on = () => setShort(mq.matches);
-    on();
-    mq.addEventListener('change', on);
-    return () => mq.removeEventListener('change', on);
-  }, []);
-  return short;
-}
+const CORNER = 50;
 
 export interface ShopCardProps {
   shop: ShopState | null;
@@ -159,8 +137,7 @@ export function ShopPanel({
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const short = useShortScreen();
-  const corner = short ? SHORT_CORNER : TALL_CORNER;
+  const corner = CORNER;
   /* The frame's rails, in CSS px at this corner: what the sign and the [x]
      hang over. The slice is in source pixels; the corner is the left inset. */
   const railTop = Math.round(LEAF_FRAME_SLICE.top * (corner / LEAF_FRAME_SLICE.left));
@@ -198,7 +175,7 @@ export function ShopPanel({
           its [x] is a trap. */}
       <LeafFrame
         corner={corner}
-        className={`rr-shop-modal rr-stall${short ? ' short' : ''}`}
+        className="rr-shop-modal rr-stall"
         role="dialog"
         aria-modal="true"
         aria-label={t.shop.aria}
@@ -223,11 +200,12 @@ export function ShopPanel({
           <StallPurse stock={shop?.stock ?? 0} />
         </header>
 
-        {/* THE SHELF: one row, slid sideways, snapping card to card. Seven
-            cards do not fit any phone, so the last visible card is cut by the
-            edge on purpose — a card half in view is what tells a thumb there
-            is more. */}
-        <ul className="rr-stall-shelf">
+        {/* THE SHELF: one row, slid sideways — by finger, by dragging the
+            row, or by the bar under it (StallShelf). Seven cards do not fit
+            any screen this is drawn on, so the last visible card is cut by
+            the edge on purpose: a card half in view is what says there is
+            more. */}
+        <StallShelf>
           {shop && shelfOrder(shop.items).map((item) => (
             <StallCard
               key={item.kind}
@@ -235,12 +213,11 @@ export function ShopPanel({
               rail={rail}
               rate={rail === 'carrots' ? undefined : shop.rates?.[rail]}
               busy={busyNow}
-              size={short ? 'short' : 'tall'}
               onBuy={() => onBuy(item.kind)}
               onPayMoney={tokens.length ? () => onPayUsdc!(item.kind) : undefined}
             />
           ))}
-        </ul>
+        </StallShelf>
 
         {/* The strapline, or what just happened. Which sentence depends on WHY
             there is or is not a money rail — see `tokens` above. The middle

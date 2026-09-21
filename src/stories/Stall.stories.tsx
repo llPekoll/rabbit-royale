@@ -7,7 +7,7 @@
  * which is where the resolution gap shows.
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { StallCard, type CardSize, type StallRail } from '@/components/stall-card';
+import { StallCard, type StallRail } from '@/components/stall-card';
 import type { ItemKind, ShopItem } from '@/components/use-shop';
 import '@/app/globals.css';
 
@@ -28,15 +28,15 @@ function item(kind: ItemKind, held: number, stock: number): ShopItem {
   return { kind, price, usdc, held, cap, hasRoom: held < cap, canBuy: stock >= price && held < cap };
 }
 
-interface CardArgs { kind: ItemKind; size: CardSize; held: number; stock: number; rail: StallRail }
+interface CardArgs { kind: ItemKind; held: number; stock: number; rail: StallRail }
 
-function Card({ kind, size, held, stock, rail }: CardArgs) {
+function Card({ kind, held, stock, rail }: CardArgs) {
   return (
     <div style={{ padding: 40, background: '#1d100a', display: 'inline-block' }}>
       <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
         <StallCard
           item={item(kind, held, stock)} rail={rail} rate={rail === 'sol' ? 200 : rail === 'skr' ? 0.02 : 1}
-          busy={false} size={size} onBuy={() => {}} onPayMoney={() => {}}
+          busy={false} onBuy={() => {}} onPayMoney={() => {}}
         />
       </ul>
     </div>
@@ -49,7 +49,6 @@ const meta: Meta<typeof Card> = {
   parameters: { layout: 'fullscreen' },
   argTypes: {
     kind: { control: 'select', options: KINDS },
-    size: { control: 'inline-radio', options: ['short', 'tall'] },
     rail: { control: 'inline-radio', options: ['carrots', 'usdc', 'sol', 'skr'] },
   },
 };
@@ -59,21 +58,21 @@ type Story = StoryObj<typeof Card>;
 
 /** One card, every knob. */
 export const OneCard: Story = {
-  args: { kind: 'shield', size: 'tall', held: 2, stock: 4200, rail: 'carrots' },
+  args: { kind: 'shield', held: 2, stock: 4200, rail: 'carrots' },
 };
 
 /** Every kind side by side, at the same art height: the resolution gap. */
-export const AllKinds: StoryObj<{ size: CardSize; rail: StallRail }> = {
-  render: ({ size, rail }) => (
+export const AllKinds: StoryObj<{ rail: StallRail }> = {
+  render: ({ rail }) => (
     <ul style={{ display: 'flex', gap: 16, padding: 40, background: '#1d100a', flexWrap: 'wrap', listStyle: 'none', margin: 0 }}>
       {KINDS.map((kind) => (
         <StallCard
           key={kind} item={item(kind, kind === 'trap' ? 3 : 0, 4200)} rail={rail}
           rate={rail === 'sol' ? 200 : rail === 'skr' ? 0.02 : 1}
-          busy={false} size={size} onBuy={() => {}} onPayMoney={() => {}}
+          busy={false} onBuy={() => {}} onPayMoney={() => {}}
         />
       ))}
     </ul>
   ),
-  args: { size: 'tall', rail: 'carrots' },
+  args: { rail: 'carrots' },
 };
