@@ -47,8 +47,14 @@ if (await openBtn.count() && !process.env.NO_ISLAND) {
     if (await p.locator('.rr-dial-tap').count()) { await act(p, '.rr-dial-tap'); await shot(p, '6-island-energy'); await p.keyboard.press('Escape'); }
     console.log('exit label:', await p.locator('.rr-back-btn').innerText());
     await act(p, '.rr-back-btn');
-    await p.waitForTimeout(3500);
+    // The recap rises behind the carrot wipe: wait for the card itself.
+    try { await p.waitForSelector('.rr-recap-stats', { timeout: 20_000 }); } catch {}
+    await p.waitForTimeout(1200);
     await shot(p, '7-recap');
+    console.log('recap card:', await p.evaluate(() => {
+      const el = document.querySelector('.rr-recap-stats')?.closest('section, div');
+      return el ? el.innerText.replace(/\s+/g, ' | ').slice(0, 300) : 'no recap card';
+    }));
     console.log('recap text:', (await p.evaluate(() => document.body.innerText.replace(/\s+/g, ' ').slice(0, 600))));
   } catch (e) { console.log('island step failed:', e.message.split('\n')[0]); await shot(p, '5-fail'); }
 } else {

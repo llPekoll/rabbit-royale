@@ -238,7 +238,9 @@ export const en = {
     markNothing: 'Nothing to mark here: every tile around you is already read.',
     energyLow: 'Low energy. A right X on a bomb gives some back.',
     energyRaidLeft: 'Still a raid in the tank. Go home, or dig on.',
-    homeRaid: 'Home \u00b7 raid ready',
+    /* Plain words, not a status chip: "HOME \u00b7 RAID READY" read as jargon
+       (Paul, 21 September 2026). What leaving now buys, as a verb. */
+    homeRaid: 'Home and raid',
     /** Said once on landing: what the crossing took, what is left ON YOU. */
     crossed: (cost: number, energy: number) => `\u26a1 -${cost} to cross \u00b7 ${energy} left`,
     trapHint: (left: number) => `Tap a tile to mine it, tap a mine to lift it · ${left} left`,
@@ -313,9 +315,9 @@ export const en = {
     tutorialDoneNote: 'The chest was the whole island. Your carrots are waiting at the burrow.',
     stats: (carrots: number, dug: number, bombs: number, time: string) =>
       `🥕 ${carrots} · ${dug} dug · 💣 ${bombs} · ${time}`,
-    raidLeft: (energy: number) => `⚡ ${energy} home: enough for a raid`,
+    raidLeft: (energy: number) => `⚡ ${energy} left in the tank: enough for a raid`,
     bank: (energy: number, max: number, cost: number) =>
-      `⚡ ${energy}/${max} at the burrow · a run takes ${cost}`,
+      `⚡ ${energy}/${max} in the tank · a crossing takes ${cost}`,
     getEnergy: 'Get more energy',
     goHome: 'Home · stack it',
     /* BEATEN BY SOMEBODY, not by the island.
@@ -597,6 +599,10 @@ export const en = {
        choice is made. The busy/fresh lesson moved onto the rows. */
     tank: (energy: number, cost: number) => `\u26a1 ${energy} in the tank \u00b7 the crossing takes ${cost}`,
     almostDone: 'almost done',
+    /* WHAT THE GROUND IS MADE OF, per tier: the risk and the riches that go
+       up together. Paul, 21 September 2026 — a ladder that only said
+       "locked" never said what was up there. */
+    ground: (bombIn: number, goldIn: number) => `\ud83d\udca3 1 tile in ${bombIn} \u00b7 \ud83e\udd55 1 carrot in ${goldIn} is gold`,
     best: (n: string) => `your record ${n} \ud83e\udd55`,
     gone: 'That island filled up or ended. Pick another.',
     tierLocked: 'You have not dug your way to that island yet.',

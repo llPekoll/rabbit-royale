@@ -8,6 +8,8 @@
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { DICTIONARIES } from '../src/i18n/dictionaries';
+import { LOCALES } from '../src/i18n/locales';
 
 const read = (p: string) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const PAGE = read('../src/app/page.tsx');
@@ -43,6 +45,46 @@ describe('the energy panel', () => {
     const LOOP = read('../src/components/loop-bar.tsx');
     expect(LOOP).toMatch(/\.\.\.\(dig\.energy < raidFloor \? \[t\.loop\.raidIn\(formatWait\(raidWaitMs, t\.units\)\)\] : \[\]\)/);
     expect(PAGE).toMatch(/regenPerHour: burrow\.regenPerHour,/);
+  });
+
+  it('what a tier is made of is on every row of the list, from the densities', () => {
+    const PICK = read('../src/components/island-picker.tsx');
+    expect(PICK).toMatch(/t\.islandPick\.ground\(Math\.round\(1 \/ tier\.bombDensity\), Math\.round\(1 \/ tier\.goldenShare\)\)/);
+    // Both kinds of row wear it: a live island and a fresh tier.
+    expect(PICK).toMatch(/\{ground\(i\.tier\)\}/);
+    expect(PICK).toMatch(/\{ground\(tier\.name\)\}/);
+  });
+
+  it('the recap counts the ONE tank, in every language', () => {
+    // The three reserves are gone, so no language may still send the player
+    // to a second pool "at the burrow" — the bar on screen IS that number.
+    const burrows = /burrow|terrier|toca|\u5154\u7a9d/i;
+    for (const locale of LOCALES) {
+      const d = DICTIONARIES[locale].recap;
+      const bank = d.bank(85, 300, 5);
+      expect(bank, locale).not.toMatch(burrows);
+      expect(bank, locale).toContain('85');
+      expect(bank, locale).toContain('300');
+      expect(d.raidLeft(85), locale).not.toMatch(burrows);
+    }
+  });
+
+  it('the way home says it in words, not in a status chip', () => {
+    // "HOME \u00b7 RAID READY" was two labels glued together; every language
+    // now says one thing, and none of them wears the separator.
+    for (const locale of LOCALES) {
+      const label = DICTIONARIES[locale].run.homeRaid;
+      expect(label.trim(), locale).not.toBe('');
+      expect(label, locale).not.toContain('\u00b7');
+    }
+  });
+
+  it('every language says what a tier\'s ground is made of', () => {
+    for (const locale of LOCALES) {
+      const line = DICTIONARIES[locale].islandPick.ground(7, 17);
+      expect(line, locale).toContain('7');
+      expect(line, locale).toContain('17');
+    }
   });
 
   it('the crossing note is one-tank wording, localised', () => {

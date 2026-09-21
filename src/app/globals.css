@@ -5715,9 +5715,36 @@ button { font-family: var(--font-pixel); }
 }
 .rr-energy-chip.wait { color: #48301f; background: rgba(31, 20, 8, 0.14); box-shadow: inset 0 0 0 1px rgba(31, 20, 8, 0.3); }
 .rr-energy-level { margin: 8px 0 0; font-size: 9px; opacity: .8; }
+/* A SHORT SCREEN pays for the panel out of its air, not out of its rows: on
+   an iPhone under Safari's bar (852x320) the whole ledger does not fit and
+   the panel scrolls, so every pixel handed back here is one more row the
+   player sees without moving. Same 520px threshold as the other relaxations. */
+@media (max-height: 520px) {
+  /* A landscape phone is WIDE and short, so the panel takes the width it is
+     given: at 360px the cost lines wrapped to two rows each, and those wraps
+     were most of what did not fit. */
+  .rr-energy-panel { width: min(460px, calc(100vw - 32px)); }
+  .rr-energy-panel-body { padding: 8px 12px 10px; line-height: 1.4; }
+  .rr-energy-figure b { font-size: 15px; }
+  .rr-energy-bar { margin: 14px 0 14px; }
+  .rr-energy-rows li { padding: 5px 0; }
+  .rr-energy-level { margin-top: 6px; }
+}
 
 /* WHERE YOU STAND on the island ladder: a thin bar under a locked row's
    text, the same ink as the row's dot. */
+/* WHAT THE GROUND HOLDS, under a row's state line: the bargain of the tier.
+   Muted, because it is the same two facts on every row and the eye should
+   land on the name and the button first. */
+.rr-island-ground {
+  display: block;
+  margin-top: 3px;
+  font-size: 9px;
+  line-height: 1.3;
+  color: rgba(255, 236, 190, 0.7);
+  white-space: nowrap;
+}
+.rr-island-pick .shielded .rr-island-ground { opacity: .75; }
 .rr-tier-progress {
   display: block; position: relative; height: 4px; margin-top: 5px; max-width: 220px;
   background: rgba(31, 20, 8, 0.35); box-shadow: inset 0 0 0 1px rgba(31, 20, 8, 0.35);

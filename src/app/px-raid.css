@@ -210,3 +210,14 @@
 @media (max-height: 520px) {
   .rr-hub-card { --rr-card-pad: var(--rr-pad-tight); }
 }
+
+/* THE ISLAND LIST ON A SHORT SCREEN. Four tiers plus the ground each holds
+   is 280px of rows against 248px of list at 890x400 — the fourth was cut in
+   half, which reads as a broken card rather than as "scroll". The same
+   `--rr-pad-tight` relaxation the hub cards take above, applied to the rows'
+   vertical pad, hands back exactly the 32px that were missing; the 44px
+   button keeps the row's touch floor. Below that (an iPhone under Safari's
+   bar, 852x320) the list still scrolls, and its fade says so. */
+@media (max-height: 520px) {
+  .rr-island-pick .rr-raid-row { padding-block: var(--rr-pad-tight); }
+}

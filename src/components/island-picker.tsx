@@ -49,6 +49,20 @@ export function IslandPicker({ listing, busy, lifetime, energy, crossingCost, on
 
   const unlocked = listing?.unlocked ?? 0;
   const tierName = (name: string) => islandName(t, name);
+  /**
+   * WHAT THE GROUND IS MADE OF, from the tier's own densities: one tile in
+   * N is a bomb (`bombDensity`), one carrot in N is gold (`goldenShare`,
+   * a share OF the carrots). Both climb together up the ladder — that is
+   * the bargain a tier offers, and the list never said it.
+   */
+  const ground = (name: string) => {
+    const tier = ISLAND_TIERS.find((x) => x.name === name) ?? ISLAND_TIERS[0];
+    return (
+      <small className="rr-island-ground">
+        {t.islandPick.ground(Math.round(1 / tier.bombDensity), Math.round(1 / tier.goldenShare))}
+      </small>
+    );
+  };
 
   return createPortal(
     <div className="rr-shop-scrim" onClick={onClose}>
@@ -82,6 +96,7 @@ export function IslandPicker({ listing, busy, lifetime, energy, crossingCost, on
                         {t.islandPick.row(i.rabbits, i.chestsLeft, i.chestsTotal, Math.round(100 * i.dugFraction))}
                         {(i.chestsLeft <= 3 || i.dugFraction >= 0.7) ? <>{' \u00b7 '}{t.islandPick.almostDone}</> : <>{' \u00b7 '}{t.islandPick.shortSafe}</>}
                       </small>
+                      {ground(i.tier)}
                     </span>
                     <PxButton
                       type="button"
@@ -108,6 +123,7 @@ export function IslandPicker({ listing, busy, lifetime, energy, crossingCost, on
                           {locked ? t.islandPick.locked(groupDigits(tier.minLifetime), groupDigits(lifetime)) : t.islandPick.fresh}
                           {!locked && (listing.bests[tier.name] ?? 0) > 0 && <>{' \u00b7 '}{t.islandPick.best(groupDigits(listing.bests[tier.name]))}</>}
                         </small>
+                        {ground(tier.name)}
                         {/* THE DISTANCE, drawn: only the next rung, since the
                             ones past it are the same bar with less in it. */}
                         {locked && idx === unlocked + 1 && (
