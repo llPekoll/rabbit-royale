@@ -48,7 +48,8 @@ const ROAM = 3;
 const EAT_CHANCE = 0.3;
 
 export class HomeRabbit {
-  private rabbit: PlayerRabbit;
+  /** The island's rabbit underneath — exposed so the scene can cut its `DepthHole` around it. */
+  readonly rabbit: PlayerRabbit;
   private at: number;
   private home: number;
   private seed: string;

@@ -38,6 +38,8 @@ import { shadowedPixelText } from '../ui/PixelText';
 import { playUiSfx } from '../services/SoundManager';
 import { PlayerRabbit } from '../entities/PlayerRabbit';
 import { HomeRabbit } from '@/game/burrow/HomeRabbit';
+import { DepthHole } from '../fx/DepthHole';
+import { DEPTH_HOLE_LOOK } from '@/config/depthHoleLook';
 import { FOG_COLOR, FOG_ALPHA, HIGHLIGHT_COLOR, HINT_TINTS } from '../entities/Tile';
 import * as Keys from '@/config/assetKeys';
 import { BURROW_COLS, BURROW_ROWS, BURROW_HALF_W, BURROW_HALF_H, burrowColRow } from '@/config/burrowConfig';
@@ -473,6 +475,20 @@ export class BurrowScene implements Scene {
    */
   private home: HomeRabbit | null = null;
   /**
+   * The window through whatever is drawn over the rabbit — the island's own
+   * `DepthHole`, on the same look, re-cut every frame in `update`.
+   *
+   * It only works because the rabbit is a SIBLING of the scenery: the trees,
+   * the rocks and the house are deported into `container` (see
+   * `createBurrowTerrain`'s `decoLayer`) and sorted by `burrowDepth`, and the
+   * hole is a depth test on that one sort. The rabbit used to live in
+   * `board`, which sits at zIndex 0 among them — behind every pine and behind
+   * the house whatever cell it stood on, with nothing to punch through since
+   * the cover was never its sibling. So both rabbits (`home` and `raider`)
+   * now stand in `container` directly, as the island's do.
+   */
+  private hole = new DepthHole({ ...DEPTH_HOLE_LOOK });
+  /**
    * Who lives here, as the page last said.
    *
    * Kept on the scene rather than only pushed at the rabbit, because the rabbit
@@ -868,7 +884,7 @@ export class BurrowScene implements Scene {
     // read as a defender who is not really there. `setRaid` clears it, and
     // `clearRaid` puts it back.
     if (this.raidCellsSeed === null) {
-      this.home = new HomeRabbit(this.board, this.data.seed);
+      this.home = new HomeRabbit(this.container, this.data.seed);
       this.applyHomeWho();
     }
 
@@ -1675,7 +1691,8 @@ export class BurrowScene implements Scene {
     // server says it now is. Dropped in from above on arrival, as on the farm.
     if (!this.raider) {
       this.raider = this.buildRaider(state.seed, state.at);
-      this.board.addChild(this.raider.container);
+      // In `container`, beside the scenery, not in `board`: see `hole`.
+      this.container.addChild(this.raider.container);
       this.raider.playSpawnDrop();
     } else if (state.at !== this.raiderAt) {
       this.raider.cancelMove();
@@ -2326,7 +2343,7 @@ export class BurrowScene implements Scene {
     this.syncDoorArrow();
     // The raid is over and this is somebody's home again.
     if (!this.home && !this.dying && !this.container.destroyed) {
-      this.home = new HomeRabbit(this.board, this.data.seed);
+      this.home = new HomeRabbit(this.container, this.data.seed);
       this.applyHomeWho();
     }
   }
@@ -2477,6 +2494,17 @@ export class BurrowScene implements Scene {
     // The terrain sways: the same wind that crosses the island crosses the
     // homestead, which is half of what makes the two read as one world.
     this.terrain?.update(ms);
+
+    // The window over the rabbit, re-cut every frame rather than per step:
+    // a hop tweens the container between cells, and a hole placed on arrival
+    // would sit a cell behind for the length of the hop. During a raid the
+    // raider is the one crossing the scenery; at home it is your own rabbit.
+    const subject = this.raider ?? this.home?.rabbit ?? null;
+    if (subject && !subject.container.destroyed) {
+      this.hole.update(this.container, subject.container.zIndex, DepthHole.centreOf(subject), this.app.renderer);
+    } else {
+      this.hole.clear();
+    }
   }
 
   /**
@@ -2511,6 +2539,9 @@ export class BurrowScene implements Scene {
     // about to be torn down — and a fresh one built here would outlive the
     // scene, ticking its own timer against a destroyed container.
     this.dying = true;
+    // Before the rabbits go: the filter is taken off the scenery here, and
+    // `clear` skips destroyed children rather than touching them.
+    this.hole.destroy();
     this.clearShock();
     this.clearRaid();
     this.home?.destroy();
