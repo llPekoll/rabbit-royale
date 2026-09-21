@@ -55,6 +55,8 @@ const SHIELD_ICON_URL = '/assets/ui/icons/shield.webp';
  * looked like two captions stacked.
  */
 const SHIELD_CREST_H = 18;
+/** The countdown's type, as a fraction of the body face's 8px cell. */
+const SHIELD_TEXT_SCALE = 0.75;
 
 export interface BurrowTerrainView {
   /** The ground container, to be added under the board. */
@@ -305,6 +307,9 @@ export async function createBurrowTerrain(
   shieldCrest.scale.set(SHIELD_CREST_H / shieldIcon.height);
   const shieldTime: Label = pixelText(0, 0, '');
   shieldTime.anchor.set(0.5, 0);
+  // Smaller than the crest's voice: the word only names what the number is,
+  // and at full size it out-shouted the crest above it.
+  shieldTime.scale.set(SHIELD_TEXT_SCALE);
   shield.addChild(shieldPlate, shieldCrest, shieldTime);
   container.addChild(shield);
 
@@ -341,8 +346,9 @@ export async function createBurrowTerrain(
     const w = Math.max(shieldCrest.width, shieldTime.width) + 12;
     const h = shieldTime.y + shieldTime.height + 4;
     shieldPlate.clear();
+    // No outline: the dark plate alone is enough of an edge against the
+    // grass, and a light rim read as a selection ring around the house.
     shieldPlate.roundRect(-w / 2, 0, w, h, 3).fill({ color: 0x0d1117, alpha: 0.82 });
-    shieldPlate.roundRect(-w / 2, 0, w, h, 3).stroke({ width: 1, color: 0x8fe3ff, alpha: 0.9 });
     shield.visible = true;
     placeShield();
   };
