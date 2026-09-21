@@ -2,41 +2,36 @@
 
 *21 septembre 2026 — Paul, pour Peko.*
 
-**Une seule énergie (300, pleine en 10 h) pour l'île, le raid et le retour. But : qu'on revienne, et que réfléchir paie.** Tout est sur `main`, simulé (`tools/sim-dig.sim.ts`, `tools/economy-day.sim.ts`) et vu à l'écran.
+Aujourd'hui on a fondu les trois réserves d'énergie en une seule, puis réglé tout ce qui en dépend pour que le jeu reste cohérent : **qu'on ait envie de revenir, et que réfléchir rapporte**. Tout est sur `main`, simulé avec des robots joueurs et vérifié à l'écran.
 
-## La boucle
+## Ce qui a changé, en clair
 
-1. **Plein, île.** Lire le plateau rend de l'énergie, ne pas lire en coûte. Un lecteur ramène le double d'un marcheur et finit Meadow et Thicket d'une traite ; dès Ashland tout le monde meurt.
-2. **De quoi piller ? Le jeu le dit** (ligne sur l'île, dalle PILLER au retour). Rentrer vivant et raider rapporte plus que creuser jusqu'au bout.
-3. **Raid.** Péage 45, puis un point par pas, huit par piège, 75 au plus. Atteindre le champ rend les pas, jamais les pièges.
-4. **À sec, par n'importe quelle porte, le terrier propose la recharge.** Plein en 10 h ; un point par heure de plus par niveau de terrier, jusqu'au 10.
+- **Une seule énergie pour tout.** Elle paie la sortie sur l'île et le raid, et ce qu'il en reste rentre au terrier avec toi. Elle se recharge en 10 h, un peu plus vite à chaque niveau de terrier.
+- **Les raids coûtent plus d'énergie qu'avant.** Sinon ils rapportaient trois à cinq fois plus qu'une fouille pour la même énergie, et tout le monde aurait raidé avant de creuser. Ils restent le meilleur coup, environ deux fois une fouille. Et un raid bien mené, qui atteint le champ, récupère l'énergie de ses pas.
+- **On n'entre plus nulle part avec trop peu pour y faire quelque chose.** Avant, on pouvait débarquer sur une île et mourir au septième coup.
+- **Quand il te reste de quoi piller, le jeu te le dit** : sur la jauge, sur l'île, sur le bouton de sortie. Rentrer vivant pour piller rapporte plus que creuser jusqu'au bout, et personne ne le devinait.
+- **À sec, le terrier propose la recharge**, quelle que soit la façon dont tu t'es vidé. La recharge coûte à peu près ce qu'une sortie rapporte, ni cadeau ni arnaque.
+- **On choisit son île** parmi celles qu'on a débloquées. Une île où d'autres creusent déjà est une sortie courte et sans danger ; une île neuve est la longue course où on peut mourir. Et un débutant ne tombe plus sur l'île d'un vétéran par accident.
+- **Les îles suivantes s'ouvrent un peu plus tard** (jours 3-4, 8-9, 14-15), recalées sur ce que les joueurs gagnent vraiment.
 
-## Les chiffres
+## L'intention
 
-| Réglage | Avant | Après |
-| --- | --- | --- |
-| Regen | 12/h | 30/h, +1 par niveau jusqu'au 10 |
-| Péage / mise du raid | 15 / 40 | 45 / 75 |
-| Plancher île / raid | 10 / 16 | 40 / 58 |
-| Pas rendus au champ | non | oui |
-| Recharge en carottes | 900 | 700 |
-| Portes de palier | 6 000 / 19 500 / 37 500 | 7 500 / 22 500 / 45 500 |
+- **Réfléchir paie.** Un joueur qui lit les chiffres ramène le double de celui qui creuse au hasard, et finit même les deux premières îles d'une traite. C'est voulu : la récompense de la première semaine. À partir de la troisième île, tout le monde meurt.
+- **La difficulté est progressive en apprenant, choisie ensuite, sociale pour toujours.** Deux semaines d'échelle, puis le joueur choisit son île et son risque, et ce sont les autres joueurs qui font monter la pression. Pas de cinquième île : après, de la variété et des records.
+- **On a testé et rejeté** ce qui punit le joueur au hasard sans toucher celui qui réfléchit : une jauge qui grandit avec le niveau, une bombe plus lourde, une île plus grande.
 
-Le simulateur passe toutes ses cibles : courses 65 % du revenu, raids 15 %, portes aux jours 4 / 9 / 15.
+## À surveiller en test
 
-**Rejeté, mesuré** : une barre qui grandit avec le terrier (à 335 le lecteur meurt deux fois moins sur Ashland), une bombe plus lourde (ne touche que le marcheur), une île plus grande (chantier de rendu). **À surveiller en test** : finir Meadow d'une traite ennuie-t-il ? La recharge se vend désormais au retour du raid, plus au récap.
-
-## Le soir : la difficulté et les indices
-
-- **Principe validé** : progressive en apprenant, choisie ensuite, sociale pour toujours. Après Caldera, variance et record par île, pas de 5e palier.
-- **On choisit son île.** CREUSER ouvre une liste (palier, qui creuse, coffres restants, « presque finie ») et une ligne par palier pour en ouvrir une neuve, grise au-dessus du palier atteint. Mesuré (`playShared`, tools/sim-dig-core.ts) : à quatre, l'île finit 4× plus vite et personne ne meurt, même sur Caldera — l'île occupée est la session courte et sûre, l'île neuve la longue course.
-- **Le réservoir s'explique** : un tap sur l'anneau ouvre un panneau (ce que l'énergie achète maintenant, le temps du plein, le niveau du terrier) ; le seuil du raid est un repère sur l'anneau ; PILLER sans 58 affiche l'attente ; sur l'île, de 100 à 58, la sortie dit « raid ready ».
+- Finir la première île d'une traite, est-ce que ça ennuie ?
+- La recharge se vend maintenant au retour d'un raid à sec, plus à la mort sur l'île. Est-ce que le moment est le bon ?
 
 ## À toi
 
-Aucune migration.
+Aucune migration de base.
 
-- [ ] `bun db:seed-tuning` après déploiement (`--dry-run` d'abord) : dix clés d'énergie et de raid sont surchargeables en base et masqueraient le fichier (`SHOP.PRICES.energy`, `OUT_OF_RUN_ENERGY.*`, `ENERGY.MIN_TO_CROSS`, `RAID_RUN.*`).
-- [ ] Relire `src/app/api/raid/route.ts` : plancher, budget, pas payés avec `floor: true`, remboursement par charge négative plafonnée, `burrowLevel` lu avec le réservoir.
-- [ ] Relire la fusion (d88fa00) : `payEnergy`, `bankRun`, l'éclair sur le réservoir persistant.
-- [ ] **Relire le choix de l'île** (même soir) : `join` accepte `{ islandId }` ou `{ tier }`, tenus à l'échelle (`tier_locked`, `island_gone`) et à `store.joinable` ; sans choix, `findJoinable(tier)` ne mélange plus les paliers. L'événement `islands` (ack) liste ce qu'un nouveau peut rejoindre. La liste sur CREUSER est côté client (`island-picker.tsx`).
+- [ ] Après déploiement, relancer le semis de la table de réglages (`bun db:seed-tuning`, `--dry-run` d'abord) : une dizaine de valeurs d'énergie et de raid y sont surchargeables et masqueraient le fichier.
+- [ ] Relire la route du raid (`src/app/api/raid/route.ts`) : ce qu'un raid demande pour entrer, ce qu'il dépense, le remboursement des pas au champ, et le niveau du terrier lu avec l'énergie.
+- [ ] Relire la fusion des réserves (commit d88fa00) : le paiement atomique, le retour de l'énergie au terrier, l'éclair du spectateur.
+- [ ] Relire le choix de l'île côté serveur (`join` avec une île ou un palier, la jointure par palier, l'événement `islands`).
+
+Les chiffres exacts sont dans `config/tuning.ts`, chacun avec son commentaire et sa mesure.
