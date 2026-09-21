@@ -525,7 +525,6 @@ export const ptBR: Dict = {
 
   quest: {
     claim: 'RESGATAR',
-    done: 'FEITO',
     claimItem: (qty, kind) => `RESGATAR ${qty} ${kind.toUpperCase()}${qty > 1 ? 'S' : ''}`,
     claimCarrots: (n) => `RESGATAR ${n} 🥕`,
     aria: (reward, title) => `${reward} por ${title}`,

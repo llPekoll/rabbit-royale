@@ -174,9 +174,15 @@ export function QuestCard({
       >
         <HubRow>
           <span style={headingText}>{t.quest.counter(quest.index, quest.total)}</span>
-          <span style={{ ...valueText, ...(quest.done ? { color: LIT } : null) }}>
-            {quest.done ? t.quest.done : quest.goal > 1 ? t.quest.progress(quest.progress, quest.goal) : ''}
-          </span>
+          {/* The progress, while there is some to show. NOT "DONE" once it is
+              done: the CLAIM slab across the foot already says so, and the
+              word in the lamp's gold was unreadable on parchment (Paul,
+              2026-09-21). The slot simply empties. */}
+          {!quest.done && (
+            <span style={valueText}>
+              {quest.goal > 1 ? t.quest.progress(quest.progress, quest.goal) : ''}
+            </span>
+          )}
         </HubRow>
         {/* The ASK, not the title: on a card this size there is room for one
             line, and "Dig 10 tiles." is the line that tells the player what to

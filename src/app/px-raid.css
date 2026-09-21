@@ -168,10 +168,26 @@
    SCOPED, not global. Two other agents are in the dialogs and the top bar this
    session, and `.rr-px-btn` is on every button in the game; this names only
    the buttons in the files this pass owns. */
-.rr-hub-btn,
 .rr-victory-rise .rr-px-btn {
   padding-left: var(--rr-pad) !important;
   padding-right: var(--rr-pad) !important;
+}
+/* THE CARDS' BUTTONS KEEP THE PLANK'S OWN SIDES, like the raid button below
+   and for the same reason: their face is the Woodland plank, whose leaf caps
+   are painted INSIDE the box, and at `--rr-pad` the label ran into the
+   leaves — "UPGRADE" sat on them on a phone (Paul, 2026-09-21). A cap and
+   a little air each side. */
+.rr-hub-btn {
+  padding-left: 24px !important;
+  padding-right: 24px !important;
+}
+/* THE UPGRADE BUTTON HOLDS TWO LINES (the verb, its price under it), and the
+   plank's 8px top and bottom left a 31px phone button 15px of face for 18px
+   of type: the verb's cap went under the plank's edge. The painted edge is
+   ~4px of art; that is the pad, and both lines sit on the wood. */
+.rr-hub-btn.rr-burrow-upgrade {
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
 }
 /* THE RAID BUTTON KEEPS THE PLANK'S OWN SIDES. It is the one button in this
    pass that is painted rather than drawn: its face is the plank 3-slice

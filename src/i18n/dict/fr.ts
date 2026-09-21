@@ -521,7 +521,6 @@ export const fr: Dict = {
 
   quest: {
     claim: 'RÉCLAMER',
-    done: 'FINI',
     claimItem: (qty, kind) => `RÉCLAMER ${qty} ${kind.toUpperCase()}`,
     claimCarrots: (n) => `RÉCLAMER ${n} 🥕`,
     aria: (reward, title) => `${reward} pour ${title}`,

@@ -115,7 +115,9 @@ describe('the burrow has its moments', () => {
 
 describe('the small pops', () => {
   it('badges pop on arrival, tiles pop on news, ranks pop on change', () => {
-    expect(read('../src/components/loop-bar.tsx')).toMatch(/className="rr-hub-badge"/);
+    // The badge may carry a second class (`rr-loop-corner`, which seats it on
+    // the slab's corner); what is held is that it IS a hub badge, so it pops.
+    expect(read('../src/components/loop-bar.tsx')).toMatch(/className="rr-hub-badge( [\w-]+)*"/);
     expect(CSS).toMatch(/\.rr-hub-badge \{ animation: rr-badge-pop/);
     // The quest's slab pops when the quest lands on it; the STORY icon pops
     // when a chapter opens.

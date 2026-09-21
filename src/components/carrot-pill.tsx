@@ -34,7 +34,7 @@
  * that was never ambiguous. What sits there now is the rank line, which says
  * something the number cannot.
  */
-import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
+import { useEffect, useRef, type CSSProperties, type KeyboardEvent } from 'react';
 import { useT } from '@/i18n/provider';
 import { CARROT_URL, CARROT_SIZE } from '@domin8/arcade-kit/game';
 import { CarrotBurst } from '@/components/carrot-burst';
@@ -170,16 +170,12 @@ export function CarrotPill({
 }: CarrotPillProps) {
   const t = useT();
   const ref = useRef<HTMLDivElement>(null);
-  /* FOLDED BY DEFAULT (Paul, 2026-09-16). The pill says the two things a
-     glance needs — how many carrots, what place — and the climb ("17 to #11")
-     waits behind a tap. A second row that is always there is a second row the
-     top of a 400px-tall phone pays for on every screen. */
-  const [open, setOpen] = useState(false);
+  /* THE CLIMB IS ALWAYS ON THE BOARD. It was folded behind a tap (Paul,
+     2026-09-16) to spare a phone's top row; the board is a plank with a
+     second row of wood now and the medallion beside it, so "17 to #11"
+     simply stands under the figure (Paul, 2026-09-21: "no need to toggle,
+     we've got plenty of space"). No state, no caret, no button role. */
   const hasRank = rank !== null && (rank === 1 || toPass !== null);
-  const toggle = () => setOpen((o) => !o);
-  const onKey = (e: KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
-  };
   // The shake rides `translate`, not `transform`: the stylesheet centres the
   // pill with a transform, and animating that would fling it off its centre.
   // Web Animations rather than a class, so a second refusal replays it.
@@ -198,18 +194,6 @@ export function CarrotPill({
       className="rr-carrot-pill"
       style={pill}
       title={t.pill.banked(stock)}
-      /* A BUTTON only when there is a climb to show. Unranked, the pill has
-         nothing behind the tap, and a control that does nothing is worse than
-         a readout. A div with the role rather than a <button>: the plate is a
-         block (the kit's panel), which a button may not hold. */
-      {...(hasRank ? {
-        role: 'button',
-        tabIndex: 0,
-        'aria-expanded': open,
-        'aria-label': open ? t.pill.hideClimb(stock, rank!) : t.pill.showClimb(stock, rank!),
-        onClick: toggle,
-        onKeyDown: onKey,
-      } : {})}
     >
       {/* THE MEDALLION: the bank's energy, a ring drawn like a fuel gauge
           (energy-dial.tsx) — full at 12 o'clock, draining anticlockwise. It
@@ -331,7 +315,6 @@ export function CarrotPill({
           {hasRank && (
             <span key={`rank-${rank}`} className="rr-rank-pop" style={rankChip}>#{rank}</span>
           )}
-          {hasRank && <span className={`rr-pill-caret${open ? ' open' : ''}`} aria-hidden />}
         </span>
         {/* THE CLIMB, unfolded: what it takes to pass the place ahead. The
             gap is in SEASON SCORE, which a harvest and a raid move with the
@@ -351,7 +334,7 @@ export function CarrotPill({
             />
           </span>
         )}
-        {hasRank && open && (
+        {hasRank && (
           <span
             className="rr-pill-climb"
             style={rankRow}

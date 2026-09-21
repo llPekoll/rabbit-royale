@@ -517,7 +517,6 @@ export const zh: Dict = {
 
   quest: {
     claim: '领取',
-    done: '完成',
     claimItem: (qty, kind) => `领取 ${qty} 个${kind}`,
     claimCarrots: (n) => `领取 ${n} 🥕`,
     aria: (reward, title) => `${title}的${reward}`,

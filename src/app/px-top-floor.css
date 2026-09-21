@@ -506,7 +506,13 @@ button.rr-item-slot:active:hover:not(:disabled) { filter: var(--rr-live-ring,) v
   color: #4a3524 !important;
   text-shadow: none !important;
 }
-.rr-loop-slab.rr-loop-home .rr-loop-line { color: #6d5238 !important; }
+/* The state line carries the verbs' drop shadow, at half its weight: on
+   parchment a full shadow doubled the small type, none at all left it flat
+   beside a verb that has one (Paul, 2026-09-21: "shadow at 50% opacity"). */
+.rr-loop-slab.rr-loop-home .rr-loop-line {
+  color: #6d5238 !important;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.5);
+}
 /* THE PARCHMENT IS A TIGHTER BOX THAN A FLAT SLAB. Its frame is drawn art at
    both ends AND top and bottom, so a 48px Seeker slab offers ~34px of paper
    where the green face offered the whole 48. The verb steps down a size

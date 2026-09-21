@@ -244,7 +244,7 @@ export function LoopBar({
               <StateLine parts={digParts} color={DIG_INK} />
             </span>
           </span>
-          {pointed === 'dig' && <LeafBadge height={20} className="rr-hub-badge" style={badgeSeat}>!</LeafBadge>}
+          {pointed === 'dig' && <LeafBadge height={20} className="rr-hub-badge rr-loop-corner" style={badgeSeat}>!</LeafBadge>}
         </PxButton>
         {/* NO GAUGE HERE ANY MORE. The energy medallion hung off this slab's
             left end (the dial board, 2026-09-19) and read as DIG's fuel; it
@@ -312,7 +312,7 @@ export function LoopBar({
               />
             </span>
           </span>
-          {pointed === 'home' && <LeafBadge height={20} className="rr-hub-badge" style={badgeSeat}>!</LeafBadge>}
+          {pointed === 'home' && <LeafBadge height={20} className="rr-hub-badge rr-loop-corner" style={badgeSeat}>!</LeafBadge>}
         </PxButton>
       </div>
 
@@ -352,9 +352,9 @@ export function LoopBar({
               takes the quiet chip — a red "20" read as twenty unread things,
               and the target list has nothing marked new to match it. */}
           {pointed === 'raid' ? (
-            <LeafBadge height={20} className="rr-hub-badge" style={badgeSeat}>!</LeafBadge>
+            <LeafBadge height={20} className="rr-hub-badge rr-loop-corner" style={badgeSeat}>!</LeafBadge>
           ) : raid.open > 0 ? (
-            <PxPanel color={CHIP} className="rr-raid-chip" style={{ ...badge, color: CHIP_INK }}>{raid.open}</PxPanel>
+            <PxPanel color={CHIP} className="rr-raid-chip rr-loop-corner" style={{ ...badge, color: CHIP_INK }}>{raid.open}</PxPanel>
           ) : null}
         </PxButton>
       </div>
@@ -563,9 +563,10 @@ const CHIP_INK = '#fde7bd';
  * below would override all three (a spread style wins) and squash the art.
  */
 const badgeSeat: CSSProperties = {
+  /* The offsets live in the stylesheet: `.rr-loop-corner` (px-top-floor.css)
+     reaches back out of the slab's inset content box to the plank's corner,
+     and an inline right/top here would beat it. */
   position: 'absolute',
-  right: -7,
-  top: 'calc(-8px - var(--u))',
   pointerEvents: 'none',
 };
 
@@ -575,9 +576,10 @@ const badgeSeat: CSSProperties = {
  * the offset reaches back up by that much.
  */
 const badge: CSSProperties = {
+  /* The offsets live in the stylesheet: `.rr-loop-corner` (px-top-floor.css)
+     reaches back out of the slab's inset content box to the plank's corner,
+     and an inline right/top here would beat it. */
   position: 'absolute',
-  right: -7,
-  top: 'calc(-8px - var(--u))',
   minWidth: 22,
   /* The game's chip inset, as on every other badge. */
   padding: '2px var(--rr-pad-tight)',

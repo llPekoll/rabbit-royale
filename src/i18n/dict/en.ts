@@ -624,7 +624,6 @@ export const en = {
   /* ── The quest card ───────────────────────────────────────────────────── */
   quest: {
     claim: 'CLAIM',
-    done: 'DONE',
     claimItem: (qty: number, kind: string) => `CLAIM ${qty} ${kind.toUpperCase()}${qty > 1 ? 'S' : ''}`,
     claimCarrots: (n: number) => `CLAIM ${n} 🥕`,
     aria: (reward: string, title: string) => `${reward} for ${title}`,

@@ -110,7 +110,7 @@ export function BurrowPanel({
       footer={
         <PxButton
           type="button"
-          className="rr-hub-btn"
+          className="rr-hub-btn rr-carrot-price rr-burrow-upgrade"
           onClick={onUpgrade}
           disabled={!canUpgrade || pending}
           color={canUpgrade && !pending ? BTN : BTN_OFF}
@@ -124,8 +124,13 @@ export function BurrowPanel({
              which the stylesheet hides — they are what the disabled state and
              the kit's own ink still read. */
           style={{
-            height: '30cqh',
-            minHeight: 32,
+            /* Two lines now (the verb, its price). The floor is in the
+               height itself: a `minHeight` beside a `cqh` height was not
+               honoured (measured 31px on a phone with minHeight 36), and
+               38 is the least that keeps the verb's cap off the plank's
+               top edge with 9 + 7px of type. */
+            height: 'max(32cqh, 38px)',
+            minHeight: 38,
             flexShrink: 0,
             width: '100%',
             '--rr-btn-face': canUpgrade && !pending ? BTN : BTN_OFF,
@@ -135,21 +140,31 @@ export function BurrowPanel({
             '--rr-btn-ink': canUpgrade && !pending ? '#ffffff' : BTN_OFF_INK,
           } as CSSProperties}
         >
-          <span style={{ ...pxLabel, fontSize: cardSize(15, 9, 15) }}>{maxed ? t.burrow.maxLevel : t.burrow.upgrade}</span>
+          {/* THE VERB, AND ITS PRICE UNDER IT. One line ("UPGRADE 500") ran
+              past the plank on a phone, where this button is ~100px wide
+              beside the hut; two lines fit at every size, and the price
+              reads as the price because it is on the thing it buys. */}
+          <span style={upgradeLabel}>
+            <span style={{ ...pxLabel, fontSize: cardSize(15, 9, 14) }}>{maxed ? t.burrow.maxLevel : t.burrow.upgrade}</span>
+            {!maxed && (
+              <span style={upgradePrice}>
+                {groupDigits(upgradeCost)}
+                <CarrotMark size={CARROT_MARK_SIZE} />
+              </span>
+            )}
+          </span>
         </PxButton>
       }
     >
       <HubRow>
         <span style={headingText}>{t.burrow.level(level)}</span>
-        {/* The PRICE, which is what the button is about. At the top of the
-            ladder there is no price, and printing a dash there would be a
-            blank where a number used to be — the button says MAX instead. */}
-        {!maxed && (
-          <span style={valueText}>
-            {upgradeCost}
-            <CarrotMark size={CARROT_MARK_SIZE} />
-          </span>
-        )}
+        {/* NO FIGURE BESIDE THE NAME. The upgrade's price sat here with a
+            carrot mark, and beside "BURROW - LVL 1" a carrot figure read as
+            the burrow's carrots — or its level (Paul, 2026-09-21: "the
+            carrot icon there is misleading"). The price is what the button
+            is about, so it is ON the button now, the way the quest's CLAIM
+            carries its reward. The heading has the row to itself and no
+            longer wraps or clips on a phone. */}
       </HubRow>
 
       <p className={SUB_CLASS} style={subText}>{yieldPerHour} carrots/hour</p>
@@ -181,6 +196,26 @@ export function BurrowPanel({
     </HubCard>
   );
 }
+
+/** The two lines on the button, stacked and centred. */
+const upgradeLabel: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  gap: 2,
+  lineHeight: 1,
+};
+/** The price line: the label's face a step smaller, the carrot beside it. */
+const upgradePrice: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 'var(--rr-pad-tight)',
+  fontFamily: 'var(--font-pixel), ui-monospace, monospace',
+  fontSize: cardSize(11, 7, 10),
+  fontVariantNumeric: 'tabular-nums',
+  letterSpacing: '0.04em',
+  lineHeight: 1,
+};
 
 /** The carrot beside a figure: the game's own, in colour (`CarrotMark`). */
 const CARROT_MARK_SIZE = cardSize(12, 7, 12);
