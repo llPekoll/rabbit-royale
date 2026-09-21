@@ -524,6 +524,11 @@ button.rr-item-slot:active:hover:not(:disabled) { filter: var(--rr-live-ring,) v
 /* …except the alarm, which must stay loud: something is out there to lose.
    Darkened for parchment rather than dropped. */
 .rr-loop-slab.rr-loop-home .rr-loop-line.rr-loop-danger { color: #a8301f !important; }
+/* RAID'S STATE LINE keeps the colour the component gives it — the pale rose
+   of the board, or the lamp's gold for a burrow worth walking to. The runtime
+   paints the slab's spans in its ink with `!important`, which flattened the
+   gold to the verb's colour; the variable is the way back through it. */
+.rr-loop-slab.rr-loop-raid .rr-loop-line { color: var(--rr-line-ink, #f0c9c9) !important; }
 
 
 /* ── DIG WEARS THE DIAL BOARD ──────────────────────────────────────────────

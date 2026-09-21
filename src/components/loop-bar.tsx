@@ -475,7 +475,12 @@ function StateLine({ parts, color, danger = false }: { parts: string[]; color: s
          still letting the alarm read as an alarm. A colour alone cannot be
          overridden selectively. */
       className={`rr-loop-line${danger ? ' rr-loop-danger' : ''}`}
-      style={{ ...line, color }}
+      /* The colour twice: as `color`, and as `--rr-line-ink` for the RAID
+         board, where the Woodland runtime paints every span in the slab's
+         ink with `!important` and an inline colour cannot win. The sheet
+         reads the variable back (px-top-floor.css), so the gold of a burrow
+         worth walking to still shows there. */
+      style={{ ...line, color, ['--rr-line-ink' as string]: color }}
     >
       <span
         ref={text}

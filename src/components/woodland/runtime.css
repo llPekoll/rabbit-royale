@@ -77,7 +77,11 @@
 .wl-runtime-close:active { background-image: url('/assets/ui/close-pressed.webp') !important; }
 /* Preserve the existing art and inset geometry on the three island actions. */
 .wl-runtime-action.rr-loop-slab { padding: 0 !important; }
-.wl-runtime-action.rr-loop-home, .wl-runtime-action.rr-loop-raid { --wl-runtime-ink: #352011; }
+/* DEFEND is parchment: the dark ink. RAID is the skull board, near-black wood,
+   and it took the same ink — the verb was unreadable, ink on wood (Paul,
+   2026-09-21). Cream there, like every other plank. */
+.wl-runtime-action.rr-loop-home { --wl-runtime-ink: #352011; }
+.wl-runtime-action.rr-loop-raid { --wl-runtime-ink: #fff0cb; }
 @media (prefers-reduced-motion: reduce) { .wl-runtime-action:active:not(:disabled) { transform: none; } }
 
 /* ── INK ON PARCHMENT ───────────────────────────────────────────────────────
