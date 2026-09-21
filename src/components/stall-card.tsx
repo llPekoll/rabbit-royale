@@ -32,6 +32,7 @@ import { PxButton, pxLabel } from './px';
 import { PanelTitle } from './pixel-text';
 import { ITEM_META, heldLabel } from './item-meta';
 import type { ShopItem } from './use-shop';
+import { StallDrag } from './stall-drag';
 import { useT } from '@/i18n/provider';
 import { groupDigits } from '@/i18n/format';
 import { PAY_TOKENS, priceLabel, type PayTokenId } from '@/lib/pay/tokens';
@@ -216,32 +217,63 @@ export function StallSign({ style }: { style?: CSSProperties }) {
 /**
  * The rails: carrots, then every token the deployment takes. One choice for
  * the whole stall — per-card rails would be seven cards times four rails on a
- * phone. Hidden entirely when there is no money route: a switch with one
- * position is furniture.
+ * phone.
+ *
+ * SHOWN EVEN WHEN THE MONEY ROUTE IS OFF, which it did not used to be. The
+ * first cut hid the switch whenever `tokens` was empty, on the grounds that a
+ * switch with one position is furniture. That reads correctly from the code
+ * and wrongly from the stall: a player who has been told the shop takes USDC,
+ * SOL and SKR sees no switch at all and concludes it is broken, which is
+ * exactly what happened. An offer that is temporarily unavailable is not the
+ * same thing as an offer that does not exist, and the shelf has to be able to
+ * say which.
+ *
+ * So the unavailable rails are drawn, dimmed and unclickable, and they carry
+ * the REASON as their tooltip — `disabledNote`, from whoever knows it (no
+ * treasury configured, or a guest with no wallet to send from). What must
+ * never happen is a rail that looks live, quotes a price and then fails at
+ * signing; `disabled` is what keeps this honest rather than decorative.
  */
 export function StallRails({
-  tokens, rail, onRail,
-}: { tokens: readonly PayTokenId[]; rail: StallRail; onRail(r: StallRail): void }) {
+  tokens, rail, onRail, offered = tokens, disabledNote,
+}: {
+  tokens: readonly PayTokenId[];
+  rail: StallRail;
+  onRail(r: StallRail): void;
+  /** Every rail worth DRAWING. Defaults to the live ones, so a caller that
+   *  does not care about the unavailable ones behaves exactly as before. */
+  offered?: readonly PayTokenId[];
+  /** Why the drawn-but-dead rails are dead. Absent when none are. */
+  disabledNote?: string;
+}) {
   const t = useT();
-  if (tokens.length === 0) return <span />;
-  const rails: StallRail[] = ['carrots', ...tokens];
+  // Nothing to choose between at all: no money rail is even conceivable on
+  // this build. THAT is the case the original guard was right about.
+  if (offered.length === 0) return <span />;
+  const rails: StallRail[] = ['carrots', ...offered];
   return (
     <span className="rr-stall-rails" role="group" aria-label={t.shop.payWith}>
       {rails.map((r) => {
-        const on = r === rail;
         const carrots = r === 'carrots';
+        // Carrots are always live; a token rail is live only if the server
+        // listed it in `tokens`. `offered` may be wider — that is the point.
+        const live = carrots || tokens.includes(r as PayTokenId);
+        const on = r === rail;
         const face = carrots ? CARROT_BTN : COIN_BTN;
         return (
           <PxButton
             key={r}
             // `nine-btn--pressed` is the kit's sunken state: the chosen rail
             // sits IN the board, the others stand on it.
-            className={`rr-stall-rail${on ? ' on nine-btn--pressed' : ''}`}
+            className={`rr-stall-rail${on ? ' on nine-btn--pressed' : ''}${live ? '' : ' off'}`}
             color={on ? face.color : PLANK}
             shadowColor={on ? face.shadowColor : SOIL_DEEP}
             textColor={on ? face.textColor : '#b39877'}
-            onClick={() => onRail(r)}
+            onClick={() => { if (live) onRail(r); }}
+            disabled={!live}
+            title={live ? undefined : disabledNote}
             aria-pressed={on}
+            aria-disabled={!live}
           >
             <span style={{ ...pxLabel, fontSize: 10 }}>{carrots ? '🥕' : PAY_TOKENS[r].symbol}</span>
           </PxButton>
@@ -289,7 +321,9 @@ export function StallShelf({ children }: { children: ReactNode }) {
   const track = useRef<HTMLDivElement | null>(null);
   /* The thumb, as shares of the track: how wide, and how far along. */
   const [bar, setBar] = useState({ size: 1, at: 0 });
-  const drag = useRef<{ x: number; left: number; moved: boolean } | null>(null);
+  /* The gesture lives in `stall-drag.ts`, with no DOM in it — see there for
+     why a drag that ends off the row is the case that matters. */
+  const drag = useRef(new StallDrag());
   const [dragging, setDragging] = useState(false);
 
   const measure = useCallback(() => {
@@ -313,37 +347,42 @@ export function StallShelf({ children }: { children: ReactNode }) {
   /* ── Drag the row ── */
   const onRowDown = (e: ReactPointerEvent<HTMLUListElement>) => {
     if (e.pointerType !== 'mouse' || e.button !== 0) return;
-    drag.current = { x: e.clientX, left: row.current!.scrollLeft, moved: false };
+    drag.current.down(e.clientX, row.current!.scrollLeft);
   };
   const onRowMove = (e: ReactPointerEvent<HTMLUListElement>) => {
-    const d = drag.current;
-    if (!d) return;
-    const dx = e.clientX - d.x;
-    if (!d.moved) {
-      if (Math.abs(dx) <= 4) return;
+    const was = drag.current.dragging;
+    const left = drag.current.move(e.clientX);
+    if (left === null) return;
+    if (!was) {
       /* NOT ON THE PRESS: capturing the pointer at pointerdown makes the row
          the target of the pointerup, and a click is fired at the common
          ancestor of the two targets — so every press on a price button became
          a click on the row, and nothing bought anything. The row takes the
          pointer only once the press has become a drag. */
-      d.moved = true;
       row.current!.setPointerCapture(e.pointerId);
       setDragging(true);
     }
-    row.current!.scrollLeft = d.left - dx;
+    row.current!.scrollLeft = left;
   };
   const onRowUp = () => {
-    /* The click that follows the release is still coming; `moved` has to
-       survive until it does — the click handler clears it. A press that
-       never moved is over now. */
-    if (drag.current && !drag.current.moved) drag.current = null;
+    /* The click that follows a drag is still coming, so the swallow is armed
+       here and disarmed a microtask later rather than only by the click.
+
+       A drag that ends off the row — released over the burrow, outside the
+       window, or after the browser dropped the capture — fires no click at
+       all. Armed-until-clicked therefore stayed armed forever, and every
+       later click was swallowed by `onClickCapture` above the buttons,
+       before any rail could see it: the shelf stopped buying anything in any
+       currency until a reload. The click is dispatched in the same task as
+       this release, so the microtask is always late enough to swallow a real
+       one and always early enough that nothing survives to the next press. */
+    if (drag.current.up()) queueMicrotask(() => drag.current.disarm());
     setDragging(false);
   };
   const onRowClickCapture = (e: React.MouseEvent) => {
-    if (drag.current?.moved) {
+    if (drag.current.click()) {
       e.stopPropagation();
       e.preventDefault();
-      drag.current = null;
     }
   };
 

@@ -4123,6 +4123,19 @@ button { font-family: var(--font-pixel); }
   min-width: 40px;
   padding: 2px 6px !important;
 }
+/* A rail this deployment cannot take money on. Drawn rather than hidden — an
+   offer that is temporarily off is not an offer that does not exist — but it
+   must not look pressable. The reason rides along as the button's title
+   (see StallRails).
+   NOT `grayscale`: the rail's face is a wooden plank, and desaturating it
+   turns the button into a grey pebble that reads as a different object
+   entirely. Dimming alone keeps it legibly the same plank, just asleep —
+   which is the whole message. The label stays above the opacity floor so
+   `SOL` is still readable; a switch you cannot read is not an offer. */
+.rr-stall-rails .rr-stall-rail.off {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
 .rr-stall-purse {
   min-width: 120px;
   padding: 0 4px;

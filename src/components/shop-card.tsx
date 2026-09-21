@@ -35,7 +35,7 @@ import type { ItemKind, ShopItem, ShopState } from './use-shop';
 import { useT } from '@/i18n/provider';
 import { payStageLine, type PayStage } from './use-usdc-pay';
 import { LauncherTab, DANGER, LAMP } from './burrow-chrome';
-import type { PayTokenId } from '@/lib/pay/tokens';
+import { PAY_TOKEN_IDS, type PayTokenId } from '@/lib/pay/tokens';
 import { StallCard, StallPurse, StallRails, StallShelf, StallSign, type StallRail } from './stall-card';
 import { LootChest, CHEST_ASPECT } from './loot-chest';
 
@@ -193,7 +193,25 @@ export function ShopPanel({
         />
 
         <header className="rr-stall-head">
-          <StallRails tokens={tokens} rail={rail} onRail={pickRail} />
+          {/* `offered` is every rail the BUILD knows, not every rail this
+              deployment takes: the switch stays on the board with USDC / SOL /
+              SKR dimmed when the money route is off, rather than vanishing and
+              reading as a missing feature. `tokens` still decides which of
+              them can actually be picked.
+
+              The note says WHICH of the two reasons is in force, and it is the
+              same pair the strapline below uses: no treasury on this
+              deployment (nobody can pay) versus no wallet on this session (a
+              guest — connect one and the rails light up). Telling a signed-in
+              player "not switched on yet" when the truth is "connect a wallet"
+              sends them to wait for something that already happened. */}
+          <StallRails
+            tokens={tokens}
+            offered={PAY_TOKEN_IDS}
+            disabledNote={shop && !shop.usdcEnabled ? t.shop.cardsOff : t.shop.connectForCard}
+            rail={rail}
+            onRail={pickRail}
+          />
           {/* The purse, in the head. Every price below is read against it, and
               making the player close the shop to check it is the one thing a
               shop must never do. */}

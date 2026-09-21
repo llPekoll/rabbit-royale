@@ -66,11 +66,15 @@ function makeShop(stock: number, held: Partial<Record<ItemKind, number>>, usdcEn
 function Harness({
   stock = 4200,
   usdcEnabled = true,
+  guest = false,
   held = {},
   open = true,
 }: {
   stock?: number;
   usdcEnabled?: boolean;
+  /** A session with no wallet. The treasury may be perfectly well configured;
+   *  there is simply nothing to send FROM. Mirrors `!player.guest` in page. */
+  guest?: boolean;
   held?: Partial<Record<ItemKind, number>>;
   /** Start with the drawer up. Most stories do — it is what they are about. */
   open?: boolean;
@@ -146,7 +150,14 @@ function Harness({
           shop={shop}
           busy={false}
           onBuy={buy}
-          onPayUsdc={usdcEnabled ? (k: ItemKind) => setNote(`Would open the wallet for ${k}`) : undefined}
+          // Both gates, exactly as page.tsx folds them: a treasury to receive
+          // the money AND a wallet to send it. Either missing means no paid
+          // button — and now, a visibly dead rail rather than no switch.
+          onPayUsdc={
+            usdcEnabled && !guest
+              ? (k: ItemKind) => setNote(`Would open the wallet for ${k}`)
+              : undefined
+          }
           note={note}
           onClose={() => { setShopOpen(false); setNote(null); }}
         />
@@ -177,10 +188,24 @@ export const Default: Story = {};
 export const Closed: Story = { args: { open: false } };
 
 /**
- * No treasury configured, so the money route is hidden entirely rather than
- * shown as a button that cannot complete.
+ * No treasury configured: nobody on this deployment can pay with money.
+ *
+ * The switch is still on the board, with USDC / SOL / SKR dimmed — hiding it
+ * read as a missing feature and got the shop reported as broken. The rails
+ * say "not switched on yet", which is a fact about the SERVER.
  */
 export const CarrotsOnly: Story = { args: { usdcEnabled: false } };
+
+/**
+ * A guest: the treasury is fine, the session has no wallet to send from.
+ *
+ * The same dimmed rails as above, but a DIFFERENT reason — "connect a wallet"
+ * rather than "not switched on yet". Worth keeping as its own story because
+ * the two states look identical and are fixed by opposite things: one is a
+ * deploy, the other is one click by the player. Connect a wallet and these
+ * three light up; that is the whole contract this story pins.
+ */
+export const GuestNoWallet: Story = { args: { guest: true } };
 
 /**
  * Broke. Every carrot button is out, every USDC button still live — which is
