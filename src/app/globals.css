@@ -2723,7 +2723,11 @@ body:has(.rr-empty) .rr-sound { display: none; }
 /* The panel is a kit nine-slice, so it carries no fill or radius of its own
    here — only its placement above the cluster. */
 .rr-sound-panel {
-  width: 200px;
+  /* Four rows of label-plus-control inside a leaf frame that eats 12px a side.
+     At 200px the controls had 60px to live in and every one of them came out a
+     different size; 216 is what the widest row (the volume rail) needs to sit
+     in the same gutter as the switches. */
+  width: 216px;
 }
 /* The panel's decorative frame is 2 source px — 4px at UI_PIXEL — and the
    nine-slice paints it as a BORDER, so content laid out flush to the box sits
@@ -2745,46 +2749,171 @@ body:has(.rr-empty) .rr-sound { display: none; }
   gap: 10px;
 }
 
+/* ── ONE GUTTER FOR EVERY CONTROL ──────────────────────────────────────────
+   The panel's trouble was never its colours: it was four rows claiming to be
+   the same shape (name left, control right) while their controls ran from a
+   14px pill to a plank half the panel wide. Nothing lined up, so the column
+   had no edge to read down.
+
+   So the controls share one gutter — `--rr-sound-gutter` — and every row is a
+   two-column grid rather than a `space-between` that lets each control decide
+   its own width. The labels then start on the same x too, which the old rows
+   only managed by accident. */
+.rr-sound-settings {
+  --rr-sound-gutter: 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+.rr-sound-settings .rr-sound-row,
+.rr-sound-settings .wl-toggle {
+  display: grid;
+  grid-template-columns: 1fr var(--rr-sound-gutter);
+  align-items: center;
+  gap: 10px;
+  justify-content: initial;
+}
+
+/* The kit's switch, at a size a thumb can read. It is drawn for a wide panel
+   column; here it keeps the kit's proportions (track ~2.4x the knob) at the
+   gutter's width, instead of the shrunken pill that read as a lamp rather
+   than a switch. */
+.rr-sound-panel-inner .wl-toggle {
+  min-height: 0;
+  padding: 0;
+  font-size: 11px;
+  text-align: left;
+  cursor: var(--cur-hand);
+}
+.rr-sound-panel-inner .wl-toggle-track {
+  width: 100%;
+  height: 26px;
+  padding: 3px;
+  box-sizing: border-box;
+}
+.rr-sound-panel-inner .wl-toggle-track > span {
+  width: 20px;
+  height: 100%;
+}
+
+/* OFF IS A HOLE, ON IS A LIT SWITCH. The kit's off state is a brown track
+   under a bright gold knob — on parchment that reads as a second lit state,
+   which is why Music-off and Effects-on looked like two flavours of the same
+   thing. Off is now sunk and drained: a dark channel, a dull knob, no glow.
+   The state is in the light, not only in which side the knob is on. */
+.rr-sound-panel-inner .wl-toggle[aria-checked='false'] .wl-toggle-track {
+  background: #4a3423;
+  box-shadow: inset 0 3px #241811;
+}
+.rr-sound-panel-inner .wl-toggle[aria-checked='false'] .wl-toggle-track > span {
+  background: #9c8163;
+  box-shadow: inset 0 2px #b9a184;
+}
+.rr-sound-panel-inner .wl-toggle[aria-checked='true'] .wl-toggle-track {
+  background: #6f9b30;
+  box-shadow: inset 0 2px #2f4a15;
+}
+
 /* The volume slider stays a native <input type="range"> — drag, arrow keys and
    screen-reader support for free, which a redrawn one would owe. It is only
    retinted: the track is cut from the burrow's soil and the thumb is a square
    carrot chip, because a round thumb is the one shape this game does not have. */
+/* The rail fills the same gutter as the switches above it, and its channel is
+   cut the same way theirs is — same dark inset, same rounding — so the three
+   rows read as one instrument with three controls. It used to be a bare black
+   filament stretched past them, which is what made the column look broken. */
 .rr-sound-range {
-  width: 104px;
-  height: 14px;
+  width: 100%;
+  height: 26px;
   margin: 0;
+  /* Lifted onto the label's own centre line — see the track below. */
+  transform: translateY(-3px);
   background: none;
   border: none;
   -webkit-appearance: none;
   appearance: none;
   cursor: var(--cur-hand);
 }
+/* The channel is cut like the switch tracks above it — same dark inset, same
+   rounding — so the three rows read as one instrument with three controls.
+
+   IT RIDES HIGH IN ITS ROW. The label beside it is bitmap type whose visual
+   centre sits above its box's middle, so a rail centred on the row's geometry
+   still hangs below the word it belongs to (Paul, 2026-09-21: "releve le un
+   peu"). The lift is on the input rather than the track, because WebKit
+   ignores margins on `::-webkit-slider-runnable-track`. */
 .rr-sound-range::-webkit-slider-runnable-track {
-  height: 6px;
-  background: #1d100a;              /* SOIL_DEEP — the channel */
-  border: 2px solid #0c0a12;        /* the kit's button ink */
+  height: 12px;
+  border-radius: 6px;
+  background: #4a3423;
+  box-shadow: inset 0 3px #241811;
+  border: none;
 }
 .rr-sound-range::-moz-range-track {
-  height: 6px;
-  background: #1d100a;
-  border: 2px solid #0c0a12;
+  height: 12px;
+  border-radius: 6px;
+  background: #4a3423;
+  box-shadow: inset 0 3px #241811;
+  border: none;
+}
+/* The knob is the switches' knob: same lit face, same rounding. The browser
+   centres a thumb on the track and lets it hang off both ends, so at full
+   volume it broke the right edge the switches hold — the one line the whole
+   panel is built on. The track is inset by half a knob at each side, which is
+   exactly the overhang, so the knob now travels edge to edge INSIDE the
+   gutter instead of over it. */
+.rr-sound-range::-webkit-slider-runnable-track,
+.rr-sound-range::-moz-range-track {
+  margin-inline: 8px;               /* half a knob: exactly its overhang */
 }
 .rr-sound-range::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 10px;
-  height: 14px;
-  margin-top: -6px;                 /* centre the chip on the 6px track */
-  background: #e07a2f;              /* CARROT */
-  border: 2px solid #0c0a12;
-  border-radius: 0;
+  width: 14px;
+  height: 20px;
+  margin-top: -4px;                 /* centre the knob on the 12px channel */
+  border-radius: 4px;
+  background: #ffd461;
+  box-shadow: inset 0 2px #fff0ad, 0 2px #a86b20;
+  border: none;
 }
 .rr-sound-range::-moz-range-thumb {
-  width: 10px;
-  height: 14px;
-  background: #e07a2f;
-  border: 2px solid #0c0a12;
-  border-radius: 0;
+  width: 14px;
+  height: 20px;
+  border-radius: 4px;
+  background: #ffd461;
+  box-shadow: inset 0 2px #fff0ad, 0 2px #a86b20;
+  border: none;
+}
+
+/* ── THE WAY OUT, NOT A SETTING ────────────────────────────────────────────
+   INSTALL was the loudest thing in a panel about sound: a plank twice the
+   weight of the controls above it, spilling past the gutter they share. It is
+   a standing door to the installed app — worth having, never the reason this
+   panel was opened — so it drops below a rule and stops competing.
+
+   It does NOT join the control gutter: 56px cannot hold the word, and a door
+   is not a third sound setting. It gets the full width under the rule, which
+   also says plainly that it belongs to a different group.
+
+   The plank's own size comes from `.wl-runtime-action` in runtime.css, which
+   sets `padding` with `!important` and loads after this file — so shrinking it
+   has to match that weight. Only the two properties that make it oversized
+   are touched; the plank art, the press and the label stay the kit's. */
+.rr-sound-panel-inner > .rr-sound-row:last-child {
+  margin-top: 3px;
+  padding-top: 12px;
+  border-top: 2px solid #d3b98c;
+  gap: 12px;
+}
+/* The plank's own size comes from `.wl-runtime-action` in runtime.css, which
+   sets `padding` with `!important` and loads after this file — so trimming it
+   has to match that weight. Only the two properties that made it oversized
+   are touched; the plank art, the press and the label stay the kit's. */
+.rr-sound-panel-inner > .rr-sound-row:last-child .rr-px-btn {
+  flex: 1;
+  min-height: 34px !important;
+  padding: 6px 12px !important;
 }
 
 .rr-note { text-align: center; color: var(--muted); }

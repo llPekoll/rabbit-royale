@@ -114,3 +114,36 @@ jambages se font couper par le bas de la planche.
 
 Vérification : `node tools/verify-woodland.mjs` (Storybook sur 6007) prend les
 captures et compte ce qui reste d'ancien chrome. `legacy: 0` partout.
+
+## Le menu son prend l'interrupteur du kit
+
+Les deux bus du panneau son (`sound-button.tsx`) étaient des planches qui
+épelaient ON ou OFF. Ce sont désormais des `WoodlandToggle` : un interrupteur
+dont le bouton glisse, vert à droite quand c'est allumé, sourd et creux à
+gauche sinon — l'état est dans la lumière, sans mot à traduire. `t.sound.on`
+et `t.sound.off` ne servent donc plus.
+
+Le vrai défaut du panneau n'était pas sa couleur : quatre rangées prétendaient
+avoir la même forme (nom à gauche, contrôle à droite) alors que leurs contrôles
+allaient d'une pastille de 14px à une planche large comme la moitié du panneau.
+Rien ne s'alignait. Les trois réglages partagent donc une gouttière,
+`--rr-sound-gutter`, et chaque rangée est une grille à deux colonnes plutôt
+qu'un `space-between` où chaque contrôle décide de sa largeur. Le panneau passe
+à 216px : c'est ce qu'il faut pour que le rail du volume tienne dans la même
+gouttière que les interrupteurs.
+
+Deux pièges rencontrés, et ce qu'ils imposent :
+
+- La teinte du libellé vient de `--wl-runtime-ink`, que `runtime.css` impose à
+  tout descendant de la surface. Inutile de peindre le texte ici : ce panneau
+  est en parchemin, pas en terre.
+- `.wl-runtime-action` pose sa taille en `!important` et se charge après
+  `globals.css`, donc rétrécir la planche INSTALL demande le même poids. La
+  planche garde son art : c'est un `border-image` à caps de 25px, elle ne
+  rapetisse pas vraiment en dessous d'une certaine largeur.
+
+Le rail du volume est remonté de 3px dans sa rangée (`transform`). Mesuré, il
+était géométriquement centré — mais le libellé bitmap à côté a son centre
+optique au-dessus du milieu de sa boîte, donc un rail centré pend sous son mot.
+Le décalage est sur l'input et non sur la piste, parce que WebKit ignore les
+marges sur `::-webkit-slider-runnable-track`.
