@@ -44,7 +44,7 @@ import {
   Plank, PLANK_ENERGY_CAP_L, PLANK_ENERGY_CAP_R, PLANK_ENERGY_HEIGHT,
   PLANK_ENERGY_LOW_L, PLANK_ENERGY_LOW_R, plankEnergyLow, plankEnergyTop,
 } from './plank';
-import { EnergyRing, RING_SIZE } from './energy-dial';
+import { EnergyDial, DIAL_SIZE, dialInset, dialRoom } from './energy-dial';
 import { CarrotMark } from './carrot-mark';
 import { EnergyBar } from './energy-bar';
 import { ChestCount } from './chest-count';
@@ -121,7 +121,22 @@ export interface CarrotPillProps {
 }
 
 /* ── Sampled from the reference ────────────────────────────────────────── */
+/** The carrot's drawn width at the 40px height the board gives it. */
+const CARROT_W = Math.round((CARROT_SIZE.width / CARROT_SIZE.height) * 40);
 const FACE_TOP = '#3a2415';
+
+/**
+ * THE STACK IS WHAT THE WOOD LEAVES, not a number of its own.
+ *
+ * It was 132 on the plank, whose wood stretched to whatever the row asked
+ * for. The dial board is a fixed image: its clean grain runs 110px between
+ * the two leaf clusters (`dialRoom`), and the carrot and its gap come out of
+ * that before the figure gets a say. Left at 132 the row overflowed by
+ * exactly the carrot, and the climb line ran out over the right leaves
+ * (Paul, 2026-09-21: "ca deborde de partout", "le text la ca depasse").
+ */
+const STACK_W = dialRoom(DIAL_SIZE.height) - CARROT_W - 10;
+
 /** The figure — cream, the same ink the cards give a live value. */
 const INK = '#fde7bd';
 /** "carrots", and the rank line: a step quieter than the number. */
@@ -130,6 +145,30 @@ const SUB = '#a28b7b';
 const RANK_GOLD = '#ffd138';
 /** The carrying chip's glass — the island captions' ground. */
 const CARRY_GLASS = 'rgba(13, 17, 23, 0.82)';
+
+/**
+ * THE ENERGY LINE'S MARK — the game's own bolt, at the line's own size.
+ *
+ * The sprite is 24x29; drawn to the line's face it comes to 11 tall, and the
+ * width follows its aspect so it is never squashed.
+ */
+const ENERGY_BOLT_H = 11;
+const ENERGY_BOLT_W = Math.round((24 / 29) * ENERGY_BOLT_H);
+const BOLT_URL = '/assets/ui/icons/bolt.webp';
+/**
+ * THE TANK'S INK — dark, not bright.
+ *
+ * It is a reading ON the wood rather than a value lit above it: the figure
+ * above owns the cream, and a second pale number under it would read as two
+ * totals of equal weight. Burnt into the grain, it is the board's own small
+ * print (Paul's shot, 2026-09-21, then "plus foncé").
+ *
+ * THE MARK TAKES THE SAME INK. The bolt sprite is drawn in its own yellow,
+ * which beside a dark figure read as a lit icon with a burnt label — two
+ * voices for one reading. Masked to this colour it is the same stamp as the
+ * digits, which is what a unit mark should be.
+ */
+const ENERGY_INK = '#2a1809';
 
 function Carrot({ height }: { height: number }) {
   // Width follows the sprite's own aspect, so it is never squashed.
@@ -195,39 +234,36 @@ export function CarrotPill({
       style={pill}
       title={t.pill.banked(stock)}
     >
-      {/* THE MEDALLION: the bank's energy, a ring drawn like a fuel gauge
-          (energy-dial.tsx) — full at 12 o'clock, draining anticlockwise. It
-          hangs half off the plank's left end, the way the dial hung off the
-          DIG board, so the pill still reads as one object. Its middle is the
-          bare wooden hub: the carrot that used to lie across it said "this
-          is about carrots", and it is not (Paul, 2026-09-21). Drawn at the
-          art's own pixel size, so the ring's rim stays crisp; the phone's
-          pill scale takes it down with the plank. */}
-      {bank && (
-        <span
-          className="rr-pill-ring"
-          style={ringSeat}
-          title={t.loop.energyOf(bank.energy, bank.max)}
-          aria-label={t.loop.energyOf(bank.energy, bank.max)}
-          role="img"
-        >
-          <EnergyRing value={bank.energy} max={bank.max} size={RING_SIZE.height} bolt />
-        </span>
-      )}
-      {/* THE PLATE: the wood board (plank.tsx). It replaced the codex's pixel
-          frame in soil — Paul, 2026-09-19: the slab was "tout moche", and the
-          chrome moves onto painted wood one panel at a time, starting here.
+      {/* THE PLATE: the dial board (energy-dial.tsx) — ONE PIECE OF ART.
 
-          It keeps the CLASS the frame had. Every rule the pill's plate already
-          owns — the arrival drop, the hover brighten, the press sinking it a
-          pixel (px-top-floor.css) — binds to `.rr-pill-plate` and is about
-          the plate's BEHAVIOUR, not its material, so all of it still applies
-          to the board without being restated.
+          IT USED TO BE TWO. A 3-slice plank, with the dial cropped out of
+          this same board (`dial-*-ring.webp`) and hung half off its left end
+          as a separate medallion. Over the plank's own wood that circle
+          stopped reading as a gauge and read as a BUTTON sitting on the board
+          (Paul, 2026-09-21) — which is exactly what it was: two pieces of art
+          faking the join this one image already paints. Paul deleted the crops
+          the same day; the board they were cut from is what the pill wears.
 
-          Inside the fixed box rather than being it, so the plate can drop in
-          on arrival without touching the transform that centres the pill. */}
-      <Plank
-        tall={energy !== null}
+          FIXED WIDTH, because the art is: a circle cannot be stretched, so
+          the board keeps its 268x102 aspect and scales as a whole. That is
+          the trade for the seamless join — the plank's stretching wood is
+          gone, and the figure's size answers for a long number instead.
+
+          It keeps the CLASS the plank had. Every rule the pill's plate owns —
+          the arrival drop, the hover brighten, the press sinking it a pixel
+          (px-top-floor.css) — binds to `.rr-pill-plate` and is about the
+          plate's BEHAVIOUR, not its material, so all of it still applies. */}
+      <EnergyDial
+        value={bank?.energy ?? 0}
+        max={bank?.max ?? 1}
+        height={DIAL_SIZE.height}
+        /* THE READING ON THE HUB, as the medallion carried it — and the
+           board's own heartbeat under a third of a tank. Both only where
+           there IS a tank: off the burrow `bank` is null, and a dial reading
+           0 with an alarm going would be the chrome inventing an emergency
+           on a screen that has no energy to spend. */
+        hub={bank !== null}
+        beat={bank !== null}
         className={`rr-pill-plate${energy !== null ? ' has-energy' : ''}`}
         style={plate}
       >
@@ -274,14 +310,13 @@ export function CarrotPill({
           grows out of the ground); the mock's is reclining, and on a wide
           shallow panel a diagonal reads as an object at rest where a vertical
           one reads as a bullet point. */}
-      {/* BEFORE the figure on the plain board, AFTER it on the run's — see
-          the twin below. The sprite names the unit either way; which side it
-          names it from is the board's business. */}
-      {energy === null && (
-        <span style={artBox} aria-hidden>
-          <Carrot height={44} />
-        </span>
-      )}
+      {/* THE CARROT IS ALWAYS AFTER THE FIGURE — see the twin below. It led
+          the row on the plain board and trailed it on the run's, which was
+          the mock's arrangement for a board whose wood began at its left
+          edge. The dial board begins with a CIRCLE, and a sprite squeezed
+          between the gauge and the number read as a third object wedged into
+          the gap rather than as the total's unit (Paul, 2026-09-21: "met
+          plutot la carrote a la fin"). */}
 
       <span style={stack}>
         {/* THE FOLDED PILL: the figure, the rank beside it. */}
@@ -289,7 +324,9 @@ export function CarrotPill({
           <span
             key={`fig-${fireKey}`}
             className={fireKey ? 'banked' : undefined}
-            style={{ ...figure, fontSize: figureSize(groupDigits(stock), hasRank ? String(rank) : null) }}
+            /* No chip to make room for any more — it rides the climb line
+               below (see there). The figure gets the whole stack. */
+            style={{ ...figure, fontSize: figureSize(groupDigits(stock), null) }}
           >
             {groupDigits(stock)}
           </span>
@@ -301,20 +338,14 @@ export function CarrotPill({
               bank landed for a player ranked #2, both children were key `2`
               and React kept the OLD figure next to the new one. Paul saw
               "265 1263" for a stock of 1263 (2026-09-16). */}
-          {/* THE CARROT AFTER THE FIGURE on the run's board (Paul's Aseprite,
-              2026-09-20). It reads "0 carrots" — a figure and its unit, the
-              way the haul chip beside it reads "+6 carrot" — where the sprite
-              in front read as a bullet marking a row. The plain board keeps
-              the sprite in front, which is the mock's own arrangement and
-              where the burrow's eye already goes. */}
-          {energy !== null && (
-            <span style={artBoxInline} aria-hidden>
-              <Carrot height={40} />
-            </span>
-          )}
-          {hasRank && (
-            <span key={`rank-${rank}`} className="rr-rank-pop" style={rankChip}>#{rank}</span>
-          )}
+          {/* THE CARROT AFTER THE FIGURE (Paul's Aseprite, 2026-09-20, and
+              on every board since 2026-09-21). It reads "258 carrots" — a
+              figure and its unit, the way the haul chip beside it reads
+              "+6 carrot" — where the sprite in front read as a bullet
+              marking a row. */}
+          <span style={artBoxInline} aria-hidden>
+            <Carrot height={40} />
+          </span>
         </span>
         {/* THE CLIMB, unfolded: what it takes to pass the place ahead. The
             gap is in SEASON SCORE, which a harvest and a raid move with the
@@ -334,24 +365,53 @@ export function CarrotPill({
             />
           </span>
         )}
-        {hasRank && (
-          <span
-            className="rr-pill-climb"
-            style={rankRow}
-            title={rank === 1
-              ? t.pill.rankFirst
-              : t.pill.rank(rank!, groupDigits(Math.max(1, toPass ?? 1)))}
-          >
-            {/* At least 1: a gap of 0 is a TIE, and passing a tied player
-                takes one more point. "0 to #91" read as nothing to do. */}
-            {rank === 1 ? t.pill.leading : (
-              <ClimbLine gap={shortGap(Math.max(1, toPass ?? 1))} line={t.pill.toPass(shortGap(Math.max(1, toPass ?? 1)), rank!)} />
-            )}
-          </span>
-        )}
       </span>
 
       </span>
+
+      {/* THE TANK, UNDER THE PILE (Paul, 2026-09-21: "en dessous du
+          conteneur de carotte met l'energie", then the shot of it sitting
+          small and dark on the grain).
+
+          IT IS TAKEN OUT OF THE FLOW, and beside the stack rather than in
+          it. As a third line in the centred column it was laid out, so
+          "221/300" — wider than the 112px of wood the stack gets — grew the
+          column, and the row centred on the board walked right with it
+          (Paul: "ca a casser le layout"). The stack also CLIPS, so a line
+          hanging past its foot would be cut. Out here it is absolute against
+          the plate, hangs under the figure, and pushes nothing.
+
+          TWO THINGS THE PLAYER OWNS, one glance. The carrots are the pile
+          you spend; the tank is what every crossing and raid draws on. */}
+      {bank && (
+        <span style={energyLine} title={t.loop.energyOf(bank.energy, bank.max)}>
+          {/* THE READING ALONE, no capacity. "221/300" named the tank's size
+              on every glance, which is a constant the player learns once;
+              what changes — and what a crossing is measured against — is the
+              figure itself (Paul, 2026-09-21: "vire le 300"). The ring on
+              the dial beside it already draws the fraction. */}
+          {groupDigits(bank.energy)}
+          {/* THE MARK, MASKED TO THE LINE'S OWN INK. The sprite is painted
+              yellow; as a stencil over a block of this colour it becomes the
+              same stamp as the digits beside it. */}
+          <span
+            aria-hidden
+            style={{
+              display: 'block',
+              width: ENERGY_BOLT_W,
+              height: ENERGY_BOLT_H,
+              flexShrink: 0,
+              backgroundColor: ENERGY_INK,
+              WebkitMaskImage: `url(${BOLT_URL})`,
+              maskImage: `url(${BOLT_URL})`,
+              WebkitMaskSize: '100% 100%',
+              maskSize: '100% 100%',
+              WebkitMaskRepeat: 'no-repeat',
+              maskRepeat: 'no-repeat',
+            }}
+          />
+        </span>
+      )}
 
       {/* THE RUN'S ENERGY, ON THE SAME BOARD, UNDER THE COUNT.
 
@@ -370,26 +430,10 @@ export function CarrotPill({
           <EnergyBar energy={energy} />
         </span>
       )}
-      </Plank>
+      </EnergyDial>
     </div>
   );
 }
-
-/** How much of the ring hangs past the plank's edge. */
-const RING_OVERHANG = 0.5;
-/**
- * Where the medallion sits: centred on the plank's height, half of it past
- * the plank's left edge. Absolute against the pill's fixed box, so the plate
- * can still drop in on arrival without moving it.
- */
-const ringSeat: CSSProperties = {
-  position: 'absolute',
-  left: `calc(-1 * ${RING_SIZE.width}px * ${RING_OVERHANG})`,
-  top: '50%',
-  transform: 'translateY(-50%)',
-  zIndex: 1,
-  pointerEvents: 'none',
-};
 
 const pill: CSSProperties = {
   /* `fixed`, and placed by globals.css (`.rr-carrot-pill`).
@@ -402,27 +446,16 @@ const pill: CSSProperties = {
 };
 
 /**
- * The pill's face — the wood board.
+ * The pill's face — the dial board.
  *
- * NO PADDING, AND NO HEIGHT. Both belong to the board now: it is drawn art,
- * not a box with a rim, so its height is the height it was painted and the
- * bark along the top and bottom is the only inset the content needs. The
- * tight pad the pixel frame wanted would only push the row off the wood's
- * centre.
+ * NO WIDTH, NO HEIGHT, NO BOX-SIZING. All three belong to `EnergyDial` now:
+ * the art is 268x102 and scales as a whole, so the board's size is its own
+ * and stating any of it here would fight the aspect the circle needs. The
+ * plank's `content-box` arithmetic went with the caps it was counting.
  *
- * THE WIDTH IS THE BOARD'S, AND THE CAPS ARE PAID FOR ON TOP.
- *
- * A 3-slice reserves each cap as a BORDER, so `box-sizing: border-box` with a
- * 200px width gave a 200px board whose caps ate 120 of it and left the row
- * 80px to sit in — centred, correctly, on a content box two thirds of the way
- * to the left of the board it is painted on. In the game the carrot and the
- * figure sat in the board's left half with an empty plank beside them.
- *
- * `content-box` is the honest description: the number's row gets the pill's
- * full token width, and the caps are the leaves' own room outside it. The
- * board comes out `--rr-pill-w` plus two caps, which is why the token below
- * shrank by exactly that much — the board on screen is the size the pill has
- * always been.
+ * THE CONTENT CLEARS THE DIAL. The circle sits at the board's left end, so
+ * the row is inset past its rim (`dialInset`) rather than centred on the
+ * whole board — centred, the figure would sit half on the gauge.
  */
 const plate: CSSProperties = {
   display: 'flex',
@@ -431,14 +464,16 @@ const plate: CSSProperties = {
   /* The one gap between an image and the text it belongs to, everywhere on the
      top bar and the floor. */
   gap: 'var(--rr-pad)',
-  /* The caps sit OUTSIDE this width, not inside it. */
-  boxSizing: 'content-box',
-  /* THE WIDTH IS NOT STATED HERE. It belongs to `.rr-pill-plate` in
-     globals.css, because it has two values — the plain board, and the wider
-     one the island's energy bar needs — and an INLINE width beats any
-     stylesheet rule outright. Stated here, the run's board stayed 176px wide
-     and squeezed the gauge's track down to 8px: the bolt and the figure kept
-     their size, so what vanished was the bar itself (measured 2026-09-20). */
+  /* The dial's rim, plus the game's image-to-label gap. Measured off the art,
+     not derived from the ring — see `dialInset`. */
+  paddingLeft: dialInset(DIAL_SIZE.height),
+  /* THE RIGHT LEAVES ARE NOT WOOD. The row stops where the grain does
+     (`dialRoom`), or it runs out over the cluster and off the board. */
+  paddingRight: DIAL_SIZE.width - dialInset(DIAL_SIZE.height) - dialRoom(DIAL_SIZE.height),
+  boxSizing: 'border-box',
+  /* Nothing may reach past the wood: the figure steps its size down to fit
+     (`figureSize`), but the chest line and the climb line are text. */
+  overflow: 'hidden',
 };
 
 /**
@@ -535,19 +570,6 @@ const artBoxInline: CSSProperties = {
   height: 32,
 };
 
-const artBox: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  lineHeight: 0,
-  flexShrink: 0,
-  transform: 'rotate(45deg)',
-  // The rotated sprite's corners reach past its own box; this keeps the pill
-  // from growing to contain a diagonal it only needs to show.
-  width: 34,
-  height: 34,
-};
-
 /**
  * The number and the rank line — one CENTRED stack, at a FIXED width.
  *
@@ -577,7 +599,11 @@ const stack: CSSProperties = {
   justifyContent: 'center',
   gap: 1,
   lineHeight: 1,
-  width: 132,
+  /* THE STACK IS THE WOOD'S, not a typed 132 — that was the plank's width,
+     and left behind it let the climb line run out over the right leaves
+     while the board itself stopped 50px earlier (Paul, 2026-09-21: "le text
+     la ca depasse"). `STACK_W` is what the grain leaves after the carrot. */
+  width: STACK_W,
   minWidth: 0,
   overflow: 'hidden',
 };
@@ -628,7 +654,6 @@ const CHIP_PER_DIGIT = 8;
 const CHIP_INSET = 12 + 9;
 /** Caret and the two gaps around the chip, in the folded row. */
 const ROW_FURNITURE = 8 + 12;
-const STACK_W = 132;
 
 /**
  * The largest step at which the grouped figure still fits its row beside the
@@ -658,8 +683,15 @@ const rankText: CSSProperties = {
   overflow: 'hidden',
   textOverflow: 'ellipsis',
   fontFamily: 'var(--font-pixel), ui-monospace, monospace',
-  fontSize: 10,
-  letterSpacing: '0.02em',
+  /* 8, NOT 10. The climb line carries the rank chip as well as the sentence
+     now, and the board's 82px of column held one or the other at the old
+     face — "#3 46 to #2" came to ~107 and ran out over the right leaves
+     (Paul, 2026-09-21: "met juste le text plus petit"). At 8 the whole line
+     is ~72 and the pixel face is still on its grid. */
+  fontSize: 8,
+  /* The tracking goes with it: 0.02em of air at 10 is what kept the face
+     from crowding, and at 8 the same fraction is less than a pixel. */
+  letterSpacing: '0.04em',
   color: SUB,
   lineHeight: 1.3,
   whiteSpace: 'nowrap',
@@ -670,7 +702,16 @@ const rankRow: CSSProperties = {
   ...rankText,
   display: 'inline-flex',
   alignItems: 'center',
-  gap: 4,
+  /* TIGHT, because the chip joined this line. "#3 46 to #2" comes to ~112px
+     against the board's 110 of clean grain at the old 4px gap — two pixels
+     over is a clipped character, and the chip's own inset already reads as
+     the space between it and the sentence. */
+  gap: 2,
+  /* The line never reaches the leaves: the sentence is what gives, not the
+     chip (`flexShrink: 0` there), and it shortens rather than wrapping. */
+  maxWidth: '100%',
+  overflow: 'hidden',
+  whiteSpace: 'nowrap',
   /* The row's own air under the figure, so unfolding reads as a line joining
      the pill rather than a second panel. */
   marginTop: 'var(--rr-pad-tight)',
@@ -690,14 +731,18 @@ const rankChip: CSSProperties = {
   /* The chip never gives: it is the figure's face that steps down. */
   flexShrink: 0,
   whiteSpace: 'nowrap',
-  /* The game's chip inset: 2px of vertical room — all a 10px line can spare —
-     and the tight pad each side, the same as every other badge and tag. */
-  padding: '2px var(--rr-pad-tight)',
+  /* THE INSET SHRANK WITH THE LINE. `--rr-pad-tight` each side is the badge
+     standard, but on this board the chip shares 82px with the climb sentence
+     and its padding alone was most of its width — two flat pixels a side
+     keep it a chip without spending the line's room on air. */
+  padding: '2px 2px',
   fontFamily: 'var(--font-pixel), ui-monospace, monospace',
   background: RANK_GOLD,
   boxShadow: '0 0 0 1px #2a180e',
   color: '#2a180e',
-  fontSize: 10,
+  /* One step under the line it rides, so the gold reads as a mark ON the
+     sentence rather than as a second voice in it. */
+  fontSize: 8,
   lineHeight: 1,
 };
 
@@ -715,6 +760,53 @@ const chestLine: CSSProperties = {
   justifyContent: 'center',
   marginTop: 6,
 };
+
+/**
+ * THE ENERGY LINE, hanging under the pile.
+ *
+ * ABSOLUTE, AND THAT IS THE POINT. As a third line in the centred column it
+ * was laid out, so "221/300" — wider than the 112px of wood the stack gets —
+ * grew the column, and the row centred on the board walked right with it.
+ * Out of the flow it hangs under the figure and pushes nothing, which is
+ * what "ne bouge rien" requires of a line added to a settled board.
+ *
+ * SEATED ON THE PLATE, whose padding already centres the row on the wood —
+ * so the same `left: 50%` puts it under the figure rather than under the
+ * board, which includes the dial. The offset is off the BOTTOM, because the
+ * plank's lower bark is a fixed band of the art and the figure's row is
+ * centred in what is above it.
+ */
+const energyLine: CSSProperties = {
+  position: 'absolute',
+  /* CENTRED ON THE FIGURE, not on the wood (Paul, 2026-09-21: "centre le au
+     milieu du 258 dans les x").
+
+     Three different middles live on this board and only one of them is the
+     right one. The PLATE's starts at the dial's far left, so a bare 50%
+     seats the line half over the gauge. The GRAIN's is 14px right of the
+     total, because the carrot and its gap sit after the figure and push it
+     left of the wood's centre — which is what put the reading under the
+     carrot rather than under the number. The STACK is the figure's own box,
+     so its midpoint is the total's, whatever face the total is wearing. */
+  left: dialInset(DIAL_SIZE.height) + STACK_W / 2,
+  /* CLEAR OF THE LOWER BARK, but only just. The plank's wood ends at row 86
+     of the 102px art, so 16 seated the line on the edge itself; 26 lifted it
+     clear and read high on the board, and 21 is the middle ground Paul
+     settled on ("un peu plus haut", then "un peu plus bas"). */
+  bottom: 21,
+  transform: 'translateX(-50%)',
+  display: 'flex',
+  alignItems: 'center',
+  gap: 2,
+  fontFamily: 'var(--font-pixel), ui-monospace, monospace',
+  fontSize: 11,
+  lineHeight: 1,
+  color: ENERGY_INK,
+  fontVariantNumeric: 'tabular-nums',
+  whiteSpace: 'nowrap',
+  pointerEvents: 'none',
+};
+
 
 /** The haul beside the pill: a small glass plate in the pixel frame. */
 const carryPlate: CSSProperties = {

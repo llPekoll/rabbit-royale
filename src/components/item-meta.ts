@@ -105,9 +105,17 @@ export const ITEM_META: Record<ItemKind, ItemMeta> = {
        so a carrot on its tile read as the price. The heart went with the
        lives it stood for (2026-09-21: energy is the one currency, there are
        no hearts any more). The bolt belongs to LIGHTNING on the same shelf,
-       so energy takes the gauge the player already reads it on. */
-    art: '/assets/gauge/dial-full-ring.webp',
-    aspect: 104 / 102,
+       so energy takes the gauge the player already reads it on.
+
+       CUT FROM THE BOARD ITSELF. This wore `dial-full-ring.webp`, one of four
+       crops crediting a medallion that the pill hung off the plank's left
+       end; the board became a single piece of art (`dial-empty.webp`, dial
+       and plank in one) and Paul deleted the crops with it. `dial-icon.webp`
+       is baked from that board — the circle at its full height, the charged
+       ring composited over the grey one, so the tile shows a FULL tank
+       rather than the empty dial a bare crop of `empty` would give. */
+    art: '/assets/gauge/dial-icon.webp',
+    aspect: 1,
   },
   smoke: {
     icon: '🌫️',

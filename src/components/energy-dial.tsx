@@ -105,6 +105,54 @@ const RING_CY = 0.5172;
 const RING_INNER = 24;
 const RING_OUTER = 34;
 
+/** The energy mark, as drawn for the shop's shelf and the run's bar. */
+const BOLT_URL = '/assets/ui/icons/bolt.webp';
+const BOLT_SIZE = { width: 24, height: 29 } as const;
+
+/**
+ * THE MARK'S SIZE ON THE HUB, as a factor of the sprite's own 24x29.
+ *
+ * BIGGER THAN THE HUB, so its tips run out over the coloured band — a mark
+ * stamped over the gauge, not a picture framed inside it (Paul, 2026-09-21:
+ * "bleed out over the gauge slightly", then "plus gros l'eclaire"). The hub
+ * is 2*24 across and the sprite is 29 tall, so 1.6 puts the bolt at 46 on a
+ * 48px hub: it fills the wood and its points cross the ring.
+ */
+const HUB_BOLT = 1.6;
+
+/**
+ * WHERE THE BOLT'S INK ACTUALLY SITS in its own 24x29 box, measured as the
+ * alpha centroid of the sprite: (10.84, 11.01) against a box centre of
+ * (12, 14.5).
+ *
+ * THE SPRITE IS NOT CENTRED IN ITS BOX. It leans slightly left and sits
+ * markedly HIGH — the tail tapers to a point that costs little ink while the
+ * head is solid — so squaring the box on the hub puts the mark low and a
+ * touch left of the middle (Paul, 2026-09-21: "un peu plus a droite").
+ *
+ * Both the seat and the BEAT'S PIVOT read these: scaling from the box centre
+ * would swell the bolt downward, away from the ring's middle, because that
+ * centre is 3.5px below the ink's. Corrected on the ART rather than by
+ * re-measuring the ring, whose centre the mask depends on too.
+ */
+const BOLT_INK_CX = 10.84;
+const BOLT_INK_CY = 11.01;
+const HUB_BOLT_DX = BOLT_SIZE.width / 2 - BOLT_INK_CX;
+const HUB_BOLT_DY = BOLT_SIZE.height / 2 - BOLT_INK_CY;
+
+/**
+ * WHEN THE BEAT STARTS, and how fast it runs at each end.
+ *
+ * A third of the tank, because that is where the reading stops being a
+ * number and starts being a decision: below it a crossing (20) is no longer
+ * a rounding error against what is left.
+ */
+const BEAT_FROM = 1 / 3;
+/** At the threshold — a slow, unhurried pulse. */
+const BEAT_SLOW = 1100;
+/** At empty. */
+const BEAT_FAST = 500;
+
 export interface EnergyDialProps {
   /** Energy in hand. */
   value: number;
@@ -112,6 +160,26 @@ export interface EnergyDialProps {
   max: number;
   /** How tall to draw the board. The dial scales with it. */
   height: number;
+  /**
+   * THE READING ON THE HUB — the figure in the middle of the ring, as the
+   * medallion carried it before the board was one piece (Paul, 2026-09-21:
+   * "rajoute moi l'energie au milieu comme avant").
+   *
+   * A ring says how full; it does not say how much, and the tank is spent in
+   * named amounts — 20 a crossing — so the arc alone cannot tell you whether
+   * the next step is affordable. Off by default: the DIG slab and the story
+   * draw their own middles.
+   */
+  hub?: boolean;
+  /**
+   * THE HEARTBEAT — the dial pulsing, for a tank that is running out.
+   *
+   * It is the board's own alarm and it beats FASTER the emptier it gets, the
+   * way a pulse does: a gauge the player is not looking at cannot warn them,
+   * and a steady blink reads as decoration. Tied to the value rather than a
+   * flag so the board cannot disagree with the number on it.
+   */
+  beat?: boolean;
   /** The board's text end. */
   children?: ReactNode;
   className?: string;
@@ -125,7 +193,7 @@ export interface EnergyDialProps {
  * same contract the scroll board uses.
  */
 export function EnergyDial({
-  value, max, height, children, className, style,
+  value, max, height, hub = false, beat = false, children, className, style,
 }: EnergyDialProps) {
   /* Clamped, because energy is a live value: a bomb can take more than is
      left, and a negative fraction would sweep the wedge back the wrong way.
@@ -134,6 +202,18 @@ export function EnergyDial({
   const frac = max > 0 ? Math.max(0, Math.min(1, shown / max)) : 0;
   const k = height / DIAL_SIZE.height;
   const width = DIAL_SIZE.width * k;
+
+  /* THE BEAT IS THE TANK'S, not a caller's flag: asked for, it runs only
+     once the gauge is into its last third, and quickens the rest of the way
+     down — 1.1s at the threshold, 0.5s at empty. A pulse that beats at one
+     speed whatever the reading is says "something is animated here"; one
+     that quickens says "this is running out", which is the whole message.
+     On the TRUE value, so the alarm starts on the dig that crossed the line
+     rather than a third of a second later when the paint catches up. */
+  const beatOn = beat && max > 0 && value / max <= BEAT_FROM;
+  const beatMs = beatOn
+    ? Math.round(BEAT_SLOW - (BEAT_SLOW - BEAT_FAST) * (1 - Math.min(1, value / max / BEAT_FROM)))
+    : 0;
 
   /* KEEP THE FIRST `frac` OF THE TURN, FROM 12 O'CLOCK, WITH NO `from`
      OFFSET. The gradient sweeps clockwise from 12, so the arc that survives
@@ -172,6 +252,56 @@ export function EnergyDial({
         }}
         aria-hidden
       />
+      {/* THE MARK ON THE HUB, AND IT BEATS (Paul, 2026-09-21: "je parlais
+          juste de l'icone d'energie au milieu", then "vire le nombre"). The
+          ring already says how full the tank is; a figure repeating it inside
+          the same circle is the gauge captioning itself.
+
+          Centred on the RING's measured centre, not the box's — the circle
+          sits at the board's left end and the art's box is the circle's
+          height, so the two centres are nowhere near each other. The beat
+          animates the `scale` PROPERTY, so this centring translate survives
+          it untouched (keyframes in globals.css). */}
+      {/* THE MARK ON THE HUB, AND IT BEATS.
+
+          THE SPRITE AS IT IS DRAWN — its own yellow, no tint and no blend.
+          It was masked to blue and printed with `multiply` for one pass
+          (2026-09-21); over the hub's dark wood multiply can only darken,
+          so the bolt came out a brown smudge with the grain showing through
+          it rather than a mark on the gauge. The art is already the game's
+          energy colour, and the hub is already the ground it was drawn for.
+
+          Centred on the RING's measured centre, not the box's — the circle
+          sits at the board's left end and the art's box is the circle's
+          height, so the two centres are nowhere near each other. */}
+      {hub && (
+        <img
+          className={beatOn ? 'rr-dial-beat' : undefined}
+          src={BOLT_URL}
+          alt=""
+          draggable={false}
+          aria-hidden
+          style={{
+            position: 'absolute',
+            /* Seated so the INK's centre lands on the ring's, not the
+               sprite's box — the offsets are in source pixels, so they scale
+               with the drawn mark (HUB_BOLT * k), not the board alone. */
+            left: `calc(${RING_CX * 100}% + ${(HUB_BOLT_DX * HUB_BOLT * k).toFixed(2)}px)`,
+            top: `calc(${RING_CY * 100}% + ${(HUB_BOLT_DY * HUB_BOLT * k).toFixed(2)}px)`,
+            transform: 'translate(-50%, -50%)',
+            /* THE PIVOT IS THE INK'S CENTRE. At 50% 50% the beat swells the
+               bolt from its box's middle, 3.5 source px below the mark's own,
+               and the pulse walks it downward off the hub. */
+            transformOrigin: `${(BOLT_INK_CX / BOLT_SIZE.width * 100).toFixed(2)}% `
+              + `${(BOLT_INK_CY / BOLT_SIZE.height * 100).toFixed(2)}%`,
+            width: Math.round(BOLT_SIZE.width * HUB_BOLT * k),
+            height: Math.round(BOLT_SIZE.height * HUB_BOLT * k),
+            animationDuration: beatOn ? `${beatMs}ms` : undefined,
+            imageRendering: 'pixelated',
+            pointerEvents: 'none',
+          }}
+        />
+      )}
       {children}
     </div>
   );
@@ -188,11 +318,44 @@ export function EnergyDial({
  */
 const DIAL_END = 100 / DIAL_SIZE.width;
 
+const WOOD_START = 115 / DIAL_SIZE.width;
+/* THE FULL PLANK, not the last column of untouched grain (Paul, 2026-09-21:
+   "le container fait le plus grand pour pas que ca mange le chiffre"). The
+   right cluster's leaves grow over the wood from ~225, but they are thin
+   there — sprigs against the board's top and bottom edges, not a wall — and
+   a figure passing under them still reads, where a figure with its last
+   digit cut off does not. 255 keeps the board's own rounded end clear. */
+const WOOD_END = 255 / DIAL_SIZE.width;
+
 export function dialInset(height: number) {
   const k = height / DIAL_SIZE.height;
-  /* Plus the game's own image-to-label gap, so the text is beside the dial
-     rather than against it. */
-  return Math.round(DIAL_END * DIAL_SIZE.width * k) + 8;
+  /* THE GRAIN, NOT THE RIM. `DIAL_END` is where the dial's wood stops, which
+     is what a LABEL on the rim has to clear; the pill's row has to clear the
+     left leaf cluster too, and that hangs on past it to x=115. Callers that
+     want the rim alone read `DIAL_END`. */
+  return Math.round(WOOD_START * DIAL_SIZE.width * k);
+}
+
+/**
+ * THE CLEAN GRAIN — where the wood is wood and not leaf, measured by scanning
+ * the plank's band (rows 31-86) for the columns that are opaque and NOT green.
+ *
+ * BOTH ENDS ARE TIGHTER THAN THE BOARD'S. The left cluster overhangs the
+ * plank past the dial's rim and only clears at x=115, where `DIAL_END` (the
+ * RIM, at 100) stops; the right cluster starts touching at 225 and bites hard
+ * from 241, though the board paints on to 263. Laying the row out between the
+ * rim and the paint therefore claims 22px that leaves are sitting on, which
+ * is what clipped the rank chip to a bare "#" (Paul, 2026-09-21: "ca rentre
+ * pas dans le cadre non plus").
+ *
+ * WHY IT EXISTS AT ALL. The content used to lay itself out in the plank's
+ * STRETCHING wood, which was as wide as the row needed. This board is a fixed
+ * image, so the row has to fit the wood instead of the other way round.
+ */
+/** The width of the board's usable wood, between the two leaf clusters. */
+export function dialRoom(height: number) {
+  const k = height / DIAL_SIZE.height;
+  return Math.round((WOOD_END - WOOD_START) * DIAL_SIZE.width * k);
 }
 
 /**
@@ -236,107 +399,3 @@ const layer = (url: string): CSSProperties => ({
 
 /** The ring's radii as a fraction of the art, for anything that needs them. */
 export const DIAL_RING = { cx: RING_CX, cy: RING_CY, inner: RING_INNER, outer: RING_OUTER };
-
-/* ── THE RING ALONE ────────────────────────────────────────────────────────
-   The dial cropped out of its board (104x102), for the DIG slab.
-
-   WHY THE CROP EXISTS. The whole board keeps its aspect — a circle cannot be
-   stretched — so at the Seeker's 48px slab height it is only 126px wide and
-   DIG's line runs off the plank. The slab already HAS a plank (the kit's
-   face) and already carries an image at its left end: the carrot. So the
-   dial goes in as that image, round and fixed, and the slab keeps sizing
-   itself the way it always has. No aspect to fight.
-
-   The ring's centre moves with the crop: 49.52% of 104px where it was 19.22%
-   of 268. */
-export const RING_EMPTY_URL = '/assets/gauge/dial-empty-ring.webp';
-export const RING_FULL_URL = '/assets/gauge/dial-full-ring.webp';
-export const RING_SIZE = { width: 104, height: 102 } as const;
-const RING_ONLY_CX = 0.4952;
-
-export interface EnergyRingProps {
-  value: number;
-  max: number;
-  /** Drawn at this height; the art is near-square so width follows. */
-  size: number;
-  /**
-   * Draw ONLY the coloured ring, without the grey one under it.
-   *
-   * For a surface that already paints the dial's grey ring and rim as part of
-   * its own art — the DIG slab wears the whole board — where a second grey
-   * ring would sit a pixel off the first and read as a double edge.
-   */
-  colourOnly?: boolean;
-  /** The bolt on the hub. Off where the surface draws its own middle. */
-  bolt?: boolean;
-  className?: string;
-  style?: CSSProperties;
-}
-
-/** The energy mark, as drawn for the shop's shelf and the run's bar. */
-const BOLT_URL = '/assets/ui/icons/bolt.webp';
-const BOLT_SIZE = { width: 24, height: 29 } as const;
-/**
- * Whole multiples only, and BIGGER THAN THE HUB: the hub is ~47% of the ring
- * and the bolt is sized to 56% of it, so its tips run a few pixels out over
- * the coloured band — a mark stamped over the gauge, not a picture framed
- * inside it (Paul, 2026-09-21: "bleed out over the gauge slightly"). On the
- * 102px ring that is 2x, a 58px bolt on a 48px hub.
- */
-function boltScale(ringSize: number): number {
-  return Math.max(1, Math.floor((ringSize * 0.56) / BOLT_SIZE.height));
-}
-
-/**
- * The energy dial as an ICON — the carrot's replacement on the DIG slab.
- *
- * Same two layers and the same anticlockwise drain as `EnergyDial`; only the
- * picture is cropped and the centre re-measured for it.
- */
-export function EnergyRing({
-  value, max, size, colourOnly = false, bolt = false, className, style,
-}: EnergyRingProps) {
-  // The DRAWN value, sliding toward the real one — see useSweep. The reading
-  // the player is told (titles, aria) is always the true `value`; only the
-  // picture lags, and only for a third of a second.
-  const shown = useSweep(value);
-  const frac = max > 0 ? Math.max(0, Math.min(1, shown / max)) : 0;
-  const width = Math.round((RING_SIZE.width / RING_SIZE.height) * size);
-  const mask = `conic-gradient(at ${RING_ONLY_CX * 100}% ${RING_CY * 100}%, `
-    + `#000 0turn, #000 ${frac}turn, `
-    + `transparent ${frac}turn, transparent 1turn)`;
-  return (
-    <span
-      className={`rr-energy-ring${className ? ` ${className}` : ''}`}
-      style={{ position: 'relative', display: 'block', width, height: size, flexShrink: 0, ...style }}
-      aria-hidden
-    >
-      {!colourOnly && <span style={layer(RING_EMPTY_URL)} />}
-      <span style={{ ...layer(RING_FULL_URL), WebkitMaskImage: mask, maskImage: mask }} />
-      {/* THE BOLT ON THE HUB — what the ring measures, said in the game's own
-          mark for it (the same bolt the run's bar and the shop use). The hub
-          was a bare wooden disc once the carrot left it, and a ring with
-          nothing in its middle is a ring around nothing (Paul, 2026-09-21).
-          Scaled by whole pixels off the ring's height so the sprite stays
-          square-pixelled; centred on the ring's measured centre, not the
-          box's. */}
-      {bolt && (
-        <img
-          src={BOLT_URL}
-          alt=""
-          draggable={false}
-          style={{
-            position: 'absolute',
-            left: `${RING_ONLY_CX * 100}%`,
-            top: `${RING_CY * 100}%`,
-            width: BOLT_SIZE.width * boltScale(size),
-            height: BOLT_SIZE.height * boltScale(size),
-            transform: 'translate(-50%, -50%)',
-            imageRendering: 'pixelated',
-            pointerEvents: 'none',
-          }}
-        />
-      )}
-    </span>
-  );
-}

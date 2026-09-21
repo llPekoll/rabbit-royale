@@ -83,15 +83,31 @@
      200px plate after the caps, the row overflowed and the board showed
      "126" with the rank chip clipped off for a stock of 1263. */
   --rr-pill-row: 176px;
-  --rr-pill-w: calc(var(--rr-pill-row) + var(--rr-plank-caps));
+  /* THE BOARD IS ONE IMAGE, and its width is the art's: 268x102, dial and
+     wood in one piece (energy-dial.tsx `DIAL_SIZE`). It was the row plus the
+     plank's caps while the board was a 3-slice with a medallion hung off its
+     left end; that board is gone and so is the arithmetic. */
+  --rr-pill-w: 268px;
   /* THE PILL'S SIZE ON THE SCREEN, as a factor of its drawn size. 1 on a
      screen with the height for it; a short landscape phone takes a smaller
      one below. Anything measuring against the pill (the player chip's cap)
      multiplies by this too, so the two cannot disagree. */
+  /* THE BOARD IS DRAWN AT ITS OWN SIZE. It went up to 1.35 and then 1.15
+     while the dial board was replacing the plank (Paul, 2026-09-21: "scale
+     moi ca up"), but that was the board reading small because the row inside
+     it was laid out in 132px of wood that measured out at 110 — the figure
+     was shrinking to fit, not the board. With the grain measured honestly
+     and the rank chip moved off the figure's line, the count is back at its
+     28px face and the art needs no help ("un moment c'etait bien un peu
+     plus petit"). */
   --rr-pill-scale: 1;
-  /* THE MEDALLION hangs half its 104px past the plank's left end
-     (carrot-pill.tsx `RING_OVERHANG`); the player chip's cap counts it. */
-  --rr-pill-ring: 52px;
+  /* NOTHING HANGS OFF THE BOARD ANY MORE. The medallion overhung the plank's
+     left end by half its 104px and the player chip's cap had to count it;
+     the dial is painted into the board now, so `--rr-pill-w` is the whole
+     object and there is no overhang to reserve. Kept at 0 rather than
+     deleted: the chip's cap reads it, and one token at 0 is clearer than
+     the same sum with a term quietly missing. */
+  --rr-pill-ring: 0px;
   /* THE WAY BACK'S HEIGHT, stated once because two rules measure against it:
      the button's own `min-height` (back-button.tsx) and the placement kit row
      that now stacks directly on top of it. The button is content-sized, and
@@ -843,6 +859,42 @@ button { min-height: 44px; min-width: 44px; }
   animation: rr-pill-deny 700ms ease-out both;
 }
 @keyframes rr-pill-deny { 0% { opacity: 1; } 100% { opacity: 0; } }
+
+/* THE DIAL'S HEARTBEAT — the gauge pulsing when the tank is into its last
+   third (energy-dial.tsx `beat`). The DURATION is inline and shrinks with
+   the reading, so the pulse quickens as it empties; the shape is here.
+
+   TWO BEATS, NOT ONE. A single swell is a breath; a hard beat followed by a
+   smaller echo is a pulse, which is the thing being named. The gaps between
+   them are held flat so the rest of the cycle is still, the way a heart is
+   mostly still — a sine would read as a throb.
+
+   `scale()` ALONE, never `transform`: the layer it rides is `inset: 0` and
+   the hub's figure carries a centring translate, so both get their own rule
+   below rather than one shared keyframe overwriting the translate. */
+@keyframes rr-dial-beat {
+  0%, 38%, 100% { scale: 1; }
+  10% { scale: 1.07; }
+  20% { scale: 1; }
+  27% { scale: 1.035; }
+}
+.rr-dial-beat {
+  animation-name: rr-dial-beat;
+  animation-timing-function: ease-out;
+  animation-iteration-count: infinite;
+  /* The ring's paint must not blur as it swells: the art is pixel art and a
+     scaled layer is resampled. */
+  image-rendering: pixelated;
+  will-change: scale;
+}
+/* A GAUGE THAT WARNS BY MOVING CANNOT WARN AT ALL when movement is off, so
+   the beat becomes a steady flush of the same alarm instead of nothing. */
+@media (prefers-reduced-motion: reduce) {
+  @keyframes rr-dial-beat {
+    0%, 100% { scale: 1; filter: none; }
+    50% { scale: 1; filter: brightness(1.25); }
+  }
+}
 /* The run's haul, beside the stock it will join (carrot-pill.tsx `carrying`).
    Smaller than the pill's figure and off its face: a haul, not a balance. */
 .rr-pill-carrying {
@@ -1332,20 +1384,14 @@ button { min-height: 44px; min-width: 44px; }
   translate: 0 0;
 }
 
-/* THE NEIGHBOURS' RESERVE FOLLOWS THE WIDER BOARD.
+/* ONE BOARD, ONE WIDTH. The energy board used to be a WIDER piece of art
+   than the plain one — its caps carried the lower plank's ends as well as a
+   leaf cluster — so the neighbours' reserve had to follow it, or the wallet
+   chip grew to where the old board stopped and landed on the new one's
+   leaves (measured 2026-09-20: chip to 227, board from 226).
 
-   `--rr-pill-w` is the board's whole width, leaves included, and the wallet
-   chip's cap measures against it from the screen's centre. The energy board
-   is wider than the plain one — its caps carry the lower plank's ends as well
-   as a leaf cluster — so left behind, the chip grew up to where the OLD
-   board stopped and its right edge landed on the new one's leaves (measured
-   in the running game, 2026-09-20: chip to 227, board from 226).
-
-   On the BODY rather than recomputed per site, so every rule that reserves
-   the pill keeps reading one number. */
-body:has(.rr-pill-plate.has-energy) {
-  --rr-pill-w: calc(180px + var(--rr-plank-energy-cap-l) + var(--rr-plank-energy-cap-r));
-}
+   The dial board is a single 268px image at every size, so there is no wider
+   variant to follow and `--rr-pill-w` holds for both. */
 
 /* The bar fills the lower plank rather than carrying the width it needed when
    it stood alone over the tiles (`clamp(200px, 24vw, 320px)`): the board
@@ -1932,7 +1978,16 @@ body:has(.rr-pill-plate.has-energy) {
      belongs to its floor. */
   position: fixed;
   left: 50%;
-  top: var(--rr-edge);
+  /* FLUSH WITH THE TOP, not inset by the chrome's usual margin (Paul,
+     2026-09-21: "monte un peu le component pour que ca touche le haut de la
+     page"). The board is a hanging SIGN — its leaves and the dial's rim are
+     the silhouette's own edge — so a 10px gap above it read as the sign
+     having slipped its hook rather than as air. Everything else on this
+     floor keeps `--rr-edge`: they are panels with rims, and a panel touching
+     the screen's edge reads as clipped.
+
+     The safe area still counts: on a notched phone 0 is under the notch. */
+  top: env(safe-area-inset-top);
   /* Scaled from its top-centre, so it hangs from the same point at every
      size and the centring below it holds. */
   transform: translateX(-50%) scale(var(--rr-pill-scale));
