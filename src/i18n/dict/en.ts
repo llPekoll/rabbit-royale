@@ -251,6 +251,29 @@ export const en = {
     } as Record<string, string>,
     plantedBy: (name: string) => `${name}'s bomb!`,
     struckBy: (name: string) => `${name} struck you with lightning`,
+    /**
+     * How many rivals are watching this run — over MARK A BOMB.
+     *
+     * "online" rather than "watching you": the line is two words wide on a
+     * phone, it sits on the board's busiest corner, and the number is the part
+     * that has to be legible at a glance. What they are online FOR is the
+     * button underneath.
+     */
+    watchers: (n: number) => `${n} online`,
+    /**
+     * A rival's hit, said on the SAME line the count was on — and said short.
+     *
+     * The long versions of these (`struckBy`, `plantedBy`) were written for a
+     * toast in the middle of the screen. In the bottom-right corner, over the
+     * plank, "BlackPaw struck you with lightning" ran clean off a 420px phone
+     * and read as "BLACKPAW STRUCK YOU W". The player already saw the bolt
+     * land on their own rabbit; the only thing this line has to add is WHO.
+     *
+     * So: the name, then what they spent. Two words, and the name is first
+     * because the name is the part that is worth reading.
+     */
+    hitBolt: (name: string) => `${name} zapped you`,
+    hitBomb: (name: string) => `${name} mined that`,
   },
 
   /* ── What the island says during the very first run ───────────────────── */
@@ -383,6 +406,10 @@ export const en = {
     boughtSmoke: (paid: string) => `The numbers are hidden. ${paid}`,
     boughtMirage: (n: number, paid: string) =>
       `${n > 1 ? `${n} mirages` : 'mirage'} ready to throw. ${paid}`,
+    /* A fence is BUILT, not readied: what it buys is one plank standing across
+       one stretch of the garden's edge, so the receipt says the thing it becomes. */
+    boughtFence: (n: number, paid: string) =>
+      `${n > 1 ? `${n} planks` : 'plank'} ready to raise. ${paid}`,
     /* Plain ASCII '-', not a minus sign: the pixel face cannot draw U+2212 and
        it renders as a blank box on the device. See test/pixel-font-glyphs. */
     paid: (spent: number) => `-${spent} 🥕`,
@@ -403,6 +430,17 @@ export const en = {
     tile_doorstep: 'Too near the door. The first steps inside stay open.',
     tile_already_trapped: 'Already mined.',
     no_trap_there: 'No trap there.',
+    no_fences: 'No fences left. The shed sells them.',
+    span_already_fenced: 'A plank already stands there.',
+    span_not_exposed: 'That is not an edge of your garden.',
+    /* The gate rule, stated as a rule rather than as a mistake: this is the one
+       refusal here the player has to LEARN, so it says why before it says no. */
+    would_seal_burrow: 'That would close the last way in. One way in stays open as a gate.',
+    span_not_fenced: 'No plank there.',
+    bad_span: 'That is not a place for a plank.',
+    /* Not the owner's refusal but the RAIDER's, from raid/route.ts — a wall is
+       the one defence they are told about, so it points them somewhere. */
+    fenced: 'A fence blocks the way. Go round.',
     payments_unavailable: 'Card payments are not set up yet.',
     quote_expired: 'That quote expired. Try again.',
     signature_already_used: 'That payment was already used.',
@@ -423,7 +461,33 @@ export const en = {
 
   /* ── What you are carrying ────────────────────────────────────────────── */
   kit: {
+    tools: {
+      more: 'Show effect and actions', less: 'Fold details',
+      available: (n: number) => n + ' available',
+      placed: (n: number) => n + ' placed',
+      active: (time: string) => time + ' remaining',
+      buyTrap: (price: string) => 'Buy a trap - ' + price + ' carrots',
+      trapHint: 'Tap a tile to bury a trap. Tap a trap to recover it.',
+      trapEmpty: 'Recover a placed trap or buy one below.',
+      fenceHint: 'Tap a highlighted edge to build. Tap a fence to recover it.',
+      raiseShield: 'Use a shield', shieldActive: 'Your burrow is already protected.',
+      shopHint: 'Available in the shop.', notEnough: 'Not enough carrots for another trap.',
+      smokeHint: 'Buying smoke in the shop activates it immediately.',
+      attackHint: 'Use this on a rival’s island during a run.',
+      chestHint: 'Find more in chests.',
+      waterEffect: 'Makes your garden grow faster for a while.',
+      fertiliserEffect: 'Lets your garden store more carrots before it fills up.',
+      water: 'Use one watering', fertilise: 'Use one fertiliser',
+    },
     aria: 'What you are carrying',
+    /* THE THREE GROUP CAPTIONS, over the row's three clusters.
+       One or two words each, because they sit over four squares at 32px and a
+       sentence would be wider than what it labels. They name the QUESTION each
+       group answers, not the items: a player scanning the floor is asking "am
+       I defended?", not "where are my shields?". */
+    groupDefence: 'DEFENCE',
+    groupAttack: 'ATTACK',
+    groupGarden: 'GARDEN',
     shieldHolding: (wait: string, held: number) =>
       `Shield: holding, ${wait} left. ${held} in the bag.`,
     shieldReady: (held: number) =>
@@ -455,6 +519,23 @@ export const en = {
       `${name}: running, ${wait} left. ${count} in the bag.`,
     bottleHeld: (name: string, count: number) => `${name}: ${count} in the bag. Pour one on the garden.`,
     bottleNone: (name: string) => `${name}: none. Found in chests.`,
+    /* THE FENCE SLOT. One fence is one plank across one stretch of the garden's
+       edge. `total` is every stretch, gate included, as the caller (kit-row.tsx)
+       counts them: the last one can never be fenced, and fenceAllWalled says so
+       rather than letting the count read as a plank the player failed to raise. */
+    fencePlace: (held: number, walled: number, total: number) =>
+      `Fences: ${held} plank${held === 1 ? '' : 's'} in the bag, ${walled} of ${total} stretch${total === 1 ? '' : 'es'} fenced.`
+      + ' Put one up.',
+    /* Not a failure state, which is why it names the gate outright: the player
+       has done everything the item allows, and a line that only said "no more"
+       would read as a cap they should be trying to lift. */
+    fenceAllWalled: (walled: number) =>
+      `Fences: ${walled} stretch${walled === 1 ? '' : 'es'} fenced. The last opening is the gate and stays open.`,
+    /* Names the way back to a plank when the bag is empty: a standing plank is
+       not spent, tapping it takes it back. */
+    fenceNone: (walled: number) =>
+      `Fences: none in the bag, ${walled} stretch${walled === 1 ? '' : 'es'} fenced.`
+      + ' The shed sells them. Tap a standing plank to take it back.',
     watering: 'Watering',
     fertiliser: 'Fertiliser',
   },
@@ -677,6 +758,13 @@ export const en = {
     mirage: {
       name: 'Mirage',
       blurb: 'Makes a few of a rival’s numbers lie, mid-run. They can spot it.',
+    },
+    /* The one defence that is MEANT to be seen — the blurb says "cannot cross"
+       rather than "slows them down", because a raider who reads it and walks
+       round has understood the item exactly. See lib/game/fences.ts. */
+    fence: {
+      name: 'Fence',
+      blurb: 'Walls one stretch of your garden’s edge. Raiders cannot cross it.',
     },
   } satisfies ItemTable,
 

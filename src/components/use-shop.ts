@@ -18,7 +18,8 @@ import { useT } from '@/i18n/provider';
 import type { Dict } from '@/i18n/dictionaries';
 import type { PayTokenId } from '@/lib/pay/tokens';
 
-export type ItemKind = 'trap' | 'bomb' | 'lightning' | 'shield' | 'energy' | 'smoke' | 'mirage';
+export type ItemKind =
+  | 'trap' | 'bomb' | 'lightning' | 'shield' | 'energy' | 'smoke' | 'mirage' | 'fence';
 
 export interface ShopItem {
   kind: ItemKind;
@@ -65,6 +66,26 @@ export interface RearmingTrap {
   readyAt: string;
 }
 
+/** One plank's name: the field cell it hangs off, and which face. */
+export interface FenceSeg { tile: number; side: string }
+
+/**
+ * The planks round the potager, as the server reports them.
+ *
+ * `offers` is what the geometry exposes AND the gate rule still allows — the
+ * server's answer, not the geometry's, so the board can only ever offer a
+ * span the server would accept.
+ */
+export interface FenceState {
+  placed: FenceSeg[];
+  /** Every edge the field exposes — what the kit row counts against. */
+  spans: FenceSeg[];
+  /** The subset a tap would actually build — what the board marks. */
+  offers: FenceSeg[];
+  held: number;
+  maxHeld: number;
+}
+
 export interface TrapState {
   /** Every mined tile, standing or rearming. This is what the board draws. */
   placed: number[];
@@ -104,6 +125,7 @@ export function useShop(token: string | null) {
   const t = useT();
   const [shop, setShop] = useState<ShopState | null>(null);
   const [traps, setTraps] = useState<TrapState | null>(null);
+  const [fences, setFences] = useState<FenceState | null>(null);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
 
@@ -121,12 +143,14 @@ export function useShop(token: string | null) {
 
   const refresh = useCallback(async () => {
     if (!token) return;
-    const [s, t] = await Promise.all([
+    const [s, t, f] = await Promise.all([
       fetch('/api/shop', auth()).then((r) => r.json()).catch(() => null),
       fetch('/api/traps', auth()).then((r) => r.json()).catch(() => null),
+      fetch('/api/fences', auth()).then((r) => r.json()).catch(() => null),
     ]);
     if (s && !s.error) setShop(s);
     if (t && !t.error) setTraps(t);
+    if (f && !f.error) setFences(f);
   }, [token, auth]);
 
   useEffect(() => { void refresh(); }, [refresh]);
@@ -236,7 +260,56 @@ export function useShop(token: string | null) {
     return had;
   }, [token, auth, refresh, traps]);
 
-  return { shop, traps, busy, note, setNote, refresh, buy, placeTrap, removeTrap, clearTraps };
+  /**
+   * Put one plank on one edge of the potager.
+   *
+   * The same contract as `placeTrap`, and for the same reason: the plank is
+   * drawn only once the server says it stands. The gate rule lives there, so a
+   * plank that would seal the burrow comes back as a refusal with words
+   * (`would_seal_burrow`) rather than as a plank that appears and then vanishes
+   * on the next refresh.
+   */
+  const placeFence = useCallback(async (seg: FenceSeg): Promise<boolean> => {
+    if (!token) return false;
+    setNote(null);
+    const res = await fetch('/api/fences', auth({
+      method: 'POST',
+      body: JSON.stringify({ tile: seg.tile, side: seg.side }),
+    })).then((r) => r.json()).catch(() => ({ error: 'network' }));
+
+    if (res.error) {
+      setNote(shopMessage(t, res.error));
+      return false;
+    }
+    setFences(res);
+    // The bag paid for it, so the shelf's counts are stale.
+    void refresh();
+    return true;
+  }, [token, auth, refresh, t]);
+
+  /** Take one down. It goes back in the bag whole — see the route. */
+  const removeFence = useCallback(async (seg: FenceSeg): Promise<boolean> => {
+    if (!token) return false;
+    setNote(null);
+    // In the URL, not a body: the same proxy that drops DELETE bodies in
+    // production sits in front of this route too. See `removeTrap`.
+    const res = await fetch(`/api/fences?tile=${seg.tile}&side=${encodeURIComponent(seg.side)}`, auth({
+      method: 'DELETE',
+    })).then((r) => r.json()).catch(() => ({ error: 'network' }));
+
+    if (res.error) {
+      setNote(shopMessage(t, res.error));
+      return false;
+    }
+    setFences(res);
+    void refresh();
+    return true;
+  }, [token, auth, refresh, t]);
+
+  return {
+    shop, traps, fences, busy, note, setNote, refresh, buy,
+    placeTrap, removeTrap, clearTraps, placeFence, removeFence,
+  };
 }
 
 /** What a successful purchase says. Named per item, because "bought 1 item" is
@@ -251,5 +324,6 @@ function purchaseNote(t: Dict, kind: ItemKind, qty: number, spent: number): stri
     case 'shield': return t.shop.boughtShield(qty, paid);
     case 'smoke': return t.shop.boughtSmoke(paid);
     case 'mirage': return t.shop.boughtMirage(qty, paid);
+    case 'fence': return t.shop.boughtFence(qty, paid);
   }
 }

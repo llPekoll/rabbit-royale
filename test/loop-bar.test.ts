@@ -47,8 +47,11 @@ describe('the loop bar', () => {
     expect(PAGE).toMatch(/<LoopBar/);
     expect(PAGE).not.toMatch(/<HubTabs/);
     expect(PAGE).not.toMatch(/label="Go farm"/);
-    // The way out of placement survives, as the shared back button.
-    expect(PAGE).toMatch(/<BackButton label="Back" onClick=\{stopPlacing\} \/>/);
+    // The way out of placement survives, as the shared back button. It now
+    // serves BOTH board modes — walling arrived with the fence — so the
+    // handler is a ternary; what is pinned is the one shared Back button, not
+    // which mode it happens to close.
+    expect(PAGE).toMatch(/<BackButton label="Back" onClick=\{walling \? stopWalling : stopPlacing\} \/>/);
   });
 
   it('keeps one verb per loop on the island too', () => {

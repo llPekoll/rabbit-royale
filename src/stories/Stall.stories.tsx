@@ -19,6 +19,7 @@ const PRICES: Record<ItemKind, { price: number; usdc: number; cap: number }> = {
   lightning: { price: 520, usdc: 0.60, cap: 20 },
   shield: { price: 750, usdc: 0.90, cap: 20 },
   mirage: { price: 1100, usdc: 0.99, cap: 20 },
+  fence: { price: 300, usdc: 0.40, cap: 4 },
   smoke: { price: 2400, usdc: 1.99, cap: 3 },
 };
 const KINDS = Object.keys(PRICES) as ItemKind[];

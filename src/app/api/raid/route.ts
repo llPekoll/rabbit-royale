@@ -20,13 +20,15 @@ import { and, desc, eq, isNull, ne, sql as raw } from 'drizzle-orm';
 import { db, sql } from '@/lib/db';
 import { pushToPlayer } from '@/lib/game/raid-events';
 import { defenderRaidView } from '@/lib/game/defence';
-import { players, raidRuns, raids, traps } from '@/lib/db/schema';
+import { players, raidRuns, raids, traps, fences } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
 import { connectedAmong, onlineAmong } from '@/lib/leaderboard';
 import {
   distanceToField, raiderView, settleRaid, trapClues,
 } from '@/lib/game/raid';
 import { burrowNeighbors, entranceTile, burrowCell, walkableTiles } from '@/game/burrow/board';
+import { raiderSteps } from '@/game/burrow/fence';
+import { fencedSpans } from '@/lib/game/fences';
 import { smokeActive } from '@/lib/game/inventory';
 import { standingTraps } from '@/lib/game/traps';
 import { ENERGY, RAID, RAID_RUN, TRAPS } from '@config/tuning';
@@ -49,6 +51,10 @@ async function raidView(runId: string, revealAll = false) {
   if (!defender) return null;
 
   const mined = await db.query.traps.findMany({ where: eq(traps.ownerId, run.defenderId) });
+  // The walls, which are the one part of the defence the attacker is TOLD.
+  const walled = fencedSpans(
+    await db.query.fences.findMany({ where: eq(fences.ownerId, run.defenderId) }),
+  );
   // The burrow's ground is grown from its OWNER's id — see game/burrow/board.
   // Nothing about the terrain crosses the wire: the raider's client rebuilds
   // the same homestead from the defender id it is sent below.
@@ -114,7 +120,23 @@ async function raidView(runId: string, revealAll = false) {
      * implementations of the same rule drift, and the one that drifts is the
      * client's, which then offers a tile the server will reject.
      */
-    steps: run.endedAt ? [] : burrowNeighbors(seed, run.tile),
+    /*
+     * Fences are folded in HERE rather than on the client, for the reason the
+     * note above gives: a board that offers a step the server refuses is the
+     * bug this key exists to prevent, and a wall is the most visible possible
+     * version of it. The sides themselves ride in `fenced` below, so the
+     * raider sees the wall as well as being stopped by it.
+     */
+    steps: run.endedAt ? [] : raiderSteps(seed, walled, run.tile),
+    /**
+     * Which edges of the potager carry a plank.
+     *
+     * SENT TO THE RAIDER, unlike everything about traps. The two defences are
+     * opposites: a trap works by being unknown, a fence works by being seen —
+     * a wall nobody can see is a raid that ends for no reason the player can
+     * read. So the attacker's board draws them from the door.
+     */
+    fenced: walled,
     /** The raider is told the numbers are hidden, and why. A blank board with
      *  no explanation reads as a bug rather than as a defence. */
     smoked,
@@ -418,8 +440,22 @@ export async function PATCH(req: Request) {
   // Adjacency is checked SERVER-SIDE. `burrowNeighbors` already excludes walls
   // and off-board indices, so a client naming a distant or blocked tile is
   // simply refused rather than teleported.
+  //
+  // The fences are read here, not in `raidView`, because THIS is the check
+  // that binds — the view's `steps` is a convenience for drawing. A defender
+  // who walls a side mid-raid stops the very next step, which is the right
+  // answer: the wall is up when the foot lands, not when the screen loaded.
+  const walled = fencedSpans(
+    await db.query.fences.findMany({ where: eq(fences.ownerId, run.defenderId) }),
+  );
   if (!Number.isInteger(to) || !burrowNeighbors(run.defenderId, run.tile).includes(to)) {
     return Response.json({ error: 'not_adjacent' }, { status: 400 });
+  }
+  // Refused by NAME rather than folded into `not_adjacent`: "there is a fence
+  // there" is a fact about the defence the raider is meant to read and route
+  // around, and calling it a bad step would read to them as a broken board.
+  if (!raiderSteps(run.defenderId, walled, run.tile).includes(to)) {
+    return Response.json({ error: 'fenced' }, { status: 400 });
   }
 
   /**

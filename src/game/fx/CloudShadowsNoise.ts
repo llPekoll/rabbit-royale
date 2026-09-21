@@ -64,6 +64,11 @@ uniform float uEdge;
 uniform float uPixel;
 uniform vec3  uColor;
 uniform float uAlpha;
+uniform float uLit;
+uniform float uRim;
+uniform vec3  uColorB;
+uniform float uGradient;
+uniform float uBreath;
 
 // --- Ashima simplex 3D (Ian McEwan / Stefan Gustavson), verbatim ---------
 vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
@@ -156,8 +161,55 @@ void main(void) {
     float n = fbm(vec3(q, t)) * 0.5 + 0.5;
     float m = smoothstep(uCoverage - uEdge, uCoverage + uEdge, n);
 
-    float a = m * uAlpha;
-    finalColor = vec4(uColor * a, a);
+    // uLit = 0 : l'ombre elle-meme. uLit = 1 : ce que le nuage ne couvre pas.
+    // Le second plan se monte en 'overlay' et rechauffe au lieu d'assombrir.
+    //
+    // uRim resserre la couche claire sur la FRANGE du nuage plutot que sur
+    // tout le champ degage : le pic est juste apres le bord, et retombe sur
+    // uRim largeurs d'edge. A 0 la frange s'ouvre au champ entier, donc le
+    // dial est continu entre les deux lectures.
+    //
+    // Le sens du seuil : n MONTE vers le clair, donc m vaut 1 sous le nuage
+    // et l'ourlet vit SOUS uCoverage - uEdge, du cote degage du bord.
+    float lit = 1.0 - m;
+    if (uRim > 0.0) {
+        float far = uCoverage - uEdge * (1.0 + 2.0 * uRim);
+        lit = (1.0 - m) * smoothstep(far, uCoverage - uEdge, n);
+    }
+
+    float a = mix(m, clamp(lit, 0.0, 1.0), uLit) * uAlpha;
+
+    // Le degrade vertical, en espace PLAN et pas en espace sol : le soleil
+    // est haut dans le ciel, sa chaleur descend tout droit, elle ne suit pas
+    // la projection iso. Passer par groundUv ici inclinerait la bande et on
+    // lirait une diagonale posee sur l'ile au lieu d'une lumiere venue d'en
+    // haut. p.y est deja en pixels du plan monte, donc la division suffit.
+    //
+    // uGradient dose le melange : 0 garde uColor seule (le comportement
+    // d'avant), 1 va franchement de uColor en haut a uColorB en bas.
+    vec3 tint = mix(uColor, uColorB, clamp(p.y / uSize.y, 0.0, 1.0) * uGradient);
+
+    // L'opacite respire avec la COUVERTURE, et les deux couches respirent en
+    // SENS CONTRAIRE — c'est tout l'interet, et se tromper de signe donne un
+    // ciel qui ne veut rien dire :
+    //
+    //   - beaucoup de nuages -> l'ombre pese PLUS, le soleil pese MOINS.
+    //     Un ciel couvert n'a pas de percee ; la chaleur doit s'eteindre.
+    //   - ciel degage -> l'ombre s'efface, le soleil tape franc.
+    //
+    // uCoverage est un SEUIL et il descend quand le ciel se charge (plus il
+    // est bas, plus de bruit passe en ombre). Donc (0.55 - uCoverage) monte
+    // avec les nuages : c'est le sens de l'ombre, et la lumiere prend
+    // l'oppose via uLit.
+    //
+    // Reference 0.55, le milieu de la plage min/max habituelle : a cette
+    // couverture le facteur vaut 1 et le reglage d'alpha est celui qu'on a
+    // sous les yeux dans les sliders.
+    float weather = (0.55 - uCoverage) / 0.25;
+    float sign = mix(1.0, -1.0, uLit);
+    a *= clamp(1.0 + uBreath * weather * sign, 0.0, 2.0);
+
+    finalColor = vec4(tint * clamp(a, 0.0, 1.0), clamp(a, 0.0, 1.0));
 }
 `;
 
@@ -201,6 +253,57 @@ export interface CloudShadowNoiseOptions {
   pixel?: number;
   color?: number;
   alpha?: number;
+  /**
+   * 0 = the shadow (what ships). 1 = the LIGHT, what the cloud leaves clear.
+   *
+   * A lit plane is the same noise read the other way round, and it is meant
+   * to be mounted in `overlay` on TOP of the shadow one — see `mountSunWarm`.
+   * Overlay multiplies the darks and screens the lights, so a pale yellow
+   * warms the island instead of ADDING photons the way the god rays do; an
+   * additive pass on the same pixels as `fx/GodRays.ts` blows out.
+   */
+  lit?: number;
+  /**
+   * With `lit`, how tightly the light hugs the cloud's edge.
+   *
+   * 0 lights the whole clear field — weather: the island breathes warm when
+   * the sky opens. Above 0 it keeps only a band of that many `edge` widths
+   * just outside the plaque — a gold seam running along the shadow, which
+   * reads more as deliberate pixel art. Ignored when `lit` is 0.
+   */
+  rim?: number;
+  /**
+   * The colour the tint reaches at the BOTTOM of the plane, with `gradient`.
+   *
+   * On the lit layer this is what makes the warmth read as a sun rather than
+   * a filter: yellow high on the island, orange as it comes down. `color`
+   * stays the top.
+   */
+  colorB?: number;
+  /**
+   * How far the tint travels from `color` to `colorB`, top to bottom.
+   *
+   * 0 keeps `color` flat over the whole plane — the old behaviour. 1 is the
+   * full sweep. The ramp runs down the PLANE, not the ground projection: the
+   * sun is overhead, so its warmth falls straight down the picture.
+   */
+  gradient?: number;
+  /**
+   * How much the layer's opacity follows the weather, 0 to about 1.
+   *
+   * At 0 the alpha is the one in the slider whatever the sky. Above it, the
+   * two layers swing OPPOSITE ways around that value, which is the point:
+   * clouds and sun cannot both be strong at once.
+   *
+   *   - the SHADOW layer weighs more under a covered sky, less under a clear
+   *     one;
+   *   - the LIT layer does the reverse, and a thick enough sky puts it out
+   *     entirely — an overcast island gets no sunbeam.
+   *
+   * It reads the live coverage, so it only moves when `coverageMin` and
+   * `coverageMax` differ.
+   */
+  breath?: number;
 }
 
 /**
@@ -229,6 +332,41 @@ export const CLOUD_SHADOW_NOISE_DEFAULTS = {
   pixel: 3,
   color: 0x10203a,
   alpha: 0.32,
+  lit: 0,
+  rim: 0,
+  colorB: 0x10203a,
+  gradient: 0,
+  breath: 0,
+} as const;
+
+/**
+ * La couche CLAIRE, a poser par-dessus l'ombre (voir `mountSunWarm`).
+ *
+ * Le jaune est pale et l'alpha bas exprès : en `overlay` la couleur n'est pas
+ * peinte, elle module. Un jaune sature a alpha fort vire l'ile au citron ;
+ * ces valeurs-la se lisent comme du soleil sur le gazon et laissent la mer
+ * bleue. `rim` a 0 ouvre la lumiere a tout le champ degage — mets-le a 2 ou 3
+ * pour la version liseré.
+ *
+ * Le degrade va du jaune en haut a l'orange en bas (`colorB`), parce qu'une
+ * teinte unique posee sur toute la hauteur se lit comme un filtre colle a
+ * l'objectif ; la rampe donne une direction a la lumiere. Les deux teintes
+ * sont TRES lavees et l'alpha bas : regle plus franc (0xffe9a8 a 0.18, le
+ * premier jet), le jaune se voyait comme une couleur posee sur l'ile au lieu
+ * de passer pour de la lumiere. On veut le sentir, pas le nommer.
+ *
+ * `breath` a 0.5 fait peser la couche selon la couverture du moment, pour
+ * qu'un ciel charge ne se distingue pas d'un ciel clair par le seul dessin
+ * des plaques.
+ */
+export const CLOUD_LIGHT_DEFAULTS = {
+  lit: 1,
+  rim: 0,
+  color: 0xfff2cf,
+  colorB: 0xffb277,
+  gradient: 1,
+  breath: 0.5,
+  alpha: 0.11,
 } as const;
 
 const rgb = (hex: number) => [
@@ -293,6 +431,11 @@ export function createCloudShadowsNoise(
         uPixel: { value: o.pixel, type: 'f32' },
         uColor: { value: new Float32Array(rgb(o.color)), type: 'vec3<f32>' },
         uAlpha: { value: o.alpha, type: 'f32' },
+        uLit: { value: o.lit, type: 'f32' },
+        uRim: { value: o.rim, type: 'f32' },
+        uColorB: { value: new Float32Array(rgb(o.colorB)), type: 'vec3<f32>' },
+        uGradient: { value: o.gradient, type: 'f32' },
+        uBreath: { value: o.breath, type: 'f32' },
       },
     },
   });
@@ -303,6 +446,7 @@ export function createCloudShadowsNoise(
   const scalar: Partial<Record<keyof CloudShadowNoiseOptions, string>> = {
     iso: 'uIso', scale: 'uScale', morph: 'uMorph', octaves: 'uOctaves', warp: 'uWarp',
     coverage: 'uCoverage', edge: 'uEdge', pixel: 'uPixel', alpha: 'uAlpha',
+    lit: 'uLit', rim: 'uRim', gradient: 'uGradient', breath: 'uBreath',
   };
 
   let elapsed = 0;
@@ -348,6 +492,7 @@ export function createCloudShadowsNoise(
         case 'speed': o.speed = value; uniforms.uDrift = heading(o.speed, o.angle); break;
         case 'angle': o.angle = value; uniforms.uDrift = heading(o.speed, o.angle); break;
         case 'color': uniforms.uColor = new Float32Array(rgb(value)); break;
+        case 'colorB': uniforms.uColorB = new Float32Array(rgb(value)); break;
         case 'coverageMin': o.coverageMin = value; break;
         case 'coverageMax': o.coverageMax = value; break;
         case 'weatherPeriod': o.weatherPeriod = value; break;
@@ -409,4 +554,49 @@ export function mountCloudShadows(
   shadows.view.interactiveChildren = false;
   parent.addChild(shadows.view);
   return shadows;
+}
+
+/**
+ * Le soleil entre les plaques : la MEME couche, lue a l'envers, en `overlay`.
+ *
+ * A monter apres `mountCloudShadows` et avec exactement les memes dials de
+ * bruit — c'est tout l'interet, les deux decrivent le meme ciel donc le clair
+ * tombe pile ou l'ombre s'arrete. `sunOptions` ne sert qu'a la couleur, a
+ * l'alpha et a `rim` ; tout ce qui decrit le champ de bruit vient de
+ * `shadowOptions` et n'est pas surchargeable, pour la meme raison que
+ * `matchCloudShadows` existe dans `fx/GodRays.ts`.
+ *
+ * `overlay` et pas `add` : l'ile porte deja des rais additifs, et deux
+ * couches additives sur les memes pixels degagés crament les hautes lumieres.
+ * L'overlay module au lieu d'ajouter, donc il cohabite.
+ *
+ * Il passe UN CRAN au-dessus de l'ombre : la frange doit mordre sur le bord
+ * de la plaque, pas passer dessous.
+ */
+export function mountSunWarm(
+  parent: Container,
+  centerX: number,
+  centerY: number,
+  shadowOptions: CloudShadowNoiseOptions = {},
+  sunOptions: Pick<
+    CloudShadowNoiseOptions,
+    'color' | 'colorB' | 'gradient' | 'breath' | 'alpha' | 'rim'
+  > = {},
+): CloudShadowsNoise {
+  const w = TUNED_W * REACH;
+  const h = TUNED_H * REACH;
+  const scale = (shadowOptions.scale ?? CLOUD_SHADOW_NOISE_DEFAULTS.scale) * REACH;
+  const sun = createCloudShadowsNoise(w, h, {
+    ...shadowOptions,
+    ...CLOUD_LIGHT_DEFAULTS,
+    ...sunOptions,
+    scale,
+  });
+  sun.view.position.set(centerX - w / 2, centerY - h / 2);
+  sun.view.zIndex = Z + 1;
+  sun.view.blendMode = 'overlay';
+  sun.view.eventMode = 'none';
+  sun.view.interactiveChildren = false;
+  parent.addChild(sun.view);
+  return sun;
 }

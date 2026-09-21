@@ -119,6 +119,22 @@ export const ITEM_META: Record<ItemKind, ItemMeta> = {
     tint: '#9a6bd6',
     counts: 'carried',
   },
+  fence: {
+    /* A fence, not a wall or a brick: the glyph has to read at 20px in a
+       monospace stack, and the coverage rule at the top of this file applies —
+       this one renders, a "🚧" reads as roadworks and a "🧱" as masonry. */
+    icon: '🪵',
+    /* The sprite's own ochre, so the slot and the thing on the board are
+       recognisably one object. Sampled from segment-v2.png's rails. */
+    tint: '#b98a3c',
+    counts: 'carried',
+    /* The runtime sprite itself, which is what makes the slot read as the
+       wall you are about to build rather than as a plank. Unlike the other
+       `art` entries this one is not a chest drop — it is the DECO file the
+       burrow draws, so the row and the potager show the same posts. */
+    art: '/assets/deco/garden-fence/segment-v2.png',
+    aspect: 192 / 128,
+  },
 };
 
 /**

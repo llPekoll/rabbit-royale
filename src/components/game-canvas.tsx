@@ -19,6 +19,7 @@ import { BootScene } from '@/game/scenes/BootScene';
 import { SCENE, type SceneKey } from '@/game/keys';
 import type { IslandScene } from '@/game/scenes/IslandScene';
 import type { BurrowScene } from '@/game/scenes/BurrowScene';
+import type { FenceSeg } from '@/game/burrow/fence';
 
 export interface GameHandles {
   island: IslandScene;
@@ -60,6 +61,8 @@ export interface GameCanvasProps {
   /** A minable tile was tapped while placing. `mined` says whether it already
    *  holds a bomb — the tap takes it back up rather than putting one down. */
   onToggleTrap(tile: number, mined: boolean): void;
+  /** An edge of the potager was tapped while WALLING — see `BurrowScene`. */
+  onFence?(seg: FenceSeg): void;
   /** A tile was tapped with a strike ARMED — see `IslandScene.setAiming`. */
   onStrikeIntent?(tileIndex: number): void;
   /** A tile was tapped with a bomb ARMED — see `IslandScene.setAiming`. */
@@ -75,7 +78,8 @@ export interface GameCanvasProps {
 }
 
 export function GameCanvas({
-  seed, playerId, onMoveIntent, onToggleTrap, onStrikeIntent, onPlantIntent, onReady, openOn,
+  seed, playerId, onMoveIntent, onToggleTrap, onFence, onStrikeIntent, onPlantIntent,
+  onReady, openOn,
 }: GameCanvasProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<GameApp | null>(null);
@@ -90,11 +94,13 @@ export function GameCanvas({
   const seedRef = useRef(seed);
   const moveRef = useRef(onMoveIntent);
   const trapRef = useRef(onToggleTrap);
+  const fenceRef = useRef(onFence);
   const strikeRef = useRef(onStrikeIntent);
   const plantRef = useRef(onPlantIntent);
   const readyRef = useRef(onReady);
   moveRef.current = onMoveIntent;
   trapRef.current = onToggleTrap;
+  fenceRef.current = onFence;
   strikeRef.current = onStrikeIntent;
   plantRef.current = onPlantIntent;
   readyRef.current = onReady;
@@ -129,6 +135,7 @@ export function GameCanvas({
           traps: [],
           placing: false,
           onToggle: (tile, mined) => trapRef.current(tile, mined),
+          onFence: (seg) => fenceRef.current?.(seg),
         },
         openOn: openOnRef.current,
         onReady: () => {

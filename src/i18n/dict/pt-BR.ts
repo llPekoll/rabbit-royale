@@ -217,6 +217,9 @@ export const ptBR: Dict = {
     } as Record<string, string>,
     plantedBy: (name) => `Bomba de ${name}!`,
     struckBy: (name) => `${name} te atingiu com um raio`,
+    watchers: (n) => `${n} online`,
+    hitBolt: (name) => `${name} te fulminou`,
+    hitBomb: (name) => `${name} minou isso`,
   },
 
   firstRun: {
@@ -324,6 +327,9 @@ export const ptBR: Dict = {
     boughtShield: (n, paid) => `${n > 1 ? `${n} escudos prontos` : 'Escudo pronto'}. ${paid}`,
     boughtSmoke: (paid) => `Os números estão escondidos. ${paid}`,
     boughtMirage: (n, paid) => `${n > 1 ? `${n} miragens prontas` : 'Miragem pronta'} para jogar. ${paid}`,
+    /* Uma cerca é LEVANTADA: o que se compra é uma tábua que fecha um trecho da
+       borda da horta, então o recibo nomeia aquilo em que ela se transforma. */
+    boughtFence: (n, paid) => `${n > 1 ? `${n} tábuas prontas` : 'Tábua pronta'} para levantar. ${paid}`,
     paid: (spent) => `-${spent} 🥕`,
   },
 
@@ -341,6 +347,18 @@ export const ptBR: Dict = {
     tile_doorstep: 'Perto demais da porta. Os primeiros passos ficam livres.',
     tile_already_trapped: 'Já minado.',
     no_trap_there: 'Não tem armadilha aí.',
+    no_fences: 'Sem cercas. O galpão vende.',
+    span_already_fenced: 'Já tem uma tábua aí.',
+    span_not_exposed: 'Isso não é uma borda da sua horta.',
+    /* A regra do portão, dita como regra e não como erro: é a única recusa
+       daqui que o jogador precisa APRENDER, então ela diz por que antes de
+       dizer não. */
+    would_seal_burrow: 'Isso fecharia a última entrada. Uma entrada fica aberta como portão.',
+    span_not_fenced: 'Não tem tábua aí.',
+    bad_span: 'Isso não é lugar para uma tábua.',
+    /* Não é a recusa do dono, e sim a do SAQUEADOR, vinda de raid/route.ts —
+       a cerca é a única defesa que ele enxerga, então ela o orienta. */
+    fenced: 'Uma cerca bloqueia o caminho. Contorne.',
     payments_unavailable: 'Pagamento com cartão ainda não está configurado.',
     quote_expired: 'Essa cotação expirou. Tente de novo.',
     signature_already_used: 'Esse pagamento já foi usado.',
@@ -359,7 +377,28 @@ export const ptBR: Dict = {
   },
 
   kit: {
+    tools: {
+      more: 'Ver efeito e ações', less: 'Recolher detalhes',
+      available: (n) => n + ' disponíveis',
+      placed: (n) => n + ' colocados',
+      active: (time) => time + ' restantes',
+      buyTrap: (price) => 'Comprar armadilha - ' + price + ' cenouras',
+      trapHint: 'Toque numa casa para enterrar. Toque na armadilha para recuperar.',
+      trapEmpty: 'Recupere uma armadilha ou compre uma abaixo.',
+      fenceHint: 'Toque numa borda iluminada para construir. Toque na cerca para recuperar.',
+      raiseShield: 'Usar um escudo', shieldActive: 'Sua toca já está protegida.',
+      shopHint: 'Disponível na loja.', notEnough: 'Faltam cenouras para outra armadilha.',
+      smokeHint: 'Comprar fumaça na loja ativa o efeito imediatamente.',
+      attackHint: 'Use na ilha de um rival durante uma partida.',
+      chestHint: 'Encontre mais nos baús.',
+      waterEffect: 'Faz sua horta crescer mais rápido por um tempo.',
+      fertiliserEffect: 'Permite que a horta armazene mais cenouras antes de encher.',
+      water: 'Usar uma rega', fertilise: 'Usar um fertilizante',
+    },
     aria: 'O que você está carregando',
+    groupDefence: 'DEFESA',
+    groupAttack: 'ATAQUE',
+    groupGarden: 'HORTA',
     shieldHolding: (wait, held) => `Escudo: de pé, restam ${wait}. ${held} na bolsa.`,
     shieldReady: (held) => `Escudo: ${held} na bolsa. Levante um. Saques ricocheteiam enquanto durar.`,
     shieldNone: 'Escudo: nenhum. Compre um na loja.',
@@ -382,6 +421,24 @@ export const ptBR: Dict = {
     bottleRunning: (name, wait, count) => `${name}: em curso, restam ${wait}. ${count} na bolsa.`,
     bottleHeld: (name, count) => `${name}: ${count} na bolsa. Despeje uma na horta.`,
     bottleNone: (name) => `${name}: nenhuma. Encontradas em baús.`,
+    /* A CASA DA CERCA. Uma cerca é uma tábua sobre um trecho da borda da horta.
+       `total` são todos os trechos, portão incluído, como quem chama
+       (kit-row.tsx) os conta: o último nunca pode ser fechado, e fenceAllWalled
+       diz isso em vez de deixar a conta ler como uma tábua que o jogador deixou
+       de levantar. */
+    fencePlace: (held, walled, total) =>
+      `Cercas: ${held} tábua${held === 1 ? '' : 's'} na bolsa, ${walled} de ${total} trecho${total === 1 ? '' : 's'} fechado${walled === 1 ? '' : 's'}.`
+      + ' Levante uma.',
+    /* Não é falha, por isso o portão é dito na cara: o jogador fez tudo o que o
+       item permite, e um "não dá mais" leria como um limite a ser vencido. */
+    fenceAllWalled: (walled) =>
+      `Cercas: ${walled} trecho${walled === 1 ? '' : 's'} fechado${walled === 1 ? '' : 's'}.`
+      + ' A última entrada é o portão e fica aberta.',
+    /* Nomeia o caminho de volta a uma tábua quando a bolsa está vazia: uma tábua
+       levantada não foi gasta, é só tocar nela para pegá-la de volta. */
+    fenceNone: (walled) =>
+      `Cercas: nenhuma na bolsa, ${walled} trecho${walled === 1 ? '' : 's'} fechado${walled === 1 ? '' : 's'}.`
+      + ' O galpão vende. Toque numa tábua levantada para pegá-la de volta.',
     watering: 'Rega',
     fertiliser: 'Adubo',
   },
@@ -575,6 +632,13 @@ export const ptBR: Dict = {
     mirage: {
       name: 'Miragem',
       blurb: 'Faz alguns números de um rival mentirem no meio da saída. Dá para perceber.',
+    },
+    /* A única defesa FEITA para ser vista — "não atravessam" e não "atrasa":
+       um saqueador que lê isso e contorna entendeu o item exatamente.
+       Ver lib/game/fences.ts. */
+    fence: {
+      name: 'Cerca',
+      blurb: 'Fecha um trecho da borda da sua horta. Saqueadores não atravessam.',
     },
   },
 

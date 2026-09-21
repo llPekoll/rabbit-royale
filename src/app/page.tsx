@@ -19,6 +19,7 @@ import { useGameSocket } from '@/components/use-game-socket';
 import { Recap } from '@/components/run-recap';
 import { ChestPrize } from '@/components/chest-prize';
 import { GameCanvas, type GameHandles } from '@/components/game-canvas';
+import type { FenceSeg } from '@/game/burrow/fence';
 import { WalletButton } from '@/components/wallet-button';
 import { LeaderboardDrawer, type Me } from '@/components/leaderboard-drawer';
 import { BackButton } from '@/components/back-button';
@@ -44,6 +45,7 @@ import { nextAction } from '@/config/next-action';
 import { LORE } from '@/config/lore';
 import { KitRow } from '@/components/kit-row';
 import { MarkBombButton } from '@/components/mark-bomb-button';
+import { WatcherStrip } from '@/components/watcher-strip';
 import { EnergyCoach } from '@/components/energy-coach';
 import { LoreCrawl } from '@/components/lore-crawl';
 import { GardenCard } from '@/components/garden-card';
@@ -321,6 +323,16 @@ function Burrow() {
   const [showCanvas, setShowCanvas] = useState(false);
   /** True while the burrow board is showing trappable tiles. */
   const [placing, setPlacing] = useState(false);
+  /**
+   * Choosing which SIDE of the potager to wall.
+   *
+   * A second mode beside `placing`, and never both at once — the scene drops
+   * whichever it is not in (`setWalling`), because a board where a tap might
+   * bury a bomb or might build a wall is a board where every tap is a guess.
+   */
+  const [walling, setWalling] = useState(false);
+  const [inspectingKit, setInspectingKit] = useState(false);
+  const editingKit = placing || walling || inspectingKit;
   /**
    * Whether a raid was up on the previous render.
    *
@@ -764,18 +776,24 @@ function Burrow() {
    * `aiming` is the mode; the scene is told (`setAiming`) so rivals become
    * targets and the tap resolves to a strike instead of a step. One tap fires
    * it and disarms — a strike is not a brush the player paints with.
+   *
+   * THESE TWO DO FIRE WHILE WATCHING — unlike `onMoveIntent` above, which
+   * stays dropped. The difference is what the tap asks for: a step asks to
+   * move a rabbit the viewer does not have, and there is nothing to do with
+   * that ask but drop it; a bolt asks to hit a rabbit that is right there on
+   * the board, which is what the viewer opened this run to do. The server
+   * takes both from a spectator now (see the notes on its `lightning` and
+   * `plant` handlers).
    */
   const [aiming, setAiming] = useState<'strike' | 'plant' | null>(null);
   const onStrikeIntent = useCallback((tile: number) => {
-    if (spectating) return;
     game.strike(tile);
     setAiming(null);
-  }, [game, spectating]);
+  }, [game]);
   const onPlantIntent = useCallback((tile: number) => {
-    if (spectating) return;
     game.plant(tile);
     setAiming(null);
-  }, [game, spectating]);
+  }, [game]);
   useEffect(() => {
     if (!ready) return;
     handles.current?.island.setAiming(aiming);
@@ -794,13 +812,12 @@ function Burrow() {
     setNote(reason === 'none-held' ? t.run.plantNone : (t.run.plantRefused[reason] ?? t.run.plantNone));
     playUiSfx('deny');
   }, [game.plantRefused, t]);
-  // WE stepped on a saboteur's bomb: the blast already played; say whose.
-  useEffect(() => {
-    if (!game.bombedBy) return;
-    const who = game.rabbits.get(game.bombedBy.by)?.name ?? t.raid.aRival;
-    setNote(t.run.plantedBy(who));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [game.bombedBy, t]);
+  // WE stepped on a saboteur's bomb, and WE were struck: both used to raise a
+  // toast here. They are said on the watcher strip now (`WatcherStrip`), which
+  // is where the player is already looking for a rival's move — the strip
+  // prints the count of people watching the run, and a hit is that count
+  // turning into a name. Two places saying the same sentence made the toast
+  // the one that got read and the strip look like it had missed the event.
   // A strike of ours landed: the bag is lighter, and the count on the strip
   // reads from the shop's shelf.
   useEffect(() => { if (game.casts > 0) void shop.refresh(); }, [game.casts, shop]);
@@ -809,15 +826,6 @@ function Burrow() {
     setNote(t.run.strikeNone);
     playUiSfx('deny');
   }, [game.strikeRefused, t]);
-  // WE were struck: say by whom. The rabbit is already playing it.
-  useEffect(() => {
-    if (!game.struckBy) return;
-    const who = game.rabbits.get(game.struckBy.by)?.name ?? t.raid.aRival;
-    setNote(t.run.struckBy(who));
-    // `rabbits` is read for the name only; keying on it would repeat the toast
-    // on every move.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [game.struckBy, t]);
   /**
    * A tile was tapped while placing: a bare one takes a bomb, a mined one
    * gives it back.
@@ -875,6 +883,24 @@ function Burrow() {
   }, [shop]);
 
   /**
+   * An edge of the potager was tapped: put a plank there, or lift the one
+   * standing. ONE handler for both directions, like `onToggleTrap`: the board
+   * already knows which spans are built (it drew them), so tapping a plank is
+   * the way to lift it — the same gesture that lifts a bomb off a mined tile.
+   *
+   * Server-first, never optimistic. The gate rule is the server's, so a plank
+   * that would seal the burrow must come back as a refusal with words rather
+   * than as a plank that flashes up and then disappears on the next poll.
+   */
+  const onFence = useCallback(async (seg: FenceSeg) => {
+    const built = shop.fences?.placed.some((p) => p.tile === seg.tile && p.side === seg.side);
+    // The sync effect below redraws from the server's list either way; nothing
+    // is drawn here, which is what keeps the board and the bag in step.
+    if (built) await shop.removeFence(seg);
+    else await shop.placeFence(seg);
+  }, [shop]);
+
+  /**
    * Buy one more bomb WITHOUT leaving the board.
    *
    * A player who has buried their last bomb is standing in front of the one
@@ -905,6 +931,9 @@ function Burrow() {
    */
   const startPlacing = useCallback(() => {
     setShopOpen(false);
+    setInspectingKit(false);
+    setWalling(false);
+    handles.current?.burrow?.setWalling(false);
     // No iris here, on purpose — the camera IS the transition.
     //
     // Placement used to go behind the carrot wipe like every change of screen,
@@ -922,6 +951,28 @@ function Burrow() {
     // else needs to happen in the dark.
     setPlacing(false);
     handles.current?.burrow?.setPlacing(false);
+  }, []);
+
+  /**
+   * Start WALLING: the same pull-back placement gets, and no iris.
+   *
+   * The camera is the transition here too — the potager has to be on screen
+   * to choose a side of it, which is the whole reason this is a board mode
+   * rather than a menu of four compass buttons.
+   */
+  const startWalling = useCallback(() => {
+    setShopOpen(false);
+    setInspectingKit(false);
+    // The two modes are exclusive; the scene enforces it, and this keeps
+    // React's copy of the truth in step with it.
+    setPlacing(false);
+    setWalling(true);
+    handles.current?.burrow?.setWalling(true);
+  }, []);
+
+  const stopWalling = useCallback(() => {
+    setWalling(false);
+    handles.current?.burrow?.setWalling(false);
   }, []);
 
   /**
@@ -1557,6 +1608,22 @@ function Burrow() {
     void handles.current?.burrow?.setLevel(burrow.level);
   }, [ready, burrow?.level]);
 
+  /**
+   * The walls, SYNCHRONISED with the server's list.
+   *
+   * Both what stands and what may still go up, because the second is the
+   * board's offer and the server owns the gate rule that decides it. Pushed on
+   * every change rather than passed at mount: `GameCanvas` builds the scene
+   * once, and these arrive from a poll the shop hook is already making.
+   */
+  useEffect(() => {
+    if (!ready) return;
+    handles.current?.burrow?.setFences(
+      (shop.fences?.placed ?? []) as FenceSeg[],
+      (shop.fences?.offers ?? []) as FenceSeg[],
+    );
+  }, [ready, shop.fences?.placed, shop.fences?.offers]);
+
   // WHO LIVES HERE: the owner's name over their rabbit, and the crown if they
   // are the season's #1.
   //
@@ -2033,6 +2100,11 @@ function Burrow() {
   useEffect(() => {
     if (where === 'burrow') return;
     if (placing) stopPlacing();
+    // Walling leaves with the screen for the reason placement does: a grid —
+    // or here a row of ghosted posts — you forgot you opened is a small
+    // mystery every time you come back.
+    if (walling) stopWalling();
+    setInspectingKit(false);
     setShopOpen(false);
     // The popup belongs to the burrow's arrow, so it leaves with the screen —
     // the recap on the island has its own way of asking the same question.
@@ -2042,7 +2114,7 @@ function Burrow() {
     // by a spectate was still up over the island.
     setPickingTarget(false);
     setLoreOpen(false);
-  }, [where, placing, stopPlacing]);
+  }, [where, placing, stopPlacing, walling, stopWalling]);
 
   /**
    * Signing in: run the iris, and hand the screen over at its midpoint.
@@ -2102,6 +2174,7 @@ function Burrow() {
           playerId={player.id}
           onMoveIntent={onMoveIntent}
           onToggleTrap={onToggleTrap}
+          onFence={onFence}
           onStrikeIntent={onStrikeIntent}
           onPlantIntent={onPlantIntent}
           onReady={(h) => { handles.current = h; setReady(true); }}
@@ -2217,7 +2290,7 @@ function Burrow() {
             right, and the five read as one evenly spaced group. The reserve used to be a
             flat 56 for a button that grew to 68, and the trophy sat 2px on top
             of the story. Derived now, so it cannot drift again. */}
-        {showCanvas && where === 'burrow' && !placing ? (
+        {showCanvas && where === 'burrow' && !editingKit ? (
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -2363,7 +2436,7 @@ function Burrow() {
                   
                   The instruction and "Done placing" stay: they are the two
                   things placement itself needs. */}
-              {!placing && (
+              {!editingKit && (
               <>
               {/* NO SHIELD CARD. The badge over the homestead already says it.
                   
@@ -2522,7 +2595,15 @@ function Burrow() {
           The rest of the time the burrow stays a place rather than a loadout.
           The garden's bottles are the exception and keep their corner: they
           are poured ON the burrow, so they belong to it. */}
-      {!crossing && !shownRaid && where === 'burrow' && showCanvas && placing && burrow && (
+      {/* WALLING KEEPS THE ROW UP TOO, and it has to: the fence slot IS the
+          way into walling, and the row only ever showed while `placing`. So
+          pressing FENCE dropped placement, the row unmounted with it, and the
+          screen fell back to the resting burrow — the button undid itself.
+          Paul, 2026-09-21: "qd je click sur la fence dans le menu je repart
+          direct sur le burrow". Both modes are the loadout being handled, so
+          both keep the loadout on screen. */}
+      {!crossing && !shownRaid && where === 'burrow' && showCanvas
+        && editingKit && burrow && (
         <KitRow
           held={shop.shop ? Object.fromEntries(
             shop.shop.items.map((i) => [i.kind, i.held]),
@@ -2542,10 +2623,26 @@ function Burrow() {
           trapCost={TRAPS.CARROT_COST}
           trapsMaxHeld={TRAPS.MAX_HELD}
           stock={burrow.stock}
+          /* THE FENCE SLOT is the icon in the menu that opens walling — the
+             one press in this row that starts a MODE rather than spending
+             something, because a fence still needs to be told which side and
+             that choice is made on the board with the potager in front of you.
+             It reports both numbers for the reason the trap slot does: "2
+             fences" says nothing until you know whether the garden is open. */
+          fencesPlaced={shop.fences?.placed.length}
+          fenceSpans={shop.fences?.spans.length}
+          fenceOffers={shop.fences?.offers.length}
+          onPlaceFence={startWalling}
+          onPlaceTrap={startPlacing}
+          onInspect={() => {
+            stopPlacing();
+            stopWalling();
+            setInspectingKit(true);
+          }}
           water={burrow.boosts.water}
           fertiliser={burrow.boosts.fertiliser}
           onPour={(kind) => act(kind === 'water' ? 'water' : 'fertilise')}
-          pending={pending}
+          pending={pending || shop.busy}
         />
       )}
 
@@ -2586,7 +2683,12 @@ function Burrow() {
           broughtHome={broughtHome}
           nextRunAt={nextRunAt}
           onRunReady={refreshBurrow}
-          away={placing}
+          /* Slid away for BOTH board modes. It was `placing` alone, so
+             pressing FENCE left DIG/DEFEND/RAID sitting live under the kit row
+             and the BACK button — three slabs and two controls stacked in the
+             same corner, each still pressable. Paul, 2026-09-21: "clicker sur
+             fence casse tout". */
+          away={editingKit}
           onDig={goFarm}
           onHome={startPlacing}
           onRaid={() => { setPickingTarget(true); void raid.refresh(); }}
@@ -2608,19 +2710,12 @@ function Burrow() {
           instruction leads while placing (it is the only thing on screen that
           says what a tap will do, and how to take one back); a refused
           placement and the latest toast follow it. */}
-      {showCanvas && where === 'burrow' && !shownRaid && !crossing && (note || (placing && shop.shop)) && (
+      {showCanvas && where === 'burrow' && !shownRaid && !crossing && (note || (editingKit && shop.note)) && (
         <div className="rr-toasts" aria-live="polite">
-          {placing && shop.shop && (
-            <PxPanel color="rgba(13, 17, 23, 0.86)" className="rr-toast rr-toast-hint" style={PX_GLASS}>
-              {shop.shop.traps.held > 0
-                ? t.run.trapHint(shop.shop.traps.held)
-                : t.run.trapHintEmpty}
-            </PxPanel>
-          )}
           {/* Outside the drawer, only a REFUSAL is worth showing: a receipt
               for a purchase the player just watched happen in the panel is
               noise on the burrow screen. */}
-          {placing && shop.note && (
+          {editingKit && shop.note && (
             <PxPanel key={shop.note} color="rgba(40, 14, 14, 0.9)" className="rr-toast refused" style={PX_GLASS}>
               {shop.note}
             </PxPanel>
@@ -2642,7 +2737,7 @@ function Burrow() {
           the game: two runs home. Only on a quiet burrow — never over a
           crossing, a placement, a dialog or another toast, which would bury
           both. It keeps coming back until answered; see install-guide.tsx. */}
-      {showCanvas && where === 'burrow' && !shownRaid && !crossing && !placing && !note
+      {showCanvas && where === 'burrow' && !shownRaid && !crossing && !editingKit && !note
         && !shopOpen && !loreOpen && !energyOpen && !pickingTarget
         && (burrow?.runs ?? 0) >= 2 && <InstallNudge />}
 
@@ -2656,9 +2751,22 @@ function Burrow() {
             game={game}
             name={player?.name ?? ''}
             spectating={spectating}
-            // The bolt: not while watching (no rabbit to fire from), not on
-            // the tutorial island (nobody to fire at).
-            arm={!spectating && !game.firstRun ? {
+            // THE BOLT AND THE BOMB ARE THE VIEWER'S TOOLS, and only the
+            // viewer's. They used to be offered on your own run, where they
+            // had nothing to aim at worth aiming at: the bolt hits a rival and
+            // the bomb waits for one, and on your own board the rivals are
+            // whoever happens to be digging the same island.
+            //
+            // Sabotage is a thing you go and DO. You open a rival from the
+            // leaderboard, you watch them dig — and the two buttons are there,
+            // on the run you are watching, pointed at the rabbit you are
+            // watching. Paul, 2026-09-21: "il faut le voir seulement quand tu
+            // es en mode viewer, c'est a dire quand tu regardes un joueur
+            // jouer pour le pourrir."
+            //
+            // So: while watching, never while digging. Not on the tutorial
+            // island either, which has nobody on it to watch or to hit.
+            arm={spectating && !game.firstRun ? {
               lightning: shop.shop?.items.find((i) => i.kind === 'lightning')?.held ?? 0,
               bombs: shop.shop?.items.find((i) => i.kind === 'bomb')?.held ?? 0,
               aiming,
@@ -2675,6 +2783,18 @@ function Burrow() {
               cannot read "35/60 left at the burrow", and the tutorial's own
               captions need the strip. The first recap states the bank. */}
           {!spectating && !game.firstRun && <RunCostNote bank={game.bank} seed={game.islandSeed} />}
+          {/* WHO IS WATCHING YOU, directly over the button below — and, for a
+              few seconds after a hit lands, WHO JUST GOT YOU. Mounted on the
+              same condition as MARK A BOMB so the pair never half-appears:
+              the count is the warning and the X is the answer to it. */}
+          {!spectating && game.me?.alive && !game.recap && game.erupting === null && (
+            <WatcherStrip
+              count={game.watchers}
+              struckBy={game.struckBy}
+              bombedBy={game.bombedBy}
+              nameOf={(id) => game.rabbits.get(id)?.name ?? null}
+            />
+          )}
           {/* The red X. Only with a live rabbit of your own: a spectator has
               nothing to mark with, and a finished run nothing to spend. */}
           {!spectating && game.me?.alive && !game.recap && game.erupting === null && (
@@ -2836,8 +2956,15 @@ function Burrow() {
           NOT given `away`, because it is unmounted rather than slid: the exit
           and the mode end together, and a button easing out after the board
           has already closed is a control outliving its screen. */}
-      {!crossing && !shownRaid && where === 'burrow' && showCanvas && placing && (
-        <BackButton label="Back" onClick={stopPlacing} />
+      {!crossing && !shownRaid && where === 'burrow' && showCanvas && editingKit && (
+        /* The one way out of EITHER board mode. Walling had none of its own —
+           the fence slot toggles it, but the slot is small and the board fills
+           the screen, so the exit every other mode offers has to be here too. */
+        <BackButton label={t.chrome.back} onClick={() => {
+          stopPlacing();
+          stopWalling();
+          setInspectingKit(false);
+        }} />
       )}
 
       {/* The small "out of energy" dialog. Above the shop in the tree and

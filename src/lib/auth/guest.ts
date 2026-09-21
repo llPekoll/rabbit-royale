@@ -22,6 +22,7 @@ import { randomUUID } from 'node:crypto';
 import { db } from '../db';
 import { players } from '../db/schema';
 import { randomRabbitName } from './names';
+import { grantStartingKit } from './starting-kit';
 
 /** True for a player id minted by this module. */
 export function isGuestId(id: string): boolean {
@@ -75,6 +76,10 @@ export async function createGuestPlayer(now: Date = new Date()): Promise<{
     createdAt: now,
     lastSeenAt: now,
   });
+  // The bag, once the row it hangs off exists. Separate from the INSERT above
+  // because these are `inventory` rows and that is a different table — see
+  // `starting-kit.ts` for why both doors call one function.
+  await grantStartingKit(id);
 
   return { id, name };
 }

@@ -20,6 +20,7 @@
  */
 import { Assets, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import gsap from 'gsap';
+import { mountMeadowLook, type MeadowLook } from './MeadowLook';
 import { IsoIslandView, loadIslandTileset, isoProject, isoDepth, levelAt } from '@/game/island';
 import { getDiamondPixels } from '@/game/services/TileTextures';
 import {
@@ -118,6 +119,7 @@ export async function createBurrowTerrain(
   container: Container,
   seed: string,
   level: number | null | undefined,
+  meadowLook?: MeadowLook,
 ): Promise<BurrowTerrainView> {
   // Issued together, awaited where each is needed — see the same hoist in
   // `createTerrainBackground`. Four independent fetches that used to run one
@@ -438,6 +440,13 @@ export async function createBurrowTerrain(
     { halfW: BURROW_HALF_W, halfH: BURROW_HALF_H },
   );
 
+  const meadow = meadowLook ? mountMeadowLook(container, seed, level, {
+    mountVeil(tile, veil, zIndex) {
+      const { col, row } = burrowColRow(tile);
+      return island.mountVeil(col, row, veil, zIndex);
+    },
+  }, meadowLook) : null;
+
   return {
     view: island.view,
     setLevel: place,
@@ -448,6 +457,7 @@ export async function createBurrowTerrain(
       return island.mountVeil(col, row, veil, zIndex);
     },
     reveal(tiles) {
+      meadow?.setVisible(tiles === null);
       // The water goes with the ground it surrounds. A raider is meant to be
       // blind to a homestead they have not walked, and a coastline left drawn
       // is its outline: the surf traces every shore cell, so the shape of the
@@ -480,6 +490,7 @@ export async function createBurrowTerrain(
     },
     update(deltaMs) {
       island.update(deltaMs);
+      meadow?.update();
       sky.update(deltaMs);
       // Skipped while hidden: a raid keeps the sea invisible for its whole
       // length, and animating a flock nobody can see is work for nothing.
@@ -488,6 +499,7 @@ export async function createBurrowTerrain(
       ducks.update(deltaMs);
     },
     destroy() {
+      meadow?.destroy();
       shield.destroy({ children: true });
       home.destroy();
       water.destroy();

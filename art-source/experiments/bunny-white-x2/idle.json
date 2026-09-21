@@ -1,0 +1,11 @@
+{
+  "cell": [
+    64,
+    64
+  ],
+  "frames": 8,
+  "fps": 8,
+  "loop": true,
+  "source": "public/assets/bunnies/Bunny Sprite Sheet - White.png",
+  "note": "Hand-defined pixel polygons. Idle study only; original assets untouched."
+}

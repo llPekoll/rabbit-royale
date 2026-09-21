@@ -1562,6 +1562,45 @@ body:has(.rr-pill-plate.has-energy) {
   pointer-events: none;
 }
 
+/* WHO IS WATCHING (watcher-strip.tsx). Directly over MARK A BOMB, in the same
+   right-hand column and on the same floor arithmetic as `.rr-mark-hint` — the
+   count is the warning and the button under it is the answer, so the two are
+   read without the eye crossing the board.
+
+   It rides 6px above the plank rather than the hint's 20px: the hint is a
+   sentence that wants clearance, this is one short line that belongs to the
+   button it sits on, and the closer gap is what makes them read as a pair.
+
+   No panel, no plate. The board under it is busy and a second slab of glass on
+   this corner would be a third frame in a stack that already has the plank and
+   the button; the pixel outline below carries it on any ground. */
+.rr-watchers {
+  position: fixed;
+  right: max(var(--rr-pad), env(safe-area-inset-right));
+  bottom: calc(max(var(--rr-pad), env(safe-area-inset-bottom)) + var(--rr-back-h) + 6px);
+  color: #9aa6b2;
+  /* The COUNT is two words and must never break across them. The sentence
+     below overrides this — see `.rr-watchers.hit`. */
+  white-space: nowrap;
+  /* The pixel face has no outline of its own, and this line stands on grass,
+     on sand and on wet rock over the run. Four 1px shadows, not a blur: a
+     blurred shadow under a pixel glyph reads as a smudge at 2×. */
+  text-shadow: 1px 0 0 #0d1117, -1px 0 0 #0d1117, 0 1px 0 #0d1117, 0 -1px 0 #0d1117;
+}
+/* SOMEBODY IS OUT THERE. Gold, the colour the armed bolt and the chest pointer
+   already wear — on this screen gold means "a rival's move is in play". */
+.rr-watchers.live { color: #ffd45c; }
+/* AND SOMEBODY JUST LANDED ONE. The X's red, the same the armed plank takes:
+   the sentence names who did it, and the colour says which kind of news it is
+   before the name is read. */
+.rr-watchers.hit {
+  color: #ff5a4a;
+  max-width: min(280px, 46vw);
+  white-space: normal;
+  text-align: right;
+  line-height: 1.3;
+}
+
 /* The run's hearts (see hearts.tsx). Whole-multiple pixel art: the sprite is
    19×16, drawn at exactly 2× so no source pixel straddles a screen pixel. The
    row keeps its width — it is the one reading that must not shrink when the
@@ -1805,6 +1844,12 @@ body:has(.rr-pill-plate.has-energy) {
   min-height: var(--rr-back-h);
   z-index: 22;
 }
+/* THE GROUP CAPTIONS in the kit row, at the size the screen allows.
+   Only the SIZE is here — the colour, tracking and cast stay in kit-row.tsx
+   with the rest of the row's own look, because they do not change with the
+   viewport and a second home for them would drift. */
+.rr-kit-caption { font-size: calc(var(--rr-kit-caption-h) - 2px); }
+
 /* The global `button:active` nudge would move a fixed slab; the face sinks instead. */
 .rr-back-btn:active { transform: none; }
 .rr-back-btn:active .rr-back-face { transform: translateY(4px); }
@@ -2498,8 +2543,13 @@ body:has(.rr-burrow) .rr-burrow:has(.rr-empty) {
      32px is comfortable for a thumb-height row on the floor; `ItemSlot`'s hit
      area covers the rest of the 44px touch target. */
   --rr-slot: 32px;
-  /* The square plus the 8px of air the row sits on. */
-  --rr-kit-h: calc(var(--rr-slot) + 8px);
+  /* THE CAPTION OVER EACH GROUP: its line box plus the 2px under it.
+     Stated here rather than in kit-row.tsx because the row's total height is
+     measured against it, and a caption that grew would otherwise push the row
+     into the BACK button with nothing in the sheet to say why. */
+  --rr-kit-caption-h: 11px;
+  /* The square, its caption, and the 8px of air the row sits on. */
+  --rr-kit-h: calc(var(--rr-slot) + var(--rr-kit-caption-h) + 8px);
   /* The mute cluster's width — its 52px button, the 44px "more" beside it and
      the 6px between them. The kit row stops short of it; stated once here
      because a second copy would drift the day the cluster changes. */
@@ -2624,7 +2674,12 @@ body:has(.rr-burrow) .rr-burrow {
      the column above it — which is the part that clips first. 26px still reads
      as a slot and still takes a tap, because the hit area is independent of
      the square (see `ItemSlot`). */
-  :root { --rr-slot: 26px; }
+  :root {
+    --rr-slot: 26px;
+    /* The group captions shrink with the squares: every pixel the row takes
+       here comes off the column above, which is the part that clips first. */
+    --rr-kit-caption-h: 9px;
+  }
 
 
 }

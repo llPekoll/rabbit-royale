@@ -4,6 +4,7 @@ import { loadArcadeFonts, loadCoinAssets } from '@domin8/arcade-kit/pixi';
 import { CARROT_URL } from '@domin8/arcade-kit/game';
 import { ARROW_URLS } from '@domin8/arcade-kit';
 import * as Keys from '@/config/assetKeys';
+import { FENCE_TEXTURE } from '@/game/burrow/fence';
 import { BURROW_BUILDING_URLS } from '@/game/burrow/buildings';
 import { WIPE_MASK_URLS } from '@/config/wipe';
 
@@ -29,6 +30,10 @@ const IMAGES = [
   // The buried bomb: fuse UNLIT. Its lit twin (bomb-lit.png) is the item you
   // throw, in the shop and the kit row.
   { key: Keys.BOMB_SMALL, src: '/assets/ui/icons/bomb.png' },
+  // The garden fence's one module, mirrored onto all four iso diagonals by
+  // the board. Here rather than fetched on demand because the burrow builds
+  // its fence layer during the boot — see the key's own note.
+  { key: Keys.GARDEN_FENCE, src: FENCE_TEXTURE },
   { key: Keys.LOGO, src: '/assets/ui/rr-logo-1x.webp' },
   { key: Keys.LOGO_BANNER, src: '/assets/ui/rr-logo-banner.webp' },
   { key: Keys.LOOT_BOX, src: '/assets/fx/loot-box.webp' },

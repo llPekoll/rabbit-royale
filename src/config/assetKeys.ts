@@ -8,6 +8,17 @@ export const DEAD_SKULL = 'dead-skull';
 export const GHOST_DOWN = 'ghost-down';
 export const GHOST_UP = 'ghost-up';
 export const BOMB_SMALL = 'bomb-small';
+/**
+ * One span of the potager's fence — the module the burrow repeats along each
+ * exposed edge of the field (see `game/burrow/fence`).
+ *
+ * Preloaded like every other board sprite rather than reached for with
+ * `Texture.from` at build time: the burrow's layer is built inside
+ * `BurrowScene.create`, which runs from the BOOT, and a texture that is not in
+ * the cache by then comes back undefined — which is a crash, not a missing
+ * picture. The fence's first frame took the whole scene down that way.
+ */
+export const GARDEN_FENCE = 'garden-fence';
 
 // Bunny animation rows (8 frames each, 32x32)
 export const BUNNY_ANIMS = {

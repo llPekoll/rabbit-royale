@@ -18,6 +18,7 @@ import { loginNonces, players } from '../db/schema';
 import { isSolanaAddress, verifySignature } from './signature';
 import { loginMessage } from './message';
 import { randomRabbitName } from './names';
+import { grantStartingKit } from './starting-kit';
 
 export { loginMessage };
 
@@ -108,5 +109,9 @@ export async function resolveWalletPlayer(
       lastSeenAt: now,
     })
     .onConflictDoNothing();
+  // The bag, once the row it hangs off exists — `inventory` is a different
+  // table, so it cannot ride in the INSERT above. Idempotent, like the insert:
+  // two sign-ins racing on a first login grant one starting kit.
+  await grantStartingKit(id);
   return id;
 }

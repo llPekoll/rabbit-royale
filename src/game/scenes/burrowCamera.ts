@@ -48,7 +48,7 @@
  */
 import { GAME_W, GAME_H } from '../Application';
 import { BURROW_COLS, BURROW_ROWS, BURROW_HALF_W, BURROW_HALF_H } from '@/config/burrowConfig';
-import { burrowCell } from '@/game/burrow/board';
+import { burrowCell, fieldTiles } from '@/game/burrow/board';
 import { burrowTileScreen } from '@/game/burrow/screen';
 
 export interface BurrowCam {
@@ -287,6 +287,39 @@ export function placeCam(seed: string, W: number = GAME_W, H: number = GAME_H): 
     scale,
     x: W / 2 - scale * (b.minX + b.maxX) / 2,
     y: H / 2 - scale * (b.minY + b.maxY) / 2,
+  }, seed, W, H);
+}
+
+/**
+ * The shot WALLING opens on: placement's zoom, aimed at the POTAGER.
+ *
+ * Not `placeCam`, though it is the same zoom. Placement centres the whole
+ * board because every trappable cell is equally a candidate; walling has
+ * exactly one subject, the field, and on a wide screen `placeCam` left it at
+ * the far edge under the shield badge and the owner's name — the one thing
+ * the mode is about, half out of frame. Seen in the Playwright drive,
+ * 2026-09-21, after Paul reported "rien ne se passe comme il faut".
+ *
+ * Clamped like placement's shot, so the pan and pinch limits are the same
+ * ones and the board cannot be aimed off its own edge.
+ */
+export function wallCam(seed: string, W: number = GAME_W, H: number = GAME_H): BurrowCam {
+  const { min, max } = placeZoomLimits(seed, W, H);
+  const scale = clamp(min * PLACE_ZOOM_OPEN, min, max);
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const tile of fieldTiles(seed)) {
+    const { x, y } = burrowTileScreen(seed, tile);
+    minX = Math.min(minX, x - BURROW_HALF_W);
+    maxX = Math.max(maxX, x + BURROW_HALF_W);
+    minY = Math.min(minY, y - BURROW_HALF_H);
+    maxY = Math.max(maxY, y + BURROW_HALF_H);
+  }
+  // A seed with no field falls back to the board's centre rather than NaN.
+  if (!Number.isFinite(minX)) return placeCam(seed, W, H);
+  return clampPlaceCam({
+    scale,
+    x: W / 2 - scale * (minX + maxX) / 2,
+    y: H / 2 - scale * (minY + maxY) / 2,
   }, seed, W, H);
 }
 

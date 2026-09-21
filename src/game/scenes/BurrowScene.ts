@@ -47,12 +47,14 @@ import {
   burrowCell, isTrappable, isDoorstep, entranceTile, walkableTiles, fieldTiles,
 } from '@/game/burrow/board';
 import { burrowTileScreen, burrowDepth } from '@/game/burrow/screen';
+import { FenceView } from '@/game/burrow/FenceView';
+import type { FenceSeg } from '@/game/burrow/fence';
 import { RABBIT_SCALE } from '@/config/gridConfig';
 import { electrocute } from '../fx/Electrocute';
 import { createBurrowTerrain, type BurrowTerrainView } from '@/game/burrow/BurrowTerrain';
+import { MEADOW_LOOK } from '@/game/burrow/MeadowLook';
 import {
-  homeCam, boardCam, placeCam, panPlaceCam, zoomPlaceCam, clampPlaceCam, type BurrowCam,
-} from './burrowCamera';
+  homeCam, boardCam, placeCam, panPlaceCam, zoomPlaceCam, clampPlaceCam, type BurrowCam, wallCam } from './burrowCamera';
 import { PanZoomGestures, type Point } from '../input/PanZoomGestures';
 import {
   GhostBomb, GloveHint, isTouchPrimary, nearestTo, prefersReducedMotion, type GloveTarget,
@@ -110,6 +112,17 @@ const TRAP_TINT = 0xffd45c;
  * as a level without being taught.
  */
 const REARMING_ALPHA = 0.3;
+
+/**
+ * How near a fence the pointer must be to name it, in SCREEN pixels.
+ *
+ * A fence is a LINE, and a line has no area to hit-test, so the side under
+ * the pointer is whichever span's posts are nearest (`FenceView.pick`). 28px
+ * is a little over one cell's half-height at this board's zoom: close enough
+ * that the two sides meeting at a corner are still told apart, wide enough
+ * that a finger does not have to land on the rails themselves.
+ */
+const SIDE_GRAB = 28;
 
 
 /**
@@ -339,6 +352,28 @@ export interface BurrowSceneData {
   traps: number[];
   /** True while the owner is choosing where to put one. */
   placing: boolean;
+  /** Planks standing on the potager's edge. */
+  fences?: FenceSeg[];
+  /**
+   * Spans a plank may still go on — the SERVER's list, not the geometry's.
+   *
+   * The gate rule and the bag are the server's to enforce, so the board offers
+   * exactly what the server would accept. Deriving it here from the seed would
+   * put a second implementation of the gate rule on the client, which is the
+   * drift the raid route's own note about `steps` warns against.
+   */
+  fenceOffers?: FenceSeg[];
+  /**
+   * True while the owner is choosing where a PLANK goes — a second placement
+   * mode, kept apart from `placing` because the two pick different things.
+   *
+   * Never both: a board where a tap might bury a bomb or might build a wall is
+   * a board where every tap is a guess. `setPlacing` and `setWalling` each
+   * drop the other.
+   */
+  walling?: boolean;
+  /** A span was tapped. The server still decides; this says what was asked. */
+  onFence?(seg: FenceSeg): void;
   /**
    * A minable tile was tapped. `mined` says which way it goes: a bare tile
    * takes a bomb, a mined one gives it back.
@@ -399,6 +434,10 @@ export class BurrowScene implements Scene {
   private shieldLabel: ((ms: number) => string) | undefined;
   private crop: CarrotCrop | null = null;
   private board = new Container();
+  /** The potager's walls — its own layer, see `FenceView`. */
+  private fenceView: FenceView | null = null;
+  /** The span under the pointer while walling — the surbrillance. */
+  private hoverSpan: FenceSeg | null = null;
   private trapSprites = new Map<number, Container>();
   /**
    * tile -> how charged it is, 0 (just sprung) to 1 (armed).
@@ -611,6 +650,8 @@ export class BurrowScene implements Scene {
     }
     this.terrain?.destroy();
     this.terrain = null;
+    this.fenceView?.destroy();
+    this.fenceView = null;
     this.crop?.destroy();
     this.crop = null;
     for (const hint of this.hints) hint.destroy();
@@ -754,6 +795,7 @@ export class BurrowScene implements Scene {
   private async buildTerrain(): Promise<void> {
     this.terrain = await createBurrowTerrain(
       this.container, this.data.seed, this.data.level,
+      new URLSearchParams(window.location.search).get('terrain') === 'meadow' ? MEADOW_LOOK : undefined,
     );
     // A terrain built fresh knows nothing of a shield that was already up —
     // re-entering the scene, or coming home from a raid, rebuilds the ground.
@@ -870,6 +912,33 @@ export class BurrowScene implements Scene {
    * chest shines and minesweeper hints that mean nothing here.
    */
   private buildBoard(): void {
+    // THE WALLS COME BACK WITH THE GROUND, for the reason the trap sprites do
+    // (see `showGround`): every fence sprite is mounted inside its cell's
+    // terrain block, so destroying the terrain destroys them, and a view left
+    // holding the dead sprites would restyle corpses. Rebuilt from the same
+    // perimeter walk each time — it is a pure function of the seed.
+    this.fenceView?.destroy();
+    this.fenceView = new FenceView({
+      seed: this.data.seed,
+      mount: (tile, holder, z) => this.terrain?.mountVeil(tile, holder, z) ?? false,
+      fallback: this.board,
+      // The targets answer their own presses — see `FenceViewOptions.onTap`.
+      // The same three guards the hint path applies: only while walling, not
+      // at the end of a drag, and the press feeds the pan recogniser.
+      onTap: (seg) => {
+        if (!this.data.walling || this.raiding) return;
+        if (this.gestures?.didDrag) return;
+        this.data.onFence?.(seg);
+      },
+      onHover: (seg) => {
+        if (!this.data.walling || this.raiding) return;
+        if (this.gestures?.active && this.gestures.didDrag) seg = null;
+        this.hoverSpan = seg;
+        this.fenceView?.setHovered(seg);
+      },
+      onPress: (e) => this.gestures?.press(e),
+    });
+    this.syncFences();
     // Your rabbit comes back with the ground it stands on. `buildBoard` runs
     // on first paint AND on every `showGround` (a level-up, or crossing to
     // someone else's plot), and the old rabbit's cells no longer exist by
@@ -928,7 +997,19 @@ export class BurrowScene implements Scene {
       hint.label = `burrow-hint-${i}`;
       hint.eventMode = 'static';
       hint.hitArea = new Polygon([0, -hh, hw, 0, 0, hh, -hw, 0]);
-      hint.on('pointertap', () => {
+      hint.on('pointertap', (e: FederatedPointerEvent) => {
+        // WALLING gets the tap first: the two modes are exclusive, and the
+        // diamonds are the only thing on this board with a hit area, so a tap
+        // meant for a plank arrives here. Which SPAN it named is decided by
+        // distance to the edges rather than by which cell answered — a plank
+        // sits on the line between two cells, so the cell under the finger is
+        // a poor guide to which edge was meant (see `FenceView.pick`).
+        if (this.data.walling) {
+          if (this.gestures?.didDrag) return;
+          const seg = this.pickSpan(e);
+          if (seg) this.data.onFence?.(seg);
+          return;
+        }
         if (!this.data.placing || !isTrappable(this.data.seed, i)) return;
         // Pixi fires `pointertap` at the end of a DRAG as readily as after a
         // tap, and the board is panned by dragging across exactly these
@@ -960,6 +1041,13 @@ export class BurrowScene implements Scene {
       hint.on('pointerover', (e: FederatedPointerEvent) => this.onHintHover(i, e));
       hint.on('pointermove', (e: FederatedPointerEvent) => this.onHintHover(i, e));
       hint.on('pointerout', () => this.onHintOut(i));
+      // THE SURBRILLANCE follows the pointer across cells, so it is wired to
+      // the same three events. Unlike the trap ghost it is NOT mouse-only: a
+      // fence is picked by proximity to a line, so a finger sliding towards
+      // one wants to see which side it has landed on before it lifts.
+      hint.on('pointerover', (e: FederatedPointerEvent) => this.onSideHover(e));
+      hint.on('pointermove', (e: FederatedPointerEvent) => this.onSideHover(e));
+      hint.on('pointerout', () => this.onSideOut());
       this.hintByTile.set(i, hint);
       // Into the cell's own terrain block when the ground will take it, so a
       // raised cell's diamond is covered by the grass of the cell in front
@@ -1006,7 +1094,19 @@ export class BurrowScene implements Scene {
       // Invisible, NOT hidden: `visible = false` takes a sprite out of hit
       // testing, and this is the one cell that most needs to answer a tap. The
       // farm relies on the same distinction for a dug tile (see `Tile`).
-      hint.visible = usable || doorstep;
+      /*
+       * VISIBLE ALSO MEANS CLICKABLE, and walling needs the clicks.
+       *
+       * `visible = false` takes a sprite out of hit testing (the note above
+       * says so for the mined cell), and these diamonds are the only thing on
+       * this board with a hit area — a fence tap has nothing else to land on.
+       * So while WALLING they stay in the tree, at alpha 0: no grid is drawn
+       * over the garden, and the pointer still reaches `pickSide`.
+       *
+       * `styleHint` is what puts them at alpha 0 there; this only decides
+       * whether they exist to be hit.
+       */
+      hint.visible = usable || doorstep || !!this.data.walling;
       hint.cursor = usable ? 'pointer' : 'default';
       this.styleHint(tile, hint, 0.2);
     });
@@ -1020,6 +1120,117 @@ export class BurrowScene implements Scene {
     }
     this.syncHover();
     this.syncGlove(placing);
+  }
+
+  /**
+   * Enter or leave WALLING — choosing which side of the potager to close.
+   *
+   * A second mode beside `setPlacing`, and each drops the other: a board where
+   * a tap might bury a bomb or might build a wall is a board where every tap
+   * is a guess. The trap grid comes down when the walls go up, so what is on
+   * screen always says which question is being asked.
+   */
+  setWalling(walling: boolean): void {
+    this.data.walling = walling;
+    // Entering walling DROPS placement, and leaves nothing of it behind.
+    //
+    // `setPlacing(false)` is what takes the trap grid down, hides the ghost
+    // bomb and clears the hovered cell — without it the last cell the mouse
+    // rested on kept its gold marker and its raised bomb, so pressing FENCE
+    // left a trap preview lit on a board that was no longer about traps. It
+    // runs AFTER `data.walling` is set so the camera it asks for is already
+    // the walling shot, not the home one.
+    if (walling) {
+      /*
+       * Placement is dropped BY HAND, not through `setPlacing(false)`.
+       *
+       * That call fires its own `moveCamera`, so entering walling ran two
+       * camera solves back to back — and since it also resets
+       * `camMovedByPlayer`, the pair could settle on the home shot with the
+       * fence mode live underneath it. The board stayed exactly where it was
+       * and only the chrome changed. Clearing the pieces of placement state
+       * directly keeps exactly ONE camera move here, at the end of this
+       * method, after `data.walling` is already true.
+       */
+      this.data.placing = false;
+      this.clearHover();
+      this.hoverMuted = -1;
+      this.ghost?.hide();
+      this.syncGlove(false);
+      this.syncDoorArrow();
+    }
+    if (!walling) this.hoverSpan = null;
+    // The diamonds have to be re-decided either way: entering, they become
+    // invisible hit areas for the side picker; leaving, they go back to
+    // whatever placement says. `setPlacing(false)` above does this on the way
+    // IN, but only when placement was actually on — so it is done here for the
+    // other three cases rather than relied upon.
+    this.hints.forEach((hint, n) => {
+      const tile = this.tileOfHint(n);
+      hint.visible = hint.visible || walling;
+      this.styleHint(tile, hint, 0.2);
+      if (!walling && !this.data.placing) hint.visible = false;
+    });
+    this.fenceView?.setPlacing(walling && !this.raiding);
+    this.fenceView?.setHovered(null);
+    // Walling reads the potager, which the pulled-back shot does not fill —
+    // the same reason placement has its own framing.
+    this.moveCamera(this.wantedCam());
+  }
+
+  /** What the server says is built, and what it would still accept. */
+  setFences(built: FenceSeg[], offers: FenceSeg[]): void {
+    this.data.fences = built;
+    this.data.fenceOffers = offers;
+    this.syncFences();
+  }
+
+  /**
+   * Which side the pointer is nearest, in BOARD space.
+   *
+   * The event's global coordinates are converted through the board's own
+   * transform rather than read off the sprite that fired: the camera pans and
+   * zooms this container, and the fence spans were positioned in its space.
+   */
+  private pickSpan(e: FederatedPointerEvent): FenceSeg | null {
+    if (!this.fenceView) return null;
+    const local = this.board.toLocal(e.global);
+    // The tolerance is in BOARD units, so it must not shrink as the camera
+    // zooms in — it is divided by the scale so the grab radius stays the same
+    // number of SCREEN pixels at every zoom.
+    // The CAMERA scales `this.container`; the board inside it stays at 1. So
+    // the divisor is the container's scale, or the radius would never adapt.
+    return this.fenceView.pick(local.x, local.y, SIDE_GRAB / (this.container.scale.x || 1));
+  }
+
+  /** The pointer moved while walling: light the side it would build. */
+  private onSideHover(e: FederatedPointerEvent): void {
+    if (!this.data.walling || this.raiding) return;
+    // Mid-drag the board slides under a still pointer, and a highlight walking
+    // from side to side says "tap" while the player is panning — the same
+    // reason `onHintHover` bails here.
+    if (this.gestures?.active && this.gestures.didDrag) {
+      this.onSideOut();
+      return;
+    }
+    const seg = this.pickSpan(e);
+    const same = seg === this.hoverSpan
+      || (!!seg && !!this.hoverSpan && seg.tile === this.hoverSpan.tile && seg.side === this.hoverSpan.side);
+    if (same) return;
+    this.hoverSpan = seg;
+    this.fenceView?.setHovered(seg);
+  }
+
+  private onSideOut(): void {
+    if (this.hoverSpan === null) return;
+    this.hoverSpan = null;
+    this.fenceView?.setHovered(null);
+  }
+
+  /** Push the current fence facts into the layer that draws them. */
+  private syncFences(): void {
+    this.fenceView?.setState(this.data.fences ?? [], this.data.fenceOffers ?? []);
+    this.fenceView?.setPlacing(!!this.data.walling && !this.raiding);
   }
 
   /**
@@ -1039,8 +1250,13 @@ export class BurrowScene implements Scene {
     const hovered = usable && !mined && tile === this.hoverTile;
     hint.tint = hovered ? HOVER_TINT : doorstep ? DOOR_TINT : PLACEABLE_TINT;
     gsap.killTweensOf(hint);
-    const alpha = doorstep ? DOORSTEP_ALPHA
-      : !usable || mined ? 0 : hovered ? HOVER_ALPHA : PLACEABLE_ALPHA;
+    // WALLING DRAWS NO GRID. The diamonds are only in the tree there to carry
+    // the taps (see `setPlacing`), and a blue placement grid laid over the
+    // potager would say "bury a bomb" on the one screen that is asking which
+    // SIDE to close.
+    const alpha = this.data.walling ? 0
+      : doorstep ? DOORSTEP_ALPHA
+        : !usable || mined ? 0 : hovered ? HOVER_ALPHA : PLACEABLE_ALPHA;
     if (duration <= 0) hint.alpha = alpha;
     else gsap.to(hint, { alpha, duration });
   }
@@ -1402,13 +1618,21 @@ export class BurrowScene implements Scene {
         ? clampPlaceCam(this.cam, this.data.seed)
         : boardCam(this.data.seed);
     }
-    if (this.data.placing) {
+    // WALLING TAKES THE SAME SHOT AS PLACING. Both are decisions made ON the
+    // board — one about a cell, one about a side of the potager — and neither
+    // can be made from the home framing, which crops the field out entirely.
+    // Left out of this test at first, and the result was a fence mode that
+    // ghosted the spans correctly off-screen: the row lit up and the garden
+    // never came into view. Paul, 2026-09-21: "je click sur fence et j'ai
+    // toujours la bom en surbrillance".
+    if (this.data.placing || this.data.walling) {
       // Once the player has dragged or pinched, their framing is the right
       // one — `setPlacing` runs again on every trap buried, and re-solving the
       // shot there would snatch the board back from under them.
-      return this.camMovedByPlayer
-        ? clampPlaceCam(this.cam, this.data.seed)
-        : placeCam(this.data.seed);
+      if (this.camMovedByPlayer) return clampPlaceCam(this.cam, this.data.seed);
+      // Same zoom, different subject: placement is about the whole board,
+      // walling is about the potager — see `wallCam`.
+      return this.data.walling ? wallCam(this.data.seed) : placeCam(this.data.seed);
     }
     return homeCam(this.data.seed);
   }

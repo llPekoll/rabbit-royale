@@ -1,363 +1,180 @@
 'use client';
 
-/**
- * THE KIT: everything you are carrying, as one row of slots.
- *
- * WHY IT EXISTS. Six of the seven things the shop sells were invisible the
- * moment they were bought. A bomb, a lightning, a mirage and a shield went into
- * the bag and the burrow screen never mentioned them again — the only way to
- * learn you owned three bombs was to re-open the shop and read the shelf's
- * "3/20". That is the shop reporting on your inventory, which is backwards: the
- * shelf is for deciding what to buy, and the burrow is where you stand.
- *
- * WHAT IT IS NOT. It is not a second shop, and it is not an action bar. Exactly
- * one of these is spendable from the burrow — the shield, whose window the raid
- * resolver already reads — and it is the only one wired to a press. The other
- * four carried kinds act on SOMEBODY ELSE'S island, mid-run, so their home is
- * the raid screen and not this one; the row shows them because owning them is a
- * fact about you, and hiding a fact until its screen opens is what this replaces.
- *
- * TRAPS ARE IN THE ROW, AND THEY ARE THE EXCEPTION THAT PROVES IT. A trap is
- * also spent elsewhere (the BASE tile, which places them), so its slot is a
- * READOUT with no press. What it shows is the pair the shop tile could not:
- * held over placed, because "4 traps" means something completely different
- * depending on whether the ground is bare.
- *
- * ORDER IS DEFENCE FIRST. Shield, smoke, traps — the things that keep what you
- * have — then bomb, lightning, mirage, the things that take somebody else's.
- * The row is read left to right on the screen where you decide whether to go
- * out or dig in, so the defensive half comes first.
- *
- * THE BOTTLES ARE IN IT TOO, at the end. They were given their own corner for
- * a while, on the reasoning that pouring water on your vegetables is a
- * different errand from raiding. It is — but splitting them across two corners
- * of the same floor meant a player checking "what am I carrying" had to look in
- * two places, and the second row was two lonely squares that read as a stray
- * control rather than as kit. One row answers the question once.
- *
- * ORDER CARRIES THE SPLIT INSTEAD: defence, then offence, then the garden. It
- * is the same left-to-right reading, and it costs no screen furniture.
- */
-import type { CSSProperties } from 'react';
-import { ItemSlot } from './item-slot';
+import { useId, useState } from 'react';
 import { ITEM_META } from './item-meta';
 import type { ItemKind } from './use-shop';
 import { useT } from '@/i18n/provider';
 import { groupDigits, shortWait } from '@/i18n/format';
+import { PxButton, PxPanel } from './px';
+import './kit-row.css';
 
-/** One garden bottle's two facts, as `gardenBoostView` reports them. */
 export interface BoostState {
   held: number;
-  /** Milliseconds of window still running, or null when none is. */
   activeMs: number | null;
 }
 
+export type KitTool = Exclude<ItemKind, 'energy'> | 'water' | 'fertiliser';
+
 export interface KitRowProps {
-  /** What the bag holds, by kind. Missing kinds read as zero. */
   held: Partial<Record<ItemKind, number>>;
-  /** Milliseconds of shield still standing, or null when raids can land. */
   shieldMs: number | null;
-  /** Whole days of smoke still banked. */
   smokeDays: number;
-  /** Traps buried right now, and the ceiling — the slot shows both. */
   trapsPlaced?: number;
   trapsMaxPlaced?: number;
-  /** Raise a shield from the bag. Omitted, the slot is a readout. */
   onShield?(): void;
-  /**
-   * Buy one more trap, from the row — only while the board is being MINED.
-   *
-   * Omitted, the trap slot stays the readout it has always been. Passed, it
-   * becomes the one press that restocks a defender who has just buried their
-   * last bomb, without sending them out to the shed and back.
-   *
-   * It is a slot rather than a slab on the floor because the floor already has
-   * its one saturated shape (the BACK button, see farm-button.tsx): a second
-   * carrot slab beside it would make neither of them mean anything. The row is
-   * also where the trap COUNT already lives, so the number and the way to
-   * change it are the same square.
-   */
   onBuyTrap?(): void;
-  /** What one costs, in carrots — the number, for deciding affordability. */
   trapCost?: number;
-  /** The shed's ceiling — at it, buying is refused and the line says so. */
   trapsMaxHeld?: number;
-  /** Carrots in the bank, so the slot can dim what cannot be afforded. */
   stock?: number;
-  /** The garden bottles, at the end of the row. */
+  fencesPlaced?: number;
+  fenceSpans?: number;
+  fenceOffers?: number;
+  onPlaceFence?(): void;
+  onPlaceTrap?(): void;
+  /** Inspecting an unrelated tool suspends board placement. */
+  onInspect?(): void;
   water?: BoostState;
   fertiliser?: BoostState;
-  /** Pour one on the garden. Omitted, the two bottles are readouts. */
   onPour?(kind: 'water' | 'fertiliser'): void;
-  /** A request is in flight; nothing may be pressed twice. */
   pending?: boolean;
 }
 
-/**
- * The order the row reads in: defence, offence, then the garden. See the header.
- *
- * The bottles are not `ItemKind`s to this list — they are two extra slots
- * appended after it, because what they report is a WINDOW as well as a count
- * and `KitSlot`'s per-kind reading does not cover that. See `BOTTLE`.
- */
-const ORDER: ItemKind[] = ['shield', 'smoke', 'trap', 'bomb', 'lightning', 'mirage'];
+const GROUPS = [
+  { label: 'groupDefence', kinds: ['shield', 'smoke', 'trap', 'fence'] },
+  { label: 'groupAttack', kinds: ['bomb', 'lightning', 'mirage'] },
+  { label: 'groupGarden', kinds: ['water', 'fertiliser'] },
+] as const;
 
-export function KitRow({
-  held, shieldMs, smokeDays, trapsPlaced, trapsMaxPlaced, onShield,
-  onBuyTrap, trapCost, trapsMaxHeld, stock,
-  water, fertiliser, onPour, pending,
-}: KitRowProps) {
+/** Inspecting an item never consumes or buys it. Names stay on the tools;
+ * quantities, effects and explicit spending actions live in the detail card. */
+export function KitRow(props: KitRowProps) {
   const t = useT();
-  return (
-    <div className="rr-kit-row" style={row} role="group" aria-label={t.kit.aria}>
-      {ORDER.map((kind) => (
-        <KitSlot
-          key={kind}
-          kind={kind}
-          held={held[kind] ?? 0}
-          shieldMs={shieldMs}
-          smokeDays={smokeDays}
-          trapsPlaced={trapsPlaced}
-          trapsMaxPlaced={trapsMaxPlaced}
-          onShield={onShield}
-          onBuyTrap={onBuyTrap}
-          trapCost={trapCost}
-          trapsMaxHeld={trapsMaxHeld}
-          stock={stock}
-          pending={pending}
-        />
-      ))}
-      {/* THE GARDEN HALF, pushed to the far edge.
-          `marginLeft: auto` on the first bottle eats the row's slack, so the
-          raid kit stays at the left margin and these two land at the right one.
-          The gap between the groups is the whole floor's width, which is what
-          separates them — see `.rr-kit-row` in globals.css. */}
-      {([['water', water], ['fertiliser', fertiliser]] as const).map(([kind, state], i) => (
-        <span key={kind} style={i === 0 ? bottleStart : undefined}>
-          <BottleSlot kind={kind} state={state} onPour={onPour} pending={pending} />
-        </span>
-      ))}
-    </div>
-  );
-}
-
-/**
- * One slot, and the per-kind reading that makes the row worth having.
- *
- * Every kind answers "what does my corner say?" differently, and the
- * differences are the information: a count is a thing in your pocket, a
- * countdown is a thing already running, and for the shield they are BOTH true
- * at once — you can hold two while one is up. When they collide the RUNNING
- * state wins the corner, because a shield standing over your burrow is the more
- * urgent fact and the held count is one shop-tile away.
- */
-function KitSlot({
-  kind, held, shieldMs, smokeDays, trapsPlaced, trapsMaxPlaced, onShield,
-  onBuyTrap, trapCost, trapsMaxHeld, stock, pending,
-}: {
-  kind: ItemKind;
-  held: number;
-  shieldMs: number | null;
-  smokeDays: number;
-  trapsPlaced?: number;
-  trapsMaxPlaced?: number;
-  onShield?(): void;
-  onBuyTrap?(): void;
-  trapCost?: number;
-  trapsMaxHeld?: number;
-  stock?: number;
-  pending?: boolean;
-}) {
-  const t = useT();
-  const meta = ITEM_META[kind];
+  const id = useId();
+  const [group, setGroup] = useState(0);
+  const [selected, setSelected] = useState<KitTool>('trap');
+  const [expanded, setExpanded] = useState(true);
+  const { held, shieldMs, smokeDays, pending } = props;
+  const copy = t.kit.tools;
+  const name = (kind: KitTool) => kind === 'water' ? t.kit.watering
+    : kind === 'fertiliser' ? t.kit.fertiliser : t.items[kind].name;
+  const count = (kind: KitTool) => kind === 'water' || kind === 'fertiliser'
+    ? props[kind]?.held ?? 0 : held[kind] ?? 0;
+  const active = (kind: KitTool) => kind === 'shield' ? shieldMs
+    : kind === 'water' || kind === 'fertiliser' ? props[kind]?.activeMs ?? null : null;
   const wait = (ms: number) => shortWait(ms, t.units);
 
-  if (kind === 'shield') {
-    const live = shieldMs !== null;
-    // Pressable only when there is one to raise AND none already standing:
-    // raising a second over the first would spend it on time the burrow
-    // already has. `RAID.ITEM_SHIELD_MS` is a fixed window, not a bank.
-    const canRaise = held > 0 && !live && !!onShield && !pending;
-    const said = live
-      ? t.kit.shieldHolding(wait(shieldMs), held)
-      : held > 0
-        ? t.kit.shieldReady(held)
-        : t.kit.shieldNone;
-    return (
-      <ItemSlot
-        art={meta.art}
-        aspect={meta.aspect}
-        fallback={meta.icon}
-        chip={live ? wait(shieldMs) : held > 0 ? String(held) : null}
-        live={live}
-        label={said}
-        onClick={onShield}
-        disabled={!canRaise}
-      />
-    );
-  }
+  const select = (kind: KitTool) => {
+    setSelected(kind);
+    setExpanded(true);
+    if (kind === 'trap') props.onPlaceTrap?.();
+    else if (kind === 'fence') props.onPlaceFence?.();
+    else props.onInspect?.();
+  };
 
-  if (kind === 'smoke') {
-    // Smoke is never HELD — it is an expiry instant, and buying it applies it.
-    // So the slot has only two states, and "off" is the honest empty one.
-    const live = smokeDays > 0;
-    return (
-      <ItemSlot
-        fallback={meta.icon}
-        chip={live ? `${smokeDays}${t.units.d}` : null}
-        live={live}
-        label={live ? t.kit.smokeUp(smokeDays) : t.kit.smokeOff}
-      />
-    );
-  }
+  const blurb = selected === 'water' ? copy.waterEffect
+    : selected === 'fertiliser' ? copy.fertiliserEffect : t.items[selected].blurb;
+  const remaining = active(selected);
+  const amount = count(selected);
+  let status = copy.available(amount);
+  let hint = '';
+  let action: { label: string; run: () => void; disabled?: boolean } | undefined;
 
-  if (kind === 'trap') {
-    // Held AND buried, because either number alone misleads: "4" with a bare
-    // burrow reads as defended, and "0" with eight in the ground reads as
-    // undefended. Placed is the one the corner carries — it is what a raider
-    // would actually walk into — and `lit` keeps the slot bright while the
-    // ground is defended.
-    const placed = trapsPlaced ?? 0;
-    const max = trapsMaxPlaced ?? 0;
-
-    // WHILE MINING, the slot is the way to another bomb.
-    //
-    // The rest of the time it stays the readout it has always been: traps are
-    // buried from the BASE tile, and a shop button on the resting burrow would
-    // be a second shelf competing with the real one. But on the placing floor
-    // the player is holding the decision already — they have just run out, and
-    // the shed is five gestures away — so the square that reports the count
-    // becomes the square that changes it.
-    if (onBuyTrap) {
-      const full = trapsMaxHeld !== undefined && held >= trapsMaxHeld;
-      const price = groupDigits(trapCost ?? 0);
-      // `stock` is only a HINT for dimming: the server prices and refuses the
-      // purchase regardless, exactly as it does for the shelf.
-      const broke = stock !== undefined && trapCost !== undefined && stock < trapCost;
-      return (
-        <ItemSlot
-          fallback={meta.icon}
-          chip={placed > 0 ? `${placed}` : held > 0 ? String(held) : null}
-          lit={placed > 0}
-          /* Keyed on what the player can DO, not on what they hold. An empty
-             shed with carrots in the bank is one press from full, so it gets
-             the same offer as a part-full one — "dig for more" is only true
-             when the carrots are actually short, and saying it to someone
-             holding 4 200 of them reads as the game being broken. */
-          label={
-            full ? t.kit.trapsBuyFull(held)
-              : broke ? t.kit.trapsBuyBroke(price)
-                : t.kit.trapsBuy(held, price)
-          }
-          onClick={onBuyTrap}
-          disabled={full || broke || pending}
-        />
-      );
+  switch (selected) {
+    case 'trap': {
+      status = copy.available(amount) + ' · ' + copy.placed(props.trapsPlaced ?? 0);
+      hint = amount > 0 ? copy.trapHint : copy.trapEmpty;
+      const full = props.trapsMaxHeld !== undefined && amount >= props.trapsMaxHeld;
+      const broke = props.stock !== undefined && props.trapCost !== undefined && props.stock < props.trapCost;
+      if (props.onBuyTrap && props.trapCost !== undefined) {
+        action = { label: copy.buyTrap(groupDigits(props.trapCost)), run: props.onBuyTrap, disabled: full || broke };
+        if (full) hint = t.kit.trapsBuyFull(amount);
+        else if (broke) hint = copy.notEnough;
+      }
+      break;
     }
-
-    return (
-      <ItemSlot
-        fallback={meta.icon}
-        chip={placed > 0 ? `${placed}` : held > 0 ? String(held) : null}
-        lit={placed > 0}
-        label={t.kit.trapsLine(placed, max || null, held)}
-      />
-    );
+    case 'fence':
+      status = copy.available(amount) + ' · ' + copy.placed(props.fencesPlaced ?? 0);
+      hint = copy.fenceHint;
+      if (amount === 0 && !props.fencesPlaced) hint = copy.shopHint;
+      else if (props.fenceOffers === 0 && (props.fencesPlaced ?? 0) > 0) hint = t.kit.fenceAllWalled(props.fencesPlaced!);
+      break;
+    case 'shield':
+      hint = remaining !== null ? copy.shieldActive : amount === 0 ? copy.shopHint : '';
+      if (props.onShield) action = { label: copy.raiseShield, run: props.onShield, disabled: amount === 0 || remaining !== null };
+      break;
+    case 'smoke':
+      status = smokeDays > 0 ? copy.active(smokeDays + t.units.d) : t.shop.heldOff;
+      hint = copy.smokeHint;
+      break;
+    case 'water':
+    case 'fertiliser': {
+      const kind = selected;
+      if (!amount) hint = copy.chestHint;
+      if (props.onPour) action = { label: kind === 'water' ? copy.water : copy.fertilise, run: () => props.onPour?.(kind), disabled: amount === 0 };
+      break;
+    }
+    default:
+      hint = copy.attackHint;
   }
+  if (remaining !== null) status += ' · ' + copy.active(wait(remaining));
 
-  // Bomb, lightning, mirage — carried, and spent on somebody else's island
-  // rather than here. A readout: the row says you have them, the raid screen
-  // is where they are thrown.
   return (
-    <ItemSlot
-      art={meta.art}
-      aspect={meta.aspect}
-      fallback={meta.icon}
-      chip={held > 0 ? String(held) : null}
-      lit={held > 0}
-      label={held > 0
-        ? t.kit.carried(t.items[kind].name, held, t.items[kind].blurb)
-        : t.kit.carriedNone(t.items[kind].name, t.items[kind].blurb)}
-    />
+    <section className="rr-kit-row rr-toolkit" aria-label={t.kit.aria}>
+      {expanded && <PxPanel color="#48301f" className="rr-toolkit-detail" id={id + '-detail'}>
+        <div className="rr-toolkit-summary">
+          <ToolArt kind={selected} />
+          <div><strong>{name(selected)}</strong><span className="rr-toolkit-stock">{status}</span></div>
+          <button type="button" className="rr-toolkit-disclosure" aria-label={t.chrome.close}
+            onClick={() => setExpanded(false)}>×</button>
+        </div>
+        <div className="rr-toolkit-explanation">
+          <p>{blurb}</p>
+          {hint && <p className="rr-toolkit-hint">{hint}</p>}
+          {action && <PxButton className="rr-toolkit-action" color="#6b8035" disabled={pending || action.disabled}
+            onClick={action.run}>{action.label}</PxButton>}
+        </div>
+      </PxPanel>}
+      <div className="rr-toolkit-tabs" role="tablist" aria-label={t.kit.aria}>
+        {GROUPS.map((entry, index) => (
+          <button type="button" role="tab" key={entry.label} id={id + '-tab-' + index}
+            aria-selected={group === index} aria-controls={id + '-tools'} tabIndex={group === index ? 0 : -1}
+            onKeyDown={(event) => {
+              const next = event.key === 'ArrowRight' ? (group + 1) % GROUPS.length
+                : event.key === 'ArrowLeft' ? (group + GROUPS.length - 1) % GROUPS.length
+                  : event.key === 'Home' ? 0 : event.key === 'End' ? GROUPS.length - 1 : null;
+              if (next === null) return;
+              event.preventDefault(); setGroup(next); select(next === 0 ? 'trap' : GROUPS[next].kinds[0]);
+              document.getElementById(id + '-tab-' + next)?.focus();
+            }}
+            onClick={() => { setGroup(index); select(index === 0 ? 'trap' : entry.kinds[0]); }}>
+            {t.kit[entry.label]}
+          </button>
+        ))}
+      </div>
+      <div className="rr-toolkit-tray" role="tabpanel" id={id + '-tools'}
+        aria-labelledby={id + '-tab-' + group}>
+        {GROUPS[group].kinds.map((kind) => (
+          <button type="button" className="rr-toolkit-tool" key={kind} aria-pressed={selected === kind}
+            aria-label={name(kind)} title={name(kind)}
+            onClick={() => select(kind)}>
+            <ToolArt kind={kind} />
+            <span className="rr-toolkit-quantity" aria-hidden="true">{kind === 'smoke' ? smokeDays + t.units.d : count(kind)}</span>
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }
 
-/** The garden bottles' own art — the chest's files, as `chest-prize` flies them. */
-const BOTTLE = {
-  water: { src: '/assets/ui/icons/water.webp', aspect: 33 / 32 },
-  fertiliser: { src: '/assets/ui/icons/fertiliser.webp', aspect: 29 / 32 },
-} as const;
-
-/**
- * ONE BOTTLE — a count and a window, which is why it is not a `KitSlot`.
- *
- * Pressable whenever there is one to pour, running window or not: a second
- * bottle EXTENDS the first (`extendGardenBoost`), which is the whole reason a
- * player banks them. When both facts are true the RUNNING one takes the corner,
- * since a window already ticking is the more urgent of the two.
- */
-function BottleSlot({
-  kind, state, onPour, pending,
-}: {
-  kind: 'water' | 'fertiliser';
-  state?: BoostState;
-  onPour?(kind: 'water' | 'fertiliser'): void;
-  pending?: boolean;
-}) {
-  const t = useT();
-  const art = BOTTLE[kind];
-  // The bottle's name is the dictionary's; its art stays in BOTTLE.
-  const name = kind === 'water' ? t.kit.watering : t.kit.fertiliser;
-  const count = state?.held ?? 0;
-  const activeMs = state?.activeMs ?? null;
-  const live = activeMs !== null;
-  const canPour = count > 0 && !!onPour && !pending;
-  return (
-    <ItemSlot
-      art={art.src}
-      aspect={art.aspect}
-      chip={live ? shortWait(activeMs, t.units) : count > 0 ? String(count) : null}
-      live={live}
-      lit={count > 0}
-      label={live
-        ? t.kit.bottleRunning(name, shortWait(activeMs, t.units), count)
-        : count > 0
-          ? t.kit.bottleHeld(name, count)
-          : t.kit.bottleNone(name)}
-      onClick={() => onPour?.(kind)}
-      disabled={!canPour}
-    />
-  );
+function ToolArt({ kind }: { kind: KitTool }) {
+  const art = kind === 'water' || kind === 'fertiliser' ? '/assets/ui/icons/' + kind + '.webp'
+    : kind === 'trap' ? '/assets/ui/icons/bomb.png'
+      : kind === 'smoke' ? '/assets/clouds/Clouds_01.webp' : ITEM_META[kind].art;
+  if (art) return <img className="rr-toolkit-art" src={art} alt="" draggable={false} />;
+  // A crisp pixel spiral for mirage, without platform-dependent emoji glyphs.
+  return <svg className="rr-toolkit-art" viewBox="0 0 24 24" aria-hidden="true" shapeRendering="crispEdges">
+    <path d="M19 4H5V7H2V18H5V21H19V18H22V7H19V4ZM6 8H18V17H6V8Z" fill="#69468f" />
+    <path d="M18 5H6V8H3V17H6V20H18V17H21V8H18V5ZM6 8H18V17H6V8Z" fill="#c5a1eb" />
+    <path d="M8 10H16V15H10V13H13V12H8Z" fill="#f3dcff" />
+  </svg>;
 }
-
-/**
- * What sets the garden half apart. The row is centred and only as wide as its
- * slots now (see `.rr-kit-row`), so the split is a wider gap before the first
- * bottle rather than the whole floor between two corners. A wrapper rather
- * than a style on `ItemSlot` itself, because the slot is shared with the
- * garden card and knows nothing about this row.
- *
- * `display: flex` so the wrapper hugs the square instead of adding a line box
- * under it, which would knock the two groups out of vertical alignment.
- */
-const bottleStart: CSSProperties = {
-  marginLeft: 14,
-  display: 'flex',
-  // The gap between the two bottles is the row's own; this wrapper only moves
-  // the pair, so it must not introduce a second one.
-  marginRight: 0,
-};
-
-const row: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  /* The one gap the top bar and the floor use between neighbouring pieces. */
-  gap: 'var(--rr-pad)',
-  /* The row is furniture on the floor, so WHERE it sits belongs to
-     globals.css (`.rr-kit-row`) alongside the launcher tiles it stands on and
-     the mute it shares the corner with — those three have to agree, and they
-     cannot agree across an inline style. `--rr-slot` is declared there too,
-     for the same reason: the column's reserved strip is measured against it.
-     What stays here is only the row's own shape. */
-  pointerEvents: 'none',
-};

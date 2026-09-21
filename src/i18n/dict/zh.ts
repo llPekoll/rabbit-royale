@@ -219,6 +219,9 @@ export const zh: Dict = {
     } as Record<string, string>,
     plantedBy: (name) => `${name} 埋的雷！`,
     struckBy: (name) => `${name} 用闪电击中了你`,
+    watchers: (n) => `${n} 人在看`,
+    hitBolt: (name) => `${name} 电了你`,
+    hitBomb: (name) => `${name} 埋的雷`,
   },
 
   firstRun: {
@@ -322,6 +325,7 @@ export const zh: Dict = {
     boughtShield: (n, paid) => `${n} 面护盾就绪。${paid}`,
     boughtSmoke: (paid) => `数字已经藏起来了。${paid}`,
     boughtMirage: (n, paid) => `${n} 个幻影可以丢出去了。${paid}`,
+    boughtFence: (n, paid) => `${n} 块木板可以立起来了。${paid}`,
     paid: (spent) => `-${spent} 🥕`,
   },
 
@@ -339,6 +343,17 @@ export const zh: Dict = {
     tile_doorstep: '离入口太近。门口的头几步不能埋。',
     tile_already_trapped: '已经埋过了。',
     no_trap_there: '那里没有陷阱。',
+    no_fences: '没有栅栏了。棚里有卖。',
+    span_already_fenced: '那里已经立着一块木板了。',
+    span_not_exposed: '那不是你菜园的边。',
+    /* The gate rule, stated as a rule rather than as a mistake: it is the one
+       refusal here the player has to LEARN, so it says why before it says no. */
+    would_seal_burrow: '那会把最后的入口封死。得留一个口当门。',
+    span_not_fenced: '那里没有木板。',
+    bad_span: '那里不是放木板的地方。',
+    /* Not the owner's refusal but the RAIDER's, from raid/route.ts — a fence is
+       the one defence they are told about, so it points them somewhere. */
+    fenced: '有栅栏挡路。绕过去。',
     payments_unavailable: '刷卡支付尚未开通。',
     quote_expired: '报价已过期。请重试。',
     signature_already_used: '该笔支付已被使用。',
@@ -357,7 +372,28 @@ export const zh: Dict = {
   },
 
   kit: {
+    tools: {
+      more: '查看效果和操作', less: '收起详情',
+      available: (n) => '库存 ' + n,
+      placed: (n) => '已放置 ' + n,
+      active: (time) => '剩余 ' + time,
+      buyTrap: (price) => '购买陷阱 - ' + price + ' 胡萝卜',
+      trapHint: '点击地块埋下陷阱。再次点击陷阱即可收回。',
+      trapEmpty: '收回已放置的陷阱，或在下方购买。',
+      fenceHint: '点击亮起的边缘建造。点击栅栏即可收回。',
+      raiseShield: '使用护盾', shieldActive: '你的洞穴已受到保护。',
+      shopHint: '可在商店购买。', notEnough: '胡萝卜不足，无法购买陷阱。',
+      smokeHint: '在商店购买烟幕后立即生效。',
+      attackHint: '在游戏中对手的岛屿上使用。',
+      chestHint: '在宝箱中寻找更多。',
+      waterEffect: '让菜园在一段时间内生长得更快。',
+      fertiliserEffect: '让菜园能存储更多胡萝卜才会装满。',
+      water: '使用一次浇水', fertilise: '使用一份肥料',
+    },
     aria: '你身上带着的东西',
+    groupDefence: '防守',
+    groupAttack: '进攻',
+    groupGarden: '菜园',
     shieldHolding: (wait, held) => `护盾：生效中，还剩${wait}。包里有 ${held} 个。`,
     shieldReady: (held) => `护盾：包里有 ${held} 个。起一个。生效期间掠夺会被弹开。`,
     shieldNone: '护盾：没有。去商店买一个。',
@@ -375,6 +411,19 @@ export const zh: Dict = {
     bottleRunning: (name, wait, count) => `${name}：生效中，还剩${wait}。包里有 ${count} 个。`,
     bottleHeld: (name, count) => `${name}：包里有 ${count} 个。往菜园浇一个。`,
     bottleNone: (name) => `${name}：没有。宝箱里能找到。`,
+    /* THE FENCE SLOT. One fence is one plank across one stretch of the garden's
+       edge. `total` is every stretch, gate included, as the caller (kit-row.tsx)
+       counts them: the last one can never be fenced, and fenceAllWalled says so
+       rather than letting the count read as a plank the player missed.
+       No plural marking here, as everywhere else in this file. */
+    fencePlace: (held, walled, total) =>
+      `栅栏：包里 ${held} 块，${total} 段边已围 ${walled} 段。去立一块。`,
+    /* Not a failure, so it names the gate outright: the player has done all the
+       item allows, and a bare "no more" would read as a cap worth fighting. */
+    fenceAllWalled: (walled) => `栅栏：已围 ${walled} 段。最后一个口是门，留着不围。`,
+    /* Names the way back to a plank when the bag is empty: a standing plank is
+       not spent, tapping it takes it back. */
+    fenceNone: (walled) => `栅栏：包里没有，已围 ${walled} 段。棚里有卖，或者点一块立着的木板收回来。`,
     watering: '浇水',
     fertiliser: '肥料',
   },
@@ -567,6 +616,13 @@ export const zh: Dict = {
     mirage: {
       name: '幻影',
       blurb: '让对手出行途中的几个数字说谎。他有可能看出来。',
+    },
+    /* The one defence MEANT to be seen — "cannot cross" rather than "slows
+       them down", because a raider who reads it and walks round has read the
+       item exactly right. See lib/game/fences.ts. */
+    fence: {
+      name: '栅栏',
+      blurb: '围住你菜园边上的一段。掠夺者过不去。',
     },
   },
 

@@ -112,6 +112,11 @@ const meta: Meta<Args> = {
           display: 'flex',
           alignItems: 'flex-end',
           padding: 10,
+          /* Room under the row for the BACK slab, which is absolutely
+             positioned against this box and would otherwise share the row's
+             band. In the app the two stack for real (`--rr-back-h`); here the
+             gap is reproduced by hand. */
+          paddingBottom: 74,
           // The BACK slab is absolutely centred against this box — see
           // `backSlot`. Without it the slab would escape to the viewport.
           position: 'relative',
@@ -126,15 +131,31 @@ const meta: Meta<Args> = {
             the story lays the row out in flow instead — and the corner it
             ships in is reproduced by the wrapper above rather than lost.
 
-            `width: 100%` restores what unpinning takes away. The shipped row
-            spans the floor from `left` to `right`, which is what lets the two
-            garden bottles sit at the FAR edge while the raid kit holds the
-            near one. Laid out in flow the box shrinks to its contents and the
-            two groups collapse back together, which is a different control.
+            CENTRED AT ITS OWN WIDTH, which is what the shipped row is now.
+            It used to span the floor edge to edge so the garden bottles could
+            sit at the FAR corner while the raid kit held the near one, and the
+            story stretched it to `width: 100%` to reproduce that. The groups
+            are marked off by captions and seams today (see `Cluster`), so the
+            row is only as wide as its three clusters and is centred on the
+            floor — stretched, it would be judging
+            a spacing the app no longer has.
             Whether it clears the mute and the tiles is judged in the burrow
             column's story, which mounts the real floor. */}
         <style>
-          {`.rr-kit-row { position: static !important; width: 100%; }
+          {`.rr-kit-row {
+              position: static !important;
+              /* The row sizes to its clusters and centres inside the floor,
+                 exactly as margin-inline auto does in the app. The flex item
+                 has to span the line for that to have anything to centre in.
+                 (No backticks in here: this is inside a template literal.) */
+              flex: 1;
+              display: flex !important;
+              justify-content: center;
+              /* The shipped row centres with left:50% + translateX(-50%),
+                 which only works while it is fixed. Unpinned, the translate
+                 survives and drags the row half its width off the floor. */
+              transform: none !important;
+            }
             /* BACK is pinned to the middle of the floor by globals.css, which
                in a story would centre it on the whole frame rather than on the
                strip below. Laid out in flow it sits in the row's own line. */

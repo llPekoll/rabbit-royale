@@ -599,6 +599,46 @@ export const TRAPS = {
 } as const;
 
 /**
+ * THE GARDEN FENCE: planks round the potager, sold one at a time.
+ *
+ * A trap is a cost — it drains a raider and lets them through. A plank is a
+ * REFUSAL: the step across it does not happen. That is a stronger thing to
+ * own, so it is bounded by the geometry rather than by a count: the field has
+ * a dozen-odd exposed edges, and the last way in can never be closed (see
+ * `fieldReachable` in game/burrow/fence). A player cannot buy their way past
+ * that, which is what keeps the raiding half of the game alive.
+ *
+ * ONE FENCE IS ONE PLANK, one segment of the edge. It shipped first as "one
+ * fence closes a whole side", and one press walled fifteen segments; Paul,
+ * 2026-09-21: "c'est une a une, et on doit pouvoir les enlever une a une".
+ *
+ * WHY IT COSTS WHAT A BOMB COSTS. Paul: "c'est le mm prix que les bombs". A
+ * bomb is thrown once and a plank stands until it is taken down — and that is
+ * the point: the plank is the defensive purchase a new player can afford on
+ * their first night, when they have just been raided.
+ */
+export const FENCES = {
+  /**
+   * Planks a new burrow starts with. Paul, 2026-09-21: "tu en a 3 qd tu
+   * commence la game". Three is a start, not a wall: enough to close the
+   * shortest approach and learn that the rest is bought.
+   *
+   * Granted at account creation (see `lib/auth/starting-kit`), not per run:
+   * a plank stands between runs, so a per-run grant would hand out three
+   * more every time the player went out.
+   */
+  STARTING: 3,
+  /**
+   * Ceiling on planks held at once — the shop's general one. A field has a
+   * dozen-odd edges and one must stay open, so twenty is more than any burrow
+   * can place; the cap only stops a bag from becoming a warehouse.
+   */
+  MAX_HELD: 20,
+  /** Carrot price of one fence — the bomb's, deliberately. See the header. */
+  CARROT_COST: 300,
+} as const;
+
+/**
  * The raid run itself: an attacker's budget for crossing someone's burrow.
  *
  * Deliberately tight against TRAPS.DRAIN — four untouched traps end a raid, so
@@ -961,6 +1001,17 @@ export const SHOP = {
      * thrown in the middle of a race rather than budgeted for.
      */
     mirage: 1_000,
+    /**
+     * A wall round the potager, at the price of a single thrown bomb.
+     *
+     * Not an economic judgement — a fence outlasts a bomb by every measure —
+     * but a legibility one: these are the two things a player reaches for
+     * after a bad night, and pricing them the same makes the choice between
+     * attacking back and digging in a choice about TEMPERAMENT rather than
+     * about carrots. What bounds the fence is the gate rule (FENCES), not this
+     * number.
+     */
+    fence: FENCES.CARROT_COST,
   },
   /**
    * USDC price per kind, in whole USDC (converted to base units at the edge —
@@ -976,6 +1027,8 @@ export const SHOP = {
     energy: 0.99,
     smoke: 1.99,
     mirage: 0.99,
+    // The bomb's, for the same reason the carrot price is the bomb's.
+    fence: 0.40,
   },
   /**
    * Ceiling per kind, so a whale cannot stockpile a season of offence in one
@@ -1048,6 +1101,7 @@ export function itemUsdcPrice(kind: keyof typeof SHOP.USDC_PRICES): number {
  *  applied on purchase — so it has no bag ceiling of its own. */
 export function itemCap(kind: keyof typeof SHOP.PRICES): number {
   if (kind === 'trap') return TRAPS.MAX_HELD;
+  if (kind === 'fence') return FENCES.MAX_HELD;
   if (kind === 'energy') return ENERGY_PACK.MAX_PER_DAY;
   // Smoke is TIME, not a thing carried: the ceiling is how many days of screen
   // may be banked at once, so the shelf can say "2 of 3 days" like it says

@@ -15,11 +15,12 @@
  * than two grids that merely look alike.
  */
 import { Container, type Sprite } from 'pixi.js';
+import { mountMeadowLook, MEADOW_LOOK, type MeadowLook } from '@/game/burrow/MeadowLook';
 import {
   HALF_W, HALF_H, ISO_ORIGIN_X, ISO_ORIGIN_Y, COLS, ROWS, GRID_CENTER_X, GRID_CENTER_Y, toColRow,
 } from '@/config/gridConfig';
 import { IsoIslandView, loadIslandTileset, isoProject, isoDepth } from '@/game/island';
-import { terrainFor, TIER_LIFT, levelTierAt } from '@/lib/game/terrainBoard';
+import { terrainFor, TIER_LIFT, levelTierAt, tileScreenPos } from '@/lib/game/terrainBoard';
 import { mulberry32, seedFrom } from '@/lib/game/rng';
 import { createPackWater, loadPackWater, type PackWater } from '@/game/fx/PackWater';
 import { createDucks, loadDucks, type Ducks } from '@/game/fx/Ducks';
@@ -106,7 +107,7 @@ export async function createTerrainBackground(
   seed: string,
   /** `decoScale` overrides the board's scenery size — for the stories that
    *  exist to show what the wrong size looks like. The game never passes it. */
-  options: { decoScale?: number } = {},
+  options: { decoScale?: number; meadowLook?: MeadowLook } = {},
 ): Promise<TerrainBackground> {
   // All three fetches are ISSUED here and awaited where they are needed, far
   // below. They do not depend on each other, but each `await` used to sit at
@@ -315,6 +316,21 @@ export async function createTerrainBackground(
     halfW: HALF_W, halfH: HALF_H,
   });
 
+  const meadowOptions = options.meadowLook ?? (
+    typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('terrain') === 'meadow'
+      ? MEADOW_LOOK : undefined
+  );
+  const meadow = meadowOptions ? mountMeadowLook(container, seed, 1, {
+    mountVeil(index, veil, zIndex) {
+      const { col, row } = toColRow(index);
+      return island.mountVeil(col, row, veil, zIndex);
+    },
+  }, meadowOptions, {
+    cols: COLS, rows: ROWS, index: (x, y) => y * COLS + x,
+    at: index => tileScreenPos(seed, index),
+    field: new Set<number>(), home: { x: COLS * .5, y: ROWS * .25 },
+  }) : null;
+
   return {
     layout() {
       // The terrain is pinned to the board's grid, and the board does not move
@@ -335,6 +351,7 @@ export async function createTerrainBackground(
       return island.mountVeil(col, row, veil, zIndex);
     },
     digCell(index) {
+      meadow?.dig(index);
       const { col, row } = toColRow(index);
       return island.digCell(col, row);
     },
@@ -352,11 +369,13 @@ export async function createTerrainBackground(
     },
     update(deltaMs) {
       island.update(deltaMs);
+      meadow?.update();
       water.update(deltaMs);
       ducks.update(deltaMs);
       sky.update(deltaMs);
     },
     destroy() {
+      meadow?.destroy();
       island.destroy();
       water.destroy();
       ducks.destroy();

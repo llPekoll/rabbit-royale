@@ -334,6 +334,22 @@ button.rr-wallet:hover:not(:disabled) { filter: var(--rr-cast) brightness(1.1); 
    A `filter` set inline would have replaced the cast instead of adding to
    it, and the press could not have swapped it. */
 .rr-item-slot { filter: var(--rr-live-ring,) var(--rr-cast); }
+/* LIT UNDER THE POINTER, and only the squares that DO something.
+   Half this row is a readout — smoke, the carried three, traps on the resting
+   burrow — and those are `disabled`, so `:not(:disabled)` marks exactly the
+   slots a click would reach and leaves the rest alone. Without it every square
+   looked equally pressable and only the press told you which was: the same
+   `brightness(1.1)` over the cast that BACK, MARK, NEXT and the wallet use, so
+   the row answers "will this click?" the way the rest of the chrome does. */
+button.rr-item-slot:hover:not(:disabled) {
+  filter: var(--rr-live-ring,) var(--rr-cast) brightness(1.1);
+  /* AND IT RISES A PIXEL. Brightness alone is honest but quiet on a 32px
+     square that already carries a bright chip and sometimes a lamplight ring;
+     a key that lifts under the pointer and sinks 2px under the press is the
+     same gesture read forwards and backwards, and it survives at 26px on the
+     Seeker where a filter change does not. */
+  transform: translateY(-1px);
+}
 button.rr-item-slot:active:hover:not(:disabled) { filter: var(--rr-live-ring,) var(--rr-cast-down) var(--rr-press-dim); }
 .rr-item-slot.nine-btn:disabled { filter: var(--rr-live-ring,) var(--rr-cast); }
 

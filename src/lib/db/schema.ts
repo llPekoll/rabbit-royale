@@ -22,7 +22,7 @@ import {
  * on purchase rather than carried, so it appears here only so a payment row can
  * name what was bought. Nothing reads an `inventory` row of that kind.
  */
-export const itemKindEnum = pgEnum('item_kind', ['bomb', 'shield', 'lightning', 'trap', 'energy', 'smoke', 'mirage', 'water', 'fertiliser']);
+export const itemKindEnum = pgEnum('item_kind', ['bomb', 'shield', 'lightning', 'trap', 'energy', 'smoke', 'mirage', 'water', 'fertiliser', 'fence']);
 /** What a purchase was paid with. Both routes buy the same goods — see SHOP. */
 export const currencyEnum = pgEnum('currency', ['carrots', 'usdc']);
 /** A USDC payment's life: quoted → paid → credited, or abandoned. */
@@ -271,6 +271,36 @@ export const traps = pgTable('traps', {
   // One trap per tile: stacking them would let a single square end any raid,
   // which defeats the point of choosing WHERE to defend.
   uniqueIndex('traps_owner_tile_idx').on(t.ownerId, t.tile),
+]);
+
+/**
+ * One plank on the edge of a burrow's potager.
+ *
+ * Named by (tile, side): the FIELD cell it hangs off and which face. Not by
+ * the outer cell, which at a notch neighbours two field cells and would name
+ * two planks at once. Which screen edge that is, is geometry the seed already
+ * determines (`fenceSpans` in game/burrow/fence); storing it would be storing
+ * a derivation.
+ *
+ * VISIBLE, unlike a trap. The two defences are opposites on purpose: a trap is
+ * a cost the raider discovers by paying it, a plank is a refusal they can see
+ * from the door and must route around. So the raid payload carries them.
+ *
+ * Never deleted on a raid — a plank is not spent by being respected. It comes
+ * back only when the OWNER lifts it, which returns it to the bag.
+ */
+export const fences = pgTable('fences', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  ownerId: text('owner_id').notNull().references(() => players.id, { onDelete: 'cascade' }),
+  /** Burrow tile index of the FIELD cell — see config/burrowConfig.ts. */
+  tile: integer('tile').notNull(),
+  /** 'NE' | 'SE' | 'SW' | 'NW' — see FENCE_SIDES in game/burrow/fence. */
+  side: text('side').notNull(),
+  placedAt: timestamp('placed_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  // One plank per span: a second on the same edge would take a plank for
+  // nothing, and is what a double-tap would otherwise do.
+  uniqueIndex('fences_owner_span_idx').on(t.ownerId, t.tile, t.side),
 ]);
 
 /**

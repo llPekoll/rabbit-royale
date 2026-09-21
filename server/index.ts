@@ -342,6 +342,34 @@ function socketOf(playerId: string): Socket | undefined {
   return undefined;
 }
 
+/**
+ * HOW MANY PEOPLE ARE WATCHING THIS RUN — told to the one being watched.
+ *
+ * Watching is the front door to sabotage: a viewer is a raider sizing the run
+ * up, deciding whether to spend a bolt on it. So the number is not a vanity
+ * count, it is a THREAT LEVEL, and the digger is the one who has to read it.
+ *
+ * Counted by walking the live sockets rather than kept in a tally, because a
+ * tally is a thing to get wrong: a viewer leaves by `spectate`-ing someone
+ * else, by `leave`, by disconnect, or by their tab dying without either — and
+ * a counter that misses one of those four ways out shows a watcher who is not
+ * there, which is worse than no number at all. The flock is small and this
+ * runs only when a watch starts or ends.
+ */
+function watchersOf(playerId: string): number {
+  let n = 0;
+  for (const s of io.sockets.sockets.values()) {
+    if ((s.data as SocketData).spectating === playerId) n += 1;
+  }
+  return n;
+}
+
+/** Tell a player how many eyes are on their run, if they are still here. */
+function pushWatchers(playerId: string | undefined): void {
+  if (!playerId) return;
+  socketOf(playerId)?.emit('watchers', { count: watchersOf(playerId) });
+}
+
 // ── The push bus ─────────────────────────────────────────────────────────────
 
 /**
@@ -714,10 +742,17 @@ io.on('connection', (socket: Socket) => {
 
     // Leave whatever was being watched before — a viewer belongs to one island.
     if (data.islandId) socket.leave(roomFor(data.islandId));
+    const watchedBefore = data.spectating;
     data.islandId = found.island.id;
     data.spectating = target;
     socket.join(roomFor(found.island.id));
     socket.emit('island', snapshot(found));
+    // Both ends of the move: the run just left loses an eye, the one just
+    // joined gains one. `watchedBefore` is read AFTER the reassignment above
+    // only through this local, because the count walks `data.spectating` and
+    // would otherwise credit the new target twice.
+    if (watchedBefore && watchedBefore !== target) pushWatchers(watchedBefore);
+    pushWatchers(target);
   }));
 
   /**
@@ -734,8 +769,25 @@ io.on('connection', (socket: Socket) => {
    * The item is spent BEFORE the strike lands: a failed strike that still cost
    * the carrot is a bug report, one that landed unpaid is an exploit.
    */
+  /*
+   * A SPECTATOR MAY FIRE. This is the one handler on the socket where that is
+   * the POINT rather than a hole: you open a rival's run from the leaderboard
+   * to decide whether to spend a bolt on it, and a watcher who cannot fire has
+   * watched for nothing. The buttons live in viewer mode on the client for the
+   * same reason (page.tsx).
+   *
+   * It is safe here because the strike never reads the caster's own rabbit:
+   * `strike` takes `castBy` only to stamp the ground it opens, and
+   * `struckRabbits` takes it only to spare the caster — and a spectator, who
+   * owns no rabbit on this island, is spared by simply not being there. Every
+   * other gameplay handler keeps its `data.spectating` guard, because every
+   * other one moves a rabbit the spectator does not have.
+   *
+   * The item is still theirs and still spent: watching is free, the bolt is
+   * not.
+   */
   socket.on('lightning', guard('lightning', async (payload: { tile?: unknown }) => {
-    if (!data.playerId || !data.islandId || data.spectating) return;
+    if (!data.playerId || !data.islandId) return;
     const target = payload?.tile;
     if (typeof target !== 'number' || !Number.isInteger(target)) return;
 
@@ -870,15 +922,35 @@ io.on('connection', (socket: Socket) => {
    * The one thing never refused is a tile that already holds a bomb — that
    * refusal would be a free probe.
    */
+  /*
+   * A SPECTATOR MAY BURY ONE, for the reason the strike may be fired: the
+   * watcher IS the saboteur. See the note on `lightning`.
+   *
+   * The gate that stood here was two gates — `data.spectating`, and "only
+   * somebody actually digging this island may mine it" below it. The second
+   * was the one with teeth: it asked for a LIVE RABBIT of the planter's, which
+   * is precisely what a watcher does not have.
+   *
+   * Nothing downstream needs one. `plantBlocker` and `plantBomb` take the
+   * planter as an ID — the cap is counted per planter over the island
+   * (`plantedBy`), the tile is stamped with it, and the ambush is reported to
+   * this socket rather than to a rabbit. So the cap still binds a watcher to
+   * three bombs on the island they are watching, which is the same bargain a
+   * digger gets.
+   *
+   * The island must still be REAL and live, and it is: a spectator's
+   * `islandId` is the one they were put in the room of (`spectate`).
+   */
   socket.on('plant', guard('plant', async (payload: { tile?: unknown }) => {
-    if (!data.playerId || !data.islandId || data.spectating) return;
+    if (!data.playerId || !data.islandId) return;
     const target = payload?.tile;
     if (typeof target !== 'number' || !Number.isInteger(target)) return;
 
     const live = store.get(data.islandId);
     if (!live || live.erupting) return;
-    // Only somebody actually digging this island may mine it.
-    if (!live.rabbits.get(data.playerId)?.alive) return;
+    // Digging it, or watching it. Someone who is neither has no business
+    // mining it — an islandId left over from a run that ended, say.
+    if (!data.spectating && !live.rabbits.get(data.playerId)?.alive) return;
 
     const blocker = plantBlocker(live.island, data.playerId, target);
     if (blocker) return socket.emit('plant_rejected', { reason: blocker });
@@ -1279,6 +1351,13 @@ io.on('connection', (socket: Socket) => {
     socket.leave(roomFor(data.islandId));
     data.islandId = undefined;
     data.runId = undefined;
+    // A viewer going home takes their eye off the run: the digger's count has
+    // to drop, or "1 online" outlives the person it was counting.
+    if (data.spectating) {
+      const watched = data.spectating;
+      data.spectating = undefined;
+      pushWatchers(watched);
+    }
 
     // Off the island, so no longer "digging". This was missing, and it is not
     // cosmetic: the board offers a WATCH button on whoever this set names, so a
@@ -1314,8 +1393,14 @@ io.on('connection', (socket: Socket) => {
     // defender who is home and watching — the one row a raider avoids, and the
     // safest burrow in the game would be an abandoned one.
     await optional('markDisconnected', () => markDisconnected(data.playerId!));
-    // A spectator holds no seat, so there is nothing to keep warm for them.
-    if (data.spectating) return;
+    // A spectator holds no seat, so there is nothing to keep warm for them —
+    // but the run they were watching is one eye lighter, and has to hear it.
+    // The socket is already out of `io.sockets.sockets` by the time this runs,
+    // so the recount below does not see it.
+    if (data.spectating) {
+      pushWatchers(data.spectating);
+      return;
+    }
     const live = data.islandId ? store.get(data.islandId) : undefined;
     if (!live) return;
 

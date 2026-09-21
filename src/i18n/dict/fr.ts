@@ -213,6 +213,9 @@ export const fr: Dict = {
     } as Record<string, string>,
     plantedBy: (name) => `La bombe de ${name} !`,
     struckBy: (name) => `${name} t’a foudroyé`,
+    watchers: (n) => `${n} en ligne`,
+    hitBolt: (name) => `${name} t’a foudroyé`,
+    hitBomb: (name) => `${name} avait miné`,
   },
 
   firstRun: {
@@ -320,6 +323,9 @@ export const fr: Dict = {
     boughtShield: (n, paid) => `${n > 1 ? `${n} boucliers prêts` : 'Bouclier prêt'}. ${paid}`,
     boughtSmoke: (paid) => `Les chiffres sont cachés. ${paid}`,
     boughtMirage: (n, paid) => `${n > 1 ? `${n} mirages prêts` : 'Mirage prêt'} à lancer. ${paid}`,
+    /* Une clôture se DRESSE : ce qu'on achète, c'est une planche qui ferme un
+       tronçon du bord du potager, donc le reçu nomme ce que ça devient. */
+    boughtFence: (n, paid) => `${n > 1 ? `${n} planches prêtes` : 'Planche prête'} à dresser. ${paid}`,
     paid: (spent) => `-${spent} 🥕`,
   },
 
@@ -337,6 +343,18 @@ export const fr: Dict = {
     tile_doorstep: 'Trop près de l\'entrée. Les premiers pas restent libres.',
     tile_already_trapped: 'Déjà miné.',
     no_trap_there: 'Pas de piège là.',
+    no_fences: 'Plus de clôtures. La remise en vend.',
+    span_already_fenced: 'Une planche est déjà dressée là.',
+    span_not_exposed: 'Ce n’est pas un bord de ton potager.',
+    /* La règle du portail, énoncée comme une règle et non comme une faute :
+       c’est le seul refus d’ici que le joueur doit APPRENDRE, alors il dit
+       pourquoi avant de dire non. */
+    would_seal_burrow: 'Ça fermerait le dernier passage. Un passage reste ouvert, c’est le portail.',
+    span_not_fenced: 'Pas de planche là.',
+    bad_span: 'Ce n’est pas une place pour une planche.',
+    /* Pas le refus du propriétaire mais celui du PILLARD, depuis raid/route.ts —
+       une clôture est la seule défense dont on lui parle, alors elle l’oriente. */
+    fenced: 'Une clôture bloque le passage. Contourne.',
     payments_unavailable: 'Le paiement par carte n’est pas encore en place.',
     quote_expired: 'Ce prix a expiré. Réessaie.',
     signature_already_used: 'Ce paiement a déjà servi.',
@@ -355,7 +373,28 @@ export const fr: Dict = {
   },
 
   kit: {
+    tools: {
+      more: 'Voir l’effet et les actions', less: 'Réduire les détails',
+      available: (n) => n + ' en réserve',
+      placed: (n) => n + ' en place',
+      active: (time) => time + ' restantes',
+      buyTrap: (price) => 'Acheter une mine - ' + price + ' carottes',
+      trapHint: 'Touche une case pour poser une mine. Retouche une mine pour la récupérer.',
+      trapEmpty: 'Récupère une mine posée ou achète-en une ci-dessous.',
+      fenceHint: 'Touche un bord éclairé pour construire. Retouche une clôture pour la récupérer.',
+      raiseShield: 'Utiliser un bouclier', shieldActive: 'Ton terrier est déjà protégé.',
+      shopHint: 'Disponible à la boutique.', notEnough: 'Pas assez de carottes pour une autre mine.',
+      smokeHint: 'Acheter de la fumée à la boutique l’active immédiatement.',
+      attackHint: 'À utiliser sur l’île d’un rival pendant une partie.',
+      chestHint: 'Tu en trouveras dans les coffres.',
+      waterEffect: 'Fait pousser ton jardin plus vite pendant un moment.',
+      fertiliserEffect: 'Permet au jardin de stocker plus de carottes avant d’être plein.',
+      water: 'Utiliser un arrosage', fertilise: 'Utiliser un engrais',
+    },
     aria: 'Ce que tu portes',
+    groupDefence: 'DEFENSE',
+    groupAttack: 'ATTAQUE',
+    groupGarden: 'JARDIN',
     shieldHolding: (wait, held) => `Bouclier : actif, ${wait} restant. ${held} en sac.`,
     shieldReady: (held) => `Bouclier : ${held} en sac. Lève-en un. Les pillards rebondissent tant qu’il tient.`,
     shieldNone: 'Bouclier : aucun. Achètes-en un en boutique.',
@@ -378,6 +417,26 @@ export const fr: Dict = {
     bottleRunning: (name, wait, count) => `${name} : en cours, ${wait} restant. ${count} en sac.`,
     bottleHeld: (name, count) => `${name} : ${count} en sac. Verse-en un sur le potager.`,
     bottleNone: (name) => `${name} : aucun. On en trouve dans les coffres.`,
+    /* LA CASE CLÔTURE. Une clôture, c'est une planche sur un tronçon du bord du
+       potager. `total`, c'est tous les tronçons, portail compris, tels que
+       l'appelant (kit-row.tsx) les compte : le dernier ne peut jamais être
+       fermé, et fenceAllWalled le dit plutôt que de laisser le compte se lire
+       comme une planche que le joueur aurait ratée. Pluriel à partir de 2,
+       comme ailleurs en français. */
+    fencePlace: (held, walled, total) =>
+      `Clôtures : ${held} planche${held < 2 ? '' : 's'} en sac, ${walled} tronçon${walled < 2 ? '' : 's'} sur ${total} fermé${walled < 2 ? '' : 's'}.`
+      + ' Pose-en une.',
+    /* Pas un échec, d'où le portail nommé franchement : le joueur a fait tout
+       ce que l'objet permet, et un simple « plus possible » se lirait comme un
+       plafond qu'il devrait chercher à lever. */
+    fenceAllWalled: (walled) =>
+      `Clôtures : ${walled} tronçon${walled < 2 ? '' : 's'} fermé${walled < 2 ? '' : 's'}.`
+      + ' Le dernier passage est le portail et reste ouvert.',
+    /* Nomme le chemin vers une planche quand le sac est vide : une planche
+       dressée n'est pas dépensée, on la touche pour la reprendre. */
+    fenceNone: (walled) =>
+      `Clôtures : aucune en sac, ${walled} tronçon${walled < 2 ? '' : 's'} fermé${walled < 2 ? '' : 's'}.`
+      + ' La remise en vend. Touche une planche dressée pour la reprendre.',
     watering: 'Arrosage',
     fertiliser: 'Engrais',
   },
@@ -571,6 +630,13 @@ export const fr: Dict = {
     mirage: {
       name: 'Mirage',
       blurb: 'Fait mentir quelques chiffres chez un rival, en pleine sortie. Il peut le repérer.',
+    },
+    /* La seule défense qui est FAITE pour être vue — « ne peuvent pas passer »
+       et non « ralentit » : un pillard qui lit ça et contourne a compris
+       l'objet exactement. Voir lib/game/fences.ts. */
+    fence: {
+      name: 'Clôture',
+      blurb: 'Ferme un tronçon du bord de ton potager. Les pillards ne peuvent pas le franchir.',
     },
   },
 

@@ -36,6 +36,7 @@ import {
 } from '../services/AssetLoader';
 import { KeyboardControls } from '../services/KeyboardControls';
 import { createTerrainBackground, type TerrainBackground } from '../services/TerrainBackground';
+import type { MeadowLook } from '../burrow/MeadowLook';
 import { MoveArrows, MOVE_ARROW_LABEL } from '../ui/MoveArrows';
 import { CloudField } from '../fx/Clouds';
 import { BirdFlock } from '../fx/Birds';
@@ -68,6 +69,8 @@ export type AimMode = 'strike' | 'plant' | null;
 
 /** What the scene needs from the outside world. The socket layer supplies it. */
 export interface IslandSceneData {
+  /** Optional art study, also used by the playable Storybook preview. */
+  meadowLook?: MeadowLook;
   /** Seed the island's coastline is cut from — the server's island id. */
   seed: string;
   /** Called when the player wants to step to a tile. The server decides. */
@@ -428,12 +431,12 @@ export class IslandScene implements Scene {
     // The GROUND the server is playing on, generated from the island's seed
     // rather than picked from three paintings. Both sides build it from the
     // seed alone, so what blocks a tile here is what the server refuses.
-    this.background = await createTerrainBackground(this.container, this.data?.seed ?? '');
+    this.background = await createTerrainBackground(this.container, this.data?.seed ?? '', { meadowLook: this.data?.meadowLook });
     this.syncFlock();
     // The blast's smoke and flash discs, generated once against this renderer.
     initBlastTextures(this.app.renderer);
 
-    // The sky, behind everything: the island already moves (surf, volcano
+    // The sky, behind everything: the island already moves (surf, spray
     // smoke), so a dead blue border around it makes the frame look like a
     // screenshot. Clouds only ever cross the SEA — never the board, where they
     // would hide the numbers the game is read from.
@@ -1208,7 +1211,7 @@ export class IslandScene implements Scene {
     // during the build below must not find, and destroy again, a ground that
     // is already gone.
     this.background = null;
-    const background = await createTerrainBackground(this.container, seed);
+    const background = await createTerrainBackground(this.container, seed, { meadowLook: this.data?.meadowLook });
     if (run !== this.islandRun) {
       // Overtaken while building. This ground was never shown; the newest
       // call owns the scene from here, and this one only reports when it does.

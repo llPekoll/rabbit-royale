@@ -458,6 +458,12 @@ export function useGameSocket(
   const [plantRefused, setPlantRefused] = useState<{ reason: string; at: number } | null>(null);
   /** The last saboteur's bomb WE stepped on, and whose it was. */
   const [bombedBy, setBombedBy] = useState<{ by: string; at: number } | null>(null);
+  /**
+   * How many people are watching OUR run right now — see the server's
+   * `watchersOf`. Zero until told otherwise, which is the honest start: a run
+   * nobody has opened yet has nobody on it.
+   */
+  const [watchers, setWatchers] = useState(0);
   /** The raid on OUR burrow as last pushed, or null — see `raid_incoming`. */
   const [incomingRaid, setIncomingRaid] = useState<IncomingRaid | null>(null);
   /** Bumped when the defender's lightning ends our raid — see `raid_struck`. */
@@ -776,6 +782,18 @@ export function useGameSocket(
     /** The server would not fire the strike — none held, or aimed off the island. */
     socket.on('lightning_rejected', ({ reason }: { reason: string }) => {
       setStrikeRefused({ reason, at: Date.now() });
+    });
+
+    /**
+     * How many rivals are watching this run — sent to the digger alone.
+     *
+     * Pushed on every change rather than polled: the number only moves when a
+     * watch starts or ends, and those are exactly the two moments the digger
+     * wants to hear about. A watcher is a raider deciding whether to spend a
+     * bolt, so this is the warning that comes BEFORE the bolt.
+     */
+    socket.on('watchers', ({ count }: { count: number }) => {
+      setWatchers(Math.max(0, count | 0));
     });
 
     /** One of OUR bombs is in the ground. Sent to the planter alone. */
@@ -1123,6 +1141,11 @@ export function useGameSocket(
     // Last run's grudge goes with last run's card — a fresh island must not
     // open with a toast blaming somebody for a shove on a board that is gone.
     setShoved(null);
+    // And last run's audience. The server pushes a count only when one
+    // CHANGES, so a new island with nobody on it sends nothing at all — the
+    // strip would have opened still showing the eyes that were on the last
+    // one. Zero is what a run nobody has opened yet is worth.
+    setWatchers(0);
   }, []);
 
   const me = playerId ? rabbits.get(playerId) ?? null : null;
@@ -1131,7 +1154,7 @@ export function useGameSocket(
     seatHeld,
     firstRun, taughtBomb, teachReady, digs, bank, erupting,
     chestPrize, clearChestPrize: () => setChestPrize(null),
-    casts, strikeRefused, struckBy, plants, plantRefused, bombedBy, incomingRaid, struckRaid,
+    casts, strikeRefused, struckBy, plants, plantRefused, bombedBy, watchers, incomingRaid, struckRaid,
     // Let the burrow page forget a raid it has finished showing.
     clearIncomingRaid: () => setIncomingRaid(null),
     moveTo, restart, join, leave, strike, plant, bindScene, resync, flagMode, setFlagMode, flagNothing,

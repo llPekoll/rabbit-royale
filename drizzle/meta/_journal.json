@@ -134,6 +134,13 @@
       "when": 1789963846983,
       "tag": "0018_oval_red_ghost",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1789966688282,
+      "tag": "0019_moaning_tarot",
+      "breakpoints": true
     }
   ]
 }
