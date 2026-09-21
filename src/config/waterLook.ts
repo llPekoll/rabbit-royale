@@ -40,10 +40,15 @@ export const DUCK_LOOK = {
   /** Cells per second — ducks move in map space, not on screen. */
   speed: 2,
   /**
-   * 0.8 of a 32px frame: a duck about the size of a sheep's body, not of a
-   * whole cell. At 1.2 it was the biggest animal on the island.
+   * 0.55 of a 32px frame — a bird, and a small one.
+   *
+   * The scale has come down twice. 1.2 made the duck the biggest animal on the
+   * island; 0.8 put it level with a sheep's body, which is still a sheep-sized
+   * duck. A duck is smaller than a sheep, and on open water there is nothing
+   * beside it to say how big it is except the cells it crosses — so it reads
+   * at whatever size it is drawn, and the size it should be drawn is little.
    */
-  scale: 0.8,
+  scale: 0.55,
 } as const;
 
 /**

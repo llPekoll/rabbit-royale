@@ -48,6 +48,16 @@
  * spline, then rotated the sprite to it. Neither survived: the curve was the
  * one thing in frame not on the lattice, and tilting art that is drawn from
  * above tipped the bird over instead of turning it.
+ *
+ * ## Depth is the caller's ruler, not a layer
+ *
+ * A duck swims ACROSS the island's cells, so it cannot be parked on a layer
+ * under everything: pinned below the land it draws behind a sea rock it is
+ * paddling in front of, and behind the island's own south coast, which is the
+ * one edge a duck is most often seen against. It sorts on the same ruler as
+ * everything else standing on the terrain — the caller hands in `depth(x, y)`
+ * for a fractional cell, the flock's container joins the terrain's sorted one,
+ * and a duck south of a rock is simply in front of it.
  */
 import { Assets, Container, Rectangle, Sprite, Texture } from 'pixi.js';
 
@@ -80,8 +90,33 @@ export interface DucksOptions {
   diveMs?: number;
 }
 
+/**
+ * How a flock joins the terrain's depth order.
+ *
+ * Both halves or neither: a duck sorted on the terrain's ruler but left in its
+ * own container is a sprite with a big number on it inside a box pinned at the
+ * bottom of the scene, which sorts against nothing. Pixi sorts SIBLINGS, so
+ * the depth only means anything once the duck is a sibling of the land.
+ */
+export interface DuckSorting {
+  /**
+   * The terrain's sorted container — the one the ground, the cliffs and the
+   * sea rocks are stamped into. Given it, the ducks are added straight here
+   * rather than to the flock's own `view`.
+   */
+  host: Container;
+  /** The terrain's sort key for a FRACTIONAL cell, the same one it stamps with. */
+  depth: (x: number, y: number) => number;
+}
+
 export interface Ducks {
-  /** Add this to the water layer, under the island. */
+  /**
+   * The flock's own container — add it to the water layer.
+   *
+   * Empty when the caller passed a `host`: the ducks then live in the
+   * terrain's container as siblings of the land, because that is the only
+   * place their depth can sort against it. See `depth`.
+   */
   readonly view: Container;
   /** Advance the flock. `deltaMs` is real milliseconds. */
   update(deltaMs: number): void;
@@ -133,6 +168,13 @@ interface Duck {
  * `rng` is passed in rather than `Math.random` so an island with a given seed
  * always puts its ducks in the same places, which is what makes a screenshot
  * comparable.
+ *
+ * `sorting` hands over the terrain's own depth order — its sorted container
+ * and the sort key it stamps with. Given it, a duck sorts against the land,
+ * the cliffs and the sea rocks instead of against the other ducks alone: one
+ * paddling south of a boulder passes in front of it, one paddling north goes
+ * behind. Left out, the flock keeps its own container and sorts among itself,
+ * which is all a standalone story needs.
  */
 export function createDucks(
   frames: Texture[],
@@ -142,7 +184,10 @@ export function createDucks(
   at: (x: number, y: number) => { x: number; y: number },
   rng: () => number = Math.random,
   options: DucksOptions = {},
+  sorting?: DuckSorting,
 ): Ducks {
+  const depth = sorting?.depth;
+  const host = sorting?.host;
   const o = {
     count: 3, speed: 2, frameMs: 220, scale: 0.8, range: 4, restMs: 1400, diveMs: 600,
     ...options,
@@ -210,7 +255,7 @@ export function createDucks(
     sprite.scale.set(o.scale);
     const p = at(spot.x, spot.y);
     sprite.position.set(p.x, p.y);
-    view.addChild(sprite);
+    (host ?? view).addChild(sprite);
     const facing = rng() < 0.5 ? -1 : 1;
     sprite.scale.set(facing * o.scale, o.scale);
     ducks.push({
@@ -309,15 +354,20 @@ export function createDucks(
           : d.diving <= o.diveMs
             ? 1 - d.diving / o.diveMs
             : (d.diving - o.diveMs) / o.diveMs;
-        // Depth, so a duck swimming south passes IN FRONT of one to the north
-        // rather than through it. The water layer sorts on the same axis the
-        // island does.
-        d.sprite.zIndex = d.x + d.y;
+        // Depth, so a duck swimming south passes IN FRONT of whatever is to
+        // the north of it — another duck, a sea rock, the island's own coast.
+        // The terrain's ruler when the caller handed one in, because a value
+        // on the ducks' own scale means nothing next to a stamped sprite's.
+        d.sprite.zIndex = depth ? depth(d.x, d.y) : d.x + d.y;
         const n = frames.length;
         d.sprite.texture = frames[((Math.floor(t + d.phase) % n) + n) % n];
       }
     },
     destroy() {
+      // The sprites are the flock's whether or not they sit in its container:
+      // hosted, `view` is empty and destroying it alone would leave four ducks
+      // paddling about in a terrain that has forgotten them.
+      for (const d of ducks) d.sprite.destroy();
       view.destroy({ children: true });
       ducks.length = 0;
     },

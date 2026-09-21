@@ -18,7 +18,7 @@ import { Container, type Sprite } from 'pixi.js';
 import {
   HALF_W, HALF_H, ISO_ORIGIN_X, ISO_ORIGIN_Y, COLS, ROWS, GRID_CENTER_X, GRID_CENTER_Y, toColRow,
 } from '@/config/gridConfig';
-import { IsoIslandView, loadIslandTileset, isoProject } from '@/game/island';
+import { IsoIslandView, loadIslandTileset, isoProject, isoDepth } from '@/game/island';
 import { terrainFor, TIER_LIFT, levelTierAt } from '@/lib/game/terrainBoard';
 import { mulberry32, seedFrom } from '@/lib/game/rng';
 import { createPackWater, loadPackWater, type PackWater } from '@/game/fx/PackWater';
@@ -293,8 +293,19 @@ export async function createTerrainBackground(
     // same places — a screenshot of a seed is reproducible.
     mulberry32(seedFrom(`${seed}:ducks`)),
     DUCK_LOOK,
+    // NOT in `sea`, unlike the surf. That layer is pinned under everything so
+    // the foam's overhang tucks beneath the land — which is right for a band
+    // painted on the shore and wrong for a bird that swims across the map. In
+    // `sea` a duck drew behind the sea rock it was paddling in front of, and
+    // behind the island's south coast, where a duck is most often seen.
+    //
+    // So it joins the ground loose, the same way every stamped sprite does,
+    // on the same ruler: `isoDepth` at TIER 0 — the water's own plane, which
+    // is where the ducks are projected (`at`) and where the sea rocks are
+    // stamped. Land on a raised cell carries its tier and therefore outranks
+    // the water in front of it, which is exactly the reading wanted.
+    { host: island.ground, depth: (x, y) => isoDepth(x, y, 0) },
   );
-  sea.addChild(ducks.view);
 
   // The weather over it: cloud shadows crossing the board, sea and land
   // alike, AND the shafts of light that come through the gaps between them.

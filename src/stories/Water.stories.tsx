@@ -31,6 +31,9 @@ import {
   generateIsland, levelAt, IsoIslandView, loadIslandTileset, isoBounds,
 } from '@/game/island';
 import { HALF_W, HALF_H, TIER_LIFT } from '@/config/gridConfig';
+// The story's sliders START where the game ships, so what is tuned here is
+// measured against what the player actually sees — see `waterLook.ts`.
+import { DUCK_LOOK } from '@/config/waterLook';
 
 const WIDTH = 960;
 const HEIGHT = 540;
@@ -252,7 +255,7 @@ const meta: Meta<Args> = {
     ducks: { control: 'boolean' },
     duckCount: { control: { type: 'range', min: 1, max: 12, step: 1 } },
     duckSpeed: { control: { type: 'range', min: 0.5, max: 6, step: 0.5 } },
-    duckScale: { control: { type: 'range', min: 0.5, max: 2.5, step: 0.1 } },
+    duckScale: { control: { type: 'range', min: 0.3, max: 2.5, step: 0.05 } },
   },
   args: {
     seed: 'harbour-9', cells: 18, tiers: 3, seaColor: '#47aba9',
@@ -261,7 +264,7 @@ const meta: Meta<Args> = {
     surface: true, surfaceColor: '#9fd9cf', surfaceOpacity: 0.55, surfaceScale: 58,
     surfaceRadius: 0.34, surfaceLevels: 0.55, surfaceWobble: 0.22, surfaceDensity: 0.62, surfaceWidth: 0.035,
     surfaceDrift: 0.06, surfaceMorph: 0.35,
-    ducks: true, duckCount: 4, duckSpeed: 2, duckScale: 1.2,
+    ducks: true, duckCount: DUCK_LOOK.count, duckSpeed: DUCK_LOOK.speed, duckScale: DUCK_LOOK.scale,
   },
   render: (args) => <Scene {...args} />,
 };

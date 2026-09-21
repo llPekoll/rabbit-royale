@@ -20,7 +20,7 @@
  */
 import { Assets, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import gsap from 'gsap';
-import { IsoIslandView, loadIslandTileset, isoProject, levelAt } from '@/game/island';
+import { IsoIslandView, loadIslandTileset, isoProject, isoDepth, levelAt } from '@/game/island';
 import { getDiamondPixels } from '@/game/services/TileTextures';
 import {
   BURROW_HALF_W, BURROW_HALF_H, BURROW_TIER_LIFT,
@@ -400,13 +400,27 @@ export async function createBurrowTerrain(
 
   const ducks = createDucks(
     await ducksLoad, BURROW_COLS, BURROW_ROWS,
-    (x, y) => !isLand(x, y),
+    // A full cell clear of the turf, not merely off it. The land is drawn a
+    // tier up from its footprint, so it overhangs the water behind it on the
+    // north and west and the surf spills over it on the south and east — a
+    // duck in that ring is half a bird sticking out from under the grass.
+    // Same ring the island keeps its flock outside of.
+    (x, y) => {
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if (isLand(x + dx, y + dy)) return false;
+        }
+      }
+      return true;
+    },
     at,
     // Seeded from the homestead, so a player's own pond is always the same.
     mulberry32(seedFrom(`${seed}:ducks`)),
     DUCK_LOOK,
+    // In the ground with the land, not in `sea` under it — see the island's
+    // own call for why, and `isoDepth` at tier 0 for the water's plane.
+    { host: island.ground, depth: (x, y) => isoDepth(x, y, 0) },
   );
-  sea.addChild(ducks.view);
 
   // The same weather as over the island: cloud shadows crossing the
   // homestead and the light coming through between them, in the scene's
