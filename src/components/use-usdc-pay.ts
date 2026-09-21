@@ -231,7 +231,22 @@ export function useUsdcPay(token: string | null, enabled: boolean) {
       tx.add(new TransactionInstruction({
         keys: [],
         programId: MEMO_PROGRAM,
-        data: Buffer.from(quote.reference, 'utf8'),
+        // `TextEncoder`, not `Buffer`: this runs in the BROWSER, where Buffer
+        // is a Node global that simply is not there. It threw
+        // "Buffer is not defined" at the last step before signing — after the
+        // quote, with the wallet about to open — so the shop priced everything
+        // in dollars and then could not pay for any of it.
+        //
+        // The bytes are identical: TextEncoder is UTF-8 by definition, which
+        // is the encoding Buffer was being asked for, and the server matches
+        // the memo as a STRING (`logs.some(l => l.includes(reference))` in
+        // lib/pay/solana), so what has to agree is the text, not the buffer
+        // type. web3.js accepts any Uint8Array here.
+        // The cast is to web3.js's TYPE, which says `Buffer` because the
+        // library was written for Node. At runtime it only ever serialises
+        // the bytes, and `Buffer` is itself a `Uint8Array` — this is the one
+        // place the declaration is narrower than the implementation.
+        data: new TextEncoder().encode(quote.reference) as unknown as Buffer,
       }));
 
       tx.feePayer = payer;
