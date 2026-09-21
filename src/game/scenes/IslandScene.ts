@@ -170,10 +170,10 @@ const FOLLOW_SECONDS = 0.45;
 /**
  * How long after a hit the camera waits before coming back to the rabbit.
  *
- * Long enough to let the blast's shake and the bolt's hold finish — a slide
- * started under either one reads as the screen tearing rather than as a
- * camera moving — and short enough that the player is not left staring at
- * empty ground wondering what became of them. See `recentreAfterHit`.
+ * Long enough to let the bolt's hold finish — a slide started under it reads
+ * as the screen tearing rather than as a camera moving — and short enough
+ * that the player is not left staring at empty ground wondering what became
+ * of them. See `recentreAfterHit`.
  */
 const RECENTRE_AFTER_HIT_MS = 700;
 
@@ -1938,10 +1938,6 @@ export class IslandScene implements Scene {
         ? (origin) => { me.playDamage(); knockBack(me.container, origin); }
         : undefined,
     });
-    // Knocked about by a blast next door, the rabbit ends where it started —
-    // but the player is stunned, so no step follows to bring the camera back
-    // if the board had been panned away. See `recentreAfterHit`.
-    if (hitMe) this.recentreAfterHit();
     // A scene torn down mid-blast must not fire the later beats into a
     // destroyed container — the run ends on a bomb often enough that this is
     // the common path, not the edge case.
@@ -2085,26 +2081,32 @@ export class IslandScene implements Scene {
    * Come back to the rabbit after something hit it, but only if it is off
    * the frame.
    *
-   * The follow only runs on a STEP, and a bomb or a bolt is the one moment a
-   * player CANNOT step: they are stunned for as long as the pose lasts. So a
-   * hit taken while the board was panned away left the player watching empty
-   * ground with no way back but dragging — the blast went off somewhere off
+   * The follow only runs on a STEP, and a bolt is the one moment a player
+   * CANNOT step: they are stunned for as long as the pose lasts. So a strike
+   * taken while the board was panned away left the player watching empty
+   * ground with no way back but dragging — the shock went off somewhere off
    * screen and the game read as broken.
    *
-   * Conditional on the rabbit being out of view so a player who is looking
-   * straight at their own rabbit never has the camera yanked out from under
-   * a zoom or a pan they set deliberately. Delayed to the END of the pose:
-   * sliding during the bolt would fight the shake and hide the very thing
-   * the player needs to see.
+   * Delegates to `keepInView` — the same call a step makes — rather than the
+   * unconditional `recentre`, so a player looking straight at their own
+   * rabbit never has the camera yanked out from under a zoom they set
+   * deliberately, and a finger already on the screen keeps the last word.
+   *
+   * Delayed to the END of the pose: sliding during the bolt would fight the
+   * shake and hide the very thing the player needs to see. `keepInView` is
+   * re-evaluated when the timer fires, so a player who dragged back to their
+   * own rabbit in the meantime is left alone.
+   *
+   * The bomb does NOT come through here. Its knockback is a separate server
+   * event (`bomb_hit` → `bombHit`), which moves `myTile` and already calls
+   * `keepInView` itself; the shockwave in `playExplosion` only nudges the
+   * sprite and puts it back.
    */
   private recentreAfterHit(): void {
-    if (this.data?.noCamera || this.isRabbitInView()) return;
+    if (this.data?.noCamera) return;
     const timer = window.setTimeout(() => {
       this.lightningTimers.delete(timer);
-      // Re-checked on arrival: the player may have dragged back to the rabbit
-      // themselves while the pose played, and stealing the camera then would
-      // undo their own correction.
-      if (!this.isRabbitInView()) this.recentre();
+      this.keepInView();
     }, RECENTRE_AFTER_HIT_MS);
     this.lightningTimers.add(timer);
   }
