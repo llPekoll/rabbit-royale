@@ -61,6 +61,8 @@ interface Args {
 }
 
 const hex = (s: string) => Number(s.replace('#', '0x'));
+/** L'inverse, pour que les sliders partent des defaults sans les recopier. */
+const css = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
 
 function Scene(args: Args) {
   const tick = useRef<((ms: number) => void) | null>(null);
@@ -207,8 +209,8 @@ const meta: Meta<Args> = {
     shadowColor: '#10203a',
     shadowAlpha: D.alpha,
     sun: true,
-    sunColor: '#ffe9a8',
-    sunColorB: '#ff9d5c',
+    sunColor: css(L.color),
+    sunColorB: css(L.colorB),
     gradient: L.gradient,
     breath: L.breath,
     sunAlpha: L.alpha,
@@ -225,18 +227,18 @@ type Story = StoryObj<Args>;
 export const Champ: Story = { name: '01 - Champ clair', args: { rim: 0 } };
 
 /** Un liseré dore le long de la plaque : plus graphique, plus pixel art. */
-export const Lisere: Story = { name: '02 - Lisere', args: { rim: 3, sunAlpha: 0.3 } };
+export const Lisere: Story = { name: '02 - Lisere', args: { rim: 3, sunAlpha: 0.2 } };
 
 /** La meme sans la couche claire — le temoin, pour voir ce qu'elle apporte. */
 export const SansSoleil: Story = { name: '03 - Sans soleil', args: { sun: false } };
 
 /** Pousse a bout : ou le jaune commence a mentir. */
-export const Force: Story = { name: '04 - Force', args: { sunAlpha: 0.5 } };
+export const Force: Story = { name: '04 - Force', args: { sunAlpha: 0.3 } };
 
 /** Un seul grand nuage en travers, pour lire la frange sur un long bord. */
 export const Grand: Story = {
   name: '05 - Grand nuage',
-  args: { scale: 1.2, rim: 3, sunAlpha: 0.3 },
+  args: { scale: 1.2, rim: 3, sunAlpha: 0.2 },
 };
 
 /** La meteo relachee sur vingt secondes : les deux couches doivent rester accordees. */
@@ -248,13 +250,13 @@ export const Meteo: Story = { name: '06 - Meteo', args: { weatherPeriod: 20 } };
  */
 export const Degrade: Story = {
   name: '07 - Degrade fort',
-  args: { gradient: 1, breath: 0, sunAlpha: 0.32, weatherPeriod: 0 },
+  args: { gradient: 1, breath: 0, sunAlpha: 0.2, weatherPeriod: 0 },
 };
 
 /** Le temoin du degrade : teinte plate, meme alpha. Compare avec 07. */
 export const SansDegrade: Story = {
   name: '08 - Sans degrade',
-  args: { gradient: 0, breath: 0, sunAlpha: 0.32, weatherPeriod: 0 },
+  args: { gradient: 0, breath: 0, sunAlpha: 0.2, weatherPeriod: 0 },
 };
 
 /**

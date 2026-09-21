@@ -48,7 +48,8 @@
  */
 import { Container, Geometry, Mesh, Shader } from 'pixi.js';
 import {
-  CLOUD_SHADOW_NOISE_DEFAULTS, mountCloudShadows, type CloudShadowNoiseOptions,
+  CLOUD_SHADOW_NOISE_DEFAULTS, mountCloudShadows, mountSunWarm,
+  type CloudShadowNoiseOptions,
 } from './CloudShadowsNoise';
 
 const vertex = `
@@ -640,8 +641,22 @@ const Z = 7_500;
  * faisceaux gardent la taille a laquelle ils ont ete regles.
  */
 /**
- * Le ciel complet : les plaques d'ombre au sol ET les rais qui passent entre
- * elles, montes ensemble et tenus accordes.
+ * Le ciel complet : les plaques d'ombre au sol, la CHALEUR du soleil sur ce
+ * qu'elles ne couvrent pas, et les rais qui passent entre elles — montes
+ * ensemble et tenus accordes.
+ *
+ * ## Les trois couches ne font pas le meme travail
+ *
+ * - l'ombre ASSOMBRIT ce que le nuage couvre (alpha normal) ;
+ * - la chaleur RECHAUFFE ce qu'il laisse degage (`overlay`), sans ajouter de
+ *   lumiere : elle module au lieu de peindre, sinon elle delaverait l'ile ;
+ * - les rais AJOUTENT de la lumiere (`add`) dans les trouees.
+ *
+ * Chaleur et rais lisent tous deux la couverture, mais pas de la meme facon
+ * et ils ne se comptent donc pas deux fois : le rai s'en sert comme d'un
+ * seuil SPATIAL (par ou il passe), la chaleur comme d'un facteur d'opacite
+ * GLOBAL (`breath`). Un ciel charge donne moins de trouees ET une chaleur
+ * eteinte, ce qui est la meme histoire racontee par deux moyens.
  *
  * C'est ce qu'il faut appeler depuis un terrain, pas les deux montages l'un
  * apres l'autre. Deux raisons, et la seconde ne se voit qu'apres coup :
@@ -653,9 +668,12 @@ const Z = 7_500;
  *    `coverageMax` a chaque frame ; un rai qui garderait la valeur de depart
  *    finirait par tomber en plein milieu d'une plaque des que le temps
  *    change. Le `update` ci-dessous recopie la couverture vivante des ombres
- *    dans les rais a chaque frame — c'est la seule ligne qui tient l'accord
- *    dans la duree, et elle n'existe pas dans la story (ou le ciel est fige
- *    expres pour qu'on puisse juger l'accord sans que la meteo s'en mele).
+ *    dans les DEUX autres couches a chaque frame — c'est la seule ligne qui
+ *    tient l'accord dans la duree, et elle n'existe pas dans la story (ou le
+ *    ciel est fige expres pour qu'on puisse juger l'accord sans que la meteo
+ *    s'en mele). Pour la chaleur elle fait plus que l'accorder : `breath` lit
+ *    cette valeur pour s'eteindre sous un ciel charge, donc sans la recopie
+ *    le soleil resterait a la couverture du premier frame toute la partie.
  */
 export function mountSkyLight(
   parent: Container,
@@ -663,8 +681,13 @@ export function mountSkyLight(
   centerY: number,
   shadowOptions: CloudShadowNoiseOptions = {},
   rayOptions: GodRaysOptions = {},
+  sunOptions: Pick<
+    CloudShadowNoiseOptions,
+    'color' | 'colorB' | 'gradient' | 'breath' | 'alpha' | 'rim'
+  > = {},
 ): { update(deltaMs: number): void; destroy(): void } {
   const shadows = mountCloudShadows(parent, centerX, centerY, shadowOptions);
+  const sun = mountSunWarm(parent, centerX, centerY, shadowOptions, sunOptions);
   const rays = mountGodRays(
     parent, centerX, centerY,
     matchCloudShadows(shadowOptions, rayOptions),
@@ -673,12 +696,17 @@ export function mountSkyLight(
   return {
     update(deltaMs) {
       shadows.update(deltaMs);
+      sun.update(deltaMs);
       rays.update(deltaMs);
-      // La couverture vivante, pas celle des options : voir le point 2.
-      rays.set('coverage', shadows.coverage);
+      // La couverture vivante, pas celle des options : voir le point 2. Les
+      // TROIS couches la lisent, sinon chacune decrit sa propre meteo.
+      const live = shadows.coverage;
+      sun.set('coverage', live);
+      rays.set('coverage', live);
     },
     destroy() {
       shadows.destroy();
+      sun.destroy();
       rays.destroy();
     },
   };
