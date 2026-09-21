@@ -49,10 +49,12 @@ const TREE_CHANCE = 0.08;
 const BUSH_CHANCE = 0.05;
 const PROP_CHANCE = 0.11;
 const LANDMARK_CHANCE = 0.08;
-const DEFAULT_INHABITED_SHARE = 0.025;
+const DEFAULT_INHABITED_SHARE = 0.015;
 
-/** Sheep come in small flocks; soldiers patrol alone or in pairs. */
-const FLOCK = { min: 2, max: 4 };
+/** Sheep come in pairs; soldiers patrol alone or in pairs.
+ *  The flock used to be 2-4, which out of a budget this size was one clump
+ *  and no field — the island read as a pen. */
+const FLOCK = { min: 1, max: 2 };
 const PATROL = { min: 1, max: 2 };
 
 /** Nobody stands next to anybody else — a flock on adjacent cells walls off a
