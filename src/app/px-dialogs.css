@@ -80,7 +80,7 @@
    style no stylesheet could reach. The Woodland runtime writes it in CSS, so
    these rules would now win on specificity alone; it stays because the one
    thing worse than a redundant `!important` here is a half-removed one. */
-.rr-px-dialog .rr-px-btn:not(.rr-avatar-pick):not(.rr-shop-rail),
+.rr-px-dialog .rr-px-btn:not(.rr-avatar-pick),
 .rr-px-dialog .rr-shop-x,
 .rr-px-dialog .rr-lb-close,
 .rr-recap .rr-px-btn {
@@ -88,14 +88,6 @@
     var(--rr-pad)
     var(--rr-pad)
     calc(var(--rr-pad) + var(--rr-btn-bevel)) !important;
-}
-/* The rail chips are a one-line strip of 10px type, so they take the tight
-   pad — the full one would make three currency chips as tall as the title. */
-.rr-px-dialog .rr-shop-rail {
-  padding:
-    var(--rr-pad-tight)
-    var(--rr-pad-tight)
-    calc(var(--rr-pad-tight) + var(--rr-btn-bevel)) !important;
 }
 /* The square cells take none: the art IS the label, and it is cropped to the
    cell on purpose (see `avatarCell` in profile-menu.tsx). */
@@ -130,7 +122,6 @@
      width, so clip the overflow rather than let it run under the purse. */
   overflow: hidden;
 }
-.rr-px-dialog .rr-shop-grid { padding: var(--rr-pad); gap: var(--rr-pad); }
 /* The tile is the grid cell; its nested panel is the tile. */
 .rr-px-dialog .rr-shop-tile {
   padding: 0;
@@ -139,19 +130,7 @@
   border-radius: 0;
   display: block;
 }
-.rr-shop-tile-face {
-  height: 100%;
-  box-sizing: border-box;
-  padding: var(--rr-pad);
-  display: flex;
-  flex-direction: column;
-  gap: var(--rr-pad-tight);
-}
-/* The item's art sits at the text's own inset, one tight gap from its name —
-   the same gap the two prices keep from each other. */
-.rr-px-dialog .rr-shop-tile-head { gap: var(--rr-pad-tight); }
 .rr-px-dialog .rr-shop-tile-buy { margin-top: auto; gap: var(--rr-pad-tight); }
-.rr-px-dialog .rr-shop-rails { gap: var(--rr-pad-tight); }
 .rr-px-dialog .rr-shop-foot {
   background: none;
   border-top: none;

@@ -8,15 +8,17 @@
  * drawer fit but read as a settings panel — the same grey chrome as the
  * leaderboard, on the one screen whose job is to make you want to spend.
  *
- * So this is a CENTRED dialog with its own identity: warm soil and lamplight
- * instead of the app's slate, and one coloured tile per item. The palette comes
- * out of the game's own art rather than out of the interface around it, which
- * is what makes the shop feel like a place in the world instead of a menu on
- * top of it.
+ * So this is a CENTRED dialog with its own identity — and since 2026-09-21 it
+ * is a STALL: a row of tall cards under a hung SHOP sign, one drawing, one
+ * price, one button per card (stall-card.tsx has the reference and the
+ * reasons). It replaced a two-column grid of text tiles that carried two
+ * prices, a blurb and a count each, with the art the size of a thumbnail.
  *
  * The two prices stay equally weighted — that is the GDD's economy rule and it
- * is not a styling decision — but they are warm for carrots and cold for money,
- * so which world a price comes from is legible before it is read.
+ * is not a styling decision — but they now weigh the same at the level of the
+ * STALL rather than the tile: the rails in the head row (carrots, then every
+ * token the deployment takes) re-price every card in one tap, warm for
+ * carrots and cold for money.
  *
  * The money price is written in the RAIL the player chose, converted at the
  * server's Jupiter rate. It used to always read `$0.25`, which is the number
@@ -25,30 +27,17 @@
  * The dollar figure is still what everything is priced in, and it is one hover
  * away on every button.
  */
-import { useEffect, type CSSProperties } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { PanelTitle } from './pixel-text';
-import { PX, PxButton, PxPanel, pxLabel } from './px';
-import { LeafFrame, LEAF_FRAME_CORNER } from './leaf-frame';
+import { LeafFrame, LEAF_FRAME_SLICE } from './leaf-frame';
 import { LeafClose } from './leaf-badge';
 import type { ItemKind, ShopItem, ShopState } from './use-shop';
-import { ITEM_META, heldLabel } from './item-meta';
 import { useT } from '@/i18n/provider';
-import { groupDigits } from '@/i18n/format';
 import { payStageLine, type PayStage } from './use-usdc-pay';
 import { LauncherTab, DANGER, LAMP } from './burrow-chrome';
-import { PAY_TOKENS, priceLabel, type PayTokenId } from '@/lib/pay/tokens';
+import type { PayTokenId } from '@/lib/pay/tokens';
+import { StallCard, StallPurse, StallRails, StallSign, type StallRail } from './stall-card';
 import { LootChest, CHEST_ASPECT } from './loot-chest';
-
-/**
- * The shelf's names, icons and tints — now shared with the burrow's kit row.
- *
- * It lived here as a private const while the shop was the only place an item
- * had a face. The kit row shows the same holdings on the burrow screen, so the
- * registry moved to `item-meta.ts`; a second copy would have drifted on the
- * first retint. See that file for why the icons are what they are.
- */
-const ITEMS = ITEM_META;
 
 /**
  * The way in: a button in the burrow column that also reports your defence.
@@ -88,50 +77,18 @@ export function ShopButton({ shop, onOpen }: ShopButtonProps) {
   );
 }
 
-/* ── The stall's palette, now carried by the pixel frame ──────────────────
-   The same tokens `.rr-shop-modal` declares in globals.css, restated here
-   because the codex's nine-slice frame bakes its fill on a canvas and cannot
-   read a CSS variable. The look is the codex's; the colours are the Shed's. */
-export const SOIL = '#2a1810';
-export const SOIL_DEEP = '#1d100a';
-export const PLANK = '#4a2f1d';
-export const PLANK_LIT = '#6b4526';
-export const LAMP_INK = '#ffb238';
-export const CHALK = '#f5e6d3';
-const COIN = '#7fd1ff';
-
-/**
- * The dialogs' frame pixel — THE frame pixel, `PX`. It was chunkier here (4px,
- * 3 on a short screen) on the reasoning that a dialog is a bigger object; side
- * by side with the cards that read as a different material. One stroke at
- * every size now: see `PX`.
- */
-export const DIALOG_PX = PX;
-
-/**
- * The carrot price: the lamp-lit gradient it always was, top as the face and
- * foot as the bevel, brown ink. The money price: kept cold — the cyan it wore
- * as a rim and ink, on a dark coin-slate face the kit's outline can sit on.
- */
-export const CARROT_BTN = { color: '#ffc45c', shadowColor: '#e8912a', textColor: '#3a1f08' } as const;
-/**
- * A carrot price that cannot be paid: the lamp gone out, as a FACE colour.
- * The dead state used to be a grayscale filter over the whole button, and a
- * filter cannot spare a child, so the carrot beside the price went grey with
- * it (Paul, 2026-09-16: the carrot stays in colour, however small). The face
- * says "not now"; the carrot still says what it costs. `.rr-carrot-price`
- * turns the filter off in px-dialogs.css.
- */
-export const CARROT_BTN_OFF = { color: '#6b5440', shadowColor: '#4a3828', textColor: '#d8c3ab' } as const;
-export const COIN_BTN = { color: '#1f3a4a', shadowColor: '#10222e', textColor: COIN } as const;
-
-/** A price label: the game's pixel face (the kit's bitmap one has no carrot). */
-export const priceText: CSSProperties = { ...pxLabel, fontSize: 12, fontVariantNumeric: 'tabular-nums' };
+/* ── The stall's palette ──────────────────────────────────────────────────
+   Lives in shop-palette.ts now (the card needs it and this file needs the
+   card); re-exported here so the dialogs that borrow it keep their import. */
+export {
+  SOIL, SOIL_DEEP, PLANK, PLANK_LIT, LAMP_INK, CHALK, DIALOG_PX,
+  CARROT_BTN, CARROT_BTN_OFF, COIN_BTN, priceText,
+} from './shop-palette';
 
 /**
  * ENERGY LEADS THE SHELF (Paul, 2026-09-16). It is the refill players buy most,
  * and the "Out of energy" dialog sends them here for it — so it must be the
- * first tile they see, not the fifth under the fold on a phone. Sorted here
+ * first card they see, not the fifth off the edge of the shelf. Sorted here
  * rather than in `SHOP_KINDS`: that list is the server's, and this is only
  * the order the stall displays; the rest keep the server's order.
  */
@@ -139,16 +96,45 @@ function shelfOrder(items: ShopItem[]): ShopItem[] {
   return [...items].sort((a, b) => Number(b.kind === 'energy') - Number(a.kind === 'energy'));
 }
 
-/** `a` over `b` at `mix` — hex only, because the frame's colour is baked on a canvas. */
-function mixHex(a: string, b: string, mix: number): string {
-  const p = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
-  const [x, y] = [p(a), p(b)];
-  return `#${x.map((v, i) => Math.round(v * mix + y[i] * (1 - mix)).toString(16).padStart(2, '0')).join('')}`;
+/**
+ * TWO STALLS, BY THE SCREEN'S HEIGHT.
+ *
+ * SHORT (the Seeker, 400px): one row that slides sideways, the frame's
+ * leaves drawn as a sprig. The leaf frame's art is drawn for a 90px corner,
+ * and at that size its top and bottom rails take 195 of the 400 — leaving a
+ * row of cards 185px, which is not a row of cards. The fifth card is cut by
+ * the edge on purpose: that is what says there is more.
+ *
+ * TALL (a desktop window): the shelf WRAPS, four cards and three, so all
+ * seven are on the board at once. The first cut showed four cards that fit
+ * the width exactly, no scrollbar, and three more the eye had no reason to
+ * suspect (Paul, 2026-09-21: "y avait plus de trucs dans le shop avant").
+ * Two rows of cards need 424px, which is why the threshold is where it is
+ * and why the corner is 65 rather than the art's 90: at 90 the rails take
+ * 195 of a 660px dialog and the second row does not fit. Below the threshold
+ * the stall is also SHORTER (`.rr-stall.short`), so a mid-sized window gets
+ * the Seeker's stall centred rather than one row adrift in a tall frame.
+ */
+const SHORT_SCREEN = '(max-height: 679px)';
+const SHORT_CORNER = 50;
+const TALL_CORNER = 65;
+
+function useShortScreen(): boolean {
+  const [short, setShort] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia(SHORT_SCREEN).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(SHORT_SCREEN);
+    const on = () => setShort(mq.matches);
+    on();
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
+  return short;
 }
 
 export interface ShopCardProps {
   shop: ShopState | null;
-  /** The rail every purchase in this shop settles on. */
+  /** The money rail every paid purchase in this shop settles on. */
   payToken: PayTokenId;
   onPayTokenChange(t: PayTokenId): void;
   busy: boolean;
@@ -173,6 +159,32 @@ export function ShopPanel({
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  const short = useShortScreen();
+  const corner = short ? SHORT_CORNER : TALL_CORNER;
+  /* The frame's rails, in CSS px at this corner: what the sign and the [x]
+     hang over. The slice is in source pixels; the corner is the left inset. */
+  const railTop = Math.round(LEAF_FRAME_SLICE.top * (corner / LEAF_FRAME_SLICE.left));
+
+  /**
+   * THE STALL OPENS ON CARROTS, whatever rail the app remembers. `payToken`
+   * is the money rail — which token a paid purchase settles on — and it
+   * stays the app's, because the energy popup quotes on it too. Whether the
+   * stall is currently showing carrots or money is this dialog's own state,
+   * and it starts on carrots because that is the price everyone can pay.
+   */
+  const [onMoney, setOnMoney] = useState(false);
+  /* THREE reasons there may be no money rail, not two: no treasury configured
+     (off for everybody), a GUEST (on, but no wallet to send from), or both
+     available. `onPayUsdc` is the only thing that knows whether a paid button
+     could be rendered, so it is what decides whether there is a rail to pick. */
+  const tokens = onPayUsdc && shop?.usdcEnabled ? shop.tokens : [];
+  const rail: StallRail = onMoney && tokens.includes(payToken) ? payToken : 'carrots';
+  const pickRail = (r: StallRail) => {
+    if (r === 'carrots') { setOnMoney(false); return; }
+    setOnMoney(true);
+    onPayTokenChange(r);
+  };
+
   const busyNow = busy || payStage !== 'idle';
   const status = error
     // One table for both surfaces, in the dictionary: the shop and this popup
@@ -184,219 +196,69 @@ export function ShopPanel({
       {/* The dialog swallows its own clicks so tapping inside does not dismiss
           it — the scrim above is the tap-away, and a dialog whose only exit is
           its [x] is a trap. */}
-      {/* THE STALL WEARS THE LEAF FRAME, not the kit's pixel border. It is the
-          biggest panel in the game (measured at 720x660), so it is the one
-          surface with room for the art's full 90px corners — the size the
-          leaves were drawn for. See leaf-frame.tsx. */}
       <LeafFrame
-        corner={LEAF_FRAME_CORNER}
-        className="rr-shop-modal rr-px-dialog"
+        corner={corner}
+        className={`rr-shop-modal rr-stall${short ? ' short' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-label={t.shop.aria}
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="rr-shop-top">
-          <h2><PanelTitle>{t.shop.shed}</PanelTitle></h2>
-          {/* The purse, in the header. Every price below is read against it, and
+        <StallSign style={{ top: -railTop - 6 }} />
+        {/* Off the frame's outer corner, over the leaves: the way out of a
+            full-screen dialog should not have to be found inside it. */}
+        <LeafClose
+          className="rr-stall-x"
+          onClick={onClose}
+          aria-label="Close"
+          size={40}
+          style={{ top: -railTop - 14, right: -corner - 14 }}
+        />
+
+        <header className="rr-stall-head">
+          <StallRails tokens={tokens} rail={rail} onRail={pickRail} />
+          {/* The purse, in the head. Every price below is read against it, and
               making the player close the shop to check it is the one thing a
               shop must never do. */}
-          <span className="rr-shop-purse">{groupDigits(shop?.stock ?? 0)} 🥕</span>
-          {/* THE CURRENCY, once for the whole shop.
-              Per-item currency buttons would be six items times three rails on
-              a phone. Switching it re-prices every tile below, since a rail the
-              player cannot read a price in is a rail they will not pick.
-              Hidden below two rails: a "switch" with one option is furniture.
-
-              AND HIDDEN WITH NO CARD BUTTON AT ALL. A guest has no wallet to
-              send money from, so every tile below shows one price — the rail
-              chips then pick the currency of a button that is not on the
-              shelf. `onPayUsdc` is what actually decides whether a money price
-              was rendered (the footer leans on the same fact), so it is what
-              decides whether there is a rail to choose. */}
-          {onPayUsdc && (shop?.tokens?.length ?? 0) > 1 && (
-            <span className="rr-shop-rails" role="group" aria-label={t.shop.payWith}>
-              {shop!.tokens.map((t) => {
-                const on = t === payToken;
-                return (
-                  <PxButton
-                    key={t}
-                    // `nine-btn--pressed` is the kit's sunken state: the chosen
-                    // rail sits IN the board, the others stand on it.
-                    className={`rr-shop-rail${on ? ' on nine-btn--pressed' : ''}`}
-                    color={on ? COIN_BTN.color : PLANK}
-                    shadowColor={on ? COIN_BTN.shadowColor : SOIL_DEEP}
-                    textColor={on ? COIN : '#8b949e'}
-                    onClick={() => onPayTokenChange(t)}
-                    aria-pressed={on}
-                  >
-                    <span style={{ ...pxLabel, fontSize: 10 }}>{PAY_TOKENS[t].symbol}</span>
-                  </PxButton>
-                );
-              })}
-            </span>
-          )}
-          {/* minWidth inline: the kit's own inline 32px beats any stylesheet
-              floor, and this is the way out of a full-screen dialog. */}
-          <LeafClose className="rr-shop-x" onClick={onClose} aria-label="Close" size={40} />
+          <StallPurse stock={shop?.stock ?? 0} />
         </header>
 
-        <ul className="rr-shop-grid">
+        {/* THE SHELF: one row, slid sideways, snapping card to card. Seven
+            cards do not fit any phone, so the last visible card is cut by the
+            edge on purpose — a card half in view is what tells a thumb there
+            is more. */}
+        <ul className="rr-stall-shelf">
           {shop && shelfOrder(shop.items).map((item) => (
-            <Row
+            <StallCard
               key={item.kind}
               item={item}
+              rail={rail}
+              rate={rail === 'carrots' ? undefined : shop.rates?.[rail]}
               busy={busyNow}
+              size={short ? 'short' : 'tall'}
               onBuy={() => onBuy(item.kind)}
-              payToken={payToken}
-              rate={shop.rates?.[payToken]}
-              onPayUsdc={shop.usdcEnabled && onPayUsdc ? () => onPayUsdc(item.kind) : undefined}
+              onPayMoney={tokens.length ? () => onPayUsdc!(item.kind) : undefined}
             />
           ))}
         </ul>
 
-        {/* THREE reasons there may be no card button, not two.
-            The shelf offers money when the deployment can take it AND this
-            player has a wallet to send it from, and those fail differently:
-
-              - no treasury configured  → the rail is off for everybody
-              - a GUEST                 → the rail is on, they have no wallet
-              - both available          → the two prices are equally weighted
-
-            The middle case used to fall through to "Carrots you dig, or card.
-            Same goods either way", on a shelf with no card button anywhere on
-            it — the footer describing a choice the player could not see. (And a
-            guest on a server with no treasury was told card payments "are not
-            switched on yet", which is true of the server and not the reason
-            they are looking at one price.) `onPayUsdc` is the only thing that
-            knows whether a button was actually rendered, so it is what decides
-            the sentence. */}
-        <footer className="rr-shop-foot">
-          {/* The strapline on its own board — a nested panel in the plank the
-              footer band always was. */}
-          <PxPanel color={PLANK} className="rr-px-note">
-            {status ? (
-              <span className={error ? 'bad' : 'good'}>{status}</span>
-            ) : shop && !shop.usdcEnabled ? (
-              <span>{t.shop.cardsOff}</span>
-            ) : shop && !onPayUsdc ? (
-              <span>{t.shop.connectForCard}</span>
-            ) : (
-              <span>{t.shop.eitherWay}</span>
-            )}
-          </PxPanel>
+        {/* The strapline, or what just happened. Which sentence depends on WHY
+            there is or is not a money rail — see `tokens` above. The middle
+            case used to describe a choice the player could not see. */}
+        <footer className="rr-stall-foot">
+          {status ? (
+            <span className={error ? 'bad' : 'good'}>{status}</span>
+          ) : shop && !shop.usdcEnabled ? (
+            <span>{t.shop.cardsOff}</span>
+          ) : shop && !onPayUsdc ? (
+            <span>{t.shop.connectForCard}</span>
+          ) : (
+            <span>{t.shop.eitherWay}</span>
+          )}
         </footer>
       </LeafFrame>
     </div>,
     document.body,
-  );
-}
-
-/** What the player is told during a USDC payment. Named per step, because
- *  "loading" over a wallet transaction is where people start clicking twice. */
-function Row({
-  item, busy, payToken, rate, onBuy, onPayUsdc,
-}: {
-  item: ShopItem;
-  busy: boolean;
-  /** The rail chosen for the whole shop — this tile only READS it. */
-  payToken: PayTokenId;
-  /** USD per whole token on that rail, or undefined when the feed had nothing
-   *  to say. `priceLabel` falls back to dollars rather than inventing a rate. */
-  rate: number | undefined;
-  onBuy(): void;
-  onPayUsdc?(): void;
-}) {
-  const t = useT();
-  const meta = ITEMS[item.kind];
-  const full = !item.hasRoom;
-  // Three different things to report, because three different things are being
-  // sold — a count, refills left, days of cover. Which one this kind gets is
-  // `ITEM_META[kind].counts`; see `heldLabel`.
-  const held = heldLabel(t, item.kind, item.held, item.cap);
-
-  /**
-   * What the carrot price means right now, in one sentence.
-   *
-   * Ordered by which refusal the player can do something about: a full shelf is
-   * finished business, a short purse is a reason to go and dig.
-   */
-  // Grouped by hand, never `toLocaleString()`: the separator has to be the
-  // same on the server and in the browser or the tree is thrown away. See
-  // i18n/format.ts.
-  const price = t.shop.priceLabel(groupDigits(item.price));
-  const name = t.items[item.kind].name;
-  const reason = full
-    ? t.shop.capped(name, price)
-    : item.canBuy
-      ? t.shop.buy(name, price)
-      : t.shop.tooPoor(name, price);
-
-  return (
-    <li
-      className={`rr-shop-tile${full ? ' full' : ''}`}
-      style={{ '--tile': meta.tint } as React.CSSProperties}
-    >
-      {/* A nested panel in the tile's own colour: its tint washed into the
-          stall's deep soil, which is the tone the old gradient read as. */}
-      {/* THE TILES DO NOT WEAR THE FRAME, though they are big enough to.
-          Tried it (2026-09-19) and it was wrong twice over: leaves inside
-          leaves is visual noise, and the tile's own frame ate 75px of top
-          border, which pushed the grid wide enough to clip the right column.
-          A panel INSIDE a parchment panel wants to be a quiet inset, not a
-          second frame — so these keep the kit's flat fill. */}
-      <PxPanel color={mixHex(meta.tint, SOIL_DEEP, 0.2)} className="rr-shop-tile-face">
-      <div className="rr-shop-tile-head">
-        <span className="rr-shop-tile-icon" aria-hidden>
-          {/* The kind's pixel art where it has some, as the kit row shows it;
-              the emoji otherwise. */}
-          {meta.art ? <img src={meta.art} alt="" draggable={false} /> : meta.icon}
-        </span>
-        <h3>{name}</h3>
-        <span className="rr-shop-tile-held">{held}</span>
-      </div>
-      <p className="rr-shop-tile-blurb">{t.items[item.kind].blurb}</p>
-      <div className="rr-shop-tile-buy">
-        <PxButton
-          className="rr-pay-carrot rr-carrot-price"
-          {...(busy || !item.canBuy ? CARROT_BTN_OFF : CARROT_BTN)}
-          // Buying is the loud action on this screen — the one that wiggles.
-          wiggle
-          onClick={onBuy}
-          disabled={busy || !item.canBuy}
-          /* WHY it is dead, when it is dead.
-             `canBuy` folds two refusals into one grey slab — the shelf is full,
-             or the purse is short — and the face of the button says neither: it
-             reads "180 🥕" whether the answer is "you have 12" or "you already
-             hold all twelve of these". A player with an empty stock met seven
-             identical grey prices and no sentence anywhere explaining them.
-             The cap case has the tile's own `full` styling behind it; the
-             shortfall had nothing at all, and it is the one a new player is
-             always in. Carried as the accessible name and the tooltip rather
-             than printed on the face, so the shelf stays a shelf of prices. */
-          title={reason}
-          aria-label={reason}
-        >
-          <span style={priceText}>{groupDigits(item.price)} 🥕</span>
-        </PxButton>
-        {onPayUsdc && (
-          <PxButton
-            className="rr-pay-usdc"
-            {...COIN_BTN}
-            wiggle
-            onClick={onPayUsdc}
-            disabled={busy || full}
-            /* The dollar price, always, on hover: the shop's prices ARE dollars
-               and the rail is a conversion, so the figure the game actually
-               charges in stays one hover away however it is displayed. */
-            title={`$${item.usdc.toFixed(2)}`}
-          >
-            <span style={priceText}>{priceLabel(item.usdc, payToken, rate)}</span>
-          </PxButton>
-        )}
-      </div>
-      </PxPanel>
-    </li>
   );
 }
 

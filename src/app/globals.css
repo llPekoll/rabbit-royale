@@ -3662,6 +3662,13 @@ button { font-family: var(--font-pixel); }
   inset: 0;
   z-index: 40;
   display: grid;
+  /* ONE TRACK, THE SCRIM'S OWN WIDTH. An `auto` track sizes to the dialog's
+     min-content, and the stall's min-content is its whole shelf — seven cards
+     that scroll sideways and were never meant to be laid out at once. The
+     track grew past the viewport and the centred dialog landed off the right
+     edge (measured: an 880px stall at x=152 on an 890px screen). A track that
+     is the scrim's width cannot grow, so a dialog's `100%` means the screen. */
+  grid-template-columns: 100%;
   place-items: center;
   /* The gutter that keeps a dialog off the screen's edge — the same one every
      piece of fixed chrome uses. */
@@ -3710,8 +3717,6 @@ button { font-family: var(--font-pixel); }
   overflow: visible;
   animation: rr-shop-rise 160ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
 }
-/* The scroll lives on the grid instead, which is inside the frame's border. */
-.rr-shop-modal > .rr-shop-grid { overflow-y: auto; }
 
 @keyframes rr-shop-in { from { opacity: 0; } }
 @keyframes rr-shop-rise {
@@ -3767,35 +3772,179 @@ button { font-family: var(--font-pixel); }
   min-width: 44px;
 }
 
-/* The goods. Two columns on a wide screen, one on a phone — five items do not
-   divide evenly, so the last tile spans the row rather than sitting alone. */
-.rr-shop-grid {
+/* ── THE STALL ─────────────────────────────────────────────────────────────
+   stall-card.tsx: a row of cards under a hung sign. The frame is the leaf
+   frame; the corner it is drawn at is picked in shop-card.tsx by the screen's
+   height, and everything hung off the frame (sign, [x]) is placed inline from
+   that same number. */
+.rr-stall {
+  width: min(880px, 100%);
+  max-width: 100%;
+  min-width: 0;
+  height: min(660px, 100%);
+  max-height: 100%;
+  padding: 4px 8px 0;
+}
+/* The Seeker's stall: 380 tall, and the same 380 in any window under the
+   wrap threshold, so a laptop gets the phone's stall centred rather than one
+   row adrift in a frame with room for two. */
+.rr-stall.short {
+  padding-top: 2px;
+  height: min(400px, 100%);
+}
+.rr-stall-sign {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 3;
+}
+.rr-stall-x {
+  position: absolute;
+  z-index: 4;
+  min-width: 44px;
+  min-height: 44px;
+}
+.rr-stall-head {
+  flex: none;
+  height: 36px;
+  /* The purse's board is 45 tall; on the wrapped stall the head has the
+     room to hold it without leaning on the first row's name planks. */
+  margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+/* The rails are a one-line strip of 10px type: the kit's 44px action would
+   make four currency chips as tall as the sign. */
+.rr-stall-rails { display: inline-flex; gap: 4px; }
+.rr-stall-rails .rr-stall-rail {
+  height: 26px;
+  min-height: 26px;
+  min-width: 40px;
+  padding: 2px 6px !important;
+}
+.rr-stall-purse {
+  min-width: 120px;
+  padding: 0 4px;
+  color: #f5e6d3;
+  text-shadow: 0 1px 0 #2a1810;
+}
+/* THE SHELF. One row, slid sideways, snapping card to card; no scrollbar,
+   because the card cut by the edge is the affordance. */
+.rr-stall-shelf {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  min-width: 0;
   list-style: none;
   margin: 0;
-  padding: 14px;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
+  padding: 0 6px;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
 }
-.rr-shop-grid > li:last-child:nth-child(odd) { grid-column: 1 / -1; }
-/* A tile that spans the row must not stretch its buttons to half a metre —
-   they stay the width they are everywhere else, pushed to the right where a
-   thumb already is. */
-.rr-shop-grid > li:last-child:nth-child(odd) .rr-shop-tile-buy {
-  justify-content: flex-end;
+.rr-stall-shelf::-webkit-scrollbar { display: none; }
+/* Room to spare: the shelf wraps and every card is on the board. The rows are
+   kept apart by the cards' own overhang margins. */
+.rr-stall:not(.short) .rr-stall-head { height: 46px; }
+.rr-stall:not(.short) .rr-stall-shelf {
+  flex-wrap: wrap;
+  justify-content: center;
+  align-content: center;
+  overflow: visible;
+  scroll-snap-type: none;
 }
-.rr-shop-grid > li:last-child:nth-child(odd) .rr-shop-tile-buy > button {
+.rr-stall-card {
+  position: relative;
   flex: 0 0 auto;
-  min-width: 132px;
+  scroll-snap-align: start;
+  /* The sign above and the button below overhang; this is their room. */
+  margin: 22px 0 18px;
 }
+/* Nothing left to buy: the card steps back rather than shouting a price. */
+.rr-stall-card.full { opacity: 0.7; }
+.rr-stall-body {
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 26px 8px 22px;
+}
+.rr-stall-art {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.rr-stall-art img {
+  width: auto;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 6px 0 rgba(0, 0, 0, 0.35));
+}
+.rr-stall-art span {
+  line-height: 1;
+  filter: drop-shadow(0 6px 0 rgba(0, 0, 0, 0.35));
+}
+/* Hung off the edges. Centred with auto margins and NOT a transform: the
+   buy button's press squash and wiggle animate `transform`, and a translate
+   here would be thrown away mid-wiggle. */
+.rr-stall-name {
+  position: absolute;
+  top: -22px;
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.4));
+}
+.rr-stall-name-text {
+  font-size: 11px;
+  color: #f5e6d3;
+  text-shadow: 0 1px 0 #2a1810;
+  text-transform: uppercase;
+}
+.rr-stall-held {
+  position: absolute;
+  top: 14px;
+  right: -6px;
+}
+.rr-stall-card .rr-stall-buy {
+  position: absolute;
+  bottom: -18px;
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  width: max-content;
+  height: 40px;
+  min-height: 40px;
+  padding: 0 10px !important;
+}
+.rr-stall-foot {
+  flex: none;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  line-height: 1.2;
+  color: #4a3524;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rr-stall-foot .good { color: #3d7a1e; }
+.rr-stall-foot .bad { color: #b3321e; }
 
-/* Each tile carries its own --tile colour, set inline per item. This is where
-   the boldness is spent: a shelf where every card was the same grey is the
-   version this replaces, and the colour says what the thing does. */
 .rr-shop-tile {
   padding: 12px;
   border-radius: 10px;
@@ -3810,45 +3959,6 @@ button { font-family: var(--font-pixel); }
 /* Nothing left to buy: the tile steps back rather than shouting a price that
    cannot be paid. */
 .rr-shop-tile.full { opacity: 0.5; }
-
-.rr-shop-tile-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.rr-shop-tile-icon {
-  font-size: 18px;
-  line-height: 1;
-  display: inline-flex;
-  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--tile) 60%, transparent));
-}
-.rr-shop-tile-icon img {
-  height: 22px;
-  width: auto;
-  display: block;
-  image-rendering: pixelated;
-}
-.rr-shop-tile-head h3 {
-  flex: 1;
-  margin: 0;
-  font-size: 13px;
-  color: var(--chalk);
-}
-.rr-shop-tile-held {
-  font-size: 10px;
-  color: var(--chalk-dim);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.rr-shop-tile-blurb {
-  margin: 0;
-  font-size: 10px;
-  line-height: 1.45;
-  color: var(--chalk-dim);
-  /* Two lines of copy, always: a ragged tile grid where one card is shorter
-     than its neighbour reads as broken rather than as varied. */
-  min-height: 2.9em;
-}
 
 /* The two prices. Equal width and equal weight — the GDD's rule, and not a
    styling preference — but warm for what you dug and cold for what you paid,
@@ -3915,7 +4025,6 @@ button { font-family: var(--font-pixel); }
     padding-top: env(safe-area-inset-top);
     padding-bottom: env(safe-area-inset-bottom);
   }
-  .rr-shop-grid { grid-template-columns: 1fr; }
 }
 
 /* ── INSTALL THE APP ───────────────────────────────────────────────────────
@@ -4157,6 +4266,13 @@ button { font-family: var(--font-pixel); }
   inset: 0;
   z-index: 40;
   display: grid;
+  /* ONE TRACK, THE SCRIM'S OWN WIDTH. An `auto` track sizes to the dialog's
+     min-content, and the stall's min-content is its whole shelf — seven cards
+     that scroll sideways and were never meant to be laid out at once. The
+     track grew past the viewport and the centred dialog landed off the right
+     edge (measured: an 880px stall at x=152 on an 890px screen). A track that
+     is the scrim's width cannot grow, so a dialog's `100%` means the screen. */
+  grid-template-columns: 100%;
   place-items: center;
   /* The gutter that keeps a dialog off the screen's edge — the same one every
      piece of fixed chrome uses. */
@@ -4875,34 +4991,6 @@ button { font-family: var(--font-pixel); }
   .rr-crawl-horizon { display: none; }
 }
 
-/* The currency switch, in the shop's header.
-   ONE choice for the whole shop, not one per item: six items times three rails
-   would be eighteen buttons on a phone. Every tile still prices in dollars —
-   this only says what that dollar travels as. */
-.rr-shop-rails {
-  display: inline-flex;
-  gap: 3px;
-  margin-left: 8px;
-}
-.rr-shop-rail {
-  padding: 3px 8px;
-  min-height: 0;
-  min-width: 0;
-  font-size: 10px;
-  letter-spacing: 0.04em;
-  border-radius: 0;
-  border: 1px solid #4a2f1d;
-  background: rgba(0, 0, 0, 0.28);
-  color: var(--muted);
-}
-.rr-shop-rail:hover { color: #f5e6d3; }
-/* The active rail wears the money colour the USDC buttons already use, so the
-   switch and the prices below it read as the same system. */
-.rr-shop-rail.on {
-  color: #7fd1ff;
-  border-color: #7fd1ff;
-  background: rgba(127, 209, 255, 0.12);
-}
 
 /* The retreat button, mid-raid. Quiet: leaving is always available but it is
    not what the screen is for, and a loud button here would compete with the

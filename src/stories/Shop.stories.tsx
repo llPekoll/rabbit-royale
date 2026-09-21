@@ -1,21 +1,18 @@
 /**
- * The shop: the button in the burrow, and the drawer it opens.
+ * The shop: the button in the burrow, and the stall it opens.
  *
  * Framed as the SEEKER sees it — landscape, the panels in a column over the
  * burrow art — because that is the device this game is built for, and a shop
- * judged on a desktop page is judged somewhere it will rarely be.
+ * judged on a desktop page is judged somewhere it will rarely be. The stall
+ * picks its frame and card size by the screen's HEIGHT (shop-card.tsx), so
+ * the story is worth looking at in both the Seeker and the desktop viewport.
  *
- * The drawer exists BECAUSE of this framing: as a card in the column it put its
- * fifth item below the fold, which made buying energy a scroll nobody would
- * find. So the question these stories answer is whether the panel is readable
- * at 330px and whether the two prices still read as equals inside it.
+ * Interactive: press Shop, slide the shelf, buy things, watch a card hit its
+ * cap. Escape or a tap on the scrim closes it, like every other dialog.
  *
- * Interactive: press Shop, buy things, watch a line hit its cap. Escape or a
- * tap on the scrim closes it, like every other drawer in the game.
- *
- * The currency switch in the header re-prices every tile. Worth flicking
- * through: `0.0013 SOL` is a longer string than `$0.25`, and the money button
- * shares its row with the carrot price at 330px.
+ * The rails in the head row re-price every card. Worth flicking through:
+ * `0.0013 SOL` is a longer string than `$0.25`, and it has to fit the one
+ * button hung under a 136px card.
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
