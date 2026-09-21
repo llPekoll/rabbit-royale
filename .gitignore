@@ -29,3 +29,6 @@ android/app/google-services.json
 # Python (scripts/render-bird.py tourne sous Blender)
 __pycache__/
 *.pyc
+
+# Screenshots and guest state written by tools/verify-*.mjs.
+verify-out/

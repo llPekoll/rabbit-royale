@@ -30,11 +30,16 @@ export interface IslandPickerProps {
   /** Null while the list is being fetched, or when the socket had no answer. */
   listing: IslandListing | null;
   busy: boolean;
+  /** Carrots dug in all — where the player stands on the ladder. */
+  lifetime: number;
+  /** The tank, and what a crossing takes from it: said on the foot. */
+  energy: number;
+  crossingCost: number;
   onChoose: (choice: IslandChoice) => void;
   onClose: () => void;
 }
 
-export function IslandPicker({ listing, busy, onChoose, onClose }: IslandPickerProps) {
+export function IslandPicker({ listing, busy, lifetime, energy, crossingCost, onChoose, onClose }: IslandPickerProps) {
   const t = useT();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -75,7 +80,7 @@ export function IslandPicker({ listing, busy, onChoose, onClose }: IslandPickerP
                       <small className="rr-raid-where digging">
                         <i aria-hidden />
                         {t.islandPick.row(i.rabbits, i.chestsLeft, i.chestsTotal, Math.round(100 * i.dugFraction))}
-                        {(i.chestsLeft <= 3 || i.dugFraction >= 0.7) && <>{' \u00b7 '}{t.islandPick.almostDone}</>}
+                        {(i.chestsLeft <= 3 || i.dugFraction >= 0.7) ? <>{' \u00b7 '}{t.islandPick.almostDone}</> : <>{' \u00b7 '}{t.islandPick.shortSafe}</>}
                       </small>
                     </span>
                     <PxButton
@@ -100,9 +105,23 @@ export function IslandPicker({ listing, busy, onChoose, onClose }: IslandPickerP
                         {tierName(tier.name)}
                         <small className={`rr-raid-where ${locked ? 'away' : 'home'}`}>
                           <i aria-hidden />
-                          {locked ? t.islandPick.locked(groupDigits(tier.minLifetime)) : t.islandPick.fresh}
+                          {locked ? t.islandPick.locked(groupDigits(tier.minLifetime), groupDigits(lifetime)) : t.islandPick.fresh}
                           {!locked && (listing.bests[tier.name] ?? 0) > 0 && <>{' \u00b7 '}{t.islandPick.best(groupDigits(listing.bests[tier.name]))}</>}
                         </small>
+                        {/* THE DISTANCE, drawn: only the next rung, since the
+                            ones past it are the same bar with less in it. */}
+                        {locked && idx === unlocked + 1 && (
+                          <span
+                            className="rr-tier-progress"
+                            role="progressbar"
+                            aria-valuemin={0}
+                            aria-valuemax={tier.minLifetime}
+                            aria-valuenow={Math.min(lifetime, tier.minLifetime)}
+                            aria-label={t.islandPick.lockedAria(tierName(tier.name), groupDigits(lifetime), groupDigits(tier.minLifetime))}
+                          >
+                            <i style={{ width: `${(100 * Math.min(1, lifetime / tier.minLifetime)).toFixed(1)}%` }} />
+                          </span>
+                        )}
                       </span>
                       <PxButton
                         type="button"
@@ -121,7 +140,7 @@ export function IslandPicker({ listing, busy, onChoose, onClose }: IslandPickerP
           )}
 
           <PxPanel color={PLANK} className="rr-shop-foot">
-            <span>{t.islandPick.brief}</span>
+            <span>{t.islandPick.tank(energy, crossingCost)}</span>
           </PxPanel>
         </PxPanel>
       </section>

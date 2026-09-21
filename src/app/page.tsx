@@ -2767,6 +2767,7 @@ function Burrow() {
             runCost: burrow.runCost,
             crossingCost: burrow.crossingCost,
             nextRunInMs: burrow.nextRunInMs,
+            regenPerHour: burrow.regenPerHour,
           }}
           home={{
             gardenReady: burrow.gardenReady,
@@ -3187,6 +3188,9 @@ function Burrow() {
         <IslandPicker
           listing={islandList}
           busy={crossing}
+          lifetime={burrow?.lifetime ?? 0}
+          energy={liveEnergy?.energy ?? burrow?.energy ?? 0}
+          crossingCost={burrow?.crossingCost ?? ENERGY.CROSSING_COST}
           onChoose={chooseIsland}
           onClose={() => setPickingIsland(false)}
         />

@@ -9,18 +9,18 @@
  * home. Reported from production as "the energy spent is not clearly shown
  * while exploring". A first-timer never saw the bar before crossing at all.
  *
- * NOT a gauge on the strip. The raid HUD already learned that lesson: two
- * bolt-and-number bars on one screen read as one bar that had been emptied.
- * The island's own life is the hearts; the burrow's bar is a different
- * resource, so it is stated as an EVENT — what was taken, what is left, and
- * where — and then it gets out of the way. It comes back in the recap, where
- * the player is deciding whether to go again.
+ * NOT a gauge on the strip: the dial on the pill is the tank, and it is the
+ * same tank the run now drains (one reservoir since 2026-09-21). So this is
+ * an EVENT — what the crossing took, what is left ON YOU — and then it gets
+ * out of the way. "Left at the burrow" was the three-tank wording and read
+ * as a second reserve somewhere else.
  *
  * Driven by the snapshot's `bank`, which the server sends only when a run
  * was paid for: a reconnect is the same run and says nothing.
  */
 import { useEffect, useState } from 'react';
 import type { RunBank } from './use-game-socket';
+import { useT } from '@/i18n/provider';
 import { PxPanel } from './px';
 
 /** How long the line stays up. Long enough to read twice, short enough to
@@ -28,6 +28,7 @@ import { PxPanel } from './px';
 const NOTE_MS = 6000;
 
 export function RunCostNote({ bank, seed }: { bank: RunBank | null; seed: string | null }) {
+  const t = useT();
   const [shown, setShown] = useState<RunBank | null>(null);
 
   // Keyed on the SEED as well as the figures: two runs in a row that happen
@@ -44,7 +45,7 @@ export function RunCostNote({ bank, seed }: { bank: RunBank | null; seed: string
     // Same painted plank as the other island captions — see first-run-caption.
     <PxPanel color="rgba(13, 17, 23, 0.86)" className="rr-caption rr-caption-cost">
       <span role="status" aria-live="polite">
-        ⚡ -{shown.cost} for this run &middot; {shown.energy}/{shown.max} left at the burrow
+        {t.run.crossed(shown.cost, shown.energy)}
       </span>
     </PxPanel>
   );

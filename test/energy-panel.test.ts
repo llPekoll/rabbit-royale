@@ -23,10 +23,32 @@ describe('the energy panel', () => {
     expect(PAGE).toMatch(/\{player && energyPanelOpen && liveEnergy && \(\s*<EnergyPanel/);
   });
 
-  it('wears the kit\'s explanation panel, and offers the refill when short', () => {
+  it('wears the kit\'s explanation panel, and offers the refill only when a door is shut', () => {
     const PANEL = read('../src/components/energy-panel.tsx');
     expect(PANEL).toMatch(/<div className="rr-energy-panel" role="dialog"[\s\S]{0,120}className="rr-toolkit-detail rr-energy-panel-body"/);
-    expect(PANEL).toMatch(/\{p\.energy < p\.max && \(\s*<PxButton className="rr-toolkit-action"/);
+    // Not at 295/300, and not mid-run: below the raid line, at the burrow.
+    expect(PANEL).toMatch(/\{!p\.onIsland && p\.energy < RAID_FLOOR && \(\s*<PxButton className="rr-toolkit-action"/);
+  });
+
+  it('is a bar with the two lines on it, and rows with a chip each', () => {
+    const PANEL = read('../src/components/energy-panel.tsx');
+    expect(PANEL).toMatch(/className="rr-energy-tick" style=\{\{ left: pct\(p\.runCost\) \}\}/);
+    expect(PANEL).toMatch(/className="rr-energy-tick raid" style=\{\{ left: pct\(RAID_FLOOR\) \}\}/);
+    expect(PANEL).toMatch(/chip\(canIsland, c\.yes, c\.inWait\(wait\(p\.runCost\)\)\)/);
+    expect(PANEL).toMatch(/chip\(canRaid, c\.yes, c\.inWait\(wait\(RAID_FLOOR\)\)\)/);
+    expect(PANEL).toMatch(/chip\(canRaid, c\.homeYes, c\.homeNo\)/);
+  });
+
+  it('the RAID slab counts down to its own line, in DIG\'s grammar', () => {
+    const LOOP = read('../src/components/loop-bar.tsx');
+    expect(LOOP).toMatch(/\.\.\.\(dig\.energy < raidFloor \? \[t\.loop\.raidIn\(formatWait\(raidWaitMs, t\.units\)\)\] : \[\]\)/);
+    expect(PAGE).toMatch(/regenPerHour: burrow\.regenPerHour,/);
+  });
+
+  it('the crossing note is one-tank wording, localised', () => {
+    const NOTE = read('../src/components/run-cost-note.tsx');
+    expect(NOTE).not.toMatch(/left at the burrow/);
+    expect(NOTE).toMatch(/\{t\.run\.crossed\(shown\.cost, shown\.energy\)\}/);
   });
 });
 

@@ -217,6 +217,7 @@ function BurrowColumn({
         dig={{
           energy, maxEnergy, runCost: 25, crossingCost: 5,
           nextRunInMs: energy >= 25 ? null : nextEnergyMins * 60_000 * (25 - energy),
+            regenPerHour: 30,
         }}
         home={{
           gardenReady,

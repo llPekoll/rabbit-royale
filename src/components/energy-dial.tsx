@@ -340,12 +340,16 @@ export function EnergyDial({
         />
       )}
       {mark !== undefined && max > 0 && (() => {
-        /* Clockwise from 12, like the arc: sin for x, -cos for y, on the
-           ring's middle radius so it sits ON the paint whichever side of
-           the reading it is. */
+        /* A TICK ACROSS THE RING, not a dot on it: a 4px dot at the ring's
+           middle was read as a speck of paint (seen 2026-09-21 on both
+           screens). Radial, the full width of the band, dark ink with a
+           pale halo so it stands on green, orange and red alike. Clockwise
+           from 12, like the arc: sin for x, -cos for y; the bar is drawn
+           upright and turned by the same angle. */
         const a = 2 * Math.PI * Math.max(0, Math.min(1, mark / max));
         const r = ((RING_INNER + RING_OUTER) / 2) * k;
-        const d = Math.max(4, Math.round(4.5 * k));
+        const len = Math.max(6, Math.round((RING_OUTER - RING_INNER + 2) * k));
+        const thick = Math.max(2, Math.round(2 * k));
         return (
           <span
             aria-hidden
@@ -354,10 +358,10 @@ export function EnergyDial({
               position: 'absolute',
               left: `calc(${RING_CX * 100}% + ${(Math.sin(a) * r).toFixed(1)}px)`,
               top: `calc(${RING_CY * 100}% - ${(Math.cos(a) * r).toFixed(1)}px)`,
-              width: d, height: d, marginLeft: -d / 2, marginTop: -d / 2,
-              borderRadius: '50%',
+              width: thick, height: len, marginLeft: -thick / 2, marginTop: -len / 2,
+              transform: `rotate(${((a * 180) / Math.PI).toFixed(1)}deg)`,
               background: '#2a1a0e',
-              boxShadow: '0 0 0 1px rgba(255, 236, 190, 0.85)',
+              boxShadow: '0 0 0 1px rgba(255, 236, 190, 0.9)',
               pointerEvents: 'none',
             }}
           />

@@ -48,6 +48,8 @@ export interface LoopBarProps {
     crossingCost: number;
     /** Time until a run's worth, null when there already is. */
     nextRunInMs: number | null;
+    /** What comes back an hour — the RAID slab's own countdown reads it. */
+    regenPerHour: number;
   };
   home: {
     gardenReady: number;
@@ -207,7 +209,13 @@ export function LoopBar({
     home.shieldMs !== null ? t.loop.shieldFor(formatWait(home.shieldMs, t.units)) : t.loop.noShield,
     t.loop.traps(home.trapsLive),
   ];
+  // A RAID NOT YET AFFORDABLE says when, first, in DIG's grammar: the slab
+  // used to show the lure alone and refuse on the press (toast). The lure
+  // stays — it is what the wait is for.
+  const raidFloor = RAID_RUN.TOLL + RAID_RUN.WALK_FLOOR * RAID_RUN.STEP_COST;
+  const raidWaitMs = ((raidFloor - dig.energy) / Math.max(1, dig.regenPerHour)) * 3_600_000;
   const raidParts = [
+    ...(dig.energy < raidFloor ? [t.loop.raidIn(formatWait(raidWaitMs, t.units))] : []),
     raid.best
       ? t.loop.leftOutside(raid.best.name, groupDigits(raid.best.garden))
       : raid.open > 0

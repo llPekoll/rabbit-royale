@@ -145,6 +145,9 @@ export const en = {
     runCosts: (n: number) => `crossing costs ${n}`,
     runIn: (wait: string) => `run in ${wait}`,
     raidNeeds: (floor: number, have: number, wait: string) => `A raid needs ${floor} in the tank. ${have} now, enough in ${wait}.`,
+    /* The RAID slab's own gate, in DIG's grammar ("run in 20m"): the slab
+       says when it will be worth pressing, not only what is out there. */
+    raidIn: (wait: string) => `raid in ${wait}`,
     aMoment: 'a moment',
     gardenPlus: (n: string) => `garden +${n}`,
     gardenEmpty: 'garden empty',
@@ -236,6 +239,8 @@ export const en = {
     energyLow: 'Low energy. A right X on a bomb gives some back.',
     energyRaidLeft: 'Still a raid in the tank. Go home, or dig on.',
     homeRaid: 'Home \u00b7 raid ready',
+    /** Said once on landing: what the crossing took, what is left ON YOU. */
+    crossed: (cost: number, energy: number) => `\u26a1 -${cost} to cross \u00b7 ${energy} left`,
     trapHint: (left: number) => `Tap a tile to mine it, tap a mine to lift it · ${left} left`,
     trapHintEmpty: 'No bombs left · buy another, or tap a mine to lift it and bury it elsewhere',
     strike: 'Strike',
@@ -549,30 +554,48 @@ export const en = {
   energyPanel: {
     open: 'Energy details',
     title: 'ENERGY',
-    status: (energy: number, max: number, regen: number) => `${energy}/${max} \u00b7 +${regen} an hour`,
-    full: 'Full. Nothing comes back until you spend some.',
-    fullIn: (wait: string) => `Full again in ${wait}, on its own.`,
-    islandYes: (cost: number) => `An island: yes. The crossing takes ${cost}, then every dig takes 1.`,
-    islandNo: (floor: number) => `An island: not yet. It asks for ${floor} in the tank.`,
-    raidYes: (toll: number, stake: number) => `A raid: yes. ${toll} to climb in, at most ${stake} in all; reach the field and your steps come back.`,
-    raidNo: (floor: number) => `A raid: not yet. It asks for ${floor} in the tank.`,
-    dig: (dig: number, bomb: number) => `A dig takes ${dig}, a bomb ${bomb}. A right X gives some back, a wrong one costs 15.`,
-    homeRaid: (floor: number) => `You still hold a raid (${floor}). What you go home with stays in the tank.`,
-    homeNoRaid: (floor: number) => `Under ${floor}: not enough for a raid any more. What you go home with stays in the tank.`,
-    level: (level: number, regen: number, next: number) => `Burrow level ${level} refills ${regen} an hour; level ${level + 1} would refill ${next}.`,
-    levelMax: (level: number, regen: number) => `Burrow level ${level} refills ${regen} an hour.`,
+    /* ROWS, NOT SENTENCES. Each row is a thing the tank buys, what it takes,
+       and a chip that says YES or when. The paragraphs this replaced were
+       read as a wall (2026-09-21, both screens). */
+    perHour: (regen: number) => `+${regen} an hour`,
+    full: 'full',
+    fullIn: (wait: string) => `full in ${wait}`,
+    yes: 'YES',
+    inWait: (wait: string) => `in ${wait}`,
+    /* The two ticks on the bar. */
+    tickIsland: 'island',
+    tickRaid: 'raid',
+    island: 'AN ISLAND',
+    islandCost: (cross: number) => `${cross} to cross, then 1 a dig`,
+    raid: 'A RAID',
+    raidCost: (toll: number, stake: number) => `${toll} to get in, ${stake} at most. Reach the field: your steps come back.`,
+    dig: 'DIGGING',
+    digCost: (bomb: number) => `1 a dig, a bomb ${bomb}. A right X gives back, a wrong one costs 15.`,
+    home: 'GOING HOME',
+    homeCost: (floor: number) => `What is left stays in the tank. Above ${floor}, you land with a raid.`,
+    homeYes: 'RAID READY',
+    homeNo: 'NO RAID',
+    level: (level: number, regen: number, next: number) => `Burrow lvl ${level}: +${regen}/h \u00b7 lvl ${level + 1}: +${next}/h`,
+    levelMax: (level: number, regen: number) => `Burrow lvl ${level}: +${regen}/h`,
   },
   islandPick: {
     choose: 'Choose an island',
     which: 'WHICH ISLAND?',
     loading: 'Looking at the water...',
     row: (rabbits: number, left: number, total: number, dug: number) => `${rabbits} digging \u00b7 ${left}/${total} chests left \u00b7 ${dug}% dug`,
-    fresh: 'Nobody on it yet',
+    fresh: 'Nobody on it yet \u00b7 the long run',
+    /* Appended to a live island's row: the consequence of company. */
+    shortSafe: 'short and safe',
     join: 'Join',
     open: 'Open',
-    locked: (n: string) => `Opens at ${n} carrots dug`,
+    /* WHERE YOU STAND on the ladder, not only the rung: "opens at 7 500"
+       alone gave no sense of distance. */
+    locked: (need: string, have: string) => `Opens at ${need} dug \u00b7 you ${have}`,
+    lockedAria: (name: string, have: string, need: string) => `${name}: ${have} of ${need} carrots dug`,
     lockedShort: 'Locked',
-    brief: 'A busy island is a short, safe dig with a share of the chests. A fresh one is the long run.',
+    /* The foot says what the crossing takes from the one tank, where the
+       choice is made. The busy/fresh lesson moved onto the rows. */
+    tank: (energy: number, cost: number) => `\u26a1 ${energy} in the tank \u00b7 the crossing takes ${cost}`,
     almostDone: 'almost done',
     best: (n: string) => `your record ${n} \ud83e\udd55`,
     gone: 'That island filled up or ended. Pick another.',
