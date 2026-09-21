@@ -1780,28 +1780,25 @@ body:has(.rr-pill-plate.has-energy) {
    Above the floor furniture (20) so the centred kit can never sit over it. */
 .rr-back-btn {
   position: fixed;
-  /* BOTTOM CENTRE (Paul, 2026-09-16: "ramene les boutons back, retreat, etc.
-     bottom centre"). It sat in the bottom-LEFT corner, which is where the eye
-     goes last on a screen whose every other control is centred on the floor —
-     the one control every screen shares was the one you had to hunt for.
-     The middle is free wherever this button appears: placing slides the loop
-     bar away, a raid has no loop bar, and the island's own HOME is never on
-     screen at the same time as this (page.tsx renders one or the other). The
-     placement kit row does want the same spot, so it stacks ABOVE this button
-     rather than beside it — see `.rr-kit-row` and `--rr-back-h`.
+  /* BOTTOM LEFT (Paul, 2026-09-21: "met tous les boutons back en bas a gauche,
+     ca gene dig / defence / raid"). It spent five days in the bottom CENTRE,
+     which is the floor's own lane: the loop bar puts DIG ▸ DEFEND ▸ RAID
+     exactly there, so the one button every screen shares was parked on the
+     three the burrow is played with. Placing slides the loop bar away and a
+     raid has no loop bar, but a player does not learn a placement that only
+     holds in two modes out of three — they learn the one that never covers a
+     verb.
 
-     CENTRED WITHOUT A TRANSFORM, and that is the whole point of these four
-     lines. `left: 50%` + `translateX(-50%)` measured 60px off centre on
-     desktop and dead centre on the Seeker — the kit's button writes its own
-     `transform` on :hover, which replaces the centring outright, and a touch
-     screen never hovers. Chasing that with a `:hover` override would only wait
-     for the next state that animates a transform (:active already needed one).
-     Margin centring cannot be clobbered, so the kit keeps its transform for
-     the squash and the button stays put. */
-  left: 0;
-  right: 0;
-  margin-inline: auto;
-  width: fit-content;
+     THE LEFT CORNER, not the right: the right belongs to MARK BOMB during a
+     run (`.rr-mark-btn`), and HOME is on screen at the same time as the X.
+     Left is the one corner free on all three screens — the hub tile row that
+     used to hold it is gone (`.rr-hub-row` no longer mounts).
+
+     NO TRANSFORM CENTRING to undo: the kit's button writes its own `transform`
+     on :hover and :active, which used to replace `translateX(-50%)` outright
+     and shove the button 60px off centre on desktop. Anchored to an edge there
+     is nothing for the squash to clobber. */
+  left: max(var(--rr-edge), env(safe-area-inset-left));
   bottom: calc(var(--rr-edge) + env(safe-area-inset-bottom));
   min-height: var(--rr-back-h);
   z-index: 22;
@@ -2531,7 +2528,13 @@ body:has(.rr-burrow) .rr-burrow:has(.rr-empty) {
      competing for it: the exit on the floor, the options directly above it,
      one column in the middle of the screen. The offset is `--rr-back-h` and
      not a number, because the button is content-sized and grew by a pixel the
-     last time its arrow changed. */
+     last time its arrow changed.
+
+     IT KEEPS THAT STOREY NOW THAT THE EXIT IS IN THE LEFT CORNER
+     (2026-09-21). The row spans the whole floor — its raid slots start AT the
+     left margin, which is the corner the button just took — so dropping it to
+     the floor would put the first bottle on top of BACK. Stacked, the two
+     never meet whatever the row holds. */
   bottom: calc(var(--rr-edge) + env(safe-area-inset-bottom) + var(--rr-back-h) + var(--rr-pad));
   /* EDGE TO EDGE, because the two halves go to opposite corners.
      The raid kit stays at the left margin and the garden's bottles are pushed

@@ -8,14 +8,18 @@
  * "Retreat" text button tucked inside its HUD; watching somebody else's run
  * had the island's big animated HOME arrow relabelled "Stop watching". Three
  * shapes for one idea meant finding the exit again on every screen. Now it is
- * always this: bottom-CENTRE, the soil slab, the kit's pixel arrow pointing
+ * always this: bottom-LEFT, the soil slab, the kit's pixel arrow pointing
  * left, and a verb.
  *
- * Bottom-centre (Paul, 2026-09-16). It used to take the bottom-left corner so
- * the middle of the floor could stay with the screen's own controls — but that
- * put the one control every screen shares in the one place nothing else lives,
- * and it read as an afterthought. The kit row now stacks ABOVE it instead of
- * beside it (`--rr-back-h`), and the mute keeps its own corner.
+ * BOTTOM LEFT (Paul, 2026-09-21: "met tous les boutons back en bas a gauche,
+ * ca gene dig / defence / raid"). It took the bottom CENTRE for five days, on
+ * the argument that the middle is where the eye already is — but the middle of
+ * the burrow's floor is the loop bar, so the shared exit was sitting on the
+ * three verbs the game is played with. The left corner is the only one free on
+ * all three screens: the right belongs to MARK BOMB during a run, and the hub
+ * tile row that used to hold the left is gone. The kit row keeps its storey
+ * above (`--rr-back-h`) because it spans the floor and would otherwise land on
+ * this corner; the mute has moved up to the top bar.
  *
  * NOT the island's HOME. Leaving a run is the run's main action — it banks
  * the haul — so it keeps its big arrow in the middle of the floor.
