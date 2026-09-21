@@ -887,12 +887,32 @@ button { min-height: 44px; min-width: 44px; }
   image-rendering: pixelated;
   will-change: scale;
 }
+/* THE ARC FLUSHES ON THE SAME BEAT (energy-dial.tsx): the colour that is
+   left lights up as the bolt swells, on the same clock, so the alarm is the
+   gauge and not only the mark at its centre. Brightness only — the ring is
+   pixel art on a mask and must neither move nor blur. */
+@keyframes rr-dial-flush {
+  0%, 38%, 100% { filter: none; }
+  10% { filter: brightness(1.6) saturate(1.25); }
+  20% { filter: brightness(1.05); }
+  27% { filter: brightness(1.3); }
+}
+.rr-dial-flush {
+  animation-name: rr-dial-flush;
+  animation-timing-function: ease-out;
+  animation-iteration-count: infinite;
+  will-change: filter;
+}
 /* A GAUGE THAT WARNS BY MOVING CANNOT WARN AT ALL when movement is off, so
    the beat becomes a steady flush of the same alarm instead of nothing. */
 @media (prefers-reduced-motion: reduce) {
   @keyframes rr-dial-beat {
     0%, 100% { scale: 1; filter: none; }
     50% { scale: 1; filter: brightness(1.25); }
+  }
+  @keyframes rr-dial-flush {
+    0%, 100% { filter: none; }
+    50% { filter: brightness(1.3); }
   }
 }
 /* The run's haul, beside the stock it will join (carrot-pill.tsx `carrying`).

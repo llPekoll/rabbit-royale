@@ -232,6 +232,9 @@ export function EnergyDial({
      The stops are doubled at the boundary to get a hard edge: a gradient
      between two stops at the same position is a line, and anything softer
      would fray the ring's paint. */
+  /* The ring's disc, a hair past its outer edge, for the flush layer. */
+  const disc = `radial-gradient(circle at ${RING_CX * 100}% ${RING_CY * 100}%, `
+    + `#000 ${((RING_OUTER + 2) * k).toFixed(1)}px, transparent ${((RING_OUTER + 3) * k).toFixed(1)}px)`;
   const mask = `conic-gradient(at ${RING_CX * 100}% ${RING_CY * 100}%, `
     + `#000 0turn, #000 ${frac}turn, `
     + `transparent ${frac}turn, transparent 1turn)`;
@@ -243,7 +246,14 @@ export function EnergyDial({
     >
       {/* THE GREY RING AND THE BOARD — the whole picture, always drawn. */}
       <span style={layer(DIAL_EMPTY_URL)} aria-hidden />
-      {/* THE COLOUR, clipped to what is left. */}
+      {/* THE COLOUR, clipped to what is left — AND IT FLUSHES WITH THE BEAT.
+          The bolt's swell alone was the alarm (Paul, 2026-09-21, "juste
+          l'icône"), and a 7 % swell of a 24px mark went unseen in play: the
+          same day Paul asked for the GAUGE to pulse when little is left. So
+          the arc that is left brightens on the bolt's own rhythm and clock
+          (`rr-dial-flush`, the same duration): what is running out is the
+          thing that flashes. A filter, not a scale — the ring must not blur
+          or move, only light up. */}
       <span
         style={{
           ...layer(DIAL_FULL_URL),
@@ -252,6 +262,23 @@ export function EnergyDial({
         }}
         aria-hidden
       />
+      {/* THE WHOLE DIAL FLUSHES ON THE BEAT — the ring, its hub and the wood
+          under them, cut to the ring's disc so the plank's figures stay
+          still. The remaining ARC alone was tried first: under a third it is
+          a sliver at 12 o'clock, and a sliver lighting up is not an alarm.
+          Only while the beat runs, so nothing is stacked on a calm gauge. */}
+      {beatOn && (
+        <span
+          className="rr-dial-flush"
+          style={{
+            ...layer(DIAL_EMPTY_URL),
+            WebkitMaskImage: disc,
+            maskImage: disc,
+            animationDuration: `${beatMs}ms`,
+          }}
+          aria-hidden
+        />
+      )}
       {/* THE MARK ON THE HUB, AND IT BEATS (Paul, 2026-09-21: "je parlais
           juste de l'icone d'energie au milieu", then "vire le nombre"). The
           ring already says how full the tank is; a figure repeating it inside
