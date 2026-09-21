@@ -1920,6 +1920,24 @@ function Burrow() {
   const finishedRaidId = raid.raid?.finished ? raid.raid.raidId : null;
   const leaveRef = useRef(raid.leave);
   leaveRef.current = raid.leave;
+  /**
+   * NO ENERGY, WHICHEVER DOOR: a raid that ends with the tank under the
+   * crossing floor is the same moment as a rabbit dying on the island, and
+   * gets the same answer — the refill offer, once the raid's screen is gone.
+   * Until this the recap sold the refill to the dead and the burrow said
+   * "run in 80 min" to the player who had just spent the tank the other way
+   * (the better play since the one tank: leave the island at the raid line,
+   * raid, come home dry). Set when the raid is settled, read when its board
+   * leaves — `where` is already the burrow under a raid, so the arrival
+   * intent (`shopOnArrival`) would have opened the popup over the raid.
+   */
+  const refillAfterRaid = useRef(false);
+  useEffect(() => {
+    if (shownRaid || !refillAfterRaid.current) return;
+    refillAfterRaid.current = false;
+    refreshBurrowRef.current();
+    setEnergyOpen(true);
+  }, [shownRaid]);
   const finishedRaid = useRef(raid.raid);
   finishedRaid.current = raid.raid;
   /** How far the raid got — lands in the same answer as `finished`. */
@@ -1968,6 +1986,9 @@ function Burrow() {
           : t.raid.fellShort(Math.round((finishedOutcome.current?.progress ?? 0) * 100), r.defender.name)
       : null;
     if (r && !won) playUiSfx('die');
+    // The tank as the last step left it (the refund at the field included):
+    // under the crossing floor, the burrow offers the refill on the way out.
+    refillAfterRaid.current = r !== null && r.tank !== null && r.tank < ENERGY.MIN_TO_CROSS;
     // The shock runs past the ordinary beat (bolt, hold, the fall, the body
     // left a moment): going home under it would cut the one thing the
     // defender paid an item to have the raider see.
