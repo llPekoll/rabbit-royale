@@ -12,6 +12,7 @@ Aujourd'hui on a fondu les trois réserves d'énergie en une seule, puis réglé
 - **Quand il te reste de quoi piller, le jeu te le dit** : sur la jauge, sur l'île, sur le bouton de sortie. Rentrer vivant pour piller rapporte plus que creuser jusqu'au bout, et personne ne le devinait.
 - **À sec, le terrier propose la recharge**, quelle que soit la façon dont tu t'es vidé. La recharge coûte à peu près ce qu'une sortie rapporte, ni cadeau ni arnaque.
 - **On choisit son île** parmi celles qu'on a débloquées. Une île où d'autres creusent déjà est une sortie courte et sans danger ; une île neuve est la longue course où on peut mourir. Et un débutant ne tombe plus sur l'île d'un vétéran par accident.
+- **Chaque île garde ton record**, la meilleure récolte en une sortie. Le jeu le dit quand tu le bats, et la liste des îles l'affiche : une raison de revenir sur une île déjà finie.
 - **Les îles suivantes s'ouvrent un peu plus tard** (jours 3-4, 8-9, 14-15), recalées sur ce que les joueurs gagnent vraiment.
 
 ## L'intention
@@ -32,6 +33,6 @@ Aucune migration de base.
 - [ ] Après déploiement, relancer le semis de la table de réglages (`bun db:seed-tuning`, `--dry-run` d'abord) : une dizaine de valeurs d'énergie et de raid y sont surchargeables et masqueraient le fichier.
 - [ ] Relire la route du raid (`src/app/api/raid/route.ts`) : ce qu'un raid demande pour entrer, ce qu'il dépense, le remboursement des pas au champ, et le niveau du terrier lu avec l'énergie.
 - [ ] Relire la fusion des réserves (commit d88fa00) : le paiement atomique, le retour de l'énergie au terrier, l'éclair du spectateur.
-- [ ] Relire le choix de l'île côté serveur (`join` avec une île ou un palier, la jointure par palier, l'événement `islands`).
+- [ ] Relire le choix de l'île côté serveur (`join` avec une île ou un palier, la jointure par palier, l'événement `islands` qui porte aussi les records), et le record calculé au moment où la course est encaissée (`bankRun`, événement `run_record`).
 
 Les chiffres exacts sont dans `config/tuning.ts`, chacun avec son commentaire et sa mesure.

@@ -238,6 +238,7 @@ export const fr: Dict = {
   },
 
   recap: {
+    record: (island, n, previous) => previous ? `RECORD sur ${island} : ${n} \ud83e\udd55 (avant ${previous})` : `PREMIER RECORD sur ${island} : ${n} \ud83e\udd55`,
     cleared: 'ÎLE DÉMINÉE !',
     over: 'SORTIE FINIE',
     clearedNote: 'Tous les coffres sont sortis de terre. La mer a pris le reste.',
@@ -473,6 +474,7 @@ export const fr: Dict = {
     lockedShort: 'Ferm\u00e9e',
     brief: 'Une \u00eele occup\u00e9e, c\u2019est une fouille courte et s\u00fbre avec une part des coffres. Une \u00eele neuve, c\u2019est la longue course.',
     almostDone: 'presque finie',
+    best: (n) => `ton record ${n} \ud83e\udd55`,
     gone: 'Cette \u00eele s\u2019est remplie ou a fini. Choisis-en une autre.',
     tierLocked: 'Tu n\u2019as pas encore creus\u00e9 jusqu\u2019\u00e0 cette \u00eele.',
   },

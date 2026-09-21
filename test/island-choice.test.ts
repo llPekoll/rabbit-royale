@@ -33,7 +33,7 @@ describe('joining is held to the ladder', () => {
 
   it('lists only what a newcomer could be seated on, with what decides the choice', () => {
     expect(STORE).toMatch(/listJoinable\(\): LiveIsland\[\] \{\s*return \[\.\.\.this\.islands\.values\(\)\]\.filter\(\(live\) => this\.joinable\(live\)\);/);
-    expect(SERVER).toMatch(/socket\.on\('islands', async \(ack\?:[\s\S]{0,900}chestsLeft: live\.chestsTotal - live\.chestsTaken,/);
+    expect(SERVER).toMatch(/socket\.on\('islands', async \(ack\?:[\s\S]{0,1600}chestsLeft: live\.chestsTotal - live\.chestsTaken,/);
   });
 });
 

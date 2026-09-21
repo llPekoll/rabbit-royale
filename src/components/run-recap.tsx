@@ -10,7 +10,8 @@ import { PanelTitle } from './pixel-text';
 import { PX, PxButton, pxLabel } from './px';
 import type { RunRecap } from './use-game-socket';
 import { useT } from '@/i18n/provider';
-import { formatRunTime } from '@/i18n/format';
+import { formatRunTime, groupDigits } from '@/i18n/format';
+import { islandName } from '@/i18n/content';
 
 /**
  * The end of a run, and the way out of it.
@@ -35,7 +36,7 @@ import { formatRunTime } from '@/i18n/format';
  * or the wait becomes a toll.
  */
 export function Recap({
-  recap, onShop, onHome, first = false, bank = null,
+  recap, onShop, onHome, first = false, bank = null, record = null,
 }: {
   recap: RunRecap;
   onShop: () => void;
@@ -54,6 +55,8 @@ export function Recap({
    * buttons ask, and the number was nowhere on the island until now.
    */
   bank?: { energy: number; max: number; cost: number } | null;
+  /** A best haul beaten on this island's tier, when the run just did. */
+  record?: { tier: string; carrots: number; previous: number } | null;
 }) {
   const t = useT();
   // THREE endings now: the hearts ran out, the island did, or the tutorial's
@@ -152,6 +155,14 @@ export function Recap({
           (measured: the raid pays about twice a run per point). Said here,
           on the screen where the player decides what to do next, and the
           RAID slab on the loop bar pops when they land. */}
+      {/* THE RECORD: the run just beat the player's best haul on this tier.
+          Said before the bar, because it is the run's news and the bar is the
+          next run's. */}
+      {record && (
+        <p className="rr-note" style={{ color: '#ffd138' }}>
+          {t.recap.record(islandName(t, record.tier), groupDigits(record.carrots), record.previous > 0 ? groupDigits(record.previous) : null)}
+        </p>
+      )}
       {bank && bank.energy >= RAID_RUN.TOLL + RAID_RUN.WALK_FLOOR * RAID_RUN.STEP_COST && (
         <p className="rr-note" style={{ color: '#ffd138' }}>
           {t.recap.raidLeft(bank.energy)}

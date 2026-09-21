@@ -242,6 +242,7 @@ export const ptBR: Dict = {
   },
 
   recap: {
+    record: (island, n, previous) => previous ? `RECORDE em ${island}: ${n} \ud83e\udd55 (antes ${previous})` : `PRIMEIRO RECORDE em ${island}: ${n} \ud83e\udd55`,
     cleared: 'ILHA LIMPA!',
     over: 'FIM DA SAÍDA',
     clearedNote: 'Todos os baús saíram do chão. O mar levou o resto.',
@@ -475,6 +476,7 @@ export const ptBR: Dict = {
     lockedShort: 'Fechada',
     brief: 'Uma ilha cheia \u00e9 uma escava\u00e7\u00e3o curta e segura com parte dos ba\u00fas. Uma ilha nova \u00e9 a corrida longa.',
     almostDone: 'quase acabando',
+    best: (n) => `seu recorde ${n} \ud83e\udd55`,
     gone: 'Essa ilha encheu ou acabou. Escolha outra.',
     tierLocked: 'Voc\u00ea ainda n\u00e3o cavou at\u00e9 essa ilha.',
   },

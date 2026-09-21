@@ -244,6 +244,7 @@ export const zh: Dict = {
   },
 
   recap: {
+    record: (island, n, previous) => previous ? `${island} \u65b0\u7eaa\u5f55\uff1a${n} \ud83e\udd55\uff08\u4e4b\u524d ${previous}\uff09` : `${island} \u9996\u4e2a\u7eaa\u5f55\uff1a${n} \ud83e\udd55`,
     cleared: '全岛清空！',
     over: '出行结束',
     clearedNote: '箱子全都出土了。剩下的被海带走了。',
@@ -460,6 +461,7 @@ export const zh: Dict = {
     lockedShort: '\u672a\u5f00\u653e',
     brief: '\u70ed\u95f9\u7684\u5c9b\u77ed\u800c\u5b89\u5168\uff0c\u5b9d\u7bb1\u5927\u5bb6\u5206\u3002\u65b0\u5c9b\u662f\u4e00\u573a\u957f\u8dd1\u3002',
     almostDone: '\u5feb\u6316\u5b8c\u4e86',
+    best: (n) => `\u4f60\u7684\u7eaa\u5f55 ${n} \ud83e\udd55`,
     gone: '\u90a3\u5ea7\u5c9b\u6ee1\u4e86\u6216\u5df2\u7ed3\u675f\uff0c\u6362\u4e00\u5ea7\u5427\u3002',
     tierLocked: '\u4f60\u8fd8\u6ca1\u6316\u5230\u90a3\u5ea7\u5c9b\u3002',
   },

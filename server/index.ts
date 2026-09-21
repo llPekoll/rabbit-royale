@@ -18,7 +18,7 @@
 import http from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { Server, type Socket } from 'socket.io';
-import { and, eq, isNull, sql as raw } from 'drizzle-orm';
+import { and, eq, isNull, ne, sql as raw } from 'drizzle-orm';
 
 import { ENERGY, ERUPTION, ISLAND_TIERS, LIGHTNING, MIRAGE, MULTIPLAYER, OUT_OF_RUN_ENERGY, tierFor } from '../config/tuning';
 import { servirApi } from './api-router';
@@ -191,6 +191,8 @@ interface IslandChoice { islandId?: string; tier?: string }
 /** What the `islands` ack carries. */
 interface IslandListing {
   unlocked: number;
+  /** The player's best haul in one run, per tier name. */
+  bests: Record<string, number>;
   tiers: string[];
   islands: Array<{ id: string; tier: string; rabbits: number; chestsLeft: number; chestsTotal: number; dugFraction: number }>;
 }
@@ -521,6 +523,24 @@ async function bankRun(rabbit: Rabbit) {
     endedAt: new Date(),
   }).where(eq(runs.id, runId));
 
+  /**
+   * THE RECORD PER ISLAND (Paul, 21 September 2026: after the ladder, the
+   * difficulty is chosen and the reason to come back is the record). The
+   * best haul in one run on this tier, from the player's own finished runs;
+   * beaten, the socket is told so the recap — or the burrow, when the run
+   * ended by walking home — can say so. Read AFTER the row is written, so a
+   * reconnect that banks twice cannot announce the same run twice.
+   */
+  const row = await db.query.runs.findFirst({ where: eq(runs.id, runId), columns: { islandTier: true } });
+  if (row && carrots > 0) {
+    const others = await db.query.runs.findMany({
+      where: and(eq(runs.playerId, playerId), eq(runs.islandTier, row.islandTier), ne(runs.id, runId)),
+      columns: { carrots: true },
+    });
+    const previous = others.reduce((m, r) => Math.max(m, r.carrots), 0);
+    if (carrots > previous) socketOf(playerId)?.emit('run_record', { tier: row.islandTier, carrots, previous });
+  }
+
   // Chest items land in the SAME banking step as the carrots, and after the
   // run row is closed. Granting them at the dig would have let a player farm
   // chests without ever finishing a run; granting them here means a run either
@@ -631,9 +651,14 @@ io.on('connection', (socket: Socket) => {
    */
   socket.on('islands', async (ack?: (listing: IslandListing) => void) => {
     if (typeof ack !== 'function') return;
-    if (!data.playerId) return ack({ unlocked: 0, tiers: ISLAND_TIERS.map((t) => t.name), islands: [] });
+    if (!data.playerId) return ack({ unlocked: 0, bests: {}, tiers: ISLAND_TIERS.map((t) => t.name), islands: [] });
     const player = await db.query.players.findFirst({ where: eq(players.id, data.playerId), columns: { lifetimeCarrots: true } });
+    // The player's best haul per tier, for the tier rows: what "your record" reads.
+    const finished = await db.query.runs.findMany({ where: eq(runs.playerId, data.playerId), columns: { islandTier: true, carrots: true } });
+    const bests: Record<string, number> = {};
+    for (const r of finished) bests[r.islandTier] = Math.max(bests[r.islandTier] ?? 0, r.carrots);
     ack({
+      bests,
       unlocked: tierIndex(tierFor(player?.lifetimeCarrots ?? 0).name),
       tiers: ISLAND_TIERS.map((t) => t.name),
       islands: store.listJoinable().map((live) => ({

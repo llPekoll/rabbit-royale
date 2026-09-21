@@ -52,6 +52,7 @@ import { GardenCard } from '@/components/garden-card';
 import { BurrowPanel } from '@/components/burrow-card-panel';
 import { IslandPicker } from '@/components/island-picker';
 import { EnergyPanel, RAID_FLOOR } from '@/components/energy-panel';
+import { islandName } from '@/i18n/content';
 import { formatWait } from '@/i18n/format';
 import type { IslandListing } from '@/components/use-game-socket';
 import { QuestCard } from '@/components/quest-card';
@@ -1466,6 +1467,20 @@ function Burrow() {
    * ordinary one — `goTo('island')` asks for the seat.
    */
   const [pickingIsland, setPickingIsland] = useState(false);
+  /**
+   * A RECORD with no recap to carry it: the run ended by walking home, so
+   * the burrow says it in a toast instead. The recap, when there is one,
+   * shows it on the card (`record` above), and the same event must not be
+   * said twice — the recap's presence at the moment it lands decides.
+   */
+  const spentRecord = useRef(0);
+  useEffect(() => {
+    const r = game.record;
+    if (!r || r.at === spentRecord.current) return;
+    spentRecord.current = r.at;
+    if (game.recap) return;
+    setNote(t.recap.record(islandName(t, r.tier), groupDigits(r.carrots), r.previous > 0 ? groupDigits(r.previous) : null));
+  }, [game.record, game.recap, t]);
   /** The energy panel, from a tap on the ring: what the tank buys right now. */
   const [energyPanelOpen, setEnergyPanelOpen] = useState(false);
   /**
@@ -2966,6 +2981,7 @@ function Burrow() {
           {game.recap && !spectating && (
             <Recap
               recap={game.recap}
+              record={game.record && game.record.at > (game.recap ? 0 : Infinity) ? game.record : null}
               first={game.firstRun}
               // The burrow's bar as last read — refreshed at the crossing, so
               // it already carries this run's charge. What the next decision

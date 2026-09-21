@@ -20,6 +20,8 @@ export interface IslandChoice { islandId?: string; tier?: string }
 /** The islands a newcomer could be seated on, from the server's `islands` ack. */
 export interface IslandListing {
   unlocked: number;
+  /** The player's best haul in one run, per tier name. */
+  bests: Record<string, number>;
   tiers: string[];
   islands: Array<{ id: string; tier: string; rabbits: number; chestsLeft: number; chestsTotal: number; dugFraction: number }>;
 }
@@ -254,6 +256,9 @@ export interface Banked {
  */
 const RECAP_BEAT_MS = 900;
 
+/** A best haul beaten on a tier — `run_record`, sent as the run banks. */
+export interface RunRecord { tier: string; carrots: number; previous: number; at: number }
+
 export interface RunRecap {
   carrots: number;
   tilesDug: number;
@@ -384,6 +389,7 @@ export function useGameSocket(
   const [chestsTaken, setChestsTaken] = useState(0);
   const [chestsTotal, setChestsTotal] = useState(0);
   const [recap, setRecap] = useState<RunRecap | null>(null);
+  const [record, setRecord] = useState<RunRecord | null>(null);
   /** The last shove taken BY THIS PLAYER, for the toast. Never a shove they gave. */
   const [shoved, setShoved] = useState<ShoveNote | null>(null);
   const [connected, setConnected] = useState(false);
@@ -979,6 +985,7 @@ export function useGameSocket(
       setErupting(durationMs);
       toScene((s) => s.playEruption(durationMs));
     });
+    socket.on('run_record', (r: { tier: string; carrots: number; previous: number }) => setRecord({ ...r, at: Date.now() }));
     socket.on('run_over', (r: RunRecap) => {
       // The seat is spent. A reconnect from the recap must not ask again —
       // that would start, and pay for, a run the player has not chosen.
@@ -1180,7 +1187,7 @@ export function useGameSocket(
 
   const me = playerId ? rabbits.get(playerId) ?? null : null;
   return {
-    islandSeed, islandKey, rabbits, me, warnStage, dugFraction, chestsTaken, chestsTotal, recap, shoved, banked, bankedCarrots, connected, dropped, refused,
+    islandSeed, islandKey, rabbits, me, warnStage, dugFraction, chestsTaken, chestsTotal, recap, record, shoved, banked, bankedCarrots, connected, dropped, refused,
     seatHeld,
     firstRun, taughtBomb, teachReady, digs, bank, erupting,
     chestPrize, clearChestPrize: () => setChestPrize(null),

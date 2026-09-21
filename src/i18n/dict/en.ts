@@ -302,6 +302,7 @@ export const en = {
     over: 'RUN OVER',
     clearedNote: 'Every chest is out of the ground. The sea took the rest.',
     overNote: 'Out of energy.',
+    record: (island: string, n: string, previous: string | null) => previous ? `NEW RECORD on ${island}: ${n} \ud83e\udd55 (was ${previous})` : `FIRST RECORD on ${island}: ${n} \ud83e\udd55`,
     /** The first island's chest, which is what ends the tutorial run. */
     tutorialDone: 'YOU GOT IT!',
     tutorialDoneNote: 'The chest was the whole island. Your carrots are waiting at the burrow.',
@@ -573,6 +574,7 @@ export const en = {
     lockedShort: 'Locked',
     brief: 'A busy island is a short, safe dig with a share of the chests. A fresh one is the long run.',
     almostDone: 'almost done',
+    best: (n: string) => `your record ${n} \ud83e\udd55`,
     gone: 'That island filled up or ended. Pick another.',
     tierLocked: 'You have not dug your way to that island yet.',
   },

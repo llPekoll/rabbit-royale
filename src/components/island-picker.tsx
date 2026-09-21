@@ -101,6 +101,7 @@ export function IslandPicker({ listing, busy, onChoose, onClose }: IslandPickerP
                         <small className={`rr-raid-where ${locked ? 'away' : 'home'}`}>
                           <i aria-hidden />
                           {locked ? t.islandPick.locked(groupDigits(tier.minLifetime)) : t.islandPick.fresh}
+                          {!locked && (listing.bests[tier.name] ?? 0) > 0 && <>{' \u00b7 '}{t.islandPick.best(groupDigits(listing.bests[tier.name]))}</>}
                         </small>
                       </span>
                       <PxButton
