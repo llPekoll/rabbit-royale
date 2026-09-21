@@ -430,6 +430,20 @@ export const zh: Dict = {
     fertiliser: '肥料',
   },
 
+  islandPick: {
+    choose: '\u9009\u62e9\u5c9b\u5c7f',
+    which: '\u53bb\u54ea\u5ea7\u5c9b\uff1f',
+    loading: '\u6b63\u5728\u770b\u6d77...',
+    row: (rabbits, left, total, dug) => `${rabbits} \u53ea\u5728\u6316 \u00b7 \u5269 ${left}/${total} \u4e2a\u5b9d\u7bb1 \u00b7 \u5df2\u6316 ${dug}%`,
+    fresh: '\u8fd8\u6ca1\u6709\u4eba',
+    join: '\u52a0\u5165',
+    open: '\u5f00\u5c9b',
+    locked: (n) => `\u6316\u6ee1 ${n} \u6839\u80e1\u841d\u535c\u540e\u5f00\u653e`,
+    lockedShort: '\u672a\u5f00\u653e',
+    brief: '\u70ed\u95f9\u7684\u5c9b\u77ed\u800c\u5b89\u5168\uff0c\u5b9d\u7bb1\u5927\u5bb6\u5206\u3002\u65b0\u5c9b\u662f\u4e00\u573a\u957f\u8dd1\u3002',
+    gone: '\u90a3\u5ea7\u5c9b\u6ee1\u4e86\u6216\u5df2\u7ed3\u675f\uff0c\u6362\u4e00\u5ea7\u5427\u3002',
+    tierLocked: '\u4f60\u8fd8\u6ca1\u6316\u5230\u90a3\u5ea7\u5c9b\u3002',
+  },
   raid: {
     go: '出发掠夺',
     another: '掠夺另一个兔窝',

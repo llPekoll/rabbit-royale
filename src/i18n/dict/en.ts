@@ -543,6 +543,20 @@ export const en = {
   },
 
   /* ── Raiding ──────────────────────────────────────────────────────────── */
+  islandPick: {
+    choose: 'Choose an island',
+    which: 'WHICH ISLAND?',
+    loading: 'Looking at the water...',
+    row: (rabbits: number, left: number, total: number, dug: number) => `${rabbits} digging \u00b7 ${left}/${total} chests left \u00b7 ${dug}% dug`,
+    fresh: 'Nobody on it yet',
+    join: 'Join',
+    open: 'Open',
+    locked: (n: string) => `Opens at ${n} carrots dug`,
+    lockedShort: 'Locked',
+    brief: 'A busy island is a short, safe dig with a share of the chests. A fresh one is the long run.',
+    gone: 'That island filled up or ended. Pick another.',
+    tierLocked: 'You have not dug your way to that island yet.',
+  },
   raid: {
     go: 'GO RAIDING',
     another: 'Raid another burrow',

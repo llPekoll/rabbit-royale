@@ -114,12 +114,12 @@ describe('a run is paid for out of the burrow', () => {
     const SOCKET = readFileSync(new URL('../src/components/use-game-socket.ts', import.meta.url), 'utf8');
     expect(SOCKET).not.toMatch(/socket\.emit\(spectate \? 'spectate' : 'join'/);
     const onConnect = SOCKET.slice(SOCKET.indexOf("socket.on('connect'"), SOCKET.indexOf("socket.on('disconnect'"));
-    expect(onConnect).toMatch(/else if \(wantSeat\.current\) \{[\s\S]*?socket\.emit\('join'\)/);
+    expect(onConnect).toMatch(/else if \(wantSeat\.current\) \{[\s\S]*?socket\.emit\('join', choice\.current \?\? undefined\)/);
     const join = SOCKET.slice(SOCKET.indexOf('const join = useCallback'));
     // ...and only on a CONNECTED socket: socket.io buffers an emit made while
     // still connecting and flushes it on `connect`, where the handler above
     // asks again — two joins, two seats (see first-trip.test.ts).
-    expect(join.slice(0, 900)).toMatch(/wantSeat\.current = true;\s*const socket = socketRef\.current;\s*if \(socket\?\.connected\) socket\.emit\('join'\)/);
+    expect(join.slice(0, 900)).toMatch(/wantSeat\.current = true;\s*const socket = socketRef\.current;\s*if \(socket\?\.connected\) socket\.emit\('join', choice\.current \?\? undefined\)/);
     // Given up on the way home and at the end of a run, so a reconnect from
     // the burrow or the recap starts nothing.
     const leave = SOCKET.slice(SOCKET.indexOf('const leave = useCallback'));

@@ -443,6 +443,20 @@ export const fr: Dict = {
     fertiliser: 'Engrais',
   },
 
+  islandPick: {
+    choose: 'Choisir une \u00eele',
+    which: 'QUELLE \u00ceLE ?',
+    loading: 'On regarde la mer...',
+    row: (rabbits, left, total, dug) => `${rabbits} creusent \u00b7 ${left}/${total} coffres \u00b7 ${dug} % fouill\u00e9e`,
+    fresh: 'Personne dessus encore',
+    join: 'Rejoindre',
+    open: 'Ouvrir',
+    locked: (n) => `S\u2019ouvre \u00e0 ${n} carottes creus\u00e9es`,
+    lockedShort: 'Ferm\u00e9e',
+    brief: 'Une \u00eele occup\u00e9e, c\u2019est une fouille courte et s\u00fbre avec une part des coffres. Une \u00eele neuve, c\u2019est la longue course.',
+    gone: 'Cette \u00eele s\u2019est remplie ou a fini. Choisis-en une autre.',
+    tierLocked: 'Tu n\u2019as pas encore creus\u00e9 jusqu\u2019\u00e0 cette \u00eele.',
+  },
   raid: {
     go: 'PARTIR PILLER',
     another: 'Piller un autre terrier',

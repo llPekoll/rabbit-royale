@@ -445,6 +445,20 @@ export const ptBR: Dict = {
     fertiliser: 'Adubo',
   },
 
+  islandPick: {
+    choose: 'Escolher uma ilha',
+    which: 'QUAL ILHA?',
+    loading: 'Olhando o mar...',
+    row: (rabbits, left, total, dug) => `${rabbits} cavando \u00b7 ${left}/${total} ba\u00fas \u00b7 ${dug}% cavada`,
+    fresh: 'Ningu\u00e9m nela ainda',
+    join: 'Entrar',
+    open: 'Abrir',
+    locked: (n) => `Abre com ${n} cenouras cavadas`,
+    lockedShort: 'Fechada',
+    brief: 'Uma ilha cheia \u00e9 uma escava\u00e7\u00e3o curta e segura com parte dos ba\u00fas. Uma ilha nova \u00e9 a corrida longa.',
+    gone: 'Essa ilha encheu ou acabou. Escolha outra.',
+    tierLocked: 'Voc\u00ea ainda n\u00e3o cavou at\u00e9 essa ilha.',
+  },
   raid: {
     go: 'IR SAQUEAR',
     another: 'Saquear outra toca',

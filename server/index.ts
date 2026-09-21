@@ -20,7 +20,7 @@ import { randomUUID } from 'node:crypto';
 import { Server, type Socket } from 'socket.io';
 import { and, eq, isNull, sql as raw } from 'drizzle-orm';
 
-import { ENERGY, ERUPTION, LIGHTNING, MIRAGE, MULTIPLAYER, OUT_OF_RUN_ENERGY } from '../config/tuning';
+import { ENERGY, ERUPTION, ISLAND_TIERS, LIGHTNING, MIRAGE, MULTIPLAYER, OUT_OF_RUN_ENERGY, tierFor } from '../config/tuning';
 import { servirApi } from './api-router';
 import { mulberry32, seedFrom } from '../src/lib/game/rng';
 import { cascadeAround, chestProgress, publicView } from '../src/lib/game/island';
@@ -186,6 +186,19 @@ function newFirstIsland(playerId: string): LiveIsland {
  * after the first and find a held seat with no drop behind it, which is the
  * walk-home-and-back shape — the run would be banked, re-paid and restarted.
  */
+/** What a `join` may ask for: one island, or a tier to open or join. */
+interface IslandChoice { islandId?: string; tier?: string }
+/** What the `islands` ack carries. */
+interface IslandListing {
+  unlocked: number;
+  tiers: string[];
+  islands: Array<{ id: string; tier: string; rabbits: number; chestsLeft: number; chestsTotal: number; dugFraction: number }>;
+}
+/** A tier's rung on the ladder, from its name; -1 for a name that is not one. */
+function tierIndex(name: string): number {
+  return ISLAND_TIERS.findIndex((t) => t.name === name);
+}
+
 function oneAtATime<A extends unknown[]>(
   data: SocketData,
   handler: (...args: A) => Promise<unknown>,
@@ -610,7 +623,31 @@ io.on('connection', (socket: Socket) => {
    * Join a run. Drop-in: no lobby, no matchmaking — you land on the fullest
    * island that has room, or a new one if they are all full.
    */
-  socket.on('join', guard('join', oneAtATime(data, async () => {
+  /**
+   * THE ISLAND LIST, for the picker on DIG: every island a newcomer could be
+   * seated on, with what decides the choice — its tier, who is digging it,
+   * how many chests are left — and the highest tier this player has opened.
+   * Answered on the ack; nothing is joined.
+   */
+  socket.on('islands', async (ack?: (listing: IslandListing) => void) => {
+    if (typeof ack !== 'function') return;
+    if (!data.playerId) return ack({ unlocked: 0, tiers: ISLAND_TIERS.map((t) => t.name), islands: [] });
+    const player = await db.query.players.findFirst({ where: eq(players.id, data.playerId), columns: { lifetimeCarrots: true } });
+    ack({
+      unlocked: tierIndex(tierFor(player?.lifetimeCarrots ?? 0).name),
+      tiers: ISLAND_TIERS.map((t) => t.name),
+      islands: store.listJoinable().map((live) => ({
+        id: live.island.id,
+        tier: live.island.tier,
+        rabbits: live.rabbits.size,
+        chestsLeft: live.chestsTotal - live.chestsTaken,
+        chestsTotal: live.chestsTotal,
+        dugFraction: live.dugFraction,
+      })),
+    });
+  });
+
+  socket.on('join', guard('join', oneAtATime(data, async (choice?: IslandChoice | null) => {
     if (!data.playerId) return socket.emit('error_msg', { code: 'unauthenticated' });
 
     const player = await db.query.players.findFirst({ where: eq(players.id, data.playerId) });
@@ -628,9 +665,34 @@ io.on('connection', (socket: Socket) => {
     // than the fullest one. `runsPlayed` is bumped when a run banks, so a
     // first-timer who refreshes mid-run still finds their seat above, and one
     // who walks home and comes straight back gets the real ladder.
+    /**
+     * WHICH ISLAND. A held seat first, the tutorial for a first-timer, then
+     * the player's CHOICE (the list on DIG, Paul, 21 September 2026): an
+     * island by id, or a tier to open or join. Either is held to the ladder
+     * — nothing above the highest tier this player has dug their way to —
+     * and to `joinable`, the one rule the default also obeys. No choice
+     * (an older client, a reconnect) seats them on their own tier as before,
+     * except that the tier is now honoured: `findJoinable` used to take
+     * whatever was fullest, whichever tier had opened it.
+     */
+    const unlocked = tierIndex(tierFor(player.lifetimeCarrots).name);
+    let chosen: LiveIsland | undefined;
+    if (!store.seatOf(data.playerId) && player.runsPlayed > 0 && choice) {
+      if (choice.islandId) {
+        const live = store.get(choice.islandId);
+        if (!live || !store.joinable(live)) return socket.emit('error_msg', { code: 'island_gone' });
+        if (tierIndex(live.island.tier) > unlocked) return socket.emit('error_msg', { code: 'tier_locked' });
+        chosen = live;
+      } else if (choice.tier !== undefined) {
+        const idx = tierIndex(choice.tier);
+        if (idx < 0 || idx > unlocked) return socket.emit('error_msg', { code: 'tier_locked' });
+        chosen = store.findJoinable(choice.tier) ?? newIsland(ISLAND_TIERS[idx].minLifetime);
+      }
+    }
     const live = store.seatOf(data.playerId)
       ?? (player.runsPlayed === 0 ? newFirstIsland(player.id) : undefined)
-      ?? store.findJoinable()
+      ?? chosen
+      ?? store.findJoinable(tierFor(player.lifetimeCarrots).name)
       ?? newIsland(player.lifetimeCarrots);
 
     /**

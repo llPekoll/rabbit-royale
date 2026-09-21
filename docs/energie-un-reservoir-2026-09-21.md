@@ -33,4 +33,4 @@ Aucune migration.
 - [ ] `bun db:seed-tuning` après déploiement (`--dry-run` d'abord) : dix clés d'énergie et de raid sont surchargeables en base et masqueraient le fichier (`SHOP.PRICES.energy`, `OUT_OF_RUN_ENERGY.*`, `ENERGY.MIN_TO_CROSS`, `RAID_RUN.*`).
 - [ ] Relire `src/app/api/raid/route.ts` : plancher, budget, pas payés avec `floor: true`, remboursement par charge négative plafonnée, `burrowLevel` lu avec le réservoir.
 - [ ] Relire la fusion (d88fa00) : `payEnergy`, `bankRun`, l'éclair sur le réservoir persistant.
-- [ ] `findJoinable()` (server/islands/store.ts) ignore le palier : un débutant peut atterrir sur Caldera. À filtrer quand le choix de l'île arrivera.
+- [ ] **Relire le choix de l'île** (même soir) : `join` accepte `{ islandId }` ou `{ tier }`, tenus à l'échelle (`tier_locked`, `island_gone`) et à `store.joinable` ; sans choix, `findJoinable(tier)` ne mélange plus les paliers. L'événement `islands` (ack) liste ce qu'un nouveau peut rejoindre. La liste sur CREUSER est côté client (`island-picker.tsx`).

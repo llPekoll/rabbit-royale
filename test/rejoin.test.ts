@@ -73,7 +73,7 @@ describe('the server only reuses a rabbit for a genuine reconnect', () => {
     // and before drop-in. A first-timer who refreshes mid-run has a seat, and
     // must not be dealt a second tutorial island on top of it.
     expect(SERVER).toMatch(
-      /store\.seatOf\(data\.playerId\)\s*\?\?\s*\(player\.runsPlayed === 0 \? newFirstIsland\(player\.id\) : undefined\)\s*\?\?\s*store\.findJoinable\(\)/,
+      /store\.seatOf\(data\.playerId\)\s*\?\?\s*\(player\.runsPlayed === 0 \? newFirstIsland\(player\.id\) : undefined\)\s*\?\?\s*chosen\s*\?\?\s*store\.findJoinable\(tierFor\(player\.lifetimeCarrots\)\.name\)/,
     );
   });
 
@@ -86,7 +86,7 @@ describe('every crossing out to the island asks for a seat', () => {
   it('exposes join alongside leave', () => {
     // On a CONNECTED socket only — a buffered ask is sent again by the
     // connect handler (first-trip.test.ts).
-    expect(HOOK).toMatch(/if \(socket\?\.connected\) socket\.emit\('join'\)/);
+    expect(HOOK).toMatch(/if \(socket\?\.connected\) socket\.emit\('join', choice\.current \?\? undefined\)/);
     expect(HOOK).toMatch(/moveTo,\s*restart,\s*join,\s*leave/);
   });
 

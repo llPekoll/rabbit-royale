@@ -15,6 +15,14 @@
  * arrived in a `tile_revealed`; it never guesses what is under an unrevealed
  * one, because it genuinely does not know.
  */
+/** What a crossing may ask for — see `chooseIsland`. */
+export interface IslandChoice { islandId?: string; tier?: string }
+/** The islands a newcomer could be seated on, from the server's `islands` ack. */
+export interface IslandListing {
+  unlocked: number;
+  tiers: string[];
+  islands: Array<{ id: string; tier: string; rabbits: number; chestsLeft: number; chestsTotal: number; dugFraction: number }>;
+}
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import type { TileContent } from '@/lib/game/types';
@@ -296,7 +304,7 @@ type SceneGetter = () => IslandScene | null;
 
 /** Why the server would not seat the player, as `error_msg` reports it. */
 export interface JoinRefusal {
-  code: 'no_energy';
+  code: 'no_energy' | 'island_gone' | 'tier_locked';
   /** The burrow's bar as the server read it. */
   energy: number;
   /** What a run costs out of it. */
@@ -535,8 +543,9 @@ export function useGameSocket(
         socket.emit('spectate', { playerId: spectate });
       } else if (wantSeat.current) {
         // A seat asked for before this socket existed, or held before it
-        // dropped — see `wantSeat`.
-        socket.emit('join');
+        // dropped — see `wantSeat`. The choice rides along (a held seat wins
+        // on the server anyway).
+        socket.emit('join', choice.current ?? undefined);
       }
     });
     socket.on('disconnect', (reason: string) => {
@@ -559,6 +568,13 @@ export function useGameSocket(
      * the page already handles a dead session on its own.
      */
     socket.on('error_msg', (e: { code?: string; energy?: number; need?: number; nextRunInMs?: number | null }) => {
+      // A choice the server would not seat: the island filled or ended, or a
+      // tier this player has not opened. Refused like a crossing without
+      // energy, so the page comes home the same way — with the reason.
+      if (e?.code === 'island_gone' || e?.code === 'tier_locked') {
+        setRefused({ code: e.code, energy: 0, need: 0, nextRunInMs: null, at: Date.now() });
+        return;
+      }
       if (e?.code === 'no_energy') {
         setRefused({
           code: 'no_energy',
@@ -1120,6 +1136,20 @@ export function useGameSocket(
    * and no way to ask for one: every tap was dropped, silently, until the page
    * was reloaded. Each crossing now pairs with the `leave` that opened it.
    */
+  /**
+   * WHICH ISLAND the next `join` asks for (the picker on DIG): an island by
+   * id, or a tier to open or join. Kept until the next choice — a reconnect
+   * re-sends it, harmlessly, since a held seat wins on the server.
+   */
+  const choice = useRef<IslandChoice | null>(null);
+  const chooseIsland = useCallback((pick: IslandChoice | null) => { choice.current = pick; }, []);
+  /** The islands a newcomer could be seated on right now, with what decides the choice. */
+  const listIslands = useCallback((): Promise<IslandListing | null> => new Promise((resolve) => {
+    const socket = socketRef.current;
+    if (!socket?.connected) return resolve(null);
+    const timer = setTimeout(() => resolve(null), 4000);
+    socket.emit('islands', (listing: IslandListing) => { clearTimeout(timer); resolve(listing); });
+  }), []);
   const join = useCallback(() => {
     // Remembered even when there is no socket yet: `connect` sends it. A
     // socket that exists but is between reconnects also gets it on `connect`,
@@ -1131,7 +1161,7 @@ export function useGameSocket(
     // dealt two of them and shown both, one over the other.
     wantSeat.current = true;
     const socket = socketRef.current;
-    if (socket?.connected) socket.emit('join');
+    if (socket?.connected) socket.emit('join', choice.current ?? undefined);
     // A new crossing never shows the last run's card. It was cleared only when
     // the next island ARRIVED, so a DIG on a dropped socket landed on the old
     // board with "Run over" still up (seen live).
@@ -1157,6 +1187,6 @@ export function useGameSocket(
     casts, strikeRefused, struckBy, plants, plantRefused, bombedBy, watchers, incomingRaid, struckRaid,
     // Let the burrow page forget a raid it has finished showing.
     clearIncomingRaid: () => setIncomingRaid(null),
-    moveTo, restart, join, leave, strike, plant, bindScene, resync, flagMode, setFlagMode, flagNothing,
+    moveTo, restart, join, leave, chooseIsland, listIslands, strike, plant, bindScene, resync, flagMode, setFlagMode, flagNothing,
   };
 }

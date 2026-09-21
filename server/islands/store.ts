@@ -90,7 +90,12 @@ export interface IslandStore {
    * room, so players CLUSTER rather than scattering one-per-island. Drop-in
    * without a lobby only feels alive if the emptiest island is not the default.
    */
-  findJoinable(): LiveIsland | undefined;
+  findJoinable(tier?: string): LiveIsland | undefined;
+  /** Could a newcomer be seated here right now? The one rule `findJoinable`
+   *  and a CHOSEN island are both held to (Paul, 21 September 2026). */
+  joinable(live: LiveIsland): boolean;
+  /** Every island a newcomer could be seated on, for the list on DIG. */
+  listJoinable(): LiveIsland[];
   /**
    * The island already holding a seat for this player, if any.
    *
@@ -165,21 +170,36 @@ export class MemoryIslandStore implements IslandStore {
     return undefined;
   }
 
-  findJoinable(): LiveIsland | undefined {
+  joinable(live: LiveIsland): boolean {
+    if (live.erupting) return false;
+    if (live.solo) return false;
+    if (live.rabbits.size >= MULTIPLAYER.MAX_PLAYERS_PER_ISLAND) return false;
+    // Nearly cleared: whoever is on it finishes it, but it is not worth a
+    // run to anyone new. Both halves — ground left to dig, and chests left
+    // before the island ends on someone else's spade. See
+    // ERUPTION.JOIN_MIN_TILES_LEFT and JOIN_MIN_CHESTS_LEFT.
+    if (safeTilesLeft(live.island) < ERUPTION.JOIN_MIN_TILES_LEFT) return false;
+    if (chestsLeft(live.island) < ERUPTION.JOIN_MIN_CHESTS_LEFT) return false;
+    return true;
+  }
+
+  listJoinable(): LiveIsland[] {
+    return [...this.islands.values()].filter((live) => this.joinable(live));
+  }
+
+  /**
+   * Fullest-with-room, ON ONE TIER: pack players together, but never across
+   * the ladder. Until 21 September 2026 the tier was ignored, so a beginner
+   * could be seated on the Caldera somebody else had opened, and a veteran
+   * on a Meadow — the doors only ever applied to whoever opened the island.
+   * A tier is the island's own (`island.tier`); undefined joins any.
+   */
+  findJoinable(tier?: string): LiveIsland | undefined {
     let best: LiveIsland | undefined;
     for (const live of this.islands.values()) {
-      if (live.erupting) continue;
-      if (live.solo) continue;
-      const seats = live.rabbits.size;
-      if (seats >= MULTIPLAYER.MAX_PLAYERS_PER_ISLAND) continue;
-      // Nearly cleared: whoever is on it finishes it, but it is not worth a
-      // run to anyone new. Both halves — ground left to dig, and chests left
-      // before the island ends on someone else's spade. See
-      // ERUPTION.JOIN_MIN_TILES_LEFT and JOIN_MIN_CHESTS_LEFT.
-      if (safeTilesLeft(live.island) < ERUPTION.JOIN_MIN_TILES_LEFT) continue;
-      if (chestsLeft(live.island) < ERUPTION.JOIN_MIN_CHESTS_LEFT) continue;
-      // Fullest-with-room: pack players together.
-      if (!best || seats > best.rabbits.size) best = live;
+      if (!this.joinable(live)) continue;
+      if (tier !== undefined && live.island.tier !== tier) continue;
+      if (!best || live.rabbits.size > best.rabbits.size) best = live;
     }
     return best;
   }

@@ -50,6 +50,8 @@ import { EnergyCoach } from '@/components/energy-coach';
 import { LoreCrawl } from '@/components/lore-crawl';
 import { GardenCard } from '@/components/garden-card';
 import { BurrowPanel } from '@/components/burrow-card-panel';
+import { IslandPicker } from '@/components/island-picker';
+import type { IslandListing } from '@/components/use-game-socket';
 import { QuestCard } from '@/components/quest-card';
 import { FirstRunCaption } from '@/components/first-run-caption';
 import { ShoveToast } from '@/components/shove-toast';
@@ -1404,8 +1406,15 @@ function Burrow() {
     if (where === 'island') { goTo('burrow'); return; }
     spentRefusal.current = r.at;
     refreshBurrowRef.current();
+    // A CHOICE the server would not seat is not an empty tank: say why, and
+    // leave the player on the burrow to pick again.
+    if (r.code === 'island_gone' || r.code === 'tier_locked') {
+      game.chooseIsland(null);
+      refuse(r.code === 'island_gone' ? t.islandPick.gone : t.islandPick.tierLocked);
+      return;
+    }
     setEnergyOpen(true);
-  }, [game.refused, where, crossing, goTo]);
+  }, [game.refused, game.chooseIsland, where, crossing, goTo, refuse, t]);
 
   const buyWithCarrots = useCallback(async (kind: ItemKind) => {
     const res = await shop.buy(kind);
@@ -1438,8 +1447,26 @@ function Burrow() {
     // A dropped socket cannot seat a rabbit: crossing then landed on the old
     // board with nothing to play (seen live). Say so, and stay home.
     if (game.dropped) { refuse(t.notes.reconnecting); return; }
+    // THE FIRST TRIP IS THE TUTORIAL and is not chosen; every trip after is
+    // (the island list, Paul, 21 September 2026). Zero runs banked is the
+    // same test the server makes (`runsPlayed === 0`).
+    if ((burrow?.runs ?? 0) === 0) { goTo('island'); return; }
+    setIslandList(null);
+    setPickingIsland(true);
+    void game.listIslands().then(setIslandList);
+  }, [hasEnergy, goTo, game.dropped, game.listIslands, refuse, burrow?.runs]);
+  /**
+   * The island list on DIG: which island, or which tier to open. The choice
+   * rides on the next `join` (`chooseIsland`), and the crossing is the
+   * ordinary one — `goTo('island')` asks for the seat.
+   */
+  const [pickingIsland, setPickingIsland] = useState(false);
+  const [islandList, setIslandList] = useState<IslandListing | null>(null);
+  const chooseIsland = useCallback((choice: { islandId?: string; tier?: string }) => {
+    game.chooseIsland(choice);
+    setPickingIsland(false);
     goTo('island');
-  }, [hasEnergy, goTo, game.dropped, refuse]);
+  }, [game.chooseIsland, goTo]);
 
   /**
    * A tap on the NEXT strip goes where the line points: the island, the
@@ -2143,8 +2170,9 @@ function Burrow() {
     setEnergyOpen(false);
     // The target list and the codex are drawers over the burrow too. They
     // used to be the two left out here, so a list opened and then left behind
-    // by a spectate was still up over the island.
+    // by a spectate was still up over the island. The island list likewise.
     setPickingTarget(false);
+    setPickingIsland(false);
     setLoreOpen(false);
   }, [where, placing, stopPlacing, walling, stopWalling]);
 
@@ -3089,6 +3117,15 @@ function Burrow() {
             // saying what was taken, and repeating it in the corner would read
             // as a second, smaller announcement of the same thing.
           }}
+        />
+      )}
+
+      {player && pickingIsland && where === 'burrow' && !shownRaid && (
+        <IslandPicker
+          listing={islandList}
+          busy={crossing}
+          onChoose={chooseIsland}
+          onClose={() => setPickingIsland(false)}
         />
       )}
 

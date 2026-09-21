@@ -28,14 +28,14 @@ const VERIFY = read('../src/app/api/auth/verify/route.ts');
 describe('one ask, one seat', () => {
   it('asks only on a socket that is connected — the connect handler asks otherwise', () => {
     const join = HOOK.slice(HOOK.indexOf('const join = useCallback'));
-    expect(join.slice(0, 900)).toMatch(/if \(socket\?\.connected\) socket\.emit\('join'\)/);
+    expect(join.slice(0, 900)).toMatch(/if \(socket\?\.connected\) socket\.emit\('join', choice\.current \?\? undefined\)/);
     // The unguarded emit is what got buffered and sent twice.
     expect(join.slice(0, 900)).not.toMatch(/socketRef\.current\?\.emit\('join'\)/);
   });
 
   it('answers one join at a time on a socket, dropping the duplicate', () => {
     expect(SERVER).toMatch(/joining\?: boolean/);
-    expect(SERVER).toMatch(/socket\.on\('join', guard\('join', oneAtATime\(data, async \(\) => \{/);
+    expect(SERVER).toMatch(/socket\.on\('join', guard\('join', oneAtATime\(data, async \(choice\?: IslandChoice \| null\) => \{/);
     const gate = SERVER.slice(SERVER.indexOf('function oneAtATime'));
     // Dropped, not queued: a queued duplicate would find the seat the first
     // one took and restart the run as a walk-home-and-back.
