@@ -419,11 +419,55 @@ async function bankRun(rabbit: Rabbit) {
   const carrots = rabbit.carrots;
   const playerId = rabbit.playerId;
 
+  /**
+   * A RUN THAT DUG NOTHING IS REFUNDED, and does not count as a run.
+   *
+   * The crossing charges ENERGY.RUN_COST at the door (`payForRun`) because
+   * that is the only moment the burrow row is in hand — but what the player
+   * buys there is a BOARD, and a board they never broke ground on was never
+   * dealt to them. Walking out to look and walking home used to cost a third
+   * of the bank: "j'ai fait un game dig, j'ai pas bougé, j'ai perdu 20".
+   *
+   * `tilesDug` and not `carrots` is the test. A dig that turned up nothing but
+   * dirt, or ended on a bomb, is a run that HAPPENED and stays paid for;
+   * carrots would refund a genuine unlucky run and hand back the price of
+   * every board that failed to pay out.
+   *
+   * `runsPlayed` moves with the charge, for one reason beyond bookkeeping: it
+   * is what sends a first-timer to their authored island (see `join`). A
+   * refunded look-around must not burn that first island, or a newcomer who
+   * glances at the game and comes back has silently lost the tutorial.
+   *
+   * The refund FOLDS IN THE REGEN AND RE-STAMPS, the same shape as
+   * `chargeRun` and for the same reason: `players.energy` is a value read
+   * against `energyUpdatedAt`, never a running total. Adding to the column
+   * while leaving the stamp where the charge put it would let the interval
+   * since be paid out a second time on the next read — the run would hand
+   * back more than it took. Folded and clamped at the ceiling, "cross, wait,
+   * leave" is worth exactly nothing, which is what it should be worth.
+   */
+  const refunded = run.tilesDug === 0;
+  let refund: { energy: number; energyUpdatedAt: Date } | undefined;
+  if (refunded) {
+    const row = await db.query.players.findFirst({
+      where: eq(players.id, playerId),
+      columns: { energy: true, energyUpdatedAt: true },
+    });
+    if (row) {
+      const now = new Date();
+      refund = {
+        energy: Math.min(OUT_OF_RUN_ENERGY.MAX, currentEnergy(row, now.getTime()) + ENERGY.RUN_COST),
+        energyUpdatedAt: now,
+      };
+    }
+  }
+
   await db.update(players).set({
     stock: raw`${players.stock} + ${carrots}`,
     seasonScore: raw`${players.seasonScore} + ${carrots}`,
     lifetimeCarrots: raw`${players.lifetimeCarrots} + ${carrots}`,
-    runsPlayed: raw`${players.runsPlayed} + 1`,
+    runsPlayed: raw`${players.runsPlayed} + ${refunded ? 0 : 1}`,
+    ...(refund ?? {}),
     tilesDug: raw`${players.tilesDug} + ${run.tilesDug}`,
     chestsOpened: raw`${players.chestsOpened} + ${run.chests ?? 0}`,
     lastSeenAt: new Date(),

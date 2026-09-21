@@ -286,9 +286,30 @@ export async function POST(req: Request) {
   });
   if (open) return Response.json({ error: 'raid_in_progress', raid: await raidView(open.id, reveal) }, { status: 409 });
 
-  // Nobody gets farmed: one attack per victim per window.
+  /**
+   * Nobody gets farmed: one attack per victim per window.
+   *
+   * A raid NEVER WALKED does not start that window. `visited` opens holding
+   * the entrance tile alone (see the insert below) and grows by one per step,
+   * so a length of 1 is a raid that was opened and abandoned without a single
+   * move — the defender's ground was never touched and nothing about their
+   * burrow was learned beyond what the target list already showed.
+   *
+   * Charging the hour for it made opening a target to LOOK at it cost the
+   * same as raiding it: "je fais un raid, je bouge pas, et la cible est
+   * grillée pendant une heure". The cooldown exists to stop a victim being
+   * farmed, and a raid that took nothing farmed nobody.
+   *
+   * Deliberately not a refund but an exclusion: the abandoned row stays on
+   * file (it is history, and `raidView` may still be answering for it), it
+   * simply stops being the row the window is measured from.
+   */
   const recent = await db.query.raidRuns.findFirst({
-    where: and(eq(raidRuns.attackerId, session.sub), eq(raidRuns.defenderId, body.defenderId)),
+    where: and(
+      eq(raidRuns.attackerId, session.sub),
+      eq(raidRuns.defenderId, body.defenderId),
+      raw`coalesce(array_length(${raidRuns.visited}, 1), 0) > 1`,
+    ),
     orderBy: desc(raidRuns.startedAt),
   });
   if (recent && now - recent.startedAt.getTime() < RAID_RUN.COOLDOWN_MS) {
