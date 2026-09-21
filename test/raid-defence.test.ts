@@ -112,10 +112,21 @@ describe('defending a raid live', () => {
     expect(PAGE).toMatch(/useIncomingRaid\(/);
   });
 
-  it('tells the defender on every change of the run', () => {
-    // Start, each step (walking or settled), and a retreat: one `tellDefender`
-    // per write, so a burrow at home never sees its intruder freeze.
-    expect(RAID_API.match(/await tellDefender\(run\.id\)/g)?.length).toBe(4);
+  it('tells the defender on every change of a WALKED run', () => {
+    // Each step (walking or settled) and a retreat: one `tellDefender` per
+    // write, so a burrow at home never sees its intruder freeze.
+    //
+    // THREE, not four, since 21 September 2026: opening a raid no longer
+    // announces it. A target is opened in order to LOOK at it — the entrance
+    // and its neighbours are all a raider sees until they step — and a player
+    // who opened one and walked back out was putting a live siren on a
+    // defender's burrow for a crossing that never happened. The announcement
+    // moved to the first step, which is also where the per-victim cooldown now
+    // starts, so both agree on when a raid begins. See
+    // `untouched-run-is-free.test.ts`.
+    expect(RAID_API.match(/await tellDefender\(run\.id\)/g)?.length).toBe(3);
+    // And the retreat is announced only from a raid that was announced.
+    expect(RAID_API).toMatch(/if \(run\.visited\.length > 1\) await tellDefender/);
   });
 
   it('never lets the push bus take the socket server down', () => {

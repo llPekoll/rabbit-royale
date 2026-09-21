@@ -119,6 +119,52 @@ describe('a raid that was never walked does not burn the target', () => {
     expect(RAID).toMatch(/visited: \[start\]/);
   });
 
+  it('does not count as a raid played until a step is taken', () => {
+    // `raidsPlayed` is bumped in the SETTLE transaction, which only a PATCH
+    // reaches — an opened-and-abandoned raid never gets there. The quests read
+    // this same column (`lib/game/quests`), so "Knock on a door" follows it
+    // rather than needing its own rule.
+    const settle = RAID.slice(RAID.indexOf('await db.transaction'));
+    expect(settle).toMatch(/raidsPlayed: raw`\$\{players\.raidsPlayed\} \+ 1`/);
+    const post = RAID.slice(RAID.indexOf('export async function POST'), RAID.indexOf('export async function PATCH'));
+    expect(post).not.toMatch(/raidsPlayed/);
+    const del = RAID.slice(RAID.indexOf('export async function DELETE'));
+    expect(del).not.toMatch(/raidsPlayed/);
+  });
+
+  it('writes no line in the victim log without a step', () => {
+    // `raids` is the defender's history of what was done to them. It is
+    // inserted in the settle transaction only; abandoning writes nothing.
+    const del = RAID.slice(RAID.indexOf('export async function DELETE'));
+    expect(del).not.toMatch(/tx\.insert\(raids\)|db\.insert\(raids\)/);
+    const post = RAID.slice(RAID.indexOf('export async function POST'), RAID.indexOf('export async function PATCH'));
+    expect(post).not.toMatch(/insert\(raids\)/);
+  });
+
+  it('does not put an intruder on the defender\'s burrow before the first step', () => {
+    // The POST used to announce the raid the moment it opened, so a player who
+    // opened a target to look at it and left gave the defender a live siren
+    // for a crossing that never happened.
+    const post = RAID.slice(RAID.indexOf('export async function POST'), RAID.indexOf('export async function PATCH'));
+    expect(post).not.toMatch(/await tellDefender/);
+    // The PATCH still does, on every step.
+    const patch = RAID.slice(RAID.indexOf('export async function PATCH'), RAID.indexOf('export async function DELETE'));
+    expect(patch).toMatch(/await tellDefender\(run\.id\)/);
+  });
+
+  it('announces a retreat only from a raid that was announced', () => {
+    const del = RAID.slice(RAID.indexOf('export async function DELETE'));
+    expect(del).toMatch(/if \(run\.visited\.length > 1\) await tellDefender/);
+  });
+
+  it('hides an unwalked raid from the defender\'s own fallback read', () => {
+    // The push and this GET must agree, or a defender who merely loads their
+    // page at the wrong moment sees the intruder the push deliberately hid.
+    const INCOMING = read('../src/app/api/raid/incoming/route.ts');
+    const walked = INCOMING.match(/coalesce\(array_length/g) ?? [];
+    expect(walked.length).toBe(2); // the open raid, and the one just ended
+  });
+
   it('keeps one-raid-at-a-time, which is a different guard', () => {
     // The abandoned row is still OPEN until it ends, and that check has
     // nothing to do with the cooldown — loosening the window must not quietly

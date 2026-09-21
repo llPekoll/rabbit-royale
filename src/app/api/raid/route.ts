@@ -328,7 +328,20 @@ export async function POST(req: Request) {
     visited: [start],
   }).returning({ id: raidRuns.id });
 
-  await tellDefender(run.id);
+  /**
+   * THE DEFENDER IS NOT TOLD YET — the first STEP announces the raid.
+   *
+   * Opening a target is how you look at one: the entrance and its neighbours
+   * are drawn from `visited`, and until a step is taken nothing of the
+   * defender's ground has been touched. Announcing here put an intruder on
+   * their burrow — live, with the siren — for someone who then walked back
+   * out without moving, and a raid that costs the attacker nothing must not
+   * cost the defender a scare.
+   *
+   * Moved to the PATCH (see `tellDefender` there), which is also where the
+   * per-victim cooldown now starts, so the two agree on what a raid is: a
+   * crossing begins when someone takes a step onto your ground.
+   */
 
   // TEMPORARY: the flag has to ride the POST as well. This is the response
   // that draws the board on ARRIVAL, so without it a revealed raid showed the
@@ -527,8 +540,12 @@ export async function DELETE(req: Request) {
   await db.update(raidRuns)
     .set({ endedAt: new Date(), succeeded: false, carrotsLooted: 0 })
     .where(eq(raidRuns.id, run.id));
-  // The defender sees them turn back, rather than a rabbit that simply stops.
-  await tellDefender(run.id);
+  // The defender sees them turn back, rather than a rabbit that simply stops —
+  // but only if they were ever told someone was coming. A raid abandoned
+  // without a step was never announced (see the POST), so reporting the
+  // retreat would be the first and only word the defender heard about it: a
+  // rabbit appearing on their burrow purely in order to leave it.
+  if (run.visited.length > 1) await tellDefender(run.id);
 
   return Response.json({ raid: null });
 }
