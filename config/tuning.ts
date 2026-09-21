@@ -56,15 +56,27 @@
  *   Ashland  156 / 360 / 39%   365 / 1211 /  90% / 83%
  *   Caldera  125 / 352 / 33%   325 / 1365 /  85% / 100%
  *
- * A walker still dies every time, on every tier. A READER NOW CLEARS MEADOW
- * AND THICKET ALONE, in one run, and walks off with fuel three times in
- * four: on the first two tiers the island is the clock, not the tank, and
- * "every run ends on no energy" is no longer true for anyone who reads. The
- * fuel they leave with comes home (one tank) and pays the next crossing, so
- * a reader's day holds more than the regen says. Ashland and Caldera still
- * end at zero. The bar is not what needs tuning for that — the island's
- * size on the first tiers, or the X's payback, is: PAUL'S CALL, open on
- * 21 September 2026. Skill still pays in carrots per ticket either way.
+ * A walker still dies every time, on every tier. A READER CLEARS MEADOW AND
+ * THICKET ALONE, in one run, and walks off with fuel three times in four:
+ * on the first two tiers the island is the clock, not the tank. THAT IS THE
+ * INTENT (Paul, 21 September 2026): the game rewards the player who thinks.
+ * On the same bar a reader brings home twice the walker's carrots (999 to
+ * 399 on Meadow, 1 365 to 352 on Caldera) and goes twice as far, and on the
+ * first week's islands thinking means FINISHING the island — a run that ends
+ * on its last chest, with fuel that comes home and pays the next crossing.
+ * From Ashland on, even a reader dies; that is where the difficulty starts,
+ * and where the recap sells the refill to everyone. The walker sees it on
+ * every tier.
+ *
+ * The levers were measured before deciding (same day): a bigger island does
+ * nothing (the disc already fills the 32x32 grid — growing it is a rendering
+ * project, see gridConfig), a 45 or 60 bomb punishes the walker and leaves
+ * the reader at 99 %, an X at +2 changes nothing visible, and only an X at
+ * +1 on the first tiers makes the tank bind again (83-88 % cleared) — at the
+ * price of telling a new player, on the island where the X is taught, that
+ * reading pays almost nothing. Rejected. To confirm in playtests with real
+ * readers: does finishing Meadow in one go bore, and how much fuel comes
+ * home.
  */
 export const ENERGY = {
   /** Energy a run starts with: a full bar. */
@@ -183,6 +195,13 @@ export const BOMB = {
 /**
  * Island size varies to avoid monotony (Phase 2). Width/height are drawn
  * independently from [MIN, MAX] so islands are not always square.
+ *
+ * MIN_SIZE and MAX_SIZE ARE NOT READ ANY MORE (checked 21 September 2026):
+ * the island's ground is the wobbly disc `makeShape` cuts from the 32x32
+ * grid (gridConfig.ts, BASE_RADIUS 0.86), and at that radius the disc already
+ * touches the box — raising it changes nothing, measured. Making islands
+ * bigger means growing the grid, which is a rendering and camera project,
+ * not a number here. Kept so the sim sets that name them still parse.
  */
 export const ISLAND = {
   MIN_SIZE: 14,
