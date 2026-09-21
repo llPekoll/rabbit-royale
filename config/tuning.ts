@@ -48,12 +48,23 @@
  * a Thicket in a single run, where the design says nobody clears an island
  * alone.
  *
- * 300, 21 September 2026 (Paul's call, for length). NOT yet re-simulated —
- * re-run `tools/sim-dig.sim.ts` and replace the table above. The thing to look
- * at is the Thicket reader, already at 78 % of the board on half this bar: if
- * doubling it lets one reader clear an island alone, the bar is not what needs
- * tuning — the island's size or the X's payback is. Skill still pays in
- * carrots per ticket either way.
+ * 300, 21 September 2026 (Paul's call, for length). Re-run the same day:
+ *
+ *              no X              reads       (tiles dug / carrots / cleared / died)
+ *   Meadow   254 / 399 / 60%   427 /  999 / 100% / 25%
+ *   Thicket  214 / 404 / 52%   415 / 1181 /  99% / 17%
+ *   Ashland  156 / 360 / 39%   365 / 1211 /  90% / 83%
+ *   Caldera  125 / 352 / 33%   325 / 1365 /  85% / 100%
+ *
+ * A walker still dies every time, on every tier. A READER NOW CLEARS MEADOW
+ * AND THICKET ALONE, in one run, and walks off with fuel three times in
+ * four: on the first two tiers the island is the clock, not the tank, and
+ * "every run ends on no energy" is no longer true for anyone who reads. The
+ * fuel they leave with comes home (one tank) and pays the next crossing, so
+ * a reader's day holds more than the regen says. Ashland and Caldera still
+ * end at zero. The bar is not what needs tuning for that — the island's
+ * size on the first tiers, or the X's payback, is: PAUL'S CALL, open on
+ * 21 September 2026. Skill still pays in carrots per ticket either way.
  */
 export const ENERGY = {
   /** Energy a run starts with: a full bar. */
@@ -120,8 +131,8 @@ export const ENERGY = {
    * It opened at 10 (the fee plus five digs) when the pools merged: fifty
    * minutes after a dead run the gate let a player onto an island that
    * ended on the seventh tile, which is the arrival the gate exists to
-   * prevent. 40 is one blast survived with something left to read, and two
-   * hours of regen after a dead run (21 September 2026, measured in
+   * prevent. 40 is one blast survived with something left to read, and 80
+   * minutes of regen after a dead run (21 September 2026, measured in
    * `tools/economy-day.sim.ts`).
    */
   MIN_TO_CROSS: 40,
@@ -375,10 +386,11 @@ export const FLAG = {
  * on the likeliest tile answers the rest. The tool was already in the game.
  *
  * RE-SPACED 21 September 2026 for the ONE TANK: a day is now what the
- * regen puts back (OUT_OF_RUN_ENERGY.REGEN_PER_HOUR, 480 at 20 an hour),
- * spent on one raid and the runs the rest pays for, not four runs posed by
- * hand. The sim's door line at that day says 5 000, 18 500 and 36 500 for
- * days 3, 8 and 14 — a sixth off the first door, a twentieth off the others.
+ * regen puts back (OUT_OF_RUN_ENERGY.REGEN_PER_HOUR, 720 at 30 an hour on
+ * the 300 bar), spent on one raid and the runs the rest pays for, not four
+ * runs posed by hand. The sim's door line at that day says 7 500, 22 500
+ * and 45 500 for days 3, 8 and 14 (it said 5 000 / 18 500 / 36 500 on the
+ * 150 bar, earlier the same day: the doors follow the bar too).
  *
  * RE-SPACED 17 September 2026 — same intended pace, measured income.
  *
@@ -432,9 +444,9 @@ export interface IslandTier {
 
 export const ISLAND_TIERS: readonly IslandTier[] = [
   { name: 'Meadow',  minLifetime: 0,      bombDensity: 0.14, carrotDensity: 0.30, goldenShare: 0.06, xGain: 3 },
-  { name: 'Thicket', minLifetime: 5_000,   bombDensity: 0.17, carrotDensity: 0.34, goldenShare: 0.09, xGain: 3 },
-  { name: 'Ashland', minLifetime: 18_500, bombDensity: 0.20, carrotDensity: 0.38, goldenShare: 0.13, xGain: 2 },
-  { name: 'Caldera', minLifetime: 36_500, bombDensity: 0.24, carrotDensity: 0.43, goldenShare: 0.18, xGain: 2 },
+  { name: 'Thicket', minLifetime: 7_500,   bombDensity: 0.17, carrotDensity: 0.34, goldenShare: 0.09, xGain: 3 },
+  { name: 'Ashland', minLifetime: 22_500, bombDensity: 0.20, carrotDensity: 0.38, goldenShare: 0.13, xGain: 2 },
+  { name: 'Caldera', minLifetime: 45_500, bombDensity: 0.24, carrotDensity: 0.43, goldenShare: 0.18, xGain: 2 },
 ] as const;
 
 // ── Phase 2: island life cycle ───────────────────────────────────────────────
@@ -533,26 +545,31 @@ export const GARDEN = {
 
 export const OUT_OF_RUN_ENERGY = {
   /**
-   * Energy the tank refills while you are away. 20 an hour: an empty tank is
-   * full again in 7.5 hours, one point every three minutes, a dead run can
-   * cross again (ENERGY.MIN_TO_CROSS) in two hours.
+   * Energy the tank refills while you are away. 30 an hour on the 300 bar:
+   * a full tank in 10 hours, a point every two minutes, a dead run can cross
+   * again (ENERGY.MIN_TO_CROSS) in 80 minutes.
    *
    * SIZED TO THE GAP BETWEEN SESSIONS, not to a number of runs. A run ends
    * at zero, so with one tank a full tank IS one run and the refill clock is
    * the run clock: what this number decides is how many sessions a day are
-   * free. The lane's norm is a 5-15 minute session played two to four times
-   * a day, with the meter full again by the next natural sit-down and never
-   * full for long (Candy Crush and Royal Match refill in 2.5 h, Coin Master
-   * in 10, Puzzle & Dragons in 3-8). At 12 (empty to full in 12.5 h, carried
+   * free. The lane's norm is a session played two to four times a day, with
+   * the meter full again by the next natural sit-down and never full for
+   * long (Candy Crush and Royal Match refill in 2.5 h, Coin Master in 10,
+   * Puzzle & Dragons in 3-8). At 12 (empty to full in 12.5 h on 150, carried
    * over from the old 60-at-5 bank) only a player who came exactly twice a
-   * day saw a full tank, and the garden's 12 h cap already asks for those
-   * two visits. 20 gives breakfast, lunch and evening a full tank each, 480
-   * a day, and wastes nothing for the player who comes twice. Past 30 the
-   * tank is full at every visit and the meter stops meaning anything; a
-   * bigger tank is a longer run, not more of them (see ENERGY.MAX). Paul,
-   * 21 September 2026.
+   * day saw a full tank. Ten hours to full is 720 a day: two full sessions
+   * and a raid plus half a run for the third, and nothing wasted for the
+   * player who comes twice. Full in 7.5 h (40) was tried the same day and
+   * pushed runs to 71 % of the regular's income (ceiling 70) and burrow
+   * level 5 under a day and a half — a 300-point run is 12-25 minutes, and
+   * three free ones a day is more digging than the economy was drawn for.
+   * Past about 5 h to full the tank is full at every visit and the meter
+   * stops meaning anything; a bigger tank is a longer run, not more of them
+   * (see ENERGY.MAX). So this number FOLLOWS the bar — 20 on 150, 30 on 300:
+   * move ENERGY.MAX and re-run `tools/economy-day.sim.ts`. Paul, 21
+   * September 2026.
    */
-  REGEN_PER_HOUR: 20,
+  REGEN_PER_HOUR: 30,
   /** The tank's ceiling — the same tank the run drains (ENERGY.MAX). */
   MAX: ENERGY.MAX,
 } as const;
@@ -718,15 +735,18 @@ export const RAID_RUN = {
    * targets stay cheap, never free — and the choice reads as a bet against
    * the tank, which is the whole point (Paul, 2026-09-21).
    *
-   * 30, from 15, the same day. With ONE tank the two doors compete for the
-   * same points, and at 15 a raid paid 7 carrots a point on Meadow (14 on
-   * Caldera) against 2.6 for a run: the stake capped the bet at 40 while a
-   * run spends all 150, so the rational player raided first and dug with
-   * the change. At 30 with a 60 stake a raid costs 40-60 and pays about 4 a
-   * point — still the better trade, twice a run rather than three to five
-   * times, and now a real bet of a third of the tank.
+   * 45, from 15, the same day (30 while the bar was 150). With ONE tank the
+   * two doors compete for the same points, and at 15 a raid paid 7 carrots
+   * a point on Meadow (14 on Caldera) against 2.6 for a run: the stake
+   * capped the bet at 40 while a run spends the whole tank, so the rational
+   * player raided first and dug with the change. THE RULE: a raid pays about
+   * TWICE a run per point of energy — still the better trade, never three to
+   * five times — and the haul grows with the victims' income, so the toll
+   * follows the bar. On 300 a run pays ~2.4 a point (725 for a tank, the
+   * regular on Meadow) and a raid at 45 + a 30-point walk costs 55-75 for a
+   * ~365 haul: ~5.6 a point, 2.3x. A bet of a quarter of the tank.
    */
-  TOLL: 30,
+  TOLL: 45,
   /**
    * Steps of walk the tank must hold PAST the toll to be let in — the
    * longest crossing the generator deals (8..13 steps, see TRAPS.DOORSTEP).
@@ -745,10 +765,11 @@ export const RAID_RUN = {
    * did. A player with less than this in the tank stakes what they have,
    * which is the risk they took crossing on a low bar.
    *
-   * 60, from 40, with the toll (see TOLL): the walk stays 30, so three
-   * traps (24) and the crossing still end it, and two on a long crossing.
+   * THE TOLL PLUS 30 (75; 60 on the 150 bar, 40 before the toll moved): the
+   * walk itself stays 30 whatever the bar, so three traps (24) and the
+   * crossing still end it, and two on a long crossing.
    */
-  STAKE: 60,
+  STAKE: 75,
   /** Every step costs this, trap or not — distance itself is a defence. */
   STEP_COST: 1,
   /**
@@ -1047,12 +1068,14 @@ export const SHOP = {
     lightning: 500,
     shield: 600,
     // A refill is ONE TANK, and a run always ends at zero, so it buys one
-    // run: ~390 for the player in the middle. 450 keeps it a sink (it must
-    // not print carrots) without being a joke — at 900, carried over from
-    // the days when the same pack bought three crossings, it cost 2.3 runs
-    // for one. At 400 (carrot at 15) it bought runs worth 3 750 and made the
-    // paid refill pointless. `tools/economy-day.sim.ts` checks the ratio.
-    energy: 450,
+    // run: ~725 for the player in the middle on the 300 bar (390 on 150).
+    // Priced just under a run so it stays a sink (it must not print
+    // carrots) without being a joke — at 900, carried over from the days
+    // when the same pack bought three crossings on a 150 bar, it cost 2.3
+    // runs for one. It FOLLOWS the bar: move ENERGY.MAX and re-run
+    // `tools/economy-day.sim.ts`, which checks the ratio. At 400 (carrot at
+    // 15) it bought runs worth 3 750 and made the paid refill pointless.
+    energy: 700,
     /**
      * The dearest thing in the shed, and the only one that is dear for a
      * DESIGN reason rather than an economic one: it takes information away

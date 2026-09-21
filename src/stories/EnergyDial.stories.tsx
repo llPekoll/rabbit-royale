@@ -19,7 +19,7 @@
  * `Live` is the one to actually watch: it drains in real time, which is the
  * only way to catch a sweep that jumps or runs backwards.
  *
- * THE NUMBERS ARE THE GAME'S. `OUT_OF_RUN_ENERGY.MAX` is 150 — the one tank
+ * THE NUMBERS ARE THE GAME'S. `OUT_OF_RUN_ENERGY.MAX` is 300 — the one tank
  * the medallion shows — and a crossing asks for `ENERGY.MIN_TO_CROSS` (40).
  */
 import { useEffect, useState, type CSSProperties } from 'react';
