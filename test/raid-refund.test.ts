@@ -53,11 +53,12 @@ describe('a raid in what came home is said', () => {
 describe('no energy, whichever door', () => {
   it('offers the refill when a raid leaves the tank under the crossing floor', () => {
     const PAGE = read('../src/app/page.tsx');
-    // Decided when the raid settles, from the tank the last step left...
-    expect(PAGE).toMatch(/refillAfterRaid\.current = r !== null && r\.tank !== null && r\.tank < ENERGY\.MIN_TO_CROSS;/);
-    // ...and opened once the raid's board is gone, never over it: under a
-    // raid `where` is already the burrow, so the arrival intent would have
-    // fired on the spot.
-    expect(PAGE).toMatch(/if \(shownRaid \|\| !refillAfterRaid\.current\) return;\s*refillAfterRaid\.current = false;\s*refreshBurrowRef\.current\(\);\s*setEnergyOpen\(true\);/);
+    // From the last tank the raid's board carried, whichever way it left —
+    // settled, won, or retreated from after the toll...
+    expect(PAGE).toMatch(/if \(raid\.raid\?\.tank != null\) raidTank\.current = raid\.raid\.tank;/);
+    // ...and opened once the board is gone, never over it: under a raid
+    // `where` is already the burrow, so the arrival intent would have fired
+    // on the spot.
+    expect(PAGE).toMatch(/if \(shownRaid\) return;\s*const tank = raidTank\.current;\s*raidTank\.current = null;\s*if \(tank === null \|\| tank >= ENERGY\.MIN_TO_CROSS\) return;\s*refreshBurrowRef\.current\(\);\s*setEnergyOpen\(true\);/);
   });
 });

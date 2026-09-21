@@ -1932,11 +1932,20 @@ function Burrow() {
    * raid, come home dry). Set when the raid is settled, read when its board
    * leaves — `where` is already the burrow under a raid, so the arrival
    * intent (`shopOnArrival`) would have opened the popup over the raid.
+   *
+   * Read from the LAST tank the raid's board carried, whichever way the
+   * board left — settled at zero, won and dismissed, or retreated from after
+   * the toll was paid: a player who walks out at 1 has spent the tank the
+   * same way. A retreat before any step never paid the toll, so the tank is
+   * what it was at the door, over the floor by construction.
    */
-  const refillAfterRaid = useRef(false);
+  const raidTank = useRef<number | null>(null);
+  if (raid.raid?.tank != null) raidTank.current = raid.raid.tank;
   useEffect(() => {
-    if (shownRaid || !refillAfterRaid.current) return;
-    refillAfterRaid.current = false;
+    if (shownRaid) return;
+    const tank = raidTank.current;
+    raidTank.current = null;
+    if (tank === null || tank >= ENERGY.MIN_TO_CROSS) return;
     refreshBurrowRef.current();
     setEnergyOpen(true);
   }, [shownRaid]);
@@ -1988,9 +1997,6 @@ function Burrow() {
           : t.raid.fellShort(Math.round((finishedOutcome.current?.progress ?? 0) * 100), r.defender.name)
       : null;
     if (r && !won) playUiSfx('die');
-    // The tank as the last step left it (the refund at the field included):
-    // under the crossing floor, the burrow offers the refill on the way out.
-    refillAfterRaid.current = r !== null && r.tank !== null && r.tank < ENERGY.MIN_TO_CROSS;
     // The shock runs past the ordinary beat (bolt, hold, the fall, the body
     // left a moment): going home under it would cut the one thing the
     // defender paid an item to have the raider see.
