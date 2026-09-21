@@ -30,7 +30,8 @@ function check(label: string, ok: boolean, detail?: unknown) {
 async function reset() {
   for (const id of [ATT, DEF]) await db.delete(players).where(eq(players.id, id));
   await db.insert(players).values([
-    { id: ATT, wallet: 'RAIDATT', name: 'Attacker', stock: 50_000 },
+    // Born with a tank: the door asks for the toll plus the longest crossing (RAID_RUN.WALK_FLOOR).
+    { id: ATT, wallet: 'RAIDATT', name: 'Attacker', stock: 50_000, energy: 150 },
     { id: DEF, wallet: 'RAIDDEF', name: 'Defender', stock: 10_000 },
   ]);
 }
@@ -94,6 +95,8 @@ async function main() {
     if (out.outcome) {
       check('reaching the field ends the raid', out.outcome.reachedField === true, out.outcome);
       check('...and pays the full share', out.outcome.loot > 0, out.outcome.loot);
+      // The walk comes back at the field (RAID_RUN.STEP_REFUND_AT_FIELD): the steps, never a trap.
+      check('...and gives the steps back to the tank', out.outcome.refunded === (out.raid.walked.length - 1) * RAID_RUN.STEP_COST * RAID_RUN.STEP_REFUND_AT_FIELD, out.outcome);
       break;
     }
   }

@@ -195,7 +195,7 @@ export const fr: Dict = {
     markCancel: 'Annuler',
     markNothing: 'Rien à marquer ici : toutes les cases autour de toi sont déjà lues.',
     energyLow: 'Énergie basse. Un X juste sur une bombe en rend.',
-    energyRaidLeft: 'Encore de quoi piller. Rentre maintenant, ou continue.',
+    energyRaidLeft: 'Encore de quoi piller. Rentre, ou continue.',
     trapHint: (left) => `Touche une case pour la miner, une mine pour la reprendre · ${left} restant`,
     trapHintEmpty: 'Plus de bombes · achètes-en une autre, ou touche une mine pour la reprendre et la poser ailleurs',
     strike: 'Foudroyer',

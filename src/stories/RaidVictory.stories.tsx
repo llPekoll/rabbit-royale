@@ -55,9 +55,10 @@ interface HarnessArgs {
   carrots: number;
   avatar: string;
   trapsSprung: number;
+  refunded?: number;
 }
 
-function Harness({ defender, carrots, avatar, trapsSprung }: HarnessArgs) {
+function Harness({ defender, carrots, avatar, trapsSprung, refunded }: HarnessArgs) {
   // `run` keys the mount so REPLAY plays the choreography from its first frame
   // again; `open` is the dismissal the button itself performs.
   const [run, setRun] = useState(0);
@@ -78,6 +79,7 @@ function Harness({ defender, carrots, avatar, trapsSprung }: HarnessArgs) {
           carrots={carrots}
           avatar={avatar}
           trapsSprung={trapsSprung}
+          refunded={refunded}
           onDone={() => setOpen(false)}
         />
       )}
@@ -137,6 +139,10 @@ export const BigHaul: Story = { args: { carrots: 48_200, trapsSprung: 3 } };
  * show a "0 TRAPS" row that reads as a missing stat.
  */
 export const Untouched: Story = { args: { carrots: 1_240, trapsSprung: 0 } };
+
+/** THE WALK COMES BACK: a raid that reached the field is told its steps are
+ *  refunded (RAID_RUN.STEP_REFUND_AT_FIELD), under the haul. */
+export const StepsBack: Story = { args: { carrots: 2_180, trapsSprung: 1, refunded: 11 } };
 
 /**
  * A defender who barely had anything, robbed by a white rabbit.

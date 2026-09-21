@@ -176,6 +176,15 @@ export function LoopBar({
     setReadyKey((k) => ({ dig: k.dig + (digBecame ? 1 : 0), home: k.home + (homeBecame ? 1 : 0), raid: k.raid + (raidBecame ? 1 : 0) }));
     playUiSfx('chimeQuick');
   }, [canDig, home.gardenReady, canRaid]);
+  // ...AND ON LANDING FROM A RUN. The bar is mounted on the burrow only, so
+  // the effect above sees a tank that was already a raid's worth when it
+  // woke and says nothing. What came home (`broughtHome`, keyed per run)
+  // is the landing: a raid in the tank at that moment pops the slab once.
+  useEffect(() => {
+    if (!broughtHome || !canRaid) return;
+    setReadyKey((k) => ({ ...k, raid: k.raid + 1 }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the haul's key is the event; the tank is read as it stands then
+  }, [broughtHome?.key]);
   const pulse = (loop: Loop) => {
     const quest = pointed === loop && questPulseKey > 0 ? questPulseKey : 0;
     const ready = loop === 'dig' ? readyKey.dig : loop === 'home' ? readyKey.home : readyKey.raid;

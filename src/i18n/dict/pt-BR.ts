@@ -199,7 +199,7 @@ export const ptBR: Dict = {
     markCancel: 'Cancelar',
     markNothing: 'Nada para marcar aqui: todas as casas ao seu redor já foram lidas.',
     energyLow: 'Energia baixa. Um X certo numa bomba devolve um pouco.',
-    energyRaidLeft: 'Ainda dá para um saque. Volte agora, ou continue.',
+    energyRaidLeft: 'Ainda dá para um saque. Volte, ou continue.',
     trapHint: (left) => `Toque num quadrado para minar, numa mina para tirar · restam ${left}`,
     trapHintEmpty: 'Sem bombas · compre outra, ou toque numa mina para tirar e enterrar noutro lugar',
     strike: 'Raio',

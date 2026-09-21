@@ -233,7 +233,7 @@ export const en = {
     markCancel: 'Cancel',
     markNothing: 'Nothing to mark here: every tile around you is already read.',
     energyLow: 'Low energy. A right X on a bomb gives some back.',
-    energyRaidLeft: 'Still a raid in the tank. Head home now, or dig on.',
+    energyRaidLeft: 'Still a raid in the tank. Go home, or dig on.',
     trapHint: (left: number) => `Tap a tile to mine it, tap a mine to lift it · ${left} left`,
     trapHintEmpty: 'No bombs left · buy another, or tap a mine to lift it and bury it elsewhere',
     strike: 'Strike',

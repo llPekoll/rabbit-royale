@@ -45,5 +45,7 @@ describe('a raid in what came home is said', () => {
     const BAR = read('../src/components/loop-bar.tsx');
     expect(BAR).toMatch(/const canRaid = dig\.energy >= RAID_RUN\.TOLL \+ RAID_RUN\.WALK_FLOOR \* RAID_RUN\.STEP_COST && raid\.open > 0;/);
     expect(BAR).toMatch(/readyKey\.raid/);
+    // The bar mounts on the burrow only, so the landing itself is the trigger: what came home, keyed per run.
+    expect(BAR).toMatch(/if \(!broughtHome \|\| !canRaid\) return;\s*setReadyKey\(\(k\) => \(\{ \.\.\.k, raid: k\.raid \+ 1 \}\)\);/);
   });
 });
