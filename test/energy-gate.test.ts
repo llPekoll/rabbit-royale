@@ -57,8 +57,9 @@ describe('a run is paid for out of the burrow', () => {
   const perPoint = hour / OUT_OF_RUN_ENERGY.REGEN_PER_HOUR;
 
   it('costs a whole run, and the bar says so', () => {
-    const v = burrowView(row(ENERGY.RUN_COST), now);
-    expect(v.runCost).toBe(ENERGY.RUN_COST);
+    const v = burrowView(row(ENERGY.MIN_TO_CROSS), now);
+    expect(v.runCost).toBe(ENERGY.MIN_TO_CROSS);
+    expect(v.crossingCost).toBe(ENERGY.CROSSING_COST);
     expect(v.nextRunInMs).toBeNull();
   });
 
@@ -68,33 +69,33 @@ describe('a run is paid for out of the burrow', () => {
     // pay the same three hours out again on the next read.
     // Long enough away for the regen to afford a run, whatever the tuning says
     // today: at 5/h and a cost of 25, three hours no longer did.
-    const hours = Math.ceil(ENERGY.RUN_COST / OUT_OF_RUN_ENERGY.REGEN_PER_HOUR) + 1;
+    const hours = Math.ceil(ENERGY.MIN_TO_CROSS / OUT_OF_RUN_ENERGY.REGEN_PER_HOUR) + 1;
     const paid = chargeRun(row(0, hours * hour), now)!;
-    expect(paid.energy).toBe(hours * OUT_OF_RUN_ENERGY.REGEN_PER_HOUR - ENERGY.RUN_COST);
+    expect(paid.energy).toBe(hours * OUT_OF_RUN_ENERGY.REGEN_PER_HOUR - ENERGY.CROSSING_COST);
     expect(paid.energyUpdatedAt.getTime()).toBe(now);
     expect(burrowView({ ...row(0), ...paid }, now).energy).toBe(paid.energy);
   });
 
   it('refuses a bar short of a run, by a single point', () => {
-    expect(chargeRun(row(ENERGY.RUN_COST - 1), now)).toBeNull();
-    expect(chargeRun(row(ENERGY.RUN_COST), now)).not.toBeNull();
+    expect(chargeRun(row(ENERGY.MIN_TO_CROSS - 1), now)).toBeNull();
+    expect(chargeRun(row(ENERGY.MIN_TO_CROSS), now)).not.toBeNull();
   });
 
   it('never pays out of a ceiling it does not have', () => {
     // A bar left for a week is still capped: two runs, not two hundred.
     const first = chargeRun(row(0, 7 * 24 * hour), now)!;
-    expect(first.energy).toBe(OUT_OF_RUN_ENERGY.MAX - ENERGY.RUN_COST);
+    expect(first.energy).toBe(OUT_OF_RUN_ENERGY.MAX - ENERGY.CROSSING_COST);
   });
 
   it('counts down to a RUN, not to the next point', () => {
     // One point short: the wait is one point's worth, and it is the same
     // clock the bar itself ticks on.
-    const short = row(ENERGY.RUN_COST - 1);
+    const short = row(ENERGY.MIN_TO_CROSS - 1);
     expect(msToRun(short, now)).toBe(perPoint);
     expect(msToRun(short, now + perPoint)).toBeNull();
     // Empty: the wait is the whole cost's worth.
-    expect(msToRun(row(0), now)).toBe(ENERGY.RUN_COST * perPoint);
-    expect(burrowView(row(0), now).nextRunInMs).toBe(ENERGY.RUN_COST * perPoint);
+    expect(msToRun(row(0), now)).toBe(ENERGY.MIN_TO_CROSS * perPoint);
+    expect(burrowView(row(0), now).nextRunInMs).toBe(ENERGY.MIN_TO_CROSS * perPoint);
   });
 
   it('is what the burrow gates the crossing on', () => {

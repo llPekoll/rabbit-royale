@@ -451,27 +451,22 @@ async function bankRun(rabbit: Rabbit) {
    * leave" is worth exactly nothing, which is what it should be worth.
    */
   const refunded = !run.moved;
-  let refund: { energy: number; energyUpdatedAt: Date } | undefined;
-  if (refunded) {
-    const row = await db.query.players.findFirst({
-      where: eq(players.id, playerId),
-      columns: { energy: true, energyUpdatedAt: true },
-    });
-    if (row) {
-      const now = new Date();
-      refund = {
-        energy: Math.min(OUT_OF_RUN_ENERGY.MAX, currentEnergy(row, now.getTime()) + ENERGY.RUN_COST),
-        energyUpdatedAt: now,
-      };
-    }
-  }
-
+  // THE TANK COMES HOME. There is one energy now (ENERGY.CROSSING_COST's
+  // note): the rabbit dug with the burrow's own bar, so what it has left is
+  // what the burrow has — written back as is, stamped now. A run that never
+  // took a step gets its crossing fee back on top; a run that died writes
+  // zero, and the tank climbs from there. The minutes spent on the island
+  // regen nothing: the bar was in use.
+  const settled = {
+    energy: Math.min(OUT_OF_RUN_ENERGY.MAX, Math.max(0, Math.floor(rabbit.energy) + (refunded ? ENERGY.CROSSING_COST : 0))),
+    energyUpdatedAt: new Date(),
+  };
   await db.update(players).set({
     stock: raw`${players.stock} + ${carrots}`,
     seasonScore: raw`${players.seasonScore} + ${carrots}`,
     lifetimeCarrots: raw`${players.lifetimeCarrots} + ${carrots}`,
     runsPlayed: raw`${players.runsPlayed} + ${refunded ? 0 : 1}`,
-    ...(refund ?? {}),
+    ...settled,
     tilesDug: raw`${players.tilesDug} + ${run.tilesDug}`,
     chestsOpened: raw`${players.chestsOpened} + ${run.chests ?? 0}`,
     lastSeenAt: new Date(),
@@ -651,14 +646,17 @@ io.on('connection', (socket: Socket) => {
         return socket.emit('error_msg', {
           code: 'no_energy',
           energy: paid.energy,
-          need: ENERGY.RUN_COST,
+          need: ENERGY.MIN_TO_CROSS,
           nextRunInMs: paid.nextRunInMs,
         });
       }
-      bank = { energy: paid.energy, cost: ENERGY.RUN_COST, max: OUT_OF_RUN_ENERGY.MAX };
+      bank = { energy: paid.energy, cost: ENERGY.CROSSING_COST, max: OUT_OF_RUN_ENERGY.MAX };
     }
 
-    const rabbit = existing ?? spawnRabbit(data.playerId, player.name, ENERGY.START, live.island.seed);
+    // THE RABBIT DIGS WITH THE TANK. It used to open every run on a fresh
+    // ENERGY.START whatever the bank held; it opens on what the crossing left
+    // in the one tank, and brings the rest home (`bankRun`).
+    const rabbit = existing ?? spawnRabbit(data.playerId, player.name, bank ? bank.energy : ENERGY.START, live.island.seed);
     live.rabbits.set(data.playerId, rabbit);
     live.disconnectedAt.delete(data.playerId);
     live.emptySince = null;

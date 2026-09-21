@@ -46,8 +46,11 @@ export interface BurrowView {
   maxEnergy: number;
   /** How long until one more point of energy. Null when already full. */
   nextEnergyInMs: number | null;
-  /** What crossing to an island takes out of `energy` — ENERGY.RUN_COST. */
+  /** The least the tank must hold to cross — ENERGY.MIN_TO_CROSS. What the
+   *  gate and the out-of-energy dialog quote. */
   runCost: number;
+  /** What the crossing itself takes out of the tank — ENERGY.CROSSING_COST. */
+  crossingCost: number;
   /**
    * How long until there is a run's worth in the bar, or null when there
    * already is. The number beside the "go farm" arrow when it has to say no:
@@ -136,7 +139,7 @@ export function canStartRun(
   row: Pick<RegenRow, 'energy' | 'energyUpdatedAt'>,
   now = Date.now(),
 ): boolean {
-  return currentEnergy(row, now) >= ENERGY.RUN_COST;
+  return currentEnergy(row, now) >= ENERGY.MIN_TO_CROSS;
 }
 
 /**
@@ -148,15 +151,25 @@ export function canStartRun(
  * shows whole points: the wait ends when the next point lands, not a fraction
  * of a second before it would have.
  */
+/** How long until the tank holds `need` — null if it already does. */
+export function msToHave(
+  row: Pick<RegenRow, 'energy' | 'energyUpdatedAt'>,
+  need: number,
+  now = Date.now(),
+): number | null {
+  if (currentEnergy(row, now) >= need) return null;
+  const perPoint = 3_600_000 / OUT_OF_RUN_ENERGY.REGEN_PER_HOUR;
+  const short = need - row.energy;
+  const readyAt = row.energyUpdatedAt.getTime() + Math.ceil(short) * perPoint;
+  return Math.max(0, readyAt - now);
+}
+
+/** How long until a crossing is affordable (ENERGY.MIN_TO_CROSS). */
 export function msToRun(
   row: Pick<RegenRow, 'energy' | 'energyUpdatedAt'>,
   now = Date.now(),
 ): number | null {
-  if (canStartRun(row, now)) return null;
-  const perPoint = 3_600_000 / OUT_OF_RUN_ENERGY.REGEN_PER_HOUR;
-  const short = ENERGY.RUN_COST - row.energy;
-  const readyAt = row.energyUpdatedAt.getTime() + Math.ceil(short) * perPoint;
-  return Math.max(0, readyAt - now);
+  return msToHave(row, ENERGY.MIN_TO_CROSS, now);
 }
 
 /**
@@ -167,13 +180,28 @@ export function msToRun(
  * `now` — writing `energy - cost` against the OLD stamp would let the interval
  * since it be paid out a second time on the next read.
  */
+/**
+ * Take `cost` out of the tank, if it holds at least `need` — null otherwise.
+ * `need` is the floor to be let through (a crossing wants the fee plus a few
+ * digs), `cost` what is actually taken; with `floor` the charge never refuses
+ * and stops at zero, which is how a raid's steps are paid mid-run.
+ */
+export function chargeEnergy(
+  row: Pick<RegenRow, 'energy' | 'energyUpdatedAt'>,
+  charge: { cost: number; need: number; floor?: boolean },
+  now = Date.now(),
+): { energy: number; energyUpdatedAt: Date } | null {
+  const have = currentEnergy(row, now);
+  if (!charge.floor && have < charge.need) return null;
+  return { energy: Math.max(0, have - charge.cost), energyUpdatedAt: new Date(now) };
+}
+
+/** The crossing: the fee, behind the floor that makes it worth paying. */
 export function chargeRun(
   row: Pick<RegenRow, 'energy' | 'energyUpdatedAt'>,
   now = Date.now(),
 ): { energy: number; energyUpdatedAt: Date } | null {
-  const have = currentEnergy(row, now);
-  if (have < ENERGY.RUN_COST) return null;
-  return { energy: have - ENERGY.RUN_COST, energyUpdatedAt: new Date(now) };
+  return chargeEnergy(row, { cost: ENERGY.CROSSING_COST, need: ENERGY.MIN_TO_CROSS }, now);
 }
 
 /**
@@ -221,7 +249,8 @@ export function burrowView(row: BurrowRow, now = Date.now(), bag?: Holdings): Bu
     energy: currentEnergy(row, now),
     maxEnergy: OUT_OF_RUN_ENERGY.MAX,
     nextEnergyInMs: msToNextEnergy(row, now),
-    runCost: ENERGY.RUN_COST,
+    runCost: ENERGY.MIN_TO_CROSS,
+    crossingCost: ENERGY.CROSSING_COST,
     nextRunInMs: msToRun(row, now),
     yieldPerHour: yieldPerHour(row.burrowLevel),
     capHours: capHoursFor(row, now),

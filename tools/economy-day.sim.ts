@@ -94,7 +94,10 @@ test('a day', () => {
     check(ra >= 0.1 && ra <= 0.5, `raids are ${f(100 * ra)} % of income (10-50)`);
     check(reg.perRun >= reg.haul * 0.4 && reg.perRun <= reg.haul * 2.5, `a run (${f(reg.perRun)}) against a raid (${f(reg.haul)}) and a garden visit (${f(gardenHour(1) * T.GARDEN.CAP_HOURS)}): similar weight`);
     check(T.SHOP.PRICES.shield / reg.total <= 4, `a shield is ${f(T.SHOP.PRICES.shield / reg.total, 1)} days of income (4 at most)`);
-    const runsBought = T.ENERGY_PACK.AMOUNT / T.ENERGY.RUN_COST;
+    // ONE TANK: a refill is a full tank, and a run spends what it digs — a
+    // careful run's worth, from the robot table at the top of tuning.ts.
+    const RUN_SPEND = 50;
+    const runsBought = T.ENERGY_PACK.AMOUNT / RUN_SPEND;
     const ratio = T.SHOP.PRICES.energy / (runsBought * reg.perRun);
     check(ratio >= 0.9, `a carrot refill costs ${f(T.SHOP.PRICES.energy)} and buys ${f(runsBought)} runs worth ${f(runsBought * reg.perRun)}: ${f(ratio, 2)}x (0.9 at least, or it prints carrots)`);
     // Two raids get through in a day (SHIELD_AFTER_RAID_MS), each at full depth

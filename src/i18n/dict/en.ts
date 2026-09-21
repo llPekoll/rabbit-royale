@@ -142,7 +142,7 @@ export const en = {
     ariaDefend: (line: string) => `Defend: bury traps. ${line}`,
     ariaRaid: (line: string) => `Raid. ${line}`,
     energyOf: (energy: number, max: number) => `${energy}/${max} energy`,
-    runCosts: (n: number) => `run costs ${n}`,
+    runCosts: (n: number) => `crossing costs ${n}`,
     runIn: (wait: string) => `run in ${wait}`,
     aMoment: 'a moment',
     gardenPlus: (n: string) => `garden +${n}`,

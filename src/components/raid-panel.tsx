@@ -280,15 +280,10 @@ export function RaidHud({ raid, busy, note, onLeave }: RaidHudProps) {
     <PxPanel color={SOIL_DEEP} className="rr-raid-hud" style={{ position: 'fixed' }}>
       <header>
         <span className="rr-raid-target">{raid.defender.name}'s burrow</span>
-        {/* NAMED, not just a number behind a bolt. This is the crossing's own
-            budget — it starts at RAID_RUN.START_ENERGY, a step costs one and a
-            sprung trap eight — and it is NOT the burrow's banked energy, which
-            a raid never touches. Both were drawn as "⚡ n", so a raider who
-            walked out at 10 read it as their burrow having been emptied. The
-            word is what tells the two bars apart. */}
-        <span className="rr-raid-energy">
-          &#9889; {raid.energy}<small>{d.raid.steps}</small>
-        </span>
+        {/* NO ENERGY READOUT HERE. The raid spends the one tank, and the
+            medallion on the carrot pill shows it ticking (page.tsx
+            `liveEnergy`); a second "⚡ n" on this plate was the two-bars
+            confusion this panel's old note apologised for. */}
         {raid.trapsSprung > 0 && (
           <span className="rr-raid-sprung">🪤 {raid.trapsSprung}</span>
         )}

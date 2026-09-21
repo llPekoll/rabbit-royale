@@ -31,8 +31,14 @@ import { smokeActive } from '@/lib/game/inventory';
 import { standingTraps } from '@/lib/game/traps';
 import { ENERGY, RAID, RAID_RUN, TRAPS } from '@config/tuning';
 import { currentEnergy, gardenAfterLoot, gardenYield } from '@/lib/game/regen';
-import { canStartRun, msToRun } from '@/lib/game/burrow';
-import { payCrossing } from '@/lib/game/pay-crossing';
+import { msToHave } from '@/lib/game/burrow';
+import { payEnergy, type EnergyCharge } from '@/lib/game/pay-crossing';
+
+/**
+ * THE TOLL, from the one tank (RAID_RUN.TOLL's note): paid on the first step,
+ * behind a floor of the toll plus a step so the raid can at least begin.
+ */
+const TOLL: EnergyCharge = { cost: RAID_RUN.TOLL, need: RAID_RUN.TOLL + RAID_RUN.STEP_COST };
 
 /** Everything the raid screen draws, for a raid in progress. */
 async function raidView(runId: string, revealAll = false) {
@@ -52,6 +58,13 @@ async function raidView(runId: string, revealAll = false) {
   // — and worse, it would let them read the position of a trap that is down.
   const clues = trapClues(seed, standingTraps(seed, mined).map((t) => t.tile));
   const smoked = smokeActive(defender);
+  // THE TANK, for the one gauge: the raid spends the attacker's own energy,
+  // and the medallion on the carrot pill reads it from here between steps.
+  const attacker = await db.query.players.findFirst({
+    where: eq(players.id, run.attackerId),
+    columns: { energy: true, energyUpdatedAt: true },
+  });
+  const tank = attacker ? currentEnergy(attacker) : null;
 
   return {
     raidId: run.id,
@@ -66,6 +79,7 @@ async function raidView(runId: string, revealAll = false) {
     },
     tile: run.tile,
     energy: run.energy,
+    tank,
     trapsSprung: run.trapsSprung,
     /**
      * Tiles walked, plus their neighbours — nothing further.
@@ -322,7 +336,7 @@ export async function POST(req: Request) {
   }
 
   /**
-   * A RAID COSTS THE BURROW THE SAME CROSSING AS A RUN — ENERGY.RUN_COST off
+   * A RAID COSTS THE ONE TANK — RAID_RUN.TOLL on the first step, then a step and a trap
    * the same bar. Until 21 September 2026 it cost nothing there: the raid's
    * own 26-point budget paid for the walk, and the burrow's bar was never
    * asked. "Pareil pour les raids": a crossing is a crossing.
@@ -338,12 +352,12 @@ export async function POST(req: Request) {
     columns: { energy: true, energyUpdatedAt: true },
   });
   if (!attacker) return Response.json({ error: 'unknown_player' }, { status: 404 });
-  if (!canStartRun(attacker, now)) {
+  if (currentEnergy(attacker, now) < TOLL.need) {
     return Response.json({
       error: 'no_energy',
       energy: currentEnergy(attacker, now),
-      need: ENERGY.RUN_COST,
-      nextRunInMs: msToRun(attacker, now),
+      need: TOLL.need,
+      nextRunInMs: msToHave(attacker, TOLL.need, now),
     }, { status: 400 });
   }
 
@@ -352,7 +366,11 @@ export async function POST(req: Request) {
     attackerId: session.sub,
     defenderId: body.defenderId,
     tile: start,
-    energy: RAID_RUN.START_ENERGY,
+    // WHAT THE RAID WALKS WITH: the stake less the toll (RAID_RUN.STAKE's
+    // note), or the tank less the toll when the tank holds less. The raid
+    // spends the player's own energy (`payEnergy` per step); this column is
+    // the budget it spends it against, and zero here ends the raid.
+    energy: Math.min(RAID_RUN.STAKE, currentEnergy(attacker, now)) - RAID_RUN.TOLL,
     visited: [start],
   }).returning({ id: raidRuns.id });
 
@@ -418,12 +436,12 @@ export async function PATCH(req: Request) {
    */
   const firstStep = run.visited.length <= 1;
   if (firstStep) {
-    const paid = await payCrossing(session.sub);
+    const paid = await payEnergy(session.sub, TOLL);
     if (!paid.ok) {
       return Response.json({
         error: 'no_energy',
         energy: paid.energy,
-        need: ENERGY.RUN_COST,
+        need: TOLL.need,
         nextRunInMs: paid.nextRunInMs,
       }, { status: 400 });
     }
@@ -448,6 +466,15 @@ export async function PATCH(req: Request) {
     // the full rearm each time rather than only the first.
     await db.update(traps).set({ sprungAt: new Date() }).where(eq(traps.id, trap.id));
   }
+  // THE STEP IS PAID FROM THE TANK, and the trap's drain with it — never
+  // refused (`floor`): the budget above is what decides when the raid ends,
+  // and it was cut to the tank at the door. The tank rides back on the view
+  // (`tank`) for the medallion.
+  await payEnergy(session.sub, {
+    cost: RAID_RUN.STEP_COST + (trap ? TRAPS.DRAIN : 0),
+    need: 0,
+    floor: true,
+  });
 
   const visited = [...run.visited, to];
   const reachedField = burrowCell(run.defenderId, to) === 'field';

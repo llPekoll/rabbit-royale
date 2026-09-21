@@ -229,7 +229,7 @@ function walkRaid(seed: string, traps: ReadonlySet<number>): number {
   const dist = distanceToField(seed);
   const goal = new Set(fieldTiles(seed));
   let at = entranceTile(seed);
-  let energy = RAID_RUN.START_ENERGY;
+  let energy = RAID_RUN.STAKE - RAID_RUN.TOLL;
   const seen = new Set([at]);
   const burned = new Set<number>();
 

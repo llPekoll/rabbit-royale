@@ -30,9 +30,9 @@ const read = (p: string) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const SERVER = read('../server/index.ts');
 const RAID = read('../src/app/api/raid/route.ts');
 
-/** The refund as `bankRun` computes it: fold the regen in, add the cost, clamp. */
-function refundOf(row: { energy: number; energyUpdatedAt: Date }, now: number) {
-  return Math.min(OUT_OF_RUN_ENERGY.MAX, currentEnergy(row, now) + ENERGY.RUN_COST);
+/** The refund as `bankRun` computes it: the tank as the rabbit holds it, plus the fee, clamped. No regen: the bar was in use. */
+function refundOf(row: { energy: number; energyUpdatedAt: Date }, _now: number) {
+  return Math.min(OUT_OF_RUN_ENERGY.MAX, row.energy + ENERGY.CROSSING_COST);
 }
 
 describe('a run that dug nothing is refunded', () => {
@@ -42,14 +42,14 @@ describe('a run that dug nothing is refunded', () => {
 
     const charged = chargeRun(before, t0);
     expect(charged).not.toBeNull();
-    expect(charged!.energy).toBe(60 - ENERGY.RUN_COST);
+    expect(charged!.energy).toBe(60 - ENERGY.CROSSING_COST);
 
     // Straight back out without a single dig, a second later.
     const back = refundOf(charged!, t0 + 1_000);
     expect(back).toBe(60);
   });
 
-  it('cannot print energy by loitering on the island', () => {
+  it('cannot print energy by loitering on the island: the minutes there regen nothing', () => {
     // THE TRAP THIS GUARDS. `players.energy` is a value read against its
     // stamp, not a running total: regen accrues while the player is out there,
     // so a refund that added to the column without folding that in — or
@@ -59,16 +59,16 @@ describe('a run that dug nothing is refunded', () => {
     const charged = chargeRun({ energy: 60, energyUpdatedAt: new Date(t0) }, t0)!;
     const fourHoursLater = t0 + 4 * 3_600_000;
 
-    expect(refundOf(charged, fourHoursLater)).toBe(OUT_OF_RUN_ENERGY.MAX);
+    expect(refundOf(charged, fourHoursLater)).toBe(60);
     // And never more than the ceiling, however long the look.
-    expect(refundOf(charged, t0 + 50 * 3_600_000)).toBe(OUT_OF_RUN_ENERGY.MAX);
+    expect(refundOf(charged, t0 + 50 * 3_600_000)).toBe(60);
   });
 
   it('refunds from a part-spent bar without over-crediting', () => {
     const t0 = Date.now();
     // A bar well below the ceiling: the clamp must not be what decides this.
     const charged = chargeRun({ energy: 30, energyUpdatedAt: new Date(t0) }, t0)!;
-    expect(charged.energy).toBe(30 - ENERGY.RUN_COST);
+    expect(charged.energy).toBe(30 - ENERGY.CROSSING_COST);
     expect(refundOf(charged, t0 + 1_000)).toBe(30);
   });
 
@@ -100,12 +100,12 @@ describe('a run that dug nothing is refunded', () => {
     expect(between).not.toMatch(/if \(out\.dig\)/);
   });
 
-  it('folds the regen in and re-stamps, like the charge did', () => {
+  it('writes the tank home as the rabbit holds it, plus the fee, stamped now', () => {
     const bank = SERVER.slice(SERVER.indexOf('async function bankRun'));
     const refund = bank.slice(bank.indexOf('const refunded ='), bank.indexOf('await db.update(players)'));
-    expect(refund).toMatch(/currentEnergy\(row, now\.getTime\(\)\) \+ ENERGY\.RUN_COST/);
+    expect(refund).toMatch(/Math\.floor\(rabbit\.energy\) \+ \(refunded \? ENERGY\.CROSSING_COST : 0\)/);
     expect(refund).toMatch(/Math\.min\(OUT_OF_RUN_ENERGY\.MAX/);
-    expect(refund).toMatch(/energyUpdatedAt: now/);
+    expect(refund).toMatch(/energyUpdatedAt: new Date\(\)/);
   });
 
   it('does not spend the first island on a look-around', () => {
@@ -219,7 +219,7 @@ describe('a raid that was never walked does not burn the target', () => {
     expect(walked.length).toBe(2); // the open raid, and the one just ended
   });
 
-  it('costs the burrow the same crossing as a run, paid at the first step', () => {
+  it('costs the one tank its toll, paid at the first step', () => {
     // "Pareil pour les raids" (21 September 2026): a raid used to cost the
     // burrow's bar nothing at all — its own 26-point budget paid for the walk.
     // The charge is ENERGY.RUN_COST, off the same bar, through the same
@@ -229,24 +229,24 @@ describe('a raid that was never walked does not burn the target', () => {
     const patch = RAID.slice(RAID.indexOf('export async function PATCH'), RAID.indexOf('export async function DELETE'));
     expect(patch).toMatch(/const firstStep = run\.visited\.length <= 1;/);
     const charge = patch.slice(patch.indexOf('if (firstStep) {'), patch.indexOf('const mined ='));
-    expect(charge).toMatch(/await payCrossing\(session\.sub\)/);
+    expect(charge).toMatch(/await payEnergy\(session\.sub, TOLL\)/);
     expect(charge).toMatch(/error: 'no_energy'/);
     // Before any step is written, so a refused bar leaves the raid where it stood.
-    expect(patch.indexOf('await payCrossing(')).toBeLessThan(patch.indexOf('const visited = [...run.visited, to]'));
+    expect(patch.indexOf('await payEnergy(session.sub, TOLL)')).toBeLessThan(patch.indexOf('const visited = [...run.visited, to]'));
   });
 
   it('refuses at the door, like the island, when the bar cannot afford one', () => {
     const post = RAID.slice(RAID.indexOf('export async function POST'), RAID.indexOf('export async function PATCH'));
-    expect(post).toMatch(/if \(!canStartRun\(attacker, now\)\)/);
+    expect(post).toMatch(/if \(currentEnergy\(attacker, now\) < TOLL\.need\)/);
     expect(post).toMatch(/error: 'no_energy'/);
-    expect(post).toMatch(/need: ENERGY\.RUN_COST/);
+    expect(post).toMatch(/need: TOLL\.need/);
     // Refused, nothing is inserted: the check sits before the insert.
-    expect(post.indexOf('canStartRun(')).toBeLessThan(post.indexOf('db.insert(raidRuns)'));
+    expect(post.indexOf('< TOLL.need')).toBeLessThan(post.indexOf('db.insert(raidRuns)'));
   });
 
   it('never charges the POST itself — looking stays free', () => {
     const post = RAID.slice(RAID.indexOf('export async function POST'), RAID.indexOf('export async function PATCH'));
-    expect(post).not.toMatch(/payCrossing\(/);
+    expect(post).not.toMatch(/payEnergy\(/);
   });
 
   it('is said in every language', () => {

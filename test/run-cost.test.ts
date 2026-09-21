@@ -24,7 +24,7 @@ describe('the run cost reaches the island', () => {
     // run and must not announce a charge that did not happen.
     const join = SERVER.slice(SERVER.indexOf("socket.on('join'"), SERVER.indexOf("socket.on('spectate'"));
     const paidBranch = join.slice(join.indexOf('if (!existing) {'), join.indexOf('const rabbit ='));
-    expect(paidBranch).toMatch(/bank = \{ energy: paid\.energy, cost: ENERGY\.RUN_COST/);
+    expect(paidBranch).toMatch(/bank = \{ energy: paid\.energy, cost: ENERGY\.CROSSING_COST/);
     expect(join).toMatch(/socket\.emit\('island', \{ \.\.\.snapshot\(live\), bank \}\)/);
   });
 
@@ -44,7 +44,7 @@ describe('the run cost reaches the island', () => {
 
   it('is said on the island and again in the recap', () => {
     expect(PAGE).toMatch(/<RunCostNote bank=\{game\.bank\} seed=\{game\.islandSeed\} \/>/);
-    expect(PAGE).toMatch(/bank=\{burrow \? \{ energy: burrow\.energy, max: burrow\.maxEnergy, cost: burrow\.runCost \} : null\}/);
+    expect(PAGE).toMatch(/bank=\{burrow \? \{ energy: burrow\.energy, max: burrow\.maxEnergy, cost: burrow\.crossingCost \} : null\}/);
     // The key, not the sentence: the line moved into the dictionaries, where
     // each language decides how a bar reading and a cost sit in one phrase.
     expect(RECAP).toMatch(/t\.recap\.bank\(bank\.energy, bank\.max, bank\.cost\)/);

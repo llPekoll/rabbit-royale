@@ -39,7 +39,7 @@ import {
   entranceTile, shortestRaidPath, burrowNeighbors, walkableTiles, fieldTiles,
 } from '@/game/burrow/board';
 import { raiderView, distanceToField, trapClues } from '@/lib/game/raid';
-import { RAID_RUN, TRAPS } from '@config/tuning';
+import { ENERGY, RAID_RUN, TRAPS } from '@config/tuning';
 import { burrowTileScreen } from '@/game/burrow/screen';
 
 /**
@@ -382,7 +382,7 @@ interface DefendArgs {
 }
 
 function DefendScene({ bombs, level, botStepMs, windScale }: DefendArgs) {
-  const [energy, setEnergy] = useState<number>(RAID_RUN.START_ENERGY);
+  const [energy, setEnergy] = useState<number>(ENERGY.MAX);
   const [placed, setPlaced] = useState<number[]>([]);
   const [outcome, setOutcome] = useState<Outcome>('raiding');
   const [armed, setArmed] = useState(true);
@@ -417,7 +417,7 @@ function DefendScene({ bombs, level, botStepMs, windScale }: DefendArgs) {
           const walked = new Set([at]);
           const mines = new Set<number>();
           const sprung = new Set<number>();
-          let left = RAID_RUN.START_ENERGY;
+          let left = ENERGY.MAX;
           let done: Outcome = 'raiding';
           let canStrike = true;
 
@@ -562,7 +562,7 @@ function DefendScene({ bombs, level, botStepMs, windScale }: DefendArgs) {
             : outcome === 'won' ? 'YOUR CARROTS ARE GONE'
             : 'BURROW HELD'}
         </strong>
-        {' · '}raider energy {energy}/{RAID_RUN.START_ENERGY}
+        {' · '}raider energy {energy}/{ENERGY.MAX}
         {' · '}bombs {placed.length}/{bombs}
         {' · '}strike {armed ? 'READY' : 'recharging'}
       </div>

@@ -114,7 +114,7 @@ export interface IslandSnapshot {
 export interface RunBank {
   /** The bar after the charge. */
   energy: number;
-  /** What the run took — ENERGY.RUN_COST as the server applied it. */
+  /** What the crossing took — ENERGY.CROSSING_COST as the server applied it. */
   cost: number;
   max: number;
 }

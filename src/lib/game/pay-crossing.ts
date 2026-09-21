@@ -17,16 +17,38 @@
 import { and, eq, sql as raw } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { players } from '@/lib/db/schema';
-import { chargeRun, msToRun } from './burrow';
+import { chargeEnergy, msToHave } from './burrow';
+import { ENERGY } from '../../../config/tuning';
 import { currentEnergy } from './regen';
 
 export type CrossingPaid =
   | { ok: true; energy: number }
   | { ok: false; energy: number; nextRunInMs: number | null };
 
-export async function payCrossing(
+/** What a charge asks of the tank — see `chargeEnergy` (burrow.ts). */
+export interface EnergyCharge { cost: number; need: number; floor?: boolean }
+
+/** The crossing's own charge: the fee, behind the floor. */
+export const CROSSING: EnergyCharge = { cost: ENERGY.CROSSING_COST, need: ENERGY.MIN_TO_CROSS };
+
+export function payCrossing(
   playerId: string,
   /** The row as already read by the caller, to save a round trip. */
+  first?: { energy: number; energyUpdatedAt: Date },
+): Promise<CrossingPaid> {
+  return payEnergy(playerId, CROSSING, first);
+}
+
+/**
+ * Take a charge out of the ONE tank, atomically: read, compute against the
+ * regen, write back only if nobody else wrote in between, three tries. Every
+ * spend outside a live island goes through here — the crossing, a raid's
+ * toll, a raid's step — so one place knows how the tank is written. (An
+ * island run spends the rabbit's copy in memory and `bankRun` writes it home.)
+ */
+export async function payEnergy(
+  playerId: string,
+  charge: EnergyCharge,
   first?: { energy: number; energyUpdatedAt: Date },
 ): Promise<CrossingPaid> {
   let row = first ?? await db.query.players.findFirst({
@@ -37,8 +59,8 @@ export async function payCrossing(
 
   for (let attempt = 0; attempt < 3; attempt++) {
     const now = Date.now();
-    const paid = chargeRun(row, now);
-    if (!paid) return { ok: false, energy: currentEnergy(row, now), nextRunInMs: msToRun(row, now) };
+    const paid = chargeEnergy(row, charge, now);
+    if (!paid) return { ok: false, energy: currentEnergy(row, now), nextRunInMs: msToHave(row, charge.need, now) };
 
     // The stamp is compared at MILLISECONDS: Postgres keeps microseconds and a
     // JS Date does not, so an exact match against the value just read never
@@ -66,5 +88,5 @@ export async function payCrossing(
     if (!fresh) break;
     row = fresh;
   }
-  return { ok: false, energy: currentEnergy(row), nextRunInMs: msToRun(row) };
+  return { ok: false, energy: currentEnergy(row), nextRunInMs: msToHave(row, charge.need) };
 }

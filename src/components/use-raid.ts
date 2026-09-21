@@ -25,7 +25,10 @@ export interface RaidState {
   raidId: string;
   defender: { id: string; name: string; avatar: string | null; level: number };
   tile: number;
+  /** What the raid still walks with — the stake less what it spent. */
   energy: number;
+  /** The one tank as of the last step, for the medallion. */
+  tank: number | null;
   trapsSprung: number;
   view: RaidTile[];
   /** The tiles the raider has stood on — their own path, so it reveals nothing. */

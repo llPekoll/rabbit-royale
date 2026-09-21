@@ -41,6 +41,7 @@ const RAID: RaidState = {
   defender: { id: 'a', name: 'Thistle', avatar: null, level: 3 },
   tile: 143,
   energy: 18,
+  tank: null,
   trapsSprung: 1,
   view: [],
   walked: [143],

@@ -120,7 +120,7 @@ export const fr: Dict = {
     ariaDefend: (line) => `Défendre : enterrer des pièges. ${line}`,
     ariaRaid: (line) => `Piller. ${line}`,
     energyOf: (energy, max) => `${energy}/${max} énergie`,
-    runCosts: (n) => `une sortie coûte ${n}`,
+    runCosts: (n) => `la traversée coûte ${n}`,
     runIn: (wait) => `sortie dans ${wait}`,
     aMoment: 'un instant',
     gardenPlus: (n) => `potager +${n}`,

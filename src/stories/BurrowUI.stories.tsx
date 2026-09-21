@@ -215,7 +215,7 @@ function BurrowColumn({
           garden) from the controls rather than by reaching a game state. */}
       <LoopBar
         dig={{
-          energy, maxEnergy, runCost: 25,
+          energy, maxEnergy, runCost: 25, crossingCost: 5,
           nextRunInMs: energy >= 25 ? null : nextEnergyMins * 60_000 * (25 - energy),
         }}
         home={{

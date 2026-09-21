@@ -102,23 +102,24 @@ describe('the burrow bar keeps up with the server', () => {
   });
 });
 
-describe('the raid bar says which bar it is', () => {
+describe('the raid spends the one tank, and the one gauge shows it', () => {
   /**
-   * Same report, second half: "j'ai fait un raid il me reste 10, alors que
-   * j'avais 60". Nothing was wrong — a raid has its own budget and never
-   * touches the bank — but both were drawn as a bolt and a number, so the two
-   * read as one bar that had been emptied.
+   * The report this used to guard against — "j'ai fait un raid il me reste
+   * 10, alors que j'avais 60" — came from a raid having its OWN budget drawn
+   * like the bank's. There is one tank now (ENERGY.CROSSING_COST's note): the
+   * raid pays its toll and its steps out of it, and the medallion on the
+   * carrot pill is the one place the number is read.
    */
-  it('names its unit rather than showing a bare number', () => {
-    const header = RAID_HUD.slice(RAID_HUD.indexOf('rr-raid-energy'), RAID_HUD.indexOf('rr-raid-sprung'));
-    expect(header).toMatch(/<small>/);
+  it('draws no bar of its own on the raid plate', () => {
+    expect(RAID_HUD).not.toMatch(/rr-raid-energy/);
+    expect(PAGE).toMatch(/if \(raid\.raid && raid\.raid\.tank !== null\) return \{ energy: raid\.raid\.tank, max \}/);
   });
 
-  it('never spends the burrow energy it is mistaken for', () => {
-    // The guarantee behind the label: a raid settles against the raid run's
-    // own row, and `players.energy` is not among the columns it writes.
+  it('pays the toll and every step from the player\'s own energy', () => {
     const route = readFileSync(new URL('../src/app/api/raid/route.ts', import.meta.url), 'utf8');
-    const settle = route.slice(route.indexOf('db.transaction'));
-    expect(settle).not.toMatch(/players\.energy/);
+    const patch = route.slice(route.indexOf('export async function PATCH'), route.indexOf('export async function DELETE'));
+    expect(patch).toMatch(/await payEnergy\(session\.sub, TOLL\)/);
+    expect(patch).toMatch(/cost: RAID_RUN\.STEP_COST \+ \(trap \? TRAPS\.DRAIN : 0\)/);
+    expect(patch).toMatch(/floor: true/);
   });
 });

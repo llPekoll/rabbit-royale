@@ -19,6 +19,11 @@ and stop the stale ones, never `next dev` (its own `node` holds 3010).
 
 Migrations: `bun db:check` must say all applied, or `/api/burrow` 500s.
 
+`bun dev` (Vite) also serves `/api/*`, and those modules are NOT hot-reloaded:
+a change under `config/tuning.ts`, `src/lib` or `src/app/api` needs `bun dev`
+restarted, or a fresh guest is still born on the old numbers (seen
+2026-09-21: 40/150 where 145 was due). `bun ws` needs its own restart too.
+
 ## Driving it with Playwright (installed, Chromium present)
 
 `tools/verify-loop-bar.mjs` and `tools/verify-hint-lift.mjs` are working

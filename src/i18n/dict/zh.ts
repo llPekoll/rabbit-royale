@@ -126,7 +126,7 @@ export const zh: Dict = {
     ariaDefend: (line) => `防守：埋设陷阱。${line}`,
     ariaRaid: (line) => `掠夺。${line}`,
     energyOf: (energy, max) => `体力 ${energy}/${max}`,
-    runCosts: (n) => `一次出行消耗 ${n}`,
+    runCosts: (n) => `渡海消耗 ${n}`,
     runIn: (wait) => `${wait}后可出行`,
     aMoment: '片刻',
     gardenPlus: (n) => `菜园 +${n}`,

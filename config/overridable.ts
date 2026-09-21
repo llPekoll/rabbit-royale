@@ -118,7 +118,10 @@ export const OVERRIDABLE: readonly TuningSpec[] = [
   // ── The energy gate. The COST of entering a run is read at the crossing, so
   //    it moves cleanly; what the run then opens with (`ENERGY.START`) does not
   //    and stays in the file.
-  { path: 'ENERGY.RUN_COST', kind: 'int', min: 0, max: 1_000, note: 'Énergie du terrier dépensée pour lancer une partie' },
+  { path: 'ENERGY.CROSSING_COST', kind: 'int', min: 0, max: 1_000, note: 'Énergie prise à la traversée vers une île' },
+  { path: 'ENERGY.MIN_TO_CROSS', kind: 'int', min: 0, max: 1_000, note: 'Énergie minimale dans le réservoir pour traverser' },
+  { path: 'RAID_RUN.TOLL', kind: 'int', min: 0, max: 1_000, note: 'Péage d\'un raid, pris au premier pas' },
+  { path: 'RAID_RUN.STAKE', kind: 'int', min: 1, max: 1_000, note: 'Mise maximale d\'un raid, péage compris' },
 
   // ── Paid energy refills.
   { path: 'ENERGY_PACK.MAX_PER_DAY', kind: 'int', min: 0, max: 100, note: 'Pleins d\'énergie achetables par jour' },

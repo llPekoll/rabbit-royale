@@ -94,6 +94,7 @@ interface Burrow {
   nextEnergyInMs: number | null;
   /** What a run takes out of `energy`, and how long until there is that much. */
   runCost: number;
+  crossingCost: number;
   nextRunInMs: number | null;
   /** Milliseconds of shield left, or null when raids can land right now. */
   shieldMs: number | null;
@@ -687,6 +688,24 @@ function Burrow() {
    * takes at the crossing. Null burrow means "still loading", not "empty".
    */
   const hasEnergy = burrow === null || burrow.energy >= burrow.runCost;
+
+  /**
+   * THE ONE TANK, WHEREVER IT IS LIVE. The medallion on the pill shows the
+   * same energy on every screen (Paul, 2026-09-21): on the island it is the
+   * rabbit's, ticking with every dig — the watched rabbit's when spectating,
+   * since a spectator has no rabbit of their own; in a raid it is the raid's
+   * mirror of the tank, ticking with every step; at home it is the burrow's
+   * bar as last read. Null only before the burrow has answered.
+   */
+  const liveEnergy = useMemo(() => {
+    const max = burrow?.maxEnergy ?? ENERGY.MAX;
+    if (where === 'island' && !crossing) {
+      const e = spectating ? game.rabbits.get(spectating)?.energy : game.me?.energy;
+      if (e !== undefined && e !== null) return { energy: Math.floor(e), max };
+    }
+    if (raid.raid && raid.raid.tank !== null) return { energy: raid.raid.tank, max };
+    return burrow ? { energy: burrow.energy, max } : null;
+  }, [where, crossing, spectating, game.rabbits, game.me?.energy, raid.raid, burrow]);
 
   /**
    * THE LOOP'S OWN READINGS, for the bar and the NEXT strip.
@@ -2164,7 +2183,7 @@ function Burrow() {
                the DIG slab's left end. Off-run only — on the island the pill
                carries the run's own bar (`energy` below), and two gauges on
                one board would be the two-pools confusion made visible. */
-            bank={where === 'burrow' && burrow ? { energy: burrow.energy, max: burrow.maxEnergy } : null}
+            bank={liveEnergy}
             // The run's haul, on the island only and only your own: a
             // spectator's pill is still their own stock.
             carrying={where === 'island' && !spectating && !crossing ? game.me?.carrots ?? null : null}
@@ -2178,9 +2197,6 @@ function Burrow() {
                gauge would describe a run nobody is having. `carrying` above
                stays the reader's own, because the haul is a pile that will
                land in THEIR burrow. */
-            energy={where === 'island' && !crossing
-              ? (spectating ? game.rabbits.get(spectating)?.energy ?? null : game.me?.energy ?? null)
-              : null}
             /* THE ISLAND'S CHESTS, under the carrot count — the run's other
                goal, on the same board as the first. Not per-player: the count
                is the ISLAND's, so a spectator reads the same line as everyone
@@ -2551,6 +2567,7 @@ function Burrow() {
             energy: burrow.energy,
             maxEnergy: burrow.maxEnergy,
             runCost: burrow.runCost,
+            crossingCost: burrow.crossingCost,
             nextRunInMs: burrow.nextRunInMs,
           }}
           home={{
@@ -2747,7 +2764,7 @@ function Burrow() {
               // The burrow's bar as last read — refreshed at the crossing, so
               // it already carries this run's charge. What the next decision
               // (again, or home) is actually made against.
-              bank={burrow ? { energy: burrow.energy, max: burrow.maxEnergy, cost: burrow.runCost } : null}
+              bank={burrow ? { energy: burrow.energy, max: burrow.maxEnergy, cost: burrow.crossingCost } : null}
               onShop={goShopping}
               onHome={stopSpectating}
             />

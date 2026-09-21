@@ -44,7 +44,7 @@ export default meta;
 type Story = StoryObj<typeof LoopBar>;
 
 const base = {
-  dig: { energy: 40, maxEnergy: 60, runCost: 20, nextRunInMs: null },
+  dig: { energy: 40, maxEnergy: 60, runCost: 20, crossingCost: 5, nextRunInMs: null },
   home: { gardenReady: 0, shieldMs: 172_800_000, trapsLive: 0, trapsPlaced: 0 },
   raid: { open: 9, best: null, bombs: 0 },
   onDig: () => {},

@@ -78,31 +78,31 @@ export const ENERGY = {
   /** Ceiling — a full bar. Gains past it are lost: an easy shore cannot be banked. */
   MAX: 150,
   /**
-   * What the BURROW pays to start a run — drawn from `OUT_OF_RUN_ENERGY`, not
-   * from the run's own tank, which always opens at START.
+   * ONE TANK (21 September 2026, Paul's call). There used to be three pools
+   * that never touched: the burrow's bank (60, a flat 20 per crossing), the
+   * run's own tank (a fresh 150 every island, the leftover thrown away) and a
+   * raid's counter (26, its own). The player saw "energy" in three places and
+   * none of it connected: finding a bomb paid nothing past the island, saving
+   * fuel was worth nothing once you walked home, a raid cost the same on a
+   * hovel as on a fortress. Now the bar the medallion shows IS the run's
+   * tank IS the raid's: `players.energy`, capped at MAX, spent by the dig,
+   * the bomb, the wrong X, the raid's step and trap, refilled by the right
+   * X, by time (OUT_OF_RUN_ENERGY.REGEN_PER_HOUR) and by the shop.
    *
-   * This is the knob that makes the burrow's bar mean something. Until it was
-   * wired, the server started every run at START without touching the bank,
-   * so the bar sat at its ceiling forever, a bought refill topped up a bar
-   * that was already full, and runs were unlimited.
-   *
-   * A THIRD of the bank, not a whole tank: a full burrow at OUT_OF_RUN_ENERGY
-   * .MAX = 60 pays three runs, which is the session the economy is tuned for
-   * (docs/economy-tuning.html). At 30 it paid two, and a newcomer — who is
-   * created with a full bank, see src/lib/auth — was out after two games on
-   * their first visit. A bought refill is worth three runs for the same
-   * reason. A player short of this many points is shown the wait and the
-   * refill on the burrow, before they cross — not an island that refuses them.
-   *
-   * 20, NOT 25 (16 September 2026): 25 was written as "a third" and was not
-   * one — 60 / 25 is two runs and ten points over, and with the first island
-   * being the first run a newcomer got exactly ONE real game before a
-   * three-hour wait, ten minutes in. Watched happen on a fresh guest. Three
-   * runs is what the comment above always meant.
-   *
-   * Unrelated to START: what a run costs to ENTER is not what it opens with.
+   * THE CROSSING FEE. A small toll to set foot on an island, not the third
+   * of a bank it was. Its job is no longer to ration runs — the tank does
+   * that by itself — but to keep island-hopping from being free: without it
+   * a player could re-roll islands until an easy shore came up. 5 is a
+   * handful of digs, felt but not a decision.
    */
-  RUN_COST: 20,
+  CROSSING_COST: 5,
+  /**
+   * The least in the tank to be let across: the fee plus five digs. A
+   * crossing that lands with nothing to dig is a fee for nothing, so the
+   * burrow shows the wait (or the refill) instead. What the "run costs" line
+   * and the out-of-energy dialog quote.
+   */
+  MIN_TO_CROSS: 10,
 } as const;
 
 /*
@@ -500,10 +500,15 @@ export const GARDEN = {
 } as const;
 
 export const OUT_OF_RUN_ENERGY = {
-  /** Energy the burrow refills while you are away. */
-  REGEN_PER_HOUR: 5,
-  /** Ceiling on banked energy. */
-  MAX: 60,
+  /**
+   * Energy the tank refills while you are away. 12 an hour: an empty tank is
+   * full again in about half a day, which is the rhythm the old 60-at-5 had
+   * — the numbers scaled with the tank when the pools merged, the wait did
+   * not. One point every five minutes; a dead run can cross again in ~50.
+   */
+  REGEN_PER_HOUR: 12,
+  /** The tank's ceiling — the same tank the run drains (ENERGY.MAX). */
+  MAX: ENERGY.MAX,
 } as const;
 
 // ── Phase 5: raids & sabotage ────────────────────────────────────────────────
@@ -524,10 +529,13 @@ export const TRAPS = {
 /**
    * Energy a trap drains when stepped on.
    *
-   * Sized against RAID_RUN.START_ENERGY so that a trap costs a raider roughly a
-   * fifth of their crossing: enough that mining the right tile visibly shortens
-   * a raid, not so much that one trap ends it. Since loot is paid by depth, a
-   * trap now converts directly into carrots the attacker does not get.
+   * Sized against what a raid walks with — RAID_RUN.STAKE less the toll, 25 —
+   * so that a trap costs a raider about a third of it: enough that mining the
+   * right tile visibly shortens a raid, not so much that one trap ends it;
+   * three do. Loot is paid by depth, so a trap converts directly into
+   * carrots the attacker does not get. (30, a bomb's worth, was tried when
+   * the raid first drew on the whole tank: with 150 to walk with it was still
+   * a scratch. The stake is what restored the gradient, and this went back.)
    */
   DRAIN: 8,
   /** Free traps per rolling 24h — derived from a timestamp, never a cron. */
@@ -615,7 +623,26 @@ export const RAID_RUN = {
    * raising this number shifts where the slope starts, it cannot restore the
    * pass/fail cliff the design had before.
    */
-  START_ENERGY: 26,
+  /**
+   * THE RAID'S TOLL, from the one tank (see ENERGY.CROSSING_COST). A raid
+   * used to cost the crossing's flat 20 and then run on its own 26-point
+   * counter, so a tiny burrow and a fortress cost the same. Now every step
+   * and every trap is paid from the tank the player digs with, and this is
+   * the wager on top: half a bomb to climb into somebody's burrow. Small
+   * targets stay cheap, never free — and the choice reads as a bet against
+   * the tank, which is the whole point (Paul, 2026-09-21).
+   */
+  TOLL: 15,
+  /**
+   * THE STAKE: the most a raid can draw from the tank, toll included. A full
+   * tank is 150 and a raid is ten steps; unlimited, a raider walked through
+   * five traps without noticing (measured: the loot ladder went flat past
+   * three). So a raid is a BET of this much: the toll goes first, the rest is
+   * what you walk with, and traps burn it — three end a raid, as they always
+   * did. A player with less than this in the tank stakes what they have,
+   * which is the risk they took crossing on a low bar.
+   */
+  STAKE: 40,
   /** Every step costs this, trap or not — distance itself is a defence. */
   STEP_COST: 1,
   /**
@@ -973,7 +1000,7 @@ export const SHOP = {
  * which is the pay-to-win line — money buys the wait, never the advantage.
  */
 export const ENERGY_PACK = {
-  /** Energy added, capped at OUT_OF_RUN_ENERGY.MAX. */
+  /** A full tank: energy added, capped at OUT_OF_RUN_ENERGY.MAX. */
   AMOUNT: OUT_OF_RUN_ENERGY.MAX,
   /** Refills per rolling day, so money cannot buy an unlimited session. */
   MAX_PER_DAY: 5,

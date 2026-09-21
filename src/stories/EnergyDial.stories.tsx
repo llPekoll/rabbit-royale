@@ -21,7 +21,7 @@
  *
  * THE NUMBERS ARE THE GAME'S. `OUT_OF_RUN_ENERGY.MAX` is 60 — the banked
  * energy the hub shows as "40/60 energy" on the DIG slab — and a run costs
- * `ENERGY.RUN_COST` (20), so the interesting readings are thirds.
+ * `ENERGY.MIN_TO_CROSS` (20), so the interesting readings are thirds.
  */
 import { useEffect, useState, type CSSProperties } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
@@ -85,7 +85,7 @@ function Face({ height, value }: { height: number; value: number }) {
     }}>
       <span style={{ fontSize: height > 60 ? 15 : 12, letterSpacing: '0.08em' }}>DIG</span>
       <span style={{ fontSize: height > 60 ? 10 : 8, color: '#d8c3ab' }}>
-        {value}/{MAX} energy · run costs {ENERGY.RUN_COST}
+        {value}/{MAX} energy · crossing costs {ENERGY.CROSSING_COST}
       </span>
     </span>
   );
@@ -121,9 +121,9 @@ export const Ends: StoryObj = {
       <EnergyDial value={MAX} max={MAX} height={120}><Face height={120} value={MAX} /></EnergyDial>
       <span style={label}>EMPTY — no colour at all, and the grey ring still whole</span>
       <EnergyDial value={0} max={MAX} height={120}><Face height={120} value={0} /></EnergyDial>
-      <span style={label}>ONE RUN LEFT — {ENERGY.RUN_COST}/{MAX}</span>
-      <EnergyDial value={ENERGY.RUN_COST} max={MAX} height={120}>
-        <Face height={120} value={ENERGY.RUN_COST} />
+      <span style={label}>ONE RUN LEFT — {ENERGY.MIN_TO_CROSS}/{MAX}</span>
+      <EnergyDial value={ENERGY.MIN_TO_CROSS} max={MAX} height={120}>
+        <Face height={120} value={ENERGY.MIN_TO_CROSS} />
       </EnergyDial>
     </>
   ),

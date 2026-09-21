@@ -124,7 +124,7 @@ export const ptBR: Dict = {
     ariaDefend: (line) => `Defender: enterrar armadilhas. ${line}`,
     ariaRaid: (line) => `Saquear. ${line}`,
     energyOf: (energy, max) => `${energy}/${max} de energia`,
-    runCosts: (n) => `uma saída custa ${n}`,
+    runCosts: (n) => `a travessia custa ${n}`,
     runIn: (wait) => `saída em ${wait}`,
     aMoment: 'um instante',
     gardenPlus: (n) => `horta +${n}`,

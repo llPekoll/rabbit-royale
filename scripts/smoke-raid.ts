@@ -61,7 +61,7 @@ async function main() {
   // Enter.
   const entered = await enter(DEF);
   check('a raid starts at the door', entered.raid?.tile === entranceTile(DEF), entered);
-  check('...with a full budget', entered.raid?.energy === RAID_RUN.START_ENERGY);
+  check('...with the tank as its budget', typeof entered.raid?.energy === 'number' && entered.raid.energy > 0, entered.raid?.energy);
   check('...and the defender named', entered.raid?.defender?.name === 'Defender');
   check('you cannot raid yourself', (await enter(ATT)).error === 'cannot_raid_yourself');
   check('two raids at once are refused', (await enter(DEF)).error === 'raid_in_progress');
@@ -120,11 +120,11 @@ async function main() {
   await db.insert(traps).values(doorway.map((tile) => ({ ownerId: DEF, tile })));
 
   const mined = await enter(DEF);
-  check('a raid starts on a mined burrow', mined.raid?.energy === RAID_RUN.START_ENERGY, mined.error);
+  check('a raid starts on a mined burrow', typeof mined.raid?.energy === 'number', mined.error);
   const first = await step(doorway[0]);
   check('stepping on a trap springs it', first.sprungTrap === true, first);
   check('...and it drains energy',
-    first.raid?.energy === RAID_RUN.START_ENERGY - RAID_RUN.STEP_COST - TRAPS.DRAIN,
+    first.raid?.energy === (mined.raid?.energy ?? 0) - RAID_RUN.STEP_COST - TRAPS.DRAIN,
     first.raid?.energy);
   check('...and the trap is spent, not reusable',
     (await db.query.traps.findMany({ where: eq(traps.ownerId, DEF) })).length === doorway.length - 1);

@@ -41,7 +41,10 @@ export interface LoopBarProps {
   dig: {
     energy: number;
     maxEnergy: number;
+    /** The least the tank must hold to cross (ENERGY.MIN_TO_CROSS). */
     runCost: number;
+    /** What the crossing takes (ENERGY.CROSSING_COST) — the line's number. */
+    crossingCost: number;
     /** Time until a run's worth, null when there already is. */
     nextRunInMs: number | null;
   };
@@ -181,7 +184,7 @@ export function LoopBar({
   const digParts = [
     t.loop.energyOf(dig.energy, dig.maxEnergy),
     canDig
-      ? t.loop.runCosts(dig.runCost)
+      ? t.loop.runCosts(dig.crossingCost)
       : t.loop.runIn(waitMs === null || waitMs <= 0 ? t.loop.aMoment : formatWait(waitMs, t.units)),
   ];
   const homeParts = [
