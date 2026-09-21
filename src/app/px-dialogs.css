@@ -227,6 +227,17 @@
   transform: translate(-50%, -50%);
   margin: 0;
   filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.45));
+  /* ABOVE THE ERUPTION'S SKY, which shares this layer.
+
+     `.rr-eruption` is fixed at z 30 inside `.rr-overlay`, and this card had no
+     z-index at all — so whenever the two were up together the sky's dark
+     gradient painted OVER the parchment, and the card read as if under a black
+     veil (Paul, 2026-09-21: "on dirait qu'il y a un voile noir dessus"). They
+     are up together on every tutorial win: the dig that opens the chest sends
+     `run_over` and, on the same server tick, the eruption that follows the
+     last chest — so the sky arrives right after the recap and sits on it for
+     the whole sequence. The island sinks BEHIND the card that reports it. */
+  z-index: 31;
 }
 .rr-recap-title { margin: 0 0 6px; }
 .rr-recap-stats { color: var(--muted); margin: 0 0 8px; }
