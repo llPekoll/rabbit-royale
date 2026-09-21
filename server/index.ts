@@ -428,10 +428,13 @@ async function bankRun(rabbit: Rabbit) {
    * dealt to them. Walking out to look and walking home used to cost a third
    * of the bank: "j'ai fait un game dig, j'ai pas bougé, j'ai perdu 20".
    *
-   * `tilesDug` and not `carrots` is the test. A dig that turned up nothing but
-   * dirt, or ended on a bomb, is a run that HAPPENED and stays paid for;
-   * carrots would refund a genuine unlucky run and hand back the price of
-   * every board that failed to pay out.
+   * `moved` and not `tilesDug` is the test, and not `carrots` either. Walking
+   * revealed ground is free and a rabbit spawns beside ground that is already
+   * open, so a run can be played properly and dig nothing — keying on tiles
+   * refunded those ("j'ai fait un pas, ca a pas consome les 20"). Keying on
+   * carrots would be worse still: an unlucky board that paid nothing is a run
+   * that HAPPENED and stays paid for. Only a rabbit that never took a step
+   * was merely looking.
    *
    * `runsPlayed` moves with the charge, for one reason beyond bookkeeping: it
    * is what sends a first-timer to their authored island (see `join`). A
@@ -446,7 +449,7 @@ async function bankRun(rabbit: Rabbit) {
    * back more than it took. Folded and clamped at the ceiling, "cross, wait,
    * leave" is worth exactly nothing, which is what it should be worth.
    */
-  const refunded = run.tilesDug === 0;
+  const refunded = !run.moved;
   let refund: { energy: number; energyUpdatedAt: Date } | undefined;
   if (refunded) {
     const row = await db.query.players.findFirst({
@@ -1086,6 +1089,15 @@ io.on('connection', (socket: Socket) => {
     const sheepTiles = new Set([...live.sheep.values()].map((at) => toIndex(at.x, at.y)));
     const out = resolveMove(live.island, rabbit, to, live.shape, rng, Date.now(), others, sheepTiles);
     if (!out.ok) return socket.emit('move_rejected', { reason: out.rejection });
+
+    // THE RUN HAS BEGUN — any accepted step, dug or merely walked.
+    //
+    // Not `out.dig`: walking revealed ground is free, and a rabbit spawns
+    // beside ground that is already open, so a real run can dig nothing at
+    // all. `tilesDug` alone therefore refunded runs that had genuinely been
+    // played — "j'ai fait un pas, ca a pas consome les 20". What separates a
+    // run from a look is whether the player ever moved.
+    if (rabbit.run) rabbit.run.moved = true;
 
     const room = roomFor(live.island.id);
 

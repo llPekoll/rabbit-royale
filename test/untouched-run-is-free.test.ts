@@ -19,6 +19,11 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { currentEnergy } from '../src/lib/game/regen';
 import { chargeRun } from '../src/lib/game/burrow';
+import { generateIsland } from '../src/lib/game/island';
+import { resolveMove, spawnRabbit } from '../src/lib/game/run';
+import { makeShape } from '../src/config/gridConfig';
+import { spawnTile, terrainNeighbors } from '../src/lib/game/terrainBoard';
+import { mulberry32 } from '../src/lib/game/rng';
 import { ENERGY, OUT_OF_RUN_ENERGY } from '../config/tuning';
 
 const read = (p: string) => readFileSync(new URL(p, import.meta.url), 'utf8');
@@ -67,12 +72,32 @@ describe('a run that dug nothing is refunded', () => {
     expect(refundOf(charged, t0 + 1_000)).toBe(30);
   });
 
-  it('is keyed on tiles dug, not on carrots banked', () => {
-    // An unlucky run that turned up nothing but dirt HAPPENED and stays paid
-    // for; keying this on the haul would refund every board that failed to pay
-    // out, which is a different — and much worse — game.
+  it('is keyed on having MOVED, not on tiles dug or carrots banked', () => {
+    // `tilesDug` was the first answer and it was wrong: walking revealed
+    // ground is free (`resolveMove` returns before the dig branch) and a
+    // rabbit spawns beside ground that is already open, so a run can be played
+    // properly and dig nothing — "j'ai fait un pas, ca a pas consome les 20".
+    // Carrots would be worse still: an unlucky board that paid nothing is a
+    // run that HAPPENED and stays paid for.
     const bank = SERVER.slice(SERVER.indexOf('async function bankRun'));
-    expect(bank).toMatch(/const refunded = run\.tilesDug === 0;/);
+    expect(bank).toMatch(/const refunded = !run\.moved;/);
+    expect(bank).not.toMatch(/const refunded = run\.tilesDug === 0;/);
+  });
+
+  it('marks the run as moved on any accepted step, dug or walked', () => {
+    // Set from the outcome of `resolveMove` having been ACCEPTED, not from
+    // `out.dig` — that is the bug this replaced — and after the rejection
+    // guard, so a refused step (too fast, a cliff, the tutorial hold) does not
+    // start the run.
+    const move = SERVER.slice(SERVER.indexOf("socket.on('move'"));
+    const body = move.slice(0, move.indexOf("socket.on('leave'"));
+    const guard = body.indexOf("if (!out.ok) return socket.emit('move_rejected'");
+    const flag = body.indexOf('rabbit.run.moved = true');
+    expect(guard).toBeGreaterThan(-1);
+    expect(flag).toBeGreaterThan(guard);
+    // And it is not conditioned on a dig.
+    const between = body.slice(guard, flag);
+    expect(between).not.toMatch(/if \(out\.dig\)/);
   });
 
   it('folds the regen in and re-stamps, like the charge did', () => {
@@ -89,6 +114,35 @@ describe('a run that dug nothing is refunded', () => {
     // has silently lost the tutorial.
     const bank = SERVER.slice(SERVER.indexOf('async function bankRun'));
     expect(bank).toMatch(/runsPlayed: raw`\$\{players\.runsPlayed\} \+ \$\{refunded \? 0 : 1\}`/);
+  });
+
+  it('a step onto revealed ground really does dig nothing — the bug itself', () => {
+    // THE PROOF the criterion had to change. `resolveMove` returns early on
+    // revealed ground ("walking revealed ground is free"), so the outcome
+    // carries no `dig` and `tilesDug` never moves — while the player has
+    // plainly played. A rabbit spawns beside exactly such ground.
+    const seed = 'refund-walk';
+    const island = generateIsland({ seed, contentSeed: 'quiet' });
+    for (const t of island.tiles.values()) {
+      t.content = 'empty'; t.adjacent = 0; t.hinted = false; t.revealed = false;
+    }
+    const spawn = spawnTile(seed);
+    const to = terrainNeighbors(seed, spawn)[0];
+    expect(to).toBeDefined();
+    // Open the ground the step lands on, as a cascade or another player would.
+    island.tiles.get(spawn)!.revealed = true;
+    island.tiles.get(to)!.revealed = true;
+
+    const rabbit = spawnRabbit('p1', 'Test', ENERGY.START, seed);
+    rabbit.run = { id: 'r1', startedAt: 0, tilesDug: 0, bombsHit: 0, loot: {}, nfts: [] };
+    const out = resolveMove(island, rabbit, to, makeShape('dig-zero'), mulberry32(1), 10_000);
+
+    expect(out.ok).toBe(true);
+    expect(out.dig).toBeUndefined();   // nothing was dug...
+    expect(rabbit.tile).toBe(to);      // ...but the rabbit moved.
+    // So the old criterion would have called this a look-around and refunded
+    // it, while the new one counts it as the run it is.
+    expect(rabbit.run!.tilesDug).toBe(0);
   });
 
   it('still banks the carrots and the tiles of a real run', () => {

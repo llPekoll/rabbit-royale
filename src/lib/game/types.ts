@@ -103,6 +103,17 @@ export interface Rabbit {
     id?: string;
     startedAt: number;
     tilesDug: number;
+    /**
+     * Did this run ever MOVE? Set by the first accepted step, dig or not.
+     *
+     * Distinct from `tilesDug`, and the distinction is the whole point:
+     * walking revealed ground is free (see `resolveMove`), and a rabbit spawns
+     * beside ground somebody has already opened — so a player can cross,
+     * play, and walk home having dug nothing. Counting that as "never
+     * started" refunded a run that really happened. Only a player who never
+     * took a step at all was merely looking.
+     */
+    moved?: boolean;
     bombsHit: number;
     /** Right Xs in a row, with no wrong X and no blast — see FLAG in tuning. */
     flagStreak?: number;
