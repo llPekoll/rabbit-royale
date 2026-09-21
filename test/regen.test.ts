@@ -4,7 +4,7 @@
  * would have handled by accident.
  */
 import { describe, expect, it } from 'vitest';
-import { GARDEN, GARDEN_BOOST, OUT_OF_RUN_ENERGY } from '../config/tuning';
+import { GARDEN, GARDEN_BOOST, OUT_OF_RUN_ENERGY, regenPerHour } from '../config/tuning';
 import { capHoursFor, currentEnergy, gardenYield } from '../src/lib/game/regen';
 
 const ago = (hours: number) => new Date(Date.now() - hours * 3_600_000);
@@ -136,5 +136,20 @@ describe('fertiliser — the ceiling boost', () => {
       burrowLevel: 1, gardenCollectedAt: ago(2), fertilisedUntil: inHours(6),
     });
     expect(fed).toBe(plain);
+  });
+});
+
+describe('a burrow level recharges faster', () => {
+  it('adds a point an hour per level, and stops at the cap', () => {
+    const { REGEN_PER_HOUR: base, REGEN_PER_LEVEL: step, REGEN_LEVEL_CAP: cap } = OUT_OF_RUN_ENERGY;
+    expect(regenPerHour(1)).toBe(base);
+    expect(regenPerHour(5)).toBe(base + 4 * step);
+    expect(regenPerHour(cap)).toBe(base + (cap - 1) * step);
+    expect(regenPerHour(cap + 10)).toBe(regenPerHour(cap));
+    // A row without a level reads as level 1 — older fixtures, partial reads.
+    const now = Date.now();
+    const at = new Date(now - 2 * 3_600_000);
+    expect(currentEnergy({ energy: 0, energyUpdatedAt: at }, now)).toBe(Math.floor(2 * base));
+    expect(currentEnergy({ energy: 0, energyUpdatedAt: at, burrowLevel: cap }, now)).toBe(Math.floor(2 * regenPerHour(cap)));
   });
 });

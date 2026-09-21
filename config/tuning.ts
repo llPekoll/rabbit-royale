@@ -589,9 +589,34 @@ export const OUT_OF_RUN_ENERGY = {
    * September 2026.
    */
   REGEN_PER_HOUR: 30,
+  /**
+   * A BURROW LEVEL RECHARGES A POINT AN HOUR FASTER, up to REGEN_LEVEL_CAP
+   * (Paul, 21 September 2026): the second reason to raise the burrow beside
+   * the garden's yield. The RUN does not grow — a bigger tank was measured
+   * the same day and rejected, because the tank is the difficulty of the
+   * last two tiers: at 335 a reader died half as often on Ashland, at 395
+   * they cleared it. Faster regen gives a veteran more SESSIONS, not longer
+   * ones, and a session is a full tank whatever the level.
+   *
+   * Sized on `tools/economy-day.sim.ts`: the regular's three visits cap a
+   * day at 900, and +1 a level meets that cap at level 10 — anything past
+   * it is regen nobody collects, so the ladder stops there (39 an hour, a
+   * full tank in 7 h 40). At level 8 it is +10 % on the day and the runs'
+   * share held at 45 % rather than 40. The player who comes once a day
+   * gains nothing from it, by design: the tank is 300 whoever you are.
+   * See `regenPerHour`.
+   */
+  REGEN_PER_LEVEL: 1,
+  REGEN_LEVEL_CAP: 10,
   /** The tank's ceiling — the same tank the run drains (ENERGY.MAX). */
   MAX: ENERGY.MAX,
 } as const;
+
+/** Energy the tank refills per hour at this burrow level (OUT_OF_RUN_ENERGY). */
+export function regenPerHour(level: number): number {
+  const steps = Math.max(0, Math.min(level, OUT_OF_RUN_ENERGY.REGEN_LEVEL_CAP) - 1);
+  return OUT_OF_RUN_ENERGY.REGEN_PER_HOUR + OUT_OF_RUN_ENERGY.REGEN_PER_LEVEL * steps;
+}
 
 // ── Phase 5: raids & sabotage ────────────────────────────────────────────────
 

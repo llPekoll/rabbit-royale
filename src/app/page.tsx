@@ -101,6 +101,8 @@ interface Burrow {
   /** Milliseconds of shield left, or null when raids can land right now. */
   shieldMs: number | null;
   yieldPerHour: number;
+  /** Energy the tank refills per hour at this level (`regenPerHour`). */
+  regenPerHour: number;
   /** The LIVE ceiling in hours — fertiliser included while a feeding runs. */
   capHours: number;
   gardenCapacity: number;
@@ -113,7 +115,7 @@ interface Burrow {
   };
   upgradeCost: number | null;
   canUpgrade: boolean;
-  next: { yieldPerHour: number } | null;
+  next: { yieldPerHour: number; regenPerHour: number } | null;
   /** Runs banked — zero means never been on an island. */
   runs: number;
 }
@@ -2527,6 +2529,7 @@ function Burrow() {
                   level={burrow?.level ?? 1}
                   stock={burrow?.stock ?? 0}
                   yieldPerHour={burrow?.yieldPerHour ?? 0}
+                  regenPerHour={burrow?.regenPerHour ?? 0}
                   upgradeCost={burrow?.upgradeCost ?? null}
                   canUpgrade={!!burrow?.canUpgrade}
                   pending={pending}

@@ -568,7 +568,7 @@ async function bankRun(rabbit: Rabbit) {
  */
 async function payForRun(
   playerId: string,
-  first: { energy: number; energyUpdatedAt: Date },
+  first: { energy: number; energyUpdatedAt: Date; burrowLevel?: number },
 ) {
   return payCrossing(playerId, first);
 }

@@ -40,6 +40,10 @@ export interface BurrowPanelProps {
   stock: number;
   /** What the garden makes per hour at this level. */
   yieldPerHour: number;
+  /** Energy the tank refills per hour at this level — the burrow's second
+   *  reason to be raised (OUT_OF_RUN_ENERGY.REGEN_PER_LEVEL). Optional so the
+   *  older stories still mount; absent or zero, the line is not drawn. */
+  regenPerHour?: number;
   /** Price of the next level, or null at the top of the ladder. */
   upgradeCost: number | null;
   canUpgrade: boolean;
@@ -70,7 +74,7 @@ const SAFE_INK = '#ffd138';
 
 
 export function BurrowPanel({
-  level, stock, yieldPerHour, upgradeCost, canUpgrade, onUpgrade, pending,
+  level, stock, yieldPerHour, regenPerHour = 0, upgradeCost, canUpgrade, onUpgrade, pending,
 }: BurrowPanelProps) {
   const t = useT();
   const art = burrowBuildingArt(level);
@@ -168,6 +172,12 @@ export function BurrowPanel({
       </HubRow>
 
       <p className={SUB_CLASS} style={subText}>{yieldPerHour} carrots/hour</p>
+      {/* THE SECOND REASON TO RAISE IT: each level refills the tank a point
+          an hour faster, up to level 10. Beside the yield so the upgrade
+          price sits against two benefits rather than one. */}
+      {regenPerHour > 0 && (
+        <p className={SUB_CLASS} style={subText}>&#9889; {regenPerHour} energy/hour</p>
+      )}
 
       {/* The vault strip: what a raid cannot reach. Given its own ground
           rather than set as another line of fine print, because it is the one

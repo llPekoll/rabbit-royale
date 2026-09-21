@@ -5,8 +5,8 @@
  * "can I afford this?" and the tests. The numbers themselves all live in
  * config/tuning.ts — nothing here invents one.
  */
-import { BURROW, ENERGY, OUT_OF_RUN_ENERGY, upgradeCost } from '../../../config/tuning';
-import { capHoursFor, currentEnergy, gardenYield, type RegenRow } from './regen';
+import { BURROW, ENERGY, OUT_OF_RUN_ENERGY, regenPerHour, upgradeCost } from '../../../config/tuning';
+import { capHoursFor, currentEnergy, gardenYield, type RegenRow, type TankRow } from './regen';
 import { gardenCapacity, yieldPerHour } from './garden-growth';
 import { gardenBoostView, type GardenBoostState, type GardenKind, type Holdings } from './inventory';
 
@@ -59,6 +59,9 @@ export interface BurrowView {
   nextRunInMs: number | null;
   /** Carrots the garden makes per hour at this level. */
   yieldPerHour: number;
+  /** Energy the tank refills per hour at this level (`regenPerHour`): the
+   *  burrow's second reason to be raised, printed beside the yield. */
+  regenPerHour: number;
   /**
    * Hours of production the garden holds before it stops — the reason to
    * come back daily rather than weekly.
@@ -108,7 +111,7 @@ export interface BurrowView {
   canUpgrade: boolean;
   /** What the next level buys, so the price has something to sit against. A
    *  cost with no stated benefit is a number the player cannot judge. */
-  next: { yieldPerHour: number } | null;
+  next: { yieldPerHour: number; regenPerHour: number } | null;
   /**
    * Runs banked. Zero is the one value that matters: a player who has never
    * been on an island is sent to one straight from sign-in rather than shown
@@ -125,18 +128,18 @@ export interface BurrowView {
  * never disagree with the number beside it.
  */
 export function msToNextEnergy(
-  row: Pick<RegenRow, 'energy' | 'energyUpdatedAt'>,
+  row: TankRow,
   now = Date.now(),
 ): number | null {
   if (currentEnergy(row, now) >= OUT_OF_RUN_ENERGY.MAX) return null;
-  const perPoint = 3_600_000 / OUT_OF_RUN_ENERGY.REGEN_PER_HOUR;
+  const perPoint = 3_600_000 / regenPerHour(row.burrowLevel ?? 1);
   const elapsed = Math.max(0, now - row.energyUpdatedAt.getTime());
   return perPoint - (elapsed % perPoint);
 }
 
 /** Is there a run's worth of energy in the bar right now? */
 export function canStartRun(
-  row: Pick<RegenRow, 'energy' | 'energyUpdatedAt'>,
+  row: TankRow,
   now = Date.now(),
 ): boolean {
   return currentEnergy(row, now) >= ENERGY.MIN_TO_CROSS;
@@ -153,12 +156,12 @@ export function canStartRun(
  */
 /** How long until the tank holds `need` — null if it already does. */
 export function msToHave(
-  row: Pick<RegenRow, 'energy' | 'energyUpdatedAt'>,
+  row: TankRow,
   need: number,
   now = Date.now(),
 ): number | null {
   if (currentEnergy(row, now) >= need) return null;
-  const perPoint = 3_600_000 / OUT_OF_RUN_ENERGY.REGEN_PER_HOUR;
+  const perPoint = 3_600_000 / regenPerHour(row.burrowLevel ?? 1);
   const short = need - row.energy;
   const readyAt = row.energyUpdatedAt.getTime() + Math.ceil(short) * perPoint;
   return Math.max(0, readyAt - now);
@@ -166,7 +169,7 @@ export function msToHave(
 
 /** How long until a crossing is affordable (ENERGY.MIN_TO_CROSS). */
 export function msToRun(
-  row: Pick<RegenRow, 'energy' | 'energyUpdatedAt'>,
+  row: TankRow,
   now = Date.now(),
 ): number | null {
   return msToHave(row, ENERGY.MIN_TO_CROSS, now);
@@ -187,7 +190,7 @@ export function msToRun(
  * and stops at zero, which is how a raid's steps are paid mid-run.
  */
 export function chargeEnergy(
-  row: Pick<RegenRow, 'energy' | 'energyUpdatedAt'>,
+  row: TankRow,
   charge: { cost: number; need: number; floor?: boolean },
   now = Date.now(),
 ): { energy: number; energyUpdatedAt: Date } | null {
@@ -201,7 +204,7 @@ export function chargeEnergy(
 
 /** The crossing: the fee, behind the floor that makes it worth paying. */
 export function chargeRun(
-  row: Pick<RegenRow, 'energy' | 'energyUpdatedAt'>,
+  row: TankRow,
   now = Date.now(),
 ): { energy: number; energyUpdatedAt: Date } | null {
   return chargeEnergy(row, { cost: ENERGY.CROSSING_COST, need: ENERGY.MIN_TO_CROSS }, now);
@@ -256,6 +259,7 @@ export function burrowView(row: BurrowRow, now = Date.now(), bag?: Holdings): Bu
     crossingCost: ENERGY.CROSSING_COST,
     nextRunInMs: msToRun(row, now),
     yieldPerHour: yieldPerHour(row.burrowLevel),
+    regenPerHour: regenPerHour(row.burrowLevel),
     capHours: capHoursFor(row, now),
     gardenCapacity: gardenCapacity(row.burrowLevel),
     gardenCeiling: Math.floor(capHoursFor(row, now) * yieldPerHour(row.burrowLevel)),
@@ -263,7 +267,7 @@ export function burrowView(row: BurrowRow, now = Date.now(), bag?: Holdings): Bu
     shieldMs: msOfShield(row.shieldedUntil ?? null, now),
     upgradeCost: cost,
     canUpgrade: cost !== null && row.stock >= cost,
-    next: atMax ? null : { yieldPerHour: yieldPerHour(row.burrowLevel + 1) },
+    next: atMax ? null : { yieldPerHour: yieldPerHour(row.burrowLevel + 1), regenPerHour: regenPerHour(row.burrowLevel + 1) },
     runs: row.runsPlayed ?? 0,
   };
 }

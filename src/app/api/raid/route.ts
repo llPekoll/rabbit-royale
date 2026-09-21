@@ -69,7 +69,7 @@ async function raidView(runId: string, revealAll = false) {
   // and the medallion on the carrot pill reads it from here between steps.
   const attacker = await db.query.players.findFirst({
     where: eq(players.id, run.attackerId),
-    columns: { energy: true, energyUpdatedAt: true },
+    columns: { energy: true, energyUpdatedAt: true, burrowLevel: true },
   });
   const tank = attacker ? currentEnergy(attacker) : null;
 
@@ -372,7 +372,7 @@ export async function POST(req: Request) {
    */
   const attacker = await db.query.players.findFirst({
     where: eq(players.id, session.sub),
-    columns: { energy: true, energyUpdatedAt: true },
+    columns: { energy: true, energyUpdatedAt: true, burrowLevel: true },
   });
   if (!attacker) return Response.json({ error: 'unknown_player' }, { status: 404 });
   if (currentEnergy(attacker, now) < TOLL.need) {

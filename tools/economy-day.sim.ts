@@ -76,7 +76,8 @@ test('a day', () => {
       const visits = kind === 'casual' ? 1 : kind === 'regular' ? 3 : 4;
       const raidCount = kind === 'casual' ? 0 : kind === 'regular' ? 1 : 3;
       const raidEnergy = Math.min(T.RAID_RUN.STAKE, T.RAID_RUN.TOLL + 10 * T.RAID_RUN.STEP_COST + T.TRAPS.DRAIN);
-      const energyDay = Math.min(visits * T.ENERGY.MAX, T.OUT_OF_RUN_ENERGY.REGEN_PER_HOUR * 24);
+      // The regen follows the burrow level (OUT_OF_RUN_ENERGY.REGEN_PER_LEVEL), and the day is capped by the visits.
+      const energyDay = Math.min(visits * T.ENERGY.MAX, T.regenPerHour(levelOn[tier]) * 24);
       const runs = Math.max(0, energyDay - raidCount * raidEnergy) / T.ENERGY.MAX;
       const gardenHours = kind === 'casual' ? T.GARDEN.CAP_HOURS : 24;
       const garden = gardenHour(levelOn[tier]) * gardenHours;
@@ -92,7 +93,7 @@ test('a day', () => {
       return { runs: runs * perRun, garden, raids, total, perRun, haul };
     };
 
-    lines.push(`a day at ${T.OUT_OF_RUN_ENERGY.REGEN_PER_HOUR}/h, ${T.OUT_OF_RUN_ENERGY.REGEN_PER_HOUR * 24} energy (runs / garden / raids = total; share of runs, garden, raids):`);
+    lines.push(`a day at ${T.OUT_OF_RUN_ENERGY.REGEN_PER_HOUR}/h at level 1 (+${T.OUT_OF_RUN_ENERGY.REGEN_PER_LEVEL} a level to ${T.OUT_OF_RUN_ENERGY.REGEN_LEVEL_CAP}), ${T.OUT_OF_RUN_ENERGY.REGEN_PER_HOUR * 24} energy at level 1 (runs / garden / raids = total; share of runs, garden, raids):`);
     for (const kind of ['casual', 'regular', 'engaged'] as const) for (const t of ['Meadow', 'Caldera']) {
       const d = day(t, kind);
       lines.push(`  ${kind.padEnd(8)} ${t.padEnd(8)} ${f(d.runs).padStart(6)} / ${f(d.garden).padStart(5)} / ${f(d.raids).padStart(5)} = ${f(d.total).padStart(6)}   ${f(100 * d.runs / d.total)} % · ${f(100 * d.garden / d.total)} % · ${f(100 * d.raids / d.total)} %`);

@@ -85,6 +85,8 @@ export const OVERRIDABLE: readonly TuningSpec[] = [
   { path: 'GARDEN.CAP_HOURS', kind: 'int', min: 1, max: 168, note: 'Heures de production avant que le jardin sature' },
   { path: 'OUT_OF_RUN_ENERGY.REGEN_PER_HOUR', kind: 'float', min: 0.01, max: 120, note: 'Énergie rendue par heure hors partie' },
   { path: 'OUT_OF_RUN_ENERGY.MAX', kind: 'int', min: 1, max: 1_000, note: 'Plafond d\'énergie banquée' },
+  { path: 'OUT_OF_RUN_ENERGY.REGEN_PER_LEVEL', kind: 'float', min: 0, max: 20, note: 'Énergie par heure gagnée par niveau de terrier' },
+  { path: 'OUT_OF_RUN_ENERGY.REGEN_LEVEL_CAP', kind: 'int', min: 1, max: 50, note: 'Niveau de terrier au-delà duquel la regen ne monte plus' },
 
   // ── The burrow ladder. Read when the upgrade is bought.
   { path: 'BURROW.UPGRADE_BASE_COST', kind: 'int', min: 1, max: 1_000_000, note: 'Coût du niveau 2' },

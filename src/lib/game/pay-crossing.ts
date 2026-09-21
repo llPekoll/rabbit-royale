@@ -34,7 +34,7 @@ export const CROSSING: EnergyCharge = { cost: ENERGY.CROSSING_COST, need: ENERGY
 export function payCrossing(
   playerId: string,
   /** The row as already read by the caller, to save a round trip. */
-  first?: { energy: number; energyUpdatedAt: Date },
+  first?: { energy: number; energyUpdatedAt: Date; burrowLevel?: number },
 ): Promise<CrossingPaid> {
   return payEnergy(playerId, CROSSING, first);
 }
@@ -49,11 +49,11 @@ export function payCrossing(
 export async function payEnergy(
   playerId: string,
   charge: EnergyCharge,
-  first?: { energy: number; energyUpdatedAt: Date },
+  first?: { energy: number; energyUpdatedAt: Date; burrowLevel?: number },
 ): Promise<CrossingPaid> {
   let row = first ?? await db.query.players.findFirst({
     where: eq(players.id, playerId),
-    columns: { energy: true, energyUpdatedAt: true },
+    columns: { energy: true, energyUpdatedAt: true, burrowLevel: true },
   });
   if (!row) return { ok: false, energy: 0, nextRunInMs: null };
 
@@ -83,7 +83,7 @@ export async function payEnergy(
 
     const fresh = await db.query.players.findFirst({
       where: eq(players.id, playerId),
-      columns: { energy: true, energyUpdatedAt: true },
+      columns: { energy: true, energyUpdatedAt: true, burrowLevel: true },
     });
     if (!fresh) break;
     row = fresh;

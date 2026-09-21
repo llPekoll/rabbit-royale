@@ -9,7 +9,7 @@
  * The functions are pure — they take a row and a clock and return numbers. The
  * caller decides whether to write the new values back.
  */
-import { GARDEN, GARDEN_BOOST, OUT_OF_RUN_ENERGY } from '../../../config/tuning';
+import { GARDEN, GARDEN_BOOST, OUT_OF_RUN_ENERGY, regenPerHour } from '../../../config/tuning';
 
 const HOUR = 3_600_000;
 
@@ -24,9 +24,14 @@ export interface RegenRow {
 }
 
 /** Energy now, capped. Regen runs while you are out of a run. */
-export function currentEnergy(row: Pick<RegenRow, 'energy' | 'energyUpdatedAt'>, now = Date.now()) {
+/** The row a tank is read from: the bar, its stamp, and the burrow level
+ *  that sets how fast it refills (`regenPerHour`). The level is optional so
+ *  older fixtures and partial reads still type: absent, it reads as level 1. */
+export type TankRow = Pick<RegenRow, 'energy' | 'energyUpdatedAt'> & { burrowLevel?: number };
+
+export function currentEnergy(row: TankRow, now = Date.now()) {
   const hours = Math.max(0, now - row.energyUpdatedAt.getTime()) / HOUR;
-  return Math.min(OUT_OF_RUN_ENERGY.MAX, Math.floor(row.energy + hours * OUT_OF_RUN_ENERGY.REGEN_PER_HOUR));
+  return Math.min(OUT_OF_RUN_ENERGY.MAX, Math.floor(row.energy + hours * regenPerHour(row.burrowLevel ?? 1)));
 }
 
 /**
