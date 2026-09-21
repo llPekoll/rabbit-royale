@@ -410,11 +410,11 @@ export function LoopBar({
         </PxButton>
       </div>
 
-      {/* The loop closes: a drawn arrow, not a glyph the pixel face lacks. */}
-      <svg className="rr-toon-in-up" style={{ ...arrow, opacity: 0.6, ...enter(150) }} width="18" height="18" viewBox="0 0 18 18" aria-hidden>
-        <path d="M14 9a5 5 0 1 1-1.5-3.5" fill="none" stroke="#f5e6d3" strokeWidth="2" strokeLinecap="round" />
-        <path d="M12 2v4h-4" fill="none" stroke="#f5e6d3" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
+      {/* NO CLOSING ARROW after RAID. The loop used to end on a drawn
+          circular arrow, meant as "and back to DIG"; in the bottom-right
+          corner of a phone it read as a RELOAD button and got tapped as one
+          (Paul, 2026-09-21). The two chevrons between the slabs already say
+          the order. */}
     </nav>
   );
 }
@@ -528,7 +528,7 @@ const slab: CSSProperties = {
      screen. Paul's floor is 2px of air inside every frame.
      The clamp lives in globals.css as `--rr-loop-h`: the burrow column's
      bottom reserve measures against it, and a height typed twice drifts. */
-  height: 'var(--rr-loop-h, clamp(48px, 10.4svh, 80px))',
+  height: 'var(--rr-loop-h, clamp(52px, 10.4svh, 80px))',
   padding: 0,
   pointerEvents: 'auto',
 };

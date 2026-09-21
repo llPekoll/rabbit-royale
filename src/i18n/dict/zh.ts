@@ -36,7 +36,6 @@ export const zh: Dict = {
     guest: '以访客身份游玩',
     waiting: '等待中...',
     guestNote: '访客兔窝。连接钱包以保留它。',
-    guestTag: '访客',
     noWallet: '未找到钱包。请在兔子皇战应用内打开，或安装 Solana 钱包。',
     signInFailed: '登录失败',
     guestFailed: '无法创建访客兔窝',
@@ -49,7 +48,6 @@ export const zh: Dict = {
   chrome: {
     loading: '加载中',
     waking: '唤醒兔群',
-    moreBelow: '向下滚动查看更多',
     reconnecting: '重新连接...',
     back: '返回',
     close: '关闭',

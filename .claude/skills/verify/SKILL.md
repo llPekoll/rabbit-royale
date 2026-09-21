@@ -25,13 +25,18 @@ Migrations: `bun db:check` must say all applied, or `/api/burrow` 500s.
 drives; copy their shape. Key facts:
 
 - A fresh guest: click `button:has-text("Play as a guest")`. A guest with
-  zero runs is crossed to the FIRST island automatically; wait for `.rr-hud`.
-  The HUD mounts before the board boots — do not trust a fixed delay, poll the
-  stage instead (below).
-- Home: `.rr-overlay button:has-text("Home")`. Banks the run, so the next
-  join is a normal island. The burrow shows `.rr-loop-bar` with slabs
-  `.rr-loop-dig / .rr-loop-home / .rr-loop-raid`; the top bar has
-  `[aria-label="Shop"]` and `[aria-label="Story"]`.
+  zero runs is crossed to the FIRST island automatically. `.rr-hud` is an
+  EMPTY header now (the gauge moved onto the carrot pill), so Playwright
+  reports it hidden — wait for `.rr-back-btn` or poll the stage (below).
+- Home is the shared exit slab `.rr-back-btn`, bottom centre. It is HIDDEN on
+  the first island until the bomb lesson is done (`game.taughtBomb`), so a
+  drive that only needs the burrow should not cross at all:
+  `node tools/verify-ios-burrow.mjs` makes a guest, marks it `runs_played = 1`
+  in the local db, restarts `bun ws` (which holds the run's seat in memory)
+  and reopens it — straight to the burrow. Banking a run does the same
+  (`.rr-back-btn`), so the next join is a normal island. The burrow shows
+  `.rr-loop-bar` with slabs `.rr-loop-dig / .rr-loop-home / .rr-loop-raid`;
+  the top bar has `[aria-label="Shop"]` and `[aria-label="Story"]`.
 - Energy: a guest starts at 60, each crossing costs 20 (`ENERGY.RUN_COST`) →
   the fourth DIG opens the "Out of energy" dialog
   (`[aria-label="Out of energy"]`). Inside a run the HUD shows a yellow
@@ -60,3 +65,13 @@ Chromium reports a fine pointer and the gate never applies. Use `page.tap`.
 The portrait media blocks in globals.css still serve a desktop window
 dragged tall and narrow (no gate there); 390×844 WITHOUT touch emulation is
 that case, not a phone.
+
+## iPhone under Safari's bar
+
+Safari's landscape toolbar takes ~70px and nothing on the page can hide it:
+an iPhone 15 is 852×393 and the game gets **852×320**. That is the shortest
+screen the game meets, so it is where the top bar, the column and the slabs
+break first. The side notch reports ~59px of `safe-area-inset-left/right`;
+Chromium emulates it through CDP (`tools/verify-ios-burrow.mjs` with
+`SAFE=59`), and it must NOT move the layout — only the top and bottom insets
+are honoured (globals.css `body` padding).

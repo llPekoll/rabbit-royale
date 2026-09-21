@@ -107,15 +107,14 @@ export function WalletButton() {
         {/* The name is the only part of this chip that can give ground, so it
             is the only part wrapped: a bare text node cannot be told to
             ellipsise, and on a narrow screen the chip grew until it ran into
-            the carrot pill centred beside it. The avatar and the GUEST tag
-            keep their size — they are fixed marks, and a half-drawn one reads
-            as a glitch where a shortened name reads as a long name. */}
+            the carrot pill centred beside it. The avatar and the badge keep
+            their size — they are fixed marks, and a half-drawn one reads as a
+            glitch where a shortened name reads as a long name.
+            NO GUEST TAG beside it any more: it took a third of the chip on a
+            phone and the name paid for it ("Sil..."), and the state it marked
+            is told where the chip leads — the profile panel's connect step,
+            and this button's own title (Paul, 2026-09-21). */}
         <span className="rr-wallet-name">{player.name}</span>
-        {/* A guest is MARKED on the chip. The state is temporary by design, and
-            the corner is where a player already looks to see who they are —
-            leaving it unsaid is how somebody loses a week of digging to a
-            cleared browser without ever having been told it could happen. */}
-        {player.guest && <em className="rr-guest-tag">{t.auth.guestTag}</em>}
         {/* Unread raids ride on the chip: being robbed while away is only
             useful news if the game tells you before you go looking. */}
         {unseen > 0 && <em className="rr-badge">{unseen}</em>}

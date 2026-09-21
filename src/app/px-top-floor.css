@@ -106,7 +106,6 @@
    2px is all a 14px line can spare vertically; the tight pad each side is
    what every badge in the game now takes. Matches `.rr-pill-carrying` in
    globals.css, and the badges set from carrot-pill/hub-icon-button/loop-bar. */
-.rr-wallet .rr-guest-tag,
 .rr-wallet .rr-badge { padding: 2px var(--rr-pad-tight); }
 
 /* ── A kit button whose content fills its face ─────────────────────────────
@@ -419,7 +418,7 @@ button.rr-item-slot:active:hover:not(:disabled) { filter: var(--rr-live-ring,) v
    fractions are the art's own caps over its 104px height. */
 .rr-loop-slab.rr-loop-home,
 .rr-loop-slab.rr-loop-raid {
-  --rr-scroll-h: var(--rr-loop-h, clamp(48px, 10.4svh, 80px));
+  --rr-scroll-h: var(--rr-loop-h, clamp(52px, 10.4svh, 80px));
   /* Where the content span sits inside the plank (used below, and by
      `.rr-loop-corner` to reach back out of it). */
   --rr-inset-t: calc(var(--rr-scroll-h) * 0.15);
@@ -517,8 +516,10 @@ button.rr-item-slot:active:hover:not(:disabled) { filter: var(--rr-live-ring,) v
 @media (max-height: 520px) {
   .rr-loop-slab.rr-loop-home .rr-loop-verb,
   .rr-loop-slab.rr-loop-raid .rr-loop-verb { font-size: 12px !important; }
+  /* Line height 1: the inherited 1.25 was 2px of empty line box, and at this
+     size every pixel of the block is a pixel less air against the frame. */
   .rr-loop-slab.rr-loop-home .rr-loop-line,
-  .rr-loop-slab.rr-loop-raid .rr-loop-line { font-size: 9px !important; }
+  .rr-loop-slab.rr-loop-raid .rr-loop-line { font-size: 9px !important; line-height: 1 !important; }
 }
 /* …except the alarm, which must stay loud: something is out there to lose.
    Darkened for parchment rather than dropped. */
@@ -557,7 +558,7 @@ button.rr-item-slot:active:hover:not(:disabled) { filter: var(--rr-live-ring,) v
 /* The dial's geometry, published on :root so both the cell that draws it and
    the bar that has to clear it can read the same numbers. */
 :root {
-  --rr-dial-h: var(--rr-loop-h, clamp(48px, 10.4svh, 80px));
+  --rr-dial-h: var(--rr-loop-h, clamp(52px, 10.4svh, 80px));
   --rr-dial-art: calc(var(--rr-dial-h) * 1.789);
   --rr-dial-over-bottom: calc(var(--rr-dial-art) * 0.1471);
 }
@@ -574,7 +575,7 @@ button.rr-item-slot:active:hover:not(:disabled) { filter: var(--rr-live-ring,) v
      Drawing the art at the slab's own height instead (the first cut) squashed
      the whole medallion into the plank's band and lost the overflow that
      makes it read as a dial bolted ON the board. */
-  --rr-dial-h: var(--rr-loop-h, clamp(48px, 10.4svh, 80px));
+  --rr-dial-h: var(--rr-loop-h, clamp(52px, 10.4svh, 80px));
   --rr-dial-art: calc(var(--rr-dial-h) * 1.789);
   --rr-dial-slice: 30 36 15 116;
   --rr-dial-caps:

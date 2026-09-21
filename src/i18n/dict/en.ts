@@ -46,7 +46,6 @@ export const en = {
     guest: 'Play as a guest',
     waiting: 'Waiting...',
     guestNote: 'Guest burrow. Connect a wallet to keep it.',
-    guestTag: 'GUEST',
     noWallet: 'No wallet found. Open in the Rabbit Royale app or install a Solana wallet.',
     signInFailed: 'Sign-in failed',
     guestFailed: 'Could not start a guest burrow',
@@ -60,7 +59,6 @@ export const en = {
   chrome: {
     loading: 'Loading',
     waking: 'Waking the warren',
-    moreBelow: 'Scroll for more',
     reconnecting: 'Reconnecting...',
     back: 'Back',
     close: 'Close',

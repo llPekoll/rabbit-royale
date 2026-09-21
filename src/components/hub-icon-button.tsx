@@ -159,9 +159,13 @@ export function HubIconButton({
  * square would be a quarter of the screen's height.
  */
 const button: CSSProperties = {
-  width: 'clamp(34px, 11svh, 68px)',
-  height: 'clamp(34px, 11svh, 68px)',
-  minWidth: 'clamp(34px, 11svh, 68px)',
+  /* THE TOKEN, not a copy of its clamp: the row's reserve in page.tsx and the
+     narrow-phone override in globals.css both speak `--rr-icon`, and a literal
+     here silently stopped following them (the SE's icons stayed 41px while
+     the reserve shrank to 34). */
+  width: 'var(--rr-icon)',
+  height: 'var(--rr-icon)',
+  minWidth: 'var(--rr-icon)',
   flexShrink: 0,
   padding: 0,
   pointerEvents: 'auto',

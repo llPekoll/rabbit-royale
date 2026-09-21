@@ -30,7 +30,6 @@ export const fr: Dict = {
     guest: 'Jouer en invité',
     waiting: 'Attente...',
     guestNote: 'Terrier invité. Connecte un portefeuille pour le garder.',
-    guestTag: 'INVITÉ',
     noWallet: "Aucun portefeuille trouvé. Ouvre l'appli Rabbit Royale ou installe un portefeuille Solana.",
     signInFailed: 'Connexion échouée',
     guestFailed: "Impossible d'ouvrir un terrier invité",
@@ -43,7 +42,6 @@ export const fr: Dict = {
   chrome: {
     loading: 'Chargement',
     waking: 'On réveille la garenne',
-    moreBelow: 'Faire défiler pour voir la suite',
     reconnecting: 'Reconnexion...',
     back: 'Retour',
     close: 'Fermer',

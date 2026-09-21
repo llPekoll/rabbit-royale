@@ -34,7 +34,6 @@ export const ptBR: Dict = {
     guest: 'Jogar como convidado',
     waiting: 'Aguardando...',
     guestNote: 'Toca de convidado. Conecte uma carteira para mantê-la.',
-    guestTag: 'CONVIDADO',
     noWallet: 'Nenhuma carteira encontrada. Abra no app Rabbit Royale ou instale uma carteira Solana.',
     signInFailed: 'Falha ao entrar',
     guestFailed: 'Não foi possível abrir uma toca de convidado',
@@ -47,7 +46,6 @@ export const ptBR: Dict = {
   chrome: {
     loading: 'Carregando',
     waking: 'Acordando a coelheira',
-    moreBelow: 'Role para ver mais',
     reconnecting: 'Reconectando...',
     back: 'Voltar',
     close: 'Fechar',

@@ -84,6 +84,11 @@
      "126" with the rank chip clipped off for a stock of 1263. */
   --rr-pill-row: 176px;
   --rr-pill-w: calc(var(--rr-pill-row) + var(--rr-plank-caps));
+  /* THE PILL'S SIZE ON THE SCREEN, as a factor of its drawn size. 1 on a
+     screen with the height for it; a short landscape phone takes a smaller
+     one below. Anything measuring against the pill (the player chip's cap)
+     multiplies by this too, so the two cannot disagree. */
+  --rr-pill-scale: 1;
   /* THE WAY BACK'S HEIGHT, stated once because two rules measure against it:
      the button's own `min-height` (back-button.tsx) and the placement kit row
      that now stacks directly on top of it. The button is content-sized, and
@@ -105,7 +110,11 @@
      has to clear it. The reserve used to be typed by hand against a launcher
      row that no longer mounts (`12.4svh + 30px`, 80px on the Seeker for a
      58px bar) — the drift this token exists to prevent. */
-  --rr-loop-h: clamp(48px, 10.4svh, 80px);
+  /* THE FLOOR IS 52. At 48 the parchment and the skull board — whose frames
+     are drawn art top and bottom — left DEFEND and RAID's verb standing on
+     the top edge of the paper, no air at all (Paul's Safari photo,
+     2026-09-21). Four pixels of slab is two of paper each side. */
+  --rr-loop-h: clamp(52px, 10.4svh, 80px);
 
   /* The kit's own pointers. The system arrow was the last piece of desktop
      chrome left on screen, and it sat on top of a game drawn entirely in
@@ -145,7 +154,12 @@
 
    Opaque and above everything (the next highest layer is 9000), and the rest
    of the page is hidden rather than merely covered, so it cannot be tabbed
-   into or read out from behind the gate. */
+   into or read out from behind the gate. The gate lives inside `#root`, which
+   that rule hides too — `visibility` is the one hiding a child can undo, so
+   the gate takes it back. Without that line the portrait screen is blank.
+
+   Dressed as a dialog: the scrim's own dark, made opaque, with the parchment
+   card sitting on it the way the Shed or the energy popup does. */
 .rr-rotate-gate { display: none; }
 @media (orientation: portrait) and (pointer: coarse) {
   .rr-rotate-gate {
@@ -153,52 +167,60 @@
     inset: 0;
     z-index: 10000;
     display: flex;
-    flex-direction: column;
+    visibility: visible;
     align-items: center;
     justify-content: center;
-    gap: 16px;
     padding:
-      calc(24px + env(safe-area-inset-top))
-      calc(24px + env(safe-area-inset-right))
-      calc(24px + env(safe-area-inset-bottom))
-      calc(24px + env(safe-area-inset-left));
-    background: var(--bg);
-    color: var(--text);
+      calc(var(--rr-edge) + env(safe-area-inset-top))
+      calc(var(--rr-edge) + env(safe-area-inset-right))
+      calc(var(--rr-edge) + env(safe-area-inset-bottom))
+      calc(var(--rr-edge) + env(safe-area-inset-left));
+    /* The scrim under every dialog is rgba(10, 6, 4, .78) over the board;
+       there is no board to see through to here, so the same dark, solid. */
+    background: #0a0604;
     text-align: center;
   }
   body > :not(.rr-rotate-gate) { visibility: hidden; }
 }
+/* The Woodland kit's palette (components/woodland/README.md): ink on
+   parchment, and the gold kept for the one thing to do — here, turning. */
+.rr-rotate-card {
+  --rr-rotate-ink: #352011;
+  --rr-rotate-gold: #ffc83d;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--rr-pad);
+  width: min(100%, 360px);
+  padding: calc(var(--rr-pad) * 2) var(--rr-pad);
+}
 .rr-rotate-phone {
   width: 40px;
   height: 64px;
-  margin-bottom: 8px;
-  border: 4px solid var(--text);
+  border: 4px solid var(--rr-rotate-ink);
   border-radius: 8px;
   /* The speaker slot: which way is "up" on the drawing. */
-  background: linear-gradient(var(--text), var(--text)) 50% 6px / 12px 4px no-repeat;
+  background: linear-gradient(var(--rr-rotate-ink), var(--rr-rotate-ink)) 50% 6px / 12px 4px no-repeat;
   animation: rr-rotate-phone 2400ms ease-in-out infinite;
 }
 @keyframes rr-rotate-phone {
   0%, 25%   { transform: none; }
-  55%, 85%  { transform: rotate(-90deg); border-color: var(--crown); }
+  55%, 85%  { transform: rotate(-90deg); border-color: var(--rr-rotate-gold); }
   100%      { transform: none; }
 }
 .rr-rotate-title {
   margin: 0;
-  max-width: 20ch;
-  font-size: 16px;
-  line-height: 1.5;
-  color: var(--crown);
+  max-width: 100%;
 }
 .rr-rotate-sub {
   margin: 0;
   font-size: 12px;
   line-height: 1.6;
-  color: var(--muted);
+  color: var(--wl-runtime-muted, #6c3e22);
 }
 @media (prefers-reduced-motion: reduce) {
   /* Drawn already turned: the picture still says which way to hold it. */
-  .rr-rotate-phone { animation: none; transform: rotate(-90deg); border-color: var(--crown); }
+  .rr-rotate-phone { animation: none; transform: rotate(-90deg); border-color: var(--rr-rotate-gold); }
 }
 
 html, body {
@@ -316,13 +338,24 @@ button.rr-hub-tab:disabled { opacity: 1; }
 
 html, body {
   height: 100%;
-  /* The native shell draws under the notch (that is the point of not using a
-     TWA), so the page has to keep its own content out of it. */
-  padding: env(safe-area-inset-top) env(safe-area-inset-right)
-           env(safe-area-inset-bottom) env(safe-area-inset-left);
   /* A game is not a document: the page itself never scrolls, the board pans. */
   overflow: hidden;
   -webkit-tap-highlight-color: transparent;
+}
+/* THE NOTCH, TOP AND BOTTOM ONLY. The native shell draws under it (that is the
+   point of not using a TWA), so the page keeps its content out of the status
+   band and the home bar.
+
+   NOT THE SIDES. An iPhone held sideways reports ~59px on each side, and this
+   used to pad them too — on BOTH html and body, so twice: the top bar and the
+   column started 128px in while the dig dial, the season trophy and the sound
+   squares (all `position: fixed`, pinned at `--rr-edge`) stayed on the edge.
+   The shop and story icons drifted 100px left of the trophy they belong
+   with, and the player's name was cut to three letters (Paul's Safari photo,
+   2026-09-21). The column hugs the left edge like the dial under it; what
+   lands beside the island is a card's own margin, not its text. */
+body {
+  padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
 }
 
 /* LE HOTE DE REACT PREND TOUTE LA HAUTEUR.
@@ -734,7 +767,8 @@ button { min-height: 44px; min-width: 44px; }
   .rr-loop-bar > span, .rr-loop-bar > svg { display: none; }
   .rr-loop-away { transform: translateX(-50%) translateY(120%); }
   body:has(.rr-loop-bar) .rr-burrow {
-    padding-bottom: calc(10px + env(safe-area-inset-bottom) + 3 * 48px + 2 * 6px + 20px);
+    --rr-col-floor: calc(10px + env(safe-area-inset-bottom) + 3 * 48px + 2 * 6px + 20px);
+    padding-bottom: var(--rr-col-floor);
   }
 }
 
@@ -1839,11 +1873,32 @@ body:has(.rr-pill-plate.has-energy) {
      belongs to its floor. */
   position: fixed;
   left: 50%;
-  transform: translateX(-50%);
   top: var(--rr-edge);
+  /* Scaled from its top-centre, so it hangs from the same point at every
+     size and the centring below it holds. */
+  transform: translateX(-50%) scale(var(--rr-pill-scale));
+  transform-origin: 50% 0;
   /* Above the board and the column, below the drawers — same band as the
      launcher row, for the same reason. */
   z-index: 20;
+}
+/* A SHORT LANDSCAPE PHONE. The plank is drawn at 2x, 90px tall on the burrow
+   and 128 on the island — on an iPhone under Safari's bar the page is ~320px
+   tall, and the pill alone was 28% of it, a board hung in the middle of the
+   sky (Paul, 2026-09-21: "the top center carrot panel is huge"). Three
+   quarters keeps the figure legible and the plank's grain crisp enough, and
+   gives the island back a band of water. 420 rather than the 520 the cards
+   fold at: the Seeker's 400px already wants it, a 480 tablet does not. */
+@media (max-height: 420px) {
+  :root { --rr-pill-scale: 0.75; }
+}
+/* A NARROW LANDSCAPE PHONE (the SE: 667x375). The icon row is sized from the
+   HEIGHT (`--rr-icon`, 11svh = 41px here), five squares that start 235px in
+   from the right edge, and the pill centred on the screen ran its right
+   leaves under the shop. The row takes its floor instead — the 34px it
+   already is on a taller, shorter iPhone — and the two clear each other. */
+@media (max-width: 720px) and (orientation: landscape) {
+  :root { --rr-icon: 34px; }
 }
 
 /* The pill does NOT move when the season board opens.
@@ -1912,10 +1967,10 @@ body:has(.rr-pill-plate.has-energy) {
      "Curs..." on an 855px phone with 150px of empty bar between the chip and
      the pill (Paul, 2026-09-16). The bar is centred on the screen, as the pill
      is, so half the bar less half the pill less a gap is exactly the room. */
-  max-width: calc(50% - var(--rr-pill-w) / 2 - var(--rr-pad));
+  max-width: calc(50% - var(--rr-pill-w) * var(--rr-pill-scale) / 2 - var(--rr-pad));
   flex-shrink: 1;
 }
-/* ONE LINE. Under that cap the GUEST tag wrapped under the name and the chip
+/* ONE LINE. Under that cap a badge could wrap under the name and the chip
    came out 51-63px tall, which pushed the whole bar (and everything reserving
    it) down. As a no-wrap row it is the name that gives way, which is what the
    ellipsis below is for. */
@@ -1927,7 +1982,7 @@ body:has(.rr-pill-plate.has-energy) {
 .rr-wallet.connected .rr-wallet-name { min-width: 0; flex: 0 1 auto; }
 
 /* The NAME is what gives way inside it — an element of its own, because a
-   bare text node cannot be told to ellipsise. The avatar and the GUEST tag
+   bare text node cannot be told to ellipsise. The avatar and the raid badge
    keep their size: a half-drawn mark reads as a glitch, a shortened name
    reads as a long name. */
 .rr-wallet-name {
@@ -2044,58 +2099,48 @@ body:has(.rr-pill-plate.has-energy) {
 
 /* ── MORE BELOW ────────────────────────────────────────────────────────────
    The column is a scroll box, and on a landscape phone its cards run past the
-   floor with nothing to say so: the last card simply stops at the loop bar,
-   which reads as the end of the column. This is the hint — the kit's down
-   arrow, bobbing on a small card-coloured chip at the column's visible foot,
-   shown only while there is more below (page.tsx `colMore`). A tap scrolls.
+   floor with nothing to say so: the last card simply stopped at the loop bar,
+   which read as the end of the column. This is the hint — the column's foot
+   FADES OUT over its last band, only while there is more below it
+   (scroll-fade.tsx sets `data-more` on the box).
 
-   STICKY ON A ZERO-HEIGHT SHELF. The shelf is the column's last child, stuck
-   to its foot, and has no height, so it adds nothing to what scrolls. The
-   chip hangs UP from it, over the last card's lower edge. `bottom: 0` is
-   already above the loop bar: a sticky box is held inside the scroll box's
-   PADDING, and the column's padding-bottom is the floor's reserve. */
-.rr-col-more {
-  display: block;
-  position: sticky;
-  bottom: 0;
-  height: 0;
-  /* Beats the short-screen `> div` gutter rule by not being a div, and
-     takes no pointer itself: only the chip does. */
-  pointer-events: none !important;
-  z-index: 2;
-}
-.rr-col-more-btn {
-  position: absolute;
-  left: 50%;
-  bottom: var(--rr-pad-tight);
-  transform: translateX(-50%);
-  pointer-events: auto;
-  padding: 0;
-  border: 0;
-  background: none;
-  cursor: var(--cur-hand);
-  animation: rr-shop-in 200ms ease-out backwards;
-}
-.rr-col-more-chip {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2px var(--rr-pad-tight);
-}
-.rr-col-more-chip img {
-  display: block;
-  height: 14px;
-  width: auto;
-  image-rendering: pixelated;
-  animation: rr-arrow-down 1.6s ease-in-out infinite;
-}
-@media (prefers-reduced-motion: reduce) {
-  .rr-col-more-chip img { animation: none; }
+   It was a bobbing down-arrow on a chip, stuck to the foot; on a phone that
+   chip sat in the middle of the burrow card's face and covered its figures
+   (Paul, 2026-09-21). A fade takes no room, covers nothing and says the same
+   thing — the canonical sign of a scrollable list.
+
+   THE FADE ENDS WHERE THE FLOOR'S RESERVE BEGINS. The box's padding-bottom is
+   the strip the loop bar takes, so the visible foot of the column is
+   `100% - --rr-col-floor` of the box — that is where the mask reaches zero,
+   and the band above it is the fade. A mask is fixed to the box like a
+   background, so it stays at the foot while the cards scroll under it. The
+   cards under the loop bar (inside the reserve) mask to nothing, which also
+   stops them showing through the round dig dial. */
+.rr-burrow[data-more='1'] {
+  /* Short: the burrow card's figures stay readable to within a band of the
+     floor; a longer fade ghosted the whole last card. */
+  --rr-col-fade: 36px;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 calc(100% - var(--rr-col-floor, 0px) - var(--rr-col-fade)),
+    transparent calc(100% - var(--rr-col-floor, 0px))
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    #000 calc(100% - var(--rr-col-floor, 0px) - var(--rr-col-fade)),
+    transparent calc(100% - var(--rr-col-floor, 0px))
+  );
 }
 
-/* On a phone there is no room to sit beside anything, so the column recentres
-   and the wash goes flat and darker to keep the text legible over the art. */
-@media (max-width: 720px) {
+/* A PHONE HELD UPRIGHT has no room to sit beside anything, so the column
+   recentres and the wash goes flat and darker to keep the text legible over
+   the art.
+   PORTRAIT, STATED. This was width-only, from before upright phones were
+   gated (orientation.ts): an iPhone SE is 667px wide held SIDEWAYS, so it
+   took the upright layout — a 460px column over the whole island (Paul,
+   Chrome's SE emulation, 2026-09-21). Upright is the gate's now; what this
+   still serves is a desktop window dragged narrow. */
+@media (max-width: 720px) and (orientation: portrait) {
   /* The gutter is for the SEASON BOARD'S HANDLE, which is `position: fixed`
      at `right: 0` and therefore invisible to this column's own layout. On a
      wide screen the board sits beside the burrow and the 12px is enough; on a
@@ -2298,7 +2343,7 @@ body:has(.rr-burrow) .rr-burrow:has(.rr-empty) {
    below the top bar rather than the emblem shrinking: the logo is the first
    thing a new player sees and a step down in scale costs more than the space
    does. */
-@media (max-width: 720px) {
+@media (max-width: 720px) and (orientation: portrait) {
   .rr-masthead { padding-top: calc(env(safe-area-inset-top) + 52px); }
 }
 
@@ -2545,8 +2590,12 @@ body:has(.rr-burrow) .rr-burrow {
   /* Clear of the launcher row on the floor, which is `position: fixed` and so
      takes no space of its own — the column has to leave it.
      The raid kit needs no strip of its own: it appears only while PLACING,
-     and the column steps aside entirely in that mode. */
-  padding-bottom: 108px;
+     and the column steps aside entirely in that mode.
+     STATED AS `--rr-col-floor` here and in every override below: the fade at
+     the column's foot (`.rr-burrow[data-more]`) has to end exactly where the
+     floor's reserve begins, and a number typed in two places drifts. */
+  --rr-col-floor: 108px;
+  padding-bottom: var(--rr-col-floor);
 }
 
 /* ...but NOT on a short screen, where that strip is most of the column.
@@ -2567,7 +2616,8 @@ body:has(.rr-burrow) .rr-burrow {
   /* Room for the launcher row; the mute shares its band rather than taking
      one of its own. (The raid kit is a placing-mode row and needs none.) */
   body:has(.rr-burrow) .rr-burrow {
-    padding-bottom: calc(var(--rr-loop-h) + var(--rr-edge) + var(--rr-pad-tight) + env(safe-area-inset-bottom));
+    --rr-col-floor: calc(var(--rr-loop-h) + var(--rr-edge) + var(--rr-pad-tight) + env(safe-area-inset-bottom));
+    padding-bottom: var(--rr-col-floor);
   }
 
   /* Cards sit closer together. On the Seeker the column has 228px of visible
@@ -2650,7 +2700,8 @@ body:has(.rr-empty) .rr-sound { display: none; }
     bottom: calc(var(--rr-floor) + var(--rr-go-h) + 8px);
   }
   body:has(.rr-burrow) .rr-burrow {
-    padding-bottom: calc(var(--rr-floor) + var(--rr-go-h) + 8px + 44px + 10px);
+    --rr-col-floor: calc(var(--rr-floor) + var(--rr-go-h) + 8px + 44px + 10px);
+    padding-bottom: var(--rr-col-floor);
   }
   /* The island's floor used to be a full-width HOME box and the mute sat on
      its right end, so the mute was lifted 110px clear of that band. The way
@@ -3188,20 +3239,6 @@ body:has(.rr-empty) .rr-sound { display: none; }
 /* GUEST, on the wallet chip. Muted rather than alarming: it is a normal way to
    play, not an error — but it is stated, because a guest who never learns their
    burrow is browser-bound is the one who loses it. */
-.rr-guest-tag {
-  display: inline-block;
-  margin-left: 6px;
-  /* The same chip inset as the other two (`.rr-badge`, `.rr-new-tag`). */
-  padding: 1px 4px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--muted);
-  font-size: 9px;
-  font-style: normal;
-  line-height: 14px;
-  letter-spacing: 0.06em;
-  vertical-align: middle;
-}
 
 /* The upgrade offer, in the profile panel — where the wallet address sits for
    everyone else, because that is exactly the line it stands in for. */
@@ -3627,9 +3664,11 @@ button { font-family: var(--font-pixel); }
   .rr-loading-dots::after { content: '...'; animation: none; }
 }
 
-/* A phone has the width to spare, so the tap target grows into it. The
-   centring itself now lives on the base rule and needs no help here. */
-@media (max-width: 720px) {
+/* An upright phone has the width to spare, so the tap target grows into it.
+   The centring itself now lives on the base rule and needs no help here.
+   Portrait only, like the column rule above: sideways, a 667px SE is not
+   a phone with width to spare. */
+@media (max-width: 720px) and (orientation: portrait) {
   .rr-go, .rr-back { max-width: 460px; }
 }
 

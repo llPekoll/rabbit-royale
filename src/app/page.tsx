@@ -28,7 +28,7 @@ import { RaidedStamp, raidedNews, type RaidedNews } from '@/components/raided-st
 import { TopbarReserve } from '@/components/topbar-reserve';
 import { SoundButton } from '@/components/sound-button';
 import { LoadingScreen } from '@/components/loading-screen';
-import { ScrollMoreHint } from '@/components/scroll-more-hint';
+import { ScrollFade } from '@/components/scroll-fade';
 import { InstallNudge } from '@/components/install-guide';
 import { LogoBanner } from '@/components/logo-banner';
 import { LanguageSelect } from '@/components/language-select';
@@ -2472,7 +2472,7 @@ function Burrow() {
           )}
           {/* Last, so it measures the whole column. Not on the doorstep,
               which is a different layout sharing this element. */}
-          {showCanvas && <ScrollMoreHint />}
+          {showCanvas && <ScrollFade />}
         </section>
       ) : null}
 
