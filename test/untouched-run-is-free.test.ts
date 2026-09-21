@@ -66,10 +66,12 @@ describe('a run that dug nothing is refunded', () => {
 
   it('refunds from a part-spent bar without over-crediting', () => {
     const t0 = Date.now();
-    // A bar well below the ceiling: the clamp must not be what decides this.
-    const charged = chargeRun({ energy: 30, energyUpdatedAt: new Date(t0) }, t0)!;
-    expect(charged.energy).toBe(30 - ENERGY.CROSSING_COST);
-    expect(refundOf(charged, t0 + 1_000)).toBe(30);
+    // A bar well below the ceiling, just over the floor the gate asks for
+    // (ENERGY.MIN_TO_CROSS): the clamp must not be what decides this.
+    const start = ENERGY.MIN_TO_CROSS + 10;
+    const charged = chargeRun({ energy: start, energyUpdatedAt: new Date(t0) }, t0)!;
+    expect(charged.energy).toBe(start - ENERGY.CROSSING_COST);
+    expect(refundOf(charged, t0 + 1_000)).toBe(start);
   });
 
   it('is keyed on having MOVED, not on tiles dug or carrots banked', () => {

@@ -112,12 +112,19 @@ export const ENERGY = {
    */
   CROSSING_COST: 5,
   /**
-   * The least in the tank to be let across: the fee plus five digs. A
-   * crossing that lands with nothing to dig is a fee for nothing, so the
-   * burrow shows the wait (or the refill) instead. What the "run costs" line
-   * and the out-of-energy dialog quote.
+   * The least in the tank to be let across: a bomb's worth and a handful of
+   * digs past the fee. A crossing that lands with nothing to dig is a fee for
+   * nothing, so the burrow shows the wait (or the refill) instead. What the
+   * "run costs" line and the out-of-energy dialog quote.
+   *
+   * It opened at 10 (the fee plus five digs) when the pools merged: fifty
+   * minutes after a dead run the gate let a player onto an island that
+   * ended on the seventh tile, which is the arrival the gate exists to
+   * prevent. 40 is one blast survived with something left to read, and two
+   * hours of regen after a dead run (21 September 2026, measured in
+   * `tools/economy-day.sim.ts`).
    */
-  MIN_TO_CROSS: 10,
+  MIN_TO_CROSS: 40,
 } as const;
 
 /*
@@ -367,15 +374,21 @@ export const FLAG = {
  * 3 guesses on a Meadow island and 26 on Caldera — and an X placed as a PROBE
  * on the likeliest tile answers the rest. The tool was already in the game.
  *
+ * RE-SPACED 21 September 2026 for the ONE TANK: a day is now what the
+ * regen puts back (OUT_OF_RUN_ENERGY.REGEN_PER_HOUR, 480 at 20 an hour),
+ * spent on one raid and the runs the rest pays for, not four runs posed by
+ * hand. The sim's door line at that day says 5 000, 18 500 and 36 500 for
+ * days 3, 8 and 14 — a sixth off the first door, a twentieth off the others.
+ *
  * RE-SPACED 17 September 2026 — same intended pace, measured income.
  *
  * The pace below (Thicket on day 3, Ashland on day 8, Caldera on day 14) is
  * still the goal. What was wrong was the income it was computed from: "a run
  * is 21 digs and 120 carrots" is a rabbit digging BLIND until its third bomb,
  * and nobody who reads the numbers plays like that. `tools/economy-day.sim.ts`
- * walks the ladder a day at a time as the regular player — four runs halfway
+ * walks the ladder a day at a time as the regular player — runs halfway
  * between no X and a reader, a full garden, one raid — and prints where the
- * doors have to stand for those three days: 6 000, 19 500 and 37 500. Run it
+ * doors have to stand for those three days (6 000, 19 500 and 37 500 then). Run it
  * again after touching RUN, FLAG, GARDEN or RAID; the doors move with them.
  *
  * Re-spaced once before, on 15 September 2026, for two reasons.
@@ -419,9 +432,9 @@ export interface IslandTier {
 
 export const ISLAND_TIERS: readonly IslandTier[] = [
   { name: 'Meadow',  minLifetime: 0,      bombDensity: 0.14, carrotDensity: 0.30, goldenShare: 0.06, xGain: 3 },
-  { name: 'Thicket', minLifetime: 6_000,   bombDensity: 0.17, carrotDensity: 0.34, goldenShare: 0.09, xGain: 3 },
-  { name: 'Ashland', minLifetime: 19_500,  bombDensity: 0.20, carrotDensity: 0.38, goldenShare: 0.13, xGain: 2 },
-  { name: 'Caldera', minLifetime: 37_500,  bombDensity: 0.24, carrotDensity: 0.43, goldenShare: 0.18, xGain: 2 },
+  { name: 'Thicket', minLifetime: 5_000,   bombDensity: 0.17, carrotDensity: 0.34, goldenShare: 0.09, xGain: 3 },
+  { name: 'Ashland', minLifetime: 18_500, bombDensity: 0.20, carrotDensity: 0.38, goldenShare: 0.13, xGain: 2 },
+  { name: 'Caldera', minLifetime: 36_500, bombDensity: 0.24, carrotDensity: 0.43, goldenShare: 0.18, xGain: 2 },
 ] as const;
 
 // ── Phase 2: island life cycle ───────────────────────────────────────────────
@@ -520,12 +533,26 @@ export const GARDEN = {
 
 export const OUT_OF_RUN_ENERGY = {
   /**
-   * Energy the tank refills while you are away. 12 an hour: an empty tank is
-   * full again in about half a day, which is the rhythm the old 60-at-5 had
-   * — the numbers scaled with the tank when the pools merged, the wait did
-   * not. One point every five minutes; a dead run can cross again in ~50.
+   * Energy the tank refills while you are away. 20 an hour: an empty tank is
+   * full again in 7.5 hours, one point every three minutes, a dead run can
+   * cross again (ENERGY.MIN_TO_CROSS) in two hours.
+   *
+   * SIZED TO THE GAP BETWEEN SESSIONS, not to a number of runs. A run ends
+   * at zero, so with one tank a full tank IS one run and the refill clock is
+   * the run clock: what this number decides is how many sessions a day are
+   * free. The lane's norm is a 5-15 minute session played two to four times
+   * a day, with the meter full again by the next natural sit-down and never
+   * full for long (Candy Crush and Royal Match refill in 2.5 h, Coin Master
+   * in 10, Puzzle & Dragons in 3-8). At 12 (empty to full in 12.5 h, carried
+   * over from the old 60-at-5 bank) only a player who came exactly twice a
+   * day saw a full tank, and the garden's 12 h cap already asks for those
+   * two visits. 20 gives breakfast, lunch and evening a full tank each, 480
+   * a day, and wastes nothing for the player who comes twice. Past 30 the
+   * tank is full at every visit and the meter stops meaning anything; a
+   * bigger tank is a longer run, not more of them (see ENERGY.MAX). Paul,
+   * 21 September 2026.
    */
-  REGEN_PER_HOUR: 12,
+  REGEN_PER_HOUR: 20,
   /** The tank's ceiling — the same tank the run drains (ENERGY.MAX). */
   MAX: ENERGY.MAX,
 } as const;
@@ -548,8 +575,8 @@ export const TRAPS = {
 /**
    * Energy a trap drains when stepped on.
    *
-   * Sized against what a raid walks with — RAID_RUN.STAKE less the toll, 25 —
-   * so that a trap costs a raider about a third of it: enough that mining the
+   * Sized against what a raid walks with — RAID_RUN.STAKE less the toll, 30 —
+   * so that a trap costs a raider about a quarter of it: enough that mining the
    * right tile visibly shortens a raid, not so much that one trap ends it;
    * three do. Loot is paid by depth, so a trap converts directly into
    * carrots the attacker does not get. (30, a bomb's worth, was tried when
@@ -687,11 +714,28 @@ export const RAID_RUN = {
    * used to cost the crossing's flat 20 and then run on its own 26-point
    * counter, so a tiny burrow and a fortress cost the same. Now every step
    * and every trap is paid from the tank the player digs with, and this is
-   * the wager on top: half a bomb to climb into somebody's burrow. Small
+   * the wager on top: a bomb's worth to climb into somebody's burrow. Small
    * targets stay cheap, never free — and the choice reads as a bet against
    * the tank, which is the whole point (Paul, 2026-09-21).
+   *
+   * 30, from 15, the same day. With ONE tank the two doors compete for the
+   * same points, and at 15 a raid paid 7 carrots a point on Meadow (14 on
+   * Caldera) against 2.6 for a run: the stake capped the bet at 40 while a
+   * run spends all 150, so the rational player raided first and dug with
+   * the change. At 30 with a 60 stake a raid costs 40-60 and pays about 4 a
+   * point — still the better trade, twice a run rather than three to five
+   * times, and now a real bet of a third of the tank.
    */
-  TOLL: 15,
+  TOLL: 30,
+  /**
+   * Steps of walk the tank must hold PAST the toll to be let in — the
+   * longest crossing the generator deals (8..13 steps, see TRAPS.DOORSTEP).
+   * At the toll plus one step, a player 80 minutes off a dead run was let
+   * into a burrow they could take one step in, for the doorstep's 15 % of
+   * the haul. A raid that starts should at least be able to reach an
+   * undefended field.
+   */
+  WALK_FLOOR: 13,
   /**
    * THE STAKE: the most a raid can draw from the tank, toll included. A full
    * tank is 300 and a raid is ten steps; unlimited, a raider walked through
@@ -700,8 +744,11 @@ export const RAID_RUN = {
    * what you walk with, and traps burn it — three end a raid, as they always
    * did. A player with less than this in the tank stakes what they have,
    * which is the risk they took crossing on a low bar.
+   *
+   * 60, from 40, with the toll (see TOLL): the walk stays 30, so three
+   * traps (24) and the crossing still end it, and two on a long crossing.
    */
-  STAKE: 40,
+  STAKE: 60,
   /** Every step costs this, trap or not — distance itself is a defence. */
   STEP_COST: 1,
   /**
@@ -999,10 +1046,13 @@ export const SHOP = {
     bomb: 300,
     lightning: 500,
     shield: 600,
-    // Three runs' worth of carrots, give or take — 3 x ~340 for the player in the
-    // middle. At 400 it bought runs worth 3 750 (carrot at 15) and made the
+    // A refill is ONE TANK, and a run always ends at zero, so it buys one
+    // run: ~390 for the player in the middle. 450 keeps it a sink (it must
+    // not print carrots) without being a joke — at 900, carried over from
+    // the days when the same pack bought three crossings, it cost 2.3 runs
+    // for one. At 400 (carrot at 15) it bought runs worth 3 750 and made the
     // paid refill pointless. `tools/economy-day.sim.ts` checks the ratio.
-    energy: 900,
+    energy: 450,
     /**
      * The dearest thing in the shed, and the only one that is dear for a
      * DESIGN reason rather than an economic one: it takes information away

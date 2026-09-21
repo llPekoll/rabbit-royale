@@ -10,11 +10,14 @@
  * of income, burrow level 5 within 14, the three island doors on days 3, 8 and
  * 14, and a carrot-bought refill that does not print money.
  *
- * Three players: CASUAL (one visit a day, three runs, never places an X),
- * REGULAR (two visits, four runs — the player the page models — halfway
- * between no X and a reader, one raid), ENGAGED (six runs, reads and probes,
- * three raids). What differs from the page is only the run: there it is a
- * rabbit digging blind (21 tiles, 120 carrots); here it is played.
+ * Three players: CASUAL (one visit a day, never places an X, no raid),
+ * REGULAR (three visits — the player the page models — halfway between no X
+ * and a reader, one raid), ENGAGED (four visits, reads and probes, three
+ * raids). ONE TANK (21 September 2026): a visit finds what the regen put back
+ * since the last one, a raid takes its toll and walk out of it first, and a
+ * run spends the rest — a run ends at zero, so the day's energy is the day's
+ * runs. What differs from the page is only the run: there it is a rabbit
+ * digging blind (21 tiles, 120 carrots); here it is played.
  */
 import { test } from 'vitest';
 import { writeFileSync } from 'node:fs';
@@ -64,8 +67,17 @@ test('a day', () => {
 
     const day = (tier: string, kind: 'casual' | 'regular' | 'engaged') => {
       const i = income[tier];
-      const runs = kind === 'casual' ? 3 : kind === 'regular' ? 4 : 6;
       const perRun = kind === 'casual' ? i.walker : kind === 'regular' ? (i.walker + i.reader) / 2 : i.prober;
+      // ONE TANK. Visits find at most a full tank, and the day's regen is the
+      // ceiling on all of them; a raid (toll, a ten-step walk, one trap) is
+      // paid out of it first and the runs are what is left, in tanks — a run
+      // is a whole tank because it ends at zero. `perRun` is measured on a
+      // full tank, so a part-tank run pays pro rata.
+      const visits = kind === 'casual' ? 1 : kind === 'regular' ? 3 : 4;
+      const raidCount = kind === 'casual' ? 0 : kind === 'regular' ? 1 : 3;
+      const raidEnergy = Math.min(T.RAID_RUN.STAKE, T.RAID_RUN.TOLL + 10 * T.RAID_RUN.STEP_COST + T.TRAPS.DRAIN);
+      const energyDay = Math.min(visits * T.ENERGY.MAX, T.OUT_OF_RUN_ENERGY.REGEN_PER_HOUR * 24);
+      const runs = Math.max(0, energyDay - raidCount * raidEnergy) / T.ENERGY.MAX;
       const gardenHours = kind === 'casual' ? T.GARDEN.CAP_HOURS : 24;
       const garden = gardenHour(levelOn[tier]) * gardenHours;
       // A raid on a REGULAR of the same tier: a day and a half in stock, half a garden.
@@ -75,12 +87,12 @@ test('a day', () => {
       const haul = Math.min(T.RAID.LOOT_CAP,
         Math.max(0, victimDay * 1.5 - T.RAID.SAFE_FLOOR) * share * depth
         + gardenHour(levelOn[tier]) * T.GARDEN.CAP_HOURS * 0.5 * T.RAID.GARDEN_LOOT_SHARE * depth);
-      const raids = (kind === 'casual' ? 0 : kind === 'regular' ? 1 : 3) * haul;
+      const raids = raidCount * haul;
       const total = runs * perRun + garden + raids;
       return { runs: runs * perRun, garden, raids, total, perRun, haul };
     };
 
-    lines.push('a day (runs / garden / raids = total; share of runs, garden, raids):');
+    lines.push(`a day at ${T.OUT_OF_RUN_ENERGY.REGEN_PER_HOUR}/h, ${T.OUT_OF_RUN_ENERGY.REGEN_PER_HOUR * 24} energy (runs / garden / raids = total; share of runs, garden, raids):`);
     for (const kind of ['casual', 'regular', 'engaged'] as const) for (const t of ['Meadow', 'Caldera']) {
       const d = day(t, kind);
       lines.push(`  ${kind.padEnd(8)} ${t.padEnd(8)} ${f(d.runs).padStart(6)} / ${f(d.garden).padStart(5)} / ${f(d.raids).padStart(5)} = ${f(d.total).padStart(6)}   ${f(100 * d.runs / d.total)} % · ${f(100 * d.garden / d.total)} % · ${f(100 * d.raids / d.total)} %`);
@@ -94,9 +106,10 @@ test('a day', () => {
     check(ra >= 0.1 && ra <= 0.5, `raids are ${f(100 * ra)} % of income (10-50)`);
     check(reg.perRun >= reg.haul * 0.4 && reg.perRun <= reg.haul * 2.5, `a run (${f(reg.perRun)}) against a raid (${f(reg.haul)}) and a garden visit (${f(gardenHour(1) * T.GARDEN.CAP_HOURS)}): similar weight`);
     check(T.SHOP.PRICES.shield / reg.total <= 4, `a shield is ${f(T.SHOP.PRICES.shield / reg.total, 1)} days of income (4 at most)`);
-    // ONE TANK: a refill is a full tank, and a run spends what it digs — a
-    // careful run's worth, from the robot table at the top of tuning.ts.
-    const RUN_SPEND = 50;
+    // ONE TANK: a refill is a full tank, and a run ends at zero (no robot ever
+    // finishes with fuel left — the table at the top of tuning.ts), so a run
+    // spends the whole tank whatever the X gives back along the way.
+    const RUN_SPEND = T.ENERGY.MAX;
     const runsBought = T.ENERGY_PACK.AMOUNT / RUN_SPEND;
     const ratio = T.SHOP.PRICES.energy / (runsBought * reg.perRun);
     check(ratio >= 0.9, `a carrot refill costs ${f(T.SHOP.PRICES.energy)} and buys ${f(runsBought)} runs worth ${f(runsBought * reg.perRun)}: ${f(ratio, 2)}x (0.9 at least, or it prints carrots)`);

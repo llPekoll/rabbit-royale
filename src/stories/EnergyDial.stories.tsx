@@ -19,9 +19,8 @@
  * `Live` is the one to actually watch: it drains in real time, which is the
  * only way to catch a sweep that jumps or runs backwards.
  *
- * THE NUMBERS ARE THE GAME'S. `OUT_OF_RUN_ENERGY.MAX` is 60 — the banked
- * energy the hub shows as "40/60 energy" on the DIG slab — and a run costs
- * `ENERGY.MIN_TO_CROSS` (20), so the interesting readings are thirds.
+ * THE NUMBERS ARE THE GAME'S. `OUT_OF_RUN_ENERGY.MAX` is 150 — the one tank
+ * the medallion shows — and a crossing asks for `ENERGY.MIN_TO_CROSS` (40).
  */
 import { useEffect, useState, type CSSProperties } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';

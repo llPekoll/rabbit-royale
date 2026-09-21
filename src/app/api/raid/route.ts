@@ -38,9 +38,10 @@ import { payEnergy, type EnergyCharge } from '@/lib/game/pay-crossing';
 
 /**
  * THE TOLL, from the one tank (RAID_RUN.TOLL's note): paid on the first step,
- * behind a floor of the toll plus a step so the raid can at least begin.
+ * behind a floor of the toll plus the longest crossing (RAID_RUN.WALK_FLOOR)
+ * so a raid that is let in can at least reach an undefended field.
  */
-const TOLL: EnergyCharge = { cost: RAID_RUN.TOLL, need: RAID_RUN.TOLL + RAID_RUN.STEP_COST };
+const TOLL: EnergyCharge = { cost: RAID_RUN.TOLL, need: RAID_RUN.TOLL + RAID_RUN.WALK_FLOOR * RAID_RUN.STEP_COST };
 
 /** Everything the raid screen draws, for a raid in progress. */
 async function raidView(runId: string, revealAll = false) {
