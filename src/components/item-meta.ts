@@ -98,15 +98,16 @@ export const ITEM_META: Record<ItemKind, ItemMeta> = {
     aspect: 1,
   },
   energy: {
-    icon: '❤️',
+    icon: '🔋',
     tint: '#e07a2f',
     counts: 'daily',
-    /* THE RUN'S HEART, not a carrot. Energy is PAID in carrots, so a carrot on
-       its tile read as the price, or as buying carrots — and it is not one.
-       The bolt belongs to LIGHTNING, which sits on the same shelf, so energy
-       takes the heart the run's life bar is drawn with (`hearts.tsx`). */
-    art: '/assets/ui/heart.png',
-    aspect: 19 / 16,
+    /* THE MEDALLION, not a carrot and not a heart. Energy is PAID in carrots,
+       so a carrot on its tile read as the price. The heart went with the
+       lives it stood for (2026-09-21: energy is the one currency, there are
+       no hearts any more). The bolt belongs to LIGHTNING on the same shelf,
+       so energy takes the gauge the player already reads it on. */
+    art: '/assets/gauge/dial-full-ring.webp',
+    aspect: 104 / 102,
   },
   smoke: {
     icon: '🌫️',

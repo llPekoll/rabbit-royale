@@ -44,6 +44,7 @@ import {
   Plank, PLANK_ENERGY_CAP_L, PLANK_ENERGY_CAP_R, PLANK_ENERGY_HEIGHT,
   PLANK_ENERGY_LOW_L, PLANK_ENERGY_LOW_R, plankEnergyLow, plankEnergyTop,
 } from './plank';
+import { EnergyRing, RING_SIZE } from './energy-dial';
 import { CarrotMark } from './carrot-mark';
 import { EnergyBar } from './energy-bar';
 import { ChestCount } from './chest-count';
@@ -55,6 +56,15 @@ export interface CarrotPillProps {
   fireKey: number;
   /** How many carrots just landed. */
   gain: number;
+  /**
+   * THE BANK'S ENERGY, as the medallion hanging off the plank's left end —
+   * null off the burrow. It is the tank every loop draws on (a crossing, a
+   * raid's first step), so it stands beside the stock, the other thing the
+   * player owns, rather than on the DIG slab where it read as DIG's alone
+   * (Paul, 2026-09-21). The island's run gauge is the bar on the lower
+   * plank (`energy` below) for now; the two are still separate pools.
+   */
+  bank?: { energy: number; max: number } | null;
   /** Season rank, or null when unranked (no score yet, or no board). */
   rank: number | null;
   /**
@@ -155,7 +165,7 @@ function ClimbLine({ gap, line }: { gap: string; line: string }) {
 }
 
 export function CarrotPill({
-  stock, fireKey, gain, rank, toPass, onAdd, denyKey = 0, carrying = null,
+  stock, fireKey, gain, rank, toPass, onAdd, denyKey = 0, carrying = null, bank = null,
   energy = null, chests = null,
 }: CarrotPillProps) {
   const t = useT();
@@ -201,6 +211,25 @@ export function CarrotPill({
         onKeyDown: onKey,
       } : {})}
     >
+      {/* THE MEDALLION: the bank's energy, a ring drawn like a fuel gauge
+          (energy-dial.tsx) — full at 12 o'clock, draining anticlockwise. It
+          hangs half off the plank's left end, the way the dial hung off the
+          DIG board, so the pill still reads as one object. Its middle is the
+          bare wooden hub: the carrot that used to lie across it said "this
+          is about carrots", and it is not (Paul, 2026-09-21). Drawn at the
+          art's own pixel size, so the ring's rim stays crisp; the phone's
+          pill scale takes it down with the plank. */}
+      {bank && (
+        <span
+          className="rr-pill-ring"
+          style={ringSeat}
+          title={t.loop.energyOf(bank.energy, bank.max)}
+          aria-label={t.loop.energyOf(bank.energy, bank.max)}
+          role="img"
+        >
+          <EnergyRing value={bank.energy} max={bank.max} size={RING_SIZE.height} />
+        </span>
+      )}
       {/* THE PLATE: the wood board (plank.tsx). It replaced the codex's pixel
           frame in soil — Paul, 2026-09-19: the slab was "tout moche", and the
           chrome moves onto painted wood one panel at a time, starting here.
@@ -362,6 +391,22 @@ export function CarrotPill({
     </div>
   );
 }
+
+/** How much of the ring hangs past the plank's edge. */
+const RING_OVERHANG = 0.5;
+/**
+ * Where the medallion sits: centred on the plank's height, half of it past
+ * the plank's left edge. Absolute against the pill's fixed box, so the plate
+ * can still drop in on arrival without moving it.
+ */
+const ringSeat: CSSProperties = {
+  position: 'absolute',
+  left: `calc(-1 * ${RING_SIZE.width}px * ${RING_OVERHANG})`,
+  top: '50%',
+  transform: 'translateY(-50%)',
+  zIndex: 1,
+  pointerEvents: 'none',
+};
 
 const pill: CSSProperties = {
   /* `fixed`, and placed by globals.css (`.rr-carrot-pill`).

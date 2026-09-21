@@ -225,8 +225,6 @@ export const en = {
     chests: (taken: number, total: number) => `${taken}/${total} chests`,
     chestsTitle: 'Chests taken on this island — by everyone on it. Take them all and it sinks.',
     watching: (label: string) => `👁 watching ${label}`,
-    hearts: (full: number, total: number) => `${full} of ${total} hearts`,
-    heartsShort: (full: number, total: number) => `${full} / ${total} hearts`,
     /** The run's energy bar, read aloud. */
     energy: (n: number, max: number) => `${n} of ${max} energy`,
     /** The red X — see FLAG in tuning. */

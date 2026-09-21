@@ -193,8 +193,6 @@ export const zh: Dict = {
     chests: (taken: number, total: number) => `宝箱 ${taken}/${total}`,
     chestsTitle: '岛上所有人已取得的宝箱数。全部取完，岛就会沉没。',
     watching: (label) => `👁 正在观看 ${label}`,
-    hearts: (full, total) => `${total} 颗心中剩 ${full} 颗`,
-    heartsShort: (full, total) => `${full} / ${total} 心`,
     /** The run's energy bar, read aloud. */
     energy: (n, max) => `能量 ${n} / ${max}`,
     /** The red X — see FLAG in tuning. */

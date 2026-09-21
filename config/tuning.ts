@@ -138,10 +138,6 @@ export const RUN = {
   GOLDEN_VALUE: 15,
 } as const;
 
-/** Whole bombs a fresh run survives. The HUD draws a bar now (energy-bar.tsx);
- *  this remains for the hearts component its stories still show. */
-export const HEARTS = Math.floor(ENERGY.START / ENERGY.BOMB_LOSS);
-
 export const BOMB = {
   /** Tiles the rabbit is thrown backwards. Revealed terrain is preferred. */
   KNOCKBACK_TILES: 3,

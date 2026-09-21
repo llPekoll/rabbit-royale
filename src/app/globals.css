@@ -89,6 +89,9 @@
      one below. Anything measuring against the pill (the player chip's cap)
      multiplies by this too, so the two cannot disagree. */
   --rr-pill-scale: 1;
+  /* THE MEDALLION hangs half its 104px past the plank's left end
+     (carrot-pill.tsx `RING_OVERHANG`); the player chip's cap counts it. */
+  --rr-pill-ring: 52px;
   /* THE WAY BACK'S HEIGHT, stated once because two rules measure against it:
      the button's own `min-height` (back-button.tsx) and the placement kit row
      that now stacks directly on top of it. The button is content-sized, and
@@ -1561,24 +1564,6 @@ body:has(.rr-pill-plate.has-energy) {
    19×16, drawn at exactly 2× so no source pixel straddles a screen pixel. The
    row keeps its width — it is the one reading that must not shrink when the
    counters beside it crowd a phone. */
-.rr-hearts { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; }
-.rr-hearts img { width: 38px; height: 32px; image-rendering: pixelated; display: block; }
-/* A heart lost: it flares, jolts and settles grey (hearts.tsx). */
-.rr-hearts img.rr-heart-break { animation: rr-heart-break 520ms ease-out both; }
-@keyframes rr-heart-break {
-  0%   { transform: scale(1.5); filter: brightness(2.2); }
-  30%  { transform: scale(0.8) translateY(2px) rotate(-12deg); filter: none; }
-  60%  { transform: scale(1.1) rotate(8deg); }
-  100% { transform: none; }
-}
-/* The last heart beats — the one line of the HUD that says "careful". */
-.rr-hearts img.rr-heart-last { animation: rr-heart-beat 900ms ease-in-out infinite; }
-@keyframes rr-heart-beat {
-  0%, 100% { transform: scale(1); }
-  15% { transform: scale(1.18); }
-  30% { transform: scale(1); }
-  45% { transform: scale(1.1); }
-}
 /* The screen's edges flush red on the hit, and let go. */
 .rr-hurt {
   position: fixed;
@@ -1620,7 +1605,7 @@ body:has(.rr-pill-plate.has-energy) {
 }
 @keyframes rr-reconnect-blink { 50% { opacity: 0.25; } }
 @media (prefers-reduced-motion: reduce) {
-  .rr-hearts img.rr-heart-break, .rr-hearts img.rr-heart-last, .rr-reconnecting::before { animation: none; }
+  .rr-reconnecting::before { animation: none; }
 }
 
 /* One knob for the whole gauge: every length below is a multiple of the source
@@ -1967,7 +1952,7 @@ body:has(.rr-pill-plate.has-energy) {
      "Curs..." on an 855px phone with 150px of empty bar between the chip and
      the pill (Paul, 2026-09-16). The bar is centred on the screen, as the pill
      is, so half the bar less half the pill less a gap is exactly the room. */
-  max-width: calc(50% - var(--rr-pill-w) * var(--rr-pill-scale) / 2 - var(--rr-pad));
+  max-width: calc(50% - (var(--rr-pill-w) / 2 + var(--rr-pill-ring)) * var(--rr-pill-scale) - var(--rr-pad));
   flex-shrink: 1;
 }
 /* ONE LINE. Under that cap a badge could wrap under the name and the chip

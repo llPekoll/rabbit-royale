@@ -2160,6 +2160,11 @@ function Burrow() {
             toPass={me?.toPass ?? null}
             onAdd={() => setShopOpen(true)}
             denyKey={pillDenyKey}
+            /* THE BANK'S ENERGY, on the burrow: the medallion that used to be
+               the DIG slab's left end. Off-run only — on the island the pill
+               carries the run's own bar (`energy` below), and two gauges on
+               one board would be the two-pools confusion made visible. */
+            bank={where === 'burrow' && burrow ? { energy: burrow.energy, max: burrow.maxEnergy } : null}
             // The run's haul, on the island only and only your own: a
             // spectator's pill is still their own stock.
             carrying={where === 'island' && !spectating && !crossing ? game.me?.carrots ?? null : null}

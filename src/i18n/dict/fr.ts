@@ -187,8 +187,6 @@ export const fr: Dict = {
     chests: (taken: number, total: number) => `${taken}/${total} coffres`,
     chestsTitle: "Les coffres pris sur cette île — par tout le monde. Tous pris, elle coule.",
     watching: (label) => `👁 tu regardes ${label}`,
-    hearts: (full, total) => `${full} cœurs sur ${total}`,
-    heartsShort: (full, total) => `${full} / ${total} cœurs`,
     /** The run's energy bar, read aloud. */
     energy: (n, max) => `${n} d'énergie sur ${max}`,
     /** The red X — see FLAG in tuning. */

@@ -172,15 +172,6 @@ export function LoopBar({
     const ready = loop === 'dig' ? readyKey.dig : loop === 'home' ? readyKey.home : 0;
     return quest || ready ? `${quest}.${ready}` : 0;
   };
-  /* HOW FULL THE TANK IS, as a fraction of a turn — the one number the
-     board's art cannot hold. The ring itself is drawn and placed entirely in
-     CSS (`.rr-loop-dial`, px-top-floor.css); this only says how much of it
-     to keep. Clamped because energy is live: a bomb can take more than is
-     left, and a negative fraction would sweep the wedge backwards. */
-  const dialFill = dig.maxEnergy > 0
-    ? Math.max(0, Math.min(1, dig.energy / dig.maxEnergy))
-    : 0;
-
   // Each line is PARTS, joined on screen with a middot entity (the bitmap
   // face has no middot glyph, so the character never appears in source) and
   // in the label with a comma.
@@ -255,52 +246,10 @@ export function LoopBar({
           </span>
           {pointed === 'dig' && <LeafBadge height={20} className="rr-hub-badge" style={badgeSeat}>!</LeafBadge>}
         </PxButton>
-        {/* THE LIVE RING — the ONE thing the board cannot draw.
-            
-            DIG wears the whole dial board now (px-top-floor.css), the same
-            way DEFEND wears the parchment and RAID the skull: the orange
-            face is gone and the art is the slab. A board is one flat picture
-            though, so the coloured ring is a SECOND copy of that art laid
-            over the first and clipped to what is left in the tank.
-            
-            IT IS THE BUTTON'S SIBLING, not its child. The kit wraps every
-            child of a `PxButton` in its own content span, which `.rr-ptf-fill`
-            then insets — so a ring placed inside would be measured against a
-            box the board's caps have already moved, and the two would drift
-            apart at every size. As a sibling in the cell it takes the same
-            box as the slab and the SAME 3-slice, which is the only way they
-            stay registered (Paul, 2026-09-19: "c'est la même taille pourquoi
-            tu met pas ca dans le même container?").
-            
-            Transparent to the pointer, so it never takes a press meant for
-            DIG. The fill fraction is the one thing React still owns. */}
-        <span
-          className="rr-loop-dial"
-          style={{ '--rr-dial-fill': `${dialFill}turn` } as CSSProperties}
-          aria-hidden
-        />
-        {/* THE CARROT, LYING ACROSS THE MEDALLION'S HUB.
-
-            The dial replaced the carrot that used to stand at the slab's left
-            end (energy-dial.tsx still says so in its header), and the middle
-            of the board has been an empty wooden disc since — Paul, 2026-09-19:
-            "il nous manque la carotte de travers au milieu du cercle".
-
-            A SIBLING IN THE CELL, exactly like the ring above it and for the
-            same reason: it is positioned against the same box the 3-slice
-            lands on, so it stays on the hub at every slab height instead of
-            drifting as the caps resize. Placed inside the button it would be
-            measured against the kit's inset content span.
-
-            Transparent to the pointer, so it never takes a press meant for
-            DIG. */}
-        <img
-          className="rr-loop-dial-carrot rr-carrot-px"
-          src={CARROT_URL}
-          alt=""
-          aria-hidden
-          draggable={false}
-        />
+        {/* NO GAUGE HERE ANY MORE. The energy medallion hung off this slab's
+            left end (the dial board, 2026-09-19) and read as DIG's fuel; it
+            is the one tank every loop draws on, so it hangs off the carrot
+            pill now, beside the stock (carrot-pill.tsx, 2026-09-21). */}
         {/* The haul, standing on the slab it came from. In the cell, outside
             the slab's box (see `.rr-home-haul`), and transparent to the
             pointer, so it never takes a press meant for DIG. */}

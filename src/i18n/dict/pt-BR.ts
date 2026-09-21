@@ -191,8 +191,6 @@ export const ptBR: Dict = {
     chests: (taken: number, total: number) => `${taken}/${total} baús`,
     chestsTitle: 'Baús pegos nesta ilha — por todos nela. Pegue todos e ela afunda.',
     watching: (label) => `👁 assistindo ${label}`,
-    hearts: (full, total) => `${full} de ${total} corações`,
-    heartsShort: (full, total) => `${full} / ${total} corações`,
     /** The run's energy bar, read aloud. */
     energy: (n, max) => `${n} de ${max} de energia`,
     /** The red X — see FLAG in tuning. */

@@ -375,7 +375,6 @@ button.rr-item-slot:active:hover:not(:disabled) { filter: var(--rr-live-ring,) v
   body:has(.rr-loop-bar) .rr-pill-plate { animation: none; }
 }
 
-
 /* ── DEFEND AND RAID WEAR PAINTED BOARDS ───────────────────────────────────
    Paul, 2026-09-19: the shield-and-parchment board is DEFEND's (he first
    pointed it at RAID and corrected it — the art argues for DEFEND, since the
@@ -530,190 +529,57 @@ button.rr-item-slot:active:hover:not(:disabled) { filter: var(--rr-live-ring,) v
    gold to the verb's colour; the variable is the way back through it. */
 .rr-loop-slab.rr-loop-raid .rr-loop-line { color: var(--rr-line-ink, #f0c9c9) !important; }
 
+/* ── DIG WEARS THE PLAIN PLANK ─────────────────────────────────────────────
+   It wore the dial board — the energy medallion at its left end, the plank
+   to write on at its right (Paul's `energy-dial.aseprite`, 2026-09-19). The
+   medallion moved: energy is the game's one currency, spent digging AND
+   raiding, so a gauge welded to DIG said it was DIG's alone. It hangs off
+   the carrot pill now, top centre, beside the other thing the player owns
+   (Paul, 2026-09-21: "make it central, top center, next to carrot stock").
 
-/* ── DIG WEARS THE DIAL BOARD ──────────────────────────────────────────────
-   Paul, 2026-09-19: "il faut virer ce truc orange pour le remplacer
-   totalement". The orange face goes; the slab IS the art now, the same way
-   DEFEND wears the parchment and RAID the skull.
-
-   BOTH LAYERS ARE THE SAME 3-SLICE, IN THE SAME BOX. The board and the live
-   coloured ring are two images of identical size (268x102) that were drawn
-   registered to each other, so the only way they stay registered is to be
-   placed by the SAME mechanism — same slice, same caps, same box.
-
-   That is Paul's call (2026-09-19: "c'est la même taille pourquoi tu met pas
-   ca dans le même container? ça va être la merde sinon après avec le
-   responsive"), and he is right for a reason the earlier attempts proved the
-   hard way. Placing the board with a 3-slice and the ring with an absolute
-   offset means fighting the cap's PIXEL ROUNDING: the left cap is 1.125 of
-   the slab's height at both 80px and 48, but the top cap rounds to 0.300 at
-   80 and 0.2917 at 48. Every fraction tuned on desktop came out several
-   pixels off on the Seeker — measured at 9px across and 11 down — and no
-   fixed number fixes both, because the error is a rounding, not an offset.
-
-   As one slice on one box there is nothing to cancel: whatever the cap
-   rounds to, it rounds to the same thing for both images.
-
-   The slices are the art's own: the dial and its rim are a 116px left cap,
-   the rounded end a 36px right one, a 30/15 frame top and bottom. Only the
-   plank between them stretches, so the dial stays a circle at every width. */
-/* The geometry lives on the CELL, because the board (the slab's ::before)
-   and the live ring (the slab's sibling) both read it. Stated once so the
-   two layers cannot disagree. */
-/* The dial's geometry, published on :root so both the cell that draws it and
-   the bar that has to clear it can read the same numbers. */
-:root {
-  --rr-dial-h: var(--rr-loop-h, clamp(52px, 10.4svh, 80px));
-  --rr-dial-art: calc(var(--rr-dial-h) * 1.789);
-  --rr-dial-over-bottom: calc(var(--rr-dial-art) * 0.1471);
-}
-.rr-loop-cell:has(> .rr-loop-dial) {
-  /* THE SLAB IS THE PLANK; THE ART IS BIGGER THAN IT.
-     
-     In Paul's design the dial is a big medallion that overflows the plank
-     above and below — and the art already draws it that way: the plank
-     occupies rows 30..87 of the 102-tall image, i.e. 56% of it. So the art
-     is drawn at 1/0.559 = 1.789 times the slab's height and allowed to
-     overflow, which lands the PLANK on the slab and leaves the dial standing
-     proud of it, exactly as the mock does.
-     
-     Drawing the art at the slab's own height instead (the first cut) squashed
-     the whole medallion into the plank's band and lost the overflow that
-     makes it read as a dial bolted ON the board. */
-  --rr-dial-h: var(--rr-loop-h, clamp(52px, 10.4svh, 80px));
-  --rr-dial-art: calc(var(--rr-dial-h) * 1.789);
-  --rr-dial-slice: 30 36 15 116;
-  --rr-dial-caps:
-    calc(var(--rr-dial-art) * 0.2941)
-    calc(var(--rr-dial-art) * 0.3529)
-    calc(var(--rr-dial-art) * 0.1471)
-    calc(var(--rr-dial-art) * 1.1373);
-  /* How far the art hangs past the plank, top and bottom. */
-  --rr-dial-over-top: calc(var(--rr-dial-art) * 0.2941);
-  --rr-dial-over-bottom: calc(var(--rr-dial-art) * 0.1471);
-}
+   What is left is a slab like DEFEND and RAID: the kit's painted layers
+   hidden, one 3-slice board drawn by `::before`, the content box pulled in
+   past the caps. The board is the Woodland plank every wood action wears
+   (`plank.webp`, 167x45, 30px caps), scaled to the slab's height. */
 .rr-loop-slab.rr-loop-dig {
+  --rr-dig-cap: calc(var(--rr-loop-h, clamp(52px, 10.4svh, 80px)) * 0.667);
   background: none !important;
   box-shadow: none !important;
   border: 0 !important;
   position: relative;
 }
 .rr-loop-slab.rr-loop-dig > span:not(.nine-btn__content) { display: none !important; }
-/* The board, and the live ring over it — same inset, same slice, same caps. */
-/* NOT `> .rr-loop-dial`: the kit wraps every child of the button in its own
-   `.nine-btn__content` span, so the ring is a GRANDCHILD however it is
-   written in the JSX. Matched by class at any depth, and pulled back onto
-   the button's own box by `inset: 0` below — which works because the button
-   is the nearest positioned ancestor (`position: relative` above) and the
-   content span is made `static`. */
-.rr-loop-slab.rr-loop-dig::before,
-.rr-loop-cell > .rr-loop-dial {
+.rr-loop-slab.rr-loop-dig::before {
   content: '';
   position: absolute;
-  /* OUT PAST THE SLAB, top and bottom, by exactly what the art hangs over.
-     The plank's own rows then land back on the slab's box and the dial
-     stands proud of it. Left and right stay flush: only the dial overflows,
-     the plank does not. */
-  top: calc(-1 * var(--rr-dial-over-top));
-  bottom: calc(-1 * var(--rr-dial-over-bottom));
-  left: 0;
-  right: 0;
-  border-image-slice: var(--rr-dial-slice) fill;
+  inset: 0;
+  border-image-source: url('/assets/ui/plank.webp');
+  border-image-slice: 0 30 fill;
+  border-image-width: 0 var(--rr-dig-cap);
   border-image-repeat: stretch;
   border-style: solid;
   border-color: transparent;
-  border-width: var(--rr-dial-caps);
-  border-image-width: var(--rr-dial-caps);
+  border-width: 0 var(--rr-dig-cap);
   box-sizing: border-box;
   pointer-events: none;
 }
-.rr-loop-slab.rr-loop-dig::before {
-  border-image-source: url('/assets/gauge/dial-empty.webp');
-}
-/* THE LIVE RING. Same box as the board, so the coloured band lands exactly
-   on the grey groove at any size.
-   
-   THE MASK IS THE ONLY LIVE PART: a conic wedge centred on the dial, keeping
-   the first `--rr-dial-fill` of the turn from 12 o'clock. What is left over
-   lands at the END of the turn — so the gap touches 12 from the LEFT and
-   widens anticlockwise as the tank drains, which is the reading Paul asked
-   for (2026-09-19).
-   
-   THE CENTRE IS IN UNITS OF THE ART, NOT OF THE SLAB. The dial's middle is
-   at x=51 and y=53 of the 102-tall source, so it is `--rr-dial-art` times
-   0.5 and 0.5196 — the same scale the caps are drawn at. Measuring it
-   against `--rr-dial-h` (the plank's height) put the cone's centre at 40px
-   where the medallion's is at 72: the wedge cut through empty board and left
-   the ring looking permanently full, whatever the tank said. Paul caught it
-   as "la jauge est remplie a 100%" at 40/60.
-   
-   The box the mask lands on starts ABOVE the slab — it was pulled out by
-   `--rr-dial-over-top` so the art could overflow — so the vertical centre is
-   measured from that top edge, not from the plank's. */
-.rr-loop-cell > .rr-loop-dial {
-  border-image-source: url('/assets/gauge/dial-full.webp');
-  z-index: 2;
-  --rr-dial-mask: conic-gradient(
-    at calc(var(--rr-dial-art) * 0.5) calc(var(--rr-dial-art) * 0.5196),
-    #000 0turn,
-    #000 var(--rr-dial-fill, 1turn),
-    transparent var(--rr-dial-fill, 1turn),
-    transparent 1turn
-  );
-  -webkit-mask-image: var(--rr-dial-mask);
-  mask-image: var(--rr-dial-mask);
-}
-/* THE BAR RIDES HIGHER NOW THAT THE MEDALLION HANGS BELOW IT.
-   
-   `.rr-loop-bar` sits `--rr-edge` off the bottom, which was the right gap
-   when every slab ended at its own box. The dial now overflows the plank
-   downwards, so that gap is measured from the PLANK and the medallion eats
-   into it — on a windowed browser it ran under the dock (Paul, 2026-09-19).
-   The bar is lifted by exactly what the art hangs over, so the gap under the
-   medallion is the one the floor always had. */
-body:has(.rr-loop-dial) .rr-loop-bar {
-  bottom: calc(var(--rr-edge) + env(safe-area-inset-bottom)
-    + var(--rr-dial-over-bottom, 0px));
-}
-
-/* The medallion stands out of the slab, so nothing may clip it and it has to
-   sit above the cells either side of it. */
-.rr-loop-cell:has(> .rr-loop-dial) {
-  overflow: visible;
-  z-index: 3;
-  /* AND IT IS THE WIDE ONE. The medallion eats a 1.1373-of-art left cap —
-     162px of a 321px slab at desktop — so an equal third left DIG with 109px
-     of plank where DEFEND and RAID have their whole width to write on. The
-     cell is grown by exactly what the dial costs, which is also how Paul's
-     design draws it: DIG is the long board, the other two are shorter. */
-  flex: 1 1 calc(var(--rr-dial-art) * 1.1373);
-}
-/* THE TEXT SITS ON THE PLANK, CLEAR OF THE MEDALLION.
-   
-   The inset is in units of the ART, not of the slab: the dial grew with the
-   art when it was scaled to 1.789, and a left inset still measured against
-   the slab's height left the verb sitting under the medallion (Paul's shot
-   showed "G" where DIG should be).
-   
-   Vertically the box is the slab itself — the content box is a child of the
-   button, which is the plank — so only the small frame inset applies there,
-   not the art's overflow. */
+/* The text on the plank, clear of the leaves at both ends: the same frame
+   inset DEFEND and RAID take, at the plank's own cap. */
 .rr-loop-slab.rr-loop-dig {
-  --rr-inset-t: 0px;
-  --rr-inset-r: calc(var(--rr-dial-art) * 0.22);
+  --rr-inset-t: calc(var(--rr-loop-h, clamp(52px, 10.4svh, 80px)) * 0.12);
+  --rr-inset-r: calc(var(--rr-dig-cap) * 0.6);
 }
 .rr-loop-slab.rr-loop-dig > .nine-btn__content {
   z-index: 1;
   top: var(--rr-inset-t) !important;
-  bottom: 0 !important;
-  /* Past the medallion: its rim ends at 1.1373 of the art's height. */
-  left: calc(var(--rr-dial-art) * 1.16) !important;
+  bottom: var(--rr-inset-t) !important;
+  left: calc(var(--rr-dig-cap) * 0.6) !important;
   right: var(--rr-inset-r) !important;
   justify-content: center;
 }
-/* The face's own row no longer holds a picture — the board draws it — so it
-   keeps no gap and no side pad. THE FACE ONLY: the corner badge is a span in
-   the same box, and zeroing its padding squashed the pill's painted ends. */
+/* The face's own row holds no picture — the board draws it — so it keeps no
+   gap and no side pad. THE FACE ONLY: the corner badge is a span in the same
+   box, and zeroing its padding squashed the pill's painted ends. */
 .rr-loop-slab.rr-loop-dig > .nine-btn__content > span:not(.rr-loop-corner) {
   gap: 0 !important;
   padding: 0 !important;
@@ -732,91 +598,6 @@ body:has(.rr-loop-dial) .rr-loop-bar {
   right: calc(4px - var(--rr-inset-r, 0px));
   top: calc(-8px - var(--rr-inset-t, 0px));
   pointer-events: none;
-}
-/* THE WHOLE BOARD SINKS ON A PRESS, MEDALLION INCLUDED.
-   
-   The kit's own press only moves `.nine-btn__content` (2 source pixels down,
-   nine-slice-button.css). That was the whole button when the face was the
-   kit's own paint — but the board is a `::before` now and the live ring is
-   the button's SIBLING, so neither followed: the text sank and the plank and
-   the dial stayed put, which read as the bottom of the button coming away
-   (Paul, 2026-09-19: "y a que le bas du bouton qui s'en va et pas la jauge
-   d'energie aussi").
-   
-   Both are given the same 2-pixel drop and the same easing, so the slab
-   presses as one object. `:has()` on the cell reaches the sibling ring from
-   the button's own `:active`, which no descendant selector could. */
-/* THE PRESS: the button sinks by `--rr-press-y` (the menu-wide rule near
-   the top of this file), and the board goes with it as its `::before`. The
-   medallion and the carrot are SIBLINGS in the cell, so they are told the
-   same drop here. `!important` to match the base rules above, which need it
-   to beat the kit's own inline styles. */
-.rr-loop-cell:has(> .rr-loop-slab.rr-loop-dig:active:hover:not(:disabled)) > .rr-loop-dial {
-  transform: translateY(var(--rr-press-y)) !important;
-  filter: var(--rr-press-dim);
-}
-/* The carrot sinks with the board it lies on — it is a sibling in the cell,
-   so it does not inherit the button's press and has to be told (Paul,
-   2026-09-19: "qd tu apuie sur le boutton la carrote ne suit pas"). Through
-   the variable, so it keeps its rotation. */
-.rr-loop-cell:has(> .rr-loop-slab.rr-loop-dig:active:hover:not(:disabled)) > .rr-loop-dial-carrot {
-  --rr-dial-press: var(--rr-press-y);
-  /* Its own cast closes too (see the carrot's shadow below): 1px straight
-     down, pre-rotated. */
-  filter: drop-shadow(0.71px 0.71px 1px rgba(8, 38, 68, 0.75)) var(--rr-press-dim);
-}
-/* THE HOVER LIFT, for the same reason. `.rr-px-btn:hover` raises the button
-   1px (globals.css); without this the plank rose and the medallion stayed
-   behind, so the board visibly came away from its own dial (Paul,
-   2026-09-19: "la base monte pas la jauge sur un hover"). Under the same
-   `hover: hover` guard, so a touch screen — where hover is a lie — gets
-   neither. */
-@media (hover: hover) {
-  .rr-loop-cell:has(> .rr-loop-slab.rr-loop-dig:hover:not(:disabled):not(:active)) > .rr-loop-dial {
-    transform: translateY(-1px) !important;
-  }
-  .rr-loop-cell:has(> .rr-loop-slab.rr-loop-dig:hover:not(:disabled):not(:active)) > .rr-loop-dial-carrot {
-    --rr-dial-press: -1px;
-  }
-}
-/* Both layers follow the button's own easing: the press is quick, the
-   release springs back like the kit's. */
-.rr-loop-cell > .rr-loop-dial,
-.rr-loop-cell > .rr-loop-dial-carrot {
-  transition: var(--rr-press-ease);
-}
-
-/* THE CARROT BREATHES, once every 5 seconds.
-
-   THROUGH A VARIABLE, NOT A `transform` KEYFRAME. The carrot already carries
-   its centring, its 45deg and the press drop in one `transform`, and an
-   animation on that property would REPLACE all of it — the carrot would snap
-   upright and jump to the corner for the length of the pulse. `@property`
-   makes `--rr-dial-pulse` a real number the browser can interpolate, so the
-   scale animates inside the transform the element already has.
-
-   Most of the 5s is spent at rest: the swell is ~0.7s of it, so the dial is
-   still most of the time and the movement reads as a heartbeat rather than a
-   throb. */
-@property --rr-dial-pulse {
-  syntax: '<number>';
-  inherits: false;
-  initial-value: 1;
-}
-.rr-loop-cell > .rr-loop-dial-carrot {
-  animation: rr-carrot-pulse 5s ease-in-out infinite;
-}
-@keyframes rr-carrot-pulse {
-  0%, 88%, 100% { --rr-dial-pulse: 1; }
-  94%           { --rr-dial-pulse: 1.12; }
-}
-/* A press should feel like a press, not a pause in the idle: the pulse stops
-   while the slab is held. */
-.rr-loop-cell:has(> .rr-loop-slab.rr-loop-dig:active) > .rr-loop-dial-carrot {
-  animation-play-state: paused;
-}
-@media (prefers-reduced-motion: reduce) {
-  .rr-loop-cell > .rr-loop-dial-carrot { animation: none; }
 }
 
 /* CREAM INK ON WOOD. The verb was white with a dark drop shadow for the
@@ -850,69 +631,6 @@ body:has(.rr-loop-dial) .rr-loop-bar {
 /* The glyph rides the press with the stone, or it floats free of its own
    button for 90ms. */
 .rr-ring-btn > span { transition: inherit; }
-
-/* THE CARROT ON THE MEDALLION'S HUB.
-
-   The middle of the dial is a bare wooden disc: the art draws the rim, the
-   groove and the gauge, and nothing in the centre. The carrot that used to
-   stand at the slab's left end goes there instead (Paul, 2026-09-19).
-
-   MEASURED IN UNITS OF THE ART, like the mask above it and for the same
-   reason. The hub sits at x=51, y=53 of the 102-tall source — the same 0.5
-   and 0.5196 the conic gradient is centred on, which is why it is written
-   the same way. Measuring against the SLAB's height instead would put it
-   where the mask bug put the wedge: the medallion overflows the plank, so
-   the two boxes do not share a centre.
-
-   SIZED BY HEIGHT, NOT WIDTH, and the number comes out of the rotation.
-   The carrot's art is 13x29 — tall and narrow — so setting its WIDTH to a
-   share of the art made the sprite 98px tall on a 143px dial and it lay
-   across the whole gauge. Its height is the dimension to pin.
-
-   The hub's wood is solid out to a radius of ~16 source px before the groove
-   starts, and a wxh sprite turned 45deg needs a circle of radius
-   hypot(w,h)/2 to clear.
-
-   THE BOUNDING BOX IS NOT THE ART. A 45deg rotation makes the sprite's
-   corners its furthest points, but the carrot's corners are TRANSPARENT: its
-   opaque pixels reach only 0.484 of its own height from the centre, measured
-   off the sprite rather than assumed from the box. That is what decides how
-   big it can be.
-
-   0.26 sat inside the hub's wood and read as too small; 0.38 still did
-   (Paul, 2026-09-19, twice). At 0.54 the carrot is 55px on a 102-unit dial
-   and its tips reach 26.7 — just into the coloured band, which lives at
-   radius 21..35.
-
-   CROSSING THE BAND IS FINE, and is the reason this can grow at all: the
-   gauge is a thin RING, not a disc, and the carrot crosses it along one
-   diagonal only. The arc that reports the tank stays readable on both sides
-   of it. The carrot lies ACROSS the dial like a gauge's hand, which is what
-   it is for. */
-.rr-loop-cell > .rr-loop-dial-carrot {
-  position: absolute;
-  left: calc(var(--rr-dial-art) * 0.5);
-  /* From the cell's top edge, which is where the art starts — the box was
-     pulled up by `--rr-dial-over-top` so the medallion could overflow. */
-  top: calc(var(--rr-dial-art) * 0.5196 - var(--rr-dial-over-top));
-  height: calc(var(--rr-dial-art) * 0.64);
-  width: auto;
-  /* Centred on that point, then laid across it. 45deg is the angle the haul
-     badge's carrot already uses, so the two read as the same object. */
-  /* The drop is a VARIABLE, not a second transform: this element already
-     carries its centring and its 45deg, and the press rules below only need
-     to change how far it sinks. Writing the press as its own `transform`
-     would drop the rotate and the carrot would snap upright under the
-     finger. */
-  transform:
-    translate(-50%, calc(-50% + var(--rr-dial-press, 0px)))
-    rotate(45deg)
-    scale(var(--rr-dial-pulse, 1));
-  /* Over the coloured ring (z-index 2), which is over the board. */
-  z-index: 3;
-  pointer-events: none;
-  image-rendering: pixelated;
-}
 
 /* A COOL SHADOW A FEW PIXELS UNDER THE MEDALLION.
 
@@ -952,33 +670,4 @@ body:has(.rr-loop-dial) .rr-loop-bar {
 .rr-loop-slab.rr-loop-raid:active:hover:not(:disabled)::before {
   filter: var(--rr-cast-down) var(--rr-press-dim);
 }
-/* THE CARROT CASTS ITS OWN, because it cannot borrow the board's.
 
-   `drop-shadow` filters the layer it is set on, and the carrot is a SIBLING of
-   the board (it has to be — see the note where it is positioned, it is
-   anchored to the cell so it stays on the hub at every slab height). A sibling
-   is outside the filtered layer, so the board's shadow drew the medallion and
-   the plank and left the carrot floating with nothing under it — Paul, looking
-   at the DOM: "il devrait avoir la carrote couleur et la carrote shadow non?".
-
-   MEASURED IN SCREEN PIXELS AGAINST A SPRITE THAT IS SCALED UP. The first cut
-   was `0 2px`, and it was invisible for the same reason the board's `0 3px`
-   was: the art is 13x29 drawn at 94, so ONE SOURCE PIXEL IS 3.2 SCREEN PIXELS.
-   A 2px offset does not even clear a single pixel of the carrot — it lands
-   inside the sprite's own edge instead of beyond it, and the brown the eye
-   found under the carrot was the hub's wood, not a cast (sampled: 156,87,32
-   where the shadow would be 8,38,68).
-
-   6px is roughly two source pixels, which is what reads as a shadow at this
-   scale. Still shorter than the board's 5+7, because the carrot lies ON the
-   dial rather than a whole board's thickness above the water.
-
-   AND THE OFFSET IS PRE-ROTATED. A filter is applied in the ELEMENT'S OWN
-   space, and this element carries `rotate(45deg)` — so `0 6px` is "down" for
-   the carrot, which the rotation then throws out to the lower LEFT on screen.
-   Proved by forcing a magenta shadow: it appeared on the diagonal, not under
-   the sprite. To land straight down, the offset is rotated back by 45deg:
-   (0,6) becomes (4.24, 4.24), which the rotation returns to vertical. */
-.rr-loop-cell > .rr-loop-dial-carrot {
-  filter: drop-shadow(4.24px 4.24px 2px rgba(8, 38, 68, 0.75));
-}
