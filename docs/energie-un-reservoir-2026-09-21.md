@@ -26,6 +26,12 @@ Le simulateur passe toutes ses cibles : courses 65 % du revenu, raids 15 %, port
 
 **Rejeté, mesuré** : une barre qui grandit avec le terrier (à 335 le lecteur meurt deux fois moins sur Ashland), une bombe plus lourde (ne touche que le marcheur), une île plus grande (chantier de rendu). **À surveiller en test** : finir Meadow d'une traite ennuie-t-il ? La recharge se vend désormais au retour du raid, plus au récap.
 
+## Le soir : la difficulté et les indices
+
+- **Principe validé** : progressive en apprenant, choisie ensuite, sociale pour toujours. Après Caldera, variance et record par île, pas de 5e palier.
+- **On choisit son île.** CREUSER ouvre une liste (palier, qui creuse, coffres restants, « presque finie ») et une ligne par palier pour en ouvrir une neuve, grise au-dessus du palier atteint. Mesuré (`playShared`, tools/sim-dig-core.ts) : à quatre, l'île finit 4× plus vite et personne ne meurt, même sur Caldera — l'île occupée est la session courte et sûre, l'île neuve la longue course.
+- **Le réservoir s'explique** : un tap sur l'anneau ouvre un panneau (ce que l'énergie achète maintenant, le temps du plein, le niveau du terrier) ; le seuil du raid est un repère sur l'anneau ; PILLER sans 58 affiche l'attente ; sur l'île, de 100 à 58, la sortie dit « raid ready ».
+
 ## À toi
 
 Aucune migration.
