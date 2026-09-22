@@ -82,10 +82,33 @@ func _init(p_width: int = COLS, p_height: int = ROWS,
 	super(p_width, p_height, p_origin)
 
 
+## LA PART DE LA BOITE QUE COUVRE LA PREMIERE ILE.
+##
+## `FIRST_RUN.LAND` (config/tuning.ts:1493). Les iles de l'echelle prennent
+## 0.62 ; plus petit est TOUT L'INTERET — a 0.08 le terrain taille environ 65
+## cases d'un seul tenant, ce qui se termine en une seule assise, et l'eruption
+## tombe en quelques minutes.
+const FIRST_RUN_LAND := 0.08
+
+
 ## TAILLE L'ILE. Deterministe : meme graine, meme terre, ici et sur le serveur.
+##
+## LA GRAINE PASSE PAR `ground_seed`, ET C'EST LE POINT DE PASSAGE UNIQUE.
+##
+## Toute premiere ile est taillee dans LE MEME sol : la graine nomme encore le
+## joueur — chaque nouveau venu creuse son instance — mais la cote, l'apparition
+## et les falaises sortent d'une constante, donc le tutoriel est la meme lecon
+## pour tout le monde. Le web fait la substitution ICI plutot qu'a chaque
+## appelant, et sa raison vaut pour nous : « one of them left out would be two
+## sides disagreeing about where the land is ».
 func grow(seed_value: String) -> void:
 	seed_text = seed_value
-	var rng := Rng.from_seed(seed_value)
+	var key := FirstIsland.ground_seed(seed_value)
+	var first := FirstIsland.is_first(key)
+	# La part de terre se LIT SUR LA GRAINE plutot qu'elle ne soit passee : le
+	# client rebatit tout depuis la graine seule et doit tailler la meme cote.
+	var land_share := FIRST_RUN_LAND if first else ISLAND_LAND
+	var rng := Rng.from_seed(key)
 	var cells := width * height
 
 	var falloff := _falloff_field()
@@ -100,7 +123,7 @@ func grow(seed_value: String) -> void:
 
 	var everywhere := _filled_mask()
 	_clear_border(everywhere)
-	var sea := _quantile_threshold(shore, everywhere, ISLAND_LAND)
+	var sea := _quantile_threshold(shore, everywhere, land_share)
 
 	var land := PackedByteArray()
 	land.resize(cells)
@@ -153,6 +176,42 @@ func grow(seed_value: String) -> void:
 		below = shelf
 
 	tiers = highest
+
+	# LE TUTORIEL EST UN COULOIR, taille a la main PAR-DESSUS le sol genere.
+	#
+	# Vient en DERNIER, comme chez le web : le generateur fait son travail de
+	# bruit, puis le dessin l'ecrase. Taille ici plutot que dans le generateur
+	# parce que le metier du generateur est le bruit, et que cette ile-la est le
+	# seul endroit ou le jeu veut un DESSIN.
+	if first:
+		carve_tutorial()
+
+
+## ECRASE LE RELIEF PAR LE COULOIR DESSINE A LA MAIN.
+##
+## Mer partout ou la carte ne marque pas de terre, et chaque case survivante
+## APLATIE AU PALIER 1. Plate expres : une falaise en travers d'un couloir large
+## d'une case est un mur, et la premiere ile n'a rien a dire sur l'escalade.
+##
+## Consequence heureuse pour ce portage : un couloir plat n'a ni falaise ni
+## rampe, donc aucune des 74 coutures entre paliers qui restent ouvertes au bord
+## des plateaux ne se pose ici.
+##
+## LE DECOR N'EST PAS GERE ICI et ce n'est pas un oubli : le portage n'en pose
+## pas encore sur l'ile. Quand il le fera, la regle du web s'applique — RIEN ne
+## se tient sur le couloir, pas un arbre. Un seul pin sur la case 624 avait
+## laisse le coffre et toute sa clairiere inatteignables, onze cases que le
+## joueur voyait sans jamais pouvoir les atteindre.
+func carve_tutorial() -> void:
+	var keep := {}
+	for cell in TutorialMap.land():
+		keep[cell] = true
+	for row in range(height):
+		for col in range(width):
+			level[row * width + col] = 1 if keep.has(Vector2i(col, row)) else 0
+	# Le couloir est plat : un seul palier, et `tiers` doit le dire — sinon le
+	# picker balaierait des etages qui n'existent plus.
+	measure_tiers()
 
 
 ## BRUIT DE VALEUR dans [0, 1] : des valeurs tirees sur un treillis grossier,

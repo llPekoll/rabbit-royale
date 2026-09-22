@@ -9,6 +9,8 @@ extends SceneTree
 ##   1. RNG : OK
 ##   2. ILE    32x32 tiers=3 terre=557 PICK=557/557 sans bloc=0 en dessous=0
 ##   3. TERRIER 19x19 tiers=2 terre=148 PICK=148/148 sans bloc=0 en dessous=0
+##   4. TUTO   32x32 tiers=1 terre=28  PICK=28/28   sans bloc=0 en dessous=0
+##      couloir : 1 voisine au depart, coffre atteignable bombe=mur, meme sol
 ##
 ## CE QUE CHAQUE LIGNE GARDE :
 ##
@@ -78,7 +80,63 @@ func _process(_d: float) -> bool:
 	var burrow = BurrowMap.new()
 	burrow.generate(1)
 	_sweep("3. TERRIER", burrow)
+
+	# 4. L'ILE DU TUTORIEL — le couloir dessine a la main.
+	var tuto = IslandMapS.new()
+	tuto.grow(FirstIsland.seed_for("verify"))
+	_sweep("4. TUTO  ", tuto)
+	_tutorial_invariants(tuto)
 	return true
+
+
+## CE QUE LE COULOIR DOIT RESTER, quoi qu'il arrive au generateur.
+##
+## Ces quatre faits sont la lecon elle-meme, pas de la decoration :
+##
+##   • 28 CASES AU PALIER 1. Plat expres — une falaise en travers d'un couloir
+##     large d'une case est un mur.
+##   • UNE SEULE VOISINE AU DEPART. C'est la mer qui enseigne : il n'y a pas de
+##     mauvais tournant parce qu'il n'y a pas de tournant.
+##   • LE COFFRE RESTE ATTEIGNABLE QUAND LA BOMBE EST UN MUR. Une bombe marquee
+##     refuse le pas (un doigt qui glisse ne doit pas couter une manche), donc
+##     un couloir passant PAR `B` se murerait au moment ou la lecon est apprise.
+##     Le web l'a mesure avant nous ; on le re-mesure plutot que de le croire.
+##   • LE MEME SOL POUR TOUS. La graine nomme le joueur, le sol non.
+func _tutorial_invariants(m) -> void:
+	var spawn: Vector2i = TutorialMap.spawn()
+	var bomb: Vector2i = TutorialMap.bomb()
+	var chest: Vector2i = TutorialMap.chest()
+
+	var neighbours := 0
+	for dy in [-1, 0, 1]:
+		for dx in [-1, 0, 1]:
+			if dx == 0 and dy == 0:
+				continue
+			if m.is_land(spawn.x + dx, spawn.y + dy):
+				neighbours += 1
+
+	# Parcours en 8 voisins, la bombe traitee comme un mur.
+	var seen := {spawn: true}
+	var queue: Array[Vector2i] = [spawn]
+	while not queue.is_empty():
+		var c: Vector2i = queue.pop_back()
+		for dy in [-1, 0, 1]:
+			for dx in [-1, 0, 1]:
+				if dx == 0 and dy == 0:
+					continue
+				var n := c + Vector2i(dx, dy)
+				if seen.has(n) or n == bomb or not m.is_land(n.x, n.y):
+					continue
+				seen[n] = true
+				queue.append(n)
+
+	var alice = IslandMapS.new()
+	alice.grow(FirstIsland.seed_for("alice"))
+	var bob = IslandMapS.new()
+	bob.grow(FirstIsland.seed_for("bob"))
+
+	print("   couloir : %d voisines au depart (1), coffre atteignable bombe=mur : %s, meme sol pour tous : %s"
+		% [neighbours, str(seen.has(chest)), str(alice.level == bob.level)])
 
 func _sweep(label: String, m) -> void:
 	var terrain = TerrainS.new()
