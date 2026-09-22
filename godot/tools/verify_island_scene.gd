@@ -32,7 +32,8 @@ var _path: Array[Vector2i] = []
 
 
 func _initialize() -> void:
-	for pair in [["I18N", "res://scripts/i18n.gd"], ["Screens", "res://scripts/screens.gd"]]:
+	for pair in [["I18N", "res://scripts/i18n.gd"], ["Screens", "res://scripts/screens.gd"],
+			["Session", "res://scripts/session.gd"]]:
 		var node: Node = (load(pair[1]) as GDScript).new()
 		node.name = pair[0]
 		root.add_child(node)

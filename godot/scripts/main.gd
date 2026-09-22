@@ -16,6 +16,17 @@ extends Control
 
 
 func _ready() -> void:
+	# LA RACINE NE PREND PAS LE DOIGT, et c'est la ligne qui a coute le tutoriel.
+	#
+	# Cette racine est un Control plein ecran ; le filtre par defaut d'un
+	# Control est STOP, et Godot 4 marque un appui « traite » des qu'un Control
+	# non IGNORE est dessous — le monde (des Node2D) ne compte pas dans ce
+	# choix. Donc chaque tape que le chrome ne prenait pas mourait ici, et
+	# `_unhandled_input` de l'ile ne voyait RIEN : les boutons repondaient, les
+	# cases jamais. Mesure sur le Seeker le 2026-09-23 avec
+	# `gui_get_hovered_control()` : « Control dessous : /root/Main ».
+	if self is Control:
+		(self as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
 	Screens.host(_world, _screen)
 	# LE RIDEAU SE MONTE ICI, dans l'etage qui l'attendait depuis le debut.
 	#

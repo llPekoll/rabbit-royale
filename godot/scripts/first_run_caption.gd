@@ -34,8 +34,10 @@ const FONT_SIZE := 15
 ## barre d'etat, pas comme une phrase.
 const WIDTH := 600.0
 const HEIGHT := 44.0
-## A combien du bas. Au-dessus du pouce, sous le plateau.
-const BOTTOM_GAP := 34.0
+## A combien du bas. AU-DESSUS DE LA RANGEE DES BOUTONS : MARQUER UNE BOMBE
+## occupe 44 px a 12 px du bord, et a 34 le bandeau lui passait dessus —
+## mesure sur la capture du Seeker, la planche couvrait « MARK ».
+const BOTTOM_GAP := 66.0
 
 var _label: Label
 var _shown := ""

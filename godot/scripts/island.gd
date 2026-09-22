@@ -46,6 +46,7 @@ const DEFAULT_SEED := "default"
 @onready var _ducks: Ducks = %Ducks
 @onready var _tiles: TileView = %Tiles
 @onready var _rabbit: HomeRabbit = %Rabbit
+@onready var _ring: MoveRing = %Ring
 
 ## CE QUI EST ENTERRE SUR CETTE ILE.
 ##
@@ -92,8 +93,16 @@ var _press_at := Vector2.ZERO
 var _press_cam := Vector2.ZERO
 
 
+## OU LE TUTORIEL SE SOUVIENT D'AVOIR ETE FINI, sur cet appareil.
+##
+## Le web le sait par le serveur (`tutorialDone` ferme la manche, et la
+## prochaine ile est distribuee) ; ce portage n'a pas encore de manche cote
+## serveur, donc l'appareil tient le drapeau, comme il tient la langue.
+const TUTORIAL_PATH := "user://tutorial.cfg"
+
+
 func _ready() -> void:
-	show_ground(_seed)
+	show_ground(_opening_seed())
 	get_viewport().size_changed.connect(_reframe)
 	frame_camera(true)
 	_add_chrome()
@@ -224,6 +233,11 @@ func show_ground(seed_value: String) -> void:
 	var start := TutorialMap.spawn() if FirstIsland.is_first(seed_value) else Vector2i(-1, -1)
 	_rabbit.build(hash(seed_value), start)
 
+	# L'ANNEAU, dans les memes blocs que les voiles — et rallume tout de suite
+	# autour de l'apparition.
+	_ring.terrain = _terrain
+	_ring.build(_board.playable())
+
 	# UNE AUTRE ILE, UN AUTRE COMPTE.
 	_armed = false
 	_digs = 0
@@ -231,6 +245,7 @@ func show_ground(seed_value: String) -> void:
 	_chests = 0
 	_done = false
 	_refresh_tutorial_chrome()
+	_refresh_ring()
 
 	# LES LOSANGES SE MONTENT DANS LES BLOCS DU TERRAIN : ils viennent donc
 	# APRES lui, et ils meurent avec lui — `build` jette ses blocs et les
@@ -336,13 +351,28 @@ func _reframe() -> void:
 ##   2. l'appui MONTRE avant de choisir, faute de survol sur un telephone ;
 ##   3. le plateau se laisse glisser, ici toujours — une ile est faite pour
 ##      qu'on s'y promene, contrairement a la ferme qui est un decor de fond.
+## SI LES CASES NE REPONDENT PLUS AU DOIGT alors que les boutons repondent :
+## un Control non IGNORE est sous le doigt et Godot marque l'appui « traite »
+## avant `_unhandled_input`. Ne pas chercher dans le picker. Mesurer avec
+## `get_viewport().gui_get_hovered_control().get_path()` dans un `_input`
+## provisoire — c'est ce qui a nomme `/root/Main` le 2026-09-23 (main.gd).
+## LA SOURIS EMULEE SEULEMENT, jamais le toucher brut — et c'est mesure.
+##
+## Sur l'appareil, un doigt produit DEUX evenements a la meme milliseconde :
+## l'`InputEventScreenTouch` brut et l'`InputEventMouseButton` que Godot en
+## emule (`emulate_mouse_from_touch`, au defaut). Les deux arrivaient ici, donc
+## chaque tape comptait double une fois la retenue lachee — un pas, puis un
+## second sur la foulee. Et le toucher brut PASSE A TRAVERS les boutons : la
+## tape sur MARQUER UNE BOMBE tombait aussi sur le plateau (« cell=(17,16) » a
+## l'instant du bouton). Le GUI ne consomme que la version souris, donc c'est
+## elle, et elle seule, qui vaut une tape. Journal du Seeker, 2026-09-23.
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventScreenTouch or event is InputEventMouseButton:
+	if event is InputEventMouseButton:
 		if event.pressed:
 			_on_press(event.position)
 		else:
 			_on_release(event.position)
-	elif event is InputEventScreenDrag or event is InputEventMouseMotion:
+	elif event is InputEventMouseMotion:
 		if _pressing:
 			_on_move(event.position)
 
@@ -377,6 +407,7 @@ func _on_release(at: Vector2) -> void:
 		return
 	var cell := _cell_at(at)
 	if cell.x < 0:
+		print("[tap] hors plateau at=%s" % at)
 		return
 	# LE TUTORIEL SE JOUE ICI : un pas, ou un X, selon le mode.
 	if _board != null and _is_tutorial():
@@ -407,6 +438,12 @@ func _on_release(at: Vector2) -> void:
 ## client connait le contenu, par construction (voir island_board.gd).
 func _tutorial_tap(cell: Vector2i) -> void:
 	var here := _rabbit.at()
+	# DANS LE LOG, parce qu'un pas refuse ne se voit pas sur une capture :
+	# `adb logcat -s godot` dit quelle case le doigt a resolue et pourquoi elle
+	# a ete refusee. C'est la sonde qui manquait quand « tap is not working ».
+	print("[tap] cell=%s here=%s armed=%s beside=%s step=%s dug=%s" % [
+		cell, here, _armed, _board.is_beside(here, cell),
+		_board.may_step(here, cell), _board.is_dug(cell)])
 
 	if _armed:
 		_set_armed(false)
@@ -414,13 +451,14 @@ func _tutorial_tap(cell: Vector2i) -> void:
 			_flags += 1
 		_tiles.refresh()
 		_refresh_caption()
+		_refresh_ring()
 		return
 
-	if not _board.is_beside(here, cell):
-		return
-	if not _board.may_step(here, cell):
-		# LA LECON D'ABORD. Le plateau refuse ce pas, et le bouton dit pourquoi.
-		if _mark != null:
+	if not _board.is_beside(here, cell) or not _board.may_step(here, cell):
+		# LE NON LOCAL : l'anneau clignote d'un coup pour montrer ou est le oui.
+		# Et pendant la lecon, le bouton remue — c'est lui la sortie.
+		_ring.pulse()
+		if _mark != null and _board.teaching_hold().x >= 0:
 			_mark.wiggle()
 		return
 
@@ -435,10 +473,66 @@ func _tutorial_tap(cell: Vector2i) -> void:
 			_finish_tutorial()
 	_tiles.refresh()
 	_refresh_caption()
+	_refresh_ring()
+
+
+## RALLUME L'ANNEAU AUTOUR DU LAPIN — les cases qu'un pas atteint, ou, en mode
+## X, celles ou un X peut se poser.
+##
+## Les memes portes que le pas lui-meme (`may_step`) : une case que le plateau
+## refuserait n'est pas allumee. En mode X, la porte de `flag` : les huit
+## voisines dont on ne sait encore rien.
+func _refresh_ring() -> void:
+	if _board == null or _ring == null:
+		return
+	var here := _rabbit.at()
+	var lit: Array[Vector2i] = []
+	if not _done:
+		for n in _board._neighbours(here):
+			if not _board.content.has(n):
+				continue
+			if _armed:
+				var st = _board.state.get(n)
+				if st == IslandBoard.State.DUG or st == IslandBoard.State.HINTED:
+					continue
+				if _board.is_flagged(n) or _board.content[n] == IslandBoard.Content.CHEST:
+					continue
+				lit.append(n)
+			elif _board.may_step(here, n) and not _board.is_flagged(n):
+				lit.append(n)
+	_ring.set_lit(lit, here, _armed)
 
 
 func _is_tutorial() -> bool:
 	return FirstIsland.is_first(_seed)
+
+
+## LA GRAINE SUR LAQUELLE L'ILE S'OUVRE : le tutoriel pour qui ne l'a pas
+## fini, l'ile par defaut pour les autres.
+##
+## `first:<id du joueur>` — la graine porte TOUJOURS l'identifiant, parce que
+## chaque nouveau venu a besoin de SON instance (voir first_island.gd) ; le SOL,
+## lui, est le meme pour tous. Un joueur qui a deja des manches au compteur
+## (`runsPlayed`, venu du web) n'a pas a refaire la lecon.
+func _opening_seed() -> String:
+	if _tutorial_finished():
+		return DEFAULT_SEED
+	if int(Session.player.get("runsPlayed", 0)) > 0:
+		return DEFAULT_SEED
+	return FirstIsland.seed_for(String(Session.player.get("id", "guest")))
+
+
+func _tutorial_finished() -> bool:
+	var cfg := ConfigFile.new()
+	if cfg.load(TUTORIAL_PATH) != OK:
+		return false
+	return bool(cfg.get_value("tutorial", "done", false))
+
+
+func _remember_finished() -> void:
+	var cfg := ConfigFile.new()
+	cfg.set_value("tutorial", "done", true)
+	cfg.save(TUTORIAL_PATH)
 
 
 func _set_armed(armed: bool) -> void:
@@ -446,6 +540,7 @@ func _set_armed(armed: bool) -> void:
 	if _mark != null:
 		_mark.board = PlankButton.Board.GOLD if armed else PlankButton.Board.WOOD
 	_refresh_caption()
+	_refresh_ring()
 
 
 ## LE CHROME DU TUTORIEL SE MONTRE SUR L'ILE DU TUTORIEL, et nulle part
@@ -495,11 +590,21 @@ func _refresh_caption() -> void:
 ## par le seul geste qui existe deja — la traversee vers le terrier.
 func _finish_tutorial() -> void:
 	_done = true
+	_remember_finished()
 	_tiles.set_pulse(Vector2i(-1, -1))
 	get_tree().create_timer(DONE_SECONDS).timeout.connect(
 		func() -> void:
-			if _done and Screens.in_world():
-				Screens.cross(Screens.Place.BURROW))
+			if not (_done and Screens.in_world()):
+				return
+			# UNE FOIS AU TERRIER, l'ile se refait sur sa graine ordinaire —
+			# cachee, donc sans que personne la voie changer. La prochaine
+			# traversee n'est plus une lecon.
+			Screens.moved.connect(
+				func(id: Screens.Place) -> void:
+					if id == Screens.Place.BURROW:
+						show_ground(DEFAULT_SEED),
+				CONNECT_ONE_SHOT)
+			Screens.cross(Screens.Place.BURROW))
 
 
 ## LA CASE SOUS UN POINT DE L'ECRAN.

@@ -86,6 +86,9 @@ func host(world: Node, screen: Node) -> void:
 ## LE DOORSTEP, monte comme un ecran ordinaire.
 func show_doorstep() -> void:
 	_in_world = false
+	# L'hote revient avec le doorstep — voir `show_place`, qui l'a cache.
+	if _screen_host is CanvasItem:
+		(_screen_host as CanvasItem).visible = true
 	_swap_screen(DOORSTEP)
 	world_shown.emit(false)
 
@@ -136,6 +139,17 @@ func show_place(id: Place) -> void:
 		if _screen != null:
 			_screen.queue_free()
 			_screen = null
+		# L'HOTE DU DOORSTEP SE CACHE AVEC LUI, et c'est la ligne qui manquait.
+		#
+		# `%Screen` est un Control plein ecran en PASS. Vide, il reste sous le
+		# doigt : Godot 4 marque un appui « traite » des qu'un Control non
+		# IGNORE est dessous, PASS compris — PASS ne regle que la remontee
+		# vers les Controls parents, pas ce qui atteint `_unhandled_input`.
+		# Donc les boutons du chrome (layer 10, au-dessus) repondaient et AUCUNE
+		# tape sur une case n'arrivait au plateau. Mesure sur le Seeker le
+		# 2026-09-22 : `_input` voyait chaque appui, `_unhandled_input` aucun.
+		if _screen_host is CanvasItem:
+			(_screen_host as CanvasItem).visible = false
 		world_shown.emit(true)
 
 	for other in _built:

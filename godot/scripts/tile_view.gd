@@ -128,45 +128,28 @@ func build() -> void:
 		terrain.mount_veil(cell, x, Z_X)
 		_x[cell] = x
 
-		var label := Label.new()
-		label.add_theme_font_size_override("font_size", HINT_SIZE)
-		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		# `size` ET PAS SEULEMENT `custom_minimum_size`, et c'est ce qui a fait
-		# deriver les chiffres au premier essai : sans taille EXPLICITE, un
-		# Label se dimensionne sur son contenu, donc le centrage porte sur une
-		# boite plus petite que la case et le glyphe sort en haut a droite de
-		# son losange. Sur la capture du Seeker ils flottaient a cote du sol au
-		# lieu d'etre poses dessus.
-		var box := Vector2(Iso.BURROW_TILE_W, Iso.BURROW_TILE_H)
-		label.custom_minimum_size = box
-		label.size = box
-		label.position = -box * 0.5
-		label.z_index = Z_HINT
-		# LE FOND DU LABEL RESTE VIDE de toute facon : un StyleBox de theme se
-		# verrait des qu'on toucherait au mode de fusion.
-		label.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
-		var holder := Node2D.new()
-		holder.add_child(label)
-		# LE CHIFFRE EST COUCHE SUR LE LOSANGE, ET RENDU EN MULTIPLY.
-		#
-		# COUCHE : ses deux axes suivent les diagonales de la tuile — (22, 12) et
-		# (-22, 12) — donc il partage les lignes de fuite du sol et se tient DANS
-		# l'image au lieu d'etre pose dessus. C'est le skew du web
-		# (`HINT_SKEW_X/Y`), derive plutot que trouve a l'oeil.
-		#
-		# LE MULTIPLY A ETE ESSAYE ET REPOUSSE, faute du bon support.
+		# LE CHIFFRE : UN GLYPHE CUIT, EN SPRITE, RENDU EN MULTIPLY.
 		#
 		# Le web multiplie ses comptes, et c'est ce qui les fait TEINTER l'herbe
-		# au lieu de la couvrir. Mais il les dessine dans un objet texte dont
-		# seul le glyphe a des pixels ; un `Label` de Godot est un Control avec
-		# une BOITE, et le mode MUL teinte la boite entiere — sur la capture,
-		# chaque chiffre sortait comme un losange vert sombre.
+		# au lieu de la couvrir. Un `Label` ne pouvait pas le faire : c'est un
+		# Control avec une BOITE, et le mode MUL teintait la boite entiere —
+		# chaque chiffre sortait comme un losange vert sombre. Un Sprite2D n'a de
+		# pixels que la ou est le chiffre, donc seul le chiffre multiplie.
 		#
-		# Le faire proprement demande de cuire le glyphe dans une texture et de
-		# la poser en Sprite2D, ce qui serait aussi moins cher qu'un Control par
-		# case. A reprendre avec les carottes et les coffres, qui demanderont de
-		# toute facon des sprites par case.
+		# Le glyphe est dessine a la main, 3x5 pixels doubles : des chiffres de
+		# demineur en pixel art, francs, qui n'ont besoin d'aucune police et se
+		# lisent en diagonale par leur couleur avant leur forme.
+		var glyph := Sprite2D.new()
+		glyph.centered = true
+		glyph.z_index = Z_HINT
+		glyph.material = _mul_material()
+		glyph.visible = false
+		var holder := Node2D.new()
+		holder.add_child(glyph)
+		# COUCHE SUR LE LOSANGE : ses deux axes suivent les diagonales de la
+		# tuile — (22, 12) et (-22, 12) — donc il partage les lignes de fuite du
+		# sol et se tient DANS l'image au lieu d'etre pose dessus. C'est le skew
+		# du web (`HINT_SKEW_X/Y`), derive plutot que trouve a l'oeil.
 		terrain.mount_veil(cell, holder, Z_HINT)
 		# APRES `mount_veil` : son contrat ECRASE la position du noeud avec le
 		# centre du losange, donc une matrice posee avant serait effacee. On garde
@@ -175,7 +158,7 @@ func build() -> void:
 			Vector2(Iso.half_w(), Iso.half_h()) / Iso.half_w(),
 			Vector2(-Iso.half_w(), Iso.half_h()) / Iso.half_w(),
 			holder.position)
-		_hints[cell] = label
+		_hints[cell] = glyph
 
 	refresh()
 
@@ -195,14 +178,13 @@ func refresh() -> void:
 		else:
 			fog.modulate.a = FOG_ALPHA
 
-		var label: Label = _hints[cell]
+		var glyph: Sprite2D = _hints[cell]
 		if board.shows_number(cell):
 			var n: int = board.adjacent[cell]
-			label.text = str(n)
-			label.add_theme_color_override("font_color", TINTS[mini(n, TINTS.size() - 1)])
-			label.visible = true
+			glyph.texture = _digit_texture(n)
+			glyph.visible = true
 		else:
-			label.visible = false
+			glyph.visible = false
 
 		# LE X : plein quand la case est marquee, fantome et battant quand c'est
 		# la case enseignee, absent sinon.
@@ -255,12 +237,95 @@ func clear() -> void:
 	for cell in _x:
 		(_x[cell] as Node).queue_free()
 	for cell in _hints:
-		var l: Label = _hints[cell]
-		if l.get_parent() != null:
-			l.get_parent().queue_free()
+		var g: Sprite2D = _hints[cell]
+		if g.get_parent() != null:
+			g.get_parent().queue_free()
 	_fog.clear()
 	_x.clear()
 	_hints.clear()
+
+
+## LES CHIFFRES, 3x5 en pixel art — les glyphes de demineur.
+##
+## Chaque ligne est une rangee de trois pixels, de haut en bas. Un `1` est la
+## barre avec son pied, un `7` son crochet : la forme la plus courte qui se
+## distingue des autres a un coup d'oeil, ce que demande un plateau qu'on lit
+## en diagonale.
+const DIGITS := {
+	1: ["010", "110", "010", "010", "111"],
+	2: ["111", "001", "111", "100", "111"],
+	3: ["111", "001", "111", "001", "111"],
+	4: ["101", "101", "111", "001", "001"],
+	5: ["111", "100", "111", "001", "111"],
+	6: ["111", "100", "111", "101", "111"],
+	7: ["111", "001", "001", "001", "001"],
+	8: ["111", "101", "111", "101", "111"],
+}
+## Chaque pixel du glyphe fait DIGIT_PX pixels de tuile : a 2, un chiffre fait
+## 6x10 dans un losange de 44x24 — la place qu'occupait le label a 11.
+const DIGIT_PX := 2
+
+static var _digits: Dictionary = {}
+static var _mul: CanvasItemMaterial
+
+
+## LE MATERIAU MULTIPLY, partage par tous les chiffres.
+static func _mul_material() -> CanvasItemMaterial:
+	if _mul == null:
+		_mul = CanvasItemMaterial.new()
+		_mul.blend_mode = CanvasItemMaterial.BLEND_MODE_MUL
+	return _mul
+
+
+## CE QUE LE MULTIPLY COUTE A LA TEINTE, et l'anneau qui rend son bord.
+##
+## Repris de Tile.ts : `HINT_DEEPEN = 0.75` — chaque canal a 75 %, meme teinte,
+## plus de poids une fois multiplie sur l'herbe ; a 1,0 le bleu du 1 mesurait
+## 1,2-1,6:1 de contraste. Et `HINT_RING_TINT = 0xf2f4ff` : l'anneau des huit
+## voisins (`outlinedPixelText`), lui aussi multiplie. PAS blanc pur : a
+## #ffffff l'anneau est l'identite et disparait ; un souffle en dessous laisse
+## un leger assombrissement qui separe encore le glyphe d'un sol pale. C'est le
+## « petit halo » qu'on voit autour du 1 sur le web.
+const HINT_DEEPEN := 0.75
+const HINT_RING := Color("#f2f4ff")
+
+
+## UN CHIFFRE, cuit une fois par valeur, AVEC SA COULEUR : la face en teinte
+## approfondie, l'anneau en quasi-blanc. Deux teintes dans une texture, donc
+## le `modulate` reste blanc.
+static func _digit_texture(n: int) -> ImageTexture:
+	var key := clampi(n, 1, 8)
+	if _digits.has(key):
+		return _digits[key]
+	var rows: Array = DIGITS[key]
+	var tint: Color = TINTS[mini(key, TINTS.size() - 1)]
+	var face := Color(tint.r * HINT_DEEPEN, tint.g * HINT_DEEPEN, tint.b * HINT_DEEPEN, 1.0)
+	# Un pixel de marge tout autour, pour l'anneau.
+	var w := 3 * DIGIT_PX + 2
+	var h := rows.size() * DIGIT_PX + 2
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	img.fill(Color(1, 1, 1, 0))
+	# L'ANNEAU D'ABORD, la face par-dessus : un pixel de face voisin d'un autre
+	# ne doit pas etre repeint en anneau.
+	for y in range(rows.size()):
+		var row: String = rows[y]
+		for x in range(3):
+			if row[x] != "1":
+				continue
+			for dy in range(-1, DIGIT_PX + 1):
+				for dx in range(-1, DIGIT_PX + 1):
+					img.set_pixel(1 + x * DIGIT_PX + dx, 1 + y * DIGIT_PX + dy, HINT_RING)
+	for y in range(rows.size()):
+		var row: String = rows[y]
+		for x in range(3):
+			if row[x] != "1":
+				continue
+			for dy in range(DIGIT_PX):
+				for dx in range(DIGIT_PX):
+					img.set_pixel(1 + x * DIGIT_PX + dx, 1 + y * DIGIT_PX + dy, face)
+	var tex := ImageTexture.create_from_image(img)
+	_digits[key] = tex
+	return tex
 
 
 ## LE X, cuit une fois : deux diagonales de deux pixels dans un carre de seize.
