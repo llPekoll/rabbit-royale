@@ -1,0 +1,25 @@
+[gd_scene load_steps=2 format=3]
+
+; LE REGLAGE DU CIEL, A LA MAIN ET SUR L'APPAREIL.
+;
+; Une scene d'OUTIL, pas de jeu : elle instancie la vraie ile et pose des
+; curseurs par-dessus. On regle, on appuie sur COPIER, on recopie les valeurs
+; dans `sky_look.gd` — qui reste la source de verite.
+;
+; Pour la lancer :
+;   run/main_scene = "res://scenes/sky_tuner.tscn" dans project.godot
+;   (a remettre sur main.tscn ensuite)
+;
+; Les valeurs copiees sortent aussi dans `adb logcat -s godot`, pour les
+; recuperer depuis la machine sans rien retaper.
+
+[ext_resource type="Script" path="res://scripts/sky_tuner.gd" id="1_tuner"]
+
+[node name="SkyTuner" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_tuner")

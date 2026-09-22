@@ -129,7 +129,16 @@ void fragment() {
 	// La quantification : on ramene le pixel sur une grille de `pixel` unites
 	// AVANT de lire le bruit. C'est ce qui divise le cout sans que le voile
 	// change d'aspect.
-	vec2 px = floor(FRAGCOORD.xy / pixel) * pixel;
+	// LU DANS LE PLAN, PAS A L'ECRAN — meme piege que les ombres.
+	//
+	// `FRAGCOORD` est en pixels d'ECRAN REEL. Monte sur un plan qui deborde du
+	// cadre et dans un noeud mis a l'echelle, `FRAGCOORD / screen_size` ne
+	// depassait jamais 0,27 : tout le rai se tassait dans un coin du champ et
+	// rien n'arrivait sur l'ile. Le banc d'essai ne montrait pas le defaut,
+	// parce que son voile couvre exactement l'ecran — les deux reperes y
+	// coincident. `UV` va de 0 a 1 sur le plan, ce qui est ce que `source` et
+	// l'angle veulent dire.
+	vec2 px = floor(UV * screen_size / pixel) * pixel;
 	vec2 uv = px / screen_size;
 
 	// Le vecteur depuis la source, en corrigeant l'aspect pour que l'angle

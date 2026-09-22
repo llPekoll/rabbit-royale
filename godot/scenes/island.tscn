@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 ; L'ILE. Le second des deux lieux residents — construite une fois, jamais
 ; liberee, montree ou cachee (voir screens.gd).
@@ -20,6 +20,7 @@
 [ext_resource type="Script" path="res://scripts/pack_water.gd" id="5_foam"]
 [ext_resource type="Script" path="res://scripts/sea_rocks.gd" id="6_rocks"]
 [ext_resource type="Script" path="res://scripts/ducks.gd" id="7_ducks"]
+[ext_resource type="Script" path="res://scripts/sky_light.gd" id="8_sky"]
 
 [node name="Island" type="Node2D"]
 script = ExtResource("1_island")
@@ -63,3 +64,17 @@ script = ExtResource("7_ducks")
 [node name="Hints" type="Node2D" parent="."]
 unique_name_in_owner = true
 script = ExtResource("3_hints")
+
+; LA LUMIERE DU CIEL — les ombres de nuages, puis les rais entre elles.
+;
+; ENFANT DE L'ILE, contrairement a la mer, et c'est le contraire du meme
+; raisonnement : la mer est un eclairage de fond qui reste sous l'ecran, une
+; ombre de nuage est posee SUR le terrain a un endroit du monde et doit glisser
+; avec lui. Le web fait pareil — son plan de rais est ajoute au conteneur de la
+; camera, pas au stage.
+;
+; Les deux couches lisent LE MEME bruit avec LES MEMES reglages : une ombre est
+; un trou dans la couverture vu d'en dessous, un rai le meme trou vu de cote.
+[node name="Sky" type="Node2D" parent="."]
+unique_name_in_owner = true
+script = ExtResource("8_sky")
