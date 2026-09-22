@@ -15,7 +15,7 @@ import type { Application } from 'pixi.js';
 import { Tile } from '@/game/entities/Tile';
 import { PlayerRabbit } from '@/game/entities/PlayerRabbit';
 import { initTileTextures } from '@/game/services/TileTextures';
-import { createIslandBackground } from '@/game/services/IslandBackground';
+import { createTerrainBackground } from '@/game/services/TerrainBackground';
 import { CloudField } from '@/game/fx/Clouds';
 import * as Keys from '@/config/assetKeys';
 import { COLS, ROWS, tilePos } from '@/config/gridConfig';
@@ -45,8 +45,7 @@ export function buildLessonBoard(
 
   let bg: { destroy(): void } | null = null;
   if (opts.background) {
-    void createIslandBackground(stage, STAGE.width / 2, STAGE.height / 2, 'first-lesson')
-      .then((b) => { bg = b; });
+    void createTerrainBackground(stage, 'first-lesson').then((b) => { bg = b; });
   }
 
   const sky = new CloudField(stage, { width: STAGE.width, height: STAGE.height });

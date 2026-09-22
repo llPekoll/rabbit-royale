@@ -33,7 +33,7 @@ import { PlayerRabbit } from '@/game/entities/PlayerRabbit';
 import { generateIsland, cascadeAround, revealTile } from '@/lib/game/island';
 import { loadAllAssets } from '@/game/services/AssetLoader';
 import { initTileTextures } from '@/game/services/TileTextures';
-import { createIslandBackground } from '@/game/services/IslandBackground';
+import { createTerrainBackground } from '@/game/services/TerrainBackground';
 import * as Keys from '@/config/assetKeys';
 import { COLS, ROWS, isForbidden, makeShape, toColRow } from '@/config/gridConfig';
 
@@ -107,7 +107,7 @@ function Scene({ seed, background, perStep, metric, maxDelay, bob, bobTime }: Ar
 
         let bg: { destroy(): void } | null = null;
         if (background) {
-          void createIslandBackground(stage, 480, 270, seed).then((b) => { bg = b; });
+          void createTerrainBackground(stage, seed).then((b) => { bg = b; });
         }
 
         const board = new Container();

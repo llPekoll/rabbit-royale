@@ -31,7 +31,7 @@ import { Tile } from '@/game/entities/Tile';
 import { PlayerRabbit } from '@/game/entities/PlayerRabbit';
 import { loadAllAssets } from '@/game/services/AssetLoader';
 import { initTileTextures } from '@/game/services/TileTextures';
-import { createIslandBackground } from '@/game/services/IslandBackground';
+import { createTerrainBackground } from '@/game/services/TerrainBackground';
 import * as Keys from '@/config/assetKeys';
 import {
   COLS, ROWS, SPAWN_INDEX, makeShape, isForbidden, neighbors, RABBIT_SCALE,
@@ -309,7 +309,7 @@ function IslandScene({ seed, rabbits, stepMs, crowned, bob, zoom, leadScale }: I
         const crownTexture = Assets.get<Texture>('crown');
 
         let bg: { destroy(): void } | null = null;
-        void createIslandBackground(stage, 640 / 2, 540 / 2, seed).then((b) => {
+        void createTerrainBackground(stage, seed).then((b) => {
           bg = b;
           b.layout(640 / 2, 540 / 2, 1.75);
         });

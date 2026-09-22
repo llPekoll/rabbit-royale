@@ -74,7 +74,6 @@ describe('one mount', () => {
 });
 
 describe('the backdrop covers the frame', () => {
-  const BG = read('../src/game/services/IslandBackground.ts');
   const SCENE = read('../src/game/scenes/IslandScene.ts');
 
   it('measures the renderer, not the window', () => {
@@ -82,15 +81,21 @@ describe('the backdrop covers the frame', () => {
     // `innerWidth` overstates the canvas and the ground came out sized for a
     // box it does not occupy.
     expect(SCENE).toMatch(/this\.app\.renderer\.width/);
-    expect(BG).toMatch(/viewport\(\)/);
   });
 
-  it('covers the letterbox, not just the design box', () => {
-    // The design space is scaled to FIT, so a canvas that is not 16:9 leaves
-    // bare space — it showed as a flat blue band under the island.
-    expect(BG).toMatch(/rootScale/);
-    expect(BG).toMatch(/needH/);
-  });
+  /**
+   * The two `IslandBackground` checks that stood here are gone with it.
+   *
+   * They pinned a PAINTING to the frame — that it measured the renderer's own
+   * viewport, and that it scaled past the letterbox so no flat blue band
+   * showed under the island. There is no painting any more: the ground is
+   * generated cell by cell and pinned to the board's grid
+   * (`TerrainBackground`), so covering the frame is not a thing it can get
+   * wrong in that way.
+   *
+   * Worth knowing they did not fail when the file went — `read` throws, so
+   * the whole describe was skipped and the suite quietly lost eleven tests.
+   */
 
   it('re-lays-out when the canvas changes size on its own', () => {
     // The board mounting beside the canvas resizes it WITHOUT a window resize.

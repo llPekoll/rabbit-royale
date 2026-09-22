@@ -26,11 +26,23 @@ import { createPackWater, loadPackWater, type PackWater } from '@/game/fx/PackWa
 import { createDucks, loadDucks, type Ducks } from '@/game/fx/Ducks';
 import { mountSkyLight } from '@/game/fx/GodRays';
 import { WATER_LOOK, DUCK_LOOK } from '@/config/waterLook';
-import type { IslandBackground } from './IslandBackground';
 import { getDiamondPixels } from './TileTextures';
 
 /** Scenery is cut for 64px tiles; the board's are 44x24. */
 const DECO_SCALE = 0.4;
+
+/**
+ * What every backdrop owes the scene: it can be re-laid, and it can go.
+ *
+ * Lived in `IslandBackground` until that service was deleted. It painted one
+ * of three pictures of an island (`land1/2/3.webp`); the island is BUILT now,
+ * cell by cell from the seed, so the paintings and the code that chose
+ * between them went with it and only this contract was worth keeping.
+ */
+export interface IslandBackground {
+  layout(centerX: number, centerY: number, zoom?: number): void;
+  destroy(): void;
+}
 
 export interface TerrainBackground extends IslandBackground {
   /** Advance the sway. `deltaMs` is real milliseconds. */

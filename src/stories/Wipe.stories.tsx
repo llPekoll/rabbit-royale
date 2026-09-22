@@ -42,12 +42,19 @@ const LOOP_PAUSE_MS = 700;
 const WIDTH = 720;
 const HEIGHT = 405;
 
-/** The two backdrops the game actually ships, so the wipe is judged against
- *  real art rather than against flat colour — a hole cut out of a painted
- *  scene is the only version of this effect anyone will ever see. */
+/** The backdrops the game actually ships, so the wipe is judged against real
+ *  art rather than against flat colour — a hole cut out of a painted scene is
+ *  the only version of this effect anyone will ever see.
+ *
+ *  Both entries are the burrow's painting since the three island paintings
+ *  (`land1/2/3`) were deleted: the island is DRAWN now, cell by cell, from
+ *  the seed (`TerrainBackground`), so there is no single picture of one left
+ *  to cut a hole in. The wipe does not care which art it covers — it is
+ *  judged on the edge of the hole — and a painted scene is still what it
+ *  needs to be judged against. */
 const ART = {
   burrow: '/assets/island/burrow_generated.webp',
-  island: '/assets/island/land2.webp',
+  island: '/assets/island/burrow_generated.webp',
 } as const;
 
 type Where = keyof typeof ART;
