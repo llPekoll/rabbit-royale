@@ -41,6 +41,9 @@ const DEFAULT_SEED := "default"
 
 @onready var _terrain: BurrowTerrain = %Terrain
 @onready var _hints: PlacementHints = %Hints
+@onready var _foam: PackWater = %Foam
+@onready var _rocks: SeaRocks = %Rocks
+@onready var _ducks: Ducks = %Ducks
 
 var _seed := DEFAULT_SEED
 var _cam_tween: Tween
@@ -81,6 +84,23 @@ func show_ground(seed_value: String) -> void:
 	map.origin = _centred_origin(map)
 	_terrain.map = map
 	_terrain.build()
+
+	# LA MER VIENT APRES LE TERRAIN parce qu'elle lit le meme relief : l'ecume
+	# borde la terre qui vient d'etre taillee, et les rochers ne vont que dans
+	# la mer qu'elle laisse.
+	#
+	# L'ORDRE ENTRE EUX COMPTE AUSSI : les rochers d'abord, les canards ensuite,
+	# parce qu'un canard doit savoir ou sont les rochers pour ne pas nager
+	# dedans — il est dessine SOUS le decor.
+	_foam.map = map
+	_foam.build()
+	_rocks.map = map
+	_rocks.seed_text = seed_value
+	_rocks.build()
+	_ducks.map = map
+	_ducks.seed_text = seed_value
+	_ducks.rocks = _rocks
+	_ducks.build()
 
 	# LES LOSANGES SE MONTENT DANS LES BLOCS DU TERRAIN : ils viennent donc
 	# APRES lui, et ils meurent avec lui — `build` jette ses blocs et les
