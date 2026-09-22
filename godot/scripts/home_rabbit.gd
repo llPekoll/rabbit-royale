@@ -53,7 +53,22 @@ const ANIMS := {
 const RABBIT_SCALE := 1.5
 
 ## L'ANCRE : les PIEDS au centre de la case, pas le centre de la boite.
-const ANCHOR := Vector2(0.5, 0.9)
+##
+## MESURE SUR L'ALPHA, PAS REPRISE DU WEB — et c'est un bug que ce portage a
+## eu. Le web ancre a 0,9 de la frame ; recopie ici tel quel, ca posait le
+## point de contact a y=28,8 d'une frame de 32 alors que LES PATTES SONT A
+## y=32. Trois pixels d'art de trop, multiplies par l'echelle 1,5 : le lapin
+## flottait CINQ pixels au-dessus de sa case, soit 40 % d'une demi-tuile —
+## Paul l'a vu tout de suite, « le lapin ne se met pas sur les tiles ».
+##
+## Le 0,9 du web est juste CHEZ EUX, ou le conteneur du lapin porte d'autres
+## decalages. La regle qui se transporte n'est pas le nombre, c'est
+## l'intention : les pieds touchent le sol. Ici ca fait 1,0, et c'est ce que
+## dit l'alpha des trois animations posees (idle, move, eat : bbox jusqu'a 32).
+##
+## Meme lecon que le pied des batiments dans burrow_props.gd — un ancrage se
+## mesure sur les bornes alpha de l'art, jamais devine ni recopie.
+const ANCHOR := Vector2(0.5, 1.0)
 
 ## LE TEMPS ENTRE DEUX GESTES, en secondes.
 ##
