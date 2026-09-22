@@ -64,8 +64,9 @@ const CAPTION_DANGER_INK := Color("#ffb3a8")
 const CAPTION_DANGER_RIM := Color(1.0, 107.0 / 255.0, 107.0 / 255.0, 0.55)
 const CARRY_GLASS := Color(13.0 / 255.0, 17.0 / 255.0, 23.0 / 255.0, 0.82)
 
-## Le voile derriere un dialogue.
-const SCRIM := Color(0.0, 0.0, 0.0, 0.55)
+## Le voile derriere un dialogue : le brun presque noir du web a 78 %
+## (`rgba(10,6,4,.78)`), pose sur le jeu floute (shaders/scrim_blur).
+const SCRIM := Color(10.0 / 255.0, 6.0 / 255.0, 4.0 / 255.0, 0.78)
 
 ## Le fond de l'app, hors monde (project.godot default_clear_color).
 const NIGHT := Color(0.051, 0.067, 0.09, 1.0)

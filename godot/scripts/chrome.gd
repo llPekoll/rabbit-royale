@@ -45,6 +45,8 @@ const TOAST_FADE := 0.35
 @onready var overlays: Control = %Overlays
 @onready var dialogs: Control = %Dialogs
 
+const SCRIM_BLUR := preload("res://shaders/scrim_blur.gdshader")
+
 var _scrim: ColorRect
 var _dialog: Control
 var _placement := "center"
@@ -302,6 +304,15 @@ func open(dialog: Control, dismiss: bool = true, placement: String = "center") -
 	if placement == "board" and get_viewport_rect().size.x >= 860.0:
 		_scrim.color = Color.TRANSPARENT
 		_scrim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	else:
+		# LE JEU FLOU DERRIERE LE VOILE, comme le web (`backdrop-filter:
+		# blur(3px)`) : sans lui, le terrier assombri restait net et se
+		# disputait l'oeil avec le dialogue.
+		var blur := ShaderMaterial.new()
+		blur.shader = SCRIM_BLUR
+		blur.set_shader_parameter("veil", Palette.SCRIM)
+		blur.set_shader_parameter("radius_px", 3.0 * get_viewport().get_final_transform().get_scale().x)
+		_scrim.material = blur
 	Kit.fill(_scrim)
 	dialogs.add_child(_scrim)
 	if dismiss:
