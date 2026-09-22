@@ -48,6 +48,14 @@ const PLANTS_PER_CELL := 3
 var map: BurrowMap
 var _props: Array[Node2D] = []
 
+## LES CASES DU POTAGER, gardees apres le semis.
+##
+## Les clotures bordent CE champ-la et pas un autre. Les laisser le redeviner
+## depuis la graine, c'est refaire le meme choix une seconde fois et parier que
+## les deux tirages ne divergeront jamais — une case d'ecart, et la cloture
+## borde un champ qui n'est pas celui qu'on voit.
+var field: Array[Vector2i] = []
+
 
 ## Pose la maison et le potager d'apres le relief.
 func build(seed_value: int) -> void:
@@ -68,6 +76,7 @@ func clear() -> void:
 	for prop in _props:
 		prop.queue_free()
 	_props.clear()
+	field.clear()
 
 
 ## LA MAISON, sur la case qui la merite le plus.
@@ -143,7 +152,8 @@ func _sow_field(seed_value: int, home: Vector2i) -> void:
 	rng.seed = seed_value * 17 + 3
 
 	var frames := _carrot_frames()
-	for cell in _field_cells(home):
+	field = _field_cells(home)
+	for cell in field:
 		var centre := map.screen_of(cell.x, cell.y)
 		for i in range(PLANTS_PER_CELL):
 			var u := rng.randf() * 2.0 - 1.0

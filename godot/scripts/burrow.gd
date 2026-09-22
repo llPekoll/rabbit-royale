@@ -17,6 +17,7 @@ const FIT := 0.62
 
 @onready var _terrain: BurrowTerrain = %Terrain
 @onready var _props: BurrowProps = %Props
+@onready var _fences: FenceView = %Fences
 
 var _seed := 1
 var _quit: PlankButton
@@ -44,6 +45,11 @@ func show_ground(seed_value: int) -> void:
 	# que celui qu'on voit flotterait.
 	_props.map = _terrain.map
 	_props.build(seed_value)
+	# ET LES CLOTURES BORDENT LE CHAMP QUI VIENT D'ETRE SEME, celui-la meme et
+	# pas un second tirage de la graine : elles viennent donc APRES le potager,
+	# et lisent les cases qu'il a gardees.
+	_fences.map = _terrain.map
+	_fences.build(_props.field)
 
 
 ## LA PORTE DE SORTIE.

@@ -1,4 +1,4 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
 ; LE TERRIER. L'un des deux lieux residents — construit une fois, jamais
 ; libere, montre ou cache (voir screens.gd).
@@ -10,6 +10,7 @@
 [ext_resource type="Script" path="res://scripts/burrow.gd" id="1_burrow"]
 [ext_resource type="Script" path="res://scripts/burrow_terrain.gd" id="2_terrain"]
 [ext_resource type="Script" path="res://scripts/burrow_props.gd" id="3_props"]
+[ext_resource type="Script" path="res://scripts/fence_view.gd" id="4_fence"]
 
 [node name="Burrow" type="Node2D"]
 script = ExtResource("1_burrow")
@@ -24,3 +25,11 @@ script = ExtResource("2_terrain")
 [node name="Props" type="Node2D" parent="."]
 unique_name_in_owner = true
 script = ExtResource("3_props")
+
+; LES CLOTURES, freres eux aussi. Une planche se trie sur la profondeur de la
+; case dont elle est le bord, biaisee en avant ou en arriere selon la face —
+; c'est ce qui la met devant les carottes qu'elle borde au sud, et derriere
+; celles qu'elle borde au nord.
+[node name="Fences" type="Node2D" parent="."]
+unique_name_in_owner = true
+script = ExtResource("4_fence")
