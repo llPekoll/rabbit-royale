@@ -144,7 +144,7 @@ func _add_quit() -> void:
 	_quit.custom_minimum_size = Vector2(220, 44)
 	_quit.size = Vector2(220, 44)
 	_quit.position = Vector2(12, 12)
-	_quit.relabel(I18N.t("sign_out"))
+	_quit.relabel(I18N.shout(I18N.t("profile.disconnect")))
 	_quit.pressed.connect(_on_quit)
 	layer.add_child(_quit)
 

@@ -1,0 +1,1251 @@
+{
+ "units": {
+  "s": "s",
+  "m": "m",
+  "h": "h",
+  "d": "d"
+ },
+ "meta": {
+  "title": "Rabbit Royale: The Cursed Crown",
+  "description": "Competitive minesweeper. Dig, hoard, raid, wear the crown."
+ },
+ "lang": {
+  "label": "Language"
+ },
+ "auth": {
+  "connect": "Connect wallet",
+  "connecting": "Digging in...",
+  "guest": "Play as a guest",
+  "waiting": "Waiting...",
+  "guestNote": "Guest burrow. Connect a wallet to keep it.",
+  "noWallet": "No wallet found. Open in the Rabbit Royale app or install a Solana wallet.",
+  "signInFailed": "Sign-in failed",
+  "guestFailed": "Could not start a guest burrow",
+  "walletTaken": "That wallet already has a burrow.",
+  "walletDigsFor": {
+   "$t": "That wallet already digs for \"{0}\"."
+  },
+  "alreadyLinked": "This burrow already has a wallet.",
+  "linkFailed": "Could not connect that wallet"
+ },
+ "chrome": {
+  "loading": "Loading",
+  "waking": "Waking the warren",
+  "reconnecting": "Reconnecting...",
+  "back": "Back",
+  "close": "Close",
+  "shop": "Shop",
+  "story": "Story",
+  "season": "SEASON",
+  "logoAlt": "Rabbit Royale",
+  "rotateTitle": "Turn your phone sideways",
+  "rotateBody": "Rabbit Royale plays in landscape."
+ },
+ "install": {
+  "title": {
+   "ios": "ADD TO HOME SCREEN",
+   "macSafari": "ADD TO DOCK",
+   "chromiumDesktop": "INSTALL THE APP",
+   "androidChromium": "ADD TO HOME SCREEN"
+  },
+  "line": {
+   "ios": "Full screen, no browser bar, one tap from your Home Screen.",
+   "macSafari": "Rabbit Royale in its own window, straight from your Dock.",
+   "chromiumDesktop": "Rabbit Royale in its own window, one click from your dock.",
+   "androidChromium": "Full screen, no browser bar, one tap from your home screen."
+  },
+  "steps": {
+   "ios": [
+    "Tap the Share button (in Safari it is in the bottom toolbar, in Chrome in the address bar).",
+    "Scroll the sheet and tap Add to Home Screen.",
+    "Tap Add. Rabbit Royale opens full screen from your Home Screen."
+   ],
+   "macSafari": [
+    "In the menu bar, choose File > Add to Dock (or Share > Add to Dock).",
+    "Click Add. Rabbit Royale opens in its own window from your Dock.",
+    "Needs Safari 17 or newer."
+   ],
+   "prompt": [
+    "Press INSTALL below and confirm in the browser popup."
+   ],
+   "chromiumDesktop": [
+    "Click the install icon at the right end of the address bar, or open the browser menu > Cast, save and share > Install page as app.",
+    "Confirm with Install.",
+    "Already installed? That icon says Open in app instead."
+   ],
+   "androidChromium": [
+    "Open the browser menu (the three dots) and tap Add to Home screen.",
+    "Tap Install. Rabbit Royale opens full screen from your home screen."
+   ]
+  },
+  "install": "INSTALL",
+  "installing": "INSTALLING...",
+  "showMe": "SHOW ME",
+  "gotIt": "GOT IT",
+  "close": "Close",
+  "app": "App"
+ },
+ "sound": {
+  "group": "Sound",
+  "music": "Music",
+  "effects": "Effects",
+  "volume": "Volume",
+  "on": "ON",
+  "off": "OFF",
+  "settings": "Sound settings",
+  "mute": "Mute music",
+  "unmute": "Unmute music",
+  "musicOn": "Music on",
+  "musicOff": "Music off"
+ },
+ "loop": {
+  "dig": "DIG",
+  "defend": "DEFEND",
+  "raid": "RAID",
+  "broughtHome": "brought home",
+  "ariaGroup": "Dig, home, raid",
+  "ariaDig": {
+   "$t": "Dig. {0}"
+  },
+  "ariaDefend": {
+   "$t": "Defend: bury traps. {0}"
+  },
+  "ariaRaid": {
+   "$t": "Raid. {0}"
+  },
+  "energyOf": {
+   "$t": "{0}/{1} energy"
+  },
+  "runCosts": {
+   "$t": "crossing costs {0}"
+  },
+  "runIn": {
+   "$t": "run in {0}"
+  },
+  "raidNeeds": {
+   "$t": "A raid needs {0} in the tank. {1} now, enough in {2}."
+  },
+  "aMoment": "a moment",
+  "gardenPlus": {
+   "$t": "garden +{0}"
+  },
+  "gardenEmpty": "garden empty",
+  "shieldFor": {
+   "$t": "shield {0}"
+  },
+  "shieldBadge": {
+   "$t": "SHIELD {0}"
+  },
+  "noShield": "no shield",
+  "traps": {
+   "$t": "{0} traps",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "1 trap"
+    }
+   ]
+  },
+  "leftOutside": {
+   "$t": "{0} left {1} outside"
+  },
+  "burrowsOpen": {
+   "$t": "{0} burrows open",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "1 burrow open"
+    }
+   ]
+  },
+  "bombsInBag": {
+   "$t": "{0} bombs in the bag",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "1 bomb in the bag"
+    }
+   ]
+  },
+  "allShielded": "every burrow is shielded"
+ },
+ "next": {
+  "label": "NEXT",
+  "aria": {
+   "$t": "Next: {0}"
+  },
+  "gardenFull": "Garden nearly full. Bring it in before a raider does.",
+  "shieldLifts": {
+   "$t": "Shield lifts in {0}. Bury traps."
+  },
+  "raidTarget": {
+   "$t": "{0} left {1} in the garden. Raid."
+  },
+  "dig": {
+   "$t": "{0} energy: a run's worth. Dig."
+  },
+  "digPlain": "Dig.",
+  "runIn": {
+   "$t": "A run in {0}. The garden grows meanwhile."
+  }
+ },
+ "burrow": {
+  "title": "YOUR BURROW",
+  "level": {
+   "$t": "BURROW LVL {0}"
+  },
+  "maxLevel": "MAX LEVEL",
+  "upgrade": "UPGRADE",
+  "safe": "SAFE",
+  "exposed": {
+   "$t": "{0} EXPOSED"
+  },
+  "garden": "GARDEN",
+  "harvest": "HARVEST",
+  "energy": "ENERGY",
+  "gardenGrows": "THE GARDEN GROWS FASTER"
+ },
+ "notes": {
+  "shieldUp": "Shield up. Raids bounce off.",
+  "watered": "Watered. The garden fills faster.",
+  "fed": "Fed. The garden holds more.",
+  "gardenEmpty": "The garden is empty. Come back later.",
+  "maxDepth": "Your burrow is as deep as it goes.",
+  "shieldAlready": "A shield is already up.",
+  "noneLeft": "None left. Chests drop them.",
+  "toppedUp": "Already topped up. Save it for later.",
+  "islandSilent": "The island did not answer. Try again in a moment.",
+  "runResumed": "Back to your run.",
+  "reconnecting": "Reconnecting... try again in a moment.",
+  "harvested": {
+   "$t": "+{0} 🥕"
+  },
+  "needMore": {
+   "$t": "Need {0} more 🥕"
+  },
+  "questDone": {
+   "$t": "Quest done: {0}"
+  }
+ },
+ "run": {
+  "goFarm": "Clear all mines",
+  "findMe": "Find my rabbit",
+  "retreat": "Retreat",
+  "home": "Home",
+  "stopWatching": "Stop watching",
+  "theirRun": "their run",
+  "chests": {
+   "$t": "{0}/{1} chests"
+  },
+  "chestsTitle": "Chests taken on this island — by everyone on it. Take them all and it sinks.",
+  "watching": {
+   "$t": "👁 watching {0}"
+  },
+  "energy": {
+   "$t": "{0} of {1} energy"
+  },
+  "markBomb": "Mark a bomb",
+  "markHint": "Tap a tile you think hides a bomb · right: +energy · wrong: -energy",
+  "markCancel": "Cancel",
+  "markNothing": "Nothing to mark here: every tile around you is already read.",
+  "energyLow": "Low energy. A right X on a bomb gives some back.",
+  "energyRaidLeft": "Still a raid in the tank. Go home, or dig on.",
+  "homeRaid": "Home · raid ready",
+  "trapHint": {
+   "$t": "Tap a tile to mine it, tap a mine to lift it · {0} left"
+  },
+  "trapHintEmpty": "No bombs left · buy another, or tap a mine to lift it and bury it elsewhere",
+  "strike": "Strike",
+  "aiming": "Tap a rival to strike",
+  "strikeNone": "No lightning to call. The shed sells it.",
+  "plant": "Plant a bomb",
+  "aimingPlant": "Tap undug ground to bury a bomb",
+  "plantNone": "No bombs to plant. The shed sells them.",
+  "planted": "Bomb buried. Only you know where.",
+  "plantRefused": {
+   "off-island": "Not on the island.",
+   "revealed": "That ground is already dug.",
+   "hinted": "The board already says that tile is safe.",
+   "chest": "Not under a chest.",
+   "too-many": "Three bombs live is the most you may have here."
+  },
+  "plantedBy": {
+   "$t": "{0}'s bomb!"
+  },
+  "struckBy": {
+   "$t": "{0} struck you with lightning"
+  },
+  "watchers": {
+   "$t": "{0} online"
+  },
+  "hitBolt": {
+   "$t": "{0} zapped you"
+  },
+  "hitBomb": {
+   "$t": "{0} mined that"
+  }
+ },
+ "firstRun": {
+  "tap": "Tap a tile beside you to dig it.",
+  "numbers": "The number counts the bombs touching that tile.",
+  "counts": "This 1 means: one bomb hides in the tiles around it.",
+  "prove": "Only one tile is left unopened. That is the bomb.",
+  "mark": "Press MARK A BOMB, then tap the tile wearing the red X.",
+  "aim": "Now tap the tile that is pulsing.",
+  "marked": "Right! A good X gives energy back. A wrong one costs you.",
+  "fetch": "Now go and take the chest. Whatever it holds goes home with you.",
+  "bomb": "That cost energy. The 1 was pointing at it.",
+  "golden": "Gold! One golden carrot is worth five.",
+  "chest": "A chest. Whatever it holds goes home with you.",
+  "clock": "The island is the clock. Dig it out and it sinks.",
+  "recap": "Your carrots are home now. Go and see."
+ },
+ "recap": {
+  "cleared": "ISLAND CLEARED!",
+  "over": "RUN OVER",
+  "clearedNote": "Every chest is out of the ground. The sea took the rest.",
+  "overNote": "Out of energy.",
+  "record": {
+   "$t": "NEW RECORD on {0}: {1} 🥕 (was {2})",
+   "$v": [
+    {
+     "when": {
+      "2": 0
+     },
+     "t": "FIRST RECORD on {0}: {1} 🥕"
+    }
+   ]
+  },
+  "tutorialDone": "YOU GOT IT!",
+  "tutorialDoneNote": "The chest was the whole island. Your carrots are waiting at the burrow.",
+  "stats": {
+   "$t": "🥕 {0} · {1} dug · 💣 {2} · {3}"
+  },
+  "raidLeft": {
+   "$t": "⚡ {0} home: enough for a raid"
+  },
+  "bank": {
+   "$t": "⚡ {0}/{1} at the burrow · a run takes {2}"
+  },
+  "getEnergy": "Get more energy",
+  "goHome": "Home · stack it",
+  "shoved": "PUSHED IN!",
+  "struck": "STRUCK DOWN!",
+  "shovedNote": {
+   "$t": "{0} shoved you into the water."
+  },
+  "struckNote": {
+   "$t": "{0} called the lightning down on you."
+  },
+  "shovedNoteAnon": "Someone shoved you into the water.",
+  "struckNoteAnon": "Someone called the lightning down on you."
+ },
+ "shove": {
+  "by": {
+   "$t": "{0} pushed you!"
+  },
+  "anon": "Somebody pushed you!"
+ },
+ "pill": {
+  "banked": {
+   "$t": "{0} carrots banked"
+  },
+  "carryNote": "Carried this run: banked when you walk home",
+  "carrying": {
+   "$t": "{0} carrots carried, not banked yet"
+  },
+  "leading": "leading",
+  "rankFirst": "Season rank #1: leading the board",
+  "rank": {
+   "$t": "Season rank #{0}: {1} season points to pass #{0-1}"
+  },
+  "toPass": {
+   "$t": "{0} to #{1-1}"
+  },
+  "showClimb": {
+   "$t": "{0} carrots banked, season rank {1}. Show what it takes to climb"
+  },
+  "hideClimb": {
+   "$t": "{0} carrots banked, season rank {1}. Hide what it takes to climb"
+  }
+ },
+ "board": {
+  "show": "Show the season board",
+  "hide": "Hide the season board",
+  "diggingNow": "digging now · tap to watch",
+  "watch": {
+   "$t": "Watch {0} dig"
+  },
+  "notOut": {
+   "$t": "{0} is not out right now"
+  }
+ },
+ "shop": {
+  "title": "SHOP",
+  "shed": "THE SHED",
+  "aria": "Shop",
+  "protect": "PROTECT BASE",
+  "protectAria": "Protect your base",
+  "protectBuyAria": "Protect your base - buy a trap",
+  "noTraps": "NO TRAPS - GET ONE",
+  "nothingBuried": "NOTHING BURIED",
+  "inShed": {
+   "$t": "{0} IN THE SHED"
+  },
+  "rearming": {
+   "$t": "REARMING - {0} COMING BACK"
+  },
+  "upAndRearming": {
+   "$t": "{0} UP - {1} REARMING"
+  },
+  "inGround": {
+   "$t": "{0}/{1} IN THE GROUND"
+  },
+  "openShed": "Open the shed",
+  "payWith": "Pay with",
+  "outOfEnergy": "OUT OF ENERGY",
+  "energySay": {
+   "$t": "A run takes {0}. Enough comes back on its own in {1}. Or fill it now and keep digging."
+  },
+  "energySayEmpty": {
+   "$t": "The bar is empty. One point comes back on its own in {0}. Or fill it now and keep digging."
+  },
+  "fillsTo": {
+   "$t": "Fills the bar to {0}."
+  },
+  "noRefills": " No refills left today.",
+  "refillsLeft": {
+   "$t": " {0} refills left today.",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": " 1 refill left today."
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": " 0 refill left today."
+    }
+   ]
+  },
+  "cardsOff": "Card payments are not switched on yet. Carrots only for now.",
+  "connectForCard": "Connect a wallet to pay by card. Everything here is diggable anyway.",
+  "eitherWay": "Carrots you dig, or card. Same goods either way.",
+  "pricing": "Pricing...",
+  "approve": "Approve it in your wallet...",
+  "confirming": "Confirming on chain...",
+  "priceLabel": {
+   "$t": "{0} carrots"
+  },
+  "buy": {
+   "$t": "Buy {0} for {1}"
+  },
+  "capped": {
+   "$t": "{0}: {1}. You are holding as many as you can."
+  },
+  "tooPoor": {
+   "$t": "{0}: {1}. Not enough carrots yet. Dig for more."
+  },
+  "heldOf": {
+   "$t": "{0}/{1}"
+  },
+  "heldToday": {
+   "$t": "{0} today"
+  },
+  "heldDaysLeft": {
+   "$t": "{0}d left"
+  },
+  "heldOff": "off",
+  "boughtEnergy": {
+   "$t": "Energy refilled. {0}"
+  },
+  "boughtTrap": {
+   "$t": "{0} traps in the shed. {1}",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "trap in the shed. {1}"
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "trap in the shed. {1}"
+    }
+   ]
+  },
+  "boughtBomb": {
+   "$t": "{0} bombs armed. {1}",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "bomb armed. {1}"
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "bomb armed. {1}"
+    }
+   ]
+  },
+  "boughtLightning": {
+   "$t": "{0} lightning bolts bottled. {1}",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "lightning bolt bottled. {1}"
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "lightning bolt bottled. {1}"
+    }
+   ]
+  },
+  "boughtShield": {
+   "$t": "{0} shields ready. {1}",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "shield ready. {1}"
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "shield ready. {1}"
+    }
+   ]
+  },
+  "boughtSmoke": {
+   "$t": "The numbers are hidden. {0}"
+  },
+  "boughtMirage": {
+   "$t": "{0} mirages ready to throw. {1}",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "mirage ready to throw. {1}"
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "mirage ready to throw. {1}"
+    }
+   ]
+  },
+  "boughtFence": {
+   "$t": "{0} planks ready to raise. {1}",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "plank ready to raise. {1}"
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "plank ready to raise. {1}"
+    }
+   ]
+  },
+  "paid": {
+   "$t": "-{0} 🥕"
+  }
+ },
+ "shopErrors": {
+  "fallback": "That did not work.",
+  "insufficient_carrots": "Not enough carrots.",
+  "inventory_full": "Your bag is full of those.",
+  "daily_energy_limit": "No more refills today. The garden still grows.",
+  "smoke_capped": "Your burrow is hidden as long as it can be.",
+  "too_many_at_once": "Too many at once.",
+  "bad_quantity": "That is not a quantity.",
+  "no_traps": "No traps left. Buy one, or wait for tomorrow.",
+  "board_full": "Your burrow cannot hold another trap.",
+  "tile_not_trappable": "Nothing to mine there.",
+  "tile_doorstep": "Too near the door. The first steps inside stay open.",
+  "tile_already_trapped": "Already mined.",
+  "no_trap_there": "No trap there.",
+  "no_fences": "No fences left. The shed sells them.",
+  "span_already_fenced": "A plank already stands there.",
+  "span_not_exposed": "That is not an edge of your garden.",
+  "would_seal_burrow": "That would close the last way in. One way in stays open as a gate.",
+  "span_not_fenced": "No plank there.",
+  "bad_span": "That is not a place for a plank.",
+  "fenced": "A fence blocks the way. Go round.",
+  "payments_unavailable": "Card payments are not set up yet.",
+  "quote_expired": "That quote expired. Try again.",
+  "signature_already_used": "That payment was already used.",
+  "not_confirmed_yet": "Still confirming on chain...",
+  "wrong_reference": "That transaction does not match this purchase.",
+  "no_matching_transfer": "No matching USDC transfer found.",
+  "failed_on_chain": "The transaction failed on chain."
+ },
+ "pay": {
+  "needsBuild": "Paying in the app needs the next build. Buy with carrots for now.",
+  "noWallet": "No Solana wallet found. Install Phantom to pay with USDC.",
+  "notConfigured": "Payments are not configured on this server.",
+  "stillConfirming": "Paid, but still confirming. Reopen the shop in a minute. Nothing is lost.",
+  "failed": "Payment failed"
+ },
+ "kit": {
+  "tools": {
+   "more": "Show effect and actions",
+   "less": "Fold details",
+   "available": {
+    "$t": "{0} available"
+   },
+   "placed": {
+    "$t": "{0} placed"
+   },
+   "active": {
+    "$t": "{0} remaining"
+   },
+   "buyTrap": {
+    "$t": "Buy a trap - {0} carrots"
+   },
+   "trapHint": "Tap a tile to bury a trap. Tap a trap to recover it.",
+   "trapEmpty": "Recover a placed trap or buy one below.",
+   "fenceHint": "Tap a highlighted edge to build. Tap a fence to recover it.",
+   "raiseShield": "Use a shield",
+   "shieldActive": "Your burrow is already protected.",
+   "shopHint": "Available in the shop.",
+   "notEnough": "Not enough carrots for another trap.",
+   "smokeHint": "Buying smoke in the shop activates it immediately.",
+   "attackHint": "Use this on a rival’s island during a run.",
+   "chestHint": "Find more in chests.",
+   "waterEffect": "Makes your garden grow faster for a while.",
+   "fertiliserEffect": "Lets your garden store more carrots before it fills up.",
+   "water": "Use one watering",
+   "fertilise": "Use one fertiliser"
+  },
+  "aria": "What you are carrying",
+  "groupDefence": "DEFENCE",
+  "groupAttack": "ATTACK",
+  "groupGarden": "GARDEN",
+  "shieldHolding": {
+   "$t": "Shield: holding, {0} left. {1} in the bag."
+  },
+  "shieldReady": {
+   "$t": "Shield: {0} in the bag. Raise one. Raids bounce off while it holds."
+  },
+  "shieldNone": "Shield: none. Buy one in the shop.",
+  "smokeOff": "Smoke screen: off. Buy one in the shop to hide your numbers.",
+  "smokeUp": {
+   "$t": "Smoke screen: up, {0} days left. Raiders cross your burrow blind.",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "Smoke screen: up, 1 day left. Raiders cross your burrow blind."
+    }
+   ]
+  },
+  "carried": {
+   "$t": "{0}: {1} in the bag. {2}"
+  },
+  "carriedNone": {
+   "$t": "{0}: none. {1}"
+  },
+  "trapsLine": {
+   "$t": "Traps: {0} of {1} in the ground, {2} in the shed. Bury them from BASE.",
+   "$v": [
+    {
+     "when": {
+      "1": 0
+     },
+     "t": "Traps: {0} in the ground, {2} in the shed. Bury them from BASE."
+    }
+   ]
+  },
+  "trapsBuy": {
+   "$t": "Traps: {0} in the shed. Buy another for {1} carrots.",
+   "$v": [
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "Traps: none in the shed. Buy one for {1} carrots."
+    }
+   ]
+  },
+  "trapsBuyBroke": {
+   "$t": "Traps: none left. One costs {0} carrots - dig for more."
+  },
+  "trapsBuyFull": {
+   "$t": "Traps: {0} in the shed. The shed is full."
+  },
+  "bottleRunning": {
+   "$t": "{0}: running, {1} left. {2} in the bag."
+  },
+  "bottleHeld": {
+   "$t": "{0}: {1} in the bag. Pour one on the garden."
+  },
+  "bottleNone": {
+   "$t": "{0}: none. Found in chests."
+  },
+  "fencePlace": {
+   "$t": "Fences: {0} planks in the bag, {1} of {2} stretches fenced. Put one up.",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "Fences: 1 plank in the bag, {1} of {2} stretches fenced. Put one up."
+    },
+    {
+     "when": {
+      "2": 1
+     },
+     "t": "Fences: {0} planks in the bag, {1} of 1 stretch fenced. Put one up."
+    },
+    {
+     "when": {
+      "0": 1,
+      "2": 1
+     },
+     "t": "Fences: 1 plank in the bag, {1} of 1 stretch fenced. Put one up."
+    }
+   ]
+  },
+  "fenceAllWalled": {
+   "$t": "Fences: {0} stretches fenced. The last opening is the gate and stays open.",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "Fences: 1 stretch fenced. The last opening is the gate and stays open."
+    }
+   ]
+  },
+  "fenceNone": {
+   "$t": "Fences: none in the bag, {0} stretches fenced. The shed sells them. Tap a standing plank to take it back.",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "Fences: none in the bag, 1 stretch fenced. The shed sells them. Tap a standing plank to take it back."
+    }
+   ]
+  },
+  "watering": "Watering",
+  "fertiliser": "Fertiliser"
+ },
+ "energyPanel": {
+  "open": "Energy details",
+  "title": "ENERGY",
+  "reading": {
+   "$t": "{0}/{1}"
+  },
+  "rate": {
+   "$t": "+{0}/h"
+  },
+  "full": "full",
+  "fullIn": {
+   "$t": "full in {0}"
+  },
+  "island": "ISLAND",
+  "islandCost": {
+   "$t": "{0} to cross, then 1 a dig"
+  },
+  "raid": "RAID",
+  "raidCost": {
+   "$t": "{0} to climb in, {1} at most"
+  },
+  "raidRefund": "Reach the field and your steps come back.",
+  "dig": "DIG",
+  "digCost": {
+   "$t": "{0} a tile. A bomb: {1}"
+  },
+  "x": "RED X",
+  "xCost": {
+   "$t": "right: +{0} to +{1} back. Wrong: -{2}"
+  },
+  "home": "HOME",
+  "homeCost": {
+   "$t": "leave with {0} or more and a raid is ready"
+  },
+  "homeHint": "What you go home with stays in the tank.",
+  "ready": "READY",
+  "raidReady": "RAID READY",
+  "needs": {
+   "$t": "NEEDS {0}"
+  },
+  "inWait": {
+   "$t": "in {0}"
+  },
+  "under": {
+   "$t": "UNDER {0}"
+  },
+  "levelLabel": {
+   "$t": "LVL {0}"
+  },
+  "levelRate": {
+   "$t": "refills {0} an hour. Next level: {1}",
+   "$v": [
+    {
+     "when": {
+      "1": null
+     },
+     "t": "refills {0} an hour"
+    }
+   ]
+  }
+ },
+ "islandPick": {
+  "choose": "Choose an island",
+  "which": "WHICH ISLAND?",
+  "loading": "Looking at the water...",
+  "row": {
+   "$t": "{0} digging · {1}/{2} chests left · {3}% dug"
+  },
+  "rowEmpty": {
+   "$t": "nobody on it now · {0}/{1} chests left · {2}% dug"
+  },
+  "fresh": "Nobody on it yet",
+  "join": "Join",
+  "open": "Open",
+  "locked": {
+   "$t": "Opens at {0} carrots dug"
+  },
+  "lockedShort": "Locked",
+  "brief": "A busy island is a short, safe dig with a share of the chests. A fresh one is the long run.",
+  "almostDone": "almost done",
+  "best": {
+   "$t": "your record {0} 🥕"
+  },
+  "gone": "That island filled up or ended. Pick another.",
+  "tierLocked": "You have not dug your way to that island yet.",
+  "youHave": {
+   "$t": "you have {0}"
+  },
+  "tier": {
+   "$t": "{0}% bombs · right X +{1}"
+  }
+ },
+ "raid": {
+  "go": "GO RAIDING",
+  "another": "Raid another burrow",
+  "choose": "Choose a burrow",
+  "whose": "WHOSE BURROW?",
+  "cost": {
+   "$t": "A raid takes {0} energy to climb in, {1} at most."
+  },
+  "allShielded": "ALL BURROWS SHIELDED",
+  "nobody": "NOBODY TO ROB",
+  "shielded": "Shielded",
+  "presence": {
+   "away": "away",
+   "home": "home",
+   "digging": "out digging"
+  },
+  "raidIt": "Raid",
+  "brief": "Reach the carrot field. Their traps are buried and unmarked.",
+  "outOfEnergy": "Out of energy",
+  "nothingTaken": "Nothing taken",
+  "unguarded": {
+   "$t": "{0} UNGUARDED"
+  },
+  "nobodyYet": "Nobody else has a burrow yet.",
+  "steps": "steps",
+  "stepsBack": {
+   "$t": "Field reached: your {0} steps come back"
+  },
+  "looted": {
+   "$t": "+{0} 🥕"
+  },
+  "won": "RAID WON!",
+  "backToBurrow": "BACK TO THE BURROW",
+  "aRival": "A RIVAL",
+  "lootedFrom": {
+   "$t": "LOOTED FROM {0}"
+  },
+  "wasEmpty": {
+   "$t": "{0}'S BURROW WAS EMPTY"
+  },
+  "trapsSprung": {
+   "$t": "{0} TRAPS SPRUNG ON THE WAY IN",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "1 TRAP SPRUNG ON THE WAY IN"
+    }
+   ]
+  },
+  "wonAria": {
+   "$t": "Raid won - {0} carrots looted from {1}"
+  },
+  "rabbitAria": "Your rabbit, celebrating",
+  "stolen": {
+   "$t": "+{0} 🥕 stolen from {1}"
+  },
+  "fellShort": {
+   "$t": "Fell {0}% of the way to {1}'s field"
+  },
+  "defended": "DEFENDED",
+  "raided": "RAIDED",
+  "byWho": {
+   "$t": "BY {0} · -{1} CARROTS"
+  },
+  "byWhoNothing": {
+   "$t": "BY {0}"
+  },
+  "bounced": {
+   "$t": "{0} RAIDS BOUNCED OFF",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "1 RAID BOUNCED OFF"
+    }
+   ]
+  },
+  "struck": "Struck by lightning",
+  "struckBy": {
+   "$t": "{0} called lightning down on you"
+  }
+ },
+ "defend": {
+  "underAttack": {
+   "$t": "{0} IS RAIDING YOU"
+  },
+  "theirSteps": "their steps",
+  "hint": "Bury a bomb ahead of them, or tap the rabbit to strike it.",
+  "strike": "Strike",
+  "held": {
+   "$t": "{0} held"
+  },
+  "struckDown": "STRUCK DOWN",
+  "ranDry": "THEY RAN OUT OF ENERGY",
+  "looted": {
+   "$t": "THEY TOOK {0} 🥕"
+  },
+  "lost": "Your burrow was sacked",
+  "held_": "Burrow held",
+  "incoming": {
+   "$t": "{0} is raiding your burrow!"
+  }
+ },
+ "raidErrors": {
+  "fallback": "That did not work.",
+  "target_shielded": "Their burrow is shielded. Try someone else.",
+  "cannot_raid_yourself": "That is your own burrow.",
+  "raid_in_progress": "You are already inside a burrow.",
+  "cooldown": "You raided them too recently.",
+  "no_energy": "Not enough energy for a crossing. Wait, or refill.",
+  "not_adjacent": "Too far. One step at a time.",
+  "raid_over": "That raid is already over.",
+  "none_held": "No lightning to call. The shed sells it.",
+  "no_raid": "That raid is over.",
+  "unknown_player": "They are gone."
+ },
+ "chest": {
+  "carrots": "CARROTS",
+  "watering": "WATERING",
+  "fertiliser": "FERTILISER",
+  "bomb": "BOMB",
+  "shield": "SHIELD",
+  "lightning": "LIGHTNING",
+  "genesis": "RR GENESIS",
+  "piece": {
+   "$t": "A PIECE IS YOURS - PLUS {0}x {1}"
+  }
+ },
+ "profile": {
+  "title": "PROFILE",
+  "tabProfile": "Profile",
+  "tabHistory": "History",
+  "name": "Name",
+  "save": "Save name",
+  "saving": "Saving...",
+  "taken": {
+   "$t": "Play as \"{0}\""
+  },
+  "waitingWallet": "Waiting for wallet...",
+  "signInWith": "Sign in with that wallet",
+  "disconnect": "Disconnect",
+  "abandon": "Abandon this burrow",
+  "abandonConfirm": "Really abandon? This cannot be undone",
+  "loading": "Loading...",
+  "now": "now",
+  "historyFailed": "Could not load your history.",
+  "noRuns": "No finished runs yet.",
+  "noRaids": "Nobody has come after you yet.",
+  "noPurchases": "Nothing from the shed yet.",
+  "today": "Today",
+  "youHit": {
+   "$t": "You hit {0}"
+  },
+  "damage": {
+   "$t": "{0} dmg"
+  },
+  "shovedIn": "pushed in the water",
+  "struckDown": "struck by lightning",
+  "youShoved": {
+   "$t": "You pushed {0} in"
+  },
+  "youStruck": {
+   "$t": "You struck {0} down"
+  },
+  "spent": {
+   "$t": "-{0} 🥕"
+  },
+  "usd": {
+   "$t": "${0}"
+  },
+  "revenge": "REVENGE NOW",
+  "avenged": "settled",
+  "revengeShielded": "Shielded"
+ },
+ "avatars": {
+  "brown": "Brown",
+  "gray": "Gray",
+  "orange": "Orange",
+  "white": "White",
+  "yellow": "Yellow"
+ },
+ "codex": {
+  "title": "THE CURSED CROWN",
+  "aria": "The Cursed Crown lore",
+  "close": "Close the codex",
+  "newChapter": "NEW CHAPTER",
+  "complete": "COMPLETE",
+  "isNew": "NEW",
+  "sealed": {
+   "$t": "Sealed until {0} lifetime carrots. You have {1}."
+  },
+  "nextIn": {
+   "$t": "Next chapter in {0} carrots"
+  },
+  "lifetimeOnly": "Lifetime carrots only. Nothing here can be raided away.",
+  "done": "The codex is complete. The island is still waiting.",
+  "carrotsAt": {
+   "$t": "{0} carrots"
+  },
+  "chapterN": {
+   "$t": "Chapter {0}"
+  },
+  "chapters": "Chapters"
+ },
+ "quest": {
+  "claim": "CLAIM",
+  "claimItem": {
+   "$t": "CLAIM {0} {1}"
+  },
+  "claimCarrots": {
+   "$t": "CLAIM {0} 🥕"
+  },
+  "aria": {
+   "$t": "{0} for {1}"
+  },
+  "progress": {
+   "$t": "{0}/{1}"
+  },
+  "counter": {
+   "$t": "QUEST {0} / {1}"
+  }
+ },
+ "doorstepTips": [
+  "THE NUMBER ON A TILE COUNTS THE BOMBS TOUCHING IT",
+  "DIGGING COSTS 1 ENERGY - A BOMB COSTS 30",
+  "MARK A BOMB WITH A RED X: RIGHT PAYS ENERGY BACK, WRONG COSTS 15",
+  "WALKING BACK OVER TILES YOU ALREADY DUG IS FREE",
+  "EVERY CHEST YOU OPEN GOES HOME WITH YOU",
+  "THE ISLAND IS THE CLOCK - DIG IT OUT AND IT SINKS",
+  "CARROTS ARE THE SCORE - THE RED X IS THE ONLY PUMP"
+ ],
+ "taglines": [
+  "EVERY STEP COULD BE YOUR LAST... OR YOUR FORTUNE",
+  "CROSS THE ISLAND, CLAIM THE GOLD, OR DIE TRYING",
+  "THE BRAVE HOP FURTHER - THE LUCKY HOP HOME",
+  "STEP BY STEP, THE ISLAND TAKES OR THE ISLAND GIVES",
+  "ONLY THE BOLD SURVIVE - ONLY THE WISE CASH OUT"
+ ],
+ "islands": {
+  "Meadow": "Meadow",
+  "Thicket": "Thicket",
+  "Ashland": "Ashland",
+  "Caldera": "Caldera"
+ },
+ "items": {
+  "trap": {
+   "name": "Trap",
+   "blurb": "Bury one in your burrow. It drains the raider who steps on it."
+  },
+  "bomb": {
+   "name": "Bomb",
+   "blurb": "Plant one on someone's island mid-run. They see it was you."
+  },
+  "lightning": {
+   "name": "Lightning",
+   "blurb": "Calls a strike on a rival’s island. It opens the ground around it."
+  },
+  "shield": {
+   "name": "Shield",
+   "blurb": "Raids bounce off your burrow while it holds."
+  },
+  "energy": {
+   "name": "Energy",
+   "blurb": "Fill the bar and dig now, instead of waiting it out."
+  },
+  "smoke": {
+   "name": "Smoke screen",
+   "blurb": "Hides your burrow’s numbers for a day. Raiders cross it blind."
+  },
+  "mirage": {
+   "name": "Mirage",
+   "blurb": "Makes a few of a rival’s numbers lie, mid-run. They can spot it."
+  },
+  "fence": {
+   "name": "Fence",
+   "blurb": "Walls one stretch of your garden’s edge. Raiders cannot cross it."
+  }
+ },
+ "quests": {
+  "break-ground": {
+   "title": "Break ground",
+   "ask": {
+    "$t": "Dig {0} tiles."
+   },
+   "line": "Every dug tile tells you how many bombs touch it. Exactly. The numbers are honest."
+  },
+  "come-home": {
+   "title": "Come home",
+   "ask": {
+    "$t": "Finish a run."
+   },
+   "line": "What you carried is in the burrow now. Nothing on the island can reach it."
+  },
+  "bring-it-in": {
+   "title": "Bring it in",
+   "ask": {
+    "$t": "Harvest the garden."
+   },
+   "line": "The garden grows while you are away. So does what a thief can carry off it."
+  },
+  "bury-something": {
+   "title": "Bury something",
+   "ask": {
+    "$t": "Place a trap on your floor."
+   },
+   "line": "A trap nobody can see is the only wall worth building. A wall gets walked around."
+  },
+  "open-a-chest": {
+   "title": "Open a chest",
+   "ask": {
+    "$t": "Dig up a chest on an island."
+   },
+   "line": "A chest is a promise. It is also a walk across ground you have not read yet."
+  },
+  "knock-on-a-door": {
+   "title": "Knock on a door",
+   "ask": {
+    "$t": "Raid a burrow. Any depth counts."
+   },
+   "line": "The only thing that can be taken from a rabbit is what it left behind. Now you have been on both sides of that."
+  },
+  "look-up": {
+   "title": "Look up",
+   "ask": {
+    "$t": "Open the season board."
+   },
+   "line": "Someone wears the crown. It puts a light on every map, and it never goes out."
+  },
+  "read-the-stones": {
+   "title": "Read the stones",
+   "ask": {
+    "$t": "Open chapter {0} of the codex."
+   },
+   "line": "The island does not kill the unlucky. It kills the hurried, and it keeps a careful record of the difference."
+  },
+  "hold-the-door": {
+   "title": "Hold the door",
+   "ask": {
+    "$t": "Have {0} traps in the ground before your shield lifts."
+   },
+   "line": "Your shield lifts soon. After that, the floor is all you have. Make it expensive."
+  },
+  "the-thicket": {
+   "title": {
+    "$t": "The {0}"
+   },
+   "ask": {
+    "$t": "Reach {0} lifetime carrots."
+   },
+   "line": "Richer ground, and more of it buried. The island calls that a fair trade and does not wait for your answer."
+  }
+ },
+ "lore": {
+  "the-island": {
+   "title": "The Island That Gives",
+   "teaser": "Why the ground is generous.",
+   "body": [
+    "Nobody planted the first carrot. The island was simply found, one morning, already full of them -- rows of orange crowns pushing up through sand the tide had just left. The rabbits who found it did the sensible thing. They dug.",
+    "It has never stopped giving. Dig a hole and the ground offers something: a carrot, a chest, a stone with a number scratched on it. The numbers are honest. They have always been honest. That is the part the old rabbits warn you about -- a thing that never lies to you is a thing that wants something, and it is patient enough to wait until you ask what."
+   ]
+  },
+  "the-numbers": {
+   "title": "What the Numbers Know",
+   "teaser": "The ground counts what it buried.",
+   "body": [
+    "A dug tile tells you how many bombs touch it. Not roughly. Exactly. No rabbit has ever found a stone that lied, and rabbits have looked hard, usually while missing a paw.",
+    "So the danger is never the dice. The danger is you, reading fast because someone else is three tiles away and reaching for the same carrot. The island does not kill the unlucky. It kills the hurried, and it keeps a careful record of the difference."
+   ]
+  },
+  "the-burrow": {
+   "title": "The Law of the Burrow",
+   "teaser": "Nothing is taken from you while you dig.",
+   "body": [
+    "Out on the island you cannot lose. Step on a bomb and you are thrown, stunned, emptied of breath -- but your pile is not touched. Every carrot you have ever carried home is still at home.",
+    "That is exactly the problem. Home is where it all is, and home is where you are not, because you are here, digging. The island made a rule out of this and thought it very funny: the only thing that can be taken from a rabbit is the thing it left behind."
+   ]
+  },
+  "the-crown": {
+   "title": "The Crown Is Not a Prize",
+   "teaser": "It marks you on every map.",
+   "body": [
+    "Whoever holds the largest season finds the crown waiting on their head one morning. It cannot be removed, sold, buried, or given away. Rabbits have tried all four. There is a chapter about the fourth one, and it is short.",
+    "The crown is generous, which is how it works. It makes the ground richer under its wearer and the chests heavier. It also puts a light on the world map that every other rabbit can see from anywhere, and it never goes out. The island does not reward the first rabbit. It illuminates them, and then it stands back to watch what the others do about it."
+   ]
+  },
+  "the-tide": {
+   "title": "When an Island Has Given Enough",
+   "teaser": "The sea keeps the count.",
+   "body": [
+    "An island floats on what it is holding. Every chest is ballast, and the sea has been waiting under all of them the whole time. Take the last one and the water comes up over the ground you dug -- there is no negotiating with this and no re-covering what was opened. An island is a thing that happens once. It gives until its chests are gone, then it goes under without much ceremony and the rabbits swim.",
+    "The old rabbits do not treat this as a disaster. They treat it as a bill being settled. Something has been taken out of the world, in enormous quantity, by rabbits who were told the exact truth about every step and chose to keep going. The island simply goes back to the water, and another one surfaces somewhere, already full of carrots, already warm."
+   ]
+  }
+ }
+}

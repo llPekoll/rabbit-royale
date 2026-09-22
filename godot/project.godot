@@ -11,10 +11,6 @@ config_version=5
 [application]
 
 config/name="Rabbit Royale"
-; LA RACINE, et non l'accueil : Main.tscn ne se recharge jamais et porte les
-; ecrans (voir scripts/screens.gd). Lancer title.tscn directement ferait de
-; l'accueil la racine, et changer d'ecran le detruirait avec tout ce qu'il
-; tient.
 run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://assets/ui/rr-logo-1x.webp"
@@ -26,14 +22,20 @@ Net="*res://scripts/net.gd"
 Wallet="*res://scripts/wallet.gd"
 Session="*res://scripts/session.gd"
 GameSocket="*res://scripts/game_socket.gd"
-; Le routeur d'ecrans. En dernier : il ne depend de rien, et tout le reste
-; peut l'appeler.
+; Les nombres de tuning.ts, et le terrier du joueur. Home lit Session, Net,
+; I18N et Tuning : il vient apres eux.
+Tuning="*res://scripts/tuning.gd"
+Home="*res://scripts/home.gd"
 Screens="*res://scripts/screens.gd"
 
 [display]
 
 window/size/viewport_width=890
 window/size/viewport_height=400
+; MAXIMISEE sur PC : 890x400 est la taille de reference (un telephone couche),
+; pas la taille de la fenetre. Les ecrans se recadrent a la taille reelle
+; (size_changed), donc la fenetre peut remplir l'ecran. Ignore sur Android.
+window/size/mode=2
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 

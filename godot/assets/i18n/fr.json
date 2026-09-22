@@ -1,0 +1,1332 @@
+{
+ "units": {
+  "s": "s",
+  "m": "min",
+  "h": "h",
+  "d": "j"
+ },
+ "meta": {
+  "title": "Rabbit Royale : la couronne maudite",
+  "description": "Démineur compétitif. Creuse, entasse, pille, porte la couronne."
+ },
+ "lang": {
+  "label": "Langue"
+ },
+ "auth": {
+  "connect": "Connecter un portefeuille",
+  "connecting": "On creuse...",
+  "guest": "Jouer en invité",
+  "waiting": "Attente...",
+  "guestNote": "Terrier invité. Connecte un portefeuille pour le garder.",
+  "noWallet": "Aucun portefeuille trouvé. Ouvre l'appli Rabbit Royale ou installe un portefeuille Solana.",
+  "signInFailed": "Connexion échouée",
+  "guestFailed": "Impossible d'ouvrir un terrier invité",
+  "walletTaken": "Ce portefeuille a déjà un terrier.",
+  "walletDigsFor": {
+   "$t": "Ce portefeuille creuse déjà pour « {0} »."
+  },
+  "alreadyLinked": "Ce terrier a déjà un portefeuille.",
+  "linkFailed": "Impossible de connecter ce portefeuille"
+ },
+ "chrome": {
+  "loading": "Chargement",
+  "waking": "On réveille la garenne",
+  "reconnecting": "Reconnexion...",
+  "back": "Retour",
+  "close": "Fermer",
+  "shop": "Boutique",
+  "story": "Récit",
+  "season": "SAISON",
+  "logoAlt": "Rabbit Royale",
+  "rotateTitle": "Tourne ton téléphone",
+  "rotateBody": "Rabbit Royale se joue en paysage."
+ },
+ "install": {
+  "title": {
+   "ios": "Écran d'accueil",
+   "macSafari": "Dans le Dock",
+   "chromiumDesktop": "Installer l'app",
+   "androidChromium": "Écran d'accueil"
+  },
+  "line": {
+   "ios": "Plein écran, sans barre de navigateur, à un geste de ton écran d'accueil.",
+   "macSafari": "Rabbit Royale dans sa propre fenêtre, depuis ton Dock.",
+   "chromiumDesktop": "Rabbit Royale dans sa propre fenêtre, à un clic de ton dock.",
+   "androidChromium": "Plein écran, sans barre de navigateur, à un geste de ton écran d'accueil."
+  },
+  "steps": {
+   "ios": [
+    "Touche le bouton Partager (dans Safari, la barre du bas ; dans Chrome, la barre d'adresse).",
+    "Fais défiler et touche Sur l'écran d'accueil.",
+    "Touche Ajouter. Rabbit Royale s'ouvre en plein écran depuis ton écran d'accueil."
+   ],
+   "macSafari": [
+    "Dans la barre des menus, choisis Fichier > Ajouter au Dock (ou Partager > Ajouter au Dock).",
+    "Clique sur Ajouter. Rabbit Royale s'ouvre dans sa fenêtre depuis ton Dock.",
+    "Il faut Safari 17 ou plus récent."
+   ],
+   "prompt": [
+    "Appuie sur Installer ci-dessous et confirme dans la fenêtre du navigateur."
+   ],
+   "chromiumDesktop": [
+    "Clique sur l'icône d'installation au bout de la barre d'adresse, ou ouvre le menu du navigateur > Caster, enregistrer et partager > Installer la page en tant qu'application.",
+    "Confirme avec Installer.",
+    "Déjà installée ? L'icône dit alors Ouvrir dans l'application."
+   ],
+   "androidChromium": [
+    "Ouvre le menu du navigateur (les trois points) et touche Ajouter à l'écran d'accueil.",
+    "Touche Installer. Rabbit Royale s'ouvre en plein écran depuis ton écran d'accueil."
+   ]
+  },
+  "install": "Installer",
+  "installing": "Installation...",
+  "showMe": "Montre-moi",
+  "gotIt": "Compris",
+  "close": "Fermer",
+  "app": "App"
+ },
+ "sound": {
+  "group": "Son",
+  "music": "Musique",
+  "effects": "Effets",
+  "volume": "Volume",
+  "on": "OUI",
+  "off": "NON",
+  "settings": "Réglages du son",
+  "mute": "Couper la musique",
+  "unmute": "Remettre la musique",
+  "musicOn": "Musique active",
+  "musicOff": "Musique coupée"
+ },
+ "loop": {
+  "dig": "CREUSER",
+  "defend": "DÉFENDRE",
+  "raid": "PILLER",
+  "broughtHome": "ramenées",
+  "ariaGroup": "Creuser, terrier, piller",
+  "ariaDig": {
+   "$t": "Creuser. {0}"
+  },
+  "ariaDefend": {
+   "$t": "Défendre : enterrer des pièges. {0}"
+  },
+  "ariaRaid": {
+   "$t": "Piller. {0}"
+  },
+  "energyOf": {
+   "$t": "{0}/{1} énergie"
+  },
+  "runCosts": {
+   "$t": "la traversée coûte {0}"
+  },
+  "runIn": {
+   "$t": "sortie dans {0}"
+  },
+  "raidNeeds": {
+   "$t": "Un raid demande {0} d’énergie. {1} pour l’instant, assez dans {2}."
+  },
+  "aMoment": "un instant",
+  "gardenPlus": {
+   "$t": "potager +{0}"
+  },
+  "gardenEmpty": "potager vide",
+  "shieldFor": {
+   "$t": "bouclier {0}"
+  },
+  "shieldBadge": {
+   "$t": "Bouclier {0}"
+  },
+  "noShield": "sans bouclier",
+  "traps": {
+   "$t": "{0} pièges",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "1 piège"
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "0 piège"
+    }
+   ]
+  },
+  "leftOutside": {
+   "$t": "{0} a laissé {1} dehors"
+  },
+  "burrowsOpen": {
+   "$t": "{0} terriers ouverts",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "1 terrier ouvert"
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "0 terrier ouvert"
+    }
+   ]
+  },
+  "bombsInBag": {
+   "$t": "{0} bombes en sac",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "1 bombe en sac"
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "0 bombe en sac"
+    }
+   ]
+  },
+  "allShielded": "tous les terriers sont protégés"
+ },
+ "next": {
+  "label": "SUITE",
+  "aria": {
+   "$t": "Suite : {0}"
+  },
+  "gardenFull": "Potager presque plein. Rentre-le avant un pillard.",
+  "shieldLifts": {
+   "$t": "Bouclier levé dans {0}. Enterre des pièges."
+  },
+  "raidTarget": {
+   "$t": "{0} a laissé {1} au potager. Pille."
+  },
+  "dig": {
+   "$t": "{0} énergie : de quoi sortir. Creuse."
+  },
+  "digPlain": "Creuse.",
+  "runIn": {
+   "$t": "Une sortie dans {0}. Le potager pousse pendant ce temps."
+  }
+ },
+ "burrow": {
+  "title": "TON TERRIER",
+  "level": {
+   "$t": "TERRIER NIV {0}"
+  },
+  "maxLevel": "NIVEAU MAX",
+  "upgrade": "CREUSER PLUS",
+  "safe": "À L’ABRI",
+  "exposed": {
+   "$t": "{0} EXPOSÉES"
+  },
+  "garden": "POTAGER",
+  "harvest": "RÉCOLTER",
+  "energy": "ÉNERGIE",
+  "gardenGrows": "LE POTAGER POUSSE PLUS VITE"
+ },
+ "notes": {
+  "shieldUp": "Bouclier levé. Les pillards rebondissent.",
+  "watered": "Arrosé. Le potager se remplit plus vite.",
+  "fed": "Nourri. Le potager tient davantage.",
+  "gardenEmpty": "Le potager est vide. Reviens plus tard.",
+  "maxDepth": "Ton terrier est aussi profond que possible.",
+  "shieldAlready": "Un bouclier est déjà levé.",
+  "noneLeft": "Plus rien. Les coffres en lâchent.",
+  "toppedUp": "Déjà plein. Garde-le pour plus tard.",
+  "islandSilent": "L'île n'a pas répondu. Réessaie dans un instant.",
+  "runResumed": "Retour à ta partie.",
+  "reconnecting": "Reconnexion... réessaie dans un instant.",
+  "harvested": {
+   "$t": "+{0} 🥕"
+  },
+  "needMore": {
+   "$t": "Il manque {0} 🥕"
+  },
+  "questDone": {
+   "$t": "Quête finie : {0}"
+  }
+ },
+ "run": {
+  "goFarm": "Déminer l’île",
+  "findMe": "Retrouver mon lapin",
+  "retreat": "Battre en retraite",
+  "home": "Terrier",
+  "stopWatching": "Arrêter de regarder",
+  "theirRun": "leur sortie",
+  "chests": {
+   "$t": "{0}/{1} coffres"
+  },
+  "chestsTitle": "Les coffres pris sur cette île — par tout le monde. Tous pris, elle coule.",
+  "watching": {
+   "$t": "👁 tu regardes {0}"
+  },
+  "energy": {
+   "$t": "{0} d'énergie sur {1}"
+  },
+  "markBomb": "Marquer une bombe",
+  "markHint": "Touche la case où tu penses qu’il y a une bombe · juste : +énergie · faux : -énergie",
+  "markCancel": "Annuler",
+  "markNothing": "Rien à marquer ici : toutes les cases autour de toi sont déjà lues.",
+  "energyLow": "Énergie basse. Un X juste sur une bombe en rend.",
+  "energyRaidLeft": "Encore de quoi piller. Rentre, ou continue.",
+  "homeRaid": "Rentrer · de quoi piller",
+  "trapHint": {
+   "$t": "Touche une case pour la miner, une mine pour la reprendre · {0} restant"
+  },
+  "trapHintEmpty": "Plus de bombes · achètes-en une autre, ou touche une mine pour la reprendre et la poser ailleurs",
+  "strike": "Foudroyer",
+  "aiming": "Touche un rival pour le foudroyer",
+  "strikeNone": "Pas d’éclair à appeler. La remise en vend.",
+  "plant": "Poser une bombe",
+  "aimingPlant": "Touche une case non creusée pour y enterrer une bombe",
+  "plantNone": "Pas de bombe à poser. La remise en vend.",
+  "planted": "Bombe enterrée. Toi seul sais où.",
+  "plantRefused": {
+   "off-island": "Pas sur l’île.",
+   "revealed": "Ce sol est déjà creusé.",
+   "hinted": "Le plateau dit déjà que cette case est sûre.",
+   "chest": "Pas sous un coffre.",
+   "too-many": "Trois bombes actives, c’est le maximum ici."
+  },
+  "plantedBy": {
+   "$t": "La bombe de {0} !"
+  },
+  "struckBy": {
+   "$t": "{0} t’a foudroyé"
+  },
+  "watchers": {
+   "$t": "{0} en ligne"
+  },
+  "hitBolt": {
+   "$t": "{0} t’a foudroyé"
+  },
+  "hitBomb": {
+   "$t": "{0} avait miné"
+  }
+ },
+ "firstRun": {
+  "tap": "Touche une case à côté de toi pour creuser.",
+  "numbers": "Le chiffre compte les bombes qui touchent la case.",
+  "counts": "Ce 1 veut dire : une bombe se cache dans les cases autour.",
+  "prove": "Il ne reste qu'une case fermée. C'est la bombe.",
+  "mark": "Appuie sur MARQUER UNE BOMBE, puis touche la case au X rouge.",
+  "aim": "Maintenant touche la case qui clignote.",
+  "marked": "Juste ! Un bon X rend de l'énergie. Un mauvais t'en coûte.",
+  "fetch": "Maintenant va prendre le coffre. Ce qu’il contient rentre avec toi.",
+  "bomb": "Ça coûte de l’énergie. Le 1 la désignait.",
+  "golden": "De l’or ! Une carotte dorée en vaut cinq.",
+  "chest": "Un coffre. Ce qu’il contient rentre avec toi.",
+  "clock": "L’île est l’horloge. Creuse-la et elle coule.",
+  "recap": "Tes carottes sont au terrier. Va voir."
+ },
+ "recap": {
+  "record": {
+   "$t": "RECORD sur {0} : {1} 🥕 (avant {2})",
+   "$v": [
+    {
+     "when": {
+      "2": 0
+     },
+     "t": "PREMIER RECORD sur {0} : {1} 🥕"
+    }
+   ]
+  },
+  "cleared": "ÎLE DÉMINÉE !",
+  "over": "SORTIE FINIE",
+  "clearedNote": "Tous les coffres sont sortis de terre. La mer a pris le reste.",
+  "overNote": "Plus d’énergie.",
+  "tutorialDone": "TU L’AS EU !",
+  "tutorialDoneNote": "Le coffre, c’était toute l’île. Tes carottes t’attendent au terrier.",
+  "stats": {
+   "$t": "🥕 {0} · {1} creusées · 💣 {2} · {3}"
+  },
+  "bank": {
+   "$t": "⚡ {0}/{1} au terrier · une sortie prend {2}"
+  },
+  "raidLeft": {
+   "$t": "⚡ {0} au terrier : de quoi piller"
+  },
+  "getEnergy": "Prendre de l’énergie",
+  "goHome": "Terrier · entasser",
+  "shoved": "À L’EAU !",
+  "struck": "FOUDROYÉ !",
+  "shovedNote": {
+   "$t": "{0} t’a poussé à l’eau."
+  },
+  "struckNote": {
+   "$t": "{0} t’a fait tomber la foudre dessus."
+  },
+  "shovedNoteAnon": "Quelqu’un t’a poussé à l’eau.",
+  "struckNoteAnon": "Quelqu’un t’a fait tomber la foudre dessus."
+ },
+ "shove": {
+  "by": {
+   "$t": "{0} t’a poussé !"
+  },
+  "anon": "Quelqu’un t’a poussé !"
+ },
+ "pill": {
+  "banked": {
+   "$t": "{0} carottes en réserve"
+  },
+  "carryNote": "Portées cette sortie : mises en réserve au retour",
+  "carrying": {
+   "$t": "{0} carottes portées, pas encore en réserve"
+  },
+  "leading": "en tête",
+  "rankFirst": "Rang de saison n°1 : en tête du classement",
+  "rank": {
+   "$t": "Rang de saison n°{0} : {1} points pour passer n°{0-1}"
+  },
+  "toPass": {
+   "$t": "{0} pour le n°{1-1}"
+  },
+  "showClimb": {
+   "$t": "{0} carottes en réserve, rang de saison n°{1}. Afficher ce qu'il faut pour monter"
+  },
+  "hideClimb": {
+   "$t": "{0} carottes en réserve, rang de saison n°{1}. Masquer ce qu'il faut pour monter"
+  }
+ },
+ "board": {
+  "show": "Afficher le classement",
+  "hide": "Masquer le classement",
+  "diggingNow": "creuse en ce moment · touche pour regarder",
+  "watch": {
+   "$t": "Regarder {0} creuser"
+  },
+  "notOut": {
+   "$t": "{0} n’est pas dehors en ce moment"
+  }
+ },
+ "shop": {
+  "title": "BOUTIQUE",
+  "shed": "LA REMISE",
+  "aria": "Boutique",
+  "protect": "PROTÉGER LA BASE",
+  "protectAria": "Protéger ta base",
+  "protectBuyAria": "Protéger ta base - acheter un piège",
+  "noTraps": "AUCUN PIÈGE - EN PRENDRE",
+  "nothingBuried": "RIEN D’ENTERRÉ",
+  "inShed": {
+   "$t": "{0} À LA REMISE"
+  },
+  "rearming": {
+   "$t": "RÉARMEMENT - {0} REVIENNENT"
+  },
+  "upAndRearming": {
+   "$t": "{0} EN PLACE - {1} EN RÉARMEMENT"
+  },
+  "inGround": {
+   "$t": "{0}/{1} EN TERRE"
+  },
+  "openShed": "Ouvrir la remise",
+  "payWith": "Payer avec",
+  "outOfEnergy": "PLUS D’ÉNERGIE",
+  "energySay": {
+   "$t": "Une sortie prend {0}. De quoi repartir revient tout seul dans {1}. Ou remplis maintenant et continue de creuser."
+  },
+  "energySayEmpty": {
+   "$t": "La barre est vide. Un point revient tout seul dans {0}. Ou remplis maintenant et continue de creuser."
+  },
+  "fillsTo": {
+   "$t": "Remplit la barre jusqu’à {0}."
+  },
+  "noRefills": " Plus de recharge aujourd’hui.",
+  "refillsLeft": {
+   "$t": " {0} recharges aujourd’hui.",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": " 1 recharge aujourd’hui."
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": " 0 recharge aujourd’hui."
+    }
+   ]
+  },
+  "cardsOff": "Le paiement par carte n’est pas encore ouvert. Carottes seulement.",
+  "connectForCard": "Connecte un portefeuille pour payer par carte. Tout ici se creuse aussi.",
+  "eitherWay": "Carottes creusées ou carte. Même marchandise.",
+  "pricing": "Calcul du prix...",
+  "approve": "Valide dans ton portefeuille...",
+  "confirming": "Confirmation sur la chaîne...",
+  "priceLabel": {
+   "$t": "{0} carottes"
+  },
+  "buy": {
+   "$t": "Acheter {0} pour {1}"
+  },
+  "capped": {
+   "$t": "{0} : {1}. Tu en portes déjà le maximum."
+  },
+  "tooPoor": {
+   "$t": "{0} : {1}. Pas assez de carottes. Va creuser."
+  },
+  "heldOf": {
+   "$t": "{0}/{1}"
+  },
+  "heldToday": {
+   "$t": "{0} aujourd’hui"
+  },
+  "heldDaysLeft": {
+   "$t": "{0}j restants"
+  },
+  "heldOff": "inactif",
+  "boughtEnergy": {
+   "$t": "Énergie rechargée. {0}"
+  },
+  "boughtTrap": {
+   "$t": "{0} pièges à la remise. {1}",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "Piège à la remise. {1}"
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "Piège à la remise. {1}"
+    }
+   ]
+  },
+  "boughtBomb": {
+   "$t": "{0} bombes armées. {1}",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "Bombe armée. {1}"
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "Bombe armée. {1}"
+    }
+   ]
+  },
+  "boughtLightning": {
+   "$t": "{0} éclairs en bouteille. {1}",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "Éclair en bouteille. {1}"
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "Éclair en bouteille. {1}"
+    }
+   ]
+  },
+  "boughtShield": {
+   "$t": "{0} boucliers prêts. {1}",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "Bouclier prêt. {1}"
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "Bouclier prêt. {1}"
+    }
+   ]
+  },
+  "boughtSmoke": {
+   "$t": "Les chiffres sont cachés. {0}"
+  },
+  "boughtMirage": {
+   "$t": "{0} mirages prêts à lancer. {1}",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "Mirage prêt à lancer. {1}"
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "Mirage prêt à lancer. {1}"
+    }
+   ]
+  },
+  "boughtFence": {
+   "$t": "{0} planches prêtes à dresser. {1}",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "Planche prête à dresser. {1}"
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "Planche prête à dresser. {1}"
+    }
+   ]
+  },
+  "paid": {
+   "$t": "-{0} 🥕"
+  }
+ },
+ "shopErrors": {
+  "fallback": "Ça n’a pas marché.",
+  "insufficient_carrots": "Pas assez de carottes.",
+  "inventory_full": "Ton sac en est plein.",
+  "daily_energy_limit": "Plus de recharge aujourd’hui. Le potager pousse quand même.",
+  "smoke_capped": "Ton terrier est caché aussi longtemps que possible.",
+  "too_many_at_once": "Trop à la fois.",
+  "bad_quantity": "Ce n’est pas une quantité.",
+  "no_traps": "Plus de pièges. Achètes-en un, ou attends demain.",
+  "board_full": "Ton terrier ne peut pas tenir un piège de plus.",
+  "tile_not_trappable": "Rien à miner là.",
+  "tile_doorstep": "Trop près de l'entrée. Les premiers pas restent libres.",
+  "tile_already_trapped": "Déjà miné.",
+  "no_trap_there": "Pas de piège là.",
+  "no_fences": "Plus de clôtures. La remise en vend.",
+  "span_already_fenced": "Une planche est déjà dressée là.",
+  "span_not_exposed": "Ce n’est pas un bord de ton potager.",
+  "would_seal_burrow": "Ça fermerait le dernier passage. Un passage reste ouvert, c’est le portail.",
+  "span_not_fenced": "Pas de planche là.",
+  "bad_span": "Ce n’est pas une place pour une planche.",
+  "fenced": "Une clôture bloque le passage. Contourne.",
+  "payments_unavailable": "Le paiement par carte n’est pas encore en place.",
+  "quote_expired": "Ce prix a expiré. Réessaie.",
+  "signature_already_used": "Ce paiement a déjà servi.",
+  "not_confirmed_yet": "Confirmation sur la chaîne en cours...",
+  "wrong_reference": "Cette transaction ne correspond pas à cet achat.",
+  "no_matching_transfer": "Aucun transfert USDC correspondant.",
+  "failed_on_chain": "La transaction a échoué sur la chaîne."
+ },
+ "pay": {
+  "needsBuild": "Payer dans l’appli attend la prochaine version. Paie en carottes pour l’instant.",
+  "noWallet": "Aucun portefeuille Solana. Installe Phantom pour payer en USDC.",
+  "notConfigured": "Les paiements ne sont pas configurés sur ce serveur.",
+  "stillConfirming": "Payé, confirmation en cours. Rouvre la boutique dans une minute. Rien n’est perdu.",
+  "failed": "Paiement échoué"
+ },
+ "kit": {
+  "tools": {
+   "more": "Voir l’effet et les actions",
+   "less": "Réduire les détails",
+   "available": {
+    "$t": "{0} en réserve"
+   },
+   "placed": {
+    "$t": "{0} en place"
+   },
+   "active": {
+    "$t": "{0} restantes"
+   },
+   "buyTrap": {
+    "$t": "Acheter une mine - {0} carottes"
+   },
+   "trapHint": "Touche une case pour poser une mine. Retouche une mine pour la récupérer.",
+   "trapEmpty": "Récupère une mine posée ou achète-en une ci-dessous.",
+   "fenceHint": "Touche un bord éclairé pour construire. Retouche une clôture pour la récupérer.",
+   "raiseShield": "Utiliser un bouclier",
+   "shieldActive": "Ton terrier est déjà protégé.",
+   "shopHint": "Disponible à la boutique.",
+   "notEnough": "Pas assez de carottes pour une autre mine.",
+   "smokeHint": "Acheter de la fumée à la boutique l’active immédiatement.",
+   "attackHint": "À utiliser sur l’île d’un rival pendant une partie.",
+   "chestHint": "Tu en trouveras dans les coffres.",
+   "waterEffect": "Fait pousser ton jardin plus vite pendant un moment.",
+   "fertiliserEffect": "Permet au jardin de stocker plus de carottes avant d’être plein.",
+   "water": "Utiliser un arrosage",
+   "fertilise": "Utiliser un engrais"
+  },
+  "aria": "Ce que tu portes",
+  "groupDefence": "DEFENSE",
+  "groupAttack": "ATTAQUE",
+  "groupGarden": "JARDIN",
+  "shieldHolding": {
+   "$t": "Bouclier : actif, {0} restant. {1} en sac."
+  },
+  "shieldReady": {
+   "$t": "Bouclier : {0} en sac. Lève-en un. Les pillards rebondissent tant qu’il tient."
+  },
+  "shieldNone": "Bouclier : aucun. Achètes-en un en boutique.",
+  "smokeOff": "Écran de fumée : inactif. Achètes-en un pour cacher tes chiffres.",
+  "smokeUp": {
+   "$t": "Écran de fumée : actif, {0} jours restants. Les pillards traversent ton terrier à l’aveugle.",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "Écran de fumée : actif, 1 jour restant. Les pillards traversent ton terrier à l’aveugle."
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "Écran de fumée : actif, 0 jour restant. Les pillards traversent ton terrier à l’aveugle."
+    }
+   ]
+  },
+  "carried": {
+   "$t": "{0} : {1} en sac. {2}"
+  },
+  "carriedNone": {
+   "$t": "{0} : aucun. {1}"
+  },
+  "trapsLine": {
+   "$t": "Pièges : {0} sur {1} en terre, {2} à la remise. Enterre-les depuis BASE.",
+   "$v": [
+    {
+     "when": {
+      "1": 0
+     },
+     "t": "Pièges : {0} en terre, {2} à la remise. Enterre-les depuis BASE."
+    }
+   ]
+  },
+  "trapsBuy": {
+   "$t": "Pièges : {0} à la remise. Achètes-en un autre pour {1} carottes.",
+   "$v": [
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "Pièges : la remise est vide. Achètes-en un pour {1} carottes."
+    }
+   ]
+  },
+  "trapsBuyBroke": {
+   "$t": "Pièges : plus aucun. Un piège coûte {0} carottes - va en creuser."
+  },
+  "trapsBuyFull": {
+   "$t": "Pièges : {0} à la remise. La remise est pleine."
+  },
+  "bottleRunning": {
+   "$t": "{0} : en cours, {1} restant. {2} en sac."
+  },
+  "bottleHeld": {
+   "$t": "{0} : {1} en sac. Verse-en un sur le potager."
+  },
+  "bottleNone": {
+   "$t": "{0} : aucun. On en trouve dans les coffres."
+  },
+  "fencePlace": {
+   "$t": "Clôtures : {0} planches en sac, {1} tronçons sur {2} fermés. Pose-en une.",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "Clôtures : 1 planche en sac, {1} tronçons sur {2} fermés. Pose-en une."
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "Clôtures : 0 planche en sac, {1} tronçons sur {2} fermés. Pose-en une."
+    },
+    {
+     "when": {
+      "1": 1
+     },
+     "t": "Clôtures : {0} planches en sac, 1 tronçon sur {2} fermé. Pose-en une."
+    },
+    {
+     "when": {
+      "0": 1,
+      "1": 1
+     },
+     "t": "Clôtures : 1 planche en sac, 1 tronçon sur {2} fermé. Pose-en une."
+    },
+    {
+     "when": {
+      "0": 0,
+      "1": 1
+     },
+     "t": "Clôtures : 0 planche en sac, 1 tronçon sur {2} fermé. Pose-en une."
+    },
+    {
+     "when": {
+      "1": 0
+     },
+     "t": "Clôtures : {0} planches en sac, 0 tronçon sur {2} fermé. Pose-en une."
+    },
+    {
+     "when": {
+      "0": 1,
+      "1": 0
+     },
+     "t": "Clôtures : 1 planche en sac, 0 tronçon sur {2} fermé. Pose-en une."
+    },
+    {
+     "when": {
+      "0": 0,
+      "1": 0
+     },
+     "t": "Clôtures : 0 planche en sac, 0 tronçon sur {2} fermé. Pose-en une."
+    }
+   ]
+  },
+  "fenceAllWalled": {
+   "$t": "Clôtures : {0} tronçons fermés. Le dernier passage est le portail et reste ouvert.",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "Clôtures : 1 tronçon fermé. Le dernier passage est le portail et reste ouvert."
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "Clôtures : 0 tronçon fermé. Le dernier passage est le portail et reste ouvert."
+    }
+   ]
+  },
+  "fenceNone": {
+   "$t": "Clôtures : aucune en sac, {0} tronçons fermés. La remise en vend. Touche une planche dressée pour la reprendre.",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "Clôtures : aucune en sac, 1 tronçon fermé. La remise en vend. Touche une planche dressée pour la reprendre."
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "Clôtures : aucune en sac, 0 tronçon fermé. La remise en vend. Touche une planche dressée pour la reprendre."
+    }
+   ]
+  },
+  "watering": "Arrosage",
+  "fertiliser": "Engrais"
+ },
+ "energyPanel": {
+  "open": "Détail de l’énergie",
+  "title": "ÉNERGIE",
+  "reading": {
+   "$t": "{0}/{1}"
+  },
+  "rate": {
+   "$t": "+{0}/h"
+  },
+  "full": "plein",
+  "fullIn": {
+   "$t": "plein dans {0}"
+  },
+  "island": "Île",
+  "islandCost": {
+   "$t": "{0} pour traverser, puis 1 par fouille"
+  },
+  "raid": "Raid",
+  "raidCost": {
+   "$t": "{0} pour entrer, {1} au plus"
+  },
+  "raidRefund": "Atteins le champ et tes pas reviennent.",
+  "dig": "Fouille",
+  "digCost": {
+   "$t": "{0} par case. Une bombe : {1}"
+  },
+  "x": "X rouge",
+  "xCost": {
+   "$t": "juste : +{0} à +{1}. Faux : -{2}"
+  },
+  "home": "Rentrer",
+  "homeCost": {
+   "$t": "rentre avec {0} ou plus et un raid est prêt"
+  },
+  "homeHint": "Ce que tu ramènes reste dans le réservoir.",
+  "ready": "Prêt",
+  "raidReady": "Raid prêt",
+  "needs": {
+   "$t": "Il faut {0}"
+  },
+  "inWait": {
+   "$t": "dans {0}"
+  },
+  "under": {
+   "$t": "Sous {0}"
+  },
+  "levelLabel": {
+   "$t": "Niv. {0}"
+  },
+  "levelRate": {
+   "$t": "recharge {0} par heure. Niveau suivant : {1}",
+   "$v": [
+    {
+     "when": {
+      "1": null
+     },
+     "t": "recharge {0} par heure"
+    }
+   ]
+  }
+ },
+ "islandPick": {
+  "choose": "Choisir une île",
+  "which": "QUELLE ÎLE ?",
+  "loading": "On regarde la mer...",
+  "row": {
+   "$t": "{0} creusent · {1}/{2} coffres · {3} % fouillée"
+  },
+  "rowEmpty": {
+   "$t": "personne dessus en ce moment · {0}/{1} coffres · {2} % fouillée"
+  },
+  "fresh": "Personne dessus encore",
+  "join": "Rejoindre",
+  "open": "Ouvrir",
+  "locked": {
+   "$t": "S’ouvre à {0} carottes creusées"
+  },
+  "lockedShort": "Fermée",
+  "brief": "Une île occupée, c’est une fouille courte et sûre avec une part des coffres. Une île neuve, c’est la longue course.",
+  "almostDone": "presque finie",
+  "best": {
+   "$t": "ton record {0} 🥕"
+  },
+  "gone": "Cette île s’est remplie ou a fini. Choisis-en une autre.",
+  "tierLocked": "Tu n’as pas encore creusé jusqu’à cette île.",
+  "youHave": {
+   "$t": "tu en as {0}"
+  },
+  "tier": {
+   "$t": "{0} % de bombes · un X juste +{1}"
+  }
+ },
+ "raid": {
+  "go": "PARTIR PILLER",
+  "another": "Piller un autre terrier",
+  "choose": "Choisis un terrier",
+  "whose": "QUEL TERRIER ?",
+  "cost": {
+   "$t": "Un raid prend {0} d’énergie pour entrer, {1} au plus."
+  },
+  "allShielded": "TOUS LES TERRIERS PROTÉGÉS",
+  "nobody": "PERSONNE À VOLER",
+  "shielded": "Protégé",
+  "presence": {
+   "away": "absent",
+   "home": "au terrier",
+   "digging": "parti creuser"
+  },
+  "raidIt": "Piller",
+  "brief": "Atteins le champ de carottes. Leurs pièges sont enterrés et invisibles.",
+  "outOfEnergy": "Plus d’énergie",
+  "nothingTaken": "Rien pris",
+  "unguarded": {
+   "$t": "{0} SANS GARDE"
+  },
+  "nobodyYet": "Personne d’autre n’a encore de terrier.",
+  "steps": "pas",
+  "stepsBack": {
+   "$t": "Champ atteint : tes {0} pas te sont rendus"
+  },
+  "looted": {
+   "$t": "+{0} 🥕"
+  },
+  "won": "PILLAGE RÉUSSI !",
+  "backToBurrow": "RETOUR AU TERRIER",
+  "aRival": "UN RIVAL",
+  "lootedFrom": {
+   "$t": "VOLÉ À {0}"
+  },
+  "wasEmpty": {
+   "$t": "LE TERRIER DE {0} ÉTAIT VIDE"
+  },
+  "trapsSprung": {
+   "$t": "{0} PIÈGES DÉCLENCHÉS À L’ALLER",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "1 PIÈGE DÉCLENCHÉ À L’ALLER"
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "0 PIÈGE DÉCLENCHÉ À L’ALLER"
+    }
+   ]
+  },
+  "wonAria": {
+   "$t": "Pillage réussi - {0} carottes volées à {1}"
+  },
+  "rabbitAria": "Ton lapin, qui fête ça",
+  "stolen": {
+   "$t": "+{0} 🥕 volées à {1}"
+  },
+  "fellShort": {
+   "$t": "Arrêté à {0}% du champ de {1}"
+  },
+  "defended": "DÉFENDU",
+  "raided": "PILLÉ",
+  "byWho": {
+   "$t": "PAR {0} · -{1} CAROTTES"
+  },
+  "byWhoNothing": {
+   "$t": "PAR {0}"
+  },
+  "bounced": {
+   "$t": "{0} PILLAGES REPOUSSÉS",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "1 PILLAGE REPOUSSÉ"
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "0 PILLAGE REPOUSSÉ"
+    }
+   ]
+  },
+  "struck": "Foudroyé",
+  "struckBy": {
+   "$t": "{0} a appelé la foudre sur toi"
+  }
+ },
+ "defend": {
+  "underAttack": {
+   "$t": "{0} PILLE TON TERRIER"
+  },
+  "theirSteps": "ses pas",
+  "hint": "Enterre une bombe devant lui, ou touche le lapin pour le foudroyer.",
+  "strike": "Foudroyer",
+  "held": {
+   "$t": "{0} en stock"
+  },
+  "struckDown": "FOUDROYÉ",
+  "ranDry": "À COURT D’ÉNERGIE",
+  "looted": {
+   "$t": "IL A PRIS {0} 🥕"
+  },
+  "lost": "Ton terrier a été pillé",
+  "held_": "Terrier tenu",
+  "incoming": {
+   "$t": "{0} pille ton terrier !"
+  }
+ },
+ "raidErrors": {
+  "fallback": "Ça n’a pas marché.",
+  "target_shielded": "Leur terrier est protégé. Essaie quelqu’un d’autre.",
+  "cannot_raid_yourself": "C’est ton propre terrier.",
+  "raid_in_progress": "Tu es déjà dans un terrier.",
+  "cooldown": "Tu les as pillés trop récemment.",
+  "no_energy": "Pas assez d'énergie pour traverser. Attends, ou recharge.",
+  "not_adjacent": "Trop loin. Un pas à la fois.",
+  "raid_over": "Ce pillage est déjà terminé.",
+  "none_held": "Pas d’éclair à appeler. La remise en vend.",
+  "no_raid": "Ce pillage est terminé.",
+  "unknown_player": "Ils ont disparu."
+ },
+ "chest": {
+  "carrots": "CAROTTES",
+  "watering": "ARROSAGE",
+  "fertiliser": "ENGRAIS",
+  "bomb": "BOMBE",
+  "shield": "BOUCLIER",
+  "lightning": "FOUDRE",
+  "genesis": "RR GENESIS",
+  "piece": {
+   "$t": "UNE PART EST À TOI - PLUS {0}x {1}"
+  }
+ },
+ "profile": {
+  "title": "PROFIL",
+  "tabProfile": "Profil",
+  "tabHistory": "Historique",
+  "name": "Nom",
+  "save": "Enregistrer",
+  "saving": "Enregistrement...",
+  "taken": {
+   "$t": "Jouer sous « {0} »"
+  },
+  "waitingWallet": "Attente du portefeuille...",
+  "signInWith": "Se connecter avec ce portefeuille",
+  "disconnect": "Déconnecter",
+  "abandon": "Abandonner ce terrier",
+  "abandonConfirm": "Vraiment abandonner ? C’est irréversible",
+  "loading": "Chargement...",
+  "now": "à l’instant",
+  "historyFailed": "Impossible de charger ton historique.",
+  "noRuns": "Aucune sortie terminée pour l’instant.",
+  "noRaids": "Personne ne s’en est encore pris à toi.",
+  "noPurchases": "Rien de la remise pour l’instant.",
+  "today": "Aujourd’hui",
+  "youHit": {
+   "$t": "Tu as touché {0}"
+  },
+  "damage": {
+   "$t": "{0} dég."
+  },
+  "shovedIn": "poussé à l’eau",
+  "struckDown": "foudroyé",
+  "youShoved": {
+   "$t": "Tu as poussé {0} à l’eau"
+  },
+  "youStruck": {
+   "$t": "Tu as foudroyé {0}"
+  },
+  "spent": {
+   "$t": "-{0} 🥕"
+  },
+  "usd": {
+   "$t": "{0} $"
+  },
+  "revenge": "ME VENGER",
+  "avenged": "réglé",
+  "revengeShielded": "Protégé"
+ },
+ "avatars": {
+  "brown": "Brun",
+  "gray": "Gris",
+  "orange": "Orange",
+  "white": "Blanc",
+  "yellow": "Jaune"
+ },
+ "codex": {
+  "title": "LA COURONNE MAUDITE",
+  "aria": "Récit de la couronne maudite",
+  "close": "Fermer le codex",
+  "newChapter": "NOUVEAU CHAPITRE",
+  "complete": "COMPLET",
+  "isNew": "NOUVEAU",
+  "sealed": {
+   "$t": "Scellé jusqu’à {0} carottes cumulées. Tu en as {1}."
+  },
+  "nextIn": {
+   "$t": "Prochain chapitre dans {0} carottes"
+  },
+  "lifetimeOnly": "Carottes cumulées seulement. Rien ici ne peut être pillé.",
+  "done": "Le codex est complet. L’île attend toujours.",
+  "carrotsAt": {
+   "$t": "{0} carottes"
+  },
+  "chapterN": {
+   "$t": "Chapitre {0}"
+  },
+  "chapters": "Chapitres"
+ },
+ "quest": {
+  "claim": "RÉCLAMER",
+  "claimItem": {
+   "$t": "RÉCLAMER {0} {1}"
+  },
+  "claimCarrots": {
+   "$t": "RÉCLAMER {0} 🥕"
+  },
+  "aria": {
+   "$t": "{0} pour {1}"
+  },
+  "progress": {
+   "$t": "{0}/{1}"
+  },
+  "counter": {
+   "$t": "QUÊTE {0} / {1}"
+  }
+ },
+ "doorstepTips": [
+  "LE NUMÉRO SUR UNE CASE COMPTE LES BOMBES QUI LA TOUCHENT",
+  "CREUSER COÛTE 1 D’ÉNERGIE - UNE BOMBE EN COÛTE 30",
+  "MARQUE UNE BOMBE D’UN X ROUGE : JUSTE, ÇA REND DE L’ÉNERGIE ; FAUX, ÇA COÛTE 15",
+  "REPASSER SUR LES CASES DÉJÀ CREUSÉES EST GRATUIT",
+  "CHAQUE COFFRE OUVERT RENTRE AVEC TOI",
+  "L’ÎLE EST LE CHRONO - VIDE-LA ET ELLE COULE",
+  "LES CAROTTES SONT LE SCORE - LE X ROUGE EST LA SEULE POMPE"
+ ],
+ "taglines": [
+  "CHAQUE PAS PEUT ÊTRE LE DERNIER... OU TA FORTUNE",
+  "TRAVERSE L’ÎLE, PRENDS L’OR, OU MEURS EN ESSAYANT",
+  "LES BRAVES VONT PLUS LOIN - LES CHANCEUX RENTRENT",
+  "PAS À PAS, L’ÎLE PREND OU L’ÎLE DONNE",
+  "SEULS LES AUDACIEUX SURVIVENT - SEULS LES SAGES S’ARRÊTENT"
+ ],
+ "islands": {
+  "Meadow": "Prairie",
+  "Thicket": "Fourré",
+  "Ashland": "Terre de cendres",
+  "Caldera": "Caldeira"
+ },
+ "items": {
+  "trap": {
+   "name": "Piège",
+   "blurb": "Enterre-le dans ton terrier. Il épuise le pillard qui marche dessus."
+  },
+  "bomb": {
+   "name": "Bombe",
+   "blurb": "Pose-la sur l’île de quelqu’un en pleine sortie. Il verra que c’était toi."
+  },
+  "lightning": {
+   "name": "Foudre",
+   "blurb": "Appelle un éclair sur l’île d’un rival. Il ouvre le sol autour."
+  },
+  "shield": {
+   "name": "Bouclier",
+   "blurb": "Les pillages rebondissent sur ton terrier tant qu’il tient."
+  },
+  "energy": {
+   "name": "Énergie",
+   "blurb": "Remplis la barre et creuse maintenant, au lieu d’attendre."
+  },
+  "smoke": {
+   "name": "Écran de fumée",
+   "blurb": "Cache les chiffres de ton terrier pour un jour. Les pillards traversent à l’aveugle."
+  },
+  "mirage": {
+   "name": "Mirage",
+   "blurb": "Fait mentir quelques chiffres chez un rival, en pleine sortie. Il peut le repérer."
+  },
+  "fence": {
+   "name": "Clôture",
+   "blurb": "Ferme un tronçon du bord de ton potager. Les pillards ne peuvent pas le franchir."
+  }
+ },
+ "quests": {
+  "break-ground": {
+   "title": "Ouvrir le sol",
+   "ask": {
+    "$t": "Creuse {0} cases."
+   },
+   "line": "Chaque case creusée dit combien de bombes la touchent. Exactement. Les chiffres sont honnêtes."
+  },
+  "come-home": {
+   "title": "Rentrer",
+   "ask": {
+    "$t": "Termine une sortie."
+   },
+   "line": "Ce que tu portais est au terrier. Rien sur l’île ne peut l’atteindre."
+  },
+  "bring-it-in": {
+   "title": "Tout rentrer",
+   "ask": {
+    "$t": "Récolte le potager."
+   },
+   "line": "Le potager pousse pendant ton absence. Ce qu’un voleur peut emporter aussi."
+  },
+  "bury-something": {
+   "title": "Enterrer quelque chose",
+   "ask": {
+    "$t": "Pose un piège sur ton sol."
+   },
+   "line": "Un piège invisible est le seul mur qui vaille. Un mur, on le contourne."
+  },
+  "open-a-chest": {
+   "title": "Ouvrir un coffre",
+   "ask": {
+    "$t": "Déterre un coffre sur une île."
+   },
+   "line": "Un coffre est une promesse. C’est aussi une marche sur un sol que tu n’as pas lu."
+  },
+  "knock-on-a-door": {
+   "title": "Frapper à une porte",
+   "ask": {
+    "$t": "Pille un terrier. N’importe quelle profondeur compte."
+   },
+   "line": "La seule chose qu’on puisse prendre à un lapin est ce qu’il a laissé derrière lui. Tu as vu les deux côtés."
+  },
+  "look-up": {
+   "title": "Lever les yeux",
+   "ask": {
+    "$t": "Ouvre le classement de saison."
+   },
+   "line": "Quelqu’un porte la couronne. Elle allume une lumière sur chaque carte, et elle ne s’éteint jamais."
+  },
+  "read-the-stones": {
+   "title": "Lire les pierres",
+   "ask": {
+    "$t": "Ouvre le chapitre {0} du codex."
+   },
+   "line": "L’île ne tue pas les malchanceux. Elle tue les pressés, et elle tient le compte exact de la différence."
+  },
+  "hold-the-door": {
+   "title": "Tenir la porte",
+   "ask": {
+    "$t": "Aie {0} pièges en terre avant que ton bouclier ne tombe."
+   },
+   "line": "Ton bouclier tombe bientôt. Après ça, il ne te reste que le sol. Rends-le coûteux."
+  },
+  "the-thicket": {
+   "title": {
+    "$t": "Le {0}"
+   },
+   "ask": {
+    "$t": "Atteins {0} carottes cumulées."
+   },
+   "line": "Un sol plus riche, et plus de choses enterrées. L’île appelle ça un échange équitable et n’attend pas ta réponse."
+  }
+ },
+ "lore": {
+  "the-island": {
+   "title": "L’île qui donne",
+   "teaser": "Pourquoi le sol est généreux.",
+   "body": [
+    "Personne n’a planté la première carotte. On a simplement trouvé l’île, un matin, déjà pleine — des rangées de couronnes orange perçant un sable que la marée venait de quitter. Les lapins qui l’ont trouvée ont fait la chose sensée. Ils ont creusé.",
+    "Elle n’a jamais cessé de donner. Creuse un trou et le sol offre quelque chose : une carotte, un coffre, une pierre avec un chiffre gravé dessus. Les chiffres sont honnêtes. Ils l’ont toujours été. C’est précisément ce dont les vieux lapins te préviennent — une chose qui ne te ment jamais est une chose qui veut quelque chose, et elle est assez patiente pour attendre que tu demandes quoi."
+   ]
+  },
+  "the-numbers": {
+   "title": "Ce que les chiffres savent",
+   "teaser": "Le sol compte ce qu’il a enterré.",
+   "body": [
+    "Une case creusée te dit combien de bombes la touchent. Pas approximativement. Exactement. Aucun lapin n’a jamais trouvé de pierre menteuse, et les lapins ont cherché longtemps, souvent en y laissant une patte.",
+    "Le danger n’est donc jamais le hasard. Le danger, c’est toi, qui lis vite parce qu’un autre est à trois cases et tend la patte vers la même carotte. L’île ne tue pas les malchanceux. Elle tue les pressés, et elle tient le compte exact de la différence."
+   ]
+  },
+  "the-burrow": {
+   "title": "La loi du terrier",
+   "teaser": "On ne te prend rien pendant que tu creuses.",
+   "body": [
+    "Sur l’île tu ne peux pas perdre. Marche sur une bombe et tu es projeté, sonné, le souffle coupé — mais ton tas n’est pas touché. Chaque carotte que tu as rapportée est encore à la maison.",
+    "C’est exactement le problème. La maison, c’est là où tout se trouve, et c’est là où tu n’es pas, puisque tu es ici, à creuser. L’île en a fait une règle et l’a trouvée très drôle : la seule chose qu’on puisse prendre à un lapin est celle qu’il a laissée derrière lui."
+   ]
+  },
+  "the-crown": {
+   "title": "La couronne n’est pas un prix",
+   "teaser": "Elle te signale sur chaque carte.",
+   "body": [
+    "Celui qui tient la plus grosse saison trouve un matin la couronne posée sur sa tête. Impossible de l’ôter, de la vendre, de l’enterrer ou de la donner. Des lapins ont essayé les quatre. Il existe un chapitre sur le quatrième, et il est court.",
+    "La couronne est généreuse, c’est ainsi qu’elle opère. Elle enrichit le sol sous celui qui la porte et alourdit les coffres. Elle allume aussi sur la carte du monde une lumière que tous les autres lapins voient de partout, et elle ne s’éteint jamais. L’île ne récompense pas le premier lapin. Elle l’éclaire, puis elle recule pour voir ce que les autres en feront."
+   ]
+  },
+  "the-tide": {
+   "title": "Quand une île a assez donné",
+   "teaser": "La mer tient les comptes.",
+   "body": [
+    "Une île flotte sur ce qu’elle garde. Chaque coffre est un lest, et la mer attendait dessous depuis le début. Prends le dernier et l’eau monte sur le sol que tu as creusé — on ne négocie pas et on ne recouvre pas ce qui a été ouvert. Une île est une chose qui n’arrive qu’une fois. Elle donne jusqu’à n’avoir plus un seul coffre, puis elle passe dessous sans cérémonie et les lapins nagent.",
+    "Les vieux lapins n’y voient pas un désastre. Ils y voient une facture réglée. Quelque chose a été retiré du monde, en quantité énorme, par des lapins à qui on avait dit la vérité exacte sur chaque pas et qui ont choisi de continuer. L’île retourne à l’eau, simplement, et une autre remonte quelque part, déjà pleine de carottes, déjà tiède."
+   ]
+  }
+ }
+}

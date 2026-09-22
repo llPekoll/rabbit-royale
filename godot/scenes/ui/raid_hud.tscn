@@ -1,0 +1,16 @@
+[gd_scene format=3]
+
+; La barre du raid en cours — voir scripts/ui/raid_hud.gd. Elle remplit son
+; etage et se cache seule tant que RaidState n'a pas de raid.
+
+[ext_resource type="Script" path="res://scripts/ui/raid_hud.gd" id="1_hud"]
+
+[node name="RaidHud" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_hud")

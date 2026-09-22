@@ -1,0 +1,15 @@
+[gd_scene format=3]
+
+; LA CEREMONIE DU COFFRE — voir scripts/ui/chest_prize.gd.
+; A l'execution : `ChestPrize.announce(prize)` avec le `chestPrize` de la socket.
+
+[ext_resource type="Script" path="res://scripts/ui/chest_prize.gd" id="1_prize"]
+
+[node name="ChestPrize" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_prize")

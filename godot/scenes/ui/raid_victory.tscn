@@ -1,0 +1,16 @@
+[gd_scene format=3]
+
+; La ceremonie du raid gagne — voir scripts/ui/raid_victory.gd. Levee par
+; `RaidVictory.show(outcome)` sur l'etage des tampons du chrome.
+
+[ext_resource type="Script" path="res://scripts/ui/raid_victory.gd" id="1_victory"]
+
+[node name="RaidVictory" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+script = ExtResource("1_victory")

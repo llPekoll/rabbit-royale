@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3]
+
+; « OUT OF ENERGY » (scripts/ui/energy_popup.gd). Construit par le script ;
+; s'ouvre par `EnergyPopup.open()`.
+
+[ext_resource type="Script" path="res://scripts/ui/energy_popup.gd" id="1_popup"]
+
+[node name="EnergyPopup" type="Control"]
+script = ExtResource("1_popup")

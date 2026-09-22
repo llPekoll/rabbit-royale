@@ -1,0 +1,13 @@
+[gd_scene format=3]
+
+; LA PUCE DU JOUEUR — voir scripts/ui/player_chip.gd.
+
+[ext_resource type="Script" path="res://scripts/ui/player_chip.gd" id="1_chip"]
+
+[node name="PlayerChip" type="Button"]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 160.0
+offset_bottom = 44.0
+focus_mode = 0
+script = ExtResource("1_chip")

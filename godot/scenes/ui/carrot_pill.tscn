@@ -1,0 +1,14 @@
+[gd_scene format=3]
+
+; LA PASTILLE A CAROTTES — voir scripts/ui/carrot_pill.gd. 268x102, l'art
+; du cadran ; la barre la centre et la met a l'echelle.
+
+[ext_resource type="Script" path="res://scripts/ui/carrot_pill.gd" id="1_pill"]
+
+[node name="CarrotPill" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 268.0
+offset_bottom = 102.0
+mouse_filter = 2
+script = ExtResource("1_pill")

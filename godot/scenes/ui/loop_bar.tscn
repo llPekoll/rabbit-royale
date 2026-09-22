@@ -1,0 +1,18 @@
+[gd_scene format=3]
+
+; LE SOL : DIG ▸ DEFEND ▸ RAID — voir scripts/ui/loop_bar.gd. Tout est
+; construit par le script ; la scene n'est que la porte d'entree du chrome
+; (`Chrome.current.floor_host.add_child(...)`).
+
+[ext_resource type="Script" path="res://scripts/ui/loop_bar.gd" id="1_loop"]
+
+[node name="LoopBar" type="Control"]
+layout_mode = 3
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+script = ExtResource("1_loop")

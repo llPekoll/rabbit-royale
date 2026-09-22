@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3]
+
+; LE PANNEAU D'ENERGIE, le registre (scripts/ui/energy_panel.gd). Construit
+; par le script ; s'ouvre par `EnergyPanel.open()`.
+
+[ext_resource type="Script" path="res://scripts/ui/energy_panel.gd" id="1_panel"]
+
+[node name="EnergyPanel" type="Control"]
+script = ExtResource("1_panel")

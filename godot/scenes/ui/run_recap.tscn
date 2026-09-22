@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3]
+
+; LE RECAP — voir scripts/ui/run_recap.gd. Un Dialog : le parchemin, le
+; titre et le corps sont construits par dialog.gd ; `Chrome.current.open`
+; le pose sur le voile.
+
+[ext_resource type="Script" path="res://scripts/ui/run_recap.gd" id="1_recap"]
+
+[node name="RunRecap" type="Control"]
+layout_mode = 3
+script = ExtResource("1_recap")

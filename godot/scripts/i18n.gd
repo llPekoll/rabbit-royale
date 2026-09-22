@@ -1,21 +1,28 @@
 extends Node
-## THE FOUR LANGUAGES, and the strings the doorstep needs from them.
+## LES QUATRE LANGUES — les dictionnaires du web, lus tels quels.
 ##
-## Ported from src/i18n — same tags, same order, same words. Only the keys this
-## screen actually shows are here; the rest of the dictionaries follow when the
-## screens that read them do.
+## Les mots ne sont PAS retapes ici. `tools/export-godot-i18n.ts` exporte
+## src/i18n/dict/*.ts en assets/i18n/<langue>.json, meme forme, memes cles :
+## `t.shop.title` sur le web est `I18N.t("shop.title")` ici. Une chaine se
+## traduit une fois, dans le TypeScript, dont le compilateur garantit que les
+## quatre langues ont les memes cles ; le JSON en est un artefact commis, pour
+## qu'un checkout frais n'ait pas besoin de bun.
 ##
-## The web client keeps the choice in localStorage so a player who cannot read
-## the interface fixes it once. Godot's equivalent is user:// — same contract.
+## LES FONCTIONS DU WEB SONT DES GABARITS. `t.loop.traps(n)` devient
+## {"$t": "{0} traps", "$v": [{"when": {"0": 1}, "t": "1 trap"}]} : un gabarit
+## rempli par `f()`, et des VARIANTES pour les branches (`n === 1`,
+## `previous ? :`, `held > 0`) que l'export a sondees. `f()` choisit la
+## variante dont les conditions tiennent, sinon le gabarit.
+##
+## Le web garde le choix de langue dans localStorage pour qu'un joueur qui ne
+## sait pas lire l'interface la corrige une fois. user:// est le meme contrat.
 
-## The picker's order, and the flag that does the real work of saying what each
-## entry is. `label` is the language's own name: "Français", never "French".
-## `pixel_face` is the one fact that decides how a language is DRAWN. The
-## arcade-kit's face is generated from an 8x8 atlas covering printable ASCII
-## 32-126, so an "é", an "ã" and every sinogram come out as a mismatched
-## fallback glyph mid-word. `false` sends that whole language to a face that
-## has its alphabet. Only English is true, and that is unlikely to change:
-## accents alone already leave the atlas.
+## L'ordre du selecteur, et le drapeau qui fait le vrai travail de dire ce
+## qu'est chaque entree. `label` est le nom de la langue dans sa langue.
+## `pixel_face` est le SEUL fait qui decide comment une langue est DESSINEE :
+## la face pixel du kit couvre l'ASCII imprimable, donc un « é » ou un
+## sinogramme en sort en glyphe de secours au milieu d'un mot. `false` envoie
+## toute la langue vers une face qui a son alphabet. Seul l'anglais est `true`.
 const LOCALES: Array[Dictionary] = [
 	{"code": "en", "label": "English", "flag": "🇬🇧", "pixel_face": true},
 	{"code": "fr", "label": "Français", "flag": "🇫🇷", "pixel_face": false},
@@ -24,175 +31,120 @@ const LOCALES: Array[Dictionary] = [
 ]
 
 const DEFAULT_LOCALE := "en"
-
 const SAVE_PATH := "user://locale.cfg"
+const DICT_DIR := "res://assets/i18n/"
 
-## Fires when the language changes, so every label on screen can rewrite itself
-## without the picker having to know who they are.
+## PRELOAD, pour la meme raison que les planches (plank_button.gd) : un
+## `load()` d'un chemin n'est pas vu par l'exportateur, et les dictionnaires
+## manqueraient a l'APK.
+const DICT_FILES := {
+	"en": preload("res://assets/i18n/en.json"),
+	"fr": preload("res://assets/i18n/fr.json"),
+	"zh": preload("res://assets/i18n/zh.json"),
+	"pt-BR": preload("res://assets/i18n/pt-BR.json"),
+}
+
+## CE QUE LE WEB N'A PAS A DIRE. Un client natif a ses propres phrases —
+## celles d'un reseau absent, que le navigateur montre a sa maniere. Elles
+## vivent ici, sous une cle SANS point, pour ne pas se confondre avec le
+## dictionnaire exporte.
+const NATIVE := {
+	"en": {"err_offline": "CANNOT REACH THE ISLAND"},
+	"fr": {"err_offline": "L'île est injoignable"},
+	"zh": {"err_offline": "无法连接到岛屿"},
+	"pt-BR": {"err_offline": "A ilha está inacessível"},
+}
+
+## Fire quand la langue change, pour que chaque label se reecrive sans que le
+## selecteur ait a savoir qui ils sont.
 signal locale_changed(code: String)
 
 var locale: String = DEFAULT_LOCALE
 
-const DICT := {
-	"en": {
-		"connect": "CONNECT WALLET",
-		"guest": "PLAY AS A GUEST",
-		"connecting": "DIGGING IN...",
-		"subtitle": "The Cursed Crown",
-		"lang_label": "Language",
-		"no_wallet": "NO WALLET ON THIS DEVICE",
-		"err_offline": "CANNOT REACH THE ISLAND",
-		"err_signature": "SIGNATURE REFUSED",
-		"err_wallet_taken": "THAT WALLET ALREADY HAS A BURROW",
-		"err_wallet_taken_by": "THAT WALLET ALREADY DIGS AS %s",
-		"err_already_linked": "THIS BURROW ALREADY HAS A WALLET",
-		"sign_out": "SIGN OUT",
-		"tips": [
-			"THE NUMBER ON A TILE COUNTS THE BOMBS TOUCHING IT",
-			"DIGGING COSTS 1 ENERGY - A BOMB COSTS 30",
-			"MARK A BOMB WITH A RED X: RIGHT PAYS ENERGY BACK, WRONG COSTS 15",
-			"WALKING BACK OVER TILES YOU ALREADY DUG IS FREE",
-			"EVERY CHEST YOU OPEN GOES HOME WITH YOU",
-			"THE ISLAND IS THE CLOCK - DIG IT OUT AND IT SINKS",
-			"CARROTS ARE THE SCORE - THE RED X IS THE ONLY PUMP",
-		],
-		"taglines": [
-			"EVERY STEP COULD BE YOUR LAST... OR YOUR FORTUNE",
-			"CROSS THE ISLAND, CLAIM THE GOLD, OR DIE TRYING",
-			"THE BRAVE HOP FURTHER - THE LUCKY HOP HOME",
-			"STEP BY STEP, THE ISLAND TAKES OR THE ISLAND GIVES",
-			"ONLY THE BOLD SURVIVE - ONLY THE WISE CASH OUT",
-		],
-	},
-	"fr": {
-		"connect": "Connecter un portefeuille",
-		"guest": "Jouer en invité",
-		"connecting": "On creuse...",
-		"subtitle": "La Couronne Maudite",
-		"lang_label": "Langue",
-		"no_wallet": "Aucun portefeuille sur cet appareil",
-		"err_offline": "L'île est injoignable",
-		"err_signature": "Signature refusée",
-		"err_wallet_taken": "Ce portefeuille a déjà un terrier",
-		"err_wallet_taken_by": "Ce portefeuille creuse déjà sous le nom de %s",
-		"err_already_linked": "Ce terrier a déjà un portefeuille",
-		"sign_out": "Se déconnecter",
-		"tips": [
-			"LE NUMÉRO SUR UNE CASE COMPTE LES BOMBES QUI LA TOUCHENT",
-			"CREUSER COÛTE 1 D’ÉNERGIE - UNE BOMBE EN COÛTE 30",
-			"MARQUE UNE BOMBE D’UN X ROUGE : JUSTE, ÇA REND DE L’ÉNERGIE ; FAUX, ÇA COÛTE 15",
-			"REPASSER SUR LES CASES DÉJÀ CREUSÉES EST GRATUIT",
-			"CHAQUE COFFRE OUVERT RENTRE AVEC TOI",
-			"L’ÎLE EST LE CHRONO - VIDE-LA ET ELLE COULE",
-			"LES CAROTTES SONT LE SCORE - LE X ROUGE EST LA SEULE POMPE",
-		],
-		"taglines": [
-			"CHAQUE PAS PEUT ÊTRE LE DERNIER... OU TA FORTUNE",
-			"TRAVERSE L'ÎLE, PRENDS L'OR, OU MEURS EN ESSAYANT",
-			"LES BRAVES VONT PLUS LOIN - LES CHANCEUX RENTRENT",
-			"PAS À PAS, L'ÎLE PREND OU L'ÎLE DONNE",
-			"SEULS LES AUDACIEUX SURVIVENT - SEULS LES SAGES S'ARRÊTENT",
-		],
-	},
-	"zh": {
-		"connect": "连接钱包",
-		"guest": "以访客身份游玩",
-		"connecting": "正在挖入...",
-		"subtitle": "诅咒之冠",
-		"lang_label": "语言",
-		"no_wallet": "此设备上没有钱包",
-		"err_offline": "无法连接到岛屿",
-		"err_signature": "签名被拒绝",
-		"err_wallet_taken": "该钱包已拥有一个地洞",
-		"err_wallet_taken_by": "该钱包已以 %s 的身份挖掘",
-		"err_already_linked": "此地洞已绑定钱包",
-		"sign_out": "退出登录",
-		"tips": [
-			"方块上的数字表示与它相邻的炸弹数量",
-			"挖掘消耗 1 点能量 - 踩到炸弹消耗 30 点",
-			"用红叉标记炸弹：标对返还能量，标错扣 15 点",
-			"走回已经挖开的方块不消耗能量",
-			"你打开的每个宝箱都会带回家",
-			"岛屿就是计时器 - 挖空它，它就会沉没",
-			"胡萝卜是分数 - 红叉是唯一的能量来源",
-		],
-		"taglines": [
-			"每一步都可能是最后一步...或者是你的财富",
-			"穿过这座岛，夺走黄金，否则死在路上",
-			"勇者走得更远 - 幸运者活着回家",
-			"一步一步，岛屿或取走，或给予",
-			"只有大胆者活下来 - 只有明智者收手",
-		],
-	},
-	"pt-BR": {
-		"connect": "Conectar carteira",
-		"guest": "Jogar como convidado",
-		"connecting": "Cavando...",
-		"subtitle": "A Coroa Maldita",
-		"lang_label": "Idioma",
-		"no_wallet": "Nenhuma carteira neste aparelho",
-		"err_offline": "A ilha está inacessível",
-		"err_signature": "Assinatura recusada",
-		"err_wallet_taken": "Essa carteira já tem uma toca",
-		"err_wallet_taken_by": "Essa carteira já cava como %s",
-		"err_already_linked": "Esta toca já tem uma carteira",
-		"sign_out": "Sair",
-		"tips": [
-			"O NÚMERO NUM BLOCO CONTA AS BOMBAS QUE O TOCAM",
-			"CAVAR CUSTA 1 DE ENERGIA - UMA BOMBA CUSTA 30",
-			"MARQUE UMA BOMBA COM UM X VERMELHO: CERTO DEVOLVE ENERGIA, ERRADO CUSTA 15",
-			"ANDAR DE VOLTA POR BLOCOS JÁ CAVADOS É DE GRAÇA",
-			"CADA BAÚ QUE VOCÊ ABRE VAI PARA CASA COM VOCÊ",
-			"A ILHA É O RELÓGIO - CAVE TUDO E ELA AFUNDA",
-			"AS CENOURAS SÃO A PONTUAÇÃO - O X VERMELHO É A ÚNICA BOMBA DE ENERGIA",
-		],
-		"taglines": [
-			"CADA PASSO PODE SER O ÚLTIMO... OU SUA FORTUNA",
-			"ATRAVESSE A ILHA, PEGUE O OURO, OU MORRA TENTANDO",
-			"OS BRAVOS VÃO MAIS LONGE - OS SORTUDOS VOLTAM",
-			"PASSO A PASSO, A ILHA TIRA OU A ILHA DÁ",
-			"SÓ OS OUSADOS SOBREVIVEM - SÓ OS SÁBIOS PARAM",
-		],
-	},
-}
+var _dicts: Dictionary = {}
+var _face_cache: Dictionary = {}
+## La face du theme du projet telle qu'elle est livree — la pixel. Gardee pour
+## y revenir quand l'anglais reprend.
+var _pixel_font: Font = null
 
 
 func _ready() -> void:
+	for code in DICT_FILES:
+		_dicts[code] = (DICT_FILES[code] as JSON).data
 	locale = _load_saved()
+	_apply_theme_face()
 
 
-## One string, in the language now showing.
-func t(key: String) -> String:
-	var dict: Dictionary = DICT.get(locale, DICT[DEFAULT_LOCALE])
-	return dict.get(key, DICT[DEFAULT_LOCALE].get(key, key))
+## UNE CHAINE, dans la langue affichee. `path` est le chemin du web, points
+## compris : "shop.title", "quests.break-ground.line", "islands.Meadow".
+## Un gabarit sans argument (`ask: () => 'Finish a run.'`) se lit aussi ici.
+func t(path: String) -> String:
+	var node: Variant = _lookup(path)
+	if node is String:
+		return node
+	if node is Dictionary and (node as Dictionary).has("$t"):
+		return _fill(String(node["$t"]), [])
+	return path
+
+
+## UNE CHAINE A TROUS. `f("loop.traps", [3])` -> "3 traps",
+## `f("loop.traps", [1])` -> "1 trap". Les arguments sont dans l'ordre de la
+## fonction du web, et un `null` vaut pour ce que le web passe comme null.
+func f(path: String, args: Array) -> String:
+	var node: Variant = _lookup(path)
+	if node is String:
+		return _fill(node, args)
+	if node is Dictionary and (node as Dictionary).has("$t"):
+		return _fill(_pick(node, args), args)
+	return path
+
+
+## Une liste de chaines : "doorstepTips", "taglines", "install.steps.ios",
+## "lore.the-island.body".
+func list(path: String) -> Array:
+	var node: Variant = _lookup(path)
+	return node if node is Array else []
+
+
+## Une table : "items", "lore", "quests", "islands", "avatars" — pour qui
+## veut iterer les cles plutot que les nommer.
+func table(path: String) -> Dictionary:
+	var node: Variant = _lookup(path)
+	return node if node is Dictionary else {}
+
+
+## Le nom d'une ile, traduit s'il l'est, tel quel sinon (content.ts).
+func island_name(name: String) -> String:
+	var found: Variant = _lookup("islands." + name)
+	return found if found is String else name
+
+
+## EN MAJUSCULES SEULEMENT LA OU LE WEB LE FAIT : la face pixel du kit n'a pas
+## de bas-de-casse, donc les libelles anglais s'ecrivent en capitales. Les
+## autres langues tombent sur une face a deux casses et gardent leur casse —
+## crier sur un joueur francais n'est pas la traduction d'une limite d'atlas.
+func shout(text: String) -> String:
+	return text.to_upper() if pixel_face() else text
 
 
 ## CE QUE LA PLANCHE DU BAS-DROIT AFFICHE : les conseils de jeu, pas les
-## slogans.
-##
-## Le doorstep du web lit `doorstepTips`, pas `taglines` — et la distinction
-## est délibérée là-bas : un joueur devant l'écran de connexion n'a pas besoin
-## qu'on lui vende l'ambiance, il a besoin de savoir qu'un chiffre compte les
-## bombes voisines. Les slogans restent plus bas dans ce fichier parce que le
-## ruban Pixi de l'île les utilise, et cet écran-là viendra.
+## slogans (`doorstepTips`, pas `taglines` — la distinction est deliberee sur
+## le web : un joueur devant l'ecran de connexion n'a pas besoin qu'on lui
+## vende l'ambiance).
 func taglines() -> Array:
-	return t_list("tips")
-
-
-func t_list(key: String) -> Array:
-	var dict: Dictionary = DICT.get(locale, DICT[DEFAULT_LOCALE])
-	return dict.get(key, DICT[DEFAULT_LOCALE].get(key, []))
+	return list("doorstepTips")
 
 
 func set_locale(code: String) -> void:
-	if code == locale or not DICT.has(code):
+	if code == locale or not _dicts.has(code):
 		return
 	locale = code
 	_save(code)
+	_apply_theme_face()
 	locale_changed.emit(code)
 
 
-## Can the kit's ASCII bitmap face draw the language now showing?
+## La face pixel du kit sait-elle dessiner la langue affichee ?
 func pixel_face() -> bool:
 	for entry in LOCALES:
 		if entry["code"] == locale:
@@ -200,7 +152,7 @@ func pixel_face() -> bool:
 	return true
 
 
-## Which entry in LOCALES a code sits at — what the OptionButton selects on.
+## L'entree de LOCALES ou se trouve un code.
 func locale_index(code: String) -> int:
 	for i in LOCALES.size():
 		if LOCALES[i]["code"] == code:
@@ -208,24 +160,226 @@ func locale_index(code: String) -> int:
 	return 0
 
 
-## A saved choice, or the system's language, or English.
+# ── Les nombres et les durees, portes de src/i18n/format.ts ─────────────────
+
+## 12 345 -> "12 345". Des ESPACES, pas des virgules, dans toutes les langues :
+## le web groupe a la main pour que la sortie soit deterministe.
+func group_digits(n: float) -> String:
+	var digits := str(int(round(absf(n))))
+	var out := ""
+	for i in digits.length():
+		if i > 0 and (digits.length() - i) % 3 == 0:
+			out += " "
+		out += digits[i]
+	return ("-" if n < 0 else "") + out
+
+
+## Une attente a l'arrondi superieur : "4m", "1h 12m", "3h".
+func wait(ms: float) -> String:
+	var mins := int(ceil(maxf(0.0, ms) / 60000.0))
+	if mins < 60:
+		return "%d%s" % [mins, t("units.m")]
+	var h := mins / 60
+	var rest := mins % 60
+	if rest > 0:
+		return "%d%s %d%s" % [h, t("units.h"), rest, t("units.m")]
+	return "%d%s" % [h, t("units.h")]
+
+
+## La meme, en un seul mot : "4m", "3h", "2d".
+func short_wait(ms: float) -> String:
+	var mins := maxi(1, int(round(maxf(0.0, ms) / 60000.0)))
+	if mins < 60:
+		return "%d%s" % [mins, t("units.m")]
+	var hrs := int(round(mins / 60.0))
+	if hrs < 48:
+		return "%d%s" % [hrs, t("units.h")]
+	return "%d%s" % [int(round(hrs / 24.0)), t("units.d")]
+
+
+## La duree d'une run : "48s", "2m 05s" -> le web ecrit "2m 5s".
+func run_time(ms: float) -> String:
+	var total := int(round(maxf(0.0, ms) / 1000.0))
+	if total < 60:
+		return "%d%s" % [total, t("units.s")]
+	return "%d%s %d%s" % [total / 60, t("units.m"), total % 60, t("units.s")]
+
+
+## Un ecart abrege : 9 999 tel quel, puis "12.5k", "1.2M".
+func short_gap(n: float) -> String:
+	var v := maxf(0.0, ceil(n))
+	if v < 10000.0:
+		return group_digits(v)
+	if v < 1000000.0:
+		var s := ("%.1f" % (v / 1000.0)) if v < 100000.0 else ("%.0f" % (v / 1000.0))
+		return s.trim_suffix(".0") + "k"
+	return ("%.1f" % (v / 1000000.0)).trim_suffix(".0") + "M"
+
+
+# ── La face de la langue ─────────────────────────────────────────────────────
+
+## LA FACE D'UNE LANGUE QUE LE KIT NE SAIT PAS DESSINER, demandee a la
+## PLATEFORME plutot qu'embarquee. `null` pour l'anglais : la face pixel du
+## theme suffit.
 ##
-## Falls back rather than guessing hard: a player who lands in the wrong
-## language fixes it in one tap on this very screen, and a wrong guess that
-## looks deliberate is worse than the default.
+## La face de secours de Godot est latine — le chinois sortait en tofu — et
+## aucune fonte CJK n'est assez petite pour etre livree avec un ecran. Chaque
+## machine en a deja une, donc on nomme les faces du systeme comme le fait la
+## pile `--font-fallback` du web : les pixelisees d'abord, puis les grandes
+## faces systeme qui portent vraiment les sinogrammes.
+##
+## UN NOM QUI REPOND N'EST PAS UNE FACE QUI MARCHE. `OS.get_system_font_path`
+## rend volontiers le PingFang d'un framework prive de macOS et
+## `load_dynamic_font` dit OK dessus, mais la face ne charge jamais et tous les
+## labels sortent VIDES. On demande donc a la candidate si elle sait dessiner
+## l'ecriture de la langue, et seul un oui compte.
+func face() -> Font:
+	if pixel_face():
+		return null
+	if _face_cache.has(locale):
+		return _face_cache[locale]
+
+	var probe: String = "岛" if locale == "zh" else "é"
+	var code := probe.unicode_at(0)
+
+	var chosen: Font = ThemeDB.fallback_font
+	for name in ["Zpix", "Silkscreen", "DotGothic16", "Hiragino Sans GB",
+			"Microsoft YaHei", "Noto Sans CJK SC", "PingFang SC", "Arial Unicode MS"]:
+		var path := OS.get_system_font_path(name)
+		if path.is_empty():
+			continue
+		var file := FontFile.new()
+		if file.load_dynamic_font(path) != OK:
+			continue
+		if not file.has_char(code):
+			continue
+		chosen = file
+		break
+
+	_face_cache[locale] = chosen
+	return chosen
+
+
+## LA FACE VA DANS LE THEME DU PROJET, pas noeud par noeud.
+##
+## Chaque Control lit `default_font` du theme du projet ; le changer ici
+## repeint tous les labels de l'arbre d'un coup, ceux d'aujourd'hui comme
+## ceux que les dialogues ajouteront. Un override par noeud (la premiere
+## version, dans title.gd) devait connaitre chaque label, et en oubliait un
+## a chaque ecran nouveau.
+func _apply_theme_face() -> void:
+	var theme := ThemeDB.get_project_theme()
+	if theme == null:
+		return
+	if _pixel_font == null:
+		_pixel_font = theme.default_font
+	var wanted := face()
+	theme.default_font = _pixel_font if wanted == null else wanted
+
+
+## Pour les noeuds qui portent DEJA un override (l'accueil) : `null` le
+## retire et laisse revenir la face du theme.
+func apply_face(nodes: Array) -> void:
+	for node in nodes:
+		if node is Control:
+			(node as Control).remove_theme_font_override("font")
+
+
+# ── La mecanique ─────────────────────────────────────────────────────────────
+
+## Le noeud a un chemin, dans la langue affichee puis en anglais. Une cle
+## native (sans point) est cherchee d'abord dans NATIVE.
+func _lookup(path: String) -> Variant:
+	if not path.contains(".") and NATIVE[locale].has(path):
+		return NATIVE[locale][path]
+	var found: Variant = _walk(_dicts.get(locale, {}), path)
+	if found == null and locale != DEFAULT_LOCALE:
+		found = _walk(_dicts.get(DEFAULT_LOCALE, {}), path)
+	return found
+
+
+func _walk(root: Variant, path: String) -> Variant:
+	var node: Variant = root
+	for part in path.split("."):
+		if node is Dictionary and (node as Dictionary).has(part):
+			node = node[part]
+		else:
+			return null
+	return node
+
+
+## LA VARIANTE QUI CONVIENT. Chaque condition de `when` nomme un argument et
+## la valeur qui l'a produite : 1 pour le singulier, 0 pour le « rien »
+## (que le web ecrit aussi null ou ""), null pour un null explicite. La
+## variante la plus precise qui tient l'emporte ; sinon, le gabarit.
+func _pick(node: Dictionary, args: Array) -> String:
+	var best := String(node["$t"])
+	var best_score := 0
+	for variant in node.get("$v", []):
+		var when: Dictionary = variant["when"]
+		var ok := true
+		for key in when:
+			var i := int(key)
+			var have: Variant = args[i] if i < args.size() else null
+			if not _matches(when[key], have):
+				ok = false
+				break
+		if ok and when.size() > best_score:
+			best = String(variant["t"])
+			best_score = when.size()
+	return best
+
+
+func _matches(wanted: Variant, have: Variant) -> bool:
+	if wanted == null:
+		return have == null
+	var w := float(wanted)
+	if w == 0.0:
+		# Le zero du web est aussi son null, son "" et son false.
+		return have == null or (have is String and (have as String).is_empty()) \
+			or (have is bool and not have) \
+			or ((have is int or have is float) and float(have) == 0.0)
+	return (have is int or have is float) and float(have) == w
+
+
+## Remplit "{0}", "{1}" — et "{0-1}", que l'export ecrit la ou le web
+## soustrait un a l'argument (`#${rank - 1}`).
+func _fill(template: String, args: Array) -> String:
+	var out := template
+	for i in args.size():
+		var v: Variant = args[i]
+		out = out.replace("{%d-1}" % i, _show(v, -1))
+		out = out.replace("{%d}" % i, _show(v, 0))
+	return out
+
+
+func _show(v: Variant, delta: int) -> String:
+	if v == null:
+		return ""
+	if v is int:
+		return str(v + delta)
+	if v is float:
+		var fv: float = v
+		if fv == floor(fv):
+			return str(int(fv) + delta)
+		return str(fv)
+	return str(v)
+
+
+## Un choix sauve, ou la langue du systeme, ou l'anglais.
 func _load_saved() -> String:
 	var cfg := ConfigFile.new()
 	if cfg.load(SAVE_PATH) == OK:
 		var saved: String = cfg.get_value("i18n", "locale", "")
-		if DICT.has(saved):
+		if _dicts.has(saved):
 			return saved
 	return _match_system()
 
 
-## The exact tag first ("pt-BR"), then the bare language ("pt" -> "pt-BR",
-## "zh-Hans" -> "zh") — which is what a platform actually reports.
+## Le tag exact d'abord ("pt-BR"), puis la langue nue ("pt" -> "pt-BR",
+## "zh-Hans" -> "zh") — ce qu'une plateforme rapporte vraiment.
 func _match_system() -> String:
-	var tag := OS.get_locale()
+	var tag := OS.get_locale().replace("_", "-")
 	for entry in LOCALES:
 		if String(entry["code"]).to_lower() == tag.to_lower():
 			return entry["code"]

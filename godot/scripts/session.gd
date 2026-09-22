@@ -223,16 +223,16 @@ func _explain(reason: String, body: Dictionary = {}) -> String:
 		"offline":
 			return I18N.t("err_offline")
 		"invalid signature", "invalid_signature":
-			return I18N.t("err_signature")
+			return I18N.t("auth.signInFailed")
 		"wallet_taken":
 			var holder := String(body.get("takenBy", ""))
 			# The refusal ends somewhere the player can go: they just proved
 			# they own this wallet, so naming the burrow it belongs to reveals
 			# nothing that is not already theirs.
-			return I18N.t("err_wallet_taken_by") % holder if not holder.is_empty() \
-				else I18N.t("err_wallet_taken")
+			return I18N.f("auth.walletDigsFor", [holder]) if not holder.is_empty() \
+				else I18N.t("auth.walletTaken")
 		"already_linked":
-			return I18N.t("err_already_linked")
+			return I18N.t("auth.alreadyLinked")
 		_:
 			return reason
 
