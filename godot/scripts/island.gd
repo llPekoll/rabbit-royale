@@ -47,6 +47,8 @@ const DEFAULT_SEED := "default"
 
 var _seed := DEFAULT_SEED
 var _cam_tween: Tween
+## Provisoire : la porte vers le terrier, le temps qu'une manche se termine.
+var _back: PlankButton
 
 ## LE JOUEUR A-T-IL PRIS LE PLATEAU EN MAIN ? Meme drapeau que le terrier, et
 ## pour la meme raison : on ne recadre pas sous quelqu'un qui regarde un coin.
@@ -62,6 +64,33 @@ func _ready() -> void:
 	show_ground(_seed)
 	get_viewport().size_changed.connect(_reframe)
 	frame_camera(true)
+	_add_chrome()
+
+
+## LA PORTE DE RETOUR VERS LE TERRIER.
+##
+## Provisoire, comme celle qui mene ici depuis le terrier : dans le jeu on
+## quitte l'ile parce qu'une manche se termine ou qu'elle erupte, pas en
+## appuyant sur un bouton. Mais sans elle la traversee est a sens unique, et
+## une traversee a sens unique ne prouve rien — c'est le RETOUR qui montre que
+## le terrier a survecu a la bascule sans etre reconstruit.
+##
+## DANS UN CanvasLayer, comme au terrier et pour la meme raison : l'ile est un
+## Node2D qu'on met a l'echelle pour cadrer le sol, et un bouton accroche
+## dedans retrecirait avec lui. Le layer est POSITIF, contrairement a celui de
+## la mer (-100) : le chrome est au-dessus du monde, la mer dessous.
+func _add_chrome() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 10
+	add_child(layer)
+
+	_back = preload("res://scenes/plank_button.tscn").instantiate()
+	_back.custom_minimum_size = Vector2(220, 44)
+	_back.size = Vector2(220, 44)
+	_back.position = Vector2(12, 12)
+	_back.relabel("← TERRIER")
+	_back.pressed.connect(func() -> void: Screens.show_place(Screens.Place.BURROW))
+	layer.add_child(_back)
 
 
 ## LE SOL D'UNE ILE DONNEE.

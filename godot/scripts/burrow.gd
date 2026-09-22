@@ -41,6 +41,8 @@ var _seed := 1
 var _quit: PlankButton
 ## Provisoire, avec le bouton de cadrage — voir `_add_quit`.
 var _cycle: PlankButton
+## Provisoire aussi : la porte vers l'ile, le temps qu'une manche s'y ouvre.
+var _cross: PlankButton
 var _cam_mode := 0
 
 ## LES TROIS FAITS DONT LA CAMERA SE SERT pour choisir sa prise. Ils viendront
@@ -159,6 +161,25 @@ func _add_quit() -> void:
 	_cycle.relabel("CAM: HOME")
 	_cycle.pressed.connect(_on_cycle)
 	layer.add_child(_cycle)
+
+	# LA TRAVERSEE VERS L'ILE.
+	#
+	# Provisoire comme les deux autres : dans le jeu on part sur l'ile en
+	# choisissant une manche, pas en appuyant sur un bouton de debogage. Mais
+	# sans lui l'ile n'est atteignable que par une scene-sonde, donc rien de ce
+	# qui a ete bati depuis trois commits n'est JOUABLE.
+	#
+	# C'est aussi ce qui prouve la these du portage : les deux lieux sont
+	# construits UNE FOIS et ne meurent jamais (voir screens.gd), donc
+	# traverser ne doit rien recharger. Jusqu'ici c'etait une affirmation ; un
+	# aller-retour sur l'appareil en fait une mesure.
+	_cross = preload("res://scenes/plank_button.tscn").instantiate()
+	_cross.custom_minimum_size = Vector2(220, 44)
+	_cross.size = Vector2(220, 44)
+	_cross.position = Vector2(476, 12)
+	_cross.relabel("→ ILE")
+	_cross.pressed.connect(func() -> void: Screens.show_place(Screens.Place.ISLAND))
+	layer.add_child(_cross)
 
 
 ## Fait tourner les quatre prises, pour les voir sur l'appareil.

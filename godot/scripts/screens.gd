@@ -110,6 +110,11 @@ func build_world() -> void:
 		node.set_process(false)
 		node.set_process_input(false)
 		_world_host.add_child(node)
+		# APRES `add_child`, parce que les CanvasLayer d'un lieu naissent dans
+		# son `_ready` : eteints avant, ils n'existent pas encore et le lieu
+		# cache repeindrait son chrome des la premiere image. Meme raison qu'en
+		# traversee, voir `_show_layers`.
+		_show_layers(node, false)
 		_built[id] = node
 
 
@@ -139,6 +144,20 @@ func show_place(id: Place) -> void:
 		# dire, sinon GDScript refuse d'inferer le booleen.
 		var here: bool = other == id
 		node.visible = here
+		# LES CanvasLayer D'UN LIEU NE SUIVENT PAS SA VISIBILITE, et c'est le
+		# piege que la premiere traversee sur le Seeker a montre d'un coup :
+		# `visible = false` sur un Node2D cache ses enfants Node2D, mais un
+		# CanvasLayer n'est PAS dans cet arbre de rendu — il a le sien.
+		#
+		# Resultat sur l'appareil : le bouton « ← TERRIER » de l'ile restait
+		# affiche par-dessus le terrier, et la mer de l'ile (elle aussi dans un
+		# CanvasLayer, a -100) se voyait derriere lui. Deux lieux superposes,
+		# chacun montrant la moitie de l'autre.
+		#
+		# On les eteint donc explicitement. Recursif : un lieu peut en porter
+		# plusieurs a des profondeurs differentes (l'ile a sa mer sous le monde
+		# et son chrome au-dessus).
+		_show_layers(node, here)
 		# Le lieu qu'on quitte cesse de tourner : sans ca, deux terrains
 		# animent leurs nuages et leurs oiseaux en permanence, pour que l'un
 		# des deux ne soit jamais regarde.
@@ -158,6 +177,18 @@ func here() -> Node:
 
 func at(id: Place) -> Node:
 	return _built.get(id, null)
+
+
+## ETEINT OU RALLUME LES CanvasLayer D'UN LIEU, en profondeur.
+##
+## Un CanvasLayer dessine dans son propre arbre : la visibilite du Node2D qui
+## le porte ne l'atteint pas. Sans ce parcours, un lieu cache continue de
+## peindre tout ce qu'il a mis dans un layer — son chrome, son ciel, sa mer.
+static func _show_layers(node: Node, shown: bool) -> void:
+	for child in node.get_children():
+		if child is CanvasLayer:
+			(child as CanvasLayer).visible = shown
+		_show_layers(child, shown)
 
 
 func _swap_screen(path: String) -> void:
