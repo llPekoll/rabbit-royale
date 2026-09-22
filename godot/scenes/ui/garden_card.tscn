@@ -1,0 +1,10 @@
+[gd_scene format=3]
+
+; Voir scripts/ui/garden_card.gd.
+
+[ext_resource type="Script" path="res://scripts/ui/garden_card.gd" id="1_script"]
+
+[node name="GardenCard" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_script")

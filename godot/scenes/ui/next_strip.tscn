@@ -1,0 +1,10 @@
+[gd_scene format=3]
+
+; Voir scripts/ui/next_strip.gd.
+
+[ext_resource type="Script" path="res://scripts/ui/next_strip.gd" id="1_script"]
+
+[node name="NextStrip" type="Button"]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_script")

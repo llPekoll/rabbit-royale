@@ -248,9 +248,9 @@ func _roll_tip() -> void:
 ## Tous les mots de l'ecran, reecrits dans la langue affichee.
 func _apply_language() -> void:
 	_apply_face()
-	_connect.relabel(I18N.t("connect"))
-	_guest.relabel(I18N.t("guest"))
-	_ribbon.text = I18N.t("subtitle").to_upper()
+	_connect.relabel(I18N.shout(I18N.t("auth.connect")))
+	_guest.relabel(I18N.shout(I18N.t("auth.guest")))
+	_ribbon.text = I18N.t("codex.title").to_upper()
 	var here := I18N.LOCALES[I18N.locale_index(I18N.locale)]
 	# Le drapeau voyage DANS le texte : c'est lui qui dit ce qu'est ce bouton,
 	# et il doit survivre a l'etat ferme.
@@ -264,55 +264,9 @@ func _apply_language() -> void:
 ## face du kit : seul un override a ce niveau passe devant. `null` retire
 ## l'override et laisse revenir la face pixel, ce que veut l'anglais.
 func _apply_face() -> void:
-	var face: Font = null if I18N.pixel_face() else _fallback_face()
-	for node in [_connect, _guest, _lang, _ribbon, _status, _tip_text]:
-		if face == null:
-			node.remove_theme_font_override("font")
-		else:
-			node.add_theme_font_override("font", face)
-
-
-## LA FACE D'UNE LANGUE QUE LE KIT NE SAIT PAS DESSINER, demandee a la
-## PLATEFORME plutot qu'embarquee.
-##
-## La face de secours de Godot est latine — le chinois sortait en tofu — et
-## aucune fonte CJK n'est assez petite pour etre livree avec un ecran. Chaque
-## machine en a deja une, donc on nomme les faces du systeme comme le fait la
-## pile `--font-fallback` du web : les pixelisees d'abord, pour garder l'allure
-## du jeu quand elles existent, puis les grandes faces systeme qui portent
-## vraiment les sinogrammes.
-##
-## UN NOM QUI REPOND N'EST PAS UNE FACE QUI MARCHE. `OS.get_system_font_path`
-## rend volontiers le PingFang d'un framework prive de macOS et
-## `load_dynamic_font` dit OK dessus, mais la face ne charge jamais et tous les
-## labels sortent VIDES — pire que le tofu remplace. On demande donc a la
-## candidate si elle sait dessiner l'ecriture de la langue, et seul un oui
-## compte.
-var _face_cache: Dictionary = {}
-
-func _fallback_face() -> Font:
-	if _face_cache.has(I18N.locale):
-		return _face_cache[I18N.locale]
-
-	var probe: String = "岛" if I18N.locale == "zh" else "é"
-	var code := probe.unicode_at(0)
-
-	var chosen: Font = ThemeDB.fallback_font
-	for name in ["Zpix", "Silkscreen", "DotGothic16", "Hiragino Sans GB",
-			"Microsoft YaHei", "Noto Sans CJK SC", "PingFang SC", "Arial Unicode MS"]:
-		var path := OS.get_system_font_path(name)
-		if path.is_empty():
-			continue
-		var file := FontFile.new()
-		if file.load_dynamic_font(path) != OK:
-			continue
-		if not file.has_char(code):
-			continue
-		chosen = file
-		break
-
-	_face_cache[I18N.locale] = chosen
-	return chosen
+	# La face vit dans le theme du projet depuis I18N._apply_theme_face :
+	# il ne reste qu'a retirer l'override que cet ecran posait lui-meme.
+	I18N.apply_face([_connect, _guest, _lang, _ribbon, _status, _tip_text])
 
 
 func _on_locale_changed(_code: String) -> void:
@@ -339,7 +293,7 @@ func _on_connect() -> void:
 	_connect.wiggle()
 
 	if not Wallet.available():
-		_say(I18N.t("no_wallet"), true)
+		_say(I18N.t("auth.noWallet"), true)
 		return
 
 	_busy(true)
@@ -395,14 +349,14 @@ func _on_guest() -> void:
 ## plus jamais.
 func _working(door: PlankButton, busy: bool) -> void:
 	if busy:
-		door.relabel(I18N.t("connecting"))
+		door.relabel(I18N.shout(I18N.t("auth.connecting")))
 		return
 	# Rendu depuis le dictionnaire plutot que memorise : entre-temps la langue
 	# a pu changer, et restaurer l'ancienne chaine la ferait reapparaitre.
 	if door == _connect:
-		door.relabel(I18N.t("connect"))
+		door.relabel(I18N.shout(I18N.t("auth.connect")))
 	elif door == _guest:
-		door.relabel(I18N.t("guest"))
+		door.relabel(I18N.shout(I18N.t("auth.guest")))
 
 
 ## Connecte. Le nom du lapin monte EN HAUT A DROITE, pas dans la colonne.

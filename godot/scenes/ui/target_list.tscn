@@ -1,0 +1,11 @@
+[gd_scene format=3]
+
+; La liste des cibles d'un raid — voir scripts/ui/target_list.gd.
+; A ouvrir par `TargetList.open()` (le chrome le pose sur son voile).
+
+[ext_resource type="Script" path="res://scripts/ui/target_list.gd" id="1_list"]
+
+[node name="TargetList" type="Control"]
+layout_mode = 3
+mouse_filter = 0
+script = ExtResource("1_list")

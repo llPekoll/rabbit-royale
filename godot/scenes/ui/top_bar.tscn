@@ -1,0 +1,16 @@
+[gd_scene format=3]
+
+; LA BARRE DU HAUT — voir scripts/ui/top_bar.gd. Plein cadre dans l'etage
+; TopBar du chrome ; IGNORE au pointeur, ses pieces prennent les leurs.
+
+[ext_resource type="Script" path="res://scripts/ui/top_bar.gd" id="1_top_bar"]
+
+[node name="TopBar" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_top_bar")

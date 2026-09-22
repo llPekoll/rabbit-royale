@@ -1,0 +1,17 @@
+[gd_scene format=3]
+
+; LE TAMPON DE NIVEAU — voir scripts/ui/level_up_stamp.gd.
+; A l'execution : `LevelUpStamp.announce(level)`, ou `LevelUpStamp.arm()` une
+; fois pour que chaque `Home.level_up` en fasse un.
+
+[ext_resource type="Script" path="res://scripts/ui/level_up_stamp.gd" id="1_stamp"]
+
+[node name="LevelUpStamp" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_stamp")

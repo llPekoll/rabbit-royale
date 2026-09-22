@@ -1,0 +1,11 @@
+[gd_scene format=3]
+
+; LE SON : muet, reglages, et le panneau — voir scripts/ui/sound_cluster.gd.
+
+[ext_resource type="Script" path="res://scripts/ui/sound_cluster.gd" id="1_sound"]
+
+[node name="SoundCluster" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+mouse_filter = 2
+script = ExtResource("1_sound")

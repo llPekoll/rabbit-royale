@@ -1,0 +1,10 @@
+[gd_scene format=3]
+
+; Le tableau de saison — voir scripts/ui/season_board.gd. Le cadre, le titre
+; et le [x] sont construits par Dialog dans _init ; la scene ne porte que le
+; script.
+
+[ext_resource type="Script" path="res://scripts/ui/season_board.gd" id="1_board"]
+
+[node name="SeasonBoard" type="Control"]
+script = ExtResource("1_board")

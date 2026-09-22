@@ -1,0 +1,1279 @@
+{
+ "units": {
+  "s": "s",
+  "m": "min",
+  "h": "h",
+  "d": "d"
+ },
+ "meta": {
+  "title": "Rabbit Royale: A Coroa Amaldiçoada",
+  "description": "Campo minado competitivo. Cave, acumule, saqueie, use a coroa."
+ },
+ "lang": {
+  "label": "Idioma"
+ },
+ "auth": {
+  "connect": "Conectar carteira",
+  "connecting": "Cavando...",
+  "guest": "Jogar como convidado",
+  "waiting": "Aguardando...",
+  "guestNote": "Toca de convidado. Conecte uma carteira para mantê-la.",
+  "noWallet": "Nenhuma carteira encontrada. Abra no app Rabbit Royale ou instale uma carteira Solana.",
+  "signInFailed": "Falha ao entrar",
+  "guestFailed": "Não foi possível abrir uma toca de convidado",
+  "walletTaken": "Essa carteira já tem uma toca.",
+  "walletDigsFor": {
+   "$t": "Essa carteira já cava para \"{0}\"."
+  },
+  "alreadyLinked": "Esta toca já tem uma carteira.",
+  "linkFailed": "Não foi possível conectar essa carteira"
+ },
+ "chrome": {
+  "loading": "Carregando",
+  "waking": "Acordando a coelheira",
+  "reconnecting": "Reconectando...",
+  "back": "Voltar",
+  "close": "Fechar",
+  "shop": "Loja",
+  "story": "História",
+  "season": "TEMPORADA",
+  "logoAlt": "Rabbit Royale",
+  "rotateTitle": "Vire o celular de lado",
+  "rotateBody": "Rabbit Royale se joga na horizontal."
+ },
+ "install": {
+  "title": {
+   "ios": "Tela de Início",
+   "macSafari": "Adicionar ao Dock",
+   "chromiumDesktop": "Instalar o app",
+   "androidChromium": "Tela inicial"
+  },
+  "line": {
+   "ios": "Tela cheia, sem barra do navegador, a um toque da sua Tela de Início.",
+   "macSafari": "Rabbit Royale na própria janela, direto do seu Dock.",
+   "chromiumDesktop": "Rabbit Royale na própria janela, a um clique do seu dock.",
+   "androidChromium": "Tela cheia, sem barra do navegador, a um toque da sua tela inicial."
+  },
+  "steps": {
+   "ios": [
+    "Toque no botão Compartilhar (no Safari fica na barra de baixo; no Chrome, na barra de endereço).",
+    "Role a lista e toque em Adicionar à Tela de Início.",
+    "Toque em Adicionar. Rabbit Royale abre em tela cheia pela Tela de Início."
+   ],
+   "macSafari": [
+    "Na barra de menus, escolha Arquivo > Adicionar ao Dock (ou Compartilhar > Adicionar ao Dock).",
+    "Clique em Adicionar. Rabbit Royale abre na própria janela pelo Dock.",
+    "Precisa do Safari 17 ou mais recente."
+   ],
+   "prompt": [
+    "Toque em Instalar abaixo e confirme na janela do navegador."
+   ],
+   "chromiumDesktop": [
+    "Clique no ícone de instalação no fim da barra de endereço, ou abra o menu do navegador > Transmitir, salvar e compartilhar > Instalar página como app.",
+    "Confirme com Instalar.",
+    "Já instalado? O ícone mostra Abrir no app."
+   ],
+   "androidChromium": [
+    "Abra o menu do navegador (os três pontos) e toque em Adicionar à tela inicial.",
+    "Toque em Instalar. Rabbit Royale abre em tela cheia pela tela inicial."
+   ]
+  },
+  "install": "Instalar",
+  "installing": "Instalando...",
+  "showMe": "Mostrar como",
+  "gotIt": "Entendi",
+  "close": "Fechar",
+  "app": "App"
+ },
+ "sound": {
+  "group": "Som",
+  "music": "Música",
+  "effects": "Efeitos",
+  "volume": "Volume",
+  "on": "SIM",
+  "off": "NÃO",
+  "settings": "Ajustes de som",
+  "mute": "Silenciar música",
+  "unmute": "Religar música",
+  "musicOn": "Música ligada",
+  "musicOff": "Música desligada"
+ },
+ "loop": {
+  "dig": "CAVAR",
+  "defend": "DEFENDER",
+  "raid": "SAQUEAR",
+  "broughtHome": "trazidas",
+  "ariaGroup": "Cavar, toca, saquear",
+  "ariaDig": {
+   "$t": "Cavar. {0}"
+  },
+  "ariaDefend": {
+   "$t": "Defender: enterrar armadilhas. {0}"
+  },
+  "ariaRaid": {
+   "$t": "Saquear. {0}"
+  },
+  "energyOf": {
+   "$t": "{0}/{1} de energia"
+  },
+  "runCosts": {
+   "$t": "a travessia custa {0}"
+  },
+  "runIn": {
+   "$t": "saída em {0}"
+  },
+  "raidNeeds": {
+   "$t": "Um saque pede {0} de energia. {1} agora, o bastante em {2}."
+  },
+  "aMoment": "um instante",
+  "gardenPlus": {
+   "$t": "horta +{0}"
+  },
+  "gardenEmpty": "horta vazia",
+  "shieldFor": {
+   "$t": "escudo {0}"
+  },
+  "shieldBadge": {
+   "$t": "Escudo {0}"
+  },
+  "noShield": "sem escudo",
+  "traps": {
+   "$t": "{0} armadilhas",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "1 armadilha"
+    }
+   ]
+  },
+  "leftOutside": {
+   "$t": "{0} deixou {1} lá fora"
+  },
+  "burrowsOpen": {
+   "$t": "{0} tocas abertas",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "1 toca aberta"
+    }
+   ]
+  },
+  "bombsInBag": {
+   "$t": "{0} bombas na bolsa",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "1 bomba na bolsa"
+    }
+   ]
+  },
+  "allShielded": "todas as tocas com escudo"
+ },
+ "next": {
+  "label": "AGORA",
+  "aria": {
+   "$t": "Agora: {0}"
+  },
+  "gardenFull": "Horta quase cheia. Recolha antes que um saqueador recolha.",
+  "shieldLifts": {
+   "$t": "Escudo cai em {0}. Enterre armadilhas."
+  },
+  "raidTarget": {
+   "$t": "{0} deixou {1} na horta. Saqueie."
+  },
+  "dig": {
+   "$t": "{0} de energia: dá uma saída. Cave."
+  },
+  "digPlain": "Cave.",
+  "runIn": {
+   "$t": "Uma saída em {0}. A horta cresce enquanto isso."
+  }
+ },
+ "burrow": {
+  "title": "SUA TOCA",
+  "level": {
+   "$t": "TOCA NÍV {0}"
+  },
+  "maxLevel": "NÍVEL MÁXIMO",
+  "upgrade": "CAVAR MAIS",
+  "safe": "A SALVO",
+  "exposed": {
+   "$t": "{0} EXPOSTAS"
+  },
+  "garden": "HORTA",
+  "harvest": "COLHER",
+  "energy": "ENERGIA",
+  "gardenGrows": "A HORTA CRESCE MAIS RÁPIDO"
+ },
+ "notes": {
+  "shieldUp": "Escudo de pé. Saques ricocheteiam.",
+  "watered": "Regada. A horta enche mais rápido.",
+  "fed": "Adubada. A horta segura mais.",
+  "gardenEmpty": "A horta está vazia. Volte mais tarde.",
+  "maxDepth": "Sua toca já está no fundo.",
+  "shieldAlready": "Já tem um escudo de pé.",
+  "noneLeft": "Acabou. Baús soltam desses.",
+  "toppedUp": "Já está cheio. Guarde para depois.",
+  "islandSilent": "A ilha não respondeu. Tente de novo daqui a pouco.",
+  "runResumed": "De volta à sua partida.",
+  "reconnecting": "Reconectando... tente daqui a pouco.",
+  "harvested": {
+   "$t": "+{0} 🥕"
+  },
+  "needMore": {
+   "$t": "Faltam {0} 🥕"
+  },
+  "questDone": {
+   "$t": "Missão concluída: {0}"
+  }
+ },
+ "run": {
+  "goFarm": "Limpar todas as minas",
+  "findMe": "Achar meu coelho",
+  "retreat": "Recuar",
+  "home": "Toca",
+  "stopWatching": "Parar de assistir",
+  "theirRun": "a saída deles",
+  "chests": {
+   "$t": "{0}/{1} baús"
+  },
+  "chestsTitle": "Baús pegos nesta ilha — por todos nela. Pegue todos e ela afunda.",
+  "watching": {
+   "$t": "👁 assistindo {0}"
+  },
+  "energy": {
+   "$t": "{0} de {1} de energia"
+  },
+  "markBomb": "Marcar uma bomba",
+  "markHint": "Toque na casa onde você acha que há uma bomba · certo: +energia · errado: -energia",
+  "markCancel": "Cancelar",
+  "markNothing": "Nada para marcar aqui: todas as casas ao seu redor já foram lidas.",
+  "energyLow": "Energia baixa. Um X certo numa bomba devolve um pouco.",
+  "energyRaidLeft": "Ainda dá para um saque. Volte, ou continue.",
+  "homeRaid": "Voltar · dá para saquear",
+  "trapHint": {
+   "$t": "Toque num quadrado para minar, numa mina para tirar · restam {0}"
+  },
+  "trapHintEmpty": "Sem bombas · compre outra, ou toque numa mina para tirar e enterrar noutro lugar",
+  "strike": "Raio",
+  "aiming": "Toque num rival para atingi-lo",
+  "strikeNone": "Sem raio para chamar. O galpão vende.",
+  "plant": "Plantar bomba",
+  "aimingPlant": "Toque num chão não cavado para enterrar uma bomba",
+  "plantNone": "Sem bombas para plantar. O galpão vende.",
+  "planted": "Bomba enterrada. Só você sabe onde.",
+  "plantRefused": {
+   "off-island": "Fora da ilha.",
+   "revealed": "Esse chão já foi cavado.",
+   "hinted": "O tabuleiro já diz que essa casa é segura.",
+   "chest": "Não embaixo de um baú.",
+   "too-many": "Três bombas ativas é o máximo aqui."
+  },
+  "plantedBy": {
+   "$t": "Bomba de {0}!"
+  },
+  "struckBy": {
+   "$t": "{0} te atingiu com um raio"
+  },
+  "watchers": {
+   "$t": "{0} online"
+  },
+  "hitBolt": {
+   "$t": "{0} te fulminou"
+  },
+  "hitBomb": {
+   "$t": "{0} minou isso"
+  }
+ },
+ "firstRun": {
+  "tap": "Toque num quadrado ao seu lado para cavar.",
+  "numbers": "O número conta as bombas que encostam nesse quadrado.",
+  "counts": "Este 1 quer dizer: uma bomba se esconde nos quadrados ao redor.",
+  "prove": "Só resta um quadrado fechado. É a bomba.",
+  "mark": "Aperte MARCAR UMA BOMBA e toque no quadrado com o X vermelho.",
+  "aim": "Agora toque no quadrado que está piscando.",
+  "marked": "Certo! Um bom X devolve energia. Um errado custa caro.",
+  "fetch": "Agora vá pegar o baú. O que tiver dentro vai para casa com você.",
+  "bomb": "Isso custou energia. O 1 apontava para ela.",
+  "golden": "Ouro! Uma cenoura dourada vale cinco.",
+  "chest": "Um baú. O que tiver dentro vai para casa com você.",
+  "clock": "A ilha é o relógio. Cave até o fim e ela afunda.",
+  "recap": "Suas cenouras já estão em casa. Vá ver."
+ },
+ "recap": {
+  "record": {
+   "$t": "RECORDE em {0}: {1} 🥕 (antes {2})",
+   "$v": [
+    {
+     "when": {
+      "2": 0
+     },
+     "t": "PRIMEIRO RECORDE em {0}: {1} 🥕"
+    }
+   ]
+  },
+  "cleared": "ILHA LIMPA!",
+  "over": "FIM DA SAÍDA",
+  "clearedNote": "Todos os baús saíram do chão. O mar levou o resto.",
+  "overNote": "Sem energia.",
+  "tutorialDone": "VOCÊ PEGOU!",
+  "tutorialDoneNote": "O baú era a ilha inteira. Suas cenouras esperam na toca.",
+  "stats": {
+   "$t": "🥕 {0} · {1} cavados · 💣 {2} · {3}"
+  },
+  "bank": {
+   "$t": "⚡ {0}/{1} na toca · uma saída leva {2}"
+  },
+  "raidLeft": {
+   "$t": "⚡ {0} na toca: dá para um saque"
+  },
+  "getEnergy": "Pegar mais energia",
+  "goHome": "Toca · empilhar",
+  "shoved": "NA ÁGUA!",
+  "struck": "FULMINADO!",
+  "shovedNote": {
+   "$t": "{0} te empurrou na água."
+  },
+  "struckNote": {
+   "$t": "{0} chamou o raio em cima de você."
+  },
+  "shovedNoteAnon": "Alguém te empurrou na água.",
+  "struckNoteAnon": "Alguém chamou o raio em cima de você."
+ },
+ "shove": {
+  "by": {
+   "$t": "{0} te empurrou!"
+  },
+  "anon": "Alguém te empurrou!"
+ },
+ "pill": {
+  "banked": {
+   "$t": "{0} cenouras guardadas"
+  },
+  "carryNote": "Carregadas nesta saída: guardadas ao voltar para casa",
+  "carrying": {
+   "$t": "{0} cenouras carregadas, ainda não guardadas"
+  },
+  "leading": "na frente",
+  "rankFirst": "Posição na temporada #1: liderando",
+  "rank": {
+   "$t": "Posição #{0}: {1} pontos para passar o #{0-1}"
+  },
+  "toPass": {
+   "$t": "{0} para o #{1-1}"
+  },
+  "showClimb": {
+   "$t": "{0} cenouras guardadas, posição #{1}. Mostrar quanto falta para subir"
+  },
+  "hideClimb": {
+   "$t": "{0} cenouras guardadas, posição #{1}. Esconder quanto falta para subir"
+  }
+ },
+ "board": {
+  "show": "Mostrar o placar da temporada",
+  "hide": "Esconder o placar da temporada",
+  "diggingNow": "cavando agora · toque para assistir",
+  "watch": {
+   "$t": "Assistir {0} cavar"
+  },
+  "notOut": {
+   "$t": "{0} não está lá fora agora"
+  }
+ },
+ "shop": {
+  "title": "LOJA",
+  "shed": "O GALPÃO",
+  "aria": "Loja",
+  "protect": "PROTEGER A BASE",
+  "protectAria": "Proteger sua base",
+  "protectBuyAria": "Proteger sua base - comprar uma armadilha",
+  "noTraps": "SEM ARMADILHAS - PEGUE UMA",
+  "nothingBuried": "NADA ENTERRADO",
+  "inShed": {
+   "$t": "{0} NO GALPÃO"
+  },
+  "rearming": {
+   "$t": "REARMANDO - {0} VOLTANDO"
+  },
+  "upAndRearming": {
+   "$t": "{0} DE PÉ - {1} REARMANDO"
+  },
+  "inGround": {
+   "$t": "{0}/{1} NO CHÃO"
+  },
+  "openShed": "Abrir o galpão",
+  "payWith": "Pagar com",
+  "outOfEnergy": "SEM ENERGIA",
+  "energySay": {
+   "$t": "Uma saída leva {0}. Isso volta sozinho em {1}. Ou encha agora e continue cavando."
+  },
+  "energySayEmpty": {
+   "$t": "A barra está vazia. Um ponto volta sozinho em {0}. Ou encha agora e continue cavando."
+  },
+  "fillsTo": {
+   "$t": "Enche a barra até {0}."
+  },
+  "noRefills": " Sem recargas hoje.",
+  "refillsLeft": {
+   "$t": " {0} recargas hoje.",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": " 1 recarga hoje."
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": " 0 recarga hoje."
+    }
+   ]
+  },
+  "cardsOff": "Pagamento com cartão ainda não está ligado. Só cenouras por enquanto.",
+  "connectForCard": "Conecte uma carteira para pagar com cartão. Tudo aqui também se cava.",
+  "eitherWay": "Cenouras que você cava, ou cartão. A mercadoria é a mesma.",
+  "pricing": "Calculando preço...",
+  "approve": "Aprove na sua carteira...",
+  "confirming": "Confirmando na rede...",
+  "priceLabel": {
+   "$t": "{0} cenouras"
+  },
+  "buy": {
+   "$t": "Comprar {0} por {1}"
+  },
+  "capped": {
+   "$t": "{0}: {1}. Você já carrega o máximo."
+  },
+  "tooPoor": {
+   "$t": "{0}: {1}. Cenouras insuficientes. Vá cavar."
+  },
+  "heldOf": {
+   "$t": "{0}/{1}"
+  },
+  "heldToday": {
+   "$t": "{0} hoje"
+  },
+  "heldDaysLeft": {
+   "$t": "{0}d restantes"
+  },
+  "heldOff": "desligado",
+  "boughtEnergy": {
+   "$t": "Energia recarregada. {0}"
+  },
+  "boughtTrap": {
+   "$t": "{0} armadilhas no galpão. {1}",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "Armadilha no galpão. {1}"
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "Armadilha no galpão. {1}"
+    }
+   ]
+  },
+  "boughtBomb": {
+   "$t": "{0} bombas armadas. {1}",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "Bomba armada. {1}"
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "Bomba armada. {1}"
+    }
+   ]
+  },
+  "boughtLightning": {
+   "$t": "{0} raios engarrafados. {1}",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "Raio engarrafado. {1}"
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "Raio engarrafado. {1}"
+    }
+   ]
+  },
+  "boughtShield": {
+   "$t": "{0} escudos prontos. {1}",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "Escudo pronto. {1}"
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "Escudo pronto. {1}"
+    }
+   ]
+  },
+  "boughtSmoke": {
+   "$t": "Os números estão escondidos. {0}"
+  },
+  "boughtMirage": {
+   "$t": "{0} miragens prontas para jogar. {1}",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "Miragem pronta para jogar. {1}"
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "Miragem pronta para jogar. {1}"
+    }
+   ]
+  },
+  "boughtFence": {
+   "$t": "{0} tábuas prontas para levantar. {1}",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "Tábua pronta para levantar. {1}"
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "Tábua pronta para levantar. {1}"
+    }
+   ]
+  },
+  "paid": {
+   "$t": "-{0} 🥕"
+  }
+ },
+ "shopErrors": {
+  "fallback": "Não deu certo.",
+  "insufficient_carrots": "Cenouras insuficientes.",
+  "inventory_full": "Sua bolsa está cheia desses.",
+  "daily_energy_limit": "Sem mais recargas hoje. A horta continua crescendo.",
+  "smoke_capped": "Sua toca está escondida pelo máximo de tempo possível.",
+  "too_many_at_once": "Demais de uma vez.",
+  "bad_quantity": "Isso não é uma quantidade.",
+  "no_traps": "Sem armadilhas. Compre uma, ou espere amanhã.",
+  "board_full": "Sua toca não cabe mais uma armadilha.",
+  "tile_not_trappable": "Nada para minar aí.",
+  "tile_doorstep": "Perto demais da porta. Os primeiros passos ficam livres.",
+  "tile_already_trapped": "Já minado.",
+  "no_trap_there": "Não tem armadilha aí.",
+  "no_fences": "Sem cercas. O galpão vende.",
+  "span_already_fenced": "Já tem uma tábua aí.",
+  "span_not_exposed": "Isso não é uma borda da sua horta.",
+  "would_seal_burrow": "Isso fecharia a última entrada. Uma entrada fica aberta como portão.",
+  "span_not_fenced": "Não tem tábua aí.",
+  "bad_span": "Isso não é lugar para uma tábua.",
+  "fenced": "Uma cerca bloqueia o caminho. Contorne.",
+  "payments_unavailable": "Pagamento com cartão ainda não está configurado.",
+  "quote_expired": "Essa cotação expirou. Tente de novo.",
+  "signature_already_used": "Esse pagamento já foi usado.",
+  "not_confirmed_yet": "Ainda confirmando na rede...",
+  "wrong_reference": "Essa transação não corresponde a esta compra.",
+  "no_matching_transfer": "Nenhuma transferência USDC correspondente.",
+  "failed_on_chain": "A transação falhou na rede."
+ },
+ "pay": {
+  "needsBuild": "Pagar pelo app depende da próxima versão. Compre com cenouras por ora.",
+  "noWallet": "Nenhuma carteira Solana encontrada. Instale a Phantom para pagar com USDC.",
+  "notConfigured": "Pagamentos não estão configurados neste servidor.",
+  "stillConfirming": "Pago, mas ainda confirmando. Reabra a loja em um minuto. Nada se perde.",
+  "failed": "Pagamento falhou"
+ },
+ "kit": {
+  "tools": {
+   "more": "Ver efeito e ações",
+   "less": "Recolher detalhes",
+   "available": {
+    "$t": "{0} disponíveis"
+   },
+   "placed": {
+    "$t": "{0} colocados"
+   },
+   "active": {
+    "$t": "{0} restantes"
+   },
+   "buyTrap": {
+    "$t": "Comprar armadilha - {0} cenouras"
+   },
+   "trapHint": "Toque numa casa para enterrar. Toque na armadilha para recuperar.",
+   "trapEmpty": "Recupere uma armadilha ou compre uma abaixo.",
+   "fenceHint": "Toque numa borda iluminada para construir. Toque na cerca para recuperar.",
+   "raiseShield": "Usar um escudo",
+   "shieldActive": "Sua toca já está protegida.",
+   "shopHint": "Disponível na loja.",
+   "notEnough": "Faltam cenouras para outra armadilha.",
+   "smokeHint": "Comprar fumaça na loja ativa o efeito imediatamente.",
+   "attackHint": "Use na ilha de um rival durante uma partida.",
+   "chestHint": "Encontre mais nos baús.",
+   "waterEffect": "Faz sua horta crescer mais rápido por um tempo.",
+   "fertiliserEffect": "Permite que a horta armazene mais cenouras antes de encher.",
+   "water": "Usar uma rega",
+   "fertilise": "Usar um fertilizante"
+  },
+  "aria": "O que você está carregando",
+  "groupDefence": "DEFESA",
+  "groupAttack": "ATAQUE",
+  "groupGarden": "HORTA",
+  "shieldHolding": {
+   "$t": "Escudo: de pé, restam {0}. {1} na bolsa."
+  },
+  "shieldReady": {
+   "$t": "Escudo: {0} na bolsa. Levante um. Saques ricocheteiam enquanto durar."
+  },
+  "shieldNone": "Escudo: nenhum. Compre um na loja.",
+  "smokeOff": "Cortina de fumaça: desligada. Compre uma na loja para esconder seus números.",
+  "smokeUp": {
+   "$t": "Cortina de fumaça: de pé, {0} dias restantes. Saqueadores atravessam sua toca às cegas.",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "Cortina de fumaça: de pé, 1 dia restante. Saqueadores atravessam sua toca às cegas."
+    }
+   ]
+  },
+  "carried": {
+   "$t": "{0}: {1} na bolsa. {2}"
+  },
+  "carriedNone": {
+   "$t": "{0}: nenhum. {1}"
+  },
+  "trapsLine": {
+   "$t": "Armadilhas: {0} de {1} no chão, {2} no galpão. Enterre pela BASE.",
+   "$v": [
+    {
+     "when": {
+      "1": 0
+     },
+     "t": "Armadilhas: {0} no chão, {2} no galpão. Enterre pela BASE."
+    }
+   ]
+  },
+  "trapsBuy": {
+   "$t": "Armadilhas: {0} no galpão. Compre outra por {1} cenouras.",
+   "$v": [
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "Armadilhas: galpão vazio. Compre uma por {1} cenouras."
+    }
+   ]
+  },
+  "trapsBuyBroke": {
+   "$t": "Armadilhas: nenhuma. Uma custa {0} cenouras - va cavar mais."
+  },
+  "trapsBuyFull": {
+   "$t": "Armadilhas: {0} no galpão. O galpão está cheio."
+  },
+  "bottleRunning": {
+   "$t": "{0}: em curso, restam {1}. {2} na bolsa."
+  },
+  "bottleHeld": {
+   "$t": "{0}: {1} na bolsa. Despeje uma na horta."
+  },
+  "bottleNone": {
+   "$t": "{0}: nenhuma. Encontradas em baús."
+  },
+  "fencePlace": {
+   "$t": "Cercas: {0} tábuas na bolsa, {1} de {2} trechos fechados. Levante uma.",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "Cercas: 1 tábua na bolsa, {1} de {2} trechos fechados. Levante uma."
+    },
+    {
+     "when": {
+      "1": 1
+     },
+     "t": "Cercas: {0} tábuas na bolsa, 1 de {2} trechos fechado. Levante uma."
+    },
+    {
+     "when": {
+      "0": 1,
+      "1": 1
+     },
+     "t": "Cercas: 1 tábua na bolsa, 1 de {2} trechos fechado. Levante uma."
+    },
+    {
+     "when": {
+      "2": 1
+     },
+     "t": "Cercas: {0} tábuas na bolsa, {1} de 1 trecho fechados. Levante uma."
+    },
+    {
+     "when": {
+      "0": 1,
+      "2": 1
+     },
+     "t": "Cercas: 1 tábua na bolsa, {1} de 1 trecho fechados. Levante uma."
+    },
+    {
+     "when": {
+      "1": 1,
+      "2": 1
+     },
+     "t": "Cercas: {0} tábuas na bolsa, 1 de 1 trecho fechado. Levante uma."
+    },
+    {
+     "when": {
+      "0": 1,
+      "1": 1,
+      "2": 1
+     },
+     "t": "Cercas: 1 tábua na bolsa, 1 de 1 trecho fechado. Levante uma."
+    }
+   ]
+  },
+  "fenceAllWalled": {
+   "$t": "Cercas: {0} trechos fechados. A última entrada é o portão e fica aberta.",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "Cercas: 1 trecho fechado. A última entrada é o portão e fica aberta."
+    }
+   ]
+  },
+  "fenceNone": {
+   "$t": "Cercas: nenhuma na bolsa, {0} trechos fechados. O galpão vende. Toque numa tábua levantada para pegá-la de volta.",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "Cercas: nenhuma na bolsa, 1 trecho fechado. O galpão vende. Toque numa tábua levantada para pegá-la de volta."
+    }
+   ]
+  },
+  "watering": "Rega",
+  "fertiliser": "Adubo"
+ },
+ "energyPanel": {
+  "open": "Detalhes da energia",
+  "title": "ENERGIA",
+  "reading": {
+   "$t": "{0}/{1}"
+  },
+  "rate": {
+   "$t": "+{0}/h"
+  },
+  "full": "cheia",
+  "fullIn": {
+   "$t": "cheia em {0}"
+  },
+  "island": "Ilha",
+  "islandCost": {
+   "$t": "{0} para atravessar, depois 1 por escavação"
+  },
+  "raid": "Saque",
+  "raidCost": {
+   "$t": "{0} para entrar, no máximo {1}"
+  },
+  "raidRefund": "Chegue ao campo e seus passos voltam.",
+  "dig": "Escavar",
+  "digCost": {
+   "$t": "{0} por casa. Uma bomba: {1}"
+  },
+  "x": "X vermelho",
+  "xCost": {
+   "$t": "certo: +{0} a +{1}. Errado: -{2}"
+  },
+  "home": "Voltar",
+  "homeCost": {
+   "$t": "volte com {0} ou mais e um saque está pronto"
+  },
+  "homeHint": "O que você leva para casa fica no tanque.",
+  "ready": "Pronto",
+  "raidReady": "Saque pronto",
+  "needs": {
+   "$t": "Pede {0}"
+  },
+  "inWait": {
+   "$t": "em {0}"
+  },
+  "under": {
+   "$t": "Abaixo de {0}"
+  },
+  "levelLabel": {
+   "$t": "Nív. {0}"
+  },
+  "levelRate": {
+   "$t": "recarrega {0} por hora. Próximo nível: {1}",
+   "$v": [
+    {
+     "when": {
+      "1": null
+     },
+     "t": "recarrega {0} por hora"
+    }
+   ]
+  }
+ },
+ "islandPick": {
+  "choose": "Escolher uma ilha",
+  "which": "QUAL ILHA?",
+  "loading": "Olhando o mar...",
+  "row": {
+   "$t": "{0} cavando · {1}/{2} baús · {3}% cavada"
+  },
+  "rowEmpty": {
+   "$t": "ninguém nela agora · {0}/{1} baús · {2}% cavada"
+  },
+  "fresh": "Ninguém nela ainda",
+  "join": "Entrar",
+  "open": "Abrir",
+  "locked": {
+   "$t": "Abre com {0} cenouras cavadas"
+  },
+  "lockedShort": "Fechada",
+  "brief": "Uma ilha cheia é uma escavação curta e segura com parte dos baús. Uma ilha nova é a corrida longa.",
+  "almostDone": "quase acabando",
+  "best": {
+   "$t": "seu recorde {0} 🥕"
+  },
+  "gone": "Essa ilha encheu ou acabou. Escolha outra.",
+  "tierLocked": "Você ainda não cavou até essa ilha.",
+  "youHave": {
+   "$t": "você tem {0}"
+  },
+  "tier": {
+   "$t": "{0}% de bombas · um X certo +{1}"
+  }
+ },
+ "raid": {
+  "go": "IR SAQUEAR",
+  "another": "Saquear outra toca",
+  "choose": "Escolha uma toca",
+  "whose": "TOCA DE QUEM?",
+  "cost": {
+   "$t": "Um saque leva {0} de energia para entrar, no máximo {1}."
+  },
+  "allShielded": "TODAS AS TOCAS COM ESCUDO",
+  "nobody": "NINGUÉM PARA ROUBAR",
+  "shielded": "Com escudo",
+  "presence": {
+   "away": "ausente",
+   "home": "na toca",
+   "digging": "cavando fora"
+  },
+  "raidIt": "Saquear",
+  "brief": "Alcance a plantação de cenouras. As armadilhas deles estão enterradas e sem marca.",
+  "outOfEnergy": "Sem energia",
+  "nothingTaken": "Nada levado",
+  "unguarded": {
+   "$t": "{0} SEM GUARDA"
+  },
+  "nobodyYet": "Ninguém mais tem uma toca ainda.",
+  "steps": "passos",
+  "stepsBack": {
+   "$t": "Campo alcançado: seus {0} passos voltam"
+  },
+  "looted": {
+   "$t": "+{0} 🥕"
+  },
+  "won": "SAQUE VENCIDO!",
+  "backToBurrow": "DE VOLTA À TOCA",
+  "aRival": "UM RIVAL",
+  "lootedFrom": {
+   "$t": "SAQUEADO DE {0}"
+  },
+  "wasEmpty": {
+   "$t": "A TOCA DE {0} ESTAVA VAZIA"
+  },
+  "trapsSprung": {
+   "$t": "{0} ARMADILHAS DISPARADAS NA ENTRADA",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "1 ARMADILHA DISPARADA NA ENTRADA"
+    }
+   ]
+  },
+  "wonAria": {
+   "$t": "Saque vencido - {0} cenouras levadas de {1}"
+  },
+  "rabbitAria": "Seu coelho, comemorando",
+  "stolen": {
+   "$t": "+{0} 🥕 roubadas de {1}"
+  },
+  "fellShort": {
+   "$t": "Caiu a {0}% do caminho até a horta de {1}"
+  },
+  "defended": "DEFENDIDA",
+  "raided": "SAQUEADA",
+  "byWho": {
+   "$t": "POR {0} · -{1} CENOURAS"
+  },
+  "byWhoNothing": {
+   "$t": "POR {0}"
+  },
+  "bounced": {
+   "$t": "{0} SAQUES RICOCHETEARAM",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "1 SAQUE RICOCHETEARAM"
+    }
+   ]
+  },
+  "struck": "Atingido por um raio",
+  "struckBy": {
+   "$t": "{0} chamou um raio em cima de você"
+  }
+ },
+ "defend": {
+  "underAttack": {
+   "$t": "{0} ESTÁ SAQUEANDO VOCÊ"
+  },
+  "theirSteps": "passos dele",
+  "hint": "Enterre uma bomba na frente dele, ou toque no coelho para chamar um raio.",
+  "strike": "Raio",
+  "held": {
+   "$t": "{0} na bolsa"
+  },
+  "struckDown": "DERRUBADO",
+  "ranDry": "FICOU SEM ENERGIA",
+  "looted": {
+   "$t": "LEVARAM {0} 🥕"
+  },
+  "lost": "Sua toca foi saqueada",
+  "held_": "Toca defendida",
+  "incoming": {
+   "$t": "{0} está saqueando sua toca!"
+  }
+ },
+ "raidErrors": {
+  "fallback": "Não deu certo.",
+  "target_shielded": "A toca deles está com escudo. Tente outra pessoa.",
+  "cannot_raid_yourself": "Essa é a sua própria toca.",
+  "raid_in_progress": "Você já está dentro de uma toca.",
+  "cooldown": "Você saqueou essa pessoa faz pouco tempo.",
+  "no_energy": "Energia insuficiente para a travessia. Espere, ou recarregue.",
+  "not_adjacent": "Longe demais. Um passo por vez.",
+  "raid_over": "Esse saque já acabou.",
+  "none_held": "Sem raio para chamar. O galpão vende.",
+  "no_raid": "Esse saque acabou.",
+  "unknown_player": "Sumiram."
+ },
+ "chest": {
+  "carrots": "CENOURAS",
+  "watering": "REGA",
+  "fertiliser": "ADUBO",
+  "bomb": "BOMBA",
+  "shield": "ESCUDO",
+  "lightning": "RAIO",
+  "genesis": "RR GENESIS",
+  "piece": {
+   "$t": "UMA PARTE É SUA - MAIS {0}x {1}"
+  }
+ },
+ "profile": {
+  "title": "PERFIL",
+  "tabProfile": "Perfil",
+  "tabHistory": "Histórico",
+  "name": "Nome",
+  "save": "Salvar nome",
+  "saving": "Salvando...",
+  "taken": {
+   "$t": "Jogar como \"{0}\""
+  },
+  "waitingWallet": "Aguardando a carteira...",
+  "signInWith": "Entrar com essa carteira",
+  "disconnect": "Desconectar",
+  "abandon": "Abandonar esta toca",
+  "abandonConfirm": "Abandonar mesmo? Isso não tem volta",
+  "loading": "Carregando...",
+  "now": "agora",
+  "historyFailed": "Não foi possível carregar seu histórico.",
+  "noRuns": "Nenhuma saída concluída ainda.",
+  "noRaids": "Ninguém veio para cima de você ainda.",
+  "noPurchases": "Nada do galpão ainda.",
+  "today": "Hoje",
+  "youHit": {
+   "$t": "Você acertou {0}"
+  },
+  "damage": {
+   "$t": "{0} de dano"
+  },
+  "shovedIn": "empurrado na água",
+  "struckDown": "fulminado por um raio",
+  "youShoved": {
+   "$t": "Você empurrou {0} na água"
+  },
+  "youStruck": {
+   "$t": "Você fulminou {0}"
+  },
+  "spent": {
+   "$t": "-{0} 🥕"
+  },
+  "usd": {
+   "$t": "US$ {0}"
+  },
+  "revenge": "VINGAR AGORA",
+  "avenged": "acertado",
+  "revengeShielded": "Protegido"
+ },
+ "avatars": {
+  "brown": "Marrom",
+  "gray": "Cinza",
+  "orange": "Laranja",
+  "white": "Branco",
+  "yellow": "Amarelo"
+ },
+ "codex": {
+  "title": "A COROA AMALDIÇOADA",
+  "aria": "História da coroa amaldiçoada",
+  "close": "Fechar o códice",
+  "newChapter": "CAPÍTULO NOVO",
+  "complete": "COMPLETO",
+  "isNew": "NOVO",
+  "sealed": {
+   "$t": "Selado até {0} cenouras acumuladas. Você tem {1}."
+  },
+  "nextIn": {
+   "$t": "Próximo capítulo em {0} cenouras"
+  },
+  "lifetimeOnly": "Só cenouras acumuladas. Nada aqui pode ser saqueado.",
+  "done": "O códice está completo. A ilha continua esperando.",
+  "carrotsAt": {
+   "$t": "{0} cenouras"
+  },
+  "chapterN": {
+   "$t": "Capítulo {0}"
+  },
+  "chapters": "Capítulos"
+ },
+ "quest": {
+  "claim": "RESGATAR",
+  "claimItem": {
+   "$t": "RESGATAR {0} {1}"
+  },
+  "claimCarrots": {
+   "$t": "RESGATAR {0} 🥕"
+  },
+  "aria": {
+   "$t": "{0} por {1}"
+  },
+  "progress": {
+   "$t": "{0}/{1}"
+  },
+  "counter": {
+   "$t": "MISSÃO {0} / {1}"
+  }
+ },
+ "doorstepTips": [
+  "O NÚMERO NUM BLOCO CONTA AS BOMBAS QUE O TOCAM",
+  "CAVAR CUSTA 1 DE ENERGIA - UMA BOMBA CUSTA 30",
+  "MARQUE UMA BOMBA COM UM X VERMELHO: CERTO DEVOLVE ENERGIA, ERRADO CUSTA 15",
+  "ANDAR DE VOLTA POR BLOCOS JÁ CAVADOS É DE GRAÇA",
+  "CADA BAÚ QUE VOCÊ ABRE VAI PARA CASA COM VOCÊ",
+  "A ILHA É O RELÓGIO - CAVE TUDO E ELA AFUNDA",
+  "AS CENOURAS SÃO A PONTUAÇÃO - O X VERMELHO É A ÚNICA BOMBA DE ENERGIA"
+ ],
+ "taglines": [
+  "CADA PASSO PODE SER O ÚLTIMO... OU SUA FORTUNA",
+  "ATRAVESSE A ILHA, PEGUE O OURO, OU MORRA TENTANDO",
+  "OS BRAVOS VÃO MAIS LONGE - OS SORTUDOS VOLTAM",
+  "PASSO A PASSO, A ILHA TIRA OU A ILHA DÁ",
+  "SÓ OS OUSADOS SOBREVIVEM - SÓ OS SÁBIOS PARAM"
+ ],
+ "islands": {
+  "Meadow": "Campina",
+  "Thicket": "Matagal",
+  "Ashland": "Terra de Cinzas",
+  "Caldera": "Caldeira"
+ },
+ "items": {
+  "trap": {
+   "name": "Armadilha",
+   "blurb": "Enterre uma na sua toca. Ela drena o saqueador que pisar nela."
+  },
+  "bomb": {
+   "name": "Bomba",
+   "blurb": "Plante uma na ilha de alguém no meio da saída. A pessoa vê que foi você."
+  },
+  "lightning": {
+   "name": "Raio",
+   "blurb": "Chama um raio na ilha de um rival. Ele abre o chão em volta."
+  },
+  "shield": {
+   "name": "Escudo",
+   "blurb": "Saques ricocheteiam na sua toca enquanto ele durar."
+  },
+  "energy": {
+   "name": "Energia",
+   "blurb": "Encha a barra e cave agora, em vez de esperar."
+  },
+  "smoke": {
+   "name": "Cortina de fumaça",
+   "blurb": "Esconde os números da sua toca por um dia. Saqueadores atravessam às cegas."
+  },
+  "mirage": {
+   "name": "Miragem",
+   "blurb": "Faz alguns números de um rival mentirem no meio da saída. Dá para perceber."
+  },
+  "fence": {
+   "name": "Cerca",
+   "blurb": "Fecha um trecho da borda da sua horta. Saqueadores não atravessam."
+  }
+ },
+ "quests": {
+  "break-ground": {
+   "title": "Abrir o chão",
+   "ask": {
+    "$t": "Cave {0} quadrados."
+   },
+   "line": "Cada quadrado cavado diz quantas bombas encostam nele. Exatamente. Os números são honestos."
+  },
+  "come-home": {
+   "title": "Voltar para casa",
+   "ask": {
+    "$t": "Termine uma saída."
+   },
+   "line": "O que você carregava está na toca agora. Nada na ilha alcança isso."
+  },
+  "bring-it-in": {
+   "title": "Recolher tudo",
+   "ask": {
+    "$t": "Colha a horta."
+   },
+   "line": "A horta cresce enquanto você está fora. O que um ladrão leva também."
+  },
+  "bury-something": {
+   "title": "Enterrar algo",
+   "ask": {
+    "$t": "Ponha uma armadilha no seu chão."
+   },
+   "line": "Uma armadilha que ninguém vê é o único muro que vale. Muro a gente contorna."
+  },
+  "open-a-chest": {
+   "title": "Abrir um baú",
+   "ask": {
+    "$t": "Desenterre um baú numa ilha."
+   },
+   "line": "Um baú é uma promessa. É também uma caminhada por um chão que você ainda não leu."
+  },
+  "knock-on-a-door": {
+   "title": "Bater numa porta",
+   "ask": {
+    "$t": "Saqueie uma toca. Qualquer profundidade conta."
+   },
+   "line": "A única coisa que se pode tirar de um coelho é o que ele deixou para trás. Agora você esteve dos dois lados."
+  },
+  "look-up": {
+   "title": "Olhar para cima",
+   "ask": {
+    "$t": "Abra o placar da temporada."
+   },
+   "line": "Alguém usa a coroa. Ela acende uma luz em todo mapa, e nunca se apaga."
+  },
+  "read-the-stones": {
+   "title": "Ler as pedras",
+   "ask": {
+    "$t": "Abra o capítulo {0} do códice."
+   },
+   "line": "A ilha não mata os azarados. Ela mata os apressados, e guarda um registro cuidadoso da diferença."
+  },
+  "hold-the-door": {
+   "title": "Segurar a porta",
+   "ask": {
+    "$t": "Tenha {0} armadilhas no chão antes do seu escudo cair."
+   },
+   "line": "Seu escudo cai logo. Depois disso, só resta o chão. Deixe-o caro."
+  },
+  "the-thicket": {
+   "title": {
+    "$t": "O {0}"
+   },
+   "ask": {
+    "$t": "Alcance {0} cenouras acumuladas."
+   },
+   "line": "Chão mais rico, e mais coisa enterrada. A ilha chama isso de troca justa e não espera sua resposta."
+  }
+ },
+ "lore": {
+  "the-island": {
+   "title": "A ilha que dá",
+   "teaser": "Por que o chão é generoso.",
+   "body": [
+    "Ninguém plantou a primeira cenoura. A ilha simplesmente foi encontrada, numa manhã, já cheia delas — fileiras de coroas laranja empurrando pela areia que a maré tinha acabado de deixar. Os coelhos que a acharam fizeram a coisa sensata. Cavaram.",
+    "Ela nunca parou de dar. Cave um buraco e o chão oferece alguma coisa: uma cenoura, um baú, uma pedra com um número riscado nela. Os números são honestos. Sempre foram honestos. É justamente disso que os coelhos velhos avisam — uma coisa que nunca mente para você é uma coisa que quer alguma coisa, e ela tem paciência suficiente para esperar você perguntar o quê."
+   ]
+  },
+  "the-numbers": {
+   "title": "O que os números sabem",
+   "teaser": "O chão conta o que enterrou.",
+   "body": [
+    "Um quadrado cavado diz quantas bombas encostam nele. Não por alto. Exatamente. Nenhum coelho jamais achou uma pedra que mentisse, e coelhos procuraram muito, em geral com uma pata a menos.",
+    "Então o perigo nunca são os dados. O perigo é você, lendo rápido porque tem outro a três quadrados de distância indo atrás da mesma cenoura. A ilha não mata os azarados. Ela mata os apressados, e guarda um registro cuidadoso da diferença."
+   ]
+  },
+  "the-burrow": {
+   "title": "A lei da toca",
+   "teaser": "Nada é tirado de você enquanto você cava.",
+   "body": [
+    "Lá na ilha você não pode perder. Pise numa bomba e você é arremessado, atordoado, sem ar — mas a sua pilha não é tocada. Toda cenoura que você já levou para casa continua em casa.",
+    "E o problema é exatamente esse. Casa é onde está tudo, e casa é onde você não está, porque você está aqui, cavando. A ilha fez disso uma regra e achou muita graça: a única coisa que se pode tirar de um coelho é aquela que ele deixou para trás."
+   ]
+  },
+  "the-crown": {
+   "title": "A coroa não é um prêmio",
+   "teaser": "Ela marca você em todo mapa.",
+   "body": [
+    "Quem segura a maior temporada acorda uma manhã com a coroa esperando na cabeça. Não dá para tirar, vender, enterrar nem dar de presente. Coelhos tentaram as quatro. Existe um capítulo sobre a quarta, e ele é curto.",
+    "A coroa é generosa, e é assim que ela funciona. Ela deixa o chão mais rico sob quem a usa e os baús mais pesados. Ela também acende no mapa do mundo uma luz que todo outro coelho enxerga de qualquer lugar, e que nunca se apaga. A ilha não premia o primeiro coelho. Ela o ilumina, e então dá um passo atrás para ver o que os outros vão fazer a respeito."
+   ]
+  },
+  "the-tide": {
+   "title": "Quando uma ilha já deu o bastante",
+   "teaser": "O mar é quem conta.",
+   "body": [
+    "Uma ilha flutua sobre o que está guardando. Cada baú é lastro, e o mar esteve esperando embaixo de todos eles o tempo todo. Pegue o último e a água sobe sobre o chão que você cavou — não há como negociar isso e não há como cobrir de novo o que foi aberto. Uma ilha é uma coisa que acontece uma vez. Ela dá até não sobrar nenhum baú, depois afunda sem muita cerimônia e os coelhos nadam.",
+    "Os coelhos velhos não tratam isso como desastre. Tratam como uma conta sendo acertada. Alguma coisa foi tirada do mundo, em quantidade enorme, por coelhos a quem se disse a verdade exata sobre cada passo e que escolheram seguir em frente. A ilha simplesmente volta para a água, e outra emerge em algum lugar, já cheia de cenouras, já morna."
+   ]
+  }
+ }
+}

@@ -9,9 +9,13 @@ extends Control
 ## POURQUOI LE MONDE NE SE CONSTRUIT PAS ICI. Les deux lieux veulent le terrier
 ## du joueur et sa graine, qui n'existent pas tant que personne n'est connecte.
 ## `build_world()` est donc appele a la connexion, pas au demarrage.
+##
+## LE CHROME, LUI, EST MONTE ICI ET UNE FOIS : il n'a besoin de personne pour
+## exister, et il se cache tout seul tant qu'on est sur le doorstep.
 
 @onready var _world: Node2D = %World
 @onready var _screen: Control = %Screen
+@onready var _chrome: Control = %Chrome
 @onready var _wipe_host: CanvasLayer = %Wipe
 
 
@@ -28,6 +32,8 @@ func _ready() -> void:
 	if self is Control:
 		(self as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
 	Screens.host(_world, _screen)
+	var chrome: Control = preload("res://scenes/chrome.tscn").instantiate()
+	_chrome.add_child(chrome)
 	# LE RIDEAU SE MONTE ICI, dans l'etage qui l'attendait depuis le debut.
 	#
 	# Cree par le code et pas pose dans la scene : la variante se tirera au sort
@@ -38,3 +44,4 @@ func _ready() -> void:
 	_wipe_host.add_child(wipe)
 	Screens.host_wipe(wipe)
 	Screens.show_doorstep()
+	DevShot.arm(self)

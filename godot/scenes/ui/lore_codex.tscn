@@ -1,0 +1,12 @@
+[gd_scene format=3]
+
+; LE CODEX — voir scripts/ui/lore_codex.gd. Le parchemin se construit dans
+; le script (Dialog `_init`) ; la scene n'est que la porte pour l'editeur.
+; A l'execution : `LoreCodex.open()`.
+
+[ext_resource type="Script" path="res://scripts/ui/lore_codex.gd" id="1_codex"]
+
+[node name="LoreCodex" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_codex")

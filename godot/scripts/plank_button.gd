@@ -28,6 +28,12 @@ enum Board {
 	## le plus important bouton du jeu : sur la planche brune il etait le jumeau
 	## de celui du dessous, et rien ne disait lequel presser.
 	GOLD,
+	## notice-green.webp — la recolte, le jardin (runtime.css `action-green`).
+	GREEN,
+	## notice-danger.webp — MARK A BOMB, et tout ce qui parie ou detruit.
+	DANGER,
+	## notice-blue.webp — les bandeaux d'information du kit.
+	BLUE,
 }
 
 ## PRELOAD, ET SURTOUT PAS `load()` D'UN CHEMIN.
@@ -43,6 +49,10 @@ enum Board {
 ## l'exportateur et la texture part toujours avec le jeu.
 const WOOD_TEXTURE := preload("res://assets/ui/plank.webp")
 const GOLD_TEXTURE := preload("res://assets/ui/notice-gold.webp")
+## Reduites du meme facteur que l'or (tools : 158/1785), donc meme cap de 30.
+const GREEN_TEXTURE := preload("res://assets/ui/notice-green.webp")
+const DANGER_TEXTURE := preload("res://assets/ui/notice-danger.webp")
+const BLUE_TEXTURE := preload("res://assets/ui/notice-blue.webp")
 
 ## Les caps, en pixels a l'ecran. Le CSS les fixe par skin : 25px pour le bois,
 ## 30px pour l'or.
@@ -169,7 +179,7 @@ func _restyle() -> void:
 		empty.content_margin_bottom = 8
 		add_theme_stylebox_override(state, empty)
 
-	_plank.texture = GOLD_TEXTURE if board == Board.GOLD else WOOD_TEXTURE
+	_plank.texture = _texture()
 
 	# LES BOUTS, EN PIXELS — ET LA SOURCE A DEJA ETE MISE A L'ECHELLE POUR EUX.
 	#
@@ -209,7 +219,7 @@ func _restyle() -> void:
 
 	var ink := GOLD_INK if board == Board.GOLD else WOOD_INK
 	_ink.add_theme_color_override("font_color", Color(ink, 0.55 if disabled else 1.0))
-	if board == Board.WOOD:
+	if board != Board.GOLD:
 		# Le bois est plus sombre et moins contraste que l'or : le CSS lui donne
 		# une ombre d'un pixel, et n'en donne aucune a la planche doree.
 		_ink.add_theme_color_override("font_shadow_color", WOOD_INK_SHADOW)
@@ -258,7 +268,37 @@ func _fitted_size() -> int:
 
 ## Le cap a l'ecran, qui sert a ecarter le texte des bouts ornementes.
 func _cap() -> int:
-	return GOLD_CAP if board == Board.GOLD else WOOD_CAP
+	return WOOD_CAP if board == Board.WOOD else GOLD_CAP
+
+
+func _texture() -> Texture2D:
+	match board:
+		Board.GOLD:
+			return GOLD_TEXTURE
+		Board.GREEN:
+			return GREEN_TEXTURE
+		Board.DANGER:
+			return DANGER_TEXTURE
+		Board.BLUE:
+			return BLUE_TEXTURE
+		_:
+			return WOOD_TEXTURE
+
+
+## Le nom d'un ton du kit ("wood", "gold", "green", "danger", "blue") vers
+## sa planche — pour Kit.button, qui parle en mots comme le CSS.
+static func tone_board(tone: String) -> Board:
+	match tone:
+		"gold":
+			return Board.GOLD
+		"green":
+			return Board.GREEN
+		"danger":
+			return Board.DANGER
+		"blue":
+			return Board.BLUE
+		_:
+			return Board.WOOD
 
 
 func _process(delta: float) -> void:

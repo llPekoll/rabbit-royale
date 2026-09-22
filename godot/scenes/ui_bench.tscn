@@ -1,0 +1,14 @@
+[gd_scene format=3]
+
+; Le banc des pieces du chrome — voir scripts/ui_bench.gd.
+
+[ext_resource type="Script" path="res://scripts/ui_bench.gd" id="1_bench"]
+
+[node name="UiBench" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_bench")

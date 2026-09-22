@@ -1,0 +1,16 @@
+[gd_scene format=3]
+
+; LE CHEMIN DU RETOUR, et le HOME de l'ile — voir scripts/ui/back_button.gd.
+
+[ext_resource type="Script" path="res://scripts/ui/back_button.gd" id="1_back"]
+
+[node name="BackButton" type="Control"]
+layout_mode = 3
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+script = ExtResource("1_back")

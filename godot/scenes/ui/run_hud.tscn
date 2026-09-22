@@ -1,0 +1,29 @@
+[gd_scene load_steps=4 format=3]
+
+; LE HUD DE L'ILE — voir scripts/ui/run_hud.gd. La bande du haut (energie,
+; plaques, legendes) est construite par le script ; le bouton MARK A BOMB et
+; le ciel de l'eruption sont des scenes a eux, montees ici dans l'ordre ou
+; ils se dessinent : le bouton (et son projecteur) au-dessus de la bande,
+; l'eruption au-dessus de tout.
+
+[ext_resource type="Script" path="res://scripts/ui/run_hud.gd" id="1_hud"]
+[ext_resource type="PackedScene" path="res://scenes/ui/mark_bomb_button.tscn" id="2_mark"]
+[ext_resource type="PackedScene" path="res://scenes/ui/eruption_overlay.tscn" id="3_eruption"]
+
+[node name="RunHud" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_hud")
+
+[node name="MarkButton" parent="." instance=ExtResource("2_mark")]
+unique_name_in_owner = true
+layout_mode = 1
+
+[node name="Eruption" parent="." instance=ExtResource("3_eruption")]
+unique_name_in_owner = true
+layout_mode = 1

@@ -1,0 +1,10 @@
+[gd_scene format=3]
+
+; Le choix de la langue — voir scripts/ui/language_select.gd. Le cadre, le
+; titre et le [x] sont construits par Dialog dans _init ; la scene ne porte
+; que le script.
+
+[ext_resource type="Script" path="res://scripts/ui/language_select.gd" id="1_lang"]
+
+[node name="LanguageSelect" type="Control"]
+script = ExtResource("1_lang")

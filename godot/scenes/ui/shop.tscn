@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3]
+
+; L'ETAL — la boutique (scripts/ui/shop.gd). Tout est construit par le
+; script : la scene ne fait que le nommer, pour qu'il soit une piece du
+; chrome comme les autres. S'ouvre par `Shop.open()`.
+
+[ext_resource type="Script" path="res://scripts/ui/shop.gd" id="1_shop"]
+
+[node name="Shop" type="Control"]
+script = ExtResource("1_shop")
