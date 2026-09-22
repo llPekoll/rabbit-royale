@@ -103,6 +103,12 @@ const DEPTH_BIAS := 10
 
 var map: BurrowMap
 
+## ERRE-T-IL ? Vrai au terrier, ou l'errance EST le comportement. Faux sur
+## l'ile : la, le lapin est le JOUEUR, il se tient ou on l'a mene et n'en bouge
+## que d'une tape — un lapin qui partirait manger pendant la lecon du X
+## quitterait la case d'ou le X se pose.
+var roam := true
+
 var _sprite: AnimatedSprite2D
 var _at: Vector2i
 var _home: Vector2i
@@ -113,7 +119,11 @@ var _walkable: Array[Vector2i] = []
 
 
 ## Pose le lapin au milieu de son terrain et le laisse vivre.
-func build(seed_value: int) -> void:
+##
+## `start` : la case ou le poser, quand elle n'est pas le milieu — l'apparition
+## du tutoriel, `S` sur la carte dessinee. (-1,-1) ou une case impraticable
+## retombe sur le milieu.
+func build(seed_value: int, start: Vector2i = Vector2i(-1, -1)) -> void:
 	clear()
 	if map == null:
 		return
@@ -122,7 +132,7 @@ func build(seed_value: int) -> void:
 	_walkable = _walkable_cells()
 	if _walkable.is_empty():
 		return
-	_home = _middle_of()
+	_home = start if _walkable.has(start) else _middle_of()
 	_at = _home
 
 	_sprite = AnimatedSprite2D.new()
@@ -208,8 +218,13 @@ func _on_beat() -> void:
 	_schedule()
 
 
+## OU IL SE TIENT, en cases. La seule verite — voir `_land`.
+func at() -> Vector2i:
+	return _at
+
+
 func _schedule() -> void:
-	if _sprite == null or not is_inside_tree():
+	if _sprite == null or not is_inside_tree() or not roam:
 		return
 	_beat = get_tree().create_timer(_rng.randf_range(BEAT_MIN, BEAT_MAX))
 	_beat.timeout.connect(_on_beat)

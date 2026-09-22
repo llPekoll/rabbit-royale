@@ -49,6 +49,13 @@ var content: Dictionary = {}
 var state: Dictionary = {}
 var adjacent: Dictionary = {}
 
+## LES CASES PORTANT UN X ROUGE — une bombe que le joueur a PROUVEE.
+##
+## A part, et pas un `State`, pour la meme raison que le web en fait un booleen
+## sur la tuile : un X se pose sur une case ENTERREE et l'y laisse. Ce n'est pas
+## une quatrieme facon d'etre ouvert, c'est une annotation par-dessus.
+var flagged: Dictionary = {}
+
 
 func _init(p_map: BurrowMap) -> void:
 	map = p_map
@@ -254,6 +261,129 @@ func _cascade(from: Vector2i) -> void:
 			state[n] = State.HINTED
 			if adjacent.get(n, 0) == 0:
 				queue.append(n)
+
+
+## POSE OU REFUSE UN X ROUGE. Rend `true` si la bombe etait la.
+##
+## Porte de `flagTile` (src/lib/game/run.ts), sans l'energie ni les carottes :
+## ce portage n'a pas encore de bourse, et le tutoriel n'en depend pas — la
+## lecon est le GESTE, et le prix se branchera avec le reste de l'economie.
+##
+## LES REFUS SONT CEUX DU WEB : on ne marque que depuis une case VOISINE, et
+## jamais une case dont on sait deja quelque chose (creusee, indiquee, deja
+## marquee, ou le coffre). Marquer ce qu'on connait n'est pas une deduction.
+func flag(from: Vector2i, at: Vector2i) -> bool:
+	if not content.has(at):
+		return false
+	if not _neighbours(from).has(at):
+		return false
+	var st = state.get(at)
+	if st == State.DUG or st == State.HINTED or flagged.has(at):
+		return false
+	if content.get(at) == Content.CHEST:
+		return false
+
+	if content.get(at) == Content.BOMB:
+		flagged[at] = true
+		return true
+
+	# FAUX. La case est sure, et l'avoir payee achete le savoir : son chiffre
+	# s'ecrit comme la cascade l'aurait fait. RIEN N'EST CREUSE — c'est un
+	# indice, pas un coup de pelle.
+	state[at] = State.HINTED
+	if adjacent.get(at, 0) == 0:
+		_cascade(at)
+	return false
+
+
+func is_flagged(cell: Vector2i) -> bool:
+	return flagged.has(cell)
+
+
+## Les deux cases se touchent-elles, sur les huit voisines ?
+func is_beside(a: Vector2i, b: Vector2i) -> bool:
+	return a != b and absi(a.x - b.x) <= 1 and absi(a.y - b.y) <= 1
+
+
+## LA BOMBE QUE LE TUTORIEL RETIENT, ou (-1,-1) quand l'ile a lache prise.
+##
+## Porte de `teachingHold`. La bombe enseignee est celle dont le joueur peut
+## DEJA lire le bord : une bombe dont aucune voisine n'est ouverte n'enseigne
+## rien, puisque rien a l'ecran ne la designe.
+##
+## MARQUEE, L'ILE LACHE — c'est la seule sortie, et c'est ce qui fait de la
+## lecon un passage oblige plutot qu'un decor.
+func teaching_hold() -> Vector2i:
+	for cell in content.keys():
+		if content[cell] != Content.BOMB:
+			continue
+		var visible := false
+		for n in _neighbours(cell):
+			var st = state.get(n)
+			if st == State.DUG or st == State.HINTED:
+				visible = true
+				break
+		if not visible:
+			continue
+		return Vector2i(-1, -1) if flagged.has(cell) else cell
+	return Vector2i(-1, -1)
+
+
+## UN PAS EST-IL PERMIS PENDANT LA LECON ?
+##
+## Porte du bloc `teachingHold` de `resolveMove`, avec ses deux cicatrices.
+##
+## 1. `DUG`, PAS `DUG OU HINTED`. Une case indiquee montre son chiffre mais est
+##    encore en terre : y marcher la CREUSE, la cascade ouvre un anneau de plus,
+##    qui devient marchable a son tour. La retenue fuyait un anneau a la fois,
+##    et le joueur arrivait au coffre sans avoir rien marque — vu en partie le
+##    2026-09-20 (cases 497, 498, 467, puis le coffre en 436).
+##
+## 2. UNE PORTE, UNE SEULE : une case indiquee qui RAPPROCHE de la bombe. Tenir
+##    au seul sol creuse etait un blocage — aucune voisine de la bombe n'est
+##    creusee sur un plateau neuf, et marquer exige d'etre a cote. « Touche la
+##    bombe » etait trop strict sur le couloir dessine, ou la marche passe par
+##    des cases indiquees a deux et trois pas : le joueur etait arrete court
+##    devant la case qu'on lui disait de marquer.
+func may_step(from: Vector2i, to: Vector2i) -> bool:
+	if not content.has(to):
+		return false
+	# Un X rouge est un mur : un doigt qui glisse ne doit pas couter une manche.
+	if flagged.has(to) and state.get(to) != State.DUG:
+		return false
+	var held := teaching_hold()
+	if held.x < 0:
+		return true
+	if state.get(to) == State.DUG:
+		return true
+	if state.get(to) != State.HINTED:
+		return false
+	return _steps_between(to, held) < _steps_between(from, held)
+
+
+## LA DISTANCE EN PAS ENTRE DEUX CASES, a travers la terre seulement.
+##
+## En largeur. Rend un grand nombre quand la cible est injoignable, pour que la
+## comparaison de `may_step` refuse simplement le pas.
+func _steps_between(from: Vector2i, to: Vector2i) -> int:
+	if from == to:
+		return 0
+	var seen := {from: true}
+	var frontier: Array[Vector2i] = [from]
+	var depth := 0
+	while not frontier.is_empty():
+		depth += 1
+		var next: Array[Vector2i] = []
+		for cell in frontier:
+			for n in _neighbours(cell):
+				if seen.has(n) or not content.has(n):
+					continue
+				if n == to:
+					return depth
+				seen[n] = true
+				next.append(n)
+		frontier = next
+	return 1 << 30
 
 
 func is_dug(cell: Vector2i) -> bool:

@@ -5,8 +5,9 @@ class_name TileView
 ## Porte de src/game/entities/Tile.ts, la partie qui sert le socle : le couvercle
 ## d'une case non creusee, et le chiffre qui dit combien de bombes la touchent.
 ##
-## CE QUI N'EST PAS ENCORE LA : les carottes, les coffres, les cratères, le X
-## rouge, les animations d'ouverture. Le socle d'abord, et il se voit.
+## CE QUI N'EST PAS ENCORE LA : les carottes, les coffres, les cratères, les
+## animations d'ouverture. Le socle d'abord, et il se voit. Le X rouge est la,
+## parce que le tutoriel ne finit pas sans lui.
 ##
 ## LES LOSANGES SONT MONTES DANS LES BLOCS DU TERRAIN, comme les losanges de
 ## placement — c'est `mount_veil` qui le fait. Un voile pose en frere libre se
@@ -67,14 +68,36 @@ const HINT_SIZE := 11
 ## pour chaque sonde, invisibles pour l'oeil.
 const Z_FOG := 2
 const Z_HINT := 3
+## Le X rouge par-dessus tout : il annote une case ENTERREE, donc il couvre
+## son voile, et rien ne doit passer devant.
+const Z_X := 4
+
+## LE X ROUGE — la couleur du 3 des chiffres, pour que « rouge » veuille dire
+## la meme chose partout sur le plateau.
+const X_COLOR := Color("#ff4d4d")
+const X_SIZE := 16
+const X_STROKE := 2
+
+## LE BATTEMENT DE LA CASE ENSEIGNEE, en secondes — le meme que le bouton du
+## web (`TEACH_BEAT_SECONDS`, 0,9 s) : c'est la cadence commune qui lie le
+## bouton et la case, ce qu'une legende qui les nomme tous deux ne peut pas.
+const TEACH_BEAT_SECONDS := 0.9
+const GHOST_LOW := 0.2
+const GHOST_HIGH := 0.75
 
 var board: IslandBoard
 var terrain: BurrowTerrain
 
 var _fog: Dictionary = {}
 var _hints: Dictionary = {}
+var _x: Dictionary = {}
+
+## LA CASE QUI BAT — le X fantome de la lecon, ou (-1,-1).
+var _pulsed := Vector2i(-1, -1)
+var _pulse: Tween
 
 static var _diamond: ImageTexture
+static var _cross: ImageTexture
 
 
 func build() -> void:
@@ -92,6 +115,18 @@ func build() -> void:
 		fog.modulate = FOG_COLOR
 		terrain.mount_veil(cell, fog, Z_FOG)
 		_fog[cell] = fog
+
+		# LE X, cache tant que la case n'est ni marquee ni enseignee. Un sprite
+		# par case plutot que cree a la pose : vingt-huit sprites invisibles ne
+		# coutent rien, et « montrer » est plus sur que « monter » au moment ou
+		# le doigt vient de taper.
+		var x := Sprite2D.new()
+		x.texture = _cross_texture()
+		x.centered = true
+		x.modulate = X_COLOR
+		x.visible = false
+		terrain.mount_veil(cell, x, Z_X)
+		_x[cell] = x
 
 		var label := Label.new()
 		label.add_theme_font_size_override("font_size", HINT_SIZE)
@@ -169,16 +204,82 @@ func refresh() -> void:
 		else:
 			label.visible = false
 
+		# LE X : plein quand la case est marquee, fantome et battant quand c'est
+		# la case enseignee, absent sinon.
+		var x: Sprite2D = _x[cell]
+		if board.is_flagged(cell):
+			if cell == _pulsed:
+				_stop_pulse()
+			x.modulate.a = 1.0
+			x.visible = true
+		elif cell == _pulsed:
+			x.visible = true
+			if _pulse == null:
+				x.modulate.a = GHOST_LOW
+				_pulse = create_tween().set_loops()
+				_pulse.tween_property(x, "modulate:a", GHOST_HIGH, TEACH_BEAT_SECONDS * 0.5)\
+					.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+				_pulse.tween_property(x, "modulate:a", GHOST_LOW, TEACH_BEAT_SECONDS * 0.5)\
+					.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		else:
+			x.visible = false
+
+
+## FAIT BATTRE LE X FANTOME SUR UNE CASE — celle que la lecon demande de
+## marquer — ou l'eteint avec (-1,-1).
+##
+## « Maintenant touche la case qui clignote » : la legende designe la case par
+## son battement, et rien d'autre a l'ecran ne la designe. C'est le X fantome
+## du web, celui auquel `beside` repond deja.
+func set_pulse(cell: Vector2i) -> void:
+	if cell == _pulsed:
+		return
+	_stop_pulse()
+	_pulsed = cell
+	refresh()
+
+
+func _stop_pulse() -> void:
+	if _pulse != null and _pulse.is_valid():
+		_pulse.kill()
+	_pulse = null
+	if _x.has(_pulsed):
+		(_x[_pulsed] as Sprite2D).modulate.a = 1.0
+	_pulsed = Vector2i(-1, -1)
+
 
 func clear() -> void:
+	_stop_pulse()
 	for cell in _fog:
 		(_fog[cell] as Node).queue_free()
+	for cell in _x:
+		(_x[cell] as Node).queue_free()
 	for cell in _hints:
 		var l: Label = _hints[cell]
 		if l.get_parent() != null:
 			l.get_parent().queue_free()
 	_fog.clear()
+	_x.clear()
 	_hints.clear()
+
+
+## LE X, cuit une fois : deux diagonales de deux pixels dans un carre de seize.
+##
+## Des pixels francs, comme le losange — un X anticrenele sur un sol en pixel
+## art se lit comme une tache, pas comme une marque.
+static func _cross_texture() -> ImageTexture:
+	if _cross != null:
+		return _cross
+	var img := Image.create(X_SIZE, X_SIZE, false, Image.FORMAT_RGBA8)
+	img.fill(Color(1, 1, 1, 0))
+	for y in range(X_SIZE):
+		for x in range(X_SIZE):
+			var on_down := absi(x - y) < X_STROKE
+			var on_up := absi(x + y - (X_SIZE - 1)) < X_STROKE
+			if on_down or on_up:
+				img.set_pixel(x, y, Color(1, 1, 1, 1))
+	_cross = ImageTexture.create_from_image(img)
+	return _cross
 
 
 ## LE LOSANGE, cuit une fois — le meme que les losanges de placement.

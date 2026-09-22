@@ -45,6 +45,7 @@ const DEFAULT_SEED := "default"
 @onready var _rocks: SeaRocks = %Rocks
 @onready var _ducks: Ducks = %Ducks
 @onready var _tiles: TileView = %Tiles
+@onready var _rabbit: HomeRabbit = %Rabbit
 
 ## CE QUI EST ENTERRE SUR CETTE ILE.
 ##
@@ -59,6 +60,27 @@ var _cam_tween: Tween
 var _back: PlankButton
 ## Provisoire : le compteur d'images, pour mesurer depuis le moteur.
 var _fps: Label
+
+## LE TUTORIEL, tel que cette scene le joue.
+##
+## Le mode X est-il arme ? Il tombe apres UN marquage (voir `setFlagMode` du
+## web) : la tape suivante est de nouveau un pas.
+var _armed := false
+## Le compte du joueur — ce que `FirstRun.State` lit. Ses propres coups, pas
+## ceux d'un autre : la bombe d'un inconnu n'est jamais la lecon du joueur.
+var _digs := 0
+var _flags := 0
+var _chests := 0
+## Le coffre est pris : la manche est finie, et plus aucune tape ne compte.
+var _done := false
+## MARQUER UNE BOMBE — le bouton, dans le coin ou repose le pouce droit.
+var _mark: PlankButton
+## Le bandeau qui parle.
+var _caption: FirstRunCaption
+
+## Combien de temps le coffre reste a l'ecran avant le retour au terrier.
+## Assez pour lire « un coffre » ; pas assez pour qu'on cherche quoi faire.
+const DONE_SECONDS := 2.5
 
 ## LE JOUEUR A-T-IL PRIS LE PLATEAU EN MAIN ? Meme drapeau que le terrier, et
 ## pour la meme raison : on ne recadre pas sous quelqu'un qui regarde un coin.
@@ -101,6 +123,35 @@ func _add_chrome() -> void:
 	_back.relabel("← TERRIER")
 	_back.pressed.connect(func() -> void: Screens.cross(Screens.Place.BURROW))
 	layer.add_child(_back)
+
+	# MARQUER UNE BOMBE. Un bouton et non un appui long : sur ce plateau un
+	# doigt tenu est deja le debut d'un glissement de camera, et un geste qui
+	# veut dire deux choses est un pari place par accident. Le mode est donc
+	# explicite, il dit ce qu'il s'apprete a faire tant qu'il est arme, et il
+	# retombe apres UN marquage.
+	#
+	# IL DIT CE QU'IL EST. Sa premiere version web etait un X rouge nu sur un
+	# carre sombre au bord de l'ecran, et ca se lisait comme ce qu'un X rouge
+	# sur un carre sombre veut toujours dire : FERMER. Paul, 2026-09-17 : « il
+	# n'y a pas de bouton pour se mettre en mode X rouge » — il etait a l'ecran.
+	# Donc : la bombe dont il s'agit, le X qu'il y pose, et le verbe. Arme, la
+	# planche passe a l'or.
+	_mark = preload("res://scenes/plank_button.tscn").instantiate()
+	_mark.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_mark.custom_minimum_size = Vector2(232, 44)
+	_mark.offset_right = -12
+	_mark.offset_left = -12 - 232
+	_mark.offset_bottom = -12
+	_mark.offset_top = -12 - 44
+	_mark.relabel(I18N.t("mark_bomb"))
+	_mark.pressed.connect(func() -> void: _set_armed(not _armed))
+	I18N.locale_changed.connect(func(_c: String) -> void: _mark.relabel(I18N.t("mark_bomb")))
+	layer.add_child(_mark)
+
+	_caption = FirstRunCaption.new()
+	layer.add_child(_caption)
+
+	_refresh_tutorial_chrome()
 
 	# LE COMPTEUR, PROVISOIRE — et il est la parce que `adb shell dumpsys
 	# gfxinfo` MENT sur ce projet : il compte les images qu'ANDROID compose, pas
@@ -162,6 +213,24 @@ func show_ground(seed_value: String) -> void:
 	_tiles.board = _board
 	_tiles.terrain = _terrain
 	_tiles.build()
+
+	# LE JOUEUR, pose sur l'apparition du tutoriel — ou au milieu d'une ile
+	# ordinaire, en attendant que le serveur dise ou. Il n'erre pas : sur l'ile
+	# c'est le doigt qui le mene, et la lecon du X se pose depuis la case ou il
+	# est. Le hash de la graine ne sert qu'a nourrir un RNG qui, sans errance,
+	# ne tire rien.
+	_rabbit.map = map
+	_rabbit.roam = false
+	var start := TutorialMap.spawn() if FirstIsland.is_first(seed_value) else Vector2i(-1, -1)
+	_rabbit.build(hash(seed_value), start)
+
+	# UNE AUTRE ILE, UN AUTRE COMPTE.
+	_armed = false
+	_digs = 0
+	_flags = 0
+	_chests = 0
+	_done = false
+	_refresh_tutorial_chrome()
 
 	# LES LOSANGES SE MONTENT DANS LES BLOCS DU TERRAIN : ils viennent donc
 	# APRES lui, et ils meurent avec lui — `build` jette ses blocs et les
@@ -309,16 +378,128 @@ func _on_release(at: Vector2) -> void:
 	var cell := _cell_at(at)
 	if cell.x < 0:
 		return
-	# CREUSER, POUR L'INSTANT SANS RIEN COUTER.
+	# LE TUTORIEL SE JOUE ICI : un pas, ou un X, selon le mode.
+	if _board != null and _is_tutorial():
+		if not _done:
+			_tutorial_tap(cell)
+		tile_tapped.emit(cell)
+		return
+	# CREUSER, POUR L'INSTANT SANS RIEN COUTER — sur une ile ordinaire.
 	#
 	# Provisoire : un vrai coup passe par l'energie, le serveur et le pas du
 	# lapin (`payCrossing` — « sans un pas, creuser est gratuit »). Ici on
 	# montre le SOCLE : le voile tombe, le chiffre sort, la cascade ouvre le
-	# champ. C'est ce que les douze beats du tutoriel attendent.
+	# champ.
 	if _board != null:
 		_board.dig(cell)
 		_tiles.refresh()
 	tile_tapped.emit(cell)
+
+
+## UNE TAPE SUR L'ILE DU TUTORIEL.
+##
+## ARME : la tape POSE un X depuis la case du lapin, et le mode retombe, juste
+## ou faux. SINON : c'est un pas, sur une voisine, et seulement si la retenue le
+## permet — un pas refuse fait remuer le bouton, parce que c'est lui la sortie.
+##
+## Ce que le web fait en deux allers-retours serveur (`flagTile`, `resolveMove`)
+## se decide ici sur le plateau local : le tutoriel est la seule ile dont le
+## client connait le contenu, par construction (voir island_board.gd).
+func _tutorial_tap(cell: Vector2i) -> void:
+	var here := _rabbit.at()
+
+	if _armed:
+		_set_armed(false)
+		if _board.flag(here, cell):
+			_flags += 1
+		_tiles.refresh()
+		_refresh_caption()
+		return
+
+	if not _board.is_beside(here, cell):
+		return
+	if not _board.may_step(here, cell):
+		# LA LECON D'ABORD. Le plateau refuse ce pas, et le bouton dit pourquoi.
+		if _mark != null:
+			_mark.wiggle()
+		return
+
+	var fresh := not _board.is_dug(cell)
+	_rabbit.send_to(cell)
+	if fresh:
+		_board.dig(cell)
+		_digs += 1
+		# LE COFFRE EST LA FIN de la premiere ile — `tutorialDone` sur le web.
+		if _board.content.get(cell) == IslandBoard.Content.CHEST:
+			_chests += 1
+			_finish_tutorial()
+	_tiles.refresh()
+	_refresh_caption()
+
+
+func _is_tutorial() -> bool:
+	return FirstIsland.is_first(_seed)
+
+
+func _set_armed(armed: bool) -> void:
+	_armed = armed
+	if _mark != null:
+		_mark.board = PlankButton.Board.GOLD if armed else PlankButton.Board.WOOD
+	_refresh_caption()
+
+
+## LE CHROME DU TUTORIEL SE MONTRE SUR L'ILE DU TUTORIEL, et nulle part
+## ailleurs. Appele apres `show_ground` ET apres `_add_chrome`, parce que
+## l'ordre de `_ready` fait passer le premier avant le second.
+func _refresh_tutorial_chrome() -> void:
+	if _mark != null:
+		_mark.visible = _is_tutorial()
+	if _caption == null:
+		return
+	if _is_tutorial():
+		_refresh_caption()
+	else:
+		_caption.hide_beat()
+		_tiles.set_pulse(Vector2i(-1, -1))
+
+
+## RELIT LE BEAT, et tout ce qui repond au meme etat : le bandeau, le X fantome
+## sur la case enseignee, le remuement du bouton.
+##
+## Le X fantome bat des que le lapin est A COTE de la bombe retenue, arme ou
+## pas : « puis touche la case au X rouge » le nomme avant que le mode soit
+## arme, et « touche la case qui clignote » apres.
+func _refresh_caption() -> void:
+	if _caption == null or _board == null or not _is_tutorial():
+		return
+	var s := FirstRun.State.new()
+	s.tiles = _digs
+	s.flags = _flags
+	s.chests = _chests
+	s.armed = _armed
+	var held := _board.teaching_hold()
+	s.beside = held.x >= 0 and _board.is_beside(_rabbit.at(), held)
+
+	var b := FirstRun.beat(s)
+	var id: String = b.get("id", "")
+	_caption.show_beat(id, b.get("sticky", false))
+	_tiles.set_pulse(held if s.beside else Vector2i(-1, -1))
+	if id == "mark" and _mark != null:
+		_mark.wiggle()
+
+
+## LE COFFRE EST PRIS : on laisse lire la phrase, puis on rentre.
+##
+## Le web finit sur un recapitulatif (« tes carottes sont au terrier ») ; ce
+## portage n'a pas encore de bourse a recapituler, donc la manche se termine
+## par le seul geste qui existe deja — la traversee vers le terrier.
+func _finish_tutorial() -> void:
+	_done = true
+	_tiles.set_pulse(Vector2i(-1, -1))
+	get_tree().create_timer(DONE_SECONDS).timeout.connect(
+		func() -> void:
+			if _done and Screens.in_world():
+				Screens.cross(Screens.Place.BURROW))
 
 
 ## LA CASE SOUS UN POINT DE L'ECRAN.

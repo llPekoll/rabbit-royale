@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=10 format=3]
 
 ; L'ILE. Le second des deux lieux residents — construite une fois, jamais
 ; liberee, montree ou cachee (voir screens.gd).
@@ -22,6 +22,7 @@
 [ext_resource type="Script" path="res://scripts/ducks.gd" id="7_ducks"]
 [ext_resource type="Script" path="res://scripts/sky_light.gd" id="8_sky"]
 [ext_resource type="Script" path="res://scripts/tile_view.gd" id="9_tiles"]
+[ext_resource type="Script" path="res://scripts/home_rabbit.gd" id="10_rabbit"]
 
 [node name="Island" type="Node2D"]
 script = ExtResource("1_island")
@@ -51,6 +52,13 @@ script = ExtResource("6_rocks")
 [node name="Terrain" type="Node2D" parent="."]
 unique_name_in_owner = true
 script = ExtResource("2_terrain")
+
+; LE JOUEUR. Le meme lapin qu'au terrier — meme planche, meme saut — mais il
+; n'erre pas (`roam = false` dans island.gd) : ici il se tient ou on l'a mene.
+; FRERE du terrain, pas enfant, pour se trier contre les tuiles sur leur regle.
+[node name="Rabbit" type="Node2D" parent="."]
+unique_name_in_owner = true
+script = ExtResource("10_rabbit")
 
 ; LES CANARDS APRES LE TERRAIN dans l'arbre, mais c'est leur `z_index` qui
 ; decide vraiment : ils traversent les cases, donc aucune couche ne peut les
