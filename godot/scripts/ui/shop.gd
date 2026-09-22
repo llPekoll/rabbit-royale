@@ -198,10 +198,23 @@ func _build() -> void:
 	_shelf = ScrollContainer.new()
 	_shelf.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	_shelf.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	_shelf.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_shelf.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_shelf.mouse_default_cursor_shape = Control.CURSOR_DRAG
-	column.add_child(_shelf)
+	# DES CARTES ENTIERES, comme le web : l'etagere se centre a la largeur
+	# d'un nombre entier de cartes. Pleine largeur, elle laissait depasser le
+	# bord d'une sixieme carte au Seeker. Dans une boite SANS minimum, posee a
+	# la main : un minimum de largeur empecherait le dialogue de retrecir.
+	var bay := Control.new()
+	bay.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	bay.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bay.mouse_filter = Control.MOUSE_FILTER_PASS
+	column.add_child(bay)
+	bay.add_child(_shelf)
+	bay.resized.connect(func() -> void:
+		var room := bay.size.x
+		var n := maxi(1, int(floor((room - 2.0 * SHELF_PAD + CARD_GAP) / (CARD_W + CARD_GAP))))
+		var fit := minf(room, n * CARD_W + (n - 1) * CARD_GAP + 2.0 * SHELF_PAD)
+		_shelf.position = Vector2(floor((room - fit) * 0.5), 0.0)
+		_shelf.size = Vector2(fit, bay.size.y))
 	var pad := Kit.margin(SHELF_PAD, 0, SHELF_PAD, 0)
 	pad.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_shelf.add_child(pad)
