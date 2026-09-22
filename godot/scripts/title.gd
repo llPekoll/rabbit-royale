@@ -343,13 +343,14 @@ func _on_connect() -> void:
 		return
 
 	_busy(true)
-	_say(I18N.t("connecting"), false)
+	_working(_connect, true)
 
 	var address := await Wallet.address()
 	if address.is_empty():
 		# Une feuille fermee est un refus, pas une panne : on ne signale que ce
 		# que le plugin a vraiment rate.
 		_say(Wallet.last_error, not Wallet.last_error.is_empty())
+		_working(_connect, false)
 		_busy(false)
 		return
 
@@ -364,6 +365,7 @@ func _on_connect() -> void:
 	else:
 		ok = await Session.sign_in_with_wallet(address, signer)
 
+	_working(_connect, false)
 	_busy(false)
 	if ok:
 		_enter()
@@ -372,11 +374,35 @@ func _on_connect() -> void:
 ## LA SECONDE PORTE : un terrier sans wallet, pour qui n'en a jamais tenu.
 func _on_guest() -> void:
 	_busy(true)
-	_say(I18N.t("connecting"), false)
+	_working(_guest, true)
 	var ok := await Session.play_as_guest()
+	_working(_guest, false)
 	_busy(false)
 	if ok:
 		_enter()
+
+
+## « ON CREUSE… » S'ECRIT DANS LA PORTE PRESSEE, pas sous elle.
+##
+## C'etait une ligne de statut, et elle CASSAIT LA MISE EN PAGE : la faire
+## apparaitre pousse le selecteur de langue de 27px vers le bas, le temps d'un
+## appel reseau, puis le fait remonter. Une colonne qui saute pendant qu'on
+## attend est le pire moment pour bouger.
+##
+## Le web le fait deja ainsi — `{busy ? t.auth.connecting : t.auth.guest}` vit
+## DANS le bouton invite. Le libelle est rendu a la fin, quoi qu'il arrive :
+## une porte qui reste bloquee sur « on creuse » apres un refus ne se represse
+## plus jamais.
+func _working(door: PlankButton, busy: bool) -> void:
+	if busy:
+		door.relabel(I18N.t("connecting"))
+		return
+	# Rendu depuis le dictionnaire plutot que memorise : entre-temps la langue
+	# a pu changer, et restaurer l'ancienne chaine la ferait reapparaitre.
+	if door == _connect:
+		door.relabel(I18N.t("connect"))
+	elif door == _guest:
+		door.relabel(I18N.t("guest"))
 
 
 ## Connecte. Le nom du lapin monte EN HAUT A DROITE, pas dans la colonne.
