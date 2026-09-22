@@ -1,3 +1,4 @@
+class_name Island
 extends Node2D
 ## L'ILE — le second des deux LIEUX residents.
 ##
@@ -520,6 +521,18 @@ func _opening_seed() -> String:
 	if int(Session.player.get("runsPlayed", 0)) > 0:
 		return DEFAULT_SEED
 	return FirstIsland.seed_for(String(Session.player.get("id", "guest")))
+
+
+## LE TUTORIEL EST-IL ENCORE DU ? Pour le chrome : DIG traverse droit vers
+## la premiere ile tant qu'il l'est, sans passer par la liste (le web fait
+## de meme pour un joueur sans manche). Memes deux faits que `_opening_seed`.
+static func tutorial_pending() -> bool:
+	if int(Session.player.get("runsPlayed", 0)) > 0:
+		return false
+	var cfg := ConfigFile.new()
+	if cfg.load(TUTORIAL_PATH) == OK and bool(cfg.get_value("tutorial", "done", false)):
+		return false
+	return true
 
 
 func _tutorial_finished() -> bool:

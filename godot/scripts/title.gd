@@ -108,8 +108,16 @@ func _ready() -> void:
 	_busy(true)
 	if await Session.restore():
 		_enter()
+		_busy(false)
+		_refresh_doors()
+		return
 	_busy(false)
 	_refresh_doors()
+	# `-- --guest` : la porte invitee se presse seule, pour qu'une capture
+	# (DevShot) atteigne le terrier sans main. Outil, pas comportement : rien
+	# sans l'argument, et rien quand une session est deja restauree.
+	if "--guest" in OS.get_cmdline_user_args():
+		_on_guest()
 
 
 ## LE VOILE DE GAUCHE, celui qui rend la colonne lisible.

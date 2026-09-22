@@ -44,6 +44,13 @@ const TOAST_FADE := 0.35
 var _scrim: ColorRect
 var _dialog: Control
 
+var _column: BurrowColumn
+var _loop: LoopBar
+var _kit: KitRow
+var _back: BackButton
+## Le mode du terrier en cours ("placing", "walling"), vide sinon.
+var _mode := ""
+
 
 func _ready() -> void:
 	current = self
@@ -60,7 +67,115 @@ func _ready() -> void:
 ## lit Home, Session, GameSocket et Screens lui-meme, et se cache tout seul
 ## quand le lieu ne le concerne pas.
 func _mount() -> void:
-	pass
+	# LA COLONNE, a gauche sous la barre. Sa ligne « et maintenant » pointe
+	# une porte du sol : meme routage que les trois dalles.
+	var column_card: BurrowColumn = preload("res://scenes/ui/burrow_column.tscn").instantiate()
+	column.add_child(column_card)
+	Kit.fill(column_card)
+	column_card.next_action.connect(_on_door)
+	_column = column_card
+
+	# LE SOL : les trois verbes, la rangee du kit qui monte a la place de la
+	# barre en DEFEND, et la sortie du mode.
+	_loop = preload("res://scenes/ui/loop_bar.tscn").instantiate()
+	floor_host.add_child(_loop)
+	_loop.dig_pressed.connect(_on_door.bind("dig"))
+	_loop.defend_pressed.connect(_on_door.bind("defend"))
+	_loop.raid_pressed.connect(_on_door.bind("raid"))
+
+	_kit = preload("res://scenes/ui/kit_row.tscn").instantiate()
+	floor_host.add_child(_kit)
+	_kit.buy_trap_pressed.connect(func() -> void: ShopState.shared().buy("trap"))
+	_kit.use_shield.connect(func() -> void: ShopState.shared().buy("shield"))
+
+	_back = preload("res://scenes/ui/back_button.tscn").instantiate()
+	floor_host.add_child(_back)
+	_back.pressed.connect(_end_mode)
+
+	# LA BARRE DU HAUT : le joueur, la pastille, le rail. Chaque bouton ouvre
+	# son dialogue ; la pastille ouvre le grand livre du reservoir, et son +
+	# la recharge (energy-panel.tsx / carrot-pill.tsx).
+	var bar: TopBar = preload("res://scenes/ui/top_bar.tscn").instantiate()
+	top_bar.add_child(bar)
+	bar.profile_pressed.connect(func() -> void: Profile.open())
+	bar.shop_pressed.connect(func() -> void: Shop.open())
+	bar.story_pressed.connect(func() -> void: LoreCodex.open())
+	bar.season_pressed.connect(func() -> void: SeasonBoard.open())
+	bar.energy_tapped.connect(func() -> void: EnergyPanel.open())
+	bar.add_pressed.connect(func() -> void: EnergyPopup.open())
+
+	# Ce que la boutique et le raid repondent passe en pastille, comme Home.
+	ShopState.shared().noted.connect(toast)
+	RaidState.current.noted.connect(toast)
+	# Les tampons qui s'annoncent seuls : le niveau gagne, le raid subi.
+	LevelUpStamp.arm()
+	# Le HUD de defense (un raid en cours chez soi) se montre seul.
+	floor_host.add_child(preload("res://scenes/ui/defend_hud.tscn").instantiate())
+
+
+## UNE PORTE DU SOL, qu'elle vienne d'une dalle ou de la ligne de la colonne.
+func _on_door(door: String) -> void:
+	match door:
+		"dig":
+			_dig()
+		"defend":
+			_start_mode("placing")
+		"raid":
+			TargetList.open()
+		"shop":
+			Shop.open()
+		"energy":
+			EnergyPopup.open()
+
+
+## DIG. Le premier depart est le tutoriel, sans liste : le web traverse seul
+## le nouveau venu vers sa premiere ile. Ensuite, la liste des iles.
+##
+## PAS DE `join` ICI (2026-09-23) : l'ile du portage (island.gd, Peko) ne joue
+## encore que le plateau dessine, hors ligne. Demander un siege au serveur
+## prendrait de l'energie pour une manche qu'aucun plateau ne montre. Choisir
+## une ile traverse donc comme le bouton « → ILE » le faisait ; le `join` se
+## branchera ici quand l'ile lira la socket.
+func _dig() -> void:
+	if Island.tutorial_pending():
+		Screens.cross(Screens.Place.ISLAND)
+		return
+	var picker: IslandPicker = preload("res://scenes/ui/island_picker.tscn").instantiate()
+	picker.chosen.connect(func(_choice: Dictionary) -> void:
+		close_dialog()
+		Screens.cross(Screens.Place.ISLAND))
+	open(picker)
+
+
+## UN MODE DU TERRIER (poser des pieges, des clotures) : la rangee du kit
+## monte, la barre et la colonne s'effacent, le terrier prend son cadrage, et
+## le retour s'affiche. La POSE au toucher n'est pas branchee : le terrier ne
+## dessine pas encore les pieges, et un piege pose mais invisible est le
+## mensonge que page.tsx refuse (`onToggleTrap`).
+func _start_mode(mode: String) -> void:
+	_mode = mode
+	_kit.open(mode)
+	_loop.visible = false
+	_column.set_editing(true)
+	_back.show_for(mode)
+	var burrow := Screens.at(Screens.Place.BURROW)
+	if burrow != null and burrow.has_method("set_placing"):
+		burrow.call("set_placing", mode == "placing")
+		burrow.call("set_walling", mode == "walling")
+
+
+func _end_mode() -> void:
+	if _mode.is_empty():
+		return
+	_mode = ""
+	_kit.close()
+	_back.dismiss()
+	_column.set_editing(false)
+	_loop.visible = true
+	var burrow := Screens.at(Screens.Place.BURROW)
+	if burrow != null and burrow.has_method("set_placing"):
+		burrow.call("set_placing", false)
+		burrow.call("set_walling", false)
 
 
 func _on_world_shown(shown: bool) -> void:
@@ -70,8 +185,10 @@ func _on_world_shown(shown: bool) -> void:
 
 
 func _on_moved(_place: int) -> void:
-	# Un dialogue ouvert sur un lieu ne suit pas le joueur sur l'autre.
+	# Un dialogue ouvert sur un lieu ne suit pas le joueur sur l'autre, ni un
+	# mode du terrier.
 	close_dialog()
+	_end_mode()
 
 
 ## LA MISE EN PAGE (globals.css) : la barre du haut est une bande epinglee

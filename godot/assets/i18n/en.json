@@ -125,6 +125,9 @@
   "raidNeeds": {
    "$t": "A raid needs {0} in the tank. {1} now, enough in {2}."
   },
+  "raidIn": {
+   "$t": "raid in {0}"
+  },
   "aMoment": "a moment",
   "gardenPlus": {
    "$t": "garden +{0}"
@@ -256,7 +259,10 @@
   "markNothing": "Nothing to mark here: every tile around you is already read.",
   "energyLow": "Low energy. A right X on a bomb gives some back.",
   "energyRaidLeft": "Still a raid in the tank. Go home, or dig on.",
-  "homeRaid": "Home · raid ready",
+  "homeRaid": "Home and raid",
+  "crossed": {
+   "$t": "⚡ -{0} to cross · {1} left"
+  },
   "trapHint": {
    "$t": "Tap a tile to mine it, tap a mine to lift it · {0} left"
   },
@@ -328,10 +334,10 @@
    "$t": "🥕 {0} · {1} dug · 💣 {2} · {3}"
   },
   "raidLeft": {
-   "$t": "⚡ {0} home: enough for a raid"
+   "$t": "⚡ {0} left in the tank: enough for a raid"
   },
   "bank": {
-   "$t": "⚡ {0}/{1} at the burrow · a run takes {2}"
+   "$t": "⚡ {0}/{1} in the tank · a crossing takes {2}"
   },
   "getEnergy": "Get more energy",
   "goHome": "Home · stack it",

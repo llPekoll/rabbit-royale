@@ -125,6 +125,9 @@
   "raidNeeds": {
    "$t": "Um saque pede {0} de energia. {1} agora, o bastante em {2}."
   },
+  "raidIn": {
+   "$t": "saque em {0}"
+  },
   "aMoment": "um instante",
   "gardenPlus": {
    "$t": "horta +{0}"
@@ -256,7 +259,10 @@
   "markNothing": "Nada para marcar aqui: todas as casas ao seu redor já foram lidas.",
   "energyLow": "Energia baixa. Um X certo numa bomba devolve um pouco.",
   "energyRaidLeft": "Ainda dá para um saque. Volte, ou continue.",
-  "homeRaid": "Voltar · dá para saquear",
+  "homeRaid": "Voltar e saquear",
+  "crossed": {
+   "$t": "⚡ -{0} na travessia · {1} sobrando"
+  },
   "trapHint": {
    "$t": "Toque num quadrado para minar, numa mina para tirar · restam {0}"
   },
@@ -328,10 +334,10 @@
    "$t": "🥕 {0} · {1} cavados · 💣 {2} · {3}"
   },
   "bank": {
-   "$t": "⚡ {0}/{1} na toca · uma saída leva {2}"
+   "$t": "⚡ {0}/{1} no tanque · a travessia leva {2}"
   },
   "raidLeft": {
-   "$t": "⚡ {0} na toca: dá para um saque"
+   "$t": "⚡ {0} no tanque: dá para um saque"
   },
   "getEnergy": "Pegar mais energia",
   "goHome": "Toca · empilhar",

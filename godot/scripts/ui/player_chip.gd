@@ -100,16 +100,19 @@ func _ready() -> void:
 ## Relit le joueur : Session le nomme, le terrier (/api/burrow) porte sa
 ## tete choisie ; sans choix, le lapin brun (avatars.ts DEFAULT_AVATAR).
 func refresh() -> void:
-	var name := String(Session.player.get("name", ""))
+	# `str` et pas `String()` : un invite porte `null` pour son avatar et son
+	# wallet, et `String(null)` arrete le script.
+	var name := str(Session.player.get("name", ""))
 	_name.text = name
-	var key := String(Home.player.get("avatar", Session.player.get("avatar", "brown")))
+	var picked: Variant = Home.player.get("avatar", Session.player.get("avatar"))
+	var key := "brown" if picked == null else str(picked)
 	var sheet: Texture2D = Kit.AVATARS.get(key, Kit.AVATARS["brown"])
 	var crop := AtlasTexture.new()
 	crop.atlas = sheet
 	crop.region = FACE_CROP
 	_face.texture = crop
 	tooltip_text = I18N.t("auth.guestNote") if bool(Session.player.get("guest", false)) \
-		else String(Session.player.get("wallet", ""))
+		else str(Session.player.get("wallet", "") if Session.player.get("wallet") != null else "")
 	_fit()
 
 

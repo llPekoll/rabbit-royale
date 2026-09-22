@@ -125,6 +125,9 @@
   "raidNeeds": {
    "$t": "Un raid demande {0} d’énergie. {1} pour l’instant, assez dans {2}."
   },
+  "raidIn": {
+   "$t": "raid dans {0}"
+  },
   "aMoment": "un instant",
   "gardenPlus": {
    "$t": "potager +{0}"
@@ -274,7 +277,10 @@
   "markNothing": "Rien à marquer ici : toutes les cases autour de toi sont déjà lues.",
   "energyLow": "Énergie basse. Un X juste sur une bombe en rend.",
   "energyRaidLeft": "Encore de quoi piller. Rentre, ou continue.",
-  "homeRaid": "Rentrer · de quoi piller",
+  "homeRaid": "Rentrer et piller",
+  "crossed": {
+   "$t": "⚡ -{0} pour traverser · {1} restants"
+  },
   "trapHint": {
    "$t": "Touche une case pour la miner, une mine pour la reprendre · {0} restant"
   },
@@ -346,10 +352,10 @@
    "$t": "🥕 {0} · {1} creusées · 💣 {2} · {3}"
   },
   "bank": {
-   "$t": "⚡ {0}/{1} au terrier · une sortie prend {2}"
+   "$t": "⚡ {0}/{1} en réserve · la traversée prend {2}"
   },
   "raidLeft": {
-   "$t": "⚡ {0} au terrier : de quoi piller"
+   "$t": "⚡ {0} en réserve : de quoi piller"
   },
   "getEnergy": "Prendre de l’énergie",
   "goHome": "Terrier · entasser",

@@ -65,7 +65,12 @@ var _cam_tween: Tween
 
 
 func _ready() -> void:
-	_add_quit()
+	# LA BARRE DE DEBOGAGE ne se monte plus que sur demande (`-- --debug-burrow`)
+	# depuis que le chrome est branche (2026-09-23) : DIG traverse, DEFEND
+	# arme le cadrage de pose, le profil deconnecte — et elle couvrait la
+	# barre du haut. Le cycle des quatre cadrages reste la pour qui les regle.
+	if "--debug-burrow" in OS.get_cmdline_user_args():
+		_add_quit()
 	show_ground(_seed)
 	get_viewport().size_changed.connect(_reframe)
 	frame_camera(true)

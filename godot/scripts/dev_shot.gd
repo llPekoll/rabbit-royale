@@ -15,6 +15,19 @@ static func arm(node: Node) -> void:
 	var path := ""
 	var after := 3.0
 	for arg in OS.get_cmdline_user_args():
+		# `--size=890x400` : la fenetre a une taille d'appareil. Sans lui elle
+		# s'ouvre maximisee (project.godot), et la mise en page mesuree est
+		# celle d'un ecran de bureau, pas du Seeker couche.
+		# Differe d'une image : redimensionner pendant que la racine pose ses
+		# enfants fait refuser leurs `add_child` aux panneaux qui se mesurent.
+		if arg.begins_with("--size="):
+			var wh := arg.trim_prefix("--size=").split("x")
+			if wh.size() == 2:
+				var win := node.get_window()
+				var wanted := Vector2i(int(wh[0]), int(wh[1]))
+				(func() -> void:
+					win.mode = Window.MODE_WINDOWED
+					win.size = wanted).call_deferred()
 		if arg.begins_with("--shot="):
 			path = arg.trim_prefix("--shot=")
 		elif arg.begins_with("--after="):
