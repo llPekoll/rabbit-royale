@@ -117,8 +117,8 @@ static func board_bounds(map: BurrowMap) -> Rect2:
 		for col in range(map.width):
 			if not map.is_land(col, row):
 				continue
-			# Le centre du losange — `screen_of` le rend deja.
-			var at := map.screen_of(col, row)
+			# Le centre du losange, comme la maison et les clotures.
+			var at := map.screen_of(col, row) + Vector2(0, hh)
 			lo.x = minf(lo.x, at.x - hw)
 			hi.x = maxf(hi.x, at.x + hw)
 			lo.y = minf(lo.y, at.y - hh)
@@ -249,7 +249,7 @@ static func wall(map: BurrowMap, field: Array[Vector2i],
 	var hw := Iso.half_w()
 	var hh := Iso.half_h()
 	for cell in field:
-		var at := map.screen_of(cell.x, cell.y)
+		var at := map.screen_of(cell.x, cell.y) + Vector2(0, hh)
 		lo.x = minf(lo.x, at.x - hw)
 		hi.x = maxf(hi.x, at.x + hw)
 		lo.y = minf(lo.y, at.y - hh)

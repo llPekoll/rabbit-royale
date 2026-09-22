@@ -158,7 +158,7 @@ func clear() -> void:
 ## Les pieds au centre du losange, comme la maison et les clotures : c'est le
 ## meme sol, et trois facons differentes de le toucher se verraient.
 func _place() -> void:
-	position = map.screen_of(_at.x, _at.y)
+	position = map.screen_of(_at.x, _at.y) + Vector2(0, Iso.half_h())
 	z_index = Iso.depth(_at.x, _at.y) + map.level_at(_at.x, _at.y) + DEPTH_BIAS
 
 
@@ -196,32 +196,6 @@ func _eat() -> void:
 func _rest() -> void:
 	if _sprite != null:
 		_sprite.play("idle")
-
-
-## ENVOIE LE LAPIN SUR UNE CASE — provisoire, pour voir une tape aboutir.
-##
-## Il y va d'un seul bond, ce qu'un lapin ne fait pas sur dix cases : c'est une
-## SONDE, pas un deplacement de jeu. Elle prouve que la case resolue par le
-## doigt est bien celle qu'on visait, ce qu'un signal seul ne montre pas. Elle
-## s'en ira quand une bombe se posera a la place.
-##
-## Le foyer suit, sinon le lapin rentrerait aussitot chez lui.
-func send_to(cell: Vector2i) -> void:
-	if _sprite == null or not _walkable.has(cell):
-		return
-	_home = cell
-	if cell.x != _at.x:
-		_sprite.flip_h = cell.x < _at.x
-	_at = cell
-	if _hop != null and _hop.is_valid():
-		_hop.kill()
-	var to_at := map.screen_of(cell.x, cell.y)
-	z_index = Iso.depth(cell.x, cell.y) + map.level_at(cell.x, cell.y) + DEPTH_BIAS
-	_sprite.play("move")
-	_hop = create_tween()
-	_hop.tween_property(self, "position", to_at, HOP_SECONDS)\
-		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	_hop.tween_callback(_rest)
 
 
 ## UN PAS VERS UNE CASE VOISINE, s'il en trouve une qui lui va.
@@ -262,7 +236,7 @@ func _step() -> void:
 	# cellule en arriere pendant toute la duree du saut ».
 	if _hop != null and _hop.is_valid():
 		_hop.kill()
-	var to_at := map.screen_of(to.x, to.y)
+	var to_at := map.screen_of(to.x, to.y) + Vector2(0, Iso.half_h())
 	z_index = Iso.depth(to.x, to.y) + map.level_at(to.x, to.y) + DEPTH_BIAS
 	_hop = create_tween()
 	_hop.tween_property(self, "position", to_at, HOP_SECONDS)\

@@ -129,22 +129,7 @@ func lift_at(x: int, y: int) -> float:
 	return (float(tier) + surface_lift(x, y)) * float(lift_px)
 
 
-## LE POINT A L'ECRAN OU SE POSE UNE CASE, hauteur comprise.
-##
-## C'EST LE CENTRE DU LOSANGE, et ce n'est pas un detail : `Iso.project` et
-## `Iso.unproject` forment une paire, et toutes deux parlent du centre. Le web
-## fait pareil — `burrowTilePos` rend le centre et n'ajoute jamais rien.
-##
-## CE PORTAGE A EU LE BUG INVERSE : chaque appelant ecrivait
-## `screen_of(...) + Vector2(0, half_h())`, un decalage de douze pixels ajoute
-## partout. Tant que TOUT le monde l'ajoutait, personne ne voyait rien — le
-## lapin tombait bien sur son losange, puisque les deux etaient decales
-## ensemble. Le jour ou le resolveur de tap est arrive, lui, il lisait la
-## convention de `unproject` : le centre de la case (5,5) lui repondait (6,6).
-##
-## Une convention qui n'est vraie que si tous ses lecteurs font la meme erreur
-## n'est pas une convention, c'est une coincidence. D'ou cette fonction unique,
-## et plus un seul `+ half_h()` chez les appelants.
+## Le point a l'ecran ou se pose une case, hauteur comprise.
 func screen_of(x: int, y: int) -> Vector2:
 	var flat := Iso.project(x, y)
 	return Vector2(flat.x, flat.y - lift_at(x, y))

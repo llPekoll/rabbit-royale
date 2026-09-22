@@ -11,13 +11,6 @@ extends Node2D
 ## qui laisse un caillou proche passer devant une falaise lointaine sans qu'on
 ## arbitre a la main.
 
-## UNE CASE A ETE TAPEE — pas glissee, pas effleuree : choisie.
-##
-## Un signal plutot qu'un appel direct : le terrier ne sait pas ce qu'on fait
-## d'une case. Poser une bombe, la relever, choisir ou creuser — c'est au jeu
-## de le decider, et le plateau ne doit pas avoir a connaitre la liste.
-signal tile_tapped(cell: Vector2i)
-
 ## LA DUREE DU MOUVEMENT DE CAMERA, et sa courbe.
 ##
 ## Le web tween en 0,55 s avec un `back.out(1.3)` — un leger depassement, qui
@@ -67,15 +60,6 @@ func _ready() -> void:
 	show_ground(_seed)
 	get_viewport().size_changed.connect(_reframe)
 	frame_camera(true)
-	# PROVISOIRE, comme le bouton de cadrage : sans consequence visible, une
-	# tape juste ne se distingue pas d'une tape ignoree. Le lapin va sur la
-	# case tapee — ca prouve d'un coup que la case resolue est la BONNE, et pas
-	# seulement qu'un signal est parti. Remplace des qu'une bombe se pose.
-	tile_tapped.connect(_on_tile_tapped)
-
-
-func _on_tile_tapped(cell: Vector2i) -> void:
-	_rabbit.send_to(cell)
 
 
 ## LE SOL D'UN TERRIER DONNE.
@@ -307,112 +291,6 @@ func set_raiding(on: bool) -> void:
 	_cam_moved_by_player = false
 	_relabel_cycle()
 	frame_camera()
-
-
-## LE DOIGT SUR LE PLATEAU.
-##
-## TROIS PIEGES, tous mesures par le web avant nous :
-##
-##   1. LE GLISSEMENT NE DOIT PAS POSER. Un `pointertap` se declenche a la fin
-##      d'un glissement aussi volontiers qu'apres une tape — donc sans le
-##      drapeau `_did_drag`, faire glisser le plateau enterrerait un piege sur
-##      la case ou le doigt s'est arrete.
-##
-##   2. L'APPUI MONTRE AVANT DE CHOISIR. Sur un telephone il n'y a pas de
-##      survol : sans retour a l'appui, le premier signal arrive APRES le
-##      geste, et le joueur decouvre ce qu'il a choisi une fois qu'il ne peut
-##      plus changer d'avis. L'appui teint donc la case en or, comme le
-##      survol le fait a la souris.
-##
-##   3. LE PLATEAU SE LAISSE GLISSER, mais seulement quand il y a quelque
-##      chose a viser (`can_move_cam`). A la maison, la ferme est un decor de
-##      fond : la promener n'aurait aucun sens.
-##
-## Godot n'a pas d'equivalent des aires de hit de Pixi, donc la case est
-## resolue par la geometrie (voir burrow_pick.gd) et non par l'ordre de dessin.
-## Les deux raisons qui ont fait choisir l'autre voie sont gardees la-bas.
-
-## DE COMBIEN LE DOIGT DOIT BOUGER pour que ce soit un glissement et non une
-## tape, en pixels d'ecran. Un doigt ne se pose jamais parfaitement immobile :
-## a zero, chaque tape serait un micro-glissement et ne poserait jamais rien.
-const DRAG_SLOP := 8.0
-
-var _pressing := false
-var _did_drag := false
-var _press_at := Vector2.ZERO
-var _press_cam := Vector2.ZERO
-
-
-func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventScreenTouch or event is InputEventMouseButton:
-		var pressed: bool = event.pressed
-		var at: Vector2 = event.position
-		if pressed:
-			_on_press(at)
-		else:
-			_on_release(at)
-	elif event is InputEventScreenDrag or event is InputEventMouseMotion:
-		if _pressing:
-			_on_move(event.position)
-
-
-func _on_press(at: Vector2) -> void:
-	_pressing = true
-	_did_drag = false
-	_press_at = at
-	_press_cam = position
-	# L'APPUI MONTRE CE QU'IL VA CHOISIR — le retour que le survol donne a la
-	# souris, et qu'un doigt n'a pas.
-	if _hints_live():
-		_hints.set_hovered(_cell_at(at))
-
-
-func _on_move(at: Vector2) -> void:
-	if not _did_drag and at.distance_to(_press_at) > DRAG_SLOP:
-		_did_drag = true
-		# DES QUE C'EST UN GLISSEMENT, LA CASE N'EST PLUS VISEE : garder l'or
-		# sous un doigt qui promene le plateau annoncerait une pose qui
-		# n'arrivera pas.
-		if _hints_live():
-			_hints.set_hovered(Vector2i(-1, -1))
-	if not _did_drag:
-		# Toujours une tape en puissance : on suit la case sous le doigt.
-		if _hints_live():
-			_hints.set_hovered(_cell_at(at))
-		return
-	if not can_move_cam():
-		return
-	# LE PLATEAU SUIT LE DOIGT. Applique directement, sans tween — une
-	# demi-seconde d'ease sur chaque mouvement trainerait derriere lui.
-	set_place_cam(BurrowCamera.Shot.new(scale.x, _press_cam + (at - _press_at)))
-
-
-func _on_release(at: Vector2) -> void:
-	if not _pressing:
-		return
-	_pressing = false
-	if _hints_live():
-		_hints.set_hovered(Vector2i(-1, -1))
-	# PIEGE N°1 : un glissement qui se termine n'est pas une tape.
-	if _did_drag:
-		return
-	var cell := _cell_at(at)
-	if cell.x < 0:
-		return
-	tile_tapped.emit(cell)
-
-
-## LA CASE SOUS UN POINT DE L'ECRAN.
-##
-## L'ecran vers l'espace du terrain, puis la geometrie. C'est ICI que vit la
-## transformation de la camera — `BurrowPick` n'a pas a la connaitre.
-func _cell_at(at: Vector2) -> Vector2i:
-	return BurrowPick.at(_terrain.map, (at - position) / scale.x)
-
-
-## Les losanges sont-ils allumes ? Sans eux, rien a teindre.
-func _hints_live() -> bool:
-	return _placing and _hints != null
 
 
 ## LE JOUEUR PREND LE PLATEAU EN MAIN — un glissement, un pincement.
