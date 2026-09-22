@@ -472,11 +472,11 @@ button.rr-item-slot:active:hover:not(:disabled) { filter: var(--rr-live-ring,) v
    parchment is 354x104 with a 107px shield cap; RAID's skull board is
    337x104, its skull ending at x=85, so 100 puts the cut in clean wood. */
 .rr-loop-slab.rr-loop-home::before {
-  border-image-source: url('/assets/ui/scroll-plank.webp');
+  border-image-source: url('/assets/ui/scroll-plank-blue.webp');
   border-image-slice: 14 47 14 107 fill;
 }
 .rr-loop-slab.rr-loop-raid::before {
-  border-image-source: url('/assets/ui/skull-plank.webp');
+  border-image-source: url('/assets/ui/skull-plank-red.webp');
   border-image-slice: 14 40 14 100 fill;
 }
 /* THE CONTENT SITS ON THE PARCHMENT, INSIDE ITS FRAME.
@@ -695,4 +695,3 @@ button.rr-item-slot:active:hover:not(:disabled) { filter: var(--rr-live-ring,) v
 .rr-loop-slab.rr-loop-raid:active:hover:not(:disabled)::before {
   filter: var(--rr-cast-down) var(--rr-press-dim);
 }
-
