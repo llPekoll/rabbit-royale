@@ -408,8 +408,15 @@ class ChapterTab extends PanelContainer:
 		var head := Kit.hbox(6)
 		head.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var t := Kit.label(title, 13, Palette.BARK if locked else Palette.INK)
-		t.clip_text = true
-		t.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		if stacked:
+			# L'etagere couchee a des onglets etroits : une ligne, coupee.
+			t.clip_text = true
+			t.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		else:
+			# LE TITRE PASSE A LA LIGNE, comme sur le web (« The Island That
+			# / Gives NEW ») : coupe, le premier chapitre se lisait « The
+			# Island T... » — le titre du chapitre qu'on vient d'ouvrir.
+			t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		head.add_child(t)
 		if fresh:
