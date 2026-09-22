@@ -11,7 +11,11 @@ config_version=5
 
 config/name="Rabbit Royale"
 run/main_scene="res://scenes/title.tscn"
-config/features=PackedStringArray("4.4", "GL Compatibility")
+; 4.7, pas 4.4 : l'éditeur qui construit ce projet est un 4.7.2, et l'AAR du
+; plugin MWA est compilé contre org.godotengine:godot:4.7.2.stable. Les deux
+; DOIVENT s'accorder — un plugin bâti contre une autre 4.x se charge puis casse
+; au premier appel, sur une signature qui a bougé entre-temps.
+config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://assets/ui/rr-logo-1x.png"
 
 [display]
@@ -52,7 +56,19 @@ environment/defaults/default_clear_color=Color(0.051, 0.067, 0.09, 1)
 [autoload]
 
 I18N="*res://scripts/i18n.gd"
+; Order matters: Session calls Net, and Wallet is read by the doorstep on its
+; first frame. An autoload may only reference one declared ABOVE it.
+Net="*res://scripts/net.gd"
+Wallet="*res://scripts/wallet.gd"
+Session="*res://scripts/session.gd"
 
 [gui]
 
 theme/custom="res://assets/ui/theme.tres"
+
+[editor_plugins]
+
+; Le plugin d'export qui embarque l'AAR du Seed Vault dans l'APK. Éditeur
+; seulement : rien de ce dossier ne part dans le jeu, il ne fait qu'ajouter
+; l'AAR et ses dépendances Maven au moment de l'export Android.
+enabled=PackedStringArray("res://addons/RabbitMWA/plugin.cfg")

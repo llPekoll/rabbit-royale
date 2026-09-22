@@ -85,6 +85,21 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(_measure)
 	_measure()
 
+	# A refusal reported from anywhere in the sign-in flow lands on the one
+	# status line, so neither door has to know how the other failed.
+	Session.failed.connect(func(message: String) -> void: _say(message, true))
+	_refresh_doors()
+
+	# A STORED SESSION IS CHECKED BEFORE THE DOORS ARE OFFERED. Both are
+	# disabled while it is in flight: a player who presses "guest" during the
+	# check gets a SECOND burrow on top of the one being restored, which is the
+	# one mistake here that loses somebody's progress.
+	_busy(true)
+	if await Session.restore():
+		_enter()
+	_busy(false)
+	_refresh_doors()
+
 
 ## The largest whole multiple of the artwork that fits the space we are given —
 ## bounded by the column's width AND by the viewport's height.
@@ -240,18 +255,74 @@ func _on_language_picked(index: int) -> void:
 	I18N.set_locale(I18N.LOCALES[index]["code"])
 
 
-## No wallet bridge in this project yet. The button says what it would do and
-## hands the buttons back — a dead-looking control is worse than an honest one.
+## THE FRONT DOOR: the wallet signs the server's challenge and the session
+## comes back. On a Seeker that signature is a Seed Vault gesture.
+##
+## Off Android there is no wallet to reach, and the button says so rather than
+## opening a prompt that cannot arrive — see `_refresh_doors()`, which disables
+## it before it can be pressed.
 func _on_connect() -> void:
-	_say(I18N.t("connecting"), false)
+	if not Wallet.available():
+		_say(I18N.t("no_wallet"), true)
+		return
+
 	_busy(true)
-	await get_tree().create_timer(1.2).timeout
-	_say("Wallet bridge not wired yet", true)
+	_say(I18N.t("connecting"), false)
+
+	# The address first: the challenge is minted FOR an address, so there is
+	# nothing to sign until the wallet has named one.
+	var address := await Wallet.address()
+	if address.is_empty():
+		# A closed wallet sheet is a refusal, not a failure. The only thing to
+		# report is a real error, if the plugin left one behind.
+		_say(Wallet.last_error, not Wallet.last_error.is_empty())
+		_busy(false)
+		return
+
+	# A guest who is already playing LINKS instead of signing in, so the burrow
+	# they have been digging survives getting a wallet. Signing in afresh would
+	# hand them a different account and silently abandon it.
+	var linking := Session.signed_in() and bool(Session.player.get("guest", false))
+	var signer := func(message: String) -> String: return await Wallet.sign(message)
+	# Spelled out rather than an `await (a if c else b)`: awaiting the RESULT of
+	# a ternary makes GDScript resolve the branches before the await, and it
+	# rejects both as un-awaited coroutines.
+	var ok := false
+	if linking:
+		ok = await Session.link_wallet(address, signer)
+	else:
+		ok = await Session.sign_in_with_wallet(address, signer)
+
 	_busy(false)
+	if ok:
+		_enter()
 
 
+## THE SECOND DOOR: a burrow with no wallet at all, so someone who has never
+## held one can press play. The session is an ordinary one, and the wallet can
+## still be attached later to this very account.
 func _on_guest() -> void:
-	_say("Guest burrow not wired yet", true)
+	_busy(true)
+	_say(I18N.t("connecting"), false)
+	var ok := await Session.play_as_guest()
+	_busy(false)
+	if ok:
+		_enter()
+
+
+## Signed in. There is no second screen in this project yet, so the doorstep
+## says who came in rather than pretending to move — the next screen lands
+## here, and until it does an honest dead end beats a fake transition.
+func _enter() -> void:
+	var name := String(Session.player.get("name", "?"))
+	_say("Welcome back, %s" % name, false)
+
+
+## A wallet button that cannot work is disabled, not hidden: on a desktop run
+## the doorstep should still show what the phone offers, and a greyed slab says
+## "not here" where a missing one says "not a thing".
+func _refresh_doors() -> void:
+	_connect.disabled = not Wallet.available()
 
 
 ## The line under the two doors. `bad` is what decides its colour: the danger
@@ -265,5 +336,11 @@ func _say(text: String, bad: bool) -> void:
 
 
 func _busy(value: bool) -> void:
-	_connect.disabled = value
+	# Releasing the wallet door goes through _refresh_doors rather than a plain
+	# `false`: off Android it must stay disabled, and un-busying would otherwise
+	# hand back a button with nothing behind it.
 	_guest.disabled = value
+	if value:
+		_connect.disabled = true
+	else:
+		_refresh_doors()
