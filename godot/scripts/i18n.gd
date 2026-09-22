@@ -31,6 +31,11 @@ const LOCALES: Array[Dictionary] = [
 ]
 
 const DEFAULT_LOCALE := "en"
+## La face pixel des langues que celle du kit ne sait pas ecrire (voir `face`).
+## Deux variantes de Fusion Pixel : la latine donne a « ’ » sa chasse de
+## lettre, la chinoise la donne pleine — « aujourd’ hui » en francais.
+const FUSION_LATIN := preload("res://assets/fonts/fusion-pixel-12-rr-latin.ttf")
+const FUSION_ZH := preload("res://assets/fonts/fusion-pixel-12-rr-zh.ttf")
 const SAVE_PATH := "user://locale.cfg"
 const DICT_DIR := "res://assets/i18n/"
 
@@ -362,6 +367,24 @@ func face() -> Font:
 			bold.variation_embolden = 0.6
 			chosen = bold
 		break
+
+	# FUSION PIXEL D'ABORD (Paul, 2026-09-23 : « essaye avec la font
+	# Fusion »). La face pixel du kit n'a que l'ASCII ; celle-ci porte les
+	# accents ET les sinogrammes, en pixels de 12. Reduite aux caracteres de
+	# nos quatre dictionnaires (tools/subset-fusion-font.sh), et la face du
+	# systeme reste derriere elle pour ce qu'elle n'a pas — un nom de joueur,
+	# un mot venu du serveur. OFL 1.1, licence a cote du fichier.
+	var fusion := (FUSION_ZH if zh else FUSION_LATIN).duplicate() as FontFile
+	fusion.antialiasing = TextServer.FONT_ANTIALIASING_NONE
+	fusion.hinting = TextServer.HINTING_NONE
+	fusion.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
+	# A SA TAILLE, OU A SES MULTIPLES : une face pixel de 12 demandee en 10
+	# perd des rangees, et un sinogramme en sort illisible (« 领取 »). Tout
+	# ce qui est sous 24 se dessine en 12, et au-dela en 24.
+	fusion.fixed_size = 12
+	fusion.fixed_size_scale_mode = TextServer.FIXED_SIZE_SCALE_INTEGER_ONLY
+	fusion.fallbacks = [chosen]
+	chosen = fusion
 
 	_face_cache[locale] = chosen
 	return chosen

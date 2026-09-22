@@ -344,6 +344,11 @@ func _rail_button(id: String, live: bool) -> Button:
 		b.add_theme_constant_override("icon_max_width", 16)
 	else:
 		b.text = RAILS[id]
+		# A la mesure du mot, pas du seul RAIL_W : une face de 12px (Fusion,
+		# hors anglais) ne tient pas « USDC » dans 50px.
+		var font := b.get_theme_font("font")
+		var w := font.get_string_size(b.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x + 28.0
+		b.custom_minimum_size.x = maxf(RAIL_W, w)
 	if not on:
 		b.modulate.a = 0.85
 	if not live:

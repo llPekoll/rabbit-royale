@@ -66,6 +66,15 @@ func _init(title: String = "", width: float = 420.0, height: float = 0.0) -> voi
 	title_label.add_theme_color_override("font_shadow_color", Palette.INK)
 	title_label.add_theme_constant_override("shadow_offset_x", 0)
 	title_label.add_theme_constant_override("shadow_offset_y", 2)
+	if not I18N.pixel_face():
+		# Fusion Pixel (hors anglais) est une face BITMAP : Godot ne sait pas
+		# lui tracer de cerne ni d'ombre (l'ombre porte un cerne d'un pixel),
+		# et les deux la dechiquetaient (« QUELLE ÎLE » illisible). En encre
+		# pleine, a 24 — le double exact de ses 12.
+		title_label.add_theme_font_size_override("font_size", 24)
+		title_label.add_theme_constant_override("outline_size", 0)
+		title_label.add_theme_color_override("font_color", Palette.INK)
+		title_label.add_theme_color_override("font_shadow_color", Color.TRANSPARENT)
 	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title_label.clip_text = true
 	_header.add_child(title_label)
