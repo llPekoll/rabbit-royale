@@ -107,6 +107,75 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(_reframe)
 	frame_camera(true)
 	_add_chrome()
+	# LE VOLCAN, tel que la manche le dit : il gronde a chaque palier qui
+	# monte, et l'ile coule a l'eruption. La lecon n'a pas de volcan ; ceci
+	# attend que les manches en ligne arrivent sur l'ile.
+	RunState.current.volcano_changed.connect(_on_volcano)
+	RunState.current.erupting_changed.connect(func(ms: int) -> void:
+		if ms > 0:
+			play_eruption(ms)
+		else:
+			reset_eruption())
+
+
+## LE GRONDEMENT, seulement quand le palier MONTE (use-game-socket.ts) : une
+## lecture qui repete le meme palier ne gronde pas deux fois.
+var _warn_heard := 0
+
+
+func _on_volcano() -> void:
+	var stage := RunState.current.warn_stage
+	if stage > _warn_heard:
+		Sound.rumble(stage)
+	_warn_heard = stage
+
+
+## L'ILE COULE (IslandScene.ts `playEruption`). Le sol entier tremble sur la
+## premiere moitie, puis glisse vers le bas et s'efface ; la mer et le ciel,
+## sur leurs propres couches, restent — c'est la terre qui s'en va. Le voile,
+## les gouttes et « THE ISLAND SINKS » sont la moitie chrome
+## (eruption_overlay.gd).
+const SHAKE_PX := 9.0
+const ERUPTION_RISE_PX := 260.0
+const HEAVE_STEP := 0.05
+var _eruption: Tween
+
+
+func play_eruption(duration_ms: int) -> void:
+	var s := maxf(1.0, float(duration_ms)) / 1000.0
+	if _cam_tween != null and _cam_tween.is_valid():
+		_cam_tween.kill()
+	if _eruption != null and _eruption.is_valid():
+		_eruption.kill()
+	var at := _current_shot().at
+	var k := scale.x
+	var kick := SHAKE_PX * 2.0 / k
+	Sound.play("explosion")
+
+	_eruption = create_tween()
+	# LE SOULEVEMENT : un aller-retour toutes les 50 ms, sur 55 % de la duree.
+	var steps := int(floor(s * 0.55 / HEAVE_STEP))
+	for i in steps:
+		var to := at + Vector2(kick, kick * 0.6) if i % 2 == 0 else at
+		_eruption.tween_property(self, "position", to, HEAVE_STEP)
+	_eruption.tween_property(self, "position", at, HEAVE_STEP)
+	# LA DESCENTE, puis le fondu qui la rattrape.
+	_eruption.set_parallel(true)
+	_eruption.tween_property(self, "position:y", at.y + ERUPTION_RISE_PX / k, s * 0.45) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	_eruption.tween_callback(_tiles.plain_blend).set_delay(s * 0.05)
+	_eruption.tween_property(self, "modulate:a", 0.0, s * 0.4).set_delay(s * 0.05) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+
+
+## L'ILE REVIENT (`resetEruption`) : une nouvelle ile, ou la manche finie.
+func reset_eruption() -> void:
+	if _eruption != null and _eruption.is_valid():
+		_eruption.kill()
+	_eruption = null
+	modulate.a = 1.0
+	_tiles.restore_blend()
+	frame_camera(true)
 
 
 ## LA PORTE DE RETOUR VERS LE TERRIER.

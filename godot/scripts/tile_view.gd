@@ -436,6 +436,21 @@ func _diamond_node(color: Color, share: float) -> Sprite2D:
 	return d
 
 
+## LES CHIFFRES S'EFFACENT AVEC L'ILE. Ils sont rendus en MULTIPLY, et un
+## multiply ignore l'opacite : l'ile coulait en s'effacant, ses chiffres
+## restaient pleins par-dessus la mer. Le temps d'un fondu, ils repassent en
+## melange normal — ils suivent alors l'alpha de l'ile — et `restore_blend`
+## les rend a leur teinte.
+func plain_blend() -> void:
+	for cell in _hints:
+		(_hints[cell] as Sprite2D).material = null
+
+
+func restore_blend() -> void:
+	for cell in _hints:
+		(_hints[cell] as Sprite2D).material = _mul_material()
+
+
 ## FAIT BATTRE LE X FANTOME SUR UNE CASE — celle que la lecon demande de
 ## marquer — ou l'eteint avec (-1,-1).
 ##
