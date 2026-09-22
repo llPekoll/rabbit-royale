@@ -209,20 +209,55 @@ func build() -> void:
 					face.texture = _rock[FACE_ROW][bcol]
 					face.centered = false
 					face.z_index = Z_FACE - i
+					# AGRANDIE COMME LE SOL, meme raison que le rebord.
+					face.scale = Vector2(scale_up, scale_up)
 					face.position = Vector2(
-						-TILE * 0.5,
-						BurrowMap.TIER_LIFT + i * FACE_SOLID_H - (TILE - Iso.BURROW_TILE_H) * 0.5
+						-TILE * 0.5 - grown,
+						BurrowMap.TIER_LIFT + i * FACE_SOLID_H
+							- (TILE - Iso.BURROW_TILE_H) * 0.5 - grown
 					)
 					block.add_child(face)
 
-			# LE REBORD ROCHEUX, entre les faces et l'herbe. Seulement sur un
-			# plateau : au niveau du sol, le bord est la plage, pas la falaise.
-			if tier > 1:
+			# LE REBORD ROCHEUX, entre les faces et l'herbe.
+			#
+			# Seulement sur un plateau : au niveau du sol, le bord est la plage
+			# et pas la falaise.
+			#
+			# ET JAMAIS SOUS UNE RAMPE, ce que le portage avait omis. Le web le
+			# dit en une ligne — « the rim is flat, and a flat lip under a
+			# warped surface would show below its lifted edge ». Une case en
+			# rampe a ses coins leves ; une levre PLATE glissee dessous depasse
+			# donc de son bord, et c'est ce qui dessinait les liserés sombres
+			# dentelés au pourtour du plateau, plus les fragments de rocher
+			# isoles en contrebas.
+			#
+			# MESURE sur la graine « default » : 102 cases de plateau, dont 26
+			# en rampe — un quart des rebords etaient poses la ou le web n'en
+			# met pas.
+			var ramp := false
+			for lift in map.corner_lifts(col, row):
+				if lift != 0:
+					ramp = true
+			if tier > 1 and not ramp:
 				var rim := Sprite2D.new()
 				rim.texture = _rock[Autotile.ELEVATION_SURFACE_ROW[brow]][bcol]
 				rim.centered = false
 				rim.z_index = Z_RIM
-				rim.position = Vector2(-TILE * 0.5, -(TILE - Iso.BURROW_TILE_H) * 0.5)
+				# LE REBORD EST AGRANDI COMME LE SOL, et c'est ce que le portage
+				# avait oublie.
+				#
+				# Cote web, le rebord passe par le MEME `stampGround` que
+				# l'herbe, donc il herite du meme `groundScale` — « the factor
+				# that makes the painted diamond exactly as wide as the cell ».
+				# Ici le sol etait agrandi de 1,05 et le rebord pose a 1 : il
+				# restait donc 5 % de trou tout autour de chaque tuile de
+				# rocher, et la MER passait au travers. Les traits bleus au pied
+				# des falaises sur la capture du Seeker.
+				rim.scale = Vector2(scale_up, scale_up)
+				rim.position = Vector2(
+					-TILE * 0.5 - grown,
+					-(TILE - Iso.BURROW_TILE_H) * 0.5 - grown
+				)
 				block.add_child(rim)
 
 			# LE SOL.

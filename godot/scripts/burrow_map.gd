@@ -37,15 +37,40 @@ const RAGGEDNESS := 0.12
 
 ## LA HAUTEUR D'UN PALIER, EN PIXELS.
 ##
-## Six, et ce nombre est partage mot pour mot avec l'ile. Les deux DOIVENT
-## rester egaux : sinon le meme sprite de falaise a un trou sous lui sur un
-## ecran et un surplomb sur l'autre.
-const TIER_LIFT := 6
+## DIX, ET C'EST LE MAXIMUM QUE LE TAP SUPPORTE. Le web en met six.
+##
+## POURQUOI LE MONTER. Chaque tuile de palette de PLATEAU porte une bande de
+## rocher CUITE sous son losange — mesuree sur l'alpha de palette-2 : le losange
+## fait 24 px, la tuile en peint 40, donc la bande fait SEIZE. Un palier qui ne
+## leve que six laisse dix pixels de rocher deborder sur la tuile de DEVANT, et
+## ce debordement est le liseré sombre qui courait le long de chaque etagere —
+## les « 74 coutures ». A dix, il n'en reste que six.
+##
+## POURQUOI PAS SEIZE, qui l'annulerait tout a fait. C'est de la GEOMETRIE, pas
+## un bug : une rampe leve 1,5 palier, et une case voisine en diagonale n'est
+## qu'a 24 px plus bas a l'ecran (deux demi-hauteurs). A seize, une rampe leve
+## donc EXACTEMENT 24 — elle se dessine pile par-dessus la case de devant, et le
+## picker trouve la mauvaise en premier.
+##
+## Le balayage l'a montre aussitot : ILE 545/557 et TERRIER 141/148, et toutes
+## les cases perdues etaient des rampes qui rendaient la case d'un palier
+## AU-DESSUS. Essaye a 10, 12 et 14 : DIX est le dernier qui garde 557/557 et
+## 148/148.
+##
+## CE QUE CA COUTE. Le web a tranche six le 2026-09-18 apres avoir essaye
+## dix-huit — « a dix-huit une terrasse se lisait comme un mur ». Dix est entre
+## les deux, et c'est la borne que la geometrie impose de toute facon.
+##
+## PARTAGE AVEC LE TERRIER, forcement : c'est la meme constante, et les deux
+## plateaux doivent lever pareil sous peine de montrer le meme sprite de falaise
+## avec un trou d'un cote et un surplomb de l'autre.
+const TIER_LIFT := 10
 
 ## LA HAUTEUR D'UN PALIER A L'ECRAN, reglable.
 ##
-## Six est le chiffre du jeu, tranche le 2026-09-18, et il est DELIBEREMENT
-## discret : le relief doit se sentir sans que le terrier devienne une falaise.
+## Dix est le chiffre de ce portage (voir TIER_LIFT) : assez pour que le rocher
+## cuit ne deborde plus que de six pixels, pas assez pour qu'une rampe recouvre
+## la case de devant.
 ##
 ## CE CHIFFRE EXPLIQUE POURQUOI LE PLATEAU SEMBLE PLAT, et ce n'est pas un
 ## defaut. Deux cases voisines sont deja separees de douze pixels par la
