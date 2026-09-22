@@ -146,6 +146,12 @@ func _ready() -> void:
 	for code in DICT_FILES:
 		_dicts[code] = (DICT_FILES[code] as JSON).data
 	locale = _load_saved()
+	# `-- --lang=fr` : une langue pour ce lancement seulement, sans l'ecrire
+	# dans user:// — pour capturer chaque langue sans toucher au choix du
+	# joueur. Outil, pas comportement.
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--lang=") and DICT_FILES.has(arg.trim_prefix("--lang=")):
+			locale = arg.trim_prefix("--lang=")
 	_apply_theme_face()
 
 
@@ -325,21 +331,36 @@ func face() -> Font:
 	if _face_cache.has(locale):
 		return _face_cache[locale]
 
-	var probe: String = "岛" if locale == "zh" else "é"
+	# UNE PILE PAR ECRITURE, celle du web (globals.css `--font-fallback`) :
+	# le latin prend une mono du systeme, le chinois ses grandes faces. Une
+	# seule liste pour tous prenait PingFang pour le FRANCAIS, et une face
+	# chinoise dessine « ’ » en pleine chasse : « S’ ouvre » (2026-09-23).
+	# En gras : a 10-12px la graisse normale d'une face lisse se perdait sur
+	# le parchemin, la ou la face pixel est pleine.
+	var zh := locale == "zh"
+	var probe: String = "岛" if zh else "é"
 	var code := probe.unicode_at(0)
+	var names: PackedStringArray = ["PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC",
+		"Microsoft YaHei"] if zh else ["SF Mono", "Menlo", "Roboto Mono", "Droid Sans Mono",
+		"DejaVu Sans Mono", "Consolas"]
 
 	var chosen: Font = ThemeDB.fallback_font
-	for name in ["Zpix", "Silkscreen", "DotGothic16", "Hiragino Sans GB",
-			"Microsoft YaHei", "Noto Sans CJK SC", "PingFang SC", "Arial Unicode MS"]:
-		var path := OS.get_system_font_path(name)
-		if path.is_empty():
+	for name in names:
+		if OS.get_system_font_path(name, 700 if not zh else 600).is_empty():
 			continue
-		var file := FontFile.new()
-		if file.load_dynamic_font(path) != OK:
+		var sys := SystemFont.new()
+		sys.font_names = PackedStringArray([name])
+		sys.font_weight = 600 if zh else 700
+		if not sys.has_char(code):
 			continue
-		if not file.has_char(code):
-			continue
-		chosen = file
+		chosen = sys
+		if zh:
+			# La graisse demandee ne prend pas sur toutes les faces CJK (PingFang
+			# rend la sienne) : on epaissit le trait, comme le gras du web.
+			var bold := FontVariation.new()
+			bold.base_font = sys
+			bold.variation_embolden = 0.6
+			chosen = bold
 		break
 
 	_face_cache[locale] = chosen
