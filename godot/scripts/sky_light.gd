@@ -191,9 +191,21 @@ const RENDER_SCALE_UNUSED := 0.5
 const Z_SHADOWS := 3000
 const Z_RAYS := 3500
 
+## LE CADRE DU WEB, pour que les ombres aient la meme echelle que la-bas :
+## `mountCloudShadows` monte un plan de TUNED_W x TUNED_H x REACH et multiplie
+## `scale` par REACH. Ce sont des diviseurs, pas la taille du voile Godot.
+const WEB_FRAME := Vector2(960.0, 540.0)
+const WEB_REACH := 4.0
+
+## Le bruit cuit des ombres : taille en texels, et la frequence qui en fait
+## une periode entiere d'unites de bruit (voir `_apply_shadows`).
+const SHADOW_NOISE_SIZE := Vector3i(128, 128, 64)
+const SHADOW_NOISE_FREQ := 1.0 / 16.0
+
 var _shadows: ColorRect
 var _rays: ColorRect
 var _elapsed := 0.0
+var _shadow_phase := 0.0
 
 
 func _ready() -> void:
@@ -243,12 +255,18 @@ func _make_layer(shader: Shader, z: int) -> ColorRect:
 func _apply() -> void:
 	var look: Dictionary = SkyLook.SKY
 	var sm := _shadows.material as ShaderMaterial
-	# LE BRUIT, CUIT UNE FOIS. `NoiseTexture2D` le genere au chargement ; le
-	# shader ne fait plus qu'une lecture de texture la ou il evaluait deux
-	# simplex 3D par pixel. `seamless` est indispensable : la texture est lue en
-	# repeat, et une couture se verrait comme une ligne droite en travers du
-	# ciel.
-	if sm.get_shader_parameter("noise") == null:
+	_apply_shadows(sm)
+
+	var rm := _rays.material as ShaderMaterial
+	# LE BRUIT DES RAIS, CUIT UNE FOIS. `NoiseTexture2D` le genere au
+	# chargement ; le shader ne fait plus qu'une lecture de texture la ou il
+	# evaluait deux simplex par pixel. `seamless` est indispensable : la texture
+	# est lue en repeat, et une couture se verrait comme une ligne droite en
+	# travers du ciel.
+	#
+	# Les ombres ont leur propre bruit, en 3D (voir `_apply_shadows`) : elles
+	# sont un portage fidele du web, les rais sont regles au tuner sur celui-ci.
+	if rm.get_shader_parameter("noise") == null:
 		var tex := NoiseTexture2D.new()
 		# 512 : cuite une fois au chargement, donc sa taille ne coute rien par
 		# image, et elle donne des bords de plaque francs la ou 256 laissait un
@@ -262,37 +280,7 @@ func _apply() -> void:
 		fn.frequency = 0.012
 		fn.fractal_octaves = 3
 		tex.noise = fn
-		sm.set_shader_parameter("noise", tex)
-	sm.set_shader_parameter("half_tile", Vector2(Iso.half_w(), Iso.half_h()))
-	# L'ECHELLE EST CONVERTIE, parce qu'elle n'a plus le meme SENS.
-	#
-	# `SkyLook.scale` vaut 6,1 — le chiffre que Paul a regle au tuner, sur un
-	# bruit CALCULE ou il comptait des cellules de simplex, une notion sans
-	# taille propre. Le shader lit maintenant une TEXTURE, et la `scale` y
-	# compte des REPETITIONS : a 6,1 la texture de 512 px se repete tous les
-	# 146 px de design, soit un texel de 0,28 px. Sous le pixel, on voit la
-	# grille — le damier qui couvrait la mer.
-	#
-	# MESURE : pour des plaques molles il faut un texel de quatre a huit pixels
-	# de design, donc une repetition tous les ~2500 px, donc une scale autour de
-	# 0,29. Le facteur ci-dessous fait la conversion sans toucher au reglage de
-	# Paul, qui reste lisible tel qu'il l'a laisse.
-	sm.set_shader_parameter("scale", look["scale"] * TEXTURE_SCALE)
-	sm.set_shader_parameter("speed", look["speed"])
-	sm.set_shader_parameter("angle", look["angle"])
-	sm.set_shader_parameter("morph", look["morph"])
-	sm.set_shader_parameter("edge", look["edge"])
-	sm.set_shader_parameter("pixel", 1.0)
-	sm.set_shader_parameter("shade", look["shade"])
-	sm.set_shader_parameter("alpha", look["shade_alpha"])
-
-	var rm := _rays.material as ShaderMaterial
-	# LE MEME BRUIT CUIT QUE LES OMBRES, et c'est voulu : les deux couches
-	# decrivent UN SEUL ciel, donc elles doivent lire le meme champ. Partager la
-	# texture le garantit par construction, la ou deux textures distinctes
-	# auraient pu deriver.
-	if rm.get_shader_parameter("noise") == null:
-		rm.set_shader_parameter("noise", sm.get_shader_parameter("noise"))
+		rm.set_shader_parameter("noise", tex)
 	rm.set_shader_parameter("scale", look["scale"] * TEXTURE_SCALE)
 	rm.set_shader_parameter("speed", look["speed"])
 	rm.set_shader_parameter("morph", look["morph"])
@@ -326,6 +314,81 @@ func _apply() -> void:
 	rm.set_shader_parameter("reach", look["ray_reach"] * REACH)
 	for k in ["motes", "mote_cell", "mote_size", "mote_density", "mote_rise", "mote_blink"]:
 		rm.set_shader_parameter(k, look[k])
+
+
+## LES OMBRES, AUX CHIFFRES DU WEB.
+##
+## Tout vient de `SkyLook.SHADOWS`, qui recopie CLOUD_SHADOW_NOISE_DEFAULTS, et
+## passe par les memes conversions que `mountCloudShadows` : `scale` multiplie
+## par le REACH du web, `uSize`/`uGroundSpan` ceux de son plan de 3840x2160.
+## Les pixels du monde sont les memes des deux cotes (cases de 44x24), donc les
+## nuages ont la meme taille sur l'ile Godot que sur l'ile Pixi.
+func _apply_shadows(sm: ShaderMaterial) -> void:
+	var o: Dictionary = SkyLook.SHADOWS
+	if sm.get_shader_parameter("noise") == null:
+		# LE SIMPLEX DU WEB, CUIT EN 3D. Une seule octave : le fBm, le warp et
+		# le temps se font dans le shader, comme sur le web, avec des lectures
+		# au lieu de calculs. 128 x 128 x 64 en L8, un megaoctet.
+		#
+		# La frequence fixe la PERIODE : 1/16 sur 128 texels = 8 unites de
+		# bruit par repetition, 16 texels par unite — assez pour que le
+		# filtrage lineaire reste rond. Le temps boucle sur 4 unites, soit 80 s
+		# a `morph` 0,05, et la derive empeche de jamais revoir la meme scene.
+		var tex := NoiseTexture3D.new()
+		tex.width = SHADOW_NOISE_SIZE.x
+		tex.height = SHADOW_NOISE_SIZE.y
+		tex.depth = SHADOW_NOISE_SIZE.z
+		tex.seamless = true
+		tex.normalize = true
+		var fn := FastNoiseLite.new()
+		# SIMPLEX_SMOOTH (OpenSimplex2S) : des noyaux larges comme le 0,6 du
+		# simplex d'Ashima, donc des bosses aussi molles.
+		fn.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+		fn.fractal_type = FastNoiseLite.FRACTAL_NONE
+		fn.frequency = SHADOW_NOISE_FREQ
+		tex.noise = fn
+		sm.set_shader_parameter("noise", tex)
+		sm.set_shader_parameter("noise_period", Vector3(SHADOW_NOISE_SIZE) * SHADOW_NOISE_FREQ)
+
+	var span := WEB_FRAME * WEB_REACH
+	var half := Vector2(Iso.half_w(), Iso.half_h())
+	sm.set_shader_parameter("frame", span)
+	sm.set_shader_parameter("half_tile", half)
+	sm.set_shader_parameter("ground_span", span.x / (2.0 * half.x) + span.y / (2.0 * half.y))
+	sm.set_shader_parameter("iso", o["iso"])
+	sm.set_shader_parameter("scale", o["scale"] * WEB_REACH)
+	var a := deg_to_rad(o["angle"])
+	sm.set_shader_parameter("drift", Vector2(cos(a), sin(a)) * o["speed"])
+	for k in ["morph", "octaves", "warp", "edge", "pixel", "shade", "alpha"]:
+		sm.set_shader_parameter(k, o[k])
+	sm.set_shader_parameter("coverage", o["coverage"])
+	_shadow_phase = _find_shadow_phase()
+
+
+## LA METEO DES OMBRES, celle du web : deux sinus de periodes incommensurables,
+## pour que le balancement ne soit pas un metronome. Rend 0..1.
+func _shadow_weather(t: float) -> float:
+	var p: float = SkyLook.SHADOWS["weather_period"]
+	return 0.5 + 0.25 * sin(TAU * t / p) + 0.25 * sin(TAU * t / (p * 0.37) + 1.3)
+
+
+## La phase de depart ou la meteo vaut `coverage` — le `startPhase` du web.
+func _find_shadow_phase() -> float:
+	var o: Dictionary = SkyLook.SHADOWS
+	var lo: float = o["coverage_min"]
+	var hi: float = o["coverage_max"]
+	if hi <= lo:
+		return 0.0
+	var want := clampf((o["coverage"] - lo) / (hi - lo), 0.0, 1.0)
+	var best := 0.0
+	var best_err := INF
+	for i in 200:
+		var t: float = i / 200.0 * o["weather_period"]
+		var err := absf(_shadow_weather(t) - want)
+		if err < best_err:
+			best_err = err
+			best = t
+	return best
 
 
 ## LE PLAN, ET LE PIEGE D'ECHELLE QU'IL PORTE.
@@ -367,10 +430,11 @@ func _resize() -> void:
 		rect.size = span
 		rect.position = corner
 
+	# LE PLAN DES OMBRES EN PIXELS DU MONDE : son coin et sa taille dans le
+	# repere de l'ile. Le voile suit l'ecran, mais le bruit qu'il lit est pose
+	# sur le terrain — il glisse avec lui quand la camera bouge.
+	(_shadows.material as ShaderMaterial).set_shader_parameter("plane_origin", corner)
 	(_shadows.material as ShaderMaterial).set_shader_parameter("plane_size", span)
-	# L'ETENDUE DU SOL, en cases : c'est elle qui donne au bruit son echelle.
-	(_shadows.material as ShaderMaterial).set_shader_parameter(
-		"ground_span", Vector2(span.x / Iso.BURROW_TILE_W, span.y / Iso.BURROW_TILE_H))
 	(_rays.material as ShaderMaterial).set_shader_parameter("screen_size", span)
 
 
@@ -384,10 +448,14 @@ func _process(delta: float) -> void:
 	var phase := _elapsed / WEATHER_PERIOD * TAU
 	var t := sin(phase) * 0.5 + WEATHER_START
 	var live: float = lerpf(COVERAGE_MIN, COVERAGE_MAX, t)
-	# LA MEME VALEUR AUX DEUX, a chaque image : c'est la ligne qui tient
-	# l'accord. Sans elle, l'ombre et le rai racontent deux meteos.
-	(_shadows.material as ShaderMaterial).set_shader_parameter("coverage", live)
+	# Les rais gardent la meteo reglee au tuner sur leur propre bruit.
 	(_rays.material as ShaderMaterial).set_shader_parameter("coverage", live)
+	# Les ombres, celle du web — le seuil n'a pas le meme sens sur un fBm
+	# (qui se tasse autour de 0,5) que sur la texture des rais.
+	var o: Dictionary = SkyLook.SHADOWS
+	var sw := _shadow_weather(_elapsed + _shadow_phase)
+	(_shadows.material as ShaderMaterial).set_shader_parameter(
+		"coverage", lerpf(o["coverage_min"], o["coverage_max"], sw))
 	# L'echelle du parent peut changer (cadrage, pincement) : le voile doit
 	# garder la meme couverture d'ecran.
 	_resize()

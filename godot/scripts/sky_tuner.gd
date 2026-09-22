@@ -71,6 +71,8 @@ func _seed_values() -> void:
 			_values[k] = (look["source"] as Vector2).y
 		elif k == "coverage":
 			_values[k] = _sky.coverage()
+		elif k == "shade_alpha":
+			_values[k] = float(SkyLook.SHADOWS["alpha"])
 		else:
 			_values[k] = float(look[k])
 
@@ -187,10 +189,10 @@ func _apply() -> void:
 	var sm: ShaderMaterial = _sky._shadows.material
 	var rm: ShaderMaterial = _sky._rays.material
 
-	# LE CIEL EST UN SEUL CIEL : les six partages vont dans les deux.
-	for pair in [["scale", "scale"], ["speed", "speed"], ["morph", "morph"], ["edge", "edge"]]:
-		sm.set_shader_parameter(pair[1], _values[pair[0]])
-		rm.set_shader_parameter(pair[1], _values[pair[0]])
+	# Ces quatre-la ne vont QU'AUX RAIS : les ombres sont un portage fidele du
+	# web et prennent `SkyLook.SHADOWS`, dont les dials n'ont pas le meme sens.
+	for k in ["scale", "speed", "morph", "edge"]:
+		rm.set_shader_parameter(k, _values[k] * (SkyLight.TEXTURE_SCALE if k == "scale" else 1.0))
 
 	sm.set_shader_parameter("alpha", _values["shade_alpha"])
 	rm.set_shader_parameter("strength", _values["ray_strength"])
@@ -204,16 +206,13 @@ func _apply() -> void:
 	rm.set_shader_parameter("mote_density", _values["mote_density"])
 
 	if _manual_coverage:
-		sm.set_shader_parameter("coverage", _values["coverage"])
 		rm.set_shader_parameter("coverage", _values["coverage"])
 
 
 ## LA METEO NE REPREND PAS LA MAIN pendant qu'on regle la couverture.
 func _process(_delta: float) -> void:
 	if _manual_coverage:
-		var sm: ShaderMaterial = _sky._shadows.material
 		var rm: ShaderMaterial = _sky._rays.material
-		sm.set_shader_parameter("coverage", _values["coverage"])
 		rm.set_shader_parameter("coverage", _values["coverage"])
 	else:
 		_values["coverage"] = _sky.coverage()

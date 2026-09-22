@@ -1,140 +1,120 @@
 shader_type canvas_item;
 // LES OMBRES DE NUAGES, COUCHEES SUR LE SOL.
 //
-// Porte de src/game/fx/CloudShadowsNoise.ts.
+// PORTAGE LIGNE A LIGNE de src/game/fx/CloudShadowsNoise.ts, et c'est le
+// point. La version precedente avait derive du web sur six axes a la fois —
+// projection sol pure, pas de warp, octaves figees dans la texture, un
+// « morph » qui fondait deux lectures l'une dans l'autre, une echelle ancree a
+// l'ecran, un bruit trois fois plus fin — et chaque essai de reglage au tuner
+// corrigeait un symptome d'un autre axe. Paul : « rien a voir avec ce que
+// j'avais sur la version pixi ». Ici les maths sont CELLES DU WEB, dans les
+// memes unites (pixels du monde), avec les memes chiffres
+// (CLOUD_SHADOW_NOISE_DEFAULTS). Toute retouche se compare donc a la story
+// `Island/Cloud Shadows (noise)` du storybook.
 //
-// UNE OMBRE AU SOL ET UN RAI DE LUMIERE DECRIVENT LE MEME CIEL : l'un est un
-// trou dans la couverture vu d'en dessous, l'autre le meme trou vu de cote.
-// Les deux shaders lisent donc le MEME bruit avec les MEMES reglages (scale,
-// speed, morph, octaves, coverage, edge). Les desaccorder donne deux ciels
-// superposes, et ca se voit tout de suite.
+// UNE SEULE DIFFERENCE, ET ELLE EST DE PERFORMANCE : `snoise(vec3)` n'est plus
+// calcule, il est LU dans une texture 3D de simplex a une octave (cuite au
+// chargement, voir sky_light.gd). Le simplex 3D calcule coutait 46 fps contre
+// 67 sur le Seeker ; une lecture de texture 3D coute une lecture. Le fBm, le
+// warp et le temps comme TROISIEME AXE restent ceux du web — c'est ce qui fait
+// que les plaques se deforment, se scindent et fusionnent au lieu de glisser
+// comme un pochoir.
 //
-// POURQUOI DU BRUIT ET PAS UNE TEXTURE. Le web a essaye la texture d'abord et
-// « ca ressemblait a de la moisissure sur l'eau », pour trois raisons que
-// celui-ci evite par construction :
-//
-//   • LE GRAIN. Une carte satellite a des franges dentelees ; seuillee, ca
-//     fait une mouchetures de petites morsures, pas des nuages. Un fBm a deux
-//     ou trois octaves donne des taches rondes et molles, sans rien de plus
-//     fin que sa derniere octave.
-//   • UNE FORME FIGEE. Un motif fixe qui glisse sur l'image se lit comme un
-//     décalcomanie, quelle que soit la projection. ICI LE TEMPS EST LE
-//     TROISIEME AXE DU BRUIT, donc les plaques se deforment, se scindent et
-//     fusionnent en derivant — c'est le seul indice qui dise « il y a une
-//     meteo au-dessus » plutot que « quelqu'un a bouge un pochoir ».
-//   • L'ECHELLE. Sur une ile de cette taille, une ombre de nuage fait deux ou
-//     trois grandes plaques molles, pas un semis.
-//
-// LE BRUIT EST LU SUR LE PLAN DU SOL, PAS SUR L'ECRAN — c'est `iso` qui en
-// decide, et c'est ce qui fait qu'une ombre se COUCHE sur le terrain au lieu
-// de flotter devant lui. `uv_ground` defait la projection iso.
+// L'ANCIEN FONDU ENTRE DEUX LECTURES EST MORT, et c'etait lui le plus laid : a
+// mi-cycle deux bruits sans rapport se moyennent, le contraste s'effondre et
+// on voit deux ciels en double exposition. Un vrai axe temporel n'a pas ce
+// battement.
 
-// LE BRUIT EST CUIT, PAS CALCULE — et c'est la seule chose qui a fait bouger
-// les images par seconde.
-//
-// MESURE SUR LE SEEKER, en remplacant ce shader par un APLAT de meme surface :
-//
-//   bruit calcule (2 octaves de simplex 3D) ..... 46 fps
-//   aplat, zero calcul .......................... 67 fps
-//
-// Le cout n'etait donc ni la surface (REACH de 4,0 a 1,0 : 21 -> 27) ni
-// l'echantillonnage (pixel x3 : aucun changement), mais le SIMPLEX 3D
-// lui-meme — douze permutations par evaluation, deux par pixel. « si faut
-// c'est le shader qui est mal code » : c'etait la bonne piste.
-//
-// Une `NoiseTexture2D` porte le meme champ, cuit une fois au chargement. Une
-// lecture de texture remplace douze permutations.
-//
-// LE TEMPS RESTE LE TROISIEME AXE, et c'est lui qui fait que les plaques se
-// DEFORMENT au lieu de glisser — l'indice qui dit « il y a une meteo au-dessus
-// » plutot que « quelqu'un a bouge un pochoir ». On le garde en lisant la
-// texture DEUX FOIS a des decalages differents et en fondant entre les deux,
-// sur un cycle qui boucle. Deux lectures restent bien moins cheres qu'un seul
-// simplex 3D.
+// LE SIMPLEX A UNE OCTAVE, sur [0, 1] (normalise). Periodique sur les trois
+// axes (`seamless`), d'ou le repeat.
+uniform sampler3D noise : filter_linear, repeat_enable;
+// Combien d'unites de bruit la texture couvre sur chaque axe : taille en
+// texels x frequence de FastNoiseLite. Sert a passer d'une coordonnee de
+// bruit (celle du web) a une coordonnee de texture.
+uniform vec3 noise_period = vec3(8.0, 8.0, 4.0);
 
-uniform sampler2D noise : filter_linear, repeat_enable;
-
-// LE PLAN, en pixels d'ecran.
+// LE PLAN. `plane_origin` et `plane_size` en pixels du MONDE (le repere de
+// l'ile, avant la camera) : l'ombre est posee sur le terrain et doit glisser
+// avec lui, exactement comme le mesh du web dans le conteneur de la camera.
+uniform vec2 plane_origin = vec2(0.0);
 uniform vec2 plane_size = vec2(890.0, 400.0);
-uniform vec2 half_tile = vec2(22.0, 12.0);
-uniform vec2 ground_span = vec2(40.0, 40.0);
-// 0 = espace ecran, 1 = plan du sol. C'est LUI qui couche l'ombre.
-uniform float iso : hint_range(0.0, 1.0) = 0.4;
 
-// COMBIEN DE FOIS LA TEXTURE SE REPETE en travers du sol.
-//
-// ⚠ CE N'EST PLUS LE MEME `scale` QUE LE BRUIT CALCULE. Celui-la comptait des
-// cellules de simplex, une notion sans taille propre ; une texture, elle, a des
-// TEXELS. A 6,1 — le reglage herite — la texture de 256 px se repetait six fois
-// sur l'ecran : un texel tombait sous le pixel, et les ombres sortaient en
-// DAMIER de petits carres au lieu de plaques molles.
-//
-// Sous 1, la texture est etiree et chaque texel couvre plusieurs pixels, ce qui
-// est exactement ce qu'on veut : des taches larges et douces. Le filtrage
-// lineaire fait le reste.
-uniform float scale : hint_range(0.1, 12.0) = 0.6;
-uniform float speed : hint_range(0.0, 1.0) = 0.05;
-uniform float angle : hint_range(0.0, 360.0) = 40.0;
-// A quelle vitesse les formes se renouvellent (le fondu entre les deux
-// lectures). Remplace l'ancien troisieme axe du simplex.
+// LE CADRE DU WEB : `uSize` et `uGroundSpan` du plan monte par
+// `mountCloudShadows` (960x540 x REACH 4). Ce ne sont PAS des tailles
+// d'ecran ici — seulement les diviseurs qui donnent au bruit son echelle en
+// pixels du monde. Les garder egaux a ceux du web, c'est garder des nuages de
+// la meme taille que sur l'ile Pixi.
+uniform vec2 frame = vec2(3840.0, 2160.0);
+uniform float ground_span = 177.27;
+uniform vec2 half_tile = vec2(22.0, 12.0);
+
+uniform float iso : hint_range(0.0, 1.0) = 0.4;
+// DEJA MULTIPLIE PAR LE REACH DU WEB (2,9 x 4), comme dans `mountCloudShadows`.
+uniform float scale = 11.6;
+uniform vec2 drift = vec2(0.0383, 0.0321);
 uniform float morph : hint_range(0.0, 0.5) = 0.05;
+uniform float octaves : hint_range(1.0, 4.0) = 3.9;
+uniform float warp : hint_range(0.0, 1.0) = 0.1;
 uniform float coverage : hint_range(0.0, 1.0) = 0.57;
 uniform float edge : hint_range(0.01, 0.5) = 0.08;
-uniform float pixel : hint_range(1.0, 8.0) = 3.0;
+uniform float pixel : hint_range(0.0, 8.0) = 3.0;
 
 uniform vec4 shade : source_color = vec4(0.063, 0.125, 0.227, 1.0);
 uniform float alpha : hint_range(0.0, 1.0) = 0.32;
 
-// DEFAIT LA PROJECTION ISO : d'un point du plan vers les coordonnees du sol.
-//
-// C'est ce qui couche l'ombre sur le terrain. Sans lui le bruit est lu a
-// l'ecran et la plaque se lit comme un voile devant l'ile, pas comme une ombre
-// dessus.
-vec2 uv_ground(vec2 p) {
-	// LE SOL, ET RIEN QUE LE SOL.
-	//
-	// Le portage melangeait deux espaces INCOMPATIBLES : `ground` est en CASES
-	// (des centaines en travers du plan) et `screen` etait normalise puis
-	// remultiplie par `ground_span`. Leur `mix` a iso=0,4 donnait un champ qui
-	// n'etait ni l'un ni l'autre, et l'ombre sortait avec un BORD HORIZONTAL
-	// NET en travers de l'ile — elle ne suivait plus le sol.
-	//
-	// L'espace ecran n'a d'ailleurs aucun interet ici : `iso` existait pour
-	// pouvoir comparer les deux pendant le reglage du web. Ce qui couche
-	// l'ombre sur le terrain, c'est la projection iso defaite, donc c'est elle
-	// qu'on garde.
-	float u = p.x / (2.0 * half_tile.x);
-	float v = p.y / (2.0 * half_tile.y);
-	// LES DEUX DIAGONALES DU SOL. `v+u` descend vers le bas-droite, `v-u` vers
-	// le bas-gauche : ce sont les axes de la grille iso, donc une tache ronde
-	// dans ce repere se couche en LOSANGE a l'ecran — exactement comme une
-	// ombre portee sur un damier vu de trois quarts.
-	return vec2(v + u, v - u);
+// Le `snoise(vec3)` du web, sur [-1, 1].
+float snoise(vec3 p) {
+	return texture(noise, p / noise_period).r * 2.0 - 1.0;
 }
 
+// Le fBm du web, verbatim : chaque octave deux fois plus fine et moitie moins
+// forte, la derniere fondue quand `octaves` est fractionnaire.
+float fbm(vec3 p) {
+	float sum = 0.0;
+	float amp = 0.5;
+	float norm = 0.0;
+	for (int i = 0; i < 4; i++) {
+		float w = clamp(octaves - float(i), 0.0, 1.0);
+		if (w <= 0.0) {
+			break;
+		}
+		sum += amp * w * snoise(p);
+		norm += amp * w;
+		p = p * 2.03 + vec3(17.0, 31.0, 7.0);
+		amp *= 0.5;
+	}
+	return sum / max(norm, 1e-4);
+}
+
+// Le `groundUv` du web : le point du plan dans les cases du sol.
+vec2 ground_uv(vec2 p) {
+	float u = p.x / (2.0 * half_tile.x);
+	float v = p.y / (2.0 * half_tile.y);
+	return vec2(u + v, v - u) / ground_span;
+}
 
 void fragment() {
-	vec2 px = floor(UV * plane_size / pixel) * pixel;
-	vec2 g = uv_ground(px) / max(ground_span.x, 1e-4) * scale;
+	// En pixels du monde, relatif au coin du plan — le `vScreen` du web.
+	vec2 p = plane_origin + UV * plane_size;
+	if (pixel > 0.0) {
+		p = floor(p / pixel) * pixel + pixel * 0.5;
+	}
 
-	float t = TIME;
-	float rad = radians(angle);
-	vec2 drift = vec2(cos(rad), sin(rad)) * speed * t;
-	vec2 at = g + drift;
+	// `iso` a 0,4 et pas 1 : la projection sol pure ecrase les plaques en
+	// trainees diagonales, l'ecran pur en fait des taches sur l'objectif.
+	vec2 uv = mix(p / frame, ground_uv(p), iso);
+	vec2 q = uv * scale + TIME * drift;
+	float t = TIME * morph;
 
-	// LES DEUX LECTURES, fondues l'une dans l'autre. Le cycle boucle, donc la
-	// meteo ne saute jamais : quand `f` revient a 0, la seconde lecture est
-	// devenue la premiere.
-	float phase = t * morph;
-	float k = fract(phase);
-	vec2 jump = vec2(0.37, 0.61);
-	float a = texture(noise, at + floor(phase) * jump).r;
-	float b = texture(noise, at + (floor(phase) + 1.0) * jump).r;
-	// Fondu adouci : un melange lineaire laisserait voir le battement.
-	float n = mix(a, b, k * k * (3.0 - 2.0 * k));
+	// Le warp : plier la lecture par un bruit plus grossier, pour que les
+	// taches cessent de ressembler a la maille dont elles sortent.
+	vec2 w = vec2(
+		snoise(vec3(q * 0.5 + 3.1, t * 0.7)),
+		snoise(vec3(q * 0.5 - 5.7, t * 0.7 + 9.0))
+	);
+	q += w * warp;
 
-	// SOUS le seuil il y a de l'ombre — l'inverse du rai, qui s'allume
-	// au-dessus. C'est la meme ligne de partage vue des deux cotes.
-	float m = 1.0 - smoothstep(coverage - edge, coverage + edge, n);
-	COLOR = vec4(shade.rgb, m * alpha);
+	float n = fbm(vec3(q, t)) * 0.5 + 0.5;
+	float m = smoothstep(coverage - edge, coverage + edge, n);
+	COLOR = vec4(shade.rgb, clamp(m * alpha, 0.0, 1.0));
 }

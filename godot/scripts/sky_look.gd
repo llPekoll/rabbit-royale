@@ -19,6 +19,37 @@ class_name SkyLook
 ##
 ## Le depart reste CLOUD_SHADOW_NOISE_DEFAULTS et GOD_RAYS_DEFAULTS (web).
 
+## LES OMBRES DE NUAGES — CLOUD_SHADOW_NOISE_DEFAULTS, RECOPIES TELS QUELS.
+##
+## Elles ne lisent PLUS rien de `SKY`. Les six « partages » ci-dessous ont ete
+## regles au tuner pour les rais, sur un bruit different, et les faire servir
+## aux ombres a donne un ciel qui n'avait plus rien de celui du web — Paul :
+## « rien a voir avec ce que j'avais sur la version pixi ». Le shader
+## d'ombre est maintenant un portage fidele du web, dans les memes unites, donc
+## il prend les memes chiffres, et c'est la story
+## `Island/Cloud Shadows (noise)` du storybook qui sert de reference.
+##
+## Pour retoucher : regler dans la story, recopier ici. Meme sens des dials
+## que la-bas (scale = cellules de bruit par cadre de 960 px ; coverage BAS =
+## plus de nuages).
+const SHADOWS := {
+	"iso": 0.4,
+	"scale": 2.9,
+	"speed": 0.05,
+	"angle": 40.0,
+	"morph": 0.05,
+	"octaves": 3.9,
+	"warp": 0.1,
+	"coverage": 0.57,
+	"coverage_min": 0.3,
+	"coverage_max": 0.8,
+	"weather_period": 240.0,
+	"edge": 0.08,
+	"pixel": 3.0,
+	"shade": Color("#10203a"),
+	"alpha": 0.32,
+}
+
 const SKY := {
 	# ── LES SIX PARTAGES : ils decrivent LE CIEL, pas une couche ────────────
 	## L'echelle du bruit. Pour les ombres, des cellules en travers du plan ;
