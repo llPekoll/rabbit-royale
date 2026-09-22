@@ -99,6 +99,8 @@ var _me: Dictionary = {}
 var _season: Dictionary = {}
 ## Un banc, ou une page sans session : pas de reseau.
 var _offline := false
+## La liste a-t-elle la place du podium (260px) ? Vrai tant qu'on ne sait pas.
+var _roomy := true
 
 
 func _init() -> void:
@@ -108,6 +110,10 @@ func _init() -> void:
 func _ready() -> void:
 	# Le web met « 👑 » devant SEASON ; ici la couronne est l'art de l'ile.
 	var header := title_label.get_parent()
+	# Le panneau du coin est etroit : le titre a la taille du web (PixelTitle
+	# a l'echelle 2, 16px), sinon « SEASON » sortait « SE ».
+	title_label.add_theme_font_size_override("font_size", 16)
+	title_label.clip_text = false
 	var crown := Kit.icon(Kit.CROWN, 16)
 	header.add_child(crown)
 	header.move_child(crown, 0)
@@ -123,6 +129,14 @@ func _ready() -> void:
 	_list = Kit.vbox(0)
 	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_scroll.add_child(_list)
+	# LE PODIUM SUIT LA LARGEUR DE LA LISTE (PODIUM_MIN_PANEL, 260) : le
+	# panneau du coin fait 231px sur le Seeker, et les faces n'y tiennent pas.
+	# Mesuree a l'arrivee, pas supposee : on reconstruit quand elle change.
+	_scroll.resized.connect(func() -> void:
+		var roomy_now := _scroll.size.x >= 260.0
+		if roomy_now != _roomy:
+			_roomy = roomy_now
+			_rebuild())
 
 	# La note du vide est le seul contenu de la liste, et prend son air.
 	_empty = Kit.note(EMPTY_NOTE, Palette.BARK)
@@ -202,7 +216,7 @@ func _rebuild() -> void:
 			child.queue_free()
 	_empty.visible = _entries.is_empty()
 	var mine := String(Session.player.get("id", ""))
-	var roomy := _scroll.size.x >= 260.0 or _scroll.size.x == 0.0
+	var roomy := _roomy
 	var i := 0
 	for entry in _entries:
 		if not entry is Dictionary:
@@ -229,15 +243,18 @@ func _make_row(e: Dictionary, index: int, mine: String, roomy: bool) -> Control:
 		# La couronne deborde par le haut : la premiere ligne n'a personne
 		# au-dessus d'elle pour la recevoir, elle se reserve la place.
 		pad_top = _crown_box(LEAD_SIZE)["rise"] + 4.0
-	var box := Kit.margin(6, pad_top, 6, 4)
+	# SERRE quand la liste est etroite (le coin du Seeker, 231px) : le web y
+	# tient le nom entier parce que ses lettres sont plus petites.
+	var font := ROW_FONT if roomy else 10
+	var box := Kit.margin(6 if roomy else 2, pad_top, 6 if roomy else 2, 4)
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(box)
-	var row := Kit.hbox(8)
+	var row := Kit.hbox(8 if roomy else 4)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_child(row)
 
-	var rank_label := Kit.label(str(rank), ROW_FONT, Palette.RANK_GOLD if crowned else Color(Palette.BARK, 0.62))
-	rank_label.custom_minimum_size = Vector2(RANK_COL, 0.0)
+	var rank_label := Kit.label(str(rank), font, Palette.RANK_GOLD if crowned else Color(Palette.BARK, 0.62))
+	rank_label.custom_minimum_size = Vector2(RANK_COL if roomy else 16.0, 0.0)
 	rank_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	rank_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(rank_label)
@@ -253,7 +270,7 @@ func _make_row(e: Dictionary, index: int, mine: String, roomy: bool) -> Control:
 	var name_line := Kit.hbox(6)
 	name_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	names.add_child(name_line)
-	var name_label := Kit.label(String(e.get("name", "")), ROW_FONT, Palette.RANK_GOLD if digging else Palette.INK)
+	var name_label := Kit.label(String(e.get("name", "")), font, Palette.RANK_GOLD if digging else Palette.INK)
 	name_label.clip_text = true
 	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -266,7 +283,7 @@ func _make_row(e: Dictionary, index: int, mine: String, roomy: bool) -> Control:
 		sub.clip_text = true
 		names.add_child(sub)
 
-	var score := Kit.label(I18N.group_digits(float(e.get("score", 0))), ROW_FONT, Palette.CARROT)
+	var score := Kit.label(I18N.group_digits(float(e.get("score", 0))), font, Palette.CARROT)
 	score.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(score)
 
@@ -392,5 +409,5 @@ func _on_locale_changed(_code: String) -> void:
 ## scene qui le porte est une boucle que le chargeur refuse.
 static func open() -> SeasonBoard:
 	var dialog := SeasonBoard.new()
-	Chrome.current.open(dialog)
+	Chrome.current.open(dialog, true, "board")
 	return dialog

@@ -47,6 +47,7 @@ const TOAST_FADE := 0.35
 
 var _scrim: ColorRect
 var _dialog: Control
+var _placement := "center"
 
 var _column: BurrowColumn
 var _loop: LoopBar
@@ -142,19 +143,6 @@ func _dev_open() -> void:
 			var picker := IslandPicker.new()
 			open(picker)
 		_: _on_door(what)
-	await get_tree().create_timer(2.0).timeout
-	if _dialog != null:  # SONDE-TEMP
-		_probe(_dialog, 0)  # SONDE-TEMP
-
-
-func _probe(n: Node, d: int) -> void:  # SONDE-TEMP
-	if d > 3:  # SONDE-TEMP
-		return  # SONDE-TEMP
-	if n is Control:  # SONDE-TEMP
-		var c := n as Control  # SONDE-TEMP
-		print("  ".repeat(d), c.name, " ", c.get_class(), " pos=", c.position, " size=", c.size, " min=", c.get_combined_minimum_size(), " vis=", c.visible)  # SONDE-TEMP
-	for ch in n.get_children():  # SONDE-TEMP
-		_probe(ch, d + 1)  # SONDE-TEMP
 
 
 ## UNE PORTE DU SOL, qu'elle vienne d'une dalle ou de la ligne de la colonne.
@@ -281,11 +269,20 @@ func toast(text: String, refused: bool = false) -> void:
 ##
 ## `dismiss` : le voile ferme au clic. Vrai pour tout ce qu'on consulte, faux
 ## pour ce qui attend une reponse (un paiement en cours).
-func open(dialog: Control, dismiss: bool = true) -> void:
+##
+## `placement` : "center" (un dialogue), ou "board" — le panneau de la
+## saison dans le coin droit (globals.css `.rr-lb`), sans voile quand
+## l'ecran a la place (`min-width: 860px`, `.rr-scrim { display: none }`) :
+## rien n'est couvert, et un voile avalerait les taps destines au terrier.
+func open(dialog: Control, dismiss: bool = true, placement: String = "center") -> void:
 	close_dialog()
+	_placement = placement
 	_scrim = ColorRect.new()
 	_scrim.color = Palette.SCRIM
 	_scrim.mouse_filter = Control.MOUSE_FILTER_STOP
+	if placement == "board" and get_viewport_rect().size.x >= 860.0:
+		_scrim.color = Color.TRANSPARENT
+		_scrim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	Kit.fill(_scrim)
 	dialogs.add_child(_scrim)
 	if dismiss:
@@ -304,7 +301,8 @@ func open(dialog: Control, dismiss: bool = true) -> void:
 	dialog.minimum_size_changed.connect(_center_dialog)
 	if dialog.has_signal("closed"):
 		dialog.connect("closed", close_dialog)
-	dialogs.mouse_filter = Control.MOUSE_FILTER_STOP
+	dialogs.mouse_filter = Control.MOUSE_FILTER_IGNORE if _scrim.mouse_filter == Control.MOUSE_FILTER_IGNORE \
+		else Control.MOUSE_FILTER_STOP
 
 	# L'arrivee du web (`rr-shop-in`, 140 ms) : le voile et le dialogue
 	# montent en fondu ensemble.
@@ -320,6 +318,16 @@ func _center_dialog() -> void:
 	# 400px de haut c'est tous les dialogues. Le cadre recule donc de ce
 	# debordement, en haut et des deux cotes pour rester centre.
 	var view := get_viewport_rect().size
+	if _placement == "board":
+		# `.rr-lb` : top clamp(52px, 13svh, 100px), bottom clamp(12px, 8svh,
+		# 60px), right --rr-edge, width max(26vw, 220px).
+		var board_top := clampf(view.y * 0.13, 52.0, 100.0)
+		var board_bottom := clampf(view.y * 0.08, 12.0, 60.0)
+		var board_w := minf(maxf(view.x * 0.26, 220.0), view.x * 0.86)
+		_dialog.custom_minimum_size = Vector2(board_w, 0.0)
+		_dialog.size = Vector2(board_w, view.y - board_top - board_bottom)
+		_dialog.position = Vector2(view.x - Kit.EDGE - board_w, board_top)
+		return
 	# Le dessin du [x] est plus petit que sa zone de tap (Kit.CLOSE_TAP) :
 	# seul le DESSIN doit rester a l'ecran, d'ou le retrait de cette marge.
 	var slack := (Kit.CLOSE_TAP - CLOSE_ART) * 0.5

@@ -125,6 +125,9 @@ func _ready() -> void:
 	for which in [Tab.PROFILE, Tab.HISTORY]:
 		var b := Button.new()
 		b.focus_mode = Control.FOCUS_NONE
+		# La hauteur d'un pouce, comme les onglets du web (44px) : sans elle
+		# l'onglet se reduisait a sa ligne de texte, 16px.
+		b.custom_minimum_size = Vector2(0.0, 40.0)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		b.pressed.connect(_show_tab.bind(which))
@@ -281,7 +284,7 @@ func _build_profile() -> void:
 	_warn = Kit.note("", Palette.BAD_ON_PARCHMENT)
 	_warn.visible = false
 	_page.add_child(_warn)
-	_save_button = Kit.button(I18N.shout(I18N.t("profile.save")), "gold", 0.0, 44.0)
+	_save_button = Kit.button(I18N.t("profile.save"), "gold", 0.0, 44.0)
 	_save_button.pressed.connect(_on_save_name)
 	_page.add_child(_save_button)
 	_refresh_name()
@@ -388,7 +391,10 @@ func _refresh_name() -> void:
 	_warn.visible = renamed and not problem.is_empty()
 	_warn.text = NAME_PROBLEMS.get(problem, "")
 	_save_button.disabled = _saving or not renamed or not problem.is_empty()
-	_save_button.relabel(I18N.shout(I18N.t("profile.saving" if _saving else "profile.save")))
+	# Eteint, le bouton est du BOIS, comme le web : l'or qui ne se presse pas
+	# se lisait « enregistre ici » avant meme d'avoir rien change.
+	_save_button.board = PlankButton.tone_board("wood" if _save_button.disabled else "gold")
+	_save_button.relabel(I18N.t("profile.saving" if _saving else "profile.save"))
 
 
 func _refresh_connect() -> void:

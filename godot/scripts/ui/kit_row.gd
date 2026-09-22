@@ -258,14 +258,19 @@ func _build_tray() -> void:
 ## La carte de detail : l'art, le nom, l'etat, le [x] ; puis l'effet, le
 ## conseil et l'action.
 func _build_detail() -> PanelContainer:
-	var s := StyleBoxFlat.new()
-	s.bg_color = DETAIL_FACE
-	s.set_border_width_all(2)
-	s.border_color = Palette.SOIL_DEEP
-	s.content_margin_left = DETAIL_PAD_X
-	s.content_margin_right = DETAIL_PAD_X
-	s.content_margin_top = DETAIL_PAD_Y
-	s.content_margin_bottom = DETAIL_PAD_Y
+	# LE PARCHEMIN A FEUILLES, comme le grand livre du reservoir : c'est
+	# l'explication d'outil du kit (`.rr-toolkit-detail`), et le web la pose
+	# sur le meme cadre. Le bois plat d'avant etait la maquette.
+	var s := StyleBoxTexture.new()
+	s.texture = Kit.LEAF_FRAME
+	s.texture_margin_left = Kit.LEAF_SLICE.x
+	s.texture_margin_top = Kit.LEAF_SLICE.y
+	s.texture_margin_right = Kit.LEAF_SLICE.z
+	s.texture_margin_bottom = Kit.LEAF_SLICE.w
+	s.content_margin_left = Kit.LEAF_SLICE.x + DETAIL_PAD_X * 0.5
+	s.content_margin_right = Kit.LEAF_SLICE.z + DETAIL_PAD_X * 0.5
+	s.content_margin_top = Kit.LEAF_SLICE.y
+	s.content_margin_bottom = Kit.LEAF_SLICE.w
 	var card := Kit.panel(s)
 	card.mouse_filter = Control.MOUSE_FILTER_STOP
 	var column := Kit.vbox(8)
@@ -280,11 +285,11 @@ func _build_detail() -> PanelContainer:
 	var words := Kit.vbox(4)
 	words.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	summary.add_child(words)
-	_detail_name = Kit.label("", DETAIL_NAME, TAB_INK)
+	_detail_name = Kit.label("", DETAIL_NAME, Palette.INK)
 	words.add_child(_detail_name)
-	_detail_status = Kit.note("", TAB_INK, DETAIL_STATUS)
+	_detail_status = Kit.note("", Palette.INK, DETAIL_STATUS)
 	words.add_child(_detail_status)
-	var fold := Kit.label("×", 24, Palette.CHALK_DIM)
+	var fold := Kit.label("×", 24, Palette.INK)
 	fold.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	fold.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	var fold_button := Button.new()
@@ -301,9 +306,9 @@ func _build_detail() -> PanelContainer:
 		_refresh())
 	summary.add_child(fold_button)
 
-	_detail_blurb = Kit.note("", TAB_INK, DETAIL_TEXT)
+	_detail_blurb = Kit.note("", Palette.INK, DETAIL_TEXT)
 	column.add_child(_detail_blurb)
-	_detail_hint = Kit.note("", Palette.CHALK_DIM, DETAIL_TEXT)
+	_detail_hint = Kit.note("", Palette.INK, DETAIL_TEXT)
 	column.add_child(_detail_hint)
 	_detail_action = Kit.button("", "green", 0.0, 44.0)
 	_detail_action.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -471,6 +476,9 @@ func _refresh_detail(smoke_days: int, pending: bool) -> void:
 	_detail_action.visible = not label.is_empty()
 	_detail_action.relabel(label)
 	_detail_action.disabled = pending or disabled
+	# Eteint, le bouton est du bois, comme le web : un vert qui ne se presse
+	# pas sous « pas assez de carottes » se contredisait.
+	_detail_action.board = PlankButton.tone_board("wood" if _detail_action.disabled else "green")
 
 
 func _update_visible() -> void:

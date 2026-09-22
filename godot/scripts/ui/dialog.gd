@@ -42,7 +42,10 @@ func _init(title: String = "", width: float = 420.0, height: float = 0.0) -> voi
 	add_child(_frame)
 
 	var edge := _frame.inset()
-	_inset = Kit.margin(edge.x + Kit.PAD, edge.y + Kit.PAD, edge.z + Kit.PAD, edge.w + Kit.PAD)
+	# Le HAUT a la bordure du web, 36px (runtime.css `fill / 36px`), pas a
+	# la proportion de la source (110/90, 44px) : 8px de plus sous chaque
+	# titre, sur des ecrans de 400px.
+	_inset = Kit.margin(edge.x + Kit.PAD, minf(edge.y, Kit.LEAF_EDGE) + Kit.PAD, edge.z + Kit.PAD, edge.w + Kit.PAD)
 	Kit.fill(_inset)
 	add_child(_inset)
 	# Le minimum du dialogue EST celui de son contenu (`_get_minimum_size`) :
@@ -80,7 +83,9 @@ func _init(title: String = "", width: float = 420.0, height: float = 0.0) -> voi
 	close_button = Kit.close_button()
 	close_button.pressed.connect(func() -> void: closed.emit())
 	add_child(close_button)
-	close_button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	# PAS d'ancre a droite : `_place_close` le repose en coordonnees a chaque
+	# redimensionnement, et les deux ensemble l'envoyaient hors de l'ecran
+	# quand le chrome retrecissait le dialogue (x = 987 sur 890).
 	close_button.position = Vector2(width - Kit.CLOSE_TAP - CLOSE_OVER_RIGHT, CLOSE_OVER_TOP)
 	resized.connect(_place_close)
 
@@ -91,6 +96,14 @@ func _init(title: String = "", width: float = 420.0, height: float = 0.0) -> voi
 ## liste des iles, 2026-09-23). La boutique le faisait deja pour elle seule.
 func _get_minimum_size() -> Vector2:
 	return _inset.get_combined_minimum_size() if _inset != null else Vector2.ZERO
+
+
+## LE [x] AU-DESSUS DE TOUT. Un ecran qui ajoute ses noeuds dans son
+## `_ready` (le profil) les posait PAR-DESSUS lui, et le [x] disparaissait.
+## NOTIFICATION_READY arrive a chaque classe, apres le `_ready` de l'ecran.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_READY and close_button != null:
+		move_child(close_button, get_child_count() - 1)
 
 
 func _place_close() -> void:

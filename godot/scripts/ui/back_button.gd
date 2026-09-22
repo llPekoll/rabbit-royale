@@ -262,23 +262,17 @@ func _restyle() -> void:
 		for st in ["normal", "hover", "pressed", "focus", "disabled"]:
 			_btn.add_theme_stylebox_override(st, StyleBoxEmpty.new())
 		return
+	# LA PLANCHE A FEUILLES du web (`.rr-back-btn`, bois de la peau des
+	# bois), plus la dalle de terre plate. Pressee, elle descend d'un cran.
 	var off := _btn.disabled
-	var face := StyleBoxFlat.new()
-	face.bg_color = OFF if off else FACE
-	face.border_width_bottom = int(BEVEL)
-	face.border_color = SHADOW
-	_btn.add_theme_stylebox_override("normal", face)
-	_btn.add_theme_stylebox_override("hover", face)
-	_btn.add_theme_stylebox_override("focus", face)
-	_btn.add_theme_stylebox_override("disabled", face)
-	# Pressee, la face s'enfonce dans le socle : le biseau disparait.
-	var down := face.duplicate() as StyleBoxFlat
-	down.border_width_bottom = 0
-	_btn.add_theme_stylebox_override("pressed", down)
+	var face := Kit.style_plank(0.0, 14.0, 0.0)
+	for st in ["normal", "hover", "pressed", "focus", "disabled"]:
+		_btn.add_theme_stylebox_override(st, face)
+	_btn.modulate.a = 0.6 if off else 1.0
 	_label.add_theme_color_override("font_color", OFF_INK if off else Color.WHITE)
 	_arrow.ink = OFF_INK if off else Color.WHITE
 	_arrow.queue_redraw()
-	_lip.visible = not off
+	_lip.visible = false
 
 
 func _sink(down: bool) -> void:
@@ -333,7 +327,10 @@ class Arrow extends Control:
 					a = Rect2(i * u, (2 + i) * u + dy, u, 2.0 * u)
 					b = Rect2((cells - 1 - i) * u, (2 + i) * u + dy, u, 2.0 * u)
 				else:
-					a = Rect2((2 + i) * u, i * u + dy, 2.0 * u, u)
-					b = Rect2((2 + i) * u, (cells - 1 - i) * u + dy, 2.0 * u, u)
+					# La pointe A GAUCHE : les marches avancent vers elle en
+					# descendant. `2 + i` la tournait vers la droite — un « > »
+					# sur un bouton RETOUR (2026-09-23).
+					a = Rect2((4 - i) * u, i * u + dy, 2.0 * u, u)
+					b = Rect2((4 - i) * u, (cells - 1 - i) * u + dy, 2.0 * u, u)
 				draw_rect(a, c)
 				draw_rect(b, c)
