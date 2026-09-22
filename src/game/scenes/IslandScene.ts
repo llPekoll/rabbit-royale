@@ -2138,6 +2138,21 @@ export class IslandScene implements Scene {
   }
 
   /**
+   * Zoom by `factor` about the middle of the frame — what the wheel does,
+   * from code.
+   *
+   * For STORIES, which have no wheel to turn before the shot is taken.
+   * Reaching past `setCam` to write `container.scale` would skip `clampCam`
+   * and let the board leave its own frame, so this goes through `zoomCam`
+   * like every other zoom and keeps the limits and the pan clamp.
+   */
+  zoomView(factor: number): void {
+    if (this.data?.noCamera) return;
+    const at = { x: this.canvasW / 2, y: this.canvasH / 2 };
+    this.setCam(zoomCam(this.cam, factor, at, this.seed, this.canvasW, this.canvasH));
+  }
+
+  /**
    * Come back to the rabbit after something hit it, but only if it is off
    * the frame.
    *

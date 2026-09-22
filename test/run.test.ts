@@ -1,14 +1,14 @@
 /**
  * The rule set. Every number comes from tuning.ts on purpose — these tests
- * assert BEHAVIOUR (walking is free, bombs throw you back, the first digger is
+ * assert BEHAVIOUR (walking is free, a bomb leaves you in its crater, the first digger is
  * paid), never a literal, so retuning during a playtest does not turn the suite
  * red for no reason.
  */
 import { describe, expect, it } from 'vitest';
 import { BOMB, ENERGY, MULTIPLAYER, RUN } from '../config/tuning';
 import { generateIsland } from '../src/lib/game/island';
-import { resolveMove, spawnRabbit, isAdjacent, knockbackTarget } from '../src/lib/game/run';
-import { COLS, ROWS, SPAWN_INDEX, makeShape, neighbors, toColRow } from '../src/config/gridConfig';
+import { resolveMove, spawnRabbit, isAdjacent } from '../src/lib/game/run';
+import { COLS, ROWS, SPAWN_INDEX, makeShape, neighbors } from '../src/config/gridConfig';
 import { mulberry32 } from '../src/lib/game/rng';
 import type { Island } from '../src/lib/game/types';
 
@@ -82,7 +82,7 @@ describe('resolveMove', () => {
     expect(rabbit.energy).toBeLessThanOrEqual(ENERGY.MAX);
   });
 
-  it('knocks back and stuns on a bomb, without entering the tile', () => {
+  it('stuns on a bomb and leaves the rabbit in the crater', () => {
     const island = blank();
     const rabbit = spawnRabbit('p1', 'Test');
     const bomb = step();
@@ -93,7 +93,10 @@ describe('resolveMove', () => {
     const out = resolveMove(island, rabbit, bomb, shape, rng(), now);
 
     expect(rabbit.energy).toBe(before - ENERGY.DIG_COST - ENERGY.BOMB_LOSS);
-    expect(rabbit.tile).not.toBe(bomb);          // never steps onto the bomb
+    // The rabbit ENDS UP on the tile it dug — a step that cost a bomb. It
+    // used to be thrown a cell back, which put the crater between the player
+    // and their rabbit and read as a two-cell shove; see `run.ts`.
+    expect(rabbit.tile).toBe(bomb);
     expect(rabbit.stunnedUntil).toBe(now + BOMB.STUN_MS);
     expect(out.dig?.knockback?.tile).toBe(rabbit.tile);
   });
@@ -188,36 +191,5 @@ describe('isAdjacent', () => {
       expect(isAdjacent(SPAWN_INDEX, n)).toBe(true);
     }
     expect(isAdjacent(SPAWN_INDEX, SPAWN_INDEX)).toBe(false);
-  });
-});
-
-describe('knockbackTarget', () => {
-  it('throws the rabbit away from the bomb', () => {
-    const island = blank();
-    const bomb = step();
-    const landing = knockbackTarget(island, SPAWN_INDEX, bomb, shape);
-
-    const origin = toColRow(SPAWN_INDEX);
-    const blast = toColRow(bomb);
-    const land = toColRow(landing);
-    // Landing must be further from the bomb than the origin was.
-    const before = Math.hypot(origin.col - blast.col, origin.row - blast.row);
-    const after = Math.hypot(land.col - blast.col, land.row - blast.row);
-    expect(after).toBeGreaterThan(before);
-  });
-
-  it('never lands the rabbit on the bomb itself', () => {
-    const island = blank();
-    for (const bomb of neighbors(SPAWN_INDEX, shape)) {
-      expect(knockbackTarget(island, SPAWN_INDEX, bomb, shape)).not.toBe(bomb);
-    }
-  });
-
-  it('always lands on real land', () => {
-    const island = blank();
-    for (const bomb of neighbors(SPAWN_INDEX, shape)) {
-      const landing = knockbackTarget(island, SPAWN_INDEX, bomb, shape);
-      expect(island.tiles.has(landing)).toBe(true);
-    }
   });
 });

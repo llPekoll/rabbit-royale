@@ -462,9 +462,26 @@ export function resolveMove(
       rabbit.stunnedUntil = now + BOMB.STUN_MS;
       // A blast costs the energy AND the X streak — see FLAG.
       if (rabbit.run) rabbit.run.flagStreak = 0;
-      // Thrown backwards from where it STOOD — the rabbit never enters the
-      // bomb tile.
-      const landing = knockbackTarget(island, rabbit.tile, to, shape);
+      /**
+       * The rabbit ENDS UP IN THE CRATER — on the tile it dug.
+       *
+       * It used to be thrown a cell backwards, and the throw is still what is
+       * animated; only the cell it comes to rest on has changed. Two reasons
+       * the old landing read wrong:
+       *
+       *   - the player taps a tile and the rabbit finishes somewhere else, so
+       *     the board after the blast does not match the move they made. With
+       *     the bomb tile between them and where they stood, the blast looked
+       *     like it had moved them TWO cells.
+       *   - the crater is the thing that just happened, and nobody was
+       *     standing in it. The scorch read as scenery rather than as the hole
+       *     the rabbit is sitting in.
+       *
+       * A step, in other words, that costs a bomb — which is what the player
+       * actually did. The energy, the stun and the lost X streak are the
+       * price; the displacement was a third punishment nobody asked for.
+       */
+      const landing = to;
       rabbit.tile = landing;
       dig.knockback = { tile: landing, stunnedUntil: rabbit.stunnedUntil };
       if (tile.plantedBy) dig.plantedBy = tile.plantedBy;
@@ -627,47 +644,6 @@ export function canWalk(seed: string, from: number, to: number, blocked?: Readon
    * the one that must pass it.
    */
   return !blocked?.has(to);
-}
-
-/**
- * Where a blast throws a rabbit: away from the bomb, preferring ALREADY
- * REVEALED ground — being thrown into fresh dirt would cost energy the player
- * did not choose to spend. Falls back to any legal neighbour, then to standing
- * still when the rabbit is boxed in on a headland.
- */
-export function knockbackTarget(
-  island: Island,
-  from: number,
-  bomb: number,
-  shape: IslandShape,
-): number {
-  const origin = toColRow(from);
-  const blast = toColRow(bomb);
-  // The direction the blast pushes: straight back along the approach.
-  const away = { col: origin.col - blast.col, row: origin.row - blast.row };
-
-  // Terrain neighbours, so a blast never throws the rabbit into the sea, up a
-  // cliff or inside a tree. `from` itself is the fallback: standing still is
-  // the only landing that is always legal.
-  const options = terrainNeighbors(island.seed, from).filter((n) => n !== bomb);
-  if (options.length === 0) return from;
-
-  let best = from;
-  let bestScore = -Infinity;
-  for (const candidate of options) {
-    const c = toColRow(candidate);
-    const dir = { col: c.col - origin.col, row: c.row - origin.row };
-    // Dot product against the blast direction: most directly "away" wins.
-    let score = dir.col * away.col + dir.row * away.row;
-    // A revealed landing is strictly better than an unrevealed one, whichever
-    // way it lies — the tie-break the comment above is about.
-    if (island.tiles.get(candidate)?.revealed) score += 0.5;
-    if (score > bestScore) {
-      bestScore = score;
-      best = candidate;
-    }
-  }
-  return best;
 }
 
 /** A rabbit at the start of a run, placed on the island's spawn. */

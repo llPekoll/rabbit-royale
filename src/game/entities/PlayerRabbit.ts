@@ -382,6 +382,10 @@ export class PlayerRabbit {
           this.takePendingHop();
           return;
         }
+        // Set down ON the tile, for the same reason the knockback does: the
+        // hop's tween is how the rabbit travels, but the tile is where it
+        // ends up, and only stating that keeps the two from drifting apart.
+        this.setPosition(tileIndex);
         const next = this.afterMove;
         this.afterMove = null;
         if (next) next();
@@ -452,6 +456,22 @@ export class PlayerRabbit {
     const facing = Math.sign(baseScaleX) || 1;
 
     const land = () => {
+      /**
+       * SET DOWN ON THE TILE — not left wherever the flight got to.
+       *
+       * The arc tweens `container.x/y` toward `to`, and for a tween that runs
+       * to completion those are the same thing. They stop being the same the
+       * moment anything interrupts: a second blast, a `cancelMove`, a respawn
+       * mid-flight, or simply a tween killed while the board was re-laid. The
+       * rabbit then rests a fraction of a cell off, which on an iso board —
+       * where a cell is only 24px tall — reads as standing between two tiles.
+       *
+       * So the landing states the position rather than inheriting it. The
+       * knockback's whole contract is "the rabbit ends up on `tileIndex`",
+       * and this is the one line that actually guarantees it; the arc above
+       * is only how it gets there.
+       */
+      this.setPosition(tileIndex);
       sprite.rotation = 0;
       sprite.anchor.set(0.5, 0.9);
       sprite.y = baseY;
