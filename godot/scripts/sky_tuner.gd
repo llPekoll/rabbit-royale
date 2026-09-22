@@ -36,6 +36,9 @@ const DIALS := [
 	{"key": "speed", "label": "VITESSE", "min": 0.0, "max": 0.2, "step": 0.002},
 	{"key": "morph", "label": "DEFORMATION", "min": 0.0, "max": 0.2, "step": 0.002},
 	{"key": "coverage", "label": "COUVERTURE", "min": 0.30, "max": 0.70, "step": 0.005},
+	{"key": "motes", "label": "POUSSIERES", "min": 0.0, "max": 1.2, "step": 0.02},
+	{"key": "mote_cell", "label": "ESPACEMENT", "min": 8.0, "max": 64.0, "step": 1.0},
+	{"key": "mote_density", "label": "DENSITE", "min": 0.0, "max": 0.8, "step": 0.01},
 ]
 
 var _island: Node2D
@@ -196,6 +199,9 @@ func _apply() -> void:
 	# diviser par REACH rapproche le soleil et ouvre l'eventail depuis l'ile.
 	rm.set_shader_parameter("source", Vector2(_values["source_x"], _values["source_y"]))
 	rm.set_shader_parameter("reach", _values["ray_reach"] * SkyLight.REACH)
+	rm.set_shader_parameter("motes", _values["motes"])
+	rm.set_shader_parameter("mote_cell", _values["mote_cell"])
+	rm.set_shader_parameter("mote_density", _values["mote_density"])
 
 	if _manual_coverage:
 		sm.set_shader_parameter("coverage", _values["coverage"])
@@ -233,6 +239,9 @@ func _on_copy() -> void:
 	out.append('\t"softness": %.2f,' % _values["softness"])
 	out.append('\t"ray_strength": %.3f,' % _values["ray_strength"])
 	out.append('\t"ray_reach": %.2f,' % _values["ray_reach"])
+	out.append('\t"motes": %.2f,' % _values["motes"])
+	out.append('\t"mote_cell": %.1f,' % _values["mote_cell"])
+	out.append('\t"mote_density": %.2f,' % _values["mote_density"])
 	out.append("--- couverture regardee : %.3f ---" % _values["coverage"])
 	var text := "\n".join(out)
 	DisplayServer.clipboard_set(text)

@@ -59,8 +59,19 @@ const REACH := 4.0
 ##
 ## 0,42 a 0,62 reste dans la plage mesuree et garde un vrai decoupage aux deux
 ## extremes.
-const COVERAGE_MIN := 0.42
-const COVERAGE_MAX := 0.62
+## LA PLAGE EST CENTREE SUR LE REGLAGE DE PAUL, pas sur la mienne.
+##
+## Il a fixe la couverture a 0,30 au tuner — la molette y etait en butee basse,
+## donc c'est un choix et pas un hasard : moins de nuages, des trouees larges,
+## et des rais qui passent. Ma plage precedente (0,42-0,62) ne descendait meme
+## pas jusque-la, donc le jeu n'aurait jamais montre le ciel qu'il a valide.
+##
+## On garde une VARIATION — la meteo doit deriver, c'est ce qui fait qu'il y a
+## un ciel au-dessus — mais autour de sa valeur et sans la depasser vers le
+## haut : 0,30 a 0,44. Le plafond reste bien dans la dynamique mesuree du bruit
+## (0,32-0,65), donc les deux extremes decoupent encore.
+const COVERAGE_MIN := 0.30
+const COVERAGE_MAX := 0.44
 ## LA PERIODE DE LA METEO — 600 s, le web est a 240.
 ##
 ## Elle commande a quelle vitesse les rais s'ouvrent et se referment, donc elle
@@ -185,6 +196,8 @@ func _apply() -> void:
 	rm.set_shader_parameter("tint", look["ray_tint"])
 	rm.set_shader_parameter("strength", look["ray_strength"])
 	rm.set_shader_parameter("reach", look["ray_reach"] * REACH)
+	for k in ["motes", "mote_cell", "mote_size", "mote_density", "mote_rise", "mote_blink"]:
+		rm.set_shader_parameter(k, look[k])
 
 
 ## LE PLAN, ET LE PIEGE D'ECHELLE QU'IL PORTE.
