@@ -104,7 +104,7 @@ func _place_home(seed_value: int) -> Vector2i:
 
 	# Posee au MILIEU de sa case (+0.5), pas sur son coin.
 	var at := map.screen_of(cell.x, cell.y)
-	home.position = at + Vector2(0, Iso.half_h())
+	home.position = at
 	# Un cran devant le sol de sa propre case.
 	home.z_index = Iso.depth(cell.x, cell.y) + map.level_at(cell.x, cell.y) + 1
 	add_child(home)

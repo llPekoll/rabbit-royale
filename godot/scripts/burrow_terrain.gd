@@ -242,7 +242,10 @@ func mount_veil(cell: Vector2i, veil: Node2D, z: int = Z_VEIL) -> bool:
 	var block: Node2D = _block_at.get(cell)
 	if block == null:
 		return false
-	veil.position = Vector2(0, Iso.half_h())
+	# LE BLOC EST DEJA AU CENTRE DU LOSANGE (`screen_of`), donc un voile en
+	# forme de case s'y pose a zero. C'etait `half_h` tant que les appelants
+	# ajoutaient partout cette demi-hauteur — voir `BurrowMap.screen_of`.
+	veil.position = Vector2.ZERO
 	veil.z_index = z
 	block.add_child(veil)
 	return true

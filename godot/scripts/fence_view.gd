@@ -185,4 +185,4 @@ func _project(p: Vector2) -> Vector2:
 ## dans `screen_of`, et c'est ce qui met les pieds sur la terrasse plutot que
 ## sur le treillis a plat.
 func _ground_of(cell: Vector2i) -> Vector2:
-	return map.screen_of(cell.x, cell.y) + Vector2(0, Iso.half_h())
+	return map.screen_of(cell.x, cell.y)
