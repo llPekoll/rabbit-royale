@@ -3936,7 +3936,7 @@ body:has(.rr-empty) .rr-sound { display: none; }
    LA LANGUE EN FAIT PARTIE, cette fois. Une vague qui s'arrete au deuxieme
    bouton n'est pas une vague ; c'est le dernier rang qui la termine. */
 .rr-empty .rr-btn {
-  animation: rr-doorstep-wave 4s cubic-bezier(0.34, 1.2, 0.5, 1) infinite;
+  animation: rr-doorstep-wave 4s cubic-bezier(0.34, 1.05, 0.5, 1) infinite;
 }
 .rr-empty .rr-btn.ghost:not(.rr-lang-btn) { animation-delay: 140ms; }
 .rr-empty .rr-lang-btn { animation-delay: 280ms; }
@@ -3951,21 +3951,33 @@ body:has(.rr-empty) .rr-sound { display: none; }
    atteigne le dernier rang), et la colonne reste immobile ~3.4s entre deux
    passages.
 
-   L'OVERSHOOT EST DANS LA KEYFRAME, PAS DANS L'EASING. Les trois etapes
-   d'avant montaient puis redescendaient vers zero : meme avec `ease-in-out`
-   la planche ne faisait qu'aller et revenir, ce qui se lit comme un glissement
-   plat. Elle DEPASSE maintenant sous sa position de repos (+2px, echelle sous
-   1) avant de se replacer — c'est le rebond qui donne du poids a l'objet, et
-   il vient de la trajectoire, pas de la courbe de vitesse.
+   L'OVERSHOOT EST DANS LA KEYFRAME, PAS DANS L'EASING. Des etapes qui montent
+   puis reviennent vers zero se lisent comme un glissement plat, quelle que
+   soit la courbe de vitesse. La planche DEPASSE donc sous sa position de
+   repos avant de se replacer : c'est ce depassement qui donne du poids a
+   l'objet, et il vient de la trajectoire.
 
-   `cubic-bezier` accompagne : sortie franche au depart (le .34 en abscisse),
-   puis un retour qui traine un peu. `ease-in-out` lissait les deux bouts et
-   mangeait justement l'accent qu'on cherche ici. */
+   SUBTIL (Paul, 2026-09-22 : « un peu trop fort [...] un truc un peu plus
+   subtil »). Premier jet : -4px de montee, +2px de depassement, echelle a
+   1.018. Le rebond y etait plus visible que le geste lui-meme — la planche
+   claquait au lieu de respirer.
+
+   Divise par deux, et pas seulement l'overshoot : la vague DE BASE descend
+   aussi (-4 -> -2px), sinon un rebond attenue sous une montee inchangee
+   n'aurait fait que rendre le mouvement plus plat qu'avant l'overshoot.
+   L'echelle tombe a 1.008, au ras du perceptible — c'est elle qui fait la
+   difference entre « la planche avance vers moi » et « la planche glisse »,
+   donc elle reste, mais elle ne doit pas se voir.
+
+   `cubic-bezier` accompagne, sans ajouter de rebond a son tour : l'ordonnee
+   du deuxieme point passe de 1.2 a 1.05. A 1.2 la courbe depassait DEJA, et
+   se composait avec le depassement de la trajectoire — deux rebonds
+   empiles, ce qui est exactement ce qui tapait trop fort. */
 @keyframes rr-doorstep-wave {
   0%,   15.75%, 100% { transform: translateY(0) scale(1); }
-  4.5%               { transform: translateY(-4px) scale(1.018); }
-  8.5%               { transform: translateY(2px) scale(0.992); }
-  12%                { transform: translateY(-1px) scale(1.004); }
+  4.5%               { transform: translateY(-2px) scale(1.008); }
+  8.5%               { transform: translateY(0.8px) scale(0.997); }
+  12%                { transform: translateY(-0.4px) scale(1.002); }
 }
 
 /* Le press garde la main : `wiggle` (PxButton) et la squash du `:active`
