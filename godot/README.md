@@ -101,19 +101,19 @@ par l'exportateur Android et manque à l'APK.
 | Surface | Web | Godot |
 | --- | --- | --- |
 | Doorstep (accueil, langues, session) | `page.tsx`, `logo-banner.tsx` | `title.gd` ✓ |
-| Terrier (sol, décors, clôtures, lapin, caméra) | `game/burrow/*` | `burrow*.gd` ✓ — pièges, bombes : à venir |
+| Terrier (sol, décors, clôtures, lapin, caméra) | `game/burrow/*` | `burrow*.gd` ✓ — la maison suit le niveau et fête son passage ; pièges, bombes : à venir (le terrain est encore l'île provisoire, pas `burrowFor(playerId)` du serveur) |
 | Chrome : hôte, dialogues, pastilles | `page.tsx`, `px-dialogs.css` | `chrome.gd`, `dialog.gd` ✓ |
 | Barre du haut : joueur, pastille, rail, son | `carrot-pill.tsx`… | `top_bar.gd` ✓ (monté par `chrome.gd`) |
 | Colonne : quête, jardin, terrier | `quest-card.tsx`… | `burrow_column.gd` ✓ |
 | Sol : DIG · DEFEND · RAID, mode défense | `loop-bar.tsx`, `kit-row.tsx` | `loop_bar.gd`, `kit_row.gd`, `defend_hud.gd` ✓ |
 | Saison, profil, langue | `leaderboard-drawer.tsx`, `profile-menu.tsx` | ✓ (ouverts par `chrome.gd`) |
 | Boutique, énergie | `shop-card.tsx`, `energy-*.tsx` | ✓ — l'achat s'arrête : le pont natif ne signe pas encore |
-| Codex, tampons | `lore-codex.tsx`, `*-stamp.tsx` | ✓ — la fête du terrier au passage de niveau : à venir |
+| Codex, tampons | `lore-codex.tsx`, `*-stamp.tsx` | ✓ |
 | Coffre | `chest-*.tsx` | `chest_prize.gd` écrit, **pas monté** |
 | Île : choix d'île | `island-picker.tsx` | `island_picker.gd` ✓ |
 | Île : HUD, récap | `run-hud.tsx`, `run-recap.tsx` | `run_hud.gd` + `run_recap.gd` écrits, **pas montés** — l'île montre son HUD provisoire (`island.gd`) |
-| Île : cases, décor, caméra, éruption | `game/island/*` | à venir (carottes, coffres, cratères ; `eruption_overlay.gd` est la moitié chrome) |
+| Île : cases, décor, caméra, éruption | `game/island/*` | cases de la leçon ✓ (carotte prise, bombe et cratère, coffre qui s'envole) ; éruption et grondement ✓, branchés sur `RunState` en attendant les manches en ligne ; décor et caméra des îles générées : à venir |
 | Raid : cibles, HUD, victoire | `raid-panel.tsx`, `defend-hud.tsx`, `raid-victory.tsx` | `target_list.gd`, `raid_hud.gd`, `raid_victory.gd` ✓ |
 | Rideau de traversée | `carrot-curtain.tsx`, Pixi | `iris_wipe.gd` ✓ — une variante sur les cinq du web |
-| Sons, musique | `SoundManager` | à venir (seuls les réglages existent) |
+| Sons, musique | `SoundManager` | `sound.gd` ✓ |
 | Install PWA, rotate gate, fullscreen | — | sans objet en natif |
