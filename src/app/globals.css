@@ -3904,6 +3904,64 @@ body:has(.rr-empty) .rr-sound { display: none; }
    qui est ce qui hierarchise les deux. */
 .rr-empty .rr-btn.rr-play > span { font-size: clamp(9px, 5.6cqw, 18px); }
 
+/* ── LA VAGUE : de temps en temps, une onde descend la colonne ─────────────
+
+   « une wave qui traverse tous les boutons » (Paul, 2026-09-22), apres un
+   premier essai ou chaque porte bougeait dans son coin : trop discret, et
+   surtout ce n'etait pas UN geste — c'etaient trois petits gestes separes.
+
+   LE DECALAGE FAIT LA VAGUE. Meme animation partout, decalee de 140ms par
+   rang. Trop court, les trois planches bougent ensemble et on lit une secousse
+   du menu ; trop long, on lit trois boutons qui sautent chacun leur tour. A
+   140ms l'oeil suit une seule chose qui descend — la porte principale part,
+   l'invite reprend, la langue termine.
+
+   L'ATTENTE EST DANS LA KEYFRAME, PAS DANS UN TIMER. Le mouvement tient dans
+   les 9 premiers % d'un cycle de 7s ; le reste est l'immobilite. Une boucle
+   courte (`rr-mark-urge` fait 700ms) dirait « urgent, maintenant » — c'est son
+   role, sur le bouton qui arme une bombe. Ici l'ecran ne demande rien : il
+   signale qu'il est vivant, et la pause longue est ce qui separe un signe d'un
+   tic.
+
+   3px, ET UN LEGER GONFLEMENT. Le nudge precedent (2px, translation seule)
+   etait au ras du perceptible. La vague ajoute un `scale` de 1.5% : c'est ce
+   qui donne l'impression que l'onde POUSSE la planche vers le lecteur au lieu
+   de la faire coulisser, et ca se voit du coin de l'oeil sans etre violent.
+
+   `transform` SEUL, et rien d'autre : les boutons sont peints par un
+   border-image (les planches du kit), donc animer une couleur ou une ombre
+   repasserait sur la texture a chaque frame. Une transformation est composee
+   par le GPU et ne redessine rien.
+
+   LA LANGUE EN FAIT PARTIE, cette fois. Une vague qui s'arrete au deuxieme
+   bouton n'est pas une vague ; c'est le dernier rang qui la termine. */
+.rr-empty .rr-btn {
+  animation: rr-doorstep-wave 7s ease-in-out infinite;
+}
+.rr-empty .rr-btn.ghost:not(.rr-lang-btn) { animation-delay: 140ms; }
+.rr-empty .rr-lang-btn { animation-delay: 280ms; }
+
+@keyframes rr-doorstep-wave {
+  0%, 9%, 100% { transform: translateY(0) scale(1); }
+  3%           { transform: translateY(-3px) scale(1.015); }
+  6%           { transform: translateY(-1px) scale(1.005); }
+}
+
+/* Le press garde la main : `wiggle` (PxButton) et la squash du `:active`
+   posent leur propre `transform`, et l'animation les ecraserait a la frame
+   suivante. Elle s'arrete donc pendant l'appui et le survol — au survol parce
+   qu'une porte qu'on vise n'a plus besoin qu'on l'annonce. */
+.rr-empty .rr-btn:hover,
+.rr-empty .rr-btn:active,
+.rr-empty .rr-btn:focus-visible { animation: none; }
+
+/* Rien ne bouge si le systeme dit que rien ne doit bouger. La vague est
+   decorative de bout en bout : elle ne porte aucune information que l'ecran ne
+   donne pas deja, donc elle se coupe entierement plutot que de se reduire. */
+@media (prefers-reduced-motion: reduce) {
+  .rr-empty .rr-btn { animation: none; }
+}
+
 /* PLAY: the one thing to press on this screen, and it should look like it.
    Gold on dark rather than another outlined chip — the guest door below it is
    deliberately quieter.
