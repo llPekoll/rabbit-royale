@@ -14,9 +14,15 @@ class_name Iso
 
 ## Le terrier : 19x19 cases de 44x24 pixels.
 ##
-## L'ile en fait 16x16 avec des tuiles de 88x48 — le double. Les deux nombres
-## vivront dans leur scene respective ; ceux-ci sont les valeurs par defaut du
-## terrier parce que c'est lui qu'on porte en premier.
+## L'ILE FAIT 32x32 AVEC LA MEME TUILE DE 44x24 (gridConfig.ts:27-40) — elle
+## est plus GRANDE, pas plus grosse. Ce commentaire a d'abord annonce du 16x16
+## en 88x48, « le double », ce qui etait faux dans les deux nombres : une ile
+## batie la-dessus aurait eu le quart des cases et des tuiles deux fois trop
+## grandes. Verifie dans la source le 2026-09-22.
+##
+## Seules les DIMENSIONS DE GRILLE changent donc entre les deux plateaux ; la
+## projection, le lift de palier (6 des deux cotes) et l'echelle du lapin (1.5)
+## sont partages. C'est ce qui permet a ce fichier de servir les deux.
 const BURROW_COLS := 19
 const BURROW_ROWS := 19
 const BURROW_TILE_W := 44
