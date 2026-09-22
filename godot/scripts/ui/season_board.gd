@@ -121,6 +121,14 @@ func _ready() -> void:
 	_days = Kit.label("", 12, Palette.BARK)
 	header.add_child(_days)
 	header.move_child(_days, header.get_child_count() - 2)
+	# L'EN-TETE SERRE, SANS RESERVE POUR LE [x] : sur le web le [x] chevauche
+	# le coin du cadre et ne prend rien a l'en-tete (leaderboard-drawer.tsx,
+	# « the [x] landed on the title » tant que les coins mangeaient la place).
+	# Avec 10px entre chaque piece et 30 de reserve, l'en-tete exigeait 275px
+	# d'un panneau de 231 au Seeker : le tableau sortait de l'ecran par la
+	# droite, son [x] avec.
+	header.add_theme_constant_override("separation", Kit.PAD_TIGHT)
+	(header.get_child(header.get_child_count() - 1) as Control).custom_minimum_size.x = 0.0
 
 	_scroll = ScrollContainer.new()
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -238,15 +246,21 @@ func _make_row(e: Dictionary, index: int, mine: String, roomy: bool) -> Control:
 	var on_podium := roomy and rank <= PODIUM
 
 	var panel := Kit.panel(_row_style(me, index % 2 == 0))
-	var pad_top := 4.0
+	# L'AIR D'UNE LIGNE SUIT L'ECRAN (`.rr-lb-row` : clamp(4px, 1.1svh, 10px)
+	# sur clamp(6px, 1.6svh, 12px)) : a 4px fixes, le bureau entassait dix-huit
+	# lignes de 14px la ou le web en pose neuf qui respirent.
+	var view_h := get_viewport_rect().size.y if is_inside_tree() else 400.0
+	var pad_y := clampf(view_h * 0.011, 4.0, 10.0)
+	var pad_x := clampf(view_h * 0.016, 6.0, 12.0) if roomy else 2.0
+	var pad_top := pad_y
 	if on_podium and crowned:
 		# La couronne deborde par le haut : la premiere ligne n'a personne
 		# au-dessus d'elle pour la recevoir, elle se reserve la place.
-		pad_top = _crown_box(LEAD_SIZE)["rise"] + 4.0
+		pad_top = _crown_box(LEAD_SIZE)["rise"] + pad_y
 	# SERRE quand la liste est etroite (le coin du Seeker, 231px) : le web y
 	# tient le nom entier parce que ses lettres sont plus petites.
 	var font := ROW_FONT if roomy else 10
-	var box := Kit.margin(6 if roomy else 2, pad_top, 6 if roomy else 2, 4)
+	var box := Kit.margin(int(pad_x), int(pad_top), int(pad_x), int(pad_y))
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(box)
 	var row := Kit.hbox(8 if roomy else 4)
