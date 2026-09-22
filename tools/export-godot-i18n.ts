@@ -50,7 +50,7 @@ interface Template {
   $v?: { when: Record<string, number | null>; t: string }[];
 }
 
-const OUT_DIR = join(import.meta.dir, '..', 'godot', 'assets', 'i18n');
+const OUT_DIR = join((import.meta as ImportMeta & { dir: string }).dir, '..', 'godot', 'assets', 'i18n');
 
 /** The values the dictionaries branch on. A slot not in a condition keeps its placeholder. */
 const PROBE_VALUES: (number | null)[] = [1, 0, null];

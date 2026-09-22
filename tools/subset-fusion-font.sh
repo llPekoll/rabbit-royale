@@ -36,6 +36,10 @@ for v in latin zh_hans; do
   uvx --from 'fonttools[woff]' pyftsubset "$SRC/fusion-pixel-12px-proportional-$v.ttf" \
     --text-file="$CHARS" --layout-features='*' \
     --output-file="$ROOT/godot/assets/fonts/fusion-pixel-12-rr-$name.ttf"
+  # Le meme sous-ensemble pour le web (src/components/pixel-font.tsx).
+  uvx --from 'fonttools[woff]' pyftsubset "$SRC/fusion-pixel-12px-proportional-$v.ttf" \
+    --text-file="$CHARS" --layout-features='*' --flavor=woff2 \
+    --output-file="$ROOT/public/assets/fonts/fusion-pixel-12-rr-$name.woff2"
 done
 rm -f "$CHARS"
-ls -la "$ROOT"/godot/assets/fonts/fusion-pixel-12-rr-*.ttf
+ls -la "$ROOT"/godot/assets/fonts/fusion-pixel-12-rr-*.ttf "$ROOT"/public/assets/fonts/fusion-pixel-12-rr-*.woff2

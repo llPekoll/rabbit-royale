@@ -174,6 +174,16 @@
   --cur-denied: url('/assets/ui/cursors/denied.png') 16 18, not-allowed;
 }
 
+/* FUSION PIXEL (pixel-font.tsx) is a bitmap face drawn as squares: no faux
+   bold (the kit's titles ask for 700, and a synthesised stroke smears the
+   grid). Smoothing stays ON: most of this stylesheet sets 9-11px, off the
+   face's 12px grid, and an aliased face there DROPS rows — "TERRIER NIV 1"
+   lost its 1. Smoothed, those sizes are soft but whole. */
+html[data-face="fusion"],
+html[data-face="fusion"] * {
+  font-synthesis: none;
+}
+
 /* The smooth island shows the system pointers: over anti-aliased art the
    game's pixel cursors are the one pixelated thing on screen. Set on the
    page; the variables cascade, so its buttons follow through the same

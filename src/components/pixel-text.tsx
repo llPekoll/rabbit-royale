@@ -52,10 +52,19 @@ interface PixelProps {
  */
 const CELL = 8;
 
+/**
+ * Fusion Pixel (every language but English, pixel-font.tsx) is a 12px bitmap
+ * face: it is sharp at 12 and at its whole multiples, and loses rows of
+ * pixels in between — a sinogram at 10px is unreadable. The kit's scales
+ * (10, 16, 20px) are snapped onto that grid, the way the Godot client does.
+ */
+const FUSION_CELL = 12;
+const onFusionGrid = (px: number) => Math.max(FUSION_CELL, Math.round(px / FUSION_CELL) * FUSION_CELL);
+
 function fallbackStyle(scale: number, style?: CSSProperties): CSSProperties {
   return {
     fontFamily: 'var(--font-pixel)',
-    fontSize: CELL * scale,
+    fontSize: onFusionGrid(CELL * scale),
     // The atlas is drawn at whole-pixel sizes and has no descender overhang;
     // a rasterised face at the same size sits differently in its line box, so
     // the line height is pinned to the cell rather than inherited.

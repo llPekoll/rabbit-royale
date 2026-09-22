@@ -19,7 +19,7 @@ import { join } from 'node:path';
 
 import * as tuning from '../config/tuning';
 
-const OUT = join(import.meta.dir, '..', 'godot', 'assets', 'tuning.json');
+const OUT = join((import.meta as ImportMeta & { dir: string }).dir, '..', 'godot', 'assets', 'tuning.json');
 
 function plain(value: unknown): unknown {
   if (typeof value === 'function') return undefined;
