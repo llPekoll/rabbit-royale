@@ -16,6 +16,7 @@ extends Node2D
 const FIT := 0.62
 
 @onready var _terrain: BurrowTerrain = %Terrain
+@onready var _props: BurrowProps = %Props
 
 var _seed := 1
 var _quit: PlankButton
@@ -39,6 +40,10 @@ func show_ground(seed_value: int) -> void:
 	_terrain.map = BurrowMap.new()
 	_terrain.map.generate(seed_value)
 	_terrain.build()
+	# Les decors lisent LE MEME relief : une maison posee sur un autre terrain
+	# que celui qu'on voit flotterait.
+	_props.map = _terrain.map
+	_props.build(seed_value)
 
 
 ## LA PORTE DE SORTIE.
