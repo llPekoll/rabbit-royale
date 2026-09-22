@@ -1,0 +1,297 @@
+extends Node2D
+class_name HomeRabbit
+## LE LAPIN, CHEZ LUI, A NE RIEN FAIRE DE PARTICULIER.
+##
+## Porte de src/game/burrow/HomeRabbit.ts et entities/PlayerRabbit.ts.
+##
+## Le terrier est l'ecran qu'un joueur regarde ENTRE deux parties, et la seule
+## chose qu'il ne montrait pas, c'etait le lapin lui-meme : on voyait ses
+## champs, ses pieges et ses carottes, mais le personnage dont tout le jeu
+## parle n'existait que sur l'ile. La ferme se lisait donc comme un ecran de
+## proprietaire, pas comme un endroit ou quelqu'un habite.
+##
+## CE N'EST DELIBEREMENT PAS UNE ENTITE DE JEU. Il n'a pas de case a defendre,
+## il ne peut etre ni pille, ni tape, ni marche dessus, et rien de lui n'est
+## envoye au serveur : il erre sur quelques cases, s'arrete pour manger, se
+## rassoit. Ce qui compte est L'OCCUPATION — un terrier avec un lapin dedans
+## est une maison, un terrier sans lapin est une carte.
+##
+## FRERE DU DECOR, PAS ENFANT DU PLATEAU — et c'est LE piege de ce fichier.
+##
+## Le web a vecu l'inverse : le lapin vivait dans `board`, qui siege a une
+## profondeur fixe parmi les blocs de terrain. Il passait donc DERRIERE chaque
+## pin et derriere la maison quelle que soit sa case, et le `DepthHole` — la
+## fenetre percee dans ce qui le recouvre — n'avait rien a percer, puisque ce
+## qui le couvrait n'etait jamais son FRERE. Un lapin doit se trier contre les
+## tuiles et les decors sur la meme regle qu'eux : `Iso.depth`.
+
+const SHEET := preload("res://assets/bunnies/bunny-white.png")
+
+## LA PLANCHE : 8 colonnes sur 8 rangees de 32x32.
+const FRAME := 32
+const SHEET_COLS := 8
+
+## LES ANIMATIONS, en [premiere image, derniere image, images/seconde, boucle].
+## Reprises telles quelles de BUNNY_ANIM_DEFS (AssetLoader.ts:299) : le lapin de
+## l'ile et celui du terrier DOIVENT etre le meme animal, et une seconde table
+## ecrite a la main est la facon dont deux lapins finissent par differer.
+const ANIMS := {
+	"idle": [0, 7, 8, true],
+	"move": [8, 15, 12, true],
+	"eat": [16, 23, 8, false],
+	"sleep": [32, 39, 4, true],
+	"happy": [40, 47, 10, false],
+}
+
+## L'ECHELLE DU LAPIN, partagee avec l'ile (gridConfig.ts:87).
+##
+## PAS D'ECHELLE A LUI. Il a ete dessine 1,8x un temps, au motif qu'il etait
+## seul sur une ferme vue de loin — mais les deux plateaux partagent le losange
+## de 44, donc ca le faisait presque aussi haut qu'une case ici et moitie moins
+## sur DIG. Paul, le 2026-09-18 : la taille de DIG est la bonne, les autres
+## suivent.
+const RABBIT_SCALE := 1.5
+
+## L'ANCRE : les PIEDS au centre de la case, pas le centre de la boite.
+const ANCHOR := Vector2(0.5, 0.9)
+
+## LE TEMPS ENTRE DEUX GESTES, en secondes.
+##
+## Lent, et deliberement : c'est du decor a cote d'une interface que le joueur
+## essaie de lire. Un lapin qui bouge chaque seconde tire l'oeil hors du
+## panneau qu'on vient d'ouvrir — c'est le mode de panne de la vie ambiante,
+## elle cesse d'etre une atmosphere pour devenir une distraction.
+const BEAT_MIN := 2.6
+const BEAT_MAX := 6.2
+
+## JUSQU'OU IL S'ELOIGNE DE SON POINT DE DEPART, en cases.
+##
+## Garde pres du milieu pour qu'il reste la ou le joueur le voit, et hors des
+## coins ou se tient le chrome. C'est un lapin qui flane dans sa cour, pas un
+## lapin qui traverse la propriete.
+const ROAM := 3
+
+## LA PART DES GESTES QUI SONT UN REPAS plutot qu'un pas.
+const EAT_CHANCE := 0.3
+
+## LA DUREE D'UN SAUT, en secondes.
+const HOP_SECONDS := 0.32
+
+## DE COMBIEN IL SE TRIE DEVANT LE SOL DE SA CASE.
+##
+## Le web dit +0.6 d'un pas de case ; ici `Iso.depth` multiplie le pas par 16,
+## donc c'est DIX. Entre les carottes (+1 case, soit 16) et le sol : un lapin
+## passe devant la terre qu'il foule et derriere ce qui pousse plus pres de la
+## camera. Voir le meme calcul dans fence_view.gd — l'ecrire 0.6 ici
+## l'arrondirait a zero et le lapin s'enfoncerait dans le sol.
+const DEPTH_BIAS := 10
+
+var map: BurrowMap
+
+var _sprite: AnimatedSprite2D
+var _at: Vector2i
+var _home: Vector2i
+var _rng := RandomNumberGenerator.new()
+var _beat: SceneTreeTimer
+var _hop: Tween
+var _walkable: Array[Vector2i] = []
+
+
+## Pose le lapin au milieu de son terrain et le laisse vivre.
+func build(seed_value: int) -> void:
+	clear()
+	if map == null:
+		return
+
+	_rng.seed = seed_value * 101 + 13
+	_walkable = _walkable_cells()
+	if _walkable.is_empty():
+		return
+	_home = _middle_of()
+	_at = _home
+
+	_sprite = AnimatedSprite2D.new()
+	_sprite.sprite_frames = _frames()
+	_sprite.scale = Vector2(RABBIT_SCALE, RABBIT_SCALE)
+	# L'ANCRE EST UN OFFSET dans Godot : on decale de la part voulue de la
+	# boite, en pixels de l'image (l'echelle s'applique apres).
+	_sprite.offset = -Vector2(FRAME * ANCHOR.x, FRAME * ANCHOR.y)
+	_sprite.play("idle")
+	add_child(_sprite)
+
+	_place()
+	_schedule()
+
+
+func clear() -> void:
+	if _hop != null and _hop.is_valid():
+		_hop.kill()
+	# LE BATTEMENT MEURT AVEC LE LAPIN. Un SceneTreeTimer garde sa connexion
+	# vivante apres la mort du noeud : sans ca, un `show_ground` sur une autre
+	# graine laisserait l'ancien battement reveiller un lapin detruit.
+	if _beat != null and _beat.timeout.is_connected(_on_beat):
+		_beat.timeout.disconnect(_on_beat)
+	_beat = null
+	if _sprite != null:
+		_sprite.queue_free()
+		_sprite = null
+	_walkable.clear()
+
+
+## OU IL SE TIENT, a l'ecran — et a quelle profondeur.
+##
+## Les pieds au centre du losange, comme la maison et les clotures : c'est le
+## meme sol, et trois facons differentes de le toucher se verraient.
+func _place() -> void:
+	position = map.screen_of(_at.x, _at.y) + Vector2(0, Iso.half_h())
+	z_index = Iso.depth(_at.x, _at.y) + map.level_at(_at.x, _at.y) + DEPTH_BIAS
+
+
+## UN GESTE : manger sur place, ou faire UN pas.
+##
+## Un pas a la fois plutot qu'un chemin, parce que le lapin n'a nulle part ou
+## aller. L'errance EST le comportement : une destination lui donnerait l'air
+## de se rendre quelque part, puis de s'arreter sans raison.
+func _on_beat() -> void:
+	if _sprite == null:
+		return
+	if _rng.randf() < EAT_CHANCE:
+		_eat()
+	else:
+		_step()
+	_schedule()
+
+
+func _schedule() -> void:
+	if _sprite == null or not is_inside_tree():
+		return
+	_beat = get_tree().create_timer(_rng.randf_range(BEAT_MIN, BEAT_MAX))
+	_beat.timeout.connect(_on_beat)
+
+
+func _eat() -> void:
+	_sprite.play("eat")
+	# `eat` ne boucle pas : on revient au repos quand elle est finie. Se
+	# reconnecter a chaque fois plutot qu'une fois pour toutes, parce que le
+	# retour depend de ce qu'on vient de jouer.
+	if not _sprite.animation_finished.is_connected(_rest):
+		_sprite.animation_finished.connect(_rest, CONNECT_ONE_SHOT)
+
+
+func _rest() -> void:
+	if _sprite != null:
+		_sprite.play("idle")
+
+
+## UN PAS VERS UNE CASE VOISINE, s'il en trouve une qui lui va.
+##
+## LES HUIT VOISINES, pas les quatre : c'est la grille sur laquelle un lapin
+## marche vraiment, et c'est aussi pourquoi murer les quatre faces d'une case
+## ne la ferme pas — la diagonale passe au coin.
+func _step() -> void:
+	var options: Array[Vector2i] = []
+	for dy in [-1, 0, 1]:
+		for dx in [-1, 0, 1]:
+			if dx == 0 and dy == 0:
+				continue
+			var next := _at + Vector2i(dx, dy)
+			if not _walkable.has(next):
+				continue
+			# IL NE S'ELOIGNE PAS DE PLUS DE `ROAM` DE CHEZ LUI — distance de
+			# Chebyshev, la grille qu'il marche.
+			var apart := maxi(absi(next.x - _home.x), absi(next.y - _home.y))
+			if apart > ROAM:
+				continue
+			options.append(next)
+	if options.is_empty():
+		return
+
+	var to: Vector2i = options[_rng.randi() % options.size()]
+	# IL REGARDE OU IL VA. Un miroir en x, jamais une rotation.
+	if to.x != _at.x:
+		_sprite.flip_h = to.x < _at.x
+	_at = to
+	_sprite.play("move")
+
+	# LE SAUT : la position s'anime, la PROFONDEUR SAUTE tout de suite.
+	#
+	# C'est voulu. Trier a mi-chemin entre deux cases n'a pas de sens — le
+	# lapin appartient a l'une ou a l'autre — et le web recoupe son DepthHole a
+	# CHAQUE image pour cette raison : « un trou place a l'arrivee resterait une
+	# cellule en arriere pendant toute la duree du saut ».
+	if _hop != null and _hop.is_valid():
+		_hop.kill()
+	var to_at := map.screen_of(to.x, to.y) + Vector2(0, Iso.half_h())
+	z_index = Iso.depth(to.x, to.y) + map.level_at(to.x, to.y) + DEPTH_BIAS
+	_hop = create_tween()
+	_hop.tween_property(self, "position", to_at, HOP_SECONDS)\
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_hop.tween_callback(_rest)
+
+
+## LES CASES OU UN LAPIN PEUT SE TENIR. Pour l'instant : TOUTE LA TERRE.
+##
+## INCOMPLET, ET CA SE VOIT : le lapin se tient volontiers au milieu du
+## potager, puisque rien ne le lui interdit encore. Le web retranche ici les
+## trous, les rochers, la bouche du terrier et le champ lui-meme
+## (`walkableTiles`) — ces notions n'existent pas dans ce portage, et les
+## inventer maintenant reviendrait a ecrire une seconde regle de praticabilite
+## que la premiere contredira en arrivant.
+##
+## A retrancher quand `BurrowMap` saura le dire.
+func _walkable_cells() -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	for row in range(map.height):
+		for col in range(map.width):
+			if map.is_land(col, row):
+				out.append(Vector2i(col, row))
+	return out
+
+
+## LA CASE PRATICABLE LA PLUS PROCHE DU MILIEU DU TERRAIN.
+##
+## DEUX CORRECTIONS, et les deux sont necessaires.
+##
+## Le milieu est pris sur LES CASES PRATICABLES et non sur la grille : la
+## grille est une boite englobante et la ferme est une ile irreguliere dedans,
+## en general loin de son centre — viser le milieu du 19x19 garait donc le
+## lapin contre le bord de la ferme le plus proche de ce point.
+##
+## Et la case RENDUE est la praticable la plus proche de ce centre : le vrai
+## centre est souvent un rocher, un trou ou la bouche du terrier, et on ne se
+## tient sur aucun des trois.
+func _middle_of() -> Vector2i:
+	var sum := Vector2.ZERO
+	for cell in _walkable:
+		sum += Vector2(cell)
+	var centre := sum / float(_walkable.size())
+
+	var best: Vector2i = _walkable[0]
+	var best_d := INF
+	for cell in _walkable:
+		var d := Vector2(cell).distance_squared_to(centre)
+		if d < best_d:
+			best_d = d
+			best = cell
+	return best
+
+
+## LA PLANCHE DECOUPEE, une animation par ligne de la table.
+func _frames() -> SpriteFrames:
+	var out := SpriteFrames.new()
+	# SpriteFrames arrive avec un "default" dont on ne veut pas : le laisser
+	# donnerait une animation vide qui joue si un nom est mal ecrit.
+	out.remove_animation("default")
+	for name in ANIMS:
+		var def: Array = ANIMS[name]
+		out.add_animation(name)
+		out.set_animation_speed(name, def[2])
+		out.set_animation_loop(name, def[3])
+		for i in range(def[0], def[1] + 1):
+			var frame := AtlasTexture.new()
+			frame.atlas = SHEET
+			frame.region = Rect2(
+				(i % SHEET_COLS) * FRAME, (i / SHEET_COLS) * FRAME, FRAME, FRAME
+			)
+			out.add_frame(name, frame)
+	return out

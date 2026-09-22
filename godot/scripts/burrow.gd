@@ -28,6 +28,7 @@ const CAM_EPSILON_POS := 0.5
 @onready var _props: BurrowProps = %Props
 @onready var _fences: FenceView = %Fences
 @onready var _hints: PlacementHints = %Hints
+@onready var _rabbit: HomeRabbit = %Rabbit
 
 var _seed := 1
 var _quit: PlankButton
@@ -90,6 +91,14 @@ func show_ground(seed_value: int) -> void:
 	_hints.map = _terrain.map
 	_hints.terrain = _terrain
 	_hints.build()
+
+	# LE LAPIN REVIENT AVEC LE SOL SUR LEQUEL IL SE TIENT. `show_ground` tourne
+	# a la premiere image ET a chaque changement de terrain — une montee de
+	# niveau, ou le passage chez quelqu'un d'autre — et les cases de l'ancien
+	# lapin n'existent plus a ce moment-la. On le refait plutot que de le
+	# garder.
+	_rabbit.map = _terrain.map
+	_rabbit.build(seed_value)
 
 	# LA PRISE DEPEND DU RELIEF : les quatre cadrages sont resolus sur les
 	# bornes de la terre, et une autre graine en a d'autres. Un terrier voisin

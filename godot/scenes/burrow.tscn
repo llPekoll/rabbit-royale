@@ -1,4 +1,4 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 ; LE TERRIER. L'un des deux lieux residents — construit une fois, jamais
 ; libere, montre ou cache (voir screens.gd).
@@ -12,6 +12,7 @@
 [ext_resource type="Script" path="res://scripts/burrow_props.gd" id="3_props"]
 [ext_resource type="Script" path="res://scripts/fence_view.gd" id="4_fence"]
 [ext_resource type="Script" path="res://scripts/placement_hints.gd" id="5_hints"]
+[ext_resource type="Script" path="res://scripts/home_rabbit.gd" id="6_rabbit"]
 
 [node name="Burrow" type="Node2D"]
 script = ExtResource("1_burrow")
@@ -41,3 +42,13 @@ script = ExtResource("4_fence")
 [node name="Hints" type="Node2D" parent="."]
 unique_name_in_owner = true
 script = ExtResource("5_hints")
+
+; LE LAPIN EST UN FRERE DU DECOR, et c'est tout le piege.
+;
+; Enfant du plateau, il passerait DERRIERE chaque arbre et derriere la maison
+; quelle que soit sa case, et le trou de profondeur qu'on percera dans ce qui
+; le recouvre n'aurait rien a percer — ce qui le couvre ne serait jamais son
+; frere. Ici il se trie contre les tuiles sur leur propre regle.
+[node name="Rabbit" type="Node2D" parent="."]
+unique_name_in_owner = true
+script = ExtResource("6_rabbit")
