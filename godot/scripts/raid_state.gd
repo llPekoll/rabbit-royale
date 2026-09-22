@@ -436,6 +436,11 @@ func refresh_holdings() -> void:
 ## Prendre une lecture, d'ou qu'elle vienne (use-incoming-raid.ts `accept`).
 ## Un raid fini reste le temps d'etre vu finir, puis s'en va — le meme
 ## battement que la lecture unique honore cote serveur (ENDED_SHOWN_MS).
+## Le dernier raid subi dont la fin a sonne : une fin se relit plusieurs fois
+## (le sondage, la socket), elle ne sonne qu'une.
+var _ended_heard := ""
+
+
 func _accept_incoming(next: Dictionary) -> void:
 	_ended_timer.stop()
 	var arrived := incoming.is_empty() and not next.is_empty()
@@ -444,7 +449,15 @@ func _accept_incoming(next: Dictionary) -> void:
 		incoming_changed.emit()
 	if not next.is_empty() and bool(next.get("finished", false)):
 		_ended_timer.start(Tuning.i("RAID_RUN.ENDED_SHOWN_MS", 10000) / 1000.0)
+		# LA FIN, UNE FOIS par raid, et elle s'entend (page.tsx) : le pillard
+		# a pris, ca tombe ; il est reparti les mains vides, ca carillonne.
+		var id := String(next.get("raidId", ""))
+		if id != _ended_heard:
+			_ended_heard = id
+			Sound.play("die" if bool(next.get("succeeded", false)) else "chime")
 	if arrived:
+		# Quelqu'un entre chez soi : ca saute.
+		Sound.play("explosion")
 		# Le proprietaire apprend qu'on entre chez lui, et combien d'eclairs
 		# il lui reste pour repondre.
 		var attacker: Dictionary = next.get("attacker", {}) if next.get("attacker") is Dictionary else {}

@@ -448,8 +448,12 @@ func _tutorial_tap(cell: Vector2i) -> void:
 
 	if _armed:
 		_set_armed(false)
+		# Le bon X tinte, le mauvais dit non (IslandScene `flagTile`).
 		if _board.flag(here, cell):
 			_flags += 1
+			Sound.play("chime_quick")
+		else:
+			Sound.deny()
 		_tiles.refresh()
 		_refresh_caption()
 		_refresh_ring()
@@ -459,15 +463,28 @@ func _tutorial_tap(cell: Vector2i) -> void:
 		# LE NON LOCAL : l'anneau clignote d'un coup pour montrer ou est le oui.
 		# Et pendant la lecon, le bouton remue — c'est lui la sortie.
 		_ring.pulse()
+		Sound.deny()
 		if _mark != null and _board.teaching_hold().x >= 0:
 			_mark.wiggle()
 		return
 
 	var fresh := not _board.is_dug(cell)
 	_rabbit.send_to(cell)
+	Sound.play("hop")
 	if fresh:
 		_board.dig(cell)
 		_digs += 1
+		# CE QUE LA CASE CACHAIT S'ENTEND (IslandScene `reveal`) : la carotte
+		# tinte, la bombe saute, le vide fait un pas.
+		match _board.content.get(cell, IslandBoard.Content.EMPTY):
+			IslandBoard.Content.CARROT:
+				Sound.play("coin")
+			IslandBoard.Content.BOMB:
+				Sound.play("explosion")
+			IslandBoard.Content.CHEST:
+				pass
+			_:
+				Sound.play("step")
 		# LE COFFRE EST LA FIN de la premiere ile — `tutorialDone` sur le web.
 		if _board.content.get(cell) == IslandBoard.Content.CHEST:
 			_chests += 1
@@ -603,6 +620,8 @@ func _refresh_caption() -> void:
 ## par le seul geste qui existe deja — la traversee vers le terrier.
 func _finish_tutorial() -> void:
 	_done = true
+	# Le coffre de la lecon a sa fanfare (IslandScene `celebrateChest`).
+	Sound.music("victory")
 	_remember_finished()
 	_tiles.set_pulse(Vector2i(-1, -1))
 	get_tree().create_timer(DONE_SECONDS).timeout.connect(

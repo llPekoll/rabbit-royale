@@ -113,6 +113,7 @@ func _mount() -> void:
 	# Ce que la boutique et le raid repondent passe en pastille, comme Home.
 	ShopState.shared().noted.connect(toast)
 	RaidState.current.noted.connect(toast)
+	_wire_sounds()
 	# Les tampons qui s'annoncent seuls : le niveau gagne, le raid subi.
 	LevelUpStamp.arm()
 	# Le HUD de defense (un raid en cours chez soi) se montre seul.
@@ -259,6 +260,9 @@ func toast(text: String, refused: bool = false) -> void:
 		old.queue_free()
 	if text.is_empty():
 		return
+	# UN REFUS S'ENTEND (page.tsx `refuse`) : le meme non partout.
+	if refused:
+		Sound.deny()
 	var note := Kit.caption(text, refused)
 	note.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	toasts.add_child(note)
@@ -371,3 +375,29 @@ func dialog_open() -> bool:
 func stamp(node: Control) -> void:
 	overlays.add_child(node)
 	Kit.fill(node)
+
+
+# ── Les sons ─────────────────────────────────────────────────────────────────
+
+## CE QUE LE TERRIER FAIT ENTENDRE, pris aux signaux plutot qu'aux gestes :
+## c'est la reponse du serveur qui sonne, pas le doigt (page.tsx). Les sons
+## propres a un panneau (la quete, le jardin, les ceremonies) sont chez lui.
+func _wire_sounds() -> void:
+	# L'ILE A SA MUSIQUE, reprise du debut a chaque traversee ; le terrier
+	# rend la main a l'ambiance (IslandScene `show` / `hide`).
+	Screens.moved.connect(func(place: int) -> void:
+		if place == Screens.Place.ISLAND:
+			Sound.music("island")
+		else:
+			Sound.stop_music())
+	Home.level_up.connect(func(_level: int) -> void: Sound.play("match"))
+	Home.quest_claimed.connect(func(_id: String, _reward: Dictionary) -> void: Sound.play("match"))
+	# Un piege achete fait le pas qu'il fera pose ; le reste de la boutique,
+	# payee en carottes, le petit carillon.
+	ShopState.shared().bought.connect(func(kind: String, _qty: int) -> void:
+		Sound.play("step" if kind == "trap" else "chime_quick"))
+	RaidState.current.sprung.connect(func(_tile: int) -> void: Sound.play("explosion"))
+	# Un raid perdu tombe ; un raid gagne a sa ceremonie, qui sonne elle-meme.
+	RaidState.current.finished.connect(func(raid: Dictionary, _outcome: Dictionary) -> void:
+		if not bool(raid.get("succeeded", false)):
+			Sound.play("die"))

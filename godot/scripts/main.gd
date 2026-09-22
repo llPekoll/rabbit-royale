@@ -44,6 +44,18 @@ func _ready() -> void:
 	_wipe_host.add_child(wipe)
 	Screens.host_wipe(wipe)
 	DeskScale.follow(get_window())
+	# LE SON VIT ICI pour la meme raison que le rideau : la boucle d'ambiance
+	# doit survivre aux traversees (sound.gd).
+	Sound.host(self)
+	# Fermer la fenetre passe par `_notification` : le son se tait une image
+	# avant que le jeu quitte (sound.gd `silence`).
+	get_tree().auto_accept_quit = false
 	Screens.show_doorstep()
 	DevShot.arm(self)
 
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		Sound.silence()
+		await get_tree().process_frame
+		get_tree().quit()

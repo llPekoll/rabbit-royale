@@ -35,6 +35,7 @@ static func arm(node: Node) -> void:
 	if path.is_empty():
 		return
 	await node.get_tree().create_timer(after).timeout
+	Sound.silence()
 	await RenderingServer.frame_post_draw
 	var image := node.get_viewport().get_texture().get_image()
 	image.save_png(path)

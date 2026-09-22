@@ -294,6 +294,10 @@ func _tick_energy() -> void:
 ## LE RANG ET L'ECART, tels que le tableau les donne (`me`). Gardes pour
 ## qui les demande ; le web ne les peint plus sur la pastille.
 func set_rank(rank: int, to_pass: int = -1) -> void:
+	# GAGNER UNE PLACE carillonne (page.tsx) ; en perdre une est la nouvelle
+	# de quelqu'un d'autre. Pas au premier rang connu : ce n'est pas un gain.
+	if _rank > 0 and rank > 0 and rank < _rank:
+		Sound.play("chime_quick")
 	_rank = rank
 	_to_pass = to_pass
 

@@ -123,6 +123,8 @@ func _claim() -> void:
 ## L'anneau d'or de `.rr-quest-done` : 4 px de bord et 28 de halo a 20 %,
 ## eteints a 100 %, avec un souffle de 3 % sur la carte.
 func _celebrate() -> void:
+	# Une quete finie carillonne (page.tsx, l'effet sur la quete active).
+	Sound.play("chime")
 	if _glow != null:
 		_glow.queue_free()
 	_glow = Panel.new()

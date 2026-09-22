@@ -44,9 +44,8 @@ extends Control
 ## Genesis des cet instant, mais LAQUELLE ne se sait qu'a la frappe. Un lapin
 ## au hasard serait la photo du NFT de quelqu'un d'autre.
 ##
-## LE SON N'EST PAS PORTE : le web joue `coinStart` a l'arrivee du coffre et
-## `chime` a l'ouverture (SoundManager), et le client Godot n'a pas encore de
-## sons (assets/sound/ ne porte que les icones du haut-parleur).
+## LE SON : `coin_start` a l'arrivee du coffre, `chime` a l'ouverture, comme
+## chest-prize.tsx.
 
 ## Le joueur a tape a travers — la partie continue.
 signal done
@@ -195,6 +194,7 @@ func _init() -> void:
 
 
 func _ready() -> void:
+	Sound.play("coin_start")
 	_build()
 	resized.connect(_measure)
 	_measure()
@@ -436,6 +436,7 @@ func _reveal() -> void:
 ## la legende monte et clignote ; un tap termine.
 func _shown(instant: bool = false) -> void:
 	phase = Phase.SHOWN
+	Sound.play("chime")
 	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	_stamp.visible = true
 	_caption.visible = true

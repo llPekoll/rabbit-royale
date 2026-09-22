@@ -117,6 +117,9 @@ static func present(state: Dictionary) -> RaidVictory:
 
 
 func _ready() -> void:
+	# ENTENDUE, pas seulement vue (raid-victory.tsx) : la piece a l'ouverture
+	# de l'eclat, le carillon quand RAID WON! tombe.
+	Sound.play("coin_start")
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	clip_contents = true
 	var box := size if size.y > 0.0 else get_viewport_rect().size
@@ -386,6 +389,7 @@ func _run() -> void:
 		return
 	# 4. SHOWN : le tampon claque, la planche et la legende montent.
 	_shown = true
+	Sound.play("chime")
 	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	_stamp.visible = true
 	_stamp.modulate.a = 0.0

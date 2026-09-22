@@ -481,13 +481,20 @@ func _relabel() -> void:
 	# UNE PLANCHE QUI DEVIENT PRESSABLE SAUTE UNE FOIS : DIG quand une run
 	# devient payable, DEFEND quand le jardin passe de vide a quelque chose a
 	# prendre, RAID quand le reservoir tient un raid et qu'il y a ou aller.
+	# Et elle carillonne, une fois pour tout ce qui s'est eveille ensemble.
 	if _primed:
+		var became := false
 		if can_dig and not _was_can_dig:
 			_pop("dig")
+			became = true
 		if garden > 0 and not _was_garden:
 			_pop("defend")
+			became = true
 		if can_raid and not _was_can_raid:
 			_pop("raid")
+			became = true
+		if became:
+			Sound.play("chime_quick")
 	_was_can_dig = can_dig
 	_was_garden = garden > 0
 	_was_can_raid = can_raid
