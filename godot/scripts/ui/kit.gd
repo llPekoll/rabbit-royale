@@ -68,6 +68,9 @@ const RING_3 := preload("res://assets/ui/ring-3.webp")
 const HEART := preload("res://assets/ui/heart.png")
 const HEART_EMPTY := preload("res://assets/ui/heart-empty.png")
 const CROWN := preload("res://assets/ui/crown.png")
+## La coupe d'or du kit d'arcade : le trophee de la saison, comme sur le web
+## (leaderboard-drawer.tsx, `GOLD_CUP_URL`).
+const CUP := preload("res://assets/ui/gold-cup.png")
 const SCROLL := preload("res://assets/ui/scroll.png")
 
 ## Les icones d'objets et de portes.

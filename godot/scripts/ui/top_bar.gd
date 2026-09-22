@@ -89,7 +89,7 @@ func _ready() -> void:
 	story_button.pressed.connect(func() -> void: story_pressed.emit())
 	_rail.add_child(story_button)
 
-	season_button = HubIconButton.make("Show the season board", Kit.CROWN)
+	season_button = HubIconButton.make("Show the season board", Kit.CUP)
 	season_button.pressed.connect(func() -> void: season_pressed.emit())
 	_rail.add_child(season_button)
 
@@ -107,9 +107,12 @@ func _ready() -> void:
 	Screens.moved.connect(_on_moved)
 	Session.changed.connect(chip.refresh)
 	Home.changed.connect(chip.refresh)
+	Home.changed.connect(_reflect_news)
+	ShopState.shared().changed.connect(_reflect_news)
 	get_viewport().size_changed.connect(_measure)
 	_rail.resized.connect(_measure)
 	_measure()
+	_reflect_news()
 	_reflect_place()
 	visible = Screens.in_world() or preview
 	if visible:
@@ -168,6 +171,23 @@ func _reflect_place() -> void:
 	shop_button.visible = home
 	story_button.visible = home
 	pill.refresh()
+
+
+## CE QUE LES ICONES ANNONCENT (page.tsx) : sur la boutique, les pieges en
+## poche — un nombre qui se tient, en puce discrete ; sur l'histoire, « NEW »
+## en rouge tant qu'un chapitre vient de s'ouvrir, c'est-a-dire dans les 500
+## carottes qui suivent son seuil (la regle du codex).
+const FRESH_CHAPTER := 500.0
+
+
+func _reflect_news() -> void:
+	var traps: Dictionary = ShopState.shared().shop.get("traps", {}) if ShopState.shared().shop.get("traps") is Dictionary else {}
+	var held := int(traps.get("held", 0))
+	shop_button.set_badge(str(held) if held > 0 else "")
+	var lifetime := float(Home.burrow.get("lifetime", 0))
+	var open := Content.unlocked_count(lifetime)
+	var fresh := open > 0 and lifetime - float(Content.LORE[open - 1]["unlockAt"]) < FRESH_CHAPTER
+	story_button.set_badge("NEW" if fresh else "", true)
 
 
 ## L'ARRIVEE EN CASCADE.
