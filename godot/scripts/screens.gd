@@ -34,7 +34,7 @@ enum Place {
 
 const PLACES := {
 	Place.BURROW: "res://scenes/burrow.tscn",
-	Place.ISLAND: "",
+	Place.ISLAND: "res://scenes/island.tscn",
 }
 
 const DOORSTEP := "res://scenes/title.tscn"

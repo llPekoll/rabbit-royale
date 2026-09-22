@@ -28,12 +28,28 @@ const BURROW_ROWS := 19
 const BURROW_TILE_W := 44
 const BURROW_TILE_H := 24
 
-## L'ORIGINE, en coordonnees du monde.
+## L'ORIGINE DU TERRIER, en coordonnees du monde.
 ##
 ## `y` est PLUS HAUT que le centre, et c'est voulu : une tuile surelevee pousse
 ## vers le haut depuis sa case, donc un plateau centre sur sa projection a plat
 ## se retrouve trop bas des qu'il a des paliers.
 const BURROW_ORIGIN := Vector2(480, 96)
+
+## ⚠ LES QUATRE CONSTANTES CI-DESSUS SONT CELLES DU TERRIER, ET RIEN QUE LUI.
+##
+## Elles servent de VALEURS PAR DEFAUT aux fonctions de ce fichier, ce qui est
+## commode et a coute cher : pendant tout le portage du terrier, aucun appelant
+## n'a jamais rien passe, parce que le defaut etait toujours juste. Le jour ou
+## l'ile est arrivee — 32x32, une autre origine — elle a herite en silence de la
+## grille du terrier. Mesure le 2026-09-22 : `BurrowPick` ne retrouvait que
+## 324 des 1024 cases, exactement le coin 18x18 qui tient dans la borne 19x19.
+## Les 700 autres etaient MUETTES AU DOIGT, et pas une ligne n'avait l'air
+## fausse.
+##
+## LA REGLE, DEPUIS : la grille et l'origine sont portees par la CARTE
+## (`BurrowMap.width/height/origin`) et passees explicitement. Un appel sans
+## origine est un appel qui parle du terrier ; partout ailleurs, c'est un bug
+## qui ne se verra que sur l'appareil.
 
 
 static func half_w() -> float:

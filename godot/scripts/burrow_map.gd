@@ -15,6 +15,14 @@ class_name BurrowMap
 ## que veut l'autotileur : une case du pourtour doit croire qu'elle borde
 ## l'eau, sinon elle perd son bord.
 
+## LE PALIER LE PLUS HAUT QUE CE PLATEAU PEUT VOULOIR.
+##
+## CE N'EST PLUS LA VERITE, et c'est le piege que ce commentaire existe pour
+## desarmer : l'ile en veut TROIS. Ce qu'on demande a un generateur et ce qu'il
+## atteint sont deux choses — une graine avare rend un plateau plus plat que
+## demande — donc c'est `tiers`, plus bas, que tout lecteur doit consulter.
+##
+## Garde pour le terrier, qui en demande deux et les obtient.
 const TIERS := 2
 
 ## Quelle part du plateau est de la terre. Plus haut que le 0.46 de l'ile : un
@@ -53,13 +61,37 @@ var lift_px := TIER_LIFT
 
 var width: int
 var height: int
+
+## OU CE PLATEAU SE PROJETTE, en coordonnees du monde.
+##
+## PORTEE PAR LA CARTE, ET PLUS PAR `Iso`, parce que `Iso` n'en a qu'une et
+## qu'il y a deux plateaux. Les valeurs par defaut d'`iso.gd` sont celles du
+## TERRIER, et aucun appelant ne passait jamais rien : une ile 32x32 se
+## projetait donc sur l'origine du terrier et s'inversait contre une borne
+## 19x19. Mesure le 2026-09-22 : le picker ne retrouvait que 324 des 1024
+## cases — exactement le coin 18x18 qui tient dans cette borne. Tout le reste
+## de l'ile etait MUET AU DOIGT, sans qu'aucune ligne ait l'air fausse.
+##
+## Le terrier garde l'origine d'avant par defaut : son rendu ne bouge pas.
+var origin: Vector2 = Iso.BURROW_ORIGIN
+
+## LE PALIER LE PLUS HAUT REELLEMENT PRESENT, pas celui qu'on a demande.
+##
+## C'est le `highest` de generate.ts, et il se MESURE sur le relief obtenu. Un
+## lecteur qui boucle sur la constante `TIERS` rate les cases d'un palier plus
+## haut qu'elle — sur l'ile, qui en porte trois, ces cases ne seraient jamais
+## testees et seraient muettes au doigt comme celles d'au-dela de la borne.
+var tiers: int = 1
+
 ## Le palier de chaque case, en ligne d'abord.
 var level: PackedByteArray
 
 
-func _init(p_width: int = Iso.BURROW_COLS, p_height: int = Iso.BURROW_ROWS) -> void:
+func _init(p_width: int = Iso.BURROW_COLS, p_height: int = Iso.BURROW_ROWS,
+		p_origin: Vector2 = Iso.BURROW_ORIGIN) -> void:
 	width = p_width
 	height = p_height
+	origin = p_origin
 	level = PackedByteArray()
 	level.resize(width * height)
 
@@ -131,7 +163,9 @@ func lift_at(x: int, y: int) -> float:
 
 ## Le point a l'ecran ou se pose une case, hauteur comprise.
 func screen_of(x: int, y: int) -> Vector2:
-	var flat := Iso.project(x, y)
+	# L'ORIGINE EST CELLE DE CETTE CARTE, jamais celle d'`Iso` : voir `origin`,
+	# et les 324 cases sur 1024 que ce defaut couteait a l'ile.
+	var flat := Iso.project(x, y, origin)
 	return Vector2(flat.x, flat.y - lift_at(x, y))
 
 
@@ -177,3 +211,17 @@ func generate(seed_value: int) -> void:
 				if edge < LAND * (1.0 - RISE * 2.0):
 					tier = 2
 			level[y * width + x] = tier
+
+	measure_tiers()
+
+
+## LE PALIER LE PLUS HAUT REELLEMENT POSE, relu sur le relief.
+##
+## Il se MESURE et ne se suppose pas : une graine avare peut ne jamais poser de
+## plateau, et un lecteur qui boucle jusqu'a la constante `TIERS` chercherait
+## alors des cases qui n'existent pas — ou, sur l'ile, en raterait tout un
+## etage. A rappeler par tout generateur qui ecrit `level` a la main.
+func measure_tiers() -> void:
+	tiers = 1
+	for value in level:
+		tiers = maxi(tiers, int(value))

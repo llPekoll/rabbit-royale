@@ -1,0 +1,32 @@
+[gd_scene load_steps=4 format=3]
+
+; L'ILE. Le second des deux lieux residents — construite une fois, jamais
+; liberee, montree ou cachee (voir screens.gd).
+;
+; MEME ORDRE DE DESSIN QUE LE TERRIER, et ce n'est pas de la paresse : les deux
+; plateaux partagent le renderer (le web les fait passer tous les deux par
+; IsoIslandView), et c'est ce qui garantit qu'une correction de tri profite aux
+; deux. Ce qui change entre eux tient dans la carte : 32x32 a trois paliers ici,
+; 19x19 a deux la-bas.
+;
+; CE QUI N'EST PAS ENCORE LA : le brouillard, les chiffres, les coffres —
+; l'etat par case (Tile.ts, 74 Ko sans equivalent terrier). Le socle d'abord,
+; mesure ; le reste se posera dans ces memes blocs.
+
+[ext_resource type="Script" path="res://scripts/island.gd" id="1_island"]
+[ext_resource type="Script" path="res://scripts/burrow_terrain.gd" id="2_terrain"]
+[ext_resource type="Script" path="res://scripts/placement_hints.gd" id="3_hints"]
+
+[node name="Island" type="Node2D"]
+script = ExtResource("1_island")
+
+[node name="Terrain" type="Node2D" parent="."]
+unique_name_in_owner = true
+script = ExtResource("2_terrain")
+
+; LES LOSANGES DE PLACEMENT. Ce noeud ne porte RIEN lui-meme : chaque losange
+; est monte dans le bloc de sa case, sous le terrain, pour se trier avec le sol
+; qu'il recouvre. Il n'est qu'un chef d'orchestre.
+[node name="Hints" type="Node2D" parent="."]
+unique_name_in_owner = true
+script = ExtResource("3_hints")

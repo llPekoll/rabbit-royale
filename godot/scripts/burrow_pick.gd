@@ -66,7 +66,14 @@ static func at(map: BurrowMap, point: Vector2) -> Vector2i:
 	# renderer et le resolveur de tap doivent lire le MEME lift — un desaccord
 	# met le marqueur d'un pillard a cote de la tuile ou il se tient ». On
 	# demande donc a la carte, case par case, plutot que de refaire son calcul.
-	for tier in range(BurrowMap.TIERS, 0, -1):
+	# LE PALIER LE PLUS HAUT DE CETTE CARTE, jamais la constante du terrier.
+	#
+	# `BurrowMap.TIERS` vaut 2 et l'ile en porte 3 : boucler sur la constante
+	# aurait rendu MUETTES toutes les cases du palier haut de l'ile, sans qu'une
+	# seule ligne ait l'air fausse. C'est la meme famille de bug que l'origine
+	# et la borne de grille, et c'est la meme regle qui la desarme : on demande
+	# a la carte, on ne refait pas son calcul.
+	for tier in range(map.tiers, 0, -1):
 		var cell := _at_tier(map, point, tier)
 		if cell.x >= 0:
 			return cell
@@ -80,7 +87,7 @@ static func at(map: BurrowMap, point: Vector2) -> Vector2i:
 ## distinctes que le palier porte vraiment — en general une ou deux.
 static func _at_tier(map: BurrowMap, point: Vector2, tier: int) -> Vector2i:
 	for lift in _lifts_of(map, tier):
-		var cell := _flat_at(point + Vector2(0, lift))
+		var cell := _flat_at(map, point + Vector2(0, lift))
 		if cell.x < 0:
 			continue
 		# Elle doit VRAIMENT etre a ce palier ET porter ce lift : sinon on a lu
@@ -117,8 +124,12 @@ static func _lifts_of(map: BurrowMap, tier: int) -> Array[float]:
 ## le coin d'un rectangle, hors du losange. On refait donc le test nous-memes :
 ## |dx|/hw + |dy|/hh <= 1, l'equation de la tuile, la meme que celle qui cuit
 ## la texture du losange dans placement_hints.gd.
-static func _flat_at(point: Vector2) -> Vector2i:
-	var cell := Iso.unproject(point)
+## LA CARTE EST PASSEE, et ce n'est pas de la ceremonie : c'est elle qui porte
+## la taille de la grille et l'origine. Sans elle, `Iso.unproject` retombait sur
+## les valeurs du TERRIER — 19x19 a (480, 96) — et rejetait les 700 cases de
+## l'ile qui tombent au-dela de cette borne.
+static func _flat_at(map: BurrowMap, point: Vector2) -> Vector2i:
+	var cell := Iso.unproject(point, map.width, map.height, map.origin)
 	if cell.x < 0:
 		return cell
 	# LE CENTRE DU LOSANGE, dans LA CONVENTION DE CE PORTAGE : `Iso.project`
@@ -127,13 +138,13 @@ static func _flat_at(point: Vector2) -> Vector2i:
 	# voiles et le lapin. Le web, lui, nomme le centre directement ; l'avoir
 	# importe ici a decale tout le plateau d'une demi-case (commit reverte
 	# 09feeee). On suit le terrain, pas la source.
-	var centre := Iso.project(cell.x, cell.y) + Vector2(0, Iso.half_h())
+	var centre := Iso.project(cell.x, cell.y, map.origin) + Vector2(0, Iso.half_h())
 	var d := point - centre
 	var inside := absf(d.x) / (Iso.half_w() * FULL) + absf(d.y) / (Iso.half_h() * FULL)
 	if inside > 1.0:
 		# LE DOIGT EST DANS LE COIN DU RECTANGLE, hors du losange : la vraie
 		# case est l'une des voisines diagonales.
-		return _nearest_diamond(point, cell)
+		return _nearest_diamond(map, point, cell)
 	return cell
 
 
@@ -144,11 +155,16 @@ static func _flat_at(point: Vector2) -> Vector2i:
 ## est l'une des huit voisines. On les essaie toutes plutot que de deduire
 ## laquelle : huit tests d'inegalite coutent moins qu'un raisonnement sur les
 ## signes qu'on relira trois fois sans etre sur.
-static func _nearest_diamond(point: Vector2, near: Vector2i) -> Vector2i:
+static func _nearest_diamond(map: BurrowMap, point: Vector2, near: Vector2i) -> Vector2i:
 	for dy in [-1, 0, 1]:
 		for dx in [-1, 0, 1]:
 			var c := near + Vector2i(dx, dy)
-			var centre := Iso.project(c.x, c.y) + Vector2(0, Iso.half_h())
+			# HORS GRILLE, PAS DE CASE : sans ce test, un doigt sur le bord
+			# repondait une case de coordonnees negatives, que la carte lit
+			# ensuite comme de la mer — un « trou » au bord du plateau.
+			if c.x < 0 or c.y < 0 or c.x >= map.width or c.y >= map.height:
+				continue
+			var centre := Iso.project(c.x, c.y, map.origin) + Vector2(0, Iso.half_h())
 			var d := point - centre
 			if absf(d.x) / Iso.half_w() + absf(d.y) / Iso.half_h() <= 1.0:
 				return c

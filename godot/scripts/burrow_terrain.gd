@@ -136,8 +136,6 @@ func build() -> void:
 
 	_paint_underlay()
 
-	var land := func(x: int, y: int) -> bool:
-		return map.is_land(x, y)
 	var scale_up := Iso.BURROW_TILE_W / GROUND_PAINTED_W
 	var grown := TILE * (scale_up - 1.0) * 0.5
 
@@ -168,7 +166,28 @@ func build() -> void:
 			_blocks.append(block)
 			_block_at[Vector2i(col, row)] = block
 
-			var mask := Autotile.mask_at(land, col, row)
+			# LA REGION DE L'AUTOTILEUR EST « CE PALIER OU PLUS HAUT », et
+			# surtout pas « de la terre ».
+			#
+			# C'est `atOrAbove(map, tier)` du web (IsoIslandView.ts:1780), et le
+			# port demandait `is_land` — donc N'IMPORTE QUEL palier. La
+			# difference ne se voyait pas sur le terrier : deux paliers, un
+			# plateau compact, presque aucune case ou les deux reponses
+			# divergent.
+			#
+			# Sur l'ile elle creve les yeux. Une case de palier 2 collee a du
+			# palier 1 voyait « de la terre » de ce cote, se croyait donc en
+			# PLEIN MILIEU du plateau et se peignait sans bord — d'ou un
+			# plateau sans silhouette, et les traits sombres le long de sa
+			# limite sur la capture du Seeker. Mesure : 74 coutures entre
+			# paliers differents, toutes d'un seul palier d'ecart.
+			#
+			# La question doit etre posee PAR PALIER, et elle l'est ici parce
+			# que `tier` est connu — d'ou la fermeture reconstruite a chaque
+			# case plutot qu'une seule hissee hors de la boucle.
+			var in_tier := func(x: int, y: int) -> bool:
+				return map.level_at(x, y) >= tier
+			var mask := Autotile.mask_at(in_tier, col, row)
 			var bcol := Autotile.blob_col(mask)
 			var brow := Autotile.blob_row(mask)
 
@@ -306,8 +325,83 @@ func _paint_underlay() -> void:
 			points.append(at + Vector2(0, hh + 1))
 			points.append(at + Vector2(-hw - 1, 0))
 			faces.append(PackedInt32Array([base, base + 1, base + 2, base + 3]))
+
+	_patch_seams(points, faces)
 	_underlay.polygon = points
 	_underlay.polygons = faces
+
+
+## LES COUTURES QUE LA NAPPE PAR CASE NE BOUCHE PAS.
+##
+## LA NAPPE CI-DESSUS NE SE POSE QUE SUR LES CASES D'INTERIEUR — huit voisines
+## au meme palier — et c'est la bonne regle pour elle : un losange plein pose
+## sur une case de bord deborderait au-dessus de sa voisine basse, en plein
+## ciel. Voir l'appelant.
+##
+## MAIS SUR L'ILE CETTE REGLE NE COUVRE PRESQUE RIEN. Ses plateaux sont petits
+## et decoupes : MESURE sur la graine « default », 70 % des cases du palier 2 et
+## 77 % de celles du palier 3 n'ont pas huit voisines de leur palier. Resultat,
+## 419 des 974 coutures entre cases de MEME palier restaient a nu — les traits
+## noirs en diagonale qu'on voit sur la capture du Seeker, le long du plateau.
+## Le terrier ne montrait pas le probleme : sa terre est d'un seul tenant.
+##
+## ON RECOUD DONC PAR COUTURE, ET NON PAR CASE. Entre deux voisines de MEME
+## palier il n'y a, par construction, aucune case basse a surplomber : le
+## quadrilatere qui joint leurs deux centres ne peut pas deborder dans le ciel.
+## C'est exactement la condition que la regle par case cherchait a garantir, et
+## elle se verifie ici sur la PAIRE plutot que sur les huit voisines.
+##
+## Seulement vers l'est et le sud : chaque couture appartient a une seule paire,
+## et la parcourir deux fois doublerait les polygones pour rien.
+func _patch_seams(points: PackedVector2Array, faces: Array) -> void:
+	var hw := Iso.half_w()
+	var hh := Iso.half_h()
+	for row in range(map.height):
+		for col in range(map.width):
+			var tier := map.level_at(col, row)
+			if tier == 0:
+				continue
+			for step: Vector2i in [Vector2i(1, 0), Vector2i(0, 1)]:
+				var nx: int = col + step.x
+				var ny: int = row + step.y
+				if map.level_at(nx, ny) != tier:
+					continue
+				# LES DEUX CENTRES, et les deux sommets qu'ils partagent : le
+				# quadrilatere est le losange de la couture elle-meme, grossi
+				# d'un pixel comme celui des cases.
+				var a := map.screen_of(col, row) + Vector2(0, hh)
+				var b := map.screen_of(nx, ny) + Vector2(0, hh)
+
+				# LE QUADRILATERE EST BATI SUR LES DEUX SOMMETS PARTAGES, et
+				# c'est ce qui garantit qu'il ne deborde nulle part.
+				#
+				# Deux cases voisines partagent une ARETE, donc deux sommets de
+				# losange. Ces deux points appartiennent aux DEUX tuiles par
+				# construction : un quadrilatere centre-sommet-centre-sommet ne
+				# peut donc pas sortir de leur reunion, quelle que soit la
+				# direction de la couture.
+				#
+				# LA PREMIERE VERSION CALCULAIT UNE PERPENDICULAIRE (en mettant
+				# la normale a l'echelle par hw/hh), et c'etait faux : la normale
+				# d'une arete de losange n'est pas la perpendiculaire mise a
+				# l'echelle. Mesure a 5,25 px de vert plat au-dela de la cote —
+				# exactement la bande que la regle par case existait pour eviter,
+				# « pire que le trou qu'elle corrige ». Les faces par case
+				# debordaient, elles, de 0,00 px : c'est ce qui a designe le
+				# coupable.
+				var mid := (a + b) * 0.5
+				var half := (b - a) * 0.5
+				# Les deux sommets partages : a angle droit de l'axe des centres
+				# DANS LE REPERE DU LOSANGE, ou une demi-largeur vaut une
+				# demi-hauteur. On y va par la grille, pas par la trigonometrie.
+				var shared_a := mid + Vector2(half.y * hw / hh, half.x * hh / hw)
+				var shared_b := mid - Vector2(half.y * hw / hh, half.x * hh / hw)
+				var base := points.size()
+				points.append(a)
+				points.append(shared_a)
+				points.append(b)
+				points.append(shared_b)
+				faces.append(PackedInt32Array([base, base + 1, base + 2, base + 3]))
 
 
 ## Cette case est-elle cernee par huit voisines du MEME palier ?
