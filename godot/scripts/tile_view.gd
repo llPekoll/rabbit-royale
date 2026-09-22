@@ -85,12 +85,53 @@ const TEACH_BEAT_SECONDS := 0.9
 const GHOST_LOW := 0.2
 const GHOST_HIGH := 0.75
 
+## LE COFFRE — l'atlas `loot-box` du web (public/assets/fx), ses cinq frames
+## d'attente (`highlight`, 23x14, 100 ms chacune), a CHEST_SCALE comme la-bas :
+## une ECHELLE sur les pixels natifs, jamais une largeur cible, parce que
+## l'atlas rogne chaque frame a son contenu.
+const CHEST_SHEET := preload("res://assets/fx/loot-box.png")
+const CHEST_FRAMES: Array[Rect2] = [
+	Rect2(0, 0, 23, 14), Rect2(23, 0, 23, 14), Rect2(46, 0, 23, 14),
+	Rect2(0, 14, 23, 14), Rect2(23, 14, 23, 14),
+]
+const CHEST_SCALE := 1.25
+const CHEST_FPS := 10.0
+## De combien le pied du coffre descend sous le centre du losange, pour que la
+## boite se lise POSEE dans la case et non flottant sur son bord haut.
+const CHEST_SIT := 4.0
+
+## LA FLECHE PLANTEE SUR LE COFFRE — fx/ChestPointer.ts : le chevron du kit, le
+## meme or, le meme battement que celle du terrier. OVER au-dessus de la boite,
+## BOB pixels par jambe en BOB_SECONDS.
+const ARROW_TINT := Color("#ffd45c")
+const ARROW_OVER := 12.0
+const ARROW_BOB := 5.0
+const ARROW_BOB_SECONDS := 0.9
+
+## LES PIECES DE DECOR, avec l'ancre du manifeste (public/assets/world/decor) :
+## le point de l'image qui se pose au centre de la case, en pixels de la
+## planche. SHEET_CELL est la largeur d'une base d'une case sur cette planche ;
+## l'echelle en decoule au lieu d'etre trouvee a l'oeil.
+const DECOR := {
+	"bush-small": {"art": preload("res://assets/deco/bush-small.png"), "anchor": Vector2(42, 106)},
+	"bush-round": {"art": preload("res://assets/deco/bush-round.png"), "anchor": Vector2(20, 37)},
+}
+const SHEET_CELL := 130.0
+
+## Au-dessus du X et de l'anneau (5-6) : ce qui SE TIENT sur la case.
+const Z_PROP := 7
+const Z_ARROW := 8
+
 var board: IslandBoard
 var terrain: BurrowTerrain
 
 var _fog: Dictionary = {}
 var _hints: Dictionary = {}
 var _x: Dictionary = {}
+var _chest: Dictionary = {}
+var _arrow: Dictionary = {}
+var _props: Array[Node] = []
+var _bobs: Array[Tween] = []
 
 ## LA CASE QUI BAT — le X fantome de la lecon, ou (-1,-1).
 var _pulsed := Vector2i(-1, -1)
@@ -160,6 +201,50 @@ func build() -> void:
 			holder.position)
 		_hints[cell] = glyph
 
+		# LE COFFRE, visible des la premiere image — « il le voit et choisit d'y
+		# aller ». Au-dessus du voile : la boite n'est pas enterree, elle attend.
+		if board.content.get(cell) == IslandBoard.Content.CHEST:
+			var chest := AnimatedSprite2D.new()
+			chest.sprite_frames = _chest_frames()
+			chest.centered = false
+			chest.scale = Vector2(CHEST_SCALE, CHEST_SCALE)
+			# Pied au centre du losange, un peu en dessous — offset en pixels
+			# de l'image, l'echelle s'applique apres.
+			chest.offset = Vector2(-CHEST_FRAMES[0].size.x * 0.5,
+				-CHEST_FRAMES[0].size.y + CHEST_SIT / CHEST_SCALE)
+			chest.play("idle")
+			terrain.mount_veil(cell, chest, Z_PROP)
+			_chest[cell] = chest
+
+			var arrow := Sprite2D.new()
+			arrow.texture = _arrow_texture()
+			arrow.centered = true
+			arrow.modulate = ARROW_TINT
+			terrain.mount_veil(cell, arrow, Z_ARROW)
+			# APRES `mount_veil`, qui ecrase la position : la fleche se plante
+			# au-dessus de la boite.
+			var top := arrow.position.y + CHEST_SIT - CHEST_FRAMES[0].size.y * CHEST_SCALE
+			arrow.position.y = top - ARROW_OVER
+			var bob := create_tween().set_loops()
+			bob.tween_property(arrow, "position:y", top - ARROW_OVER - ARROW_BOB, ARROW_BOB_SECONDS)\
+				.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+			bob.tween_property(arrow, "position:y", top - ARROW_OVER, ARROW_BOB_SECONDS)\
+				.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+			_bobs.append(bob)
+			_arrow[cell] = arrow
+
+		# LE DECOR : l'ancre de la piece sur le centre de la case.
+		if board.decor.has(cell) and DECOR.has(board.decor[cell]):
+			var piece: Dictionary = DECOR[board.decor[cell]]
+			var prop := Sprite2D.new()
+			prop.texture = piece["art"]
+			prop.centered = false
+			var k := Iso.BURROW_TILE_W / SHEET_CELL
+			prop.scale = Vector2(k, k)
+			prop.offset = -(piece["anchor"] as Vector2)
+			terrain.mount_veil(cell, prop, Z_PROP)
+			_props.append(prop)
+
 	refresh()
 
 
@@ -185,6 +270,13 @@ func refresh() -> void:
 			glyph.visible = true
 		else:
 			glyph.visible = false
+
+		# LE COFFRE S'EN VA AVEC LA CASE CREUSEE : pris, il est parti avec le
+		# joueur, et la fleche n'a plus rien a designer.
+		if _chest.has(cell):
+			var taken: bool = st == IslandBoard.State.DUG
+			(_chest[cell] as Node2D).visible = not taken
+			(_arrow[cell] as Node2D).visible = not taken
 
 		# LE X : plein quand la case est marquee, fantome et battant quand c'est
 		# la case enseignee, absent sinon.
@@ -232,6 +324,19 @@ func _stop_pulse() -> void:
 
 func clear() -> void:
 	_stop_pulse()
+	for t in _bobs:
+		if t != null and t.is_valid():
+			t.kill()
+	_bobs.clear()
+	for cell in _chest:
+		(_chest[cell] as Node).queue_free()
+	for cell in _arrow:
+		(_arrow[cell] as Node).queue_free()
+	for p in _props:
+		p.queue_free()
+	_chest.clear()
+	_arrow.clear()
+	_props.clear()
 	for cell in _fog:
 		(_fog[cell] as Node).queue_free()
 	for cell in _x:
@@ -326,6 +431,51 @@ static func _digit_texture(n: int) -> ImageTexture:
 	var tex := ImageTexture.create_from_image(img)
 	_digits[key] = tex
 	return tex
+
+
+static var _chest_sf: SpriteFrames
+static var _arrow_tex: ImageTexture
+
+
+## LES FRAMES DU COFFRE, decoupees dans l'atlas une fois pour toutes.
+static func _chest_frames() -> SpriteFrames:
+	if _chest_sf != null:
+		return _chest_sf
+	var sf := SpriteFrames.new()
+	sf.remove_animation("default")
+	sf.add_animation("idle")
+	sf.set_animation_speed("idle", CHEST_FPS)
+	sf.set_animation_loop("idle", true)
+	for r in CHEST_FRAMES:
+		var at := AtlasTexture.new()
+		at.atlas = CHEST_SHEET
+		at.region = r
+		sf.add_frame("idle", at)
+	_chest_sf = sf
+	return sf
+
+
+## LE CHEVRON, cuit : un triangle de 12x7 pointe en bas, avec un liseré sombre
+## d'un pixel pour tenir sur l'herbe claire comme sur le sable.
+static func _arrow_texture() -> ImageTexture:
+	if _arrow_tex != null:
+		return _arrow_tex
+	var w := 14
+	var h := 9
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	img.fill(Color(1, 1, 1, 0))
+	var ink := Color("#0c0a12")
+	for y in range(h):
+		# La rangee y couvre de (y) a (w-1-y) : un triangle qui se referme.
+		var x0 := y
+		var x1 := w - 1 - y
+		if x0 > x1:
+			break
+		for x in range(x0, x1 + 1):
+			var edge := x == x0 or x == x1 or y == 0 or x0 + 1 > x1 - 1
+			img.set_pixel(x, y, ink if edge else Color(1, 1, 1, 1))
+	_arrow_tex = ImageTexture.create_from_image(img)
+	return _arrow_tex
 
 
 ## LE X, cuit une fois : deux diagonales de deux pixels dans un carre de seize.
