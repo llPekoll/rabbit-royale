@@ -128,6 +128,17 @@ func build(seed_value: int) -> void:
 	_sprite = AnimatedSprite2D.new()
 	_sprite.sprite_frames = _frames()
 	_sprite.scale = Vector2(RABBIT_SCALE, RABBIT_SCALE)
+	# NON CENTRE, ET C'EST LA LIGNE QUI MANQUAIT. AnimatedSprite2D est
+	# `centered = true` par defaut : la frame est d'abord posee autour de
+	# l'origine, PUIS l'offset s'ajoute. Avec un offset ecrit pour un coin
+	# haut-gauche, le lapin sortait 24 px a gauche et 24 px trop haut — une
+	# demi-tuile en diagonale, « entre 2 tiles ». Paul l'a dit trois fois.
+	#
+	# Toutes les sondes disaient zero, parce qu'elles calculaient les pattes
+	# avec la formule d'un sprite non centre : elles mesuraient l'hypothese, pas
+	# le dessin. La regle : mesurer le rectangle que Godot dessine, jamais celui
+	# qu'on croit lui avoir demande.
+	_sprite.centered = false
 	# L'ANCRE EST UN OFFSET dans Godot : on decale de la part voulue de la
 	# boite, en pixels de l'image (l'echelle s'applique apres).
 	_sprite.offset = -Vector2(FRAME * ANCHOR.x, FRAME * ANCHOR.y)
