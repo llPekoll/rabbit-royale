@@ -142,7 +142,14 @@ static func home(map: BurrowMap, w: float = GAME_W, h: float = GAME_H) -> Shot:
 		w * HOME_LEFT, h * HOME_TOP,
 		w * (1.0 - HOME_LEFT), h * (1.0 - HOME_TOP - HOME_BOTTOM)
 	)
-	var scale := minf(1.0, minf(
+	# LE PLAFOND EST UN PIXEL DE DESIGN, pas un pixel d'ecran. Le web cadre
+	# en 960 de large et agrandit le tout a la fenetre, donc son « jamais plus
+	# pres que 1:1 » grandit avec elle. Depuis que le bureau Godot est a
+	# l'echelle 1 (main.gd `_desk_scale`), `w` est la vraie largeur : un
+	# plafond fixe a 1 laissait la ferme minuscule au milieu d'un 1376x768.
+	# Sur le Seeker, w = 890 et le plafond reste 1.
+	var unit := maxf(1.0, w / GAME_W)
+	var scale := minf(unit, minf(
 		(win.size.x * HOME_MARGIN) / b.size.x,
 		(win.size.y * HOME_MARGIN) / b.size.y
 	))
