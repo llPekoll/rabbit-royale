@@ -23,6 +23,13 @@ extends CanvasLayer
 ## LES COULEURS disent l'etat sans qu'on lise les chiffres : vert tant que le
 ## pire tient dans le budget, ambre quand il le depasse, rouge quand il le
 ## double. On regarde ailleurs, on voit du rouge apparaitre du coin de l'oeil.
+##
+## CACHE PAR DEFAUT (Paul, 2026-09-23) : a 890x400 il s'imprimait sur les
+## icones du son et du menu, et il etait dans chaque capture qu'on juge. Il
+## reste un outil qu'on allume quand on mesure :
+##
+##   godot --path godot -- --fps      allume au lancement
+##   Cmd+Maj+F (Ctrl+Maj+F ailleurs)  allume ou eteint en cours de partie
 
 ## Le budget d'une image a 60 images par seconde. 16.67 ms, arrondi.
 const BUDGET_MS := 16.7
@@ -75,6 +82,25 @@ func _ready() -> void:
 	_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
 	_label.add_theme_constant_override("outline_size", 4)
 	add_child(_label)
+
+	_show("--fps" in OS.get_cmdline_user_args())
+
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	var key := event as InputEventKey
+	if key != null and key.pressed and not key.echo and key.keycode == KEY_F \
+			and key.shift_pressed and key.is_command_or_control_pressed():
+		_show(not visible)
+		get_viewport().set_input_as_handled()
+
+
+## Eteint, il ne mesure rien non plus : le travail de chaque image s'arrete
+## avec l'affichage, et la fenetre repart propre quand on le rallume.
+func _show(on: bool) -> void:
+	visible = on
+	set_process(on)
+	_ring.clear()
+	_since_refresh = REFRESH_SECONDS
 
 
 func _process(delta: float) -> void:
