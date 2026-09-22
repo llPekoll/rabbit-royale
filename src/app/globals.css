@@ -3936,15 +3936,36 @@ body:has(.rr-empty) .rr-sound { display: none; }
    LA LANGUE EN FAIT PARTIE, cette fois. Une vague qui s'arrete au deuxieme
    bouton n'est pas une vague ; c'est le dernier rang qui la termine. */
 .rr-empty .rr-btn {
-  animation: rr-doorstep-wave 7s ease-in-out infinite;
+  animation: rr-doorstep-wave 4s cubic-bezier(0.34, 1.2, 0.5, 1) infinite;
 }
 .rr-empty .rr-btn.ghost:not(.rr-lang-btn) { animation-delay: 140ms; }
 .rr-empty .rr-lang-btn { animation-delay: 280ms; }
 
+/* LES POURCENTAGES SUIVENT LA DUREE. Ils etaient cales sur un cycle de 7s
+   (9% = 630ms de mouvement) ; le cycle passe a 4s, donc les memes 630ms
+   valent 15.75%. Sans ce recalcul, raccourcir la boucle aurait aussi
+   raccourci le GESTE — la vague serait devenue un tic plus rapide au lieu du
+   meme mouvement revenant plus souvent, qui est ce qui est demande.
+
+   Le geste dure donc toujours ~630ms, delais compris (280ms pour que l'onde
+   atteigne le dernier rang), et la colonne reste immobile ~3.4s entre deux
+   passages.
+
+   L'OVERSHOOT EST DANS LA KEYFRAME, PAS DANS L'EASING. Les trois etapes
+   d'avant montaient puis redescendaient vers zero : meme avec `ease-in-out`
+   la planche ne faisait qu'aller et revenir, ce qui se lit comme un glissement
+   plat. Elle DEPASSE maintenant sous sa position de repos (+2px, echelle sous
+   1) avant de se replacer — c'est le rebond qui donne du poids a l'objet, et
+   il vient de la trajectoire, pas de la courbe de vitesse.
+
+   `cubic-bezier` accompagne : sortie franche au depart (le .34 en abscisse),
+   puis un retour qui traine un peu. `ease-in-out` lissait les deux bouts et
+   mangeait justement l'accent qu'on cherche ici. */
 @keyframes rr-doorstep-wave {
-  0%, 9%, 100% { transform: translateY(0) scale(1); }
-  3%           { transform: translateY(-3px) scale(1.015); }
-  6%           { transform: translateY(-1px) scale(1.005); }
+  0%,   15.75%, 100% { transform: translateY(0) scale(1); }
+  4.5%               { transform: translateY(-4px) scale(1.018); }
+  8.5%               { transform: translateY(2px) scale(0.992); }
+  12%                { transform: translateY(-1px) scale(1.004); }
 }
 
 /* Le press garde la main : `wiggle` (PxButton) et la squash du `:active`
