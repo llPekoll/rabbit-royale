@@ -5,9 +5,11 @@ class_name TileView
 ## Porte de src/game/entities/Tile.ts, la partie qui sert le socle : le couvercle
 ## d'une case non creusee, et le chiffre qui dit combien de bombes la touchent.
 ##
-## CE QUI N'EST PAS ENCORE LA : les carottes, les coffres, les cratères, les
-## animations d'ouverture. Le socle d'abord, et il se voit. Le X rouge est la,
-## parce que le tutoriel ne finit pas sans lui.
+## CE QU'UNE CASE CREUSEE MONTRE (Tile.ts `revealContent`) : la carotte sort
+## et se ramasse d'un meme geste — creuser une carotte, c'est la prendre ; la
+## bombe se montre puis laisse un cratere ; le coffre pris s'envole. Pas
+## encore : la carotte doree, l'eclat et la poutre des coffres d'une vraie
+## ile — la lecon n'en a pas.
 ##
 ## LES LOSANGES SONT MONTES DANS LES BLOCS DU TERRAIN, comme les losanges de
 ## placement — c'est `mount_veil` qui le fait. Un voile pose en frere libre se
@@ -122,6 +124,24 @@ const SHEET_CELL := 130.0
 const Z_PROP := 7
 const Z_ARROW := 8
 
+## LA CAROTTE D'UNE CASE (le kit d'arcade, 13x29), a 0,7, pied au sol, un peu
+## relevee ; son ombre de contact dessous. `CARROT_POP` est la montee depuis
+## le sol, `CARROT_RISE` l'envol une fois prise.
+const CARROT := preload("res://assets/fx/carrot-tile.png")
+const CARROT_SCALE := 0.7
+const CARROT_REST_Y := -6.0
+const CARROT_POP := 12.0
+const CARROT_RISE := 26.0
+const SHADOW_ALPHA := 0.3
+
+## LA BOMBE DECOUVERTE, a 20 pixels de large, puis son cratere : un bord brun
+## et un fond presque noir, sous le X (le cratere est dans le sol).
+const BOMB := preload("res://assets/ui/icons/bomb.png")
+const BOMB_W := 20.0
+const CRATER_RIM := Color(0x1a / 255.0, 0x10 / 255.0, 0x0a / 255.0, 0.55)
+const CRATER_PIT := Color(0x05 / 255.0, 0x03 / 255.0, 0x02 / 255.0, 0.75)
+const Z_CRATER := 3
+
 var board: IslandBoard
 var terrain: BurrowTerrain
 
@@ -132,6 +152,11 @@ var _chest: Dictionary = {}
 var _arrow: Dictionary = {}
 var _props: Array[Node] = []
 var _bobs: Array[Tween] = []
+
+## Les cases deja vues creusees : une case qui y entre vient de s'ouvrir, et
+## son contenu se joue. Pas au premier dessin — un plateau repris n'ouvre rien.
+var _dug := {}
+var _primed := false
 
 ## LA CASE QUI BAT — le X fantome de la lecon, ou (-1,-1).
 var _pulsed := Vector2i(-1, -1)
@@ -271,12 +296,22 @@ func refresh() -> void:
 		else:
 			glyph.visible = false
 
+		var opened: bool = st == IslandBoard.State.DUG and not _dug.has(cell)
+		if opened:
+			_dug[cell] = true
+			if _primed:
+				_reveal(cell)
+
 		# LE COFFRE S'EN VA AVEC LA CASE CREUSEE : pris, il est parti avec le
-		# joueur, et la fleche n'a plus rien a designer.
+		# joueur, et la fleche n'a plus rien a designer. Il s'envole si on le
+		# voit partir, il n'est simplement plus la sinon.
 		if _chest.has(cell):
 			var taken: bool = st == IslandBoard.State.DUG
-			(_chest[cell] as Node2D).visible = not taken
-			(_arrow[cell] as Node2D).visible = not taken
+			if opened and _primed:
+				_clear_chest(cell)
+			elif (_chest[cell] as Node2D).modulate.a > 0.0:
+				(_chest[cell] as Node2D).visible = not taken
+				(_arrow[cell] as Node2D).visible = not taken
 
 		# LE X : plein quand la case est marquee, fantome et battant quand c'est
 		# la case enseignee, absent sinon.
@@ -297,6 +332,108 @@ func refresh() -> void:
 					.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 		else:
 			x.visible = false
+	_primed = true
+
+
+## CE QUE LA CASE CACHAIT, au moment ou elle s'ouvre.
+func _reveal(cell: Vector2i) -> void:
+	match board.content.get(cell, IslandBoard.Content.EMPTY):
+		IslandBoard.Content.CARROT:
+			_take_carrot(cell)
+		IslandBoard.Content.BOMB:
+			_blast(cell)
+
+
+## LA CAROTTE SORT ET SE PREND (`addCarrot` puis `collectCarrot`) : elle monte
+## du sol en rebondissant, grossit d'un coup quand on la prend, puis s'envole
+## en s'effacant. Son ombre reste au sol et s'eteint.
+func _take_carrot(cell: Vector2i) -> void:
+	var holder := Node2D.new()
+	if not terrain.mount_veil(cell, holder, Z_PROP):
+		holder.free()
+		return
+	var shadow := _ellipse(5.0, 2.5, Color(0, 0, 0, SHADOW_ALPHA))
+	shadow.position = Vector2(0, 4)
+	shadow.scale = Vector2.ONE * 0.3
+	holder.add_child(shadow)
+	var carrot := Sprite2D.new()
+	carrot.texture = CARROT
+	carrot.centered = false
+	carrot.offset = Vector2(-CARROT.get_width() * 0.5, -CARROT.get_height())
+	carrot.scale = Vector2.ONE * CARROT_SCALE
+	carrot.position.y = CARROT_REST_Y + CARROT_POP
+	carrot.modulate.a = 0.0
+	holder.add_child(carrot)
+
+	var t := create_tween().set_parallel(true)
+	t.tween_property(carrot, "position:y", CARROT_REST_Y, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	t.tween_property(carrot, "modulate:a", 1.0, 0.18)
+	t.tween_property(shadow, "scale", Vector2.ONE, 0.28)
+	t.tween_property(carrot, "scale", Vector2.ONE * CARROT_SCALE * 1.5, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	t.tween_property(shadow, "modulate:a", 0.0, 0.3).set_delay(0.3)
+	t.tween_property(carrot, "position:y", CARROT_REST_Y - CARROT_RISE, 0.34).set_delay(0.3).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	t.tween_property(carrot, "modulate:a", 0.0, 0.34).set_delay(0.3).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	t.chain().tween_callback(holder.queue_free)
+
+
+## LA BOMBE SE MONTRE, PUIS LE CRATERE (`markBombSite`) : la boite noire sur
+## la case, remplacee par un trou qui se creuse en 0,4 s apres un quart de
+## seconde. Le cratere reste — la case a saute.
+func _blast(cell: Vector2i) -> void:
+	var bomb := Sprite2D.new()
+	bomb.texture = BOMB
+	bomb.scale = Vector2.ONE * BOMB_W / BOMB.get_width()
+	if not terrain.mount_veil(cell, bomb, Z_PROP):
+		bomb.free()
+		return
+	var crater := Node2D.new()
+	terrain.mount_veil(cell, crater, Z_CRATER)
+	var rim := _diamond_node(CRATER_RIM, 1.0)
+	var pit := _diamond_node(CRATER_PIT, 0.72)
+	pit.position.y = 1.0
+	crater.add_child(rim)
+	crater.add_child(pit)
+	crater.modulate.a = 0.0
+	_props.append(crater)
+	var t := create_tween()
+	t.tween_interval(0.25)
+	t.tween_callback(bomb.queue_free)
+	t.tween_property(crater, "modulate:a", 1.0, 0.4)
+
+
+## LE COFFRE PRIS S'ENVOLE (`clearChest`) : la boite grossit en reculant et
+## s'efface, la fleche s'eteint avec elle.
+func _clear_chest(cell: Vector2i) -> void:
+	var chest: Node2D = _chest[cell]
+	var arrow: Node2D = _arrow[cell]
+	var t := create_tween().set_parallel(true)
+	t.tween_property(chest, "scale", chest.scale * 1.5, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	t.tween_property(chest, "modulate:a", 0.0, 0.25)
+	t.tween_property(arrow, "modulate:a", 0.0, 0.3)
+	t.chain().tween_callback(func() -> void:
+		chest.visible = false
+		arrow.visible = false)
+
+
+func _ellipse(rx: float, ry: float, color: Color) -> Node2D:
+	var node := Node2D.new()
+	node.draw.connect(func() -> void:
+		var pts := PackedVector2Array()
+		for i in 16:
+			var a := TAU * i / 16.0
+			pts.append(Vector2(cos(a) * rx, sin(a) * ry))
+		node.draw_colored_polygon(pts, color))
+	return node
+
+
+## Un losange de case plein, a une part de sa taille.
+func _diamond_node(color: Color, share: float) -> Sprite2D:
+	var d := Sprite2D.new()
+	d.texture = _diamond_texture()
+	d.centered = true
+	d.modulate = color
+	d.scale = Vector2.ONE * share
+	return d
 
 
 ## FAIT BATTRE LE X FANTOME SUR UNE CASE — celle que la lecon demande de
@@ -348,6 +485,8 @@ func clear() -> void:
 	_fog.clear()
 	_x.clear()
 	_hints.clear()
+	_dug.clear()
+	_primed = false
 
 
 ## LES CHIFFRES, 3x5 en pixel art — les glyphes de demineur.
