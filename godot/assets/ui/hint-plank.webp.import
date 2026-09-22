@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bi6sv3qphr0n7"
-path="res://.godot/imported/rr-logo-1x.png-af83abe371d23061ea72c8f15f85e1d8.ctex"
+uid="uid://c52gml5en6uui"
+path="res://.godot/imported/hint-plank.webp-5447a23d0677ee5ce6be76fa4e470e1a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/ui/rr-logo-1x.png"
-dest_files=["res://.godot/imported/rr-logo-1x.png-af83abe371d23061ea72c8f15f85e1d8.ctex"]
+source_file="res://assets/ui/hint-plank.webp"
+dest_files=["res://.godot/imported/hint-plank.webp-5447a23d0677ee5ce6be76fa4e470e1a.ctex"]
 
 [params]
 

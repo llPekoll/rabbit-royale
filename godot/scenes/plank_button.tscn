@@ -1,0 +1,30 @@
+[gd_scene load_steps=2 format=3]
+
+; LE BOUTON DU JEU, en scene reutilisable.
+;
+; A instancier partout ou il faut un bouton : l'accueil, la boutique, les
+; dialogues, le terrier. Deux reglages suffisent depuis l'inspecteur —
+; `board` (bois ou or) et `label_size` — et le `text` se pose comme sur
+; n'importe quel Button, ou par `relabel()` quand la langue change.
+;
+; La planche et son libelle sont crees par le script (voir plank_button.gd
+; `_init`) plutot que poses ici : ce sont des enfants INTERNES, que personne ne
+; doit pouvoir deplacer ou supprimer par erreur dans une scene qui l'instancie.
+;
+; Usage :
+;   var b := preload("res://scenes/plank_button.tscn").instantiate()
+;   b.board = PlankButton.Board.GOLD
+;   b.relabel(I18N.t("connect"))
+;   b.pressed.connect(...)
+
+[ext_resource type="Script" path="res://scripts/plank_button.gd" id="1_plank"]
+
+[node name="PlankButton" type="Button"]
+custom_minimum_size = Vector2(300, 44)
+offset_right = 300.0
+offset_bottom = 44.0
+; Le focus visuel du theme par defaut dessinerait un cadre par-dessus le bois.
+; La planche EST l'affordance ; rien d'autre n'a a la souligner.
+focus_mode = 0
+script = ExtResource("1_plank")
+label_size = 14

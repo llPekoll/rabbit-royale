@@ -1,24 +1,29 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=8 format=3]
+
+; L'ACCUEIL, repeint d'apres le client web (src/app/page.tsx `.rr-empty` +
+; `.rr-home-art` + `.rr-masthead`, components/logo-banner.tsx et globals.css).
+;
+; La geometrie n'est pas approchee : chaque nombre ici sort d'une regle CSS
+; mesuree, resolue pour le Seeker couche (890x400). Le chiffre qui commande
+; tout est `--rr-doorstep` = min(67vh, 100vh - 170 - 24), soit 206px : le
+; masthead finit dessus, la colonne des boutons commence dessus. Ils se
+; touchent par construction, a toute taille d'ecran.
 
 [ext_resource type="Script" path="res://scripts/title.gd" id="1_title"]
-[ext_resource type="Script" path="res://scripts/px_button.gd" id="2_pxbutton"]
-[ext_resource type="Texture2D" path="res://assets/ui/rr-logo-1x.png" id="3_logo"]
+[ext_resource type="PackedScene" path="res://scenes/plank_button.tscn" id="2_plank"]
+[ext_resource type="Texture2D" path="res://assets/ui/rr-logo-1x.webp" id="3_logo"]
+[ext_resource type="Texture2D" path="res://assets/ui/home-bg.webp" id="4_bg"]
+[ext_resource type="Texture2D" path="res://assets/ui/hint-plank.webp" id="5_hint"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_lang"]
-bg_color = Color(0.164706, 0.094118, 0.062745, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.113725, 0.062745, 0.039216, 1)
-corner_radius_top_left = 0
-corner_radius_top_right = 0
-corner_radius_bottom_right = 0
-corner_radius_bottom_left = 0
-content_margin_left = 12.0
-content_margin_top = 10.0
-content_margin_right = 12.0
-content_margin_bottom = 10.0
+; LE VOILE GAUCHE. Deux degrades empiles en CSS ; celui-ci est l'horizontal,
+; qui porte la colonne du menu : rgba(8,11,16) de .86 a 0, eteint a 50%.
+[sub_resource type="Gradient" id="Gradient_veil"]
+offsets = PackedFloat32Array(0, 0.14, 0.26, 0.38, 0.5)
+colors = PackedColorArray(0.031, 0.043, 0.063, 0.86, 0.031, 0.043, 0.063, 0.78, 0.031, 0.043, 0.063, 0.52, 0.031, 0.043, 0.063, 0.2, 0.031, 0.043, 0.063, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_veil"]
+gradient = SubResource("Gradient_veil")
+fill_to = Vector2(1, 0)
 
 [node name="Title" type="Control"]
 layout_mode = 3
@@ -29,39 +34,73 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_title")
 
-[node name="Ground" type="ColorRect" parent="."]
+; LE FOND. `cover` en CSS : l'image remplit l'ecran en gardant ses proportions
+; et deborde sur l'axe long. STRETCH_KEEP_ASPECT_COVERED fait exactement ca.
+[node name="Art" type="TextureRect" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.050980, 0.066667, 0.090196, 1)
+texture = ExtResource("4_bg")
+expand_mode = 1
+stretch_mode = 6
 
-[node name="Column" type="VBoxContainer" parent="."]
+; Le voile qui rend la colonne lisible par-dessus l'illustration.
+[node name="Veil" type="TextureRect" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 4
+texture = SubResource("GradientTexture2D_veil")
+expand_mode = 1
+stretch_mode = 0
 
-[node name="Masthead" type="VBoxContainer" parent="Column"]
-layout_mode = 2
-theme_override_constants/separation = 10
+; L'assise basse, le second degrade du CSS : rgba(13,17,23) .34 -> 0 sur le
+; tiers inferieur. Un ColorRect suffirait mal — il faut le fondu, donc c'est un
+; TextureRect tourne, pose par le script (voir title.gd `_paint_floor`).
+[node name="Floor" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -136.0
+grow_horizontal = 2
+grow_vertical = 0
+expand_mode = 1
+stretch_mode = 0
 
-[node name="Pad" type="Control" parent="Column/Masthead"]
-custom_minimum_size = Vector2(0, 16)
-layout_mode = 2
-
-[node name="LogoStack" type="Control" parent="Column/Masthead"]
+; LE MASTHEAD : boite fixe de y=0 a y=206 (--rr-doorstep), large de
+; min(38vw, 420). L'embleme est colle EN BAS de cette boite, moins 14px.
+[node name="Masthead" type="Control" parent="."]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(96, 106)
-layout_mode = 2
-size_flags_horizontal = 4
+layout_mode = 1
+anchors_preset = 9
+anchor_bottom = 0.0
+offset_right = 338.0
+offset_bottom = 206.0
+grow_vertical = 1
 
-[node name="Logo" type="TextureRect" parent="Column/Masthead/LogoStack"]
+[node name="LogoStack" type="Control" parent="Masthead"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -48.0
+offset_top = -120.0
+offset_right = 48.0
+offset_bottom = -14.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="Logo" type="TextureRect" parent="Masthead/LogoStack"]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -73,86 +112,127 @@ texture = ExtResource("3_logo")
 expand_mode = 1
 stretch_mode = 5
 
-[node name="Ribbon" type="Label" parent="Column/Masthead/LogoStack"]
+; LE RUBAN. La boite est un pourcentage de l'embleme (x 17..79, y 93..98 d'un
+; 96x106), donc elle suit l'echelle sans etre recalculee a la main.
+[node name="Ribbon" type="Label" parent="Masthead/LogoStack"]
 unique_name_in_owner = true
 layout_mode = 0
-offset_right = 62.0
-offset_bottom = 5.0
+offset_left = 17.0
+offset_top = 93.0
+offset_right = 79.0
+offset_bottom = 98.0
 theme_override_colors/font_color = Color(0.290196, 0.227451, 0.164706, 1)
 theme_override_font_sizes/font_size = 4
 text = "THE CURSED CROWN"
 horizontal_alignment = 1
 vertical_alignment = 1
-autowrap_mode = 0
 
-[node name="Tagline" type="Label" parent="Column/Masthead"]
+; LA COLONNE : fixe, collee a gauche, commencant pile sur la ligne des 206px.
+[node name="Ask" type="Control" parent="."]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 42)
-layout_mode = 2
+layout_mode = 1
+anchors_preset = 9
+anchor_bottom = 0.0
+offset_top = 206.0
+offset_right = 338.0
+offset_bottom = 400.0
+grow_vertical = 1
+
+[node name="Connect" parent="Ask" instance=ExtResource("2_plank")]
+unique_name_in_owner = true
+layout_mode = 0
+custom_minimum_size = Vector2(338, 64)
+text = "CONNECT WALLET"
+board = 1
+label_size = 18
+
+[node name="Guest" parent="Ask" instance=ExtResource("2_plank")]
+unique_name_in_owner = true
+layout_mode = 0
+custom_minimum_size = Vector2(300, 44)
+text = "PLAY AS A GUEST"
+label_size = 14
+
+; La ligne d'erreur n'existe dans le DOM que s'il y a une erreur. Ici elle est
+; masquee : un Label vide prendrait quand meme sa place dans le VBox et
+; ecarterait le selecteur de langue de 8px en permanence.
+[node name="Status" type="Label" parent="Ask"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+theme_override_colors/font_color = Color(1, 0.419608, 0.419608, 1)
+theme_override_font_sizes/font_size = 12
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="Language" parent="Ask" instance=ExtResource("2_plank")]
+unique_name_in_owner = true
+layout_mode = 0
+custom_minimum_size = Vector2(300, 44)
+text = "English"
+label_size = 14
+
+; LA PLANCHE DES CONSEILS, coin bas-droit, 10px des deux bords. 340 de large
+; (max(260, min(46vw, 340))), et une hauteur qui reserve DEUX lignes pour que
+; la planche ne change pas de taille d'une phrase a l'autre.
+[node name="Tip" type="NinePatchRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -350.0
+offset_top = -63.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 0
+grow_vertical = 0
+texture = ExtResource("5_hint")
+patch_margin_left = 48
+patch_margin_top = 10
+patch_margin_right = 46
+patch_margin_bottom = 10
+
+[node name="TipText" type="Label" parent="Tip"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 48.0
+offset_top = 10.0
+offset_right = -46.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
 theme_override_colors/font_color = Color(1, 0.831373, 0.360784, 1)
-theme_override_font_sizes/font_size = 13
-text = "EVERY STEP COULD BE YOUR LAST... OR YOUR FORTUNE"
+theme_override_font_sizes/font_size = 11
 horizontal_alignment = 1
 vertical_alignment = 1
 autowrap_mode = 3
 
-[node name="Gap" type="Control" parent="Column"]
-layout_mode = 2
-size_flags_vertical = 3
-
-[node name="Ask" type="VBoxContainer" parent="Column"]
-layout_mode = 2
-theme_override_constants/separation = 10
-alignment = 2
-
-[node name="Connect" type="Button" parent="Column/Ask"]
+; LE NOM DU LAPIN CONNECTE, coin haut-droit.
+;
+; Loin de la colonne, sur la bande de ciel ou rien d'autre ne se lit. Discret
+; par construction : c'est un rappel de qui l'on est, pas une annonce.
+[node name="Who" type="Label" parent="."]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(300, 52)
-layout_mode = 2
-size_flags_horizontal = 4
-text = "CONNECT WALLET"
-script = ExtResource("2_pxbutton")
-face = Color(1, 0.549020, 0.258824, 1)
-shadow = Color(0.658824, 0.321569, 0.109804, 1)
-ink = Color(0.164706, 0.070588, 0.023529, 1)
-wiggle = true
-
-[node name="Guest" type="Button" parent="Column/Ask"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(300, 44)
-layout_mode = 2
-size_flags_horizontal = 4
-text = "PLAY AS A GUEST"
-script = ExtResource("2_pxbutton")
-face = Color(0.086275, 0.105882, 0.129412, 1)
-shadow = Color(0.043137, 0.058824, 0.078431, 1)
-ink = Color(0.694118, 0.729412, 0.768627, 1)
-wiggle = false
-
-[node name="Status" type="Label" parent="Column/Ask"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 18)
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.419608, 0.419608, 1)
-theme_override_font_sizes/font_size = 11
-horizontal_alignment = 1
-
-[node name="Language" type="OptionButton" parent="Column/Ask"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 44)
-layout_mode = 2
-size_flags_horizontal = 4
-theme_override_colors/font_color = Color(0.960784, 0.901961, 0.827451, 1)
-theme_override_font_sizes/font_size = 12
-theme_override_styles/normal = SubResource("StyleBoxFlat_lang")
-theme_override_styles/hover = SubResource("StyleBoxFlat_lang")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_lang")
-theme_override_styles/focus = SubResource("StyleBoxFlat_lang")
-
-[node name="Foot" type="Control" parent="Column"]
-custom_minimum_size = Vector2(0, 24)
-layout_mode = 2
-
-[node name="TaglineTimer" type="Timer" parent="."]
-unique_name_in_owner = true
-wait_time = 6.0
+visible = false
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -260.0
+offset_top = 10.0
+offset_right = -12.0
+offset_bottom = 32.0
+grow_horizontal = 0
+theme_override_colors/font_color = Color(1, 0.831373, 0.360784, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.7)
+theme_override_constants/shadow_offset_x = 0
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_sizes/font_size = 13
+horizontal_alignment = 2
+vertical_alignment = 1
