@@ -226,3 +226,10 @@ func _toon_in() -> void:
 		tween.chain().set_parallel(true)
 		tween.tween_property(card, "position:x", 0.0, TOON_SECONDS * 0.45).set_ease(Tween.EASE_OUT)
 		tween.tween_property(card, "scale", Vector2.ONE, TOON_SECONDS * 0.45).set_ease(Tween.EASE_OUT)
+		# REMETTRE LA CARTE A PLAT a l'arrivee. Poser `position` sur une carte
+		# ancree plein cadre fige ses marges sur la taille de son emplacement A
+		# CE MOMENT ; si l'ecran change pendant l'entree (une fenetre qu'on
+		# redimensionne, un telephone qu'on tourne), l'emplacement se remesure
+		# et la carte garde l'ancienne taille — le double, sur le banc, et les
+		# cartes se chevauchaient.
+		tween.finished.connect(Kit.fill.bind(card))

@@ -12,9 +12,16 @@ extends Control
 
 
 func _ready() -> void:
-	# Le 890x400 de reference (le Seeker couche), pas la fenetre maximisee.
-	get_window().mode = Window.MODE_WINDOWED
-	get_window().size = Vector2i(890, 400)
+	# Le 890x400 de reference (le Seeker couche), pas la fenetre maximisee —
+	# sauf si `--size=` en demande une autre. Les deux ensemble, c'est le
+	# 890x400 qui gagnait : macOS anime la sortie du plein ecran sur une
+	# soixantaine d'images, et ce retrecissement passait APRES le `--size`.
+	if not Array(OS.get_cmdline_user_args()).any(func(arg: String) -> bool: return arg.begins_with("--size=")):
+		get_window().mode = Window.MODE_WINDOWED
+		get_window().size = Vector2i(890, 400)
+	# L'echelle du bureau, comme la racine du jeu : sans elle, une fenetre de
+	# bureau etirait le canevas du telephone.
+	DeskScale.follow(get_window())
 
 	var bg := ColorRect.new()
 	bg.color = Palette.NIGHT

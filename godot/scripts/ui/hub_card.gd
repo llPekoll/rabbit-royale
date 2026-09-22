@@ -123,6 +123,26 @@ func _init() -> void:
 	_column.add_child(footer)
 
 
+## L'ECRAN CHANGE, LA CARTE SE REECRIT. Sa hauteur, ses tailles de texte et
+## son art sont des parts de l'ecran, lues une fois par `layout` : sans ceci
+## elles gardaient l'ecran du premier dessin — une fenetre de bureau qu'on
+## agrandit, le banc passe de 890x400 a la taille du bureau, et les cartes
+## restaient a leur mesure de telephone (un grand vide, un art minuscule).
+## Dans la coque et pas dans chaque carte : les trois se mesurent pareil.
+func _enter_tree() -> void:
+	get_viewport().size_changed.connect(refresh)
+
+
+func _exit_tree() -> void:
+	get_viewport().size_changed.disconnect(refresh)
+
+
+## RELIRE et se reecrire. Chaque carte dit comment ; la coque ne sait que
+## quand.
+func refresh() -> void:
+	pass
+
+
 ## REMESURER la carte sur l'ecran : sa hauteur, ses bouts, son air, son art.
 ## A appeler avant de la remplir — les tailles de texte en dependent.
 func layout() -> void:
