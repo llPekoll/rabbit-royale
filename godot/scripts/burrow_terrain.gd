@@ -231,10 +231,23 @@ func _paint_underlay() -> void:
 		for col in range(map.width):
 			if not map.is_land(col, row):
 				continue
-			# Une case du POURTOUR n'a pas de couture a cacher : on la saute,
-			# sinon la nappe deborde de l'herbe.
-			if not (map.is_land(col - 1, row) and map.is_land(col + 1, row)
-					and map.is_land(col, row - 1) and map.is_land(col, row + 1)):
+			# LA NAPPE NE VA QUE SUR LES CASES ENTIEREMENT ENTOUREES DU MEME
+			# PALIER — huit voisines, pas quatre, et au meme niveau.
+			#
+			# Deux erreurs successives ici, toutes deux visibles a l'ecran :
+			#
+			#   • quatre voisines seulement : un losange a des COINS, et c'est
+			#     par la diagonale que la nappe ressortait.
+			#   • « de la terre » au lieu de « le meme palier » : une case du
+			#     plateau dont la voisine nord est au niveau du sol porte sa
+			#     nappe a douze pixels quand la tuile d'a cote n'est qu'a six.
+			#     Le losange uni ressortait donc AU-DESSUS d'elle, en plein
+			#     ciel — les triangles verts au nord du plateau.
+			#
+			# Une case bordee par un palier different est deja un bord : elle
+			# n'a pas de couture a cacher de ce cote, et la falaise de sa
+			# voisine occupe la place.
+			if not _flush(col, row):
 				continue
 			var at := map.screen_of(col, row)
 			var base := points.size()
@@ -247,6 +260,19 @@ func _paint_underlay() -> void:
 			faces.append(PackedInt32Array([base, base + 1, base + 2, base + 3]))
 	_underlay.polygon = points
 	_underlay.polygons = faces
+
+
+## Cette case est-elle cernee par huit voisines du MEME palier ?
+##
+## C'est la condition pour porter la nappe : ailleurs, elle deborderait. Voir
+## l'appelant pour les deux facons dont elle depassait avant.
+func _flush(col: int, row: int) -> bool:
+	var tier := map.level_at(col, row)
+	for dy in [-1, 0, 1]:
+		for dx in [-1, 0, 1]:
+			if map.level_at(col + dx, row + dy) != tier:
+				return false
+	return true
 
 
 func clear() -> void:
