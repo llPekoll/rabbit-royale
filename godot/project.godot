@@ -11,7 +11,11 @@ config_version=5
 [application]
 
 config/name="Rabbit Royale"
-run/main_scene="res://scenes/title.tscn"
+; LA RACINE, et non l'accueil : Main.tscn ne se recharge jamais et porte les
+; ecrans (voir scripts/screens.gd). Lancer title.tscn directement ferait de
+; l'accueil la racine, et changer d'ecran le detruirait avec tout ce qu'il
+; tient.
+run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://assets/ui/rr-logo-1x.png"
 
@@ -22,6 +26,9 @@ Net="*res://scripts/net.gd"
 Wallet="*res://scripts/wallet.gd"
 Session="*res://scripts/session.gd"
 GameSocket="*res://scripts/game_socket.gd"
+; Le routeur d'ecrans. En dernier : il ne depend de rien, et tout le reste
+; peut l'appeler.
+Screens="*res://scripts/screens.gd"
 
 [display]
 

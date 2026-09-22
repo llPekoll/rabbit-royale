@@ -1,0 +1,19 @@
+extends Control
+## LA RACINE — la seule scene qui ne meurt jamais.
+##
+## Elle ne dessine rien. Son travail est de tenir les etages et de dire a
+## `Screens` ou poser les choses. Tout le reste — la session, la socket, la
+## langue, le wallet — vit dans les autoloads, hors de l'arbre par
+## construction, donc hors d'atteinte de tout changement d'ecran.
+##
+## POURQUOI LE MONDE NE SE CONSTRUIT PAS ICI. Les deux lieux veulent le terrier
+## du joueur et sa graine, qui n'existent pas tant que personne n'est connecte.
+## `build_world()` est donc appele a la connexion, pas au demarrage.
+
+@onready var _world: Node2D = %World
+@onready var _screen: Control = %Screen
+
+
+func _ready() -> void:
+	Screens.host(_world, _screen)
+	Screens.show_doorstep()

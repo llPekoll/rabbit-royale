@@ -1,0 +1,68 @@
+[gd_scene load_steps=2 format=3]
+
+; LA RACINE. C'est elle que le projet lance, et elle ne se recharge jamais.
+;
+; Cinq etages, dans l'ordre ou ils se dessinent. L'ordre EST l'architecture :
+;
+;   World    les deux lieux residents (terrier, ile). Construits une fois,
+;            jamais liberes — on bascule leur visibilite. Voir screens.gd.
+;   Screen   le doorstep, et tout ecran qui n'est pas un lieu. Monte et libere
+;            normalement.
+;   Chrome   ce qui survit AU-DESSUS : barre du haut, son, HUD, panneaux. Un
+;            dialogue ouvert ne meurt pas parce que le sol a change dessous.
+;   Wipe     le rideau des traversees, par-dessus tout.
+;
+; POURQUOI DES ETAGES ET PAS DES z_index. Un z_index se corrige a la main a
+; chaque noeud et derive au premier oubli ; quatre conteneurs se lisent d'un
+; coup d'oeil et ne peuvent pas se tromper d'ordre.
+;
+; LE RIDEAU EST HORS DU MONDE, et ce n'est pas un detail : le client web note
+; qu'un post-traitement applique au rideau le ferait « deborder sur lui-meme a
+; chaque transition, et le fondu ramasserait un flash a mi-course ». Le jour ou
+; le monde aura un bloom, il ira sur World et sur rien d'autre.
+;
+; Chrome et Wipe sont vides pour l'instant. Ils existent des maintenant pour
+; que l'ordre soit fige une fois pour toutes : les remplir plus tard ne
+; deplacera rien.
+
+[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
+
+[node name="Main" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_main")
+
+[node name="World" type="Node2D" parent="."]
+unique_name_in_owner = true
+
+[node name="Screen" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+; PASS : le conteneur laisse passer les clics vers l'ecran qu'il porte, sinon
+; plus rien n'est cliquable.
+mouse_filter = 1
+
+[node name="Chrome" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+; IGNORE tant qu'il est vide : un chrome transparent ne doit pas voler les
+; clics destines au sol. Chaque panneau reprendra les siens.
+mouse_filter = 2
+
+[node name="Wipe" type="CanvasLayer" parent="."]
+unique_name_in_owner = true
+layer = 100
