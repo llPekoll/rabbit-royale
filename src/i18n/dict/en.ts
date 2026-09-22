@@ -35,7 +35,9 @@ export const en = {
     description: 'Competitive minesweeper. Dig, hoard, raid, wear the crown.',
   },
   lang: {
-    /** The picker's own label. Never seen — it labels the select for a reader. */
+    /** The picker's title. It IS seen now: it heads the language dialog that
+     *  replaced the native select (language-select.tsx), where it used to be
+     *  a screen-reader-only label on a control that showed its own value. */
     label: 'Language',
   },
 
@@ -758,6 +760,35 @@ export const en = {
     progress: (progress: number, goal: number) => `${progress}/${goal}`,
     counter: (index: number, total: number) => `QUEST ${index} / ${total}`,
   },
+
+  /* ── WHAT THE GAME IS, on the doorstep's board ────────────────────────── */
+  /**
+   * The plank in the bottom-right corner of the sign-in screen.
+   *
+   * RULES, NOT MOOD. `taglines` below is the flavour set — it still runs in
+   * the Pixi ribbon in-game, where the player already knows how to play. On
+   * the doorstep the reader has never seen a board, and "ONLY THE BOLD
+   * SURVIVE" tells them nothing they can act on. These say what the game
+   * actually is, one fact at a time.
+   *
+   * EVERY NUMBER HERE IS THE REAL ONE (config/tuning.ts): a dig costs 1 of a
+   * 300 bar (ENERGY.DIG_COST / MAX), a bomb takes 30 (BOMB_LOSS), a wrong X
+   * takes 15 (FLAG.LOSS). If those move, these lines move with them — a
+   * doorstep that teaches the wrong cost is worse than one that teaches
+   * nothing.
+   *
+   * ALL CAPS IN ENGLISH, like the taglines and for the same reason: the
+   * arcade-kit's basic face has no lowercase (see i18n/locales.ts).
+   */
+  doorstepTips: [
+    'THE NUMBER ON A TILE COUNTS THE BOMBS TOUCHING IT',
+    'DIGGING COSTS 1 ENERGY - A BOMB COSTS 30',
+    'MARK A BOMB WITH A RED X: RIGHT PAYS ENERGY BACK, WRONG COSTS 15',
+    'WALKING BACK OVER TILES YOU ALREADY DUG IS FREE',
+    'EVERY CHEST YOU OPEN GOES HOME WITH YOU',
+    'THE ISLAND IS THE CLOCK - DIG IT OUT AND IT SINKS',
+    'CARROTS ARE THE SCORE - THE RED X IS THE ONLY PUMP',
+  ] as readonly string[],
 
   /* ── The five phrases in the wordmark's ribbon ────────────────────────── */
   taglines: [

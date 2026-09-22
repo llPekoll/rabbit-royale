@@ -630,6 +630,19 @@ export const ptBR: Dict = {
     counter: (index, total) => `MISSÃO ${index} / ${total}`,
   },
 
+  /* Les regles du jeu, sur la planche du pas-de-porte. Voir en.ts :
+     ce sont des FAITS, pas de l'ambiance, et les chiffres sont ceux de
+     config/tuning.ts. */
+  doorstepTips: [
+    'O NÚMERO NUM BLOCO CONTA AS BOMBAS QUE O TOCAM',
+    'CAVAR CUSTA 1 DE ENERGIA - UMA BOMBA CUSTA 30',
+    'MARQUE UMA BOMBA COM UM X VERMELHO: CERTO DEVOLVE ENERGIA, ERRADO CUSTA 15',
+    'ANDAR DE VOLTA POR BLOCOS JÁ CAVADOS É DE GRAÇA',
+    'CADA BAÚ QUE VOCÊ ABRE VAI PARA CASA COM VOCÊ',
+    'A ILHA É O RELÓGIO - CAVE TUDO E ELA AFUNDA',
+    'AS CENOURAS SÃO A PONTUAÇÃO - O X VERMELHO É A ÚNICA BOMBA DE ENERGIA',
+  ],
+
   taglines: [
     'CADA PASSO PODE SER O ÚLTIMO... OU SUA FORTUNA',
     'ATRAVESSE A ILHA, PEGUE O OURO, OU MORRA TENTANDO',

@@ -34,7 +34,6 @@ import { InstallNudge } from '@/components/install-guide';
 import { LogoBanner } from '@/components/logo-banner';
 import { LanguageSelect } from '@/components/language-select';
 import { RunHud } from '@/components/run-hud';
-import { CarrotField } from '@/components/carrot-field';
 import { ShopPanel } from '@/components/shop-card';
 import { EnergyPopup } from '@/components/energy-popup';
 import { LoreCodex } from '@/components/lore-codex';
@@ -47,7 +46,6 @@ import { KitRow } from '@/components/kit-row';
 import { MarkBombButton } from '@/components/mark-bomb-button';
 import { WatcherStrip } from '@/components/watcher-strip';
 import { EnergyCoach } from '@/components/energy-coach';
-import { LoreCrawl } from '@/components/lore-crawl';
 import { GardenCard } from '@/components/garden-card';
 import { BurrowPanel } from '@/components/burrow-card-panel';
 import { IslandPicker } from '@/components/island-picker';
@@ -79,7 +77,6 @@ import { raiderView, trapClues } from '@/lib/game/raid';
 import { walkableTiles } from '@/game/burrow/board';
 import { RaidVictory } from '@/components/raid-victory';
 import { gardenProgress } from '@/lib/game/garden-growth';
-import { burrowArt } from '@/config/burrowArt';
 import { SCENE } from '@/game/keys';
 import { useT } from '@/i18n/provider';
 import { groupDigits } from '@/i18n/format';
@@ -2303,33 +2300,29 @@ function Burrow() {
         />
       )}
 
-      {/* Signed out there is no canvas, so the burrow painting stands in — with
-          its field GROWING on top of it rather than painted into it. Someone on
-          this screen is waiting (for a wallet, for a decision), and a place that
-          is visibly alive is worth more here than anywhere else in the game. */}
+      {/* Signed out there is no canvas, so a painting stands in: the king
+          rabbit on his ridge, looking out over the island the game is played
+          on. It is a KEY ART, not a backdrop to write over — the crawl that
+          used to climb it is gone, and with it the three gradients that made
+          its words readable (see .rr-crawl-sky / -mast / -horizon). What is
+          left is the picture, dimmed only where the menu actually sits. */}
       {!showCanvas && (
         <div className="rr-home-art" aria-hidden>
           <div
             className="rr-home-art-img"
-            style={{ backgroundImage: `url(${BURROW_ART})` }}
+            style={{ backgroundImage: `url(${HOME_ART})` }}
           />
-          {/* No garden to report on, so it runs its decorative loop. */}
-          <CarrotField className="rr-home-art-crop" progress={null} />
         </div>
       )}
 
-      {/* The story, told to whoever has not signed in yet. It is the only thing
-          on this screen that is not a request — see lore-crawl.tsx. */}
-      {/* Held until the session check is over, so the crawl starts from its
-          first line when the loader lifts rather than halfway up the sky. */}
-      {!showCanvas && !checking && <LoreCrawl />}
-
-      {/* The wordmark, at the TOP of the screen and in its own fixed layer.
-          It used to ride in the sign-in column at the bottom, under the crawl's
-          near edge; up here it is the masthead the crawl rises towards, which
-          is the arrangement the effect has always implied. Fixed rather than in
-          flow because the column below it scrolls and a title that scrolls away
-          on a short phone stops being a title. */}
+      {/* The wordmark, top LEFT and over the tree the artwork already puts
+          there: the painting's own composition leaves that corner in shadow
+          and its subject — the rabbit, the island, the sunrise — in the right
+          two thirds. Centring the logo (where it used to be, as the crawl's
+          masthead) would have laid it across the sky the picture is built
+          around. The menu hangs directly under it in the same column, so the
+          title and the doors read as one block rather than as two things
+          pinned to opposite edges. */}
       {!showCanvas && (
         <div className="rr-masthead">
           <LogoBanner />
@@ -2510,18 +2503,32 @@ function Burrow() {
                   that a signature is a steep price for a game you have not
                   played yet. That reasoning still holds; this ordering is a
                   deliberate call that the wallet is the front door. */}
-              {/* The doorstep's two buttons in the codex's pixel bevel, in the
-                  colours they had: the carrot one to press, the quiet one under
-                  it. The front door wiggles when it is pressed. */}
+              {/* The doorstep's two buttons in the codex's pixel bevel: the
+                  gold one to press, the quiet one under it. The front door
+                  wiggles when it is pressed.
+
+                  GOLD AND TALLER than the wood it wore, and than the ghost
+                  below it. The two doors were the same brown plank at almost
+                  the same size, so neither said which to press. Gold is the
+                  game's own crown colour and the one warm note the left third
+                  of the painting does not already have; 64 against 44 is what
+                  makes the pair read as first and second.
+
+                  THE GOLD IS NOT SET HERE. `color`/`shadowColor` below are the
+                  pixel-bevel's, and the woodland runtime skin that actually
+                  paints this button throws them away — it picks a PLANK from
+                  the class name (see woodland/runtime.tsx, which routes
+                  `rr-play` to its gold board). These stay for the bevel's own
+                  fallback and are kept in step with it. */}
               <PxButton
                 className="rr-btn rr-play"
                 onClick={login}
                 disabled={busy}
-                color="#ff8c42"
-                shadowColor="#a8521c"
+                color="#f5b32a"
+                shadowColor="#8a5a12"
                 textColor="#2a1206"
                 wiggle
-                style={{ height: 52 }}
+                style={{ height: 64 }}
               >
                 {/* No inline `fontSize`: the label is sized by the button's
                     own width in globals.css (`.rr-empty .rr-btn > span`), so
@@ -3304,13 +3311,17 @@ const QUEST_ITEM_ART = {
   shield: { src: '/assets/ui/icons/shield.webp', aspect: 1 },
 } as const;
 
-/** The burrow, painted. Stands in for the canvas before sign-in. */
-// The BARE-soil cut of the art: the crop is drawn live over it by CarrotField,
-// so it has to not already be in the picture. See tools/plant_carrots.py.
-//
-// Level 1 deliberately: nobody is signed in, so there is no burrow whose level
-// this could show, and the starter homestead is the honest picture to greet a
-// new player with.
-const BURROW_ART = burrowArt(1);
+/** The key art. Stands in for the canvas before sign-in.
+ *
+ *  NOT the burrow painting this used to be (`burrowArt(1)`, with a live
+ *  CarrotField growing over its bare soil). That picture was a place the
+ *  player would soon be standing in; this one is the pitch — the king rabbit
+ *  on the ridge, the island below him, the tower he is looking at. It is the
+ *  first screen of the game and it now says what the game is rather than
+ *  where it starts.
+ *
+ *  Flat webp, so nothing grows on top of it: the crop layer is gone with the
+ *  soil it needed. */
+const HOME_ART = '/assets/ui/home-bg.webp';
 /** The game's own carrot, so the figure is marked in the art rather than in an
  *  emoji the system font draws in a style nothing else on screen shares. */

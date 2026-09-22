@@ -59,6 +59,13 @@ export const WoodlandAction = forwardRef<HTMLButtonElement, WoodlandActionProps>
       // HOME — one more of the run's furniture. Paul, 2026-09-20: "pour ca
       // utilise la rouge".
       : /rr-mark-btn/.test(className) ? 'danger'
+      // THE DOORSTEP'S FRONT DOOR TAKES THE GOLD BOARD. It is the first and
+      // most important button in the game, and on the wood plank it was the
+      // same brown as the guest door under it -- two identical slabs, neither
+      // saying which one to press. The `color` prop cannot say this: this
+      // component ignores the pixel-bevel colours entirely (see the discarded
+      // `color`/`shadowColor` above), so a gold passed there paints nothing.
+      : /rr-play/.test(className) ? 'gold'
       : /hub-btn/.test(className) ? (/garden|harvest/.test(className) || color === '#87bd3a' ? 'green' : 'gold')
       : 'wood'
   );

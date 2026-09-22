@@ -614,6 +614,19 @@ export const zh: Dict = {
     counter: (index, total) => `任务 ${index} / ${total}`,
   },
 
+  /* Les regles du jeu, sur la planche du pas-de-porte. Voir en.ts :
+     ce sont des FAITS, pas de l'ambiance, et les chiffres sont ceux de
+     config/tuning.ts. */
+  doorstepTips: [
+    '方块上的数字表示与它相邻的炸弹数量',
+    '挖掘消耗 1 点能量 - 踩到炸弹消耗 30 点',
+    '用红叉标记炸弹：标对返还能量，标错扣 15 点',
+    '走回已经挖开的方块不消耗能量',
+    '你打开的每个宝箱都会带回家',
+    '岛屿就是计时器 - 挖空它，它就会沉没',
+    '胡萝卜是分数 - 红叉是唯一的能量来源',
+  ],
+
   taglines: [
     '每一步都可能是最后一步...或者是你的财富',
     '穿过这座岛，夺走黄金，否则死在路上',

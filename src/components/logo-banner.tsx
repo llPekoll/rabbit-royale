@@ -61,7 +61,16 @@ const RIBBON_CELL = 4;
  * How long a phrase holds before the next one fades in. Long enough to read a
  * fifty-character line twice over without it feeling like a slideshow.
  */
-const TAGLINE_MS = 6000;
+/**
+ * WAS 6000, when the board carried a tagline.
+ *
+ * It carries the RULES now (`t.doorstepTips`), and a rule is read, not
+ * glanced at: "MARK A BOMB WITH A RED X: RIGHT PAYS ENERGY BACK, WRONG COSTS
+ * 15" is three times the words of "ONLY THE BOLD SURVIVE", and at six seconds
+ * it was gone before a new player had finished it. Ten gives time to read the
+ * line and a beat to think about it.
+ */
+const TAGLINE_MS = 10000;
 
 /**
  * Three, not "as many as fit". At 4x the emblem is 384px tall and eats the
@@ -71,12 +80,19 @@ const TAGLINE_MS = 6000;
 const MAX_SCALE = 3;
 
 /**
- * The height the emblem is allowed to claim. It sits at the TOP of the screen
- * with the crawl rising underneath it, so its size is bounded by the viewport
- * rather than by the column's width alone — on a short landscape phone a 3x
- * emblem would be most of the frame.
+ * The height the emblem is allowed to claim.
+ *
+ * WAS 0.28, when the crawl rose underneath it and the emblem had to leave the
+ * chapter room to be read. The crawl is gone: the emblem now heads a menu in
+ * the left column and the room below it is three buttons, not a story. At 0.28
+ * a 810px-tall desktop resolved to 2x (810 * 0.28 / 106 = 2.1) and the title
+ * read as a badge pinned in a corner rather than as the name of the game.
+ *
+ * 0.34 clears 3x from 936px up while still holding a short landscape phone
+ * down — the Seeker (400px tall) stays at 1x either way, which is the case
+ * this bound exists for.
  */
-const MAX_VH = 0.28;
+const MAX_VH = 0.34;
 
 export function LogoBanner() {
   const t = useT();
@@ -101,10 +117,10 @@ export function LogoBanner() {
   // Keyed on the LIST, so switching language rerolls into the new one rather
   // than leaving the old phrase on screen until the next interval fires.
   useEffect(() => {
-    setPhrase(nextTagline(t.taglines));
-    const id = setInterval(() => setPhrase((p) => nextTagline(t.taglines, p ?? undefined)), TAGLINE_MS);
+    setPhrase(nextTagline(t.doorstepTips));
+    const id = setInterval(() => setPhrase((p) => nextTagline(t.doorstepTips, p ?? undefined)), TAGLINE_MS);
     return () => clearInterval(id);
-  }, [t.taglines]);
+  }, [t.doorstepTips]);
 
   /** Largest whole multiple of the artwork that fits the space we are given. */
   useLayoutEffect(() => {
@@ -208,9 +224,28 @@ export function LogoBanner() {
       {/* The phrase, keyed so React remounts the node on every swap and the
           fade-in plays again instead of only once. The node is rendered even
           while the phrase is null so its line is already reserved — appearing
-          from nothing would shove the masthead down a line on first paint. */}
-      <p className="rr-tagline" key={phrase ?? 'pending'}>
-        {phrase ?? ' '}
+          from nothing would shove the masthead down a line on first paint.
+
+          IT IS NO LONGER IN THE MASTHEAD'S FLOW: `.rr-tagline` is fixed to the
+          BOTTOM RIGHT of the screen (see globals.css). It sat under the emblem
+          when the emblem was a centred banner with a crawl below it; in the
+          left column it ran the full width of the menu and straight across the
+          hanging banner the artwork paints there. Bottom right it lands on the
+          one corner the painting leaves quiet, diagonally opposite the menu —
+          which is where the mock puts it. It stays a child of this component
+          because the timer and the phrase list are here. */}
+      {/* LA PLANCHE NE CLIGNOTE PAS, SEUL LE TEXTE CHANGE.
+
+          La `key` etait sur le <p>, qui porte desormais la planche : a chaque
+          phrase React remontait le noeud entier et le fondu d'entree rejouait
+          sur le BOIS autant que sur les mots — le panneau disparaissait et
+          revenait toutes les six secondes. La cle descend donc sur le span
+          interieur : lui seul est remonte, lui seul refait son fondu, et la
+          planche reste posee la sans bouger. */}
+      <p className="rr-tagline">
+        <span className="rr-tagline-line" key={phrase ?? 'pending'}>
+          {phrase ?? ' '}
+        </span>
       </p>
     </div>
   );

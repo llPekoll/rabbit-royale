@@ -197,7 +197,11 @@ describe('the iris covers every crossing', () => {
     // things that need a session (a token, an id) — those may pair the two, but
     // none of them may test `player` alone to decide which screen is up.
     for (const gate of [
-      /\{!showCanvas && !checking && <LoreCrawl \/>\}/,
+      // The crawl's gate used to be anchored here. The doorstep no longer
+      // mounts it (the key art carries the screen now), so the anchor went
+      // with it rather than being loosened: what this test is about is that
+      // screen OWNERSHIP reads `showCanvas`, and the remaining gates still
+      // say that. The masthead below is the signed-out layer that replaced it.
       /\{!showCanvas && \(/,                       // the sign-in art
       /\{player && showCanvas && \(/,               // the canvas itself
       /\{showCanvas && where === 'burrow' && !shownRaid && !crossing && \(/,

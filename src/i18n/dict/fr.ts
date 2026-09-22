@@ -628,6 +628,19 @@ export const fr: Dict = {
     counter: (index, total) => `QUÊTE ${index} / ${total}`,
   },
 
+  /* Les regles du jeu, sur la planche du pas-de-porte. Voir en.ts :
+     ce sont des FAITS, pas de l'ambiance, et les chiffres sont ceux de
+     config/tuning.ts. */
+  doorstepTips: [
+    'LE NUMÉRO SUR UNE CASE COMPTE LES BOMBES QUI LA TOUCHENT',
+    'CREUSER COÛTE 1 D’ÉNERGIE - UNE BOMBE EN COÛTE 30',
+    'MARQUE UNE BOMBE D’UN X ROUGE : JUSTE, ÇA REND DE L’ÉNERGIE ; FAUX, ÇA COÛTE 15',
+    'REPASSER SUR LES CASES DÉJÀ CREUSÉES EST GRATUIT',
+    'CHAQUE COFFRE OUVERT RENTRE AVEC TOI',
+    'L’ÎLE EST LE CHRONO - VIDE-LA ET ELLE COULE',
+    'LES CAROTTES SONT LE SCORE - LE X ROUGE EST LA SEULE POMPE',
+  ],
+
   taglines: [
     'CHAQUE PAS PEUT ÊTRE LE DERNIER... OU TA FORTUNE',
     'TRAVERSE L’ÎLE, PRENDS L’OR, OU MEURS EN ESSAYANT',
