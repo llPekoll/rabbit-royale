@@ -29,12 +29,18 @@ import type { IslandChoice, IslandListing } from './use-game-socket';
 export interface IslandPickerProps {
   /** Null while the list is being fetched, or when the socket had no answer. */
   listing: IslandListing | null;
+  /**
+   * The player's lifetime carrots — what the doors are measured against.
+   * A locked row says how far the player is from it, and draws it: a door
+   * with a number on it and no way to read the distance was a wall.
+   */
+  lifetime: number;
   busy: boolean;
   onChoose: (choice: IslandChoice) => void;
   onClose: () => void;
 }
 
-export function IslandPicker({ listing, busy, onChoose, onClose }: IslandPickerProps) {
+export function IslandPicker({ listing, lifetime, busy, onChoose, onClose }: IslandPickerProps) {
   const t = useT();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -72,10 +78,17 @@ export function IslandPicker({ listing, busy, onChoose, onClose }: IslandPickerP
                   <PxPanel color={PLANK} className="rr-raid-row">
                     <span className="rr-raid-name">
                       {tierName(i.tier)}
-                      <small className="rr-raid-where digging">
+                      {/* A started island with nobody on it right now is the
+                          short cheap haul the GDD describes, not "0 digging":
+                          the dot goes quiet with it, since green means live. */}
+                      <small className={`rr-raid-where ${i.rabbits > 0 ? 'digging' : 'away'}`}>
                         <i aria-hidden />
-                        {t.islandPick.row(i.rabbits, i.chestsLeft, i.chestsTotal, Math.round(100 * i.dugFraction))}
-                        {(i.chestsLeft <= 3 || i.dugFraction >= 0.7) && <>{' \u00b7 '}{t.islandPick.almostDone}</>}
+                        <span>
+                          {i.rabbits > 0
+                            ? t.islandPick.row(i.rabbits, i.chestsLeft, i.chestsTotal, Math.round(100 * i.dugFraction))
+                            : t.islandPick.rowEmpty(i.chestsLeft, i.chestsTotal, Math.round(100 * i.dugFraction))}
+                          {(i.chestsLeft <= 3 || i.dugFraction >= 0.7) && <>{' \u00b7 '}{t.islandPick.almostDone}</>}
+                        </span>
                       </small>
                     </span>
                     <PxButton
@@ -100,8 +113,30 @@ export function IslandPicker({ listing, busy, onChoose, onClose }: IslandPickerP
                         {tierName(tier.name)}
                         <small className={`rr-raid-where ${locked ? 'away' : 'home'}`}>
                           <i aria-hidden />
+                          {/* ONE inline run after the dot, so the line wraps as
+                              text and the progress bar flows with it: as
+                              siblings of a flex row, the bar cut the sentence
+                              into three items that wrapped on their own. */}
+                          <span>
                           {locked ? t.islandPick.locked(groupDigits(tier.minLifetime)) : t.islandPick.fresh}
+                          {/* THE DISTANCE TO THE DOOR, said and drawn: what
+                              the player has against what it asks, and a
+                              short bar of it (22 September 2026). */}
+                          {locked && (
+                            <>
+                              {' \u00b7 '}{t.islandPick.youHave(groupDigits(lifetime))}
+                              <span className="rr-tier-progress" aria-hidden>
+                                <i style={{ width: `${Math.min(100, (100 * lifetime) / tier.minLifetime)}%` }} />
+                              </span>
+                            </>
+                          )}
+                          {/* WHAT THE TIER IS, in the two numbers the ladder
+                              turns: richer AND more dangerous means thicker
+                              bombs, and a right X on one pays less up the
+                              ladder. Said on every tier so the rows compare. */}
+                          {' \u00b7 '}{t.islandPick.tier(Math.round(tier.bombDensity * 100), tier.xGain)}
                           {!locked && (listing.bests[tier.name] ?? 0) > 0 && <>{' \u00b7 '}{t.islandPick.best(groupDigits(listing.bests[tier.name]))}</>}
+                          </span>
                         </small>
                       </span>
                       <PxButton

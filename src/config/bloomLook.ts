@@ -24,13 +24,19 @@
 export const BLOOM_LOOK = {
   /** Seuls les pixels au-dessus de 0.7 de luminance nourrissent le halo —
    *  l'anneau dore, l'ecume, les chiffres ; pas l'herbe. Voir l'en-tete. */
-  threshold: 0.7,
+  threshold: 0.8,
   /** Bascule franche : a un tiers de force, un genou ne se verrait pas. */
   knee: 0,
   /** Rayon du halo, en pixels de l'espace design (960x540). */
   radius: 6.5,
-  /** Un tiers de force : c'est ce qui separe la brume du delavage. */
-  strength: 0.35,
+  /**
+   * 0.18, de 0.35 (Paul, 22 septembre 2026 : « way too much bloom effect on
+   * the island »). Le seuil monte aussi, de 0.7 a 0.8 : sur le plateau de
+   * DIG l'herbe claire et les nuages passaient le seuil et tout l'ile
+   * nageait dans le halo ; a 0.8 il ne reste que l'anneau dore, l'ecume et
+   * les chiffres, et a la moitie de la force il se voit sans se remarquer.
+   */
+  strength: 0.18,
   /** Blanc chaud, la couleur d'une diffusion dans l'oeil. */
   tint: 0xfff4de,
   /** A mi-chemin entre un halo blanc et un halo de la couleur de la source. */

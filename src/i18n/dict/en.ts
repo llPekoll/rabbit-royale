@@ -180,7 +180,10 @@ export const en = {
   /* ── The burrow's cards ───────────────────────────────────────────────── */
   burrow: {
     title: 'YOUR BURROW',
-    level: (n: number) => `BURROW - LVL ${n}`,
+    /* No dash: at the Seeker's card width the heading's text column is 96px
+       and "BURROW - LVL 1" needs 106 at the type's floor, so the figure was
+       cut off the rim (22 September 2026). Two characters are the difference. */
+    level: (n: number) => `BURROW LVL ${n}`,
     maxLevel: 'MAX LEVEL',
     upgrade: 'UPGRADE',
     safe: 'SAFE',
@@ -548,27 +551,48 @@ export const en = {
   },
 
   /* ── Raiding ──────────────────────────────────────────────────────────── */
+  /* THE TANK'S LEDGER (energy-panel.tsx). One row per thing the energy buys:
+     a LABEL (one word, a 4.6em column), the COST in a short clause, and a
+     VERDICT in capitals (READY / NEEDS 40 / RAID READY), with the wait under
+     a short one. Plain ASCII inside the strings; the middots are entities in
+     the component. */
   energyPanel: {
     open: 'Energy details',
     title: 'ENERGY',
-    status: (energy: number, max: number, regen: number) => `${energy}/${max} \u00b7 +${regen} an hour`,
-    full: 'Full. Nothing comes back until you spend some.',
-    fullIn: (wait: string) => `Full again in ${wait}, on its own.`,
-    islandYes: (cost: number) => `An island: yes. The crossing takes ${cost}, then every dig takes 1.`,
-    islandNo: (floor: number) => `An island: not yet. It asks for ${floor} in the tank.`,
-    raidYes: (toll: number, stake: number) => `A raid: yes. ${toll} to climb in, at most ${stake} in all; reach the field and your steps come back.`,
-    raidNo: (floor: number) => `A raid: not yet. It asks for ${floor} in the tank.`,
-    dig: (dig: number, bomb: number) => `A dig takes ${dig}, a bomb ${bomb}. A right X gives some back, a wrong one costs 15.`,
-    homeRaid: (floor: number) => `You still hold a raid (${floor}). What you go home with stays in the tank.`,
-    homeNoRaid: (floor: number) => `Under ${floor}: not enough for a raid any more. What you go home with stays in the tank.`,
-    level: (level: number, regen: number, next: number) => `Burrow level ${level} refills ${regen} an hour; level ${level + 1} would refill ${next}.`,
-    levelMax: (level: number, regen: number) => `Burrow level ${level} refills ${regen} an hour.`,
+    reading: (energy: number, max: number) => `${energy}/${max}`,
+    /* "/h", not "an hour": the reading shares its line with the [X] on a
+       340px panel, and the long form wrapped on the Seeker. */
+    rate: (regen: number) => `+${regen}/h`,
+    full: 'full',
+    fullIn: (wait: string) => `full in ${wait}`,
+    island: 'ISLAND',
+    islandCost: (cost: number) => `${cost} to cross, then 1 a dig`,
+    raid: 'RAID',
+    raidCost: (toll: number, stake: number) => `${toll} to climb in, ${stake} at most`,
+    raidRefund: 'Reach the field and your steps come back.',
+    dig: 'DIG',
+    digCost: (dig: number, bomb: number) => `${dig} a tile. A bomb: ${bomb}`,
+    x: 'RED X',
+    xCost: (lo: number, hi: number, loss: number) => `right: +${lo} to +${hi} back. Wrong: -${loss}`,
+    home: 'HOME',
+    homeCost: (floor: number) => `leave with ${floor} or more and a raid is ready`,
+    homeHint: 'What you go home with stays in the tank.',
+    ready: 'READY',
+    raidReady: 'RAID READY',
+    needs: (floor: number) => `NEEDS ${floor}`,
+    inWait: (wait: string) => `in ${wait}`,
+    under: (floor: number) => `UNDER ${floor}`,
+    levelLabel: (level: number) => `LVL ${level}`,
+    levelRate: (regen: number, next: number | null) =>
+      next === null ? `refills ${regen} an hour` : `refills ${regen} an hour. Next level: ${next}`,
   },
   islandPick: {
     choose: 'Choose an island',
     which: 'WHICH ISLAND?',
     loading: 'Looking at the water...',
     row: (rabbits: number, left: number, total: number, dug: number) => `${rabbits} digging \u00b7 ${left}/${total} chests left \u00b7 ${dug}% dug`,
+    /** The same row for a started island nobody is on right now. */
+    rowEmpty: (left: number, total: number, dug: number) => `nobody on it now \u00b7 ${left}/${total} chests left \u00b7 ${dug}% dug`,
     fresh: 'Nobody on it yet',
     join: 'Join',
     open: 'Open',
@@ -579,12 +603,21 @@ export const en = {
     best: (n: string) => `your record ${n} \ud83e\udd55`,
     gone: 'That island filled up or ended. Pick another.',
     tierLocked: 'You have not dug your way to that island yet.',
+    /* The locked row: the door, and how far the player is from it — the
+       progress is the reason the row is there at all. */
+    youHave: (n: string) => `you have ${n}`,
+    /* What a tier IS, in the two numbers the ladder turns: how thick the
+       bombs are, and what a right X on one pays back. */
+    tier: (bombs: number, x: number) => `${bombs}% bombs · right X +${x}`,
   },
   raid: {
     go: 'GO RAIDING',
     another: 'Raid another burrow',
     choose: 'Choose a burrow',
     whose: 'WHOSE BURROW?',
+    /* The toll, on the list's footer: a raid draws on the one tank, and the
+       list is where the player decides to spend it. */
+    cost: (toll: number, stake: number) => `A raid takes ${toll} energy to climb in, ${stake} at most.`,
     allShielded: 'ALL BURROWS SHIELDED',
     nobody: 'NOBODY TO ROB',
     shielded: 'Shielded',

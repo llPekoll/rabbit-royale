@@ -32,6 +32,19 @@ describe('the first run teaches in order', () => {
     expect(firstRunBeat({ ...base, tiles: 3 })?.id).toBe('mark');
   });
 
+  it('asks for the X the moment the rabbit is BESIDE the bomb, however few tiles it dug', () => {
+    // The drawn corridor puts the rabbit beside the bomb after one dig, and
+    // the hold refuses every other dig from there: a tally could never reach
+    // three, and "the number counts the bombs" held for ever.
+    const beat = firstRunBeat({ ...base, tiles: 1, beside: true });
+    expect(beat?.id).toBe('mark');
+    // ...and it HOLDS: it is the ask the board is refusing every other step for.
+    expect(beat?.sticky).toBe(true);
+    expect(firstRunBeat({ ...base, tiles: 1, beside: true, armed: true })?.id).toBe('aim');
+    // Walking away from the bomb again (still nothing marked) drops back to the number.
+    expect(firstRunBeat({ ...base, tiles: 1, beside: false })?.id).toBe('numbers');
+  });
+
   it('hands over to the TILE the moment X mode is armed', () => {
     // The one beat that is about a mode rather than a tally: it is what makes
     // the caption stop pointing at the corner of the screen and start

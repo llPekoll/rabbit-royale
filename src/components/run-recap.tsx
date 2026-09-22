@@ -145,8 +145,14 @@ export function Recap({
       </p>
       {/* The bar at home, beside what the next crossing would take from it —
           the figure both buttons below are really about. */}
+      {/* THREE LINES, THREE WEIGHTS (22 September 2026). The record, the bank
+          and the raid all wore the same gold, and three gold lines in a row
+          read as one paragraph. The record is the run's NEWS and keeps the
+          gold; the bank is a reading and goes to the card's plain ink; the
+          raid is a green light — the colour the list already uses for a
+          burrow that is live. */}
       {bank && (
-        <p className="rr-note" style={{ color: '#ffd138' }}>
+        <p className="rr-note" style={{ color: INK }}>
           {t.recap.bank(bank.energy, bank.max, bank.cost)}
         </p>
       )}
@@ -164,7 +170,7 @@ export function Recap({
         </p>
       )}
       {bank && bank.energy >= RAID_RUN.TOLL + RAID_RUN.WALK_FLOOR * RAID_RUN.STEP_COST && (
-        <p className="rr-note" style={{ color: '#ffd138' }}>
+        <p className="rr-note" style={{ color: LIVE }}>
           {t.recap.raidLeft(bank.energy)}
         </p>
       )}
@@ -236,6 +242,8 @@ const GLASS = '#0d1117';
 const BTN = '#161b22';
 const INK = '#e6edf3';
 const MUTED = '#8b949e';
+/** The raid line's green: the target list's "out digging" live green. */
+const LIVE = '#4ade80';
 const wide: CSSProperties = { width: '100%' };
 /** The count, dimmer than the verb: it reports, it does not instruct. */
 const countdown: CSSProperties = { opacity: 0.66 };
