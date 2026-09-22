@@ -36,6 +36,7 @@ const CAM_EPSILON_POS := 0.5
 @onready var _fences: FenceView = %Fences
 @onready var _hints: PlacementHints = %Hints
 @onready var _rabbit: HomeRabbit = %Rabbit
+@onready var _foam: PackWater = %Foam
 
 var _seed := 1
 var _quit: PlankButton
@@ -113,6 +114,9 @@ func show_ground(seed_value: int) -> void:
 	# que celui qu'on voit flotterait.
 	_props.map = _terrain.map
 	_props.build(seed_value)
+	# L'ecume borde la terre qu'on vient de poser.
+	_foam.map = _terrain.map
+	_foam.build()
 	_follow_level()
 	# ET LES CLOTURES BORDENT LE CHAMP QUI VIENT D'ETRE SEME, celui-la meme et
 	# pas un second tirage de la graine : elles viennent donc APRES le potager,
