@@ -30,6 +30,10 @@ extends Control
 ## `Chrome.current.open(dialog)`.
 static var current: Chrome
 
+## Le diametre DESSINE du [x] (close-default.webp a l'ecran), sous sa zone
+## de tap de Kit.CLOSE_TAP.
+const CLOSE_ART := 30.0
+
 ## Combien de temps une pastille reste, et son fondu.
 const TOAST_SECONDS := 3.2
 const TOAST_FADE := 0.35
@@ -61,6 +65,7 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(_measure)
 	_measure()
 	_mount()
+	_dev_open()
 
 
 ## LES PANNEAUX, a leur etage. Chacun est une scene sous scenes/ui/ ; il
@@ -113,6 +118,45 @@ func _mount() -> void:
 	floor_host.add_child(preload("res://scenes/ui/defend_hud.tscn").instantiate())
 
 
+## `-- --open=<surface>` : ouvre une surface une fois le terrier lu, pour
+## qu'une capture (DevShot) la trouve sans main. Outil, pas comportement.
+func _dev_open() -> void:
+	var what := ""
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--open="):
+			what = arg.trim_prefix("--open=")
+	if what.is_empty():
+		return
+	while not (Home.loaded() and Screens.in_world()):
+		await Home.changed
+	await get_tree().create_timer(1.0).timeout
+	match what:
+		"shop": Shop.open()
+		"profile": Profile.open()
+		"season": SeasonBoard.open()
+		"codex": LoreCodex.open()
+		"energy": EnergyPanel.open()
+		"refill": EnergyPopup.open()
+		"language": LanguageSelect.open()
+		"islands":
+			var picker := IslandPicker.new()
+			open(picker)
+		_: _on_door(what)
+	await get_tree().create_timer(2.0).timeout
+	if _dialog != null:  # SONDE-TEMP
+		_probe(_dialog, 0)  # SONDE-TEMP
+
+
+func _probe(n: Node, d: int) -> void:  # SONDE-TEMP
+	if d > 3:  # SONDE-TEMP
+		return  # SONDE-TEMP
+	if n is Control:  # SONDE-TEMP
+		var c := n as Control  # SONDE-TEMP
+		print("  ".repeat(d), c.name, " ", c.get_class(), " pos=", c.position, " size=", c.size, " min=", c.get_combined_minimum_size(), " vis=", c.visible)  # SONDE-TEMP
+	for ch in n.get_children():  # SONDE-TEMP
+		_probe(ch, d + 1)  # SONDE-TEMP
+
+
 ## UNE PORTE DU SOL, qu'elle vienne d'une dalle ou de la ligne de la colonne.
 func _on_door(door: String) -> void:
 	match door:
@@ -140,7 +184,7 @@ func _dig() -> void:
 	if Island.tutorial_pending():
 		Screens.cross(Screens.Place.ISLAND)
 		return
-	var picker: IslandPicker = preload("res://scenes/ui/island_picker.tscn").instantiate()
+	var picker := IslandPicker.new()
 	picker.chosen.connect(func(_choice: Dictionary) -> void:
 		close_dialog()
 		Screens.cross(Screens.Place.ISLAND))
@@ -254,6 +298,10 @@ func open(dialog: Control, dismiss: bool = true) -> void:
 	dialog.set_anchors_preset(Control.PRESET_CENTER)
 	_center_dialog()
 	dialog.resized.connect(_center_dialog)
+	# Et quand son MINIMUM retombe : un libelle mesure etroit au premier
+	# passage le gonfle (1435px pour la liste des iles), Godot refuse ensuite
+	# toute taille sous ce minimum, et rien d'autre ne le refait.
+	dialog.minimum_size_changed.connect(_center_dialog)
 	if dialog.has_signal("closed"):
 		dialog.connect("closed", close_dialog)
 	dialogs.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -267,12 +315,26 @@ func open(dialog: Control, dismiss: bool = true) -> void:
 func _center_dialog() -> void:
 	if _dialog == null:
 		return
+	# LA PLACE DU [x]. Il deborde du coin du cadre (Dialog.CLOSE_OVER_*) ; un
+	# dialogue etire a Kit.EDGE des bords le poussait hors de l'ecran, et sur
+	# 400px de haut c'est tous les dialogues. Le cadre recule donc de ce
+	# debordement, en haut et des deux cotes pour rester centre.
 	var view := get_viewport_rect().size
+	# Le dessin du [x] est plus petit que sa zone de tap (Kit.CLOSE_TAP) :
+	# seul le DESSIN doit rester a l'ecran, d'ou le retrait de cette marge.
+	var slack := (Kit.CLOSE_TAP - CLOSE_ART) * 0.5
+	var side := maxf(Kit.EDGE, -Dialog.CLOSE_OVER_RIGHT - slack + 4.0)
+	var top := maxf(Kit.EDGE, -Dialog.CLOSE_OVER_TOP - slack + 4.0)
 	var wanted := _dialog.get_combined_minimum_size()
-	var w := minf(wanted.x, view.x - 2.0 * Kit.EDGE)
-	var h := minf(maxf(wanted.y, _dialog.size.y), view.y - 2.0 * Kit.EDGE)
+	var w := minf(wanted.x, view.x - 2.0 * side)
+	# Sur le MINIMUM seul : relire `size` gardait toute taille gonflee une
+	# fois (un libelle mesure etroit au premier passage), et le dialogue
+	# sortait de l'ecran.
+	var h := minf(wanted.y, view.y - top - Kit.EDGE)
 	_dialog.size = Vector2(w, h)
-	_dialog.position = ((view - _dialog.size) * 0.5).floor()
+	var at := ((view - _dialog.size) * 0.5).floor()
+	at.y = maxf(at.y, top)
+	_dialog.position = at
 
 
 func close_dialog() -> void:

@@ -41,6 +41,8 @@ signal rail_changed(rail: String)
 const CARD_W := 136.0
 const CARD_H := 164.0
 const CARD_ART := 62.0
+## Les sortes que l'etal du web dessine en emoji (item-meta.ts `icon`).
+const STALL_EMOJI := {"trap": "🪤", "smoke": "🌫️", "mirage": "🌀"}
 const CARD_OVER_TOP := 22.0
 const CARD_OVER_BOTTOM := 18.0
 ## L'ecart entre deux cartes (`.rr-stall-shelf gap`), et l'air du bout.
@@ -69,7 +71,7 @@ const TRACK_MARGIN := 28.0
 const TRACK_THUMB_MIN := 24.0
 ## Le rail : 26 de haut, 40 au moins, du 10px.
 const RAIL_H := 26.0
-const RAIL_W := 40.0
+const RAIL_W := 50.0
 ## Un clic est un glissement passe cette distance (stall-drag.ts).
 const DRAG_SLOP := 4.0
 
@@ -242,8 +244,10 @@ func _get_minimum_size() -> Vector2:
 func _place_sign() -> void:
 	if _sign == null:
 		return
-	var rail_top := Kit.LEAF_RATIO.y * Kit.LEAF_EDGE
-	var at := Vector2(floor((size.x - SIGN_W) * 0.5), -rail_top - SIGN_LIFT)
+	# SUR le rail haut, a SIGN_LIFT au-dessus, pas plus : sur un ecran de 400px le
+	# dialogue prend toute la hauteur, et une enseigne posee au-dessus du
+	# cadre sortait de l'ecran. Le web la pend au rail (`.rr-stall-sign`).
+	var at := Vector2(floor((size.x - SIGN_W) * 0.5), -SIGN_LIFT)
 	_sign.position = at
 	for child in get_children():
 		if child is NineSlice and child.has_meta("sign_shadow"):
@@ -309,10 +313,12 @@ func _rebuild_rails(tokens: Array) -> void:
 		_rails.add_child(_rail_button(id, tokens.has(id)))
 
 
-## UN RAIL : bois au repos, or quand il est choisi (Kit.style_tab). Un rail
-## que ce deploiement ne peut pas prendre est dessine, eteint et pas
-## pressable — pas grise : desaturer la planche en fait un galet gris qui se
-## lit comme un autre objet. Attenue seulement, le meme bois endormi.
+## UN RAIL : la planche a feuilles du solde (`.rr-stall-rails`, la meme
+## matiere que le solde a droite), le libelle en creme dessus. Le rail choisi
+## est plein ; les autres un peu en retrait ; un rail que ce deploiement ne
+## peut pas prendre est dessine, eteint et pas pressable — attenue, pas
+## grise : desaturer la pastille en ferait un galet qui se lit comme un autre
+## objet.
 func _rail_button(id: String, live: bool) -> Button:
 	var on := id == _rail
 	var b := Button.new()
@@ -320,25 +326,29 @@ func _rail_button(id: String, live: bool) -> Button:
 	b.focus_mode = Control.FOCUS_NONE
 	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if live else Control.CURSOR_FORBIDDEN
 	for state in ["normal", "hover", "pressed", "focus", "disabled"]:
-		var s := Kit.style_tab(on)
-		s.content_margin_left = 6
-		s.content_margin_right = 6
-		s.content_margin_top = 2
-		s.content_margin_bottom = 2
-		b.add_theme_stylebox_override(state, s)
-	var ink := Palette.INK if on else Palette.CHALK_DIM
+		b.add_theme_stylebox_override(state, StyleBoxEmpty.new())
+	var face := Kit.plank("wood")
+	face.show_behind_parent = true
+	face.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	Kit.fill(face)
+	b.add_child(face)
 	for color_name in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_disabled_color"]:
-		b.add_theme_color_override(color_name, ink)
+		b.add_theme_color_override(color_name, Palette.CREAM)
 	b.add_theme_font_size_override("font_size", 10)
+	# Le cerne d'encre du web : sans lui, la creme se perd dans les feuilles.
+	b.add_theme_color_override("font_outline_color", Palette.INK)
+	b.add_theme_constant_override("outline_size", 4)
 	if id == "carrots":
 		b.icon = Kit.ICONS["carrot"]
 		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		b.add_theme_constant_override("icon_max_width", 16)
 	else:
 		b.text = RAILS[id]
+	if not on:
+		b.modulate.a = 0.85
 	if not live:
 		b.disabled = true
-		b.modulate.a = 0.55
+		b.modulate.a = 0.5
 		b.tooltip_text = _dead_reason()
 	b.pressed.connect(func() -> void:
 		if _drag.click():
@@ -431,7 +441,12 @@ func _card(it: Dictionary, tokens: Array) -> Control:
 	var centre := CenterContainer.new()
 	centre.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	middle.add_child(centre)
-	if ShopState.ART.has(kind):
+	if STALL_EMOJI.has(kind):
+		# Sans sprite, l'etal du web montre l'emoji de la sorte
+		# (stall-card.tsx `meta.icon`) — une vraie boite-piege, pas la bombe
+		# eteinte que la rangee du kit porte.
+		centre.add_child(Kit.emoji(STALL_EMOJI[kind], int(CARD_ART * 0.8)))
+	elif ShopState.ART.has(kind):
 		var art_shadow := Kit.icon(ShopState.ART[kind], CARD_ART)
 		art_shadow.modulate = Color(0, 0, 0, 0.35)
 		var stack := Control.new()

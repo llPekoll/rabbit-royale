@@ -104,46 +104,49 @@ func _build() -> void:
 	header.add_child(purse)
 	header.move_child(purse, 1)
 
-	# LA BARRE, PUIS L'ATTENTE — une bande de terre profonde dans le
-	# parchemin, comme la bande du web l'a toujours ete.
-	var state := Kit.panel(Kit.style_soil())
+	# LA BARRE, PUIS L'ATTENTE — sur une planche a feuilles
+	# (`.rr-energy-state`, SOIL_DEEP que la peau des bois dessine en bois).
+	var state := PanelContainer.new()
+	state.add_theme_stylebox_override("panel", Kit.style_plank(4.0, 14.0, 6.0))
 	body.add_child(state)
 	var state_row := Kit.hbox(Kit.PAD)
 	state.add_child(state_row)
 	var count_row := Kit.hbox(0)
 	count_row.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	state_row.add_child(count_row)
-	_count = Kit.label("", 24, Palette.LAMP)
+	_count = Kit.label("", 24, Palette.CREAM)
 	_count.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 	count_row.add_child(_count)
-	_count_max = Kit.label("", 12, Palette.CHALK_DIM)
+	_count_max = Kit.label("", 12, Palette.CREAM.darkened(0.25))
 	_count_max.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 	count_row.add_child(_count_max)
-	_say = Kit.note("", Palette.CHALK, 12)
+	_say = Kit.note("", Palette.CREAM, 12)
+	_say.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_say.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	state_row.add_child(_say)
 
-	# L'OFFRE : ce que ca remplit, ce qu'il reste, et le prix qui est le
-	# bouton.
-	var offer := Kit.hbox(Kit.PAD)
+	# L'OFFRE : ce que ca remplit et ce qu'il reste, sur UNE ligne, puis le
+	# prix qui est le bouton, sur toute la largeur (`.rr-energy-buy`).
+	var offer := Kit.vbox(Kit.PAD_TIGHT)
 	body.add_child(offer)
-	var words := Kit.vbox(2)
-	words.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	words.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var words := Kit.hbox(6)
 	offer.add_child(words)
 	_blurb = Kit.note("", Palette.INK, 12)
+	_blurb.autowrap_mode = TextServer.AUTOWRAP_OFF
 	words.add_child(_blurb)
-	_left = Kit.note("", Palette.BARK, 11)
+	_left = Kit.note("", Palette.BARK.lightened(0.25), 12)
+	_left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	words.add_child(_left)
 	var buttons := Kit.hbox(Kit.PAD_TIGHT)
-	buttons.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	offer.add_child(buttons)
-	_buy = Kit.button("", "gold", 136, 40)
+	_buy = Kit.button("", "gold", 0, 40)
 	_buy.label_size = 12
+	_buy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_buy.pressed.connect(_on_buy)
 	buttons.add_child(_buy)
-	_buy_money = Kit.button("", "blue", 110, 40)
+	_buy_money = Kit.button("", "blue", 0, 40)
 	_buy_money.label_size = 12
+	_buy_money.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_buy_money.pressed.connect(_on_pay_money)
 	_buy_money.visible = false
 	buttons.add_child(_buy_money)
@@ -157,7 +160,10 @@ func _build() -> void:
 	_status_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_status.add_child(_status_text)
 	_foot.add_child(_status)
-	_door = Kit.button("", "wood", 0, 44)
+	# Une porte, pas une seconde offre : une petite planche au centre.
+	_door = Kit.button("", "wood", 180, 36)
+	_door.label_size = 11
+	_door.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_door.pressed.connect(func() -> void:
 		open_shop.emit()
 		closed.emit())

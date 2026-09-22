@@ -47,7 +47,8 @@ var _brief: Label
 
 
 func _init() -> void:
-	super("", 480.0)
+	# `min(720px, 100%)` comme le web : a 480 chaque ligne se repliait en trois.
+	super("", 720.0)
 
 
 func _ready() -> void:
@@ -62,9 +63,10 @@ func _ready() -> void:
 	_loading = Kit.note("", Palette.BARK, 13)
 	_loading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	body.add_child(_loading)
-	_brief = Kit.note("", Palette.BARK, 12)
-	_brief.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	add_footer(_brief)
+	# Le pied sur une planche, comme le web (`.rr-shop-foot`).
+	var foot := Kit.plank_note("", 12)
+	_brief = foot.get_child(0) as Label
+	add_footer(foot)
 
 	if lifetime <= 0.0:
 		lifetime = float(Home.burrow.get("lifetime", 0))
@@ -145,27 +147,33 @@ func _rebuild() -> void:
 			func() -> void: _choose({"tier": name}), progress))
 
 
-## UNE LIGNE : la terre du terrier (comme les cibles d'un raid), le nom, le
-## point et sa phrase, la planche d'action a droite.
+## UNE LIGNE : une planche a feuilles (`.rr-raid-row`, PxPanel PLANK), le
+## nom, le point et sa phrase, et le bouton de bois a droite — « Join »,
+## « Open », « Locked » dans leur casse, comme le web.
 func _row(name: String, detail: String, dot: Color, verb: String, enabled: bool, on_press: Callable, progress: float) -> Control:
-	var panel := Kit.panel(Kit.style_soil())
+	var panel := PanelContainer.new()
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# La planche est le FOND du panneau, pas un enfant : un PanelContainer
+	# range ses enfants dans ses marges, et la planche s'y retrouvait sous le
+	# texte, ses feuilles sur le nom.
+	panel.add_theme_stylebox_override("panel", Kit.style_plank())
 	var row := Kit.hbox(Kit.PAD)
 	panel.add_child(row)
 
-	var words := Kit.vbox(2.0)
+	var words := Kit.vbox(1.0)
 	words.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(words)
-	words.add_child(Kit.label(name, 14, Palette.CHALK))
+	words.add_child(Kit.label(name, 13, Palette.CREAM))
 	var line := Kit.hbox(Kit.PAD_TIGHT)
 	words.add_child(line)
 	var mark := ColorRect.new()
 	mark.color = dot
-	mark.custom_minimum_size = Vector2(8.0, 8.0)
+	mark.custom_minimum_size = Vector2(6.0, 6.0)
 	mark.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	line.add_child(mark)
-	var small := Kit.note(detail, Palette.CHALK_DIM, 11)
+	var small := Kit.note(detail, Palette.CREAM.darkened(0.1), 10)
+	small.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	line.add_child(small)
 	if progress >= 0.0:
 		var track := Kit.panel(Kit.style_track())
@@ -179,8 +187,11 @@ func _row(name: String, detail: String, dot: Color, verb: String, enabled: bool,
 		track.add_child(fill)
 		words.add_child(track)
 
-	var button := Kit.button(I18N.shout(verb), "gold", 96.0, ROW_H)
+	var button := Kit.button(verb, "wood", 112.0, 38.0)
+	button.label_size = 11
 	button.disabled = not enabled
+	if not enabled:
+		button.modulate.a = 0.6
 	button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	button.pressed.connect(on_press)
 	row.add_child(button)

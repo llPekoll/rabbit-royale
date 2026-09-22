@@ -164,6 +164,33 @@ static func plank_ink(tone: String) -> Color:
 	return Palette.INK if tone == "gold" else Palette.CREAM
 
 
+## UNE PLANCHE COMME FOND DE PANNEAU (StyleBoxTexture) : pour un
+## PanelContainer dont la planche doit couvrir TOUTE la surface. Posee en
+## enfant, le conteneur la rangeait dans ses marges et ses feuilles
+## tombaient sous le texte. `left` : l'air apres les feuilles de gauche.
+static func style_plank(left: float = 8.0, right: float = 10.0, vertical: float = 5.0) -> StyleBoxTexture:
+	var s := StyleBoxTexture.new()
+	s.texture = PLANK
+	s.texture_margin_left = PLANK_CAP
+	s.texture_margin_right = PLANK_CAP
+	s.content_margin_left = PLANK_CAP + left
+	s.content_margin_right = right
+	s.content_margin_top = vertical
+	s.content_margin_bottom = vertical
+	return s
+
+
+## UN MOT SUR UNE PLANCHE : le pied d'une liste (`.rr-shop-foot`, PxPanel
+## PLANK), creme centre. Rend le panneau ; le libelle est son seul enfant.
+static func plank_note(text: String = "", size: int = 12) -> PanelContainer:
+	var p := PanelContainer.new()
+	p.add_theme_stylebox_override("panel", style_plank(2.0, 12.0, 6.0))
+	var l := note(text, Palette.CREAM, size)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	p.add_child(l)
+	return p
+
+
 ## LA PASTILLE A FEUILLES, un compteur : hauteur fixe, largeur au contenu.
 static func badge(height: float = 22.0) -> NineSlice:
 	var k := height / float(BADGE.get_height())
@@ -346,6 +373,23 @@ static func button(text: String, tone: String = "wood", width: float = 0.0, heig
 	b.custom_minimum_size = Vector2(width, height)
 	b.relabel(text)
 	return b
+
+
+## UN EMOJI EN COULEUR, par la face emoji du systeme : la face pixel n'en a
+## pas, et le web s'en remet a celle du telephone pour les sortes sans
+## sprite.
+static var _emoji_font: SystemFont
+
+static func emoji(text: String, size: int) -> Label:
+	if _emoji_font == null:
+		_emoji_font = SystemFont.new()
+		_emoji_font.font_names = PackedStringArray(["Apple Color Emoji", "Noto Color Emoji", "Segoe UI Emoji"])
+	var l := Label.new()
+	l.text = text
+	l.add_theme_font_override("font", _emoji_font)
+	l.add_theme_font_size_override("font_size", size)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return l
 
 
 ## LE [x] — il vit au coin haut-droit du cadre, a cheval sur le rebord

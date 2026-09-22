@@ -1,27 +1,14 @@
 class_name HubSlab
 extends Button
-## LA DALLE D'UNE CARTE — CLAIM, HARVEST, UPGRADE (`.rr-hub-btn.nine-btn`,
-## globals.css).
+## LE BOUTON D'UNE CARTE — CLAIM, HARVEST, UPGRADE (`.rr-hub-btn`).
 ##
-## Le web a d'abord passe ces boutons par le kit (PxButton, un nine-slice a
-## biseau pixel), et les trois cartes offraient trois dalles orange
-## identiques : « t'as pas changer les boutton ! ». La couleur ne disait
-## rien de l'action. Alors le kit est cache et la face est peinte a plat :
-## un contour de 2 px, un rayon de 10, une LEVRE eclairee de 3 px au pied et
-## une ombre portee de 2 px qui donne l'epaisseur. La pression enfonce la
-## dalle dans son ombre plutot que de l'ecraser.
+## Porte d'abord comme la dalle plate de globals.css (maquette de Paul du
+## 19 septembre : face, contour, levre eclairee). Mais la peau des bois
+## (woodland/runtime.tsx) repeint ces boutons au rendu en BANDEAUX a
+## feuilles — vert pour la recolte, dore pour le reste —, et c'est ce que le
+## web montre aujourd'hui. `_restyle` suit donc le rendu, pas la feuille de
+## style (2026-09-23). `tone` garde ses trois noms pour les cartes.
 ##
-## CHAQUE VERBE A SON TON, echantillonne sur la maquette de Paul
-## (2026-09-19) : prendre une recompense est l'orange de la carotte, la plus
-## forte des trois parce que c'est celle qui paie ; la recolte est le vert du
-## jardin, sa propre pousse et non un cadeau ; l'amelioration est le brun de
-## la terre, la plus discrete parce que depenser n'est pas gagner.
-##
-## ETEINTE, PAS GRISEE. Un jardin vide ne se recolte pas, et la maquette n'a
-## pas d'etat pour ca : la dalle garde sa forme et perd sa lumiere, ce qui se
-## lit « pas encore » et non « casse ». Une pierre chaude sur le parchemin,
-## pas un trou sombre, pour survivre au fondu de 50 %.
-
 ## Les tons : face, levre, ombre, encre — et les memes eteints.
 const TONES := {
 	"carrot": {"face": Color("#d96626"), "lip": Color("#ffa157"), "shadow": Color("#793513"), "ink": Color.WHITE,
@@ -73,43 +60,30 @@ func set_lit(on: bool) -> void:
 
 
 func ink() -> Color:
-	var t: Dictionary = TONES[tone]
-	return t["ink"] if _lit else t["off_ink"]
+	return Kit.plank_ink(_board())
+
+
+## LE BANDEAU DU WEB, pas la dalle plate. La peau des bois (woodland/
+## runtime.tsx) repeint `.rr-hub-btn` au rendu : un bandeau VERT pour la
+## recolte, DORE pour le reste (la recompense, l'amelioration). La dalle
+## peinte que decrit globals.css ne s'affiche plus nulle part — c'est ce
+## bandeau que le joueur voit (verifie a 890x400, 2026-09-23). Eteint, il
+## garde sa matiere et perd la moitie de sa lumiere, comme `:disabled`.
+func _board() -> String:
+	return "green" if tone == "green" else "gold"
 
 
 func _restyle() -> void:
-	var t: Dictionary = TONES[tone]
-	var face: Color = t["face"] if _lit else t["off_face"]
-	var shadow: Color = t["shadow"] if _lit else t["off_shadow"]
+	var s := StyleBoxTexture.new()
+	s.texture = Kit.plank_texture(_board())
+	s.texture_margin_left = Kit.NOTICE_CAP
+	s.texture_margin_right = Kit.NOTICE_CAP
+	s.set_content_margin_all(0)
 	for state in ["normal", "hover", "pressed", "focus", "disabled"]:
-		var s := StyleBoxFlat.new()
-		s.bg_color = face
-		s.set_border_width_all(int(LINE))
-		s.border_color = shadow
-		s.set_corner_radius_all(int(RADIUS))
-		# L'ombre portee est DANS la boite du bouton — un temps elle pendait
-		# sous lui sur une marge, la seule longueur de la carte qui ne scalait
-		# pas, et c'etait les derniers pixels de debordement a chaque taille.
-		s.shadow_color = shadow if (_lit and state != "pressed") else Color.TRANSPARENT
-		s.shadow_offset = Vector2(0, DROP)
-		s.shadow_size = 0
-		s.set_content_margin_all(0)
 		add_theme_stylebox_override(state, s)
-	queue_redraw()
-
-
-## La levre eclairee au pied, dans le contour ; et la lumiere du haut, la ou
-## le degrade du web est plus clair (`color-mix(face 88%, #fff)`).
-func _draw() -> void:
-	var t: Dictionary = TONES[tone]
-	var face: Color = t["face"] if _lit else t["off_face"]
-	var lip: Color = t["lip"] if _lit else t["off_shadow"]
-	var lip_h := LIP - 1.0 if button_pressed else LIP
-	var inner := Rect2(LINE + 2.0, size.y - LINE - lip_h, size.x - 2.0 * (LINE + 2.0), lip_h)
-	draw_rect(inner, lip)
-	if _lit:
-		var light := Rect2(LINE + 3.0, LINE, size.x - 2.0 * (LINE + 3.0), 2.0)
-		draw_rect(light, face.lerp(Color.WHITE, 0.12))
+	modulate.a = 1.0 if _lit else 0.55
+	for l in content.find_children("*", "Label", true, false):
+		(l as Label).add_theme_color_override("font_color", ink())
 
 
 func _sink(down: bool) -> void:

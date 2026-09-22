@@ -58,6 +58,10 @@ const BLUE_TEXTURE := preload("res://assets/ui/notice-blue.webp")
 ## 30px pour l'or.
 const WOOD_CAP := 25
 const GOLD_CAP := 30
+## L'air entre le bord de la planche et le texte (`padding: 8px 22px`). Il
+## etait `cap + 8` — 33px sur le bois, 38 sur l'or —, et tout bouton etroit
+## coupait son mot : « JOIN » en « JOII », « RAID » en « Al » (2026-09-23).
+const TEXT_PAD := 22.0
 
 ## L'encre. L'or porte un brun fonce sans ombre ; le bois une creme avec une
 ## ombre d'un pixel, parce que le bois est plus sombre et moins contraste.
@@ -172,9 +176,10 @@ func _restyle() -> void:
 	# Le fond du Button lui-meme disparait : c'est la planche qui peint.
 	for state in ["normal", "hover", "pressed", "focus", "disabled"]:
 		var empty := StyleBoxEmpty.new()
-		# Le CSS met `padding: 8px 22px` et garde les caps hors du texte.
-		empty.content_margin_left = _cap() + 8
-		empty.content_margin_right = _cap() + 8
+		# Le CSS met `padding: 8px 22px` : le texte commence a 22px du bord,
+		# DANS le bout orne, pas apres lui.
+		empty.content_margin_left = TEXT_PAD
+		empty.content_margin_right = TEXT_PAD
 		empty.content_margin_top = 8
 		empty.content_margin_bottom = 8
 		add_theme_stylebox_override(state, empty)
@@ -244,8 +249,8 @@ func _relayout() -> void:
 	if _plank != null:
 		_plank.size = size
 	if _ink != null:
-		_ink.position.x = _cap() + 8
-		_ink.size = Vector2(maxf(0.0, size.x - 2.0 * (_cap() + 8)), size.y)
+		_ink.position.x = TEXT_PAD
+		_ink.size = Vector2(maxf(0.0, size.x - 2.0 * TEXT_PAD), size.y)
 		_ink.add_theme_font_size_override("font_size", _fitted_size())
 
 
@@ -253,7 +258,7 @@ func _relayout() -> void:
 ## et en descendant tant que le mot deborde. Jamais sous 9px — en dessous, le
 ## libelle est illisible et il vaut mieux qu'il soit serre.
 func _fitted_size() -> int:
-	var room := size.x - 2.0 * (_cap() + 8)
+	var room := size.x - 2.0 * TEXT_PAD
 	if room <= 0.0 or _ink == null or _ink.text.is_empty():
 		return label_size
 	var font := _ink.get_theme_font("font")

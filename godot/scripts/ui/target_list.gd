@@ -42,8 +42,8 @@ const SHIELDED_DIM := 0.68
 ## Le grain du compte a rebours (raid-panel.tsx : 60 000 ms).
 const TICK_SECONDS := 60.0
 ## La planche RAID : 44 de haut (le plancher tactile), 84 de large au moins.
-const RAID_W := 84.0
-const RAID_H := 44.0
+const RAID_W := 104.0
+const RAID_H := 38.0
 
 var _scroll: ScrollContainer
 var _rows: VBoxContainer
@@ -57,7 +57,8 @@ var _raid_at_open := ""
 
 
 func _init() -> void:
-	super(I18N.t("raid.whose"), 440, 0)
+	# `min(720px, 100%)`, la meme largeur que la liste des iles.
+	super(I18N.t("raid.whose"), 720, 0)
 
 
 func _ready() -> void:
@@ -70,9 +71,9 @@ func _ready() -> void:
 	_rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_scroll.add_child(_rows)
 
-	_foot = Kit.note("", Palette.BARK, 12)
-	_foot.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	add_footer(_foot)
+	var foot := Kit.plank_note("", 12)
+	_foot = foot.get_child(0) as Label
+	add_footer(foot)
 
 	_tick = Timer.new()
 	_tick.wait_time = TICK_SECONDS
@@ -146,11 +147,11 @@ func _rebuild() -> void:
 
 	if not state.note.is_empty():
 		_foot.text = state.note
-		_foot.add_theme_color_override("font_color", Palette.BAD_ON_PARCHMENT)
+		_foot.add_theme_color_override("font_color", Color("#ffb3a3"))
 	else:
 		_foot.text = "%s\n%s" % [I18N.t("raid.brief"),
 			I18N.f("raid.cost", [Tuning.i("RAID_RUN.TOLL"), Tuning.i("RAID_RUN.STAKE")])]
-		_foot.add_theme_color_override("font_color", Palette.BARK)
+		_foot.add_theme_color_override("font_color", Palette.CREAM)
 
 
 ## UNE LIGNE : le nom et la presence dessous, ce qui pousse dehors, la
@@ -166,7 +167,9 @@ func _row(target: Dictionary, state: RaidState) -> Control:
 	var shielded := bool(target.get("shielded", false)) if left < 0.0 else left > 0.0
 	var off := state.busy or shielded
 
-	var panel := Kit.panel(Kit.style_well())
+	# Une planche a feuilles (`.rr-raid-row`, PxPanel PLANK), comme le web.
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", Kit.style_plank())
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	if shielded:
 		panel.modulate.a = SHIELDED_DIM
@@ -200,8 +203,10 @@ func _row(target: Dictionary, state: RaidState) -> Control:
 	var amount := Kit.hbox(4)
 	amount.alignment = BoxContainer.ALIGNMENT_END
 	amount.add_child(Kit.icon(Kit.ICONS["carrot"], 16))
-	var outside := int(target.get("garden", target.get("stock", 0)))
-	amount.add_child(Kit.label(I18N.f("raid.unguarded", [I18N.group_digits(outside)]), 11, Palette.LAMP, true))
+	# LA RESERVE, comme la rangee du web (`groupDigits(t.stock)` 🥕) : le
+	# « UNGUARDED » est le sous-titre de la dalle RAID, pas de la ligne.
+	amount.add_child(Kit.label(I18N.group_digits(int(target.get("stock", 0))), 12, Palette.CREAM, true))
+	amount.move_child(amount.get_child(0), 1)
 	purse.add_child(amount)
 	if shielded and left > 0.0:
 		# L'attente en lumiere de lampe, la meme encre chaude que le reste de
@@ -213,7 +218,11 @@ func _row(target: Dictionary, state: RaidState) -> Control:
 	line.add_child(purse)
 
 	var words := I18N.t("raid.shielded") if shielded else I18N.t("raid.raidIt")
-	var button := Kit.button(I18N.shout(words), "wood" if off else "danger", RAID_W, RAID_H)
+	# « Raid » dans sa casse, sur le bois du web (DANGER que la peau des bois
+	# dessine en planche) : en capitales sur l'or rouge, « RAID » sortait
+	# « Al », rogne par les feuilles.
+	var button := Kit.button(words, "wood", RAID_W, RAID_H)
+	button.label_size = 12
 	button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	button.disabled = off
 	if off:

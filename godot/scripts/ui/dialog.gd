@@ -45,13 +45,24 @@ func _init(title: String = "", width: float = 420.0, height: float = 0.0) -> voi
 	_inset = Kit.margin(edge.x + Kit.PAD, edge.y + Kit.PAD, edge.z + Kit.PAD, edge.w + Kit.PAD)
 	Kit.fill(_inset)
 	add_child(_inset)
+	# Le minimum du dialogue EST celui de son contenu (`_get_minimum_size`) :
+	# quand l'un change, l'autre doit le dire, ou le chrome ne recentre pas.
+	_inset.minimum_size_changed.connect(update_minimum_size)
 
 	_column = Kit.vbox(Kit.PAD)
 	_inset.add_child(_column)
 
 	_header = Kit.hbox(Kit.PAD)
 	_column.add_child(_header)
-	title_label = Kit.title(title)
+	title_label = Kit.title(title, 20, Palette.CREAM)
+	# LE TITRE DE PANNEAU du web (`PanelTitle`, la face du kit) : lettres
+	# claires dans un cerne d'encre epais, et une ombre d'un pixel. En encre
+	# sur le parchemin, il se lisait comme une ligne du corps.
+	title_label.add_theme_color_override("font_outline_color", Palette.INK)
+	title_label.add_theme_constant_override("outline_size", 4)
+	title_label.add_theme_color_override("font_shadow_color", Palette.INK)
+	title_label.add_theme_constant_override("shadow_offset_x", 0)
+	title_label.add_theme_constant_override("shadow_offset_y", 2)
 	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title_label.clip_text = true
 	_header.add_child(title_label)
@@ -74,17 +85,33 @@ func _init(title: String = "", width: float = 420.0, height: float = 0.0) -> voi
 	resized.connect(_place_close)
 
 
+## LE DIALOGUE MESURE SON CONTENU. Le cadre et la marge sont ancres, pas
+## mesures : sans ceci un dialogue a hauteur libre valait 0px de haut, son
+## parchemin ne se dessinait pas et son corps debordait sous le voile (la
+## liste des iles, 2026-09-23). La boutique le faisait deja pour elle seule.
+func _get_minimum_size() -> Vector2:
+	return _inset.get_combined_minimum_size() if _inset != null else Vector2.ZERO
+
+
 func _place_close() -> void:
 	close_button.position = Vector2(size.x - Kit.CLOSE_TAP - CLOSE_OVER_RIGHT, CLOSE_OVER_TOP)
 
 
 ## Remplace le corps par un noeud de l'ecran (un ScrollContainer, une grille).
+##
+## A LA PLACE de l'ancien, pas au bout : un ecran qui pose son pied dans
+## `_ready` puis reconstruit son corps (le codex, a chaque langue) le
+## voyait passer SOUS le pied.
 func set_body(node: Control) -> void:
+	var at := _column.get_child_count()
 	if body != null:
+		at = body.get_index()
+		_column.remove_child(body)
 		body.queue_free()
 	body = node
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_column.add_child(body)
+	_column.move_child(body, at)
 
 
 func set_title(text: String) -> void:

@@ -32,6 +32,7 @@ signal refill
 ## 380, depuis 340 : les lignes sont un libelle, une clause et un verdict
 ## cote a cote, et a 340 la clause passait a la ligne a chaque fois.
 const WIDTH := 380.0
+const WIDTH_SHORT := 460.0
 ## La piste : 8 de haut, les traits debordent de 3.
 const TRACK_H := 8.0
 const TICK_OVER := 3.0
@@ -58,12 +59,23 @@ static func open() -> EnergyPanel:
 	dialog.refill.connect(func() -> void: EnergyPopup.open())
 	if Chrome.current != null:
 		var view := Chrome.current.get_viewport_rect().size
-		dialog.custom_minimum_size.x = minf(WIDTH, view.x - 2.0 * Kit.EDGE)
+		# Un telephone couche est LARGE et court : le panneau prend 460px sous
+		# 520 de haut, sinon chaque cout se repliait sur deux lignes
+		# (globals.css `.rr-energy-panel`, @media max-height 520px).
+		var wide := WIDTH_SHORT if view.y < 520.0 else WIDTH
+		dialog.custom_minimum_size.x = minf(wide, view.x - 2.0 * Kit.EDGE)
 		Chrome.current.open(dialog)
 	return dialog
 
 
 func _ready() -> void:
+	# LE TITRE DU KIT, pas celui d'un dialogue : ce panneau est l'explication
+	# d'outil du web (`.rr-toolkit-summary strong`), en encre simple.
+	for key in ["font_outline_color", "font_shadow_color"]:
+		title_label.remove_theme_color_override(key)
+	title_label.remove_theme_constant_override("outline_size")
+	title_label.add_theme_color_override("font_color", Palette.INK)
+	title_label.add_theme_font_size_override("font_size", 14)
 	_build()
 	_refresh()
 	Home.changed.connect(_refresh)

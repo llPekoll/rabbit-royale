@@ -21,9 +21,8 @@
 ; chaque transition, et le fondu ramasserait un flash a mi-course ». Le jour ou
 ; le monde aura un bloom, il ira sur World et sur rien d'autre.
 ;
-; Chrome et Wipe sont vides pour l'instant. Ils existent des maintenant pour
-; que l'ordre soit fige une fois pour toutes : les remplir plus tard ne
-; deplacera rien.
+; Chrome et Wipe sont des CanvasLayer : c'est ce qui les met au-dessus du
+; monde quoi qu'il fasse de ses z_index.
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 
@@ -51,7 +50,15 @@ grow_vertical = 2
 ; plus rien n'est cliquable.
 mouse_filter = 1
 
-[node name="Chrome" type="Control" parent="."]
+; LE CHROME DANS SON PROPRE CanvasLayer (2026-09-23). Le monde range ses
+; blocs et ses maisons par z_index (Iso.depth), et un Control du meme calque
+; passait DESSOUS : la boutique s'ouvrait avec le terrier dessine par-dessus.
+; Un calque a lui, au-dessus de celui du tutoriel de l'ile (10) et sous le
+; rideau (100), le met hors de portee de tout z_index du monde.
+[node name="ChromeLayer" type="CanvasLayer" parent="."]
+layer = 20
+
+[node name="Chrome" type="Control" parent="ChromeLayer"]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
