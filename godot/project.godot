@@ -61,6 +61,8 @@ I18N="*res://scripts/i18n.gd"
 Net="*res://scripts/net.gd"
 Wallet="*res://scripts/wallet.gd"
 Session="*res://scripts/session.gd"
+; Après Session : la socket lit son jeton et suit ses changements.
+GameSocket="*res://scripts/game_socket.gd"
 
 [gui]
 
