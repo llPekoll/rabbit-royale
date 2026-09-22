@@ -1,4 +1,4 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 ; LE TERRIER. L'un des deux lieux residents — construit une fois, jamais
 ; libere, montre ou cache (voir screens.gd).
@@ -11,6 +11,7 @@
 [ext_resource type="Script" path="res://scripts/burrow_terrain.gd" id="2_terrain"]
 [ext_resource type="Script" path="res://scripts/burrow_props.gd" id="3_props"]
 [ext_resource type="Script" path="res://scripts/fence_view.gd" id="4_fence"]
+[ext_resource type="Script" path="res://scripts/placement_hints.gd" id="5_hints"]
 
 [node name="Burrow" type="Node2D"]
 script = ExtResource("1_burrow")
@@ -33,3 +34,10 @@ script = ExtResource("3_props")
 [node name="Fences" type="Node2D" parent="."]
 unique_name_in_owner = true
 script = ExtResource("4_fence")
+
+; LES LOSANGES DE PLACEMENT. Ce noeud ne porte RIEN lui-meme : chaque losange
+; est monte dans le bloc de sa case, sous le terrain, pour se trier avec le sol
+; qu'il recouvre. Il n'est qu'un chef d'orchestre.
+[node name="Hints" type="Node2D" parent="."]
+unique_name_in_owner = true
+script = ExtResource("5_hints")

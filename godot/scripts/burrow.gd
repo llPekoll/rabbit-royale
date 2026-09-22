@@ -27,6 +27,7 @@ const CAM_EPSILON_POS := 0.5
 @onready var _terrain: BurrowTerrain = %Terrain
 @onready var _props: BurrowProps = %Props
 @onready var _fences: FenceView = %Fences
+@onready var _hints: PlacementHints = %Hints
 
 var _seed := 1
 var _quit: PlankButton
@@ -81,6 +82,15 @@ func show_ground(seed_value: int) -> void:
 	_fences.map = _terrain.map
 	_fences.build(_props.field)
 
+	# LES LOSANGES SE MONTENT DANS LES BLOCS DU TERRAIN : ils viennent donc
+	# APRES lui, et ils meurent avec lui. C'est le piege n°31 du web —
+	# « teardownPlacementHints() AVANT la destruction du terrain » — evite ici
+	# par la construction plutot que par un ordre a retenir : `_terrain.build`
+	# jette ses blocs et les losanges avec, et on en refait aussitot.
+	_hints.map = _terrain.map
+	_hints.terrain = _terrain
+	_hints.build()
+
 	# LA PRISE DEPEND DU RELIEF : les quatre cadrages sont resolus sur les
 	# bornes de la terre, et une autre graine en a d'autres. Un terrier voisin
 	# affiche avec le cadrage du precedent sortirait du cadre.
@@ -132,7 +142,26 @@ func _on_cycle() -> void:
 	set_raiding(_cam_mode == 1)
 	set_placing(_cam_mode == 2)
 	set_walling(_cam_mode == 3)
-	_cycle.relabel("CAM: " + ["HOME", "BOARD", "PLACE", "WALL"][_cam_mode])
+	_relabel_cycle()
+
+
+## L'ETIQUETTE SE LIT SUR L'ETAT, jamais sur le compteur du bouton.
+##
+## Ecrite depuis `_on_cycle` seul, elle MENTAIT des qu'un mode etait arme par
+## un autre chemin — un test, ou demain un bouton du jeu. Une etiquette de
+## debogage qui ment coute plus cher que pas d'etiquette du tout : j'ai
+## moi-meme cru a un bug de camera en la lisant.
+func _relabel_cycle() -> void:
+	if _cycle == null:
+		return
+	var name := "HOME"
+	if _raiding:
+		name = "BOARD"
+	elif _walling:
+		name = "WALL"
+	elif _placing:
+		name = "PLACE"
+	_cycle.relabel("CAM: " + name)
 
 
 ## Deconnexion : on oublie le jeton et on revient a l'accueil.
@@ -230,6 +259,10 @@ func set_placing(on: bool) -> void:
 	# ENTRER DANS UN MODE REND LA CAMERA : c'est un nouveau sujet, donc une
 	# nouvelle prise. En SORTIR aussi, pour revenir a la maison proprement.
 	_cam_moved_by_player = false
+	# LA GRILLE N'APPARAIT QUE PENDANT LA POSE. Le reste du temps, cet ecran
+	# est une image de chez soi — pas un editeur de niveau.
+	_hints.show_hints(on)
+	_relabel_cycle()
 	frame_camera()
 
 
@@ -238,6 +271,7 @@ func set_walling(on: bool) -> void:
 		return
 	_walling = on
 	_cam_moved_by_player = false
+	_relabel_cycle()
 	frame_camera()
 
 
@@ -246,6 +280,7 @@ func set_raiding(on: bool) -> void:
 		return
 	_raiding = on
 	_cam_moved_by_player = false
+	_relabel_cycle()
 	frame_camera()
 
 

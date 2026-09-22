@@ -55,6 +55,19 @@ const Z_FACE := -10
 const Z_RIM := 0
 const Z_GROUND := 1
 
+## CE QU'ON POSE SUR UNE CASE, au-dessus de son sol.
+##
+## LE PIEGE QUE CE NOMBRE EVITE : le web a d'abord livre les losanges de
+## placement a 0,05 — un chiffre lu sur la regle du PLATEAU, qui n'est PAS
+## celle de l'interieur d'un bloc. Dix-huit losanges se sont retrouves dessines
+## SOUS l'herbe : « visibles » pour chaque sonde automatique, et invisibles pour
+## l'oeil de tout le monde. Paul, le 2026-09-21 : « rien ne se passe comme il
+## faut ».
+##
+## Le sol d'un bloc est a 1. Un voile de case se pose donc a 2, les cibles de
+## cloture a 2,5, et une bombe a 3 — au-dessus de tout ce qui est sur sa case.
+const Z_VEIL := 2
+
 ## LA NAPPE SOUS LE PLATEAU.
 ##
 ## Les tuiles sont des losanges poses cote a cote, et entre deux d'entre eux le
@@ -82,6 +95,10 @@ const UNDERLAY := Color("#9bb94e")
 var map: BurrowMap
 var _underlay: Polygon2D
 var _blocks: Array[Node2D] = []
+## LE BLOC DE CHAQUE CASE, adressable — c'est ce dans quoi on monte un voile.
+## Vidé en meme temps que `_blocks` : voir `clear`, et la lecon des bombes
+## fantomes qui y est racontee.
+var _block_at: Dictionary = {}
 var _grass: Array = []
 var _rock: Array = []
 
@@ -149,6 +166,7 @@ func build() -> void:
 			block.position = map.screen_of(col, row)
 			add_child(block)
 			_blocks.append(block)
+			_block_at[Vector2i(col, row)] = block
 
 			var mask := Autotile.mask_at(land, col, row)
 			var bcol := Autotile.blob_col(mask)
@@ -203,6 +221,36 @@ func build() -> void:
 				-(TILE - Iso.BURROW_TILE_H) * 0.5 - grown
 			)
 			block.add_child(ground)
+
+
+## MONTE QUELQUE CHOSE SUR UNE CASE, DANS SON BLOC.
+##
+## C'est LE moyen de poser un voile — losange de placement, marqueur de piege —
+## sur une tuile : dans le bloc de la case, pas en frere libre entre deux
+## profondeurs. Une case ne peut pas s'entrelacer avec une case, donc un voile
+## monte ici est trie AVEC le sol qu'il recouvre, sur un plateau en terrasses
+## comme sur un plat, et sans qu'on ait a y penser.
+##
+## CE CONTRAT ECRASE LA POSITION du noeud avec le centre du losange, et c'est
+## deliberé : cette fonction existe pour les recouvrements EN FORME DE CASE.
+## Une planche de cloture n'en est pas un — elle est ancree sur le pied d'un
+## poteau, sur une arete — et c'est pourquoi FenceView ne passe pas par ici.
+##
+## Repond false quand la case n'a pas de bloc (la mer) : a l'appelant de se
+## rabattre sur un placement a plat.
+func mount_veil(cell: Vector2i, veil: Node2D, z: int = Z_VEIL) -> bool:
+	var block: Node2D = _block_at.get(cell)
+	if block == null:
+		return false
+	veil.position = Vector2(0, Iso.half_h())
+	veil.z_index = z
+	block.add_child(veil)
+	return true
+
+
+## Le bloc d'une case existe-t-il ? (Pour savoir avant de construire.)
+func has_block(cell: Vector2i) -> bool:
+	return _block_at.has(cell)
 
 
 ## LA NAPPE, taillee a la forme du plateau.
@@ -283,6 +331,7 @@ func clear() -> void:
 	for block in _blocks:
 		block.queue_free()
 	_blocks.clear()
+	_block_at.clear()
 	if _underlay != null:
 		_underlay.queue_free()
 		_underlay = null
