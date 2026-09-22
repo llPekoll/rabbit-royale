@@ -30,6 +30,9 @@ const CAM_EPSILON_POS := 0.5
 
 var _seed := 1
 var _quit: PlankButton
+## Provisoire, avec le bouton de cadrage — voir `_add_quit`.
+var _cycle: PlankButton
+var _cam_mode := 0
 
 ## LES TROIS FAITS DONT LA CAMERA SE SERT pour choisir sa prise. Ils viendront
 ## du serveur et des boutons ; ils sont ici pour que la selection existe deja
@@ -109,6 +112,27 @@ func _add_quit() -> void:
 	_quit.relabel(I18N.t("sign_out"))
 	_quit.pressed.connect(_on_quit)
 	layer.add_child(_quit)
+
+	# LE BOUTON DE CADRAGE — provisoire, et pour la meme raison que la porte de
+	# sortie : sans lui, trois des quatre prises ne sont atteignables que par un
+	# etat de jeu qui n'existe pas encore (un piege qu'on pose, une cloture
+	# qu'on achete, un raid). Il disparaitra quand ces etats arriveront.
+	_cycle = preload("res://scenes/plank_button.tscn").instantiate()
+	_cycle.custom_minimum_size = Vector2(220, 44)
+	_cycle.size = Vector2(220, 44)
+	_cycle.position = Vector2(244, 12)
+	_cycle.relabel("CAM: HOME")
+	_cycle.pressed.connect(_on_cycle)
+	layer.add_child(_cycle)
+
+
+## Fait tourner les quatre prises, pour les voir sur l'appareil.
+func _on_cycle() -> void:
+	_cam_mode = (_cam_mode + 1) % 4
+	set_raiding(_cam_mode == 1)
+	set_placing(_cam_mode == 2)
+	set_walling(_cam_mode == 3)
+	_cycle.relabel("CAM: " + ["HOME", "BOARD", "PLACE", "WALL"][_cam_mode])
 
 
 ## Deconnexion : on oublie le jeton et on revient a l'accueil.
