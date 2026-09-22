@@ -106,6 +106,13 @@ func _ready() -> void:
 	# donnerait un SECOND terrier par-dessus celui qu'on restaure, et c'est la
 	# seule erreur ici qui perd le travail de quelqu'un.
 	_busy(true)
+	# `-- --doorstep` : l'accueil tel qu'un nouveau venu le voit, sans
+	# reprendre la session enregistree (qui reste intacte). Outil, pas
+	# comportement.
+	if "--doorstep" in OS.get_cmdline_user_args():
+		_busy(false)
+		_refresh_doors()
+		return
 	if await Session.restore():
 		_enter()
 		_busy(false)
@@ -256,8 +263,8 @@ func _roll_tip() -> void:
 ## Tous les mots de l'ecran, reecrits dans la langue affichee.
 func _apply_language() -> void:
 	_apply_face()
-	_connect.relabel(I18N.shout(I18N.t("auth.connect")))
-	_guest.relabel(I18N.shout(I18N.t("auth.guest")))
+	_connect.relabel(I18N.t("auth.connect"))
+	_guest.relabel(I18N.t("auth.guest"))
 	_ribbon.text = I18N.t("codex.title").to_upper()
 	var here := I18N.LOCALES[I18N.locale_index(I18N.locale)]
 	# Le drapeau voyage DANS le texte : c'est lui qui dit ce qu'est ce bouton,
@@ -357,14 +364,14 @@ func _on_guest() -> void:
 ## plus jamais.
 func _working(door: PlankButton, busy: bool) -> void:
 	if busy:
-		door.relabel(I18N.shout(I18N.t("auth.connecting")))
+		door.relabel(I18N.t("auth.connecting"))
 		return
 	# Rendu depuis le dictionnaire plutot que memorise : entre-temps la langue
 	# a pu changer, et restaurer l'ancienne chaine la ferait reapparaitre.
 	if door == _connect:
-		door.relabel(I18N.shout(I18N.t("auth.connect")))
+		door.relabel(I18N.t("auth.connect"))
 	elif door == _guest:
-		door.relabel(I18N.shout(I18N.t("auth.guest")))
+		door.relabel(I18N.t("auth.guest"))
 
 
 ## Connecte. Le nom du lapin monte EN HAUT A DROITE, pas dans la colonne.

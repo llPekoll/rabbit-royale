@@ -142,6 +142,13 @@ func _dev_open() -> void:
 		"islands":
 			var picker := IslandPicker.new()
 			open(picker)
+		"history":
+			var profile := Profile.open()
+			profile._show_tab(Profile.Tab.HISTORY)
+		# `linger` : le tampon reste pose, pour qu'une capture le trouve.
+		"levelup": LevelUpStamp.announce(int(Home.burrow.get("level", 1)) + 1).linger = true
+		"raided": RaidedStamp.announce({"by": "Thistle", "others": 1, "carrots": 340, "defended": false, "count": 2}).linger = true
+		"defended": RaidedStamp.announce({"by": "Thistle", "others": 0, "carrots": 0, "defended": true, "count": 1}).linger = true
 		_: _on_door(what)
 
 

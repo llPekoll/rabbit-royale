@@ -219,11 +219,28 @@ func add_row(heading: String, value: Control = null) -> HBoxContainer:
 	h.uppercase = I18N.pixel_face()
 	h.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.clip_text = true
+	# RETRECIT PLUTOT QUE DE COUPER : sur un ecran moins allonge que le
+	# Seeker (le bureau, une tablette), l'image du terrier grandit avec la
+	# carte et « BURROW LVL 1 » sortait « BURROW L ». Plancher a 9px.
+	var wanted := card_size(14, 9, 14)
+	h.resized.connect(func() -> void: _fit(h, wanted))
 	row.add_child(h)
 	if value != null:
 		row.add_child(value)
 	body.add_child(row)
 	return row
+
+
+func _fit(label: Label, wanted: int) -> void:
+	var room := label.size.x
+	if room <= 0.0:
+		return
+	var font := label.get_theme_font("font")
+	var chosen := wanted
+	while chosen > 9 and font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, chosen).x > room:
+		chosen -= 1
+	if label.get_theme_font_size("font_size") != chosen:
+		label.add_theme_font_size_override("font_size", chosen)
 
 
 ## UNE VALEUR : un chiffre dans la face pixel, une marque de carotte a cote

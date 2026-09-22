@@ -104,6 +104,16 @@ func add_word(text: String, size: int) -> Label:
 	l.clip_text = true
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	content.add_child(l)
+	# Le mot se retrecit dans le bandeau, bouts a feuilles exclus, au lieu de
+	# passer dessous (« UPGRADE » debordait, « CREUSER PLUS » aussi).
+	l.resized.connect(func() -> void:
+		var room := l.size.x - 2.0 * float(Kit.NOTICE_CAP) + 16.0
+		var font := l.get_theme_font("font")
+		var chosen := size
+		while chosen > 8 and font.get_string_size(l.text, HORIZONTAL_ALIGNMENT_LEFT, -1, chosen).x > room:
+			chosen -= 1
+		if l.get_theme_font_size("font_size") != chosen:
+			l.add_theme_font_size_override("font_size", chosen))
 	return l
 
 
