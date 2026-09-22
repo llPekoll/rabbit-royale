@@ -420,6 +420,26 @@ func _enter() -> void:
 	_who.text = String(Session.player.get("name", ""))
 	_who.visible = not _who.text.is_empty()
 
+	# LE MONDE S'OUVRE — MAIS PAS AVANT LA PROCHAINE IMAGE.
+	#
+	# Cet `await` n'est pas une precaution vague, il repare un vrai
+	# enchainement. Une session RESTAUREE arrive tot : `Screens.show_doorstep`
+	# fait `add_child`, Godot execute aussitot le `_ready` de l'accueil, qui
+	# restaure la session et atterrit ici — le tout AVANT que `show_doorstep`
+	# ait fini. On demandait donc a monter le terrier pendant que l'accueil
+	# etait encore en train de s'installer, et rien ne se passait.
+	#
+	# Le symptome etait net et trompeur : le bouton invite marchait, mais
+	# relancer l'app avec une session deja ouverte restait bloque sur
+	# l'accueil, sans la moindre erreur dans les journaux.
+	#
+	# Les deux lieux sont construits ici et pas au demarrage : ils veulent le
+	# terrier du joueur et sa graine, qui n'existent pas tant que personne
+	# n'est connecte.
+	await get_tree().process_frame
+	Screens.build_world()
+	Screens.show_place(Screens.Place.BURROW)
+
 
 ## Un bouton qui ne peut pas marcher est grise, pas cache : sur un bureau
 ## l'accueil doit montrer ce que le telephone offre, et une planche grisee dit

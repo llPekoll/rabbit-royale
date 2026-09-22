@@ -55,7 +55,32 @@ const Z_FACE := -10
 const Z_RIM := 0
 const Z_GROUND := 1
 
+## LA NAPPE SOUS LE PLATEAU.
+##
+## Les tuiles sont des losanges poses cote a cote, et entre deux d'entre eux le
+## fond passe : a l'echelle du telephone, ca fait des traits noirs en diagonale
+## sur tout le terrain. Elargir les tuiles fermerait les coutures mais
+## deformerait l'art.
+##
+## Une nappe de la couleur de l'herbe, dessinee SOUS tout, suffit : les trous
+## laissent voir du vert au lieu du vide, et personne ne les remarque plus. La
+## teinte est echantillonnee sur le dessus d'une tuile de palette-1, pas
+## choisie a l'oeil.
+const UNDERLAY := Color("#9bb94e")
+
+## LA NAPPE S'ARRETE UNE CASE AVANT LE BORD.
+##
+## Son travail est de boucher les coutures INTERIEURES ; sur le pourtour il n'y
+## a rien a boucher, et un aplat qui depasse du bord dentele se voit tout de
+## suite — une bande verte plate au-dela de l'herbe texturee, ce qui est pire
+## que le trou qu'elle corrige.
+##
+## On ne la pose donc que sous les cases entourees de terre des quatre cotes.
+## Le bord garde ses tuiles seules, et elles n'ont pas de voisine avec qui
+## faire une couture.
+
 var map: BurrowMap
+var _underlay: Polygon2D
 var _blocks: Array[Node2D] = []
 var _grass: Array = []
 var _rock: Array = []
@@ -91,6 +116,8 @@ func build() -> void:
 	clear()
 	if map == null:
 		return
+
+	_paint_underlay()
 
 	var land := func(x: int, y: int) -> bool:
 		return map.is_land(x, y)
@@ -178,6 +205,50 @@ func build() -> void:
 			block.add_child(ground)
 
 
+## LA NAPPE, taillee a la forme du plateau.
+##
+## Un rectangle ferait l'affaire pour les coutures interieures, mais il
+## deborderait du losange et mettrait du vert dans le ciel. On suit donc le
+## contour : pour chaque case de terre, son losange, fondus en un seul
+## polygone par le moteur.
+##
+## Dessinee TRES en arriere (z_index plancher) pour qu'aucun bloc ne passe
+## derriere elle, quelle que soit sa profondeur.
+func _paint_underlay() -> void:
+	if _underlay != null:
+		_underlay.queue_free()
+	_underlay = Polygon2D.new()
+	_underlay.color = UNDERLAY
+	_underlay.z_index = -4096
+	add_child(_underlay)
+
+	# Un losange par case, tous dans le meme Polygon2D via ses `polygons`.
+	var points := PackedVector2Array()
+	var faces := []
+	var hw := Iso.half_w()
+	var hh := Iso.half_h()
+	for row in range(map.height):
+		for col in range(map.width):
+			if not map.is_land(col, row):
+				continue
+			# Une case du POURTOUR n'a pas de couture a cacher : on la saute,
+			# sinon la nappe deborde de l'herbe.
+			if not (map.is_land(col - 1, row) and map.is_land(col + 1, row)
+					and map.is_land(col, row - 1) and map.is_land(col, row + 1)):
+				continue
+			var at := map.screen_of(col, row)
+			var base := points.size()
+			# Le losange est GROSSI d'un pixel : c'est lui qui recouvre la
+			# couture, et un pixel suffit puisque c'est la largeur du trou.
+			points.append(at + Vector2(0, -hh - 1))
+			points.append(at + Vector2(hw + 1, 0))
+			points.append(at + Vector2(0, hh + 1))
+			points.append(at + Vector2(-hw - 1, 0))
+			faces.append(PackedInt32Array([base, base + 1, base + 2, base + 3]))
+	_underlay.polygon = points
+	_underlay.polygons = faces
+
+
 func clear() -> void:
 	# LES NOEUDS ET LEUR LISTE MEURENT ENSEMBLE. Le web a paye cette lecon avec
 	# des bombes qui disparaissaient : un cache indexe par noeud avait survecu a
@@ -186,6 +257,9 @@ func clear() -> void:
 	for block in _blocks:
 		block.queue_free()
 	_blocks.clear()
+	if _underlay != null:
+		_underlay.queue_free()
+		_underlay = null
 
 
 ## Decoupe une grille de tuiles de 64 a partir d'une colonne d'origine.

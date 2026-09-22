@@ -1,31 +1,109 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene format=3 uid="uid://cwla0w7pcybia"]
 
-; L'ACCUEIL, repeint d'apres le client web (src/app/page.tsx `.rr-empty` +
-; `.rr-home-art` + `.rr-masthead`, components/logo-banner.tsx et globals.css).
-;
-; La geometrie n'est pas approchee : chaque nombre ici sort d'une regle CSS
-; mesuree, resolue pour le Seeker couche (890x400). Le chiffre qui commande
-; tout est `--rr-doorstep` = min(67vh, 100vh - 170 - 24), soit 206px : le
-; masthead finit dessus, la colonne des boutons commence dessus. Ils se
-; touchent par construction, a toute taille d'ecran.
-
-[ext_resource type="Script" path="res://scripts/title.gd" id="1_title"]
+[ext_resource type="Script" uid="uid://s0yqcw6t0r4" path="res://scripts/title.gd" id="1_title"]
 [ext_resource type="PackedScene" path="res://scenes/plank_button.tscn" id="2_plank"]
-[ext_resource type="Texture2D" path="res://assets/ui/rr-logo-1x.webp" id="3_logo"]
-[ext_resource type="Texture2D" path="res://assets/ui/home-bg.webp" id="4_bg"]
-[ext_resource type="Texture2D" path="res://assets/ui/hint-plank.webp" id="5_hint"]
+[ext_resource type="Texture2D" uid="uid://47s8msgbxoua" path="res://assets/ui/rr-logo-1x.webp" id="3_logo"]
+[ext_resource type="Texture2D" uid="uid://bryu0kq713y08" path="res://assets/ui/home-bg.webp" id="4_bg"]
+[ext_resource type="Texture2D" uid="uid://c52gml5en6uui" path="res://assets/ui/hint-plank.webp" id="5_hint"]
 
-; LE VOILE GAUCHE. Deux degrades empiles en CSS ; celui-ci est l'horizontal,
-; qui porte la colonne du menu : rgba(8,11,16) de .86 a 0, eteint a 50%.
 [sub_resource type="Gradient" id="Gradient_veil"]
 offsets = PackedFloat32Array(0, 0.14, 0.26, 0.38, 0.5)
 colors = PackedColorArray(0.031, 0.043, 0.063, 0.86, 0.031, 0.043, 0.063, 0.78, 0.031, 0.043, 0.063, 0.52, 0.031, 0.043, 0.063, 0.2, 0.031, 0.043, 0.063, 0)
 
 [sub_resource type="GradientTexture2D" id="GradientTexture2D_veil"]
 gradient = SubResource("Gradient_veil")
-fill_to = Vector2(1, 0)
 
-[node name="Title" type="Control"]
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_b3w7a"]
+content_margin_left = 38.0
+content_margin_top = 8.0
+content_margin_right = 38.0
+content_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_4rr2b"]
+content_margin_left = 38.0
+content_margin_top = 8.0
+content_margin_right = 38.0
+content_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_yql1r"]
+content_margin_left = 38.0
+content_margin_top = 8.0
+content_margin_right = 38.0
+content_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ia1n6"]
+content_margin_left = 38.0
+content_margin_top = 8.0
+content_margin_right = 38.0
+content_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_hiwto"]
+content_margin_left = 38.0
+content_margin_top = 8.0
+content_margin_right = 38.0
+content_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_w65of"]
+content_margin_left = 33.0
+content_margin_top = 8.0
+content_margin_right = 33.0
+content_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ygloa"]
+content_margin_left = 33.0
+content_margin_top = 8.0
+content_margin_right = 33.0
+content_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_6civk"]
+content_margin_left = 33.0
+content_margin_top = 8.0
+content_margin_right = 33.0
+content_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_7af2g"]
+content_margin_left = 33.0
+content_margin_top = 8.0
+content_margin_right = 33.0
+content_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_81wt4"]
+content_margin_left = 33.0
+content_margin_top = 8.0
+content_margin_right = 33.0
+content_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_kcc3o"]
+content_margin_left = 33.0
+content_margin_top = 8.0
+content_margin_right = 33.0
+content_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_6rcc6"]
+content_margin_left = 33.0
+content_margin_top = 8.0
+content_margin_right = 33.0
+content_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ah8jo"]
+content_margin_left = 33.0
+content_margin_top = 8.0
+content_margin_right = 33.0
+content_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_blk4q"]
+content_margin_left = 33.0
+content_margin_top = 8.0
+content_margin_right = 33.0
+content_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_8magm"]
+content_margin_left = 33.0
+content_margin_top = 8.0
+content_margin_right = 33.0
+content_margin_bottom = 8.0
+
+[node name="Title" type="Control" unique_id=306226243]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -34,9 +112,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_title")
 
-; LE FOND. `cover` en CSS : l'image remplit l'ecran en gardant ses proportions
-; et deborde sur l'axe long. STRETCH_KEEP_ASPECT_COVERED fait exactement ca.
-[node name="Art" type="TextureRect" parent="."]
+[node name="Art" type="TextureRect" parent="." unique_id=615507224]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -47,8 +123,7 @@ texture = ExtResource("4_bg")
 expand_mode = 1
 stretch_mode = 6
 
-; Le voile qui rend la colonne lisible par-dessus l'illustration.
-[node name="Veil" type="TextureRect" parent="."]
+[node name="Veil" type="TextureRect" parent="." unique_id=277588866]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -57,12 +132,8 @@ grow_horizontal = 2
 grow_vertical = 2
 texture = SubResource("GradientTexture2D_veil")
 expand_mode = 1
-stretch_mode = 0
 
-; L'assise basse, le second degrade du CSS : rgba(13,17,23) .34 -> 0 sur le
-; tiers inferieur. Un ColorRect suffirait mal — il faut le fondu, donc c'est un
-; TextureRect tourne, pose par le script (voir title.gd `_paint_floor`).
-[node name="Floor" type="TextureRect" parent="."]
+[node name="Floor" type="TextureRect" parent="." unique_id=38580358]
 layout_mode = 1
 anchors_preset = 12
 anchor_top = 1.0
@@ -72,20 +143,15 @@ offset_top = -136.0
 grow_horizontal = 2
 grow_vertical = 0
 expand_mode = 1
-stretch_mode = 0
 
-; LE MASTHEAD : boite fixe de y=0 a y=206 (--rr-doorstep), large de
-; min(38vw, 420). L'embleme est colle EN BAS de cette boite, moins 14px.
-[node name="Masthead" type="Control" parent="."]
+[node name="Masthead" type="Control" parent="." unique_id=1693277634]
 unique_name_in_owner = true
 layout_mode = 1
-anchors_preset = 9
-anchor_bottom = 0.0
+anchors_preset = 0
 offset_right = 338.0
 offset_bottom = 206.0
-grow_vertical = 1
 
-[node name="LogoStack" type="Control" parent="Masthead"]
+[node name="LogoStack" type="Control" parent="Masthead" unique_id=1448370727]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 7
@@ -100,7 +166,7 @@ offset_bottom = -14.0
 grow_horizontal = 2
 grow_vertical = 0
 
-[node name="Logo" type="TextureRect" parent="Masthead/LogoStack"]
+[node name="Logo" type="TextureRect" parent="Masthead/LogoStack" unique_id=896190166]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -112,9 +178,7 @@ texture = ExtResource("3_logo")
 expand_mode = 1
 stretch_mode = 5
 
-; LE RUBAN. La boite est un pourcentage de l'embleme (x 17..79, y 93..98 d'un
-; 96x106), donc elle suit l'echelle sans etre recalculee a la main.
-[node name="Ribbon" type="Label" parent="Masthead/LogoStack"]
+[node name="Ribbon" type="Label" parent="Masthead/LogoStack" unique_id=1786130154]
 unique_name_in_owner = true
 layout_mode = 0
 offset_left = 17.0
@@ -127,36 +191,50 @@ text = "THE CURSED CROWN"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-; LA COLONNE : fixe, collee a gauche, commencant pile sur la ligne des 206px.
-[node name="Ask" type="Control" parent="."]
+[node name="Ask" type="Control" parent="." unique_id=634597823]
 unique_name_in_owner = true
 layout_mode = 1
-anchors_preset = 9
-anchor_bottom = 0.0
+anchors_preset = 0
 offset_top = 206.0
 offset_right = 338.0
 offset_bottom = 400.0
-grow_vertical = 1
 
-[node name="Connect" parent="Ask" instance=ExtResource("2_plank")]
+[node name="Connect" parent="Ask" unique_id=119660077 instance=ExtResource("2_plank")]
 unique_name_in_owner = true
-layout_mode = 0
 custom_minimum_size = Vector2(338, 64)
+layout_mode = 0
+theme_override_colors/font_color = Color(0, 0, 0, 0)
+theme_override_colors/font_focus_color = Color(0, 0, 0, 0)
+theme_override_colors/font_pressed_color = Color(0, 0, 0, 0)
+theme_override_colors/font_hover_color = Color(0, 0, 0, 0)
+theme_override_colors/font_disabled_color = Color(0, 0, 0, 0)
+theme_override_font_sizes/font_size = 1
+theme_override_styles/normal = SubResource("StyleBoxEmpty_b3w7a")
+theme_override_styles/pressed = SubResource("StyleBoxEmpty_4rr2b")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_yql1r")
+theme_override_styles/disabled = SubResource("StyleBoxEmpty_ia1n6")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_hiwto")
 text = "CONNECT WALLET"
 board = 1
 label_size = 18
 
-[node name="Guest" parent="Ask" instance=ExtResource("2_plank")]
+[node name="Guest" parent="Ask" unique_id=723978942 instance=ExtResource("2_plank")]
 unique_name_in_owner = true
 layout_mode = 0
-custom_minimum_size = Vector2(300, 44)
+theme_override_colors/font_color = Color(0, 0, 0, 0)
+theme_override_colors/font_focus_color = Color(0, 0, 0, 0)
+theme_override_colors/font_pressed_color = Color(0, 0, 0, 0)
+theme_override_colors/font_hover_color = Color(0, 0, 0, 0)
+theme_override_colors/font_disabled_color = Color(0, 0, 0, 0)
+theme_override_font_sizes/font_size = 1
+theme_override_styles/normal = SubResource("StyleBoxEmpty_w65of")
+theme_override_styles/pressed = SubResource("StyleBoxEmpty_ygloa")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_6civk")
+theme_override_styles/disabled = SubResource("StyleBoxEmpty_7af2g")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_81wt4")
 text = "PLAY AS A GUEST"
-label_size = 14
 
-; La ligne d'erreur n'existe dans le DOM que s'il y a une erreur. Ici elle est
-; masquee : un Label vide prendrait quand meme sa place dans le VBox et
-; ecarterait le selecteur de langue de 8px en permanence.
-[node name="Status" type="Label" parent="Ask"]
+[node name="Status" type="Label" parent="Ask" unique_id=341108655]
 unique_name_in_owner = true
 visible = false
 layout_mode = 0
@@ -165,17 +243,23 @@ theme_override_font_sizes/font_size = 12
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="Language" parent="Ask" instance=ExtResource("2_plank")]
+[node name="Language" parent="Ask" unique_id=53609134 instance=ExtResource("2_plank")]
 unique_name_in_owner = true
 layout_mode = 0
-custom_minimum_size = Vector2(300, 44)
+theme_override_colors/font_color = Color(0, 0, 0, 0)
+theme_override_colors/font_focus_color = Color(0, 0, 0, 0)
+theme_override_colors/font_pressed_color = Color(0, 0, 0, 0)
+theme_override_colors/font_hover_color = Color(0, 0, 0, 0)
+theme_override_colors/font_disabled_color = Color(0, 0, 0, 0)
+theme_override_font_sizes/font_size = 1
+theme_override_styles/normal = SubResource("StyleBoxEmpty_kcc3o")
+theme_override_styles/pressed = SubResource("StyleBoxEmpty_6rcc6")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_ah8jo")
+theme_override_styles/disabled = SubResource("StyleBoxEmpty_blk4q")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_8magm")
 text = "English"
-label_size = 14
 
-; LA PLANCHE DES CONSEILS, coin bas-droit, 10px des deux bords. 340 de large
-; (max(260, min(46vw, 340))), et une hauteur qui reserve DEUX lignes pour que
-; la planche ne change pas de taille d'une phrase a l'autre.
-[node name="Tip" type="NinePatchRect" parent="."]
+[node name="Tip" type="NinePatchRect" parent="." unique_id=1149640791]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 3
@@ -195,7 +279,7 @@ patch_margin_top = 10
 patch_margin_right = 46
 patch_margin_bottom = 10
 
-[node name="TipText" type="Label" parent="Tip"]
+[node name="TipText" type="Label" parent="Tip" unique_id=1436754168]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -213,11 +297,7 @@ horizontal_alignment = 1
 vertical_alignment = 1
 autowrap_mode = 3
 
-; LE NOM DU LAPIN CONNECTE, coin haut-droit.
-;
-; Loin de la colonne, sur la bande de ciel ou rien d'autre ne se lit. Discret
-; par construction : c'est un rappel de qui l'on est, pas une annonce.
-[node name="Who" type="Label" parent="."]
+[node name="Who" type="Label" parent="." unique_id=1732504340]
 unique_name_in_owner = true
 visible = false
 layout_mode = 1

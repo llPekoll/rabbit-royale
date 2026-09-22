@@ -1,6 +1,6 @@
-[gd_resource type="Theme" load_steps=3 format=3]
+[gd_resource type="Theme" format=3 uid="uid://dk11jqoltwu2p"]
 
-[ext_resource type="FontFile" path="res://assets/fonts/d8-pixel.woff2" id="1_pixel"]
+[ext_resource type="FontFile" uid="uid://bg718pdqe7bny" path="res://assets/fonts/d8-pixel.woff2" id="1_pixel"]
 
 [sub_resource type="FontVariation" id="FontVariation_face"]
 base_font = ExtResource("1_pixel")

@@ -46,6 +46,7 @@ const DICT := {
 		"err_wallet_taken": "THAT WALLET ALREADY HAS A BURROW",
 		"err_wallet_taken_by": "THAT WALLET ALREADY DIGS AS %s",
 		"err_already_linked": "THIS BURROW ALREADY HAS A WALLET",
+		"sign_out": "SIGN OUT",
 		"tips": [
 			"THE NUMBER ON A TILE COUNTS THE BOMBS TOUCHING IT",
 			"DIGGING COSTS 1 ENERGY - A BOMB COSTS 30",
@@ -75,6 +76,7 @@ const DICT := {
 		"err_wallet_taken": "Ce portefeuille a déjà un terrier",
 		"err_wallet_taken_by": "Ce portefeuille creuse déjà sous le nom de %s",
 		"err_already_linked": "Ce terrier a déjà un portefeuille",
+		"sign_out": "Se déconnecter",
 		"tips": [
 			"LE NUMÉRO SUR UNE CASE COMPTE LES BOMBES QUI LA TOUCHENT",
 			"CREUSER COÛTE 1 D’ÉNERGIE - UNE BOMBE EN COÛTE 30",
@@ -104,6 +106,7 @@ const DICT := {
 		"err_wallet_taken": "该钱包已拥有一个地洞",
 		"err_wallet_taken_by": "该钱包已以 %s 的身份挖掘",
 		"err_already_linked": "此地洞已绑定钱包",
+		"sign_out": "退出登录",
 		"tips": [
 			"方块上的数字表示与它相邻的炸弹数量",
 			"挖掘消耗 1 点能量 - 踩到炸弹消耗 30 点",
@@ -133,6 +136,7 @@ const DICT := {
 		"err_wallet_taken": "Essa carteira já tem uma toca",
 		"err_wallet_taken_by": "Essa carteira já cava como %s",
 		"err_already_linked": "Esta toca já tem uma carteira",
+		"sign_out": "Sair",
 		"tips": [
 			"O NÚMERO NUM BLOCO CONTA AS BOMBAS QUE O TOCAM",
 			"CAVAR CUSTA 1 DE ENERGIA - UMA BOMBA CUSTA 30",
