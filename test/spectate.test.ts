@@ -180,8 +180,21 @@ describe('digging presence', () => {
     // Scores barely move; who is on an island changes by the minute, and a
     // watch button pointing at someone who left ten minutes ago is worse than
     // no button at all.
-    expect(DRAWER).toMatch(/setInterval\(load/);
+    expect(DRAWER).toMatch(/setInterval\(/);
+    expect(DRAWER).toMatch(/load\(\)/);
     // ...and the poll must be cleaned up, or every open leaks a timer.
     expect(DRAWER).toMatch(/clearInterval\(id\)/);
+  });
+
+  it('only pays for the fast beat while the board is open', () => {
+    // The board polls presence every 20s, which is only worth it while the
+    // list is on screen. Shut, it still owes the trophy badge and the carrot
+    // pill their rank, so it drops to a slow beat rather than stopping — and
+    // the interval is keyed on `open` so the cadence actually changes.
+    expect(DRAWER).toMatch(/open \? 20_000 :/);
+    expect(DRAWER).toMatch(/\[token, open\]/);
+    // A forgotten tab must not keep asking all night: the browser throttles a
+    // background timer, it does not stop it.
+    expect(DRAWER).toMatch(/visibilityState === 'visible'/);
   });
 });

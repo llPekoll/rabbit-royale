@@ -119,10 +119,10 @@ export function LeaderboardDrawer({ token, playerId, onSpectate, onMe, onOpen }:
      a tap without having to be showing. */
 
   /* `onMe` through a ref, not through the effect's deps.
-     The poll is keyed on `[token]` so it is set up once; putting a callback in
-     the deps would tear the interval down and rebuild it on every parent
-     render (the page passes an inline arrow), and leaving it out of the deps
-     would freeze the first render's closure. A ref is neither. */
+     The poll is keyed on `[token, open]`, so it rebuilds only on those two;
+     putting a callback in the deps would tear the interval down and rebuild it
+     on every parent render (the page passes an inline arrow), and leaving it
+     out of the deps would freeze the first render's closure. A ref is neither. */
   const onMeRef = useRef(onMe);
   onMeRef.current = onMe;
 
@@ -144,14 +144,33 @@ export function LeaderboardDrawer({ token, playerId, onSpectate, onMe, onOpen }:
     };
 
     load();
-    // Scores barely move, but WHO IS DIGGING changes by the minute — and a
-    // "watch" button pointing at someone who logged off ten minutes ago is
-    // worse than no button. Fetched rather than pushed: the board is open for
-    // seconds at a time on a phone, and a socket for it would cost more than
-    // the poll it replaces.
-    const id = setInterval(load, 20_000);
+    /**
+     * TWO CADENCES, because the closed board and the open one need different
+     * things.
+     *
+     * Scores barely move, but WHO IS DIGGING changes by the minute — and a
+     * "watch" button pointing at someone who logged off ten minutes ago is
+     * worse than no button. That freshness is only worth paying for while the
+     * list is on screen, so the 20s beat is scoped to `open`.
+     *
+     * Shut, the board still owes three things their number: the trophy's rank
+     * badge, the carrot pill's rank and gap (`onMe`), and the crown over the
+     * home rabbit. None of them is urgent — a rank is hours of digging away
+     * from changing — so they ride a slow beat instead of the board's.
+     *
+     * Fetched rather than pushed: the board is open for seconds at a time on a
+     * phone, and a socket for it would cost more than the poll it replaces.
+     *
+     * Skipped on a hidden tab either way. Without this, a forgotten tab kept
+     * asking all night for a board nobody was looking at — the browser throttles
+     * a background timer, it does not stop it.
+     */
+    const every = open ? 20_000 : 5 * 60_000;
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') load();
+    }, every);
     return () => { alive = false; clearInterval(id); };
-  }, [token]);
+  }, [token, open]);
 
   const daysLeft = season
     ? Math.max(0, Math.ceil((new Date(season.endsAt).getTime() - Date.now()) / 86_400_000))
