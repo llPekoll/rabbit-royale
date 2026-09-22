@@ -153,6 +153,26 @@ func clear() -> void:
 	_walkable.clear()
 
 
+## FAIT ATTERRIR UN SAUT EN COURS, avant d'en lancer un autre.
+##
+## LE BUG QUE CECI CORRIGE : `_hop.kill()` abandonne le tween LA OU IL EN EST,
+## donc a mi-chemin entre deux cases. Le saut suivant repartait de ce
+## demi-point et l'erreur s'accumulait — mesure, dix gestes sur trente
+## laissaient le lapin desaligne, jusqu'a trente-cinq pixels. Paul : « le lapin
+## est entre 2 tile », et il l'a dit deux fois avant que je regarde au bon
+## endroit.
+##
+## LA POSITION APPARTIENT A LA CASE, PAS AU TWEEN. Un saut interrompu doit donc
+## se terminer d'abord : on tue l'animation ET on pose la case ou le lapin est
+## cense etre. `_place()` relit `_at`, qui est deja a jour — c'est la seule
+## verite.
+func _land() -> void:
+	if _hop != null and _hop.is_valid():
+		_hop.kill()
+	_hop = null
+	_place()
+
+
 ## OU IL SE TIENT, a l'ecran — et a quelle profondeur.
 ##
 ## Les pieds au centre du losange, comme la maison et les clotures : c'est le
@@ -222,6 +242,10 @@ func _step() -> void:
 		return
 
 	var to: Vector2i = options[_rng.randi() % options.size()]
+	# ON ATTERRIT D'ABORD, TANT QUE `_at` NOMME ENCORE LA CASE DE DEPART.
+	# Apres l'affectation ci-dessous, `_place()` teleporterait a l'arrivee au
+	# lieu de terminer le saut en cours — et le saut ne se verrait plus.
+	_land()
 	# IL REGARDE OU IL VA. Un miroir en x, jamais une rotation.
 	if to.x != _at.x:
 		_sprite.flip_h = to.x < _at.x
@@ -234,8 +258,6 @@ func _step() -> void:
 	# lapin appartient a l'une ou a l'autre — et le web recoupe son DepthHole a
 	# CHAQUE image pour cette raison : « un trou place a l'arrivee resterait une
 	# cellule en arriere pendant toute la duree du saut ».
-	if _hop != null and _hop.is_valid():
-		_hop.kill()
 	var to_at := map.screen_of(to.x, to.y) + Vector2(0, Iso.half_h())
 	z_index = Iso.depth(to.x, to.y) + map.level_at(to.x, to.y) + DEPTH_BIAS
 	_hop = create_tween()
