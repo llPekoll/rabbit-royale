@@ -125,8 +125,6 @@ export interface CarrotPillProps {
 }
 
 /* ── Sampled from the reference ────────────────────────────────────────── */
-/** The carrot's drawn width at the 40px height the board gives it. */
-const CARROT_W = Math.round((CARROT_SIZE.width / CARROT_SIZE.height) * 40);
 const FACE_TOP = '#3a2415';
 
 /**
@@ -139,7 +137,29 @@ const FACE_TOP = '#3a2415';
  * exactly the carrot, and the climb line ran out over the right leaves
  * (Paul, 2026-09-21: "ca deborde de partout", "le text la ca depasse").
  */
-const STACK_W = dialRoom(DIAL_SIZE.height) - CARROT_W - 10;
+/*
+ * ...AND THE CARROT IS IN THE STACK NOW, so the stack is the WHOLE wood.
+ *
+ * The line above dates from the carrot standing beside the stack; since it
+ * moved to the end of the figure's own row (`topRow`, 2026-09-21) the row
+ * held figure + carrot inside a box that had already been narrowed by a
+ * carrot — so from four figures up the row overran it. The stack clips, and
+ * the carrot's box was what got cut on Chrome; on an iPhone the figure ran out
+ * over the leaves (Paul, 22 September 2026: "the carrot amount is bleeding
+ * out of the panel"). The stack is the grain now, and `figureSize` takes the
+ * carrot out of the figure's budget instead — the row is sized as the row
+ * that is actually drawn.
+ */
+const STACK_W = dialRoom(DIAL_SIZE.height);
+/**
+ * What the carrot takes off the figure's row: its box (`artBoxInline`, 32)
+ * and the row's gap (`--rr-pad-tight`, 6), less two pixels. The sprite is
+ * 18px of ink in a 32px box, so the figure may run two pixels into the
+ * box's air without touching the carrot — and those two pixels are what
+ * keep a four-figure pile ("9 999", 103px at the full face) on the full
+ * face, where a strict 38 would step it down for a gap nobody can see.
+ */
+const ROW_CARROT = 32 + 6 - 2;
 
 /** The figure — cream, the same ink the cards give a live value. */
 const INK = '#fde7bd';
@@ -672,7 +692,8 @@ const ROW_FURNITURE = 8 + 12;
  */
 export function figureSize(grouped: string, rank: string | null): number {
   const chip = rank === null ? 0 : CHIP_INSET + rank.length * CHIP_PER_DIGIT + ROW_FURNITURE;
-  const room = STACK_W - chip;
+  // The carrot shares the row (see `ROW_CARROT`), so it comes off the top.
+  const room = STACK_W - chip - ROW_CARROT;
   for (const [size, perChar] of FIGURE_STEPS) {
     if (grouped.length * perChar <= room) return size;
   }

@@ -113,6 +113,11 @@
   border-top: 0;
   padding: var(--rr-pad);
   min-height: 34px;
+  /* The explicit `min-height` above replaces the flex item's automatic one,
+     so a two-line footer (the brief and the raid's toll) could be squeezed
+     under the frame's bottom wood. The list is the part that scrolls; the
+     footer keeps its height. */
+  flex-shrink: 0;
 }
 
 /* ── The raid HUD ──────────────────────────────────────────────────────────

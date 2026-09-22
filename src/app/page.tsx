@@ -2970,6 +2970,7 @@ function Burrow() {
               digs={game.digs}
               warnStage={game.warnStage}
               armed={game.flagMode}
+              beside={game.teachReady}
             />
           )}
           {/* WHO JUST SHOVED YOU. Same strip, same place as the narration —
@@ -3222,6 +3223,7 @@ function Burrow() {
       {player && pickingIsland && where === 'burrow' && !shownRaid && (
         <IslandPicker
           listing={islandList}
+          lifetime={burrow?.lifetime ?? 0}
           busy={crossing}
           onChoose={chooseIsland}
           onClose={() => setPickingIsland(false)}

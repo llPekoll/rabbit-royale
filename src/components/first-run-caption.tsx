@@ -36,11 +36,13 @@ export interface FirstRunCaptionProps {
    * board ("now tap the tile") at the moment the mode actually flips.
    */
   armed?: boolean;
+  /** The rabbit is beside the taught bomb — the X lesson's cue. See `FirstRunState.beside`. */
+  beside?: boolean;
 }
 
-export function useFirstRunCaption({ firstRun, digs, warnStage, armed }: FirstRunCaptionProps): string | null {
+export function useFirstRunCaption({ firstRun, digs, warnStage, armed, beside }: FirstRunCaptionProps): string | null {
   const t = useT();
-  const state: FirstRunState = { ...digs, warnStage, armed };
+  const state: FirstRunState = { ...digs, warnStage, armed, beside };
   const beat = firstRun ? firstRunBeat(state) : null;
   const key = beat?.id ?? null;
   /**

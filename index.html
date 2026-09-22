@@ -46,7 +46,14 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Rabbit Royale" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <!--
+      L'icone d'accueil iOS : le lien, avec sa taille, ET la meme image a la
+      racine (`/apple-touch-icon.png`), qui est l'adresse que Safari sonde
+      quand il n'a pas pu lire celle du lien. Sur un iPhone l'icone posee sur
+      l'ecran d'accueil est arrivee vide (Paul, 22 septembre 2026) alors que
+      le fichier du lien est bon ; la copie a la racine est le filet.
+    -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
 
     <!--
       Le `beforeinstallprompt` de Chromium, attrape avant tout chunk de l'app :

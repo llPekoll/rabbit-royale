@@ -42,6 +42,20 @@ export interface FirstRunState {
    * looking for a tile. Optional: older fixtures predate it.
    */
   armed?: boolean;
+  /**
+   * Is the rabbit standing beside the taught bomb right now?
+   *
+   * The X lesson used to be cued by the TALLY (three tiles dug), which was
+   * a proxy for "you have reached the bomb" on the boards of the time. On
+   * the hand-drawn corridor (tutorial-map.ts) the rabbit is beside the bomb
+   * after ONE dig, and from there the hold (`teachingHold`) refuses every
+   * other dig — so the tally could never reach three, "the number counts
+   * the bombs" held forever, and nobody was ever told to press MARK A BOMB
+   * (22 September 2026: "i can't progress past the second checkpoint").
+   * The cue is the position now, the same fact the ghost X and the arrow
+   * over the button already answer to. Optional: older fixtures predate it.
+   */
+  beside?: boolean;
   warnStage: number;
 }
 
@@ -80,9 +94,14 @@ export const FIRST_RUN_BEATS: readonly FirstRunBeat[] = [
   // made available and names the button; `aim` only fires once the mode is
   // actually armed, which is the handover from the corner of the screen to a
   // cell in the middle of it.
-  { id: 'prove', when: (s) => s.tiles >= 3 },
-  { id: 'mark', when: (s) => s.tiles >= 3 && !s.armed },
-  { id: 'aim', when: (s) => s.armed === true },
+  // BESIDE THE BOMB, or three tiles in on a board that has no `beside` to
+  // report (see `FirstRunState.beside`). Both `mark` and `aim` HOLD: they are
+  // the ask the whole board is refusing every other step for, and an ask that
+  // faded after four seconds left the player with a buzzing ring and no
+  // sentence — the arrow over the button is a pointer, not an instruction.
+  { id: 'prove', when: (s) => s.beside === true || s.tiles >= 3 },
+  { id: 'mark', when: (s) => (s.beside === true || s.tiles >= 3) && !s.armed, sticky: true },
+  { id: 'aim', when: (s) => s.armed === true, sticky: true },
   { id: 'marked', when: (s) => (s.flags ?? 0) >= 1 },
   // ...and then the chest, which is where the first island already ends
   // (`run.ts` sets `tutorialDone` on it) and which already has an arrow over

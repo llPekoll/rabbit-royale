@@ -110,11 +110,22 @@ describe('chrome across the wipe', () => {
 describe('the burrow column is transparent to the board', () => {
   const CSS = readFileSync(new URL('../src/app/globals.css', import.meta.url), 'utf8');
 
-  it('lets taps through the column itself', () => {
-    expect(CSS).toMatch(/\.rr-burrow \{[^}]*pointer-events: none;/s);
+  /**
+   * THE COLUMN NO LONGER COVERS THE BOARD AT ALL (22 September 2026). It
+   * used to be a full-height sheet made transparent to the pointer with its
+   * panels opted back in — and on an iPhone a scroll box that is itself
+   * transparent to the pointer does not scroll (Paul: "the left column was
+   * not scrollable ... can't reproduce it in desktop Chrome"). Now the box is
+   * only as tall as its cards, so there is no empty sheet to see through and
+   * no pointer-events trick to break iOS scrolling.
+   */
+  it('is only as tall as its cards, never a sheet over the empty board', () => {
+    expect(CSS).toMatch(/\.rr-burrow \{[^}]*flex: 0 1 auto;/s);
+    expect(CSS).toMatch(/\.rr-burrow \{[^}]*align-self: flex-start;/s);
   });
 
-  it('gives the panels their clicks back', () => {
-    expect(CSS).toMatch(/\.rr-burrow > \* \{ pointer-events: auto; \}/);
+  it('takes the pointer like any scroll box — no pointer-events trick', () => {
+    expect(CSS).not.toMatch(/\.rr-burrow \{[^}]*pointer-events: none;/s);
+    expect(CSS).not.toMatch(/\.rr-burrow > \* \{ pointer-events: auto; \}/);
   });
 });

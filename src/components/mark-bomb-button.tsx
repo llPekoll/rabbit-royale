@@ -22,6 +22,7 @@ import type { CSSProperties } from "react";
 import { PixelArrow } from "@domin8/arcade-kit";
 import { useT } from "@/i18n/provider";
 import { PxButton, pxLabel } from "./px";
+import { TeachSpotlight } from "./teach-spotlight";
 
 export interface MarkBombButtonProps {
   armed: boolean;
@@ -76,6 +77,10 @@ export function MarkBombButton({
 
   return (
     <>
+      {/* THE SPOTLIGHT: the board goes dark around this button while the
+          tutorial is asking for its X, and lifts the moment the mode is
+          armed — from there the ask is on the board (teach-spotlight.tsx). */}
+      {teach && !armed && <TeachSpotlight />}
       {armed && (
         <p className="rr-mark-hint" role="status">
           {t.run.markHint}
@@ -123,30 +128,23 @@ export function MarkBombButton({
         style={button}
       >
         <span style={row}>
+          {/* THE X ALONE, white on the plank (Paul, 22 September 2026: "set
+              the X icon color white on transparent background"). It sat on a
+              black bomb sprite with a dark outline, which read as a black
+              blob at the button's size; the mark the board draws is a plain
+              cross, and the button now shows the same thing it will put on
+              the tile. */}
           <span style={icon} aria-hidden>
-            <img
-              src="/assets/ui/icons/bomb.png"
-              alt=""
-              width={27}
-              height={36}
-              draggable={false}
-              style={pixel}
-            />
-            {/* The X the board will draw on it. */}
             <svg
               viewBox="0 0 9 9"
               width="27"
               height="27"
               shapeRendering="crispEdges"
-              style={cross}
+              style={pixel}
             >
               <path
-                d="M0 1h1V0h2v1h1v1h1V1h1V0h2v1h1v2H8v1H7v1h1v1h1v2H8v1H6V8H5V7H4v1H3v1H1V8H0V6h1V5h1V4H1V3H0z"
-                fill="#3a0d0d"
-              />
-              <path
                 d="M1 1h2v1h1v1h1V2h1V1h2v2H7v1H6v1h1v1h1v2H6V7H5V6H4v1H3v1H1V6h1V5h1V4H2V3H1z"
-                fill="#ff5a4a"
+                fill="#ffffff"
               />
             </svg>
           </span>
@@ -187,16 +185,17 @@ const row: CSSProperties = {
    below has no descenders and hangs its caps high in the opposite direction.
    Measured before: bomb centre 25.4, label centre 28.9 in a 52px button.
    Paul, 2026-09-20: "remonte la bomb et baisse le text pour les aligner". */
+/* 27 square now: the box was 36 tall for the bomb's fuse, and the -5 lifted
+   the bomb's body onto the row's middle. A cross has no fuse, so its box is
+   its ink and it centres on its own. */
 const icon: CSSProperties = {
   position: "relative",
   display: "block",
   width: 27,
-  height: 36,
+  height: 27,
   flexShrink: 0,
-  marginTop: -5,
 };
 const pixel: CSSProperties = { display: "block", imageRendering: "pixelated" };
-const cross: CSSProperties = { position: "absolute", left: 0, top: 9 };
 // The verb rides lower than the bomb beside it: the pixel face has no
 // descenders and its caps sit high in their em box, so a row centred on the
 // glyphs reads as centred on their ink only for the icon. Paul, 2026-09-20:

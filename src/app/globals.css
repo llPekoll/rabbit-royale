@@ -1579,6 +1579,22 @@ button { min-height: 44px; min-width: 44px; }
    above it is the sign, and a button that moves under a bobbing arrow is two
    things in motion saying one thing. Paul, 2026-09-20: "vire l'animation du
    bouton mark a bomb". */
+/* THE SPOTLIGHT (teach-spotlight.tsx): the screen dark around MARK A BOMB
+   while the tutorial asks for a cross. Above the carrot pill (20), under the
+   hit flash (25). Fades in on the arrow's own clock. */
+.rr-teach-spotlight {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 21;
+  pointer-events: none;
+  animation: rr-teach-spotlight-in 280ms ease-out;
+}
+@keyframes rr-teach-spotlight-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 /* THE ARROW over MARK A BOMB while the tutorial asks for a cross. Sits just
    above the button, bobbing on the same clock the board's own chevrons use
    (fx/ChestPointer: 5px a leg, 0.9s), so a sign over a control and a sign over
@@ -2243,10 +2259,17 @@ button { min-height: 44px; min-width: 44px; }
    painting are the burrow itself — the mound, the door, the field — and
    covering them would defeat the point of drawing it. */
 .rr-burrow {
-  flex: 1;
+  /* NO GROWTH: the column is as tall as its cards, and only as tall as the
+     screen when they overrun it (basis auto, shrink 1, min-height 0). It was
+     `flex: 1`, a sheet over the full height of the screen with the cards at
+     its top, which is why the box had to be `pointer-events: none` below —
+     see there for what that cost on an iPhone (22 September 2026). */
+  flex: 0 1 auto;
+  align-self: flex-start;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   /* 25% of the WIDTH, which is what the mock holds constant (its cards are
      342px of a 1376px screen). A flat 400px was the same mistake the card
      HEIGHTS carried before they moved to `svh`: right at the window the mock
@@ -2277,10 +2300,21 @@ button { min-height: 44px; min-width: 44px; }
      their own to name. What made the blanket rule a bug over there was a flex
      SPACER — an invisible 900px div whose whole job was to push the recap
      down. This column has none: it is a scroll box, and its children stack
-     from the top with nothing but themselves between them. */
-  pointer-events: none;
+     from the top with nothing but themselves between them.
+
+     ...AND IT IS GONE (22 September 2026). On an iPhone the column would not
+     scroll at all, while Chrome's phone emulation scrolled it fine (Paul).
+     iOS decides which box a finger scrolls by hit-testing the touch, and a
+     scroll box that is itself transparent to the pointer is not a box the
+     finger is "in" — its children were, but they are not scrollers. Desktop
+     engines resolve the scroller from the touched element's ancestors and
+     never noticed. Rather than fight it, the reason for the rule was
+     removed: the box no longer grows over the empty screen (see `flex`
+     above), so there is no empty sheet for a tap to be swallowed by, and the
+     column can take the pointer like any other scroll box. What a tap in the
+     few pixels of gap between two cards hits is the column, not the board;
+     the board under the cards was never reachable anyway. */
 }
-.rr-burrow > * { pointer-events: auto; }
 
 /* ── MORE BELOW ────────────────────────────────────────────────────────────
    The column is a scroll box, and on a landscape phone its cards run past the
@@ -5360,6 +5394,23 @@ button { font-family: var(--font-pixel); }
 .rr-raid-where.away { color: rgba(139, 148, 158, 0.75); }
 .rr-raid-where.home { color: rgba(255, 138, 118, 0.95); }
 .rr-raid-where.digging { color: rgba(74, 222, 128, 0.95); }
+/* THE DISTANCE TO A LOCKED DOOR (island-picker.tsx): a short bar on the row's
+   presence line, in the line's own ink, filled by lifetime carrots against the
+   tier's threshold. */
+.rr-tier-progress {
+  display: inline-block;
+  width: 56px;
+  height: 6px;
+  flex: none;
+  vertical-align: middle;
+  background: rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+.rr-tier-progress i {
+  display: block;
+  height: 100%;
+  background: #ffb238;
+}
 /* Only the live one pulses. A blinking "away" would be a light advertising an
    absence, and three pulsing rows in a list read as an error state. */
 .rr-raid-where.digging i { animation: rr-live-pulse 1.8s ease-in-out infinite; }
@@ -6024,7 +6075,9 @@ button { font-family: var(--font-pixel); }
   left: 50%;
   top: 116px;
   transform: translateX(-50%);
-  width: min(340px, calc(100vw - 32px));
+  /* 380, from 340: the ledger's rows are a label, a clause and a verdict
+     side by side, and at 340 the clause wrapped on every row. */
+  width: min(380px, calc(100vw - 32px));
   max-height: calc(100svh - 140px);
   overflow-y: auto;
   z-index: 45;
@@ -6041,3 +6094,72 @@ button { font-family: var(--font-pixel); }
   display: block; width: 100%; min-height: 44px;
   margin-top: 8px; padding: 8px 12px; font: inherit;
 }
+
+/* THE TANK, LAID FLAT (energy-panel.tsx): the ring's fill as a bar, with the
+   crossing's floor and the raid's as ticks. Inks are the parchment's own
+   brown family; the fill is the dial's green. */
+.rr-tank-track {
+  position: relative;
+  height: 8px;
+  margin: 10px 0 6px;
+  background: #2a1810;
+  box-shadow: inset 0 0 0 1px #1c0d08;
+}
+.rr-tank-fill {
+  position: absolute; inset: 0 auto 0 0;
+  background: linear-gradient(90deg, #5fbf3a, #a6e34a);
+}
+.rr-tank-tick {
+  position: absolute; top: -3px; bottom: -3px;
+  width: 2px; margin-left: -1px;
+  background: #48301f;
+}
+.rr-tank-tick.raid { background: #b4342b; }
+
+/* THE LEDGER: one row per door, three cells — the verb, its cost, the
+   verdict. The verdict is the answer, so it is the one cell in colour. */
+.rr-tank-ledger { margin: 0; }
+.rr-tank-row {
+  display: grid;
+  /* The label column is as wide as the widest label, never narrower: at a
+     fixed 4.6em "ISLAND" ran into its own cost ("ISLAND5 to cross"). */
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  align-items: center;
+  column-gap: 10px;
+  padding: 5px 0;
+  border-top: 1px solid rgba(72, 48, 31, 0.18);
+}
+/* One line under the ledger for the rule that is true of every row above it
+   (the raid's refund, or what goes home with the rabbit) — kept out of the
+   rows so each stays a clause, not a paragraph. */
+.rr-tank-hint { margin: 6px 0 0; font-size: 9px; line-height: 1.45; color: #6b4f38; }
+/* THE SEEKER'S 400px: the panel hangs under the pill and has ~260px to the
+   floor. Tighter pad and rows, so the ledger and its button stay on it
+   without a scroll nobody is told about. */
+@media (max-height: 460px) {
+  .rr-energy-panel { top: 104px; max-height: calc(100svh - 112px); }
+  .rr-energy-panel-body { padding: 10px 14px; }
+  .rr-tank-track { margin: 8px 0 4px; }
+  .rr-tank-row { padding: 4px 0; }
+  .rr-energy-panel .rr-toolkit-action { margin-top: 6px; }
+}
+.rr-tank-row:first-child { border-top: 0; }
+.rr-tank-row dd { margin: 0; }
+/* No `text-transform` here: the English labels are capitals in the dictionary
+   (the kit's convention), and the other languages write theirs in their own
+   case on purpose — see the note at the top of dict/en.ts. */
+.rr-tank-label {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: #2d1610;
+}
+.rr-tank-detail { font-size: 9px; line-height: 1.45; }
+.rr-tank-verdict {
+  display: flex; flex-direction: column; align-items: flex-end;
+  font-size: 9px; line-height: 1.2; letter-spacing: 0.06em;
+  text-align: right; white-space: nowrap;
+}
+.rr-tank-verdict small { font-size: 8px; letter-spacing: 0; opacity: 0.85; }
+.rr-tank-verdict.ready { color: #2f7a2a; }
+.rr-tank-verdict.short { color: #a8501c; }
+.rr-tank-verdict.muted { color: #8a6d52; }
