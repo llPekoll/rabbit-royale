@@ -168,6 +168,43 @@ func show_place(id: Place) -> void:
 	moved.emit(id)
 
 
+## LE RIDEAU, pose par la racine s'il y en a un.
+##
+## Facultatif : sans lui, `cross` bascule nu. C'est la regle du web — « The
+## change always happens; the flourish is what is optional. »
+var _wipe: Wipe = null
+
+
+func host_wipe(wipe: Wipe) -> void:
+	_wipe = wipe
+
+
+## TRAVERSER AVEC LE GESTE — ce que le jeu appelle.
+##
+## `show_place` reste la bascule NUE, et c'est voulu : le rideau a besoin de
+## l'appeler lui-meme, au moment qu'il choisit (au milieu, pour un obturateur).
+## Un appelant ordinaire passe par ici.
+##
+## `crossing` EST LEVE PENDANT TOUT LE GESTE. Ce drapeau est declare depuis le
+## premier jour sans avoir servi ; sa raison est dans son commentaire — trois
+## etats et non deux. Avec un iris il garde surtout une seconde tape d'entrer
+## en collision avec le geste en cours.
+func cross(id: Place) -> void:
+	if id == place and _in_world:
+		return
+	if _wipe == null:
+		show_place(id)
+		return
+	if crossing:
+		# Un rideau deja en vol : on ne le double pas. Le web re-vise le sien en
+		# cours de route (`retarget`) ; ici on laisse finir, ce qui est le
+		# comportement sur lequel un joueur ne peut pas se tromper.
+		return
+	crossing = true
+	_wipe.finished.connect(func() -> void: crossing = false, CONNECT_ONE_SHOT)
+	_wipe.play(func() -> void: show_place(id))
+
+
 ## Le lieu vivant, pour qui doit lui parler — c'est ainsi qu'on entre en raid
 ## (`burrow.set_raid(...)`) ou qu'on change d'ile (`island.set_island(seed)`),
 ## JAMAIS en remontant la scene.

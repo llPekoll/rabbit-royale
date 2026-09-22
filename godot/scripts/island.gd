@@ -89,7 +89,7 @@ func _add_chrome() -> void:
 	_back.size = Vector2(220, 44)
 	_back.position = Vector2(12, 12)
 	_back.relabel("← TERRIER")
-	_back.pressed.connect(func() -> void: Screens.show_place(Screens.Place.BURROW))
+	_back.pressed.connect(func() -> void: Screens.cross(Screens.Place.BURROW))
 	layer.add_child(_back)
 
 

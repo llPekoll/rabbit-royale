@@ -12,8 +12,18 @@ extends Control
 
 @onready var _world: Node2D = %World
 @onready var _screen: Control = %Screen
+@onready var _wipe_host: CanvasLayer = %Wipe
 
 
 func _ready() -> void:
 	Screens.host(_world, _screen)
+	# LE RIDEAU SE MONTE ICI, dans l'etage qui l'attendait depuis le debut.
+	#
+	# Cree par le code et pas pose dans la scene : la variante se tirera au sort
+	# le jour ou il y en aura plusieurs (voir wipe.gd — le web en a cinq, « un
+	# effet vu cent fois n'est plus un effet »). En figer une dans main.tscn
+	# interdirait ce tirage.
+	var wipe := IrisWipe.new()
+	_wipe_host.add_child(wipe)
+	Screens.host_wipe(wipe)
 	Screens.show_doorstep()

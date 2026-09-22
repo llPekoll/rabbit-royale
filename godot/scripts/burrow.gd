@@ -178,7 +178,7 @@ func _add_quit() -> void:
 	_cross.size = Vector2(220, 44)
 	_cross.position = Vector2(476, 12)
 	_cross.relabel("→ ILE")
-	_cross.pressed.connect(func() -> void: Screens.show_place(Screens.Place.ISLAND))
+	_cross.pressed.connect(func() -> void: Screens.cross(Screens.Place.ISLAND))
 	layer.add_child(_cross)
 
 
