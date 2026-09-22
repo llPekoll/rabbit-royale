@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 ; L'ILE. Le second des deux lieux residents — construite une fois, jamais
 ; liberee, montree ou cachee (voir screens.gd).
@@ -21,6 +21,7 @@
 [ext_resource type="Script" path="res://scripts/sea_rocks.gd" id="6_rocks"]
 [ext_resource type="Script" path="res://scripts/ducks.gd" id="7_ducks"]
 [ext_resource type="Script" path="res://scripts/sky_light.gd" id="8_sky"]
+[ext_resource type="Script" path="res://scripts/tile_view.gd" id="9_tiles"]
 
 [node name="Island" type="Node2D"]
 script = ExtResource("1_island")
@@ -78,3 +79,13 @@ script = ExtResource("3_hints")
 [node name="Sky" type="Node2D" parent="."]
 unique_name_in_owner = true
 script = ExtResource("8_sky")
+
+; L'ETAT DES CASES — le voile et les chiffres.
+;
+; Ce noeud ne porte RIEN lui-meme : chaque voile et chaque chiffre est monte
+; dans le BLOC de sa case, sous le terrain, pour se trier avec le sol qu'il
+; recouvre. Un voile pose en frere libre se trierait entre deux profondeurs et
+; un plateau en terrasses le montrerait au-dessus de la mauvaise tuile.
+[node name="Tiles" type="Node2D" parent="."]
+unique_name_in_owner = true
+script = ExtResource("9_tiles")

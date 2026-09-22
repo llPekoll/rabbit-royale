@@ -29,6 +29,10 @@ GameSocket="*res://scripts/game_socket.gd"
 ; Le routeur d'ecrans. En dernier : il ne depend de rien, et tout le reste
 ; peut l'appeler.
 Screens="*res://scripts/screens.gd"
+; Le marqueur de cadence, visible partout et tout le temps. Un autoload parce
+; qu'il doit survivre aux traversees ; apres Screens parce qu'il se dessine
+; par-dessus tout ce que Screens monte.
+FpsMarker="*res://scripts/fps_marker.gd"
 
 [display]
 

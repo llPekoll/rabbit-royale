@@ -35,7 +35,43 @@ const RAYS_SHADER := preload("res://shaders/god_rays.gdshader")
 ## Un plan a la taille de l'ecran laisse voir son bord des que la camera
 ## bouge : une ligne franche ou l'ombre s'arrete net. Quatre fois le cadre
 ## couvre tout ce que le pan peut atteindre. C'est le `REACH` du web.
-const REACH := 4.0
+## 1,6 ET PAS 4,0 — ET C'EST UNE MESURE DE PERFORMANCE, pas de gout.
+##
+## A 4, le plan fait SEIZE FOIS l'ecran. Deux couches de shader remplissent
+## donc seize ecrans de fragments a chaque image, sur un telephone : Paul, sur
+## le tutoriel, « j'ai un fps de 21 ». Le cout n'est pas la lecture du bruit
+## (`pixel = 3` n'en lit deja qu'un sur neuf) mais le FILL RATE brut.
+##
+## 1,6 ramene ca a 2,6 ecrans — six fois moins — et couvre encore largement ce
+## que le pan peut atteindre, puisque la camera de l'ile ne se deplace pas
+## librement pour l'instant (elle cadre, voir island.gd). A remonter si le
+## pan/zoom libre arrive, et a re-mesurer le jour ou on le fera.
+##
+## `fx_bench` porte la reponse de rechange si ca ne suffit plus : rendre le
+## voile en DEMI-RESOLUTION dans un SubViewport, ce qui divise encore par
+## quatre — « un rai est trop flou pour qu'on le voie ». Ce portage ne l'a pas
+## encore branche.
+## 1,0 — LE VOILE COUVRE L'ECRAN, PAS PLUS.
+##
+## Il a valu 4,0 (seize ecrans de fragments), puis 1,6 (2,6 ecrans) : dans les
+## deux cas 21 images par seconde, parce que le cout est le FILL RATE — ecrire
+## les fragments — et pas le bruit qu'on y calcule. Grossir l'echantillonnage
+## n'a rien change non plus, ce qui l'a prouve.
+##
+## A 1,0 le voile fait exactement l'ecran. La marge servait a couvrir ce qu'un
+## pan pouvait atteindre ; la camera de l'ile ne se promene pas encore (elle
+## cadre, voir island.gd), donc il n'y a rien a couvrir au-dela. A remonter avec
+## le pan/zoom libre — et a re-mesurer ce jour-la.
+const REACH := 1.0
+
+## DE COMBIEN ON GROSSIT LE PAS D'ECHANTILLONNAGE DU BRUIT.
+##
+## `pixel` vaut 3 dans la config — le chiffre du web, regle sur un cadre ou
+## l'ile est grande. Ici elle est cadree a 0,56 pour tenir dans 890x400 : « vu
+## qu'on est zoomes, y a moins de detail », et un bruit lu trois fois plus
+## grossierement donne exactement la meme image. Le calcul, lui, tombe d'un
+## facteur neuf — quatre octaves de simplex 3D par echantillon, deux couches.
+const COARSE := 3.0
 
 ## LA COUVERTURE VIVANTE, celle que les deux couches lisent.
 ##
@@ -90,11 +126,17 @@ const WEATHER_PERIOD := 600.0
 ## dans l'accord des couches mais dans l'instant ou on les regardait.
 const WEATHER_START := 0.5
 
-## L'ECHELLE DE RENDU DU VOILE.
+## L'ECHELLE DE RENDU DU VOILE — PAS ENCORE BRANCHEE.
 ##
-## Un demi divise le travail par quatre, et un rai est bien trop flou pour
-## qu'on le voie. Mesure sur le banc (`fx_bench`) avant d'etre pose ici.
-const RENDER_SCALE := 0.5
+## `fx_bench` rend son voile a la moitie dans un SubViewport, ce qui divise le
+## travail par quatre sans qu'on voie la difference (« un rai est trop flou »).
+## Cette constante a ete recopiee ici SANS l'etre, et je ne l'ai vu qu'en
+## cherchant d'ou venaient 21 images par seconde — une constante morte qui a
+## l'air d'un reglage actif est pire que pas de constante du tout.
+##
+## Gardee, nommee pour ce qu'elle est : la reponse de rechange si baisser
+## `REACH` ne suffit plus.
+const RENDER_SCALE_UNUSED := 0.5
 
 ## LA PROFONDEUR DES DEUX COUCHES, sur la regle du terrain.
 ##
@@ -130,6 +172,23 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(_resize)
 
 
+## LE VOILE COUTE CE QU'IL COUVRE, et c'est la seule chose qui compte ici.
+##
+## MESURE SUR LE SEEKER, en eteignant les couches une par une :
+##
+##   tout allume ................ 21 fps
+##   ombres + rais coupes ....... 97 fps
+##   mer coupee en plus ......... 95 fps
+##
+## Le ciel coutait donc 76 images par seconde a lui seul, la mer rien. Et le
+## nombre d'objets n'y etait pour rien : 46 draw calls dans les deux cas.
+##
+## `adb shell dumpsys gfxinfo` annoncait 7 ms par image pendant ce temps — il
+## compte ce qu'ANDROID compose, pas ce que Godot rend. C'est la lecon des
+## notes de l'app Expo (« le fps JS ment sur expo-gl ») sous une autre forme :
+## on lit `Performance.TIME_FPS`, le moniteur du moteur.
+
+
 func _make_layer(shader: Shader, z: int) -> ColorRect:
 	var rect := ColorRect.new()
 	var mat := ShaderMaterial.new()
@@ -151,26 +210,47 @@ func _make_layer(shader: Shader, z: int) -> ColorRect:
 func _apply() -> void:
 	var look: Dictionary = SkyLook.SKY
 	var sm := _shadows.material as ShaderMaterial
+	# LE BRUIT, CUIT UNE FOIS. `NoiseTexture2D` le genere au chargement ; le
+	# shader ne fait plus qu'une lecture de texture la ou il evaluait deux
+	# simplex 3D par pixel. `seamless` est indispensable : la texture est lue en
+	# repeat, et une couture se verrait comme une ligne droite en travers du
+	# ciel.
+	if sm.get_shader_parameter("noise") == null:
+		var tex := NoiseTexture2D.new()
+		tex.width = 256
+		tex.height = 256
+		tex.seamless = true
+		tex.generate_mipmaps = false
+		var fn := FastNoiseLite.new()
+		fn.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+		fn.frequency = 0.012
+		fn.fractal_octaves = 3
+		tex.noise = fn
+		sm.set_shader_parameter("noise", tex)
 	sm.set_shader_parameter("iso", look["iso"])
 	sm.set_shader_parameter("half_tile", Vector2(Iso.half_w(), Iso.half_h()))
 	sm.set_shader_parameter("scale", look["scale"])
 	sm.set_shader_parameter("speed", look["speed"])
 	sm.set_shader_parameter("angle", look["angle"])
 	sm.set_shader_parameter("morph", look["morph"])
-	sm.set_shader_parameter("octaves", look["octaves"])
-	sm.set_shader_parameter("warp", look["warp"])
 	sm.set_shader_parameter("edge", look["edge"])
-	sm.set_shader_parameter("pixel", look["pixel"])
+	sm.set_shader_parameter("pixel", look["pixel"] * COARSE)
 	sm.set_shader_parameter("shade", look["shade"])
 	sm.set_shader_parameter("alpha", look["shade_alpha"])
 
 	var rm := _rays.material as ShaderMaterial
+	# LE MEME BRUIT CUIT QUE LES OMBRES, et c'est voulu : les deux couches
+	# decrivent UN SEUL ciel, donc elles doivent lire le meme champ. Partager la
+	# texture le garantit par construction, la ou deux textures distinctes
+	# auraient pu deriver.
+	if rm.get_shader_parameter("noise") == null:
+		rm.set_shader_parameter("noise", sm.get_shader_parameter("noise"))
 	rm.set_shader_parameter("scale", look["scale"])
 	rm.set_shader_parameter("speed", look["speed"])
 	rm.set_shader_parameter("morph", look["morph"])
 	rm.set_shader_parameter("octaves", int(look["octaves"]))
 	rm.set_shader_parameter("edge", look["edge"])
-	rm.set_shader_parameter("pixel", look["pixel"])
+	rm.set_shader_parameter("pixel", look["pixel"] * COARSE)
 	rm.set_shader_parameter("softness", look["softness"])
 	# LES DEUX CORRECTIONS D'ECHELLE DU PLAN, et sans elles rien n'arrive sur
 	# l'ile. Le web les enonce ; je les avais omises, et le defaut ne se voit

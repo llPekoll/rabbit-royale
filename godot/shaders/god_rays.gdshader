@@ -85,6 +85,7 @@ uniform float mote_rise : hint_range(0.0, 30.0) = 6.0;
 // A quelle vitesse un grain nait, brille et s'eteint.
 uniform float mote_blink : hint_range(0.0, 1.0) = 0.12;
 
+uniform sampler2D noise : filter_linear, repeat_enable;
 uniform vec2 screen_size = vec2(890.0, 400.0);
 
 
@@ -236,7 +237,22 @@ void fragment() {
 	// colonnes au lieu de taches.
 	float ang = atan(d.y, d.x);
 	float t = TIME * speed;
-	float n = fbm(vec2(ang * scale, dist / softness) + vec2(t, 0.0), TIME);
+	// LE BRUIT EST CUIT, comme pour les ombres — meme raison, meme mesure.
+	//
+	// Les rais coutaient une vingtaine d'images par seconde a eux seuls (66 fps
+	// sans, 46 avec, une fois les ombres corrigees). Ils lisent le bruit en
+	// (ANGLE, DISTANCE) et non en (x, y), ce qui ne change rien pour une
+	// texture : ce sont deux coordonnees comme deux autres.
+	//
+	// Deux lectures fondues gardent le renouvellement que `morph` donnait au
+	// troisieme axe du simplex.
+	vec2 at = vec2(ang * scale, dist / softness) + vec2(t, 0.0);
+	float phase = TIME * morph;
+	float k = fract(phase);
+	vec2 jump = vec2(0.41, 0.67);
+	float na = texture(noise, at + floor(phase) * jump).r;
+	float nb = texture(noise, at + (floor(phase) + 1.0) * jump).r;
+	float n = mix(na, nb, k * k * (3.0 - 2.0 * k)) * 2.0 - 1.0;
 
 	// Du bruit au faisceau : au-dessus du seuil il y a de la lumiere, et le
 	// bord est adouci sur `edge`.

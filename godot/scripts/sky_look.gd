@@ -48,7 +48,9 @@ const SKY := {
 	"morph": 0.022,
 	## LE DIAL QUI COUTE : chaque octave est un simplex de plus PAR PIXEL.
 	## 3,9 — fractionnaire, la derniere se fond progressivement.
-	"octaves": 3.9,
+	## 2,0 AU LIEU DE 3,9. Chaque octave est un simplex 3D par pixel, et les deux
+	## dernieres ajoutent un grain que l'ile, cadree a 0,56, ne montre pas.
+	"octaves": 2.0,
 	## La durete du bord, des deux cotes de la ligne de partage.
 	"edge": 0.19,
 	## La quantification de l'echantillonnage. Divise le cout sans que le voile
@@ -64,7 +66,9 @@ const SKY := {
 	"angle": 40.0,
 	## La deformation du domaine, pour que les taches ne soient pas les bosses
 	## hexagonales du simplex.
-	"warp": 0.1,
+	## COUPEE : deux simplex 3D par pixel pour une nuance invisible a ce cadrage
+	## — la moitie du budget des ombres, qui coutaient 56 fps sur le Seeker.
+	"warp": 0.0,
 	## Le bleu de nuit tres sombre de l'ombre. PAS DU NOIR : une ombre noire
 	## sur de l'herbe donne du gris mort ; un bleu profond garde la couleur
 	## dessous et se lit comme de l'ombre.

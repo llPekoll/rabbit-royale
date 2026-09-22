@@ -37,18 +37,28 @@ const DRAG_SLOP := 8.0
 ## LA GRAINE PAR DEFAUT — celle des sondes et de la premiere image, avant que le
 ## serveur en nomme une. Texte et non entier : les graines du jeu sont des
 ## chaines (« first:… », l'id d'une ile), et c'est ce que `Rng.seed_from` hache.
-const DEFAULT_SEED := "default"
+const DEFAULT_SEED := "first:seeker"
 
 @onready var _terrain: BurrowTerrain = %Terrain
 @onready var _hints: PlacementHints = %Hints
 @onready var _foam: PackWater = %Foam
 @onready var _rocks: SeaRocks = %Rocks
 @onready var _ducks: Ducks = %Ducks
+@onready var _tiles: TileView = %Tiles
+
+## CE QUI EST ENTERRE SUR CETTE ILE.
+##
+## Calcule ici pour le TUTORIEL SEULEMENT : sa disposition est dessinee a la
+## main, donc deterministe. Une ile ordinaire recevra ses contenus du serveur,
+## case par case — son `contentSeed` est prive et ne traverse jamais le fil.
+var _board: IslandBoard
 
 var _seed := DEFAULT_SEED
 var _cam_tween: Tween
 ## Provisoire : la porte vers le terrier, le temps qu'une manche se termine.
 var _back: PlankButton
+## Provisoire : le compteur d'images, pour mesurer depuis le moteur.
+var _fps: Label
 
 ## LE JOUEUR A-T-IL PRIS LE PLATEAU EN MAIN ? Meme drapeau que le terrier, et
 ## pour la meme raison : on ne recadre pas sous quelqu'un qui regarde un coin.
@@ -92,6 +102,17 @@ func _add_chrome() -> void:
 	_back.pressed.connect(func() -> void: Screens.cross(Screens.Place.BURROW))
 	layer.add_child(_back)
 
+	# LE COMPTEUR, PROVISOIRE — et il est la parce que `adb shell dumpsys
+	# gfxinfo` MENT sur ce projet : il compte les images qu'ANDROID compose, pas
+	# celles que Godot rend. Il annoncait 7 ms par image pendant que le jeu
+	# tournait a 21. C'est la lecon des notes de l'app Expo, « le fps JS ment
+	# sur expo-gl », sous une autre forme : on lit le moniteur du MOTEUR.
+	_fps = Label.new()
+	_fps.position = Vector2(12, 62)
+	_fps.add_theme_font_size_override("font_size", 22)
+	_fps.add_theme_color_override("font_color", Color(1, 0.83, 0.36))
+	layer.add_child(_fps)
+
 
 ## LE SOL D'UNE ILE DONNEE.
 ##
@@ -130,6 +151,17 @@ func show_ground(seed_value: String) -> void:
 	_ducks.seed_text = seed_value
 	_ducks.rocks = _rocks
 	_ducks.build()
+
+	# LE PLATEAU : ce qui est enterre, et ce qu'on en sait deja.
+	#
+	# APRES le terrain, parce que les voiles se montent dans ses blocs — et
+	# avant les losanges, qui partagent les memes blocs.
+	_board = IslandBoard.new(map)
+	if FirstIsland.is_first(seed_value):
+		_board.deal_tutorial()
+	_tiles.board = _board
+	_tiles.terrain = _terrain
+	_tiles.build()
 
 	# LES LOSANGES SE MONTENT DANS LES BLOCS DU TERRAIN : ils viennent donc
 	# APRES lui, et ils meurent avec lui — `build` jette ses blocs et les
@@ -205,6 +237,60 @@ func frame_camera(immediate: bool = false) -> void:
 	_cam_tween.tween_property(self, "position", shot.at, CAM_SECONDS)
 
 
+## LE COMPTEUR, a chaque image.
+var _fps_tick := 0.0
+var _probe_step := 0
+
+
+func _process(delta: float) -> void:
+	if _fps == null:
+		return
+	var n := int(Performance.get_monitor(Performance.TIME_FPS))
+	var draws := int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))
+	_fps.text = "%d fps | %d draws" % [n, draws]
+	# ET DANS LE LOG, parce que le compteur a l'ecran peut finir sous un
+	# bouton — c'est arrive du premier coup. `adb logcat -s godot` le lit
+	# depuis la machine, sans chercher ou il s'affiche.
+	_fps_tick += delta
+	if _fps_tick >= 2.0:
+		_fps_tick = 0.0
+		print("[perf] %d fps, %d draws" % [n, draws])
+		# SONDE : on eteint les couches une par une, six secondes chacune, pour
+		# voir laquelle coute. Mesurer vaut mieux que supposer, et le coupable
+		# n'est jamais celui qu'on croit.
+		_probe_step += 1
+		var sky := get_node_or_null("%Sky")
+		var sea := get_node_or_null("%Sea")
+		match _probe_step:
+			1:
+				print("[perf] --- tout allume ---")
+			3:
+				print("[perf] --- OMBRES coupees (rais gardes) ---")
+				if sky != null:
+					sky._shadows.visible = false
+			6:
+				print("[perf] --- RAIS coupes aussi (tout le ciel off) ---")
+				if sky != null:
+					sky._rays.visible = false
+			9:
+				print("[perf] --- ombres SEULES ---")
+				if sky != null:
+					sky._shadows.visible = true
+			12:
+				print("[perf] --- tout rallume ---")
+				if sky != null:
+					sky._rays.visible = true
+			15:
+				# LE TEMOIN : on remplace le shader des ombres par un APLAT,
+				# zero calcul, meme surface. Si les fps ne remontent pas, le
+				# cout n'est pas le bruit mais la couche elle-meme.
+				print("[perf] --- ombres remplacees par un APLAT ---")
+				if sky != null:
+					var m := ShaderMaterial.new()
+					m.shader = load("res://shaders/flat_probe.gdshader")
+					sky._shadows.material = m
+
+
 ## LE CADRE A CHANGE DE TAILLE : on se repose, sans animation, et SANS toucher
 ## au drapeau du joueur — une rotation d'ecran n'est pas une reprise en main.
 func _reframe() -> void:
@@ -259,6 +345,15 @@ func _on_release(at: Vector2) -> void:
 	var cell := _cell_at(at)
 	if cell.x < 0:
 		return
+	# CREUSER, POUR L'INSTANT SANS RIEN COUTER.
+	#
+	# Provisoire : un vrai coup passe par l'energie, le serveur et le pas du
+	# lapin (`payCrossing` — « sans un pas, creuser est gratuit »). Ici on
+	# montre le SOCLE : le voile tombe, le chiffre sort, la cascade ouvre le
+	# champ. C'est ce que les douze beats du tutoriel attendent.
+	if _board != null:
+		_board.dig(cell)
+		_tiles.refresh()
 	tile_tapped.emit(cell)
 
 
