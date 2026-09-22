@@ -229,6 +229,32 @@ func _rest() -> void:
 		_sprite.play("idle")
 
 
+## ENVOIE LE LAPIN SUR UNE CASE — provisoire, pour voir une tape aboutir.
+##
+## Il y va d'un seul bond, ce qu'un lapin ne fait pas sur dix cases : c'est une
+## SONDE, pas un deplacement de jeu. Elle prouve que la case resolue par le
+## doigt est bien celle qu'on visait, ce qu'un signal seul ne montre pas. Elle
+## s'en ira quand une bombe se posera a la place.
+##
+## Le foyer suit, sinon le lapin rentrerait aussitot chez lui.
+func send_to(cell: Vector2i) -> void:
+	if _sprite == null or not _walkable.has(cell):
+		return
+	# On atterrit AVANT de changer `_at` — voir `_land` et `_step`.
+	_land()
+	_home = cell
+	if cell.x != _at.x:
+		_sprite.flip_h = cell.x < _at.x
+	_at = cell
+	var to_at := map.screen_of(cell.x, cell.y) + Vector2(0, Iso.half_h())
+	z_index = Iso.depth(cell.x, cell.y) + map.level_at(cell.x, cell.y) + DEPTH_BIAS
+	_sprite.play("move")
+	_hop = create_tween()
+	_hop.tween_property(self, "position", to_at, HOP_SECONDS)\
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_hop.tween_callback(_rest)
+
+
 ## UN PAS VERS UNE CASE VOISINE, s'il en trouve une qui lui va.
 ##
 ## LES HUIT VOISINES, pas les quatre : c'est la grille sur laquelle un lapin
