@@ -120,16 +120,70 @@ func _lifetime() -> float:
 
 
 ## LA TAILLE, sur la place que le parent donne (le voile du chrome, ou une
-## cellule de banc) : `min(760px, 100%)` de large, toute la hauteur — le
-## corps defile, le cadre ne grandit pas.
+## cellule de banc) : `min(760px, 100%)` de large, et LA HAUTEUR DE SON TEXTE
+## sous celle de l'ecran (`.rr-lore-modal` : `max-height: 100%`). Il prenait
+## toute la hauteur quoi qu'il porte : au bureau, un chapitre court laissait
+## la moitie du parchemin vide. Au-dela de l'ecran, le corps defile.
 func _measure() -> void:
 	var room := get_parent_area_size()
 	var stacked := room.x < STACK_BELOW
-	custom_minimum_size = Vector2(minf(SCROLL_W, room.x - 2.0 * Kit.EDGE), room.y - 2.0 * Kit.EDGE)
+	_cap = room.y - 2.0 * Kit.EDGE
+	custom_minimum_size = Vector2(minf(SCROLL_W, room.x - 2.0 * Kit.EDGE), minf(_cap, _natural) if _natural > 0.0 else _cap)
 	if stacked != _stacked and _body != null:
 		_stacked = stacked
 		_rebuild()
 	_stacked = stacked
+	_fit_height.call_deferred()
+
+
+var _cap := 0.0
+var _natural := 0.0
+
+
+## LA VRAIE HAUTEUR D'UNE COLONNE DE TEXTE. Un label qui passe a la ligne ne
+## la dit pas dans son minimum : on compte ses lignes a sa largeur du moment.
+func _tall(box: Container) -> float:
+	var total := 0.0
+	var shown := 0
+	for child in box.get_children():
+		var c := child as Control
+		if c == null or not c.visible:
+			continue
+		shown += 1
+		var label := c as Label
+		if label != null and label.autowrap_mode != TextServer.AUTOWRAP_OFF:
+			total += label.get_line_count() * label.get_line_height() \
+				+ maxf(0.0, label.get_line_count() - 1) * label.get_theme_constant("line_spacing")
+		else:
+			total += c.get_combined_minimum_size().y
+	return total + maxf(0, shown - 1) * box.get_theme_constant("separation")
+
+
+## La hauteur que le texte demande : ce que le cadre prend autour du corps,
+## plus le plus haut de la page et de l'etagere a leur largeur du moment.
+## Posee seulement si elle change d'un pixel, sinon chaque pose relancerait
+## une mesure.
+func _fit_height() -> void:
+	if _page_scroll == null or _page == null or not is_inside_tree():
+		return
+	# Pas avant que la page ait sa largeur : etroite, son texte compte des
+	# centaines de lignes.
+	if _page.size.x < 100.0:
+		return
+	# CE QUE LE CADRE PREND AUTOUR : le minimum du contenu, ou les deux
+	# defilements comptent pour zero. Stable, lui — `size` et la taille du
+	# defilement ne sont pas du meme instant pendant qu'on se pose.
+	var around := _inset.get_combined_minimum_size().y
+	var wanted := _tall(_page)
+	if not _stacked and _list != null:
+		wanted = maxf(wanted, _list.get_combined_minimum_size().y)
+	var natural := around + wanted
+	if absf(natural - _natural) < 1.0:
+		return
+	_natural = natural
+	var h := minf(_cap, _natural)
+	if absf(custom_minimum_size.y - h) >= 1.0:
+		custom_minimum_size.y = h
 
 
 func _on_locale_changed(_code: String) -> void:
@@ -183,6 +237,7 @@ func _rebuild() -> void:
 	_page = Kit.vbox(0)
 	_page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_page_scroll.add_child(_page)
+	_page.resized.connect(func() -> void: _fit_height.call_deferred())
 	_body.add_child(_page_scroll)
 
 	_fill_shelf()
@@ -280,6 +335,7 @@ func _select(index: int) -> void:
 	_fill_shelf()
 	_fill_page()
 	_page_scroll.scroll_vertical = 0
+	_fit_height.call_deferred()
 	_note_read()
 
 

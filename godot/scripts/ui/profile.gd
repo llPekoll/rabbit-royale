@@ -69,9 +69,12 @@ const H_RAIDS := "Raids"
 const H_BOUGHT := "Bought"
 const H_RABBIT := "Rabbit"
 
-## `.rr-profile` : min(380px, 100vw - 32), UNE hauteur pour les deux onglets.
+## `.rr-profile` : min(380px, 100vw - 32) sur min(640px, 100dvh - 32), UNE
+## hauteur pour les deux onglets. Le chrome ramene le 640 a l'ecran : 360 fixe
+## etait la taille du telephone, et au bureau le profil cachait sous un
+## defilement le lapin, la note d'invite et les deux boutons du bas.
 const WIDTH := 380.0
-const HEIGHT := 360.0
+const HEIGHT := 640.0
 ## Le grand portrait (size 4) et ceux du selecteur (size 2).
 const PORTRAIT_SCALE := 4.0
 const PICK_SCALE := 2.0
@@ -119,7 +122,17 @@ func _init() -> void:
 	_name_re.compile(NAME_ALLOWED)
 
 
+func _cap_height() -> void:
+	custom_minimum_size.y = minf(HEIGHT, get_viewport_rect().size.y - 2.0 * Kit.EDGE)
+
+
 func _ready() -> void:
+	# LE 640 SOUS L'ECRAN, ici et pas au chrome : un minimum plus haut que
+	# l'ecran l'emporte sur toute taille que le chrome lui donne (Godot ne
+	# reduit jamais un noeud sous son minimum), et le profil debordait en bas
+	# du telephone.
+	_cap_height()
+	get_viewport().size_changed.connect(_cap_height)
 	var tabs := Kit.hbox(Kit.PAD_TIGHT)
 	body.add_child(tabs)
 	for which in [Tab.PROFILE, Tab.HISTORY]:
