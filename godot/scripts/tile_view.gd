@@ -82,12 +82,6 @@ func build() -> void:
 	if board == null or terrain == null:
 		return
 
-	# UN SEUL MATERIAU POUR TOUS LES CHIFFRES : le mode de fusion est le meme
-	# partout, et en donner un par Label multiplierait les changements d'etat du
-	# rendu pour rien.
-	var mult := CanvasItemMaterial.new()
-	mult.blend_mode = CanvasItemMaterial.BLEND_MODE_MUL
-
 	for cell in board.playable():
 		if not terrain.has_block(cell):
 			continue
@@ -114,14 +108,9 @@ func build() -> void:
 		label.size = box
 		label.position = -box * 0.5
 		label.z_index = Z_HINT
-		label.material = mult
-		# LE FOND DU LABEL DOIT ETRE TRANSPARENT, sinon MULTIPLY assombrit
-		# TOUTE SA BOITE et pas le glyphe : sur la capture, chaque chiffre
-		# sortait comme un losange vert sombre. Un Label porte un StyleBox de
-		# theme — invisible en fusion normale, fatal en multiply, ou le
-		# transparent n'est pas neutre.
-		var clear := StyleBoxEmpty.new()
-		label.add_theme_stylebox_override("normal", clear)
+		# LE FOND DU LABEL RESTE VIDE de toute facon : un StyleBox de theme se
+		# verrait des qu'on toucherait au mode de fusion.
+		label.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
 		var holder := Node2D.new()
 		holder.add_child(label)
 		# LE CHIFFRE EST COUCHE SUR LE LOSANGE, ET RENDU EN MULTIPLY.
@@ -131,12 +120,18 @@ func build() -> void:
 		# l'image au lieu d'etre pose dessus. C'est le skew du web
 		# (`HINT_SKEW_X/Y`), derive plutot que trouve a l'oeil.
 		#
-		# MULTIPLY, ET C'EST CE QUI LE REND LISIBLE UNE FOIS COUCHE. Premier essai,
-		# incline mais OPAQUE : le glyphe aplati devenait un trait bleu franc qu'on
-		# ne lisait plus comme un chiffre. Multiplie, il TEINTE l'herbe au lieu de
-		# la couvrir — le sol transparait a travers, la forme reste. Paul : « met le
-		# en multiply ca ira tres bien ». Le web multiplie ses comptes pour la meme
-		# raison.
+		# LE MULTIPLY A ETE ESSAYE ET REPOUSSE, faute du bon support.
+		#
+		# Le web multiplie ses comptes, et c'est ce qui les fait TEINTER l'herbe
+		# au lieu de la couvrir. Mais il les dessine dans un objet texte dont
+		# seul le glyphe a des pixels ; un `Label` de Godot est un Control avec
+		# une BOITE, et le mode MUL teinte la boite entiere — sur la capture,
+		# chaque chiffre sortait comme un losange vert sombre.
+		#
+		# Le faire proprement demande de cuire le glyphe dans une texture et de
+		# la poser en Sprite2D, ce qui serait aussi moins cher qu'un Control par
+		# case. A reprendre avec les carottes et les coffres, qui demanderont de
+		# toute facon des sprites par case.
 		terrain.mount_veil(cell, holder, Z_HINT)
 		# APRES `mount_veil` : son contrat ECRASE la position du noeud avec le
 		# centre du losange, donc une matrice posee avant serait effacee. On garde

@@ -37,7 +37,7 @@ const DRAG_SLOP := 8.0
 ## LA GRAINE PAR DEFAUT — celle des sondes et de la premiere image, avant que le
 ## serveur en nomme une. Texte et non entier : les graines du jeu sont des
 ## chaines (« first:… », l'id d'une ile), et c'est ce que `Rng.seed_from` hache.
-const DEFAULT_SEED := "first:seeker"
+const DEFAULT_SEED := "default"
 
 @onready var _terrain: BurrowTerrain = %Terrain
 @onready var _hints: PlacementHints = %Hints
@@ -255,44 +255,8 @@ func _process(delta: float) -> void:
 	if _fps_tick >= 2.0:
 		_fps_tick = 0.0
 		print("[perf] %d fps, %d draws" % [n, draws])
-		# SONDE : on eteint les couches une par une, six secondes chacune, pour
-		# voir laquelle coute. Mesurer vaut mieux que supposer, et le coupable
-		# n'est jamais celui qu'on croit.
-		_probe_step += 1
-		var sky := get_node_or_null("%Sky")
-		var sea := get_node_or_null("%Sea")
-		match _probe_step:
-			1:
-				print("[perf] --- tout allume ---")
-			3:
-				print("[perf] --- OMBRES coupees (rais gardes) ---")
-				if sky != null:
-					sky._shadows.visible = false
-			6:
-				print("[perf] --- RAIS coupes aussi (tout le ciel off) ---")
-				if sky != null:
-					sky._rays.visible = false
-			9:
-				print("[perf] --- ombres SEULES ---")
-				if sky != null:
-					sky._shadows.visible = true
-			12:
-				print("[perf] --- tout rallume ---")
-				if sky != null:
-					sky._rays.visible = true
-			15:
-				# LE TEMOIN : on remplace le shader des ombres par un APLAT,
-				# zero calcul, meme surface. Si les fps ne remontent pas, le
-				# cout n'est pas le bruit mais la couche elle-meme.
-				print("[perf] --- ombres remplacees par un APLAT ---")
-				if sky != null:
-					var m := ShaderMaterial.new()
-					m.shader = load("res://shaders/flat_probe.gdshader")
-					sky._shadows.material = m
 
 
-## LE CADRE A CHANGE DE TAILLE : on se repose, sans animation, et SANS toucher
-## au drapeau du joueur — une rotation d'ecran n'est pas une reprise en main.
 func _reframe() -> void:
 	frame_camera(true)
 

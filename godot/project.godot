@@ -40,6 +40,22 @@ window/size/viewport_width=890
 window/size/viewport_height=400
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
+; ⚠ `window/stretch/scale` N'EST PAS UN REGLAGE DE RESOLUTION DE RENDU.
+;
+; Essaye ici pour baisser le cout fragment : il AGRANDIT le canevas de design
+; (890x400 -> 1780x800) au lieu de rasteriser plus gros. Sur le Seeker, le jeu
+; s'est retrouve dans un quart de l'ecran avec un chrome minuscule.
+;
+; LE COUT EST REEL POURTANT : `canvas_items` dessine en coordonnees de design
+; mais rasterise a la resolution de l'ECRAN — 2670x1200 sur le Seeker, soit
+; NEUF FOIS les 890x400 du canevas. Tout shader plein ecran paie ces 3,2
+; millions de fragments.
+;
+; LA BONNE REPONSE EST UN SubViewport, comme `fx_bench` le fait deja pour son
+; voile (RENDER_SCALE = 0,5, « un rai est trop flou pour qu'on le voie ») : on
+; rend l'effet dans une texture plus petite et on l'agrandit en nearest. A
+; brancher dans `sky_light.gd` le jour ou le budget se resserre — aujourd'hui
+; le bruit cuit a suffi (21 -> 82 fps).
 
 [editor_plugins]
 

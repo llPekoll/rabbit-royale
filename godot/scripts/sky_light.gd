@@ -64,14 +64,15 @@ const RAYS_SHADER := preload("res://shaders/god_rays.gdshader")
 ## le pan/zoom libre — et a re-mesurer ce jour-la.
 const REACH := 1.0
 
-## DE COMBIEN ON GROSSIT LE PAS D'ECHANTILLONNAGE DU BRUIT.
+## LA QUANTIFICATION RESTE CELLE DE LA CONFIG (`pixel` = 3).
 ##
-## `pixel` vaut 3 dans la config — le chiffre du web, regle sur un cadre ou
-## l'ile est grande. Ici elle est cadree a 0,56 pour tenir dans 890x400 : « vu
-## qu'on est zoomes, y a moins de detail », et un bruit lu trois fois plus
-## grossierement donne exactement la meme image. Le calcul, lui, tombe d'un
-## facteur neuf — quatre octaves de simplex 3D par echantillon, deux couches.
-const COARSE := 3.0
+## Elle a ete grossie d'un facteur trois pendant la chasse aux 21 fps, et ca
+## n'avait RIEN rapporte — la mesure l'a montre tout de suite : le cout etait le
+## simplex 3D, pas le nombre de lectures. Une fois le bruit cuit, le budget est
+## revenu (82 fps) et le detail avec : a neuf, les ombres sortaient par gros
+## blocs. « c'est trop pixelise la, on comprend rien. »
+
+
 
 ## LA COUVERTURE VIVANTE, celle que les deux couches lisent.
 ##
@@ -95,19 +96,28 @@ const COARSE := 3.0
 ##
 ## 0,42 a 0,62 reste dans la plage mesuree et garde un vrai decoupage aux deux
 ## extremes.
-## LA PLAGE EST CENTREE SUR LE REGLAGE DE PAUL, pas sur la mienne.
+## LA PLAGE EST RECALEE SUR LE BRUIT CUIT, et c'est une mesure.
 ##
-## Il a fixe la couverture a 0,30 au tuner — la molette y etait en butee basse,
-## donc c'est un choix et pas un hasard : moins de nuages, des trouees larges,
-## et des rais qui passent. Ma plage precedente (0,42-0,62) ne descendait meme
-## pas jusque-la, donc le jeu n'aurait jamais montre le ciel qu'il a valide.
+## Elle valait 0,30-0,44, cale sur le simplex calcule qui tenait dans
+## 0,32-0,65. Le bruit CUIT (`NoiseTexture2D`) est mieux etale — mesure en le
+## peignant en gris a l'ecran du Seeker : il balaie 0,00 a 1,00, moyenne 0,45,
+## avec 40 % de sa masse entre 0,38 et 0,50.
 ##
-## On garde une VARIATION — la meteo doit deriver, c'est ce qui fait qu'il y a
-## un ciel au-dessus — mais autour de sa valeur et sans la depasser vers le
-## haut : 0,30 a 0,44. Le plafond reste bien dans la dynamique mesuree du bruit
-## (0,32-0,65), donc les deux extremes decoupent encore.
-const COVERAGE_MIN := 0.30
-const COVERAGE_MAX := 0.44
+## A 0,30, le seuil passait SOUS tout le bruit : zero pour cent d'ombre pleine,
+## donc un ciel parfaitement uniforme et parfaitement invisible. Le meme mode de
+## panne que la premiere fois, pour la raison inverse.
+##
+## 0,46-0,60 coupe dans le gros de la distribution : environ un cinquieme du
+## ciel en ombre a la couverture basse, la moitie a la haute. Le reglage de Paul
+## (0,52 au tuner) tombe au milieu.
+## LA CONVERSION D'ECHELLE entre un bruit calcule et une texture.
+##
+## 0,29 / 6,1 : ce que la `scale` du tuner doit devenir pour qu'un texel couvre
+## plusieurs pixels au lieu de tomber sous le pixel. Voir `_apply`.
+const TEXTURE_SCALE := 0.048
+
+const COVERAGE_MIN := 0.46
+const COVERAGE_MAX := 0.60
 ## LA PERIODE DE LA METEO — 600 s, le web est a 240.
 ##
 ## Elle commande a quelle vitesse les rais s'ouvrent et se referment, donc elle
@@ -217,8 +227,11 @@ func _apply() -> void:
 	# ciel.
 	if sm.get_shader_parameter("noise") == null:
 		var tex := NoiseTexture2D.new()
-		tex.width = 256
-		tex.height = 256
+		# 512 : cuite une fois au chargement, donc sa taille ne coute rien par
+		# image, et elle donne des bords de plaque francs la ou 256 laissait un
+		# flou d'interpolation.
+		tex.width = 1024
+		tex.height = 1024
 		tex.seamless = true
 		tex.generate_mipmaps = false
 		var fn := FastNoiseLite.new()
@@ -227,14 +240,26 @@ func _apply() -> void:
 		fn.fractal_octaves = 3
 		tex.noise = fn
 		sm.set_shader_parameter("noise", tex)
-	sm.set_shader_parameter("iso", look["iso"])
 	sm.set_shader_parameter("half_tile", Vector2(Iso.half_w(), Iso.half_h()))
-	sm.set_shader_parameter("scale", look["scale"])
+	# L'ECHELLE EST CONVERTIE, parce qu'elle n'a plus le meme SENS.
+	#
+	# `SkyLook.scale` vaut 6,1 — le chiffre que Paul a regle au tuner, sur un
+	# bruit CALCULE ou il comptait des cellules de simplex, une notion sans
+	# taille propre. Le shader lit maintenant une TEXTURE, et la `scale` y
+	# compte des REPETITIONS : a 6,1 la texture de 512 px se repete tous les
+	# 146 px de design, soit un texel de 0,28 px. Sous le pixel, on voit la
+	# grille — le damier qui couvrait la mer.
+	#
+	# MESURE : pour des plaques molles il faut un texel de quatre a huit pixels
+	# de design, donc une repetition tous les ~2500 px, donc une scale autour de
+	# 0,29. Le facteur ci-dessous fait la conversion sans toucher au reglage de
+	# Paul, qui reste lisible tel qu'il l'a laisse.
+	sm.set_shader_parameter("scale", look["scale"] * TEXTURE_SCALE)
 	sm.set_shader_parameter("speed", look["speed"])
 	sm.set_shader_parameter("angle", look["angle"])
 	sm.set_shader_parameter("morph", look["morph"])
 	sm.set_shader_parameter("edge", look["edge"])
-	sm.set_shader_parameter("pixel", look["pixel"] * COARSE)
+	sm.set_shader_parameter("pixel", 1.0)
 	sm.set_shader_parameter("shade", look["shade"])
 	sm.set_shader_parameter("alpha", look["shade_alpha"])
 
@@ -245,12 +270,12 @@ func _apply() -> void:
 	# auraient pu deriver.
 	if rm.get_shader_parameter("noise") == null:
 		rm.set_shader_parameter("noise", sm.get_shader_parameter("noise"))
-	rm.set_shader_parameter("scale", look["scale"])
+	rm.set_shader_parameter("scale", look["scale"] * TEXTURE_SCALE)
 	rm.set_shader_parameter("speed", look["speed"])
 	rm.set_shader_parameter("morph", look["morph"])
 	rm.set_shader_parameter("octaves", int(look["octaves"]))
 	rm.set_shader_parameter("edge", look["edge"])
-	rm.set_shader_parameter("pixel", look["pixel"] * COARSE)
+	rm.set_shader_parameter("pixel", 1.0)
 	rm.set_shader_parameter("softness", look["softness"])
 	# LES DEUX CORRECTIONS D'ECHELLE DU PLAN, et sans elles rien n'arrive sur
 	# l'ile. Le web les enonce ; je les avais omises, et le defaut ne se voit
@@ -293,29 +318,36 @@ func _apply() -> void:
 ## fenetre.
 func _resize() -> void:
 	var view := get_viewport_rect().size
+	var parent := get_parent() as Node2D
 	var k: float = 1.0
-	var parent := get_parent()
-	if parent is Node2D:
-		k = maxf(0.0001, (parent as Node2D).scale.x)
+	var at := Vector2.ZERO
+	if parent != null:
+		k = maxf(0.0001, parent.scale.x)
+		at = parent.position
+
+	# LE PLAN EST ANCRE A L'ECRAN, PAS A L'ILE — et c'est la correction que la
+	# capture a demandee.
+	#
+	# Ce noeud est ENFANT de l'ile, donc il herite de sa position ET de son
+	# echelle. Le plan etait dimensionne en pixels d'ecran mais pose a `-span/2`
+	# dans le repere de l'ile : des que la camera la cadrait ailleurs que sur
+	# zero, le voile partait avec elle et son BORD traversait l'image — la ligne
+	# horizontale nette qu'on voyait couper l'ile en deux.
+	#
+	# On defait donc la transformation du parent : diviser par son echelle pour
+	# que le plan couvre toujours le meme ECRAN, et soustraire sa position pour
+	# que son coin retombe sur le coin de l'ecran.
 	var span := view * REACH / k
+	var corner := (-at / k) - span * (REACH - 1.0) * 0.5 / REACH
 
 	for rect in [_shadows, _rays]:
 		rect.size = span
-		# Centre sur l'ile, pas sur le coin : le plan doit deborder de tous
-		# les cotes.
-		rect.position = -span * 0.5
+		rect.position = corner
 
 	(_shadows.material as ShaderMaterial).set_shader_parameter("plane_size", span)
 	# L'ETENDUE DU SOL, en cases : c'est elle qui donne au bruit son echelle.
-	# Le plan fait `span` pixels ; une case fait une tuile. On compte donc
-	# combien de tuiles tiennent en travers.
 	(_shadows.material as ShaderMaterial).set_shader_parameter(
 		"ground_span", Vector2(span.x / Iso.BURROW_TILE_W, span.y / Iso.BURROW_TILE_H))
-	# LES RAIS LISENT L'ECRAN, PAS LE PLAN. Leur `source` est en coordonnees
-	# d'ecran normalisees et leur angle se mesure la : leur passer la taille du
-	# plan mettrait le soleil quatre fois trop loin et l'ile tomberait tout
-	# entiere dans le fondu — plus un seul rai sur la terre. C'est le piege que
-	# le web decrit en toutes lettres.
 	(_rays.material as ShaderMaterial).set_shader_parameter("screen_size", span)
 
 

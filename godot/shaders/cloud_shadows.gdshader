@@ -61,7 +61,18 @@ uniform vec2 ground_span = vec2(40.0, 40.0);
 // 0 = espace ecran, 1 = plan du sol. C'est LUI qui couche l'ombre.
 uniform float iso : hint_range(0.0, 1.0) = 0.4;
 
-uniform float scale : hint_range(0.5, 12.0) = 2.9;
+// COMBIEN DE FOIS LA TEXTURE SE REPETE en travers du sol.
+//
+// ⚠ CE N'EST PLUS LE MEME `scale` QUE LE BRUIT CALCULE. Celui-la comptait des
+// cellules de simplex, une notion sans taille propre ; une texture, elle, a des
+// TEXELS. A 6,1 — le reglage herite — la texture de 256 px se repetait six fois
+// sur l'ecran : un texel tombait sous le pixel, et les ombres sortaient en
+// DAMIER de petits carres au lieu de plaques molles.
+//
+// Sous 1, la texture est etiree et chaque texel couvre plusieurs pixels, ce qui
+// est exactement ce qu'on veut : des taches larges et douces. Le filtrage
+// lineaire fait le reste.
+uniform float scale : hint_range(0.1, 12.0) = 0.6;
 uniform float speed : hint_range(0.0, 1.0) = 0.05;
 uniform float angle : hint_range(0.0, 360.0) = 40.0;
 // A quelle vitesse les formes se renouvellent (le fondu entre les deux
@@ -80,12 +91,23 @@ uniform float alpha : hint_range(0.0, 1.0) = 0.32;
 // l'ecran et la plaque se lit comme un voile devant l'ile, pas comme une ombre
 // dessus.
 vec2 uv_ground(vec2 p) {
+	// LE SOL, ET RIEN QUE LE SOL.
+	//
+	// Le portage melangeait deux espaces INCOMPATIBLES : `ground` est en CASES
+	// (des centaines en travers du plan) et `screen` etait normalise puis
+	// remultiplie par `ground_span`. Leur `mix` a iso=0,4 donnait un champ qui
+	// n'etait ni l'un ni l'autre, et l'ombre sortait avec un BORD HORIZONTAL
+	// NET en travers de l'ile — elle ne suivait plus le sol.
+	//
+	// L'espace ecran n'a d'ailleurs aucun interet ici : `iso` existait pour
+	// pouvoir comparer les deux pendant le reglage du web. Ce qui couche
+	// l'ombre sur le terrain, c'est la projection iso defaite, donc c'est elle
+	// qu'on garde.
 	float u = p.x / (2.0 * half_tile.x);
 	float v = p.y / (2.0 * half_tile.y);
-	vec2 ground = vec2(v + u, v - u);
-	vec2 screen = vec2(p.x / plane_size.x, p.y / plane_size.y) * ground_span;
-	return mix(screen, ground, iso);
+	return vec2(v + u, v - u);
 }
+
 
 void fragment() {
 	vec2 px = floor(UV * plane_size / pixel) * pixel;
