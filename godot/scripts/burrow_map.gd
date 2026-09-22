@@ -37,40 +37,39 @@ const RAGGEDNESS := 0.12
 
 ## LA HAUTEUR D'UN PALIER, EN PIXELS.
 ##
-## DIX, ET C'EST LE MAXIMUM QUE LE TAP SUPPORTE. Le web en met six.
+## SIX, LE CHIFFRE DU WEB (`gridConfig.TIER_LIFT`), ET IL DOIT RESTER EGAL A
+## `Slopes.BAKED_LIFT`. Cette egalite n'est pas une coincidence a preserver par
+## discipline : c'est elle qui decide si une falaise garde sa bande de rocher
+## CUITE ou doit la recomposer.
 ##
-## POURQUOI LE MONTER. Chaque tuile de palette de PLATEAU porte une bande de
-## rocher CUITE sous son losange — mesuree sur l'alpha de palette-2 : le losange
-## fait 24 px, la tuile en peint 40, donc la bande fait SEIZE. Un palier qui ne
-## leve que six laisse dix pixels de rocher deborder sur la tuile de DEVANT, et
-## ce debordement est le liseré sombre qui courait le long de chaque etagere —
-## les « 74 coutures ». A dix, il n'en reste que six.
+## LE DETOUR PAR DIX, ET POURQUOI IL ETAIT FAUX. Chaque tuile de palette de
+## plateau porte une bande cuite sous son losange ; a six, dix pixels de cette
+## bande debordaient sur la tuile de devant, et ce debordement etait le lisere
+## sombre qui courait le long de chaque etagere — les « 74 coutures ». Monter a
+## dix les reduisait a six. Mesure, exact, et pourtant le mauvais remede : LES
+## RAMPES SONT LA VRAIE REPONSE A CES COUTURES, et elles n'etaient pas encore
+## portees quand j'ai touche a ce chiffre.
 ##
-## POURQUOI PAS SEIZE, qui l'annulerait tout a fait. C'est de la GEOMETRIE, pas
-## un bug : une rampe leve 1,5 palier, et une case voisine en diagonale n'est
-## qu'a 24 px plus bas a l'ecran (deux demi-hauteurs). A seize, une rampe leve
-## donc EXACTEMENT 24 — elle se dessine pile par-dessus la case de devant, et le
-## picker trouve la mauvaise en premier.
+## CE QUE DIX COUTAIT, vu sur l'appareil le 2026-09-22. `hangs` se lit
+## « is_ramp or (drop > 0 and TIER_LIFT > BAKED_LIFT) ». A six la seconde
+## moitie est FAUSSE PAR CONSTRUCTION, donc seules les rampes recomposent leur
+## bande et les falaises gardent la leur, intacte. A dix, TOUTE falaise
+## recomposait la sienne — et `_warp_to_ramp` etirait ses pixels sur quatre
+## rangees de plus, ce qui se lisait comme un accordeon avec une fente bleue au
+## sommet de chaque losange leve.
 ##
-## Le balayage l'a montre aussitot : ILE 545/557 et TERRIER 141/148, et toutes
-## les cases perdues etaient des rampes qui rendaient la case d'un palier
-## AU-DESSUS. Essaye a 10, 12 et 14 : DIX est le dernier qui garde 557/557 et
-## 148/148.
-##
-## CE QUE CA COUTE. Le web a tranche six le 2026-09-18 apres avoir essaye
-## dix-huit — « a dix-huit une terrasse se lisait comme un mur ». Dix est entre
-## les deux, et c'est la borne que la geometrie impose de toute facon.
+## Le web a tranche six le 2026-09-18 apres avoir essaye dix-huit — « a
+## dix-huit une terrasse se lisait comme un mur ».
 ##
 ## PARTAGE AVEC LE TERRIER, forcement : c'est la meme constante, et les deux
 ## plateaux doivent lever pareil sous peine de montrer le meme sprite de falaise
 ## avec un trou d'un cote et un surplomb de l'autre.
-const TIER_LIFT := 10
+const TIER_LIFT := 6
 
 ## LA HAUTEUR D'UN PALIER A L'ECRAN, reglable.
 ##
-## Dix est le chiffre de ce portage (voir TIER_LIFT) : assez pour que le rocher
-## cuit ne deborde plus que de six pixels, pas assez pour qu'une rampe recouvre
-## la case de devant.
+## Six est le chiffre du web (voir TIER_LIFT), et le seul qui laisse les
+## falaises garder leur bande de rocher cuite.
 ##
 ## CE CHIFFRE EXPLIQUE POURQUOI LE PLATEAU SEMBLE PLAT, et ce n'est pas un
 ## defaut. Deux cases voisines sont deja separees de douze pixels par la

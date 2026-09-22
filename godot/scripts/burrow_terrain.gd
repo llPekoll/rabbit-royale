@@ -185,8 +185,34 @@ func build() -> void:
 			# La question doit etre posee PAR PALIER, et elle l'est ici parce
 			# que `tier` est connu — d'ou la fermeture reconstruite a chaque
 			# case plutot qu'une seule hissee hors de la boucle.
+			#
+			# UNE VOISINE PLUS BASSE QUI RAMPE JUSQU'ICI COMPTE COMME LE MEME
+			# SOL, et c'est la clause qui manquait. Le web la pose mot pour
+			# mot : « a lower neighbour that ramps up to this cell counts as
+			# the same ground: no cut corner, no rim on that side. One that
+			# keeps its cliff, or the sea, is an edge as before. »
+			#
+			# SANS ELLE, L'AUTOTILEUR DECOUPE UN BORD FRANC sur la case que la
+			# rampe vient justement de raccorder : la tuile prend sa variante
+			# de bordure, sa bande de rocher se pose au bord PLAT, et le warp
+			# la souleve ensuite avec le coin leve. Le rocher se lit alors
+			# comme une BARRE EN TRAVERS DE LA PENTE au lieu de pendre sous
+			# elle — c'est exactement ce que la capture du 2026-09-22 montrait,
+			# une fois les trous bleus bouches.
+			#
+			# Toute case de terre rampe ici : le web laisse l'appelant filtrer
+			# par `rampAt`, et sans predicat il repond `true` partout. Le
+			# terrier du web fait pareil (`slopes: true` seul), donc la
+			# condition s'y reduit AUSSI a « de la terre » — ce n'est pas une
+			# simplification de ma part, c'est ce que le web calcule.
+			#
+			# ET LA SILHOUETTE DU PLATEAU NE SE PERD PAS POUR AUTANT, ce qui
+			# est le reflexe a desarmer : ce masque ne choisit que la VARIANTE
+			# d'autotile. Ce qui donne au plateau son relief, ce sont la face
+			# et le rebord, pilotes par `drop` un peu plus bas et qui, eux,
+			# comparent bien les paliers.
 			var in_tier := func(x: int, y: int) -> bool:
-				return map.level_at(x, y) >= tier
+				return map.level_at(x, y) > 0
 			var mask := Autotile.mask_at(in_tier, col, row)
 			var bcol := Autotile.blob_col(mask)
 			var brow := Autotile.blob_row(mask)
@@ -260,13 +286,48 @@ func build() -> void:
 				)
 				block.add_child(rim)
 
+			# LA RAMPE, ET LA BANDE QU'ELLE RACCROCHE.
+			#
+			# `hangs` est la ligne du web : une case pend son propre rocher
+			# quand elle est une RAMPE (son coin leve ouvre un coin sous son
+			# bord bas) ou quand le lift d'un palier DEPASSE les six rangees
+			# cuites dans les feuilles. Ce portage leve de dix, donc toute
+			# chute est concernee — c'est precisement ce qui laissait passer la
+			# mer.
+			#
+			# `sides` : seulement vers de la TERRE PLUS BASSE. Le rivage reste
+			# le rivage, et une voisine de meme niveau couvre elle-meme ce qui
+			# pend vers elle. Une rampe, elle, pend vers TOUTE terre, puisque
+			# son coin s'ouvre aussi contre une voisine de niveau.
+			var ramp_lifts := map.corner_lifts(col, row)
+			var is_ramp := false
+			for l in ramp_lifts:
+				if l != 0:
+					is_ramp = true
+			var hangs := is_ramp or (drop > 0 and BurrowMap.TIER_LIFT > Slopes.BAKED_LIFT)
+
+			var cell_tier := tier
+			var ramping := is_ramp
+			var faces := func(nx: int, ny: int) -> bool:
+				var there: int = map.level_at(nx, ny)
+				return there > 0 and (ramping or there < cell_tier)
+
 			# LE SOL.
 			var ground := Sprite2D.new()
 			# `tier - 1` : le palier 1 prend la premiere palette. Borne a la
 			# derniere pour qu'un relief plus haut que prevu ne sorte pas du
 			# tableau.
 			var palette: Array = _grass[mini(tier - 1, _grass.size() - 1)]
-			ground.texture = palette[brow][bcol]
+			var grass: Texture2D = palette[brow][bcol]
+			if hangs:
+				# Les coins sont en PALIERS ; la deformation les veut en pixels.
+				var px: Array = []
+				for l in ramp_lifts:
+					px.append(int(l) * BurrowMap.TIER_LIFT)
+				grass = Slopes.ramp_texture(
+					grass, px, _rock[FACE_ROW][bcol], BurrowMap.TIER_LIFT,
+					faces.call(col, row + 1), faces.call(col + 1, row))
+			ground.texture = grass
 			ground.centered = false
 			ground.scale = Vector2(scale_up, scale_up)
 			ground.z_index = Z_GROUND
