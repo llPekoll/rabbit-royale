@@ -280,6 +280,9 @@ func _build_profile() -> void:
 	var guest := bool(_player.get("guest", false))
 
 	var portrait := AvatarFace.portrait(_picked if _picked != null else _avatar, PORTRAIT_SCALE)
+	# A GAUCHE, sur la ligne du nom qu'il porte, comme le web : etire sur la
+	# largeur, le portrait centrait son lapin au milieu du panneau.
+	portrait.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	_page.add_child(portrait)
 
 	# Le champ du nom est un CREUX, le puits sombre qu'il a toujours ete.
