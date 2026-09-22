@@ -71,9 +71,9 @@ func refresh() -> void:
 	# Ces deux phrases sont des litteraux anglais de garden-card.tsx, hors du
 	# dictionnaire : elles sont reprises telles quelles en attendant leur cle.
 	if ready > 0:
-		add_sub("stealable until harvested · %d/hour" % yield_h, RISK_INK)
+		add_sub(I18N.f("burrow.gardenAtRisk", [yield_h]), RISK_INK)
 	else:
-		add_sub("grows while you dig · %d/hour · holds %d" % [yield_h, capacity])
+		add_sub(I18N.f("burrow.gardenGrowing", [yield_h, capacity]))
 
 	_slab = HubSlab.new("green", maxf(card_length(38), 32.0))
 	_slab.add_word(I18N.t("burrow.harvest"), card_size(15, 9, 15))

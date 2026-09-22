@@ -73,16 +73,16 @@ func refresh() -> void:
 	var safe := safe_stock(stock)
 
 	add_row(I18N.f("burrow.level", [level]))
-	# Litteraux anglais de burrow-card-panel.tsx, hors du dictionnaire,
-	# repris tels quels en attendant leur cle. L'eclair du web est un
-	# caractere que la face pixel n'a pas : l'icone du kit prend sa place.
-	add_sub("%d carrots/hour" % yield_h)
+	# Les lignes fines, traduites (`burrow.yieldRate`, `regenRate`). L'eclair
+	# du web est un caractere que la face pixel n'a pas : l'icone du kit prend
+	# sa place.
+	add_sub(I18N.f("burrow.yieldRate", [yield_h]))
 	if regen > 0 and sub_visible():
 		var row := Kit.hbox(Kit.PAD_TIGHT)
 		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var size := card_size(10.5, 8, 11)
 		row.add_child(Kit.icon(Kit.ICONS["bolt"], float(size)))
-		row.add_child(Kit.label("%d energy/hour" % regen, size, SUB))
+		row.add_child(Kit.label(I18N.f("burrow.regenRate", [regen]), size, SUB))
 		body.add_child(row)
 
 	body.add_child(_vault(stock, safe))

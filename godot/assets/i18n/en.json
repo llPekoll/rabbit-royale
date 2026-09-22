@@ -212,7 +212,19 @@
   "garden": "GARDEN",
   "harvest": "HARVEST",
   "energy": "ENERGY",
-  "gardenGrows": "THE GARDEN GROWS FASTER"
+  "gardenGrows": "THE GARDEN GROWS FASTER",
+  "gardenAtRisk": {
+   "$t": "stealable until harvested · {0}/hour"
+  },
+  "gardenGrowing": {
+   "$t": "grows while you dig · {0}/hour · holds {1}"
+  },
+  "yieldRate": {
+   "$t": "{0} carrots/hour"
+  },
+  "regenRate": {
+   "$t": "{0} energy/hour"
+  }
  },
  "notes": {
   "shieldUp": "Shield up. Raids bounce off.",

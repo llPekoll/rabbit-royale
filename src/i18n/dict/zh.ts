@@ -166,6 +166,10 @@ export const zh: Dict = {
     harvest: '收获',
     energy: '体力',
     gardenGrows: '菜园长得更快了',
+    gardenAtRisk: (perHour) => `收获前可被掠夺 \u00b7 每小时 ${perHour}`,
+    gardenGrowing: (perHour, holds) => `挖掘时生长 \u00b7 每小时 ${perHour} \u00b7 可存 ${holds}`,
+    yieldRate: (perHour) => `每小时 ${perHour} 根胡萝卜`,
+    regenRate: (perHour) => `每小时 ${perHour} 点体力`,
   },
 
   notes: {

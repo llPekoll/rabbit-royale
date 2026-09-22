@@ -188,7 +188,19 @@
   "garden": "菜园",
   "harvest": "收获",
   "energy": "体力",
-  "gardenGrows": "菜园长得更快了"
+  "gardenGrows": "菜园长得更快了",
+  "gardenAtRisk": {
+   "$t": "收获前可被掠夺 · 每小时 {0}"
+  },
+  "gardenGrowing": {
+   "$t": "挖掘时生长 · 每小时 {0} · 可存 {1}"
+  },
+  "yieldRate": {
+   "$t": "每小时 {0} 根胡萝卜"
+  },
+  "regenRate": {
+   "$t": "每小时 {0} 点体力"
+  }
  },
  "notes": {
   "shieldUp": "护盾已起。掠夺会被弹开。",

@@ -157,8 +157,8 @@ export function GardenCard({
           banner's cream board. It read fine only while the card was dark. */}
       <p className={SUB_CLASS} style={{ ...subText, ...(ready > 0 ? { color: RISK_INK } : null) }}>
         {ready > 0
-          ? <>stealable until harvested &middot; {yieldPerHour}/hour</>
-          : <>grows while you dig &middot; {yieldPerHour}/hour &middot; holds {capacity}</>}
+          ? t.burrow.gardenAtRisk(yieldPerHour)
+          : t.burrow.gardenGrowing(yieldPerHour, capacity)}
       </p>
     </HubCard>
   );

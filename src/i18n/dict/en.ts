@@ -195,6 +195,13 @@ export const en = {
     harvest: 'HARVEST',
     energy: 'ENERGY',
     gardenGrows: 'THE GARDEN GROWS FASTER',
+    /* The cards' fine print (garden-card.tsx, burrow-card-panel.tsx), shown
+       when the card has the height for it. It was written as English literals
+       in the components, so every language read it in English. */
+    gardenAtRisk: (perHour: number) => `stealable until harvested \u00b7 ${perHour}/hour`,
+    gardenGrowing: (perHour: number, holds: number) => `grows while you dig \u00b7 ${perHour}/hour \u00b7 holds ${holds}`,
+    yieldRate: (perHour: number) => `${perHour} carrots/hour`,
+    regenRate: (perHour: number) => `${perHour} energy/hour`,
   },
 
   /* ── What the burrow says back ────────────────────────────────────────── */

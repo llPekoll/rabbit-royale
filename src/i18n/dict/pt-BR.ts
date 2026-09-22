@@ -164,6 +164,10 @@ export const ptBR: Dict = {
     harvest: 'COLHER',
     energy: 'ENERGIA',
     gardenGrows: 'A HORTA CRESCE MAIS RÁPIDO',
+    gardenAtRisk: (perHour) => `saqueável até a colheita \u00b7 ${perHour}/h`,
+    gardenGrowing: (perHour, holds) => `cresce enquanto você cava \u00b7 ${perHour}/h \u00b7 cabe ${holds}`,
+    yieldRate: (perHour) => `${perHour} cenouras/h`,
+    regenRate: (perHour) => `${perHour} de energia/h`,
   },
 
   notes: {

@@ -230,7 +230,19 @@
   "garden": "POTAGER",
   "harvest": "RÉCOLTER",
   "energy": "ÉNERGIE",
-  "gardenGrows": "LE POTAGER POUSSE PLUS VITE"
+  "gardenGrows": "LE POTAGER POUSSE PLUS VITE",
+  "gardenAtRisk": {
+   "$t": "pillable avant la récolte · {0}/h"
+  },
+  "gardenGrowing": {
+   "$t": "pousse pendant que tu creuses · {0}/h · contient {1}"
+  },
+  "yieldRate": {
+   "$t": "{0} carottes/h"
+  },
+  "regenRate": {
+   "$t": "{0} énergie/h"
+  }
  },
  "notes": {
   "shieldUp": "Bouclier levé. Les pillards rebondissent.",

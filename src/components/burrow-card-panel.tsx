@@ -171,12 +171,12 @@ export function BurrowPanel({
             longer wraps or clips on a phone. */}
       </HubRow>
 
-      <p className={SUB_CLASS} style={subText}>{yieldPerHour} carrots/hour</p>
+      <p className={SUB_CLASS} style={subText}>{t.burrow.yieldRate(yieldPerHour)}</p>
       {/* THE SECOND REASON TO RAISE IT: each level refills the tank a point
           an hour faster, up to level 10. Beside the yield so the upgrade
           price sits against two benefits rather than one. */}
       {regenPerHour > 0 && (
-        <p className={SUB_CLASS} style={subText}>&#9889; {regenPerHour} energy/hour</p>
+        <p className={SUB_CLASS} style={subText}>&#9889; {t.burrow.regenRate(regenPerHour)}</p>
       )}
 
       {/* The vault strip: what a raid cannot reach. Given its own ground

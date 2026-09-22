@@ -160,6 +160,10 @@ export const fr: Dict = {
     harvest: 'RÉCOLTER',
     energy: 'ÉNERGIE',
     gardenGrows: 'LE POTAGER POUSSE PLUS VITE',
+    gardenAtRisk: (perHour) => `pillable avant la récolte \u00b7 ${perHour}/h`,
+    gardenGrowing: (perHour, holds) => `pousse pendant que tu creuses \u00b7 ${perHour}/h \u00b7 contient ${holds}`,
+    yieldRate: (perHour) => `${perHour} carottes/h`,
+    regenRate: (perHour) => `${perHour} énergie/h`,
   },
 
   notes: {

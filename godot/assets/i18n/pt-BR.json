@@ -212,7 +212,19 @@
   "garden": "HORTA",
   "harvest": "COLHER",
   "energy": "ENERGIA",
-  "gardenGrows": "A HORTA CRESCE MAIS RÁPIDO"
+  "gardenGrows": "A HORTA CRESCE MAIS RÁPIDO",
+  "gardenAtRisk": {
+   "$t": "saqueável até a colheita · {0}/h"
+  },
+  "gardenGrowing": {
+   "$t": "cresce enquanto você cava · {0}/h · cabe {1}"
+  },
+  "yieldRate": {
+   "$t": "{0} cenouras/h"
+  },
+  "regenRate": {
+   "$t": "{0} de energia/h"
+  }
  },
  "notes": {
   "shieldUp": "Escudo de pé. Saques ricocheteiam.",
