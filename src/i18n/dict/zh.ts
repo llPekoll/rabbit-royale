@@ -576,6 +576,9 @@ export const zh: Dict = {
     youStruck: (name) => `你劈中了 ${name}`,
     spent: (n) => `-${n} 🥕`,
     usd: (n) => `$${n}`,
+    revenge: '立即复仇',
+    avenged: '已了结',
+    revengeShielded: '有护盾',
   },
 
   avatars: {

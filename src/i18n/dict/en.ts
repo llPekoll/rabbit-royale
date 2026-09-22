@@ -710,6 +710,15 @@ export const en = {
     youStruck: (name: string) => `You struck ${name} down`,
     spent: (n: string) => `-${n} 🥕`,
     usd: (n: string) => `$${n}`,
+    /* ── Settling up ──────────────────────────────────────────────────────
+       A raid log is a list of debts, and the button is how one is paid. It
+       goes on every line whose raider has not been paid back since — see
+       `avengedAt` in profile-menu. */
+    revenge: 'REVENGE NOW',
+    /** On a line already settled, for a reader who wonders why it is struck. */
+    avenged: 'settled',
+    /** Their burrow is shielded: the button is there but cannot be pressed. */
+    revengeShielded: 'Shielded',
   },
 
   /* ── The avatars, by colour ───────────────────────────────────────────── */

@@ -3742,6 +3742,58 @@ body:has(.rr-empty) .rr-sound { display: none; }
 .rr-raids li.mine .rr-raid-what { color: var(--crown); }
 .rr-raid-when { color: var(--muted); min-width: 30px; text-align: right; }
 
+/* ── A DEBT, AND THE BUTTON THAT SETTLES IT ─────────────────────────────────
+   Every raid against this player is an open score until they take something
+   back off the raider (see `avengedAt`). Open rows carry a live dot and a
+   REVENGE button; settled ones are struck through and go quiet. The rows
+   STACK — three robberies by the same player are three lines, because each
+   one is a separate night and merging them would hide how often it happens. */
+.rr-raids li { position: relative; }
+/* THE BUTTON TAKES A LINE, NOT THE NAME'S WIDTH.
+   Tried inline, at the end of the row: a plank wide enough to read "REVENGE
+   NOW" leaves the first column too narrow for a pseudonym, and the log
+   answered "who robbed me" with "No…". The name is the row's whole point, so
+   the button drops beneath it and spans the grid — vertical space is the
+   cheap thing here, the name is not. Right-aligned, under the figure it is
+   the answer to. */
+.rr-raids li .rr-revenge {
+  grid-column: 1 / -1;
+  justify-self: end;
+  min-height: 0;
+  margin-top: 4px;
+  padding: 2px 10px;
+}
+.rr-raid-who { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.rr-raid-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The dot alone, no word: the log's rows are already three columns wide and a
+   second label would push the carrot figure off a phone. The colours are the
+   raid list's own (see `.rr-raid-where`), so green means the same thing in
+   both places. */
+.rr-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+.rr-dot.away { color: rgba(139, 148, 158, 0.75); }
+.rr-dot.home { color: rgba(255, 138, 118, 0.95); }
+.rr-dot.digging { color: rgba(74, 222, 128, 0.95); }
+.rr-dot.digging { animation: rr-live-pulse 1.8s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .rr-dot.digging { animation: none; }
+}
+/* SETTLED. The name and the time are struck through together — they are the
+   two halves of "this player, that night" — while the figure keeps its colour
+   so the ledger still reads as a ledger. The whole row dims: a paid debt is
+   history, and the open ones above it are what the panel is for. */
+.rr-raids li.settled { opacity: 0.55; }
+.rr-raids li.settled .rr-raid-label,
+.rr-raids li.settled .rr-raid-when {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
 .rr-lb-row {
   display: grid;
   /* The rank column scales too: a fixed 30px slot beside 8px type is a gutter

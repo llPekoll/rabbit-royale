@@ -38,6 +38,26 @@ const AGAINST = [
 ];
 const BY = [raid('r4', 'by', 'GrimSnare', 'looted', 25, 20, 90)];
 
+/**
+ * A FEUD, which is what the log is actually for.
+ *
+ * One player who has come back three times, and one payback in the middle of
+ * it: the two oldest raids are settled and struck through, the one that
+ * landed AFTER the payback is still owed and keeps its button. The rows
+ * STACK — three visits are three lines, never one line saying "x3".
+ */
+const FEUD_AGAINST = [
+  raid('f1', 'against', 'NorminaskyTV', 'looted', 173, 0, 60 * 24),
+  raid('f2', 'against', 'NorminaskyTV', 'looted', 202, 0, 60 * 48),
+  raid('f3', 'against', 'NorminaskyTV', 'looted', 151, 0, 60 * 96),
+  raid('f4', 'against', 'PaleClover', 'looted', 88, 0, 60 * 3),
+];
+/** The payback: after f2/f3, before f1. So f1 stays open. */
+const FEUD_BY = [
+  raid('f5', 'by', 'NorminaskyTV', 'looted', 287, 0, 60 * 36),
+  raid('f6', 'by', 'SilentHop64', 'looted', 110, 0, 60 * 168),
+];
+
 function raid(
   id: string,
   direction: 'against' | 'by',
@@ -74,7 +94,7 @@ function today(minusDays: number): string {
  * `unseen` is read from a mutable holder for the same reason — the story sets it
  * before rendering, not after.
  */
-const stub = { unseen: 0 };
+const stub = { unseen: 0, feud: false };
 
 if (typeof window !== 'undefined') {
   const real = window.fetch.bind(window);
@@ -85,7 +105,9 @@ if (typeof window !== 'undefined') {
       return json({
         days: DAYS,
         runs: [],
-        raids: { against: AGAINST, by: BY, unseen: stub.unseen },
+        raids: stub.feud
+          ? { against: FEUD_AGAINST, by: FEUD_BY, unseen: stub.unseen }
+          : { against: AGAINST, by: BY, unseen: stub.unseen },
       });
     }
     if (url.includes('/api/player')) return json({ player: {}, token: 'stub' });
@@ -103,13 +125,17 @@ function Harness({
   unseen = 0,
   avatar = null,
   guest = false,
+  feud = false,
 }: {
   unseen?: number;
   avatar?: string | null;
   guest?: boolean;
+  /** Show the repeat-raider fixtures, with one score settled. */
+  feud?: boolean;
 }) {
   // Set before the panel's first render, which is when it fetches.
   stub.unseen = unseen;
+  stub.feud = feud;
   return (
     <div style={{ height: 700, background: '#0d1117' }}>
       <ProfileMenu
@@ -121,6 +147,10 @@ function Harness({
         onClose={() => {}}
         onLogout={() => {}}
         onAbandon={() => {}}
+        onRevenge={() => {}}
+        // Standing in for the socket: one raider out digging, one at home,
+        // so both live dots are on screen at once.
+        presence={{ 'sol:NorminaskyTV': 'digging', 'sol:PaleClover': 'home' }}
       />
     </div>
   );
@@ -152,3 +182,14 @@ export const WithUnreadRaids: Story = { args: { unseen: 3, avatar: 'gray' } };
  * kind of account rather than a reduced version of it.
  */
 export const GuestBurrow: Story = { args: { guest: true, avatar: 'orange' } };
+
+/**
+ * A FEUD, on the History tab — the raid log as a ledger of open scores.
+ *
+ * NorminaskyTV has been three times. One payback sits between the second
+ * visit and the latest, so the two older lines are struck through and the
+ * newest is still owed: the mark says "answered", and an attack that landed
+ * after the answer is a fresh debt. Open rows carry a live dot and the
+ * REVENGE button; settled ones carry neither.
+ */
+export const Feud: Story = { args: { feud: true, avatar: 'brown', unseen: 1 } };

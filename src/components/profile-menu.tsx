@@ -83,7 +83,7 @@ interface Day {
   tilesDug: number;
 }
 
-interface RaidRow {
+export interface RaidRow {
   id: string;
   /**
    * Where this happened: a burrow crossing, or a kill out on the island.
@@ -158,6 +158,28 @@ export interface ProfileMenuProps {
    * and `onLogout` for everyone else.
    */
   onAbandon(): void;
+  /**
+   * Go and raid one of the players in the history, by id.
+   *
+   * The whole point of naming a raider is that you can answer them, and the
+   * log is where a player reads the name. Optional: the panel opens on
+   * screens with no board behind it (Storybook, the doorstep), and there the
+   * rows simply carry no button.
+   */
+  onRevenge?: (defenderId: string) => void;
+  /**
+   * Where those players are standing, by id — pushed over the game socket
+   * while this panel is open. Absent reads as `away`.
+   */
+  presence?: Record<string, 'away' | 'home' | 'digging'>;
+  /**
+   * Follow these players' presence for as long as the log is showing.
+   *
+   * Called with the ids in the history when the History tab opens, and with
+   * nothing when the panel closes — the subscription is the server's, and it
+   * should not outlive the thing looking at it.
+   */
+  onWatchPresence?: (ids: string[]) => void;
 }
 
 export function ProfileMenu({
@@ -173,6 +195,9 @@ export function ProfileMenu({
   onClose,
   onLogout,
   onAbandon,
+  onRevenge,
+  presence,
+  onWatchPresence,
 }: ProfileMenuProps) {
   const dict = useT();
   const [tab, setTab] = useState<Tab>('profile');
@@ -249,6 +274,22 @@ export function ProfileMenu({
     setHistory((h) => (h ? { ...h, raids: { ...h.raids, unseen: 0 } } : h));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, history?.raids.unseen]);
+
+  /**
+   * FOLLOW the raiders in the log, for as long as it is on screen.
+   *
+   * Only while the History tab is the one showing: the dots are the only
+   * thing that reads this, and a subscription running behind the Profile tab
+   * is a push nobody looks at. Dropped on unmount too — the panel closing is
+   * the commonest way this ends.
+   */
+  useEffect(() => {
+    if (!onWatchPresence) return;
+    if (tab !== 'history' || !history) return;
+    const ids = [...new Set(history.raids.against.map((r) => r.otherId))];
+    onWatchPresence(ids);
+    return () => onWatchPresence([]);
+  }, [tab, history, onWatchPresence]);
 
   const save = useCallback(
     async (patch: { name?: string; avatar?: string }) => {
@@ -454,7 +495,23 @@ export function ProfileMenu({
             </PanelButton>
           </div>
         ) : (
-          <HistoryTab history={history} failed={historyFailed} newCount={newRaids} />
+          <HistoryTab
+            history={history}
+            failed={historyFailed}
+            newCount={newRaids}
+            presence={presence}
+            onRevenge={
+              onRevenge
+                ? (id) => {
+                    // The raid happens on the board behind this panel, so the
+                    // panel gets out of the way. Closing is also the
+                    // acknowledgement: the target list opens in its place.
+                    onClose();
+                    onRevenge(id);
+                  }
+                : undefined
+            }
+          />
         )}
       </NineSlicePanel>
     </>,
@@ -510,7 +567,43 @@ function Avatar({ src, size }: { src: string; size: number }) {
   );
 }
 
-function HistoryTab({ history, failed, newCount = 0 }: { history: History | null; failed: boolean; newCount?: number }) {
+/**
+ * WHEN EACH RAIDER WAS LAST PAID BACK — the line under a struck-through row.
+ *
+ * A debt is settled by taking something off them: their carrots, or their
+ * run. A crossing that came home empty (blocked, or nothing in the garden)
+ * does not count — the whole point of the mark is that it says you GOT them,
+ * and a mark you can earn by bouncing off a trap says nothing.
+ *
+ * Returns the time of the last such raid per player, so every attack of
+ * theirs from BEFORE it reads as answered: three robberies in a week are one
+ * grudge, and paying it back once settles the week. Attacks that land AFTER
+ * are a new debt, which is why this compares dates rather than counting.
+ */
+export function avengedAt(raids: RaidRow[]): Map<string, number> {
+  const last = new Map<string, number>();
+  for (const r of raids) {
+    if (r.direction !== 'by') continue;
+    const kind = r.kind ?? 'burrow';
+    const got = kind === 'shove' || kind === 'lightning' || r.carrotsLooted > 0;
+    if (!got) continue;
+    const at = +new Date(r.createdAt);
+    if (at > (last.get(r.otherId) ?? 0)) last.set(r.otherId, at);
+  }
+  return last;
+}
+
+function HistoryTab({
+  history, failed, newCount = 0, presence, onRevenge,
+}: {
+  history: History | null;
+  failed: boolean;
+  newCount?: number;
+  /** Where each raider is standing right now — pushed over the socket. */
+  presence?: Record<string, 'away' | 'home' | 'digging'>;
+  /** Go and raid them back. Absent when there is no board to do it on. */
+  onRevenge?: (id: string) => void;
+}) {
   const dict = useT();
   const { locale } = useLocale();
   // A history that failed to load is not a history that is empty, and neither
@@ -528,6 +621,9 @@ function HistoryTab({ history, failed, newCount = 0 }: { history: History | null
   // them newest first).
   const fresh = new Set(history.raids.against.slice(0, newCount).map((r) => r.id));
   const bought = history.purchases ?? [];
+  // Who has been paid back, and when. Read against each incoming row's own
+  // date below, so the list settles line by line rather than by player.
+  const settled = avengedAt(raids);
 
   return (
     <div className="rr-profile-body">
@@ -556,16 +652,53 @@ function HistoryTab({ history, failed, newCount = 0 }: { history: History | null
         <p className="rr-empty">{dict.profile.noRaids}</p>
       ) : (
         <ul className="rr-raids">
-          {raids.map((r) => (
-            <li key={r.id} className={r.direction === 'against' ? 'hit' : 'mine'}>
-              <span className="rr-raid-who">
-                {whoLine(dict, r)}
-                {fresh.has(r.id) && <em className="rr-new-tag">NEW</em>}
-              </span>
-              <span className="rr-raid-what">{whatLine(dict, r)}</span>
-              <span className="rr-raid-when">{ago(dict, r.createdAt)}</span>
-            </li>
-          ))}
+          {raids.map((r) => {
+            // Only a raid AGAINST us is a debt: our own rows are the ledger's
+            // other side and have nothing to settle.
+            const owed = r.direction === 'against';
+            const paid = owed && +new Date(r.createdAt) < (settled.get(r.otherId) ?? 0);
+            const where = presence?.[r.otherId] ?? 'away';
+            return (
+              <li
+                key={r.id}
+                className={`${owed ? 'hit' : 'mine'}${paid ? ' settled' : ''}`}
+              >
+                <span className="rr-raid-who">
+                  {/* Struck through on the name AND the time, which together
+                      are the thing being crossed off: "this player, that
+                      night, answered". */}
+                  <span className="rr-raid-label">{whoLine(dict, r)}</span>
+                  {/* Where they are NOW — the one fact that decides whether
+                      riposting tonight is a walk or a fight. Not shown on a
+                      settled line: nothing is being decided there. */}
+                  {owed && !paid && (
+                    <i className={`rr-dot ${where}`} title={dict.raid.presence[where]} aria-hidden />
+                  )}
+                  {fresh.has(r.id) && <em className="rr-new-tag">NEW</em>}
+                </span>
+                <span className="rr-raid-what">{whatLine(dict, r)}</span>
+                <span className="rr-raid-when">{ago(dict, r.createdAt)}</span>
+                {/* The debt's own button, on its own row beneath. Gone once
+                    the line is settled: a list of open scores is the useful
+                    list, and a button on a crossed-out row invites paying a
+                    debt twice. */}
+                {owed && !paid && onRevenge && (
+                  <PxButton
+                    className="rr-revenge"
+                    color={BTN}
+                    textColor={CROWN}
+                    // Two thirds of the panel's scale: the plank's own art
+                    // sets this button's height, and at the dialog's usual
+                    // 3px a row's button was as tall as the row itself.
+                    pixelScale="2px"
+                    onClick={() => onRevenge(r.otherId)}
+                  >
+                    <span style={{ ...pxLabel, fontSize: 9 }}>{dict.profile.revenge}</span>
+                  </PxButton>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
 

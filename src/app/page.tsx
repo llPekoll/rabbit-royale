@@ -2357,7 +2357,16 @@ function Burrow() {
             staying `pointer-events: none`, so it was an invisible, live copy of
             that button in the corner, and a second "Connect wallet" for a
             screen reader. */}
-        {showCanvas && <WalletButton />}
+        {showCanvas && (
+          <WalletButton
+            // Riposting from the raid log: the same door the target list
+            // uses, so a revenge raid IS a raid — same energy, same shield
+            // rules, same refusals. The panel closes itself on the way.
+            onRevenge={(id) => void raid.enter(id)}
+            presence={game.presence}
+            onWatchPresence={game.watchPresence}
+          />
+        )}
         {/* The pill carries the rank line, so a player can see what it would
             take to climb without opening the season board. `me` is reported by
             that board's own poll — see LeaderboardDrawer.onMe. */}

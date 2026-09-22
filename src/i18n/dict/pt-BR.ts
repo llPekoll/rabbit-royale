@@ -592,6 +592,9 @@ export const ptBR: Dict = {
     youStruck: (name) => `Você fulminou ${name}`,
     spent: (n) => `-${n} 🥕`,
     usd: (n) => `US$ ${n}`,
+    revenge: 'VINGAR AGORA',
+    avenged: 'acertado',
+    revengeShielded: 'Protegido',
   },
 
   avatars: {

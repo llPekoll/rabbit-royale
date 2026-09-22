@@ -590,6 +590,9 @@ export const fr: Dict = {
     youStruck: (name) => `Tu as foudroyé ${name}`,
     spent: (n) => `-${n} 🥕`,
     usd: (n) => `${n} $`,
+    revenge: 'ME VENGER',
+    avenged: 'réglé',
+    revengeShielded: 'Protégé',
   },
 
   avatars: {

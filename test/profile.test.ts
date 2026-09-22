@@ -16,6 +16,7 @@ import {
 import { AVATARS, DEFAULT_AVATAR, avatarSrc, isBuiltInAvatar } from '../src/lib/game/avatars';
 import { raidResult } from '../src/lib/game/record-raid';
 import { restoreDecision } from '../src/components/use-wallet-login';
+import { avengedAt, type RaidRow } from '../src/components/profile-menu';
 
 describe('player names', () => {
   it('accepts ordinary names', () => {
@@ -125,5 +126,81 @@ describe('restoring a stored session', () => {
 
   it('keeps a token the server accepted', () => {
     expect(restoreDecision(200)).toBe('keep');
+  });
+});
+
+
+/**
+ * SETTLING A SCORE — the struck-through lines in the raid log.
+ *
+ * A raid against this player is an open debt until they take something back
+ * off the raider. What counts as "taking something back" is the whole rule:
+ * their carrots, or their run. Bouncing off a trap is not revenge.
+ */
+describe('avenging a raid', () => {
+  const row = (r: Partial<RaidRow> & { direction: 'against' | 'by'; createdAt: string }): RaidRow => ({
+    id: Math.random().toString(36).slice(2),
+    result: 'looted',
+    kind: 'burrow',
+    damage: 0,
+    carrotsLooted: 0,
+    otherId: 'sol:thief',
+    otherName: 'NorminaskyTV',
+    otherAvatar: null,
+    ...r,
+  });
+
+  it('counts a raid that took carrots', () => {
+    const at = avengedAt([row({ direction: 'by', createdAt: '2026-09-20T10:00:00Z', carrotsLooted: 200 })]);
+    expect(at.get('sol:thief')).toBe(+new Date('2026-09-20T10:00:00Z'));
+  });
+
+  it('counts a kill out on the island, which loots nothing', () => {
+    // A shove and a bolt both carry 0 carrots — they take the RUN. Reading
+    // them as empty-handed would leave the commonest revenge unmarked.
+    for (const kind of ['shove', 'lightning'] as const) {
+      const at = avengedAt([row({ direction: 'by', createdAt: '2026-09-20T10:00:00Z', kind })]);
+      expect(at.get('sol:thief'), kind).toBe(+new Date('2026-09-20T10:00:00Z'));
+    }
+  });
+
+  it('does not count a crossing that came home empty', () => {
+    // Getting in is not getting them: a blocked raid, or one that found the
+    // garden bare, leaves the debt exactly where it was.
+    expect(avengedAt([row({ direction: 'by', createdAt: '2026-09-20T10:00:00Z', result: 'blocked' })]).size).toBe(0);
+    expect(avengedAt([row({ direction: 'by', createdAt: '2026-09-20T10:00:00Z', carrotsLooted: 0 })]).size).toBe(0);
+  });
+
+  it('ignores raids against us — only what WE did settles anything', () => {
+    expect(avengedAt([row({ direction: 'against', createdAt: '2026-09-20T10:00:00Z', carrotsLooted: 900 })]).size).toBe(0);
+  });
+
+  it('keeps the LATEST payback, so every older attack of theirs reads as answered', () => {
+    const at = avengedAt([
+      row({ direction: 'by', createdAt: '2026-09-18T10:00:00Z', carrotsLooted: 10 }),
+      row({ direction: 'by', createdAt: '2026-09-21T10:00:00Z', carrotsLooted: 10 }),
+      row({ direction: 'by', createdAt: '2026-09-19T10:00:00Z', carrotsLooted: 10 }),
+    ]);
+    expect(at.get('sol:thief')).toBe(+new Date('2026-09-21T10:00:00Z'));
+  });
+
+  it('settles each raider separately', () => {
+    const at = avengedAt([
+      row({ direction: 'by', createdAt: '2026-09-21T10:00:00Z', carrotsLooted: 10 }),
+      row({ direction: 'by', createdAt: '2026-09-21T11:00:00Z', carrotsLooted: 10, otherId: 'sol:other' }),
+    ]);
+    expect(at.get('sol:thief')).toBe(+new Date('2026-09-21T10:00:00Z'));
+    expect(at.get('sol:other')).toBe(+new Date('2026-09-21T11:00:00Z'));
+    // And a raider never paid back is simply absent — the row stays open.
+    expect(at.has('sol:stranger')).toBe(false);
+  });
+
+  it('leaves an attack made AFTER the payback open, because it is a new debt', () => {
+    // The rule the panel applies: a line is struck only when it predates the
+    // payback. Hitting them back on Monday does not settle Tuesday's robbery.
+    const at = avengedAt([row({ direction: 'by', createdAt: '2026-09-20T10:00:00Z', carrotsLooted: 10 })]);
+    const settledAt = at.get('sol:thief')!;
+    expect(+new Date('2026-09-19T10:00:00Z') < settledAt).toBe(true);  // struck
+    expect(+new Date('2026-09-21T10:00:00Z') < settledAt).toBe(false); // still owed
   });
 });
