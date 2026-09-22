@@ -35,7 +35,9 @@ export const en = {
     description: 'Competitive minesweeper. Dig, hoard, raid, wear the crown.',
   },
   lang: {
-    /** The picker's own label. Never seen — it labels the select for a reader. */
+    /** The picker's title. It IS seen now: it heads the language dialog that
+     *  replaced the native select (language-select.tsx), where it used to be
+     *  a screen-reader-only label on a control that showed its own value. */
     label: 'Language',
   },
 
@@ -181,7 +183,10 @@ export const en = {
   /* ── The burrow's cards ───────────────────────────────────────────────── */
   burrow: {
     title: 'YOUR BURROW',
-    level: (n: number) => `BURROW - LVL ${n}`,
+    /* No dash: at the Seeker's card width the heading's text column is 96px
+       and "BURROW - LVL 1" needs 106 at the type's floor, so the figure was
+       cut off the rim (22 September 2026). Two characters are the difference. */
+    level: (n: number) => `BURROW LVL ${n}`,
     maxLevel: 'MAX LEVEL',
     upgrade: 'UPGRADE',
     safe: 'SAFE',
@@ -553,65 +558,73 @@ export const en = {
   },
 
   /* ── Raiding ──────────────────────────────────────────────────────────── */
+  /* THE TANK'S LEDGER (energy-panel.tsx). One row per thing the energy buys:
+     a LABEL (one word, a 4.6em column), the COST in a short clause, and a
+     VERDICT in capitals (READY / NEEDS 40 / RAID READY), with the wait under
+     a short one. Plain ASCII inside the strings; the middots are entities in
+     the component. */
   energyPanel: {
     open: 'Energy details',
     title: 'ENERGY',
-    /* ROWS, NOT SENTENCES. Each row is a thing the tank buys, what it takes,
-       and a chip that says YES or when. The paragraphs this replaced were
-       read as a wall (2026-09-21, both screens). */
-    perHour: (regen: number) => `+${regen} an hour`,
+    reading: (energy: number, max: number) => `${energy}/${max}`,
+    /* "/h", not "an hour": the reading shares its line with the [X] on a
+       340px panel, and the long form wrapped on the Seeker. */
+    rate: (regen: number) => `+${regen}/h`,
     full: 'full',
     fullIn: (wait: string) => `full in ${wait}`,
-    yes: 'YES',
+    island: 'ISLAND',
+    islandCost: (cost: number) => `${cost} to cross, then 1 a dig`,
+    raid: 'RAID',
+    raidCost: (toll: number, stake: number) => `${toll} to climb in, ${stake} at most`,
+    raidRefund: 'Reach the field and your steps come back.',
+    dig: 'DIG',
+    digCost: (dig: number, bomb: number) => `${dig} a tile. A bomb: ${bomb}`,
+    x: 'RED X',
+    xCost: (lo: number, hi: number, loss: number) => `right: +${lo} to +${hi} back. Wrong: -${loss}`,
+    home: 'HOME',
+    homeCost: (floor: number) => `leave with ${floor} or more and a raid is ready`,
+    homeHint: 'What you go home with stays in the tank.',
+    ready: 'READY',
+    raidReady: 'RAID READY',
+    needs: (floor: number) => `NEEDS ${floor}`,
     inWait: (wait: string) => `in ${wait}`,
-    /* The two ticks on the bar. */
-    tickIsland: 'island',
-    tickRaid: 'raid',
-    island: 'AN ISLAND',
-    islandCost: (cross: number) => `${cross} to cross, then 1 a dig`,
-    raid: 'A RAID',
-    raidCost: (toll: number, stake: number) => `${toll} to get in, ${stake} at most. Reach the field: your steps come back.`,
-    dig: 'DIGGING',
-    digCost: (bomb: number) => `1 a dig, a bomb ${bomb}. A right X gives back, a wrong one costs 15.`,
-    home: 'GOING HOME',
-    homeCost: (floor: number) => `What is left stays in the tank. Above ${floor}, you land with a raid.`,
-    homeYes: 'RAID READY',
-    homeNo: 'NO RAID',
-    level: (level: number, regen: number, next: number) => `Burrow lvl ${level}: +${regen}/h \u00b7 lvl ${level + 1}: +${next}/h`,
-    levelMax: (level: number, regen: number) => `Burrow lvl ${level}: +${regen}/h`,
+    under: (floor: number) => `UNDER ${floor}`,
+    levelLabel: (level: number) => `LVL ${level}`,
+    levelRate: (regen: number, next: number | null) =>
+      next === null ? `refills ${regen} an hour` : `refills ${regen} an hour. Next level: ${next}`,
   },
   islandPick: {
     choose: 'Choose an island',
     which: 'WHICH ISLAND?',
     loading: 'Looking at the water...',
     row: (rabbits: number, left: number, total: number, dug: number) => `${rabbits} digging \u00b7 ${left}/${total} chests left \u00b7 ${dug}% dug`,
-    fresh: 'Nobody on it yet \u00b7 the long run',
-    /* Appended to a live island's row: the consequence of company. */
-    shortSafe: 'short and safe',
+    /** The same row for a started island nobody is on right now. */
+    rowEmpty: (left: number, total: number, dug: number) => `nobody on it now \u00b7 ${left}/${total} chests left \u00b7 ${dug}% dug`,
+    fresh: 'Nobody on it yet',
     join: 'Join',
     open: 'Open',
-    /* WHERE YOU STAND on the ladder, not only the rung: "opens at 7 500"
-       alone gave no sense of distance. */
-    locked: (need: string, have: string) => `Opens at ${need} dug \u00b7 you ${have}`,
-    lockedAria: (name: string, have: string, need: string) => `${name}: ${have} of ${need} carrots dug`,
+    locked: (n: string) => `Opens at ${n} carrots dug`,
     lockedShort: 'Locked',
-    /* The foot says what the crossing takes from the one tank, where the
-       choice is made. The busy/fresh lesson moved onto the rows. */
-    tank: (energy: number, cost: number) => `\u26a1 ${energy} in the tank \u00b7 the crossing takes ${cost}`,
+    brief: 'A busy island is a short, safe dig with a share of the chests. A fresh one is the long run.',
     almostDone: 'almost done',
-    /* WHAT THE GROUND IS MADE OF, per tier: the risk and the riches that go
-       up together. Paul, 21 September 2026 — a ladder that only said
-       "locked" never said what was up there. */
-    ground: (bombIn: number, goldIn: number) => `\ud83d\udca3 1 tile in ${bombIn} \u00b7 \ud83e\udd55 1 carrot in ${goldIn} is gold`,
     best: (n: string) => `your record ${n} \ud83e\udd55`,
     gone: 'That island filled up or ended. Pick another.',
     tierLocked: 'You have not dug your way to that island yet.',
+    /* The locked row: the door, and how far the player is from it — the
+       progress is the reason the row is there at all. */
+    youHave: (n: string) => `you have ${n}`,
+    /* What a tier IS, in the two numbers the ladder turns: how thick the
+       bombs are, and what a right X on one pays back. */
+    tier: (bombs: number, x: number) => `${bombs}% bombs · right X +${x}`,
   },
   raid: {
     go: 'GO RAIDING',
     another: 'Raid another burrow',
     choose: 'Choose a burrow',
     whose: 'WHOSE BURROW?',
+    /* The toll, on the list's footer: a raid draws on the one tank, and the
+       list is where the player decides to spend it. */
+    cost: (toll: number, stake: number) => `A raid takes ${toll} energy to climb in, ${stake} at most.`,
     allShielded: 'ALL BURROWS SHIELDED',
     nobody: 'NOBODY TO ROB',
     shielded: 'Shielded',
@@ -739,6 +752,15 @@ export const en = {
     youStruck: (name: string) => `You struck ${name} down`,
     spent: (n: string) => `-${n} 🥕`,
     usd: (n: string) => `$${n}`,
+    /* ── Settling up ──────────────────────────────────────────────────────
+       A raid log is a list of debts, and the button is how one is paid. It
+       goes on every line whose raider has not been paid back since — see
+       `avengedAt` in profile-menu. */
+    revenge: 'REVENGE NOW',
+    /** On a line already settled, for a reader who wonders why it is struck. */
+    avenged: 'settled',
+    /** Their burrow is shielded: the button is there but cannot be pressed. */
+    revengeShielded: 'Shielded',
   },
 
   /* ── The avatars, by colour ───────────────────────────────────────────── */
@@ -778,6 +800,35 @@ export const en = {
     progress: (progress: number, goal: number) => `${progress}/${goal}`,
     counter: (index: number, total: number) => `QUEST ${index} / ${total}`,
   },
+
+  /* ── WHAT THE GAME IS, on the doorstep's board ────────────────────────── */
+  /**
+   * The plank in the bottom-right corner of the sign-in screen.
+   *
+   * RULES, NOT MOOD. `taglines` below is the flavour set — it still runs in
+   * the Pixi ribbon in-game, where the player already knows how to play. On
+   * the doorstep the reader has never seen a board, and "ONLY THE BOLD
+   * SURVIVE" tells them nothing they can act on. These say what the game
+   * actually is, one fact at a time.
+   *
+   * EVERY NUMBER HERE IS THE REAL ONE (config/tuning.ts): a dig costs 1 of a
+   * 300 bar (ENERGY.DIG_COST / MAX), a bomb takes 30 (BOMB_LOSS), a wrong X
+   * takes 15 (FLAG.LOSS). If those move, these lines move with them — a
+   * doorstep that teaches the wrong cost is worse than one that teaches
+   * nothing.
+   *
+   * ALL CAPS IN ENGLISH, like the taglines and for the same reason: the
+   * arcade-kit's basic face has no lowercase (see i18n/locales.ts).
+   */
+  doorstepTips: [
+    'THE NUMBER ON A TILE COUNTS THE BOMBS TOUCHING IT',
+    'DIGGING COSTS 1 ENERGY - A BOMB COSTS 30',
+    'MARK A BOMB WITH A RED X: RIGHT PAYS ENERGY BACK, WRONG COSTS 15',
+    'WALKING BACK OVER TILES YOU ALREADY DUG IS FREE',
+    'EVERY CHEST YOU OPEN GOES HOME WITH YOU',
+    'THE ISLAND IS THE CLOCK - DIG IT OUT AND IT SINKS',
+    'CARROTS ARE THE SCORE - THE RED X IS THE ONLY PUMP',
+  ] as readonly string[],
 
   /* ── The five phrases in the wordmark's ribbon ────────────────────────── */
   taglines: [

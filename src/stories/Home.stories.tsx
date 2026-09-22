@@ -7,7 +7,6 @@
  *
  * The markup mirrors the page; what is faked is only the data and the router.
  */
-import { LoreCrawl } from '@/components/lore-crawl';
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { GoButton } from '@/components/go-button';
@@ -38,19 +37,23 @@ function Home({ signedIn, stock, shieldMins, gardenReady, level, upgradeCost, bo
 
   return (
     <main className="rr-home" style={{ height: '100dvh' }}>
-      {/* The burrow behind everything, exactly as the page draws it. */}
-      <div
-        className="rr-home-art"
-        style={{ backgroundImage: 'url(/assets/island/burrow_generated.webp)' }}
-        aria-hidden
-      />
+      {/* The key art behind everything, exactly as the page draws it: the
+          picture goes on the INNER `.rr-home-art-img`, not on the layer
+          itself, because `.rr-home-art::after` is the wash over it. Signed in
+          the canvas covers this anyway; signed out it is the whole screen. */}
+      <div className="rr-home-art" aria-hidden>
+        <div
+          className="rr-home-art-img"
+          style={{ backgroundImage: 'url(/assets/ui/home-bg.webp)' }}
+        />
+      </div>
 
-      {/* The opening crawl, signed out only — the same condition the page uses.
-          Without it this story judged the sign-in screen against a background
-          the real one has not had since the crawl shipped: the wordmark sits in
-          front of MOVING TEXT there, and whether it stays readable over a
-          bright line of prose is exactly the thing a harness is for. */}
-      {!signedIn && <LoreCrawl />}
+      {/* NO CRAWL. It used to mount here, signed out, on the same condition the
+          page used — the point being that the wordmark had to stay readable
+          over moving text. The page does not mount it any more (the doorstep is
+          the key art with the menu in its left column), so mounting it here
+          would make this harness judge a screen that no longer ships. The
+          component and its own story are kept: the crawl is parked, not cut. */}
       <div className="rr-topbar">
         <button className={`rr-wallet${signedIn ? ' connected' : ''}`}>
           {/* The real chip draws the player's avatar sprite here (see

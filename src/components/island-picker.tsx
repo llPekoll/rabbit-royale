@@ -29,17 +29,18 @@ import type { IslandChoice, IslandListing } from './use-game-socket';
 export interface IslandPickerProps {
   /** Null while the list is being fetched, or when the socket had no answer. */
   listing: IslandListing | null;
-  busy: boolean;
-  /** Carrots dug in all — where the player stands on the ladder. */
+  /**
+   * The player's lifetime carrots — what the doors are measured against.
+   * A locked row says how far the player is from it, and draws it: a door
+   * with a number on it and no way to read the distance was a wall.
+   */
   lifetime: number;
-  /** The tank, and what a crossing takes from it: said on the foot. */
-  energy: number;
-  crossingCost: number;
+  busy: boolean;
   onChoose: (choice: IslandChoice) => void;
   onClose: () => void;
 }
 
-export function IslandPicker({ listing, busy, lifetime, energy, crossingCost, onChoose, onClose }: IslandPickerProps) {
+export function IslandPicker({ listing, lifetime, busy, onChoose, onClose }: IslandPickerProps) {
   const t = useT();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -49,20 +50,6 @@ export function IslandPicker({ listing, busy, lifetime, energy, crossingCost, on
 
   const unlocked = listing?.unlocked ?? 0;
   const tierName = (name: string) => islandName(t, name);
-  /**
-   * WHAT THE GROUND IS MADE OF, from the tier's own densities: one tile in
-   * N is a bomb (`bombDensity`), one carrot in N is gold (`goldenShare`,
-   * a share OF the carrots). Both climb together up the ladder — that is
-   * the bargain a tier offers, and the list never said it.
-   */
-  const ground = (name: string) => {
-    const tier = ISLAND_TIERS.find((x) => x.name === name) ?? ISLAND_TIERS[0];
-    return (
-      <small className="rr-island-ground">
-        {t.islandPick.ground(Math.round(1 / tier.bombDensity), Math.round(1 / tier.goldenShare))}
-      </small>
-    );
-  };
 
   return createPortal(
     <div className="rr-shop-scrim" onClick={onClose}>
@@ -91,12 +78,18 @@ export function IslandPicker({ listing, busy, lifetime, energy, crossingCost, on
                   <PxPanel color={PLANK} className="rr-raid-row">
                     <span className="rr-raid-name">
                       {tierName(i.tier)}
-                      <small className="rr-raid-where digging">
+                      {/* A started island with nobody on it right now is the
+                          short cheap haul the GDD describes, not "0 digging":
+                          the dot goes quiet with it, since green means live. */}
+                      <small className={`rr-raid-where ${i.rabbits > 0 ? 'digging' : 'away'}`}>
                         <i aria-hidden />
-                        {t.islandPick.row(i.rabbits, i.chestsLeft, i.chestsTotal, Math.round(100 * i.dugFraction))}
-                        {(i.chestsLeft <= 3 || i.dugFraction >= 0.7) ? <>{' \u00b7 '}{t.islandPick.almostDone}</> : <>{' \u00b7 '}{t.islandPick.shortSafe}</>}
+                        <span>
+                          {i.rabbits > 0
+                            ? t.islandPick.row(i.rabbits, i.chestsLeft, i.chestsTotal, Math.round(100 * i.dugFraction))
+                            : t.islandPick.rowEmpty(i.chestsLeft, i.chestsTotal, Math.round(100 * i.dugFraction))}
+                          {(i.chestsLeft <= 3 || i.dugFraction >= 0.7) && <>{' \u00b7 '}{t.islandPick.almostDone}</>}
+                        </span>
                       </small>
-                      {ground(i.tier)}
                     </span>
                     <PxButton
                       type="button"
@@ -120,24 +113,31 @@ export function IslandPicker({ listing, busy, lifetime, energy, crossingCost, on
                         {tierName(tier.name)}
                         <small className={`rr-raid-where ${locked ? 'away' : 'home'}`}>
                           <i aria-hidden />
-                          {locked ? t.islandPick.locked(groupDigits(tier.minLifetime), groupDigits(lifetime)) : t.islandPick.fresh}
+                          {/* ONE inline run after the dot, so the line wraps as
+                              text and the progress bar flows with it: as
+                              siblings of a flex row, the bar cut the sentence
+                              into three items that wrapped on their own. */}
+                          <span>
+                          {locked ? t.islandPick.locked(groupDigits(tier.minLifetime)) : t.islandPick.fresh}
+                          {/* THE DISTANCE TO THE DOOR, said and drawn: what
+                              the player has against what it asks, and a
+                              short bar of it (22 September 2026). */}
+                          {locked && (
+                            <>
+                              {' \u00b7 '}{t.islandPick.youHave(groupDigits(lifetime))}
+                              <span className="rr-tier-progress" aria-hidden>
+                                <i style={{ width: `${Math.min(100, (100 * lifetime) / tier.minLifetime)}%` }} />
+                              </span>
+                            </>
+                          )}
+                          {/* WHAT THE TIER IS, in the two numbers the ladder
+                              turns: richer AND more dangerous means thicker
+                              bombs, and a right X on one pays less up the
+                              ladder. Said on every tier so the rows compare. */}
+                          {' \u00b7 '}{t.islandPick.tier(Math.round(tier.bombDensity * 100), tier.xGain)}
                           {!locked && (listing.bests[tier.name] ?? 0) > 0 && <>{' \u00b7 '}{t.islandPick.best(groupDigits(listing.bests[tier.name]))}</>}
-                        </small>
-                        {ground(tier.name)}
-                        {/* THE DISTANCE, drawn: only the next rung, since the
-                            ones past it are the same bar with less in it. */}
-                        {locked && idx === unlocked + 1 && (
-                          <span
-                            className="rr-tier-progress"
-                            role="progressbar"
-                            aria-valuemin={0}
-                            aria-valuemax={tier.minLifetime}
-                            aria-valuenow={Math.min(lifetime, tier.minLifetime)}
-                            aria-label={t.islandPick.lockedAria(tierName(tier.name), groupDigits(lifetime), groupDigits(tier.minLifetime))}
-                          >
-                            <i style={{ width: `${(100 * Math.min(1, lifetime / tier.minLifetime)).toFixed(1)}%` }} />
                           </span>
-                        )}
+                        </small>
                       </span>
                       <PxButton
                         type="button"
@@ -156,7 +156,7 @@ export function IslandPicker({ listing, busy, lifetime, energy, crossingCost, on
           )}
 
           <PxPanel color={PLANK} className="rr-shop-foot">
-            <span>{t.islandPick.tank(energy, crossingCost)}</span>
+            <span>{t.islandPick.brief}</span>
           </PxPanel>
         </PxPanel>
       </section>

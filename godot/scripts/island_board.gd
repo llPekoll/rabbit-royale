@@ -1,0 +1,437 @@
+extends RefCounted
+class_name IslandBoard
+## CE QUI EST ENTERRE, ET CE QUI EST DEJA DECOUVERT.
+##
+## Porte de src/lib/game/island.ts — la partie qui se calcule, pas celle qui se
+## tire au sort.
+##
+## ARITHMETIQUE PURE, aucun noeud, comme `BurrowMap` : l'etat d'un plateau doit
+## pouvoir se calculer sans moteur de rendu, parce que le serveur en a besoin
+## lui aussi.
+##
+## ⚠ CE FICHIER NE SERT QUE LE TUTORIEL POUR L'INSTANT, et c'est une limite de
+## fond, pas un manque de temps.
+##
+## Sur une ile ORDINAIRE, les bombes viennent d'un `contentSeed` PRIVE, connu du
+## seul serveur (src/lib/game/island.ts) : il ne traverse jamais le fil, et
+## `publicView` ne laisse filtrer que ce qui est deja creuse. Un client qui les
+## deviderait divergerait — ou tricherait. Les contenus d'une vraie ile
+## viendront donc du reseau, case par case.
+##
+## LE TUTORIEL EST L'EXCEPTION, et il l'est par construction : `tutorialLayout`
+## ne tire RIEN au sort. Il ecrit ce que la carte dessinee dit — une bombe en
+## `B`, un coffre en `C`, l'indice laisse VIDE, des carottes partout ailleurs.
+## « la phrase de la lecon est un fait sur une image de ce depot plutot qu'un
+## espoir sur du terrain genere ». Donc il se calcule ici, a l'identique, sans
+## serveur.
+
+enum Content {
+	EMPTY,
+	CARROT,
+	BOMB,
+	CHEST,
+}
+
+## L'etat d'une case, en plus de son contenu.
+enum State {
+	BURIED,
+	## Creusee : le voile est tombe, le contenu est connu.
+	DUG,
+	## Le chiffre est connu mais la case n'est pas creusee — le cadeau que fait
+	## la cascade. Elle reste creusable.
+	HINTED,
+}
+
+var map: BurrowMap
+
+## Par case : son contenu, son etat, et le nombre de bombes qui la touchent.
+var content: Dictionary = {}
+var state: Dictionary = {}
+var adjacent: Dictionary = {}
+
+## LES CASES PORTANT UN X ROUGE — une bombe que le joueur a PROUVEE.
+##
+## A part, et pas un `State`, pour la meme raison que le web en fait un booleen
+## sur la tuile : un X se pose sur une case ENTERREE et l'y laisse. Ce n'est pas
+## une quatrieme facon d'etre ouvert, c'est une annotation par-dessus.
+var flagged: Dictionary = {}
+
+## LE DECOR POSE SUR UNE CASE — un buisson, par son nom de piece (decor.ts).
+##
+## Une case decoree reste une case du plateau (elle compte dans les chiffres,
+## elle porte une carotte) mais ON NE MARCHE PAS DESSUS : le web retire les
+## cases decorees de `walkableTiles`, et un lapin qui traverserait un buisson
+## dirait que le buisson n'est pas la.
+var decor: Dictionary = {}
+
+## LES BUISSONS DU TUTORIEL, deux, a l'ecart du couloir.
+##
+## Paul, 2026-09-23 : « le chest, 1 ou 2 buissons ». La carte est nettoyee de
+## tout arbre — un seul pin coupait l'ile en deux — mais un buisson sur une case
+## que la marche n'emprunte pas habille l'ile sans rien lui fermer. Les deux
+## cases sont hors du chemin S → C, verifie par verify_tutorial.gd, qui marche
+## le couloir avec `may_step`.
+const TUTORIAL_DECOR := {
+	Vector2i(19, 20): "bush-small",
+	Vector2i(14, 19): "bush-round",
+}
+
+
+func _init(p_map: BurrowMap) -> void:
+	map = p_map
+
+
+## LES CASES JOUABLES. De la terre, et rien d'autre pour l'instant.
+##
+## Le web y retire aussi celles qui portent un arbre ou un rocher
+## (`farmableTiles`) ; ce portage n'a pas encore de decor sur l'ile, et le
+## couloir du tutoriel est nettoye de toute facon — « pas un arbre », parce
+## qu'un seul pin coupait l'ile en deux.
+func playable() -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	for row in range(map.height):
+		for col in range(map.width):
+			if map.is_land(col, row):
+				out.append(Vector2i(col, row))
+	return out
+
+
+## POSE LES CONTENUS DU TUTORIEL, lus sur sa carte.
+##
+## Rien n'est distribue ici. C'est tout l'interet de l'ile dessinee a la main.
+func deal_tutorial() -> void:
+	content.clear()
+	state.clear()
+	for cell in playable():
+		content[cell] = Content.CARROT
+		state[cell] = State.BURIED
+
+	content[TutorialMap.bomb()] = Content.BOMB
+	content[TutorialMap.chest()] = Content.CHEST
+	decor.clear()
+	for cell in TUTORIAL_DECOR:
+		if content.has(cell):
+			decor[cell] = TUTORIAL_DECOR[cell]
+	# L'INDICE RESTE VIDE : c'est la case dont le chiffre porte la premiere
+	# lecon, et une carotte qui jaillirait en la creusant couvrirait le seul
+	# glyphe dont la legende parle.
+	content[TutorialMap.clue()] = Content.EMPTY
+
+	recompute_adjacent()
+	# ON ATTERRIT TOUJOURS QUELQUE PART OU L'ON PEUT LIRE : l'apparition et ses
+	# voisines sont ouvertes d'emblee, puis les zeros ouvrent autour d'eux comme
+	# le ferait un premier clic au demineur.
+	var spawn := TutorialMap.spawn()
+	dig(spawn)
+	for n in _neighbours(spawn):
+		dig(n)
+	prove_taught_bombs()
+
+
+## ACHEVE LA PREUVE DE LA PREMIERE ILE : ouvrir la derniere case qui brouille
+## son temoin.
+##
+## LE TUTORIEL ENONCE UNE DEDUCTION A VOIX HAUTE — « il ne reste qu'une case
+## fermee, c'est donc la bombe ». Que cette preuve TOMBE ne depend pas de la
+## carte dessinee : ca depend de la cascade, qui tourne apres. Mesure ici meme,
+## avant ce code : l'indice portait bien un « 1 » mais pointait vers DEUX
+## voisines fermees — la phrase a l'ecran etait donc fausse, et la lecon
+## enseignait a deviner.
+##
+## Le web a mesure la meme chose sur soixante plateaux (« the witness was
+## usually one cell short ») et corrige de la meme facon : on ouvre le retardaire
+## APRES la cascade. C'est le meme cadeau que la cascade fait deja — un chiffre
+## sur une case non creusee — et ca ne revele rien que le joueur ne puisse
+## deduire, puisque la case ouverte n'est jamais la bombe.
+##
+## LA BOUCLE VA JUSQU'A UN POINT FIXE : ouvrir des cases pour prouver une bombe
+## change ce qui est ouvert pour la suivante, et peut DEFAIRE une preuve deja
+## acquise en devoilant une voisine fraiche. Bornee — chaque tour ouvre au moins
+## une case ou s'arrete.
+func prove_taught_bombs() -> void:
+	for round in range(40):
+		var unproven: Array[Vector2i] = []
+		for cell in playable():
+			if content.get(cell) != Content.BOMB:
+				continue
+			# Une bombe que le joueur peut deja rencontrer : elle touche du sol
+			# ouvert. Les autres sont du danger ordinaire, pas une lecon.
+			var visible := false
+			for n in _neighbours(cell):
+				if _open(n):
+					visible = true
+			if visible and not _proven(cell):
+				unproven.append(cell)
+		if unproven.is_empty():
+			return
+		var changed := false
+		for bomb in unproven:
+			changed = _prove_one(bomb) or changed
+		if not changed:
+			return
+
+
+## Cette case est-elle deja lisible — creusee ou indicee ?
+func _open(cell: Vector2i) -> bool:
+	var st = state.get(cell)
+	return st == State.DUG or st == State.HINTED
+
+
+## LA BOMBE EST-ELLE PROUVEE ? Il faut un temoin ouvert dont TOUTES les autres
+## voisines sont ouvertes : son chiffre ne peut alors designer qu'elle.
+func _proven(bomb: Vector2i) -> bool:
+	for w in _neighbours(bomb):
+		if not _open(w):
+			continue
+		var all_open := true
+		for n in _neighbours(w):
+			if n != bomb and not _open(n):
+				all_open = false
+		if all_open:
+			return true
+	return false
+
+
+## OUVRE LE MOINS DE CASES POSSIBLE pour qu'un temoin designe cette bombe.
+##
+## On choisit le temoin le MOINS CHER — celui a qui il manque le moins de
+## voisines — et jamais un qui pointerait aussi vers une AUTRE bombe : sa preuve
+## serait ambigue, et le joueur aurait raison de ne pas la croire.
+func _prove_one(bomb: Vector2i) -> bool:
+	var best_witness := Vector2i(-1, -1)
+	var best_missing: Array[Vector2i] = []
+	var best_cost := 1 << 30
+
+	for w in _neighbours(bomb):
+		if content.get(w) == Content.BOMB:
+			continue
+		var missing: Array[Vector2i] = []
+		var touches_other_bomb := false
+		for n in _neighbours(w):
+			if n == bomb or _open(n):
+				continue
+			if content.get(n) == Content.BOMB:
+				touches_other_bomb = true
+			missing.append(n)
+		if touches_other_bomb:
+			continue
+		var cost: int = missing.size() + (0 if _open(w) else 1)
+		if cost < best_cost:
+			best_cost = cost
+			best_witness = w
+			best_missing = missing
+
+	if best_witness.x < 0:
+		return false
+
+	var changed := false
+	if not _open(best_witness):
+		state[best_witness] = State.HINTED
+		changed = true
+	for cell in best_missing:
+		state[cell] = State.HINTED
+		changed = true
+	return changed
+
+
+## COMBIEN DE BOMBES TOUCHENT CHAQUE CASE. Huit voisines, comme au demineur.
+func recompute_adjacent() -> void:
+	adjacent.clear()
+	for cell in playable():
+		var n := 0
+		for other in _neighbours(cell):
+			if content.get(other, Content.EMPTY) == Content.BOMB:
+				n += 1
+		adjacent[cell] = n
+
+
+## CREUSE UNE CASE, et ouvre autour d'elle si elle ne touche aucune bombe.
+##
+## LA CASCADE EST CE QUI REND LE DEMINEUR JOUABLE : sans elle, ouvrir un champ
+## vide demanderait une tape par case. Un zero ouvre ses voisines, et une
+## voisine a zero continue — c'est la meme regle appliquee en chaine.
+##
+## LES CASES OUVERTES PAR LA CASCADE SONT `HINTED`, PAS `DUG`, et la distinction
+## porte tout le jeu : elles montrent leur chiffre mais restent a creuser. C'est
+## le cadeau du demineur — on sait ce qu'il y a autour sans avoir paye le pas.
+func dig(cell: Vector2i) -> void:
+	if not content.has(cell):
+		return
+	if state.get(cell) == State.DUG:
+		return
+	state[cell] = State.DUG
+	if adjacent.get(cell, 0) == 0 and content.get(cell) != Content.BOMB:
+		_cascade(cell)
+
+
+## Le pourtour d'un zero s'ouvre, et ses zeros continuent.
+##
+## En largeur plutot qu'en recursion : un couloir de 28 cases ne poserait pas de
+## probleme, mais une vraie ile de 557 cases creuserait une pile profonde.
+func _cascade(from: Vector2i) -> void:
+	var queue: Array[Vector2i] = [from]
+	var seen := {from: true}
+	while not queue.is_empty():
+		var cell: Vector2i = queue.pop_front()
+		for n in _neighbours(cell):
+			if seen.has(n) or not content.has(n):
+				continue
+			seen[n] = true
+			if content[n] == Content.BOMB:
+				continue
+			# Deja creusee a la main : on ne la retrograde pas.
+			if state.get(n) == State.DUG:
+				continue
+			state[n] = State.HINTED
+			if adjacent.get(n, 0) == 0:
+				queue.append(n)
+
+
+## POSE OU REFUSE UN X ROUGE. Rend `true` si la bombe etait la.
+##
+## Porte de `flagTile` (src/lib/game/run.ts), sans l'energie ni les carottes :
+## ce portage n'a pas encore de bourse, et le tutoriel n'en depend pas — la
+## lecon est le GESTE, et le prix se branchera avec le reste de l'economie.
+##
+## LES REFUS SONT CEUX DU WEB : on ne marque que depuis une case VOISINE, et
+## jamais une case dont on sait deja quelque chose (creusee, indiquee, deja
+## marquee, ou le coffre). Marquer ce qu'on connait n'est pas une deduction.
+func flag(from: Vector2i, at: Vector2i) -> bool:
+	if not content.has(at):
+		return false
+	if not _neighbours(from).has(at):
+		return false
+	var st = state.get(at)
+	if st == State.DUG or st == State.HINTED or flagged.has(at):
+		return false
+	if content.get(at) == Content.CHEST:
+		return false
+
+	if content.get(at) == Content.BOMB:
+		flagged[at] = true
+		return true
+
+	# FAUX. La case est sure, et l'avoir payee achete le savoir : son chiffre
+	# s'ecrit comme la cascade l'aurait fait. RIEN N'EST CREUSE — c'est un
+	# indice, pas un coup de pelle.
+	state[at] = State.HINTED
+	if adjacent.get(at, 0) == 0:
+		_cascade(at)
+	return false
+
+
+func is_flagged(cell: Vector2i) -> bool:
+	return flagged.has(cell)
+
+
+## Les deux cases se touchent-elles, sur les huit voisines ?
+func is_beside(a: Vector2i, b: Vector2i) -> bool:
+	return a != b and absi(a.x - b.x) <= 1 and absi(a.y - b.y) <= 1
+
+
+## LA BOMBE QUE LE TUTORIEL RETIENT, ou (-1,-1) quand l'ile a lache prise.
+##
+## Porte de `teachingHold`. La bombe enseignee est celle dont le joueur peut
+## DEJA lire le bord : une bombe dont aucune voisine n'est ouverte n'enseigne
+## rien, puisque rien a l'ecran ne la designe.
+##
+## MARQUEE, L'ILE LACHE — c'est la seule sortie, et c'est ce qui fait de la
+## lecon un passage oblige plutot qu'un decor.
+func teaching_hold() -> Vector2i:
+	for cell in content.keys():
+		if content[cell] != Content.BOMB:
+			continue
+		var visible := false
+		for n in _neighbours(cell):
+			var st = state.get(n)
+			if st == State.DUG or st == State.HINTED:
+				visible = true
+				break
+		if not visible:
+			continue
+		return Vector2i(-1, -1) if flagged.has(cell) else cell
+	return Vector2i(-1, -1)
+
+
+## UN PAS EST-IL PERMIS PENDANT LA LECON ?
+##
+## Porte du bloc `teachingHold` de `resolveMove`, avec ses deux cicatrices.
+##
+## 1. `DUG`, PAS `DUG OU HINTED`. Une case indiquee montre son chiffre mais est
+##    encore en terre : y marcher la CREUSE, la cascade ouvre un anneau de plus,
+##    qui devient marchable a son tour. La retenue fuyait un anneau a la fois,
+##    et le joueur arrivait au coffre sans avoir rien marque — vu en partie le
+##    2026-09-20 (cases 497, 498, 467, puis le coffre en 436).
+##
+## 2. UNE PORTE, UNE SEULE : une case indiquee qui RAPPROCHE de la bombe. Tenir
+##    au seul sol creuse etait un blocage — aucune voisine de la bombe n'est
+##    creusee sur un plateau neuf, et marquer exige d'etre a cote. « Touche la
+##    bombe » etait trop strict sur le couloir dessine, ou la marche passe par
+##    des cases indiquees a deux et trois pas : le joueur etait arrete court
+##    devant la case qu'on lui disait de marquer.
+func may_step(from: Vector2i, to: Vector2i) -> bool:
+	if not content.has(to):
+		return false
+	# Un X rouge est un mur : un doigt qui glisse ne doit pas couter une manche.
+	if flagged.has(to) and state.get(to) != State.DUG:
+		return false
+	# Un buisson aussi — voir `decor`.
+	if decor.has(to):
+		return false
+	var held := teaching_hold()
+	if held.x < 0:
+		return true
+	if state.get(to) == State.DUG:
+		return true
+	if state.get(to) != State.HINTED:
+		return false
+	return _steps_between(to, held) < _steps_between(from, held)
+
+
+## LA DISTANCE EN PAS ENTRE DEUX CASES, a travers la terre seulement.
+##
+## En largeur. Rend un grand nombre quand la cible est injoignable, pour que la
+## comparaison de `may_step` refuse simplement le pas.
+func _steps_between(from: Vector2i, to: Vector2i) -> int:
+	if from == to:
+		return 0
+	var seen := {from: true}
+	var frontier: Array[Vector2i] = [from]
+	var depth := 0
+	while not frontier.is_empty():
+		depth += 1
+		var next: Array[Vector2i] = []
+		for cell in frontier:
+			for n in _neighbours(cell):
+				if seen.has(n) or not content.has(n):
+					continue
+				if n == to:
+					return depth
+				seen[n] = true
+				next.append(n)
+		frontier = next
+	return 1 << 30
+
+
+func is_dug(cell: Vector2i) -> bool:
+	return state.get(cell) == State.DUG
+
+
+## Le chiffre se lit-il sur cette case ?
+func shows_number(cell: Vector2i) -> bool:
+	var s = state.get(cell)
+	return (s == State.DUG or s == State.HINTED) \
+		and content.get(cell) != Content.BOMB \
+		and adjacent.get(cell, 0) > 0
+
+
+func _neighbours(cell: Vector2i) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	for dy in [-1, 0, 1]:
+		for dx in [-1, 0, 1]:
+			if dx == 0 and dy == 0:
+				continue
+			var n := cell + Vector2i(dx, dy)
+			if map.is_land(n.x, n.y):
+				out.append(n)
+	return out

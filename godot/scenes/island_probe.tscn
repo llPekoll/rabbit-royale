@@ -1,0 +1,7 @@
+[gd_scene format=3 uid="uid://dpp111rcc1ore"]
+
+[ext_resource type="PackedScene" path="res://scenes/island.tscn" id="1_island"]
+
+[node name="IslandProbe" type="Node2D" unique_id=1391119735]
+
+[node name="Island" parent="." unique_id=1746020516 instance=ExtResource("1_island")]

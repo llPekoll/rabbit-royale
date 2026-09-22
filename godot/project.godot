@@ -1,58 +1,73 @@
-; Rabbit Royale — Godot port, first screen only.
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
 ;
-; The doorstep, rebuilt from the web client's sign-in screen
-; (src/app/page.tsx `.rr-empty` + components/logo-banner.tsx): the emblem at
-; the top, a tagline that swaps on a timer, CONNECT WALLET over PLAY AS A
-; GUEST, and the language picker under both.
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
 
 config_version=5
 
 [application]
 
 config/name="Rabbit Royale"
-run/main_scene="res://scenes/title.tscn"
-config/features=PackedStringArray("4.4", "GL Compatibility")
-config/icon="res://assets/ui/rr-logo-1x.png"
-
-[display]
-
-; PORTRAIT, and sized off the Seeker itself (1200x2670 at density 480, i.e.
-; 400x890 in dp) — the target device, which is a phone held upright.
-;
-; The web client's doorstep notes say "890x400, the target device", and that is
-; the SAME screen described the other way round: the browser build is played in
-; landscape. The native app is not, so the base viewport is the dp size
-; upright, and the doorstep's column (emblem at the top, ask at the bottom) is
-; the arrangement that wants the tall frame anyway.
-;
-; `canvas_items` with `expand` keeps the pixel art crisp — it scales the 2D
-; canvas by an integer-friendly factor rather than stretching a fixed-size
-; framebuffer — while letting the column breathe on a shorter or wider screen.
-window/size/viewport_width=400
-window/size/viewport_height=890
-window/stretch/mode="canvas_items"
-window/stretch/aspect="expand"
-; 1 is PORTRAIT. It was 0 here, which is LANDSCAPE — the enum does not start at
-; portrait — and the Seeker duly launched the doorstep sideways, with the ask
-; stranded in the middle of a 2670px-wide frame.
-window/handheld/orientation=1
-
-[rendering]
-
-; Pixel art: never smooth it. The emblem is scaled in whole multiples and a
-; bilinear filter would make its one-pixel strokes go uneven.
-textures/canvas_textures/default_texture_filter=0
-renderer/rendering_method="gl_compatibility"
-; Required for the Android export: the APK ships textures in a GPU format the
-; device can sample directly. Harmless to the look here — the art is imported
-; lossless (see each .import) and the emblem is nearest-filtered either way.
-textures/vram_compression/import_etc2_astc=true
-environment/defaults/default_clear_color=Color(0.051, 0.067, 0.09, 1)
+; LA RACINE, et non l'accueil : Main.tscn ne se recharge jamais et porte les
+; ecrans (voir scripts/screens.gd). Lancer title.tscn directement ferait de
+; l'accueil la racine, et changer d'ecran le detruirait avec tout ce qu'il
+; tient.
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.7", "GL Compatibility")
+config/icon="res://assets/ui/rr-logo-1x.webp"
 
 [autoload]
 
 I18N="*res://scripts/i18n.gd"
+Net="*res://scripts/net.gd"
+Wallet="*res://scripts/wallet.gd"
+Session="*res://scripts/session.gd"
+GameSocket="*res://scripts/game_socket.gd"
+; Le routeur d'ecrans. En dernier : il ne depend de rien, et tout le reste
+; peut l'appeler.
+Screens="*res://scripts/screens.gd"
+; Le marqueur de cadence, visible partout et tout le temps. Un autoload parce
+; qu'il doit survivre aux traversees ; apres Screens parce qu'il se dessine
+; par-dessus tout ce que Screens monte.
+FpsMarker="*res://scripts/fps_marker.gd"
+
+[display]
+
+window/size/viewport_width=890
+window/size/viewport_height=400
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+; ⚠ `window/stretch/scale` N'EST PAS UN REGLAGE DE RESOLUTION DE RENDU.
+;
+; Essaye ici pour baisser le cout fragment : il AGRANDIT le canevas de design
+; (890x400 -> 1780x800) au lieu de rasteriser plus gros. Sur le Seeker, le jeu
+; s'est retrouve dans un quart de l'ecran avec un chrome minuscule.
+;
+; LE COUT EST REEL POURTANT : `canvas_items` dessine en coordonnees de design
+; mais rasterise a la resolution de l'ECRAN — 2670x1200 sur le Seeker, soit
+; NEUF FOIS les 890x400 du canevas. Tout shader plein ecran paie ces 3,2
+; millions de fragments.
+;
+; LA BONNE REPONSE EST UN SubViewport, comme `fx_bench` le fait deja pour son
+; voile (RENDER_SCALE = 0,5, « un rai est trop flou pour qu'on le voie ») : on
+; rend l'effet dans une texture plus petite et on l'agrandit en nearest. A
+; brancher dans `sky_light.gd` le jour ou le budget se resserre — aujourd'hui
+; le bruit cuit a suffi (21 -> 82 fps).
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/RabbitMWA/plugin.cfg")
 
 [gui]
 
 theme/custom="res://assets/ui/theme.tres"
+
+[rendering]
+
+textures/canvas_textures/default_texture_filter=0
+renderer/rendering_method="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true
+environment/defaults/default_clear_color=Color(0.051, 0.067, 0.09, 1)

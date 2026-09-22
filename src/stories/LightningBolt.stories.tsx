@@ -33,7 +33,7 @@ import {
   LIGHTNING_BOLT_FRAMES,
 } from '@/game/services/AssetLoader';
 import { initTileTextures } from '@/game/services/TileTextures';
-import { createIslandBackground } from '@/game/services/IslandBackground';
+import { createTerrainBackground } from '@/game/services/TerrainBackground';
 import * as Keys from '@/config/assetKeys';
 import { COLS, ROWS, SPAWN_INDEX, makeShape, isForbidden, tilePos } from '@/config/gridConfig';
 
@@ -73,7 +73,7 @@ function Scene(args: Args) {
 
         let bg: { destroy(): void } | null = null;
         if (args.background) {
-          void createIslandBackground(stage, WIDTH / 2, HEIGHT / 2, SEED).then((b) => {
+          void createTerrainBackground(stage, SEED).then((b) => {
             bg = b;
             b.layout(WIDTH / 2, HEIGHT / 2, 1.75);
           });

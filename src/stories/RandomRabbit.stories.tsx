@@ -18,7 +18,7 @@ import { PlayerRabbit } from '@/game/entities/PlayerRabbit';
 import { loadAllAssets } from '@/game/services/AssetLoader';
 import { initTileTextures } from '@/game/services/TileTextures';
 import { getExplosionTextures } from '@/game/services/AssetLoader';
-import { createIslandBackground } from '@/game/services/IslandBackground';
+import { createTerrainBackground } from '@/game/services/TerrainBackground';
 import { CloudField } from '@/game/fx/Clouds';
 import * as Keys from '@/config/assetKeys';
 import {
@@ -84,7 +84,7 @@ function Scene({ seed, bombDensity, rabbits, stepMs, islandZoom, background }: A
         // will actually sit on rather than against flat blue.
         let bg: { destroy(): void } | null = null;
         if (background) {
-          void createIslandBackground(stage, 960 / 2, 540 / 2, seed).then((b) => {
+          void createTerrainBackground(stage, seed).then((b) => {
             bg = b;
             b.layout(960 / 2, 540 / 2, islandZoom);
           });

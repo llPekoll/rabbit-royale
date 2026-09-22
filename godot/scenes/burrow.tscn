@@ -1,0 +1,54 @@
+[gd_scene load_steps=7 format=3]
+
+; LE TERRIER. L'un des deux lieux residents — construit une fois, jamais
+; libere, montre ou cache (voir screens.gd).
+;
+; Le ciel est un aplat pour l'instant. Il prendra plus tard la mer, ses
+; degrades et les rais de lumiere deja mesures ; le mettre ici des maintenant
+; fige l'ordre de dessin, qui est ce qui coute cher a corriger plus tard.
+
+[ext_resource type="Script" path="res://scripts/burrow.gd" id="1_burrow"]
+[ext_resource type="Script" path="res://scripts/burrow_terrain.gd" id="2_terrain"]
+[ext_resource type="Script" path="res://scripts/burrow_props.gd" id="3_props"]
+[ext_resource type="Script" path="res://scripts/fence_view.gd" id="4_fence"]
+[ext_resource type="Script" path="res://scripts/placement_hints.gd" id="5_hints"]
+[ext_resource type="Script" path="res://scripts/home_rabbit.gd" id="6_rabbit"]
+
+[node name="Burrow" type="Node2D"]
+script = ExtResource("1_burrow")
+
+[node name="Terrain" type="Node2D" parent="."]
+unique_name_in_owner = true
+script = ExtResource("2_terrain")
+
+; LES DECORS SONT FRERES DU TERRAIN, pas ses enfants : ils se trient sur la
+; meme regle de profondeur, ce qui laisse un pillard sur une case proche passer
+; devant la maison d'une case lointaine.
+[node name="Props" type="Node2D" parent="."]
+unique_name_in_owner = true
+script = ExtResource("3_props")
+
+; LES CLOTURES, freres eux aussi. Une planche se trie sur la profondeur de la
+; case dont elle est le bord, biaisee en avant ou en arriere selon la face —
+; c'est ce qui la met devant les carottes qu'elle borde au sud, et derriere
+; celles qu'elle borde au nord.
+[node name="Fences" type="Node2D" parent="."]
+unique_name_in_owner = true
+script = ExtResource("4_fence")
+
+; LES LOSANGES DE PLACEMENT. Ce noeud ne porte RIEN lui-meme : chaque losange
+; est monte dans le bloc de sa case, sous le terrain, pour se trier avec le sol
+; qu'il recouvre. Il n'est qu'un chef d'orchestre.
+[node name="Hints" type="Node2D" parent="."]
+unique_name_in_owner = true
+script = ExtResource("5_hints")
+
+; LE LAPIN EST UN FRERE DU DECOR, et c'est tout le piege.
+;
+; Enfant du plateau, il passerait DERRIERE chaque arbre et derriere la maison
+; quelle que soit sa case, et le trou de profondeur qu'on percera dans ce qui
+; le recouvre n'aurait rien a percer — ce qui le couvre ne serait jamais son
+; frere. Ici il se trie contre les tuiles sur leur propre regle.
+[node name="Rabbit" type="Node2D" parent="."]
+unique_name_in_owner = true
+script = ExtResource("6_rabbit")

@@ -1,15 +1,17 @@
 /**
- * The generated terrain UNDER the real playing grid — what "Go farm" could be.
+ * The generated terrain UNDER the real playing grid — the farm screen.
  *
- * Today that screen is `IslandBackground`: one painting picked by seed
- * (`land1/2/3.webp`) with the 16x16 board laid over it. The terrain in
- * `IsoIslandView` is the alternative — ground generated tile by tile, with
- * plateaus and cliff faces instead of a flat picture.
+ * It used to be one painting picked by seed (`IslandBackground`, with
+ * `land1/2/3.webp`) and the board laid flat over it. The terrain in
+ * `IsoIslandView` won that argument: ground generated tile by tile, with
+ * plateaus and cliff faces. The swap shipped, the service and its three
+ * paintings are gone, and so is the `PaintedToday` arm this story carried to
+ * judge them side by side.
  *
- * This story is the evidence to judge that swap ON, before any of it is wired
- * into the game. Nothing here imports the scene or the socket: it puts the
- * REAL `makeShape` board, the REAL `Tile` entity and a REAL `PlayerRabbit` on
- * the generated ground, at the game's own metrics, and lets the eye decide.
+ * What is left is the evidence for the ground itself. Nothing here imports
+ * the scene or the socket: it puts the REAL `makeShape` board, the REAL
+ * `Tile` entity and a REAL `PlayerRabbit` on the generated ground, at the
+ * game's own metrics, and lets the eye decide.
  *
  * ## The terrain is the game's, through the game's own service
  *
@@ -42,7 +44,6 @@ import type { TileContent } from '@/lib/game/types';
 import { PlayerRabbit } from '@/game/entities/PlayerRabbit';
 import { loadAllAssets } from '@/game/services/AssetLoader';
 import { initTileTextures } from '@/game/services/TileTextures';
-import { createIslandBackground } from '@/game/services/IslandBackground';
 import { createTerrainBackground } from '@/game/services/TerrainBackground';
 import { COLS, ROWS, toColRow } from '@/config/gridConfig';
 import { farmableTiles, levelTierAt, spawnTile, terrainNeighbors, tierLift } from '@/lib/game/terrainBoard';
@@ -105,8 +106,6 @@ interface Args {
   fogAlpha: number;
   /** Tint of that lid. Darker or colder separates it further from the grass. */
   fogColor: string;
-  /** Use the PAINTING instead of the terrain — the A/B this story is for. */
-  painted: boolean;
 }
 
 function Scene(args: Args) {
@@ -211,17 +210,7 @@ function Scene(args: Args) {
           }
         };
 
-        if (args.painted) {
-          // The comparison arm: the screen exactly as it shipped before.
-          void createIslandBackground(stage, WIDTH / 2, HEIGHT / 2, args.seed).then((bg) => {
-            if (gone) { bg.destroy(); return; }
-            cleanups.push(() => bg.destroy());
-            // The painting joined the stage after the board's container did;
-            // the board goes back on top of it.
-            stage.setChildIndex(boardLayer, stage.children.length - 1);
-            if (args.board) buildBoard(() => false);
-          });
-        } else {
+        {
           // THE GAME'S terrain, through THE GAME'S service — the same call
           // `IslandScene` makes, into the same kind of container. It aligns
           // the terrain to the board's grid and hands back `mountVeil`, so
@@ -265,7 +254,6 @@ const meta: Meta<Args> = {
     inhabitedShare: 0.025,
     fogAlpha: 0.55,
     fogColor: '#1a2a3a',
-    painted: false,
   },
   argTypes: {
     seed: { control: 'text' },
@@ -324,13 +312,6 @@ export const FogAsShipped: Story = { args: { dug: 0 } };
 export const FogReadable: Story = {
   args: { dug: 0, fogAlpha: 0.72, fogColor: '#0d1420' },
 };
-
-/**
- * The same screen as it ships TODAY — the painting, the same board over it.
- * This is the arm to flip back and forth against `Default`. Everything else in
- * both pictures is identical, so whatever changes between them is the swap.
- */
-export const PaintedToday: Story = { args: { painted: true } };
 
 /** The terrain alone. Is the ground worth looking at before anything is on it? */
 export const TerrainOnly: Story = { args: { board: false, rabbit: false } };

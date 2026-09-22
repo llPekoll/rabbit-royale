@@ -54,6 +54,16 @@ import { guard, installProcessGuards, optional } from './resilience';
 const PORT = Number(process.env.WS_PORT ?? 3010);
 const store = new MemoryIslandStore();
 
+/**
+ * How many players one socket may follow the presence of at once.
+ *
+ * The raid log shows at most twenty rows a side, and the same name usually
+ * fills several of them — twice that is room to spare. A ceiling at all
+ * because the list arrives from the client, and `pushPresence` walks the
+ * sockets for every id in it.
+ */
+const WATCH_PRESENCE_MAX = 40;
+
 /** Per-socket bookkeeping that is NOT game state (game state lives on the island). */
 interface SocketData {
   playerId?: string;
@@ -68,6 +78,17 @@ interface SocketData {
   /** Set when this socket is WATCHING someone: it receives the island's events
    *  but owns no rabbit, so every gameplay handler falls through. */
   spectating?: string;
+  /**
+   * Players whose PRESENCE this socket is following — the profile's raid log,
+   * which shows a dot beside everyone who has come after you.
+   *
+   * Nothing to do with `spectating`, which is one live run seen from the
+   * inside. This is a handful of ids and a coloured dot each: the panel needs
+   * to know whether a name is worth riposting against RIGHT NOW, and asking
+   * again every few seconds for a list that changes twice an hour is the poll
+   * this bus exists to avoid.
+   */
+  watchingPresence?: Set<string>;
   /**
    * A `join` is being answered on this socket right now.
    *
@@ -385,6 +406,41 @@ function pushWatchers(playerId: string | undefined): void {
   socketOf(playerId)?.emit('watchers', { count: watchersOf(playerId) });
 }
 
+/**
+ * Where a player is standing, in the raid list's three words.
+ *
+ * The same reading as `GET /api/raid`'s target list, kept deliberately
+ * identical: `digging` wins over `home` because it is the one that changes a
+ * raid, and a player with no socket here is `away`. Read off the live sockets
+ * rather than Redis — this runs on every arrival and departure, and the
+ * sockets in this process ARE the answer for anyone connected to it.
+ */
+function presenceOf(playerId: string): 'away' | 'home' | 'digging' {
+  const s = socketOf(playerId);
+  if (!s) return 'away';
+  return (s.data as SocketData).islandId ? 'digging' : 'home';
+}
+
+/**
+ * Tell everyone following this player that their dot has changed.
+ *
+ * Pushed, never asked for: the profile's raid log subscribes once with
+ * `watch` and then simply listens, so a raider sees their target go out
+ * digging while the panel sits open. Walks the live sockets for the same
+ * reason `watchersOf` does — the followers of one id are few, this fires only
+ * when someone actually arrives or leaves, and a registry of subscriptions is
+ * one more thing to leave stale when a tab dies.
+ */
+function pushPresence(playerId: string | undefined): void {
+  if (!playerId) return;
+  const where = presenceOf(playerId);
+  for (const s of io.sockets.sockets.values()) {
+    if ((s.data as SocketData).watchingPresence?.has(playerId)) {
+      s.emit('presence', { id: playerId, where });
+    }
+  }
+}
+
 // ── The push bus ─────────────────────────────────────────────────────────────
 
 /**
@@ -618,7 +674,34 @@ io.on('connection', (socket: Socket) => {
   // Spectators have no playerId and are nobody's target, so they are skipped.
   if (data.playerId) {
     void optional('markConnected', () => markConnected(data.playerId!));
+    // Anyone with this name in their raid log sees the dot light up. Their
+    // panel may have been open since before this tab existed.
+    pushPresence(data.playerId);
   }
+
+  /**
+   * FOLLOW THESE PLAYERS' PRESENCE — the profile's raid log, opening.
+   *
+   * Replaces the whole list each time rather than adding to it: the panel
+   * knows exactly who it is showing, and a subscription that only ever grew
+   * would keep pushing dots for a log the player closed ten minutes ago. The
+   * current state goes back at once, because a dot that only appears when
+   * something CHANGES is a blank dot for a player who is quietly at home.
+   *
+   * Capped, and no auth beyond the handshake: this says nothing a raider
+   * cannot already read off `GET /api/raid`'s target list.
+   */
+  socket.on('watch_presence', guard('watch_presence', (ids: unknown) => {
+    if (!Array.isArray(ids)) return;
+    const wanted = ids.filter((i): i is string => typeof i === 'string').slice(0, WATCH_PRESENCE_MAX);
+    data.watchingPresence = new Set(wanted);
+    socket.emit('presence_all', wanted.map((id) => ({ id, where: presenceOf(id) })));
+  }));
+
+  /** Panel closed: stop hearing about them. */
+  socket.on('unwatch_presence', guard('unwatch_presence', () => {
+    data.watchingPresence = undefined;
+  }));
 
   /**
    * A RUN LEFT BEHIND BY A RELOAD is announced on arrival.
@@ -798,6 +881,9 @@ io.on('connection', (socket: Socket) => {
     // a run — this used to throw straight out of the handler and take the whole
     // process, and everyone else's live island, with it.
     await optional('markOnline', () => markOnline(data.playerId!));
+    // Out on an island now: anyone holding this name in their raid log sees
+    // the dot turn. `data.islandId` is set above, so this reads `digging`.
+    pushPresence(data.playerId);
     socket.emit('island', { ...snapshot(live), bank });
     socket.to(roomFor(live.island.id)).emit('rabbit_joined', publicRabbit(rabbit));
   })));
@@ -1452,6 +1538,9 @@ io.on('connection', (socket: Socket) => {
     // until they closed the tab — and clicking them landed on `not_playing`.
     // The set is cleared here, on the way out, rather than only on disconnect.
     await optional('markOffline', () => markOffline(data.playerId!));
+    // Home, not away: the socket is still here. `data.islandId` was cleared
+    // above, so the dot goes from "digging" to "home".
+    pushPresence(data.playerId);
   }));
 
   /** Start a fresh run after dying, without a reconnect. */
@@ -1467,6 +1556,7 @@ io.on('connection', (socket: Socket) => {
     // Between two islands: there is no run to watch for the moment it takes to
     // join the next one. `join` marks them online again.
     await optional('markOffline', () => markOffline(data.playerId!));
+    pushPresence(data.playerId);
   }));
 
   socket.on('disconnect', guard('disconnect', async () => {
@@ -1480,6 +1570,10 @@ io.on('connection', (socket: Socket) => {
     // defender who is home and watching — the one row a raider avoids, and the
     // safest burrow in the game would be an abandoned one.
     await optional('markDisconnected', () => markDisconnected(data.playerId!));
+    // Gone dark for anyone following this name. This socket is already out of
+    // `io.sockets.sockets` by now (see below), so `presenceOf` says `away` —
+    // and it is not in the loop it would otherwise be told by.
+    pushPresence(data.playerId);
     // A spectator holds no seat, so there is nothing to keep warm for them —
     // but the run they were watching is one eye lighter, and has to hear it.
     // The socket is already out of `io.sockets.sockets` by the time this runs,

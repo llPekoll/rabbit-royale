@@ -42,7 +42,22 @@ const chip: CSSProperties = {
   textTransform: 'none',
 };
 
-export function WalletButton() {
+export interface WalletButtonProps {
+  /**
+   * Raid one of the players named in the profile's history.
+   *
+   * Passed straight through to `ProfileMenu` — the chip owns the panel, but
+   * raiding belongs to the board, and the board is what mounts this. Absent
+   * on any screen with no raid to launch, and the rows lose their button.
+   */
+  onRevenge?: (defenderId: string) => void;
+  /** Where those players are standing, by id — see `ProfileMenu.presence`. */
+  presence?: Record<string, 'away' | 'home' | 'digging'>;
+  /** Follow their presence while the log is open — see `ProfileMenu`. */
+  onWatchPresence?: (ids: string[]) => void;
+}
+
+export function WalletButton({ onRevenge, presence, onWatchPresence }: WalletButtonProps = {}) {
   const t = useT();
   const { player, token, busy, error, takenBy, login, linkWallet, logout, abandon, applyProfile } =
     useWalletLogin();
@@ -126,6 +141,9 @@ export function WalletButton() {
           player={player}
           avatar={avatar}
           connecting={busy}
+          onRevenge={onRevenge}
+          presence={presence}
+          onWatchPresence={onWatchPresence}
           connectError={player.guest ? error : null}
           takenBy={player.guest ? takenBy : null}
           // Signing in as the wallet's owner leaves the guest burrow behind —

@@ -1,5 +1,6 @@
 'use client';
 
+import { RAID_RUN } from '@config/tuning';
 import { WoodlandClose as CloseButton } from '@/components/woodland/runtime';
 
 /**
@@ -211,7 +212,14 @@ export function TargetList({ targets, busy, onEnter, onClose, note }: TargetList
           )}
 
           <PxPanel color={PLANK} className="rr-shop-foot">
-            <span>{note ?? d.raid.brief}</span>
+            {/* THE TOLL, under the brief. A raid draws on the one tank, and
+                this list is where the player decides to spend it — the
+                number was nowhere on the screen until now (22 September
+                2026). A note (a refusal, a shield) takes the footer alone. */}
+            <span>
+              {note ?? d.raid.brief}
+              {!note && <><br />{d.raid.cost(RAID_RUN.TOLL, RAID_RUN.STAKE)}</>}
+            </span>
           </PxPanel>
         </PxPanel>
       </section>

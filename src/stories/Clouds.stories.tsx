@@ -8,7 +8,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { PixiStage } from './PixiStage';
 import { CloudField } from '@/game/fx/Clouds';
-import { createIslandBackground } from '@/game/services/IslandBackground';
+import { createTerrainBackground } from '@/game/services/TerrainBackground';
 import { loadAllAssets } from '@/game/services/AssetLoader';
 
 interface Args {
@@ -26,7 +26,7 @@ function Scene({ perBand, island }: Args) {
       setup={(stage, app) => {
         let bg: { destroy(): void } | null = null;
         if (island) {
-          void createIslandBackground(stage, 480, 270).then((b) => { bg = b; });
+          void createTerrainBackground(stage, 'harbour-9').then((b) => { bg = b; });
         }
         const sky = new CloudField(stage, { width: 960, height: 540, perBand });
         const ticker = (t: { deltaTime: number }) => sky.update(t.deltaTime * (1000 / 60));

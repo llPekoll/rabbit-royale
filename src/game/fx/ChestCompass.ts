@@ -74,20 +74,35 @@ const INSET = 34;
  * top of the very art it was pointing at (reported 2026-09-19, with a capture
  * of a chevron overlapping a bronze box on the south coast).
  *
- * 3.5 tiles is measured from the tile, but it has to cover everything the
- * chest DRAWS: the box overflows its cell, the tier word sits well above it,
- * and the beam runs higher still. Clearing all of that before the marker goes
- * is what makes the hand-off read as one thing becoming another rather than
- * as two markers briefly fighting.
+ * It has to cover everything the chest DRAWS, not just its cell: the box
+ * overflows the tile, the tier word sits above it, and the beam runs higher
+ * still. Clearing that before the marker goes is what makes the hand-off read
+ * as one thing becoming another rather than as two markers briefly fighting.
  *
- * The cost of being generous is a chevron that lingers a moment while the
- * chest is already visible, which is the right way to be wrong: the marker
- * points at something the player can now see, instead of covering it.
+ * 1.5 tiles, down from the 3.5 this started at (walked down over 2026-09-22).
+ * The larger value was chosen only against the overlap bug of 2026-09-19 and
+ * paid for it at the other end: this distance is ALSO the delay before a
+ * chevron appears at all, since the marker is dropped unless the chest is
+ * `atFrame + margin` from the centre. At 3.5 that put the first chevron 670
+ * design pixels out in portrait — the chest had to be most of a screen past
+ * the edge before the board said anything, which is precisely the stretch
+ * where the player has no other cue and needs one most.
+ *
+ * At 1.5 the threshold is 515px in portrait and 326 in landscape, and a chest
+ * one tile beyond it is already drawn solid. That is the behaviour that was
+ * asked for: the arrow answers as soon as the chest leaves the frame, not
+ * once it is far out to sea.
+ *
+ * This is now close to the floor. The value is measured in TILE WIDTHS ON
+ * SCREEN, so it clears the box at every zoom, but the tier word and the beam
+ * draw ABOVE the tile and 1.5 tiles is roughly where they end. Going lower
+ * trades directly against the 2026-09-19 overlap, so the next move — if the
+ * marker still arrives late — is `INSET`, not this.
  */
-const IN_VIEW_TILES = 3.5;
+const IN_VIEW_TILES = 1.5;
 
 /**
- * How wide the fade-out band is, as a share of the hand-off distance.
+ * How wide the fade-out band is, as a multiple of the HAND-OFF MARGIN.
  *
  * The chevron used to vanish on a single frame the moment its chest crossed
  * the line — a pop, right in the corner of the player's eye, which reads as a
@@ -103,11 +118,40 @@ const IN_VIEW_TILES = 3.5;
  * pan back and the chevron fades back IN, at the same rate, with no state to
  * get out of step.
  *
- * 0.45 — the last 45 % of the approach to the hand-off line. Short enough that
- * a chevron still reads as solid while it is doing its job, long enough that
- * the disappearance is a fade and not a cut.
+ * CAPPED AT `margin`, and that cap is the fix for the complaint that the
+ * arrows were faintest when the chest was FURTHEST (reported 2026-09-22).
+ *
+ * A chevron cannot appear at all until the chest is `atFrame + margin` from
+ * the centre — some 670 design pixels at the default portrait zoom, well over
+ * a screen. Stacking a fade of `atFrame * 0.45` (another ~180px) on top of
+ * that threshold meant full opacity wanted a chest 850px out, and a chest that
+ * far is rare: the board is only ~1400 design pixels across at that zoom. So
+ * in practice EVERY chevron was drawn part-transparent, and the further the
+ * camera pulled back the more of them sat in the faint part of the ramp —
+ * exactly backwards from what the marker is for.
+ *
+ * Capping the band at a FRACTION of `margin` ties the ramp to the hand-off it
+ * belongs to, and keeps it short: the chevron reaches full strength about one
+ * tile past the point where it appears, so the common case — a chest just off
+ * the edge — is drawn solid rather than as a ghost. The `atFrame * 0.45` term
+ * is kept as the other half of the `min` so that a short axis — landscape
+ * height, where `atFrame` is only ~236px — cannot be handed a band wider than
+ * the screen it is fading across.
  */
 const FADE_BAND = 0.45;
+
+/**
+ * How much of `margin` the fade ramp may span.
+ *
+ * Separate from `FADE_BAND` because the two answer different questions: that
+ * one guards against a band wider than the screen, this one is the taste
+ * setting — how quickly a chevron goes from appearing to reading as solid.
+ *
+ * 0.6, i.e. a bit over a tile at the default zoom. Low enough that the marker
+ * is properly opaque while the chest is anywhere meaningfully out of frame,
+ * high enough that its arrival is still a fade rather than a pop.
+ */
+const FADE_OF_MARGIN = 0.6;
 
 /**
  * Chevron size as a share of its texture.
@@ -281,6 +325,10 @@ export class ChestCompass {
        * and the alpha rides it down — so the sprite is already invisible on
        * the frame the geometry stops drawing it, and the two never disagree.
        *
+       * The BAND is capped at `margin`, the hand-off distance — see
+       * `FADE_BAND` for why an uncapped share of the half-screen left every
+       * chevron on the faint part of the ramp.
+       *
        * The subtraction order matters and was wrong the first time: written
        * the other way round it went NEGATIVE for distant chests, i.e. the
        * arrows that should be the most solid were the ones being hidden. The
@@ -293,7 +341,7 @@ export class ChestCompass {
        * arrive half transparent.
        */
       const headroom = (reach - margin) - atFrame;
-      const band = atFrame * FADE_BAND;
+      const band = Math.min(margin * FADE_OF_MARGIN, atFrame * FADE_BAND);
       const sprite = this.take(used++);
       sprite.alpha = band <= 0 ? 1 : Math.max(0, Math.min(1, headroom / band));
       sprite.tint = target.tint;

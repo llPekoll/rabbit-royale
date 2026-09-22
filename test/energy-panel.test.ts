@@ -25,20 +25,17 @@ describe('the energy panel', () => {
     expect(PAGE).toMatch(/\{player && energyPanelOpen && liveEnergy && \(\s*<EnergyPanel/);
   });
 
-  it('wears the kit\'s explanation panel, and offers the refill only when a door is shut', () => {
+  it('wears the kit\'s explanation panel', () => {
     const PANEL = read('../src/components/energy-panel.tsx');
     expect(PANEL).toMatch(/<div className="rr-energy-panel" role="dialog"[\s\S]{0,120}className="rr-toolkit-detail rr-energy-panel-body"/);
-    // Not at 295/300, and not mid-run: below the raid line, at the burrow.
-    expect(PANEL).toMatch(/\{!p\.onIsland && p\.energy < RAID_FLOOR && \(\s*<PxButton className="rr-toolkit-action"/);
   });
 
-  it('is a bar with the two lines on it, and rows with a chip each', () => {
+  it('is the ring laid flat with the two floors on it, and a ledger row per door', () => {
     const PANEL = read('../src/components/energy-panel.tsx');
-    expect(PANEL).toMatch(/className="rr-energy-tick" style=\{\{ left: pct\(p\.runCost\) \}\}/);
-    expect(PANEL).toMatch(/className="rr-energy-tick raid" style=\{\{ left: pct\(RAID_FLOOR\) \}\}/);
-    expect(PANEL).toMatch(/chip\(canIsland, c\.yes, c\.inWait\(wait\(p\.runCost\)\)\)/);
-    expect(PANEL).toMatch(/chip\(canRaid, c\.yes, c\.inWait\(wait\(RAID_FLOOR\)\)\)/);
-    expect(PANEL).toMatch(/chip\(canRaid, c\.homeYes, c\.homeNo\)/);
+    expect(PANEL).toMatch(/className="rr-tank-tick island" style=\{\{ left: pct\(p\.runCost\) \}\}/);
+    expect(PANEL).toMatch(/className="rr-tank-tick raid" style=\{\{ left: pct\(RAID_FLOOR\) \}\}/);
+    expect(PANEL).toMatch(/verdict: canIsland \? ready : short\(p\.runCost\)/);
+    expect(PANEL).toMatch(/verdict: canRaid \? ready : short\(RAID_FLOOR\)/);
   });
 
   it('the RAID slab counts down to its own line, in DIG\'s grammar', () => {
@@ -47,12 +44,9 @@ describe('the energy panel', () => {
     expect(PAGE).toMatch(/regenPerHour: burrow\.regenPerHour,/);
   });
 
-  it('what a tier is made of is on every row of the list, from the densities', () => {
+  it('what a tier is made of is on every tier row, from its own numbers', () => {
     const PICK = read('../src/components/island-picker.tsx');
-    expect(PICK).toMatch(/t\.islandPick\.ground\(Math\.round\(1 \/ tier\.bombDensity\), Math\.round\(1 \/ tier\.goldenShare\)\)/);
-    // Both kinds of row wear it: a live island and a fresh tier.
-    expect(PICK).toMatch(/\{ground\(i\.tier\)\}/);
-    expect(PICK).toMatch(/\{ground\(tier\.name\)\}/);
+    expect(PICK).toMatch(/t\.islandPick\.tier\(Math\.round\(tier\.bombDensity \* 100\), tier\.xGain\)/);
   });
 
   it('the recap counts the ONE tank, in every language', () => {
@@ -81,9 +75,9 @@ describe('the energy panel', () => {
 
   it('every language says what a tier\'s ground is made of', () => {
     for (const locale of LOCALES) {
-      const line = DICTIONARIES[locale].islandPick.ground(7, 17);
-      expect(line, locale).toContain('7');
-      expect(line, locale).toContain('17');
+      const line = DICTIONARIES[locale].islandPick.tier(14, 6);
+      expect(line, locale).toContain('14');
+      expect(line, locale).toContain('6');
     }
   });
 

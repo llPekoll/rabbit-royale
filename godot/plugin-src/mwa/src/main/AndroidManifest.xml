@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  CE FICHIER EST CE QUI FAIT EXISTER LE PLUGIN.
+
+  Godot ne scanne pas les classes : il lit les meta-data des manifests fusionnés
+  et cherche le préfixe `org.godotengine.plugin.v2.`. Sans cette entrée, l'AAR
+  est bien embarqué dans l'APK et le singleton n'apparaît jamais — le jeu
+  démarre, le bouton wallet reste grisé, et rien ne dit pourquoi.
+
+  Le suffixe du `name` DOIT être égal à getPluginName() ; la `value` est le nom
+  complet de la classe.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <meta-data
+            android:name="org.godotengine.plugin.v2.RabbitMWA"
+            android:value="rip.rabbit.godot.mwa.RabbitMwaPlugin" />
+    </application>
+
+</manifest>

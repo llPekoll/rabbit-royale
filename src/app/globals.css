@@ -45,6 +45,28 @@
   --rr-edge: 10px;
   --rr-pad: 10px;
   --rr-pad-tight: 6px;
+  /* LA LIGNE DU PAS-DE-PORTE : ou le titre s'arrete et ou le menu commence.
+     Le masthead pose son bas dessus, `.rr-empty` son premier bouton — un seul
+     chiffre pour les deux, donc ils ne peuvent pas deriver, et c'est le seul a
+     toucher pour monter ou descendre l'ensemble.
+
+     LE TIERS DU BAS (Paul, 2026-09-22). Le titre finit sur cette ligne et la
+     premiere porte commence dessus, donc le menu occupe le dernier tiers et
+     tout le haut du tableau — le ciel, la tour, l'ile — reste degage.
+
+     MESURE DEPUIS LE BAS. Ecrit `33vh` (donc depuis le haut) le bloc remontait
+     au lieu de descendre : c'est la meme fraction lue a l'envers. 67vh place
+     la ligne au tiers inferieur, ce qui est ce que « en bas de l'ecran » veut
+     dire ici. Passe par 50vh puis 42vh puis 33vh avant d'atterrir la.
+
+     LE `min()` EST UN PLANCHER D'ECRAN, PAS UN REGLAGE. Le menu descend sous
+     cette ligne : il lui faut sa propre hauteur (`--rr-menu`, ~170px) plus une
+     marge, sinon il sort par le bas. Mesure sur la Seeker (890x400) : a 67vh
+     le dernier bouton finissait a 440px pour 400 d'ecran. Le `min()` rend donc
+     le tiers sur un ecran haut et remonte juste ce qu'il faut sur un ecran
+     court, ou 67% n'existe tout simplement pas. */
+  --rr-menu: 170px;
+  --rr-doorstep: min(67vh, 100vh - var(--rr-menu) - 24px);
   /* An icon button's square (the shop, the story, the season board's trophy).
      Declared here because things that must SIT BESIDE one have to reserve its
      width, and a reserve typed as a number drifts the moment the button is
@@ -1557,6 +1579,22 @@ button { min-height: 44px; min-width: 44px; }
    above it is the sign, and a button that moves under a bobbing arrow is two
    things in motion saying one thing. Paul, 2026-09-20: "vire l'animation du
    bouton mark a bomb". */
+/* THE SPOTLIGHT (teach-spotlight.tsx): the screen dark around MARK A BOMB
+   while the tutorial asks for a cross. Above the carrot pill (20), under the
+   hit flash (25). Fades in on the arrow's own clock. */
+.rr-teach-spotlight {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 21;
+  pointer-events: none;
+  animation: rr-teach-spotlight-in 280ms ease-out;
+}
+@keyframes rr-teach-spotlight-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 /* THE ARROW over MARK A BOMB while the tutorial asks for a cross. Sits just
    above the button, bobbing on the same clock the board's own chevrons use
    (fx/ChestPointer: 5px a leg, 0.9s), so a sign over a control and a sign over
@@ -2174,28 +2212,64 @@ button { min-height: 44px; min-width: 44px; }
   image-rendering: pixelated;
 }
 /* A wash over the art so white text stays readable on bright grass, dark
-   enough to read against, light enough to still see the place. */
+   enough to read against, light enough to still see the place.
+
+   LIGHTER THAN IT WAS, and for a different picture. The old numbers (0.80 at
+   the left edge, still 0.62 a third of the way across) were sized to carry a
+   full-screen crawl over a burrow painting; against the key art they buried
+   the tree, the banner and the campfire the artwork opens on. The menu column
+   is the only thing that needs a floor under it now, and it occupies the left
+   third, so the wash is opaque enough THERE and clears out early — the rabbit,
+   the island and the sunrise are the two thirds it must not touch. */
 .rr-home-art::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    100deg,
-    rgba(13, 17, 23, 0.80) 0%,
-    rgba(13, 17, 23, 0.62) 30%,
-    rgba(13, 17, 23, 0.18) 58%,
-    rgba(13, 17, 23, 0.05) 100%
-  );
+  /* DEUX COUCHES, chacune avec un seul role.
+
+     1. UN VOILE VERTICAL A GAUCHE (90deg), sous la colonne des boutons. Le
+        lavis etait a 100deg : penche, il laissait le haut de la colonne clair
+        et le bas sombre, alors que les portes occupent toute la hauteur du
+        milieu. A 90deg la bande est la MEME du haut en bas — la ou se tient le
+        menu — et s'arrete avant le lapin. Il s'eteint a 52% : le fond du
+        tableau est deja sombre a gauche (l'arbre, la banniere, le feu), donc
+        il ne faut qu'un appui, pas une couverture.
+
+     2. Une legere assise en bas, pour que la planche du coin droit et le bas
+        de l'image ne partent pas en herbe trop claire. Elle est faible et ne
+        remonte pas jusqu'au ciel. */
+  background:
+    linear-gradient(
+      90deg,
+      rgba(8, 11, 16, 0.86) 0%,
+      rgba(8, 11, 16, 0.78) 14%,
+      rgba(8, 11, 16, 0.52) 26%,
+      rgba(8, 11, 16, 0.20) 38%,
+      rgba(8, 11, 16, 0) 50%
+    ),
+    linear-gradient(
+      0deg,
+      rgba(13, 17, 23, 0.34) 0%,
+      rgba(13, 17, 23, 0.10) 18%,
+      rgba(13, 17, 23, 0) 34%
+    );
 }
 
 /* The panels sit on the LEFT, not centred: the middle and right of the
    painting are the burrow itself — the mound, the door, the field — and
    covering them would defeat the point of drawing it. */
 .rr-burrow {
-  flex: 1;
+  /* NO GROWTH: the column is as tall as its cards, and only as tall as the
+     screen when they overrun it (basis auto, shrink 1, min-height 0). It was
+     `flex: 1`, a sheet over the full height of the screen with the cards at
+     its top, which is why the box had to be `pointer-events: none` below —
+     see there for what that cost on an iPhone (22 September 2026). */
+  flex: 0 1 auto;
+  align-self: flex-start;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   /* 25% of the WIDTH, which is what the mock holds constant (its cards are
      342px of a 1376px screen). A flat 400px was the same mistake the card
      HEIGHTS carried before they moved to `svh`: right at the window the mock
@@ -2226,10 +2300,21 @@ button { min-height: 44px; min-width: 44px; }
      their own to name. What made the blanket rule a bug over there was a flex
      SPACER — an invisible 900px div whose whole job was to push the recap
      down. This column has none: it is a scroll box, and its children stack
-     from the top with nothing but themselves between them. */
-  pointer-events: none;
+     from the top with nothing but themselves between them.
+
+     ...AND IT IS GONE (22 September 2026). On an iPhone the column would not
+     scroll at all, while Chrome's phone emulation scrolled it fine (Paul).
+     iOS decides which box a finger scrolls by hit-testing the touch, and a
+     scroll box that is itself transparent to the pointer is not a box the
+     finger is "in" — its children were, but they are not scrollers. Desktop
+     engines resolve the scroller from the touched element's ancestors and
+     never noticed. Rather than fight it, the reason for the rule was
+     removed: the box no longer grows over the empty screen (see `flex`
+     above), so there is no empty sheet for a tap to be swallowed by, and the
+     column can take the pointer like any other scroll box. What a tap in the
+     few pixels of gap between two cards hits is the column, not the board;
+     the board under the cards was never reachable anyway. */
 }
-.rr-burrow > * { pointer-events: auto; }
 
 /* ── MORE BELOW ────────────────────────────────────────────────────────────
    The column is a scroll box, and on a landscape phone its cards run past the
@@ -2301,8 +2386,15 @@ button { min-height: 44px; min-width: 44px; }
     );
   }
 }
-/* Signed out the column is not a column: there are no panels to keep off the
-   painting, so it spans the screen and centres under the crawl.
+/* Signed out the column hugs the LEFT, under the wordmark.
+
+   It used to span the whole screen and centre itself, because the crawl it sat
+   beneath was centred too. With the crawl gone the screen is a painting with a
+   composition of its own, and a full-width column put the buttons across the
+   middle of it -- over the rabbit, which is the one thing on the canvas that
+   must stay clear. `.rr-empty` sizes itself to the same `min(38vw, 420px)` as
+   the masthead; this rule only has to stop the base column's own width and
+   padding from fighting it.
 
    AND it rises above the crawl (z 2). `.rr-burrow` carries `z-index: 1` and
    `position: relative`, which makes it a STACKING CONTEXT: a z-index on the
@@ -2310,10 +2402,8 @@ button { min-height: 44px; min-width: 44px; }
    past a sibling of the column itself. So the whole column moves, and only in
    this state -- signed in, the panels must stay below the game's overlays at
    their original z 1. The column is `pointer-events: none` except on its own
-   children, so covering the crawl costs the crawl nothing. */
+   children, so covering the art costs it nothing. */
 .rr-burrow:has(.rr-empty) {
-  /* The base column's desktop width would otherwise hold, and the two sign-in
-     buttons sat left-aligned in a 220-320px strip instead of under the crawl. */
   width: 100%;
   max-width: none;
   padding-right: 0;
@@ -2340,36 +2430,60 @@ body:has(.rr-burrow) .rr-burrow:has(.rr-empty) {
 
 .rr-burrow-title { font-size: 20px; margin: 4px 0 12px; }
 
-/* The sign-in column. Anchored to the BOTTOM rather than centred: the crawl
-   owns the middle of this screen and the wordmark owns the top (.rr-masthead),
-   so what is left down here is the ask and nothing else. Bottom-aligned it
-   also puts the one thing to press within thumb reach, which is where it
-   belonged on a phone regardless. */
+/* LE MENU, SOUS LE LOGO, DANS LA COLONNE DE GAUCHE.
+
+   Il etait colle au bas de l'ecran et centre : le generique tenait le milieu,
+   le titre le haut, et il ne restait que l'ourlet du bas pour la demande. Le
+   generique est parti et l'image a une composition a elle — l'arbre et la
+   banniere a gauche, le lapin et l'ile a droite — donc les portes remontent
+   dans le tiers sombre que le peintre a laisse libre, en rang sous le titre.
+
+   ACCROCHE A `--rr-mast`, la hauteur que logo-banner.tsx mesure et publie sur
+   :root. C'est le seul chiffre qui sait ou le titre se termine, et il change
+   avec l'echelle du logo (1x, 2x ou 3x selon la fenetre). Un padding en dur
+   collait le menu au logo en 3x et le laissait flotter en 1x. */
 .rr-empty {
   height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-end;
   text-align: center;
-  gap: 4px;
-  /* LE BLOC DE CONNEXION DANS LE QUART INFERIEUR, pas colle au bas du cadre.
+  gap: 8px;
+  width: min(38vw, 420px);
+  /* LE MENU COMMENCE AU MILIEU DE L'ECRAN, le titre finit juste au-dessus.
 
-     Le bloc etait remonte a 18vh : trop haut, il mordait le milieu au lieu
-     de l'ouvrir. 14vh pose son centre vers 24% du bas — le menu tombe dans
-     le bas de l'ecran sans y etre colle, le generique garde tout le milieu,
-     et le pouce atteint toujours la premiere porte.
+     Les deux blocs se placent sur le meme repere — la ligne des 50% — plutot
+     que chacun sur le sien : le menu pose son HAUT dessus, le masthead pose
+     son BAS dessus (a un demi-menu pres, voir la-haut). L'embleme et la
+     premiere porte se touchent donc a toutes les hauteurs de fenetre, ce que
+     `padding-top: var(--rr-mast)` ne donnait pas : il reservait la bande du
+     titre puis centrait le menu dans le reste, et l'ecart entre les deux
+     grandissait avec l'ecran.
 
-     Ces 14vh se mesurent maintenant sur un vrai bas de colonne : l'ourlet de
-     271px que la colonne reservait au chrome connecte est annule plus haut
-     (`body:has(.rr-burrow) .rr-burrow:has(.rr-empty)`). Avant cela le meme
-     chiffre donnait un resultat different a chaque hauteur de fenetre.
+     `--rr-doorstep` est LA LIGNE, definie une seule fois sur :root — c'est le
+     seul chiffre a bouger pour remonter ou descendre l'ensemble, et le fait
+     qu'il soit partage est ce qui garantit que le titre et le menu ne peuvent
+     pas deriver l'un par rapport a l'autre.
 
-     En vh plutot qu'en %, parce que ce padding doit se mesurer sur l'ECRAN
-     (le quart dont parle la regle) et pas sur la colonne, dont la hauteur
-     depend du chrome au-dessus. Plancher en px pour la Seeker (400px de
-     haut), ou 8vh ne ferait que 32px. */
-  padding-bottom: max(14vh, 40px);
+     LA LIGNE SE MESURE SUR L'ECRAN, PAS SUR LA COLONNE. `.rr-empty` ne
+     commence pas a 0 — la colonne est posee sous la barre du haut et sous
+     l'encoche (56px mesures a 1440x810) — donc un `padding-top: 42vh` brut
+     s'ajoutait a ces 56px et le premier bouton tombait a 49% au lieu de 42.
+     Plutot que de soustraire une constante qui reste a deviner (la barre n'a
+     pas la meme hauteur partout), le bloc se detache de la colonne : `fixed`,
+     comme le masthead. `top` est alors la ligne elle-meme, mesuree sur
+     l'ecran, et le chiffre veut dire ce qu'il dit.
+
+     `fixed` et non `absolute` : `.rr-burrow` est `position: relative`, donc un
+     absolu se serait cale sur la colonne — c'est-a-dire sur le meme decalage
+     de 56px qu'on cherche a eliminer. Mesure : le bouton tombait toujours a
+     49%. */
+  justify-content: flex-start;
+  position: fixed;
+  top: var(--rr-doorstep);
+  left: 0;
+  height: auto;
+  padding-bottom: 24px;
   /* TRANSPARENT TO THE POINTER, except on the buttons themselves.
      This box is `height: 100%` with its content pushed to the bottom, so the
      empty space above the buttons still covers the whole screen -- including
@@ -2458,9 +2572,26 @@ body:has(.rr-burrow) .rr-burrow:has(.rr-empty) {
    bottom — so it never stands between the reader and the button. */
 .rr-masthead {
   position: fixed;
+  /* LE TITRE SE POSE JUSTE AU-DESSUS DES BOUTONS, pas en haut de l'ecran.
+
+     Il etait epingle a `top: 0` pendant que le menu se centrait tout seul plus
+     bas : les deux se placaient sur des reperes differents, et l'ecart entre
+     l'embleme et la premiere porte grandissait avec la hauteur de la fenetre.
+
+     Les deux blocs partagent maintenant le MEME axe : la ligne des 50%. Le
+     masthead s'arrete dessus par le bas (`bottom: 50%` plus bas), `.rr-empty`
+     y commence par le haut, et l'embleme touche donc la premiere porte a
+     n'importe quelle taille d'ecran comme a n'importe quelle echelle du logo.
+
+     Le titre ne defile pas pour autant — il reste `fixed`, ce qui etait la
+     raison d'etre de cette couche. */
   top: 0;
   left: 0;
-  right: 0;
+  /* NOT `right: 0` any more: the title is the top of the LEFT column now, not
+     a banner across the screen, and a full-width box would centre it over the
+     artwork's sky. Its width is the column's, so the logo and the buttons
+     below share one centre line. */
+  width: min(38vw, 420px);
   /* Above .rr-crawl-mast (z 2), which is the fade that hides the crawl behind
      the wordmark. At z 1 the masthead sat UNDER its own band and the tagline
      came out greyed -- the band is there to dim the words, not the title. */
@@ -2468,6 +2599,24 @@ body:has(.rr-burrow) .rr-burrow:has(.rr-empty) {
   display: flex;
   flex-direction: column;
   align-items: center;
+  /* Le titre s'appuie sur le BAS de sa boite, et cette boite s'arrete a la
+     ligne des 50% — exactement la ou `.rr-empty` commence son premier bouton.
+     Les deux se touchent donc par construction, sans mesure a publier ni
+     variable a tenir a jour.
+
+     LA LIGNE EST `--rr-doorstep`, partagee avec `.rr-empty` (definie sur
+     :root). Le menu commence dessus, le titre s'y arrete : un seul chiffre
+     tient les deux, donc ils ne peuvent pas deriver l'un par rapport a
+     l'autre, et c'est le seul a changer pour deplacer l'ensemble.
+
+     LA POSITION EST DANS `bottom`, JAMAIS DANS UN `transform`. Un `transform`
+     sur cet element en ferait le bloc conteneur de tous ses descendants
+     `position: fixed` — et la planche du coin (`.rr-tagline`, fixed, enfant du
+     masthead) se calait alors sur le masthead au lieu de l'ecran : elle
+     remontait en plein milieu, par-dessus le logo. */
+  justify-content: flex-end;
+  bottom: calc(100% - var(--rr-doorstep));
+  padding-bottom: 14px;
   padding-top: calc(env(safe-area-inset-top) + var(--rr-edge));
   pointer-events: none;
 }
@@ -2479,6 +2628,31 @@ body:has(.rr-burrow) .rr-burrow:has(.rr-empty) {
    does. */
 @media (max-width: 720px) and (orientation: portrait) {
   .rr-masthead { padding-top: calc(env(safe-area-inset-top) + 52px); }
+  /* SUR UN TELEPHONE, PAS DE COLONNE : le titre et le menu reprennent toute la
+     largeur et se recentrent.
+
+     `min(38vw, 420px)` vaut ~140px sur un portrait de 380 — la moitie d'un
+     bouton. La mise en page en colonne repond a la composition du tableau
+     (l'arbre a gauche, le lapin a droite), et cette composition n'existe qu'en
+     paysage : cadre en portrait, l'image est recadree au centre et il n'y a
+     plus de tiers sombre a occuper. */
+  .rr-masthead,
+  .rr-empty { width: 100%; }
+  /* ET LE VOILE SE REDRESSE. Le lavis est un degrade a 100deg, taille pour un
+     paysage : son extremite sombre couvre le tiers gauche et laisse le reste
+     de la peinture au clair. Dans un cadre etroit ce meme angle amene
+     l'extremite sombre d'un bord a l'autre, et le tableau vire a la nuit.
+     Ici le menu est centre, pas a gauche, donc le voile descend du haut : il
+     porte le titre et les boutons, et laisse le bas de l'image respirer. */
+  .rr-home-art::after {
+    background: linear-gradient(
+      180deg,
+      rgba(13, 17, 23, 0.72) 0%,
+      rgba(13, 17, 23, 0.55) 42%,
+      rgba(13, 17, 23, 0.20) 68%,
+      rgba(13, 17, 23, 0.05) 100%
+    );
+  }
 }
 
 /* The emblem and the text written into it. Sized by the component in whole
@@ -2536,22 +2710,66 @@ body:has(.rr-burrow) .rr-burrow:has(.rr-empty) {
   image-rendering: pixelated;
 }
 
-/* The phrase under the emblem. It lived in the banner's ribbon as a scrolling
-   ticker; the emblem's ribbon is already lettered, so the phrases read here
-   instead — one at a time, swapped on a timer rather than crawling, because
-   there is no slot to crawl through any more. */
+/* LA PHRASE, EN BAS A DROITE, DANS SON PROPRE CADRE.
+
+   Elle vivait sous l'embleme, au fil du masthead. Le masthead est devenu une
+   colonne de 420px a gauche : la phrase y prenait toute la largeur du menu et
+   passait en travers de la banniere rouge que le tableau accroche a l'arbre.
+
+   `position: fixed`, donc HORS DU FLUX du masthead — ce qui raccourcit
+   `--rr-mast` d'autant, et c'est voulu : la variable mesure desormais le titre
+   seul, qui est ce sous quoi les boutons doivent se poser.
+
+   Le coin oppose au menu est le seul que la peinture laisse calme (mer et
+   ciel), et c'est la que la maquette la met.
+
+   SUR LA PLANCHE DESSINEE, pas dans un rectangle CSS. Le fond plat + bordure
+   de la premiere version tenait le contraste mais jurait avec un ecran qui est
+   entierement peint. La planche est un 3-slice comme les autres plaques du jeu
+   (cf. `.rr-loop-home` dans px-top-floor.css) : coins fixes, milieu etire.
+
+   DECOUPE MESUREE SUR LE FICHIER, pas devinee. Source 489x88 : l'ornement
+   gauche occupe x 0..46, le droit x 444..488, et le cadre du bois fait ~7px en
+   haut et en bas (la planche va de y=3 a y=84). D'ou `10 46 10 48` — la coupe
+   tombe dans le bois uni des deux cotes, donc aucun coin n'est rogne ni etire.
+
+   `fill` parce que le milieu de l'art EST le fond de la boite : sans lui le
+   centre serait transparent et la phrase se lirait a nouveau sur le ciel. */
 .rr-tagline {
-  margin: 10px 0 0;
-  max-width: min(90vw, 420px);
+  position: fixed;
+  right: var(--rr-edge);
+  bottom: calc(env(safe-area-inset-bottom) + var(--rr-edge));
+  z-index: 3;
+  border-style: solid;
+  border-color: transparent;
+  border-width: 10px 46px 10px 48px;
+  border-image-source: url('/assets/ui/hint-plank.webp');
+  border-image-slice: 10 46 10 48 fill;
+  border-image-repeat: stretch;
+  box-sizing: border-box;
+  /* Elle ne prend pas les clics : c'est une phrase, pas un bouton, et elle est
+     posee sur le tableau. */
+  pointer-events: none;
+  /* UNE PLANCHE EST LARGE, PAS HAUTE. Les deux ferrures coutent 94px de
+     largeur a elles seules : sous ~260px il ne reste presque rien pour les
+     mots, la phrase s'empile sur six ou sept lignes et le bois s'etire en
+     panneau vertical — ce que l'art n'est pas. Le plancher passe donc avant le
+     plafond, et en portrait la planche prend simplement toute la largeur
+     disponible moins les marges. */
+  width: max(260px, min(46vw, 340px));
+  max-width: calc(100vw - 2 * var(--rr-edge));
+  /* Le rembourrage est DANS le cadre du 3-slice : les bordures ci-dessus sont
+     deja l'epaisseur du bois, donc il ne reste a payer que l'air autour des
+     mots. Pas de `background` ni de `border` a plat : la planche fait les deux
+     (`fill` peint le milieu), et un `border` raccourci ici ecraserait les
+     `border-width` mesures plus haut. */
+  padding: 2px 6px;
   font-family: var(--font-pixel);
   font-size: 11px;
   line-height: 1.5;
-  /* TWO LINES ALWAYS, reserved. The phrases differ in length, so one wraps
-     where the last did not -- and the masthead's measured height (--rr-mast,
-     which the crawl's top fade is anchored to) changed with every swap. The
-     gradient then chased a moving target and lost the race on the frames
-     right after a change, leaving the phrase sitting in the fade and reading
-     grey. A fixed box makes the measurement constant. */
+  /* TWO LINES ALWAYS, reserved: the phrases differ in length, so one wraps
+     where the last did not, and a box that changes height on every swap makes
+     the corner twitch every six seconds. */
   min-height: 3em;
   display: flex;
   align-items: center;
@@ -2571,8 +2789,18 @@ body:has(.rr-burrow) .rr-burrow:has(.rr-empty) {
   paint-order: stroke fill;
   -webkit-text-stroke: 0.6px var(--crown);
   text-shadow: 0 0 12px rgba(255, 212, 92, 0.45);
-  animation: rr-tagline-in 600ms ease-out both;
+  /* UNE OMBRE PORTEE SOUS LA PLANCHE, pour qu'elle se pose sur le tableau au
+     lieu d'y etre collee. `drop-shadow` et non `box-shadow` : la planche est
+     un `border-image` aux coins decoupes et transparents — une ombre de boite
+     dessinerait le rectangle du bloc, y compris le vide autour des ferrures,
+     alors que `drop-shadow` suit la silhouette reellement peinte. */
+  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.45))
+          drop-shadow(0 6px 10px rgba(0, 0, 0, 0.35));
 }
+
+/* LE FONDU EST SUR LA LIGNE, PAS SUR LA PLANCHE. Voir logo-banner.tsx : la
+   `key` est sur ce span, donc lui seul est remonte a chaque phrase. */
+.rr-tagline-line { animation: rr-tagline-in 600ms ease-out both; }
 
 @keyframes rr-tagline-in {
   from { opacity: 0; }
@@ -2580,7 +2808,9 @@ body:has(.rr-burrow) .rr-burrow:has(.rr-empty) {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .rr-tagline { animation: none; }
+  /* La ligne, pas la planche : c'est le span qui porte l'animation depuis que
+     la phrase a un noeud a elle. */
+  .rr-tagline-line { animation: none; }
 }
 
 /* ── Sound ────────────────────────────────────────────────────────────────
@@ -3678,19 +3908,144 @@ body:has(.rr-empty) .rr-sound { display: none; }
 }
 .rr-empty .rr-btn { container-type: inline-size; }
 .rr-empty .rr-btn.ghost > span { font-size: clamp(9px, 4.6cqw, 14px); }
+/* LA PORTE PRINCIPALE, PLUS LARGE ET PLUS GRANDE QUE L'AUTRE.
+
+   Les deux boutons partageaient `min(300px, 100%)` et la meme echelle de
+   label : a 64px de haut, le premier n'etait qu'un bouton etire, avec un texte
+   de la taille de celui d'en dessous. La largeur passe a 360 et le plancher du
+   label monte (14px au lieu de 9), donc l'ecart se voit aussi a l'arret, pas
+   seulement dans la hauteur.
+
+   Le plafond reste `cqw` : c'est lui qui fait tenir "CONNECTER UN PORTEFEUILLE"
+   sur une ligne en francais quand l'anglais tient large. */
+.rr-empty .rr-btn.rr-play { width: min(360px, 100%); }
+/* LE PLANCHER RESTE BAS, meme sur la porte principale.
+
+   Un `clamp(14px, ...)` ici a coupe "CONNECTER UN PORTEFEUILLE" en
+   "Connecter un portefeuil" : la regle au-dessus est `overflow: hidden` +
+   `white-space: nowrap`, donc un label qui ne peut plus retrecir n'est pas
+   rendu plus petit, il est AMPUTE. L'anglais tenait, le francais non — et
+   c'est exactement le cas que le clamp d'origine existait pour couvrir.
+
+   ET LE PLAFOND DESCEND A 18px. Baisser le plancher ne suffisait pas : la
+   taille est en `cqw`, donc elle se mesure sur la LARGEUR DU BOUTON, qui est
+   fixe — le clamp ne voit jamais la longueur du texte et reste colle a son
+   plafond dans les quatre langues. Mesure a 1440x810 : 6.4cqw = 20px, et la
+   chaine francaise demandait 345px pour 316 disponibles.
+
+   18px fait tenir la plus longue des quatre (mesure : 4 langues, aucune
+   coupee) tout en restant nettement au-dessus des 14px de la porte invitee,
+   qui est ce qui hierarchise les deux. */
+.rr-empty .rr-btn.rr-play > span { font-size: clamp(9px, 5.6cqw, 18px); }
+
+/* ── LA VAGUE : de temps en temps, une onde descend la colonne ─────────────
+
+   « une wave qui traverse tous les boutons » (Paul, 2026-09-22), apres un
+   premier essai ou chaque porte bougeait dans son coin : trop discret, et
+   surtout ce n'etait pas UN geste — c'etaient trois petits gestes separes.
+
+   LE DECALAGE FAIT LA VAGUE. Meme animation partout, decalee de 140ms par
+   rang. Trop court, les trois planches bougent ensemble et on lit une secousse
+   du menu ; trop long, on lit trois boutons qui sautent chacun leur tour. A
+   140ms l'oeil suit une seule chose qui descend — la porte principale part,
+   l'invite reprend, la langue termine.
+
+   L'ATTENTE EST DANS LA KEYFRAME, PAS DANS UN TIMER. Le mouvement tient dans
+   les 9 premiers % d'un cycle de 7s ; le reste est l'immobilite. Une boucle
+   courte (`rr-mark-urge` fait 700ms) dirait « urgent, maintenant » — c'est son
+   role, sur le bouton qui arme une bombe. Ici l'ecran ne demande rien : il
+   signale qu'il est vivant, et la pause longue est ce qui separe un signe d'un
+   tic.
+
+   3px, ET UN LEGER GONFLEMENT. Le nudge precedent (2px, translation seule)
+   etait au ras du perceptible. La vague ajoute un `scale` de 1.5% : c'est ce
+   qui donne l'impression que l'onde POUSSE la planche vers le lecteur au lieu
+   de la faire coulisser, et ca se voit du coin de l'oeil sans etre violent.
+
+   `transform` SEUL, et rien d'autre : les boutons sont peints par un
+   border-image (les planches du kit), donc animer une couleur ou une ombre
+   repasserait sur la texture a chaque frame. Une transformation est composee
+   par le GPU et ne redessine rien.
+
+   LA LANGUE EN FAIT PARTIE, cette fois. Une vague qui s'arrete au deuxieme
+   bouton n'est pas une vague ; c'est le dernier rang qui la termine. */
+.rr-empty .rr-btn {
+  animation: rr-doorstep-wave 4s cubic-bezier(0.34, 1.05, 0.5, 1) infinite;
+}
+.rr-empty .rr-btn.ghost:not(.rr-lang-btn) { animation-delay: 140ms; }
+.rr-empty .rr-lang-btn { animation-delay: 280ms; }
+
+/* LES POURCENTAGES SUIVENT LA DUREE. Ils etaient cales sur un cycle de 7s
+   (9% = 630ms de mouvement) ; le cycle passe a 4s, donc les memes 630ms
+   valent 15.75%. Sans ce recalcul, raccourcir la boucle aurait aussi
+   raccourci le GESTE — la vague serait devenue un tic plus rapide au lieu du
+   meme mouvement revenant plus souvent, qui est ce qui est demande.
+
+   Le geste dure donc toujours ~630ms, delais compris (280ms pour que l'onde
+   atteigne le dernier rang), et la colonne reste immobile ~3.4s entre deux
+   passages.
+
+   L'OVERSHOOT EST DANS LA KEYFRAME, PAS DANS L'EASING. Des etapes qui montent
+   puis reviennent vers zero se lisent comme un glissement plat, quelle que
+   soit la courbe de vitesse. La planche DEPASSE donc sous sa position de
+   repos avant de se replacer : c'est ce depassement qui donne du poids a
+   l'objet, et il vient de la trajectoire.
+
+   SUBTIL (Paul, 2026-09-22 : « un peu trop fort [...] un truc un peu plus
+   subtil »). Premier jet : -4px de montee, +2px de depassement, echelle a
+   1.018. Le rebond y etait plus visible que le geste lui-meme — la planche
+   claquait au lieu de respirer.
+
+   Divise par deux, et pas seulement l'overshoot : la vague DE BASE descend
+   aussi (-4 -> -2px), sinon un rebond attenue sous une montee inchangee
+   n'aurait fait que rendre le mouvement plus plat qu'avant l'overshoot.
+   L'echelle tombe a 1.008, au ras du perceptible — c'est elle qui fait la
+   difference entre « la planche avance vers moi » et « la planche glisse »,
+   donc elle reste, mais elle ne doit pas se voir.
+
+   `cubic-bezier` accompagne, sans ajouter de rebond a son tour : l'ordonnee
+   du deuxieme point passe de 1.2 a 1.05. A 1.2 la courbe depassait DEJA, et
+   se composait avec le depassement de la trajectoire — deux rebonds
+   empiles, ce qui est exactement ce qui tapait trop fort. */
+@keyframes rr-doorstep-wave {
+  0%,   15.75%, 100% { transform: translateY(0) scale(1); }
+  4.5%               { transform: translateY(-2px) scale(1.008); }
+  8.5%               { transform: translateY(0.8px) scale(0.997); }
+  12%                { transform: translateY(-0.4px) scale(1.002); }
+}
+
+/* Le press garde la main : `wiggle` (PxButton) et la squash du `:active`
+   posent leur propre `transform`, et l'animation les ecraserait a la frame
+   suivante. Elle s'arrete donc pendant l'appui et le survol — au survol parce
+   qu'une porte qu'on vise n'a plus besoin qu'on l'annonce. */
+.rr-empty .rr-btn:hover,
+.rr-empty .rr-btn:active,
+.rr-empty .rr-btn:focus-visible { animation: none; }
+
+/* Rien ne bouge si le systeme dit que rien ne doit bouger. La vague est
+   decorative de bout en bout : elle ne porte aucune information que l'ecran ne
+   donne pas deja, donc elle se coupe entierement plutot que de se reduire. */
+@media (prefers-reduced-motion: reduce) {
+  .rr-empty .rr-btn { animation: none; }
+}
 
 /* PLAY: the one thing to press on this screen, and it should look like it.
-   Carrot on dark rather than another outlined chip — the wallet sign-in below
-   it is deliberately quieter, because the whole point of the guest door is
-   that digging comes first. */
+   Gold on dark rather than another outlined chip — the guest door below it is
+   deliberately quieter.
+
+   GOLD, NOT CARROT. On the doorstep the slab is painted by PxButton's own
+   props (see page.tsx), so these colours only show where the class is used on
+   a PLAIN button; they are kept in step with the props so the two can never
+   disagree — the orange here against gold there was exactly the kind of drift
+   that leaves one screen off-model. */
 .rr-play {
   margin-bottom: 4px;
   font-size: 18px;
   letter-spacing: 0.08em;
   padding: 14px 28px;
   color: #2a1206;
-  background: var(--carrot);
-  border-color: var(--carrot);
+  background: #f5b32a;
+  border-color: #f5b32a;
 }
 .rr-play:not(:disabled):hover { filter: brightness(1.08); }
 
@@ -3741,6 +4096,58 @@ body:has(.rr-empty) .rr-sound { display: none; }
 .rr-raids li.hit .rr-raid-what { color: var(--danger); }
 .rr-raids li.mine .rr-raid-what { color: var(--crown); }
 .rr-raid-when { color: var(--muted); min-width: 30px; text-align: right; }
+
+/* ── A DEBT, AND THE BUTTON THAT SETTLES IT ─────────────────────────────────
+   Every raid against this player is an open score until they take something
+   back off the raider (see `avengedAt`). Open rows carry a live dot and a
+   REVENGE button; settled ones are struck through and go quiet. The rows
+   STACK — three robberies by the same player are three lines, because each
+   one is a separate night and merging them would hide how often it happens. */
+.rr-raids li { position: relative; }
+/* THE BUTTON TAKES A LINE, NOT THE NAME'S WIDTH.
+   Tried inline, at the end of the row: a plank wide enough to read "REVENGE
+   NOW" leaves the first column too narrow for a pseudonym, and the log
+   answered "who robbed me" with "No…". The name is the row's whole point, so
+   the button drops beneath it and spans the grid — vertical space is the
+   cheap thing here, the name is not. Right-aligned, under the figure it is
+   the answer to. */
+.rr-raids li .rr-revenge {
+  grid-column: 1 / -1;
+  justify-self: end;
+  min-height: 0;
+  margin-top: 4px;
+  padding: 2px 10px;
+}
+.rr-raid-who { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.rr-raid-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The dot alone, no word: the log's rows are already three columns wide and a
+   second label would push the carrot figure off a phone. The colours are the
+   raid list's own (see `.rr-raid-where`), so green means the same thing in
+   both places. */
+.rr-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+.rr-dot.away { color: rgba(139, 148, 158, 0.75); }
+.rr-dot.home { color: rgba(255, 138, 118, 0.95); }
+.rr-dot.digging { color: rgba(74, 222, 128, 0.95); }
+.rr-dot.digging { animation: rr-live-pulse 1.8s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .rr-dot.digging { animation: none; }
+}
+/* SETTLED. The name and the time are struck through together — they are the
+   two halves of "this player, that night" — while the figure keeps its colour
+   so the ledger still reads as a ledger. The whole row dims: a paid debt is
+   history, and the open ones above it are what the panel is for. */
+.rr-raids li.settled { opacity: 0.55; }
+.rr-raids li.settled .rr-raid-label,
+.rr-raids li.settled .rr-raid-when {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
 
 .rr-lb-row {
   display: grid;
@@ -4378,6 +4785,38 @@ button { font-family: var(--font-pixel); }
   }
 }
 
+/* ── THE LANGUAGE, on the doorstep ────────────────────────────────────────
+   language-select.tsx. A drawn dialog since 2026-09-22, where a native
+   <select> used to be — the reasoning is in the component's own header.
+
+   It rides the Shed's scrim and modal, like the energy popup and the install
+   guide. `width` is declared HERE and not only in the phone media query: that
+   query (see `.rr-shop-scrim` above) blows `.rr-shop-modal` up to the full
+   screen, which is right for a market stall with seven shelves and absurd for
+   four buttons. This rule sits after it and opts out, exactly as
+   `.rr-energy-modal` and `.rr-install-modal` do. */
+.rr-lang-modal {
+  width: min(320px, 100%);
+  max-height: none;
+}
+/* One column, whole rows. A grid would fit four flags in 2x2 and save a few
+   pixels of height, but a language list is read down, not scanned across, and
+   the row is what gives each name its 44px of tap. */
+.rr-lang-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rr-pad-tight);
+  padding: var(--rr-pad);
+}
+.rr-lang-opt {
+  width: 100%;
+  min-height: 44px;
+  justify-content: flex-start;
+}
+/* The flag leads, so the eye lands on the one glyph that is readable in every
+   language on the list. */
+.rr-lang-opt > span { justify-content: flex-start; }
+
 /* ── INSTALL THE APP ───────────────────────────────────────────────────────
    install-guide.tsx. The steps ride the Shed's scrim and modal like the
    energy popup, and stay small on a phone for the same reason. */
@@ -4955,6 +5394,23 @@ button { font-family: var(--font-pixel); }
 .rr-raid-where.away { color: rgba(139, 148, 158, 0.75); }
 .rr-raid-where.home { color: rgba(255, 138, 118, 0.95); }
 .rr-raid-where.digging { color: rgba(74, 222, 128, 0.95); }
+/* THE DISTANCE TO A LOCKED DOOR (island-picker.tsx): a short bar on the row's
+   presence line, in the line's own ink, filled by lifetime carrots against the
+   tier's threshold. */
+.rr-tier-progress {
+  display: inline-block;
+  width: 56px;
+  height: 6px;
+  flex: none;
+  vertical-align: middle;
+  background: rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+.rr-tier-progress i {
+  display: block;
+  height: 100%;
+  background: #ffb238;
+}
 /* Only the live one pulses. A blinking "away" would be a light advertising an
    absence, and three pulsing rows in a list read as an error state. */
 .rr-raid-where.digging i { animation: rr-live-pulse 1.8s ease-in-out infinite; }
@@ -5494,59 +5950,23 @@ button { font-family: var(--font-pixel); }
 
 /* ── THE LANGUAGE PICKER, on the sign-in screen ────────────────────────────
 
-   A native <select> retinted to the burrow's palette. Native because the
-   platform's own language list beats anything drawn here for the one control
-   a player reaches for when they cannot read the screen (see
-   components/language-select.tsx); retinted because the default control
-   arrives as system chrome in the middle of pixel art.
+   THE DRAWN DIALOG IS UP AT `.rr-lang-modal`, with the rest of the dialogs.
 
-   It sits in the masthead, which is `pointer-events: none` so the crawl can be
-   read behind it — this is the one thing up there that takes a press, so it
-   turns them back on for itself. */
+   What stood here was the skin for a native <select>: an `appearance: none`
+   reset, a soil face, a hand-drawn arrow made of two gradients, and an
+   `option` rule for the Androids that render the open list white-on-white.
+   The select is gone (Paul, 2026-09-22 — see language-select.tsx), and the
+   skin went with it rather than being left behind: nothing renders
+   `.rr-lang-select` any more, and a dead block that elaborate is one a future
+   reader has to prove is dead before touching anything near it.
+
+   `.rr-lang` itself is kept — the closed control is a button now, but it is
+   still the one pressable thing in a `pointer-events: none` masthead, which
+   is the only reason this class ever existed. */
 .rr-lang {
   pointer-events: auto;
   display: inline-flex;
   margin-top: var(--rr-pad-tight);
-}
-
-.rr-lang-select {
-  font: inherit;
-  /* The face, drawn like every other block on this screen: soil, a hard
-     one-pixel outline, no radius. `appearance: none` is what removes the
-     platform's rounded bezel and its gradient; the arrow goes with it, so one
-     is drawn back as a background triangle. */
-  appearance: none;
-  -webkit-appearance: none;
-  background-color: #2a1810;
-  background-image:
-    linear-gradient(45deg, transparent 50%, #f5e6d3 50%),
-    linear-gradient(135deg, #f5e6d3 50%, transparent 50%);
-  background-position: right 14px top 50%, right 9px top 50%;
-  background-size: 5px 5px, 5px 5px;
-  background-repeat: no-repeat;
-  color: #f5e6d3;
-  border: 2px solid #1d100a;
-  border-radius: 0;
-  /* Room on the right for the arrow drawn above. */
-  padding: 8px 26px 8px 10px;
-  /* The 44px tap-target floor the rest of the chrome keeps. */
-  min-height: 44px;
-  font-size: 12px;
-  letter-spacing: 0.02em;
-  cursor: var(--cur-hand);
-}
-
-.rr-lang-select:focus-visible {
-  outline: 2px solid #ffb238;
-  outline-offset: 2px;
-}
-
-/* The open list is drawn by the platform, not by us — but the options inherit
-   whatever the page sets, and white-on-white is a real outcome on some
-   Androids. Stated explicitly so the list is legible wherever it is drawn. */
-.rr-lang-select option {
-  background-color: #2a1810;
-  color: #f5e6d3;
 }
 
 /* Visible to a screen reader, to nothing else. */
@@ -5653,12 +6073,12 @@ button { font-family: var(--font-pixel); }
 .rr-energy-panel {
   position: fixed;
   left: 50%;
-  /* Under the pill. On a 400px phone the old 116px left 260px for five
-     paragraphs and a button, and the button was off screen. */
-  top: calc(var(--rr-chrome-top, 116px) + var(--rr-pad-tight));
+  top: 116px;
   transform: translateX(-50%);
-  width: min(360px, calc(100vw - 32px));
-  max-height: calc(100svh - var(--rr-chrome-top, 116px) - 24px);
+  /* 380, from 340: the ledger's rows are a label, a clause and a verdict
+     side by side, and at 340 the clause wrapped on every row. */
+  width: min(380px, calc(100vw - 32px));
+  max-height: calc(100svh - 140px);
   overflow-y: auto;
   z-index: 45;
   pointer-events: auto;
@@ -5674,79 +6094,72 @@ button { font-family: var(--font-pixel); }
   display: block; width: 100%; min-height: 44px;
   margin-top: 8px; padding: 8px 12px; font: inherit;
 }
-/* THE FIGURE: the number big, the ceiling and the rate small beside it. */
-.rr-energy-figure { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; font-variant-numeric: tabular-nums; }
-.rr-energy-figure b { font-size: 18px; line-height: 1; color: #1f1408; }
-.rr-energy-rate { font-size: 9px; opacity: .8; }
-/* THE BAR, with the ticks the ring's tick stands for. A label hangs under
-   each tick; `overflow: visible` so the labels can. */
-.rr-energy-bar {
-  position: relative;
-  height: 10px;
-  margin: 18px 0 18px;
-  background: rgba(31, 20, 8, 0.22);
-  box-shadow: inset 0 0 0 1px rgba(31, 20, 8, 0.45);
-}
-.rr-energy-fill { position: absolute; inset: 0 auto 0 0; display: block; transition: width .4s ease; }
-.rr-energy-tick {
-  position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px;
-  background: #1f1408; box-shadow: 0 0 0 1px rgba(255, 236, 190, 0.9);
-}
-.rr-energy-tick span {
-  position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
-  margin-top: 3px; font-size: 8px; line-height: 1; white-space: nowrap; color: #48301f; opacity: .85;
-}
-/* The island's line sits 18 points under the raid's, a finger apart on a
-   300 bar: its label goes ABOVE the bar so the two never overlap. */
-.rr-energy-tick:not(.raid) span { top: auto; bottom: 100%; margin: 0 0 3px; }
-/* THE ROWS: what, what it takes, and the chip. */
-.rr-energy-rows { list-style: none; margin: 0; padding: 0; }
-.rr-energy-rows li {
-  display: flex; align-items: center; gap: 10px;
-  padding: 7px 0; border-top: 1px solid rgba(31, 20, 8, 0.18);
-}
-.rr-energy-rows li > div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.rr-energy-rows strong { font-size: 10px; letter-spacing: .02em; }
-.rr-energy-rows span { font-size: 9px; line-height: 1.45; opacity: .85; }
-.rr-energy-chip {
-  flex: none; padding: 4px 7px 3px; font-size: 9px; line-height: 1; white-space: nowrap;
-  color: #fff8e6; background: #6b8035; box-shadow: 0 2px 0 rgba(31, 20, 8, 0.35);
-  font-variant-numeric: tabular-nums;
-}
-.rr-energy-chip.wait { color: #48301f; background: rgba(31, 20, 8, 0.14); box-shadow: inset 0 0 0 1px rgba(31, 20, 8, 0.3); }
-.rr-energy-level { margin: 8px 0 0; font-size: 9px; opacity: .8; }
-/* A SHORT SCREEN pays for the panel out of its air, not out of its rows: on
-   an iPhone under Safari's bar (852x320) the whole ledger does not fit and
-   the panel scrolls, so every pixel handed back here is one more row the
-   player sees without moving. Same 520px threshold as the other relaxations. */
-@media (max-height: 520px) {
-  /* A landscape phone is WIDE and short, so the panel takes the width it is
-     given: at 360px the cost lines wrapped to two rows each, and those wraps
-     were most of what did not fit. */
-  .rr-energy-panel { width: min(460px, calc(100vw - 32px)); }
-  .rr-energy-panel-body { padding: 8px 12px 10px; line-height: 1.4; }
-  .rr-energy-figure b { font-size: 15px; }
-  .rr-energy-bar { margin: 14px 0 14px; }
-  .rr-energy-rows li { padding: 5px 0; }
-  .rr-energy-level { margin-top: 6px; }
-}
 
-/* WHERE YOU STAND on the island ladder: a thin bar under a locked row's
-   text, the same ink as the row's dot. */
-/* WHAT THE GROUND HOLDS, under a row's state line: the bargain of the tier.
-   Muted, because it is the same two facts on every row and the eye should
-   land on the name and the button first. */
-.rr-island-ground {
-  display: block;
-  margin-top: 3px;
-  font-size: 9px;
-  line-height: 1.3;
-  color: rgba(255, 236, 190, 0.7);
-  white-space: nowrap;
+/* THE TANK, LAID FLAT (energy-panel.tsx): the ring's fill as a bar, with the
+   crossing's floor and the raid's as ticks. Inks are the parchment's own
+   brown family; the fill is the dial's green. */
+.rr-tank-track {
+  position: relative;
+  height: 8px;
+  margin: 10px 0 6px;
+  background: #2a1810;
+  box-shadow: inset 0 0 0 1px #1c0d08;
 }
-.rr-island-pick .shielded .rr-island-ground { opacity: .75; }
-.rr-tier-progress {
-  display: block; position: relative; height: 4px; margin-top: 5px; max-width: 220px;
-  background: rgba(31, 20, 8, 0.35); box-shadow: inset 0 0 0 1px rgba(31, 20, 8, 0.35);
+.rr-tank-fill {
+  position: absolute; inset: 0 auto 0 0;
+  background: linear-gradient(90deg, #5fbf3a, #a6e34a);
 }
-.rr-tier-progress i { position: absolute; inset: 0 auto 0 0; background: #ffb238; }
+.rr-tank-tick {
+  position: absolute; top: -3px; bottom: -3px;
+  width: 2px; margin-left: -1px;
+  background: #48301f;
+}
+.rr-tank-tick.raid { background: #b4342b; }
+
+/* THE LEDGER: one row per door, three cells — the verb, its cost, the
+   verdict. The verdict is the answer, so it is the one cell in colour. */
+.rr-tank-ledger { margin: 0; }
+.rr-tank-row {
+  display: grid;
+  /* The label column is as wide as the widest label, never narrower: at a
+     fixed 4.6em "ISLAND" ran into its own cost ("ISLAND5 to cross"). */
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  align-items: center;
+  column-gap: 10px;
+  padding: 5px 0;
+  border-top: 1px solid rgba(72, 48, 31, 0.18);
+}
+/* One line under the ledger for the rule that is true of every row above it
+   (the raid's refund, or what goes home with the rabbit) — kept out of the
+   rows so each stays a clause, not a paragraph. */
+.rr-tank-hint { margin: 6px 0 0; font-size: 9px; line-height: 1.45; color: #6b4f38; }
+/* THE SEEKER'S 400px: the panel hangs under the pill and has ~260px to the
+   floor. Tighter pad and rows, so the ledger and its button stay on it
+   without a scroll nobody is told about. */
+@media (max-height: 460px) {
+  .rr-energy-panel { top: 104px; max-height: calc(100svh - 112px); }
+  .rr-energy-panel-body { padding: 10px 14px; }
+  .rr-tank-track { margin: 8px 0 4px; }
+  .rr-tank-row { padding: 4px 0; }
+  .rr-energy-panel .rr-toolkit-action { margin-top: 6px; }
+}
+.rr-tank-row:first-child { border-top: 0; }
+.rr-tank-row dd { margin: 0; }
+/* No `text-transform` here: the English labels are capitals in the dictionary
+   (the kit's convention), and the other languages write theirs in their own
+   case on purpose — see the note at the top of dict/en.ts. */
+.rr-tank-label {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: #2d1610;
+}
+.rr-tank-detail { font-size: 9px; line-height: 1.45; }
+.rr-tank-verdict {
+  display: flex; flex-direction: column; align-items: flex-end;
+  font-size: 9px; line-height: 1.2; letter-spacing: 0.06em;
+  text-align: right; white-space: nowrap;
+}
+.rr-tank-verdict small { font-size: 8px; letter-spacing: 0; opacity: 0.85; }
+.rr-tank-verdict.ready { color: #2f7a2a; }
+.rr-tank-verdict.short { color: #a8501c; }
+.rr-tank-verdict.muted { color: #8a6d52; }

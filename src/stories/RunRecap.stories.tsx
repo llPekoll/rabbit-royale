@@ -15,7 +15,10 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Recap } from '@/components/run-recap';
 import '@/app/globals.css';
 
-const ART = '/assets/island/land1.webp';
+/** A stand-in for the board behind the recap. The island's own paintings
+ *  are gone (it is drawn from the seed now), so any shipped scene will do —
+ *  what this story judges is the panel, not the art under it. */
+const ART = '/assets/island/burrow_generated.webp';
 
 function Harness() {
   return (

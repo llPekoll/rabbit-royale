@@ -28,7 +28,7 @@ import { reachableTiles } from '@/lib/game/reachable';
 import { ENERGY } from '@config/tuning';
 import { loadAllAssets } from '@/game/services/AssetLoader';
 import { initTileTextures } from '@/game/services/TileTextures';
-import { createIslandBackground } from '@/game/services/IslandBackground';
+import { createTerrainBackground } from '@/game/services/TerrainBackground';
 import { CloudField } from '@/game/fx/Clouds';
 import * as Keys from '@/config/assetKeys';
 import {
@@ -74,7 +74,7 @@ function Scene({ seed, background, arrows, sweepStep, energy, dugNeighbours, stu
 
         let bg: { destroy(): void } | null = null;
         if (background) {
-          void createIslandBackground(stage, 480, 270, seed).then((b) => { bg = b; });
+          void createTerrainBackground(stage, seed).then((b) => { bg = b; });
         }
 
         // The sky. Driven by the story's own ticker below, exactly as the scene

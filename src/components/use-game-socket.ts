@@ -32,6 +32,7 @@ import type { IslandScene } from '@/game/scenes/IslandScene';
 import { toIndex } from '@/config/gridConfig';
 import { FLAG } from '@config/tuning';
 import { sameIncoming, type IncomingRaid } from './use-incoming-raid';
+import type { Presence } from './use-raid';
 
 export interface ClientRabbit {
   playerId: string;
@@ -478,6 +479,17 @@ export function useGameSocket(
    * nobody has opened yet has nobody on it.
    */
   const [watchers, setWatchers] = useState(0);
+  /**
+   * Where the players we are FOLLOWING are standing, by id.
+   *
+   * Filled by `watchPresence` and kept current by the server's pushes, so the
+   * profile's raid log can put a live dot beside everyone who has come after
+   * us. Empty until something is being followed — an id with no entry reads
+   * as `away`, which is what an unknown player is.
+   */
+  const [presence, setPresence] = useState<Record<string, Presence>>({});
+  /** Who `watchPresence` last subscribed to, so a reconnect can say it again. */
+  const followed = useRef<string[]>([]);
   /** The raid on OUR burrow as last pushed, or null — see `raid_incoming`. */
   const [incomingRaid, setIncomingRaid] = useState<IncomingRaid | null>(null);
   /** Bumped when the defender's lightning ends our raid — see `raid_struck`. */
@@ -553,6 +565,10 @@ export function useGameSocket(
         // on the server anyway).
         socket.emit('join', choice.current ?? undefined);
       }
+      // A subscription lives on the SERVER's socket, so a reconnect loses it.
+      // Re-sent here or the raid log's dots freeze on whatever they last
+      // heard — a panel left open across a dropped connection.
+      if (followed.current.length) socket.emit('watch_presence', followed.current);
     });
     socket.on('disconnect', (reason: string) => {
       setConnected(false);
@@ -816,6 +832,21 @@ export function useGameSocket(
      */
     socket.on('watchers', ({ count }: { count: number }) => {
       setWatchers(Math.max(0, count | 0));
+    });
+
+    /**
+     * Where the players we follow are standing — see `watchPresence`.
+     *
+     * `presence_all` answers the subscription (everyone at once, so a quiet
+     * player still gets a dot); `presence` is the running correction, one id
+     * at a time, for as long as the subscription stands.
+     */
+    socket.on('presence_all', (rows: Array<{ id: string; where: Presence }>) => {
+      if (!Array.isArray(rows)) return;
+      setPresence(Object.fromEntries(rows.map((r) => [r.id, r.where])));
+    });
+    socket.on('presence', ({ id, where }: { id: string; where: Presence }) => {
+      setPresence((p) => ({ ...p, [id]: where }));
     });
 
     /** One of OUR bombs is in the ground. Sent to the planter alone. */
@@ -1111,6 +1142,30 @@ export function useGameSocket(
     socketRef.current?.emit('plant', { tile });
   }, []);
 
+  /**
+   * FOLLOW these players' presence, or nobody when given an empty list.
+   *
+   * The profile's raid log calls this with everyone who has raided it, and
+   * again with nothing when it closes. The server replaces the whole
+   * subscription each time (see `watch_presence`), so this is idempotent and
+   * the panel can call it freely as its list settles.
+   *
+   * Kept in a ref as well as sent, because a reconnect starts the server's
+   * socket fresh and the `connect` handler above re-subscribes from it.
+   */
+  const watchPresence = useCallback((ids: string[]) => {
+    const next = [...new Set(ids)].sort();
+    // Same set, already sent: the panel re-renders more often than its list
+    // changes, and re-subscribing on each one would push a full answer back
+    // every time.
+    if (next.join() === followed.current.join()) return;
+    followed.current = next;
+    const socket = socketRef.current;
+    if (!socket?.connected) return;
+    if (next.length) socket.emit('watch_presence', next);
+    else socket.emit('unwatch_presence');
+  }, []);
+
   const restart = useCallback(() => {
     const socket = socketRef.current;
     if (!socket) return;
@@ -1194,6 +1249,7 @@ export function useGameSocket(
     casts, strikeRefused, struckBy, plants, plantRefused, bombedBy, watchers, incomingRaid, struckRaid,
     // Let the burrow page forget a raid it has finished showing.
     clearIncomingRaid: () => setIncomingRaid(null),
+    presence, watchPresence,
     moveTo, restart, join, leave, chooseIsland, listIslands, strike, plant, bindScene, resync, flagMode, setFlagMode, flagNothing,
   };
 }

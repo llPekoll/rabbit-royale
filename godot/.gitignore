@@ -2,3 +2,36 @@
 # ARE committed — they carry the import settings (pixel filtering, the font's
 # detected metrics) that make the art look right on a fresh checkout.
 .godot/
+
+# LE MODÈLE DE COMPILATION ANDROID — 1 Go, déballé par l'éditeur depuis
+# android_source.zip (Projet > Installer le modèle de compilation Android).
+#
+# Il n'est pas à nous : il appartient à la version de Godot installée, et il
+# DOIT être réinstallé à chaque montée de version de l'éditeur. Le versionner
+# figerait le moteur de tout le monde sur le 4.7.2 d'aujourd'hui, pour un
+# gigaoctet.
+#
+# Conséquence sur un checkout frais : l'export Android échoue tant qu'il n'a pas
+# été installé, parce que use_gradle_build=true l'exige.
+android/
+
+# L'AAR DU PLUGIN MWA, compilé depuis plugin-src/.
+#
+# Ignoré pour qu'il ne puisse pas se désynchroniser de son source : un AAR
+# versionné se périme en silence le jour où RabbitMwaPlugin.kt change sans
+# qu'on relance le build, et le bug qui suit — un plugin qui se charge mais ne
+# répond pas comme le code le dit — est très coûteux à trouver.
+#
+# À reconstruire avant tout export Android :
+#     cd plugin-src && ./gradlew assemble
+addons/RabbitMWA/bin/
+
+# Le chantier Gradle du plugin : caches, artefacts intermédiaires, et
+# local.properties qui contient un chemin de SDK propre à chaque machine.
+plugin-src/.gradle/
+plugin-src/build/
+plugin-src/*/build/
+plugin-src/local.properties
+
+# L'APK sort dans ../dist, qui est le dossier de build du client web et a déjà
+# sa propre règle à la racine. Rappelé ici pour qui lit ce fichier seul.

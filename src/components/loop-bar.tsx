@@ -198,12 +198,19 @@ export function LoopBar({
   // Short parts: a slab is ~270px wide at the mock's window and the line
   // wraps to two rows at most (`line` below), so every part is a couple of
   // words. Verified on screen: "35/60 energy · a run takes 25" clipped.
-  const digParts = [
-    t.loop.energyOf(dig.energy, dig.maxEnergy),
-    canDig
-      ? t.loop.runCosts(dig.crossingCost)
-      : t.loop.runIn(waitMs === null || waitMs <= 0 ? t.loop.aMoment : formatWait(waitMs, t.units)),
-  ];
+  // THE TANK IS NOT READ HERE TWICE. "298/300 energy" opened this line when
+  // the slab had no gauge of its own; the one tank now hangs off the carrot
+  // pill, a glance above, and the same figure on the slab made the line
+  // overrun and travel on every phone for a number already on screen
+  // (22 September 2026). Affordable, the line is the price alone. Short, the
+  // figure comes back beside the wait — there it is the reason for the wait,
+  // not a repeat.
+  const digParts = canDig
+    ? [t.loop.runCosts(dig.crossingCost)]
+    : [
+        t.loop.energyOf(dig.energy, dig.maxEnergy),
+        t.loop.runIn(waitMs === null || waitMs <= 0 ? t.loop.aMoment : formatWait(waitMs, t.units)),
+      ];
   const homeParts = [
     home.gardenReady > 0 ? t.loop.gardenPlus(groupDigits(home.gardenReady)) : t.loop.gardenEmpty,
     home.shieldMs !== null ? t.loop.shieldFor(formatWait(home.shieldMs, t.units)) : t.loop.noShield,
