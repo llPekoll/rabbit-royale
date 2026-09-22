@@ -83,6 +83,12 @@ export interface IslandSceneData {
   onStrikeIntent?(index: number): void;
   /** Called when the player, with a bomb ARMED (`setAiming('plant')`), taps undug ground. */
   onPlantIntent?(index: number): void;
+  /**
+   * Called when the player RIGHT-CLICKS a tile: mark a bomb there, whatever
+   * mode the HUD is in. The page arms X mode and places the mark in one go —
+   * see `attachControls`.
+   */
+  onFlagIntent?(index: number): void;
   /** The local player's id, so their own rabbit can be told apart. */
   playerId: string;
   /**
@@ -387,6 +393,8 @@ export class IslandScene implements Scene {
   private gestures: PanZoomGestures | null = null;
   /** Mouse wheel and trackpad pinch, straight off the canvas. */
   private onWheel: ((e: WheelEvent) => void) | null = null;
+  /** Right-click: bury a bomb without arming one first. See `attachControls`. */
+  private onContextMenu: ((e: MouseEvent) => void) | null = null;
   /**
    * The tile whose veil the current press landed on, if any. Set by the
    * tile's own `pointerdown` (which resolves through the draw order) and
@@ -915,6 +923,58 @@ export class IslandScene implements Scene {
       this.setCam(zoomCam(this.cam, Math.exp(-units * rate), at, this.seed, this.canvasW, this.canvasH));
     };
     canvas.addEventListener('wheel', this.onWheel, { passive: false });
+
+    // Right-click marks a bomb — the red X, without arming MARK A BOMB first.
+    //
+    // Minesweeper's own two-button grammar: left steps, right flags. Marking
+    // took two gestures here — arm the button, then tap the tile — and the
+    // arming half is pure ceremony for a mouse with a spare button sitting
+    // idle. So the button IS the arming: one press names the intent and the
+    // tile at once.
+    //
+    // It routes through `requestMove`, exactly as a left tap does, because in
+    // X mode that is already what places a mark (see `use-game-socket.moveTo`,
+    // which emits `flag` instead of `move` while the mode is on). Every rule
+    // about where an X may land — adjacency, a tile already open, watching
+    // rather than playing — therefore stays in the one place that answers it
+    // today, rather than being restated here and drifting.
+    //
+    // On the DOM rather than through Pixi, for the same reason as the wheel:
+    // the browser's own menu has to be `preventDefault`ed, and Pixi's gesture
+    // recogniser drops non-primary buttons before they reach a handler (see
+    // `PanZoomGestures.down`) — which is what keeps this from disturbing pan,
+    // pinch or the left-button tap.
+    this.onContextMenu = (e) => {
+      e.preventDefault();
+      if (this.data?.noCamera) return;
+      // A drag that happens to end on the right button is not a placement.
+      if (this.gestures?.active) return;
+      // Client px -> RENDERER px, through Pixi's own mapping.
+      //
+      // Not `clientX - rect.left`: that is CSS pixels, and the renderer runs
+      // at `devicePixelRatio` with `autoDensity` (see Application), so every
+      // press on a Retina screen came in at half its true coordinate and
+      // `terrainTileAt` resolved a tile far up the board — the server answered
+      // `off-island` for ground the player had clicked dead centre. The wheel
+      // above survives the same arithmetic only because a zoom's anchor being
+      // slightly off is invisible; naming a tile is not that forgiving.
+      const g = this.app.renderer.events.mapPositionToPoint
+        ? (() => {
+          const p = { x: 0, y: 0 };
+          this.app.renderer.events.mapPositionToPoint(p, e.clientX, e.clientY);
+          return p;
+        })()
+        : { x: e.offsetX, y: e.offsetY };
+      const at = this.designPoint(g);
+      const local = toScene(this.cam, at);
+      // No `pressTile` to read: this press never went through the veil's
+      // `pointerdown`, so the point is resolved geometrically. No rival lookup
+      // either — an X goes on GROUND, and a rabbit standing on a tile does not
+      // make that tile un-markable.
+      const idx = terrainTileAt(this.seed, local.x, local.y);
+      if (idx !== null) this.data?.onFlagIntent?.(idx);
+    };
+    canvas.addEventListener('contextmenu', this.onContextMenu);
   }
 
   /** The seed everything on this scene is built from. */
@@ -2835,6 +2895,10 @@ export class IslandScene implements Scene {
     if (this.onWheel) {
       (this.app.canvas as HTMLCanvasElement).removeEventListener('wheel', this.onWheel);
       this.onWheel = null;
+    }
+    if (this.onContextMenu) {
+      (this.app.canvas as HTMLCanvasElement).removeEventListener('contextmenu', this.onContextMenu);
+      this.onContextMenu = null;
     }
     this.clouds?.destroy();
     this.birds?.destroy();

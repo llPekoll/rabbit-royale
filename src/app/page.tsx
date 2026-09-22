@@ -804,6 +804,25 @@ function Burrow() {
     game.plant(tile);
     setAiming(null);
   }, [game]);
+  /**
+   * A RIGHT-CLICK on a tile: mark a bomb there, in one gesture.
+   *
+   * Arm X mode, then place the mark through the very same call a left tap
+   * makes (`moveTo`, which emits `flag` while the mode is on and disarms
+   * itself afterwards). Going through the mode rather than emitting `flag`
+   * straight from here is what keeps the two gestures honest: the ring lights,
+   * an X that has nothing to mark is refused with its own message
+   * (`setFlagMode` returns 0 and stands down), and the adjacency rule is
+   * checked once, where it already lives.
+   *
+   * Anything armed on the HUD is dropped first — a right-click is a mark, so
+   * a strike left armed must not eat the tile.
+   */
+  const onFlagIntent = useCallback((tile: number) => {
+    setAiming(null);
+    game.setFlagMode(true);
+    game.moveTo(tile);
+  }, [game]);
   useEffect(() => {
     if (!ready) return;
     handles.current?.island.setAiming(aiming);
@@ -2275,6 +2294,7 @@ function Burrow() {
           onFence={onFence}
           onStrikeIntent={onStrikeIntent}
           onPlantIntent={onPlantIntent}
+          onFlagIntent={onFlagIntent}
           onReady={(h) => { handles.current = h; setReady(true); }}
           // Read once at mount, which is the curtain's cut — the same
           // instant `onCurtainCut` flips `where`. The two agree by
