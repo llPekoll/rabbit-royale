@@ -34,6 +34,23 @@ const RAGGEDNESS := 0.12
 ## ecran et un surplomb sur l'autre.
 const TIER_LIFT := 6
 
+## LA HAUTEUR D'UN PALIER A L'ECRAN, reglable.
+##
+## Six est le chiffre du jeu, tranche le 2026-09-18, et il est DELIBEREMENT
+## discret : le relief doit se sentir sans que le terrier devienne une falaise.
+##
+## CE CHIFFRE EXPLIQUE POURQUOI LE PLATEAU SEMBLE PLAT, et ce n'est pas un
+## defaut. Deux cases voisines sont deja separees de douze pixels par la
+## projection ; un palier n'en ajoute que six. La tuile de devant, haute de
+## trente (vingt-quatre de losange et six de rocher), recouvre donc tout sauf
+## six pixels de la bande de sa voisine. C'est exactement ce qu'on voit, et
+## c'est ce qui etait voulu.
+##
+## Le monter le montre tout de suite : a dix-huit, le plateau se detache
+## franchement. C'est le reglage a toucher si le relief doit se lire de plus
+## loin, pas le rendu.
+var lift_px := TIER_LIFT
+
 var width: int
 var height: int
 ## Le palier de chaque case, en ligne d'abord.
@@ -109,7 +126,7 @@ func lift_at(x: int, y: int) -> float:
 	var tier := level_at(x, y)
 	if tier == 0:
 		return 0.0
-	return (float(tier) + surface_lift(x, y)) * float(TIER_LIFT)
+	return (float(tier) + surface_lift(x, y)) * float(lift_px)
 
 
 ## Le point a l'ecran ou se pose une case, hauteur comprise.
