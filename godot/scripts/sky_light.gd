@@ -112,9 +112,20 @@ const REACH := 1.0
 ## (0,52 au tuner) tombe au milieu.
 ## LA CONVERSION D'ECHELLE entre un bruit calcule et une texture.
 ##
-## 0,29 / 6,1 : ce que la `scale` du tuner doit devenir pour qu'un texel couvre
-## plusieurs pixels au lieu de tomber sous le pixel. Voir `_apply`.
-const TEXTURE_SCALE := 0.048
+## `SkyLook.scale` vaut 6,1 — le chiffre que Paul a regle au tuner, sur un bruit
+## CALCULE ou il comptait des cellules de simplex. Le shader lit maintenant une
+## TEXTURE, ou la meme molette compte des REPETITIONS.
+##
+## MESURE plutot que devine : le sol balaie 36,9 cases en travers de l'ecran
+## (u de 0 a 20,2 plus v de 0 a 16,7). Pour que la texture s'y repete environ
+## DEUX fois — assez pour des plaques distinctes, assez peu pour qu'un texel
+## couvre plusieurs pixels — il faut un `scale` normalise de 1,1, donc ce
+## facteur.
+##
+## Mon premier chiffre etait 0,048 : la texture ne balayait alors que 0,53
+## unite sur tout l'ecran, soit a peine plus d'UN texel etire. D'ou la bouillie
+## floue, et une ombre qui ne variait que le long d'une diagonale.
+const TEXTURE_SCALE := 0.18
 
 const COVERAGE_MIN := 0.46
 const COVERAGE_MAX := 0.60

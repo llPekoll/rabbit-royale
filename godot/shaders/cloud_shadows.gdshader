@@ -105,6 +105,10 @@ vec2 uv_ground(vec2 p) {
 	// qu'on garde.
 	float u = p.x / (2.0 * half_tile.x);
 	float v = p.y / (2.0 * half_tile.y);
+	// LES DEUX DIAGONALES DU SOL. `v+u` descend vers le bas-droite, `v-u` vers
+	// le bas-gauche : ce sont les axes de la grille iso, donc une tache ronde
+	// dans ce repere se couche en LOSANGE a l'ecran — exactement comme une
+	// ombre portee sur un damier vu de trois quarts.
 	return vec2(v + u, v - u);
 }
 
