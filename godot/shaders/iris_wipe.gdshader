@@ -18,7 +18,20 @@ shader_type canvas_item;
 // c'est la NAPPE. Seul le trou dedans change de taille.
 
 // La silhouette : opaque la ou le trou doit etre, transparente autour.
-uniform sampler2D shape;
+//
+// `filter_nearest` ET `repeat_disable`, et les deux comptent :
+//
+//   • NEAREST parce que ce masque est un pixel art de 18x24 agrandi environ
+//     quatre-vingt-dix fois. En lineaire — le defaut d'un sampler sans hint —
+//     ses bords sortent FLOUS, ce qui trahit le procede : tout le reste de
+//     l'ecran est du pixel art net, et le seul contour adouci se lit comme un
+//     defaut d'affichage. Paul, sur la capture : « fait attention les bords
+//     sont blurry, fait attention au pixel perfect ». Le trou doit avoir des
+//     marches d'escalier franches, comme la silhouette dessinee.
+//   • REPEAT_DISABLE en ceinture et bretelles : le fragment garde deja son
+//     test de bornes, mais un mode repeat carrelerait des lapins sur tout
+//     l'ecran si ce test sautait un jour.
+uniform sampler2D shape : filter_nearest, repeat_disable;
 // La taille du trou, en part du plus petit cote de l'ecran. 0 = ferme.
 uniform float aperture : hint_range(0.0, 4.0) = 0.0;
 // Le rapport largeur/hauteur de l'ecran, pour que le lapin ne s'etire pas.
