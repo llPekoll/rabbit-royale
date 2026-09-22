@@ -79,6 +79,19 @@ func _ready() -> void:
 	# case tapee — ca prouve d'un coup que la case resolue est la BONNE, et pas
 	# seulement qu'un signal est parti. Remplace des qu'une bombe se pose.
 	tile_tapped.connect(_on_tile_tapped)
+	# LA MAISON SUIT LE NIVEAU du terrier ; l'achat d'un niveau la fete
+	# (BurrowScene.ts `setLevel`). Ce plateau n'est jamais que le sien — la
+	# garde du web (« chez soi seulement ») est vraie par construction.
+	Home.changed.connect(_follow_level)
+	Home.level_up.connect(func(level: int) -> void:
+		_props.set_level(level)
+		_props.celebrate())
+	_follow_level()
+
+
+func _follow_level() -> void:
+	if Home.loaded():
+		_props.set_level(int(Home.burrow.get("level", 1)))
 
 
 func _on_tile_tapped(cell: Vector2i) -> void:
@@ -100,6 +113,7 @@ func show_ground(seed_value: int) -> void:
 	# que celui qu'on voit flotterait.
 	_props.map = _terrain.map
 	_props.build(seed_value)
+	_follow_level()
 	# ET LES CLOTURES BORDENT LE CHAMP QUI VIENT D'ETRE SEME, celui-la meme et
 	# pas un second tirage de la graine : elles viennent donc APRES le potager,
 	# et lisent les cases qu'il a gardees.

@@ -148,6 +148,14 @@ func _dev_open() -> void:
 			profile._show_tab(Profile.Tab.HISTORY)
 		# `linger` : le tampon reste pose, pour qu'une capture le trouve.
 		"levelup": LevelUpStamp.announce(int(Home.burrow.get("level", 1)) + 1).linger = true
+		# Le passage de niveau entier, comme un achat le declenche (la maison
+		# du palier suivant, sa fete, le son, le tampon), REJOUE toutes les
+		# 1,5 s : l'ouverture varie de plusieurs secondes avec le reseau, et
+		# une capture doit pouvoir tomber dans la fete.
+		"celebrate":
+			while is_inside_tree():
+				Home.level_up.emit(int(Home.burrow.get("level", 1)) + 1)
+				await get_tree().create_timer(1.5).timeout
 		"raided": RaidedStamp.announce({"by": "Thistle", "others": 1, "carrots": 340, "defended": false, "count": 2}).linger = true
 		"defended": RaidedStamp.announce({"by": "Thistle", "others": 0, "carrots": 0, "defended": true, "count": 1}).linger = true
 		_: _on_door(what)

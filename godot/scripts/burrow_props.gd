@@ -45,8 +45,26 @@ const CARROT_COLS := 4
 ## niveau ; trois suffisent pour que le champ se lise.
 const PLANTS_PER_CELL := 3
 
+## LA FETE DU PASSAGE DE NIVEAU (BurrowTerrain.ts `celebrateLevel`) : la
+## maison saute, un eclair doux s'ouvre derriere elle, dix bouffees de
+## poussiere partent de son pied. Pas de camera, pas de son — le son est
+## celui de l'achat (chrome.gd, `match`).
+const POP_FROM := 0.8
+const POP_SECONDS := 0.55
+const FLASH_COLOR := Color("#ffe9a8")
+const FLASH_RADIUS := 60.0
+const FLASH_ALPHA := 0.7
+const FLASH_LIFT := 30.0
+const FLASH_SECONDS := 0.5
+const DUST_COLOR := Color("#c9b48a")
+const DUST_COUNT := 10
+const DUST_SPREAD := 90.0
+
 var map: BurrowMap
 var _props: Array[Node2D] = []
+## La maison, gardee pour changer d'image avec le niveau et pour sa fete.
+var home: Sprite2D = null
+var _level := 1
 
 ## LES CASES DU POTAGER, gardees apres le semis.
 ##
@@ -77,6 +95,7 @@ func clear() -> void:
 		prop.queue_free()
 	_props.clear()
 	field.clear()
+	home = null
 
 
 ## LA MAISON, sur la case qui la merite le plus.
@@ -90,17 +109,10 @@ func _place_home(seed_value: int) -> Vector2i:
 	if cell.x < 0:
 		return cell
 
-	# Le palier zero pour le premier terrier ; la maison grandira avec lui.
-	var home_art: Dictionary = HOMES[0]
-	var home := Sprite2D.new()
-	home.texture = home_art["art"]
+	home = Sprite2D.new()
 	home.centered = false
 	home.scale = Vector2(DECO_SCALE, DECO_SCALE)
-
-	# ANCREE AU PIED : le dessin touche le sol a `foot` pixels du haut, pas au
-	# bas de sa boite. Et centree horizontalement.
-	var art_w: float = float(home_art["art"].get_width())
-	home.offset = Vector2(-art_w * 0.5, -float(home_art["foot"]))
+	_dress_home()
 
 	# Posee au MILIEU de sa case (+0.5), pas sur son coin.
 	var at := map.screen_of(cell.x, cell.y)
@@ -110,6 +122,72 @@ func _place_home(seed_value: int) -> Vector2i:
 	add_child(home)
 	_props.append(home)
 	return cell
+
+
+## LA MAISON DU NIVEAU : l'image de son palier, ancree a son pied. Le
+## chateau passe au niveau 4 et au-dela (buildings.ts).
+func set_level(level: int) -> void:
+	_level = maxi(level, 1)
+	_dress_home()
+
+
+## ANCREE AU PIED : le dessin touche le sol a `foot` pixels du haut, pas au
+## bas de sa boite. Et centree horizontalement.
+func _dress_home() -> void:
+	if home == null:
+		return
+	var art: Dictionary = HOMES[clampi(_level, 1, HOMES.size()) - 1]
+	home.texture = art["art"]
+	home.offset = Vector2(-float(art["art"].get_width()) * 0.5, -float(art["foot"]))
+
+
+## LA FETE. L'origine de la maison est son pied : le saut pivote sur le sol,
+## comme le web qui l'ancre au pied.
+func celebrate() -> void:
+	if home == null:
+		return
+	var pop := create_tween()
+	home.scale = Vector2.ONE * DECO_SCALE * POP_FROM
+	pop.tween_property(home, "scale", Vector2.ONE * DECO_SCALE, POP_SECONDS) \
+		.set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
+
+	# L'ECLAIR, derriere la maison, un peu au-dessus du pied.
+	var flash := _blob(FLASH_RADIUS, Color(FLASH_COLOR, FLASH_ALPHA))
+	flash.position = home.position + Vector2(0, -FLASH_LIFT)
+	flash.z_index = home.z_index - 1
+	flash.scale = Vector2.ONE * 0.2
+	var grow := create_tween().set_parallel(true)
+	grow.tween_property(flash, "scale", Vector2.ONE * 1.6, FLASH_SECONDS) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	grow.tween_property(flash, "modulate:a", 0.0, FLASH_SECONDS) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	grow.chain().tween_callback(flash.queue_free)
+
+	# LA POUSSIERE, devant : dix bouffees en eventail, qui sautent et
+	# retombent en s'eteignant.
+	for i in DUST_COUNT:
+		var puff := _blob(3.0 + randf() * 3.0, Color(DUST_COLOR, 0.9))
+		var foot := home.position + Vector2(0, -2)
+		puff.position = foot
+		puff.z_index = home.z_index + 1
+		var dx := (float(i) / (DUST_COUNT - 1) - 0.5) * DUST_SPREAD + (randf() - 0.5) * 10.0
+		var t := create_tween().set_parallel(true)
+		t.tween_property(puff, "position:x", foot.x + dx, 0.6) \
+			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		t.tween_property(puff, "position:y", foot.y - 18.0 - randf() * 14.0, 0.25) \
+			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		t.tween_property(puff, "position:y", foot.y + 4.0, 0.35).set_delay(0.25) \
+			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+		t.tween_property(puff, "modulate:a", 0.0, 0.25).set_delay(0.35)
+		t.chain().tween_callback(puff.queue_free)
+
+
+## Un disque plein, pour l'eclair et la poussiere.
+func _blob(radius: float, color: Color) -> Node2D:
+	var blob := Node2D.new()
+	blob.draw.connect(func() -> void: blob.draw_circle(Vector2.ZERO, radius, color))
+	add_child(blob)
+	return blob
 
 
 ## La case ou poser la maison : la plus interieure possible, au bord du champ.
