@@ -127,8 +127,20 @@ const REACH := 1.0
 ## floue, et une ombre qui ne variait que le long d'une diagonale.
 const TEXTURE_SCALE := 0.18
 
-const COVERAGE_MIN := 0.46
-const COVERAGE_MAX := 0.60
+## 0,34-0,46 AU LIEU DE 0,46-0,60, et c'est de la DENSITE qu'il s'agit.
+##
+## L'ancienne plage « coupait dans le gros de la distribution : environ un
+## cinquieme » — donc un cinquieme du ciel sous l'ombre EN PERMANENCE. Avec le
+## detail de `octaves`, ce cinquieme se repartit en une multitude de petites
+## taches au lieu de quelques masses, et l'ile entiere se lit comme un
+## CAMOUFLAGE. Paul, sur la photo du 2026-09-22 : « c'est encore bcp trop dense
+## et bcp trop detaille ».
+##
+## Un ciel de beau temps porte quelques nuages epars, pas une couverture
+## trouee. Le seuil se descend donc SOUS le gros de la distribution : seules
+## les vraies creux du bruit passent, donc peu de taches, et chacune large.
+const COVERAGE_MIN := 0.34
+const COVERAGE_MAX := 0.46
 ## LA PERIODE DE LA METEO — 600 s, le web est a 240.
 ##
 ## Elle commande a quelle vitesse les rais s'ouvrent et se referment, donc elle
