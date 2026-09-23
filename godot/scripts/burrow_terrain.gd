@@ -120,6 +120,14 @@ var _rock: Array = []
 var _sand: Array = []
 ## Les carres du potager, jetes quand on repeint le champ.
 var _beds: Array[Sprite2D] = []
+## LA HAUTEUR DU DESSUS DE CHAQUE CASE, et ce qui y est monte (`mount_veil`).
+var _rise: Dictionary = {}
+var _mounted: Dictionary = {}
+## Les mottes du terrier (`lay_sods`) ; celles de l'ile sont a `TileView`.
+var _sods: Dictionary = {}
+
+## Une case vient de changer de hauteur.
+signal rise_changed(cell: Vector2i)
 ## Les cases dont le sol est DEFORME (rampe, ou bande raccrochee) : le sprite
 ## et de quoi refaire la deformation — le potager la rejoue sur son sable.
 var _warp_at: Dictionary = {}
@@ -380,14 +388,74 @@ func build() -> void:
 ##
 ## Repond false quand la case n'a pas de bloc (la mer) : a l'appelant de se
 ## rabattre sur un placement a plat.
+##
+## POSE SUR LE DESSUS DE LA CASE, pas sur son sol : une case couverte d'une
+## motte est plus haute (`rise_at`), et tout ce qu'on y monte — anneau,
+## chiffre, X, bombe, losange, coffre — suit sa hauteur, maintenant et quand
+## elle change (`set_rise`).
 func mount_veil(cell: Vector2i, veil: Node2D, z: int = Z_VEIL) -> bool:
 	var block: Node2D = _block_at.get(cell)
 	if block == null:
 		return false
-	veil.position = Vector2(0, Iso.half_h())
+	veil.position = Vector2(0, Iso.half_h() - rise_at(cell))
 	veil.z_index = z
 	block.add_child(veil)
+	if not _mounted.has(cell):
+		_mounted[cell] = []
+	(_mounted[cell] as Array).append(veil)
 	return true
+
+
+## DE COMBIEN LE DESSUS D'UNE CASE EST AU-DESSUS DE SON SOL, en pixels
+## d'ecran : sa motte levee, enfoncee, ou rien.
+func rise_at(cell: Vector2i) -> float:
+	return float(_rise.get(cell, 0.0))
+
+
+## LA CASE CHANGE DE HAUTEUR : tout ce qui y est monte bouge d'AUTANT — un
+## ecart, pas une position, pour garder ce que chacun a ajoute a la sienne.
+func set_rise(cell: Vector2i, px: float) -> void:
+	var was := rise_at(cell)
+	if is_equal_approx(was, px):
+		return
+	_rise[cell] = px
+	var alive: Array = []
+	for veil in _mounted.get(cell, []):
+		if is_instance_valid(veil):
+			(veil as Node2D).position.y -= px - was
+			alive.append(veil)
+	_mounted[cell] = alive
+	rise_changed.emit(cell)
+
+
+## LES MOTTES DU TERRIER, posees sur ces cases : levees, sans brouillard — le
+## terrain de chez soi est connu. Le raid les enfonce et les voile case par
+## case (`set_sod_look`).
+func lay_sods(cells: Array[Vector2i]) -> void:
+	for c in cells:
+		if _sods.has(c) or not _block_at.has(c):
+			continue
+		var sod := Sprite2D.new()
+		if not mount_tile(c, sod, Z_BED):
+			sod.free()
+			continue
+		_sods[c] = sod
+		set_sod_look(c, TileView.Look.COVERED, false)
+
+
+## UNE MOTTE DU TERRIER : levee ou enfoncee, sous le brouillard ou non.
+func set_sod_look(cell: Vector2i, look: int, fogged: bool) -> void:
+	var sod: Sprite2D = _sods.get(cell)
+	if sod == null or not is_instance_valid(sod):
+		return
+	var row := clampi(map.level_at(cell.x, cell.y) - 1, 0, TileView.DIG_TILE_TIERS - 1)
+	sod.texture = sod_texture(cell, row, look)
+	sod.modulate = TileView.sod_tint(cell) * TileView._fog_shade(fogged)
+	set_rise(cell, TileView.RAISED_RISE if look == TileView.Look.COVERED else TileView.PRESSED_RISE)
+
+
+func has_sod(cell: Vector2i) -> bool:
+	return _sods.has(cell)
 
 
 ## LE POTAGER EN SABLE (IsoIslandView `groundAt` du web) : chaque case du
@@ -428,6 +496,7 @@ func paint_field(cells: Array[Vector2i]) -> void:
 		bed.modulate = TileView.sod_tint(c)
 		if mount_tile(c, bed, Z_BED):
 			_beds.append(bed)
+			set_rise(c, TileView.RAISED_RISE)
 		else:
 			bed.free()
 
@@ -664,6 +733,9 @@ func clear() -> void:
 	_ground_at.clear()
 	_warp_at.clear()
 	_beds.clear()
+	_rise.clear()
+	_mounted.clear()
+	_sods.clear()
 	if _underlay != null:
 		_underlay.queue_free()
 		_underlay = null

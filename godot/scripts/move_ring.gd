@@ -75,16 +75,11 @@ const Z_MARK := 7
 const OUTLINE_PX := 1.5
 
 var terrain: BurrowTerrain
-## LA HAUTEUR DU DESSUS D'UNE CASE (`TileView.rise_at`) : l'anneau se pose SUR
-## la motte, pas dans le sol qu'elle couvre. Vide = a plat (le terrier).
-var rise: Callable
 ## LA CASE EST-ELLE PAS LUE ? (non creusee, pas indicee, pas un coffre) — le
 ## « ? » ne se pose que la. Vide = jamais (le terrier).
 var unread: Callable
 var _mark: Dictionary = {}
 static var _mark_tex: ImageTexture
-## Ou chaque contour et chaque plein se tiennent a plat, lus apres `mount_veil`.
-var _ground_y: Dictionary = {}
 
 var _outline: Dictionary = {}
 var _blink: Dictionary = {}
@@ -108,6 +103,8 @@ func build(cells: Array[Vector2i]) -> void:
 	clear()
 	if terrain == null:
 		return
+	if not terrain.rise_changed.is_connected(_on_rise):
+		terrain.rise_changed.connect(_on_rise)
 	for cell in cells:
 		if not terrain.has_block(cell):
 			continue
@@ -126,7 +123,6 @@ func build(cells: Array[Vector2i]) -> void:
 		blink.visible = false
 		terrain.mount_veil(cell, blink, Z_BLINK)
 		_blink[cell] = blink
-		_ground_y[cell] = outline.position.y
 
 		# COUCHE SUR LE LOSANGE comme les chiffres (`TileView`, meme matrice) :
 		# les marques d'un plateau se lisent comme une famille.
@@ -162,7 +158,6 @@ func clear() -> void:
 	_mark.clear()
 	_outline.clear()
 	_blink.clear()
-	_ground_y.clear()
 	_lit.clear()
 
 
@@ -188,12 +183,8 @@ func set_lit(cells: Array[Vector2i], centre: Vector2i, risky: bool = false) -> v
 		o.modulate = colour
 		o.visible = true
 		var b: Sprite2D = _blink[cell]
-		var up: float = float(rise.call(cell)) if rise.is_valid() else 0.0
-		o.position.y = float(_ground_y[cell]) - up
-		b.position.y = o.position.y
 		# Pas en mode X : l'anneau y est rouge et dit deja « une bombe ici ».
 		var m: Node2D = _mark[cell]
-		m.position.y = o.position.y
 		m.visible = not risky and unread.is_valid() and bool(unread.call(cell))
 		b.modulate = Color(colour.r, colour.g, colour.b, 0.0)
 		b.visible = true
@@ -212,18 +203,13 @@ func set_lit(cells: Array[Vector2i], centre: Vector2i, risky: bool = false) -> v
 	_sweep.start()
 
 
-## REPOSE UNE CASE sur sa motte, qui vient de changer de hauteur — la vague
-## d'une zone l'enfonce APRES que l'anneau s'est allume.
-func reseat(cell: Vector2i) -> void:
-	if not _outline.has(cell) or not rise.is_valid():
-		return
-	var y := float(_ground_y[cell]) - float(rise.call(cell))
-	(_outline[cell] as Sprite2D).position.y = y
-	(_blink[cell] as Sprite2D).position.y = y
-	var m: Node2D = _mark[cell]
-	m.position.y = y
-	# LA VAGUE VIENT DE LA LIRE : son « ? » tombe (IslandScene `openZone`).
-	if m.visible and unread.is_valid() and not bool(unread.call(cell)):
+## UNE CASE A CHANGE DE HAUTEUR — la vague d'une zone l'enfonce APRES que
+## l'anneau s'est allume. Le terrain a deja repose le contour sur la motte
+## (`BurrowTerrain.set_rise`) ; reste le « ? » : lue, elle n'en porte plus
+## (IslandScene `openZone`).
+func _on_rise(cell: Vector2i) -> void:
+	var m: Node2D = _mark.get(cell)
+	if m != null and m.visible and unread.is_valid() and not bool(unread.call(cell)):
 		m.visible = false
 
 

@@ -121,6 +121,11 @@ func build(field: Array[Vector2i], terrain: BurrowTerrain = null) -> void:
 			if occupied.has(cell + step):
 				continue
 			var plank := _paint(cell, side)
+			# LES PIEDS SUR LE CARRE DE JARDIN, pas dans le sable qu'il couvre :
+			# une planche n'est pas montee sur sa case (voir `_paint`), elle
+			# prend donc sa hauteur elle-meme.
+			if terrain != null:
+				plank.position.y -= terrain.rise_at(cell)
 			plank.visible = false
 			var outer: Vector2i = cell + step
 			var mark := _paint_mark(outer, terrain)

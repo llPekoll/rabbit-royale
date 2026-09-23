@@ -14,7 +14,9 @@ class_name RaidBoard
 ## l'eau et lisait l'ecran comme casse. Le sol est donc montre entier, et ce
 ## qu'on gagne en marchant, ce sont les chiffres.
 ##
-## DESSINE COMME L'ILE, expres : le meme couvercle, le meme anneau d'or qui
+## DESSINE COMME L'ILE, expres : les memes mottes (celles du terrier,
+## `BurrowTerrain.lay_sods`) — levees et voilees la ou le pillard n'a rien vu,
+## enfoncees la ou il a lu, le front clair — le meme anneau d'or qui
 ## tourne autour du lapin (MoveRing), les memes chiffres (TileView). Une
 ## seconde grammaire sur les memes tuiles, le joueur ne la lisait pas.
 ##
@@ -36,8 +38,6 @@ const GOAL_ALPHA := 0.7
 const DOOR_TINT := Color("#ff8a3d")
 const DOORSTEP_ALPHA := 0.22
 
-## Le fondu d'une case revelee — l'ile fond un creusage de meme.
-const REVEAL_SECONDS := 0.25
 ## Le chiffre qui arrive : il saute a sa taille (`back.out(2)`).
 const CLUE_POP_SECONDS := 0.22
 
@@ -69,12 +69,15 @@ const SHADOW_LIFTED := 0.7
 var terrain: BurrowTerrain
 var layout: BurrowLayout
 
-## tile -> {veil: "fog"|"goal"|"doorstep", fog: Sprite2D, glyph: Sprite2D, count: int}
+## tile -> {veil: "fog"|"goal"|"doorstep", fog: Sprite2D ou null (les mottes
+## font le brouillard), glyph: Sprite2D, count: int}
 var _cells: Dictionary = {}
 var _ring: MoveRing
 var _goal: Array[Node2D] = []
 var _door: Array[Node2D] = []
 var _door_shown := false
+## Les cases que le pillard a vues : pas de « ? » sur elles.
+var _seen: Dictionary = {}
 
 
 func _ready() -> void:
@@ -102,12 +105,17 @@ func build() -> void:
 		# image : rouge sur le champ, orange sur le paillasson. Entre les
 		# deux, le brouillard.
 		var veil := "goal" if field.has(tile) else ("doorstep" if layout.is_doorstep(tile) else "fog")
-		var fog := Sprite2D.new()
-		fog.texture = TileView._diamond_texture()
-		fog.centered = true
-		fog.modulate = _tint(veil)
-		fog.modulate.a = _alpha(veil, false)
-		terrain.mount_veil(cell, fog, Z_FOG)
+		# LE BROUILLARD, CE SONT LES MOTTES : pas de voile a plat par-dessus.
+		# Le but et le paillasson gardent le leur, pose sur le dessus de la
+		# case.
+		var fog: Sprite2D = null
+		if veil != "fog":
+			fog = Sprite2D.new()
+			fog.texture = TileView._diamond_texture()
+			fog.centered = true
+			fog.modulate = _tint(veil)
+			fog.modulate.a = _alpha(veil, false)
+			terrain.mount_veil(cell, fog, Z_FOG)
 
 		# LE CHIFFRE, le glyphe de l'ile : couche sur le losange, multiplie.
 		var glyph := Sprite2D.new()
@@ -124,6 +132,9 @@ func build() -> void:
 			holder.position)
 		_cells[tile] = {"veil": veil, "fog": fog, "glyph": glyph, "count": 0}
 	_ring.terrain = terrain
+	_ring.unread = func(c: Vector2i) -> bool:
+		var t := BurrowLayout.index(c)
+		return not _seen.has(t) and _cells.has(t) and String(_cells[t]["veil"]) != "goal"
 	_ring.build(cells)
 	_goal = _hang(_goal_cell(), GOAL_ARROW_TINT)
 
@@ -134,10 +145,11 @@ func clear() -> void:
 	for cell in _cells.values():
 		for key in ["fog", "glyph"]:
 			var node: Node = cell[key]
-			if is_instance_valid(node):
+			if node != null and is_instance_valid(node):
 				# Le chiffre vit dans un porteur : c'est lui qui part.
 				(node.get_parent() if key == "glyph" else node).queue_free()
 	_cells.clear()
+	_seen = {}
 	_drop(_goal)
 	_goal = []
 
@@ -151,17 +163,32 @@ func show_view(view: Array, fresh: bool) -> void:
 	for v in view:
 		if v is Dictionary:
 			seen[int(v.get("tile", -1))] = v.get("clue")
+	_seen = seen
 	for tile in _cells:
 		var cell: Dictionary = _cells[tile]
-		var fog: Sprite2D = cell["fog"]
-		var target := _alpha(String(cell["veil"]), seen.has(tile))
-		if fresh or is_equal_approx(fog.modulate.a, target):
-			fog.modulate.a = target
+		var c := BurrowLayout.cell_of(tile)
+		# LA MOTTE : enfoncee la ou il a lu, levee ailleurs — et voilee sauf
+		# au front, qui dit ou aller (la regle de l'ile, `TileView`).
+		if seen.has(tile):
+			terrain.set_sod_look(c, TileView.Look.HINTED, false)
 		else:
-			fog.create_tween().tween_property(fog, "modulate:a", target, REVEAL_SECONDS) \
-				.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+			terrain.set_sod_look(c, TileView.Look.COVERED, not _touches_seen(c, seen))
+		var fog: Sprite2D = cell["fog"]
+		if fog != null:
+			fog.modulate.a = _alpha(String(cell["veil"]), seen.has(tile))
 		var clue: Variant = seen.get(tile)
 		_set_clue(cell, int(clue) if clue != null else 0, not fresh)
+
+
+## UNE VOISINE A-T-ELLE ETE VUE ? Les huit, comme le front de l'ile.
+func _touches_seen(c: Vector2i, seen: Dictionary) -> bool:
+	for d in TileView.NEIGHBOURS:
+		var n := c + d
+		if n.x < 0 or n.y < 0 or n.x >= BurrowLayout.COLS or n.y >= BurrowLayout.ROWS:
+			continue
+		if seen.has(BurrowLayout.index(n)):
+			return true
+	return false
 
 
 ## LES CASES OU UNE TAPE SERA ACCEPTEE, allumees et balayees comme l'ile

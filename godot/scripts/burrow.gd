@@ -571,6 +571,18 @@ func show_ground(seed_value: String) -> void:
 	# LE CHAMP EST DE LA TERRE RETOURNEE, pas du pre (BurrowTerrain.ts
 	# `groundAt` : 'sand') — l'objectif d'un raid se voit de loin, meme vide.
 	_terrain.paint_field(_props.field)
+	# TOUT LE SOL PRATICABLE EN MOTTES, comme l'ile : le potager a ses carres
+	# de terre, le reste son gazon leve. Avant les clotures, les pieges, les
+	# losanges et le raid, qui se posent tous sur le dessus des cases.
+	var in_field := {}
+	for c in _props.field:
+		in_field[c] = true
+	var sod_cells: Array[Vector2i] = []
+	for t in _layout.walkable_tiles():
+		var c := BurrowLayout.cell_of(t)
+		if not in_field.has(c):
+			sod_cells.append(c)
+	_terrain.lay_sods(sod_cells)
 	# LE DECOR DEBOUT du serveur : un arbre est une case que personne ne
 	# traverse et qu'on ne mine pas — sans lui, la grille laisse un trou que
 	# rien n'explique.

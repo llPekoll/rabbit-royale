@@ -284,17 +284,11 @@ const Z_CRATER := 3
 var board: IslandBoard
 var terrain: BurrowTerrain
 
-## La motte d'une case vient de changer de hauteur (creusee, indicee).
-signal look_changed(cell: Vector2i)
-
 var _fog: Dictionary = {}
 ## Les deux mottes de chaque case (enterree, indicee), deja deformees si la
 ## case est une rampe, et celle qu'on montre.
 var _looks: Dictionary = {}
 var _look: Dictionary = {}
-## CE QUI SE TIENT SUR LA MOTTE — le X, le buisson, le coffre : case ->
-## [[noeud, y au sol], ...]. Ils montent et descendent avec elle.
-var _riders: Dictionary = {}
 ## Les mottes sous le brouillard, et les fondus en vol.
 var _fogged: Dictionary = {}
 var _fog_fades: Dictionary = {}
@@ -348,6 +342,10 @@ func build() -> void:
 		fog.texture = looks[Look.COVERED]
 		fog.modulate = sod_tint(cell)
 		terrain.mount_tile(cell, fog, Z_FOG)
+		# LEVEE DES LA POSE : tout ce qu'on monte ensuite sur la case (X,
+		# chiffre, coffre, buisson) part de son dessus.
+		_look[cell] = Look.COVERED
+		terrain.set_rise(cell, RAISED_RISE)
 		_fog[cell] = fog
 
 		# LE X, cache tant que la case n'est ni marquee ni enseignee. Un sprite
@@ -358,7 +356,6 @@ func build() -> void:
 		x.scale = X_SQUASH
 		x.visible = false
 		terrain.mount_veil(cell, x, Z_X)
-		_ride(cell, x)
 		_x[cell] = x
 
 		# LE CHIFFRE : UN GLYPHE CUIT, EN SPRITE, RENDU EN MULTIPLY.
@@ -391,9 +388,8 @@ func build() -> void:
 			Vector2(Iso.half_w(), Iso.half_h()) / Iso.half_w(),
 			Vector2(-Iso.half_w(), Iso.half_h()) / Iso.half_w(),
 			holder.position)
-		holder.position.y -= PRESSED_RISE
 		_hints[cell] = glyph
-		_rest_y[cell] = Vector2(fog.position.y, holder.position.y)
+		_rest_y[cell] = Vector2(fog.position.y, 0.0)
 
 		# LE COFFRE, visible des la premiere image — « il le voit et choisit d'y
 		# aller ». Au-dessus du voile : la boite n'est pas enterree, elle attend.
@@ -413,7 +409,6 @@ func build() -> void:
 			bush.frame = variant % BUSH_FRAMES
 			bush.play("sway")
 			terrain.mount_veil(cell, bush, Z_PROP)
-			_ride(cell, bush)
 			_props.append(bush)
 			_bush_at[cell] = bush
 
@@ -442,7 +437,6 @@ func _mount_chest(cell: Vector2i) -> void:
 	var flair: Dictionary = CHEST_FLAIR[tier]
 	var holder := Node2D.new()
 	terrain.mount_veil(cell, holder, Z_PROP)
-	_ride(cell, holder)
 	_flair[cell] = holder
 	_tier_of[cell] = tier
 
@@ -853,11 +847,7 @@ func _show_look(cell: Vector2i, look: int) -> void:
 	if look != Look.DUG:
 		fog.texture = (_looks[cell] as Array)[look]
 	if was != look:
-		var up := rise_at(cell)
-		for r in _riders.get(cell, []):
-			if is_instance_valid(r[0]):
-				(r[0] as Node2D).position.y = float(r[1]) - up
-		look_changed.emit(cell)
+		terrain.set_rise(cell, _rise_of(look))
 
 
 ## POSE OU LEVE LE BROUILLARD de chaque motte, d'apres ce qui est MONTRE (la
@@ -906,23 +896,20 @@ static func _fog_shade(fogged: bool) -> Color:
 ## d'ecran : la motte levee, enfoncee, ou rien. Tout ce qui se pose SUR une
 ## case — l'anneau de marche, le X, un coffre — s'y pose a cette hauteur, sinon
 ## il s'enfonce dans la motte.
+##
+## LA HAUTEUR VIT DANS LE TERRAIN (`BurrowTerrain.set_rise`) : c'est lui qui
+## la fait suivre a tout ce qui est monte sur la case.
 func rise_at(cell: Vector2i) -> float:
-	if not _fog.has(cell):
-		return 0.0
-	match int(_look.get(cell, Look.COVERED)):
+	return terrain.rise_at(cell) if terrain != null else 0.0
+
+
+static func _rise_of(look: int) -> float:
+	match look:
 		Look.COVERED:
 			return RAISED_RISE
 		Look.HINTED:
 			return PRESSED_RISE
 	return 0.0
-
-
-## Ce noeud se tient sur la motte de sa case : lu la ou `mount_veil` l'a pose.
-func _ride(cell: Vector2i, node: Node2D) -> void:
-	if not _riders.has(cell):
-		_riders[cell] = []
-	(_riders[cell] as Array).append([node, node.position.y])
-	node.position.y -= rise_at(cell)
 
 
 ## LA NUANCE D'UNE MOTTE, tiree de sa case : la meme a chaque dessin, sans
@@ -984,7 +971,10 @@ func _set_lift(cell: Vector2i, lift: float) -> void:
 		return
 	var rest: Vector2 = _rest_y[cell]
 	(_fog[cell] as Node2D).position.y = rest.x - lift
-	((_hints[cell] as Node2D).get_parent() as Node2D).position.y = rest.y - lift
+	# Le chiffre est monte sur la case : son repos est le dessus de la motte,
+	# tel que le terrain le tient a cet instant.
+	((_hints[cell] as Node2D).get_parent() as Node2D).position.y = \
+		Iso.half_h() - rise_at(cell) - lift
 
 
 ## Pose la case EXACTEMENT sur sa grille : un voile laisse a un centieme de
@@ -1301,7 +1291,6 @@ func clear() -> void:
 	_fog.clear()
 	_looks.clear()
 	_look.clear()
-	_riders.clear()
 	for cell in _fog_fades:
 		var t: Tween = _fog_fades[cell]
 		if t != null and t.is_valid():
