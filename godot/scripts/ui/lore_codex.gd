@@ -106,6 +106,9 @@ func _init() -> void:
 func _ready() -> void:
 	# Le rouleau devant le titre (`.rr-lore-head-title img`, 26px).
 	_scroll_icon = Kit.icon(Kit.SCROLL, 26.0)
+	# LE TITRE EN OR, comme une couverture : la creme contouree se perdait
+	# sur le parchemin (Paul, 2026-09-23). Le contour d'encre reste.
+	title_label.add_theme_color_override("font_color", Palette.GOLD)
 	var header := title_label.get_parent()
 	header.add_child(_scroll_icon)
 	header.move_child(_scroll_icon, 0)
