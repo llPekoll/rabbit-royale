@@ -58,6 +58,9 @@ const RAID_OVER_SECONDS := 2.0
 ## choc se joue — eclair, arret, chute, le corps laisse un instant
 ## (page.tsx RAID_STRUCK_OVER_MS).
 const RAID_STRUCK_OVER_SECONDS := 4.4
+## A SEC : le coup, le sommeil, le gris et « OUT OF ENERGY » (burrow.gd,
+## drain.gd) ont besoin d'un peu plus que la danse pour se lire.
+const RAID_DRY_OVER_SECONDS := 2.9
 
 ## Les trois presences d'un proprietaire, dans l'ordre ou un raider les
 ## classe : `away` est une promenade, `home` la porte a eviter, `digging` la
@@ -356,7 +359,7 @@ func _on_finished(r: Dictionary) -> void:
 		haul = I18N.f("raid.struckBy", [name])
 	else:
 		haul = I18N.f("raid.fellShort", [int(round(float(outcome.get("progress", 0.0)) * 100.0)), name])
-	var over := RAID_STRUCK_OVER_SECONDS if bool(r.get("struck", false)) else RAID_OVER_SECONDS
+	var over := RAID_STRUCK_OVER_SECONDS if bool(r.get("struck", false)) else RAID_DRY_OVER_SECONDS
 	await get_tree().create_timer(over).timeout
 	if String(raid.get("raidId", "")) != id:
 		return

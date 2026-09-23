@@ -124,6 +124,8 @@ var _caption: FirstRunCaption
 ## Assez pour lire « un coffre » ; pas assez pour qu'on cherche quoi faire.
 ## Deux sauts de joie (`happy`, 0,8 s) — le lapin a gagne, qu'on le voie.
 const DONE_SECONDS := 1.8
+## A sec : le coup, le sommeil, le gris et la ligne ont le temps d'etre lus.
+const DRY_SECONDS := 2.6
 ## Puis l'ile coule, et on rentre quand elle a disparu.
 const SINK_MS := 2400
 ## LA MANCHE EN LIGNE SE TERMINE (`_end_run`) : plus rien ne remet l'ile debout.
@@ -1900,20 +1902,35 @@ func _end_run(result: Dictionary) -> void:
 	var lesson := bool(result.get("tutorialDone", false))
 	if lesson:
 		_remember_finished()
-	# La fanfare pour une ile videe ou la lecon ; a sec, pas de musique de
-	# defaite — ce n'est pas une mort, juste la fin de la manche.
 	if cleared or lesson:
 		Sound.music("victory")
-	if _rabbit != null and not _rabbit.is_under():
-		_rabbit.celebrate()
-	await get_tree().create_timer(DONE_SECONDS).timeout
-	if not _still_ending():
-		return
-	if not cleared:
-		play_eruption(SINK_MS, false)
-		if _sink_sky != null:
-			_sink_sky.play(SINK_MS)
-		await get_tree().create_timer(SINK_MS / 1000.0).timeout
+		if _rabbit != null and not _rabbit.is_under():
+			_rabbit.celebrate()
+		await get_tree().create_timer(DONE_SECONDS).timeout
+		if not _still_ending():
+			return
+		if not cleared:
+			play_eruption(SINK_MS, false)
+			if _sink_sky != null:
+				_sink_sky.play(SINK_MS)
+			await get_tree().create_timer(SINK_MS / 1000.0).timeout
+			if not _still_ending():
+				return
+	else:
+		# A SEC (`exhaustRabbit`) : l'ile ne coule pas — elle n'est pas finie,
+		# c'est le joueur qui n'a plus de quoi y marcher. Il tombe et s'endort
+		# ou il se tient, le monde passe au gris, une ligne dit pourquoi, et
+		# on rentre sous l'iris.
+		_refresh_ring()
+		if _rabbit != null and not _rabbit.is_under():
+			_rabbit.exhaust()
+		Sound.music("gameover")
+		var drain := Drain.start(self, I18N.t("raid.outOfEnergy").to_upper())
+		await get_tree().create_timer(DRY_SECONDS).timeout
+		if not _still_ending():
+			return
+		drain.fade_line()
+		await get_tree().create_timer(0.3).timeout
 		if not _still_ending():
 			return
 	RunState.current.go_home()

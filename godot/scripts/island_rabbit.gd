@@ -215,6 +215,11 @@ func vanish() -> void:
 func exhaust() -> void:
 	if _sprite == null:
 		return
+	# Une fois le dernier saut pose, pas a sa place : le pas qui depense le
+	# dernier point est encore un pas, et on doit le voir avant la chute.
+	if _hop != null and _hop.is_valid():
+		_hop.finished.connect(exhaust, CONNECT_ONE_SHOT)
+		return
 	_happy = false
 	_sprite.play("damage")
 	if _sprite.animation_finished.is_connected(_rest):

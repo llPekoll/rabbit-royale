@@ -441,6 +441,10 @@ func _enter_raid(r: Dictionary) -> void:
 ## maison. Un raid subi pendant qu'on etait ailleurs n'a pas ete garde — on le
 ## relit une fois.
 func _leave_raid() -> void:
+	# Le gris et la musique de fin appartenaient au raid ; le terrier n'a pas
+	# de musique a lui (chrome.gd `_wire_sounds`).
+	Drain.clear(self)
+	Sound.stop_music()
 	_in_raid = false
 	_raid_key = ""
 	_raid_steps = {}
@@ -493,7 +497,12 @@ func _draw_raid(r: Dictionary, fresh: bool) -> void:
 		elif bool(r.get("succeeded", false)):
 			_walker.celebrate()
 		else:
+			# A SEC : il tombe et s'endort, le terrier de l'autre passe au gris
+			# et la ligne dit pourquoi — comme sur l'ile. Le retour reste a
+			# RaidState (RAID_DRY_OVER_SECONDS), le gris part au noir du rideau.
 			_walker.exhaust()
+			Sound.music("gameover")
+			Drain.start(self, I18N.t("raid.outOfEnergy").to_upper())
 
 
 ## UN PIEGE A SAUTE SOUS NOUS. Le signal part AVANT que la reponse soit

@@ -658,9 +658,9 @@ func _on_run_over(r: Dictionary) -> void:
 	# ici en attendant qu'une main lui en donne une.)
 	GameSocket._want_seat = false
 	_recap_timer.stop()
-	# PAS DE MORT, PAS DE CARTE (2026-09-23) : que l'ile soit videe ou que
-	# l'energie tombe a zero, la manche finit comme le tutoriel — le lapin
-	# saute, l'ile coule, on rentre (island.gd `_end_run`). `erupting_ms`
+	# PAS DE MORT, PAS DE CARTE (2026-09-23) : l'ile videe finit comme le
+	# tutoriel — le lapin saute, l'ile coule, on rentre ; a sec, le lapin
+	# s'endort et le monde passe au gris (island.gd `_end_run`). `erupting_ms`
 	# n'est PAS remis a zero ici : l'ile l'entendrait comme « pas d'eruption »
 	# et se remettrait debout sous le lapin qui saute ; `go_home` le fait.
 	#

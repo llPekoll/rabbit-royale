@@ -24,6 +24,7 @@ func _init() -> void:
 		"res://shaders/god_rays.gdshader",
 		"res://shaders/sea_gradient.gdshader",
 		"res://shaders/iris_wipe.gdshader",
+		"res://shaders/drain.gdshader",
 	]
 	var bad := 0
 	for path in paths:
