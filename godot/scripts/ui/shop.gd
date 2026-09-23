@@ -104,18 +104,17 @@ var _foot: Label
 
 
 func _init() -> void:
-	# Sans titre dans l'en-tete : l'enseigne pend au-dessus du cadre.
+	# Sans titre dans l'en-tete : l'enseigne pend en haut de l'ecran.
 	super("", 880.0, 380.0)
+	# PLEIN ECRAN, comme le profil : l'etagere prend toute la largeur, et
+	# plus de cartes sont en vue avant de glisser.
+	go_fullscreen()
 
 
-## OUVRIR L'ETAL sur le chrome, a la taille du web : min(880, l'ecran moins
-## la gouttiere) sur min(400, pareil).
+## OUVRIR L'ETAL sur le chrome, qui le pose sur tout l'ecran.
 static func open() -> Shop:
 	var dialog := Shop.new()
 	if Chrome.current != null:
-		var view := Chrome.current.get_viewport_rect().size
-		dialog.custom_minimum_size = Vector2(
-			minf(880.0, view.x - 2.0 * Kit.EDGE), minf(400.0, view.y - 2.0 * Kit.EDGE))
 		Chrome.current.open(dialog)
 	return dialog
 
@@ -190,6 +189,12 @@ func _build() -> void:
 	var purse_icon := Kit.icon(Kit.ICONS["carrot"], 14)
 	purse_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	purse_row.add_child(purse_icon)
+	if fullscreen:
+		# Le [x] est dans le coin haut droit, sur la ligne de la bourse : elle
+		# lui cede sa zone de tap.
+		var reserve := Control.new()
+		reserve.custom_minimum_size = Vector2(Kit.CLOSE_TAP, 0.0)
+		head.add_child(reserve)
 
 	# L'ETAGERE : une rangee, glissee de cote — au doigt, en tirant la rangee
 	# a la souris, ou par la barre dessous. Pas de barre native : c'est un
@@ -261,6 +266,11 @@ func _place_sign() -> void:
 	# dialogue prend toute la hauteur, et une enseigne posee au-dessus du
 	# cadre sortait de l'ecran. Le web la pend au rail (`.rr-stall-sign`).
 	var at := Vector2(floor((size.x - SIGN_W) * 0.5), -SIGN_LIFT)
+	if fullscreen:
+		# Plus de rail a quoi la pendre : au-dessus de la vue, elle sortirait
+		# de l'ecran. Elle se pose dans la ligne de tete, entre les rails et
+		# la bourse, ou il n'y a que du vide.
+		at.y = CLOSE_INSIDE
 	_sign.position = at
 	for child in get_children():
 		if child is NineSlice and child.has_meta("sign_shadow"):

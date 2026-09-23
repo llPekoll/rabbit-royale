@@ -26,11 +26,15 @@ const CLOSE_OVER_RIGHT := -16.0
 var body: Control
 var title_label: Label
 var close_button: TextureButton
+## PLEIN ECRAN (`go_fullscreen`) : le chrome le pose sur toute la vue, sans
+## marge ni cadre de feuilles.
+var fullscreen := false
 
 var _frame: NineSlice
 var _inset: MarginContainer
 var _column: VBoxContainer
 var _header: HBoxContainer
+var _close_reserve: Control
 
 
 func _init(title: String = "", width: float = 420.0, height: float = 0.0) -> void:
@@ -80,9 +84,9 @@ func _init(title: String = "", width: float = 420.0, height: float = 0.0) -> voi
 	_header.add_child(title_label)
 	# L'en-tete cede la colonne du [x], pour qu'un titre long finisse avant
 	# lui au lieu de passer dessous.
-	var reserve := Control.new()
-	reserve.custom_minimum_size = Vector2(30.0, 0.0)
-	_header.add_child(reserve)
+	_close_reserve = Control.new()
+	_close_reserve.custom_minimum_size = Vector2(30.0, 0.0)
+	_header.add_child(_close_reserve)
 	_header.visible = not title.is_empty()
 
 	body = Kit.vbox(Kit.PAD)
@@ -113,10 +117,49 @@ func _get_minimum_size() -> Vector2:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_READY and close_button != null:
 		move_child(close_button, get_child_count() - 1)
+	if what == NOTIFICATION_READY and fullscreen:
+		_fit_screen()
+		get_viewport().size_changed.connect(_fit_screen)
 
 
 func _place_close() -> void:
+	if fullscreen:
+		# Dans le coin, pas a cheval dessus : il n'y a plus de coin a
+		# chevaucher, et le debord sortirait de l'ecran.
+		close_button.position = Vector2(size.x - Kit.CLOSE_TAP - CLOSE_INSIDE, CLOSE_INSIDE)
+		return
 	close_button.position = Vector2(size.x - Kit.CLOSE_TAP - CLOSE_OVER_RIGHT, CLOSE_OVER_TOP)
+
+
+## L'air entre le [x] et le coin de l'ecran, en plein ecran.
+const CLOSE_INSIDE := 4.0
+
+## LE DIALOGUE PREND TOUT L'ECRAN. Sur un telephone couche (890x400), un
+## panneau centre dans son cadre de feuilles perdait 40px de chaque cote et
+## en haut, et ce qu'il avait a montrer defilait. Le parchemin reste — le
+## meme papier — mais son cadre est pousse HORS de l'ecran de l'epaisseur de
+## ses feuilles, et le corps prend la vue entiere. A appeler dans `_init`,
+## avant l'entree dans l'arbre ; le chrome lit `fullscreen` pour le placer.
+func go_fullscreen() -> void:
+	fullscreen = true
+	var edge := _frame.inset()
+	_frame.offset_left = -edge.x
+	_frame.offset_top = -edge.y
+	_frame.offset_right = edge.z
+	_frame.offset_bottom = edge.w
+	var pad := int(Kit.PAD * 1.5)
+	for side in ["left", "top", "right", "bottom"]:
+		_inset.add_theme_constant_override("margin_" + side, pad)
+	# Le [x] est maintenant DANS la ligne du titre : elle lui cede sa zone
+	# de tap entiere.
+	_close_reserve.custom_minimum_size.x = Kit.CLOSE_TAP
+	_place_close()
+
+
+## La vue entiere, comme minimum : un banc qui pose le dialogue sans le
+## chrome le voit a sa vraie taille.
+func _fit_screen() -> void:
+	custom_minimum_size = get_viewport_rect().size
 
 
 ## Remplace le corps par un noeud de l'ecran (un ScrollContainer, une grille).

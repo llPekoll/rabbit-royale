@@ -348,6 +348,10 @@ func _center_dialog() -> void:
 	# 400px de haut c'est tous les dialogues. Le cadre recule donc de ce
 	# debordement, en haut et des deux cotes pour rester centre.
 	var view := get_viewport_rect().size
+	if _dialog.get("fullscreen") == true:
+		_dialog.position = Vector2.ZERO
+		_dialog.size = view
+		return
 	if _placement == "board":
 		# `.rr-lb` : top clamp(52px, 13svh, 100px), bottom clamp(12px, 8svh,
 		# 60px), right --rr-edge, width max(26vw, 220px).

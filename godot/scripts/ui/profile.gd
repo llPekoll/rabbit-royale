@@ -69,12 +69,16 @@ const H_RAIDS := "Raids"
 const H_BOUGHT := "Bought"
 const H_RABBIT := "Rabbit"
 
-## `.rr-profile` : min(380px, 100vw - 32) sur min(640px, 100dvh - 32), UNE
-## hauteur pour les deux onglets. Le chrome ramene le 640 a l'ecran : 360 fixe
-## etait la taille du telephone, et au bureau le profil cachait sous un
-## defilement le lapin, la note d'invite et les deux boutons du bas.
-const WIDTH := 380.0
-const HEIGHT := 640.0
+## EN PAYSAGE, PLEIN ECRAN. Le web est une colonne de 380px (`.rr-profile`) ;
+## sur l'ecran couche du jeu (890x400) cette colonne ne montrait que le haut
+## de l'onglet et faisait defiler tout le reste. Le panneau prend donc tout
+## l'ecran (Dialog.go_fullscreen) et range ses sections EN COLONNES : qui
+## vous etes | votre lapin sur le profil, jours | raids | achats sur
+## l'historique.
+
+## Le poids de la colonne des raids face aux deux autres : c'est la seule qui
+## porte des noms, un fait, une heure et un bouton sur la meme ligne.
+const RAIDS_RATIO := 1.6
 ## Le grand portrait (size 4) et ceux du selecteur (size 2).
 const PORTRAIT_SCALE := 4.0
 const PICK_SCALE := 2.0
@@ -85,7 +89,7 @@ var _tabs: Array[Button] = []
 var _tab_badge: PanelContainer
 var _tab_badge_label: Label
 var _scroll: ScrollContainer
-var _page: VBoxContainer
+var _page: HBoxContainer
 var _tab: Tab = Tab.PROFILE
 
 ## Le joueur : Session.player, ou ce qu'un banc pose par `show_player`.
@@ -118,21 +122,12 @@ var _offline := false
 
 
 func _init() -> void:
-	super(I18N.t("profile.title"), WIDTH, HEIGHT)
+	super(I18N.t("profile.title"))
 	_name_re.compile(NAME_ALLOWED)
-
-
-func _cap_height() -> void:
-	custom_minimum_size.y = minf(HEIGHT, get_viewport_rect().size.y - 2.0 * Kit.EDGE)
+	go_fullscreen()
 
 
 func _ready() -> void:
-	# LE 640 SOUS L'ECRAN, ici et pas au chrome : un minimum plus haut que
-	# l'ecran l'emporte sur toute taille que le chrome lui donne (Godot ne
-	# reduit jamais un noeud sous son minimum), et le profil debordait en bas
-	# du telephone.
-	_cap_height()
-	get_viewport().size_changed.connect(_cap_height)
 	var tabs := Kit.hbox(Kit.PAD_TIGHT)
 	body.add_child(tabs)
 	for which in [Tab.PROFILE, Tab.HISTORY]:
@@ -232,8 +227,10 @@ func _show_tab(which: Tab) -> void:
 		label.add_theme_color_override("font_color", Palette.INK if on else Palette.CREAM)
 	if _page != null:
 		_page.queue_free()
-	_page = Kit.vbox(Kit.PAD)
+	_page = Kit.hbox(Kit.PAD * 2.0)
 	_page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# Toute la hauteur visible, pour que le depart tombe au pied du panneau.
+	_page.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_scroll.add_child(_page)
 	if which == Tab.PROFILE:
 		_build_profile()
@@ -278,15 +275,25 @@ func _news_style() -> StyleBoxFlat:
 
 func _build_profile() -> void:
 	var guest := bool(_player.get("guest", false))
+	# QUI VOUS ETES a gauche (la tete, le nom, le depart), CE QUE VOUS PORTEZ
+	# a droite (le lapin, l'offre du wallet) : deux colonnes qui tiennent
+	# dans la hauteur d'un telephone couche, sans defiler.
+	var cols := _columns([1.0, 1.0])
+	var who: VBoxContainer = cols[0]
+	var wear: VBoxContainer = cols[1]
 
+	# La tete A GAUCHE DU NOM qu'elle porte, comme le web.
+	var identity := Kit.hbox(Kit.PAD)
+	who.add_child(identity)
 	var portrait := AvatarFace.portrait(_picked if _picked != null else _avatar, PORTRAIT_SCALE)
-	# A GAUCHE, sur la ligne du nom qu'il porte, comme le web : etire sur la
-	# largeur, le portrait centrait son lapin au milieu du panneau.
-	portrait.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	_page.add_child(portrait)
+	portrait.size_flags_vertical = Control.SIZE_SHRINK_END
+	identity.add_child(portrait)
+	var naming := Kit.vbox(Kit.PAD_TIGHT)
+	naming.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	identity.add_child(naming)
 
 	# Le champ du nom est un CREUX, le puits sombre qu'il a toujours ete.
-	_page.add_child(Kit.label(I18N.t("profile.name"), 12, Palette.BARK))
+	naming.add_child(Kit.label(I18N.t("profile.name"), 12, Palette.BARK))
 	_name_edit = LineEdit.new()
 	_name_edit.text = String(_player.get("name", ""))
 	_name_edit.max_length = NAME_MAX
@@ -296,18 +303,18 @@ func _build_profile() -> void:
 	_name_edit.add_theme_color_override("font_color", Palette.CREAM)
 	_name_edit.add_theme_color_override("caret_color", Palette.CREAM)
 	_name_edit.text_changed.connect(func(_t: String) -> void: _refresh_name())
-	_page.add_child(_name_edit)
+	naming.add_child(_name_edit)
 	_warn = Kit.note("", Palette.BAD_ON_PARCHMENT)
 	_warn.visible = false
-	_page.add_child(_warn)
+	who.add_child(_warn)
 	_save_button = Kit.button(I18N.t("profile.save"), "gold", 0.0, 44.0)
 	_save_button.pressed.connect(_on_save_name)
-	_page.add_child(_save_button)
+	who.add_child(_save_button)
 	_refresh_name()
 
-	_page.add_child(_heading(H_RABBIT))
+	wear.add_child(_heading(H_RABBIT))
 	var grid := Kit.hbox(8)
-	_page.add_child(grid)
+	wear.add_child(grid)
 	for key in AvatarFace.KEYS:
 		var wearing: Variant = _picked if _picked != null else _avatar
 		var on: bool = wearing == key
@@ -332,14 +339,14 @@ func _build_profile() -> void:
 
 	_error = Kit.note("", Palette.BAD_ON_PARCHMENT)
 	_error.visible = false
-	_page.add_child(_error)
+	wear.add_child(_error)
 
 	if guest:
 		# La verite plutot qu'une adresse vide : le terrier est reel et il
 		# n'est que sur cet appareil, et l'offre est ici, a cote du nom et de
 		# la tete, parce que c'est deja la qu'on vient rendre le compte sien.
 		var note := Kit.panel(_note_style())
-		_page.add_child(note)
+		wear.add_child(note)
 		var column := Kit.vbox(8)
 		note.add_child(column)
 		column.add_child(Kit.note(I18N.t("auth.guestNote"), Palette.BARK, 11))
@@ -354,12 +361,29 @@ func _build_profile() -> void:
 		var wallet := String(_player.get("wallet", ""))
 		if wallet.length() > 8:
 			wallet = wallet.substr(0, 4) + "..." + wallet.substr(wallet.length() - 4)
-		_page.add_child(Kit.label(wallet, 11, Palette.BARK))
+		who.add_child(Kit.label(wallet, 11, Palette.BARK))
 
+	# Le depart AU PIED de la colonne, loin du bouton qui sauve le nom.
+	var push := Control.new()
+	push.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	who.add_child(push)
 	_leave_button = Kit.button("", "wood", 0.0, 44.0)
 	_leave_button.pressed.connect(_on_leave)
-	_page.add_child(_leave_button)
+	who.add_child(_leave_button)
 	_refresh_leave()
+
+
+## LES COLONNES DE LA PAGE, une par poids : chacune prend sa part de la
+## largeur, et leur hauteur est celle de la plus haute.
+func _columns(ratios: Array) -> Array[VBoxContainer]:
+	var out: Array[VBoxContainer] = []
+	for r in ratios:
+		var col := Kit.vbox(Kit.PAD)
+		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		col.size_flags_stretch_ratio = float(r)
+		_page.add_child(col)
+		out.append(col)
+	return out
 
 
 ## Un titre de section (`.rr-profile-h`) : petit, en capitales, efface.
@@ -560,10 +584,10 @@ func _on_leave() -> void:
 
 func _build_history() -> void:
 	if _history_failed:
-		_page.add_child(Kit.note(I18N.t("profile.historyFailed"), Palette.BAD_ON_PARCHMENT))
+		_columns([1.0])[0].add_child(Kit.note(I18N.t("profile.historyFailed"), Palette.BAD_ON_PARCHMENT))
 		return
 	if _history.is_empty():
-		_page.add_child(Kit.note(I18N.t("profile.loading"), Palette.BARK))
+		_columns([1.0])[0].add_child(Kit.note(I18N.t("profile.loading"), Palette.BARK))
 		return
 
 	var days: Array = _history.get("days", []) if _history.get("days") is Array else []
@@ -572,15 +596,22 @@ func _build_history() -> void:
 	var by: Array = raids_dict.get("by", []) if raids_dict.get("by") is Array else []
 	var bought: Array = _history.get("purchases", []) if _history.get("purchases") is Array else []
 
-	_page.add_child(_heading(H_DAYS))
+	# Trois colonnes cote a cote : ce qu'on a creuse, qui on a vole ou qui
+	# nous a voles, ou les carottes sont allees.
+	var cols := _columns([1.0, RAIDS_RATIO, 1.0])
+	var dug: VBoxContainer = cols[0]
+	var fought: VBoxContainer = cols[1]
+	var spent: VBoxContainer = cols[2]
+
+	dug.add_child(_heading(H_DAYS))
 	if days.is_empty():
-		_page.add_child(Kit.note(I18N.t("profile.noRuns"), Palette.BARK))
+		dug.add_child(Kit.note(I18N.t("profile.noRuns"), Palette.BARK))
 	else:
 		var best := 1.0
 		for d in days:
 			best = maxf(best, float(d.get("carrots", 0)))
 		for d in days:
-			_page.add_child(_day_row(d, best))
+			dug.add_child(_day_row(d, best))
 
 	# Les deux sens sur une seule ligne du temps : une querelle se lit comme
 	# une querelle, pas comme deux listes.
@@ -594,23 +625,23 @@ func _build_history() -> void:
 		fresh[String(against[i].get("id", ""))] = true
 	var settled := _avenged_at(raids)
 
-	_page.add_child(_heading(H_RAIDS))
+	fought.add_child(_heading(H_RAIDS))
 	if raids.is_empty():
-		_page.add_child(Kit.note(I18N.t("profile.noRaids"), Palette.BARK))
+		fought.add_child(Kit.note(I18N.t("profile.noRaids"), Palette.BARK))
 	else:
 		for r in raids:
 			var owed := String(r.get("direction", "")) == "against"
 			var other := String(r.get("otherId", ""))
 			var paid := owed and _unix(String(r.get("createdAt", ""))) < float(settled.get(other, 0))
-			_page.add_child(_raid_row(r, owed, paid, fresh.has(String(r.get("id", "")))))
+			fought.add_child(_raid_row(r, owed, paid, fresh.has(String(r.get("id", "")))))
 
 	# Ou les carottes SONT ALLEES : creuser n'est que la moitie du livre.
-	_page.add_child(_heading(H_BOUGHT))
+	spent.add_child(_heading(H_BOUGHT))
 	if bought.is_empty():
-		_page.add_child(Kit.note(I18N.t("profile.noPurchases"), Palette.BARK))
+		spent.add_child(Kit.note(I18N.t("profile.noPurchases"), Palette.BARK))
 	else:
 		for p in bought:
-			_page.add_child(_purchase_row(p))
+			spent.add_child(_purchase_row(p))
 
 
 ## Un jour : la barre est la comparaison, le chiffre est le fait. A l'echelle
