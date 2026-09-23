@@ -104,6 +104,13 @@ const UNDERLAY := Color("#9bb94e")
 ## Le bord garde ses tuiles seules, et elles n'ont pas de voisine avec qui
 ## faire une couture.
 
+## LE RIVAGE OUVERT : cote mer, la motte perd le trait sombre de son pied et
+## des gouttes d'ecume en sautent (`_open_shore`, ShoreSpray). Faux : le bord
+## d'avant, pour le banc qui compare.
+var open_shore := true
+## Les gouttes, au-dessus de la motte (Z_BED).
+const Z_SPRAY := 3
+
 var map: BurrowMap
 var _underlay: Polygon2D
 var _blocks: Array[Node2D] = []
@@ -372,6 +379,19 @@ func build() -> void:
 			if not hangs:
 				_ground_at[Vector2i(col, row)] = ground
 
+			# LES GOUTTES, sur les cotes du rivage que la camera voit.
+			if open_shore:
+				var south := map.level_at(col, row + 1) == 0
+				var east := map.level_at(col + 1, row) == 0
+				if south or east:
+					var spray := ShoreSpray.new()
+					spray.cell = Vector2i(col, row)
+					spray.south = south
+					spray.east = east
+					spray.px = scale_up
+					spray.z_index = Z_SPRAY
+					block.add_child(spray)
+
 
 ## MONTE QUELQUE CHOSE SUR UNE CASE, DANS SON BLOC.
 ##
@@ -567,8 +587,49 @@ func sod_texture(cell: Vector2i, row: int, look: int) -> Texture2D:
 	frame.atlas = TileView.DIG_TILE
 	frame.region = Rect2((maxi(form, 0) * 2 + look) * TILE, row * TILE, TILE, TILE)
 	if form < 0:
-		return Slopes.ramp_texture(frame, lifts, null, 0, false, false)
-	return frame
+		return _open_shore(cell, Slopes.ramp_texture(frame, lifts, null, 0, false, false))
+	return _open_shore(cell, frame)
+
+
+## LE PIED DE LA MOTTE, RETIRE COTE MER : le trait sombre du bas de la
+## tranche, sur les faces qui donnent sur l'eau, devient transparent. Pose sur
+## la mer, ce trait se lisait comme un liseré de carrelage ; sans lui la terre
+## tombe dans la houle, et les gouttes (ShoreSpray) disent le reste.
+##
+## RETIRE DANS L'IMAGE DE LA MOTTE, pixel pour pixel : un trait redessine
+## par-dessus ne tombe jamais sur ses marches de 2:1.
+##
+## Les autres faces gardent leur trait : une voisine creusee devant montre la
+## tranche, et la, c'est de la terre sur de la terre.
+const SOD_OUTLINE := Color("#2b221e")
+## Une image par (motte, faces ouvertes) : les rivages en partagent la plupart.
+var _shore_cache: Dictionary = {}
+
+func _open_shore(cell: Vector2i, tex: Texture2D) -> Texture2D:
+	if not open_shore:
+		return tex
+	var south := map.level_at(cell.x, cell.y + 1) == 0
+	var east := map.level_at(cell.x + 1, cell.y) == 0
+	if not south and not east:
+		return tex
+	var key := [(tex as AtlasTexture).region if tex is AtlasTexture else tex.get_rid(), south, east]
+	if _shore_cache.has(key):
+		return _shore_cache[key]
+	var img := tex.get_image()
+	img.decompress()
+	img.convert(Image.FORMAT_RGBA8)
+	var mid := img.get_width() / 2
+	for y in img.get_height():
+		for x in img.get_width():
+			var c := img.get_pixel(x, y)
+			if c.a < 0.5 or absf(c.r - SOD_OUTLINE.r) + absf(c.g - SOD_OUTLINE.g) \
+					+ absf(c.b - SOD_OUTLINE.b) > 0.06:
+				continue
+			if (x < mid and south) or (x >= mid and east):
+				img.set_pixel(x, y, Color(0, 0, 0, 0))
+	var out := ImageTexture.create_from_image(img)
+	_shore_cache[key] = out
+	return out
 
 
 ## Le bloc d'une case existe-t-il ? (Pour savoir avant de construire.)
