@@ -262,11 +262,24 @@ func _dig() -> void:
 	open(picker)
 
 
+## UN RAID SUR NOTRE TERRIER commence ou finit (burrow.gd). La grille monte
+## seule — un raid est LE moment ou une bombe vaut d'etre enterree, et le
+## joueur n'a pas a chercher le bouton — et ce qui etait ouvert descend : la
+## liste des cibles, le codex, l'energie restaient par-dessus la defense
+## (page.tsx, l'effet du defenseur). A la fin, le mode pose se referme.
+func defend(on: bool, finished: bool = false) -> void:
+	if on:
+		close_dialog()
+		if _mode != "placing" and not finished:
+			_start_mode("placing")
+	elif _mode == "placing":
+		_end_mode()
+
+
 ## UN MODE DU TERRIER (poser des pieges, des clotures) : la rangee du kit
 ## monte, la barre et la colonne s'effacent, le terrier prend son cadrage, et
-## le retour s'affiche. La POSE au toucher n'est pas branchee : le terrier ne
-## dessine pas encore les pieges, et un piege pose mais invisible est le
-## mensonge que page.tsx refuse (`onToggleTrap`).
+## le retour s'affiche. La pose elle-meme est au terrier (burrow.gd
+## `_toggle_trap`) : une tape sur une case minable, le serveur d'abord.
 func _start_mode(mode: String) -> void:
 	if _kit == null:
 		return

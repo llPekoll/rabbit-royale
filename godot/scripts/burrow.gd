@@ -5,10 +5,11 @@ extends Node2D
 ## montre vient de Home, pas de lui : il n'a rien a garder d'une visite a
 ## l'autre.
 ##
-## POUR L'INSTANT il porte son sol, ses decors et ses clotures. Les pieges et
-## le lapin viendront s'y poser — tous freres du terrain dans le meme tri, ce
-## qui laisse un caillou proche passer devant une falaise lointaine sans qu'on
-## arbitre a la main.
+## SON SOL EST CELUI DU SERVEUR (burrow_layout.gd) : pousse de l'id du joueur,
+## avec la meme entree, le meme potager et le meme paillasson — une bombe est
+## un index que le serveur juge sur SON terrier. Il porte ses decors, ses
+## clotures, ses bombes (burrow_traps.gd) et son lapin, tous montes dans les
+## blocs du terrain et tries avec lui.
 
 ## UNE CASE A ETE TAPEE — pas glissee, pas effleuree : choisie.
 ##
@@ -37,7 +38,30 @@ const CAM_EPSILON_POS := 0.5
 @onready var _rabbit: HomeRabbit = %Rabbit
 @onready var _ocean: Ocean = %Ocean
 
-var _seed := 1
+var _seed := ""
+## Le terrier du serveur pour `_seed`.
+var _layout: BurrowLayout
+## Les bombes posees, et le decor debout (arbres, reperes) — tous deux montes
+## dans les blocs du terrain, donc refaits avec lui.
+var _traps: BurrowTraps
+var _scenery: IslandScenery
+## Une pose ou un retrait en vol : une seconde tape attend la reponse.
+var _toggling := false
+
+## LA DEFENSE EN DIRECT (page.tsx, « YOUR BURROW UNDER ATTACK »). Un raid sur
+## CE terrier est pousse par la socket (RaidState `incoming`) ; tant qu'il
+## dure, le plateau est celui du defenseur : l'intrus y est dessine et saute a
+## chaque poussee, la grille reste levee pour enterrer une bombe devant lui,
+## et une tape sur le lapin appelle l'eclair.
+var _defending := false
+var _raider: HomeRabbit
+var _raider_at := -1
+## Les pieges sautes a la derniere lecture : chaque nouveau se joue une fois.
+var _sprung_seen := 0
+## Le raid dont la fin a ete jouee, pour qu'une relecture ne la rejoue pas.
+var _ended_shown := ""
+## Le raid dont l'eclair a ete joue.
+var _struck_shown := ""
 var _quit: PlankButton
 ## Provisoire, avec le bouton de cadrage — voir `_add_quit`.
 var _cycle: PlankButton
@@ -71,7 +95,22 @@ func _ready() -> void:
 	# barre du haut. Le cycle des quatre cadrages reste la pour qui les regle.
 	if "--debug-burrow" in OS.get_cmdline_user_args():
 		_add_quit()
-	show_ground(_seed)
+	_traps = BurrowTraps.new()
+	_traps.name = "Traps"
+	add_child(_traps)
+	_scenery = IslandScenery.new()
+	_scenery.name = "Scenery"
+	add_child(_scenery)
+	_hints.is_mined = _traps.has_trap
+	show_ground(_own_seed())
+	# LES BOMBES SUIVENT LA LISTE DU SERVEUR, dans les deux sens : ShopState
+	# relit `/api/traps` apres chaque pose, retrait ou achat.
+	var shop := ShopState.shared()
+	shop.changed.connect(_sync_traps)
+	if shop.traps.is_empty():
+		shop.refresh()
+	RaidState.current.incoming_changed.connect(_on_incoming)
+	_on_incoming()
 	get_viewport().size_changed.connect(_reframe)
 	frame_camera(true)
 	# PROVISOIRE, comme le bouton de cadrage : sans consequence visible, une
@@ -95,7 +134,172 @@ func _follow_level() -> void:
 
 
 func _on_tile_tapped(cell: Vector2i) -> void:
+	if _placing and not _walling:
+		_toggle_trap(BurrowLayout.index(cell))
+		return
 	_rabbit.send_to(cell)
+
+
+## L'ID DU JOUEUR : la graine de son terrier, chez le serveur comme ici.
+static func _own_seed() -> String:
+	return String(Session.player.get("id", "burrow"))
+
+
+## UNE CASE MINABLE TAPEE : on y enterre une bombe, ou on releve celle qui y
+## est (`onToggleTrap`). Le serveur d'abord : la marque se pose, ou part,
+## quand ShopState rapporte son nouvel etat — pas avant. Un refus se dit en
+## toast (ShopState `noted`), et le plateau ne bouge pas.
+func _toggle_trap(tile: int) -> void:
+	if _toggling or _layout == null or not _layout.is_trappable(tile):
+		return
+	_toggling = true
+	var shop := ShopState.shared()
+	if _traps.has_trap(tile):
+		await shop.remove_trap(tile)
+	else:
+		_traps.expect_fresh(tile)
+		if await shop.place_trap(tile):
+			# Le bruit sourd de la bombe qui entre en terre ; la scene jette
+			# la poussiere.
+			Sound.play("step")
+	_toggling = false
+
+
+func _sync_traps() -> void:
+	if _traps == null:
+		return
+	_traps.sync(ShopState.shared().traps)
+	_hints.restyle()
+
+
+## LE RAID SUBI A CHANGE — arrive, avance, saute, finit, disparait.
+func _on_incoming() -> void:
+	var inc: Dictionary = RaidState.current.incoming
+	if inc.is_empty():
+		if _defending:
+			_stop_defending()
+		return
+	var tile := int(inc.get("tile", -1))
+	var finished := bool(inc.get("finished", false))
+	var raid_id := String(inc.get("raidId", ""))
+
+	if not _defending:
+		_defending = true
+		_sprung_seen = int(inc.get("trapsSprung", 0))
+		# LE PLATEAU DEVIENT UN PLATEAU DE RAID : son lapin s'efface (il errerait
+		# sous l'attaque), la camera recule sur tout le domaine.
+		_rabbit.visible = false
+		set_raiding(true)
+		if Chrome.current != null:
+			Chrome.current.defend(true, finished)
+		_raider = _spawn_raider(tile)
+		_raider_at = tile
+	elif tile != _raider_at and _raider != null:
+		_raider_at = tile
+		_raider.send_to(BurrowLayout.cell_of(tile))
+		Sound.play("step")
+
+	# UNE BOMBE A SAUTE sous lui : le souffle, le sursaut, le bruit — et la
+	# bombe repart en recharge, que la boutique relira.
+	var sprung := int(inc.get("trapsSprung", 0))
+	if sprung > _sprung_seen:
+		_sprung_seen = sprung
+		_spring_under_raider(tile)
+		ShopState.shared().refresh()
+
+	# L'ECLAIR, d'ou qu'il soit parti (la tape, le bouton du HUD, un autre
+	# appareil) : la reponse du serveur dit `struck`, le plateau le joue une
+	# fois.
+	if bool(inc.get("struck", false)) and _struck_shown != raid_id:
+		_struck_shown = raid_id
+		_ended_shown = raid_id
+		if _raider != null:
+			Electrocute.strike(_raider, self)
+		return
+
+	if finished and _ended_shown != raid_id:
+		_ended_shown = raid_id
+		# LA FIN, une fois : il danse sur le potager, ou il tombe a bout de
+		# forces (`finishRaid`). Le son est celui de RaidState.
+		if _raider != null:
+			if bool(inc.get("succeeded", false)):
+				_raider.celebrate()
+			else:
+				_raider.exhaust()
+
+
+## Fini, et la fin a ete vue : le domaine redevient une maison.
+func _stop_defending() -> void:
+	_defending = false
+	_sprung_seen = 0
+	_raider_at = -1
+	if _raider != null:
+		_raider.queue_free()
+		_raider = null
+	_rabbit.visible = true
+	set_raiding(false)
+	if Chrome.current != null:
+		Chrome.current.defend(false)
+	# Le stock a bouge s'il a atteint le potager ; les bombes aussi.
+	Home.refresh()
+	ShopState.shared().refresh()
+
+
+## L'INTRUS : le lapin de l'ile, a la meme taille, qui TOMBE sur la case ou
+## le serveur le dit (`playSpawnDrop`). Il n'erre pas : il ne bouge que quand
+## une poussee le dit.
+func _spawn_raider(tile: int) -> HomeRabbit:
+	var raider := HomeRabbit.new()
+	raider.name = "Raider"
+	raider.roam = false
+	raider.map = _terrain.map
+	raider.only = _rabbit.only
+	add_child(raider)
+	raider.build(0, BurrowLayout.cell_of(tile))
+	var sprite := raider._sprite
+	if sprite != null:
+		sprite.position.y = -60.0
+		sprite.modulate.a = 0.0
+		var drop := raider.create_tween().set_parallel(true)
+		drop.tween_property(sprite, "position:y", 0.0, 0.35) \
+			.set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+		drop.tween_property(sprite, "modulate:a", 1.0, 0.12)
+	return raider
+
+
+## UNE BOMBE SAUTE SOUS LE PILLARD (`springTrap`) : le losange rouge qui
+## s'ouvre, le sursaut du lapin, et le bruit — c'etait le seul souffle du jeu
+## qui partait en silence.
+func _spring_under_raider(tile: int) -> void:
+	# A L'ATTERRISSAGE : le pas qui l'a amene sur la bombe se voit d'abord —
+	# parti avant, le souffle eclatait sur une case encore vide.
+	while _raider != null and _raider.hopping():
+		await get_tree().process_frame
+	_traps.spring(tile)
+	Sound.play("explosion")
+	if _raider != null:
+		_raider.take_hit(_raider.position + Vector2(0, 12))
+
+
+## LA TAPE TOUCHE-T-ELLE L'INTRUS ? Son CORPS seulement — 14x14 de l'art a
+## l'echelle du lapin, pose sur ses pieds : une boite d'une case entiere
+## avalerait la case sous lui, qui repond elle-meme aux tapes.
+func _hits_raider(at: Vector2) -> bool:
+	if _raider == null or _raider._sprite == null:
+		return false
+	var side := 14.0 * HomeRabbit.RABBIT_SCALE
+	var local := (at - position) / scale.x - _raider.position
+	return absf(local.x) <= side * 0.5 and local.y <= 0.0 and local.y >= -side
+
+
+## L'ECLAIR, demande au serveur : c'est lui qui juge (un eclair en poche, un
+## raid encore en cours). Le choc se joue sur sa reponse (`_on_incoming`), un
+## refus se dit en toast (RaidState `noted`).
+func _strike() -> void:
+	var inc: Dictionary = RaidState.current.incoming
+	if inc.is_empty() or bool(inc.get("finished", false)):
+		return
+	await RaidState.current.strike()
 
 
 ## LE SOL D'UN TERRIER DONNE.
@@ -104,15 +308,25 @@ func _on_tile_tapped(cell: Vector2i) -> void:
 ## de quelqu'un d'autre pour un raid, sans remonter la scene. Le web a un
 ## raccourci que ce portage reprendra le moment venu — si la graine n'a pas
 ## change, il ne refait rien et se contente d'ajuster.
-func show_ground(seed_value: int) -> void:
+func show_ground(seed_value: String) -> void:
 	_seed = seed_value
-	_terrain.map = BurrowMap.new()
-	_terrain.map.generate(seed_value)
+	_layout = BurrowLayout.of(seed_value)
+	# LES BOMBES VIVENT DANS LES BLOCS de l'ancien terrain, qui va mourir : la
+	# liste part avec, et la synchro les repose sur le nouveau.
+	_traps.clear()
+	_terrain.map = _layout.map
 	_terrain.build()
 	# Les decors lisent LE MEME relief : une maison posee sur un autre terrain
 	# que celui qu'on voit flotterait.
 	_props.map = _terrain.map
-	_props.build(seed_value)
+	_props.build(_layout)
+	# LE DECOR DEBOUT du serveur : un arbre est une case que personne ne
+	# traverse et qu'on ne mine pas — sans lui, la grille laisse un trou que
+	# rien n'explique.
+	var standing := IslandGround.new(_layout.map, _layout.map.seed_text, false)
+	standing.placements = _layout.placements
+	_scenery.terrain = _terrain
+	_scenery.build(standing)
 	# La mer borde la terre qu'on vient de poser — meme graine que le web
 	# (`${seed}:ducks`) : la mare d'un joueur est toujours la meme.
 	_ocean.build(_terrain.map, str(seed_value))
@@ -130,7 +344,11 @@ func show_ground(seed_value: int) -> void:
 	# jette ses blocs et les losanges avec, et on en refait aussitot.
 	_hints.map = _terrain.map
 	_hints.terrain = _terrain
+	_hints.layout = _layout
 	_hints.build()
+	_traps.terrain = _terrain
+	_traps.layout = _layout
+	_sync_traps()
 
 	# LE LAPIN REVIENT AVEC LE SOL SUR LEQUEL IL SE TIENT. `show_ground` tourne
 	# a la premiere image ET a chaque changement de terrain — une montee de
@@ -138,7 +356,10 @@ func show_ground(seed_value: int) -> void:
 	# lapin n'existent plus a ce moment-la. On le refait plutot que de le
 	# garder.
 	_rabbit.map = _terrain.map
-	_rabbit.build(seed_value)
+	_rabbit.only = {}
+	for tile in _layout.walkable_tiles():
+		_rabbit.only[BurrowLayout.cell_of(tile)] = true
+	_rabbit.build(hash(seed_value))
 
 	# LA PRISE DEPEND DU RELIEF : les quatre cadrages sont resolus sur les
 	# bornes de la terre, et une autre graine en a d'autres. Un terrier voisin
@@ -325,6 +546,7 @@ func set_placing(on: bool) -> void:
 	# LA GRILLE N'APPARAIT QUE PENDANT LA POSE. Le reste du temps, cet ecran
 	# est une image de chez soi — pas un editeur de niveau.
 	_hints.show_hints(on)
+	_traps.set_lifted(-1)
 	_relabel_cycle()
 	frame_camera()
 
@@ -402,7 +624,15 @@ func _on_press(at: Vector2) -> void:
 	# L'APPUI MONTRE CE QU'IL VA CHOISIR — le retour que le survol donne a la
 	# souris, et qu'un doigt n'a pas.
 	if _hints_live():
-		_hints.set_hovered(_cell_at(at))
+		_press_over(_cell_at(at))
+
+
+## LA CASE SOUS LE DOIGT, avant qu'il se leve : or sur une case libre, la
+## bombe qui sort (et sa marque rouge) sur une case minee.
+func _press_over(cell: Vector2i) -> void:
+	_hints.set_hovered(cell)
+	var tile := BurrowLayout.index(cell) if cell.x >= 0 else -1
+	_traps.set_lifted(tile if _traps.has_trap(tile) else -1)
 
 
 func _on_move(at: Vector2) -> void:
@@ -412,11 +642,11 @@ func _on_move(at: Vector2) -> void:
 		# sous un doigt qui promene le plateau annoncerait une pose qui
 		# n'arrivera pas.
 		if _hints_live():
-			_hints.set_hovered(Vector2i(-1, -1))
+			_press_over(Vector2i(-1, -1))
 	if not _did_drag:
 		# Toujours une tape en puissance : on suit la case sous le doigt.
 		if _hints_live():
-			_hints.set_hovered(_cell_at(at))
+			_press_over(_cell_at(at))
 		return
 	if not can_move_cam():
 		return
@@ -430,9 +660,13 @@ func _on_release(at: Vector2) -> void:
 		return
 	_pressing = false
 	if _hints_live():
-		_hints.set_hovered(Vector2i(-1, -1))
+		_press_over(Vector2i(-1, -1))
 	# PIEGE N°1 : un glissement qui se termine n'est pas une tape.
 	if _did_drag:
+		return
+	# L'INTRUS D'ABORD : il se tient sur une case qui repond elle-meme.
+	if _defending and _hits_raider(at):
+		_strike()
 		return
 	var cell := _cell_at(at)
 	if cell.x < 0:

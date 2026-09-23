@@ -75,18 +75,19 @@ var _level := 1
 var field: Array[Vector2i] = []
 
 
-## Pose la maison et le potager d'apres le relief.
-func build(seed_value: int) -> void:
+## Pose la maison et le potager DU TERRIER DU SERVEUR (burrow_layout.gd) :
+## la maison sur `buildingCell`, le potager sur `field`. Ils etaient devines
+## ici d'apres le relief ; ils sont maintenant ceux que le serveur connait —
+## un raid se gagne en atteignant CE potager, et une cloture se pose sur SES
+## aretes.
+func build(layout: BurrowLayout) -> void:
 	clear()
-	if map == null:
+	if map == null or layout == null:
 		return
-	# L'ORDRE COMPTE : la maison choisit sa case, puis le champ s'installe a
-	# cote d'elle. Le web fait l'inverse et contraint la maison a se tenir a
-	# une ou deux cases du potager — meme resultat, et dans ce sens il n'y a
-	# rien a contraindre.
-	var home := _place_home(seed_value)
-	if home.x >= 0:
-		_sow_field(seed_value, home)
+	var seed_value := hash(layout.seed_text)
+	if layout.building.x >= 0:
+		_place_home(layout.building)
+	_sow_field(seed_value, layout.field_cells())
 
 
 func clear() -> void:
@@ -104,11 +105,7 @@ func clear() -> void:
 ## terre de chaque cote, pres du potager mais pas dessus, et un peu en retrait
 ## de la mer. Un score plutot qu'une condition, parce qu'un terrain genere ne
 ## garantit jamais qu'une case parfaite existe.
-func _place_home(seed_value: int) -> Vector2i:
-	var cell := _home_cell(seed_value)
-	if cell.x < 0:
-		return cell
-
+func _place_home(cell: Vector2i) -> void:
 	home = Sprite2D.new()
 	home.centered = false
 	home.scale = Vector2(DECO_SCALE, DECO_SCALE)
@@ -121,7 +118,6 @@ func _place_home(seed_value: int) -> Vector2i:
 	home.z_index = Iso.depth(cell.x, cell.y) + map.level_at(cell.x, cell.y) + 1
 	add_child(home)
 	_props.append(home)
-	return cell
 
 
 ## LA MAISON DU NIVEAU : l'image de son palier, ancree a son pied. Le
@@ -190,47 +186,17 @@ func _blob(radius: float, color: Color) -> Node2D:
 	return blob
 
 
-## La case ou poser la maison : la plus interieure possible, au bord du champ.
-func _home_cell(seed_value: int) -> Vector2i:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = seed_value * 31 + 7
-
-	var best := Vector2i(-1, -1)
-	var best_score := -1e9
-	for row in range(map.height):
-		for col in range(map.width):
-			if map.level_at(col, row) == 0:
-				continue
-			# DEUX CASES DE TERRE DE CHAQUE COTE : une maison au bord de l'eau
-			# aurait un pignon dans le vide.
-			var inland := true
-			for dy in range(-2, 3):
-				for dx in range(-2, 3):
-					if not map.is_land(col + dx, row + dy):
-						inland = false
-			if not inland:
-				continue
-			# On prefere le palier haut — c'est la que se tient une ferme — et
-			# une position un peu au sud, ou elle ne masque rien.
-			var score := float(map.level_at(col, row)) * 8.0 + float(row) * 0.5
-			score += rng.randf() * 2.0
-			if score > best_score:
-				best_score = score
-				best = Vector2i(col, row)
-	return best
-
-
 ## LE POTAGER, seme en losange dans chaque case du champ.
 ##
 ## La dispersion n'est pas un carre : les plants sont tires dans un LOSANGE,
 ## pour qu'aucun ne deborde sur la case voisine. `v` est borne par `1 - abs(u)`,
 ## ce qui dessine exactement la forme d'une tuile.
-func _sow_field(seed_value: int, home: Vector2i) -> void:
+func _sow_field(seed_value: int, cells: Array[Vector2i]) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value * 17 + 3
 
 	var frames := _carrot_frames()
-	field = _field_cells(home)
+	field = cells
 	for cell in field:
 		var centre := map.screen_of(cell.x, cell.y)
 		for i in range(PLANTS_PER_CELL):
@@ -251,46 +217,6 @@ func _sow_field(seed_value: int, home: Vector2i) -> void:
 			plant.z_index = Iso.depth(cell.x, cell.y) + map.level_at(cell.x, cell.y) + 1
 			add_child(plant)
 			_props.append(plant)
-
-
-## LES CASES DU POTAGER : une parcelle accolee a la maison.
-##
-## Un champ est une PARCELLE, pas des carottes eparpillees — c'est ce qui le
-## fait lire comme cultive. Elle part d'a cote de la maison et s'etend vers le
-## sud-est, du cote ou la camera regarde, en s'arretant des que le palier
-## change : un potager ne monte pas une falaise.
-func _field_cells(home: Vector2i) -> Array[Vector2i]:
-	var tier := map.level_at(home.x, home.y)
-	var out: Array[Vector2i] = []
-
-	# LA PARCELLE CHERCHE SA PLACE AUTOUR DE LA MAISON, dans les quatre
-	# directions, et garde la premiere ou elle tient entierement.
-	#
-	# Une seule direction ne suffisait pas : la maison se pose sur le plateau,
-	# et deux cases a l'est le palier avait deja change — le champ tombait
-	# alors sur des cases refusees et aucune carotte ne poussait.
-	# Le tableau est TYPE : un litteral nu donne des elements sans type, et
-	# GDScript refuse alors d'inferer ce qu'une addition avec eux produit.
-	var steps: Array[Vector2i] = [
-		Vector2i(2, 0), Vector2i(-4, 0), Vector2i(0, 2), Vector2i(0, -4)
-	]
-	for step in steps:
-		var start: Vector2i = home + step
-		var patch: Array[Vector2i] = []
-		for dy in range(0, 3):
-			for dx in range(0, 3):
-				var c: Vector2i = start + Vector2i(dx, dy)
-				# Le meme palier : un potager ne monte pas une falaise, et des
-				# carottes a cheval sur deux hauteurs ne lisent pas comme un
-				# champ.
-				if map.level_at(c.x, c.y) == tier:
-					patch.append(c)
-		if patch.size() > out.size():
-			out = patch
-		# Neuf cases, c'est la parcelle entiere : inutile de chercher mieux.
-		if out.size() == 9:
-			break
-	return out
 
 
 ## Les douze etapes de croissance, decoupees de la planche.

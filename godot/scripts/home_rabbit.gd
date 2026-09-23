@@ -118,6 +118,10 @@ var _rng := RandomNumberGenerator.new()
 var _beat: SceneTreeTimer
 var _hop: Tween
 var _walkable: Array[Vector2i] = []
+## LES CASES OU IL A LE DROIT D'ALLER, quand la carte ne suffit pas : le
+## terrier du serveur (burrow_layout.gd) — pas dans un arbre, pas hors du
+## domaine. Vide = toute la terre.
+var only: Dictionary = {}
 
 
 ## Pose le lapin au milieu de son terrain et le laisse vivre.
@@ -296,6 +300,45 @@ func take_hit(from: Vector2) -> void:
 		.set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
 
 
+## A BOUT DE FORCES (`playExhausted`) : le trebuchement de `damage` puis le
+## sommeil, en boucle, une fois pose. Rien ne l'a frappe — c'est le seul rang
+## « epuise » qui finit debout, d'ou le sommeil apres.
+func exhaust() -> void:
+	if _sprite == null:
+		return
+	if _hop != null and _hop.is_valid():
+		_hop.finished.connect(exhaust, CONNECT_ONE_SHOT)
+		return
+	_sprite.play("damage")
+	_sprite.animation_finished.connect(func() -> void:
+		if _sprite != null:
+			_sprite.play("sleep"), CONNECT_ONE_SHOT)
+
+
+## A TERRE ET QUI Y RESTE (`playDeath`) : `death` finit sur une image pleine,
+## le corps a plat, et tient seul. `done` a la fin du rang.
+func die(done: Callable = Callable()) -> void:
+	if _sprite == null:
+		if done.is_valid():
+			done.call()
+		return
+	_sprite.play("death")
+	if done.is_valid():
+		_sprite.animation_finished.connect(done, CONNECT_ONE_SHOT)
+
+
+## L'ART DU LAPIN S'ETEINT sans que le lapin parte : l'electrocution pose sa
+## propre image a la place, puis le rend.
+func hide_sprite(hidden: bool) -> void:
+	if _sprite != null:
+		_sprite.visible = not hidden
+
+
+## Un saut en cours ? L'eclair attend qu'il se pose.
+func hopping() -> bool:
+	return _hop != null and _hop.is_valid()
+
+
 ## ENVOIE LE LAPIN SUR UNE CASE — provisoire, pour voir une tape aboutir.
 ##
 ## Il y va d'un seul bond, ce qu'un lapin ne fait pas sur dix cases : c'est une
@@ -370,22 +413,18 @@ func _step() -> void:
 	_hop.tween_callback(_rest)
 
 
-## LES CASES OU UN LAPIN PEUT SE TENIR. Pour l'instant : TOUTE LA TERRE.
-##
-## INCOMPLET, ET CA SE VOIT : le lapin se tient volontiers au milieu du
-## potager, puisque rien ne le lui interdit encore. Le web retranche ici les
-## trous, les rochers, la bouche du terrier et le champ lui-meme
-## (`walkableTiles`) — ces notions n'existent pas dans ce portage, et les
-## inventer maintenant reviendrait a ecrire une seconde regle de praticabilite
-## que la premiere contredira en arrivant.
-##
-## A retrancher quand `BurrowMap` saura le dire.
+## LES CASES OU UN LAPIN PEUT SE TENIR : la terre, restreinte a `only` quand
+## l'appelant la connait — au terrier, `walkableTiles` du serveur
+## (burrow_layout.gd) : ni dans un arbre, ni hors du domaine.
 func _walkable_cells() -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
 	for row in range(map.height):
 		for col in range(map.width):
-			if map.is_land(col, row):
-				out.append(Vector2i(col, row))
+			if not map.is_land(col, row):
+				continue
+			if not only.is_empty() and not only.has(Vector2i(col, row)):
+				continue
+			out.append(Vector2i(col, row))
 	return out
 
 

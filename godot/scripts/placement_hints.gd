@@ -59,6 +59,12 @@ const FADE_SECONDS := 0.18
 
 var map: BurrowMap
 var terrain: BurrowTerrain
+## LE TERRIER DU SERVEUR : qui est minable, qui est paillasson. Sans lui (un
+## banc), toute la terre s'allume comme avant.
+var layout: BurrowLayout
+## Une case deja minee ? (`BurrowTraps.has_trap`, par index.) Son losange
+## s'efface : sa propre marque la montre.
+var is_mined: Callable = func(_tile: int) -> bool: return false
 
 var _hints: Dictionary = {}
 var _shown := false
@@ -137,6 +143,8 @@ func show_hints(on: bool) -> void:
 		var hint: Sprite2D = _hints[cell]
 		if on:
 			hint.visible = true
+			# La teinte d'abord (paillasson, or) ; seul l'alpha se fond.
+			hint.modulate = Color(_tint_for(cell), hint.modulate.a)
 		_fade.tween_property(hint, "modulate:a", _alpha_for(cell) if on else 0.0,
 			FADE_SECONDS)
 	if not on:
@@ -166,15 +174,43 @@ func set_hovered(cell: Vector2i) -> void:
 
 
 func _tint_for(cell: Vector2i) -> Color:
-	if cell == _hovered:
+	if cell == _hovered and _usable(cell):
 		return HOVER_TINT
+	if _doorstep(cell):
+		return DOOR_TINT
 	return PLACEABLE_TINT
 
 
+## `styleHint` : le paillasson en orange, une case minable libre en bleu (or
+## sous le doigt), tout le reste a zero — une case que le serveur refuse ne
+## s'allume pas.
 func _alpha_for(cell: Vector2i) -> float:
+	if _doorstep(cell):
+		return DOORSTEP_ALPHA
+	if not _usable(cell):
+		return 0.0
 	if cell == _hovered:
 		return HOVER_ALPHA
 	return PLACEABLE_ALPHA
+
+
+func _usable(cell: Vector2i) -> bool:
+	if layout == null:
+		return true
+	var tile := BurrowLayout.index(cell)
+	return layout.is_trappable(tile) and not bool(is_mined.call(tile))
+
+
+func _doorstep(cell: Vector2i) -> bool:
+	return layout != null and layout.is_doorstep(BurrowLayout.index(cell))
+
+
+## TOUT REPEINDRE — une bombe posee ou relevee change ce que sa case dit.
+func restyle() -> void:
+	for cell in _hints:
+		var hint: Sprite2D = _hints[cell]
+		hint.modulate = _tint_for(cell)
+		hint.modulate.a = _alpha_for(cell) if _shown else 0.0
 
 
 ## LE LOSANGE, cuit une fois pour toutes.

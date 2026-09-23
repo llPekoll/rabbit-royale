@@ -108,6 +108,24 @@ func grow(seed_value: String) -> void:
 	# La part de terre se LIT SUR LA GRAINE plutot qu'elle ne soit passee : le
 	# client rebatit tout depuis la graine seule et doit tailler la meme cote.
 	var land_share := FIRST_RUN_LAND if first else ISLAND_LAND
+	shape(key, land_share, ISLAND_RISE, ISLAND_RAGGEDNESS, TIERS_WANTED)
+
+	# LE TUTORIEL EST UN COULOIR, taille a la main PAR-DESSUS le sol genere.
+	#
+	# Vient en DERNIER, comme chez le web : le generateur fait son travail de
+	# bruit, puis le dessin l'ecrase. Taille ici plutot que dans le generateur
+	# parce que le metier du generateur est le bruit, et que cette ile-la est le
+	# seul endroit ou le jeu veut un DESSIN.
+	if first:
+		carve_tutorial()
+
+
+## `generateIsland` LUI-MEME, reglages passes : c'est ce que le terrier appelle
+## aussi (burrow/generate.ts `tryBuild` -> `generateTerrain`), avec les siens —
+## 19x19, deux paliers, 0.72 / 0.2 / 0.12. Une seule recette pour les deux
+## plateaux, comme chez le web : deux copies divergeraient au premier reglage.
+func shape(key: String, land_share: float, rise_share: float, ragged: float,
+		tiers_wanted: int) -> void:
 	var rng := Rng.from_seed(key)
 	var cells := width * height
 
@@ -119,7 +137,7 @@ func grow(seed_value: String) -> void:
 	var shore := PackedFloat32Array()
 	shore.resize(cells)
 	for i in range(cells):
-		shore[i] = coast[i] * ISLAND_RAGGEDNESS + falloff[i] * (1.0 - ISLAND_RAGGEDNESS)
+		shore[i] = coast[i] * ragged + falloff[i] * (1.0 - ragged)
 
 	var everywhere := _filled_mask()
 	_clear_border(everywhere)
@@ -141,7 +159,7 @@ func grow(seed_value: String) -> void:
 	# LES PALIERS, empiles sur celui d'en dessous.
 	var below := land
 	var highest := 1
-	for tier in range(2, TIERS_WANTED + 1):
+	for tier in range(2, maxi(1, tiers_wanted) + 1):
 		# ERODER D'ABORD : c'est ce qui garantit la rangee de terre basse sur
 		# laquelle la falaise se tient, de tous les cotes de l'etagere. Une case
 		# est exactement ce qu'occupe une face, donc une erosion est exactement
@@ -151,7 +169,7 @@ func grow(seed_value: String) -> void:
 			break
 
 		var field := _noise_field(rng, SHELF_CELL)
-		var threshold := _quantile_threshold(field, room, ISLAND_RISE)
+		var threshold := _quantile_threshold(field, room, rise_share)
 		var shelf := PackedByteArray()
 		shelf.resize(cells)
 		for i in range(cells):
@@ -176,15 +194,6 @@ func grow(seed_value: String) -> void:
 		below = shelf
 
 	tiers = highest
-
-	# LE TUTORIEL EST UN COULOIR, taille a la main PAR-DESSUS le sol genere.
-	#
-	# Vient en DERNIER, comme chez le web : le generateur fait son travail de
-	# bruit, puis le dessin l'ecrase. Taille ici plutot que dans le generateur
-	# parce que le metier du generateur est le bruit, et que cette ile-la est le
-	# seul endroit ou le jeu veut un DESSIN.
-	if first:
-		carve_tutorial()
 
 
 ## ECRASE LE RELIEF PAR LE COULOIR DESSINE A LA MAIN.

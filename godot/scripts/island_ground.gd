@@ -73,11 +73,16 @@ var placements: Array[Dictionary] = []
 var _by_cell: Dictionary = {}
 ## Le plus grand bloc ou l'on marche (`playableCells`).
 var _main: Dictionary = {}
+var _inhabited := INHABITED_SHARE
 
 
-func _init(p_map: BurrowMap, p_seed: String, scenery: bool = true) -> void:
+## `inhabited` : la part de terre promise aux troupeaux (`inhabitedShare`). Le
+## terrier passe 0 — aucun mouton dans un potager (burrow/generate.ts).
+func _init(p_map: BurrowMap, p_seed: String, scenery: bool = true,
+		inhabited: float = INHABITED_SHARE) -> void:
 	map = p_map
 	seed_text = p_seed
+	_inhabited = inhabited
 	if scenery:
 		_scatter_scenery()
 		_scatter_livestock()
@@ -259,7 +264,7 @@ func _scatter_livestock() -> void:
 
 	_shuffle(rng, candidates)
 
-	var budget := int(floor(land_cells * INHABITED_SHARE))
+	var budget := int(floor(land_cells * _inhabited))
 	var total_weight := 0
 	for e in LIVESTOCK:
 		total_weight += int(e.weight)
