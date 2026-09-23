@@ -202,7 +202,11 @@ func claim_quest(id: String) -> void:
 	if not line_for.is_empty():
 		noted.emit(I18N.t("quests.%s.line" % line_for), false)
 	var reward: Dictionary = res.get("reward", {}) if res.get("reward") is Dictionary else {}
-	if bool(res.get("claimed", false)):
+	# `claimed` est l'ID DE LA QUETE (route.ts : `claimed: id`), pas un booleen :
+	# `bool()` sur une chaine jette, et la fete (le son, la gerbe) ne partait
+	# jamais apres une recompense pourtant creditee.
+	var claimed: Variant = res.get("claimed")
+	if (claimed is String and not (claimed as String).is_empty()) or (claimed is bool and claimed):
 		quest_claimed.emit(id, reward)
 	if int(reward.get("carrots", 0)) > 0:
 		burst.emit(int(reward["carrots"]))
