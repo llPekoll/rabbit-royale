@@ -30,7 +30,7 @@ export interface PlayerPush {
   /** Whose socket. */
   to: string;
   /** The socket.io event name the client listens for. */
-  event: 'raid_incoming' | 'raid_struck';
+  event: 'raid_incoming' | 'raid_struck' | 'energy_granted';
   payload: unknown;
 }
 
@@ -45,7 +45,7 @@ export function decodePush(wire: string): PlayerPush | null {
   try {
     const v = JSON.parse(wire) as Partial<PlayerPush>;
     if (typeof v?.to !== 'string' || typeof v.event !== 'string') return null;
-    if (v.event !== 'raid_incoming' && v.event !== 'raid_struck') return null;
+    if (v.event !== 'raid_incoming' && v.event !== 'raid_struck' && v.event !== 'energy_granted') return null;
     return { to: v.to, event: v.event, payload: v.payload };
   } catch {
     return null;

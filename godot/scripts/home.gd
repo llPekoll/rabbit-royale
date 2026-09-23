@@ -56,6 +56,10 @@ var edits: Dictionary = {}
 var pending := false
 
 var _fetched_ms := 0
+## Le numero de la derniere relecture partie. Voir `refresh`.
+var _refresh_seq := 0
+## Une lecture du terrier vient d'atterrir (ou la derniere a echoue).
+signal _landed
 var _timer: Timer
 
 
@@ -110,10 +114,21 @@ func loaded() -> bool:
 func refresh() -> void:
 	if not Session.signed_in():
 		return
+	# DEUX RELECTURES EN VOL (un `banked` et la relecture d'une fin de run,
+	# le tick et un achat) reviennent dans l'ordre qu'elles veulent : la plus
+	# vieille arrivee en dernier remettait la barre d'avant. Seule la derniere
+	# partie a le droit d'ecrire.
+	_refresh_seq += 1
+	var seq := _refresh_seq
 	var answer: Answer = await Net.get_json("/api/burrow", Session.token)
-	if not answer.ok:
+	# Depassee : on attend celle qui ecrit, parce que l'appelant qui
+	# `await` compare la barre juste apres (chrome.gd `_offer_refill`).
+	if seq != _refresh_seq:
+		await _landed
 		return
-	_adopt(answer.body)
+	if answer.ok:
+		_adopt(answer.body)
+	_landed.emit()
 
 
 ## UN GESTE SUR LE TERRIER : "harvest", "upgrade", "water", "fertilise",
@@ -124,10 +139,12 @@ func act(action: String) -> Dictionary:
 		return {}
 	pending = true
 	changed.emit()
+	_refresh_seq += 1
 	var answer: Answer = await Net.post_json("/api/burrow", {"action": action}, Session.token)
 	pending = false
 	var res: Dictionary = answer.body
 	_adopt(res)
+	_landed.emit()
 
 	if res.has("harvested") and int(res["harvested"]) > 0:
 		var n := int(res["harvested"])
@@ -175,10 +192,12 @@ func claim_quest(id: String) -> void:
 		return
 	pending = true
 	changed.emit()
+	_refresh_seq += 1
 	var answer: Answer = await Net.post_json("/api/quests", {"action": "claim", "id": id}, Session.token)
 	pending = false
 	var res: Dictionary = answer.body
 	_adopt(res)
+	_landed.emit()
 	var line_for := String(res.get("lineFor", ""))
 	if not line_for.is_empty():
 		noted.emit(I18N.t("quests.%s.line" % line_for), false)
@@ -194,9 +213,11 @@ func claim_quest(id: String) -> void:
 func mark_quest(mark: String) -> void:
 	if not Session.signed_in():
 		return
+	_refresh_seq += 1
 	var answer: Answer = await Net.post_json("/api/quests", {"action": "mark", "mark": mark}, Session.token)
 	if answer.ok:
 		_adopt(answer.body)
+	_landed.emit()
 
 
 ## L'ENERGIE MAINTENANT, entre deux relectures : ce que le serveur a dit,

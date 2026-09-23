@@ -497,6 +497,7 @@ function listenForPushes(): void {
   sql.listen(PLAYER_PUSH_CHANNEL, (wire) => {
     const push = decodePush(wire);
     if (!push) return;
+    if (push.event === 'energy_granted') return topUpRabbit(push.to, push.payload);
     socketOf(push.to)?.emit(push.event, push.payload);
   }).then(
     () => console.log('[rr-ws] push bus listening on', PLAYER_PUSH_CHANNEL),
@@ -504,6 +505,29 @@ function listenForPushes(): void {
   );
 }
 listenForPushes();
+
+/**
+ * A refill bought while the rabbit is out (`grantItem`, energy).
+ *
+ * The purchase wrote `players.energy`, but a live run digs with `rabbit.energy`
+ * and banks it back over that column — so unless the TANK takes the refill
+ * too, the island never shows it and the end of the run erases it. Only a
+ * rabbit whose run is still unbanked: `bankRun` clears `run.id` before it
+ * writes, and a chest's energy granted AT banking must stay in the bar alone,
+ * not be counted twice. No live rabbit, nothing to do — the bar has it.
+ */
+function topUpRabbit(playerId: string, payload: unknown): void {
+  const amount = Number((payload as { amount?: unknown } | null)?.amount);
+  if (!Number.isFinite(amount) || amount <= 0) return;
+  for (const live of store.all()) {
+    const rabbit = live.rabbits.get(playerId);
+    if (!rabbit?.alive || !rabbit.run?.id) continue;
+    rabbit.energy = Math.min(ENERGY.MAX, rabbit.energy + amount);
+    console.log('[refill:live]', playerId, '+', amount, '→', rabbit.energy);
+    io.to(roomFor(live.island.id)).emit('rabbit_energy', { playerId, energy: rabbit.energy, carrots: rabbit.carrots });
+    return;
+  }
+}
 
 // ── Persistence ──────────────────────────────────────────────────────────────
 

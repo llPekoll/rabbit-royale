@@ -17,6 +17,7 @@ import { db } from '@/lib/db';
 import { inventory, players, purchases } from '@/lib/db/schema';
 import { ENERGY_PACK, OUT_OF_RUN_ENERGY } from '@config/tuning';
 import { currentEnergy } from './regen';
+import { encodePush, PLAYER_PUSH_CHANNEL } from './raid-events';
 import {
   extendSmoke, spendEnergyPack,
   type EnergyPackRow, type ItemKind, type SmokeRow,
@@ -107,6 +108,16 @@ export async function grantItem(
       energyPacksBought: window.energyPacksBought,
       energyPacksSince: window.energyPacksSince,
     }).where(eq(players.id, playerId));
+
+    // A RABBIT OUT ON AN ISLAND DIGS WITH ITS OWN TANK, not with this column:
+    // the run writes that tank back over `players.energy` when it banks
+    // (bankRun, "the tank comes home"), so a refill bought mid-run landed
+    // here, never showed on the island, and was erased at the end of the run.
+    // The ws process holds the tank; it hears this and tops the rabbit up.
+    // NOTIFY inside the transaction is delivered on COMMIT, so a refill that
+    // rolls back tells nobody.
+    const wire = encodePush({ to: playerId, event: 'energy_granted', payload: { amount: ENERGY_PACK.AMOUNT * qty } });
+    if (wire) await tx.execute(raw`select pg_notify(${PLAYER_PUSH_CHANNEL}, ${wire})`);
 
     return { kind, qty, energy };
   }
