@@ -140,6 +140,9 @@ func _mount() -> void:
 func _wire_run(bar: TopBar) -> void:
 	var state := RunState.current
 	var feed := func() -> void:
+		# La barre meurt avec le chrome ; `Screens`, lui, reste et rappelle.
+		if not is_instance_valid(bar):
+			return
 		# EN RAID, le medaillon bat avec la jauge que le raid depense
 		# (page.tsx : `raid.raid.tank`), relue a chaque pas.
 		var raid := RaidState.current.raid
@@ -218,6 +221,18 @@ func _mount_place() -> void:
 	floor_host.add_child(_kit)
 	_kit.buy_trap_pressed.connect(func() -> void: ShopState.shared().buy("trap"))
 	_kit.use_shield.connect(func() -> void: ShopState.shared().buy("shield"))
+	# LES CASES DU KIT CHANGENT LE MODE DU PLATEAU (page.tsx : `startPlacing`,
+	# `startWalling`, `inspect`). Non branchees, la case cloture ouvrait sa
+	# carte et le plateau restait en pose de bombes : aucune planche a viser.
+	_kit.start_placing.connect(_switch_mode.bind("placing"))
+	_kit.start_walling.connect(_switch_mode.bind("walling"))
+	_kit.inspect.connect(_switch_mode.bind("inspect"))
+	# LA RANGEE SUIT L'ETAL : une bombe ou une planche posee passe par
+	# ShopState, qui relit le serveur — la carte du kit, elle, gardait sa
+	# lecture d'ouverture (« 3 available · 0 placed » apres trois planches).
+	# `_mount_place` repasse a chaque arrivee : on ne branche qu'une fois.
+	if not ShopState.shared().changed.is_connected(_feed_kit):
+		ShopState.shared().changed.connect(_feed_kit)
 
 	_back = preload("res://scenes/ui/back_button.tscn").instantiate()
 	floor_host.add_child(_back)
@@ -395,6 +410,31 @@ func _start_mode(mode: String) -> void:
 		burrow.call("set_walling", mode == "walling")
 
 
+## Donne a la rangee du kit ce que l'etal vient de relire. Une METHODE et
+## non une lambda : l'etal survit au chrome (voir `_wire_run`).
+func _feed_kit() -> void:
+	if _kit == null:
+		return
+	var shop := ShopState.shared()
+	if not shop.shop.is_empty():
+		_kit.state.adopt_shop(shop.shop)
+	if not shop.fences.is_empty():
+		_kit.state.adopt_fences(shop.fences)
+
+
+## CHANGER DE MODE SANS REFERMER LA RANGEE : c'est elle qui vient de le
+## demander, sa case est deja choisie. « inspect » suspend le plateau (ni pose
+## ni cloture) mais garde la rangee et le retour.
+func _switch_mode(mode: String) -> void:
+	if _kit == null or _mode.is_empty() or _mode == mode:
+		return
+	_mode = mode
+	var burrow := Screens.at(Screens.Place.BURROW)
+	if burrow != null and burrow.has_method("set_placing"):
+		burrow.call("set_placing", mode == "placing")
+		burrow.call("set_walling", mode == "walling")
+
+
 func _end_mode() -> void:
 	if _mode.is_empty():
 		return
@@ -478,6 +518,16 @@ func toast(text: String, refused: bool = false) -> void:
 		Sound.deny()
 	var note := Kit.caption(text, refused)
 	note.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	# UNE LEGENDE QUI SE REPLIE N'A PAS DE LARGEUR A ELLE : centree dans la
+	# bande, elle tombait a zero et cassait apres chaque lettre — le refus
+	# « No traps left » se lisait en colonne sur le Seeker (2026-09-23). Elle
+	# prend donc la largeur de son texte, bornee par la bande.
+	var words: Label = note.get_child(0)
+	var font := words.get_theme_font("font")
+	var font_size := words.get_theme_font_size("font_size")
+	var room := toasts.size.x - 36.0
+	var line := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+	words.custom_minimum_size.x = ceilf(minf(line + 1.0, maxf(room, 120.0)))
 	toasts.add_child(note)
 	var tween := create_tween()
 	tween.tween_interval(TOAST_SECONDS)

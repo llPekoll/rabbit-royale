@@ -47,6 +47,8 @@ var _traps: BurrowTraps
 var _scenery: IslandScenery
 ## Une pose ou un retrait en vol : une seconde tape attend la reponse.
 var _toggling := false
+## Les aretes dont la pose ou le retrait est en vol.
+var _fencing := {}
 
 ## LA DEFENSE EN DIRECT (page.tsx, « YOUR BURROW UNDER ATTACK »). Un raid sur
 ## CE terrier est pousse par la socket (RaidState `incoming`) ; tant qu'il
@@ -225,6 +227,47 @@ func _sync_traps() -> void:
 		return
 	_traps.sync(ShopState.shared().traps)
 	_hints.restyle()
+	_sync_fences()
+
+
+## LES PLANCHES DEBOUT, d'apres le serveur : les notres (/api/fences), ou, en
+## raid, celles du defenseur (`fenced`) — un mur se voit, c'est ce qui le
+## distingue d'un piege. Rien n'est dresse d'office : on part avec trois
+## planches dans le sac, a poser soi-meme.
+func _sync_fences() -> void:
+	if _fences == null:
+		return
+	if _in_raid:
+		var r: Dictionary = RaidState.current.raid
+		_fences.set_state(r.get("fenced", []) if r.get("fenced") is Array else [], [])
+		return
+	if not _own_ground():
+		_fences.set_state([], [])
+		return
+	var f: Dictionary = ShopState.shared().fences
+	_fences.set_state(f.get("placed", []) if f.get("placed") is Array else [],
+		f.get("offers", []) if f.get("offers") is Array else [])
+
+
+## UNE ARETE TAPEE en mode cloture : on dresse la planche, ou on retire celle
+## qui s'y tient (page.tsx `onFence`). Le serveur d'abord, jamais a
+## l'optimiste : la regle du portail est la sienne, et un refus revient en
+## mots (ShopState `noted`) plutot qu'en planche qui clignote.
+func _toggle_fence(seg: Dictionary) -> void:
+	if seg.is_empty():
+		return
+	var key := FenceView.key_of(seg)
+	if _fencing.has(key):
+		return
+	_fencing[key] = true
+	var shop := ShopState.shared()
+	var tile := int(seg["tile"])
+	var side := String(seg["side"])
+	if _fences.is_built(seg):
+		await shop.remove_fence(tile, side)
+	elif await shop.place_fence(tile, side):
+		Sound.play("step")
+	_fencing.erase(key)
 
 
 ## LE RAID SUBI A CHANGE — arrive, avance, saute, finit, disparait.
@@ -526,7 +569,8 @@ func show_ground(seed_value: String) -> void:
 	# pas un second tirage de la graine : elles viennent donc APRES le potager,
 	# et lisent les cases qu'il a gardees.
 	_fences.map = _terrain.map
-	_fences.build(_props.field)
+	_fences.build(_props.field, _terrain)
+	_sync_fences()
 
 	# LES LOSANGES SE MONTENT DANS LES BLOCS DU TERRAIN : ils viennent donc
 	# APRES lui, et ils meurent avec lui. C'est le piege n°31 du web —
@@ -759,6 +803,7 @@ func set_walling(on: bool) -> void:
 		return
 	_walling = on
 	_cam_moved_by_player = false
+	_fences.set_placing(on and not _in_raid)
 	_relabel_cycle()
 	frame_camera()
 
@@ -829,6 +874,8 @@ func _on_press(at: Vector2) -> void:
 	# souris, et qu'un doigt n'a pas.
 	if _hints_live():
 		_press_over(_cell_at(at))
+	elif _fences_live():
+		_fences.set_hovered(_fences.pick(_board_at(at)))
 
 
 ## LA CASE SOUS LE DOIGT, avant qu'il se leve : or sur une case libre, la
@@ -847,10 +894,14 @@ func _on_move(at: Vector2) -> void:
 		# n'arrivera pas.
 		if _hints_live():
 			_press_over(Vector2i(-1, -1))
+		elif _fences_live():
+			_fences.set_hovered({})
 	if not _did_drag:
 		# Toujours une tape en puissance : on suit la case sous le doigt.
 		if _hints_live():
 			_press_over(_cell_at(at))
+		elif _fences_live():
+			_fences.set_hovered(_fences.pick(_board_at(at)))
 		return
 	if not can_move_cam():
 		return
@@ -865,8 +916,15 @@ func _on_release(at: Vector2) -> void:
 	_pressing = false
 	if _hints_live():
 		_press_over(Vector2i(-1, -1))
+	elif _fences_live():
+		_fences.set_hovered({})
 	# PIEGE N°1 : un glissement qui se termine n'est pas une tape.
 	if _did_drag:
+		return
+	# LE MODE CLOTURE vise des ARETES, pas des cases : une tape y est une
+	# planche, jamais un pas du lapin.
+	if _fences_live():
+		_toggle_fence(_fences.pick(_board_at(at)))
 		return
 	# L'INTRUS D'ABORD : il se tient sur une case qui repond elle-meme.
 	if _defending and _hits_raider(at):
@@ -883,7 +941,17 @@ func _on_release(at: Vector2) -> void:
 ## L'ecran vers l'espace du terrain, puis la geometrie. C'est ICI que vit la
 ## transformation de la camera — `BurrowPick` n'a pas a la connaitre.
 func _cell_at(at: Vector2) -> Vector2i:
-	return BurrowPick.at(_terrain.map, (at - position) / scale.x)
+	return BurrowPick.at(_terrain.map, _board_at(at))
+
+
+## Un point de l'ecran dans le repere du plateau (celui des clotures).
+func _board_at(at: Vector2) -> Vector2:
+	return (at - position) / scale.x
+
+
+## Les cibles des clotures sont-elles allumees ? Chez soi, en mode cloture.
+func _fences_live() -> bool:
+	return _walling and not _in_raid and _own_ground()
 
 
 ## Les losanges sont-ils allumes ? Sans eux, rien a teindre.

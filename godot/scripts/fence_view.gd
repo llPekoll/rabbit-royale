@@ -67,24 +67,46 @@ const SIDES := ["NE", "SE", "SW", "NW"]
 const PLANK_BIAS := 5
 const PLANK_BEHIND := -5
 
+## LES CIBLES, dans la langue du plateau (FenceView.ts) : le losange bleu
+## des cases minables, pose sur la case de l'AUTRE cote de l'arete, et l'or
+## du survol. Une cloture n'a pas de couleur a elle — un cinquieme ton serait
+## un second vocabulaire pour dire « tape ici ».
+const OFFER_TINT := Color("#8fd6ff")
+const OFFER_ALPHA := 0.42
+const HOVER_TINT := Color("#ffd45c")
+const HOVER_ALPHA := 0.85
+
 var map: BurrowMap
+## Une entree par arete exposee : {seg, key, plank, mark, mid, at}. `mid` est
+## le milieu de l'arete, `at` le centre du losange — les deux dans le repere
+## du plateau, ou `pick` mesure.
+var _drawn: Array[Dictionary] = []
 var _planks: Array[Node2D] = []
+var _built := {}
+var _offered := {}
+var _hovered := ""
+var _placing := false
 
 
-## Pose les clotures d'apres le relief et le champ qu'on lui donne.
+static func key_of(seg: Dictionary) -> String:
+	return "%d:%s" % [int(seg.get("tile", -1)), String(seg.get("side", ""))]
+
+
+## Pose TOUTES les aretes du champ, invisibles : ce qui se voit est decide par
+## `set_state`, d'apres la liste du serveur. Le premier portage dressait ici
+## chaque planche d'office — un potager clos des la premiere partie, alors
+## que le joueur en a trois a poser lui-meme (Paul, 2026-09-23).
 ##
-## Le champ arrive du dehors — c'est BurrowProps qui choisit ou la maison se
-## pose et ou le potager s'etend, et les clotures ne sauraient pas le redeviner
-## sans refaire ce choix a l'identique. Deux tirages de la meme graine qui
-## divergent d'une case, et la cloture borde un champ qui n'est pas la.
-func build(field: Array[Vector2i]) -> void:
+## Le champ arrive du dehors — c'est le terrier du serveur (BurrowLayout) qui
+## le tient, et les clotures ne sauraient pas le redeviner sans refaire ce
+## choix a l'identique. Deux tirages de la meme graine qui divergent d'une
+## case, et la cloture borde un champ qui n'est pas la.
+func build(field: Array[Vector2i], terrain: BurrowTerrain = null) -> void:
 	clear()
 	if map == null or field.is_empty():
 		return
 
 	# LE CHAMP EN ENSEMBLE, pour demander « celle-la en est-elle ? » d'un coup.
-	# La liste suffirait a dix-neuf sur dix-neuf, mais la question est posee
-	# quatre fois par case et c'est la boucle qui decide de la forme du contour.
 	var occupied := {}
 	for cell in field:
 		occupied[cell] = true
@@ -98,18 +120,135 @@ func build(field: Array[Vector2i]) -> void:
 			var step: Vector2i = STEP[side]
 			if occupied.has(cell + step):
 				continue
-			_paint(cell, side)
+			var plank := _paint(cell, side)
+			plank.visible = false
+			var outer: Vector2i = cell + step
+			var mark := _paint_mark(outer, terrain)
+			var seg := {"tile": BurrowLayout.index(cell), "side": side}
+			var corner := _corners(side)
+			_drawn.append({
+				"seg": seg,
+				"key": key_of(seg),
+				"plank": plank,
+				"mark": mark,
+				"mid": _ground_of(cell) + _project((corner[0] + corner[1]) * 0.5),
+				"at": _ground_of(outer),
+			})
+	_restyle()
 
 
 func clear() -> void:
-	# Les noeuds et leur liste meurent ensemble — voir BurrowTerrain.clear.
+	# Les noeuds et leur liste meurent ensemble — voir BurrowTerrain.clear. Les
+	# losanges vivent dans les blocs du terrain : ils partent avec lui, mais
+	# la liste, elle, garderait des references mortes.
 	for plank in _planks:
 		plank.queue_free()
 	_planks.clear()
+	for d in _drawn:
+		var mark: Node2D = d["mark"]
+		if is_instance_valid(mark):
+			mark.queue_free()
+	_drawn.clear()
+	_hovered = ""
+
+
+## CE QUI TIENT DEBOUT, et ce qui peut encore se poser — les deux du serveur
+## (/api/fences `placed` et `offers`) : la regle du portail est la sienne.
+func set_state(built: Array, offered: Array) -> void:
+	_built.clear()
+	_offered.clear()
+	for seg in built:
+		if seg is Dictionary:
+			_built[key_of(seg)] = true
+	for seg in offered:
+		if seg is Dictionary:
+			_offered[key_of(seg)] = true
+	_restyle()
+
+
+func set_placing(on: bool) -> void:
+	if _placing == on:
+		return
+	_placing = on
+	if not on:
+		_hovered = ""
+	_restyle()
+
+
+func set_hovered(seg: Dictionary) -> void:
+	var key := key_of(seg) if not seg.is_empty() else ""
+	if key == _hovered:
+		return
+	_hovered = key
+	_restyle()
+
+
+func is_built(seg: Dictionary) -> bool:
+	return _built.has(key_of(seg))
+
+
+## L'ARETE SOUS UN POINT DU PLATEAU, ou {} — FenceView.ts `pick`.
+##
+## PAR LA DISTANCE, et non par la case : le losange d'une encoche est la case
+## d'en face de DEUX aretes, et une planche se tient entre deux cases. Le plus
+## proche du milieu de l'arete OU du centre de son losange gagne ; seules les
+## aretes qu'on peut toucher (offertes, ou debout pour les retirer) comptent.
+func pick(at: Vector2) -> Dictionary:
+	var best: Dictionary = {}
+	var best_score := Iso.half_w() * 0.9
+	var best_edge := INF
+	for d in _drawn:
+		var key: String = d["key"]
+		if not _offered.has(key) and not _built.has(key):
+			continue
+		var to_edge := at.distance_to(d["mid"])
+		var to_mark := at.distance_to(d["at"])
+		var score := minf(to_edge, to_mark)
+		if score < best_score or (score == best_score and to_edge < best_edge):
+			best_score = score
+			best_edge = to_edge
+			best = d["seg"]
+	return best.duplicate()
+
+
+func _restyle() -> void:
+	for d in _drawn:
+		var key: String = d["key"]
+		var plank: Node2D = d["plank"]
+		var mark: Node2D = d["mark"]
+		var built := _built.has(key)
+		var offered := _placing and _offered.has(key)
+		var hovered := _placing and key == _hovered and (offered or built)
+		plank.visible = built
+		# LA PLANCHE EN OR au survol : c'est « tape pour la retirer ».
+		plank.modulate = HOVER_TINT if built and hovered else Color.WHITE
+		var alpha := 0.0
+		if _placing and not built:
+			alpha = HOVER_ALPHA if hovered else (OFFER_ALPHA if offered else 0.0)
+		if is_instance_valid(mark):
+			var tint := HOVER_TINT if hovered else OFFER_TINT
+			mark.modulate = Color(tint, alpha)
+			mark.visible = alpha > 0.0
+
+
+## LE LOSANGE d'une arete, sur la case d'en face. Monte dans le bloc de sa
+## case comme ceux de la pose (placement_hints.gd) ; la mer n'a pas de bloc,
+## il se pose alors a plat, trie a sa profondeur.
+func _paint_mark(outer: Vector2i, terrain: BurrowTerrain) -> Sprite2D:
+	var mark := Sprite2D.new()
+	mark.texture = PlacementHints._diamond_texture()
+	mark.centered = true
+	mark.visible = false
+	if terrain != null and terrain.mount_veil(outer, mark):
+		return mark
+	mark.position = _ground_of(outer)
+	mark.z_index = Iso.depth(outer.x, outer.y) + 1
+	add_child(mark)
+	return mark
 
 
 ## UNE PLANCHE, sur une face d'une case.
-func _paint(cell: Vector2i, side: String) -> void:
+func _paint(cell: Vector2i, side: String) -> Sprite2D:
 	var corner := _corners(side)
 	var centre := _ground_of(cell)
 
@@ -155,6 +294,7 @@ func _paint(cell: Vector2i, side: String) -> void:
 		+ (PLANK_BEHIND if behind else PLANK_BIAS))
 	add_child(plank)
 	_planks.append(plank)
+	return plank
 
 
 ## LES DEUX PIEDS D'UNE ARETE, en offsets de demi-case depuis le centre.
