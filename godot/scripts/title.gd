@@ -419,7 +419,7 @@ func _enter() -> void:
 	var first := Island.tutorial_pending()
 	if first and Session.signed_in():
 		RunState.current.join(null)
-	Screens.show_place(Screens.Place.ISLAND if first else Screens.Place.BURROW)
+	Screens.push(Screens.Place.ISLAND if first else Screens.Place.BURROW)
 
 
 ## Un bouton qui ne peut pas marcher est grise, pas cache : sur un bureau

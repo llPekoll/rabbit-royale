@@ -568,9 +568,12 @@ func _pop(kind: String) -> void:
 func _press(kind: String, sig: Signal) -> void:
 	if _busy or _away:
 		return
-	# Ces trois-la sont LES actions, donc elles tressaillent (`wiggle`).
-	var slab: Slab = _slabs[kind]
-	slab.wiggle()
+	# Ces trois-la sont LES actions, donc elles tressaillent (`wiggle`) — sauf
+	# DIG, qui ne fait que s'enfoncer : il part en traversee, et un tressaillement
+	# par-dessus l'iris qui se ferme faisait un geste de trop (2026-09-23).
+	if kind != "dig":
+		var slab: Slab = _slabs[kind]
+		slab.wiggle()
 	sig.emit()
 
 

@@ -169,6 +169,105 @@ func show_place(id: Place) -> void:
 	changed.emit()
 
 
+## LA POUSSEE, de l'accueil au monde : le lieu entre par la droite et pousse
+## l'accueil hors du cadre par la gauche, avec un flou de bouge au milieu.
+##
+## L'ACCUEIL EST UNE PHOTO. La regle « une scene vivante » tient : on photographie
+## l'accueil, on le detruit, on construit le lieu, et c'est la photo qui sort.
+##
+## LE LIEU, LUI, GLISSE VIVANT. Il est fait de Node2D sur le canevas principal
+## ET de CanvasLayer (ciel, mer, chrome) qui ne suivent pas leur parent ; on
+## decale donc le canevas principal (`canvas_transform`, libre : aucune Camera2D
+## dans le jeu, les cameras bougent un conteneur) et l'`offset` de chaque calque.
+## Les calques sont relus a chaque image : un lieu qui en cree un pendant le
+## geste doit glisser avec le reste.
+##
+## `crossing` est leve pendant le geste : les entrees de l'ui attendent la fin
+## (`on_reveal`), l'ile retarde son panoramique, une tape n'en relance pas un.
+const PUSH_SECONDS := 0.6
+## Le flou au plus fort, a mi-course, en pixels de DESIGN : « leger ».
+const PUSH_BLUR_PX := 12.0
+const PUSH_LAYER := 90
+
+var _push_offsets: Dictionary = {}
+
+
+func push(id: Place) -> void:
+	if _in_world or crossing or _world_host == null:
+		show_place(id)
+		return
+	crossing = true
+	var view := get_viewport()
+	var size := view.get_visible_rect().size
+	# L'image DESSINEE, pas celle en cours : sans cette attente on lirait une
+	# image d'avance ou vide au tout premier affichage.
+	await RenderingServer.frame_post_draw
+	var shot := ImageTexture.create_from_image(view.get_texture().get_image())
+	var px_scale := float(view.get_texture().get_size().x) / size.x
+
+	var layer := CanvasLayer.new()
+	layer.layer = PUSH_LAYER
+	add_child(layer)
+	var photo := TextureRect.new()
+	photo.texture = shot
+	photo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	photo.stretch_mode = TextureRect.STRETCH_SCALE
+	photo.size = size
+	photo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(photo)
+
+	# Le flou est un calque AU-DESSUS de tout, fixe : il floute l'ecran entier
+	# (photo et lieu ensemble), et il prend le doigt pendant le geste.
+	var blur_layer := CanvasLayer.new()
+	blur_layer.layer = PUSH_LAYER + 1
+	add_child(blur_layer)
+	var blur := ColorRect.new()
+	blur.size = size
+	blur.mouse_filter = Control.MOUSE_FILTER_STOP
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/push_blur.gdshader")
+	blur.material = mat
+	blur_layer.add_child(blur)
+
+	show_place(id)
+	_push_offsets.clear()
+	_push_step(0.0, size.x, photo, mat, px_scale)
+
+	var tween := create_tween()
+	tween.tween_method(func(t: float) -> void:
+		_push_step(t, size.x, photo, mat, px_scale), 0.0, 1.0, PUSH_SECONDS) \
+		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	await tween.finished
+
+	_push_step(1.0, size.x, photo, mat, px_scale)
+	_push_offsets.clear()
+	layer.queue_free()
+	blur_layer.queue_free()
+	crossing = false
+	revealed.emit()
+	changed.emit()
+
+
+## `t` de 0 (le lieu hors cadre a droite) a 1 (le lieu en place).
+func _push_step(t: float, width: float, photo: Control, mat: ShaderMaterial, px_scale: float) -> void:
+	var dx := roundf((1.0 - t) * width)
+	get_viewport().canvas_transform = Transform2D(0.0, Vector2(dx, 0.0))
+	var layers: Array[Node] = []
+	if _world_host != null:
+		layers.append_array(_world_host.find_children("*", "CanvasLayer", true, false))
+	if _chrome_host != null:
+		if _chrome_host.get_parent() is CanvasLayer:
+			layers.append(_chrome_host.get_parent())
+		layers.append_array(_chrome_host.find_children("*", "CanvasLayer", true, false))
+	for node in layers:
+		var cl := node as CanvasLayer
+		if not _push_offsets.has(cl):
+			_push_offsets[cl] = cl.offset
+		cl.offset = _push_offsets[cl] + Vector2(dx, 0.0)
+	photo.position.x = dx - width
+	mat.set_shader_parameter("radius_px", sin(t * PI) * PUSH_BLUR_PX * px_scale)
+
+
 ## LE RIDEAU, pose par la racine s'il y en a un. Facultatif : « The change
 ## always happens; the flourish is what is optional. »
 var _wipe: Wipe = null
