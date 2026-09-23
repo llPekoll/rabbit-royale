@@ -58,6 +58,13 @@ func _ready() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--only="):
 			_only(arg.trim_prefix("--only="))
+			# `--bought=<kind>` : la fete d'un achat sur cette carte, une seconde
+			# apres l'ouverture (a capturer avec `--after=1.1`). Rien n'est
+			# achete : seul le signal part.
+			for other in OS.get_cmdline_user_args():
+				if other.begins_with("--bought="):
+					var kind := other.trim_prefix("--bought=")
+					get_tree().create_timer(1.0).timeout.connect(func() -> void: state.bought.emit(kind, 1))
 			DevShot.arm(self)
 			return
 

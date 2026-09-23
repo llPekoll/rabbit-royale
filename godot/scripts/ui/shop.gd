@@ -36,23 +36,39 @@ extends Dialog
 ## Le rail choisi a change (pour l'energie, qui doit tarifer sur le meme).
 signal rail_changed(rail: String)
 
-## LA CARTE (stall-card.tsx `CARD`) : 136 x 164, l'art a 62, et 22 + 18 de
-## debord pour l'enseigne au-dessus et le prix en dessous.
+## LA CARTE (stall-card.tsx `CARD`) : 136 de large, l'art a 62, et 22 + 18
+## de debord pour l'enseigne au-dessus et le prix en dessous. Toutes ces
+## mesures sont celles du Seeker ; ailleurs elles sont multipliees par `_k`,
+## la part de hauteur que l'etagere a en plus.
 const CARD_W := 136.0
-const CARD_H := 164.0
+## Le corps : le nom, l'art dans son halo, la phrase qui dit ce que la chose
+## FAIT, le prix. 164 ne portait que l'art : un etal qui ne dit pas a quoi
+## sert ce qu'il vend demande au joueur de deviner avant de payer.
+const CARD_H := 214.0
 const CARD_ART := 62.0
-## Les sortes que l'etal du web dessine en emoji (item-meta.ts `icon`).
-const STALL_EMOJI := {"trap": "🪤", "smoke": "🌫️", "mirage": "🌀"}
+## Le creux lumineux ou l'art flotte, et le haut du corps qu'il laisse au nom.
+const ART_ZONE := 86.0
+const ART_TOP := 22.0
+## La phrase : du 10px, moins si elle ne tient pas (voir `_card`).
+const BLURB_SIZE := 10
+## Les sortes que l'etal du web dessine en emoji (item-meta.ts `icon`). La
+## fumee prend la bouffee, pas le brouillard : 🌫️ sort en carre gris flou.
+const STALL_EMOJI := {"trap": "🪤", "smoke": "💨", "mirage": "🌀"}
 const CARD_OVER_TOP := 22.0
 const CARD_OVER_BOTTOM := 18.0
 ## L'ecart entre deux cartes (`.rr-stall-shelf gap`), et l'air du bout.
 const CARD_GAP := 14.0
 const SHELF_PAD := 6.0
+## Ce qu'une carte grandit au plus sur un grand ecran, par pas d'un quart
+## pour que les tailles de texte restent entieres.
+const SCALE_MAX := 1.75
+## Ce que l'enseigne SHOP descend dans la baie : une carte qui grandit ne
+## monte pas jusqu'a elle.
+const SIGN_CLEAR := 20.0
 ## Le bouton du prix : 40 de haut. Le web le fait au contenu, min(width - 24,
 ## 120) au moins ; la planche doree porte 30px de feuilles a chaque bout, donc
 ## elle prend toute la largeur de la carte pour garder 60px de face au prix.
 const BUY_H := 40.0
-const BUY_W := CARD_W
 ## Le prix en 12px (`priceText`), chiffres tabulaires.
 const PRICE_SIZE := 12
 ## L'enseigne SHOP : une planche a 1,5x, 200 de large, suspendue au-dessus du
@@ -110,6 +126,12 @@ var _shelf: ScrollContainer
 var _row: HBoxContainer
 var _track: Control
 var _foot: Label
+var _bay: Control
+var _lamp: TextureRect
+## L'echelle des cartes (1 au Seeker), et si l'entree a deja ete jouee : les
+## cartes tombent sur l'etagere a l'ouverture, pas a chaque achat.
+var _k := 1.0
+var _entered := false
 
 
 func _init() -> void:
@@ -137,6 +159,7 @@ func _ready() -> void:
 	Home.changed.connect(_rebuild)
 	I18N.locale_changed.connect(func(_code: String) -> void: _rebuild())
 	_pay.changed.connect(_rebuild)
+	_state.bought.connect(_celebrate)
 	# La fermeture efface le mot du moment, comme `onClose` du web.
 	closed.connect(func() -> void:
 		_state.clear_note()
@@ -218,17 +241,22 @@ func _build() -> void:
 	# bord d'une sixieme carte au Seeker. Dans une boite SANS minimum, posee a
 	# la main : un minimum de largeur empecherait le dialogue de retrecir.
 	var bay := Control.new()
+	_bay = bay
 	bay.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	bay.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bay.mouse_filter = Control.MOUSE_FILTER_PASS
 	column.add_child(bay)
+	# UNE LAMPE SUR L'ETAL : une flaque doree douce derriere les cartes, pour
+	# qu'elles soient posees dans la lumiere plutot que sur un fond uni.
+	var lamp := TextureRect.new()
+	_lamp = lamp
+	lamp.texture = _glow_texture(Palette.GOLD, 0.45)
+	lamp.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	lamp.stretch_mode = TextureRect.STRETCH_SCALE
+	lamp.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bay.add_child(lamp)
 	bay.add_child(_shelf)
-	bay.resized.connect(func() -> void:
-		var room := bay.size.x
-		var n := maxi(1, int(floor((room - 2.0 * SHELF_PAD + CARD_GAP) / (CARD_W + CARD_GAP))))
-		var fit := minf(room, n * CARD_W + (n - 1) * CARD_GAP + 2.0 * SHELF_PAD)
-		_shelf.position = Vector2(floor((room - fit) * 0.5), 0.0)
-		_shelf.size = Vector2(fit, bay.size.y))
+	bay.resized.connect(_fit_bay)
 	var pad := Kit.margin(SHELF_PAD, 0, SHELF_PAD, 0)
 	pad.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_shelf.add_child(pad)
@@ -260,6 +288,31 @@ func _build() -> void:
 	column.add_child(_foot)
 
 
+## L'ETAGERE A LA TAILLE DE SA BAIE. La carte grandit avec la hauteur qu'on
+## lui laisse — un ecran de bureau montrait cinq timbres au milieu d'un grand
+## vide —, et l'etagere se centre a la largeur d'un nombre entier de cartes.
+func _fit_bay() -> void:
+	if _row == null:
+		return
+	var k := clampf(floorf((_bay.size.y - 2.0 * SIGN_CLEAR) / _card_total(1.0) * 4.0) / 4.0, 1.0, SCALE_MAX)
+	if k != _k:
+		_k = k
+		_row.add_theme_constant_override("separation", int(CARD_GAP * k))
+		_rebuild.call_deferred()
+		return
+	var room := _bay.size.x
+	var cw := CARD_W * k
+	var gap := CARD_GAP * k
+	var n := maxi(1, int(floorf((room - 2.0 * SHELF_PAD + gap) / (cw + gap))))
+	var fit := minf(room, n * cw + (n - 1) * gap + 2.0 * SHELF_PAD)
+	_shelf.position = Vector2(floorf((room - fit) * 0.5), 0.0)
+	_shelf.get_child(0).reset_size()
+	_shelf.reset_size()
+	_shelf.size = Vector2(fit, _bay.size.y)
+	_lamp.size = Vector2(minf(room, fit * 1.1), _bay.size.y * 1.1)
+	_lamp.position = Vector2(floorf((room - _lamp.size.x) * 0.5), floorf(-_bay.size.y * 0.05))
+
+
 ## LE DIALOGUE MESURE SON CONTENU : le cadre de Dialog est ancre, pas
 ## mesure, et un dialogue sans hauteur donnee s'ecrasait a zero dans un
 ## conteneur (le banc) comme sous le chrome.
@@ -274,7 +327,7 @@ func _place_sign() -> void:
 	# SUR le rail haut, a SIGN_LIFT au-dessus, pas plus : sur un ecran de 400px le
 	# dialogue prend toute la hauteur, et une enseigne posee au-dessus du
 	# cadre sortait de l'ecran. Le web la pend au rail (`.rr-stall-sign`).
-	var at := Vector2(floor((size.x - SIGN_W) * 0.5), -SIGN_LIFT)
+	var at := Vector2(floorf((size.x - SIGN_W) * 0.5), -SIGN_LIFT)
 	if fullscreen:
 		# Plus de rail a quoi la pendre : au-dessus de la vue, elle sortirait
 		# de l'ecran. Elle se pose dans la ligne de tete, entre les rails et
@@ -307,9 +360,19 @@ func _rebuild() -> void:
 	for old in _row.get_children():
 		_row.remove_child(old)
 		old.queue_free()
-	for it in _state.shelf_order():
-		_row.add_child(_card(it, tokens))
-	(func() -> void: _shelf.scroll_horizontal = keep).call_deferred()
+	var order := _state.shelf_order()
+	for i in order.size():
+		_row.add_child(_card(order[i], tokens, i == 0))
+	if not _entered and not order.is_empty():
+		_entered = true
+		_enter()
+	# L'etagere se remesure sur ses nouvelles cartes : un ScrollContainer ne
+	# descend pas sous la hauteur de son contenu, et apres un changement
+	# d'echelle il gardait celle des anciennes — les cartes se centraient
+	# trop bas, sous la barre.
+	(func() -> void:
+		_fit_bay()
+		_shelf.scroll_horizontal = keep).call_deferred()
 
 	_rebuild_foot(tokens)
 	_track.queue_redraw()
@@ -438,76 +501,127 @@ func _rebuild_foot(tokens: Array) -> void:
 # ── Une carte ────────────────────────────────────────────────────────────────
 
 ## UNE CARTE : le nom sur une planche pendue au bord haut, le compte sur une
-## pastille au coin, l'art comme tout le milieu, et le prix — qui EST le
-## bouton — pendu au bord bas. Les debords sont ce qui la fait lire comme un
-## objet pose sur l'etagere plutot qu'une boite dessinee dessus.
-func _card(it: Dictionary, tokens: Array) -> Control:
+## pastille au coin, l'art qui flotte dans un halo de sa couleur, une phrase
+## qui dit ce qu'il fait, et le prix — qui EST le bouton — pendu au bord bas.
+## Les debords sont ce qui la fait lire comme un objet pose sur l'etagere
+## plutot qu'une boite dessinee dessus. `lead` est la premiere carte (la
+## recharge d'energie) : elle porte le cadre dore et les rayons.
+func _card(it: Dictionary, tokens: Array, lead: bool) -> Control:
+	var k := _k
 	var kind := String(it.get("kind", ""))
 	var item_name := I18N.t("items.%s.name" % kind)
 	var full := not bool(it.get("hasRoom", true))
 	var money := _rail != "carrots" and not tokens.is_empty()
 	var tint: Color = ShopState.TINT.get(kind, Palette.PLANK)
+	var w := floorf(CARD_W * k)
+	var h := floorf(CARD_H * k)
+	var over_top := floorf(CARD_OVER_TOP * k)
 
 	var card := Control.new()
-	card.custom_minimum_size = Vector2(CARD_W, CARD_OVER_TOP + CARD_H + CARD_OVER_BOTTOM)
+	card.custom_minimum_size = Vector2(w, _card_total(k))
 	card.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.set_meta("kind", kind)
+	# Tout ce qui se voit est dans `lift`, que le survol souleve et que
+	# l'entree fait tomber : la carte elle-meme appartient a la rangee, qui
+	# reecrit sa position.
+	var lift := Control.new()
+	lift.size = card.custom_minimum_size
+	lift.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(lift)
+	card.set_meta("lift", lift)
 	# Plus rien a acheter : la carte recule au lieu de crier un prix.
 	if full:
-		card.modulate.a = 0.7
+		lift.modulate.a = 0.7
 
-	# Le corps : la terre dans la teinte de l'objet (35 % de teinte sur la
-	# terre en haut, 20 % sur la terre profonde en bas — une seule teinte
-	# ici, le milieu du degrade), le bord d'une planche eclairee, l'ourlet
-	# de terre profonde.
+	# Le corps : la terre dans la teinte de l'objet, le bord d'une planche
+	# eclairee — ou d'or pour la carte de tete —, l'ourlet de terre profonde.
 	var body_style := StyleBoxFlat.new()
 	body_style.bg_color = tint.lerp(Palette.SOIL, 0.65).lerp(tint.lerp(Palette.SOIL_DEEP, 0.8), 0.5)
-	body_style.set_border_width_all(3)
-	body_style.border_color = Palette.WELL_FACE
-	body_style.set_corner_radius_all(14)
+	body_style.set_border_width_all(int(3 * k))
+	body_style.border_color = Palette.GOLD if lead else Palette.WELL_FACE
+	body_style.set_corner_radius_all(int(14 * k))
 	body_style.shadow_color = Palette.SOIL_DEEP
 	body_style.shadow_size = 2
 	body_style.set_content_margin_all(0)
 	var body_panel := Kit.panel(body_style)
-	body_panel.position = Vector2(0, CARD_OVER_TOP)
-	body_panel.size = Vector2(CARD_W, CARD_H)
-	body_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	card.add_child(body_panel)
+	body_panel.position = Vector2(0, over_top)
+	body_panel.size = Vector2(w, h)
+	body_panel.mouse_filter = Control.MOUSE_FILTER_PASS
+	# Le halo et les rayons restent dans les coins arrondis du corps.
+	body_panel.clip_children = CanvasItem.CLIP_CHILDREN_AND_DRAW
+	lift.add_child(body_panel)
+	var inside := Control.new()
+	inside.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	body_panel.add_child(inside)
 
-	# L'ART, tout le milieu, rien a cote. Les sortes sans sprite tombaient sur
-	# un emoji ; la face pixel n'en a pas, donc l'initiale du nom dans la
-	# teinte de l'objet — et ca se voit : ces sortes veulent un dessin.
-	var middle := Kit.margin(8, 26, 8, 22)
-	middle.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	body_panel.add_child(middle)
-	var centre := CenterContainer.new()
-	centre.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	middle.add_child(centre)
-	if STALL_EMOJI.has(kind):
-		# Sans sprite, l'etal du web montre l'emoji de la sorte
-		# (stall-card.tsx `meta.icon`) — une vraie boite-piege, pas la bombe
-		# eteinte que la rangee du kit porte.
-		centre.add_child(Kit.emoji(STALL_EMOJI[kind], int(CARD_ART * 0.8)))
-	elif ShopState.ART.has(kind):
-		var art_shadow := Kit.icon(ShopState.ART[kind], CARD_ART)
-		art_shadow.modulate = Color(0, 0, 0, 0.35)
-		var stack := Control.new()
-		stack.custom_minimum_size = art_shadow.custom_minimum_size
-		stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		art_shadow.position = Vector2(0, 6)
-		stack.add_child(art_shadow)
-		stack.add_child(Kit.icon(ShopState.ART[kind], CARD_ART))
-		centre.add_child(stack)
-	else:
-		var glyph := Kit.label(item_name.substr(0, 1).to_upper(), int(CARD_ART * 0.8), tint.lightened(0.45), true)
-		centre.add_child(glyph)
+	# L'ART, dans son creux lumineux : un halo de la couleur de l'objet, et
+	# pour la carte de tete des rayons qui tournent lentement derriere. Le
+	# tout est une scene (`stage`) que la phrase peut pousser et reduire.
+	var zone := floorf(ART_ZONE * k)
+	var stage := Control.new()
+	stage.size = Vector2(zone, zone)
+	stage.pivot_offset = stage.size * 0.5
+	stage.position = Vector2(floorf((w - zone) * 0.5), floorf(ART_TOP * k))
+	stage.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	inside.add_child(stage)
+	var centre := stage.size * 0.5
+	if lead:
+		var rays := _rays(Palette.GOLD, floorf(zone * 1.9))
+		rays.position = centre - rays.size * 0.5
+		stage.add_child(rays)
+	var glow := TextureRect.new()
+	glow.texture = _glow_texture(tint.lightened(0.35), 0.75)
+	glow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	glow.stretch_mode = TextureRect.STRETCH_SCALE
+	glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	glow.size = Vector2(zone, zone) * 1.35
+	glow.position = centre - glow.size * 0.5
+	stage.add_child(glow)
+
+	var art := _art(kind, item_name, tint, floorf(CARD_ART * k))
+	art.position = (centre - art.custom_minimum_size * 0.5).floor()
+	art.pivot_offset = art.custom_minimum_size * 0.5
+	stage.add_child(art)
+	card.set_meta("art", art)
+	# Il flotte : trois pixels, chaque carte a son temps, pour que l'etal
+	# respire sans marcher au pas.
+	var rest := art.position.y
+	var bob := art.create_tween().set_loops()
+	bob.tween_interval(float(kind.hash() & 0xff) / 255.0 * 0.8)
+	bob.tween_property(art, "position:y", rest - 3.0 * k, 0.9).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	bob.tween_property(art, "position:y", rest, 0.9).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+	# CE QU'IL FAIT, en une phrase (items.<kind>.blurb), posee sur le prix.
+	# L'apostrophe courbe n'est pas dans la face pixel : « rival’s » sortait
+	# « rivals ».
+	var art_top := floorf(ART_TOP * k)
+	var blurb_bottom := h - floorf((BUY_H - CARD_OVER_BOTTOM + 4.0) * k)
+	var blurb := Kit.label(I18N.t("items.%s.blurb" % kind).replace("’", "'"), int(round(BLURB_SIZE * k)), Palette.CHALK, true)
+	blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	blurb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	blurb.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	blurb.position = Vector2(floorf(9.0 * k), art_top)
+	blurb.size = Vector2(w - floorf(18.0 * k), blurb_bottom - art_top)
+	inside.add_child(blurb)
+	# LA PHRASE D'ABORD, L'ART DANS CE QUI RESTE : elle se lit entiere, et
+	# l'objet se centre au-dessus — et rapetisse s'il le faut. Un nombre de
+	# lignes fixe coupait le francais a trois (Fusion a un interligne plus
+	# haut que la face anglaise), et couper « ce que ca fait » au milieu est
+	# pire qu'un dessin un peu plus petit.
+	(func() -> void:
+		var text_h := float(blurb.get_line_count() * blurb.get_line_height())
+		var room := blurb_bottom - text_h - floorf(4.0 * k) - art_top
+		stage.scale = Vector2.ONE * clampf(room / zone, 0.6, 1.0)
+		stage.position.y = floorf(art_top + (room - zone) * 0.5)).call_deferred()
 
 	# LE NOM, sur une planche pendue au bord haut.
 	var name_sign := Kit.plank("wood")
-	name_sign.size = Vector2(minf(CARD_W - 4.0, 140.0), 38.0)
-	name_sign.position = Vector2(floor((CARD_W - name_sign.size.x) * 0.5), CARD_OVER_TOP - 19.0)
-	card.add_child(name_sign)
-	var sign_text := Kit.label(I18N.shout(item_name), _fit(I18N.shout(item_name), 11, name_sign.size.x - 2.0 * LEAF_END), Palette.CREAM, true)
+	name_sign.size = Vector2(w - 4.0, floorf(38.0 * k))
+	name_sign.position = Vector2(2.0, over_top - floorf(19.0 * k))
+	lift.add_child(name_sign)
+	var shout := I18N.shout(item_name)
+	var sign_text := Kit.label(shout, _fit(shout, int(round(11 * k)), name_sign.size.x - 2.0 * LEAF_END * k), Palette.CREAM, true)
 	sign_text.uppercase = I18N.pixel_face()
 	sign_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sign_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -515,19 +629,26 @@ func _card(it: Dictionary, tokens: Array) -> Control:
 	Kit.fill(sign_text)
 	name_sign.add_child(sign_text)
 
-	# LE COMPTE TENU, au coin, comme le 13/50 de la reference. Trois choses
-	# differentes a dire (ShopState.held_label).
+	# LE COMPTE TENU, au coin, comme le 13/50 de la reference. Une pastille
+	# sombre et calme, pas le rouge d'une alerte : avoir 3 pieges n'est pas
+	# une mauvaise nouvelle. Doree quand l'etagere est pleine.
 	var held := ShopState.held_label(kind, int(it.get("held", 0)), int(it.get("cap", 0)))
-	var badge := Kit.badge(20)
-	var held_text := Kit.label(held, 10, Palette.CREAM, true)
+	var held_size := int(round(10 * k))
+	var chip_style := StyleBoxFlat.new()
+	chip_style.bg_color = Palette.TAB_ON_BOTTOM if full else Palette.BADGE_BOTTOM
+	chip_style.border_color = Palette.TAB_ON_TOP if full else Palette.BADGE_RIM
+	chip_style.set_border_width_all(2)
+	chip_style.set_corner_radius_all(int(5 * k))
+	chip_style.set_content_margin_all(0)
+	var chip := Kit.panel(chip_style)
+	var held_text := Kit.label(held, held_size, Palette.INK if full else Palette.BADGE_INK, not full)
 	held_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	held_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	var held_w := _face().get_string_size(held, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x + 16.0
-	badge.size = Vector2(maxf(28.0, held_w), 20.0)
-	badge.position = Vector2(CARD_W - badge.size.x + 6.0, CARD_OVER_TOP + 14.0)
-	Kit.fill(held_text)
-	badge.add_child(held_text)
-	card.add_child(badge)
+	chip.add_child(held_text)
+	var held_w := _face().get_string_size(held, HORIZONTAL_ALIGNMENT_LEFT, -1, held_size).x + 12.0 * k
+	chip.size = Vector2(maxf(26.0 * k, held_w), floorf(18.0 * k))
+	chip.position = Vector2(w - chip.size.x - floorf(7.0 * k), over_top + floorf(24.0 * k))
+	lift.add_child(chip)
 
 	# LE BOUTON UNIQUE : le prix EST le bouton, la ou un pouce tombe. L'or
 	# lampe pour les carottes (CARROT_BTN), le bois eteint quand on ne peut
@@ -538,14 +659,15 @@ func _card(it: Dictionary, tokens: Array) -> Control:
 	var dead := _state.busy or _pay.stage != UsdcPay.Stage.IDLE or (full if money else not can_buy)
 	var tone := "blue" if money else ("wood" if dead else "gold")
 	var label := _money_label(float(it.get("usdc", 0.0))) if money else I18N.group_digits(int(it.get("price", 0)))
-	var buy := Kit.button(label + ("" if money else "  "), tone, BUY_W, BUY_H)
-	buy.label_size = PRICE_SIZE
+	var buy_size := Vector2(w, floorf(BUY_H * k))
+	var buy := Kit.button(label + ("" if money else "  "), tone, buy_size.x, buy_size.y)
+	buy.label_size = int(round(PRICE_SIZE * k))
 	buy.disabled = dead
-	buy.position = Vector2(floor((CARD_W - BUY_W) * 0.5), CARD_OVER_TOP + CARD_H - BUY_H + CARD_OVER_BOTTOM)
+	buy.position = Vector2(0.0, over_top + h - buy_size.y + floorf(CARD_OVER_BOTTOM * k))
 	# La taille APRES l'entree dans l'arbre : avant `_ready`, le Button mesure
 	# encore son libelle a la taille du theme, et une taille posee la est
 	# remontee a ce minimum-la — puis reste, quand le minimum retombe.
-	buy.set_deferred("size", Vector2(BUY_W, BUY_H))
+	buy.set_deferred("size", buy_size)
 	# Ce que le prix en carottes veut dire, en une phrase, en info-bulle :
 	# une etagere pleine est une affaire finie, une bourse courte une raison
 	# d'aller creuser.
@@ -559,7 +681,7 @@ func _card(it: Dictionary, tokens: Array) -> Control:
 	else:
 		buy.tooltip_text = I18N.f("shop.tooPoor", [item_name, carrot_price])
 	if not money:
-		_carrot_on(buy, 12)
+		_carrot_on(buy, round(12 * k))
 	buy.pressed.connect(func() -> void:
 		# Le clic qui suit un glissement n'achete rien (stall-drag.ts).
 		if _drag.click():
@@ -568,8 +690,144 @@ func _card(it: Dictionary, tokens: Array) -> Control:
 			_pay_money(kind)
 		else:
 			_state.buy(kind))
-	card.add_child(buy)
+	lift.add_child(buy)
+
+	# LE SURVOL SOULEVE LA CARTE (a la souris ; au doigt il n'y a pas de
+	# survol, et rien ne manque). Le corps et le bouton sont freres : quitter
+	# l'un pour l'autre n'est pas quitter la carte, d'ou la relecture differee.
+	for part: Control in [body_panel, buy]:
+		part.mouse_entered.connect(_hover.bind(card, true))
+		part.mouse_exited.connect(func() -> void: _hover.call_deferred(card, false))
 	return card
+
+
+## La hauteur d'une carte, debords compris, a l'echelle `k`.
+static func _card_total(k: float) -> float:
+	return floorf(CARD_OVER_TOP * k) + floorf(CARD_H * k) + floorf(CARD_OVER_BOTTOM * k)
+
+
+## L'ART D'UNE SORTE, dans une boite a sa taille : le sprite avec son ombre
+## portee, l'emoji des sortes sans sprite, ou l'initiale — et ca se voit :
+## ces sortes veulent un dessin.
+func _art(kind: String, item_name: String, tint: Color, px: float) -> Control:
+	var box := Control.new()
+	box.custom_minimum_size = Vector2(px, px)
+	box.size = box.custom_minimum_size
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var centre := CenterContainer.new()
+	centre.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	Kit.fill(centre)
+	box.add_child(centre)
+	if STALL_EMOJI.has(kind):
+		centre.add_child(Kit.emoji(STALL_EMOJI[kind], int(px * 0.8)))
+	elif ShopState.ART.has(kind):
+		var art_shadow := Kit.icon(ShopState.ART[kind], px)
+		art_shadow.modulate = Color(0, 0, 0, 0.35)
+		var stack := Control.new()
+		stack.custom_minimum_size = art_shadow.custom_minimum_size
+		stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		art_shadow.position = Vector2(0, 6)
+		stack.add_child(art_shadow)
+		stack.add_child(Kit.icon(ShopState.ART[kind], px))
+		centre.add_child(stack)
+	else:
+		centre.add_child(Kit.label(item_name.substr(0, 1).to_upper(), int(px * 0.8), tint.lightened(0.45), true))
+	return box
+
+
+## UNE FLAQUE DE LUMIERE : un disque radial, plein au centre, nul au bord.
+static func _glow_texture(color: Color, strength: float) -> GradientTexture2D:
+	var ramp := Gradient.new()
+	ramp.set_color(0, Color(color, strength))
+	ramp.set_color(1, Color(color, 0.0))
+	ramp.add_point(0.45, Color(color, strength * 0.4))
+	var tex := GradientTexture2D.new()
+	tex.gradient = ramp
+	tex.fill = GradientTexture2D.FILL_RADIAL
+	tex.fill_from = Vector2(0.5, 0.5)
+	tex.fill_to = Vector2(1.0, 0.5)
+	tex.width = 64
+	tex.height = 64
+	return tex
+
+
+## LES RAYONS de la carte de tete : douze pointes dorees qui tournent en
+## trente secondes, assez lent pour qu'on les sente plus qu'on ne les voie.
+static func _rays(color: Color, side: float) -> Control:
+	var rays := Control.new()
+	rays.size = Vector2(side, side)
+	rays.pivot_offset = rays.size * 0.5
+	rays.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rays.draw.connect(func() -> void:
+		var c := rays.size * 0.5
+		var r := side * 0.5
+		var n := 12
+		for i in n:
+			var a := TAU * float(i) / float(n)
+			var half := TAU / float(n) * 0.22
+			rays.draw_colored_polygon(PackedVector2Array([
+				c, c + Vector2.from_angle(a - half) * r, c + Vector2.from_angle(a + half) * r,
+			]), Color(color, 0.22)))
+	var spin := rays.create_tween().set_loops()
+	spin.tween_property(rays, "rotation", TAU, 30.0).from(0.0)
+	return rays
+
+
+## SOULEVER ou reposer une carte au survol.
+func _hover(card: Control, on: bool) -> void:
+	if not is_instance_valid(card) or not card.has_meta("lift"):
+		return
+	var lift: Control = card.get_meta("lift")
+	if not on and Rect2(Vector2.ZERO, lift.size).has_point(lift.get_local_mouse_position()):
+		return
+	var tween := lift.create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(lift, "position:y", -6.0 * _k if on else 0.0, 0.16)
+
+
+## L'ENTREE : les cartes tombent sur l'etagere l'une apres l'autre, en un
+## tiers de seconde en tout — assez pour qu'on voie l'etal se remplir, pas
+## assez pour qu'on attende pour acheter.
+func _enter() -> void:
+	var i := 0
+	for card in _row.get_children():
+		var lift: Control = card.get_meta("lift")
+		var alpha := lift.modulate.a
+		lift.position.y = -18.0 * _k
+		lift.modulate.a = 0.0
+		var tween := lift.create_tween().set_parallel()
+		tween.tween_property(lift, "position:y", 0.0, 0.32).set_delay(0.045 * i) \
+			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		tween.tween_property(lift, "modulate:a", alpha, 0.18).set_delay(0.045 * i)
+		i += 1
+
+
+## UN ACHAT SE FETE sur la carte achetee : l'art saute et une gerbe
+## d'eclats dores part de lui. Le recu en mots est deja au pied et en
+## pastille ; ceci est ce que le pouce sent.
+func _celebrate(kind: String, _qty: int) -> void:
+	for card in _row.get_children():
+		if card.get_meta("kind", "") != kind:
+			continue
+		var art: Control = card.get_meta("art")
+		var pop := art.create_tween()
+		pop.tween_property(art, "scale", Vector2(1.3, 1.3), 0.09).set_ease(Tween.EASE_OUT)
+		pop.tween_property(art, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
+		var lift: Control = card.get_meta("lift")
+		var from := art.position + art.size * 0.5 + Vector2(0, floorf(CARD_OVER_TOP * _k))
+		for i in 12:
+			var spark := ColorRect.new()
+			var s := 4.0 if i % 3 else 6.0
+			spark.size = Vector2(s, s) * _k
+			spark.color = Palette.GOLD if i % 2 else Palette.CREAM
+			spark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			spark.position = from - spark.size * 0.5
+			lift.add_child(spark)
+			var to := from + Vector2.from_angle(TAU * i / 12.0 + randf() * 0.3) * (40.0 + randf() * 22.0) * _k
+			var fly := spark.create_tween().set_parallel()
+			fly.tween_property(spark, "position", to - spark.size * 0.5, 0.45).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+			fly.tween_property(spark, "modulate:a", 0.0, 0.45).set_delay(0.12)
+			fly.chain().tween_callback(spark.queue_free)
+		return
 
 
 ## LA FACE AFFICHEE, celle que I18N pose sur le theme du projet. Un
@@ -601,7 +859,7 @@ func _carrot_on(button: PlankButton, px: float) -> void:
 		var font := ink.get_theme_font("font")
 		var fs := ink.get_theme_font_size("font_size")
 		var w := font.get_string_size(ink.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-		icon.position = Vector2(floor(ink.size.x * 0.5 + w * 0.5 - icon.custom_minimum_size.x), floor((ink.size.y - px) * 0.5))
+		icon.position = Vector2(floorf(ink.size.x * 0.5 + w * 0.5 - icon.custom_minimum_size.x), floorf((ink.size.y - px) * 0.5))
 	button.resized.connect(place)
 	place.call_deferred()
 
