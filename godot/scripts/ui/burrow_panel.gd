@@ -24,14 +24,6 @@ extends HubCard
 ## carotte, et « BURROW - LVL 1 · 500 🥕 » se lisait comme les carottes du
 ## terrier (Paul, 2026-09-21 : « the carrot icon there is misleading »).
 
-## L'echelle des maisons (game/burrow/buildings.ts) : une hutte, deux
-## maisons, le chateau ; du niveau 4 au 20, le chateau.
-const HOMES := [
-	preload("res://assets/buildings/house-1.webp"),
-	preload("res://assets/buildings/house-2.webp"),
-	preload("res://assets/buildings/house-3.webp"),
-	preload("res://assets/buildings/castle.webp"),
-]
 ## Le sol de la ligne SUR — un coffre-fort, plus sombre que la face — et son
 ## liseré d'os (hub-card.tsx RIM).
 const VAULT := Color("#43261a")
@@ -60,7 +52,7 @@ func refresh() -> void:
 		return
 	var b := Home.burrow
 	var level := int(b.get("level", 1))
-	art = HOMES[clampi(level, 1, HOMES.size()) - 1]
+	art = BurrowProps.home_art(level, true)
 	layout()
 	clear()
 

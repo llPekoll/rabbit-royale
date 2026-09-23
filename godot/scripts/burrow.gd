@@ -554,6 +554,14 @@ func show_ground(seed_value: String) -> void:
 	# que celui qu'on voit flotterait.
 	_props.map = _terrain.map
 	_props.build(_layout)
+	# LE POTAGER POUSSE AVEC LE JARDIN, le notre : lu a chaque image. Chez
+	# l'autre on ne sait pas ce qu'il a en terre — son champ est mur, c'est
+	# ce qu'on vient prendre.
+	_props.fill = func() -> float:
+		return Home.garden_fill() if _own_ground() else 1.0
+	# LE CHAMP EST DE LA TERRE RETOURNEE, pas du pre (BurrowTerrain.ts
+	# `groundAt` : 'sand') — l'objectif d'un raid se voit de loin, meme vide.
+	_terrain.paint_field(_props.field)
 	# LE DECOR DEBOUT du serveur : un arbre est une case que personne ne
 	# traverse et qu'on ne mine pas — sans lui, la grille laisse un trou que
 	# rien n'explique.

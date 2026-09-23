@@ -87,8 +87,11 @@ static func edge_y(col: int) -> int:
 ## le bord et pas une falaise, donc on n'y pend rien.
 static func ramp_texture(src: Texture2D, lifts: Array, rock: Texture2D,
 		band_rows: int, sw: bool, se: bool) -> Texture2D:
-	var key := "%d:%d,%d,%d,%d:%d:%d:%s%s" % [
-		src.get_rid().get_id(), lifts[0], lifts[1], lifts[2], lifts[3],
+	# Une AtlasTexture repond le RID de SA PLANCHE : sans la region, deux
+	# cases du meme jeu blob partageraient une entree du cache.
+	var region := (src as AtlasTexture).region if src is AtlasTexture else Rect2()
+	var key := "%d@%s:%d,%d,%d,%d:%d:%d:%s%s" % [
+		src.get_rid().get_id(), region, lifts[0], lifts[1], lifts[2], lifts[3],
 		band_rows, rock.get_rid().get_id() if rock != null else 0,
 		"1" if sw else "0", "1" if se else "0"]
 	if _cache.has(key):

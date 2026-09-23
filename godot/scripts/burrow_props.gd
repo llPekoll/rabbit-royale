@@ -10,29 +10,26 @@ class_name BurrowProps
 ## Si les decors vivaient dans une couche au-dessus du terrain, il faudrait
 ## arbitrer a la main a chaque ajout, et on se tromperait.
 ##
-## ANCREES AU PIED, jamais a la boite. Un batiment mesure 128x192 mais son
-## dessin ne touche le sol qu'a 173 pixels du haut : l'ancrer au bas de sa
-## boite le ferait floter. Le pied est mesure sur les bornes alpha de l'art,
-## pas devine.
-
-## L'ECHELLE DES DECORS. La deco est coupee pour des tuiles de 64 ; celles du
-## terrier font 44x24. Un peu plus gros que le 0.4 de l'ile, « parce que ce
-## plateau est une ferme et non une nature sauvage : moins de choses s'y
-## tiennent, donc chacune peut se permettre de se lire ».
-const DECO_SCALE := 0.44
+## ANCREES AU SOL, jamais a la boite : la maison par le centre de son
+## losange peint, une carotte par sa racine.
 
 ## L'ECHELLE DES PLANTES, plus petite que la deco : une carotte n'est pas un
 ## batiment.
 const PLANT_SCALE := 0.34
 
-## LA MAISON, par palier de terrier. Le pied est mesure sur l'alpha de chaque
-## image, d'ou trois valeurs voisines mais distinctes.
-const HOMES := [
-	{"art": preload("res://assets/buildings/house-1.webp"), "h": 192.0, "foot": 173.0},
-	{"art": preload("res://assets/buildings/house-2.webp"), "h": 192.0, "foot": 178.0},
-	{"art": preload("res://assets/buildings/house-3.webp"), "h": 192.0, "foot": 172.0},
-	{"art": preload("res://assets/buildings/castle.webp"), "h": 256.0, "foot": 249.0},
-]
+## LA MAISON, par palier de terrier : cinq terriers de terre sur une planche
+## de 5 x 64x80 (tools/slice_burrow_earth.py, depuis
+## public/assets/buildings/previews/burrow-earth-levels.png). Chaque terrier
+## se tient sur son propre losange de sol, et la decoupe met le CENTRE de ce
+## losange en (32, 60) de sa case : c'est ce point qui se pose sur le centre
+## de la case de la maison. Les batiments Tiny Swords sont partis — des
+## maisons de chevalier, pas des terriers de lapin.
+const HOME_SHEET := preload("res://assets/buildings/burrow-earth.png")
+const HOME_FRAME := Vector2(64, 80)
+const HOME_CENTRE := Vector2(32, 60)
+const HOME_FRAMES := 5
+## Peinte a la densite des tuiles : un pixel de l'art, un pixel du sol.
+const HOME_SCALE := 1.0
 
 const CARROTS := preload("res://assets/deco/carrote.png")
 ## La planche de carottes : douze etapes de croissance sur une grille 4x3, en
@@ -44,6 +41,28 @@ const CARROT_COLS := 4
 ## Combien de plants par case de potager. Le web le fait croitre avec le
 ## niveau ; trois suffisent pour que le champ se lise.
 const PLANTS_PER_CELL := 3
+
+## LA POUSSE EST LE JARDIN, A LA FRAME PRES.
+##
+## Le web joue des pousses decoratives dont seule la FREQUENCE suit le jardin
+## (garden-growth.ts). Ici chaque plant est une part du plafond : le champ
+## est une jauge qu'on lit sur le sol. `fill` (0..1) donne a chaque plant sa
+## fenetre de pousse — ils se relaient dans un ordre seme, chacun pousse sur
+## `GROW_WINDOW` du plein en chevauchant ses voisins. Vide : rien. Plein :
+## tout est mur, et c'est a ce moment que le jardin ne produit plus.
+##
+## `fill` est lu A CHAQUE IMAGE (burrow.gd le branche sur Home.garden_fill,
+## qui compte en carottes entieres comme la pastille) : une carotte de plus
+## dans la pastille et la pousse avance sur la meme image ; la recolte
+## repond et le champ se vide sur la meme image aussi.
+const GROW_WINDOW := 0.3
+const GROWTH_STAGES := 12
+
+## D'ou vient le plein du jardin, 0..1. Null : le champ reste tel quel.
+var fill: Callable
+var _plants: Array[Sprite2D] = []
+var _frames: Array[Texture2D] = []
+var _shown_fill := -1.0
 
 ## LA FETE DU PASSAGE DE NIVEAU (BurrowTerrain.ts `celebrateLevel`) : la
 ## maison saute, un eclair doux s'ouvre derriere elle, dix bouffees de
@@ -95,6 +114,8 @@ func clear() -> void:
 	for prop in _props:
 		prop.queue_free()
 	_props.clear()
+	_plants.clear()
+	_shown_fill = -1.0
 	field.clear()
 	home = null
 
@@ -108,7 +129,7 @@ func clear() -> void:
 func _place_home(cell: Vector2i) -> void:
 	home = Sprite2D.new()
 	home.centered = false
-	home.scale = Vector2(DECO_SCALE, DECO_SCALE)
+	home.scale = Vector2(HOME_SCALE, HOME_SCALE)
 	_dress_home()
 
 	# Posee au MILIEU de sa case (+0.5), pas sur son coin.
@@ -120,21 +141,31 @@ func _place_home(cell: Vector2i) -> void:
 	_props.append(home)
 
 
-## LA MAISON DU NIVEAU : l'image de son palier, ancree a son pied. Le
-## chateau passe au niveau 4 et au-dela (buildings.ts).
+## LA MAISON DU NIVEAU : l'image de son palier, posee sur son losange.
 func set_level(level: int) -> void:
 	_level = maxi(level, 1)
 	_dress_home()
 
 
-## ANCREE AU PIED : le dessin touche le sol a `foot` pixels du haut, pas au
-## bas de sa boite. Et centree horizontalement.
+## POSEE SUR SON LOSANGE : le centre du sol peint sur le centre de la case.
 func _dress_home() -> void:
 	if home == null:
 		return
-	var art: Dictionary = HOMES[clampi(_level, 1, HOMES.size()) - 1]
-	home.texture = art["art"]
-	home.offset = Vector2(-float(art["art"].get_width()) * 0.5, -float(art["foot"]))
+	home.texture = home_art(_level)
+	home.offset = -HOME_CENTRE
+
+
+## L'ART D'UN NIVEAU, partage avec la carte du terrier (burrow_panel.gd) :
+## un terrier par niveau jusqu'au cinquieme, le plus grand au-dela — comme
+## l'apercu du web (burrowArtPreview.ts). `trimmed` coupe l'air au-dessus et
+## au-dessous, pour une carte qui cadre l'art a sa boite.
+static func home_art(level: int, trimmed: bool = false) -> AtlasTexture:
+	var frame := AtlasTexture.new()
+	frame.atlas = HOME_SHEET
+	var x := (clampi(level, 1, HOME_FRAMES) - 1) * HOME_FRAME.x
+	frame.region = Rect2(x, 24, HOME_FRAME.x, 52) if trimmed \
+		else Rect2(Vector2(x, 0), HOME_FRAME)
+	return frame
 
 
 ## LA FETE. L'origine de la maison est son pied : le saut pivote sur le sol,
@@ -143,8 +174,8 @@ func celebrate() -> void:
 	if home == null:
 		return
 	var pop := create_tween()
-	home.scale = Vector2.ONE * DECO_SCALE * POP_FROM
-	pop.tween_property(home, "scale", Vector2.ONE * DECO_SCALE, POP_SECONDS) \
+	home.scale = Vector2.ONE * HOME_SCALE * POP_FROM
+	pop.tween_property(home, "scale", Vector2.ONE * HOME_SCALE, POP_SECONDS) \
 		.set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
 
 	# L'ECLAIR, derriere la maison, un peu au-dessus du pied.
@@ -191,20 +222,27 @@ func _blob(radius: float, color: Color) -> Node2D:
 ## La dispersion n'est pas un carre : les plants sont tires dans un LOSANGE,
 ## pour qu'aucun ne deborde sur la case voisine. `v` est borne par `1 - abs(u)`,
 ## ce qui dessine exactement la forme d'une tuile.
+##
+## L'ORDRE DE POUSSE est tire de la meme graine, puis melange : le champ se
+## remplit partout a la fois plutot que case par case, et toujours dans le
+## meme ordre pour un meme terrier.
 func _sow_field(seed_value: int, cells: Array[Vector2i]) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value * 17 + 3
 
-	var frames := _carrot_frames()
+	_frames = _carrot_frames()
 	field = cells
 	for cell in field:
-		var centre := map.screen_of(cell.x, cell.y)
+		# `screen_of` est le coin HAUT du losange ; son centre est une
+		# demi-hauteur plus bas, comme pour la maison.
+		var centre := map.screen_of(cell.x, cell.y) + Vector2(0, Iso.half_h())
 		for i in range(PLANTS_PER_CELL):
 			var u := rng.randf() * 2.0 - 1.0
 			var v := (rng.randf() * 2.0 - 1.0) * (1.0 - absf(u))
 
 			var plant := Sprite2D.new()
-			plant.texture = frames[rng.randi() % frames.size()]
+			plant.texture = _frames[0]
+			plant.visible = false
 			plant.centered = false
 			plant.scale = Vector2(PLANT_SCALE, PLANT_SCALE)
 			# Ancree BAS-CENTRE : la plante touche le sol par sa racine.
@@ -217,12 +255,43 @@ func _sow_field(seed_value: int, cells: Array[Vector2i]) -> void:
 			plant.z_index = Iso.depth(cell.x, cell.y) + map.level_at(cell.x, cell.y) + 1
 			add_child(plant)
 			_props.append(plant)
+			_plants.append(plant)
+	# Fisher-Yates sur la graine : l'ordre de pousse.
+	for i in range(_plants.size() - 1, 0, -1):
+		var j := rng.randi_range(0, i)
+		var t := _plants[i]
+		_plants[i] = _plants[j]
+		_plants[j] = t
+	_grow()
+
+
+func _process(_delta: float) -> void:
+	_grow()
+
+
+## Chaque plant a l'etape que le jardin lui donne. Rien a faire tant que le
+## plein n'a pas bouge — il bouge d'une carotte entiere a la fois.
+func _grow() -> void:
+	if not fill.is_valid() or _plants.is_empty():
+		return
+	var p := clampf(float(fill.call()), 0.0, 1.0)
+	if p == _shown_fill:
+		return
+	_shown_fill = p
+	var n := _plants.size()
+	for k in range(n):
+		var start := float(k) / float(n) * (1.0 - GROW_WINDOW)
+		var local := (p - start) / GROW_WINDOW
+		var plant := _plants[k]
+		plant.visible = local > 0.0
+		if plant.visible:
+			plant.texture = _frames[mini(GROWTH_STAGES - 1, int(local * GROWTH_STAGES))]
 
 
 ## Les douze etapes de croissance, decoupees de la planche.
 func _carrot_frames() -> Array[Texture2D]:
 	var out: Array[Texture2D] = []
-	for i in range(12):
+	for i in range(GROWTH_STAGES):
 		var frame := AtlasTexture.new()
 		frame.atlas = CARROTS
 		frame.region = Rect2(

@@ -203,6 +203,19 @@ func live_garden() -> int:
 	return int(floor(minf(ready, float(burrow.get("gardenCeiling", ready)))))
 
 
+## LE PLEIN DU JARDIN, 0..1 : `live_garden` sur son plafond. En carottes
+## ENTIERES, comme la pastille, pour que le potager du terrier (burrow_props)
+## avance sur la meme image que le chiffre. Le plafond est `gardenCeiling`
+## (l'engrais le releve) : c'est la ou le jardin cesse de produire.
+func garden_fill() -> float:
+	if burrow.is_empty():
+		return 0.0
+	var ceiling := float(burrow.get("gardenCeiling", burrow.get("gardenCapacity", 0)))
+	if ceiling <= 0.0:
+		return 0.0
+	return minf(1.0, float(live_garden()) / ceiling)
+
+
 ## La quete a l'affiche, ou vide.
 func active_quest() -> Dictionary:
 	var active: Variant = quest.get("active", null)

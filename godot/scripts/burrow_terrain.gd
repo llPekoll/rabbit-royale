@@ -39,6 +39,9 @@ const ELEVATION_SHEET := preload("res://assets/terrain/tilemap-elevation.webp")
 ## 0 : le cratere.
 const FLAT_SHEET := preload("res://assets/terrain/tilemap-flat.webp")
 const FLAT_CUSTOM_COL := 10
+## LE SABLE DU POTAGER : le jeu blob couleur sable de la meme planche, en
+## colonnes 5 a 8 (tileset.ts `FLAT_ORIGIN.sand`).
+const FLAT_SAND_COL := 5
 const TILE := 64
 
 ## Le jeu blob d'herbe commence a la colonne 0 des palettes, qui font 9x6.
@@ -111,6 +114,10 @@ var _block_at: Dictionary = {}
 var _ground_at: Dictionary = {}
 var _grass: Array = []
 var _rock: Array = []
+var _sand: Array = []
+## Les cases dont le sol est DEFORME (rampe, ou bande raccrochee) : le sprite
+## et de quoi refaire la deformation — le potager la rejoue sur son sable.
+var _warp_at: Dictionary = {}
 
 
 func _ready() -> void:
@@ -132,6 +139,7 @@ func _ready() -> void:
 	for sheet in TIER_SHEETS:
 		_grass.append(_slice(sheet, GRASS_ORIGIN, 4, 4))
 	_rock = _slice(ELEVATION_SHEET, 0, 4, 8)
+	_sand = _slice(FLAT_SHEET, FLAT_SAND_COL, 4, 4)
 	if map == null:
 		map = BurrowMap.new()
 		map.generate(1)
@@ -334,9 +342,11 @@ func build() -> void:
 				var px: Array = []
 				for l in ramp_lifts:
 					px.append(int(l) * BurrowMap.TIER_LIFT)
+				var warp := [px, _rock[FACE_ROW][bcol],
+					faces.call(col, row + 1), faces.call(col + 1, row)]
 				grass = Slopes.ramp_texture(
-					grass, px, _rock[FACE_ROW][bcol], BurrowMap.TIER_LIFT,
-					faces.call(col, row + 1), faces.call(col + 1, row))
+					grass, warp[0], warp[1], BurrowMap.TIER_LIFT, warp[2], warp[3])
+				_warp_at[Vector2i(col, row)] = [ground, warp]
 			ground.texture = grass
 			ground.centered = false
 			ground.scale = Vector2(scale_up, scale_up)
@@ -373,6 +383,34 @@ func mount_veil(cell: Vector2i, veil: Node2D, z: int = Z_VEIL) -> bool:
 	veil.z_index = z
 	block.add_child(veil)
 	return true
+
+
+## LE POTAGER EN SABLE (IsoIslandView `groundAt` du web) : chaque case du
+## champ troque son herbe pour le jeu sable, AUTOTILE CONTRE LE CHAMP et pas
+## contre la terre — la parcelle prend ses bords arrondis la ou elle touche
+## le pre. Une case en rampe deforme son sable comme elle deformait l'herbe.
+func paint_field(cells: Array[Vector2i]) -> void:
+	if _sand.is_empty():
+		_sand = _slice(FLAT_SHEET, FLAT_SAND_COL, 4, 4)
+	var in_field := {}
+	for c in cells:
+		in_field[c] = true
+	var is_field := func(x: int, y: int) -> bool:
+		return in_field.has(Vector2i(x, y))
+	for c in cells:
+		var mask := Autotile.mask_at(is_field, c.x, c.y)
+		var sand: Texture2D = _sand[Autotile.blob_row(mask)][Autotile.blob_col(mask)]
+		var ground: Sprite2D = _ground_at.get(c)
+		if ground != null and is_instance_valid(ground):
+			ground.texture = sand
+		elif _warp_at.has(c):
+			# Une rampe du champ : le sable prend la MEME deformation que
+			# l'herbe qu'il remplace, coins leves et rocher raccroche compris.
+			var warped: Sprite2D = _warp_at[c][0]
+			var warp: Array = _warp_at[c][1]
+			if is_instance_valid(warped):
+				warped.texture = Slopes.ramp_texture(
+					sand, warp[0], warp[1], BurrowMap.TIER_LIFT, warp[2], warp[3])
 
 
 ## CREUSE LE SOL D'UNE CASE : son herbe devient le trou peint
@@ -555,6 +593,7 @@ func clear() -> void:
 	_blocks.clear()
 	_block_at.clear()
 	_ground_at.clear()
+	_warp_at.clear()
 	if _underlay != null:
 		_underlay.queue_free()
 		_underlay = null
