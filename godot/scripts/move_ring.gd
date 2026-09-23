@@ -53,10 +53,38 @@ const BLINK_SECONDS := 1.0
 const Z_OUTLINE := 5
 const Z_BLINK := 6
 
+## LE « ? » DES CASES QUE PERSONNE N'A LUES (Tile.ts `setUnknownMark`).
+##
+## Le plateau a trois sortes de sol non creuse : creuse, lu par la cascade,
+## pas lu. Autour d'un lapin pose sur un chiffre, ca faisait des cases « grisees
+## sans aucune raison apparente » (Paul, 2026-09-17) — la raison est tout le
+## jeu : une case pas lue peut cacher une bombe. L'anneau le dit donc, dans le
+## mot du demineur, sur les cases qu'il allume et nulle part ailleurs.
+##
+## PALE ET PAS MULTIPLIE, avec son anneau d'encre : un chiffre est peint dans
+## le sol ouvert, le « ? » se pose sur une motte fermee.
+const MARK_FACE := Color("#d9dde6")
+const MARK_INK := Color("#0c0a12")
+const MARK_ALPHA := 0.9
+const MARK_ROWS := ["111", "001", "011", "000", "010"]
+const MARK_PX := 2
+## Au-dessus du contour et du plein.
+const Z_MARK := 7
+
 ## L'epaisseur du contour, en pixels de tuile.
 const OUTLINE_PX := 1.5
 
 var terrain: BurrowTerrain
+## LA HAUTEUR DU DESSUS D'UNE CASE (`TileView.rise_at`) : l'anneau se pose SUR
+## la motte, pas dans le sol qu'elle couvre. Vide = a plat (le terrier).
+var rise: Callable
+## LA CASE EST-ELLE PAS LUE ? (non creusee, pas indicee, pas un coffre) — le
+## « ? » ne se pose que la. Vide = jamais (le terrier).
+var unread: Callable
+var _mark: Dictionary = {}
+static var _mark_tex: ImageTexture
+## Ou chaque contour et chaque plein se tiennent a plat, lus apres `mount_veil`.
+var _ground_y: Dictionary = {}
 
 var _outline: Dictionary = {}
 var _blink: Dictionary = {}
@@ -98,6 +126,24 @@ func build(cells: Array[Vector2i]) -> void:
 		blink.visible = false
 		terrain.mount_veil(cell, blink, Z_BLINK)
 		_blink[cell] = blink
+		_ground_y[cell] = outline.position.y
+
+		# COUCHE SUR LE LOSANGE comme les chiffres (`TileView`, meme matrice) :
+		# les marques d'un plateau se lisent comme une famille.
+		var glyph := Sprite2D.new()
+		glyph.texture = _mark_texture()
+		glyph.centered = true
+		glyph.scale = Vector2.ONE * 0.8
+		glyph.modulate.a = MARK_ALPHA
+		var holder := Node2D.new()
+		holder.add_child(glyph)
+		holder.visible = false
+		terrain.mount_veil(cell, holder, Z_MARK)
+		holder.transform = Transform2D(
+			Vector2(Iso.half_w(), Iso.half_h()) / Iso.half_w(),
+			Vector2(-Iso.half_w(), Iso.half_h()) / Iso.half_w(),
+			holder.position)
+		_mark[cell] = holder
 
 
 func clear() -> void:
@@ -111,8 +157,12 @@ func clear() -> void:
 		(_outline[cell] as Node).queue_free()
 	for cell in _blink:
 		(_blink[cell] as Node).queue_free()
+	for cell in _mark:
+		(_mark[cell] as Node).queue_free()
+	_mark.clear()
 	_outline.clear()
 	_blink.clear()
+	_ground_y.clear()
 	_lit.clear()
 
 
@@ -127,6 +177,7 @@ func set_lit(cells: Array[Vector2i], centre: Vector2i, risky: bool = false) -> v
 			_kill_fade(cell)
 			b.visible = false
 			b.modulate.a = 0.0
+			(_mark[cell] as Node2D).visible = false
 	_lit.clear()
 
 	var colour := RISK if risky else GOLD
@@ -137,6 +188,13 @@ func set_lit(cells: Array[Vector2i], centre: Vector2i, risky: bool = false) -> v
 		o.modulate = colour
 		o.visible = true
 		var b: Sprite2D = _blink[cell]
+		var up: float = float(rise.call(cell)) if rise.is_valid() else 0.0
+		o.position.y = float(_ground_y[cell]) - up
+		b.position.y = o.position.y
+		# Pas en mode X : l'anneau y est rouge et dit deja « une bombe ici ».
+		var m: Node2D = _mark[cell]
+		m.position.y = o.position.y
+		m.visible = not risky and unread.is_valid() and bool(unread.call(cell))
 		b.modulate = Color(colour.r, colour.g, colour.b, 0.0)
 		b.visible = true
 		_lit.append(cell)
@@ -152,6 +210,21 @@ func set_lit(cells: Array[Vector2i], centre: Vector2i, risky: bool = false) -> v
 	_step = 0
 	_tick()
 	_sweep.start()
+
+
+## REPOSE UNE CASE sur sa motte, qui vient de changer de hauteur — la vague
+## d'une zone l'enfonce APRES que l'anneau s'est allume.
+func reseat(cell: Vector2i) -> void:
+	if not _outline.has(cell) or not rise.is_valid():
+		return
+	var y := float(_ground_y[cell]) - float(rise.call(cell))
+	(_outline[cell] as Sprite2D).position.y = y
+	(_blink[cell] as Sprite2D).position.y = y
+	var m: Node2D = _mark[cell]
+	m.position.y = y
+	# LA VAGUE VIENT DE LA LIRE : son « ? » tombe (IslandScene `openZone`).
+	if m.visible and unread.is_valid() and not bool(unread.call(cell)):
+		m.visible = false
 
 
 ## FAIT CLIGNOTER TOUT L'ANNEAU D'UN COUP — la reponse a une tape hors de portee.
@@ -197,6 +270,29 @@ func _stop_sweep() -> void:
 
 ## LE CONTOUR DU LOSANGE, cuit une fois : la bande de `OUTLINE_PX` le long du
 ## bord, en pixels francs comme le losange plein.
+## LE « ? », cuit une fois : la face pale sur un anneau d'encre d'un pixel.
+static func _mark_texture() -> ImageTexture:
+	if _mark_tex != null:
+		return _mark_tex
+	var w := 3 * MARK_PX + 2
+	var h := MARK_ROWS.size() * MARK_PX + 2
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	for pass_ink in [true, false]:
+		for y in range(MARK_ROWS.size()):
+			var row: String = MARK_ROWS[y]
+			for x in range(3):
+				if row[x] != "1":
+					continue
+				var pad := 1 if pass_ink else 0
+				for dy in range(-pad, MARK_PX + pad):
+					for dx in range(-pad, MARK_PX + pad):
+						img.set_pixel(1 + x * MARK_PX + dx, 1 + y * MARK_PX + dy,
+							MARK_INK if pass_ink else MARK_FACE)
+	_mark_tex = ImageTexture.create_from_image(img)
+	return _mark_tex
+
+
 static func _outline_texture() -> ImageTexture:
 	if _outline_tex != null:
 		return _outline_tex

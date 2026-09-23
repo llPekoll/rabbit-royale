@@ -1,6 +1,6 @@
 extends Node2D
 class_name TileView
-## LE VOILE ET LES CHIFFRES — ce qu'on voit d'une case.
+## LA MOTTE ET LES CHIFFRES — ce qu'on voit d'une case.
 ##
 ## Porte de src/game/entities/Tile.ts, la partie qui sert le socle : le couvercle
 ## d'une case non creusee, et le chiffre qui dit combien de bombes la touchent.
@@ -18,7 +18,8 @@ class_name TileView
 ## raconte au long, et la raison pour laquelle ce noeud ne porte presque rien
 ## lui-meme : il est un chef d'orchestre.
 
-## LE COUVERCLE D'UNE CASE NON CREUSEE.
+## LE VOILE D'UNE CASE NON CREUSEE — celui du plateau de RAID (`raid_board.gd`) ;
+## l'ile a troque le sien pour la motte, plus bas.
 ##
 ## Vert sombre a un tiers, pas un bleu nuit a 55 % — et le web a paye la
 ## difference : « navy at 55% over the generated grass turned the whole board a
@@ -35,12 +36,43 @@ const FOG_COLOR := Color("#10241a")
 ## l'ombre », surtout pas une tache), re-mesurer le chiffre sur l'ecran reel.
 const FOG_ALPHA := 0.45
 
-## CE QU'UNE CASE INDICEE GARDE DE SON COUVERCLE.
+## LA MOTTE — ce qu'on voit d'une case non creusee, a la place du voile.
 ##
-## Assez pour se lire comme non creusee a cote d'une case creusee, assez peu
-## pour se lire comme CONNUE a cote d'une case enterree. Trois etats, trois
-## opacites — c'est ce qui fait qu'on lit le plateau d'un coup d'oeil.
-const HINTED_SHARE := 0.45
+## Une plaque de gazon levee, peinte par `tools/paint_dig_tile.py` au format
+## des feuilles du terrain (case de 64, losange 44x24), une rangee par palier
+## taillee dans SA palette : case 0 ENTERREE,
+## levee de 4 px sur sa tranche de terre ; case 1 INDICEE, enfoncee a 1 px et
+## plus claire pour que le chiffre se lise dessus. Creusee, elle s'en va et
+## c'est le pre qui reste.
+##
+## POURQUOI PLUS UN VOILE : un losange sombre a 45 % disait « pas encore
+## creuse » par une tache. Sur un plateau en terrasses les losanges se
+## recouvraient en coutures et assombrissaient la falaise en dessous. Une
+## motte le dit par la FORME — c'est une case qu'on va retourner.
+##
+## LA TRANCHE RESTE DANS SA CASE : c'est le dessus qui monte, pas la terre qui
+## pend. Une tranche pendue sous le losange tomberait sur la case de devant, et
+## le sol de celle-ci, un bloc plus pres de la camera, la recouvrirait.
+const DIG_TILE := preload("res://assets/terrain/dig-tile.png")
+## Une rangee par palette de palier (palette-1 a palette-4), puis le potager
+## du terrier (`BurrowTerrain.paint_field`).
+const DIG_TILE_TIERS := 4
+const DIG_TILE_GARDEN_ROW := 4
+## De combien le dessus d'une motte LEVEE est au-dessus du sol, en pixels
+## d'ecran (4 px peints x l'echelle du sol) : ce qui pousse dessus s'y pose.
+const RAISED_RISE := 4.2
+## LA MOTTE VARIE UN PEU D'UNE CASE A L'AUTRE : clarte et chaleur, jamais la
+## teinte. Vingt mottes identiques se lisent comme un carrelage ; un pre
+## decoupe a la beche n'est jamais deux fois du meme vert.
+const SOD_LIGHT_SPREAD := 0.06
+const SOD_WARM_SPREAD := 0.035
+enum Look { COVERED, HINTED, DUG }
+## Ou le dessus de la motte INDICEE se tient au-dessus du sol, en pixels
+## d'ecran (1 px peint x l'echelle du sol) : le chiffre s'y pose.
+const PRESSED_RISE := 1.05
+## Le coup de beche : la motte saute et s'efface.
+const POP_RISE := 10.0
+const POP_SECONDS := 0.22
 
 ## LES TEINTES DES CHIFFRES, une par compte.
 ##
@@ -234,7 +266,17 @@ const Z_CRATER := 3
 var board: IslandBoard
 var terrain: BurrowTerrain
 
+## La motte d'une case vient de changer de hauteur (creusee, indicee).
+signal look_changed(cell: Vector2i)
+
 var _fog: Dictionary = {}
+## Les deux mottes de chaque case (enterree, indicee), deja deformees si la
+## case est une rampe, et celle qu'on montre.
+var _looks: Dictionary = {}
+var _look: Dictionary = {}
+## CE QUI SE TIENT SUR LA MOTTE — le X, le buisson, le coffre : case ->
+## [[noeud, y au sol], ...]. Ils montent et descendent avec elle.
+var _riders: Dictionary = {}
 var _hints: Dictionary = {}
 var _x: Dictionary = {}
 var _chest: Dictionary = {}
@@ -275,10 +317,16 @@ func build() -> void:
 			continue
 
 		var fog := Sprite2D.new()
-		fog.texture = _diamond_texture()
-		fog.centered = true
-		fog.modulate = FOG_COLOR
-		terrain.mount_veil(cell, fog, Z_FOG)
+		var looks: Array[Texture2D] = []
+		# LA MOTTE DE SON PALIER : une rangee par palette, comme le sol
+		# (`BurrowTerrain.build`, `tier - 1` borne a la derniere).
+		var tier_row := clampi(terrain.map.level_at(cell.x, cell.y) - 1, 0, DIG_TILE_TIERS - 1)
+		for i in 2:
+			looks.append(terrain.sod_texture(cell, tier_row, i))
+		_looks[cell] = looks
+		fog.texture = looks[Look.COVERED]
+		fog.modulate = sod_tint(cell)
+		terrain.mount_tile(cell, fog, Z_FOG)
 		_fog[cell] = fog
 
 		# LE X, cache tant que la case n'est ni marquee ni enseignee. Un sprite
@@ -289,6 +337,7 @@ func build() -> void:
 		x.scale = X_SQUASH
 		x.visible = false
 		terrain.mount_veil(cell, x, Z_X)
+		_ride(cell, x)
 		_x[cell] = x
 
 		# LE CHIFFRE : UN GLYPHE CUIT, EN SPRITE, RENDU EN MULTIPLY.
@@ -321,6 +370,7 @@ func build() -> void:
 			Vector2(Iso.half_w(), Iso.half_h()) / Iso.half_w(),
 			Vector2(-Iso.half_w(), Iso.half_h()) / Iso.half_w(),
 			holder.position)
+		holder.position.y -= PRESSED_RISE
 		_hints[cell] = glyph
 		_rest_y[cell] = Vector2(fog.position.y, holder.position.y)
 
@@ -342,6 +392,7 @@ func build() -> void:
 			bush.frame = variant % BUSH_FRAMES
 			bush.play("sway")
 			terrain.mount_veil(cell, bush, Z_PROP)
+			_ride(cell, bush)
 			_props.append(bush)
 			_bush_at[cell] = bush
 
@@ -370,6 +421,7 @@ func _mount_chest(cell: Vector2i) -> void:
 	var flair: Dictionary = CHEST_FLAIR[tier]
 	var holder := Node2D.new()
 	terrain.mount_veil(cell, holder, Z_PROP)
+	_ride(cell, holder)
 	_flair[cell] = holder
 	_tier_of[cell] = tier
 
@@ -650,7 +702,7 @@ func refresh() -> void:
 		# son chiffre cache : l'etat a tourne, le dessin attend le front
 		# (`ripple`). Creusee entre-temps, elle ne l'attend plus.
 		if _ripple_draw.has(cell) and st != IslandBoard.State.DUG:
-			(_fog[cell] as Sprite2D).modulate.a = FOG_ALPHA
+			_show_look(cell, Look.COVERED)
 			(_hints[cell] as Sprite2D).visible = false
 		else:
 			_paint(cell)
@@ -659,6 +711,7 @@ func refresh() -> void:
 		if opened:
 			_dug[cell] = true
 			if _primed:
+				_pop_tile(cell)
 				_reveal(cell)
 
 		# LE COFFRE S'EN VA AVEC LA CASE CREUSEE : pris, il est parti avec le
@@ -701,14 +754,13 @@ func refresh() -> void:
 
 ## LE VOILE ET LE CHIFFRE d'une case, tels que le plateau les tient.
 func _paint(cell: Vector2i) -> void:
-	var fog: Sprite2D = _fog[cell]
 	var st = board.state.get(cell)
 	if st == IslandBoard.State.DUG:
-		fog.modulate.a = 0.0
+		_show_look(cell, Look.DUG)
 	elif st == IslandBoard.State.HINTED:
-		fog.modulate.a = FOG_ALPHA * HINTED_SHARE
+		_show_look(cell, Look.HINTED)
 	else:
-		fog.modulate.a = FOG_ALPHA
+		_show_look(cell, Look.COVERED)
 
 	var glyph: Sprite2D = _hints[cell]
 	if board.shows_number(cell):
@@ -721,8 +773,6 @@ func _paint(cell: Vector2i) -> void:
 
 # ── La vague d'une zone qui s'ouvre (IslandScene.ts `openZone`) ──────────────
 
-## Le voile d'une case indicee s'efface en 0,25 s (Tile.ts `revealHint`).
-const RIPPLE_FADE_SECONDS := 0.25
 ## Ou le voile et le chiffre se reposent, lus apres `mount_veil` qui les pose.
 var _rest_y: Dictionary = {}
 ## Les dessins que le front n'a pas encore atteints, par case.
@@ -769,24 +819,88 @@ func ripple(from: Vector2i, cells: Array) -> void:
 		_lift(cell, delay, float(tune.HEIGHT), float(tune.TIME))
 
 
-## LE VOILE EST-IL ENCORE PLEIN a l'ecran ? L'alpha d'une `Color` est un
-## float 32 bits : 0,45 s'y relit un poil en dessous, d'ou la marge.
+## LA MOTTE EST-ELLE ENCORE LEVEE a l'ecran ?
 func _still_fogged(cell: Vector2i) -> bool:
-	return (_fog[cell] as Sprite2D).modulate.a > FOG_ALPHA * (1.0 + HINTED_SHARE) * 0.5
+	return _look.get(cell, Look.COVERED) == Look.COVERED
 
 
-## Le front atteint la case : le voile s'amincit, le chiffre sort.
+## MONTRE UNE MOTTE — ou plus rien, la case creusee.
+func _show_look(cell: Vector2i, look: int) -> void:
+	var was: int = _look.get(cell, -1)
+	_look[cell] = look
+	var fog: Sprite2D = _fog[cell]
+	fog.visible = look != Look.DUG
+	if look != Look.DUG:
+		fog.texture = (_looks[cell] as Array)[look]
+	if was != look:
+		var up := rise_at(cell)
+		for r in _riders.get(cell, []):
+			if is_instance_valid(r[0]):
+				(r[0] as Node2D).position.y = float(r[1]) - up
+		look_changed.emit(cell)
+
+
+## DE COMBIEN LE DESSUS D'UNE CASE EST AU-DESSUS DE SON SOL, en pixels
+## d'ecran : la motte levee, enfoncee, ou rien. Tout ce qui se pose SUR une
+## case — l'anneau de marche, le X, un coffre — s'y pose a cette hauteur, sinon
+## il s'enfonce dans la motte.
+func rise_at(cell: Vector2i) -> float:
+	if not _fog.has(cell):
+		return 0.0
+	match int(_look.get(cell, Look.COVERED)):
+		Look.COVERED:
+			return RAISED_RISE
+		Look.HINTED:
+			return PRESSED_RISE
+	return 0.0
+
+
+## Ce noeud se tient sur la motte de sa case : lu la ou `mount_veil` l'a pose.
+func _ride(cell: Vector2i, node: Node2D) -> void:
+	if not _riders.has(cell):
+		_riders[cell] = []
+	(_riders[cell] as Array).append([node, node.position.y])
+	node.position.y -= rise_at(cell)
+
+
+## LA NUANCE D'UNE MOTTE, tiree de sa case : la meme a chaque dessin, sans
+## RNG a tenir. Deux hachages differents pour que la clarte et la chaleur ne
+## bougent pas ensemble.
+static func sod_tint(cell: Vector2i) -> Color:
+	var a := float(hash(cell) % 1000) / 999.0 * 2.0 - 1.0
+	var b := float(hash(Vector2i(cell.y * 31 + 7, cell.x)) % 1000) / 999.0 * 2.0 - 1.0
+	var light := 1.0 + a * SOD_LIGHT_SPREAD
+	return Color(light * (1.0 + b * SOD_WARM_SPREAD), light,
+		light * (1.0 - b * SOD_WARM_SPREAD))
+
+
+## LE COUP DE BECHE : la motte qu'on vient de retourner saute et s'efface.
+## Une copie, pas la vraie : la vraie est deja cachee par `_paint`, et une
+## reprise du plateau ne doit rien trouver en vol.
+func _pop_tile(cell: Vector2i) -> void:
+	var fog: Sprite2D = _fog[cell]
+	var clod := Sprite2D.new()
+	clod.texture = (_looks[cell] as Array)[Look.COVERED]
+	clod.centered = false
+	clod.scale = fog.scale
+	clod.position = fog.position
+	clod.z_index = fog.z_index
+	clod.modulate = fog.modulate
+	fog.get_parent().add_child(clod)
+	var tw := clod.create_tween().set_parallel()
+	tw.tween_property(clod, "position:y", clod.position.y - POP_RISE, POP_SECONDS) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(clod, "modulate:a", 0.0, POP_SECONDS) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.chain().tween_callback(clod.queue_free)
+
+
+## Le front atteint la case : la motte s'enfonce, le chiffre sort.
 func _land_hint(cell: Vector2i) -> void:
 	_ripple_draw.erase(cell)
 	if not _fog.has(cell):
 		return
-	var fog: Sprite2D = _fog[cell]
-	var shown := fog.modulate.a
 	_paint(cell)
-	var target := fog.modulate.a
-	fog.modulate.a = shown
-	create_tween().tween_property(fog, "modulate:a", target, RIPPLE_FADE_SECONDS) \
-		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 
 ## LE VOILE MONTE ET REDESCEND, le chiffre avec lui — ce sont deux noeuds
@@ -1122,6 +1236,9 @@ func clear() -> void:
 		if g.get_parent() != null:
 			g.get_parent().queue_free()
 	_fog.clear()
+	_looks.clear()
+	_look.clear()
+	_riders.clear()
 	_x.clear()
 	_hints.clear()
 	_dug.clear()

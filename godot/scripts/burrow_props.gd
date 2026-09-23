@@ -247,12 +247,15 @@ func _sow_field(seed_value: int, cells: Array[Vector2i]) -> void:
 			plant.scale = Vector2(PLANT_SCALE, PLANT_SCALE)
 			# Ancree BAS-CENTRE : la plante touche le sol par sa racine.
 			plant.offset = Vector2(-CARROT_CELL.x * 0.5, -CARROT_CELL.y)
+			# SUR LE CARRE DE JARDIN, pas dans le sable qu'il couvre : il est
+			# leve de `RAISED_RISE`.
 			plant.position = centre + Vector2(
 				(u + v) * Iso.half_w() * 0.6,
-				(v - u) * Iso.half_h() * 0.6
+				(v - u) * Iso.half_h() * 0.6 - TileView.RAISED_RISE
 			)
-			# Juste devant le sol de sa case, derriere ce qui marche dessus.
-			plant.z_index = Iso.depth(cell.x, cell.y) + map.level_at(cell.x, cell.y) + 1
+			# Juste devant le carre de sa case (bloc + 2), derriere ce qui
+			# marche dessus.
+			plant.z_index = Iso.depth(cell.x, cell.y) + map.level_at(cell.x, cell.y) + 3
 			add_child(plant)
 			_props.append(plant)
 			_plants.append(plant)

@@ -573,6 +573,13 @@ func show_ground(seed_value: String) -> void:
 	# L'ANNEAU, dans les memes blocs que les voiles — et rallume tout de suite
 	# autour de l'apparition.
 	_ring.terrain = _terrain
+	_ring.rise = _tiles.rise_at
+	_ring.unread = func(c: Vector2i) -> bool:
+		return _board.state.get(c) != IslandBoard.State.DUG \
+			and _board.state.get(c) != IslandBoard.State.HINTED \
+			and _board.content.get(c) != IslandBoard.Content.CHEST
+	if not _tiles.look_changed.is_connected(_ring.reseat):
+		_tiles.look_changed.connect(_ring.reseat)
 	_ring.build(_board.playable())
 
 	# UNE AUTRE ILE, UN AUTRE COMPTE.
@@ -1296,6 +1303,8 @@ func _mark_planted(cell: Vector2i) -> void:
 	if not _terrain.mount_veil(cell, icon, LightningFx.Z_BOLT - 8):
 		icon.free()
 		return
+	# SUR la motte, pas dans le sol qu'elle couvre.
+	icon.position.y -= _tiles.rise_at(cell)
 	_planted[cell] = icon
 
 

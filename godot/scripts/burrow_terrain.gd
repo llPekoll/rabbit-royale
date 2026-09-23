@@ -76,6 +76,9 @@ const Z_GROUND := 1
 ## Le sol d'un bloc est a 1. Un voile de case se pose donc a 2, les cibles de
 ## cloture a 2,5, et une bombe a 3 — au-dessus de tout ce qui est sur sa case.
 const Z_VEIL := 2
+## Le carre du potager, au rang du voile : au-dessus du sol, sous ce qui s'y
+## pose (les losanges du raid a 2 passent apres lui, deja montes).
+const Z_BED := 2
 
 ## LA NAPPE SOUS LE PLATEAU.
 ##
@@ -115,6 +118,8 @@ var _ground_at: Dictionary = {}
 var _grass: Array = []
 var _rock: Array = []
 var _sand: Array = []
+## Les carres du potager, jetes quand on repeint le champ.
+var _beds: Array[Sprite2D] = []
 ## Les cases dont le sol est DEFORME (rampe, ou bande raccrochee) : le sprite
 ## et de quoi refaire la deformation — le potager la rejoue sur son sable.
 var _warp_at: Dictionary = {}
@@ -397,6 +402,10 @@ func paint_field(cells: Array[Vector2i]) -> void:
 		in_field[c] = true
 	var is_field := func(x: int, y: int) -> bool:
 		return in_field.has(Vector2i(x, y))
+	for c in _beds:
+		if is_instance_valid(c):
+			c.queue_free()
+	_beds.clear()
 	for c in cells:
 		var mask := Autotile.mask_at(is_field, c.x, c.y)
 		var sand: Texture2D = _sand[Autotile.blob_row(mask)][Autotile.blob_col(mask)]
@@ -411,6 +420,16 @@ func paint_field(cells: Array[Vector2i]) -> void:
 			if is_instance_valid(warped):
 				warped.texture = Slopes.ramp_texture(
 					sand, warp[0], warp[1], BurrowMap.TIER_LIFT, warp[2], warp[3])
+		# LE CARRE DE JARDIN : la motte des cases de l'ile, en terre retournee,
+		# posee sur le sable. Le sable reste dessous : c'est lui qui se voit
+		# entre deux carres, comme un chemin.
+		var bed := Sprite2D.new()
+		bed.texture = sod_texture(c, TileView.DIG_TILE_GARDEN_ROW, TileView.Look.COVERED)
+		bed.modulate = TileView.sod_tint(c)
+		if mount_tile(c, bed, Z_BED):
+			_beds.append(bed)
+		else:
+			bed.free()
 
 
 ## CREUSE LE SOL D'UNE CASE : son herbe devient le trou peint
@@ -431,6 +450,56 @@ func dig_cell(cell: Vector2i, row: int = 0) -> bool:
 	pit.region = Rect2(FLAT_CUSTOM_COL * TILE, row * TILE, TILE, TILE)
 	ground.texture = pit
 	return true
+
+
+## POSE UNE TUILE DE 64 EXACTEMENT COMME LE SOL de sa case — meme echelle,
+## meme coin, dans le meme bloc. C'est la motte des cases non creusees
+## (`TileView`) : peinte au format des feuilles, elle doit tomber pixel pour
+## pixel sur l'herbe qu'elle couvre.
+##
+## Faux quand la case n'a pas de bloc.
+func mount_tile(cell: Vector2i, sprite: Sprite2D, z: int) -> bool:
+	var block: Node2D = _block_at.get(cell)
+	if block == null:
+		return false
+	var scale_up := Iso.BURROW_TILE_W / GROUND_PAINTED_W
+	var grown := TILE * (scale_up - 1.0) * 0.5
+	sprite.centered = false
+	sprite.scale = Vector2(scale_up, scale_up)
+	sprite.position = Vector2(
+		-TILE * 0.5 - grown,
+		-(TILE - Iso.BURROW_TILE_H) * 0.5 - grown
+	)
+	sprite.z_index = z
+	block.add_child(sprite)
+	return true
+
+
+## LA MOTTE D'UNE CASE, prise dans `TileView.DIG_TILE` : rangee `row` (le
+## palier, ou le potager), motte `look` (levee, enfoncee), et la FORME de sa
+## rampe — les seize formes y sont peintes lisses (`tools/paint_dig_tile.py`),
+## colonne `forme*2 + motte`, forme `n*8+e*4+s*2+w` en paliers.
+##
+## Une rampe de plus d'un palier a un coin n'a pas de forme peinte : la motte
+## plate y est deformee comme l'herbe, cassure comprise. Rare, et mieux qu'un
+## trou.
+func sod_texture(cell: Vector2i, row: int, look: int) -> Texture2D:
+	var form := 0
+	var lifts: Array = []
+	if _warp_at.has(cell):
+		lifts = (_warp_at[cell][1] as Array)[0]
+		for i in 4:
+			var l := int(lifts[i]) / BurrowMap.TIER_LIFT
+			if l > 1:
+				form = -1
+				break
+			form = form * 2 + l
+	var frame := AtlasTexture.new()
+	frame.atlas = TileView.DIG_TILE
+	frame.region = Rect2((maxi(form, 0) * 2 + look) * TILE, row * TILE, TILE, TILE)
+	if form < 0:
+		return Slopes.ramp_texture(frame, lifts, null, 0, false, false)
+	return frame
 
 
 ## Le bloc d'une case existe-t-il ? (Pour savoir avant de construire.)
@@ -594,6 +663,7 @@ func clear() -> void:
 	_block_at.clear()
 	_ground_at.clear()
 	_warp_at.clear()
+	_beds.clear()
 	if _underlay != null:
 		_underlay.queue_free()
 		_underlay = null
