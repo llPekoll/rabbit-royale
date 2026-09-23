@@ -654,7 +654,9 @@ func _centred_origin(map: BurrowMap) -> Vector2:
 ## pour le porter.
 func _wanted_cam() -> BurrowCamera.Shot:
 	var view := get_viewport_rect().size
-	if (local_run != null or _remote) and not _cam_moved_by_player:
+	# LA LECON EN JEU n'a pas de `local_run` (seul le bac a sable en fait un) :
+	# sans le tutoriel ici, elle tombait sur le fit plein ecran plus bas.
+	if (local_run != null or _remote or _is_tutorial()) and not _cam_moved_by_player:
 		return _follow_shot(view)
 	if _cam_moved_by_player:
 		return _clamp_cam(_current_shot())
