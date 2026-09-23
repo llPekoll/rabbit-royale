@@ -30,6 +30,9 @@ enum Content {
 	CARROT,
 	BOMB,
 	CHEST,
+	## La carotte doree : cinq fois la valeur, et placee plus loin du depart
+	## (`RISK_GRADIENT.GOLDEN`) — le butin qui paie la marche vers le bord.
+	GOLDEN,
 }
 
 ## L'etat d'une case, en plus de son contenu.
@@ -65,6 +68,36 @@ var flagged: Dictionary = {}
 ## visible derriere, pas un mur.
 var decor: Dictionary = {}
 
+## LE PALIER DE CHAQUE COFFRE — bronze, argent, or, couronne.
+##
+## PUBLIC, contrairement a ce que le coffre contient : `publicView` laisse
+## filtrer `{tile, tier}` des coffres non creuses, et c'est voulu — un coffre
+## couronne DOIT s'annoncer de loin, c'est ce qui fait marcher vers lui.
+var chest_tier: Dictionary = {}
+
+## LE SOL D'UNE ILE GENEREE — ou l'on marche, ce qui se tient dessus. Nul sur
+## le tutoriel, dont le couloir n'a ni decor ni falaise.
+var ground: IslandGround
+
+## LA GRAINE PUBLIQUE, celle qui nomme l'ile. Elle tire aussi ce que chaque
+## coffre contient (`<graine>:<case>`, server/index.ts) : un coffre donne
+## toujours la meme chose, a qui que ce soit qui l'ouvre.
+var seed_text := ""
+
+## L'apparition : la ou la manche commence.
+var spawn := Vector2i(-1, -1)
+
+## LE PALIER DE L'ILE (`ISLAND_TIERS`) : ses densites, et ce qu'un X juste
+## rend d'energie. Vide sur le tutoriel.
+var tier: Dictionary = {}
+
+## LA RETENUE DU TUTORIEL (`teaching_hold`) ne vaut QUE pour la premiere ile.
+## Sur une ile ordinaire, une bombe visible est du danger, pas une lecon — la
+## laisser bloquer les pas murerait le plateau des la premiere bombe au bord.
+var teaching := false
+
+const TUNING := preload("res://assets/tuning.json")
+
 ## LES BUISSONS DU TUTORIEL, deux, a l'ecart du couloir.
 ##
 ## Paul, 2026-09-23 : « le chest, 1 ou 2 buissons ». La carte est nettoyee de
@@ -87,6 +120,8 @@ func _init(p_map: BurrowMap) -> void:
 ## couloir du tutoriel est nettoye de toute facon — « pas un arbre », parce
 ## qu'un seul pin coupait l'ile en deux.
 func playable() -> Array[Vector2i]:
+	if ground != null:
+		return ground.farmable_cells()
 	var out: Array[Vector2i] = []
 	for row in range(map.height):
 		for col in range(map.width):
@@ -99,6 +134,7 @@ func playable() -> Array[Vector2i]:
 ##
 ## Rien n'est distribue ici. C'est tout l'interet de l'ile dessinee a la main.
 func deal_tutorial() -> void:
+	teaching = true
 	content.clear()
 	state.clear()
 	for cell in playable():
@@ -107,6 +143,9 @@ func deal_tutorial() -> void:
 
 	content[TutorialMap.bomb()] = Content.BOMB
 	content[TutorialMap.chest()] = Content.CHEST
+	# Le premier palier, comme `tutorialLayout` (`CHEST_TIER_WEIGHTS[0]`).
+	chest_tier.clear()
+	chest_tier[TutorialMap.chest()] = String(_tuning().CHEST_TIER_WEIGHTS[0].kind)
 	decor.clear()
 	for cell in TUTORIAL_DECOR:
 		if content.has(cell):
@@ -259,31 +298,59 @@ func dig(cell: Vector2i) -> void:
 	if state.get(cell) == State.DUG:
 		return
 	state[cell] = State.DUG
-	if adjacent.get(cell, 0) == 0 and content.get(cell) != Content.BOMB:
-		_cascade(cell)
+	cascade_hints([cell])
 
 
-## Le pourtour d'un zero s'ouvre, et ses zeros continuent.
+## LA CASCADE DU DEMINEUR, sans la pelle (island.ts `cascadeHints`).
 ##
-## En largeur plutot qu'en recursion : un couloir de 28 cases ne poserait pas de
-## probleme, mais une vraie ile de 557 cases creuserait une pile profonde.
-func _cascade(from: Vector2i) -> void:
-	var queue: Array[Vector2i] = [from]
-	var seen := {from: true}
-	while not queue.is_empty():
-		var cell: Vector2i = queue.pop_front()
-		for n in _neighbours(cell):
-			if seen.has(n) or not content.has(n):
+## Depuis chaque case OUVERTE et NULLE de `from`, les voisines recoivent leur
+## chiffre, et chaque zero ainsi trouve continue la marche jusqu'au premier
+## vrai nombre. Rien n'est creuse : ce qui est enterre reste a qui marchera
+## dessus. Une bombe n'est jamais indicee, par construction — elle n'est
+## jamais voisine d'un zero.
+##
+## LA MARCHE PASSE PAR LES ZEROS DEJA CREUSES, et c'est ce qui la rend
+## entiere : la zone est la region connexe des zeros, et un zero creuse il y a
+## une heure est un pont autant qu'un zero indice a l'instant. S'arreter aux
+## cases creusees ouvrait une zone a moitie — « quand tu clean une zone faut
+## nettoyer toute la zone » (Paul).
+##
+## `around` BORNE la marche a `CASCADE_RADIUS` cases (Chebyshev) : seule la
+## NAISSANCE de l'ile s'en sert. Un plateau ne doit pas naitre avec le quart
+## de ses chiffres deja ecrits. Rend ce qui a ete ouvert, dans l'ordre.
+func cascade_hints(from: Array, around: Vector2i = Vector2i(-1, -1)) -> Array[Vector2i]:
+	var opened: Array[Vector2i] = []
+	var radius: int = int(_tuning().ISLAND.CASCADE_RADIUS)
+	var seen := {}
+	var queue: Array[Vector2i] = []
+	for c in from:
+		if content.has(c) and _open(c) and _is_zero(c) and not seen.has(c):
+			seen[c] = true
+			queue.append(c)
+	var head := 0
+	while head < queue.size():
+		var here := queue[head]
+		head += 1
+		for n in _neighbours(here):
+			if around.x >= 0 and maxi(absi(n.x - around.x), absi(n.y - around.y)) > radius:
 				continue
-			seen[n] = true
-			if content[n] == Content.BOMB:
-				continue
-			# Deja creusee a la main : on ne la retrograde pas.
-			if state.get(n) == State.DUG:
-				continue
-			state[n] = State.HINTED
-			if adjacent.get(n, 0) == 0:
+			if not _open(n):
+				state[n] = State.HINTED
+				opened.append(n)
+			if _is_zero(n) and not seen.has(n):
+				seen[n] = true
 				queue.append(n)
+	return opened
+
+
+func _is_zero(c: Vector2i) -> bool:
+	return content.get(c) != Content.BOMB and adjacent.get(c, 0) == 0
+
+
+## L'ANCIENNE CASCADE, gardee pour le seul appelant qui en depend : un X faux
+## ouvre la case payee et ce que son zero touche.
+func _cascade(from: Vector2i) -> void:
+	cascade_hints([from])
 
 
 ## POSE OU REFUSE UN X ROUGE. Rend `true` si la bombe etait la.
@@ -337,6 +404,8 @@ func is_beside(a: Vector2i, b: Vector2i) -> bool:
 ## MARQUEE, L'ILE LACHE — c'est la seule sortie, et c'est ce qui fait de la
 ## lecon un passage oblige plutot qu'un decor.
 func teaching_hold() -> Vector2i:
+	if not teaching:
+		return Vector2i(-1, -1)
 	for cell in content.keys():
 		if content[cell] != Content.BOMB:
 			continue
@@ -370,6 +439,14 @@ func teaching_hold() -> Vector2i:
 ##    devant la case qu'on lui disait de marquer.
 func may_step(from: Vector2i, to: Vector2i) -> bool:
 	if not content.has(to):
+		return false
+	# UNE ILE GENEREE MARCHE SUR SON RELIEF : une falaise de deux paliers se
+	# voit et ne se monte pas, un arbre ne se traverse pas (`canWalk`).
+	if ground != null and not ground.can_step(from, to):
+		return false
+	# UN MOUTON BLOQUE SA CASE, mais il s'en va : la case reste au plateau
+	# (on y enterre), seul le pas est refuse tant qu'il y broute (`canWalk`).
+	if ground != null and ground.occupant_at(to).get("kind", "") == "sheep":
 		return false
 	# Un X rouge est un mur : un doigt qui glisse ne doit pas couter une manche.
 	if flagged.has(to) and state.get(to) != State.DUG:
@@ -428,6 +505,291 @@ func _neighbours(cell: Vector2i) -> Array[Vector2i]:
 			if dx == 0 and dy == 0:
 				continue
 			var n := cell + Vector2i(dx, dy)
-			if map.is_land(n.x, n.y):
+			# LES CASES DU PLATEAU, grimpables ou non (`boardNeighbors`) :
+			# l'etagere au-dessus d'une falaise compte dans le chiffre, le pin
+			# non — rien n'est enterre sous lui. Avant la donne, la terre.
+			var on_board := content.has(n) if not content.is_empty() \
+				else map.is_land(n.x, n.y)
+			if on_board:
 				out.append(n)
 	return out
+
+
+# ================================================================ l'ile generee
+#
+# Porte de `generateIsland` (src/lib/game/island.ts), la branche qui n'est PAS
+# le tutoriel. ⚠ Voir l'en-tete : sur une ile en ligne, les contenus viennent du
+# serveur et de son `contentSeed` prive. Ce qui suit sert l'ile HORS LIGNE —
+# le bac a sable, les bancs, les sondes — avec une graine de contenu qu'on
+# choisit soi-meme. Meme recette, meme ordre de tirages : a graines egales,
+# c'est l'ile du serveur, case pour case (tools/verify_deal.gd).
+
+
+static func _tuning() -> Dictionary:
+	return (TUNING as JSON).data
+
+
+## tuning.ts `tierFor` : le dernier palier dont le seuil est atteint.
+static func tier_for(lifetime: float) -> Dictionary:
+	var tiers: Array = _tuning().ISLAND_TIERS
+	var tier: Dictionary = tiers[0]
+	for t in tiers:
+		if lifetime >= float(t.minLifetime):
+			tier = t
+	return tier
+
+
+## rng.ts `pickWeighted`.
+static func pick_weighted(rng: Rng, table: Array) -> Dictionary:
+	var total := 0.0
+	for e in table:
+		total += float(e.weight)
+	var r := rng.next() * total
+	for e in table:
+		r -= float(e.weight)
+		if r <= 0.0:
+			return e
+	return table[table.size() - 1]
+
+
+## rng.ts `randInt`, bornes comprises.
+static func rand_int(rng: Rng, lo: int, hi: int) -> int:
+	return lo + int(floor(rng.next() * (hi - lo + 1)))
+
+
+## L'index d'une case, tel que le fil le porte (`toIndex`).
+func index_of(c: Vector2i) -> int:
+	return c.y * map.width + c.x
+
+
+## DONNE UNE ILE GENEREE : bombes, carottes dorees, coffres au bord, carottes.
+##
+## `content_seed` est la graine PRIVEE du serveur. Hors ligne, on la choisit ;
+## vide, elle retombe sur la graine publique — le comportement « devinable »
+## que le web garde pour ses tests, et exactement ce qu'il faut a un banc.
+func deal_generated(p_ground: IslandGround, p_seed: String, content_seed: String = "",
+		lifetime: float = 0.0) -> void:
+	ground = p_ground
+	seed_text = p_seed
+	teaching = false
+	content.clear()
+	state.clear()
+	flagged.clear()
+	chest_tier.clear()
+	decor.clear()
+	var tune := _tuning()
+	var rng := Rng.from_seed("content:%s" % (content_seed if content_seed != "" else p_seed))
+	tier = tier_for(lifetime)
+
+	# LE PLATEAU : les cases ou le serveur enterre, ligne d'abord — l'ordre des
+	# cles EST l'ordre des tirages.
+	var tiles := ground.farmable_cells()
+	for c in tiles:
+		content[c] = Content.EMPTY
+		state[c] = State.BURIED
+
+	# LES BUISSONS SE DESSINENT, et on marche dessus : le decor que le plateau
+	# sait deja montrer (variante 1 a 4 pour `TileView`).
+	for p in ground.placements:
+		var at := Vector2i(p.x, p.y)
+		if p.kind == "bush" and content.has(at):
+			decor[at] = int(p.variant) + 1
+
+	spawn = ground.spawn()
+	var safe := {spawn: true}
+	for n in ground.steps_from(spawn):
+		safe[n] = true
+
+	var total := tiles.size()
+	var eligible: Array[Vector2i] = []
+	for c in tiles:
+		if not safe.has(c):
+			eligible.append(c)
+
+	var dist := _steps_from(spawn)
+	var furthest := 1
+	for d in dist.values():
+		furthest = maxi(furthest, d)
+
+	var bomb_count := int(floor(total * float(tier.bombDensity)))
+	var carrots := int(floor(total * float(tier.carrotDensity)))
+	var golden := int(floor(carrots * float(tier.goldenShare)))
+	var max_touching := int(tune.ISLAND.BOMB_MAX_TOUCHING)
+
+	# LES BOMBES D'ABORD, ponderees par la marche depuis le depart — plus
+	# denses au loin — et ETALEES : une candidate qui touche deja trop de
+	# bombes passe son tour (un amas eclaire moins de cases que les memes
+	# bombes a part). Differee, pas perdue : l'ile n'est jamais servie courte.
+	var bombs := 0
+	var deferred: Array[Vector2i] = []
+	for c in _weighted_order(rng, eligible, dist, furthest, tune.RISK_GRADIENT.BOMB):
+		if bombs >= bomb_count:
+			break
+		var touching := 0
+		for n in _neighbours(c):
+			if content[n] == Content.BOMB:
+				touching += 1
+		if touching > max_touching:
+			deferred.append(c)
+			continue
+		content[c] = Content.BOMB
+		bombs += 1
+	for c in deferred:
+		if bombs >= bomb_count:
+			break
+		content[c] = Content.BOMB
+		bombs += 1
+
+	var free := func() -> Array[Vector2i]:
+		var out: Array[Vector2i] = []
+		for c in eligible:
+			if content[c] == Content.EMPTY:
+				out.append(c)
+		return out
+
+	var gold := _weighted_order(rng, free.call(), dist, furthest, tune.RISK_GRADIENT.GOLDEN)
+	for k in range(mini(golden, gold.size())):
+		content[gold[k]] = Content.GOLDEN
+
+	# LES COFFRES AVANT LES CAROTTES, et sur le pourtour : ils sont la ligne
+	# d'arrivee de l'ile, donc leur place EST la forme du niveau. Chacun tire
+	# son palier sur le rng des CONTENUS — le palier se voit, mais lequel a eu
+	# la couronne ne doit pas se deduire de la graine publique.
+	var chest_count := int(round(total * float(tune.ISLAND.CHEST_DENSITY)))
+	for c in _rim_tiles(free.call(), dist, furthest, chest_count):
+		content[c] = Content.CHEST
+		chest_tier[c] = String(pick_weighted(rng, tune.CHEST_TIER_WEIGHTS).kind)
+
+	var pool: Array = free.call()
+	IslandGround._shuffle(rng, pool)
+	for k in range(mini(carrots - golden, pool.size())):
+		content[pool[k]] = Content.CARROT
+
+	recompute_adjacent()
+	# ON ATTERRIT QUELQUE PART OU L'ON PEUT LIRE : le depart et ses voisines
+	# sont ouverts, puis leurs zeros s'ouvrent — BORNES au rayon, comme un
+	# lapin debout sur le depart le verrait.
+	for c in safe:
+		state[c] = State.DUG
+	cascade_hints(safe.keys(), spawn)
+
+
+## island.ts `stepsFrom` : la distance en PAS, pas en cases — une case de
+## l'autre cote d'une falaise est loin, si proche que son index paraisse.
+func _steps_from(from: Vector2i) -> Dictionary:
+	var dist := {from: 0}
+	var queue: Array[Vector2i] = [from]
+	var head := 0
+	while head < queue.size():
+		var here := queue[head]
+		head += 1
+		for n in ground.steps_from(here):
+			if not content.has(n) or dist.has(n):
+				continue
+			dist[n] = dist[here] + 1
+			queue.append(n)
+	return dist
+
+
+## island.ts `weightedOrder` : un echantillon pondere SANS remise par horloges
+## exponentielles — chaque case sonne a -ln(u)/w, la plus tot d'abord. UN
+## tirage par case, dans l'ordre d'entree.
+##
+## Le tri de JS est STABLE et `sort_custom` ne l'est pas : le rang d'entree
+## departage, sans quoi deux horloges egales pourraient s'inverser.
+func _weighted_order(rng: Rng, items: Array, dist: Dictionary, furthest: int,
+		g: Dictionary) -> Array[Vector2i]:
+	var near := float(g.NEAR)
+	var far := float(g.FAR)
+	var rows: Array = []
+	for k in range(items.size()):
+		var c: Vector2i = items[k]
+		var depth := float(dist.get(c, furthest)) / float(furthest)
+		var w := near + (far - near) * depth
+		rows.append([-log(1.0 - rng.next()) / maxf(w, 1e-6), k, c])
+	rows.sort_custom(func(a: Array, b: Array) -> bool:
+		return a[0] < b[0] or (a[0] == b[0] and a[1] < b[1]))
+	var out: Array[Vector2i] = []
+	for r in rows:
+		out.append(r[2])
+	return out
+
+
+## island.ts `rimTiles` : `count` cases du BORD, aussi loin les unes des
+## autres que la cote le permet — un parcours du point le plus lointain.
+##
+## Seule la bande exterieure concourt (`CHEST_MIN_DEPTH` de la marche la plus
+## longue) ; on part de la case la plus loin du depart, puis on prend chaque
+## fois la candidate dont le coffre le plus proche est le plus loin. Chaque
+## choix est le tronçon de cote le plus vide qui reste : les coffres font le
+## tour de l'ile sans qu'on dise ou sont les points cardinaux.
+func _rim_tiles(candidates: Array[Vector2i], dist: Dictionary, furthest: int,
+		count: int) -> Array[Vector2i]:
+	var picked: Array[Vector2i] = []
+	if count <= 0:
+		return picked
+	var floor_d := furthest * float(_tuning().ISLAND.CHEST_MIN_DEPTH)
+	var pool: Array[Vector2i] = []
+	for c in candidates:
+		if dist.has(c) and dist[c] >= floor_d:
+			pool.append(c)
+	if pool.is_empty():
+		return picked
+
+	var head: Vector2i = pool[0]
+	for c in pool:
+		if dist[c] > dist[head]:
+			head = c
+	picked.append(head)
+	var near: Array[float] = []
+	for c in pool:
+		near.append(Vector2(c - head).length())
+
+	while picked.size() < count:
+		var best_at := -1
+		var best_gap := -1.0
+		for k in range(pool.size()):
+			if near[k] > best_gap:
+				best_gap = near[k]
+				best_at = k
+		# La cote n'a plus de place : l'ile est servie courte plutot que de
+		# coller deux coffres pour un compte que personne ne voit.
+		if best_at < 0 or best_gap <= 0.0:
+			break
+		var chosen := pool[best_at]
+		picked.append(chosen)
+		for k in range(pool.size()):
+			near[k] = minf(near[k], Vector2(pool[k] - chosen).length())
+	return picked
+
+
+## island.ts `chestProgress` : combien de coffres dorment encore. Une ile sans
+## coffre compte comme finie.
+func chest_progress() -> Dictionary:
+	var total := 0
+	var left := 0
+	for c in content:
+		if content[c] != Content.CHEST:
+			continue
+		total += 1
+		if state.get(c) != State.DUG:
+			left += 1
+	var fraction := 1.0 if total == 0 else 1.0 - float(left) / float(total)
+	return {"left": left, "total": total, "fraction": fraction}
+
+
+## CE QUE CONTIENT UN COFFRE — tire de `<graine>:<case>` (server/index.ts), donc
+## le meme pour quiconque l'ouvre. `{kind, amount, tier, announced, nft}`.
+func chest_loot(c: Vector2i) -> Dictionary:
+	var tune := _tuning()
+	var tier: String = chest_tier.get(c, "")
+	var table: Array = tune.CHEST_LOOT_BY_TIER.get(tier, tune.CHEST_LOOT) if tier != "" \
+		else tune.CHEST_LOOT
+	var rng := Rng.from_seed("%s:%d" % [seed_text, index_of(c)])
+	var e := pick_weighted(rng, table)
+	var amount := rand_int(rng, int(e.get("min", 1)), int(e.get("max", 1)))
+	# LA COURONNE PEUT CACHER UNE PIECE GENESIS, tiree APRES le butin sur le
+	# meme rng (run.ts) : l'ordre des tirages fait partie du coffre.
+	var nft := tier == "crown" and rng.next() < float(tune.CHEST_NFT_ODDS.inCrown)
+	return {"kind": String(e.kind), "amount": amount, "tier": tier,
+		"announced": tier != "", "nft": nft}

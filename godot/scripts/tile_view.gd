@@ -134,6 +134,11 @@ const ARROW_BOB_SECONDS := 0.9
 ## lui laisse la place. Pose par l'ile avant `build`.
 var tutorial := false
 
+## LES COFFRES TOMBENT-ILS A LA CONSTRUCTION ? Oui a l'arrivee sur une ile
+## (`showChests(…, drop = true)`), non a une reprise : les revoir tomber
+## dirait qu'ils viennent d'apparaitre. Pose par l'ile avant `build`.
+var drop_chests := false
+
 ## LES BUISSONS DU PACK (public/assets/deco/bushes), ceux de CETTE carte —
 ## island/tileset.ts : huit images de 128 dans une bande de 1024x128, le pied a
 ## y=79, mesure comme chaque nombre de ce fichier. Ils se balancent a
@@ -174,6 +179,10 @@ const CHEST_FLAIR := {
 	"crown": {"beam": 78.0, "width": 18.0, "motes": 10, "glow": 1.0},
 }
 const CHEST_SHADOW_ALPHA := 0.32
+## Le halo a 0,88 du losange (`TileTextures.diamondFill`).
+const CHEST_GLOW_INSET := 0.88
+## D'ou tombe la boite a l'arrivee, en pixels du monde (`CHEST_DROP_HEIGHT`).
+const CHEST_DROP_HEIGHT := 90.0
 ## L'eclat : l'animation jouee UNE fois, sur horloge — un scintillement permanent
 ## cesse de se lire comme un evenement. Entre 4,5 et 8 s ; a 21 i/s (0,35 par
 ## tick de 60 sur le web).
@@ -196,6 +205,8 @@ const CARROT_REST_Y := -6.0
 const CARROT_POP := 12.0
 const CARROT_RISE := 26.0
 const SHADOW_ALPHA := 0.3
+const GOLDEN_SCALE := 1.35
+const GOLDEN_TINT := Color("#ffe066")
 
 ## LA BOMBE DECOUVERTE, a 20 pixels de large, puis son cratere : un bord brun
 ## et un fond presque noir, sous le X (le cratere est dans le sol).
@@ -215,6 +226,12 @@ var _chest: Dictionary = {}
 var _arrow: Dictionary = {}
 ## Tout ce qui entoure un coffre, par case : le porteur qu'on cache d'un coup.
 var _flair: Dictionary = {}
+## Le palier monte sur chaque case, pour la boussole.
+var _tier_of: Dictionary = {}
+## Le buisson de chaque case, pour le trou de profondeur : un buisson est
+## « assez haut pour cacher le joueur ».
+var _bush_at: Dictionary = {}
+var _drops: Array[Tween] = []
 var _props: Array[Node] = []
 var _bobs: Array[Tween] = []
 var _timers: Array[SceneTreeTimer] = []
@@ -309,13 +326,14 @@ func build() -> void:
 			bush.play("sway")
 			terrain.mount_veil(cell, bush, Z_PROP)
 			_props.append(bush)
+			_bush_at[cell] = bush
 
 	refresh()
 
 
 ## LE COFFRE ET TOUT CE QUI L'ENTOURE, dans l'ordre de Tile.ts `setChest` :
 ## le halo au sol, l'anneau, l'ombre de contact, le faisceau derriere la boite,
-## la boite, les particules, le mot du palier — et la fleche du tutoriel.
+## la boite, le mot du palier, les particules — et la fleche du tutoriel.
 ##
 ## TOUT DANS UN PORTEUR, monte une fois dans le bloc de la case : les z_index
 ## des enfants sont relatifs a lui, donc l'ordre de Tile.ts se recopie tel quel
@@ -324,44 +342,39 @@ func build() -> void:
 ## LE PALIER EST PORTE PAR LE HALO ET L'ANNEAU, jamais par une teinte sur la
 ## boite : une teinte MULTIPLIE l'art, deja brun-rouge sombre, et commun et
 ## legendaire sortaient du meme brun boueux.
+##
+## LE PALIER EST CELUI DE LA CASE (`board.chest_tier`), le bronze a defaut —
+## `showChests` fait pareil d'un palier qu'il ne connait pas.
 func _mount_chest(cell: Vector2i) -> void:
-	var tint: Color = CHEST_TIER_COLOR[CHEST_TIER]
-	var flair: Dictionary = CHEST_FLAIR[CHEST_TIER]
+	var tier: String = board.chest_tier.get(cell, CHEST_TIER)
+	if not CHEST_TIER_COLOR.has(tier):
+		tier = CHEST_TIER
+	var tint: Color = CHEST_TIER_COLOR[tier]
+	var flair: Dictionary = CHEST_FLAIR[tier]
 	var holder := Node2D.new()
 	terrain.mount_veil(cell, holder, Z_PROP)
 	_flair[cell] = holder
+	_tier_of[cell] = tier
 
 	# LE HALO : presque opaque, il doit RECOUVRIR ce que porte la case (voile,
 	# surbrillance), pas s'y fondre — translucide, il se lit comme la couleur du
-	# sol et non comme celle du palier. Il respire ensuite entre son plein et
-	# 47 % de son plein, en 0,75 s.
+	# sol et non comme celle du palier. A 0,88 du losange, comme `diamondFill` :
+	# plein, il mangeait le liseré de la case voisine.
 	var peak: float = 0.95 * float(flair["glow"])
 	var glow := Sprite2D.new()
 	glow.texture = _diamond_texture()
 	glow.modulate = Color(tint.r, tint.g, tint.b, peak)
+	glow.scale = Vector2.ONE * CHEST_GLOW_INSET
 	glow.z_index = 0
 	holder.add_child(glow)
-	var breath := create_tween().set_loops()
-	breath.tween_property(glow, "modulate:a", peak * 0.47, 0.75)\
-		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	breath.tween_property(glow, "modulate:a", peak, 0.75)\
-		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	_bobs.append(breath)
 
-	# L'ANNEAU : un peu plus large que le losange, pour se lire comme un rebord ;
-	# il s'elargit jusqu'a 1,16 et revient, en 1,1 s.
+	# L'ANNEAU : un peu plus large que le losange, pour se lire comme un rebord.
 	var ring := Sprite2D.new()
 	ring.texture = MoveRing._outline_texture()
 	ring.modulate = tint
 	ring.scale = Vector2(1.06, 1.06)
 	ring.z_index = 1
 	holder.add_child(ring)
-	var rim := create_tween().set_loops()
-	rim.tween_property(ring, "scale", Vector2(1.16, 1.16), 1.1)\
-		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	rim.tween_property(ring, "scale", Vector2(1.06, 1.06), 1.1)\
-		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	_bobs.append(rim)
 
 	# L'OMBRE DE CONTACT, sous la boite et sur le halo.
 	var shadow := Sprite2D.new()
@@ -373,7 +386,8 @@ func _mount_chest(cell: Vector2i) -> void:
 
 	# LE FAISCEAU, derriere la boite : un cone dans la couleur du palier, plus un
 	# coeur blanc plus clair — c'est le coeur qui le fait lire comme de la
-	# LUMIERE et non comme un triangle plat. Il respire de 0,72 a 1 en 1,3 s.
+	# LUMIERE et non comme un triangle plat. Il respire de 0,72 a 1 en 1,3 s,
+	# des la creation (le web ne l'attend pas).
 	var beam_h: float = flair["beam"]
 	var half: float = float(flair["width"]) * 0.5
 	var beam := Node2D.new()
@@ -412,19 +426,47 @@ func _mount_chest(cell: Vector2i) -> void:
 	chest.frame = 0
 	holder.add_child(chest)
 	_chest[cell] = chest
-	_schedule_shine(chest)
-	_schedule_shake(chest)
 
-	# LES PARTICULES : chacune monte sur sa propre boucle, decalee, pour qu'elles
-	# ne marchent jamais au pas. Une sur trois est grande et blanche.
+	# LE MOT DU PALIER, au-dessus du faisceau : le halo dit « ca vaut », le mot
+	# dit combien, et personne n'a a apprendre un code de couleurs. Lisere
+	# sombre, parce que les glyphes nus mesuraient 1,8:1 sur l'herbe. Jamais
+	# sur le tutoriel : la fleche prend sa place, et un palier dont personne
+	# n'a encore l'echelle crierait a cote de la seule croix a regarder.
+	var word: Label = null
+	if not tutorial:
+		word = Label.new()
+		word.text = tier.to_upper()
+		word.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		word.add_theme_font_size_override("font_size", 8)
+		word.add_theme_color_override("font_color", tint)
+		word.add_theme_color_override("font_outline_color", Color("#0c0a12"))
+		word.add_theme_constant_override("outline_size", 2)
+		word.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
+		word.size = Vector2(60, 12)
+		word.position = Vector2(-30, -beam_h - 12 - 6)
+		word.scale = Vector2(1.1, 1.1)
+		word.z_index = 5
+		holder.add_child(word)
+		var hover := create_tween().set_loops()
+		hover.tween_property(word, "position:y", word.position.y - 2, 1.1)\
+			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		hover.tween_property(word, "position:y", word.position.y, 1.1)\
+			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		_bobs.append(hover)
+
+	# LES PARTICULES, APRES le mot comme sur le web : elles montent a travers
+	# lui. Chacune sur sa propre boucle, decalee, pour qu'elles ne marchent
+	# jamais au pas. Une sur trois est grande et blanche.
+	var motes: Array[Sprite2D] = []
 	for i in range(int(flair["motes"])):
 		var big := i % 3 == 0
 		var mote := Sprite2D.new()
 		mote.texture = _square_texture(3 if big else 2)
 		mote.modulate = Color(1, 1, 1, 0.9) if big else Color(tint.r, tint.g, tint.b, 0.9)
 		mote.position = Vector2((_rng.randf() - 0.5) * float(flair["width"]) * 1.6, -4)
-		mote.z_index = 5
+		mote.z_index = 6
 		holder.add_child(mote)
+		motes.append(mote)
 		var rise := create_tween().set_loops()
 		rise.tween_interval(i * 0.22 + _rng.randf() * 0.4)
 		rise.tween_callback(func() -> void: mote.position.y = -4; mote.modulate.a = 0.9)
@@ -456,30 +498,90 @@ func _mount_chest(cell: Vector2i) -> void:
 			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 		_bobs.append(bob)
 		_arrow[cell] = arrow
+
+	# LE COFFRE TOMBE SUR L'ILE avec le plateau (`drop`, a l'arrivee
+	# seulement) : le joueur le voit ARRIVER plutot que de le trouver deja la.
+	# Chute, ecrasement a l'impact, puis l'attente. Halo, anneau, faisceau et
+	# mot s'allument A L'ATTERRISSAGE — montrer le palier en plein vol
+	# donnerait l'issue avant que la boite ait touche terre.
+	if not drop_chests:
+		_chest_ambience(chest, glow, ring, peak)
 		return
 
-	# LE MOT DU PALIER, au-dessus du faisceau : le halo dit « ca vaut », le mot
-	# dit combien, et personne n'a a apprendre un code de couleurs. Lisere
-	# sombre, parce que les glyphes nus mesuraient 1,8:1 sur l'herbe.
-	var word := Label.new()
-	word.text = CHEST_TIER.to_upper()
-	word.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	word.add_theme_font_size_override("font_size", 8)
-	word.add_theme_color_override("font_color", tint)
-	word.add_theme_color_override("font_outline_color", Color("#0c0a12"))
-	word.add_theme_constant_override("outline_size", 2)
-	word.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
-	word.size = Vector2(60, 12)
-	word.position = Vector2(-30, -beam_h - 12 - 6)
-	word.scale = Vector2(1.1, 1.1)
-	word.z_index = 6
-	holder.add_child(word)
-	var hover := create_tween().set_loops()
-	hover.tween_property(word, "position:y", word.position.y - 2, 1.1)\
+	var rest_y := chest.position.y
+	chest.position.y = rest_y - CHEST_DROP_HEIGHT
+	glow.modulate.a = 0.0
+	ring.modulate.a = 0.0
+	beam.modulate.a = 0.0
+	shadow.scale = Vector2.ONE * 0.35
+	shadow.modulate.a = 0.12
+	if word != null:
+		word.modulate.a = 0.0
+	for m in motes:
+		m.visible = false
+	var sy := chest.scale.y
+	var t := create_tween()
+	t.tween_property(chest, "position:y", rest_y, 0.45)\
+		.set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+	t.parallel().tween_property(shadow, "scale", Vector2.ONE, 0.45)\
+		.set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+	t.parallel().tween_property(shadow, "modulate:a", CHEST_SHADOW_ALPHA, 0.45)\
+		.set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+	# L'ECRASEMENT a l'impact, puis le rebond du couvercle. (Le web l'avance
+	# de 0,02 s ; un Tween de Godot n'a pas de delai negatif, et vingt
+	# millisecondes ne se voient pas.)
+	t.tween_property(chest, "scale:y", sy * 0.72, 0.08)\
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	t.tween_property(chest, "scale:y", sy, 0.22)\
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	t.parallel().tween_property(glow, "modulate:a", peak, 0.25)
+	t.parallel().tween_property(ring, "modulate:a", 1.0, 0.25)
+	t.parallel().tween_property(beam, "modulate:a", 0.72, 0.25)
+	if word != null:
+		t.parallel().tween_property(word, "modulate:a", 1.0, 0.25)
+	t.tween_callback(func() -> void:
+		for m in motes:
+			m.visible = true
+		_chest_ambience(chest, glow, ring, peak))
+	_drops.append(t)
+
+
+## L'ATTENTE D'UN COFFRE POSE (`startChestAmbience` + `scheduleChestShake`) :
+## le halo respire entre son plein et 47 % en 0,75 s, l'anneau s'elargit
+## jusqu'a 1,16 et revient en 1,1 s, l'eclat et la secousse sur horloge.
+func _chest_ambience(chest: AnimatedSprite2D, glow: Sprite2D, ring: Sprite2D, peak: float) -> void:
+	var breath := create_tween().set_loops()
+	breath.tween_property(glow, "modulate:a", peak * 0.47, 0.75)\
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	hover.tween_property(word, "position:y", word.position.y, 1.1)\
+	breath.tween_property(glow, "modulate:a", peak, 0.75)\
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	_bobs.append(hover)
+	_bobs.append(breath)
+	var rim := create_tween().set_loops()
+	rim.tween_property(ring, "scale", Vector2(1.16, 1.16), 1.1)\
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	rim.tween_property(ring, "scale", Vector2(1.06, 1.06), 1.1)\
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_bobs.append(rim)
+	_schedule_shine(chest)
+	_schedule_shake(chest)
+
+
+## LE BUISSON D'UNE CASE, ou null.
+func bush_at(cell: Vector2i) -> Node2D:
+	return _bush_at.get(cell, null)
+
+
+## LES COFFRES QUI DORMENT ENCORE, pour la boussole : `{cell, node, tint}`.
+## Le noeud est le porteur monte dans le bloc — sa position globale est celle
+## de la case a l'ecran, camera comprise.
+func chest_targets() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for cell in _flair:
+		if board.state.get(cell) == IslandBoard.State.DUG:
+			continue
+		out.append({"cell": cell, "node": _flair[cell],
+			"tint": CHEST_TIER_COLOR[_tier_of[cell]]})
+	return out
 
 
 ## L'ECLAT, une fois, puis on reserve le suivant.
@@ -592,6 +694,8 @@ func _reveal(cell: Vector2i) -> void:
 	match board.content.get(cell, IslandBoard.Content.EMPTY):
 		IslandBoard.Content.CARROT:
 			_take_carrot(cell)
+		IslandBoard.Content.GOLDEN:
+			_take_carrot(cell, true)
 		IslandBoard.Content.BOMB:
 			_blast(cell)
 
@@ -599,7 +703,10 @@ func _reveal(cell: Vector2i) -> void:
 ## LA CAROTTE SORT ET SE PREND (`addCarrot` puis `collectCarrot`) : elle monte
 ## du sol en rebondissant, grossit d'un coup quand on la prend, puis s'envole
 ## en s'effacant. Son ombre reste au sol et s'eteint.
-func _take_carrot(cell: Vector2i) -> void:
+##
+## LA DOREE EST LA MEME CAROTTE, plus grande et plus claire (`addCarrot`) :
+## 1,35 fois, teintee #ffe066 — le web n'a pas d'autre art pour elle.
+func _take_carrot(cell: Vector2i, golden: bool = false) -> void:
 	var holder := Node2D.new()
 	if not terrain.mount_veil(cell, holder, Z_PROP):
 		holder.free()
@@ -612,7 +719,10 @@ func _take_carrot(cell: Vector2i) -> void:
 	carrot.texture = CARROT
 	carrot.centered = false
 	carrot.offset = Vector2(-CARROT.get_width() * 0.5, -CARROT.get_height())
-	carrot.scale = Vector2.ONE * CARROT_SCALE
+	var size := CARROT_SCALE * (GOLDEN_SCALE if golden else 1.0)
+	carrot.scale = Vector2.ONE * size
+	if golden:
+		carrot.self_modulate = GOLDEN_TINT
 	carrot.position.y = CARROT_REST_Y + CARROT_POP
 	carrot.modulate.a = 0.0
 	holder.add_child(carrot)
@@ -621,7 +731,7 @@ func _take_carrot(cell: Vector2i) -> void:
 	t.tween_property(carrot, "position:y", CARROT_REST_Y, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	t.tween_property(carrot, "modulate:a", 1.0, 0.18)
 	t.tween_property(shadow, "scale", Vector2.ONE, 0.28)
-	t.tween_property(carrot, "scale", Vector2.ONE * CARROT_SCALE * 1.5, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	t.tween_property(carrot, "scale", Vector2.ONE * size * 1.5, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	t.tween_property(shadow, "modulate:a", 0.0, 0.3).set_delay(0.3)
 	t.tween_property(carrot, "position:y", CARROT_REST_Y - CARROT_RISE, 0.34).set_delay(0.3).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 	t.tween_property(carrot, "modulate:a", 0.0, 0.34).set_delay(0.3).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
@@ -730,6 +840,10 @@ func clear() -> void:
 		if t != null and t.is_valid():
 			t.kill()
 	_bobs.clear()
+	for t in _drops:
+		if t != null and t.is_valid():
+			t.kill()
+	_drops.clear()
 	# LES HORLOGES MEURENT AVEC LE COFFRE : un SceneTreeTimer garde sa connexion
 	# vivante apres la mort du noeud, et reveillerait un eclat sur une boite
 	# liberee.
@@ -743,6 +857,8 @@ func clear() -> void:
 	for p in _props:
 		p.queue_free()
 	_flair.clear()
+	_tier_of.clear()
+	_bush_at.clear()
 	_chest.clear()
 	_arrow.clear()
 	_props.clear()

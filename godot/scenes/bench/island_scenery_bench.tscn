@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3]
+
+; Le banc du decor de l'ile — voir scripts/bench/island_scenery_bench.gd.
+
+[ext_resource type="Script" path="res://scripts/bench/island_scenery_bench.gd" id="1_bench"]
+
+[node name="IslandSceneryBench" type="Node2D"]
+script = ExtResource("1_bench")

@@ -14,6 +14,7 @@ Depuis la ligne de commande, une capture sans éditeur :
 
     godot --path godot -- --shot=C:/tmp/shot.png --after=4
     godot --path godot scenes/ui_bench.tscn -- --shot=C:/tmp/bench.png
+    godot --path godot scenes/dig_sandbox.tscn -- --seed=reef --auto=40 --shot=C:/tmp/dig.png --after=6
 
 Le wallet n'existe que dans un build Android ; sur bureau, la porte invitée
 suffit pour tout voir.
@@ -26,6 +27,7 @@ suffit pour tout voir.
 | `scripts/screens.gd` | Le routeur : le doorstep est un ÉCRAN, le terrier et l'île sont des LIEUX résidents. |
 | `scripts/title.gd` | L'accueil (doorstep). |
 | `scripts/burrow*.gd` | Le terrier : terrain, décors, clôtures, lapin, caméra. |
+| `scenes/dig_sandbox.tscn` | Le bac à sable du creusage : une île générée jouable sans serveur (N, R, T, X). |
 | `scripts/chrome.gd` | Le chrome au-dessus du monde : barre du haut, colonne, sol, pastilles, dialogues. |
 | `scripts/ui/` | Les pièces partagées du chrome (voir ci-dessous). |
 | `scenes/ui/` | Chaque panneau du chrome, une scène chacun. |
@@ -112,7 +114,9 @@ par l'exportateur Android et manque à l'APK.
 | Coffre | `chest-*.tsx` | `chest_prize.gd` écrit, **pas monté** |
 | Île : choix d'île | `island-picker.tsx` | `island_picker.gd` ✓ |
 | Île : HUD, récap | `run-hud.tsx`, `run-recap.tsx` | `run_hud.gd` + `run_recap.gd` écrits, **pas montés** — l'île montre son HUD provisoire (`island.gd`) |
-| Île : cases, décor, caméra, éruption | `game/island/*` | cases de la leçon ✓ (carotte prise, bombe et cratère, coffre qui s'envole) ; éruption et grondement ✓, branchés sur `RunState` en attendant les manches en ligne ; décor et caméra des îles générées : à venir |
+| Île : cases, décor, caméra, éruption | `game/island/*` | cases ✓ (carotte, dorée, bombe et cratère, coffre qui s'envole) ; décor debout ✓ (`island_scenery.gd`) et trou de profondeur ✓ (`depth_hole.gdshader`) ; éruption et grondement ✓ ; caméra de jeu (suit le lapin, molette) ✓ |
+| Île : creuser (hors ligne) | `lib/game/island.ts`, `run.ts` | ✓ — `island_ground.gd` (décor, pas, apparition), `IslandBoard.deal_generated` (bombes, dorées, coffres au bord, lots), `local_run.gd` (`resolveMove`, `flagTile`) ; identique au serveur case par case (`tools/verify_deal.gd`). **En ligne : à brancher** — les contenus viennent du serveur |
+| Île : coffres | `Tile.ts setChest`, `ChestCompass.ts` | ✓ — palier par case, chute à l'arrivée, boussole (`chest_compass.gd`), cérémonie (`chest_prize.gd`, montée) |
 | Raid : cibles, HUD, victoire | `raid-panel.tsx`, `defend-hud.tsx`, `raid-victory.tsx` | `target_list.gd`, `raid_hud.gd`, `raid_victory.gd` ✓ |
 | Rideau de traversée | `carrot-curtain.tsx`, Pixi | `iris_wipe.gd` ✓ — une variante sur les cinq du web |
 | Sons, musique | `SoundManager` | `sound.gd` ✓ |

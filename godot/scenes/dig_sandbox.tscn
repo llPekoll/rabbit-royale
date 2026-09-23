@@ -1,0 +1,9 @@
+[gd_scene format=3]
+
+; LE BAC A SABLE DU CREUSAGE — une ile generee jouable sans serveur. Voir
+; scripts/dig_sandbox.gd. Pas un ecran du jeu : un outil, comme ui_bench.tscn.
+
+[ext_resource type="Script" path="res://scripts/dig_sandbox.gd" id="1_sandbox"]
+
+[node name="DigSandbox" type="Node2D"]
+script = ExtResource("1_sandbox")

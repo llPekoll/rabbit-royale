@@ -25,6 +25,13 @@ extends Node2D
 ## decider, et le plateau ne doit pas avoir a connaitre la liste.
 signal tile_tapped(cell: Vector2i)
 
+## LA MANCHE HORS LIGNE A BOUGE — un pas, un X, un refus. `outcome` est ce
+## que `LocalRun` rend, la forme du `move_result` du serveur.
+signal local_changed(outcome: Dictionary)
+## LA MANCHE HORS LIGNE EST FINIE : l'ile a erupte (`cleared`) ou le lapin n'a
+## plus d'energie.
+signal local_over(cleared: bool)
+
 ## LA DUREE DU MOUVEMENT DE CAMERA, et sa courbe. Les memes que le terrier :
 ## c'est le meme geste, il doit avoir le meme poids.
 const CAM_SECONDS := 0.55
@@ -55,6 +62,28 @@ const DEFAULT_SEED := "default"
 var _board: IslandBoard
 
 var _seed := DEFAULT_SEED
+
+## LE SOL D'UNE ILE GENEREE : son decor et ses pas (nul sur le tutoriel).
+var _ground: IslandGround
+## LA MANCHE HORS LIGNE, quand l'ile se joue sans serveur (le bac a sable).
+## Nulle sinon : une ile en ligne attend ses contenus du reseau.
+var local_run: LocalRun
+## Ce qui a ete joue depuis la derniere lecture du chrome.
+var _local_over := false
+## CE QUE LA PROCHAINE ILE HORS LIGNE DOIT DONNER : `{content_seed, lifetime}`,
+## vide pour une ile en ligne (ou le tutoriel, qui se donne tout seul).
+var _local_deal: Dictionary = {}
+## LE DECOR DEBOUT (arbres, reperes, moutons, soldats) — `IslandScenery`,
+## monte a la demande. Les buissons, eux, sont dessines par `TileView`.
+var _scenery: IslandScenery
+var _compass: ChestCompass
+var _prize_host: Control
+
+## LE ZOOM DE JEU : 60 pixels par case au paysage (islandCamera.ts
+## `DEFAULT_TILE_PX`), centre sur le lapin. L'ile entiere au cadre se lit comme
+## une carte ; on ne creuse pas une carte.
+const PLAY_TILE_PX := 60.0
+const WHEEL_ZOOM := 1.12
 var _cam_tween: Tween
 ## Le fondu d'arrivee, a part du tween de camera : un doigt qui prend le
 ## plateau tue la camera, et l'ile ne doit pas rester a demi eteinte pour ca.
@@ -334,11 +363,30 @@ func _add_chrome() -> void:
 	layer.add_child(_caption)
 	_spotlight.lit = [_mark, _mark_arrow, _caption]
 
+	# LA BOUSSOLE : un chevron au bord de l'ecran par coffre hors du cadre.
+	# Pas sur le tutoriel — son coffre a sa fleche (`_tiles.tutorial`).
+	_compass = ChestCompass.new()
+	_compass.tiles = _tiles
+	_compass.cam = self
+	layer.add_child(_compass)
+	_refresh_compass()
+
 	_sink_sky = preload("res://scenes/ui/eruption_overlay.tscn").instantiate()
 	_sink_sky.follows_run = false
 	layer.add_child(_sink_sky)
 
 	_refresh_tutorial_chrome()
+
+	# L'HOTE DES CEREMONIES quand aucun chrome n'est monte (le bac a sable) :
+	# au-dessus de tout, plein ecran, et transparent aux tapes tant qu'il est
+	# vide — c'est la ceremonie elle-meme qui les arrete.
+	var top := CanvasLayer.new()
+	top.layer = 60
+	add_child(top)
+	_prize_host = Control.new()
+	_prize_host.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_prize_host.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	top.add_child(_prize_host)
 
 	# LE COMPTEUR, PROVISOIRE — et il est la parce que `adb shell dumpsys
 	# gfxinfo` MENT sur ce projet : il compte les images qu'ANDROID compose, pas
@@ -350,6 +398,18 @@ func _add_chrome() -> void:
 	_fps.add_theme_font_size_override("font_size", 22)
 	_fps.add_theme_color_override("font_color", Color(1, 0.83, 0.36))
 	layer.add_child(_fps)
+
+
+## UNE ILE HORS LIGNE, JOUABLE : generee de `seed_value`, ses contenus donnes
+## ici depuis `content_seed` (la graine que le serveur garderait pour lui), au
+## palier que `lifetime` carottes ouvrent.
+##
+## Pour le bac a sable et les bancs. Une manche en ligne ne passe jamais par
+## la : ses contenus viennent du serveur, case par case.
+func play_local(seed_value: String, content_seed: String = "", lifetime: float = 0.0) -> void:
+	_local_deal = {"content_seed": content_seed, "lifetime": lifetime}
+	reset_eruption()
+	show_ground(seed_value)
 
 
 ## LE SOL D'UNE ILE DONNEE.
@@ -383,14 +443,45 @@ func show_ground(seed_value: String) -> void:
 	# APRES le terrain, parce que les voiles se montent dans ses blocs — et
 	# avant les losanges, qui partagent les memes blocs.
 	_board = IslandBoard.new(map)
+	_ground = null
 	if FirstIsland.is_first(seed_value):
 		_board.deal_tutorial()
+	else:
+		# LE DECOR DECIDE QUELLES CASES EXISTENT : rien n'est enterre sous un
+		# arbre, et un arbre ne se traverse pas.
+		_ground = IslandGround.new(map, FirstIsland.ground_seed(seed_value))
+		_board.ground = _ground
+		if _local_deal.size() > 0:
+			_board.deal_generated(_ground, seed_value, _local_deal.content_seed,
+				_local_deal.lifetime)
 	_tiles.board = _board
 	_tiles.terrain = _terrain
 	# Sur le tutoriel, la fleche se plante sur le coffre et le mot du palier
 	# lui laisse la place (ChestPointer.ts / `hideChestTier`).
 	_tiles.tutorial = FirstIsland.is_first(seed_value)
+	# LES COFFRES TOMBENT A L'ARRIVEE sur une ile neuve, pas a une reprise.
+	_tiles.drop_chests = _local_deal.size() > 0
+	# RIEN DEVANT UN COFFRE (`clearDecoOver`) : il doit se voir depuis l'autre
+	# bout de l'ile, c'est toute la raison pour laquelle il est dessine avant
+	# d'etre creuse. Le decor vient de la graine publique, les coffres de la
+	# privee : ils ne se rencontrent qu'ici, au premier instant ou l'on
+	# connait les deux. Les buissons sont a `TileView`, le reste au decor.
+	for chest in _board.chest_tier:
+		for cell in IslandScenery.cells_in_front(chest):
+			_board.decor.erase(cell)
 	_tiles.build()
+
+	# LE DECOR DEBOUT — arbres, reperes, moutons, soldats. Rebati a chaque sol :
+	# le terrain jette ses blocs, et le decor monte dedans meurt avec eux.
+	if _scenery == null:
+		_scenery = IslandScenery.new()
+		add_child(_scenery)
+	_scenery.terrain = _terrain
+	_scenery.build(_ground if _ground != null else IslandGround.bare(map, seed_value))
+	for chest in _board.chest_tier:
+		_scenery.clear_over(chest)
+	_holed.clear()
+	_hole_cell = Vector2i(-99, -99)
 
 	# LE JOUEUR, pose sur l'apparition du tutoriel — ou au milieu d'une ile
 	# ordinaire, en attendant que le serveur dise ou. Il n'erre pas : sur l'ile
@@ -400,7 +491,12 @@ func show_ground(seed_value: String) -> void:
 	_rabbit.map = map
 	_rabbit.roam = false
 	var start := TutorialMap.spawn() if FirstIsland.is_first(seed_value) else Vector2i(-1, -1)
+	if _ground != null:
+		start = _ground.spawn()
 	_rabbit.build(hash(seed_value), start)
+	local_run = LocalRun.new(_board, start) if _local_deal.size() > 0 else null
+	_local_over = false
+	_warn_heard = 0
 
 	# L'ANNEAU, dans les memes blocs que les voiles — et rallume tout de suite
 	# autour de l'apparition.
@@ -414,6 +510,7 @@ func show_ground(seed_value: String) -> void:
 	_chests = 0
 	_done = false
 	_refresh_tutorial_chrome()
+	_refresh_compass()
 	_refresh_ring()
 
 	# LES LOSANGES SE MONTENT DANS LES BLOCS DU TERRAIN : ils viennent donc
@@ -454,9 +551,21 @@ func _centred_origin(map: BurrowMap) -> Vector2:
 ## pour le porter.
 func _wanted_cam() -> BurrowCamera.Shot:
 	var view := get_viewport_rect().size
+	if local_run != null and not _cam_moved_by_player:
+		return _follow_shot(view)
 	if _cam_moved_by_player:
 		return BurrowCamera.clamp_place(_current_shot(), _terrain.map, view.x, view.y)
 	return BurrowCamera.board(_terrain.map, view.x, view.y)
+
+
+## LA PRISE DE JEU : le lapin au milieu, a 60 pixels par case, bornee comme
+## un glissement du joueur (on ne montre pas la mer au-dela du bord).
+func _follow_shot(view: Vector2) -> BurrowCamera.Shot:
+	var k := PLAY_TILE_PX / (Iso.half_w() * 2.0)
+	var here := local_run.at
+	var focus := _terrain.map.screen_of(here.x, here.y) + Vector2(0, Iso.half_h())
+	var shot := BurrowCamera.Shot.new(k, view * 0.5 - focus * k)
+	return BurrowCamera.clamp_place(shot, _terrain.map, view.x, view.y)
 
 
 func _current_shot() -> BurrowCamera.Shot:
@@ -496,6 +605,7 @@ var _probe_step := 0
 
 
 func _process(delta: float) -> void:
+	_update_hole()
 	if _fps == null:
 		return
 	var n := int(Performance.get_monitor(Performance.TIME_FPS))
@@ -508,6 +618,78 @@ func _process(delta: float) -> void:
 	if _fps_tick >= 2.0:
 		_fps_tick = 0.0
 		print("[perf] %d fps, %d draws" % [n, draws])
+
+
+## LE TROU DE PROFONDEUR (fx/DepthHole.ts, config/depthHoleLook.ts) : un
+## disque trame perce dans ce qui se tient DEVANT le lapin, pour qu'un sapin
+## trois fois plus haut qu'une case ne l'avale pas.
+##
+## LE CHOIX DE CE QUI EST PERCE se fait ici, sur les cases : tout ce qui est
+## plus pres de la camera que le lapin (x + y plus grand) et a portee de sa
+## ramure. Le web lit la meme chose sur son `zIndex` (`depthWindow`) ; le
+## shader, lui, ne fait que le disque. Les cases derriere ne sont jamais
+## percees — elles sont derriere.
+const HOLE_SHADER := preload("res://shaders/depth_hole.gdshader")
+const HOLE_RADIUS := 35.0
+const HOLE_FEATHER := 11.0
+const HOLE_DOT := 1.0
+const HOLE_GHOST := 0.1
+## Jusqu'ou devant le lapin (en rangs de profondeur x + y) et de cote (x - y)
+## un decor peut encore le couvrir : un sapin fait trois cases de haut.
+const HOLE_AHEAD := 6
+const HOLE_SIDE := 3
+## Le milieu du corps, au-dessus des pieds, en part de la frame : le lapin a
+## le corps dans la moitie basse (`centreOf`, mesure sur le web).
+const HOLE_BODY := 0.15
+
+var _hole_mat: ShaderMaterial
+var _holed: Array[CanvasItem] = []
+var _hole_cell := Vector2i(-99, -99)
+
+
+func _update_hole() -> void:
+	if _scenery == null or _rabbit == null or _rabbit._sprite == null:
+		return
+	if _hole_mat == null:
+		_hole_mat = ShaderMaterial.new()
+		_hole_mat.shader = HOLE_SHADER
+		_hole_mat.set_shader_parameter("ghost", HOLE_GHOST)
+	var cell := _rabbit.at()
+	if cell != _hole_cell:
+		_hole_cell = cell
+		_select_hole(cell)
+	var sprite: Node2D = _rabbit._sprite
+	var to_window := get_viewport().get_final_transform()
+	var body := sprite.get_global_transform_with_canvas() * Vector2(0, -HomeRabbit.FRAME * HOLE_BODY)
+	var k := scale.x * to_window.get_scale().x
+	_hole_mat.set_shader_parameter("centre", to_window * body)
+	_hole_mat.set_shader_parameter("radius", HOLE_RADIUS * k)
+	_hole_mat.set_shader_parameter("feather", HOLE_FEATHER * k)
+	_hole_mat.set_shader_parameter("dot_px", maxf(1.0, round(HOLE_DOT * k)))
+
+
+## Pose le materiau sur ce qui couvre `cell`, et le RETIRE du reste — un
+## sprite qui cesse d'etre devant n'a pas a garder un shader a vide.
+func _select_hole(cell: Vector2i) -> void:
+	for n in _holed:
+		if is_instance_valid(n):
+			n.material = null
+	_holed.clear()
+	for ahead in range(0, HOLE_AHEAD + 1):
+		for side in range(-HOLE_SIDE, HOLE_SIDE + 1):
+			# (x + y) = profondeur, (x - y) = cote ; on ne garde que les
+			# combinaisons qui tombent sur une case entiere.
+			if (ahead + side) % 2 != 0:
+				continue
+			var c := cell + Vector2i((ahead + side) / 2, (ahead - side) / 2)
+			var nodes: Array = _scenery.nodes_at(c).duplicate()
+			var bush := _tiles.bush_at(c)
+			if bush != null:
+				nodes.append(bush)
+			for n in nodes:
+				if n is CanvasItem and is_instance_valid(n):
+					(n as CanvasItem).material = _hole_mat
+					_holed.append(n)
 
 
 func _reframe() -> void:
@@ -536,6 +718,14 @@ func _reframe() -> void:
 ## l'instant du bouton). Le GUI ne consomme que la version souris, donc c'est
 ## elle, et elle seule, qui vaut une tape. Journal du Seeker, 2026-09-23.
 func _unhandled_input(event: InputEvent) -> void:
+	# LA MOLETTE ZOOME AUTOUR DU CURSEUR — au bureau seulement ; au doigt, le
+	# pincement viendra avec le pan libre du web.
+	if event is InputEventMouseButton and event.pressed and \
+			(event.button_index == MOUSE_BUTTON_WHEEL_UP or event.button_index == MOUSE_BUTTON_WHEEL_DOWN):
+		var f := WHEEL_ZOOM if event.button_index == MOUSE_BUTTON_WHEEL_UP else 1.0 / WHEEL_ZOOM
+		var view := get_viewport_rect().size
+		set_place_cam(BurrowCamera.zoom_at(_current_shot(), f, event.position, _terrain.map, view.x, view.y))
+		return
 	if event is InputEventMouseButton:
 		if event.pressed:
 			_on_press(event.position)
@@ -590,10 +780,129 @@ func _on_release(at: Vector2) -> void:
 	# lapin (`payCrossing` — « sans un pas, creuser est gratuit »). Ici on
 	# montre le SOCLE : le voile tombe, le chiffre sort, la cascade ouvre le
 	# champ.
-	if _board != null:
+	if local_run != null:
+		_local_tap(cell)
+	elif _board != null:
 		_board.dig(cell)
 		_tiles.refresh()
 	tile_tapped.emit(cell)
+
+
+## UNE TAPE SUR UNE ILE HORS LIGNE — ce que le serveur ferait d'un `move` ou
+## d'un `flag`, rejoue par `LocalRun`, puis montre.
+##
+## ARME : un X depuis la case du lapin, juste ou faux, et le mode retombe.
+## SINON : un pas, qui creuse ce qu'il touche (il n'y a pas de « creuser » a
+## part, sur le web non plus).
+func _local_tap(cell: Vector2i) -> void:
+	if _local_over:
+		return
+	var now := Time.get_ticks_msec()
+	var out: Dictionary
+	if _armed:
+		_set_armed(false)
+		out = local_run.flag(cell, now)
+		if out.ok and bool(out.flag.correct):
+			Sound.play("chime_quick")
+		else:
+			Sound.deny()
+	else:
+		out = local_run.move(cell, now)
+		if not out.ok:
+			# LE NON : l'anneau clignote d'un coup pour montrer ou est le oui.
+			_ring.pulse()
+			Sound.deny()
+		else:
+			_rabbit.send_to(out.tile)
+			Sound.play("hop")
+			if out.has("dig"):
+				_on_local_dig(out.dig)
+	_tiles.refresh()
+	_refresh_ring()
+	# LA CAMERA REVIENT AU LAPIN apres chaque pas : le joueur a pu promener le
+	# plateau pour regarder, mais un pas dit « je suis ici maintenant ».
+	if out.ok and not _armed:
+		_cam_moved_by_player = false
+		frame_camera()
+	local_changed.emit(out)
+	_check_local_end(out)
+
+
+## CE QU'UN COUP DE PELLE A TROUVE, a l'oreille et a l'oeil. Le plateau joue
+## deja la carotte, la bombe et l'envol du coffre (`TileView._reveal`) ; ici
+## le son, le lapin sonne, et la ceremonie du coffre.
+func _on_local_dig(dig: Dictionary) -> void:
+	match int(dig.content):
+		IslandBoard.Content.CARROT, IslandBoard.Content.GOLDEN:
+			Sound.play("coin")
+		IslandBoard.Content.BOMB:
+			Sound.play("explosion")
+			_stun_flash(int(Tuning.i("BOMB.STUN_MS")))
+			# LE SOUFFLE EMPORTE CE QUI SE TENAIT SUR LA CASE — pas un mouton,
+			# qui s'enfuit.
+			if _scenery != null:
+				_scenery.clear_cell(dig.tile, true)
+		IslandBoard.Content.CHEST:
+			_show_prize(dig.get("loot", {}))
+		_:
+			Sound.play("step")
+
+
+## LE LAPIN SONNE clignote rouge le temps que le serveur lui refuse un pas :
+## sans ca, le refus qui suit une bombe se lit comme une tape perdue.
+func _stun_flash(ms: int) -> void:
+	var t := create_tween()
+	var beats := maxi(1, int(ms / 300.0))
+	for i in beats:
+		t.tween_property(_rabbit, "modulate", Color(1, 0.45, 0.45), 0.15)
+		t.tween_property(_rabbit, "modulate", Color.WHITE, 0.15)
+
+
+## LE LOT DU COFFRE (chest-prize.tsx) : la ceremonie pour un coffre annonce,
+## le vol pour un lot sans palier. Les carottes s'animent deja sur la case et
+## n'ont pas de ceremonie — sauf une piece Genesis, qui vaut toujours
+## l'interruption.
+func _show_prize(prize: Dictionary) -> void:
+	if prize.is_empty():
+		return
+	if String(prize.get("kind", "")) == "carrots" and not bool(prize.get("nft", false)):
+		Sound.play("coin")
+		return
+	var node := ChestPrize.announce(prize)
+	if node != null and node.get_parent() == null and _prize_host != null:
+		# Pas de chrome au-dessus (le bac a sable) : la ceremonie se pose ici,
+		# plein ecran comme `Chrome.stamp` la pose.
+		_prize_host.add_child(node)
+		Kit.fill(node)
+
+
+## LA FIN D'UNE MANCHE HORS LIGNE. Le dernier coffre sorti : l'ile erupte,
+## comme sur le serveur (`ERUPTION.SEQUENCE_MS`), puis la manche est rendue.
+## Plus d'energie : le lapin s'arrete, l'ile reste.
+func _check_local_end(out: Dictionary) -> void:
+	if _local_over:
+		return
+	var p := _board.chest_progress()
+	# LE VOLCAN GRONDE A CHAQUE PALIER QUI MONTE (`warnStageFor`) : combien des
+	# seuils de `ERUPTION.WARN_STAGES` la part de coffres pris a depasses.
+	var stage := 0
+	for w in Tuning.list("ERUPTION.WARN_STAGES"):
+		if float(p.fraction) >= float(w):
+			stage += 1
+	if stage > _warn_heard:
+		Sound.rumble(stage)
+	_warn_heard = stage
+	if int(p.total) > 0 and int(p.left) == 0:
+		_local_over = true
+		var ms := Tuning.i("ERUPTION.SEQUENCE_MS", 4000)
+		play_eruption(ms)
+		if _sink_sky != null:
+			_sink_sky.play(ms)
+		get_tree().create_timer(ms / 1000.0).timeout.connect(
+			func() -> void: local_over.emit(true))
+	elif bool(out.get("run_over", false)):
+		_local_over = true
+		local_over.emit(false)
 
 
 ## UNE TAPE SUR L'ILE DU TUTORIEL.
@@ -671,9 +980,9 @@ func _tutorial_tap(cell: Vector2i) -> void:
 func _refresh_ring() -> void:
 	if _board == null or _ring == null:
 		return
-	var here := _rabbit.at()
+	var here := _rabbit.at() if local_run == null else local_run.at
 	var lit: Array[Vector2i] = []
-	if not _done:
+	if not _done and not _local_over:
 		for n in _board._neighbours(here):
 			if not _board.content.has(n):
 				continue
@@ -687,6 +996,11 @@ func _refresh_ring() -> void:
 			elif _board.may_step(here, n) and not _board.is_flagged(n):
 				lit.append(n)
 	_ring.set_lit(lit, here, _armed)
+
+
+func _refresh_compass() -> void:
+	if _compass != null:
+		_compass.visible = not _is_tutorial()
 
 
 func _is_tutorial() -> bool:
@@ -735,6 +1049,41 @@ func _remember_finished() -> void:
 	cfg.save(TUTORIAL_PATH)
 
 
+## ARME OU DESARME LE MODE X de l'exterieur — le bouton MARK A BOMB du HUD de
+## manche (`RunState.flag_mode`), quand c'est lui qui le porte.
+func set_armed(armed: bool) -> void:
+	if armed != _armed:
+		_set_armed(armed)
+
+
+## LE BOUTON DE L'ILE ou celui du HUD : un seul a l'ecran. Le bac a sable
+## monte le HUD de manche, qui a le sien.
+var own_mark := true
+
+
+## LE RETOUR AU TERRIER, cache quand l'ile n'est pas un lieu du jeu (banc).
+func set_standalone(on: bool) -> void:
+	if _back != null:
+		_back.visible = not on
+
+
+## COMBIEN DE CASES UN X PEUT VISER depuis le lapin — la sonde du HUD
+## (`markable_probe`) : zero, et le bouton refuse de s'armer.
+func markable_count() -> int:
+	if _board == null:
+		return 0
+	var here := _rabbit.at() if local_run == null else local_run.at
+	var n := 0
+	for c in _board._neighbours(here):
+		var st = _board.state.get(c)
+		if st == IslandBoard.State.DUG or st == IslandBoard.State.HINTED:
+			continue
+		if _board.is_flagged(c) or _board.content.get(c) == IslandBoard.Content.CHEST:
+			continue
+		n += 1
+	return n
+
+
 func _set_armed(armed: bool) -> void:
 	_armed = armed
 	if _mark != null:
@@ -748,7 +1097,7 @@ func _set_armed(armed: bool) -> void:
 ## l'ordre de `_ready` fait passer le premier avant le second.
 func _refresh_tutorial_chrome() -> void:
 	if _mark != null:
-		_mark.visible = _is_tutorial()
+		_mark.visible = _is_tutorial() or (local_run != null and own_mark)
 	if _caption == null:
 		return
 	if _is_tutorial():
