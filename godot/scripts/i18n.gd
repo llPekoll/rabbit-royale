@@ -32,10 +32,11 @@ const LOCALES: Array[Dictionary] = [
 
 const DEFAULT_LOCALE := "en"
 ## La face pixel des langues que celle du kit ne sait pas ecrire (voir `face`).
-## Deux variantes de Fusion Pixel : la latine donne a « ’ » sa chasse de
+## Deux variantes de Fusion Pixel 10 : la latine donne a « ’ » sa chasse de
 ## lettre, la chinoise la donne pleine — « aujourd’ hui » en francais.
-const FUSION_LATIN := preload("res://assets/fonts/fusion-pixel-12-rr-latin.ttf")
-const FUSION_ZH := preload("res://assets/fonts/fusion-pixel-12-rr-zh.ttf")
+## Retaillees sur la grille de la face de l'anglais (tools/fusion-godot.py).
+const FUSION_LATIN := preload("res://assets/fonts/fusion-pixel-10-rr-latin.ttf")
+const FUSION_ZH := preload("res://assets/fonts/fusion-pixel-10-rr-zh.ttf")
 const SAVE_PATH := "user://locale.cfg"
 const DICT_DIR := "res://assets/i18n/"
 
@@ -76,7 +77,6 @@ const NATIVE := {
 			"chest": "A chest. Whatever it holds goes home with you.",
 			"clock": "The island is the clock. Dig it out and it sinks.",
 		},
-		"mark_bomb": "MARK A BOMB",
 	},
 	"fr": {
 		"err_offline": "L'île est injoignable",
@@ -94,7 +94,6 @@ const NATIVE := {
 			"chest": "Un coffre. Ce qu'il contient rentre avec toi.",
 			"clock": "L'île est l'horloge. Creuse-la et elle coule.",
 		},
-		"mark_bomb": "MARQUER UNE BOMBE",
 	},
 	"zh": {
 		"err_offline": "无法连接到岛屿",
@@ -112,7 +111,6 @@ const NATIVE := {
 			"chest": "一个宝箱。里面的东西会跟你回家。",
 			"clock": "岛屿就是计时器。挖光它，它就沉。",
 		},
-		"mark_bomb": "标记炸弹",
 	},
 	"pt-BR": {
 		"err_offline": "A ilha está inacessível",
@@ -130,7 +128,6 @@ const NATIVE := {
 			"chest": "Um baú. O que tiver dentro vai para casa com você.",
 			"clock": "A ilha é o relógio. Cave até o fim e ela afunda.",
 		},
-		"mark_bomb": "MARCAR UMA BOMBA",
 	},
 }
 
@@ -370,24 +367,34 @@ func face() -> Font:
 
 	# FUSION PIXEL D'ABORD (Paul, 2026-09-23 : « essaye avec la font
 	# Fusion »). La face pixel du kit n'a que l'ASCII ; celle-ci porte les
-	# accents ET les sinogrammes, en pixels de 12. Reduite aux caracteres de
-	# nos quatre dictionnaires (tools/subset-fusion-font.sh), et la face du
-	# systeme reste derriere elle pour ce qu'elle n'a pas — un nom de joueur,
-	# un mot venu du serveur. OFL 1.1, licence a cote du fichier.
-	var fusion := (FUSION_ZH if zh else FUSION_LATIN).duplicate() as FontFile
-	fusion.antialiasing = TextServer.FONT_ANTIALIASING_NONE
-	fusion.hinting = TextServer.HINTING_NONE
-	fusion.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
-	# A SA TAILLE, OU A SES MULTIPLES : une face pixel de 12 demandee en 10
-	# perd des rangees, et un sinogramme en sort illisible (« 领取 »). Tout
-	# ce qui est sous 24 se dessine en 12, et au-dela en 24.
-	fusion.fixed_size = 12
-	fusion.fixed_size_scale_mode = TextServer.FIXED_SIZE_SCALE_INTEGER_ONLY
+	# accents ET les sinogrammes. Reduite aux caracteres de nos quatre
+	# dictionnaires (tools/subset-fusion-font.sh), et la face du systeme reste
+	# derriere elle pour ce qu'elle n'a pas — un nom de joueur, un mot venu du
+	# serveur. OFL 1.1, licence a cote du fichier.
+	var fusion := fusion_face(zh)
 	fusion.fallbacks = [chosen]
 	chosen = fusion
 
 	_face_cache[locale] = chosen
 	return chosen
+
+
+## FUSION REGLEE COMME LA FACE DE L'ANGLAIS, pour `face` et pour le
+## selecteur de langue (qui ecrit « Français » en anglais).
+##
+## Le meme rendu que d8-pixel : dessinee a la taille demandee, sans taille
+## fixe. La premiere version la figeait a 12 (tout ce qui est sous 24 en 12,
+## au-dela en 24) : un libelle pose a 10 sortait 20 % plus gros et debordait,
+## un titre pose a 20 sortait 40 % plus petit (Paul, 2026-09-23 : « trop gros
+## ou trop petit selon la langue »). Le fichier porte le reste — la grille de
+## 8 par em, le gras latin, la ligne courte (tools/fusion-godot.py) : a taille
+## egale, ses capitales sont celles de d8, pixel pour pixel.
+func fusion_face(zh: bool) -> FontFile:
+	var fusion := (FUSION_ZH if zh else FUSION_LATIN).duplicate() as FontFile
+	fusion.antialiasing = TextServer.FONT_ANTIALIASING_NONE
+	fusion.hinting = TextServer.HINTING_NONE
+	fusion.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
+	return fusion
 
 
 ## LA FACE VA DANS LE THEME DU PROJET, pas noeud par noeud.

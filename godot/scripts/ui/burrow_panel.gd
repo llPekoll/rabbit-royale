@@ -79,10 +79,15 @@ func refresh() -> void:
 
 	body.add_child(_vault(stock, safe))
 
-	_slab = HubSlab.new("earth", maxf(card_length(32), 38.0))
-	_slab.add_word(I18N.t("burrow.maxLevel") if maxed else I18N.t("burrow.upgrade"), card_size(15, 9, 14))
-	if not maxed:
-		_slab.add_price(I18N.group_digits(float(cost)), card_size(11, 7, 10), carrot_mark())
+	# UNE LIGNE, « UPGRADE 500 🥕 », comme « CLAIM 100 🥕 » : sur deux rangs
+	# la dalle etait plus haute et plus etroite que ses voisines, et ses deux
+	# rangs mordaient sur les feuilles du bandeau.
+	_slab = HubSlab.new("earth", slab_height())
+	if maxed:
+		_slab.add_word(I18N.t("burrow.maxLevel"), slab_text())
+	else:
+		_slab.add_price(I18N.shout(I18N.t("burrow.upgrade")) + " " + I18N.group_digits(float(cost)),
+			slab_text(), carrot_mark())
 	_slab.set_lit(can and not maxed)
 	_slab.pressed.connect(func() -> void: Home.act("upgrade"))
 

@@ -74,8 +74,10 @@ func _init(title: String = "", width: float = 420.0, height: float = 0.0) -> voi
 		# Fusion Pixel (hors anglais) est une face BITMAP : Godot ne sait pas
 		# lui tracer de cerne ni d'ombre (l'ombre porte un cerne d'un pixel),
 		# et les deux la dechiquetaient (« QUELLE ÎLE » illisible). En encre
-		# pleine, a 24 — le double exact de ses 12.
-		title_label.add_theme_font_size_override("font_size", 24)
+		# pleine, a 20 comme l'anglais : la face est taillee sur la grille de
+		# celle de l'anglais (i18n.gd `fusion_face`). A 24 elle sortait plus
+		# haute que le titre anglais (2026-09-23).
+		title_label.add_theme_font_size_override("font_size", 20)
 		title_label.add_theme_constant_override("outline_size", 0)
 		title_label.add_theme_color_override("font_color", Palette.INK)
 		title_label.add_theme_color_override("font_shadow_color", Color.TRANSPARENT)
@@ -131,8 +133,9 @@ func _place_close() -> void:
 	close_button.position = Vector2(size.x - Kit.CLOSE_TAP - CLOSE_OVER_RIGHT, CLOSE_OVER_TOP)
 
 
-## L'air entre le [x] et le coin de l'ecran, en plein ecran.
-const CLOSE_INSIDE := 4.0
+## L'air entre le [x] et le coin de l'ecran, en plein ecran : la gouttiere
+## de tout le chrome (il etait a 4, colle au bord).
+const CLOSE_INSIDE := Kit.EDGE
 
 ## LE DIALOGUE PREND TOUT L'ECRAN. Sur un telephone couche (890x400), un
 ## panneau centre dans son cadre de feuilles perdait 40px de chaque cote et

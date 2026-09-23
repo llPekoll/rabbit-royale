@@ -236,6 +236,13 @@ func _restyle() -> void:
 
 ## Le libelle a change (une autre langue) : le Label le reprend et la taille
 ## est recalculee pour lui. Appele par le doorstep apres chaque traduction.
+## LE BOIS SEUL S'ASSOMBRIT, pas le mot : un bouton arme (MARK A BOMB sur
+## CANCEL) garde un libelle net sur une planche plus sombre.
+func set_plank_tint(tint: Color) -> void:
+	if _plank != null:
+		_plank.modulate = tint
+
+
 func relabel(words: String) -> void:
 	text = words
 	if _ink != null:

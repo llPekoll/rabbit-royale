@@ -23,21 +23,28 @@ class_name FirstRunCaption
 ## Combien de temps un beat non collant reste a l'ecran.
 const CAPTION_SECONDS := 4.5
 
-## LE FOND : le `rgba(13, 17, 23, 0.86)` du web, une nuit presque opaque pour
-## qu'une ligne blanche se lise sur n'importe quel sol.
-const BACK := Color(13.0 / 255.0, 17.0 / 255.0, 23.0 / 255.0, 0.86)
-const INK := Color(1, 1, 1, 1)
-const FONT_SIZE := 15
+## LA PASTILLE DES LEGENDES DE LA MANCHE (Kit.caption : son fond, son arrondi,
+## son encre, sa taille). Le tutoriel avait sa bande noire carree en 15 a
+## cote des pastilles arrondies en 13 du HUD : deux voix pour dire la meme
+## sorte de chose, sur le meme ecran (2026-09-23).
+const INK := Palette.CAPTION_INK
+const FONT_SIZE := 13
 
-## La largeur du bandeau, en pixels d'ecran. Douze mots a 15 px tiennent dans
-## 600 ; plus large, la ligne s'etire d'un bord a l'autre et se lit comme une
-## barre d'etat, pas comme une phrase.
+## La largeur MAXIMALE du bandeau, en pixels d'ecran. Douze mots a 15 px
+## tiennent dans 600 ; plus large, la ligne s'etire d'un bord a l'autre et se
+## lit comme une barre d'etat, pas comme une phrase. En dessous, le bandeau
+## prend la largeur de SA phrase : fixe a 600, « Touche une case a cote de
+## toi pour creuser. » flottait dans une bande noire deux fois trop longue.
 const WIDTH := 600.0
 const HEIGHT := 44.0
-## A combien du bas. AU-DESSUS DE LA RANGEE DES BOUTONS : MARQUER UNE BOMBE
-## occupe 44 px a 12 px du bord, et a 34 le bandeau lui passait dessus —
-## mesure sur la capture du Seeker, la planche couvrait « MARK ».
-const BOTTOM_GAP := 66.0
+## L'air du bandeau (celui de Kit.style_caption) et son ecart aux bords de
+## l'ecran.
+const SIDE := 18.0
+const MARGIN := 24.0
+## A combien du bas : AU-DESSUS DE MARQUER UNE BOMBE, sa hauteur (celle du
+## bouton de la run, `MarkBombButton.height_for`) plus Kit.EDGE et un pad.
+## Un ecart fixe de 66 valait pour la planche de 44 ; celle de 50 a 64 le
+## touchait (mesure sur la capture du Seeker, 2026-09-23).
 
 var _label: Label
 var _shown := ""
@@ -45,13 +52,7 @@ var _timer: SceneTreeTimer
 
 
 func _ready() -> void:
-	var box := StyleBoxFlat.new()
-	box.bg_color = BACK
-	box.content_margin_left = 14
-	box.content_margin_right = 14
-	box.content_margin_top = 6
-	box.content_margin_bottom = 6
-	add_theme_stylebox_override("panel", box)
+	add_theme_stylebox_override("panel", Kit.style_caption())
 
 	_label = Label.new()
 	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -65,10 +66,9 @@ func _ready() -> void:
 	# CanvasLayer, comme les autres morceaux de chrome, donc il ne suit ni le
 	# zoom ni le glissement du plateau.
 	set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	offset_left = -WIDTH * 0.5
-	offset_right = WIDTH * 0.5
-	offset_bottom = -BOTTOM_GAP
-	offset_top = -BOTTOM_GAP - HEIGHT
+	grow_horizontal = Control.GROW_DIRECTION_BOTH
+	grow_vertical = Control.GROW_DIRECTION_BEGIN
+	get_viewport().size_changed.connect(_measure)
 	# Le bandeau ne mange pas le doigt : une tape a travers lui atteint le
 	# plateau, sinon la case sous la phrase ne se creuse plus.
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -126,6 +126,25 @@ func _relabel(_code: String) -> void:
 	_apply_face()
 	if _shown != "":
 		_label.text = I18N.first_run(_shown)
+	_measure()
+
+
+## LA LARGEUR DE LA PHRASE, en lignes egales si elle ne tient pas sur une
+## (RunHud.balanced_width) ; le bas au-dessus du bouton, le haut qui grandit
+## vers le plateau si la phrase prend deux lignes.
+func _measure() -> void:
+	if _label == null or not is_inside_tree():
+		return
+	var view := get_viewport_rect().size
+	var room := minf(WIDTH, view.x - 2.0 * MARGIN) - 2.0 * SIDE
+	var w := RunHud.balanced_width(_label.get_theme_font("font"), _label.text, FONT_SIZE, room)
+	_label.custom_minimum_size.x = w
+	var half := (w + 2.0 * SIDE) * 0.5
+	var gap := Kit.EDGE + MarkBombButton.height_for(view.y) + Kit.PAD
+	offset_left = -half
+	offset_right = half
+	offset_bottom = -gap
+	offset_top = -gap - HEIGHT
 
 
 ## La face de la langue, posee en override — voir `I18N.face`.

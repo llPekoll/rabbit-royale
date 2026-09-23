@@ -62,6 +62,10 @@ const TAB_LIT := 1.15
 ## plus sur un telephone, et jamais plus haut que ce que l'ecran laisse.
 const DETAIL_FACE := Color("#48301f")
 const DETAIL_W := 360.0
+## La meme carte sous 520 px de haut (`_fit_detail`).
+const DETAIL_W_SHORT := 560.0
+const DETAIL_AIR_TOP_SHORT := 24.0
+const DETAIL_AIR_BOTTOM_SHORT := 18.0
 const DETAIL_PAD_X := 18.0
 const DETAIL_PAD_Y := 14.0
 const DETAIL_TEXT := 10
@@ -90,6 +94,8 @@ var _detail_status: Label
 var _detail_blurb: Label
 var _detail_hint: Label
 var _detail_action: PlankButton
+## Le cadre de la carte, garde pour lui rendre son air sur un ecran court.
+var _detail_style: StyleBoxTexture
 var _action: Callable = Callable()
 
 
@@ -198,7 +204,23 @@ func _measure() -> void:
 
 
 func _fit_detail() -> void:
-	var dw := minf(DETAIL_W, get_viewport_rect().size.x - 28.0)
+	var view := get_viewport_rect().size
+	var dw := minf(DETAIL_W, view.x - 28.0)
+	# SUR UN ECRAN COURT, LA CARTE S'ELARGIT AU LIEU DE MONTER. A 360 de large
+	# ses deux paragraphes font quatre lignes, et posee sur les rangees son
+	# haut arrivait a 74 px au Seeker (890x400, en francais) : sur la pastille
+	# « 300 » que le cadran d'energie pend jusqu'a ~82. Plus large, les memes
+	# mots tiennent en deux lignes (haut a 97) ; la largeur reste bornee pour
+	# que la ligne se lise d'un regard.
+	# Et son cadre y rend l'air qu'il met au-dessus du nom et sous le bouton :
+	# les coupes du cadre a feuilles (37 / 28) sont faites pour l'art des
+	# coins, pas pour le texte, et le parchemin commence bien avant.
+	var short := view.y < HubCard.SHORT_VIEW
+	if short:
+		dw = minf(DETAIL_W_SHORT, view.x - 2.0 * Kit.EDGE)
+	if _detail_style != null:
+		_detail_style.content_margin_top = DETAIL_AIR_TOP_SHORT if short else float(Kit.LEAF_SLICE.y)
+		_detail_style.content_margin_bottom = DETAIL_AIR_BOTTOM_SHORT if short else float(Kit.LEAF_SLICE.w)
 	_detail.size = Vector2(dw, 0.0)
 	_place_detail()
 
@@ -270,6 +292,7 @@ func _build_detail() -> PanelContainer:
 	s.content_margin_right = Kit.LEAF_SLICE.z + DETAIL_PAD_X * 0.5
 	s.content_margin_top = Kit.LEAF_SLICE.y
 	s.content_margin_bottom = Kit.LEAF_SLICE.w
+	_detail_style = s
 	var card := Kit.panel(s)
 	card.mouse_filter = Control.MOUSE_FILTER_STOP
 	var column := Kit.vbox(8)

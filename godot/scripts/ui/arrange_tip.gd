@@ -13,6 +13,9 @@ const TRAVEL := 5.0
 const TRAVEL_SECONDS := 0.55
 ## La fleche du kit dessine six cellules de sa LARGEUR vers le bas : carree.
 const ARROW := Vector2(26.0, 26.0)
+## La legende la plus large, et le jeu laisse a la coupe au mot (`_ready`).
+const WIDE := 300.0
+const SLACK := 24.0
 
 var _box: VBoxContainer
 ## Hors du conteneur : il replacerait la fleche a chaque tri.
@@ -29,10 +32,17 @@ func _ready() -> void:
 	var note := Kit.caption(I18N.t("arrange.tip"))
 	note.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	var words: Label = note.get_child(0)
-	# Une ligne en chinois, deux ailleurs : sans largeur a elle, la legende
-	# renvoyait son dernier caractere seul a la ligne.
-	words.custom_minimum_size.x = 250.0
 	_box.add_child(note)
+	# DES LIGNES EGALES. Sans largeur a elle, la legende renvoyait son dernier
+	# caractere seul a la ligne ; a 250 fixes, c'etait son dernier MOT —
+	# « it. » en anglais, « lugar. » en portugais, « 它。» en chinois. On
+	# compte les lignes qu'il faut sous WIDE, puis on partage la phrase en
+	# autant de parts egales (plus un peu de jeu pour la coupe au mot).
+	var font := words.get_theme_font("font")
+	var line := font.get_string_size(words.text, HORIZONTAL_ALIGNMENT_LEFT, -1,
+		words.get_theme_font_size("font_size")).x
+	var lines := maxf(1.0, ceilf(line / WIDE))
+	words.custom_minimum_size.x = minf(WIDE, ceilf(line / lines) + SLACK)
 	_arrow = BackButton.Arrow.new()
 	_arrow.down = true
 	_arrow.ink = Palette.RANK_GOLD

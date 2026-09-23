@@ -60,6 +60,12 @@ const SUB_MIN_CARD := 70.0
 ## avant d'y mesurer ses `cqh`.
 const FRAME := 2.0
 
+## La carte a bouton, mesure commune des cartes (voir `layout`), et la case
+## de l'art en part de son contenu.
+const REF_SHARE := 14.5
+const REF_FLOOR := 66.0
+const ART_SLOT := 0.8
+
 ## La part de l'ecran (en % de la hauteur) et le plancher en pixels.
 var share := 14.5
 var floor_px := 66.0
@@ -93,13 +99,24 @@ func _init() -> void:
 	_inset = Kit.margin(0, 0, 0, 0)
 	Kit.fill(_inset)
 	add_child(_inset)
+	# LA CARTE TIENT CE QU'ELLE PORTE : sa part d'ecran est un plancher, pas
+	# un plafond. Sur un bureau le terrier montre ses deux lignes fines, et
+	# sa dalle passait sur le cadre du bas (2026-09-23).
+	_inset.minimum_size_changed.connect(_hold_content)
 
-	# La bande : l'art puis une COLONNE qui tient le texte ET le bouton. Le
-	# bouton n'est pas en travers de la carte : sur la maquette, CLAIM commence
-	# au niveau de « Quest 1 / 10 », pas au niveau du parchemin.
+	# La bande : l'art puis une COLONNE qui tient le texte ; le bouton EN
+	# DESSOUS, sur toute la largeur de la carte. Il commencait au niveau du
+	# texte comme sur la maquette, mais la largeur que l'art lui prenait
+	# variait d'une carte a l'autre (trois boutons, trois largeurs) et le
+	# francais n'y tenait plus : « CREUSER PLUS 1 051 » fait 95 px en taille
+	# 8 pour 71 de bande (2026-09-23).
+	var stack := Kit.vbox(Kit.PAD_TIGHT)
+	stack.alignment = BoxContainer.ALIGNMENT_CENTER
+	_inset.add_child(stack)
 	_band = Kit.hbox(Kit.PAD)
 	_band.alignment = BoxContainer.ALIGNMENT_BEGIN
-	_inset.add_child(_band)
+	_band.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	stack.add_child(_band)
 
 	_art = TextureRect.new()
 	_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -120,7 +137,7 @@ func _init() -> void:
 	footer = Control.new()
 	footer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	footer.visible = false
-	_column.add_child(footer)
+	stack.add_child(footer)
 
 
 ## L'ECRAN CHANGE, LA CARTE SE REECRIT. Sa hauteur, ses tailles de texte et
@@ -152,9 +169,15 @@ func layout() -> void:
 	_pad = Kit.PAD_TIGHT if short else Kit.PAD
 	_height = maxf(view.y * share / 100.0 * scale, floor_px)
 	custom_minimum_size = Vector2(0, _height)
+	_hold_content.call_deferred()
 
-	# Les bouts scalent avec la hauteur (ils sont de l'art), sous le plafond.
-	var cap := minf(_height * CAP_RATIO, CAP_MAX)
+	# LES BOUTS SONT CEUX DE LA CARTE A BOUTON, pour les trois cartes. Ils
+	# suivaient la hauteur de chaque carte : le terrier, deux fois plus haut,
+	# avait des bouts deux fois plus larges, son texte commencait 25 px plus a
+	# droite que celui du jardin et « BURROW LVL 1 » y perdait son chiffre
+	# (2026-09-23). Un meme retrait, une meme colonne de texte.
+	var ref := _reference_height()
+	var cap := minf(ref * CAP_RATIO, CAP_MAX)
 	_banner.edge = Vector4(cap, 0, cap, 0)
 
 	# Le bloc de texte s'ecarte du rail : le plus grand du pad et du rail plus
@@ -169,10 +192,47 @@ func layout() -> void:
 	_art.texture = art
 	_art.visible = art != null
 	if art != null:
+		# L'ART DANS UNE CASE DE MEME LARGEUR sur chaque carte : le parchemin,
+		# le potager et la maison n'ont pas la meme forme, et leur largeur
+		# decidait ou le texte commencait. L'art tient dans la case (sa
+		# hauteur, sa part ; sa largeur, celle de la case) et s'y centre.
+		var slot := art_slot()
 		var h := card_length(art_share)
-		var w := h * float(art.get_width()) / maxf(1.0, float(art.get_height()))
-		_art.custom_minimum_size = Vector2(w, h)
+		var aspect := float(art.get_width()) / maxf(1.0, float(art.get_height()))
+		h = minf(h, slot / aspect)
+		_art.custom_minimum_size = Vector2(slot, h)
 		_art.size_flags_vertical = Control.SIZE_SHRINK_BEGIN if art_top else Control.SIZE_SHRINK_CENTER
+
+
+func _hold_content() -> void:
+	var need := maxf(_height, ceilf(_inset.get_combined_minimum_size().y))
+	if absf(custom_minimum_size.y - need) > 0.5:
+		custom_minimum_size = Vector2(0, need)
+
+
+## La hauteur d'une carte a bouton (le jardin) sur cet ecran : la mesure
+## commune des bouts et de la case de l'art.
+func _reference_height() -> float:
+	var view := get_viewport_rect().size if is_inside_tree() else Vector2(890, 400)
+	var scale := SHORT_SCALE if view.y < SHORT_VIEW else 1.0
+	return maxf(view.y * REF_SHARE / 100.0 * scale, REF_FLOOR)
+
+
+## LA CASE DE L'ART, la meme sur toutes les cartes : une part du contenu de
+## la carte a bouton.
+func art_slot() -> float:
+	return roundf((_reference_height() - 2.0 * _pad - 2.0 * FRAME) * ART_SLOT)
+
+
+## LA DALLE COMMUNE : hauteur et taille de mot de la carte a bouton, pour
+## que CLAIM, HARVEST et UPGRADE soient trois boutons pareils — le terrier,
+## plus haut, en avait un plus haut au mot plus gros.
+func slab_height() -> float:
+	return maxf((_reference_height() - 2.0 * _pad - 2.0 * FRAME) * 0.38, HubSlab.MIN_H)
+
+
+func slab_text() -> int:
+	return int(round(clampf((_reference_height() - 2.0 * _pad - 2.0 * FRAME) * 0.15, 9.0, 15.0)))
 
 
 ## Le « content box » du web : la carte moins son air et ses 2 px de cadre.

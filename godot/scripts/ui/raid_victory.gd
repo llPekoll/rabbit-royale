@@ -73,6 +73,18 @@ const FRAME := 32
 const RABBIT_MAX_SCALE := 6
 const RABBIT_MIN_SCALE := 3
 const RABBIT_SHARE := 0.32
+## Le plancher de `_fit_stack` : sous l'echelle 3, seulement si la pile ne
+## tient pas autrement. La face de Fusion (fr, pt-BR, zh) a des lignes 1,3 a
+## 1,45 fois plus hautes que la face pixel a taille egale, et au Seeker ses
+## trois lignes de butin ne laissaient plus la place au lapin a l'echelle 3.
+const RABBIT_FIT_MIN := 2
+## Le tampon, centre a cette hauteur au-dessus des oreilles (`_place_stamp`).
+const STAMP_LIFT := 46.0
+## L'air de la pile, et le meme sous 520 px de haut (`_fit_stack`).
+const SPOILS_GAP := 14
+const SPOILS_GAP_SHORT := 6
+const COLUMN_GAP := 22
+const COLUMN_GAP_SHORT := 10
 
 ## Ce que le web ecrit en dur, hors dictionnaire (raid-victory.tsx) :
 ## repris tel quel, pas invente en quatre langues.
@@ -87,6 +99,7 @@ var _rays: Rays
 var _flash: TextureRect
 var _glow: TextureRect
 var _centre: CenterContainer
+var _column: VBoxContainer
 var _item: Control
 var _spoils: VBoxContainer
 var _stamp: Label
@@ -162,6 +175,7 @@ func _build() -> void:
 	var column := Kit.vbox(22)
 	column.alignment = BoxContainer.ALIGNMENT_CENTER
 	_centre.add_child(column)
+	_column = column
 
 	_item = Control.new()
 	_item.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -231,12 +245,10 @@ func _build_spoils() -> void:
 	_rabbit.stretch_mode = TextureRect.STRETCH_SCALE
 	_rabbit.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_rabbit.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_rabbit.size = Vector2(_rabbit_px, _rabbit_px)
 	_rabbit_slot.add_child(_rabbit)
 	_shadow = Shadow.new()
-	_shadow.size = Vector2(_rabbit_px * 0.34, 9)
-	_shadow.position = Vector2((_rabbit_px - _shadow.size.x) * 0.5, _rabbit_px + 4)
 	_rabbit_slot.add_child(_shadow)
+	_size_rabbit(_rabbit_px)
 
 	var haul := Kit.hbox(Kit.PAD)
 	haul.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -259,6 +271,15 @@ func _build_spoils() -> void:
 	_traps.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_spoils.add_child(_traps)
 	_relabel()
+
+
+## Le lapin a un multiple entier de son sprite, et son ombre sous lui.
+func _size_rabbit(px: int) -> void:
+	_rabbit_px = px
+	_rabbit_slot.custom_minimum_size = Vector2(px, px + 4 + 9)
+	_rabbit.size = Vector2(px, px)
+	_shadow.size = Vector2(px * 0.34, 9)
+	_shadow.position = Vector2((px - _shadow.size.x) * 0.5, px + 4)
 
 
 ## Les mots, dans la langue affichee.
@@ -289,10 +310,7 @@ func _relabel() -> void:
 
 func _on_locale_changed(_code: String) -> void:
 	_relabel()
-	var spoils_size := _spoils.get_combined_minimum_size()
-	_item.custom_minimum_size = spoils_size
-	_spoils.size = spoils_size
-	_place_stamp()
+	_fit_stack()
 
 
 ## Le nom du defenseur tel que cet ecran sait le dessiner. NETTOYE SEULEMENT
@@ -330,13 +348,48 @@ func _measure() -> void:
 	_glow.position = centre - _glow.size * 0.5
 	_caption.size = Vector2(size.x, 20)
 	_caption.position = Vector2(0, size.y - Kit.EDGE - 20)
+	_fit_stack()
+
+
+## LA PILE TIENT ENTRE LE TAMPON ET LA LEGENDE. Centree sur tout l'ecran, elle
+## faisait 357 px de haut au Seeker en francais (le lapin a l'echelle 4, 14 et
+## 22 d'air) : la planche passait sous « TAP TO CONTINUE », et le tampon,
+## pose 46 px au-dessus des oreilles, sortait par le haut. On reserve donc
+## la place du tampon au-dessus et celle de la legende dessous, et dans ce
+## qui reste le lapin prend la plus grande echelle entiere qui laisse tenir
+## le reste — l'air se resserre d'abord sur un ecran court.
+func _fit_stack() -> void:
+	if size.y <= 0.0:
+		return
+	var short := size.y < HubCard.SHORT_VIEW
+	_spoils.add_theme_constant_override("separation", SPOILS_GAP_SHORT if short else SPOILS_GAP)
+	_column.add_theme_constant_override("separation", COLUMN_GAP_SHORT if short else COLUMN_GAP)
+	var stamp_h := _stamp.get_combined_minimum_size().y
+	var top := Kit.EDGE + STAMP_LIFT + stamp_h * 0.5
+	var bottom := Kit.EDGE + 20.0 + Kit.PAD_TIGHT
+	_centre.offset_top = top
+	_centre.offset_bottom = -bottom
+	var room := size.y - top - bottom
+	var scale := clampi(int(size.y * RABBIT_SHARE / FRAME), RABBIT_MIN_SCALE, RABBIT_MAX_SCALE)
+	while true:
+		_size_rabbit(FRAME * scale)
+		var spoils_size := _spoils.get_combined_minimum_size()
+		_item.custom_minimum_size = spoils_size
+		_spoils.size = spoils_size
+		# Mesuree a la main : le prix et la planche sont caches jusqu'a leur
+		# battement, et une colonne ne compte pas ses enfants invisibles.
+		var need := spoils_size.y + float(_column.get_theme_constant("separation")) \
+			+ _button_slot.custom_minimum_size.y
+		if scale <= RABBIT_FIT_MIN or need <= room:
+			break
+		scale -= 1
 	_place_stamp()
 
 
 func _place_stamp() -> void:
 	var w := _stamp.get_combined_minimum_size()
 	_stamp.size = w
-	_stamp.position = Vector2((_item.custom_minimum_size.x - w.x) * 0.5, -46.0 - w.y * 0.5)
+	_stamp.position = Vector2((_item.custom_minimum_size.x - w.x) * 0.5, -STAMP_LIFT - w.y * 0.5)
 	_stamp.pivot_offset = w * 0.5
 
 

@@ -30,8 +30,10 @@ extends Dialog
 signal refill
 
 ## 380, depuis 340 : les lignes sont un libelle, une clause et un verdict
-## cote a cote, et a 340 la clause passait a la ligne a chaque fois.
-const WIDTH := 380.0
+## cote a cote, et a 340 la clause passait a la ligne a chaque fois. Puis
+## 460 partout (2026-09-23) : les cases sont passees a 12 / 11 / 11, et a 380
+## chaque clause se repliait en trois lignes sur le bureau.
+const WIDTH := 460.0
 const WIDTH_SHORT := 460.0
 ## La piste : 8 de haut, les traits debordent de 3.
 const TRACK_H := 8.0
@@ -91,7 +93,7 @@ func _ready() -> void:
 func _build() -> void:
 	# La lecture, le rythme, et le temps jusqu'au plein — une ligne, trois
 	# faits, les chiffres de l'anneau lui-meme.
-	_stock = Kit.note("", Palette.BARK, 11)
+	_stock = Kit.note("", Palette.BARK, 12)
 	body.add_child(_stock)
 
 	_track = Control.new()
@@ -110,7 +112,7 @@ func _build() -> void:
 
 	# La seule regle sous les lignes : lire le terrier rembourse, comme lire
 	# l'ile — ou, sur l'ile, que le reservoir garde ce que le lapin ramene.
-	_hint = Kit.note("", Palette.BARK, 10)
+	_hint = Kit.note("", Palette.BARK, 11)
 	body.add_child(_hint)
 
 	_button = Kit.button("", "green", 0, 44)
@@ -207,13 +209,16 @@ func _short(floor_at: int, energy: int, regen: float) -> Dictionary:
 
 
 ## Une ligne : le libelle (encre), la clause (ecorce), le verdict (colore).
+## A 12 / 11 / 11, pas 10 / 9 / 9 : la reponse du panneau (« READY »,
+## « NEEDS 58 ») est la case qu'on lit, et elle etait la plus petite de
+## l'ecran (2026-09-23).
 ## Pas de majuscules forcees : les libelles anglais sont en capitales dans
 ## le dictionnaire, et les autres langues ecrivent les leurs a leur facon.
 func _row(label: String, detail: String, verdict: Dictionary) -> void:
-	var l := Kit.label(label, 10, Palette.INK)
+	var l := Kit.label(label, 12, Palette.INK)
 	l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_ledger.add_child(l)
-	var d := Kit.note(detail, Palette.BARK, 9)
+	var d := Kit.note(detail, Palette.BARK, 11)
 	_ledger.add_child(d)
 	var v := Kit.vbox(0)
 	v.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -224,12 +229,12 @@ func _row(label: String, detail: String, verdict: Dictionary) -> void:
 				color = Palette.LEAF.darkened(0.4)
 			"short":
 				color = Palette.CARROT_DEEP
-		var t := Kit.label(String(verdict["text"]), 9, color)
+		var t := Kit.label(String(verdict["text"]), 11, color)
 		t.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		t.size_flags_horizontal = Control.SIZE_SHRINK_END
 		v.add_child(t)
 		if verdict.has("wait"):
-			var w := Kit.label(I18N.f("energyPanel.inWait", [verdict["wait"]]), 8, Color(color, 0.85))
+			var w := Kit.label(I18N.f("energyPanel.inWait", [verdict["wait"]]), 10, Color(color, 0.85))
 			w.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 			w.size_flags_horizontal = Control.SIZE_SHRINK_END
 			v.add_child(w)

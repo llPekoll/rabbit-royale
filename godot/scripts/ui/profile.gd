@@ -68,6 +68,13 @@ const H_DAYS := "Carrots dug"
 const H_RAIDS := "Raids"
 const H_BOUGHT := "Bought"
 const H_RABBIT := "Rabbit"
+## L'OR SUR LE PARCHEMIN : RANK_GOLD est fait pour le bois sombre, et sur
+## le papier creme les gains (« +150 »), les prix et « blocked » ne se
+## lisaient plus (2026-09-23). Le meme or, descendu jusqu'a tenir.
+const GOLD_ON_PAPER := Color("#9a6400")
+## La colonne de l'heure : « 40min » et « 3h » alignes a droite sur le meme
+## bord. A 30, la version francaise debordait et decalait sa ligne.
+const WHEN_COL := 40.0
 
 ## EN PAYSAGE, PLEIN ECRAN. Le web est une colonne de 380px (`.rr-profile`) ;
 ## sur l'ecran couche du jeu (890x400) cette colonne ne montrait que le haut
@@ -149,6 +156,9 @@ func _ready() -> void:
 			# Les raids non lus, sur la chose qu'on presse : un compte qu'il
 			# faut aller chercher n'est pas une notification.
 			_tab_badge = Kit.panel(_news_style())
+			# Une pastille, pas une bande : sans ceci elle prenait toute la
+			# hauteur de l'onglet et en touchait les deux bords.
+			_tab_badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 			_tab_badge_label = Kit.label("", 10, Palette.SOIL_DEEP)
 			_tab_badge.add_child(_tab_badge_label)
 			_tab_badge.visible = false
@@ -613,8 +623,16 @@ func _build_history() -> void:
 		var best := 1.0
 		for d in days:
 			best = maxf(best, float(d.get("carrots", 0)))
+		# UNE colonne des jours pour toutes les lignes, mesuree sur la plus
+		# longue : « Aujourd'hui » depassait les 56px et sa barre partait plus
+		# loin que celles du dessous.
+		var font := get_theme_default_font()
+		var day_w := 56.0
 		for d in days:
-			dug.add_child(_day_row(d, best))
+			day_w = maxf(day_w, ceilf(font.get_string_size(_short_day(String(d.get("day", ""))),
+				HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x))
+		for d in days:
+			dug.add_child(_day_row(d, best, day_w))
 
 	# Les deux sens sur une seule ligne du temps : une querelle se lit comme
 	# une querelle, pas comme deux listes.
@@ -649,10 +667,10 @@ func _build_history() -> void:
 
 ## Un jour : la barre est la comparaison, le chiffre est le fait. A l'echelle
 ## du meilleur jour du joueur, sinon tout ressemble a rien au debut.
-func _day_row(d: Dictionary, best: float) -> Control:
+func _day_row(d: Dictionary, best: float, day_w: float = 56.0) -> Control:
 	var row := Kit.hbox(8)
 	var day := Kit.label(_short_day(String(d.get("day", ""))), 12, Palette.BARK)
-	day.custom_minimum_size = Vector2(56, 0)
+	day.custom_minimum_size = Vector2(day_w, 0)
 	row.add_child(day)
 	var track := Kit.panel(Kit.style_track())
 	track.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -691,7 +709,7 @@ func _raid_row(r: Dictionary, owed: bool, paid: bool, fresh: bool) -> Control:
 	who.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	who_line.add_child(who)
 	var when := Kit.label(_ago(String(r.get("createdAt", ""))), 12, Palette.BARK)
-	when.custom_minimum_size = Vector2(30, 0)
+	when.custom_minimum_size = Vector2(WHEN_COL, 0)
 	when.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	if paid:
 		# Barree sur le nom ET l'heure, qui ensemble sont la chose rayee :
@@ -713,7 +731,7 @@ func _raid_row(r: Dictionary, owed: bool, paid: bool, fresh: bool) -> Control:
 		tag.add_child(Kit.label("NEW", 9, Palette.SOIL_DEEP))
 		tag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		who_line.add_child(tag)
-	var what := Kit.label(_what_line(r), 12, Palette.DANGER if owed else Palette.RANK_GOLD)
+	var what := Kit.label(_what_line(r), 12, Palette.DANGER if owed else GOLD_ON_PAPER)
 	what.clip_text = true
 	what.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	what.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -745,9 +763,9 @@ func _purchase_row(p: Dictionary) -> Control:
 	var who := Kit.label(name + (" x%d" % qty if qty > 1 else ""), 12, Palette.INK)
 	who.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	line.add_child(who)
-	line.add_child(Kit.label(_price_of(p), 12, Palette.RANK_GOLD))
+	line.add_child(Kit.label(_price_of(p), 12, GOLD_ON_PAPER))
 	var when := Kit.label(_ago(String(p.get("createdAt", ""))), 12, Palette.BARK)
-	when.custom_minimum_size = Vector2(30, 0)
+	when.custom_minimum_size = Vector2(WHEN_COL, 0)
 	when.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	line.add_child(when)
 	return line

@@ -7,12 +7,15 @@
 # ponctuation typographique, soit ~140 Ko. A relancer quand une traduction
 # ajoute un caractere : un glyphe absent tombe sur la face du systeme.
 #
-#   tools/subset-fusion-font.sh <dossier du zip ttf 12px proportional>
+#   tools/subset-fusion-font.sh <dossier ttf 12px proportional> <dossier ttf 10px proportional>
 #
 # Deux variantes : la latine (« ’ » a sa chasse de lettre) pour fr et pt-BR,
-# la zh_hans pour le chinois. Voir godot/scripts/i18n.gd `face`.
+# la zh_hans pour le chinois. Le web prend le 12px ; Godot le 10px, taille
+# sur la grille de la face de l'anglais par tools/fusion-godot.py (voir
+# godot/scripts/i18n.gd `face`).
 set -euo pipefail
 SRC="${1:?dossier des ttf Fusion Pixel 12px proportional}"
+SRC10="${2:?dossier des ttf Fusion Pixel 10px proportional}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CHARS="$(mktemp)"
 python3 - "$ROOT" "$CHARS" <<'PY'
@@ -33,13 +36,14 @@ open(out, 'w').write(''.join(sorted(c for c in chars if c.isprintable())))
 PY
 for v in latin zh_hans; do
   name="$([ "$v" = latin ] && echo latin || echo zh)"
-  uvx --from 'fonttools[woff]' pyftsubset "$SRC/fusion-pixel-12px-proportional-$v.ttf" \
-    --text-file="$CHARS" --layout-features='*' \
-    --output-file="$ROOT/godot/assets/fonts/fusion-pixel-12-rr-$name.ttf"
+  out="$ROOT/godot/assets/fonts/fusion-pixel-10-rr-$name.ttf"
+  uvx --from 'fonttools[woff]' pyftsubset "$SRC10/fusion-pixel-10px-proportional-$v.ttf" \
+    --text-file="$CHARS" --layout-features='*' --output-file="$out"
+  uvx --from fonttools --with skia-pathops python "$ROOT/tools/fusion-godot.py" "$out"
   # Le meme sous-ensemble pour le web (src/components/pixel-font.tsx).
   uvx --from 'fonttools[woff]' pyftsubset "$SRC/fusion-pixel-12px-proportional-$v.ttf" \
     --text-file="$CHARS" --layout-features='*' --flavor=woff2 \
     --output-file="$ROOT/public/assets/fonts/fusion-pixel-12-rr-$name.woff2"
 done
 rm -f "$CHARS"
-ls -la "$ROOT"/godot/assets/fonts/fusion-pixel-12-rr-*.ttf "$ROOT"/public/assets/fonts/fusion-pixel-12-rr-*.woff2
+ls -la "$ROOT"/godot/assets/fonts/fusion-pixel-10-rr-*.ttf "$ROOT"/public/assets/fonts/fusion-pixel-12-rr-*.woff2

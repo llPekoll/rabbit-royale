@@ -18,6 +18,15 @@ func _ready() -> void:
 	Kit.fill(bg)
 	add_child(bg)
 
+	# `-- --only=season|profile|history|lang|codex` : UN dialogue, a sa taille
+	# de jeu, place comme le chrome le place (plein ecran, ou centre sous le
+	# debord du [x]) — pour juger une mise en page, pas un inventaire.
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--only="):
+			_only(arg.trim_prefix("--only="))
+			DevShot.arm(self)
+			return
+
 	var root := Kit.hbox(GAP)
 	root.position = Vector2(GAP, GAP + 20.0)
 	# Les trois font 1040 de large et la vue de reference en fait 890 : le
@@ -112,3 +121,69 @@ func _fake_history() -> Dictionary:
 			"unseen": 2,
 		},
 	}
+
+
+func _only(which: String) -> void:
+	var d: Dialog
+	match which:
+		"season":
+			var board := SeasonBoard.new()
+			board.show_rows(_fake_entries(), {"rank": 5, "score": 4210, "toPass": 640},
+				{"endsAt": Time.get_datetime_string_from_unix_time(int(Time.get_unix_time_from_system()) + 12 * 86400)})
+			d = board
+		"profile", "history":
+			var profile := Profile.new()
+			profile.show_player({"id": "guest:bench", "name": "Thistle", "wallet": null, "guest": true, "avatar": "orange"})
+			profile.show_history(_fake_history())
+			d = profile
+		"codex":
+			Home.burrow = {"lifetime": 2350.0, "level": 3}
+			var codex := LoreCodex.new()
+			codex.read_marks = false
+			d = codex
+		_:
+			d = LanguageSelect.new()
+	add_child(d)
+	if which == "history":
+		(d as Profile)._show_tab(Profile.Tab.HISTORY)
+	for i in 3:
+		await get_tree().process_frame
+		_place(d)
+	d.minimum_size_changed.connect(_place.bind(d))
+	if "--dbg" in OS.get_cmdline_user_args():
+		_dump(d, 0)
+	get_viewport().size_changed.connect(_place.bind(d))
+
+
+## Chrome._center_dialog, recopie : le banc n'a pas de chrome.
+func _place(d: Dialog) -> void:
+	var view := get_viewport_rect().size
+	if d.fullscreen:
+		d.position = Vector2.ZERO
+		d.size = view
+		return
+	if d is SeasonBoard:
+		# Le tableau s'ouvre en panneau a droite (`placement == "board"`).
+		var board_top := clampf(view.y * 0.13, 52.0, 100.0)
+		var board_bottom := clampf(view.y * 0.08, 12.0, 60.0)
+		var board_w := minf(maxf(view.x * 0.26, 220.0), view.x * 0.86)
+		d.custom_minimum_size = Vector2(board_w, 0.0)
+		d.size = Vector2(board_w, view.y - board_top - board_bottom)
+		d.position = Vector2(view.x - Kit.EDGE - board_w, board_top)
+		return
+	var slack := (Kit.CLOSE_TAP - Chrome.CLOSE_ART) * 0.5
+	var side := maxf(Kit.EDGE, -Dialog.CLOSE_OVER_RIGHT - slack + 4.0)
+	var top := maxf(Kit.EDGE, -Dialog.CLOSE_OVER_TOP - slack + 4.0)
+	var wanted := d.get_combined_minimum_size()
+	d.size = Vector2(minf(wanted.x, view.x - 2.0 * side), minf(wanted.y, view.y - top - Kit.EDGE))
+	var at := ((view - d.size) * 0.5).floor()
+	at.y = maxf(at.y, top)
+	d.position = at
+
+
+func _dump(n: Node, depth: int) -> void:
+	if n is Control and depth < 9:
+		var c := n as Control
+		print("  ".repeat(depth), c.get_class(), " ", c.name, " min=", c.get_combined_minimum_size(), " size=", c.size, " ", (c as Label).text if c is Label else "")
+	for ch in n.get_children():
+		_dump(ch, depth + 1)

@@ -45,7 +45,15 @@ func _ready() -> void:
 	_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_row)
 
-	_note = Kit.panel(Kit.style_plank(2.0, 12.0, 6.0))
+	# LE TEXTE SUR LA FACE DU BOIS, pas sur ses bords : la face commence a
+	# 8 % de la planche et s'arrete a 85 % (la levre sombre, puis l'ombre), et
+	# la vrille du bout droit mord ses 18 derniers pixels. Avec 6 en haut et
+	# en bas et 12 a droite, le nom s'ecrivait sur l'arete du haut et la fin
+	# de la ligne sous la vrille (« conseguir chegar » en portugais). Dix en
+	# haut : le lisere clair de l'arete en mange trois.
+	var plank := Kit.style_plank(2.0, 20.0, 10.0)
+	plank.content_margin_bottom = 11.0
+	_note = Kit.panel(plank)
 	_note.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_note.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_note.custom_minimum_size.y = MIN_H

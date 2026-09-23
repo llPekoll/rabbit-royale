@@ -129,7 +129,9 @@ func _build() -> void:
 	# LA BARRE, PUIS L'ATTENTE — sur une planche a feuilles
 	# (`.rr-energy-state`, SOIL_DEEP que la peau des bois dessine en bois).
 	var state := PanelContainer.new()
-	state.add_theme_stylebox_override("panel", Kit.style_plank(4.0, 14.0, 6.0))
+	# A droite, le bout ENTIER de la planche plus un souffle : a 14, la
+	# phrase courait sur les feuilles du bout droit (« Enough », « repartir »).
+	state.add_theme_stylebox_override("panel", Kit.style_plank(4.0, Kit.PLANK_CAP + 4.0, 6.0))
 	body.add_child(state)
 	var state_row := Kit.hbox(Kit.PAD)
 	state.add_child(state_row)
@@ -158,6 +160,9 @@ func _build() -> void:
 	words.add_child(_blurb)
 	_left = Kit.note("", Palette.BARK.lightened(0.25), 12)
 	_left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# Au bout de la ligne, sous le bord droit du bouton : le reste se lit
+	# comme la valeur de la ligne, pas comme une phrase qui flotte au milieu.
+	_left.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	words.add_child(_left)
 	var buttons := Kit.hbox(Kit.PAD_TIGHT)
 	offer.add_child(buttons)

@@ -112,7 +112,7 @@ par l'exportateur Android et manque à l'APK.
 | Boutique, énergie | `shop-card.tsx`, `energy-*.tsx` | ✓ — l'achat s'arrête : le pont natif ne signe pas encore |
 | Codex, tampons | `lore-codex.tsx`, `*-stamp.tsx` | ✓ |
 | Coffre | `chest-*.tsx` | `chest_prize.gd` écrit, **pas monté** |
-| Île : choix d'île | `island-picker.tsx` | `island_picker.gd` ✓ |
+| Île : choix d'île | `island-picker.tsx` | **pas porté** — DIG rejoint directement (`chrome.gd` `_dig`, `RunState.join(null)`), il n'y a pas d'écran de choix |
 | Île : HUD, récap | `run-hud.tsx`, `run-recap.tsx` | `run_hud.gd` + `run_recap.gd` écrits, **pas montés** — l'île montre son HUD provisoire (`island.gd`) |
 | Île : cases, décor, caméra, éruption | `game/island/*` | cases ✓ (carotte, dorée, bombe et cratère, coffre qui s'envole) ; décor debout ✓ (`island_scenery.gd`) et trou de profondeur ✓ (`depth_hole.gdshader`) ; éruption et grondement ✓ ; caméra de jeu (suit le lapin, molette) ✓ |
 | Île : creuser (hors ligne) | `lib/game/island.ts`, `run.ts` | ✓ — `island_ground.gd` (décor, pas, apparition), `IslandBoard.deal_generated` (bombes, dorées, coffres au bord, lots), `local_run.gd` (`resolveMove`, `flagTile`) ; identique au serveur case par case (`tools/verify_deal.gd`). **En ligne : à brancher** — les contenus viennent du serveur |

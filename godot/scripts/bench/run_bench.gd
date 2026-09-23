@@ -55,6 +55,23 @@ func _ready() -> void:
 	recap.position = Vector2(Kit.EDGE, 150.0)
 	recap.size = Vector2(380.0, 0.0)
 	add_child(recap)
+	# `-- --recap` : la carte seule, a sa taille et au centre, comme
+	# `Chrome.open` la pose — la ou se juge sa mise en page.
+	if "--recap" in OS.get_cmdline_user_args():
+		hud.visible = false
+		var veil := ColorRect.new()
+		veil.color = Palette.SCRIM
+		Kit.fill(veil)
+		add_child(veil)
+		move_child(veil, recap.get_index())
+		var center := func() -> void:
+			var view := get_viewport_rect().size
+			var wanted := recap.get_combined_minimum_size()
+			recap.size = Vector2(minf(wanted.x, view.x - 2.0 * Kit.EDGE), minf(wanted.y, view.y - 30.0))
+			recap.position = ((view - recap.size) * 0.5).floor()
+		recap.minimum_size_changed.connect(center)
+		get_viewport().size_changed.connect(center)
+		center.call_deferred()
 	recap.show_recap(
 		{"carrots": 42, "tilesDug": 31, "bombsHit": 1, "durationMs": 214000,
 			"killedBy": {"id": "rival", "name": "Blackpaw", "how": "shove"}},

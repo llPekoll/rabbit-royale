@@ -57,6 +57,14 @@ const H_VH := 0.09
 ## `--rr-btn-pad` : 6 / 10 / 6 + biseau.
 const PAD_Y := 6.0
 const PAD_X := 10.0
+## L'AIR PASSE LES FEUILLES. La planche a feuilles (Kit.style_plank) porte
+## une touffe sur son bout gauche et une vrille sur le droit ; la rangee posee
+## a PAD_X du bord mettait la fleche dans la touffe et le mot contre la
+## vrille (« BACK » tassee contre sa fleche, « 返回 » dessus). Mesure sur
+## plank.webp : la face nue commence a 16 px du bord gauche et finit a 20 du
+## droit, a la hauteur ou le chrome l'etire.
+const LEAF_L := 16.0
+const LEAF_R := 20.0
 ## Le libelle : clamp(13px, 2.8svh, 18px), en capitales.
 const LABEL_MIN := 13
 const LABEL_MAX := 18
@@ -241,19 +249,33 @@ func _measure() -> void:
 	else:
 		_stop_go()
 		var min_h := clampf(view.y * H_VH, MIN_H, MAX_H)
+		# EN POSE, LA HAUTEUR DES ENSEIGNES. Le retour y partage sa ligne avec
+		# DEFENSE · ATTAQUE · JARDIN (kit_row.gd, 44 de haut) : a 50 il
+		# depassait les trois de 6 px, et de 20 sur un bureau. Seul, ailleurs,
+		# il garde la mesure du web.
 		var want := _row.get_combined_minimum_size()
 		var h := maxf(min_h, want.y + PAD_Y * 2.0 + BEVEL)
-		_btn.size = Vector2(want.x + PAD_X * 2.0, h)
+		if _mode in ["placing", "walling"]:
+			h = maxf(KitRow.TAB_H, want.y + 4.0)
+		_btn.size = Vector2(want.x + LEAF_L + LEAF_R, h)
 		_btn.position = Vector2(Kit.EDGE, size.y - Kit.EDGE - h)
 		_row.size = want
-		_row.position = Vector2(PAD_X, floorf((h - BEVEL - want.y) * 0.5))
+		# Au milieu de la planche, comme le mot d'une enseigne a cote : la
+		# planche a feuilles n'a plus le biseau de la dalle de terre, et
+		# centrer au-dessus de lui posait « BACK » 5 px plus haut que
+		# « DEFENCE » sur la meme ligne.
+		_row.position = Vector2(LEAF_L, floorf((h - want.y) * 0.5))
 		_lip.position = Vector2.ZERO
 		_lip.size = Vector2(_btn.size.x, LIP_H)
 
 	if _cost.visible:
 		var cw := _cost.get_combined_minimum_size()
 		_cost.size = cw
-		_cost.position = Vector2(floorf((size.x - cw.x) * 0.5), _btn.position.y - Kit.PAD_TIGHT - cw.y)
+		# Centree sur le bouton, mais jamais hors de l'ecran : une ligne plus
+		# large que la moitie du sol debordait a droite.
+		var cx := floorf(_btn.position.x + (_btn.size.x - cw.x) * 0.5)
+		cx = clampf(cx, Kit.EDGE, maxf(Kit.EDGE, size.x - Kit.EDGE - cw.x))
+		_cost.position = Vector2(cx, _btn.position.y - Kit.PAD_TIGHT - cw.y)
 
 
 ## La face de terre sur son biseau ; le verre de HOME n'a pas de planche.
@@ -280,7 +302,7 @@ func _sink(down: bool) -> void:
 		return
 	var want := _row.get_combined_minimum_size()
 	var h := _btn.size.y
-	_row.position.y = floorf((h - BEVEL - want.y) * 0.5) + (BEVEL if down else 0.0)
+	_row.position.y = floorf((h - want.y) * 0.5) + (LIP_H if down else 0.0)
 	_lip.visible = not down
 
 

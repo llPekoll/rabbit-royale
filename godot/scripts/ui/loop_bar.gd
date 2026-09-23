@@ -124,21 +124,34 @@ const CORNER_H := 20.0
 ##
 ## Le retrait droit est PAR PLANCHE : partager le plus large faisait entrer
 ## la ligne de RAID dans son cadre (« …left 624 outsi »).
+## LA MEME HAUTEUR VUE (2026-09-23). Les trois boites ont la meme hauteur,
+## pas leurs arts : le bois de DIG couvre 95 % de la sienne, le cadre du
+## parchemin 69 %, celui du crane 79 % — trois planches de trois hauteurs,
+## et le verbe de DEFEND sur le bord du papier. `body` est la bande opaque
+## de chaque art (mesuree sur l'alpha, colonne du milieu) ; chaque art est
+## mis a l'echelle et centre pour que ce corps fasse BODY_SPAN de la boite.
+## `edge` et le retrait gauche/droit de `inset` sont en hauteurs d'ART (ils
+## suivent l'echelle) ; le retrait haut/bas de `inset` en hauteurs de BOITE :
+## c'est la surface ecrivable (bois, papier, rouge) une fois l'art pose.
+const BODY_SPAN := 0.8
 const BOARDS := {
 	"dig": {
 		"slice": Vector4i(Kit.PLANK_CAP, 0, Kit.PLANK_CAP, 0),
 		"edge": Vector4(0.667, 0.0, 0.667, 0.0),
-		"inset": Vector4(0.667 * 1.15, 0.12, 0.667 * 0.9, 0.12),
+		"body": Vector2(0.025, 0.975),
+		"inset": Vector4(0.667 * 1.15, 0.13, 0.667 * 0.9, 0.15),
 	},
 	"defend": {
 		"slice": Vector4i(107, 14, 47, 14),
 		"edge": Vector4(1.029, 0.135, 0.452, 0.135),
-		"inset": Vector4(0.9, 0.15, 0.50, 0.15),
+		"body": Vector2(0.183, 0.875),
+		"inset": Vector4(0.96, 0.21, 0.50, 0.28),
 	},
 	"raid": {
 		"slice": Vector4i(100, 14, 40, 14),
 		"edge": Vector4(0.962, 0.135, 0.385, 0.135),
-		"inset": Vector4(0.9, 0.15, 0.44, 0.15),
+		"body": Vector2(0.154, 0.942),
+		"inset": Vector4(0.9, 0.20, 0.44, 0.235),
 	},
 }
 
@@ -657,8 +670,11 @@ class StateLine extends Control:
 		label.add_theme_color_override("font_color", ink)
 		label.add_theme_color_override("font_shadow_color", shadow)
 		label.add_theme_constant_override("shadow_offset_x", 0)
-		label.add_theme_constant_override("shadow_offset_y", 2 if shadow.a > 0.0 else 0)
-		custom_minimum_size.y = float(size_px) * 1.25
+		# Deux pixels d'ombre sous un trait d'un pixel (la face des autres
+		# langues) en font une bouillie ; un seul suffit a la detacher.
+		var drop := (2 if I18N.pixel_face() else 1) if shadow.a > 0.0 else 0
+		label.add_theme_constant_override("shadow_offset_y", drop)
+		custom_minimum_size.y = maxf(float(size_px) * 1.25, label.get_theme_font("font").get_height(size_px))
 		_measure()
 
 	func _measure() -> void:
@@ -699,6 +715,8 @@ class Slab extends Button:
 	var corner: Control
 	var _inset := Vector4.ZERO
 	var _content_y := 0.0
+	var _art_y := 0.0
+	var _art_h := 0.0
 
 	func _init(p_kind: String, tex: Texture2D, slice: Vector4i, ink: Color, ink_shadow: Color) -> void:
 		kind = p_kind
@@ -716,7 +734,7 @@ class Slab extends Button:
 		content.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(content)
 
-		var column := Kit.vbox(3)
+		var column := Kit.vbox(1)
 		column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		column.name = "Column"
 		content.add_child(column)
@@ -738,17 +756,26 @@ class Slab extends Button:
 	## L'art suit la hauteur de la planche : bords et retraits sont des
 	## fractions de `h`.
 	func relayout(h: float, spec: Dictionary, verb_size: int, line_size: int) -> void:
+		var body: Vector2 = spec["body"]
+		var k := LoopBar.BODY_SPAN / (body.y - body.x)
+		_art_y = h * (0.5 - k * (body.x + body.y) * 0.5)
+		_art_h = h * k
 		var edge: Vector4 = spec["edge"]
-		board.edge = edge * h
-		_inset = (spec["inset"] as Vector4) * h
+		board.edge = edge * _art_h
+		var inset: Vector4 = spec["inset"]
+		_inset = Vector4(inset.x * _art_h, inset.y * h, inset.z * _art_h, inset.w * h)
 		verb.add_theme_font_size_override("font_size", verb_size)
-		line.custom_minimum_size.y = float(line_size) * 1.25
+		# La hauteur de ligne de la FACE, pas 1,25 fois la taille : celle du
+		# francais et du chinois est plus haute que la face pixel, et la ligne
+		# debordait sous le papier de DEFEND.
+		line.custom_minimum_size.y = maxf(float(line_size) * 1.25,
+			line.label.get_theme_font("font").get_height(line_size))
 		line.label.add_theme_font_size_override("font_size", line_size)
 		_place()
 
 	func _place() -> void:
-		board.position = Vector2.ZERO
-		board.size = size
+		board.position = Vector2(0.0, _art_y)
+		board.size = Vector2(size.x, _art_h if _art_h > 0.0 else size.y)
 		content.position = Vector2(_inset.x, _inset.y + _content_y)
 		content.size = Vector2(maxf(0.0, size.x - _inset.x - _inset.z), maxf(0.0, size.y - _inset.y - _inset.w))
 		var column: Control = content.get_node("Column")

@@ -34,12 +34,14 @@ const GLYPH_VH := 0.056
 ## L'enfoncement de la presse, et son assombrissement.
 const PRESS_Y := 2.0
 const PRESS_DIM := 0.97
-## La puce d'un compte : 9 px, 18 de large au moins, sur le bord haut a -7.
+## La puce d'un compte : 9 px, 18 de large au moins, a cheval sur le bord
+## haut de 5. Elle en depassait de 7 et 8 : avec le rail a 6 px du haut de
+## l'ecran, « 3 », « NEW » et « #44 » etaient coupes (2026-09-23).
 const CHIP_FONT := 9
 const CHIP_MIN_W := 18.0
-const CHIP_OVER := -7.0
+const CHIP_OVER := -5.0
 const NEWS_H := 18.0
-const NEWS_OVER := -8.0
+const NEWS_OVER := -5.0
 
 const RINGS: Array[Texture2D] = [Kit.RING_1, Kit.RING_2, Kit.RING_3]
 

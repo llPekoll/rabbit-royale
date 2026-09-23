@@ -128,8 +128,10 @@ func _measure() -> void:
 		(b as HubIconButton).set_square(square, view.y)
 	sound.set_square(square, view.y)
 	_rail.offset_right = -Kit.EDGE
-	_rail.offset_top = Kit.PAD_TIGHT
-	_rail.offset_bottom = Kit.PAD_TIGHT + square
+	# A la gouttiere de l'ecran, comme la puce du joueur : les pastilles
+	# posees a cheval sur les boutons gardent ainsi 5 px d'air au-dessus.
+	_rail.offset_top = Kit.EDGE
+	_rail.offset_bottom = Kit.EDGE + square
 
 	# La pastille : centree sur l'ecran, collee au haut, mise a l'echelle
 	# depuis son centre haut pour rester accrochee au meme point.

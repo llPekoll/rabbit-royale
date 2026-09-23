@@ -387,13 +387,30 @@ func _say(slot: int, text: String, ink: Color, ms: int) -> void:
 	# tient, sinon ce que l'ecran laisse, et la elle revient a la ligne.
 	var font := label.get_theme_font("font")
 	var px := label.get_theme_font_size("font_size")
-	var wide := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x + 2.0
 	var room := maxf(160.0, get_viewport_rect().size.x - 2.0 * CAPTION_MARGIN)
-	label.custom_minimum_size.x = minf(wide, minf(room, CAPTION_MAX_W))
+	label.custom_minimum_size.x = balanced_width(font, text, px, minf(room, CAPTION_MAX_W))
 	panel.visible = not text.is_empty()
 	_slot_timers[slot].stop()
 	if ms > 0 and panel.visible and is_inside_tree():
 		_slot_timers[slot].start(ms / 1000.0)
+
+
+## LA LARGEUR QUI FAIT DES LIGNES EGALES. La phrase entiere si elle tient ;
+## sinon, le moins de lignes que `limit` permet, mais chacune a peu pres de la
+## meme longueur : a la largeur maximale, « The island is the clock. Dig it
+## out and it » laissait « sinks. » seul sur la seconde (2026-09-23).
+static func balanced_width(font: Font, text: String, px: int, limit: float) -> float:
+	var wide := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x + 2.0
+	if wide <= limit:
+		return wide
+	var line_h := font.get_height(px)
+	var lines := ceilf(font.get_multiline_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, limit, px).y / line_h - 0.01)
+	var w := minf(limit, ceilf(wide / lines))
+	# Les coupures tombent entre les mots : on elargit jusqu'a ce que la phrase
+	# tienne dans le meme nombre de lignes qu'a la largeur maximale.
+	while w < limit and font.get_multiline_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, w, px).y > lines * line_h + 0.5:
+		w += 4.0
+	return minf(w, limit)
 
 
 ## La legende du premier voyage : l'ID est tenu par RunState, les mots sont

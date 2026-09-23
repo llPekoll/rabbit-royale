@@ -34,10 +34,13 @@ extends Control
 const H_MIN := 50.0
 const H_MAX := 64.0
 const H_VH := 0.09
-## La legende au-dessus : `max-width: min(280px, 46vw)`, a 20px de la planche.
+## La legende au-dessus : `max-width: min(280px, 46vw)`. L'ecart laisse
+## passer la ligne des spectateurs (run_hud.gd `_watchers`, 6px au-dessus de
+## la planche) : a 20px, « BLACKPAW ZAPPED YOU » mordait le bas de la legende
+## (mesure 2026-09-23, run_bench). 6 + une ligne de 12 + 6.
 const HINT_MAX_W := 280.0
 const HINT_VW := 0.46
-const HINT_GAP := 20.0
+const HINT_GAP := 34.0
 ## La croix : 9x9 cellules, dessinee a 27 (3 par cellule), en blanc sur le
 ## bois (Paul, 22 septembre 2026 : « set the X icon color white »).
 const CROSS_CELLS := 9
@@ -125,7 +128,10 @@ func _ready() -> void:
 	row.add_child(_cross)
 	_label = Kit.label("", 14, Palette.CREAM, true)
 	_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_label.uppercase = true
+	# EN CAPITALES SEULEMENT EN ANGLAIS, comme tout le kit (`I18N.shout`). Un
+	# `uppercase` force dessinait « MARQUER UNE BOMBE » la ou `_measure`
+	# mesurait « Marquer une bombe » : le mot debordait sur les feuilles du
+	# bout droit (2026-09-23). Relu a chaque langue, dans `_relabel`.
 	row.add_child(_label)
 
 	_arrow = Control.new()
@@ -153,7 +159,7 @@ func _ready() -> void:
 
 
 ## LA MISE EN PAGE : la planche au coin bas-droit, a Kit.EDGE du bord ; la
-## legende 20px au-dessus, alignee a droite ; la fleche centree sur la planche
+## legende HINT_GAP au-dessus, alignee a droite ; la fleche centree sur la planche
 ## — dessinee comme SON enfant sur le web, parce que la largeur du bouton
 ## suit son libelle et change avec la langue (Paul, 2026-09-20 : « trop petit
 ## et pas centre »).
@@ -184,6 +190,7 @@ static func height_for(view_h: float) -> float:
 
 
 func _relabel() -> void:
+	_label.uppercase = I18N.pixel_face()
 	_label.text = I18N.shout(I18N.t("run.markCancel" if _armed else "run.markBomb"))
 	_hint_label.text = I18N.t("run.markHint") if _armed else (I18N.t("run.markNothing") if _nothing else "")
 	_hint.visible = not _hint_label.text.is_empty()

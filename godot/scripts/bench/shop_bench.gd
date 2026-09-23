@@ -51,6 +51,16 @@ func _ready() -> void:
 	state.fake(_fake_items(1240), {"held": 3, "placed": 2, "armed": 2, "rearming": 0, "maxPlaced": 8})
 	Home.changed.emit()
 
+	# `-- --only=shop|popup|panel` : UN panneau, pose comme le chrome le
+	# pose (plein ecran, ou centre a Kit.EDGE des bords sous le debord du
+	# [x]), sur la vue de reference ou celle que `--size` donne. C'est ce
+	# qu'une capture juge : le banc cote a cote chevauche les panneaux.
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--only="):
+			_only(arg.trim_prefix("--only="))
+			DevShot.arm(self)
+			return
+
 	# Plus de place que le 890x400 de reference : l'etal a la taille du
 	# Seeker, et les deux autres dialogues en dessous, a leur taille.
 	get_window().content_scale_size = Vector2i(1400, 760)
@@ -76,3 +86,42 @@ func _ready() -> void:
 		shop.size = shop.get_combined_minimum_size()).call_deferred()
 
 	DevShot.arm(self)
+
+
+## UN PANNEAU SEUL, place par la regle de `Chrome._center_dialog` (sans le
+## chrome, qui lirait le reseau) : plein ecran pour l'etal, centre pour les
+## deux autres, a la largeur que leur `open` leur donne.
+func _only(which: String) -> void:
+	DeskScale.follow(get_window())
+	var dialog: Dialog
+	match which:
+		"shop":
+			dialog = Shop.new()
+		"popup":
+			dialog = EnergyPopup.new()
+		_:
+			dialog = EnergyPanel.new()
+	add_child(dialog)
+	var place := func() -> void:
+		var view := get_viewport_rect().size
+		if dialog.fullscreen:
+			dialog.position = Vector2.ZERO
+			dialog.size = view
+			return
+		if dialog is EnergyPopup:
+			dialog.custom_minimum_size.x = minf(EnergyPopup.WIDTH, view.x - 2.0 * Kit.EDGE)
+		elif dialog is EnergyPanel:
+			var wide := EnergyPanel.WIDTH_SHORT if view.y < 520.0 else EnergyPanel.WIDTH
+			dialog.custom_minimum_size.x = minf(wide, view.x - 2.0 * Kit.EDGE)
+		var slack := (Kit.CLOSE_TAP - Chrome.CLOSE_ART) * 0.5
+		var side := maxf(Kit.EDGE, -Dialog.CLOSE_OVER_RIGHT - slack + 4.0)
+		var top := maxf(Kit.EDGE, -Dialog.CLOSE_OVER_TOP - slack + 4.0)
+		var wanted := dialog.get_combined_minimum_size()
+		dialog.size = Vector2(minf(wanted.x, view.x - 2.0 * side), minf(wanted.y, view.y - top - Kit.EDGE))
+		var at := ((view - dialog.size) * 0.5).floor()
+		at.y = maxf(at.y, top)
+		dialog.position = at
+	(func() -> void:
+		place.call()
+		dialog.minimum_size_changed.connect(place)
+		get_viewport().size_changed.connect(place)).call_deferred()

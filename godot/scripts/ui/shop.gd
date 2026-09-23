@@ -72,6 +72,15 @@ const TRACK_THUMB_MIN := 24.0
 ## Le rail : 26 de haut, 40 au moins, du 10px.
 const RAIL_H := 26.0
 const RAIL_W := 50.0
+## Le feuillage d'un bout de planche de bois, mesure a l'ecran (20 px des
+## 25 du bout, les touffes debordent vers le milieu) : un mot pose sur une
+## planche s'arrete avant, jamais sur les feuilles.
+const LEAF_END := 20.0
+## Le meme sur un rail : 26 de haut, ses touffes sont plus courtes. Au-dela,
+## les quatre rails anglais touchaient l'enseigne SHOP a 890 de large.
+const RAIL_LEAF := 16.0
+## Le plus petit que le nom d'une carte descend pour tenir sur sa planche.
+const NAME_MIN := 8
 ## Un clic est un glissement passe cette distance (stall-drag.ts).
 const DRAG_SLOP := 4.0
 
@@ -331,9 +340,15 @@ func _rebuild_rails(tokens: Array) -> void:
 	for old in _rails.get_children():
 		_rails.remove_child(old)
 		old.queue_free()
-	_rails.add_child(_rail_button("carrots", true))
+	# UNE LARGEUR POUR LES QUATRE, celle du mot le plus long : des rails de
+	# tailles differentes se lisaient comme quatre choses differentes, et la
+	# carotte seule faisait une pastille de moitie.
+	var wide := RAIL_W
 	for id in RAILS:
-		_rails.add_child(_rail_button(id, tokens.has(id)))
+		wide = maxf(wide, _face().get_string_size(RAILS[id], HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x + 2.0 * RAIL_LEAF)
+	_rails.add_child(_rail_button("carrots", true, wide))
+	for id in RAILS:
+		_rails.add_child(_rail_button(id, tokens.has(id), wide))
 
 
 ## UN RAIL : la planche a feuilles du solde (`.rr-stall-rails`, la meme
@@ -342,10 +357,10 @@ func _rebuild_rails(tokens: Array) -> void:
 ## peut pas prendre est dessine, eteint et pas pressable — attenue, pas
 ## grise : desaturer la pastille en ferait un galet qui se lit comme un autre
 ## objet.
-func _rail_button(id: String, live: bool) -> Button:
+func _rail_button(id: String, live: bool, width: float) -> Button:
 	var on := id == _rail
 	var b := Button.new()
-	b.custom_minimum_size = Vector2(RAIL_W, RAIL_H)
+	b.custom_minimum_size = Vector2(width, RAIL_H)
 	b.focus_mode = Control.FOCUS_NONE
 	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if live else Control.CURSOR_FORBIDDEN
 	for state in ["normal", "hover", "pressed", "focus", "disabled"]:
@@ -359,19 +374,18 @@ func _rail_button(id: String, live: bool) -> Button:
 		b.add_theme_color_override(color_name, Palette.CREAM)
 	b.add_theme_font_size_override("font_size", 10)
 	# Le cerne d'encre du web : sans lui, la creme se perd dans les feuilles.
-	b.add_theme_color_override("font_outline_color", Palette.INK)
-	b.add_theme_constant_override("outline_size", 4)
+	# Dans la face pixel seulement : Fusion (hors anglais) est une face
+	# bitmap, un cerne la dechiquette — « USDC » sortait « ISDC »
+	# (voir dialog.gd, le titre).
+	if I18N.pixel_face():
+		b.add_theme_color_override("font_outline_color", Palette.INK)
+		b.add_theme_constant_override("outline_size", 4)
 	if id == "carrots":
 		b.icon = Kit.ICONS["carrot"]
 		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		b.add_theme_constant_override("icon_max_width", 16)
 	else:
 		b.text = RAILS[id]
-		# A la mesure du mot, pas du seul RAIL_W : une face de 12px (Fusion,
-		# hors anglais) ne tient pas « USDC » dans 50px.
-		var font := b.get_theme_font("font")
-		var w := font.get_string_size(b.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x + 28.0
-		b.custom_minimum_size.x = maxf(RAIL_W, w)
 	if not on:
 		b.modulate.a = 0.85
 	if not live:
@@ -493,7 +507,7 @@ func _card(it: Dictionary, tokens: Array) -> Control:
 	name_sign.size = Vector2(minf(CARD_W - 4.0, 140.0), 38.0)
 	name_sign.position = Vector2(floor((CARD_W - name_sign.size.x) * 0.5), CARD_OVER_TOP - 19.0)
 	card.add_child(name_sign)
-	var sign_text := Kit.label(I18N.shout(item_name), 11, Palette.CREAM, true)
+	var sign_text := Kit.label(I18N.shout(item_name), _fit(I18N.shout(item_name), 11, name_sign.size.x - 2.0 * LEAF_END), Palette.CREAM, true)
 	sign_text.uppercase = I18N.pixel_face()
 	sign_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sign_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -508,7 +522,7 @@ func _card(it: Dictionary, tokens: Array) -> Control:
 	var held_text := Kit.label(held, 10, Palette.CREAM, true)
 	held_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	held_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	var held_w := held_text.get_theme_font("font").get_string_size(held, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x + 16.0
+	var held_w := _face().get_string_size(held, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x + 16.0
 	badge.size = Vector2(maxf(28.0, held_w), 20.0)
 	badge.position = Vector2(CARD_W - badge.size.x + 6.0, CARD_OVER_TOP + 14.0)
 	Kit.fill(held_text)
@@ -556,6 +570,24 @@ func _card(it: Dictionary, tokens: Array) -> Control:
 			_state.buy(kind))
 	card.add_child(buy)
 	return card
+
+
+## LA FACE AFFICHEE, celle que I18N pose sur le theme du projet. Un
+## `get_theme_font` avant l'entree dans l'arbre rend la face de secours de
+## Godot, pas celle-ci : les mesures sortaient fausses hors de l'anglais
+## (« USDC » coupe sur son rail, un compte deborde de sa pastille).
+static func _face() -> Font:
+	var theme := ThemeDB.get_project_theme()
+	return theme.default_font if theme != null else ThemeDB.fallback_font
+
+
+## LA TAILLE QUI TIENT : `size`, ou moins jusqu'a NAME_MIN, pour que le mot
+## tienne dans `room` — « Cortina de fumaça » passait sur les feuilles.
+static func _fit(text: String, size: int, room: float) -> int:
+	var chosen := size
+	while chosen > NAME_MIN and _face().get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, chosen).x > room:
+		chosen -= 1
+	return chosen
 
 
 ## LA CAROTTE SUR LA FACE DU PRIX. La planche peint son libelle centre ; deux

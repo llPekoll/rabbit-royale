@@ -57,7 +57,6 @@ func _make_row(entry: Dictionary) -> Button:
 	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	b.focus_mode = Control.FOCUS_NONE
 	b.set_meta("code", code)
-	_paint(b, on)
 	# Le texte est un enfant plutot que le `text` du Button : le Button peint
 	# le sien dans la face du theme, et c'est ici qu'un « 中文 » veut sa propre
 	# face plutot que celle de l'anglais.
@@ -65,12 +64,33 @@ func _make_row(entry: Dictionary) -> Button:
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	Kit.fill(label)
+	# LE NOM DANS UNE FACE QUI L'ECRIT EN ENTIER. En anglais la face pixel
+	# n'a ni « ç » ni « ê » : « Français » sortait avec un ç d'une autre face,
+	# plus bas que ses voisines. Un nom hors ASCII prend la face pixel de sa
+	# propre ecriture, a la meme echelle que celle du jeu (i18n.gd `face`).
+	if I18N.pixel_face() and not _ascii(String(entry["label"])):
+		label.add_theme_font_override("font", _own_face(code == "zh"))
 	b.add_child(label)
+	# L'encre APRES le libelle : peinte avant, elle ne trouvait pas d'enfant,
+	# et l'option choisie gardait la creme sur l'or — illisible.
+	_paint(b, on)
 	b.pressed.connect(func() -> void:
 		# Le meme clic choisit ET ferme (`setLocale(l.code); onClose()`).
 		I18N.set_locale(code)
 		closed.emit())
 	return b
+
+
+func _ascii(text: String) -> bool:
+	for i in text.length():
+		if text.unicode_at(i) > 126:
+			return false
+	return true
+
+
+## Fusion Pixel reglee comme `I18N.face` la regle.
+func _own_face(zh: bool) -> Font:
+	return I18N.fusion_face(zh)
 
 
 ## L'onglet : or quand il est choisi, bois sinon ; l'encre suit la planche.

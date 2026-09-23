@@ -56,8 +56,16 @@ var _deadline_ms := 0
 var _left := -1
 
 
+## 480 et pas les 420 d'un dialogue : en anglais la face pixel est large, et
+## a 420 trois lignes sur quatre cassaient avec un mot seul dessous
+## (« water. », « 30) », « takes 5 ») pendant que les autres langues
+## tenaient sur une (mesure 2026-09-23). Le telephone le plus etroit
+## (852 de large) garde ses 186 px de chaque cote.
+const WIDTH := 480.0
+
+
 func _init() -> void:
-	super("", 420.0)
+	super("", WIDTH)
 
 
 func _ready() -> void:

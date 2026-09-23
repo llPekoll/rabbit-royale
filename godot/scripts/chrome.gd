@@ -780,21 +780,23 @@ func _center_dialog() -> void:
 		_dialog.position = Vector2.ZERO
 		_dialog.size = view
 		return
-	if _placement == "board":
-		# `.rr-lb` : top clamp(52px, 13svh, 100px), bottom clamp(12px, 8svh,
-		# 60px), right --rr-edge, width max(26vw, 220px).
-		var board_top := clampf(view.y * 0.13, 52.0, 100.0)
-		var board_bottom := clampf(view.y * 0.08, 12.0, 60.0)
-		var board_w := minf(maxf(view.x * 0.26, 220.0), view.x * 0.86)
-		_dialog.custom_minimum_size = Vector2(board_w, 0.0)
-		_dialog.size = Vector2(board_w, view.y - board_top - board_bottom)
-		_dialog.position = Vector2(view.x - Kit.EDGE - board_w, board_top)
-		return
 	# Le dessin du [x] est plus petit que sa zone de tap (Kit.CLOSE_TAP) :
 	# seul le DESSIN doit rester a l'ecran, d'ou le retrait de cette marge.
 	var slack := (Kit.CLOSE_TAP - CLOSE_ART) * 0.5
 	var side := maxf(Kit.EDGE, -Dialog.CLOSE_OVER_RIGHT - slack + 4.0)
 	var top := maxf(Kit.EDGE, -Dialog.CLOSE_OVER_TOP - slack + 4.0)
+	if _placement == "board":
+		# `.rr-lb` : top clamp(52px, 13svh, 100px), bottom clamp(12px, 8svh,
+		# 60px), width max(26vw, 220px) — et a droite le MEME retrait que les
+		# dialogues centres : a --rr-edge seul, son [x] debordait de 16 px et
+		# touchait le bord de l'ecran (2026-09-23).
+		var board_top := clampf(view.y * 0.13, 52.0, 100.0)
+		var board_bottom := clampf(view.y * 0.08, 12.0, 60.0)
+		var board_w := minf(maxf(view.x * 0.26, 220.0), view.x * 0.86)
+		_dialog.custom_minimum_size = Vector2(board_w, 0.0)
+		_dialog.size = Vector2(board_w, view.y - board_top - board_bottom)
+		_dialog.position = Vector2(view.x - side - board_w, board_top)
+		return
 	var wanted := _dialog.get_combined_minimum_size()
 	var w := minf(wanted.x, view.x - 2.0 * side)
 	# Sur le MINIMUM seul : relire `size` gardait toute taille gonflee une

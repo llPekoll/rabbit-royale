@@ -108,6 +108,9 @@ const ITEM_W := 112.0
 const PIECE_W := 180.0
 ## Le tampon (TitleText, echelle du titre) et la legende (BitmapText).
 const STAMP_SIZE := 28
+## De combien le tampon claque SUR le lot : son bas descend de 10 px sur le
+## haut de l'art, pas plus.
+const STAMP_BITE := 10.0
 const CAPTION_SIZE := 13
 const CAPTION_BOTTOM := 28.0
 
@@ -318,7 +321,11 @@ func _measure() -> void:
 
 	var stamp_size := _stamp.get_combined_minimum_size()
 	_stamp.size = stamp_size
-	_stamp.position = Vector2((item_size.x - stamp_size.x) * 0.5, -18.0)
+	# LE BAS DU TAMPON mord le haut du lot de STAMP_BITE, quelle que soit la
+	# face : pose par son HAUT (-18), le mot de la face pixel mordait de 10,
+	# celui de Fusion — une ligne plus haute — de 27, et « FOUDRE », « 护盾 »
+	# couvraient l'objet qu'ils nomment (2026-09-23).
+	_stamp.position = Vector2((item_size.x - stamp_size.x) * 0.5, STAMP_BITE - stamp_size.y)
 	_stamp.pivot_offset = stamp_size * 0.5
 
 	var cap_size := _caption.get_combined_minimum_size()

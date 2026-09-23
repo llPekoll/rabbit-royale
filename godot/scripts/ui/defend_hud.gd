@@ -38,6 +38,14 @@ var _over_haul: Label
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# L'ECRAN ENTIER, pas l'etage. Le chrome la pose dans %Floor, une bande
+	# de hauteur nulle epinglee en bas : « remplir son etage » lui donnait
+	# zero de haut, et la barre, posee sous TOPBAR_H de son propre haut,
+	# sortait par le bas de l'ecran (2026-09-23). Comme BackButton : le haut
+	# remonte d'un ecran.
+	set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	get_viewport().size_changed.connect(_reach_top)
+	_reach_top()
 	_build()
 	RaidState.current.incoming_changed.connect(_refresh)
 	RaidState.current.changed.connect(_refresh)
@@ -105,7 +113,14 @@ func _build() -> void:
 	column.add_child(_over)
 
 
+func _reach_top() -> void:
+	offset_top = -get_viewport_rect().size.y
+	offset_bottom = 0.0
+
+
 func _measure() -> void:
+	if _panel == null:
+		return
 	var w := minf(WIDTH, size.x - 2.0 * Kit.EDGE)
 	_panel.position = Vector2(floor((size.x - w) * 0.5), Kit.TOPBAR_H + Kit.PAD_TIGHT)
 	_panel.size = Vector2(w, _panel.get_combined_minimum_size().y)

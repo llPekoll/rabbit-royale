@@ -82,7 +82,7 @@ func refresh() -> void:
 
 	_slab = null
 	if done:
-		_slab = HubSlab.new("carrot", maxf(card_length(38), 32.0))
+		_slab = HubSlab.new("carrot", slab_height())
 		_slab.set_lit(not Home.pending)
 		_reward_words(_slab, quest)
 		_slab.pressed.connect(_claim)
@@ -99,7 +99,7 @@ func refresh() -> void:
 ## avec un S anglais colle dessus.
 func _reward_words(slab: HubSlab, quest: Dictionary) -> void:
 	var reward: Dictionary = quest.get("reward", {}) if quest.get("reward") is Dictionary else {}
-	var size := card_size(15, 9, 15)
+	var size := slab_text()
 	var item: Variant = reward.get("item", null)
 	if item is Dictionary:
 		slab.add_word(I18N.f("quest.claimItem", [int(item.get("qty", 1)), I18N.t("items.%s.name" % String(item.get("kind", "")))]), size)

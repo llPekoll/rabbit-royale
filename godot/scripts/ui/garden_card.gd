@@ -75,8 +75,8 @@ func refresh() -> void:
 	else:
 		add_sub(I18N.f("burrow.gardenGrowing", [yield_h, capacity]))
 
-	_slab = HubSlab.new("green", maxf(card_length(38), 32.0))
-	_slab.add_word(I18N.t("burrow.harvest"), card_size(15, 9, 15))
+	_slab = HubSlab.new("green", slab_height())
+	_slab.add_word(I18N.t("burrow.harvest"), slab_text())
 	# Rien a prendre : la dalle n'a pas de travail. `pending` bloque une
 	# seconde pression tant que la premiere est en vol.
 	_slab.set_lit(ready > 0 and not Home.pending)

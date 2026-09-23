@@ -86,6 +86,14 @@ const SUB_FONT := 9
 ## La note du vide. Le web l'ecrit en dur, hors dictionnaire
 ## (leaderboard-drawer.tsx) : elle est reprise telle quelle, pas traduite.
 const EMPTY_NOTE := "Nobody has scored yet. Be the first."
+## L'OR SUR LE PARCHEMIN. RANK_GOLD est l'or de la pastille, sur du bois
+## sombre ; sur le papier creme du dialogue il disparaissait — le « 1 » du
+## meneur et le nom de qui creuse ne se lisaient plus (2026-09-23). Le meme
+## or, descendu jusqu'a tenir sur le creme.
+const GOLD_ON_PAPER := Color("#9a6400")
+## Le titre descend jusque-la pour tenir entre la couronne et le compte a
+## rebours ; en dessous il s'abrege.
+const TITLE_MIN := 10
 
 var _list: VBoxContainer
 var _scroll: ScrollContainer
@@ -112,8 +120,12 @@ func _ready() -> void:
 	var header := title_label.get_parent()
 	# Le panneau du coin est etroit : le titre a la taille du web (PixelTitle
 	# a l'echelle 2, 16px), sinon « SEASON » sortait « SE ».
+	# Et il RETRECIT pour tenir : « TEMPORADA » a 16 exigeait 263px d'un
+	# panneau de 231, et le tableau sortait de l'ecran par la droite.
 	title_label.add_theme_font_size_override("font_size", 16)
-	title_label.clip_text = false
+	title_label.clip_text = true
+	title_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	title_label.resized.connect(_fit_title)
 	var crown := Kit.icon(Kit.CROWN, 16)
 	header.add_child(crown)
 	header.move_child(crown, 0)
@@ -267,7 +279,7 @@ func _make_row(e: Dictionary, index: int, mine: String, roomy: bool) -> Control:
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_child(row)
 
-	var rank_label := Kit.label(str(rank), font, Palette.RANK_GOLD if crowned else Color(Palette.BARK, 0.62))
+	var rank_label := Kit.label(str(rank), font, GOLD_ON_PAPER if crowned else Color(Palette.BARK, 0.62))
 	rank_label.custom_minimum_size = Vector2(RANK_COL if roomy else 16.0, 0.0)
 	rank_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	rank_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -284,7 +296,7 @@ func _make_row(e: Dictionary, index: int, mine: String, roomy: bool) -> Control:
 	var name_line := Kit.hbox(6)
 	name_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	names.add_child(name_line)
-	var name_label := Kit.label(String(e.get("name", "")), font, Palette.RANK_GOLD if digging else Palette.INK)
+	var name_label := Kit.label(String(e.get("name", "")), font, GOLD_ON_PAPER if digging else Palette.INK)
 	name_label.clip_text = true
 	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -293,8 +305,9 @@ func _make_row(e: Dictionary, index: int, mine: String, roomy: bool) -> Control:
 		# Le point vert vit sur le NOM, pas dans la colonne du rang : c'est un
 		# fait sur le joueur, et la colonne du rang est une case fixe.
 		name_line.add_child(_live_dot())
-		var sub := Kit.label(I18N.t("board.diggingNow"), SUB_FONT, Color(Palette.RANK_GOLD, 0.7))
+		var sub := Kit.label(I18N.t("board.diggingNow"), SUB_FONT, Color(GOLD_ON_PAPER, 0.8))
 		sub.clip_text = true
+		sub.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		names.add_child(sub)
 
 	var score := Kit.label(I18N.group_digits(float(e.get("score", 0))), font, Palette.CARROT)
@@ -409,6 +422,20 @@ func _crown_box(size: float) -> Dictionary:
 	var rad := deg_to_rad(CROWN_TILT)
 	var tilted := absf(h * cos(rad)) + absf(w * sin(rad))
 	return {"w": w, "h": h, "bite": bite, "rise": ceilf(tilted - bite)}
+
+
+## Le titre a la plus grande taille qui tient dans sa case, de 16 a
+## TITLE_MIN ; l'ellipse prend le reste.
+func _fit_title() -> void:
+	var room := title_label.size.x
+	if room <= 0.0:
+		return
+	var font := title_label.get_theme_font("font")
+	var chosen := 16
+	while chosen > TITLE_MIN and font.get_string_size(title_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, chosen).x > room:
+		chosen -= 1
+	if title_label.get_theme_font_size("font_size") != chosen:
+		title_label.add_theme_font_size_override("font_size", chosen)
 
 
 func _on_locale_changed(_code: String) -> void:

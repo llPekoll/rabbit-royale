@@ -401,19 +401,23 @@ func _add_chrome() -> void:
 	# carre sombre au bord de l'ecran, et ca se lisait comme ce qu'un X rouge
 	# sur un carre sombre veut toujours dire : FERMER. Paul, 2026-09-17 : « il
 	# n'y a pas de bouton pour se mettre en mode X rouge » — il etait a l'ecran.
-	# Donc : la bombe dont il s'agit, le X qu'il y pose, et le verbe. Arme, la
-	# planche passe a l'or.
+	# Donc : la bombe dont il s'agit, le X qu'il y pose, et le verbe.
+	#
+	# LE MEME BOUTON QUE CELUI DE LA MANCHE (mark_bomb_button.gd) : la planche
+	# rouge, ses mots, et arme le meme bois assombri sur « CANCEL » (Paul,
+	# 2026-09-20 : « pour ca utilise la rouge »). Le tutoriel avait une
+	# planche de bois qui passait a l'or : le joueur apprenait un bouton qu'il
+	# ne revoyait jamais ensuite (2026-09-23).
 	_mark = preload("res://scenes/plank_button.tscn").instantiate()
+	_mark.board = PlankButton.Board.DANGER
 	_mark.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	_mark.custom_minimum_size = Vector2(232, 44)
-	_mark.offset_right = -12
-	_mark.offset_left = -12 - 232
-	_mark.offset_bottom = -12
-	_mark.offset_top = -12 - 44
-	_mark.relabel(I18N.t("mark_bomb"))
+	_mark.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_mark.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	_mark.pressed.connect(func() -> void: _set_armed(not _armed))
-	I18N.locale_changed.connect(func(_c: String) -> void: _mark.relabel(I18N.t("mark_bomb")))
+	I18N.locale_changed.connect(func(_c: String) -> void: _place_mark())
+	get_viewport().size_changed.connect(_place_mark)
 	layer.add_child(_mark)
+	_place_mark()
 
 	# LA FLECHE SUR LE BOUTON pendant que la lecon demande le X (le
 	# `.rr-mark-arrow` du web) : le meme chevron d'or que celui du coffre, pour
@@ -1874,7 +1878,8 @@ func markable_count() -> int:
 func _set_armed(armed: bool) -> void:
 	_armed = armed
 	if _mark != null:
-		_mark.board = PlankButton.Board.GOLD if armed else PlankButton.Board.WOOD
+		_mark.set_plank_tint(MarkBombButton.ARMED_TINT if armed else Color.WHITE)
+		_place_mark()
 	_refresh_caption()
 	_refresh_ring()
 
@@ -1926,6 +1931,30 @@ func _refresh_caption() -> void:
 	_teach(s.beside and not _armed and not _done)
 	if id == "mark" and _mark != null:
 		_mark.wiggle()
+
+
+## LE BOUTON DU TUTORIEL A LA PLACE ET A LA TAILLE DE CELUI DE LA RUN
+## (mark_bomb_button.gd) : meme coin a Kit.EDGE, meme hauteur, une largeur qui
+## suit le libelle. Il etait a 12px du bord en 232x44 fixes, et le joueur le
+## voyait changer de taille et de place a la premiere vraie ile ; « MARQUER
+## UNE BOMBE » s'y serrait jusqu'a 9px (2026-09-23).
+func _place_mark() -> void:
+	if _mark == null:
+		return
+	var words := I18N.shout(I18N.t("run.markCancel" if _armed else "run.markBomb"))
+	_mark.relabel(words)
+	var view := get_viewport().get_visible_rect().size
+	var h := MarkBombButton.height_for(view.y)
+	var font := _mark.get_theme_font("font")
+	var text_w := font.get_string_size(words, HORIZONTAL_ALIGNMENT_LEFT, -1, _mark.label_size).x
+	var w := minf(ceilf(text_w + 2.0 * (Kit.NOTICE_CAP + 8.0)), view.x * 0.5)
+	_mark.custom_minimum_size = Vector2(w, h)
+	_mark.offset_right = -Kit.EDGE
+	_mark.offset_left = -Kit.EDGE - w
+	_mark.offset_bottom = -Kit.EDGE
+	_mark.offset_top = -Kit.EDGE - h
+	if _mark_arrow != null:
+		_mark_arrow.position.x = (w - MARK_ARROW_SIZE.x) * 0.5
 
 
 ## LA LECON DEMANDE LE X : le noir tombe, la fleche bat au-dessus du bouton.

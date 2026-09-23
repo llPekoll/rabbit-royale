@@ -48,6 +48,13 @@ const TIP_FADE := 0.6
 ## departs : c'est ce qui en fait une vague.
 const WAVE_STEPS := [0.0, 0.14, 0.28]
 
+## La largeur commune des trois planches de la colonne.
+const PLANK_W := 320.0
+## La planche des conseils : sa hauteur de deux lignes, et l'air que ses
+## bords peints (patch 10 en haut et en bas) laissent a la phrase.
+const TIP_H := 53.0
+const TIP_PAD_Y := 10.0
+
 @onready var _art: TextureRect = $Art
 @onready var _veil: TextureRect = $Veil
 @onready var _floor: TextureRect = $Floor
@@ -221,15 +228,23 @@ func _measure() -> void:
 	# Un VBoxContainer serait le reflexe, et c'est lui qu'il faut eviter ici :
 	# il repose ses enfants a chaque disposition, donc il se bat avec la vague
 	# qui les fait fremir. Les trois finissaient a la meme hauteur, en une
-	# seule bande. Les largeurs viennent du web — min(360, 100%) pour la porte
-	# doree, min(300, 100%) pour les deux autres — et chaque planche est
-	# centree dans la colonne.
+	# seule bande.
+	#
+	# UNE SEULE LARGEUR POUR LES TROIS, a Kit.EDGE des bords de la colonne.
+	# Le web donnait 360 a la porte doree et 300 aux deux autres : sur le
+	# Seeker la doree prenait toute la colonne et touchait le bord de
+	# l'ecran (4px), les deux autres rentraient de 20 — trois bords gauches
+	# pour une pile (Paul, 2026-09-23 : « pas la meme largeur, ca fait
+	# brouillon »). La doree reste la porte par sa HAUTEUR et sa couleur.
+	var w := minf(PLANK_W, column - 2.0 * Kit.EDGE)
 	var y := 0.0
-	for entry in [[_connect, 360.0, 64.0], [_guest, 300.0, 44.0], [_lang, 300.0, 44.0]]:
+	for entry in [[_connect, 64.0], [_guest, 44.0], [_lang, 44.0]]:
 		var node: Control = entry[0]
-		var w := minf(entry[1], column)
-		var h: float = entry[2]
+		var h: float = entry[1]
 		node.position = Vector2((column - w) * 0.5, y)
+		# Le MINIMUM aussi : la scene en pose un de 338 a la porte doree, et
+		# une taille demandee sous le minimum est refusee sans un mot.
+		node.custom_minimum_size = Vector2(w, h)
 		node.size = Vector2(w, h)
 		# 8px entre deux planches ; la porte doree en ajoute 4 sous elle, comme
 		# le `margin-bottom` du web.
@@ -245,7 +260,19 @@ func _measure() -> void:
 
 	# La planche des conseils : max(260, min(46vw, 340)), coin bas-droit.
 	var tip_w := maxf(260.0, minf(view.x * 0.46, 340.0))
-	_tip.offset_left = -tip_w - 10.0
+	_tip.offset_left = -tip_w - Kit.EDGE
+	_fit_tip.call_deferred()
+
+
+## LA PLANCHE DES CONSEILS A LA HAUTEUR DE SA PHRASE. Fixe a 53px, elle
+## tenait deux lignes : un conseil francais de trois sortait sa derniere par
+## le cadre du bas (« FAUX, ÇA COÛTE 15 » sur le bois). Deux lignes gardent
+## la planche du web ; au-dela elle monte, jamais sa phrase ne deborde.
+func _fit_tip() -> void:
+	var lines := maxi(2, _tip_text.get_line_count())
+	var spacing := float(_tip_text.get_theme_constant("line_spacing"))
+	var text_h := lines * float(_tip_text.get_line_height()) + (lines - 1) * spacing
+	_tip.offset_top = _tip.offset_bottom - maxf(TIP_H, text_h + 2.0 * TIP_PAD_Y)
 
 
 ## UN CONSEIL QUI N'EST PAS CELUI AFFICHE, pour qu'un tirage change toujours
@@ -259,6 +286,7 @@ func _roll_tip() -> void:
 		pool = list
 	_phrase = pool[randi() % pool.size()]
 	_tip_text.text = _phrase
+	_fit_tip.call_deferred()
 
 	# Le fondu porte sur LE TEXTE, jamais sur la planche : le web remonte le
 	# span seul pour que le bois ne clignote pas a chaque phrase.
