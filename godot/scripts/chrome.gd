@@ -365,6 +365,17 @@ func _dig() -> void:
 
 
 ## UN RAID SUR NOTRE TERRIER commence ou finit (burrow.gd). La grille monte
+	# A SEC, ON NE TRAVERSE PAS. Le serveur refuse le `join` (`no_energy`) et
+	# l'ile d'attente restait a l'ecran, sans siege — on y « creusait » quand
+	# meme, a crédit, sur un plateau qui n'etait pas le sien (2026-09-23). Le
+	# terrier dit l'attente et vend le plein ; l'ile n'est pas l'endroit ou on
+	# apprend qu'on n'a pas de quoi y aller (server/index.ts, le `join`).
+	if not Home.burrow.is_empty():
+		var run_cost := int(Home.burrow.get("runCost", Tuning.i("ENERGY.MIN_TO_CROSS")))
+		if int(Home.live_energy()["energy"]) < run_cost:
+			Sound.deny()
+			EnergyPopup.open()
+			return
 ## seule — un raid est LE moment ou une bombe vaut d'etre enterree, et le
 ## joueur n'a pas a chercher le bouton — et ce qui etait ouvert descend : la
 ## liste des cibles, le codex, l'energie restaient par-dessus la defense

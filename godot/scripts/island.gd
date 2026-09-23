@@ -190,6 +190,26 @@ func _ready() -> void:
 		elif not _ending:
 			reset_eruption())
 	RunState.current.run_ended.connect(_end_run)
+	RunState.current.refused.connect(_on_refused)
+
+
+## LE SERVEUR A REFUSE LA PLACE (`no_energy`, une ile disparue) : on n'a pas
+## de lapin ici, on rentre. Le terrier dit l'attente et vend le plein. Le
+## chrome ne traverse deja plus a sec (chrome.gd `_dig`) ; ceci couvre le
+## terrier pas encore charge, ou une barre que le serveur lit plus basse.
+func _on_refused(r: Dictionary) -> void:
+	if _remote or local_run != null or _is_tutorial():
+		return
+	# Refuse pendant le rideau : la traversee en cours avalerait le retour.
+	if Screens.crossing:
+		await Screens.changed
+	if not is_inside_tree() or Screens.place != Screens.Place.ISLAND:
+		return
+	RunState.current.go_home()
+	Screens.cross(Screens.Place.BURROW)
+	if String(r.get("code", "")) == "no_energy":
+		Screens.moved.connect(func(_id: Screens.Place) -> void:
+			EnergyPopup.open(), CONNECT_ONE_SHOT)
 
 
 ## LE GRONDEMENT, seulement quand le palier MONTE (use-game-socket.ts) : une
@@ -907,21 +927,20 @@ func _on_release(at: Vector2) -> void:
 			_tutorial_tap(cell)
 		tile_tapped.emit(cell)
 		return
-	# CREUSER, POUR L'INSTANT SANS RIEN COUTER — sur une ile ordinaire.
-	#
-	# Provisoire : un vrai coup passe par l'energie, le serveur et le pas du
-	# lapin (`payCrossing` — « sans un pas, creuser est gratuit »). Ici on
-	# montre le SOCLE : le voile tombe, le chiffre sort, la cascade ouvre le
-	# champ.
+	# UN COUP PASSE PAR LES REGLES : celles du serveur en ligne, ou leur copie
+	# hors ligne (`LocalRun`). Sans l'une ni l'autre — l'ile d'attente, avant
+	# l'instantane du `join`, ou apres son refus — on ne creuse RIEN : ce sol
+	# n'est a personne, et y creuser gratis donnait une carte qui n'existe pas
+	# (2026-09-23, « a sec on peut dig quand meme »).
 	if local_run != null:
 		_local_tap(cell)
 	elif _remote and _watching():
 		_aimed_tap(cell, at)
 	elif _remote:
 		_remote_tap(cell)
-	elif _board != null:
-		_board.dig(cell)
-		_tiles.refresh()
+	else:
+		_ring.pulse()
+		Sound.deny()
 	tile_tapped.emit(cell)
 
 
