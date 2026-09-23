@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=8 format=3]
 
 ; L'ILE. Le second des deux lieux residents — construite une fois, jamais
 ; liberee, montree ou cachee (voir screens.gd).
@@ -16,10 +16,7 @@
 [ext_resource type="Script" path="res://scripts/island.gd" id="1_island"]
 [ext_resource type="Script" path="res://scripts/burrow_terrain.gd" id="2_terrain"]
 [ext_resource type="Script" path="res://scripts/placement_hints.gd" id="3_hints"]
-[ext_resource type="Script" path="res://scripts/sea_gradient.gd" id="4_sea"]
-[ext_resource type="Script" path="res://scripts/pack_water.gd" id="5_foam"]
-[ext_resource type="Script" path="res://scripts/sea_rocks.gd" id="6_rocks"]
-[ext_resource type="Script" path="res://scripts/ducks.gd" id="7_ducks"]
+[ext_resource type="PackedScene" path="res://scenes/ocean.tscn" id="4_ocean"]
 [ext_resource type="Script" path="res://scripts/sky_light.gd" id="8_sky"]
 [ext_resource type="Script" path="res://scripts/tile_view.gd" id="9_tiles"]
 [ext_resource type="Script" path="res://scripts/home_rabbit.gd" id="10_rabbit"]
@@ -28,31 +25,16 @@
 [node name="Island" type="Node2D"]
 script = ExtResource("1_island")
 
-; LA MER EST UN CanvasLayer, DONC ELLE NE SUIT PAS LA CAMERA.
-;
-; C'est le choix du web (le plan est monte sur le stage) et sa raison tient
-; ici : la flaque claire sous l'ile est un ECLAIRAGE, pas un objet du monde.
-; Enfant de l'ile, elle grossirait au zoom et deviendrait une tache peinte
-; dessus ; fixe a l'ecran, c'est l'ile qui se promene dedans.
-[node name="Sea" type="CanvasLayer" parent="."]
-unique_name_in_owner = true
-script = ExtResource("4_sea")
-
-; L'ECUME, LES ROCHERS ET LES CANARDS SONT FRERES DU TERRAIN, pas ses enfants :
-; ils se trient sur la meme regle de profondeur (`Iso.depth`), ce qui laisse un
-; canard qui nage au sud passer DEVANT un rocher au nord de lui, et l'ecume se
-; glisser derriere la terre qu'elle borde.
-[node name="Foam" type="Node2D" parent="."]
-unique_name_in_owner = true
-script = ExtResource("5_foam")
-
-[node name="Rocks" type="Node2D" parent="."]
-unique_name_in_owner = true
-script = ExtResource("6_rocks")
-
 [node name="Terrain" type="Node2D" parent="."]
 unique_name_in_owner = true
 script = ExtResource("2_terrain")
+
+; LA MER ET CE QUI Y VIT — degrade, ecume, rochers, canards : une scene,
+; la meme qu'au terrier (ocean.tscn). APRES le terrain dans l'arbre : a
+; profondeur egale, un canard au sud d'une case de terre passe devant elle.
+; Ce sont les `z_index` (Iso.depth) qui trient vraiment, pas les couches.
+[node name="Ocean" parent="." instance=ExtResource("4_ocean")]
+unique_name_in_owner = true
 
 ; LE JOUEUR. Le meme lapin qu'au terrier — meme planche, meme saut — mais il
 ; n'erre pas (`roam = false` dans island.gd) : ici il se tient ou on l'a mene.
@@ -60,13 +42,6 @@ script = ExtResource("2_terrain")
 [node name="Rabbit" type="Node2D" parent="."]
 unique_name_in_owner = true
 script = ExtResource("10_rabbit")
-
-; LES CANARDS APRES LE TERRAIN dans l'arbre, mais c'est leur `z_index` qui
-; decide vraiment : ils traversent les cases, donc aucune couche ne peut les
-; ranger une fois pour toutes.
-[node name="Ducks" type="Node2D" parent="."]
-unique_name_in_owner = true
-script = ExtResource("7_ducks")
 
 ; LES LOSANGES DE PLACEMENT. Ce noeud ne porte RIEN lui-meme : chaque losange
 ; est monte dans le bloc de sa case, sous le terrain, pour se trier avec le sol

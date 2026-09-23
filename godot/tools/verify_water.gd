@@ -31,8 +31,8 @@ func _process(_d: float) -> bool:
 	if _f < 3:
 		return false
 	var terrain = _n.get_node("%Terrain")
-	var rocks = _n.get_node("%Rocks")
-	var ducks = _n.get_node("%Ducks")
+	var rocks = _n.get_node("%Ocean").rocks
+	var ducks = _n.get_node("%Ocean").ducks
 	var m = terrain.map
 
 	var last: Array = ducks.positions()

@@ -1,0 +1,28 @@
+[gd_scene load_steps=6 format=3]
+
+; LA MER, A INSTANCIER SOUS CHAQUE LIEU — voir scripts/ocean.gd.
+
+[ext_resource type="Script" path="res://scripts/ocean.gd" id="1_ocean"]
+[ext_resource type="Script" path="res://scripts/sea_gradient.gd" id="2_sea"]
+[ext_resource type="Script" path="res://scripts/pack_water.gd" id="3_foam"]
+[ext_resource type="Script" path="res://scripts/sea_rocks.gd" id="4_rocks"]
+[ext_resource type="Script" path="res://scripts/ducks.gd" id="5_ducks"]
+
+[node name="Ocean" type="Node2D"]
+script = ExtResource("1_ocean")
+
+; LA MER EST UN CanvasLayer, DONC ELLE NE SUIT PAS LA CAMERA : la flaque claire
+; sous la terre est un ECLAIRAGE, pas un objet du monde (sea_gradient.gd).
+[node name="Sea" type="CanvasLayer" parent="."]
+script = ExtResource("2_sea")
+
+; L'ECUME, LES ROCHERS ET LES CANARDS se trient sur `Iso.depth`, contre les
+; blocs du terrain — un canard qui nage au sud passe DEVANT un rocher au nord.
+[node name="Foam" type="Node2D" parent="."]
+script = ExtResource("3_foam")
+
+[node name="Rocks" type="Node2D" parent="."]
+script = ExtResource("4_rocks")
+
+[node name="Ducks" type="Node2D" parent="."]
+script = ExtResource("5_ducks")

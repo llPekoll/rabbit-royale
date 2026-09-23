@@ -42,9 +42,7 @@ const DEFAULT_SEED := "default"
 
 @onready var _terrain: BurrowTerrain = %Terrain
 @onready var _hints: PlacementHints = %Hints
-@onready var _foam: PackWater = %Foam
-@onready var _rocks: SeaRocks = %Rocks
-@onready var _ducks: Ducks = %Ducks
+@onready var _ocean: Ocean = %Ocean
 @onready var _tiles: TileView = %Tiles
 @onready var _rabbit: HomeRabbit = %Rabbit
 @onready var _ring: MoveRing = %Ring
@@ -268,19 +266,7 @@ func show_ground(seed_value: String) -> void:
 	# LA MER VIENT APRES LE TERRAIN parce qu'elle lit le meme relief : l'ecume
 	# borde la terre qui vient d'etre taillee, et les rochers ne vont que dans
 	# la mer qu'elle laisse.
-	#
-	# L'ORDRE ENTRE EUX COMPTE AUSSI : les rochers d'abord, les canards ensuite,
-	# parce qu'un canard doit savoir ou sont les rochers pour ne pas nager
-	# dedans — il est dessine SOUS le decor.
-	_foam.map = map
-	_foam.build()
-	_rocks.map = map
-	_rocks.seed_text = seed_value
-	_rocks.build()
-	_ducks.map = map
-	_ducks.seed_text = seed_value
-	_ducks.rocks = _rocks
-	_ducks.build()
+	_ocean.build(map, seed_value)
 
 	# LE PLATEAU : ce qui est enterre, et ce qu'on en sait deja.
 	#

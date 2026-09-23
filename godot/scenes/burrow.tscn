@@ -1,10 +1,10 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=8 format=3]
 
 ; LE TERRIER. L'un des deux lieux residents — construit une fois, jamais
 ; libere, montre ou cache (voir screens.gd).
 ;
-; LA MER ET SON ECUME, comme sur l'ile : le terrier du web est pose sur
-; l'eau. Il etait pose sur le noir de la fenetre.
+; LA MER, comme sur l'ile — la meme scene (ocean.tscn) : degrade, ecume,
+; rochers et canards. Le terrier du web est pose sur l'eau.
 
 [ext_resource type="Script" path="res://scripts/burrow.gd" id="1_burrow"]
 [ext_resource type="Script" path="res://scripts/burrow_terrain.gd" id="2_terrain"]
@@ -12,25 +12,19 @@
 [ext_resource type="Script" path="res://scripts/fence_view.gd" id="4_fence"]
 [ext_resource type="Script" path="res://scripts/placement_hints.gd" id="5_hints"]
 [ext_resource type="Script" path="res://scripts/home_rabbit.gd" id="6_rabbit"]
-[ext_resource type="Script" path="res://scripts/sea_gradient.gd" id="7_sea"]
-[ext_resource type="Script" path="res://scripts/pack_water.gd" id="8_foam"]
+[ext_resource type="PackedScene" path="res://scenes/ocean.tscn" id="7_ocean"]
 
 [node name="Burrow" type="Node2D"]
 script = ExtResource("1_burrow")
 
-; LA MER EST UN CanvasLayer, fixe a l'ecran (voir island.tscn) ; screens.gd
-; l'eteint avec le lieu.
-[node name="Sea" type="CanvasLayer" parent="."]
-script = ExtResource("7_sea")
-
-; L'ECUME EST SOEUR DU TERRAIN, triee sur la meme regle de profondeur.
-[node name="Foam" type="Node2D" parent="."]
-unique_name_in_owner = true
-script = ExtResource("8_foam")
-
 [node name="Terrain" type="Node2D" parent="."]
 unique_name_in_owner = true
 script = ExtResource("2_terrain")
+
+; LA MER APRES LE TERRAIN : a profondeur egale, ce qui nage au sud d'une case
+; de terre passe devant elle (voir ocean.gd).
+[node name="Ocean" parent="." instance=ExtResource("7_ocean")]
+unique_name_in_owner = true
 
 ; LES DECORS SONT FRERES DU TERRAIN, pas ses enfants : ils se trient sur la
 ; meme regle de profondeur, ce qui laisse un pillard sur une case proche passer
