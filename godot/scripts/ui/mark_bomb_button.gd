@@ -139,6 +139,9 @@ func _ready() -> void:
 	state.flag_nothing_changed.connect(_on_flag_nothing)
 	state.teach_changed.connect(_on_teach)
 	state.me_changed.connect(_on_me)
+	# UN SEUL BOUTON A L'ECRAN : quand l'ile porte le sien, celui-ci s'efface.
+	state.island_mark_changed.connect(func(owns: bool) -> void: visible = not owns)
+	visible = not state.island_owns_mark
 	_armed = state.flag_mode
 	_nothing = state.flag_nothing
 	I18N.locale_changed.connect(func(_code: String) -> void: _relabel())

@@ -116,6 +116,7 @@ func _ready() -> void:
 	state.island_changed.connect(func(_snap: Dictionary) -> void: _on_island())
 	state.volcano_changed.connect(_refresh_plates)
 	state.caption_changed.connect(func(_id: String) -> void: _refresh_caption())
+	state.island_mark_changed.connect(func(_owns: bool) -> void: _refresh_caption())
 	state.bank_changed.connect(_on_bank)
 	state.shoved_changed.connect(_on_shoved)
 	state.watchers_changed.connect(func(_n: int) -> void: _refresh_watchers())
@@ -381,6 +382,10 @@ func _say(slot: int, text: String, ink: Color, ms: int) -> void:
 ## relus ici, pour que la ligne suive la langue au moment ou on la lit.
 func _refresh_caption() -> void:
 	var id := RunState.current.caption()
+	# L'ILE DIT LA LECON ELLE-MEME quand elle tient son bouton (tutoriel hors
+	# ligne) : deux bandeaux diraient deux choses a la fois.
+	if RunState.current.island_owns_mark:
+		id = ""
 	_say(0, I18N.t("firstRun." + id) if not id.is_empty() else "", Palette.CAPTION_INK, 0)
 
 

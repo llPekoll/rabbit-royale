@@ -50,6 +50,9 @@ signal caption_changed(beat: String)
 signal flag_mode_changed(armed: bool)
 ## Le mode X a refuse de s'armer : rien a marquer autour (quelques secondes).
 signal flag_nothing_changed(nothing: bool)
+## L'ile tient son propre MARK A BOMB (tutoriel hors ligne, banc) : celui du
+## HUD s'efface, sinon les deux planches se superposent au meme coin.
+signal island_mark_changed(owns: bool)
 ## L'ile coule : la duree du temps serveur, ou 0 quand c'est fini.
 signal erupting_changed(ms: int)
 ## Combien de rivaux regardent NOTRE run.
@@ -176,6 +179,7 @@ var connected := false
 # ── Les modes ────────────────────────────────────────────────────────────────
 var flag_mode := false
 var flag_nothing := false
+var island_owns_mark := false
 ## Qui l'on regarde, ou "" quand on joue.
 var spectating := ""
 var aiming := ""
@@ -370,6 +374,13 @@ func watch_presence(ids: Array) -> void:
 		GameSocket.unwatch_presence()
 	else:
 		GameSocket.watch_presence(ids)
+
+
+func set_island_owns_mark(owns: bool) -> void:
+	if island_owns_mark == owns:
+		return
+	island_owns_mark = owns
+	island_mark_changed.emit(owns)
 
 
 ## LE MODE X. `markable` est ce que la scene repond (-1 : on ne sait pas).

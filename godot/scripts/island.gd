@@ -494,15 +494,14 @@ func show_ground(seed_value: String) -> void:
 	_board = IslandBoard.new(map)
 	_ground = null
 	if FirstIsland.is_first(seed_value):
-		# LA PREMIERE ILE DU SERVEUR (un compte sans manche est toujours assis
-		# la) se joue EN LIGNE, sur son instantane ; hors ligne, la lecon
-		# dessinee se donne toute seule.
-		_remote = _local_deal.is_empty() and not _remote_snap.is_empty() \
-			and String(_remote_snap.get("seed", "")) == seed_value
-		if _remote:
-			_board.apply_public_first(_remote_snap)
-		else:
-			_board.deal_tutorial()
+		# LA LECON SE JOUE TOUJOURS HORS LIGNE, meme connecte et meme quand
+		# l'instantane du serveur est deja la. La lecon en ligne n'est pas
+		# portee (personne n'appelle `RunState.set_teach_ready` : pres de la
+		# bombe, rien ne s'allumait), et chaque pas y payait un aller-retour.
+		# Le sol dessine est celui du serveur ; `_on_snapshot` ne le repose
+		# jamais par-dessus une partie en cours.
+		_remote = false
+		_board.deal_tutorial()
 	else:
 		# LE DECOR DECIDE QUELLES CASES EXISTENT : rien n'est enterre sous un
 		# arbre, et un arbre ne se traverse pas.
@@ -915,6 +914,16 @@ func _on_snapshot(snap: Dictionary) -> void:
 		return
 	var s := String(snap.get("seed", ""))
 	if s.is_empty():
+		return
+	# UN TUTORIEL DEJA EN COURS HORS LIGNE N'EST JAMAIS REPOSE. L'ile nait
+	# avant la reponse du `join` (title.gd, chrome.gd `_dig`) et la lecon se
+	# joue sur l'appareil : le serveur garde son ile vierge, lapin au depart.
+	# Son instantane — la reponse du `join`, ou toute reconnexion — reposait
+	# ce sol vierge par-dessus la partie : « le tutorial reset des fois sans
+	# raison » (2026-09-23). La lecon en ligne n'est pas portee (personne
+	# n'appelle `set_teach_ready`), donc on reste hors ligne jusqu'au bout.
+	if _is_tutorial() and FirstIsland.is_first(s):
+		_flush_mirror()
 		return
 	# Deja pose par `_ready` avec ce meme instantane : ne pas refaire le sol.
 	var built := is_same(snap, _remote_snap) and s == _seed and _board != null
@@ -1493,6 +1502,7 @@ func _tutorial_tap(cell: Vector2i) -> void:
 
 	if _armed:
 		_set_armed(false)
+		_mirror_act("flag", cell)
 		# Le bon X tinte, le mauvais dit non (IslandScene `flagTile`).
 		if _board.flag(here, cell):
 			_flags += 1
@@ -1514,6 +1524,7 @@ func _tutorial_tap(cell: Vector2i) -> void:
 		return
 
 	var fresh := not _board.is_dug(cell)
+	_mirror_act("move", cell)
 	_rabbit.send_to(cell)
 	Sound.play("hop")
 	if fresh:
@@ -1577,6 +1588,43 @@ func _is_tutorial() -> bool:
 	return FirstIsland.is_first(_seed) and not _remote
 
 
+## LE SERVEUR SUIT LA LECON EN SOURDINE. Elle se joue hors ligne, mais c'est
+## le serveur qui la clot : sans le coffre pris chez lui, `runsPlayed` reste a
+## zero et le DIG suivant rassoit le joueur sur le tutoriel. Chaque pas et
+## chaque X de la lecon lui sont donc rejoues — memes regles des deux cotes
+## (tutorial_map.gd, la retenue de la bombe) — sans rien attendre en retour :
+## l'ile hors ligne n'ecoute pas ses evenements (`_on_board_event` exige
+## `_remote`). Ce qui est tape avant le siege attend l'instantane.
+##
+## UN A LA FOIS, ESPACES : le serveur refuse un pas moins de
+## MULTIPLAYER.MIN_MOVE_INTERVAL_MS (90) apres le precedent (`too-fast`), et
+## une file videe d'un coup a l'arrivee du siege perdait tout sauf le premier.
+const MIRROR_GAP_S := 0.15
+var _mirror: Array = []
+var _mirror_busy := false
+
+
+func _mirror_act(what: String, cell: Vector2i) -> void:
+	if not Session.signed_in():
+		return
+	_mirror.append([what, _board.index_of(cell)])
+	_flush_mirror()
+
+
+func _flush_mirror() -> void:
+	if _mirror_busy:
+		return
+	_mirror_busy = true
+	while not _mirror.is_empty() and is_inside_tree():
+		var state := RunState.current
+		if not GameSocket.is_live() or state.me().is_empty() or state.seed != _seed:
+			break
+		var a: Array = _mirror.pop_front()
+		GameSocket.act(String(a[0]), int(a[1]))
+		await get_tree().create_timer(MIRROR_GAP_S).timeout
+	_mirror_busy = false
+
+
 ## LA GRAINE SUR LAQUELLE L'ILE S'OUVRE : le tutoriel pour qui ne l'a pas
 ## fini, l'ile par defaut pour les autres.
 ##
@@ -1633,8 +1681,28 @@ var own_mark := true
 
 ## LE RETOUR AU TERRIER, cache quand l'ile n'est pas un lieu du jeu (banc).
 func set_standalone(on: bool) -> void:
+	_standalone = on
+	_refresh_back()
+
+
+var _standalone := false
+
+
+func _on_screen() -> bool:
+	return is_inside_tree() and get_viewport() == get_tree().root
+
+
+func _exit_tree() -> void:
+	if _on_screen() and _mark != null and _mark.visible:
+		RunState.current.set_island_owns_mark(false)
+
+
+## PAS DE RETOUR PENDANT LE TUTORIEL : la lecon se fait d'un bout a l'autre,
+## sans sortie qui disperse l'attention (Paul, 2026-09-23 : « qu'on soit
+## focus »). Hors ligne comme en ligne — c'est la graine qui le dit.
+func _refresh_back() -> void:
 	if _back != null:
-		_back.visible = not on
+		_back.visible = not _standalone and not FirstIsland.is_first(_seed)
 
 
 ## COMBIEN DE CASES UN X PEUT VISER depuis le lapin — la sonde du HUD
@@ -1668,6 +1736,13 @@ func _set_armed(armed: bool) -> void:
 func _refresh_tutorial_chrome() -> void:
 	if _mark != null:
 		_mark.visible = _is_tutorial() or (local_run != null and own_mark)
+		# LE HUD A LE SIEN AU MEME COIN : un seul des deux se montre. Sans ca,
+		# un tutoriel qui repartait hors ligne empilait les deux planches.
+		# L'ile de prechauffage (screens.gd `_warm`) vit dans un SubViewport
+		# et ne doit rien dire au HUD.
+		if _on_screen():
+			RunState.current.set_island_owns_mark(_mark.visible)
+	_refresh_back()
 	if _caption == null:
 		return
 	if _is_tutorial():
