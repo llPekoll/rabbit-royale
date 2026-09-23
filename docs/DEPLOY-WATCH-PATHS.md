@@ -24,11 +24,21 @@ server/**
 config/**
 src/lib/**
 src/config/**
+src/app/api/**
+src/game/**
 Dockerfile.ws
 package.json
 bun.lock
 tsconfig.json
 ```
+
+> **2026-09-23 — la liste ci-dessous etait fausse depuis le 2026-09-19.** Ce
+> jour-la, les 21 routes `/api` sont passees sur rr-ws (`server/api-router.ts`
+> importe `src/app/api/**/route.ts`), et ces routes importent les regles de
+> `src/game/**` (terrier, ile). Sans ces deux chemins, trois commits de routes et de regles (e0a9c75, 3e83909, 4c7b0b6)
+> ne sont jamais partis en prod : rr-ws est reste sur ca5237c. Le texte
+> « il ne touche jamais `src/app` ni `src/game` » plus bas date d'AVANT ce
+> deplacement.
 
 **Pourquoi `src/lib` et `src/config` et pas `src/**`.** Le serveur WS importe
 depuis `src/` — c'est le piège de cette configuration, et une règle « le ws ne

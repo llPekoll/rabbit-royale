@@ -12,6 +12,13 @@
  *
  * Aucune route n'est dynamique (pas de `[id]`), d'ou la table statique plus
  * bas : le chemin suffit a designer le module.
+ *
+ * CE SERVICE DEPEND DONC DE `src/app/api/**` ET DE `src/game/**` (les regles
+ * du terrier et de l'ile que ces routes importent). Les watch paths Coolify
+ * de rr-ws doivent les couvrir (docs/DEPLOY-WATCH-PATHS.md) : sans eux, un
+ * commit qui ne change qu'une route ou une regle ne redeploie pas rr-ws, et
+ * la prod garde l'ancien code sans rien dire — vu le 2026-09-23, trois
+ * commits (e0a9c75, 3e83909, 4c7b0b6) restes sur ca5237c.
  */
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
