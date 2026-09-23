@@ -66,7 +66,18 @@ func _ready() -> void:
 	add_child(_timer)
 	Session.changed.connect(_on_session_changed)
 	I18N.locale_changed.connect(_on_locale_changed)
+	GameSocket.event.connect(_on_socket_event)
 	if Session.signed_in():
+		refresh()
+
+
+## LE RESERVOIR BOUGE SUR L'ILE : la traversee le debite (`island`), la fin
+## de run y reecrit ce que le lapin rapporte (`banked`), le refus dit qu'il
+## ne suffit pas (`error_msg`). Sans relecture, `live_energy` extrapolait la
+## barre lue AVANT la run : 257 au terrier, 0 a l'ile, et la porte DIG
+## laissait passer un reservoir vide (2026-09-23).
+func _on_socket_event(name: String, _data: Variant) -> void:
+	if name in ["banked", "island", "error_msg"]:
 		refresh()
 
 
