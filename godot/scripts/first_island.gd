@@ -31,6 +31,18 @@ const FIRST_SEED_PREFIX := "first:"
 ## dont le comportement differe entre deux joueurs qui rapportent le meme bug.
 const FIRST_ISLAND_GROUND := "tutorial-v1"
 
+## L'UNIQUE ILE — le meme sol pour tous les joueurs, a tous les niveaux.
+##
+## Meme echange que le tutoriel, pour une autre raison : le jeu est une
+## competition, et deux joueurs qui comparent leurs manches doivent avoir
+## marche sur la meme cote. Chaque ile reste son instance (id = uuid neuf), et
+## ce qui est ENTERRE sort toujours de la graine de contenu privee : connaitre
+## le sol par coeur dit ou marcher, jamais ou sont les bombes.
+##
+## Doit rester egal a ISLAND_GROUND de src/lib/game/first-island.ts. Changer le
+## suffixe retaille l'ile pour tout le monde d'un coup.
+const ISLAND_GROUND := "island-v1"
+
 
 static func seed_for(id: String) -> String:
 	return FIRST_SEED_PREFIX + id
@@ -42,11 +54,11 @@ static func is_first(seed_value: String) -> bool:
 
 ## LA GRAINE DONT LE SOL EST TAILLE, pour n'importe quelle graine d'ile.
 ##
-## Le sol de la premiere ile est celui, fixe, du tutoriel ; toute autre ile est
-## la sienne. Le terrain, la forme et la distribution passent tous par ici, donc
+## Le sol de la premiere ile est celui, fixe, du tutoriel ; toute autre ile
+## partage `ISLAND_GROUND`. Le terrain, la forme et la distribution passent tous par ici, donc
 ## les deux cotes ne peuvent pas diverger : le client rebatit la cote a partir
 ## de la graine qu'on lui a tendue et tombe sur la meme regle.
 static func ground_seed(seed_value: String) -> String:
 	if is_first(seed_value):
 		return FIRST_SEED_PREFIX + FIRST_ISLAND_GROUND
-	return seed_value
+	return ISLAND_GROUND

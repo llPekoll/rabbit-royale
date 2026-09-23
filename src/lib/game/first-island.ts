@@ -36,6 +36,20 @@ const FIRST_SEED_PREFIX = 'first:';
  */
 export const FIRST_ISLAND_GROUND = 'tutorial-v1';
 
+/**
+ * THE ONE ISLAND — the same ground for every player on every level.
+ *
+ * Same trade as the tutorial, for a different reason: the game is a
+ * competition, and two players comparing runs should have walked the same
+ * coastline, the same cliffs, the same spawn. Each island is still its own
+ * instance (its id is a fresh uuid, its rabbits dig their own holes), and what
+ * is BURIED still comes from the private content seed — so knowing the ground
+ * by heart tells you where to walk, never where the bombs are.
+ *
+ * Bump the suffix to re-cut the island for everybody at once.
+ */
+export const ISLAND_GROUND = 'island-v1';
+
 export function firstIslandSeed(id: string): string {
   return `${FIRST_SEED_PREFIX}${id}`;
 }
@@ -47,11 +61,12 @@ export function isFirstIsland(seed: string): boolean {
 /**
  * The seed the GROUND is cut from, for any island seed.
  *
- * The first island's ground is the fixed one; every other island is its own.
+ * The first island's ground is the tutorial's; every other island shares
+ * `ISLAND_GROUND`.
  * Terrain, shape and layout all go through here, so the two sides cannot
  * disagree: the client rebuilds the coastline from the seed it was handed and
  * lands on the same rule.
  */
 export function groundSeed(seed: string): string {
-  return isFirstIsland(seed) ? `${FIRST_SEED_PREFIX}${FIRST_ISLAND_GROUND}` : seed;
+  return isFirstIsland(seed) ? `${FIRST_SEED_PREFIX}${FIRST_ISLAND_GROUND}` : ISLAND_GROUND;
 }

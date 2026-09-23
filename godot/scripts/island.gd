@@ -510,7 +510,7 @@ func show_ground(seed_value: String) -> void:
 	# LA MER VIENT APRES LE TERRAIN parce qu'elle lit le meme relief : l'ecume
 	# borde la terre qui vient d'etre taillee, et les rochers ne vont que dans
 	# la mer qu'elle laisse.
-	_ocean.build(map, seed_value)
+	_ocean.build(map, FirstIsland.ground_seed(seed_value))
 
 	# LE PLATEAU : ce qui est enterre, et ce qu'on en sait deja.
 	#

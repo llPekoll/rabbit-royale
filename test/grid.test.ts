@@ -27,8 +27,8 @@ describe('makeShape', () => {
     expect([...makeShape('abc')].sort()).toEqual([...makeShape('abc')].sort());
   });
 
-  it('gives different seeds different coastlines', () => {
-    expect([...makeShape('abc')].sort()).not.toEqual([...makeShape('xyz')].sort());
+  it('cuts every island from the same coastline (ISLAND_GROUND)', () => {
+    expect([...makeShape('abc')].sort()).toEqual([...makeShape('xyz')].sort());
   });
 
   it('always leaves the spawn on land', () => {
