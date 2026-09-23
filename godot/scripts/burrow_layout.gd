@@ -42,6 +42,9 @@ const MIN_BODY := 110
 const ENTRANCE_BAND := 2
 const FIELD_INLAND := 3
 const BUILDING_INLAND := 2
+## generate.ts `MAX_CROSSING` : la plus longue traversee qu'un terrier
+## reamenage peut avoir — celle que RAID_RUN.WALK_FLOOR laisse marcher.
+const MAX_CROSSING := 13
 
 ## Les huit pas, dans l'ordre du web (`STEPS`) — l'ordre compte : il decide
 ## l'ordre d'insertion du bloc et du BFS.
@@ -74,14 +77,151 @@ var building := Vector2i(-1, -1)
 static var _cache: Dictionary = {}
 
 
-## LE TERRIER D'UN JOUEUR — son id est la graine (board.ts).
-static func of(seed_value: String) -> BurrowLayout:
-	var hit: BurrowLayout = _cache.get(seed_value)
+## LE TERRIER D'UN JOUEUR — son id est la graine (board.ts), et ce que son
+## proprietaire y a deplace par-dessus (`edits`, generate.ts `BurrowEdits` :
+## {field: [dc, dr], house: tile, moves: [[from, to], ...]}). Un amenagement
+## qui ne tient plus est ignore, comme au serveur : le terrier pousse de la
+## graine est toujours legal.
+static func of(seed_value: String, edits: Dictionary = {}) -> BurrowLayout:
+	var base: BurrowLayout = _cache.get(seed_value)
+	if base == null:
+		base = grow(seed_value)
+		_cache[seed_value] = base
+	if not has_edits(edits):
+		return base
+	var key := "%s#%s" % [seed_value, JSON.stringify(edits)]
+	var hit: BurrowLayout = _cache.get(key)
 	if hit != null:
 		return hit
-	var built := grow(seed_value)
-	_cache[seed_value] = built
+	var out: Variant = edited(base, edits)
+	var built: BurrowLayout = out if out is BurrowLayout else base
+	_cache[key] = built
 	return built
+
+
+## generate.ts `hasEdits`.
+static func has_edits(edits: Dictionary) -> bool:
+	var f: Variant = edits.get("field")
+	if f is Array and f.size() == 2 and (int(f[0]) != 0 or int(f[1]) != 0):
+		return true
+	if edits.get("house") != null:
+		return true
+	var m: Variant = edits.get("moves")
+	return m is Array and not m.is_empty()
+
+
+## generate.ts `editBurrow` : le terrier pousse, avec l'amenagement dessus —
+## ou la raison du refus (une String, les memes noms que le serveur, DANS LE
+## MEME ORDRE : c'est ce qui fait que l'editeur allume les cases que le
+## serveur acceptera). Le relief et l'entree ne bougent jamais ; le sol, la
+## traversee et le paillasson sont remesures.
+static func edited(base: BurrowLayout, edits: Dictionary) -> Variant:
+	var n := COLS * ROWS
+	var out := BurrowLayout.new()
+	out.map = base.map
+	out.seed_text = base.seed_text
+	out.entrance = base.entrance
+
+	# Le potager, d'un bloc, sur un seul palier.
+	var shift := Vector2i.ZERO
+	var f: Variant = edits.get("field")
+	if f is Array and f.size() == 2:
+		shift = Vector2i(int(f[0]), int(f[1]))
+	var tier := -1
+	var in_field := {}
+	for t in base.field:
+		var c := cell_of(t) + shift
+		if c.x < 0 or c.x >= COLS or c.y < 0 or c.y >= ROWS:
+			return "field_off_ground"
+		var lv := base.map.level_at(c.x, c.y)
+		if lv <= 0:
+			return "field_off_ground"
+		if tier < 0:
+			tier = lv
+		elif lv != tier:
+			return "field_split"
+		out.field.append(index(c))
+		in_field[index(c)] = true
+	out.field.sort()
+	if in_field.has(out.entrance):
+		return "cells_overlap"
+
+	# Chaque chose a sa case finale.
+	var moved := {}
+	var m: Variant = edits.get("moves")
+	if m is Array:
+		for pair in m:
+			if not (pair is Array) or pair.size() != 2:
+				return "bad_edits"
+			var a := int(pair[0])
+			var b := int(pair[1])
+			if a < 0 or a >= n or b < 0 or b >= n or moved.has(a):
+				return "bad_edits"
+			moved[a] = b
+	var taken := {}
+	var known := {}
+	for p in base.placements:
+		var from := index(Vector2i(int(p.x), int(p.y)))
+		known[from] = true
+		var to: int = moved.get(from, from)
+		var tc := cell_of(to)
+		if to != from and base.map.level_at(tc.x, tc.y) <= 0:
+			return "thing_off_ground"
+		if taken.has(to) or in_field.has(to) or to == out.entrance:
+			return "cells_overlap"
+		taken[to] = true
+		var q: Dictionary = p.duplicate()
+		q.x = tc.x
+		q.y = tc.y
+		out.placements.append(q)
+	for from in moved:
+		if not known.has(from):
+			return "bad_edits"
+
+	# Le sol, remesure.
+	var homestead := out._main_body(out._solid(out.placements))
+	var member := {}
+	for t in homestead:
+		member[t] = true
+	if not member.has(out.entrance):
+		return "field_unreachable"
+	for t in out.field:
+		if not member.has(t):
+			return "field_unreachable"
+	var steps := out._step_distances(homestead, out.entrance)
+	var best := INF
+	for t in out.field:
+		if steps.has(t):
+			best = minf(best, float(steps[t]))
+	if best == INF:
+		return "field_unreachable"
+	if best < MIN_CROSSING:
+		return "crossing_too_short"
+	if best > MAX_CROSSING:
+		return "crossing_too_long"
+	out.crossing = int(best)
+	out.doorstep = _pick_doorstep(steps, out.crossing, out.field, _tuning_doorstep())
+	out._paint(homestead)
+
+	# La maison : du sol nu, rien dessus. Pas une regle du serveur au-dela de
+	# ca (elle n'en a jamais ete une) — deplacee, elle est ou on l'a mise ;
+	# sinon elle reste ou elle etait tant que sa case tient, et se rechoisit
+	# a cote du potager sinon.
+	var h: Variant = edits.get("house")
+	if h != null:
+		var ht := int(h)
+		if ht < 0 or ht >= n:
+			return "bad_edits"
+		if out.cells[ht] != Cell.GROUND or taken.has(ht):
+			return "house_off_ground"
+		out.building = cell_of(ht)
+	else:
+		var bt := index(base.building) if base.building.x >= 0 else -1
+		if bt >= 0 and out.cells[bt] == Cell.GROUND and not taken.has(bt):
+			out.building = base.building
+		else:
+			out._place_building()
+	return out
 
 
 ## `burrowTerrain`. Ne rend jamais null en pratique ; si les 24 essais

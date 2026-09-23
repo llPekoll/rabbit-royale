@@ -58,7 +58,27 @@ var _lift_tween: Tween
 ## la poussiere. Les autres (relecture, retour d'un raid) arrivent posees.
 var _fresh: Dictionary = {}
 
+## LE FANTOME (`GhostBomb`) : la bombe qu'une tape enterrerait, pale, sur la
+## case visee. MEME texture, ancre et echelle que la vraie — un fantome d'une
+## autre taille promettrait un autre resultat.
+const GHOST_ALPHA := 0.55
+## Il respire de 2 px : un souffle, pas un rebond.
+const GHOST_BOB_PX := 2.0
+
+## Deux noeuds expres : le PORTEUR est monte dans la case (et `mount_veil`
+## ecrase sa position), le SPRITE dedans est ce qui respire. Sur un seul
+## noeud, chaque changement de case casserait le tween.
+var _ghost: Node2D
+var _ghost_sprite: Sprite2D
+var _ghost_tile := -1
+var _ghost_bob: Tween
+var _ghost_fade: Tween
+## La case dont la pose est EN VOL : le fantome y reste, quoi que fasse le
+## doigt, jusqu'a ce que la vraie bombe le remplace ou que le serveur refuse.
+var _ghost_pinned := -1
+
 static var _outline: ImageTexture
+static var _solid: ImageTexture
 
 
 func has_trap(tile: int) -> bool:
@@ -151,6 +171,10 @@ func add_trap(tile: int, animate: bool = true, armed: bool = true) -> void:
 	if not terrain.mount_veil(cell, group, Z_TRAP):
 		group.free()
 		return
+	# LA VRAIE BOMBE PREND LA PLACE DU FANTOME, dans la meme image.
+	if _ghost_tile == tile or _ghost_pinned == tile:
+		_ghost_pinned = -1
+		_hide_ghost()
 	_traps[tile] = {"group": group, "marker": marker, "bomb": bomb, "filled": filled,
 		"base": offset, "charge": 1.0 if armed else 0.0, "left_ms": 0.0, "total_ms": 0.0}
 	_paint(tile)
@@ -193,6 +217,134 @@ func clear() -> void:
 	_traps.clear()
 	_lifted = -1
 	_fresh.clear()
+	# Le fantome vit dans un bloc lui aussi : il part avec.
+	_ghost_pinned = -1
+	_hide_ghost()
+	if is_instance_valid(_ghost):
+		_ghost.queue_free()
+	_ghost = null
+	_ghost_sprite = null
+
+
+## LE FANTOME SOUS LE DOIGT (ou la souris) : sur une case libre, la bombe
+## qu'une tape y enterrerait. `-1` le range. Sans effet pendant qu'une pose
+## est en vol — le fantome tient la case qui attend sa reponse.
+func show_ghost(tile: int) -> void:
+	if _ghost_pinned >= 0:
+		return
+	if tile < 0 or _traps.has(tile):
+		_hide_ghost()
+		return
+	if tile == _ghost_tile and is_instance_valid(_ghost) and _ghost.visible:
+		return
+	if not _mount_ghost(tile):
+		return
+	# UN FONDU COURT par case plutot qu'un pop : le doigt traverse les cases
+	# plus vite qu'un pop ne finit, et une trainee de bombes a demi-taille se
+	# lit comme du lag.
+	_ghost.modulate.a = 0.0
+	_ghost_fade = _ghost.create_tween()
+	_ghost_fade.tween_property(_ghost, "modulate:a", 1.0, 0.08)
+
+
+## LA TAPE EST PARTIE : le fantome reste sur sa case, plein d'emblee (il y
+## etait deja sous le doigt), et un anneau d'or s'ouvre dessous
+## (`pressRipple`) — la couleur que la case prend quand la bombe y est.
+func pin_ghost(tile: int) -> void:
+	_ghost_pinned = -1
+	if tile < 0 or _traps.has(tile) or not _mount_ghost(tile):
+		return
+	_ghost_pinned = tile
+	_ghost.modulate.a = 1.0
+	_ripple(tile)
+
+
+## Le serveur a repondu. Si la bombe est arrivee, `add_trap` a deja pris sa
+## place ; sinon (refus, reseau) le fantome s'efface.
+func unpin_ghost() -> void:
+	if _ghost_pinned < 0:
+		return
+	_ghost_pinned = -1
+	if is_instance_valid(_ghost) and _ghost.visible:
+		_ghost_fade = _ghost.create_tween()
+		_ghost_fade.tween_property(_ghost, "modulate:a", 0.0, 0.2)
+		_ghost_fade.tween_callback(_hide_ghost)
+
+
+## Monte le porteur dans le bloc de `tile`, le construit au premier usage.
+## MEME `mount_veil` et meme z que la vraie bombe : l'apercu et ce qui le
+## remplace partagent leur position au pixel.
+func _mount_ghost(tile: int) -> bool:
+	if terrain == null or layout == null:
+		return false
+	if _ghost_fade != null and _ghost_fade.is_valid():
+		_ghost_fade.kill()
+	if not is_instance_valid(_ghost):
+		_ghost = Node2D.new()
+		_ghost.name = "ghost-bomb"
+		_ghost_sprite = Sprite2D.new()
+		_ghost_sprite.texture = BOMB
+		_ghost_sprite.centered = false
+		_ghost_sprite.offset = Vector2(-BOMB.get_width() * 0.5, -BOMB.get_height() * BOMB_ANCHOR_Y)
+		var k := Iso.half_w() * BOMB_WIDTH_OF_HALF_W / float(BOMB.get_width())
+		_ghost_sprite.scale = Vector2(k, k)
+		_ghost_sprite.modulate.a = GHOST_ALPHA
+		_ghost.add_child(_ghost_sprite)
+	if _ghost.get_parent() != null:
+		_ghost.get_parent().remove_child(_ghost)
+	if not terrain.mount_veil(BurrowLayout.cell_of(tile), _ghost, Z_TRAP):
+		_ghost_tile = -1
+		return false
+	_ghost_tile = tile
+	_ghost.visible = true
+	if _ghost_bob == null or not _ghost_bob.is_valid():
+		_ghost_sprite.position.y = 0.0
+		_ghost_bob = _ghost_sprite.create_tween().set_loops()
+		_ghost_bob.tween_property(_ghost_sprite, "position:y", -GHOST_BOB_PX, 0.6) \
+			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		_ghost_bob.tween_property(_ghost_sprite, "position:y", 0.0, 0.6) \
+			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	return true
+
+
+func _hide_ghost() -> void:
+	_ghost_tile = -1
+	if _ghost_fade != null and _ghost_fade.is_valid():
+		_ghost_fade.kill()
+	if _ghost_bob != null and _ghost_bob.is_valid():
+		_ghost_bob.kill()
+	_ghost_bob = null
+	if is_instance_valid(_ghost):
+		_ghost.visible = false
+		_ghost_sprite.position.y = 0.0
+
+
+## L'ANNEAU D'OR qui s'ouvre de la case, et le losange qui flashe dessous.
+func _ripple(tile: int) -> void:
+	var cell := BurrowLayout.cell_of(tile)
+	var flash := Sprite2D.new()
+	flash.texture = _solid_texture()
+	flash.modulate = Color(TRAP_TINT, 0.5)
+	var ring := Sprite2D.new()
+	ring.texture = _outline_texture()
+	ring.modulate = Color(TRAP_TINT, 0.95)
+	# Sous la bombe (z 3) pour le flash, au-dessus pour l'anneau qui s'ecarte.
+	if not terrain.mount_veil(cell, flash, Z_TRAP - 1):
+		flash.free()
+	else:
+		var f := flash.create_tween()
+		f.tween_property(flash, "modulate:a", 0.0, 0.4) \
+			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		f.tween_callback(flash.queue_free)
+	if not terrain.mount_veil(cell, ring, Z_TRAP + 1):
+		ring.free()
+		return
+	var r := ring.create_tween().set_parallel(true)
+	r.tween_property(ring, "scale", Vector2(1.7, 1.7), 0.55) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	r.tween_property(ring, "modulate:a", 0.0, 0.55) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	r.chain().tween_callback(ring.queue_free)
 
 
 ## OU EN EST SA RECHARGE, selon le serveur. `left_ms <= 0` : armee.
@@ -361,3 +513,21 @@ static func _outline_texture() -> ImageTexture:
 			img.set_pixel(x, y, Color(1, 1, 1, 1.0 if edge < 2.0 else 0.3))
 	_outline = ImageTexture.create_from_image(img)
 	return _outline
+
+
+## LE LOSANGE PLEIN (`burrowDiamondSolid`), a la taille de la case. Cuit une fois.
+static func _solid_texture() -> ImageTexture:
+	if _solid != null:
+		return _solid
+	var w := int(Iso.BURROW_TILE_W)
+	var h := int(Iso.BURROW_TILE_H)
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	img.fill(Color(1, 1, 1, 0))
+	var hw := w * 0.5
+	var hh := h * 0.5
+	for y in range(h):
+		for x in range(w):
+			if absf(x + 0.5 - hw) / hw + absf(y + 0.5 - hh) / hh <= 1.0:
+				img.set_pixel(x, y, Color(1, 1, 1, 1))
+	_solid = ImageTexture.create_from_image(img)
+	return _solid

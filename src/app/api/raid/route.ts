@@ -27,6 +27,7 @@ import {
   distanceToField, raiderView, settleRaid, trapClues,
 } from '@/lib/game/raid';
 import { burrowNeighbors, entranceTile, burrowCell, walkableTiles } from '@/game/burrow/board';
+import { loadBurrowEdits } from '@/lib/game/burrowEdits';
 import { raiderSteps } from '@/game/burrow/fence';
 import { fencedSpans } from '@/lib/game/fences';
 import { smokeActive } from '@/lib/game/inventory';
@@ -50,6 +51,7 @@ async function raidView(runId: string, revealAll = false) {
 
   const defender = await db.query.players.findFirst({ where: eq(players.id, run.defenderId) });
   if (!defender) return null;
+  const edits = await loadBurrowEdits(run.defenderId);
 
   const mined = await db.query.traps.findMany({ where: eq(traps.ownerId, run.defenderId) });
   // The walls, which are the one part of the defence the attacker is TOLD.
@@ -83,6 +85,10 @@ async function raidView(runId: string, revealAll = false) {
        *  are walking up to. Not a secret — it is the most visible thing about
        *  a burrow, and seeing a castle before you commit is the point. */
       level: defender.burrowLevel,
+      /** How its owner rearranged it (`BurrowEdits`): the raider's client
+       *  grows the burrow from the id, then lays these on top — the one part
+       *  of the ground that no longer follows from the seed alone. */
+      edits: edits ?? {},
     },
     tile: run.tile,
     energy: run.energy,
@@ -397,6 +403,7 @@ export async function POST(req: Request) {
     }, { status: 400 });
   }
 
+  await loadBurrowEdits(body.defenderId);
   const start = entranceTile(body.defenderId);
   const [run] = await db.insert(raidRuns).values({
     attackerId: session.sub,
@@ -462,6 +469,7 @@ export async function PATCH(req: Request) {
   const walled = fencedSpans(
     await db.query.fences.findMany({ where: eq(fences.ownerId, run.defenderId) }),
   );
+  await loadBurrowEdits(run.defenderId);
   if (!Number.isInteger(to) || !burrowNeighbors(run.defenderId, run.tile).includes(to)) {
     return Response.json({ error: 'not_adjacent' }, { status: 400 });
   }

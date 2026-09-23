@@ -204,6 +204,35 @@ export const en = {
     regenRate: (perHour: number) => `${perHour} energy/hour`,
   },
 
+  /* ── Rearranging the burrow (Godot: burrow_arrange.gd) ─────────────────
+     ASCII only: the English face is the kit's pixel atlas. */
+  arrange: {
+    button: 'ARRANGE',
+    pick: 'Hold and drag a tree, your house or your garden',
+    place: 'Tap a lit tile to put it there',
+    save: 'SAVE',
+    cancel: 'CANCEL',
+    reset: 'RESET',
+    saved: 'Burrow rearranged.',
+    planksBack: (n: number) => `${n} fence${n === 1 ? '' : 's'} back in your bag`,
+    bombsBack: (n: number) => `${n} bomb${n === 1 ? '' : 's'} back in your bag`,
+    locked: 'A raid is on your burrow. Rearrange once it is over.',
+    unsaved: 'Could not save your burrow. Try again in a moment.',
+    refused: {
+      occupied: 'Something already stands there.',
+      cells_overlap: 'Something already stands there.',
+      field_off_ground: 'The garden must stay on dry land.',
+      field_split: 'The garden must sit on a single level.',
+      thing_off_ground: 'Not in the water.',
+      field_unreachable: 'That would wall your garden off. Raiders must be able to reach it.',
+      crossing_too_short: (n: number) => `Too close to the entrance: raiders need at least ${n} steps.`,
+      crossing_too_long: (n: number) => `Too far: the garden must stay within ${n} steps.`,
+      house_off_ground: 'Your house needs open ground.',
+      under_raid: 'A raid is on your burrow. Rearrange once it is over.',
+      bad_edits: 'That layout was refused.',
+    },
+  },
+
   /* ── What the burrow says back ────────────────────────────────────────── */
   notes: {
     shieldUp: 'Shield up. Raids bounce off.',

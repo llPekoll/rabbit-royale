@@ -21,6 +21,7 @@ import {
   spendTrap,
 } from '@/lib/game/traps';
 import { isDoorstep, isTrappable } from '@/game/burrow/board';
+import { loadBurrowEdits } from '@/lib/game/burrowEdits';
 import { TRAPS } from '@config/tuning';
 
 async function trapState(playerId: string) {
@@ -90,6 +91,7 @@ export async function GET(req: Request) {
   const session = await getSession(req);
   if (!session) return Response.json({ error: 'unauthenticated' }, { status: 401 });
 
+  await loadBurrowEdits(session.sub);
   await evictDoorstep(session.sub);
   const state = await trapState(session.sub);
   if (!state) return Response.json({ error: 'unknown player' }, { status: 404 });
@@ -103,6 +105,7 @@ export async function POST(req: Request) {
 
   const body = (await req.json().catch(() => ({}))) as { tile?: unknown };
   const tile = Number(body.tile);
+  await loadBurrowEdits(session.sub);
 
   const player = await db.query.players.findFirst({ where: eq(players.id, session.sub) });
   if (!player) return Response.json({ error: 'unknown player' }, { status: 404 });

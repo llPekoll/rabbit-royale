@@ -66,6 +66,16 @@ var layout: BurrowLayout
 ## s'efface : sa propre marque la montre.
 var is_mined: Callable = func(_tile: int) -> bool: return false
 
+## L'AMENAGEMENT (burrow_arrange.gd) repeint la grille avec SES cases :
+## `arrange_lit` (case -> teinte) — ce qu'on tient en or, ou ca peut aller en
+## bleu, ce qu'on peut prendre en vert pale, l'alpha de chaque teinte etant
+## celui de son losange — et `arrange_preview`, les cases
+## que la chose couvrirait sous le doigt, en or franc. Vide quand on n'amenage
+## pas : la grille de pose reprend ses regles.
+var arranging := false
+var arrange_lit: Dictionary = {}
+var arrange_preview: Dictionary = {}
+
 var _hints: Dictionary = {}
 var _shown := false
 var _hovered := Vector2i(-1, -1)
@@ -174,6 +184,11 @@ func set_hovered(cell: Vector2i) -> void:
 
 
 func _tint_for(cell: Vector2i) -> Color:
+	if arranging:
+		if arrange_preview.has(cell):
+			return HOVER_TINT
+		var c: Color = arrange_lit.get(cell, PLACEABLE_TINT)
+		return Color(c.r, c.g, c.b)
 	if cell == _hovered and _usable(cell):
 		return HOVER_TINT
 	if _doorstep(cell):
@@ -185,6 +200,12 @@ func _tint_for(cell: Vector2i) -> Color:
 ## sous le doigt), tout le reste a zero — une case que le serveur refuse ne
 ## s'allume pas.
 func _alpha_for(cell: Vector2i) -> float:
+	if arranging:
+		if arrange_preview.has(cell):
+			return HOVER_ALPHA
+		# L'alpha de la teinte EST celui du losange : ce qu'on tient se voit
+		# plus fort que les cases ou il peut aller.
+		return (arrange_lit[cell] as Color).a if arrange_lit.has(cell) else 0.0
 	if _doorstep(cell):
 		return DOORSTEP_ALPHA
 	if not _usable(cell):

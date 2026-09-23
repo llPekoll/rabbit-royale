@@ -394,3 +394,23 @@ WHERE NOT EXISTS (SELECT 1 FROM drizzle.__drizzle_migrations WHERE hash = 'e3b0d
 Registre de prod : 21 → 22, comme le local. Tous les joueurs existants partent
 au niveau 1 (la valeur par défaut) : aucun raid possible tant que personne
 n'a atteint le niveau 10.
+
+### 2026-09-23 — `0021_true_millenium_guard` : `players.burrow_edits`
+
+L'aménagement du terrier (arbres, maison, potager déplacés par le joueur,
+`BurrowEdits` dans `src/game/burrow/generate.ts`). Passé en une transaction,
+**avant** le push : toutes les routes lisent la ligne `players` en entier, et
+un code qui attend la colonne casserait chacune d'elles.
+
+```sql
+ALTER TABLE "players" ADD COLUMN IF NOT EXISTS "burrow_edits" jsonb;
+INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
+SELECT 'b3f33a369e09f6d3c7889207703d11aea9f5d84918356abdb76e99e03529ad21', 1790147183262
+WHERE NOT EXISTS (SELECT 1 FROM drizzle.__drizzle_migrations WHERE hash = 'b3f33a36…');
+```
+
+Registre de prod : 22 → 23, comme le local. L'écart vérifié avant d'écrire :
+seul le hash `b3f33a36…` manquait ; les trois lignes qui diffèrent encore
+(`25e17b99…`, `4c9b76a6…`, `9eab7da2…`) ne diffèrent que par l'horodatage,
+héritage du réalignement du 2026-09-14. Colonne nulle pour tous : le terrier
+généré, comme avant.

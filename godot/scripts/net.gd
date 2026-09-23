@@ -34,6 +34,11 @@ func post_json(path: String, payload: Dictionary = {}, token: String = "") -> An
 	return await _send(path, HTTPClient.METHOD_POST, payload, token)
 
 
+## PUT / PATCH / DELETE, with a JSON body where the method carries one.
+func send_json(path: String, method: int, payload: Dictionary = {}, token: String = "") -> Answer:
+	return await _send(path, method, payload, token)
+
+
 func _send(path: String, method: int, payload: Dictionary, token: String) -> Answer:
 	var request := HTTPRequest.new()
 	request.timeout = TIMEOUT_SECONDS
@@ -46,7 +51,9 @@ func _send(path: String, method: int, payload: Dictionary, token: String) -> Ans
 		# replacement token — which is right, we already hold one.
 		headers.append("Authorization: Bearer %s" % token)
 
-	var body := JSON.stringify(payload) if method == HTTPClient.METHOD_POST else ""
+	var carries := method == HTTPClient.METHOD_POST or method == HTTPClient.METHOD_PUT \
+		or method == HTTPClient.METHOD_PATCH
+	var body := JSON.stringify(payload) if carries else ""
 	var started := request.request(HOST + path, headers, method, body)
 	if started != OK:
 		request.queue_free()

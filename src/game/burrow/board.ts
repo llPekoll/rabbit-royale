@@ -29,7 +29,7 @@
  * the feature, paid once, in signatures rather than in bugs.
  */
 import {
-  burrowTerrain, BURROW_COLS, BURROW_ROWS, BURROW_STEPS, MAX_STEP,
+  burrowTerrain, editBurrow, hasEdits, type BurrowEdits, BURROW_COLS, BURROW_ROWS, BURROW_STEPS, MAX_STEP,
   burrowIndex, burrowColRow, type BurrowCell, type BurrowTerrain,
 } from './generate';
 import { levelAt } from '@/game/island/generate';
@@ -37,7 +37,7 @@ import { cellIsMinable, cellIsWalkable } from './cells';
 
 export {
   BURROW_COLS, BURROW_ROWS, burrowIndex, burrowColRow,
-  type BurrowCell, type BurrowTerrain,
+  type BurrowCell, type BurrowTerrain, type BurrowEdits,
 };
 
 /**
@@ -49,13 +49,54 @@ export {
  */
 const cache = new Map<string, BurrowTerrain>();
 
-/** The terrain for a seed: the map, what stands on it, and the landmarks. */
-export function burrowFor(seed: string): BurrowTerrain {
+/**
+ * What each owner changed on their burrow (`BurrowEdits`), by seed.
+ *
+ * THE SEED IS NO LONGER THE WHOLE STORY. Since the owner can move their trees,
+ * house and potager, "whose ground" is the id AND their edits. Rather than
+ * thread a second argument through every rule (the raid, the traps, the
+ * fences, all of which already take the seed), the server tells this module
+ * what a seed's edits are before asking — `loadBurrowEdits` in
+ * lib/game/burrowEdits, at the top of every route that reads a burrow — and
+ * every rule below answers for the edited ground.
+ *
+ * An edit that no longer holds (a generator change moved the field it was
+ * written against) is dropped rather than obeyed: the generated burrow is
+ * always a legal one.
+ */
+const editsBySeed = new Map<string, BurrowEdits>();
+const edited = new Map<string, { key: string; terrain: BurrowTerrain }>();
+
+/** Record a seed's edits; `null` for none. */
+export function setBurrowEdits(seed: string, edits: BurrowEdits | null | undefined): void {
+  if (hasEdits(edits)) editsBySeed.set(seed, edits);
+  else editsBySeed.delete(seed);
+}
+
+/** The edits this module is answering with for a seed. */
+export const burrowEditsOf = (seed: string): BurrowEdits | null => editsBySeed.get(seed) ?? null;
+
+/** The generated burrow, before any edit. */
+export function baseBurrowFor(seed: string): BurrowTerrain {
   let terrain = cache.get(seed);
   if (!terrain) {
     terrain = burrowTerrain(seed);
     cache.set(seed, terrain);
   }
+  return terrain;
+}
+
+/** The terrain for a seed: the map, what stands on it, and the landmarks. */
+export function burrowFor(seed: string): BurrowTerrain {
+  const base = baseBurrowFor(seed);
+  const edits = editsBySeed.get(seed);
+  if (!edits) return base;
+  const key = JSON.stringify(edits);
+  const hit = edited.get(seed);
+  if (hit && hit.key === key) return hit.terrain;
+  const out = editBurrow(base, edits);
+  const terrain = typeof out === 'string' ? base : out;
+  edited.set(seed, { key, terrain });
   return terrain;
 }
 

@@ -53,6 +53,9 @@ export async function GET(req: Request) {
     burrow: owner.view,
     player: applyRegen(owner.player),
     quest: questBoardOf(owner.player),
+    /** The owner's rearrangement (`BurrowEdits`), laid on the generated
+     *  burrow by the client — see /api/burrow/layout. */
+    edits: owner.player.burrowEdits ?? {},
   });
 }
 

@@ -40,6 +40,7 @@ const ROUTES: Record<string, () => Promise<ModuleRoute>> = {
   '/api/auth/me': () => import('../src/app/api/auth/me/route'),
   '/api/auth/verify': () => import('../src/app/api/auth/verify/route'),
   '/api/burrow': () => import('../src/app/api/burrow/route'),
+  '/api/burrow/layout': () => import('../src/app/api/burrow/layout/route'),
   '/api/config': () => import('../src/app/api/config/route'),
   '/api/fences': () => import('../src/app/api/fences/route'),
   '/api/leaderboard': () => import('../src/app/api/leaderboard/route'),

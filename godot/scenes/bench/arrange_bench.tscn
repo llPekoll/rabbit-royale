@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3]
+
+; Le banc de l'amenagement du terrier — voir scripts/bench/arrange_bench.gd.
+
+[ext_resource type="Script" path="res://scripts/bench/arrange_bench.gd" id="1_bench"]
+
+[node name="ArrangeBench" type="Node2D"]
+script = ExtResource("1_bench")

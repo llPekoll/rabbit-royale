@@ -18,6 +18,10 @@ extends Node2D
 ## de le decider, et le plateau ne doit pas avoir a connaitre la liste.
 signal tile_tapped(cell: Vector2i)
 
+## L'AMENAGEMENT a change — on tient autre chose, ou le brouillon differe de
+## ce qui est enregistre (la barre d'amenagement relit `arrange_state`).
+signal arrange_changed
+
 ## LA DUREE DU MOUVEMENT DE CAMERA, et sa courbe.
 ##
 ## Le web tween en 0,55 s avec un `back.out(1.3)` — un leger depassement, qui
@@ -113,6 +117,14 @@ var _cam_moved_by_player := false
 
 var _cam_tween: Tween
 
+## L'AMENAGEMENT EN COURS (burrow_arrange.gd), ou null. Le sol dessine alors
+## son brouillon, et une tape prend ou pose au lieu de promener le lapin.
+var _arrange: BurrowArrange
+## Ce qui est souleve sous le doigt, et d'ou : `[noeud, y d'origine]`.
+var _lifted: Array = []
+## Un enregistrement en vol.
+var _saving := false
+
 
 func _ready() -> void:
 	# LA BARRE DE DEBOGAGE ne se monte plus que sur demande (`-- --debug-burrow`)
@@ -131,7 +143,7 @@ func _ready() -> void:
 	_raid_board.name = "RaidBoard"
 	add_child(_raid_board)
 	_hints.is_mined = _traps.has_trap
-	show_ground(_own_seed())
+	show_ground(_own_seed(), _own_edits())
 	# LES BOMBES SUIVENT LA LISTE DU SERVEUR, dans les deux sens : ShopState
 	# relit `/api/traps` apres chaque pose, retrait ou achat.
 	var shop := ShopState.shared()
@@ -142,15 +154,14 @@ func _ready() -> void:
 	_on_incoming()
 	get_viewport().size_changed.connect(_reframe)
 	frame_camera(true)
-	# PROVISOIRE, comme le bouton de cadrage : sans consequence visible, une
-	# tape juste ne se distingue pas d'une tape ignoree. Le lapin va sur la
-	# case tapee — ca prouve d'un coup que la case resolue est la BONNE, et pas
-	# seulement qu'un signal est parti. Remplace des qu'une bombe se pose.
+	# La tape d'une case va a ce que le mode en fait : un pas de raid, une
+	# bombe, l'amenagement — hors mode, le lapin y va.
 	tile_tapped.connect(_on_tile_tapped)
 	# LA MAISON SUIT LE NIVEAU du terrier ; l'achat d'un niveau la fete
 	# (BurrowScene.ts `setLevel`). Ce plateau n'est jamais que le sien — la
 	# garde du web (« chez soi seulement ») est vraie par construction.
 	Home.changed.connect(_follow_level)
+	Home.edits_changed.connect(_on_edits_changed)
 	Home.level_up.connect(func(level: int) -> void:
 		if _own_ground():
 			_props.set_level(level)
@@ -189,9 +200,17 @@ func _on_tile_tapped(cell: Vector2i) -> void:
 			Sound.play("step")
 			state.step(tile)
 		return
+	_alog("tape %s -> %s" % [cell, "amenager" if _arrange != null else
+		("bombe" if _placing and not _walling else "lapin")])
+	if _arrange != null:
+		_arrange_tap(cell)
+		return
 	if _placing and not _walling:
 		_toggle_trap(BurrowLayout.index(cell))
 		return
+	# HORS MODE, LE CLIC EST POUR LE LAPIN : il va sur la case. Le decor, lui,
+	# se deplace en le TENANT puis en glissant (`_start_decor_drag`) — deux
+	# gestes differents, jamais l'un pris pour l'autre.
 	_rabbit.send_to(cell)
 
 
@@ -213,7 +232,13 @@ func _toggle_trap(tile: int) -> void:
 		await shop.remove_trap(tile)
 	else:
 		_traps.expect_fresh(tile)
-		if await shop.place_trap(tile):
+		# LE FANTOME TIENT LA CASE pendant que le serveur decide, et l'anneau
+		# d'or dit que la tape est partie. Ce n'est pas une bombe : pale, elle
+		# ne ment pas sur la defense — la vraie la remplace, ou elle s'efface.
+		_traps.pin_ghost(tile)
+		var placed: bool = await shop.place_trap(tile)
+		_traps.unpin_ghost()
+		if placed:
 			# Le bruit sourd de la bombe qui entre en terre ; la scene jette
 			# la poussiere.
 			Sound.play("step")
@@ -245,8 +270,18 @@ func _sync_fences() -> void:
 		_fences.set_state([], [])
 		return
 	var f: Dictionary = ShopState.shared().fences
-	_fences.set_state(f.get("placed", []) if f.get("placed") is Array else [],
-		f.get("offers", []) if f.get("offers") is Array else [])
+	var placed: Array = f.get("placed", []) if f.get("placed") is Array else []
+	# EN AMENAGEANT, les planches suivent le potager du brouillon — c'est ce
+	# que le serveur fera a l'enregistrement — et rien ne s'offre a poser.
+	if _arrange != null:
+		var d := _arrange.field_shift()
+		var moved: Array = []
+		for seg in placed:
+			var c := BurrowLayout.cell_of(int(seg["tile"])) + d
+			moved.append({"tile": BurrowLayout.index(c), "side": seg["side"]})
+		_fences.set_state(moved, [])
+		return
+	_fences.set_state(placed, f.get("offers", []) if f.get("offers") is Array else [])
 
 
 ## UNE ARETE TAPEE en mode cloture : on dresse la planche, ou on retire celle
@@ -286,6 +321,10 @@ func _on_incoming() -> void:
 	var raid_id := String(inc.get("raidId", ""))
 
 	if not _defending:
+		# UN RAID ARRIVE PENDANT QU'ON AMENAGE : le brouillon tombe, le sol
+		# revient a celui que le pillard est en train de lire.
+		if _arrange != null:
+			set_arranging(false)
 		_defending = true
 		_sprung_seen = int(inc.get("trapsSprung", 0))
 		# LE PLATEAU DEVIENT UN PLATEAU DE RAID : son lapin s'efface (il errerait
@@ -427,7 +466,8 @@ func _enter_raid(r: Dictionary) -> void:
 	# AVANT le sol : `show_ground` cadre sur-le-champ, et un raid veut la prise
 	# du plateau entier — sinon la camera irait a la maison et en repartirait.
 	_raiding = true
-	show_ground(String(defender.get("id", "")))
+	show_ground(String(defender.get("id", "")),
+		defender.get("edits", {}) if defender.get("edits") is Dictionary else {})
 	_rabbit.visible = false
 	_walker = _spawn_raider(int(r.get("tile", -1)))
 	_walker_at = int(r.get("tile", -1))
@@ -454,7 +494,7 @@ func _leave_raid() -> void:
 		_walker = null
 	_walker_at = -1
 	_raiding = false
-	show_ground(_own_seed())
+	show_ground(_own_seed(), _own_edits())
 	_rabbit.visible = true
 	_sync_door()
 	if Chrome.current != null:
@@ -551,9 +591,14 @@ func _strike() -> void:
 ## de quelqu'un d'autre pour un raid, sans remonter la scene. Le web a un
 ## raccourci que ce portage reprendra le moment venu — si la graine n'a pas
 ## change, il ne refait rien et se contente d'ajuster.
-func show_ground(seed_value: String) -> void:
+##
+## `edits` : ce que le proprietaire y a deplace (BurrowLayout.of). `keep_cam`
+## garde la prise — l'amenagement repousse le sol a chaque chose posee, et le
+## joueur doit rester la ou il regardait.
+func show_ground(seed_value: String, edits: Dictionary = {}, keep_cam: bool = false) -> void:
 	_seed = seed_value
-	_layout = BurrowLayout.of(seed_value)
+	_layout = BurrowLayout.of(seed_value, edits)
+	_lifted.clear()
 	# LES BOMBES VIVENT DANS LES BLOCS de l'ancien terrain, qui va mourir : la
 	# liste part avec, et la synchro les repose sur le nouveau.
 	_traps.clear()
@@ -642,6 +687,8 @@ func show_ground(seed_value: String) -> void:
 	#
 	# Et le drapeau du joueur tombe : c'est un AUTRE plateau, pas celui qu'il
 	# tenait.
+	if keep_cam:
+		return
 	_cam_moved_by_player = false
 	if is_node_ready():
 		frame_camera(true)
@@ -824,6 +871,7 @@ func set_placing(on: bool) -> void:
 	# est une image de chez soi — pas un editeur de niveau.
 	_hints.show_hints(on)
 	_traps.set_lifted(-1)
+	_traps.show_ghost(-1)
 	_sync_door()
 	_relabel_cycle()
 	frame_camera()
@@ -891,6 +939,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch or event is InputEventScreenDrag:
 		var step := _pinch.feed(event)
 		if _pinch.active():
+			if _dragging_decor:
+				_cancel_decor_drag()
+			_hold_armed = false
 			if _pressing and not _did_drag:
 				_did_drag = true
 				if _hints_live():
@@ -906,12 +957,27 @@ func _unhandled_input(event: InputEvent) -> void:
 		var pressed: bool = event.pressed
 		var at: Vector2 = event.position
 		if pressed:
+			_press_touch = event is InputEventScreenTouch
 			_on_press(at)
 		else:
 			_on_release(at)
 	elif event is InputEventScreenDrag or event is InputEventMouseMotion:
+		# UN RELACHEMENT PERDU : la souris bouge sans bouton alors qu'on croit
+		# l'appui en cours — le bouton a ete lache au-dessus d'un panneau (qui
+		# l'a mange) ou hors de la fenetre. Sans ceci le simple survol
+		# promenait le plateau et annulait chaque maintien.
+		if _pressing and event is InputEventMouseMotion \
+				and (event.button_mask & MOUSE_BUTTON_MASK_LEFT) == 0:
+			_alog("relachement perdu : l'appui se termine au survol %s" % event.position)
+			_on_release(event.position)
+			return
 		if _pressing:
 			_on_move(event.position)
+		# LA SOURIS REGARDE AVANT DE CLIQUER : bouton leve, la case sous elle
+		# montre deja son fantome. Un doigt n'a pas de survol ; c'est l'appui
+		# qui le lui montre (`_on_press`).
+		elif event is InputEventMouseMotion and event.button_mask == 0 and _hints_live():
+			_press_over(_cell_at(event.position))
 
 
 func _on_press(at: Vector2) -> void:
@@ -919,6 +985,13 @@ func _on_press(at: Vector2) -> void:
 	_did_drag = false
 	_press_at = at
 	_press_cam = position
+	# UN DECOR SOUS L'APPUI s'arme : tenu assez longtemps sans bouger, il se
+	# souleve (`_process`). Bouge avant, c'est un glissement du plateau.
+	_press_ms = Time.get_ticks_msec()
+	var pc := _cell_at(at)
+	_hold_armed = _can_drag_decor() and _pickable_at(pc)
+	_alog("appui %s case %s touch=%s arme=%s mode=%s" % [at, pc, _press_touch, _hold_armed,
+		"amenager" if _arrange != null else "normal"])
 	# L'APPUI MONTRE CE QU'IL VA CHOISIR — le retour que le survol donne a la
 	# souris, et qu'un doigt n'a pas.
 	if _hints_live():
@@ -930,19 +1003,46 @@ func _on_press(at: Vector2) -> void:
 ## LA CASE SOUS LE DOIGT, avant qu'il se leve : or sur une case libre, la
 ## bombe qui sort (et sa marque rouge) sur une case minee.
 func _press_over(cell: Vector2i) -> void:
+	if _arrange != null:
+		_arrange_hover(cell)
+		return
 	_hints.set_hovered(cell)
 	var tile := BurrowLayout.index(cell) if cell.x >= 0 else -1
 	_traps.set_lifted(tile if _traps.has_trap(tile) else -1)
+	# Et sur une case LIBRE, le fantome de la bombe qu'une tape y enterrerait.
+	var free := tile >= 0 and _layout != null and _layout.is_trappable(tile) \
+		and not _traps.has_trap(tile)
+	_traps.show_ghost(tile if free else -1)
 
 
 func _on_move(at: Vector2) -> void:
+	if _dragging_decor:
+		_follow_decor(at)
+		return
 	# APRES UN PINCEMENT, le doigt qui reste reprend le glissement la ou il est.
 	if _pinch.ended:
 		_pinch.ended = false
 		_press_at = at
 		_press_cam = position
+	# A LA SOURIS, CLIQUER SUR UN DECOR PUIS GLISSER LE DEPLACE, sans attendre :
+	# c'est le geste que le joueur fait (journal du 2026-09-23 : il glissait
+	# de 10-20 px en 50-80 ms, et le maintien partait en glissement du
+	# plateau a chaque fois). Le sol nu, lui, promene toujours la vue. Au
+	# doigt le maintien reste : un pouce se pose sur un arbre pour regarder.
+	if not _did_drag and _hold_armed and not _press_touch \
+			and at.distance_to(_press_at) > DRAG_SLOP:
+		_hold_armed = false
+		_alog("clic-glisser sur un decor : on le prend")
+		_start_decor_drag()
+		if _dragging_decor:
+			_follow_decor(at)
+			return
 	if not _did_drag and at.distance_to(_press_at) > DRAG_SLOP:
+		if _hold_armed:
+			_alog("maintien annule : le pointeur a bouge de %.0f px en %d ms (glissement du plateau)" % [
+				at.distance_to(_press_at), Time.get_ticks_msec() - _press_ms])
 		_did_drag = true
+		_hold_armed = false
 		# DES QUE C'EST UN GLISSEMENT, LA CASE N'EST PLUS VISEE : garder l'or
 		# sous un doigt qui promene le plateau annoncerait une pose qui
 		# n'arrivera pas.
@@ -968,6 +1068,10 @@ func _on_release(at: Vector2) -> void:
 	if not _pressing:
 		return
 	_pressing = false
+	_hold_armed = false
+	if _dragging_decor:
+		_end_decor_drag(at)
+		return
 	if _hints_live():
 		_press_over(Vector2i(-1, -1))
 	elif _fences_live():
@@ -1010,7 +1114,7 @@ func _fences_live() -> bool:
 
 ## Les losanges sont-ils allumes ? Sans eux, rien a teindre.
 func _hints_live() -> bool:
-	return _placing and _hints != null
+	return (_placing or _arrange != null) and _hints != null
 
 
 ## LE JOUEUR PREND LE PLATEAU EN MAIN — un glissement, un pincement.
@@ -1033,3 +1137,399 @@ func set_place_cam(shot: BurrowCamera.Shot) -> void:
 ## viser : a la maison, la ferme est un decor de fond et n'a pas a se promener.
 func can_move_cam() -> bool:
 	return _raiding or _placing or _walling
+
+
+# ---------------------------------------------------------------- amenager
+
+## L'amenagement du joueur : le brouillon pendant qu'il amenage, sinon ce que
+## le serveur a enregistre.
+func _own_edits() -> Dictionary:
+	return _arrange.draft if _arrange != null else Home.edits
+
+
+## Le serveur a un autre amenagement (un autre appareil, ou notre propre
+## enregistrement) : le sol se repousse, sans reprendre la camera.
+func _on_edits_changed() -> void:
+	if _in_raid or _arrange != null or not _own_ground():
+		return
+	show_ground(_own_seed(), Home.edits, true)
+
+
+## Peut-on amenager maintenant ? Pas chez un autre, pas pendant un raid sur
+## notre terrier : le pillard lit le sol tel qu'il etait en entrant.
+func can_arrange() -> bool:
+	if _in_raid or not _own_ground():
+		return false
+	var inc: Dictionary = RaidState.current.incoming
+	return inc.is_empty() or bool(inc.get("finished", false))
+
+
+## ENTRER EN AMENAGEMENT, ou en sortir sans enregistrer (le brouillon est
+## jete, le sol revient a ce que le serveur a).
+func set_arranging(on: bool) -> void:
+	_alog("set_arranging(%s) deja=%s" % [on, _arrange != null])
+	if on == (_arrange != null):
+		return
+	if on:
+		_arrange = BurrowArrange.new(_own_seed(), Home.edits)
+		_rabbit.visible = false
+		_paint_arrange()
+		_hints.show_hints(true)
+	else:
+		var was_dirty := _arrange.dirty()
+		_unlift()
+		_arrange = null
+		_hints.arranging = false
+		_hints.show_hints(_placing)
+		_hints.restyle()
+		_rabbit.visible = not _defending
+		if was_dirty and _own_ground() and not _in_raid:
+			show_ground(_own_seed(), Home.edits, true)
+		_sync_fences()
+	arrange_changed.emit()
+
+
+## Ce que la barre d'amenagement affiche : `{held, dirty, saving}`.
+func arrange_state() -> Dictionary:
+	if _arrange == null:
+		return {}
+	return {"held": _arrange.held != BurrowArrange.Held.NONE, "dirty": _arrange.dirty(),
+		"saving": _saving}
+
+
+## Revenir au terrier pousse de la graine — en brouillon, comme le reste.
+func arrange_reset() -> void:
+	if _arrange == null:
+		return
+	_unlift()
+	_arrange.reset()
+	_regrow_draft()
+
+
+## ENREGISTRER le brouillon. Le serveur juge (la meme regle, et le raid) ;
+## a son accord, Home adopte l'amenagement et on sort du mode.
+func arrange_save() -> void:
+	if _arrange == null or _saving:
+		return
+	if not _arrange.dirty():
+		set_arranging(false)
+		return
+	_saving = true
+	arrange_changed.emit()
+	_alog("SAVE %s ..." % JSON.stringify(BurrowArrange._clean(_arrange.draft)))
+	var res: Dictionary = await Home.save_edits(BurrowArrange._clean(_arrange.draft))
+	_saving = false
+	_alog("SAVE reponse %s" % JSON.stringify(res))
+	if res.has("error"):
+		_note_refusal(String(res["error"]))
+		arrange_changed.emit()
+		return
+	# Enregistre : ce que le sol montre EST l'amenagement, on sort sans le
+	# repousser. Les planches et les bombes ont pu bouger au serveur.
+	_arrange = null
+	_hints.arranging = false
+	_hints.show_hints(_placing)
+	_hints.restyle()
+	_rabbit.visible = not _defending
+	ShopState.shared().refresh()
+	var parts: Array[String] = [I18N.t("arrange.saved")]
+	if int(res.get("planksBack", 0)) > 0:
+		parts.append(I18N.f("arrange.planksBack", [int(res["planksBack"])]))
+	if int(res.get("bombsBack", 0)) > 0:
+		parts.append(I18N.f("arrange.bombsBack", [int(res["bombsBack"])]))
+	if Chrome.current != null:
+		Chrome.current.toast(" ".join(parts))
+	arrange_changed.emit()
+
+
+## UNE TAPE EN AMENAGEMENT : prendre, poser, ou relacher.
+func _arrange_tap(cell: Vector2i) -> void:
+	if _saving:
+		return
+	if _arrange.held == BurrowArrange.Held.NONE:
+		if _arrange.grab(cell):
+			Sound.play("step")
+			_lift()
+			_paint_arrange()
+			arrange_changed.emit()
+		return
+	# Sur la chose elle-meme : on la repose ou elle etait.
+	if cell == _arrange.held_cell or (_arrange.held != BurrowArrange.Held.FIELD \
+			and _arrange.source_cells().has(cell)):
+		_unlift()
+		_arrange.release()
+		_paint_arrange()
+		arrange_changed.emit()
+		return
+	var why := _arrange.drop(cell)
+	_alog("tape-pose en %s : %s" % [cell, why if why != "" else "ok " + JSON.stringify(_arrange.draft)])
+	if why != "":
+		_note_refusal(why)
+		_paint_arrange()
+		return
+	Sound.play("step")
+	_regrow_draft()
+
+
+## Le sol du brouillon, repousse sans bouger la camera.
+func _regrow_draft() -> void:
+	show_ground(_own_seed(), _arrange.draft, true)
+	_paint_arrange()
+	_hints.show_hints(true)
+	arrange_changed.emit()
+
+
+## LE SURVOL (souris) OU L'APPUI (doigt) : ou tomberait ce qu'on tient.
+func _arrange_hover(cell: Vector2i) -> void:
+	var preview := {}
+	if _arrange.held != BurrowArrange.Held.NONE and _arrange.targets.has(cell):
+		for c in _arrange.footprint(cell):
+			preview[c] = true
+	if preview.hash() == _hints.arrange_preview.hash():
+		return
+	_hints.arrange_preview = preview
+	_hints.restyle()
+
+
+## Les losanges de l'amenagement : ce qu'on tient en or franc, ou ca peut
+## aller en bleu. Les mains vides, ce qu'on peut prendre s'allume en vert.
+const ARRANGE_GRAB := Color("#b6f28a", 0.32)
+const ARRANGE_HELD := Color("#ffd45c", 0.9)
+const ARRANGE_TARGET := Color("#8fd6ff", 0.42)
+
+func _paint_arrange() -> void:
+	if _arrange == null:
+		return
+	var lit := {}
+	if _arrange.held == BurrowArrange.Held.NONE:
+		for t in _arrange.layout.field:
+			lit[BurrowLayout.cell_of(t)] = ARRANGE_GRAB
+		lit[_arrange.layout.building] = ARRANGE_GRAB
+		for p in _arrange.layout.placements:
+			var c := Vector2i(int(p.x), int(p.y))
+			if _arrange.layout.map.level_at(c.x, c.y) > 0:
+				lit[c] = ARRANGE_GRAB
+	else:
+		for c in _arrange.targets:
+			lit[c] = ARRANGE_TARGET
+		for c in _arrange.source_cells():
+			lit[c] = ARRANGE_HELD
+	_hints.arranging = true
+	_hints.arrange_lit = lit
+	_hints.arrange_preview = {}
+	_hints.restyle()
+
+
+## LA CHOSE PRISE SE SOULEVE — le retour qu'un doigt n'a pas autrement.
+const LIFT_PX := 16.0
+const LIFT_GLOW := Color(1.35, 1.3, 1.05)
+
+func _lift() -> void:
+	_unlift()
+	var nodes: Array = []
+	match _arrange.held:
+		BurrowArrange.Held.THING:
+			nodes = _scenery.nodes_at(_arrange.held_cell)
+		BurrowArrange.Held.HOUSE:
+			if _props.home != null:
+				nodes = [_props.home]
+		BurrowArrange.Held.FIELD:
+			nodes = _props._plants.duplicate()
+	for n in nodes:
+		if n is Node2D and is_instance_valid(n):
+			_lifted.append([n, (n as Node2D).position])
+			var tw := (n as Node2D).create_tween()
+			tw.tween_property(n, "position:y", (n as Node2D).position.y - LIFT_PX, 0.12) \
+				.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			(n as Node2D).modulate = LIFT_GLOW
+
+
+func _unlift() -> void:
+	for pair in _lifted:
+		var n: Node2D = pair[0]
+		if is_instance_valid(n):
+			n.position = pair[1]
+			n.modulate = Color.WHITE
+	_lifted.clear()
+
+
+## Un refus, dans les mots du joueur.
+func _note_refusal(code: String) -> void:
+	var text := ""
+	match code:
+		"crossing_too_short":
+			text = I18N.f("arrange.refused.crossing_too_short", [BurrowLayout.MIN_CROSSING])
+		"crossing_too_long":
+			text = I18N.f("arrange.refused.crossing_too_long", [BurrowLayout.MAX_CROSSING])
+		"offline":
+			text = I18N.t("err_offline")
+		_ when code.begins_with("http_"):
+			# Le serveur n'a pas repondu en regle (une route absente, une
+			# panne) : ce n'est PAS la regle qui refuse, et le dire comme un
+			# refus envoie le joueur chercher ce qu'il a mal fait.
+			text = I18N.t("arrange.unsaved")
+		_:
+			text = I18N.t("arrange.refused.%s" % code)
+			if text.begins_with("arrange."):
+				text = I18N.t("arrange.refused.bad_edits")
+	if Chrome.current != null:
+		Chrome.current.toast(text, true)
+
+
+## La regle entiere juge les cases allumees, quelques ms par image : une case
+## qu'elle refuse s'eteint.
+func _process(_delta: float) -> void:
+	if _arrange != null and _arrange.settling() and _arrange.settle(3000):
+		_paint_arrange()
+	if _hold_armed and _pressing and not _did_drag and not _dragging_decor:
+		var hold := HOLD_TOUCH_MS if _press_touch else HOLD_MOUSE_MS
+		if Time.get_ticks_msec() - _press_ms >= hold:
+			_hold_armed = false
+			_start_decor_drag()
+
+
+# ---------------------------------------------------------------- tenir, glisser
+
+## TENIR PUIS GLISSER un decor, sans passer par le mode : le clic reste au
+## lapin, le glissement nu au plateau. Le maintien est ce qui distingue les
+## trois — plus long au doigt, qui pose souvent sur un arbre pour promener
+## la vue. Hors mode, le lacher ENREGISTRE ; en mode, il va au brouillon.
+const HOLD_MOUSE_MS := 180
+const HOLD_TOUCH_MS := 320
+
+var _press_ms := 0
+var _press_touch := false
+var _hold_armed := false
+var _dragging_decor := false
+## Vrai quand le glissement a ouvert un amenagement de passage (hors mode).
+var _drag_transient := false
+var _drag_over := Vector2i(-1, -1)
+
+
+## Peut-on prendre un decor d'un appui tenu ? Chez soi, hors pose, hors raid.
+func _can_drag_decor() -> bool:
+	var ok := not _saving and not _placing and not _walling and not _defending \
+		and can_arrange()
+	if not ok:
+		_alog("pas de glisser : saving=%s placing=%s walling=%s defending=%s in_raid=%s own=%s incoming=%s" % [
+			_saving, _placing, _walling, _defending, _in_raid, _own_ground(),
+			JSON.stringify(RaidState.current.incoming)])
+	return ok
+
+
+## LE JOURNAL DE L'AMENAGEMENT, en build debug seulement (l'editeur) : chaque
+## geste et chaque refus, pour lire un bug pendant qu'on joue.
+static func _alog(text: String) -> void:
+	if OS.is_debug_build():
+		print("[arrange %d] %s" % [Time.get_ticks_msec(), text])
+
+
+func _pickable_at(cell: Vector2i) -> bool:
+	if cell.x < 0:
+		return false
+	var a := _arrange if _arrange != null else BurrowArrange.new(_own_seed(), Home.edits)
+	var hit := a.find(cell)
+	_alog("sous %s : %s (maison %s)" % [cell, hit if not hit.is_empty() else "rien", a.layout.building])
+	return not hit.is_empty()
+
+
+func _start_decor_drag() -> void:
+	if _arrange == null:
+		_arrange = BurrowArrange.new(_own_seed(), Home.edits)
+		_drag_transient = true
+	elif _arrange.held != BurrowArrange.Held.NONE:
+		_unlift()
+		_arrange.release()
+	if not _arrange.grab(_cell_at(_press_at)):
+		_alog("maintien : rien a prendre en %s" % _cell_at(_press_at))
+		_finish_transient()
+		return
+	_alog("pris %s en %s : %d cases possibles (en fond : %s)" % [
+		["rien", "chose", "maison", "potager"][_arrange.held], _arrange.held_cell,
+		_arrange.targets.size(), _arrange.settling()])
+	_dragging_decor = true
+	_did_drag = true
+	_drag_over = _arrange.held_cell
+	Sound.play("step")
+	_lift()
+	_paint_arrange()
+	_hints.show_hints(true)
+	arrange_changed.emit()
+
+
+## LA CHOSE SUIT LE POINTEUR, de case en case.
+func _follow_decor(at: Vector2) -> void:
+	var cell := _cell_at(at)
+	if cell.x < 0 or cell == _drag_over:
+		return
+	_drag_over = cell
+	_alog("glisse sur %s (possible : %s)" % [cell, _arrange.targets.has(cell)])
+	var map := _terrain.map
+	var delta := map.screen_of(cell.x, cell.y) - map.screen_of(_arrange.held_cell.x, _arrange.held_cell.y)
+	for pair in _lifted:
+		var n: Node2D = pair[0]
+		if is_instance_valid(n):
+			n.position = (pair[1] as Vector2) + delta - Vector2(0, LIFT_PX)
+	_arrange_hover(cell)
+
+
+func _end_decor_drag(at: Vector2) -> void:
+	_dragging_decor = false
+	var cell := _cell_at(at)
+	_alog("lache en %s (depart %s)" % [cell, _arrange.held_cell])
+	if cell.x < 0 or cell == _arrange.held_cell:
+		_unlift()
+		_arrange.release()
+		_paint_arrange()
+		_finish_transient()
+		return
+	var why := _arrange.drop(cell)
+	if why != "":
+		_alog("pose refusee : %s" % why)
+		_note_refusal(why)
+		_unlift()
+		_arrange.release()
+		_paint_arrange()
+		_finish_transient()
+		return
+	_alog("pose : brouillon %s" % JSON.stringify(_arrange.draft))
+	Sound.play("step")
+	_regrow_draft()
+	if not _drag_transient:
+		return
+	# HORS MODE, LE LACHER EST UN ENREGISTREMENT. Le sol montre deja le
+	# nouveau terrier ; un refus du serveur le remet comme il etait.
+	var draft := BurrowArrange._clean(_arrange.draft)
+	_finish_transient()
+	_saving = true
+	_alog("enregistre %s ..." % JSON.stringify(draft))
+	var res: Dictionary = await Home.save_edits(draft)
+	_saving = false
+	_alog("reponse %s" % JSON.stringify(res))
+	if res.has("error"):
+		_note_refusal(String(res["error"]))
+		show_ground(_own_seed(), Home.edits, true)
+		_sync_fences()
+		return
+	ShopState.shared().refresh()
+
+
+func _cancel_decor_drag() -> void:
+	_dragging_decor = false
+	if _arrange == null:
+		return
+	_unlift()
+	_arrange.release()
+	_paint_arrange()
+	_finish_transient()
+
+
+## Ferme l'amenagement de passage ouvert par un glissement hors mode.
+func _finish_transient() -> void:
+	if not _drag_transient:
+		return
+	_drag_transient = false
+	_arrange = null
+	_hints.arranging = false
+	_hints.show_hints(_placing)
+	_hints.restyle()

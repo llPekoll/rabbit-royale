@@ -12,6 +12,7 @@ import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { burrowFor } from '../src/game/burrow/board';
+import { editBurrow, burrowIndex, type BurrowEdits } from '../src/game/burrow/generate';
 import { levelAt } from '../src/game/island/generate';
 import { burrowBuilding } from '../src/game/burrow/buildings';
 
@@ -39,8 +40,35 @@ const out = SEEDS.map((seed) => {
     crossing: b.crossing,
     placements: b.placements.map((p) => `${p.kind}:${p.x},${p.y}:${p.variant}`),
     building: (({ x, y }) => ({ x, y }))(burrowBuilding(seed, 1)),
+    edits: editCases(seed),
   };
 });
+
+/**
+ * REARRANGEMENTS, judged by the server's `editBurrow`: a spread of field
+ * shifts and thing moves, each with the refusal it gets or the ground it
+ * yields. The editor in Godot lights cells from its own port of the rule, so
+ * the two have to agree on every one of these — including on WHICH refusal.
+ */
+function editCases(seed: string) {
+  const base = burrowFor(seed);
+  const tries: BurrowEdits[] = [{}];
+  for (const d of [[1, 0], [-1, 0], [0, 1], [0, -1], [2, -1], [-2, 2], [3, 0], [0, -3], [9, 9]]) {
+    tries.push({ field: [d[0], d[1]] });
+  }
+  const things = base.placements.slice(0, 4).map((p) => burrowIndex(p.x, p.y));
+  for (const [i, from] of things.entries()) {
+    for (const to of [base.entrance, base.field[0], (from + 1) % 361, (from + 19 * (i + 2)) % 361, base.doorstep.at(-1) ?? 0]) {
+      tries.push({ moves: [[from, to]] });
+    }
+  }
+  tries.push({ field: [1, 0], moves: things.slice(0, 2).map((from, i) => [from, (from + 20 + i) % 361] as [number, number]) });
+  return tries.map((edits) => {
+    const out = editBurrow(base, edits);
+    if (typeof out === 'string') return { edits, refused: out };
+    return { edits, cells: out.cells.map((k) => LETTER[k]).join(''), crossing: out.crossing };
+  });
+}
 
 const file = join(import.meta.dir, '..', 'godot', 'tools', 'burrow_fixture.json');
 writeFileSync(file, JSON.stringify(out) + '\n');

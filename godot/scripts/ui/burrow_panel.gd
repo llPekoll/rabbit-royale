@@ -34,6 +34,10 @@ const SAFE_INK := Color("#ffd138")
 const EXPOSED_INK := Color("#ff8a7a")
 
 var _slab: HubSlab
+var _arrange: HubSlab
+## De combien le bouton AMENAGER deborde l'art de chaque cote : la hutte est
+## plus etroite que le mot.
+const ARRANGE_SPILL := 10.0
 
 
 func _ready() -> void:
@@ -85,7 +89,31 @@ func refresh() -> void:
 		_slab.add_price(I18N.group_digits(float(cost)), card_size(11, 7, 10), carrot_mark())
 	_slab.set_lit(can and not maxed)
 	_slab.pressed.connect(func() -> void: Home.act("upgrade"))
+
 	set_footer(_slab)
+
+	# AMENAGER, SOUS LA MAISON : c'est elle qu'on deplace (avec les arbres et
+	# le potager), et la colonne de texte n'a pas la largeur de deux boutons
+	# — a cote d'UPGRADE, sur le Seeker, les deux se coupaient. Vert, comme la
+	# recolte : un geste gratuit, pas une depense.
+	# L'art n'est pas vide par `clear()` : l'ancien bouton part ici.
+	if _arrange != null:
+		_arrange.queue_free()
+	var arrange := HubSlab.new("green", card_length(22))
+	_arrange = arrange
+	arrange.add_word(I18N.t("arrange.button"), card_size(10, 7, 11))
+	arrange.anchor_left = 0.0
+	arrange.anchor_right = 1.0
+	arrange.anchor_top = 1.0
+	arrange.anchor_bottom = 1.0
+	arrange.offset_left = -ARRANGE_SPILL
+	arrange.offset_right = ARRANGE_SPILL
+	arrange.offset_top = 2.0
+	arrange.offset_bottom = 2.0 + arrange.custom_minimum_size.y
+	arrange.pressed.connect(func() -> void:
+		if Chrome.current != null:
+			Chrome.current.arrange())
+	_art.add_child(arrange)
 
 
 ## LA BANDE DU COFFRE : ce qu'un raid ne peut pas atteindre, sur son propre

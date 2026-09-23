@@ -12,8 +12,9 @@
  * still being tuned; phases 1-3 simply do not read most of it.
  */
 import {
-  pgTable, text, integer, bigint, doublePrecision, timestamp, boolean, uuid, index, uniqueIndex, pgEnum,
+  pgTable, text, integer, bigint, doublePrecision, timestamp, boolean, uuid, index, uniqueIndex, pgEnum, jsonb,
 } from 'drizzle-orm/pg-core';
+import type { BurrowEdits } from '@/game/burrow/generate';
 
 /**
  * What the shop sells and the bag holds.
@@ -78,6 +79,10 @@ export const players = pgTable('players', {
   lifetimeCarrots: bigint('lifetime_carrots', { mode: 'number' }).notNull().default(0),
 
   burrowLevel: integer('burrow_level').notNull().default(1),
+  /** What the owner rearranged on their burrow — trees, house, potager — on
+   *  top of the one grown from their id (`BurrowEdits`, game/burrow/generate).
+   *  Null is the generated burrow. Read through lib/game/burrowEdits. */
+  burrowEdits: jsonb('burrow_edits').$type<BurrowEdits>(),
   /** THE RABBIT'S LEVEL, 1 → RABBIT_LEVELS.MAX (2026-09-23). Not the burrow's:
    *  it is earned by clearing an island, never bought, and it deals the next
    *  island — its difficulty and how many share it. Raids open at RAID_MIN. */

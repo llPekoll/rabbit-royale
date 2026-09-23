@@ -22,6 +22,7 @@ import {
 } from '@/lib/game/fences';
 import { fenceSpans, type FenceSeg } from '@/game/burrow/fence';
 import { FENCES } from '@config/tuning';
+import { loadBurrowEdits } from '@/lib/game/burrowEdits';
 
 /** How many planks are in the bag. Plain inventory — no allowance to fold in. */
 async function heldFences(playerId: string): Promise<number> {
@@ -34,6 +35,7 @@ async function heldFences(playerId: string): Promise<number> {
 const asSeg = ({ tile, side }: FenceSeg): FenceSeg => ({ tile, side });
 
 async function fenceState(playerId: string) {
+  await loadBurrowEdits(playerId);
   const player = await db.query.players.findFirst({ where: eq(players.id, playerId) });
   if (!player) return null;
   const rows = await db.query.fences.findMany({ where: eq(fences.ownerId, playerId) });
@@ -88,6 +90,7 @@ export async function POST(req: Request) {
     await db.query.fences.findMany({ where: eq(fences.ownerId, session.sub) }),
   );
   const held = await heldFences(session.sub);
+  await loadBurrowEdits(session.sub);
 
   // The owner's own id is their burrow's seed — they may only wall their own
   // field, and the geometry is asked about exactly that field. `tile` is a

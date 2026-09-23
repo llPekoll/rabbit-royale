@@ -61,8 +61,29 @@ func _check(c: Dictionary) -> bool:
 	if b.building != want_home:
 		problems.append("maison %s, attendu %s" % [b.building, want_home])
 
+	# LES AMENAGEMENTS : meme refus, ou meme sol, que `editBurrow`.
+	var agreed := 0
+	for e in c.get("edits", []):
+		var got_e: Variant = BurrowLayout.edited(b, e.edits)
+		var want_refusal := String(e.get("refused", ""))
+		if got_e is String:
+			if got_e != want_refusal:
+				problems.append("amenagement %s : %s, attendu %s" % [JSON.stringify(e.edits), got_e, want_refusal if want_refusal != "" else "accepte"])
+				continue
+		else:
+			if want_refusal != "":
+				problems.append("amenagement %s : accepte, attendu %s" % [JSON.stringify(e.edits), want_refusal])
+				continue
+			var ec := ""
+			for k in got_e.cells:
+				ec += LETTER[k]
+			if ec != String(e.cells) or got_e.crossing != int(e.crossing):
+				problems.append("amenagement %s : sol different" % JSON.stringify(e.edits))
+				continue
+		agreed += 1
+
 	if problems.is_empty():
-		print("OK  %s  (%d ms, traversee %d, %d decors)" % [c.seed, ms, b.crossing, got.size()])
+		print("OK  %s  (%d ms, traversee %d, %d decors, %d amenagements)" % [c.seed, ms, b.crossing, got.size(), agreed])
 		return true
 	print("KO  %s : %s" % [c.seed, ", ".join(problems)])
 	return false

@@ -166,6 +166,33 @@ export const fr: Dict = {
     regenRate: (perHour) => `${perHour} énergie/h`,
   },
 
+  arrange: {
+    button: 'AMÉNAGER',
+    pick: 'Maintiens et glisse un arbre, ta maison ou ton potager',
+    place: 'Touche une case allumée pour le poser',
+    save: 'VALIDER',
+    cancel: 'ANNULER',
+    reset: 'D\'ORIGINE',
+    saved: 'Terrier réaménagé.',
+    planksBack: (n) => `${n} clôture${n > 1 ? 's' : ''} de retour dans le sac`,
+    bombsBack: (n) => `${n} bombe${n > 1 ? 's' : ''} de retour dans le sac`,
+    locked: 'Un raid est en cours chez toi. Tu réaménageras après.',
+    unsaved: 'Impossible d\'enregistrer ton terrier. Réessaie dans un instant.',
+    refused: {
+      occupied: 'Quelque chose occupe déjà cette case.',
+      cells_overlap: 'Quelque chose occupe déjà cette case.',
+      field_off_ground: 'Le potager doit rester sur la terre ferme.',
+      field_split: 'Le potager doit tenir sur un seul niveau.',
+      thing_off_ground: 'Pas dans l\'eau.',
+      field_unreachable: 'Ça emmurerait ton potager : un pillard doit pouvoir l\'atteindre.',
+      crossing_too_short: (n) => `Trop près de l'entrée : il faut au moins ${n} pas jusqu'au potager.`,
+      crossing_too_long: (n) => `Trop loin : le potager doit rester à ${n} pas au plus.`,
+      house_off_ground: 'Ta maison a besoin d\'un sol dégagé.',
+      under_raid: 'Un raid est en cours chez toi. Tu réaménageras après.',
+      bad_edits: 'Cet aménagement a été refusé.',
+    },
+  },
+
   notes: {
     shieldUp: 'Bouclier levé. Les pillards rebondissent.',
     watered: 'Arrosé. Le potager se remplit plus vite.',

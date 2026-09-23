@@ -20,6 +20,9 @@ signal changed
 ## Une phrase a montrer, et si c'est un refus.
 signal noted(text: String, refused: bool)
 
+## L'amenagement du terrier a change (`edits`) : le sol se repousse.
+signal edits_changed
+
 ## Des carottes viennent d'arriver dans la pile — pour la rafale de la
 ## pastille (recolte, recompense de quete).
 signal burst(amount: int)
@@ -44,6 +47,11 @@ var burrow: Dictionary = {}
 var player: Dictionary = {}
 ## QuestBoard : active (QuestView avec ses mots), claimable, claimed, total.
 var quest: Dictionary = {}
+## CE QUE LE JOUEUR A DEPLACE SUR SON TERRIER — arbres, maison, potager
+## (generate.ts `BurrowEdits`), lu sur /api/burrow et ecrit par
+## /api/burrow/layout. Le sol est pousse de l'id PUIS de ceci
+## (BurrowLayout.of).
+var edits: Dictionary = {}
 ## Vrai pendant un geste — les boutons qui depensent se grisent dessus.
 var pending := false
 
@@ -236,5 +244,33 @@ func _adopt(body: Dictionary) -> void:
 		if quest.get("active") is Dictionary:
 			quest["active"] = Content.quest_view(quest["active"])
 		touched = true
+	if body.get("edits") is Dictionary:
+		adopt_edits(body["edits"])
 	if touched or pending == false:
 		changed.emit()
+
+
+## Un nouvel amenagement, du serveur. Rien ne bouge s'il est le meme.
+func adopt_edits(next: Dictionary) -> void:
+	if JSON.stringify(next) == JSON.stringify(edits):
+		return
+	edits = next
+	edits_changed.emit()
+
+
+## ENREGISTRER un amenagement (`PUT /api/burrow/layout`). Rend la reponse :
+## `{edits, planksBack, bombsBack}` ou `{error}` — un refus que l'editeur
+## dit lui-meme, parce que c'est lui qui sait ce qu'on tenait.
+func save_edits(next: Dictionary) -> Dictionary:
+	if not Session.signed_in():
+		return {"error": "offline"}
+	var answer: Answer = await Net.send_json("/api/burrow/layout", HTTPClient.METHOD_PUT,
+		{"edits": next}, Session.token)
+	var res: Dictionary = answer.body if answer.body is Dictionary else {}
+	if OS.is_debug_build():
+		print("[arrange] PUT /api/burrow/layout -> %d %s" % [answer.status, JSON.stringify(res)])
+	if answer.ok and res.get("edits") is Dictionary:
+		adopt_edits(res["edits"])
+	elif not res.has("error"):
+		res["error"] = answer.error()
+	return res

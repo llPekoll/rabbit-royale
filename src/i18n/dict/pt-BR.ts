@@ -170,6 +170,33 @@ export const ptBR: Dict = {
     regenRate: (perHour) => `${perHour} de energia/h`,
   },
 
+  arrange: {
+    button: 'ORGANIZAR',
+    pick: 'Segure e arraste uma árvore, sua casa ou a horta',
+    place: 'Toque num quadrado aceso para colocar ali',
+    save: 'SALVAR',
+    cancel: 'CANCELAR',
+    reset: 'ORIGINAL',
+    saved: 'Toca reorganizada.',
+    planksBack: (n) => `${n} cerca${n > 1 ? 's' : ''} de volta na bolsa`,
+    bombsBack: (n) => `${n} bomba${n > 1 ? 's' : ''} de volta na bolsa`,
+    locked: 'Tem um ataque na sua toca. Reorganize quando acabar.',
+    unsaved: 'Não deu para salvar sua toca. Tente de novo daqui a pouco.',
+    refused: {
+      occupied: 'Já tem algo nesse quadrado.',
+      cells_overlap: 'Já tem algo nesse quadrado.',
+      field_off_ground: 'A horta precisa ficar em terra firme.',
+      field_split: 'A horta precisa ficar num só nível.',
+      thing_off_ground: 'Na água, não.',
+      field_unreachable: 'Isso fecharia a sua horta: os invasores precisam conseguir chegar.',
+      crossing_too_short: (n) => `Perto demais da entrada: são pelo menos ${n} passos até a horta.`,
+      crossing_too_long: (n) => `Longe demais: a horta deve ficar a no máximo ${n} passos.`,
+      house_off_ground: 'Sua casa precisa de chão livre.',
+      under_raid: 'Tem um ataque na sua toca. Reorganize quando acabar.',
+      bad_edits: 'Essa organização foi recusada.',
+    },
+  },
+
   notes: {
     shieldUp: 'Escudo de pé. Saques ricocheteiam.',
     watered: 'Regada. A horta enche mais rápido.',

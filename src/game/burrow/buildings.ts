@@ -128,6 +128,12 @@ const cells = new Map<string, { x: number; y: number; tier: number }>();
  * need — and the best-scoring one wins even when it is nobody's ideal.
  */
 function buildingCell(seed: string): { x: number; y: number; tier: number } {
+  // Moved by its owner (`BurrowEdits.house`): theirs, not the score's.
+  const { house, map: ground } = burrowFor(seed);
+  if (house !== undefined) {
+    const { col, row } = burrowColRow(house);
+    return { x: col, y: row, tier: levelAt(ground, col, row) };
+  }
   const hit = cells.get(seed);
   if (hit) return hit;
 

@@ -61,6 +61,8 @@ var _kit: KitRow
 var _back: BackButton
 ## Le mode du terrier en cours ("placing", "walling"), vide sinon.
 var _mode := ""
+## La barre d'amenagement, pendant le mode « arrange ».
+var _arrange_bar: ArrangeBar
 ## LE PLATEAU MONTRE UN RAID (burrow.gd `show_raid`) — pas « RaidState en a
 ## un » : entre les deux, il y a le rideau, et le chrome tourne au noir.
 var _raid_shown := false
@@ -192,6 +194,9 @@ func _mount_place() -> void:
 	_loop = null
 	_kit = null
 	_back = null
+	_arrange_bar = null
+	if _mode == "arrange":
+		_mode = ""
 	if not Screens.in_world() or Screens.place != Screens.Place.BURROW:
 		return
 	# EN RAID, le terrier est le plateau d'un autre : ni colonne, ni DIG sous
@@ -360,11 +365,6 @@ func _dig() -> void:
 			RunState.current.join(null)
 		Screens.cross(Screens.Place.ISLAND)
 		return
-	RunState.current.join(null)
-	Screens.cross(Screens.Place.ISLAND)
-
-
-## UN RAID SUR NOTRE TERRIER commence ou finit (burrow.gd). La grille monte
 	# A SEC, ON NE TRAVERSE PAS. Le serveur refuse le `join` (`no_energy`) et
 	# l'ile d'attente restait a l'ecran, sans siege — on y « creusait » quand
 	# meme, a crédit, sur un plateau qui n'etait pas le sien (2026-09-23). Le
@@ -376,6 +376,11 @@ func _dig() -> void:
 			Sound.deny()
 			EnergyPopup.open()
 			return
+	RunState.current.join(null)
+	Screens.cross(Screens.Place.ISLAND)
+
+
+## UN RAID SUR NOTRE TERRIER commence ou finit (burrow.gd). La grille monte
 ## seule — un raid est LE moment ou une bombe vaut d'etre enterree, et le
 ## joueur n'a pas a chercher le bouton — et ce qui etait ouvert descend : la
 ## liste des cibles, le codex, l'energie restaient par-dessus la defense
@@ -410,6 +415,8 @@ func show_raid(on: bool) -> void:
 func _start_mode(mode: String) -> void:
 	if _kit == null:
 		return
+	if _mode == "arrange":
+		_end_mode()
 	_mode = mode
 	_kit.open(mode)
 	_loop.visible = false
@@ -433,6 +440,63 @@ func _feed_kit() -> void:
 		_kit.state.adopt_fences(shop.fences)
 
 
+## AMENAGER LE TERRIER (la carte du terrier, `arrange`) : le sol passe en
+## brouillon, la barre du sol et la colonne s'effacent, la barre
+## d'amenagement monte. Refuse pendant un raid sur notre terrier.
+func arrange() -> void:
+	var burrow := Screens.at(Screens.Place.BURROW)
+	if OS.is_debug_build():
+		print("[arrange] bouton ARRANGE : burrow=%s kit=%s mode='%s'" % [burrow, _kit, _mode])
+	if burrow == null or _kit == null or not burrow.has_method("set_arranging"):
+		return
+	if not burrow.call("can_arrange"):
+		if OS.is_debug_build():
+			print("[arrange] refuse : raid en cours (%s)" % JSON.stringify(RaidState.current.incoming))
+		toast(I18N.t("arrange.locked"), true)
+		return
+	if not _mode.is_empty():
+		_end_mode()
+	close_dialog()
+	_mode = "arrange"
+	_loop.visible = false
+	_column.set_editing(true)
+	_arrange_bar = ArrangeBar.new()
+	floor_host.add_child(_arrange_bar)
+	_arrange_bar.save_pressed.connect(func() -> void: burrow.call("arrange_save"))
+	_arrange_bar.reset_pressed.connect(func() -> void: burrow.call("arrange_reset"))
+	_arrange_bar.cancel_pressed.connect(_end_mode)
+	if not burrow.is_connected("arrange_changed", _on_arrange_changed):
+		burrow.connect("arrange_changed", _on_arrange_changed)
+	burrow.call("set_arranging", true)
+
+
+## Le terrier a bouge : la barre relit son etat ; s'il n'amenage plus (un
+## enregistrement reussi, un raid qui arrive), le mode se referme.
+func _on_arrange_changed() -> void:
+	var burrow := Screens.at(Screens.Place.BURROW)
+	var state: Dictionary = burrow.call("arrange_state") if burrow != null else {}
+	if state.is_empty():
+		if _mode == "arrange":
+			_end_arrange()
+		return
+	if _arrange_bar != null:
+		_arrange_bar.show_state(state)
+
+
+func _end_arrange() -> void:
+	_mode = ""
+	if _arrange_bar != null:
+		_arrange_bar.queue_free()
+		_arrange_bar = null
+	if _loop != null:
+		_loop.visible = true
+	if _column != null:
+		_column.set_editing(false)
+	var burrow := Screens.at(Screens.Place.BURROW)
+	if burrow != null and burrow.has_method("set_arranging"):
+		burrow.call("set_arranging", false)
+
+
 ## CHANGER DE MODE SANS REFERMER LA RANGEE : c'est elle qui vient de le
 ## demander, sa case est deja choisie. « inspect » suspend le plateau (ni pose
 ## ni cloture) mais garde la rangee et le retour.
@@ -448,6 +512,9 @@ func _switch_mode(mode: String) -> void:
 
 func _end_mode() -> void:
 	if _mode.is_empty():
+		return
+	if _mode == "arrange":
+		_end_arrange()
 		return
 	_mode = ""
 	if _kit != null:
@@ -527,6 +594,7 @@ func toast(text: String, refused: bool = false) -> void:
 	# UN REFUS S'ENTEND (page.tsx `refuse`) : le meme non partout.
 	if refused:
 		Sound.deny()
+	_clear_pill()
 	var note := Kit.caption(text, refused)
 	note.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	# UNE LEGENDE QUI SE REPLIE N'A PAS DE LARGEUR A ELLE : centree dans la
@@ -544,6 +612,27 @@ func toast(text: String, refused: bool = false) -> void:
 	tween.tween_interval(TOAST_SECONDS)
 	tween.tween_property(note, "modulate:a", 0.0, TOAST_FADE)
 	tween.tween_callback(note.queue_free)
+
+
+## SOUS LA PASTILLE, PAS SOUS LA BARRE. Le cadran d'energie de la pastille a
+## carottes pend plus bas que TOPBAR_H : une legende calee sur la barre
+## passait dessous, et « Could not save your burrow » se lisait a moitie
+## derriere le cadran (2026-09-23). On mesure donc le bas de ce qui est
+## vraiment dessine — la pastille et tout ce qu'elle porte.
+func _clear_pill() -> void:
+	var bottom := Kit.TOPBAR_H
+	for pill in top_bar.find_children("*", "CarrotPill", true, false):
+		if pill is Control and (pill as Control).is_visible_in_tree():
+			bottom = maxf(bottom, _drawn_bottom(pill) - global_position.y)
+	toasts.offset_top = bottom + Kit.PAD_TIGHT
+
+
+static func _drawn_bottom(node: Control) -> float:
+	var y := node.get_global_rect().end.y
+	for child in node.get_children():
+		if child is Control and (child as Control).visible:
+			y = maxf(y, _drawn_bottom(child))
+	return y
 
 
 # ── Les dialogues ────────────────────────────────────────────────────────────

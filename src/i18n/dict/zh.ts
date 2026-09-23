@@ -172,6 +172,33 @@ export const zh: Dict = {
     regenRate: (perHour) => `每小时 ${perHour} 点体力`,
   },
 
+  arrange: {
+    button: '布置',
+    pick: '按住并拖动一棵树、你的房子或菜园',
+    place: '点一个亮起的格子放下',
+    save: '保存',
+    cancel: '取消',
+    reset: '还原',
+    saved: '洞穴已重新布置。',
+    planksBack: (n) => `${n} 块栅栏回到了背包`,
+    bombsBack: (n) => `${n} 颗炸弹回到了背包`,
+    locked: '你的洞穴正在被袭击，结束后再布置。',
+    unsaved: '洞穴没能保存，请稍后再试。',
+    refused: {
+      occupied: '这里已经有东西了。',
+      cells_overlap: '这里已经有东西了。',
+      field_off_ground: '菜园必须在陆地上。',
+      field_split: '菜园必须在同一层上。',
+      thing_off_ground: '不能放在水里。',
+      field_unreachable: '这样会把菜园围死，袭击者必须能走到。',
+      crossing_too_short: (n) => `离入口太近：到菜园至少要 ${n} 步。`,
+      crossing_too_long: (n) => `太远了：菜园最多 ${n} 步。`,
+      house_off_ground: '房子需要一块空地。',
+      under_raid: '你的洞穴正在被袭击，结束后再布置。',
+      bad_edits: '这个布置被拒绝了。',
+    },
+  },
+
   notes: {
     shieldUp: '护盾已起。掠夺会被弹开。',
     watered: '已浇水。菜园长得更快。',

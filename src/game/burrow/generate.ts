@@ -145,6 +145,8 @@ export interface BurrowTerrain {
   crossing: number;
   /** The seed this was grown from. */
   seed: string;
+  /** Where the owner put the house, when they moved it (`BurrowEdits`). */
+  house?: number;
 }
 
 const index = (col: number, row: number) => row * BURROW_COLS + col;
@@ -612,3 +614,138 @@ function paint(
 }
 
 export { index as burrowIndex, colRow as burrowColRow, STEPS as BURROW_STEPS, MAX_STEP };
+
+/**
+ * The longest crossing a rearranged burrow may have.
+ *
+ * The generator deals 8..13 steps, and `RAID_RUN.WALK_FLOOR` lets a raider in
+ * with exactly enough walk for the longest of them. A tree maze past that
+ * would be a burrow nobody can reach the field of — not a defence, a wall.
+ */
+export const MAX_CROSSING = 13;
+
+/**
+ * What the OWNER changed on top of the generated burrow. Stored as a final
+ * state rather than as a list of gestures, so it is judged whole: the order in
+ * which the player dragged things around is not the server's business.
+ *
+ * - `field`: the potager translated as one block, by `[dcol, drow]`.
+ * - `house`: the tile the house stands on. Cosmetic — the house has never
+ *   been part of the board's rules (`buildings.ts`).
+ * - `moves`: `[from, to]` for each thing standing on the homestead that was
+ *   picked up. `from` is where the GENERATOR put it, so a thing moved twice
+ *   is still one entry.
+ */
+export interface BurrowEdits {
+  field?: [number, number];
+  house?: number;
+  moves?: [number, number][];
+}
+
+/** Why an edit is refused — the client names the same reasons. */
+export type BurrowEditRefusal =
+  | 'bad_edits'
+  | 'field_off_ground'
+  | 'field_split'
+  | 'thing_off_ground'
+  | 'cells_overlap'
+  | 'field_unreachable'
+  | 'crossing_too_short'
+  | 'crossing_too_long'
+  | 'house_off_ground';
+
+/** Is there anything to apply? An empty edit is the generated burrow. */
+export function hasEdits(e: BurrowEdits | null | undefined): e is BurrowEdits {
+  if (!e) return false;
+  return (!!e.field && (e.field[0] !== 0 || e.field[1] !== 0))
+    || e.house !== undefined
+    || (e.moves?.length ?? 0) > 0;
+}
+
+/**
+ * The generated burrow with the owner's edits on it, or why not.
+ *
+ * Rebuilt from the same pieces `tryBuild` uses — the relief never moves, the
+ * entrance never moves, and the ground is measured again once the things on
+ * it have: which cells are the homestead, the crossing, the doorstep. The same
+ * promises hold as for a generated burrow (the field is reachable, the walk to
+ * it is at least `MIN_CROSSING`), plus a ceiling (`MAX_CROSSING`).
+ *
+ * Mirrored in godot/scripts/burrow_layout.gd `edited`; the order of every
+ * check is the contract, so both sides name the same refusal.
+ */
+export function editBurrow(
+  base: BurrowTerrain,
+  edits: BurrowEdits,
+): BurrowTerrain | BurrowEditRefusal {
+  const { map, entrance } = base;
+  const n = BURROW_COLS * BURROW_ROWS;
+  const onBoard = (t: unknown): t is number => Number.isInteger(t) && (t as number) >= 0 && (t as number) < n;
+  const land = (t: number) => {
+    const { col, row } = colRow(t);
+    return levelAt(map, col, row) > 0;
+  };
+
+  // The field, as one block on one shelf.
+  const [dc, dr] = edits.field ?? [0, 0];
+  if (!Number.isInteger(dc) || !Number.isInteger(dr)) return 'bad_edits';
+  const field: number[] = [];
+  let tier = -1;
+  for (const t of base.field) {
+    const { col, row } = colRow(t);
+    const nc = col + dc;
+    const nr = row + dr;
+    if (nc < 0 || nc >= BURROW_COLS || nr < 0 || nr >= BURROW_ROWS) return 'field_off_ground';
+    const lv = levelAt(map, nc, nr);
+    if (lv <= 0) return 'field_off_ground';
+    if (tier < 0) tier = lv;
+    else if (lv !== tier) return 'field_split';
+    field.push(index(nc, nr));
+  }
+  field.sort((a, b) => a - b);
+  const inField = new Set(field);
+  if (inField.has(entrance)) return 'cells_overlap';
+
+  // The things, each at its final cell.
+  const moved = new Map<number, number>();
+  for (const pair of edits.moves ?? []) {
+    if (!Array.isArray(pair) || !onBoard(pair[0]) || !onBoard(pair[1])) return 'bad_edits';
+    if (moved.has(pair[0])) return 'bad_edits';
+    moved.set(pair[0], pair[1]);
+  }
+  const taken = new Set<number>();
+  const placements: Placement[] = [];
+  const known = new Set<number>();
+  for (const p of base.placements) {
+    const from = index(p.x, p.y);
+    known.add(from);
+    const to = moved.get(from) ?? from;
+    if (to !== from && !land(to)) return 'thing_off_ground';
+    if (taken.has(to) || inField.has(to) || to === entrance) return 'cells_overlap';
+    taken.add(to);
+    const { col, row } = colRow(to);
+    placements.push(to === from ? p : { ...p, x: col, y: row });
+  }
+  for (const from of moved.keys()) if (!known.has(from)) return 'bad_edits';
+
+  // The ground, measured again.
+  const homestead = mainBody(map, walkableWith(map, placements));
+  if (!homestead.has(entrance) || field.some((t) => !homestead.has(t))) return 'field_unreachable';
+  const steps = stepDistances(map, homestead, entrance);
+  const crossing = Math.min(...field.map((t) => steps.get(t) ?? Infinity));
+  if (crossing === Infinity) return 'field_unreachable';
+  if (crossing < MIN_CROSSING) return 'crossing_too_short';
+  if (crossing > MAX_CROSSING) return 'crossing_too_long';
+  const doorstep = pickDoorstep(steps, crossing, inField);
+  const cells = paint(homestead, entrance, field, doorstep);
+
+  // The house: open ground only, nothing standing on it.
+  let house: number | undefined;
+  if (edits.house !== undefined) {
+    if (!onBoard(edits.house)) return 'bad_edits';
+    if (cells[edits.house] !== 'ground' || taken.has(edits.house)) return 'house_off_ground';
+    house = edits.house;
+  }
+
+  return { map, placements, cells, entrance, field, doorstep, crossing, seed: base.seed, house };
+}
