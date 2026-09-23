@@ -31,6 +31,8 @@ Screens="*res://scripts/screens.gd"
 ; qu'il doit survivre aux traversees ; apres Screens parce qu'il se dessine
 ; par-dessus tout ce que Screens monte.
 FpsMarker="*res://scripts/fps_marker.gd"
+; Les pointeurs pixel du web, sur PC (rien sur Android).
+Cursors="*res://scripts/cursors.gd"
 
 [display]
 
