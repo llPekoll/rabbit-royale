@@ -109,6 +109,23 @@ const CHEST_FRAMES: Array[Rect2] = [
 	Rect2(0, 14, 23, 14), Rect2(23, 14, 23, 14),
 ]
 const CHEST_SCALE := 1.25
+## L'OUVERTURE : les images `jump front` puis `jumpback` de l'atlas, a 100 ms ;
+## le cadre source de 64, et ou l'image FERMEE y est posee (21, 50).
+const CHEST_ATLAS := preload("res://assets/misc/loot-box.json")
+const CHEST_OPEN_FRAMES := [6, 7, 8, 9, 10, 17, 18, 19, 20, 21]
+const CHEST_CELL := 64.0
+const CHEST_CLOSED_AT := Vector2i(21, 50)
+## Quand le couvercle saute (3e image), et quand l'ouverture est finie.
+const CHEST_POP_AT := 0.25
+## Le saut qui la sort de derriere le lapin : 30 px plus haut, 2x, en 0,18 s.
+const CHEST_JUMP_SECONDS := 0.18
+const CHEST_OPEN_LIFT := 30.0
+const CHEST_OPEN_SCALE := 2.0
+const Z_CHEST_OPEN := 12
+## Les dix images a 100 ms, puis toute la scene sur la case : le saut,
+## l'ouverture, l'effacement — ce que la ceremonie attend.
+const CHEST_ANIM_SECONDS := 1.0
+const CHEST_OPEN_SECONDS := 1.5
 const CHEST_FPS := 10.0
 ## De combien le pied du coffre descend sous le centre du losange, pour que la
 ## boite se lise POSEE dans la case et non flottant sur son bord haut.
@@ -208,10 +225,8 @@ const SHADOW_ALPHA := 0.3
 const GOLDEN_SCALE := 1.35
 const GOLDEN_TINT := Color("#ffe066")
 
-## LA BOMBE DECOUVERTE, a 20 pixels de large, puis son cratere : un bord brun
-## et un fond presque noir, sous le X (le cratere est dans le sol).
-const BOMB := preload("res://assets/ui/icons/bomb.png")
-const BOMB_W := 20.0
+## LE CRATERE PEINT, quand le terrain ne peut pas poser le trou dessine : un
+## bord brun et un fond presque noir, sous le X (le cratere est dans le sol).
 const CRATER_RIM := Color(0x1a / 255.0, 0x10 / 255.0, 0x0a / 255.0, 0.55)
 const CRATER_PIT := Color(0x05 / 255.0, 0x03 / 255.0, 0x02 / 255.0, 0.75)
 const Z_CRATER := 3
@@ -246,6 +261,7 @@ var _primed := false
 var _pulsed := Vector2i(-1, -1)
 var _pulse: Tween
 
+static var _open_sf: SpriteFrames
 static var _diamond: ImageTexture
 
 
@@ -738,41 +754,154 @@ func _take_carrot(cell: Vector2i, golden: bool = false) -> void:
 	t.chain().tween_callback(holder.queue_free)
 
 
-## LA BOMBE SE MONTRE, PUIS LE CRATERE (`markBombSite`) : la boite noire sur
-## la case, remplacee par un trou qui se creuse en 0,4 s apres un quart de
-## seconde. Le cratere reste — la case a saute.
+## LA BOMBE SAUTE, ET LE TROU RESTE (IslandScene `reveal` : `markBombSite`
+## puis `playExplosion`).
+##
+## LE TROU D'ABORD, parce qu'il decide d'une couche de l'explosion : quand le
+## terrain peut remplacer l'herbe de la case par le cratere PEINT (la colonne
+## 10 de la planche plate), c'est lui la trace, et l'explosion saute sa
+## brulure — un trou et une brulure qui s'efface par-dessus diraient deux fois
+## la meme chose. Sinon (rampe, case sans sol plat), le cratere en losanges,
+## qui monte SOUS le feu plutot qu'apres lui : apparu a sa derniere image, il
+## se lirait comme un second evenement.
 func _blast(cell: Vector2i) -> void:
-	var bomb := Sprite2D.new()
-	bomb.texture = BOMB
-	bomb.scale = Vector2.ONE * BOMB_W / BOMB.get_width()
-	if not terrain.mount_veil(cell, bomb, Z_PROP):
-		bomb.free()
-		return
-	var crater := Node2D.new()
-	terrain.mount_veil(cell, crater, Z_CRATER)
-	var rim := _diamond_node(CRATER_RIM, 1.0)
-	var pit := _diamond_node(CRATER_PIT, 0.72)
-	pit.position.y = 1.0
-	crater.add_child(rim)
-	crater.add_child(pit)
-	crater.modulate.a = 0.0
-	_props.append(crater)
-	var t := create_tween()
-	t.tween_interval(0.25)
-	t.tween_callback(bomb.queue_free)
-	t.tween_property(crater, "modulate:a", 1.0, 0.4)
+	var dug := terrain.dig_cell(cell)
+	if not dug:
+		var crater := Node2D.new()
+		if terrain.mount_veil(cell, crater, Z_CRATER):
+			var rim := _diamond_node(CRATER_RIM, 1.0)
+			var pit := _diamond_node(CRATER_PIT, 0.72)
+			pit.position.y = 1.0
+			crater.add_child(rim)
+			crater.add_child(pit)
+			crater.modulate.a = 0.0
+			_props.append(crater)
+			create_tween().tween_property(crater, "modulate:a", 1.0, 0.4).set_delay(0.25)
+		else:
+			crater.free()
+	# LE BUISSON DE LA CASE PART AVEC LE SOL : les buissons ne bloquent pas, le
+	# serveur enterre donc des bombes dessous — sans ca, il resterait plante
+	# dans son propre cratere.
+	var bush: Node2D = _bush_at.get(cell, null)
+	if bush != null and is_instance_valid(bush):
+		bush.queue_free()
+		_bush_at.erase(cell)
+	Blast.play(self, terrain, cell, dug)
 
 
-## LE COFFRE PRIS S'ENVOLE (`clearChest`) : la boite grossit en reculant et
-## s'efface, le halo, le faisceau et la fleche s'eteignent avec elle.
+## LE COFFRE S'OUVRE SUR SA CASE, PUIS S'EN VA.
+##
+## Le web ne l'ouvre que dans la ceremonie (`ChestOpening`) ; sur le plateau
+## il s'envolait ferme. Ici le couvercle saute LA OU on l'a trouve — les dix
+## images `jump front` + `jumpback` de la planche (6-10, 17-21, 100 ms), les
+## memes que la ceremonie —, une gerbe dans la couleur du palier jaillit au
+## moment ou il s'ouvre, puis la boite recule et s'efface comme avant
+## (`clearChest` : x1,5, retour arriere, 0,25 s). La ceremonie attend la fin
+## (`CHEST_OPEN_SECONDS`) : posee tout de suite, elle cachait l'ouverture.
 func _clear_chest(cell: Vector2i) -> void:
-	var chest: Node2D = _chest[cell]
+	var chest: AnimatedSprite2D = _chest[cell]
 	var holder: Node2D = _flair[cell]
-	var t := create_tween().set_parallel(true)
-	t.tween_property(chest, "scale", chest.scale * 1.5, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
-	t.tween_property(chest, "modulate:a", 0.0, 0.25)
-	t.tween_property(holder, "modulate:a", 0.0, 0.3)
-	t.chain().tween_callback(func() -> void: holder.visible = false)
+	var tint: Color = CHEST_TIER_COLOR[_tier_of.get(cell, CHEST_TIER)]
+	if _arrow.has(cell):
+		(_arrow[cell] as Node2D).visible = false
+
+	# LA BOITE QUI S'OUVRE remplace la boite fermee, au meme pixel : les images
+	# d'ouverture sont posees dans leur cadre de 64 (`spriteSourceSize`), et le
+	# cadre est cale pour que l'image fermee tombe ou etait l'ancienne.
+	var opener := AnimatedSprite2D.new()
+	opener.sprite_frames = _open_frames()
+	opener.centered = false
+	opener.offset = chest.offset - Vector2(CHEST_CLOSED_AT)
+	opener.scale = chest.scale
+	opener.position = chest.position
+	opener.z_index = chest.z_index
+	holder.add_child(opener)
+	chest.visible = false
+
+	# ELLE SAUTE AU-DESSUS DU LAPIN pour s'ouvrir. Le lapin vient d'arriver sur
+	# la case et se tient DEVANT elle : une boite de 29 pixels derriere un
+	# lapin de 48, l'ouverture ne se voyait pas du tout. Le porteur passe
+	# au-dessus du lapin de sa case (DEPTH_BIAS 10) sans atteindre la rangee
+	# suivante (16).
+	holder.z_index = Z_CHEST_OPEN
+	# LE MOT DU PALIER S'EFFACE : la boite sautee passe exactement ou il flotte.
+	for child in holder.get_children():
+		if child is Label:
+			create_tween().tween_property(child, "modulate:a", 0.0, CHEST_JUMP_SECONDS)
+	var up := create_tween().set_parallel(true)
+	up.tween_property(opener, "position:y", opener.position.y - CHEST_OPEN_LIFT, CHEST_JUMP_SECONDS) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	up.tween_property(opener, "scale", Vector2.ONE * CHEST_OPEN_SCALE, CHEST_JUMP_SECONDS) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	up.chain().tween_callback(func() -> void: opener.play("open"))
+
+	# LE COUVERCLE SAUTE a la 3e image : la gerbe part a ce moment-la, du
+	# couvercle et non plus du sol.
+	var t := create_tween()
+	t.tween_interval(CHEST_JUMP_SECONDS + CHEST_POP_AT)
+	t.tween_callback(func() -> void: _chest_burst(holder, tint, -CHEST_OPEN_LIFT))
+	# PUIS ON LAISSE L'OUVERTURE FINIR avant d'effacer. Les trois fondus sont
+	# `parallel()` ENTRE EUX seulement : un `set_parallel(true)` sur tout le
+	# tween les rendait paralleles a l'attente aussi — la boite s'effacait
+	# des le couvercle.
+	t.tween_interval(CHEST_ANIM_SECONDS - CHEST_POP_AT)
+	t.tween_property(opener, "scale", Vector2.ONE * CHEST_OPEN_SCALE * 1.5, 0.25) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	t.parallel().tween_property(opener, "modulate:a", 0.0, 0.25)
+	t.parallel().tween_property(holder, "modulate:a", 0.0, 0.3)
+	t.tween_callback(func() -> void: holder.visible = false)
+
+
+## LA GERBE : un eclair doux dans la couleur du palier, et des etincelles
+## projetees en cloche — plus nombreuses et plus hautes a mesure que le palier
+## monte, comme les particules du faisceau (`motes`).
+func _chest_burst(holder: Node2D, tint: Color, lift: float = 0.0) -> void:
+	var glow := Sprite2D.new()
+	glow.texture = Blast._soft_disc()
+	glow.modulate = Color(tint, 0.9)
+	var add := CanvasItemMaterial.new()
+	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	glow.material = add
+	glow.position.y = lift - 10
+	glow.scale = Vector2.ONE * 0.3
+	glow.z_index = 8
+	holder.add_child(glow)
+	var g := create_tween().set_parallel(true)
+	g.tween_property(glow, "scale", Vector2.ONE * 1.1, 0.35).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	g.tween_property(glow, "modulate:a", 0.0, 0.35)
+	g.chain().tween_callback(glow.queue_free)
+
+	var tier: String = CHEST_TIER
+	for k in CHEST_TIER_COLOR:
+		if CHEST_TIER_COLOR[k] == tint:
+			tier = k
+	var flair: Dictionary = CHEST_FLAIR[tier]
+	var count := 6 + int(flair["motes"]) * 2
+	for i in count:
+		var big := i % 3 == 0
+		var spark := Sprite2D.new()
+		spark.texture = _square_texture(3 if big else 2)
+		spark.modulate = Color.WHITE if big else tint
+		var from := lift - 10.0
+		spark.position = Vector2(0, from)
+		spark.z_index = 9
+		holder.add_child(spark)
+		var ang := -PI * 0.5 + (_rng.randf() - 0.5) * PI * 1.1
+		var dist := 14.0 + _rng.randf() * 22.0
+		var rise := float(flair["beam"]) * (0.5 + _rng.randf() * 0.5)
+		var secs := 0.55 + _rng.randf() * 0.35
+		var end := Vector2(cos(ang) * dist, sin(ang) * dist * 0.3)
+		var fly := create_tween().set_parallel(true)
+		fly.tween_property(spark, "position:x", end.x, secs)
+		var arc := create_tween()
+		arc.tween_property(spark, "position:y", from - rise, secs * 0.45) \
+			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		arc.tween_property(spark, "position:y", end.y + 6.0, secs * 0.55) \
+			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		var fade := create_tween()
+		fade.tween_interval(secs * 0.6)
+		fade.tween_property(spark, "modulate:a", 0.0, secs * 0.4)
+		fade.tween_callback(spark.queue_free)
 
 
 func _ellipse(rx: float, ry: float, color: Color) -> Node2D:
@@ -1015,6 +1144,31 @@ static func _square_texture(n: int) -> ImageTexture:
 
 
 ## LES FRAMES DU COFFRE, decoupees dans l'atlas une fois pour toutes.
+## LES IMAGES D'OUVERTURE, chacune remise dans son cadre de 64 : l'atlas rogne
+## chaque image a son contenu, et c'est `spriteSourceSize` qui dit ou elle se
+## pose — la marge de l'AtlasTexture la replace.
+static func _open_frames() -> SpriteFrames:
+	if _open_sf != null:
+		return _open_sf
+	var sf := SpriteFrames.new()
+	sf.remove_animation("default")
+	sf.add_animation("open")
+	sf.set_animation_speed("open", 10.0)
+	sf.set_animation_loop("open", false)
+	var raw: Array = (CHEST_ATLAS as JSON).data["frames"]
+	for i in CHEST_OPEN_FRAMES:
+		var e: Dictionary = raw[i]
+		var f: Dictionary = e["frame"]
+		var src: Dictionary = e["spriteSourceSize"]
+		var at := AtlasTexture.new()
+		at.atlas = CHEST_SHEET
+		at.region = Rect2(f.x, f.y, f.w, f.h)
+		at.margin = Rect2(src.x, src.y, CHEST_CELL - float(f.w), CHEST_CELL - float(f.h))
+		sf.add_frame("open", at)
+	_open_sf = sf
+	return sf
+
+
 static func _chest_frames() -> SpriteFrames:
 	if _chest_sf != null:
 		return _chest_sf

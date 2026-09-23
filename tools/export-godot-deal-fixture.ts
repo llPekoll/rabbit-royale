@@ -13,12 +13,13 @@
  * the chest tier's first letter, `d` dug / `h` hinted, then the bomb count.
  * And what every chest pays, rolled the way `server/index.ts` + `resolveMove`
  * roll it: one rng per (island seed, tile), loot then the crown's NFT draw.
+ * And the island as a CLIENT sees it (`publicView`), for the online board.
  */
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { CHEST_LOOT, CHEST_LOOT_BY_TIER, CHEST_NFT_ODDS } from '../config/tuning';
-import { generateIsland } from '../src/lib/game/island';
+import { generateIsland, publicView } from '../src/lib/game/island';
 import { mulberry32, pickWeighted, randInt, seedFrom } from '../src/lib/game/rng';
 import { spawnTile, terrainFor } from '../src/lib/game/terrainBoard';
 
@@ -49,7 +50,8 @@ const out = CASES.map(([seed, contentSeed, life]) => {
       + (t.revealed ? 'd' : t.hinted ? 'h' : '') + t.adjacent;
   }
   return { seed, contentSeed, lifetime: life, spawn: spawnTile(seed),
-           placements: terrainFor(seed).placements.length, tiles, loot };
+           placements: terrainFor(seed).placements.length, tiles, loot,
+           view: publicView(island) };
 });
 
 const file = join(import.meta.dir, '..', 'godot', 'tools', 'deal_fixture.json');

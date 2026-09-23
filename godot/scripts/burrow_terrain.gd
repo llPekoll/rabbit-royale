@@ -33,6 +33,12 @@ const TIER_SHEETS := [
 	preload("res://assets/terrain/palette-4.webp"),
 ]
 const ELEVATION_SHEET := preload("res://assets/terrain/tilemap-elevation.webp")
+
+## LE TROU QU'UNE BOMBE LAISSE — la colonne 10 de la planche plate, celle que
+## RR peint lui-meme directement en ISO (tileset.ts `FLAT_CUSTOM_COL`). Rangee
+## 0 : le cratere.
+const FLAT_SHEET := preload("res://assets/terrain/tilemap-flat.webp")
+const FLAT_CUSTOM_COL := 10
 const TILE := 64
 
 ## Le jeu blob d'herbe commence a la colonne 0 des palettes, qui font 9x6.
@@ -99,6 +105,10 @@ var _blocks: Array[Node2D] = []
 ## Vidé en meme temps que `_blocks` : voir `clear`, et la lecon des bombes
 ## fantomes qui y est racontee.
 var _block_at: Dictionary = {}
+## Le sprite de SOL de chaque case plate — ce que `dig_cell` repeint. Une
+## rampe n'y est pas : son herbe est deformee, un trou plat s'y poserait de
+## travers.
+var _ground_at: Dictionary = {}
 var _grass: Array = []
 var _rock: Array = []
 
@@ -336,6 +346,8 @@ func build() -> void:
 				-(TILE - Iso.BURROW_TILE_H) * 0.5 - grown
 			)
 			block.add_child(ground)
+			if not hangs:
+				_ground_at[Vector2i(col, row)] = ground
 
 
 ## MONTE QUELQUE CHOSE SUR UNE CASE, DANS SON BLOC.
@@ -360,6 +372,26 @@ func mount_veil(cell: Vector2i, veil: Node2D, z: int = Z_VEIL) -> bool:
 	veil.position = Vector2(0, Iso.half_h())
 	veil.z_index = z
 	block.add_child(veil)
+	return true
+
+
+## CREUSE LE SOL D'UNE CASE : son herbe devient le trou peint
+## (IsoIslandView `digCell`).
+##
+## LA TEXTURE EST REMPLACEE, pas recouverte : le milieu du trou EST un trou,
+## transparent — pose par-dessus, on verrait l'herbe a travers. Garder le
+## sprite garde sa position, son echelle et sa place dans le bloc.
+##
+## Faux quand la case n'a pas de sol plat (mer, rampe) : l'appelant garde
+## alors le cratere peint en losanges.
+func dig_cell(cell: Vector2i, row: int = 0) -> bool:
+	var ground: Sprite2D = _ground_at.get(cell)
+	if ground == null or not is_instance_valid(ground):
+		return false
+	var pit := AtlasTexture.new()
+	pit.atlas = FLAT_SHEET
+	pit.region = Rect2(FLAT_CUSTOM_COL * TILE, row * TILE, TILE, TILE)
+	ground.texture = pit
 	return true
 
 
@@ -522,6 +554,7 @@ func clear() -> void:
 		block.queue_free()
 	_blocks.clear()
 	_block_at.clear()
+	_ground_at.clear()
 	if _underlay != null:
 		_underlay.queue_free()
 		_underlay = null

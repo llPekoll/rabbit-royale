@@ -35,6 +35,7 @@ var _tier_at := 0
 
 var _island: Island
 var _hud: RunHud
+var _bar: TopBar
 var _recap: RunRecap
 var _panel: PanelContainer
 var _info: Label
@@ -73,6 +74,15 @@ func _ready() -> void:
 	_hud.always = true
 	root.add_child(_hud)
 
+	# LA BARRE DU HAUT DU JEU : l'energie de la manche est sur SON cadran, le
+	# meme qu'au terrier — le HUD de manche n'a plus de barre a lui.
+	_bar = preload("res://scenes/ui/top_bar.tscn").instantiate()
+	# Hors du monde (pas de Screens ici) : visible quand meme.
+	_bar.preview = true
+	_bar.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	_bar.offset_bottom = Kit.TOPBAR_H
+	root.add_child(_bar)
+
 	_build_panel(root)
 
 	# LE BOUTON MARK A BOMB DU HUD arme l'ile ; l'ile desarme le HUD une fois le
@@ -86,6 +96,7 @@ func _ready() -> void:
 	# `--auto=N` : N pas joues tout seuls, pour une capture qui montre un
 	# plateau entame. Le pilote TRICHE (il lit ce qui est enterre) : c'est un
 	# outil de banc, il ne juge rien.
+	_reckless = args.has("reckless")
 	if args.has("auto"):
 		_auto_left = int(args["auto"])
 		var tick := Timer.new()
@@ -104,6 +115,28 @@ func _ready() -> void:
 
 
 var _auto_left := 0
+var _reckless := false
+
+
+## `--bomb-shot=chemin`, `--chest-shot=chemin` : des captures de la PREMIERE
+## bombe / du PREMIER coffre, a quelques instants apres — une explosion dure
+## une demi-seconde, une capture a heure fixe la rate. Ecrit `chemin-1.png`…
+var _shots_done := {}
+
+
+func _event_shots(arg: String, times: Array) -> void:
+	var base: String = _args().get(arg, "")
+	if base == "" or _shots_done.has(arg):
+		return
+	_shots_done[arg] = true
+	var k := 0
+	for t in times:
+		k += 1
+		var path := "%s-%d.png" % [base, k]
+		get_tree().create_timer(t).timeout.connect(func() -> void:
+			await RenderingServer.frame_post_draw
+			get_viewport().get_texture().get_image().save_png(path)
+			print("[shot] ", path))
 
 
 ## UN PAS DU PILOTE : vers le coffre le plus proche, sur une case sure.
@@ -125,7 +158,10 @@ func _auto_step() -> void:
 	var pick := Vector2i(-1, -1)
 	var pick_d := INF
 	for n in board._neighbours(run.at):
-		if board.content.get(n) == IslandBoard.Content.BOMB or not board.may_step(run.at, n):
+		if not board.may_step(run.at, n):
+			continue
+		# `--reckless` : il marche sur les bombes, pour voir une explosion.
+		if board.content.get(n) == IslandBoard.Content.BOMB and not _reckless:
 			continue
 		# Un peu de hasard : sans lui le pilote bute contre la premiere falaise.
 		var d := Vector2(goal - n).length() + randf() * 1.5
@@ -141,6 +177,8 @@ func _auto_step() -> void:
 func _args() -> Dictionary:
 	var out := {}
 	for a in OS.get_cmdline_user_args():
+		if a == "--reckless":
+			out["reckless"] = "1"
 		if a.begins_with("--") and a.contains("="):
 			var kv := a.substr(2).split("=", true, 1)
 			out[kv[0]] = kv[1]
@@ -190,8 +228,7 @@ func _next_tier() -> void:
 
 
 ## CE QUE LA SOCKET AURAIT DIT, dans la forme de `RunState` : mon lapin, le
-## volcan, le sac. `outcome` est le dernier `move_result` — il porte le coup
-## de la bombe (`hit`) quand il y en a un.
+## volcan, le sac.
 func _push(outcome: Dictionary) -> void:
 	var run := _island.local_run
 	if run == null:
@@ -215,10 +252,14 @@ func _push(outcome: Dictionary) -> void:
 		"digs": run.digs.duplicate(),
 		"bag": {"lightning": int(run.loot.get("lightning", 0)), "bombs": int(run.loot.get("bomb", 0))},
 	}
-	var dig: Dictionary = outcome.get("dig", {})
-	if int(dig.get("content", -1)) == IslandBoard.Content.BOMB:
-		state["hit"] = {"by": "", "kind": "bomb", "at": Time.get_ticks_msec()}
+	# PAS DE `hit` POUR UNE BOMBE CREUSEE : sur le fil, `hit` est le coup d'un
+	# RIVAL (eclair, bombe posee) — le HUD l'annonce « A RIVAL MINED THAT ».
+	# Sa propre bombe, on la voit sauter ; le serveur ne l'envoie pas en `hit`.
 	RunState.current.fake(state)
+	if _bar != null:
+		_bar.set_run(run.carrots, {"taken": int(p.total) - int(p.left), "total": p.total,
+			"warnStage": stage})
+		_bar.set_run_energy(run.energy)
 	_refresh_info()
 
 
@@ -228,6 +269,13 @@ func _on_changed(outcome: Dictionary) -> void:
 		RunState.current.set_flag_mode(false)
 	if not outcome.ok:
 		print("[sandbox] refuse : %s" % outcome.reason)
+	elif int(outcome.get("dig", {}).get("content", -1)) == IslandBoard.Content.BOMB:
+		_event_shots("bomb-shot", [0.05, 0.2, 0.6])
+	elif int(outcome.get("dig", {}).get("content", -1)) == IslandBoard.Content.CHEST:
+		# Le pilote s'arrete : sinon la camera part pendant qu'on regarde.
+		if _args().has("chest-shot"):
+			_auto_left = 0
+		_event_shots("chest-shot", [0.3, 0.5, 0.8, 1.1])
 	_push(outcome)
 
 

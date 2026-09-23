@@ -86,6 +86,27 @@ func _check(c: Dictionary) -> bool:
 		if got_l != loot[k]:
 			problems.append("coffre %s : %s, attendu %s" % [k, got_l, loot[k]])
 
+	# CE QUE LE CLIENT EN LIGNE VOIT (`publicView` -> `apply_public`) : chaque
+	# case connue doit dire la meme chose que le plateau complet, les coffres
+	# y sont tous avec leur palier, et rien d'enterre ne transparait.
+	if c.has("view"):
+		var seen := IslandBoard.new(map)
+		seen.apply_public(IslandGround.new(map, FirstIsland.ground_seed(seed_text)), c.view)
+		var bad := 0
+		for cell in board.content:
+			var st = board.state[cell]
+			if seen.state.get(cell) != st:
+				bad += 1
+			elif st != IslandBoard.State.BURIED and seen.adjacent.get(cell, -1) != board.adjacent[cell]:
+				bad += 1
+			elif board.content[cell] == IslandBoard.Content.CHEST and seen.chest_tier.get(cell) != board.chest_tier[cell]:
+				bad += 1
+			elif st == IslandBoard.State.BURIED and board.content[cell] != IslandBoard.Content.CHEST \
+					and seen.content.get(cell) != IslandBoard.Content.EMPTY:
+				bad += 1
+		if bad > 0:
+			problems.append("vue publique : %d cases different" % bad)
+
 	var p := board.chest_progress()
 	var line := "%-12s %d cases, %d coffres (%d lots), %d ms" % [seed_text, got.size(), p.total,
 		loot.size(), ms]

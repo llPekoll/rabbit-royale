@@ -77,6 +77,12 @@ var _scenery: IslandScenery
 var _compass: ChestCompass
 var _prize_host: Control
 
+## L'ILE EN LIGNE : le dernier instantane du serveur (`island`), et si le
+## plateau affiche est le sien. Tant qu'il l'est, une tape part au serveur et
+## ce sont ses evenements qui creusent — le client ne devine rien.
+var _remote := false
+var _remote_snap: Dictionary = {}
+
 ## LE ZOOM DE JEU : 60 pixels par case au paysage (islandCamera.ts
 ## `DEFAULT_TILE_PX`), centre sur le lapin. L'ile entiere au cadre se lit comme
 ## une carte ; on ne creuse pas une carte.
@@ -151,6 +157,19 @@ func _ready() -> void:
 	# monte, et l'ile coule a l'eruption. La lecon n'a pas de volcan ; ceci
 	# attend que les manches en ligne arrivent sur l'ile.
 	RunState.current.volcano_changed.connect(_on_volcano)
+	# L'ILE LIT LA SOCKET : l'instantane pose le plateau, les evenements le
+	# creusent, et le mode X du HUD arme l'anneau.
+	RunState.current.island_changed.connect(_on_snapshot)
+	RunState.current.board.connect(_on_board_event)
+	RunState.current.flag_mode_changed.connect(func(on: bool) -> void:
+		if _remote:
+			_set_armed(on))
+	# L'ILE NAIT A CHAQUE TRAVERSEE (screens.gd) : l'instantane du `join` est
+	# souvent arrive AVANT elle. On le reprend la ou RunState l'a garde — tant
+	# que j'ai un lapin dessus, sinon c'est la manche d'avant.
+	var held := RunState.current.island
+	if not held.is_empty() and not RunState.current.me().is_empty():
+		_on_snapshot(held)
 	RunState.current.erupting_changed.connect(func(ms: int) -> void:
 		if ms > 0:
 			play_eruption(ms)
@@ -226,9 +245,15 @@ func play_eruption(duration_ms: int, heave: bool = true) -> void:
 
 ## L'ILE REVIENT (`resetEruption`) : une nouvelle ile, ou la manche finie.
 func reset_eruption() -> void:
+	# RIEN A DEFAIRE, RIEN A RECADRER : `RunState` redit « pas d'eruption » a
+	# chaque evenement de la manche, et recadrer ici ramenait la camera sur le
+	# lapin a CHAQUE PAS — la camera du web, elle, attend qu'il approche du bord.
+	var sinking := (_eruption != null and _eruption.is_valid()) or modulate.a < 1.0
 	if _eruption != null and _eruption.is_valid():
 		_eruption.kill()
 	_eruption = null
+	if not sinking:
+		return
 	if _fade != null and _fade.is_valid():
 		_fade.kill()
 	modulate.a = 1.0
@@ -310,7 +335,15 @@ func _add_chrome() -> void:
 	_back.size = Vector2(220, 44)
 	_back.position = Vector2(12, 12)
 	_back.relabel("← TERRIER")
-	_back.pressed.connect(func() -> void: Screens.cross(Screens.Place.BURROW))
+	_back.pressed.connect(func() -> void:
+		# RENTRER, C'EST ENCAISSER : le serveur banque sur `leave`.
+		if _remote:
+			RunState.current.leave()
+			# Plus de siege : une ile revue sans `join` ne parle plus au
+			# serveur, elle montre son sol et attend le prochain instantane.
+			_remote = false
+			_remote_snap = {}
+		Screens.cross(Screens.Place.BURROW))
 	layer.add_child(_back)
 
 	# MARQUER UNE BOMBE. Un bouton et non un appui long : sur ce plateau un
@@ -449,7 +482,11 @@ func show_ground(seed_value: String) -> void:
 		# arbre, et un arbre ne se traverse pas.
 		_ground = IslandGround.new(map, FirstIsland.ground_seed(seed_value))
 		_board.ground = _ground
-		if _local_deal.size() > 0:
+		_remote = _local_deal.is_empty() and not _remote_snap.is_empty() \
+			and String(_remote_snap.get("seed", "")) == seed_value
+		if _remote:
+			_board.apply_public(_ground, _remote_snap)
+		elif _local_deal.size() > 0:
 			_board.deal_generated(_ground, seed_value, _local_deal.content_seed,
 				_local_deal.lifetime)
 	_tiles.board = _board
@@ -458,7 +495,7 @@ func show_ground(seed_value: String) -> void:
 	# lui laisse la place (ChestPointer.ts / `hideChestTier`).
 	_tiles.tutorial = FirstIsland.is_first(seed_value)
 	# LES COFFRES TOMBENT A L'ARRIVEE sur une ile neuve, pas a une reprise.
-	_tiles.drop_chests = _local_deal.size() > 0
+	_tiles.drop_chests = _local_deal.size() > 0 or _remote
 	# RIEN DEVANT UN COFFRE (`clearDecoOver`) : il doit se voir depuis l'autre
 	# bout de l'ile, c'est toute la raison pour laquelle il est dessine avant
 	# d'etre creuse. Le decor vient de la graine publique, les coffres de la
@@ -491,6 +528,10 @@ func show_ground(seed_value: String) -> void:
 	var start := TutorialMap.spawn() if FirstIsland.is_first(seed_value) else Vector2i(-1, -1)
 	if _ground != null:
 		start = _ground.spawn()
+		# EN LIGNE, le lapin est la ou le serveur le dit.
+		var mine := RunState.current.me()
+		if _remote and mine.has("tile"):
+			start = _board.cell_of(int(mine["tile"]))
 	_rabbit.build(hash(seed_value), start)
 	local_run = LocalRun.new(_board, start) if _local_deal.size() > 0 else null
 	_local_over = false
@@ -549,18 +590,46 @@ func _centred_origin(map: BurrowMap) -> Vector2:
 ## pour le porter.
 func _wanted_cam() -> BurrowCamera.Shot:
 	var view := get_viewport_rect().size
-	if local_run != null and not _cam_moved_by_player:
+	if (local_run != null or _remote) and not _cam_moved_by_player:
 		return _follow_shot(view)
 	if _cam_moved_by_player:
 		return BurrowCamera.clamp_place(_current_shot(), _terrain.map, view.x, view.y)
 	return BurrowCamera.board(_terrain.map, view.x, view.y)
 
 
+## LA CAMERA NE SUIT PAS LE LAPIN, elle le GARDE A L'ECRAN
+## (IslandScene `keepInView`). Elle reste immobile pendant qu'il marche au
+## milieu, et ne glisse — 0,45 s, sans rebond, au zoom du moment — que quand il
+## entre dans le tiers du bord. Recentrer a chaque saut faisait trembler le
+## sol sous chaque pas ; un rebond en plus le faisait tanguer.
+const FOLLOW_MARGIN := 0.3
+const FOLLOW_SECONDS := 0.45
+
+
+func _keep_in_view() -> void:
+	if (local_run == null and not _remote) or _pressing:
+		return
+	var view := get_viewport_rect().size
+	var here := _me_cell()
+	var focus := _terrain.map.screen_of(here.x, here.y) + Vector2(0, Iso.half_h())
+	var on := position + focus * scale.x
+	if on.x > view.x * FOLLOW_MARGIN and on.x < view.x * (1.0 - FOLLOW_MARGIN) \
+			and on.y > view.y * FOLLOW_MARGIN and on.y < view.y * (1.0 - FOLLOW_MARGIN):
+		return
+	var shot := BurrowCamera.clamp_place(
+		BurrowCamera.Shot.new(scale.x, view * 0.5 - focus * scale.x), _terrain.map, view.x, view.y)
+	if _cam_tween != null and _cam_tween.is_valid():
+		_cam_tween.kill()
+	_cam_tween = create_tween()
+	_cam_tween.tween_property(self, "position", shot.at, FOLLOW_SECONDS) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+
+
 ## LA PRISE DE JEU : le lapin au milieu, a 60 pixels par case, bornee comme
 ## un glissement du joueur (on ne montre pas la mer au-dela du bord).
 func _follow_shot(view: Vector2) -> BurrowCamera.Shot:
 	var k := PLAY_TILE_PX / (Iso.half_w() * 2.0)
-	var here := local_run.at
+	var here := _me_cell()
 	var focus := _terrain.map.screen_of(here.x, here.y) + Vector2(0, Iso.half_h())
 	var shot := BurrowCamera.Shot.new(k, view * 0.5 - focus * k)
 	return BurrowCamera.clamp_place(shot, _terrain.map, view.x, view.y)
@@ -780,10 +849,124 @@ func _on_release(at: Vector2) -> void:
 	# champ.
 	if local_run != null:
 		_local_tap(cell)
+	elif _remote:
+		_remote_tap(cell)
 	elif _board != null:
 		_board.dig(cell)
 		_tiles.refresh()
 	tile_tapped.emit(cell)
+
+
+## OU EST MON LAPIN, en cases : la manche locale, sinon le lapin affiche.
+func _me_cell() -> Vector2i:
+	return local_run.at if local_run != null else _rabbit.at()
+
+
+# ── L'ile en ligne ───────────────────────────────────────────────────────────
+
+## L'INSTANTANE DU SERVEUR (`island`, a l'arrivee et a chaque reconnexion) :
+## le plateau se repose dessus en entier. Le tutoriel n'en passe pas par la —
+## son plateau est dessine et joue hors ligne.
+func _on_snapshot(snap: Dictionary) -> void:
+	if not _local_deal.is_empty():
+		return
+	var s := String(snap.get("seed", ""))
+	if s.is_empty() or FirstIsland.is_first(s):
+		return
+	_remote_snap = snap
+	show_ground(s)
+	RunState.current.markable_probe = func(_on: bool) -> int: return markable_count()
+	_cam_moved_by_player = false
+	frame_camera(true)
+
+
+## CE QUE LA SALLE ENTEND (use-game-socket.ts `toScene`) : un evenement, une
+## mise a jour du plateau, et ce qu'elle fait voir et entendre.
+func _on_board_event(name: String, data: Variant) -> void:
+	if not _remote or _board == null:
+		return
+	var d: Dictionary = data if data is Dictionary else {}
+	var mine := RunState.current.my_id()
+	match name:
+		"tile_revealed":
+			var what := String(d.get("content", "empty"))
+			var c := _board.reveal_remote(int(d.get("tile", -1)), what, int(d.get("adjacent", 0)))
+			_tiles.refresh()
+			_on_remote_reveal(c, what)
+			_refresh_ring()
+		"hints_revealed":
+			for h in d.get("tiles", []):
+				_board.hint_remote(int(h.get("tile", -1)), int(h.get("adjacent", 0)))
+			_tiles.refresh()
+			_refresh_ring()
+		"bomb_flagged":
+			_board.flagged[_board.cell_of(int(d.get("tile", -1)))] = true
+			_tiles.refresh()
+			_refresh_ring()
+		"flag_result":
+			if bool(d.get("correct", false)):
+				Sound.play("chime_quick")
+			else:
+				Sound.deny()
+		"rabbit_moved":
+			if String(d.get("playerId", "")) == mine:
+				_rabbit.send_to(_board.cell_of(int(d.get("tile", -1))))
+				Sound.play("hop")
+				_refresh_ring()
+				if _shake == null or not _shake.is_running():
+					_keep_in_view()
+		"bomb_hit":
+			if String(d.get("playerId", "")) == mine:
+				var cell := _board.cell_of(int(d.get("tile", -1)))
+				var at: Vector2 = _terrain.map.screen_of(cell.x, cell.y) + Vector2(0, Iso.half_h())
+				get_tree().create_timer(0.08).timeout.connect(func() -> void: _rabbit.take_hit(at))
+		"move_result":
+			# LA MOITIE PRIVEE : ce que MON coffre contenait.
+			var dig: Dictionary = d.get("dig", {}) if d.get("dig") is Dictionary else {}
+			if dig.get("loot") is Dictionary:
+				var prize: Dictionary = (dig["loot"] as Dictionary).duplicate()
+				prize["nft"] = bool(dig.get("nft", false))
+				_show_prize(prize)
+		"move_rejected":
+			_ring.pulse()
+			Sound.deny()
+
+
+## UNE CASE S'OUVRE, qui que ce soit qui l'ait creusee : le son, et le souffle
+## d'une bombe. Le plateau joue deja la carotte, le trou et le coffre.
+func _on_remote_reveal(cell: Vector2i, what: String) -> void:
+	match what:
+		"carrot", "golden":
+			Sound.play("coin")
+		"bomb":
+			Sound.play("explosion")
+			if _scenery != null:
+				_scenery.clear_cell(cell, true)
+			_impact_shake()
+		"chest":
+			pass
+		_:
+			Sound.play("step")
+
+
+## UNE TAPE SUR UNE ILE EN LIGNE : `move` ou `flag` au serveur (RunState
+## decide selon le mode X). Le NON evident se dit ici, sans aller-retour — une
+## case trop loin, une falaise —, le reste c'est le serveur qui le dit.
+func _remote_tap(cell: Vector2i) -> void:
+	var here := _me_cell()
+	var index := _board.index_of(cell)
+	if RunState.current.flag_mode:
+		if not _board.is_beside(here, cell):
+			_ring.pulse()
+			Sound.deny()
+			return
+		RunState.current.move(index)
+		return
+	if not _board.is_beside(here, cell) or not _board.may_step(here, cell):
+		_ring.pulse()
+		Sound.deny()
+		return
+	RunState.current.move(index)
 
 
 ## UNE TAPE SUR UNE ILE HORS LIGNE — ce que le serveur ferait d'un `move` ou
@@ -817,11 +1000,8 @@ func _local_tap(cell: Vector2i) -> void:
 				_on_local_dig(out.dig)
 	_tiles.refresh()
 	_refresh_ring()
-	# LA CAMERA REVIENT AU LAPIN apres chaque pas : le joueur a pu promener le
-	# plateau pour regarder, mais un pas dit « je suis ici maintenant ».
-	if out.ok and not _armed:
-		_cam_moved_by_player = false
-		frame_camera()
+	if out.ok and (_shake == null or not _shake.is_running()):
+		_keep_in_view()
 	local_changed.emit(out)
 	_check_local_end(out)
 
@@ -835,25 +1015,47 @@ func _on_local_dig(dig: Dictionary) -> void:
 			Sound.play("coin")
 		IslandBoard.Content.BOMB:
 			Sound.play("explosion")
-			_stun_flash(int(Tuning.i("BOMB.STUN_MS")))
 			# LE SOUFFLE EMPORTE CE QUI SE TENAIT SUR LA CASE — pas un mouton,
-			# qui s'enfuit.
+			# qui s'enfuit. (Le trou, le feu et le buisson : `TileView._blast`.)
 			if _scenery != null:
 				_scenery.clear_cell(dig.tile, true)
+			_impact_shake()
+			# LE LAPIN PREND L'ONDE a 80 ms (`AT_KNOCKBACK`), pas au flash.
+			var at: Vector2 = _terrain.map.screen_of(dig.tile.x, dig.tile.y) + Vector2(0, Iso.half_h())
+			get_tree().create_timer(0.08).timeout.connect(func() -> void: _rabbit.take_hit(at))
 		IslandBoard.Content.CHEST:
 			_show_prize(dig.get("loot", {}))
 		_:
 			Sound.play("step")
 
 
-## LE LAPIN SONNE clignote rouge le temps que le serveur lui refuse un pas :
-## sans ca, le refus qui suit une bombe se lit comme une tape perdue.
-func _stun_flash(ms: int) -> void:
-	var t := create_tween()
-	var beats := maxi(1, int(ms / 300.0))
+## LA SECOUSSE D'UNE BOMBE (Blast.ts `impactShake`) : huit coups qui
+## s'amortissent, 45 ms chacun, a 9 pixels d'ECRAN — divises par le zoom, sinon
+## le meme coup secouerait plus fort a mesure qu'on zoome. La camera suit
+## APRES : une glissade lancee pendant la secousse l'effacerait.
+const IMPACT_SHAKE_PX := 9.0
+var _shake: Tween
+
+
+func _impact_shake() -> void:
+	if _cam_tween != null and _cam_tween.is_valid():
+		_cam_tween.kill()
+	if _shake != null and _shake.is_valid():
+		_shake.kill()
+		position = _shake_home
+	_shake_home = position
+	var kick := IMPACT_SHAKE_PX / scale.x
+	_shake = create_tween()
+	var beats := 8
 	for i in beats:
-		t.tween_property(_rabbit, "modulate", Color(1, 0.45, 0.45), 0.15)
-		t.tween_property(_rabbit, "modulate", Color.WHITE, 0.15)
+		var a := kick * (1.0 - float(i) / beats)
+		var sgn := 1.0 if i % 2 == 0 else -1.0
+		_shake.tween_property(self, "position", _shake_home + Vector2(a * sgn, a * 0.6 * sgn), 0.045)
+	_shake.tween_property(self, "position", _shake_home, 0.05)
+	_shake.tween_callback(_keep_in_view)
+
+
+var _shake_home := Vector2.ZERO
 
 
 ## LE LOT DU COFFRE (chest-prize.tsx) : la ceremonie pour un coffre annonce,
@@ -866,6 +1068,9 @@ func _show_prize(prize: Dictionary) -> void:
 	if String(prize.get("kind", "")) == "carrots" and not bool(prize.get("nft", false)):
 		Sound.play("coin")
 		return
+	# LE COFFRE S'OUVRE D'ABORD SUR SA CASE (`TileView._clear_chest`) : la
+	# ceremonie posee tout de suite couvrait l'ouverture.
+	await get_tree().create_timer(TileView.CHEST_OPEN_SECONDS).timeout
 	var node := ChestPrize.announce(prize)
 	if node != null and node.get_parent() == null and _prize_host != null:
 		# Pas de chrome au-dessus (le bac a sable) : la ceremonie se pose ici,
@@ -978,7 +1183,7 @@ func _tutorial_tap(cell: Vector2i) -> void:
 func _refresh_ring() -> void:
 	if _board == null or _ring == null:
 		return
-	var here := _rabbit.at() if local_run == null else local_run.at
+	var here := _me_cell()
 	var lit: Array[Vector2i] = []
 	if not _done and not _local_over:
 		for n in _board._neighbours(here):
@@ -1070,7 +1275,7 @@ func set_standalone(on: bool) -> void:
 func markable_count() -> int:
 	if _board == null:
 		return 0
-	var here := _rabbit.at() if local_run == null else local_run.at
+	var here := _me_cell()
 	var n := 0
 	for c in _board._neighbours(here):
 		var st = _board.state.get(c)

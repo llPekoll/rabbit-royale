@@ -224,6 +224,11 @@ func set_run(carrying: int, chests: Dictionary = {}) -> void:
 	pill.set_run(carrying, chests)
 
 
+## L'energie de la manche sur le cadran, ou -1 pour le reservoir du terrier.
+func set_run_energy(energy: int) -> void:
+	pill.set_run_energy(energy)
+
+
 ## Un refus faute de carottes : la pastille secoue.
 func deny() -> void:
 	pill.deny()

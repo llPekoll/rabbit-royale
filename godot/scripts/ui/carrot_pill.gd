@@ -259,10 +259,13 @@ func refresh() -> void:
 	# et un cadran a zero avec une alarme serait le chrome inventant une
 	# urgence sur un ecran qui n'a pas d'energie a depenser.
 	_has_bank = Screens.place == Screens.Place.BURROW and not Home.burrow.is_empty()
-	dial.hub = _has_bank
-	dial.beat = _has_bank
-	dial.tappable = _has_bank
-	_energy_line.visible = _has_bank
+	var shown := _has_bank or _run_energy >= 0
+	dial.hub = shown
+	dial.beat = shown
+	# Le grand livre du reservoir ne s'ouvre que depuis le terrier : sur l'ile,
+	# le cadran lit la manche, pas le reservoir.
+	dial.tappable = _has_bank and _run_energy < 0
+	_energy_line.visible = shown
 	_tick_energy()
 
 
@@ -273,12 +276,18 @@ func _process(_delta: float) -> void:
 ## L'ENERGIE MAINTENANT, relue a chaque image (Home.live_energy) : ce que
 ## le serveur a dit plus ce qui est remonte depuis.
 func _tick_energy() -> void:
-	if not _has_bank:
+	var energy := 0
+	var max_energy := 1
+	if _run_energy >= 0:
+		energy = _run_energy
+		max_energy = Tuning.i("ENERGY.MAX", 300)
+	elif _has_bank:
+		var live := Home.live_energy()
+		energy = int(live.get("energy", 0))
+		max_energy = int(live.get("max", 1))
+	else:
 		dial.value = 0.0
 		return
-	var live := Home.live_energy()
-	var energy := int(live.get("energy", 0))
-	var max_energy := int(live.get("max", 1))
 	dial.max_value = float(max_energy)
 	dial.value = float(energy)
 	if energy != _energy_shown:
@@ -308,6 +317,22 @@ func rank() -> int:
 
 func to_pass() -> int:
 	return _to_pass
+
+
+## L'ENERGIE DE LA MANCHE, sur le cadran — LE MEME que celui du terrier.
+##
+## Une seule jauge d'energie a l'ecran, a la meme place partout : le joueur la
+## lit la ou il l'a toujours lue (Peko, 2026-09-23 : « le bar d'energie c'est
+## la meme que celle du menu principal »). Le HUD de manche a perdu sa barre a
+## part. -1 rend le cadran au reservoir du terrier.
+var _run_energy := -1
+
+
+func set_run_energy(energy: int) -> void:
+	if energy == _run_energy:
+		return
+	_run_energy = energy
+	refresh()
 
 
 ## LA COURSE : le butin porte et les coffres de l'ile. `chests` est

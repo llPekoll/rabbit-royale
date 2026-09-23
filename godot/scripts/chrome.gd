@@ -103,12 +103,43 @@ func _mount() -> void:
 	bar.energy_tapped.connect(func() -> void: EnergyPanel.open())
 	bar.add_pressed.connect(func() -> void: EnergyPopup.open())
 
+	# LE HUD DE MANCHE (run-hud.tsx) : le X, l'eclair et la bombe, la maree,
+	# les legendes, le recap. Il se cache seul hors de l'ile. SOUS la barre du
+	# haut dans l'ordre de dessin, au-dessus du monde.
+	var hud: RunHud = preload("res://scenes/ui/run_hud.tscn").instantiate()
+	add_child(hud)
+	move_child(hud, top_bar.get_index())
+	Kit.fill(hud)
+	_wire_run(bar)
+
 	# Ce que la boutique et le raid repondent passe en pastille, comme Home.
 	ShopState.shared().noted.connect(toast)
 	RaidState.current.noted.connect(toast)
 	_wire_sounds()
 	# Les tampons qui s'annoncent seuls : le niveau gagne, le raid subi.
 	LevelUpStamp.arm()
+
+
+## LA MANCHE SUR LA PASTILLE : l'energie sur le cadran, le butin porte et les
+## coffres sous le compte (carrot-pill.tsx `energy`, `carrying`, `chests`).
+## Seulement sur l'ile, et seulement quand le serveur y a mis un lapin a moi —
+## sinon le cadran rend la main au reservoir du terrier.
+func _wire_run(bar: TopBar) -> void:
+	var state := RunState.current
+	var feed := func() -> void:
+		var me := state.me()
+		var on_island := Screens.in_world() and Screens.place == Screens.Place.ISLAND
+		if not on_island or me.is_empty():
+			bar.set_run(0, {})
+			bar.set_run_energy(-1)
+			return
+		bar.set_run(int(me.get("carrots", 0)), {"taken": state.chests_taken,
+			"total": state.chests_total, "warnStage": state.warn_stage})
+		bar.set_run_energy(int(me.get("energy", 0)))
+	state.me_changed.connect(feed)
+	state.rabbits_changed.connect(feed)
+	state.volcano_changed.connect(feed)
+	Screens.moved.connect(func(_p: int) -> void: feed.call())
 
 
 ## LES PIECES DU LIEU, reconstruites a chaque arrivee. On DETRUIT ce qui etait
@@ -215,18 +246,18 @@ func _on_door(door: String) -> void:
 ## DIG. Le premier depart est le tutoriel, sans liste : le web traverse seul
 ## le nouveau venu vers sa premiere ile. Ensuite, la liste des iles.
 ##
-## PAS DE `join` ICI (2026-09-23) : l'ile du portage (island.gd, Peko) ne joue
-## encore que le plateau dessine, hors ligne. Demander un siege au serveur
-## prendrait de l'energie pour une manche qu'aucun plateau ne montre. Choisir
-## une ile traverse donc comme le bouton « → ILE » le faisait ; le `join` se
-## branchera ici quand l'ile lira la socket.
+## LE `join` EST ICI depuis que l'ile lit la socket (2026-09-23) : choisir une
+## ile demande un siege au serveur, et c'est son instantane (`island`) qui
+## pose le plateau — coffres, chiffres, cases creusees. Le tutoriel reste hors
+## ligne : son plateau est dessine, et il traverse sans siege.
 func _dig() -> void:
 	if Island.tutorial_pending():
 		Screens.cross(Screens.Place.ISLAND)
 		return
 	var picker := IslandPicker.new()
-	picker.chosen.connect(func(_choice: Dictionary) -> void:
+	picker.chosen.connect(func(choice: Dictionary) -> void:
 		close_dialog()
+		RunState.current.join(choice)
 		Screens.cross(Screens.Place.ISLAND))
 	open(picker)
 

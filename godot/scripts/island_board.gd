@@ -793,3 +793,70 @@ func chest_loot(c: Vector2i) -> Dictionary:
 	var nft := tier == "crown" and rng.next() < float(tune.CHEST_NFT_ODDS.inCrown)
 	return {"kind": String(e.kind), "amount": amount, "tier": tier,
 		"announced": tier != "", "nft": nft}
+
+
+# ================================================================ l'ile en ligne
+#
+# Ce que le serveur montre d'une ile (`publicView` / `snapshot`) : les cases
+# creusees avec leur contenu, les chiffres que la cascade a ecrits, les coffres
+# qui dorment (case et palier), les X justes. RIEN d'autre — le reste est
+# enterre, et ce plateau ne le devine pas : une case non creusee a le contenu
+# EMPTY, ce qui veut dire « inconnu » ici, et aucun chiffre n'est recalcule.
+
+const CONTENT_OF := {
+	"empty": Content.EMPTY, "carrot": Content.CARROT, "golden": Content.GOLDEN,
+	"bomb": Content.BOMB, "chest": Content.CHEST,
+}
+
+
+## La case d'un index du fil (`toIndex` : ligne d'abord).
+func cell_of(index: int) -> Vector2i:
+	return Vector2i(index % map.width, index / map.width)
+
+
+## POSE L'INSTANTANE DU SERVEUR sur le plateau de `p_ground`.
+func apply_public(p_ground: IslandGround, snap: Dictionary) -> void:
+	ground = p_ground
+	seed_text = String(snap.get("seed", ""))
+	teaching = false
+	content.clear()
+	state.clear()
+	adjacent.clear()
+	flagged.clear()
+	chest_tier.clear()
+	decor.clear()
+	for c in ground.farmable_cells():
+		content[c] = Content.EMPTY
+		state[c] = State.BURIED
+	for p in ground.placements:
+		var at := Vector2i(p.x, p.y)
+		if p.kind == "bush" and content.has(at):
+			decor[at] = int(p.variant) + 1
+	for ch in snap.get("chests", []):
+		var c := cell_of(int(ch.get("tile", -1)))
+		content[c] = Content.CHEST
+		chest_tier[c] = String(ch.get("tier", "bronze"))
+	for r in snap.get("revealed", []):
+		reveal_remote(int(r.get("tile", -1)), String(r.get("content", "empty")), int(r.get("adjacent", 0)))
+	for h in snap.get("hinted", []):
+		hint_remote(int(h.get("tile", -1)), int(h.get("adjacent", 0)))
+	for f in snap.get("flagged", []):
+		flagged[cell_of(int(f))] = true
+
+
+## `tile_revealed` : la case est creusee, son contenu et son chiffre sont dits.
+func reveal_remote(index: int, what: String, count: int) -> Vector2i:
+	var c := cell_of(index)
+	content[c] = CONTENT_OF.get(what, Content.EMPTY)
+	state[c] = State.DUG
+	adjacent[c] = count
+	flagged.erase(c)
+	return c
+
+
+## `hints_revealed` : un chiffre sur une case encore enterree.
+func hint_remote(index: int, count: int) -> void:
+	var c := cell_of(index)
+	adjacent[c] = count
+	if state.get(c) != State.DUG:
+		state[c] = State.HINTED

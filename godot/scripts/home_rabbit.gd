@@ -41,6 +41,8 @@ const ANIMS := {
 	"eat": [16, 23, 8, false],
 	"sleep": [32, 39, 4, true],
 	"happy": [40, 47, 10, false],
+	"damage": [48, 55, 12, false],
+	"death": [56, 61, 8, false],
 }
 
 ## L'ECHELLE DU LAPIN, partagee avec l'ile (gridConfig.ts:87).
@@ -266,6 +268,32 @@ func celebrate() -> void:
 func _on_happy_done() -> void:
 	if _happy and _sprite != null and _sprite.animation == "happy":
 		_sprite.play("happy")
+
+
+## IL PREND LA BOMBE (`playDamage` + `knockBack` de Blast.ts) : la rangee
+## `damage`, et le corps souffle loin du point d'impact puis retombe en
+## rebondissant — 14 px de cote, 10 vers le haut, en 0,12 s, retour en 0,3.
+##
+## SUR LE SPRITE, pas sur le noeud : la position du noeud appartient a la case
+## (`_land`), et un recul qui l'ecrirait se disputerait avec le saut. Un saut
+## en cours se termine d'abord — il prend la bombe EN ARRIVANT sur la case.
+func take_hit(from: Vector2) -> void:
+	if _sprite == null:
+		return
+	if _hop != null and _hop.is_valid():
+		_hop.finished.connect(func() -> void: take_hit(from), CONNECT_ONE_SHOT)
+		return
+	_sprite.play("damage")
+	if not _sprite.animation_finished.is_connected(_rest):
+		_sprite.animation_finished.connect(_rest, CONNECT_ONE_SHOT)
+	var home := _sprite.position
+	var ang := atan2(position.y - from.y, position.x - from.x)
+	var knock := create_tween()
+	knock.tween_property(_sprite, "position",
+		home + Vector2(cos(ang) * 14.0, sin(ang) * 8.0 - 10.0), 0.12) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	knock.tween_property(_sprite, "position", home, 0.3) \
+		.set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
 
 
 ## ENVOIE LE LAPIN SUR UNE CASE — provisoire, pour voir une tape aboutir.

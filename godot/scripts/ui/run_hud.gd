@@ -279,7 +279,12 @@ func _relabel() -> void:
 func _on_me() -> void:
 	var state := RunState.current
 	var subject := state.subject()
-	_energy_row.visible = not subject.is_empty()
+	# LA BARRE N'EST PLUS ICI : l'energie de la manche est sur le cadran de la
+	# pastille, le meme qu'au terrier (carrot_pill `set_run_energy`, et le
+	# web : « THE ENERGY BAR IS NOT HERE ANY MORE »). La rangee reste, cachee,
+	# pour la perte qu'elle mesure — le rougissement des bords et la ligne
+	# « low energy » en dependent.
+	_energy_row.visible = false
 	if subject.is_empty():
 		_prev_energy = -1
 		return
