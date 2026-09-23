@@ -109,7 +109,8 @@ func build(cells: Array[Vector2i]) -> void:
 		if not terrain.has_block(cell):
 			continue
 		var outline := Sprite2D.new()
-		outline.texture = _outline_texture()
+		# Plies sur la pente d'une rampe, comme la motte (`slope_veil`).
+		outline.texture = terrain.slope_veil(cell, _outline_texture())
 		outline.centered = true
 		outline.modulate = GOLD
 		outline.visible = false
@@ -117,7 +118,7 @@ func build(cells: Array[Vector2i]) -> void:
 		_outline[cell] = outline
 
 		var blink := Sprite2D.new()
-		blink.texture = TileView._diamond_texture()
+		blink.texture = terrain.slope_veil(cell, TileView._diamond_texture())
 		blink.centered = true
 		blink.modulate = Color(GOLD.r, GOLD.g, GOLD.b, 0.0)
 		blink.visible = false

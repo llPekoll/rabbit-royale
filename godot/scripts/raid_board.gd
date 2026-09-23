@@ -111,7 +111,7 @@ func build() -> void:
 		var fog: Sprite2D = null
 		if veil != "fog":
 			fog = Sprite2D.new()
-			fog.texture = TileView._diamond_texture()
+			fog.texture = terrain.slope_veil(cell, TileView._diamond_texture())
 			fog.centered = true
 			fog.modulate = _tint(veil)
 			fog.modulate.a = _alpha(veil, false)
@@ -291,7 +291,7 @@ func _hang(cell: Vector2i, tint: Color) -> Array[Node2D]:
 	if cell.x < 0 or not terrain.has_block(cell):
 		return out
 	var shadow := Sprite2D.new()
-	shadow.texture = TileView._diamond_texture()
+	shadow.texture = terrain.slope_veil(cell, TileView._diamond_texture())
 	shadow.centered = true
 	shadow.modulate = Color(0, 0, 0, SHADOW_ALPHA)
 	terrain.mount_veil(cell, shadow, Z_SHADOW)
