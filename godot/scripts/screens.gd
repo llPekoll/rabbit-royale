@@ -186,7 +186,10 @@ func host_wipe(wipe: Wipe) -> void:
 ## tutoriel, la colonne a 1.0 a 913 ms, l'iris qui rouvre a 1200 ms.
 func on_reveal(fn: Callable) -> void:
 	if not crossing:
-		fn.call()
+		# DIFFERE, meme sans rideau : on est appele du montage, et une entree
+		# jouee avant la mise en page lirait des places qui ne sont pas les
+		# bonnes. Les tris des conteneurs, differes eux aussi, passent avant.
+		fn.call_deferred()
 	elif not revealed.is_connected(fn):
 		revealed.connect(fn, CONNECT_ONE_SHOT)
 

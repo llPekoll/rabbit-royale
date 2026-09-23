@@ -384,13 +384,12 @@ func deny() -> void:
 	flush.tween_property(_plate, "modulate", Color.WHITE, 0.24)
 
 
-## L'ARRIVEE (rr-toon-in-down) : la plaque tombe du haut et rebondit en
-## place, en 380 ms. Sur le DESSIN, pas la boite.
-func drop_in(delay: float = 0.0) -> void:
-	_plate.position.y = -16.0
-	_plate.modulate.a = 0.0
-	var tw := create_tween()
-	tw.tween_interval(delay)
-	tw.set_parallel(true)
-	tw.tween_property(_plate, "position:y", 0.0, 0.38).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
-	tw.tween_property(_plate, "modulate:a", 1.0, 0.2)
+## La premiere image de `drop_in`, posee seule quand l'arrivee attend.
+func drop_pose() -> void:
+	UiEntrance.pose([_plate])
+
+
+## L'ARRIVEE (rr-toon-in-down) : la plaque tombe du haut et se pose, au rang
+## `rank` de la file (UiEntrance). Sur le DESSIN, pas la boite.
+func drop_in(rank: int = 0) -> void:
+	UiEntrance.play(_plate, UiEntrance.FROM_TOP, rank)

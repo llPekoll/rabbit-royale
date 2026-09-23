@@ -29,9 +29,10 @@ extends Control
 ## Ici c'est un shader sur la boite, herite par tout ce qu'elle contient,
 ## qui eteint l'alpha sur les 36 derniers pixels d'ecran.
 ##
-## LES CARTES ARRIVENT EN CASCADE (`rr-toon-in`, 0 / 70 / 140 ms) : toute la
-## colonne est en place en une demi-seconde, parce qu'une entree qu'on
-## attend a chaque retour chez soi cesse d'etre charmante a la troisieme.
+## LES CARTES ARRIVENT EN CASCADE (UiEntrance, un pas d'ecart, en meme
+## temps que la barre du haut et le sol) : toute la colonne est en place en une demi-seconde, parce
+## qu'une entree qu'on attend a chaque retour chez soi cesse d'etre charmante
+## a la troisieme.
 
 ## La ligne « et maintenant » a ete pressee ; `door` est ce qu'elle disait.
 signal next_action(door: String)
@@ -57,8 +58,6 @@ const END_SLACK := 4.0
 ## un ecran court. Kit.EDGE en moins, que le chrome retranche deja.
 const FLOOR_TALL := 108.0
 ## L'entree : 380 ms, -32 px puis +5, (0.86, 1.08) puis (1.04, 0.96).
-const TOON_SECONDS := 0.38
-const TOON_DELAYS := [0.0, 0.07, 0.14]
 
 const FADE_SHADER := """
 shader_type canvas_item;
@@ -154,6 +153,10 @@ func _update_visible() -> void:
 	if shown:
 		_shown = true
 		if not OS.has_environment("RR_NO_TOON"):
+			# LA POSE DE DEPART TOUT DE SUITE, l'animation a la reouverture :
+			# sinon les cartes, montees sous le noir, etaient en place quand
+			# l'iris s'ouvrait, puis disparaissaient pour entrer.
+			_toon_pose()
 			Screens.on_reveal(_toon_in)
 
 
@@ -205,30 +208,17 @@ func _inherit_fade(node: Node) -> void:
 		(node as CanvasItem).use_parent_material = true
 
 
-## L'ENTREE EN CASCADE. Chaque carte glisse de la gauche en s'etirant, avec
-## un depassement de 5 px a 55 % — le meme ressort que le web.
+## La premiere image de l'entree, au montage : les cartes eteintes.
+func _toon_pose() -> void:
+	UiEntrance.pose(_cards)
+
+
+## L'ENTREE EN CASCADE (UiEntrance), de haut en bas, un pas d'ecart.
 func _toon_in() -> void:
-	var rank := 0
+	var rank := UiEntrance.COLUMN_FIRST
 	for card in _cards:
-		if not card.visible:
-			continue
-		var delay: float = TOON_DELAYS[mini(rank, TOON_DELAYS.size() - 1)]
-		rank += 1
-		card.pivot_offset = card.size * 0.5
-		card.modulate.a = 0.0
-		card.position = Vector2(-32.0, 0.0)
-		card.scale = Vector2(0.86, 1.08)
-		var tween := create_tween().set_parallel(true)
-		tween.tween_property(card, "modulate:a", 1.0, TOON_SECONDS * 0.55).set_delay(delay)
-		tween.tween_property(card, "position:x", 5.0, TOON_SECONDS * 0.55).set_delay(delay).set_ease(Tween.EASE_OUT)
-		tween.tween_property(card, "scale", Vector2(1.04, 0.96), TOON_SECONDS * 0.55).set_delay(delay).set_ease(Tween.EASE_OUT)
-		tween.chain().set_parallel(true)
-		tween.tween_property(card, "position:x", 0.0, TOON_SECONDS * 0.45).set_ease(Tween.EASE_OUT)
-		tween.tween_property(card, "scale", Vector2.ONE, TOON_SECONDS * 0.45).set_ease(Tween.EASE_OUT)
-		# REMETTRE LA CARTE A PLAT a l'arrivee. Poser `position` sur une carte
-		# ancree plein cadre fige ses marges sur la taille de son emplacement A
-		# CE MOMENT ; si l'ecran change pendant l'entree (une fenetre qu'on
-		# redimensionne, un telephone qu'on tourne), l'emplacement se remesure
-		# et la carte garde l'ancienne taille — le double, sur le banc, et les
-		# cartes se chevauchaient.
-		tween.finished.connect(Kit.fill.bind(card))
+		# Kit.fill a la fin : la carte est ancree plein cadre dans son
+		# emplacement, et la course a ecrit sa `position`.
+		UiEntrance.play(card, UiEntrance.FROM_LEFT, rank, Kit.fill.bind(card))
+		if card.visible:
+			rank += 1

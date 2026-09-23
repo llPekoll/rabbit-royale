@@ -229,6 +229,27 @@ func _ready() -> void:
 	_measure()
 	_on_home_changed()
 	_update_visible()
+	# L'ENTREE (UiEntrance) : eteinte sous le noir, jouee a la reouverture,
+	# en meme temps que la barre du haut et la colonne. La barre nait a
+	# chaque arrivee au terrier (chrome.gd `_mount_place`), donc une entree
+	# par arrivee.
+	if visible and not bench_mode:
+		UiEntrance.pose(_row.get_children())
+		Screens.on_reveal(_arrive)
+
+
+## Les planches et leurs fleches montent du bas, de gauche a droite. Une
+## IMAGE PLUS TARD : la barre est construite dans le meme `moved` que ce qui
+## l'appelle, et sa rangee n'a pas encore range ses planches.
+func _arrive() -> void:
+	await get_tree().process_frame
+	if not is_inside_tree():
+		return
+	var rank := UiEntrance.FLOOR_FIRST
+	for node in _row.get_children():
+		UiEntrance.play(node as Control, UiEntrance.FROM_BOTTOM, rank)
+		if (node as Control).visible:
+			rank += 1
 
 
 # ── L'API du chrome ──────────────────────────────────────────────────────────

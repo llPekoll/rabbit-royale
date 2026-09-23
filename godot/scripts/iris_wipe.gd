@@ -95,6 +95,11 @@ var _tween: Tween
 ## sait ainsi si un autre geste l'a remplacee.
 var _gen := 0
 
+## Combien de la reouverture passe avant que l'UI entre (`opening`), en
+## secondes. A 0.25 s d'une reouverture de 0.63 s en EASE_OUT, le trou est aux
+## trois quarts : la colonne a gauche est deja decouverte.
+const REVEAL_DELAY := 0.25
+
 
 func _ready() -> void:
 	super()
@@ -205,10 +210,13 @@ func _swap_once_black(swap: Callable, gen: int) -> void:
 	# caller that needs a frame or two to settle gets them while nothing is
 	# visible — which is the whole reason to hide a cut behind a shutter ».
 	_tween.tween_interval(HOLD_SECONDS)
-	_tween.tween_callback(opening.emit)
 	# ROUVRIR — `EASE_OUT` pose le geste au lieu de le laisser filer.
 	_tween.tween_method(_set_aperture, 0.0, _open, SWEEP_SECONDS * 0.5) \
 		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	# L'UI ENTRE UN PEU APRES : le trou s'ouvre par le centre, et la colonne,
+	# la barre du haut sont sur les bords — au debut de la reouverture, leur
+	# entree se jouait encore sous la nappe.
+	_tween.parallel().tween_callback(opening.emit).set_delay(REVEAL_DELAY)
 	_tween.finished.connect(func() -> void:
 		visible = false
 		finished.emit())

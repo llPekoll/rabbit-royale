@@ -27,8 +27,8 @@ extends Control
 ##     son rang (« #59 » en puce discrete, pas un « 59 » rouge qui se lisait
 ##     comme cinquante-neuf nouveautes), puis le son qui possede le coin.
 ##     Boutique et histoire n'ont de sens que sur le terrier.
-##   • L'ARRIVEE : tout tombe du haut en 380 ms, en cascade (0 / 45 / 90 /
-##     140 / 190 ms), a chaque retour au terrier — de l'ile, d'un raid.
+##   • L'ARRIVEE : tout tombe du haut et se pose (UiEntrance), un pas
+##     d'ecart entre deux pieces, a chaque retour au terrier.
 ##
 ## Elle se cache seule hors du monde, et se monte plein cadre dans l'etage
 ## `TopBar` du chrome : `Chrome.current.top_bar.add_child(bar)`.
@@ -47,11 +47,6 @@ const PILL_SMALL := 0.75
 ## Un telephone etroit en paysage : le rail prend son plancher (34).
 const NARROW_W := 720.0
 ## Les delais de la cascade d'arrivee.
-const DROP_CHIP := 0.0
-const DROP_PILL := 0.045
-const DROP_SHOP := 0.09
-const DROP_STORY := 0.14
-const DROP_SEASON := 0.19
 
 var pill: CarrotPill
 var chip: PlayerChip
@@ -162,6 +157,9 @@ func _on_moved(_place: int) -> void:
 	_reflect_place()
 	sound.set_open(false)
 	if Screens.place == Screens.Place.BURROW:
+		# Pose de depart tout de suite, animation a la reouverture (voir
+		# BurrowColumn) : montee sous le noir, la barre se voyait en place.
+		_arrive_pose()
 		Screens.on_reveal(_arrive)
 
 
@@ -192,20 +190,22 @@ func _reflect_news() -> void:
 	story_button.set_badge("NEW" if fresh else "", true)
 
 
-## L'ARRIVEE EN CASCADE.
+## L'ARRIVEE EN CASCADE (UiEntrance), de gauche a droite, un pas d'ecart.
 func _arrive() -> void:
-	_drop(chip, DROP_CHIP)
-	pill.drop_in(DROP_PILL)
-	_drop(shop_button, DROP_SHOP)
-	_drop(story_button, DROP_STORY)
-	_drop(season_button, DROP_SEASON)
+	var rank := UiEntrance.TOP_FIRST
+	UiEntrance.play(chip, UiEntrance.FROM_TOP, rank)
+	pill.drop_in(rank + 1)
+	rank += 2
+	for node in [shop_button, story_button, season_button, sound]:
+		UiEntrance.play(node, UiEntrance.FROM_TOP, rank)
+		if (node as Control).visible:
+			rank += 1
 
 
-func _drop(node: Control, delay: float) -> void:
-	node.modulate.a = 0.0
-	var tw := create_tween()
-	tw.tween_interval(delay)
-	tw.tween_property(node, "modulate:a", 1.0, 0.25)
+## La premiere image de l'arrivee : tout eteint.
+func _arrive_pose() -> void:
+	UiEntrance.pose([chip, shop_button, story_button, season_button, sound])
+	pill.drop_pose()
 
 
 ## LE RANG, tel que le tableau le donne : « #59 » en puce discrete sur le
