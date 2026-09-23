@@ -74,7 +74,7 @@ func _ready() -> void:
 
 	_stats = Kit.label("", 14, Palette.INK)
 	_stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_stats.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	Kit.wrapped(_stats)
 	body.add_child(_stats)
 	_note = Kit.note("", Palette.BARK, 13)
 	_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

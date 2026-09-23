@@ -76,7 +76,7 @@ func _ready() -> void:
 	_name = Kit.label("", NAME_SIZE, Palette.RANK_GOLD, true)
 	words.add_child(_name)
 	_hint = Kit.label("", HINT_SIZE, Palette.CREAM, true)
-	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	Kit.wrapped(_hint)
 	words.add_child(_hint)
 
 	_back = preload("res://scenes/plank_button.tscn").instantiate()

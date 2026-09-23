@@ -202,7 +202,7 @@ func _build() -> void:
 	# QUI REGARDE, au-dessus du bouton, aligne a droite.
 	_watchers = Kit.label("", 12, WATCH_DIM)
 	_watchers.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_watchers.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	Kit.wrapped(_watchers)
 	_watchers.add_theme_color_override("font_outline_color", Palette.NIGHT)
 	_watchers.add_theme_constant_override("outline_size", 2)
 	_watchers.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)

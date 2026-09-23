@@ -323,7 +323,7 @@ static func caption(text: String, danger: bool = false) -> PanelContainer:
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var l := label(text, 13, Palette.CAPTION_DANGER_INK if danger else Palette.CAPTION_INK)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	wrapped(l)
 	p.add_child(l)
 	return p
 
@@ -360,9 +360,20 @@ static func pixel_size(scale: float) -> int:
 
 ## Un paragraphe qui va a la ligne.
 static func note(text: String, color: Color = Palette.CHALK_DIM, size: int = 12) -> Label:
-	var l := label(text, size, color)
-	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var l := wrapped(label(text, size, color))
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	return l
+
+
+## UNE LIGNE QUI SE REPLIE, et qui le dit a son conteneur. Godot 4.7 garde
+## le minimum d'un libelle replie tel qu'il l'a mesure la premiere fois : pose
+## avant d'avoir sa largeur, il se mesure sur 1 px (une lettre par ligne), et
+## tout ce qui epouse son contenu restait geant une fois la largeur venue (les
+## cartes du terrier, 2026-09-23). Il redemande donc son minimum a chaque
+## taille. Tout libelle replie passe par ici.
+static func wrapped(l: Label) -> Label:
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.resized.connect(l.update_minimum_size)
 	return l
 
 

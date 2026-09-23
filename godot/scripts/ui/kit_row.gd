@@ -252,7 +252,7 @@ func _build_tab(index: int) -> Button:
 	word.name = "Word"
 	word.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	word.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	word.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	Kit.wrapped(word)
 	word.add_theme_constant_override("shadow_offset_y", 2)
 	Kit.fill(word)
 	word.offset_left = 7

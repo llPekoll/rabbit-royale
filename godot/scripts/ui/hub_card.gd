@@ -394,10 +394,9 @@ func add_sub(text: String, color: Color = SUB) -> Label:
 ## garde ce minimum une fois la largeur venue, et la carte restait geante
 ## (Paul, 2026-09-23, en ouvrant le codex). Elle nait donc a la largeur
 ## qu'elle aura (`width`, celle de la colonne de texte, qui survit aux
-## relectures), et redemande son minimum a chaque taille.
+## relectures), et redemande son minimum a chaque taille (Kit.wrap).
 static func wraps(label: Label, width: float = 0.0) -> void:
-	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	Kit.wrapped(label)
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	if width > 1.0:
 		label.size = Vector2(width, label.size.y)
-	label.resized.connect(label.update_minimum_size)

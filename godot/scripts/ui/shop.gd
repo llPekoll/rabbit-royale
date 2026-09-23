@@ -628,7 +628,7 @@ func _card(it: Dictionary, tokens: Array, lead: bool) -> Control:
 	var art_top := floorf(ART_TOP * k)
 	var blurb_bottom := h - floorf((BUY_H - CARD_OVER_BOTTOM + 4.0) * k)
 	var blurb := Kit.label(I18N.t("items.%s.blurb" % kind).replace("’", "'"), int(round(BLURB_SIZE * k)), Palette.CHALK, true)
-	blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	Kit.wrapped(blurb)
 	blurb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	blurb.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 	blurb.position = Vector2(floorf(9.0 * k), art_top)

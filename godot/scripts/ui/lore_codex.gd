@@ -300,7 +300,7 @@ func _fill_page() -> void:
 	var locked := lifetime < float(chapter["unlockAt"])
 
 	var title := Kit.label(String(words["title"]), 18, Palette.INK)
-	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	Kit.wrapped(title)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_page.add_child(title)
 	_page.add_child(_gap(10))
@@ -441,7 +441,7 @@ class ChapterTab extends PanelContainer:
 			# LE TITRE PASSE A LA LIGNE, comme sur le web (« The Island That
 			# / Gives NEW ») : coupe, le premier chapitre se lisait « The
 			# Island T... » — le titre du chapitre qu'on vient d'ouvrir.
-			t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			Kit.wrapped(t)
 		t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		head.add_child(t)
 		if fresh:
@@ -456,7 +456,7 @@ class ChapterTab extends PanelContainer:
 		# 2026-09-23). L'etagere couchee n'en a pas : ses onglets sont
 		# le disque seul.
 		var s := Kit.label(sub, 11, Palette.BARK)
-		s.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		Kit.wrapped(s)
 		s.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		text.add_child(s)
 
