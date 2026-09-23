@@ -371,6 +371,7 @@ export const fr: Dict = {
     board_full: 'Ton terrier ne peut pas tenir un piège de plus.',
     tile_not_trappable: 'Rien à miner là.',
     tile_doorstep: 'Trop près de l\'entrée. Les premiers pas restent libres.',
+    tile_house: 'On n\'enterre rien sous ta maison.',
     tile_already_trapped: 'Déjà miné.',
     no_trap_there: 'Pas de piège là.',
     no_fences: 'Plus de clôtures. La remise en vend.',

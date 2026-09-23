@@ -272,10 +272,12 @@ func is_walkable(tile: int) -> bool:
 
 
 ## cells.ts `minable` : le sol et le potager, jamais l'entree ni le
-## paillasson.
+## paillasson — ni sous la maison (traps route `tile_house`, 2026-09-23).
 func is_trappable(tile: int) -> bool:
 	var k := kind(tile)
-	return k == Cell.GROUND or k == Cell.FIELD
+	if k != Cell.GROUND and k != Cell.FIELD:
+		return false
+	return building.x < 0 or not house_cells(building).has(cell_of(tile))
 
 
 ## board.ts `isDoorstep` : le paillasson ET l'entree.

@@ -473,6 +473,7 @@ export const en = {
     board_full: 'Your burrow cannot hold another trap.',
     tile_not_trappable: 'Nothing to mine there.',
     tile_doorstep: 'Too near the door. The first steps inside stay open.',
+    tile_house: 'Nothing is buried under your house.',
     tile_already_trapped: 'Already mined.',
     no_trap_there: 'No trap there.',
     no_fences: 'No fences left. The shed sells them.',

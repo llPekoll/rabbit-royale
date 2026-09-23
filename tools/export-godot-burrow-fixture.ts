@@ -11,10 +11,10 @@
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { burrowFor } from '../src/game/burrow/board';
+import { burrowFor, setBurrowEdits } from '../src/game/burrow/board';
 import { editBurrow, burrowIndex, type BurrowEdits } from '../src/game/burrow/generate';
 import { levelAt } from '../src/game/island/generate';
-import { burrowBuilding } from '../src/game/burrow/buildings';
+import { burrowBuilding, houseTile } from '../src/game/burrow/buildings';
 
 const SEEDS = [
   'b3f1c2a4-0000-4000-8000-000000000001',
@@ -71,7 +71,11 @@ function editCases(seed: string) {
   return tries.map((edits) => {
     const out = editBurrow(base, edits);
     if (typeof out === 'string') return { edits, refused: out };
-    return { edits, cells: out.cells.map((k) => LETTER[k]).join(''), crossing: out.crossing };
+    // Where the house ends up — the server buries nothing under it.
+    setBurrowEdits(seed, edits);
+    const house = houseTile(seed);
+    setBurrowEdits(seed, null);
+    return { edits, cells: out.cells.map((k) => LETTER[k]).join(''), crossing: out.crossing, house };
   });
 }
 

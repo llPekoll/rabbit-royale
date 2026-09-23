@@ -80,6 +80,10 @@ func _check(c: Dictionary) -> bool:
 			if ec != String(e.cells) or got_e.crossing != int(e.crossing):
 				problems.append("amenagement %s : sol different" % JSON.stringify(e.edits))
 				continue
+			if e.has("house") and BurrowLayout.index(got_e.building) != int(e.house):
+				problems.append("amenagement %s : maison %d, attendu %d" % [JSON.stringify(e.edits),
+					BurrowLayout.index(got_e.building), int(e.house)])
+				continue
 		agreed += 1
 
 	if problems.is_empty():

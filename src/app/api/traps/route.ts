@@ -21,6 +21,7 @@ import {
   spendTrap,
 } from '@/lib/game/traps';
 import { isDoorstep, isTrappable } from '@/game/burrow/board';
+import { houseTiles } from '@/game/burrow/buildings';
 import { loadBurrowEdits } from '@/lib/game/burrowEdits';
 import { TRAPS } from '@config/tuning';
 
@@ -70,7 +71,12 @@ async function trapState(playerId: string) {
  */
 async function evictDoorstep(playerId: string): Promise<void> {
   const placed = await db.query.traps.findMany({ where: eq(traps.ownerId, playerId) });
-  const evicted = placed.filter((t) => !isTrappable(playerId, t.tile)).map((t) => t.tile);
+  // …and the house: nothing is buried under it (2026-09-23). Covers the
+  // bombs that were there before the rule, and a house the owner moved.
+  const house = new Set(houseTiles(playerId));
+  const evicted = placed
+    .filter((t) => !isTrappable(playerId, t.tile) || house.has(t.tile))
+    .map((t) => t.tile);
   if (!evicted.length) return;
   const player = await db.query.players.findFirst({ where: eq(players.id, playerId) });
   if (!player) return;
@@ -128,6 +134,10 @@ export async function POST(req: Request) {
     isDoorstep(session.sub, tile),
   );
   if (blocker) return Response.json({ error: blocker }, { status: 400 });
+  // UNDER THE HOUSE: walkable, and refused by name like the doorstep.
+  if (houseTiles(session.sub).includes(tile)) {
+    return Response.json({ error: 'tile_house' }, { status: 400 });
+  }
 
   const spend = spendTrap(player);
   if (!spend) return Response.json({ error: 'no_traps' }, { status: 400 });
