@@ -94,6 +94,9 @@ static func open() -> LoreCodex:
 
 func _init() -> void:
 	super("", SCROLL_W, 0.0)
+	# PLEIN ECRAN, comme le profil et l'etal : sur l'ecran couche du jeu, le
+	# rouleau centre perdait ses bords au cadre et faisait defiler sa page.
+	go_fullscreen()
 
 
 func _ready() -> void:
@@ -128,7 +131,13 @@ func _measure() -> void:
 	var room := get_parent_area_size()
 	var stacked := room.x < STACK_BELOW
 	_cap = room.y - 2.0 * Kit.EDGE
-	custom_minimum_size = Vector2(minf(SCROLL_W, room.x - 2.0 * Kit.EDGE), minf(_cap, _natural) if _natural > 0.0 else _cap)
+	if fullscreen:
+		# L'ecran entier, quel que soit le texte : c'est le chrome qui le pose.
+		room = get_viewport_rect().size
+		stacked = room.x < STACK_BELOW
+		custom_minimum_size = room
+	else:
+		custom_minimum_size = Vector2(minf(SCROLL_W, room.x - 2.0 * Kit.EDGE), minf(_cap, _natural) if _natural > 0.0 else _cap)
 	if stacked != _stacked and _body != null:
 		_stacked = stacked
 		_rebuild()
@@ -164,7 +173,7 @@ func _tall(box: Container) -> float:
 ## Posee seulement si elle change d'un pixel, sinon chaque pose relancerait
 ## une mesure.
 func _fit_height() -> void:
-	if _page_scroll == null or _page == null or not is_inside_tree():
+	if fullscreen or _page_scroll == null or _page == null or not is_inside_tree():
 		return
 	# Pas avant que la page ait sa largeur : etroite, son texte compte des
 	# centaines de lignes.
