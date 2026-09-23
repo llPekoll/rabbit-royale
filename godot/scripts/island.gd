@@ -87,6 +87,9 @@ var _remote_snap: Dictionary = {}
 ## `DEFAULT_TILE_PX`), centre sur le lapin. L'ile entiere au cadre se lit comme
 ## une carte ; on ne creuse pas une carte.
 const PLAY_TILE_PX := 60.0
+## Le tutoriel se joue plus large : a 60 le joueur ne voyait pas assez de
+## l'ile autour de lui pour lire la lecon.
+const TUTORIAL_TILE_PX := 44.0
 const WHEEL_ZOOM := 1.12
 var _cam_tween: Tween
 ## Le fondu d'arrivee, a part du tween de camera : un doigt qui prend le
@@ -687,7 +690,8 @@ func _keep_in_view() -> void:
 ## LA PRISE DE JEU : le lapin au milieu, a 60 pixels par case, bornee comme
 ## un glissement du joueur (on ne montre pas la mer au-dela du bord).
 func _follow_shot(view: Vector2) -> BurrowCamera.Shot:
-	var k := PLAY_TILE_PX / (Iso.half_w() * 2.0)
+	var px := TUTORIAL_TILE_PX if _is_tutorial() else PLAY_TILE_PX
+	var k := px / (Iso.half_w() * 2.0)
 	var here := _me_cell()
 	var focus := _terrain.map.screen_of(here.x, here.y) + Vector2(0, Iso.half_h())
 	var shot := BurrowCamera.Shot.new(k, view * 0.5 - focus * k)
