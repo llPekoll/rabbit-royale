@@ -995,10 +995,13 @@ func _on_board_event(name: String, data: Variant) -> void:
 			_tiles.refresh()
 			_refresh_ring()
 		"flag_result":
-			if bool(d.get("correct", false)):
+			var right := bool(d.get("correct", false))
+			if right:
 				Sound.play("chime_quick")
 			else:
 				Sound.deny()
+			_flag_answered(_board.cell_of(int(d.get("tile", -1))), right,
+				int(d.get("energyDelta", 0)), int(d.get("carrotDelta", 0)), int(d.get("streak", 0)))
 		"rabbit_moved":
 			var who := String(d.get("playerId", ""))
 			var cell := _board.cell_of(int(d.get("tile", -1)))
@@ -1067,6 +1070,13 @@ func _on_board_event(name: String, data: Variant) -> void:
 		"move_result":
 			# LA MOITIE PRIVEE : ce que MON coffre contenait.
 			var dig: Dictionary = d.get("dig", {}) if d.get("dig") is Dictionary else {}
+			if dig.has("tile"):
+				var kind := IslandBoard.Content.GOLDEN if String(dig.get("content", "")) == "golden" \
+					else IslandBoard.Content.EMPTY
+				if String(dig.get("content", "")) == "bomb":
+					kind = IslandBoard.Content.BOMB
+				_float_dig(_board.cell_of(int(dig.tile)), int(dig.get("energyDelta", 0)),
+					int(dig.get("carrotDelta", 0)), kind)
 			if dig.get("loot") is Dictionary:
 				var prize: Dictionary = (dig["loot"] as Dictionary).duplicate()
 				prize["nft"] = bool(dig.get("nft", false))
@@ -1389,6 +1399,9 @@ func _local_tap(cell: Vector2i) -> void:
 			Sound.deny()
 			if out.ok:
 				_tiles.ripple(out.tile, out.flag.get("hinted", []))
+		if out.ok:
+			_flag_answered(out.flag.tile, bool(out.flag.correct), int(out.flag.energy_delta),
+				int(out.flag.carrot_delta), int(out.flag.streak))
 	else:
 		out = local_run.move(cell, now)
 		if not out.ok:
@@ -1400,6 +1413,8 @@ func _local_tap(cell: Vector2i) -> void:
 			Sound.play("hop")
 			if out.has("dig"):
 				_on_local_dig(out.dig)
+				_float_dig(out.dig.tile, int(out.dig.energy_delta), int(out.dig.carrot_delta),
+					int(out.dig.content))
 				_tiles.ripple(out.dig.tile, out.dig.get("hinted", []))
 			else:
 				_tiles.ripple(out.tile, out.get("hinted", []))
@@ -1409,6 +1424,51 @@ func _local_tap(cell: Vector2i) -> void:
 		_keep_in_view()
 	local_changed.emit(out)
 	_check_local_end(out)
+
+
+## CE QUE MON X A RAPPORTE, dit sur la case (IslandScene `flagAnswered`) :
+## l'energie dans le jaune de la barre avec son eclair, les carottes par-dessus,
+## et la serie a partir du deuxieme X juste — une serie que personne ne voit est
+## une serie que personne ne protege. Faux : ce qu'il a coute, en rouge, et le X
+## tremble « non ».
+func _flag_answered(cell: Vector2i, correct: bool, energy: int, carrots: int, streak: int) -> void:
+	if _tiles == null:
+		return
+	if correct:
+		if energy > 0:
+			_tiles.float_text(cell, "+%d" % energy, TileView.ENERGY_YELLOW, 1.6, 0.0, true)
+		if carrots > 0:
+			var base := Tuning.i("FLAG.CARROTS_BASE", 1)
+			var cap_at := ceili(float(Tuning.i("FLAG.CARROTS_MAX", 3) - base)
+				/ maxf(1.0, Tuning.i("FLAG.CARROTS_STEP", 1))) + 1
+			var gold := streak >= cap_at
+			_tiles.float_text(cell, "+%d" % carrots, Color("#ffd138") if gold else Color.WHITE,
+				1.6, -16.0)
+		if streak >= 2:
+			_tiles.float_text(cell, "x%d" % streak, Color("#ffd138"), 1.3, -34.0)
+	else:
+		_tiles.deny_x(cell)
+		if energy != 0:
+			_tiles.float_text(cell, "%d" % energy, TileView.X_RED, 1.8, 0.0, true)
+
+
+## CE QU'UN COUP DE PELLE A RAPPORTE, pour le creuseur seul (`floatGain`) : les
+## carottes en blanc, en or et plus grosses pour une doree. Et l'energie quand
+## la case a fait plus que coûter son pas — une carotte qui rend, une bombe qui
+## prend. Le simple cout d'un pas n'est pas dit : un « -1 » a chaque case serait
+## du bruit.
+func _float_dig(cell: Vector2i, energy: int, carrots: int, content: int) -> void:
+	if _tiles == null:
+		return
+	var golden := content == IslandBoard.Content.GOLDEN
+	if carrots > 0:
+		_tiles.float_text(cell, "+%d" % carrots, Color("#ffd138") if golden else Color.WHITE,
+			2.2 if golden else 1.6, 0.0)
+	var cost := Tuning.i("ENERGY.DIG_COST", 1)
+	if energy > 0:
+		_tiles.float_text(cell, "+%d" % energy, TileView.ENERGY_YELLOW, 1.4, -16.0 if carrots > 0 else 0.0, true)
+	elif energy < -cost or (energy < 0 and content == IslandBoard.Content.BOMB):
+		_tiles.float_text(cell, "%d" % energy, TileView.X_RED, 1.8, 0.0, true)
 
 
 ## CE QU'UN COUP DE PELLE A TROUVE, a l'oreille et a l'oeil. Le plateau joue
@@ -1540,6 +1600,7 @@ func _tutorial_tap(cell: Vector2i) -> void:
 			Sound.play("chime_quick")
 		else:
 			Sound.deny()
+			_tiles.deny_x(cell)
 		_tiles.refresh()
 		_refresh_caption()
 		_refresh_ring()

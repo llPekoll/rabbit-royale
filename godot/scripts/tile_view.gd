@@ -756,9 +756,7 @@ func refresh() -> void:
 			x.modulate.a = 1.0
 			x.visible = true
 			if fresh:
-				x.scale = Vector2.ZERO
-				create_tween().tween_property(x, "scale", X_SQUASH, X_POP_SECONDS) \
-					.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+				_stamp_x(x)
 		elif cell == _pulsed:
 			x.visible = true
 			if _pulse == null:
@@ -1500,8 +1498,31 @@ static func _chest_frames() -> SpriteFrames:
 ## ses bouts ronds. Le meme dessin sert au X fantome de la lecon, a un tiers
 ## d'opacite (le web : « literally setFlag's drawing »).
 class FlagMark extends Node2D:
+	## Ou en est le tampon : `drop` le tient au-dessus de sa case (en pixels du
+	## plateau), `ring` est l'onde qu'il leve en touchant, de 0 a 1 (< 0 : rien).
+	var drop := 0.0:
+		set(v):
+			drop = v
+			queue_redraw()
+	var ring := -1.0:
+		set(v):
+			ring = v
+			queue_redraw()
+
 	func _draw() -> void:
 		var r := Iso.half_h() * X_REACH
+		# L'ONDE, dans le repere de la case : on defait l'ecrasement du X pour
+		# que le losange garde la proportion du sol pendant que le X rebondit.
+		if ring >= 0.0 and scale.x > 0.001 and scale.y > 0.001:
+			var k := Vector2(X_SQUASH.x / scale.x, X_SQUASH.y / scale.y)
+			draw_set_transform(Vector2.ZERO, 0.0, k)
+			var d := Iso.half_h() * lerpf(0.7, 1.9, ring)
+			var pts := PackedVector2Array([Vector2(0, -d), Vector2(d, 0), Vector2(0, d),
+				Vector2(-d, 0), Vector2(0, -d)])
+			var a := (1.0 - ring) * 0.9
+			draw_polyline(pts, Color(X_EDGE, a * 0.7), 6.0)
+			draw_polyline(pts, Color(X_RED, a), 3.0)
+		draw_set_transform(Vector2(0, -drop / maxf(scale.y, 0.001)), 0.0, Vector2.ONE)
 		for pass_ in [[X_EDGE_WIDTH, X_EDGE], [X_RED_WIDTH, X_RED]]:
 			var w: float = pass_[0]
 			var c: Color = pass_[1]
@@ -1509,6 +1530,127 @@ class FlagMark extends Node2D:
 				draw_line(seg[0], seg[1], c, w, true)
 				draw_circle(seg[0], w * 0.5, c, true, -1.0, true)
 				draw_circle(seg[1], w * 0.5, c, true, -1.0, true)
+
+
+## LE X TOMBE COMME UN TAMPON : il arrive d'au-dessus, deux fois trop grand,
+## ecrase la case en la touchant, rebondit a sa taille, et le coup leve une
+## onde rouge sur le sol. Le `back.out` seul du web se voyait a peine sur une
+## case de telephone.
+const X_STAMP_FROM := 2.2
+const X_STAMP_DROP := 16.0
+const X_STAMP_FALL := 0.14
+const X_STAMP_RING := 0.45
+
+func _stamp_x(x: FlagMark) -> void:
+	x.scale = X_SQUASH * X_STAMP_FROM
+	x.drop = X_STAMP_DROP
+	x.modulate.a = 0.0
+	x.ring = -1.0
+	var tw := x.create_tween().set_parallel()
+	tw.tween_property(x, "modulate:a", 1.0, X_STAMP_FALL * 0.6)
+	tw.tween_property(x, "scale", X_SQUASH * Vector2(1.25, 0.7), X_STAMP_FALL) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_property(x, "drop", 0.0, X_STAMP_FALL) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.chain().tween_property(x, "scale", X_SQUASH, X_POP_SECONDS) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(x, "ring", 1.0, X_STAMP_RING).from(0.0) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.chain().tween_callback(func() -> void: x.ring = -1.0)
+
+
+## UN X FAUX : il se pose quand meme, tremble « non » et s'efface — la case
+## montre ensuite son chiffre, ce que le X a paye. Un X a part, pas celui de
+## la case : `refresh` cache ce dernier des que la case n'est pas marquee.
+func deny_x(cell: Vector2i) -> void:
+	if not _fog.has(cell):
+		return
+	var x := FlagMark.new()
+	x.scale = X_SQUASH * 1.6
+	x.modulate = Color(1, 1, 1, 0)
+	# Au-dessus de la case qui s'allume en jaune a l'instant ou il tombe.
+	if not terrain.mount_veil(cell, x, Z_FLOAT - 1):
+		x.free()
+		return
+	x.position.y -= rise_at(cell)
+	var tw := x.create_tween()
+	tw.set_parallel()
+	tw.tween_property(x, "modulate:a", 1.0, 0.08)
+	tw.tween_property(x, "scale", X_SQUASH, 0.14).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.set_parallel(false)
+	var home := x.position.x
+	for i in 6:
+		var a := 4.0 * (1.0 - i / 6.0) * (1.0 if i % 2 == 0 else -1.0)
+		tw.tween_property(x, "position:x", home + a, 0.045)
+	tw.tween_property(x, "position:x", home, 0.04)
+	tw.tween_property(x, "modulate:a", 0.0, 0.3).set_delay(0.1)
+	tw.tween_callback(x.queue_free)
+
+
+# ── Les chiffres qui montent d'une case (IslandScene.ts `floatText`) ─────────
+
+## Le jaune de la barre d'energie, pour un gain d'energie dit sur le plateau.
+const ENERGY_YELLOW := Color("#ffd60a")
+## Les pixels allumes de l'eclair, par rangee [premiere, derniere] colonne —
+## ceux de energy-bar.tsx : le chiffre se lit ENERGIE, pas une carotte de plus.
+const BOLT_ROWS := [[4, 6], [3, 5], [2, 4], [1, 6], [3, 6], [3, 5], [2, 4], [1, 3], [1, 2], [1, 1]]
+## Au-dessus de tout le plateau, eclairs compris : c'est le fait le plus frais
+## de l'ile pendant la seconde ou il vit.
+const Z_FLOAT := 40
+const FLOAT_FONT := 8
+
+
+## UNE LIGNE QUI MONTE D'UNE CASE : « +12 » jaune avec l'eclair pour
+## l'energie, rouge si elle s'en va ; les carottes en blanc (or au plafond de
+## la serie). `dy` decale les lignes d'une meme reponse.
+func float_text(cell: Vector2i, text: String, tint: Color, sc: float, dy: float, bolt := false) -> void:
+	var holder := Node2D.new()
+	if not terrain.mount_veil(cell, holder, Z_FLOAT):
+		holder.free()
+		return
+	holder.position.y -= rise_at(cell) + 18.0 - dy
+	var label := Label.new()
+	label.text = text
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.add_theme_font_size_override("font_size", FLOAT_FONT)
+	label.add_theme_color_override("font_color", tint)
+	label.add_theme_color_override("font_outline_color", Color("#0c0a12"))
+	label.add_theme_constant_override("outline_size", 3)
+	label.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
+	holder.add_child(label)
+	var font := label.get_theme_font("font")
+	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, FLOAT_FONT).x
+	var h := font.get_height(FLOAT_FONT)
+	var bolt_w := 9.0 if bolt else 0.0
+	label.size = Vector2(w + 2, h)
+	label.position = Vector2(-(w + bolt_w) * 0.5, -h * 0.5)
+	if bolt:
+		var b := BoltGlyph.new()
+		b.tint = tint
+		b.position = Vector2(label.position.x + w + 2, -5)
+		holder.add_child(b)
+	holder.scale = Vector2.ZERO
+	var y0 := holder.position.y
+	var tw := holder.create_tween().set_parallel()
+	tw.tween_property(holder, "scale", Vector2(sc, sc), 0.22) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(holder, "position:y", y0 - 30.0, 1.2) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tw.tween_property(holder, "modulate:a", 0.0, 0.3).set_delay(0.9) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.chain().tween_callback(holder.queue_free)
+
+
+class BoltGlyph extends Node2D:
+	var tint := Color.WHITE
+
+	func _draw() -> void:
+		for row in BOLT_ROWS.size():
+			var r: Array = BOLT_ROWS[row]
+			draw_rect(Rect2(r[0] - 1, row - 1, r[1] - r[0] + 3, 3), Color("#3a2a00"))
+		for row in BOLT_ROWS.size():
+			var r: Array = BOLT_ROWS[row]
+			draw_rect(Rect2(r[0], row, r[1] - r[0] + 1, 1), tint)
 
 
 ## LE LOSANGE, cuit une fois — le meme que les losanges de placement.
