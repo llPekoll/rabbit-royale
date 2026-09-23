@@ -18,13 +18,15 @@ extends Control
 ##     marche quand il compte est la seule chose qu'un compteur ne doit pas
 ##     faire. Le chiffre descend d'un cran (28, 22, 16, 12, 10) quand la pile
 ##     deborde du bois ; la ligne, jamais.
-##   • LE RESERVOIR SOUS LA PILE, en encre SOMBRE (« plus fonce ») : une
-##     lecture SUR le bois, pas une valeur allumee au-dessus — le chiffre
-##     possede la creme, et un second nombre pale se lirait comme deux totaux
-##     de meme poids. Hors du flux, centre sur le CHIFFRE et non sur le bois
-##     (« centre le au milieu du 258 »), a 21 du bas (« un peu plus haut »,
-##     puis « un peu plus bas »). La lecture seule, sans le plein (« vire le
-##     300 ») : l'anneau dessine deja la fraction.
+##   • LE RESERVOIR SOUS LE CADRAN, plus sur le bois (Paul, 2026-09-23 : « la
+##     barre d'energie est remplie d'information qui debordent »). Il vivait
+##     sous le chiffre, en encre sombre, a 21 du bas — exactement la ou la
+##     ligne des coffres tombe en manche : « 0/1 » s'ecrivait par-dessus
+##     « 295 ». Le chiffre de l'energie est la VALEUR DE L'ANNEAU : il pend
+##     donc sous l'anneau, sur une etiquette de verre comme la puce du butin,
+##     et le bois ne porte plus que les carottes (et les coffres en manche).
+##     La lecture seule, sans le plein (« vire le 300 ») : l'anneau dessine
+##     deja la fraction.
 ##   • LA LIGNE DU CLASSEMENT N'EST PLUS DESSINEE. Son code est encore dans
 ##     le fichier web mais plus dans son rendu ; le rang vit sur le trophee
 ##     du rail (« #59 »). `set_rank` garde donc les nombres pour qui les
@@ -32,7 +34,9 @@ extends Control
 ##   • LES COFFRES SOUS LA PILE, sur l'ile seulement (« met une icone de chest
 ##     juste en dessous du nombre de carrote ») ; le butin porte (« +18 » avec
 ##     sa carotte, « c'est quoi le plus 18 je comprends pas ») en puce de
-##     verre a droite de la plaque.
+##     verre qui PEND SOUS LE BOIS, centree sous le chiffre — le pendant de
+##     l'energie sous l'anneau. A droite de la plaque, elle tombait sur la
+##     boutique du rail des que l'ecran grandit (2026-09-23).
 ##   • LE REFUS SECOUE : -6, 5, -3, 0 en 360 ms, sur le DESSIN et non la
 ##     boite — c'est la barre qui pose la pastille, et une secousse qui ecrit
 ##     dans `position` se bat avec elle.
@@ -51,10 +55,12 @@ const FIGURE_STEPS: Array[int] = [28, 22, 16, 12, 10]
 const CARROT_BOX := 32.0
 const CARROT_ART := 30.0
 const ROW_CARROT := 32.0 + 6.0 - 2.0
-## La ligne du reservoir : 11 px, l'eclair a 11 de haut, a 21 du bas.
+## L'etiquette du reservoir : 11 px, l'eclair a 11 de haut, accrochee sous
+## l'epingle du cadran — elle la chevauche de ENERGY_TUCK pixels d'art, pour
+## pendre a l'anneau plutot que flotter dessous.
 const ENERGY_FONT := 11
 const ENERGY_BOLT_H := 11.0
-const ENERGY_BOTTOM := 21.0
+const ENERGY_TUCK := 6.0
 ## La ligne des coffres : le sprite du coffre (23x14) a 26 de large, 6 sous
 ## la pile.
 const CHEST_W := 26.0
@@ -75,6 +81,7 @@ var _row: HBoxContainer
 var _figure: Label
 var _chest_line: HBoxContainer
 var _chest_figure: Label
+var _energy_tag: PanelContainer
 var _energy_line: HBoxContainer
 var _energy_figure: Label
 var _carry: PanelContainer
@@ -158,18 +165,21 @@ func _init() -> void:
 	_chest_line.add_child(_chest_figure)
 	_stack.add_child(_chest_line)
 
-	# LE RESERVOIR, hors du flux, sous le chiffre.
+	# LE RESERVOIR, sous le cadran : la valeur de l'anneau, sur du verre.
+	_energy_tag = Kit.panel(Kit.style_glass())
+	_energy_tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_energy_line = Kit.hbox(2.0)
 	_energy_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_energy_figure = Kit.label("0", ENERGY_FONT, Palette.INK)
+	_energy_figure = Kit.label("0", ENERGY_FONT, Palette.PILL_INK)
 	_energy_figure.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_energy_line.add_child(_energy_figure)
 	var bolt := Kit.icon(Kit.ICONS["bolt"], ENERGY_BOLT_H)
-	bolt.material = Stencil.material(Palette.INK)
+	bolt.material = Stencil.material(Palette.RANK_GOLD)
 	bolt.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_energy_line.add_child(bolt)
-	_energy_line.visible = false
-	_plate.add_child(_energy_line)
+	_energy_tag.add_child(_energy_line)
+	_energy_tag.visible = false
+	_plate.add_child(_energy_tag)
 
 	# LE BUTIN PORTE : une puce de verre a droite de la plaque, « +18 » et
 	# sa carotte.
@@ -210,10 +220,9 @@ func _ready() -> void:
 
 
 ## LA MISE EN PAGE, dans les mesures de l'art (energy-dial.tsx) : la pile
-## est le bois propre, de `inset` sur `room` ; la ligne du reservoir est
-## centree sur la pile, a 21 du bas ; le butin pend a droite de la plaque.
+## est le bois propre, de `inset` sur `room` ; l'etiquette du reservoir pend
+## sous l'anneau ; le butin sous le chiffre.
 func _place() -> void:
-	var k := dial.scale_factor()
 	var x := dial.inset()
 	var w := dial.room()
 	_stack.position = Vector2(x, 0.0)
@@ -221,14 +230,11 @@ func _place() -> void:
 	_add.position = _stack.position
 	_add.size = _stack.size
 	_fit_figure()
-	_energy_line.reset_size()
-	var ew := _energy_line.get_combined_minimum_size()
-	_energy_line.size = ew
-	_energy_line.position = Vector2(round(x + w * 0.5 - ew.x * 0.5), round(size.y - ENERGY_BOTTOM * k - ew.y))
+	_hang_energy()
 	_carry.reset_size()
 	var cw := _carry.get_combined_minimum_size()
 	_carry.size = cw
-	_carry.position = Vector2(size.x + 8.0, round((size.y - cw.y) * 0.5))
+	_carry.position = Vector2(round(x + w * 0.5 - cw.x * 0.5), round(size.y - ENERGY_TUCK * dial.scale_factor()))
 
 
 ## Le plus grand cran ou le chiffre groupe tient encore dans la pile a cote
@@ -265,7 +271,7 @@ func refresh() -> void:
 	# Le grand livre du reservoir ne s'ouvre que depuis le terrier : sur l'ile,
 	# le cadran lit la manche, pas le reservoir.
 	dial.tappable = _has_bank and _run_energy < 0
-	_energy_line.visible = shown
+	_energy_tag.visible = shown
 	_tick_energy()
 
 
@@ -293,11 +299,17 @@ func _tick_energy() -> void:
 	if energy != _energy_shown:
 		_energy_shown = energy
 		_energy_figure.text = I18N.group_digits(energy)
-		_energy_line.tooltip_text = I18N.f("loop.energyOf", [energy, max_energy])
-		_energy_line.reset_size()
-		var ew := _energy_line.get_combined_minimum_size()
-		_energy_line.size = ew
-		_energy_line.position.x = round(dial.inset() + dial.room() * 0.5 - ew.x * 0.5)
+		_energy_tag.tooltip_text = I18N.f("loop.energyOf", [energy, max_energy])
+		_hang_energy()
+
+
+## L'etiquette, centree sous l'anneau, qui chevauche un peu son epingle.
+func _hang_energy() -> void:
+	_energy_tag.reset_size()
+	var ew := _energy_tag.get_combined_minimum_size()
+	_energy_tag.size = ew
+	var c := dial.ring_centre()
+	_energy_tag.position = Vector2(round(c.x - ew.x * 0.5), round(size.y - ENERGY_TUCK * dial.scale_factor()))
 
 
 ## LE RANG ET L'ECART, tels que le tableau les donne (`me`). Gardes pour

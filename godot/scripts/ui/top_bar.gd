@@ -134,6 +134,14 @@ func _measure() -> void:
 	# La pastille : centree sur l'ecran, collee au haut, mise a l'echelle
 	# depuis son centre haut pour rester accrochee au meme point.
 	var s := PILL_SMALL if view.y < PILL_SHRINK_UNDER else 1.0
+	# ET JAMAIS SOUS LE RAIL : ses boutons grandissent avec la hauteur de
+	# l'ecran, la pastille non — sur un ecran haut, le bout du bois passait
+	# sous la boutique (2026-09-23). Elle cede juste ce qu'il faut pour
+	# garder un ecart, toujours centree.
+	var rail_left := view.x - Kit.EDGE - _rail.get_combined_minimum_size().x
+	var half_room := rail_left - Kit.PAD - view.x * 0.5
+	if half_room > 0.0:
+		s = minf(s, half_room / (EnergyDial.ART.x * 0.5))
 	pill.pivot_offset = Vector2(EnergyDial.ART.x * 0.5, 0.0)
 	pill.scale = Vector2(s, s)
 	pill.position = Vector2(round((view.x - EnergyDial.ART.x) * 0.5), 0.0)

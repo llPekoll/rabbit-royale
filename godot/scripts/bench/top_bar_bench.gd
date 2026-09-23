@@ -3,6 +3,7 @@ extends Control
 ## joueur factices, pour la voir sans compte.
 ##
 ##   godot --path godot scenes/bench/top_bar_bench.tscn -- --shot=bar.png --after=2
+##   ... -- --run      # en pleine manche : coffres, butin, energie de la manche
 ##
 ## Home et Session sont des autoloads : on ecrit directement dedans, la
 ## barre les lit comme elle lirait le serveur. Rien ne part sur le reseau
@@ -29,6 +30,11 @@ func _ready() -> void:
 	add_child(bar)
 	bar.set_rank(59, 340)
 	bar.set_season_open(false)
+	# `-- --run` : la barre en pleine manche — l'energie de la manche sur le
+	# cadran, les coffres sous les carottes, le butin porte a droite.
+	if "--run" in OS.get_cmdline_user_args():
+		bar.set_run(18, {"taken": 0, "total": 1, "warnStage": 0})
+		bar.set_run_energy(295)
 
 	# Ce que la barre dit, imprime pour le banc.
 	for s in ["energy_tapped", "add_pressed", "profile_pressed", "shop_pressed", "story_pressed", "season_pressed"]:
