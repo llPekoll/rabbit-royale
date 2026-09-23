@@ -132,8 +132,9 @@ func _measure() -> void:
 	var stacked := room.x < STACK_BELOW
 	_cap = room.y - 2.0 * Kit.EDGE
 	if fullscreen:
-		# L'ecran entier, quel que soit le texte : c'est le chrome qui le pose.
-		room = get_viewport_rect().size
+		# L'ecran entier (jusqu'a un portable), quel que soit le texte : c'est
+		# le chrome qui le pose.
+		room = Dialog.screen_rect(get_viewport_rect().size).size
 		stacked = room.x < STACK_BELOW
 		custom_minimum_size = room
 	else:

@@ -777,8 +777,9 @@ func _center_dialog() -> void:
 	# debordement, en haut et des deux cotes pour rester centre.
 	var view := get_viewport_rect().size
 	if _dialog.get("fullscreen") == true:
-		_dialog.position = Vector2.ZERO
-		_dialog.size = view
+		var screen := Dialog.screen_rect(view)
+		_dialog.position = screen.position
+		_dialog.size = screen.size
 		return
 	# Le dessin du [x] est plus petit que sa zone de tap (Kit.CLOSE_TAP) :
 	# seul le DESSIN doit rester a l'ecran, d'ou le retrait de cette marge.

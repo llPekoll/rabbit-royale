@@ -112,8 +112,9 @@ func _only(which: String) -> void:
 	var place := func() -> void:
 		var view := get_viewport_rect().size
 		if dialog.fullscreen:
-			dialog.position = Vector2.ZERO
-			dialog.size = view
+			var screen := Dialog.screen_rect(view)
+			dialog.position = screen.position
+			dialog.size = screen.size
 			return
 		if dialog is EnergyPopup:
 			dialog.custom_minimum_size.x = minf(EnergyPopup.WIDTH, view.x - 2.0 * Kit.EDGE)

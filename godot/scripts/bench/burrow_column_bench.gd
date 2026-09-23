@@ -45,6 +45,18 @@ func _ready() -> void:
 	meter.size = Vector2(220.0, 28.0)
 	add_child(meter)
 
+	# `--then=done|ask|next` : une seconde apres, le terrier passe a cette
+	# variante et toutes les cartes se reecrivent — ce que le jeu fait a
+	# chaque relecture de Home (le tableau des saisons coche sa quete).
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--then="):
+			var then := arg.trim_prefix("--then=")
+			get_tree().create_timer(1.0).timeout.connect(func() -> void: _fake_home(then))
+	if "--cards" in OS.get_cmdline_user_args():
+		for t in [0.8, 2.5]:
+			get_tree().create_timer(t).timeout.connect(func() -> void:
+				for card in column.find_children("*", "HubCard", true, false):
+					print("[cards] t=%s %s size=%s min=%s" % [t, card.name, (card as Control).size, (card as Control).get_combined_minimum_size()]))
 	if "--dump" in OS.get_cmdline_user_args():
 		await get_tree().create_timer(1.5).timeout
 		_dump(column, 0)

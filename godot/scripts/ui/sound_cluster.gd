@@ -1,35 +1,38 @@
 class_name SoundCluster
 extends Control
-## LE SON : deux carres au bout droit de la barre, et un panneau qui tombe
-## dessous. Porte de src/components/sound-button.tsx :
+## LE SON : un carre au bout droit de la barre, et un panneau qui tombe
+## dessous. Porte de src/components/sound-button.tsx, sauf sur un point :
 ##
-##   • UN TAP COUPE LA MUSIQUE, ce que le joueur cherche vraiment — quelqu'un
-##     qui joue en public veut le son coupe MAINTENANT, pas apres avoir
-##     trouve un ecran de reglages. La fleche a cote ouvre le reste (le bus
-##     des effets et le volume) : le cas courant coute un tap, le cas rare
-##     reste a portee.
+##   • UN SEUL CARRE, LE HAUT-PARLEUR, ET IL OUVRE LE PANNEAU (Paul,
+##     2026-09-23). Il y en avait deux — le haut-parleur coupait la musique
+##     d'un tap, une fleche a cote ouvrait les reglages — et deux carres pour
+##     le son pesaient autant dans la barre que la boutique. Couper la
+##     musique coute maintenant deux taps, le premier rangee « Musique » du
+##     panneau a portee du pouce ; le haut-parleur dit toujours si elle est
+##     coupee.
 ##   • EN HAUT A DROITE, DANS LA RANGEE. Il a passe sa vie a tourner autour
 ##     des coins du bas ; c'est du chrome, comme la boutique et le tableau,
 ##     donc il est bati comme eux et epingle au bout droit de la barre. C'est
 ##     la seule piece de la rangee sur CHAQUE ecran, donc il possede le coin
 ##     et les autres s'alignent a sa gauche. Le panneau descend de lui.
-##   • MUET SE LIT COMME PRESSE : le carre s'enfonce et le haut-parleur perd
-##     ses ondes — l'etat est dans la forme, pas seulement dans le sprite.
-##   • LA FLECHE POINTE OU LE PANNEAU VA : en bas pour ouvrir, en haut pour
-##     replier.
+##   • MUET SE LIT DANS LE SPRITE : le haut-parleur perd ses ondes. Le carre
+##     s'enfonce, lui, tant que le panneau est ouvert — l'enfoncement dit
+##     « ce bouton a ouvert ceci », comme partout dans la barre.
 ##   • UN PANNEAU SANS AUTRE ISSUE QUE SON BOUTON EST UN PIEGE sur un ecran
 ##     tactile : un tap dehors le ferme, Echap aussi.
 ##   • UNE GOUTTIERE POUR TOUS LES CONTROLES : chaque rangee est deux
 ##     colonnes, le libelle a gauche et le controle a droite sur la meme
 ##     largeur, pour que l'oeil trouve un bord et non quatre.
 
-## Le panneau (`.rr-sound-panel`) : 216 de large, la gouttiere de 56.
-const PANEL_W := 216.0
-const GUTTER := 56.0
+## Le panneau (`.rr-sound-panel`) : 244 de large, la gouttiere de 76. Le
+## web tient dans 216 / 56 ; ici les planches portent 20 px de feuilles a
+## chaque bout, et 56 ne laissait que 16 px de face — « OFF » sortait « FI »,
+## et « Effects » touchait la planche.
+const PANEL_W := 244.0
+const GUTTER := 76.0
 const ROW_GAP := 11.0
 
-var mute_button: HubIconButton
-var settings_button: HubIconButton
+var sound_button: HubIconButton
 
 var _cluster: HBoxContainer
 var _panel: Control
@@ -48,13 +51,9 @@ func _init() -> void:
 	_cluster.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_cluster)
 
-	mute_button = HubIconButton.make("Mute music")
-	mute_button.pressed.connect(_toggle_music)
-	_cluster.add_child(mute_button)
-
-	settings_button = HubIconButton.make("Sound settings")
-	settings_button.pressed.connect(func() -> void: set_open(not _open))
-	_cluster.add_child(settings_button)
+	sound_button = HubIconButton.make("Sound settings")
+	sound_button.pressed.connect(func() -> void: set_open(not _open))
+	_cluster.add_child(sound_button)
 
 	_build_panel()
 	_cluster.resized.connect(_place)
@@ -67,10 +66,9 @@ func _ready() -> void:
 	_place()
 
 
-## Le carre des deux boutons, comme le reste du rail.
+## Le carre du bouton, comme le reste du rail.
 func set_square(px: float, view_height: float) -> void:
-	mute_button.set_square(px, view_height)
-	settings_button.set_square(px, view_height)
+	sound_button.set_square(px, view_height)
 	_place()
 
 
@@ -164,16 +162,13 @@ func _toggle_music() -> void:
 	_reflect()
 
 
-## L'etat dans chaque controle : le sprite et l'enfoncement du muet, ON/OFF
-## sur les deux planches, la glissiere au niveau.
+## L'etat dans chaque controle : le sprite du muet et l'enfoncement du
+## panneau ouvert, ON/OFF sur les deux planches, la glissiere au niveau.
 func _reflect() -> void:
 	var muted := AudioSettings.music_muted
-	mute_button.set_glyph(Kit.ICONS["speaker-off"] if muted else Kit.ICONS["speaker-on"])
-	mute_button.set_pressed_look(muted)
-	mute_button.tooltip_text = I18N.t("sound.unmute") if muted else I18N.t("sound.mute")
-	settings_button.set_caret(not _open)
-	settings_button.set_pressed_look(_open)
-	settings_button.tooltip_text = I18N.t("sound.settings")
+	sound_button.set_glyph(Kit.ICONS["speaker-off"] if muted else Kit.ICONS["speaker-on"])
+	sound_button.set_pressed_look(_open)
+	sound_button.tooltip_text = I18N.t("sound.settings")
 	_set_toggle(_music, not muted)
 	_set_toggle(_effects, not AudioSettings.sfx_muted)
 	_volume.set_value_no_signal(AudioSettings.volume)
@@ -195,8 +190,8 @@ func is_open() -> bool:
 	return _open
 
 
-## Les deux carres, et le panneau sous eux, aligne a droite pour grandir
-## vers l'interieur de l'ecran.
+## Le carre, et le panneau sous lui, aligne a droite pour grandir vers
+## l'interieur de l'ecran.
 func _place() -> void:
 	_cluster.reset_size()
 	var cs := _cluster.get_combined_minimum_size()

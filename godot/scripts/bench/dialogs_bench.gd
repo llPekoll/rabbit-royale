@@ -124,6 +124,9 @@ func _fake_history() -> Dictionary:
 
 
 func _only(which: String) -> void:
+	# Le bureau a l'echelle 1, comme le jeu (DeskScale) : sans lui, un banc a
+	# la taille d'un bureau etirait le canevas du telephone.
+	DeskScale.follow(get_window())
 	var d: Dialog
 	match which:
 		"season":
@@ -159,8 +162,9 @@ func _only(which: String) -> void:
 func _place(d: Dialog) -> void:
 	var view := get_viewport_rect().size
 	if d.fullscreen:
-		d.position = Vector2.ZERO
-		d.size = view
+		var screen := Dialog.screen_rect(view)
+		d.position = screen.position
+		d.size = screen.size
 		return
 	if d is SeasonBoard:
 		# Le tableau s'ouvre en panneau a droite (`placement == "board"`).

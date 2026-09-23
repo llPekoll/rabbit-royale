@@ -27,7 +27,8 @@ var body: Control
 var title_label: Label
 var close_button: TextureButton
 ## PLEIN ECRAN (`go_fullscreen`) : le chrome le pose sur toute la vue, sans
-## marge ni cadre de feuilles.
+## marge ni cadre de feuilles — jusqu'a la taille d'un portable
+## (`screen_rect`).
 var fullscreen := false
 
 var _frame: NineSlice
@@ -162,7 +163,30 @@ func go_fullscreen() -> void:
 ## La vue entiere, comme minimum : un banc qui pose le dialogue sans le
 ## chrome le voit a sa vraie taille.
 func _fit_screen() -> void:
-	custom_minimum_size = get_viewport_rect().size
+	custom_minimum_size = screen_rect(get_viewport_rect().size).size
+
+
+## LE PLEIN ECRAN S'ARRETE A UN PORTABLE. Sur un telephone, le panneau prend
+## toute la vue ; sur un bureau a l'echelle 1 (DeskScale), la « vue » d'un
+## ecran Retina de 15 pouces fait 1728x1052, et la boutique y posait six
+## cartes au milieu d'un grand vide (Paul, 2026-09-23). Au-dela de FULL_MAX
+## (le 1376x768 de reference du bureau), chaque axe s'arrete a FULL_MAX et le
+## panneau se centre : son cadre de feuilles, pousse hors de l'ecran au
+## telephone, reparait autour de lui sur le voile. Un axe qui tient garde la
+## vue entiere — le cadre y reste dehors, comme au telephone.
+const FULL_MAX := Vector2(1376.0, 768.0)
+## L'air qu'il faut autour pour que le cadre se voie entier : ses feuilles,
+## et la gouttiere du chrome.
+const FULL_AIR := Kit.LEAF_EDGE + Kit.EDGE * 2.0
+
+
+static func screen_rect(view: Vector2) -> Rect2:
+	var size := view
+	if view.x > FULL_MAX.x + 2.0 * FULL_AIR:
+		size.x = FULL_MAX.x
+	if view.y > FULL_MAX.y + 2.0 * FULL_AIR:
+		size.y = FULL_MAX.y
+	return Rect2(((view - size) * 0.5).floor(), size)
 
 
 ## Remplace le corps par un noeud de l'ecran (un ScrollContainer, une grille).
