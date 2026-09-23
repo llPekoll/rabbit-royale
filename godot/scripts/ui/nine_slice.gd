@@ -41,6 +41,23 @@ extends Control
 		fill = value
 		queue_redraw()
 
+## UNE BANDE QUI S'ALLONGE, par cote (lignes SOURCE, debut et fin ; zero =
+## eteinte). Allumees, le cadre ne s'etire plus : les bouts gauche et droit
+## gardent l'echelle de leur bord (`edge.x / slice.x`) de haut en bas, sauf
+## cette bande, choisie la ou l'art n'est qu'un poteau nu. Les rails du haut
+## et du bas gardent la meme echelle. Une banniere a vignes etiree en trois
+## tranches grossissait ses rails et allongeait ses feuilles avec la carte
+## (Paul, 2026-09-23) ; ici le contour a la meme taille sur toute carte.
+@export var band_left := Vector2i.ZERO:
+	set(value):
+		band_left = value
+		queue_redraw()
+
+@export var band_right := Vector2i.ZERO:
+	set(value):
+		band_right = value
+		queue_redraw()
+
 @export var tint := Color.WHITE:
 	set(value):
 		tint = value
@@ -93,6 +110,9 @@ func _draw() -> void:
 	var db := _edge(3) * scale_y
 
 	var src_x := [0.0, sl, tw - sr, tw]
+	if band_left != Vector2i.ZERO and band_right != Vector2i.ZERO and sl > 0.0:
+		_draw_banded(src_x, [0.0, dl, w - dr, w], dl / sl, h, th)
+		return
 	var src_y := [0.0, st, th - sb, th]
 	var dst_x := [0.0, dl, w - dr, w]
 	var dst_y := [0.0, dt, h - db, h]
@@ -103,6 +123,33 @@ func _draw() -> void:
 				continue
 			var src := Rect2(src_x[col], src_y[row], src_x[col + 1] - src_x[col], src_y[row + 1] - src_y[row])
 			var dst := Rect2(dst_x[col], dst_y[row], dst_x[col + 1] - dst_x[col], dst_y[row + 1] - dst_y[row])
+			if src.size.x <= 0.0 or src.size.y <= 0.0 or dst.size.x <= 0.0 or dst.size.y <= 0.0:
+				continue
+			draw_texture_rect_region(texture, dst, src, tint)
+
+
+## Chaque colonne a ses propres coupes verticales : les bouts s'allongent a
+## leur bande, le milieu entre ses rails. Tout le reste a l'echelle `k`.
+func _draw_banded(src_x: Array, dst_x: Array, k: float, h: float, th: float) -> void:
+	var st := float(slice.y)
+	var sb := float(slice.w)
+	var cuts := [
+		[0.0, float(band_left.x), float(band_left.y), th],
+		[0.0, st, th - sb, th],
+		[0.0, float(band_right.x), float(band_right.y), th],
+	]
+	# Une carte plus courte que ses parties fixes les ecrase toutes pareil,
+	# pour que les rails restent alignes d'une colonne a l'autre.
+	var fixed := 0.0
+	for c in cuts:
+		fixed = maxf(fixed, (c[1] + c[3] - c[2]) * k)
+	var ky := k * minf(1.0, h / maxf(1.0, fixed))
+	for col in 3:
+		var c: Array = cuts[col]
+		var dy := [0.0, c[1] * ky, h - (c[3] - c[2]) * ky, h]
+		for row in 3:
+			var src := Rect2(src_x[col], c[row], src_x[col + 1] - src_x[col], c[row + 1] - c[row])
+			var dst := Rect2(dst_x[col], dy[row], dst_x[col + 1] - dst_x[col], dy[row + 1] - dy[row])
 			if src.size.x <= 0.0 or src.size.y <= 0.0 or dst.size.x <= 0.0 or dst.size.y <= 0.0:
 				continue
 			draw_texture_rect_region(texture, dst, src, tint)

@@ -41,6 +41,23 @@ const BANNER_W := 387.0
 const BANNER_H := 139.0
 const BANNER_CAP := 64
 const BANNER_RAIL := 13.0
+## Ou le parchemin commence sous le rail du haut, et ou il finit sur celui du
+## bas (lignes source).
+const BANNER_TOP := 14
+const BANNER_BOTTOM := 12
+## LES BANDES QUI S'ALLONGENT (NineSlice.band_left/right) : le seul poteau nu
+## de chaque bout, mesure sur l'art — a gauche sous les vignes, a droite
+## entre les anneaux et les vignes. Tout le reste du contour garde l'echelle
+## des bouts : meme rail, memes feuilles, sur une carte de 70 ou de 250 px.
+const BANNER_BAND_L := Vector2i(90, 95)
+const BANNER_BAND_R := Vector2i(29, 34)
+
+## LA HAUTEUR D'ECRAN QUI MESURE LES CARTES s'arrete a celle du bureau de
+## reference (1376x768, comme Dialog.FULL_MAX) : au-dela, un ecran plus haut
+## ne fait pas une carte plus haute. Sur un Retina de 15 pouces (1052 de
+## haut) le terrier prenait 23 % de l'ecran pour trois lignes et un bouton —
+## un grand vide dans un cadre etire (Paul, 2026-09-23).
+const VIEW_MAX_H := 768.0
 ## Le bout que les cartes s'offrent : une part de la hauteur sous un plafond.
 ## 0,46 (la proportion de l'art) mangeait 142 px d'une carte de 308 ; 0,22
 ## faisait un cadre maigre au milieu etire. Le plafond de 34 est ce que la
@@ -92,16 +109,19 @@ func _init() -> void:
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	mouse_filter = Control.MOUSE_FILTER_STOP
 
-	_banner = NineSlice.make(Kit.BANNER, Vector4i(BANNER_CAP, 0, BANNER_CAP, 0), Vector4(CAP_MAX, 0, CAP_MAX, 0), true)
+	_banner = NineSlice.make(Kit.BANNER, Vector4i(BANNER_CAP, BANNER_TOP, BANNER_CAP, BANNER_BOTTOM), Vector4(CAP_MAX, 0, CAP_MAX, 0), true)
+	_banner.band_left = BANNER_BAND_L
+	_banner.band_right = BANNER_BAND_R
 	Kit.fill(_banner)
 	add_child(_banner)
 
 	_inset = Kit.margin(0, 0, 0, 0)
 	Kit.fill(_inset)
 	add_child(_inset)
-	# LA CARTE TIENT CE QU'ELLE PORTE : sa part d'ecran est un plancher, pas
-	# un plafond. Sur un bureau le terrier montre ses deux lignes fines, et
-	# sa dalle passait sur le cadre du bas (2026-09-23).
+	# LA CARTE EPOUSE CE QU'ELLE PORTE. Sa part d'ecran mesure son texte, son
+	# art et ses dalles ; sa HAUTEUR est celle de son contenu. Plancher, la
+	# part laissait un grand vide sous le terrier d'un bureau (Paul,
+	# 2026-09-23) ; plafond, elle faisait passer la dalle sur le cadre.
 	_inset.minimum_size_changed.connect(_hold_content)
 
 	# La bande : l'art puis une COLONNE qui tient le texte ; le bouton EN
@@ -163,12 +183,11 @@ func refresh() -> void:
 ## REMESURER la carte sur l'ecran : sa hauteur, ses bouts, son air, son art.
 ## A appeler avant de la remplir — les tailles de texte en dependent.
 func layout() -> void:
-	var view := get_viewport_rect().size if is_inside_tree() else Vector2(890, 400)
+	var view := _view()
 	var short := view.y < SHORT_VIEW
 	var scale := SHORT_SCALE if short else 1.0
 	_pad = Kit.PAD_TIGHT if short else Kit.PAD
 	_height = maxf(view.y * share / 100.0 * scale, floor_px)
-	custom_minimum_size = Vector2(0, _height)
 	_hold_content.call_deferred()
 
 	# LES BOUTS SONT CEUX DE LA CARTE A BOUTON, pour les trois cartes. Ils
@@ -180,9 +199,9 @@ func layout() -> void:
 	var cap := minf(ref * CAP_RATIO, CAP_MAX)
 	_banner.edge = Vector4(cap, 0, cap, 0)
 
-	# Le bloc de texte s'ecarte du rail : le plus grand du pad et du rail plus
-	# 2 px d'air, sinon sur une carte haute la premiere ligne est dans le bois.
-	var block := maxf(_pad, _height * BANNER_RAIL / BANNER_H + 2.0)
+	# Le bloc de texte s'ecarte du rail : son epaisseur (a l'echelle des bouts,
+	# comme le reste du contour), puis l'air de la carte.
+	var block := BANNER_RAIL * cap / BANNER_CAP + _pad
 	_inset.add_theme_constant_override("margin_left", int(cap + _pad))
 	_inset.add_theme_constant_override("margin_right", int(cap + _pad))
 	_inset.add_theme_constant_override("margin_top", int(block))
@@ -204,8 +223,14 @@ func layout() -> void:
 		_art.size_flags_vertical = Control.SIZE_SHRINK_BEGIN if art_top else Control.SIZE_SHRINK_CENTER
 
 
+## L'ecran tel que les cartes le mesurent : sa hauteur bornee a VIEW_MAX_H.
+func _view() -> Vector2:
+	var view := get_viewport_rect().size if is_inside_tree() else Vector2(890, 400)
+	return Vector2(view.x, minf(view.y, VIEW_MAX_H))
+
+
 func _hold_content() -> void:
-	var need := maxf(_height, ceilf(_inset.get_combined_minimum_size().y))
+	var need := ceilf(_inset.get_combined_minimum_size().y)
 	if absf(custom_minimum_size.y - need) > 0.5:
 		custom_minimum_size = Vector2(0, need)
 
@@ -213,7 +238,7 @@ func _hold_content() -> void:
 ## La hauteur d'une carte a bouton (le jardin) sur cet ecran : la mesure
 ## commune des bouts et de la case de l'art.
 func _reference_height() -> float:
-	var view := get_viewport_rect().size if is_inside_tree() else Vector2(890, 400)
+	var view := _view()
 	var scale := SHORT_SCALE if view.y < SHORT_VIEW else 1.0
 	return maxf(view.y * REF_SHARE / 100.0 * scale, REF_FLOOR)
 
@@ -246,7 +271,7 @@ func content_height() -> float:
 ## avec l'en-tete (« BURROW - LVL 1 » passait sous une hutte plus grosse).
 ## La hauteur en trop va a l'AIR et aux boutons, pas au texte.
 func unit_height() -> float:
-	var view := get_viewport_rect().size if is_inside_tree() else Vector2(890, 400)
+	var view := _view()
 	var scale := SHORT_SCALE if view.y < SHORT_VIEW else 1.0
 	var by_share := view.y * share / 100.0 * scale - 2.0 * _pad - 2.0 * FRAME
 	return maxf(1.0, minf(content_height(), by_share))
