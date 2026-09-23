@@ -74,11 +74,23 @@ const Z_HINT := 3
 ## son voile, et rien ne doit passer devant.
 const Z_X := 4
 
-## LE X ROUGE — la couleur du 3 des chiffres, pour que « rouge » veuille dire
-## la meme chose partout sur le plateau.
-const X_COLOR := Color("#ff4d4d")
-const X_SIZE := 16
-const X_STROKE := 2
+## LE X ROUGE — `Tile.setFlag` du web, trait pour trait : deux traits epais
+## a bord sombre, bouts ronds, ecrases a la proportion du losange (1.5 x 0.75)
+## pour qu'il soit COUCHE sur le sol et non debout dessus. Il doit se lire
+## d'un bout du plateau a l'autre comme « pas la », sur l'herbe comme sur le
+## sable. La premiere version etait une croix de pixels de deux de large : elle
+## se lisait comme un trait de grille.
+##
+## Les mesures du web sont en unites de SA tuile (HALF_H = 12) ; celle d'ici a
+## la meme demi-hauteur, donc les chiffres passent tels quels.
+const X_RED := Color("#ff5a4a")
+const X_EDGE := Color("#3a0d0d")
+const X_REACH := 0.62
+const X_EDGE_WIDTH := 7.0
+const X_RED_WIDTH := 4.0
+const X_SQUASH := Vector2(1.5, 0.75)
+## L'arrivee (`back.out(3)`, 0,3 s) : le X claque en place.
+const X_POP_SECONDS := 0.3
 
 ## LE BATTEMENT DE LA CASE ENSEIGNEE, en secondes — le meme que le bouton du
 ## web (`TEACH_BEAT_SECONDS`, 0,9 s) : c'est la cadence commune qui lie le
@@ -218,7 +230,6 @@ var _pulsed := Vector2i(-1, -1)
 var _pulse: Tween
 
 static var _diamond: ImageTexture
-static var _cross: ImageTexture
 
 
 func build() -> void:
@@ -241,10 +252,8 @@ func build() -> void:
 		# par case plutot que cree a la pose : vingt-huit sprites invisibles ne
 		# coutent rien, et « montrer » est plus sur que « monter » au moment ou
 		# le doigt vient de taper.
-		var x := Sprite2D.new()
-		x.texture = _cross_texture()
-		x.centered = true
-		x.modulate = X_COLOR
+		var x := FlagMark.new()
+		x.scale = X_SQUASH
 		x.visible = false
 		terrain.mount_veil(cell, x, Z_X)
 		_x[cell] = x
@@ -552,12 +561,18 @@ func refresh() -> void:
 
 		# LE X : plein quand la case est marquee, fantome et battant quand c'est
 		# la case enseignee, absent sinon.
-		var x: Sprite2D = _x[cell]
+		var x: Node2D = _x[cell]
 		if board.is_flagged(cell):
 			if cell == _pulsed:
 				_stop_pulse()
+			# POSE A L'INSTANT : il claque. Un plateau repris, lui, l'a deja.
+			var fresh := _primed and (not x.visible or x.modulate.a < 1.0)
 			x.modulate.a = 1.0
 			x.visible = true
+			if fresh:
+				x.scale = Vector2.ZERO
+				create_tween().tween_property(x, "scale", X_SQUASH, X_POP_SECONDS) \
+					.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 		elif cell == _pulsed:
 			x.visible = true
 			if _pulse == null:
@@ -705,7 +720,7 @@ func _stop_pulse() -> void:
 		_pulse.kill()
 	_pulse = null
 	if _x.has(_pulsed):
-		(_x[_pulsed] as Sprite2D).modulate.a = 1.0
+		(_x[_pulsed] as Node2D).modulate.a = 1.0
 	_pulsed = Vector2i(-1, -1)
 
 
@@ -901,23 +916,19 @@ static func _chest_frames() -> SpriteFrames:
 	return sf
 
 
-## LE X, cuit une fois : deux diagonales de deux pixels dans un carre de seize.
-##
-## Des pixels francs, comme le losange — un X anticrenele sur un sol en pixel
-## art se lit comme une tache, pas comme une marque.
-static func _cross_texture() -> ImageTexture:
-	if _cross != null:
-		return _cross
-	var img := Image.create(X_SIZE, X_SIZE, false, Image.FORMAT_RGBA8)
-	img.fill(Color(1, 1, 1, 0))
-	for y in range(X_SIZE):
-		for x in range(X_SIZE):
-			var on_down := absi(x - y) < X_STROKE
-			var on_up := absi(x + y - (X_SIZE - 1)) < X_STROKE
-			if on_down or on_up:
-				img.set_pixel(x, y, Color(1, 1, 1, 1))
-	_cross = ImageTexture.create_from_image(img)
-	return _cross
+## LE X, dessine : le trait sombre d'abord, le rouge par-dessus, chacun avec
+## ses bouts ronds. Le meme dessin sert au X fantome de la lecon, a un tiers
+## d'opacite (le web : « literally setFlag's drawing »).
+class FlagMark extends Node2D:
+	func _draw() -> void:
+		var r := Iso.half_h() * X_REACH
+		for pass_ in [[X_EDGE_WIDTH, X_EDGE], [X_RED_WIDTH, X_RED]]:
+			var w: float = pass_[0]
+			var c: Color = pass_[1]
+			for seg in [[Vector2(-r, -r), Vector2(r, r)], [Vector2(r, -r), Vector2(-r, r)]]:
+				draw_line(seg[0], seg[1], c, w, true)
+				draw_circle(seg[0], w * 0.5, c, true, -1.0, true)
+				draw_circle(seg[1], w * 0.5, c, true, -1.0, true)
 
 
 ## LE LOSANGE, cuit une fois — le meme que les losanges de placement.

@@ -160,6 +160,7 @@ func build(seed_value: int, start: Vector2i = Vector2i(-1, -1)) -> void:
 
 
 func clear() -> void:
+	_happy = false
 	if _hop != null and _hop.is_valid():
 		_hop.kill()
 	# LE BATTEMENT MEURT AVEC LE LAPIN. Un SceneTreeTimer garde sa connexion
@@ -240,8 +241,31 @@ func _eat() -> void:
 
 
 func _rest() -> void:
-	if _sprite != null:
-		_sprite.play("idle")
+	if _sprite == null:
+		return
+	_sprite.play("happy" if _happy else "idle")
+
+
+## IL EST CONTENT : la rangee `happy` (le saut sur place), en boucle, une fois
+## pose — `PlayerRabbit.celebrate` du web (`whenLanded` puis `happy` boucle).
+## Un saut en cours se termine d'abord : il fete sur la case du coffre, pas a
+## mi-chemin. `happy` ne boucle pas dans la table (le web ne la boucle qu'ici),
+## donc on la relance a chaque fin tant que la fete dure.
+var _happy := false
+
+
+func celebrate() -> void:
+	if _sprite == null or _happy:
+		return
+	_happy = true
+	_sprite.animation_finished.connect(_on_happy_done)
+	if _hop == null or not _hop.is_valid():
+		_sprite.play("happy")
+
+
+func _on_happy_done() -> void:
+	if _happy and _sprite != null and _sprite.animation == "happy":
+		_sprite.play("happy")
 
 
 ## ENVOIE LE LAPIN SUR UNE CASE — provisoire, pour voir une tape aboutir.

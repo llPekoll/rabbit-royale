@@ -39,6 +39,12 @@ const LINE_TOP := 0.24
 const LINE_DELAY := 0.5
 const LINE_IN := 0.52
 
+## SUIT-IL LA MANCHE ? Oui pour celui du HUD, qui monte a l'eruption du
+## serveur. Non pour celui que l'ile pose elle-meme a la fin du tutoriel : la
+## lecon n'a pas de manche en ligne, et deux voiles branches sur le meme signal
+## joueraient deux fois pendant une vraie eruption.
+@export var follows_run := true
+
 var _dark: TextureRect
 var _line: Label
 var _drops: Array[Dictionary] = []
@@ -75,10 +81,11 @@ func _ready() -> void:
 	_line.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	add_child(_line)
 
-	var state := RunState.current
-	state.erupting_changed.connect(_on_erupting)
-	if state.erupting_ms > 0:
-		play(state.erupting_ms)
+	if follows_run:
+		var state := RunState.current
+		state.erupting_changed.connect(_on_erupting)
+		if state.erupting_ms > 0:
+			play(state.erupting_ms)
 	get_viewport().size_changed.connect(_measure)
 	_measure()
 

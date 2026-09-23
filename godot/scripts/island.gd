@@ -56,6 +56,12 @@ var _board: IslandBoard
 
 var _seed := DEFAULT_SEED
 var _cam_tween: Tween
+## Le fondu d'arrivee, a part du tween de camera : un doigt qui prend le
+## plateau tue la camera, et l'ile ne doit pas rester a demi eteinte pour ca.
+var _fade: Tween
+## Le ciel de la fin du tutoriel — le meme que celui de l'eruption, joue a la
+## main (voir `follows_run`).
+var _sink_sky: EruptionOverlay
 ## Provisoire : la porte vers le terrier, le temps qu'une manche se termine.
 var _back: PlankButton
 ## Provisoire : le compteur d'images, pour mesurer depuis le moteur.
@@ -75,12 +81,18 @@ var _chests := 0
 var _done := false
 ## MARQUER UNE BOMBE — le bouton, dans le coin ou repose le pouce droit.
 var _mark: PlankButton
+## La fleche d'or au-dessus du bouton, et le noir autour — voir `_teach`.
+var _mark_arrow: TextureRect
+var _spotlight: TeachSpotlight
 ## Le bandeau qui parle.
 var _caption: FirstRunCaption
 
-## Combien de temps le coffre reste a l'ecran avant le retour au terrier.
+## Combien de temps le coffre reste a l'ecran avant que l'ile coule.
 ## Assez pour lire « un coffre » ; pas assez pour qu'on cherche quoi faire.
-const DONE_SECONDS := 2.5
+## Deux sauts de joie (`happy`, 0,8 s) — le lapin a gagne, qu'on le voie.
+const DONE_SECONDS := 1.8
+## Puis l'ile coule, et on rentre quand elle a disparu.
+const SINK_MS := 2400
 
 ## LE JOUEUR A-T-IL PRIS LE PLATEAU EN MAIN ? Meme drapeau que le terrier, et
 ## pour la meme raison : on ne recadre pas sous quelqu'un qui regarde un coin.
@@ -105,6 +117,9 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(_reframe)
 	frame_camera(true)
 	_add_chrome()
+	Screens.moved.connect(func(id: Screens.Place) -> void:
+		if id == Screens.Place.ISLAND:
+			_arrive())
 	# LE VOLCAN, tel que la manche le dit : il gronde a chaque palier qui
 	# monte, et l'ile coule a l'eruption. La lecon n'a pas de volcan ; ceci
 	# attend que les manches en ligne arrivent sur l'ile.
@@ -139,18 +154,34 @@ const HEAVE_STEP := 0.05
 var _eruption: Tween
 
 
-func play_eruption(duration_ms: int) -> void:
+func play_eruption(duration_ms: int, heave: bool = true) -> void:
 	var s := maxf(1.0, float(duration_ms)) / 1000.0
 	if _cam_tween != null and _cam_tween.is_valid():
 		_cam_tween.kill()
+	if _fade != null and _fade.is_valid():
+		_fade.kill()
+	modulate.a = 1.0
 	if _eruption != null and _eruption.is_valid():
 		_eruption.kill()
 	var at := _current_shot().at
 	var k := scale.x
 	var kick := SHAKE_PX * 2.0 / k
-	Sound.play("explosion")
 
 	_eruption = create_tween()
+	if not heave:
+		# LA FIN DU TUTORIEL : pas de volcan, rien ne tremble. L'ile s'en va
+		# vers le bas pendant que la camera garde le ciel, et l'ecume monte.
+		_eruption.set_parallel(true)
+		# EN PIXELS D'ECRAN, sans diviser par le zoom : le tutoriel est cadre
+		# serre (k ~ 2.5), et divise la remontee tombait a 100 px — un
+		# glissement que le fondu avalait avant qu'on y lise un pan.
+		_eruption.tween_property(self, "position:y", at.y + ERUPTION_RISE_PX, s * 0.8) \
+			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		_eruption.tween_callback(_tiles.plain_blend).set_delay(s * 0.1)
+		_eruption.tween_property(self, "modulate:a", 0.0, s * 0.7).set_delay(s * 0.15) \
+			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+		return
+	Sound.play("explosion")
 	# LE SOULEVEMENT : un aller-retour toutes les 50 ms, sur 55 % de la duree.
 	var steps := int(floor(s * 0.55 / HEAVE_STEP))
 	for i in steps:
@@ -171,9 +202,63 @@ func reset_eruption() -> void:
 	if _eruption != null and _eruption.is_valid():
 		_eruption.kill()
 	_eruption = null
+	if _fade != null and _fade.is_valid():
+		_fade.kill()
 	modulate.a = 1.0
 	_tiles.restore_blend()
 	frame_camera(true)
+
+
+## L'ARRIVEE : la camera DESCEND sur l'ile (IslandScene.ts `establishingPan`).
+##
+## Elle part `ESTABLISH_DROP_PX` plus HAUT sur le plateau — la mer et les
+## hauteurs au nord — et glisse sur la prise de repos, pendant que l'ile monte
+## de 0.35 a pleine lumiere. C'est ce qui dit « tu viens d'atterrir » : le
+## lapin saute sur l'ile, la camera le suit dans sa chute. L'eruption repond
+## dans l'autre sens (`play_eruption`, la camera remonte).
+##
+## LE SIGNE : `position.y` plus GRAND pousse le sol vers le bas de l'ecran,
+## donc on regarde plus haut. On part de la, on revient a la prise.
+##
+## A CHAQUE TRAVERSEE vers l'ile. Le web ne le fait qu'une fois par ile
+## (`islandRun`) pour ne pas jeter le cadrage d'un joueur qui revient d'un
+## aller-retour au terrier ; ce portage n'a pas encore de manches qui
+## tournent, donc chaque DIG EST une arrivee. Le cadrage du joueur, lui, est
+## garde : `_wanted_cam` rend sa prise s'il en avait une.
+const ESTABLISH_DROP_PX := 110.0
+const ESTABLISH_SECONDS := 1.1
+const ESTABLISH_FADE_FROM := 0.35
+
+
+func _arrive() -> void:
+	if _eruption != null and _eruption.is_valid():
+		return
+	if _cam_tween != null and _cam_tween.is_valid():
+		_cam_tween.kill()
+	if _fade != null and _fade.is_valid():
+		_fade.kill()
+	var shot := _wanted_cam()
+	scale = Vector2(shot.scale, shot.scale)
+	position = shot.at + Vector2(0.0, ESTABLISH_DROP_PX)
+	modulate.a = ESTABLISH_FADE_FROM
+	# SOUS L'IRIS, on attend qu'il se rouvre : la bascule a lieu trou ferme,
+	# puis vient le temps noir. Un pan lance tout de suite se jouerait dans le
+	# noir et l'ile s'ouvrirait deja posee — le bug que le web a eu
+	# (« no pan when you start a dig »).
+	# Lu par son nom : le temps noir est recent dans `Wipe`, et une ile qui
+	# ne compile plus parce qu'un rideau a change serait un prix idiot.
+	var hold: float = (Wipe as Script).get_script_constant_map().get("HOLD_SECONDS", 0.0)
+	var wait := hold if Screens.crossing else 0.0
+	# `power2.out` : presque tout le trajet dans le premier tiers, puis il se
+	# pose — une camera qui trouve son cadre, pas un sol qui glisse.
+	_cam_tween = create_tween()
+	_cam_tween.tween_property(self, "position", shot.at, ESTABLISH_SECONDS) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT).set_delay(wait)
+	# Le fondu finit au tiers du pan : l'ile est pleine pendant que la camera
+	# se pose encore, et la case visee n'est jamais a moitie la.
+	_fade = create_tween()
+	_fade.tween_property(self, "modulate:a", 1.0, ESTABLISH_SECONDS / 3.0) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT).set_delay(wait)
 
 
 ## LA PORTE DE RETOUR VERS LE TERRIER.
@@ -225,8 +310,33 @@ func _add_chrome() -> void:
 	I18N.locale_changed.connect(func(_c: String) -> void: _mark.relabel(I18N.t("mark_bomb")))
 	layer.add_child(_mark)
 
+	# LA FLECHE SUR LE BOUTON pendant que la lecon demande le X (le
+	# `.rr-mark-arrow` du web) : le meme chevron d'or que celui du coffre, pour
+	# que le signe sur une case et le signe sur une commande soient une seule
+	# langue. Enfant du bouton, donc centree sur LUI quelle que soit la
+	# longueur du mot dans la langue choisie.
+	_mark_arrow = TextureRect.new()
+	_mark_arrow.texture = preload("res://assets/ui/d8-arrow-down.png")
+	_mark_arrow.modulate = Color("#ffd45c")
+	_mark_arrow.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_mark_arrow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_mark_arrow.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_mark_arrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_mark_arrow.size = MARK_ARROW_SIZE
+	_mark_arrow.visible = false
+	_mark.add_child(_mark_arrow)
+
+	# LE NOIR AUTOUR : tout s'eteint sauf le bouton, sa fleche et le bandeau.
+	_spotlight = TeachSpotlight.new()
+	add_child(_spotlight)
+
 	_caption = FirstRunCaption.new()
 	layer.add_child(_caption)
+	_spotlight.lit = [_mark, _mark_arrow, _caption]
+
+	_sink_sky = preload("res://scenes/ui/eruption_overlay.tscn").instantiate()
+	_sink_sky.follows_run = false
+	layer.add_child(_sink_sky)
 
 	_refresh_tutorial_chrome()
 
@@ -591,35 +701,37 @@ func _is_tutorial() -> bool:
 ## lui, est le meme pour tous. Un joueur qui a deja des manches au compteur
 ## (`runsPlayed`, venu du web) n'a pas a refaire la lecon.
 func _opening_seed() -> String:
-	if _tutorial_finished():
+	if not tutorial_pending():
 		return DEFAULT_SEED
-	if int(Session.player.get("runsPlayed", 0)) > 0:
-		return DEFAULT_SEED
-	return FirstIsland.seed_for(String(Session.player.get("id", "guest")))
+	return FirstIsland.seed_for(_player_id())
 
 
 ## LE TUTORIEL EST-IL ENCORE DU ? Pour le chrome : DIG traverse droit vers
 ## la premiere ile tant qu'il l'est, sans passer par la liste (le web fait
-## de meme pour un joueur sans manche). Memes deux faits que `_opening_seed`.
+## de meme pour un joueur sans manche), et la connexion y atterrit tout droit
+## (title.gd). Deux faits : aucune manche au compteur (`runsPlayed`, venu du
+## web), et pas de coffre de la lecon pris sur cet appareil PAR CE JOUEUR.
+##
+## PAR JOUEUR, pas par appareil : un drapeau unique rendait le tuto introuvable
+## a tout nouvel invite du meme telephone — c'est-a-dire a quiconque veut le
+## retester.
 static func tutorial_pending() -> bool:
 	if int(Session.player.get("runsPlayed", 0)) > 0:
 		return false
 	var cfg := ConfigFile.new()
-	if cfg.load(TUTORIAL_PATH) == OK and bool(cfg.get_value("tutorial", "done", false)):
-		return false
-	return true
-
-
-func _tutorial_finished() -> bool:
-	var cfg := ConfigFile.new()
 	if cfg.load(TUTORIAL_PATH) != OK:
-		return false
-	return bool(cfg.get_value("tutorial", "done", false))
+		return true
+	return not bool(cfg.get_value("tutorial", _player_id(), false))
+
+
+static func _player_id() -> String:
+	return String(Session.player.get("id", "guest"))
 
 
 func _remember_finished() -> void:
 	var cfg := ConfigFile.new()
-	cfg.set_value("tutorial", "done", true)
+	cfg.load(TUTORIAL_PATH)
+	cfg.set_value("tutorial", _player_id(), true)
 	cfg.save(TUTORIAL_PATH)
 
 
@@ -644,6 +756,7 @@ func _refresh_tutorial_chrome() -> void:
 	else:
 		_caption.hide_beat()
 		_tiles.set_pulse(Vector2i(-1, -1))
+		_teach(false)
 
 
 ## RELIT LE BEAT, et tout ce qui repond au meme etat : le bandeau, le X fantome
@@ -667,8 +780,45 @@ func _refresh_caption() -> void:
 	var id: String = b.get("id", "")
 	_caption.show_beat(id, b.get("sticky", false))
 	_tiles.set_pulse(held if s.beside else Vector2i(-1, -1))
+	_teach(s.beside and not _armed and not _done)
 	if id == "mark" and _mark != null:
 		_mark.wiggle()
+
+
+## LA LECON DEMANDE LE X : le noir tombe, la fleche bat au-dessus du bouton.
+## Des que le mode est arme, la demande passe sur le plateau (le X fantome)
+## et le noir se leve — `teach && !armed` sur le web.
+##
+## La fleche : deux secondes de sautillement, deux d'arret
+## (`rr-mark-arrow-bob`, Paul : « anime 2sc stop et animation up and down ») —
+## un signe qui ne s'arrete jamais devient du decor.
+const MARK_ARROW_SIZE := Vector2(40, 46)
+const MARK_ARROW_GAP := 10.0
+const MARK_ARROW_BOB := 7.0
+var _arrow_bob: Tween
+
+
+func _teach(on: bool) -> void:
+	if _spotlight != null:
+		_spotlight.set_on(on)
+	if _mark_arrow == null or _mark_arrow.visible == on:
+		return
+	_mark_arrow.visible = on
+	if _arrow_bob != null and _arrow_bob.is_valid():
+		_arrow_bob.kill()
+	if not on:
+		return
+	var rest := Vector2((_mark.size.x - MARK_ARROW_SIZE.x) * 0.5,
+		-MARK_ARROW_SIZE.y - MARK_ARROW_GAP)
+	_mark_arrow.position = rest
+	var up := rest - Vector2(0, MARK_ARROW_BOB)
+	_arrow_bob = create_tween().set_loops()
+	for i in 3:
+		_arrow_bob.tween_property(_mark_arrow, "position", up, 0.32) \
+			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		_arrow_bob.tween_property(_mark_arrow, "position", rest, 0.32) \
+			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_arrow_bob.tween_interval(2.0)
 
 
 ## LE COFFRE EST PRIS : on laisse lire la phrase, puis on rentre.
@@ -678,20 +828,40 @@ func _refresh_caption() -> void:
 ## par le seul geste qui existe deja — la traversee vers le terrier.
 func _finish_tutorial() -> void:
 	_done = true
-	# Le coffre de la lecon a sa fanfare (IslandScene `celebrateChest`).
+	# Le coffre de la lecon a sa fanfare, et le lapin saute de joie
+	# (IslandScene `celebrateChest` : la musique ET `me.celebrate()`).
 	Sound.music("victory")
+	_rabbit.celebrate()
 	_remember_finished()
 	_tiles.set_pulse(Vector2i(-1, -1))
-	get_tree().create_timer(DONE_SECONDS).timeout.connect(
+	get_tree().create_timer(DONE_SECONDS).timeout.connect(_sink_tutorial)
+
+
+## LA LECON FINIE, L'ILE COULE : la camera remonte, l'ecume bleue jaillit du
+## bas du cadre, puis la traversee vers le terrier. Le pendant de l'arrivee
+## (`_arrive`) — on est descendu sur l'ile en sautant, on la quitte par le
+## haut. Le web n'a qu'un recap ici ; c'est la sortie de l'eruption, sans le
+## volcan, parce que « l'ile coule » est justement ce que la lecon doit dire.
+func _sink_tutorial() -> void:
+	if not (_done and Screens.in_world() and Screens.place == Screens.Place.ISLAND):
+		return
+	play_eruption(SINK_MS, false)
+	if _sink_sky != null:
+		_sink_sky.play(SINK_MS)
+	get_tree().create_timer(SINK_MS / 1000.0).timeout.connect(
 		func() -> void:
 			if not (_done and Screens.in_world()):
 				return
 			# UNE FOIS AU TERRIER, l'ile se refait sur sa graine ordinaire —
 			# cachee, donc sans que personne la voie changer. La prochaine
-			# traversee n'est plus une lecon.
+			# traversee n'est plus une lecon, et elle retrouve une ile entiere
+			# et allumee : le naufrage est defait avant d'etre revu.
 			Screens.moved.connect(
 				func(id: Screens.Place) -> void:
 					if id == Screens.Place.BURROW:
+						if _sink_sky != null:
+							_sink_sky.stop()
+						reset_eruption()
 						show_ground(DEFAULT_SEED),
 				CONNECT_ONE_SHOT)
 			Screens.cross(Screens.Place.BURROW))

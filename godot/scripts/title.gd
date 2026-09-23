@@ -407,7 +407,12 @@ func _enter() -> void:
 	# n'est connecte.
 	await get_tree().process_frame
 	Screens.build_world()
-	Screens.show_place(Screens.Place.BURROW)
+	# LE PREMIER VOYAGE EST LE TUTORIEL, et il n'est pas choisi : un nouveau
+	# venu s'ouvre SUR l'ile, pas sur le terrier (page.tsx `onCurtainCut`,
+	# `firstTimer`). Le web a d'abord ouvert au terrier puis traverse — « the
+	# burrow for one wipe rather than never, the lesser failure » ; ici le
+	# compte est deja connu, donc on y va tout droit.
+	Screens.show_place(Screens.Place.ISLAND if Island.tutorial_pending() else Screens.Place.BURROW)
 
 
 ## Un bouton qui ne peut pas marcher est grise, pas cache : sur un bureau
