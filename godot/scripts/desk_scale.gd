@@ -20,6 +20,16 @@ class_name DeskScale
 ## telephone, et montrait une colonne que le jeu ne montre jamais.
 
 
+## TOUJOURS EN PAYSAGE (Paul, 2026-09-24) : le jeu est fait pour un ecran
+## couche, pas pour tout ecran. Une fenetre de bureau ne descend pas sous
+## 890x400 (le Seeker couche), et une fenetre libre ne devient pas plus
+## etroite que 3:2 — tiree plus haute, elle perd la hauteur en trop. 3:2
+## laisse passer le plein ecran d'un MacBook (1728x1117, 1,55) ; une fenetre
+## maximisee ou plein ecran n'est jamais touchee.
+const MIN_ASPECT := 1.5
+const MIN_SIZE := Vector2(890.0, 400.0)
+
+
 ## Suivre la fenetre, maintenant et a chaque redimensionnement.
 static func follow(win: Window) -> void:
 	apply(win)
@@ -29,6 +39,7 @@ static func follow(win: Window) -> void:
 static func apply(win: Window) -> void:
 	if OS.has_feature("mobile"):
 		return
+	_keep_landscape(win)
 	var scale := DisplayServer.screen_get_scale(win.current_screen)
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--ui-scale="):
@@ -38,3 +49,19 @@ static func apply(win: Window) -> void:
 	var base := Vector2i(int(maxf(logical.x, 890.0)), int(maxf(logical.y, 400.0)))
 	if win.content_scale_size != base:
 		win.content_scale_size = base
+
+
+## Le plancher de la fenetre, et le rapport 3:2 d'une fenetre libre. Differe :
+## on ne redimensionne pas une fenetre dans son propre `size_changed`.
+static func _keep_landscape(win: Window) -> void:
+	var px := DisplayServer.screen_get_scale(win.current_screen)
+	var floor_px := Vector2i((MIN_SIZE * maxf(px, 1.0)).ceil())
+	if win.min_size != floor_px:
+		win.min_size = floor_px
+	if win.mode != Window.MODE_WINDOWED:
+		return
+	var tallest := int(floorf(win.size.x / MIN_ASPECT))
+	if win.size.y > tallest:
+		(func() -> void:
+			if win.mode == Window.MODE_WINDOWED and win.size.y > tallest:
+				win.size = Vector2i(win.size.x, maxi(tallest, floor_px.y))).call_deferred()
