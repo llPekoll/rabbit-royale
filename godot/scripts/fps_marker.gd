@@ -30,6 +30,9 @@ extends CanvasLayer
 ##
 ##   godot --path godot -- --fps      allume au lancement
 ##   Cmd+Maj+F (Ctrl+Maj+F ailleurs)  allume ou eteint en cours de partie
+##   un fichier `user://fps`          allume au lancement, SUR LE SEEKER, qui
+##                                    n'a ni ligne de commande ni clavier :
+##     adb shell run-as rip.rabbit.royale touch files/fps   (rm pour eteindre)
 
 ## Le budget d'une image a 60 images par seconde. 16.67 ms, arrondi.
 const BUDGET_MS := 16.7
@@ -83,7 +86,7 @@ func _ready() -> void:
 	_label.add_theme_constant_override("outline_size", 4)
 	add_child(_label)
 
-	_show("--fps" in OS.get_cmdline_user_args())
+	_show("--fps" in OS.get_cmdline_user_args() or FileAccess.file_exists("user://fps"))
 
 
 func _unhandled_key_input(event: InputEvent) -> void:

@@ -110,6 +110,11 @@ var tiers: int = 1
 ## Le palier de chaque case, en ligne d'abord.
 var level: PackedByteArray
 
+## Les bornes de terre, gardees par `BurrowCamera.board_bounds` avec la cle de
+## ce dont elles dependent. Ne pas lire directement.
+var bounds := Rect2()
+var bounds_key: Array = []
+
 
 func _init(p_width: int = Iso.BURROW_COLS, p_height: int = Iso.BURROW_ROWS,
 		p_origin: Vector2 = Iso.BURROW_ORIGIN) -> void:

@@ -108,7 +108,24 @@ class Shot extends RefCounted:
 ##
 ## LES TUILES SONT PRISES A LEUR POSITION LEVEE (`screen_of` porte deja le
 ## lift du palier), pour qu'une etagere en haut de la ferme ne soit pas coupee.
+##
+## EN CACHE SUR LA CARTE (2026-09-23), et c'est ce qui rendait le pan
+## injouable au Seeker. `screen_of` recalcule le relief des quatre coins de
+## chaque case ; parcourir l'ile coutait 17 ms, et un glissement le payait
+## plusieurs fois PAR EVENEMENT DU DOIGT (`clamp_place`, `zoom_limits`) — un
+## doigt en envoie plus de cent par seconde : 7 fps des qu'on touchait.
+## La cle est tout ce dont les bornes dependent ; `hash` sur le relief est
+## natif, il coute une fraction de ce qu'il evite.
 static func board_bounds(map: BurrowMap) -> Rect2:
+	var key := [map.origin, map.lift_px, map.width, map.height, hash(map.level)]
+	if key == map.bounds_key:
+		return map.bounds
+	map.bounds = _scan_bounds(map)
+	map.bounds_key = key
+	return map.bounds
+
+
+static func _scan_bounds(map: BurrowMap) -> Rect2:
 	var lo := Vector2(INF, INF)
 	var hi := Vector2(-INF, -INF)
 	var hw := Iso.half_w()

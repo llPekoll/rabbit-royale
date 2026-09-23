@@ -793,6 +793,10 @@ func _select_hole(cell: Vector2i) -> void:
 					_holed.append(n)
 
 
+## Les deux doigts du pincement (pinch.gd).
+var _pinch := Pinch.new()
+
+
 func _reframe() -> void:
 	frame_camera(true)
 
@@ -819,8 +823,19 @@ func _reframe() -> void:
 ## l'instant du bouton). Le GUI ne consomme que la version souris, donc c'est
 ## elle, et elle seule, qui vaut une tape. Journal du Seeker, 2026-09-23.
 func _unhandled_input(event: InputEvent) -> void:
-	# LA MOLETTE ZOOME AUTOUR DU CURSEUR — au bureau seulement ; au doigt, le
-	# pincement viendra avec le pan libre du web.
+	# LE PINCEMENT, sur les doigts BRUTS — la seule entree tactile lue ici :
+	# le glissement et la tape restent sur la souris emulee (voir plus haut).
+	if event is InputEventScreenTouch or event is InputEventScreenDrag:
+		var step := _pinch.feed(event)
+		if _pinch.active():
+			# Deux doigts : ce n'est plus une tape.
+			if _pressing and not _did_drag:
+				_did_drag = true
+				_hints.set_hovered(Vector2i(-1, -1))
+			if not step.is_empty():
+				set_place_cam(Pinch.apply(step, _current_shot(), _terrain.map, get_viewport_rect().size))
+		return
+	# LA MOLETTE ZOOME AUTOUR DU CURSEUR — au bureau.
 	if event is InputEventMouseButton and event.pressed and \
 			(event.button_index == MOUSE_BUTTON_WHEEL_UP or event.button_index == MOUSE_BUTTON_WHEEL_DOWN):
 		var f := WHEEL_ZOOM if event.button_index == MOUSE_BUTTON_WHEEL_UP else 1.0 / WHEEL_ZOOM
@@ -833,7 +848,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		else:
 			_on_release(event.position)
 	elif event is InputEventMouseMotion:
-		if _pressing:
+		if _pressing and not _pinch.active():
 			_on_move(event.position)
 
 
@@ -846,6 +861,11 @@ func _on_press(at: Vector2) -> void:
 
 
 func _on_move(at: Vector2) -> void:
+	# APRES UN PINCEMENT, le doigt qui reste reprend le glissement la ou il est.
+	if _pinch.ended:
+		_pinch.ended = false
+		_press_at = at
+		_press_cam = position
 	if not _did_drag and at.distance_to(_press_at) > DRAG_SLOP:
 		_did_drag = true
 		# DES QUE C'EST UN GLISSEMENT, LA CASE N'EST PLUS VISEE : garder l'or

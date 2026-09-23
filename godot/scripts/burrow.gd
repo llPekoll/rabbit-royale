@@ -637,6 +637,8 @@ func show_ground(seed_value: String) -> void:
 ## le sol, et un bouton accroche dedans retrecirait avec lui.
 func _add_quit() -> void:
 	var layer := CanvasLayer.new()
+	# 10 comme le chrome de l'ile : au-dessus du bloom (1), qui est pour le jeu.
+	layer.layer = 10
 	add_child(layer)
 
 	_quit = preload("res://scenes/plank_button.tscn").instantiate()
@@ -858,9 +860,27 @@ var _pressing := false
 var _did_drag := false
 var _press_at := Vector2.ZERO
 var _press_cam := Vector2.ZERO
+var _pinch := Pinch.new()
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	# LE PINCEMENT D'ABORD, et le second doigt n'est jamais un appui : sans ce
+	# filtre, chaque evenement du deuxieme doigt tirait le plateau vers lui, et
+	# il sautait d'un doigt a l'autre a chaque image.
+	if event is InputEventScreenTouch or event is InputEventScreenDrag:
+		var step := _pinch.feed(event)
+		if _pinch.active():
+			if _pressing and not _did_drag:
+				_did_drag = true
+				if _hints_live():
+					_press_over(Vector2i(-1, -1))
+			if not step.is_empty():
+				set_place_cam(Pinch.apply(step, _current_shot(), _terrain.map, get_viewport_rect().size))
+			return
+		if event.index != 0:
+			return
+	elif event is InputEventMouseMotion and _pinch.active():
+		return
 	if event is InputEventScreenTouch or event is InputEventMouseButton:
 		var pressed: bool = event.pressed
 		var at: Vector2 = event.position
@@ -895,6 +915,11 @@ func _press_over(cell: Vector2i) -> void:
 
 
 func _on_move(at: Vector2) -> void:
+	# APRES UN PINCEMENT, le doigt qui reste reprend le glissement la ou il est.
+	if _pinch.ended:
+		_pinch.ended = false
+		_press_at = at
+		_press_cam = position
 	if not _did_drag and at.distance_to(_press_at) > DRAG_SLOP:
 		_did_drag = true
 		# DES QUE C'EST UN GLISSEMENT, LA CASE N'EST PLUS VISEE : garder l'or

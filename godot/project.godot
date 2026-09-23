@@ -33,6 +33,8 @@ Screens="*res://scripts/screens.gd"
 FpsMarker="*res://scripts/fps_marker.gd"
 ; Les pointeurs pixel du web, sur PC (rien sur Android).
 Cursors="*res://scripts/cursors.gd"
+; Un halo sur le monde, pas sur l'UI. Voir bloom.gd.
+Bloom="*res://scripts/bloom.gd"
 
 [display]
 
