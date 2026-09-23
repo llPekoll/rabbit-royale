@@ -741,6 +741,11 @@ const HOLE_RADIUS := 35.0
 const HOLE_FEATHER := 11.0
 const HOLE_DOT := 1.0
 const HOLE_GHOST := 0.1
+## LE CONTOUR N'EST JAMAIS PERCE, en texels de l'art : un arbre fantome a 0,1
+## cachait qu'une case voisine etait prise — l'anneau ne l'allumait pas, et
+## rien ne disait pourquoi (2026-09-23). Le fil de la silhouette le dit, et le
+## lapin se voit au travers. Compare sur scenes/bench/depth_hole_bench.tscn.
+const HOLE_EDGE := 2.0
 ## Jusqu'ou devant le lapin (en rangs de profondeur x + y) et de cote (x - y)
 ## un decor peut encore le couvrir : un sapin fait trois cases de haut.
 const HOLE_AHEAD := 6
@@ -761,6 +766,7 @@ func _update_hole() -> void:
 		_hole_mat = ShaderMaterial.new()
 		_hole_mat.shader = HOLE_SHADER
 		_hole_mat.set_shader_parameter("ghost", HOLE_GHOST)
+		_hole_mat.set_shader_parameter("edge", HOLE_EDGE)
 	var cell := _rabbit.at()
 	if cell != _hole_cell:
 		_hole_cell = cell

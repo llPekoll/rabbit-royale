@@ -23,6 +23,11 @@ uniform float dot_px = 1.0;
 // 3 bits = une matrice 8x8 (`matrix: 8`).
 uniform float bits = 3.0;
 uniform float ghost = 0.1;
+// LE CONTOUR GARDE, en texels de l'art : un pixel plein dont un voisin a
+// `edge` texels est vide est un BORD, et le bord n'est jamais perce. L'arbre
+// reste dessine en fil par-dessus le lapin — on voit qu'une case est prise.
+// 0 = pas de contour (le trou d'avant).
+uniform float edge = 0.0;
 
 // La valeur de Bayer d'une cellule, par la recurrence bit a bit du web — un
 // XOR sans XOR entier : a + b - 2ab.
@@ -52,7 +57,18 @@ void fragment() {
 	// trame adoucit deja, une courbe en plus se lit comme un flou.
 	float cut = 1.0 - clamp((d - radius) / max(feather, 0.001), 0.0, 1.0);
 	if (cut > 0.0 && cut > bayer(floor(FRAGCOORD.xy / max(dot_px, 1.0)), bits)) {
-		c.a *= ghost;
+		bool rim = false;
+		if (edge > 0.0 && c.a > 0.5) {
+			vec2 px = TEXTURE_PIXEL_SIZE * edge;
+			float lo = min(min(texture(TEXTURE, UV + vec2(px.x, 0.0)).a,
+					texture(TEXTURE, UV - vec2(px.x, 0.0)).a),
+				min(texture(TEXTURE, UV + vec2(0.0, px.y)).a,
+					texture(TEXTURE, UV - vec2(0.0, px.y)).a));
+			rim = lo < 0.5;
+		}
+		if (!rim) {
+			c.a *= ghost;
+		}
 	}
 	COLOR = c;
 }
