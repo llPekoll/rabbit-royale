@@ -102,23 +102,74 @@ const CHEST_FPS := 10.0
 ## boite se lise POSEE dans la case et non flottant sur son bord haut.
 const CHEST_SIT := 4.0
 
-## LA FLECHE PLANTEE SUR LE COFFRE — fx/ChestPointer.ts : le chevron du kit, le
-## meme or, le meme battement que celle du terrier. OVER au-dessus de la boite,
-## BOB pixels par jambe en BOB_SECONDS.
+## LA FLECHE PLANTEE SUR LE COFFRE — fx/ChestPointer.ts : le chevron du kit
+## (`d8-arrow-down.png`, 22x25), le meme or, le meme battement que celle du
+## terrier. ANCREE A SA POINTE, qui est ce avec quoi une fleche pointe : ancree
+## au centre, le battement enfoncerait la pointe dans le couvercle.
+##
+## LA HAUTEUR EST EN DEMI-CASES, pas en pixels : le groupe vit dans le monde mis
+## a l'echelle par la camera. « Deliberement PRES de la boite » — sous le mot
+## du palier elle semblait pointer le mot ; au-dessus, elle sortait de l'ecran.
+## Sur l'ile du tutoriel le mot s'efface pour elle (`Tile.hideChestTier`).
+const ARROW := preload("res://assets/ui/d8-arrow-down.png")
 const ARROW_TINT := Color("#ffd45c")
-const ARROW_OVER := 12.0
+const ARROW_LIFT := 2.4
+const ARROW_SCALE := 0.7
 const ARROW_BOB := 5.0
 const ARROW_BOB_SECONDS := 0.9
 
-## LES PIECES DE DECOR, avec l'ancre du manifeste (public/assets/world/decor) :
-## le point de l'image qui se pose au centre de la case, en pixels de la
-## planche. SHEET_CELL est la largeur d'une base d'une case sur cette planche ;
-## l'echelle en decoule au lieu d'etre trouvee a l'oeil.
-const DECOR := {
-	"bush-small": {"art": preload("res://assets/deco/bush-small.png"), "anchor": Vector2(42, 106)},
-	"bush-round": {"art": preload("res://assets/deco/bush-round.png"), "anchor": Vector2(20, 37)},
+## L'ILE DU TUTORIEL : la fleche se plante sur le coffre, et le mot du palier
+## lui laisse la place. Pose par l'ile avant `build`.
+var tutorial := false
+
+## LES BUISSONS DU PACK (public/assets/deco/bushes), ceux de CETTE carte —
+## island/tileset.ts : huit images de 128 dans une bande de 1024x128, le pied a
+## y=79, mesure comme chaque nombre de ce fichier. Ils se balancent a
+## DEFAULT_FRAME_MS par image. Pas ceux de world/decor, qui sont l'autre carte.
+const BUSHES: Array[Texture2D] = [
+	preload("res://assets/deco/bushes/bushe1.png"),
+	preload("res://assets/deco/bushes/bushe2.png"),
+	preload("res://assets/deco/bushes/bushe3.png"),
+	preload("res://assets/deco/bushes/bushe4.png"),
+]
+const BUSH_FRAME := 128
+const BUSH_FRAMES := 8
+const BUSH_FOOT_PX := 79.0
+const BUSH_FRAME_MS := 130.0
+## L'echelle des decors de l'ile : `DECO_SCALE = 0.4` de
+## services/TerrainBackground.ts, reprise telle quelle — un buisson de 128 px
+## fait une case et demie de haut. (Le terrier a la sienne, 0,44, voir
+## burrow_props.gd.)
+const BUSH_SCALE := 0.4
+
+## LE HALO, L'ANNEAU, L'OMBRE, LE FAISCEAU, LES PARTICULES, LE MOT — tout ce
+## que Tile.ts pose autour d'un coffre, par palier (CHEST_TIER_FLAIR). Le
+## tutoriel distribue le premier palier : BRONZE.
+##
+## DELIBEREMENT BRUYANT : « le coffre doit se reperer depuis l'autre bout d'une
+## ile de 36 cases sur de l'herbe pixel-art chargee, et la premiere passe — un
+## faisceau de 7 px a 22 % — etait invisible a la taille ou le jeu dessine le
+## plateau. Tout ce qui est subtil ici se lit comme rien du tout. »
+const CHEST_TIER := "bronze"
+const CHEST_TIER_COLOR := {
+	"bronze": Color("#b87333"), "silver": Color("#c9d3dd"),
+	"gold": Color("#ffd54f"), "crown": Color("#ba68c8"),
 }
-const SHEET_CELL := 130.0
+const CHEST_FLAIR := {
+	"bronze": {"beam": 26.0, "width": 11.0, "motes": 3, "glow": 0.75},
+	"silver": {"beam": 40.0, "width": 13.0, "motes": 5, "glow": 0.85},
+	"gold": {"beam": 58.0, "width": 15.0, "motes": 7, "glow": 0.95},
+	"crown": {"beam": 78.0, "width": 18.0, "motes": 10, "glow": 1.0},
+}
+const CHEST_SHADOW_ALPHA := 0.32
+## L'eclat : l'animation jouee UNE fois, sur horloge — un scintillement permanent
+## cesse de se lire comme un evenement. Entre 4,5 et 8 s ; a 21 i/s (0,35 par
+## tick de 60 sur le web).
+const CHEST_SHINE_EVERY := Vector2(4.5, 8.0)
+const CHEST_SHINE_FPS := 21.0
+## La secousse : toutes les 2,6 a 5,5 s, ±2 px et ±0,05 rad en un quart de
+## seconde.
+const CHEST_SHAKE_EVERY := Vector2(2.6, 5.5)
 
 ## Au-dessus du X et de l'anneau (5-6) : ce qui SE TIENT sur la case.
 const Z_PROP := 7
@@ -150,8 +201,12 @@ var _hints: Dictionary = {}
 var _x: Dictionary = {}
 var _chest: Dictionary = {}
 var _arrow: Dictionary = {}
+## Tout ce qui entoure un coffre, par case : le porteur qu'on cache d'un coup.
+var _flair: Dictionary = {}
 var _props: Array[Node] = []
 var _bobs: Array[Tween] = []
+var _timers: Array[SceneTreeTimer] = []
+var _rng := RandomNumberGenerator.new()
 
 ## Les cases deja vues creusees : une case qui y entre vient de s'ouvrir, et
 ## son contenu se joue. Pas au premier dessin — un plateau repris n'ouvre rien.
@@ -229,48 +284,231 @@ func build() -> void:
 		# LE COFFRE, visible des la premiere image — « il le voit et choisit d'y
 		# aller ». Au-dessus du voile : la boite n'est pas enterree, elle attend.
 		if board.content.get(cell) == IslandBoard.Content.CHEST:
-			var chest := AnimatedSprite2D.new()
-			chest.sprite_frames = _chest_frames()
-			chest.centered = false
-			chest.scale = Vector2(CHEST_SCALE, CHEST_SCALE)
-			# Pied au centre du losange, un peu en dessous — offset en pixels
-			# de l'image, l'echelle s'applique apres.
-			chest.offset = Vector2(-CHEST_FRAMES[0].size.x * 0.5,
-				-CHEST_FRAMES[0].size.y + CHEST_SIT / CHEST_SCALE)
-			chest.play("idle")
-			terrain.mount_veil(cell, chest, Z_PROP)
-			_chest[cell] = chest
+			_mount_chest(cell)
 
-			var arrow := Sprite2D.new()
-			arrow.texture = _arrow_texture()
-			arrow.centered = true
-			arrow.modulate = ARROW_TINT
-			terrain.mount_veil(cell, arrow, Z_ARROW)
-			# APRES `mount_veil`, qui ecrase la position : la fleche se plante
-			# au-dessus de la boite.
-			var top := arrow.position.y + CHEST_SIT - CHEST_FRAMES[0].size.y * CHEST_SCALE
-			arrow.position.y = top - ARROW_OVER
-			var bob := create_tween().set_loops()
-			bob.tween_property(arrow, "position:y", top - ARROW_OVER - ARROW_BOB, ARROW_BOB_SECONDS)\
-				.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-			bob.tween_property(arrow, "position:y", top - ARROW_OVER, ARROW_BOB_SECONDS)\
-				.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-			_bobs.append(bob)
-			_arrow[cell] = arrow
-
-		# LE DECOR : l'ancre de la piece sur le centre de la case.
-		if board.decor.has(cell) and DECOR.has(board.decor[cell]):
-			var piece: Dictionary = DECOR[board.decor[cell]]
-			var prop := Sprite2D.new()
-			prop.texture = piece["art"]
-			prop.centered = false
-			var k := Iso.BURROW_TILE_W / SHEET_CELL
-			prop.scale = Vector2(k, k)
-			prop.offset = -(piece["anchor"] as Vector2)
-			terrain.mount_veil(cell, prop, Z_PROP)
-			_props.append(prop)
+		# LE BUISSON : le pied sur le centre de la case, et il se balance.
+		if board.decor.has(cell):
+			var variant: int = int(board.decor[cell])
+			var bush := AnimatedSprite2D.new()
+			bush.sprite_frames = _bush_frames(variant)
+			bush.centered = false
+			bush.scale = Vector2(BUSH_SCALE, BUSH_SCALE)
+			bush.offset = Vector2(-BUSH_FRAME * 0.5, -BUSH_FOOT_PX)
+			# Chacun part d'une image differente : deux buissons qui se
+			# balancent a l'unisson se lisent comme une copie.
+			bush.frame = variant % BUSH_FRAMES
+			bush.play("sway")
+			terrain.mount_veil(cell, bush, Z_PROP)
+			_props.append(bush)
 
 	refresh()
+
+
+## LE COFFRE ET TOUT CE QUI L'ENTOURE, dans l'ordre de Tile.ts `setChest` :
+## le halo au sol, l'anneau, l'ombre de contact, le faisceau derriere la boite,
+## la boite, les particules, le mot du palier — et la fleche du tutoriel.
+##
+## TOUT DANS UN PORTEUR, monte une fois dans le bloc de la case : les z_index
+## des enfants sont relatifs a lui, donc l'ordre de Tile.ts se recopie tel quel
+## sans se disputer avec les couches du voile.
+##
+## LE PALIER EST PORTE PAR LE HALO ET L'ANNEAU, jamais par une teinte sur la
+## boite : une teinte MULTIPLIE l'art, deja brun-rouge sombre, et commun et
+## legendaire sortaient du meme brun boueux.
+func _mount_chest(cell: Vector2i) -> void:
+	var tint: Color = CHEST_TIER_COLOR[CHEST_TIER]
+	var flair: Dictionary = CHEST_FLAIR[CHEST_TIER]
+	var holder := Node2D.new()
+	terrain.mount_veil(cell, holder, Z_PROP)
+	_flair[cell] = holder
+
+	# LE HALO : presque opaque, il doit RECOUVRIR ce que porte la case (voile,
+	# surbrillance), pas s'y fondre — translucide, il se lit comme la couleur du
+	# sol et non comme celle du palier. Il respire ensuite entre son plein et
+	# 47 % de son plein, en 0,75 s.
+	var peak: float = 0.95 * float(flair["glow"])
+	var glow := Sprite2D.new()
+	glow.texture = _diamond_texture()
+	glow.modulate = Color(tint.r, tint.g, tint.b, peak)
+	glow.z_index = 0
+	holder.add_child(glow)
+	var breath := create_tween().set_loops()
+	breath.tween_property(glow, "modulate:a", peak * 0.47, 0.75)\
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	breath.tween_property(glow, "modulate:a", peak, 0.75)\
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_bobs.append(breath)
+
+	# L'ANNEAU : un peu plus large que le losange, pour se lire comme un rebord ;
+	# il s'elargit jusqu'a 1,16 et revient, en 1,1 s.
+	var ring := Sprite2D.new()
+	ring.texture = MoveRing._outline_texture()
+	ring.modulate = tint
+	ring.scale = Vector2(1.06, 1.06)
+	ring.z_index = 1
+	holder.add_child(ring)
+	var rim := create_tween().set_loops()
+	rim.tween_property(ring, "scale", Vector2(1.16, 1.16), 1.1)\
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	rim.tween_property(ring, "scale", Vector2(1.06, 1.06), 1.1)\
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_bobs.append(rim)
+
+	# L'OMBRE DE CONTACT, sous la boite et sur le halo.
+	var shadow := Sprite2D.new()
+	shadow.texture = _ellipse_texture()
+	shadow.modulate = Color(0, 0, 0, CHEST_SHADOW_ALPHA)
+	shadow.position.y = 2
+	shadow.z_index = 2
+	holder.add_child(shadow)
+
+	# LE FAISCEAU, derriere la boite : un cone dans la couleur du palier, plus un
+	# coeur blanc plus clair — c'est le coeur qui le fait lire comme de la
+	# LUMIERE et non comme un triangle plat. Il respire de 0,72 a 1 en 1,3 s.
+	var beam_h: float = flair["beam"]
+	var half: float = float(flair["width"]) * 0.5
+	var beam := Node2D.new()
+	beam.position.y = -6
+	beam.z_index = 3
+	var outer := Polygon2D.new()
+	outer.polygon = PackedVector2Array([
+		Vector2(-half, 0), Vector2(half, 0),
+		Vector2(half * 0.45, -beam_h), Vector2(-half * 0.45, -beam_h)])
+	outer.color = Color(tint.r, tint.g, tint.b, 0.5)
+	beam.add_child(outer)
+	var core := Polygon2D.new()
+	core.polygon = PackedVector2Array([
+		Vector2(-half * 0.42, 0), Vector2(half * 0.42, 0),
+		Vector2(half * 0.16, -beam_h * 0.92), Vector2(-half * 0.16, -beam_h * 0.92)])
+	core.color = Color(1, 1, 1, 0.28)
+	beam.add_child(core)
+	beam.modulate.a = 0.72
+	holder.add_child(beam)
+	var pulse := create_tween().set_loops()
+	pulse.tween_property(beam, "modulate:a", 1.0, 1.3)\
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	pulse.tween_property(beam, "modulate:a", 0.72, 1.3)\
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_bobs.append(pulse)
+
+	# LA BOITE. Ancree a (0.5, 0.8) comme sur le web : le pied un peu sous le
+	# centre, pour se lire POSEE dans la case.
+	var chest := AnimatedSprite2D.new()
+	chest.sprite_frames = _chest_frames()
+	chest.centered = false
+	chest.scale = Vector2(CHEST_SCALE, CHEST_SCALE)
+	chest.offset = Vector2(-CHEST_FRAMES[0].size.x * 0.5, -CHEST_FRAMES[0].size.y * 0.8)
+	chest.z_index = 4
+	chest.stop()
+	chest.frame = 0
+	holder.add_child(chest)
+	_chest[cell] = chest
+	_schedule_shine(chest)
+	_schedule_shake(chest)
+
+	# LES PARTICULES : chacune monte sur sa propre boucle, decalee, pour qu'elles
+	# ne marchent jamais au pas. Une sur trois est grande et blanche.
+	for i in range(int(flair["motes"])):
+		var big := i % 3 == 0
+		var mote := Sprite2D.new()
+		mote.texture = _square_texture(3 if big else 2)
+		mote.modulate = Color(1, 1, 1, 0.9) if big else Color(tint.r, tint.g, tint.b, 0.9)
+		mote.position = Vector2((_rng.randf() - 0.5) * float(flair["width"]) * 1.6, -4)
+		mote.z_index = 5
+		holder.add_child(mote)
+		var rise := create_tween().set_loops()
+		rise.tween_interval(i * 0.22 + _rng.randf() * 0.4)
+		rise.tween_callback(func() -> void: mote.position.y = -4; mote.modulate.a = 0.9)
+		rise.set_parallel(true)
+		var secs := 1.1 + _rng.randf() * 0.8
+		rise.tween_property(mote, "position:y", -beam_h * (0.8 + _rng.randf() * 0.4), secs)\
+			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		rise.tween_property(mote, "modulate:a", 0.0, secs)\
+			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		_bobs.append(rise)
+
+	if tutorial:
+		# LA FLECHE DU TUTORIEL, a la place du mot : ChestPointer.ts tel quel.
+		var arrow := Sprite2D.new()
+		arrow.texture = ARROW
+		arrow.centered = false
+		arrow.offset = Vector2(-ARROW.get_width() * 0.5, -ARROW.get_height())
+		var k := Iso.half_w() * ARROW_SCALE / float(ARROW.get_width())
+		arrow.scale = Vector2(k, k)
+		arrow.modulate = ARROW_TINT
+		var tip := -Iso.half_h() * ARROW_LIFT
+		arrow.position.y = tip
+		arrow.z_index = 7
+		holder.add_child(arrow)
+		var bob := create_tween().set_loops()
+		bob.tween_property(arrow, "position:y", tip - ARROW_BOB, ARROW_BOB_SECONDS)\
+			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		bob.tween_property(arrow, "position:y", tip, ARROW_BOB_SECONDS)\
+			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		_bobs.append(bob)
+		_arrow[cell] = arrow
+		return
+
+	# LE MOT DU PALIER, au-dessus du faisceau : le halo dit « ca vaut », le mot
+	# dit combien, et personne n'a a apprendre un code de couleurs. Lisere
+	# sombre, parce que les glyphes nus mesuraient 1,8:1 sur l'herbe.
+	var word := Label.new()
+	word.text = CHEST_TIER.to_upper()
+	word.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	word.add_theme_font_size_override("font_size", 8)
+	word.add_theme_color_override("font_color", tint)
+	word.add_theme_color_override("font_outline_color", Color("#0c0a12"))
+	word.add_theme_constant_override("outline_size", 2)
+	word.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
+	word.size = Vector2(60, 12)
+	word.position = Vector2(-30, -beam_h - 12 - 6)
+	word.scale = Vector2(1.1, 1.1)
+	word.z_index = 6
+	holder.add_child(word)
+	var hover := create_tween().set_loops()
+	hover.tween_property(word, "position:y", word.position.y - 2, 1.1)\
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	hover.tween_property(word, "position:y", word.position.y, 1.1)\
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_bobs.append(hover)
+
+
+## L'ECLAT, une fois, puis on reserve le suivant.
+func _schedule_shine(chest: AnimatedSprite2D) -> void:
+	var t := get_tree().create_timer(_rng.randf_range(CHEST_SHINE_EVERY.x, CHEST_SHINE_EVERY.y))
+	_timers.append(t)
+	t.timeout.connect(func() -> void:
+		if not is_instance_valid(chest) or not chest.visible:
+			return
+		chest.sprite_frames.set_animation_loop("idle", false)
+		chest.sprite_frames.set_animation_speed("idle", CHEST_SHINE_FPS)
+		chest.play("idle")
+		chest.animation_finished.connect(func() -> void:
+			chest.stop()
+			chest.frame = 0
+			_schedule_shine(chest), CONNECT_ONE_SHOT))
+
+
+## LA SECOUSSE : deux coups a gauche-droite, un plus petit, retour.
+func _schedule_shake(chest: AnimatedSprite2D) -> void:
+	var t := get_tree().create_timer(_rng.randf_range(CHEST_SHAKE_EVERY.x, CHEST_SHAKE_EVERY.y))
+	_timers.append(t)
+	t.timeout.connect(func() -> void:
+		if not is_instance_valid(chest):
+			return
+		var x0 := chest.position.x
+		var s := create_tween()
+		s.tween_property(chest, "position:x", x0 - 2, 0.045)
+		s.parallel().tween_property(chest, "rotation", -0.05, 0.045)
+		s.tween_property(chest, "position:x", x0 + 2, 0.05)
+		s.parallel().tween_property(chest, "rotation", 0.05, 0.05)
+		s.tween_property(chest, "position:x", x0 - 1.4, 0.045)
+		s.parallel().tween_property(chest, "rotation", -0.035, 0.045)
+		s.tween_property(chest, "position:x", x0 + 1.4, 0.045)
+		s.parallel().tween_property(chest, "rotation", 0.035, 0.045)
+		s.tween_property(chest, "position:x", x0, 0.05).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		s.parallel().tween_property(chest, "rotation", 0.0, 0.05)
+		s.tween_callback(func() -> void: _schedule_shake(chest)))
 
 
 ## RELIT TOUT LE PLATEAU. Appelable a chaque coup : vingt-huit cases, c'est
@@ -305,13 +543,12 @@ func refresh() -> void:
 		# LE COFFRE S'EN VA AVEC LA CASE CREUSEE : pris, il est parti avec le
 		# joueur, et la fleche n'a plus rien a designer. Il s'envole si on le
 		# voit partir, il n'est simplement plus la sinon.
-		if _chest.has(cell):
+		if _flair.has(cell):
 			var taken: bool = st == IslandBoard.State.DUG
 			if opened and _primed:
 				_clear_chest(cell)
-			elif (_chest[cell] as Node2D).modulate.a > 0.0:
-				(_chest[cell] as Node2D).visible = not taken
-				(_arrow[cell] as Node2D).visible = not taken
+			elif (_flair[cell] as Node2D).modulate.a > 0.0:
+				(_flair[cell] as Node2D).visible = not taken
 
 		# LE X : plein quand la case est marquee, fantome et battant quand c'est
 		# la case enseignee, absent sinon.
@@ -402,17 +639,15 @@ func _blast(cell: Vector2i) -> void:
 
 
 ## LE COFFRE PRIS S'ENVOLE (`clearChest`) : la boite grossit en reculant et
-## s'efface, la fleche s'eteint avec elle.
+## s'efface, le halo, le faisceau et la fleche s'eteignent avec elle.
 func _clear_chest(cell: Vector2i) -> void:
 	var chest: Node2D = _chest[cell]
-	var arrow: Node2D = _arrow[cell]
+	var holder: Node2D = _flair[cell]
 	var t := create_tween().set_parallel(true)
 	t.tween_property(chest, "scale", chest.scale * 1.5, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 	t.tween_property(chest, "modulate:a", 0.0, 0.25)
-	t.tween_property(arrow, "modulate:a", 0.0, 0.3)
-	t.chain().tween_callback(func() -> void:
-		chest.visible = false
-		arrow.visible = false)
+	t.tween_property(holder, "modulate:a", 0.0, 0.3)
+	t.chain().tween_callback(func() -> void: holder.visible = false)
 
 
 func _ellipse(rx: float, ry: float, color: Color) -> Node2D:
@@ -480,12 +715,19 @@ func clear() -> void:
 		if t != null and t.is_valid():
 			t.kill()
 	_bobs.clear()
-	for cell in _chest:
-		(_chest[cell] as Node).queue_free()
-	for cell in _arrow:
-		(_arrow[cell] as Node).queue_free()
+	# LES HORLOGES MEURENT AVEC LE COFFRE : un SceneTreeTimer garde sa connexion
+	# vivante apres la mort du noeud, et reveillerait un eclat sur une boite
+	# liberee.
+	for t in _timers:
+		if t != null:
+			for c in t.timeout.get_connections():
+				t.timeout.disconnect(c["callable"])
+	_timers.clear()
+	for cell in _flair:
+		(_flair[cell] as Node).queue_free()
 	for p in _props:
 		p.queue_free()
+	_flair.clear()
 	_chest.clear()
 	_arrow.clear()
 	_props.clear()
@@ -588,7 +830,57 @@ static func _digit_texture(n: int) -> ImageTexture:
 
 
 static var _chest_sf: SpriteFrames
-static var _arrow_tex: ImageTexture
+static var _bush_sf: Dictionary = {}
+static var _ellipse_tex: ImageTexture
+static var _squares: Dictionary = {}
+
+
+## LES HUIT IMAGES D'UN BUISSON, decoupees dans sa bande.
+static func _bush_frames(variant: int) -> SpriteFrames:
+	var v := clampi(variant, 1, BUSHES.size())
+	if _bush_sf.has(v):
+		return _bush_sf[v]
+	var sf := SpriteFrames.new()
+	sf.remove_animation("default")
+	sf.add_animation("sway")
+	sf.set_animation_speed("sway", 1000.0 / BUSH_FRAME_MS)
+	sf.set_animation_loop("sway", true)
+	for i in range(BUSH_FRAMES):
+		var at := AtlasTexture.new()
+		at.atlas = BUSHES[v - 1]
+		at.region = Rect2(i * BUSH_FRAME, 0, BUSH_FRAME, BUSH_FRAME)
+		sf.add_frame("sway", at)
+	_bush_sf[v] = sf
+	return sf
+
+
+## L'OMBRE DE CONTACT : une ellipse de 26x10, en pixels francs.
+static func _ellipse_texture() -> ImageTexture:
+	if _ellipse_tex != null:
+		return _ellipse_tex
+	var w := 26
+	var h := 10
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	img.fill(Color(1, 1, 1, 0))
+	for y in range(h):
+		for x in range(w):
+			var dx := (x + 0.5 - w * 0.5) / (w * 0.5)
+			var dy := (y + 0.5 - h * 0.5) / (h * 0.5)
+			if dx * dx + dy * dy <= 1.0:
+				img.set_pixel(x, y, Color(1, 1, 1, 1))
+	_ellipse_tex = ImageTexture.create_from_image(img)
+	return _ellipse_tex
+
+
+## Un carre plein de `n` pixels — une particule.
+static func _square_texture(n: int) -> ImageTexture:
+	if _squares.has(n):
+		return _squares[n]
+	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+	img.fill(Color(1, 1, 1, 1))
+	var tex := ImageTexture.create_from_image(img)
+	_squares[n] = tex
+	return tex
 
 
 ## LES FRAMES DU COFFRE, decoupees dans l'atlas une fois pour toutes.
@@ -607,29 +899,6 @@ static func _chest_frames() -> SpriteFrames:
 		sf.add_frame("idle", at)
 	_chest_sf = sf
 	return sf
-
-
-## LE CHEVRON, cuit : un triangle de 12x7 pointe en bas, avec un liseré sombre
-## d'un pixel pour tenir sur l'herbe claire comme sur le sable.
-static func _arrow_texture() -> ImageTexture:
-	if _arrow_tex != null:
-		return _arrow_tex
-	var w := 14
-	var h := 9
-	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
-	img.fill(Color(1, 1, 1, 0))
-	var ink := Color("#0c0a12")
-	for y in range(h):
-		# La rangee y couvre de (y) a (w-1-y) : un triangle qui se referme.
-		var x0 := y
-		var x1 := w - 1 - y
-		if x0 > x1:
-			break
-		for x in range(x0, x1 + 1):
-			var edge := x == x0 or x == x1 or y == 0 or x0 + 1 > x1 - 1
-			img.set_pixel(x, y, ink if edge else Color(1, 1, 1, 1))
-	_arrow_tex = ImageTexture.create_from_image(img)
-	return _arrow_tex
 
 
 ## LE X, cuit une fois : deux diagonales de deux pixels dans un carre de seize.

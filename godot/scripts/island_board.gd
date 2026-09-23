@@ -56,24 +56,23 @@ var adjacent: Dictionary = {}
 ## une quatrieme facon d'etre ouvert, c'est une annotation par-dessus.
 var flagged: Dictionary = {}
 
-## LE DECOR POSE SUR UNE CASE — un buisson, par son nom de piece (decor.ts).
+## LE DECOR POSE SUR UNE CASE — un buisson du pack, par sa variante (1 a 4).
 ##
-## Une case decoree reste une case du plateau (elle compte dans les chiffres,
-## elle porte une carotte) mais ON NE MARCHE PAS DESSUS : le web retire les
-## cases decorees de `walkableTiles`, et un lapin qui traverserait un buisson
-## dirait que le buisson n'est pas la.
+## Une case decoree reste une case du plateau, et ON PEUT MARCHER DESSUS : les
+## buissons du pack sont « assez hauts pour cacher le joueur, trop petits pour
+## valoir une case perdue invisiblement — donc ils ne bloquent pas »
+## (island/tileset.ts). C'est la fenetre de profondeur qui garde le lapin
+## visible derriere, pas un mur.
 var decor: Dictionary = {}
 
 ## LES BUISSONS DU TUTORIEL, deux, a l'ecart du couloir.
 ##
 ## Paul, 2026-09-23 : « le chest, 1 ou 2 buissons ». La carte est nettoyee de
 ## tout arbre — un seul pin coupait l'ile en deux — mais un buisson sur une case
-## que la marche n'emprunte pas habille l'ile sans rien lui fermer. Les deux
-## cases sont hors du chemin S → C, verifie par verify_tutorial.gd, qui marche
-## le couloir avec `may_step`.
+## que la marche n'emprunte pas habille l'ile sans rien lui cacher.
 const TUTORIAL_DECOR := {
-	Vector2i(19, 20): "bush-small",
-	Vector2i(14, 19): "bush-round",
+	Vector2i(19, 20): 1,
+	Vector2i(14, 19): 3,
 }
 
 
@@ -374,9 +373,6 @@ func may_step(from: Vector2i, to: Vector2i) -> bool:
 		return false
 	# Un X rouge est un mur : un doigt qui glisse ne doit pas couter une manche.
 	if flagged.has(to) and state.get(to) != State.DUG:
-		return false
-	# Un buisson aussi — voir `decor`.
-	if decor.has(to):
 		return false
 	var held := teaching_hold()
 	if held.x < 0:

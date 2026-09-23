@@ -277,6 +277,9 @@ func show_ground(seed_value: String) -> void:
 		_board.deal_tutorial()
 	_tiles.board = _board
 	_tiles.terrain = _terrain
+	# Sur le tutoriel, la fleche se plante sur le coffre et le mot du palier
+	# lui laisse la place (ChestPointer.ts / `hideChestTier`).
+	_tiles.tutorial = FirstIsland.is_first(seed_value)
 	_tiles.build()
 
 	# LE JOUEUR, pose sur l'apparition du tutoriel — ou au milieu d'une ile

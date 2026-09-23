@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c3oamfs12fp5l"
-path="res://.godot/imported/bush-round.png-a6aebdee3901af90ceedd40a23b3a925.ctex"
+uid="uid://bqh3nyxk8jl4q"
+path="res://.godot/imported/bushe4.png-c78039796589f743f1b932a8423909c7.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/deco/bush-round.png"
-dest_files=["res://.godot/imported/bush-round.png-a6aebdee3901af90ceedd40a23b3a925.ctex"]
+source_file="res://assets/deco/bushes/bushe4.png"
+dest_files=["res://.godot/imported/bushe4.png-c78039796589f743f1b932a8423909c7.ctex"]
 
 [params]
 
