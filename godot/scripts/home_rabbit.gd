@@ -294,7 +294,9 @@ func _on_happy_done() -> void:
 func take_hit(from: Vector2) -> void:
 	if _sprite == null:
 		return
-	if _hop != null and _hop.is_valid():
+	# `is_running`, PAS `is_valid` : pendant `finished`, le tween est encore
+	# valide — on se reabonnait a un signal deja parti, et le recul sautait.
+	if _hop != null and _hop.is_running():
 		_hop.finished.connect(func() -> void: take_hit(from), CONNECT_ONE_SHOT)
 		return
 	_sprite.play("damage")
@@ -316,7 +318,7 @@ func take_hit(from: Vector2) -> void:
 func exhaust() -> void:
 	if _sprite == null:
 		return
-	if _hop != null and _hop.is_valid():
+	if _hop != null and _hop.is_running():
 		_hop.finished.connect(exhaust, CONNECT_ONE_SHOT)
 		return
 	_sprite.play("damage")

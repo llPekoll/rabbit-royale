@@ -222,7 +222,7 @@ func exhaust() -> void:
 		return
 	# Une fois le dernier saut pose, pas a sa place : le pas qui depense le
 	# dernier point est encore un pas, et on doit le voir avant la chute.
-	if _hop != null and _hop.is_valid():
+	if _hop != null and _hop.is_running():
 		_hop.finished.connect(exhaust, CONNECT_ONE_SHOT)
 		return
 	_happy = false
