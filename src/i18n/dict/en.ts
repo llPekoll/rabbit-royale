@@ -207,10 +207,21 @@ export const en = {
   /* ── Rearranging the burrow (Godot: burrow_arrange.gd) ─────────────────
      ASCII only: the English face is the kit's pixel atlas. */
   arrange: {
+    tip: 'Tap a tree, your house or your garden to move it.',
+    place: 'Tap a clear tile to put it there.',
+    placeTouch: 'Tap a clear tile, or slide your finger to it and lift.',
+    placed: 'Placed and saved.',
+    undo: 'Undo',
+    putBack: 'Put back',
+    things: {
+      tree: 'Tree', stump: 'Stump', rock: 'Rock', bush: 'Bush',
+      house: 'Your house', field: 'Your garden', thing: 'Decoration',
+    },
     planksBack: (n: number) => `${n} fence${n === 1 ? '' : 's'} back in your bag`,
     bombsBack: (n: number) => `${n} bomb${n === 1 ? '' : 's'} back in your bag`,
     unsaved: 'Could not save your burrow. Try again in a moment.',
     refused: {
+      entrance: 'That\'s your burrow\'s entrance: raiders come in there.',
       occupied: 'Something already stands there.',
       cells_overlap: 'Something already stands there.',
       field_off_ground: 'The garden must stay on dry land.',

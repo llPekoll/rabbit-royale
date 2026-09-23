@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   burrowTerrain, editBurrow, burrowIndex, burrowColRow, MIN_CROSSING, MAX_CROSSING,
-  type BurrowTerrain,
+  givesWay, houseFootprint, type BurrowTerrain,
 } from '@/game/burrow/generate';
 import { burrowFor, setBurrowEdits, isWalkable, fieldTiles } from '@/game/burrow/board';
 import { blocksCell } from '@/game/island/blocking';
@@ -26,12 +26,72 @@ describe('editBurrow', () => {
     expect(editBurrow(base, { field: [40, 0] })).toBe('field_off_ground');
   });
 
-  it('a tree cannot land on the entrance or on another thing', () => {
+  it('a tree cannot land on the entrance or on another solid thing', () => {
     const base = burrowTerrain(SEEDS[1]);
-    const [a, b] = base.placements;
+    const [a, b] = base.placements.filter((p) => !givesWay(p.kind));
     const from = burrowIndex(a.x, a.y);
     expect(editBurrow(base, { moves: [[from, base.entrance]] })).toBe('cells_overlap');
     expect(editBurrow(base, { moves: [[from, burrowIndex(b.x, b.y)]] })).toBe('cells_overlap');
+  });
+
+  describe('ground clutter gives way', () => {
+    // A seed with a tree free to move onto a bush or prop it does not block.
+    const pick = () => {
+      for (const seed of SEEDS) {
+        const base = burrowTerrain(seed);
+        for (const solid of base.placements.filter((p) => !givesWay(p.kind))) {
+          for (const clutter of base.placements.filter((p) => givesWay(p.kind))) {
+            const from = burrowIndex(solid.x, solid.y);
+            const to = burrowIndex(clutter.x, clutter.y);
+            const out = editBurrow(base, { moves: [[from, to]] });
+            if (typeof out !== 'string') return { base, solid, clutter, from, to, out };
+          }
+        }
+      }
+      throw new Error('no seed lets a solid thing onto clutter');
+    };
+
+    it('a solid thing set on a bush or a prop covers it, and the clutter is gone', () => {
+      const { base, clutter, to, out } = pick();
+      expect(out.placements.some((p) => p.id === clutter.id)).toBe(false);
+      expect(out.placements.filter((p) => burrowIndex(p.x, p.y) === to)).toHaveLength(1);
+      expect(out.placements).toHaveLength(base.placements.length - 1);
+    });
+
+    it('the ground is the same with or without it — clutter never blocks', () => {
+      const { base, from, to, out } = pick();
+      // The same move judged against a burrow with no clutter at all.
+      const bare = { ...base, placements: base.placements.filter((p) => !givesWay(p.kind)) };
+      const alone = editBurrow(bare, { moves: [[from, to]] }) as BurrowTerrain;
+      expect(out.cells).toEqual(alone.cells);
+      expect(out.crossing).toBe(alone.crossing);
+    });
+
+    it('clutter the owner picked up keeps its cell like anything else', () => {
+      const { base, solid, clutter, from, to } = pick();
+      // The clutter moved first, onto the solid thing's cell: refused.
+      expect(editBurrow(base, { moves: [[to, from]] })).toBe('cells_overlap');
+      // And moved clutter under a solid thing's final cell: refused too.
+      const elsewhere = base.placements.find((p) => givesWay(p.kind) && p.id !== clutter.id)!;
+      const other = burrowIndex(elsewhere.x, elsewhere.y);
+      expect(editBurrow(base, { moves: [[from, to], [other, to]] })).toBe('cells_overlap');
+      expect(solid.id).not.toBe(clutter.id);
+    });
+
+    it('the house set down on clutter covers it too', () => {
+      for (const seed of SEEDS) {
+        const base = burrowTerrain(seed);
+        for (const clutter of base.placements.filter((p) => givesWay(p.kind))) {
+          const house = burrowIndex(clutter.x, clutter.y);
+          const out = editBurrow(base, { house });
+          if (typeof out === 'string') continue;
+          const square = new Set(houseFootprint(house));
+          expect(out.placements.some((p) => square.has(burrowIndex(p.x, p.y)))).toBe(false);
+          return;
+        }
+      }
+      throw new Error('no seed lets the house onto clutter');
+    });
   });
 
   it('every accepted edit keeps the crossing in bounds and the field reachable', () => {

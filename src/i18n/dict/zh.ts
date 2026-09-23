@@ -173,10 +173,21 @@ export const zh: Dict = {
   },
 
   arrange: {
+    tip: '点一下树、房子或菜园，就能挪动它。',
+    place: '点一个亮着的格子，把它放过去。',
+    placeTouch: '点一个亮着的格子，或者把手指滑过去再松开。',
+    placed: '已放好并保存。',
+    undo: '撤销',
+    putBack: '放回',
+    things: {
+      tree: '树', stump: '树桩', rock: '石头', bush: '灌木',
+      house: '你的房子', field: '你的菜园', thing: '装饰',
+    },
     planksBack: (n) => `${n} 块栅栏回到了背包`,
     bombsBack: (n) => `${n} 颗炸弹回到了背包`,
     unsaved: '洞穴没能保存，请稍后再试。',
     refused: {
+      entrance: '这是洞穴的入口，掠夺者从这里进来。',
       occupied: '这里已经有东西了。',
       cells_overlap: '这里已经有东西了。',
       field_off_ground: '菜园必须在陆地上。',

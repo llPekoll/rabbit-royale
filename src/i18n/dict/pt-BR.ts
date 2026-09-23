@@ -171,10 +171,21 @@ export const ptBR: Dict = {
   },
 
   arrange: {
+    tip: 'Toque numa árvore, na sua casa ou na sua horta para mudá-la de lugar.',
+    place: 'Toque num quadrado claro para colocá-la ali.',
+    placeTouch: 'Toque num quadrado claro, ou deslize o dedo até ele e solte.',
+    placed: 'Colocado e salvo.',
+    undo: 'Desfazer',
+    putBack: 'Devolver',
+    things: {
+      tree: 'Árvore', stump: 'Toco', rock: 'Pedra', bush: 'Arbusto',
+      house: 'Sua casa', field: 'Sua horta', thing: 'Decoração',
+    },
     planksBack: (n) => `${n} cerca${n > 1 ? 's' : ''} de volta na bolsa`,
     bombsBack: (n) => `${n} bomba${n > 1 ? 's' : ''} de volta na bolsa`,
     unsaved: 'Não deu para salvar sua toca. Tente de novo daqui a pouco.',
     refused: {
+      entrance: 'É a entrada da sua toca: os saqueadores chegam por ali.',
       occupied: 'Já tem algo nesse quadrado.',
       cells_overlap: 'Já tem algo nesse quadrado.',
       field_off_ground: 'A horta precisa ficar em terra firme.',

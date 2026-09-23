@@ -12,7 +12,7 @@ import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { burrowFor, setBurrowEdits } from '../src/game/burrow/board';
-import { editBurrow, burrowIndex, type BurrowEdits } from '../src/game/burrow/generate';
+import { editBurrow, burrowIndex, givesWay, type BurrowEdits } from '../src/game/burrow/generate';
 import { levelAt } from '../src/game/island/generate';
 import { burrowBuilding, houseTile } from '../src/game/burrow/buildings';
 
@@ -68,6 +68,19 @@ function editCases(seed: string) {
   const at = burrowIndex(home.x, home.y);
   for (const house of [at, at + 1, at - 19, base.entrance, base.field[0], 18]) tries.push({ house });
   tries.push({ field: [1, 0], moves: things.slice(0, 2).map((from, i) => [from, (from + 20 + i) % 361] as [number, number]) });
+  // GROUND CLUTTER GIVES WAY: solid things, the house and the field set down
+  // on bushes and props — and a bush the owner moved, which does not.
+  const solid = base.placements.filter((p) => !givesWay(p.kind)).map((p) => burrowIndex(p.x, p.y));
+  const clutter = base.placements.filter((p) => givesWay(p.kind)).map((p) => burrowIndex(p.x, p.y));
+  for (const [i, from] of solid.slice(0, 3).entries()) {
+    for (const to of clutter.slice(i * 3, i * 3 + 3)) tries.push({ moves: [[from, to]] });
+  }
+  for (const house of clutter.slice(0, 4)) tries.push({ house });
+  if (solid.length && clutter.length >= 2) {
+    tries.push({ moves: [[clutter[0], solid[0]]] });
+    tries.push({ moves: [[solid[0], clutter[1]], [clutter[0], clutter[1]]] });
+    tries.push({ moves: [[clutter[0], clutter[1]]] });
+  }
   return tries.map((edits) => {
     const out = editBurrow(base, edits);
     if (typeof out === 'string') return { edits, refused: out };
@@ -75,7 +88,11 @@ function editCases(seed: string) {
     setBurrowEdits(seed, edits);
     const house = houseTile(seed);
     setBurrowEdits(seed, null);
-    return { edits, cells: out.cells.map((k) => LETTER[k]).join(''), crossing: out.crossing, house };
+    return {
+      edits, cells: out.cells.map((k) => LETTER[k]).join(''), crossing: out.crossing, house,
+      // What still stands, and where: the clutter that gave way is gone.
+      placements: out.placements.map((p) => `${p.id}:${p.x},${p.y}`),
+    };
   });
 }
 

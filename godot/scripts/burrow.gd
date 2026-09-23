@@ -587,6 +587,12 @@ func show_ground(seed_value: String, edits: Dictionary = {}, keep_cam: bool = fa
 	_seed = seed_value
 	_layout = BurrowLayout.of(seed_value, edits)
 	_lifted.clear()
+	_drop_lift_fx()
+	_idle_arrange = null
+	_idle_nodes.clear()
+	# Les choses de la vague meurent avec l'ancien sol.
+	_flash_ticket += 1
+	_flash.clear()
 	# LES BOMBES VIVENT DANS LES BLOCS de l'ancien terrain, qui va mourir : la
 	# liste part avec, et la synchro les repose sur le nouveau.
 	_traps.clear()
@@ -627,7 +633,8 @@ func show_ground(seed_value: String, edits: Dictionary = {}, keep_cam: bool = fa
 	var standing := IslandGround.new(_layout.map, _layout.map.seed_text, false)
 	standing.placements = _layout.placements
 	_scenery.terrain = _terrain
-	_scenery.build(standing)
+	# Avec ses buissons : le terrier n'a pas de TileView pour les poser.
+	_scenery.build(standing, {}, true)
 	# La mer borde la terre qu'on vient de poser — meme graine que le web
 	# (`${seed}:ducks`) : la mare d'un joueur est toujours la meme.
 	_ocean.build(_terrain.map, str(seed_value))
@@ -929,6 +936,13 @@ var _pinch := Pinch.new()
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	# ECHAP OU CLIC DROIT REPOSENT ce qu'on tient, sans rien changer.
+	if _arrange != null and not _dragging_decor and event.is_pressed() and (
+			(event is InputEventKey and (event as InputEventKey).keycode == KEY_ESCAPE)
+			or (event is InputEventMouseButton and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_RIGHT)):
+		_release_hold()
+		get_viewport().set_input_as_handled()
+		return
 	# LE PINCEMENT D'ABORD, et le second doigt n'est jamais un appui : sans ce
 	# filtre, chaque evenement du deuxieme doigt tirait le plateau vers lui, et
 	# il sautait d'un doigt a l'autre a chaque image.
@@ -976,6 +990,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		# qui le lui montre (`_on_press`).
 		elif event is InputEventMouseMotion and event.button_mask == 0 and _hints_live():
 			_press_over(_cell_at(event.position))
+		# LES MAINS VIDES, la souris dit ce qui se prend : la main du kit et
+		# un contour sur l'arbre, la maison ou le potager sous elle.
+		elif event is InputEventMouseMotion and event.button_mask == 0 and _arrange == null:
+			_idle_hover(_cell_at(event.position))
 
 
 func _on_press(at: Vector2) -> void:
@@ -996,6 +1014,11 @@ func _on_press(at: Vector2) -> void:
 		_press_over(_cell_at(at))
 	elif _fences_live():
 		_fences.set_hovered(_fences.pick(_board_at(at)))
+	# AU DOIGT, L'APPUI EST LE SURVOL : ce qui se prend se detoure des qu'on le
+	# touche, comme sous la souris — un pouce n'a pas d'autre facon de savoir
+	# qu'un arbre repond avant de lever.
+	elif _press_touch and _hold_armed:
+		_idle_hover(pc)
 
 
 ## LA CASE SOUS LE DOIGT, avant qu'il se leve : or sur une case libre, la
@@ -1035,12 +1058,24 @@ func _on_move(at: Vector2) -> void:
 		if _dragging_decor:
 			_follow_decor(at)
 			return
+	# CE QU'ON TIENT SUIT LE DOIGT QUI GLISSE, ou qu'il ait ete pose : au
+	# terrier le plateau ne se promene pas (`can_move_cam`), donc un doigt qui
+	# glisse ne peut vouloir qu'une chose — chercher sa case. Il la montre en
+	# passant (vert, rouge, la raison) et lever le doigt pose, comme une tape.
+	# Sans ca, au doigt, on ne voyait ou tombait la chose qu'en la posant.
+	if _arrange != null and not can_move_cam():
+		if at.distance_to(_press_at) > DRAG_SLOP:
+			_hold_armed = false
+		_arrange_hover(_cell_at(at), true)
+		return
 	if not _did_drag and at.distance_to(_press_at) > DRAG_SLOP:
 		if _hold_armed:
 			_alog("maintien annule : le pointeur a bouge de %.0f px en %d ms (glissement du plateau)" % [
 				at.distance_to(_press_at), Time.get_ticks_msec() - _press_ms])
 		_did_drag = true
 		_hold_armed = false
+		if _press_touch:
+			_idle_hover(Vector2i(-1, -1))
 		# DES QUE C'EST UN GLISSEMENT, LA CASE N'EST PLUS VISEE : garder l'or
 		# sous un doigt qui promene le plateau annoncerait une pose qui
 		# n'arrivera pas.
@@ -1067,6 +1102,10 @@ func _on_release(at: Vector2) -> void:
 		return
 	_pressing = false
 	_hold_armed = false
+	# Le detourage de l'appui s'en va avec le doigt (la souris, elle, garde
+	# son survol).
+	if _press_touch:
+		_idle_hover(Vector2i(-1, -1))
 	if _dragging_decor:
 		_end_decor_drag(at)
 		return
@@ -1192,7 +1231,8 @@ func _decor_tap(cell: Vector2i) -> void:
 	if not _can_drag_decor():
 		return
 	if _arrange == null:
-		_grab(cell)
+		if not _grab(cell):
+			_flash_pickables()
 		return
 	# Sur ce qu'on tient : on le repose ou il etait.
 	if cell == _arrange.held_cell or (_arrange.held != BurrowArrange.Held.FIELD \
@@ -1212,7 +1252,17 @@ func _decor_tap(cell: Vector2i) -> void:
 	if why == "":
 		_commit_drop()
 	else:
-		_note_refusal(why)
+		_refuse_here(why)
+
+
+## UN REFUS PENDANT QU'ON TIENT : le bandeau le dit (il est sous les yeux, la
+## ou la pastille du haut ne l'est pas), le non s'entend, et la chose reste
+## en main.
+func _refuse_here(code: String) -> void:
+	Sound.deny()
+	_tell_arrange(code)
+	if Chrome.current != null:
+		Chrome.current.arrange_nudge()
 
 
 ## PRENDRE ce qui est sous `cell`. Faux s'il n'y a rien.
@@ -1224,9 +1274,15 @@ func _grab(cell: Vector2i) -> bool:
 	_alog("pris %s en %s : %d cases possibles" % [
 		["rien", "chose", "maison", "potager"][a.held], a.held_cell, a.targets.size()])
 	Sound.play("step")
+	_drop_undo()
+	_end_flash()
+	_idle_hover(Vector2i(-1, -1))
+	_learned_arrange()
 	_lift()
+	_arrange_over = Vector2i(-1, -1)
 	_paint_arrange()
 	_hints.show_hints(true)
+	_tell_arrange()
 	return true
 
 
@@ -1236,18 +1292,26 @@ func _release_hold() -> void:
 		return
 	_unlift()
 	_arrange = null
+	_arrange_over = Vector2i(-1, -1)
 	_hints.arranging = false
+	_hints.arrange_preview = {}
 	_hints.show_hints(_placing)
 	_hints.restyle()
+	_tell_arrange()
 
 
 ## POSER sur `cell`. Refuse (et le dit) si la regle ne veut pas ; ce qu'on
 ## tient reste alors en main.
-func _drop_at(cell: Vector2i) -> bool:
+func _drop_at(cell: Vector2i, released: bool = false) -> bool:
 	var why := _arrange.drop(cell)
 	_alog("pose en %s : %s" % [cell, why if why != "" else "ok " + JSON.stringify(_arrange.draft)])
 	if why != "":
-		_note_refusal(why)
+		# UN GLISSER LACHE sur un refus : la chose rentre chez elle et le
+		# bandeau part avec — la raison passe donc en pastille.
+		if released:
+			_note_refusal(why)
+			return false
+		_refuse_here(why)
 		_paint_arrange()
 		return false
 	_commit_drop()
@@ -1256,14 +1320,23 @@ func _drop_at(cell: Vector2i) -> bool:
 
 ## LA POSE EST FAITE : le sol se repousse tel quel, et part au serveur.
 func _commit_drop() -> void:
+	var before := _local_edits.duplicate(true)
+	var placed := _held_name()
 	_local_edits = BurrowArrange._clean(_arrange.draft)
 	_arrange = null
+	_arrange_over = Vector2i(-1, -1)
+	if _lift_tween != null and _lift_tween.is_valid():
+		_lift_tween.kill()
 	_lifted.clear()
+	_drop_lift_fx()
 	_hints.arranging = false
+	_hints.arrange_preview = {}
+	_tell_arrange()
 	Sound.play("step")
 	show_ground(_own_seed(), _local_edits, true)
 	_hints.show_hints(_placing)
 	_save_edits()
+	_offer_undo(before, placed)
 
 
 ## ENREGISTRER ce que le sol montre. Un seul en vol : une pose faite pendant
@@ -1304,33 +1377,66 @@ func _save_edits() -> void:
 
 
 ## LE SURVOL (souris) OU L'APPUI (doigt) : ou tomberait ce qu'on tient.
-func _arrange_hover(cell: Vector2i) -> void:
+##
+## LA CHOSE Y VA DEJA (2026-09-23) : sur une case ou elle peut aller, elle
+## s'y tient, soulevee, et un fantome garde sa place d'origine — on voit le
+## terrier tel qu'il sera avant de poser. Sur une case refusee, elle reste
+## chez elle, l'empreinte passe au rouge et le bandeau dit pourquoi : la
+## raison arrive AVANT la tape, plus apres. `follow` (le glisser) la fait
+## suivre le doigt partout, refus compris.
+func _arrange_hover(cell: Vector2i, follow: bool = false) -> void:
+	if _arrange == null:
+		return
+	_arrange_over = cell
 	var preview := {}
-	if _arrange.held != BurrowArrange.Held.NONE and _arrange.targets.has(cell):
+	var why := ""
+	var ok := false
+	var home := cell.x < 0 or cell == _arrange.held_cell \
+		or (_arrange.held != BurrowArrange.Held.FIELD and _arrange.source_cells().has(cell))
+	if not home and _arrange.held != BurrowArrange.Held.NONE:
+		ok = _arrange.targets.has(cell)
+		if not ok:
+			why = _arrange._why_not(cell)
 		for c in _arrange.footprint(cell):
-			preview[c] = true
+			preview[c] = ARRANGE_OK if ok else ARRANGE_NO
+	_carry_to(cell if (ok or (follow and cell.x >= 0)) else _arrange.held_cell)
+	_tell_arrange(why)
 	if preview.hash() == _hints.arrange_preview.hash():
 		return
 	_hints.arrange_preview = preview
 	_hints.restyle()
 
 
-## Les losanges : ce qu'on tient en or franc, ou ca peut aller en bleu.
+## LES LOSANGES : ce qu'on tient en or franc, et le sol ou il NE PEUT PAS
+## aller assombri. Un arbre peut aller presque partout : allumer les oui en
+## bleu couvrait l'ile d'un voile qui se lisait « grise », et c'etait le bleu
+## de « poser une bombe ». On eteint donc les non ; les oui restent nets, le
+## sol tel qu'il est.
 const ARRANGE_HELD := Color("#ffd45c", 0.9)
-const ARRANGE_TARGET := Color("#8fd6ff", 0.42)
+const ARRANGE_BLOCKED := Color("#141a26", 0.5)
+## L'empreinte sous le doigt : verte si la pose passe, rouge sinon.
+const ARRANGE_OK := Color("#8ee26f", 0.8)
+const ARRANGE_NO := Color("#ff6b4a", 0.75)
+
+## La derniere case survolee : la regle eteint des cases en arriere-plan
+## (`settle`), et l'empreinte doit se rejuger apres chaque repeint.
+var _arrange_over := Vector2i(-1, -1)
 
 func _paint_arrange() -> void:
 	if _arrange == null:
 		return
 	var lit := {}
-	for c in _arrange.targets:
-		lit[c] = ARRANGE_TARGET
+	for c in _hints.cells():
+		if not _arrange.targets.has(c):
+			lit[c] = ARRANGE_BLOCKED
 	for c in _arrange.source_cells():
 		lit[c] = ARRANGE_HELD
 	_hints.arranging = true
 	_hints.arrange_lit = lit
 	_hints.arrange_preview = {}
 	_hints.restyle()
+	if _arrange_over.x >= 0:
+		_arrange_hover(_arrange_over, _dragging_decor)
 
 
 ## Les planches suivent le potager : de combien celui du sol a bouge par
@@ -1339,41 +1445,200 @@ func _field_shift() -> Vector2i:
 	return BurrowArrange._shift_of(_own_edits()) - BurrowArrange._shift_of(Home.edits)
 
 
-## LA CHOSE PRISE SE SOULEVE — le retour qu'un doigt n'a pas autrement.
-const LIFT_PX := 16.0
-const LIFT_GLOW := Color(1.35, 1.3, 1.05)
+## LA CHOSE PRISE SE SOULEVE, et se voit tenue : plus haut qu'avant (16 px
+## se perdaient dans un arbre), un contour creme d'un pixel peint, une ombre
+## au sol sous elle, et un leger flottement tant qu'on la tient. Le potager
+## n'a que ses plantes a soulever : ses cases d'or disent le reste.
+const LIFT_PX := 22.0
+const LIFT_BOB := 3.0
+const LIFT_BOB_SECONDS := 0.55
+const LIFT_GLOW := Color(1.18, 1.15, 1.04)
+const GHOST_ALPHA := 0.35
+const OUTLINE := preload("res://shaders/pixel_outline.gdshader")
+## Un materiau par epaisseur : les arbres partagent le leur.
+static var _outline_mats: Dictionary = {}
+
+## `[noeud, position d'origine]` (dans `_lifted`), et ce qui les accompagne.
+var _lift_fx: Array[Node] = []
+var _shadows: Array = []
+var _ghosts: Array = []
+## Ou la chose se tient (en ecart a sa case d'origine), et sa hauteur.
+var _carry := Vector2.ZERO
+var _rise := 0.0
+var _bob := 0.0
+var _lift_tween: Tween
+
+
+## LE CONTOUR DE `node`, d'un pixel du sol quelle que soit son echelle : un
+## texel d'un arbre dessine a 0,5 n'etait qu'un demi-pixel, et le trait
+## disparaissait dans le feuillage.
+func _outline_for(node: Node2D) -> ShaderMaterial:
+	var k := node.get_global_transform().get_scale().x / maxf(get_global_transform().get_scale().x, 0.001)
+	var texels := maxf(1.0, roundf(1.0 / maxf(k, 0.001)))
+	if not _outline_mats.has(texels):
+		var m := ShaderMaterial.new()
+		m.shader = OUTLINE
+		m.set_shader_parameter("texels", texels)
+		_outline_mats[texels] = m
+	return _outline_mats[texels]
+
 
 func _lift() -> void:
 	_unlift()
-	var nodes: Array = []
-	match _arrange.held:
-		BurrowArrange.Held.THING:
-			nodes = _scenery.nodes_at(_arrange.held_cell)
-		BurrowArrange.Held.HOUSE:
-			if _props.home != null:
-				nodes = [_props.home]
-		BurrowArrange.Held.FIELD:
-			nodes = _props._plants.duplicate()
+	var nodes := _nodes_for(_arrange.held, _arrange.held_cell)
+	var solid := _arrange.held != BurrowArrange.Held.FIELD
 	for n in nodes:
-		if n is Node2D and is_instance_valid(n):
-			_lifted.append([n, (n as Node2D).position])
-			var tw := (n as Node2D).create_tween()
-			tw.tween_property(n, "position:y", (n as Node2D).position.y - LIFT_PX, 0.12) \
-				.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-			(n as Node2D).modulate = LIFT_GLOW
+		if not (n is Node2D) or not is_instance_valid(n):
+			continue
+		var node := n as Node2D
+		_lifted.append([node, node.position])
+		node.modulate = LIFT_GLOW
+		node.material = _outline_for(node)
+		if not solid:
+			continue
+		# L'OMBRE, au sol sous la chose, dessinee avant elle dans son bloc.
+		var shadow := LiftShadow.new()
+		shadow.radius = LiftShadow.HOUSE_RX if _arrange.held == BurrowArrange.Held.HOUSE else LiftShadow.THING_RX
+		shadow.position = node.position
+		shadow.z_index = node.z_index
+		node.get_parent().add_child(shadow)
+		node.get_parent().move_child(shadow, node.get_index())
+		_shadows.append(shadow)
+		_lift_fx.append(shadow)
+		# LE FANTOME, a la place d'origine : il n'apparait que quand la chose
+		# s'en va (un survol, un glisser).
+		var ghost := node.duplicate(0) as Node2D
+		ghost.material = null
+		ghost.modulate = Color(1, 1, 1, GHOST_ALPHA)
+		ghost.position = node.position
+		ghost.visible = false
+		node.get_parent().add_child(ghost)
+		node.get_parent().move_child(ghost, node.get_index())
+		_ghosts.append(ghost)
+		_lift_fx.append(ghost)
+	_carry = Vector2.ZERO
+	_rise = 0.0
+	_bob = 0.0
+	_lift_tween = create_tween()
+	_lift_tween.tween_method(_set_rise, 0.0, LIFT_PX, 0.12) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_lift_tween.tween_callback(_start_bob)
+
+
+func _start_bob() -> void:
+	if _lifted.is_empty():
+		return
+	_lift_tween = create_tween().set_loops()
+	_lift_tween.tween_method(_set_bob, 0.0, LIFT_BOB, LIFT_BOB_SECONDS) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_lift_tween.tween_method(_set_bob, LIFT_BOB, 0.0, LIFT_BOB_SECONDS) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+
+func _set_rise(v: float) -> void:
+	_rise = v
+	_place_lifted()
+
+
+func _set_bob(v: float) -> void:
+	_bob = v
+	_place_lifted()
+
+
+## Porter la chose au-dessus de `cell` (sa case d'origine : chez elle).
+func _carry_to(cell: Vector2i) -> void:
+	if _arrange == null:
+		return
+	var map := _terrain.map
+	var to := map.screen_of(cell.x, cell.y) - map.screen_of(_arrange.held_cell.x, _arrange.held_cell.y)
+	if to == _carry:
+		return
+	_carry = to
+	_place_lifted()
+
+
+func _place_lifted() -> void:
+	var up := Vector2(0, _rise + _bob)
+	for pair in _lifted:
+		var n: Node2D = pair[0]
+		if is_instance_valid(n):
+			n.position = (pair[1] as Vector2) + _carry - up
+	for sh in _shadows:
+		if is_instance_valid(sh):
+			var shadow := sh as LiftShadow
+			if _lifted.is_empty():
+				break
+			shadow.position = (_lifted[0][1] as Vector2) + _carry
+			# Plus la chose monte, plus son ombre se resserre.
+			shadow.scale = Vector2.ONE * (1.0 - (_rise + _bob) / (LIFT_PX * 6.0))
+	var away := _carry != Vector2.ZERO
+	for g in _ghosts:
+		if is_instance_valid(g):
+			(g as Node2D).visible = away
 
 
 func _unlift() -> void:
+	if _lift_tween != null and _lift_tween.is_valid():
+		_lift_tween.kill()
+	_lift_tween = null
 	for pair in _lifted:
 		var n: Node2D = pair[0]
 		if is_instance_valid(n):
 			n.position = pair[1]
 			n.modulate = Color.WHITE
+			n.material = null
 	_lifted.clear()
+	_drop_lift_fx()
+
+
+## L'ombre et le fantome, sans toucher aux noeuds soulevees (une pose
+## repousse le sol, qui les refait de toute facon).
+func _drop_lift_fx() -> void:
+	for fx in _lift_fx:
+		if is_instance_valid(fx):
+			fx.queue_free()
+	_lift_fx.clear()
+	_shadows.clear()
+	_ghosts.clear()
+	_carry = Vector2.ZERO
+
+
+## Les noeuds de ce qu'une prise tient : l'arbre (ou la pierre) de sa case, la
+## maison, ou les plantes du potager.
+func _nodes_for(what: int, cell: Vector2i) -> Array:
+	match what:
+		BurrowArrange.Held.THING:
+			return _scenery.nodes_at(cell)
+		BurrowArrange.Held.HOUSE:
+			return [_props.home] if _props.home != null else []
+		BurrowArrange.Held.FIELD:
+			return _props._plants.duplicate()
+	return []
+
+
+## L'OMBRE AU SOL de ce qu'on tient — celle du lapin (home_rabbit.gd), a la
+## taille d'un arbre ou d'une maison.
+class LiftShadow extends Node2D:
+	const THING_RX := 15.0
+	const HOUSE_RX := 30.0
+	const INK := Color(0.08, 0.05, 0.1, 0.34)
+	var radius := THING_RX
+
+	func _draw() -> void:
+		var pts := PackedVector2Array()
+		for i in range(24):
+			var a := TAU * float(i) / 24.0
+			pts.append(Vector2(cos(a) * radius, sin(a) * radius * 0.5))
+		draw_colored_polygon(pts, INK)
 
 
 ## Un refus, dans les mots du joueur.
 func _note_refusal(code: String) -> void:
+	if Chrome.current != null:
+		Chrome.current.toast(_refusal_text(code), true)
+
+
+func _refusal_text(code: String) -> String:
 	var text := ""
 	match code:
 		"crossing_too_short":
@@ -1390,15 +1655,15 @@ func _note_refusal(code: String) -> void:
 			text = I18N.t("arrange.refused.%s" % code)
 			if text.begins_with("arrange."):
 				text = I18N.t("arrange.refused.bad_edits")
-	if Chrome.current != null:
-		Chrome.current.toast(text, true)
+	return text
 
 
 ## La regle entiere juge les cases allumees, quelques ms par image ; et le
 ## maintien au doigt arme le glisser.
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if _arrange != null and _arrange.settling() and _arrange.settle(3000):
 		_paint_arrange()
+	_tend_tip(delta)
 	if _hold_armed and _pressing and not _did_drag and not _dragging_decor:
 		var hold := HOLD_TOUCH_MS if _press_touch else HOLD_MOUSE_MS
 		if Time.get_ticks_msec() - _press_ms >= hold:
@@ -1465,20 +1730,14 @@ func _follow_decor(at: Vector2) -> void:
 	if cell.x < 0 or cell == _drag_over:
 		return
 	_drag_over = cell
-	var map := _terrain.map
-	var delta := map.screen_of(cell.x, cell.y) - map.screen_of(_arrange.held_cell.x, _arrange.held_cell.y)
-	for pair in _lifted:
-		var n: Node2D = pair[0]
-		if is_instance_valid(n):
-			n.position = (pair[1] as Vector2) + delta - Vector2(0, LIFT_PX)
-	_arrange_hover(cell)
+	_arrange_hover(cell, true)
 
 
 func _end_decor_drag(at: Vector2) -> void:
 	_dragging_decor = false
 	var cell := _cell_at(at)
 	_alog("lache en %s (depart %s)" % [cell, _arrange.held_cell])
-	if cell.x < 0 or cell == _arrange.held_cell or not _drop_at(cell):
+	if cell.x < 0 or cell == _arrange.held_cell or not _drop_at(cell, true):
 		_release_hold()
 
 
@@ -1495,3 +1754,304 @@ func _holds(cell: Vector2i) -> bool:
 func _cancel_decor_drag() -> void:
 	_dragging_decor = false
 	_release_hold()
+
+
+# ---------------------------------------------------------------- le dire
+
+## LE BANDEAU DU CHROME tant qu'on tient quelque chose : ce qu'on tient, quoi
+## faire, et pourquoi une case refuse (`why`, un code de refus). Vide : il
+## s'en va, DIG · DEFEND · RAID reviennent.
+func _tell_arrange(why: String = "") -> void:
+	if Chrome.current == null:
+		return
+	if _arrange == null or _arrange.held == BurrowArrange.Held.NONE:
+		Chrome.current.arrange_state({})
+		return
+	Chrome.current.arrange_state({"what": _held_name(),
+		"why": _refusal_text(why) if why != "" else "",
+		# Au doigt, la consigne dit aussi le glisser (`_on_move`).
+		"touch": _press_touch or OS.has_feature("mobile")})
+
+
+## Le nom de ce qu'on tient, dans les mots du dictionnaire (`arrange.things`).
+func _held_name() -> String:
+	var key := "thing"
+	match _arrange.held:
+		BurrowArrange.Held.HOUSE:
+			key = "house"
+		BurrowArrange.Held.FIELD:
+			key = "field"
+		BurrowArrange.Held.THING:
+			var kind := String(_arrange.base.placements[_arrange.held_index].get("kind", ""))
+			if kind in ["tree", "stump", "rock", "bush"]:
+				key = kind
+	return I18N.t("arrange.things.%s" % key)
+
+
+## Le bouton du bandeau : REPOSER ce qu'on tient, ou ANNULER la derniere pose.
+func arrange_cancel() -> void:
+	if _arrange != null:
+		_release_hold()
+	elif _undo_edits != null:
+		_undo()
+
+
+## ANNULER LA DERNIERE POSE, quelques secondes durant. Au doigt une tape de
+## travers pose l'arbre ou on ne voulait pas, et chaque pose s'enregistre
+## seule : sans retour, le rattraper voulait dire le reprendre, retrouver sa
+## case, le reposer. Le bandeau reste donc apres la pose, « pose » et ANNULER.
+const UNDO_SECONDS := 4.0
+var _undo_edits: Variant = null
+var _undo_ticket := 0
+
+func _offer_undo(before: Dictionary, what: String) -> void:
+	_undo_edits = before
+	_undo_ticket += 1
+	var ticket := _undo_ticket
+	if Chrome.current != null:
+		Chrome.current.arrange_state({"what": what, "placed": true})
+	await get_tree().create_timer(UNDO_SECONDS).timeout
+	if ticket != _undo_ticket:
+		return
+	_undo_edits = null
+	if _arrange == null:
+		_tell_arrange()
+
+
+func _drop_undo() -> void:
+	_undo_edits = null
+	_undo_ticket += 1
+
+
+func _undo() -> void:
+	var back: Dictionary = _undo_edits
+	_drop_undo()
+	_alog("annule : %s" % JSON.stringify(back))
+	_local_edits = back
+	Sound.play("step")
+	show_ground(_own_seed(), _local_edits, true)
+	_tell_arrange()
+	_save_edits()
+
+
+## UNE TAPE DANS LE VIDE, les mains vides : tout ce qui se deplace se detoure
+## et saute une fois, en vague. Au doigt il n'y a pas de survol pour le
+## decouvrir ; la tape qui ne prend rien montre ce qu'elle aurait pu prendre.
+const FLASH_SECONDS := 0.7
+const FLASH_HOP_PX := 5.0
+## `[noeud, y au sol, tween]` de chaque chose de la vague.
+var _flash: Array = []
+var _flash_ticket := 0
+
+func _flash_pickables() -> void:
+	if not _flash.is_empty() or _layout == null:
+		return
+	var nodes: Array = []
+	for p in _layout.placements:
+		if p.kind in ["tree", "stump", "rock", "bush"]:
+			nodes.append_array(_scenery.nodes_at(Vector2i(int(p.x), int(p.y))))
+	if _props.home != null:
+		nodes.append(_props.home)
+	_flash_ticket += 1
+	var ticket := _flash_ticket
+	var i := 0
+	for n in nodes:
+		if not (n is Node2D) or not is_instance_valid(n) or n == _tip_node:
+			continue
+		var node := n as Node2D
+		node.material = _outline_for(node)
+		var y := node.position.y
+		var tw := node.create_tween()
+		tw.tween_interval(0.03 * i)
+		tw.tween_property(node, "position:y", y - FLASH_HOP_PX, 0.12) \
+			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tw.tween_property(node, "position:y", y, 0.2) \
+			.set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+		_flash.append([node, y, tw])
+		i += 1
+	await get_tree().create_timer(FLASH_SECONDS + 0.03 * i).timeout
+	if ticket == _flash_ticket:
+		_end_flash()
+
+
+## La vague s'arrete net, chaque chose a terre : une prise en plein saut
+## garderait sinon une place d'origine en l'air.
+func _end_flash() -> void:
+	_flash_ticket += 1
+	for f in _flash:
+		var node: Node2D = f[0]
+		if not is_instance_valid(node):
+			continue
+		var tw: Tween = f[2]
+		if tw != null and tw.is_valid():
+			tw.kill()
+		node.position.y = f[1]
+		if not _idle_nodes.has(node):
+			node.material = null
+	_flash.clear()
+
+
+# ---------------------------------------------------------------- se decouvrir
+
+## RIEN NE DISAIT QU'ON POUVAIT DEPLACER (2026-09-23, « pas super
+## comprehensible ») : sans mode, l'amenagement n'a pas de bouton, donc pas de
+## porte a voir. Trois indices le remplacent :
+##
+##   • A LA SOURIS, ce qui se prend le montre : la main du kit et un contour
+##     sous le pointeur (`_idle_hover`).
+##   • TANT QU'ON N'A RIEN PRIS, une fois pour toutes (user://arrange.cfg) :
+##     une legende pointe un arbre, qui sautille — « touche-le ».
+##   • Des qu'une chose a ete prise, la legende s'en va pour de bon.
+
+## Ce que le survol montre, et le terrier qui sert a le trouver (refait avec
+## le sol : BurrowLayout.of coute trop pour chaque mouvement de souris).
+var _idle_arrange: BurrowArrange
+var _idle_nodes: Array = []
+
+func _idle_hover(cell: Vector2i) -> void:
+	var nodes: Array = []
+	if cell.x >= 0 and _arrange == null and _decor_open():
+		if _idle_arrange == null:
+			_idle_arrange = BurrowArrange.new(_own_seed(), _own_edits())
+		var hit := _idle_arrange.find(cell)
+		if not hit.is_empty():
+			var spot: Dictionary = _idle_arrange.placed(hit[1]) if hit[0] == BurrowArrange.Held.THING else {}
+			nodes = _nodes_for(hit[0], hit[2] if spot.is_empty() else Vector2i(int(spot.x), int(spot.y)))
+	if nodes == _idle_nodes:
+		return
+	for n in _idle_nodes:
+		if is_instance_valid(n):
+			(n as CanvasItem).material = null
+	_idle_nodes = nodes
+	for n in _idle_nodes:
+		if is_instance_valid(n):
+			(n as CanvasItem).material = _outline_for(n as Node2D)
+	Input.set_default_cursor_shape(Input.CURSOR_POINTING_HAND if not nodes.is_empty() else Input.CURSOR_ARROW)
+
+
+## `_can_drag_decor` sans son journal : le survol passe ici a chaque image.
+func _decor_open() -> bool:
+	if _placing or _walling or _defending or _in_raid or not _own_ground():
+		return false
+	var inc: Dictionary = RaidState.current.incoming
+	return inc.is_empty() or bool(inc.get("finished", false))
+
+
+const LEARNED_PATH := "user://arrange.cfg"
+static var _learned := -1
+
+static func arrange_learned() -> bool:
+	if _learned < 0:
+		var cfg := ConfigFile.new()
+		_learned = 1 if cfg.load(LEARNED_PATH) == OK and bool(cfg.get_value("arrange", "learned", false)) else 0
+	return _learned == 1
+
+
+func _learned_arrange() -> void:
+	if not arrange_learned():
+		_learned = 1
+		var cfg := ConfigFile.new()
+		cfg.set_value("arrange", "learned", true)
+		cfg.save(LEARNED_PATH)
+	_stop_hop()
+	_tip_node = null
+	if Chrome.current != null:
+		Chrome.current.arrange_tip(Vector2.ZERO, false)
+
+
+## Le saut en cours s'arrete, la chose a terre : une prise en plein saut
+## garderait sinon une place d'origine en l'air.
+func _stop_hop() -> void:
+	if _tip_tween != null and _tip_tween.is_valid():
+		_tip_tween.kill()
+		if is_instance_valid(_tip_node):
+			_tip_node.position.y = _tip_ground
+	_tip_tween = null
+
+
+## L'ARBRE QUE LA LEGENDE POINTE : le plus pres du milieu de ce qu'on voit, a
+## droite de la colonne du chrome. La maison s'il n'y a pas d'arbre.
+var _tip_node: Node2D
+var _tip_hop_at := 0.0
+var _tip_tween: Tween
+var _tip_ground := 0.0
+## Le haut DESSINE de la chose pointee, dans son repere : l'image d'un arbre a
+## beaucoup d'air au-dessus du feuillage, et la fleche flottait dans le vide.
+var _tip_top := Vector2.ZERO
+const TIP_HOP_EVERY := 2.6
+const TIP_HOP_PX := 7.0
+
+func _pick_tip() -> Node2D:
+	var view := get_viewport_rect().size
+	var aim := Vector2(view.x * 0.6, view.y * 0.5)
+	var best: Node2D = null
+	var best_d := INF
+	for p in _layout.placements:
+		if p.kind != "tree":
+			continue
+		for n in _scenery.nodes_at(Vector2i(int(p.x), int(p.y))):
+			var at := (n as Node2D).get_global_transform_with_canvas().origin
+			if at.x < maxf(view.x * 0.25, 220.0) + 40.0 or at.y < 90.0:
+				continue
+			var d := at.distance_squared_to(aim)
+			if d < best_d:
+				best_d = d
+				best = n
+	if best == null and _props.home != null:
+		best = _props.home
+	return best
+
+
+## A chaque image : la legende suit sa chose (la camera bouge a l'ouverture),
+## et la chose sautille de temps en temps.
+func _tend_tip(delta: float) -> void:
+	var chrome := Chrome.current
+	var wanted := chrome != null and not arrange_learned() and _decor_open() \
+		and _arrange == null and Home.loaded() and not chrome.dialog_open() \
+		and not Screens.crossing and _cam_settled()
+	if not wanted:
+		_stop_hop()
+		if _tip_node != null and chrome != null:
+			chrome.arrange_tip(Vector2.ZERO, false)
+		_tip_node = null
+		return
+	if _tip_node == null or not is_instance_valid(_tip_node):
+		_tip_node = _pick_tip()
+		_tip_hop_at = 1.0
+		if _tip_node == null:
+			return
+		_tip_top = _drawn_top(_tip_node as Sprite2D)
+	chrome.arrange_tip(_tip_node.get_global_transform_with_canvas() * _tip_top, true)
+	_tip_hop_at -= delta
+	if _tip_hop_at <= 0.0:
+		_tip_hop_at = TIP_HOP_EVERY
+		_stop_hop()
+		_tip_ground = _tip_node.position.y
+		_tip_tween = _tip_node.create_tween()
+		_tip_tween.tween_property(_tip_node, "position:y", _tip_ground - TIP_HOP_PX, 0.14) \
+			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		_tip_tween.tween_property(_tip_node, "position:y", _tip_ground, 0.22) \
+			.set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+
+
+static func _drawn_top(sprite: Sprite2D) -> Vector2:
+	if sprite == null or sprite.texture == null:
+		return Vector2.ZERO
+	var r := sprite.get_rect()
+	var img := sprite.texture.get_image()
+	if img == null:
+		return Vector2(r.get_center().x, r.position.y)
+	var src := Rect2i(Vector2i.ZERO, img.get_size())
+	if sprite.region_enabled:
+		src = Rect2i(sprite.region_rect)
+	elif sprite.hframes > 1 or sprite.vframes > 1:
+		var cell := img.get_size() / Vector2i(sprite.hframes, sprite.vframes)
+		src = Rect2i(sprite.frame_coords * cell, cell)
+	var used := img.get_region(src).get_used_rect()
+	if used.size.y <= 0:
+		return Vector2(r.get_center().x, r.position.y)
+	return r.position + Vector2(used.position.x + used.size.x * 0.5, used.position.y)
+
+
+func _cam_settled() -> bool:
+	return _cam_tween == null or not _cam_tween.is_valid()

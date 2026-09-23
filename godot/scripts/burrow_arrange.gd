@@ -30,9 +30,11 @@ var draft: Dictionary = {}
 var layout: BurrowLayout
 
 var held := Held.NONE
-## THING : le rang de la chose dans `base.placements` (le meme dans
-## `layout.placements` : `edited` garde l'ordre). FIELD : la case du potager
-## qu'on a prise, qui suit le doigt. HOUSE : inutilise.
+## THING : le rang de la chose dans `base.placements`. PAS dans
+## `layout.placements` : le fouillis qu'une chose couvre s'efface du terrier
+## amenage (BurrowLayout.gives_way), et les rangs s'y decalent — on l'y
+## retrouve par son `id` (`placed`). FIELD : la case du potager qu'on a prise,
+## qui suit le doigt. HOUSE : inutilise.
 var held_index := -1
 var held_cell := Vector2i(-1, -1)
 ## Les cases ou une tape pose ce qu'on tient.
@@ -45,11 +47,15 @@ var targets: Dictionary = {}
 ## refuse — rarement plus d'une poignee. Une tape n'attend pas : `drop`
 ## juge sa case lui-meme.
 var _pending: Array[Vector2i] = []
+## `id` -> rang dans `base.placements`.
+var _rank_of: Dictionary = {}
 
 
 func _init(seed_value: String, edits: Dictionary) -> void:
 	seed_text = seed_value
 	base = BurrowLayout.of(seed_value)
+	for i in range(base.placements.size()):
+		_rank_of[String(base.placements[i].get("id", ""))] = i
 	saved = edits.duplicate(true)
 	draft = edits.duplicate(true)
 	layout = BurrowLayout.of(seed_text, draft)
@@ -169,9 +175,35 @@ func source_cells() -> Array[Vector2i]:
 		Held.HOUSE:
 			out = BurrowLayout.house_cells(layout.building)
 		Held.THING:
-			var p: Dictionary = layout.placements[held_index]
-			out.append(Vector2i(int(p.x), int(p.y)))
+			var p := placed(held_index)
+			if not p.is_empty():
+				out.append(Vector2i(int(p.x), int(p.y)))
 	return out
+
+
+## La chose de rang `rank` (dans `base.placements`) telle que le terrier
+## amenage la pose, ou vide si elle s'y est effacee.
+func placed(rank: int) -> Dictionary:
+	if rank < 0 or rank >= base.placements.size():
+		return {}
+	var id := String(base.placements[rank].get("id", ""))
+	for p in layout.placements:
+		if String(p.get("id", "")) == id:
+			return p
+	return {}
+
+
+## Le fouillis de rang `rank` s'efface-t-il sous ce qu'on y pose ? Oui tant
+## que le joueur ne l'a pas deplace lui-meme (generate.ts `givesWay`).
+func gives_way(rank: int) -> bool:
+	var bp: Dictionary = base.placements[rank]
+	if not BurrowLayout.gives_way(String(bp.kind)):
+		return false
+	var from := BurrowLayout.index(Vector2i(int(bp.x), int(bp.y)))
+	for m in draft.get("moves", []):
+		if int(m[0]) == from and int(m[1]) != from:
+			return false
+	return true
 
 
 # ---------------------------------------------------------------- le dedans
@@ -181,7 +213,7 @@ func _hold(what: Held, index: int, cell: Vector2i) -> void:
 	held_index = index
 	held_cell = cell
 	if what == Held.THING:
-		var p: Dictionary = layout.placements[index]
+		var p := placed(index)
 		held_cell = Vector2i(int(p.x), int(p.y))
 	targets = {}
 	_pending.clear()
@@ -189,7 +221,7 @@ func _hold(what: Held, index: int, cell: Vector2i) -> void:
 	# changent pas le sol : le tri bon marche suffit.
 	var rules := what == Held.FIELD
 	if what == Held.THING:
-		rules = bool(IslandGround.BLOCKS.get(layout.placements[index].kind, false))
+		rules = bool(IslandGround.BLOCKS.get(base.placements[index].kind, false))
 	var n := BurrowLayout.COLS * BurrowLayout.ROWS
 	for t in range(n):
 		var c := BurrowLayout.cell_of(t)
@@ -207,12 +239,11 @@ func _hold(what: Held, index: int, cell: Vector2i) -> void:
 		return a.distance_squared_to(at) > b.distance_squared_to(at))
 
 
-## Le rang de la chose posee sur `cell`, ou -1.
+## Le rang (dans `base.placements`) de la chose posee sur `cell`, ou -1.
 func _thing_at(cell: Vector2i) -> int:
-	for i in range(layout.placements.size()):
-		var p: Dictionary = layout.placements[i]
+	for p in layout.placements:
 		if int(p.x) == cell.x and int(p.y) == cell.y:
-			return i
+			return int(_rank_of.get(String(p.get("id", "")), -1))
 	return -1
 
 
@@ -223,12 +254,16 @@ func _cheap_refusal(c: Vector2i) -> String:
 	var t := BurrowLayout.index(c)
 	match held:
 		Held.THING:
-			if t == layout.entrance or BurrowLayout.house_cells(layout.building).has(c):
+			# L'ENTREE n'a pas de dessin hors raid : « quelque chose occupe deja
+			# cette case » se lisait faux sur une case vide. Elle a son mot.
+			if t == layout.entrance:
+				return "entrance"
+			if BurrowLayout.house_cells(layout.building).has(c):
 				return "occupied"
 			if layout.kind(t) == BurrowLayout.Cell.FIELD:
 				return "occupied"
 			var there := _thing_at(c)
-			if there >= 0 and there != held_index:
+			if there >= 0 and there != held_index and not gives_way(there):
 				return "occupied"
 		Held.HOUSE:
 			# La maison ne change pas les regles : quatre cases de sol nu,
@@ -238,8 +273,9 @@ func _cheap_refusal(c: Vector2i) -> String:
 				return "house_off_ground"
 			var tier := layout.map.level_at(square[0].x, square[0].y)
 			for q in square:
+				var there := _thing_at(q)
 				if layout.kind(BurrowLayout.index(q)) != BurrowLayout.Cell.GROUND \
-						or _thing_at(q) >= 0 or layout.sea_distance(q) < 1 \
+						or (there >= 0 and not gives_way(there)) or layout.sea_distance(q) < 1 \
 						or layout.map.level_at(q.x, q.y) != tier:
 					return "house_off_ground"
 	return ""

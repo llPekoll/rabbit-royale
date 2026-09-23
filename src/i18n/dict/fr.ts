@@ -167,10 +167,21 @@ export const fr: Dict = {
   },
 
   arrange: {
+    tip: 'Touche un arbre, ta maison ou ton potager pour le déplacer.',
+    place: 'Touche une case claire pour le poser là.',
+    placeTouch: 'Touche une case claire, ou glisse le doigt jusqu\'à elle et lève-le.',
+    placed: 'Posé et enregistré.',
+    undo: 'Annuler',
+    putBack: 'Reposer',
+    things: {
+      tree: 'Arbre', stump: 'Souche', rock: 'Rocher', bush: 'Buisson',
+      house: 'Ta maison', field: 'Ton potager', thing: 'Décor',
+    },
     planksBack: (n) => `${n} clôture${n > 1 ? 's' : ''} de retour dans le sac`,
     bombsBack: (n) => `${n} bombe${n > 1 ? 's' : ''} de retour dans le sac`,
     unsaved: 'Impossible d\'enregistrer ton terrier. Réessaie dans un instant.',
     refused: {
+      entrance: 'C\'est l\'entrée de ton terrier : les pillards arrivent par là.',
       occupied: 'Quelque chose occupe déjà cette case.',
       cells_overlap: 'Quelque chose occupe déjà cette case.',
       field_off_ground: 'Le potager doit rester sur la terre ferme.',

@@ -180,9 +180,14 @@ var _sheep: Dictionary = {}
 var _elapsed_ms := 0.0
 
 
-## Dessine chaque placement de `ground`, SAUF les buissons (TileView) et les
-## cases de `skip` (cles Vector2i). Rappelable : tout est jete avant.
-func build(ground: IslandGround, skip: Dictionary = {}) -> void:
+## Dessine chaque placement de `ground`, SAUF les cases de `skip` (cles
+## Vector2i) et, sur l'ile, les buissons : TileView les y pose sur ses cases.
+## `bushes` : les dessiner ici aussi — LE TERRIER n'a pas de TileView, et ses
+## buissons existaient pour les regles (une case prise, assombrie a
+## l'amenagement) sans que rien ne les montre (Paul, 2026-09-23 : « il n'y a
+## pas vraiment d'element sur ces cases sombres »). Le web les dessine
+## (IsoIslandView.ts, `case 'bush'`). Rappelable : tout est jete avant.
+func build(ground: IslandGround, skip: Dictionary = {}, bushes: bool = false) -> void:
 	clear()
 	if ground == null or terrain == null:
 		return
@@ -196,9 +201,11 @@ func build(ground: IslandGround, skip: Dictionary = {}) -> void:
 
 	for p: Dictionary in ground.placements:
 		var kind: String = p.kind
-		if kind == "bush":
-			continue
 		var cell := Vector2i(int(p.x), int(p.y))
+		if kind == "bush":
+			if bushes and not skip.has(cell):
+				_mount_bush(cell, int(p.variant))
+			continue
 		# UN MOUTON SE DESSINE LA OU IL EST, pas la ou la graine l'a pose.
 		if kind == "sheep":
 			cell = ground.sheep.get(p.get("id", ""), cell)
@@ -311,6 +318,25 @@ func clear_cell(cell: Vector2i, keep_wanderers: bool = false) -> void:
 ## Ce qui est pose sur une case — pour les verifications.
 func nodes_at(cell: Vector2i) -> Array:
 	return _at.get(cell, [])
+
+
+## UN BUISSON, comme TileView le pose sur l'ile : le pied au centre de la
+## case, et il se balance, chacun a partir d'une image differente.
+func _mount_bush(cell: Vector2i, variant: int) -> void:
+	var bush := AnimatedSprite2D.new()
+	bush.sprite_frames = TileView._bush_frames(variant)
+	bush.centered = false
+	bush.scale = Vector2(TileView.BUSH_SCALE, TileView.BUSH_SCALE)
+	bush.offset = Vector2(-TileView.BUSH_FRAME * 0.5, -TileView.BUSH_FOOT_PX)
+	bush.frame = variant % TileView.BUSH_FRAMES
+	bush.play("sway")
+	if not terrain.mount_veil(cell, bush, Z_PROP):
+		bush.free()
+		return
+	if not _at.has(cell):
+		_at[cell] = []
+	_at[cell].append(bush)
+	_kind_of[bush] = "bush"
 
 
 func clear() -> void:

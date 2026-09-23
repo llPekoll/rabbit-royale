@@ -64,6 +64,11 @@ var _mode := ""
 ## NETTOYER LA BASE, en DEFEND : a la place de la colonne, qui s'efface.
 var _clean: PlankButton
 var _clean_armed := false
+## CE QU'ON TIENT au terrier (burrow.gd `_tell_arrange`) : le bandeau monte a
+## la place du sol le temps du geste. Et la legende qui pointe un arbre tant
+## qu'on n'a jamais rien deplace.
+var _arrange_bar: ArrangeBar
+var _arrange_tip: ArrangeTip
 ## LE PLATEAU MONTRE UN RAID (burrow.gd `show_raid`) — pas « RaidState en a
 ## un » : entre les deux, il y a le rideau, et le chrome tourne au noir.
 var _raid_shown := false
@@ -199,6 +204,8 @@ func _mount_place() -> void:
 	_loop = null
 	_kit = null
 	_back = null
+	_arrange_bar = null
+	_arrange_tip = null
 
 	if not Screens.in_world() or Screens.place != Screens.Place.BURROW:
 		return
@@ -518,6 +525,53 @@ func _on_clean() -> void:
 		_relabel_clean()
 	if int(got[0]) + int(got[1]) > 0:
 		toast(I18N.f("defend.cleaned", [int(got[0]), int(got[1])]))
+
+
+## LE BANDEAU DE CE QU'ON TIENT. `{}` : on ne tient rien, il s'en va et le
+## sol revient (s'il n'y a pas de mode : le kit, lui, garde sa place).
+func arrange_state(state: Dictionary) -> void:
+	if state.is_empty():
+		if _arrange_bar != null:
+			_arrange_bar.queue_free()
+			_arrange_bar = null
+		if _loop != null and _mode.is_empty():
+			_loop.visible = true
+		return
+	if floor_host.get_child_count() == 0 or _raid_shown:
+		return
+	if _arrange_bar == null:
+		_arrange_bar = ArrangeBar.new()
+		floor_host.add_child(_arrange_bar)
+		_arrange_bar.put_back.connect(func() -> void:
+			var burrow := Screens.at(Screens.Place.BURROW)
+			if burrow != null and burrow.has_method("arrange_cancel"):
+				burrow.call("arrange_cancel"))
+	if _loop != null:
+		_loop.visible = false
+	_arrange_bar.show_state(state)
+
+
+## Un refus a la tape : le bandeau tremble.
+func arrange_nudge() -> void:
+	if _arrange_bar != null:
+		_arrange_bar.nudge()
+
+
+## LA LEGENDE « TOUCHE UN ARBRE », pointee sur `at` (pixels d'ecran).
+func arrange_tip(at: Vector2, show: bool) -> void:
+	if not show:
+		if _arrange_tip != null:
+			_arrange_tip.queue_free()
+			_arrange_tip = null
+		return
+	if _arrange_tip == null:
+		if floor_host.get_child_count() == 0 or _raid_shown:
+			return
+		_arrange_tip = ArrangeTip.new()
+		# Sur l'etage des pastilles : sous les dialogues, au-dessus du sol.
+		toasts.get_parent().add_child(_arrange_tip)
+		toasts.get_parent().move_child(_arrange_tip, toasts.get_index())
+	_arrange_tip.point(at - _arrange_tip.get_parent().global_position)
 
 
 ## CHANGER DE MODE SANS REFERMER LA RANGEE : c'est elle qui vient de le

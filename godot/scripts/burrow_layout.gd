@@ -115,6 +115,12 @@ static func has_edits(edits: Dictionary) -> bool:
 ## MEME ORDRE : c'est ce qui fait que l'editeur allume les cases que le
 ## serveur acceptera). Le relief et l'entree ne bougent jamais ; le sol, la
 ## traversee et le paillasson sont remesures.
+## LE FOUILLIS AU SOL (`givesWay`, generate.ts) : un buisson, un objet pose.
+## Un pillard le traverse ; ce qu'on pose dessus le couvre, et il s'efface.
+static func gives_way(kind: String) -> bool:
+	return kind == "bush" or kind == "prop"
+
+
 static func edited(base: BurrowLayout, edits: Dictionary) -> Variant:
 	var n := COLS * ROWS
 	var out := BurrowLayout.new()
@@ -158,11 +164,19 @@ static func edited(base: BurrowLayout, edits: Dictionary) -> Variant:
 			if a < 0 or a >= n or b < 0 or b >= n or moved.has(a):
 				return "bad_edits"
 			moved[a] = b
+	# DEUX PASSES, comme le serveur (`givesWay`) : ce qui tient sa case
+	# d'abord (le solide, et le fouillis que le joueur a deplace), puis le
+	# fouillis reste ou il a pousse, qui S'EFFACE sous ce qui le couvre
+	# maintenant. L'ordre du generateur est garde.
 	var taken := {}
 	var known := {}
-	for p in base.placements:
+	var at := {}
+	for i in range(base.placements.size()):
+		var p: Dictionary = base.placements[i]
 		var from := index(Vector2i(int(p.x), int(p.y)))
 		known[from] = true
+		if gives_way(String(p.kind)) and not moved.has(from):
+			continue
 		var to: int = moved.get(from, from)
 		var tc := cell_of(to)
 		if to != from and base.map.level_at(tc.x, tc.y) <= 0:
@@ -170,13 +184,33 @@ static func edited(base: BurrowLayout, edits: Dictionary) -> Variant:
 		if taken.has(to) or in_field.has(to) or to == out.entrance:
 			return "cells_overlap"
 		taken[to] = true
-		var q: Dictionary = p.duplicate()
-		q.x = tc.x
-		q.y = tc.y
-		out.placements.append(q)
+		at[i] = to
 	for from in moved:
 		if not known.has(from):
 			return "bad_edits"
+	# La maison, quand le joueur l'a posee, couvre le fouillis comme le reste.
+	var under_house := {}
+	var hv: Variant = edits.get("house")
+	if hv != null and int(hv) >= 0 and int(hv) < n:
+		for c in house_cells(cell_of(int(hv))):
+			under_house[index(c)] = true
+	for i in range(base.placements.size()):
+		var p: Dictionary = base.placements[i]
+		var from := index(Vector2i(int(p.x), int(p.y)))
+		if not gives_way(String(p.kind)) or moved.has(from):
+			continue
+		if taken.has(from) or in_field.has(from) or from == out.entrance or under_house.has(from):
+			continue
+		taken[from] = true
+		at[i] = from
+	for i in range(base.placements.size()):
+		if not at.has(i):
+			continue
+		var tc := cell_of(int(at[i]))
+		var q: Dictionary = base.placements[i].duplicate()
+		q.x = tc.x
+		q.y = tc.y
+		out.placements.append(q)
 
 	# Le sol, remesure.
 	var homestead := out._main_body(out._solid(out.placements))

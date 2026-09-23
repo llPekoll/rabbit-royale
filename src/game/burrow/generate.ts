@@ -635,6 +635,16 @@ export const MAX_CROSSING = 13;
  * - `moves`: `[from, to]` for each thing standing on the homestead that was
  *   picked up. `from` is where the GENERATOR put it, so a thing moved twice
  *   is still one entry.
+ *
+ * GROUND CLUTTER GIVES WAY (`givesWay`, 2026-09-23): a bush or a prop the
+ * owner has NOT moved is not in the way of anything — a tree, a rock, the
+ * house or the field set down on its cell simply covers it, and it is gone
+ * from the rearranged burrow. It comes back if what covered it moves off,
+ * since edits are a final state over the generated burrow. Half the cells the
+ * editor refused were a mushroom or a tuft a few pixels wide, which read as a
+ * refusal for no reason (Paul: « pourquoi y a-t-il plein de dalles sombres »).
+ * Clutter never blocks a raider (`blocksCell`), so the ground, the crossing
+ * and the doorstep are the same with or without it.
  */
 export interface BurrowEdits {
   field?: [number, number];
@@ -665,6 +675,9 @@ export function houseFootprint(tile: number): number[] | null {
   if (col < 0 || row < 0 || col + 1 >= BURROW_COLS || row + 1 >= BURROW_ROWS) return null;
   return [index(col, row), index(col + 1, row), index(col, row + 1), index(col + 1, row + 1)];
 }
+
+/** Ground clutter: walked through by raiders, covered by anything set on it. */
+export const givesWay = (kind: string): boolean => kind === 'bush' || kind === 'prop';
 
 /** Is there anything to apply? An empty edit is the generated burrow. */
 export function hasEdits(e: BurrowEdits | null | undefined): e is BurrowEdits {
@@ -725,20 +738,42 @@ export function editBurrow(
     if (moved.has(pair[0])) return 'bad_edits';
     moved.set(pair[0], pair[1]);
   }
+  // Two passes: everything that holds its cell first (the solid things, and
+  // any clutter the owner picked up), then the clutter left where it grew,
+  // which gives way to whatever now covers it. The generator's order is kept
+  // in the result.
   const taken = new Set<number>();
-  const placements: Placement[] = [];
+  const at = new Map<Placement, number>();
   const known = new Set<number>();
+  const stays = (p: Placement, from: number) => givesWay(p.kind) && !moved.has(from);
   for (const p of base.placements) {
     const from = index(p.x, p.y);
     known.add(from);
+    if (stays(p, from)) continue;
     const to = moved.get(from) ?? from;
     if (to !== from && !land(to)) return 'thing_off_ground';
     if (taken.has(to) || inField.has(to) || to === entrance) return 'cells_overlap';
     taken.add(to);
-    const { col, row } = colRow(to);
-    placements.push(to === from ? p : { ...p, x: col, y: row });
+    at.set(p, to);
   }
   for (const from of moved.keys()) if (!known.has(from)) return 'bad_edits';
+  // The house, when the owner set it down, covers clutter like the rest.
+  const square = edits.house !== undefined && onBoard(edits.house) ? houseFootprint(edits.house) : null;
+  const underHouse = new Set(square ?? []);
+  for (const p of base.placements) {
+    const from = index(p.x, p.y);
+    if (!stays(p, from)) continue;
+    if (taken.has(from) || inField.has(from) || from === entrance || underHouse.has(from)) continue;
+    taken.add(from);
+    at.set(p, from);
+  }
+  const placements: Placement[] = [];
+  for (const p of base.placements) {
+    const to = at.get(p);
+    if (to === undefined) continue;
+    const { col, row } = colRow(to);
+    placements.push(to === index(p.x, p.y) ? p : { ...p, x: col, y: row });
+  }
 
   // The ground, measured again.
   const homestead = mainBody(map, walkableWith(map, placements));
@@ -755,7 +790,6 @@ export function editBurrow(
   let house: number | undefined;
   if (edits.house !== undefined) {
     if (!onBoard(edits.house)) return 'bad_edits';
-    const square = houseFootprint(edits.house);
     const level = (t: number) => { const { col, row } = colRow(t); return levelAt(map, col, row); };
     if (!square || square.some((t) => cells[t] !== 'ground' || taken.has(t) || level(t) !== level(square[0]))) {
       return 'house_off_ground';
