@@ -162,7 +162,7 @@ func _on_moved(_place: int) -> void:
 	_reflect_place()
 	sound.set_open(false)
 	if Screens.place == Screens.Place.BURROW:
-		_arrive()
+		Screens.on_reveal(_arrive)
 
 
 ## Boutique, histoire et profil n'existent que sur le terrier : sur l'ile, la

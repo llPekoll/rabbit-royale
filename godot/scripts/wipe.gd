@@ -36,6 +36,15 @@ class_name Wipe
 ## donc pas deux temps — un seul, de cette longueur.
 const SWEEP_SECONDS := 1.26
 
+## LE TEMPS NOIR AU MILIEU, en secondes. `WIPE_HOLD_MS` du web (500).
+##
+## N'A DE SENS QUE POUR UN OBTURATEUR — un fondu n'a pas de milieu, donc rien a
+## y tenir. C'est le repit que la bascule s'offre pendant que l'ecran est
+## couvert : `show_place` bascule des lieux entiers et leurs CanvasLayer, et ce
+## travail doit tomber dans le noir, pas dans la premiere image de la
+## reouverture.
+const HOLD_SECONDS := 0.5
+
 ## LA BASCULE SE FAIT-ELLE AVANT LE GESTE, ou en son milieu ?
 ##
 ## Vrai pour un fondu (rien ne couvre l'ecran), faux pour un obturateur. Une
@@ -45,6 +54,11 @@ var swap_first := true
 
 ## Fire quand le geste est fini, rideau range.
 signal finished
+
+## FIRE QUAND LE LIEU NEUF COMMENCE A SE VOIR — la reouverture, apres le noir.
+## Ce qui a une ENTREE (la colonne, la barre du haut) la joue ici : jouee a la
+## bascule, elle se finissait sous le noir et l'ui etait deja la en rouvrant.
+signal opening
 
 
 func _ready() -> void:
@@ -66,6 +80,7 @@ func _ready() -> void:
 func play(swap: Callable) -> void:
 	push_error("[wipe] play() n'est pas implemente par cette variante")
 	swap.call()
+	opening.emit()
 	finished.emit()
 
 

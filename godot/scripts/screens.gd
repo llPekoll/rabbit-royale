@@ -59,6 +59,10 @@ signal world_shown(shown: bool)
 ## transition oubliee.
 signal changed
 
+## FIRE QUAND LE RIDEAU SE ROUVRE sur le lieu neuf (`Wipe.opening`). Voir
+## `on_reveal`.
+signal revealed
+
 ## Le lieu a l'affiche. N'a de sens que si `in_world()`.
 var place: Place = Place.BURROW
 
@@ -172,6 +176,19 @@ var _wipe: Wipe = null
 
 func host_wipe(wipe: Wipe) -> void:
 	_wipe = wipe
+	wipe.opening.connect(revealed.emit)
+
+
+## APPELLE `fn` QUAND LE LIEU SE VOIT : tout de suite sans rideau en vol, a la
+## reouverture sinon. Pour les ENTREES de l'ui : `moved` tombe au milieu du
+## noir (le temps noir de 500 ms compris), et une entree de 380 ms jouee la
+## finissait avant que l'iris ne rouvre — mesure le 2026-09-23 au sortir du
+## tutoriel, la colonne a 1.0 a 913 ms, l'iris qui rouvre a 1200 ms.
+func on_reveal(fn: Callable) -> void:
+	if not crossing:
+		fn.call()
+	elif not revealed.is_connected(fn):
+		revealed.connect(fn, CONNECT_ONE_SHOT)
 
 
 ## TRAVERSER AVEC LE GESTE — ce que le jeu appelle.

@@ -154,7 +154,7 @@ func _update_visible() -> void:
 	if shown:
 		_shown = true
 		if not OS.has_environment("RR_NO_TOON"):
-			_toon_in()
+			Screens.on_reveal(_toon_in)
 
 
 func _floor_reserve() -> float:

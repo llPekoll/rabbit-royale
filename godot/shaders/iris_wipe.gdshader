@@ -32,8 +32,14 @@ shader_type canvas_item;
 //     test de bornes, mais un mode repeat carrelerait des lapins sur tout
 //     l'ecran si ce test sautait un jour.
 uniform sampler2D shape : filter_nearest, repeat_disable;
-// La taille du trou, en part du plus petit cote de l'ecran. 0 = ferme.
-uniform float aperture : hint_range(0.0, 4.0) = 0.0;
+// La taille du trou, en part de la HAUTEUR de l'ecran. 0 = ferme.
+//
+// LA BORNE HAUTE EST LARGE, et pas par prudence vague : l'ouverture qu'il faut
+// pour degager les coins depend de l'ecran, et c'est `iris_wipe.gd` qui la
+// calcule (`_open_for`). Elle vaut ~3.97 sur l'ecran par defaut (2.225) et
+// monte au-dela de 4.5 sur plus large. Une borne a `4.0` — ce qu'elle etait —
+// decrit donc un contrat que l'appelant depasse.
+uniform float aperture : hint_range(0.0, 8.0) = 0.0;
 // Le rapport largeur/hauteur de l'ecran, pour que le lapin ne s'etire pas.
 uniform float screen_aspect = 2.225;
 // Le rapport de la silhouette elle-meme (18/24).
