@@ -319,6 +319,12 @@ func set_away(on: bool) -> void:
 
 # ── La mise en page ──────────────────────────────────────────────────────────
 
+## La hauteur des planches : ce qui se pose sur la barre (le bandeau de
+## l'amenagement) s'y aligne.
+func height() -> float:
+	return _slab_height()
+
+
 func _slab_height() -> float:
 	return clampf(get_viewport_rect().size.y * SLAB_VH, SLAB_MIN, SLAB_MAX)
 

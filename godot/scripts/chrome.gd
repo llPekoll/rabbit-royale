@@ -64,8 +64,9 @@ var _mode := ""
 ## NETTOYER LA BASE, en DEFEND : a la place de la colonne, qui s'efface.
 var _clean: PlankButton
 var _clean_armed := false
-## CE QU'ON TIENT au terrier (burrow.gd `_tell_arrange`) : le bandeau monte a
-## la place du sol le temps du geste. Et la legende qui pointe un arbre tant
+## CE QU'ON TIENT au terrier (burrow.gd `_tell_arrange`) : le bandeau se pose
+## sur le sol le temps du geste, DIG · DEFEND · RAID restent dessous. Et la
+## legende qui pointe un arbre tant
 ## qu'on n'a jamais rien deplace.
 var _arrange_bar: ArrangeBar
 var _arrange_tip: ArrangeTip
@@ -451,6 +452,7 @@ func _start_mode(mode: String) -> void:
 	if _kit == null:
 		return
 	_mode = mode
+	arrange_state({})
 	_kit.open(mode)
 	_loop.visible = false
 	_column.set_editing(true)
@@ -527,27 +529,26 @@ func _on_clean() -> void:
 		toast(I18N.f("defend.cleaned", [int(got[0]), int(got[1])]))
 
 
-## LE BANDEAU DE CE QU'ON TIENT. `{}` : on ne tient rien, il s'en va et le
-## sol revient (s'il n'y a pas de mode : le kit, lui, garde sa place).
+## LE BANDEAU DE CE QU'ON TIENT, pose sur le sol. `{}` : on ne tient rien, il
+## s'en va. Pas en mode : la rangee du kit tient le bas, et un « pose ·
+## ANNULER » qui trainait de l'amenagement se serait empile dessus.
 func arrange_state(state: Dictionary) -> void:
-	if state.is_empty():
+	if state.is_empty() or not _mode.is_empty():
 		if _arrange_bar != null:
 			_arrange_bar.queue_free()
 			_arrange_bar = null
-		if _loop != null and _mode.is_empty():
-			_loop.visible = true
 		return
 	if floor_host.get_child_count() == 0 or _raid_shown:
 		return
 	if _arrange_bar == null:
 		_arrange_bar = ArrangeBar.new()
+		_arrange_bar.ground = _loop
+		_arrange_bar.aside = _column
 		floor_host.add_child(_arrange_bar)
 		_arrange_bar.put_back.connect(func() -> void:
 			var burrow := Screens.at(Screens.Place.BURROW)
 			if burrow != null and burrow.has_method("arrange_cancel"):
 				burrow.call("arrange_cancel"))
-	if _loop != null:
-		_loop.visible = false
 	_arrange_bar.show_state(state)
 
 

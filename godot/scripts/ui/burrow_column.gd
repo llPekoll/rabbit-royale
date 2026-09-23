@@ -160,6 +160,14 @@ func _update_visible() -> void:
 			Screens.on_reveal(_toon_in)
 
 
+## Ce que les cartes occupent vraiment a l'ecran (la boite, pas l'hote qui
+## descend jusqu'au sol) : ce qui se pose en bas l'evite (ArrangeBar).
+func cards_rect() -> Rect2:
+	if _scroll == null or not visible:
+		return Rect2()
+	return _scroll.get_global_rect()
+
+
 func _floor_reserve() -> float:
 	if _floor_override >= 0.0:
 		return _floor_override

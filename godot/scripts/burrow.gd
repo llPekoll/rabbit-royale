@@ -1760,7 +1760,7 @@ func _cancel_decor_drag() -> void:
 
 ## LE BANDEAU DU CHROME tant qu'on tient quelque chose : ce qu'on tient, quoi
 ## faire, et pourquoi une case refuse (`why`, un code de refus). Vide : il
-## s'en va, DIG · DEFEND · RAID reviennent.
+## s'en va. DIG · DEFEND · RAID restent dessous tout du long.
 func _tell_arrange(why: String = "") -> void:
 	if Chrome.current == null:
 		return

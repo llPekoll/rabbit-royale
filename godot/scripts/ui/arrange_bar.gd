@@ -1,8 +1,12 @@
 class_name ArrangeBar
 extends Control
-## LE BANDEAU DE CE QU'ON TIENT — au pied de l'ecran, a la place de DIG ·
-## DEFEND · RAID, tant qu'un arbre, la maison ou le potager est pris
-## (burrow.gd `_tell_arrange`). Il s'en va des qu'on pose ou qu'on repose.
+## LE BANDEAU DE CE QU'ON TIENT — juste au-dessus de DIG · DEFEND · RAID,
+## tant qu'un arbre, la maison ou le potager est pris (burrow.gd
+## `_tell_arrange`). Il s'en va des qu'on pose ou qu'on repose.
+##
+## LES TROIS VERBES RESTENT A L'ECRAN (Paul, 2026-09-23) : ils sont le sol du
+## terrier, et les cacher le temps de deplacer un arbre faisait croire a un
+## autre ecran. Le bandeau se pose donc sur eux (`ground`), pas a leur place.
 ##
 ## L'AMENAGEMENT RESTE SANS MODE (Peko, 2026-09-23 : « on va faire plus
 ## simple ») : on n'entre nulle part, on prend. Mais une fois la chose en main
@@ -35,6 +39,13 @@ var _touch := false
 ## Apres une pose : « pose », et le bouton devient ANNULER (burrow.gd
 ## `_offer_undo`).
 var _placed := false
+## LA BARRE DU SOL, sur laquelle le bandeau se pose. Nulle ou cachee : il
+## descend au pied de l'ecran.
+var ground: LoopBar
+## LA COLONNE DE GAUCHE. Sur un telephone couche ses cartes descendent jusqu'au
+## sol, et le bandeau centre couvrait le bouton du terrier : il se pousse alors
+## a sa droite.
+var aside: BurrowColumn
 
 
 func _ready() -> void:
@@ -113,7 +124,7 @@ func _relabel() -> void:
 	_measure()
 
 
-## Au pied de l'ecran, centre, a la place de la barre du sol.
+## Centre, sur la barre du sol (ou au pied de l'ecran sans elle).
 func _measure() -> void:
 	if not is_inside_tree():
 		return
@@ -130,4 +141,18 @@ func _measure() -> void:
 	_row.reset_size()
 	_row.size.x = w
 	var h := _row.get_combined_minimum_size().y
-	_row.position = Vector2(floorf((view.x - w) * 0.5), view.y - h - Kit.EDGE) - global_position
+	var bottom := view.y - Kit.EDGE
+	if ground != null and ground.visible:
+		bottom -= ground.height() + Kit.PAD_TIGHT
+	var x := floorf((view.x - w) * 0.5)
+	var cards := aside.cards_rect() if aside != null else Rect2()
+	if cards.has_area() and cards.end.y > bottom - h:
+		var left := cards.end.x
+		if w > view.x - Kit.EDGE - left:
+			w = maxf(0.0, view.x - Kit.EDGE - left)
+			_hint.custom_minimum_size.x = maxf(0.0, w - BACK_W - Kit.PAD_TIGHT - pad)
+			_row.reset_size()
+			_row.size.x = w
+			h = _row.get_combined_minimum_size().y
+		x = clampf(x, left, view.x - Kit.EDGE - w)
+	_row.position = Vector2(x, bottom - h) - global_position
