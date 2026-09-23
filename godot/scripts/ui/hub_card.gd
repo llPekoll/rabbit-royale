@@ -277,11 +277,15 @@ func unit_height() -> float:
 	return maxf(1.0, minf(content_height(), by_share))
 
 
-## `cardSize(n, min, max)` : n % du contenu, borne — jamais plus grand que la
-## part d'ecran ne l'aurait fait, pour que le plancher donne de l'AIR et pas
-## du gros texte.
+## `cardSize(n, min, max)` : n % du contenu, borne.
+##
+## MESURE SUR LA CARTE A BOUTON, comme les dalles (`slab_text`) : sur la part
+## de chaque carte, le terrier (23 %) ecrivait plus gros que la quete (12,4)
+## et son texte sortait de la carte sur un 1024x600 (2026-09-23). Un seul
+## corps de texte pour la colonne.
 func card_size(n: float, low: float, high: float) -> int:
-	return int(round(clampf(unit_height() * n / 100.0, low, high)))
+	var unit := _reference_height() - 2.0 * _pad - 2.0 * FRAME
+	return int(round(clampf(unit * n / 100.0, low, high)))
 
 
 ## `cardLength("62cqh")` : la meme part, sans borne (pour l'art).

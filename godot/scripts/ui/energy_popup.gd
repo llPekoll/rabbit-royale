@@ -126,11 +126,9 @@ func _build() -> void:
 	header.add_child(purse)
 	header.move_child(purse, 1)
 
-	# LA BARRE, PUIS L'ATTENTE — sur une planche a feuilles
-	# (`.rr-energy-state`, SOIL_DEEP que la peau des bois dessine en bois).
+	# LA BARRE sur une planche a feuilles (`.rr-energy-state`, SOIL_DEEP que
+	# la peau des bois dessine en bois), l'attente dessous.
 	var state := PanelContainer.new()
-	# A droite, le bout ENTIER de la planche plus un souffle : a 14, la
-	# phrase courait sur les feuilles du bout droit (« Enough », « repartir »).
 	state.add_theme_stylebox_override("panel", Kit.style_plank(4.0, Kit.PLANK_CAP + 4.0, 6.0))
 	body.add_child(state)
 	var state_row := Kit.hbox(Kit.PAD)
@@ -144,10 +142,13 @@ func _build() -> void:
 	_count_max = Kit.label("", 12, Palette.CREAM.darkened(0.25))
 	_count_max.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 	count_row.add_child(_count_max)
-	_say = Kit.note("", Palette.CREAM, 12)
+	# L'ATTENTE SOUS LA PLANCHE, a l'encre du parchemin. Sur la planche, ses
+	# trois phrases l'etiraient au double de sa hauteur au Seeker : le rebord
+	# epaissi, les feuilles allongees, et la premiere ligne sur le bord du
+	# bois (2026-09-23). La planche garde sa hauteur, la barre y tient seule.
+	_say = Kit.note("", Palette.INK, 12)
 	_say.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_say.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	state_row.add_child(_say)
+	body.add_child(_say)
 
 	# L'OFFRE : ce que ca remplit et ce qu'il reste, sur UNE ligne, puis le
 	# prix qui est le bouton, sur toute la largeur (`.rr-energy-buy`).

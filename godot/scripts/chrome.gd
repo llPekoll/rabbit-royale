@@ -50,6 +50,10 @@ const TOAST_FADE := 0.35
 @onready var dialogs: Control = %Dialogs
 
 const SCRIM_BLUR := preload("res://shaders/scrim_blur.gdshader")
+## Les panneaux de cote s'arretent a la maquette (342 px de 1376) : plus
+## large, ce n'est plus un panneau mais une bande de texte clairseme.
+const COLUMN_MAX := 360.0
+const BOARD_MAX := 380.0
 
 var _scrim: ColorRect
 var _dialog: Control
@@ -645,7 +649,9 @@ func _measure() -> void:
 	var view := get_viewport_rect().size
 	top_bar.offset_bottom = Kit.TOPBAR_H
 
-	var column_w := maxf(view.x * 0.25, 220.0)
+	# 25 % de la largeur, entre 220 et 360 : au-dela, un grand ecran etirait
+	# les cartes sur 640 px pour trois lignes (2560 de large, 2026-09-23).
+	var column_w := clampf(view.x * 0.25, 220.0, COLUMN_MAX)
 	column.offset_left = Kit.EDGE
 	column.offset_top = Kit.TOPBAR_H
 	column.offset_right = Kit.EDGE + column_w
@@ -794,7 +800,11 @@ func _center_dialog() -> void:
 		# touchait le bord de l'ecran (2026-09-23).
 		var board_top := clampf(view.y * 0.13, 52.0, 100.0)
 		var board_bottom := clampf(view.y * 0.08, 12.0, 60.0)
-		var board_w := minf(maxf(view.x * 0.26, 220.0), view.x * 0.86)
+		# AU-DESSUS DU SOL : sur un telephone couche, le panneau descendait
+		# sur la planche RAID et en cachait le mot (2026-09-23).
+		if _loop != null and _loop.visible:
+			board_bottom = maxf(board_bottom, Kit.EDGE + _loop.height() + Kit.PAD_TIGHT)
+		var board_w := minf(clampf(view.x * 0.26, 220.0, BOARD_MAX), view.x * 0.86)
 		_dialog.custom_minimum_size = Vector2(board_w, 0.0)
 		_dialog.size = Vector2(board_w, view.y - board_top - board_bottom)
 		_dialog.position = Vector2(view.x - side - board_w, board_top)

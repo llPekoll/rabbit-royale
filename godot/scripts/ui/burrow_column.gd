@@ -14,7 +14,8 @@ extends Control
 ## 25 % DE LA LARGEUR, ce que la maquette tient constant (342 px de 1376),
 ## avec un plancher de 220 pour qu'un telephone droit garde ses cartes
 ## lisibles. Un 400 fixe etait la meme erreur que les hauteurs des cartes :
-## juste a la fenetre de la maquette, et 45 % du Seeker.
+## juste a la fenetre de la maquette, et 45 % du Seeker. Et un plafond de
+## 360 (chrome.gd COLUMN_MAX) : a 2560 de large, 25 % faisait 640.
 ##
 ## LA COLONNE S'EFFACE PENDANT QU'ON POSE : ce sont des releves d'un terrier
 ## qu'on n'est pas en train de gerer, sur le tiers gauche d'un plateau qu'il

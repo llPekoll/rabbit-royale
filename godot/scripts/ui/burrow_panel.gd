@@ -74,7 +74,12 @@ func refresh() -> void:
 		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var size := card_size(10.5, 8, 11)
 		row.add_child(Kit.icon(Kit.ICONS["bolt"], float(size)))
-		row.add_child(Kit.label(I18N.f("burrow.regenRate", [regen]), size, SUB))
+		# Qui se replie, comme la ligne au-dessus : sans ca sa largeur poussait
+		# toute la colonne de texte hors de la carte.
+		var rate := Kit.label(I18N.f("burrow.regenRate", [regen]), size, SUB)
+		rate.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		rate.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(rate)
 		body.add_child(row)
 
 	body.add_child(_vault(stock, safe))

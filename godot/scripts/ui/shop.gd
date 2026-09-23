@@ -62,6 +62,8 @@ const SHELF_PAD := 6.0
 ## Ce qu'une carte grandit au plus sur un grand ecran, par pas d'un quart
 ## pour que les tailles de texte restent entieres.
 const SCALE_MAX := 1.75
+## Les cartes que l'etagere garde en vue avant de grossir (`_fit_bay`).
+const SHELF_SEEN := 5
 ## Ce que l'enseigne SHOP descend dans la baie : une carte qui grandit ne
 ## monte pas jusqu'a elle.
 const SIGN_CLEAR := 20.0
@@ -296,7 +298,17 @@ func _build() -> void:
 func _fit_bay() -> void:
 	if _row == null:
 		return
-	var k := clampf(floorf((_bay.size.y - 2.0 * SIGN_CLEAR) / _card_total(1.0) * 4.0) / 4.0, 1.0, SCALE_MAX)
+	var k := (_bay.size.y - 2.0 * SIGN_CLEAR) / _card_total(1.0)
+	# ET PAS AU POINT DE CACHER L'ETAL : au moins SHELF_SEEN cartes en vue,
+	# comme au telephone (ou tout, s'il y en a moins). A la hauteur seule, un
+	# 1280x720 n'en montrait que quatre, un 1024x600 trois (2026-09-23). Au
+	# pas au-dessous, pas de quoi tout montrer : huit cartes a l'echelle 1
+	# flottaient dans un grand vide. Le fondu du bord dit le reste.
+	var count := mini(_row.get_child_count(), SHELF_SEEN)
+	if count > 0:
+		var wide := (_bay.size.x - 2.0 * SHELF_PAD) / (count * CARD_W + (count - 1) * CARD_GAP)
+		k = minf(k, wide)
+	k = clampf(floorf(k * 4.0) / 4.0, 1.0, SCALE_MAX)
 	if k != _k:
 		_k = k
 		_row.add_theme_constant_override("separation", int(CARD_GAP * k))
