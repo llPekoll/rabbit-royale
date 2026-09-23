@@ -61,6 +61,11 @@ var _kit: KitRow
 var _back: BackButton
 ## Le mode du terrier en cours ("placing", "walling"), vide sinon.
 var _mode := ""
+## LE PLATEAU MONTRE UN RAID (burrow.gd `show_raid`) — pas « RaidState en a
+## un » : entre les deux, il y a le rideau, et le chrome tourne au noir.
+var _raid_shown := false
+## Pour la pastille, qui montre la jauge du raid tant que le plateau est la.
+signal _raid_changed
 ## LA RECOLTE ENCAISSEE LOIN DU TERRIER (`banked` sur l'ile). La barre du sol
 ## n'existe pas la-bas : c'est le chrome qui la garde, et la lui rend quand le
 ## rideau s'est rouvert sur le terrier.
@@ -135,6 +140,13 @@ func _mount() -> void:
 func _wire_run(bar: TopBar) -> void:
 	var state := RunState.current
 	var feed := func() -> void:
+		# EN RAID, le medaillon bat avec la jauge que le raid depense
+		# (page.tsx : `raid.raid.tank`), relue a chaque pas.
+		var raid := RaidState.current.raid
+		if _raid_shown and not raid.is_empty() and raid.get("tank") != null:
+			bar.set_run(0, {})
+			bar.set_run_energy(int(raid["tank"]))
+			return
 		var me := state.me()
 		var on_island := Screens.in_world() and Screens.place == Screens.Place.ISLAND
 		if not on_island or me.is_empty():
@@ -147,7 +159,21 @@ func _wire_run(bar: TopBar) -> void:
 	state.me_changed.connect(feed)
 	state.rabbits_changed.connect(feed)
 	state.volcano_changed.connect(feed)
-	Screens.moved.connect(func(_p: int) -> void: feed.call())
+	# SCREENS ET RAIDSTATE SURVIVENT AU CHROME : une lambda branchee sur eux
+	# lui survivrait aussi, et le premier signal apres le retour a l'accueil
+	# appelait une instance morte (tools/verify_scene_flow.gd). Une METHODE
+	# se debranche seule quand le chrome meurt.
+	_feed_run = feed
+	Screens.moved.connect(_refeed_run)
+	RaidState.current.changed.connect(_refeed_run)
+	_raid_changed.connect(_refeed_run)
+
+
+var _feed_run: Callable
+
+
+func _refeed_run(_arg: Variant = null) -> void:
+	_feed_run.call()
 
 
 ## LES PIECES DU LIEU, reconstruites a chaque arrivee. On DETRUIT ce qui etait
@@ -164,6 +190,12 @@ func _mount_place() -> void:
 	_kit = null
 	_back = null
 	if not Screens.in_world() or Screens.place != Screens.Place.BURROW:
+		return
+	# EN RAID, le terrier est le plateau d'un autre : ni colonne, ni DIG sous
+	# le doigt — la barre du raid decrit le lieu ou l'on se tient vraiment
+	# (page.tsx : `crossing || shownRaid ? null : …`). Elle se cache seule.
+	if _raid_shown:
+		floor_host.add_child(preload("res://scenes/ui/raid_hud.tscn").instantiate())
 		return
 
 	# LA COLONNE, a gauche sous la barre. Sa ligne « et maintenant » pointe
@@ -325,6 +357,20 @@ func defend(on: bool, finished: bool = false) -> void:
 		_end_mode()
 
 
+## LE PLATEAU DU RAID vient de monter, ou de redescendre (burrow.gd, au noir
+## du rideau). Le chrome tourne AU MEME INSTANT que le plateau : la barre du
+## raid au-dessus de notre propre jardin, ou DIG sous le sol d'un autre,
+## c'etait le bug du web avant `shownRaid`.
+func show_raid(on: bool) -> void:
+	if _raid_shown == on:
+		return
+	_raid_shown = on
+	close_dialog()
+	_end_mode()
+	_mount_place()
+	_raid_changed.emit()
+
+
 ## UN MODE DU TERRIER (poser des pieges, des clotures) : la rangee du kit
 ## monte, la barre et la colonne s'effacent, le terrier prend son cadrage, et
 ## le retour s'affiche. La pose elle-meme est au terrier (burrow.gd
@@ -379,7 +425,12 @@ func _on_world_shown(shown: bool) -> void:
 		close_dialog()
 
 
-func _on_moved(_place: int) -> void:
+func _on_moved(place: int) -> void:
+	# Un raid se joue au terrier : ailleurs, il n'y a pas de plateau de raid.
+	# Au terrier, la scene neuve l'a deja dit (`show_raid`, dans son _ready,
+	# AVANT ce signal) — on ne le lui reprend pas.
+	if place != Screens.Place.BURROW:
+		_raid_shown = false
 	# Un dialogue ouvert sur un lieu ne suit pas le joueur sur l'autre, ni un
 	# mode du terrier.
 	close_dialog()

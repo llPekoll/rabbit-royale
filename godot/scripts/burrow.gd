@@ -62,6 +62,30 @@ var _sprung_seen := 0
 var _ended_shown := ""
 ## Le raid dont l'eclair a ete joue.
 var _struck_shown := ""
+## LE RAID QU'ON MENE (page.tsx, l'effet `setRaid`). Le terrier devient le
+## plateau du raid : le sol du DEFENSEUR, pousse de son id, avec le voile,
+## les chiffres et l'anneau que le serveur a envoyes (raid_board.gd). Les deux
+## bouts du raid passent sous le rideau ; chaque pas entre les deux, non —
+## un demi-seconde d'obturateur entre une tape et sa reponse est la seule
+## chose qu'un demineur ne doit jamais faire.
+var _raid_board: RaidBoard
+## Vrai quand le plateau MONTRE un raid — pas quand RaidState en a un : entre
+## les deux, il y a le rideau.
+var _in_raid := false
+## Un rideau demande et pas encore au noir : le milieu lira le dernier etat.
+var _raid_curtain := false
+## Ce que le plateau a dessine en dernier, pour qu'un `changed` qui ne change
+## rien (busy, une note, la liste) ne redessine pas.
+var _raid_key := ""
+## Les cases ou une tape est acceptee — la liste du serveur, jamais la notre.
+var _raid_steps := {}
+## Le lapin du joueur, chez l'autre.
+var _walker: HomeRabbit
+var _walker_at := -1
+## Le raid dont la fin a ete jouee sur le plateau.
+var _raid_end_shown := ""
+## Le niveau du terrier a l'affiche quand ce n'est pas le notre.
+var _ground_level := -1
 var _quit: PlankButton
 ## Provisoire, avec le bouton de cadrage — voir `_add_quit`.
 var _cycle: PlankButton
@@ -101,6 +125,9 @@ func _ready() -> void:
 	_scenery = IslandScenery.new()
 	_scenery.name = "Scenery"
 	add_child(_scenery)
+	_raid_board = RaidBoard.new()
+	_raid_board.name = "RaidBoard"
+	add_child(_raid_board)
 	_hints.is_mined = _traps.has_trap
 	show_ground(_own_seed())
 	# LES BOMBES SUIVENT LA LISTE DU SERVEUR, dans les deux sens : ShopState
@@ -123,17 +150,43 @@ func _ready() -> void:
 	# garde du web (« chez soi seulement ») est vraie par construction.
 	Home.changed.connect(_follow_level)
 	Home.level_up.connect(func(level: int) -> void:
-		_props.set_level(level)
-		_props.celebrate())
+		if _own_ground():
+			_props.set_level(level)
+			_props.celebrate())
 	_follow_level()
+	# LE RAID : on arrive peut-etre en plein raid (une session reprise) — le
+	# rideau de la traversee vient de le couvrir, on dessine tout de suite.
+	var raids := RaidState.current
+	raids.changed.connect(_on_raid_changed)
+	raids.sprung.connect(_on_raid_sprung)
+	_cross_raid()
 
 
 func _follow_level() -> void:
+	if not _own_ground():
+		_props.set_level(maxi(1, _ground_level))
+		return
 	if Home.loaded():
 		_props.set_level(int(Home.burrow.get("level", 1)))
 
 
+## Le sol a l'affiche est-il le notre ? Faux pendant un raid : c'est celui du
+## defenseur, avec sa maison, et sans nos bombes.
+func _own_ground() -> bool:
+	return _seed == _own_seed()
+
+
 func _on_tile_tapped(cell: Vector2i) -> void:
+	# EN RAID, une tape est un pas — sur une case de l'anneau seulement. Une
+	# tape sur un sol eteint n'est rien, pas une requete refusee.
+	if _in_raid:
+		var tile := BurrowLayout.index(cell)
+		var state := RaidState.current
+		if _raid_steps.has(tile) and not state.busy:
+			# Chaque pas s'entend, comme un saut sur l'ile.
+			Sound.play("step")
+			state.step(tile)
+		return
 	if _placing and not _walling:
 		_toggle_trap(BurrowLayout.index(cell))
 		return
@@ -166,7 +219,9 @@ func _toggle_trap(tile: int) -> void:
 
 
 func _sync_traps() -> void:
-	if _traps == null:
+	# NOS bombes ne se posent pas sur le sol d'un autre : un pillard ne voit
+	# jamais un piege, et ceux-la ne sont meme pas les siens.
+	if _traps == null or not _own_ground():
 		return
 	_traps.sync(ShopState.shared().traps)
 	_hints.restyle()
@@ -174,6 +229,10 @@ func _sync_traps() -> void:
 
 ## LE RAID SUBI A CHANGE — arrive, avance, saute, finit, disparait.
 func _on_incoming() -> void:
+	# En raid chez un autre, le plateau n'est pas le notre : rien ou poser
+	# l'intrus. La sortie du raid relit le raid subi (`_leave_raid`).
+	if _in_raid:
+		return
 	var inc: Dictionary = RaidState.current.incoming
 	if inc.is_empty():
 		if _defending:
@@ -281,6 +340,138 @@ func _spring_under_raider(tile: int) -> void:
 		_raider.take_hit(_raider.position + Vector2(0, 12))
 
 
+# ── Le raid qu'on mene ───────────────────────────────────────────────────────
+
+## RaidState a change. Seuls les deux bouts sont un changement d'endroit :
+## arriver chez l'autre, en revenir — ceux-la passent sous le rideau. Le reste
+## (un pas, une fin) se dessine sur-le-champ.
+func _on_raid_changed() -> void:
+	if _raid_curtain:
+		return
+	if RaidState.current.has_raid() == _in_raid:
+		_cross_raid()
+		return
+	_raid_curtain = true
+	Screens.curtain(func() -> void:
+		_raid_curtain = false
+		_cross_raid())
+
+
+## LE PLATEAU REJOINT L'ETAT, quel qu'il soit maintenant — au milieu du
+## rideau, le raid a pu finir, ou le joueur battre en retraite.
+func _cross_raid() -> void:
+	var state := RaidState.current
+	if state.has_raid() and not _in_raid:
+		_enter_raid(state.raid)
+	elif not state.has_raid() and _in_raid:
+		_leave_raid()
+	elif _in_raid:
+		_draw_raid(state.raid, false)
+
+
+## CHEZ L'AUTRE : son sol (pousse de son id — la graine contre laquelle le
+## serveur juge chaque pas), sa maison, pas nos bombes ; notre lapin qui erre
+## s'efface, le notre tombe sur sa porte ; la camera recule sur tout le
+## domaine ; le chrome du terrier laisse la place a la barre du raid.
+func _enter_raid(r: Dictionary) -> void:
+	if _defending:
+		_stop_defending()
+	var defender: Dictionary = r.get("defender", {}) if r.get("defender") is Dictionary else {}
+	_in_raid = true
+	_raid_key = ""
+	_raid_end_shown = ""
+	_ground_level = int(defender.get("level", 1))
+	# AVANT le sol : `show_ground` cadre sur-le-champ, et un raid veut la prise
+	# du plateau entier — sinon la camera irait a la maison et en repartirait.
+	_raiding = true
+	show_ground(String(defender.get("id", "")))
+	_rabbit.visible = false
+	_walker = _spawn_raider(int(r.get("tile", -1)))
+	_walker_at = int(r.get("tile", -1))
+	_sync_door()
+	if Chrome.current != null:
+		Chrome.current.show_raid(true)
+	_draw_raid(r, true)
+
+
+## RETOUR CHEZ SOI : notre sol, nos bombes, notre lapin, et la prise de la
+## maison. Un raid subi pendant qu'on etait ailleurs n'a pas ete garde — on le
+## relit une fois.
+func _leave_raid() -> void:
+	_in_raid = false
+	_raid_key = ""
+	_raid_steps = {}
+	_ground_level = -1
+	if _walker != null:
+		_walker.queue_free()
+		_walker = null
+	_walker_at = -1
+	_raiding = false
+	show_ground(_own_seed())
+	_rabbit.visible = true
+	_sync_door()
+	if Chrome.current != null:
+		Chrome.current.show_raid(false)
+	RaidState.current.refresh_incoming()
+
+
+## UN RAID EN COURS, redessine d'un coup : ce qu'on voit, ou l'on peut aller
+## et ou l'on se tient changent ensemble a chaque pas, et trois mises a jour
+## separees montreraient une image du plateau en desaccord avec elle-meme.
+func _draw_raid(r: Dictionary, fresh: bool) -> void:
+	var key := "%s|%s|%s|%s|%d|%d|%s" % [r.get("raidId"), r.get("tile"), r.get("finished"),
+		r.get("struck", false), (r.get("view", []) as Array).size(),
+		(r.get("steps", []) as Array).size(), r.get("smoked")]
+	if key == _raid_key:
+		return
+	_raid_key = key
+	var finished := bool(r.get("finished", false))
+	var tile := int(r.get("tile", -1))
+	# Un raid fini n'offre plus de pas : le plateau reste lisible, mais la
+	# marche est finie et une tape ne doit plus rien faire.
+	var steps: Array = [] if finished else (r.get("steps", []) as Array)
+	_raid_steps = {}
+	for t in steps:
+		_raid_steps[int(t)] = true
+	_raid_board.show_view(r.get("view", []) as Array, fresh)
+	if _walker != null and tile != _walker_at:
+		_walker.send_to(BurrowLayout.cell_of(tile))
+	_walker_at = tile
+	_raid_board.light(steps, tile)
+
+	# LA FIN, une fois : il danse sur le potager, ou il s'effondre la ou son
+	# energie a lache. FOUDROYE, c'est l'eclair du defenseur qui le dit, et le
+	# choc finit sur le corps. Le retour, lui, est a RaidState.
+	var id := String(r.get("raidId", ""))
+	if finished and _raid_end_shown != id and _walker != null:
+		_raid_end_shown = id
+		if bool(r.get("struck", false)):
+			Electrocute.strike(_walker, self)
+		elif bool(r.get("succeeded", false)):
+			_walker.celebrate()
+		else:
+			_walker.exhaust()
+
+
+## UN PIEGE A SAUTE SOUS NOUS. Le signal part AVANT que la reponse soit
+## dessinee : on laisse le pas commencer (une image), puis atterrir, et la
+## bombe saute sur la case ou il est arrive. Le bruit est au chrome.
+func _on_raid_sprung(tile: int) -> void:
+	await get_tree().process_frame
+	while _walker != null and _walker.hopping():
+		await get_tree().process_frame
+	if _walker == null or not _in_raid:
+		return
+	_traps.spring(tile)
+	_walker.take_hit(_walker.position + Vector2(0, 12))
+
+
+## La fleche de la porte : pendant la pose, et pendant un raid des deux cotes.
+func _sync_door() -> void:
+	if _raid_board != null:
+		_raid_board.show_door(_placing or _raiding)
+
+
 ## LA TAPE TOUCHE-T-ELLE L'INTRUS ? Son CORPS seulement — 14x14 de l'art a
 ## l'echelle du lapin, pose sur ses pieds : une boite d'une case entiere
 ## avalerait la case sous lui, qui repond elle-meme aux tapes.
@@ -349,6 +540,17 @@ func show_ground(seed_value: String) -> void:
 	_traps.terrain = _terrain
 	_traps.layout = _layout
 	_sync_traps()
+	# LE VOILE DU RAID ET LES FLECHES, dans les blocs neufs eux aussi. Le
+	# voile n'existe que le temps d'un raid ; la fleche de la porte, sur
+	# chaque sol, se montre quand le plateau se lit comme un plateau.
+	_raid_board.terrain = _terrain
+	_raid_board.layout = _layout
+	if _in_raid:
+		_raid_board.build()
+	else:
+		_raid_board.clear()
+	_raid_board.build_door()
+	_sync_door()
 
 	# LE LAPIN REVIENT AVEC LE SOL SUR LEQUEL IL SE TIENT. `show_ground` tourne
 	# a la premiere image ET a chaque changement de terrain — une montee de
@@ -547,6 +749,7 @@ func set_placing(on: bool) -> void:
 	# est une image de chez soi — pas un editeur de niveau.
 	_hints.show_hints(on)
 	_traps.set_lifted(-1)
+	_sync_door()
 	_relabel_cycle()
 	frame_camera()
 
@@ -565,6 +768,7 @@ func set_raiding(on: bool) -> void:
 		return
 	_raiding = on
 	_cam_moved_by_player = false
+	_sync_door()
 	_relabel_cycle()
 	frame_camera()
 

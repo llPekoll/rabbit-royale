@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+; Le banc du plateau de raid — voir scripts/bench/raid_board_bench.gd.
+
+[ext_resource type="Script" path="res://scripts/bench/raid_board_bench.gd" id="1_bench"]
+
+[node name="RaidBoardBench" type="Node2D"]
+script = ExtResource("1_bench")

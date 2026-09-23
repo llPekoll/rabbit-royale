@@ -158,6 +158,26 @@ func cross(id: Place) -> void:
 	_wipe.play(func() -> void: show_place(id))
 
 
+## LE RIDEAU SANS CHANGER DE LIEU — entrer dans un raid, en revenir. Le
+## terrier reste la meme scene, mais son sol devient celui d'un autre : c'est
+## un changement d'endroit pour l'oeil, et il se fait sous le noir comme les
+## autres (page.tsx, `wipeOver(draw)` sur les deux bouts d'un raid).
+##
+## `swap` est garde : le lieu qui l'a demande peut mourir pendant le geste.
+## Sans rideau, ou pendant une traversee, la bascule a lieu tout de suite.
+func curtain(swap: Callable) -> void:
+	if _wipe == null or crossing:
+		swap.call()
+		return
+	crossing = true
+	_wipe.finished.connect(func() -> void:
+		crossing = false
+		changed.emit(), CONNECT_ONE_SHOT)
+	_wipe.play(func() -> void:
+		if swap.is_valid():
+			swap.call())
+
+
 ## Le lieu vivant, pour qui doit lui parler (`burrow.set_raid(...)`).
 func here() -> Node:
 	return _current if _in_world else null

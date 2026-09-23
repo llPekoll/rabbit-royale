@@ -235,6 +235,10 @@ func step(tile: int) -> void:
 func leave() -> void:
 	if bool(raid.get("struck", false)):
 		_dismissed = String(raid.get("raidId", ""))
+	# LE PREMIER PAS A PAYE LA TRAVERSEE (api/raid PATCH, `payCrossing`) : un
+	# repli apres lui rentre avec une jauge plus basse, qu'il faut aller lire
+	# (page.tsx `raidCharged`). Sans pas, rien n'a ete pris.
+	var paid := (raid.get("walked", []) as Array).size() >= 2
 	raid = {}
 	outcome = {}
 	note = ""
@@ -242,6 +246,8 @@ func leave() -> void:
 	if _faked or not Session.signed_in():
 		return
 	await _send("/api/raid", HTTPClient.METHOD_DELETE, {})
+	if paid:
+		Home.refresh()
 	refresh()
 
 
