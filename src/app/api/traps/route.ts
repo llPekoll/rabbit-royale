@@ -20,7 +20,7 @@ import {
   armedTraps, availableTraps, isArmed, placementBlocker, refundTrap, refundTraps, rearmingTraps,
   spendTrap,
 } from '@/lib/game/traps';
-import { isDoorstep, isTrappable } from '@/game/burrow/board';
+import { burrowCell, isDoorstep, isTrappable } from '@/game/burrow/board';
 import { houseTiles } from '@/game/burrow/buildings';
 import { loadBurrowEdits } from '@/lib/game/burrowEdits';
 import { TRAPS } from '@config/tuning';
@@ -133,11 +133,15 @@ export async function POST(req: Request) {
     // name, so the answer is "too near the door" and not "nothing there".
     isDoorstep(session.sub, tile),
   );
-  if (blocker) return Response.json({ error: blocker }, { status: 400 });
-  // UNDER THE HOUSE: walkable, and refused by name like the doorstep.
+  // THE GARDEN AND THE HOUSE: walkable, and refused BY NAME like the
+  // doorstep — the player sees them, "nothing to mine" would be a lie.
+  if (burrowCell(session.sub, tile) === 'field') {
+    return Response.json({ error: 'tile_field' }, { status: 400 });
+  }
   if (houseTiles(session.sub).includes(tile)) {
     return Response.json({ error: 'tile_house' }, { status: 400 });
   }
+  if (blocker) return Response.json({ error: blocker }, { status: 400 });
 
   const spend = spendTrap(player);
   if (!spend) return Response.json({ error: 'no_traps' }, { status: 400 });

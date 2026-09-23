@@ -650,6 +650,7 @@
   "tile_not_trappable": "Nothing to mine there.",
   "tile_doorstep": "Too near the door. The first steps inside stay open.",
   "tile_house": "Nothing is buried under your house.",
+  "tile_field": "Nothing is buried in your garden.",
   "tile_already_trapped": "Already mined.",
   "no_trap_there": "No trap there.",
   "no_fences": "No fences left. The shed sells them.",
@@ -1011,6 +1012,32 @@
   }
  },
  "defend": {
+  "clean": "CLEAR ALL",
+  "cleanSure": "SURE?",
+  "cleaned": {
+   "$t": "{0} bombs and {1} fences back in your bag",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "1 bomb and {1} fences back in your bag"
+    },
+    {
+     "when": {
+      "1": 1
+     },
+     "t": "{0} bombs and 1 fence back in your bag"
+    },
+    {
+     "when": {
+      "0": 1,
+      "1": 1
+     },
+     "t": "1 bomb and 1 fence back in your bag"
+    }
+   ]
+  },
   "underAttack": {
    "$t": "{0} IS RAIDING YOU"
   },

@@ -271,11 +271,10 @@ func is_walkable(tile: int) -> bool:
 	return kind(tile) != Cell.BLOCKED
 
 
-## cells.ts `minable` : le sol et le potager, jamais l'entree ni le
-## paillasson — ni sous la maison (traps route `tile_house`, 2026-09-23).
+## cells.ts `minable` : le sol nu seulement — ni l'entree, ni le paillasson,
+## ni le potager, ni sous la maison (2026-09-23). Le serveur refuse pareil.
 func is_trappable(tile: int) -> bool:
-	var k := kind(tile)
-	if k != Cell.GROUND and k != Cell.FIELD:
+	if kind(tile) != Cell.GROUND:
 		return false
 	return building.x < 0 or not house_cells(building).has(cell_of(tile))
 

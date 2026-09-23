@@ -61,6 +61,9 @@ var _kit: KitRow
 var _back: BackButton
 ## Le mode du terrier en cours ("placing", "walling"), vide sinon.
 var _mode := ""
+## NETTOYER LA BASE, en DEFEND : a la place de la colonne, qui s'efface.
+var _clean: PlankButton
+var _clean_armed := false
 ## LE PLATEAU MONTRE UN RAID (burrow.gd `show_raid`) — pas « RaidState en a
 ## un » : entre les deux, il y a le rideau, et le chrome tourne au noir.
 var _raid_shown := false
@@ -420,6 +423,7 @@ func _start_mode(mode: String) -> void:
 	_loop.visible = false
 	_column.set_editing(true)
 	_back.show_for(mode)
+	_mount_clean()
 	var burrow := Screens.at(Screens.Place.BURROW)
 	if burrow != null and burrow.has_method("set_placing"):
 		burrow.call("set_placing", mode == "placing")
@@ -436,6 +440,59 @@ func _feed_kit() -> void:
 		_kit.state.adopt_shop(shop.shop)
 	if not shop.fences.is_empty():
 		_kit.state.adopt_fences(shop.fences)
+
+
+## LE BOUTON « TOUT RETIRER » : toutes les bombes et toutes les planches
+## reviennent au sac (le serveur le fait : `?all=1` sur les deux routes).
+## En haut a gauche, a la place de la colonne qui s'efface en DEFEND ; montre
+## seulement s'il y a quelque chose a retirer — un bouton qui ne fait rien est
+## pire que pas de bouton. DEUX APPUIS : le premier demande « sur ? » trois
+## secondes, le second nettoie — rien ne se perd, mais une defense entiere se
+## defait d'un coup.
+func _mount_clean() -> void:
+	_drop_clean()
+	_clean = preload("res://scenes/plank_button.tscn").instantiate()
+	_clean.custom_minimum_size = Vector2(0, 44)
+	column.add_child(_clean)
+	_clean.position = Vector2(0, Kit.PAD_TIGHT)
+	_clean.pressed.connect(_on_clean)
+	_clean_armed = false
+	_relabel_clean()
+	if not ShopState.shared().changed.is_connected(_relabel_clean):
+		ShopState.shared().changed.connect(_relabel_clean)
+
+
+func _drop_clean() -> void:
+	if _clean != null and is_instance_valid(_clean):
+		_clean.queue_free()
+	_clean = null
+	_clean_armed = false
+
+
+func _relabel_clean() -> void:
+	if _clean == null or not is_instance_valid(_clean):
+		return
+	_clean.visible = ShopState.shared().base_dirty()
+	_clean.relabel(I18N.shout(I18N.t("defend.cleanSure" if _clean_armed else "defend.clean")))
+	_clean.size = _clean.get_combined_minimum_size()
+
+
+func _on_clean() -> void:
+	if not _clean_armed:
+		_clean_armed = true
+		_relabel_clean()
+		await get_tree().create_timer(3.0).timeout
+		_clean_armed = false
+		_relabel_clean()
+		return
+	_clean_armed = false
+	_clean.disabled = true
+	var got: Array = await ShopState.shared().clear_base()
+	if _clean != null and is_instance_valid(_clean):
+		_clean.disabled = false
+		_relabel_clean()
+	if int(got[0]) + int(got[1]) > 0:
+		toast(I18N.f("defend.cleaned", [int(got[0]), int(got[1])]))
 
 
 ## CHANGER DE MODE SANS REFERMER LA RANGEE : c'est elle qui vient de le
@@ -455,6 +512,7 @@ func _end_mode() -> void:
 	if _mode.is_empty():
 		return
 	_mode = ""
+	_drop_clean()
 	if _kit != null:
 		_kit.close()
 		_back.dismiss()

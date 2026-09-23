@@ -241,6 +241,33 @@ func clear_traps() -> Array:
 	return had if _took(answer, "traps") else []
 
 
+## RETIRER TOUTES LES PLANCHES (`DELETE /api/fences?all=1`) : elles
+## reviennent entieres dans le sac. Rend combien.
+func clear_fences() -> int:
+	if not Session.signed_in() or _fake:
+		return 0
+	_say("", false)
+	var answer: Answer = await _delete("/api/fences?all=1")
+	var n := int(answer.body.get("cleared", 0))
+	return n if _took(answer, "fences") else 0
+
+
+## NETTOYER LA BASE : toutes les bombes et toutes les planches, au sac. Le
+## serveur fait les deux (une bombe en recharge est relevee sans etre rendue,
+## comme a l'unite). Rend `[bombes, planches]`.
+func clear_base() -> Array:
+	var bombs := await clear_traps()
+	var planks := await clear_fences()
+	return [bombs.size(), planks]
+
+
+## Y a-t-il quelque chose a nettoyer ?
+func base_dirty() -> bool:
+	var t: Variant = traps.get("placed", [])
+	var f: Variant = fences.get("placed", [])
+	return (t is Array and not (t as Array).is_empty()) or (f is Array and not (f as Array).is_empty())
+
+
 ## POSER UNE PLANCHE sur un bord du potager. La regle de la porte vit sur le
 ## serveur : une planche qui fermerait le terrier revient comme un refus avec
 ## des mots (`would_seal_burrow`) plutot que comme une planche qui apparait

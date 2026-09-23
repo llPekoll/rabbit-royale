@@ -13,17 +13,15 @@
  *   surroundings would leave them sealing the field, they all go back in the
  *   bag instead;
  * - a bomb left on a cell that can no longer hold one (under a tree, on the
- *   new doorstep) is lifted and refunded, as `evictDoorstep` does — and so is
- *   one the move puts UNDER THE HOUSE or UNDER THE GARDEN where it now
- *   lies (2026-09-23). A bomb the owner buried in the garden themselves
- *   stays: only the ground the garden moved onto is cleared.
+ *   new doorstep, under the garden) is lifted and refunded, as
+ *   `evictDoorstep` does — and so is one the move puts UNDER THE HOUSE.
  */
 import { and, eq, inArray } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { fences, inventory, players, traps } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
 import {
-  baseBurrowFor, burrowColRow, burrowIndex, fieldTiles, isTrappable, setBurrowEdits,
+  baseBurrowFor, burrowColRow, burrowIndex, isTrappable, setBurrowEdits,
 } from '@/game/burrow/board';
 import { houseTiles } from '@/game/burrow/buildings';
 import { editBurrow, hasEdits } from '@/game/burrow/generate';
@@ -67,17 +65,16 @@ export async function PUT(req: Request) {
     return burrowIndex(col + now[0] - was[0], row + now[1] - was[1]);
   };
   const standing = fencedSpans(await db.query.fences.findMany({ where: eq(fences.ownerId, id) }));
-  setBurrowEdits(id, player.burrowEdits);
-  const oldField = new Set(fieldTiles(id));
   setBurrowEdits(id, edits);
   const carried = standing.map((s) => ({ tile: shift(s.tile), side: s.side }));
   const keep = carried.every((s) => isSpan(id, s.tile, s.side)) && fieldReachable(id, carried);
 
   const placed = await db.query.traps.findMany({ where: eq(traps.ownerId, id) });
+  // The garden is not minable (cells.ts), so a bomb it lands on is caught by
+  // `isTrappable`; the house is checked by its own footprint.
   const house = new Set(houseTiles(id));
-  const newlyField = new Set(fieldTiles(id).filter((t) => !oldField.has(t)));
   const evicted = placed
-    .filter((t) => !isTrappable(id, t.tile) || house.has(t.tile) || newlyField.has(t.tile))
+    .filter((t) => !isTrappable(id, t.tile) || house.has(t.tile))
     .map((t) => t.tile);
 
   let planksBack = 0;

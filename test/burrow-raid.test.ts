@@ -74,16 +74,19 @@ describe('burrow layout', () => {
     expect(shortestRaidPath(seed)).toBeGreaterThanOrEqual(MIN_CROSSING);
   });
 
-  forEachBurrow('lets the defender mine every walkable tile except the doorstep', (seed) => {
+  forEachBurrow('lets the defender mine the open ground, not the doorstep nor the garden', (seed) => {
     // The rule a player can learn in one sentence, and the reason `cells.ts`
     // exists: walkable and minable are one answer, so the board can never
     // offer a tile the server then refuses. The one carve-out is the
     // DOORSTEP: the few steps inside the door, which the board paints rather
-    // than hides. The field stays minable — a bomb on the objective is the
-    // last step made hard, which is the defender's to do.
+    // than hides. The garden is closed too (2026-09-23): nothing is buried
+    // under the crop.
     const doorstep = new Set(doorstepTiles(seed));
-    for (const t of walkableTiles(seed)) expect(isTrappable(seed, t)).toBe(!doorstep.has(t));
-    for (const i of fieldTiles(seed)) expect(isTrappable(seed, i)).toBe(true);
+    const field = new Set(fieldTiles(seed));
+    for (const t of walkableTiles(seed)) {
+      expect(isTrappable(seed, t)).toBe(!doorstep.has(t) && !field.has(t));
+    }
+    for (const i of field) expect(isTrappable(seed, i)).toBe(false);
     expect(isTrappable(seed, entranceTile(seed))).toBe(false);
   });
 

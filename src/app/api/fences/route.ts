@@ -134,6 +134,30 @@ export async function DELETE(req: Request) {
 
   const url = new URL(req.url);
   const q = url.searchParams;
+
+  // `?all=1` LIFTS EVERY PLANK in one gesture (« clean base », with the
+  // bombs' own `?all=1`). Each goes back in the bag whole, as a single lift
+  // does — and past MAX_HELD if it must: a clear that destroyed planks the
+  // player paid for would be the outcome the single lift refuses.
+  if (q.get('all') !== null) {
+    const player = await db.query.players.findFirst({ where: eq(players.id, session.sub) });
+    if (!player) return Response.json({ error: 'unknown player' }, { status: 404 });
+    const lifted = await db.transaction(async (tx) => {
+      const rows = await tx.delete(fences)
+        .where(eq(fences.ownerId, session.sub))
+        .returning({ tile: fences.tile });
+      if (!rows.length) return 0;
+      const bag = await tx.query.inventory.findFirst({
+        where: and(eq(inventory.playerId, session.sub), eq(inventory.kind, 'fence')),
+      });
+      const qty = (bag?.qty ?? 0) + rows.length;
+      await tx.insert(inventory)
+        .values({ playerId: session.sub, kind: 'fence', qty })
+        .onConflictDoUpdate({ target: [inventory.playerId, inventory.kind], set: { qty } });
+      return rows.length;
+    });
+    return Response.json({ cleared: lifted, ...(await fenceState(session.sub)) });
+  }
   const body = q.get('side') === null
     ? ((await req.json().catch(() => ({}))) as { tile?: unknown; side?: unknown })
     : { tile: q.get('tile'), side: q.get('side') };

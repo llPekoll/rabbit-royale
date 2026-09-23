@@ -376,6 +376,7 @@ export const ptBR: Dict = {
     tile_not_trappable: 'Nada para minar aí.',
     tile_doorstep: 'Perto demais da porta. Os primeiros passos ficam livres.',
     tile_house: 'Nada fica enterrado debaixo da sua casa.',
+    tile_field: 'Nada fica enterrado na sua horta.',
     tile_already_trapped: 'Já minado.',
     no_trap_there: 'Não tem armadilha aí.',
     no_fences: 'Sem cercas. O galpão vende.',
@@ -573,6 +574,9 @@ export const ptBR: Dict = {
 
   /* ── Sua toca sob ataque, vista de casa ──────────────────────────────── */
   defend: {
+    clean: 'TIRAR TUDO',
+    cleanSure: 'CERTEZA?',
+    cleaned: (bombs, planks) => `${bombs} bomba${bombs > 1 ? 's' : ''} e ${planks} cerca${planks > 1 ? 's' : ''} de volta na bolsa`,
     underAttack: (name) => `${name.toUpperCase()} ESTÁ SAQUEANDO VOCÊ`,
     theirSteps: 'passos dele',
     hint: 'Enterre uma bomba na frente dele, ou toque no coelho para chamar um raio.',

@@ -79,7 +79,7 @@ describe('placementBlocker', () => {
   });
 
   it('refuses a tile off the board, and one that already holds a bomb', () => {
-    // Not the field (minable) and not the doorstep (refused by name, below).
+    // Not the doorstep (refused by name, below).
     // What is left is ground that is not ground at all.
     expect(placementBlocker(rich, 0, false, false)).toBe('tile_not_trappable');
     expect(placementBlocker(rich, 0, true, true)).toBe('tile_already_trapped');

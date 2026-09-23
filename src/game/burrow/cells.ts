@@ -38,9 +38,11 @@ export interface CellRule {
    * entrance and the field were both carved out; then both were opened up,
    * because fencing off the two areas a defender most wants to defend, on a
    * board that could not explain why those tiles ignored a tap, was worse
-   * than either worst case. The field stays open — a bomb on the objective is
-   * a coin flip on the last step, and the last step is the defender's to
-   * make hard.
+   * than either worst case. The field stayed open for a while — a bomb on
+   * the objective as a coin flip on the last step. It is CLOSED again
+   * (2026-09-23): the garden is where the crop grows and the owner rearranges
+   * it at will, and a bomb under the carrots was a rule nobody asked for.
+   * Nor under the house (traps route `tile_house`), whose cells are ground.
    *
    * The entrance is closed again, and this time with the ground round it,
    * because the worst case turned out to be the ONLY case: with the door
@@ -52,8 +54,8 @@ export interface CellRule {
    * marker), so a refused tap is a rule the player can see rather than a
    * board that does not answer.
    *
-   * The rule a player can learn in one sentence: if a rabbit can walk there
-   * you can mine it, except the few steps inside the door.
+   * The rule a player can learn in one sentence: you mine the open ground,
+   * not the door, not the garden, not under the house.
    */
   minable: boolean;
 }
@@ -63,7 +65,7 @@ export const CELL_RULES: Record<BurrowCell, CellRule> = {
   ground:   { walkable: true,  minable: true },
   entrance: { walkable: true,  minable: false },
   doorstep: { walkable: true,  minable: false },
-  field:    { walkable: true,  minable: true },
+  field:    { walkable: true,  minable: false },
   // Not a cell at all: a wall, a cliff face, or sea. Nothing stands on it and
   // nothing is buried under it.
   blocked:  { walkable: false, minable: false },

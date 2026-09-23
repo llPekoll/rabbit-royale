@@ -662,6 +662,7 @@
   "tile_not_trappable": "Nada para minar aí.",
   "tile_doorstep": "Perto demais da porta. Os primeiros passos ficam livres.",
   "tile_house": "Nada fica enterrado debaixo da sua casa.",
+  "tile_field": "Nada fica enterrado na sua horta.",
   "tile_already_trapped": "Já minado.",
   "no_trap_there": "Não tem armadilha aí.",
   "no_fences": "Sem cercas. O galpão vende.",
@@ -1051,6 +1052,65 @@
   }
  },
  "defend": {
+  "clean": "TIRAR TUDO",
+  "cleanSure": "CERTEZA?",
+  "cleaned": {
+   "$t": "{0} bombas e {1} cercas de volta na bolsa",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "1 bomba e {1} cercas de volta na bolsa"
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "0 bomba e {1} cercas de volta na bolsa"
+    },
+    {
+     "when": {
+      "1": 1
+     },
+     "t": "{0} bombas e 1 cerca de volta na bolsa"
+    },
+    {
+     "when": {
+      "0": 1,
+      "1": 1
+     },
+     "t": "1 bomba e 1 cerca de volta na bolsa"
+    },
+    {
+     "when": {
+      "0": 0,
+      "1": 1
+     },
+     "t": "0 bomba e 1 cerca de volta na bolsa"
+    },
+    {
+     "when": {
+      "1": 0
+     },
+     "t": "{0} bombas e 0 cerca de volta na bolsa"
+    },
+    {
+     "when": {
+      "0": 1,
+      "1": 0
+     },
+     "t": "1 bomba e 0 cerca de volta na bolsa"
+    },
+    {
+     "when": {
+      "0": 0,
+      "1": 0
+     },
+     "t": "0 bomba e 0 cerca de volta na bolsa"
+    }
+   ]
+  },
   "underAttack": {
    "$t": "{0} ESTÁ SAQUEANDO VOCÊ"
   },

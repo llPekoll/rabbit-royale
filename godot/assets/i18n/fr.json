@@ -680,6 +680,7 @@
   "tile_not_trappable": "Rien à miner là.",
   "tile_doorstep": "Trop près de l'entrée. Les premiers pas restent libres.",
   "tile_house": "On n'enterre rien sous ta maison.",
+  "tile_field": "On n'enterre rien dans ton potager.",
   "tile_already_trapped": "Déjà miné.",
   "no_trap_there": "Pas de piège là.",
   "no_fences": "Plus de clôtures. La remise en vend.",
@@ -1104,6 +1105,65 @@
   }
  },
  "defend": {
+  "clean": "TOUT RETIRER",
+  "cleanSure": "SÛR ?",
+  "cleaned": {
+   "$t": "{0} bombes et {1} clôtures de retour dans le sac",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "1 bombe et {1} clôtures de retour dans le sac"
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "0 bombe et {1} clôtures de retour dans le sac"
+    },
+    {
+     "when": {
+      "1": 1
+     },
+     "t": "{0} bombes et 1 clôture de retour dans le sac"
+    },
+    {
+     "when": {
+      "0": 1,
+      "1": 1
+     },
+     "t": "1 bombe et 1 clôture de retour dans le sac"
+    },
+    {
+     "when": {
+      "0": 0,
+      "1": 1
+     },
+     "t": "0 bombe et 1 clôture de retour dans le sac"
+    },
+    {
+     "when": {
+      "1": 0
+     },
+     "t": "{0} bombes et 0 clôture de retour dans le sac"
+    },
+    {
+     "when": {
+      "0": 1,
+      "1": 0
+     },
+     "t": "1 bombe et 0 clôture de retour dans le sac"
+    },
+    {
+     "when": {
+      "0": 0,
+      "1": 0
+     },
+     "t": "0 bombe et 0 clôture de retour dans le sac"
+    }
+   ]
+  },
   "underAttack": {
    "$t": "{0} PILLE TON TERRIER"
   },

@@ -372,6 +372,7 @@ export const zh: Dict = {
     tile_not_trappable: '那里没东西可埋。',
     tile_doorstep: '离入口太近。门口的头几步不能埋。',
     tile_house: '房子底下不能埋东西。',
+    tile_field: '菜园里不能埋东西。',
     tile_already_trapped: '已经埋过了。',
     no_trap_there: '那里没有陷阱。',
     no_fences: '没有栅栏了。棚里有卖。',
@@ -557,6 +558,9 @@ export const zh: Dict = {
 
   /* ── 你的洞穴正被袭击，从家里看 ───────────────────────────────────────── */
   defend: {
+    clean: '全部收回',
+    cleanSure: '确定？',
+    cleaned: (bombs, planks) => `${bombs} 颗炸弹和 ${planks} 块栅栏回到了背包`,
     underAttack: (name) => `${name.toUpperCase()} 正在掠夺你`,
     theirSteps: '对方步数',
     hint: '在它前方埋一颗雷，或点兔子召来闪电。',

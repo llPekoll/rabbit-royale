@@ -474,6 +474,7 @@ export const en = {
     tile_not_trappable: 'Nothing to mine there.',
     tile_doorstep: 'Too near the door. The first steps inside stay open.',
     tile_house: 'Nothing is buried under your house.',
+    tile_field: 'Nothing is buried in your garden.',
     tile_already_trapped: 'Already mined.',
     no_trap_there: 'No trap there.',
     no_fences: 'No fences left. The shed sells them.',
@@ -713,6 +714,11 @@ export const en = {
 
   /* ── Your burrow under attack, watched from home ──────────────────────── */
   defend: {
+    /* The clean-base button (Godot chrome, DEFEND): every bomb and plank
+       back to the bag. ASCII only, the English face is the pixel atlas. */
+    clean: 'CLEAR ALL',
+    cleanSure: 'SURE?',
+    cleaned: (bombs: number, planks: number) => `${bombs} bomb${bombs === 1 ? '' : 's'} and ${planks} fence${planks === 1 ? '' : 's'} back in your bag`,
     underAttack: (name: string) => `${name.toUpperCase()} IS RAIDING YOU`,
     theirSteps: 'their steps',
     hint: 'Bury a bomb ahead of them, or tap the rabbit to strike it.',

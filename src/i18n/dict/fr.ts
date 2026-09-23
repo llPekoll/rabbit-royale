@@ -372,6 +372,7 @@ export const fr: Dict = {
     tile_not_trappable: 'Rien à miner là.',
     tile_doorstep: 'Trop près de l\'entrée. Les premiers pas restent libres.',
     tile_house: 'On n\'enterre rien sous ta maison.',
+    tile_field: 'On n\'enterre rien dans ton potager.',
     tile_already_trapped: 'Déjà miné.',
     no_trap_there: 'Pas de piège là.',
     no_fences: 'Plus de clôtures. La remise en vend.',
@@ -571,6 +572,9 @@ export const fr: Dict = {
 
   /* ── Ton terrier attaqué, vu de chez toi ─────────────────────────────── */
   defend: {
+    clean: 'TOUT RETIRER',
+    cleanSure: 'SÛR ?',
+    cleaned: (bombs, planks) => `${bombs} bombe${bombs > 1 ? 's' : ''} et ${planks} clôture${planks > 1 ? 's' : ''} de retour dans le sac`,
     underAttack: (name) => `${name.toUpperCase()} PILLE TON TERRIER`,
     theirSteps: 'ses pas',
     hint: 'Enterre une bombe devant lui, ou touche le lapin pour le foudroyer.',
