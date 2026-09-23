@@ -257,7 +257,7 @@ func _style_arm(b: Button, held: int, armed: bool) -> void:
 ## BOMB — le compte est l'avertissement, le bouton dessous la reponse.
 func _measure() -> void:
 	var view := get_viewport_rect().size
-	_strip.offset_top = Kit.TOPBAR_H + Kit.PAD_TIGHT
+	_strip.offset_top = _below_pill()
 	var w := minf(560.0, view.x - 2.0 * Kit.EDGE)
 	_strip.offset_left = -w * 0.5
 	_strip.offset_right = w * 0.5
@@ -358,7 +358,25 @@ func _refresh_plates() -> void:
 
 # ── Les legendes ─────────────────────────────────────────────────────────────
 
+## SOUS LA PASTILLE, PAS SOUS LA BARRE — la lecon des pastilles du chrome
+## (chrome.gd `_clear_pill`). Le cadran d'energie pend plus bas que
+## TOPBAR_H, d'autant plus que la fenetre est grande : en plein ecran,
+## « ⚡ 295/300 in the tank » passait derriere lui (Paul, 2026-09-23). On
+## mesure donc le bas de ce qui est vraiment dessine.
+func _below_pill() -> float:
+	var bottom := Kit.TOPBAR_H
+	if not is_inside_tree():
+		return bottom + Kit.PAD_TIGHT
+	for pill in get_tree().root.find_children("*", "CarrotPill", true, false):
+		if pill is Control and (pill as Control).is_visible_in_tree():
+			bottom = maxf(bottom, Chrome._drawn_bottom(pill) - get_global_rect().position.y)
+	return bottom + Kit.PAD_TIGHT
+
+
 func _say(slot: int, text: String, ink: Color, ms: int) -> void:
+	# La pastille a pu changer de taille depuis (la fenetre, la run qui monte
+	# ses compteurs) : la bande se recale avant de parler.
+	_strip.offset_top = _below_pill()
 	var panel := _slots[slot]
 	var label := panel.get_child(0) as Label
 	label.text = text
