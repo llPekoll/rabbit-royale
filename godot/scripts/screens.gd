@@ -111,6 +111,38 @@ func build_world() -> void:
 	for id in places:
 		_scene(places[id])
 	_scene(chrome_path)
+	_warm(places[Place.ISLAND])
+
+
+## LE PRECHAUFFAGE : construire un lieu une fois, HORS ECRAN, puis le jeter.
+##
+## Charger la PackedScene ne suffisait pas. Mesure le 2026-09-23 (Mac, sans
+## GPU) : la PREMIERE ile construite coutait 327 ms, les suivantes 88 — tout ce
+## que le jeu remplit a la premiere demande (tables, cartes, tuning) tombait
+## sur le premier DIG, et sur le Seeker ca debordait du temps noir du rideau.
+## Et le GPU ajoute sa part que la mesure ne voit pas : en `gl_compatibility`
+## un shader se compile a sa premiere image.
+##
+## D'ou une vraie construction, dans un SubViewport qui ne s'affiche nulle
+## part : le `_ready` du lieu tourne en entier, une image est rendue (les
+## shaders se compilent), puis tout part. La regle « une scene vivante » tient :
+## ce lieu ne recoit ni le doigt ni l'ecran, et vit une image.
+##
+## Seulement l'ile : le terrier est la premiere scene construite de toute
+## facon, a la connexion.
+func _warm(path: String) -> void:
+	var vp := SubViewport.new()
+	vp.size = get_tree().root.size
+	vp.transparent_bg = true
+	vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+	vp.gui_disable_input = true
+	add_child(vp)
+	vp.add_child(_scene(path).instantiate())
+	# DEUX images : la premiere dessine (UPDATE_ONCE), la seconde laisse le
+	# rendu se terminer avant qu'on libere ce qu'il lisait.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	vp.queue_free()
 
 
 ## LA BASCULE NUE, sans rideau : detruit la scene courante et construit `id`.

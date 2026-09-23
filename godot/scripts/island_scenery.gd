@@ -39,9 +39,6 @@ class_name IslandScenery
 ##   • les OMBRES DE CONTACT — `decoShadows: false` dans TerrainBackground.ts,
 ##     le jeu du web ne les dessine pas ;
 ##   • les SOUCHES — rien ne coupe d'arbre sur l'ile aujourd'hui ;
-##   • les moutons qui ERRENT et leur galop (`syncOccupants`, `setGait`) — le
-##     serveur les deplace par la socket, et les manches en ligne ne sont pas
-##     encore branchees. Ils broutent sur place, sur leur feuille calme ;
 ##   • le clignotement d'un decor souffle par une bombe (`blastDeco`) : on
 ##     l'enleve d'un coup, `clear_cell(cell, true)` ;
 ##   • les touffes d'herbe (`buildGrass`) — de la texture, pas des occupants.
@@ -120,6 +117,16 @@ const UNITS := {
 ## seuls les trois premiers soldats sortent aujourd'hui ; la liste reste celle
 ## du web pour que la regle ne change pas le jour ou le tirage s'elargit.
 const SHEEP_KINDS := ["sheepIdle"]
+## LE GALOP (`GAIT_SHEET.bolt`) : la feuille qui rebondit, six images. Joue
+## seulement pendant une fuite, puis le mouton revient a sa feuille calme.
+const SHEEP_BOUNCE := {"sheet": preload("res://assets/units/sheep-bounce.png"), "cell": 128, "cols": 6, "foot": 86.0}
+
+## LE TEMPS POUR TRAVERSER UNE CASE (`GRAZE_MS_PER_CELL`, `SPRINT_MS_PER_CELL`)
+## — par case et non par ordre, sinon un sprint de quatre cases serait aussi
+## court qu'un pas et se lirait comme une teleportation. Les deux tiennent dans
+## le tour du troupeau (500 ms) : une marche finit avant l'ordre suivant.
+const GRAZE_SECONDS_PER_CELL := 0.32
+const SPRINT_SECONDS_PER_CELL := 0.11
 const SOLDIER_KINDS := ["pawnBlue", "warriorBlue", "archerBlue", "warriorRed", "torchRed", "pawnRed"]
 
 ## LES ECHELLES — celles du web, et c'est la meme regle que les buissons de
@@ -166,6 +173,10 @@ var _at: Dictionary = {}
 var _animated: Array[Dictionary] = []
 ## Le genre de chaque noeud, pour `clear_cell(…, keep_wanderers)`.
 var _kind_of: Dictionary = {}
+## LE TROUPEAU, par id : `{node, anim, cell, walk, bolting}`. `cell` est la
+## case que le PLATEAU lui donne — la destination des l'ordre recu, comme le
+## web : le sprite rattrape, la regle n'attend pas.
+var _sheep: Dictionary = {}
 var _elapsed_ms := 0.0
 
 
@@ -188,6 +199,9 @@ func build(ground: IslandGround, skip: Dictionary = {}) -> void:
 		if kind == "bush":
 			continue
 		var cell := Vector2i(int(p.x), int(p.y))
+		# UN MOUTON SE DESSINE LA OU IL EST, pas la ou la graine l'a pose.
+		if kind == "sheep":
+			cell = ground.sheep.get(p.get("id", ""), cell)
 		var variant: int = int(p.variant)
 		var living := kind == "sheep" or kind == "soldier"
 		var node: Sprite2D
@@ -223,8 +237,12 @@ func build(ground: IslandGround, skip: Dictionary = {}) -> void:
 			_animated.append({"node": node, "tree": variant % TREE_FOOT_PX.size(),
 				"count": TREE_SWAY_FRAMES, "phase": phase, "shown": -1})
 		elif living:
-			_animated.append({"node": node, "tree": -1,
-				"count": int(UNITS[unit].cols), "phase": phase, "shown": -1})
+			var anim := {"node": node, "tree": -1,
+				"count": int(UNITS[unit].cols), "phase": phase, "shown": -1}
+			_animated.append(anim)
+			if kind == "sheep":
+				_sheep[String(p.get("id", ""))] = {"node": node, "anim": anim,
+					"cell": cell, "walk": {}, "bolting": false}
 
 	_advance()
 
@@ -243,9 +261,12 @@ func build(ground: IslandGround, skip: Dictionary = {}) -> void:
 ##
 ## Les buissons de TileView ne sont pas touches ici : ils ne sont pas a ce
 ## noeud. Le web les enlevait aussi — a l'appelant de le faire s'il le veut.
+##
+## SAUF LES MOUTONS : ils s'en vont d'eux-memes, et un mouton efface ici
+## resterait au troupeau — invisible, et bloquant sa case.
 func clear_over(cell: Vector2i) -> void:
 	for c in cells_in_front(cell):
-		clear_cell(c)
+		clear_cell(c, true)
 
 
 ## LES CASES QUI CACHENT `cell` A LA CAMERA : devant elle (dx, dy >= 0), a
@@ -302,11 +323,160 @@ func clear() -> void:
 	_at.clear()
 	_kind_of.clear()
 	_animated.clear()
+	_sheep.clear()
 
 
 func _process(delta: float) -> void:
 	_elapsed_ms += delta * 1000.0
+	_advance_walks(delta)
 	_advance()
+
+
+# ---------------------------------------------------------------- le troupeau
+#
+# Porte de `placeOccupant`, `walkOccupant`, `advanceWalks` et `setGait`
+# (IsoIslandView.ts). Au repos, un mouton est monte dans le bloc de sa case,
+# comme tout le decor. EN MARCHE, il sort du bloc — il est entre deux cases,
+# et un bloc n'en tient qu'une — et se trie lui-meme sur la regle des blocs.
+
+## POSE UN MOUTON SUR UNE CASE, d'un coup : un instantane dit ou il EST, pas
+## comment il y est venu. Annule la marche en cours.
+func place_sheep(id: String, cell: Vector2i) -> bool:
+	var s: Dictionary = _sheep.get(id, {})
+	if s.is_empty() or not is_instance_valid(s.node):
+		return false
+	s.walk = {}
+	_rehome(s, cell)
+	_set_gait(s, false)
+	_mount_sheep(s)
+	return true
+
+
+## ENVOIE UN MOUTON LE LONG DES CASES QU'IL TRAVERSE (`path` du serveur).
+##
+## Part de la ou il est DESSINE, pas de sa case : un ordre qui interrompt une
+## marche repartirait sinon d'un bond en avant. La marche en cours est jetee,
+## pas mise en file : le serveur ordonne au rythme du troupeau, un second
+## ordre rend le premier perime.
+func walk_sheep(id: String, cells: Array[Vector2i], sprinting: bool) -> bool:
+	var s: Dictionary = _sheep.get(id, {})
+	if s.is_empty() or cells.is_empty() or not is_instance_valid(s.node):
+		return false
+	var node: Node2D = s.node
+	var from_cell: Vector2i = s.cell
+	var from_px := _cell_px(from_cell)
+	if node.get_parent() == self:
+		from_px = node.position
+		if not (s.walk as Dictionary).is_empty():
+			from_cell = s.walk.from_cell
+	if node.get_parent() != null and node.get_parent() != self:
+		node.get_parent().remove_child(node)
+	if node.get_parent() == null:
+		add_child(node)
+	s.walk = {"from_px": from_px, "from_cell": from_cell, "cells": cells.duplicate(),
+		"elapsed": 0.0, "leg": SPRINT_SECONDS_PER_CELL if sprinting else GRAZE_SECONDS_PER_CELL}
+	_rehome(s, cells[-1])
+	_set_gait(s, sprinting)
+	_draw_walk(s)
+	return true
+
+
+func _advance_walks(delta: float) -> void:
+	for id in _sheep:
+		var s: Dictionary = _sheep[id]
+		var walk: Dictionary = s.walk
+		if walk.is_empty():
+			continue
+		if not is_instance_valid(s.node):
+			s.walk = {}
+			continue
+		walk.elapsed += delta
+		# Une longue image peut depasser une foulee entiere : on consomme les
+		# pas en boucle, sinon un telephone lent laisserait le mouton derriere
+		# le serveur d'autant plus que l'image est lente.
+		while not (walk.cells as Array).is_empty() and walk.elapsed >= walk.leg:
+			walk.elapsed -= walk.leg
+			walk.from_cell = walk.cells[0]
+			walk.from_px = _cell_px(walk.cells[0])
+			(walk.cells as Array).pop_front()
+		if (walk.cells as Array).is_empty():
+			# ARRIVE : il rentre dans le bloc de sa case, et broute.
+			s.walk = {}
+			_set_gait(s, false)
+			_mount_sheep(s)
+		else:
+			_draw_walk(s)
+
+
+## Ou dessiner un mouton en marche, et a quelle profondeur. La profondeur est
+## celle de la PLUS PROCHE des deux cases qu'il enjambe : en remontant vers le
+## nord, prendre la case d'arrivee le glisserait sous le sol qu'il quitte.
+func _draw_walk(s: Dictionary) -> void:
+	var walk: Dictionary = s.walk
+	var node: Node2D = s.node
+	var next: Vector2i = walk.cells[0]
+	var from: Vector2i = walk.from_cell
+	var t := clampf(float(walk.elapsed) / float(walk.leg), 0.0, 1.0)
+	var to_px := _cell_px(next)
+	node.position = (walk.from_px as Vector2).lerp(to_px, t)
+	var map := terrain.map
+	node.z_index = maxi(Iso.depth(from.x, from.y) + map.level_at(from.x, from.y),
+		Iso.depth(next.x, next.y) + map.level_at(next.x, next.y)) + Z_PROP
+	# IL REGARDE OU IL VA : un miroir en x, comme le lapin.
+	var dx := to_px.x - (walk.from_px as Vector2).x
+	if absf(dx) > 0.5:
+		(node as Sprite2D).flip_h = dx < 0.0
+
+
+## Le pied d'une case, dans le repere du terrain — la ou `mount_veil` pose.
+func _cell_px(c: Vector2i) -> Vector2:
+	return terrain.map.screen_of(c.x, c.y) + Vector2(0, Iso.half_h())
+
+
+## Rentre le mouton dans le bloc de sa case.
+func _mount_sheep(s: Dictionary) -> void:
+	var node: Node2D = s.node
+	if node.get_parent() != null:
+		node.get_parent().remove_child(node)
+	if not terrain.mount_veil(s.cell, node, Z_PROP):
+		# Pas de bloc (ne devrait pas arriver sur une case praticable) : on le
+		# garde ici, a sa place, plutot que de le perdre.
+		add_child(node)
+		node.position = _cell_px(s.cell)
+		node.z_index = Iso.depth(s.cell.x, s.cell.y) + terrain.map.level_at(s.cell.x, s.cell.y) + Z_PROP
+
+
+## Deplace le mouton d'une case a l'autre dans `_at` — ce que `nodes_at` et
+## `clear_cell` lisent.
+func _rehome(s: Dictionary, cell: Vector2i) -> void:
+	var old: Vector2i = s.cell
+	if _at.has(old):
+		(_at[old] as Array).erase(s.node)
+		if (_at[old] as Array).is_empty():
+			_at.erase(old)
+	if not _at.has(cell):
+		_at[cell] = []
+	_at[cell].append(s.node)
+	s.cell = cell
+
+
+## `setGait` : la feuille dit ce que fait le mouton — il broute, ou il detale.
+## Le cycle repart a zero : les deux feuilles n'ont pas la meme longueur, et un
+## index garde tomberait en plein bond.
+func _set_gait(s: Dictionary, bolting: bool) -> void:
+	if bool(s.bolting) == bolting:
+		return
+	s.bolting = bolting
+	var g: Dictionary = SHEEP_BOUNCE if bolting else UNITS[SHEEP_KINDS[0]]
+	var node: Sprite2D = s.node
+	node.texture = g.sheet
+	node.hframes = int(g.cols)
+	node.frame = 0
+	node.offset = Vector2(-float(g.cell) * 0.5, -float(g.foot))
+	var anim: Dictionary = s.anim
+	anim.count = int(g.cols)
+	anim.phase = -_elapsed_ms / FRAME_MS
+	anim.shown = -1
 
 
 ## `update` du web : chaque sprite divise le MEME temps ecoule, et la phase est
@@ -333,6 +503,9 @@ func _drop(node: Node) -> void:
 	for k in range(_animated.size() - 1, -1, -1):
 		if _animated[k].node == node:
 			_animated.remove_at(k)
+	for id in _sheep.keys():
+		if _sheep[id].node == node:
+			_sheep.erase(id)
 	_kind_of.erase(node)
 	if is_instance_valid(node):
 		node.queue_free()

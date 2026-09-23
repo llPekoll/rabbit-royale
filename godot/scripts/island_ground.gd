@@ -65,12 +65,21 @@ var map: BurrowMap
 var seed_text := ""
 
 ## Ce qui se tient sur l'ile, dans l'ordre ou le web l'a pose :
-## `{kind, x, y, variant}`.
+## `{id, kind, x, y, variant}`. L'`id` est celui du web (`<genre>-<rang>`,
+## terrain.ts) : c'est par lui que le serveur nomme un mouton dans
+## `sheep_moved` et dans l'instantane.
 var placements: Array[Dictionary] = []
 
-## case -> placement. Le DERNIER pose gagne, comme le `Map.set` du web : un
-## soldat pose sur un objet le remplace dans ce que la case repond.
+## case -> placement FIXE. Le DERNIER pose gagne, comme le `Map.set` du web :
+## un soldat pose sur un objet le remplace dans ce que la case repond.
+## LES MOUTONS N'Y SONT PAS : ils bougent, et un mouton parti doit rendre la
+## case a l'objet sur lequel il broutait. Ils sont dans `_sheep_at`.
 var _by_cell: Dictionary = {}
+## LE TROUPEAU, LA OU IL EST MAINTENANT : id -> Vector2i, et l'inverse.
+## Au depart, les cases de la graine ; ensuite, ce que le serveur dit
+## (`move_sheep`) — ou le troupeau hors ligne (`IslandFlock`).
+var sheep: Dictionary = {}
+var _sheep_at: Dictionary = {}
 ## Le plus grand bloc ou l'on marche (`playableCells`).
 var _main: Dictionary = {}
 var _inhabited := INHABITED_SHARE
@@ -87,7 +96,12 @@ func _init(p_map: BurrowMap, p_seed: String, scenery: bool = true,
 		_scatter_scenery()
 		_scatter_livestock()
 	for p in placements:
-		_by_cell[Vector2i(p.x, p.y)] = p
+		var at := Vector2i(p.x, p.y)
+		if p.kind == "sheep":
+			sheep[p.id] = at
+			_sheep_at[at] = p.id
+		else:
+			_by_cell[at] = p
 	_main = _playable_cells()
 
 
@@ -104,7 +118,26 @@ func is_on_board(c: Vector2i) -> bool:
 
 
 func occupant_at(c: Vector2i) -> Dictionary:
+	if _sheep_at.has(c):
+		return {"id": _sheep_at[c], "kind": "sheep", "x": c.x, "y": c.y}
 	return _by_cell.get(c, {})
+
+
+## UN MOUTON A BOUGE. Faux si l'id n'est pas de cette ile (un instantane d'une
+## autre manche) — l'appelant l'ignore alors, comme `moveSheep` du web.
+func move_sheep(id: String, to: Vector2i) -> bool:
+	if not sheep.has(id):
+		return false
+	var from: Vector2i = sheep[id]
+	if _sheep_at.get(from) == id:
+		_sheep_at.erase(from)
+	sheep[id] = to
+	_sheep_at[to] = id
+	return true
+
+
+func has_sheep(c: Vector2i) -> bool:
+	return _sheep_at.has(c)
 
 
 ## Un objet qui bloque ET ne bouge pas : un arbre, un repere, un soldat.
@@ -159,7 +192,7 @@ func spawn() -> Vector2i:
 	for y in range(map.height):
 		for x in range(map.width):
 			var c := Vector2i(x, y)
-			if not is_walkable(c) or _by_cell.has(c):
+			if not is_walkable(c) or _by_cell.has(c) or _sheep_at.has(c):
 				continue
 			var d := absf(x - mid.x) + absf(y - mid.y)
 			if d < best_d:
@@ -226,15 +259,15 @@ func _scatter_scenery() -> void:
 				continue
 			var roll := rng.next()
 			if roll < TREE_CHANCE and _is_interior(x, y, tier):
-				placements.append({"kind": "tree", "x": x, "y": y,
+				placements.append({"id": "tree-%d" % placements.size(), "kind": "tree", "x": x, "y": y,
 					"variant": _floor_mul(rng, VARIANT_COUNT.tree)})
 			elif roll < TREE_CHANCE + BUSH_CHANCE:
-				placements.append({"kind": "bush", "x": x, "y": y,
+				placements.append({"id": "bush-%d" % placements.size(), "kind": "bush", "x": x, "y": y,
 					"variant": _floor_mul(rng, VARIANT_COUNT.bush)})
 			elif roll < TREE_CHANCE + BUSH_CHANCE + PROP_CHANCE:
 				var landmark := rng.next() < LANDMARK_CHANCE
 				var kind := "landmark" if landmark else "prop"
-				placements.append({"kind": kind, "x": x, "y": y,
+				placements.append({"id": "%s-%d" % [kind, placements.size()], "kind": kind, "x": x, "y": y,
 					"variant": _floor_mul(rng, VARIANT_COUNT[kind])})
 
 
@@ -296,7 +329,7 @@ func _scatter_livestock() -> void:
 			var cell: Vector2i = spot if n == 0 else _nearby_free(spot, rng, clear_of)
 			if cell.x < 0:
 				break
-			placements.append({"kind": entry.kind, "x": cell.x, "y": cell.y,
+			placements.append({"id": "%s-%d" % [entry.kind, placements.size()], "kind": entry.kind, "x": cell.x, "y": cell.y,
 				"variant": _floor_mul(rng, 3)})
 			inhabited[cell] = true
 			blocked[cell] = true

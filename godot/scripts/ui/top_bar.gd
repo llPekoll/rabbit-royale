@@ -165,9 +165,11 @@ func _on_moved(_place: int) -> void:
 		_arrive()
 
 
-## Boutique et histoire n'existent que sur le terrier.
+## Boutique, histoire et profil n'existent que sur le terrier : sur l'ile, la
+## puce du joueur couvrait le coin sans rien a y faire en pleine manche.
 func _reflect_place() -> void:
 	var home := Screens.place == Screens.Place.BURROW
+	chip.visible = home or preview
 	shop_button.visible = home
 	story_button.visible = home
 	pill.refresh()

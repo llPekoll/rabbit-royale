@@ -148,7 +148,21 @@ const TUTORIAL_PATH := "user://tutorial.cfg"
 
 
 func _ready() -> void:
-	show_ground(_opening_seed())
+	# L'ILE NAIT A CHAQUE TRAVERSEE (screens.gd) : l'instantane du `join` est
+	# souvent arrive AVANT elle. On le reprend la ou RunState l'a garde — tant
+	# que j'ai un lapin dessus, sinon c'est la manche d'avant.
+	#
+	# ET ON NE CONSTRUIT QU'UNE ILE. Poser d'abord l'ile d'attente
+	# (`_opening_seed`) puis l'instantane coutait deux sols complets au milieu
+	# du rideau — la moitie du temps de la traversee, jetee.
+	var held := RunState.current.island
+	var resume := not held.is_empty() and (not RunState.current.me().is_empty() \
+			or not RunState.current.spectating.is_empty())
+	if resume and not String(held.get("seed", "")).is_empty():
+		_remote_snap = held
+		show_ground(String(held.get("seed", "")))
+	else:
+		show_ground(_opening_seed())
 	get_viewport().size_changed.connect(_reframe)
 	frame_camera(true)
 	_add_chrome()
@@ -166,12 +180,7 @@ func _ready() -> void:
 	RunState.current.flag_mode_changed.connect(func(on: bool) -> void:
 		if _remote:
 			_set_armed(on))
-	# L'ILE NAIT A CHAQUE TRAVERSEE (screens.gd) : l'instantane du `join` est
-	# souvent arrive AVANT elle. On le reprend la ou RunState l'a garde — tant
-	# que j'ai un lapin dessus, sinon c'est la manche d'avant.
-	var held := RunState.current.island
-	if not held.is_empty() and (not RunState.current.me().is_empty() \
-			or not RunState.current.spectating.is_empty()):
+	if resume:
 		_on_snapshot(held)
 	RunState.current.erupting_changed.connect(func(ms: int) -> void:
 		if ms > 0:
@@ -503,6 +512,12 @@ func show_ground(seed_value: String) -> void:
 			and String(_remote_snap.get("seed", "")) == seed_value
 		if _remote:
 			_board.apply_public(_ground, _remote_snap)
+			# LE TROUPEAU TEL QU'IL EST, pas tel que la graine l'a pose : un
+			# joueur qui arrive en cours de manche voit les moutons de tous.
+			for sh in _remote_snap.get("sheep", []):
+				if sh is Dictionary:
+					_ground.move_sheep(String(sh.get("id", "")),
+						Vector2i(int(sh.get("x", 0)), int(sh.get("y", 0))))
 		elif _local_deal.size() > 0:
 			_board.deal_generated(_ground, seed_value, _local_deal.content_seed,
 				_local_deal.lifetime)
@@ -692,6 +707,7 @@ var _probe_step := 0
 
 func _process(delta: float) -> void:
 	_update_hole()
+	_tick_local_flock(delta)
 	if _fps == null:
 		return
 	var n := int(Performance.get_monitor(Performance.TIME_FPS))
@@ -900,8 +916,11 @@ func _on_snapshot(snap: Dictionary) -> void:
 	var s := String(snap.get("seed", ""))
 	if s.is_empty():
 		return
+	# Deja pose par `_ready` avec ce meme instantane : ne pas refaire le sol.
+	var built := is_same(snap, _remote_snap) and s == _seed and _board != null
 	_remote_snap = snap
-	show_ground(s)
+	if not built:
+		show_ground(s)
 	_back.relabel(I18N.t("run.stopWatching") if _watching() else "← TERRIER")
 	RunState.current.markable_probe = func(_on: bool) -> int: return markable_count()
 	_cam_moved_by_player = false
@@ -1009,12 +1028,61 @@ func _on_board_event(name: String, data: Variant) -> void:
 				var prize: Dictionary = (dig["loot"] as Dictionary).duplicate()
 				prize["nft"] = bool(dig.get("nft", false))
 				_show_prize(prize)
+		"sheep_moved":
+			_on_sheep_moved(d.get("sheep", []))
 		"move_rejected":
 			_ring.pulse()
 			Sound.deny()
 		"lightning_rejected", "plant_rejected":
 			# Rien dans le sac, une case deja ouverte, trois bombes vives : non.
 			Sound.deny()
+
+
+## LES MOUTONS ONT BOUGE, parce que le serveur l'a dit (`sheep_moved`) — ou
+## le troupeau hors ligne. Aucune regle ici : la fuite est dans `flee.ts` (et
+## `IslandFlock`). La case change TOUT DE SUITE sur le plateau, le sprite
+## rattrape : l'anneau doit refuser la case des que le serveur l'a fermee.
+func _on_sheep_moved(flights: Array) -> void:
+	if _ground == null or _board == null:
+		return
+	var moved := false
+	for f in flights:
+		if not (f is Dictionary):
+			continue
+		var id := String(f.get("id", ""))
+		var to: Vector2i = f.to if f.get("to") is Vector2i else _board.cell_of(int(f.get("tile", -1)))
+		if not _ground.move_sheep(id, to):
+			continue
+		moved = true
+		var path: Array[Vector2i] = []
+		for t in f.get("path", []):
+			path.append(t if t is Vector2i else _board.cell_of(int(t)))
+		if _scenery != null:
+			if path.is_empty():
+				_scenery.place_sheep(id, to)
+			else:
+				_scenery.walk_sheep(id, path, bool(f.get("sprinting", false)))
+	if moved:
+		_refresh_ring()
+
+
+## LE TOUR DU TROUPEAU HORS LIGNE, au rythme du serveur (`FLOCK_TICK_MS`).
+var _flock_tick := 0.0
+
+
+func _tick_local_flock(delta: float) -> void:
+	if local_run == null or _ground == null or _ground.sheep.is_empty() or _ending or _local_over:
+		return
+	_flock_tick += delta
+	if _flock_tick < IslandFlock.TICK_SECONDS:
+		return
+	_flock_tick = 0.0
+	var rabbits: Array[Vector2i] = []
+	if local_run.alive:
+		rabbits.append(local_run.at)
+	var flights := IslandFlock.plan(_ground, rabbits)
+	if not flights.is_empty():
+		_on_sheep_moved(flights)
 
 
 ## UNE CASE S'OUVRE, qui que ce soit qui l'ait creusee : le son, et le souffle
