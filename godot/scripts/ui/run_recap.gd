@@ -98,6 +98,11 @@ func _ready() -> void:
 	_tick.wait_time = 0.25
 	_tick.timeout.connect(_on_tick)
 	add_child(_tick)
+	# LE COMPTE PART ICI : `show_recap` est appele AVANT l'entree dans l'arbre,
+	# et `_enter_tree` passe avant ce `_ready` — le minuteur n'existait pas
+	# encore, et « (6) » restait fige.
+	if _deadline_ms > 0:
+		_tick.start()
 
 	I18N.locale_changed.connect(func(_code: String) -> void: _relabel())
 	_relabel()

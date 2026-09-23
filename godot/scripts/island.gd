@@ -49,7 +49,7 @@ const DEFAULT_SEED := "default"
 @onready var _hints: PlacementHints = %Hints
 @onready var _ocean: Ocean = %Ocean
 @onready var _tiles: TileView = %Tiles
-@onready var _rabbit: HomeRabbit = %Rabbit
+@onready var _rabbit: IslandRabbit = %Rabbit
 @onready var _ring: MoveRing = %Ring
 
 ## CE QUI EST ENTERRE SUR CETTE ILE.
@@ -168,7 +168,8 @@ func _ready() -> void:
 	# souvent arrive AVANT elle. On le reprend la ou RunState l'a garde — tant
 	# que j'ai un lapin dessus, sinon c'est la manche d'avant.
 	var held := RunState.current.island
-	if not held.is_empty() and not RunState.current.me().is_empty():
+	if not held.is_empty() and (not RunState.current.me().is_empty() \
+			or not RunState.current.spectating.is_empty()):
 		_on_snapshot(held)
 	RunState.current.erupting_changed.connect(func(ms: int) -> void:
 		if ms > 0:
@@ -336,8 +337,13 @@ func _add_chrome() -> void:
 	_back.position = Vector2(12, 12)
 	_back.relabel("← TERRIER")
 	_back.pressed.connect(func() -> void:
-		# RENTRER, C'EST ENCAISSER : le serveur banque sur `leave`.
-		if _remote:
+		# RENTRER, C'EST ENCAISSER : le serveur banque sur `leave`. Un
+		# spectateur, lui, n'a rien a encaisser : il quitte la salle.
+		if _watching():
+			RunState.current.stop_watching()
+			_remote = false
+			_remote_snap = {}
+		elif _remote:
 			RunState.current.leave()
 			# Plus de siege : une ile revue sans `join` ne parle plus au
 			# serveur, elle montre son sol et attend le prochain instantane.
@@ -476,7 +482,15 @@ func show_ground(seed_value: String) -> void:
 	_board = IslandBoard.new(map)
 	_ground = null
 	if FirstIsland.is_first(seed_value):
-		_board.deal_tutorial()
+		# LA PREMIERE ILE DU SERVEUR (un compte sans manche est toujours assis
+		# la) se joue EN LIGNE, sur son instantane ; hors ligne, la lecon
+		# dessinee se donne toute seule.
+		_remote = _local_deal.is_empty() and not _remote_snap.is_empty() \
+			and String(_remote_snap.get("seed", "")) == seed_value
+		if _remote:
+			_board.apply_public_first(_remote_snap)
+		else:
+			_board.deal_tutorial()
 	else:
 		# LE DECOR DECIDE QUELLES CASES EXISTENT : rien n'est enterre sous un
 		# arbre, et un arbre ne se traverse pas.
@@ -528,11 +542,13 @@ func show_ground(seed_value: String) -> void:
 	var start := TutorialMap.spawn() if FirstIsland.is_first(seed_value) else Vector2i(-1, -1)
 	if _ground != null:
 		start = _ground.spawn()
-		# EN LIGNE, le lapin est la ou le serveur le dit.
-		var mine := RunState.current.me()
-		if _remote and mine.has("tile"):
-			start = _board.cell_of(int(mine["tile"]))
+	# EN LIGNE, le lapin est la ou le serveur le dit.
+	var mine := RunState.current.me()
+	if _remote and mine.has("tile"):
+		start = _board.cell_of(int(mine["tile"]))
+	_rabbit.seat = _seat_of(RunState.current.my_id()) if _remote else 0
 	_rabbit.build(hash(seed_value), start)
+	_sync_rivals()
 	local_run = LocalRun.new(_board, start) if _local_deal.size() > 0 else null
 	_local_over = false
 	_warn_heard = 0
@@ -849,6 +865,8 @@ func _on_release(at: Vector2) -> void:
 	# champ.
 	if local_run != null:
 		_local_tap(cell)
+	elif _remote and _watching():
+		_aimed_tap(cell, at)
 	elif _remote:
 		_remote_tap(cell)
 	elif _board != null:
@@ -859,7 +877,13 @@ func _on_release(at: Vector2) -> void:
 
 ## OU EST MON LAPIN, en cases : la manche locale, sinon le lapin affiche.
 func _me_cell() -> Vector2i:
-	return local_run.at if local_run != null else _rabbit.at()
+	if local_run != null:
+		return local_run.at
+	# LE SPECTATEUR n'a pas de lapin : la camera garde celui qu'il regarde.
+	var watched: IslandRabbit = _rivals.get(RunState.current.spectating)
+	if watched != null:
+		return watched.at()
+	return _rabbit.at()
 
 
 # ── L'ile en ligne ───────────────────────────────────────────────────────────
@@ -871,10 +895,11 @@ func _on_snapshot(snap: Dictionary) -> void:
 	if not _local_deal.is_empty():
 		return
 	var s := String(snap.get("seed", ""))
-	if s.is_empty() or FirstIsland.is_first(s):
+	if s.is_empty():
 		return
 	_remote_snap = snap
 	show_ground(s)
+	_back.relabel(I18N.t("run.stopWatching") if _watching() else "← TERRIER")
 	RunState.current.markable_probe = func(_on: bool) -> int: return markable_count()
 	_cam_moved_by_player = false
 	frame_camera(true)
@@ -891,6 +916,7 @@ func _on_board_event(name: String, data: Variant) -> void:
 		"tile_revealed":
 			var what := String(d.get("content", "empty"))
 			var c := _board.reveal_remote(int(d.get("tile", -1)), what, int(d.get("adjacent", 0)))
+			_clear_planted(c)
 			_tiles.refresh()
 			_on_remote_reveal(c, what)
 			_refresh_ring()
@@ -909,17 +935,63 @@ func _on_board_event(name: String, data: Variant) -> void:
 			else:
 				Sound.deny()
 		"rabbit_moved":
-			if String(d.get("playerId", "")) == mine:
-				_rabbit.send_to(_board.cell_of(int(d.get("tile", -1))))
+			var who := String(d.get("playerId", ""))
+			var cell := _board.cell_of(int(d.get("tile", -1)))
+			if who == mine:
+				_rabbit.send_to(cell)
 				Sound.play("hop")
 				_refresh_ring()
 				if _shake == null or not _shake.is_running():
 					_keep_in_view()
+			else:
+				var r: IslandRabbit = _rivals.get(who)
+				if r != null and not r.is_under():
+					r.send_to(cell)
+				if who == RunState.current.spectating and (_shake == null or not _shake.is_running()):
+					_keep_in_view()
 		"bomb_hit":
-			if String(d.get("playerId", "")) == mine:
+			var who := String(d.get("playerId", ""))
+			var r := _rabbit_of(who)
+			if r != null:
 				var cell := _board.cell_of(int(d.get("tile", -1)))
 				var at: Vector2 = _terrain.map.screen_of(cell.x, cell.y) + Vector2(0, Iso.half_h())
-				get_tree().create_timer(0.08).timeout.connect(func() -> void: _rabbit.take_hit(at))
+				get_tree().create_timer(0.08).timeout.connect(func() -> void:
+					if is_instance_valid(r):
+						r.take_hit(at)
+						r.stun(int(d.get("stunMs", 0)))
+						if who != mine:
+							r.place_at(cell))
+		"rabbit_joined":
+			_add_rival(d, true)
+		"rabbit_left":
+			if not bool(d.get("grace", false)):
+				var who := String(d.get("playerId", ""))
+				var r: IslandRabbit = _rivals.get(who)
+				if r != null:
+					_rivals.erase(who)
+					r.vanish()
+		"rabbit_pushed":
+			_on_pushed(d)
+		"rabbit_died":
+			var r := _rabbit_of(String(d.get("playerId", "")))
+			if r != null:
+				r.exhaust()
+		"lightning_struck":
+			_on_lightning(d)
+		"rabbit_struck":
+			var r := _rabbit_of(String(d.get("playerId", "")))
+			if r != null:
+				var stun := int(d.get("stunMs", 0))
+				var fatal := bool(d.get("runOver", false))
+				r.electrocute(stun, fatal)
+				if not fatal:
+					r.stun(stun)
+		"bomb_planted":
+			_mark_planted(_board.cell_of(int(d.get("tile", -1))))
+		"hints_changed":
+			for h in d.get("tiles", []):
+				_board.hint_remote(int(h.get("tile", -1)), int(h.get("adjacent", 0)))
+			_tiles.refresh()
 		"move_result":
 			# LA MOITIE PRIVEE : ce que MON coffre contenait.
 			var dig: Dictionary = d.get("dig", {}) if d.get("dig") is Dictionary else {}
@@ -929,6 +1001,9 @@ func _on_board_event(name: String, data: Variant) -> void:
 				_show_prize(prize)
 		"move_rejected":
 			_ring.pulse()
+			Sound.deny()
+		"lightning_rejected", "plant_rejected":
+			# Rien dans le sac, une case deja ouverte, trois bombes vives : non.
 			Sound.deny()
 
 
@@ -947,6 +1022,205 @@ func _on_remote_reveal(cell: Vector2i, what: String) -> void:
 			pass
 		_:
 			Sound.play("step")
+
+
+# ── Les autres lapins, et ce qu'on leur fait ─────────────────────────────────
+
+## LES LAPINS DES AUTRES, par id — le mien est `_rabbit`. Sur une ile regardee,
+## TOUS les lapins sont ici, celui qu'on suit compris, et `_rabbit` se cache.
+var _rivals: Dictionary = {}
+## Mes bombes enterrees (`bomb_planted`) : un repere que moi seul vois.
+var _planted: Dictionary = {}
+
+## Le repere d'une bombe plantee : l'icone, petite et a moitie effacee
+## (IslandScene.ts `markPlanted` : 0,45 case, alpha 0,55).
+const PLANTED_ICON := preload("res://assets/ui/icons/bomb.png")
+const PLANTED_ALPHA := 0.55
+const PLANTED_TILES := 0.45
+## Le doigt du foudroyeur trouve un lapin dans ce rayon (`rivalAt` : 14 px a
+## l'echelle du lapin), avant la case sous lui.
+const RIVAL_HIT_PX := 21.0
+
+
+## REGARDE-T-ON au lieu de jouer ?
+func _watching() -> bool:
+	return _remote and not RunState.current.spectating.is_empty()
+
+
+## LE SIEGE D'UN JOUEUR : son rang d'arrivee sur l'ile, qui choisit son pelage.
+func _seat_of(id: String) -> int:
+	var i := 0
+	for k in RunState.current.rabbits:
+		if String(k) == id:
+			return i
+		i += 1
+	return i
+
+
+func _rabbit_of(id: String) -> IslandRabbit:
+	if not _watching() and id == RunState.current.my_id():
+		return _rabbit
+	return _rivals.get(id)
+
+
+## LA SALLE ENTIERE, rebatie depuis RunState : a l'instantane, et a chaque sol.
+func _sync_rivals() -> void:
+	for r in _rivals.values():
+		if is_instance_valid(r):
+			r.queue_free()
+	_rivals.clear()
+	for k in _planted.values():
+		if is_instance_valid(k):
+			k.queue_free()
+	_planted.clear()
+	if not _remote:
+		_rabbit.visible = true
+		return
+	var mine := RunState.current.my_id()
+	_rabbit.visible = not _watching()
+	if not _watching():
+		_rabbit.set_plate(RunState.current.name_of(mine), true)
+	for id in RunState.current.rabbits:
+		if not _watching() and String(id) == mine:
+			continue
+		_add_rival(RunState.current.rabbits[id], false)
+
+
+## UN LAPIN DE PLUS : pose sur sa case, et qui tombe du ciel s'il arrive.
+func _add_rival(r: Dictionary, arriving: bool) -> void:
+	var id := String(r.get("playerId", ""))
+	if id.is_empty() or _terrain.map == null or _board == null:
+		return
+	if not _watching() and id == RunState.current.my_id():
+		return
+	var old: IslandRabbit = _rivals.get(id)
+	if old != null and is_instance_valid(old):
+		old.queue_free()
+	var rabbit := IslandRabbit.new()
+	rabbit.player_id = id
+	rabbit.seat = _seat_of(id)
+	rabbit.map = _terrain.map
+	rabbit.roam = false
+	# FRERE du lapin du joueur, pour se trier sur la meme regle.
+	add_child(rabbit)
+	move_child(rabbit, _rabbit.get_index() + 1)
+	rabbit.build(hash(id), _board.cell_of(int(r.get("tile", 0))))
+	rabbit.set_plate(String(r.get("name", "")), false)
+	_rivals[id] = rabbit
+	if arriving:
+		rabbit.drop_in()
+	if not bool(r.get("alive", true)):
+		rabbit.exhaust()
+	elif int(r.get("stunMs", 0)) > 0:
+		rabbit.stun(int(r.get("stunMs", 0)))
+
+
+## POUSSE (docs/bumping.md) : un vol d'une case — ou, vers le large, a l'eau.
+##
+## Le lapin pousse ne recoit pas de `rabbit_moved` : cet evenement est le seul
+## a dire ou il est. Pour le mien, l'anneau et la camera le suivent donc ici.
+func _on_pushed(d: Dictionary) -> void:
+	var who := String(d.get("playerId", ""))
+	var r := _rabbit_of(who)
+	if r == null:
+		return
+	var to := _board.cell_of(int(d.get("to", 0)))
+	var stun := int(d.get("stunMs", 0))
+	if bool(d.get("drowned", false)):
+		var from := _board.cell_of(int(d.get("from", 0)))
+		var sea := _board.cell_of(int(d.get("sea", d.get("from", 0))))
+		var toward := Vector2i(signi(sea.x - from.x), signi(sea.y - from.y))
+		r.drown(toward, to, stun)
+		get_tree().create_timer(IslandRabbit.DROWN_FALL).timeout.connect(func() -> void:
+			Sound.play("hop", 0.55))
+	else:
+		r.knock_to(to)
+		Sound.play("hop", 0.8)
+		if stun > 0:
+			r.stun(stun)
+	# RULE 7 : le mien sait qui l'a fait — la plaque du pousseur rougit.
+	if who == RunState.current.my_id():
+		var bully: IslandRabbit = _rivals.get(String(d.get("pushedBy", "")))
+		if bully != null:
+			bully.blame()
+	if r == _rabbit or who == RunState.current.spectating:
+		_refresh_ring()
+		# La camera suit le vol, ou la remontee au milieu.
+		var wait := float(stun) / 1000.0 if bool(d.get("drowned", false)) else IslandRabbit.KNOCK_FLIGHT
+		get_tree().create_timer(wait).timeout.connect(func() -> void:
+			if is_inside_tree():
+				_keep_in_view())
+
+
+## LA FOUDRE (`playLightning`) : un eclair par case du carre, le son, la
+## secousse. Le sol ouvert suit par `tile_revealed`, les lapins par
+## `rabbit_struck`.
+func _on_lightning(d: Dictionary) -> void:
+	var tiles: Array = d.get("tiles", [])
+	if tiles.is_empty():
+		tiles = [int(d.get("target", 0))]
+	var cells: Array[Vector2i] = []
+	var indices: Array[int] = []
+	for t in tiles:
+		indices.append(int(t))
+		cells.append(_board.cell_of(int(t)))
+	LightningFx.strike(self, _terrain, cells, indices)
+	Sound.play("explosion")
+	_impact_shake()
+
+
+func _mark_planted(cell: Vector2i) -> void:
+	if _planted.has(cell) or _terrain == null:
+		return
+	var icon := Sprite2D.new()
+	icon.texture = PLANTED_ICON
+	var w := Iso.half_w() * 2.0 * PLANTED_TILES
+	icon.scale = Vector2.ONE * (w / float(PLANTED_ICON.get_width()))
+	icon.offset = Vector2(0, -PLANTED_ICON.get_height() * 0.2)
+	icon.modulate.a = PLANTED_ALPHA
+	if not _terrain.mount_veil(cell, icon, LightningFx.Z_BOLT - 8):
+		icon.free()
+		return
+	_planted[cell] = icon
+
+
+func _clear_planted(cell: Vector2i) -> void:
+	var icon: Node = _planted.get(cell)
+	if icon != null and is_instance_valid(icon):
+		icon.queue_free()
+	_planted.erase(cell)
+
+
+## LA TAPE DU SPECTATEUR : rien sans visee. Armee, la foudre part sur le lapin
+## le plus proche du doigt (sinon la case), la bombe sur la case — puis la
+## visee retombe, comme sur le web (`onStrikeIntent` / `onPlantIntent`).
+func _aimed_tap(cell: Vector2i, at: Vector2) -> void:
+	var state := RunState.current
+	match state.aiming:
+		"strike":
+			var target := _rival_near(at)
+			state.lightning(_board.index_of(target if target.x >= 0 else cell))
+		"plant":
+			state.plant(_board.index_of(cell))
+		_:
+			return
+	state.set_aiming("")
+
+
+func _rival_near(at: Vector2) -> Vector2i:
+	var local := (at - position) / scale.x
+	var best := Vector2i(-1, -1)
+	var best_d := RIVAL_HIT_PX
+	for r in _rivals.values():
+		if not is_instance_valid(r) or not r.visible:
+			continue
+		# Le milieu du corps, pas les pieds.
+		var body: Vector2 = r.position + Vector2(0, -16.0 * HomeRabbit.RABBIT_SCALE * 0.5)
+		var dist := body.distance_to(local)
+		if dist < best_d:
+			best_d = dist
+			best = r.at()
+	return best
 
 
 ## UNE TAPE SUR UNE ILE EN LIGNE : `move` ou `flag` au serveur (RunState
@@ -1185,7 +1459,7 @@ func _refresh_ring() -> void:
 		return
 	var here := _me_cell()
 	var lit: Array[Vector2i] = []
-	if not _done and not _local_over:
+	if not _done and not _local_over and not _watching():
 		for n in _board._neighbours(here):
 			if not _board.content.has(n):
 				continue
@@ -1206,8 +1480,10 @@ func _refresh_compass() -> void:
 		_compass.visible = not _is_tutorial()
 
 
+## LA LECON HORS LIGNE — pas la premiere ile du serveur, qui se joue comme
+## les autres et dont la lecon est tenue la-bas (RunState `first_run`).
 func _is_tutorial() -> bool:
-	return FirstIsland.is_first(_seed)
+	return FirstIsland.is_first(_seed) and not _remote
 
 
 ## LA GRAINE SUR LAQUELLE L'ILE S'OUVRE : le tutoriel pour qui ne l'a pas

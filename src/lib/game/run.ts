@@ -10,7 +10,7 @@
  * two objects it is handed and returns what happened, so a caller can broadcast
  * a delta rather than diffing whole islands.
  */
-import { BOMB, CHEST_LOOT, CHEST_LOOT_BY_TIER, CHEST_NFT_ODDS, ENERGY, FLAG, MULTIPLAYER, RUN, xGainFor } from '@config/tuning';
+import { BOMB, DROWN, CHEST_LOOT, CHEST_LOOT_BY_TIER, CHEST_NFT_ODDS, ENERGY, FLAG, MULTIPLAYER, RUN, xGainFor } from '@config/tuning';
 import { SPAWN_INDEX, neighbors, toColRow, type IslandShape } from '@/config/gridConfig';
 import { pickWeighted, randInt, type Rng } from './rng';
 import { boardNeighbors, cascadeAround, revealTile } from './island';
@@ -93,6 +93,13 @@ export interface PushedRabbit {
   pushedBy: string;
   /** What the landing tile turned out to hold, when the push dug it. */
   dig?: DigResult;
+  /**
+   * Thrown into the sea (`DROWN`). `to` is then where they climb back out —
+   * the middle of the island — and `sea` the first cell of water they went
+   * into, so a client can throw them the right way before they reappear.
+   */
+  drowned?: true;
+  sea?: number;
   /** Their energy after the landing, and whether it ended their run. */
   energy: number;
   runOver: boolean;
@@ -259,6 +266,43 @@ export function teachingHold(island: Island): number | null {
   return null;
 }
 
+/**
+ * Where a drowned rabbit climbs back out: the open ground nearest the spawn.
+ *
+ * OPEN ground — revealed — because a landing on undug earth would be a dig
+ * nobody chose, and the sea already charged its price. And FREE ground, after
+ * the shove is applied: not where a rabbit will stand once the line has moved
+ * (`to` is the mover's), and not under a sheep. Searched outward from the
+ * spawn along the steps a rabbit can take, so the answer is somewhere it could
+ * have walked to. Falls back on the spawn itself on an island with no open
+ * cell free, which a live island never is — the spawn opens with its ring.
+ */
+export function drownRespawn(
+  island: Island,
+  steps: ReadonlyArray<{ from: number; to: number; drowned?: true }>,
+  occupancy: ReadonlyMap<number, Rabbit>,
+  to: number,
+  blocked?: ReadonlySet<number>,
+): number {
+  const taken = new Set<number>(occupancy.keys());
+  for (const s of steps) {
+    taken.delete(s.from);
+    if (!s.drowned) taken.add(s.to);
+  }
+  taken.add(to);
+  const start = spawnTile(island.seed);
+  const seen = new Set<number>([start]);
+  const queue = [start];
+  while (queue.length) {
+    const t = queue.shift()!;
+    if (island.tiles.get(t)?.revealed && !taken.has(t) && !blocked?.has(t)) return t;
+    for (const n of terrainNeighbors(island.seed, t)) {
+      if (!seen.has(n)) { seen.add(n); queue.push(n); }
+    }
+  }
+  return start;
+}
+
 export function resolveMove(
   island: Island,
   rabbit: Rabbit,
@@ -383,6 +427,26 @@ export function resolveMove(
   const pushed: PushedRabbit[] = [];
   for (const step of push.plan.steps) {
     const victim = occupancy.get(step.from)!;
+    if (step.drowned) {
+      // Into the sea: the bomb's price, the time under, and the walk back from
+      // the middle. Nothing is dug — the water is not ground.
+      const back = drownRespawn(island, push.plan.steps, occupancy, to, blocked);
+      victim.tile = back;
+      victim.cameFrom = back;
+      victim.energy -= DROWN.LOSS;
+      victim.stunnedUntil = now + DROWN.STUN_MS;
+      if (victim.run) victim.run.flagStreak = 0;
+      const runOver = victim.energy <= 0;
+      if (runOver) {
+        victim.energy = 0;
+        victim.alive = false;
+      }
+      pushed.push({
+        playerId: victim.playerId, from: step.from, to: back, sea: step.to, drowned: true,
+        pushedBy: rabbit.playerId, energy: victim.energy, runOver,
+      });
+      continue;
+    }
     victim.tile = step.to;
     victim.cameFrom = step.from;
 

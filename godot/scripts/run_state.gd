@@ -315,6 +315,20 @@ func choose_island(pick: Variant) -> void:
 	choice = pick
 
 
+## RENTRER DEPUIS LE RECAP (page.tsx « Home ») : la carte se retire, la place
+## est rendue, et l'ile finie est oubliee — sinon la prochaine ile, montee
+## avant l'instantane du prochain `join`, reposerait celle-ci.
+func go_home() -> void:
+	_recap_timer.stop()
+	_recap_pending = {}
+	_set_recap({})
+	leave()
+	island = {}
+	rabbits = {}
+	rabbits_changed.emit()
+	me_changed.emit()
+
+
 ## RENDRE LA PLACE ET ENCAISSER : le serveur banque sur `leave`, donc rentrer
 ## avec un sac plein vaut exactement vider le reservoir.
 func leave() -> void:
@@ -347,7 +361,23 @@ func plant(tile: int) -> void:
 
 func spectate(player_id: String) -> void:
 	spectating = player_id
+	# Une autre ile, un autre public : rien de la run d'avant ne reste a l'ecran.
+	_recap_timer.stop()
+	_recap_pending = {}
+	_set_recap({})
+	_set_shoved({})
 	GameSocket.spectate(player_id)
+	me_changed.emit()
+
+
+## ARRETER DE REGARDER (page.tsx `stopSpectating`) : quitter la salle, sans
+## rien encaisser — un spectateur n'a pas de run.
+func stop_watching() -> void:
+	if spectating.is_empty():
+		return
+	spectating = ""
+	set_aiming("")
+	GameSocket.leave()
 	me_changed.emit()
 
 

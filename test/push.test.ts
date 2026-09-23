@@ -8,10 +8,11 @@
  */
 import { describe, expect, it } from 'vitest';
 import { planPush, occupancyOf, HEAD_ON_WINDOW_MS } from '../src/lib/game/push';
-import { spawnTile, terrainNeighbors, farmableTiles } from '../src/lib/game/terrainBoard';
+import { DROWN } from '../config/tuning';
+import { spawnTile, terrainNeighbors, farmableTiles, levelTierAt } from '../src/lib/game/terrainBoard';
 import { resolveMove, spawnRabbit } from '../src/lib/game/run';
 import { generateIsland } from '../src/lib/game/island';
-import { makeShape } from '../src/config/gridConfig';
+import { makeShape, toColRow, toIndex, COLS, ROWS } from '../src/config/gridConfig';
 import { mulberry32 } from '../src/lib/game/rng';
 import type { Rabbit } from '../src/lib/game/types';
 
@@ -32,6 +33,27 @@ function lineOfThree(): [number, number, number] | null {
       const da = b - a;
       const c = b + da;
       if (terrainNeighbors(SEED, b).includes(c)) return [a, b, c];
+    }
+  }
+  return null;
+}
+
+/** The cell one step past `b` along `a → b`, when it is open sea; else null. */
+function seaBeyond(a: number, b: number): number | null {
+  const p = toColRow(a);
+  const q = toColRow(b);
+  const col = q.col + (q.col - p.col);
+  const row = q.row + (q.row - p.row);
+  if (col < 0 || row < 0 || col >= COLS || row >= ROWS) return null;
+  return levelTierAt(SEED, col, row) === 0 ? toIndex(col, row) : null;
+}
+
+/** A shore: a pusher on `a`, a victim on `b`, and open water past them. */
+function shore(): [number, number, number] | null {
+  for (const a of farmableTiles(SEED)) {
+    for (const b of terrainNeighbors(SEED, a)) {
+      const sea = seaBeyond(a, b);
+      if (sea !== null) return [a, b, sea];
     }
   }
   return null;
@@ -137,6 +159,7 @@ describe('rule 5 — pushes chain', () => {
       for (const b of terrainNeighbors(SEED, a)) {
         const c = b + (b - a);
         if (terrainNeighbors(SEED, b).includes(c)) continue; // this one is open
+        if (seaBeyond(a, b) !== null) continue; // the sea takes them instead
         const out = planPush(SEED, at(a), b, occupancyOf([at(a), at(b)]), NOW);
         expect(out.ok).toBe(false);
         if (out.ok) return;
@@ -258,5 +281,48 @@ describe('a plan never stacks two rabbits on one tile', () => {
         }
       }
     }
+  });
+});
+
+/**
+ * Rule 2 case 2: the sea is not a wall. A shove toward open water throws the
+ * victim in — the bomb's price, `DROWN.STUN_MS` under, and back at the middle.
+ */
+describe('into the sea', () => {
+  it('plans a drowning instead of refusing', () => {
+    const [a, b, sea] = shore()!;
+    const out = planPush(SEED, at(a), b, occupancyOf([at(a), at(b)]), NOW);
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.plan.steps).toEqual([{ playerId: `p${b}`, from: b, to: sea, drowned: true }]);
+  });
+
+  it('charges the victim, stuns them, and puts them back on open ground', () => {
+    const [a, b, sea] = shore()!;
+    const island = generateIsland({ seed: SEED });
+    island.tiles.get(b)!.revealed = true;
+    const mover = at(a);
+    const victim = at(b, { energy: 100 });
+    const out = resolveMove(island, mover, b, SHAPE, mulberry32(1), NOW, [victim]);
+    expect(out.ok).toBe(true);
+    expect(mover.tile).toBe(b);
+    const hit = out.pushed?.[0];
+    expect(hit).toMatchObject({ playerId: victim.playerId, from: b, sea, drowned: true, runOver: false });
+    expect(victim.energy).toBe(100 - DROWN.LOSS);
+    expect(victim.stunnedUntil).toBe(NOW + DROWN.STUN_MS);
+    // Out of the water, on revealed ground nobody is standing on.
+    expect(victim.tile).toBe(hit!.to);
+    expect(victim.tile).not.toBe(mover.tile);
+    expect(island.tiles.get(victim.tile)?.revealed).toBe(true);
+  });
+
+  it('ends the run on the last heart', () => {
+    const [a, b] = shore()!;
+    const island = generateIsland({ seed: SEED });
+    island.tiles.get(b)!.revealed = true;
+    const victim = at(b, { energy: DROWN.LOSS });
+    const out = resolveMove(island, at(a), b, SHAPE, mulberry32(1), NOW, [victim]);
+    expect(out.pushed?.[0].runOver).toBe(true);
+    expect(victim.alive).toBe(false);
   });
 });

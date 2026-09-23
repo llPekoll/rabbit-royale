@@ -1350,6 +1350,10 @@ io.on('connection', (socket: Socket) => {
         pushedBy: shove.pushedBy,
         energy: shove.energy,
         runOver: shove.runOver,
+        // Into the sea (`DROWN`): `to` is then where they climb back out, the
+        // middle of the island, and `sea` the water they were thrown into —
+        // the client throws them that way, then brings them up at `to`.
+        ...(shove.drowned ? { drowned: true, sea: shove.sea } : {}),
         // A landing on a bomb stuns (rule 2: a shove digs). Sent as what is
         // LEFT of it, like `bomb_hit`, so the victim's ring goes dark for
         // exactly as long as their moves will be refused.

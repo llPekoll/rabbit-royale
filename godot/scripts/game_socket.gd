@@ -211,6 +211,8 @@ func join(choice: Variant = null) -> void:
 func leave() -> void:
 	_want_seat = false
 	_seat_choice = null
+	# Un spectateur qui s'en va ne doit pas etre rejoue a la reconnexion.
+	_spectating = ""
 	if is_live():
 		_io.emit("leave")
 

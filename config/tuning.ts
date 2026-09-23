@@ -190,6 +190,21 @@ export const BOMB = {
   STUN_MS: 1200,
 } as const;
 
+/**
+ * Shoved into the sea (`docs/bumping.md`, rule 2 case 2).
+ *
+ * A push whose landing is open water throws the victim in instead of failing.
+ * The sea charges what a bomb charges — being thrown in is the same size of
+ * mistake as digging one, and `LIGHTNING.SHOCK_LOSS` reuses that number for
+ * the same reason — plus TIME: the victim is under for `STUN_MS`, then climbs
+ * back out at the middle of the island (`drownRespawn` in `run.ts`).
+ */
+export const DROWN = {
+  LOSS: ENERGY.BOMB_LOSS,
+  /** Under water, then back at the spawn. Held as a stun: no moves, no pushes. */
+  STUN_MS: 2000,
+} as const;
+
 // ── Island generation ────────────────────────────────────────────────────────
 
 /**

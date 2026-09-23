@@ -73,6 +73,11 @@ const HURT_SECONDS := 0.56
 const HURT_DEPTH := 90.0
 const HURT_INK := Color(230.0 / 255.0, 33.0 / 255.0, 50.0 / 255.0, 0.55)
 
+## Une legende ne touche pas les bords, et au bureau ne court pas sur tout
+## l'ecran : au-dela de 420 px, une phrase se lit mal d'un coup d'oeil.
+const CAPTION_MARGIN := 24.0
+const CAPTION_MAX_W := 420.0
+
 const RECAP_SCENE := preload("res://scenes/ui/run_recap.tscn")
 
 @onready var mark_button: MarkBombButton = %MarkButton
@@ -357,6 +362,15 @@ func _say(slot: int, text: String, ink: Color, ms: int) -> void:
 	var label := panel.get_child(0) as Label
 	label.text = text
 	label.add_theme_color_override("font_color", ink)
+	# UNE LARGEUR, SINON UNE LETTRE PAR LIGNE : un label qui revient a la ligne
+	# n'a pour minimum que son plus large caractere, et le panneau centre le
+	# prend au mot — la phrase tombait en colonne. La phrase entiere si elle
+	# tient, sinon ce que l'ecran laisse, et la elle revient a la ligne.
+	var font := label.get_theme_font("font")
+	var px := label.get_theme_font_size("font_size")
+	var wide := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x + 2.0
+	var room := maxf(160.0, get_viewport_rect().size.x - 2.0 * CAPTION_MARGIN)
+	label.custom_minimum_size.x = minf(wide, minf(room, CAPTION_MAX_W))
 	panel.visible = not text.is_empty()
 	_slot_timers[slot].stop()
 	if ms > 0 and panel.visible and is_inside_tree():

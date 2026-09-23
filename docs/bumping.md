@@ -182,8 +182,18 @@ therefore reads as the game cheating.
 
 A pushes B, B pushes C, and so on down the line. Everyone shifts one tile if
 the last rabbit has somewhere legal to go; if the end of the chain is blocked —
-by terrain, by the board edge, or by a stunned rabbit — the whole chain fails
+by a cliff, a tree, the board edge, or a stunned rabbit — the whole chain fails
 and nobody moves.
+
+**Except the sea** (case 2, decided 2026-09-23). Open water — terrain tier 0,
+not the tier-1 beach — is not a wall: the last rabbit of the line is thrown IN.
+It pays what a bomb costs (`DROWN.LOSS` = `ENERGY.BOMB_LOSS`), stays under for
+`DROWN.STUN_MS` (held as a stun, so it cannot be pushed or move), and climbs
+back out on the revealed, unoccupied ground nearest the spawn
+(`drownRespawn`). Nothing is dug. `rabbit_pushed` carries `drowned: true`,
+`sea` (the first cell of water, for the throw) and `to` (where it resurfaces).
+The coast stops being the safest place on the island, which is where the last
+carrots are.
 
 Chosen for the spectacle, knowingly against the predictability argument: a
 chain is harder to foresee, and with rule 2 in force a rabbit at the end of a
@@ -219,7 +229,7 @@ the single strongest mitigation available for everything rule 2 makes possible.
 | `src/lib/game/push.ts` | the rules, as pure arithmetic — no server, no clock |
 | `src/lib/game/run.ts` | `resolveMove` applies a plan and charges the blast |
 | `server/index.ts` | hands over the roster, broadcasts `rabbit_pushed` |
-| `test/push.test.ts` | every rule above, including rule 2 detonating |
+| `test/push.test.ts` | every rule above, including rule 2 detonating and the sea |
 
 `planPush` returns what WOULD happen and mutates nothing, which is what lets a
 chain be refused whole rather than discovered half-applied.

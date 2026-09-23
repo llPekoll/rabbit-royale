@@ -99,7 +99,8 @@ func _mount() -> void:
 	bar.profile_pressed.connect(func() -> void: Profile.open())
 	bar.shop_pressed.connect(func() -> void: Shop.open())
 	bar.story_pressed.connect(func() -> void: LoreCodex.open())
-	bar.season_pressed.connect(func() -> void: SeasonBoard.open())
+	bar.season_pressed.connect(_open_season)
+	_wire_bag()
 	bar.energy_tapped.connect(func() -> void: EnergyPanel.open())
 	bar.add_pressed.connect(func() -> void: EnergyPopup.open())
 
@@ -110,6 +111,13 @@ func _mount() -> void:
 	add_child(hud)
 	move_child(hud, top_bar.get_index())
 	Kit.fill(hud)
+	# LES DEUX SORTIES DU RECAP. Relayees par le HUD, et jamais ecoutees : la
+	# carte « ISLAND CLEARED » restait a l'ecran, bouton mort.
+	hud.go_home.connect(func() -> void:
+		RunState.current.go_home()
+		if Screens.place == Screens.Place.ISLAND:
+			Screens.cross(Screens.Place.BURROW))
+	hud.open_shop.connect(func() -> void: Shop.open())
 	_wire_run(bar)
 
 	# Ce que la boutique et le raid repondent passe en pastille, comme Home.
@@ -202,7 +210,7 @@ func _dev_open() -> void:
 	match what:
 		"shop": Shop.open()
 		"profile": Profile.open()
-		"season": SeasonBoard.open()
+		"season": _open_season()
 		"codex": LoreCodex.open()
 		"energy": EnergyPanel.open()
 		"refill": EnergyPopup.open()
@@ -226,6 +234,42 @@ func _dev_open() -> void:
 		"raided": RaidedStamp.announce({"by": "Thistle", "others": 1, "carrots": 340, "defended": false, "count": 2}).linger = true
 		"defended": RaidedStamp.announce({"by": "Thistle", "others": 0, "carrots": 0, "defended": true, "count": 1}).linger = true
 		_: _on_door(what)
+
+
+## LE SAC DU SPECTATEUR : la foudre et les bombes qu'il tient, lues sur
+## l'etal (page.tsx : `held` des articles `lightning` et `bomb`). Un eclair
+## lance ou une bombe plantee les depense cote serveur : l'etal est relu, et
+## le compte des boutons suit.
+func _wire_bag() -> void:
+	# DES METHODES, pas des lambdas : l'etal et RunState survivent au chrome,
+	# et une lambda branchee sur eux lui survivrait aussi.
+	ShopState.shared().changed.connect(_feed_bag)
+	RunState.current.board.connect(_on_bag_spent)
+	_feed_bag()
+
+
+func _feed_bag() -> void:
+	var shop := ShopState.shared()
+	RunState.current.set_bag({"lightning": int(shop.item("lightning").get("held", 0)),
+		"bombs": int(shop.item("bomb").get("held", 0))})
+
+
+func _on_bag_spent(name: String, data: Variant) -> void:
+	if name == "bomb_planted" or (name == "lightning_struck" and data is Dictionary \
+			and String(data.get("castBy", "")) == RunState.current.my_id()):
+		ShopState.shared().refresh()
+
+
+## LE TABLEAU DE SAISON, et sa porte vers l'ile des autres : « regarder » une
+## ligne qui creuse fait traverser en spectateur (page.tsx `spectate`). Sans
+## siege et sans cout — le serveur pose son instantane, sans lapin a moi.
+func _open_season() -> void:
+	var board := SeasonBoard.open()
+	board.spectate.connect(func(id: String) -> void:
+		close_dialog()
+		RunState.current.spectate(id)
+		if Screens.place != Screens.Place.ISLAND:
+			Screens.cross(Screens.Place.ISLAND))
 
 
 ## UNE PORTE DU SOL, qu'elle vienne d'une dalle ou de la ligne de la colonne.
@@ -252,6 +296,11 @@ func _on_door(door: String) -> void:
 ## ligne : son plateau est dessine, et il traverse sans siege.
 func _dig() -> void:
 	if Island.tutorial_pending():
+		# CONNECTE, la lecon est celle du SERVEUR : un compte sans manche y est
+		# assis quoi qu'on demande, et une lecon faite hors ligne ne le lui dit
+		# pas — il la redonnait, sur une ile que le client ne posait pas.
+		if Session.signed_in():
+			RunState.current.join(null)
 		Screens.cross(Screens.Place.ISLAND)
 		return
 	var picker := IslandPicker.new()

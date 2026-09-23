@@ -844,6 +844,38 @@ func apply_public(p_ground: IslandGround, snap: Dictionary) -> void:
 		flagged[cell_of(int(f))] = true
 
 
+## POSE L'INSTANTANE D'UNE PREMIERE ILE (`first:<id>`) : le sol dessine du
+## tutoriel, sans contenus — c'est le serveur qui les tient, et qui tient la
+## lecon (`taughtBomb`, `learn-first`). Le decor dessine est garde : il est au
+## SOL, pas au tirage.
+func apply_public_first(snap: Dictionary) -> void:
+	ground = null
+	seed_text = String(snap.get("seed", ""))
+	teaching = false
+	content.clear()
+	state.clear()
+	adjacent.clear()
+	flagged.clear()
+	chest_tier.clear()
+	decor.clear()
+	for c in playable():
+		content[c] = Content.EMPTY
+		state[c] = State.BURIED
+	for cell in TUTORIAL_DECOR:
+		if content.has(cell):
+			decor[cell] = TUTORIAL_DECOR[cell]
+	for ch in snap.get("chests", []):
+		var c := cell_of(int(ch.get("tile", -1)))
+		content[c] = Content.CHEST
+		chest_tier[c] = String(ch.get("tier", "bronze"))
+	for r in snap.get("revealed", []):
+		reveal_remote(int(r.get("tile", -1)), String(r.get("content", "empty")), int(r.get("adjacent", 0)))
+	for h in snap.get("hinted", []):
+		hint_remote(int(h.get("tile", -1)), int(h.get("adjacent", 0)))
+	for f in snap.get("flagged", []):
+		flagged[cell_of(int(f))] = true
+
+
 ## `tile_revealed` : la case est creusee, son contenu et son chiffre sont dits.
 func reveal_remote(index: int, what: String, count: int) -> Vector2i:
 	var c := cell_of(index)

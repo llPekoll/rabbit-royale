@@ -13,7 +13,8 @@
  *      exception, and the reason the rest of these rules are careful
  *   3. a stunned rabbit cannot be pushed and blocks pushes: it is terrain
  *   4. head-on, both are refused and nobody moves
- *   5. pushes chain; if the far end is blocked the whole line stays put
+ *   5. pushes chain; if the far end is blocked the whole line stays put —
+ *      unless it is open WATER: the last rabbit in the line goes into the sea
  *   6. pushing is free, because stepping onto undug ground already costs a dig
  *   7. the victim is always told who pushed them
  *
@@ -21,7 +22,7 @@
  * commits it — which is what lets the server apply a chain atomically instead
  * of discovering halfway down the line that the far end is a cliff.
  */
-import { terrainNeighbors } from './terrainBoard';
+import { levelTierAt, terrainNeighbors } from './terrainBoard';
 import { toColRow, toIndex, COLS, ROWS } from '@/config/gridConfig';
 import type { Rabbit } from './types';
 
@@ -41,7 +42,13 @@ export const HEAD_ON_WINDOW_MS = 120;
 export interface PushStep {
   playerId: string;
   from: number;
+  /** Where the rabbit lands — or, for a drowning, the first cell of sea. */
   to: number;
+  /**
+   * Shoved into the sea. `to` is then WATER, not a place to stand: the caller
+   * puts the rabbit back at the middle of the island (`drownRespawn`).
+   */
+  drowned?: true;
 }
 
 export interface PushPlan {
@@ -126,9 +133,13 @@ export function planPush(
 
     const landing = beyond(pushedFrom, pushedTile);
     if (landing === null) return { ok: false, refusal: 'chain-blocked' };
-    // The terrain has the final say: sea, cliff, tree and off-board all refuse.
+    // The terrain has the final say: cliff, tree and off-board refuse. The
+    // SEA does not — it takes the rabbit (rule 2 case 2, `DROWN`), and since
+    // nobody stands in the water the line ends there.
     if (!terrainNeighbors(seed, pushedTile).includes(landing)) {
-      return { ok: false, refusal: 'chain-blocked' };
+      if (!isSea(seed, landing)) return { ok: false, refusal: 'chain-blocked' };
+      steps.push({ playerId: occupant.playerId, from: pushedTile, to: landing, drowned: true });
+      break;
     }
 
     steps.push({ playerId: occupant.playerId, from: pushedTile, to: landing });
@@ -140,6 +151,15 @@ export function planPush(
   // one ahead of it has already left.
   steps.reverse();
   return { ok: true, plan: { steps } };
+}
+
+/**
+ * Open water: tier 0. Tier 1 is sea-level GROUND, so a beach refuses like any
+ * other wall — only a cell the terrain left under the sea drowns.
+ */
+function isSea(seed: string, index: number): boolean {
+  const { col, row } = toColRow(index);
+  return levelTierAt(seed, col, row) === 0;
 }
 
 /**
