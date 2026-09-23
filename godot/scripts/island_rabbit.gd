@@ -63,9 +63,18 @@ const DROWN_TILES := 2
 const SURFACE_SECONDS := 0.45
 
 ## AU-DESSUS DE LA MER ET DE TOUT LE SOL pendant le vol : trie sur les cases,
-## le lapin passerait sous la terrasse qu'il vient de quitter. Le plafond de
-## Godot est 4096 ; le relief monte a un millier.
-const Z_AIR := 3000
+## le lapin passerait sous la terrasse qu'il vient de quitter. Le relief monte
+## a un millier ; le ciel tient 3000 (ombres des nuages) et 3500 (rais,
+## sky_light.gd). ENTRE LES DEUX, avec les oiseaux : a 3000 pile, l'ombre des
+## nuages passait par-dessus et le lapin disparaissait en plein vol.
+const Z_AIR := 3200
+
+## LE LAPIN S'ENFONCE A VUE : la mer se referme sur lui en 0,65 s, pas en
+## 0,4 — trop vite, il s'effacait avant qu'on l'ait vu entrer (Paul,
+## 2026-09-23 : « le lapin fade un peu trop tot »).
+const SINK_SECONDS := 0.8
+const FADE_DELAY := 0.25
+const FADE_SECONDS := 0.65
 
 ## Le lapin assomme : trois etoiles d'or autour de la tete (`playStunned`).
 const STAR_INK := Color("#ffd138")
@@ -89,6 +98,12 @@ var _stars: StunStars
 var _under := false
 
 
+## LA DERNIERE IMAGE PEINTE de chaque rangee, quand la table en dit plus : la
+## rangee `damage` (48-55) n'a rien apres 52. Jouee jusqu'au bout, elle
+## s'arretait sur une image VIDE — le lapin jete disparaissait en plein vol.
+const LAST_PAINTED := {"damage": 52}
+
+
 ## LA PLANCHE DE SON SIEGE, meme table que HomeRabbit.
 func _frames() -> SpriteFrames:
 	var out := SpriteFrames.new()
@@ -99,7 +114,7 @@ func _frames() -> SpriteFrames:
 		out.add_animation(name)
 		out.set_animation_speed(name, def[2])
 		out.set_animation_loop(name, def[3])
-		for i in range(def[0], def[1] + 1):
+		for i in range(def[0], int(LAST_PAINTED.get(name, def[1])) + 1):
 			var frame := AtlasTexture.new()
 			frame.atlas = sheet
 			frame.region = Rect2((i % SHEET_COLS) * FRAME, (i / SHEET_COLS) * FRAME, FRAME, FRAME)
@@ -260,6 +275,8 @@ func drown(toward: Vector2i, back: Vector2i, under_ms: int) -> void:
 	_at = back
 	_home = back
 	_sprite.play("damage")
+	if not _sprite.animation_finished.is_connected(_rest):
+		_sprite.animation_finished.connect(_rest, CONNECT_ONE_SHOT)
 	_spin_from_belly(true)
 	z_index = Z_AIR
 	var fall := DROWN_FALL
@@ -273,15 +290,15 @@ func drown(toward: Vector2i, back: Vector2i, under_ms: int) -> void:
 		z_index = Iso.depth(sea.x, sea.y) + 11)
 	# ...et A TRAVERS, sans rebond, en s'effacant : la mer se referme.
 	_flight.set_parallel(true)
-	_flight.tween_property(self, "position:y", splash_at.y + DROWN_SINK_PX, 0.5) \
+	_flight.tween_property(self, "position:y", splash_at.y + DROWN_SINK_PX, SINK_SECONDS) \
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	_flight.tween_property(self, "modulate:a", 0.0, 0.42).set_delay(0.12) \
+	_flight.tween_property(self, "modulate:a", 0.0, FADE_SECONDS).set_delay(FADE_DELAY) \
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	_flight.set_parallel(false)
 	_flight.tween_callback(func() -> void:
 		visible = false
 		_spin_from_belly(false))
-	_flight.tween_interval(maxf(0.0, float(under_ms) / 1000.0 - fall - 0.5))
+	_flight.tween_interval(maxf(0.0, float(under_ms) / 1000.0 - fall - maxf(SINK_SECONDS, FADE_DELAY + FADE_SECONDS)))
 	_flight.tween_callback(_surface)
 
 
