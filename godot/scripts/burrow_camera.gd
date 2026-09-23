@@ -199,8 +199,12 @@ static func board(map: BurrowMap, w: float = GAME_W, h: float = GAME_H) -> Shot:
 ## AU-DESSUS de l'ouverture, pour qu'un pincement reponde dans les deux sens
 ## des le depart. Le `max` garde l'ecran degenere ou le fit depasse deja le
 ## plafond : la plage ne peut jamais revenir a l'envers.
-static func zoom_limits(map: BurrowMap, w: float = GAME_W, h: float = GAME_H) -> Vector2:
-	var lo := board(map, w, h).scale
+##
+## `fit` descend le plancher SOUS le fit (0,5 = la ferme a moitie de l'ecran) :
+## l'ile du tutoriel est si petite que son fit remplit l'ecran a lui seul.
+static func zoom_limits(map: BurrowMap, w: float = GAME_W, h: float = GAME_H,
+		fit: float = 1.0) -> Vector2:
+	var lo := board(map, w, h).scale * fit
 	return Vector2(lo, maxf(lo * PLACE_ZOOM_MAX, lo))
 
 
@@ -217,8 +221,8 @@ static func _clamp_axis(pos: float, scale: float, lo: float, hi: float, size: fl
 
 ## Ramene un cadrage de placement dans sa plage de zoom et ses bornes de pan.
 static func clamp_place(shot: Shot, map: BurrowMap,
-		w: float = GAME_W, h: float = GAME_H) -> Shot:
-	var limits := zoom_limits(map, w, h)
+		w: float = GAME_W, h: float = GAME_H, fit: float = 1.0) -> Shot:
+	var limits := zoom_limits(map, w, h, fit)
 	var scale := clampf(shot.scale, limits.x, limits.y)
 	var b := board_bounds(map)
 	if b.size == Vector2.ZERO:

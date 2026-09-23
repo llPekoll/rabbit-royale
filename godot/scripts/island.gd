@@ -87,9 +87,11 @@ var _remote_snap: Dictionary = {}
 ## `DEFAULT_TILE_PX`), centre sur le lapin. L'ile entiere au cadre se lit comme
 ## une carte ; on ne creuse pas une carte.
 const PLAY_TILE_PX := 60.0
-## Le tutoriel se joue plus large : a 60 le joueur ne voyait pas assez de
-## l'ile autour de lui pour lire la lecon.
-const TUTORIAL_TILE_PX := 44.0
+## LE TUTORIEL MONTRE TOUTE L'ILE, et de la mer autour : elle est si petite
+## que son fit remplissait l'ecran — quatre cases de large, la lecon coupee.
+## Fraction du fit (0,55 = l'ile sur un peu plus de la moitie de l'ecran) ;
+## c'est aussi le plancher du zoom tant que la lecon dure.
+const TUTORIAL_FIT := 0.55
 const WHEEL_ZOOM := 1.12
 var _cam_tween: Tween
 ## Le fondu d'arrivee, a part du tween de camera : un doigt qui prend le
@@ -655,7 +657,7 @@ func _wanted_cam() -> BurrowCamera.Shot:
 	if (local_run != null or _remote) and not _cam_moved_by_player:
 		return _follow_shot(view)
 	if _cam_moved_by_player:
-		return BurrowCamera.clamp_place(_current_shot(), _terrain.map, view.x, view.y)
+		return _clamp_cam(_current_shot())
 	return BurrowCamera.board(_terrain.map, view.x, view.y)
 
 
@@ -678,8 +680,7 @@ func _keep_in_view() -> void:
 	if on.x > view.x * FOLLOW_MARGIN and on.x < view.x * (1.0 - FOLLOW_MARGIN) \
 			and on.y > view.y * FOLLOW_MARGIN and on.y < view.y * (1.0 - FOLLOW_MARGIN):
 		return
-	var shot := BurrowCamera.clamp_place(
-		BurrowCamera.Shot.new(scale.x, view * 0.5 - focus * scale.x), _terrain.map, view.x, view.y)
+	var shot := _clamp_cam(BurrowCamera.Shot.new(scale.x, view * 0.5 - focus * scale.x))
 	if _cam_tween != null and _cam_tween.is_valid():
 		_cam_tween.kill()
 	_cam_tween = create_tween()
@@ -690,16 +691,25 @@ func _keep_in_view() -> void:
 ## LA PRISE DE JEU : le lapin au milieu, a 60 pixels par case, bornee comme
 ## un glissement du joueur (on ne montre pas la mer au-dela du bord).
 func _follow_shot(view: Vector2) -> BurrowCamera.Shot:
-	var px := TUTORIAL_TILE_PX if _is_tutorial() else PLAY_TILE_PX
-	var k := px / (Iso.half_w() * 2.0)
+	if _is_tutorial():
+		var whole := BurrowCamera.board(_terrain.map, view.x, view.y)
+		return _clamp_cam(BurrowCamera.Shot.new(whole.scale * TUTORIAL_FIT, whole.at))
+	var k := PLAY_TILE_PX / (Iso.half_w() * 2.0)
 	var here := _me_cell()
 	var focus := _terrain.map.screen_of(here.x, here.y) + Vector2(0, Iso.half_h())
 	var shot := BurrowCamera.Shot.new(k, view * 0.5 - focus * k)
-	return BurrowCamera.clamp_place(shot, _terrain.map, view.x, view.y)
+	return _clamp_cam(shot)
 
 
 func _current_shot() -> BurrowCamera.Shot:
 	return BurrowCamera.Shot.new(scale.x, position)
+
+
+## Les bornes de la camera ; le tutoriel descend sous le fit.
+func _clamp_cam(shot: BurrowCamera.Shot) -> BurrowCamera.Shot:
+	var view := get_viewport_rect().size
+	return BurrowCamera.clamp_place(shot, _terrain.map, view.x, view.y,
+		TUTORIAL_FIT if _is_tutorial() else 1.0)
 
 
 func frame_camera(immediate: bool = false) -> void:
@@ -2043,8 +2053,7 @@ func _cell_at(at: Vector2) -> Vector2i:
 ## LE JOUEUR PREND LE PLATEAU EN MAIN. Applique directement, sans tween : un
 ## glissement est continu, et une demi-seconde d'ease trainerait derriere lui.
 func set_place_cam(shot: BurrowCamera.Shot) -> void:
-	var view := get_viewport_rect().size
-	var held := BurrowCamera.clamp_place(shot, _terrain.map, view.x, view.y)
+	var held := _clamp_cam(shot)
 	_cam_moved_by_player = true
 	if _cam_tween != null and _cam_tween.is_valid():
 		_cam_tween.kill()
