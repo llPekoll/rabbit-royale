@@ -1532,10 +1532,10 @@ func _on_local_dig(dig: Dictionary) -> void:
 
 
 ## LA BOMBE SAUTE QUAND LE LAPIN SE POSE DESSUS, pas quand on tape : le son,
-## ce qui se tenait sur la case, la secousse — le meme `HOP_SECONDS` que le
-## feu de la case (`TileView.blast_delay`).
+## ce qui se tenait sur la case, la secousse — au meme instant que le feu de
+## la case et le renvoi du lapin (`IslandRabbit.BLAST_AT`).
 func _bomb_goes_off(cell: Vector2i) -> void:
-	get_tree().create_timer(HomeRabbit.HOP_SECONDS).timeout.connect(func() -> void:
+	get_tree().create_timer(IslandRabbit.BLAST_AT).timeout.connect(func() -> void:
 		if not is_inside_tree():
 			return
 		Sound.play("explosion")

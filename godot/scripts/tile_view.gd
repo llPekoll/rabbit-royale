@@ -284,8 +284,9 @@ const Z_CRATER := 3
 var board: IslandBoard
 var terrain: BurrowTerrain
 ## LE DELAI DU FEU D'UNE BOMBE, en secondes : le saut du lapin qui l'a
-## creusee (chaque case se creuse en y sautant) ; zero, il saute a la tape.
-var blast_delay := HomeRabbit.HOP_SECONDS
+## creusee, jusqu'a ce que ses pattes touchent (chaque case se creuse en y
+## sautant) ; zero, il saute a la tape.
+var blast_delay := IslandRabbit.BLAST_AT
 
 var _fog: Dictionary = {}
 ## Les deux mottes de chaque case (enterree, indicee), deja deformees si la

@@ -274,6 +274,11 @@ func knock_to(cell: Vector2i) -> void:
 ## sa case TOUT DE SUITE : l'anneau, le prochain pas et le `rabbit_moved` qui
 ## suit la lisent — ce dernier, deja vrai, ne rejoue donc pas de saut.
 const BLAST_FLIGHT := 0.45
+## LE SOUFFLE PART 5 IMAGES AVANT LA FIN DU SAUT, quand les pattes touchent :
+## attendre la derniere image du tween rendait le renvoi mou (Paul,
+## 2026-09-23 : « 4-5 frames trop tard le push »). Le feu de la case et le son
+## partent au meme instant (`TileView.blast_delay`, `Island._bomb_goes_off`).
+const BLAST_AT := HomeRabbit.HOP_SECONDS - 0.08
 const BLAST_HEIGHT := 26.0
 const DOWN_SECONDS := 1.0
 ## Dans `damage` (48-52) : l'image a plat, puis debout.
@@ -296,7 +301,8 @@ func blast_back(bomb: Vector2i, back: Vector2i) -> void:
 	_at = back
 	_home = back
 	if _hop != null and _hop.is_running():
-		_hop.finished.connect(func() -> void: _thrown(bomb, back, seq), CONNECT_ONE_SHOT)
+		var wait := maxf(0.0, BLAST_AT - _hop.get_total_elapsed_time())
+		get_tree().create_timer(wait).timeout.connect(func() -> void: _thrown(bomb, back, seq))
 	else:
 		_thrown(bomb, back, seq)
 
@@ -304,6 +310,9 @@ func blast_back(bomb: Vector2i, back: Vector2i) -> void:
 func _thrown(bomb: Vector2i, back: Vector2i, seq: int) -> void:
 	if _sprite == null or seq != _blast_seq:
 		return
+	# Le saut n'a plus que quelques pixels a faire : le souffle le coupe.
+	if _hop != null and _hop.is_valid():
+		_hop.kill()
 	_hop = null
 	var from := map.screen_of(bomb.x, bomb.y) + Vector2(0, Iso.half_h())
 	var to := map.screen_of(back.x, back.y) + Vector2(0, Iso.half_h())
