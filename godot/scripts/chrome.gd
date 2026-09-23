@@ -247,9 +247,6 @@ func _dev_open() -> void:
 		"energy": EnergyPanel.open()
 		"refill": EnergyPopup.open()
 		"language": LanguageSelect.open()
-		"islands":
-			var picker := IslandPicker.new()
-			open(picker)
 		"history":
 			var profile := Profile.open()
 			profile._show_tab(Profile.Tab.HISTORY)
@@ -304,6 +301,13 @@ func _open_season() -> void:
 			Screens.cross(Screens.Place.ISLAND))
 
 
+## LES RAIDS SONT-ILS OUVERTS A CE LAPIN ? Niveau lu sur /api/burrow ; un
+## terrier pas encore charge laisse passer (le serveur tranche).
+static func raids_open() -> bool:
+	var level: Variant = Home.player.get("level")
+	return level == null or int(level) >= Tuning.i("RABBIT_LEVELS.RAID_MIN", 10)
+
+
 ## UNE PORTE DU SOL, qu'elle vienne d'une dalle ou de la ligne de la colonne.
 func _on_door(door: String) -> void:
 	match door:
@@ -312,6 +316,11 @@ func _on_door(door: String) -> void:
 		"defend":
 			_start_mode("placing")
 		"raid":
+			# PAS DE RAID AVANT LE NIVEAU 10, dans les deux sens (2026-09-23) :
+			# le serveur refuse de toute facon ; ici on dit pourquoi.
+			if not Chrome.raids_open():
+				toast(I18N.f("rabbitLevel.raidLocked", [Tuning.i("RABBIT_LEVELS.RAID_MIN", 10)]), true)
+				return
 			TargetList.open()
 		"shop":
 			Shop.open()
@@ -319,13 +328,14 @@ func _on_door(door: String) -> void:
 			EnergyPopup.open()
 
 
-## DIG. Le premier depart est le tutoriel, sans liste : le web traverse seul
-## le nouveau venu vers sa premiere ile. Ensuite, la liste des iles.
+## DIG. Pas de liste : le SERVEUR choisit l'ile au niveau du lapin (1 a 10,
+## 2026-09-23 — seul jusqu'au 5, a deux du 6 au 9, jusqu'a quatre au 10). Le
+## tutoriel reste a part : son plateau est dessine, et il traverse sans siege
+## hors ligne.
 ##
-## LE `join` EST ICI depuis que l'ile lit la socket (2026-09-23) : choisir une
-## ile demande un siege au serveur, et c'est son instantane (`island`) qui
-## pose le plateau — coffres, chiffres, cases creusees. Le tutoriel reste hors
-## ligne : son plateau est dessine, et il traverse sans siege.
+## LE `join` EST ICI depuis que l'ile lit la socket (2026-09-23) : c'est
+## l'instantane du serveur (`island`) qui pose le plateau — coffres, chiffres,
+## cases creusees.
 func _dig() -> void:
 	if Island.tutorial_pending():
 		# CONNECTE, la lecon est celle du SERVEUR : un compte sans manche y est
@@ -335,12 +345,8 @@ func _dig() -> void:
 			RunState.current.join(null)
 		Screens.cross(Screens.Place.ISLAND)
 		return
-	var picker := IslandPicker.new()
-	picker.chosen.connect(func(choice: Dictionary) -> void:
-		close_dialog()
-		RunState.current.join(choice)
-		Screens.cross(Screens.Place.ISLAND))
-	open(picker)
+	RunState.current.join(null)
+	Screens.cross(Screens.Place.ISLAND)
 
 
 ## UN RAID SUR NOTRE TERRIER commence ou finit (burrow.gd). La grille monte

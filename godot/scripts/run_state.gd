@@ -33,6 +33,9 @@ signal me_changed
 signal rabbits_changed
 ## Le volcan : stage, fraction creusee, coffres pris/total.
 signal volcano_changed
+## LA MANCHE EST FINIE (`run_over`), videe ou a sec. Plus de carte : l'ile
+## joue la fin du tutoriel — le lapin saute, l'ile coule, le terrier.
+signal run_ended(result: Dictionary)
 ## Le recap est la (non vide) ou vient d'etre retire (vide).
 signal recap_changed(recap: Dictionary)
 ## Un record battu sur un palier (`run_record`).
@@ -71,8 +74,6 @@ signal aiming_changed(mode: String)
 signal arm_refused(kind: String, reason: String)
 ## Le sac (eclairs, bombes) a change — pose par la boutique.
 signal bag_changed
-## La reponse a `list_islands()` : le listing, ou vide si sans reponse.
-signal islands(listing: Dictionary)
 ## Les presences suivies : {id: where}.
 signal presence_changed
 ## Un raid sur NOTRE terrier (pousse par le serveur), et la foudre du defenseur.
@@ -90,8 +91,6 @@ const RECAP_BEAT_MS := 900
 const FLAG_NOTHING_MS := 3000
 ## Une legende du premier voyage qui n'est pas collante reste ce temps-la.
 const CAPTION_MS := 4500
-## Le temps qu'on laisse au serveur pour repondre a `islands`.
-const ISLANDS_TIMEOUT_MS := 4000
 
 ## L'ARC DU PREMIER VOYAGE (config/first-run.ts), dans l'ordre d'enseignement :
 ## un nombre, puis le X, puis le coffre. Le DERNIER temps dont la condition
@@ -182,11 +181,6 @@ var spectating := ""
 var aiming := ""
 ## Le sac : {"lightning": n, "bombs": n}. La boutique le pose (`set_bag`).
 var bag: Dictionary = {"lightning": 0, "bombs": 0}
-## Le choix pour le prochain `join` (le selecteur sur DIG) : {islandId} ou
-## {tier}. Garde jusqu'au prochain choix — un rejoin le renvoie sans mal, un
-## siege tenu gagne de toute facon sur le serveur.
-var choice: Variant = null
-
 ## LA SCENE REPOND ICI combien de cases un X peut marquer autour du lapin
 ## (`IslandScene.setFlagMode` sur le web). Vide tant qu'il n'y a pas de scene :
 ## on arme sans verifier.
@@ -199,9 +193,6 @@ var _caption_timer: Timer
 var _recap_timer: Timer
 var _recap_pending: Dictionary = {}
 var _flag_nothing_timer: Timer
-var _islands_timer: Timer
-var _ack_id := 0
-var _ack_waiting := -1
 var _fake_me := ""
 var _wired := false
 
@@ -210,7 +201,6 @@ func _init() -> void:
 	_caption_timer = _timer(_on_caption_timeout)
 	_recap_timer = _timer(_on_recap_timeout)
 	_flag_nothing_timer = _timer(_on_flag_nothing_timeout)
-	_islands_timer = _timer(_on_islands_timeout)
 	_wire()
 
 
@@ -245,9 +235,6 @@ func _wire() -> void:
 	socket.event.connect(_on_event)
 	socket.connected.connect(_on_connected)
 	socket.dropped.connect(_on_dropped)
-	# L'ACK DE `islands` PASSE PAR LE FIL BRUT : voir `list_islands`.
-	if socket.get("_io") != null:
-		socket._io.engine_message_received.connect(_on_wire)
 
 
 # ── Ce que le HUD lit ────────────────────────────────────────────────────────
@@ -295,15 +282,13 @@ func stun_left(r: Dictionary) -> int:
 
 # ── Ce que le joueur fait ────────────────────────────────────────────────────
 
-## PRENDRE UNE PLACE. Le choix (ile ou palier) est garde pour le rejoin.
+## PRENDRE UNE PLACE. Sans choix : le serveur assoit au niveau du lapin.
 ## Une nouvelle traversee ne montre jamais la carte de la run d'avant, ni sa
 ## rancune, ni son public : le serveur ne pousse un compte de spectateurs
 ## qu'a un CHANGEMENT, donc une ile ou personne n'est encore ne dirait rien.
-func join(pick: Variant = null) -> void:
-	if pick != null:
-		choice = pick
+func join(_pick: Variant = null) -> void:
 	spectating = ""
-	GameSocket.join(choice)
+	GameSocket.join(null)
 	_recap_timer.stop()
 	_recap_pending = {}
 	_set_recap({})
@@ -311,14 +296,13 @@ func join(pick: Variant = null) -> void:
 	_set_watchers(0)
 
 
-func choose_island(pick: Variant) -> void:
-	choice = pick
-
-
 ## RENTRER DEPUIS LE RECAP (page.tsx « Home ») : la carte se retire, la place
 ## est rendue, et l'ile finie est oubliee — sinon la prochaine ile, montee
 ## avant l'instantane du prochain `join`, reposerait celle-ci.
 func go_home() -> void:
+	if erupting_ms != 0:
+		erupting_ms = 0
+		erupting_changed.emit(0)
 	_recap_timer.stop()
 	_recap_pending = {}
 	_set_recap({})
@@ -432,52 +416,6 @@ func set_bag(items: Dictionary) -> void:
 ## Le public a fini de voir la ceremonie du coffre.
 func clear_chest_prize() -> void:
 	pass
-
-
-## LA LISTE DES ILES, avec un ACK.
-##
-## Le serveur repond sur le callback de l'evenement — `socket.emit('islands',
-## cb)` — et se tait si aucun callback n'est fourni. L'addon vendorise ne
-## sait pas emettre un paquet avec un id d'ack ni lire la reponse (ACK est
-## « not supported », socketio.gd). Le protocole, lui, est simple : un paquet
-## EVENT `2<id>["islands"]`, et une reponse ACK `3<id>[listing]`. L'id est
-## donc ecrit ici dans la charge utile que l'addon envoie telle quelle, et
-## la reponse est lue sur le fil brut (`engine_message_received`) avant que
-## l'addon la jette. Sans socket, ou sans reponse en quatre secondes, le
-## listing est vide — le selecteur montre alors les paliers seuls.
-func list_islands() -> void:
-	_wire()
-	if not GameSocket.is_live() or GameSocket.get("_io") == null:
-		islands.emit({})
-		return
-	_ack_id += 1
-	_ack_waiting = _ack_id
-	GameSocket._io._send_socketio_packet(SocketIO.SocketPacketType.EVENT, "/",
-		"%d%s" % [_ack_id, JSON.stringify(["islands"])])
-	if not _start(_islands_timer, ISLANDS_TIMEOUT_MS):
-		_on_islands_timeout()
-
-
-func _on_wire(body: String) -> void:
-	if _ack_waiting < 0 or body.is_empty() or body[0] != "3":
-		return
-	var i := 1
-	while i < body.length() and body[i].is_valid_int():
-		i += 1
-	if i == 1 or int(body.substr(1, i - 1)) != _ack_waiting:
-		return
-	var payload: Variant = JSON.parse_string(body.substr(i))
-	_ack_waiting = -1
-	_islands_timer.stop()
-	var listing: Variant = payload[0] if payload is Array and not (payload as Array).is_empty() else null
-	islands.emit(listing if listing is Dictionary else {})
-
-
-func _on_islands_timeout() -> void:
-	if _ack_waiting < 0:
-		return
-	_ack_waiting = -1
-	islands.emit({})
 
 
 # ── La socket ────────────────────────────────────────────────────────────────
@@ -709,17 +647,17 @@ func _on_run_over(r: Dictionary) -> void:
 	# ici en attendant qu'une main lui en donne une.)
 	GameSocket._want_seat = false
 	_recap_timer.stop()
-	# L'ERUPTION EST FINIE QUAND LA RUN L'EST : « THE ISLAND SINKS » battait
-	# encore derriere le recap (Paul, 2026-09-20 : « ca tourne en fond »).
-	if erupting_ms != 0:
-		erupting_ms = 0
-		erupting_changed.emit(0)
-	if bool(r.get("cleared", false)):
-		_set_recap(r)
-		return
-	_recap_pending = r
-	if not _start(_recap_timer, RECAP_BEAT_MS):
-		_on_recap_timeout()
+	# PAS DE MORT, PAS DE CARTE (2026-09-23) : que l'ile soit videe ou que
+	# l'energie tombe a zero, la manche finit comme le tutoriel — le lapin
+	# saute, l'ile coule, on rentre (island.gd `_end_run`). `erupting_ms`
+	# n'est PAS remis a zero ici : l'ile l'entendrait comme « pas d'eruption »
+	# et se remettrait debout sous le lapin qui saute ; `go_home` le fait.
+	#
+	# LE NIVEAU vient avec : `level` (celui d'apres la manche) et `leveledUp`.
+	# Home le garde tout de suite, pour que le terrier le dise en arrivant.
+	if r.has("level"):
+		Home.player["level"] = int(r["level"])
+	run_ended.emit(r)
 
 
 func _on_recap_timeout() -> void:
@@ -874,8 +812,6 @@ func fake(state: Dictionary) -> void:
 			"watchers", "hit", "spectating", "aiming", "bag", "dropped", "flag_mode", "flag_nothing"]:
 		if state.has(key):
 			set(key, state[key])
-	if state.has("choice"):
-		choice = state["choice"]
 	island_changed.emit(island)
 	rabbits_changed.emit()
 	me_changed.emit()

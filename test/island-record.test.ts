@@ -26,8 +26,9 @@ describe('the record per island', () => {
     expect(PAGE).toMatch(/spentRecord\.current = r\.at;\s*if \(game\.recap\) return;\s*setNote\(t\.recap\.record\(/);
   });
 
+  // The server stopped filling `bests` on 2026-09-23 (the rabbit's level deals
+  // the island, the list is gone); the web picker still reads the field.
   it('rides the island list, on each tier\'s row', () => {
-    expect(SERVER).toMatch(/for \(const r of finished\) bests\[r\.islandTier\] = Math\.max\(bests\[r\.islandTier\] \?\? 0, r\.carrots\);/);
     expect(read('../src/components/island-picker.tsx')).toMatch(/listing\.bests\[tier\.name\]/);
   });
 });

@@ -60,6 +60,9 @@ export interface Island {
   tiles: Map<number, Tile>;
   /** Tier name from tuning.ISLAND_TIERS — drives visuals and densities. */
   tier: string;
+  /** The rabbit level this island was dealt for (RABBIT_LEVELS), 1 → MAX.
+   *  Absent on an island dealt by lifetime (the tests, the tutorial). */
+  level?: number;
   /** Tiles dug so far, tracked incrementally: the eruption check runs per dig. */
   dugCount: number;
   createdAt: number;
@@ -88,6 +91,9 @@ export interface Rabbit {
   alive: boolean;
   /** Season leader, drawn with the crown and worth more when raided. */
   crowned: boolean;
+  /** The player's rabbit level at spawn (RABBIT_LEVELS). Below RAID_MIN a
+   *  rabbit neither strikes nor is struck — no bolt, mirage or shove. */
+  level?: number;
   /**
    * The run's own paperwork, carried ON THE RABBIT rather than on the socket.
    *

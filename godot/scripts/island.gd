@@ -126,6 +126,8 @@ var _caption: FirstRunCaption
 const DONE_SECONDS := 1.8
 ## Puis l'ile coule, et on rentre quand elle a disparu.
 const SINK_MS := 2400
+## LA MANCHE EN LIGNE SE TERMINE (`_end_run`) : plus rien ne remet l'ile debout.
+var _ending := false
 
 ## LE JOUEUR A-T-IL PRIS LE PLATEAU EN MAIN ? Meme drapeau que le terrier, et
 ## pour la meme raison : on ne recadre pas sous quelqu'un qui regarde un coin.
@@ -174,8 +176,9 @@ func _ready() -> void:
 	RunState.current.erupting_changed.connect(func(ms: int) -> void:
 		if ms > 0:
 			play_eruption(ms)
-		else:
+		elif not _ending:
 			reset_eruption())
+	RunState.current.run_ended.connect(_end_run)
 
 
 ## LE GRONDEMENT, seulement quand le palier MONTE (use-game-socket.ts) : une
@@ -973,9 +976,16 @@ func _on_board_event(name: String, data: Variant) -> void:
 		"rabbit_pushed":
 			_on_pushed(d)
 		"rabbit_died":
-			var r := _rabbit_of(String(d.get("playerId", "")))
-			if r != null:
-				r.exhaust()
+			# PLUS DE MORT (2026-09-23) : un voisin a sec s'en va d'un saut, il
+			# ne s'affaisse plus sur le plateau. Le mien, c'est `_end_run`.
+			var who := String(d.get("playerId", ""))
+			var r: IslandRabbit = _rivals.get(who)
+			if r != null and who != RunState.current.my_id():
+				_rivals.erase(who)
+				r.celebrate()
+				get_tree().create_timer(DONE_SECONDS).timeout.connect(func() -> void:
+					if is_instance_valid(r):
+						r.vanish())
 		"lightning_struck":
 			_on_lightning(d)
 		"rabbit_struck":
@@ -1110,8 +1120,11 @@ func _add_rival(r: Dictionary, arriving: bool) -> void:
 	if arriving:
 		rabbit.drop_in()
 	if not bool(r.get("alive", true)):
-		rabbit.exhaust()
-	elif int(r.get("stunMs", 0)) > 0:
+		# Une manche finie n'a plus de lapin sur l'ile (plus de mort a montrer).
+		_rivals.erase(id)
+		rabbit.queue_free()
+		return
+	if int(r.get("stunMs", 0)) > 0:
 		rabbit.stun(int(r.get("stunMs", 0)))
 
 
@@ -1684,6 +1697,55 @@ func _sink_tutorial() -> void:
 			# est construite neuve — sur sa graine ordinaire, la lecon etant
 			# notee finie (`_remember_finished`).
 			Screens.cross(Screens.Place.BURROW))
+
+
+## LA MANCHE EN LIGNE EST FINIE — comme le tutoriel, sans mort (2026-09-23).
+##
+## Ile videe ou energie a zero, meme fin : le lapin saute, l'ile coule, on
+## rentre au terrier. Videe, le volcan a deja joue son eruption
+## (ERUPTION.SEQUENCE_MS) : on ne rejoue que le saut et la traversee. Le
+## niveau gagne se dit au terrier, en tampon, une fois arrive.
+##
+## Le tutoriel se termine seul (`_finish_tutorial`) : son plateau est local.
+func _end_run(result: Dictionary) -> void:
+	if not _remote or _ending or not RunState.current.spectating.is_empty():
+		return
+	_ending = true
+	_done = true
+	var cleared := bool(result.get("cleared", false))
+	var leveled := bool(result.get("leveledUp", false))
+	# La premiere ile du serveur finit sur son coffre : la lecon est faite.
+	var lesson := bool(result.get("tutorialDone", false))
+	if lesson:
+		_remember_finished()
+	# La fanfare pour une ile videe ou la lecon ; a sec, pas de musique de
+	# defaite — ce n'est pas une mort, juste la fin de la manche.
+	if cleared or lesson:
+		Sound.music("victory")
+	if _rabbit != null and not _rabbit.is_under():
+		_rabbit.celebrate()
+	await get_tree().create_timer(DONE_SECONDS).timeout
+	if not _still_ending():
+		return
+	if not cleared:
+		play_eruption(SINK_MS, false)
+		if _sink_sky != null:
+			_sink_sky.play(SINK_MS)
+		await get_tree().create_timer(SINK_MS / 1000.0).timeout
+		if not _still_ending():
+			return
+	RunState.current.go_home()
+	Screens.cross(Screens.Place.BURROW)
+	if leveled:
+		var level := int(result.get("level", 0))
+		# Le tampon attend le terrier : pose sous l'iris, il ne se verrait pas.
+		Screens.moved.connect(func(_id: Screens.Place) -> void:
+			LevelUpStamp.announce_rabbit(level), CONNECT_ONE_SHOT)
+
+
+func _still_ending() -> bool:
+	return _ending and is_inside_tree() and Screens.in_world() \
+		and Screens.place == Screens.Place.ISLAND
 
 
 ## LA CASE SOUS UN POINT DE L'ECRAN.

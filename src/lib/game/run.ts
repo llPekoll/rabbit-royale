@@ -10,7 +10,7 @@
  * two objects it is handed and returns what happened, so a caller can broadcast
  * a delta rather than diffing whole islands.
  */
-import { BOMB, DROWN, CHEST_LOOT, CHEST_LOOT_BY_TIER, CHEST_NFT_ODDS, ENERGY, FLAG, MULTIPLAYER, RUN, xGainFor } from '@config/tuning';
+import { BOMB, DROWN, CHEST_LOOT, CHEST_LOOT_BY_TIER, CHEST_NFT_ODDS, ENERGY, FLAG, MULTIPLAYER, RUN, xGainFor, mayFight } from '@config/tuning';
 import { SPAWN_INDEX, neighbors, toColRow, type IslandShape } from '@/config/gridConfig';
 import { pickWeighted, randInt, type Rng } from './rng';
 import { boardNeighbors, cascadeAround, revealTile } from './island';
@@ -414,6 +414,13 @@ export function resolveMove(
   if (!push.ok) {
     return reject(push.refusal === 'head-on' ? 'head-on' : 'blocked');
   }
+  // NO SHOVE BELOW RAID_MIN (2026-09-23): a shove is an attack, and nobody
+  // attacks or is attacked before the last level. A rabbit in the way is a
+  // wall then, the way a sheep is.
+  if (push.plan.steps.some((s) => {
+    const shoved = occupancy.get(s.from);
+    return !shoved || !mayFight(rabbit.level, shoved.level);
+  })) return reject('blocked');
 
   rabbit.lastMoveAt = now;
   rabbit.cameFrom = rabbit.tile;
@@ -716,6 +723,9 @@ export function spawnRabbit(
   name: string,
   energy: number = ENERGY.START,
   seed?: string,
+  /** The player's rabbit level (RABBIT_LEVELS). The server always passes it;
+   *  a rabbit without one (tests, fixtures) is not held to the level gates. */
+  level?: number,
 ): Rabbit {
   return {
     playerId,
@@ -730,5 +740,6 @@ export function spawnRabbit(
     lastMoveAt: 0,
     alive: true,
     crowned: false,
+    ...(level !== undefined ? { level } : {}),
   };
 }

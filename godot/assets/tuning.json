@@ -143,6 +143,10 @@
   "GAIN_MULT": 1.15,
   "LOOT_MULT": 1.5
  },
+ "DROWN": {
+  "LOSS": 30,
+  "STUN_MS": 2000
+ },
  "ENERGY": {
   "START": 300,
   "DIG_COST": 1,
@@ -304,6 +308,102 @@
     "qty": 1
    }
   }
+ },
+ "RABBIT_LEVELS": {
+  "MAX": 10,
+  "RAID_MIN": 10,
+  "LADDER": [
+   {
+    "level": 1,
+    "tier": "Meadow",
+    "seats": 1,
+    "bombDensity": 0.1,
+    "carrotDensity": 0.28,
+    "goldenShare": 0.05,
+    "xGain": 3
+   },
+   {
+    "level": 2,
+    "tier": "Meadow",
+    "seats": 1,
+    "bombDensity": 0.12,
+    "carrotDensity": 0.29,
+    "goldenShare": 0.06,
+    "xGain": 3
+   },
+   {
+    "level": 3,
+    "tier": "Meadow",
+    "seats": 1,
+    "bombDensity": 0.14,
+    "carrotDensity": 0.3,
+    "goldenShare": 0.06,
+    "xGain": 3
+   },
+   {
+    "level": 4,
+    "tier": "Thicket",
+    "seats": 1,
+    "bombDensity": 0.15,
+    "carrotDensity": 0.32,
+    "goldenShare": 0.08,
+    "xGain": 3
+   },
+   {
+    "level": 5,
+    "tier": "Thicket",
+    "seats": 1,
+    "bombDensity": 0.17,
+    "carrotDensity": 0.34,
+    "goldenShare": 0.09,
+    "xGain": 3
+   },
+   {
+    "level": 6,
+    "tier": "Ashland",
+    "seats": 2,
+    "bombDensity": 0.18,
+    "carrotDensity": 0.36,
+    "goldenShare": 0.11,
+    "xGain": 2
+   },
+   {
+    "level": 7,
+    "tier": "Ashland",
+    "seats": 2,
+    "bombDensity": 0.2,
+    "carrotDensity": 0.38,
+    "goldenShare": 0.13,
+    "xGain": 2
+   },
+   {
+    "level": 8,
+    "tier": "Caldera",
+    "seats": 2,
+    "bombDensity": 0.21,
+    "carrotDensity": 0.4,
+    "goldenShare": 0.15,
+    "xGain": 2
+   },
+   {
+    "level": 9,
+    "tier": "Caldera",
+    "seats": 2,
+    "bombDensity": 0.22,
+    "carrotDensity": 0.41,
+    "goldenShare": 0.16,
+    "xGain": 2
+   },
+   {
+    "level": 10,
+    "tier": "Caldera",
+    "seats": 4,
+    "bombDensity": 0.24,
+    "carrotDensity": 0.43,
+    "goldenShare": 0.18,
+    "xGain": 2
+   }
+  ]
  },
  "RAID": {
   "BOMB_DAMAGE": 45,

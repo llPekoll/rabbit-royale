@@ -14,7 +14,7 @@
  */
 import { randomUUID } from 'node:crypto';
 
-import { ERUPTION, MULTIPLAYER } from '../../config/tuning';
+import { ERUPTION, MULTIPLAYER, levelRow } from '../../config/tuning';
 import { chestProgress, chestsLeft, generateIsland, safeTilesLeft } from '../../src/lib/game/island';
 import { makeShape, type IslandShape } from '../../src/config/gridConfig';
 import { forgetTerrain, terrainFor } from '../../src/lib/game/terrainBoard';
@@ -78,19 +78,28 @@ export interface LiveIsland {
    * tutorial — so `findJoinable` skips it. Torn down like any other.
    */
   solo: boolean;
+  /**
+   * The rabbit level it was dealt for (RABBIT_LEVELS), and how many it seats.
+   * Since 2026-09-23 a player is seated by LEVEL, never across it: alone to
+   * level 5, two from 6 to 9, four at 10. `level` is undefined on an island
+   * dealt by lifetime (the tutorial, the tests), which only a level-less
+   * `findJoinable()` will hand out.
+   */
+  level?: number;
+  seats: number;
 }
 
 export interface IslandStore {
   get(id: string): LiveIsland | undefined;
   all(): Iterable<LiveIsland>;
-  create(seed: string, lifetimeCarrots: number, opts?: { solo?: boolean }): LiveIsland;
+  create(seed: string, lifetimeCarrots: number, opts?: CreateOptions): LiveIsland;
   delete(id: string): void;
   /**
    * The island a joining player belongs on: the fullest island that still has
    * room, so players CLUSTER rather than scattering one-per-island. Drop-in
    * without a lobby only feels alive if the emptiest island is not the default.
    */
-  findJoinable(tier?: string): LiveIsland | undefined;
+  findJoinable(level?: number): LiveIsland | undefined;
   /** Could a newcomer be seated here right now? The one rule `findJoinable`
    *  and a CHOSEN island are both held to (Paul, 21 September 2026). */
   joinable(live: LiveIsland): boolean;
@@ -107,6 +116,17 @@ export interface IslandStore {
   seatOf(playerId: string): LiveIsland | undefined;
   /** Islands with nobody on them past their TTL — swept on a timer. */
   reapable(now: number): LiveIsland[];
+}
+
+/** How long an empty solo island waits for the player it was dealt to. */
+const SOLO_EMPTY_MS = 60_000;
+
+export interface CreateOptions {
+  solo?: boolean;
+  /** Deal it for this rabbit level: its densities, its tier, its seats. */
+  level?: number;
+  /** Overrides the level's seats. */
+  seats?: number;
 }
 
 export class MemoryIslandStore implements IslandStore {
@@ -128,7 +148,9 @@ export class MemoryIslandStore implements IslandStore {
     forgetTerrain(id);
   }
 
-  create(seed: string, lifetimeCarrots: number, opts: { solo?: boolean } = {}): LiveIsland {
+  create(seed: string, lifetimeCarrots: number, opts: CreateOptions = {}): LiveIsland {
+    const row = opts.level !== undefined ? levelRow(opts.level) : undefined;
+    const seats = opts.solo ? 1 : opts.seats ?? row?.seats ?? MULTIPLAYER.MAX_PLAYERS_PER_ISLAND;
     // Two seeds, and the second one never leaves this process. `seed` is the
     // island id and travels in every snapshot so the client can cut the same
     // coastline; `contentSeed` decides where the bombs are and is generated
@@ -136,9 +158,12 @@ export class MemoryIslandStore implements IslandStore {
     // the generator is pure and every primitive it uses is already in the
     // browser bundle, so a player could re-run it in a console. See the note
     // at the top of `island.ts`.
-    const island = generateIsland({ seed, contentSeed: randomUUID(), lifetimeCarrots });
+    const island = generateIsland({ seed, contentSeed: randomUUID(), lifetimeCarrots, level: row });
     const live: LiveIsland = {
-      solo: opts.solo ?? false,
+      // A one-seat island IS solo: nobody else is ever sent to it.
+      solo: seats <= 1,
+      level: row?.level,
+      seats,
       island,
       shape: makeShape(seed),
       rabbits: new Map(),
@@ -172,8 +197,8 @@ export class MemoryIslandStore implements IslandStore {
 
   joinable(live: LiveIsland): boolean {
     if (live.erupting) return false;
-    if (live.solo) return false;
-    if (live.rabbits.size >= MULTIPLAYER.MAX_PLAYERS_PER_ISLAND) return false;
+    if (live.solo || live.seats <= 1) return false;
+    if (live.rabbits.size >= live.seats) return false;
     // Nearly cleared: whoever is on it finishes it, but it is not worth a
     // run to anyone new. Both halves — ground left to dig, and chests left
     // before the island ends on someone else's spade. See
@@ -193,12 +218,15 @@ export class MemoryIslandStore implements IslandStore {
    * could be seated on the Caldera somebody else had opened, and a veteran
    * on a Meadow — the doors only ever applied to whoever opened the island.
    * A tier is the island's own (`island.tier`); undefined joins any.
+   *
+   * Since 2026-09-23 the ladder is the rabbit's LEVEL, and the match is on
+   * it: two level-7 rabbits share an island, a level 6 and a level 7 do not.
    */
-  findJoinable(tier?: string): LiveIsland | undefined {
+  findJoinable(level?: number): LiveIsland | undefined {
     let best: LiveIsland | undefined;
     for (const live of this.islands.values()) {
       if (!this.joinable(live)) continue;
-      if (tier !== undefined && live.island.tier !== tier) continue;
+      if (level !== undefined && live.level !== level) continue;
       if (!best || live.rabbits.size > best.rabbits.size) best = live;
     }
     return best;
@@ -207,8 +235,16 @@ export class MemoryIslandStore implements IslandStore {
   reapable(now: number): LiveIsland[] {
     const out: LiveIsland[] = [];
     for (const live of this.islands.values()) {
+      // A SOLO ISLAND DIES WITH ITS RUN (2026-09-23). Nobody else will ever
+      // be seated on it and its player's next DIG deals a fresh one, so once
+      // no rabbit on it is alive it is only memory: the island has sunk.
+      // A rabbit in reconnect grace is still alive, and keeps it. An EMPTY one
+      // gets a minute: `join` creates it, then awaits the crossing fee before
+      // seating anyone, and a sweep in between must not sink it under them.
+      if (live.solo && live.rabbits.size > 0 && ![...live.rabbits.values()].some((r) => r.alive)) { out.push(live); continue; }
       if (live.rabbits.size > 0) { live.emptySince = null; continue; }
       live.emptySince ??= now;
+      if (live.solo && now - live.emptySince > SOLO_EMPTY_MS) { out.push(live); continue; }
       // An empty island lives out its day so someone can come back and finish
       // it — unless there is nothing left worth coming back for, in which case
       // nobody would be sent to it anyway (see `findJoinable`) and it goes now.

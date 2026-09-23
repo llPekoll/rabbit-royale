@@ -866,6 +866,19 @@
    ]
   }
  },
+ "rabbitLevel": {
+  "badge": {
+   "$t": "NV. {0}"
+  },
+  "up": {
+   "$t": "NÍVEL {0}"
+  },
+  "harder": "As ilhas ficam mais difíceis",
+  "final": "As ilhas finais. Os ataques estão abertos.",
+  "raidLocked": {
+   "$t": "Ataques abrem no nível {0}. Termine ilhas para chegar lá."
+  }
+ },
  "islandPick": {
   "choose": "Escolher uma ilha",
   "which": "QUAL ILHA?",

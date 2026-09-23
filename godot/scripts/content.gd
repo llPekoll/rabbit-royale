@@ -124,7 +124,7 @@ static func next_action(s: Dictionary) -> Dictionary:
 			continue
 		if richest.is_empty() or float(target["garden"]) > float(richest["garden"]):
 			richest = target
-	if not richest.is_empty():
+	if not richest.is_empty() and Chrome.raids_open():
 		return {"door": "raid", "text": I18N.f("next.raidTarget",
 			[String(richest["name"]), I18N.group_digits(float(richest["garden"]))])}
 

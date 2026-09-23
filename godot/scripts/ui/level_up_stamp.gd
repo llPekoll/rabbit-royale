@@ -42,6 +42,18 @@ static func announce(level: int) -> LevelUpStamp:
 	return stamp
 
 
+## LE LAPIN A MONTE D'UN NIVEAU (1 a 10, 2026-09-23) : une ile finie en vie.
+## Le meme tampon que le terrier — c'est la meme fete — avec ses mots a lui :
+## les iles durcissent, et au 10 le monde s'ouvre (raids compris).
+static func announce_rabbit(level: int) -> LevelUpStamp:
+	var stamp := LevelUpStamp.new()
+	var top := Tuning.i("RABBIT_LEVELS.MAX", 10)
+	stamp.set_words(I18N.f("rabbitLevel.up", [level]),
+		I18N.t("rabbitLevel.final" if level >= top else "rabbitLevel.harder"))
+	ScreenStamp.mount(stamp)
+	return stamp
+
+
 ## BRANCHER SUR LE TERRIER : chaque `Home.level_up` devient un tampon. A
 ## appeler une fois, par celui qui monte le chrome (chrome.gd `_mount`).
 static func arm() -> void:

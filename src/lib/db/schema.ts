@@ -78,6 +78,10 @@ export const players = pgTable('players', {
   lifetimeCarrots: bigint('lifetime_carrots', { mode: 'number' }).notNull().default(0),
 
   burrowLevel: integer('burrow_level').notNull().default(1),
+  /** THE RABBIT'S LEVEL, 1 → RABBIT_LEVELS.MAX (2026-09-23). Not the burrow's:
+   *  it is earned by clearing an island, never bought, and it deals the next
+   *  island — its difficulty and how many share it. Raids open at RAID_MIN. */
+  level: integer('level').notNull().default(1),
 
   /** Energy regen is derived from its timestamp at read time — no per-player
    *  cron, which is what lets this scale to a lot of players (BUILD-PLAN 5). */

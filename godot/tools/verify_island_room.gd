@@ -147,10 +147,11 @@ func _run() -> void:
 	_ev("tile_revealed", {"tile": board.index_of(hidden), "content": "bomb", "adjacent": 0, "dugBy": "vic", "plantedBy": "me"})
 	_check("le repere tombe a la fouille", not island._planted.has(hidden))
 
-	# LA FIN D'UN LAPIN.
+	# LA FIN D'UN LAPIN : plus de mort (2026-09-23) — il saute et s'en va.
 	_ev("rabbit_died", {"playerId": "vic"})
 	await _wait(0.8)
-	_check("a plat", r_vic._sprite.animation == "sleep")
+	_check("pas a plat", r_vic._sprite.animation != "sleep")
+	_check("sorti de la salle", not island._rivals.has("vic"))
 
 	# SPECTATEUR : je regarde Blackpaw.
 	state.spectating = "bully"
@@ -182,21 +183,19 @@ func _run() -> void:
 	_check("premiere ile : le coffre est pose", island._board.content.get(TutorialMap.chest()) == IslandBoard.Content.CHEST)
 	_check("premiere ile : lapin sur S", island._rabbit.at() == TutorialMap.spawn())
 
-	# L'ILE VIDEE : le recap tombe, son compte descend, et HOME ramene au
-	# terrier. Avant : « (6) » fige, et le bouton ne menait nulle part.
-	_ev("run_over", {"carrots": 40, "tilesDug": 6, "bombsHit": 0, "durationMs": 14000, "cleared": true})
+	# L'ILE VIDEE : plus de carte (2026-09-23). Le lapin saute, on rentre au
+	# terrier, le niveau suit dans Home et l'ile finie est oubliee.
+	_ev("run_over", {"carrots": 40, "tilesDug": 6, "bombsHit": 0, "durationMs": 14000, "cleared": true,
+		"level": 3, "leveledUp": true})
 	await _wait(0.2)
 	var hud: Node = _find(_main, "RunHud")
 	var card = hud._card if hud != null else null
-	_check("recap affiche", card != null and is_instance_valid(card) and card.is_inside_tree())
-	if card != null:
-		var first_left: int = card._left
-		await _wait(1.3)
-		_check("le compte descend (%d -> %d)" % [first_left, card._left], card._left < first_left)
-		card._on_home()
-		await _wait(3.5)
-		_check("home : au terrier", _screens.place == _screens.Place.BURROW)
-		_check("home : l'ile finie est oubliee", state.island.is_empty())
+	_check("pas de recap", card == null or not is_instance_valid(card))
+	_check("la fin se joue", island._ending)
+	_check("le niveau suit", int(root.get_node("Home").player.get("level", 0)) == 3)
+	await _wait(5.0)
+	_check("fin : au terrier", _screens.place == _screens.Place.BURROW)
+	_check("fin : l'ile finie est oubliee", state.island.is_empty())
 
 	await _wait(0.5)
 	_finish()

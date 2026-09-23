@@ -838,6 +838,19 @@
    ]
   }
  },
+ "rabbitLevel": {
+  "badge": {
+   "$t": "LVL {0}"
+  },
+  "up": {
+   "$t": "LEVEL {0}"
+  },
+  "harder": "THE ISLANDS GET HARDER",
+  "final": "THE FINAL ISLANDS. RAIDS ARE OPEN.",
+  "raidLocked": {
+   "$t": "Raids open at level {0}. Clear islands to get there."
+  }
+ },
  "islandPick": {
   "choose": "Choose an island",
   "which": "WHICH ISLAND?",

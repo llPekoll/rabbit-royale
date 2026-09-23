@@ -467,6 +467,13 @@ export const zh: Dict = {
     levelRate: (regen, next) =>
       next === null ? `\u6bcf\u5c0f\u65f6\u56de ${regen}` : `\u6bcf\u5c0f\u65f6\u56de ${regen}\u3002\u4e0b\u4e00\u7ea7\uff1a${next}`,
   },
+  rabbitLevel: {
+    badge: (n: number) => `等级 ${n}`,
+    up: (n: number) => `等级 ${n}`,
+    harder: '岛屿变得更难了',
+    final: '最终岛屿。袭击已开放。',
+    raidLocked: (n: number) => `等级 ${n} 开放袭击。完成岛屿即可解锁。`,
+  },
   islandPick: {
     choose: '\u9009\u62e9\u5c9b\u5c7f',
     which: '\u53bb\u54ea\u5ea7\u5c9b\uff1f',

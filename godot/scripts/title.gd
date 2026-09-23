@@ -412,7 +412,14 @@ func _enter() -> void:
 	# `firstTimer`). Le web a d'abord ouvert au terrier puis traverse — « the
 	# burrow for one wipe rather than never, the lesser failure » ; ici le
 	# compte est deja connu, donc on y va tout droit.
-	Screens.show_place(Screens.Place.ISLAND if Island.tutorial_pending() else Screens.Place.BURROW)
+	#
+	# ET LA LECON EST CELLE DU SERVEUR, comme par DIG (chrome.gd `_dig`) : sans
+	# ce siege il ne voit jamais le coffre pris, `runsPlayed` reste a zero, et
+	# le premier DIG apres le terrier redonnait le tutoriel au lieu du niveau 1.
+	var first := Island.tutorial_pending()
+	if first and Session.signed_in():
+		RunState.current.join(null)
+	Screens.show_place(Screens.Place.ISLAND if first else Screens.Place.BURROW)
 
 
 ## Un bouton qui ne peut pas marcher est grise, pas cache : sur un bureau

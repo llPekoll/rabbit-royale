@@ -9,7 +9,6 @@ extends Control
 
 const HUD_SCENE := preload("res://scenes/ui/run_hud.tscn")
 const RECAP_SCENE := preload("res://scenes/ui/run_recap.tscn")
-const PICKER_SCENE := preload("res://scenes/ui/island_picker.tscn")
 
 
 func _ready() -> void:
@@ -62,23 +61,5 @@ func _ready() -> void:
 		false,
 		{"energy": 50, "max": 60, "cost": 5},
 		{"tier": "Meadow", "carrots": 42, "previous": 30})
-
-	# UN SELECTEUR D'ILE, avec un listing factice : une ile vivante, une vide,
-	# et l'echelle des paliers dont deux sont fermes.
-	var picker: IslandPicker = PICKER_SCENE.instantiate()
-	picker.bench = true
-	picker.lifetime = 9200.0
-	picker.position = Vector2(Kit.EDGE + 380.0 + Kit.PAD, 80.0)
-	picker.size = Vector2(480.0, 0.0)
-	add_child(picker)
-	picker.set_listing({
-		"unlocked": 1,
-		"bests": {"Meadow": 88},
-		"tiers": ["Meadow", "Thicket", "Ashland", "Caldera"],
-		"islands": [
-			{"id": "a", "tier": "Thicket", "rabbits": 2, "chestsLeft": 4, "chestsTotal": 10, "dugFraction": 0.55},
-			{"id": "b", "tier": "Meadow", "rabbits": 0, "chestsLeft": 2, "chestsTotal": 8, "dugFraction": 0.8},
-		],
-	})
 
 	DevShot.arm(self)

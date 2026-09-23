@@ -483,6 +483,68 @@ export const ISLAND_TIERS: readonly IslandTier[] = [
   { name: 'Caldera', minLifetime: 45_500, bombDensity: 0.24, carrotDensity: 0.43, goldenShare: 0.18, xGain: 2 },
 ] as const;
 
+/**
+ * THE RABBIT'S LEVELS — the ladder that replaced picking an island (2026-09-23).
+ *
+ * The list on DIG is gone. A rabbit has ten levels, and the island it is dealt
+ * is its level's: every island it CLEARS (the eruption, reached alive) is one
+ * level up, and level 10 is where the final islands are, the ones everybody
+ * plays together. The user's rule, as given: alone up to level 5, two to an
+ * island from 6 to 9, up to four at 10. And nobody raids, nor is raided,
+ * below RAID_MIN — the burrow is safe while the rabbit is still learning.
+ *
+ * A row still names an ISLAND_TIERS tier: that is the art, the island's name
+ * and the chest tables, which are all keyed on it. The densities are the
+ * level's own, walked from an easier-than-Meadow start up to Caldera, so the
+ * ten steps are ten small ones rather than four jumps. carrotDensity climbs
+ * faster than bombDensity for the reason the note above gives.
+ */
+export interface LevelRow {
+  readonly level: number;
+  /** An ISLAND_TIERS name. */
+  readonly tier: string;
+  /** Rabbits one island of this level seats. 1 = solo. */
+  readonly seats: number;
+  readonly bombDensity: number;
+  readonly carrotDensity: number;
+  readonly goldenShare: number;
+  readonly xGain: number;
+}
+
+export const RABBIT_LEVELS = {
+  MAX: 10,
+  /** Raids, lightning, mirages and shoves open at this level, both ways. */
+  RAID_MIN: 10,
+  LADDER: [
+    { level: 1,  tier: 'Meadow',  seats: 1, bombDensity: 0.10, carrotDensity: 0.28, goldenShare: 0.05, xGain: 3 },
+    { level: 2,  tier: 'Meadow',  seats: 1, bombDensity: 0.12, carrotDensity: 0.29, goldenShare: 0.06, xGain: 3 },
+    { level: 3,  tier: 'Meadow',  seats: 1, bombDensity: 0.14, carrotDensity: 0.30, goldenShare: 0.06, xGain: 3 },
+    { level: 4,  tier: 'Thicket', seats: 1, bombDensity: 0.15, carrotDensity: 0.32, goldenShare: 0.08, xGain: 3 },
+    { level: 5,  tier: 'Thicket', seats: 1, bombDensity: 0.17, carrotDensity: 0.34, goldenShare: 0.09, xGain: 3 },
+    { level: 6,  tier: 'Ashland', seats: 2, bombDensity: 0.18, carrotDensity: 0.36, goldenShare: 0.11, xGain: 2 },
+    { level: 7,  tier: 'Ashland', seats: 2, bombDensity: 0.20, carrotDensity: 0.38, goldenShare: 0.13, xGain: 2 },
+    { level: 8,  tier: 'Caldera', seats: 2, bombDensity: 0.21, carrotDensity: 0.40, goldenShare: 0.15, xGain: 2 },
+    { level: 9,  tier: 'Caldera', seats: 2, bombDensity: 0.22, carrotDensity: 0.41, goldenShare: 0.16, xGain: 2 },
+    { level: 10, tier: 'Caldera', seats: 4, bombDensity: 0.24, carrotDensity: 0.43, goldenShare: 0.18, xGain: 2 },
+  ] as readonly LevelRow[],
+} as const;
+
+/** A level's row, clamped to the ladder: anything below 1 reads as 1, above MAX as MAX. */
+export function levelRow(level: number): LevelRow {
+  const n = Math.min(RABBIT_LEVELS.MAX, Math.max(1, Math.floor(Number.isFinite(level) ? level : 1)));
+  return RABBIT_LEVELS.LADDER[n - 1];
+}
+
+/**
+ * May this pair fight? Both must have reached RAID_MIN. An undefined level is
+ * a rabbit the ladder does not know (a test, a fixture) and is not held to it;
+ * the server always gives a player's rabbit its level.
+ */
+export function mayFight(a: number | undefined, b: number | undefined): boolean {
+  return (a ?? RABBIT_LEVELS.RAID_MIN) >= RABBIT_LEVELS.RAID_MIN
+    && (b ?? RABBIT_LEVELS.RAID_MIN) >= RABBIT_LEVELS.RAID_MIN;
+}
+
 // ── Phase 2: island life cycle ───────────────────────────────────────────────
 
 /**

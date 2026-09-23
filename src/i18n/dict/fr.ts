@@ -480,6 +480,13 @@ export const fr: Dict = {
     levelRate: (regen, next) =>
       next === null ? `recharge ${regen} par heure` : `recharge ${regen} par heure. Niveau suivant : ${next}`,
   },
+  rabbitLevel: {
+    badge: (n: number) => `NIV. ${n}`,
+    up: (n: number) => `NIVEAU ${n}`,
+    harder: 'Les îles se durcissent',
+    final: 'Les îles finales. Les raids sont ouverts.',
+    raidLocked: (n: number) => `Les raids ouvrent au niveau ${n}. Finis des îles pour y arriver.`,
+  },
   islandPick: {
     choose: 'Choisir une \u00eele',
     which: 'QUELLE \u00ceLE ?',

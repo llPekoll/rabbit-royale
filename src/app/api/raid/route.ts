@@ -16,7 +16,7 @@
  * attacker can be disconnected from mid-crossing, and losing a haul to a
  * dropped connection is the kind of thing players do not forgive.
  */
-import { and, desc, eq, isNull, ne, sql as raw } from 'drizzle-orm';
+import { and, desc, eq, gte, isNull, ne, sql as raw } from 'drizzle-orm';
 import { db, sql } from '@/lib/db';
 import { pushToPlayer } from '@/lib/game/raid-events';
 import { defenderRaidView } from '@/lib/game/defence';
@@ -31,7 +31,7 @@ import { raiderSteps } from '@/game/burrow/fence';
 import { fencedSpans } from '@/lib/game/fences';
 import { smokeActive } from '@/lib/game/inventory';
 import { standingTraps } from '@/lib/game/traps';
-import { ENERGY, RAID, RAID_RUN, TRAPS } from '@config/tuning';
+import { ENERGY, RABBIT_LEVELS, RAID, RAID_RUN, TRAPS } from '@config/tuning';
 import { currentEnergy, gardenAfterLoot, gardenYield } from '@/lib/game/regen';
 import { msToHave } from '@/lib/game/burrow';
 import { payEnergy, type EnergyCharge } from '@/lib/game/pay-crossing';
@@ -212,6 +212,13 @@ export async function GET(req: Request) {
   const struck = await recentlyStruck(session.sub);
   if (struck) return Response.json({ raid: await raidView(struck.id, reveal) });
 
+  // NO RAIDS BELOW RAID_MIN, either way (2026-09-23). A rabbit still climbing
+  // the levels sees nobody to raid, and is on nobody's list.
+  const me = await db.query.players.findFirst({ where: eq(players.id, session.sub), columns: { level: true } });
+  if ((me?.level ?? 1) < RABBIT_LEVELS.RAID_MIN) {
+    return Response.json({ targets: [], locked: { level: me?.level ?? 1, need: RABBIT_LEVELS.RAID_MIN } });
+  }
+
   // Otherwise: who is worth attacking. Ordered by stock, because the reason to
   // raid somebody is what they are holding.
   const targets = await db
@@ -230,7 +237,7 @@ export async function GET(req: Request) {
       fertilisedUntil: players.fertilisedUntil,
     })
     .from(players)
-    .where(ne(players.id, session.sub))
+    .where(and(ne(players.id, session.sub), gte(players.level, RABBIT_LEVELS.RAID_MIN)))
     .orderBy(desc(players.stock))
     .limit(20);
 
@@ -312,6 +319,12 @@ export async function POST(req: Request) {
 
   const defender = await db.query.players.findFirst({ where: eq(players.id, body.defenderId) });
   if (!defender) return Response.json({ error: 'unknown_player' }, { status: 404 });
+
+  // Both ways: the target must have reached RAID_MIN, and so must the raider.
+  const raider = await db.query.players.findFirst({ where: eq(players.id, session.sub), columns: { level: true } });
+  if (defender.level < RABBIT_LEVELS.RAID_MIN || (raider?.level ?? 1) < RABBIT_LEVELS.RAID_MIN) {
+    return Response.json({ error: 'level_locked', need: RABBIT_LEVELS.RAID_MIN }, { status: 403 });
+  }
 
   const now = Date.now();
   if (defender.shieldedUntil && defender.shieldedUntil.getTime() > now) {

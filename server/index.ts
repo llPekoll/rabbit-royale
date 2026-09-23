@@ -20,7 +20,7 @@ import { randomUUID } from 'node:crypto';
 import { Server, type Socket } from 'socket.io';
 import { and, eq, isNull, ne, sql as raw } from 'drizzle-orm';
 
-import { ENERGY, ERUPTION, ISLAND_TIERS, LIGHTNING, MIRAGE, MULTIPLAYER, OUT_OF_RUN_ENERGY, tierFor } from '../config/tuning';
+import { ENERGY, ERUPTION, ISLAND_TIERS, LIGHTNING, MIRAGE, MULTIPLAYER, OUT_OF_RUN_ENERGY, RABBIT_LEVELS, levelRow, mayFight } from '../config/tuning';
 import { servirApi } from './api-router';
 import { mulberry32, seedFrom } from '../src/lib/game/rng';
 import { cascadeAround, chestProgress, publicView } from '../src/lib/game/island';
@@ -172,8 +172,15 @@ io.use(async (socket, next) => {
 
 // ── Island helpers ───────────────────────────────────────────────────────────
 
-function newIsland(lifetimeCarrots: number): LiveIsland {
-  return store.create(randomUUID(), lifetimeCarrots);
+/** A fresh island dealt for a rabbit level: its densities, tier and seats. */
+function newIsland(level: number): LiveIsland {
+  return store.create(randomUUID(), 0, { level });
+}
+
+/** A player's rabbit level, read from the row. 1 for a player with none. */
+async function levelOf(playerId: string): Promise<number> {
+  const row = await db.query.players.findFirst({ where: eq(players.id, playerId), columns: { level: true } });
+  return row?.level ?? 1;
 }
 
 /**
@@ -248,6 +255,9 @@ function snapshot(live: LiveIsland) {
     // Where the land is was never a secret; what is buried in it is.
     seed: view.seed,
     tier: view.tier,
+    // The rabbit level this island was dealt for (RABBIT_LEVELS). Absent on
+    // the tutorial, which comes before level 1.
+    ...(live.level !== undefined ? { level: live.level } : {}),
     revealed: view.revealed,
     // Chests are announced before they are dug — see `publicView`. Already
     // read by the client's snapshot type; it was simply never sent here.
@@ -352,6 +362,12 @@ async function erupt(live: LiveIsland) {
       // moments before the eruption must not be thrown away with the rabbit.
       await bankRun(rabbit).catch((e) => console.error('[bankRun:erupt]', e));
       if (!wasAlive) continue;
+      // CLEARED ALIVE IS ONE LEVEL UP (2026-09-23) — the only way up the
+      // ladder. Only on a levelled island: the tutorial is before level 1.
+      const level = live.island.level !== undefined
+        ? await levelUp(rabbit.playerId).catch((e) => { console.error('[levelUp]', e); return rabbit.level ?? 1; })
+        : rabbit.level ?? 1;
+      const leveledUp = level > (rabbit.level ?? 1);
       const socket = socketOf(rabbit.playerId);
       const sd = socket?.data as SocketData | undefined;
       if (!socket || !sd || sd.islandId !== live.island.id) continue;
@@ -361,6 +377,8 @@ async function erupt(live: LiveIsland) {
         bombsHit: sd.bombsHit ?? 0,
         durationMs: Date.now() - (sd.runStartedAt ?? Date.now()),
         cleared: true,
+        level,
+        leveledUp,
       });
       // Not `sd.islandId = undefined`: the recap's "Again" goes through
       // `restart`, which needs the id to leave the room and say `restarting`.
@@ -368,6 +386,24 @@ async function erupt(live: LiveIsland) {
     }
     store.delete(live.island.id);
   }), ERUPTION.SEQUENCE_MS);
+}
+
+/**
+ * One level up, capped at RABBIT_LEVELS.MAX, in one statement so two ends
+ * racing cannot skip a rung. Returns the level the player now has.
+ */
+async function levelUp(playerId: string): Promise<number> {
+  const [row] = await db.update(players)
+    .set({ level: raw`least(${players.level} + 1, ${RABBIT_LEVELS.MAX})` })
+    .where(eq(players.id, playerId))
+    .returning({ level: players.level });
+  return row?.level ?? 1;
+}
+
+/** What every run_over that is NOT a clear says about the ladder: where the
+ *  rabbit stands, unmoved. */
+function levelStill(rabbit: Rabbit): { level: number; leveledUp: false } {
+  return { level: rabbit.level ?? 1, leveledUp: false };
 }
 
 /** The socket currently holding a player's seat, if any. */
@@ -734,17 +770,16 @@ io.on('connection', (socket: Socket) => {
    */
   socket.on('islands', async (ack?: (listing: IslandListing) => void) => {
     if (typeof ack !== 'function') return;
+    // The picker is gone (2026-09-23): the rabbit's level deals the island.
+    // An older client still asking is shown its own level's islands, and its
+    // tier as the only one unlocked — a choice the join now ignores anyway.
     if (!data.playerId) return ack({ unlocked: 0, bests: {}, tiers: ISLAND_TIERS.map((t) => t.name), islands: [] });
-    const player = await db.query.players.findFirst({ where: eq(players.id, data.playerId), columns: { lifetimeCarrots: true } });
-    // The player's best haul per tier, for the tier rows: what "your record" reads.
-    const finished = await db.query.runs.findMany({ where: eq(runs.playerId, data.playerId), columns: { islandTier: true, carrots: true } });
-    const bests: Record<string, number> = {};
-    for (const r of finished) bests[r.islandTier] = Math.max(bests[r.islandTier] ?? 0, r.carrots);
+    const level = await levelOf(data.playerId);
     ack({
-      bests,
-      unlocked: tierIndex(tierFor(player?.lifetimeCarrots ?? 0).name),
+      bests: {},
+      unlocked: tierIndex(levelRow(level).tier),
       tiers: ISLAND_TIERS.map((t) => t.name),
-      islands: store.listJoinable().map((live) => ({
+      islands: store.listJoinable().filter((live) => live.level === level).map((live) => ({
         id: live.island.id,
         tier: live.island.tier,
         rabbits: live.rabbits.size,
@@ -775,33 +810,18 @@ io.on('connection', (socket: Socket) => {
     // who walks home and comes straight back gets the real ladder.
     /**
      * WHICH ISLAND. A held seat first, the tutorial for a first-timer, then
-     * the player's CHOICE (the list on DIG, Paul, 21 September 2026): an
-     * island by id, or a tier to open or join. Either is held to the ladder
-     * — nothing above the highest tier this player has dug their way to —
-     * and to `joinable`, the one rule the default also obeys. No choice
-     * (an older client, a reconnect) seats them on their own tier as before,
-     * except that the tier is now honoured: `findJoinable` used to take
-     * whatever was fullest, whichever tier had opened it.
+     * the rabbit's LEVEL (2026-09-23): the list on DIG is gone, and the level
+     * deals the island — its difficulty and how many share it (RABBIT_LEVELS:
+     * alone to 5, two from 6 to 9, four at 10). A shared level packs players
+     * onto the fullest island of that level with room; a solo one, or no
+     * room, deals a new one. `choice` is still accepted from older clients
+     * and ignored.
      */
-    const unlocked = tierIndex(tierFor(player.lifetimeCarrots).name);
-    let chosen: LiveIsland | undefined;
-    if (!store.seatOf(data.playerId) && player.runsPlayed > 0 && choice) {
-      if (choice.islandId) {
-        const live = store.get(choice.islandId);
-        if (!live || !store.joinable(live)) return socket.emit('error_msg', { code: 'island_gone' });
-        if (tierIndex(live.island.tier) > unlocked) return socket.emit('error_msg', { code: 'tier_locked' });
-        chosen = live;
-      } else if (choice.tier !== undefined) {
-        const idx = tierIndex(choice.tier);
-        if (idx < 0 || idx > unlocked) return socket.emit('error_msg', { code: 'tier_locked' });
-        chosen = store.findJoinable(choice.tier) ?? newIsland(ISLAND_TIERS[idx].minLifetime);
-      }
-    }
+    void choice;
     const live = store.seatOf(data.playerId)
       ?? (player.runsPlayed === 0 ? newFirstIsland(player.id) : undefined)
-      ?? chosen
-      ?? store.findJoinable(tierFor(player.lifetimeCarrots).name)
-      ?? newIsland(player.lifetimeCarrots);
+      ?? store.findJoinable(player.level)
+      ?? newIsland(player.level);
 
     /**
      * A refresh returns to the same rabbit; walking back in starts a new run.
@@ -854,7 +874,7 @@ io.on('connection', (socket: Socket) => {
     // THE RABBIT DIGS WITH THE TANK. It used to open every run on a fresh
     // ENERGY.START whatever the bank held; it opens on what the crossing left
     // in the one tank, and brings the rest home (`bankRun`).
-    const rabbit = existing ?? spawnRabbit(data.playerId, player.name, bank ? bank.energy : ENERGY.START, live.island.seed);
+    const rabbit = existing ?? spawnRabbit(data.playerId, player.name, bank ? bank.energy : ENERGY.START, live.island.seed, player.level);
     live.rabbits.set(data.playerId, rabbit);
     live.disconnectedAt.delete(data.playerId);
     live.emptySince = null;
@@ -971,6 +991,11 @@ io.on('connection', (socket: Socket) => {
     if (!live.island.tiles.has(target)) {
       return socket.emit('lightning_rejected', { reason: 'off-island' });
     }
+    // NOBODY IS STRUCK BELOW RAID_MIN, and nobody strikes (2026-09-23). An
+    // island is dealt per level, so its level says who stands on it.
+    if (!mayFight(await levelOf(data.playerId), live.solo ? 1 : live.level)) {
+      return socket.emit('lightning_rejected', { reason: 'level_locked' });
+    }
 
     const spent = await db
       .update(inventory)
@@ -1067,6 +1092,7 @@ io.on('connection', (socket: Socket) => {
         tilesDug: victim.run?.tilesDug ?? 0,
         bombsHit: victim.run?.bombsHit ?? 0,
         durationMs: nowMs - (victim.run?.startedAt ?? nowMs),
+        ...levelStill(victim),
         // Who threw the bolt, so the recap can say so rather than leaving the
         // victim to guess which of four rabbits it was.
         killedBy: {
@@ -1190,6 +1216,10 @@ io.on('connection', (socket: Socket) => {
     if (!victim || !victim.alive) return;
     // One at a time per victim: stacking mirages would compound past the point
     // where the lie is still checkable against honest neighbours.
+    // Same gate as the bolt: a mirage is an attack, closed below RAID_MIN.
+    if (!mayFight(await levelOf(data.playerId), victim.level)) {
+      return socket.emit('mirage_rejected', { reason: 'level_locked' });
+    }
     if (mirageActive(live.mirages.get(victimId), Date.now())) {
       return socket.emit('mirage_rejected', { reason: 'already-mirrored' });
     }
@@ -1285,6 +1315,7 @@ io.on('connection', (socket: Socket) => {
         tilesDug: data.tilesDug ?? 0,
         bombsHit: data.bombsHit ?? 0,
         durationMs: Date.now() - (data.runStartedAt ?? Date.now()),
+        ...levelStill(rabbit),
       });
     }
   }));
@@ -1385,6 +1416,7 @@ io.on('connection', (socket: Socket) => {
           tilesDug: victim.run?.tilesDug ?? 0,
           bombsHit: victim.run?.bombsHit ?? 0,
           durationMs: Date.now() - (victim.run?.startedAt ?? Date.now()),
+          ...levelStill(victim),
           killedBy: { id: rabbit.playerId, name: rabbit.name, how: 'shove' as const },
         });
       }
@@ -1465,6 +1497,7 @@ io.on('connection', (socket: Socket) => {
         tilesDug: data.tilesDug ?? 0,
         bombsHit: data.bombsHit ?? 0,
         durationMs: Date.now() - (data.runStartedAt ?? Date.now()),
+        ...levelStill(rabbit),
         // The tutorial was finished, not survived — the recap reads it to say
         // so, and it is the same "you got to the end" shape as a cleared island.
         ...(out.tutorialDone ? { tutorialDone: true } : {}),

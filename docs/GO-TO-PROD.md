@@ -376,3 +376,21 @@ Effet en 30 s, sans redéploiement, donc sans tuer les parties en cours. Ce qui
 est surchargeable et dans quelles bornes est déclaré dans
 `config/overridable.ts` ; une valeur hors bornes est refusée et le jeu retombe
 sur `config/tuning.ts`.
+
+### 2026-09-23 — `0020_clear_warbird` : `players.level`
+
+Les niveaux du lapin (1 → 10, voir « The rabbit's levels » dans le GDD). Passé
+en une transaction, **avant** le push, parce que le serveur `rr-ws` lit
+`players.level` dès son démarrage (`join`, éruption, raids) et que le
+déploiement ne lance jamais `db:migrate`.
+
+```sql
+ALTER TABLE players ADD COLUMN IF NOT EXISTS level integer DEFAULT 1 NOT NULL;
+INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
+SELECT 'e3b0db597784234b7f479f7cbbc38ba6af758870412483a2f80a2a24fe0e80ba', 1790132962100
+WHERE NOT EXISTS (SELECT 1 FROM drizzle.__drizzle_migrations WHERE hash = 'e3b0db59…');
+```
+
+Registre de prod : 21 → 22, comme le local. Tous les joueurs existants partent
+au niveau 1 (la valeur par défaut) : aucun raid possible tant que personne
+n'a atteint le niveau 10.

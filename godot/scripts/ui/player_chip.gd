@@ -37,6 +37,8 @@ var _plank: NineSlice
 var _row: HBoxContainer
 var _face: TextureRect
 var _name: Label
+## LE NIVEAU DU LAPIN (1 a 10, 2026-09-23), avant le nom : il ne se coupe pas.
+var _level: Label
 var _held := false
 
 
@@ -76,6 +78,11 @@ func _init() -> void:
 	_face.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_row.add_child(_face)
 
+	_level = Kit.label("", FONT, Palette.CREAM, true)
+	_level.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_level.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	_row.add_child(_level)
+
 	# Or de la couronne pour un joueur connecte (`CROWN`), l'ombre d'un pixel
 	# que le bois demande sous une encre claire.
 	_name = Kit.label("", FONT, Palette.RANK_GOLD, true)
@@ -104,6 +111,11 @@ func refresh() -> void:
 	# wallet, et `String(null)` arrete le script.
 	var name := str(Session.player.get("name", ""))
 	_name.text = name
+	# Lu sur /api/burrow (`player.level`), recopie par RunState a la fin d'une
+	# manche. Sans terrier encore : rien, plutot qu'un « 1 » faux.
+	var level: Variant = Home.player.get("level")
+	_level.visible = level != null
+	_level.text = I18N.f("rabbitLevel.badge", [int(level)]) if level != null else ""
 	var picked: Variant = Home.player.get("avatar", Session.player.get("avatar"))
 	var key := "brown" if picked == null else str(picked)
 	var sheet: Texture2D = Kit.AVATARS.get(key, Kit.AVATARS["brown"])
@@ -128,6 +140,8 @@ func _fit(cap: float = -1.0) -> void:
 	var font := _name.get_theme_font("font")
 	var text_w := font.get_string_size(_name.text, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT).x
 	var wanted := inset * 2.0 + _face.custom_minimum_size.x + 5.0 + text_w
+	if _level.visible:
+		wanted += 5.0 + font.get_string_size(_level.text, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT).x
 	var w := wanted if cap < 0.0 else minf(wanted, cap)
 	w = maxf(w, inset * 2.0 + _face.custom_minimum_size.x)
 	size = Vector2(round(w), HEIGHT)

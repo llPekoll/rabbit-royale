@@ -23,7 +23,7 @@
  * appears in `publicView` or in any payload, and is the ONLY thing that decides
  * where a bomb sits. Publishing `seed` is then harmless by construction.
  */
-import { CHEST_TIER_WEIGHTS, FIRST_RUN, ISLAND, RISK_GRADIENT, tierFor } from '@config/tuning';
+import { CHEST_TIER_WEIGHTS, FIRST_RUN, ISLAND, RISK_GRADIENT, tierFor, type LevelRow } from '@config/tuning';
 import {
   COLS, ROWS, SPAWN_INDEX, makeShape, isForbidden, neighbors, toColRow, toIndex,
   type IslandShape,
@@ -51,6 +51,9 @@ export interface GenerateOptions {
   contentSeed?: string;
   /** Drives the tier (densities) — the highest lifetime among the players. */
   lifetimeCarrots?: number;
+  /** A rabbit level's row (RABBIT_LEVELS). Wins over `lifetimeCarrots`: its
+   *  densities are dealt, its tier name is the island's. */
+  level?: LevelRow;
 }
 
 export function generateIsland(opts: GenerateOptions): Island {
@@ -72,7 +75,9 @@ export function generateIsland(opts: GenerateOptions): Island {
     ? `first-content:${FIRST_ISLAND_GROUND}`
     : `content:${opts.contentSeed ?? opts.seed}`;
   const rng = mulberry32(seedFrom(contentKey));
-  const tier = tierFor(opts.lifetimeCarrots ?? 0);
+  const tier = opts.level
+    ? { ...opts.level, name: opts.level.tier }
+    : tierFor(opts.lifetimeCarrots ?? 0);
   const shape = makeShape(opts.seed);
 
   // Playable ground only. A tile is absent from the map unless the TERRAIN
@@ -170,6 +175,7 @@ export function generateIsland(opts: GenerateOptions): Island {
     seed: opts.seed,
     tiles,
     tier: tier.name,
+    ...(opts.level ? { level: opts.level.level } : {}),
     dugCount: 0,
     createdAt: Date.now(),
   };
@@ -756,6 +762,7 @@ export function publicView(island: Island) {
   return {
     seed: island.seed,
     tier: island.tier,
+    ...(island.level !== undefined ? { level: island.level } : {}),
     dugFraction: dugFraction(island),
     revealed,
     chests,

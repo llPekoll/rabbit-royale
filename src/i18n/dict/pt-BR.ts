@@ -482,6 +482,13 @@ export const ptBR: Dict = {
     levelRate: (regen, next) =>
       next === null ? `recarrega ${regen} por hora` : `recarrega ${regen} por hora. Pr\u00f3ximo n\u00edvel: ${next}`,
   },
+  rabbitLevel: {
+    badge: (n: number) => `NV. ${n}`,
+    up: (n: number) => `NÍVEL ${n}`,
+    harder: 'As ilhas ficam mais difíceis',
+    final: 'As ilhas finais. Os ataques estão abertos.',
+    raidLocked: (n: number) => `Ataques abrem no nível ${n}. Termine ilhas para chegar lá.`,
+  },
   islandPick: {
     choose: 'Escolher uma ilha',
     which: 'QUAL ILHA?',

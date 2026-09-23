@@ -907,6 +907,19 @@
    ]
   }
  },
+ "rabbitLevel": {
+  "badge": {
+   "$t": "NIV. {0}"
+  },
+  "up": {
+   "$t": "NIVEAU {0}"
+  },
+  "harder": "Les îles se durcissent",
+  "final": "Les îles finales. Les raids sont ouverts.",
+  "raidLocked": {
+   "$t": "Les raids ouvrent au niveau {0}. Finis des îles pour y arriver."
+  }
+ },
  "islandPick": {
   "choose": "Choisir une île",
   "which": "QUELLE ÎLE ?",

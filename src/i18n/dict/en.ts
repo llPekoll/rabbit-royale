@@ -600,6 +600,16 @@ export const en = {
     levelRate: (regen: number, next: number | null) =>
       next === null ? `refills ${regen} an hour` : `refills ${regen} an hour. Next level: ${next}`,
   },
+  /* The rabbit's level, 1 to 10 (2026-09-23): each island cleared is one up,
+     the islands harden with it, and level 10 is where everyone meets and
+     raids open. */
+  rabbitLevel: {
+    badge: (n: number) => `LVL ${n}`,
+    up: (n: number) => `LEVEL ${n}`,
+    harder: 'THE ISLANDS GET HARDER',
+    final: 'THE FINAL ISLANDS. RAIDS ARE OPEN.',
+    raidLocked: (n: number) => `Raids open at level ${n}. Clear islands to get there.`,
+  },
   islandPick: {
     choose: 'Choose an island',
     which: 'WHICH ISLAND?',
