@@ -595,12 +595,15 @@ func _send(path: String, method: HTTPClient.Method, payload: Dictionary) -> Answ
 		"Authorization: Bearer %s" % Session.token,
 	])
 	var body := JSON.stringify(payload) if method == HTTPClient.METHOD_PATCH else ""
+	Net.begin()
 	var started := request.request(Net.HOST + path, headers, method, body)
 	if started != OK:
 		request.queue_free()
+		Net.end()
 		return Answer.new(0, {})
 	var result: Array = await request.request_completed
 	request.queue_free()
+	Net.end()
 	var code: int = result[1]
 	var raw: PackedByteArray = result[3]
 	var parsed: Variant = JSON.parse_string(raw.get_string_from_utf8())

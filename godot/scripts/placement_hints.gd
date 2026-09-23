@@ -120,6 +120,8 @@ func build() -> void:
 			# alors SOUS l'herbe.
 			if not terrain.mount_veil(cell, hint):
 				continue
+			# SUR UNE RAMPE, le losange se plie comme la motte qu'il couvre.
+			hint.texture = terrain.slope_veil(cell, hint.texture)
 			_hints[cell] = hint
 
 

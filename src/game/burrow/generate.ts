@@ -654,6 +654,18 @@ export type BurrowEditRefusal =
   | 'crossing_too_long'
   | 'house_off_ground';
 
+/**
+ * The house stands on FOUR cells: its tile and the three in front of it
+ * (`+col`, `+row`, both) — the art is painted on a 2x2 footprint
+ * (tools/paint_burrows_iso.py), flat, so the four share one tier. `null`
+ * when the square runs off the board.
+ */
+export function houseFootprint(tile: number): number[] | null {
+  const { col, row } = colRow(tile);
+  if (col < 0 || row < 0 || col + 1 >= BURROW_COLS || row + 1 >= BURROW_ROWS) return null;
+  return [index(col, row), index(col + 1, row), index(col, row + 1), index(col + 1, row + 1)];
+}
+
 /** Is there anything to apply? An empty edit is the generated burrow. */
 export function hasEdits(e: BurrowEdits | null | undefined): e is BurrowEdits {
   if (!e) return false;
@@ -739,11 +751,15 @@ export function editBurrow(
   const doorstep = pickDoorstep(steps, crossing, inField);
   const cells = paint(homestead, entrance, field, doorstep);
 
-  // The house: open ground only, nothing standing on it.
+  // The house: four cells of open ground, nothing standing on any of them.
   let house: number | undefined;
   if (edits.house !== undefined) {
     if (!onBoard(edits.house)) return 'bad_edits';
-    if (cells[edits.house] !== 'ground' || taken.has(edits.house)) return 'house_off_ground';
+    const square = houseFootprint(edits.house);
+    const level = (t: number) => { const { col, row } = colRow(t); return levelAt(map, col, row); };
+    if (!square || square.some((t) => cells[t] !== 'ground' || taken.has(t) || level(t) !== level(square[0]))) {
+      return 'house_off_ground';
+    }
     house = edits.house;
   }
 

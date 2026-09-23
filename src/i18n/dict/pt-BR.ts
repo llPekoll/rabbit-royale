@@ -171,16 +171,8 @@ export const ptBR: Dict = {
   },
 
   arrange: {
-    button: 'ORGANIZAR',
-    pick: 'Segure e arraste uma árvore, sua casa ou a horta',
-    place: 'Toque num quadrado aceso para colocar ali',
-    save: 'SALVAR',
-    cancel: 'CANCELAR',
-    reset: 'ORIGINAL',
-    saved: 'Toca reorganizada.',
     planksBack: (n) => `${n} cerca${n > 1 ? 's' : ''} de volta na bolsa`,
     bombsBack: (n) => `${n} bomba${n > 1 ? 's' : ''} de volta na bolsa`,
-    locked: 'Tem um ataque na sua toca. Reorganize quando acabar.',
     unsaved: 'Não deu para salvar sua toca. Tente de novo daqui a pouco.',
     refused: {
       occupied: 'Já tem algo nesse quadrado.',

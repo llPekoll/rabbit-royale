@@ -173,16 +173,8 @@ export const zh: Dict = {
   },
 
   arrange: {
-    button: '布置',
-    pick: '按住并拖动一棵树、你的房子或菜园',
-    place: '点一个亮起的格子放下',
-    save: '保存',
-    cancel: '取消',
-    reset: '还原',
-    saved: '洞穴已重新布置。',
     planksBack: (n) => `${n} 块栅栏回到了背包`,
     bombsBack: (n) => `${n} 颗炸弹回到了背包`,
-    locked: '你的洞穴正在被袭击，结束后再布置。',
     unsaved: '洞穴没能保存，请稍后再试。',
     refused: {
       occupied: '这里已经有东西了。',

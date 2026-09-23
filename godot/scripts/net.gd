@@ -22,6 +22,33 @@ const HOST := "https://ws.rabbit.rip"
 ## is worse than a doorstep that shows the buttons it could not skip.
 const TIMEOUT_SECONDS := 10.0
 
+## UN GESTE EST EN ROUTE VERS LE SERVEUR — la moulinette du chrome s'y
+## accroche (ui/busy_spinner.gd). Seules les ECRITURES comptent : poser,
+## acheter, enregistrer, avancer d'un pas. Les relectures de fond (le terrier
+## toutes les minutes) ne sont pas un geste du joueur et n'ont rien a dire.
+signal busy_changed(busy: bool)
+
+var _in_flight := 0
+
+
+## Une ecriture part. A appeler par tout HTTPRequest fait a la main (la
+## boutique, le raid, le profil), et appariee a `end()` quoi qu'il arrive.
+func begin() -> void:
+	_in_flight += 1
+	if _in_flight == 1:
+		busy_changed.emit(true)
+
+
+func end() -> void:
+	_in_flight = maxi(0, _in_flight - 1)
+	if _in_flight == 0:
+		busy_changed.emit(false)
+
+
+func busy() -> bool:
+	return _in_flight > 0
+
+
 ## GET, with the session token if there is one.
 func get_json(path: String, token: String = "") -> Answer:
 	return await _send(path, HTTPClient.METHOD_GET, {}, token)
@@ -54,13 +81,20 @@ func _send(path: String, method: int, payload: Dictionary, token: String) -> Ans
 	var carries := method == HTTPClient.METHOD_POST or method == HTTPClient.METHOD_PUT \
 		or method == HTTPClient.METHOD_PATCH
 	var body := JSON.stringify(payload) if carries else ""
+	var writes := method != HTTPClient.METHOD_GET
+	if writes:
+		begin()
 	var started := request.request(HOST + path, headers, method, body)
 	if started != OK:
 		request.queue_free()
+		if writes:
+			end()
 		return Answer.new(0, {})
 
 	var result: Array = await request.request_completed
 	request.queue_free()
+	if writes:
+		end()
 
 	# result is [result, response_code, headers, body]. A transport failure
 	# (no network, DNS, TLS) arrives as a non-OK result with code 0, which

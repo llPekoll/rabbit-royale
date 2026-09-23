@@ -227,13 +227,6 @@
   }
  },
  "arrange": {
-  "button": "ARRANGE",
-  "pick": "Hold and drag a tree, your house or your garden",
-  "place": "Tap a lit tile to put it there",
-  "save": "SAVE",
-  "cancel": "CANCEL",
-  "reset": "RESET",
-  "saved": "Burrow rearranged.",
   "planksBack": {
    "$t": "{0} fences back in your bag",
    "$v": [
@@ -256,7 +249,6 @@
     }
    ]
   },
-  "locked": "A raid is on your burrow. Rearrange once it is over.",
   "unsaved": "Could not save your burrow. Try again in a moment.",
   "refused": {
    "occupied": "Something already stands there.",

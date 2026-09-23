@@ -31,7 +31,7 @@
  */
 import { burrowFor, burrowColRow, BURROW_COLS, BURROW_ROWS } from './board';
 import { levelAt } from '@/game/island/generate';
-import { seaDistance } from './generate';
+import { seaDistance, houseFootprint } from './generate';
 
 const BUILDINGS = '/assets/buildings';
 
@@ -137,7 +137,17 @@ function buildingCell(seed: string): { x: number; y: number; tier: number } {
   const hit = cells.get(seed);
   if (hit) return hit;
 
-  const { map, cells: kinds, field, entrance } = burrowFor(seed);
+  const { map, cells: kinds, field, entrance, placements } = burrowFor(seed);
+  const standing = new Set(placements.map((p) => p.y * BURROW_COLS + p.x));
+  // FOUR CELLS of open ground, nothing standing on them: the house is painted
+  // on a 2x2 footprint. The last two passes drop the square for the single
+  // cell, so a cramped homestead still gets a house.
+  const roomy = (tile: number) => {
+    const square = houseFootprint(tile);
+    if (!square) return false;
+    const tier = (t: number) => levelAt(map, t % BURROW_COLS, Math.floor(t / BURROW_COLS));
+    return square.every((t) => kinds[t] === 'ground' && !standing.has(t) && tier(t) === tier(square[0]));
+  };
   const door = burrowColRow(entrance);
   const fieldCells = field.map(burrowColRow);
 
@@ -147,11 +157,15 @@ function buildingCell(seed: string): { x: number; y: number; tier: number } {
   // Two passes: the strict wish first, then the same search with the sea
   // allowed one cell closer, so a thin homestead still gets a house rather
   // than the fallback below.
-  for (const inland of [BUILDING_INLAND, BUILDING_INLAND - 1]) {
+  for (const [inland, square] of [
+    [BUILDING_INLAND, true], [BUILDING_INLAND - 1, true],
+    [BUILDING_INLAND, false], [BUILDING_INLAND - 1, false],
+  ] as const) {
     for (let tile = 0; tile < BURROW_COLS * BURROW_ROWS; tile++) {
       // It stands on ground the raid does not use: never the field (it would
       // bury the objective) and never the entrance.
       if (kinds[tile] !== 'ground') continue;
+      if (square && !roomy(tile)) continue;
       const { col, row } = burrowColRow(tile);
 
       // Room for the sprite. A building on the shore is drawn with its

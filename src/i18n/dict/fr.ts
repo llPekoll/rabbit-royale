@@ -167,16 +167,8 @@ export const fr: Dict = {
   },
 
   arrange: {
-    button: 'AMÉNAGER',
-    pick: 'Maintiens et glisse un arbre, ta maison ou ton potager',
-    place: 'Touche une case allumée pour le poser',
-    save: 'VALIDER',
-    cancel: 'ANNULER',
-    reset: 'D\'ORIGINE',
-    saved: 'Terrier réaménagé.',
     planksBack: (n) => `${n} clôture${n > 1 ? 's' : ''} de retour dans le sac`,
     bombsBack: (n) => `${n} bombe${n > 1 ? 's' : ''} de retour dans le sac`,
-    locked: 'Un raid est en cours chez toi. Tu réaménageras après.',
     unsaved: 'Impossible d\'enregistrer ton terrier. Réessaie dans un instant.',
     refused: {
       occupied: 'Quelque chose occupe déjà cette case.',

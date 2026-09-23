@@ -62,6 +62,11 @@ function editCases(seed: string) {
       tries.push({ moves: [[from, to]] });
     }
   }
+  // The house, on four cells: where it stands, a step aside, on the door,
+  // on the field, and across the rim.
+  const home = burrowBuilding(seed, 1);
+  const at = burrowIndex(home.x, home.y);
+  for (const house of [at, at + 1, at - 19, base.entrance, base.field[0], 18]) tries.push({ house });
   tries.push({ field: [1, 0], moves: things.slice(0, 2).map((from, i) => [from, (from + 20 + i) % 361] as [number, number]) });
   return tries.map((edits) => {
     const out = editBurrow(base, edits);

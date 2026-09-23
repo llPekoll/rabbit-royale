@@ -61,8 +61,6 @@ var _kit: KitRow
 var _back: BackButton
 ## Le mode du terrier en cours ("placing", "walling"), vide sinon.
 var _mode := ""
-## La barre d'amenagement, pendant le mode « arrange ».
-var _arrange_bar: ArrangeBar
 ## LE PLATEAU MONTRE UN RAID (burrow.gd `show_raid`) — pas « RaidState en a
 ## un » : entre les deux, il y a le rideau, et le chrome tourne au noir.
 var _raid_shown := false
@@ -110,6 +108,10 @@ func _mount() -> void:
 	_wire_bag()
 	bar.energy_tapped.connect(func() -> void: EnergyPanel.open())
 	bar.add_pressed.connect(func() -> void: EnergyPopup.open())
+
+	# L'ATTENTE DU SERVEUR, en bas a droite : une petite carotte qui se
+	# remplit tant qu'une ecriture est en route (Net.busy_changed).
+	add_child(BusySpinner.new())
 
 	# LE HUD DE MANCHE (run-hud.tsx) : le X, l'eclair et la bombe, la maree,
 	# les legendes, le recap. Il se cache seul hors de l'ile. SOUS la barre du
@@ -194,9 +196,7 @@ func _mount_place() -> void:
 	_loop = null
 	_kit = null
 	_back = null
-	_arrange_bar = null
-	if _mode == "arrange":
-		_mode = ""
+
 	if not Screens.in_world() or Screens.place != Screens.Place.BURROW:
 		return
 	# EN RAID, le terrier est le plateau d'un autre : ni colonne, ni DIG sous
@@ -415,8 +415,6 @@ func show_raid(on: bool) -> void:
 func _start_mode(mode: String) -> void:
 	if _kit == null:
 		return
-	if _mode == "arrange":
-		_end_mode()
 	_mode = mode
 	_kit.open(mode)
 	_loop.visible = false
@@ -440,63 +438,6 @@ func _feed_kit() -> void:
 		_kit.state.adopt_fences(shop.fences)
 
 
-## AMENAGER LE TERRIER (la carte du terrier, `arrange`) : le sol passe en
-## brouillon, la barre du sol et la colonne s'effacent, la barre
-## d'amenagement monte. Refuse pendant un raid sur notre terrier.
-func arrange() -> void:
-	var burrow := Screens.at(Screens.Place.BURROW)
-	if OS.is_debug_build():
-		print("[arrange] bouton ARRANGE : burrow=%s kit=%s mode='%s'" % [burrow, _kit, _mode])
-	if burrow == null or _kit == null or not burrow.has_method("set_arranging"):
-		return
-	if not burrow.call("can_arrange"):
-		if OS.is_debug_build():
-			print("[arrange] refuse : raid en cours (%s)" % JSON.stringify(RaidState.current.incoming))
-		toast(I18N.t("arrange.locked"), true)
-		return
-	if not _mode.is_empty():
-		_end_mode()
-	close_dialog()
-	_mode = "arrange"
-	_loop.visible = false
-	_column.set_editing(true)
-	_arrange_bar = ArrangeBar.new()
-	floor_host.add_child(_arrange_bar)
-	_arrange_bar.save_pressed.connect(func() -> void: burrow.call("arrange_save"))
-	_arrange_bar.reset_pressed.connect(func() -> void: burrow.call("arrange_reset"))
-	_arrange_bar.cancel_pressed.connect(_end_mode)
-	if not burrow.is_connected("arrange_changed", _on_arrange_changed):
-		burrow.connect("arrange_changed", _on_arrange_changed)
-	burrow.call("set_arranging", true)
-
-
-## Le terrier a bouge : la barre relit son etat ; s'il n'amenage plus (un
-## enregistrement reussi, un raid qui arrive), le mode se referme.
-func _on_arrange_changed() -> void:
-	var burrow := Screens.at(Screens.Place.BURROW)
-	var state: Dictionary = burrow.call("arrange_state") if burrow != null else {}
-	if state.is_empty():
-		if _mode == "arrange":
-			_end_arrange()
-		return
-	if _arrange_bar != null:
-		_arrange_bar.show_state(state)
-
-
-func _end_arrange() -> void:
-	_mode = ""
-	if _arrange_bar != null:
-		_arrange_bar.queue_free()
-		_arrange_bar = null
-	if _loop != null:
-		_loop.visible = true
-	if _column != null:
-		_column.set_editing(false)
-	var burrow := Screens.at(Screens.Place.BURROW)
-	if burrow != null and burrow.has_method("set_arranging"):
-		burrow.call("set_arranging", false)
-
-
 ## CHANGER DE MODE SANS REFERMER LA RANGEE : c'est elle qui vient de le
 ## demander, sa case est deja choisie. « inspect » suspend le plateau (ni pose
 ## ni cloture) mais garde la rangee et le retour.
@@ -512,9 +453,6 @@ func _switch_mode(mode: String) -> void:
 
 func _end_mode() -> void:
 	if _mode.is_empty():
-		return
-	if _mode == "arrange":
-		_end_arrange()
 		return
 	_mode = ""
 	if _kit != null:

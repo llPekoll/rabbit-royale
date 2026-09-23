@@ -13,7 +13,20 @@ config_version=5
 config/name="Rabbit Royale"
 run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
-config/icon="res://assets/ui/rr-logo-1x.webp"
+; L'ICONE EN PNG : le WebP n'etait pas pris pour la fenetre ni le Dock sur
+; macOS, qui montraient le logo de Godot (2026-09-23). Le crane couronne,
+; celui du web (public/icons/icon-512.png) ; l'.icns pour l'export macOS.
+config/icon="res://assets/ui/icon-512.png"
+config/macos_native_icon="res://assets/ui/icon.icns"
+; L'ECRAN DE LANCEMENT, avant que le moteur n'ait monte une seule scene : le
+; meme crane sur le fond de l'icone (#0d1117), sans lissage (pixel art), a sa
+; taille. Statique par nature — Godot ne joue rien a ce stade ; la carotte
+; qui se remplit prend le relais des que l'accueil est la (title.gd).
+boot_splash/bg_color=Color(0.050980393, 0.06666667, 0.09019608, 1)
+boot_splash/image="res://assets/ui/icon-512.png"
+boot_splash/fullsize=false
+boot_splash/stretch_mode=0
+boot_splash/use_filter=false
 
 [autoload]
 

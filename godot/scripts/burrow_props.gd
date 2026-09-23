@@ -17,16 +17,17 @@ class_name BurrowProps
 ## batiment.
 const PLANT_SCALE := 0.34
 
-## LA MAISON, par palier de terrier : cinq terriers de terre sur une planche
-## de 5 x 64x80 (tools/slice_burrow_earth.py, depuis
-## public/assets/buildings/previews/burrow-earth-levels.png). Chaque terrier
-## se tient sur son propre losange de sol, et la decoupe met le CENTRE de ce
-## losange en (32, 60) de sa case : c'est ce point qui se pose sur le centre
-## de la case de la maison. Les batiments Tiny Swords sont partis — des
-## maisons de chevalier, pas des terriers de lapin.
-const HOME_SHEET := preload("res://assets/buildings/burrow-earth.png")
-const HOME_FRAME := Vector2(64, 80)
-const HOME_CENTRE := Vector2(32, 60)
+## LA MAISON, par palier de terrier : cinq terriers ISOMETRIQUES sur une
+## planche de 5 x 96x112 (tools/paint_burrows_iso.py), peints sur une emprise
+## de DEUX CASES SUR DEUX (les demi-losanges de 22x12 des tuiles) : murs de
+## terre sur les deux faces que voit la camera, toit de gazon, porte et
+## fenetres dans le plan des murs — et PAS DE SOL : ce sont les quatre tuiles
+## de la maison qui le font (burrow.gd ne leur met pas de motte). Le CENTRE
+## de l'emprise est en (48, 85) de la case : c'est ce point qui se pose sur
+## le milieu des quatre cases (BurrowLayout.house_cells).
+const HOME_SHEET := preload("res://assets/buildings/burrow-iso-levels.png")
+const HOME_FRAME := Vector2(96, 112)
+const HOME_CENTRE := Vector2(48, 85)
 const HOME_FRAMES := 5
 ## Peinte a la densite des tuiles : un pixel de l'art, un pixel du sol.
 const HOME_SCALE := 1.0
@@ -80,6 +81,12 @@ const DUST_COUNT := 10
 const DUST_SPREAD := 90.0
 
 var map: BurrowMap
+## LE TERRAIN, pour monter la maison DANS LE BLOC DE SA CASE (mount_veil),
+## comme les arbres : posee a cote avec un z_index calcule, elle passait sous
+## les mottes depuis qu'elles couvrent toute la terre (« on voit pas le
+## burrow, il est cache sous les tiles », 2026-09-23). Sans terrain (un banc),
+## elle reste posee a plat comme avant.
+var terrain: BurrowTerrain
 var _props: Array[Node2D] = []
 ## La maison, gardee pour changer d'image avec le niveau et pour sa fete.
 var home: Sprite2D = null
@@ -112,7 +119,9 @@ func build(layout: BurrowLayout) -> void:
 func clear() -> void:
 	# Les noeuds et leur liste meurent ensemble — voir BurrowTerrain.clear.
 	for prop in _props:
-		prop.queue_free()
+		# Montee dans un bloc, la maison meurt avec le terrain qu'on refait.
+		if is_instance_valid(prop):
+			prop.queue_free()
 	_props.clear()
 	_plants.clear()
 	_shown_fill = -1.0
@@ -132,13 +141,26 @@ func _place_home(cell: Vector2i) -> void:
 	home.scale = Vector2(HOME_SCALE, HOME_SCALE)
 	_dress_home()
 
-	# Posee au MILIEU de sa case (+0.5), pas sur son coin.
+	_props.append(home)
+	# DANS UN BLOC DU TERRAIN, au rang des arbres : triee avec le sol et les
+	# mottes. Celui de la case de DEVANT de ses quatre (x+1, y+1) : montee
+	# la, elle passe par-dessus les trois autres, qu'elle couvre. Le milieu
+	# des quatre est un demi-losange au-dessus du milieu de cette case.
+	if terrain != null:
+		var front := cell + Vector2i(1, 1)
+		if terrain.mount_veil(front, home, IslandScenery.Z_PROP):
+			home.position += Vector2(0, -Iso.half_h())
+			return
+		if terrain.mount_veil(cell, home, IslandScenery.Z_PROP):
+			home.position += Vector2(0, Iso.half_h())
+			return
+	# Posee au MILIEU de ses quatre cases : un demi-losange sous le milieu de
+	# la sienne.
 	var at := map.screen_of(cell.x, cell.y)
-	home.position = at + Vector2(0, Iso.half_h())
+	home.position = at + Vector2(0, Iso.half_h() * 2.0)
 	# Un cran devant le sol de sa propre case.
 	home.z_index = Iso.depth(cell.x, cell.y) + map.level_at(cell.x, cell.y) + 1
 	add_child(home)
-	_props.append(home)
 
 
 ## LA MAISON DU NIVEAU : l'image de son palier, posee sur son losange.
@@ -163,7 +185,9 @@ static func home_art(level: int, trimmed: bool = false) -> AtlasTexture:
 	var frame := AtlasTexture.new()
 	frame.atlas = HOME_SHEET
 	var x := (clampi(level, 1, HOME_FRAMES) - 1) * HOME_FRAME.x
-	frame.region = Rect2(x, 24, HOME_FRAME.x, 52) if trimmed \
+	# Rogne pour la carte : l'air autour du plus grand terrier (x 5..91,
+	# y 33..109) — mesure sur l'alpha de la planche.
+	frame.region = Rect2(x + 4, 32, 88, 78) if trimmed \
 		else Rect2(Vector2(x, 0), HOME_FRAME)
 	return frame
 
@@ -213,7 +237,9 @@ func celebrate() -> void:
 func _blob(radius: float, color: Color) -> Node2D:
 	var blob := Node2D.new()
 	blob.draw.connect(func() -> void: blob.draw_circle(Vector2.ZERO, radius, color))
-	add_child(blob)
+	# A cote de la maison, dans le meme repere qu'elle (son bloc, ou nous).
+	var host: Node = home.get_parent() if home != null and home.get_parent() != null else self
+	host.add_child(blob)
 	return blob
 
 

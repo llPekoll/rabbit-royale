@@ -80,8 +80,11 @@ func grab(cell: Vector2i) -> bool:
 ## Ce qu'une tape sur `cell` prendrait — `[Held, rang, case]` —, sans le
 ## prendre. Vide s'il n'y a rien.
 func find(cell: Vector2i) -> Array:
+	var home := BurrowLayout.house_cells(layout.building)
 	for c in [cell, cell + Vector2i(1, 0), cell + Vector2i(0, 1), cell + Vector2i(1, 1)]:
-		if c == layout.building:
+		# LA MAISON TIENT QUATRE CASES : prise par n'importe laquelle, elle
+		# suit le doigt par CETTE case-la (`held_cell`), comme le potager.
+		if home.has(c):
 			return [Held.HOUSE, -1, c]
 		var i := _thing_at(c)
 		if i >= 0:
@@ -149,6 +152,8 @@ func footprint(cell: Vector2i) -> Array[Vector2i]:
 		var d := cell - held_cell
 		for t in layout.field:
 			out.append(BurrowLayout.cell_of(t) + d)
+	elif held == Held.HOUSE:
+		return BurrowLayout.house_cells(_house_anchor(cell))
 	elif held != Held.NONE:
 		out.append(cell)
 	return out
@@ -162,7 +167,7 @@ func source_cells() -> Array[Vector2i]:
 			for t in layout.field:
 				out.append(BurrowLayout.cell_of(t))
 		Held.HOUSE:
-			out.append(layout.building)
+			out = BurrowLayout.house_cells(layout.building)
 		Held.THING:
 			var p: Dictionary = layout.placements[held_index]
 			out.append(Vector2i(int(p.x), int(p.y)))
@@ -218,7 +223,7 @@ func _cheap_refusal(c: Vector2i) -> String:
 	var t := BurrowLayout.index(c)
 	match held:
 		Held.THING:
-			if t == layout.entrance or c == layout.building:
+			if t == layout.entrance or BurrowLayout.house_cells(layout.building).has(c):
 				return "occupied"
 			if layout.kind(t) == BurrowLayout.Cell.FIELD:
 				return "occupied"
@@ -226,11 +231,17 @@ func _cheap_refusal(c: Vector2i) -> String:
 			if there >= 0 and there != held_index:
 				return "occupied"
 		Held.HOUSE:
-			# La maison ne change pas les regles : du sol nu, loin du bord.
-			if layout.kind(t) != BurrowLayout.Cell.GROUND or _thing_at(c) >= 0:
+			# La maison ne change pas les regles : quatre cases de sol nu,
+			# aucune au bord de l'eau.
+			var square := BurrowLayout.house_cells(_house_anchor(c))
+			if square.is_empty():
 				return "house_off_ground"
-			if layout.sea_distance(c) < 1:
-				return "house_off_ground"
+			var tier := layout.map.level_at(square[0].x, square[0].y)
+			for q in square:
+				if layout.kind(BurrowLayout.index(q)) != BurrowLayout.Cell.GROUND \
+						or _thing_at(q) >= 0 or layout.sea_distance(q) < 1 \
+						or layout.map.level_at(q.x, q.y) != tier:
+					return "house_off_ground"
 	return ""
 
 
@@ -242,7 +253,7 @@ func _candidate(cell: Vector2i) -> Dictionary:
 			var s := _shift_of(draft) + (cell - held_cell)
 			next["field"] = [s.x, s.y]
 		Held.HOUSE:
-			next["house"] = BurrowLayout.index(cell)
+			next["house"] = BurrowLayout.index(_house_anchor(cell))
 		Held.THING:
 			var bp: Dictionary = base.placements[held_index]
 			var from := BurrowLayout.index(Vector2i(int(bp.x), int(bp.y)))
@@ -268,6 +279,12 @@ func _why_not(cell: Vector2i) -> String:
 		return ""
 	var out: Variant = BurrowLayout.edited(base, next)
 	return out if out is String else ""
+
+
+## La case d'ancrage de la maison si la case tenue tombe sur `cell` : elle
+## garde son ecart a l'ancre, comme le potager.
+func _house_anchor(cell: Vector2i) -> Vector2i:
+	return cell - (held_cell - layout.building)
 
 
 static func _shift_of(edits: Dictionary) -> Vector2i:

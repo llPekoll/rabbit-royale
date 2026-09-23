@@ -1,6 +1,6 @@
 extends Node2D
-## LE BANC DE L'AMENAGEMENT : le vrai terrier (burrow.tscn) en mode
-## amenager, avec sa barre, sans compte ni serveur.
+## LE BANC DE L'AMENAGEMENT : le vrai terrier (burrow.tscn), ou le decor se
+## prend d'un clic et se pose d'un autre (sans mode), sans compte ni serveur.
 ##
 ##   godot --path godot scenes/bench/arrange_bench.tscn -- --shot=a.png --after=2
 ##   ... -- --grab=tree      # un arbre pris : ses cases possibles en bleu
@@ -35,20 +35,26 @@ func _ready() -> void:
 
 	_burrow = preload("res://scenes/burrow.tscn").instantiate()
 	add_child(_burrow)
-	var layer := CanvasLayer.new()
-	layer.layer = 10
-	add_child(layer)
-	var bar := ArrangeBar.new()
-	layer.add_child(bar)
-	_burrow.connect("arrange_changed", func() -> void:
-		bar.show_state(_burrow.call("arrange_state")))
 	DevShot.arm(self)
 
 	await get_tree().create_timer(0.3).timeout
 	if hold:
 		_hold_drag(seed_text)
 		return
-	_burrow.call("set_arranging", true)
+	if "--touch" in OS.get_cmdline_user_args():
+		_touch_drag(seed_text)
+		return
+	if "--view" in OS.get_cmdline_user_args():
+		var props: BurrowProps = _burrow.get("_props")
+		var h: Sprite2D = props.home
+		var par := h.get_parent() as Node2D
+		print("[view] maison parent=%s z_parent=%d z=%d pos=%s modulate=%s texture=%s visible=%s" % [
+			par.name, par.z_index, h.z_index, h.position, h.modulate, h.texture.region if h.texture is AtlasTexture else h.texture, h.is_visible_in_tree()])
+		if "--red" in OS.get_cmdline_user_args(): h.self_modulate = Color(3, 0.2, 0.2)
+		print("[view] ecran ", h.get_global_transform_with_canvas().origin)
+		for c in par.get_children():
+			print("[view]   frere ", c.get_class(), " z=", (c as CanvasItem).z_index if c is CanvasItem else -1)
+		return
 	if grab.is_empty():
 		return
 	await get_tree().create_timer(0.3).timeout
@@ -64,7 +70,7 @@ func _ready() -> void:
 				if p.kind == "tree":
 					cell = Vector2i(int(p.x), int(p.y))
 					break
-	_burrow.call("_arrange_tap", cell)
+	_burrow.call("_decor_tap", cell)
 	if not drop:
 		return
 	await get_tree().create_timer(0.5).timeout
@@ -75,7 +81,7 @@ func _ready() -> void:
 		if best.x < 0 or c.distance_squared_to(cell) > best.distance_squared_to(cell):
 			best = c
 	var before := arrange.layout.field.duplicate()
-	_burrow.call("_arrange_tap", best)
+	_burrow.call("_decor_tap", best)
 	print("[arrange] %s %s -> %s, potager %s -> %s, brouillon %s" % [grab, cell, best,
 		before.slice(0, 3), arrange.layout.field.slice(0, 3), JSON.stringify(arrange.draft)])
 
@@ -90,10 +96,6 @@ func _hold_drag(seed_text: String) -> void:
 		if p.kind == "tree":
 			tree = Vector2i(int(p.x), int(p.y))
 			break
-	_burrow.connect("arrange_changed", func() -> void:
-		var a: BurrowArrange = _burrow.get("_arrange")
-		if a != null:
-			print("[hold] held=%d brouillon=%s" % [a.held, JSON.stringify(a.draft)]))
 	var map: BurrowMap = _burrow.get("_terrain").map
 	var to_screen := func(c: Vector2i) -> Vector2:
 		var board := map.screen_of(c.x, c.y) + Vector2(0, Iso.half_h())
@@ -134,3 +136,46 @@ func _hold_drag(seed_text: String) -> void:
 	up.position = to_screen.call(target)
 	vp.push_input(up)
 	print("[hold] lache sur ", _burrow.call("_cell_at", up.position))
+
+
+## `--touch` : le meme geste AU DOIGT — appui tenu 0,4 s sur un arbre, glisse,
+## leve — sans que le curseur de la machine s'en mele.
+func _touch_drag(seed_text: String) -> void:
+	var layout: BurrowLayout = BurrowLayout.of(seed_text)
+	var tree := Vector2i(-1, -1)
+	for p in layout.placements:
+		if p.kind == "tree":
+			tree = Vector2i(int(p.x), int(p.y))
+			break
+	var map: BurrowMap = _burrow.get("_terrain").map
+	var to_screen := func(c: Vector2i) -> Vector2:
+		return (map.screen_of(c.x, c.y) + Vector2(0, Iso.half_h())) * _burrow.scale.x + _burrow.position
+	var vp := get_viewport()
+	var start: Vector2 = to_screen.call(tree)
+	var down := InputEventScreenTouch.new()
+	down.index = 0
+	down.pressed = true
+	down.position = start
+	vp.push_input(down)
+	await get_tree().create_timer(0.45).timeout
+	var a: BurrowArrange = _burrow.get("_arrange")
+	if a == null:
+		print("[touch] rien de pris")
+		return
+	var target := tree
+	for c in a.targets:
+		if absi(c.x - tree.x) + absi(c.y - tree.y) == 4:
+			target = c
+			break
+	for i in range(1, 6):
+		var d := InputEventScreenDrag.new()
+		d.index = 0
+		d.position = start.lerp(to_screen.call(target), i / 5.0)
+		vp.push_input(d)
+		await get_tree().process_frame
+	var up := InputEventScreenTouch.new()
+	up.index = 0
+	up.pressed = false
+	up.position = to_screen.call(target)
+	vp.push_input(up)
+	print("[touch] leve sur ", target)

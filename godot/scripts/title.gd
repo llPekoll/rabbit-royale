@@ -64,6 +64,13 @@ const WAVE_STEPS := [0.0, 0.14, 0.28]
 @onready var _tip: NinePatchRect = %Tip
 @onready var _tip_text: Label = %TipText
 
+## LA CAROTTE DE L'ATTENTE (ui/carrot_loader.gd), en bas a droite comme en
+## jeu, tant que les portes sont grisees : la reprise de session au
+## lancement, une connexion. Sans elle, un lancement lent montrait des
+## planches mortes et rien d'autre.
+const WAIT_CARROT := 40.0
+var _carrot: CarrotLoader
+
 var _phrase := ""
 var _scale := 1
 var _tip_timer: Timer
@@ -445,6 +452,7 @@ func _say(text: String, bad: bool) -> void:
 
 
 func _busy(value: bool) -> void:
+	_show_carrot(value)
 	# On repasse par _refresh_doors plutot que par un `false` sec : hors
 	# Android la porte du wallet doit RESTER grisee, et la relacher rendrait un
 	# bouton sans rien derriere.
@@ -454,3 +462,19 @@ func _busy(value: bool) -> void:
 		_connect.disabled = true
 	else:
 		_refresh_doors()
+
+
+func _show_carrot(on: bool) -> void:
+	if _carrot == null:
+		_carrot = CarrotLoader.new()
+		_carrot.side = WAIT_CARROT
+		_carrot.visible = false
+		_carrot.top_level = true
+		_carrot.z_index = 100
+		add_child(_carrot)
+	if on and not _carrot.visible:
+		_carrot.restart()
+	_carrot.visible = on
+	if on:
+		var view := get_viewport_rect().size
+		_carrot.global_position = (view - _carrot.size - Vector2(10, 10)).round()

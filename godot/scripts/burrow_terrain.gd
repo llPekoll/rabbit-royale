@@ -432,6 +432,74 @@ func rise_at(cell: Vector2i) -> float:
 	return float(_rise.get(cell, 0.0))
 
 
+## UN VOILE A PLAT, PLIE SUR LA PENTE DE SA CASE.
+##
+## Sur une rampe, la motte est peinte INCLINEE (`sod_texture`, un coin leve
+## d'un palier) : un losange plat pose au centre du bloc glissait sous son
+## rebord haut et recouvrait sa tranche en bas — la case se lisait comme un
+## bloc de verre gris (« des tiles mal dessinees » en posant une bombe,
+## 2026-09-23). Le voile prend donc la MEME deformation que la motte : memes
+## coins, meme `Slopes`.
+##
+## `tex` : une texture centree, en pixels d'ecran — le losange de la case y
+## fait BURROW_TILE_W de large, celui que `Slopes` deforme. Elle est posee au
+## milieu d'une boite de `TILE`, dont le centre est le centre du losange,
+## exactement la ou `mount_veil` pose. Une case plate rend `tex` telle quelle.
+func slope_veil(cell: Vector2i, tex: Texture2D) -> Texture2D:
+	if map == null:
+		return tex
+	var lifts := map.corner_lifts(cell.x, cell.y)
+	var ramp := false
+	for l in lifts:
+		if l != 0:
+			ramp = true
+	if not ramp:
+		return tex
+	# Les coins en pixels d'ECRAN : la motte leve TIER_LIFT pixels peints,
+	# agrandis comme le sol.
+	var px: Array = []
+	for l in lifts:
+		px.append(float(l) * BurrowMap.TIER_LIFT * Iso.BURROW_TILE_W / GROUND_PAINTED_W)
+	var key := "%d:%s" % [tex.get_rid().get_id(), lifts]
+	if _veils.has(key):
+		return _veils[key]
+	# LA FORME DE LA PENTE, PAS SON OMBRE : `Slopes` assombrit chaque facette,
+	# et sur un voile translucide les deux moities teintees differemment se
+	# lisaient comme l'arete d'un cube. Un voile reste une teinte unie — on
+	# garde l'alpha deforme, et la couleur de la texture d'origine (blanche,
+	# teintee par `modulate`).
+	var img := Slopes.ramp_texture(_boxed(tex), px, null, 0, false, false).get_image()
+	img.convert(Image.FORMAT_RGBA8)
+	for y in img.get_height():
+		for x in img.get_width():
+			var a := img.get_pixel(x, y).a
+			if a > 0.0:
+				img.set_pixel(x, y, Color(1, 1, 1, a))
+	var out := ImageTexture.create_from_image(img)
+	_veils[key] = out
+	return out
+
+
+## Une texture de voile au centre d'une boite de `TILE` — le repere de `Slopes`.
+static var _boxes: Dictionary = {}
+## Les voiles plies, par (texture, coins) : une poignee de formes en tout.
+static var _veils: Dictionary = {}
+
+static func _boxed(tex: Texture2D) -> Texture2D:
+	var key := tex.get_rid().get_id()
+	if _boxes.has(key):
+		return _boxes[key]
+	var src := tex.get_image()
+	src.convert(Image.FORMAT_RGBA8)
+	var img := Image.create_empty(TILE, TILE, false, Image.FORMAT_RGBA8)
+	img.fill(Color(1, 1, 1, 0))
+	img.blit_rect(src, Rect2i(Vector2i.ZERO, src.get_size()),
+		Vector2i((TILE - src.get_width()) / 2, (TILE - src.get_height()) / 2))
+	var out := ImageTexture.create_from_image(img)
+	_boxes[key] = out
+	return out
+
+
 ## LA CASE CHANGE DE HAUTEUR : tout ce qui y est monte bouge d'AUTANT — un
 ## ecart, pas une position, pour garder ce que chacun a ajoute a la sienne.
 func set_rise(cell: Vector2i, px: float) -> void:
@@ -519,6 +587,18 @@ func paint_field(cells: Array[Vector2i]) -> void:
 			set_rise(c, TileView.RAISED_RISE)
 		else:
 			bed.free()
+
+
+## LA COUR DE LA MAISON : ses quatre cases en terre (tools/paint_yard_tile.py,
+## le sol des terriers de terre), a la place de l'herbe. La maison ne peint
+## pas de sol : c'est cette cour qui le fait. Pas de motte dessus (burrow.gd).
+const YARD := preload("res://assets/terrain/yard-tile.png")
+
+func paint_yard(cells: Array[Vector2i]) -> void:
+	for c in cells:
+		var ground: Sprite2D = _ground_at.get(c)
+		if ground != null and is_instance_valid(ground):
+			ground.texture = YARD
 
 
 ## CREUSE LE SOL D'UNE CASE : son herbe devient le trou peint

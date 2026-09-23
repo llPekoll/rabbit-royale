@@ -207,16 +207,8 @@ export const en = {
   /* ── Rearranging the burrow (Godot: burrow_arrange.gd) ─────────────────
      ASCII only: the English face is the kit's pixel atlas. */
   arrange: {
-    button: 'ARRANGE',
-    pick: 'Hold and drag a tree, your house or your garden',
-    place: 'Tap a lit tile to put it there',
-    save: 'SAVE',
-    cancel: 'CANCEL',
-    reset: 'RESET',
-    saved: 'Burrow rearranged.',
     planksBack: (n: number) => `${n} fence${n === 1 ? '' : 's'} back in your bag`,
     bombsBack: (n: number) => `${n} bomb${n === 1 ? '' : 's'} back in your bag`,
-    locked: 'A raid is on your burrow. Rearrange once it is over.',
     unsaved: 'Could not save your burrow. Try again in a moment.',
     refused: {
       occupied: 'Something already stands there.',

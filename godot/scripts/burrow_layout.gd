@@ -212,15 +212,13 @@ static func edited(base: BurrowLayout, edits: Dictionary) -> Variant:
 		var ht := int(h)
 		if ht < 0 or ht >= n:
 			return "bad_edits"
-		if out.cells[ht] != Cell.GROUND or taken.has(ht):
+		if not out._roomy(cell_of(ht), taken):
 			return "house_off_ground"
 		out.building = cell_of(ht)
+	elif base.building.x >= 0 and out._roomy(base.building, taken):
+		out.building = base.building
 	else:
-		var bt := index(base.building) if base.building.x >= 0 else -1
-		if bt >= 0 and out.cells[bt] == Cell.GROUND and not taken.has(bt):
-			out.building = base.building
-		else:
-			out._place_building()
+		out._place_building()
 	return out
 
 
@@ -596,11 +594,21 @@ func _place_building() -> void:
 	var door := cell_of(entrance)
 	var best := Vector2i(-1, -1)
 	var best_score := -INF
-	for inland in [BUILDING_INLAND, BUILDING_INLAND - 1]:
+	var standing := {}
+	for p in placements:
+		standing[index(Vector2i(int(p.x), int(p.y)))] = true
+	# QUATRE CASES de sol libre d'abord (la maison est peinte sur 2x2), puis
+	# une seule : un terrier etroit a quand meme sa maison.
+	for pass_ in [[BUILDING_INLAND, true], [BUILDING_INLAND - 1, true],
+			[BUILDING_INLAND, false], [BUILDING_INLAND - 1, false]]:
+		var inland: int = pass_[0]
+		var square: bool = pass_[1]
 		for tile in range(COLS * ROWS):
 			if cells[tile] != Cell.GROUND:
 				continue
 			var c := cell_of(tile)
+			if square and not _roomy(c, standing):
+				continue
 			var to_sea := sea_distance(c)
 			if to_sea < inland:
 				continue
@@ -620,3 +628,29 @@ func _place_building() -> void:
 	if best.x < 0 and not field.is_empty():
 		best = cell_of(field[0])
 	building = best
+
+
+## LES QUATRE CASES DE LA MAISON — la sienne et les trois devant elle
+## (generate.ts `houseFootprint`). Vide si le carre sort du plateau.
+static func house_cells(c: Vector2i) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	if c.x < 0 or c.y < 0 or c.x + 1 >= COLS or c.y + 1 >= ROWS:
+		return out
+	for d in [Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1)]:
+		out.append(c + d)
+	return out
+
+
+## Les quatre cases sont-elles du sol nu, sans rien dessus ?
+func _roomy(c: Vector2i, standing: Dictionary) -> bool:
+	var square := house_cells(c)
+	if square.is_empty():
+		return false
+	# A PLAT : la maison est peinte sur un sol plat, ses quatre cases sur un
+	# meme palier.
+	var tier := map.level_at(c.x, c.y)
+	for q in square:
+		var t := index(q)
+		if cells[t] != Cell.GROUND or standing.has(t) or map.level_at(q.x, q.y) != tier:
+			return false
+	return true
