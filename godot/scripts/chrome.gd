@@ -784,7 +784,8 @@ func _center_dialog() -> void:
 	# debordement, en haut et des deux cotes pour rester centre.
 	var view := get_viewport_rect().size
 	if _dialog.get("fullscreen") == true:
-		var screen := Dialog.screen_rect(view)
+		var want: Vector2 = (_dialog as Dialog).hug_size() if _dialog is Dialog else Vector2.ZERO
+		var screen := Dialog.screen_rect(view, want)
 		_dialog.position = screen.position
 		_dialog.size = screen.size
 		return

@@ -163,7 +163,14 @@ func go_fullscreen() -> void:
 ## La vue entiere, comme minimum : un banc qui pose le dialogue sans le
 ## chrome le voit a sa vraie taille.
 func _fit_screen() -> void:
-	custom_minimum_size = screen_rect(get_viewport_rect().size).size
+	custom_minimum_size = screen_rect(get_viewport_rect().size, hug_size()).size
+
+
+## CE QUE LE CONTENU VEUT, pour un plein ecran qui peut se resserrer : la
+## taille au-dela de laquelle il n'y aurait que du parchemin vide. Zero sur
+## un axe : tout l'ecran (le defaut, la boutique). Le profil la donne.
+func hug_size() -> Vector2:
+	return Vector2.ZERO
 
 
 ## LE PLEIN ECRAN S'ARRETE A UN PORTABLE. Sur un telephone, le panneau prend
@@ -180,12 +187,20 @@ const FULL_MAX := Vector2(1376.0, 768.0)
 const FULL_AIR := Kit.LEAF_EDGE + Kit.EDGE * 2.0
 
 
-static func screen_rect(view: Vector2) -> Rect2:
+##
+## `want` (hug_size) resserre encore chaque axe ou le contenu tient avec
+## l'air du cadre autour : un profil de trois lignes n'occupe plus un bureau
+## entier de parchemin vide (Paul, 2026-09-23).
+static func screen_rect(view: Vector2, want: Vector2 = Vector2.ZERO) -> Rect2:
 	var size := view
-	if view.x > FULL_MAX.x + 2.0 * FULL_AIR:
-		size.x = FULL_MAX.x
-	if view.y > FULL_MAX.y + 2.0 * FULL_AIR:
-		size.y = FULL_MAX.y
+	for i in 2:
+		if view[i] > FULL_MAX[i] + 2.0 * FULL_AIR:
+			size[i] = FULL_MAX[i]
+	# LES DEUX AXES OU AUCUN : resserre sur un seul, le panneau devenait une
+	# bande pleine largeur au cadre coupe sur les cotes (890x400).
+	var air := 2.0 * FULL_AIR
+	if want.x > 0.0 and want.y > 0.0 and want.x + air <= view.x and want.y + air <= view.y:
+		size = size.min(want.ceil())
 	return Rect2(((view - size) * 0.5).floor(), size)
 
 

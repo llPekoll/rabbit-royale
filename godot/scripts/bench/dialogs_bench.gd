@@ -162,7 +162,7 @@ func _only(which: String) -> void:
 func _place(d: Dialog) -> void:
 	var view := get_viewport_rect().size
 	if d.fullscreen:
-		var screen := Dialog.screen_rect(view)
+		var screen := Dialog.screen_rect(view, d.hug_size())
 		d.position = screen.position
 		d.size = screen.size
 		return

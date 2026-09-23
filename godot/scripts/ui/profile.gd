@@ -83,6 +83,11 @@ const WHEN_COL := 40.0
 ## vous etes | votre lapin sur le profil, jours | raids | achats sur
 ## l'historique.
 
+## RESSERRE SUR SON CONTENU des qu'il y a la place (Dialog.hug_size) : sur un
+## bureau le profil etait un grand parchemin vide sous trois lignes. Assez
+## large pour les trois colonnes de l'historique.
+const HUG_W := 860.0
+
 ## Le poids de la colonne des raids face aux deux autres : c'est la seule qui
 ## porte des noms, un fait, une heure et un bouton sur la meme ligne.
 const RAIDS_RATIO := 1.6
@@ -243,6 +248,9 @@ func _show_tab(which: Tab) -> void:
 	# Toute la hauteur visible, pour que le depart tombe au pied du panneau.
 	_page.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_scroll.add_child(_page)
+	# L'onglet change de hauteur : le dialogue se remesure (hug_size).
+	_page.minimum_size_changed.connect(_refit, CONNECT_DEFERRED)
+	_refit.call_deferred()
 	if which == Tab.PROFILE:
 		_build_profile()
 		GameSocket.unwatch_presence()
@@ -250,6 +258,19 @@ func _show_tab(which: Tab) -> void:
 		_build_history()
 		_mark_seen()
 		_follow_raiders()
+
+
+func hug_size() -> Vector2:
+	if _page == null or not is_instance_valid(_page):
+		return Vector2(HUG_W, 0.0)
+	return Vector2(HUG_W, _inset.get_combined_minimum_size().y + _page.get_combined_minimum_size().y)
+
+
+func _refit() -> void:
+	if not is_inside_tree():
+		return
+	_fit_screen()
+	update_minimum_size()
 
 
 func _relabel_tabs() -> void:
