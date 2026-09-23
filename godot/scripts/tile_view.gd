@@ -124,20 +124,24 @@ const Z_HINT := 3
 ## son voile, et rien ne doit passer devant.
 const Z_X := 4
 
-## LE X ROUGE — `Tile.setFlag` du web, trait pour trait : deux traits epais
-## a bord sombre, bouts ronds, ecrases a la proportion du losange (1.5 x 0.75)
-## pour qu'il soit COUCHE sur le sol et non debout dessus. Il doit se lire
-## d'un bout du plateau a l'autre comme « pas la », sur l'herbe comme sur le
-## sable. La premiere version etait une croix de pixels de deux de large : elle
-## se lisait comme un trait de grille.
+## LE X ROUGE — PEINT EN PIXELS (tools/paint_flag_x.py), a la taille de
+## pixel du sol : les traits lisses du web (`Tile.setFlag`) se lisaient comme
+## de l'encre vectorielle posee sur un plateau en pixel art (Paul,
+## 2026-09-23). Memes mesures et memes encres que le web : deux traits epais a
+## bord sombre, COUCHES sur le losange (des lignes iso 2:1) et non debout
+## dessus. Il doit se lire d'un bout du plateau a l'autre comme « pas la », sur
+## l'herbe comme sur le sable. La toute premiere version etait une croix de
+## pixels de deux de large : elle se lisait comme un trait de grille.
 ##
-## Les mesures du web sont en unites de SA tuile (HALF_H = 12) ; celle d'ici a
-## la meme demi-hauteur, donc les chiffres passent tels quels.
+## `X_SQUASH` reste l'echelle du noeud, pour les tampons qui l'animent ; le
+## dessin la defait, l'image etant deja couchee.
+const X_ART := preload("res://assets/fx/flag-x.png")
+## Le centre du X dans l'image, et un pixel peint en pixels du plateau : la
+## motte peint 42 px sur les 44 de la case.
+const X_ART_CENTRE := Vector2(15.0, 8.5)
+const X_ART_SCALE := 44.0 / 42.0
 const X_RED := Color("#ff5a4a")
 const X_EDGE := Color("#3a0d0d")
-const X_REACH := 0.62
-const X_EDGE_WIDTH := 7.0
-const X_RED_WIDTH := 4.0
 const X_SQUASH := Vector2(1.5, 0.75)
 ## L'arrivee (`back.out(3)`, 0,3 s) : le X claque en place.
 const X_POP_SECONDS := 0.3
@@ -1509,7 +1513,6 @@ class FlagMark extends Node2D:
 			queue_redraw()
 
 	func _draw() -> void:
-		var r := Iso.half_h() * X_REACH
 		# L'ONDE, dans le repere de la case : on defait l'ecrasement du X pour
 		# que le losange garde la proportion du sol pendant que le X rebondit.
 		if ring >= 0.0 and scale.x > 0.001 and scale.y > 0.001:
@@ -1521,14 +1524,11 @@ class FlagMark extends Node2D:
 			var a := (1.0 - ring) * 0.9
 			draw_polyline(pts, Color(X_EDGE, a * 0.7), 6.0)
 			draw_polyline(pts, Color(X_RED, a), 3.0)
-		draw_set_transform(Vector2(0, -drop / maxf(scale.y, 0.001)), 0.0, Vector2.ONE)
-		for pass_ in [[X_EDGE_WIDTH, X_EDGE], [X_RED_WIDTH, X_RED]]:
-			var w: float = pass_[0]
-			var c: Color = pass_[1]
-			for seg in [[Vector2(-r, -r), Vector2(r, r)], [Vector2(r, -r), Vector2(-r, r)]]:
-				draw_line(seg[0], seg[1], c, w, true)
-				draw_circle(seg[0], w * 0.5, c, true, -1.0, true)
-				draw_circle(seg[1], w * 0.5, c, true, -1.0, true)
+		# L'image est deja couchee : on defait X_SQUASH, et ce que le tampon
+		# ajoute par-dessus (l'ecrasement a l'impact) s'applique tel quel.
+		var k := Vector2(X_ART_SCALE / X_SQUASH.x, X_ART_SCALE / X_SQUASH.y)
+		draw_set_transform(Vector2(0, -drop / maxf(scale.y, 0.001)), 0.0, k)
+		draw_texture(X_ART, -X_ART_CENTRE)
 
 
 ## LE X TOMBE COMME UN TAMPON : il arrive d'au-dessus, deux fois trop grand,
