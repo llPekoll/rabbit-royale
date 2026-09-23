@@ -327,6 +327,21 @@ func _fit_bay() -> void:
 	_lamp.position = Vector2(floorf((room - _lamp.size.x) * 0.5), floorf(-_bay.size.y * 0.05))
 
 
+## RESSERRE SUR L'ETAL ENTIER des qu'il tient, cadre compris (Dialog.hug_size) :
+## toutes les cartes a l'echelle 1 cote a cote, et la hauteur d'une rangee.
+## Sur un bureau l'etal flottait dans 1376x768 de parchemin. Tant que les
+## cartes ne sont pas posees, ou si l'etal ne tient pas : plein ecran.
+func hug_size() -> Vector2:
+	if _row == null or _inset == null or _row.get_child_count() == 0:
+		return Vector2.ZERO
+	var n := _row.get_child_count()
+	var around := _inset.get_combined_minimum_size()
+	var sides := float(_inset.get_theme_constant("margin_left") + _inset.get_theme_constant("margin_right"))
+	return Vector2(
+		n * CARD_W + (n - 1) * CARD_GAP + 2.0 * SHELF_PAD + sides,
+		around.y + _card_total(1.0) + 2.0 * SIGN_CLEAR)
+
+
 ## LE DIALOGUE MESURE SON CONTENU : le cadre de Dialog est ancre, pas
 ## mesure, et un dialogue sans hauteur donnee s'ecrasait a zero dans un
 ## conteneur (le banc) comme sous le chrome.
@@ -385,6 +400,7 @@ func _rebuild() -> void:
 	# d'echelle il gardait celle des anciennes — les cartes se centraient
 	# trop bas, sous la barre.
 	(func() -> void:
+		refit()
 		_fit_bay()
 		_shelf.scroll_horizontal = keep).call_deferred()
 

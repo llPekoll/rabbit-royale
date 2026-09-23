@@ -42,6 +42,10 @@ extends Dialog
 const SCROLL_W := 760.0
 const LIST_W := 232.0
 const STACK_BELOW := 620.0
+## RESSERRE des qu'il y a la place (Dialog.hug_size) : le rouleau du web,
+## 760 de large, et une hauteur FIXE — calee sur le texte, le dialogue
+## sauterait d'un chapitre a l'autre. La page defile, son bord fond.
+const HUG_H := 520.0
 ## « Frais » = le dernier chapitre ouvert dans les 500 dernieres carottes,
 ## a peu pres une partie au bas de l'echelle (lore-codex.tsx `fresh`). Assez
 ## long pour qu'un joueur qui a creuse puis dormi le voie encore ; assez
@@ -118,6 +122,10 @@ func _ready() -> void:
 	_note_read()
 
 
+func hug_size() -> Vector2:
+	return Vector2(SCROLL_W, HUG_H)
+
+
 func _lifetime() -> float:
 	return float(Home.burrow.get("lifetime", 0))
 
@@ -134,7 +142,7 @@ func _measure() -> void:
 	if fullscreen:
 		# L'ecran entier (jusqu'a un portable), quel que soit le texte : c'est
 		# le chrome qui le pose.
-		room = Dialog.screen_rect(get_viewport_rect().size).size
+		room = Dialog.screen_rect(get_viewport_rect().size, hug_size()).size
 		stacked = room.x < STACK_BELOW
 		custom_minimum_size = room
 	else:

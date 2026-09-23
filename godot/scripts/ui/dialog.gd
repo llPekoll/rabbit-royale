@@ -173,6 +173,15 @@ func hug_size() -> Vector2:
 	return Vector2.ZERO
 
 
+## Ce que le contenu veut a change (un onglet, un etal relu) : le plein ecran
+## se remesure, et le chrome le recentre.
+func refit() -> void:
+	if not fullscreen or not is_inside_tree():
+		return
+	_fit_screen()
+	update_minimum_size()
+
+
 ## LE PLEIN ECRAN S'ARRETE A UN PORTABLE. Sur un telephone, le panneau prend
 ## toute la vue ; sur un bureau a l'echelle 1 (DeskScale), la « vue » d'un
 ## ecran Retina de 15 pouces fait 1728x1052, et la boutique y posait six

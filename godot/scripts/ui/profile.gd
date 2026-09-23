@@ -249,8 +249,8 @@ func _show_tab(which: Tab) -> void:
 	_page.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_scroll.add_child(_page)
 	# L'onglet change de hauteur : le dialogue se remesure (hug_size).
-	_page.minimum_size_changed.connect(_refit, CONNECT_DEFERRED)
-	_refit.call_deferred()
+	_page.minimum_size_changed.connect(refit, CONNECT_DEFERRED)
+	refit.call_deferred()
 	if which == Tab.PROFILE:
 		_build_profile()
 		GameSocket.unwatch_presence()
@@ -265,12 +265,6 @@ func hug_size() -> Vector2:
 		return Vector2(HUG_W, 0.0)
 	return Vector2(HUG_W, _inset.get_combined_minimum_size().y + _page.get_combined_minimum_size().y)
 
-
-func _refit() -> void:
-	if not is_inside_tree():
-		return
-	_fit_screen()
-	update_minimum_size()
 
 
 func _relabel_tabs() -> void:
