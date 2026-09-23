@@ -449,10 +449,12 @@ class ChapterTab extends PanelContainer:
 			tag.add_child(Kit.label(I18N.t("codex.isNew"), 9, NEW_INK))
 			head.add_child(tag)
 		text.add_child(head)
-		# Les accroches tiennent sur une ligne ; le chapitre porte la prose.
+		# L'ACCROCHE PASSE A LA LIGNE, comme le titre : coupee, celle du
+		# premier chapitre se lisait « Why the ground is g... » (Paul,
+		# 2026-09-23). L'etagere couchee n'en a pas : ses onglets sont
+		# le disque seul.
 		var s := Kit.label(sub, 11, Palette.BARK)
-		s.clip_text = true
-		s.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		s.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		s.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		text.add_child(s)
 
