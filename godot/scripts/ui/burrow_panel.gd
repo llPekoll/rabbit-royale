@@ -77,8 +77,7 @@ func refresh() -> void:
 		# Qui se replie, comme la ligne au-dessus : sans ca sa largeur poussait
 		# toute la colonne de texte hors de la carte.
 		var rate := Kit.label(I18N.f("burrow.regenRate", [regen]), size, SUB)
-		rate.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		rate.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		wraps(rate, body.size.x - size - Kit.PAD_TIGHT)
 		row.add_child(rate)
 		body.add_child(row)
 

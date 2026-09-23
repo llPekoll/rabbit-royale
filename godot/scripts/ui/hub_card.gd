@@ -233,6 +233,13 @@ func _hold_content() -> void:
 	var need := ceilf(_inset.get_combined_minimum_size().y)
 	if absf(custom_minimum_size.y - need) > 0.5:
 		custom_minimum_size = Vector2(0, need)
+	# LE CONTENU RETOMBE AVEC ELLE. Ancre sur toute la carte, il grandit
+	# jusqu'a son minimum quand celui-ci gonfle (une ligne mesuree sur 1 px),
+	# mais ne rapetisse pas tant que la carte ne change pas de taille : il
+	# restait a 472 dans une carte de 114, son texte centre sous les cartes
+	# suivantes (Paul, 2026-09-23).
+	if _inset.size.y > size.y + 0.5:
+		(func() -> void: _inset.size = size).call_deferred()
 
 
 ## La hauteur d'une carte a bouton (le jardin) sur cet ecran : la mesure
@@ -376,7 +383,21 @@ func add_sub(text: String, color: Color = SUB) -> Label:
 	if not sub_visible():
 		return null
 	var l := Kit.label(text, card_size(10.5, 8, 11), color)
-	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	wraps(l, body.size.x)
 	body.add_child(l)
 	return l
+
+
+## UNE LIGNE QUI SE REPLIE, dans une carte qui epouse son contenu. Posee
+## avant d'avoir sa largeur (chaque relecture du terrier vide et refait la
+## carte), elle se mesure sur 1 px : 382 de haut, une lettre par ligne. Godot
+## garde ce minimum une fois la largeur venue, et la carte restait geante
+## (Paul, 2026-09-23, en ouvrant le codex). Elle nait donc a la largeur
+## qu'elle aura (`width`, celle de la colonne de texte, qui survit aux
+## relectures), et redemande son minimum a chaque taille.
+static func wraps(label: Label, width: float = 0.0) -> void:
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	if width > 1.0:
+		label.size = Vector2(width, label.size.y)
+	label.resized.connect(label.update_minimum_size)
