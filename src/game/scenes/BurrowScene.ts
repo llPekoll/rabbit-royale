@@ -51,7 +51,7 @@ import { FenceView } from '@/game/burrow/FenceView';
 import type { FenceSeg } from '@/game/burrow/fence';
 import { RABBIT_SCALE } from '@/config/gridConfig';
 import { electrocute } from '../fx/Electrocute';
-import { createBurrowTerrain, type BurrowTerrainView, type BurrowArtPreview } from '@/game/burrow/BurrowTerrain';
+import { createBurrowTerrain, type BurrowTerrainView } from '@/game/burrow/BurrowTerrain';
 import { MEADOW_LOOK } from '@/game/burrow/MeadowLook';
 import {
   homeCam, boardCam, placeCam, panPlaceCam, zoomPlaceCam, clampPlaceCam, type BurrowCam, wallCam } from './burrowCamera';
@@ -399,8 +399,6 @@ export interface BurrowSceneData {
    * blank.
    */
   level?: number | null;
-  /** Optional building art for previews on the real board. */
-  artPreview?: BurrowArtPreview;
   /**
    * Milliseconds of shield left on the OWNER's burrow, or null for none.
    *
@@ -798,7 +796,6 @@ export class BurrowScene implements Scene {
     this.terrain = await createBurrowTerrain(
       this.container, this.data.seed, this.data.level,
       new URLSearchParams(window.location.search).get('terrain') === 'meadow' ? MEADOW_LOOK : undefined,
-      this.data.artPreview,
     );
     // A terrain built fresh knows nothing of a shield that was already up —
     // re-entering the scene, or coming home from a raid, rebuilds the ground.

@@ -47,13 +47,6 @@ import type { Label } from '@/game/ui/textFace';
  */
 const DECO_SCALE = 0.44;
 
-/** Optional art direction preview, supplied by the Storybook harness. */
-export type BurrowArtPreview = (level: number) => {
-  texture: Texture;
-  scale: number;
-  anchorY: number;
-};
-
 /** The shield badge's crest, and how tall it is drawn on the plaque. */
 const SHIELD_ICON_URL = '/assets/ui/icons/shield.webp';
 /**
@@ -127,7 +120,6 @@ export async function createBurrowTerrain(
   seed: string,
   level: number | null | undefined,
   meadowLook?: MeadowLook,
-  artPreview?: BurrowArtPreview,
 ): Promise<BurrowTerrainView> {
   // Issued together, awaited where each is needed — see the same hoist in
   // `createTerrainBackground`. Four independent fetches that used to run one
@@ -227,23 +219,19 @@ export async function createBurrowTerrain(
   // same reason the trees are: a raider standing on a nearer cell has to be
   // able to draw in front of it.
   const home = new Sprite();
-  home.label = 'burrow-building';
   home.anchor.set(0.5, 1);
   container.addChild(home);
 
-  let homeScale = DECO_SCALE;
   const place = (lvl: number | null | undefined) => {
     const b = burrowBuilding(seed, lvl);
-    const preview = artPreview?.(lvl ?? 1);
-    home.texture = preview?.texture ?? Texture.from(b.url);
+    home.texture = Texture.from(b.url);
     home.texture.source.scaleMode = 'nearest';
     home.texture.source.autoGenerateMipmaps = false;
     // Anchored at the art's FOOT, not its box, so it stands on the cell
     // instead of floating over it — the same correction the island's units
     // make.
-    home.anchor.set(0.5, preview?.anchorY ?? b.anchorY);
-    homeScale = preview?.scale ?? DECO_SCALE;
-    home.scale.set(homeScale);
+    home.anchor.set(0.5, b.anchorY);
+    home.scale.set(DECO_SCALE);
 
     // Positioned through the terrain's own projection and then shifted by the
     // view's offset, exactly as the deported deco is: the cell centre is
@@ -267,8 +255,8 @@ export async function createBurrowTerrain(
    */
   const celebrateLevel = () => {
     gsap.killTweensOf(home.scale);
-    home.scale.set(homeScale * 0.8);
-    gsap.to(home.scale, { x: homeScale, y: homeScale, duration: 0.55, ease: 'elastic.out(1, 0.5)' });
+    home.scale.set(DECO_SCALE * 0.8);
+    gsap.to(home.scale, { x: DECO_SCALE, y: DECO_SCALE, duration: 0.55, ease: 'elastic.out(1, 0.5)' });
 
     const foot = { x: home.position.x, y: home.position.y };
     const flash = new Graphics().circle(0, 0, 60).fill({ color: 0xffe9a8, alpha: 0.7 });
@@ -331,7 +319,7 @@ export async function createBurrowTerrain(
   const placeShield = () => {
     // `home` is anchored at the art's foot, so its top is one full drawn
     // height above its own y — that height is what the badge clears.
-    const lift = home.texture.height * homeScale * home.anchor.y + 14;
+    const lift = home.texture.height * DECO_SCALE * home.anchor.y + 14;
     shield.position.set(home.position.x, home.position.y - lift);
   };
 
