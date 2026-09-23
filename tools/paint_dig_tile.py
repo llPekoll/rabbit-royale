@@ -16,10 +16,12 @@ deforme l'herbe.
     retournee, sillons compris. Un carre de jardin sureleve, pas du pre.
   • LES RAMPES : chaque rangee repete ses deux mottes pour les 16 formes de
     rampe (coins nord, est, sud, ouest leves d'un palier ou non, `n*8+e*4+s*2+w`,
-    la forme 0 est le plat) — colonne `forme*2 + motte`. PEINTES LISSES, par un
-    melange bilineaire des quatre coins : la deformation du jeu
-    (`Slopes.ramp_texture`) coupe le losange en deux facettes, et la motte
-    montrait la cassure le long de la diagonale.
+    la forme 0 est le plat) — colonne `forme*2 + motte`. LA FORME EST CELLE DU
+    SOL (`Slopes._facet` : deux facettes, meme diagonale), sinon un coin de
+    rampe se bombait ou se creusait et ses bords ne tombaient plus sur les
+    voisines plates — des pics dans les coins. L'OMBRE, elle, est LISSE (le
+    gradient bilineaire des coins) : c'est le saut d'ombre d'une facette a
+    l'autre qui faisait la cassure.
   • case 1 — INDICEE : la meme motte ENFONCEE (`PRESSED` px), plus claire,
     pour que le chiffre multiplie se lise dessus.
 
@@ -228,11 +230,20 @@ def ramp(src: Image.Image, form: int) -> Image.Image:
         sy = y + 0.5 - c
         return sx / DIAMOND_W + sy / DIAMOND_H + 0.5, sy / DIAMOND_H - sx / DIAMOND_W + 0.5
 
+    # La diagonale dont les bouts s'accordent — la regle de `Slopes`.
+    cut_tb = n == s_ or e != w
+
     def height(u, v):
         # La tranche d'une motte prend la hauteur du bord au-dessus d'elle.
         u = min(1.0, max(0.0, u))
         v = min(1.0, max(0.0, v))
-        return n * (1 - u) * (1 - v) + e * u * (1 - v) + s_ * u * v + w * (1 - u) * v
+        if cut_tb:
+            if u >= v:
+                return n + (e - n) * u + (s_ - e) * v
+            return n + (s_ - w) * u + (w - n) * v
+        if u + v <= 1.0:
+            return n + (e - n) * u + (w - n) * v
+        return s_ + (s_ - w) * (u - 1.0) + (s_ - e) * (v - 1.0)
 
     for Y in range(CELL):
         for X in range(CELL):

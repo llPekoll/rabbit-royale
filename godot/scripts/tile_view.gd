@@ -66,6 +66,24 @@ const RAISED_RISE := 4.2
 ## decoupe a la beche n'est jamais deux fois du meme vert.
 const SOD_LIGHT_SPREAD := 0.06
 const SOD_WARM_SPREAD := 0.035
+
+## LE BROUILLARD SUR LES MOTTES QU'ON N'A PAS APPROCHEES.
+##
+## Tout en mottes, le plateau etait un damier uniforme : « on sait pas ou on
+## doit aller » (Paul, 2026-09-23). Le voile revient donc, mais PAR-DESSUS la
+## motte et plus leger qu'avant (0,4 contre 0,45) : la forme dit « pas encore
+## creuse », le voile dit « pas encore explore ».
+##
+## LE FRONT RESTE CLAIR : une motte qui touche du sol deja lu ou creuse (ses
+## huit voisines) n'a pas de voile. La limite de ce qu'on connait se lit alors
+## d'un coup d'oeil, clair contre sombre, et c'est exactement la ou l'on va.
+const UNEXPLORED_FOG := 0.4
+## Le voile se leve ou tombe en douceur, pas d'un claquement de case en case.
+const FOG_FADE_SECONDS := 0.3
+const NEIGHBOURS: Array[Vector2i] = [
+	Vector2i(-1, -1), Vector2i(0, -1), Vector2i(1, -1), Vector2i(-1, 0),
+	Vector2i(1, 0), Vector2i(-1, 1), Vector2i(0, 1), Vector2i(1, 1),
+]
 enum Look { COVERED, HINTED, DUG }
 ## Ou le dessus de la motte INDICEE se tient au-dessus du sol, en pixels
 ## d'ecran (1 px peint x l'echelle du sol) : le chiffre s'y pose.
@@ -277,6 +295,9 @@ var _look: Dictionary = {}
 ## CE QUI SE TIENT SUR LA MOTTE — le X, le buisson, le coffre : case ->
 ## [[noeud, y au sol], ...]. Ils montent et descendent avec elle.
 var _riders: Dictionary = {}
+## Les mottes sous le brouillard, et les fondus en vol.
+var _fogged: Dictionary = {}
+var _fog_fades: Dictionary = {}
 var _hints: Dictionary = {}
 var _x: Dictionary = {}
 var _chest: Dictionary = {}
@@ -749,6 +770,7 @@ func refresh() -> void:
 					.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 		else:
 			x.visible = false
+	_refresh_fog()
 	_primed = true
 
 
@@ -840,6 +862,48 @@ func _show_look(cell: Vector2i, look: int) -> void:
 		look_changed.emit(cell)
 
 
+## POSE OU LEVE LE BROUILLARD de chaque motte, d'apres ce qui est MONTRE (la
+## vague n'a pas encore lu une case qu'elle n'a pas atteinte).
+func _refresh_fog() -> void:
+	for cell in _fog:
+		var fogged := int(_look.get(cell, Look.COVERED)) == Look.COVERED \
+			and not _touches_open(cell)
+		if _fogged.has(cell) and bool(_fogged[cell]) == fogged:
+			continue
+		_fogged[cell] = fogged
+		var fog: Sprite2D = _fog[cell]
+		var target := sod_tint(cell) * _fog_shade(fogged)
+		var old: Tween = _fog_fades.get(cell)
+		if old != null and old.is_valid():
+			old.kill()
+		if not _primed:
+			fog.modulate = target
+			continue
+		_fog_fades[cell] = create_tween()
+		(_fog_fades[cell] as Tween).tween_property(fog, "modulate", target, FOG_FADE_SECONDS) \
+			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+
+
+## UNE VOISINE EST-ELLE DEJA OUVERTE a l'ecran (lue ou creusee) ?
+func _touches_open(cell: Vector2i) -> bool:
+	for d in NEIGHBOURS:
+		var n := cell + d
+		if _look.has(n) and int(_look[n]) != Look.COVERED:
+			return true
+	return false
+
+
+## LE VOILE D'AVANT, EN MULTIPLICATION : la motte tiree vers `FOG_COLOR` de
+## `UNEXPLORED_FOG`. Un multiply ne peut qu'assombrir, et c'est ce qu'on veut —
+## un sprite de plus par case pour le meme effet couterait 500 dessins.
+static func _fog_shade(fogged: bool) -> Color:
+	if not fogged:
+		return Color.WHITE
+	var k := UNEXPLORED_FOG
+	return Color(1.0 - k + k * FOG_COLOR.r, 1.0 - k + k * FOG_COLOR.g,
+		1.0 - k + k * FOG_COLOR.b)
+
+
 ## DE COMBIEN LE DESSUS D'UNE CASE EST AU-DESSUS DE SON SOL, en pixels
 ## d'ecran : la motte levee, enfoncee, ou rien. Tout ce qui se pose SUR une
 ## case — l'anneau de marche, le X, un coffre — s'y pose a cette hauteur, sinon
@@ -901,6 +965,7 @@ func _land_hint(cell: Vector2i) -> void:
 	if not _fog.has(cell):
 		return
 	_paint(cell)
+	_refresh_fog()
 
 
 ## LE VOILE MONTE ET REDESCEND, le chiffre avec lui — ce sont deux noeuds
@@ -1239,6 +1304,12 @@ func clear() -> void:
 	_looks.clear()
 	_look.clear()
 	_riders.clear()
+	for cell in _fog_fades:
+		var t: Tween = _fog_fades[cell]
+		if t != null and t.is_valid():
+			t.kill()
+	_fog_fades.clear()
+	_fogged.clear()
 	_x.clear()
 	_hints.clear()
 	_dug.clear()
