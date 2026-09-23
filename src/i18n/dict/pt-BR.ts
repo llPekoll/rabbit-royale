@@ -325,6 +325,7 @@ export const ptBR: Dict = {
     upAndRearming: (armed, rearming) => `${armed} DE PÉ - ${rearming} REARMANDO`,
     inGround: (armed, max) => `${armed}/${max} NO CHÃO`,
     openShed: 'Abrir o galpão',
+    backToBurrow: 'Voltar para a toca',
     payWith: 'Pagar com',
     outOfEnergy: 'SEM ENERGIA',
     energySay: (cost, wait) =>

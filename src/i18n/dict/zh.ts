@@ -327,6 +327,7 @@ export const zh: Dict = {
     upAndRearming: (armed, rearming) => `${armed} 个就位 - ${rearming} 个重设中`,
     inGround: (armed, max) => `地下 ${armed}/${max}`,
     openShed: '打开工具棚',
+    backToBurrow: '回兔窝',
     payWith: '支付方式',
     outOfEnergy: '体力耗尽',
     energySay: (cost, wait) => `一次出行消耗 ${cost}。${wait}后会自己回满这么多。也可以现在补满，接着挖。`,

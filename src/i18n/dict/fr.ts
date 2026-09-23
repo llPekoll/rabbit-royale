@@ -321,6 +321,7 @@ export const fr: Dict = {
     upAndRearming: (armed, rearming) => `${armed} EN PLACE - ${rearming} EN RÉARMEMENT`,
     inGround: (armed, max) => `${armed}/${max} EN TERRE`,
     openShed: 'Ouvrir la remise',
+    backToBurrow: 'Rentrer au terrier',
     payWith: 'Payer avec',
     outOfEnergy: 'PLUS D’ÉNERGIE',
     energySay: (cost, wait) =>

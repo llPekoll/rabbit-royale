@@ -37,6 +37,8 @@ const WIDTH := 476.0
 var _state: ShopState
 var _pay: Shop.UsdcPay
 var _rail := "carrots"
+## Sur l'ile a sec : la porte rentre au terrier au lieu d'ouvrir l'etal.
+var _home := Callable()
 
 var _purse_text: Label
 var _count: Label
@@ -66,16 +68,27 @@ func _init() -> void:
 ## `after_buy` : ce qui suit un plein pris. La fin d'une run a sec y met
 ## « on repart creuser » — celui qui paie au bout d'une run veut continuer,
 ## pas se retrouver devant la porte DIG a la presser une seconde fois.
-static func open(rail: String = "carrots", after_buy: Callable = Callable()) -> EnergyPopup:
+##
+## `home` : A SEC SUR L'ILE (island.gd `_end_run`), le dialogue est la fin de
+## la run. Deux sorties seulement : le plein, ou rentrer. La porte vers
+## l'etal devient « Rentrer au terrier », le [x] rentre aussi, et le voile ne
+## ferme plus au clic — un tap a cote laisserait le lapin endormi sur une ile
+## grise, sans rien a presser.
+static func open(rail: String = "carrots", after_buy: Callable = Callable(), home: Callable = Callable()) -> EnergyPopup:
 	var dialog := EnergyPopup.new()
 	dialog._rail = rail
-	dialog.open_shop.connect(func() -> void: Shop.open())
+	dialog._home = home
+	if home.is_valid():
+		dialog.open_shop.connect(home, CONNECT_ONE_SHOT)
+		dialog.close_button.pressed.connect(home, CONNECT_ONE_SHOT)
+	else:
+		dialog.open_shop.connect(func() -> void: Shop.open())
 	if after_buy.is_valid():
 		dialog.bought.connect(after_buy, CONNECT_ONE_SHOT)
 	if Chrome.current != null:
 		var view := Chrome.current.get_viewport_rect().size
 		dialog.custom_minimum_size.x = minf(WIDTH, view.x - 2.0 * Kit.EDGE)
-		Chrome.current.open(dialog)
+		Chrome.current.open(dialog, not home.is_valid())
 	return dialog
 
 
@@ -246,10 +259,11 @@ func _refresh() -> void:
 		status = _state.note
 		bad = _state.refused
 	_status.visible = not status.is_empty()
-	_door.visible = status.is_empty()
+	# Sur l'ile, la porte est la sortie : elle ne cede pas la place au mot.
+	_door.visible = status.is_empty() or _home.is_valid()
 	_status_text.text = status
 	_status_text.add_theme_color_override("font_color", Palette.BAD_ON_WOOD if bad else Palette.LEAF)
-	_door.relabel(I18N.t("shop.openShed"))
+	_door.relabel(I18N.t("shop.backToBurrow" if _home.is_valid() else "shop.openShed"))
 
 
 ## L'attente en mots : « a moment » quand la barre est pleine (null).

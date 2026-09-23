@@ -428,6 +428,7 @@
    "$t": "地下 {0}/{1}"
   },
   "openShed": "打开工具棚",
+  "backToBurrow": "回兔窝",
   "payWith": "支付方式",
   "outOfEnergy": "体力耗尽",
   "energySay": {

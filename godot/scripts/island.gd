@@ -2014,27 +2014,56 @@ func _end_run(result: Dictionary) -> void:
 	else:
 		# A SEC (`exhaustRabbit`) : l'ile ne coule pas — elle n'est pas finie,
 		# c'est le joueur qui n'a plus de quoi y marcher. Il tombe et s'endort
-		# ou il se tient, le monde passe au gris, une ligne dit pourquoi, et
-		# on rentre sous l'iris.
+		# ou il se tient, le monde passe au gris, une ligne dit pourquoi — et
+		# le plein est offert LA, sur l'ile grise (2026-09-23) : payer et
+		# repartir creuser, ou rentrer. Rentrer d'office faisait chercher la
+		# recharge au terrier, et le joueur ne la voyait jamais.
 		_refresh_ring()
 		if _rabbit != null and not _rabbit.is_under():
 			_rabbit.exhaust()
 		Sound.music("gameover")
 		var drain := Drain.start(self, I18N.t("raid.outOfEnergy").to_upper())
+		# La barre du terrier relue pendant que le lapin s'endort : le
+		# dialogue la montre, et celle d'avant la run mentirait. Il suit
+		# `Home.changed`, la reponse peut arriver apres lui.
+		Home.refresh()
 		await get_tree().create_timer(DRY_SECONDS).timeout
 		if not _still_ending():
 			return
 		drain.fade_line()
-		await get_tree().create_timer(0.3).timeout
-		if not _still_ending():
-			return
+		var level := int(result.get("level", 0)) if leveled else 0
+		EnergyPopup.open("carrots", _dig_again.bind(level), _go_home.bind(level))
+		return
+	_go_home(int(result.get("level", 0)) if leveled else 0)
+
+
+## LA RUN EST FINIE, ON RENTRE. `level` > 0 : le lapin a pris un niveau, et
+## le tampon attend le terrier — pose sous l'iris, il ne se verrait pas.
+func _go_home(level: int = 0) -> void:
 	RunState.current.go_home()
 	Screens.cross(Screens.Place.BURROW)
-	if leveled:
-		var level := int(result.get("level", 0))
-		# Le tampon attend le terrier : pose sous l'iris, il ne se verrait pas.
-		Screens.moved.connect(func(_id: Screens.Place) -> void:
-			LevelUpStamp.announce_rabbit(level), CONNECT_ONE_SHOT)
+	_stamp_on_arrival(level)
+
+
+## LE PLEIN PRIS A SEC : une nouvelle run, sans passer par le terrier. Le
+## serveur a deja clos celle-ci (le siege est depense) : c'est un `join`
+## neuf, et l'ile est reconstruite sous le rideau — `cross` ne fait rien
+## vers le lieu ou l'on est deja.
+func _dig_again(level: int = 0) -> void:
+	await Home.refresh()
+	if not is_inside_tree():
+		return
+	RunState.current.go_home()
+	RunState.current.join(null)
+	Screens.curtain(Screens.show_place.bind(Screens.Place.ISLAND))
+	_stamp_on_arrival(level)
+
+
+static func _stamp_on_arrival(level: int) -> void:
+	if level <= 0:
+		return
+	Screens.moved.connect(func(_id: Screens.Place) -> void:
+		LevelUpStamp.announce_rabbit(level), CONNECT_ONE_SHOT)
 
 
 func _still_ending() -> bool:

@@ -410,6 +410,7 @@ export const en = {
     upAndRearming: (armed: number, rearming: number) => `${armed} UP - ${rearming} REARMING`,
     inGround: (armed: number, max: number) => `${armed}/${max} IN THE GROUND`,
     openShed: 'Open the shed',
+    backToBurrow: 'Back to the burrow',
     payWith: 'Pay with',
     outOfEnergy: 'OUT OF ENERGY',
     /* Plain ASCII punctuation only: the pixel face has no em dash and draws
