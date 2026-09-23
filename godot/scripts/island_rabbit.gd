@@ -261,6 +261,84 @@ func knock_to(cell: Vector2i) -> void:
 	_hop = _flight
 
 
+## SUR UNE BOMBE (Paul, 2026-09-23) : trois temps, pas un de plus.
+##
+##   1. IL SAUTE sur la case de la bombe — le pas qu'on a demande ;
+##   2. elle SAUTE quand il pose les pattes (l'ile retarde le feu du meme
+##      `HOP_SECONDS`, `TileView.blast_delay`), et le souffle le RENVOIE en
+##      cloche sur la case d'ou il venait, en tombant a plat (rangee `death`) ;
+##   3. A TERRE, les etoiles une seconde, puis IL SE RELEVE (les deux dernieres
+##      images de `damage` : a plat, debout).
+##
+## `back` est la case ou le serveur le pose (run.ts, `cameFrom`). Elle devient
+## sa case TOUT DE SUITE : l'anneau, le prochain pas et le `rabbit_moved` qui
+## suit la lisent — ce dernier, deja vrai, ne rejoue donc pas de saut.
+const BLAST_FLIGHT := 0.45
+const BLAST_HEIGHT := 26.0
+const DOWN_SECONDS := 1.0
+## Dans `damage` (48-52) : l'image a plat, puis debout.
+const GET_UP_FRAME := 3
+## La hauteur des etoiles au-dessus du lapin couche (debout : 42).
+const STARS_DOWN_PX := 18.0
+
+## Chaque renvoi a son numero : un pas qui interrompt le lapin a terre ne doit
+## pas le voir se relever apres coup.
+var _blast_seq := 0
+
+
+func blast_back(bomb: Vector2i, back: Vector2i) -> void:
+	if _sprite == null:
+		return
+	if _at != bomb:
+		send_to(bomb)
+	_blast_seq += 1
+	var seq := _blast_seq
+	_at = back
+	_home = back
+	if _hop != null and _hop.is_running():
+		_hop.finished.connect(func() -> void: _thrown(bomb, back, seq), CONNECT_ONE_SHOT)
+	else:
+		_thrown(bomb, back, seq)
+
+
+func _thrown(bomb: Vector2i, back: Vector2i, seq: int) -> void:
+	if _sprite == null or seq != _blast_seq:
+		return
+	_hop = null
+	var from := map.screen_of(bomb.x, bomb.y) + Vector2(0, Iso.half_h())
+	var to := map.screen_of(back.x, back.y) + Vector2(0, Iso.half_h())
+	position = from
+	# IL REGARDE LA BOMBE en s'envolant : jete a reculons.
+	if absf(to.x - from.x) > 0.5:
+		_sprite.flip_h = to.x > from.x
+	if _sprite.animation_finished.is_connected(_rest):
+		_sprite.animation_finished.disconnect(_rest)
+	# `death` : debout, touche, il bascule, A PLAT — et y reste (pas de boucle).
+	_sprite.play("death")
+	if _shadow != null:
+		_shadow.visible = false
+	z_index = Z_AIR
+	_flight = _arc(from, to, BLAST_HEIGHT, BLAST_FLIGHT, 0)
+	_hop = _flight
+	_flight.tween_callback(func() -> void:
+		if _shadow != null:
+			_shadow.visible = true
+		_place()
+		stun(int(DOWN_SECONDS * 1000.0))
+		# A PLAT, la tete est au ras du sol : les etoiles de `stun` sont
+		# reglees pour un lapin debout.
+		if _stars != null and is_instance_valid(_stars):
+			_stars.position = Vector2(0, -STARS_DOWN_PX))
+	_flight.tween_interval(DOWN_SECONDS)
+	_flight.tween_callback(func() -> void:
+		if seq != _blast_seq or _sprite == null:
+			return
+		_sprite.play("damage")
+		_sprite.frame = GET_UP_FRAME
+		if not _sprite.animation_finished.is_connected(_rest):
+			_sprite.animation_finished.connect(_rest, CONNECT_ONE_SHOT))
+
+
 ## A L'EAU (Drowning.stories.tsx `throwIntoSea`, puis `surfaceAt`).
 ##
 ## `toward` : la direction de la poussee, en cases — le lapin est jete a

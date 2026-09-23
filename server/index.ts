@@ -1467,6 +1467,9 @@ io.on('connection', (socket: Socket) => {
         io.to(room).emit('bomb_hit', {
           playerId: data.playerId,
           tile: out.dig.knockback.tile,
+          // Where the blast went off — the rabbit hops there first, then is
+          // thrown back to `tile`.
+          bomb: out.dig.tile,
           stunMs: Math.max(0, out.dig.knockback.stunnedUntil - Date.now()),
         });
       }

@@ -96,15 +96,16 @@ func move(to: Vector2i, now: int) -> Dictionary:
 
 	match kind:
 		IslandBoard.Content.BOMB:
-			# LE LAPIN RESTE DANS LE CRATERE : `KNOCKBACK_TILES` n'est plus lu
-			# par le serveur, le vol n'est qu'une animation.
+			# LE SOUFFLE LE RENVOIE D'OU IL VIENT (run.ts, `cameFrom`, depuis
+			# le 2026-09-23) : il saute sur la bombe, elle saute, il retombe sur
+			# sa case de depart.
 			var loss := int(_tune.ENERGY.BOMB_LOSS)
 			energy -= loss
 			dig.energy_delta -= loss
 			stunned_until = now + int(_tune.BOMB.STUN_MS)
 			flag_streak = 0
 			digs.bombs += 1
-			dig.knockback = {"tile": to, "stunned_until": stunned_until}
+			dig.knockback = {"tile": at, "stunned_until": stunned_until}
 		IslandBoard.Content.CARROT, IslandBoard.Content.GOLDEN:
 			var golden := kind == IslandBoard.Content.GOLDEN
 			var gain := int(_tune.ENERGY.GOLDEN_GAIN if golden else _tune.ENERGY.CARROT_GAIN)
@@ -128,9 +129,11 @@ func move(to: Vector2i, now: int) -> Dictionary:
 				nfts += 1
 			else:
 				loot[prize.kind] = int(loot.get(prize.kind, 0)) + int(prize.amount)
-	at = to
+	if not dig.has("knockback"):
+		at = to
 
-	var opened := board.cascade_hints([to])
+	# La cascade part d'ou le lapin S'ARRETE (run.ts `cascadeAround(rabbit.tile)`).
+	var opened := board.cascade_hints([at])
 	if not opened.is_empty():
 		dig.hinted = opened
 	if energy <= 0:

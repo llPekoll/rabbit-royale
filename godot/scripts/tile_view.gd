@@ -283,6 +283,9 @@ const Z_CRATER := 3
 
 var board: IslandBoard
 var terrain: BurrowTerrain
+## LE DELAI DU FEU D'UNE BOMBE, en secondes : le saut du lapin qui l'a
+## creusee (chaque case se creuse en y sautant) ; zero, il saute a la tape.
+var blast_delay := HomeRabbit.HOP_SECONDS
 
 var _fog: Dictionary = {}
 ## Les deux mottes de chaque case (enterree, indicee), deja deformees si la
@@ -995,7 +998,13 @@ func _reveal(cell: Vector2i) -> void:
 		IslandBoard.Content.GOLDEN:
 			_take_carrot(cell, true)
 		IslandBoard.Content.BOMB:
-			_blast(cell)
+			# LE FEU ATTEND QUE LE LAPIN SE POSE sur la case (`blast_back`).
+			if blast_delay > 0.0:
+				get_tree().create_timer(blast_delay).timeout.connect(func() -> void:
+					if is_inside_tree():
+						_blast(cell))
+			else:
+				_blast(cell)
 
 
 ## LA CAROTTE SORT ET SE PREND (`addCarrot` puis `collectCarrot`) : elle monte

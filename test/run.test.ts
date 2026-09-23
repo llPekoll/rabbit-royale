@@ -1,6 +1,6 @@
 /**
  * The rule set. Every number comes from tuning.ts on purpose — these tests
- * assert BEHAVIOUR (walking is free, a bomb leaves you in its crater, the first digger is
+ * assert BEHAVIOUR (walking is free, a bomb throws you back where you came from, the first digger is
  * paid), never a literal, so retuning during a playtest does not turn the suite
  * red for no reason.
  */
@@ -82,9 +82,10 @@ describe('resolveMove', () => {
     expect(rabbit.energy).toBeLessThanOrEqual(ENERGY.MAX);
   });
 
-  it('stuns on a bomb and leaves the rabbit in the crater', () => {
+  it('stuns on a bomb and throws the rabbit back where it came from', () => {
     const island = blank();
     const rabbit = spawnRabbit('p1', 'Test');
+    const start = rabbit.tile;
     const bomb = step();
     island.tiles.get(bomb)!.content = 'bomb';
 
@@ -93,12 +94,14 @@ describe('resolveMove', () => {
     const out = resolveMove(island, rabbit, bomb, shape, rng(), now);
 
     expect(rabbit.energy).toBe(before - ENERGY.DIG_COST - ENERGY.BOMB_LOSS);
-    // The rabbit ENDS UP on the tile it dug — a step that cost a bomb. It
-    // used to be thrown a cell back, which put the crater between the player
-    // and their rabbit and read as a two-cell shove; see `run.ts`.
-    expect(rabbit.tile).toBe(bomb);
+    // The blast throws it back onto the tile it stepped from; the crater is
+    // dug and revealed behind it. See `run.ts`.
+    expect(rabbit.tile).toBe(start);
+    expect(out.tile).toBe(start);
+    expect(island.tiles.get(bomb)!.revealed).toBe(true);
     expect(rabbit.stunnedUntil).toBe(now + BOMB.STUN_MS);
-    expect(out.dig?.knockback?.tile).toBe(rabbit.tile);
+    expect(out.dig?.knockback?.tile).toBe(start);
+    expect(out.dig?.tile).toBe(bomb);
   });
 
   it('ignores input while stunned', () => {

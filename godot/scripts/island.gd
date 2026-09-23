@@ -1044,29 +1044,35 @@ func _on_board_event(name: String, data: Variant) -> void:
 			var who := String(d.get("playerId", ""))
 			var cell := _board.cell_of(int(d.get("tile", -1)))
 			if who == mine:
-				_rabbit.send_to(cell)
-				Sound.play("hop")
+				# DEJA LA : `bomb_hit` arrive AVANT `rabbit_moved` (server/index.ts)
+				# et a deja pose le lapin sur sa case d'arrivee (`blast_back`).
+				# Rejouer un saut couperait le renvoi en plein vol.
+				if cell != _rabbit.at():
+					_rabbit.send_to(cell)
+					Sound.play("hop")
 				_refresh_ring()
 				if _shake == null or not _shake.is_running():
 					_keep_in_view()
 			else:
 				var r: IslandRabbit = _rivals.get(who)
-				if r != null and not r.is_under():
+				if r != null and not r.is_under() and cell != r.at():
 					r.send_to(cell)
 				if who == RunState.current.spectating and (_shake == null or not _shake.is_running()):
 					_keep_in_view()
 		"bomb_hit":
+			# `tile` : ou le souffle le pose (sa case de depart, run.ts
+			# `cameFrom`) ; `bomb` : ou elle a saute. Un serveur d'avant `bomb`
+			# ne l'envoie pas — la bombe est alors sa case, il y retombe.
 			var who := String(d.get("playerId", ""))
 			var r := _rabbit_of(who)
 			if r != null:
-				var cell := _board.cell_of(int(d.get("tile", -1)))
-				var at: Vector2 = _terrain.map.screen_of(cell.x, cell.y) + Vector2(0, Iso.half_h())
-				get_tree().create_timer(0.08).timeout.connect(func() -> void:
-					if is_instance_valid(r):
-						r.take_hit(at)
-						r.stun(int(d.get("stunMs", 0)))
-						if who != mine:
-							r.place_at(cell))
+				var back := _board.cell_of(int(d.get("tile", -1)))
+				var bomb := _board.cell_of(int(d.get("bomb", d.get("tile", -1))))
+				if r.at() != bomb:
+					Sound.play("hop")
+				r.blast_back(bomb, back)
+				if r == _rabbit:
+					_refresh_ring()
 		"rabbit_joined":
 			_add_rival(d, true)
 		"rabbit_left":
@@ -1183,10 +1189,7 @@ func _on_remote_reveal(cell: Vector2i, what: String) -> void:
 		"carrot", "golden":
 			Sound.play("coin")
 		"bomb":
-			Sound.play("explosion")
-			if _scenery != null:
-				_scenery.clear_cell(cell, true)
-			_impact_shake()
+			_bomb_goes_off(cell)
 		"chest":
 			pass
 		_:
@@ -1445,7 +1448,12 @@ func _local_tap(cell: Vector2i) -> void:
 			_ring.pulse()
 			Sound.deny()
 		else:
-			_rabbit.send_to(out.tile)
+			# SUR UNE BOMBE, le souffle le renvoie d'ou il venait : `out.tile`
+			# est deja cette case-la (`LocalRun.move`).
+			if out.has("dig") and int(out.dig.content) == IslandBoard.Content.BOMB:
+				_rabbit.blast_back(out.dig.tile, out.tile)
+			else:
+				_rabbit.send_to(out.tile)
 			Sound.play("hop")
 			if out.has("dig"):
 				_on_local_dig(out.dig)
@@ -1515,19 +1523,27 @@ func _on_local_dig(dig: Dictionary) -> void:
 		IslandBoard.Content.CARROT, IslandBoard.Content.GOLDEN:
 			Sound.play("coin")
 		IslandBoard.Content.BOMB:
-			Sound.play("explosion")
-			# LE SOUFFLE EMPORTE CE QUI SE TENAIT SUR LA CASE — pas un mouton,
-			# qui s'enfuit. (Le trou, le feu et le buisson : `TileView._blast`.)
-			if _scenery != null:
-				_scenery.clear_cell(dig.tile, true)
-			_impact_shake()
-			# LE LAPIN PREND L'ONDE a 80 ms (`AT_KNOCKBACK`), pas au flash.
-			var at: Vector2 = _terrain.map.screen_of(dig.tile.x, dig.tile.y) + Vector2(0, Iso.half_h())
-			get_tree().create_timer(0.08).timeout.connect(func() -> void: _rabbit.take_hit(at))
+			# Le renvoi du lapin : `blast_back`, lance par `_local_tap`.
+			_bomb_goes_off(dig.tile)
 		IslandBoard.Content.CHEST:
 			_show_prize(dig.get("loot", {}))
 		_:
 			Sound.play("step")
+
+
+## LA BOMBE SAUTE QUAND LE LAPIN SE POSE DESSUS, pas quand on tape : le son,
+## ce qui se tenait sur la case, la secousse — le meme `HOP_SECONDS` que le
+## feu de la case (`TileView.blast_delay`).
+func _bomb_goes_off(cell: Vector2i) -> void:
+	get_tree().create_timer(HomeRabbit.HOP_SECONDS).timeout.connect(func() -> void:
+		if not is_inside_tree():
+			return
+		Sound.play("explosion")
+		# LE SOUFFLE EMPORTE CE QUI SE TENAIT SUR LA CASE — pas un mouton, qui
+		# s'enfuit. (Le trou, le feu et le buisson : `TileView._blast`.)
+		if _scenery != null:
+			_scenery.clear_cell(cell, true)
+		_impact_shake())
 
 
 ## LA SECOUSSE D'UNE BOMBE (Blast.ts `impactShake`) : huit coups qui
@@ -1653,7 +1669,12 @@ func _tutorial_tap(cell: Vector2i) -> void:
 
 	var fresh := not _board.is_dug(cell)
 	_mirror_act("move", cell)
-	_rabbit.send_to(cell)
+	# SUR UNE BOMBE, renvoye d'ou il venait — comme le serveur a qui le pas
+	# est rejoue (run.ts `cameFrom`) : sinon le miroir perdrait le lapin.
+	if fresh and _board.content.get(cell) == IslandBoard.Content.BOMB:
+		_rabbit.blast_back(cell, here)
+	else:
+		_rabbit.send_to(cell)
 	Sound.play("hop")
 	if fresh:
 		_tiles.ripple(cell, _board.dig(cell))
@@ -1664,7 +1685,7 @@ func _tutorial_tap(cell: Vector2i) -> void:
 			IslandBoard.Content.CARROT:
 				Sound.play("coin")
 			IslandBoard.Content.BOMB:
-				Sound.play("explosion")
+				_bomb_goes_off(cell)
 			IslandBoard.Content.CHEST:
 				pass
 			_:

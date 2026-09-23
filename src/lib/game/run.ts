@@ -534,25 +534,17 @@ export function resolveMove(
       // A blast costs the energy AND the X streak — see FLAG.
       if (rabbit.run) rabbit.run.flagStreak = 0;
       /**
-       * The rabbit ENDS UP IN THE CRATER — on the tile it dug.
+       * The blast THROWS THE RABBIT BACK onto the tile it stepped from.
        *
-       * It used to be thrown a cell backwards, and the throw is still what is
-       * animated; only the cell it comes to rest on has changed. Two reasons
-       * the old landing read wrong:
-       *
-       *   - the player taps a tile and the rabbit finishes somewhere else, so
-       *     the board after the blast does not match the move they made. With
-       *     the bomb tile between them and where they stood, the blast looked
-       *     like it had moved them TWO cells.
-       *   - the crater is the thing that just happened, and nobody was
-       *     standing in it. The scorch read as scenery rather than as the hole
-       *     the rabbit is sitting in.
-       *
-       * A step, in other words, that costs a bomb — which is what the player
-       * actually did. The energy, the stun and the lost X streak are the
-       * price; the displacement was a third punishment nobody asked for.
+       * It lands where it came from (`cameFrom`, set above for this move), not
+       * in the crater. Decided 2026-09-23, reversing the "ends up in the
+       * crater" rule: the animation reads as hop onto the bomb, blast, thrown
+       * back to where you stood, one second of stars, back up — and the board
+       * has to agree with that picture, or the ring lights around a rabbit
+       * that is not there. A tile it came from is walkable and, the mover
+       * having just left it, free.
        */
-      const landing = to;
+      const landing = rabbit.cameFrom ?? to;
       rabbit.tile = landing;
       dig.knockback = { tile: landing, stunnedUntil: rabbit.stunnedUntil };
       if (tile.plantedBy) dig.plantedBy = tile.plantedBy;

@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+; Le banc du saut sur une bombe — voir scripts/bench/bomb_hop_bench.gd.
+
+[ext_resource type="Script" path="res://scripts/bench/bomb_hop_bench.gd" id="1_bench"]
+
+[node name="BombHopBench" type="Node2D"]
+script = ExtResource("1_bench")
