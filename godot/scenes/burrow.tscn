@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 ; LE TERRIER. L'un des deux lieux residents — construit une fois, jamais
 ; libere, montre ou cache (voir screens.gd).
@@ -13,6 +13,7 @@
 [ext_resource type="Script" path="res://scripts/placement_hints.gd" id="5_hints"]
 [ext_resource type="Script" path="res://scripts/home_rabbit.gd" id="6_rabbit"]
 [ext_resource type="PackedScene" path="res://scenes/ocean.tscn" id="7_ocean"]
+[ext_resource type="Script" path="res://scripts/sky_light.gd" id="8_sky"]
 
 [node name="Burrow" type="Node2D"]
 script = ExtResource("1_burrow")
@@ -57,3 +58,12 @@ script = ExtResource("5_hints")
 [node name="Rabbit" type="Node2D" parent="."]
 unique_name_in_owner = true
 script = ExtResource("6_rabbit")
+
+; LE CIEL, comme sur l'ile — ombres de nuages et rais. Partout ou l'ile est a
+; l'ecran, le ciel y est aussi : terrier, raid (le meme plateau), ile. ENFANT
+; DU TERRIER pour la meme raison que la-bas : une ombre est posee sur le
+; terrain et glisse avec lui quand on cadre. Rais a 3500 : SOUS la fleche du
+; raid (4000), qui doit rester lisible.
+[node name="Sky" type="Node2D" parent="."]
+unique_name_in_owner = true
+script = ExtResource("8_sky")

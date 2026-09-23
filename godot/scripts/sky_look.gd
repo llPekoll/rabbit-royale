@@ -154,12 +154,20 @@ const SKY := {
 	"shade_alpha": 0.49,
 
 	# ── LES RAIS ────────────────────────────────────────────────────────────
-	## La source, en coordonnees d'ecran normalisees. HORS-CHAMP : le soleil
-	## est derriere le bord haut, et un rai part de plus loin que le cadre.
-	"source": Vector2(0.60, 0.20),
+	## La source, en coordonnees d'ecran normalisees. HORS-CHAMP, EN HAUT A
+	## DROITE : le soleil est derriere le coin, et les rais traversent tout
+	## l'ecran en diagonale. A (0,60, 0,20) la source tombait DANS le cadre,
+	## au milieu du ciel : l'eventail s'ouvrait depuis le centre de l'ecran
+	## (capture de Paul, 2026-09-23).
+	##
+	## Y A -0,10 ET NON -0,35 : plus le soleil est BAS, plus les rais sont
+	## RASANTS. A -0,35 ils plongeaient ; Paul les voulait « plus vers
+	## l'horizon ». X recule a 1,35 pour que la source reste bien hors champ.
+	"source": Vector2(1.35, -0.10),
 	## L'etalement du bruit LE LONG du rai. Sans lui, des chapelets de bulles
 	## dans le faisceau au lieu d'une colonne.
-	"softness": 5.3,
+	## 8,0 (le max du shader) : des colonnes longues, pas des taches.
+	"softness": 8.0,
 	## Le blanc chaud de la lumiere. Le rendu est ADDITIF : de la lumiere
 	## s'ajoute a ce qu'elle traverse, donc l'herbe reste verte sous le rai,
 	## juste plus claire. Un blanc en alpha-blend delaverait l'ile en gris.
@@ -175,8 +183,11 @@ const SKY := {
 	## un cadre ou l'ile occupe moins de place, et le rendu additif porte donc
 	## sur proportionnellement moins de terrain.
 	"ray_strength": 0.20,
-	## Jusqu'ou le rai porte, en hauteurs de plan.
-	"ray_reach": 0.90,
+	## Jusqu'ou le rai porte, en hauteurs de plan. SE REGLE AVEC `source` :
+	## depuis (1,35, -0,10) le coin bas-gauche est a ~3,0 hauteurs (aspect
+	## compris). A 5,5 le rai y arrive encore a ~45 %, a mi-ecran a ~73 % :
+	## il traverse tout l'ecran au lieu de s'eteindre a mi-chemin.
+	"ray_reach": 5.5,
 
 	# ── LES POUSSIERES DANS L'AIR ───────────────────────────────────────────
 	## Elles ne sont pas un systeme a part : le shader des rais les MULTIPLIE
