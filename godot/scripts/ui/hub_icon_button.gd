@@ -217,10 +217,14 @@ func _place() -> void:
 	_chip.size = Vector2(w, _chip.get_combined_minimum_size().y)
 	_chip.position = Vector2(round((sq.x - w) * 0.5), CHIP_OVER)
 
-	_news_label.reset_size()
 	var nw := maxf(NEWS_H, _news_label.get_combined_minimum_size().x + 2.0 * 6.0)
 	_news.size = Vector2(nw, NEWS_H)
 	_news.position = Vector2(round((sq.x - nw) * 0.5), NEWS_OVER)
+	# LE MOT REMPLIT LA PASTILLE pour s'y centrer. Un `reset_size` pour le
+	# mesurer le ramenait a sa taille minimale, cale en haut a gauche :
+	# « NEW » depassait du haut de la pastille (Paul, 2026-09-23).
+	_news_label.position = Vector2.ZERO
+	_news_label.size = _news.size
 	_relook()
 
 
