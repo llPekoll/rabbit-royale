@@ -27,6 +27,9 @@ extends Dialog
 ## Le joueur veut le reste de la boutique.
 signal open_shop
 
+## Le plein est pris (carottes ou argent), apres la fermeture du dialogue.
+signal bought
+
 ## La largeur du web : 476, pour que le titre bitmap, la bourse et le [x]
 ## partagent une ligne dans le cadre a feuilles.
 const WIDTH := 476.0
@@ -59,10 +62,16 @@ func _init() -> void:
 ## tarifer dans le rail que le paiement utilise. Par defaut la porte vers
 ## l'etal ouvre `Shop.open()` ; `open_shop` reste a ecouter pour qui veut
 ## autre chose.
-static func open(rail: String = "carrots") -> EnergyPopup:
+##
+## `after_buy` : ce qui suit un plein pris. La fin d'une run a sec y met
+## « on repart creuser » — celui qui paie au bout d'une run veut continuer,
+## pas se retrouver devant la porte DIG a la presser une seconde fois.
+static func open(rail: String = "carrots", after_buy: Callable = Callable()) -> EnergyPopup:
 	var dialog := EnergyPopup.new()
 	dialog._rail = rail
 	dialog.open_shop.connect(func() -> void: Shop.open())
+	if after_buy.is_valid():
+		dialog.bought.connect(after_buy, CONNECT_ONE_SHOT)
 	if Chrome.current != null:
 		var view := Chrome.current.get_viewport_rect().size
 		dialog.custom_minimum_size.x = minf(WIDTH, view.x - 2.0 * Kit.EDGE)
@@ -271,10 +280,15 @@ func _on_buy() -> void:
 	var res := await _state.buy("energy")
 	if not res.is_empty():
 		closed.emit()
+		bought.emit()
 
 
 func _on_pay_money() -> void:
-	await _pay.pay("energy", 1, _rail)
+	var res := await _pay.pay("energy", 1, _rail)
 	if not _pay.error.is_empty():
 		_state.noted.emit(_pay.error, true)
+	if not res.is_empty():
+		closed.emit()
+		bought.emit()
+		return
 	_refresh()

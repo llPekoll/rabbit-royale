@@ -129,7 +129,7 @@ func _mount() -> void:
 		RunState.current.go_home()
 		if Screens.place == Screens.Place.ISLAND:
 			Screens.cross(Screens.Place.BURROW))
-	hud.open_shop.connect(func() -> void: Shop.open())
+	hud.refill.connect(_refill_after_run)
 	_wire_run(bar)
 
 	# Ce que la boutique et le raid repondent passe en pastille, comme Home.
@@ -381,6 +381,31 @@ func _dig() -> void:
 			return
 	RunState.current.join(null)
 	Screens.cross(Screens.Place.ISLAND)
+
+
+## A SEC EN PLEINE RUN : le recap « GET MORE ENERGY » propose le plein, en
+## carottes ou en argent (EnergyPopup), pas l'etal entier — sept etageres
+## devant « je veux continuer a creuser » font perdre le fil. On rentre
+## d'abord (le lapin est mort, l'ile n'a plus de place pour lui : meme chemin
+## que le refus `no_energy`, island.gd), le dialogue s'ouvre au terrier, et un
+## plein pris renvoie tout de suite creuser. Ferme sans acheter : on reste au
+## terrier, qui dit l'attente.
+func _refill_after_run() -> void:
+	RunState.current.go_home()
+	if Screens.place == Screens.Place.ISLAND:
+		Screens.moved.connect(func(_id: Screens.Place) -> void:
+			_offer_refill(), CONNECT_ONE_SHOT)
+		Screens.cross(Screens.Place.BURROW)
+	else:
+		_offer_refill()
+
+
+func _offer_refill() -> void:
+	EnergyPopup.open("carrots", func() -> void:
+		# Le terrier relu AVANT la porte : `_dig` compare la barre au prix
+		# de la traversee, et une barre d'avant l'achat rouvrirait ce dialogue.
+		await Home.refresh()
+		_dig())
 
 
 ## UN RAID SUR NOTRE TERRIER commence ou finit (burrow.gd). La grille monte

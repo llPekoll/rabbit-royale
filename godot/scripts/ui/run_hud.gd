@@ -41,7 +41,7 @@ extends Control
 ##     tient jusqu'au premier pas ; une bande qui se remplit de tout ce que
 ##     l'ile a dit n'est plus lue.
 
-signal open_shop
+signal refill
 signal go_home
 
 ## Sur le banc : visible quel que soit le lieu.
@@ -458,7 +458,7 @@ func _on_recap(recap: Dictionary) -> void:
 	var state := RunState.current
 	_card = RECAP_SCENE.instantiate() as RunRecap
 	_card.show_recap(recap, state.first_run, state.bank, state.record)
-	_card.open_shop.connect(func() -> void: open_shop.emit())
+	_card.refill.connect(func() -> void: refill.emit())
 	_card.go_home.connect(func() -> void: go_home.emit())
 	Chrome.current.open(_card, false)
 

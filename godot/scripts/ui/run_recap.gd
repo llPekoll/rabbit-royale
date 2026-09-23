@@ -32,7 +32,7 @@ extends Dialog
 ##     NOUVELLE de la run et garde l'or ; la banque est une lecture et prend
 ##     l'encre ordinaire ; le raid est un feu vert.
 
-signal open_shop
+signal refill
 signal go_home
 
 const AUTO_HOME_SECONDS := 6
@@ -85,7 +85,7 @@ func _ready() -> void:
 	_shop = Kit.button("", "gold", 0.0, 44.0)
 	_shop.pressed.connect(func() -> void:
 		_shop.wiggle()
-		open_shop.emit())
+		refill.emit())
 	actions.add_child(_shop)
 	_home = Kit.button("", "wood", 0.0, 44.0)
 	_home.pressed.connect(_on_home)
