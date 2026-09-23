@@ -149,6 +149,7 @@ func _ready() -> void:
 	_list = Kit.vbox(0)
 	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_scroll.add_child(_list)
+	ScrollFade.attach(_scroll)
 	# LE PODIUM SUIT LA LARGEUR DE LA LISTE (PODIUM_MIN_PANEL, 260) : le
 	# panneau du coin fait 231px sur le Seeker, et les faces n'y tiennent pas.
 	# Mesuree a l'arrivee, pas supposee : on reconstruit quand elle change.

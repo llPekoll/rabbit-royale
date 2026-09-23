@@ -236,6 +236,8 @@ func _build() -> void:
 	_shelf.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	_shelf.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_shelf.mouse_default_cursor_shape = Control.CURSOR_DRAG
+	# Les cartes cachees derriere un bord : le bord fond (ScrollFade).
+	ScrollFade.attach(_shelf)
 	# DES CARTES ENTIERES, comme le web : l'etagere se centre a la largeur
 	# d'un nombre entier de cartes. Pleine largeur, elle laissait depasser le
 	# bord d'une sixieme carte au Seeker. Dans une boite SANS minimum, posee a

@@ -220,6 +220,7 @@ func _rebuild() -> void:
 	_list = Kit.hbox(6) if _stacked else Kit.vbox(2)
 	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	shelf.add_child(_list)
+	ScrollFade.attach(shelf)
 	if _stacked:
 		shelf.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	else:
@@ -247,6 +248,7 @@ func _rebuild() -> void:
 	_page = Kit.vbox(0)
 	_page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_page_scroll.add_child(_page)
+	ScrollFade.attach(_page_scroll)
 	_page.resized.connect(func() -> void: _fit_height.call_deferred())
 	_body.add_child(_page_scroll)
 

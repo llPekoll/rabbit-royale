@@ -78,6 +78,7 @@ func _ready() -> void:
 	_rows = Kit.vbox(Kit.PAD_TIGHT)
 	_rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_scroll.add_child(_rows)
+	ScrollFade.attach(_scroll)
 
 	# LE PIED S'ARRETE OU LES LIGNES S'ARRETENT. Quand la liste defile, sa
 	# barre prend une bande a droite des lignes ; le pied, lui, allait

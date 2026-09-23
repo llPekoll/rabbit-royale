@@ -170,6 +170,7 @@ func _ready() -> void:
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body.add_child(_scroll)
+	ScrollFade.attach(_scroll)
 
 	I18N.locale_changed.connect(_on_locale_changed)
 	Session.failed.connect(_on_session_failed)
