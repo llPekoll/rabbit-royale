@@ -943,8 +943,13 @@ func _on_board_event(name: String, data: Variant) -> void:
 			_on_remote_reveal(c, what)
 			_refresh_ring()
 		"hints_revealed":
+			var opened: Array[Vector2i] = []
 			for h in d.get("tiles", []):
-				_board.hint_remote(int(h.get("tile", -1)), int(h.get("adjacent", 0)))
+				opened.append(_board.hint_remote(int(h.get("tile", -1)), int(h.get("adjacent", 0))))
+			# LA VAGUE part de la case d'ou la zone s'est ouverte ; sans `from`
+			# (un vieux serveur), la zone s'ouvre a plat comme avant.
+			if d.has("from"):
+				_tiles.ripple(_board.cell_of(int(d["from"])), opened)
 			_tiles.refresh()
 			_refresh_ring()
 		"bomb_flagged":
@@ -1342,6 +1347,8 @@ func _local_tap(cell: Vector2i) -> void:
 			Sound.play("chime_quick")
 		else:
 			Sound.deny()
+			if out.ok:
+				_tiles.ripple(out.tile, out.flag.get("hinted", []))
 	else:
 		out = local_run.move(cell, now)
 		if not out.ok:
@@ -1353,6 +1360,9 @@ func _local_tap(cell: Vector2i) -> void:
 			Sound.play("hop")
 			if out.has("dig"):
 				_on_local_dig(out.dig)
+				_tiles.ripple(out.dig.tile, out.dig.get("hinted", []))
+			else:
+				_tiles.ripple(out.tile, out.get("hinted", []))
 	_tiles.refresh()
 	_refresh_ring()
 	if out.ok and (_shake == null or not _shake.is_running()):
@@ -1507,7 +1517,7 @@ func _tutorial_tap(cell: Vector2i) -> void:
 	_rabbit.send_to(cell)
 	Sound.play("hop")
 	if fresh:
-		_board.dig(cell)
+		_tiles.ripple(cell, _board.dig(cell))
 		_digs += 1
 		# CE QUE LA CASE CACHAIT S'ENTEND (IslandScene `reveal`) : la carotte
 		# tinte, la bombe saute, le vide fait un pas.

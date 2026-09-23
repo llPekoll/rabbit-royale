@@ -292,13 +292,14 @@ func recompute_adjacent() -> void:
 ## LES CASES OUVERTES PAR LA CASCADE SONT `HINTED`, PAS `DUG`, et la distinction
 ## porte tout le jeu : elles montrent leur chiffre mais restent a creuser. C'est
 ## le cadeau du demineur — on sait ce qu'il y a autour sans avoir paye le pas.
-func dig(cell: Vector2i) -> void:
+## Rend ce que la cascade a ouvert, pour la vague.
+func dig(cell: Vector2i) -> Array[Vector2i]:
 	if not content.has(cell):
-		return
+		return []
 	if state.get(cell) == State.DUG:
-		return
+		return []
 	state[cell] = State.DUG
-	cascade_hints([cell])
+	return cascade_hints([cell])
 
 
 ## LA CASCADE DU DEMINEUR, sans la pelle (island.ts `cascadeHints`).
@@ -887,8 +888,9 @@ func reveal_remote(index: int, what: String, count: int) -> Vector2i:
 
 
 ## `hints_revealed` : un chiffre sur une case encore enterree.
-func hint_remote(index: int, count: int) -> void:
+func hint_remote(index: int, count: int) -> Vector2i:
 	var c := cell_of(index)
 	adjacent[c] = count
 	if state.get(c) != State.DUG:
 		state[c] = State.HINTED
+	return c

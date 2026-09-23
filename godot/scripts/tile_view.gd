@@ -322,6 +322,7 @@ func build() -> void:
 			Vector2(-Iso.half_w(), Iso.half_h()) / Iso.half_w(),
 			holder.position)
 		_hints[cell] = glyph
+		_rest_y[cell] = Vector2(fog.position.y, holder.position.y)
 
 		# LE COFFRE, visible des la premiere image — « il le voit et choisit d'y
 		# aller ». Au-dessus du voile : la boite n'est pas enterree, elle attend.
@@ -644,22 +645,15 @@ func refresh() -> void:
 	if board == null:
 		return
 	for cell in _fog:
-		var fog: Sprite2D = _fog[cell]
 		var st = board.state.get(cell)
-		if st == IslandBoard.State.DUG:
-			fog.modulate.a = 0.0
-		elif st == IslandBoard.State.HINTED:
-			fog.modulate.a = FOG_ALPHA * HINTED_SHARE
+		# UNE CASE QUE LA VAGUE N'A PAS ENCORE ATTEINTE garde son voile plein et
+		# son chiffre cache : l'etat a tourne, le dessin attend le front
+		# (`ripple`). Creusee entre-temps, elle ne l'attend plus.
+		if _ripple_draw.has(cell) and st != IslandBoard.State.DUG:
+			(_fog[cell] as Sprite2D).modulate.a = FOG_ALPHA
+			(_hints[cell] as Sprite2D).visible = false
 		else:
-			fog.modulate.a = FOG_ALPHA
-
-		var glyph: Sprite2D = _hints[cell]
-		if board.shows_number(cell):
-			var n: int = board.adjacent[cell]
-			glyph.texture = _digit_texture(n)
-			glyph.visible = true
-		else:
-			glyph.visible = false
+			_paint(cell)
 
 		var opened: bool = st == IslandBoard.State.DUG and not _dug.has(cell)
 		if opened:
@@ -703,6 +697,127 @@ func refresh() -> void:
 		else:
 			x.visible = false
 	_primed = true
+
+
+## LE VOILE ET LE CHIFFRE d'une case, tels que le plateau les tient.
+func _paint(cell: Vector2i) -> void:
+	var fog: Sprite2D = _fog[cell]
+	var st = board.state.get(cell)
+	if st == IslandBoard.State.DUG:
+		fog.modulate.a = 0.0
+	elif st == IslandBoard.State.HINTED:
+		fog.modulate.a = FOG_ALPHA * HINTED_SHARE
+	else:
+		fog.modulate.a = FOG_ALPHA
+
+	var glyph: Sprite2D = _hints[cell]
+	if board.shows_number(cell):
+		var n: int = board.adjacent[cell]
+		glyph.texture = _digit_texture(n)
+		glyph.visible = true
+	else:
+		glyph.visible = false
+
+
+# ── La vague d'une zone qui s'ouvre (IslandScene.ts `openZone`) ──────────────
+
+## Le voile d'une case indicee s'efface en 0,25 s (Tile.ts `revealHint`).
+const RIPPLE_FADE_SECONDS := 0.25
+## Ou le voile et le chiffre se reposent, lus apres `mount_veil` qui les pose.
+var _rest_y: Dictionary = {}
+## Les dessins que le front n'a pas encore atteints, par case.
+var _ripple_draw: Dictionary = {}
+## Les levees en vol, par case.
+var _ripple_lift: Dictionary = {}
+
+
+## UNE ZONE VIENT DE S'OUVRIR : ses chiffres arrivent dans l'ordre de la
+## distance a `from`, et le VOILE de chaque case se souleve et retombe au
+## passage du front — jamais le terrain. « la c'est instant ca serait bien que
+## ca fasse comme une wave » (Paul).
+##
+## A appeler AVANT `refresh`, avec l'etat deja tourne : le plateau sait tout
+## de suite que ces cases sont connues (l'anneau, le mode X), seul le dessin
+## attend. Pas pour un instantane de reconnexion : un sol ouvert avant qu'on
+## arrive n'est pas une nouvelle.
+func ripple(from: Vector2i, cells: Array) -> void:
+	var tune: Dictionary = IslandBoard._tuning().RIPPLE
+	var fresh: Array[Vector2i] = []
+	var far := 0.0
+	for c in cells:
+		var cell: Vector2i = c
+		if not _fog.has(cell):
+			continue
+		fresh.append(cell)
+		far = maxf(far, Vector2(cell - from).length())
+	# UNE ZONE D'UNE CASE n'a pas de front a faire courir : elle s'ouvre a plat.
+	if fresh.is_empty() or not (far > 0.0):
+		return
+	var per_step: float = float(tune.PER_STEP)
+	var cap: float = float(tune.MAX_DELAY)
+	var scale := cap / (far * per_step) if far * per_step > cap else 1.0
+	for cell in fresh:
+		var delay: float = Vector2(cell - from).length() * per_step * scale
+		# LE CHIFFRE est l'affaire de sa case : une zone qui en chevauche une
+		# autre ne recoupe pas un dessin deja en attente.
+		if not _ripple_draw.has(cell) and board.state.get(cell) != IslandBoard.State.DUG \
+				and _still_fogged(cell):
+			var draw := create_tween()
+			draw.tween_interval(delay)
+			draw.tween_callback(_land_hint.bind(cell))
+			_ripple_draw[cell] = draw
+		_lift(cell, delay, float(tune.HEIGHT), float(tune.TIME))
+
+
+## LE VOILE EST-IL ENCORE PLEIN a l'ecran ? L'alpha d'une `Color` est un
+## float 32 bits : 0,45 s'y relit un poil en dessous, d'ou la marge.
+func _still_fogged(cell: Vector2i) -> bool:
+	return (_fog[cell] as Sprite2D).modulate.a > FOG_ALPHA * (1.0 + HINTED_SHARE) * 0.5
+
+
+## Le front atteint la case : le voile s'amincit, le chiffre sort.
+func _land_hint(cell: Vector2i) -> void:
+	_ripple_draw.erase(cell)
+	if not _fog.has(cell):
+		return
+	var fog: Sprite2D = _fog[cell]
+	var shown := fog.modulate.a
+	_paint(cell)
+	var target := fog.modulate.a
+	fog.modulate.a = shown
+	create_tween().tween_property(fog, "modulate:a", target, RIPPLE_FADE_SECONDS) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+
+
+## LE VOILE MONTE ET REDESCEND, le chiffre avec lui — ce sont deux noeuds
+## freres et rien d'autre ne les tient ensemble. Une levee deja en vol sur la
+## case est coupee : deux zones qui se chevauchent ne l'envoient pas deux fois
+## plus haut.
+func _lift(cell: Vector2i, delay: float, height: float, seconds: float) -> void:
+	_stop_lift(cell)
+	var tw := create_tween()
+	tw.tween_interval(delay)
+	tw.tween_method(func(t: float) -> void: _set_lift(cell, height * sin(PI * t)), 0.0, 1.0, seconds)
+	tw.tween_callback(_stop_lift.bind(cell))
+	_ripple_lift[cell] = tw
+
+
+func _set_lift(cell: Vector2i, lift: float) -> void:
+	if not _rest_y.has(cell):
+		return
+	var rest: Vector2 = _rest_y[cell]
+	(_fog[cell] as Node2D).position.y = rest.x - lift
+	((_hints[cell] as Node2D).get_parent() as Node2D).position.y = rest.y - lift
+
+
+## Pose la case EXACTEMENT sur sa grille : un voile laisse a un centieme de
+## pixel a quitte la grille, et les vagues s'additionnent.
+func _stop_lift(cell: Vector2i) -> void:
+	var tw: Tween = _ripple_lift.get(cell)
+	if tw != null and tw.is_valid():
+		tw.kill()
+	_ripple_lift.erase(cell)
+	_set_lift(cell, 0.0)
 
 
 ## CE QUE LA CASE CACHAIT, au moment ou elle s'ouvre.
@@ -965,6 +1080,13 @@ func _stop_pulse() -> void:
 
 func clear() -> void:
 	_stop_pulse()
+	for cell in _ripple_lift.keys():
+		_stop_lift(cell)
+	for t in _ripple_draw.values():
+		if t != null and (t as Tween).is_valid():
+			(t as Tween).kill()
+	_ripple_draw.clear()
+	_rest_y.clear()
 	for t in _bobs:
 		if t != null and t.is_valid():
 			t.kill()
