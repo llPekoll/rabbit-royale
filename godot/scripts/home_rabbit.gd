@@ -112,6 +112,7 @@ var map: BurrowMap
 var roam := true
 
 var _sprite: AnimatedSprite2D
+var _shadow: RabbitShadow
 var _at: Vector2i
 var _home: Vector2i
 var _rng := RandomNumberGenerator.new()
@@ -140,6 +141,12 @@ func build(seed_value: int, start: Vector2i = Vector2i(-1, -1)) -> void:
 		return
 	_home = start if _walkable.has(start) else _middle_of()
 	_at = _home
+
+	# L'OMBRE AVANT LE LAPIN : meme z, donc l'ordre des enfants la met dessous.
+	# Frere du sprite et non enfant : quand le sprite decolle (chute du ciel,
+	# vol), elle reste au sol, ou est la case.
+	_shadow = RabbitShadow.new()
+	add_child(_shadow)
 
 	_sprite = AnimatedSprite2D.new()
 	_sprite.sprite_frames = _frames()
@@ -178,6 +185,9 @@ func clear() -> void:
 	if _sprite != null:
 		_sprite.queue_free()
 		_sprite = null
+	if _shadow != null:
+		_shadow.queue_free()
+		_shadow = null
 	_walkable.clear()
 
 
@@ -454,6 +464,25 @@ func _middle_of() -> Vector2i:
 			best_d = d
 			best = cell
 	return best
+
+
+## L'OMBRE AU SOL : un ovale sombre sous les pattes, ecrase comme le losange.
+##
+## Sans elle, le lapin se lit colle SUR l'image plutot que pose DANS la scene —
+## surtout sur la motte et au terrier, ou rien d'autre ne le relie au sol.
+class RabbitShadow extends Node2D:
+	## Demi-axes en pixels de design : un peu plus large que les pattes
+	## (~14 px d'art x 1,5), ecrase au rapport 2:1 du losange iso.
+	const RX := 11.0
+	const RY := 4.5
+	const INK := Color(0.08, 0.05, 0.1, 0.32)
+
+	func _draw() -> void:
+		var pts := PackedVector2Array()
+		for i in range(20):
+			var a := TAU * float(i) / 20.0
+			pts.append(Vector2(cos(a) * RX, sin(a) * RY))
+		draw_colored_polygon(pts, INK)
 
 
 ## LA PLANCHE DECOUPEE, une animation par ligne de la table.

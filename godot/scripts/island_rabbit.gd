@@ -186,9 +186,14 @@ func drop_in() -> void:
 		return
 	var home := Vector2.ZERO
 	_sprite.position = home + Vector2(0, -DROP_PX)
-	var t := create_tween()
+	var t := create_tween().set_parallel(true)
 	t.tween_property(_sprite, "position", home, DROP_SECONDS) \
 		.set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+	# L'OMBRE GRANDIT A MESURE QU'IL APPROCHE du sol.
+	if _shadow != null:
+		_shadow.scale = Vector2(0.3, 0.3)
+		t.tween_property(_shadow, "scale", Vector2.ONE, DROP_SECONDS) \
+			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 
 
 ## LE POSE AILLEURS SANS SAUT : une reprise, un instantane qui le dit ailleurs.
@@ -354,6 +359,9 @@ func _arc(from: Vector2, to: Vector2, height: float, seconds: float, spins: int)
 func _spin_from_belly(on: bool) -> void:
 	if _sprite == null:
 		return
+	# EN VOL, PAS D'OMBRE : le noeud entier suit la cloche, l'ombre volerait avec.
+	if _shadow != null:
+		_shadow.visible = not on
 	if on:
 		_sprite.offset = -Vector2(FRAME * 0.5, FRAME * 0.5)
 		_sprite.position = Vector2(0, -FRAME * 0.5 * RABBIT_SCALE)
