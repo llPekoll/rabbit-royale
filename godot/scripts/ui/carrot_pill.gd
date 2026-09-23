@@ -225,7 +225,12 @@ func _ready() -> void:
 func _place() -> void:
 	var x := dial.inset()
 	var w := dial.room()
-	_stack.position = Vector2(x, 0.0)
+	# CENTREE SUR LA PLANCHE, pas sur l'art : le cadran depasse en haut et en
+	# bas, la planche pend dans les rangees 31..86. Centree sur la hauteur de
+	# l'art, la pile flottait 7 px source trop haut (Paul, 2026-09-24).
+	var k := dial.scale_factor()
+	var lift := ((EnergyDial.PLANK_TOP + EnergyDial.PLANK_BOTTOM) * 0.5 - EnergyDial.ART.y * 0.5) * k
+	_stack.position = Vector2(x, round(lift))
 	_stack.size = Vector2(w, size.y)
 	_add.position = _stack.position
 	_add.size = _stack.size

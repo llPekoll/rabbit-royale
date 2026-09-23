@@ -43,10 +43,10 @@ const RING_OUTER := 34.0
 ## Le bois propre entre les deux touffes de feuilles (`dialInset`,
 ## `dialRoom`) : le texte se pose la et nulle part ailleurs. Remesure sur
 ## l'art, sur les rangees ou le chiffre s'ecrit : le bois va des clous du
-## cadran (96) au bout de la planche (258). Les 115..255 du web decalaient
-## le chiffre et sa carotte a droite, la carotte dans les feuilles (Paul,
-## 2026-09-23).
-const WOOD_START := 100.0
+## cadran (96) au bout de la planche (262), centre 179. Les 115..255 du web
+## decalaient le chiffre et sa carotte a droite, la carotte dans les feuilles
+## (Paul, 2026-09-23).
+const WOOD_START := 104.0
 const WOOD_END := 254.0
 ## Les rangees de la planche elle-meme (`plankRows`) : le cadran est plus
 ## haut que la planche, qui pend dans les deux tiers inferieurs.
