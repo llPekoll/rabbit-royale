@@ -10,8 +10,8 @@ extends Control
 ## du joueur et sa graine, qui n'existent pas tant que personne n'est connecte.
 ## `build_world()` est donc appele a la connexion, pas au demarrage.
 ##
-## LE CHROME, LUI, EST MONTE ICI ET UNE FOIS : il n'a besoin de personne pour
-## exister, et il se cache tout seul tant qu'on est sur le doorstep.
+## LE CHROME NON PLUS : Screens le construit a l'entree dans le monde et le
+## detruit au retour a l'accueil (screens.gd).
 
 @onready var _world: Node2D = %World
 @onready var _screen: Control = %Screen
@@ -31,9 +31,9 @@ func _ready() -> void:
 	# `gui_get_hovered_control()` : « Control dessous : /root/Main ».
 	if self is Control:
 		(self as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
-	Screens.host(_world, _screen)
-	var chrome: Control = preload("res://scenes/chrome.tscn").instantiate()
-	_chrome.add_child(chrome)
+	# LE CHROME N'EST PLUS MONTE ICI : Screens le construit en entrant dans le
+	# monde et le detruit en revenant a l'accueil. On ne lui donne que l'etage.
+	Screens.host(_world, _screen, _chrome)
 	# LE RIDEAU SE MONTE ICI, dans l'etage qui l'attendait depuis le debut.
 	#
 	# Cree par le code et pas pose dans la scene : la variante se tirera au sort

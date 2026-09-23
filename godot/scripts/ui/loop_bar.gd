@@ -222,8 +222,7 @@ func _ready() -> void:
 
 	Home.changed.connect(_on_home_changed)
 	I18N.locale_changed.connect(func(_code: String) -> void: _relabel())
-	Screens.world_shown.connect(func(_shown: bool) -> void: _update_visible())
-	Screens.moved.connect(_on_moved)
+	Screens.changed.connect(_update_visible)
 	GameSocket.event.connect(_on_socket_event)
 	get_viewport().size_changed.connect(_measure)
 
@@ -556,13 +555,11 @@ func _press(kind: String, sig: Signal) -> void:
 
 # ── L'arrivee, et la recolte ramenee ────────────────────────────────────────
 
-func _on_moved(_place: int) -> void:
-	_update_visible()
-	_show_pending_haul()
-
-
+## CONSTRUITE AU TERRIER ET DETRUITE EN PARTANT (chrome.gd `_mount_place`) :
+## pas de calcul d'arrivee ici. Une recolte encaissee sur l'ile est gardee par
+## le chrome et rendue par `show_haul` une fois le rideau rouvert.
 func _update_visible() -> void:
-	var here := bench_mode or (Screens.in_world() and Screens.place == Screens.Place.BURROW and not Screens.crossing)
+	var here := bench_mode or (Screens.in_world() and Screens.place == Screens.Place.BURROW)
 	visible = here
 
 

@@ -126,8 +126,7 @@ func _ready() -> void:
 	state.changed.connect(_refresh)
 	Home.changed.connect(_refresh)
 	I18N.locale_changed.connect(func(_code: String) -> void: _refresh())
-	Screens.world_shown.connect(func(_shown: bool) -> void: _update_visible())
-	Screens.moved.connect(func(_place: int) -> void: _update_visible())
+	Screens.changed.connect(_update_visible)
 	get_viewport().size_changed.connect(_measure)
 
 	_build_tray()
@@ -482,5 +481,5 @@ func _refresh_detail(smoke_days: int, pending: bool) -> void:
 
 
 func _update_visible() -> void:
-	var here := bench_mode or (Screens.in_world() and Screens.place == Screens.Place.BURROW and not Screens.crossing)
+	var here := bench_mode or (Screens.in_world() and Screens.place == Screens.Place.BURROW)
 	visible = _open and here

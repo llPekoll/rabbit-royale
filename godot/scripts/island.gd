@@ -1,11 +1,9 @@
 class_name Island
 extends Node2D
-## L'ILE — le second des deux LIEUX residents.
+## L'ILE — un des deux LIEUX du monde.
 ##
-## Construite une fois, elle reste dans l'arbre et se contente d'apparaitre et
-## de disparaitre (voir screens.gd). Le joueur fait l'aller-retour avec le
-## terrier sans arret, et reconstruire a chaque passage rechargerait les atlas
-## a chaque DIG.
+## Construite neuve a chaque traversee et detruite en repartant (screens.gd) :
+## elle n'a aucun etat a remettre a zero, elle nait propre.
 ##
 ## CE QU'ELLE PARTAGE AVEC LE TERRIER, et pourquoi c'est voulu : le terrain, le
 ## picker, les losanges et la camera sont les MEMES fichiers. Le web fait pareil
@@ -1199,20 +1197,11 @@ func _sink_tutorial() -> void:
 		_sink_sky.play(SINK_MS)
 	get_tree().create_timer(SINK_MS / 1000.0).timeout.connect(
 		func() -> void:
-			if not (_done and Screens.in_world()):
+			if not (_done and is_inside_tree()):
 				return
-			# UNE FOIS AU TERRIER, l'ile se refait sur sa graine ordinaire —
-			# cachee, donc sans que personne la voie changer. La prochaine
-			# traversee n'est plus une lecon, et elle retrouve une ile entiere
-			# et allumee : le naufrage est defait avant d'etre revu.
-			Screens.moved.connect(
-				func(id: Screens.Place) -> void:
-					if id == Screens.Place.BURROW:
-						if _sink_sky != null:
-							_sink_sky.stop()
-						reset_eruption()
-						show_ground(DEFAULT_SEED),
-				CONNECT_ONE_SHOT)
+			# RIEN A DEFAIRE : cette ile meurt a la traversee, et la prochaine
+			# est construite neuve — sur sa graine ordinaire, la lecon etant
+			# notee finie (`_remember_finished`).
 			Screens.cross(Screens.Place.BURROW))
 
 

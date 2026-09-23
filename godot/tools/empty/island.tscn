@@ -1,0 +1,13 @@
+[gd_scene format=3]
+
+; SCENE VIDE pour verify_crossing.gd : un lieu sans contenu, mais avec le
+; piege qui fuyait — un CanvasLayer et un bouton, que la visibilite du parent
+; n'atteint pas.
+
+[node name="Empty_island" type="Node2D"]
+
+[node name="Layer" type="CanvasLayer" parent="."]
+layer = 10
+
+[node name="Button" type="Button" parent="Layer"]
+text = "island"

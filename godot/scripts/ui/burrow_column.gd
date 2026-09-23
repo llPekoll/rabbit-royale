@@ -127,8 +127,7 @@ func _ready() -> void:
 	_scroll.get_v_scroll_bar().value_changed.connect(func(_v: float) -> void: _update_fade())
 	resized.connect(_layout)
 	get_viewport().size_changed.connect(_layout)
-	Screens.world_shown.connect(func(_shown_now: bool) -> void: _update_visible())
-	Screens.moved.connect(func(_place: int) -> void: _update_visible())
+	Screens.changed.connect(_update_visible)
 	_update_visible()
 	_layout()
 

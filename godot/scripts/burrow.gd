@@ -1,10 +1,9 @@
 extends Node2D
-## LE TERRIER — l'un des deux LIEUX residents.
+## LE TERRIER — un des deux LIEUX du monde.
 ##
-## Il n'est pas monte et demonte comme un ecran : construit une fois, il reste
-## dans l'arbre et se contente d'apparaitre et de disparaitre (voir
-## screens.gd). Le joueur fait l'aller-retour avec l'ile sans arret, et
-## reconstruire a chaque passage rechargerait les atlas a chaque DIG.
+## Construit neuf a chaque arrivee et detruit en partant (screens.gd). Ce qu'il
+## montre vient de Home, pas de lui : il n'a rien a garder d'une visite a
+## l'autre.
 ##
 ## POUR L'INSTANT il porte son sol, ses decors et ses clotures. Les pieges et
 ## le lapin viendront s'y poser — tous freres du terrain dans le meme tri, ce
@@ -191,11 +190,6 @@ func _add_quit() -> void:
 	# choisissant une manche, pas en appuyant sur un bouton de debogage. Mais
 	# sans lui l'ile n'est atteignable que par une scene-sonde, donc rien de ce
 	# qui a ete bati depuis trois commits n'est JOUABLE.
-	#
-	# C'est aussi ce qui prouve la these du portage : les deux lieux sont
-	# construits UNE FOIS et ne meurent jamais (voir screens.gd), donc
-	# traverser ne doit rien recharger. Jusqu'ici c'etait une affirmation ; un
-	# aller-retour sur l'appareil en fait une mesure.
 	_cross = preload("res://scenes/plank_button.tscn").instantiate()
 	_cross.custom_minimum_size = Vector2(220, 44)
 	_cross.size = Vector2(220, 44)

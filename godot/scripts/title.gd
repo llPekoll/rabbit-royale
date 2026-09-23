@@ -402,9 +402,9 @@ func _enter() -> void:
 	# relancer l'app avec une session deja ouverte restait bloque sur
 	# l'accueil, sans la moindre erreur dans les journaux.
 	#
-	# Les deux lieux sont construits ici et pas au demarrage : ils veulent le
-	# terrier du joueur et sa graine, qui n'existent pas tant que personne
-	# n'est connecte.
+	# `build_world` ne construit rien : il CHARGE les scenes du monde, pour que
+	# la premiere traversee ne lise pas le disque. Chaque lieu est construit
+	# neuf a l'arrivee (screens.gd).
 	await get_tree().process_frame
 	Screens.build_world()
 	# LE PREMIER VOYAGE EST LE TUTORIEL, et il n'est pas choisi : un nouveau

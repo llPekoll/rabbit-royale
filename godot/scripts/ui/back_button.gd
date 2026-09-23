@@ -154,7 +154,7 @@ func _ready() -> void:
 	add_child(_cost_timer)
 
 	I18N.locale_changed.connect(func(_code: String) -> void: _relabel())
-	Screens.world_shown.connect(func(_shown: bool) -> void: _update_visible())
+	Screens.changed.connect(_update_visible)
 	get_viewport().size_changed.connect(_measure)
 	visible = false
 	_measure()

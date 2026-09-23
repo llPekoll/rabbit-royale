@@ -4,12 +4,12 @@
 ;
 ; Cinq etages, dans l'ordre ou ils se dessinent. L'ordre EST l'architecture :
 ;
-;   World    les deux lieux residents (terrier, ile). Construits une fois,
-;            jamais liberes — on bascule leur visibilite. Voir screens.gd.
-;   Screen   le doorstep, et tout ecran qui n'est pas un lieu. Monte et libere
-;            normalement.
-;   Chrome   ce qui survit AU-DESSUS : barre du haut, son, HUD, panneaux. Un
-;            dialogue ouvert ne meurt pas parce que le sol a change dessous.
+;   World    le lieu a l'affiche (terrier OU ile), jamais les deux.
+;   Screen   le doorstep.
+;            UNE SEULE scene vit a la fois entre World et Screen : changer
+;            d'endroit detruit l'ancienne et construit la suivante (screens.gd).
+;   Chrome   la barre du haut, les panneaux, les dialogues. Construit en
+;            entrant dans le monde, detruit au retour a l'accueil.
 ;   Wipe     le rideau des traversees, par-dessus tout.
 ;
 ; POURQUOI DES ETAGES ET PAS DES z_index. Un z_index se corrige a la main a

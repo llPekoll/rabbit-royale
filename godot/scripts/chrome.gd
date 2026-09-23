@@ -3,11 +3,15 @@ extends Control
 ## LE CHROME — ce qui survit AU-DESSUS du monde : la barre du haut, la
 ## colonne du terrier, le sol aux trois verbes, les pastilles, les dialogues.
 ##
-## Il vit dans l'etage `Chrome` de main.tscn, entre le monde et le rideau,
-## pour la raison que ce fichier-la donne : un dialogue ouvert ne meurt pas
-## parce que le sol a change dessous. Il est monte UNE FOIS par la racine et
-## ne se recharge jamais ; ce sont ses pieces qui apparaissent et
-## disparaissent avec le lieu.
+## Il vit dans l'etage `Chrome` de main.tscn, entre le monde et le rideau.
+## Screens le CONSTRUIT en entrant dans le monde et le DETRUIT au retour a
+## l'accueil : aucun bouton d'une session ne survit dans la suivante.
+##
+## LES PIECES D'UN LIEU NAISSENT ET MEURENT AVEC LUI (`_mount_place`). La
+## colonne, le sol aux trois verbes, la rangee du kit : construits a chaque
+## arrivee au terrier, detruits en partant. Elles ne se cachaient avant que par
+## leur propre calcul de visibilite, et un calcul fait au mauvais moment (le
+## milieu du rideau) les laissait cachees pour de bon.
 ##
 ## CINQ ETAGES, dans l'ordre ou ils se dessinent, comme main.tscn :
 ##
@@ -57,6 +61,10 @@ var _kit: KitRow
 var _back: BackButton
 ## Le mode du terrier en cours ("placing", "walling"), vide sinon.
 var _mode := ""
+## LA RECOLTE ENCAISSEE LOIN DU TERRIER (`banked` sur l'ile). La barre du sol
+## n'existe pas la-bas : c'est le chrome qui la garde, et la lui rend quand le
+## rideau s'est rouvert sur le terrier.
+var _pending_haul := 0
 
 
 func _ready() -> void:
@@ -65,16 +73,60 @@ func _ready() -> void:
 	Screens.world_shown.connect(_on_world_shown)
 	Screens.moved.connect(_on_moved)
 	Home.noted.connect(toast)
+	Screens.changed.connect(_hand_haul)
+	GameSocket.event.connect(_on_socket_event)
 	get_viewport().size_changed.connect(_measure)
 	_measure()
 	_mount()
+	if Screens.in_world():
+		_mount_place()
 	_dev_open()
 
 
-## LES PANNEAUX, a leur etage. Chacun est une scene sous scenes/ui/ ; il
-## lit Home, Session, GameSocket et Screens lui-meme, et se cache tout seul
-## quand le lieu ne le concerne pas.
+func _exit_tree() -> void:
+	if current == self:
+		current = null
+
+
+## CE QUI VIT TANT QU'ON EST DANS LE MONDE : la barre du haut, les sons, les
+## tampons. Les pieces d'un lieu sont a part, dans `_mount_place`.
 func _mount() -> void:
+	# LA BARRE DU HAUT : le joueur, la pastille, le rail. Chaque bouton ouvre
+	# son dialogue ; la pastille ouvre le grand livre du reservoir, et son +
+	# la recharge (energy-panel.tsx / carrot-pill.tsx).
+	var bar: TopBar = preload("res://scenes/ui/top_bar.tscn").instantiate()
+	top_bar.add_child(bar)
+	bar.profile_pressed.connect(func() -> void: Profile.open())
+	bar.shop_pressed.connect(func() -> void: Shop.open())
+	bar.story_pressed.connect(func() -> void: LoreCodex.open())
+	bar.season_pressed.connect(func() -> void: SeasonBoard.open())
+	bar.energy_tapped.connect(func() -> void: EnergyPanel.open())
+	bar.add_pressed.connect(func() -> void: EnergyPopup.open())
+
+	# Ce que la boutique et le raid repondent passe en pastille, comme Home.
+	ShopState.shared().noted.connect(toast)
+	RaidState.current.noted.connect(toast)
+	_wire_sounds()
+	# Les tampons qui s'annoncent seuls : le niveau gagne, le raid subi.
+	LevelUpStamp.arm()
+
+
+## LES PIECES DU LIEU, reconstruites a chaque arrivee. On DETRUIT ce qui etait
+## la et on construit ce que le lieu veut — rien a cacher, donc rien a oublier
+## de montrer. L'ile n'a rien ici : ses boutons sont dans sa propre scene, et
+## meurent avec elle.
+func _mount_place() -> void:
+	for host in [column, floor_host]:
+		for child in (host as Node).get_children():
+			host.remove_child(child)
+			child.queue_free()
+	_column = null
+	_loop = null
+	_kit = null
+	_back = null
+	if not Screens.in_world() or Screens.place != Screens.Place.BURROW:
+		return
+
 	# LA COLONNE, a gauche sous la barre. Sa ligne « et maintenant » pointe
 	# une porte du sol : meme routage que les trois dalles.
 	var column_card: BurrowColumn = preload("res://scenes/ui/burrow_column.tscn").instantiate()
@@ -100,24 +152,6 @@ func _mount() -> void:
 	floor_host.add_child(_back)
 	_back.pressed.connect(_end_mode)
 
-	# LA BARRE DU HAUT : le joueur, la pastille, le rail. Chaque bouton ouvre
-	# son dialogue ; la pastille ouvre le grand livre du reservoir, et son +
-	# la recharge (energy-panel.tsx / carrot-pill.tsx).
-	var bar: TopBar = preload("res://scenes/ui/top_bar.tscn").instantiate()
-	top_bar.add_child(bar)
-	bar.profile_pressed.connect(func() -> void: Profile.open())
-	bar.shop_pressed.connect(func() -> void: Shop.open())
-	bar.story_pressed.connect(func() -> void: LoreCodex.open())
-	bar.season_pressed.connect(func() -> void: SeasonBoard.open())
-	bar.energy_tapped.connect(func() -> void: EnergyPanel.open())
-	bar.add_pressed.connect(func() -> void: EnergyPopup.open())
-
-	# Ce que la boutique et le raid repondent passe en pastille, comme Home.
-	ShopState.shared().noted.connect(toast)
-	RaidState.current.noted.connect(toast)
-	_wire_sounds()
-	# Les tampons qui s'annoncent seuls : le niveau gagne, le raid subi.
-	LevelUpStamp.arm()
 	# Le HUD de defense (un raid en cours chez soi) se montre seul.
 	floor_host.add_child(preload("res://scenes/ui/defend_hud.tscn").instantiate())
 
@@ -203,6 +237,8 @@ func _dig() -> void:
 ## dessine pas encore les pieges, et un piege pose mais invisible est le
 ## mensonge que page.tsx refuse (`onToggleTrap`).
 func _start_mode(mode: String) -> void:
+	if _kit == null:
+		return
 	_mode = mode
 	_kit.open(mode)
 	_loop.visible = false
@@ -218,14 +254,30 @@ func _end_mode() -> void:
 	if _mode.is_empty():
 		return
 	_mode = ""
-	_kit.close()
-	_back.dismiss()
-	_column.set_editing(false)
-	_loop.visible = true
+	if _kit != null:
+		_kit.close()
+		_back.dismiss()
+		_column.set_editing(false)
+		_loop.visible = true
 	var burrow := Screens.at(Screens.Place.BURROW)
 	if burrow != null and burrow.has_method("set_placing"):
 		burrow.call("set_placing", false)
 		burrow.call("set_walling", false)
+
+
+## `banked` pendant que la barre du sol n'existe pas : on garde. Au terrier,
+## la barre ecoute elle-meme et montre sur-le-champ.
+func _on_socket_event(name: String, data: Variant) -> void:
+	if name != "banked" or not (data is Dictionary) or _loop != null:
+		return
+	_pending_haul = int((data as Dictionary).get("carrots", 0))
+
+
+func _hand_haul() -> void:
+	if _pending_haul <= 0 or _loop == null or Screens.crossing:
+		return
+	_loop.show_haul(_pending_haul)
+	_pending_haul = 0
 
 
 func _on_world_shown(shown: bool) -> void:
@@ -239,6 +291,7 @@ func _on_moved(_place: int) -> void:
 	# mode du terrier.
 	close_dialog()
 	_end_mode()
+	_mount_place()
 
 
 ## LA MISE EN PAGE (globals.css) : la barre du haut est une bande epinglee
