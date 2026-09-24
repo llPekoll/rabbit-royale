@@ -260,7 +260,18 @@ export const zh: Dict = {
     struckBy: (name) => `${name} 用闪电击中了你`,
     watchers: (n) => `${n} 人在看`,
     hitBolt: (name) => `${name} 电了你`,
-    hitBomb: (name) => `${name} 埋的雷`,
+    hitBomb: (name) => `${name} 埋的暗雷`,
+    bloop: '墨鱼',
+    aimingBloop: '点一个对手喷墨',
+    bloopNone: '没有墨鱼可丢。小屋有卖。',
+    bloopRefused: {
+      'no-rival': '那里没有人可喷。',
+      level_locked: '10 级才开放。',
+      'none-held': '墨鱼用完了。',
+    } as Record<string, string>,
+    hitBloop: (name) => `${name} 喷了你一脸墨`,
+    buyArms: '购买',
+    inkedStay: (s) => `满眼是墨 · ${s} 秒后才能回家`,
   },
 
   firstRun: {
@@ -355,6 +366,8 @@ export const zh: Dict = {
     priceLabel: (price) => `${price} 根胡萝卜`,
     buy: (name, price) => `以 ${price} 购买${name}`,
     capped: (name, price) => `${name}：${price}。你已经拿到上限了。`,
+    /** The price button, armed: a second press buys. */
+    confirmBuy: '确认购买？',
     tooPoor: (name, price) => `${name}：${price}。胡萝卜还不够。去挖。`,
     heldOf: (held, cap) => `${held}/${cap}`,
     heldToday: (n) => `今天还剩 ${n}`,
@@ -366,6 +379,7 @@ export const zh: Dict = {
     boughtLightning: (n, paid) => `${n} 道闪电已装瓶。${paid}`,
     boughtShield: (n, paid) => `${n} 面护盾就绪。${paid}`,
     boughtSmoke: (paid) => `数字已经藏起来了。${paid}`,
+    boughtBloop: (n, paid) => `${n} 只墨鱼装进罐子。${paid}`,
     boughtMirage: (n, paid) => `${n} 个幻影可以丢出去了。${paid}`,
     boughtFence: (n, paid) => `${n} 块木板可以立起来了。${paid}`,
     paid: (spent) => `-${spent} 🥕`,
@@ -541,6 +555,7 @@ export const zh: Dict = {
       digging: '正在外面挖',
     },
     raidIt: '掠夺',
+    watchIt: '观看',
     brief: '抵达胡萝卜田。他们的陷阱埋在地下，没有标记。',
     outOfEnergy: '体力耗尽',
     nothingTaken: '什么都没拿到',
@@ -731,6 +746,10 @@ export const zh: Dict = {
     smoke: {
       name: '烟幕',
       blurb: '把你兔窝的数字藏起来一天。掠夺者只能摸黑穿过。',
+    },
+    bloop: {
+      name: '墨鱼',
+      blurb: '往对手眼里喷墨。几秒内他看不见，也走不了。',
     },
     mirage: {
       name: '幻影',

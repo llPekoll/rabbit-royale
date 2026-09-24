@@ -71,10 +71,15 @@ signal banked(carrots: int)
 signal chest_prize(prize: Dictionary)
 ## La lecon du tutoriel : la bombe enseignee (-1 = aucune) et si on est a cote.
 signal teach_changed
-## Le mode de visee du spectateur : "" / "strike" / "plant".
+## Le mode de visee : "" / "strike" / "bloop" — en regardant, ou en jouant
+## sur une ile ou l'on se bat (niveau 10).
 signal aiming_changed(mode: String)
-## Un eclair ou une bombe refuse par le serveur : ("strike"|"plant", raison).
+## Un eclair ou un bloop refuse par le serveur : ("strike"|"bloop", raison).
 signal arm_refused(kind: String, reason: String)
+## MON ECRAN EST ENCRE (BLOOP) : ce qu'il en reste, en ms (0 = propre).
+signal ink_changed(ms_left: int)
+## Le serveur a refuse de me laisser rentrer : l'encre tient encore (ms).
+signal leave_refused(ms_left: int)
 ## Le sac (eclairs, bombes) a change — pose par la boutique.
 signal bag_changed
 ## Les presences suivies : {id: where}.
@@ -183,8 +188,10 @@ var island_owns_mark := false
 ## Qui l'on regarde, ou "" quand on joue.
 var spectating := ""
 var aiming := ""
-## Le sac : {"lightning": n, "bombs": n}. La boutique le pose (`set_bag`).
-var bag: Dictionary = {"lightning": 0, "bombs": 0}
+## Le sac : {"lightning": n, "bloop": n}. La boutique le pose (`set_bag`).
+var bag: Dictionary = {"lightning": 0, "bloop": 0}
+## Jusqu'a quand (ticks ms) l'encre d'un bloop me tient sur l'ile.
+var inked_until := 0
 ## LA SCENE REPOND ICI combien de cases un X peut marquer autour du lapin
 ## (`IslandScene.setFlagMode` sur le web). Vide tant qu'il n'y a pas de scene :
 ## on arme sans verifier.
@@ -340,14 +347,17 @@ func flag(tile: int) -> void:
 
 
 func lightning(tile: int) -> void:
+	Net.trace("eclair sur la case %d" % tile)
 	GameSocket.act("lightning", tile)
 
 
-func plant(tile: int) -> void:
-	GameSocket.act("plant", tile)
+func bloop(tile: int) -> void:
+	Net.trace("bloop sur la case %d" % tile)
+	GameSocket.act("bloop", tile)
 
 
 func spectate(player_id: String) -> void:
+	Net.trace("spectate %s" % player_id)
 	spectating = player_id
 	# Une autre ile, un autre public : rien de la run d'avant ne reste a l'ecran.
 	_recap_timer.stop()
@@ -420,8 +430,21 @@ func set_aiming(mode: String) -> void:
 
 
 func set_bag(items: Dictionary) -> void:
-	bag = {"lightning": int(items.get("lightning", 0)), "bombs": int(items.get("bombs", 0))}
+	bag = {"lightning": int(items.get("lightning", 0)), "bloop": int(items.get("bloop", 0))}
 	bag_changed.emit()
+
+
+## Ce qu'il reste d'encre sur mon ecran, en ms.
+func ink_left_ms() -> int:
+	return maxi(0, inked_until - Time.get_ticks_msec())
+
+
+## PEUT-ON SE BATTRE ICI ? Le serveur tranche (`mayFight`) ; le HUD n'offre
+## l'eclair et le bloop a un joueur EN JEU que sur une ile de niveau 10, et
+## jamais sur la premiere.
+func may_fight_here() -> bool:
+	var min_level := Tuning.i("RABBIT_LEVELS.RAID_MIN", 10)
+	return not first_run and int(island.get("level", 0)) >= min_level
 
 
 ## Le public a fini de voir la ceremonie du coffre.
@@ -483,10 +506,35 @@ func _on_event(name: String, data: Variant) -> void:
 			var who := String(d.get("playerId", ""))
 			_patch_rabbit(who, {"energy": int(d.get("energy", 0)), "alive": not bool(d.get("runOver", false)),
 				"stunUntil": Time.get_ticks_msec() + int(d.get("stunMs", 0))})
-			if who == my_id():
+			# Le mien, ou celui que je regarde : le spectateur voit qui l'a eu.
+			if who == my_id() or (not spectating.is_empty() and who == spectating):
 				_set_hit({"by": String(d.get("by", "")), "kind": "bolt", "at": Time.get_ticks_msec()})
+		"tile_revealed":
+			# LA BOMBE CACHEE du lapin que je REGARDE : le creuseur l'apprend par
+			# son `move_result` (`_on_move_result`), le spectateur seulement ici.
+			if not spectating.is_empty() and String(d.get("dugBy", "")) == spectating \
+					and String(d.get("plantedBy", "")) != "":
+				_set_hit({"by": String(d["plantedBy"]), "kind": "bomb", "at": Time.get_ticks_msec()})
 		"lightning_rejected":
+			Net.trace("eclair refuse : %s" % str(d.get("reason", "")))
 			arm_refused.emit("strike", String(d.get("reason", "")))
+		"rabbit_inked":
+			var inked := String(d.get("playerId", ""))
+			var ms := int(d.get("inkMs", 0))
+			if inked == my_id() and spectating.is_empty():
+				inked_until = Time.get_ticks_msec() + ms
+				ink_changed.emit(ms)
+			if inked == my_id() or (not spectating.is_empty() and inked == spectating):
+				_set_hit({"by": String(d.get("by", "")), "kind": "bloop", "at": Time.get_ticks_msec()})
+			if String(d.get("by", "")) == my_id():
+				bag_changed.emit()
+		"bloop_rejected":
+			Net.trace("bloop refuse : %s" % str(d.get("reason", "")))
+			arm_refused.emit("bloop", String(d.get("reason", "")))
+		"leave_rejected":
+			var left := int(d.get("inkMs", 0))
+			inked_until = Time.get_ticks_msec() + left
+			leave_refused.emit(left)
 		"watchers":
 			_set_watchers(maxi(0, int(d.get("count", 0))))
 		"presence_all":
@@ -499,11 +547,6 @@ func _on_event(name: String, data: Variant) -> void:
 		"presence":
 			presence[String(d.get("id", ""))] = d.get("where")
 			presence_changed.emit()
-		"bomb_planted":
-			plants += 1
-			bag_changed.emit()
-		"plant_rejected":
-			arm_refused.emit("plant", String(d.get("reason", "")))
 		"raid_incoming":
 			raid_incoming.emit(d)
 		"raid_struck":
@@ -556,6 +599,9 @@ func _on_island(snap: Dictionary) -> void:
 	held_seat = {}
 	seed = String(snap.get("seed", ""))
 	island_key += 1
+	if inked_until != 0:
+		inked_until = 0
+		ink_changed.emit(0)
 	warn_stage = int(snap.get("warnStage", 0))
 	dug_fraction = float(snap.get("dugFraction", 0.0))
 	chests_taken = int(snap.get("chestsTaken", 0))

@@ -20,7 +20,7 @@ import { randomUUID } from 'node:crypto';
 import { Server, type Socket } from 'socket.io';
 import { and, eq, isNull, ne, sql as raw } from 'drizzle-orm';
 
-import { ENERGY, ERUPTION, ISLAND_TIERS, LIGHTNING, MIRAGE, MULTIPLAYER, OUT_OF_RUN_ENERGY, RABBIT_LEVELS, levelRow, mayFight } from '../config/tuning';
+import { BLOOP, CROWN, ENERGY, ERUPTION, ISLAND_TIERS, LIGHTNING, MIRAGE, MULTIPLAYER, OUT_OF_RUN_ENERGY, RABBIT_LEVELS, levelRow, mayFight } from '../config/tuning';
 import { servirApi } from './api-router';
 import { mulberry32, seedFrom } from '../src/lib/game/rng';
 import { cascadeAround, chestProgress, publicView } from '../src/lib/game/island';
@@ -28,12 +28,13 @@ import { firstIslandSeed, isFirstIsland, levelSeed } from '../src/lib/game/first
 import { flagTile, resolveMove, spawnRabbit, teachingHold } from '../src/lib/game/run';
 import { mirageActive, planMirage, shownAdjacent } from '../src/lib/game/mirage';
 import { strike, struckRabbits } from '../src/lib/game/lightning';
-import { plantBlocker, plantBomb } from '../src/lib/game/sabotage';
 import { makeShape, toColRow, toIndex } from '../src/config/gridConfig';
 import { GRAZE_CHANCE, isSpooked, planFlock, type Ground } from '../src/lib/game/flee';
 import { boardFor, terrainFor } from '../src/lib/game/terrainBoard';
 import type { Rabbit } from '../src/lib/game/types';
 import { payCrossing } from '../src/lib/game/pay-crossing';
+import { registerSeatLookup } from '../src/lib/game/live-seats';
+import { rolloverSeasonIfDue } from '../src/lib/game/season';
 import { currentEnergy } from '../src/lib/game/regen';
 import { grantItem } from '../src/lib/game/grant';
 import { refreshTuning } from '../src/lib/tuning/live';
@@ -42,17 +43,35 @@ import { verifySession } from '../src/lib/auth/jwt';
 import { db, sql } from '../src/lib/db';
 import { decodePush, PLAYER_PUSH_CHANNEL } from '../src/lib/game/raid-events';
 import { recordIslandKill } from '../src/lib/game/record-raid';
-import { inventory, players, runs, seasons } from '../src/lib/db/schema';
+import { inventory, players, raidRuns, runs, seasons } from '../src/lib/db/schema';
 import { MemoryIslandStore, type LiveIsland } from './islands/store';
+import { installStage } from './stage';
 import { roomFor } from './islands/router';
 import {
-  markConnected, markDisconnected, markOffline, markOnline, setScore,
+  crownHolderId, markConnected, markDisconnected, markOffline, markOnline, setScore,
 } from '../src/lib/leaderboard';
 import { purgeOrphanGuests } from '../src/lib/auth/abandon';
 import { guard, installProcessGuards, optional } from './resilience';
 
 const PORT = Number(process.env.WS_PORT ?? 3010);
 const store = new MemoryIslandStore();
+
+// A rabbit out with a run still unbanked holds the tank — the raid route asks
+// this before charging it. See src/lib/game/live-seats.ts.
+registerSeatLookup((playerId) => {
+  const rabbit = store.seatOf(playerId)?.rabbits.get(playerId);
+  return !!rabbit?.alive && !!rabbit.run?.id;
+});
+
+/**
+ * Players being seated right now, across EVERY socket.
+ *
+ * `SocketData.joining` stops one socket asking twice; it does nothing for two
+ * sockets (two tabs, a reconnect racing its predecessor) asking at once. Both
+ * then passed `seatOf`, both paid the crossing, and two rabbits left with the
+ * whole tank each. One seat per player at a time, whatever the socket.
+ */
+const seating = new Set<string>();
 
 /**
  * How many players one socket may follow the presence of at once.
@@ -234,15 +253,18 @@ function oneAtATime<A extends unknown[]>(
   handler: (...args: A) => Promise<unknown>,
 ): (...args: A) => Promise<unknown> {
   return async (...args: A) => {
-    if (data.joining) {
+    if (data.joining || (data.playerId && seating.has(data.playerId))) {
       console.warn('[rr-ws] join dropped: one is already being answered', data.playerId);
       return;
     }
     data.joining = true;
+    const who = data.playerId;
+    if (who) seating.add(who);
     try {
       return await handler(...args);
     } finally {
       data.joining = false;
+      if (who) seating.delete(who);
     }
   };
 }
@@ -533,6 +555,9 @@ function topUpRabbit(playerId: string, payload: unknown): void {
 
 /** The open season, created on first need so a fresh database just works. */
 async function currentSeason() {
+  // A season past its end is closed first, so a run banked across the
+  // boundary scores into the season that is actually running.
+  await optional('rolloverSeason', async () => { await rolloverSeasonIfDue(); });
   const open = await db.query.seasons.findFirst({ where: isNull(seasons.endedAt) });
   if (open) return open;
   const { SEASON } = await import('../config/tuning');
@@ -578,6 +603,9 @@ async function bankRun(rabbit: Rabbit) {
 
   const carrots = rabbit.carrots;
   const playerId = rabbit.playerId;
+  // "Heavy is the head": the #1's run scores a bonus (CROWN.GAIN_MULT). The
+  // SCORE only — the carrots in the bank are the carrots dug.
+  const scored = rabbit.crowned ? Math.round(carrots * CROWN.GAIN_MULT) : carrots;
 
   /**
    * A RUN THAT DUG NOTHING IS REFUNDED, and does not count as a run.
@@ -622,7 +650,7 @@ async function bankRun(rabbit: Rabbit) {
   };
   await db.update(players).set({
     stock: raw`${players.stock} + ${carrots}`,
-    seasonScore: raw`${players.seasonScore} + ${carrots}`,
+    seasonScore: raw`${players.seasonScore} + ${scored}`,
     lifetimeCarrots: raw`${players.lifetimeCarrots} + ${carrots}`,
     runsPlayed: raw`${players.runsPlayed} + ${refunded ? 0 : 1}`,
     ...settled,
@@ -726,6 +754,8 @@ async function payForRun(
 
 io.on('connection', (socket: Socket) => {
   const data = socket.data as SocketData;
+  // Scenario setup, local only (RR_STAGE=1) — see server/stage.ts.
+  installStage(socket, store, socketOf);
 
   // AT THE KEYBOARD, wherever they are standing — the handshake has already
   // named them by here, and this lasts until the socket closes. It is what
@@ -883,6 +913,21 @@ io.on('connection', (socket: Socket) => {
      */
     let bank: { energy: number; cost: number; max: number } | undefined;
     if (!existing) {
+      // ONE DOOR AT A TIME, from this side (the raid route guards the other):
+      // a raid under way is paying out of the same tank, and banking the run
+      // would write over what it spent. A raid opened and never walked is only
+      // a look — it is closed here, as a Retreat would close it.
+      const openRaid = await db.query.raidRuns.findFirst({
+        where: and(eq(raidRuns.attackerId, data.playerId), isNull(raidRuns.endedAt)),
+      });
+      if (openRaid && openRaid.visited.length > 1) {
+        return socket.emit('error_msg', { code: 'raid_in_progress' });
+      }
+      if (openRaid) {
+        await db.update(raidRuns)
+          .set({ endedAt: new Date(), succeeded: false, carrotsLooted: 0 })
+          .where(and(eq(raidRuns.id, openRaid.id), isNull(raidRuns.endedAt)));
+      }
       const paid = await payForRun(data.playerId, player);
       if (!paid.ok) {
         return socket.emit('error_msg', {
@@ -899,6 +944,10 @@ io.on('connection', (socket: Socket) => {
     // ENERGY.START whatever the bank held; it opens on what the crossing left
     // in the one tank, and brings the rest home (`bankRun`).
     const rabbit = existing ?? spawnRabbit(data.playerId, player.name, bank ? bank.energy : ENERGY.START, live.island.seed, player.level);
+    // THE CROWN rides on the rabbit: everyone on the island sees the #1
+    // (`publicRabbit`), and the run it digs scores CROWN.GAIN_MULT (`bankRun`).
+    // Read at the door — a crown won mid-run is worn from the next one.
+    if (!existing) rabbit.crowned = (await crownHolderId().catch(() => null)) === data.playerId;
     live.rabbits.set(data.playerId, rabbit);
     live.disconnectedAt.delete(data.playerId);
     live.emptySince = null;
@@ -1131,88 +1180,60 @@ io.on('connection', (socket: Socket) => {
   }));
 
   /**
-   * Bury a bomb under an undug tile of this island.
+   * THE BLOOP (2026-09-24): ink in a rival's eyes, aimed like the bolt.
    *
-   * The quiet sabotage — see `lib/game/sabotage` for the rule, and for why a
-   * plant recounts the numbers around it: the board must never un-deduce
-   * itself, so whatever shown number the bomb changed is redrawn for everyone
-   * at once. That redraw is the only trace a plant leaves; the tile itself
-   * looks like any other until somebody digs it.
+   * The tap names a TILE, the way every aimed act on this socket does
+   * (`lightning`), and the rival standing on it is the one inked. Nobody
+   * there is refused BEFORE the item is spent — a miss that still cost the
+   * bloop would teach the player to stop aiming. It takes nothing from the
+   * victim but the view and the way home: `inkedUntil` holds `leave` shut
+   * (see there), and the ink itself is the client's to draw.
    *
-   * REFUSED BEFORE IT IS PAID FOR, unlike the strike: every refusal here is a
-   * legitimate play the player could not have known was illegal (the cap, a
-   * chest they aimed at), and charging for it would teach them to stop trying.
-   * The one thing never refused is a tile that already holds a bomb — that
-   * refusal would be a free probe.
+   * A spectator may throw one, for the reason the bolt may be fired: the
+   * watcher is the saboteur (see `lightning`). The caster's own rabbit is
+   * never read — a player cannot ink themself, because the tile must hold a
+   * RIVAL.
+   *
+   * It replaces the planted bomb on the island: a bomb is now only for the
+   * burrow's defence (DEFEND), and this socket no longer answers `plant`.
    */
-  /*
-   * A SPECTATOR MAY BURY ONE, for the reason the strike may be fired: the
-   * watcher IS the saboteur. See the note on `lightning`.
-   *
-   * The gate that stood here was two gates — `data.spectating`, and "only
-   * somebody actually digging this island may mine it" below it. The second
-   * was the one with teeth: it asked for a LIVE RABBIT of the planter's, which
-   * is precisely what a watcher does not have.
-   *
-   * Nothing downstream needs one. `plantBlocker` and `plantBomb` take the
-   * planter as an ID — the cap is counted per planter over the island
-   * (`plantedBy`), the tile is stamped with it, and the ambush is reported to
-   * this socket rather than to a rabbit. So the cap still binds a watcher to
-   * three bombs on the island they are watching, which is the same bargain a
-   * digger gets.
-   *
-   * The island must still be REAL and live, and it is: a spectator's
-   * `islandId` is the one they were put in the room of (`spectate`).
-   */
-  socket.on('plant', guard('plant', async (payload: { tile?: unknown }) => {
+  socket.on('bloop', guard('bloop', async (payload: { tile?: unknown }) => {
     if (!data.playerId || !data.islandId) return;
     const target = payload?.tile;
     if (typeof target !== 'number' || !Number.isInteger(target)) return;
 
     const live = store.get(data.islandId);
     if (!live || live.erupting) return;
-    // Digging it, or watching it. Someone who is neither has no business
-    // mining it — an islandId left over from a run that ended, say.
+    // Watching it, or digging it with a live rabbit — as for `plant` before.
     if (!data.spectating && !live.rabbits.get(data.playerId)?.alive) return;
+    if (!mayFight(await levelOf(data.playerId), live.solo ? 1 : live.level)) {
+      return socket.emit('bloop_rejected', { reason: 'level_locked' });
+    }
+    const victim = [...live.rabbits.values()].find(
+      (r) => r.alive && r.tile === target && r.playerId !== data.playerId,
+    );
+    if (!victim) return socket.emit('bloop_rejected', { reason: 'no-rival' });
 
-    const blocker = plantBlocker(live.island, data.playerId, target);
-    if (blocker) return socket.emit('plant_rejected', { reason: blocker });
-
-    // Spend it — conditional on the row still holding one, so two sockets
-    // racing the same last bomb cannot both plant.
     const spent = await db
       .update(inventory)
       .set({ qty: raw`${inventory.qty} - 1` })
       .where(and(
         eq(inventory.playerId, data.playerId),
-        eq(inventory.kind, 'bomb'),
+        eq(inventory.kind, 'bloop'),
         raw`${inventory.qty} > 0`,
       ))
       .returning({ qty: inventory.qty });
-    if (spent.length === 0) return socket.emit('plant_rejected', { reason: 'none-held' });
+    if (spent.length === 0) return socket.emit('bloop_rejected', { reason: 'none-held' });
 
-    const out = plantBomb(live.island, live.shape, data.playerId, target);
-
-    // The planter alone is told where it went — it is their ambush.
-    socket.emit('bomb_planted', { tile: out.tile });
-
-    // Everyone gets the numbers the bomb changed — except a victim under a
-    // mirage, whose bent copy is bent again, exactly as a dig's reveal is.
-    if (out.changed.length === 0) return;
-    const room = roomFor(live.island.id);
-    if (live.mirages.size === 0) {
-      io.to(room).emit('hints_changed', { tiles: out.changed });
-      return;
-    }
-    const now = Date.now();
-    for (const seated of live.rabbits.keys()) {
-      socketOf(seated)?.emit('hints_changed', {
-        tiles: out.changed.map((c) => ({
-          tile: c.tile,
-          adjacent: shownAdjacent(live.mirages.get(seated), c.tile, c.adjacent, now),
-        })),
-      });
-    }
+    victim.inkedUntil = Date.now() + BLOOP.INK_MS;
+    // To the whole room: everyone sees the squid go, the victim draws the ink.
+    // A REMAINING duration, not the deadline — the two clocks are unrelated.
+    io.to(roomFor(live.island.id)).emit('rabbit_inked', {
+      playerId: victim.playerId,
+      by: data.playerId,
+      tile: victim.tile,
+      inkMs: BLOOP.INK_MS,
+    });
   }));
 
   /**
@@ -1368,6 +1389,24 @@ io.on('connection', (socket: Socket) => {
     const sheepTiles = new Set([...live.sheep.values()].map((at) => toIndex(at.x, at.y)));
     const out = resolveMove(live.island, rabbit, to, live.shape, rng, Date.now(), others, sheepTiles);
     if (!out.ok) return socket.emit('move_rejected', { reason: out.rejection });
+
+    /**
+     * THE LAST CHEST ON THE LAST POINT IS STILL A CLEAR.
+     *
+     * The dig that takes the island's last chest costs its point like any
+     * other, and on a bar of 1 it emptied it: the rabbit was dead before the
+     * eruption looked, `erupt` skips the dead, and the player who finished the
+     * island was told it was a dry run and kept their level. The rabbit that
+     * took the last chest was on the island when it was cleared — it is the
+     * one that cleared it. So the dry ending is not sent, and the rabbit rides
+     * the eruption alive, at zero.
+     */
+    const finishedIsland = !!out.dig && !out.tutorialDone && chestProgress(live.island).fraction >= 1;
+    if (out.runOver && finishedIsland && rabbit.energy <= 0) {
+      rabbit.alive = true;
+      out.runOver = false;
+    }
+
 
     // THE RUN HAS BEGUN — any accepted step, dug or merely walked.
     //
@@ -1576,10 +1615,21 @@ io.on('connection', (socket: Socket) => {
     if (!data.playerId || !data.islandId) return;
     const live = store.get(data.islandId);
     const rabbit = live?.rabbits.get(data.playerId);
+    // INKED, YOU STAY (BLOOP): the way home is shut until the ink runs off.
+    // A rabbit whose run is over is not held — there is nothing left to flee.
+    const inkLeft = rabbit && rabbit.alive ? (rabbit.inkedUntil ?? 0) - Date.now() : 0;
+    if (inkLeft > 0 && !live?.erupting) {
+      return socket.emit('leave_rejected', { reason: 'inked', inkMs: inkLeft });
+    }
     // No island under the id is the ordinary case after an eruption: the run
     // was banked and the island deleted, and the seat here is all that is
     // left to give up. Returning early kept the socket "on" a dead island.
-    if (live && rabbit) {
+    // Walking off an island that is ERUPTING is walking off a cleared island:
+    // the eruption banks the rabbit and lifts its level a few seconds from
+    // now, and it can only do that for a rabbit still on the roster. Banked
+    // and removed here, a player who tapped home during the cutscene lost the
+    // level they had just won.
+    if (live && rabbit && !live.erupting) {
       await bankRun(rabbit).catch((e) => console.error('[bankRun:leave]', e));
       live.rabbits.delete(data.playerId);
       live.disconnectedAt.delete(data.playerId);
@@ -1838,12 +1888,30 @@ setInterval(sweepGuests, GUEST_SWEEP_MS);
  * this box holds every live run in memory, and killing it over one bad event
  * throws away everyone else's game.
  */
+/**
+ * Bank every run still on an island — the last thing a dying process does.
+ *
+ * The islands live in this process's memory, and a deploy (Coolify redeploys
+ * on every push) used to close the sockets and exit with them still there:
+ * every carrot and chest item dug mid-run was lost, the `runs` rows stayed
+ * open, and the energy spent on the island was never written back — the
+ * player came back to the tank as the crossing had left it, the whole run
+ * free. `bankRun` is idempotent and takes the rabbit's own tallies, so this
+ * is the same banking a walk home does, for everyone at once.
+ */
+async function bankEveryLiveRun(): Promise<void> {
+  const rabbits = [...store.all()].flatMap((live) => [...live.rabbits.values()]);
+  const results = await Promise.allSettled(rabbits.map((r) => bankRun(r)));
+  const failed = results.filter((r) => r.status === 'rejected').length;
+  console.log(`[rr-ws] shutdown: banked ${rabbits.length - failed}/${rabbits.length} live runs`);
+}
+
 installProcessGuards({
-  close: () => new Promise<void>((resolve) => {
+  close: () => bankEveryLiveRun().catch((e) => console.error('[bankEveryLiveRun]', e)).then(() => new Promise<void>((resolve) => {
     // Tell clients to stop trying before the door shuts, so a deploy reads as a
     // reconnect rather than as an error.
     io.close(() => httpServer.close(() => resolve()));
-  }),
+  })),
 });
 
 /**
@@ -1859,6 +1927,19 @@ installProcessGuards({
  */
 void refreshTuning();
 setInterval(() => { void refreshTuning(); }, 30_000).unref();
+
+/**
+ * THE SEASON CLOCK. A season ends at `ends_at` whether or not anyone banks a
+ * run at that moment — see src/lib/game/season.ts. Checked every ten minutes
+ * and once at boot; closing is idempotent, so a restart at the boundary is
+ * harmless.
+ */
+const checkSeason = () => optional('rolloverSeason', async () => {
+  const out = await rolloverSeasonIfDue();
+  if (out) console.log('[season] closed', out.closed, 'champion', out.championId, out.championScore, '→ opened', out.opened);
+});
+void checkSeason();
+setInterval(() => { void checkSeason(); }, 10 * 60_000).unref();
 
 /**
  * Le port occupe doit le DIRE.

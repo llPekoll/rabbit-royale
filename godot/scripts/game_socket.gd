@@ -185,7 +185,14 @@ func _on_event(name: String, data: Variant, _ns: String) -> void:
 	var payload: Variant = null
 	if data is Array and not (data as Array).is_empty():
 		payload = (data as Array)[0]
+	if name not in _QUIET:
+		Net.trace("socket < %s %s" % [name, JSON.stringify(payload).left(160)])
 	event.emit(name, payload)
+
+
+## Ce que la trace du banc tait : le flot de chaque pas des autres.
+const _QUIET := ["rabbit_moved", "tile_revealed", "hints_revealed", "rabbit_energy",
+	"sheep_moved", "move_result", "watchers", "island"]
 
 
 func _on_session_changed() -> void:
@@ -223,6 +230,7 @@ func leave() -> void:
 ## tout le monde, ce qui est exactement ce qu'il faut pour que les autres
 ## lapins voient le coup.
 func act(what: String, tile: int) -> void:
+	Net.trace("socket > %s case %d (live=%s)" % [what, tile, str(is_live())])
 	if is_live():
 		_io.emit(what, {"tile": tile})
 
@@ -242,6 +250,7 @@ func unwatch_presence() -> void:
 
 
 func spectate(player_id: String) -> void:
+	Net.trace("socket > spectate %s (live=%s)" % [player_id, str(is_live())])
 	_spectating = player_id
 	_want_seat = false
 	if is_live():

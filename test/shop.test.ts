@@ -29,7 +29,7 @@ const fresh = {
 const bag = (over: Partial<Holdings> = {}): Holdings =>
   ({
     trap: 0, bomb: 0, lightning: 0, shield: 0, energy: 0, smoke: 0, mirage: 0,
-    water: 0, fertiliser: 0, fence: 0, ...over,
+    water: 0, fertiliser: 0, fence: 0, bloop: 0, ...over,
   });
 
 describe('the price list', () => {

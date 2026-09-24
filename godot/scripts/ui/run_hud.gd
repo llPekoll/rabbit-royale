@@ -90,7 +90,9 @@ var _value: Label
 var _plates: HBoxContainer
 var _arm_plate: PanelContainer
 var _strike: Button
-var _plant: Button
+var _bloop: Button
+## Plus rien a lancer : le raccourci vers l'etal.
+var _buy: Button
 var _aim: Label
 var _info_plate: PanelContainer
 var _warn: Label
@@ -123,6 +125,9 @@ func _ready() -> void:
 	state.hit_changed.connect(_on_hit)
 	state.aiming_changed.connect(func(_m: String) -> void: _refresh_plates())
 	state.bag_changed.connect(_refresh_plates)
+	state.island_changed.connect(func(_i: Dictionary) -> void: _refresh_plates())
+	# L'ENCRE sur mon ecran : au-dessus de tout le HUD, les tapes passent.
+	state.ink_changed.connect(_on_ink)
 	state.recap_changed.connect(_on_recap)
 	I18N.locale_changed.connect(func(_code: String) -> void: _relabel())
 	Screens.changed.connect(_refresh_visible)
@@ -168,9 +173,18 @@ func _build() -> void:
 	var arm_row := Kit.hbox(Kit.PAD_TIGHT)
 	_arm_plate.add_child(arm_row)
 	_strike = _arm_button(Kit.ICONS["bolt"], "strike")
-	_plant = _arm_button(Kit.ICONS["bomb"], "plant")
+	_bloop = _arm_button(Kit.ICONS["bloop"], "bloop")
 	arm_row.add_child(_strike)
-	arm_row.add_child(_plant)
+	arm_row.add_child(_bloop)
+	# SAC VIDE : plutot que deux compteurs a zero, la porte de l'etal.
+	_buy = Button.new()
+	_buy.icon = Kit.ICONS["shop"]
+	_buy.add_theme_constant_override("icon_max_width", 16)
+	_buy.focus_mode = Control.FOCUS_NONE
+	_buy.pressed.connect(func() -> void:
+		RunState.current.set_aiming("")
+		Shop.open())
+	arm_row.add_child(_buy)
 	_aim = Kit.label("", 13, CROWN)
 	arm_row.add_child(_aim)
 	_plates.add_child(_arm_plate)
@@ -283,6 +297,7 @@ func _relabel() -> void:
 # ── L'energie ────────────────────────────────────────────────────────────────
 
 func _on_me() -> void:
+	_refresh_watchers()
 	var state := RunState.current
 	var subject := state.subject()
 	# LA BARRE N'EST PLUS ICI : l'energie de la manche est sur le cadran de la
@@ -330,21 +345,38 @@ func _coach(was: int, now: int) -> void:
 		_say(2, I18N.t("run.energyRaidLeft"), Palette.CAPTION_INK, LOW_MS)
 
 
+# ── L'encre ──────────────────────────────────────────────────────────────────
+
+var _ink: InkSplash
+
+
+func _on_ink(ms: int) -> void:
+	if _ink != null and is_instance_valid(_ink):
+		_ink.queue_free()
+	_ink = null
+	if ms > 0:
+		_ink = InkSplash.splash(self, ms, Tuning.i("BLOOP.FADE_MS", 1500))
+
+
 # ── Les plaques ──────────────────────────────────────────────────────────────
 
 func _refresh_plates() -> void:
 	var state := RunState.current
 	var watching := not state.spectating.is_empty()
-	# Le sabotage se fait en regardant : l'eclair et la bombe ne sont offerts
-	# qu'au spectateur, et jamais sur la premiere ile (page.tsx).
-	_arm_plate.visible = watching and not state.first_run
+	# L'eclair et le bloop : en regardant (RAID), ou en jouant sur une ile ou
+	# l'on se bat (niveau 10) — jamais sur la premiere ile.
+	_arm_plate.visible = (watching or state.may_fight_here()) and not state.first_run
 	if _arm_plate.visible:
 		_style_arm(_strike, int(state.bag.get("lightning", 0)), state.aiming == "strike")
-		_style_arm(_plant, int(state.bag.get("bombs", 0)), state.aiming == "plant")
+		_style_arm(_bloop, int(state.bag.get("bloop", 0)), state.aiming == "bloop")
 		_strike.tooltip_text = I18N.t("run.strike")
-		_plant.tooltip_text = I18N.t("run.plant")
+		_bloop.tooltip_text = I18N.t("run.bloop")
+		var empty := int(state.bag.get("lightning", 0)) <= 0 and int(state.bag.get("bloop", 0)) <= 0
+		_buy.visible = empty
+		_buy.text = I18N.t("run.buyArms")
+		_buy.tooltip_text = I18N.t("run.buyArms")
 		_aim.visible = not state.aiming.is_empty()
-		_aim.text = I18N.t("run.aiming" if state.aiming == "strike" else "run.aimingPlant")
+		_aim.text = I18N.t("run.aiming" if state.aiming == "strike" else "run.aimingBloop")
 	_info_plate.visible = state.warn_stage > 0 or watching
 	_warn.visible = state.warn_stage > 0
 	_warn.text = "🌊 " + "!".repeat(state.warn_stage)
@@ -469,11 +501,18 @@ func _refresh_watchers() -> void:
 		var who := state.name_of(String(hit.get("by", "")))
 		if who.is_empty():
 			who = I18N.t("raid.aRival")
-		_watchers.text = I18N.shout(I18N.f("run.hitBolt" if String(hit.get("kind", "")) == "bolt" else "run.hitBomb", [who]))
+		var kind := String(hit.get("kind", ""))
+		var words := "run.hitBolt" if kind == "bolt" else "run.hitBloop" if kind == "bloop" else "run.hitBomb"
+		_watchers.visible = true
+		_watchers.text = I18N.shout(I18N.f(words, [who]))
 		_watchers.add_theme_color_override("font_color", WATCH_HIT)
 		if is_inside_tree():
 			_hit_timer.start((HIT_MS - (Time.get_ticks_msec() - int(hit.get("at", 0)))) / 1000.0)
 		return
+	# « N ONLINE » compte ceux qui ME regardent : le serveur ne l'envoie qu'au
+	# creuseur. Un spectateur n'a rien a compter — la ligne se tait, et ne
+	# parle que pour dire qui a frappe celui qu'il regarde (ci-dessus).
+	_watchers.visible = state.spectating.is_empty()
 	_watchers.text = I18N.shout(I18N.f("run.watchers", [state.watchers]))
 	_watchers.add_theme_color_override("font_color", CROWN if state.watchers > 0 else WATCH_DIM)
 

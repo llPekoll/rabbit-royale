@@ -46,7 +46,7 @@ signal bought(kind: String, qty: int)
 static var current: ShopState
 
 ## Les sortes que l'etal vend (`ItemKind`), dans l'ordre du serveur.
-const KINDS := ["trap", "bomb", "lightning", "shield", "energy", "smoke", "mirage", "fence"]
+const KINDS := ["trap", "bomb", "lightning", "shield", "energy", "smoke", "bloop", "fence"]
 
 ## L'ART D'UNE SORTE, la ou le jeu en a (item-meta.ts `art`). Quelques-unes
 ## seulement, et c'est voulu : ce sont les sprites du COFFRE, donc une sorte a
@@ -65,6 +65,7 @@ const ART := {
 	"shield": preload("res://assets/ui/icons/shield.webp"),
 	"energy": preload("res://assets/gauge/dial-icon.webp"),
 	"fence": preload("res://assets/deco/fence.png"),
+	"bloop": preload("res://assets/ui/icons/bloop.png"),
 }
 
 ## LA TEINTE D'UNE SORTE (item-meta.ts `tint`) : chacune dit ce que la chose
@@ -80,7 +81,7 @@ const TINT := {
 	"shield": Color("#4a7fa5"),
 	"energy": Color("#e07a2f"),
 	"smoke": Color("#6b7a8f"),
-	"mirage": Color("#9a6bd6"),
+	"bloop": Color("#3b2a5c"),
 	"fence": Color("#b98a3c"),
 }
 
@@ -96,7 +97,7 @@ const COUNTS := {
 	"shield": "carried",
 	"energy": "daily",
 	"smoke": "time",
-	"mirage": "carried",
+	"bloop": "carried",
 	"fence": "carried",
 }
 
@@ -339,8 +340,8 @@ func receipt(kind: String, qty: int, spent: int) -> String:
 			return I18N.f("shop.boughtShield", [qty, paid])
 		"smoke":
 			return I18N.f("shop.boughtSmoke", [paid])
-		"mirage":
-			return I18N.f("shop.boughtMirage", [qty, paid])
+		"bloop":
+			return I18N.f("shop.boughtBloop", [qty, paid])
 		"fence":
 			return I18N.f("shop.boughtFence", [qty, paid])
 	return paid

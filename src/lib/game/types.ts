@@ -77,6 +77,8 @@ export interface Rabbit {
   carrots: number;
   /** Server timestamp until which input is ignored (bomb stun). */
   stunnedUntil: number;
+  /** Server timestamp until which a BLOOP holds the rabbit on the island. */
+  inkedUntil?: number;
   /** Last accepted move, for the anti-speedhack gate. */
   lastMoveAt: number;
   /**

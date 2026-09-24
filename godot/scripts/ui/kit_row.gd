@@ -43,8 +43,10 @@ signal pour(kind: String)
 
 ## Les groupes, dans l'ordre du web, avec la case ouverte par defaut.
 const GROUPS := [
-	{"label": "kit.groupDefence", "kinds": ["shield", "smoke", "trap", "fence"], "first": "trap"},
-	{"label": "kit.groupAttack", "kinds": ["bomb", "lightning", "mirage"], "first": "bomb"},
+	{"label": "kit.groupDefence", "kinds": ["shield", "smoke", "trap", "bomb", "fence"], "first": "trap"},
+	# LA BOMBE EST LA DEFENSE DU TERRIER (2026-09-24) : l'attaque, c'est la
+	# foudre et le bloop — plus de bombe cachee sur l'ile des autres.
+	{"label": "kit.groupAttack", "kinds": ["lightning", "bloop"], "first": "lightning"},
 	{"label": "kit.groupGarden", "kinds": ["water", "fertiliser"], "first": "water"},
 ]
 

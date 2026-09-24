@@ -46,7 +46,7 @@ describe('the bolt and the bomb are the viewer\'s', () => {
 
   it('lets a spectator fire, and still refuses them a step', () => {
     // The two sabotage handlers dropped their spectator guard...
-    for (const event of ['lightning', 'plant']) {
+    for (const event of ['lightning', 'bloop']) {
       expect(handler(event), event).not.toMatch(/\|\| data\.spectating\) return/);
     }
     // ...and every handler that MOVES A RABBIT kept it. A spectator owns no
@@ -54,9 +54,9 @@ describe('the bolt and the bomb are the viewer\'s', () => {
     for (const event of ['move', 'flag', 'mirage']) {
       expect(handler(event), event).toMatch(/data\.spectating/);
     }
-    // The plant had a second gate with the same effect — "only somebody
-    // actually digging this island may mine it" — which a watcher also fails.
-    expect(handler('plant')).toMatch(/!data\.spectating && !live\.rabbits\.get/);
+    // The bloop keeps the plant's second gate, written so a watcher PASSES it:
+    // watching this island, or digging it with a live rabbit.
+    expect(handler('bloop')).toMatch(/!data\.spectating && !live\.rabbits\.get/);
   });
 
   it('fires the tap through, rather than dropping it while watching', () => {

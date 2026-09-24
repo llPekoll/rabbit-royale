@@ -164,6 +164,8 @@ func refresh() -> void:
 	if _faked or not Session.signed_in():
 		return
 	var answer: Answer = await Net.get_json("/api/raid", Session.token)
+	Net.trace("GET /api/raid -> %d ok=%s cibles=%d" % [answer.status, str(answer.ok),
+		(answer.body.get("targets", []) as Array).size() if answer.body.get("targets") is Array else -1])
 	if not answer.ok or answer.body.has("error"):
 		return
 	var next: Dictionary = answer.body.get("raid", {}) if answer.body.get("raid") is Dictionary else {}
@@ -192,6 +194,7 @@ func enter(defender_id: String) -> void:
 	outcome = {}
 	changed.emit()
 	var answer: Answer = await Net.post_json("/api/raid", {"defenderId": defender_id}, Session.token)
+	Net.trace("POST /api/raid %s -> %d %s" % [defender_id, answer.status, str(answer.body.get("error", "ok"))])
 	busy = false
 	var res := answer.body
 	if res.has("error") or not answer.ok:
@@ -495,6 +498,7 @@ func _same_incoming(a: Dictionary, b: Dictionary) -> bool:
 func _on_socket_event(name: String, data: Variant) -> void:
 	match name:
 		"presence_all":
+			Net.trace("presence_all %s" % str(data))
 			if data is Array:
 				presence.clear()
 				for row in data:

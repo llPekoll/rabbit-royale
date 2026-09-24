@@ -44,7 +44,19 @@ var checking := true
 var busy := false
 
 
+## Un jeton passe en ligne de commande (`-- --token=...`, banc de scenarios
+## contre un serveur local) : utilise tel quel, JAMAIS ecrit ni efface sur le
+## disque — sinon le serveur local refuserait le jeton de prod et `_forget`
+## deconnecterait le vrai compte.
+var _from_args := false
+
+
 func _ready() -> void:
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--token="):
+			token = arg.trim_prefix("--token=")
+			_from_args = true
+			return
 	token = _load_token()
 
 
@@ -210,7 +222,8 @@ func _adopt(body: Dictionary) -> void:
 func _forget() -> void:
 	player = {}
 	token = ""
-	DirAccess.remove_absolute(TOKEN_PATH)
+	if not _from_args:
+		DirAccess.remove_absolute(TOKEN_PATH)
 
 
 ## The server's refusal, in words the player can act on.
@@ -245,6 +258,8 @@ func _load_token() -> String:
 
 
 func _save_token(value: String) -> void:
+	if _from_args:
+		return
 	var cfg := ConfigFile.new()
 	cfg.set_value("session", "token", value)
 	cfg.save(TOKEN_PATH)

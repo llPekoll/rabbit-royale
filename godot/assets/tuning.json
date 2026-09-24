@@ -1,4 +1,8 @@
 {
+ "BLOOP": {
+  "INK_MS": 6000,
+  "FADE_MS": 1500
+ },
  "BOMB": {
   "KNOCKBACK_TILES": 3,
   "STUN_MS": 1200
@@ -486,7 +490,7 @@
    "shield": 600,
    "energy": 700,
    "smoke": 2000,
-   "mirage": 1000,
+   "bloop": 100,
    "fence": 300
   },
   "USDC_PRICES": {
@@ -496,7 +500,7 @@
    "shield": 0.9,
    "energy": 0.99,
    "smoke": 1.99,
-   "mirage": 0.99,
+   "bloop": 0.1,
    "fence": 0.4
   },
   "MAX_HELD": 20,

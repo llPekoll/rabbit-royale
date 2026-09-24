@@ -117,6 +117,7 @@ static func open() -> void:
 	var live := Home.live_energy()
 	var have := int(live.get("energy", 0))
 	var floor_needed := Tuning.raid_floor()
+	Net.trace("liste RAID : energie=%d, plancher=%d" % [have, floor_needed])
 	if have < floor_needed:
 		var per_hour := maxf(1.0, float(Home.burrow.get("regenPerHour", 1)))
 		var wait_ms := (floor_needed - have) / per_hour * 3600000.0
@@ -215,6 +216,7 @@ func _row(target: Dictionary, state: RaidState) -> Control:
 	name.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	who.add_child(name)
 	var where := state.presence_of(target)
+	Net.trace("ligne %s : %s" % [String(target.get("name", "")), where])
 	var ink: Color = WHERE_INK.get(where, WHERE_INK["away"])
 	var where_line := Kit.hbox(5)
 	where_line.add_child(_dot(ink, where == RaidState.DIGGING))
@@ -244,7 +246,16 @@ func _row(target: Dictionary, state: RaidState) -> Control:
 		purse.add_child(wait)
 	line.add_child(purse)
 
-	var words := I18N.t("raid.shielded") if shielded else I18N.t("raid.raidIt")
+	# IL CREUSE (2026-09-24) : on ne descend pas dans un terrier vide, on va le
+	# VOIR sur son ile — et de la l'electrocuter ou lui cacher une bombe (le
+	# spectateur arme, server/index.ts `lightning`/`plant`). Le bouclier ne
+	# protege que le terrier : regarder reste ouvert.
+	var digging := where == RaidState.DIGGING
+	if digging:
+		shielded = false
+		off = state.busy
+	var words := I18N.t("raid.watchIt") if digging \
+		else I18N.t("raid.shielded") if shielded else I18N.t("raid.raidIt")
 	# « Raid » dans sa casse, sur le bois du web (DANGER que la peau des bois
 	# dessine en planche) : en capitales sur l'or rouge, « RAID » sortait
 	# « Al », rogne par les feuilles.
@@ -255,7 +266,13 @@ func _row(target: Dictionary, state: RaidState) -> Control:
 	if off:
 		button.modulate.a = 0.75
 	var id := String(target.get("id", ""))
-	button.pressed.connect(func() -> void: state.enter(id))
+	button.pressed.connect(func() -> void:
+		Net.trace("bouton %s sur %s (busy=%s)" % ["Regarder" if digging else "Raid", id, str(state.busy)])
+		if digging:
+			if Chrome.current != null:
+				Chrome.current.watch(id)
+		else:
+			state.enter(id))
 	line.add_child(button)
 	return panel
 

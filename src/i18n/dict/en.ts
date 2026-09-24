@@ -327,7 +327,19 @@ export const en = {
      * because the name is the part that is worth reading.
      */
     hitBolt: (name: string) => `${name} zapped you`,
-    hitBomb: (name: string) => `${name} mined that`,
+    hitBomb: (name: string) => `Hidden bomb put by ${name}`,
+    /* THE BLOOP (2026-09-24): ink in a rival's eyes, and no way home until it runs off. */
+    bloop: 'Bloop',
+    aimingBloop: 'Tap a rival to ink them',
+    bloopNone: 'No bloop to throw. The shed sells it.',
+    bloopRefused: {
+      'no-rival': 'Nobody there to ink.',
+      level_locked: 'Not before level 10.',
+      'none-held': 'No bloop left.',
+    } as Record<string, string>,
+    hitBloop: (name: string) => `${name} inked you`,
+    buyArms: 'Buy',
+    inkedStay: (s: number) => `Ink in your eyes · home in ${s}s`,
   },
 
   /* ── What the island says during the very first run ───────────────────── */
@@ -445,6 +457,8 @@ export const en = {
     buy: (name: string, price: string) => `Buy ${name} for ${price}`,
     capped: (name: string, price: string) =>
       `${name}: ${price}. You are holding as many as you can.`,
+    /** The price button, armed: a second press buys. */
+    confirmBuy: 'CONFIRM?',
     tooPoor: (name: string, price: string) =>
       `${name}: ${price}. Not enough carrots yet. Dig for more.`,
     /* The count line under an item: "3/20", "2 today", "1d left", "off". */
@@ -461,6 +475,7 @@ export const en = {
       `${n > 1 ? `${n} lightning bolts` : 'lightning bolt'} bottled. ${paid}`,
     boughtShield: (n: number, paid: string) => `${n > 1 ? `${n} shields` : 'shield'} ready. ${paid}`,
     boughtSmoke: (paid: string) => `The numbers are hidden. ${paid}`,
+    boughtBloop: (n: number, paid: string) => `${n > 1 ? `${n} bloops` : 'bloop'} in the jar. ${paid}`,
     boughtMirage: (n: number, paid: string) =>
       `${n > 1 ? `${n} mirages` : 'mirage'} ready to throw. ${paid}`,
     /* A fence is BUILT, not readied: what it buys is one plank standing across
@@ -696,6 +711,8 @@ export const en = {
       digging: 'out digging',
     },
     raidIt: 'Raid',
+    /** The button on a row whose owner is out digging: watch the run, not raid the burrow. */
+    watchIt: 'Watch',
     brief: 'Reach the carrot field. Their traps are buried and unmarked.',
     outOfEnergy: 'Out of energy',
     nothingTaken: 'Nothing taken',
@@ -929,6 +946,10 @@ export const en = {
     smoke: {
       name: 'Smoke screen',
       blurb: 'Hides your burrow’s numbers for a day. Raiders cross it blind.',
+    },
+    bloop: {
+      name: 'Bloop',
+      blurb: 'Squirts ink in a rival’s eyes. For a few seconds they can’t see — or leave.',
     },
     mirage: {
       name: 'Mirage',

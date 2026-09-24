@@ -254,7 +254,18 @@ export const fr: Dict = {
     struckBy: (name) => `${name} t’a foudroyé`,
     watchers: (n) => `${n} en ligne`,
     hitBolt: (name) => `${name} t’a foudroyé`,
-    hitBomb: (name) => `${name} avait miné`,
+    hitBomb: (name) => `Bombe cachée posée par ${name}`,
+    bloop: 'Bloop',
+    aimingBloop: 'Touche un rival pour l’encrer',
+    bloopNone: 'Pas de bloop à lancer. La cabane en vend.',
+    bloopRefused: {
+      'no-rival': 'Personne à encrer ici.',
+      level_locked: 'Pas avant le niveau 10.',
+      'none-held': 'Plus de bloop.',
+    } as Record<string, string>,
+    hitBloop: (name) => `${name} t’a encré`,
+    buyArms: 'Acheter',
+    inkedStay: (s) => `De l’encre plein les yeux · retour dans ${s}s`,
   },
 
   firstRun: {
@@ -353,6 +364,8 @@ export const fr: Dict = {
     priceLabel: (price) => `${price} carottes`,
     buy: (name, price) => `Acheter ${name} pour ${price}`,
     capped: (name, price) => `${name} : ${price}. Tu en portes déjà le maximum.`,
+    /** The price button, armed: a second press buys. */
+    confirmBuy: 'CONFIRMER ?',
     tooPoor: (name, price) => `${name} : ${price}. Pas assez de carottes. Va creuser.`,
     heldOf: (held, cap) => `${held}/${cap}`,
     heldToday: (n) => `${n} aujourd’hui`,
@@ -364,6 +377,7 @@ export const fr: Dict = {
     boughtLightning: (n, paid) => `${n > 1 ? `${n} éclairs` : 'Éclair'} en bouteille. ${paid}`,
     boughtShield: (n, paid) => `${n > 1 ? `${n} boucliers prêts` : 'Bouclier prêt'}. ${paid}`,
     boughtSmoke: (paid) => `Les chiffres sont cachés. ${paid}`,
+    boughtBloop: (n, paid) => `${n > 1 ? `${n} bloops` : 'Bloop'} dans le bocal. ${paid}`,
     boughtMirage: (n, paid) => `${n > 1 ? `${n} mirages prêts` : 'Mirage prêt'} à lancer. ${paid}`,
     /* Une clôture se DRESSE : ce qu'on achète, c'est une planche qui ferme un
        tronçon du bord du potager, donc le reçu nomme ce que ça devient. */
@@ -554,6 +568,7 @@ export const fr: Dict = {
       digging: 'parti creuser',
     },
     raidIt: 'Piller',
+    watchIt: 'Regarder',
     brief: 'Atteins le champ de carottes. Leurs pièges sont enterrés et invisibles.',
     outOfEnergy: 'Plus d’énergie',
     nothingTaken: 'Rien pris',
@@ -745,6 +760,10 @@ export const fr: Dict = {
     smoke: {
       name: 'Écran de fumée',
       blurb: 'Cache les chiffres de ton terrier pour un jour. Les pillards traversent à l’aveugle.',
+    },
+    bloop: {
+      name: 'Bloop',
+      blurb: 'Gicle de l’encre dans les yeux d’un rival. Quelques secondes sans voir — ni partir.',
     },
     mirage: {
       name: 'Mirage',

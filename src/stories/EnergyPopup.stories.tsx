@@ -28,6 +28,7 @@ const PRICES: Record<ItemKind, { price: number; usdc: number; cap: number }> = {
   energy: { price: 900, usdc: 0.99, cap: 5 },
   smoke: { price: 2400, usdc: 1.99, cap: 3 },
   mirage: { price: 1100, usdc: 0.99, cap: 20 },
+  bloop: { price: 1000, usdc: 0.99, cap: 20 },
   fence: { price: 300, usdc: 0.40, cap: 4 },
 };
 

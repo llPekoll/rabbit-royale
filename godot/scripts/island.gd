@@ -129,6 +129,8 @@ var _caption: FirstRunCaption
 ## Assez pour lire « un coffre » ; pas assez pour qu'on cherche quoi faire.
 ## Deux sauts de joie (`happy`, 0,8 s) — le lapin a gagne, qu'on le voie.
 const DONE_SECONDS := 1.8
+## Un voisin a sec dort ce temps-la sur sa case avant de s'en aller.
+const ASLEEP_SECONDS := 4.5
 ## A sec : le coup, le sommeil, le gris et la ligne ont le temps d'etre lus.
 const DRY_SECONDS := 2.6
 ## Puis l'ile coule, et on rentre quand elle a disparu.
@@ -382,6 +384,11 @@ func _add_chrome() -> void:
 			RunState.current.stop_watching()
 			_remote = false
 			_remote_snap = {}
+		elif _remote and RunState.current.ink_left_ms() > 0:
+			# ENCRE (BLOOP) : on ne rentre pas tant qu'elle tient. Le serveur
+			# le refuserait aussi (`leave_rejected`) ; ici on le dit avant.
+			_deny_leave(RunState.current.ink_left_ms())
+			return
 		elif _remote:
 			RunState.current.leave()
 			# Plus de siege : une ile revue sans `join` ne parle plus au
@@ -445,6 +452,8 @@ func _add_chrome() -> void:
 
 	# LA MINI-CARTE, en bas a gauche : les cases autour du lapin, a plat,
 	# avec leurs chiffres — ce que les arbres et les paliers cachent.
+	# Pas en REGARDANT : elle dit ce qu'il y a autour de MON lapin, et le
+	# spectateur n'en a pas.
 	var mini: MiniMap = preload("res://scenes/ui/mini_map.tscn").instantiate()
 	mini.board_of = func() -> IslandBoard: return _board
 	mini.centre = _me_cell
@@ -461,6 +470,11 @@ func _add_chrome() -> void:
 	mini.position = Vector2(Kit.EDGE, get_viewport_rect().size.y - Kit.EDGE - mini.size.y)
 	get_viewport().size_changed.connect(func() -> void:
 		mini.position = Vector2(Kit.EDGE, get_viewport_rect().size.y - Kit.EDGE - mini.size.y))
+	var show_mini := func() -> void:
+		if is_instance_valid(mini):
+			mini.visible = RunState.current.spectating.is_empty()
+	RunState.current.me_changed.connect(show_mini)
+	show_mini.call()
 
 	# LA BOUSSOLE : un chevron au bord de l'ecran par coffre hors du cadre.
 	# Pas sur le tutoriel — son coffre a sa fleche (`_tiles.tutorial`).
@@ -979,7 +993,9 @@ func _on_release(at: Vector2) -> void:
 	# (2026-09-23, « a sec on peut dig quand meme »).
 	if local_run != null:
 		_local_tap(cell)
-	elif _remote and _watching():
+	elif _remote and (_watching() or not RunState.current.aiming.is_empty()):
+		# Armee (eclair, bloop), la tape vise au lieu de creuser — en
+		# regardant comme en jouant sur une ile ou l'on se bat.
 		_aimed_tap(cell, at)
 	elif _remote:
 		_remote_tap(cell)
@@ -1114,18 +1130,26 @@ func _on_board_event(name: String, data: Variant) -> void:
 		"rabbit_pushed":
 			_on_pushed(d)
 		"rabbit_died":
-			# PLUS DE MORT (2026-09-23) : un voisin a sec s'en va d'un saut, il
-			# ne s'affaisse plus sur le plateau. Le mien, c'est `_end_run`.
+			# A SEC, IL S'ENDORT (2026-09-24) : pousse sur une bombe, foudroye ou
+			# vide, un voisin tombe de sommeil (`exhaust`), il ne saute plus de
+			# joie — le saut disait « gagne » sur un lapin qu'on venait de battre.
+			# Il dort un moment, puis s'en va. Le mien, c'est `_end_run`.
 			var who := String(d.get("playerId", ""))
 			var r: IslandRabbit = _rivals.get(who)
 			if r != null and who != RunState.current.my_id():
 				_rivals.erase(who)
-				r.celebrate()
-				get_tree().create_timer(DONE_SECONDS).timeout.connect(func() -> void:
+				r.fall_asleep()
+				get_tree().create_timer(ASLEEP_SECONDS).timeout.connect(func() -> void:
 					if is_instance_valid(r):
 						r.vanish())
 		"lightning_struck":
 			_on_lightning(d)
+		"rabbit_inked":
+			var r := _rabbit_of(String(d.get("playerId", "")))
+			if r != null:
+				r.inked(int(d.get("inkMs", 0)))
+		"leave_rejected":
+			_deny_leave(int(d.get("inkMs", 0)))
 		"rabbit_struck":
 			var r := _rabbit_of(String(d.get("playerId", "")))
 			if r != null:
@@ -1395,17 +1419,26 @@ func _clear_planted(cell: Vector2i) -> void:
 	_planted.erase(cell)
 
 
-## LA TAPE DU SPECTATEUR : rien sans visee. Armee, la foudre part sur le lapin
-## le plus proche du doigt (sinon la case), la bombe sur la case — puis la
-## visee retombe, comme sur le web (`onStrikeIntent` / `onPlantIntent`).
+## LE RETOUR REFUSE sous l'encre : le son du non, et combien il en reste.
+func _deny_leave(ms: int) -> void:
+	Sound.deny()
+	if Chrome.current != null:
+		Chrome.current.toast(I18N.f("run.inkedStay", [ceili(ms / 1000.0)]), true)
+
+
+## LA TAPE QUI VISE : rien sans visee. Armee, la foudre part sur le lapin le
+## plus proche du doigt (sinon la case), le bloop sur le lapin le plus proche
+## (le serveur refuse une case sans rival, sans le compter) — puis la visee
+## retombe, comme sur le web (`onStrikeIntent`).
 func _aimed_tap(cell: Vector2i, at: Vector2) -> void:
 	var state := RunState.current
 	match state.aiming:
 		"strike":
 			var target := _rival_near(at)
 			state.lightning(_board.index_of(target if target.x >= 0 else cell))
-		"plant":
-			state.plant(_board.index_of(cell))
+		"bloop":
+			var inked := _rival_near(at)
+			state.bloop(_board.index_of(inked if inked.x >= 0 else cell))
 		_:
 			return
 	state.set_aiming("")

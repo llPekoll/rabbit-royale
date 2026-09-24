@@ -70,6 +70,7 @@ var _clean_armed := false
 ## qu'on n'a jamais rien deplace.
 var _arrange_bar: ArrangeBar
 var _arrange_tip: ArrangeTip
+const CLEAN_H := 44.0
 ## LE PLATEAU MONTRE UN RAID (burrow.gd `show_raid`) — pas « RaidState en a
 ## un » : entre les deux, il y a le rideau, et le chrome tourne au noir.
 var _raid_shown := false
@@ -304,12 +305,13 @@ func _wire_bag() -> void:
 func _feed_bag() -> void:
 	var shop := ShopState.shared()
 	RunState.current.set_bag({"lightning": int(shop.item("lightning").get("held", 0)),
-		"bombs": int(shop.item("bomb").get("held", 0))})
+		"bloop": int(shop.item("bloop").get("held", 0))})
 
 
 func _on_bag_spent(name: String, data: Variant) -> void:
-	if name == "bomb_planted" or (name == "lightning_struck" and data is Dictionary \
-			and String(data.get("castBy", "")) == RunState.current.my_id()):
+	var me := RunState.current.my_id()
+	if (name == "lightning_struck" and data is Dictionary and String(data.get("castBy", "")) == me) \
+			or (name == "rabbit_inked" and data is Dictionary and String(data.get("by", "")) == me):
 		ShopState.shared().refresh()
 
 
@@ -318,11 +320,18 @@ func _on_bag_spent(name: String, data: Variant) -> void:
 ## siege et sans cout — le serveur pose son instantane, sans lapin a moi.
 func _open_season() -> void:
 	var board := SeasonBoard.open()
-	board.spectate.connect(func(id: String) -> void:
-		close_dialog()
-		RunState.current.spectate(id)
-		if Screens.place != Screens.Place.ISLAND:
-			Screens.cross(Screens.Place.ISLAND))
+	board.spectate.connect(watch)
+
+
+## REGARDER LA RUN D'UN AUTRE : fermer la carte, entrer dans sa salle sans
+## lapin, traverser vers l'ile. Le tableau de saison, la liste RAID (une
+## ligne qui creuse) et le banc de scenarios passent tous par ici.
+func watch(player_id: String) -> void:
+	Net.trace("watch %s (depuis %s)" % [player_id, str(Screens.place)])
+	close_dialog()
+	RunState.current.spectate(player_id)
+	if Screens.place != Screens.Place.ISLAND:
+		Screens.cross(Screens.Place.ISLAND)
 
 
 ## LES RAIDS SONT-ILS OUVERTS A CE LAPIN ? Niveau lu sur /api/burrow ; un
@@ -349,7 +358,9 @@ func _on_door(door: String) -> void:
 		"raid":
 			# PAS DE RAID AVANT LE NIVEAU 10, dans les deux sens (2026-09-23) :
 			# le serveur refuse de toute facon ; ici on dit pourquoi.
+			Net.trace("porte RAID : niveau=%s" % str(Home.player.get("level")))
 			if not Chrome.raids_open():
+				Net.trace("porte RAID refusee : niveau < RAID_MIN")
 				toast(I18N.f("rabbitLevel.raidLocked", [Tuning.i("RABBIT_LEVELS.RAID_MIN", 10)]), true)
 				return
 			TargetList.open()
@@ -506,7 +517,8 @@ func _feed_kit() -> void:
 
 ## LE BOUTON « TOUT RETIRER » : toutes les bombes et toutes les planches
 ## reviennent au sac (le serveur le fait : `?all=1` sur les deux routes).
-## En haut a gauche, a la place de la colonne qui s'efface en DEFEND ; montre
+## En bas a gauche, juste au-dessus de BACK — le coin haut-gauche porte la
+## note des invites (« Guest burrow… »), qui le recouvrait ; montre
 ## seulement s'il y a quelque chose a retirer — un bouton qui ne fait rien est
 ## pire que pas de bouton. DEUX APPUIS : le premier demande « sur ? » trois
 ## secondes, le second nettoie — rien ne se perd, mais une defense entiere se
@@ -514,9 +526,7 @@ func _feed_kit() -> void:
 func _mount_clean() -> void:
 	_drop_clean()
 	_clean = preload("res://scenes/plank_button.tscn").instantiate()
-	_clean.custom_minimum_size = Vector2(0, 44)
-	column.add_child(_clean)
-	_clean.position = Vector2(0, Kit.PAD_TIGHT)
+	floor_host.add_child(_clean)
 	_clean.pressed.connect(_on_clean)
 	_clean_armed = false
 	_relabel_clean()
@@ -535,8 +545,24 @@ func _relabel_clean() -> void:
 	if _clean == null or not is_instance_valid(_clean):
 		return
 	_clean.visible = ShopState.shared().base_dirty()
-	_clean.relabel(I18N.shout(I18N.t("defend.cleanSure" if _clean_armed else "defend.clean")))
-	_clean.size = _clean.get_combined_minimum_size()
+	var words := I18N.shout(I18N.t("defend.cleanSure" if _clean_armed else "defend.clean"))
+	_clean.relabel(words)
+	# LA PLANCHE PEINT SON TEXTE ELLE-MEME : sa taille minimale ne le compte
+	# pas. Sans largeur donnee, elle tombait a une pastille de ses deux bouts
+	# (2026-09-23). La largeur du mot le plus long des deux, bouts compris.
+	var font := get_theme_default_font()
+	var w := 0.0
+	for key in ["defend.clean", "defend.cleanSure"]:
+		w = maxf(w, font.get_string_size(I18N.shout(I18N.t(key)), HORIZONTAL_ALIGNMENT_LEFT, -1,
+			_clean.label_size).x)
+	var sz := Vector2(ceilf(w + 2.0 * PlankButton.TEXT_PAD + 8.0), CLEAN_H)
+	_clean.custom_minimum_size = sz
+	_clean.size = sz
+	# Au-dessus de BACK, a gauche : le pied du sol moins BACK (au plus
+	# BackButton.MAX_H) et un peu d'air.
+	var view := get_viewport_rect().size
+	_clean.global_position = Vector2(Kit.EDGE,
+		view.y - Kit.EDGE - BackButton.MAX_H - Kit.PAD - sz.y).round()
 
 
 func _on_clean() -> void:
@@ -634,10 +660,54 @@ func _end_mode() -> void:
 ## `banked` : la run vient d'encaisser, sur l'ile. On garde, et on pose sur
 ## DIG quand le rideau s'est rouvert sur le terrier.
 func _on_socket_event(name: String, data: Variant) -> void:
+	# LE BANC DE SCENARIOS (tools/scenarios, serveur local RR_STAGE=1) dit qui
+	# regarder : la meme traversee que « regarder » au tableau de saison.
+	# Le serveur de prod n'emet jamais cet evenement.
+	if name == "__caption" and data is Dictionary:
+		_stage_caption(String((data as Dictionary).get("text", "")))
+		return
+	if name == "__follow" and data is Dictionary:
+		watch(String((data as Dictionary).get("playerId", "")))
+		return
 	if name != "banked" or not (data is Dictionary):
 		return
 	_pending_haul = int((data as Dictionary).get("carrots", 0))
 	_hand_haul()
+
+
+## Le bandeau du banc de scenarios : le cas en cours, fixe en haut de l'ecran
+## jusqu'au suivant. Cree au premier `__caption`, donc absent en jeu normal.
+var _stage_label: Label
+
+
+func _stage_caption(text: String) -> void:
+	if _stage_label == null:
+		_stage_label = Label.new()
+		_stage_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+		_stage_label.offset_top = 96.0
+		_stage_label.offset_left = 24.0
+		_stage_label.offset_right = -24.0
+		_stage_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_stage_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		# Cliquer le bandeau fait avancer le banc (le serveur relaie au runner).
+		_stage_label.mouse_filter = Control.MOUSE_FILTER_STOP
+		_stage_label.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		_stage_label.gui_input.connect(func(ev: InputEvent) -> void:
+			if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:
+				GameSocket.act("__next", 0)
+			elif ev is InputEventScreenTouch and ev.pressed:
+				GameSocket.act("__next", 0))
+		_stage_label.add_theme_font_size_override("font_size", 26)
+		_stage_label.add_theme_color_override("font_color", Color.WHITE)
+		var box := StyleBoxFlat.new()
+		box.bg_color = Color(0, 0, 0, 0.72)
+		box.set_corner_radius_all(8)
+		box.set_content_margin_all(12)
+		_stage_label.add_theme_stylebox_override("normal", box)
+		_stage_label.z_index = 4000
+		add_child(_stage_label)
+	_stage_label.text = text
+	_stage_label.visible = not text.is_empty()
 
 
 func _hand_haul() -> void:

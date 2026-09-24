@@ -1151,6 +1151,26 @@ export const LIGHTNING = {
   SHOCK_STUN_MS: 2000,
 } as const;
 
+/**
+ * THE BLOOP — ink in a rival's eyes, Mario Kart's squid (2026-09-24).
+ *
+ * Aimed like the bolt: tap a rival, on the island or watching it from RAID.
+ * It takes nothing — no energy, no ground — it takes the SCREEN: the victim's
+ * view is splashed with ink for `INK_MS`, and for that long they cannot walk
+ * home (`leave` is refused). Research said a pure screen-blocker is shrugged
+ * off by good players (the Blooper is a "wasted item" online), so the pin is
+ * what gives it teeth: you are stuck reading through the ink, not escaping it.
+ *
+ * Replaces the mirage on the shelf — two ways to spoil reading was one too
+ * many, and the mirage was never ported to the Godot client.
+ */
+export const BLOOP = {
+  /** How long the ink covers the victim's view, and holds them on the island. */
+  INK_MS: 6000,
+  /** The last part of it, the ink running off — the client fades over this. */
+  FADE_MS: 1500,
+} as const;
+
 export const MIRAGE = {
   /** How long the false numbers hold on the victim's island. */
   DURATION_MS: 90 * 1000,
@@ -1232,14 +1252,12 @@ export const SHOP = {
      */
     smoke: 2_000,
     /**
-     * Cheaper than smoke, and stronger — deliberately.
-     *
-     * Smoke buys a defensive state that lasts a day; a mirage buys ninety
-     * seconds of someone else's confusion. The price is what separates a
-     * standing habit from an opportunist strike, and this one is meant to be
-     * thrown in the middle of a race rather than budgeted for.
+     * The bloop took the mirage's place on the shelf (2026-09-24). The
+     * CHEAPEST attack, by play-test: the ink is a nuisance, not a wound —
+     * nothing lost, six seconds of reading through it (« ça gêne pas
+     * beaucoup, fais-le pas cher »). Priced as an impulse, thrown often.
      */
-    mirage: 1_000,
+    bloop: 100,
     /**
      * A wall round the potager, at the price of a single thrown bomb.
      *
@@ -1265,7 +1283,7 @@ export const SHOP = {
     shield: 0.90,
     energy: 0.99,
     smoke: 1.99,
-    mirage: 0.99,
+    bloop: 0.10,
     // The bomb's, for the same reason the carrot price is the bomb's.
     fence: 0.40,
   },

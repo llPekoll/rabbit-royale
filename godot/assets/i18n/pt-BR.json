@@ -376,7 +376,22 @@
    "$t": "{0} te fulminou"
   },
   "hitBomb": {
-   "$t": "{0} minou isso"
+   "$t": "Bomba oculta de {0}"
+  },
+  "bloop": "Bloop",
+  "aimingBloop": "Toque num rival para entintá-lo",
+  "bloopNone": "Nenhum bloop para lançar. O galpão vende.",
+  "bloopRefused": {
+   "no-rival": "Ninguém ali para entintar.",
+   "level_locked": "Só a partir do nível 10.",
+   "none-held": "Acabaram os bloops."
+  },
+  "hitBloop": {
+   "$t": "{0} te entintou"
+  },
+  "buyArms": "Comprar",
+  "inkedStay": {
+   "$t": "Tinta nos olhos · volta em {0}s"
   }
  },
  "firstRun": {
@@ -541,6 +556,7 @@
   "capped": {
    "$t": "{0}: {1}. Você já carrega o máximo."
   },
+  "confirmBuy": "CONFIRMAR?",
   "tooPoor": {
    "$t": "{0}: {1}. Cenouras insuficientes. Vá cavar."
   },
@@ -627,6 +643,23 @@
   },
   "boughtSmoke": {
    "$t": "Os números estão escondidos. {0}"
+  },
+  "boughtBloop": {
+   "$t": "{0} bloops no pote. {1}",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "Bloop no pote. {1}"
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "Bloop no pote. {1}"
+    }
+   ]
   },
   "boughtMirage": {
    "$t": "{0} miragens prontas para jogar. {1}",
@@ -1000,6 +1033,7 @@
    "digging": "cavando fora"
   },
   "raidIt": "Saquear",
+  "watchIt": "Assistir",
   "brief": "Alcance a plantação de cenouras. As armadilhas deles estão enterradas e sem marca.",
   "outOfEnergy": "Sem energia",
   "nothingTaken": "Nada levado",
@@ -1313,6 +1347,10 @@
   "smoke": {
    "name": "Cortina de fumaça",
    "blurb": "Esconde os números da sua toca por um dia. Saqueadores atravessam às cegas."
+  },
+  "bloop": {
+   "name": "Bloop",
+   "blurb": "Esguicha tinta nos olhos de um rival. Por alguns segundos ele não vê — nem sai."
   },
   "mirage": {
    "name": "Miragem",

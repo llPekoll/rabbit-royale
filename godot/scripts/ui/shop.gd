@@ -135,6 +135,15 @@ var _lamp: TextureRect
 var _k := 1.0
 var _entered := false
 
+## L'ACHAT EN DEUX PRESSIONS (2026-09-24 : un achat est parti sur un clic
+## egare). La premiere arme le prix — rouge, « CONFIRMER ? », comme ABANDONNER
+## au profil —, la seconde achete. Une autre carte, ou ARM_SECONDS sans rien,
+## desarme. L'argent n'en a pas besoin : le portefeuille demande deja.
+const ARM_SECONDS := 3.0
+var _armed: PlankButton
+var _armed_undo := Callable()
+var _arm_ticket := 0
+
 
 func _init() -> void:
 	# Sans titre dans l'en-tete : l'enseigne pend en haut de l'ecran.
@@ -378,6 +387,10 @@ func _place_sign() -> void:
 func _rebuild() -> void:
 	if _row == null:
 		return
+	# Les cartes sont refaites : un prix arme part avec la sienne.
+	_arm_ticket += 1
+	_armed = null
+	_armed_undo = Callable()
 	_sign_text.text = I18N.shout(I18N.t("shop.title"))
 	_sign_text.uppercase = I18N.pixel_face()
 	_purse_text.text = I18N.group_digits(_state.stock())
@@ -720,8 +733,11 @@ func _card(it: Dictionary, tokens: Array, lead: bool) -> Control:
 			return
 		if money:
 			_pay_money(kind)
+		elif _armed == buy:
+			_disarm()
+			_state.buy(kind)
 		else:
-			_state.buy(kind))
+			_arm(buy, label + "  ", PlankButton.tone_board(tone)))
 	lift.add_child(buy)
 
 	# LE SURVOL SOULEVE LA CARTE (a la souris ; au doigt il n'y a pas de
@@ -883,6 +899,40 @@ static func _fit(text: String, size: int, room: float) -> int:
 ## LA CAROTTE SUR LA FACE DU PRIX. La planche peint son libelle centre ; deux
 ## espaces en fin de texte lui font la place, et l'icone, enfant du meme
 ## label, se pose dans cette place et monte avec lui dans la vague.
+func _arm(button: PlankButton, words: String, board: PlankButton.Board) -> void:
+	_disarm()
+	_armed = button
+	# La carotte suit le prix, pas « CONFIRMER ? » : elle se cache le temps
+	# de la question.
+	var ink: Label = button._ink
+	var marks := ink.get_children()
+	_armed_undo = func() -> void:
+		if not is_instance_valid(button):
+			return
+		button.relabel(words)
+		button.board = board
+		for m in marks:
+			if is_instance_valid(m):
+				m.visible = true
+	for m in marks:
+		m.visible = false
+	button.relabel(I18N.shout(I18N.t("shop.confirmBuy")))
+	button.board = PlankButton.Board.DANGER
+	_arm_ticket += 1
+	var ticket := _arm_ticket
+	get_tree().create_timer(ARM_SECONDS).timeout.connect(func() -> void:
+		if ticket == _arm_ticket:
+			_disarm())
+
+
+func _disarm() -> void:
+	_arm_ticket += 1
+	if _armed_undo.is_valid():
+		_armed_undo.call()
+	_armed = null
+	_armed_undo = Callable()
+
+
 func _carrot_on(button: PlankButton, px: float) -> void:
 	var icon := Kit.icon(Kit.ICONS["carrot"], px)
 	var ink: Label = button._ink

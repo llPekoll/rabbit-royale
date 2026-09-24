@@ -414,3 +414,27 @@ seul le hash `b3f33a36…` manquait ; les trois lignes qui diffèrent encore
 (`25e17b99…`, `4c9b76a6…`, `9eab7da2…`) ne diffèrent que par l'horodatage,
 héritage du réalignement du 2026-09-14. Colonne nulle pour tous : le terrier
 généré, comme avant.
+
+### 2026-09-24 — `0022_aberrant_microbe` : l'objet `bloop`
+
+Le bloop (l'encre de Mario Kart, `BLOOP` dans `config/tuning.ts`) remplace le
+mirage dans la boutique : une valeur de plus dans l'enum `item_kind`. Passé en
+une transaction, **avant** le push — la route de la boutique et le handler
+`bloop` écrivent `inventory.kind = 'bloop'`, refusé par un enum qui ne le
+connaît pas. Postgres 18 accepte `ADD VALUE` dans une transaction. Les deux
+prix sont semés dans la même transaction, puisque la boutique lit la table.
+
+```sql
+ALTER TYPE "public"."item_kind" ADD VALUE IF NOT EXISTS 'bloop';
+INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
+SELECT '3390d9f1dabb87593ccfb532765d6d6971a0e5d514b237670d52951dbd03235c', 1790225191029
+WHERE NOT EXISTS (SELECT 1 FROM drizzle.__drizzle_migrations WHERE hash = '3390d9f1…');
+INSERT INTO tuning (key, value, note, seeded) VALUES
+  ('SHOP.PRICES.bloop', 100, 'Prix d''un bloop en carottes', true),
+  ('SHOP.USDC_PRICES.bloop', 0.1, 'Prix d''un bloop en USDC', true)
+ON CONFLICT (key) DO NOTHING;
+```
+
+Registre de prod : 23 → 24, comme le local ; `bloop` présent dans l'enum,
+les deux prix dans `tuning`. Les lignes `SHOP.*.mirage` restent (clés mortes,
+ignorées au chargement ; `--prune` les retirera).

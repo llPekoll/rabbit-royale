@@ -258,7 +258,18 @@ export const ptBR: Dict = {
     struckBy: (name) => `${name} te atingiu com um raio`,
     watchers: (n) => `${n} online`,
     hitBolt: (name) => `${name} te fulminou`,
-    hitBomb: (name) => `${name} minou isso`,
+    hitBomb: (name) => `Bomba oculta de ${name}`,
+    bloop: 'Bloop',
+    aimingBloop: 'Toque num rival para entintá-lo',
+    bloopNone: 'Nenhum bloop para lançar. O galpão vende.',
+    bloopRefused: {
+      'no-rival': 'Ninguém ali para entintar.',
+      level_locked: 'Só a partir do nível 10.',
+      'none-held': 'Acabaram os bloops.',
+    } as Record<string, string>,
+    hitBloop: (name) => `${name} te entintou`,
+    buyArms: 'Comprar',
+    inkedStay: (s) => `Tinta nos olhos · volta em ${s}s`,
   },
 
   firstRun: {
@@ -357,6 +368,8 @@ export const ptBR: Dict = {
     priceLabel: (price) => `${price} cenouras`,
     buy: (name, price) => `Comprar ${name} por ${price}`,
     capped: (name, price) => `${name}: ${price}. Você já carrega o máximo.`,
+    /** The price button, armed: a second press buys. */
+    confirmBuy: 'CONFIRMAR?',
     tooPoor: (name, price) => `${name}: ${price}. Cenouras insuficientes. Vá cavar.`,
     heldOf: (held, cap) => `${held}/${cap}`,
     heldToday: (n) => `${n} hoje`,
@@ -368,6 +381,7 @@ export const ptBR: Dict = {
     boughtLightning: (n, paid) => `${n > 1 ? `${n} raios` : 'Raio'} engarrafado${n > 1 ? 's' : ''}. ${paid}`,
     boughtShield: (n, paid) => `${n > 1 ? `${n} escudos prontos` : 'Escudo pronto'}. ${paid}`,
     boughtSmoke: (paid) => `Os números estão escondidos. ${paid}`,
+    boughtBloop: (n, paid) => `${n > 1 ? `${n} bloops` : 'Bloop'} no pote. ${paid}`,
     boughtMirage: (n, paid) => `${n > 1 ? `${n} miragens prontas` : 'Miragem pronta'} para jogar. ${paid}`,
     /* Uma cerca é LEVANTADA: o que se compra é uma tábua que fecha um trecho da
        borda da horta, então o recibo nomeia aquilo em que ela se transforma. */
@@ -556,6 +570,7 @@ export const ptBR: Dict = {
       digging: 'cavando fora',
     },
     raidIt: 'Saquear',
+    watchIt: 'Assistir',
     brief: 'Alcance a plantação de cenouras. As armadilhas deles estão enterradas e sem marca.',
     outOfEnergy: 'Sem energia',
     nothingTaken: 'Nada levado',
@@ -747,6 +762,10 @@ export const ptBR: Dict = {
     smoke: {
       name: 'Cortina de fumaça',
       blurb: 'Esconde os números da sua toca por um dia. Saqueadores atravessam às cegas.',
+    },
+    bloop: {
+      name: 'Bloop',
+      blurb: 'Esguicha tinta nos olhos de um rival. Por alguns segundos ele não vê — nem sai.',
     },
     mirage: {
       name: 'Miragem',

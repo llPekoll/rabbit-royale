@@ -364,7 +364,22 @@
    "$t": "{0} zapped you"
   },
   "hitBomb": {
-   "$t": "{0} mined that"
+   "$t": "Hidden bomb put by {0}"
+  },
+  "bloop": "Bloop",
+  "aimingBloop": "Tap a rival to ink them",
+  "bloopNone": "No bloop to throw. The shed sells it.",
+  "bloopRefused": {
+   "no-rival": "Nobody there to ink.",
+   "level_locked": "Not before level 10.",
+   "none-held": "No bloop left."
+  },
+  "hitBloop": {
+   "$t": "{0} inked you"
+  },
+  "buyArms": "Buy",
+  "inkedStay": {
+   "$t": "Ink in your eyes · home in {0}s"
   }
  },
  "firstRun": {
@@ -529,6 +544,7 @@
   "capped": {
    "$t": "{0}: {1}. You are holding as many as you can."
   },
+  "confirmBuy": "CONFIRM?",
   "tooPoor": {
    "$t": "{0}: {1}. Not enough carrots yet. Dig for more."
   },
@@ -615,6 +631,23 @@
   },
   "boughtSmoke": {
    "$t": "The numbers are hidden. {0}"
+  },
+  "boughtBloop": {
+   "$t": "{0} bloops in the jar. {1}",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "bloop in the jar. {1}"
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "bloop in the jar. {1}"
+    }
+   ]
   },
   "boughtMirage": {
    "$t": "{0} mirages ready to throw. {1}",
@@ -960,6 +993,7 @@
    "digging": "out digging"
   },
   "raidIt": "Raid",
+  "watchIt": "Watch",
   "brief": "Reach the carrot field. Their traps are buried and unmarked.",
   "outOfEnergy": "Out of energy",
   "nothingTaken": "Nothing taken",
@@ -1240,6 +1274,10 @@
   "smoke": {
    "name": "Smoke screen",
    "blurb": "Hides your burrow’s numbers for a day. Raiders cross it blind."
+  },
+  "bloop": {
+   "name": "Bloop",
+   "blurb": "Squirts ink in a rival’s eyes. For a few seconds they can’t see — or leave."
   },
   "mirage": {
    "name": "Mirage",

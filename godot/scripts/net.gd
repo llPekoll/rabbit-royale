@@ -43,6 +43,14 @@ signal busy_changed(busy: bool)
 var _in_flight := 0
 
 
+## TRACE DU BANC : une ligne sur la sortie standard, seulement contre un
+## serveur local (`--server=http://localhost...`), jamais contre la prod.
+## tools/scenarios/playground.ts la recopie dans out/godot.log.
+func trace(msg: String) -> void:
+	if HOST.begins_with("http://localhost") or HOST.begins_with("http://127."):
+		print("[trace %d] %s" % [Time.get_ticks_msec(), msg])
+
+
 ## Une ecriture part. A appeler par tout HTTPRequest fait a la main (la
 ## boutique, le raid, le profil), et appariee a `end()` quoi qu'il arrive.
 func begin() -> void:

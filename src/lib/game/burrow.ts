@@ -245,7 +245,7 @@ export function burrowView(row: BurrowRow, now = Date.now(), bag?: Holdings): Bu
   const atMax = row.burrowLevel >= BURROW.MAX_LEVEL;
   const cost = atMax ? null : upgradeCost(row.burrowLevel);
   const empty = { trap: 0, bomb: 0, lightning: 0, shield: 0, energy: 0, smoke: 0,
-    mirage: 0, water: 0, fertiliser: 0 } as Holdings;
+    mirage: 0, water: 0, fertiliser: 0, bloop: 0 } as Holdings;
   return {
     level: row.burrowLevel,
     maxLevel: BURROW.MAX_LEVEL,

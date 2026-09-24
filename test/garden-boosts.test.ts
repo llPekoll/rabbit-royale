@@ -24,7 +24,7 @@ const ago = (h: number) => new Date(now - h * 3_600_000);
 /** A bag holding `water` waterings and `fertiliser` feedings, nothing else. */
 const bag = (water = 0, fertiliser = 0): Holdings => ({
   trap: 0, bomb: 0, lightning: 0, shield: 0, energy: 0, smoke: 0, mirage: 0,
-  fence: 0, water, fertiliser,
+  fence: 0, bloop: 0, water, fertiliser,
 });
 
 /** The player-row fields the boosts read. */

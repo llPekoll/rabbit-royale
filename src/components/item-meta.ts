@@ -127,6 +127,11 @@ export const ITEM_META: Record<ItemKind, ItemMeta> = {
     tint: '#9a6bd6',
     counts: 'carried',
   },
+  bloop: {
+    icon: '🦑',
+    tint: '#3b2a5c',
+    counts: 'carried',
+  },
   fence: {
     /* A fence, not a wall or a brick: the glyph has to read at 20px in a
        monospace stack, and the coverage rule at the top of this file applies —

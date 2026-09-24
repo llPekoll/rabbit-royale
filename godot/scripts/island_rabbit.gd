@@ -60,7 +60,9 @@ const DROP_SECONDS := 0.35
 const DROWN_FALL := 0.62
 const DROWN_SINK_PX := 26.0
 const DROWN_TILES := 2
-const SURFACE_SECONDS := 0.45
+## LA REMONTEE TOMBE DU CIEL : de assez haut pour sortir du cadre serre.
+const SKY_DROP_PX := 420.0
+const SKY_DROP_SECONDS := 0.55
 
 ## AU-DESSUS DE LA MER ET DE TOUT LE SOL pendant le vol : trie sur les cases,
 ## le lapin passerait sous la terrasse qu'il vient de quitter. Le relief monte
@@ -234,6 +236,20 @@ func exhaust() -> void:
 			_sprite.play("sleep"), CONNECT_ONE_SHOT)
 
 
+## SA RUN EST FINIE sous les yeux des autres (`rabbit_died`). Foudroye, il
+## s'effondre deja a la fin de l'eclair (`electrocute`, fatal) : on ne coupe
+## pas le courant pour ca.
+func fall_asleep() -> void:
+	if _shocking:
+		return
+	exhaust()
+
+
+## Vrai de la chute de l'eclair a la fin du courant — `_shock` n'existe
+## qu'une fois l'eclair arrive, et `rabbit_died` le precede.
+var _shocking := false
+
+
 # ── La poussee ──────────────────────────────────────────────────────────────
 
 ## IL EST JETE sur `cell` (`playKnockback`) : un vol en cloche avec deux tours
@@ -314,6 +330,7 @@ func _thrown(bomb: Vector2i, back: Vector2i, seq: int) -> void:
 	if _hop != null and _hop.is_valid():
 		_hop.kill()
 	_hop = null
+	_upright()
 	var from := map.screen_of(bomb.x, bomb.y) + Vector2(0, Iso.half_h())
 	var to := map.screen_of(back.x, back.y) + Vector2(0, Iso.half_h())
 	position = from
@@ -399,21 +416,49 @@ func drown(toward: Vector2i, back: Vector2i, under_ms: int) -> void:
 	_flight.tween_callback(_surface)
 
 
-## IL REMONTE au milieu de l'ile, visiblement : pose enfonce dans le sol, il
-## se leve de 14 px en apparaissant. Un lapin qui reapparait tout net n'est
-## revenu de nulle part.
+## IL RETOMBE DU CIEL sur sa case de remontee : la mer l'a avale, l'ile le
+## rend par le haut. Plus haut et plus long que `drop_in` — un joueur qui
+## arrive tombe d'un pas, un noye tombe de loin, et l'ombre le precede.
+## Au-dessus de tout le sol pendant la chute (Z_AIR), repose sur sa case a
+## l'impact : trie sur les cases, il passerait derriere la terrasse d'en face.
 func _surface() -> void:
 	_under = false
 	visible = true
 	_place()
-	var rest := position
-	position = rest + Vector2(0, 14)
-	modulate.a = 0.0
+	var rest_z := z_index
+	z_index = Z_AIR
+	modulate.a = 1.0
+	_sprite.rotation = 0.0
+	_sprite.position = Vector2(0, -SKY_DROP_PX)
+	_sprite.play("damage")
+	# LA PLAQUE ARRIVE AVEC LUI : posee sur la case, elle l'attendrait en bas.
+	_show_plate(false)
 	var t := create_tween().set_parallel(true)
-	t.tween_property(self, "position", rest, SURFACE_SECONDS) \
+	t.tween_property(_sprite, "position", Vector2.ZERO, SKY_DROP_SECONDS) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	if _shadow != null:
+		_shadow.visible = true
+		_shadow.scale = Vector2(0.2, 0.2)
+		t.tween_property(_shadow, "scale", Vector2.ONE, SKY_DROP_SECONDS) \
+			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	t.set_parallel(false)
+	# L'IMPACT : ecrase, puis rebondit sur ses pattes.
+	t.tween_callback(func() -> void:
+		z_index = rest_z
+		_show_plate(true)
+		Sound.play("hop", 1.0)
+		_sprite.play("idle"))
+	t.tween_property(_sprite, "scale", Vector2(RABBIT_SCALE * 1.25, RABBIT_SCALE * 0.75), 0.06)
+	t.tween_property(_sprite, "scale", Vector2(RABBIT_SCALE, RABBIT_SCALE), 0.22) \
 		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	t.tween_property(self, "modulate:a", 1.0, 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	_rest()
+	t.tween_callback(_rest)
+
+
+func _show_plate(on: bool) -> void:
+	if _plate != null:
+		_plate.visible = on
+	if _stem != null:
+		_stem.visible = on
 
 
 func is_under() -> bool:
@@ -439,6 +484,23 @@ func _arc(from: Vector2, to: Vector2, height: float, seconds: float, spins: int)
 			_sprite.rotation = TAU * float(spins) * (1.0 - (1.0 - k) * (1.0 - k)),
 		0.0, 1.0, seconds)
 	return t
+
+
+## UN VOL COUPE SE TERMINE DROIT (2026-09-24, « des fois il est pas droit ») :
+## une poussee, un souffle ou une noyade le font tourner autour du ventre, et
+## seul leur dernier rappel le remettait sur ses pieds. Coupe en l'air — un pas,
+## un eclair, une autre poussee arrive — il restait penche, l'ancre au ventre,
+## jusqu'au vol suivant. Toute interruption passe par `_land` : elle le redresse.
+func _land() -> void:
+	super._land()
+	_upright()
+
+
+func _upright() -> void:
+	if _sprite == null or _under:
+		return
+	_spin_from_belly(false)
+	_sprite.scale = Vector2(RABBIT_SCALE, RABBIT_SCALE)
 
 
 ## TOURNER AUTOUR DU VENTRE, pas des pieds : l'ancre passe au milieu du corps
@@ -471,6 +533,45 @@ func _squash() -> void:
 	h.tween_property(_sprite, "position:y", 0.0, 0.25).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
 
 
+# ── Le bloop ────────────────────────────────────────────────────────────────
+
+const BLOOP_ICON := preload("res://assets/ui/icons/bloop.png")
+## Le calmar se pose au-dessus du nom (NAME_Y), le temps de gicler.
+const BLOOP_Y := -84.0
+const BLOOP_SHOW_S := 1.3
+## Le lapin encre : une teinte d'encre qui se retire sur toute la duree.
+const INK_TINT := Color(0.42, 0.36, 0.62)
+
+
+## ENCRE (BLOOP, 2026-09-24) : le calmar surgit au-dessus de lui, gicle, et
+## repart ; le lapin reste teinte d'encre tant qu'elle tient. Ce que voit la
+## victime elle-meme — l'ecran tache — est la bande du haut (`InkSplash`).
+func inked(ms: int) -> void:
+	if _sprite == null:
+		return
+	var squid := Sprite2D.new()
+	squid.texture = BLOOP_ICON
+	squid.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	squid.position = Vector2(0.0, BLOOP_Y)
+	squid.scale = Vector2.ZERO
+	squid.z_index = 3
+	add_child(squid)
+	var pop := squid.create_tween()
+	pop.tween_property(squid, "scale", Vector2(1.6, 1.6), 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	# Le giclement : il se tasse, puis s'etire vers le bas.
+	pop.tween_property(squid, "scale", Vector2(1.9, 1.3), 0.12)
+	pop.tween_property(squid, "scale", Vector2(1.4, 1.8), 0.12)
+	pop.tween_property(squid, "scale", Vector2(1.6, 1.6), 0.1)
+	pop.tween_property(squid, "position:y", BLOOP_Y - 6.0, 0.35).set_trans(Tween.TRANS_SINE)
+	pop.tween_property(squid, "position:y", BLOOP_Y, 0.35).set_trans(Tween.TRANS_SINE)
+	pop.tween_property(squid, "modulate:a", 0.0, maxf(0.1, BLOOP_SHOW_S - 1.22))
+	pop.tween_callback(squid.queue_free)
+	var dye := create_tween()
+	_sprite.modulate = INK_TINT
+	dye.tween_interval(maxf(0.0, ms / 1000.0 - 1.0))
+	dye.tween_property(_sprite, "modulate", Color.WHITE, 1.0)
+
+
 # ── La foudre ───────────────────────────────────────────────────────────────
 
 ## FOUDROYE (Electrocute.ts) : le grand eclair tombe sur lui, et a son image 5
@@ -480,6 +581,7 @@ func electrocute(stun_ms: int, fatal: bool) -> void:
 	if _sprite == null or _under:
 		return
 	_land()
+	_shocking = true
 	var parent := get_parent()
 	if parent != null:
 		LightningFx.big_bolt(parent, position, z_index + 2)
@@ -512,6 +614,7 @@ func electrocute(stun_ms: int, fatal: bool) -> void:
 		if _shock != null:
 			_shock.queue_free()
 			_shock = null
+		_shocking = false
 		if _sprite == null:
 			return
 		_sprite.visible = true

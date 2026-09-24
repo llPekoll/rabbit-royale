@@ -148,6 +148,11 @@ export async function servirApi(
     const protocole = (req.headers['x-forwarded-proto'] as string) ?? 'http';
     const requete = await versRequest(req, `${protocole}://${hote}`);
     const reponse = await handler(requete);
+    // Banc local (RR_STAGE=1) : chaque appel, son statut, et la raison d'un refus.
+    if (process.env.RR_STAGE === '1' && !chemin.startsWith('/api/tuning')) {
+      const refus = reponse.status >= 400 ? ` ${(await reponse.clone().text()).slice(0, 200)}` : '';
+      console.log(`[api] ${methode} ${chemin}${req.url?.includes('?') ? '?' + req.url.split('?')[1] : ''} -> ${reponse.status}${refus}`);
+    }
 
     // L'app native envoie ses requetes sans origine : on autorise large ici,
     // l'authentification tient au JWT, pas a l'origine.

@@ -146,8 +146,8 @@ func _ready() -> void:
 	state.teach_changed.connect(_on_teach)
 	state.me_changed.connect(_on_me)
 	# UN SEUL BOUTON A L'ECRAN : quand l'ile porte le sien, celui-ci s'efface.
-	state.island_mark_changed.connect(func(owns: bool) -> void: visible = not owns)
-	visible = not state.island_owns_mark
+	state.island_mark_changed.connect(func(_owns: bool) -> void: _refresh_shown())
+	_refresh_shown()
 	_armed = state.flag_mode
 	_nothing = state.flag_nothing
 	I18N.locale_changed.connect(func(_code: String) -> void: _relabel())
@@ -223,9 +223,18 @@ func _on_teach() -> void:
 	_relabel()
 
 
+## MONTRE OU PAS : un seul bouton a l'ecran (l'ile peut porter le sien), et
+## aucun pour qui REGARDE — un spectateur n'a pas de lapin a qui faire poser
+## un X (le serveur refuse `flag` a un spectateur).
+func _refresh_shown() -> void:
+	var state := RunState.current
+	visible = not state.island_owns_mark and state.spectating.is_empty()
+
+
 ## L'URGENCE : sous une bombe de marge, ce bouton est la sortie, et il le dit
 ## en battant (energy-coach.tsx). Jamais sur le tutoriel, ou la lecon prime.
 func _on_me() -> void:
+	_refresh_shown()
 	var subject := RunState.current.subject()
 	var energy := int(subject.get("energy", 0))
 	_urge = not subject.is_empty() and energy > 0 and energy <= Tuning.i("ENERGY.BOMB_LOSS")
