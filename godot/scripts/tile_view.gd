@@ -150,8 +150,18 @@ const X_POP_SECONDS := 0.3
 ## web (`TEACH_BEAT_SECONDS`, 0,9 s) : c'est la cadence commune qui lie le
 ## bouton et la case, ce qu'une legende qui les nomme tous deux ne peut pas.
 const TEACH_BEAT_SECONDS := 0.9
-const GHOST_LOW := 0.2
-const GHOST_HIGH := 0.75
+const GHOST_HIGH := 0.95
+## LE FANTOME TOMBE : il descend sur sa case en retrecissant et s'efface — le geste « pose-le ICI » que le seul clignotement ne
+## disait pas (Paul, 2026-09-24 : « c'est pas clair »). Son ombre reste au sol
+## et retrecit quand il monte : c'est elle qui designe la case.
+const GHOST_LIFT := 22.0
+const GHOST_GROW := 1.5
+## Une chute, puis un souffle avant la suivante.
+const GHOST_FALL := 0.8
+const GHOST_PAUSE := 0.2
+## La courbe de la chute — a essayer sur le banc ghost_ease_bench.
+const GHOST_TRANS := Tween.TRANS_QUINT
+const GHOST_EASE := Tween.EASE_OUT
 
 ## LE COFFRE — l'atlas `loot-box` du web (public/assets/fx), ses cinq frames
 ## d'attente (`highlight`, 23x14, 100 ms chacune), a CHEST_SCALE comme la-bas :
@@ -703,10 +713,12 @@ func refresh() -> void:
 		# la case enseignee, absent sinon.
 		var x: Node2D = _x[cell]
 		if board.is_flagged(cell):
+			# POSE A L'INSTANT : il claque. Un plateau repris, lui, l'a deja.
+			# Lu AVANT d'eteindre le fantome, qui rend son X plein : la case de
+			# la lecon posait son X sans tampon.
+			var fresh := _primed and (not x.visible or x.modulate.a < 1.0)
 			if cell == _pulsed:
 				_stop_pulse()
-			# POSE A L'INSTANT : il claque. Un plateau repris, lui, l'a deja.
-			var fresh := _primed and (not x.visible or x.modulate.a < 1.0)
 			x.modulate.a = 1.0
 			x.visible = true
 			if fresh:
@@ -714,12 +726,7 @@ func refresh() -> void:
 		elif cell == _pulsed:
 			x.visible = true
 			if _pulse == null:
-				x.modulate.a = GHOST_LOW
-				_pulse = create_tween().set_loops()
-				_pulse.tween_property(x, "modulate:a", GHOST_HIGH, TEACH_BEAT_SECONDS * 0.5)\
-					.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-				_pulse.tween_property(x, "modulate:a", GHOST_LOW, TEACH_BEAT_SECONDS * 0.5)\
-					.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+				_hover_ghost(x)
 		else:
 			x.visible = false
 	_refresh_fog()
@@ -1165,8 +1172,38 @@ func _stop_pulse() -> void:
 		_pulse.kill()
 	_pulse = null
 	if _x.has(_pulsed):
-		(_x[_pulsed] as Node2D).modulate.a = 1.0
+		# CACHE, pas plein : `refresh` le remontre, et une case qui vient
+		# d'etre marquee passe alors par le tampon.
+		var x: FlagMark = _x[_pulsed]
+		x.visible = false
+		x.modulate.a = 1.0
+		x.scale = X_SQUASH
+		x.drop = 0.0
+		x.shadow = false
 	_pulsed = Vector2i(-1, -1)
+
+
+## LE FANTOME TOMBE SUR SA CASE, EN BOUCLE : il part d'en haut, grand et
+## plein, descend vers la case en retrecissant et s'efface en l'atteignant —
+## puis repart d'en haut (Paul, 2026-09-24 : « pas en ping-pong, en repeat »).
+func _hover_ghost(x: FlagMark) -> void:
+	_pulse = create_tween().set_loops()
+	ghost_fall(_pulse, x)
+
+
+## LA CHUTE DU FANTOME, posee sur un tween en boucle. Publique pour le banc
+## (scenes/bench/ghost_ease_bench.tscn), qui essaie d'autres courbes.
+static func ghost_fall(tw: Tween, x: FlagMark, trans := GHOST_TRANS, ease := GHOST_EASE) -> void:
+	x.shadow = true
+	tw.tween_callback(func() -> void:
+		x.drop = GHOST_LIFT
+		x.scale = X_SQUASH * GHOST_GROW
+		x.modulate.a = GHOST_HIGH)
+	tw.tween_property(x, "drop", 0.0, GHOST_FALL).set_trans(trans).set_ease(ease)
+	tw.parallel().tween_property(x, "scale", X_SQUASH, GHOST_FALL).set_trans(trans).set_ease(ease)
+	tw.parallel().tween_property(x, "modulate:a", 0.0, GHOST_FALL)\
+		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	tw.tween_interval(GHOST_PAUSE)
 
 
 func clear() -> void:
@@ -1396,19 +1433,30 @@ class FlagMark extends Node2D:
 		set(v):
 			ring = v
 			queue_redraw()
+	## Le fantome de la lecon : une ombre au sol sous le X qui flotte.
+	var shadow := false:
+		set(v):
+			shadow = v
+			queue_redraw()
 
 	func _draw() -> void:
-		# L'ONDE, dans le repere de la case : on defait l'ecrasement du X pour
-		# que le losange garde la proportion du sol pendant que le X rebondit.
-		if ring >= 0.0 and scale.x > 0.001 and scale.y > 0.001:
-			var k := Vector2(X_SQUASH.x / scale.x, X_SQUASH.y / scale.y)
-			draw_set_transform(Vector2.ZERO, 0.0, k)
-			var d := Iso.half_h() * lerpf(0.7, 1.9, ring)
-			var pts := PackedVector2Array([Vector2(0, -d), Vector2(d, 0), Vector2(0, d),
-				Vector2(-d, 0), Vector2(0, -d)])
-			var a := (1.0 - ring) * 0.9
-			draw_polyline(pts, Color(X_EDGE, a * 0.7), 6.0)
-			draw_polyline(pts, Color(X_RED, a), 3.0)
+		# LE SOL, dans le repere de la case : on defait l'ecrasement du X pour
+		# qu'un cercle y reste un cercle couche (2:1) pendant que le X rebondit.
+		if scale.x > 0.001 and scale.y > 0.001:
+			draw_set_transform(Vector2.ZERO, 0.0,
+				Vector2(X_SQUASH.x / scale.x, X_SQUASH.y / scale.y))
+			if shadow:
+				var up := clampf(drop / GHOST_LIFT, 0.0, 1.0)
+				draw_circle(Vector2.ZERO, Iso.half_h() * lerpf(0.75, 0.45, up),
+					Color(0, 0, 0, lerpf(0.35, 0.18, up)))
+			# L'ONDE DE LA POSE : un disque qui s'eclaire puis un cercle qui
+			# s'elargit et s'efface.
+			if ring >= 0.0:
+				var r := Iso.half_h() * lerpf(0.3, 2.1, ring)
+				var a := 1.0 - ring
+				draw_circle(Vector2.ZERO, r, Color(X_RED, a * 0.22))
+				draw_arc(Vector2.ZERO, r, 0.0, TAU, 40, Color(X_EDGE, a * 0.7), 6.0)
+				draw_arc(Vector2.ZERO, r, 0.0, TAU, 40, Color(X_RED, a), 3.0)
 		# L'image est deja couchee : on defait X_SQUASH, et ce que le tampon
 		# ajoute par-dessus (l'ecrasement a l'impact) s'applique tel quel.
 		var k := Vector2(X_ART_SCALE / X_SQUASH.x, X_ART_SCALE / X_SQUASH.y)
@@ -1423,13 +1471,14 @@ class FlagMark extends Node2D:
 const X_STAMP_FROM := 2.2
 const X_STAMP_DROP := 16.0
 const X_STAMP_FALL := 0.14
-const X_STAMP_RING := 0.45
+const X_STAMP_RING := 0.6
 
 func _stamp_x(x: FlagMark) -> void:
 	x.scale = X_SQUASH * X_STAMP_FROM
 	x.drop = X_STAMP_DROP
 	x.modulate.a = 0.0
 	x.ring = -1.0
+	x.shadow = false
 	var tw := x.create_tween().set_parallel()
 	tw.tween_property(x, "modulate:a", 1.0, X_STAMP_FALL * 0.6)
 	tw.tween_property(x, "scale", X_SQUASH * Vector2(1.25, 0.7), X_STAMP_FALL) \

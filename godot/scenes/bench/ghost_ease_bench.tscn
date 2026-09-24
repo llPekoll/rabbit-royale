@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+; Le banc de la chute du X fantome — voir scripts/bench/ghost_ease_bench.gd.
+
+[ext_resource type="Script" path="res://scripts/bench/ghost_ease_bench.gd" id="1_bench"]
+
+[node name="GhostEaseBench" type="Node2D"]
+script = ExtResource("1_bench")
