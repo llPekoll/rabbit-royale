@@ -72,6 +72,10 @@ void fragment() {
 
 ## Le banc n'a pas de monde : il force l'affichage.
 @export var always_shown := false
+## LA QUETE SEULE (2026-09-24) : le jardin et le terrier sont des batiments
+## du monde (burrow_landmarks.gd), la ligne « et maintenant » un « ! » sur
+## celui ou elle mene.
+@export var quest_only := false
 
 var _scroll: ScrollContainer
 var _stack: VBoxContainer
@@ -108,7 +112,8 @@ func _ready() -> void:
 	_stack.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_scroll.add_child(_stack)
 
-	for scene in [QUEST_CARD, NEXT_STRIP, GARDEN_CARD, BURROW_PANEL]:
+	var scenes := [QUEST_CARD] if quest_only else [QUEST_CARD, NEXT_STRIP, GARDEN_CARD, BURROW_PANEL]
+	for scene in scenes:
 		var card: Control = scene.instantiate()
 		var slot := Control.new()
 		slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -121,7 +126,8 @@ func _ready() -> void:
 		_slots.append(slot)
 		_cards.append(card)
 		_fit_slot(slot, card)
-	_cards[1].connect("next_action", func(door: String) -> void: next_action.emit(door))
+	if not quest_only:
+		_cards[1].connect("next_action", func(door: String) -> void: next_action.emit(door))
 
 	_stack.minimum_size_changed.connect(_layout)
 	_scroll.get_v_scroll_bar().value_changed.connect(func(_v: float) -> void: _update_fade())

@@ -52,12 +52,21 @@ const BOARD_MARGIN := 0.82
 ## se permettre l'approximation qu'une cible de pouce ne pourrait pas.
 ## 25vw + 10px de bord + 12px de marge = 0.27 de la largeur ; une barre de 56px
 ## = 0.14 et une de 48px sur un bord de 10px = 0.145 de la hauteur.
-const HOME_LEFT := 0.27
+##
+## 2026-09-24 : LA COLONNE N'A PLUS QUE LA QUETE, et la barre du sol est
+## partie (les batiments sont dans le monde, burrow_landmarks.gd). La prise
+## cadre l'ile ET ses ilots ; a gauche il ne reste que la carte de quete, en
+## haut, au-dessus de la mer.
+const HOME_LEFT := 0.0
 const HOME_TOP := 0.14
-const HOME_BOTTOM := 0.145
+const HOME_BOTTOM := 0.0
 
 ## L'air autour de la terre DANS cette fenetre, en part d'elle.
-const HOME_MARGIN := 0.9
+##
+## AU-DESSUS DE 1 depuis les ilots (2026-09-24) : « zoom in, que DEFEND
+## touche au moins le bord ». L'ile et ses ilots debordent un peu du cadre ;
+## la mer autour n'a rien a montrer.
+const HOME_MARGIN := 1.02
 
 ## LE PLAFOND DU ZOOM DE PLACEMENT, en multiple du fit.
 ##
@@ -170,7 +179,11 @@ static func home(map: BurrowMap, w: float = GAME_W, h: float = GAME_H) -> Shot:
 		(win.size.x * HOME_MARGIN) / b.size.x,
 		(win.size.y * HOME_MARGIN) / b.size.y
 	))
-	return Shot.new(scale, win.position + win.size * 0.5 - scale * b.get_center())
+	var at := win.position + win.size * 0.5 - scale * b.get_center()
+	# LE DEBORD PART EN BAS : le haut de l'ile reste sous la barre du haut,
+	# c'est DEFEND, au sud, qui touche le bord de l'ecran.
+	at.y = maxf(at.y, win.position.y - scale * b.position.y)
+	return Shot.new(scale, at)
 
 
 ## LA PRISE DE DECISION : toute la ferme, centree.

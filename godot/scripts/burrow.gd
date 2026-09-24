@@ -119,6 +119,11 @@ var _arrange: BurrowArrange
 var _lifted: Array = []
 ## Un enregistrement en vol.
 var _saving := false
+## LES BATIMENTS (burrow_landmarks.gd) : DIG, DEFEND, RAID, la boutique sur
+## leurs ilots, et les planches de la maison et du potager. Refaits quand la
+## graine change, pas a chaque pose d'un arbre.
+var _landmarks: BurrowLandmarks
+var _landmarks_seed := ""
 
 
 func _ready() -> void:
@@ -137,6 +142,17 @@ func _ready() -> void:
 	_raid_board = RaidBoard.new()
 	_raid_board.name = "RaidBoard"
 	add_child(_raid_board)
+	# APRES LE TERRAIN, AVANT LA MER : comme les decors, les ilots se trient
+	# sur `Iso.depth`, et a profondeur egale l'ecume passe devant eux.
+	_landmarks = BurrowLandmarks.new()
+	_landmarks.name = "Landmarks"
+	add_child(_landmarks)
+	move_child(_landmarks, _terrain.get_index() + 1)
+	_landmarks.door_pressed.connect(_on_landmark)
+	# LANCE SEUL (`godot --path godot scenes/burrow.tscn -- --shot=...`), le
+	# terrier se prete a une capture — sans session, sans chrome.
+	if get_tree().current_scene == self:
+		DevShot.arm(self)
 	_hints.is_mined = _traps.has_trap
 	show_ground(_own_seed(), _own_edits())
 	# LES BOMBES SUIVENT LA LISTE DU SERVEUR, dans les deux sens : ShopState
@@ -201,6 +217,17 @@ func _on_tile_tapped(cell: Vector2i) -> void:
 	# HORS MODE, LE CLIC EST POUR LE DECOR (voir « amenager ») : le lapin
 	# erre seul.
 	_decor_tap(cell)
+
+
+## UNE PORTE DES BATIMENTS, planche ou batiment : le chrome sait ou elle mene.
+func _on_landmark(door: String) -> void:
+	if Chrome.current != null:
+		Chrome.current.go(door)
+
+
+## La recolte ramenee de l'ile, posee sur DIG (chrome.gd `_hand_haul`).
+func show_haul(amount: int) -> void:
+	_landmarks.show_haul(amount)
 
 
 ## L'ID DU JOUEUR : la graine de son terrier, chez le serveur comme ici.
@@ -598,11 +625,15 @@ func show_ground(seed_value: String, edits: Dictionary = {}, keep_cam: bool = fa
 	_traps.clear()
 	_terrain.map = _layout.map
 	_terrain.build()
+	if _landmarks_seed != seed_value:
+		_landmarks_seed = seed_value
+		_landmarks.build(_layout.map)
 	# Les decors lisent LE MEME relief : une maison posee sur un autre terrain
 	# que celui qu'on voit flotterait.
 	_props.map = _terrain.map
 	_props.terrain = _terrain
 	_props.build(_layout)
+	_landmarks.follow(_layout.building, _props.field)
 	# LE POTAGER POUSSE AVEC LE JARDIN, le notre : lu a chaque image. Chez
 	# l'autre on ne sait pas ce qu'il a en terre — son champ est mur, c'est
 	# ce qu'on vient prendre.
@@ -637,7 +668,8 @@ func show_ground(seed_value: String, edits: Dictionary = {}, keep_cam: bool = fa
 	_scenery.build(standing, {}, true)
 	# La mer borde la terre qu'on vient de poser — meme graine que le web
 	# (`${seed}:ducks`) : la mare d'un joueur est toujours la meme.
-	_ocean.build(_terrain.map, str(seed_value))
+	# AUTOUR DES ILOTS AUSSI : la carte de la mer les englobe.
+	_ocean.build(_landmarks.sea_map if _landmarks.sea_map != null else _terrain.map, str(seed_value))
 	_follow_level()
 	# ET LES CLOTURES BORDENT LE CHAMP QUI VIENT D'ETRE SEME, celui-la meme et
 	# pas un second tirage de la graine : elles viennent donc APRES le potager,
@@ -805,6 +837,9 @@ func _wanted_cam() -> BurrowCamera.Shot:
 		if _walling:
 			return BurrowCamera.wall(map, _props.field, view.x, view.y)
 		return BurrowCamera.place(map, view.x, view.y)
+	# LA MAISON CADRE LES ILOTS AVEC L'ILE : ce sont ses boutons.
+	if _landmarks != null and _landmarks.sea_map != null:
+		map = _landmarks.sea_map
 	return BurrowCamera.home(map, view.x, view.y)
 
 
@@ -1125,6 +1160,13 @@ func _on_release(at: Vector2) -> void:
 	if _defending and _hits_raider(at):
 		_strike()
 		return
+	# UN BATIMENT : sa porte. Les mains vides seulement — ce qu'on tient se
+	# pose sur une case, pas sur un ilot.
+	if _arrange == null:
+		var door := _landmarks.door_at(_board_at(at))
+		if not door.is_empty():
+			_on_landmark(door)
+			return
 	var cell := _cell_at(at)
 	if cell.x < 0:
 		return
@@ -1661,6 +1703,9 @@ func _refusal_text(code: String) -> String:
 ## La regle entiere juge les cases allumees, quelques ms par image ; et le
 ## maintien au doigt arme le glisser.
 func _process(delta: float) -> void:
+	# LES PLANCHES DES BATIMENTS : chez soi, hors de tout mode, rien en main.
+	_landmarks.set_live(_own_ground() and not _in_raid and not _raiding
+		and not _placing and not _walling and _arrange == null and not _dragging_decor)
 	if _arrange != null and _arrange.settling() and _arrange.settle(3000):
 		_paint_arrange()
 	_tend_tip(delta)

@@ -178,7 +178,8 @@ func _on_moved(_place: int) -> void:
 func _reflect_place() -> void:
 	var home := Screens.place == Screens.Place.BURROW
 	chip.visible = home or preview
-	shop_button.visible = home
+	# LA BOUTIQUE EST UN ETAL SUR SON ILOT (2026-09-24, burrow_landmarks.gd).
+	shop_button.visible = false
 	story_button.visible = home
 	pill.refresh()
 

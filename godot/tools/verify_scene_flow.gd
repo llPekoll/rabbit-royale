@@ -10,7 +10,9 @@ extends SceneTree
 ## Les trois bugs que le gestionnaire de scenes a remplaces, un par un :
 ##   - l'ile derriere l'accueil         → « accueil : monde vide »
 ##   - un plateau d'ile au terrier      → « terrier : une scene, un terrier »
-##   - les boutons du sol disparus      → « terrier : barre du sol visible »
+##   - les boutons du sol disparus      → « terrier : batiments poses »
+##     (depuis le 2026-09-24 les portes sont des batiments du monde,
+##     burrow_landmarks.gd, et plus une barre du chrome)
 ## Et un quatrieme, qui guette tout gestionnaire qui construit : la fuite. Le
 ## nombre de noeuds de l'arbre doit revenir au meme a chaque retour au terrier.
 
@@ -54,8 +56,9 @@ func _run() -> void:
 		_screens.cross(_screens.Place.BURROW)
 		await _wait(3.0)
 		_check("terrier : une scene, un terrier", world.get_child_count() == 1 and not (world.get_child(0).scene_file_path.ends_with("island.tscn")))
-		var loop: Control = _find(chrome_host, "LoopBar")
-		_check("terrier : barre du sol visible", loop != null and loop.is_visible_in_tree())
+		var marks: Node = _find(world, "BurrowLandmarks")
+		_check("terrier : batiments poses", marks != null and marks.get("sea_map") != null \
+			and marks.get_child_count() > 1)
 		_check("terrier : rideau fini", not _screens.crossing)
 		await _wait(0.2)
 		counts.append(_count(get_root()))

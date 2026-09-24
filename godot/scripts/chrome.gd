@@ -221,21 +221,14 @@ func _mount_place() -> void:
 		floor_host.add_child(preload("res://scenes/ui/raid_hud.tscn").instantiate())
 		return
 
-	# LA COLONNE, a gauche sous la barre. Sa ligne « et maintenant » pointe
-	# une porte du sol : meme routage que les trois dalles.
+	# LA COLONNE NE GARDE QUE LA QUETE (2026-09-24) : le jardin et le
+	# terrier sont devenus le potager et la maison, DIG · DEFEND · RAID des
+	# batiments sur leurs ilots (burrow_landmarks.gd). Plus de barre au sol.
 	var column_card: BurrowColumn = preload("res://scenes/ui/burrow_column.tscn").instantiate()
+	column_card.quest_only = true
 	column.add_child(column_card)
 	Kit.fill(column_card)
-	column_card.next_action.connect(_on_door)
 	_column = column_card
-
-	# LE SOL : les trois verbes, la rangee du kit qui monte a la place de la
-	# barre en DEFEND, et la sortie du mode.
-	_loop = preload("res://scenes/ui/loop_bar.tscn").instantiate()
-	floor_host.add_child(_loop)
-	_loop.dig_pressed.connect(_on_door.bind("dig"))
-	_loop.defend_pressed.connect(_on_door.bind("defend"))
-	_loop.raid_pressed.connect(_on_door.bind("raid"))
 
 	_kit = preload("res://scenes/ui/kit_row.tscn").instantiate()
 	floor_host.add_child(_kit)
@@ -343,7 +336,14 @@ static func raids_open() -> bool:
 	return level == null or int(level) >= Tuning.i("RABBIT_LEVELS.RAID_MIN", 10)
 
 
-## UNE PORTE DU SOL, qu'elle vienne d'une dalle ou de la ligne de la colonne.
+## UNE PORTE DES BATIMENTS DU TERRIER (burrow_landmarks.gd).
+func go(door: String) -> void:
+	if dialog_open() or not _mode.is_empty():
+		return
+	_on_door(door)
+
+
+## UNE PORTE, qu'elle vienne d'un batiment ou de la ligne de la quete.
 func _on_door(door: String) -> void:
 	match door:
 		"dig":
@@ -361,6 +361,26 @@ func _on_door(door: String) -> void:
 			Shop.open()
 		"energy":
 			EnergyPopup.open()
+		# LE POTAGER : on recolte tout de suite, sans carte ; la recolte
+		# tinte si le serveur a vraiment donne (garden_card.gd).
+		"harvest":
+			if Home.live_garden() <= 0 or Home.pending:
+				Sound.deny()
+				return
+			var res: Dictionary = await Home.act("harvest")
+			if int(res.get("harvested", 0)) > 0:
+				Sound.play("coin")
+		# LA MAISON : sa carte en dialogue — un achat se lit avant de payer.
+		"upgrade":
+			# DANS UNE BOITE A SA TAILLE : la carte se mesure sur la boite qui
+			# la tient (HubCard `layout`), comme dans la colonne.
+			var view := get_viewport_rect().size
+			var holder := Control.new()
+			holder.custom_minimum_size = Vector2(minf(300.0, view.x - 40.0), minf(190.0, view.y - 40.0))
+			var panel: Control = preload("res://scenes/ui/burrow_panel.tscn").instantiate()
+			holder.add_child(panel)
+			Kit.fill(panel)
+			open(holder)
 
 
 ## DIG. Pas de liste : le SERVEUR choisit l'ile au niveau du lapin (1 a 10,
@@ -458,7 +478,6 @@ func _start_mode(mode: String) -> void:
 	_mode = mode
 	arrange_state({})
 	_kit.open(mode)
-	_loop.visible = false
 	_column.set_editing(true)
 	_back.show_for(mode)
 	_mount_clean()
@@ -601,25 +620,28 @@ func _end_mode() -> void:
 		_kit.close()
 		_back.dismiss()
 		_column.set_editing(false)
-		_loop.visible = true
 	var burrow := Screens.at(Screens.Place.BURROW)
 	if burrow != null and burrow.has_method("set_placing"):
 		burrow.call("set_placing", false)
 		burrow.call("set_walling", false)
 
 
-## `banked` pendant que la barre du sol n'existe pas : on garde. Au terrier,
-## la barre ecoute elle-meme et montre sur-le-champ.
+## `banked` : la run vient d'encaisser, sur l'ile. On garde, et on pose sur
+## DIG quand le rideau s'est rouvert sur le terrier.
 func _on_socket_event(name: String, data: Variant) -> void:
-	if name != "banked" or not (data is Dictionary) or _loop != null:
+	if name != "banked" or not (data is Dictionary):
 		return
 	_pending_haul = int((data as Dictionary).get("carrots", 0))
+	_hand_haul()
 
 
 func _hand_haul() -> void:
-	if _pending_haul <= 0 or _loop == null or Screens.crossing:
+	if _pending_haul <= 0 or Screens.crossing or Screens.place != Screens.Place.BURROW:
 		return
-	_loop.show_haul(_pending_haul)
+	var burrow := Screens.at(Screens.Place.BURROW)
+	if burrow == null or not burrow.has_method("show_haul"):
+		return
+	burrow.call("show_haul", _pending_haul)
 	_pending_haul = 0
 
 
