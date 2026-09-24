@@ -711,11 +711,17 @@ func _current_shot() -> BurrowCamera.Shot:
 	return BurrowCamera.Shot.new(scale.x, position)
 
 
+## LA BANDE QUE LA JAUGE D'ENERGIE COUVRE en haut, en part du cadre : le
+## cadran, la planche des carottes et les pastilles dessous (~0,15), plus de
+## quoi laisser depasser un coffre pose sur la case du haut.
+const HUD_TOP := 0.18
+
+
 ## Les bornes de la camera ; le tutoriel descend sous le fit.
 func _clamp_cam(shot: BurrowCamera.Shot) -> BurrowCamera.Shot:
 	var view := get_viewport_rect().size
 	return BurrowCamera.clamp_place(shot, _terrain.map, view.x, view.y,
-		TUTORIAL_FIT if _is_tutorial() else 1.0)
+		TUTORIAL_FIT if _is_tutorial() else 1.0, HUD_TOP)
 
 
 func frame_camera(immediate: bool = false) -> void:

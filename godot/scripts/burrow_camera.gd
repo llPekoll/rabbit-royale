@@ -211,17 +211,27 @@ static func zoom_limits(map: BurrowMap, w: float = GAME_W, h: float = GAME_H,
 ## TIENT UN AXE DANS LE CADRE : centre tant que le plateau est plus petit que
 ## l'ecran, sinon retenu pour que son bord ne depasse celui de l'ecran que du
 ## jeu accorde.
-static func _clamp_axis(pos: float, scale: float, lo: float, hi: float, size: float) -> float:
+##
+## `pad` est ce que le chrome mange au DEBUT de l'axe (la barre d'energie en
+## haut de l'ile) : on centre dans ce qui reste, et un plateau qui tient dans
+## l'ecran mais pas sous la barre redevient glissable. Sans lui, une petite ile
+## etait centree sur tout l'ecran — et son coffre du haut sous la barre, sans
+## aucun moyen de le descendre (2026-09-24).
+static func _clamp_axis(pos: float, scale: float, lo: float, hi: float, size: float,
+		pad: float = 0.0) -> float:
 	var span := (hi - lo) * scale
-	if span <= size:
-		return size * 0.5 - scale * (lo + hi) * 0.5
+	var room := size - pad
+	if span <= room:
+		return pad + room * 0.5 - scale * (lo + hi) * 0.5
 	var slack := size * PAN_SLACK
-	return clampf(pos, size - slack - scale * hi, slack - scale * lo)
+	return clampf(pos, size - slack - scale * hi, pad + slack - scale * lo)
 
 
 ## Ramene un cadrage de placement dans sa plage de zoom et ses bornes de pan.
+##
+## `top` est la part du cadre que le chrome couvre en haut (voir `_clamp_axis`).
 static func clamp_place(shot: Shot, map: BurrowMap,
-		w: float = GAME_W, h: float = GAME_H, fit: float = 1.0) -> Shot:
+		w: float = GAME_W, h: float = GAME_H, fit: float = 1.0, top: float = 0.0) -> Shot:
 	var limits := zoom_limits(map, w, h, fit)
 	var scale := clampf(shot.scale, limits.x, limits.y)
 	var b := board_bounds(map)
@@ -229,7 +239,7 @@ static func clamp_place(shot: Shot, map: BurrowMap,
 		return Shot.new(scale, shot.at)
 	return Shot.new(scale, Vector2(
 		_clamp_axis(shot.at.x, scale, b.position.x, b.end.x, w),
-		_clamp_axis(shot.at.y, scale, b.position.y, b.end.y, h)
+		_clamp_axis(shot.at.y, scale, b.position.y, b.end.y, h, h * top)
 	))
 
 
