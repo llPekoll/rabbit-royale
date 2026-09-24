@@ -145,7 +145,13 @@ export interface BurrowTerrain {
   crossing: number;
   /** The seed this was grown from. */
   seed: string;
-  /** Where the owner put the house, when they moved it (`BurrowEdits`). */
+  /**
+   * The house's anchor tile — the back cell of its 2x2 (`houseFootprint`).
+   * SOLID since 2026-09-24: its four cells are `blocked`, a raider walks
+   * round it like round a tree. Chosen by the generator (`houseCandidates`),
+   * or wherever the owner set it down (`BurrowEdits.house`). Only absent on a
+   * terrain built before a house was placed.
+   */
   house?: number;
 }
 
@@ -238,8 +244,7 @@ function tryBuild(seed: string, attempt: number): BurrowTerrain | null {
 
   const doorstep = pickDoorstep(steps, crossing, new Set(field));
   const cells = paint(homestead, entrance, field, doorstep);
-
-  return {
+  const bare: BurrowTerrain = {
     map,
     placements: onTheHomestead(tidied, homestead, field, entrance),
     cells,
@@ -249,6 +254,92 @@ function tryBuild(seed: string, attempt: number): BurrowTerrain | null {
     crossing,
     seed,
   };
+
+  // The house goes down LAST, on the ground as measured without it, and is
+  // solid: its four cells leave the board and the crossing is measured a
+  // fourth time. The best-scoring square that still leaves the field
+  // reachable wins; a seed with none is thrown away like any other failure.
+  // The crossing may grow round the house, up to `MAX_CROSSING` (or what it
+  // already was, on the rare seed dealt longer).
+  for (const house of houseCandidates(bare)) {
+    const settled = settle(map, tidied, entrance, field, houseFootprint(house)!, Math.max(MAX_CROSSING, crossing));
+    if (typeof settled === 'string') continue;
+    return { ...bare, ...settled, house };
+  }
+  return null;
+}
+
+/** Ground the house keeps between itself and the water, in cells. */
+const HOUSE_INLAND = 2;
+
+/**
+ * Where the house may stand, best first: four cells of open, flat ground
+ * beside the field, inland, away from the door.
+ *
+ * The score is the one the cosmetic house had (`buildings.ts` until
+ * 2026-09-24), so a burrow whose house still fits keeps it where its owner
+ * has always seen it. Two rings of sea first, then one; ties go to the lower
+ * tile, as the old strict `>` did.
+ */
+function houseCandidates(terrain: BurrowTerrain): number[] {
+  const { map, cells, field, entrance, placements } = terrain;
+  const door = colRow(entrance);
+  const fieldCells = field.map(colRow);
+  const standing = new Set(placements.map((p) => index(p.x, p.y)));
+  const roomy = (tile: number) => {
+    const square = houseFootprint(tile);
+    if (!square) return false;
+    const tier = levelAt(map, square[0] % BURROW_COLS, Math.floor(square[0] / BURROW_COLS));
+    return square.every((t) => cells[t] === 'ground' && !standing.has(t)
+      && levelAt(map, t % BURROW_COLS, Math.floor(t / BURROW_COLS)) === tier);
+  };
+
+  const out: number[] = [];
+  for (const inland of [HOUSE_INLAND, HOUSE_INLAND - 1]) {
+    const pass: Array<{ tile: number; score: number }> = [];
+    for (let tile = 0; tile < BURROW_COLS * BURROW_ROWS; tile++) {
+      if (!roomy(tile)) continue;
+      const { col, row } = colRow(tile);
+      const toSea = seaDistance(map, col, row);
+      // Counted once: the second ring only adds what the first refused.
+      if (toSea < inland || (inland < HOUSE_INLAND && toSea >= HOUSE_INLAND)) continue;
+      const toField = Math.min(
+        ...fieldCells.map((f) => Math.max(Math.abs(f.col - col), Math.abs(f.row - row))),
+      );
+      if (toField < 1 || toField > 2) continue;
+      const toDoor = Math.max(Math.abs(door.col - col), Math.abs(door.row - row));
+      pass.push({ tile, score: -toField * 8 + Math.min(toSea, 3) * 2 + toDoor * 0.5 });
+    }
+    pass.sort((a, b) => b.score - a.score || a.tile - b.tile);
+    for (const c of pass) out.push(c.tile);
+  }
+  return out;
+}
+
+/**
+ * The ground measured with the house standing on it: which cells are the
+ * homestead, the crossing, the doorstep — or why the field cannot be reached.
+ * Shared by the generator and `editBurrow`, so a house the owner moves obeys
+ * the rule the generator placed it by.
+ */
+function settle(
+  map: IslandMap,
+  placements: Placement[],
+  entrance: number,
+  field: number[],
+  house: number[],
+  maxCrossing: number,
+): Pick<BurrowTerrain, 'cells' | 'doorstep' | 'crossing'>
+  | 'field_unreachable' | 'crossing_too_short' | 'crossing_too_long' {
+  const homestead = mainBody(map, walkableWith(map, placements, new Set(house)));
+  if (!homestead.has(entrance) || field.some((t) => !homestead.has(t))) return 'field_unreachable';
+  const steps = stepDistances(map, homestead, entrance);
+  const crossing = Math.min(...field.map((t) => steps.get(t) ?? Infinity));
+  if (crossing === Infinity) return 'field_unreachable';
+  if (crossing < MIN_CROSSING) return 'crossing_too_short';
+  if (crossing > maxCrossing) return 'crossing_too_long';
+  const doorstep = pickDoorstep(steps, crossing, new Set(field));
+  return { cells: paint(homestead, entrance, field, doorstep), doorstep, crossing };
 }
 
 /**
@@ -284,12 +375,12 @@ function pickDoorstep(
  * comes from `blocking.ts` so the two screens cannot disagree about what a
  * bush does.
  */
-function walkableWith(map: IslandMap, placements: Placement[]) {
+function walkableWith(map: IslandMap, placements: Placement[], house: Set<number> = new Set()) {
   const solid = new Set(
     placements.filter((p) => blocksCell(p.kind)).map((p) => `${p.x},${p.y}`),
   );
   return (col: number, row: number): boolean =>
-    levelAt(map, col, row) > 0 && !solid.has(`${col},${row}`);
+    levelAt(map, col, row) > 0 && !solid.has(`${col},${row}`) && !house.has(index(col, row));
 }
 
 /**
@@ -630,8 +721,8 @@ export const MAX_CROSSING = 13;
  * which the player dragged things around is not the server's business.
  *
  * - `field`: the potager translated as one block, by `[dcol, drow]`.
- * - `house`: the tile the house stands on. Cosmetic — the house has never
- *   been part of the board's rules (`buildings.ts`).
+ * - `house`: the house's anchor tile (`houseFootprint`). SOLID since
+ *   2026-09-24: its four cells are off the board, like a tree's one.
  * - `moves`: `[from, to]` for each thing standing on the homestead that was
  *   picked up. `from` is where the GENERATOR put it, so a thing moved twice
  *   is still one entry.
@@ -668,7 +759,8 @@ export type BurrowEditRefusal =
  * The house stands on FOUR cells: its tile and the three in front of it
  * (`+col`, `+row`, both) — the art is painted on a 2x2 footprint
  * (tools/paint_burrows_iso.py), flat, so the four share one tier. `null`
- * when the square runs off the board.
+ * when the square runs off the board. All four are solid: a raider goes
+ * round the house, and no bomb lies under it.
  */
 export function houseFootprint(tile: number): number[] | null {
   const { col, row } = colRow(tile);
@@ -731,6 +823,19 @@ export function editBurrow(
   const inField = new Set(field);
   if (inField.has(entrance)) return 'cells_overlap';
 
+  // The house, where the owner set it or where it stood: four cells of land
+  // on one shelf, clear of the field and the door. Solid, so it is checked
+  // before the things — one set down on it overlaps, as on a tree.
+  if (edits.house !== undefined && !onBoard(edits.house)) return 'bad_edits';
+  const house = edits.house ?? base.house;
+  const square = house === undefined ? null : houseFootprint(house);
+  if (house !== undefined) {
+    const level = (t: number) => { const { col, row } = colRow(t); return levelAt(map, col, row); };
+    if (!square || square.some((t) => !land(t) || level(t) !== level(square[0]))) return 'house_off_ground';
+    if (square.some((t) => inField.has(t) || t === entrance)) return 'cells_overlap';
+  }
+  const underHouse = new Set(square ?? []);
+
   // The things, each at its final cell.
   const moved = new Map<number, number>();
   for (const pair of edits.moves ?? []) {
@@ -752,14 +857,12 @@ export function editBurrow(
     if (stays(p, from)) continue;
     const to = moved.get(from) ?? from;
     if (to !== from && !land(to)) return 'thing_off_ground';
-    if (taken.has(to) || inField.has(to) || to === entrance) return 'cells_overlap';
+    if (taken.has(to) || inField.has(to) || to === entrance || underHouse.has(to)) return 'cells_overlap';
     taken.add(to);
     at.set(p, to);
   }
   for (const from of moved.keys()) if (!known.has(from)) return 'bad_edits';
-  // The house, when the owner set it down, covers clutter like the rest.
-  const square = edits.house !== undefined && onBoard(edits.house) ? houseFootprint(edits.house) : null;
-  const underHouse = new Set(square ?? []);
+  // The house covers clutter like the rest.
   for (const p of base.placements) {
     const from = index(p.x, p.y);
     if (!stays(p, from)) continue;
@@ -775,27 +878,10 @@ export function editBurrow(
     placements.push(to === index(p.x, p.y) ? p : { ...p, x: col, y: row });
   }
 
-  // The ground, measured again.
-  const homestead = mainBody(map, walkableWith(map, placements));
-  if (!homestead.has(entrance) || field.some((t) => !homestead.has(t))) return 'field_unreachable';
-  const steps = stepDistances(map, homestead, entrance);
-  const crossing = Math.min(...field.map((t) => steps.get(t) ?? Infinity));
-  if (crossing === Infinity) return 'field_unreachable';
-  if (crossing < MIN_CROSSING) return 'crossing_too_short';
-  if (crossing > MAX_CROSSING) return 'crossing_too_long';
-  const doorstep = pickDoorstep(steps, crossing, inField);
-  const cells = paint(homestead, entrance, field, doorstep);
-
-  // The house: four cells of open ground, nothing standing on any of them.
-  let house: number | undefined;
-  if (edits.house !== undefined) {
-    if (!onBoard(edits.house)) return 'bad_edits';
-    const level = (t: number) => { const { col, row } = colRow(t); return levelAt(map, col, row); };
-    if (!square || square.some((t) => cells[t] !== 'ground' || taken.has(t) || level(t) !== level(square[0]))) {
-      return 'house_off_ground';
-    }
-    house = edits.house;
-  }
+  // The ground, measured again — round the house.
+  const settled = settle(map, placements, entrance, field, square ?? [], MAX_CROSSING);
+  if (typeof settled === 'string') return settled;
+  const { cells, doorstep, crossing } = settled;
 
   return { map, placements, cells, entrance, field, doorstep, crossing, seed: base.seed, house };
 }

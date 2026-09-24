@@ -152,6 +152,33 @@ static func edited(base: BurrowLayout, edits: Dictionary) -> Variant:
 	if in_field.has(out.entrance):
 		return "cells_overlap"
 
+	# La maison, ou le joueur l'a posee ou la ou elle etait : quatre cases de
+	# terre sur un palier, hors du potager et de la porte. Solide, donc jugee
+	# avant les choses — une chose posee dessus la chevauche, comme un arbre.
+	var hv: Variant = edits.get("house")
+	if hv != null and (int(hv) < 0 or int(hv) >= n):
+		return "bad_edits"
+	var house := -1
+	if hv != null:
+		house = int(hv)
+	elif base.building.x >= 0:
+		house = index(base.building)
+	var square: Array[Vector2i] = []
+	var under_house := {}
+	if house >= 0:
+		square = house_cells(cell_of(house))
+		if square.is_empty():
+			return "house_off_ground"
+		var tier0 := base.map.level_at(square[0].x, square[0].y)
+		for q in square:
+			var lv := base.map.level_at(q.x, q.y)
+			if lv <= 0 or lv != tier0:
+				return "house_off_ground"
+		for q in square:
+			if in_field.has(index(q)) or index(q) == out.entrance:
+				return "cells_overlap"
+			under_house[index(q)] = true
+
 	# Chaque chose a sa case finale.
 	var moved := {}
 	var m: Variant = edits.get("moves")
@@ -181,19 +208,14 @@ static func edited(base: BurrowLayout, edits: Dictionary) -> Variant:
 		var tc := cell_of(to)
 		if to != from and base.map.level_at(tc.x, tc.y) <= 0:
 			return "thing_off_ground"
-		if taken.has(to) or in_field.has(to) or to == out.entrance:
+		if taken.has(to) or in_field.has(to) or to == out.entrance or under_house.has(to):
 			return "cells_overlap"
 		taken[to] = true
 		at[i] = to
 	for from in moved:
 		if not known.has(from):
 			return "bad_edits"
-	# La maison, quand le joueur l'a posee, couvre le fouillis comme le reste.
-	var under_house := {}
-	var hv: Variant = edits.get("house")
-	if hv != null and int(hv) >= 0 and int(hv) < n:
-		for c in house_cells(cell_of(int(hv))):
-			under_house[index(c)] = true
+	# La maison couvre le fouillis comme le reste.
 	for i in range(base.placements.size()):
 		var p: Dictionary = base.placements[i]
 		var from := index(Vector2i(int(p.x), int(p.y)))
@@ -212,47 +234,12 @@ static func edited(base: BurrowLayout, edits: Dictionary) -> Variant:
 		q.y = tc.y
 		out.placements.append(q)
 
-	# Le sol, remesure.
-	var homestead := out._main_body(out._solid(out.placements))
-	var member := {}
-	for t in homestead:
-		member[t] = true
-	if not member.has(out.entrance):
-		return "field_unreachable"
-	for t in out.field:
-		if not member.has(t):
-			return "field_unreachable"
-	var steps := out._step_distances(homestead, out.entrance)
-	var best := INF
-	for t in out.field:
-		if steps.has(t):
-			best = minf(best, float(steps[t]))
-	if best == INF:
-		return "field_unreachable"
-	if best < MIN_CROSSING:
-		return "crossing_too_short"
-	if best > MAX_CROSSING:
-		return "crossing_too_long"
-	out.crossing = int(best)
-	out.doorstep = _pick_doorstep(steps, out.crossing, out.field, _tuning_doorstep())
-	out._paint(homestead)
-
-	# La maison : du sol nu, rien dessus. Pas une regle du serveur au-dela de
-	# ca (elle n'en a jamais ete une) — deplacee, elle est ou on l'a mise ;
-	# sinon elle reste ou elle etait tant que sa case tient, et se rechoisit
-	# a cote du potager sinon.
-	var h: Variant = edits.get("house")
-	if h != null:
-		var ht := int(h)
-		if ht < 0 or ht >= n:
-			return "bad_edits"
-		if not out._roomy(cell_of(ht), taken):
-			return "house_off_ground"
-		out.building = cell_of(ht)
-	elif base.building.x >= 0 and out._roomy(base.building, taken):
-		out.building = base.building
-	else:
-		out._place_building()
+	# Le sol, remesure — autour de la maison.
+	var why := out._settle(out.placements, square, MAX_CROSSING, _tuning_doorstep())
+	if why != "":
+		return why
+	if house >= 0:
+		out.building = cell_of(house)
 	return out
 
 
@@ -265,7 +252,6 @@ static func grow(seed_value: String, doorstep_steps: int = -1) -> BurrowLayout:
 	for attempt in range(MAX_ATTEMPTS):
 		var built := BurrowLayout.new()
 		if built._try_build(seed_value, attempt, doorstep_steps):
-			built._place_building()
 			return built
 	push_error("burrow layout: no layout for seed \"%s\"" % seed_value)
 	var fallback := BurrowLayout.new()
@@ -379,7 +365,50 @@ func _try_build(seed_value: String, attempt: int, doorstep_steps: int) -> bool:
 	doorstep = _pick_doorstep(steps, crossing, field, doorstep_steps)
 	_paint(homestead)
 	placements = _on_the_homestead(tidied, homestead)
-	return true
+
+	# LA MAISON, en dernier et SOLIDE (2026-09-24) : ses quatre cases sortent
+	# du plateau et le sol est remesure autour. Le premier carre du classement
+	# qui laisse le potager atteignable gagne ; aucun, et l'essai echoue.
+	var cap := maxi(MAX_CROSSING, crossing)
+	for c in _house_candidates():
+		if _settle(tidied, house_cells(c), cap, doorstep_steps) == "":
+			building = c
+			return true
+	return false
+
+
+## generate.ts `settle` : le sol mesure avec la maison posee dessus — le
+## terrier, la traversee, le paillasson — ou pourquoi le potager est hors
+## d'atteinte. Ne touche a rien quand il refuse.
+func _settle(list: Array[Dictionary], square: Array[Vector2i], cap: int,
+		doorstep_steps: int) -> String:
+	var solid := _solid(list)
+	for q in square:
+		solid[q] = true
+	var homestead := _main_body(solid)
+	var member := {}
+	for t in homestead:
+		member[t] = true
+	if not member.has(entrance):
+		return "field_unreachable"
+	for t in field:
+		if not member.has(t):
+			return "field_unreachable"
+	var steps := _step_distances(homestead, entrance)
+	var best := INF
+	for t in field:
+		if steps.has(t):
+			best = minf(best, float(steps[t]))
+	if best == INF:
+		return "field_unreachable"
+	if best < MIN_CROSSING:
+		return "crossing_too_short"
+	if best > cap:
+		return "crossing_too_long"
+	crossing = int(best)
+	doorstep = _pick_doorstep(steps, crossing, field, doorstep_steps)
+	_paint(homestead)
+	return ""
 
 
 ## Les cases qu'un objet solide occupe (`walkableWith`).
@@ -623,29 +652,24 @@ func _on_the_homestead(list: Array[Dictionary], main: Array[int]) -> Array[Dicti
 	return out
 
 
-## buildings.ts `buildingCell` : a cote du potager, loin de la porte, dans
-## les terres. Deux passes, la seconde tolere la mer une case plus pres.
-func _place_building() -> void:
+## generate.ts `houseCandidates` : ou la maison peut se poser, la meilleure
+## d'abord — quatre cases de sol nu et plat, a cote du potager, dans les
+## terres, loin de la porte. Deux anneaux de mer, puis un ; a score egal, la
+## plus petite case.
+func _house_candidates() -> Array[Vector2i]:
 	var door := cell_of(entrance)
-	var best := Vector2i(-1, -1)
-	var best_score := -INF
 	var standing := {}
 	for p in placements:
 		standing[index(Vector2i(int(p.x), int(p.y)))] = true
-	# QUATRE CASES de sol libre d'abord (la maison est peinte sur 2x2), puis
-	# une seule : un terrier etroit a quand meme sa maison.
-	for pass_ in [[BUILDING_INLAND, true], [BUILDING_INLAND - 1, true],
-			[BUILDING_INLAND, false], [BUILDING_INLAND - 1, false]]:
-		var inland: int = pass_[0]
-		var square: bool = pass_[1]
+	var out: Array[Vector2i] = []
+	for inland in [BUILDING_INLAND, BUILDING_INLAND - 1]:
+		var pass_: Array = []
 		for tile in range(COLS * ROWS):
-			if cells[tile] != Cell.GROUND:
-				continue
 			var c := cell_of(tile)
-			if square and not _roomy(c, standing):
+			if not _roomy(c, standing):
 				continue
 			var to_sea := sea_distance(c)
-			if to_sea < inland:
+			if to_sea < inland or (inland < BUILDING_INLAND and to_sea >= BUILDING_INLAND):
 				continue
 			var to_field := 1 << 30
 			for f in field:
@@ -654,15 +678,11 @@ func _place_building() -> void:
 			if to_field < 1 or to_field > 2:
 				continue
 			var to_door := maxi(absi(door.x - c.x), absi(door.y - c.y))
-			var score := -to_field * 8.0 + mini(to_sea, 3) * 2.0 + to_door * 0.5
-			if score > best_score:
-				best_score = score
-				best = c
-		if best.x >= 0:
-			break
-	if best.x < 0 and not field.is_empty():
-		best = cell_of(field[0])
-	building = best
+			pass_.append([-to_field * 8.0 + mini(to_sea, 3) * 2.0 + to_door * 0.5, tile])
+		pass_.sort_custom(func(a, b): return a[0] > b[0] or (a[0] == b[0] and a[1] < b[1]))
+		for e in pass_:
+			out.append(cell_of(int(e[1])))
+	return out
 
 
 ## LES QUATRE CASES DE LA MAISON — la sienne et les trois devant elle

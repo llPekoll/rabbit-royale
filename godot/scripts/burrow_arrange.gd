@@ -266,15 +266,18 @@ func _cheap_refusal(c: Vector2i) -> String:
 			if there >= 0 and there != held_index and not gives_way(there):
 				return "occupied"
 		Held.HOUSE:
-			# La maison ne change pas les regles : quatre cases de sol nu,
-			# aucune au bord de l'eau.
+			# Quatre cases de sol nu, aucune au bord de l'eau. Les siennes
+			# comptent pour du sol : la maison est solide (2026-09-24), ses
+			# cases sont BLOCKED tant qu'elle y est, et libres des qu'elle part.
 			var square := BurrowLayout.house_cells(_house_anchor(c))
 			if square.is_empty():
 				return "house_off_ground"
+			var own := BurrowLayout.house_cells(layout.building)
 			var tier := layout.map.level_at(square[0].x, square[0].y)
 			for q in square:
 				var there := _thing_at(q)
-				if layout.kind(BurrowLayout.index(q)) != BurrowLayout.Cell.GROUND \
+				var kind := BurrowLayout.Cell.GROUND if own.has(q) else layout.kind(BurrowLayout.index(q))
+				if kind != BurrowLayout.Cell.GROUND \
 						or (there >= 0 and not gives_way(there)) or layout.sea_distance(q) < 1 \
 						or layout.map.level_at(q.x, q.y) != tier:
 					return "house_off_ground"

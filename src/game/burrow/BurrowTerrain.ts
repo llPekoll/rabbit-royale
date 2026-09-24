@@ -234,14 +234,18 @@ export async function createBurrowTerrain(
     home.scale.set(DECO_SCALE);
 
     // Positioned through the terrain's own projection and then shifted by the
-    // view's offset, exactly as the deported deco is: the cell centre is
-    // (x + 0.5, y + 0.5), and the tier lifts it onto its shelf.
-    const p = isoProject(b.x + 0.5, b.y + 0.5, Math.max(0, b.tier - 1), metrics);
+    // view's offset, exactly as the deported deco is. The house covers a 2x2
+    // (`houseFootprint`: its tile and the three in front), all four cells
+    // solid, so it stands on the square's CENTRE — the corner the four share,
+    // (x + 1, y + 1) — and the tier lifts it onto its shelf.
+    const p = isoProject(b.x + 1, b.y + 1, Math.max(0, b.tier - 1), metrics);
     home.position.set(
       island.view.position.x + island.originX + p.x,
       island.view.position.y + island.originY + p.y,
     );
-    home.zIndex = burrowDepth(seed, burrowIndex(b.x, b.y)) + 1;
+    // Sorted with its FRONT cell, the nearest of the four, so nothing behind
+    // the square draws over the roof.
+    home.zIndex = burrowDepth(seed, burrowIndex(b.x + 1, b.y + 1)) + 1;
     // The sign rides the building: an upgrade moves nothing horizontally, but
     // a taller silhouette would leave a badge pinned to the old roofline.
     placeShield();

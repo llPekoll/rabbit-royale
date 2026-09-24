@@ -34,6 +34,51 @@ describe('editBurrow', () => {
     expect(editBurrow(base, { moves: [[from, burrowIndex(b.x, b.y)]] })).toBe('cells_overlap');
   });
 
+  describe('the house is solid', () => {
+    it('a tree cannot land on any of its four cells', () => {
+      const base = burrowTerrain(SEEDS[1]);
+      const tree = base.placements.find((p) => !givesWay(p.kind))!;
+      const from = burrowIndex(tree.x, tree.y);
+      for (const t of houseFootprint(base.house!)!) {
+        expect(editBurrow(base, { moves: [[from, t]] })).toBe('cells_overlap');
+      }
+    });
+
+    it('moved, its cells leave the board and the ground is measured round it', () => {
+      let seen = 0;
+      for (const seed of SEEDS) {
+        const base = burrowTerrain(seed);
+        for (const d of [1, -1, 19, -19, 2]) {
+          const house = base.house! + d;
+          const out = editBurrow(base, { house });
+          if (typeof out === 'string') continue;
+          seen++;
+          for (const t of houseFootprint(house)!) expect(out.cells[t]).toBe('blocked');
+          // The old square is ground again, unless something else holds it.
+          expect(out.house).toBe(house);
+        }
+      }
+      expect(seen).toBeGreaterThan(20);
+    });
+
+    it('a house set on or round the field is refused with a named reason', () => {
+      const reasons = new Set<string>();
+      for (const seed of SEEDS) {
+        const base = burrowTerrain(seed);
+        for (const t of base.field) {
+          for (const d of [-19, -1, 19, 1, -20, 20, -18, 18]) {
+            const out = editBurrow(base, { house: t + d });
+            if (typeof out === 'string') reasons.add(out);
+          }
+        }
+      }
+      expect(reasons).toContain('cells_overlap');
+      expect([...reasons].every((r) => [
+        'cells_overlap', 'house_off_ground', 'field_unreachable', 'crossing_too_short', 'crossing_too_long', 'bad_edits',
+      ].includes(r))).toBe(true);
+    });
+  });
+
   describe('ground clutter gives way', () => {
     // A seed with a tree free to move onto a bush or prop it does not block.
     const pick = () => {

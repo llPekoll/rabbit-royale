@@ -28,7 +28,7 @@ import {
   burrowFor, burrowCell, burrowNeighbors, burrowTier, entranceTile, fieldTiles,
   walkableTiles,
 } from '../src/game/burrow/board';
-import { burrowBuilding, BURROW_BUILDING_TIERS } from '../src/game/burrow/buildings';
+import { burrowBuilding, houseTiles, BURROW_BUILDING_TIERS } from '../src/game/burrow/buildings';
 import { levelAt } from '../src/game/island/generate';
 
 /**
@@ -176,12 +176,25 @@ describe('burrow terrain', () => {
 });
 
 describe('the burrow building', () => {
-  forEachBurrow('stands on the burrow\'s own walkable ground', (seed) => {
+  forEachBurrow('is solid: four cells of flat land, off the raid\'s board', (seed) => {
     const b = burrowBuilding(seed, 1);
-    const tile = b.y * BURROW_COLS + b.x;
-    // Ground, not the field (it would bury the objective) and not the door.
-    expect(burrowCell(seed, tile)).toBe('ground');
     expect(b.tier).toBeGreaterThan(0);
+    const square = houseTiles(seed);
+    expect(square).toHaveLength(4);
+    const { map } = burrowFor(seed);
+    for (const t of square) {
+      // Blocked like a tree's cell — never the field, never the door, never
+      // a cell a raider may step on or a bomb lie under.
+      expect(burrowCell(seed, t)).toBe('blocked');
+      expect(levelAt(map, t % BURROW_COLS, Math.floor(t / BURROW_COLS))).toBe(b.tier);
+    }
+  });
+
+  forEachBurrow('leaves no raider a step onto it', (seed) => {
+    const square = new Set(houseTiles(seed));
+    for (const tile of walkableTiles(seed)) {
+      for (const n of burrowNeighbors(seed, tile)) expect(square.has(n)).toBe(false);
+    }
   });
 
   forEachBurrow('stands beside the garden it is defending', (seed) => {

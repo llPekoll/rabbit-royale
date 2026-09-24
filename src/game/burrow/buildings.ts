@@ -29,9 +29,9 @@
  * can be generated — `generate.ts` measures the crossing after everything is
  * placed.
  */
-import { burrowFor, baseBurrowFor, burrowColRow, BURROW_COLS, BURROW_ROWS, type BurrowTerrain } from './board';
+import { burrowFor, burrowColRow } from './board';
 import { levelAt } from '@/game/island/generate';
-import { seaDistance, houseFootprint } from './generate';
+import { houseFootprint } from './generate';
 
 const BUILDINGS = '/assets/buildings';
 
@@ -113,12 +113,6 @@ export function burrowBuilding(seed: string, level: number | null | undefined): 
   return { ...art, anchorY: art.foot / art.h, x, y, tier };
 }
 
-/** Ground the building keeps between itself and the water, in cells. */
-const BUILDING_INLAND = 2;
-
-/** Cached per seed — the search below walks the board. */
-const cells = new Map<string, number>();
-
 /** The cell the building stands on (`houseTile`), with its tier. */
 function buildingCell(seed: string): { x: number; y: number; tier: number } {
   const tile = houseTile(seed);
@@ -128,100 +122,18 @@ function buildingCell(seed: string): { x: number; y: number; tier: number } {
 
 /**
  * The house's anchor tile on this seed's burrow AS ITS OWNER LAID IT OUT —
- * the same answer as Godot's `BurrowLayout.edited` (the fixture checks it):
- *
- *   - moved by its owner (`BurrowEdits.house`): there;
- *   - otherwise where the generator put it, as long as its four cells are
- *     still open, flat ground on the rearranged burrow;
- *   - otherwise scored again on the rearranged burrow.
- *
- * The server needs it since bombs may not lie under the house.
+ * the same answer as Godot's `BurrowLayout.building`. The generator places
+ * it (`houseCandidates`, generate.ts) and an edit may move it; either way it
+ * is part of the terrain now, since its four cells are solid.
  */
 export function houseTile(seed: string): number {
   const terrain = burrowFor(seed);
-  if (terrain.house !== undefined) return terrain.house;
-  const base = baseBurrowFor(seed);
-  let generated = cells.get(seed);
-  if (!generated) {
-    const t = scoreHouse(base) ?? fallbackTile(base);
-    cells.set(seed, t);
-    generated = t;
-  }
-  if (terrain === base || roomy(terrain, generated)) return generated;
-  return scoreHouse(terrain) ?? fallbackTile(terrain);
+  return terrain.house ?? terrain.field[0] ?? 0;
 }
 
 /** The four tiles the house covers (fewer at the board's rim). */
 export function houseTiles(seed: string): number[] {
   return houseFootprint(houseTile(seed)) ?? [houseTile(seed)];
-}
-
-/** Four cells of open, flat ground, nothing standing on them. */
-function roomy(terrain: BurrowTerrain, tile: number): boolean {
-  const { map, cells: kinds, placements } = terrain;
-  const square = houseFootprint(tile);
-  if (!square) return false;
-  const standing = new Set(placements.map((p) => p.y * BURROW_COLS + p.x));
-  const tier = (t: number) => levelAt(map, t % BURROW_COLS, Math.floor(t / BURROW_COLS));
-  return square.every((t) => kinds[t] === 'ground' && !standing.has(t) && tier(t) === tier(square[0]));
-}
-
-/**
- * The cell the building stands on: beside the field, away from the entrance.
- *
- * Scored rather than searched for exactly, because on generated terrain there
- * is rarely a cell that satisfies every wish. The score wants a tile that is
- * adjacent to the garden, far from the door, and on ground the raid does not
- * need — and the best-scoring one wins even when it is nobody's ideal.
- */
-function scoreHouse(terrain: BurrowTerrain): number | null {
-  const { map, cells: kinds, field, entrance } = terrain;
-  const door = burrowColRow(entrance);
-  const fieldCells = field.map(burrowColRow);
-
-  let best: number | null = null;
-  let bestScore = -Infinity;
-
-  // FOUR CELLS of open ground first (the house is painted on a 2x2
-  // footprint), then the single cell, so a cramped homestead still gets a
-  // house; each with the sea allowed one cell closer on the second try.
-  for (const [inland, square] of [
-    [BUILDING_INLAND, true], [BUILDING_INLAND - 1, true],
-    [BUILDING_INLAND, false], [BUILDING_INLAND - 1, false],
-  ] as const) {
-    for (let tile = 0; tile < BURROW_COLS * BURROW_ROWS; tile++) {
-      // It stands on ground the raid does not use: never the field (it would
-      // bury the objective) and never the entrance.
-      if (kinds[tile] !== 'ground') continue;
-      if (square && !roomy(terrain, tile)) continue;
-      const { col, row } = burrowColRow(tile);
-
-      // Room for the sprite: `inland` cells of ground on every side.
-      const toSea = seaDistance(map, col, row);
-      if (toSea < inland) continue;
-
-      const toField = Math.min(
-        ...fieldCells.map((f) => Math.max(Math.abs(f.col - col), Math.abs(f.row - row))),
-      );
-      // Beside the garden: touching it, or at worst one cell off it.
-      if (toField < 1 || toField > 2) continue;
-
-      const toDoor = Math.max(Math.abs(door.col - col), Math.abs(door.row - row));
-      // Touching the field first, then inland, then away from the door.
-      const score = -toField * 8 + Math.min(toSea, 3) * 2 + toDoor * 0.5;
-      if (score > bestScore) {
-        bestScore = score;
-        best = tile;
-      }
-    }
-    if (best !== null) break;
-  }
-  return best;
-}
-
-/** A pathological seed still gets a house: the first field cell. */
-function fallbackTile(terrain: BurrowTerrain): number {
-  return terrain.field[0] ?? 0;
 }
 
 /** Every building URL, for the loader to warm before the scene builds. */
