@@ -1579,19 +1579,18 @@ func _impact_shake() -> void:
 var _shake_home := Vector2.ZERO
 
 
-## LE LOT DU COFFRE (chest-prize.tsx) : la ceremonie pour un coffre annonce,
-## le vol pour un lot sans palier. Les carottes s'animent deja sur la case et
-## n'ont pas de ceremonie — sauf une piece Genesis, qui vaut toujours
-## l'interruption.
+## LE LOT DU COFFRE : il monte avec son nom, comme un power-up. Les carottes
+## s'animent deja sur la case. Seule une piece Genesis prend l'ecran.
 func _show_prize(prize: Dictionary) -> void:
 	if prize.is_empty():
 		return
 	if String(prize.get("kind", "")) == "carrots" and not bool(prize.get("nft", false)):
 		Sound.play("coin")
 		return
-	# LE COFFRE S'OUVRE D'ABORD SUR SA CASE (`TileView._clear_chest`) : la
-	# ceremonie posee tout de suite couvrait l'ouverture.
-	await get_tree().create_timer(TileView.CHEST_OPEN_SECONDS).timeout
+	# COMME UN POWER-UP : le lot monte avec son nom et la partie continue
+	# (2026-09-24). Seule une piece Genesis garde la ceremonie.
+	prize = prize.duplicate()
+	prize["announced"] = false
 	var node := ChestPrize.announce(prize)
 	if node != null and node.get_parent() == null and _prize_host != null:
 		# Pas de chrome au-dessus (le bac a sable) : la ceremonie se pose ici,

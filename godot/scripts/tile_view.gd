@@ -163,23 +163,8 @@ const CHEST_FRAMES: Array[Rect2] = [
 	Rect2(0, 14, 23, 14), Rect2(23, 14, 23, 14),
 ]
 const CHEST_SCALE := 1.25
-## L'OUVERTURE : les images `jump front` puis `jumpback` de l'atlas, a 100 ms ;
-## le cadre source de 64, et ou l'image FERMEE y est posee (21, 50).
-const CHEST_ATLAS := preload("res://assets/misc/loot-box.json")
-const CHEST_OPEN_FRAMES := [6, 7, 8, 9, 10, 17, 18, 19, 20, 21]
-const CHEST_CELL := 64.0
-const CHEST_CLOSED_AT := Vector2i(21, 50)
-## Quand le couvercle saute (3e image), et quand l'ouverture est finie.
-const CHEST_POP_AT := 0.25
-## Le saut qui la sort de derriere le lapin : 30 px plus haut, 2x, en 0,18 s.
-const CHEST_JUMP_SECONDS := 0.18
-const CHEST_OPEN_LIFT := 30.0
-const CHEST_OPEN_SCALE := 2.0
+## Au-dessus du lapin de sa case quand il est ramasse.
 const Z_CHEST_OPEN := 12
-## Les dix images a 100 ms, puis toute la scene sur la case : le saut,
-## l'ouverture, l'effacement — ce que la ceremonie attend.
-const CHEST_ANIM_SECONDS := 1.0
-const CHEST_OPEN_SECONDS := 1.5
 const CHEST_FPS := 10.0
 ## De combien le pied du coffre descend sous le centre du losange, pour que la
 ## boite se lise POSEE dans la case et non flottant sur son bord haut.
@@ -326,7 +311,6 @@ var _primed := false
 var _pulsed := Vector2i(-1, -1)
 var _pulse: Tween
 
-static var _open_sf: SpriteFrames
 static var _diamond: ImageTexture
 
 
@@ -435,12 +419,11 @@ func build() -> void:
 ## boite : une teinte MULTIPLIE l'art, deja brun-rouge sombre, et commun et
 ## legendaire sortaient du meme brun boueux.
 ##
-## LE PALIER EST CELUI DE LA CASE (`board.chest_tier`), le bronze a defaut —
-## `showChests` fait pareil d'un palier qu'il ne connait pas.
+## UN SEUL LOOK POUR TOUS LES COFFRES : le palier ne se montre plus sur le
+## plateau (2026-09-24, « ne marque plus la valeur des coffres ») — ni mot, ni
+## couleur de halo. Ce qu'il contient se decouvre en le prenant.
 func _mount_chest(cell: Vector2i) -> void:
-	var tier: String = board.chest_tier.get(cell, CHEST_TIER)
-	if not CHEST_TIER_COLOR.has(tier):
-		tier = CHEST_TIER
+	var tier: String = CHEST_TIER
 	var tint: Color = CHEST_TIER_COLOR[tier]
 	var flair: Dictionary = CHEST_FLAIR[tier]
 	var holder := Node2D.new()
@@ -519,33 +502,6 @@ func _mount_chest(cell: Vector2i) -> void:
 	holder.add_child(chest)
 	_chest[cell] = chest
 
-	# LE MOT DU PALIER, au-dessus du faisceau : le halo dit « ca vaut », le mot
-	# dit combien, et personne n'a a apprendre un code de couleurs. Lisere
-	# sombre, parce que les glyphes nus mesuraient 1,8:1 sur l'herbe. Jamais
-	# sur le tutoriel : la fleche prend sa place, et un palier dont personne
-	# n'a encore l'echelle crierait a cote de la seule croix a regarder.
-	var word: Label = null
-	if not tutorial:
-		word = Label.new()
-		word.text = tier.to_upper()
-		word.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		word.add_theme_font_size_override("font_size", 8)
-		word.add_theme_color_override("font_color", tint)
-		word.add_theme_color_override("font_outline_color", Color("#0c0a12"))
-		word.add_theme_constant_override("outline_size", 2)
-		word.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
-		word.size = Vector2(60, 12)
-		word.position = Vector2(-30, -beam_h - 12 - 6)
-		word.scale = Vector2(1.1, 1.1)
-		word.z_index = 5
-		holder.add_child(word)
-		var hover := create_tween().set_loops()
-		hover.tween_property(word, "position:y", word.position.y - 2, 1.1)\
-			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-		hover.tween_property(word, "position:y", word.position.y, 1.1)\
-			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-		_bobs.append(hover)
-
 	# LES PARTICULES, APRES le mot comme sur le web : elles montent a travers
 	# lui. Chacune sur sa propre boucle, decalee, pour qu'elles ne marchent
 	# jamais au pas. Une sur trois est grande et blanche.
@@ -607,8 +563,6 @@ func _mount_chest(cell: Vector2i) -> void:
 	beam.modulate.a = 0.0
 	shadow.scale = Vector2.ONE * 0.35
 	shadow.modulate.a = 0.12
-	if word != null:
-		word.modulate.a = 0.0
 	for m in motes:
 		m.visible = false
 	var sy := chest.scale.y
@@ -629,8 +583,6 @@ func _mount_chest(cell: Vector2i) -> void:
 	t.parallel().tween_property(glow, "modulate:a", peak, 0.25)
 	t.parallel().tween_property(ring, "modulate:a", 1.0, 0.25)
 	t.parallel().tween_property(beam, "modulate:a", 0.72, 0.25)
-	if word != null:
-		t.parallel().tween_property(word, "modulate:a", 1.0, 0.25)
 	t.tween_callback(func() -> void:
 		for m in motes:
 			m.visible = true
@@ -1087,65 +1039,23 @@ func _blast(cell: Vector2i) -> void:
 
 ## LE COFFRE S'OUVRE SUR SA CASE, PUIS S'EN VA.
 ##
-## Le web ne l'ouvre que dans la ceremonie (`ChestOpening`) ; sur le plateau
-## il s'envolait ferme. Ici le couvercle saute LA OU on l'a trouve — les dix
-## images `jump front` + `jumpback` de la planche (6-10, 17-21, 100 ms), les
-## memes que la ceremonie —, une gerbe dans la couleur du palier jaillit au
-## moment ou il s'ouvre, puis la boite recule et s'efface comme avant
-## (`clearChest` : x1,5, retour arriere, 0,25 s). La ceremonie attend la fin
-## (`CHEST_OPEN_SECONDS`) : posee tout de suite, elle cachait l'ouverture.
+## LE COFFRE EST RAMASSE COMME UN POWER-UP : plus d'ouverture sur la case
+## (2026-09-24, « relou de voir l'animation a chaque fois »). La boite saute,
+## une gerbe, et tout s'efface en un tiers de seconde ; le lot monte a l'ecran
+## (`ChestPrize._fly`).
 func _clear_chest(cell: Vector2i) -> void:
 	var chest: AnimatedSprite2D = _chest[cell]
 	var holder: Node2D = _flair[cell]
 	var tint: Color = CHEST_TIER_COLOR[_tier_of.get(cell, CHEST_TIER)]
 	if _arrow.has(cell):
 		(_arrow[cell] as Node2D).visible = false
-
-	# LA BOITE QUI S'OUVRE remplace la boite fermee, au meme pixel : les images
-	# d'ouverture sont posees dans leur cadre de 64 (`spriteSourceSize`), et le
-	# cadre est cale pour que l'image fermee tombe ou etait l'ancienne.
-	var opener := AnimatedSprite2D.new()
-	opener.sprite_frames = _open_frames()
-	opener.centered = false
-	opener.offset = chest.offset - Vector2(CHEST_CLOSED_AT)
-	opener.scale = chest.scale
-	opener.position = chest.position
-	opener.z_index = chest.z_index
-	holder.add_child(opener)
-	chest.visible = false
-
-	# ELLE SAUTE AU-DESSUS DU LAPIN pour s'ouvrir. Le lapin vient d'arriver sur
-	# la case et se tient DEVANT elle : une boite de 29 pixels derriere un
-	# lapin de 48, l'ouverture ne se voyait pas du tout. Le porteur passe
-	# au-dessus du lapin de sa case (DEPTH_BIAS 10) sans atteindre la rangee
-	# suivante (16).
 	holder.z_index = Z_CHEST_OPEN
-	# LE MOT DU PALIER S'EFFACE : la boite sautee passe exactement ou il flotte.
-	for child in holder.get_children():
-		if child is Label:
-			create_tween().tween_property(child, "modulate:a", 0.0, CHEST_JUMP_SECONDS)
-	var up := create_tween().set_parallel(true)
-	up.tween_property(opener, "position:y", opener.position.y - CHEST_OPEN_LIFT, CHEST_JUMP_SECONDS) \
-		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	up.tween_property(opener, "scale", Vector2.ONE * CHEST_OPEN_SCALE, CHEST_JUMP_SECONDS) \
-		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	up.chain().tween_callback(func() -> void: opener.play("open"))
-
-	# LE COUVERCLE SAUTE a la 3e image : la gerbe part a ce moment-la, du
-	# couvercle et non plus du sol.
-	var t := create_tween()
-	t.tween_interval(CHEST_JUMP_SECONDS + CHEST_POP_AT)
-	t.tween_callback(func() -> void: _chest_burst(holder, tint, -CHEST_OPEN_LIFT))
-	# PUIS ON LAISSE L'OUVERTURE FINIR avant d'effacer. Les trois fondus sont
-	# `parallel()` ENTRE EUX seulement : un `set_parallel(true)` sur tout le
-	# tween les rendait paralleles a l'attente aussi — la boite s'effacait
-	# des le couvercle.
-	t.tween_interval(CHEST_ANIM_SECONDS - CHEST_POP_AT)
-	t.tween_property(opener, "scale", Vector2.ONE * CHEST_OPEN_SCALE * 1.5, 0.25) \
-		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
-	t.parallel().tween_property(opener, "modulate:a", 0.0, 0.25)
-	t.parallel().tween_property(holder, "modulate:a", 0.0, 0.3)
-	t.tween_callback(func() -> void: holder.visible = false)
+	_chest_burst(holder, tint)
+	var t := create_tween().set_parallel(true)
+	t.tween_property(chest, "position:y", chest.position.y - CARROT_RISE, 0.3) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	t.tween_property(holder, "modulate:a", 0.0, 0.3)
+	t.chain().tween_callback(func() -> void: holder.visible = false)
 
 
 ## LA GERBE : un eclair doux dans la couleur du palier, et des etincelles
@@ -1455,31 +1365,6 @@ static func _square_texture(n: int) -> ImageTexture:
 
 
 ## LES FRAMES DU COFFRE, decoupees dans l'atlas une fois pour toutes.
-## LES IMAGES D'OUVERTURE, chacune remise dans son cadre de 64 : l'atlas rogne
-## chaque image a son contenu, et c'est `spriteSourceSize` qui dit ou elle se
-## pose — la marge de l'AtlasTexture la replace.
-static func _open_frames() -> SpriteFrames:
-	if _open_sf != null:
-		return _open_sf
-	var sf := SpriteFrames.new()
-	sf.remove_animation("default")
-	sf.add_animation("open")
-	sf.set_animation_speed("open", 10.0)
-	sf.set_animation_loop("open", false)
-	var raw: Array = (CHEST_ATLAS as JSON).data["frames"]
-	for i in CHEST_OPEN_FRAMES:
-		var e: Dictionary = raw[i]
-		var f: Dictionary = e["frame"]
-		var src: Dictionary = e["spriteSourceSize"]
-		var at := AtlasTexture.new()
-		at.atlas = CHEST_SHEET
-		at.region = Rect2(f.x, f.y, f.w, f.h)
-		at.margin = Rect2(src.x, src.y, CHEST_CELL - float(f.w), CHEST_CELL - float(f.h))
-		sf.add_frame("open", at)
-	_open_sf = sf
-	return sf
-
-
 static func _chest_frames() -> SpriteFrames:
 	if _chest_sf != null:
 		return _chest_sf
