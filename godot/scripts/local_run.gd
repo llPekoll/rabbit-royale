@@ -99,9 +99,11 @@ func move(to: Vector2i, now: int) -> Dictionary:
 			# LE SOUFFLE LE RENVOIE D'OU IL VIENT (run.ts, `cameFrom`, depuis
 			# le 2026-09-23) : il saute sur la bombe, elle saute, il retombe sur
 			# sa case de depart.
+			# BOMB_LOSS TOUT COMPRIS (run.ts, 2026-09-23) : le point du creusage
+			# fait partie du souffle — 30 a l'ecran, 30 payes, pas 31.
 			var loss := int(_tune.ENERGY.BOMB_LOSS)
-			energy -= loss
-			dig.energy_delta -= loss
+			energy -= loss - cost
+			dig.energy_delta = -loss
 			stunned_until = now + int(_tune.BOMB.STUN_MS)
 			flag_streak = 0
 			digs.bombs += 1

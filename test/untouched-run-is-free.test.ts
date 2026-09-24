@@ -233,8 +233,10 @@ describe('a raid that was never walked does not burn the target', () => {
     const charge = patch.slice(patch.indexOf('if (firstStep) {'), patch.indexOf('const mined ='));
     expect(charge).toMatch(/await payEnergy\(session\.sub, TOLL\)/);
     expect(charge).toMatch(/error: 'no_energy'/);
-    // Before any step is written, so a refused bar leaves the raid where it stood.
-    expect(patch.indexOf('await payEnergy(session.sub, TOLL)')).toBeLessThan(patch.indexOf('const visited = [...run.visited, to]'));
+    // The step is CLAIMED first (one request per step, see the PATCH), and a
+    // refused bar hands the claim back — the raid stays where it stood.
+    expect(patch.indexOf('const [claimed] = await db.update(raidRuns)')).toBeLessThan(patch.indexOf('await payEnergy(session.sub, TOLL)'));
+    expect(charge).toMatch(/set\(\{ tile: run\.tile, visited: run\.visited \}\)/);
   });
 
   it('refuses at the door, like the island, when the bar cannot afford one', () => {

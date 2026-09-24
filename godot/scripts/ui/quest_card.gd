@@ -13,8 +13,8 @@ extends HubCard
 ##
 ## LA DEMANDE, PAS LE TITRE : a cette taille il y a la place pour une ligne,
 ## et « Dig 10 tiles. » est celle qui dit quoi faire. Faite, la carte montre
-## le titre (en lampe) : la dalle dit deja « fini », et le mot DONE en or
-## etait illisible sur le parchemin.
+## le titre (en vert sombre) : la dalle dit deja « fini », et l'or etait
+## illisible sur le parchemin.
 ##
 ## RIEN ICI NE BLOQUE. Un joueur qui ignore la carte joue le meme jeu ; la
 ## carte est une traction, et la recompense est ce qui tire. Quand tout est
@@ -26,8 +26,10 @@ extends HubCard
 ## d'or s'allume autour ; PRISE, quand `Home.quest_claimed` part — une
 ## rafale de butin et la demande suivante glisse en place.
 
-## Le titre d'une quete faite : la lampe, pour que « fini » se lise allume.
+## La lampe : l'anneau d'or qui s'allume autour d'une quete faite.
 const LIT := Color("#ffd138")
+## Le titre d'une quete faite, lisible sur le parchemin.
+const DONE_INK := Color("#2f5d1e")
 ## Combien de pieces une prise jette. Une petite victoire a une petite scene.
 const CONFETTI_COUNT := 18
 ## Une piece sur trois est un joyau (ici la carotte), les autres des pieces
@@ -74,11 +76,17 @@ func refresh() -> void:
 	layout()
 	clear()
 
-	var progress: Control = null
-	if not done and int(quest.get("goal", 0)) > 1:
-		progress = value(I18N.f("quest.progress", [int(quest.get("progress", 0)), int(quest.get("goal", 0))]))
-	add_row(I18N.f("quest.counter", [int(quest.get("index", 1)), int(quest.get("total", 1))]), progress)
-	add_sub(String(quest.get("title", "")) if done else String(quest.get("ask", "")), LIT if done else SUB)
+	add_row(I18N.f("quest.counter", [int(quest.get("index", 1)), int(quest.get("total", 1))]))
+	# LA DEMANDE SE LIT TOUJOURS, en encre de valeur et non en lavis : c'est
+	# la seule ligne qui dit quoi faire, pas un taux qu'on peut sauter. Le
+	# compte la suit sur SA ligne : a cote de l'en-tete, « 4/10 » coupait
+	# « QUEST 1 / 10 » en « QUEST 1 / 1 ».
+	var ask := String(quest.get("ask", ""))
+	if int(quest.get("goal", 0)) > 1:
+		ask += "  " + I18N.f("quest.progress", [int(quest.get("progress", 0)), int(quest.get("goal", 0))])
+	# Faite, le titre en vert sombre : l'or de la lampe se perdait sur le
+	# parchemin (2026-09-24), et la dalle CLAIM dit deja « fini ».
+	add_sub(String(quest.get("title", "")) if done else ask, DONE_INK if done else VALUE, true)
 
 	_slab = null
 	if done:

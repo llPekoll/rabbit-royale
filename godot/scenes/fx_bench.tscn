@@ -1,101 +1,69 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene format=3 uid="uid://chnw425me8oe"]
 
-; LE BANC D'ESSAI DES EFFETS.
-;
-; Une scene autonome, hors du jeu : elle ne passe pas par la racine et ne
-; touche a rien. On l'exporte, on la regarde tourner sur le Seeker, et on lit
-; combien coute une image.
-;
-; LE CIEL EST UN DEGRADE ET PAS L'ILE, exprès : on mesure LE RAI, et un terrain
-; dessous rendrait le chiffre inexploitable — on ne saurait plus demeler ce qui
-; coute. Le fond est la seulement pour que l'additif ait quelque chose a
-; eclairer.
-
-[ext_resource type="Script" path="res://scripts/fx_bench.gd" id="1_bench"]
-[ext_resource type="Shader" path="res://shaders/god_rays.gdshader" id="2_rays"]
+[ext_resource type="Script" uid="uid://bhb14glhygt7q" path="res://scripts/fx_bench.gd" id="1_bench"]
+[ext_resource type="Shader" uid="uid://cweog8xib4qq2" path="res://shaders/god_rays.gdshader" id="2_rays"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_rays"]
 shader = ExtResource("2_rays")
-; La source est hors-champ en haut a droite, donc le bas de l'ecran est deja a
-; plus d'une hauteur d'elle : une portee de 1.05 eteignait les rais a
-; mi-hauteur. 1.9 les laisse descendre jusqu'au sol.
-; LES RAIS DOIVENT TRAVERSER TOUT LE CADRE, pas decorer un coin.
-;
-; La source est ramenee vers le HAUT DU MILIEU et remontee plus haut : plus
-; elle est loin et centree, plus l'eventail des faisceaux est large quand il
-; atteint le bas de l'ecran. Posee dans le coin, elle n'en eclairait qu'un
-; quart.
 shader_parameter/source = Vector2(0.45, -1.05)
-; La portee est comptee depuis cette source hors-champ : le bas de l'ecran est
-; a plus de deux hauteurs d'elle, donc il faut lui laisser de la marge sous
-; peine de voir les rais s'eteindre a mi-chemin.
-shader_parameter/reach = 2.9
-; Moins de faisceaux, mais larges : a 2.9 ils etaient nombreux et fins, ce qui
-; se lit comme une texture plutot que comme de la lumiere.
 shader_parameter/scale = 1.6
-; Un voile, pas un projecteur : un bord doux et une couverture basse donnent
-; des colonnes larges et pales plutot que des lames blanches.
-shader_parameter/edge = 0.18
+shader_parameter/speed = 0.05
+shader_parameter/morph = 0.05
+shader_parameter/octaves = 4
 shader_parameter/coverage = 0.36
-shader_parameter/strength = 1.1
-; L'etalement le long du rai. Plus haut = des colonnes plus continues, sans
-; les chapelets de bulles que donne un bruit trop isotrope.
+shader_parameter/edge = 0.18
 shader_parameter/softness = 5.0
+shader_parameter/pixel = 3.0
+shader_parameter/tint = Color(1, 0.95, 0.82, 1)
+shader_parameter/strength = 1.1
+shader_parameter/reach = 2.9
+shader_parameter/motes = 0.3
+shader_parameter/mote_cell = 26.0
+shader_parameter/mote_size = 2.2
+shader_parameter/mote_density = 0.25
+shader_parameter/mote_rise = 6.0
+shader_parameter/mote_blink = 0.12
+shader_parameter/screen_size = Vector2(890, 400)
 
-[node name="FxBench" type="Control"]
+[node name="FxBench" type="Control" unique_id=1503353618]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-; STOP : la racine capte les touches elle-meme (tous ses enfants sont en
-; IGNORE), c'est ce qui fait avancer les octaves d'un appui.
-mouse_filter = 0
 script = ExtResource("1_bench")
 
-; Le ciel : un bleu qui s'eclaircit vers le haut, pour que l'additif ait de la
-; matiere. Un ColorRect suffit — ce n'est pas ce qu'on mesure.
-[node name="Sky" type="ColorRect" parent="."]
+[node name="Sky" type="ColorRect" parent="." unique_id=1608798296]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.106, 0.204, 0.357, 1)
 mouse_filter = 2
+color = Color(0.106, 0.204, 0.357, 1)
 
-; LE VOILE EST CALCULE EN DEMI-RESOLUTION, puis etire.
-;
-; Un rai est flou par nature : le calculer pixel par pixel sur les 2670x1200 du
-; Seeker, c'est payer quatre fois pour une difference que personne ne peut
-; voir. Le SubViewport le rend a la moitie et le TextureRect l'agrandit — le
-; filtrage lineaire de l'agrandissement va DANS le sens de l'effet au lieu de
-; le trahir, contrairement au pixel art qui exige du nearest.
-[node name="RaysViewport" type="SubViewport" parent="."]
+[node name="RaysViewport" type="SubViewport" parent="." unique_id=891415008]
 unique_name_in_owner = true
 transparent_bg = true
 handle_input_locally = false
 size = Vector2i(445, 200)
 render_target_update_mode = 4
 
-[node name="Rays" type="ColorRect" parent="RaysViewport"]
+[node name="Rays" type="ColorRect" parent="RaysViewport" unique_id=325114443]
 unique_name_in_owner = true
 material = SubResource("ShaderMaterial_rays")
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
 offset_right = 445.0
 offset_bottom = 200.0
-; La couleur ne sert a rien : le shader ecrit COLOR entierement. Elle est
-; blanche pour que rien ne teinte le resultat si le shader echoue a compiler.
-color = Color(1, 1, 1, 1)
+grow_horizontal = 2
+grow_vertical = 2
 mouse_filter = 2
 
-[node name="RaysOut" type="TextureRect" parent="."]
+[node name="RaysOut" type="TextureRect" parent="." unique_id=2127857605]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -103,11 +71,11 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 expand_mode = 1
 stretch_mode = 6
-mouse_filter = 2
 
-[node name="Title" type="Label" parent="."]
+[node name="Title" type="Label" parent="." unique_id=82128860]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 5
@@ -122,9 +90,8 @@ theme_override_colors/font_color = Color(1, 0.831373, 0.360784, 1)
 theme_override_font_sizes/font_size = 22
 text = "GOD RAYS"
 horizontal_alignment = 1
-mouse_filter = 2
 
-[node name="Readout" type="Label" parent="."]
+[node name="Readout" type="Label" parent="." unique_id=835172402]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 2
@@ -142,4 +109,5 @@ theme_override_constants/shadow_offset_y = 1
 theme_override_font_sizes/font_size = 26
 text = "mesure..."
 vertical_alignment = 2
-mouse_filter = 2
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=1897846620]

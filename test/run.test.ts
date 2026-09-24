@@ -93,7 +93,7 @@ describe('resolveMove', () => {
     const now = soon();
     const out = resolveMove(island, rabbit, bomb, shape, rng(), now);
 
-    expect(rabbit.energy).toBe(before - ENERGY.DIG_COST - ENERGY.BOMB_LOSS);
+    expect(rabbit.energy).toBe(before - ENERGY.BOMB_LOSS); // all in: the dig is part of the blast
     // The blast throws it back onto the tile it stepped from; the crater is
     // dug and revealed behind it. See `run.ts`.
     expect(rabbit.tile).toBe(start);
@@ -146,7 +146,7 @@ describe('resolveMove', () => {
     // A bomb, not a plain dig: with digging free, the bar only reaches zero
     // when a bomb takes the last of it.
     const island = blank();
-    const rabbit = spawnRabbit('p1', 'Test', ENERGY.DIG_COST + ENERGY.BOMB_LOSS);
+    const rabbit = spawnRabbit('p1', 'Test', ENERGY.BOMB_LOSS);
     const bomb = step();
     island.tiles.get(bomb)!.content = 'bomb';
     const out = resolveMove(island, rabbit, bomb, shape, rng(), soon());

@@ -37,7 +37,7 @@ const SHADOWS := {
 	"scale": 2.9,
 	"speed": 0.05,
 	"angle": 40.0,
-	"morph": 0.05,
+	"morph": 0.001,  # 0,05 au web : « la forme evolue un peu trop vite sur le sol » ; 0,001 au tuner (2026-09-24)
 	"octaves": 3.9,
 	"warp": 0.1,
 	"coverage": 0.57,
@@ -47,9 +47,96 @@ const SHADOWS := {
 	"edge": 0.08,
 	"pixel": 3.0,
 	"shade": Color("#10203a"),
-	"alpha": 0.32,
+	"alpha": 0.40,  # 0,55 au tuner : « j'ai eu la main lourde » (2026-09-24)
 }
 
+## ESSAI DU 2026-09-24 : LES RAIS SUR LA MER, LES POUSSIERES DANS L'AIR.
+##
+## « je les aime pas trop en god rays mais en texture de la mer je pense qu'il
+## marcherait de ouf / par contre j'aime bien les particules dans l'air ».
+##
+## A `true` : le motif des rais est lu par le shader de la mer
+## (sea_gradient.gdshader), sous le terrain, a plat sur le plan iso.
+##
+## RETIRE LE 2026-09-24 : « vire le shader de la mer ca fait trop, je voulais
+## ravoir la scene de depart ». Le code reste (SEA_SUN, sea_tuner.tscn) pour
+## un autre essai ; la mer est de nouveau le seul degrade.
+const RAYS_ON_SEA := false
+
+## LES POUSSIERES EN CARRES (MoteField), independantes de la mer. A `true`,
+## les grains du shader des rais sont eteints : une seule couche de poussiere.
+const AIR_MOTES_ON := true
+
+## LES RAIS REVIENNENT DANS L'AIR (2026-09-24), en plus du soleil sur l'eau :
+## le gain de les couper n'etait que d'une dizaine d'images par seconde, et ils
+## sont maintenant rendus en demi-resolution une image sur quatre
+## (SkyLight.OFFSCREEN_EVERY). Leurs grains a eux sont eteints : les
+## poussieres sont celles de MoteField.
+const RAYS_IN_AIR := true
+
+## Le soleil sur l'eau : le bruit des rais, A PLAT sur le plan iso.
+##
+## 2e jet, 2026-09-24. Le 1er (additif blanc, eventail des rais) : « hyper
+## moche c'est trop blanc » et « la texture plus plate projetee sur l'iso du
+## terrain ». On melange donc vers une EAU CLAIRE, pas vers du blanc, et le
+## bruit est lu dans le repere des cases.
+## REGLE PAR LE USER AU TUNER LE 2026-09-24 : lumiere douce a 0,35, sans
+## grain. Ne pas retoucher au raisonnement.
+const SEA_SUN := {
+	## Part du melange vers `tint` au coeur d'une plaque.
+	"strength": 0.35,
+	## Une eau peu profonde, pas une lumiere.
+	"tint": Color("#7fd8ee"),
+	## 0 melange, 1 additif, 2 ecran, 3 incrustation, 4 lumiere douce,
+	## 5 produit. Se regle au tuner (scenes/sea_tuner.tscn).
+	"blend": 4,
+	## Texture par case : 0,02 = des plaques de quelques cases.
+	"scale": 0.014,
+	## Etirement sur l'axe y du sol (x essaye, rejete le 2026-09-24), avant la projection iso. 1 = rondes.
+	"stretch": 3.3,
+	## Derive lente, en texture par seconde, dans le repere du sol.
+	"drift": Vector2(0.0012, 0.0006),
+	## 0,022 : le rythme des rais (SKY.morph). A 0,05 les plaques bougeaient
+	## « bcp plus vite » qu'avant.
+	"morph": 0.022,
+	## Seuil dans le bruit : plus haut = moins de plaques.
+	"coverage": 0.40,
+	"edge": 0.06,
+	## Grain de lecture en pixels d'ecran — bords en escalier.
+	"pixel": 2.0,
+}
+
+## Les poussieres, en particules. Combien, et sur quelle hauteur elles
+## vivent avant de renaitre.
+## 2e jet, 2026-09-24. Le 1er (70 disques a 0,55, montee 8 px/s) : « ca va
+## pas du tout », demande « plus discret, plus lent, des carres comme avant ».
+## Les carres : ceux du shader des rais, qui peignait un grain d'un bloc.
+## REGLE PAR LE USER AU TUNER LE 2026-09-24 (scenes/sea_tuner.tscn).
+const AIR_MOTES := {
+	"count": 40,
+	## Cote du carre, en pixels d'ecran. Colle a la grille des pixels.
+	"size": 2.0,
+	"alpha": 0.11,
+	## Pixels d'ecran par seconde — le `mote_rise` des rais etait a 6.
+	"rise": 4.5,
+	## Le balancement lateral, en pixels.
+	"sway": 3.0,
+	## Duree d'une vie, en secondes. L'opacite DESCEND sur toute la vie
+	## (pleine a la naissance, nulle a la fin), et un sinus oscille autour
+	## de cette descente — « une duree de vie plus courte et l'opacite qui
+	## descend et un sin autour de cette descente » (2026-09-24).
+	"life_min": 1.9,
+	"life_max": 6.8,
+	## L'amplitude du sinus autour de la descente, en part de l'opacite
+	## (0 = descente seule, 1 = s'eteint a chaque creux).
+	"flicker": 0.35,
+	## Sa frequence, en oscillations par seconde.
+	"flicker_hz": 0.9,
+}
+
+## REGLAGE DU USER AU TUNER, 2026-09-24 (apres le passage en demi-resolution
+## une image sur quatre) : scale 4,1, speed 0,002, morph 0,012, edge 0,29,
+## ray_strength 0,26, ray_reach 3,45, ombres 0,55, couverture ~0,335.
 const SKY := {
 	# ── LES SIX PARTAGES : ils decrivent LE CIEL, pas une couche ────────────
 	## L'echelle du bruit. Pour les ombres, des cellules en travers du plan ;
@@ -70,7 +157,7 @@ const SKY := {
 	## nombreuses a l'ecran. Avec `coverage` descendu et `octaves` coupe, c'est
 	## le troisieme levier de la meme correction — passer d'une couverture
 	## trouee a quelques nuages epars.
-	"scale": 3.4,
+	"scale": 4.1,
 	## LA DERIVE DU CIEL — ralentie a 0,012, le web est a 0,05.
 	##
 	## Son chiffre est regle sur un CADRE ; ici le plan couvre quatre fois le
@@ -78,7 +165,7 @@ const SKY := {
 	## paysage sous les yeux. Paul sur la capture : « c'est un peu trop
 	## rapide ». Un nuage qui file trahit l'echelle du decor — a cette taille
 	## d'ile, une ombre doit mettre une minute a la traverser.
-	"speed": 0.018,
+	"speed": 0.002,
 	## LE FONDU DU BRUIT SUR LUI-MEME — ramene a 0,012, le web est a 0,05.
 	##
 	## C'est ce qui fait que les formes se DEFORMENT au lieu de seulement
@@ -91,7 +178,7 @@ const SKY := {
 	## Garde EGAL a `speed` : les deux disent la meme chose — a quelle vitesse
 	## le ciel se renouvelle — et les desaccorder donne soit des plaques figees
 	## qui glissent, soit des taches qui bouillonnent sur place.
-	"morph": 0.022,
+	"morph": 0.012,
 	## 2,2 — fractionnaire, la derniere octave se fond progressivement.
 	##
 	## CE DIAL A ETE BAISSE DEUX FOIS POUR DEUX RAISONS OPPOSEES, et c'est ce
@@ -113,7 +200,7 @@ const SKY := {
 	## 0,19, LA VALEUR DU TUNER. Resserree a 0,10 le 2026-09-22 en cherchant a
 	## donner une arete au nuage ; ca n'a rien change a la mesure, parce que le
 	## defaut venait de `warp`.
-	"edge": 0.19,
+	"edge": 0.29,
 	## La quantification de l'echantillonnage. Divise le cout sans que le voile
 	## change d'aspect : un rai et une ombre sont trop flous pour qu'on voie la
 	## grille.
@@ -167,7 +254,7 @@ const SKY := {
 	## L'etalement du bruit LE LONG du rai. Sans lui, des chapelets de bulles
 	## dans le faisceau au lieu d'une colonne.
 	## 8,0 (le max du shader) : des colonnes longues, pas des taches.
-	"softness": 8.0,
+	"softness": 24.0,
 	## Le blanc chaud de la lumiere. Le rendu est ADDITIF : de la lumiere
 	## s'ajoute a ce qu'elle traverse, donc l'herbe reste verte sous le rai,
 	## juste plus claire. Un blanc en alpha-blend delaverait l'ile en gris.
@@ -182,12 +269,12 @@ const SKY := {
 	## Meme cause que les tailles de l'eau : le chiffre du web est regle pour
 	## un cadre ou l'ile occupe moins de place, et le rendu additif porte donc
 	## sur proportionnellement moins de terrain.
-	"ray_strength": 0.20,
+	"ray_strength": 0.26,
 	## Jusqu'ou le rai porte, en hauteurs de plan. SE REGLE AVEC `source` :
 	## depuis (1,35, -0,10) le coin bas-gauche est a ~3,0 hauteurs (aspect
 	## compris). A 5,5 le rai y arrive encore a ~45 %, a mi-ecran a ~73 % :
 	## il traverse tout l'ecran au lieu de s'eteindre a mi-chemin.
-	"ray_reach": 5.5,
+	"ray_reach": 3.45,
 
 	# ── LES POUSSIERES DANS L'AIR ───────────────────────────────────────────
 	## Elles ne sont pas un systeme a part : le shader des rais les MULTIPLIE
@@ -206,4 +293,9 @@ const SKY := {
 	## permanents qui ne font que deriver se lisent comme une texture qui
 	## glisse, pas comme de la poussiere.
 	"mote_blink": 0.12,
+	## L'opacite de toute la couche des rais, et son mode de fusion sur la
+	## scene (sky_composite.gdshader) : 0 additif, 1 ecran, 2 lumiere douce,
+	## 3 incrustation, 4 densite couleur -. Tout sauf l'additif relit l'ecran.
+	"ray_opacity": 0.40,
+	"ray_blend": 3,
 }

@@ -30,11 +30,17 @@ shader_type canvas_item;
 // de plus par pixel, et c'est le seul dial qui change l'ordre de grandeur. Le
 // web en met 3.9 ; `pixel` quantifie l'echantillonnage pour diviser le reste.
 
-render_mode blend_add, unshaded;
+// PREMULT AVEC UN ALPHA NUL = ADDITIF, et c'est voulu (2026-09-24). Le voile
+// se rend maintenant dans un SubViewport (sky_light.gd) : `blend_add`
+// multiplie la couleur par son alpha en ecrivant, donc le rai sortait AU CARRE
+// une fois recompose. En premultiplie, `rgb + dst * (1 - 0)` est une addition
+// pure, a l'ecran comme dans le viewport, et le viewport garde un alpha nul
+// que l'affichage (lui aussi premultiplie) recompose en additif.
+render_mode blend_premul_alpha, unshaded;
 
 // La source de lumiere, en coordonnees d'ecran normalisees. Hors-champ en
 // general : le soleil est derriere le bord haut.
-uniform vec2 source = vec2(0.78, -0.25);
+uniform vec2 source = vec2(0.69, 0.29);
 
 // L'echelle du bruit angulaire : combien de faisceaux sur le tour.
 uniform float scale : hint_range(0.5, 12.0) = 2.9;
@@ -56,7 +62,7 @@ uniform float coverage : hint_range(0.0, 1.0) = 0.57;
 uniform float edge : hint_range(0.01, 0.5) = 0.08;
 
 // L'etalement du bruit LE LONG du rai. Voir l'en-tete : sans lui, des bulles.
-uniform float softness : hint_range(0.5, 8.0) = 3.0;
+uniform float softness : hint_range(0.5, 40.0) = 3.0;
 
 // La quantification de l'echantillonnage, en pixels. 3 veut dire qu'on lit le
 // bruit par blocs de 3x3 : neuf fois moins de simplex pour une difference que
@@ -68,7 +74,7 @@ uniform vec4 tint : source_color = vec4(1.0, 0.95, 0.82, 1.0);
 uniform float strength : hint_range(0.0, 2.0) = 0.55;
 
 // Ou le rai s'eteint, en fraction de la hauteur d'ecran.
-uniform float reach : hint_range(0.1, 2.0) = 1.05;
+uniform float reach : hint_range(0.1, 6.0) = 1.05;
 
 // ── LES POUSSIERES DANS L'AIR ────────────────────────────────────────────
 // Leur intensite. 0 les eteint.
@@ -289,5 +295,5 @@ void fragment() {
 	// dans la clarte diffuse autour.
 	float lit = beam * beam;
 	float dust = dust_motes(px) * lit * lit * beam;
-	COLOR = vec4(tint.rgb, 1.0) * beam * fade * (strength + dust);
+	COLOR = vec4(tint.rgb * beam * fade * (strength + dust), 0.0);
 }

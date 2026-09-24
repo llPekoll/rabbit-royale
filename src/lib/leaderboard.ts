@@ -19,7 +19,7 @@
 import { createClient, type RedisClientType } from 'redis';
 /* Postgres, for the ranking fallback. Redis orders the board; the record
    answers when the cache cannot — see `rankOf`. */
-import { count, eq, gt } from 'drizzle-orm';
+import { count, desc, eq, gt } from 'drizzle-orm';
 /* RELATIVE, not the `@/` alias: this module is imported by the WS server too
    (`server/index.ts`), which builds outside Next's path mapping. */
 import { db } from './db';
@@ -219,6 +219,25 @@ async function gapFromDb(playerId: string): Promise<{ rank: number; gap: number 
   const rank = await rankFromDb(playerId);
   if (rank === null) return null;
   return { rank, gap: Math.max(0, Math.ceil(above.score - me.seasonScore)) };
+}
+
+/**
+ * The crowned player, read from Postgres — the season's #1 by score.
+ *
+ * `crownHolder` below asks Redis, which is optional (absent locally, and a
+ * cache everywhere): a raid settling against it would read "nobody" whenever
+ * the cache is cold. The crown changes what a raid takes and what a run
+ * scores, so it is read from the rows that ARE the score. Nobody wears it on
+ * a score of zero.
+ */
+export async function crownHolderId(): Promise<string | null> {
+  const [top] = await db
+    .select({ id: players.id })
+    .from(players)
+    .where(gt(players.seasonScore, 0))
+    .orderBy(desc(players.seasonScore), players.id)
+    .limit(1);
+  return top?.id ?? null;
 }
 
 /** The crowned player — the #1 of the current season. */

@@ -467,7 +467,10 @@ export function resolveMove(
     };
 
     const landing = island.tiles.get(step.to);
-    if (landing && !landing.revealed) {
+    // A shove digs what it lands on (rule 2) — except a CHEST, which stays in
+    // the ground for a rabbit that walks onto it. Dug by a shove it paid
+    // nobody, and a last chest opened that way never cleared the island.
+    if (landing && !landing.revealed && landing.content !== 'chest') {
       revealTile(island, step.to, victim.playerId);
       const dug: DigResult = {
         tile: step.to,
@@ -528,8 +531,11 @@ export function resolveMove(
 
   switch (tile.content) {
     case 'bomb': {
-      rabbit.energy -= ENERGY.BOMB_LOSS;
-      dig.energyDelta -= ENERGY.BOMB_LOSS;
+      // A BOMB COSTS BOMB_LOSS, ALL IN (2026-09-23): the dig's point is part of
+      // the blast, not added on top of it — the price on screen (30) is the
+      // price paid, not 31.
+      rabbit.energy -= ENERGY.BOMB_LOSS - ENERGY.DIG_COST;
+      dig.energyDelta = -ENERGY.BOMB_LOSS;
       rabbit.stunnedUntil = now + BOMB.STUN_MS;
       // A blast costs the energy AND the X streak — see FLAG.
       if (rabbit.run) rabbit.run.flagStreak = 0;

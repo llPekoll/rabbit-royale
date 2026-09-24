@@ -52,6 +52,22 @@ func _apply() -> void:
 	# Le shader prend des RADIANS ; la config est en degres, comme le web.
 	m.set_shader_parameter("angle", deg_to_rad(look["angle_deg"]))
 	m.set_shader_parameter("steps", look["steps"])
+	_apply_sun(m)
+
+
+## LE SOLEIL SUR L'EAU — l'essai `SkyLook.RAYS_ON_SEA`.
+##
+## Le bruit des rais, pose a plat sur le plan iso (voir le shader). Les
+## reglages sont propres a la mer : `SkyLook.SEA_SUN`.
+func _apply_sun(m: ShaderMaterial) -> void:
+	if not SkyLook.RAYS_ON_SEA:
+		m.set_shader_parameter("sun_strength", 0.0)
+		return
+	var o: Dictionary = SkyLook.SEA_SUN
+	m.set_shader_parameter("sun_noise", SkyLight.ray_noise())
+	m.set_shader_parameter("sun_half_tile", Vector2(Iso.half_w(), Iso.half_h()))
+	for k in ["strength", "scale", "stretch", "drift", "morph", "coverage", "edge", "pixel", "tint", "blend"]:
+		m.set_shader_parameter("sun_" + k, o[k])
 
 
 ## LA TAILLE DU PLAN EN PIXELS est une uniforme, et il la lui faut vraiment.
@@ -63,3 +79,8 @@ func _apply() -> void:
 func _resize() -> void:
 	var size := get_viewport().get_visible_rect().size
 	(_rect.material as ShaderMaterial).set_shader_parameter("size", size)
+
+
+## Le materiau, pour le tuner (sea_tuner.gd) qui y pousse ses curseurs.
+func material_for_tuner() -> ShaderMaterial:
+	return _rect.material as ShaderMaterial

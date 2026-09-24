@@ -23,6 +23,7 @@ func _init() -> void:
 		"res://shaders/cloud_shadows.gdshader",
 		"res://shaders/god_rays.gdshader",
 		"res://shaders/sea_gradient.gdshader",
+		"res://shaders/sky_composite.gdshader",
 		"res://shaders/iris_wipe.gdshader",
 		"res://shaders/drain.gdshader",
 	]

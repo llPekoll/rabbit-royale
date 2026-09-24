@@ -5,6 +5,8 @@ extends Node2D
 ##
 ##   godot --path godot scenes/bench/defend_bench.tscn -- --shot=defend.png --after=2
 ##   ... -- --seed=paul --lift          # un autre terrier ; l'apercu de retrait
+##   ... -- --ghost --after=1.25        # le fantome d'une pose en vol et son
+##                                      # anneau d'or (tape a 1,1 s)
 ##   ... -- --raid --after=2.2          # un raid factice : arrive (0,3 s), deux
 ##                                      # pas, une bombe saute (1,8 s), l'eclair
 ##                                      # (3 s)
@@ -19,6 +21,7 @@ func _ready() -> void:
 	var lift := false
 	var home := false
 	var raid := false
+	var ghost := false
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--seed="):
 			seed_text = arg.trim_prefix("--seed=")
@@ -28,6 +31,8 @@ func _ready() -> void:
 			home = true
 		elif arg == "--raid":
 			raid = true
+		elif arg == "--ghost":
+			ghost = true
 	Session.player = {"id": seed_text}
 
 	var shop := ShopState.shared()
@@ -59,6 +64,17 @@ func _ready() -> void:
 	if lift:
 		await get_tree().create_timer(0.8).timeout
 		_burrow.get_node("Traps").call("set_lifted", picks[2])
+	if ghost:
+		# UNE POSE EN VOL, sans serveur : le fantome tient la case, l'anneau part.
+		# Au milieu du terrier, pour qu'elle soit dans le cadre.
+		var free := -1
+		var tiles: Array = layout.walkable_tiles()
+		for i in range(tiles.size() / 2, tiles.size()):
+			if layout.is_trappable(tiles[i]) and not picks.has(tiles[i]):
+				free = tiles[i]
+				break
+		await get_tree().create_timer(0.8).timeout
+		_burrow.get_node("Traps").call("pin_ghost", free)
 	DevShot.arm(self)
 	if raid:
 		_play_raid(layout)

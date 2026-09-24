@@ -81,14 +81,15 @@ const POP_SECONDS := 0.32
 ## blanc a ombre sombre pour une face orange ; la planche de bois est brune
 ## et chargee, donc il prend la creme des surfaces sombres, et la ligne un
 ## cran plus bas. DEFEND s'ecrit a l'encre sur le parchemin (une creme y
-## etait illisible), et l'alarme y est assombrie plutot que retiree. RAID
+## etait illisible), et l'alarme y est assombrie plutot que retiree ; sans
+## ombre : l'ombre noire du web (0 2px, 50 %), sous une encre sombre en
+## police pixel de 9 a 11, se lisait comme le texte en double. RAID
 ## garde le blanc et l'ombre du bois : ce bois-la est presque noir.
 const DIG_VERB := Palette.PILL_INK
 const DIG_VERB_SHADOW := Color("#2a180e")
 const DIG_LINE := Color("#e8c9a0")
 const DEF_VERB := Color("#4a3524")
 const DEF_LINE := Color("#6d5238")
-const DEF_LINE_SHADOW := Color(0.0, 0.0, 0.0, 0.5)
 const DEF_DANGER := Color("#a8301f")
 const RAID_VERB := Color.WHITE
 const RAID_VERB_SHADOW := Color("#3d0e14")
@@ -499,7 +500,7 @@ func _relabel() -> void:
 	var raid: Slab = _slabs["raid"]
 	dig.say(I18N.shout(I18N.t("loop.dig")), dig_parts, DIG_LINE, Color.TRANSPARENT)
 	defend.say(I18N.shout(I18N.t("loop.defend")), home_parts,
-		DEF_DANGER if garden > 0 else DEF_LINE, DEF_LINE_SHADOW)
+		DEF_DANGER if garden > 0 else DEF_LINE, Color.TRANSPARENT)
 	raid.say(I18N.shout(I18N.t("loop.raid")), raid_parts, RAID_LAMP if raid_lamp else RAID_LINE, Color.TRANSPARENT)
 
 	# Le « ! » de la quete sur la planche ou elle mene ; sinon, sur RAID, le

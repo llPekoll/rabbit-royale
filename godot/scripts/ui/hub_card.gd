@@ -390,9 +390,12 @@ func carrot_mark() -> TextureRect:
 
 
 ## LE PETIT TEXTE sous l'en-tete : ce que le chiffre VEUT DIRE. Il ne se pose
-## pas quand la carte est trop courte pour lui.
-func add_sub(text: String, color: Color = SUB) -> Label:
-	if not sub_visible():
+## pas quand la carte est trop courte pour lui — sauf `always` : une ligne
+## qui n'est pas du contexte mais la chose a faire (la demande de la quete).
+## Cachee, la carte de quete ne disait plus que « QUEST 2/10 » sur le Seeker
+## couche, ou `sub_visible` est toujours faux (2026-09-24).
+func add_sub(text: String, color: Color = SUB, always: bool = false) -> Label:
+	if not always and not sub_visible():
 		return null
 	var l := Kit.label(text, card_size(10.5, 8, 11), color)
 	wraps(l, body.size.x)

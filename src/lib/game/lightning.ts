@@ -95,6 +95,11 @@ export function strike(island: Island, castBy: string, target: number): StrikeRe
   for (const index of strikeArea(island.seed, target)) {
     const tile = island.tiles.get(index);
     if (!tile || tile.revealed) continue;
+    // A CHEST IS LEFT IN THE GROUND. Opened by a bolt, its loot went to
+    // nobody — and when it was the island's last, the island could never be
+    // cleared, because only a rabbit's own dig checks the chests. The strike
+    // is sabotage aimed at a rival, not a way to delete the goal.
+    if (tile.content === 'chest') continue;
 
     revealTile(island, index, castBy);
     if (tile.content === 'bomb') bombs++;

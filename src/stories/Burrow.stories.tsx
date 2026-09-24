@@ -18,6 +18,7 @@ import {
 } from '@/game/burrow/board';
 import { distanceToField, trapClues, raiderView } from '@/lib/game/raid';
 import { BURROW, TRAPS } from '@config/tuning';
+import { burrowArtPreview, loadBurrowArtPreview } from './burrowArtPreview';
 
 /**
  * A handful of burrows to flip between.
@@ -50,6 +51,8 @@ interface Args {
   placing: boolean;
   /** Which building stands on it — the burrow's level. */
   level: number;
+  /** Compare the proposed rabbit burrows with the current buildings. */
+  rabbitBurrows: boolean;
   /**
    * How full the garden is, 0..1.
    *
@@ -82,7 +85,7 @@ function defaultTraps(seed: string, n: number): number[] {
     .slice(0, n);
 }
 
-function Scene({ seed, traps, placing, level, garden, shieldMins }: Args) {
+function Scene({ seed, traps, placing, level, garden, shieldMins, rabbitBurrows }: Args) {
   const [placed, setPlaced] = useState<number[]>(defaultTraps(seed, traps));
 
   return (
@@ -91,7 +94,7 @@ function Scene({ seed, traps, placing, level, garden, shieldMins }: Args) {
         width={960}
         height={540}
         background="#1eaac4"
-        prepare={() => loadAllAssets()}
+        prepare={() => Promise.all([loadAllAssets(), ...(rabbitBurrows ? [loadBurrowArtPreview()] : [])])}
         setup={(stage, app) => {
           initTileTextures(app.renderer);
           const scenes = new SceneManager(app, stage);
@@ -100,6 +103,7 @@ function Scene({ seed, traps, placing, level, garden, shieldMins }: Args) {
           void scenes.start(BurrowScene, {
             seed,
             level,
+            artPreview: rabbitBurrows ? burrowArtPreview : undefined,
             gardenProgress: garden,
             traps: defaultTraps(seed, traps),
             placing,
@@ -139,11 +143,12 @@ function Scene({ seed, traps, placing, level, garden, shieldMins }: Args) {
 const meta: Meta<Args> = {
   title: 'Burrow/Board',
   render: (args) => <Scene key={JSON.stringify(args)} {...args} />,
-  args: { seed: SEEDS[0], traps: 0, placing: false, level: 1, garden: 1, shieldMins: 0 },
+  args: { seed: SEEDS[0], traps: 0, placing: false, level: 1, garden: 1, shieldMins: 0, rabbitBurrows: true },
   argTypes: {
     seed: { control: 'select', options: SEEDS },
     traps: { control: { type: 'range', min: 0, max: TRAPS.MAX_PLACED, step: 1 } },
     level: { control: { type: 'range', min: 1, max: BURROW.MAX_LEVEL, step: 1 } },
+    rabbitBurrows: { control: 'boolean' },
     garden: { control: { type: 'range', min: 0, max: 1, step: 0.05 } },
     shieldMins: { control: { type: 'range', min: 0, max: 720, step: 5 } },
   },
@@ -168,6 +173,13 @@ export const ShieldedMaxLevel: Story = {
 
 /** How the burrow looks when you are just visiting it: no grid at all. */
 export const AtRest: Story = {};
+
+export const Level1: Story = { args: { level: 1 } };
+export const Level2: Story = { args: { level: 2 } };
+export const Level3: Story = { args: { level: 3 } };
+export const Level4: Story = { args: { level: 4 } };
+export const Level5: Story = { args: { level: 5 } };
+export const OriginalBuildings: Story = { args: { rabbitBurrows: false } };
 
 /** Placement mode — click a lit tile to drop a trap. */
 export const Placing: Story = { args: { placing: true } };

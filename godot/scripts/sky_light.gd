@@ -29,6 +29,7 @@ class_name SkyLight
 
 const SHADOW_SHADER := preload("res://shaders/cloud_shadows.gdshader")
 const RAYS_SHADER := preload("res://shaders/god_rays.gdshader")
+const COMPOSITE_SHADER := preload("res://shaders/sky_composite.gdshader")
 
 ## LE PLAN DEBORDE LARGEMENT DU CADRE.
 ##
@@ -171,6 +172,20 @@ const WEATHER_START := 0.5
 ## `REACH` ne suffit plus.
 const RENDER_SCALE_UNUSED := 0.5
 
+## OMBRES ET RAIS : DEMI-RESOLUTION, UNE IMAGE SUR QUATRE — 2026-09-24.
+##
+## Les deux voiles se rendent chacun dans un SubViewport, a la moitie de
+## l'ecran (quatre fois moins de fragments), et ne sont recalcules qu'une image
+## sur quatre ; entre deux on reaffiche la derniere, etiree — une seule lecture
+## 2D par pixel. Ils bougent a peine et sont flous par nature, donc ni l'un ni
+## l'autre ne se voit. « calcule 1 frame sur 4 et divise la resolution par 2 ».
+##
+## PENDANT UN PAN OU UN ZOOM, ils se recalculent a chaque image (voir
+## `_process`) : sinon les ombres, posees sur le sol, traineraient derriere le
+## terrain. Le gain ne vaut donc que camera immobile. 1 = chaque image.
+const OFFSCREEN_EVERY := 4
+const OFFSCREEN_SCALE := 0.5
+
 ## LA PROFONDEUR DES DEUX COUCHES, sur la regle du terrain.
 ##
 ## Tres au-dessus de tout ce qui se tient sur le sol : les nuages sont dans le
@@ -204,6 +219,20 @@ const SHADOW_NOISE_FREQ := 1.0 / 16.0
 
 var _shadows: ColorRect
 var _rays: ColorRect
+## Les viewports ou les voiles se calculent, et les rectangles qui les
+## affichent — [ombres, rais].
+var _vps: Array[SubViewport] = []
+var _views: Array[TextureRect] = []
+var _frame := 0
+## La transformation du parent a la derniere image : si elle bouge, la camera
+## bouge, et les voiles se recalculent a CHAQUE image (voir OFFSCREEN_EVERY).
+var _last_xform := Transform2D()
+## Les poussieres en particules, quand les rais sont sur la mer.
+var _motes: MoteField
+
+## LE BRUIT DES RAIS, PARTAGE avec la mer (SeaGradient) : le soleil sur l'eau
+## doit lire le meme ciel que le rai.
+static var _ray_noise: NoiseTexture2D
 var _elapsed := 0.0
 var _shadow_phase := 0.0
 
@@ -212,6 +241,14 @@ func _ready() -> void:
 	y_sort_enabled = false
 	_shadows = _make_layer(SHADOW_SHADER, Z_SHADOWS)
 	_rays = _make_layer(RAYS_SHADER, Z_RAYS)
+	_offscreen(_shadows, Z_SHADOWS)
+	_offscreen(_rays, Z_RAYS)
+	# Un voile cache ne remplit aucun fragment, et son viewport ne rend rien.
+	_views[1].visible = SkyLook.RAYS_IN_AIR
+	if SkyLook.AIR_MOTES_ON:
+		_motes = MoteField.new()
+		_motes.z_index = Z_RAYS
+		add_child(_motes)
 	_apply()
 	_resize()
 	get_viewport().size_changed.connect(_resize)
@@ -232,6 +269,46 @@ func _ready() -> void:
 ## compte ce qu'ANDROID compose, pas ce que Godot rend. C'est la lecon des
 ## notes de l'app Expo (« le fps JS ment sur expo-gl ») sous une autre forme :
 ## on lit `Performance.TIME_FPS`, le moniteur du moteur.
+
+
+## UN VOILE PASSE DANS UN SubViewport (voir OFFSCREEN_EVERY).
+##
+## Le viewport a fond TRANSPARENT stocke le voile en alpha PREMULTIPLIE : les
+## ombres parce que le melange normal sur du noir transparent multiplie la
+## couleur par l'alpha, les rais parce que leur shader ecrit deja en
+## premultiplie (alpha nul = additif). L'affichage se fait donc en
+## PREMULT_ALPHA pour les deux — en normal, l'ombre sortirait trop claire sur
+## ses bords.
+func _offscreen(rect: ColorRect, z: int) -> void:
+	var vp := SubViewport.new()
+	vp.transparent_bg = true
+	vp.disable_3d = true
+	vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+	add_child(vp)
+	remove_child(rect)
+	vp.add_child(rect)
+	rect.z_index = 0
+	rect.position = Vector2.ZERO
+
+	var view := TextureRect.new()
+	view.texture = vp.get_texture()
+	view.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	view.stretch_mode = TextureRect.STRETCH_SCALE
+	view.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	view.z_index = z
+	# Les ombres : premultiplie simple. Les rais : leur shader de composition,
+	# pour l'opacite et le mode de fusion (sky_composite.gdshader).
+	if rect == _rays:
+		var sm := ShaderMaterial.new()
+		sm.shader = COMPOSITE_SHADER
+		view.material = sm
+	else:
+		var mat := CanvasItemMaterial.new()
+		mat.blend_mode = CanvasItemMaterial.BLEND_MODE_PREMULT_ALPHA
+		view.material = mat
+	add_child(view)
+	_vps.append(vp)
+	_views.append(view)
 
 
 func _make_layer(shader: Shader, z: int) -> ColorRect:
@@ -267,20 +344,7 @@ func _apply() -> void:
 	# Les ombres ont leur propre bruit, en 3D (voir `_apply_shadows`) : elles
 	# sont un portage fidele du web, les rais sont regles au tuner sur celui-ci.
 	if rm.get_shader_parameter("noise") == null:
-		var tex := NoiseTexture2D.new()
-		# 512 : cuite une fois au chargement, donc sa taille ne coute rien par
-		# image, et elle donne des bords de plaque francs la ou 256 laissait un
-		# flou d'interpolation.
-		tex.width = 1024
-		tex.height = 1024
-		tex.seamless = true
-		tex.generate_mipmaps = false
-		var fn := FastNoiseLite.new()
-		fn.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
-		fn.frequency = 0.012
-		fn.fractal_octaves = 3
-		tex.noise = fn
-		rm.set_shader_parameter("noise", tex)
+		rm.set_shader_parameter("noise", ray_noise())
 	rm.set_shader_parameter("scale", look["scale"] * TEXTURE_SCALE)
 	rm.set_shader_parameter("speed", look["speed"])
 	rm.set_shader_parameter("morph", look["morph"])
@@ -314,6 +378,36 @@ func _apply() -> void:
 	rm.set_shader_parameter("reach", look["ray_reach"] * REACH)
 	for k in ["motes", "mote_cell", "mote_size", "mote_density", "mote_rise", "mote_blink"]:
 		rm.set_shader_parameter(k, look[k])
+	var cm := _views[1].material as ShaderMaterial
+	cm.set_shader_parameter("opacity", look["ray_opacity"])
+	cm.set_shader_parameter("mode", int(look["ray_blend"]))
+	# Les poussieres sont celles de MoteField quand il est la : pas deux fois.
+	if SkyLook.AIR_MOTES_ON:
+		rm.set_shader_parameter("motes", 0.0)
+
+
+## Le bruit des rais, cuit une fois pour tout le jeu.
+##
+## `NoiseTexture2D` le genere au chargement ; le shader ne fait plus qu'une
+## lecture de texture la ou il evaluait deux simplex par pixel. `seamless` est
+## indispensable : la texture est lue en repeat, et une couture se verrait
+## comme une ligne droite en travers du ciel. 1024 : cuite une fois, donc sa
+## taille ne coute rien par image, et elle donne des bords de plaque francs la
+## ou 256 laissait un flou d'interpolation.
+static func ray_noise() -> NoiseTexture2D:
+	if _ray_noise == null:
+		var tex := NoiseTexture2D.new()
+		tex.width = 1024
+		tex.height = 1024
+		tex.seamless = true
+		tex.generate_mipmaps = false
+		var fn := FastNoiseLite.new()
+		fn.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+		fn.frequency = 0.012
+		fn.fractal_octaves = 3
+		tex.noise = fn
+		_ray_noise = tex
+	return _ray_noise
 
 
 ## LES OMBRES, AUX CHIFFRES DU WEB.
@@ -426,9 +520,16 @@ func _resize() -> void:
 	var span := view * REACH / k
 	var corner := (-at / k) - span * (REACH - 1.0) * 0.5 / REACH
 
-	for rect in [_shadows, _rays]:
-		rect.size = span
-		rect.position = corner
+	# Le viewport a la moitie de l'ECRAN, et son affichage couvre le plan
+	# dans le repere de l'ile. Les shaders lisent UV, pas la taille du
+	# rectangle, donc le motif ne change pas d'echelle.
+	var px := Vector2i(maxi(1, int(view.x * OFFSCREEN_SCALE)), maxi(1, int(view.y * OFFSCREEN_SCALE)))
+	for i in _vps.size():
+		if _vps[i].size != px:
+			_vps[i].size = px
+		(_shadows if i == 0 else _rays).size = Vector2(px)
+		_views[i].size = span
+		_views[i].position = corner
 
 	# LE PLAN DES OMBRES EN PIXELS DU MONDE : son coin et sa taille dans le
 	# repere de l'ile. Le voile suit l'ecran, mais le bruit qu'il lit est pose
@@ -436,6 +537,9 @@ func _resize() -> void:
 	(_shadows.material as ShaderMaterial).set_shader_parameter("plane_origin", corner)
 	(_shadows.material as ShaderMaterial).set_shader_parameter("plane_size", span)
 	(_rays.material as ShaderMaterial).set_shader_parameter("screen_size", span)
+	if _motes != null:
+		_motes.area = Rect2(corner, span)
+		_motes.unit = 1.0 / k
 
 
 ## LA METEO AVANCE, et les deux couches la lisent.
@@ -459,12 +563,27 @@ func _process(delta: float) -> void:
 	# L'echelle du parent peut changer (cadrage, pincement) : le voile doit
 	# garder la meme couverture d'ecran.
 	_resize()
+	_frame += 1
+	# PAN OU ZOOM : les voiles suivent a chaque image. Les ombres sont posees
+	# sur le sol, dans le repere du monde ; recalculees une image sur quatre
+	# pendant un glissement, elles traineraient derriere le terrain. « qd tu
+	# a un pan ou un zoom ou dezoom faut que ca suive ».
+	var parent := get_parent() as Node2D
+	var xform := parent.transform if parent != null else Transform2D()
+	var moving := not xform.is_equal_approx(_last_xform)
+	_last_xform = xform
+	if moving or _frame % OFFSCREEN_EVERY == 0:
+		for i in _vps.size():
+			if _views[i].visible:
+				_vps[i].render_target_update_mode = SubViewport.UPDATE_ONCE
 
 
 ## Allume ou eteint les deux couches d'un coup — pour le banc et les sondes.
 func show_sky(on: bool) -> void:
-	_shadows.visible = on
-	_rays.visible = on
+	_views[0].visible = on
+	_views[1].visible = on and SkyLook.RAYS_IN_AIR
+	if _motes != null:
+		_motes.visible = on
 
 
 ## La couverture du moment, pour les sondes.

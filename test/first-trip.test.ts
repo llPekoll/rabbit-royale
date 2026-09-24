@@ -39,8 +39,8 @@ describe('one ask, one seat', () => {
     const gate = SERVER.slice(SERVER.indexOf('function oneAtATime'));
     // Dropped, not queued: a queued duplicate would find the seat the first
     // one took and restart the run as a walk-home-and-back.
-    expect(gate.slice(0, 600)).toMatch(/if \(data\.joining\) \{[\s\S]*?return;/);
-    expect(gate.slice(0, 600)).toMatch(/finally \{\s*data\.joining = false;/);
+    expect(gate.slice(0, 600)).toMatch(/if \(data\.joining \|\| \(data\.playerId && seating\.has\(data\.playerId\)\)\) \{[\s\S]*?return;/);
+    expect(gate.slice(0, 700)).toMatch(/finally \{\s*data\.joining = false;\s*if \(who\) seating\.delete\(who\);/);
   });
 });
 

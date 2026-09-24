@@ -10,7 +10,7 @@ extends SceneTree
 
 const SEED := "room-probe-7"
 ## Les instants, en secondes apres la poussee.
-const AT := [0.0, 0.25, 0.5, 0.66, 0.8, 1.1, 1.6, 2.15, 2.6]
+const AT := [0.0, 0.25, 0.5, 0.66, 0.8, 1.1, 1.6, 2.05, 2.25, 2.5, 2.9]
 const ZOOM := 2.2
 
 var _main: Node

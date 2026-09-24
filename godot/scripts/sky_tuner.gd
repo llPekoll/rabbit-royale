@@ -24,21 +24,26 @@ const ISLAND := preload("res://scenes/island.tscn")
 ## `cle` est celle de `SkyLook.SKY`, pour que la copie se relise sans traduire.
 ## Les bornes sont larges a dessein : c'est un banc, on doit pouvoir depasser
 ## le raisonnable pour voir ou est la limite.
+## Les curseurs des grains du shader (motes, espacement, densite) sont partis
+## le 2026-09-24 : les poussieres sont MoteField, reglees dans sea_tuner.tscn.
+## Les laisser ici rallumait une seconde couche de grains.
 const DIALS := [
 	{"key": "source_x", "label": "SOURCE X", "min": -1.5, "max": 2.5, "step": 0.01},
 	{"key": "source_y", "label": "SOURCE Y", "min": -2.5, "max": 1.5, "step": 0.01},
 	{"key": "ray_reach", "label": "PORTEE", "min": 0.2, "max": 6.0, "step": 0.05},
 	{"key": "scale", "label": "NB FAISCEAUX", "min": 0.5, "max": 8.0, "step": 0.1},
 	{"key": "edge", "label": "BORD", "min": 0.01, "max": 0.5, "step": 0.01},
-	{"key": "softness", "label": "ETALEMENT", "min": 0.5, "max": 8.0, "step": 0.1},
+	{"key": "softness", "label": "ETALEMENT", "min": 0.5, "max": 40.0, "step": 0.1},
+	{"key": "ray_opacity", "label": "OPACITE RAIS", "min": 0.0, "max": 1.0, "step": 0.01},
+	# LES OMBRES AU SOL ont leur propre deformation et leur propre derive
+	# (SkyLook.SHADOWS) : DEFORMATION et VITESSE ci-dessus ne vont qu'aux rais.
+	{"key": "sh_morph", "label": "OMBRES DEFORM.", "min": 0.0, "max": 0.1, "step": 0.001},
+	{"key": "sh_speed", "label": "OMBRES VITESSE", "min": 0.0, "max": 0.1, "step": 0.001},
 	{"key": "ray_strength", "label": "FORCE RAIS", "min": 0.0, "max": 1.5, "step": 0.01},
 	{"key": "shade_alpha", "label": "FORCE OMBRES", "min": 0.0, "max": 0.8, "step": 0.01},
 	{"key": "speed", "label": "VITESSE", "min": 0.0, "max": 0.2, "step": 0.002},
 	{"key": "morph", "label": "DEFORMATION", "min": 0.0, "max": 0.2, "step": 0.002},
 	{"key": "coverage", "label": "COUVERTURE", "min": 0.30, "max": 0.70, "step": 0.005},
-	{"key": "motes", "label": "POUSSIERES", "min": 0.0, "max": 1.2, "step": 0.02},
-	{"key": "mote_cell", "label": "ESPACEMENT", "min": 8.0, "max": 64.0, "step": 1.0},
-	{"key": "mote_density", "label": "DENSITE", "min": 0.0, "max": 0.8, "step": 0.01},
 ]
 
 var _island: Node2D
@@ -48,6 +53,10 @@ var _labels: Dictionary = {}
 ## Vrai tant qu'on regle la couverture a la main : la meteo cesse alors de
 ## l'ecrire par-dessus, sinon le curseur est repris une image plus tard.
 var _manual_coverage := false
+var _panel: PanelContainer
+var _tint: Color = SkyLook.SKY["ray_tint"]
+var _blend: int = SkyLook.SKY["ray_blend"]
+const BLENDS := ["ADDITIF", "ECRAN", "LUMIERE DOUCE", "INCRUSTATION", "DENSITE COUL. -"]
 
 
 func _ready() -> void:
@@ -71,6 +80,10 @@ func _seed_values() -> void:
 			_values[k] = (look["source"] as Vector2).y
 		elif k == "coverage":
 			_values[k] = _sky.coverage()
+		elif k == "sh_morph":
+			_values[k] = float(SkyLook.SHADOWS["morph"])
+		elif k == "sh_speed":
+			_values[k] = float(SkyLook.SHADOWS["speed"])
 		elif k == "shade_alpha":
 			_values[k] = float(SkyLook.SHADOWS["alpha"])
 		else:
@@ -83,9 +96,11 @@ func _build_panel() -> void:
 	# DEFAUTS etaient hors ecran — et un panneau a gauche masquait la moitie
 	# de l'ile, qui est justement ce qu'on regarde.
 	var panel := PanelContainer.new()
-	panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	panel.position = Vector2(-470, 8)
-	panel.custom_minimum_size = Vector2(460, 0)
+	_panel = panel
+	# Ancre en haut a droite, GRANDIT VERS LA GAUCHE : la police du jeu est
+	# large, une position fixe laissait le panneau deborder.
+	panel.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, 8)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0, 0, 0, 0.55)
 	style.content_margin_left = 10
@@ -122,9 +137,33 @@ func _build_panel() -> void:
 	row.add_child(reset)
 
 	var hide := Button.new()
-	hide.text = "CACHER"
+	hide.text = "CACHER (TAB)"
 	hide.pressed.connect(func() -> void: panel.visible = false)
 	row.add_child(hide)
+
+	var tint_row := HBoxContainer.new()
+	col.add_child(tint_row)
+	var tl := Label.new()
+	tl.text = "COULEUR RAIS"
+	tl.add_theme_font_size_override("font_size", 13)
+	tl.add_theme_color_override("font_color", Color(1, 0.83, 0.36))
+	tint_row.add_child(tl)
+	var pick := ColorPickerButton.new()
+	pick.color = _tint
+	pick.edit_alpha = false
+	pick.custom_minimum_size = Vector2(120, 24)
+	pick.color_changed.connect(func(c: Color) -> void:
+		_tint = c
+		_apply())
+	tint_row.add_child(pick)
+	var blend := OptionButton.new()
+	for b in BLENDS:
+		blend.add_item(b)
+	blend.selected = _blend
+	blend.item_selected.connect(func(i: int) -> void:
+		_blend = i
+		_apply())
+	tint_row.add_child(blend)
 
 	# Deux colonnes de curseurs, pour tenir dans la hauteur.
 	var grid := HBoxContainer.new()
@@ -195,18 +234,31 @@ func _apply() -> void:
 		rm.set_shader_parameter(k, _values[k] * (SkyLight.TEXTURE_SCALE if k == "scale" else 1.0))
 
 	sm.set_shader_parameter("alpha", _values["shade_alpha"])
+	sm.set_shader_parameter("morph", _values["sh_morph"])
+	var a := deg_to_rad(float(SkyLook.SHADOWS["angle"]))
+	sm.set_shader_parameter("drift", Vector2(cos(a), sin(a)) * _values["sh_speed"])
 	rm.set_shader_parameter("strength", _values["ray_strength"])
 	rm.set_shader_parameter("softness", _values["softness"])
+	rm.set_shader_parameter("tint", _tint)
+	var cm: ShaderMaterial = _sky._views[1].material
+	cm.set_shader_parameter("opacity", _values["ray_opacity"])
+	cm.set_shader_parameter("mode", _blend)
 	# `source` et `reach` passent TELLES QUELLES — voir sky_light.gd : les
 	# diviser par REACH rapproche le soleil et ouvre l'eventail depuis l'ile.
 	rm.set_shader_parameter("source", Vector2(_values["source_x"], _values["source_y"]))
 	rm.set_shader_parameter("reach", _values["ray_reach"] * SkyLight.REACH)
-	rm.set_shader_parameter("motes", _values["motes"])
-	rm.set_shader_parameter("mote_cell", _values["mote_cell"])
-	rm.set_shader_parameter("mote_density", _values["mote_density"])
 
 	if _manual_coverage:
 		rm.set_shader_parameter("coverage", _values["coverage"])
+
+
+## TAB ouvre et ferme le panneau. En `_input` : un curseur qui a le focus
+## avalerait la touche sinon.
+func _input(event: InputEvent) -> void:
+	var k := event as InputEventKey
+	if k != null and k.pressed and not k.echo and k.keycode == KEY_TAB:
+		_panel.visible = not _panel.visible
+		get_viewport().set_input_as_handled()
 
 
 ## LA METEO NE REPREND PAS LA MAIN pendant qu'on regle la couverture.
@@ -238,9 +290,13 @@ func _on_copy() -> void:
 	out.append('\t"softness": %.2f,' % _values["softness"])
 	out.append('\t"ray_strength": %.3f,' % _values["ray_strength"])
 	out.append('\t"ray_reach": %.2f,' % _values["ray_reach"])
-	out.append('\t"motes": %.2f,' % _values["motes"])
-	out.append('\t"mote_cell": %.1f,' % _values["mote_cell"])
-	out.append('\t"mote_density": %.2f,' % _values["mote_density"])
+	out.append('\t"ray_tint": Color("#%s"),' % _tint.to_html(false))
+	out.append('\t"ray_opacity": %.2f,' % _values["ray_opacity"])
+	out.append('\t"ray_blend": %d,  # %s' % [_blend, BLENDS[_blend]])
+	out.append("--- SkyLook.SHADOWS ---")
+	out.append('\t"alpha": %.2f,' % _values["shade_alpha"])
+	out.append('\t"morph": %.3f,' % _values["sh_morph"])
+	out.append('\t"speed": %.3f,' % _values["sh_speed"])
 	out.append("--- couverture regardee : %.3f ---" % _values["coverage"])
 	var text := "\n".join(out)
 	DisplayServer.clipboard_set(text)
@@ -249,5 +305,7 @@ func _on_copy() -> void:
 
 func _on_reset() -> void:
 	_manual_coverage = false
+	_tint = SkyLook.SKY["ray_tint"]
+	_blend = SkyLook.SKY["ray_blend"]
 	_seed_values()
 	_apply()

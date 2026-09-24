@@ -77,6 +77,16 @@ describe('the stagger', () => {
     expect(armedTraps(board)).toHaveLength(TRAPS.MAX_PLACED);
   });
 
+  it('does not make a trap wait behind traps that rearmed long ago', () => {
+    // `sprungAt` is never cleared, so every trap a burrow ever lost stays in
+    // the list. Ranked over all of them, a trap sprung tonight on a burrow
+    // whose eight traps had each gone off once took 6.5 h, not 3 h.
+    const old = Array.from({ length: 7 }, (_, tile) => ({ tile, sprungAt: ago(48 * HOUR + tile * 60_000) }));
+    const fresh = { tile: 7, sprungAt: ago(TRAPS.REARM_MS + 1000) };
+    expect(armedTraps([...old, fresh]).map((t) => t.tile)).toContain(7);
+    expect(rearmingTraps([...old, fresh])).toHaveLength(0);
+  });
+
   it('spaces each rank by exactly one stagger', () => {
     const sprungAt = ago(0);
     expect(rearmAt(sprungAt, 1) - rearmAt(sprungAt, 0)).toBe(TRAPS.REARM_STAGGER_MS);

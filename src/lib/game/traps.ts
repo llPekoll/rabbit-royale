@@ -185,11 +185,37 @@ export function isArmed(trap: PlacedTrap, now = Date.now(), rank = 0): boolean {
  * down beside it.
  */
 export function armedTraps<T extends PlacedTrap>(traps: readonly T[], now = Date.now()): T[] {
+  const ready = rearmSchedule(traps);
+  return traps.filter((t) => !t.sprungAt || (ready.get(t) ?? 0) <= now);
+}
+
+/**
+ * When every sprung trap stands again — the rearm QUEUE.
+ *
+ * In the order they were sprung, each trap comes back REARM_MS after it went
+ * down, and never sooner than one stagger after the trap ahead of it. The
+ * stagger therefore only separates traps that are down TOGETHER: a trap that
+ * rearmed yesterday is long past, and the one sprung tonight waits its own
+ * REARM_MS and nothing more.
+ *
+ * The rank used to be counted over every trap with a `sprungAt` — and that
+ * stamp is never cleared, so once a burrow's eight traps had each been sprung
+ * once, every new one ranked about seventh and took 3h + 7 × 30 min = 6.5 h
+ * to come back instead of 3 h. The defence got slower to recover the longer
+ * the burrow lived.
+ */
+export function rearmSchedule<T extends PlacedTrap>(traps: readonly T[]): Map<T, number> {
   const down = traps
     .filter((t) => t.sprungAt)
     .sort((a, b) => a.sprungAt!.getTime() - b.sprungAt!.getTime());
-  const rank = new Map(down.map((t, i) => [t, i] as const));
-  return traps.filter((t) => isArmed(t, now, rank.get(t) ?? 0));
+  const ready = new Map<T, number>();
+  let previous = -Infinity;
+  for (const t of down) {
+    const at = Math.max(rearmAt(t.sprungAt!), previous + TRAPS.REARM_STAGGER_MS);
+    ready.set(t, at);
+    previous = at;
+  }
+  return ready;
 }
 
 /**
@@ -222,11 +248,7 @@ export function rearmingTraps<T extends PlacedTrap>(
   traps: readonly T[],
   now = Date.now(),
 ): { trap: T; readyAt: number }[] {
-  const armed = new Set(armedTraps(traps, now));
-  const down = traps
-    .filter((t) => t.sprungAt)
-    .sort((a, b) => a.sprungAt!.getTime() - b.sprungAt!.getTime());
-  return down
-    .map((trap, rank) => ({ trap, readyAt: rearmAt(trap.sprungAt!, rank) }))
-    .filter(({ trap }) => !armed.has(trap));
+  return [...rearmSchedule(traps)]
+    .filter(([, readyAt]) => readyAt > now)
+    .map(([trap, readyAt]) => ({ trap, readyAt }));
 }

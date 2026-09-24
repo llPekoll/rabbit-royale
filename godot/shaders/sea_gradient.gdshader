@@ -35,6 +35,63 @@ uniform float strength = 1.0;
 uniform float angle = 3.054;
 uniform float steps = 40.0;
 
+// ── LE SOLEIL SUR L'EAU (essai du 2026-09-24) ─────────────────────────────
+// Le motif des rais (god_rays.gdshader), lu ICI plutot que dans un voile
+// par-dessus l'ile. « je les aime pas trop en god rays mais en texture de la
+// mer je pense qu'il marcherait de ouf ». Meme source, meme bruit cuit, meme
+// seuil : c'est le meme ciel, simplement vu sur l'eau au lieu de l'air.
+//
+// DANS LA MEME PASSE, et c'est tout le gain : le voile des rais remplissait
+// l'ecran une deuxieme fois en additif ; ici ce sont deux lectures de texture
+// de plus dans un fragment qu'on payait deja. L'ile, dessinee par-dessus,
+// cache le motif la ou il n'a rien a faire.
+//
+// A PLAT, SUR LE PLAN ISO. L'eventail angle/distance des rais se lisait
+// comme un projecteur ; ici le bruit est pose sur le sol de l'ile, dans le
+// repere de ses cases (44x24), donc ecrase comme le terrain.
+// « j'aimerais la texture plus plate projetee sur l'iso du terrain ».
+//
+// 0 eteint.
+uniform float sun_strength : hint_range(0.0, 2.0) = 0.0;
+// La demi-case a l'ecran, en pixels : le repere du plan iso.
+uniform vec2 sun_half_tile = vec2(22.0, 12.0);
+// Combien de texture par case. Petit = grandes plaques.
+uniform float sun_scale = 0.02;
+// L'etirement du bruit le long de l'axe y DU SOL, avant la projection : les
+// plaques s'allongent en suivant une rangee de cases, puis sont ecrasees en iso
+// avec elle. 1 = rondes.
+uniform float sun_stretch = 3.0;
+// La derive, en texture par seconde, dans le repere du sol.
+uniform vec2 sun_drift = vec2(0.004, 0.002);
+uniform float sun_morph = 0.05;
+uniform float sun_coverage = 0.55;
+uniform float sun_edge = 0.06;
+// Le grain de lecture, en pixels d'ecran : des bords de plaque en escalier,
+// comme le reste du pixel art.
+uniform float sun_pixel = 3.0;
+// Le mode de fusion de la plaque sur la mer : 0 melange, 1 additif,
+// 2 ecran, 3 incrustation, 4 lumiere douce, 5 produit.
+uniform int sun_blend = 0;
+uniform vec4 sun_tint : source_color = vec4(0.6, 0.9, 1.0, 1.0);
+uniform sampler2D sun_noise : filter_linear, repeat_enable;
+
+float sun_beam(vec2 uv) {
+	vec2 px = floor(uv * size / sun_pixel) * sun_pixel;
+	// Ecran -> cases : u vers le bas-droite, v vers le bas-gauche.
+	vec2 q = px / sun_half_tile;
+	vec2 g = vec2(q.x + q.y, q.y - q.x) * 0.5;
+	g.y /= max(sun_stretch, 0.0001);
+	vec2 at = g * sun_scale + TIME * sun_drift;
+	float phase = TIME * sun_morph;
+	float k = fract(phase);
+	vec2 jump = vec2(0.41, 0.67);
+	float na = texture(sun_noise, at + floor(phase) * jump).r;
+	float nb = texture(sun_noise, at + (floor(phase) + 1.0) * jump).r;
+	float n = mix(na, nb, k * k * (3.0 - 2.0 * k));
+	return smoothstep(sun_coverage - sun_edge, sun_coverage + sun_edge, n);
+}
+
+
 void fragment() {
 	vec2 uv = UV;
 
@@ -64,5 +121,26 @@ void fragment() {
 		t = floor(t * steps + 0.5) / steps;
 	}
 
-	COLOR = vec4(mix(sea.rgb, deep.rgb, clamp(t, 0.0, 1.0)), 1.0);
+	vec3 col = mix(sea.rgb, deep.rgb, clamp(t, 0.0, 1.0));
+	if (sun_strength > 0.0) {
+		// VERS UNE EAU CLAIRE, PAS VERS LE BLANC. L'additif blanc delavait la
+		// mer (« hyper moche c'est trop blanc ») : on melange vers une teinte
+		// d'eau peu profonde, donc la plaque reste de la mer.
+		float b = clamp(sun_beam(uv) * sun_strength, 0.0, 1.0);
+		vec3 t = sun_tint.rgb;
+		vec3 lit = t;
+		if (sun_blend == 1) {
+			lit = col + t;
+		} else if (sun_blend == 2) {
+			lit = 1.0 - (1.0 - col) * (1.0 - t);
+		} else if (sun_blend == 3) {
+			lit = mix(2.0 * col * t, 1.0 - 2.0 * (1.0 - col) * (1.0 - t), step(0.5, col));
+		} else if (sun_blend == 4) {
+			lit = (1.0 - 2.0 * t) * col * col + 2.0 * t * col;
+		} else if (sun_blend == 5) {
+			lit = col * t;
+		}
+		col = mix(col, clamp(lit, 0.0, 1.0), b);
+	}
+	COLOR = vec4(col, 1.0);
 }
