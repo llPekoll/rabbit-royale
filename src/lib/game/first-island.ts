@@ -50,6 +50,23 @@ export const FIRST_ISLAND_GROUND = 'tutorial-v1';
  */
 export const ISLAND_GROUND = 'island-v1';
 
+/**
+ * A ladder island's seed carries its RABBIT LEVEL, the way the tutorial's
+ * carries `first:` — the level decides the island's size (`levelRow.land`),
+ * and the client cuts the coast from the seed alone. `lv3:<uuid>`.
+ */
+const LEVEL_SEED = /^lv(\d+):/;
+
+export function levelSeed(level: number, id: string): string {
+  return `lv${level}:${id}`;
+}
+
+/** The rabbit level a seed was dealt for, or undefined on a seed without one. */
+export function seedLevel(seed: string): number | undefined {
+  const m = LEVEL_SEED.exec(seed);
+  return m ? Number(m[1]) : undefined;
+}
+
 export function firstIslandSeed(id: string): string {
   return `${FIRST_SEED_PREFIX}${id}`;
 }

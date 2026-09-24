@@ -14,7 +14,19 @@ extends Node
 ## The API's origin. Prod, because that is where the game is played: the user
 ## tests on the server, never locally, so a localhost default would only ever
 ## be wrong on the device.
-const HOST := "https://ws.rabbit.rip"
+##
+## POUR JOUER CONTRE UN SERVEUR LOCAL, sans rien changer au defaut :
+##   godot --path godot -- --server=http://localhost:3011
+## ou la variable d'environnement RR_SERVER. Lu une fois, au chargement.
+var HOST := _host()
+
+
+static func _host() -> String:
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--server="):
+			return arg.trim_prefix("--server=").trim_suffix("/")
+	var env := OS.get_environment("RR_SERVER")
+	return env.trim_suffix("/") if env != "" else "https://ws.rabbit.rip"
 
 ## How long a call waits before it is called dead.
 ##

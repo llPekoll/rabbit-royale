@@ -320,7 +320,9 @@
     "bombDensity": 0.1,
     "carrotDensity": 0.28,
     "goldenShare": 0.05,
-    "xGain": 3
+    "xGain": 3,
+    "land": 0.12,
+    "chests": 2
    },
    {
     "level": 2,
@@ -329,7 +331,9 @@
     "bombDensity": 0.12,
     "carrotDensity": 0.29,
     "goldenShare": 0.06,
-    "xGain": 3
+    "xGain": 3,
+    "land": 0.16,
+    "chests": 2
    },
    {
     "level": 3,
@@ -338,7 +342,9 @@
     "bombDensity": 0.14,
     "carrotDensity": 0.3,
     "goldenShare": 0.06,
-    "xGain": 3
+    "xGain": 3,
+    "land": 0.2,
+    "chests": 3
    },
    {
     "level": 4,
@@ -347,7 +353,9 @@
     "bombDensity": 0.15,
     "carrotDensity": 0.32,
     "goldenShare": 0.08,
-    "xGain": 3
+    "xGain": 3,
+    "land": 0.25,
+    "chests": 3
    },
    {
     "level": 5,
@@ -356,7 +364,9 @@
     "bombDensity": 0.17,
     "carrotDensity": 0.34,
     "goldenShare": 0.09,
-    "xGain": 3
+    "xGain": 3,
+    "land": 0.3,
+    "chests": 4
    },
    {
     "level": 6,
@@ -365,7 +375,9 @@
     "bombDensity": 0.18,
     "carrotDensity": 0.36,
     "goldenShare": 0.11,
-    "xGain": 2
+    "xGain": 2,
+    "land": 0.36,
+    "chests": 5
    },
    {
     "level": 7,
@@ -374,7 +386,9 @@
     "bombDensity": 0.2,
     "carrotDensity": 0.38,
     "goldenShare": 0.13,
-    "xGain": 2
+    "xGain": 2,
+    "land": 0.42,
+    "chests": 6
    },
    {
     "level": 8,
@@ -383,7 +397,9 @@
     "bombDensity": 0.21,
     "carrotDensity": 0.4,
     "goldenShare": 0.15,
-    "xGain": 2
+    "xGain": 2,
+    "land": 0.5,
+    "chests": 7
    },
    {
     "level": 9,
@@ -392,7 +408,9 @@
     "bombDensity": 0.22,
     "carrotDensity": 0.41,
     "goldenShare": 0.16,
-    "xGain": 2
+    "xGain": 2,
+    "land": 0.56,
+    "chests": 8
    },
    {
     "level": 10,
@@ -401,7 +419,9 @@
     "bombDensity": 0.24,
     "carrotDensity": 0.43,
     "goldenShare": 0.18,
-    "xGain": 2
+    "xGain": 2,
+    "land": 0.62,
+    "chests": 10
    }
   ]
  },

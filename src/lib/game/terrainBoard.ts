@@ -22,8 +22,8 @@ import type { IslandShape } from '@/config/gridConfig';
 import { IslandBoard } from '@/game/island/board';
 import { generateTerrain, type Terrain } from '@/game/island/terrain';
 import { surfaceLift } from '@/game/island/relief';
-import { FIRST_RUN } from '@config/tuning';
-import { groundSeed, isFirstIsland } from './first-island';
+import { FIRST_RUN, levelRow } from '@config/tuning';
+import { groundSeed, isFirstIsland, seedLevel } from './first-island';
 import { TUTORIAL_LAND, TUTORIAL_SPAWN } from './tutorial-map';
 
 /**
@@ -114,13 +114,18 @@ function cached(seed: string) {
    * where the land is.
    */
   const key = groundSeed(seed);
-  let entry = cache.get(key);
+  // The first island is cut SMALL — a board to clear in one sitting, so
+  // the eruption can teach that the island is the clock. A ladder island is
+  // cut to its level's size (RABBIT_LEVELS `land`): same noise, more of it
+  // above water as the rabbit climbs. Read off the seed rather than passed
+  // in, because the client rebuilds this from the seed alone and has to cut
+  // the same coastline (see first-island.ts).
+  const level = seedLevel(seed);
+  const land = isFirstIsland(key) ? FIRST_RUN.LAND
+    : level !== undefined ? levelRow(level).land : TERRAIN_OPTIONS.land;
+  const entryKey = `${key}@${land}`;
+  let entry = cache.get(entryKey);
   if (!entry) {
-    // The first island is cut SMALL — a board to clear in one sitting, so
-    // the eruption can teach that the island is the clock. Read off the seed
-    // rather than passed in, because the client rebuilds this from the seed
-    // alone and has to cut the same coastline (see first-island.ts).
-    const land = isFirstIsland(key) ? FIRST_RUN.LAND : TERRAIN_OPTIONS.land;
     const terrain = generateTerrain({ seed: key, ...TERRAIN_OPTIONS, land });
     /**
      * THE TUTORIAL IS A CORRIDOR, cut by hand over the generated ground.
@@ -138,7 +143,7 @@ function cached(seed: string) {
      */
     if (isFirstIsland(key)) carveTutorial(terrain);
     entry = { terrain, board: new IslandBoard(terrain.map, terrain.placements) };
-    cache.set(key, entry);
+    cache.set(entryKey, entry);
   }
   return entry;
 }

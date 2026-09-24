@@ -24,7 +24,7 @@ import { ENERGY, ERUPTION, ISLAND_TIERS, LIGHTNING, MIRAGE, MULTIPLAYER, OUT_OF_
 import { servirApi } from './api-router';
 import { mulberry32, seedFrom } from '../src/lib/game/rng';
 import { cascadeAround, chestProgress, publicView } from '../src/lib/game/island';
-import { firstIslandSeed, isFirstIsland } from '../src/lib/game/first-island';
+import { firstIslandSeed, isFirstIsland, levelSeed } from '../src/lib/game/first-island';
 import { flagTile, resolveMove, spawnRabbit, teachingHold } from '../src/lib/game/run';
 import { mirageActive, planMirage, shownAdjacent } from '../src/lib/game/mirage';
 import { strike, struckRabbits } from '../src/lib/game/lightning';
@@ -174,7 +174,7 @@ io.use(async (socket, next) => {
 
 /** A fresh island dealt for a rabbit level: its densities, tier and seats. */
 function newIsland(level: number): LiveIsland {
-  return store.create(randomUUID(), 0, { level });
+  return store.create(levelSeed(level, randomUUID()), 0, { level });
 }
 
 /** A player's rabbit level, read from the row. 1 for a player with none. */

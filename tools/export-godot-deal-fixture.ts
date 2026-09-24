@@ -18,7 +18,8 @@
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { CHEST_LOOT, CHEST_LOOT_BY_TIER, CHEST_NFT_ODDS } from '../config/tuning';
+import { CHEST_LOOT, CHEST_LOOT_BY_TIER, CHEST_NFT_ODDS, levelRow } from '../config/tuning';
+import { seedLevel } from '../src/lib/game/first-island';
 import { generateIsland, publicView } from '../src/lib/game/island';
 import { mulberry32, pickWeighted, randInt, seedFrom } from '../src/lib/game/rng';
 import { spawnTile, terrainFor } from '../src/lib/game/terrainBoard';
@@ -29,12 +30,18 @@ const CASES: ReadonlyArray<readonly [string, string, number]> = [
   ['sandbox-42', 'k', 50000],
   ['moon', '', 10000],
   ['reef', 'r', 25000],
+  // Ladder islands: the seed carries the level, which sizes the island and
+  // counts its chests (RABBIT_LEVELS).
+  ['lv1:abc', 'q', 0],
+  ['lv6:zz', 'w', 0],
 ];
 
 const LETTER = { empty: 'E', carrot: 'C', golden: 'G', bomb: 'B', chest: 'K' } as const;
 
 const out = CASES.map(([seed, contentSeed, life]) => {
-  const island = generateIsland({ seed, contentSeed: contentSeed || undefined, lifetimeCarrots: life });
+  const level = seedLevel(seed);
+  const island = generateIsland({ seed, contentSeed: contentSeed || undefined, lifetimeCarrots: life,
+                                  ...(level !== undefined ? { level: levelRow(level) } : {}) });
   const tiles: Record<number, string> = {};
   const loot: Record<number, string> = {};
   for (const [i, t] of island.tiles) {

@@ -581,6 +581,15 @@ func deal_generated(p_ground: IslandGround, p_seed: String, content_seed: String
 	var tune := _tuning()
 	var rng := Rng.from_seed("content:%s" % (content_seed if content_seed != "" else p_seed))
 	tier = tier_for(lifetime)
+	# UNE GRAINE DE L'ECHELLE (`lv3:`) porte son niveau : ses densites et son
+	# nombre de coffres gagnent sur le palier aux carottes, comme `opts.level`.
+	var level := FirstIsland.seed_level(p_seed)
+	var level_chests := -1
+	if level > 0:
+		var row := FirstIsland.level_row(level)
+		tier = row.duplicate()
+		tier.name = row.tier
+		level_chests = int(row.chests)
 
 	# LE PLATEAU : les cases ou le serveur enterre, ligne d'abord — l'ordre des
 	# cles EST l'ordre des tirages.
@@ -656,7 +665,8 @@ func deal_generated(p_ground: IslandGround, p_seed: String, content_seed: String
 	# d'arrivee de l'ile, donc leur place EST la forme du niveau. Chacun tire
 	# son palier sur le rng des CONTENUS — le palier se voit, mais lequel a eu
 	# la couronne ne doit pas se deduire de la graine publique.
-	var chest_count := int(round(total * float(tune.ISLAND.CHEST_DENSITY)))
+	var chest_count := level_chests if level_chests >= 0 \
+		else int(round(total * float(tune.ISLAND.CHEST_DENSITY)))
 	for c in _rim_tiles(free.call(), dist, furthest, chest_count):
 		content[c] = Content.CHEST
 		chest_tier[c] = String(pick_weighted(rng, tune.CHEST_TIER_WEIGHTS).kind)

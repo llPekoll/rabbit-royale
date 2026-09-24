@@ -498,6 +498,17 @@ export const ISLAND_TIERS: readonly IslandTier[] = [
  * level's own, walked from an easier-than-Meadow start up to Caldera, so the
  * ten steps are ten small ones rather than four jumps. carrotDensity climbs
  * faster than bombDensity for the reason the note above gives.
+ *
+ * THE ISLAND GROWS WITH THE RABBIT (2026-09-24). Densities alone made the ten
+ * levels feel like one: the same ~520-tile island and its ~10 chests every
+ * time. Now each row carries the island's SIZE (`land`, the share of the box
+ * the terrain covers) and its CHEST COUNT, which is the length of the lap —
+ * level 1 is a ~100-tile islet with 2 chests, level 10 the full island with
+ * 10. The ground noise is the same (`ISLAND_GROUND`), so a bigger level is the
+ * same coast with more of it above water. Tile counts measured over five
+ * seeds: 0.12 → ~103, 0.20 → ~171, 0.30 → ~255, 0.42 → ~356, 0.62 → ~520.
+ * The level rides on the island's seed (`levelSeed`), since the client cuts
+ * the coast from the seed alone.
  */
 export interface LevelRow {
   readonly level: number;
@@ -509,6 +520,10 @@ export interface LevelRow {
   readonly carrotDensity: number;
   readonly goldenShare: number;
   readonly xGain: number;
+  /** Share of the box the island covers (TERRAIN_OPTIONS.land is 0.62). */
+  readonly land: number;
+  /** Chests dealt on the rim: the island ends on the last one. */
+  readonly chests: number;
 }
 
 export const RABBIT_LEVELS = {
@@ -516,16 +531,16 @@ export const RABBIT_LEVELS = {
   /** Raids, lightning, mirages and shoves open at this level, both ways. */
   RAID_MIN: 10,
   LADDER: [
-    { level: 1,  tier: 'Meadow',  seats: 1, bombDensity: 0.10, carrotDensity: 0.28, goldenShare: 0.05, xGain: 3 },
-    { level: 2,  tier: 'Meadow',  seats: 1, bombDensity: 0.12, carrotDensity: 0.29, goldenShare: 0.06, xGain: 3 },
-    { level: 3,  tier: 'Meadow',  seats: 1, bombDensity: 0.14, carrotDensity: 0.30, goldenShare: 0.06, xGain: 3 },
-    { level: 4,  tier: 'Thicket', seats: 1, bombDensity: 0.15, carrotDensity: 0.32, goldenShare: 0.08, xGain: 3 },
-    { level: 5,  tier: 'Thicket', seats: 1, bombDensity: 0.17, carrotDensity: 0.34, goldenShare: 0.09, xGain: 3 },
-    { level: 6,  tier: 'Ashland', seats: 2, bombDensity: 0.18, carrotDensity: 0.36, goldenShare: 0.11, xGain: 2 },
-    { level: 7,  tier: 'Ashland', seats: 2, bombDensity: 0.20, carrotDensity: 0.38, goldenShare: 0.13, xGain: 2 },
-    { level: 8,  tier: 'Caldera', seats: 2, bombDensity: 0.21, carrotDensity: 0.40, goldenShare: 0.15, xGain: 2 },
-    { level: 9,  tier: 'Caldera', seats: 2, bombDensity: 0.22, carrotDensity: 0.41, goldenShare: 0.16, xGain: 2 },
-    { level: 10, tier: 'Caldera', seats: 4, bombDensity: 0.24, carrotDensity: 0.43, goldenShare: 0.18, xGain: 2 },
+    { level: 1,  tier: 'Meadow',  seats: 1, bombDensity: 0.10, carrotDensity: 0.28, goldenShare: 0.05, xGain: 3, land: 0.12, chests: 2 },
+    { level: 2,  tier: 'Meadow',  seats: 1, bombDensity: 0.12, carrotDensity: 0.29, goldenShare: 0.06, xGain: 3, land: 0.16, chests: 2 },
+    { level: 3,  tier: 'Meadow',  seats: 1, bombDensity: 0.14, carrotDensity: 0.30, goldenShare: 0.06, xGain: 3, land: 0.20, chests: 3 },
+    { level: 4,  tier: 'Thicket', seats: 1, bombDensity: 0.15, carrotDensity: 0.32, goldenShare: 0.08, xGain: 3, land: 0.25, chests: 3 },
+    { level: 5,  tier: 'Thicket', seats: 1, bombDensity: 0.17, carrotDensity: 0.34, goldenShare: 0.09, xGain: 3, land: 0.30, chests: 4 },
+    { level: 6,  tier: 'Ashland', seats: 2, bombDensity: 0.18, carrotDensity: 0.36, goldenShare: 0.11, xGain: 2, land: 0.36, chests: 5 },
+    { level: 7,  tier: 'Ashland', seats: 2, bombDensity: 0.20, carrotDensity: 0.38, goldenShare: 0.13, xGain: 2, land: 0.42, chests: 6 },
+    { level: 8,  tier: 'Caldera', seats: 2, bombDensity: 0.21, carrotDensity: 0.40, goldenShare: 0.15, xGain: 2, land: 0.50, chests: 7 },
+    { level: 9,  tier: 'Caldera', seats: 2, bombDensity: 0.22, carrotDensity: 0.41, goldenShare: 0.16, xGain: 2, land: 0.56, chests: 8 },
+    { level: 10, tier: 'Caldera', seats: 4, bombDensity: 0.24, carrotDensity: 0.43, goldenShare: 0.18, xGain: 2, land: 0.62, chests: 10 },
   ] as readonly LevelRow[],
 } as const;
 

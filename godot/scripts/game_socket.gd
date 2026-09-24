@@ -28,7 +28,8 @@ extends Node
 ## WebSocket en réécrivant le schéma. Donner "wss://" ici fait échouer ce
 ## premier appel sur "Invalid URL scheme" — HTTPRequest ne connaît pas ce
 ## schéma — et la socket ne s'ouvre jamais.
-const HOST := "https://ws.rabbit.rip"
+## Celui de Net, qui sait lire `--server=` pour un serveur local.
+var HOST: String = Net.HOST
 
 ## L'attente avant de retenter, et son plafond.
 ##

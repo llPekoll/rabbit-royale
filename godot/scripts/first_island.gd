@@ -44,6 +44,25 @@ const FIRST_ISLAND_GROUND := "tutorial-v1"
 const ISLAND_GROUND := "island-v1"
 
 
+## LE NIVEAU DU LAPIN VOYAGE AUSSI SUR LA GRAINE : `lv3:<uuid>`. Il decide
+## la TAILLE de l'ile (RABBIT_LEVELS `land`) et ses coffres, et le client taille
+## la cote depuis la graine seule. Porte de `seedLevel` (first-island.ts).
+static func seed_level(seed_value: String) -> int:
+	if not seed_value.begins_with("lv"):
+		return 0
+	var colon := seed_value.find(":")
+	if colon < 3:
+		return 0
+	var digits := seed_value.substr(2, colon - 2)
+	return int(digits) if digits.is_valid_int() else 0
+
+
+## La ligne de l'echelle d'un niveau, bornee a 1..MAX comme `levelRow`.
+static func level_row(level: int) -> Dictionary:
+	var ladder: Array = (load("res://assets/tuning.json") as JSON).data.RABBIT_LEVELS.LADDER
+	return ladder[clampi(level, 1, ladder.size()) - 1]
+
+
 static func seed_for(id: String) -> String:
 	return FIRST_SEED_PREFIX + id
 

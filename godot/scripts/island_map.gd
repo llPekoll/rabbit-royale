@@ -107,7 +107,13 @@ func grow(seed_value: String) -> void:
 	var first := FirstIsland.is_first(key)
 	# La part de terre se LIT SUR LA GRAINE plutot qu'elle ne soit passee : le
 	# client rebatit tout depuis la graine seule et doit tailler la meme cote.
+	# Une ile de l'echelle prend la taille de son niveau (RABBIT_LEVELS
+	# `land`) : meme bruit, plus de terre hors de l'eau a mesure que le lapin
+	# monte.
 	var land_share := FIRST_RUN_LAND if first else ISLAND_LAND
+	var level := FirstIsland.seed_level(seed_value)
+	if not first and level > 0:
+		land_share = float(FirstIsland.level_row(level).land)
 	shape(key, land_share, ISLAND_RISE, ISLAND_RAGGEDNESS, TIERS_WANTED)
 
 	# LE TUTORIEL EST UN COULOIR, taille a la main PAR-DESSUS le sol genere.

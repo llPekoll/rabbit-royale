@@ -153,7 +153,7 @@ export function generateIsland(opts: GenerateOptions): Island {
     // end without ever leaving the middle. `rimTiles` spreads them round the
     // coast instead, so collecting them is a lap of the island.
     for (const i of rimTiles(opts.seed, spawn, tiles, eligible.filter((i) => !taken.has(i)),
-                            Math.round(total * ISLAND.CHEST_DENSITY))) {
+                            opts.level?.chests ?? Math.round(total * ISLAND.CHEST_DENSITY))) {
       const t = tiles.get(i)!;
       t.content = 'chest';
       // Each chest draws its own tier, which decides both what it may hold and how
