@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3]
+
+; LA MINI-CARTE DE L'ILE : les cases autour du lapin, a plat, avec leurs
+; chiffres. Montee par island.gd dans son chrome ; voir mini_map.gd.
+
+[ext_resource type="Script" path="res://scripts/ui/mini_map.gd" id="1_mini"]
+
+[node name="MiniMap" type="Control"]
+script = ExtResource("1_mini")

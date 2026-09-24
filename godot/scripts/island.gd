@@ -443,6 +443,25 @@ func _add_chrome() -> void:
 	layer.add_child(_caption)
 	_spotlight.lit = [_mark, _mark_arrow, _caption]
 
+	# LA MINI-CARTE, en bas a gauche : les cases autour du lapin, a plat,
+	# avec leurs chiffres — ce que les arbres et les paliers cachent.
+	var mini: MiniMap = preload("res://scenes/ui/mini_map.tscn").instantiate()
+	mini.board_of = func() -> IslandBoard: return _board
+	mini.centre = _me_cell
+	mini.others = func() -> Array:
+		var out := []
+		for id in _rivals:
+			var r: IslandRabbit = _rivals[id]
+			if is_instance_valid(r) and r.visible:
+				out.append(r.at())
+		return out
+	layer.add_child(mini)
+	mini.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	mini.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	mini.position = Vector2(Kit.EDGE, get_viewport_rect().size.y - Kit.EDGE - mini.size.y)
+	get_viewport().size_changed.connect(func() -> void:
+		mini.position = Vector2(Kit.EDGE, get_viewport_rect().size.y - Kit.EDGE - mini.size.y))
+
 	# LA BOUSSOLE : un chevron au bord de l'ecran par coffre hors du cadre.
 	# Pas sur le tutoriel — son coffre a sa fleche (`_tiles.tutorial`).
 	_compass = ChestCompass.new()
