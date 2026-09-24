@@ -779,7 +779,7 @@ export const ptBR: Dict = {
     },
     'bury-something': {
       title: 'Enterrar algo',
-      ask: () => 'Ponha uma armadilha no seu chão.',
+      ask: () => 'Vá em DEFENDER e coloque bombas na sua base.',
       line: 'Uma armadilha que ninguém vê é o único muro que vale. Muro a gente contorna.',
     },
     'open-a-chest': {

@@ -962,7 +962,7 @@ export const en = {
     },
     'bury-something': {
       title: 'Bury something',
-      ask: () => 'Place a trap on your floor.',
+      ask: () => 'Go to DEFEND and place some bombs in your base.',
       line: 'A trap nobody can see is the only wall worth building. A wall gets walked around.',
     },
     'open-a-chest': {

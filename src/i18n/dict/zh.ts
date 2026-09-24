@@ -763,7 +763,7 @@ export const zh: Dict = {
     },
     'bury-something': {
       title: '埋点东西',
-      ask: () => '在你的地板上放一个陷阱。',
+      ask: () => '前往防守，在你的基地里放几颗炸弹。',
       line: '看不见的陷阱是唯一值得修的墙。墙，人是会绕开的。',
     },
     'open-a-chest': {

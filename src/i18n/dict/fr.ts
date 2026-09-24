@@ -777,7 +777,7 @@ export const fr: Dict = {
     },
     'bury-something': {
       title: 'Enterrer quelque chose',
-      ask: () => 'Pose un piège sur ton sol.',
+      ask: () => 'Va dans DÉFENDRE et pose des bombes dans ta base.',
       line: 'Un piège invisible est le seul mur qui vaille. Un mur, on le contourne.',
     },
     'open-a-chest': {

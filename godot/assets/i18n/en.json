@@ -1275,7 +1275,7 @@
   "bury-something": {
    "title": "Bury something",
    "ask": {
-    "$t": "Place a trap on your floor."
+    "$t": "Go to DEFEND and place some bombs in your base."
    },
    "line": "A trap nobody can see is the only wall worth building. A wall gets walked around."
   },

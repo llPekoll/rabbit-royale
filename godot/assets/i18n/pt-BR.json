@@ -1348,7 +1348,7 @@
   "bury-something": {
    "title": "Enterrar algo",
    "ask": {
-    "$t": "Ponha uma armadilha no seu chão."
+    "$t": "Vá em DEFENDER e coloque bombas na sua base."
    },
    "line": "Uma armadilha que ninguém vê é o único muro que vale. Muro a gente contorna."
   },
