@@ -99,6 +99,8 @@ func _ready() -> void:
 	_refresh()
 	_state.changed.connect(_refresh)
 	Home.changed.connect(_refresh)
+	# Les recharges du jour ont pu bouger depuis la derniere lecture de l'etal.
+	_state.refresh()
 	I18N.locale_changed.connect(func(_code: String) -> void: _refresh())
 	_pay.changed.connect(_refresh)
 	closed.connect(func() -> void:
@@ -209,7 +211,7 @@ func _refresh() -> void:
 		return
 	set_title(I18N.t("shop.outOfEnergy"))
 	var burrow := Home.burrow
-	_purse_text.text = I18N.group_digits(int(burrow.get("stock", 0)))
+	_purse_text.text = I18N.group_digits(_state.stock())
 
 	var live := Home.live_energy()
 	var energy := int(live["energy"])
@@ -235,7 +237,7 @@ func _refresh() -> void:
 		_left.text = (I18N.t("shop.noRefills") if left <= 0 else I18N.f("shop.refillsLeft", [left])).strip_edges()
 
 	var busy_now := _state.busy or _pay.stage != Shop.UsdcPay.Stage.IDLE
-	var can_buy := not item.is_empty() and bool(item.get("canBuy", false))
+	var can_buy := _state.can_buy(item)
 	var dead := busy_now or not can_buy
 	_buy.board = PlankButton.tone_board("wood" if dead else "gold")
 	_buy.disabled = dead

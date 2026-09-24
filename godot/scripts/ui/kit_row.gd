@@ -443,9 +443,12 @@ func _refresh_detail(smoke_days: int, pending: bool) -> void:
 		"trap":
 			status += " · " + I18N.f(copy + "placed", [state.traps_placed()])
 			hint = I18N.t(copy + "trapHint") if amount > 0 else I18N.t(copy + "trapEmpty")
-			var cost := Tuning.i("TRAPS.CARROT_COST")
+			# Le prix de l'etal quand il est lu : c'est lui que le serveur
+			# debite (SHOP.PRICES, reglable en direct), pas le fichier.
+			var shop := ShopState.shared()
+			var cost := int(shop.item("trap").get("price", Tuning.i("TRAPS.CARROT_COST")))
 			var full := amount >= Tuning.i("TRAPS.MAX_HELD")
-			var broke := int(Home.burrow.get("stock", 0)) < cost
+			var broke := shop.stock() < cost
 			label = I18N.f(copy + "buyTrap", [I18N.group_digits(cost)])
 			_action = func() -> void: buy_trap_pressed.emit()
 			disabled = full or broke

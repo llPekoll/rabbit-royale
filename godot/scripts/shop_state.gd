@@ -197,7 +197,12 @@ func buy(kind: String, qty: int = 1) -> Dictionary:
 	# Un achat de piege change aussi ce que le sol permet.
 	if kind == "trap":
 		refresh()
-	# Le stock a bouge : la pastille et les cartes le relisent.
+	# Le stock a bouge : la reponse le porte, la pastille le prend TOUT DE
+	# SUITE plutot qu'apres l'aller-retour de /api/burrow — sinon l'etal dit
+	# 150 et la pastille encore 300 le temps d'une relecture.
+	if res.has("stock") and not Home.burrow.is_empty():
+		Home.burrow["stock"] = int(res["stock"])
+		Home.changed.emit()
 	Home.refresh()
 	_say(receipt(kind, qty, int(res.get("spent", 0))), false)
 	bought.emit(kind, qty)
@@ -381,9 +386,26 @@ func item(kind: String) -> Dictionary:
 	return {}
 
 
-## Les carottes du terrier telles que l'etal les a lues.
+## LES CAROTTES DU TERRIER, lues au MEME endroit que la pastille. L'etal
+## gardait le stock de sa derniere lecture de /api/shop, qui ne se refait
+## qu'apres un achat : une run encaissee, une quete prise, un raid subi, et
+## la boutique disait un autre chiffre que la pastille au-dessus d'elle.
+## Home est relu sur chacun de ces evenements ; l'etal ne sert qu'a defaut.
 func stock() -> int:
-	return int(shop.get("stock", Home.burrow.get("stock", 0)))
+	if not Home.burrow.is_empty():
+		return int(Home.burrow.get("stock", 0))
+	return int(shop.get("stock", 0))
+
+
+## PEUT-ON L'ACHETER EN CAROTTES, maintenant (inventory.ts `canBuy`) : le
+## prix contre le stock d'AUJOURD'HUI, pas le `canBuy` fige a la lecture de
+## l'etal — sinon 1000 carottes rapportees laissaient le bouton eteint, et
+## une bourse videe ailleurs le laissait allume pour un refus du serveur.
+func can_buy(it: Dictionary) -> bool:
+	if it.is_empty():
+		return false
+	var room: bool = bool(it.get("hasRoom", int(it.get("held", 0)) < int(it.get("cap", 0))))
+	return room and stock() >= int(it.get("price", 0))
 
 
 ## Ce que dit le pied de l'etal, et si c'est un refus.

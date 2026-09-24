@@ -159,6 +159,9 @@ func _ready() -> void:
 	_rebuild()
 	_state.changed.connect(_rebuild)
 	Home.changed.connect(_rebuild)
+	# Relire l'etal a chaque ouverture, comme le montage du web (use-shop.ts) :
+	# les avoirs ont pu bouger depuis (bombe posee, eclair lance, coffre).
+	_state.refresh()
 	I18N.locale_changed.connect(func(_code: String) -> void: _rebuild())
 	_pay.changed.connect(_rebuild)
 	_state.bought.connect(_celebrate)
@@ -685,7 +688,7 @@ func _card(it: Dictionary, tokens: Array, lead: bool) -> Control:
 	# pas payer — la lampe eteinte comme couleur de FACE, la carotte a cote
 	# reste en couleur (Paul, 2026-09-16) —, le bleu froid pour l'argent
 	# (COIN_BTN : le froid, et SEULEMENT l'argent).
-	var can_buy := bool(it.get("canBuy", false))
+	var can_buy := _state.can_buy(it)
 	var dead := _state.busy or _pay.stage != UsdcPay.Stage.IDLE or (full if money else not can_buy)
 	var tone := "blue" if money else ("wood" if dead else "gold")
 	var label := _money_label(float(it.get("usdc", 0.0))) if money else I18N.group_digits(int(it.get("price", 0)))
