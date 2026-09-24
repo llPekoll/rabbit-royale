@@ -182,6 +182,18 @@ func refresh() -> void:
 
 ## REMESURER la carte sur l'ecran : sa hauteur, ses bouts, son air, son art.
 ## A appeler avant de la remplir — les tailles de texte en dependent.
+## LE COIN HAUT DROIT, ou se pose le [x] quand la carte s'ouvre en dialogue
+## (chrome.gd, la maison) : a Kit.CLOSE_AIR du bois, au-dessus et a droite.
+## Au-dessus, le bois est le rail (la marge du haut moins l'air de la carte) ;
+## a droite, a hauteur du [x], le poteau est plus epais que le rail de
+## POST_OVER_RAIL (mesure sur une capture, 2026-09-24).
+const POST_OVER_RAIL := 5.0
+
+func content_corner() -> Vector2:
+	var rail := float(_inset.get_theme_constant("margin_top")) - _pad
+	return Vector2(size.x - rail - POST_OVER_RAIL - Kit.CLOSE_AIR, rail + Kit.CLOSE_AIR)
+
+
 func layout() -> void:
 	var view := _view()
 	var short := view.y < SHORT_VIEW

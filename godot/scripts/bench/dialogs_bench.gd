@@ -175,9 +175,8 @@ func _place(d: Dialog) -> void:
 		d.size = Vector2(board_w, view.y - board_top - board_bottom)
 		d.position = Vector2(view.x - Kit.EDGE - board_w, board_top)
 		return
-	var slack := (Kit.CLOSE_TAP - Chrome.CLOSE_ART) * 0.5
-	var side := maxf(Kit.EDGE, -Dialog.CLOSE_OVER_RIGHT - slack + 4.0)
-	var top := maxf(Kit.EDGE, -Dialog.CLOSE_OVER_TOP - slack + 4.0)
+	var side := Kit.EDGE
+	var top := Kit.EDGE
 	var wanted := d.get_combined_minimum_size()
 	d.size = Vector2(minf(wanted.x, view.x - 2.0 * side), minf(wanted.y, view.y - top - Kit.EDGE))
 	var at := ((view - d.size) * 0.5).floor()

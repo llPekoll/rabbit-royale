@@ -69,8 +69,6 @@ func _init() -> void:
 
 
 func _ready() -> void:
-	# Pas de [x] : la carte a un ou deux boutons, et ils sont la sortie.
-	close_button.visible = false
 
 	_stats = Kit.label("", 14, Palette.INK)
 	_stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -237,6 +235,12 @@ func _on_tick() -> void:
 	_left = 0
 	_relabel()
 	go_home.emit()
+
+
+## Le [x] (et Echap) de la carte : RENTRER, comme HOME. Fermer la carte
+## seule laissait le lapin sur une ile finie, sans sortie.
+func close_requested() -> void:
+	_on_home()
 
 
 func _on_home() -> void:

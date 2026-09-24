@@ -34,10 +34,6 @@ extends Control
 ## `Chrome.current.open(dialog)`.
 static var current: Chrome
 
-## Le diametre DESSINE du [x] (close-default.webp a l'ecran), sous sa zone
-## de tap de Kit.CLOSE_TAP.
-const CLOSE_ART := 30.0
-
 ## Combien de temps une pastille reste, et son fondu.
 const TOAST_SECONDS := 3.2
 const TOAST_FADE := 0.35
@@ -377,9 +373,18 @@ func _on_door(door: String) -> void:
 			var view := get_viewport_rect().size
 			var holder := Control.new()
 			holder.custom_minimum_size = Vector2(minf(300.0, view.x - 40.0), minf(190.0, view.y - 40.0))
-			var panel: Control = preload("res://scenes/ui/burrow_panel.tscn").instantiate()
+			var panel: HubCard = preload("res://scenes/ui/burrow_panel.tscn").instantiate()
 			holder.add_child(panel)
 			Kit.fill(panel)
+			# Le [x] de tous les panneaux, dans le coin haut droit du contenu :
+			# la carte n'en avait pas, et seul le voile la fermait.
+			var close := Kit.close_button()
+			close.pressed.connect(close_dialog)
+			holder.add_child(close)
+			var place := func() -> void:
+				close.position = panel.content_corner() - Vector2(Kit.CLOSE_SIZE, 0.0)
+			panel.resized.connect(place)
+			place.call_deferred()
 			open(holder)
 
 
@@ -800,10 +805,6 @@ func open(dialog: Control, dismiss: bool = true, placement: String = "center") -
 func _center_dialog() -> void:
 	if _dialog == null:
 		return
-	# LA PLACE DU [x]. Il deborde du coin du cadre (Dialog.CLOSE_OVER_*) ; un
-	# dialogue etire a Kit.EDGE des bords le poussait hors de l'ecran, et sur
-	# 400px de haut c'est tous les dialogues. Le cadre recule donc de ce
-	# debordement, en haut et des deux cotes pour rester centre.
 	var view := get_viewport_rect().size
 	if _dialog.get("fullscreen") == true:
 		var want: Vector2 = (_dialog as Dialog).hug_size() if _dialog is Dialog else Vector2.ZERO
@@ -811,16 +812,13 @@ func _center_dialog() -> void:
 		_dialog.position = screen.position
 		_dialog.size = screen.size
 		return
-	# Le dessin du [x] est plus petit que sa zone de tap (Kit.CLOSE_TAP) :
-	# seul le DESSIN doit rester a l'ecran, d'ou le retrait de cette marge.
-	var slack := (Kit.CLOSE_TAP - CLOSE_ART) * 0.5
-	var side := maxf(Kit.EDGE, -Dialog.CLOSE_OVER_RIGHT - slack + 4.0)
-	var top := maxf(Kit.EDGE, -Dialog.CLOSE_OVER_TOP - slack + 4.0)
+	# Le [x] est DANS le cadre (Dialog `_place_close`) : rien ne deborde, le
+	# cadre tient a la gouttiere du chrome de tous cotes.
+	var side := Kit.EDGE
+	var top := Kit.EDGE
 	if _placement == "board":
 		# `.rr-lb` : top clamp(52px, 13svh, 100px), bottom clamp(12px, 8svh,
-		# 60px), width max(26vw, 220px) — et a droite le MEME retrait que les
-		# dialogues centres : a --rr-edge seul, son [x] debordait de 16 px et
-		# touchait le bord de l'ecran (2026-09-23).
+		# 60px), width max(26vw, 220px), a la gouttiere du chrome a droite.
 		var board_top := clampf(view.y * 0.13, 52.0, 100.0)
 		var board_bottom := clampf(view.y * 0.08, 12.0, 60.0)
 		# AU-DESSUS DU SOL : sur un telephone couche, le panneau descendait

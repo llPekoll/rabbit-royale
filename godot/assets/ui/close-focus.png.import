@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://0e3vaiq2uccl"
-path="res://.godot/imported/close-default.webp-9db51023bc239a8aef0c4910e17805c0.ctex"
+uid="uid://bbxpyl42xgtsv"
+path="res://.godot/imported/close-focus.png-7e63e9f18e845fd2d704b1784a5deab3.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/ui/close-default.webp"
-dest_files=["res://.godot/imported/close-default.webp-9db51023bc239a8aef0c4910e17805c0.ctex"]
+source_file="res://assets/ui/close-focus.png"
+dest_files=["res://.godot/imported/close-focus.png-7e63e9f18e845fd2d704b1784a5deab3.ctex"]
 
 [params]
 

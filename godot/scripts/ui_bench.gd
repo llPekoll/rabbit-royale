@@ -60,7 +60,7 @@ func _ready() -> void:
 	var right := Kit.vbox(8)
 	right.add_child(icons)
 	right.add_child(Kit.icon(Kit.DIAL_EMPTY, 51))
-	right.add_child(Kit.icon(Kit.CLOSE_DEFAULT, 40))
+	right.add_child(Kit.close_button())
 	root.add_child(right)
 
 	DevShot.arm(self)

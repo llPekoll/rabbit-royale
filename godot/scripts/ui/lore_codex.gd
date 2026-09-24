@@ -108,9 +108,7 @@ func _ready() -> void:
 	_scroll_icon = Kit.icon(Kit.SCROLL, 26.0)
 	# LE TITRE A L'ENCRE, sans cerne ni ombre (Paul, 2026-09-23) : la
 	# creme contouree se perdait sur le parchemin, et l'or aussi.
-	title_label.add_theme_color_override("font_color", Palette.INK)
-	title_label.add_theme_constant_override("outline_size", 0)
-	title_label.add_theme_color_override("font_shadow_color", Color.TRANSPARENT)
+	ink_title()
 	var header := title_label.get_parent()
 	header.add_child(_scroll_icon)
 	header.move_child(_scroll_icon, 0)

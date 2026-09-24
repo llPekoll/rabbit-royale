@@ -133,14 +133,11 @@ func _ready() -> void:
 	_days = Kit.label("", 12, Palette.BARK)
 	header.add_child(_days)
 	header.move_child(_days, header.get_child_count() - 2)
-	# L'EN-TETE SERRE, SANS RESERVE POUR LE [x] : sur le web le [x] chevauche
-	# le coin du cadre et ne prend rien a l'en-tete (leaderboard-drawer.tsx,
-	# « the [x] landed on the title » tant que les coins mangeaient la place).
-	# Avec 10px entre chaque piece et 30 de reserve, l'en-tete exigeait 275px
-	# d'un panneau de 231 au Seeker : le tableau sortait de l'ecran par la
-	# droite, son [x] avec.
+	# L'EN-TETE SERRE : avec 10px entre chaque piece, il exigeait 275px d'un
+	# panneau de 231 au Seeker, et le tableau sortait de l'ecran par la
+	# droite. Le [x] est DANS le panneau et garde sa colonne ; c'est le titre
+	# qui retrecit (`_fit_title`).
 	header.add_theme_constant_override("separation", Kit.PAD_TIGHT)
-	(header.get_child(header.get_child_count() - 1) as Control).custom_minimum_size.x = 0.0
 
 	_scroll = ScrollContainer.new()
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED

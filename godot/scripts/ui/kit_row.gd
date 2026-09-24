@@ -311,18 +311,9 @@ func _build_detail() -> PanelContainer:
 	words.add_child(_detail_name)
 	_detail_status = Kit.note("", Palette.INK, DETAIL_STATUS)
 	words.add_child(_detail_status)
-	var fold := Kit.label("×", 24, Palette.INK)
-	fold.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	fold.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	var fold_button := Button.new()
-	fold_button.custom_minimum_size = Vector2(Kit.CLOSE_TAP, Kit.CLOSE_TAP)
+	# Le [x] de tous les panneaux, en haut a droite de la carte.
+	var fold_button := Kit.close_button()
 	fold_button.focus_mode = Control.FOCUS_NONE
-	for st in ["normal", "hover", "pressed", "focus", "disabled"]:
-		fold_button.add_theme_stylebox_override(st, StyleBoxEmpty.new())
-	fold_button.add_theme_font_size_override("font_size", 1)
-	fold_button.add_theme_color_override("font_color", Color.TRANSPARENT)
-	Kit.fill(fold)
-	fold_button.add_child(fold)
 	fold_button.pressed.connect(func() -> void:
 		_expanded = false
 		_refresh())

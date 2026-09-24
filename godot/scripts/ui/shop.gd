@@ -226,12 +226,11 @@ func _build() -> void:
 	var purse_icon := Kit.icon(Kit.ICONS["carrot"], 14)
 	purse_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	purse_row.add_child(purse_icon)
-	if fullscreen:
-		# Le [x] est dans le coin haut droit, sur la ligne de la bourse : elle
-		# lui cede sa zone de tap.
-		var reserve := Control.new()
-		reserve.custom_minimum_size = Vector2(Kit.CLOSE_TAP, 0.0)
-		head.add_child(reserve)
+	# Le [x] est dans le coin haut droit, sur la ligne de la bourse : elle
+	# lui cede sa colonne.
+	var reserve := Control.new()
+	reserve.custom_minimum_size = Vector2(Kit.CLOSE_SIZE, 0.0)
+	head.add_child(reserve)
 
 	# L'ETAGERE : une rangee, glissee de cote — au doigt, en tirant la rangee
 	# a la souris, ou par la barre dessous. Pas de barre native : c'est un
@@ -364,7 +363,7 @@ func _place_sign() -> void:
 		# Plus de rail a quoi la pendre : au-dessus de la vue, elle sortirait
 		# de l'ecran. Elle se pose dans la ligne de tete, entre les rails et
 		# la bourse, ou il n'y a que du vide.
-		at.y = CLOSE_INSIDE
+		at.y = Kit.CLOSE_AIR
 	_sign.position = at
 	for child in get_children():
 		if child is NineSlice and child.has_meta("sign_shadow"):

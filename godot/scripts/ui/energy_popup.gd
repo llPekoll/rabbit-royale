@@ -80,7 +80,6 @@ static func open(rail: String = "carrots", after_buy: Callable = Callable(), hom
 	dialog._home = home
 	if home.is_valid():
 		dialog.open_shop.connect(home, CONNECT_ONE_SHOT)
-		dialog.close_button.pressed.connect(home, CONNECT_ONE_SHOT)
 	else:
 		dialog.open_shop.connect(func() -> void: Shop.open())
 	if after_buy.is_valid():
@@ -90,6 +89,16 @@ static func open(rail: String = "carrots", after_buy: Callable = Callable(), hom
 		dialog.custom_minimum_size.x = minf(WIDTH, view.x - 2.0 * Kit.EDGE)
 		Chrome.current.open(dialog, not home.is_valid())
 	return dialog
+
+
+## Le [x] et Echap RENTRENT quand la run est finie (`home`) : fermer seul
+## laissait le lapin endormi sur l'ile grise. Une seule fois.
+func close_requested() -> void:
+	if _home.is_valid():
+		var home := _home
+		_home = Callable()
+		home.call()
+	closed.emit()
 
 
 func _ready() -> void:

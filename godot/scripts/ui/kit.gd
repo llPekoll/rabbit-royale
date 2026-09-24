@@ -24,6 +24,13 @@ const LEAF_SLICE := Vector4i(30, 37, 30, 28)
 ## Les proportions des quatre bords, pour qu'un cadre plus petit garde ses
 ## feuilles en proportion (LeafFrame derive tout du bord gauche).
 const LEAF_RATIO := Vector4(90.0, 110.0, 90.0, 85.0) / 90.0
+## Ce que le BOIS du cadre occupe de ses coupes PRES DU COIN HAUT DROIT, la
+## ou se tient le [x] — mesure sur une capture (2026-09-24) : 8,3 des 37
+## lignes du haut, 13,8 des 30 colonnes de droite (le montant s'epaissit sous
+## les feuilles du coin). Le reste est deja du parchemin. Le [x] se pose a
+## CLOSE_AIR de ce bois-la.
+const LEAF_RAIL_TOP := 8.3 / 37.0
+const LEAF_RAIL_RIGHT := 13.8 / 30.0
 ## Le bord d'un dialogue : `border-image ... / 36px`.
 const LEAF_EDGE := 36.0
 
@@ -54,12 +61,13 @@ const BANNER := preload("res://assets/ui/banner.webp")
 const BADGE := preload("res://assets/ui/badge.webp")
 const BADGE_SLICE := Vector4i(44, 38, 44, 38)
 
-## Le [x], trois etats, 90x90 dessine a 40 dans une cible de 44.
-const CLOSE_DEFAULT := preload("res://assets/ui/close-default.webp")
-const CLOSE_HOVER := preload("res://assets/ui/close-hover.webp")
-const CLOSE_PRESSED := preload("res://assets/ui/close-pressed.webp")
-const CLOSE_ART := 40.0
+## Le [x] (close_button.gd) : une touche carree dessinee a 32, dans une cible
+## de 44 qui deborde du dessin sans pousser la mise en page.
+const CLOSE_SIZE := 32.0
 const CLOSE_TAP := 44.0
+## L'air entre le [x] et le bord qui se voit (le bois du cadre, ou l'ecran),
+## le meme au-dessus et a droite : pres du coin, sans le toucher.
+const CLOSE_AIR := 10.0
 
 ## Les anneaux du podium, le coeur, la couronne, le parchemin de l'histoire.
 const RING_1 := preload("res://assets/ui/ring-1.webp")
@@ -406,19 +414,10 @@ static func emoji(text: String, size: int) -> Label:
 	return l
 
 
-## LE [x] — il vit au coin haut-droit du cadre, a cheval sur le rebord
-## (runtime.css `.wl-runtime-close`, -20 / -16).
-static func close_button() -> TextureButton:
-	var b := TextureButton.new()
-	b.texture_normal = CLOSE_DEFAULT
-	b.texture_hover = CLOSE_HOVER
-	b.texture_pressed = CLOSE_PRESSED
-	b.ignore_texture_size = true
-	b.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
-	b.custom_minimum_size = Vector2(CLOSE_TAP, CLOSE_TAP)
-	b.size = Vector2(CLOSE_TAP, CLOSE_TAP)
-	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	return b
+## LE [x] — toujours DANS son panneau, en haut a droite, a la marge du
+## contenu (close_button.gd).
+static func close_button() -> CloseButton:
+	return CloseButton.new()
 
 
 ## Une image a une hauteur donnee, largeur au ratio, filtree au pixel pres.

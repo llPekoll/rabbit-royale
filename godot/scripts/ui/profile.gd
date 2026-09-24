@@ -140,6 +140,7 @@ func _init() -> void:
 
 
 func _ready() -> void:
+	ink_title()
 	var tabs := Kit.hbox(Kit.PAD_TIGHT)
 	body.add_child(tabs)
 	for which in [Tab.PROFILE, Tab.HISTORY]:

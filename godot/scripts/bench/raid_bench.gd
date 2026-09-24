@@ -145,8 +145,8 @@ func _stage(panel: String) -> void:
 			add_child(list)
 			var fit := func() -> void:
 				var view := get_viewport_rect().size
-				var side := maxf(Kit.EDGE, -Dialog.CLOSE_OVER_RIGHT - (Kit.CLOSE_TAP - 30.0) * 0.5 + 4.0)
-				var top := maxf(Kit.EDGE, -Dialog.CLOSE_OVER_TOP - (Kit.CLOSE_TAP - 30.0) * 0.5 + 4.0)
+				var side := Kit.EDGE
+				var top := Kit.EDGE
 				var wanted := list.get_combined_minimum_size()
 				list.size = Vector2(minf(wanted.x, view.x - 2.0 * side), minf(wanted.y, view.y - top - Kit.EDGE))
 				var at := ((view - list.size) * 0.5).floor()

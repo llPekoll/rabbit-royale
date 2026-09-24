@@ -5,9 +5,11 @@ extends Control
 ##
 ## Le web a neuf dialogues qui portaient neuf mises en page, « none of them
 ## chosen » (px-dialogs.css). Ici il n'y en a qu'une : un cadre de Kit.PAD
-## d'air, un en-tete d'une ligne dont le [x] est A CHEVAL SUR LE COIN du
-## cadre (runtime.css, -20 / -16), et un corps qui prend le reste. Un ecran
-## qui veut autre chose le fait dans son corps, pas dans le cadre.
+## d'air, un en-tete d'une ligne dont le [x] est DANS LE COIN haut droit, a
+## la marge du contenu (Paul, 2026-09-24 : il debordait du cadre ici, se
+## tenait dedans ailleurs, et manquait a d'autres), et un corps qui prend le
+## reste. Un ecran qui veut autre chose le fait dans son corps, pas dans le
+## cadre.
 ##
 ## LE DIALOGUE NE S'OUVRE PAS LUI-MEME : `Chrome.current.open(dialog)` le pose
 ## sur un voile, centre, et le retire quand `closed` part. C'est le chrome qui
@@ -17,15 +19,11 @@ extends Control
 ## parce qu'il a fini (un achat conclu). Le chrome le retire ensuite.
 signal closed
 
-## Le [x] du web deborde du cadre de ces deux offsets.
-const CLOSE_OVER_TOP := -20.0
-const CLOSE_OVER_RIGHT := -16.0
-
 ## Ce que l'ecran remplit. Un VBox par defaut ; l'ecran peut y mettre
 ## n'importe quoi ou le remplacer par `set_body`.
 var body: Control
 var title_label: Label
-var close_button: TextureButton
+var close_button: CloseButton
 ## PLEIN ECRAN (`go_fullscreen`) : le chrome le pose sur toute la vue, sans
 ## marge ni cadre de feuilles — jusqu'a la taille d'un portable
 ## (`screen_rect`).
@@ -88,7 +86,7 @@ func _init(title: String = "", width: float = 420.0, height: float = 0.0) -> voi
 	# L'en-tete cede la colonne du [x], pour qu'un titre long finisse avant
 	# lui au lieu de passer dessous.
 	_close_reserve = Control.new()
-	_close_reserve.custom_minimum_size = Vector2(30.0, 0.0)
+	_close_reserve.custom_minimum_size = Vector2(Kit.CLOSE_SIZE, 0.0)
 	_header.add_child(_close_reserve)
 	_header.visible = not title.is_empty()
 
@@ -97,13 +95,13 @@ func _init(title: String = "", width: float = 420.0, height: float = 0.0) -> voi
 	_column.add_child(body)
 
 	close_button = Kit.close_button()
-	close_button.pressed.connect(func() -> void: closed.emit())
+	close_button.pressed.connect(close_requested)
 	add_child(close_button)
 	# PAS d'ancre a droite : `_place_close` le repose en coordonnees a chaque
 	# redimensionnement, et les deux ensemble l'envoyaient hors de l'ecran
 	# quand le chrome retrecissait le dialogue (x = 987 sur 890).
-	close_button.position = Vector2(width - Kit.CLOSE_TAP - CLOSE_OVER_RIGHT, CLOSE_OVER_TOP)
 	resized.connect(_place_close)
+	_place_close()
 
 
 ## LE DIALOGUE MESURE SON CONTENU. Le cadre et la marge sont ancres, pas
@@ -125,18 +123,26 @@ func _notification(what: int) -> void:
 		get_viewport().size_changed.connect(_fit_screen)
 
 
+## LE [x] DANS LE COIN HAUT DROIT, a Kit.CLOSE_AIR au-dessus ET a droite
+## (Paul, 2026-09-24 : le meme air des deux cotes, et pres du coin), compte
+## depuis ce qui se VOIT du bord : le bois du cadre, ou le bord de l'ecran
+## quand le plein ecran pousse le cadre dehors. Les coupes du cadre n'y
+## suffisent pas — 44 en haut, 36 a droite, dont une part de parchemin qui
+## n'est pas la meme. La meme regle pour un dialogue centre, le panneau de
+## saison et le plein ecran.
 func _place_close() -> void:
-	if fullscreen:
-		# Dans le coin, pas a cheval dessus : il n'y a plus de coin a
-		# chevaucher, et le debord sortirait de l'ecran.
-		close_button.position = Vector2(size.x - Kit.CLOSE_TAP - CLOSE_INSIDE, CLOSE_INSIDE)
-		return
-	close_button.position = Vector2(size.x - Kit.CLOSE_TAP - CLOSE_OVER_RIGHT, CLOSE_OVER_TOP)
-
-
-## L'air entre le [x] et le coin de l'ecran, en plein ecran : la gouttiere
-## de tout le chrome (il etait a 4, colle au bord).
-const CLOSE_INSIDE := Kit.EDGE
+	var edge := _frame.inset()
+	var top := _frame.offset_top + edge.y * Kit.LEAF_RAIL_TOP
+	var right := size.x + _frame.offset_right - edge.z * Kit.LEAF_RAIL_RIGHT
+	if fullscreen and is_inside_tree():
+		# Un axe qui prend toute la vue a son cadre hors de l'ecran : le bord
+		# qui se voit est celui de la vue.
+		var view := get_viewport_rect().size
+		if size.y >= view.y - 0.5:
+			top = 0.0
+		if size.x >= view.x - 0.5:
+			right = size.x
+	close_button.position = Vector2(right - Kit.CLOSE_AIR - Kit.CLOSE_SIZE, top + Kit.CLOSE_AIR)
 
 ## LE DIALOGUE PREND TOUT L'ECRAN. Sur un telephone couche (890x400), un
 ## panneau centre dans son cadre de feuilles perdait 40px de chaque cote et
@@ -154,9 +160,6 @@ func go_fullscreen() -> void:
 	var pad := int(Kit.PAD * 1.5)
 	for side in ["left", "top", "right", "bottom"]:
 		_inset.add_theme_constant_override("margin_" + side, pad)
-	# Le [x] est maintenant DANS la ligne du titre : elle lui cede sa zone
-	# de tap entiere.
-	_close_reserve.custom_minimum_size.x = Kit.CLOSE_TAP
 	_place_close()
 
 
@@ -230,6 +233,15 @@ func set_body(node: Control) -> void:
 	_column.move_child(body, at)
 
 
+## LE TITRE A L'ENCRE : brun fonce, sans cerne ni ombre. Sur le parchemin
+## des pleins ecrans, la creme contouree se perdait (Paul, 2026-09-23 pour
+## l'histoire, 2026-09-24 pour le profil).
+func ink_title() -> void:
+	title_label.add_theme_color_override("font_color", Palette.INK)
+	title_label.add_theme_constant_override("outline_size", 0)
+	title_label.add_theme_color_override("font_shadow_color", Color.TRANSPARENT)
+
+
 func set_title(text: String) -> void:
 	title_label.text = I18N.shout(text)
 	_header.visible = not text.is_empty()
@@ -242,5 +254,12 @@ func add_footer(node: Control) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
-		closed.emit()
+		close_requested()
 		get_viewport().set_input_as_handled()
+
+
+## LE JOUEUR DEMANDE LA SORTIE — par le [x] ou par Echap, les deux la meme
+## porte. Par defaut le dialogue se ferme ; un ecran dont la fermeture veut
+## dire autre chose (le recap : rentrer) la redefinit.
+func close_requested() -> void:
+	closed.emit()
