@@ -74,7 +74,7 @@ const RISE_STAGGER := 0.45
 const RISE_SPLASHES := 6
 ## Le temps de retrouver l'ecran (le focus, le fondu d'arrivee) avant que la
 ## mer ne s'ouvre ; puis le ponton, en fondu une fois l'ilot pose.
-const RISE_WAIT := 3.0
+const RISE_WAIT := 1.5
 const BRIDGE_FADE := 0.5
 
 ## Les planches posees AU-DESSUS de leur batiment ; toutes les autres dessous.
