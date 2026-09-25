@@ -264,8 +264,11 @@ const engine = new Engine(GODOT_CONFIG);
 				if (current > 0 && total > 0) {
 					const fill = Math.min(current / total, 1);
 					// Par rangees entieres du sprite (30 px de haut) : le bord
-					// ne coupe jamais un pixel en deux.
-					statusProgress.style.setProperty('--fill', Math.floor(fill * 30) / 30);
+					// ne coupe jamais un pixel en deux. La carotte n'occupe que
+					// les rangees 8 a 28 ; au-dessus c'est du vide, qu'on ne
+					// compte pas, sinon elle parait pleine des 73 %.
+					const rows = Math.floor(fill * 21);
+					statusProgress.style.setProperty('--fill', (rows + 1) / 30);
 					statusPercent.textContent = Math.floor(fill * 100) + ' %';
 					// Tout est la : reste la compilation du wasm, muette.
 					statusProgress.classList.toggle('busy', fill >= 1);
