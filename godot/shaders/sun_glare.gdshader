@@ -3,7 +3,8 @@ shader_type canvas_item;
 //
 // Pose sur le soleil PEINT de home-bg.webp (title_sun_glare.gd le retrouve a
 // l'ecran) et le fait vivre : un coeur blanc qui brule, un halo dore qui
-// delave le coin, une etoile de branches fines qui tourne et respire.
+// delave le coin, une etoile de branches fines qui tourne, respire et
+// scintille — immobile, on ne la voyait pas.
 // Propre a l'ecran titre : le ciel du jeu n'en sait rien.
 //
 // PREMULTIPLIE : `rgb*a + dst*(1 - a*wash)`. wash 0 = additif pur, 1 = la
@@ -24,11 +25,15 @@ uniform float halo_size : hint_range(0.05, 2.0) = 0.28;
 uniform float haze : hint_range(0.0, 2.0) = 0.45;
 uniform float streaks : hint_range(0.0, 2.0) = 0.45;
 uniform float streak_count : hint_range(2.0, 40.0) = 14.0;
-// Radians par seconde : l'etoile tourne a peine.
-uniform float spin = 0.03;
+// Radians par seconde : un tour en moins d'une minute.
+uniform float spin = 0.12;
 // La respiration du soleil : amplitude et periode en secondes.
-uniform float pulse : hint_range(0.0, 0.5) = 0.08;
-uniform float pulse_period = 5.0;
+uniform float pulse : hint_range(0.0, 0.5) = 0.12;
+uniform float pulse_period = 3.5;
+// LE SCINTILLEMENT : chaque branche s'allonge et palit a son rythme. Sans
+// lui, une etoile qui tourne lentement se lit comme une image fixe.
+uniform float shimmer : hint_range(0.0, 1.0) = 0.7;
+uniform float shimmer_speed = 1.2;
 uniform float wash : hint_range(0.0, 1.0) = 0.5;
 
 void fragment() {
@@ -45,7 +50,13 @@ void fragment() {
 	float t = TIME * spin;
 	float a1 = pow(0.5 + 0.5 * sin(ang * streak_count + t), 10.0);
 	float a2 = pow(0.5 + 0.5 * sin(ang * streak_count * 0.618 - t * 1.3 + 1.7), 16.0);
-	float burst = (a1 * 0.65 + a2 * 0.35) * exp(-d / (halo_size * 1.4 * breath)) * streaks;
+	// Deux vagues qui courent autour du soleil en sens contraires : une
+	// branche brille et s'etire quand elles se croisent sur elle.
+	float w = TIME * shimmer_speed;
+	float wave = 0.5 + 0.25 * sin(ang * 3.0 + w) + 0.25 * sin(ang * 7.0 - w * 1.7 + 2.1);
+	float live = mix(1.0, wave, shimmer);
+	float reach = halo_size * 1.4 * breath * (0.6 + 0.8 * live);
+	float burst = (a1 * 0.65 + a2 * 0.35) * live * exp(-d / reach) * streaks * 1.4;
 
 	float a = clamp((core + halo + burst) * strength, 0.0, 1.0);
 	vec3 col = mix(halo_color.rgb, core_color.rgb, clamp(core + burst * 0.5, 0.0, 1.0));
