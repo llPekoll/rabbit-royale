@@ -235,8 +235,13 @@ func show_haul(amount: int) -> void:
 		return
 	var note := Kit.plank_note("+%s %s" % [I18N.group_digits(amount), I18N.t("loop.broughtHome")], LINE_PX + 2)
 	note.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# UNE LIGNE, TAILLEE A LA MAIN : le panneau est un Button, pas un
+	# conteneur, et personne ne donnerait de largeur a la note. Repliee, elle
+	# se mesurait sur 1 px — une lettre par ligne, en colonne sur l'ilot.
+	(note.get_child(0) as Label).autowrap_mode = TextServer.AUTOWRAP_OFF
 	sign.add_child(note)
-	note.position = Vector2(0, -note.get_combined_minimum_size().y - 4.0)
+	note.size = note.get_combined_minimum_size()
+	note.position = Vector2((sign.size.x - note.size.x) * 0.5, -note.size.y - 4.0)
 	Sound.play("coin")
 	var tween := note.create_tween()
 	tween.tween_interval(HAUL_SECONDS)

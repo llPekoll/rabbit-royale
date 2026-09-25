@@ -14,93 +14,93 @@ colors = PackedColorArray(0.031, 0.043, 0.063, 0.86, 0.031, 0.043, 0.063, 0.78, 
 gradient = SubResource("Gradient_veil")
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_b3w7a"]
-content_margin_left = 38.0
+content_margin_left = 22.0
 content_margin_top = 8.0
-content_margin_right = 38.0
+content_margin_right = 22.0
 content_margin_bottom = 8.0
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_4rr2b"]
-content_margin_left = 38.0
+content_margin_left = 22.0
 content_margin_top = 8.0
-content_margin_right = 38.0
+content_margin_right = 22.0
 content_margin_bottom = 8.0
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_yql1r"]
-content_margin_left = 38.0
+content_margin_left = 22.0
 content_margin_top = 8.0
-content_margin_right = 38.0
+content_margin_right = 22.0
 content_margin_bottom = 8.0
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ia1n6"]
-content_margin_left = 38.0
+content_margin_left = 22.0
 content_margin_top = 8.0
-content_margin_right = 38.0
+content_margin_right = 22.0
 content_margin_bottom = 8.0
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_hiwto"]
-content_margin_left = 38.0
+content_margin_left = 22.0
 content_margin_top = 8.0
-content_margin_right = 38.0
+content_margin_right = 22.0
 content_margin_bottom = 8.0
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_w65of"]
-content_margin_left = 33.0
+content_margin_left = 22.0
 content_margin_top = 8.0
-content_margin_right = 33.0
+content_margin_right = 22.0
 content_margin_bottom = 8.0
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ygloa"]
-content_margin_left = 33.0
+content_margin_left = 22.0
 content_margin_top = 8.0
-content_margin_right = 33.0
+content_margin_right = 22.0
 content_margin_bottom = 8.0
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_6civk"]
-content_margin_left = 33.0
+content_margin_left = 22.0
 content_margin_top = 8.0
-content_margin_right = 33.0
+content_margin_right = 22.0
 content_margin_bottom = 8.0
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_7af2g"]
-content_margin_left = 33.0
+content_margin_left = 22.0
 content_margin_top = 8.0
-content_margin_right = 33.0
+content_margin_right = 22.0
 content_margin_bottom = 8.0
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_81wt4"]
-content_margin_left = 33.0
+content_margin_left = 22.0
 content_margin_top = 8.0
-content_margin_right = 33.0
+content_margin_right = 22.0
 content_margin_bottom = 8.0
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_kcc3o"]
-content_margin_left = 33.0
+content_margin_left = 22.0
 content_margin_top = 8.0
-content_margin_right = 33.0
+content_margin_right = 22.0
 content_margin_bottom = 8.0
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_6rcc6"]
-content_margin_left = 33.0
+content_margin_left = 22.0
 content_margin_top = 8.0
-content_margin_right = 33.0
+content_margin_right = 22.0
 content_margin_bottom = 8.0
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ah8jo"]
-content_margin_left = 33.0
+content_margin_left = 22.0
 content_margin_top = 8.0
-content_margin_right = 33.0
+content_margin_right = 22.0
 content_margin_bottom = 8.0
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_blk4q"]
-content_margin_left = 33.0
+content_margin_left = 22.0
 content_margin_top = 8.0
-content_margin_right = 33.0
+content_margin_right = 22.0
 content_margin_bottom = 8.0
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_8magm"]
-content_margin_left = 33.0
+content_margin_left = 22.0
 content_margin_top = 8.0
-content_margin_right = 33.0
+content_margin_right = 22.0
 content_margin_bottom = 8.0
 
 [node name="Title" type="Control" unique_id=306226243]
