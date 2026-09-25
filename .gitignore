@@ -32,3 +32,32 @@ __pycache__/
 
 # Screenshots and guest state written by tools/verify-*.mjs.
 verify-out/
+
+# ── Médias lourds et régénérables ─────────────────────────────────────────────
+# Les vidéos ne se versionnent pas : les rendus se refont (montage.sh,
+# capture.sh), les générations payantes vivent dans le dashboard Higgsfield et
+# dans les dossiers `shots/out/` (déjà ignorés par `out/` plus haut).
+*.mp4
+*.mov
+*.avi
+*.webm
+*.mkv
+*.zip
+
+# Le gameplay filmé dans Godot : `episodes/<ep>/capture.sh` le refait à l'identique.
+episodes/*/gameplay/
+
+# Les essais d'un autre outil (le teaser ChatGPT), pas une source.
+output/
+
+# Les sauvegardes automatiques de Blender (la .blend reste versionnée).
+*.blend1
+*.blend2
+
+# Écrit par capture.sh le temps d'un tournage (fenêtre carrée), retiré à la fin.
+godot/override.cfg
+
+# Les captures d'écran macOS qui traînent, et les fichiers de PID des bots.
+Screenshot *.png
+Screenshot *.png.import
+*.pid

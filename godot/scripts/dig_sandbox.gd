@@ -100,7 +100,9 @@ func _ready() -> void:
 	if args.has("auto"):
 		_auto_left = int(args["auto"])
 		var tick := Timer.new()
-		tick.wait_time = 0.12
+		# `--auto-every=0.7` : un pas toutes les 0,7 s, lisible a l'ecran pour
+		# une video (`--write-movie`) ; 0,12 s par defaut pour une capture fixe.
+		tick.wait_time = float(args.get("auto-every", 0.12))
 		tick.autostart = true
 		tick.timeout.connect(_auto_step)
 		add_child(tick)
@@ -110,6 +112,13 @@ func _ready() -> void:
 	# sonde. (`Window.unfocusable` aurait ete plus propre ; sur macOS la
 	# fenetre ne rendait plus une image et la capture ne partait jamais.)
 	if args.has("shot"):
+		set_process_unhandled_input(false)
+	# `--clean` : l'image du jeu seule, pour une video — sans le panneau du
+	# banc ni le compteur de l'ile.
+	if args.has("clean"):
+		_panel.visible = false
+		if _island._fps != null:
+			_island._fps.visible = false
 		set_process_unhandled_input(false)
 	DevShot.arm(self)
 
@@ -179,6 +188,8 @@ func _args() -> Dictionary:
 	for a in OS.get_cmdline_user_args():
 		if a == "--reckless":
 			out["reckless"] = "1"
+		if a == "--clean":
+			out["clean"] = "1"
 		if a.begins_with("--") and a.contains("="):
 			var kv := a.substr(2).split("=", true, 1)
 			out[kv[0]] = kv[1]

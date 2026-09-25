@@ -1,0 +1,9 @@
+[gd_scene format=3]
+
+; LE PLATEAU DE TOURNAGE — le bac a sable et des coups rejoues sans serveur,
+; pour filmer une pub. Voir scripts/bench/trailer_bench.gd.
+
+[ext_resource type="Script" path="res://scripts/bench/trailer_bench.gd" id="1_trailer"]
+
+[node name="TrailerBench" type="Node2D"]
+script = ExtResource("1_trailer")

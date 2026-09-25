@@ -36,4 +36,4 @@ episodes/
 
 | Ep | Titre | État |
 |----|-------|------|
-| 01 | Carotte / bombe | Découpage écrit — prompts à faire |
+| 01 | Carotte / bombe | **Monté** — `ep01-x.mp4` (29,7 s). Intro Seedance, gameplay filmé dans Godot (`capture.sh`), `montage.sh` |

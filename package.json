@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "higgsfield:example": "bun --env-file=.env.local run examples/higgsfield/index.ts",
     "dev": "vite --port 3010",
     "build": "vite build",
     "start": "vite preview --port 3010",
@@ -20,6 +21,7 @@
   },
   "dependencies": {
     "@domin8/arcade-kit": "github:Paul-Ollivier/arcade-kit#v2.2.1",
+    "@higgsfield/client": "^0.2.6",
     "@solana/spl-token": "^0.4.15",
     "@solana/web3.js": "^1.99.0",
     "bs58": "^6.0.0",
