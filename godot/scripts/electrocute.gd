@@ -8,23 +8,14 @@ class_name Electrocute
 ## gresille et tremble tant que le courant passe, puis le courant coupe et
 ## elle tombe. Dans l'ordre ou on le sent :
 ##
-##   • L'ECLAIR, la grande frappe de l'ile (195x220, 27 images a 24 i/s),
-##     ancre au PIED sur la case : l'eclaboussure tombe aux pattes.
-##   • LA POSE, posee quelques images plus tard (l'image 5, ou l'eclair
-##     touche) : un lapin qui s'allume avant d'etre frappe se lit comme deux
-##     effets qui se sont rates.
+##   • L'ECLAIR, le grand de l'ile (`LightningFx.big_bolt`, au shader), du
+##     haut de l'ecran jusqu'au PIED : l'impact tombe aux pattes.
+##   • LA POSE, posee des que l'eclair touche (`LightningFx.BIG_LANDS_S`) :
+##     un lapin qui s'allume avant d'etre frappe se lit comme deux effets qui
+##     se sont rates.
 ##   • LE TREMBLEMENT, deux pixels de chaque cote.
 ##   • LA CHUTE. Fatal : le rang `death`, puis le corps laisse un temps.
 ##     Survivable : le sursaut, et debout.
-
-const BOLT := preload("res://assets/fx/lightning-bolt.webp")
-const BOLT_FRAME := Vector2i(195, 220)
-const BOLT_COLS := 6
-const BOLT_FRAMES := 27
-const BOLT_FPS := 24.0
-const BOLT_LANDS_FRAME := 5
-## Moitie de son art : a 1:1 la frappe fait trois lapins de haut.
-const BOLT_SCALE := 0.5
 
 ## La pose : deux images de 32 dans une planche Aseprite a bordure d'un pixel
 ## (rectangles de 34 pour de l'art de 32) — decoupees sur le JSON, pas sur
@@ -36,7 +27,6 @@ const POSE_FPS := 16.0
 ## Le corps reste a terre apres le rang `death`, en secondes.
 const DEATH_HOLD := 0.9
 
-static var _bolt_frames: SpriteFrames
 static var _pose_frames: SpriteFrames
 
 
@@ -53,19 +43,10 @@ static func strike(rabbit: HomeRabbit, host: Node2D, hold: float = 1.4,
 	if not is_instance_valid(rabbit):
 		return
 
-	var bolt := AnimatedSprite2D.new()
-	bolt.sprite_frames = _bolts()
-	bolt.centered = false
-	bolt.offset = Vector2(-BOLT_FRAME.x * 0.5, -BOLT_FRAME.y)
-	bolt.scale = Vector2(BOLT_SCALE, BOLT_SCALE)
-	bolt.position = rabbit.position
-	bolt.z_index = rabbit.z_index + 2
-	host.add_child(bolt)
-	bolt.animation_finished.connect(bolt.queue_free)
-	bolt.play("strike")
+	LightningFx.big_bolt(host, rabbit.position, rabbit.z_index + 2)
 	Sound.play("explosion")
 
-	await tree.create_timer(BOLT_LANDS_FRAME / BOLT_FPS).timeout
+	await tree.create_timer(LightningFx.BIG_LANDS_S).timeout
 	if not is_instance_valid(rabbit):
 		return
 
@@ -100,23 +81,6 @@ static func strike(rabbit: HomeRabbit, host: Node2D, hold: float = 1.4,
 		await tree.process_frame
 		waited += rabbit.get_process_delta_time()
 	await tree.create_timer(DEATH_HOLD).timeout
-
-
-static func _bolts() -> SpriteFrames:
-	if _bolt_frames != null:
-		return _bolt_frames
-	_bolt_frames = SpriteFrames.new()
-	_bolt_frames.remove_animation("default")
-	_bolt_frames.add_animation("strike")
-	_bolt_frames.set_animation_speed("strike", BOLT_FPS)
-	_bolt_frames.set_animation_loop("strike", false)
-	for i in range(BOLT_FRAMES):
-		var f := AtlasTexture.new()
-		f.atlas = BOLT
-		f.region = Rect2((i % BOLT_COLS) * BOLT_FRAME.x, (i / BOLT_COLS) * BOLT_FRAME.y,
-			BOLT_FRAME.x, BOLT_FRAME.y)
-		_bolt_frames.add_frame("strike", f)
-	return _bolt_frames
 
 
 static func _poses() -> SpriteFrames:

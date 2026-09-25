@@ -1,96 +1,135 @@
 extends RefCounted
 class_name LightningFx
 ## LA FOUDRE DU SPECTATEUR — porte de IslandScene.ts `playLightning` et de
-## fx/Electrocute.ts.
+## fx/Electrocute.ts, dessinee au shader (lightning_bolt.gdshader) depuis le
+## 2026-09-25 : les planches pixel (lightning-1/-2, lightning-bolt) tombaient
+## de 64 px, l'eclair part maintenant DU HAUT DE L'ECRAN jusqu'au pied.
 ##
-## Deux dessins, deux usages :
+## Deux usages :
 ##
-##   • LES PETITS ECLAIRS (lightning-1 / -2, six images de 64), un par case du
-##     carre frappe, decales de `STAGGER_S` : la foudre tombe sur un MORCEAU
-##     d'ile, pas sur un point. Le dessin alterne avec la case (`index % 2`).
-##   • LE GRAND (lightning-bolt, grille 6x5 de 195x220, 27 images utiles), sur
-##     un lapin touche seulement — c'est lui qui le foudroie.
+##   • LA FRAPPE, un seul eclair au centre du carre frappe.
+##   • LE GRAND, sur un lapin touche seulement — c'est lui qui le foudroie.
 ##
-## Les deux sont ancres au PIED : le dessin tombe du haut de sa cellule et
-## eclabousse en bas, donc c'est le bas qui doit toucher la case.
+## Ancre au PIED : le noeud est pose sur la case (ou le lapin), le rectangle
+## du shader monte de la jusqu'au-dessus du bord haut de l'ecran.
 
-const SMALL: Array[Texture2D] = [
-	preload("res://assets/fx/lightning-1.webp"),
-	preload("res://assets/fx/lightning-2.webp"),
-]
-const SMALL_FRAME := 64
-const SMALL_FRAMES := 6
-const SMALL_FOOT := 62.0 / 64.0
-const SMALL_FPS := 14.0
-## LIGHTNING.STAGGER_MS
-const STAGGER_S := 0.06
+const SHADER := preload("res://shaders/lightning_bolt.gdshader")
 
-const BIG := preload("res://assets/fx/lightning-bolt.webp")
-const BIG_W := 195
-const BIG_H := 220
-const BIG_COLS := 6
-const BIG_FRAMES := 27
-const BIG_SCALE := 0.5
-const BIG_FPS := 24.0
-## L'image ou l'eclair touche le lapin (`BOLT_LANDS_FRAME`).
-const BIG_LANDS_S := 5.0 / BIG_FPS
+## Largeur du rectangle du shader en pixels d'ECRAN (le halo s'y etale ; le
+## coeur blanc, lui, fait quelques pixels).
+const WIDTH := 180.0
+## Au-dessus du bord haut, pour que le fondu du shader soit hors champ.
+const TOP_MARGIN := 60.0
+## Allume, un trou (le « double coup » d'un vrai eclair), puis s'eteint.
+const HOLD_S := 0.1
+const GAP_S := 0.05
+const FADE_S := 0.3
+## LES ETINCELLES DU PIED, en pixels d'ecran : une gerbe au premier coup,
+## une autre au second, qui jaillissent et retombent.
+const SPARKS := 26
+const SPARK_LIFE_S := 0.45
+const SPARK_SPEED := Vector2(90.0, 220.0)
+const SPARK_GRAVITY := 900.0
+const SPARK_SIZE := Vector2(2.0, 4.0)
+## L'eclair touche le lapin tout de suite : plus d'images de chute.
+const BIG_LANDS_S := 0.05
 
 ## Dans le bloc de la case, au-dessus du sol et du chiffre (`blastDepth` 9).
 const Z_BOLT := 9
 
 
-## Un eclair par case de `cells`, dans l'ordre (le centre d'abord).
+## UN SEUL ECLAIR, sur la premiere case de `cells` (le centre du carre) : les
+## autres cases s'ouvrent par `tile_revealed`, sans eclair a elles.
 static func strike(host: Node, terrain: BurrowTerrain, cells: Array[Vector2i], indices: Array[int]) -> void:
-	for i in cells.size():
-		var cell := cells[i]
-		var shape := indices[i] % 2 if i < indices.size() else i % 2
-		var t := host.get_tree().create_timer(STAGGER_S * float(i))
-		t.timeout.connect(func() -> void:
-			if is_instance_valid(terrain):
-				_small(terrain, cell, shape))
-
-
-static func _small(terrain: BurrowTerrain, cell: Vector2i, shape: int) -> void:
-	var bolt := AnimatedSprite2D.new()
-	var frames := SpriteFrames.new()
-	frames.remove_animation("default")
-	frames.add_animation("bolt")
-	frames.set_animation_speed("bolt", SMALL_FPS)
-	frames.set_animation_loop("bolt", false)
-	for i in SMALL_FRAMES:
-		var f := AtlasTexture.new()
-		f.atlas = SMALL[shape]
-		f.region = Rect2(i * SMALL_FRAME, 0, SMALL_FRAME, SMALL_FRAME)
-		frames.add_frame("bolt", f)
-	bolt.sprite_frames = frames
-	bolt.centered = false
-	bolt.offset = -Vector2(SMALL_FRAME * 0.5, SMALL_FRAME * SMALL_FOOT)
-	if not terrain.mount_veil(cell, bolt, Z_BOLT):
+	if cells.is_empty() or not is_instance_valid(terrain):
+		return
+	var bolt := _bolt(float(indices[0] if not indices.is_empty() else 0))
+	if not terrain.mount_veil(cells[0], bolt, Z_BOLT):
 		bolt.free()
 		return
-	bolt.animation_finished.connect(bolt.queue_free)
-	bolt.play("bolt")
+	_arm(bolt, WIDTH, 1.0)
 
 
 ## LE GRAND ECLAIR, au pied `at` du lapin, trie a `z`.
 static func big_bolt(host: Node, at: Vector2, z: int) -> void:
-	var bolt := AnimatedSprite2D.new()
-	var frames := SpriteFrames.new()
-	frames.remove_animation("default")
-	frames.add_animation("bolt")
-	frames.set_animation_speed("bolt", BIG_FPS)
-	frames.set_animation_loop("bolt", false)
-	for i in BIG_FRAMES:
-		var f := AtlasTexture.new()
-		f.atlas = BIG
-		f.region = Rect2((i % BIG_COLS) * BIG_W, (i / BIG_COLS) * BIG_H, BIG_W, BIG_H)
-		frames.add_frame("bolt", f)
-	bolt.sprite_frames = frames
-	bolt.centered = false
-	bolt.offset = -Vector2(BIG_W * 0.5, BIG_H)
-	bolt.scale = Vector2(BIG_SCALE, BIG_SCALE)
+	var bolt := _bolt(at.x * 0.013 + at.y * 0.007)
 	bolt.position = at
 	bolt.z_index = z
 	host.add_child(bolt)
-	bolt.animation_finished.connect(bolt.queue_free)
-	bolt.play("bolt")
+	_arm(bolt, WIDTH, 1.0)
+
+
+## Le pied (Node2D) et son rectangle de shader, encore sans taille.
+static func _bolt(seed: float) -> Node2D:
+	var foot := Node2D.new()
+	var rect := ColorRect.new()
+	# Un Control sur l'ile mange les tapes s'il ne les ignore pas.
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var mat := ShaderMaterial.new()
+	mat.shader = SHADER
+	mat.set_shader_parameter("seed", fmod(seed * 0.618, 97.0))
+	rect.material = mat
+	foot.add_child(rect)
+	return foot
+
+
+## Une fois dans l'arbre : le rectangle monte du pied au haut de l'ecran, puis
+## la vie de l'eclair — allume, un trou, rallume, s'eteint.
+static func _arm(foot: Node2D, width_px: float, impact: float) -> void:
+	var rect := foot.get_child(0) as ColorRect
+	var mat := rect.material as ShaderMaterial
+	var xf := foot.get_global_transform_with_canvas()
+	var s := maxf(absf(xf.get_scale().y), 0.001)
+	var h := maxf(xf.origin.y + TOP_MARGIN, 64.0) / s
+	var w := width_px / s
+	rect.position = Vector2(-w * 0.5, -h)
+	rect.size = Vector2(w, h)
+	mat.set_shader_parameter("y_size", h / w)
+	mat.set_shader_parameter("impact", impact)
+	var sparks := _sparks(s, impact)
+	foot.add_child(sparks)
+	sparks.emitting = true
+	var life := func(v: float) -> void: mat.set_shader_parameter("life", v)
+	var tw := foot.create_tween()
+	tw.tween_interval(HOLD_S)
+	tw.tween_callback(life.bind(0.15))
+	tw.tween_interval(GAP_S)
+	tw.tween_callback(life.bind(1.0))
+	tw.tween_callback(sparks.restart)
+	tw.tween_method(life, 1.0, 0.0, FADE_S).set_ease(Tween.EASE_IN)
+	# Le noeud part quand la derniere etincelle est retombee.
+	tw.tween_interval(maxf(0.0, SPARK_LIFE_S - FADE_S))
+	tw.tween_callback(foot.queue_free)
+
+
+## La gerbe : des carres de pixel blancs qui virent au bleu et s'eteignent,
+## tires vers le haut en eventail. `s` = echelle du pied a l'ecran, pour que
+## les tailles et vitesses soient en pixels d'ecran quel que soit le zoom.
+static func _sparks(s: float, impact: float) -> CPUParticles2D:
+	var p := CPUParticles2D.new()
+	p.one_shot = true
+	p.explosiveness = 0.9
+	p.amount = maxi(6, int(SPARKS * impact))
+	p.lifetime = SPARK_LIFE_S
+	p.randomness = 0.4
+	p.local_coords = true
+	p.emission_shape = CPUParticles2D.EMISSION_SHAPE_SPHERE
+	p.emission_sphere_radius = 6.0 / s
+	p.direction = Vector2(0, -1)
+	p.spread = 28.0
+	p.initial_velocity_min = SPARK_SPEED.x / s
+	p.initial_velocity_max = SPARK_SPEED.y / s
+	p.gravity = Vector2(0, SPARK_GRAVITY / s)
+	p.damping_min = 20.0 / s
+	p.damping_max = 60.0 / s
+	p.scale_amount_min = SPARK_SIZE.x / s
+	p.scale_amount_max = SPARK_SIZE.y / s
+	var ramp := Gradient.new()
+	ramp.set_color(0, Color(1.0, 1.0, 1.0, 1.0))
+	ramp.set_color(1, Color(0.35, 0.5, 1.0, 0.0))
+	ramp.add_point(0.35, Color(0.75, 0.9, 1.0, 1.0))
+	p.color_ramp = ramp
+	var add := CanvasItemMaterial.new()
+	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	p.material = add
+	return p

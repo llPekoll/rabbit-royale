@@ -574,17 +574,15 @@ func inked(ms: int) -> void:
 
 # ── La foudre ───────────────────────────────────────────────────────────────
 
-## FOUDROYE (Electrocute.ts) : le grand eclair tombe sur lui, et a son image 5
-## le lapin devient la pose foudroyee, qui tremble. Puis il encaisse — ou,
+## FOUDROYE (Electrocute.ts) : l'eclair de la frappe (`LightningFx.strike`,
+## vise sur lui) le touche, et le lapin devient la pose foudroyee, qui
+## tremble — pas un second eclair par-dessus. Puis il encaisse — ou,
 ## sur son dernier coeur, s'effondre.
 func electrocute(stun_ms: int, fatal: bool) -> void:
 	if _sprite == null or _under:
 		return
 	_land()
 	_shocking = true
-	var parent := get_parent()
-	if parent != null:
-		LightningFx.big_bolt(parent, position, z_index + 2)
 	# UN TWEEN DU LAPIN, pas un `await` : il meurt avec lui si le lapin part
 	# pendant l'eclair, la ou une coroutine se reveillerait sur un noeud libere.
 	var seq := create_tween()
