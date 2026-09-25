@@ -633,7 +633,7 @@ func show_ground(seed_value: String, edits: Dictionary = {}, keep_cam: bool = fa
 	_props.map = _terrain.map
 	_props.terrain = _terrain
 	_props.build(_layout)
-	_landmarks.follow(_layout.building, _props.field)
+	_landmarks.follow(_layout.building, _props.field, _props.home)
 	# LE POTAGER POUSSE AVEC LE JARDIN, le notre : lu a chaque image. Chez
 	# l'autre on ne sait pas ce qu'il a en terre — son champ est mur, c'est
 	# ce qu'on vient prendre.

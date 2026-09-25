@@ -7,8 +7,8 @@ class_name BurrowLandmarks
 ## Le joueur a voulu les voir DANS le monde (sa maquette du 2026-09-24) :
 ## chaque porte est un batiment, avec son nom sur une planche au-dessous.
 ##
-##   • TROIS ILOTS AU SUD, un a l'est. La fosse de fouille (DIG) au sud-ouest,
-##     le fort (DEFEND) au sud, le quai et son bateau (RAID) au sud-est,
+##   • TROIS ILOTS AU SUD, un a l'est. La pioche (DIG) au sud-ouest,
+##     le bouclier (DEFEND) au sud, les epees croisees (RAID) au sud-est,
 ##     l'etal (SHOP) a l'est. Ils sont FIXES : la memoire du pouce vaut plus
 ##     que la liberte de les deplacer. Seuls la maison et le potager se
 ##     deplacent encore (burrow_arrange.gd).
@@ -25,9 +25,8 @@ class_name BurrowLandmarks
 ##     La planche ouvre la porte ; le batiment lui-meme reste a l'amenagement
 ##     (un clic le prend), sinon on ne pourrait plus le deplacer.
 ##
-## L'ART DES QUATRE BATIMENTS EST PROVISOIRE : decoupe dans la maquette
-## (assets/buildings/landmarks/, 2026-09-24), en attendant les vrais sprites
-## peints sur le gabarit iso.
+## DIG, DEFEND et RAID utilisent les icones du kit, flottant sur une ombre.
+## SHOP conserve son etal. Chaque porte garde sa planche de label.
 
 ## Une porte vient d'etre pressee : "dig", "defend", "raid", "shop",
 ## "harvest" ou "upgrade". Le chrome sait ou elle mene (`Chrome.go`).
@@ -44,30 +43,30 @@ const SEA_PAD := 3
 ## en part de sa taille, qui se pose au milieu de l'ilot. `at` decale ce
 ## point, en cases (le bateau se tient dans l'eau, a l'est de son quai).
 const ISLETS := [
-	{"door": "dig", "tex": preload("res://assets/buildings/landmarks/dig.png"),
-		"dir": Vector2(-0.15, 1.0), "size": Vector2i(3, 3), "scale": 0.8,
-		"anchor": Vector2(0.5, 0.62), "at": Vector2.ZERO},
-	{"door": "defend", "tex": preload("res://assets/buildings/landmarks/defend.png"),
-		"dir": Vector2(1.0, 1.0), "size": Vector2i(4, 4), "scale": 0.72,
-		"anchor": Vector2(0.5, 0.78), "at": Vector2.ZERO},
-	{"door": "raid", "tex": preload("res://assets/buildings/landmarks/raid.png"),
-		"dir": Vector2(1.0, 0.15), "size": Vector2i(3, 3), "scale": 0.72,
-		"anchor": Vector2(0.5, 0.88), "at": Vector2(1.6, 0.4)},
+	{"door": "dig", "tex": preload("res://assets/ui/icons/pickaxe.png"),
+		"dir": Vector2(-0.15, 1.0), "size": Vector2i(3, 3), "scale": 1.0, "floating": true,
+		"anchor": Vector2(0.5, 0.5), "at": Vector2.ZERO},
+	{"door": "defend", "tex": preload("res://assets/ui/icons/shield.webp"),
+		"dir": Vector2(1.0, 1.0), "size": Vector2i(4, 4), "scale": 1.0, "floating": true,
+		"anchor": Vector2(0.5, 0.5), "at": Vector2.ZERO},
+	{"door": "raid", "tex": preload("res://assets/ui/icons/swords.webp"),
+		"dir": Vector2(1.0, 0.15), "size": Vector2i(3, 3), "scale": 1.0, "floating": true,
+		"anchor": Vector2(0.5, 0.5), "at": Vector2.ZERO},
 	{"door": "shop", "tex": preload("res://assets/buildings/landmarks/shop.png"),
 		"dir": Vector2(1.0, -0.7), "size": Vector2i(3, 3), "scale": 0.72,
 		"anchor": Vector2(0.5, 0.8), "at": Vector2.ZERO},
 ]
 
 ## LA PLANCHE a l'ecran : taille du verbe et de la ligne, en pixels d'ECRAN.
-## Elle se contre-met a l'echelle de la camera (`_process`) : un nom lisible
-## ne doit pas retrecir avec l'ile sur un telephone.
+## Dessinee dans l'interface : sa taille ne depend pas du zoom du monde.
 const VERB_PX := 13
+## Les planches posees AU-DESSUS de leur batiment ; toutes les autres dessous.
+const SIGNS_ABOVE := ["upgrade", "shop"]
 const LINE_PX := 9
 ## L'air garde entre une planche et le bord de l'ecran.
 const SCREEN_EDGE := 6.0
-## Au-dessus des blocs, des decors et du lapin ; sous les rais (3500) et la
-## fleche du raid (4000).
-const Z_SIGN := 3400
+## Au-dessus du monde, sous le chrome et ses dialogues.
+const SIGN_LAYER := 19 # Interface, below Chrome (20) and its dialogs.
 ## Le batiment dans son ilot, un cran devant le sol de sa case.
 const Z_BUILDING := 8
 ## La ligne d'etat compte a rebours : une relecture toutes les 15 s.
@@ -86,10 +85,18 @@ var _lo := Vector2i.ZERO
 var _terrain: BurrowTerrain
 var _buildings := {}
 var _signs := {}
+var _sign_layer: CanvasLayer
 ## Ou chaque planche se pose, dans le repere du terrier.
 var _anchors := {}
 var _live := false
 var _tick := 0.0
+var _float_time := 0.0
+## La maison, pour caler UPGRADE sur son toit (`follow`, `_roof`).
+var _home: Sprite2D
+var _roof_tex: Texture2D
+var _roof_y := 0.0
+var _float_origins := {}
+var _float_shadows := {}
 
 
 func _ready() -> void:
@@ -165,7 +172,10 @@ func clear() -> void:
 		child.queue_free()
 	_islet_cells.clear()
 	_buildings.clear()
+	_float_origins.clear()
+	_float_shadows.clear()
 	_signs.clear()
+	_sign_layer = null
 	_anchors.clear()
 	_terrain = null
 	sea_map = null
@@ -174,25 +184,40 @@ func clear() -> void:
 ## LA MAISON ET LE POTAGER ont bouge (ou le sol vient d'etre pose) : leurs
 ## planches suivent. `house` est la case de la maison (coin nord de ses 2x2),
 ## `field` les cases du potager.
-func follow(house: Vector2i, field: Array[Vector2i]) -> void:
+## `home` le sprite de la maison : UPGRADE se cale sur son TOIT PEINT, relu a
+## chaque image (`_process`) — la maison change d'art a chaque niveau, et son
+## cadre de 112 px est surtout de l'air (toit a 25..48 px du pied).
+func follow(house: Vector2i, field: Array[Vector2i], home: Sprite2D = null) -> void:
 	if _main == null:
 		return
+	_home = home if house.x >= 0 else null
 	if house.x >= 0:
-		# Le coin SUD de l'emprise, la ou la cour touche l'herbe.
+		# Repli sans sprite : le milieu de l'emprise.
 		var front := house + Vector2i(1, 1)
-		_anchors["upgrade"] = _main.screen_of(front.x, front.y) + Vector2(0, Iso.half_h() * 2.0 + 2.0)
+		_anchors["upgrade"] = _main.screen_of(front.x, front.y)
 	else:
 		_anchors.erase("upgrade")
 	if not field.is_empty():
-		var sum_x := 0.0
-		var foot := -INF
+		# HARVEST AU MILIEU DU POTAGER : le centre de ses cases.
+		var sum := Vector2.ZERO
 		for c in field:
-			var at := _main.screen_of(c.x, c.y)
-			sum_x += at.x
-			foot = maxf(foot, at.y + Iso.half_h() * 2.0)
-		_anchors["harvest"] = Vector2(sum_x / float(field.size()), foot + 2.0)
+			sum += _main.screen_of(c.x, c.y) + Vector2(0, Iso.half_h())
+		_anchors["harvest"] = sum / float(field.size())
 	else:
 		_anchors.erase("harvest")
+
+
+## Le haut de l'art peint de la maison, dans le repere des planches. Mesure
+## une fois par texture (l'alpha de son cadre).
+func _roof() -> Vector2:
+	var tex := _home.texture
+	if tex != _roof_tex:
+		_roof_tex = tex
+		var img := tex.get_image() if tex != null else null
+		_roof_y = float(img.get_used_rect().position.y) if img != null else 0.0
+	# Le milieu du cadre en x (l'offset le recentre deja), le toit en y.
+	var local := Vector2(0, _roof_y + _home.offset.y)
+	return to_local(_home.to_global(local))
 
 
 ## LES PLANCHES SE MONTRENT-ELLES ? Chez soi, hors de tout mode, rien en main.
@@ -308,11 +333,29 @@ func _place_building(spec: Dictionary, top: Vector2i, islets: BurrowMap, lo: Vec
 	sprite.z_index = Iso.depth(front.x, front.y) + Z_BUILDING
 	add_child(sprite)
 	_buildings[spec["door"]] = sprite
-	# La planche, sous la pointe sud de l'ilot.
-	var south := _main.origin + Vector2(float(front.x - front.y) * Iso.half_w(), float(front.x + front.y) * Iso.half_h())
-	# SUR LA RIVE, a cheval sur le bord comme les enseignes de la maquette :
-	# pendue sous l'ilot, DEFEND sortait du cadre du Seeker.
-	_anchors[spec["door"]] = Vector2(ground.x, south.y + Iso.half_h() * 2.0 - float(islets.lift_px) - 12.0)
+	if spec.get("floating", false):
+		# Uniform 32-pixel icons, raised above their own island centre.
+		sprite.scale = Vector2.ONE * (32.0 / maxf(tex.get_width(), tex.get_height()))
+		var rest := ground + Vector2(0, -28)
+		_float_origins[spec["door"]] = rest
+		sprite.position = rest
+		var shadow := IconShadow.new()
+		shadow.position = ground
+		shadow.z_index = sprite.z_index - 1
+		add_child(shadow)
+		_float_shadows[spec["door"]] = shadow
+	# LA PLANCHE SOUS LE BATIMENT : sous l'ombre de l'icone flottante, ou
+	# sous le pied peint du sprite (son alpha, pas son cadre). Celles de
+	# SIGNS_ABOVE se posent sur le haut peint.
+	var foot := ground.y + IconShadow.RADIUS.y + 2.0
+	if not spec.get("floating", false):
+		var img := tex.get_image()
+		var painted := img.get_used_rect() if img != null else Rect2i(Vector2i.ZERO, Vector2i(tex.get_size()))
+		if SIGNS_ABOVE.has(spec["door"]):
+			foot = sprite.position.y + (sprite.offset.y + float(painted.position.y)) * sprite.scale.y
+		else:
+			foot = maxf(foot, sprite.position.y + (sprite.offset.y + float(painted.end.y)) * sprite.scale.y)
+	_anchors[spec["door"]] = Vector2(ground.x, foot)
 	_signs[spec["door"]] = _make_sign(spec["door"])
 
 
@@ -432,14 +475,32 @@ class Bridge extends Node2D:
 			draw_rect(Rect2(p + up - Vector2(1, 1), Vector2(2, 2)), POST_TOP)
 
 
+## L'OMBRE D'UNE ICONE FLOTTANTE : une ellipse sombre posee sur l'ilot, sous
+## l'icone qui danse au-dessus. `_process` la gonfle et la degonfle avec le
+## balancement.
+class IconShadow extends Node2D:
+	const RADIUS := Vector2(12.0, 5.0)
+	const COLOR := Color(0.0, 0.0, 0.0, 0.28)
+	const SEGMENTS := 24
+
+	func _draw() -> void:
+		var points := PackedVector2Array()
+		for i in range(SEGMENTS):
+			var t := TAU * float(i) / float(SEGMENTS)
+			points.append(Vector2(cos(t) * RADIUS.x, sin(t) * RADIUS.y))
+		draw_colored_polygon(points, COLOR)
+
+
 # ── Les planches ───────────────────────────────────────────────────────────
 
 class Sign extends Button:
 	var door := ""
 	var verb: Label
 	var line: Label
+	var energy_icon: TextureRect
 	var badge: Label
 	var _body: PanelContainer
+	var _ui_scale := -1.0
 
 	func _init(p_door: String) -> void:
 		door = p_door
@@ -463,7 +524,20 @@ class Sign extends Button:
 		line = Kit.label("", LINE_PX, Palette.CREAM)
 		line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		col.add_child(line)
+		var details := HBoxContainer.new()
+		details.alignment = BoxContainer.ALIGNMENT_CENTER
+		details.add_theme_constant_override("separation", 3)
+		details.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		col.add_child(details)
+		details.add_child(line)
+		energy_icon = TextureRect.new()
+		energy_icon.texture = preload("res://assets/ui/icons/bolt.webp")
+		energy_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		energy_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		energy_icon.custom_minimum_size = Vector2(10, 10)
+		energy_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		energy_icon.visible = false
+		details.add_child(energy_icon)
 		badge = Kit.label("!", VERB_PX, Palette.INK)
 		badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -484,8 +558,26 @@ class Sign extends Button:
 		verb.text = word
 		line.text = words
 		line.visible = not words.is_empty()
+		# L'eclair suit un prix : la phrase de DIG finit par son chiffre, RAID
+		# n'ecrit que le sien (« LVL 10 » n'est pas un prix).
+		energy_icon.visible = (door == "dig" and words.right(1).is_valid_int()) \
+			or (door == "raid" and words.is_valid_int())
+		tooltip_text = word + " — " + words
 		modulate = Color.WHITE if lit else Color(0.82, 0.82, 0.82)
 		_fit.call_deferred()
+
+	func set_ui_scale(value: float) -> void:
+		if is_equal_approx(value, _ui_scale):
+			return
+		_ui_scale = value
+		energy_icon.custom_minimum_size = Vector2.ONE * roundf(10.0 * value)
+		# Rasterize text at its final screen size instead of scaling glyphs.
+		verb.add_theme_font_size_override("font_size", roundi(VERB_PX * value))
+		line.add_theme_font_size_override("font_size", roundi(LINE_PX * value))
+		badge.add_theme_font_size_override("font_size", roundi(VERB_PX * value))
+		_body.add_theme_stylebox_override("panel", Kit.style_plank(2.0 * value, roundf(12.0 * value), roundf(3.0 * value)))
+		_fit.call_deferred()
+
 
 	func _fit() -> void:
 		var want := _body.get_combined_minimum_size()
@@ -497,42 +589,57 @@ class Sign extends Button:
 
 func _make_sign(door: String) -> Sign:
 	var sign := Sign.new(door)
-	sign.z_index = Z_SIGN
-	sign.z_as_relative = false
+	if not is_instance_valid(_sign_layer):
+		_sign_layer = CanvasLayer.new()
+		_sign_layer.name = "LandmarkInterface"
+		_sign_layer.layer = SIGN_LAYER
+		add_child(_sign_layer)
 	sign.visible = _live and _anchors.has(door)
 	sign.pressed.connect(func() -> void: door_pressed.emit(door))
-	add_child(sign)
+	_sign_layer.add_child(sign)
 	return sign
 
 
-## LES PLANCHES SUIVENT LA CAMERA SANS GRANDIR AVEC ELLE : posees sur leur
-## ancre du monde, contre-mises a l'echelle du terrier.
+## Interface labels follow projected world anchors without inheriting world scale.
 func _process(delta: float) -> void:
-	var parent := get_parent() as Node2D
+	_float_time += delta
+	for door in _float_origins:
+		var bob := sin(_float_time * 2.0) * 2.0
+		(_buildings[door] as Sprite2D).position = (_float_origins[door] as Vector2) + Vector2(0, bob)
+		var shadow: Node2D = _float_shadows[door]
+		shadow.scale = Vector2.ONE * (1.0 + bob * 0.025)
+	if is_instance_valid(_sign_layer):
+		_sign_layer.visible = is_visible_in_tree()
 	# A L'ECHELLE DU CHROME, pas du monde : 1 sur le Seeker (890x400), plus
 	# grand sur un ecran de bureau, comme la barre du haut.
 	var view := get_viewport_rect().size
 	var ui := clampf(minf(view.x / BurrowCamera.GAME_W, view.y / BurrowCamera.GAME_H), 1.0, 1.6)
-	var k := ui / maxf(0.05, parent.scale.x if parent != null else 1.0)
+	var world_to_screen := get_global_transform_with_canvas()
+	if is_instance_valid(_home) and _anchors.has("upgrade"):
+		_anchors["upgrade"] = _roof()
 	var shown: Array[Sign] = []
 	for door in _signs:
 		var sign: Sign = _signs[door]
 		if not sign.visible or not _anchors.has(door):
 			continue
-		sign.scale = Vector2(k, k)
-		sign.position = (_anchors[door] as Vector2) - Vector2(sign.size.x * 0.5 * k, 0.0)
+		sign.set_ui_scale(ui)
+		# Pendue au-dessus du toit (SIGNS_ABOVE), centree sur son ancre
+		# (HARVEST, au milieu du potager), ou SOUS son ancre.
+		var lift := -2.0 * ui
+		if SIGNS_ABOVE.has(door):
+			lift = sign.size.y + 2.0 * ui
+		elif door == "harvest":
+			lift = sign.size.y * 0.5
+		sign.position = world_to_screen * (_anchors[door] as Vector2) - Vector2(sign.size.x * 0.5, lift)
 		shown.append(sign)
-	_part(shown, k)
+	_part(shown, 1.0)
 	# JAMAIS HORS DE L'ECRAN : la maison cadre serre, et le batiment du bord
 	# peut deborder — sa planche, elle, reste a portee du pouce.
-	if parent != null:
-		var s := parent.scale.x
-		for sign in shown:
-			var at := parent.position + sign.position * s
-			var sz := sign.size * sign.scale.x * s
-			at.x = clampf(at.x, SCREEN_EDGE, view.x - SCREEN_EDGE - sz.x)
-			at.y = clampf(at.y, SCREEN_EDGE, view.y - SCREEN_EDGE - sz.y)
-			sign.position = (at - parent.position) / s
+	for sign in shown:
+		var at := sign.position
+		at.x = clampf(at.x, SCREEN_EDGE, maxf(SCREEN_EDGE, view.x - SCREEN_EDGE - sign.size.x))
+		at.y = clampf(at.y, SCREEN_EDGE, maxf(SCREEN_EDGE, view.y - SCREEN_EDGE - sign.size.y))
+		sign.position = at.round()
 	_tick += delta
 	if _tick >= TICK_SECONDS:
 		_tick = 0.0
@@ -549,6 +656,26 @@ func _part(shown: Array[Sign], k: float) -> void:
 				var a := Rect2(shown[i].position, shown[i].size * k).grow(AIR * k * 0.5)
 				var b := Rect2(shown[j].position, shown[j].size * k).grow(AIR * k * 0.5)
 				if not a.intersects(b):
+					continue
+				# UPGRADE TIENT SUR SON TOIT : l'autre s'ecarte seul, dans l'axe
+				# qui l'eloigne de la maison.
+				var pinned := -1
+				if shown[i].door == "upgrade":
+					pinned = i
+				elif shown[j].door == "upgrade":
+					pinned = j
+				if pinned >= 0:
+					var fixed := a if pinned == i else b
+					var mover: Sign = shown[j] if pinned == i else shown[i]
+					var box := b if pinned == i else a
+					var dir := (box.get_center() - fixed.get_center()).normalized()
+					if dir == Vector2.ZERO:
+						dir = Vector2.DOWN
+					for _step in range(80):
+						if not box.intersects(fixed):
+							break
+						box.position += dir * 2.0
+						mover.position += dir * 2.0
 					continue
 				var push := (minf(a.end.x, b.end.x) - maxf(a.position.x, b.position.x)) * 0.5
 				var left := shown[i] if a.get_center().x <= b.get_center().x else shown[j]
@@ -578,8 +705,10 @@ func refresh() -> void:
 			sign.say(word, words, lit)
 
 	var can_dig := energy >= run_cost
+	# LE PRIX EN TOUTES LETTRES : « la traversee coute 5 » et l'eclair, un
+	# chiffre seul ne disait pas ce qu'il comptait.
 	say.call("dig", I18N.shout(I18N.t("loop.dig")),
-		I18N.f("loop.runCosts", [crossing]) if can_dig else I18N.f("loop.energyOf", [energy, tank["max"]]),
+		I18N.f("loop.runCosts", [crossing]),
 		can_dig)
 
 	var shield_ms: Variant = b.get("shieldMs", null)
@@ -592,7 +721,7 @@ func refresh() -> void:
 	else:
 		var floor_e := Tuning.raid_floor()
 		say.call("raid", I18N.shout(I18N.t("loop.raid")),
-			"" if energy >= floor_e else I18N.f("loop.energyOf", [energy, floor_e]), energy >= floor_e)
+			str(floor_e), energy >= floor_e)
 
 	say.call("shop", I18N.shout(I18N.t("shop.title")), "", true)
 	say.call("harvest", I18N.shout(I18N.t("burrow.harvest")),
@@ -605,10 +734,11 @@ func refresh() -> void:
 		say.call("upgrade", I18N.shout(I18N.t("burrow.upgrade")), I18N.group_digits(float(cost)),
 			bool(b.get("canUpgrade", false)))
 
-	# LE « ! » DE LA QUETE sur le batiment ou elle mene.
+	# LE « ! » DE LA QUETE sur le batiment ou elle mene — jamais sur DIG, ou
+	# il ne faisait que du bruit a cote du prix.
 	var pointed := _quest_door()
 	for door in _signs:
-		(_signs[door] as Sign).badge.visible = door == pointed
+		(_signs[door] as Sign).badge.visible = door == pointed and door != "dig"
 
 
 ## LA PORTE OU MENE LA QUETE (LoopBar `_quest_loop`), ou la ligne « et
