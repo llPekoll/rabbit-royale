@@ -143,8 +143,8 @@ func _ready() -> void:
 
 ## POSE LES ILOTS AUTOUR DE `main`, et la carte de la mer qui les englobe.
 ## Rappele a chaque sol (`show_ground`) : une autre graine, d'autres cotes.
-## `own` : notre terrier. Celui d'un autre montre ses quatre ilots, sans
-## rien reveler ni rien retenir.
+## `own` : notre terrier. Celui d'un autre ne montre que RAID, sans rien
+## reveler ni rien retenir.
 func build(main: BurrowMap, own: bool = true) -> void:
 	clear()
 	_main = main
@@ -243,8 +243,10 @@ func _wanted() -> Array[String]:
 	var doors: Array[String] = []
 	if bench:
 		return _ordered(bench_doors.duplicate())
+	# CHEZ L'AUTRE, le raider n'a rien a faire de ses portes : ni DIG, ni
+	# DEFEND, ni la boutique — seul l'ilot RAID reste.
 	if not _own:
-		return _ordered(["dig", "shop", "defend", "raid"] as Array[String])
+		return _ordered(["raid"] as Array[String])
 	# RIEN AVANT LA FIN DU TUTO : DIG sort de l'eau au retour de la lecon, pas
 	# avant — vu pendant, il serait deja la. Sans Home, ce qu'on a deja vu.
 	var seen := _seen()
