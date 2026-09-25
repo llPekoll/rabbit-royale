@@ -1,13 +1,13 @@
 """Lapin blanc de bunny-white.png, en volumes.
 
 Blender 4.5 :
-  Blender -b -P art-source/bunny-3d/build_bunny.py
+  Blender -b -P art-source/bunny-voxel/build_bunny.py
 Ecrit bunny-white.blend + renders/ a cote du script.
 
 Le sprite est un bloc : tete et corps de meme largeur, oreilles courtes et
 carrees a interieur rose, joues roses, pattes et queue plus claires, contour
 noir. Voxels d'un pixel fondus en un maillage : chaque face porte la couleur
-du pixel, ombrage toon a deux tons, contour en coque inversee (solidify). Face au -Y, queue au +Y, pieds sur z = 0.
+du pixel, ombrage toon a deux tons, contour Freestyle (silhouettes seules). Face au -Y, queue au +Y, pieds sur z = 0.
 """
 import math
 import os
@@ -23,9 +23,11 @@ PALETTE = {
     "shade": (133, 132, 119),
     "pink": (247, 143, 159),
     "ink": (47, 47, 46),
+    "tooth": (241, 240, 253),
 }
-OUTLINE = 0.035
+OUTLINE_PX = 9
 PX = 0.1
+PITCH = 18
 
 
 def srgb_to_linear(c):
@@ -71,52 +73,49 @@ def toon_material(name, rgb):
     return mat
 
 
-def outline_material():
-    mat = bpy.data.materials.new("outline")
-    mat.use_nodes = True
-    nt = mat.node_tree
-    nt.nodes.clear()
-    emit = nt.nodes.new("ShaderNodeEmission")
-    emit.inputs["Color"].default_value = [srgb_to_linear(c) for c in PALETTE["ink"]] + [1]
-    out = nt.nodes.new("ShaderNodeOutputMaterial")
-    nt.links.new(emit.outputs[0], out.inputs[0])
-    mat.use_backface_culling = True
-    mat.diffuse_color = (0, 0, 0, 1)
-    return mat
-
-
 def voxels():
-    """Grille lue sur la frame idle, 1 voxel = 1 pixel du sprite.
-    i = x (0..8, gauche -> droite), j = profondeur (0 = face, 6 = dos), k = hauteur."""
+    """Grille lue sur la frame idle (bunny-white.png, case 0), 1 voxel = 1 pixel.
+    i = x (0..6, gauche -> droite), j = profondeur (0 = face, 7 = dos), k = hauteur.
+    Corps 7 x 8 en fourrure, 6 de haut devant et 4 a la croupe, tete 7 x 5 x 3 posee dessus, calee sur la face."""
     v = {}
-    # Corps : 9 x 7 x 8, gris ; le dessus et le haut de la face en blanc.
-    # Les aretes du haut perdent un pixel : la tete s'arrondit comme au sprite.
-    for i in range(9):
-        for j in range(7):
-            for k in range(8):
-                if k == 7 and (i in (0, 8) or j == 6):
+    # Le dos descend vers la croupe, comme les marches du contour au sprite.
+    height = (6, 6, 6, 6, 5, 5, 4, 4)
+    for i in range(7):
+        for j in range(8):
+            for k in range(height[j]):
+                v[i, j, k] = "fur"
+    # Tete : dessus et front clairs, joues/flancs en fourrure.
+    for i in range(7):
+        for j in range(5):
+            for k in (6, 7, 8):
+                if k == 8 and j == 4 and i in (0, 6):
                     continue
-                v[i, j, k] = "light" if k >= 6 or (k >= 5 and j <= 1) else "fur"
-    # Visage (face avant, j = 0) : un pixel d'encre par oeil, nez rose.
-    v[2, 0, 6] = "ink"
-    v[6, 0, 6] = "ink"
-    v[4, 0, 5] = "pink"
-    # Oreilles 2 x 1 x 3, un pixel d'ecart ; interieur rose sur la colonne du dedans.
-    for i0, inner in ((1, 2), (6, 6)):
+                v[i, j, k] = "light" if k == 8 or j == 0 else "fur"
+    # Visage : un oeil d'encre, une ombre cote exterieur ; nez rose ; une dent.
+    v[1, 0, 7] = "ink"
+    v[5, 0, 7] = "ink"
+    v[0, 0, 7] = "shade"
+    v[6, 0, 7] = "shade"
+    v[3, 0, 6] = "pink"
+    v[3, 0, 5] = "tooth"
+    # Oreilles 2 x 1 x 3 aux deux bords, rose sur la colonne du dedans.
+    for i0, inner in ((0, 1), (5, 5)):
         for i in (i0, i0 + 1):
-            for k in (8, 9, 10):
-                v[i, 3, k] = "pink" if i == inner and k in (8, 9) else "light"
-    # Pattes avant 2 x 1 x 2, qui depassent de la face.
-    for i in (2, 3, 5, 6):
-        for k in (0, 1):
+            for k in (9, 10, 11):
+                v[i, 2, k] = "pink" if i == inner and k in (9, 10) else "light"
+    # Pattes avant 2 x 1 x 3 devant le poitrail, ombre entre les deux.
+    for i in (1, 2, 4, 5):
+        for k in (0, 1, 2):
             v[i, -1, k] = "light"
-    # Pieds arriere sur les flancs, queue en boule au dos.
-    for j in range(2, 6):
-        v[-1, j, 0] = "light"
-        v[9, j, 0] = "light"
-    for i in (3, 4, 5):
+    v[3, 0, 0] = "shade"
+    # Pieds arriere le long des flancs, queue en boule au dos.
+    for j in range(3, 8):
+        for k in (0, 1):
+            v[-1, j, k] = "light"
+            v[7, j, k] = "light"
+    for i in (2, 3, 4):
         for k in (1, 2, 3):
-            v[i, 7, k] = "light"
+            v[i, 8, k] = "light"
     return v
 
 
@@ -135,7 +134,7 @@ def build():
     import bmesh
 
     grid = voxels()
-    order = ["fur", "light", "pink", "ink", "outline"]
+    order = ["fur", "light", "shade", "pink", "ink", "tooth"]
     mesh = bpy.data.meshes.new("bunny")
     for key in order:
         mesh.materials.append(MATS[key])
@@ -145,7 +144,7 @@ def build():
     def vert(p):
         if p not in verts:
             # Centre en x, face vers -Y, pieds sur z = 0.
-            verts[p] = bm.verts.new(((p[0] - 4.5) * PX, (p[1] - 3.5) * PX, p[2] * PX))
+            verts[p] = bm.verts.new(((p[0] - 3.5) * PX, (p[1] - 4) * PX, p[2] * PX))
         return verts[p]
 
     for (i, j, k), color in grid.items():
@@ -159,13 +158,6 @@ def build():
 
     ob = bpy.data.objects.new("bunny", mesh)
     bpy.context.collection.objects.link(ob)
-    so = ob.modifiers.new("outline", "SOLIDIFY")
-    so.thickness = OUTLINE
-    so.offset = 1.0
-    so.use_flip_normals = True
-    so.use_rim = False
-    so.material_offset = order.index("outline")
-    so.material_offset_rim = order.index("outline")
     return ob
 
 
@@ -176,6 +168,21 @@ def scene_setup():
     sc.render.resolution_x = 512
     sc.render.resolution_y = 512
     sc.view_settings.view_transform = "Standard"
+
+    # Contour au Freestyle : une coque inversee perce aux angles rentrants des voxels.
+    sc.render.use_freestyle = True
+    sc.render.line_thickness_mode = "ABSOLUTE"
+    layer = bpy.context.view_layer
+    layer.use_freestyle = True
+    ls = layer.freestyle_settings.linesets[0]
+    for flag in ("silhouette", "border", "crease", "contour", "external_contour", "material_boundary"):
+        setattr(ls, "select_" + flag, flag in ("silhouette", "contour"))
+    style = ls.linestyle or bpy.data.linestyles.new("ink")
+    ls.linestyle = style
+    style.color = [srgb_to_linear(c) for c in PALETTE["ink"]]
+    style.thickness = OUTLINE_PX
+    style.thickness_position = "CENTER"
+    style.caps = "SQUARE"
 
     world = bpy.data.worlds.new("world")
     world.use_nodes = True
@@ -200,9 +207,9 @@ def scene_setup():
     pivot.location = (0, 0, 0.6)
     sc.collection.objects.link(pivot)
     cam.parent = pivot
-    # Vue iso du jeu : 30 degres de plongee.
-    cam.location = (0, -8 * math.cos(math.radians(30)), 8 * math.sin(math.radians(30)))
-    cam.rotation_euler = (math.radians(60), 0, 0)
+    # Le sprite montre peu le dessus : plongee faible.
+    cam.location = (0, -8 * math.cos(math.radians(PITCH)), 8 * math.sin(math.radians(PITCH)))
+    cam.rotation_euler = (math.radians(90 - PITCH), 0, 0)
     return pivot
 
 
@@ -218,11 +225,9 @@ def render_views(pivot):
     pivot.rotation_euler = (0, 0, math.radians(views["sprite"]))
 
 
-if __name__ == "__main__":
-    reset()
-    MATS = {k: toon_material(k, v) for k, v in PALETTE.items()}
-    MATS["outline"] = outline_material()
-    build()
-    pivot = scene_setup()
-    render_views(pivot)
-    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(HERE, "bunny-white.blend"))
+reset()
+MATS = {k: toon_material(k, v) for k, v in PALETTE.items()}
+build()
+pivot = scene_setup()
+render_views(pivot)
+bpy.ops.wm.save_as_mainfile(filepath=os.path.join(HERE, "bunny-white.blend"))
