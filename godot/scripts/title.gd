@@ -55,7 +55,6 @@ const PLANK_W := 320.0
 const TIP_H := 53.0
 const TIP_PAD_Y := 10.0
 
-@onready var _art: TextureRect = $Art
 @onready var _veil: TextureRect = $Veil
 @onready var _floor: TextureRect = $Floor
 @onready var _masthead: Control = %Masthead

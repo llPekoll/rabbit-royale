@@ -1,0 +1,65 @@
+[gd_scene load_steps=11 format=3]
+
+[ext_resource type="Script" path="res://scripts/home_background.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/ui/home-parallax/01-sky-sea.png" id="2"]
+[ext_resource type="Texture2D" path="res://assets/ui/home-parallax/02-distant-islands.png" id="3"]
+[ext_resource type="Texture2D" path="res://assets/ui/home-parallax/03-main-island.png" id="4"]
+[ext_resource type="Texture2D" path="res://assets/ui/home-parallax/04-near-terrain.png" id="5"]
+[ext_resource type="Texture2D" path="res://assets/ui/home-parallax/05-rabbit.png" id="6"]
+[ext_resource type="Texture2D" path="res://assets/ui/home-parallax/06-foreground.png" id="7"]
+
+[ext_resource type="Shader" path="res://shaders/sun_glare.gdshader" id="8_glare"]
+[ext_resource type="Script" path="res://scripts/title_sun_glare.gd" id="9_glare"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_glare"]
+resource_local_to_scene = true
+shader = ExtResource("8_glare")
+
+[node name="HomeBackground" type="Control"]
+z_index = -10
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture_filter = 2
+script = ExtResource("1")
+
+[node name="Layers" type="Node2D" parent="."]
+
+[node name="sky_sea" type="Sprite2D" parent="Layers"]
+position = Vector2(836, 470)
+texture = ExtResource("2")
+
+[node name="distant_islands" type="Sprite2D" parent="Layers"]
+position = Vector2(836, 470)
+texture = ExtResource("3")
+
+[node name="main_island" type="Sprite2D" parent="Layers"]
+position = Vector2(836, 470)
+texture = ExtResource("4")
+
+[node name="near_terrain" type="Sprite2D" parent="Layers"]
+position = Vector2(836, 470)
+texture = ExtResource("5")
+
+[node name="rabbit" type="Sprite2D" parent="Layers"]
+z_index = 1
+position = Vector2(836, 470)
+texture = ExtResource("6")
+
+[node name="foreground" type="Sprite2D" parent="Layers"]
+position = Vector2(836, 470)
+texture = ExtResource("7")
+
+[node name="SunGlare" type="ColorRect" parent="Layers/foreground"]
+z_index = 2
+material = SubResource("ShaderMaterial_glare")
+offset_left = -836.0
+offset_top = -470.0
+offset_right = 836.0
+offset_bottom = 470.0
+mouse_filter = 2
+script = ExtResource("9_glare")

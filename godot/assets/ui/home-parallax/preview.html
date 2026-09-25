@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="fr">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rabbit Royale · Parallaxe</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#101b19;color:#efefdd;font:15px system-ui}main{max-width:1400px;margin:30px auto;padding:20px}h1{font-size:22px}#scene{position:relative;aspect-ratio:1672/940;overflow:hidden;background:#174952;border-radius:12px}#scene img{position:absolute;width:100%;height:100%;object-fit:fill;pointer-events:none;transform-origin:50% 55%}header{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap}label{display:inline-flex;align-items:center;gap:10px}fieldset{margin-top:20px;display:flex;gap:16px;flex-wrap:wrap;border:1px solid #456256;border-radius:8px}p{color:#b3c6bb}input{accent-color:#e9b655}
+</style>
+<main>
+<header><h1>Rabbit Royale · Parallaxe</h1><label>Zoom <input id="zoom" aria-label="Zoom" type="range" min="1" max="1.2" step=".001" value="1"><output id="value">100 %</output></label></header>
+<div id="scene" aria-label="Aperçu des six couches du paysage"></div>
+<p>Déplace la souris sur l’image. Active ou masque les couches ci-dessous. Une marge de 4 % protège les bords pendant le mouvement.</p>
+<fieldset><legend>Couches · du fond au premier plan</legend></fieldset>
+</main>
+<script>
+const files=['01-sky-sea','02-distant-islands','03-main-island','04-near-terrain','05-rabbit','06-foreground'];
+const labels=['Ciel et mer','Îles lointaines','Île principale','Terrain proche','Lapin','Premier plan'];
+const depth=[.08,.18,.38,.65,.69,1],scene=document.querySelector('#scene'),zoom=document.querySelector('#zoom');
+const images=files.map((file,i)=>{
+ const img=new Image();img.src=file+'.png';img.alt=labels[i];scene.append(img);
+ const label=document.createElement('label'),check=document.createElement('input');
+ check.type='checkbox';check.checked=true;check.onchange=()=>img.hidden=!check.checked;
+ label.append(check,labels[i]);document.querySelector('fieldset').append(label);return img;
+});
+let x=0,y=0,tx=0,ty=0;
+scene.onpointermove=e=>{const r=scene.getBoundingClientRect();tx=(e.clientX-r.left)/r.width-.5;ty=(e.clientY-r.top)/r.height-.5};
+scene.onpointerleave=()=>{tx=0;ty=0};
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+function frame(){
+ x+=(tx-x)*.07;y+=(ty-y)*.07;
+ images.forEach((img,i)=>{const s=1.04+(Number(zoom.value)-1)*(.5+depth[i]*.5);img.style.transform='translate('+(reduced?0:x*depth[i]*2)+'%, '+(reduced?0:y*depth[i]*2)+'%) scale('+s+')'});
+ document.querySelector('#value').value=Math.round(Number(zoom.value)*100)+' %';requestAnimationFrame(frame);
+}frame();
+</script>
+</html>
