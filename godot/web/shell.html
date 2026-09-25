@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0">
+		<title>$GODOT_PROJECT_NAME</title>
+		<style>
+html, body, #canvas {
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+body {
+	color: white;
+	background-color: black;
+	overflow: hidden;
+	touch-action: none;
+}
+
+#canvas {
+	display: block;
+}
+
+#canvas:focus {
+	outline: none;
+}
+
+#status, #status-splash, #status-progress {
+	position: absolute;
+	left: 0;
+	right: 0;
+}
+
+#status, #status-splash {
+	top: 0;
+	bottom: 0;
+}
+
+#status {
+	background-color: $GODOT_SPLASH_COLOR;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	visibility: hidden;
+}
+
+#status-splash {
+	max-height: 100%;
+	max-width: 100%;
+	margin: auto;
+}
+
+#status-splash.show-image--false {
+	display: none;
+}
+
+#status-splash.fullsize--true {
+	height: 100%;
+	width: 100%;
+	object-fit: contain;
+}
+
+#status-splash.use-filter--false {
+	image-rendering: pixelated;
+}
+
+#status-progress, #status-notice {
+	display: none;
+}
+
+/* LA CAROTTE QUI SE REMPLIT, a la place de la barre bleue du navigateur.
+   Deux fois la meme icone 32x30 (ui/icons/carrot), agrandie au pixel pres :
+   dessous la silhouette eteinte, dessus la carotte en couleur, decouverte
+   de la pointe (en bas) vers les fanes (en haut) a mesure que les octets
+   arrivent. --fill va de 0 a 1. Le splash de Godot est masque : la carotte
+   tient seule le centre de l'ecran. */
+#status-splash {
+	display: none;
+}
+
+#status-progress {
+	position: relative;
+	flex-direction: column;
+	align-items: center;
+	gap: 1.25rem;
+	--fill: 0;
+}
+
+.carrot {
+	position: relative;
+	width: 192px;
+	height: 180px;
+}
+
+.carrot img {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	image-rendering: pixelated;
+}
+
+.carrot .carrot-empty {
+	filter: brightness(0) invert(1);
+	opacity: 0.12;
+}
+
+.carrot .carrot-full {
+	clip-path: inset(calc((1 - var(--fill)) * 100%) 0 0 0);
+}
+
+/* Taille inconnue (pas de Content-Length) ou telechargement fini pendant que
+   le wasm compile : la carotte, pleine ou non, respire. */
+#status-progress.busy .carrot {
+	animation: carrot-bob 0.9s ease-in-out infinite;
+}
+
+@keyframes carrot-bob {
+	0%, 100% { transform: translateY(0); }
+	50% { transform: translateY(-6px); }
+}
+
+#status-percent {
+	font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+	font-size: 14px;
+	letter-spacing: 0.08em;
+	color: #f5a04a;
+	opacity: 0.85;
+	min-height: 1em;
+}
+
+#status-notice {
+	background-color: #5b3943;
+	border-radius: 0.5rem;
+	border: 1px solid #9b3943;
+	color: #e0e0e0;
+	font-family: 'Noto Sans', 'Droid Sans', Arial, sans-serif;
+	line-height: 1.3;
+	margin: 0 2rem;
+	overflow: hidden;
+	padding: 1rem;
+	text-align: center;
+	z-index: 1;
+}
+		</style>
+		$GODOT_HEAD_INCLUDE
+	</head>
+	<body>
+		<canvas id="canvas">
+			Your browser does not support the canvas tag.
+		</canvas>
+
+		<noscript>
+			Your browser does not support JavaScript.
+		</noscript>
+
+		<div id="status">
+			<img id="status-splash" class="$GODOT_SPLASH_CLASSES" src="$GODOT_SPLASH" alt="">
+			<div id="status-progress">
+				<div class="carrot">
+					<img class="carrot-empty" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAeCAMAAAB61OwbAAACPVBMVEVMaXH/kQD/5FX+kgD/50j/kAD/XBv/hhI1OTr+Xhn9YBj8iQExNEwqLUP/Wxn/jgP/kAUaZkb/iQokLTz9kQD/Xhr8XxcpLTArLzXK1l4gLDY1OFAxKzMxOU8kIjkyOlArMEXcbEU6LDwkXU81OFIkM0W4vsMuMkf8jwDrbzv9jAcmMUT/fw3/XxqyVjM6KCk6Lj/bbUX/gAwoKjv/XRz5ZiT1YSj9YBo4MTEsNVBEKR4pKzqdWUW0VTH/gRj/jwD/XRn/kAItN1EvNE7iZzxMKSD/Xh7IbU7baDg+KDJeLScuM0/55WMkNUb/hhr8XRr5uyXyYyb+XBgmKjskXk34YBT/Xhz+Xhv6aAXyZwclKEKWRS79WRP+jQAbZEYoNUn/jgD3Yhf8kQH6ZBDzZQj6dgXzkAD8dw4gJzX85kj3cgn+exMtXFP7fgmbRjEtLzz6lQD/kwr254H6YRP2aQfyYQkrOk7+jgIrNUv9Yxc1PFUZZUQfW0mbQyz/iw//jAQsMBjtkwLzYxI1NkoiJin/kAH9jQH7jAA0OVIzOFEcZUYoWU/Gz3woNk+TXS00NkEwNVH5kQD/jgcrLzPI1V3G04EaYUAYZEG92ZsZZEbE1mf/hxM3NUHwZAnH14IxOFMrMTTK1Wa75IZhrEEXZDxtpTxlqkHbayhjqkUbYkPG2l+73Gb/Whr8XhQ/i08ZYzNrqjzF1GnG1F5gqzzC12PD1nLD1o4zN1MpLy/L16q42nrN1oO43oI4NUgmLS/QQQw0AAAAAXRSTlMAQObYZgAAAAlwSFlzAAALEgAACxIB0t1+/AAAATdJREFUKM9jYBgF2IH4gh0MDBKTJVpwyE+YJ7lpH8dCySk9zdgVzN+9ZcPWjauWzpragV3B9p3bNu/ZtXrZohmdWOX75+zl4Fi/bsXiad1VWKTLGrgnzuVaw7FyyfReYSzyGUXMje3cs9cu55jZVZMTjKkgn4mZu15kkqhYH0e1YIgKZghkFjAxV9a1tjXVVsQJKkujy7Owp7EyMhWWlJYX58X7qkqhy0exsLOmp7IK5GZnJUZ7Y3GhMAtLUnIKK2ssf0w4BxZ5J58AdhZGIa6EyDAuT2whZMkOBIxCYhGhgV5Yg9AKpIDdL8jfw90am7yFhoC9IyenGx+bKw82eW1Ocy0Rfgc2Fz5nrOar8XKKGunY2erZ8GKPY3lDTl1TM011BTkcyUhWkc1En8cYT0KUUTIgNw0DAPXaSOwuIN9BAAAAAElFTkSuQmCC" alt="">
+					<img class="carrot-full" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAeCAMAAAB61OwbAAACPVBMVEVMaXH/kQD/5FX+kgD/50j/kAD/XBv/hhI1OTr+Xhn9YBj8iQExNEwqLUP/Wxn/jgP/kAUaZkb/iQokLTz9kQD/Xhr8XxcpLTArLzXK1l4gLDY1OFAxKzMxOU8kIjkyOlArMEXcbEU6LDwkXU81OFIkM0W4vsMuMkf8jwDrbzv9jAcmMUT/fw3/XxqyVjM6KCk6Lj/bbUX/gAwoKjv/XRz5ZiT1YSj9YBo4MTEsNVBEKR4pKzqdWUW0VTH/gRj/jwD/XRn/kAItN1EvNE7iZzxMKSD/Xh7IbU7baDg+KDJeLScuM0/55WMkNUb/hhr8XRr5uyXyYyb+XBgmKjskXk34YBT/Xhz+Xhv6aAXyZwclKEKWRS79WRP+jQAbZEYoNUn/jgD3Yhf8kQH6ZBDzZQj6dgXzkAD8dw4gJzX85kj3cgn+exMtXFP7fgmbRjEtLzz6lQD/kwr254H6YRP2aQfyYQkrOk7+jgIrNUv9Yxc1PFUZZUQfW0mbQyz/iw//jAQsMBjtkwLzYxI1NkoiJin/kAH9jQH7jAA0OVIzOFEcZUYoWU/Gz3woNk+TXS00NkEwNVH5kQD/jgcrLzPI1V3G04EaYUAYZEG92ZsZZEbE1mf/hxM3NUHwZAnH14IxOFMrMTTK1Wa75IZhrEEXZDxtpTxlqkHbayhjqkUbYkPG2l+73Gb/Whr8XhQ/i08ZYzNrqjzF1GnG1F5gqzzC12PD1nLD1o4zN1MpLy/L16q42nrN1oO43oI4NUgmLS/QQQw0AAAAAXRSTlMAQObYZgAAAAlwSFlzAAALEgAACxIB0t1+/AAAATdJREFUKM9jYBgF2IH4gh0MDBKTJVpwyE+YJ7lpH8dCySk9zdgVzN+9ZcPWjauWzpragV3B9p3bNu/ZtXrZohmdWOX75+zl4Fi/bsXiad1VWKTLGrgnzuVaw7FyyfReYSzyGUXMje3cs9cu55jZVZMTjKkgn4mZu15kkqhYH0e1YIgKZghkFjAxV9a1tjXVVsQJKkujy7Owp7EyMhWWlJYX58X7qkqhy0exsLOmp7IK5GZnJUZ7Y3GhMAtLUnIKK2ssf0w4BxZ5J58AdhZGIa6EyDAuT2whZMkOBIxCYhGhgV5Yg9AKpIDdL8jfw90am7yFhoC9IyenGx+bKw82eW1Ocy0Rfgc2Fz5nrOar8XKKGunY2erZ8GKPY3lDTl1TM011BTkcyUhWkc1En8cYT0KUUTIgNw0DAPXaSOwuIN9BAAAAAElFTkSuQmCC" alt="">
+				</div>
+				<div id="status-percent"></div>
+			</div>
+			<div id="status-notice"></div>
+		</div>
+
+		<script src="$GODOT_URL"></script>
+		<script>
+const GODOT_CONFIG = $GODOT_CONFIG;
+const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
+const engine = new Engine(GODOT_CONFIG);
+
+(function () {
+	const statusOverlay = document.getElementById('status');
+	const statusProgress = document.getElementById('status-progress');
+	const statusNotice = document.getElementById('status-notice');
+	const statusPercent = document.getElementById('status-percent');
+
+	let initializing = true;
+	let statusMode = '';
+
+	function setStatusMode(mode) {
+		if (statusMode === mode || !initializing) {
+			return;
+		}
+		if (mode === 'hidden') {
+			statusOverlay.remove();
+			initializing = false;
+			return;
+		}
+		statusOverlay.style.visibility = 'visible';
+		statusProgress.style.display = mode === 'progress' ? 'flex' : 'none';
+		statusNotice.style.display = mode === 'notice' ? 'block' : 'none';
+		statusMode = mode;
+	}
+
+	function setStatusNotice(text) {
+		while (statusNotice.lastChild) {
+			statusNotice.removeChild(statusNotice.lastChild);
+		}
+		const lines = text.split('\n');
+		lines.forEach((line) => {
+			statusNotice.appendChild(document.createTextNode(line));
+			statusNotice.appendChild(document.createElement('br'));
+		});
+	}
+
+	function displayFailureNotice(err) {
+		console.error(err);
+		if (err instanceof Error) {
+			setStatusNotice(err.message);
+		} else if (typeof err === 'string') {
+			setStatusNotice(err);
+		} else {
+			setStatusNotice('An unknown error occurred.');
+		}
+		setStatusMode('notice');
+		initializing = false;
+	}
+
+	const missing = Engine.getMissingFeatures({
+		threads: GODOT_THREADS_ENABLED,
+	});
+
+	if (missing.length !== 0) {
+		if (GODOT_CONFIG['serviceWorker'] && GODOT_CONFIG['ensureCrossOriginIsolationHeaders'] && 'serviceWorker' in navigator) {
+			let serviceWorkerRegistrationPromise;
+			try {
+				serviceWorkerRegistrationPromise = navigator.serviceWorker.getRegistration();
+			} catch (err) {
+				serviceWorkerRegistrationPromise = Promise.reject(new Error('Service worker registration failed.'));
+			}
+			// There's a chance that installing the service worker would fix the issue
+			Promise.race([
+				serviceWorkerRegistrationPromise.then((registration) => {
+					if (registration != null) {
+						return Promise.reject(new Error('Service worker already exists.'));
+					}
+					return registration;
+				}).then(() => engine.installServiceWorker()),
+				// For some reason, `getRegistration()` can stall
+				new Promise((resolve) => {
+					setTimeout(() => resolve(), 2000);
+				}),
+			]).then(() => {
+				// Reload if there was no error.
+				window.location.reload();
+			}).catch((err) => {
+				console.error('Error while registering service worker:', err);
+			});
+		} else {
+			// Display the message as usual
+			const missingMsg = 'Error\nThe following features required to run Godot projects on the Web are missing:\n';
+			displayFailureNotice(missingMsg + missing.join('\n'));
+		}
+	} else {
+		setStatusMode('progress');
+		engine.startGame({
+			'onProgress': function (current, total) {
+				if (current > 0 && total > 0) {
+					const fill = Math.min(current / total, 1);
+					// Par rangees entieres du sprite (30 px de haut) : le bord
+					// ne coupe jamais un pixel en deux.
+					statusProgress.style.setProperty('--fill', Math.floor(fill * 30) / 30);
+					statusPercent.textContent = Math.floor(fill * 100) + ' %';
+					// Tout est la : reste la compilation du wasm, muette.
+					statusProgress.classList.toggle('busy', fill >= 1);
+				} else {
+					statusProgress.classList.add('busy');
+				}
+			},
+		}).then(() => {
+			setStatusMode('hidden');
+		}, displayFailureNotice);
+	}
+}());
+		</script>
+	</body>
+</html>
