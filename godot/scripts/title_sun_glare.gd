@@ -14,6 +14,19 @@ const SUN_IN_ART := Vector2(0.891, 0.229)
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Le bruit des rais, cuit une fois. SEAMLESS : il est lu en boucle sur le
+	# tour du soleil, une couture ferait un rai coupe net.
+	var m := material as ShaderMaterial
+	if m != null and m.get_shader_parameter("noise_tex") == null:
+		var tex := NoiseTexture2D.new()
+		tex.width = 256
+		tex.height = 256
+		tex.seamless = true
+		var fn := FastNoiseLite.new()
+		fn.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+		fn.frequency = 0.03
+		tex.noise = fn
+		m.set_shader_parameter("noise_tex", tex)
 	resized.connect(_place)
 	_place()
 
