@@ -57,3 +57,14 @@ twa
 # Documentation — it never reaches the runtime image.
 *.md
 !README.md
+
+# Le cache d'import de Godot : produit par l'editeur de l'hote, pour son OS.
+# L'image importe elle-meme (Dockerfile, etape build).
+godot/.godot
+godot/android
+godot/plugin-src
+
+# Les sources d'art et les episodes video : lourds, et rien dans l'image ne
+# les lit.
+art-source
+episodes

@@ -1,29 +1,56 @@
-# Le front web (Vite). Le serveur de jeu a sa propre image — voir Dockerfile.ws
-# — parce qu'ils ne passent pas a l'echelle sur le meme axe : le web est
-# statique et replicable, le WS tient l'etat des iles en memoire.
+# Le front web : l'export WEB DU CLIENT GODOT (2026-09-25). Le client
+# Vite/Pixi n'est plus construit — Godot est le seul client. Le serveur de jeu
+# a sa propre image, voir Dockerfile.ws : le web est statique et replicable, le
+# WS tient l'etat des iles en memoire.
 #
-# Ce n'est plus une app Next : le bundle est un tas de fichiers statiques, et
-# /api part vers le serveur socket. Le reverse proxy (Coolify) doit donc router
-# /api vers rr-ws — le bundle appelle /api en RELATIF, il n'embarque aucune URL
-# et un changement d'adresse ne demande aucun rebuild.
-FROM oven/bun:1 AS deps
-WORKDIR /app
-COPY package.json bun.lock* ./
-RUN bun install --frozen-lockfile
+# Le client parle a `ws.rabbit.rip` en URL ABSOLUE (godot/scripts/net.gd), et
+# le serveur accepte toutes les origines (server/api-router.ts, socket.io
+# `origin: '*'`) : le proxy /api de nginx n'est plus sur le chemin du jeu.
 
-FROM oven/bun:1 AS build
+# GODOT ET SES TEMPLATES, dans des couches a eux. Les templates pesent 1,3 Go
+# et ne changent qu'avec la version du moteur : tant que GODOT_VERSION ne
+# bouge pas, le cache de build les garde et un deploiement ne les retelecharge
+# pas. Seul le template web sans threads est garde (le preset Web est sans
+# threads : pas d'en-tetes COOP/COEP a servir).
+FROM debian:bookworm-slim AS godot
+ARG GODOT_VERSION=4.7.2
+ARG TARGETARCH
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates curl unzip libfontconfig1 \
+  && rm -rf /var/lib/apt/lists/*
+WORKDIR /opt/godot
+RUN arch="$([ "$TARGETARCH" = "arm64" ] && echo arm64 || echo x86_64)" \
+  && base="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable" \
+  && curl -fsSL -o godot.zip "$base/Godot_v${GODOT_VERSION}-stable_linux.${arch}.zip" \
+  && unzip -q godot.zip && rm godot.zip \
+  && mv Godot_v${GODOT_VERSION}-stable_linux.${arch} /usr/local/bin/godot
+RUN base="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable" \
+  && dest="/root/.local/share/godot/export_templates/${GODOT_VERSION}.stable" \
+  && mkdir -p "$dest" \
+  && curl -fsSL -o /tmp/t.tpz "$base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz" \
+  && unzip -q -j /tmp/t.tpz 'templates/web_nothreads_release.zip' 'templates/version.txt' -d "$dest" \
+  && rm /tmp/t.tpz
+
+FROM godot AS build
 WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-RUN bun run build
+COPY godot ./godot
+# L'import d'abord, a part : sur un checkout frais il n'y a pas de .godot/, et
+# un export lance a froid peut compiler les scripts avant que les `class_name`
+# soient connus.
+RUN godot --headless --path godot --import || true
+RUN mkdir -p dist/web \
+  && godot --headless --path godot --export-release "Web" ../dist/web/index.html \
+  && test -s dist/web/index.wasm && test -s dist/web/index.pck \
+  && gzip -k -9 dist/web/index.wasm dist/web/index.pck dist/web/index.js
 
 # Nginx sert les fichiers : ni Node ni Bun ne tournent en production ici.
 FROM nginx:alpine AS runtime
-COPY --from=build /app/dist /usr/share/nginx/html
-# `assets/world/` (1,7 Mo) est la planche de l'atelier /isoworld, que cette
-# image ne sert plus. Vite copie `public/` en entier, donc la planche arrive
-# quand meme ici : on la retire.
-RUN rm -rf /usr/share/nginx/html/assets/world
+# Les icones, le manifeste et le service worker du site restent : un joueur
+# qui avait installe la PWA garde son sw.js (reseau d'abord, rien en cache sauf
+# la page hors ligne). `assets/` etait l'art du client Pixi : il reste dehors.
+COPY public /usr/share/nginx/html
+RUN rm -rf /usr/share/nginx/html/assets /usr/share/nginx/html/.gitkeep
+COPY --from=build /app/dist/web /usr/share/nginx/html
 # `templates/*.template` : l'entrypoint de l'image nginx y substitue les
 # variables d'environnement au demarrage et ecrit le resultat dans conf.d.
 # C'est ce qui permet de pointer l'API sans reconstruire l'image.

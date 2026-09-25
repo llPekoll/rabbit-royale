@@ -60,17 +60,27 @@ func _make_row(entry: Dictionary) -> Button:
 	# Le texte est un enfant plutot que le `text` du Button : le Button peint
 	# le sien dans la face du theme, et c'est ici qu'un « 中文 » veut sa propre
 	# face plutot que celle de l'anglais.
-	var label := Kit.label("%s %s" % [entry["flag"], entry["label"]], 13)
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var label := Kit.label(String(entry["label"]), 13)
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	Kit.fill(label)
+	# Le drapeau est une texture (flag.gd) : l'emoji sortait en « FR » dans
+	# des carres sur le web. Drapeau et nom forment un bloc centre.
+	var line := HBoxContainer.new()
+	line.alignment = BoxContainer.ALIGNMENT_CENTER
+	line.add_theme_constant_override("separation", 6)
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	Kit.fill(line)
+	var flag := Flag.rect(code, 14.0)
+	flag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	line.add_child(flag)
+	line.add_child(label)
 	# LE NOM DANS UNE FACE QUI L'ECRIT EN ENTIER. En anglais la face pixel
 	# n'a ni « ç » ni « ê » : « Français » sortait avec un ç d'une autre face,
 	# plus bas que ses voisines. Un nom hors ASCII prend la face pixel de sa
 	# propre ecriture, a la meme echelle que celle du jeu (i18n.gd `face`).
 	if I18N.pixel_face() and not _ascii(String(entry["label"])):
 		label.add_theme_font_override("font", _own_face(code == "zh"))
-	b.add_child(label)
+	b.set_meta("label", label)
+	b.add_child(line)
 	# L'encre APRES le libelle : peinte avant, elle ne trouvait pas d'enfant,
 	# et l'option choisie gardait la creme sur l'or — illisible.
 	_paint(b, on)
@@ -98,8 +108,8 @@ func _paint(b: Button, on: bool) -> void:
 	var style := Kit.style_tab(on)
 	for state in ["normal", "hover", "pressed", "focus", "disabled"]:
 		b.add_theme_stylebox_override(state, style)
-	if b.get_child_count() > 0:
-		var label: Label = b.get_child(0)
+	if b.has_meta("label"):
+		var label: Label = b.get_meta("label")
 		label.add_theme_color_override("font_color", Palette.INK if on else Palette.CREAM)
 		if not on:
 			label.add_theme_color_override("font_shadow_color", Palette.CREAM_SHADOW)

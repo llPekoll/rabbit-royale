@@ -62,6 +62,8 @@ const GOLD_CAP := 30
 ## etait `cap + 8` — 33px sur le bois, 38 sur l'or —, et tout bouton etroit
 ## coupait son mot : « JOIN » en « JOII », « RAID » en « Al » (2026-09-23).
 const TEXT_PAD := 22.0
+## L'air entre l'image de tete et le mot.
+const LEAD_GAP := 6.0
 
 ## L'encre. L'or porte un brun fonce sans ombre ; le bois une creme avec une
 ## ombre d'un pixel, parce que le bois est plus sombre et moins contraste.
@@ -114,6 +116,8 @@ var _words := ""
 var _plank: NinePatchRect
 ## Le texte, peint par nous plutot que par le Button — voir `_restyle`.
 var _ink: Label
+## Une image devant le mot (le drapeau du bouton de langue), ou null.
+var _lead: TextureRect
 var _wave := 0.0
 
 
@@ -250,6 +254,26 @@ func relabel(words: String) -> void:
 		_relayout()
 
 
+## UNE IMAGE DEVANT LE MOT, centree avec lui : le drapeau du bouton de langue
+## (Flag), qui ne peut plus voyager dans le texte — voir flag.gd. Null l'ote.
+func set_lead(tex: Texture2D) -> void:
+	if tex == null:
+		if _lead != null:
+			_lead.queue_free()
+			_lead = null
+		_relayout()
+		return
+	if _lead == null:
+		_lead = TextureRect.new()
+		_lead.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_lead.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_lead.stretch_mode = TextureRect.STRETCH_SCALE
+		_lead.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		add_child(_lead, false, Node.INTERNAL_MODE_BACK)
+	_lead.texture = tex
+	_relayout()
+
+
 ## La planche et le texte reprennent la taille du bouton, puis le libelle est
 ## remesure pour la largeur obtenue.
 func _relayout() -> void:
@@ -258,7 +282,27 @@ func _relayout() -> void:
 	if _ink != null:
 		_ink.position.x = TEXT_PAD
 		_ink.size = Vector2(maxf(0.0, size.x - 2.0 * TEXT_PAD), size.y)
-		_ink.add_theme_font_size_override("font_size", _fitted_size())
+		var fitted := _fitted_size()
+		_ink.add_theme_font_size_override("font_size", fitted)
+		_ink.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		if _lead != null and _lead.texture != null:
+			_place_lead(fitted)
+
+
+## Le drapeau et le mot forment UN bloc centre : le mot passe a gauche de sa
+## boite, qui commence apres l'image. L'image grandit par pas entiers.
+func _place_lead(fitted: int) -> void:
+	var tex := _lead.texture
+	var zoom := maxf(1.0, roundf(float(fitted) / 7.0))
+	var lead_size := Vector2(tex.get_width(), tex.get_height()) * zoom
+	var words := _ink.get_theme_font("font").get_string_size(
+		_ink.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fitted).x
+	var start := roundf((size.x - (lead_size.x + LEAD_GAP + words)) / 2.0)
+	_lead.size = lead_size
+	_lead.position = Vector2(start, roundf((size.y - lead_size.y) / 2.0))
+	_ink.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_ink.position.x = start + lead_size.x + LEAD_GAP
+	_ink.size.x = words + 2.0
 
 
 ## La taille de police qui tient dans la planche, en partant de celle voulue
@@ -266,6 +310,8 @@ func _relayout() -> void:
 ## libelle est illisible et il vaut mieux qu'il soit serre.
 func _fitted_size() -> int:
 	var room := size.x - 2.0 * TEXT_PAD
+	if _lead != null and _lead.texture != null:
+		room -= _lead.texture.get_width() * 2.0 + LEAD_GAP
 	if room <= 0.0 or _ink == null or _ink.text.is_empty():
 		return label_size
 	var font := _ink.get_theme_font("font")

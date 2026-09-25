@@ -17,17 +17,17 @@ extends Node
 ## Le web garde le choix de langue dans localStorage pour qu'un joueur qui ne
 ## sait pas lire l'interface la corrige une fois. user:// est le meme contrat.
 
-## L'ordre du selecteur, et le drapeau qui fait le vrai travail de dire ce
-## qu'est chaque entree. `label` est le nom de la langue dans sa langue.
+## L'ordre du selecteur ; le drapeau qui dit ce qu'est chaque entree est
+## dessine par flag.gd. `label` est le nom de la langue dans sa langue.
 ## `pixel_face` est le SEUL fait qui decide comment une langue est DESSINEE :
 ## la face pixel du kit couvre l'ASCII imprimable, donc un « é » ou un
 ## sinogramme en sort en glyphe de secours au milieu d'un mot. `false` envoie
 ## toute la langue vers une face qui a son alphabet. Seul l'anglais est `true`.
 const LOCALES: Array[Dictionary] = [
-	{"code": "en", "label": "English", "flag": "🇬🇧", "pixel_face": true},
-	{"code": "fr", "label": "Français", "flag": "🇫🇷", "pixel_face": false},
-	{"code": "zh", "label": "中文", "flag": "🇨🇳", "pixel_face": false},
-	{"code": "pt-BR", "label": "Português", "flag": "🇧🇷", "pixel_face": false},
+	{"code": "en", "label": "English", "pixel_face": true},
+	{"code": "fr", "label": "Français", "pixel_face": false},
+	{"code": "zh", "label": "中文", "pixel_face": false},
+	{"code": "pt-BR", "label": "Português", "pixel_face": false},
 ]
 
 const DEFAULT_LOCALE := "en"

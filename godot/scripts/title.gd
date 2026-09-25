@@ -302,9 +302,10 @@ func _apply_language() -> void:
 	_guest.relabel(I18N.t("auth.guest"))
 	_ribbon.text = I18N.t("codex.title").to_upper()
 	var here := I18N.LOCALES[I18N.locale_index(I18N.locale)]
-	# Le drapeau voyage DANS le texte : c'est lui qui dit ce qu'est ce bouton,
-	# et il doit survivre a l'etat ferme.
-	_lang.relabel("%s %s" % [here["flag"], here["label"]])
+	# Le drapeau dit ce qu'est ce bouton, et il doit survivre a l'etat ferme.
+	# Une texture, pas un emoji : le web n'a pas de face emoji (flag.gd).
+	_lang.set_lead(Flag.texture(String(here["code"])))
+	_lang.relabel(String(here["label"]))
 	_status.visible = false
 
 
