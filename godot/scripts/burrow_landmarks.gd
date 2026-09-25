@@ -31,6 +31,9 @@ class_name BurrowLandmarks
 ## Une porte vient d'etre pressee : "dig", "defend", "raid", "shop",
 ## "harvest" ou "upgrade". Le chrome sait ou elle mene (`Chrome.go`).
 signal door_pressed(door: String)
+## Les ilots a montrer ne sont plus ceux poses : le terrier doit rebatir
+## (burrow.gd `_rebuild_islets`) — la mer, sa cote et le cadrage en dependent.
+signal reveal_changed
 
 ## Les cases d'eau laissees entre un ilot et toute autre terre.
 const GAP := 2
@@ -60,6 +63,20 @@ const ISLETS := [
 ## LA PLANCHE a l'ecran : taille du verbe et de la ligne, en pixels d'ECRAN.
 ## Dessinee dans l'interface : sa taille ne depend pas du zoom du monde.
 const VERB_PX := 13
+## LA REVELATION (`_wanted`, `_rise`). Ce qu'un joueur a deja vu sortir de
+## l'eau, par joueur ; le seuil de parties de DEFEND (le tuto en est une).
+const REVEAL_PATH := "user://reveal.cfg"
+const REVEAL_DIG_RUNS := 1
+const REVEAL_DEFEND_RUNS := 2
+const RISE_PX := 36.0
+const RISE_SECONDS := 1.2
+const RISE_STAGGER := 0.45
+const RISE_SPLASHES := 6
+## Le temps de retrouver l'ecran (le focus, le fondu d'arrivee) avant que la
+## mer ne s'ouvre ; puis le ponton, en fondu une fois l'ilot pose.
+const RISE_WAIT := 3.0
+const BRIDGE_FADE := 0.5
+
 ## Les planches posees AU-DESSUS de leur batiment ; toutes les autres dessous.
 const SIGNS_ABOVE := ["upgrade", "shop"]
 const LINE_PX := 9
@@ -82,7 +99,26 @@ var _islet_cells := {}
 var sea_map: BurrowMap
 ## Le coin haut-gauche de `sea_map`, dans le treillis du terrier.
 var _lo := Vector2i.ZERO
-var _terrain: BurrowTerrain
+## UN NOEUD PAR ILOT (sol, batiment, ombre, ponton) : c'est lui qui sort de
+## l'eau quand l'ilot se revele (`_rise`).
+var _roots := {}
+## Les pontons de chaque ilot, a part : ils arrivent APRES lui (`_rise`).
+var _decks := {}
+## Les portes posees au dernier `build` ; `_wanted` dit celles a montrer.
+var _built: Array[String] = []
+## TOUTES les cases d'ilots, montres ou non : un ponton s'y arrete toujours,
+## pour ne pas changer de trace le jour ou le voisin sort de l'eau.
+var _all_cells := {}
+var _own := true
+## LE BANC (scenes/bench/reveal_bench.tscn) force l'etape et garde sa memoire
+## en RAM : il ne touche ni a Home ni a `user://reveal.cfg`.
+static var bench_doors: Array[String] = []
+static var bench_seen: Array[String] = []
+static var bench := false
+## Combien d'ilots montent en ce moment : chacun part un peu apres l'autre.
+var _rising := 0
+## Les ilots encore sous l'eau : leur planche reste cachee.
+var _under := {}
 var _buildings := {}
 var _signs := {}
 var _sign_layer: CanvasLayer
@@ -107,17 +143,25 @@ func _ready() -> void:
 
 ## POSE LES ILOTS AUTOUR DE `main`, et la carte de la mer qui les englobe.
 ## Rappele a chaque sol (`show_ground`) : une autre graine, d'autres cotes.
-func build(main: BurrowMap) -> void:
+## `own` : notre terrier. Celui d'un autre montre ses quatre ilots, sans
+## rien reveler ni rien retenir.
+func build(main: BurrowMap, own: bool = true) -> void:
 	clear()
 	_main = main
+	_own = own
 	var taken := {}
 	var tops := {}
+	# LES PLACES SONT CELLES DES QUATRE, montres ou non : un ilot qui sort de
+	# l'eau ne pousse pas ses voisins.
+	_built = _wanted()
 	for spec in ISLETS:
 		var top := _settle(spec["size"], spec["dir"], taken)
 		tops[spec["door"]] = top
 		for c in _shape(spec["size"]):
 			var cell: Vector2i = top + c
-			_islet_cells[cell] = spec["door"]
+			_all_cells[cell] = spec["door"]
+			if _built.has(spec["door"]):
+				_islet_cells[cell] = spec["door"]
 			taken[cell] = true
 
 	# LE CADRE COMMUN : toutes les cases, le terrier compris, et SEA_PAD de mer.
@@ -144,26 +188,170 @@ func build(main: BurrowMap) -> void:
 	sea_map.measure_tiers()
 	islets.measure_tiers()
 
-	# UN TERRAIN POUR TOUS LES ILOTS. Ses blocs se trient sur leurs cases
-	# LOCALES ; decaler le noeud de la profondeur du coin remet chaque bloc a
-	# `Iso.depth` de sa case dans le treillis du terrier.
-	_terrain = BurrowTerrain.new()
-	_terrain.name = "IsletTerrain"
-	_terrain.map = islets
-	_terrain.z_index = Iso.depth(lo.x, lo.y)
-	add_child(_terrain)
-	var sods: Array[Vector2i] = []
-	for cell in _islet_cells:
-		sods.append(cell - lo)
-	_terrain.lay_sods(sods)
+	# UN TERRAIN PAR ILOT, dans son noeud. Ses blocs se trient sur leurs cases
+	# LOCALES ; decaler le terrain de la profondeur du coin remet chaque bloc
+	# a `Iso.depth` de sa case dans le treillis du terrier.
+	for spec in ISLETS:
+		var door: String = spec["door"]
+		if not _built.has(door):
+			continue
+		var root := Node2D.new()
+		root.name = "Islet_" + door
+		add_child(root)
+		_roots[door] = root
+		var shape := BurrowMap.new(dims.x, dims.y, origin)
+		var sods: Array[Vector2i] = []
+		for cell in _islet_cells:
+			if _islet_cells[cell] == door:
+				shape.level[(cell.y - lo.y) * dims.x + (cell.x - lo.x)] = 1
+				sods.append(cell - lo)
+		shape.measure_tiers()
+		var ground := BurrowTerrain.new()
+		ground.name = "Ground"
+		ground.map = shape
+		ground.z_index = Iso.depth(lo.x, lo.y)
+		root.add_child(ground)
+		ground.lay_sods(sods)
 
 	for spec in ISLETS:
-		_place_building(spec, tops[spec["door"]], islets, lo)
+		if _built.has(spec["door"]):
+			_place_building(spec, tops[spec["door"]], islets, lo)
 	for spec in ISLETS:
-		_lay_bridge(spec["door"])
+		if _built.has(spec["door"]):
+			_lay_bridge(spec["door"])
 	for door in ["harvest", "upgrade"]:
 		_signs[door] = _make_sign(door)
+	# CE QU'ON N'AVAIT JAMAIS VU SORT DE L'EAU, une fois par joueur.
+	if _own:
+		var seen := _seen()
+		for door in _built:
+			if not seen.has(door):
+				_rise(door)
+				seen.append(door)
+		_remember(seen)
 	refresh()
+
+
+# ── Les ilots qui se revelent ─────────────────────────────────────────────
+
+## L'ILE SE DEVOILE AVEC LE JEU :
+##   • DIG et SHOP a la fin du tuto (sa partie compte : runs >= 1) ;
+##   • DEFEND apres la premiere vraie partie (le tuto en compte deja une) ;
+##   • RAID quand le bouclier de depart est tombe.
+## Un ilot vu reste : relever un bouclier ne recache pas RAID.
+func _wanted() -> Array[String]:
+	var doors: Array[String] = []
+	if bench:
+		return _ordered(bench_doors.duplicate())
+	if not _own:
+		return _ordered(["dig", "shop", "defend", "raid"] as Array[String])
+	# RIEN AVANT LA FIN DU TUTO : DIG sort de l'eau au retour de la lecon, pas
+	# avant — vu pendant, il serait deja la. Sans Home, ce qu'on a deja vu.
+	var seen := _seen()
+	var runs := int(Home.burrow.get("runs", 0)) if Home.loaded() else 0
+	for door in ["dig", "shop"]:
+		if seen.has(door) or runs >= REVEAL_DIG_RUNS:
+			doors.append(door)
+	if seen.has("defend") or (Home.loaded() and int(Home.burrow.get("runs", 0)) >= REVEAL_DEFEND_RUNS):
+		doors.append("defend")
+	var shield: Variant = Home.burrow.get("shieldMs", null) if Home.loaded() else 1
+	if seen.has("raid") or (doors.has("defend") and (shield == null or float(shield) <= 0.0)):
+		doors.append("raid")
+	return _ordered(doors)
+
+
+## Dans l'ordre d'ISLETS, pour comparer a `_built`.
+func _ordered(doors: Array[String]) -> Array[String]:
+	var ordered: Array[String] = []
+	for spec in ISLETS:
+		if doors.has(spec["door"]):
+			ordered.append(spec["door"])
+	return ordered
+
+
+## Les ilots deja sortis de l'eau pour ce joueur, sur cet appareil.
+func _seen() -> Array[String]:
+	if bench:
+		return bench_seen.duplicate()
+	var out: Array[String] = []
+	var cfg := ConfigFile.new()
+	if cfg.load(REVEAL_PATH) == OK:
+		for door in cfg.get_value("seen", _player_key(), []):
+			out.append(String(door))
+	return out
+
+
+func _remember(seen: Array[String]) -> void:
+	if bench:
+		bench_seen = seen.duplicate()
+		return
+	var cfg := ConfigFile.new()
+	cfg.load(REVEAL_PATH)
+	cfg.set_value("seen", _player_key(), seen)
+	cfg.save(REVEAL_PATH)
+
+
+func _player_key() -> String:
+	return str(Session.player.get("id", "anon"))
+
+
+## L'ILOT SORT DE L'EAU : il monte de sous la mer en s'eclaircissant, la mer
+## gicle sur son pourtour, et sa planche n'arrive qu'une fois pose.
+func _rise(door: String) -> void:
+	var root: Node2D = _roots.get(door)
+	if root == null:
+		return
+	var delay := RISE_WAIT + RISE_STAGGER * float(_rising)
+	_rising += 1
+	var deck: Node2D = _decks.get(door)
+	if deck != null:
+		deck.modulate = Color(1, 1, 1, 0)
+		var d := deck.create_tween()
+		d.tween_interval(delay + RISE_SECONDS)
+		d.tween_property(deck, "modulate:a", 1.0, BRIDGE_FADE)
+	root.position = Vector2(0, RISE_PX)
+	root.modulate = Color(1, 1, 1, 0)
+	var t := root.create_tween()
+	t.tween_interval(delay)
+	t.tween_callback(func() -> void:
+		_splash(door)
+		Sound.play("chime"))
+	t.set_parallel(true)
+	t.tween_property(root, "modulate:a", 1.0, RISE_SECONDS * 0.4)
+	t.tween_property(root, "position:y", 0.0, RISE_SECONDS) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	t.set_parallel(false)
+	t.tween_callback(func() -> void: _rising = maxi(0, _rising - 1))
+	# LA PLANCHE ATTEND L'ILOT : cachee (et non transparente — `say` remet
+	# son modulate), elle revient quand il est pose.
+	_under[door] = true
+	var sign: Control = _signs.get(door)
+	if sign != null:
+		sign.visible = false
+	var s := root.create_tween()
+	s.tween_interval(delay + RISE_SECONDS * 0.8)
+	s.tween_callback(func() -> void:
+		_under.erase(door)
+		var back: Control = _signs.get(door)
+		if back != null:
+			back.visible = _live and _anchors.has(door))
+
+
+## Des gerbes sur le pourtour de l'ilot, decalees : la mer s'ouvre autour.
+func _splash(door: String) -> void:
+	var cells: Array[Vector2i] = []
+	for cell in _islet_cells:
+		if _islet_cells[cell] == door:
+			cells.append(cell)
+	cells.shuffle()
+	var t := create_tween()
+	for i in range(mini(RISE_SPLASHES, cells.size())):
+		var c: Vector2i = cells[i]
+		var at := _main.origin + Vector2(float(c.x - c.y) * Iso.half_w(), float(c.x + c.y) * Iso.half_h() + Iso.half_h())
+		t.tween_callback(func() -> void:
+			if is_inside_tree():
+				WaterSplash.play(self, at, Iso.depth(c.x, c.y) + 12, 600))
+		t.tween_interval(0.07)
 
 
 func clear() -> void:
@@ -171,13 +359,17 @@ func clear() -> void:
 		remove_child(child)
 		child.queue_free()
 	_islet_cells.clear()
+	_all_cells.clear()
+	_roots.clear()
+	_decks.clear()
+	_under.clear()
+	_rising = 0
 	_buildings.clear()
 	_float_origins.clear()
 	_float_shadows.clear()
 	_signs.clear()
 	_sign_layer = null
 	_anchors.clear()
-	_terrain = null
 	sea_map = null
 
 
@@ -226,7 +418,7 @@ func set_live(on: bool) -> void:
 		return
 	_live = on
 	for door in _signs:
-		(_signs[door] as Control).visible = on and _anchors.has(door)
+		(_signs[door] as Control).visible = on and _anchors.has(door) and not _under.has(door)
 
 
 ## LE BATIMENT SOUS UN POINT du repere du terrier, ou "". Les planches sont
@@ -331,7 +523,8 @@ func _place_building(spec: Dictionary, top: Vector2i, islets: BurrowMap, lo: Vec
 	sprite.position = ground
 	var front := top + size - Vector2i.ONE
 	sprite.z_index = Iso.depth(front.x, front.y) + Z_BUILDING
-	add_child(sprite)
+	var root: Node2D = _roots[spec["door"]]
+	root.add_child(sprite)
 	_buildings[spec["door"]] = sprite
 	if spec.get("floating", false):
 		# Uniform 32-pixel icons, raised above their own island centre.
@@ -342,7 +535,7 @@ func _place_building(spec: Dictionary, top: Vector2i, islets: BurrowMap, lo: Vec
 		var shadow := IconShadow.new()
 		shadow.position = ground
 		shadow.z_index = sprite.z_index - 1
-		add_child(shadow)
+		root.add_child(shadow)
 		_float_shadows[spec["door"]] = shadow
 	# LA PLANCHE SOUS LE BATIMENT : sous l'ombre de l'icone flottante, ou
 	# sous le pied peint du sprite (son alpha, pas son cadre). Celles de
@@ -382,7 +575,7 @@ func _lay_bridge(door: String) -> void:
 				if _main.is_land(at.x, at.y):
 					landed = true
 					break
-				if _islet_cells.has(at):
+				if _all_cells.has(at):
 					break
 				path.append(at)
 				at += axis
@@ -405,7 +598,12 @@ func _lay_bridge(door: String) -> void:
 			float(cell.x + cell.y) * Iso.half_h())
 		bridge.position = flat + Vector2(0, Iso.half_h() - float(_main.lift_px) + 1.0)
 		bridge.z_index = Iso.depth(cell.x, cell.y) + 2
-		add_child(bridge)
+		if not _decks.has(door):
+			var deck := Node2D.new()
+			deck.name = "Bridge_" + door
+			add_child(deck)
+			_decks[door] = deck
+		(_decks[door] as Node2D).add_child(bridge)
 
 
 ## UNE CASE DE PONTON : un tablier de planches en travers, deux poteaux par
@@ -689,6 +887,9 @@ func _part(shown: Array[Sign], k: float) -> void:
 ## burrow.*) : pas une cle de plus a traduire.
 func refresh() -> void:
 	if _signs.is_empty():
+		return
+	if _main != null and _own and _wanted() != _built:
+		reveal_changed.emit()
 		return
 	var b := Home.burrow
 	var tank := Home.live_energy() if Home.loaded() else {"energy": 0, "max": 0}

@@ -515,7 +515,7 @@ func _spin_from_belly(on: bool) -> void:
 		_sprite.offset = -Vector2(FRAME * 0.5, FRAME * 0.5)
 		_sprite.position = Vector2(0, -FRAME * 0.5 * RABBIT_SCALE)
 	else:
-		_sprite.offset = -Vector2(FRAME * ANCHOR.x, FRAME * ANCHOR.y)
+		_sprite.offset = -Vector2(FRAME * ANCHOR.x, FRAME * ANCHOR.y) + Vector2(0, SIT_PX / RABBIT_SCALE)
 		_sprite.position = Vector2.ZERO
 		_sprite.rotation = 0.0
 

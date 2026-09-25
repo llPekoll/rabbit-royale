@@ -71,6 +71,11 @@ const RABBIT_SCALE := 1.5
 ## Meme lecon que le pied des batiments dans burrow_props.gd — un ancrage se
 ## mesure sur les bornes alpha de l'art, jamais devine ni recopie.
 const ANCHOR := Vector2(0.5, 1.0)
+## ASSIS PLUS BAS DANS SA CASE : les pattes a SIT_PX sous le milieu du
+## losange, en pixels de design (Peko, 2026-09-25 : « descends un peu le
+## lapin »). Dans l'offset du sprite, pas dans sa position — les sauts et les
+## chutes animent `position` et la ramenent a zero.
+const SIT_PX := 2.0
 
 ## LE TEMPS ENTRE DEUX GESTES, en secondes.
 ##
@@ -164,9 +169,10 @@ func build(seed_value: int, start: Vector2i = Vector2i(-1, -1)) -> void:
 	_sprite.centered = false
 	# L'ANCRE EST UN OFFSET dans Godot : on decale de la part voulue de la
 	# boite, en pixels de l'image (l'echelle s'applique apres).
-	_sprite.offset = -Vector2(FRAME * ANCHOR.x, FRAME * ANCHOR.y)
+	_sprite.offset = -Vector2(FRAME * ANCHOR.x, FRAME * ANCHOR.y) + Vector2(0, SIT_PX / RABBIT_SCALE)
 	_sprite.play("idle")
 	add_child(_sprite)
+	_shadow.sprite = _sprite
 
 	_place()
 	_schedule()
@@ -478,6 +484,22 @@ class RabbitShadow extends Node2D:
 	const RX := 11.0
 	const RY := 4.5
 	const INK := Color(0.08, 0.05, 0.1, 0.32)
+	## CALEE SUR LE CORPS PEINT, pas sur le cadre : le lapin occupe les
+	## colonnes 8..22 de ses 32 (milieu 15, pas 16), soit 1 px d'art a gauche
+	## — l'ovale centre sur le cadre debordait a droite. Et un peu SOUS la
+	## ligne des pattes : centree dessus, elle se lisait trop haut (Peko,
+	## 2026-09-25).
+	const BODY_DX := -1.0 * RABBIT_SCALE
+	const DROP := 0.0
+
+	## Le sprite qu'elle suit : son miroir deplace le corps de l'autre cote.
+	var sprite: AnimatedSprite2D
+
+	func _process(_delta: float) -> void:
+		var dx := BODY_DX
+		if sprite != null and sprite.flip_h:
+			dx = -BODY_DX
+		position = Vector2(dx, SIT_PX + DROP)
 
 	func _draw() -> void:
 		var pts := PackedVector2Array()

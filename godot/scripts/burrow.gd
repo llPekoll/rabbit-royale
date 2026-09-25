@@ -149,6 +149,7 @@ func _ready() -> void:
 	add_child(_landmarks)
 	move_child(_landmarks, _terrain.get_index() + 1)
 	_landmarks.door_pressed.connect(_on_landmark)
+	_landmarks.reveal_changed.connect(_rebuild_islets)
 	# LANCE SEUL (`godot --path godot scenes/burrow.tscn -- --shot=...`), le
 	# terrier se prete a une capture — sans session, sans chrome.
 	if get_tree().current_scene == self:
@@ -192,6 +193,17 @@ func _follow_level() -> void:
 		return
 	if Home.loaded():
 		_props.set_level(int(Home.burrow.get("level", 1)))
+
+
+## UN ILOT DE PLUS SORT DE L'EAU (burrow_landmarks.gd `_wanted`) : les ilots,
+## la mer qui les borde et leurs planches se refont ; le reste du terrier ne
+## bouge pas.
+func _rebuild_islets() -> void:
+	if _layout == null or not _own_ground():
+		return
+	_landmarks.build(_layout.map, true)
+	_landmarks.follow(_layout.building, _props.field, _props.home)
+	_ocean.build(_landmarks.sea_map, str(_seed))
 
 
 ## Le sol a l'affiche est-il le notre ? Faux pendant un raid : c'est celui du
@@ -627,7 +639,7 @@ func show_ground(seed_value: String, edits: Dictionary = {}, keep_cam: bool = fa
 	_terrain.build()
 	if _landmarks_seed != seed_value:
 		_landmarks_seed = seed_value
-		_landmarks.build(_layout.map)
+		_landmarks.build(_layout.map, _own_ground())
 	# Les decors lisent LE MEME relief : une maison posee sur un autre terrain
 	# que celui qu'on voit flotterait.
 	_props.map = _terrain.map
