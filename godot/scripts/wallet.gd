@@ -3,8 +3,10 @@ extends Node
 ##
 ## Behind this sits the Mobile Wallet Adapter — on a Seeker, the Seed Vault
 ## itself. That lives in an Android plugin (android/plugins/mwa), which exists
-## only in an Android build. Everywhere else — the editor, a desktop run — the
-## singleton is simply absent.
+## only in an Android build. In the WEB export the same two calls go to the
+## browser's injected wallet (Phantom et al.) through `window.rrWalletWeb`,
+## defined in web/shell.html. Everywhere else — the editor, a desktop run —
+## there is simply nothing behind it.
 ##
 ## THE POINT OF THIS FILE is that absence never reaches a caller. `available()`
 ## answers it honestly, and the two calls below return "" rather than failing,
@@ -21,16 +23,47 @@ const SINGLETON := "RabbitMWA"
 
 var _mwa: Object = null
 
+## LE NAVIGATEUR. Dans l'export web il n'y a pas de plugin : le wallet est celui
+## que l'extension injecte (Phantom et cie), joint par `window.rrWalletWeb`
+## (web/shell.html). Null partout ailleurs.
+var _web: JavaScriptObject = null
+
+## Emis par le rappel JS : (valeur, erreur). Un seul appel a la fois — la porte
+## est grisee pendant qu'on attend.
+signal _web_answered(value: String, error: String)
+
+## Tenu ici tant que le JS peut rappeler : un rappel libere par Godot avant que
+## la Promise se resolve ne rappelle jamais, et l'ecran reste sur « on creuse ».
+var _web_callback: JavaScriptObject = null
+
 
 func _ready() -> void:
 	if Engine.has_singleton(SINGLETON):
 		_mwa = Engine.get_singleton(SINGLETON)
+	if OS.has_feature("web"):
+		_web = JavaScriptBridge.get_interface("rrWalletWeb")
+		_web_callback = JavaScriptBridge.create_callback(_on_web_answer)
+
+
+func _on_web_answer(args: Array) -> void:
+	_web_answered.emit(String(args[0]), String(args[1]) if args.size() > 1 else "")
+
+
+## Attend la reponse du navigateur ; l'erreur va dans `last_error`, comme celles
+## du plugin, et un refus rend "" sans rien dire.
+func _await_web() -> String:
+	var answer: Array = await _web_answered
+	last_error = String(answer[1])
+	return String(answer[0])
 
 
 ## Is there a wallet to talk to at all? The doorstep asks BEFORE offering the
 ## button: a control that cannot work should not be offered, and on desktop
 ## there is genuinely nothing behind it.
 func available() -> bool:
+	if _web != null:
+		# Demande a chaque fois : l'extension peut s'injecter apres le boot.
+		return bool(_web.available())
 	return _mwa != null
 
 
@@ -43,6 +76,10 @@ func available() -> bool:
 ##
 ## Returns "" when refused, when there is no wallet app, or off Android.
 func address() -> String:
+	if _web != null:
+		last_error = ""
+		_web.address(_web_callback)
+		return await _await_web()
 	if _mwa == null:
 		return ""
 	_mwa.getAddress()
@@ -65,6 +102,10 @@ func address() -> String:
 ## caller drops it silently rather than showing an alarm for a sheet someone
 ## chose to close.
 func sign(message: String) -> String:
+	if _web != null:
+		last_error = ""
+		_web.sign(message, _web_callback)
+		return await _await_web()
 	if _mwa == null:
 		return ""
 	_mwa.signIn(message)

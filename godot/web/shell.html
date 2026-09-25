@@ -168,6 +168,71 @@ body {
 			<div id="status-notice"></div>
 		</div>
 
+		<script>
+/* LE WALLET DU NAVIGATEUR, pour wallet.gd (branche web).
+   Android a son plugin MWA ; ici c'est le wallet injecte (Phantom, Solflare,
+   Backpack...). Godot ne sait pas attendre une Promise : chaque appel prend
+   un rappel (valeur, erreur), et la valeur vide veut dire refus ou panne.
+   Le rappel n'est JAMAIS synchrone : Godot n'a pas encore commence a
+   attendre quand l'appel revient, et un signal emis trop tot est perdu. */
+window.rrWalletWeb = (function () {
+	const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+	function base58(bytes) {
+		const digits = [];
+		for (const byte of bytes) {
+			let carry = byte;
+			for (let i = 0; i < digits.length; i++) {
+				carry += digits[i] << 8;
+				digits[i] = carry % 58;
+				carry = (carry / 58) | 0;
+			}
+			while (carry > 0) {
+				digits.push(carry % 58);
+				carry = (carry / 58) | 0;
+			}
+		}
+		let out = '';
+		for (let i = 0; i < bytes.length && bytes[i] === 0; i++) out += '1';
+		for (let i = digits.length - 1; i >= 0; i--) out += ALPHABET[digits[i]];
+		return out;
+	}
+	function provider() {
+		const phantom = window.phantom && window.phantom.solana;
+		if (phantom) return phantom;
+		if (window.solflare && window.solflare.signMessage) return window.solflare;
+		if (window.backpack && window.backpack.signMessage) return window.backpack;
+		return window.solana || null;
+	}
+	function reason(e) {
+		// 4001 = l'utilisateur a ferme la fenetre : un refus, pas une panne.
+		if (e && (e.code === 4001 || /reject|denied|cancel/i.test(String(e.message)))) return '';
+		return String((e && e.message) || e || 'wallet error');
+	}
+	return {
+		available: function () { return provider() !== null; },
+		address: function (cb) {
+			const w = provider();
+			if (!w) return setTimeout(function () { cb('', ''); }, 0);
+			Promise.resolve(w.connect())
+				.then(function (r) {
+					const key = (r && r.publicKey) || w.publicKey;
+					cb(key ? key.toString() : '', '');
+				})
+				.catch(function (e) { cb('', reason(e)); });
+		},
+		sign: function (message, cb) {
+			const w = provider();
+			if (!w) return setTimeout(function () { cb('', ''); }, 0);
+			Promise.resolve(w.signMessage(new TextEncoder().encode(message), 'utf8'))
+				.then(function (r) {
+					const sig = (r && r.signature) || r;
+					cb(typeof sig === 'string' ? sig : base58(new Uint8Array(sig)), '');
+				})
+				.catch(function (e) { cb('', reason(e)); });
+		},
+	};
+})();
+		</script>
 		<script src="$GODOT_URL"></script>
 		<script>
 const GODOT_CONFIG = $GODOT_CONFIG;
