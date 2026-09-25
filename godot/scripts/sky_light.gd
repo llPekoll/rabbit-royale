@@ -205,6 +205,10 @@ const OFFSCREEN_SCALE := 0.5
 ## se poser dessus.
 const Z_SHADOWS := 3000
 const Z_RAYS := 3500
+## Les oiseaux (BirdFlock), sous les rais et au-dessus du lapin en vol (3200,
+## island_rabbit.gd) : un oiseau passe devant un lapin qui saute, jamais devant
+## le soleil.
+const Z_BIRDS := 3400
 
 ## LE CADRE DU WEB, pour que les ombres aient la meme echelle que la-bas :
 ## `mountCloudShadows` monte un plan de TUNED_W x TUNED_H x REACH et multiplie
@@ -229,6 +233,7 @@ var _frame := 0
 var _last_xform := Transform2D()
 ## Les poussieres en particules, quand les rais sont sur la mer.
 var _motes: MoteField
+var _birds: BirdFlock
 
 ## LE BRUIT DES RAIS, PARTAGE avec la mer (SeaGradient) : le soleil sur l'eau
 ## doit lire le meme ciel que le rai.
@@ -249,6 +254,9 @@ func _ready() -> void:
 		_motes = MoteField.new()
 		_motes.z_index = Z_RAYS
 		add_child(_motes)
+	_birds = BirdFlock.new()
+	_birds.z_index = Z_BIRDS
+	add_child(_birds)
 	_apply()
 	_resize()
 	get_viewport().size_changed.connect(_resize)
@@ -540,6 +548,10 @@ func _resize() -> void:
 	if _motes != null:
 		_motes.area = Rect2(corner, span)
 		_motes.unit = 1.0 / k
+	if _birds != null:
+		# Le cadre REEL, pas le plan elargi : ils traversent l'ecran.
+		_birds.area = Rect2(-at / k, view / k)
+		_birds.unit = 1.0 / k
 
 
 ## LA METEO AVANCE, et les deux couches la lisent.
@@ -584,6 +596,8 @@ func show_sky(on: bool) -> void:
 	_views[1].visible = on and SkyLook.RAYS_IN_AIR
 	if _motes != null:
 		_motes.visible = on
+	if _birds != null:
+		_birds.visible = on
 
 
 ## La couverture du moment, pour les sondes.
