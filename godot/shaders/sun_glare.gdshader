@@ -10,11 +10,12 @@ shader_type canvas_item;
 //     scalaire vue/lumiere ; ici ce sont l'angle et la distance au soleil.
 //     Deux lectures d'un bruit qui glissent en sens contraires = des rais qui
 //     naissent, s'allongent et meurent ;
-//   • les FANTOMES : les octogones vides des reflets dans l'objectif, alignes
-//     du soleil vers le centre de l'ecran (et au-dela, de l'autre cote).
 //
 // PREMULTIPLIE : `rgb*a + dst*(1 - a*wash)`. Le coeur recouvre (wash), les
-// rais et les fantomes s'ajoutent (alpha nul).
+// rais s'ajoutent (alpha nul).
+//
+// Les fantomes (octogones de l'objectif) ont ete essayes le 2026-09-25 et
+// retires : « c'est pourri ». Ne pas les remettre sans un vrai travail d'art.
 
 render_mode blend_premul_alpha, unshaded;
 
@@ -55,34 +56,8 @@ uniform float rainbow_scale = 2.0;
 uniform float glow : hint_range(0.0, 2.0) = 0.25;
 uniform float glow_rainbow : hint_range(0.0, 1.0) = 0.2;
 
-// --- Les fantomes ---
-uniform float ghosts : hint_range(0.0, 2.0) = 1.0;
-// Taille du plus gros, en hauteurs de rectangle.
-uniform float ghost_size : hint_range(0.01, 0.5) = 0.09;
-// Epaisseur du trait de l'octogone, en part de sa taille.
-uniform float ghost_ring : hint_range(0.02, 0.5) = 0.12;
-// Remplissage de l'interieur : 0 = vide.
-uniform float ghost_fill : hint_range(0.0, 1.0) = 0.12;
-
 vec3 spectrum(float t) {
 	return clamp(abs(mod(t * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0);
-}
-
-// Distance « octogonale » : 1,0 sur le bord d'un octogone de rayon 1.
-float octagon(vec2 q) {
-	float seg = 6.2831853 / 8.0;
-	float a = mod(atan(q.y, q.x) + seg * 0.5, seg) - seg * 0.5;
-	return length(q) * cos(a) / cos(seg * 0.5);
-}
-
-// Un fantome : un octogone vide, un peu teinte. `k` = sa place sur l'axe
-// soleil -> centre (0 = soleil, 1 = centre, 2 = symetrique du soleil).
-vec3 ghost(vec2 p, vec2 axis, float k, float size, vec3 tint) {
-	vec2 q = (p - axis * k) / size;
-	float o = octagon(q);
-	float ring = 1.0 - smoothstep(0.0, ghost_ring, abs(o - 1.0 + ghost_ring));
-	float fill = (1.0 - smoothstep(0.9, 1.0, o)) * ghost_fill;
-	return tint * (ring + fill);
 }
 
 void fragment() {
@@ -117,15 +92,5 @@ void fragment() {
 	vec3 ry = mix(vec3(ray_alpha) * ray_color.rgb, rb, ray_rainbow);
 	vec3 rays = (ry * ray_alpha + gl * glow_alpha) * ray_strength;
 
-	// Fantomes, sur l'axe soleil -> centre de l'ecran.
-	vec2 axis = (vec2(0.5) - sun) * vec2(aspect, 1.0);
-	vec3 g = vec3(0.0);
-	g += ghost(p, axis, 0.45, ghost_size * 0.55, vec3(1.0, 0.85, 0.55));
-	g += ghost(p, axis, 0.80, ghost_size * 0.35, vec3(0.6, 1.0, 0.7));
-	g += ghost(p, axis, 1.25, ghost_size * 1.00, vec3(0.55, 0.8, 1.0));
-	g += ghost(p, axis, 1.60, ghost_size * 0.50, vec3(1.0, 0.6, 0.85));
-	// Ils respirent avec le soleil : un reflet vit de lui.
-	g *= ghosts * 0.4 * breath;
-
-	COLOR = vec4(base + rays + g, a * wash);
+	COLOR = vec4(base + rays, a * wash);
 }
