@@ -5,6 +5,11 @@
 [ext_resource type="Texture2D" uid="uid://47s8msgbxoua" path="res://assets/ui/rr-logo-1x.webp" id="3_logo"]
 [ext_resource type="Texture2D" uid="uid://bryu0kq713y08" path="res://assets/ui/home-bg.webp" id="4_bg"]
 [ext_resource type="Texture2D" uid="uid://c52gml5en6uui" path="res://assets/ui/hint-plank.webp" id="5_hint"]
+[ext_resource type="Shader" path="res://shaders/sun_glare.gdshader" id="6_glare"]
+[ext_resource type="Script" path="res://scripts/title_sun_glare.gd" id="7_glare"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_glare"]
+shader = ExtResource("6_glare")
 
 [sub_resource type="Gradient" id="Gradient_veil"]
 offsets = PackedFloat32Array(0, 0.14, 0.26, 0.38, 0.5)
@@ -122,6 +127,18 @@ grow_vertical = 2
 texture = ExtResource("4_bg")
 expand_mode = 1
 stretch_mode = 6
+
+[node name="SunGlare" type="ColorRect" parent="." node_paths=PackedStringArray("art")]
+material = SubResource("ShaderMaterial_glare")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("7_glare")
+art = NodePath("../Art")
 
 [node name="Veil" type="TextureRect" parent="." unique_id=277588866]
 layout_mode = 1
