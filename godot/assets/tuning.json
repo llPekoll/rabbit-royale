@@ -1,530 +1,530 @@
 {
- "BLOOP": {
-  "INK_MS": 6000,
-  "FADE_MS": 1500
- },
- "BOMB": {
-  "KNOCKBACK_TILES": 3,
-  "STUN_MS": 1200
- },
- "BURROW": {
-  "HP_PER_LEVEL": 100,
-  "MAX_LEVEL": 20,
-  "UPGRADE_BASE_COST": 500,
-  "UPGRADE_GROWTH": 1.45,
-  "HP_REGEN_PER_HOUR": 0.2
- },
- "CHEST_LOOT": [
-  {
-   "kind": "carrots",
-   "weight": 40,
-   "min": 20,
-   "max": 90
-  },
-  {
-   "kind": "bomb",
-   "weight": 16,
-   "min": 1,
-   "max": 2
-  },
-  {
-   "kind": "water",
-   "weight": 15,
-   "min": 1,
-   "max": 3
-  },
-  {
-   "kind": "fertiliser",
-   "weight": 12,
-   "min": 1,
-   "max": 2
-  },
-  {
-   "kind": "shield",
-   "weight": 9,
-   "min": 1,
-   "max": 1
-  },
-  {
-   "kind": "lightning",
-   "weight": 7,
-   "min": 1,
-   "max": 1
-  },
-  {
-   "kind": "nft",
-   "weight": 1,
-   "min": 1,
-   "max": 1
-  }
- ],
- "CHEST_LOOT_BY_TIER": {
-  "bronze": [
-   {
-    "kind": "carrots",
-    "weight": 100,
-    "min": 20,
-    "max": 90
-   }
-  ],
-  "silver": [
-   {
-    "kind": "water",
-    "weight": 55,
-    "min": 1,
-    "max": 3
-   },
-   {
-    "kind": "fertiliser",
-    "weight": 45,
-    "min": 1,
-    "max": 2
-   }
-  ],
-  "gold": [
-   {
-    "kind": "bomb",
-    "weight": 50,
-    "min": 1,
-    "max": 2
-   },
-   {
-    "kind": "shield",
-    "weight": 28,
-    "min": 1,
-    "max": 1
-   },
-   {
-    "kind": "lightning",
-    "weight": 22,
-    "min": 1,
-    "max": 1
-   }
-  ],
-  "crown": [
-   {
-    "kind": "lightning",
-    "weight": 40,
-    "min": 1,
-    "max": 1
-   },
-   {
-    "kind": "shield",
-    "weight": 35,
-    "min": 1,
-    "max": 1
-   },
-   {
-    "kind": "bomb",
-    "weight": 25,
-    "min": 2,
-    "max": 3
-   }
-  ]
- },
- "CHEST_NFT_ODDS": {
-  "inCrown": 0.25
- },
- "CHEST_TIER_WEIGHTS": [
-  {
-   "kind": "bronze",
-   "weight": 45
-  },
-  {
-   "kind": "silver",
-   "weight": 30
-  },
-  {
-   "kind": "gold",
-   "weight": 19
-  },
-  {
-   "kind": "crown",
-   "weight": 6
-  }
- ],
- "CROWN": {
-  "GAIN_MULT": 1.15,
-  "LOOT_MULT": 1.5
- },
- "DROWN": {
-  "LOSS": 30,
-  "STUN_MS": 2000
- },
- "ENERGY": {
-  "START": 300,
-  "DIG_COST": 1,
-  "CARROT_GAIN": 0,
-  "GOLDEN_GAIN": 0,
-  "BOMB_LOSS": 30,
-  "MAX": 300,
-  "CROSSING_COST": 5,
-  "MIN_TO_CROSS": 40
- },
- "ENERGY_PACK": {
-  "AMOUNT": 300,
-  "MAX_PER_DAY": 5,
-  "WINDOW_MS": 86400000
- },
- "ERUPTION": {
-  "WARN_STAGES": [
-   0.45,
-   0.62,
-   0.78
-  ],
-  "JOIN_MIN_TILES_LEFT": 20,
-  "JOIN_MIN_CHESTS_LEFT": 2,
-  "SEQUENCE_MS": 4000
- },
- "FENCES": {
-  "STARTING": 3,
-  "MAX_HELD": 20,
-  "CARROT_COST": 300
- },
- "FIRST_RUN": {
-  "LAND": 0.08,
-  "BOMB_DENSITY": 0.06,
-  "CARROT_DENSITY": 0.4,
-  "CHEST_MAX_DISTANCE": 5
- },
- "FLAG": {
-  "LOSS": 15,
-  "CARROTS_BASE": 1,
-  "CARROTS_STEP": 1,
-  "CARROTS_MAX": 3,
-  "ITEM_EVERY": 25,
-  "OVERFLOW_CARROTS": 1
- },
- "GARDEN": {
-  "YIELD_PER_HOUR_BASE": 20,
-  "YIELD_PER_LEVEL": 8,
-  "CAP_HOURS": 12
- },
- "GARDEN_BOOST": {
-  "WATER": {
-   "RATE_MULT": 1.5,
-   "DURATION_MS": 14400000
-  },
-  "FERTILISER": {
-   "EXTRA_CAP_HOURS": 6,
-   "DURATION_MS": 43200000
-  },
-  "MAX_BANKED_MS": 86400000
- },
- "ISLAND": {
-  "MIN_SIZE": 14,
-  "MAX_SIZE": 20,
-  "BOMB_DENSITY": 0.14,
-  "CARROT_DENSITY": 0.3,
-  "GOLDEN_SHARE": 0.06,
-  "CHEST_DENSITY": 0.02,
-  "CHEST_MIN_DEPTH": 0.6,
-  "SAFE_RADIUS": 1,
-  "CASCADE_RADIUS": 3,
-  "BOMB_MAX_TOUCHING": 1
- },
- "ISLAND_TIERS": [
-  {
-   "name": "Meadow",
-   "minLifetime": 0,
-   "bombDensity": 0.14,
-   "carrotDensity": 0.3,
-   "goldenShare": 0.06,
-   "xGain": 3
-  },
-  {
-   "name": "Thicket",
-   "minLifetime": 7500,
-   "bombDensity": 0.17,
-   "carrotDensity": 0.34,
-   "goldenShare": 0.09,
-   "xGain": 3
-  },
-  {
-   "name": "Ashland",
-   "minLifetime": 22500,
-   "bombDensity": 0.2,
-   "carrotDensity": 0.38,
-   "goldenShare": 0.13,
-   "xGain": 2
-  },
-  {
-   "name": "Caldera",
-   "minLifetime": 45500,
-   "bombDensity": 0.24,
-   "carrotDensity": 0.43,
-   "goldenShare": 0.18,
-   "xGain": 2
-  }
- ],
- "LIGHTNING": {
-  "RADIUS": 1,
-  "STAGGER_MS": 60,
-  "SHOCK_LOSS": 30,
-  "SHOCK_STUN_MS": 2000
- },
- "MIRAGE": {
-  "DURATION_MS": 90000,
-  "TILES": 3,
-  "DRIFT": 1,
-  "REVEALED_ONLY": true,
-  "FRESH_RATE": 0.25
- },
- "MULTIPLAYER": {
-  "MAX_PLAYERS_PER_ISLAND": 4,
-  "TICK_MS": 100,
-  "MIN_MOVE_INTERVAL_MS": 90,
-  "RECONNECT_GRACE_MS": 45000,
-  "EMPTY_ISLAND_TTL_MS": 86400000
- },
- "NEXT_ACTION": {
-  "GARDEN_FULL_SHARE": 0.8,
-  "SHIELD_WARNING_MS": 3600000,
-  "TRAPS_WANTED": 3,
-  "RAID_WORTH_GARDEN": 100
- },
- "OUT_OF_RUN_ENERGY": {
-  "REGEN_PER_HOUR": 30,
-  "REGEN_PER_LEVEL": 1,
-  "REGEN_LEVEL_CAP": 10,
-  "MAX": 300
- },
- "QUESTS": {
-  "FIRST_DIG_TILES": 10,
-  "HOLD_THE_DOOR_TRAPS": 3,
-  "CARROTS": {
-   "break-ground": 50,
-   "come-home": 100,
-   "bring-it-in": 75,
-   "bury-something": 100,
-   "look-up": 50,
-   "read-the-stones": 100,
-   "hold-the-door": 150,
-   "the-thicket": 250
-  },
-  "ITEMS": {
-   "open-a-chest": {
-    "kind": "shield",
-    "qty": 1
-   },
-   "knock-on-a-door": {
-    "kind": "bomb",
-    "qty": 1
-   }
-  }
- },
- "RABBIT_LEVELS": {
-  "MAX": 10,
-  "RAID_MIN": 10,
-  "LADDER": [
-   {
-    "level": 1,
-    "tier": "Meadow",
-    "seats": 1,
-    "bombDensity": 0.1,
-    "carrotDensity": 0.28,
-    "goldenShare": 0.05,
-    "xGain": 3,
-    "land": 0.12,
-    "chests": 2
-   },
-   {
-    "level": 2,
-    "tier": "Meadow",
-    "seats": 1,
-    "bombDensity": 0.12,
-    "carrotDensity": 0.29,
-    "goldenShare": 0.06,
-    "xGain": 3,
-    "land": 0.16,
-    "chests": 2
-   },
-   {
-    "level": 3,
-    "tier": "Meadow",
-    "seats": 1,
-    "bombDensity": 0.14,
-    "carrotDensity": 0.3,
-    "goldenShare": 0.06,
-    "xGain": 3,
-    "land": 0.2,
-    "chests": 3
-   },
-   {
-    "level": 4,
-    "tier": "Thicket",
-    "seats": 1,
-    "bombDensity": 0.15,
-    "carrotDensity": 0.32,
-    "goldenShare": 0.08,
-    "xGain": 3,
-    "land": 0.25,
-    "chests": 3
-   },
-   {
-    "level": 5,
-    "tier": "Thicket",
-    "seats": 1,
-    "bombDensity": 0.17,
-    "carrotDensity": 0.34,
-    "goldenShare": 0.09,
-    "xGain": 3,
-    "land": 0.3,
-    "chests": 4
-   },
-   {
-    "level": 6,
-    "tier": "Ashland",
-    "seats": 2,
-    "bombDensity": 0.18,
-    "carrotDensity": 0.36,
-    "goldenShare": 0.11,
-    "xGain": 2,
-    "land": 0.36,
-    "chests": 5
-   },
-   {
-    "level": 7,
-    "tier": "Ashland",
-    "seats": 2,
-    "bombDensity": 0.2,
-    "carrotDensity": 0.38,
-    "goldenShare": 0.13,
-    "xGain": 2,
-    "land": 0.42,
-    "chests": 6
-   },
-   {
-    "level": 8,
-    "tier": "Caldera",
-    "seats": 2,
-    "bombDensity": 0.21,
-    "carrotDensity": 0.4,
-    "goldenShare": 0.15,
-    "xGain": 2,
-    "land": 0.5,
-    "chests": 7
-   },
-   {
-    "level": 9,
-    "tier": "Caldera",
-    "seats": 2,
-    "bombDensity": 0.22,
-    "carrotDensity": 0.41,
-    "goldenShare": 0.16,
-    "xGain": 2,
-    "land": 0.56,
-    "chests": 8
-   },
-   {
-    "level": 10,
-    "tier": "Caldera",
-    "seats": 4,
-    "bombDensity": 0.24,
-    "carrotDensity": 0.43,
-    "goldenShare": 0.18,
-    "xGain": 2,
-    "land": 0.62,
-    "chests": 10
-   }
-  ]
- },
- "RAID": {
-  "BOMB_DAMAGE": 45,
-  "DAMAGE_JITTER": 0.2,
-  "LOOT_SHARE": 0.08,
-  "LOOT_CAP": 1200,
-  "SAFE_FLOOR": 300,
-  "GARDEN_LOOT_SHARE": 0.35,
-  "BROKEN_SHIELD_MS": 57600000,
-  "ONBOARDING_SHIELD_MS": 172800000,
-  "ITEM_SHIELD_MS": 21600000,
-  "SHIELD_REDUCTION": 1
- },
- "RAID_RUN": {
-  "TOLL": 45,
-  "WALK_FLOOR": 13,
-  "STAKE": 75,
-  "STEP_COST": 1,
-  "STEP_REFUND_AT_FIELD": 1,
-  "LOOT_SHARE": 0.1,
-  "LOOT_SHARE_MIN": 0.08,
-  "STRUCK_SHOWN_MS": 120000,
-  "ENDED_SHOWN_MS": 10000,
-  "MIN_LOOT_FRACTION": 0.15,
-  "COOLDOWN_MS": 3600000,
-  "SHIELD_AFTER_RAID_MS": 43200000
- },
- "RIPPLE": {
-  "PER_STEP": 0.12,
-  "MAX_DELAY": 0.6,
-  "HEIGHT": 5,
-  "TIME": 0.45
- },
- "RISK_GRADIENT": {
-  "BOMB": {
-   "NEAR": 0.5,
-   "FAR": 1.5
-  },
-  "GOLDEN": {
-   "NEAR": 0.3,
-   "FAR": 1.7
-  }
- },
- "RUN": {
-  "CARROT_VALUE": 3,
-  "GOLDEN_VALUE": 15
- },
- "SABOTAGE": {
-  "MAX_PLANTED_PER_ISLAND": 3
- },
- "SEASON": {
-  "DURATION_MS": 2592000000,
-  "TOP_N": 100
- },
- "SHOP": {
-  "PRICES": {
-   "trap": 150,
-   "bomb": 300,
-   "lightning": 500,
-   "shield": 600,
-   "energy": 700,
-   "smoke": 2000,
-   "bloop": 100,
-   "fence": 300
-  },
-  "USDC_PRICES": {
-   "trap": 0.25,
-   "bomb": 0.4,
-   "lightning": 0.6,
-   "shield": 0.9,
-   "energy": 0.99,
-   "smoke": 1.99,
-   "bloop": 0.1,
-   "fence": 0.4
-  },
-  "MAX_HELD": 20,
-  "MAX_QTY_PER_PURCHASE": 10
- },
- "SMOKE": {
-  "DURATION_MS": 86400000,
-  "STACKS": true,
-  "MAX_MS": 259200000
- },
- "TRAPS": {
-  "DRAIN": 8,
-  "FREE_PER_DAY": 3,
-  "REFILL_MS": 86400000,
-  "MAX_HELD": 12,
-  "MAX_PLACED": 8,
-  "DOORSTEP": 2,
-  "CARROT_COST": 150,
-  "REARM_MS": 10800000,
-  "REARM_STAGGER_MS": 1800000
- },
- "USDC": {
-  "DECIMALS": 6,
-  "COMMITMENT": "confirmed",
-  "INTENT_TTL_MS": 900000
- }
+	"BLOOP": {
+		"INK_MS": 6000.0,
+		"FADE_MS": 1500.0
+	},
+	"BOMB": {
+		"KNOCKBACK_TILES": 3.0,
+		"STUN_MS": 1200.0
+	},
+	"BURROW": {
+		"HP_PER_LEVEL": 100.0,
+		"MAX_LEVEL": 20.0,
+		"UPGRADE_BASE_COST": 500.0,
+		"UPGRADE_GROWTH": 1.45,
+		"HP_REGEN_PER_HOUR": 0.2
+	},
+	"CHEST_LOOT": [
+		{
+			"kind": "carrots",
+			"weight": 40.0,
+			"min": 20.0,
+			"max": 90.0
+		},
+		{
+			"kind": "bomb",
+			"weight": 16.0,
+			"min": 1.0,
+			"max": 2.0
+		},
+		{
+			"kind": "water",
+			"weight": 15.0,
+			"min": 1.0,
+			"max": 3.0
+		},
+		{
+			"kind": "fertiliser",
+			"weight": 12.0,
+			"min": 1.0,
+			"max": 2.0
+		},
+		{
+			"kind": "shield",
+			"weight": 9.0,
+			"min": 1.0,
+			"max": 1.0
+		},
+		{
+			"kind": "lightning",
+			"weight": 7.0,
+			"min": 1.0,
+			"max": 1.0
+		},
+		{
+			"kind": "nft",
+			"weight": 1.0,
+			"min": 1.0,
+			"max": 1.0
+		}
+	],
+	"CHEST_LOOT_BY_TIER": {
+		"bronze": [
+			{
+				"kind": "carrots",
+				"weight": 100.0,
+				"min": 20.0,
+				"max": 90.0
+			}
+		],
+		"silver": [
+			{
+				"kind": "water",
+				"weight": 55.0,
+				"min": 1.0,
+				"max": 3.0
+			},
+			{
+				"kind": "fertiliser",
+				"weight": 45.0,
+				"min": 1.0,
+				"max": 2.0
+			}
+		],
+		"gold": [
+			{
+				"kind": "bomb",
+				"weight": 50.0,
+				"min": 1.0,
+				"max": 2.0
+			},
+			{
+				"kind": "shield",
+				"weight": 28.0,
+				"min": 1.0,
+				"max": 1.0
+			},
+			{
+				"kind": "lightning",
+				"weight": 22.0,
+				"min": 1.0,
+				"max": 1.0
+			}
+		],
+		"crown": [
+			{
+				"kind": "lightning",
+				"weight": 40.0,
+				"min": 1.0,
+				"max": 1.0
+			},
+			{
+				"kind": "shield",
+				"weight": 35.0,
+				"min": 1.0,
+				"max": 1.0
+			},
+			{
+				"kind": "bomb",
+				"weight": 25.0,
+				"min": 2.0,
+				"max": 3.0
+			}
+		]
+	},
+	"CHEST_NFT_ODDS": {
+		"inCrown": 0.25
+	},
+	"CHEST_TIER_WEIGHTS": [
+		{
+			"kind": "bronze",
+			"weight": 45.0
+		},
+		{
+			"kind": "silver",
+			"weight": 30.0
+		},
+		{
+			"kind": "gold",
+			"weight": 19.0
+		},
+		{
+			"kind": "crown",
+			"weight": 6.0
+		}
+	],
+	"CROWN": {
+		"GAIN_MULT": 1.15,
+		"LOOT_MULT": 1.5
+	},
+	"DROWN": {
+		"LOSS": 30.0,
+		"STUN_MS": 2000.0
+	},
+	"ENERGY": {
+		"START": 300.0,
+		"DIG_COST": 1.0,
+		"CARROT_GAIN": 0.0,
+		"GOLDEN_GAIN": 0.0,
+		"BOMB_LOSS": 30.0,
+		"MAX": 300.0,
+		"CROSSING_COST": 5.0,
+		"MIN_TO_CROSS": 40.0
+	},
+	"ENERGY_PACK": {
+		"AMOUNT": 300.0,
+		"MAX_PER_DAY": 5.0,
+		"WINDOW_MS": 86400000.0
+	},
+	"ERUPTION": {
+		"WARN_STAGES": [
+			0.45,
+			0.62,
+			0.78
+		],
+		"JOIN_MIN_TILES_LEFT": 20.0,
+		"JOIN_MIN_CHESTS_LEFT": 2.0,
+		"SEQUENCE_MS": 4000.0
+	},
+	"FENCES": {
+		"STARTING": 3.0,
+		"MAX_HELD": 20.0,
+		"CARROT_COST": 300.0
+	},
+	"FIRST_RUN": {
+		"LAND": 0.08,
+		"BOMB_DENSITY": 0.06,
+		"CARROT_DENSITY": 0.4,
+		"CHEST_MAX_DISTANCE": 5.0
+	},
+	"FLAG": {
+		"LOSS": 15.0,
+		"CARROTS_BASE": 1.0,
+		"CARROTS_STEP": 1.0,
+		"CARROTS_MAX": 3.0,
+		"ITEM_EVERY": 25.0,
+		"OVERFLOW_CARROTS": 1.0
+	},
+	"GARDEN": {
+		"YIELD_PER_HOUR_BASE": 20.0,
+		"YIELD_PER_LEVEL": 8.0,
+		"CAP_HOURS": 12.0
+	},
+	"GARDEN_BOOST": {
+		"WATER": {
+			"RATE_MULT": 1.5,
+			"DURATION_MS": 14400000.0
+		},
+		"FERTILISER": {
+			"EXTRA_CAP_HOURS": 6.0,
+			"DURATION_MS": 43200000.0
+		},
+		"MAX_BANKED_MS": 86400000.0
+	},
+	"ISLAND": {
+		"MIN_SIZE": 14.0,
+		"MAX_SIZE": 20.0,
+		"BOMB_DENSITY": 0.14,
+		"CARROT_DENSITY": 0.3,
+		"GOLDEN_SHARE": 0.06,
+		"CHEST_DENSITY": 0.02,
+		"CHEST_MIN_DEPTH": 0.6,
+		"SAFE_RADIUS": 1.0,
+		"CASCADE_RADIUS": 3.0,
+		"BOMB_MAX_TOUCHING": 1.0
+	},
+	"ISLAND_TIERS": [
+		{
+			"name": "Meadow",
+			"minLifetime": 0.0,
+			"bombDensity": 0.14,
+			"carrotDensity": 0.3,
+			"goldenShare": 0.06,
+			"xGain": 3.0
+		},
+		{
+			"name": "Thicket",
+			"minLifetime": 7500.0,
+			"bombDensity": 0.17,
+			"carrotDensity": 0.34,
+			"goldenShare": 0.09,
+			"xGain": 3.0
+		},
+		{
+			"name": "Ashland",
+			"minLifetime": 22500.0,
+			"bombDensity": 0.2,
+			"carrotDensity": 0.38,
+			"goldenShare": 0.13,
+			"xGain": 2.0
+		},
+		{
+			"name": "Caldera",
+			"minLifetime": 45500.0,
+			"bombDensity": 0.24,
+			"carrotDensity": 0.43,
+			"goldenShare": 0.18,
+			"xGain": 2.0
+		}
+	],
+	"LIGHTNING": {
+		"RADIUS": 1.0,
+		"STAGGER_MS": 60.0,
+		"SHOCK_LOSS": 30.0,
+		"SHOCK_STUN_MS": 2000.0
+	},
+	"MIRAGE": {
+		"DURATION_MS": 90000.0,
+		"TILES": 3.0,
+		"DRIFT": 1.0,
+		"REVEALED_ONLY": true,
+		"FRESH_RATE": 0.25
+	},
+	"MULTIPLAYER": {
+		"MAX_PLAYERS_PER_ISLAND": 4.0,
+		"TICK_MS": 100.0,
+		"MIN_MOVE_INTERVAL_MS": 90.0,
+		"RECONNECT_GRACE_MS": 45000.0,
+		"EMPTY_ISLAND_TTL_MS": 86400000.0
+	},
+	"NEXT_ACTION": {
+		"GARDEN_FULL_SHARE": 0.8,
+		"SHIELD_WARNING_MS": 3600000.0,
+		"TRAPS_WANTED": 3.0,
+		"RAID_WORTH_GARDEN": 100.0
+	},
+	"OUT_OF_RUN_ENERGY": {
+		"REGEN_PER_HOUR": 30.0,
+		"REGEN_PER_LEVEL": 1.0,
+		"REGEN_LEVEL_CAP": 10.0,
+		"MAX": 300.0
+	},
+	"QUESTS": {
+		"FIRST_DIG_TILES": 10.0,
+		"HOLD_THE_DOOR_TRAPS": 3.0,
+		"CARROTS": {
+			"break-ground": 50.0,
+			"come-home": 100.0,
+			"bring-it-in": 75.0,
+			"bury-something": 100.0,
+			"look-up": 50.0,
+			"read-the-stones": 100.0,
+			"hold-the-door": 150.0,
+			"the-thicket": 250.0
+		},
+		"ITEMS": {
+			"open-a-chest": {
+				"kind": "shield",
+				"qty": 1.0
+			},
+			"knock-on-a-door": {
+				"kind": "bomb",
+				"qty": 1.0
+			}
+		}
+	},
+	"RABBIT_LEVELS": {
+		"MAX": 10.0,
+		"RAID_MIN": 10.0,
+		"LADDER": [
+			{
+				"level": 1.0,
+				"tier": "Meadow",
+				"seats": 1.0,
+				"bombDensity": 0.1,
+				"carrotDensity": 0.28,
+				"goldenShare": 0.05,
+				"xGain": 3.0,
+				"land": 0.12,
+				"chests": 2.0
+			},
+			{
+				"level": 2.0,
+				"tier": "Meadow",
+				"seats": 1.0,
+				"bombDensity": 0.12,
+				"carrotDensity": 0.29,
+				"goldenShare": 0.06,
+				"xGain": 3.0,
+				"land": 0.16,
+				"chests": 2.0
+			},
+			{
+				"level": 3.0,
+				"tier": "Meadow",
+				"seats": 1.0,
+				"bombDensity": 0.14,
+				"carrotDensity": 0.3,
+				"goldenShare": 0.06,
+				"xGain": 3.0,
+				"land": 0.2,
+				"chests": 3.0
+			},
+			{
+				"level": 4.0,
+				"tier": "Thicket",
+				"seats": 1.0,
+				"bombDensity": 0.15,
+				"carrotDensity": 0.32,
+				"goldenShare": 0.08,
+				"xGain": 3.0,
+				"land": 0.25,
+				"chests": 3.0
+			},
+			{
+				"level": 5.0,
+				"tier": "Thicket",
+				"seats": 1.0,
+				"bombDensity": 0.17,
+				"carrotDensity": 0.34,
+				"goldenShare": 0.09,
+				"xGain": 3.0,
+				"land": 0.3,
+				"chests": 4.0
+			},
+			{
+				"level": 6.0,
+				"tier": "Ashland",
+				"seats": 2.0,
+				"bombDensity": 0.18,
+				"carrotDensity": 0.36,
+				"goldenShare": 0.11,
+				"xGain": 2.0,
+				"land": 0.36,
+				"chests": 5.0
+			},
+			{
+				"level": 7.0,
+				"tier": "Ashland",
+				"seats": 2.0,
+				"bombDensity": 0.2,
+				"carrotDensity": 0.38,
+				"goldenShare": 0.13,
+				"xGain": 2.0,
+				"land": 0.42,
+				"chests": 6.0
+			},
+			{
+				"level": 8.0,
+				"tier": "Caldera",
+				"seats": 2.0,
+				"bombDensity": 0.21,
+				"carrotDensity": 0.4,
+				"goldenShare": 0.15,
+				"xGain": 2.0,
+				"land": 0.5,
+				"chests": 7.0
+			},
+			{
+				"level": 9.0,
+				"tier": "Caldera",
+				"seats": 2.0,
+				"bombDensity": 0.22,
+				"carrotDensity": 0.41,
+				"goldenShare": 0.16,
+				"xGain": 2.0,
+				"land": 0.56,
+				"chests": 8.0
+			},
+			{
+				"level": 10.0,
+				"tier": "Caldera",
+				"seats": 4.0,
+				"bombDensity": 0.24,
+				"carrotDensity": 0.43,
+				"goldenShare": 0.18,
+				"xGain": 2.0,
+				"land": 0.62,
+				"chests": 10.0
+			}
+		]
+	},
+	"RAID": {
+		"BOMB_DAMAGE": 45.0,
+		"DAMAGE_JITTER": 0.2,
+		"LOOT_SHARE": 0.08,
+		"LOOT_CAP": 1200.0,
+		"SAFE_FLOOR": 300.0,
+		"GARDEN_LOOT_SHARE": 0.35,
+		"BROKEN_SHIELD_MS": 57600000.0,
+		"ONBOARDING_SHIELD_MS": 172800000.0,
+		"ITEM_SHIELD_MS": 21600000.0,
+		"SHIELD_REDUCTION": 1.0
+	},
+	"RAID_RUN": {
+		"TOLL": 45.0,
+		"WALK_FLOOR": 13.0,
+		"STAKE": 75.0,
+		"STEP_COST": 1.0,
+		"STEP_REFUND_AT_FIELD": 1.0,
+		"LOOT_SHARE": 0.1,
+		"LOOT_SHARE_MIN": 0.08,
+		"STRUCK_SHOWN_MS": 120000.0,
+		"ENDED_SHOWN_MS": 10000.0,
+		"MIN_LOOT_FRACTION": 0.15,
+		"COOLDOWN_MS": 3600000.0,
+		"SHIELD_AFTER_RAID_MS": 43200000.0
+	},
+	"RIPPLE": {
+		"PER_STEP": 0.12,
+		"MAX_DELAY": 0.6,
+		"HEIGHT": 5.0,
+		"TIME": 0.45
+	},
+	"RISK_GRADIENT": {
+		"BOMB": {
+			"NEAR": 0.5,
+			"FAR": 1.5
+		},
+		"GOLDEN": {
+			"NEAR": 0.3,
+			"FAR": 1.7
+		}
+	},
+	"RUN": {
+		"CARROT_VALUE": 3.0,
+		"GOLDEN_VALUE": 15.0
+	},
+	"SABOTAGE": {
+		"MAX_PLANTED_PER_ISLAND": 3.0
+	},
+	"SEASON": {
+		"DURATION_MS": 2592000000.0,
+		"TOP_N": 100.0
+	},
+	"SHOP": {
+		"PRICES": {
+			"trap": 150.0,
+			"bomb": 300.0,
+			"lightning": 500.0,
+			"shield": 600.0,
+			"energy": 700.0,
+			"smoke": 2000.0,
+			"bloop": 100.0,
+			"fence": 300.0
+		},
+		"USDC_PRICES": {
+			"trap": 0.25,
+			"bomb": 0.4,
+			"lightning": 0.6,
+			"shield": 0.9,
+			"energy": 0.99,
+			"smoke": 1.99,
+			"bloop": 0.1,
+			"fence": 0.4
+		},
+		"MAX_HELD": 20.0,
+		"MAX_QTY_PER_PURCHASE": 10.0
+	},
+	"SMOKE": {
+		"DURATION_MS": 86400000.0,
+		"STACKS": true,
+		"MAX_MS": 259200000.0
+	},
+	"TRAPS": {
+		"DRAIN": 8.0,
+		"FREE_PER_DAY": 3.0,
+		"REFILL_MS": 86400000.0,
+		"MAX_HELD": 12.0,
+		"MAX_PLACED": 8.0,
+		"DOORSTEP": 2.0,
+		"CARROT_COST": 150.0,
+		"REARM_MS": 10800000.0,
+		"REARM_STAGGER_MS": 1800000.0
+	},
+	"USDC": {
+		"DECIMALS": 6.0,
+		"COMMITMENT": "confirmed",
+		"INTENT_TTL_MS": 900000.0
+	}
 }
