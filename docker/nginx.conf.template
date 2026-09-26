@@ -5,9 +5,10 @@ server {
 
   # LE CLIENT GODOT, COMPRESSE ET REVALIDE.
   #
-  # L'export porte ~48 Mo (index.wasm 39, index.pck 8,5) : gzip les ramene
-  # a une dizaine. Les gros sont COMPRESSES AU BUILD (Dockerfile, `.gz` a
-  # cote) et servis tels quels par gzip_static : recompresser 39 Mo a chaque
+  # L'export porte ~29 Mo (index.wasm 22,6 : moteur allege, voir
+  # godot/web/engine.gdbuild ; index.pck 6,4) : gzip les ramene a ~12. Les
+  # gros sont COMPRESSES AU BUILD (Dockerfile, `.gz` a
+  # cote) et servis tels quels par gzip_static : recompresser 23 Mo a chaque
   # visite prendrait une seconde de CPU. Le reste l'est a la volee.
   gzip on;
   gzip_comp_level 6;
