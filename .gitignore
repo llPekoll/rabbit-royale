@@ -43,6 +43,9 @@ verify-out/
 *.webm
 *.mkv
 *.zip
+# Sauf le moteur web recompile (tools/build-web-engine.sh) : le serveur n'a pas
+# la RAM pour le lier, le build Coolify le copie tel quel.
+!docker/godot-web-template.zip
 
 # Le gameplay filmé dans Godot : `episodes/<ep>/capture.sh` le refait à l'identique.
 episodes/*/gameplay/

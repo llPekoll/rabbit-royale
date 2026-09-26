@@ -31,32 +31,24 @@ RUN base="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION
   && unzip -q -j /tmp/t.tpz 'templates/web_nothreads_release.zip' 'templates/version.txt' -d "$dest" \
   && rm /tmp/t.tpz
 
+FROM godot AS build
 # LE MOTEUR WEB, RECOMPILE SANS CE QUE LE JEU N'UTILISE PAS (2026-09-26).
 #
 # Le template officiel porte tout Godot : la 3D, la physique, la navigation,
 # l'XR, les formats d'import... 39,5 Mo de wasm que chaque joueur telechargeait
-# pour un jeu 2D. La liste de ce qu'on retire est godot/web/engine.gdbuild ;
-# SEUL ce fichier est copie avant la compilation, donc le cache de build ne la
-# refait que s'il change ou si GODOT_VERSION bouge. Un premier build coute un
-# quart d'heure de CPU (10 coeurs). EM_VERSION est celui de
-# .github/workflows/web_builds.yml du tag, et celui qui a ete teste.
-# Resultat mesure : wasm 39,5 -> 22,6 Mo, 10,0 -> 5,7 Mo en gzip.
-FROM emscripten/emsdk:4.0.11 AS engine
+# pour un jeu 2D. docker/godot-web-template.zip est le meme moteur sans ce que
+# liste godot/web/engine.gdbuild : wasm 22,6 Mo, 5,7 Mo en gzip.
+#
+# Il est COMPILE EN LOCAL (tools/build-web-engine.sh) et versionne, pas
+# compile ici : l'edition de liens en LTO complete demande plus que les 7 Go
+# du serveur, qui la tuait (SIGKILL) apres dix minutes de build. A refaire
+# quand engine.gdbuild ou GODOT_VERSION changent.
+#
+# Il prend la place du template officiel, sous son nom : le preset Web n'a pas
+# de chemin de template a connaitre, et un export local retombe sur le
+# template complet, qui marche aussi.
 ARG GODOT_VERSION=4.7.2
-RUN pip install --no-cache-dir scons \
-  && git clone --depth 1 --branch ${GODOT_VERSION}-stable https://github.com/godotengine/godot.git /godot
-WORKDIR /godot
-COPY godot/web/engine.gdbuild /engine.gdbuild
-RUN scons platform=web target=template_release threads=no production=yes \
-    optimize=size lto=full build_profile=/engine.gdbuild -j"$(nproc)" \
-  && test -s bin/godot.web.template_release.wasm32.nothreads.zip
-
-FROM godot AS build
-# Le moteur allege prend la place du template officiel, sous son nom : le
-# preset Web n'a pas de chemin de template a connaitre, et un export local
-# (sans cette etape) retombe sur le template complet, qui marche aussi.
-ARG GODOT_VERSION=4.7.2
-COPY --from=engine /godot/bin/godot.web.template_release.wasm32.nothreads.zip \
+COPY docker/godot-web-template.zip \
   /root/.local/share/godot/export_templates/${GODOT_VERSION}.stable/web_nothreads_release.zip
 WORKDIR /app
 COPY godot ./godot
