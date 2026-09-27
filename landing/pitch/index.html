@@ -1,0 +1,505 @@
+<!doctype html>
+<!--
+  LE DECK DU DEMO DAY, SERVI PAR LE SITE (2026-09-27) : rabbit.rip/pitch.
+
+  Repris de l'artifact Slides (claude.ai/artifact/28k83varLnPnuPrKEvAUrt)
+  et devenu la version de reference : on le modifie ICI. Chaque slide est une
+  <section class="slide"> de 1920 x 1080 a styles en ligne ; le lecteur plus
+  bas la met a l'echelle de la fenetre. Les notes d'orateur de l'artifact ne
+  sont pas reprises : la page est publique.
+
+  Clavier : fleches, espace, Page haut/bas, Debut/Fin ; F plein ecran.
+  Souris : clic a droite / a gauche. Tactile : glisser. #3 ouvre la slide 3.
+
+  Le PDF (bouton PDF) est un fichier fige : le refaire apres toute retouche
+  des slides avec `bun tools/pitch-pdf.ts`.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#10222b" />
+    <title>Rabbit Royale — Pitch</title>
+    <meta name="description" content="Rabbit Royale: competitive minesweeper with rabbits. The demo day deck." />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Rabbit Royale — Pitch" />
+    <meta property="og:description" content="What if Minesweeper and Clash of Clans had a baby?" />
+    <meta property="og:image" content="/assets/og.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="/favicon.ico" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito+Sans:wght@400;600;700&display=swap" rel="stylesheet" />
+    <style>
+      html, body {
+        margin: 0;
+        height: 100%;
+        background: #050b0e;
+        overflow: hidden;
+        font-family: 'Nunito Sans', Arial, sans-serif;
+        color: #f7f0e1;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      /* LE CANEVAS : 1920 x 1080, centre et mis a l'echelle par le script. */
+      .stage {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 1920px;
+        height: 1080px;
+        transform-origin: 0 0;
+        overflow: hidden;
+        background: #10222b;
+        box-shadow: 0 0 80px rgba(0, 0, 0, 0.6);
+      }
+
+      /* Ce que le format Slides suppose sans l'ecrire dans chaque slide. */
+      .slide {
+        position: absolute;
+        inset: 0;
+        box-sizing: border-box;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.35s ease, visibility 0s linear 0.35s;
+      }
+      .slide.on { opacity: 1; visibility: visible; transition: opacity 0.35s ease; }
+      .slide * { margin: 0; box-sizing: border-box; }
+      .slide > * { position: relative; }
+      .slide img { display: block; object-fit: cover; }
+      .slide h1, .slide h2, .slide h3 { font-weight: 400; }
+      .slide x-shape { display: block; flex: none; }
+      .slide x-shape[kind='arrow-right'] {
+        clip-path: polygon(0 32%, 58% 32%, 58% 0, 100% 50%, 58% 100%, 58% 68%, 0 68%);
+      }
+
+      /* LA BARRE : discrete, elle disparait quand la souris dort. */
+      .bar {
+        position: fixed;
+        left: 50%;
+        bottom: max(14px, env(safe-area-inset-bottom));
+        translate: -50% 0;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px;
+        background: rgba(10, 22, 28, 0.82);
+        border: 2px solid rgba(242, 193, 78, 0.45);
+        border-radius: 999px;
+        font: 16px 'Lilita One', Arial, sans-serif;
+        color: #f7f0e1;
+        transition: opacity 0.3s;
+        z-index: 2;
+      }
+      body.idle .bar { opacity: 0; }
+      .bar button, .bar a {
+        display: grid;
+        place-items: center;
+        min-width: 40px;
+        height: 40px;
+        padding: 0 12px;
+        border: 0;
+        border-radius: 999px;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      .bar button:hover, .bar a:hover { background: rgba(242, 193, 78, 0.18); }
+      .bar :focus-visible { outline: 2px solid #f2c14e; outline-offset: 2px; }
+      .bar .play { background: #f2c14e; color: #10222b; }
+      .bar .play:hover { background: #ffd36a; }
+      .count { min-width: 56px; text-align: center; font-variant-numeric: tabular-nums; }
+
+      .progress {
+        position: fixed;
+        left: 0;
+        top: 0;
+        height: 4px;
+        background: #f2c14e;
+        transition: width 0.35s ease;
+        z-index: 2;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .slide, .slide.on, .progress { transition: none; }
+      }
+
+      /* L'IMPRESSION, ET LE PDF QU'ON EN TIRE (tools/pitch-pdf.ts) : toutes
+         les slides a la suite, une par page de 1920 x 1080, sans le lecteur. */
+      @page { size: 1920px 1080px; margin: 0; }
+      @media print {
+        html, body { height: auto; overflow: visible; background: #10222b; }
+        .stage { position: static; transform: none !important; box-shadow: none; overflow: visible; background: none; }
+        .slide {
+          position: relative;
+          width: 1920px;
+          height: 1080px;
+          overflow: hidden;
+          opacity: 1;
+          visibility: visible;
+          transition: none;
+          break-after: page;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+        .slide:last-child { break-after: auto; }
+        .bar, .progress { display: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="progress" aria-hidden="true"></div>
+    <main class="stage" aria-live="polite">
+      <section class="slide" id="cover" data-transition="fade" style="background:#000000">
+        <img src="/pitch/img/title-art.webp" alt="Rabbit Royale title art: a crowned rabbit knight looks over an isometric island at sunrise" style="position:absolute; top:0; left:0; width:1920px; height:1080px; background:#050b0e; opacity:1; filter:blur(2px) brightness(0.25)">
+        <img src="/pitch/img/logo-skull.png" alt="Rabbit Royale pixel logo: a crowned rabbit skull" style="position:absolute; top:72px; left:96px; width:217px; height:240px; object-fit:contain">
+        <div style="position:absolute; top:640px; left:0; width:1920px; height:440px; display:flex; flex-direction:column; background:linear-gradient(180deg, #10222b00 0%, #10222bf0 75%)">
+        </div>
+        <h1 style="position:absolute; bottom:160px; left:560px; width:1232px; font-family:'Lilita One', Arial, sans-serif; font-size:104px; font-weight:400; line-height:1; color:#f7f0e1; text-shadow:0 6px 0 #0a161c, 0 10px 24px #00000080">What if Minesweeper and Clash of Clans had a baby?</h1>
+        <p style="position:absolute; bottom:88px; left:560px; width:1232px; font-family:'Lilita One', Arial, sans-serif; font-size:40px; color:#f2c14e; text-shadow:0 3px 0 #0a161c">Answer: Rabbit Royale</p>
+      </section>
+      
+      <section class="slide" id="origin" data-transition="fade" style="display:grid; gap:96px; align-items:center; grid-template-columns:1fr 1fr; padding:128px; background:#10222b">
+        <img src="/pitch/img/domin8-bg.webp" alt="" style="position:absolute; top:0; left:0; width:1920px; height:1080px; object-fit:cover; filter:brightness(0.35)">
+        <div style="position:absolute; top:0; left:0; width:1200px; height:1080px; background:linear-gradient(90deg, #10222bf2 0%, #10222bcc 55%, #10222b00 100%)"></div>
+        <div style="display:flex; flex-direction:column; gap:32px">
+          <p style="font-family:'Lilita One', Arial, sans-serif; font-size:36px; letter-spacing:2px; text-transform:uppercase; color:#f29a4a">Born in a casino</p>
+          <h2 style="font-family:'Lilita One', Arial, sans-serif; font-size:88px; font-weight:400; line-height:1.05; color:#f7f0e1; text-shadow:0 5px 0 #0a161c">Too addictive to stay gambling.</h2>
+          <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:34px; line-height:1.4; color:#dde6e3">Rabbit Royale was the mode players couldn't put down in domin8. We kept the core and took the wager out.</p>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:32px; align-items:center; padding:48px 40px; background:#0a161cd9; border:3px solid #f2c14e80; border-radius:28px">
+          <div style="display:flex; align-items:center; gap:28px">
+            <img src="/pitch/img/domin8-logo.webp" alt="domin8 logo" style="width:330px; height:130px; object-fit:cover; border-radius:18px; border:3px solid #f2c14e80">
+            <x-shape kind="arrow-right" style="background:#f2c14e; width:80px; height:44px"></x-shape>
+            <img src="/pitch/img/logo-skull.png" alt="Rabbit Royale pixel logo" style="width:136px; height:150px; object-fit:contain">
+          </div>
+          <p style="font-family:'Lilita One', Arial, sans-serif; font-size:200px; line-height:1; color:#f2c14e; text-shadow:0 10px 0 #0a161c, 0 16px 40px #00000099">+10K</p>
+          <p style="font-family:'Lilita One', Arial, sans-serif; font-size:40px; text-align:center; color:#f7f0e1; text-shadow:0 3px 0 #0a161c">games in domin8</p>
+        </div>
+      </section>
+      
+      <section class="slide" id="loop" data-transition="fade" style="background:#10222B; color:#F7F0E1; font-family:'Nunito Sans', Arial, sans-serif; padding:96px 128px 128px; display:flex; flex-direction:column; gap:40px">
+        <img src="/pitch/img/title-art.webp" alt="" style="position:absolute; left:0; top:0; width:1920px; height:1080px; object-fit:cover; filter:blur(10px) brightness(0.3)">
+        <div style="display:flex; flex-direction:column; gap:12px">
+          <h2 style="font-family:'Lilita One', Arial, sans-serif; font-size:88px; font-weight:400; line-height:1; text-shadow:0 5px 0 #0A161C">Dig. Defend. Raid.</h2>
+          <p style="font-size:34px; line-height:1.3; color:#DDE6E3">Real-time multiplayer: up to 4 rabbits on the same island, and first to dig takes the carrot.</p>
+        </div>
+        <div style="display:flex; gap:32px">
+          <div style="width:533px; display:flex; flex-direction:column; border-radius:28px; overflow:hidden; border:4px solid #F2C14E; background:#0A161C">
+            <img src="/pitch/img/dig.webp" alt="A rabbit digging on the island, numbers on opened tiles" style="width:525px; height:440px; object-fit:cover">
+            <div style="display:flex; flex-direction:column; gap:8px; padding:24px 36px 32px">
+              <h3 style="font-family:'Lilita One', Arial, sans-serif; font-size:64px; font-weight:400; line-height:1; color:#F2C14E; text-shadow:0 4px 0 #050B0E">DIG</h3>
+              <p style="font-size:30px; line-height:1.3; color:#F7F0E1">Read the numbers, dodge the bombs, beat rivals to the carrots.</p>
+            </div>
+          </div>
+          <div style="width:533px; display:flex; flex-direction:column; border-radius:28px; overflow:hidden; border:4px solid #F2C14E; background:#0A161C">
+            <img src="/pitch/img/defend.webp" alt="The burrow in defend mode: bombs buried on the tiles around the house" style="width:525px; height:440px; object-fit:cover">
+            <div style="display:flex; flex-direction:column; gap:8px; padding:24px 36px 32px">
+              <h3 style="font-family:'Lilita One', Arial, sans-serif; font-size:64px; font-weight:400; line-height:1; color:#F2C14E; text-shadow:0 4px 0 #050B0E">DEFEND</h3>
+              <p style="font-size:30px; line-height:1.3; color:#F7F0E1">Bury bombs and fences: your burrow is a minefield you design.</p>
+            </div>
+          </div>
+          <div style="width:533px; display:flex; flex-direction:column; border-radius:28px; overflow:hidden; border:4px solid #F2C14E; background:#0A161C">
+            <img src="/pitch/img/raid.webp" alt="A raider walks a rival burrow through the fog toward the red carrot field" style="width:525px; height:440px; object-fit:cover">
+            <div style="display:flex; flex-direction:column; gap:8px; padding:24px 36px 32px">
+              <h3 style="font-family:'Lilita One', Arial, sans-serif; font-size:64px; font-weight:400; line-height:1; color:#F2C14E; text-shadow:0 4px 0 #050B0E">RAID</h3>
+              <p style="font-size:30px; line-height:1.3; color:#F7F0E1">Cross a rival's burrow: a minefield they designed.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+      
+      <section class="slide" id="pvp" data-transition="fade" style="display:flex; flex-direction:column; gap:32px; padding:96px 128px 128px; background:#10222b">
+        <img src="/pitch/img/dig.webp" alt="" style="position:absolute; top:0; left:0; width:1920px; height:1080px; filter:blur(10px) brightness(0.3)">
+        <div style="display:flex; flex-direction:column; gap:12px">
+          <h2 style="font-family:'Lilita One', Arial, sans-serif; font-size:88px; font-weight:400; line-height:1; color:#f7f0e1; text-shadow:0 5px 0 #0a161c">The revenge loop</h2>
+          <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:32px; line-height:1.4; color:#dde6e3">Your burrow is a minefield you design. Theirs too. Lose loot and a shield goes up.</p>
+        </div>
+        <div style="display:flex; flex-direction:row; gap:32px">
+          <div style="width:533px; display:flex; flex-direction:column; background:#0a161c; border:4px solid #f2c14e; border-radius:28px; overflow:hidden">
+            <img src="/pitch/img/lightning.webp" alt="Lightning strikes a rival rabbit" style="width:525px; height:440px">
+            <div style="display:flex; flex-direction:column; gap:8px; padding:24px 36px 32px">
+              <h3 style="font-family:'Lilita One', Arial, sans-serif; font-size:64px; font-weight:400; line-height:1; color:#f2c14e; text-shadow:0 4px 0 #050b0e">LIGHTNING</h3>
+              <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:30px; line-height:1.3; color:#f7f0e1">Shock every rival in a 3×3.</p>
+            </div>
+          </div>
+          <div style="width:533px; display:flex; flex-direction:column; background:#0a161c; border:4px solid #f2c14e; border-radius:28px; overflow:hidden">
+            <img src="/pitch/img/bloop.webp" alt="Ink splashes cover a rival's screen" style="width:525px; height:440px">
+            <div style="display:flex; flex-direction:column; gap:8px; padding:24px 36px 32px">
+              <h3 style="font-family:'Lilita One', Arial, sans-serif; font-size:64px; font-weight:400; line-height:1; color:#f2c14e; text-shadow:0 4px 0 #050b0e">BLOOP</h3>
+              <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:30px; line-height:1.3; color:#f7f0e1">Ink them blind for 6 seconds.</p>
+            </div>
+          </div>
+          <div style="width:533px; display:flex; flex-direction:column; background:#0a161c; border:4px solid #f2c14e; border-radius:28px; overflow:hidden">
+            <img src="/pitch/img/push.webp" alt="Rabbits on the edge of the island next to the sea" style="width:525px; height:440px">
+            <div style="display:flex; flex-direction:column; gap:8px; padding:24px 36px 32px">
+              <h3 style="font-family:'Lilita One', Arial, sans-serif; font-size:64px; font-weight:400; line-height:1; color:#f2c14e; text-shadow:0 4px 0 #050b0e">PUSH</h3>
+              <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:30px; line-height:1.3; color:#f7f0e1">Shove them into the sea.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+      
+      <section class="slide" id="market" data-transition="fade" style="background:#10222B; color:#F7F0E1; font-family:'Nunito Sans', Arial, sans-serif; padding:96px 128px 160px; display:flex; flex-direction:column; justify-content:space-between">
+        <img src="/pitch/img/title-art.webp" alt="" style="position:absolute; left:0; top:0; width:1920px; height:1080px; object-fit:cover; filter:blur(6px) brightness(0.3)">
+        <p style="font-family:'Lilita One', Arial, sans-serif; font-size:44px; color:#F29A4A; text-shadow:0 3px 0 #0A161C">Minesweeper × Clash of Clans</p>
+        <div style="display:flex; align-items:end; gap:56px">
+          <p style="font-family:'Lilita One', Arial, sans-serif; font-size:300px; line-height:0.9; color:#F2C14E; text-shadow:0 10px 0 #0A161C, 0 16px 40px rgba(0,0,0,0.6)">$10B</p>
+          <p style="font-family:'Lilita One', Arial, sans-serif; font-size:52px; line-height:1.1; width:640px; text-shadow:0 4px 0 #0A161C">lifetime revenue for Clash of Clans. The base-and-raid loop.</p>
+        </div>
+        <div style="display:flex; gap:32px">
+          <div style="flex:1; display:flex; flex-direction:column; gap:4px; background:rgba(10,22,28,0.75); border:3px solid rgba(242,193,78,0.5); border-radius:24px; padding:32px 40px">
+            <p style="font-family:'Lilita One', Arial, sans-serif; font-size:72px; line-height:1; color:#F2C14E">$240M</p>
+            <p style="font-size:28px; line-height:1.3; color:#DDE6E3">still made in 2025, 13 years in</p>
+          </div>
+          <div style="flex:1; display:flex; flex-direction:column; gap:4px; background:rgba(10,22,28,0.75); border:3px solid rgba(242,193,78,0.5); border-radius:24px; padding:32px 40px">
+            <p style="font-family:'Lilita One', Arial, sans-serif; font-size:72px; line-height:1; color:#F2C14E">$3B</p>
+            <p style="font-size:28px; line-height:1.3; color:#DDE6E3">Supercell revenue, 2025</p>
+          </div>
+          <div style="flex:1; display:flex; flex-direction:column; gap:4px; background:rgba(10,22,28,0.75); border:3px solid rgba(242,193,78,0.5); border-radius:24px; padding:32px 40px">
+            <p style="font-family:'Lilita One', Arial, sans-serif; font-size:72px; line-height:1; color:#F2C14E">290M</p>
+            <p style="font-size:28px; line-height:1.3; color:#DDE6E3">monthly Supercell players</p>
+          </div>
+        </div>
+        <p style="position:absolute; left:128px; bottom:64px; width:1664px; font-size:24px; color:#9FB2AF">Sources: Supercell via Business of Apps; GamesBeat, Game World Observer (Feb 2026); Statista / AppMagic 2025.</p>
+      </section>
+      
+      <section class="slide" id="model" data-transition="fade" style="background:#10222b">
+        <img src="/pitch/img/economy-bg.webp" alt="" style="position:absolute; top:0; left:0; width:1920px; height:1080px; filter:blur(10px) brightness(0.3)">
+        <h2 style="position:absolute; top:70px; left:128px; width:1664px; font-family:'Lilita One', Arial, sans-serif; font-size:160px; font-weight:400; line-height:1; text-align:center; color:#f2c14e; text-shadow:0 8px 0 #0a161c, 0 16px 40px #00000099">ECONOMY</h2>
+        <p style="position:absolute; top:250px; left:328px; width:1264px; font-family:'Nunito Sans', Arial, sans-serif; font-size:32px; line-height:1.3; text-align:center; color:#dde6e3">Earn everything by playing, or skip the grind for a few cents. Money buys time, never power.</p>
+        <svg aria-hidden="true" style="position:absolute; left:0; top:0; width:1920px; height:1080px; overflow:visible; pointer-events:none"><line x1="300" y1="430" x2="862" y2="345" stroke="#f2c14e" stroke-width="4" stroke-dasharray="14 10" stroke-linecap="round"/></svg>
+        <svg aria-hidden="true" style="position:absolute; left:0; top:0; width:1920px; height:1080px; overflow:visible; pointer-events:none"><line x1="960" y1="430" x2="958" y2="358" stroke="#e8643a" stroke-width="4" stroke-dasharray="14 10" stroke-linecap="round"/></svg>
+        <svg aria-hidden="true" style="position:absolute; left:0; top:0; width:1920px; height:1080px; overflow:visible; pointer-events:none"><line x1="1605" y1="430" x2="1070" y2="344" stroke="#6fc3e8" stroke-width="4" stroke-dasharray="14 10" stroke-linecap="round"/></svg>
+        <p style="position:absolute; top:440px; left:50px; width:500px; font-family:'Lilita One', Arial, sans-serif; font-size:44px; text-align:center; color:#f2c14e; text-shadow:0 4px 0 #0a161c">PROGRESS</p>
+        <p style="position:absolute; top:440px; left:560px; width:800px; font-family:'Lilita One', Arial, sans-serif; font-size:44px; text-align:center; color:#e8643a; text-shadow:0 4px 0 #0a161c">ATTACKS · REVENGE LOOP</p>
+        <p style="position:absolute; top:440px; left:1355px; width:500px; font-family:'Lilita One', Arial, sans-serif; font-size:44px; text-align:center; color:#6fc3e8; text-shadow:0 4px 0 #0a161c">BRAND</p>
+        <div style="position:absolute; top:600px; left:165px; width:270px; height:400px; display:flex; flex-direction:column; background:#0a161c; border:4px solid #f2c14e; border-radius:24px; box-shadow:0 16px 40px #00000099; transform:rotate(-4deg); overflow:hidden">
+          <img src="/pitch/img/dig.webp" alt="The energy ring during a run" style="width:262px; height:220px">
+          <div style="display:flex; flex-direction:column; gap:4px; padding:16px 22px">
+            <h3 style="font-family:'Lilita One', Arial, sans-serif; font-size:36px; font-weight:400; line-height:1; color:#f7f0e1">Energy</h3>
+            <p style="font-family:'Lilita One', Arial, sans-serif; font-size:28px; color:#f2c14e">700 carrots</p>
+            <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:24px; color:#dde6e3">or $0.99 · one run</p>
+          </div>
+        </div>
+        <div style="position:absolute; top:610px; left:625px; width:270px; height:400px; display:flex; flex-direction:column; background:#0a161c; border:4px solid #e8643a; border-radius:24px; box-shadow:0 16px 40px #00000099; transform:rotate(-10deg); overflow:hidden">
+          <img src="/pitch/img/bomb.webp" alt="A bomb going off under a rabbit" style="width:262px; height:220px">
+          <div style="display:flex; flex-direction:column; gap:4px; padding:16px 22px">
+            <h3 style="font-family:'Lilita One', Arial, sans-serif; font-size:36px; font-weight:400; line-height:1; color:#f7f0e1">Bomb</h3>
+            <p style="font-family:'Lilita One', Arial, sans-serif; font-size:28px; color:#f2c14e">300 carrots</p>
+            <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:24px; color:#dde6e3">or $0.40 · traps raiders</p>
+          </div>
+        </div>
+        <div style="position:absolute; top:585px; left:825px; width:270px; height:400px; display:flex; flex-direction:column; background:#0a161c; border:4px solid #e8643a; border-radius:24px; box-shadow:0 16px 40px #00000099; transform:rotate(0deg); overflow:hidden">
+          <img src="/pitch/img/lightning.webp" alt="Lightning striking a rival" style="width:262px; height:220px">
+          <div style="display:flex; flex-direction:column; gap:4px; padding:16px 22px">
+            <h3 style="font-family:'Lilita One', Arial, sans-serif; font-size:36px; font-weight:400; line-height:1; color:#f7f0e1">Lightning</h3>
+            <p style="font-family:'Lilita One', Arial, sans-serif; font-size:28px; color:#f2c14e">500 carrots</p>
+            <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:24px; color:#dde6e3">or $0.60</p>
+          </div>
+        </div>
+        <div style="position:absolute; top:610px; left:1025px; width:270px; height:400px; display:flex; flex-direction:column; background:#0a161c; border:4px solid #e8643a; border-radius:24px; box-shadow:0 16px 40px #00000099; transform:rotate(10deg); overflow:hidden">
+          <img src="/pitch/img/bloop.webp" alt="Ink covering a rival's screen" style="width:262px; height:220px">
+          <div style="display:flex; flex-direction:column; gap:4px; padding:16px 22px">
+            <h3 style="font-family:'Lilita One', Arial, sans-serif; font-size:36px; font-weight:400; line-height:1; color:#f7f0e1">Bloop</h3>
+            <p style="font-family:'Lilita One', Arial, sans-serif; font-size:28px; color:#f2c14e">100 carrots</p>
+            <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:24px; color:#dde6e3">or $0.10</p>
+          </div>
+        </div>
+        <div style="position:absolute; top:605px; left:1375px; width:270px; height:400px; display:flex; flex-direction:column; background:#0a161c; border:4px solid #6fc3e8; border-radius:24px; box-shadow:0 16px 40px #00000099; transform:rotate(-6deg); overflow:hidden">
+          <img src="/pitch/img/cosmetics-crop.webp" alt="The crowned rabbit knight" style="width:262px; height:220px">
+          <div style="display:flex; flex-direction:column; gap:4px; padding:16px 22px">
+            <h3 style="font-family:'Lilita One', Arial, sans-serif; font-size:36px; font-weight:400; line-height:1; color:#f7f0e1">Cosmetics</h3>
+            <p style="font-family:'Lilita One', Arial, sans-serif; font-size:28px; color:#f2c14e">SOON</p>
+            <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:24px; color:#dde6e3">skins, crowns, NFTs</p>
+          </div>
+        </div>
+        <div style="position:absolute; top:605px; left:1565px; width:270px; height:400px; display:flex; flex-direction:column; background:#0a161c; border:4px solid #6fc3e8; border-radius:24px; box-shadow:0 16px 40px #00000099; transform:rotate(6deg); overflow:hidden">
+          <img src="/pitch/img/merch-clay.webp" alt="Clay figure of the white rabbit holding a giant carrot" style="width:262px; height:220px">
+          <div style="display:flex; flex-direction:column; gap:4px; padding:16px 22px">
+            <h3 style="font-family:'Lilita One', Arial, sans-serif; font-size:36px; font-weight:400; line-height:1; color:#f7f0e1">Merch</h3>
+            <p style="font-family:'Lilita One', Arial, sans-serif; font-size:28px; color:#f2c14e">SOON</p>
+            <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:24px; color:#dde6e3">In colaboration with nomu</p>
+          </div>
+        </div>
+      </section>
+      
+      <section class="slide" id="gtm" data-transition="fade" style="display:grid; gap:64px; align-items:center; grid-template-columns:1fr 600px; padding:96px 128px 160px; background:#10222b">
+        <img src="/pitch/img/ep01-hero.webp" alt="" style="position:absolute; top:0; left:0; width:1920px; height:1080px; filter:blur(12px) brightness(0.3)">
+        <div style="display:flex; flex-direction:column; gap:36px">
+          <div style="display:flex; flex-direction:column; gap:12px">
+            <h2 style="font-family:'Lilita One', Arial, sans-serif; font-size:88px; font-weight:400; line-height:1; color:#f7f0e1; text-shadow:0 5px 0 #0a161c">Go-to-market: built to go viral</h2>
+            <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:32px; line-height:1.4; color:#dde6e3">Seeker first, then every store: no gambling means none is closed to us.</p>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:20px">
+            <div style="display:flex; flex-direction:row; gap:32px; align-items:center; padding:24px 40px; background:#0a161ccc; border:3px solid #f2c14e80; border-radius:28px">
+              <p style="width:250px; font-family:'Lilita One', Arial, sans-serif; font-size:72px; line-height:1; color:#f2c14e">10K+</p>
+              <div style="display:flex; flex-direction:column; gap:6px; flex:1">
+                <p style="font-family:'Lilita One', Arial, sans-serif; font-size:34px; color:#f29a4a">1 · SEEKER</p>
+                <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:28px; line-height:1.35; color:#dde6e3">Phones with a wallet built in, a store short on real games, and the domin8 community.</p>
+              </div>
+            </div>
+            <div style="display:flex; flex-direction:row; gap:32px; align-items:center; padding:24px 40px; background:#0a161ccc; border:3px solid #f2c14e80; border-radius:28px">
+              <p style="width:250px; font-family:'Lilita One', Arial, sans-serif; font-size:72px; line-height:1; color:#f2c14e">1 by 1</p>
+              <div style="display:flex; flex-direction:column; gap:6px; flex:1">
+                <p style="font-family:'Lilita One', Arial, sans-serif; font-size:34px; color:#f29a4a">2 · CREATORS</p>
+                <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:28px; line-height:1.35; color:#dde6e3">Small YouTubers first, and direct messages to players, one conversation at a time.</p>
+              </div>
+            </div>
+            <div style="display:flex; flex-direction:row; gap:32px; align-items:center; padding:24px 40px; background:#0a161ccc; border:3px solid #f2c14e80; border-radius:28px">
+              <p style="width:250px; font-family:'Lilita One', Arial, sans-serif; font-size:72px; line-height:1; color:#f2c14e">8 eps</p>
+              <div style="display:flex; flex-direction:column; gap:6px; flex:1">
+                <p style="font-family:'Lilita One', Arial, sans-serif; font-size:34px; color:#f29a4a">3 · THE MINI-SERIES</p>
+                <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:28px; line-height:1.35; color:#dde6e3">Wordless 25-second gags on X, Instagram and TikTok. The hero thinks, Degen jumps.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:24px; align-items:center">
+          <div style="display:flex; flex-direction:row; gap:32px">
+            <img src="/pitch/img/ep01-hero.webp" alt="Episode 1: the white rabbit hero pulls a giant carrot out of the ground" style="width:284px; height:600px; border:4px solid #f2c14e; border-radius:28px">
+            <img src="/pitch/img/ep01-degen.webp" alt="Episode 1: Degen, the brown rabbit, blown up by a bomb" style="width:284px; height:600px; border:4px solid #f2c14e; border-radius:28px">
+          </div>
+          <p style="padding:10px 32px; font-family:'Lilita One', Arial, sans-serif; font-size:30px; color:#10222b; background:#f2c14e; border-radius:40px">EPISODE 1 · OUT NOW</p>
+        </div>
+        <p style="position:absolute; bottom:64px; left:128px; width:1664px; font-family:'Nunito Sans', Arial, sans-serif; font-size:24px; color:#9fb2af">Seeker figures: Solana Mobile, via Solana Compass and The Block (2026).</p>
+      </section>
+      
+      <section class="slide" id="team" data-transition="fade" style="display:flex; flex-direction:column; gap:48px; padding:96px 128px 128px; background:#10222b">
+        <img src="/pitch/img/title-art.webp" alt="" style="position:absolute; top:0; left:0; width:1920px; height:1080px; filter:blur(10px) brightness(0.3)">
+        <h2 style="font-family:'Lilita One', Arial, sans-serif; font-size:88px; font-weight:400; line-height:1; color:#f7f0e1; text-shadow:0 5px 0 #0a161c">Two builders, one crown</h2>
+        <div style="display:flex; flex-direction:row; gap:32px">
+          <div style="display:flex; flex-direction:column; gap:20px; flex:1; padding:48px; background:#0a161ccc; border:3px solid #f2c14e80; border-radius:28px">
+            <div style="display:flex; flex-direction:row; gap:32px; align-items:center">
+              <img src="/pitch/img/peko.webp" alt="Peko's pixel-art avatar: a white rabbit in a suit and bow tie holding a gold trophy" style="width:180px; height:180px; border:4px solid #f2c14e; border-radius:24px">
+              <div style="display:flex; flex-direction:column; gap:6px">
+                <h3 style="font-family:'Lilita One', Arial, sans-serif; font-size:72px; font-weight:400; line-height:1; color:#f2c14e; text-shadow:0 4px 0 #050b0e">Peko</h3>
+                <p style="font-family:'Lilita One', Arial, sans-serif; font-size:32px; color:#f29a4a">founder &amp; lead</p>
+              </div>
+            </div>
+            <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:30px; line-height:1.35; color:#dde6e3">15+ years of 3D and VFX: Iron Man, Rolex, The Little Prince.</p>
+            <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:30px; line-height:1.35; color:#dde6e3">Suzanne Award, Blender Festival. Former animation professor.</p>
+            <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:30px; line-height:1.35; color:#dde6e3">Built domin8 for Solana Breakpoint 2025 hackathon.</p>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:20px; flex:1; padding:48px; background:#0a161ccc; border:3px solid #f2c14e80; border-radius:28px">
+            <div style="display:flex; flex-direction:row; gap:32px; align-items:center">
+              <img src="/pitch/img/paul.webp" alt="Paul's pixel-art avatar: an orange rabbit in a red polka-dot bandana and sunglasses" style="width:180px; height:180px; border:4px solid #f2c14e; border-radius:24px">
+              <div style="display:flex; flex-direction:column; gap:6px">
+                <h3 style="font-family:'Lilita One', Arial, sans-serif; font-size:72px; font-weight:400; line-height:1; color:#f2c14e; text-shadow:0 4px 0 #050b0e">Paul</h3>
+                <p style="font-family:'Lilita One', Arial, sans-serif; font-size:32px; color:#f29a4a">Co-founder &amp; UI/UX</p>
+              </div>
+            </div>
+            <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:30px; line-height:1.35; color:#dde6e3">UI/UX at Quantic Dream.</p>
+            <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:30px; line-height:1.35; color:#dde6e3">10+ years making games, since the Flash era.</p>
+            <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:30px; line-height:1.35; color:#dde6e3">Builds Rabbit Royale's game and UI in Godot.</p>
+          </div>
+        </div>
+      </section>
+      
+      <section class="slide" id="close" data-transition="fade" style="background:#10222b">
+        <img src="/pitch/img/title-art.webp" alt="" style="position:absolute; top:0; left:0; width:1920px; height:1080px; filter:brightness(0.45) saturate(0.9)">
+        <h1 style="position:absolute; top:85.07px; right:211.44px; width:1232px; font-family:'Lilita One', Arial, sans-serif; font-size:128px; font-weight:400; line-height:1; color:#f7f0e1; text-shadow:0 8px 0 #0a161c">Playable today. Built in 16 days.</h1>
+        <div style="position:absolute; top:380px; left:96.58px; width:380px; display:flex; flex-direction:column; gap:10px; align-items:center; padding:28px; background:#0a161cd9; border:4px solid #f2c14e; border-radius:28px">
+          <img src="/pitch/img/qr-play.png" alt="QR code to rabbit.rip" style="width:300px; height:300px; border-radius:12px; object-fit:contain">
+          <p style="font-family:'Lilita One', Arial, sans-serif; font-size:44px; color:#f2c14e">rabbit.rip</p>
+          <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:26px; color:#dde6e3">Play now</p>
+        </div>
+        <div style="position:absolute; top:380px; left:1459.19px; width:380px; display:flex; flex-direction:column; gap:10px; align-items:center; padding:28px; background:#0a161cd9; border:4px solid #f2c14e; border-radius:28px">
+          <img src="/pitch/img/qr-x.png" alt="QR code to x.com/rabbitroyaleX" style="width:300px; height:300px; border-radius:12px; object-fit:contain">
+          <p style="font-family:'Lilita One', Arial, sans-serif; font-size:44px; color:#f2c14e">@RabbitRoyaleX</p>
+          <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:26px; color:#dde6e3">Follow on X</p>
+        </div>
+        <p style="position:absolute; bottom:54.42px; left:238.39px; width:1664px; font-family:'Lilita One', Arial, sans-serif; font-size:36px; text-align:center; color:#f7f0e1; text-shadow:0 3px 0 #0a161c">Buiding an IP with Indie Games on Solana</p>
+      </section>
+    </main>
+
+    <nav class="bar" aria-label="Slides">
+      <button type="button" data-go="-1" aria-label="Previous slide">&#9664;</button>
+      <span class="count" aria-live="off">1 / 9</span>
+      <button type="button" data-go="1" aria-label="Next slide">&#9654;</button>
+      <button type="button" data-full aria-label="Full screen">&#9974;</button>
+      <a href="/pitch/rabbit-royale-pitch.pdf" download aria-label="Download as PDF">PDF</a>
+      <a class="play" href="/play/">Play</a>
+    </nav>
+
+    <script>
+      (() => {
+        const stage = document.querySelector('.stage');
+        const slides = [...document.querySelectorAll('.slide')];
+        const count = document.querySelector('.count');
+        const progress = document.querySelector('.progress');
+        let i = 0;
+
+        const fit = () => {
+          const s = Math.min(innerWidth / 1920, innerHeight / 1080);
+          stage.style.transform = `scale(${s}) translate(-50%, -50%)`;
+        };
+
+        const show = (n, push = true) => {
+          i = Math.max(0, Math.min(slides.length - 1, n));
+          slides.forEach((el, k) => {
+            el.classList.toggle('on', k === i);
+            el.setAttribute('aria-hidden', k === i ? 'false' : 'true');
+          });
+          count.textContent = `${i + 1} / ${slides.length}`;
+          progress.style.width = `${((i + 1) / slides.length) * 100}%`;
+          if (push) history.replaceState(null, '', `#${i + 1}`);
+        };
+
+        const go = (d) => show(i + d);
+        const full = () => {
+          if (document.fullscreenElement) document.exitFullscreen?.();
+          else document.documentElement.requestFullscreen?.().catch(() => {});
+        };
+
+        addEventListener('resize', fit);
+        addEventListener('hashchange', () => show((parseInt(location.hash.slice(1), 10) || 1) - 1, false));
+        addEventListener('keydown', (e) => {
+          if (e.metaKey || e.ctrlKey || e.altKey) return;
+          const k = e.key;
+          if (['ArrowRight', 'ArrowDown', 'PageDown', ' ', 'Enter'].includes(k)) go(1);
+          else if (['ArrowLeft', 'ArrowUp', 'PageUp', 'Backspace'].includes(k)) go(-1);
+          else if (k === 'Home') show(0);
+          else if (k === 'End') show(slides.length - 1);
+          else if (k === 'f' || k === 'F') full();
+          else return;
+          e.preventDefault();
+        });
+
+        // Clic sur la slide : droite = suivante, gauche = precedente.
+        stage.addEventListener('click', (e) => {
+          if (e.target.closest('a')) return;
+          go(e.clientX > innerWidth / 3 ? 1 : -1);
+        });
+
+        let x0 = null;
+        addEventListener('touchstart', (e) => (x0 = e.touches[0].clientX), { passive: true });
+        addEventListener('touchend', (e) => {
+          if (x0 == null) return;
+          const dx = e.changedTouches[0].clientX - x0;
+          if (Math.abs(dx) > 40) go(dx < 0 ? 1 : -1);
+          x0 = null;
+        });
+
+        document.querySelectorAll('[data-go]').forEach((b) =>
+          b.addEventListener('click', () => go(+b.dataset.go)));
+        document.querySelector('[data-full]').addEventListener('click', full);
+
+        let t;
+        const wake = () => {
+          document.body.classList.remove('idle');
+          clearTimeout(t);
+          t = setTimeout(() => document.body.classList.add('idle'), 2500);
+        };
+        addEventListener('pointermove', wake);
+        addEventListener('keydown', wake);
+        wake();
+
+        fit();
+        show((parseInt(location.hash.slice(1), 10) || 1) - 1, false);
+      })();
+    </script>
+  </body>
+</html>

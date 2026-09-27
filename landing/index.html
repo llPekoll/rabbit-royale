@@ -1,0 +1,480 @@
+<!doctype html>
+<!--
+  LA PAGE D'ACCUEIL DU SITE (2026-09-27). Le jeu vit sous /play/ : l'export
+  Godot y est ecrit par le Dockerfile, et nginx sert cette page a la racine.
+
+  Aucun build : du HTML, un peu de CSS et de JS a la main. L'art vient du jeu
+  (les six calques de l'ecran titre, le logo, la planche doree, les ilots) et
+  les extraits de gameplay sont ceux du teaser ep01 (episodes/ep01-*/gameplay),
+  reencodes en 720 px, 7 s, sans son. Les calques sont les PNG de
+  godot/assets/ui/home-parallax passes en webp : a refaire s'ils changent.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0366be" />
+    <title>Rabbit Royale</title>
+    <meta name="description" content="Competitive minesweeper with rabbits. Dig, grow your burrow, raid the neighbours. Free to play in your browser." />
+    <link rel="icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.json" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Rabbit Royale" />
+    <meta property="og:description" content="Competitive minesweeper with rabbits. Dig, grow your burrow, raid the neighbours." />
+    <meta property="og:image" content="/assets/og.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <link rel="preload" as="image" href="/assets/l1.webp" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Lilita+One&display=swap" rel="stylesheet" />
+
+    <style>
+      @font-face {
+        font-family: 'D8 Pixel';
+        src: url('/assets/d8-pixel.woff2') format('woff2');
+        font-display: swap;
+      }
+
+      :root {
+        --ink: #352011;       /* l'encre des planches du jeu (GOLD_INK) */
+        --wood: #6b3d1c;
+        --parchment: #f4e4bf;
+        --parchment-deep: #e8d19c;
+        --sea: #0366be;       /* releve dans 01-sky-sea.png */
+        --sea-deep: #014a9f;
+        --cream: #fff0cb;     /* WOOD_INK */
+        --grass: #7cc242;
+        --display: 'Lilita One', 'Arial Rounded MT Bold', system-ui, sans-serif;
+        --pixel: 'D8 Pixel', ui-monospace, monospace;
+      }
+
+      *, *::before, *::after { box-sizing: border-box; }
+      html { -webkit-text-size-adjust: 100%; }
+      body {
+        margin: 0;
+        background: var(--parchment);
+        color: var(--ink);
+        font-family: var(--display);
+        overflow-x: hidden;
+      }
+      img { display: block; }
+      .px { image-rendering: pixelated; }
+
+      /* ─── HERO : l'ecran titre du jeu, en six calques ─── */
+
+      .hero {
+        position: relative;
+        height: 100vh;
+        height: 100svh;
+        min-height: 560px;
+        overflow: hidden;
+        background: var(--sea);
+        isolation: isolate;
+      }
+      .layers { position: absolute; inset: -3%; }
+      .layers img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        /* Le lapin est a 40 % de l'image : en portrait, c'est lui qu'on garde. */
+        object-position: 40% 50%;
+        will-change: transform;
+      }
+      /* Le soleil de l'image, en haut a droite, qui respire. */
+      .glare {
+        position: absolute;
+        right: -10vmax;
+        top: -12vmax;
+        width: 55vmax;
+        height: 55vmax;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(255, 244, 200, 0.55), rgba(255, 220, 140, 0.18) 38%, transparent 68%);
+        mix-blend-mode: screen;
+        pointer-events: none;
+        animation: breathe 7s ease-in-out infinite;
+      }
+      @keyframes breathe { 50% { opacity: 0.6; transform: scale(0.94); } }
+
+      /* Le haut s'assombrit juste assez pour le logo, sans eteindre le ciel. */
+      .hero::after {
+        content: '';
+        position: absolute;
+        inset: 0 0 auto;
+        height: 58%;
+        background: linear-gradient(rgba(1, 36, 82, 0.55), transparent);
+        pointer-events: none;
+        z-index: 1;
+      }
+
+      .title {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 22px;
+        padding: max(7vh, env(safe-area-inset-top) + 28px) 16px 0;
+        text-align: center;
+      }
+      .logo {
+        width: 100%;
+        height: auto;
+        filter: drop-shadow(0 6px 0 rgba(1, 30, 70, 0.45));
+      }
+      /* L'accroche s'ecrit DANS le ruban vide du logo : x 24..340, y 63..76
+         sur 365 x 78. Tout est en cqw, donc elle suit le logo a toute taille. */
+      .brand {
+        position: relative;
+        margin: 0;
+        container-type: inline-size;
+        width: min(92vw, 730px);
+      }
+      .tagline {
+        position: absolute;
+        left: 6.6%;
+        right: 6.8%;
+        top: 80.8%;
+        height: 16.6%;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        font-family: var(--pixel);
+        font-weight: 400;
+        font-size: 2.35cqw;
+        line-height: 1;
+        letter-spacing: 0.02em;
+        color: var(--ink);
+        white-space: nowrap;
+      }
+
+      /* ─── LE BOUTON : la planche doree du jeu, en 3-slice ─── */
+
+      .play {
+        --h: 76px;
+        --cap: 63px; /* 30 px de bout sur 36 de haut, a l'echelle de --h */
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 300px;
+        height: var(--h);
+        padding: 0 8px 4px;
+        border-style: solid;
+        border-width: 0 var(--cap);
+        border-image: url('/assets/gold.webp') 0 30 fill / 0 var(--cap) stretch;
+        image-rendering: pixelated;
+        font-family: var(--pixel);
+        font-size: 34px;
+        letter-spacing: 0.04em;
+        color: var(--ink);
+        text-decoration: none;
+        text-shadow: 0 2px 0 rgba(255, 240, 180, 0.7);
+        filter: drop-shadow(0 6px 0 rgba(53, 32, 17, 0.55));
+        transition: transform 0.12s steps(2), filter 0.12s;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .play:hover { transform: translateY(-3px); filter: drop-shadow(0 9px 0 rgba(53, 32, 17, 0.55)) brightness(1.08); }
+      .play:active { transform: translateY(3px); filter: drop-shadow(0 2px 0 rgba(53, 32, 17, 0.55)); }
+      .play:focus-visible { outline: 4px solid #fff; outline-offset: 6px; border-radius: 6px; }
+
+      .note {
+        margin: 0;
+        font-family: var(--pixel);
+        font-size: 15px;
+        color: var(--cream);
+        text-shadow: 0 2px 0 var(--ink);
+      }
+
+      .scroll {
+        position: absolute;
+        z-index: 2;
+        left: 50%;
+        bottom: max(18px, env(safe-area-inset-bottom));
+        translate: -50% 0;
+        width: 44px;
+        height: 44px;
+        display: grid;
+        place-items: center;
+        color: var(--cream);
+        filter: drop-shadow(0 2px 0 var(--ink));
+      }
+      .scroll svg { animation: nudge 1.8s ease-in-out infinite; }
+      @keyframes nudge { 50% { transform: translateY(6px); } }
+
+      /* ─── LES TROIS BOUCLES DU JEU ─── */
+
+      .loops {
+        position: relative;
+        padding: 96px 16px 72px;
+        background:
+          radial-gradient(ellipse at 50% 0, rgba(255, 255, 255, 0.35), transparent 60%),
+          var(--parchment);
+        border-top: 8px solid var(--ink);
+      }
+      .loops > h2 {
+        margin: 0 auto 72px;
+        max-width: 18ch;
+        text-align: center;
+        font-size: clamp(34px, 5.4vw, 60px);
+        line-height: 1;
+        font-weight: 400;
+      }
+      .loop {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        align-items: center;
+        gap: clamp(28px, 6vw, 80px);
+        max-width: 1040px;
+        margin: 0 auto 96px;
+      }
+      .loop:last-child { margin-bottom: 0; }
+      .loop:nth-child(odd of .loop) .clip { order: 2; }
+
+      .clip {
+        position: relative;
+        aspect-ratio: 1;
+        border: 6px solid var(--ink);
+        border-radius: 4px;
+        background: #2f5b2a;
+        box-shadow: 10px 10px 0 var(--parchment-deep);
+        overflow: hidden;
+      }
+      .clip video { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .copy .spot {
+        height: 88px;
+        width: auto;
+        margin-bottom: 18px;
+      }
+
+      .copy h3 {
+        margin: 0 0 16px;
+        font-size: clamp(30px, 4vw, 44px);
+        line-height: 1;
+        font-weight: 400;
+      }
+      .copy p {
+        margin: 0;
+        max-width: 38ch;
+        font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+        font-size: 19px;
+        line-height: 1.55;
+        color: #4d3320;
+      }
+
+      /* ─── LA MER, ET UN DERNIER BOUTON ─── */
+
+      .sail {
+        position: relative;
+        overflow: hidden;
+        padding: 96px 16px calc(80px + env(safe-area-inset-bottom));
+        text-align: center;
+        color: #fff;
+        background:
+          repeating-linear-gradient(0deg, transparent 0 22px, rgba(255, 255, 255, 0.05) 22px 26px),
+          linear-gradient(var(--sea), var(--sea-deep));
+        border-top: 8px solid var(--ink);
+      }
+      .sail h2 {
+        margin: 0 auto 12px;
+        font-size: clamp(34px, 5.4vw, 60px);
+        line-height: 1;
+        font-weight: 400;
+        text-shadow: 0 4px 0 rgba(1, 30, 70, 0.6);
+      }
+      .sail p {
+        margin: 0 auto 36px;
+        max-width: 40ch;
+        font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+        font-size: 18px;
+        line-height: 1.5;
+        color: #d8ecff;
+      }
+      .boat {
+        width: 120px;
+        height: auto;
+        margin: 0 auto 28px;
+        animation: bob 3.2s ease-in-out infinite;
+      }
+      @keyframes bob { 50% { transform: translateY(-6px) rotate(-2deg); } }
+
+      footer {
+        padding: 20px 16px calc(20px + env(safe-area-inset-bottom));
+        background: var(--ink);
+        color: var(--parchment-deep);
+        font-family: var(--pixel);
+        font-size: 13px;
+        text-align: center;
+      }
+
+      @media (max-width: 720px) {
+        .loop { grid-template-columns: 1fr; gap: 28px; margin-bottom: 72px; }
+        .loop:nth-child(odd of .loop) .clip { order: 0; }
+        .loops { padding-top: 72px; }
+        .loops > h2 { margin-bottom: 56px; }
+        .play { --h: 64px; --cap: 53px; min-width: 250px; font-size: 28px; }
+        .copy p { font-size: 17px; }
+      }
+      @media (max-height: 620px) and (orientation: landscape) {
+        .title { padding-top: 16px; gap: 10px; }
+        .logo { width: min(60vw, 520px); }
+        .scroll { display: none; }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .glare, .scroll svg, .boat { animation: none; }
+        .play { transition: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="hero">
+      <div class="layers" aria-hidden="true">
+        <img src="/assets/l1.webp" alt="" width="1672" height="940" data-depth="0.08" />
+        <img src="/assets/l2.webp" alt="" width="1672" height="940" data-depth="0.18" />
+        <img src="/assets/l3.webp" alt="" width="1672" height="940" data-depth="0.38" />
+        <img src="/assets/l4.webp" alt="" width="1672" height="940" data-depth="0.65" />
+        <img src="/assets/l5.webp" alt="" width="1672" height="940" data-depth="0.69" />
+        <div class="glare"></div>
+        <img src="/assets/l6.webp" alt="" width="1672" height="940" data-depth="1" />
+      </div>
+
+      <div class="title">
+        <h1 class="brand">
+          <img class="logo px" src="/assets/logo.png" alt="Rabbit Royale" width="365" height="78" />
+          <span class="tagline">Competitive minesweeper with rabbits</span>
+        </h1>
+        <a class="play" href="/play/" data-play>PLAY</a>
+        <p class="note">Free. Plays in your browser, phone or desktop.</p>
+      </div>
+
+      <a class="scroll" href="#loops" aria-label="See how it plays">
+        <svg width="28" height="20" viewBox="0 0 7 5" shape-rendering="crispEdges" aria-hidden="true">
+          <path fill="currentColor" d="M0 0h1v1H0zM6 0h1v1H6zM1 1h1v1H1zM5 1h1v1H5zM2 2h1v1H2zM4 2h1v1H4zM3 3h1v1H3z" />
+        </svg>
+      </a>
+    </header>
+
+    <main>
+      <section class="loops" id="loops">
+        <h2>Dig, grow your burrow, raid the neighbours.</h2>
+
+        <article class="loop">
+          <div class="clip">
+            <video src="/assets/dig.mp4" poster="/assets/dig.webp" muted loop playsinline preload="none" aria-label="A rabbit digging tiles on the island"></video>
+          </div>
+          <div class="copy">
+            <img class="spot px" src="/assets/dig.png" alt="" />
+            <h3>Read the numbers</h3>
+            <p>Every tile you open tells you how many bombs are next to it. Work out where it's safe, dig your way to the chests, and grab them before the other rabbits on the island do.</p>
+          </div>
+        </article>
+
+        <article class="loop">
+          <div class="clip">
+            <video src="/assets/bomb.mp4" poster="/assets/bomb.webp" muted loop playsinline preload="none" aria-label="A rabbit stepping on a bomb and flying back"></video>
+          </div>
+          <div class="copy">
+            <img class="spot px" src="/assets/defend.png" alt="" />
+            <h3>Guess wrong, fly home</h3>
+            <p>Step on a bomb and you're blasted back to where you came from. Nobody dies, but everyone saw it. Back home, fence your burrow and plant bombs of your own.</p>
+          </div>
+        </article>
+
+        <article class="loop">
+          <div class="clip">
+            <video src="/assets/lightning.mp4" poster="/assets/lightning.webp" muted loop playsinline preload="none" aria-label="Lightning striking a rival rabbit"></video>
+          </div>
+          <div class="copy">
+            <img class="spot px" src="/assets/raid.png" alt="" />
+            <h3>Pay the neighbours a visit</h3>
+            <p>From level 3, sail to other players' burrows. Zap their rabbit, push it into the sea, and leave with the carrots they didn't guard.</p>
+          </div>
+        </article>
+      </section>
+
+      <section class="sail">
+        <img class="boat px" src="/assets/raid.png" alt="" />
+        <h2>Your island is waiting.</h2>
+        <p>No download, no install. Tap play and you're on the island.</p>
+        <a class="play" href="/play/" data-play>PLAY</a>
+      </section>
+    </main>
+
+    <footer>&copy; 2026 Rabbit Royale</footer>
+
+    <script>
+      (() => {
+        const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        // LE PARALLAXE DE L'ECRAN TITRE : memes facteurs que home_background.gd
+        // (README des calques), une derive lente quand rien ne bouge, et la
+        // souris ou l'inclinaison du telephone par-dessus.
+        const layers = [...document.querySelectorAll('.layers [data-depth]')];
+        const hero = document.querySelector('.hero');
+        let tx = 0, ty = 0, x = 0, y = 0, visible = true;
+        if (!still) {
+          addEventListener('pointermove', (e) => {
+            if (e.pointerType !== 'mouse') return;
+            tx = (e.clientX / innerWidth - 0.5) * 2;
+            ty = (e.clientY / innerHeight - 0.5) * 2;
+          }, { passive: true });
+          addEventListener('deviceorientation', (e) => {
+            if (e.gamma == null) return;
+            tx = Math.max(-1, Math.min(1, e.gamma / 25));
+            ty = Math.max(-1, Math.min(1, (e.beta - 45) / 25));
+          }, { passive: true });
+          new IntersectionObserver(([en]) => (visible = en.isIntersecting)).observe(hero);
+          const frame = (t) => {
+            if (visible) {
+              const s = t / 1000;
+              x += (tx + Math.sin(s * 0.35) * 0.5 - x) * 0.05;
+              y += (ty + Math.sin(s * 0.23) * 0.35 - y) * 0.05;
+              // Le premier plan bouge de ±1,2 % de la largeur : l'agrandissement
+              // de 3 % de .layers suffit a cacher les bords.
+              for (const l of layers) {
+                const d = +l.dataset.depth;
+                l.style.transform = `translate3d(${(-x * d * 1.2).toFixed(3)}%, ${(-y * d * 0.9).toFixed(3)}%, 0)`;
+              }
+            }
+            requestAnimationFrame(frame);
+          };
+          requestAnimationFrame(frame);
+        }
+
+        // Les extraits ne jouent qu'a l'ecran : trois videos qui tournent hors
+        // champ, c'est de la batterie pour rien sur un telephone.
+        const videos = document.querySelectorAll('.clip video');
+        const io = new IntersectionObserver((entries) => {
+          for (const en of entries) {
+            if (en.isIntersecting && !still) en.target.play().catch(() => {});
+            else en.target.pause();
+          }
+        }, { threshold: 0.35 });
+        videos.forEach((v) => io.observe(v));
+
+        // LE JEU PESE ~12 Mo. Des qu'on vise PLAY, on commence a le telecharger :
+        // nginx le sert en no-cache + ETag, la page du jeu le revalide en 304.
+        let warmed = false;
+        const warm = () => {
+          if (warmed) return;
+          warmed = true;
+          for (const f of ['index.js', 'index.wasm', 'index.pck']) {
+            const l = document.createElement('link');
+            l.rel = 'prefetch';
+            l.href = '/play/' + f;
+            document.head.append(l);
+          }
+        };
+        document.querySelectorAll('[data-play]').forEach((a) => {
+          a.addEventListener('pointerenter', warm);
+          a.addEventListener('focus', warm);
+          a.addEventListener('touchstart', warm, { passive: true });
+        });
+      })();
+    </script>
+  </body>
+</html>

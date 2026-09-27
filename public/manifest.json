@@ -2,7 +2,7 @@
   "name": "Rabbit Royale: The Cursed Crown",
   "short_name": "Rabbit Royale",
   "description": "Competitive minesweeper. Dig, hoard, raid, wear the crown.",
-  "start_url": "/",
+  "start_url": "/play/",
   "scope": "/",
   "display": "fullscreen",
   "display_override": ["fullscreen", "standalone", "minimal-ui"],

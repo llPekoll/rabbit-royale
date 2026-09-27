@@ -19,7 +19,7 @@ server {
   # un cache long garderait l'ancien jeu apres un deploiement. On laisse le
   # navigateur garder les octets mais il redemande a chaque chargement ; un
   # 304 sur l'ETag ne coute qu'un aller-retour.
-  location ~ ^/index\.(wasm|pck|js|audio\.worklet\.js|audio\.position\.worklet\.js)$ {
+  location ~ ^/play/index\.(wasm|pck|js|audio\.worklet\.js|audio\.position\.worklet\.js)$ {
     types {
       application/wasm wasm;
       application/octet-stream pck;
@@ -93,10 +93,31 @@ server {
     proxy_send_timeout 1h;
   }
 
-  # Le HTML, jamais en cache : c'est lui qui nomme les bundles hashes.
+  # Le HTML, jamais en cache : l'accueil a la racine, le jeu sous /play/.
   location = /index.html {
     add_header Cache-Control "no-cache";
   }
+  location = /play/index.html {
+    add_header Cache-Control "no-cache";
+  }
+
+  # /play et /pitch SANS barre finale doivent rediriger : servie telle quelle,
+  # la page du jeu resoudrait `index.js` en /index.js (la racine) et resterait
+  # noire. /pitch (le deck du demo day, landing/pitch/) suit la meme regle.
+  #
+  # `absolute_redirect off` : nginx ecrirait sinon `http://<hote>:3010/play/`,
+  # son port a lui, derriere le reverse proxy HTTPS de Coolify.
+  location ~ ^/(play|pitch)$ {
+    absolute_redirect off;
+    return 301 /$1/;
+  }
+  location = /pitch/index.html {
+    add_header Cache-Control "no-cache";
+  }
+
+  # Les anciens liens vers le jeu a la racine (l'ecran d'accueil des PWA
+  # installees avant l'accueil garde start_url "/" jusqu'a sa mise a jour) :
+  # ils tombent sur l'accueil, a un clic du jeu. Rien a rediriger.
 
   location / {
     try_files $uri $uri/ /index.html;

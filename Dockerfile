@@ -56,10 +56,13 @@ COPY godot ./godot
 # un export lance a froid peut compiler les scripts avant que les `class_name`
 # soient connus.
 RUN godot --headless --path godot --import || true
-RUN mkdir -p dist/web \
-  && godot --headless --path godot --export-release "Web" ../dist/web/index.html \
-  && test -s dist/web/index.wasm && test -s dist/web/index.pck \
-  && gzip -k -9 dist/web/index.wasm dist/web/index.pck dist/web/index.js
+# Le jeu sous /play/ : la racine est a la page d'accueil (landing/). La page
+# du jeu nomme ses fichiers en RELATIF (index.js, index.wasm...) : rien dans
+# l'export ne suppose d'etre servi a la racine.
+RUN mkdir -p dist/web/play \
+  && godot --headless --path godot --export-release "Web" ../dist/web/play/index.html \
+  && test -s dist/web/play/index.wasm && test -s dist/web/play/index.pck \
+  && gzip -k -9 dist/web/play/index.wasm dist/web/play/index.pck dist/web/play/index.js
 
 # Nginx sert les fichiers : ni Node ni Bun ne tournent en production ici.
 FROM nginx:alpine AS runtime
@@ -69,6 +72,8 @@ FROM nginx:alpine AS runtime
 COPY public /usr/share/nginx/html
 RUN rm -rf /usr/share/nginx/html/assets /usr/share/nginx/html/.gitkeep
 COPY --from=build /app/dist/web /usr/share/nginx/html
+# La page d'accueil, a la racine : du HTML statique et son art, sans build.
+COPY landing /usr/share/nginx/html
 # `templates/*.template` : l'entrypoint de l'image nginx y substitue les
 # variables d'environnement au demarrage et ecrit le resultat dans conf.d.
 # C'est ce qui permet de pointer l'API sans reconstruire l'image.

@@ -57,21 +57,20 @@ l'ancien code.
 
 ## rr-web (`kpj80wphpilv7dzarcbyn4qi`)
 
-`Dockerfile` fait `COPY . .` puis `bun run build`. Presque tout compte :
+> **2026-09-27 — l'ancienne liste (src/**, next.config.ts…) datait de Next.**
+> Depuis le 2026-09-25 le web est l'export Godot, et depuis le 2026-09-27 la
+> racine est la page d'accueil (`landing/`), le jeu sous `/play/`.
+
+`Dockerfile` copie `godot/`, `docker/` (moteur web + nginx), `public/` et
+`landing/`. Rien de `src/` n'entre plus dans l'image web.
 
 ```
-src/**
-config/**
+godot/**
+landing/**
 public/**
-next.config.ts
-package.json
-bun.lock
-tsconfig.json
+docker/**
 Dockerfile
 ```
-
-`server/**` est volontairement absent : le serveur WS n'est ni importé ni
-bundlé par Next.
 
 ---
 
