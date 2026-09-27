@@ -531,6 +531,10 @@ export const en = {
     notConfigured: 'Payments are not configured on this server.',
     stillConfirming: 'Paid, but still confirming. Reopen the shop in a minute. Nothing is lost.',
     failed: 'Payment failed',
+    notEnough: (amount: string, symbol: string) => 'Not enough ' + symbol + ': this costs ' + amount + ' ' + symbol + '.',
+    noToken: (symbol: string) => 'No ' + symbol + ' in this wallet. Try another currency.',
+    linkWallet: 'Link a wallet to your burrow to pay with money.',
+    expired: 'That price expired. Tap again for a fresh one.',
   },
 
   /* ── What you are carrying ────────────────────────────────────────────── */

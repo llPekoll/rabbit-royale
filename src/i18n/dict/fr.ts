@@ -428,6 +428,10 @@ export const fr: Dict = {
     notConfigured: 'Les paiements ne sont pas configurés sur ce serveur.',
     stillConfirming: 'Payé, confirmation en cours. Rouvre la boutique dans une minute. Rien n’est perdu.',
     failed: 'Paiement échoué',
+    notEnough: (amount: string, symbol: string) => 'Pas assez de ' + symbol + ' : ça coûte ' + amount + ' ' + symbol + '.',
+    noToken: (symbol: string) => 'Pas de ' + symbol + ' dans ce portefeuille. Essaie une autre monnaie.',
+    linkWallet: 'Relie un portefeuille à ton terrier pour payer en argent.',
+    expired: 'Ce prix a expiré. Retape pour en avoir un nouveau.',
   },
 
   kit: {

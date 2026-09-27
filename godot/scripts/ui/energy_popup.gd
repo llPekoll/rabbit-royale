@@ -20,9 +20,9 @@ extends Dialog
 ##
 ## Il emprunte la palette de l'etal (ici : le meme parchemin, le meme
 ## cadre) — un second dialogue dans un second style se lirait comme un
-## second jeu. L'argent : meme regle que l'etal, `Shop.UsdcPay` dit
-## `pay.needsBuild` ; sans portefeuille, une seule offre plutot que deux dont
-## une echoue a la cotation.
+## second jeu. L'argent : meme chemin que l'etal, `Shop.UsdcPay` ; sans
+## portefeuille, une seule offre plutot que deux dont une echoue a la
+## cotation.
 
 ## Le joueur veut le reste de la boutique.
 signal open_shop

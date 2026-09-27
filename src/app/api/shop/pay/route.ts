@@ -21,8 +21,10 @@ import { getSession } from '@/lib/auth/jwt';
 import { holdings, isShopKind, purchaseBlocker, purchaseUsdc } from '@/lib/game/inventory';
 import { grantItem } from '@/lib/game/grant';
 import { USDC, usdcBaseUnits } from '@config/tuning';
+import { PublicKey } from '@solana/web3.js';
 import {
-  findPaidSignature, mintFor, payEnabled, treasuryAddress, usdcMint, verifyPayment,
+  buildPaymentTx, cluster, findPaidSignature, mintFor, payEnabled, treasuryAddress,
+  verifyPayment,
 } from '@/lib/pay/solana';
 import {
   PAY_TOKENS, baseUnitsFor, enabledTokens, isPayTokenId, mintAddressFor, wholeFor,
@@ -53,10 +55,9 @@ export async function POST(req: Request) {
   }
 
   const treasury = treasuryAddress()!;
-  const mint = usdcMint()!;
 
   const body = (await req.json().catch(() => ({}))) as {
-    kind?: unknown; qty?: unknown; token?: unknown;
+    kind?: unknown; qty?: unknown; token?: unknown; build?: unknown;
   };
   // isShopKind, not isItemKind: the enum now also carries the chest-only garden
   // boosts, and those have no price. Guarding on the wider set would let a
@@ -109,6 +110,36 @@ export async function POST(req: Request) {
   const reference = randomUUID();
   const expiresAt = new Date(Date.now() + USDC.INTENT_TTL_MS);
 
+  /**
+   * THE TRANSACTION ITSELF, for a client that cannot build one (the Godot
+   * client, on the Seeker and in the browser). Built BEFORE the intent is
+   * recorded, so a wallet that cannot pay leaves no pending row behind — and
+   * the player hears "not enough SOL" before a wallet sheet opens, not after.
+   */
+  let built: { tx: string; cluster: string } | null = null;
+  if (body.build === true) {
+    const result = await buildPaymentTx({
+      payer: new PublicKey(session.wallet),
+      treasury,
+      mint: mintFor(token),
+      amount,
+      decimals: PAY_TOKENS[token].decimals,
+      reference,
+    }).catch((err: unknown) => {
+      console.warn('[pay] could not build the transfer', err);
+      return null;
+    });
+    if (!result) return Response.json({ error: 'rpc_unavailable' }, { status: 503 });
+    if (!result.ok) {
+      return Response.json({
+        error: result.reason,
+        symbol: PAY_TOKENS[token].symbol,
+        tokenAmount: wholeFor(amount, token),
+      }, { status: 400 });
+    }
+    built = { tx: result.tx, cluster: await cluster() };
+  }
+
   // The quote is recorded BEFORE the player is asked to sign, which is what
   // makes the confirm step safe: it checks the transaction against a price this
   // server set, not against a number handed back with the signature.
@@ -143,6 +174,9 @@ export async function POST(req: Request) {
      *  quote, so a payment cannot be claimed by anyone who saw it on chain. */
     reference,
     expiresAt: expiresAt.toISOString(),
+    /** Only when asked (`build: true`): the unsigned transfer, base64, and the
+     *  network a native wallet must send it on. */
+    ...(built ?? {}),
   });
 }
 
@@ -281,7 +315,6 @@ export async function claimUnfinishedPayments(playerId: string): Promise<
   if (pending.length === 0) return [];
 
   const treasury = treasuryAddress()!;
-  const mint = usdcMint()!;
   const now = Date.now();
   const credited: { kind: string; qty: number }[] = [];
 
@@ -304,10 +337,12 @@ export async function claimUnfinishedPayments(playerId: string): Promise<
 
     // Verified the same way a client-supplied signature is — the sweep is not a
     // shortcut past the checks, only a different way of finding the signature.
+    // The rail comes from the intent, as in PATCH: a SOL quote is read off the
+    // lamport ledger, never off USDC balances.
     const check = await verifyPayment({
       signature,
       treasury,
-      mint,
+      mint: mintFor(isPayTokenId(intent.token) ? intent.token : 'usdc'),
       amount: intent.amount,
       reference: intent.reference,
     });

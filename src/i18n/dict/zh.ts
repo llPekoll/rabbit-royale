@@ -427,6 +427,10 @@ export const zh: Dict = {
     notConfigured: '此服务器未配置支付。',
     stillConfirming: '已付款，仍在确认。一分钟后重开商店。什么都不会丢。',
     failed: '支付失败',
+    notEnough: (amount: string, symbol: string) => symbol + ' 不足：需要 ' + amount + ' ' + symbol + '。',
+    noToken: (symbol: string) => '此钱包没有 ' + symbol + '。换一种货币试试。',
+    linkWallet: '将钱包绑定到你的洞穴即可用钱支付。',
+    expired: '该报价已过期。再点一次获取新报价。',
   },
 
   kit: {

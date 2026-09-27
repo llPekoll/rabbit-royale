@@ -432,6 +432,10 @@ export const ptBR: Dict = {
     notConfigured: 'Pagamentos não estão configurados neste servidor.',
     stillConfirming: 'Pago, mas ainda confirmando. Reabra a loja em um minuto. Nada se perde.',
     failed: 'Pagamento falhou',
+    notEnough: (amount: string, symbol: string) => symbol + ' insuficiente: custa ' + amount + ' ' + symbol + '.',
+    noToken: (symbol: string) => 'Nenhum ' + symbol + ' nesta carteira. Tente outra moeda.',
+    linkWallet: 'Vincule uma carteira à sua toca para pagar com dinheiro.',
+    expired: 'Esse preço expirou. Toque de novo para um novo.',
   },
 
   kit: {

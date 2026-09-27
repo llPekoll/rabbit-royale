@@ -25,13 +25,10 @@ extends Dialog
 ##   • L'ETAL S'OUVRE SUR LES CAROTTES, quel que soit le rail dont l'app se
 ##     souvient : c'est le prix que tout le monde peut payer.
 ##
-## L'ARGENT, EN NATIF. Le pont du Seeker signe des MESSAGES (ce que la
-## connexion demandait) et n'a pas encore de chemin de transaction ; le web
-## le dit tel quel (use-usdc-pay.ts `isNative`, `t.pay.needsBuild`) plutot
-## qu'un bouton qui echoue obscurement sur le seul appareil vise. `UsdcPay`
-## ci-dessous garde la forme de la machine a etats du web (idle / quoting /
-## signing / confirming / done) et s'arrete a ce mot : le jour ou le pont
-## signe des transactions, c'est `pay` qui se remplit, pas l'etal.
+## L'ARGENT. `UsdcPay` (en bas) garde la machine a etats du web (idle /
+## quoting / signing / confirming / done) ; la transaction est ecrite par le
+## serveur et envoyee par le wallet de la plateforme (`Wallet.send`) — le
+## Seed Vault sur le Seeker, l'extension dans le navigateur.
 
 ## Le rail choisi a change (pour l'energie, qui doit tarifer sur le meme).
 signal rail_changed(rail: String)
@@ -1120,11 +1117,14 @@ class StallDrag:
 		_armed = false
 
 
-## PAYER EN ARGENT (use-usdc-pay.ts), la forme sans la transaction. Trois
-## pas sur le web — la cotation du serveur, la signature du joueur, la
-## verification sur la chaine — et le milieu est au joueur, pas a nous. Le
-## pont natif ne signe pas encore de transactions : `pay` s'arrete au mot que
-## le web dit dans ce cas (`t.pay.needsBuild`), et l'etal montre ce mot.
+## PAYER EN ARGENT (use-usdc-pay.ts). Trois pas, et le milieu est au joueur :
+##   1. le serveur COTE l'achat — et, parce que GDScript n'a pas de SDK Solana,
+##      ECRIT aussi la transaction (`build: true`), non signee, le wallet du
+##      joueur comme payeur de frais ;
+##   2. le wallet la signe et l'envoie (Seed Vault sur le Seeker via MWA,
+##      l'extension dans le navigateur) — voir `Wallet.send` ;
+##   3. le serveur lit la chaine et credite. Ce que le wallet nous dit n'est
+##      qu'une affirmation ; seule la lecture du serveur en fait un achat.
 class UsdcPay:
 	extends RefCounted
 	enum Stage { IDLE, QUOTING, SIGNING, CONFIRMING, DONE }
@@ -1132,14 +1132,85 @@ class UsdcPay:
 	var stage: Stage = Stage.IDLE
 	var error := ""
 
-	func pay(_kind: String, _qty: int = 1, _rail: String = "usdc") -> Dictionary:
+	## Rend la reponse du serveur sur un achat credite, {} sinon — `error` dit
+	## pourquoi, et reste vide sur un simple refus dans le wallet.
+	func pay(kind: String, qty: int = 1, rail: String = "usdc") -> Dictionary:
 		error = ""
-		stage = Stage.IDLE
-		# Le pont du Seeker signe des MESSAGES et n'a pas de chemin de
-		# transaction : le dire bat un bouton qui echoue obscurement.
-		error = I18N.t("pay.needsBuild")
+		if stage != Stage.IDLE and stage != Stage.DONE:
+			return {}
+		if not Session.signed_in():
+			return {}
+		if not Wallet.available():
+			return _fail(I18N.t("pay.noWallet"))
+		_to(Stage.QUOTING)
+
+		var quote: Answer = await Net.post_json("/api/shop/pay",
+			{"kind": kind, "qty": qty, "token": rail, "build": true}, Session.token)
+		if not quote.ok or quote.body.has("error") or String(quote.body.get("tx", "")).is_empty():
+			return _fail(_quote_error(quote))
+
+		_to(Stage.SIGNING)
+		var signature := await Wallet.send(String(quote.body["tx"]), String(quote.body.get("cluster", "mainnet-beta")))
+		if signature.is_empty():
+			# Fermer la feuille n'est pas une panne : on ne dit rien.
+			return _fail(Wallet.last_error)
+
+		_to(Stage.CONFIRMING)
+		var payment_id := String(quote.body.get("paymentId", ""))
+		# Le serveur peut regarder avant que la transaction ait atterri : un
+		# 202 veut dire « pas encore », pas « non ». Douze essais, puis la main
+		# au joueur — le balayage de l'etal creditera au prochain passage.
+		for _attempt in 12:
+			var res: Answer = await Net.send_json("/api/shop/pay", HTTPClient.METHOD_PATCH,
+				{"paymentId": payment_id, "signature": signature}, Session.token)
+			if res.ok and not res.body.has("error"):
+				_to(Stage.DONE)
+				var shop := ShopState.shared()
+				shop.shop = res.body
+				shop.refresh()
+				Home.refresh()
+				var bought: Dictionary = res.body.get("bought", {})
+				shop.bought.emit(String(bought.get("kind", kind)), int(bought.get("qty", qty)))
+				_to(Stage.IDLE)
+				return res.body
+			if not bool(res.body.get("retry", false)):
+				return _fail(_confirm_error(res))
+			await (Engine.get_main_loop() as SceneTree).create_timer(2.5).timeout
+		return _fail(I18N.t("pay.stillConfirming"))
+
+	func _to(s: Stage) -> void:
+		stage = s
 		changed.emit()
+
+	func _fail(text: String) -> Dictionary:
+		error = text
+		_to(Stage.IDLE)
 		return {}
+
+	## Le mot d'une cotation refusee. Les refus du wallet (pas assez, pas de
+	## compte de jeton) arrivent AVANT la feuille : le serveur a lu le solde.
+	func _quote_error(answer: Answer) -> String:
+		var code := answer.error()
+		var symbol := String(answer.body.get("symbol", ""))
+		match code:
+			"insufficient_funds":
+				var amount := float(answer.body.get("tokenAmount", 0.0))
+				return I18N.f("pay.notEnough", [String.num(amount, 4 if symbol == "SOL" else 2), symbol])
+			"no_token_account":
+				return I18N.f("pay.noToken", [symbol])
+			"wallet_required":
+				return I18N.t("pay.linkWallet")
+			"payments_unavailable", "token_unavailable":
+				return I18N.t("pay.notConfigured")
+			"offline":
+				return I18N.t("err_offline")
+		var text := ShopState.shared().message(code)
+		return text if not text.is_empty() else I18N.t("pay.failed")
+
+	func _confirm_error(answer: Answer) -> String:
+		if answer.error() == "quote_expired":
+			return I18N.t("pay.expired")
+		return I18N.t("pay.failed")
 
 	## Ce qu'un paiement en vol fait, en mots (`payStageLine`). `idle` et
 	## `done` n'ont rien a dire : ce ne sont pas des etats qu'on attend.

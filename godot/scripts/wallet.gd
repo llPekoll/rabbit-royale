@@ -116,6 +116,28 @@ func sign(message: String) -> String:
 	return String(result[1])
 
 
+## PAYER : signer ET envoyer une transaction que le serveur a construite
+## (POST /api/shop/pay avec `build: true`), base64, non signee. Le wallet la
+## soumet lui-meme ; on ne recoit que la signature base58, que le serveur va
+## lire sur la chaine.
+##
+## `cluster` vient du serveur : le Seed Vault doit envoyer sur le reseau du
+## tresor, pas sur celui qu'il suppose.
+##
+## Rend "" sur un refus, sans wallet, ou hors Android/web — `last_error` dit
+## s'il y a eu une vraie panne.
+func send(tx_base64: String, cluster: String) -> String:
+	last_error = ""
+	if _web != null:
+		_web.send(tx_base64, cluster, _web_callback)
+		return await _await_web()
+	if _mwa == null or not _mwa.has_method("signAndSend"):
+		return ""
+	_mwa.signAndSend(tx_base64, cluster)
+	# Un seul argument au signal : `await` rend la chaine elle-meme.
+	return String(await _mwa.sent)
+
+
 ## The last thing that went wrong, for the status line. Empty when the failure
 ## was a plain refusal — see `sign()`.
 var last_error := ""

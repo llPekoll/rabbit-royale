@@ -102,8 +102,6 @@ var _fade: Tween
 var _sink_sky: EruptionOverlay
 ## Provisoire : la porte vers le terrier, le temps qu'une manche se termine.
 var _back: PlankButton
-## Provisoire : le compteur d'images, pour mesurer depuis le moteur.
-var _fps: Label
 
 ## LE TUTORIEL, tel que cette scene le joue.
 ##
@@ -501,17 +499,6 @@ func _add_chrome() -> void:
 	_prize_host.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	top.add_child(_prize_host)
 
-	# LE COMPTEUR, PROVISOIRE — et il est la parce que `adb shell dumpsys
-	# gfxinfo` MENT sur ce projet : il compte les images qu'ANDROID compose, pas
-	# celles que Godot rend. Il annoncait 7 ms par image pendant que le jeu
-	# tournait a 21. C'est la lecon des notes de l'app Expo, « le fps JS ment
-	# sur expo-gl », sous une autre forme : on lit le moniteur du MOTEUR.
-	_fps = Label.new()
-	_fps.position = Vector2(12, 62)
-	_fps.add_theme_font_size_override("font_size", 22)
-	_fps.add_theme_color_override("font_color", Color(1, 0.83, 0.36))
-	layer.add_child(_fps)
-
 
 ## UNE ILE HORS LIGNE, JOUABLE : generee de `seed_value`, ses contenus donnes
 ## ici depuis `content_seed` (la graine que le serveur garderait pour lui), au
@@ -784,26 +771,9 @@ func frame_camera(immediate: bool = false) -> void:
 	_cam_tween.tween_property(self, "position", shot.at, CAM_SECONDS)
 
 
-## LE COMPTEUR, a chaque image.
-var _fps_tick := 0.0
-var _probe_step := 0
-
-
 func _process(delta: float) -> void:
 	_update_hole()
 	_tick_local_flock(delta)
-	if _fps == null:
-		return
-	var n := int(Performance.get_monitor(Performance.TIME_FPS))
-	var draws := int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))
-	_fps.text = "%d fps | %d draws" % [n, draws]
-	# ET DANS LE LOG, parce que le compteur a l'ecran peut finir sous un
-	# bouton — c'est arrive du premier coup. `adb logcat -s godot` le lit
-	# depuis la machine, sans chercher ou il s'affiche.
-	_fps_tick += delta
-	if _fps_tick >= 2.0:
-		_fps_tick = 0.0
-		print("[perf] %d fps, %d draws" % [n, draws])
 
 
 ## LE TROU DE PROFONDEUR (fx/DepthHole.ts, config/depthHoleLook.ts) : un

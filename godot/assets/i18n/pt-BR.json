@@ -735,7 +735,15 @@
 		"noWallet": "Nenhuma carteira Solana encontrada. Instale a Phantom para pagar com USDC.",
 		"notConfigured": "Pagamentos não estão configurados neste servidor.",
 		"stillConfirming": "Pago, mas ainda confirmando. Reabra a loja em um minuto. Nada se perde.",
-		"failed": "Pagamento falhou"
+		"failed": "Pagamento falhou",
+		"notEnough": {
+			"$t": "{1} insuficiente: custa {0} {1}."
+		},
+		"noToken": {
+			"$t": "Nenhum {0} nesta carteira. Tente outra moeda."
+		},
+		"linkWallet": "Vincule uma carteira à sua toca para pagar com dinheiro.",
+		"expired": "Esse preço expirou. Toque de novo para um novo."
 	},
 	"kit": {
 		"tools": {

@@ -723,7 +723,15 @@
 		"noWallet": "No Solana wallet found. Install Phantom to pay with USDC.",
 		"notConfigured": "Payments are not configured on this server.",
 		"stillConfirming": "Paid, but still confirming. Reopen the shop in a minute. Nothing is lost.",
-		"failed": "Payment failed"
+		"failed": "Payment failed",
+		"notEnough": {
+			"$t": "Not enough {1}: this costs {0} {1}."
+		},
+		"noToken": {
+			"$t": "No {0} in this wallet. Try another currency."
+		},
+		"linkWallet": "Link a wallet to your burrow to pay with money.",
+		"expired": "That price expired. Tap again for a fresh one."
 	},
 	"kit": {
 		"tools": {

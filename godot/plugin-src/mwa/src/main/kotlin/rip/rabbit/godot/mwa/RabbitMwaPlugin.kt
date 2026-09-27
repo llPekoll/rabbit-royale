@@ -5,6 +5,7 @@ import com.funkatronics.encoders.Base58
 import com.solana.mobilewalletadapter.clientlib.ActivityResultSender
 import com.solana.mobilewalletadapter.clientlib.ConnectionIdentity
 import com.solana.mobilewalletadapter.clientlib.MobileWalletAdapter
+import com.solana.mobilewalletadapter.clientlib.Solana
 import com.solana.mobilewalletadapter.clientlib.TransactionResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -54,6 +55,12 @@ class RabbitMwaPlugin(godot: Godot) : GodotPlugin(godot) {
 			SignalInfo("signed", String::class.java, String::class.java)
 
 		/**
+		 * La signature base58 de la transaction envoyée, ou vide sur un refus.
+		 * C'est ce que PATCH /api/shop/pay attend pour lire la chaîne.
+		 */
+		private val SIG_SENT = SignalInfo("sent", String::class.java)
+
+		/**
 		 * Un vrai échec, déjà rédigé pour l'écran. Un refus n'en est PAS un :
 		 * il arrive comme un argument vide sur les signaux ci-dessus.
 		 */
@@ -100,7 +107,7 @@ class RabbitMwaPlugin(godot: Godot) : GodotPlugin(godot) {
 	override fun getPluginName() = PLUGIN_NAME
 
 	override fun getPluginSignals(): MutableSet<SignalInfo> =
-		mutableSetOf(SIG_ADDRESS, SIG_SIGNED, SIG_ERROR)
+		mutableSetOf(SIG_ADDRESS, SIG_SIGNED, SIG_SENT, SIG_ERROR)
 
 	/**
 	 * Y a-t-il un wallet à qui parler ? Faux quand l'activité n'est pas une
@@ -166,6 +173,50 @@ class RabbitMwaPlugin(godot: Godot) : GodotPlugin(godot) {
 	}
 
 	/**
+	 * PAYER : signe ET envoie une transaction que le serveur a construite.
+	 *
+	 * Le jeu n'a pas de SDK Solana : le serveur écrit le virement (POST
+	 * /api/shop/pay avec `build: true`) et le rend en base64, non signé, le
+	 * wallet du joueur comme payeur de frais. Le Seed Vault le signe et le
+	 * soumet lui-même — on ne voit jamais la clé, seulement la signature.
+	 *
+	 * `cluster` vient du serveur (lu sur le hash de genèse de SON RPC) : un
+	 * wallet réglé sur mainnet enverrait une transaction devnet dans le vide,
+	 * APRÈS que le joueur a dit oui.
+	 */
+	@UsedByGodot
+	fun signAndSend(txBase64: String, cluster: String) {
+		val sender = this.sender ?: return fail(SIG_SENT, "")
+		val bytes = try {
+			android.util.Base64.decode(txBase64, android.util.Base64.DEFAULT)
+		} catch (e: IllegalArgumentException) {
+			return fail(SIG_SENT, "bad_transaction")
+		}
+		adapter.blockchain = when (cluster) {
+			"devnet" -> Solana.Devnet
+			"testnet" -> Solana.Testnet
+			else -> Solana.Mainnet
+		}
+		scope.launch {
+			when (val result = adapter.transact(sender) {
+				val sent = signAndSendTransactions(arrayOf(bytes))
+				Base58.encodeToString(sent.signatures.first())
+			}) {
+				is TransactionResult.Success ->
+					emitSignal(SIG_SENT.name, result.payload.orEmpty())
+				is TransactionResult.NoWalletFound -> fail(SIG_SENT, "no_wallet")
+				// Refus et panne confondus, comme pour la connexion. Le texte
+				// de l'exception part quand même au log : un paiement qui
+				// échoue en silence est impossible à diagnostiquer.
+				is TransactionResult.Failure -> {
+					android.util.Log.w("RabbitMWA", "signAndSend failed", result.e)
+					emitSignal(SIG_SENT.name, "")
+				}
+			}
+		}
+	}
+
+	/**
 	 * Un échec rapporté sur DEUX canaux : le signal d'erreur pour l'écran, et
 	 * le signal attendu avec des arguments vides — parce que wallet.gd attend
 	 * ce dernier et resterait suspendu pour toujours sans lui.
@@ -175,6 +226,7 @@ class RabbitMwaPlugin(godot: Godot) : GodotPlugin(godot) {
 		// Autant d'arguments vides que la signature en déclare.
 		when (signal.name) {
 			SIG_SIGNED.name -> emitSignal(SIG_SIGNED.name, "", "")
+			SIG_SENT.name -> emitSignal(SIG_SENT.name, "")
 			else -> emitSignal(SIG_ADDRESS.name, "")
 		}
 	}

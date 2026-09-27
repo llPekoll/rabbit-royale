@@ -753,7 +753,15 @@
 		"noWallet": "Aucun portefeuille Solana. Installe Phantom pour payer en USDC.",
 		"notConfigured": "Les paiements ne sont pas configurés sur ce serveur.",
 		"stillConfirming": "Payé, confirmation en cours. Rouvre la boutique dans une minute. Rien n’est perdu.",
-		"failed": "Paiement échoué"
+		"failed": "Paiement échoué",
+		"notEnough": {
+			"$t": "Pas assez de {1} : ça coûte {0} {1}."
+		},
+		"noToken": {
+			"$t": "Pas de {0} dans ce portefeuille. Essaie une autre monnaie."
+		},
+		"linkWallet": "Relie un portefeuille à ton terrier pour payer en argent.",
+		"expired": "Ce prix a expiré. Retape pour en avoir un nouveau."
 	},
 	"kit": {
 		"tools": {

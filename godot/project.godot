@@ -30,7 +30,6 @@ GameSocket="*res://scripts/game_socket.gd"
 Tuning="*res://scripts/tuning.gd"
 Home="*res://scripts/home.gd"
 Screens="*res://scripts/screens.gd"
-FpsMarker="*res://scripts/fps_marker.gd"
 Cursors="*res://scripts/cursors.gd"
 Bloom="*res://scripts/bloom.gd"
 

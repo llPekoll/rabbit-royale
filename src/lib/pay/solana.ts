@@ -24,7 +24,13 @@
  * reference in the memo already binds the transfer to one specific quote, which
  * is what stops a stranger's transaction being claimed.
  */
-import { Connection, PublicKey } from '@solana/web3.js';
+import {
+  Connection, PublicKey, SystemProgram, Transaction, TransactionInstruction,
+} from '@solana/web3.js';
+import {
+  TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID, createAssociatedTokenAccountIdempotentInstruction,
+  createTransferCheckedInstruction, getAccount, getAssociatedTokenAddressSync,
+} from '@solana/spl-token';
 import { USDC } from '@config/tuning';
 import { mintAddressFor, type PayTokenId } from './tokens';
 
@@ -264,3 +270,115 @@ export function mintFor(id: PayTokenId): PublicKey | null {
   const raw = mintAddressFor(id);
   return raw ? new PublicKey(raw) : null;
 }
+
+/**
+ * THE NETWORK, named by its genesis hash rather than guessed from the RPC URL.
+ *
+ * A native wallet (the Seeker's Seed Vault, through Mobile Wallet Adapter) is
+ * told which chain to send on. Told the wrong one, it submits a devnet
+ * transaction to mainnet — the blockhash is unknown there and the payment dies
+ * after the player has already approved it. The genesis hash cannot lie about
+ * which chain the treasury is on; a hostname can.
+ */
+export type SolanaCluster = 'mainnet-beta' | 'devnet' | 'testnet';
+const GENESIS: Record<string, SolanaCluster> = {
+  '5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d': 'mainnet-beta',
+  EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG: 'devnet',
+  '4uhcVJyU9pJkvQyS88uRDiswHXSCkY3zQawwpjk2NsNY': 'testnet',
+};
+let _cluster: Promise<SolanaCluster> | null = null;
+export function cluster(): Promise<SolanaCluster> {
+  _cluster ??= connection().getGenesisHash()
+    .then((hash) => GENESIS[hash] ?? 'mainnet-beta')
+    .catch((err: unknown) => {
+      // Not cached: the next quote asks again rather than living with a guess.
+      _cluster = null;
+      throw err;
+    });
+  return _cluster;
+}
+
+/** Why a transfer could not be built — each one a sentence the player can act on. */
+export type BuildFailure = 'insufficient_funds' | 'no_token_account';
+
+/**
+ * THE TRANSFER, BUILT HERE, for clients that carry no Solana SDK.
+ *
+ * The browser build of the shop assembles this itself (use-usdc-pay.ts). The
+ * Godot client cannot: GDScript has no web3.js, and the Seeker's wallet only
+ * wants bytes to sign and send. So the server writes the exact same
+ * transaction — system transfer or checked SPL transfer, the treasury's token
+ * account created if it is missing, the reference in the memo — and hands it
+ * back unsigned, with the player's wallet as fee payer.
+ *
+ * Nothing here is trusted later. The confirm step reads the chain exactly as
+ * it does for a browser payment, so a client that swaps these bytes for
+ * something else simply is not credited.
+ */
+export async function buildPaymentTx(opts: {
+  payer: PublicKey;
+  treasury: PublicKey;
+  /** Null for native SOL. */
+  mint: PublicKey | null;
+  amount: number;
+  decimals: number;
+  reference: string;
+}): Promise<{ ok: true; tx: string } | { ok: false; reason: BuildFailure }> {
+  const conn = connection();
+  const tx = new Transaction();
+
+  if (opts.mint === null) {
+    const lamports = await conn.getBalance(opts.payer);
+    // The fee rides on top of the price; 10k lamports covers it with room.
+    if (lamports < opts.amount + 10_000) return { ok: false, reason: 'insufficient_funds' };
+    tx.add(SystemProgram.transfer({
+      fromPubkey: opts.payer,
+      toPubkey: opts.treasury,
+      lamports: opts.amount,
+    }));
+  } else {
+    // The token program is read off the mint rather than assumed: a Token-2022
+    // mint has its accounts at different addresses, and a transfer built for
+    // the classic program would point at accounts that do not exist.
+    const mintInfo = await conn.getAccountInfo(opts.mint);
+    const program = mintInfo?.owner.equals(TOKEN_2022_PROGRAM_ID)
+      ? TOKEN_2022_PROGRAM_ID
+      : TOKEN_PROGRAM_ID;
+    const from = getAssociatedTokenAddressSync(opts.mint, opts.payer, false, program);
+    const to = getAssociatedTokenAddressSync(opts.mint, opts.treasury, true, program);
+
+    try {
+      const account = await getAccount(conn, from, 'confirmed', program);
+      if (account.amount < BigInt(opts.amount)) return { ok: false, reason: 'insufficient_funds' };
+    } catch {
+      return { ok: false, reason: 'no_token_account' };
+    }
+
+    // Created by the first payer if the treasury has never held this token —
+    // the same one-off rent the browser path pays.
+    if (!(await conn.getAccountInfo(to))) {
+      tx.add(createAssociatedTokenAccountIdempotentInstruction(
+        opts.payer, to, opts.treasury, opts.mint, program,
+      ));
+    }
+    tx.add(createTransferCheckedInstruction(
+      from, opts.mint, to, opts.payer, BigInt(opts.amount), opts.decimals, [], program,
+    ));
+  }
+
+  // The reference binds this transfer to its quote — see verifyPayment.
+  tx.add(new TransactionInstruction({
+    keys: [],
+    programId: MEMO_PROGRAM,
+    data: Buffer.from(opts.reference, 'utf8'),
+  }));
+
+  tx.feePayer = opts.payer;
+  tx.recentBlockhash = (await conn.getLatestBlockhash('confirmed')).blockhash;
+  return {
+    ok: true,
+    tx: tx.serialize({ requireAllSignatures: false, verifySignatures: false }).toString('base64'),
+  };
+}
+
+const MEMO_PROGRAM = new PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr');
