@@ -4,16 +4,21 @@
   Godot y est ecrit par le Dockerfile, et nginx sert cette page a la racine.
 
   Aucun build : du HTML, un peu de CSS et de JS a la main. L'art vient du jeu
-  (les six calques de l'ecran titre, le logo, la planche doree, les ilots) et
-  les extraits de gameplay sont ceux du teaser ep01 (episodes/ep01-*/gameplay),
-  reencodes en 720 px, 7 s, sans son. Les calques sont les PNG de
-  godot/assets/ui/home-parallax passes en webp : a refaire s'ils changent.
+  (les six calques de l'ecran titre, le logo, les planches et les cadres du
+  kit, les ilots) et les extraits de gameplay sont ceux du teaser ep01
+  (episodes/ep01-*/gameplay), reencodes en 720 px, 7 s, sans son. Les calques
+  sont les PNG de godot/assets/ui/home-parallax passes en webp : a refaire
+  s'ils changent.
+
+  Le bas de page suit le deck (/pitch) : l'art du jeu en plein cadre, floute,
+  Lilita One en gros, l'or #f2c14e. Une page plate sur fond uni etait trop
+  pauvre a cote du jeu (Peko, 27 septembre 2026).
 -->
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#0366be" />
+    <meta name="theme-color" content="#10222b" />
     <title>Rabbit Royale</title>
     <meta name="description" content="Competitive minesweeper with rabbits. Dig, grow your burrow, raid the neighbours. Free to play in your browser." />
     <link rel="icon" href="/favicon.ico" />
@@ -25,11 +30,12 @@
     <meta property="og:description" content="Competitive minesweeper with rabbits. Dig, grow your burrow, raid the neighbours." />
     <meta property="og:image" content="/assets/og.jpg" />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@RabbitRoyaleX" />
 
     <link rel="preload" as="image" href="/assets/l1.webp" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Lilita+One&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito+Sans:wght@400;600;700&display=swap" rel="stylesheet" />
 
     <style>
       @font-face {
@@ -40,28 +46,31 @@
 
       :root {
         --ink: #352011;       /* l'encre des planches du jeu (GOLD_INK) */
-        --wood: #6b3d1c;
-        --parchment: #f4e4bf;
-        --parchment-deep: #e8d19c;
+        --night: #10222b;     /* le fond du deck */
+        --night-deep: #0a161c;
+        --gold: #f2c14e;
+        --cream: #f7f0e1;
+        --mist: #dde6e3;
         --sea: #0366be;       /* releve dans 01-sky-sea.png */
-        --sea-deep: #014a9f;
-        --cream: #fff0cb;     /* WOOD_INK */
-        --grass: #7cc242;
         --display: 'Lilita One', 'Arial Rounded MT Bold', system-ui, sans-serif;
+        --body: 'Nunito Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
         --pixel: 'D8 Pixel', ui-monospace, monospace;
+        /* L'ombre dure des titres du jeu : un decalage franc, pas de flou. */
+        --drop: 0 5px 0 var(--night-deep), 0 10px 28px rgba(0, 0, 0, 0.45);
       }
 
       *, *::before, *::after { box-sizing: border-box; }
       html { -webkit-text-size-adjust: 100%; }
       body {
         margin: 0;
-        background: var(--parchment);
-        color: var(--ink);
-        font-family: var(--display);
+        background: var(--night);
+        color: var(--cream);
+        font-family: var(--body);
         overflow-x: hidden;
       }
       img { display: block; }
       .px { image-rendering: pixelated; }
+      a:focus-visible, button:focus-visible { outline: 4px solid #fff; outline-offset: 6px; border-radius: 6px; }
 
       /* ─── HERO : l'ecran titre du jeu, en six calques ─── */
 
@@ -69,7 +78,7 @@
         position: relative;
         height: 100vh;
         height: 100svh;
-        min-height: 560px;
+        min-height: 600px;
         overflow: hidden;
         background: var(--sea);
         isolation: isolate;
@@ -100,26 +109,25 @@
       }
       @keyframes breathe { 50% { opacity: 0.6; transform: scale(0.94); } }
 
-      /* Le haut s'assombrit juste assez pour le logo, sans eteindre le ciel. */
-      .hero::after {
+      /* Le ciel s'assombrit sous le logo, l'herbe sous le bouton, et le bas
+         fond dans la nuit de la section suivante. */
+      .hero::before, .hero::after {
         content: '';
         position: absolute;
-        inset: 0 0 auto;
-        height: 58%;
-        background: linear-gradient(rgba(1, 36, 82, 0.55), transparent);
+        left: 0;
+        right: 0;
         pointer-events: none;
         z-index: 1;
       }
+      .hero::before { top: 0; height: 42%; background: linear-gradient(rgba(1, 36, 82, 0.55), transparent); }
+      .hero::after { bottom: 0; height: 46%; background: linear-gradient(transparent, rgba(10, 22, 28, 0.55) 55%, var(--night)); }
 
       .title {
         position: relative;
         z-index: 2;
         display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 22px;
-        padding: max(7vh, env(safe-area-inset-top) + 28px) 16px 0;
-        text-align: center;
+        justify-content: center;
+        padding: max(6vh, env(safe-area-inset-top) + 24px) 16px 0;
       }
       .logo {
         width: 100%;
@@ -140,7 +148,6 @@
         right: 6.8%;
         top: 80.8%;
         height: 16.6%;
-        margin: 0;
         display: grid;
         place-items: center;
         font-family: var(--pixel);
@@ -152,17 +159,83 @@
         white-space: nowrap;
       }
 
-      /* ─── LE BOUTON : la planche doree du jeu, en 3-slice ─── */
+      /* Le bouton descend sur l'herbe, au pied du lapin : le ciel reste au
+         logo et a l'ile. */
+      .cta {
+        position: absolute;
+        z-index: 2;
+        left: 0;
+        right: 0;
+        bottom: calc(max(20px, env(safe-area-inset-bottom)) + 92px + 3vh);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 14px;
+        padding: 0 16px;
+        text-align: center;
+      }
+      .note {
+        margin: 0;
+        font-family: var(--pixel);
+        font-size: 16px;
+        color: var(--cream);
+        text-shadow: 0 2px 0 var(--night-deep), 0 0 12px rgba(0, 0, 0, 0.6);
+      }
 
-      .play {
+      /* La fleche du jeu (d8-arrow-down), grossie au pixel, qui sautille. */
+      .scroll {
+        position: absolute;
+        z-index: 2;
+        left: 50%;
+        bottom: max(16px, env(safe-area-inset-bottom));
+        translate: -50% 0;
+        display: grid;
+        justify-items: center;
+        gap: 16px;
+        padding: 6px 14px;
+        color: var(--gold);
+        font-family: var(--pixel);
+        font-size: 13px;
+        text-decoration: none;
+        text-shadow: 0 2px 0 var(--night-deep);
+      }
+      .scroll img {
+        width: 44px;
+        height: 50px;
+        filter: drop-shadow(0 3px 0 var(--night-deep)) drop-shadow(0 0 10px rgba(242, 193, 78, 0.55));
+        animation: hop 1.4s cubic-bezier(0.3, 0, 0.3, 1) infinite;
+      }
+      @keyframes hop { 40% { transform: translateY(-8px); } 60% { transform: translateY(-8px) scaleY(1.05); } }
+
+      /* L'X en haut a droite du hero : discret, toujours la. */
+      .x-corner {
+        position: absolute;
+        z-index: 3;
+        top: max(14px, env(safe-area-inset-top) + 8px);
+        right: max(14px, env(safe-area-inset-right) + 8px);
+        display: grid;
+        place-items: center;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: rgba(10, 22, 28, 0.6);
+        border: 2px solid rgba(242, 193, 78, 0.6);
+        color: #fff;
+      }
+      .x-corner:hover { background: rgba(10, 22, 28, 0.85); }
+
+      /* ─── LES PLANCHES DU JEU, en 3-slice ─── */
+
+      .plank {
         --h: 76px;
         --cap: 63px; /* 30 px de bout sur 36 de haut, a l'echelle de --h */
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        gap: 12px;
         min-width: 300px;
         height: var(--h);
-        padding: 0 8px 4px;
+        padding: 10px 8px 4px; /* la police pixel monte : on recentre le libelle */
         border-style: solid;
         border-width: 0 var(--cap);
         border-image: url('/assets/gold.webp') 0 30 fill / 0 var(--cap) stretch;
@@ -173,160 +246,543 @@
         color: var(--ink);
         text-decoration: none;
         text-shadow: 0 2px 0 rgba(255, 240, 180, 0.7);
-        filter: drop-shadow(0 6px 0 rgba(53, 32, 17, 0.55));
+        filter: drop-shadow(0 6px 0 rgba(10, 22, 28, 0.6));
         transition: transform 0.12s steps(2), filter 0.12s;
         -webkit-tap-highlight-color: transparent;
       }
-      .play:hover { transform: translateY(-3px); filter: drop-shadow(0 9px 0 rgba(53, 32, 17, 0.55)) brightness(1.08); }
-      .play:active { transform: translateY(3px); filter: drop-shadow(0 2px 0 rgba(53, 32, 17, 0.55)); }
-      .play:focus-visible { outline: 4px solid #fff; outline-offset: 6px; border-radius: 6px; }
-
-      .note {
-        margin: 0;
-        font-family: var(--pixel);
-        font-size: 15px;
-        color: var(--cream);
-        text-shadow: 0 2px 0 var(--ink);
+      .plank:hover { transform: translateY(-3px); filter: drop-shadow(0 9px 0 rgba(10, 22, 28, 0.6)) brightness(1.08); }
+      .plank:active { transform: translateY(3px); filter: drop-shadow(0 2px 0 rgba(10, 22, 28, 0.6)); }
+      /* La planche bleue (notice-blue) : 30 px de bout sur 43 de haut. */
+      .plank.blue {
+        --h: 60px;
+        --cap: 42px;
+        min-width: 0;
+        font-size: 22px;
+        border-image-source: url('/assets/blue.webp');
+        color: #fff;
+        text-shadow: 0 2px 0 #0b2f66;
       }
+      .plank.blue svg { flex: none; filter: drop-shadow(0 2px 0 #0b2f66); }
 
-      .scroll {
-        position: absolute;
-        z-index: 2;
-        left: 50%;
-        bottom: max(18px, env(safe-area-inset-bottom));
-        translate: -50% 0;
-        width: 44px;
-        height: 44px;
-        display: grid;
-        place-items: center;
-        color: var(--cream);
-        filter: drop-shadow(0 2px 0 var(--ink));
-      }
-      .scroll svg { animation: nudge 1.8s ease-in-out infinite; }
-      @keyframes nudge { 50% { transform: translateY(6px); } }
+      /* ─── LES TROIS BOUCLES : chacune sur son propre extrait, floute ─── */
 
-      /* ─── LES TROIS BOUCLES DU JEU ─── */
-
-      .loops {
-        position: relative;
-        padding: 96px 16px 72px;
-        background:
-          radial-gradient(ellipse at 50% 0, rgba(255, 255, 255, 0.35), transparent 60%),
-          var(--parchment);
-        border-top: 8px solid var(--ink);
-      }
+      .loops { position: relative; background: var(--night); }
       .loops > h2 {
-        margin: 0 auto 72px;
-        max-width: 18ch;
+        position: relative;
+        z-index: 1;
+        margin: 0 auto;
+        padding: 40px 16px 8px;
+        max-width: 16ch;
         text-align: center;
-        font-size: clamp(34px, 5.4vw, 60px);
-        line-height: 1;
+        font-family: var(--display);
+        font-size: clamp(40px, 6.4vw, 84px);
         font-weight: 400;
+        line-height: 1;
+        color: var(--cream);
+        text-shadow: var(--drop);
       }
-      .loop {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-        align-items: center;
-        gap: clamp(28px, 6vw, 80px);
-        max-width: 1040px;
-        margin: 0 auto 96px;
-      }
-      .loop:last-child { margin-bottom: 0; }
-      .loop:nth-child(odd of .loop) .clip { order: 2; }
 
+      .loop {
+        position: relative;
+        overflow: hidden;
+        padding: clamp(64px, 9vw, 120px) 16px;
+        isolation: isolate;
+      }
+      /* Le fond : l'affiche du meme extrait, grossie, floutee, eteinte, et
+         fondue dans la nuit en haut et en bas pour que les bandes s'enchainent. */
+      .loop > .bg {
+        position: absolute;
+        inset: -40px;
+        z-index: -1;
+        width: calc(100% + 80px);
+        height: calc(100% + 80px);
+        object-fit: cover;
+        filter: blur(14px) brightness(0.42) saturate(1.2);
+        -webkit-mask-image: linear-gradient(transparent 40px, #000 26%, #000 74%, transparent calc(100% - 40px));
+        mask-image: linear-gradient(transparent 40px, #000 26%, #000 74%, transparent calc(100% - 40px));
+      }
+      .loop-inner {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+        align-items: center;
+        max-width: 1160px;
+        margin: 0 auto;
+        /* De combien la carte glisse SOUS le cadre de l'extrait. */
+        --tuck: clamp(56px, 7vw, 110px);
+      }
+      .loop:nth-of-type(even) .loop-inner { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); }
+      .loop:nth-of-type(even) .clip { order: 2; }
+
+      /* L'extrait dans le cadre de vigne du kit (banner.webp) : le cadre se
+         pose PAR-DESSUS la video, sans remplir le centre. */
       .clip {
         position: relative;
+        z-index: 2;
         aspect-ratio: 1;
-        border: 6px solid var(--ink);
-        border-radius: 4px;
-        background: #2f5b2a;
-        box-shadow: 10px 10px 0 var(--parchment-deep);
-        overflow: hidden;
+        filter: drop-shadow(0 16px 30px rgba(0, 0, 0, 0.55));
       }
-      .clip video { width: 100%; height: 100%; object-fit: cover; display: block; }
-      .copy .spot {
-        height: 88px;
-        width: auto;
-        margin-bottom: 18px;
+      .clip video {
+        position: absolute;
+        inset: 7%;
+        width: 86%;
+        height: 86%;
+        object-fit: cover;
+        background: #2f5b2a;
+      }
+      .clip::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: url('/assets/frame-corners.png') center / contain no-repeat;
+        pointer-events: none;
       }
 
-      .copy h3 {
-        margin: 0 0 16px;
-        font-size: clamp(30px, 4vw, 44px);
-        line-height: 1;
-        font-weight: 400;
+      /* Le texte sur le parchemin a feuilles (leaf-frame), coupes du web. */
+      /* La carte est plus large que l'extrait et part SOUS son cadre : le
+         bord cache sous la video, le texte decale d'autant. */
+      .card {
+        position: relative;
+        z-index: 1;
+        margin-left: calc(var(--tuck) * -1);
+        padding: 34px clamp(24px, 3.4vw, 52px) 30px calc(var(--tuck) + clamp(20px, 2.6vw, 40px));
+        border-style: solid;
+        border-width: 44px 36px 34px;
+        border-image: url('/assets/leaf-frame.webp') 110 90 85 90 fill / 44px 36px 34px round;
+        color: var(--ink);
+        filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.45));
       }
-      .copy p {
+      .card .spot {
+        position: absolute;
+        right: 24px;
+        top: -78px;
+        width: auto;
+        height: 104px;
+        filter: drop-shadow(0 6px 0 rgba(10, 22, 28, 0.5));
+      }
+      .loop:nth-of-type(even) .card {
+        margin-left: 0;
+        margin-right: calc(var(--tuck) * -1);
+        padding-left: clamp(24px, 3.4vw, 52px);
+        padding-right: calc(var(--tuck) + clamp(20px, 2.6vw, 40px));
+      }
+      .loop:nth-of-type(even) .card .spot { right: auto; left: 24px; }
+      .card h3 {
+        margin: 0 0 16px;
+        font-family: var(--display);
+        font-size: clamp(32px, 3.8vw, 50px);
+        font-weight: 400;
+        line-height: 1;
+      }
+      .card p {
         margin: 0;
-        max-width: 38ch;
-        font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
-        font-size: 19px;
+        max-width: 46ch;
+        font-size: clamp(18px, 1.6vw, 21px);
         line-height: 1.55;
         color: #4d3320;
       }
+      .card .tag {
+        display: inline-block;
+        margin-top: 22px;
+        font-family: var(--pixel);
+        font-size: 15px;
+        line-height: 1.35;
+        color: #7a4a1c;
+      }
 
-      /* ─── LA MER, ET UN DERNIER BOUTON ─── */
+      /* L'ARRIVEE D'UNE BANDE, une fois, quand elle entre a l'ecran : le
+         cadre se pose avec un rebond, la carte SORT de sous le cadre (d'ou
+         elle etait cachee), puis le batiment tombe dessus. */
+      .js .loop .clip { opacity: 0; transform: scale(0.84) rotate(-3deg); }
+      .js .loop .card { opacity: 0; transform: translateX(-38%); }
+      .js .loop:nth-of-type(even) .clip { transform: scale(0.84) rotate(3deg); }
+      .js .loop:nth-of-type(even) .card { transform: translateX(38%); }
+      .js .loop .card .spot { opacity: 0; transform: translateY(-70px); }
+      .js .loop.in .clip, .js .loop.in .card, .js .loop.in .card .spot { opacity: 1; transform: none; }
+      .js .loop.in .clip { transition: opacity 0.25s ease, transform 0.55s cubic-bezier(0.2, 1.6, 0.4, 1); }
+      .js .loop.in .card { transition: opacity 0.3s ease 0.28s, transform 0.6s cubic-bezier(0.2, 1, 0.3, 1) 0.28s; }
+      .js .loop.in .card .spot { transition: opacity 0.15s linear 0.75s, transform 0.5s cubic-bezier(0.3, 1.8, 0.5, 1) 0.75s; }
+
+      /* ─── L'HISTOIRE : une cinematique d'intro, dans l'illustration du titre ───
+         Une seule image (home-bg, l'ecran titre), une camera qui se deplace
+         et zoome sur le lieu de chaque chapitre au fil du defilement, et le
+         narrateur dans une boite de dialogue de parchemin, comme un RPG.
+         Titres du codex (lore.* dans godot/assets/i18n/en.json), une phrase
+         de recit par chapitre. Les cibles de camera sont en fractions de
+         l'image (1672 x 940) : data-x, data-y, data-z sur chaque chapitre. */
+
+      .story { position: relative; background: var(--night); }
+      .js .story { height: 520vh; }
+      .stage {
+        position: relative;
+        height: 100vh;
+        height: 100svh;
+        overflow: hidden;
+        background: #0a3a6a;
+      }
+      .js .stage { position: sticky; top: 0; }
+      .cam {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1672px;
+        height: 940px;
+        transform-origin: 0 0;
+        transition: transform 1.6s cubic-bezier(0.65, 0, 0.35, 1);
+        will-change: transform;
+      }
+      .cam img { width: 100%; height: 100%; }
+      /* La couronne s'allume au chapitre IV (coordonnees de l'image). */
+      .crown-glow {
+        position: absolute;
+        left: 1340px;
+        top: 75px;
+        width: 260px;
+        height: 260px;
+        margin: -130px 0 0 -130px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(255, 226, 120, 0.9), rgba(255, 190, 60, 0.35) 35%, transparent 70%);
+        mix-blend-mode: screen;
+        opacity: 0;
+        transition: opacity 1s ease 0.8s;
+      }
+      .story[data-ch='3'] .crown-glow { opacity: 1; animation: glow 2.4s ease-in-out 1.8s infinite; }
+      @keyframes glow { 50% { transform: scale(1.18); opacity: 0.75; } }
+      /* La mer monte au chapitre V. */
+      .tide {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 62%;
+        background: linear-gradient(transparent, rgba(3, 102, 190, 0.55) 30%, rgba(1, 60, 130, 0.9));
+        transform: translateY(100%);
+        transition: transform 2.2s cubic-bezier(0.4, 0, 0.2, 1) 0.6s;
+      }
+      .story[data-ch='4'] .tide { transform: none; }
+      .stage::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(var(--night), transparent 14%, transparent 58%, rgba(16, 34, 43, 0.8) 88%, var(--night)),
+          radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(10, 22, 28, 0.55));
+        pointer-events: none;
+      }
+      .story h2 {
+        position: absolute;
+        z-index: 2;
+        top: clamp(24px, 6vh, 64px);
+        left: 0;
+        right: 0;
+        margin: 0;
+        padding: 0 16px;
+        text-align: center;
+        font-family: var(--display);
+        font-size: clamp(40px, 5.6vw, 76px);
+        font-weight: 400;
+        line-height: 1;
+        color: var(--gold);
+        text-shadow: var(--drop);
+      }
+
+      /* LA BOITE DE DIALOGUE : le parchemin a feuilles, en bas, comme dans
+         le jeu. Un chapitre a la fois ; sans JS, ils s'y suivent tous. */
+      .dialog {
+        position: absolute;
+        z-index: 2;
+        left: 50%;
+        bottom: max(24px, env(safe-area-inset-bottom) + 12px);
+        translate: -50% 0;
+        width: min(760px, calc(100% - 24px));
+        margin: 0;
+        padding: 14px clamp(10px, 2vw, 22px) 12px;
+        border-style: solid;
+        border-width: 44px 36px 34px;
+        border-image: url('/assets/leaf-frame.webp') 110 90 85 90 fill / 44px 36px 34px stretch;
+        color: var(--ink);
+        list-style: none;
+        filter: drop-shadow(0 16px 30px rgba(0, 0, 0, 0.55));
+      }
+      .dialog li + li { margin-top: 18px; }
+      .js .dialog { display: grid; }
+      .js .dialog li { grid-area: 1 / 1; margin: 0; opacity: 0; transform: translateY(8px); transition: opacity 0.35s ease, transform 0.35s ease; pointer-events: none; }
+      .js .dialog li.on { opacity: 1; transform: none; transition-delay: 0.5s; pointer-events: auto; }
+      .dialog .who {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 6px;
+        font-family: var(--pixel);
+        font-size: 14px;
+        color: #7a4a1c;
+      }
+      .dialog .who b {
+        padding: 4px 10px 5px;
+        border-radius: 999px;
+        background: var(--ink);
+        color: var(--gold);
+        font-family: var(--display);
+        font-weight: 400;
+        font-size: 15px;
+      }
+      .dialog h3 {
+        margin: 0 0 6px;
+        font-family: var(--display);
+        font-size: clamp(24px, 3vw, 34px);
+        font-weight: 400;
+        line-height: 1.05;
+      }
+      .dialog p {
+        margin: 0;
+        font-size: clamp(17px, 1.7vw, 20px);
+        line-height: 1.5;
+        color: #4d3320;
+      }
+      /* Les cinq pastilles : ou l'on en est de l'histoire. */
+      .pips {
+        position: absolute;
+        z-index: 3;
+        right: clamp(12px, 3vw, 36px);
+        top: 50%;
+        translate: 0 -50%;
+        display: grid;
+        gap: 10px;
+      }
+      .pips i {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: rgba(247, 240, 225, 0.35);
+        box-shadow: 0 2px 0 var(--night-deep);
+        transition: background 0.3s, transform 0.3s;
+      }
+      .story[data-ch='0'] .pips i:nth-child(1), .story[data-ch='1'] .pips i:nth-child(2),
+      .story[data-ch='2'] .pips i:nth-child(3), .story[data-ch='3'] .pips i:nth-child(4),
+      .story[data-ch='4'] .pips i:nth-child(5) { background: var(--gold); transform: scale(1.35); }
+      .pips { display: none; }
+      .js .pips { display: grid; }
+
+      /* ─── LA SERIE : l'episode 1 en planche, case apres case ─── */
+
+      .series {
+        position: relative;
+        overflow: hidden;
+        padding: clamp(72px, 9vw, 120px) 0 clamp(80px, 10vw, 128px);
+        isolation: isolate;
+      }
+      .series > .bg {
+        position: absolute;
+        inset: -40px;
+        z-index: -1;
+        width: calc(100% + 80px);
+        height: calc(100% + 80px);
+        object-fit: cover;
+        filter: blur(18px) brightness(0.4) saturate(1.1);
+        -webkit-mask-image: linear-gradient(transparent 40px, #000 40%, #000 62%, transparent calc(100% - 40px));
+        mask-image: linear-gradient(transparent 40px, #000 40%, #000 62%, transparent calc(100% - 40px));
+      }
+      .series-head {
+        max-width: 1120px;
+        margin: 0 auto 40px;
+        padding: 0 16px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: end;
+        justify-content: space-between;
+        gap: 20px 40px;
+      }
+      .series h2 {
+        margin: 0 0 12px;
+        font-family: var(--display);
+        font-size: clamp(40px, 6vw, 80px);
+        font-weight: 400;
+        line-height: 1;
+        text-shadow: var(--drop);
+      }
+      .series-head p {
+        margin: 0;
+        max-width: 42ch;
+        font-size: 19px;
+        line-height: 1.5;
+        color: var(--mist);
+      }
+
+      /* La planche deborde a droite et defile : sur telephone on la glisse,
+         sur ordinateur les sept cases tiennent presque toutes. */
+      .strip {
+        display: flex;
+        gap: 14px;
+        margin: 0;
+        /* Un conteneur qui defile coupe tout ce qui depasse : la marge du bas
+           laisse l'ombre des cases s'eteindre avant le bord, sinon elle
+           dessine une ligne. */
+        padding: 24px max(16px, calc((100vw - 1120px) / 2)) 64px;
+        margin-bottom: -36px;
+        list-style: none;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        scrollbar-width: none;
+      }
+      .strip::-webkit-scrollbar { display: none; }
+      .strip li {
+        position: relative;
+        flex: none;
+        width: clamp(168px, 15vw, 214px);
+        aspect-ratio: 9 / 16;
+        scroll-snap-align: start;
+        border: 5px solid var(--night-deep);
+        border-radius: 10px;
+        overflow: hidden;
+        background: #1c3a2a;
+        box-shadow: 0 0 0 3px var(--gold), 0 14px 24px rgba(0, 0, 0, 0.45);
+      }
+      .strip li:nth-child(odd) { rotate: -1.2deg; }
+      .strip li:nth-child(even) { rotate: 1deg; translate: 0 10px; }
+      .strip img { width: 100%; height: 100%; object-fit: cover; }
+      /* Les cartons de l'episode, en bas de case, comme a l'ecran. */
+      .strip .say {
+        position: absolute;
+        left: 8px;
+        right: 8px;
+        bottom: 12px;
+        padding: 8px 10px 9px;
+        background: #fff;
+        border: 3px solid var(--night-deep);
+        border-radius: 8px;
+        color: var(--night-deep);
+        font-family: var(--display);
+        font-size: 18px;
+        line-height: 1.05;
+        text-align: center;
+        box-shadow: 0 4px 0 var(--night-deep);
+      }
+      .strip .say.big { font-size: 30px; }
+      .strip .soon {
+        position: absolute;
+        top: 12px;
+        left: 50%;
+        translate: -50% 0;
+        padding: 6px 12px;
+        white-space: nowrap;
+        background: var(--gold);
+        border: 3px solid var(--night-deep);
+        border-radius: 999px;
+        color: var(--night-deep);
+        font-family: var(--display);
+        font-size: 16px;
+      }
+
+      /* Les cases tombent une a une quand la planche arrive a l'ecran. Sans
+         JS (ou sans mouvement), elles sont la d'emblee. */
+      .js .strip li { opacity: 0; transform: translateY(26px) scale(0.92); }
+      .js .strip.shown li {
+        opacity: 1;
+        transform: none;
+        transition: opacity 0.3s ease, transform 0.45s cubic-bezier(0.2, 1.5, 0.4, 1);
+        transition-delay: calc(var(--i) * 170ms);
+      }
+
+      /* ─── LA MER : le ciel et la mer de l'ecran titre ─── */
 
       .sail {
         position: relative;
         overflow: hidden;
-        padding: 96px 16px calc(80px + env(safe-area-inset-bottom));
+        min-height: 92vh;
+        min-height: 92svh;
+        display: grid;
+        align-content: center;
+        justify-items: center;
+        padding: 120px 16px calc(150px + env(safe-area-inset-bottom));
         text-align: center;
-        color: #fff;
+        isolation: isolate;
+      }
+      .sail .sea {
+        position: absolute;
+        inset: 0;
+        z-index: -2;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: 70% 60%;
+      }
+      /* La nuit du dessus coule dans le ciel, et le texte garde son contraste. */
+      .sail::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: -1;
         background:
-          repeating-linear-gradient(0deg, transparent 0 22px, rgba(255, 255, 255, 0.05) 22px 26px),
-          linear-gradient(var(--sea), var(--sea-deep));
-        border-top: 8px solid var(--ink);
+          linear-gradient(var(--night), transparent 26%),
+          radial-gradient(ellipse 60% 46% at 50% 44%, rgba(10, 22, 28, 0.55), transparent 75%);
       }
       .sail h2 {
-        margin: 0 auto 12px;
-        font-size: clamp(34px, 5.4vw, 60px);
-        line-height: 1;
+        margin: 0 0 14px;
+        font-family: var(--display);
+        font-size: clamp(44px, 7vw, 96px);
         font-weight: 400;
-        text-shadow: 0 4px 0 rgba(1, 30, 70, 0.6);
+        line-height: 1;
+        text-shadow: var(--drop);
       }
       .sail p {
-        margin: 0 auto 36px;
-        max-width: 40ch;
-        font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
-        font-size: 18px;
+        margin: 0 0 36px;
+        max-width: 44ch;
+        font-size: 20px;
         line-height: 1.5;
-        color: #d8ecff;
+        font-weight: 600;
+        color: #fff;
+        text-shadow: 0 2px 0 rgba(10, 22, 28, 0.7), 0 0 18px rgba(10, 22, 28, 0.7);
       }
-      .boat {
-        width: 120px;
-        height: auto;
-        margin: 0 auto 28px;
-        animation: bob 3.2s ease-in-out infinite;
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        gap: 18px 26px;
       }
-      @keyframes bob { 50% { transform: translateY(-6px) rotate(-2deg); } }
 
       footer {
-        padding: 20px 16px calc(20px + env(safe-area-inset-bottom));
-        background: var(--ink);
-        color: var(--parchment-deep);
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        gap: 10px 28px;
+        padding: 22px 16px calc(22px + env(safe-area-inset-bottom));
+        background: var(--night-deep);
+        color: #9fb2af;
         font-family: var(--pixel);
-        font-size: 13px;
-        text-align: center;
+        font-size: 14px;
       }
+      footer a { color: var(--gold); text-decoration: none; }
+      footer a:hover { text-decoration: underline; }
 
-      @media (max-width: 720px) {
-        .loop { grid-template-columns: 1fr; gap: 28px; margin-bottom: 72px; }
-        .loop:nth-child(odd of .loop) .clip { order: 0; }
-        .loops { padding-top: 72px; }
-        .loops > h2 { margin-bottom: 56px; }
-        .play { --h: 64px; --cap: 53px; min-width: 250px; font-size: 28px; }
-        .copy p { font-size: 17px; }
+      @media (max-width: 760px) {
+        .loop-inner, .loop:nth-of-type(even) .loop-inner { grid-template-columns: 1fr; --tuck: 44px; }
+        .loop:nth-of-type(even) .clip { order: 0; }
+        /* Telephone : la carte passe sous le BAS de l'extrait. */
+        .card, .loop:nth-of-type(even) .card {
+          margin: calc(var(--tuck) * -1) 0 0;
+          padding: calc(var(--tuck) + 8px) 22px 30px;
+        }
+        .js .loop .card, .js .loop:nth-of-type(even) .card { transform: translateY(-30%); }
+        .card .spot, .loop:nth-of-type(even) .card .spot { height: 76px; top: auto; bottom: -30px; right: 14px; left: auto; }
+        .plank { --h: 64px; --cap: 53px; min-width: 250px; font-size: 28px; }
+        .plank.blue { --h: 54px; --cap: 38px; min-width: 0; font-size: 19px; }
+        .card p { font-size: 17px; }
       }
-      @media (max-height: 620px) and (orientation: landscape) {
-        .title { padding-top: 16px; gap: 10px; }
-        .logo { width: min(60vw, 520px); }
+      @media (max-height: 640px) and (orientation: landscape) {
+        .title { padding-top: 14px; }
+        .brand { width: min(60vw, 520px); }
+        .cta { bottom: 20px; }
         .scroll { display: none; }
       }
 
       @media (prefers-reduced-motion: reduce) {
-        .glare, .scroll svg, .boat { animation: none; }
-        .play { transition: none; }
+        .glare, .scroll img { animation: none; }
+        .js .strip li, .js .strip.shown li { opacity: 1; transform: none; transition: none; }
+        .js .loop .clip, .js .loop .card, .js .loop .card .spot { opacity: 1; transform: none; transition: none; }
+        .cam, .tide, .crown-glow, .js .dialog li { transition: none; }
+        .story[data-ch='3'] .crown-glow { animation: none; }
+        .plank { transition: none; }
       }
     </style>
   </head>
@@ -337,24 +793,32 @@
         <img src="/assets/l2.webp" alt="" width="1672" height="940" data-depth="0.18" />
         <img src="/assets/l3.webp" alt="" width="1672" height="940" data-depth="0.38" />
         <img src="/assets/l4.webp" alt="" width="1672" height="940" data-depth="0.65" />
+        <!-- Le lapin PAR-DESSUS la vegetation, comme dans le jeu (README des
+             calques) : dessous, sa cape passait derriere les feuilles. -->
+        <img src="/assets/l6.webp" alt="" width="1672" height="940" data-depth="1" />
         <img src="/assets/l5.webp" alt="" width="1672" height="940" data-depth="0.69" />
         <div class="glare"></div>
-        <img src="/assets/l6.webp" alt="" width="1672" height="940" data-depth="1" />
       </div>
+
+      <a class="x-corner" href="https://x.com/rabbitroyaleX" target="_blank" rel="noopener" aria-label="Follow Rabbit Royale on X">
+        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M18.9 1.2h3.7l-8 9.2L24 22.8h-7.4l-5.8-7.6-6.6 7.6H.5l8.6-9.8L0 1.2h7.6l5.2 6.9 6.1-6.9Zm-1.3 19.4h2L6.5 3.3H4.3l13.3 17.3Z"/></svg>
+      </a>
 
       <div class="title">
         <h1 class="brand">
           <img class="logo px" src="/assets/logo.png" alt="Rabbit Royale" width="365" height="78" />
           <span class="tagline">Competitive minesweeper with rabbits</span>
         </h1>
-        <a class="play" href="/play/" data-play>PLAY</a>
+      </div>
+
+      <div class="cta">
+        <a class="plank" href="/play/" data-play>PLAY</a>
         <p class="note">Free. Plays in your browser, phone or desktop.</p>
       </div>
 
-      <a class="scroll" href="#loops" aria-label="See how it plays">
-        <svg width="28" height="20" viewBox="0 0 7 5" shape-rendering="crispEdges" aria-hidden="true">
-          <path fill="currentColor" d="M0 0h1v1H0zM6 0h1v1H6zM1 1h1v1H1zM5 1h1v1H5zM2 2h1v1H2zM4 2h1v1H4zM3 3h1v1H3z" />
-        </svg>
+      <a class="scroll" href="#loops">
+        <img class="px" src="/assets/arrow-down.png" alt="" width="22" height="25" />
+        How it plays
       </a>
     </header>
 
@@ -363,52 +827,196 @@
         <h2>Dig, grow your burrow, raid the neighbours.</h2>
 
         <article class="loop">
-          <div class="clip">
-            <video src="/assets/dig.mp4" poster="/assets/dig.webp" muted loop playsinline preload="none" aria-label="A rabbit digging tiles on the island"></video>
-          </div>
-          <div class="copy">
-            <img class="spot px" src="/assets/dig.png" alt="" />
-            <h3>Read the numbers</h3>
-            <p>Every tile you open tells you how many bombs are next to it. Work out where it's safe, dig your way to the chests, and grab them before the other rabbits on the island do.</p>
-          </div>
-        </article>
-
-        <article class="loop">
-          <div class="clip">
-            <video src="/assets/bomb.mp4" poster="/assets/bomb.webp" muted loop playsinline preload="none" aria-label="A rabbit stepping on a bomb and flying back"></video>
-          </div>
-          <div class="copy">
-            <img class="spot px" src="/assets/defend.png" alt="" />
-            <h3>Guess wrong, fly home</h3>
-            <p>Step on a bomb and you're blasted back to where you came from. Nobody dies, but everyone saw it. Back home, fence your burrow and plant bombs of your own.</p>
+          <img class="bg" src="/assets/dig.webp" alt="" loading="lazy" />
+          <div class="loop-inner">
+            <div class="clip">
+              <video src="/assets/dig.mp4" poster="/assets/dig.webp" muted loop playsinline preload="none" aria-label="A rabbit digging tiles on the island"></video>
+            </div>
+            <div class="card">
+              <img class="spot px" src="/assets/dig.png" alt="" />
+              <h3>Read the numbers</h3>
+              <p>Every tile you open tells you how many bombs are next to it. Work out where it's safe, dig your way to the chests, and grab them before the other rabbits on the island do.</p>
+              <span class="tag">Up to 4 rabbits per island, live</span>
+            </div>
           </div>
         </article>
 
         <article class="loop">
-          <div class="clip">
-            <video src="/assets/lightning.mp4" poster="/assets/lightning.webp" muted loop playsinline preload="none" aria-label="Lightning striking a rival rabbit"></video>
-          </div>
-          <div class="copy">
-            <img class="spot px" src="/assets/raid.png" alt="" />
-            <h3>Pay the neighbours a visit</h3>
-            <p>From level 3, sail to other players' burrows. Zap their rabbit, push it into the sea, and leave with the carrots they didn't guard.</p>
+          <img class="bg" src="/assets/bomb.webp" alt="" loading="lazy" />
+          <div class="loop-inner">
+            <div class="clip">
+              <video src="/assets/bomb.mp4" poster="/assets/bomb.webp" muted loop playsinline preload="none" aria-label="A rabbit stepping on a bomb and flying back"></video>
+            </div>
+            <div class="card">
+              <img class="spot px" src="/assets/defend.png" alt="" />
+              <h3>Guess wrong, fly home</h3>
+              <p>Step on a bomb and you're blasted back to where you came from. Nobody dies, but everyone saw it. Back home, fence your burrow and plant bombs of your own.</p>
+              <span class="tag">Your burrow is a minefield you design</span>
+            </div>
           </div>
         </article>
+
+        <article class="loop">
+          <img class="bg" src="/assets/lightning.webp" alt="" loading="lazy" />
+          <div class="loop-inner">
+            <div class="clip">
+              <video src="/assets/lightning.mp4" poster="/assets/lightning.webp" muted loop playsinline preload="none" aria-label="Lightning striking a rival rabbit"></video>
+            </div>
+            <div class="card">
+              <img class="spot px" src="/assets/raid.png" alt="" />
+              <h3>Pay the neighbours a visit</h3>
+              <p>From level 3, sail to other players' burrows. Zap their rabbit, push it into the sea, and leave with the carrots they didn't guard.</p>
+              <span class="tag">Lightning, ink, and a push into the sea</span>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section class="story" aria-labelledby="story-title" data-ch="0">
+        <div class="stage">
+          <div class="cam" aria-hidden="true">
+            <img src="/assets/tale-map.webp" alt="" width="1672" height="940" loading="lazy" />
+            <div class="crown-glow"></div>
+          </div>
+          <div class="tide" aria-hidden="true"></div>
+          <h2 id="story-title">The Cursed Crown</h2>
+          <div class="pips" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+          <ol class="dialog">
+            <li data-x="0.52" data-px="0.44" data-y="0.52" data-z="1.12" class="on">
+              <div class="who"><b>I</b> The old rabbits say</div>
+              <h3>The Island That Gives</h3>
+              <p>One morning, the rabbits found an island already full of carrots. Nobody had planted them. So they dug.</p>
+            </li>
+            <li data-x="0.76" data-y="0.62" data-z="2.3">
+              <div class="who"><b>II</b> The old rabbits say</div>
+              <h3>What the Numbers Know</h3>
+              <p>The stones told them where the bombs were, and the stones never lied. The island only ever took the rabbits in a hurry.</p>
+            </li>
+            <li data-x="0.6" data-y="0.47" data-z="2.7">
+              <div class="who"><b>III</b> The old rabbits say</div>
+              <h3>The Law of the Burrow</h3>
+              <p>But while they dug, their burrows stood empty. And a neighbour always knows when you're out.</p>
+            </li>
+            <li data-x="0.8" data-y="0.13" data-z="2.5">
+              <div class="who"><b>IV</b> The old rabbits say</div>
+              <h3>The Crown Is Not a Prize</h3>
+              <p>Then the crown appeared on the richest rabbit's head. It never comes off, and every rabbit on the map can see it shine.</p>
+            </li>
+            <li data-x="0.62" data-px="0.56" data-y="0.4" data-z="1.0">
+              <div class="who"><b>V</b> The old rabbits say</div>
+              <h3>When an Island Has Given Enough</h3>
+              <p>When the last chest is dug up, the island sinks. Somewhere, a new one rises, already full of carrots.</p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="series" aria-labelledby="series-title">
+        <img class="bg" src="/assets/strip4.webp" alt="" loading="lazy" />
+        <div class="series-head">
+          <div>
+            <h2 id="series-title">There's a cartoon too.</h2>
+            <p>Shiro reads the board. Degen digs first and thinks later. Short episodes with no dialogue, each one ending on a line from the island.</p>
+          </div>
+          <a class="plank blue" href="https://x.com/rabbitroyaleX" target="_blank" rel="noopener">
+            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M18.9 1.2h3.7l-8 9.2L24 22.8h-7.4l-5.8-7.6-6.6 7.6H.5l8.6-9.8L0 1.2h7.6l5.2 6.9 6.1-6.9Zm-1.3 19.4h2L6.5 3.3H4.3l13.3 17.3Z"/></svg>
+            Watch on X
+          </a>
+        </div>
+        <ol class="strip" aria-label="Episode 1, panel by panel">
+          <li style="--i: 0"><img src="/assets/strip1.webp" alt="The white rabbit digs under a bush" loading="lazy" /></li>
+          <li style="--i: 1"><img src="/assets/strip2.webp" alt="It pulls out a giant carrot" loading="lazy" /></li>
+          <li style="--i: 2"><img src="/assets/strip3.webp" alt="It holds the carrot up, delighted" loading="lazy" /><span class="say">found a carrot</span></li>
+          <li style="--i: 3"><img src="/assets/strip4.webp" alt="Behind it, Degen the brown rabbit digs too" loading="lazy" /></li>
+          <li style="--i: 4"><img src="/assets/strip5.webp" alt="A bomb goes off under Degen" loading="lazy" /><span class="say">his friend found a bomb</span></li>
+          <li style="--i: 5"><img src="/assets/strip6.webp" alt="Degen flies through the air above the crater" loading="lazy" /><span class="say big">rekt.</span></li>
+          <li style="--i: 6"><img src="/assets/strip7.webp" alt="Episode 2: the two rabbits on a board of numbered tiles" loading="lazy" /><span class="soon">Episode 2 soon</span></li>
+        </ol>
       </section>
 
       <section class="sail">
-        <img class="boat px" src="/assets/raid.png" alt="" />
+        <img class="sea" src="/assets/l1.webp" alt="" loading="lazy" />
         <h2>Your island is waiting.</h2>
         <p>No download, no install. Tap play and you're on the island.</p>
-        <a class="play" href="/play/" data-play>PLAY</a>
+        <div class="actions">
+          <a class="plank" href="/play/" data-play>PLAY</a>
+          <a class="plank blue" href="https://x.com/rabbitroyaleX" target="_blank" rel="noopener">
+            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M18.9 1.2h3.7l-8 9.2L24 22.8h-7.4l-5.8-7.6-6.6 7.6H.5l8.6-9.8L0 1.2h7.6l5.2 6.9 6.1-6.9Zm-1.3 19.4h2L6.5 3.3H4.3l13.3 17.3Z"/></svg>
+            Follow us on X
+          </a>
+        </div>
       </section>
     </main>
 
-    <footer>&copy; 2026 Rabbit Royale</footer>
+    <footer>
+      <span>&copy; 2026 Rabbit Royale</span>
+      <a href="https://x.com/rabbitroyaleX" target="_blank" rel="noopener">@RabbitRoyaleX</a>
+      <a href="/pitch/">Pitch deck</a>
+    </footer>
 
     <script>
       (() => {
         const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+        document.documentElement.classList.add('js');
+
+        // Chaque bande de gameplay joue son arrivee une fois (voir .loop.in).
+        const bands = new IntersectionObserver((entries) => {
+          for (const en of entries) {
+            if (!en.isIntersecting) continue;
+            en.target.classList.add('in');
+            bands.unobserve(en.target);
+          }
+        }, { threshold: 0.3 });
+        document.querySelectorAll('.loop').forEach((l) => bands.observe(l));
+
+        // L'HISTOIRE : le defilement choisit le chapitre, le chapitre place la
+        // camera. Cible = un point de l'image (fractions) amene au centre de
+        // la zone au-dessus du dialogue, au zoom demande, sans jamais laisser
+        // voir le bord de l'image.
+        const story = document.querySelector('.story');
+        const stage = story.querySelector('.stage');
+        const cam = story.querySelector('.cam');
+        const lines = [...story.querySelectorAll('.dialog li')];
+        const IW = 1672, IH = 940;
+        let ch = -1;
+        const aim = () => {
+          const W = stage.clientWidth, H = stage.clientHeight;
+          const li = lines[Math.max(ch, 0)];
+          // En portrait, l'image couvre deja l'ecran en tres gros : le zoom
+          // de chaque chapitre y est adouci, et un plan large peut viser un
+          // autre point (data-px) pour garder le lapin dans le cadre.
+          const tall = H > W;
+          const z = +li.dataset.z;
+          const S = Math.max(W / IW, H / IH) * (tall ? 1 + (z - 1) * 0.45 : z);
+          const fx = +(tall && li.dataset.px ? li.dataset.px : li.dataset.x);
+          let tx = W / 2 - fx * IW * S;
+          let ty = H * 0.4 - +li.dataset.y * IH * S;
+          tx = Math.min(0, Math.max(W - IW * S, tx));
+          ty = Math.min(0, Math.max(H - IH * S, ty));
+          cam.style.transform = `translate(${tx.toFixed(1)}px, ${ty.toFixed(1)}px) scale(${S.toFixed(4)})`;
+        };
+        const pick = () => {
+          const r = story.getBoundingClientRect();
+          const run = story.offsetHeight - innerHeight;
+          const t = Math.min(0.999, Math.max(0, -r.top / run));
+          const n = Math.floor(t * lines.length);
+          if (n === ch) return;
+          ch = n;
+          story.dataset.ch = n;
+          lines.forEach((l, k) => l.classList.toggle('on', k === n));
+          aim();
+        };
+        addEventListener('scroll', pick, { passive: true });
+        addEventListener('resize', aim);
+        pick();
+
+        // La planche de la serie se devoile case apres case, une fois.
+        const strip = document.querySelector('.strip');
+        new IntersectionObserver(([en], obs) => {
+          if (!en.isIntersecting) return;
+          strip.classList.add('shown');
+          obs.disconnect();
+        }, { threshold: 0.3 }).observe(strip);
 
         // LE PARALLAXE DE L'ECRAN TITRE : memes facteurs que home_background.gd
         // (README des calques), une derive lente quand rien ne bouge, et la
