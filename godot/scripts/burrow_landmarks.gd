@@ -64,13 +64,15 @@ const ISLETS := [
 ## Dessinee dans l'interface : sa taille ne depend pas du zoom du monde.
 const VERB_PX := 13
 ## LA REVELATION (`_wanted`, `_rise`). Ce qu'un joueur a deja vu sortir de
-## l'eau, par joueur ; le seuil de parties de DEFEND (le tuto en est une).
+## l'eau, par joueur ; DIG apres le tuto, DEFEND au niveau 2, RAID a RAID_MIN.
 const REVEAL_PATH := "user://reveal.cfg"
 const REVEAL_DIG_RUNS := 1
-const REVEAL_DEFEND_RUNS := 2
+const REVEAL_DEFEND_LEVEL := 2
 const RISE_PX := 36.0
 const RISE_SECONDS := 1.2
-const RISE_STAGGER := 0.45
+## L'ecart entre deux ilots qui sortent ensemble (DIG puis SHOP) : assez pour
+## qu'on voie deux montees et pas une seule.
+const RISE_STAGGER := 0.9
 const RISE_SPLASHES := 6
 ## Le temps de retrouver l'ecran (le focus, le fondu d'arrivee) avant que la
 ## mer ne s'ouvre ; puis le ponton, en fondu une fois l'ilot pose.
@@ -235,10 +237,10 @@ func build(main: BurrowMap, own: bool = true) -> void:
 # ── Les ilots qui se revelent ─────────────────────────────────────────────
 
 ## L'ILE SE DEVOILE AVEC LE JEU :
-##   • DIG et SHOP a la fin du tuto (sa partie compte : runs >= 1) ;
-##   • DEFEND apres la premiere vraie partie (le tuto en compte deja une) ;
-##   • RAID quand le bouclier de depart est tombe.
-## Un ilot vu reste : relever un bouclier ne recache pas RAID.
+##   • DIG et SHOP a la fin du tuto (sa partie compte : runs >= 1), niveau 1 ;
+##   • DEFEND au niveau 2 ;
+##   • RAID au niveau RAID_MIN (3) : la ou les raids ouvrent.
+## Un ilot vu reste.
 func _wanted() -> Array[String]:
 	var doors: Array[String] = []
 	if bench:
@@ -254,10 +256,10 @@ func _wanted() -> Array[String]:
 	for door in ["dig", "shop"]:
 		if seen.has(door) or runs >= REVEAL_DIG_RUNS:
 			doors.append(door)
-	if seen.has("defend") or (Home.loaded() and int(Home.burrow.get("runs", 0)) >= REVEAL_DEFEND_RUNS):
+	var level := int(Home.player.get("level", 1)) if Home.loaded() else 0
+	if seen.has("defend") or (doors.has("dig") and level >= REVEAL_DEFEND_LEVEL):
 		doors.append("defend")
-	var shield: Variant = Home.burrow.get("shieldMs", null) if Home.loaded() else 1
-	if seen.has("raid") or (doors.has("defend") and (shield == null or float(shield) <= 0.0)):
+	if seen.has("raid") or (doors.has("defend") and level >= Tuning.i("RABBIT_LEVELS.RAID_MIN", 10)):
 		doors.append("raid")
 	return _ordered(doors)
 

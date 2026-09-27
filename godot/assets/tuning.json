@@ -315,7 +315,7 @@
 	},
 	"RABBIT_LEVELS": {
 		"MAX": 10.0,
-		"RAID_MIN": 10.0,
+		"RAID_MIN": 3.0,
 		"LADDER": [
 			{
 				"level": 1.0,

@@ -38,9 +38,10 @@ describe('the level ladder', () => {
   });
 
   it('opens fights only when both have reached RAID_MIN', () => {
-    expect(mayFight(10, 10)).toBe(true);
-    expect(mayFight(9, 10)).toBe(false);
-    expect(mayFight(10, 3)).toBe(false);
+    const min = RABBIT_LEVELS.RAID_MIN;
+    expect(mayFight(min, 10)).toBe(true);
+    expect(mayFight(min - 1, 10)).toBe(false);
+    expect(mayFight(10, min - 1)).toBe(false);
   });
 });
 

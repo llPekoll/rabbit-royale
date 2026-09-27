@@ -529,7 +529,7 @@ export interface LevelRow {
 export const RABBIT_LEVELS = {
   MAX: 10,
   /** Raids, lightning, mirages and shoves open at this level, both ways. */
-  RAID_MIN: 10,
+  RAID_MIN: 3,
   LADDER: [
     { level: 1,  tier: 'Meadow',  seats: 1, bombDensity: 0.10, carrotDensity: 0.28, goldenShare: 0.05, xGain: 3, land: 0.12, chests: 2 },
     { level: 2,  tier: 'Meadow',  seats: 1, bombDensity: 0.12, carrotDensity: 0.29, goldenShare: 0.06, xGain: 3, land: 0.16, chests: 2 },
