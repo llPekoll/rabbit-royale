@@ -1,0 +1,194 @@
+<!doctype html>
+<!--
+  POLITIQUE DE CONFIDENTIALITE (2026-09-28), lien public exige par le dApp
+  Store Solana. Elle decrit ce que le code fait VRAIMENT : a relire si l'auth,
+  les paiements, les push ou un service tiers changent (src/lib/auth,
+  src/lib/pay, android/app/src/fcm, src/lib/db/schema.ts).
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#10222b" />
+    <title>Privacy Policy · Rabbit Royale</title>
+    <meta name="description" content="What Rabbit Royale collects, why, and how to have it deleted." />
+    <link rel="icon" href="/favicon.ico" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito+Sans:wght@400;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/assets/legal.css" />
+  </head>
+  <body>
+    <header class="top">
+      <a href="/"><img src="/assets/logo.png" alt="Rabbit Royale" /></a>
+      <nav>
+        <a href="/terms/">Terms</a>
+        <a href="/privacy/" aria-current="page">Privacy</a>
+      </nav>
+    </header>
+
+    <main>
+      <h1>Privacy Policy</h1>
+      <p class="updated">Last updated: September 28, 2026</p>
+
+      <p class="lead">
+        Rabbit Royale is a free-to-play game. We collect as little as we can: no email, no password, no
+        phone number, no real name, no analytics or advertising trackers.
+      </p>
+      <p>
+        This policy covers the game at <a href="https://rabbit.rip">rabbit.rip</a>, the Android app and the
+        Solana dApp Store app (together, “the Game”), operated by the Rabbit Royale team (“we”, “us”).
+      </p>
+
+      <h2>1. What we collect</h2>
+
+      <h3>Your account</h3>
+      <ul>
+        <li>
+          <strong>Guest accounts.</strong> When you press Play, we create an anonymous account identified by a
+          random ID. Nothing about you or your device is collected to do this.
+        </li>
+        <li>
+          <strong>Wallet accounts.</strong> If you connect a Solana wallet (Phantom, Solflare, Backpack, Seed
+          Vault through Mobile Wallet Adapter…), we store your <strong>public wallet address</strong>. You prove
+          you own it by signing a text message; this signature never moves funds and we never see your private
+          key or seed phrase.
+        </li>
+        <li>
+          <strong>Profile.</strong> Your rabbit name (random at first, you can change it), the avatar you pick
+          from the Game's built-in characters, when the account was created and when you last played.
+        </li>
+      </ul>
+
+      <h3>Your game</h3>
+      <p>
+        Game progress and state: carrots and score, energy, items, your burrow layout, quests, seasons and
+        rankings, and your interactions with other players (raids, traps, fences and other in-game actions).
+      </p>
+
+      <h3>Purchases</h3>
+      <p>
+        If you buy an item with USDC, SOL or SKR, we record the item, the amount, the token, the price in USD,
+        and the Solana transaction signature so we can verify the payment and deliver the item. Payments go
+        straight from your wallet to ours on the Solana blockchain: we never handle cards or bank details.
+      </p>
+
+      <h3>Technical data</h3>
+      <p>
+        Like any web server, ours sees your IP address and browser details when you connect. They may appear in
+        short-lived server logs used for security and debugging; we do not store them in your account or use
+        them to track you.
+      </p>
+
+      <h3>Push notifications (Android)</h3>
+      <p>
+        If you allow notifications in the Android app (for example, to be told your burrow is being raided), a
+        device token from Google Firebase Cloud Messaging is used to deliver them. You can turn notifications
+        off at any time in your phone's settings.
+      </p>
+
+      <h2>2. What stays on your device</h2>
+      <p>
+        The Game keeps a few things in your browser storage or the app's local files: your session (so you stay
+        signed in), your language, sound settings and a few “already seen” flags for the tutorial. The website
+        also sets one cookie, <code>rr_session</code>, which keeps you signed in for up to 30 days. None of these
+        are used for advertising or cross-site tracking.
+      </p>
+      <p class="note">
+        A guest account exists only through the session stored on your device. If you clear your browser data
+        or uninstall the app, a guest account cannot be recovered. Connect a wallet to keep your progress.
+      </p>
+
+      <h2>3. Why we use it</h2>
+      <ul>
+        <li>To run the Game: save your progress, match you with other players, keep the leaderboard.</li>
+        <li>To verify and deliver purchases.</li>
+        <li>To send the notifications you asked for.</li>
+        <li>To keep the Game fair and secure: stop cheating, abuse and attacks.</li>
+      </ul>
+      <p>
+        We do not sell your data, share it with advertisers, or use it to build advertising profiles. Where the
+        law asks for a legal basis, we rely on the performance of our agreement with you (running the Game you
+        signed up for) and our legitimate interest in keeping it secure.
+      </p>
+
+      <h2>4. What other players see</h2>
+      <p>
+        Rabbit Royale is multiplayer. Other players can see your rabbit name, avatar, score, burrow level and
+        whether you are online, on the leaderboard and on the islands. Your burrow can be visited and raided.
+        <strong>If you play with a wallet, your wallet address may be visible to other players.</strong>
+      </p>
+      <p>
+        Anything done on the Solana blockchain (your wallet address, payments) is public by design and cannot be
+        erased by us or anyone else.
+      </p>
+
+      <h2>5. Who else processes data</h2>
+      <ul>
+        <li><strong>Our servers</strong>, which we run ourselves, host the Game, its database and its cache.</li>
+        <li>
+          <strong>Solana RPC provider (Alchemy)</strong>: relays requests to the Solana blockchain and notifies us
+          when a payment reaches our wallet.
+        </li>
+        <li><strong>Jupiter</strong>: our server asks it for SOL and SKR prices. No data about you is sent.</li>
+        <li><strong>Google Firebase Cloud Messaging</strong>: delivers Android push notifications, if enabled.</li>
+        <li><strong>Google Fonts</strong>: serves the fonts of this website; your browser fetches them from Google.</li>
+        <li>
+          <strong>Your wallet app</strong> (Phantom, Solflare, Seed Vault…) has its own privacy policy, which
+          applies to what you do in it.
+        </li>
+      </ul>
+
+      <h2>6. How long we keep it</h2>
+      <ul>
+        <li>
+          Guest accounts are deleted automatically after 30 days without playing (after 1 day if you never
+          finished a first game), or immediately when you abandon them from the Game.
+        </li>
+        <li>Wallet accounts are kept while you play, and deleted on request.</li>
+        <li>Purchase records are kept as long as needed for accounting and to handle disputes.</li>
+        <li>Server logs are kept for a short period and then rotated.</li>
+      </ul>
+
+      <h2>7. Your rights</h2>
+      <p>
+        You can ask us for a copy of your data, to correct it, or to delete your account. Guests can delete their
+        account themselves from the Game. For a wallet account, write to us from the contact below with your
+        wallet address; we may ask you to sign a message to prove it is yours. Depending on where you live (for
+        example in the EU or UK), you may also have the right to object, to restrict processing and to complain
+        to your data protection authority.
+      </p>
+
+      <h2>8. Children</h2>
+      <p>
+        The Game is not directed at children under 13, and we do not knowingly collect data from them. If you
+        believe a child under 13 has an account, contact us and we will delete it.
+      </p>
+
+      <h2>9. Security</h2>
+      <p>
+        Connections to the Game are encrypted (HTTPS), sessions are signed, and we store no passwords or private
+        keys. No system is perfectly secure, but we keep what we hold to the minimum.
+      </p>
+
+      <h2>10. Changes</h2>
+      <p>
+        If this policy changes, we will update it here and change the date at the top. For significant changes,
+        we will let you know in the Game.
+      </p>
+
+      <h2>11. Contact</h2>
+      <p>
+        Questions or requests: <a href="mailto:contact@rabbit.rip">contact@rabbit.rip</a>, or a direct message
+        to <a href="https://x.com/rabbitroyaleX" target="_blank" rel="noopener">@RabbitRoyaleX</a> on X.
+      </p>
+    </main>
+
+    <footer>
+      <span>&copy; 2026 Rabbit Royale</span>
+      <a href="/terms/">Terms of Use</a>
+      <a href="/privacy/">Privacy Policy</a>
+      <a href="/">Home</a>
+    </footer>
+  </body>
+</html>
