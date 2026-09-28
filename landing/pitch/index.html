@@ -29,7 +29,7 @@
     <link rel="icon" href="/favicon.ico" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito+Sans:wght@400;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito+Sans:wght@400;600;700;900&display=swap" rel="stylesheet" />
     <style>
       html, body {
         margin: 0;
@@ -68,6 +68,8 @@
       .slide > * { position: relative; }
       .slide img { display: block; object-fit: cover; }
       .slide h1, .slide h2, .slide h3 { font-weight: 400; }
+      /* Le gras des cartes equipe : en or et au plus epais, sinon il se perd. */
+      .slide b { font-weight: 900; color: #f2c14e; }
       .slide x-shape { display: block; flex: none; }
       .slide x-shape[kind='arrow-right'] {
         clip-path: polygon(0 32%, 58% 32%, 58% 0, 100% 50%, 58% 100%, 58% 68%, 0 68%);
@@ -438,45 +440,63 @@
         </div>
       </section>
       
-      <section class="slide" id="gtm" data-transition="fade" style="display:grid; gap:64px; align-items:center; grid-template-columns:1fr 600px; padding:96px 128px 160px; background:#10222b">
+      <section class="slide" id="gtm" data-transition="fade" style="background:#10222b">
         <img src="/pitch/img/ep01-hero.webp" alt="" style="position:absolute; top:0; left:0; width:1920px; height:1080px; filter:blur(12px) brightness(0.3)">
-        <div style="display:flex; flex-direction:column; gap:36px">
-          <div style="display:flex; flex-direction:column; gap:12px">
-            <h2 style="font-family:'Lilita One', Arial, sans-serif; font-size:88px; font-weight:400; line-height:1; color:#f7f0e1; text-shadow:0 5px 0 #0a161c">Go-to-market: built to go viral</h2>
-            <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:32px; line-height:1.4; color:#dde6e3">Seeker first, then every store: no gambling means none is closed to us.</p>
+        <div style="position:absolute; top:72px; left:128px; width:1664px; display:flex; flex-direction:column; gap:10px">
+          <p style="font-family:'Lilita One', Arial, sans-serif; font-size:34px; letter-spacing:2px; text-transform:uppercase; color:#f29a4a">Go-to-market</p>
+          <h2 style="font-family:'Lilita One', Arial, sans-serif; font-size:88px; font-weight:400; line-height:1; color:#f7f0e1; text-shadow:0 5px 0 #0a161c">The game markets itself.</h2>
+          <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:28px; line-height:1.4; color:#dde6e3">Every raid starts a revenge story, and every revenge story is a post. Seeker first, then every store.</p>
+        </div>
+        <svg aria-hidden="true" style="position:absolute; left:0; top:0; width:1920px; height:1080px; overflow:visible; pointer-events:none">
+          <defs><marker id="gtm-arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#f2c14e"/></marker></defs>
+          <path d="M710 430 A300 300 0 0 1 820 540" fill="none" stroke="#f2c14e" stroke-width="5" stroke-dasharray="14 10" stroke-linecap="round" marker-end="url(#gtm-arrow)"/><path d="M820 840 A300 300 0 0 1 710 950" fill="none" stroke="#f2c14e" stroke-width="5" stroke-dasharray="14 10" stroke-linecap="round" marker-end="url(#gtm-arrow)"/><path d="M410 950 A300 300 0 0 1 300 840" fill="none" stroke="#f2c14e" stroke-width="5" stroke-dasharray="14 10" stroke-linecap="round" marker-end="url(#gtm-arrow)"/><path d="M300 540 A300 300 0 0 1 410 430" fill="none" stroke="#f2c14e" stroke-width="5" stroke-dasharray="14 10" stroke-linecap="round" marker-end="url(#gtm-arrow)"/>
+        </svg>
+        <div style="position:absolute; left:455px; top:540px; width:210px; display:flex; flex-direction:column; align-items:center; gap:6px; padding:14px 14px 16px; background:#f3e3c3; border:5px solid #3b1d0e; border-radius:6px; box-shadow:0 14px 30px #000000b3; transform:rotate(-4deg)">
+          <p style="font-family:'Lilita One', Arial, sans-serif; font-size:40px; line-height:1; letter-spacing:3px; color:#3b1d0e">WANTED</p>
+          <img src="/pitch/img/degen-wanted.webp" alt="Wanted poster: Degen, the brown rabbit" style="width:140px; height:197px; border:3px solid #3b1d0e">
+          <p style="font-family:'Lilita One', Arial, sans-serif; font-size:26px; line-height:1; color:#3b1d0e">DEGEN</p>
+          <p style="padding:3px 14px; font-family:'Lilita One', Arial, sans-serif; font-size:22px; color:#10222b; background:#f2c14e; border-radius:20px">0.05 SOL</p>
+        </div>
+        <div style="position:absolute; left:430px; top:338px; width:260px; display:flex; flex-direction:column; gap:4px; padding:14px 18px; background:#0a161ce6; border:3px solid #f2c14e; border-radius:20px; box-shadow:0 10px 26px #00000099">
+          <p style="font-family:'Lilita One', Arial, sans-serif; font-size:26px; line-height:1.05; color:#f2c14e">1 · GET RAIDED</p>
+          <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:19px; line-height:1.3; color:#dde6e3">Someone walks off with your carrots.</p>
+        </div>
+        <div style="position:absolute; left:740px; top:628px; width:260px; display:flex; flex-direction:column; gap:4px; padding:14px 18px; background:#0a161ce6; border:3px solid #f2c14e; border-radius:20px; box-shadow:0 10px 26px #00000099">
+          <p style="font-family:'Lilita One', Arial, sans-serif; font-size:26px; line-height:1.05; color:#f2c14e">2 · POST A BOUNTY</p>
+          <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:19px; line-height:1.3; color:#dde6e3">A WANTED poster goes out on X.</p>
+        </div>
+        <div style="position:absolute; left:430px; top:908px; width:260px; display:flex; flex-direction:column; gap:4px; padding:14px 18px; background:#0a161ce6; border:3px solid #f2c14e; border-radius:20px; box-shadow:0 10px 26px #00000099">
+          <p style="font-family:'Lilita One', Arial, sans-serif; font-size:26px; line-height:1.05; color:#f2c14e">3 · HUNTERS JOIN</p>
+          <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:19px; line-height:1.3; color:#dde6e3">Followers tap it, install, raid him.</p>
+        </div>
+        <div style="position:absolute; left:120px; top:628px; width:260px; display:flex; flex-direction:column; gap:4px; padding:14px 18px; background:#0a161ce6; border:3px solid #f2c14e; border-radius:20px; box-shadow:0 10px 26px #00000099">
+          <p style="font-family:'Lilita One', Arial, sans-serif; font-size:26px; line-height:1.05; color:#f2c14e">4 · NEW RIVALS</p>
+          <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:19px; line-height:1.3; color:#dde6e3">Every hunter brings a burrow to raid.</p>
+        </div>
+        <div style="position:absolute; top:360px; left:1100px; width:692px; display:flex; flex-direction:column; gap:20px">
+          <div style="display:flex; flex-direction:row; gap:24px; align-items:center; padding:22px 30px; background:#0a161ccc; border:3px solid #f2c14e80; border-radius:26px">
+            <p style="width:190px; font-family:'Lilita One', Arial, sans-serif; font-size:64px; line-height:1; color:#f2c14e">150K</p>
+            <div style="display:flex; flex-direction:column; gap:6px; flex:1">
+              <p style="font-family:'Lilita One', Arial, sans-serif; font-size:30px; color:#f29a4a">SEEKER QUESTS</p>
+              <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:23px; line-height:1.35; color:#dde6e3">Seeker devices. A featured quest pays players in SKR, and the dApp Store takes no fee.</p>
+            </div>
           </div>
-          <div style="display:flex; flex-direction:column; gap:20px">
-            <div style="display:flex; flex-direction:row; gap:32px; align-items:center; padding:24px 40px; background:#0a161ccc; border:3px solid #f2c14e80; border-radius:28px">
-              <p style="width:250px; font-family:'Lilita One', Arial, sans-serif; font-size:72px; line-height:1; color:#f2c14e">150K</p>
-              <div style="display:flex; flex-direction:column; gap:6px; flex:1">
-                <p style="font-family:'Lilita One', Arial, sans-serif; font-size:34px; color:#f29a4a">1 · SEEKER</p>
-                <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:28px; line-height:1.35; color:#dde6e3">Seeker devices with a wallet built in, a store short on real games, and the domin8 community.</p>
-              </div>
+          <div style="display:flex; flex-direction:row; gap:24px; align-items:center; padding:22px 30px; background:#0a161ccc; border:3px solid #f2c14e80; border-radius:26px">
+            <p style="width:190px; font-family:'Lilita One', Arial, sans-serif; font-size:64px; line-height:1; color:#f2c14e">vs</p>
+            <div style="display:flex; flex-direction:column; gap:6px; flex:1">
+              <p style="font-family:'Lilita One', Arial, sans-serif; font-size:30px; color:#f29a4a">COMMUNITY WARS</p>
+              <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:23px; line-height:1.35; color:#dde6e3">Solana communities become clans: they defend their island and raid each other. Weekly leaderboard.</p>
             </div>
-            <div style="display:flex; flex-direction:row; gap:32px; align-items:center; padding:24px 40px; background:#0a161ccc; border:3px solid #f2c14e80; border-radius:28px">
-              <p style="width:250px; font-family:'Lilita One', Arial, sans-serif; font-size:72px; line-height:1; color:#f2c14e">1 by 1</p>
-              <div style="display:flex; flex-direction:column; gap:6px; flex:1">
-                <p style="font-family:'Lilita One', Arial, sans-serif; font-size:34px; color:#f29a4a">2 · CREATORS</p>
-                <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:28px; line-height:1.35; color:#dde6e3">Small YouTubers first, and direct messages to players, one conversation at a time.</p>
-              </div>
-            </div>
-            <div style="display:flex; flex-direction:row; gap:32px; align-items:center; padding:24px 40px; background:#0a161ccc; border:3px solid #f2c14e80; border-radius:28px">
-              <p style="width:250px; font-family:'Lilita One', Arial, sans-serif; font-size:72px; line-height:1; color:#f2c14e">8 clips</p>
-              <div style="display:flex; flex-direction:column; gap:6px; flex:1">
-                <p style="font-family:'Lilita One', Arial, sans-serif; font-size:34px; color:#f29a4a">3 · VIRAL CLIPS</p>
-                <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:28px; line-height:1.35; color:#dde6e3">Wordless 25-second gags on X, Instagram and TikTok. Shiro thinks, Degen jumps.</p>
-              </div>
+          </div>
+          <div style="display:flex; flex-direction:row; gap:24px; align-items:center; padding:22px 30px; background:#0a161ccc; border:3px solid #f2c14e80; border-radius:26px">
+            <p style="width:190px; font-family:'Lilita One', Arial, sans-serif; font-size:64px; line-height:1; color:#f2c14e">8 clips</p>
+            <div style="display:flex; flex-direction:column; gap:6px; flex:1">
+              <p style="font-family:'Lilita One', Arial, sans-serif; font-size:30px; color:#f29a4a">VIRAL CLIPS</p>
+              <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:23px; line-height:1.35; color:#dde6e3">Shiro and Degen on X and YouTube Shorts. Wordless gags, made to share.</p>
             </div>
           </div>
         </div>
-        <div style="display:flex; flex-direction:column; gap:24px; align-items:center">
-          <div style="display:flex; flex-direction:row; gap:32px">
-            <img src="/pitch/img/ep01-hero.webp" alt="Clip 1: the white rabbit hero pulls a giant carrot out of the ground" style="width:284px; height:600px; border:4px solid #f2c14e; border-radius:28px">
-            <img src="/pitch/img/ep01-degen.webp" alt="Clip 1: Degen, the brown rabbit, blown up by a bomb" style="width:284px; height:600px; border:4px solid #f2c14e; border-radius:28px">
-          </div>
-          <p style="padding:10px 32px; font-family:'Lilita One', Arial, sans-serif; font-size:30px; color:#10222b; background:#f2c14e; border-radius:40px">CLIP 1 · OUT NOW</p>
-        </div>
-        <p style="position:absolute; bottom:64px; left:128px; width:1664px; font-family:'Nunito Sans', Arial, sans-serif; font-size:24px; color:#9fb2af">Seeker figures: Solana Mobile, via Solana Compass and The Block (2026).</p>
+        <p style="position:absolute; left:1100px; bottom:48px; width:692px; font-family:'Nunito Sans', Arial, sans-serif; font-size:20px; color:#9fb2af">Seeker figures: Solana Mobile, via Solana Compass and The Block. Quests: Seeker Summer 2026.</p>
       </section>
       
       <section class="slide" id="close" data-transition="fade" style="background:#10222b">
