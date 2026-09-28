@@ -10,6 +10,10 @@ extends Node2D
 ##   ... -- --raid --after=2.2          # un raid factice : arrive (0,3 s), deux
 ##                                      # pas, une bombe saute (1,8 s), l'eclair
 ##                                      # (3 s)
+##   ... -- --build                     # la pose, filmee pour la carte DEFEND
+##                                      # du deck (rabbit.rip/pitch) : trois
+##                                      # bombes enterrees une a une, puis le
+##                                      # potager clos planche par planche (~6 s)
 ##
 ## `ShopState.fake` coupe le reseau : aucune bombe ne part vers ws.rabbit.rip.
 
@@ -22,6 +26,7 @@ func _ready() -> void:
 	var home := false
 	var raid := false
 	var ghost := false
+	var build := false
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--seed="):
 			seed_text = arg.trim_prefix("--seed=")
@@ -33,6 +38,8 @@ func _ready() -> void:
 			raid = true
 		elif arg == "--ghost":
 			ghost = true
+		elif arg == "--build":
+			build = true
 	Session.player = {"id": seed_text}
 
 	var shop := ShopState.shared()
@@ -53,12 +60,17 @@ func _ready() -> void:
 
 	_burrow = preload("res://scenes/burrow.tscn").instantiate()
 	add_child(_burrow)
-	shop.traps["placed"] = picks
-	shop.traps["armed"] = [picks[0], picks[2]]
-	shop.traps["rearming"] = [{"tile": picks[1], "readyAt": half + "Z"}]
-	shop.changed.emit()
+	if not build:
+		shop.traps["placed"] = picks
+		shop.traps["armed"] = [picks[0], picks[2]]
+		shop.traps["rearming"] = [{"tile": picks[1], "readyAt": half + "Z"}]
+		shop.changed.emit()
 
 	await get_tree().create_timer(0.3).timeout
+	if build:
+		DevShot.arm(self)
+		_play_build(layout)
+		return
 	if not home:
 		_burrow.call("set_placing", true)
 	if lift:
@@ -123,3 +135,101 @@ static func _walk_from(layout: BurrowLayout, from: int, steps: int) -> Array[int
 		out.append(best)
 		at = best
 	return out
+
+
+## LA POSE, sans serveur : trois bombes (le fantome tient la case, puis la
+## vraie arrive avec sa poussiere, comme `_toggle_trap`), puis quatre planches
+## sur la face avant du potager. Tout dans la prise du mode cloture, SERREE sur
+## le potager : celle de la pose montre le terrier entier, et une bombe y fait
+## quelques pixels.
+func _play_build(layout: BurrowLayout) -> void:
+	var shop := ShopState.shared()
+	var traps: BurrowTraps = _burrow.get("_traps")
+	_burrow.call("set_walling", true)
+	await get_tree().create_timer(0.7).timeout
+	for tile in _bomb_spots(layout, 3):
+		traps.expect_fresh(tile)
+		traps.pin_ghost(tile)
+		await get_tree().create_timer(0.25).timeout
+		(shop.traps["placed"] as Array).append(tile)
+		(shop.traps["armed"] as Array).append(tile)
+		shop.changed.emit()
+		traps.unpin_ghost()
+		await get_tree().create_timer(0.45).timeout
+	await get_tree().create_timer(0.2).timeout
+
+	var fences: FenceView = _burrow.get("_fences")
+	var drawn: Array = fences.get("_drawn")
+	var offers: Array = []
+	for d in drawn:
+		offers.append(d["seg"])
+	shop.fences = {"placed": [], "spans": [], "offers": offers, "held": 4, "maxHeld": 4}
+	shop.changed.emit()
+	await get_tree().create_timer(0.3).timeout
+	for seg in _front_planks(drawn, 4):
+		(shop.fences["placed"] as Array).append(seg)
+		shop.changed.emit()
+		_drop_in(drawn, seg)
+		await get_tree().create_timer(0.45).timeout
+
+
+## Des cases minables autour du potager, dans le cadre du mode cloture, sans
+## y toucher et pas collees entre elles : trois bombes, trois gestes.
+static func _bomb_spots(layout: BurrowLayout, n: int) -> Array[int]:
+	var garden := Vector2.ZERO
+	for t in layout.field:
+		garden += Vector2(BurrowLayout.cell_of(t))
+	garden /= float(layout.field.size())
+	var tiles: Array[int] = []
+	for t in layout.walkable_tiles():
+		var far := Vector2(BurrowLayout.cell_of(t)).distance_to(garden)
+		if layout.is_trappable(t) and layout.kind(t) == BurrowLayout.Cell.GROUND \
+				and far >= 2.5 and far <= 4.0:
+			tiles.append(t)
+	tiles.sort_custom(func(a: int, b: int) -> bool:
+		return Vector2(BurrowLayout.cell_of(a)).distance_squared_to(garden) \
+			< Vector2(BurrowLayout.cell_of(b)).distance_squared_to(garden))
+	var out: Array[int] = []
+	for t in tiles:
+		var apart := true
+		for o in out:
+			if Vector2(BurrowLayout.cell_of(t)).distance_to(Vector2(BurrowLayout.cell_of(o))) < 2.5:
+				apart = false
+		if apart:
+			out.append(t)
+		if out.size() >= n:
+			break
+	return out
+
+
+## Les planches de la face avant (SW, puis SE), a la suite le long du bord :
+## celles qu'on voit se dresser devant les carottes.
+static func _front_planks(drawn: Array, n: int) -> Array:
+	var out: Array = []
+	for side in ["SW", "SE"]:
+		var run: Array = []
+		for d in drawn:
+			if d["seg"]["side"] == side:
+				run.append(d["seg"])
+		run.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+			return int(a["tile"]) < int(b["tile"]))
+		for seg in run:
+			if out.size() < n:
+				out.append(seg)
+	return out
+
+
+## La planche qui vient de se dresser tombe en place : `set_state` l'a rendue
+## visible, on la fait descendre de quelques pixels en fondu.
+static func _drop_in(drawn: Array, seg: Dictionary) -> void:
+	for d in drawn:
+		if d["key"] != FenceView.key_of(seg):
+			continue
+		var plank: Node2D = d["plank"]
+		var y := plank.position.y
+		plank.position.y = y - 14.0
+		plank.self_modulate.a = 0.0
+		var tw := plank.create_tween().set_parallel(true)
+		tw.tween_property(plank, "position:y", y, 0.28) \
+			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		tw.tween_property(plank, "self_modulate:a", 1.0, 0.12)

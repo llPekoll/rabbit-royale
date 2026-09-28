@@ -49,6 +49,9 @@ verify-out/
 # Et les trois extraits de la page d'accueil (720 px, 7 s, ~2,3 Mo en tout) :
 # le build les copie, il ne sait pas les refaire.
 !landing/assets/*.mp4
+# Et les videos du deck (/pitch, ~7 Mo) : six boucles filmees dans Godot, l ep01
+# raccourci et la premiere reaction.
+!landing/pitch/img/*.mp4
 
 # Le gameplay filmé dans Godot : `episodes/<ep>/capture.sh` le refait à l'identique.
 episodes/*/gameplay/
