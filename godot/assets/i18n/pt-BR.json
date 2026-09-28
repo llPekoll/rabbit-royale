@@ -108,7 +108,7 @@
 			"$t": "Cavar. {0}"
 		},
 		"ariaDefend": {
-			"$t": "Defender: enterrar armadilhas. {0}"
+			"$t": "Defender: enterrar bombas. {0}"
 		},
 		"ariaRaid": {
 			"$t": "Saquear. {0}"
@@ -141,13 +141,13 @@
 		},
 		"noShield": "sem escudo",
 		"traps": {
-			"$t": "{0} armadilhas",
+			"$t": "{0} bombas",
 			"$v": [
 				{
 					"when": {
 						"0": 1.0
 					},
-					"t": "1 armadilha"
+					"t": "1 bomba"
 				}
 			]
 		},
@@ -185,7 +185,7 @@
 		},
 		"gardenFull": "Horta quase cheia. Recolha antes que um saqueador recolha.",
 		"shieldLifts": {
-			"$t": "Escudo cai em {0}. Enterre armadilhas."
+			"$t": "Escudo cai em {0}. Enterre bombas."
 		},
 		"raidTarget": {
 			"$t": "{0} deixou {1} na horta. Saqueie."
@@ -495,8 +495,8 @@
 		"aria": "Loja",
 		"protect": "PROTEGER A BASE",
 		"protectAria": "Proteger sua base",
-		"protectBuyAria": "Proteger sua base - comprar uma armadilha",
-		"noTraps": "SEM ARMADILHAS - PEGUE UMA",
+		"protectBuyAria": "Proteger sua base - comprar uma bomba",
+		"noTraps": "SEM BOMBAS - PEGUE UMA",
 		"nothingBuried": "NADA ENTERRADO",
 		"inShed": {
 			"$t": "{0} NO GALPÃO"
@@ -557,6 +557,7 @@
 			"$t": "{0}: {1}. Você já carrega o máximo."
 		},
 		"confirmBuy": "CONFIRMAR?",
+		"yours": "É SEU!",
 		"tooPoor": {
 			"$t": "{0}: {1}. Cenouras insuficientes. Vá cavar."
 		},
@@ -574,19 +575,19 @@
 			"$t": "Energia recarregada. {0}"
 		},
 		"boughtTrap": {
-			"$t": "{0} armadilhas no galpão. {1}",
+			"$t": "{0} bombas no galpão. {1}",
 			"$v": [
 				{
 					"when": {
 						"0": 1.0
 					},
-					"t": "Armadilha no galpão. {1}"
+					"t": "Bomba no galpão. {1}"
 				},
 				{
 					"when": {
 						"0": 0.0
 					},
-					"t": "Armadilha no galpão. {1}"
+					"t": "Bomba no galpão. {1}"
 				}
 			]
 		},
@@ -707,14 +708,14 @@
 		"smoke_capped": "Sua toca está escondida pelo máximo de tempo possível.",
 		"too_many_at_once": "Demais de uma vez.",
 		"bad_quantity": "Isso não é uma quantidade.",
-		"no_traps": "Sem armadilhas. Compre uma, ou espere amanhã.",
-		"board_full": "Sua toca não cabe mais uma armadilha.",
+		"no_traps": "Sem bombas. Compre uma, ou espere amanhã.",
+		"board_full": "Sua toca não cabe mais uma bomba.",
 		"tile_not_trappable": "Nada para minar aí.",
 		"tile_doorstep": "Perto demais da porta. Os primeiros passos ficam livres.",
 		"tile_house": "Nada fica enterrado debaixo da sua casa.",
 		"tile_field": "Nada fica enterrado na sua horta.",
 		"tile_already_trapped": "Já minado.",
-		"no_trap_there": "Não tem armadilha aí.",
+		"no_trap_there": "Não tem bomba aí.",
 		"no_fences": "Sem cercas. O galpão vende.",
 		"span_already_fenced": "Já tem uma tábua aí.",
 		"span_not_exposed": "Isso não é uma borda da sua horta.",
@@ -759,15 +760,15 @@
 				"$t": "{0} restantes"
 			},
 			"buyTrap": {
-				"$t": "Comprar armadilha - {0} cenouras"
+				"$t": "Comprar bomba - {0} cenouras"
 			},
-			"trapHint": "Toque numa casa para enterrar. Toque na armadilha para recuperar.",
-			"trapEmpty": "Recupere uma armadilha ou compre uma abaixo.",
+			"trapHint": "Toque numa casa para enterrar. Toque na bomba para recuperar.",
+			"trapEmpty": "Recupere uma bomba ou compre uma abaixo.",
 			"fenceHint": "Toque numa borda iluminada para construir. Toque na cerca para recuperar.",
 			"raiseShield": "Usar um escudo",
 			"shieldActive": "Sua toca já está protegida.",
 			"shopHint": "Disponível na loja.",
-			"notEnough": "Faltam cenouras para outra armadilha.",
+			"notEnough": "Faltam cenouras para outra bomba.",
 			"smokeHint": "Comprar fumaça na loja ativa o efeito imediatamente.",
 			"attackHint": "Use na ilha de um rival durante uma partida.",
 			"chestHint": "Encontre mais nos baús.",
@@ -806,32 +807,32 @@
 			"$t": "{0}: nenhum. {1}"
 		},
 		"trapsLine": {
-			"$t": "Armadilhas: {0} de {1} no chão, {2} no galpão. Enterre pela BASE.",
+			"$t": "Bombas: {0} de {1} no chão, {2} no galpão. Enterre pela BASE.",
 			"$v": [
 				{
 					"when": {
 						"1": 0.0
 					},
-					"t": "Armadilhas: {0} no chão, {2} no galpão. Enterre pela BASE."
+					"t": "Bombas: {0} no chão, {2} no galpão. Enterre pela BASE."
 				}
 			]
 		},
 		"trapsBuy": {
-			"$t": "Armadilhas: {0} no galpão. Compre outra por {1} cenouras.",
+			"$t": "Bombas: {0} no galpão. Compre outra por {1} cenouras.",
 			"$v": [
 				{
 					"when": {
 						"0": 0.0
 					},
-					"t": "Armadilhas: galpão vazio. Compre uma por {1} cenouras."
+					"t": "Bombas: galpão vazio. Compre uma por {1} cenouras."
 				}
 			]
 		},
 		"trapsBuyBroke": {
-			"$t": "Armadilhas: nenhuma. Uma custa {0} cenouras - va cavar mais."
+			"$t": "Bombas: nenhuma. Uma custa {0} cenouras - va cavar mais."
 		},
 		"trapsBuyFull": {
-			"$t": "Armadilhas: {0} no galpão. O galpão está cheio."
+			"$t": "Bombas: {0} no galpão. O galpão está cheio."
 		},
 		"bottleRunning": {
 			"$t": "{0}: em curso, restam {1}. {2} na bolsa."
@@ -1042,7 +1043,7 @@
 		},
 		"raidIt": "Saquear",
 		"watchIt": "Assistir",
-		"brief": "Alcance a plantação de cenouras. As armadilhas deles estão enterradas e sem marca.",
+		"brief": "Alcance a plantação de cenouras. As bombas deles estão enterradas e sem marca.",
 		"outOfEnergy": "Sem energia",
 		"nothingTaken": "Nada levado",
 		"unguarded": {
@@ -1066,13 +1067,13 @@
 			"$t": "A TOCA DE {0} ESTAVA VAZIA"
 		},
 		"trapsSprung": {
-			"$t": "{0} ARMADILHAS DISPARADAS NA ENTRADA",
+			"$t": "{0} BOMBAS EXPLODIRAM NA ENTRADA",
 			"$v": [
 				{
 					"when": {
 						"0": 1.0
 					},
-					"t": "1 ARMADILHA DISPARADA NA ENTRADA"
+					"t": "1 BOMBA EXPLODIU NA ENTRADA"
 				}
 			]
 		},
@@ -1333,7 +1334,7 @@
 	},
 	"items": {
 		"trap": {
-			"name": "Armadilha",
+			"name": "Bomba",
 			"blurb": "Enterre uma na sua toca. Ela drena o saqueador que pisar nela."
 		},
 		"bomb": {
@@ -1396,7 +1397,7 @@
 			"ask": {
 				"$t": "Vá em DEFENDER e coloque bombas na sua base."
 			},
-			"line": "Uma armadilha que ninguém vê é o único muro que vale. Muro a gente contorna."
+			"line": "Uma bomba que ninguém vê é o único muro que vale. Muro a gente contorna."
 		},
 		"open-a-chest": {
 			"title": "Abrir um baú",
@@ -1429,7 +1430,7 @@
 		"hold-the-door": {
 			"title": "Segurar a porta",
 			"ask": {
-				"$t": "Tenha {0} armadilhas no chão antes do seu escudo cair."
+				"$t": "Tenha {0} bombas no chão antes do seu escudo cair."
 			},
 			"line": "Seu escudo cai logo. Depois disso, só resta o chão. Deixe-o caro."
 		},

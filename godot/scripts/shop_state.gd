@@ -46,21 +46,21 @@ signal bought(kind: String, qty: int)
 static var current: ShopState
 
 ## Les sortes que l'etal vend (`ItemKind`), dans l'ordre du serveur.
-const KINDS := ["trap", "bomb", "lightning", "shield", "energy", "smoke", "bloop", "fence"]
+const KINDS := ["trap", "lightning", "shield", "energy", "smoke", "bloop", "fence"]
 
 ## L'ART D'UNE SORTE, la ou le jeu en a (item-meta.ts `art`). Quelques-unes
 ## seulement, et c'est voulu : ce sont les sprites du COFFRE, donc une sorte a
-## un dessin exactement quand un coffre peut la lacher. La bombe qu'on porte
-## est la bombe allumee ; le piege est la bombe eteinte, celle qui attend dans
-## le sol (shop-card.tsx `BOMB_SRC`). L'energie prend le medaillon de la
-## jauge, pas une carotte (elle se PAIE en carottes, une carotte lirait comme
+## un dessin exactement quand un coffre peut la lacher. Le piege est la bombe
+## eteinte, celle qui attend dans le sol (shop-card.tsx `BOMB_SRC`), et la
+## seule bombe du jeu depuis le 2026-09-28 : celle qu'on lancait n'avait plus
+## d'usage, elle a quitte l'etal, et le joueur lit « bombe » sur le piege.
+## L'energie prend le medaillon de la jauge, pas une carotte (elle se PAIE en carottes, une carotte lirait comme
 ## le prix) ni un eclair (il appartient a LIGHTNING sur le meme etal). La
 ## cloture est le DECOR que le terrier dessine, pour que l'etal et le potager
 ## montrent les memes poteaux. Fumee et mirage n'ont pas d'art : le web y met
 ## un emoji, et la face pixel n'en a pas.
 const ART := {
 	"trap": preload("res://assets/ui/icons/bomb.png"),
-	"bomb": preload("res://assets/ui/icons/bomb-lit.png"),
 	"lightning": preload("res://assets/ui/icons/bolt.webp"),
 	"shield": preload("res://assets/ui/icons/shield.webp"),
 	"energy": preload("res://assets/gauge/dial-icon.webp"),
@@ -76,7 +76,6 @@ const ART := {
 ## du chrome — elles vivent ici, en regard de leur source.
 const TINT := {
 	"trap": Color("#8a5a2b"),
-	"bomb": Color("#c1442e"),
 	"lightning": Color("#e0a020"),
 	"shield": Color("#4a7fa5"),
 	"energy": Color("#e07a2f"),
@@ -92,7 +91,6 @@ const TINT := {
 ## en jours de couverture.
 const COUNTS := {
 	"trap": "carried",
-	"bomb": "carried",
 	"lightning": "carried",
 	"shield": "carried",
 	"energy": "daily",
@@ -332,8 +330,6 @@ func receipt(kind: String, qty: int, spent: int) -> String:
 			return I18N.f("shop.boughtEnergy", [paid])
 		"trap":
 			return I18N.f("shop.boughtTrap", [qty, paid])
-		"bomb":
-			return I18N.f("shop.boughtBomb", [qty, paid])
 		"lightning":
 			return I18N.f("shop.boughtLightning", [qty, paid])
 		"shield":

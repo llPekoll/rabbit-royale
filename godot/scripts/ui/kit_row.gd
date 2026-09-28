@@ -43,9 +43,11 @@ signal pour(kind: String)
 
 ## Les groupes, dans l'ordre du web, avec la case ouverte par defaut.
 const GROUPS := [
-	{"label": "kit.groupDefence", "kinds": ["shield", "smoke", "trap", "bomb", "fence"], "first": "trap"},
+	{"label": "kit.groupDefence", "kinds": ["shield", "smoke", "trap", "fence"], "first": "trap"},
 	# LA BOMBE EST LA DEFENSE DU TERRIER (2026-09-24) : l'attaque, c'est la
-	# foudre et le bloop — plus de bombe cachee sur l'ile des autres.
+	# foudre et le bloop — plus de bombe cachee sur l'ile des autres. Et une
+	# seule bombe (2026-09-28) : le `trap`, que le joueur lit « bombe » ;
+	# l'objet `bomb` a quitte le jeu.
 	{"label": "kit.groupAttack", "kinds": ["lightning", "bloop"], "first": "lightning"},
 	{"label": "kit.groupGarden", "kinds": ["water", "fertiliser"], "first": "water"},
 ]

@@ -141,7 +141,7 @@ export const en = {
     broughtHome: 'brought home',
     ariaGroup: 'Dig, home, raid',
     ariaDig: (line: string) => `Dig. ${line}`,
-    ariaDefend: (line: string) => `Defend: bury traps. ${line}`,
+    ariaDefend: (line: string) => `Defend: bury bombs. ${line}`,
     ariaRaid: (line: string) => `Raid. ${line}`,
     energyOf: (energy: number, max: number) => `${energy}/${max} energy`,
     runCosts: (n: number) => `crossing costs ${n}`,
@@ -159,7 +159,7 @@ export const en = {
        running. Capitals in English only: the kit's atlas has no lowercase. */
     shieldBadge: (wait: string) => `SHIELD ${wait}`.toUpperCase(),
     noShield: 'no shield',
-    traps: (n: number) => `${n} trap${n === 1 ? '' : 's'}`,
+    traps: (n: number) => `${n} bomb${n === 1 ? '' : 's'}`,
     leftOutside: (name: string, n: string) => `${name} left ${n} outside`,
     burrowsOpen: (n: number) => `${n} burrow${n === 1 ? '' : 's'} open`,
     bombsInBag: (n: number) => `${n} bomb${n === 1 ? '' : 's'} in the bag`,
@@ -173,7 +173,7 @@ export const en = {
     /* Twelve words at most, each of them. They are read at a glance, over a
        board the player is already touching. */
     gardenFull: 'Garden nearly full. Bring it in before a raider does.',
-    shieldLifts: (wait: string) => `Shield lifts in ${wait}. Bury traps.`,
+    shieldLifts: (wait: string) => `Shield lifts in ${wait}. Bury bombs.`,
     raidTarget: (name: string, garden: string) => `${name} left ${garden} in the garden. Raid.`,
     dig: (energy: number) => `${energy} energy: a run's worth. Dig.`,
     digPlain: 'Dig.',
@@ -425,8 +425,8 @@ export const en = {
     aria: 'Shop',
     protect: 'PROTECT BASE',
     protectAria: 'Protect your base',
-    protectBuyAria: 'Protect your base - buy a trap',
-    noTraps: 'NO TRAPS - GET ONE',
+    protectBuyAria: 'Protect your base - buy a bomb',
+    noTraps: 'NO BOMBS - GET ONE',
     nothingBuried: 'NOTHING BURIED',
     inShed: (n: number) => `${n} IN THE SHED`,
     rearming: (n: number) => `REARMING - ${n} COMING BACK`,
@@ -459,6 +459,8 @@ export const en = {
       `${name}: ${price}. You are holding as many as you can.`,
     /** The price button, armed: a second press buys. */
     confirmBuy: 'CONFIRM?',
+    /** The purchase reveal's headline, over the thing just bought. */
+    yours: 'GOT IT!',
     tooPoor: (name: string, price: string) =>
       `${name}: ${price}. Not enough carrots yet. Dig for more.`,
     /* The count line under an item: "3/20", "2 today", "1d left", "off". */
@@ -467,9 +469,9 @@ export const en = {
     heldDaysLeft: (n: number) => `${n}d left`,
     heldOff: 'off',
     /* What a purchase says back. The count leads only when there is more than
-       one of them — "trap in the shed" and "3 traps in the shed". */
+       one of them — "bomb in the shed" and "3 bombs in the shed". */
     boughtEnergy: (paid: string) => `Energy refilled. ${paid}`,
-    boughtTrap: (n: number, paid: string) => `${n > 1 ? `${n} traps` : 'trap'} in the shed. ${paid}`,
+    boughtTrap: (n: number, paid: string) => `${n > 1 ? `${n} bombs` : 'bomb'} in the shed. ${paid}`,
     boughtBomb: (n: number, paid: string) => `${n > 1 ? `${n} bombs` : 'bomb'} armed. ${paid}`,
     boughtLightning: (n: number, paid: string) =>
       `${n > 1 ? `${n} lightning bolts` : 'lightning bolt'} bottled. ${paid}`,
@@ -496,14 +498,14 @@ export const en = {
     smoke_capped: 'Your burrow is hidden as long as it can be.',
     too_many_at_once: 'Too many at once.',
     bad_quantity: 'That is not a quantity.',
-    no_traps: 'No traps left. Buy one, or wait for tomorrow.',
-    board_full: 'Your burrow cannot hold another trap.',
+    no_traps: 'No bombs left. Buy one, or wait for tomorrow.',
+    board_full: 'Your burrow cannot hold another bomb.',
     tile_not_trappable: 'Nothing to mine there.',
     tile_doorstep: 'Too near the door. The first steps inside stay open.',
     tile_house: 'Nothing is buried under your house.',
     tile_field: 'Nothing is buried in your garden.',
     tile_already_trapped: 'Already mined.',
-    no_trap_there: 'No trap there.',
+    no_trap_there: 'No bomb there.',
     no_fences: 'No fences left. The shed sells them.',
     span_already_fenced: 'A plank already stands there.',
     span_not_exposed: 'That is not an edge of your garden.',
@@ -544,12 +546,12 @@ export const en = {
       available: (n: number) => n + ' available',
       placed: (n: number) => n + ' placed',
       active: (time: string) => time + ' remaining',
-      buyTrap: (price: string) => 'Buy a trap - ' + price + ' carrots',
-      trapHint: 'Tap a tile to bury a trap. Tap a trap to recover it.',
-      trapEmpty: 'Recover a placed trap or buy one below.',
+      buyTrap: (price: string) => 'Buy a bomb - ' + price + ' carrots',
+      trapHint: 'Tap a tile to bury a bomb. Tap a bomb to recover it.',
+      trapEmpty: 'Recover a placed bomb or buy one below.',
       fenceHint: 'Tap a highlighted edge to build. Tap a fence to recover it.',
       raiseShield: 'Use a shield', shieldActive: 'Your burrow is already protected.',
-      shopHint: 'Available in the shop.', notEnough: 'Not enough carrots for another trap.',
+      shopHint: 'Available in the shop.', notEnough: 'Not enough carrots for another bomb.',
       smokeHint: 'Buying smoke in the shop activates it immediately.',
       attackHint: 'Use this on a rival’s island during a run.',
       chestHint: 'Find more in chests.',
@@ -578,7 +580,7 @@ export const en = {
     carried: (name: string, held: number, blurb: string) => `${name}: ${held} in the bag. ${blurb}`,
     carriedNone: (name: string, blurb: string) => `${name}: none. ${blurb}`,
     trapsLine: (placed: number, max: number | null, held: number) =>
-      `Traps: ${placed}${max ? ` of ${max}` : ''} in the ground, ${held} in the shed.`
+      `Bombs: ${placed}${max ? ` of ${max}` : ''} in the ground, ${held} in the shed.`
       + ' Bury them from BASE.',
     /* The same slot while PLACING, when it is a button rather than a readout.
        It names the PRICE, because that is the whole decision being made — and
@@ -586,13 +588,13 @@ export const en = {
        spends before they press it. */
     trapsBuy: (held: number, price: string) =>
       (held > 0
-        ? `Traps: ${held} in the shed. Buy another for ${price} carrots.`
+        ? `Bombs: ${held} in the shed. Buy another for ${price} carrots.`
         // "another" is a lie at zero, and this is the state the press exists
         // for — so it gets the sentence that names the empty shed outright.
-        : `Traps: none in the shed. Buy one for ${price} carrots.`),
+        : `Bombs: none in the shed. Buy one for ${price} carrots.`),
     trapsBuyBroke: (price: string) =>
-      `Traps: none left. One costs ${price} carrots - dig for more.`,
-    trapsBuyFull: (held: number) => `Traps: ${held} in the shed. The shed is full.`,
+      `Bombs: none left. One costs ${price} carrots - dig for more.`,
+    trapsBuyFull: (held: number) => `Bombs: ${held} in the shed. The shed is full.`,
     bottleRunning: (name: string, wait: string, count: number) =>
       `${name}: running, ${wait} left. ${count} in the bag.`,
     bottleHeld: (name: string, count: number) => `${name}: ${count} in the bag. Pour one on the garden.`,
@@ -717,7 +719,7 @@ export const en = {
     raidIt: 'Raid',
     /** The button on a row whose owner is out digging: watch the run, not raid the burrow. */
     watchIt: 'Watch',
-    brief: 'Reach the carrot field. Their traps are buried and unmarked.',
+    brief: 'Reach the carrot field. Their bombs are buried and unmarked.',
     outOfEnergy: 'Out of energy',
     nothingTaken: 'Nothing taken',
     unguarded: (amount: string) => `${amount} UNGUARDED`,
@@ -731,7 +733,7 @@ export const en = {
     lootedFrom: (name: string) => `LOOTED FROM ${name}`,
     wasEmpty: (name: string) => `${name}'S BURROW WAS EMPTY`,
     trapsSprung: (n: number) =>
-      n === 1 ? '1 TRAP SPRUNG ON THE WAY IN' : `${n} TRAPS SPRUNG ON THE WAY IN`,
+      n === 1 ? '1 BOMB WENT OFF ON THE WAY IN' : `${n} BOMBS WENT OFF ON THE WAY IN`,
     wonAria: (carrots: number, name: string) => `Raid won - ${carrots} carrots looted from ${name}`,
     rabbitAria: 'Your rabbit, celebrating',
     stolen: (n: string, name: string) => `+${n} 🥕 stolen from ${name}`,
@@ -928,7 +930,7 @@ export const en = {
   /* ── The items on the shelf ───────────────────────────────────────────── */
   items: {
     trap: {
-      name: 'Trap',
+      name: 'Bomb',
       blurb: 'Bury one in your burrow. It drains the raider who steps on it.',
     },
     bomb: {
@@ -988,7 +990,7 @@ export const en = {
     'bury-something': {
       title: 'Bury something',
       ask: () => 'Go to DEFEND and place some bombs in your base.',
-      line: 'A trap nobody can see is the only wall worth building. A wall gets walked around.',
+      line: 'A bomb nobody can see is the only wall worth building. A wall gets walked around.',
     },
     'open-a-chest': {
       title: 'Open a chest',
@@ -1014,7 +1016,7 @@ export const en = {
     },
     'hold-the-door': {
       title: 'Hold the door',
-      ask: (traps: number) => `Have ${traps} traps in the ground before your shield lifts.`,
+      ask: (traps: number) => `Have ${traps} bombs in the ground before your shield lifts.`,
       line: 'Your shield lifts soon. After that, the floor is all you have. Make it expensive.',
     },
     'the-thicket': {

@@ -61,7 +61,8 @@ const DROP := {
 	"carrots": {"icon": "carrot", "label": "carrots", "rarity": "common"},
 	"water": {"icon": "water", "label": "watering", "rarity": "rare"},
 	"fertiliser": {"icon": "fertiliser", "label": "fertiliser", "rarity": "rare"},
-	"bomb": {"icon": "bomb-lit", "label": "bomb", "rarity": "epic"},
+	# Le piege, que le joueur lit « bombe » (2026-09-28) : le nom est `chest.bomb`.
+	"trap": {"icon": "bomb", "label": "bomb", "rarity": "epic"},
 	"shield": {"icon": "shield", "label": "shield", "rarity": "epic"},
 	"lightning": {"icon": "bolt", "label": "lightning", "rarity": "epic"},
 }

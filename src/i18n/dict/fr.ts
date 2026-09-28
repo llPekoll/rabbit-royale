@@ -117,7 +117,7 @@ export const fr: Dict = {
     broughtHome: 'ramenées',
     ariaGroup: 'Creuser, terrier, piller',
     ariaDig: (line) => `Creuser. ${line}`,
-    ariaDefend: (line) => `Défendre : enterrer des pièges. ${line}`,
+    ariaDefend: (line) => `Défendre : enterrer des bombes. ${line}`,
     ariaRaid: (line) => `Piller. ${line}`,
     energyOf: (energy, max) => `${energy}/${max} énergie`,
     runCosts: (n) => `la traversée coûte ${n}`,
@@ -131,7 +131,7 @@ export const fr: Dict = {
     shieldBadge: (wait) => `Bouclier ${wait}`,
     noShield: 'sans bouclier',
     /* Zéro est singulier en français, contrairement à l'anglais. */
-    traps: (n) => `${n} piège${n < 2 ? '' : 's'}`,
+    traps: (n) => `${n} bombe${n < 2 ? '' : 's'}`,
     leftOutside: (name, n) => `${name} a laissé ${n} dehors`,
     burrowsOpen: (n) => `${n} terrier${n < 2 ? '' : 's'} ouvert${n < 2 ? '' : 's'}`,
     bombsInBag: (n) => `${n} bombe${n < 2 ? '' : 's'} en sac`,
@@ -142,7 +142,7 @@ export const fr: Dict = {
     label: 'SUITE',
     aria: (text) => `Suite : ${text}`,
     gardenFull: 'Potager presque plein. Rentre-le avant un pillard.',
-    shieldLifts: (wait) => `Bouclier levé dans ${wait}. Enterre des pièges.`,
+    shieldLifts: (wait) => `Bouclier levé dans ${wait}. Enterre des bombes.`,
     raidTarget: (name, garden) => `${name} a laissé ${garden} au potager. Pille.`,
     dig: (energy) => `${energy} énergie : de quoi sortir. Creuse.`,
     digPlain: 'Creuse.',
@@ -335,8 +335,8 @@ export const fr: Dict = {
     aria: 'Boutique',
     protect: 'PROTÉGER LA BASE',
     protectAria: 'Protéger ta base',
-    protectBuyAria: 'Protéger ta base - acheter un piège',
-    noTraps: 'AUCUN PIÈGE - EN PRENDRE',
+    protectBuyAria: 'Protéger ta base - acheter une bombe',
+    noTraps: 'AUCUNE BOMBE - EN PRENDRE',
     nothingBuried: 'RIEN D’ENTERRÉ',
     inShed: (n) => `${n} À LA REMISE`,
     rearming: (n) => `RÉARMEMENT - ${n} REVIENNENT`,
@@ -366,13 +366,14 @@ export const fr: Dict = {
     capped: (name, price) => `${name} : ${price}. Tu en portes déjà le maximum.`,
     /** The price button, armed: a second press buys. */
     confirmBuy: 'CONFIRMER ?',
+    yours: 'À TOI !',
     tooPoor: (name, price) => `${name} : ${price}. Pas assez de carottes. Va creuser.`,
     heldOf: (held, cap) => `${held}/${cap}`,
     heldToday: (n) => `${n} aujourd’hui`,
     heldDaysLeft: (n) => `${n}j restants`,
     heldOff: 'inactif',
     boughtEnergy: (paid) => `Énergie rechargée. ${paid}`,
-    boughtTrap: (n, paid) => `${n > 1 ? `${n} pièges` : 'Piège'} à la remise. ${paid}`,
+    boughtTrap: (n, paid) => `${n > 1 ? `${n} bombes` : 'Bombe'} à la remise. ${paid}`,
     boughtBomb: (n, paid) => `${n > 1 ? `${n} bombes armées` : 'Bombe armée'}. ${paid}`,
     boughtLightning: (n, paid) => `${n > 1 ? `${n} éclairs` : 'Éclair'} en bouteille. ${paid}`,
     boughtShield: (n, paid) => `${n > 1 ? `${n} boucliers prêts` : 'Bouclier prêt'}. ${paid}`,
@@ -393,14 +394,14 @@ export const fr: Dict = {
     smoke_capped: 'Ton terrier est caché aussi longtemps que possible.',
     too_many_at_once: 'Trop à la fois.',
     bad_quantity: 'Ce n’est pas une quantité.',
-    no_traps: 'Plus de pièges. Achètes-en un, ou attends demain.',
-    board_full: 'Ton terrier ne peut pas tenir un piège de plus.',
+    no_traps: 'Plus de bombes. Achètes-en une, ou attends demain.',
+    board_full: 'Ton terrier ne peut pas tenir une bombe de plus.',
     tile_not_trappable: 'Rien à miner là.',
     tile_doorstep: 'Trop près de l\'entrée. Les premiers pas restent libres.',
     tile_house: 'On n\'enterre rien sous ta maison.',
     tile_field: 'On n\'enterre rien dans ton potager.',
     tile_already_trapped: 'Déjà miné.',
-    no_trap_there: 'Pas de piège là.',
+    no_trap_there: 'Pas de bombe là.',
     no_fences: 'Plus de clôtures. La remise en vend.',
     span_already_fenced: 'Une planche est déjà dressée là.',
     span_not_exposed: 'Ce n’est pas un bord de ton potager.',
@@ -440,12 +441,12 @@ export const fr: Dict = {
       available: (n) => n + ' en réserve',
       placed: (n) => n + ' en place',
       active: (time) => time + ' restantes',
-      buyTrap: (price) => 'Acheter une mine - ' + price + ' carottes',
-      trapHint: 'Touche une case pour poser une mine. Retouche une mine pour la récupérer.',
-      trapEmpty: 'Récupère une mine posée ou achète-en une ci-dessous.',
+      buyTrap: (price) => 'Acheter une bombe - ' + price + ' carottes',
+      trapHint: 'Touche une case pour poser une bombe. Retouche une bombe pour la récupérer.',
+      trapEmpty: 'Récupère une bombe posée ou achète-en une ci-dessous.',
       fenceHint: 'Touche un bord éclairé pour construire. Retouche une clôture pour la récupérer.',
       raiseShield: 'Utiliser un bouclier', shieldActive: 'Ton terrier est déjà protégé.',
-      shopHint: 'Disponible à la boutique.', notEnough: 'Pas assez de carottes pour une autre mine.',
+      shopHint: 'Disponible à la boutique.', notEnough: 'Pas assez de carottes pour une autre bombe.',
       smokeHint: 'Acheter de la fumée à la boutique l’active immédiatement.',
       attackHint: 'À utiliser sur l’île d’un rival pendant une partie.',
       chestHint: 'Tu en trouveras dans les coffres.',
@@ -467,15 +468,15 @@ export const fr: Dict = {
     carried: (name, held, blurb) => `${name} : ${held} en sac. ${blurb}`,
     carriedNone: (name, blurb) => `${name} : aucun. ${blurb}`,
     trapsLine: (placed, max, held) =>
-      `Pièges : ${placed}${max ? ` sur ${max}` : ''} en terre, ${held} à la remise.`
+      `Bombes : ${placed}${max ? ` sur ${max}` : ''} en terre, ${held} à la remise.`
       + ' Enterre-les depuis BASE.',
     trapsBuy: (held, price) =>
       (held > 0
-        ? `Pièges : ${held} à la remise. Achètes-en un autre pour ${price} carottes.`
-        : `Pièges : la remise est vide. Achètes-en un pour ${price} carottes.`),
+        ? `Bombes : ${held} à la remise. Achètes-en une autre pour ${price} carottes.`
+        : `Bombes : la remise est vide. Achètes-en une pour ${price} carottes.`),
     trapsBuyBroke: (price) =>
-      `Pièges : plus aucun. Un piège coûte ${price} carottes - va en creuser.`,
-    trapsBuyFull: (held) => `Pièges : ${held} à la remise. La remise est pleine.`,
+      `Bombes : plus aucune. Une bombe coûte ${price} carottes - va en creuser.`,
+    trapsBuyFull: (held) => `Bombes : ${held} à la remise. La remise est pleine.`,
     bottleRunning: (name, wait, count) => `${name} : en cours, ${wait} restant. ${count} en sac.`,
     bottleHeld: (name, count) => `${name} : ${count} en sac. Verse-en un sur le potager.`,
     bottleNone: (name) => `${name} : aucun. On en trouve dans les coffres.`,
@@ -573,7 +574,7 @@ export const fr: Dict = {
     },
     raidIt: 'Piller',
     watchIt: 'Regarder',
-    brief: 'Atteins le champ de carottes. Leurs pièges sont enterrés et invisibles.',
+    brief: 'Atteins le champ de carottes. Leurs bombes sont enterrées et invisibles.',
     outOfEnergy: 'Plus d’énergie',
     nothingTaken: 'Rien pris',
     unguarded: (amount) => `${amount} SANS GARDE`,
@@ -587,7 +588,7 @@ export const fr: Dict = {
     lootedFrom: (name) => `VOLÉ À ${name}`,
     wasEmpty: (name) => `LE TERRIER DE ${name} ÉTAIT VIDE`,
     trapsSprung: (n) =>
-      n < 2 ? `${n} PIÈGE DÉCLENCHÉ À L’ALLER` : `${n} PIÈGES DÉCLENCHÉS À L’ALLER`,
+      n < 2 ? `${n} BOMBE A SAUTÉ À L’ALLER` : `${n} BOMBES ONT SAUTÉ À L’ALLER`,
     wonAria: (carrots, name) => `Pillage réussi - ${carrots} carottes volées à ${name}`,
     rabbitAria: 'Ton lapin, qui fête ça',
     stolen: (n, name) => `+${n} 🥕 volées à ${name}`,
@@ -742,8 +743,8 @@ export const fr: Dict = {
 
   items: {
     trap: {
-      name: 'Piège',
-      blurb: 'Enterre-le dans ton terrier. Il épuise le pillard qui marche dessus.',
+      name: 'Bombe',
+      blurb: 'Enterre-la dans ton terrier. Elle épuise le pillard qui marche dessus.',
     },
     bomb: {
       name: 'Bombe',
@@ -801,7 +802,7 @@ export const fr: Dict = {
     'bury-something': {
       title: 'Enterrer quelque chose',
       ask: () => 'Va dans DÉFENDRE et pose des bombes dans ta base.',
-      line: 'Un piège invisible est le seul mur qui vaille. Un mur, on le contourne.',
+      line: 'Une bombe invisible est le seul mur qui vaille. Un mur, on le contourne.',
     },
     'open-a-chest': {
       title: 'Ouvrir un coffre',
@@ -827,7 +828,7 @@ export const fr: Dict = {
     },
     'hold-the-door': {
       title: 'Tenir la porte',
-      ask: (traps) => `Aie ${traps} pièges en terre avant que ton bouclier ne tombe.`,
+      ask: (traps) => `Aie ${traps} bombes en terre avant que ton bouclier ne tombe.`,
       line: 'Ton bouclier tombe bientôt. Après ça, il ne te reste que le sol. Rends-le coûteux.',
     },
     'the-thicket': {

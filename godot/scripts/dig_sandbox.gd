@@ -261,7 +261,7 @@ func _push(outcome: Dictionary) -> void:
 		"chests_taken": int(p.total) - int(p.left),
 		"chests_total": p.total,
 		"digs": run.digs.duplicate(),
-		"bag": {"lightning": int(run.loot.get("lightning", 0)), "bombs": int(run.loot.get("bomb", 0))},
+		"bag": {"lightning": int(run.loot.get("lightning", 0)), "bombs": int(run.loot.get("trap", 0))},
 	}
 	# PAS DE `hit` POUR UNE BOMBE CREUSEE : sur le fil, `hit` est le coup d'un
 	# RIVAL (eclair, bombe posee) — le HUD l'annonce « A RIVAL MINED THAT ».

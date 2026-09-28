@@ -168,7 +168,7 @@ export function flagTile(island: Island, rabbit: Rabbit, at: number, now: number
       run.flagStreak = streak;
       run.bombsFlagged = (run.bombsFlagged ?? 0) + 1;
       if (streak % FLAG.ITEM_EVERY === 0) {
-        run.loot.bomb = (run.loot.bomb ?? 0) + 1;
+        run.loot.trap = (run.loot.trap ?? 0) + 1;
         flag.item = true;
       }
     }

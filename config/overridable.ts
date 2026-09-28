@@ -54,7 +54,6 @@ export const OVERRIDABLE: readonly TuningSpec[] = [
   //    be wrong should not cost a deploy, and a weekend promotion should not
   //    cost every live run.
   { path: 'SHOP.PRICES.trap', kind: 'int', min: 1, max: 100_000, note: 'Prix d\'un piège en carottes' },
-  { path: 'SHOP.PRICES.bomb', kind: 'int', min: 1, max: 100_000, note: 'Prix d\'une bombe en carottes' },
   { path: 'SHOP.PRICES.lightning', kind: 'int', min: 1, max: 100_000, note: 'Prix d\'un éclair en carottes' },
   { path: 'SHOP.PRICES.shield', kind: 'int', min: 1, max: 100_000, note: 'Prix d\'un bouclier en carottes' },
   { path: 'SHOP.PRICES.energy', kind: 'int', min: 1, max: 100_000, note: 'Prix d\'un plein d\'énergie en carottes' },
@@ -69,7 +68,6 @@ export const OVERRIDABLE: readonly TuningSpec[] = [
    * would ever charge.
    */
   { path: 'SHOP.USDC_PRICES.trap', kind: 'float', min: 0.01, max: 50, note: 'Prix d\'un piège en USDC' },
-  { path: 'SHOP.USDC_PRICES.bomb', kind: 'float', min: 0.01, max: 50, note: 'Prix d\'une bombe en USDC' },
   { path: 'SHOP.USDC_PRICES.lightning', kind: 'float', min: 0.01, max: 50, note: 'Prix d\'un éclair en USDC' },
   { path: 'SHOP.USDC_PRICES.shield', kind: 'float', min: 0.01, max: 50, note: 'Prix d\'un bouclier en USDC' },
   { path: 'SHOP.USDC_PRICES.energy', kind: 'float', min: 0.01, max: 50, note: 'Prix d\'un plein d\'énergie en USDC' },

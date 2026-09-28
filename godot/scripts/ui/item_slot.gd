@@ -21,7 +21,7 @@ extends Button
 ##     jeu ou le fait apparait.
 ##
 ## L'ART EST PRIS OU LE JEU EN A (item-meta.ts) : le piege est la bombe
-## enterree, la bombe qu'on porte est celle a meche allumee, la cloture est
+## enterree (la seule bombe du jeu depuis le 2026-09-28), la cloture est
 ## le sprite meme du potager. La fumee et le mirage n'ont pas de sprite —
 ## le web tombe sur un emoji, que la face pixel n'a pas — alors ils sont
 ## DESSINES ici en quelques rectangles, dans la teinte que item-meta.ts leur
@@ -51,7 +51,6 @@ const MIRAGE_LIGHT := Color("#f3dcff")
 ## l'etirer (`aspect`).
 const ART_OF := {
 	"trap": [preload("res://assets/ui/icons/bomb.png"), 27.0 / 36.0],
-	"bomb": [preload("res://assets/ui/icons/bomb-lit.png"), 36.0 / 43.0],
 	"lightning": [preload("res://assets/ui/icons/bolt.webp"), 24.0 / 29.0],
 	"shield": [preload("res://assets/ui/icons/shield.webp"), 1.0],
 	"energy": [preload("res://assets/gauge/dial-icon.webp"), 1.0],

@@ -50,7 +50,9 @@ const ART_TOP := 22.0
 const BLURB_SIZE := 10
 ## Les sortes que l'etal du web dessine en emoji (item-meta.ts `icon`). La
 ## fumee prend la bouffee, pas le brouillard : 🌫️ sort en carre gris flou.
-const STALL_EMOJI := {"trap": "🪤", "smoke": "💨", "mirage": "🌀"}
+## Le piege n'y est plus (2026-09-28) : le joueur le lit « bombe », sa carte
+## montre la bombe enterree (ShopState.ART), pas une tapette.
+const STALL_EMOJI := {"smoke": "💨", "mirage": "🌀"}
 const CARD_OVER_TOP := 22.0
 const CARD_OVER_BOTTOM := 18.0
 ## L'ecart entre deux cartes (`.rr-stall-shelf gap`), et l'air du bout.

@@ -108,7 +108,7 @@
 			"$t": "Creuser. {0}"
 		},
 		"ariaDefend": {
-			"$t": "Défendre : enterrer des pièges. {0}"
+			"$t": "Défendre : enterrer des bombes. {0}"
 		},
 		"ariaRaid": {
 			"$t": "Piller. {0}"
@@ -141,19 +141,19 @@
 		},
 		"noShield": "sans bouclier",
 		"traps": {
-			"$t": "{0} pièges",
+			"$t": "{0} bombes",
 			"$v": [
 				{
 					"when": {
 						"0": 1.0
 					},
-					"t": "1 piège"
+					"t": "1 bombe"
 				},
 				{
 					"when": {
 						"0": 0.0
 					},
-					"t": "0 piège"
+					"t": "0 bombe"
 				}
 			]
 		},
@@ -203,7 +203,7 @@
 		},
 		"gardenFull": "Potager presque plein. Rentre-le avant un pillard.",
 		"shieldLifts": {
-			"$t": "Bouclier levé dans {0}. Enterre des pièges."
+			"$t": "Bouclier levé dans {0}. Enterre des bombes."
 		},
 		"raidTarget": {
 			"$t": "{0} a laissé {1} au potager. Pille."
@@ -513,8 +513,8 @@
 		"aria": "Boutique",
 		"protect": "PROTÉGER LA BASE",
 		"protectAria": "Protéger ta base",
-		"protectBuyAria": "Protéger ta base - acheter un piège",
-		"noTraps": "AUCUN PIÈGE - EN PRENDRE",
+		"protectBuyAria": "Protéger ta base - acheter une bombe",
+		"noTraps": "AUCUNE BOMBE - EN PRENDRE",
 		"nothingBuried": "RIEN D’ENTERRÉ",
 		"inShed": {
 			"$t": "{0} À LA REMISE"
@@ -575,6 +575,7 @@
 			"$t": "{0} : {1}. Tu en portes déjà le maximum."
 		},
 		"confirmBuy": "CONFIRMER ?",
+		"yours": "À TOI !",
 		"tooPoor": {
 			"$t": "{0} : {1}. Pas assez de carottes. Va creuser."
 		},
@@ -592,19 +593,19 @@
 			"$t": "Énergie rechargée. {0}"
 		},
 		"boughtTrap": {
-			"$t": "{0} pièges à la remise. {1}",
+			"$t": "{0} bombes à la remise. {1}",
 			"$v": [
 				{
 					"when": {
 						"0": 1.0
 					},
-					"t": "Piège à la remise. {1}"
+					"t": "Bombe à la remise. {1}"
 				},
 				{
 					"when": {
 						"0": 0.0
 					},
-					"t": "Piège à la remise. {1}"
+					"t": "Bombe à la remise. {1}"
 				}
 			]
 		},
@@ -725,14 +726,14 @@
 		"smoke_capped": "Ton terrier est caché aussi longtemps que possible.",
 		"too_many_at_once": "Trop à la fois.",
 		"bad_quantity": "Ce n’est pas une quantité.",
-		"no_traps": "Plus de pièges. Achètes-en un, ou attends demain.",
-		"board_full": "Ton terrier ne peut pas tenir un piège de plus.",
+		"no_traps": "Plus de bombes. Achètes-en une, ou attends demain.",
+		"board_full": "Ton terrier ne peut pas tenir une bombe de plus.",
 		"tile_not_trappable": "Rien à miner là.",
 		"tile_doorstep": "Trop près de l'entrée. Les premiers pas restent libres.",
 		"tile_house": "On n'enterre rien sous ta maison.",
 		"tile_field": "On n'enterre rien dans ton potager.",
 		"tile_already_trapped": "Déjà miné.",
-		"no_trap_there": "Pas de piège là.",
+		"no_trap_there": "Pas de bombe là.",
 		"no_fences": "Plus de clôtures. La remise en vend.",
 		"span_already_fenced": "Une planche est déjà dressée là.",
 		"span_not_exposed": "Ce n’est pas un bord de ton potager.",
@@ -777,15 +778,15 @@
 				"$t": "{0} restantes"
 			},
 			"buyTrap": {
-				"$t": "Acheter une mine - {0} carottes"
+				"$t": "Acheter une bombe - {0} carottes"
 			},
-			"trapHint": "Touche une case pour poser une mine. Retouche une mine pour la récupérer.",
-			"trapEmpty": "Récupère une mine posée ou achète-en une ci-dessous.",
+			"trapHint": "Touche une case pour poser une bombe. Retouche une bombe pour la récupérer.",
+			"trapEmpty": "Récupère une bombe posée ou achète-en une ci-dessous.",
 			"fenceHint": "Touche un bord éclairé pour construire. Retouche une clôture pour la récupérer.",
 			"raiseShield": "Utiliser un bouclier",
 			"shieldActive": "Ton terrier est déjà protégé.",
 			"shopHint": "Disponible à la boutique.",
-			"notEnough": "Pas assez de carottes pour une autre mine.",
+			"notEnough": "Pas assez de carottes pour une autre bombe.",
 			"smokeHint": "Acheter de la fumée à la boutique l’active immédiatement.",
 			"attackHint": "À utiliser sur l’île d’un rival pendant une partie.",
 			"chestHint": "Tu en trouveras dans les coffres.",
@@ -830,32 +831,32 @@
 			"$t": "{0} : aucun. {1}"
 		},
 		"trapsLine": {
-			"$t": "Pièges : {0} sur {1} en terre, {2} à la remise. Enterre-les depuis BASE.",
+			"$t": "Bombes : {0} sur {1} en terre, {2} à la remise. Enterre-les depuis BASE.",
 			"$v": [
 				{
 					"when": {
 						"1": 0.0
 					},
-					"t": "Pièges : {0} en terre, {2} à la remise. Enterre-les depuis BASE."
+					"t": "Bombes : {0} en terre, {2} à la remise. Enterre-les depuis BASE."
 				}
 			]
 		},
 		"trapsBuy": {
-			"$t": "Pièges : {0} à la remise. Achètes-en un autre pour {1} carottes.",
+			"$t": "Bombes : {0} à la remise. Achètes-en une autre pour {1} carottes.",
 			"$v": [
 				{
 					"when": {
 						"0": 0.0
 					},
-					"t": "Pièges : la remise est vide. Achètes-en un pour {1} carottes."
+					"t": "Bombes : la remise est vide. Achètes-en une pour {1} carottes."
 				}
 			]
 		},
 		"trapsBuyBroke": {
-			"$t": "Pièges : plus aucun. Un piège coûte {0} carottes - va en creuser."
+			"$t": "Bombes : plus aucune. Une bombe coûte {0} carottes - va en creuser."
 		},
 		"trapsBuyFull": {
-			"$t": "Pièges : {0} à la remise. La remise est pleine."
+			"$t": "Bombes : {0} à la remise. La remise est pleine."
 		},
 		"bottleRunning": {
 			"$t": "{0} : en cours, {1} restant. {2} en sac."
@@ -1083,7 +1084,7 @@
 		},
 		"raidIt": "Piller",
 		"watchIt": "Regarder",
-		"brief": "Atteins le champ de carottes. Leurs pièges sont enterrés et invisibles.",
+		"brief": "Atteins le champ de carottes. Leurs bombes sont enterrées et invisibles.",
 		"outOfEnergy": "Plus d’énergie",
 		"nothingTaken": "Rien pris",
 		"unguarded": {
@@ -1107,19 +1108,19 @@
 			"$t": "LE TERRIER DE {0} ÉTAIT VIDE"
 		},
 		"trapsSprung": {
-			"$t": "{0} PIÈGES DÉCLENCHÉS À L’ALLER",
+			"$t": "{0} BOMBES ONT SAUTÉ À L’ALLER",
 			"$v": [
 				{
 					"when": {
 						"0": 1.0
 					},
-					"t": "1 PIÈGE DÉCLENCHÉ À L’ALLER"
+					"t": "1 BOMBE A SAUTÉ À L’ALLER"
 				},
 				{
 					"when": {
 						"0": 0.0
 					},
-					"t": "0 PIÈGE DÉCLENCHÉ À L’ALLER"
+					"t": "0 BOMBE A SAUTÉ À L’ALLER"
 				}
 			]
 		},
@@ -1386,8 +1387,8 @@
 	},
 	"items": {
 		"trap": {
-			"name": "Piège",
-			"blurb": "Enterre-le dans ton terrier. Il épuise le pillard qui marche dessus."
+			"name": "Bombe",
+			"blurb": "Enterre-la dans ton terrier. Elle épuise le pillard qui marche dessus."
 		},
 		"bomb": {
 			"name": "Bombe",
@@ -1449,7 +1450,7 @@
 			"ask": {
 				"$t": "Va dans DÉFENDRE et pose des bombes dans ta base."
 			},
-			"line": "Un piège invisible est le seul mur qui vaille. Un mur, on le contourne."
+			"line": "Une bombe invisible est le seul mur qui vaille. Un mur, on le contourne."
 		},
 		"open-a-chest": {
 			"title": "Ouvrir un coffre",
@@ -1482,7 +1483,7 @@
 		"hold-the-door": {
 			"title": "Tenir la porte",
 			"ask": {
-				"$t": "Aie {0} pièges en terre avant que ton bouclier ne tombe."
+				"$t": "Aie {0} bombes en terre avant que ton bouclier ne tombe."
 			},
 			"line": "Ton bouclier tombe bientôt. Après ça, il ne te reste que le sol. Rends-le coûteux."
 		},

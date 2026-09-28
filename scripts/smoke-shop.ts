@@ -75,20 +75,20 @@ async function main() {
 
   // A carrot purchase.
   const before = shelf.stock;
-  const bought = await shopBuy({ kind: 'bomb', qty: 2 });
-  check('buying a bomb costs carrots', bought.stock === before - SHOP.PRICES.bomb * 2, bought);
-  check('the bomb is in the bag',
-    bought.items?.find((i: { kind: string }) => i.kind === 'bomb')?.held === 2);
+  const bought = await shopBuy({ kind: 'bloop', qty: 2 });
+  check('buying a bloop costs carrots', bought.stock === before - SHOP.PRICES.bloop * 2, bought);
+  check('the bloop is in the bag',
+    bought.items?.find((i: { kind: string }) => i.kind === 'bloop')?.held === 2);
 
   const row = await db.query.inventory.findFirst({
     where: eq(inventory.playerId, ID),
   });
-  check('…and in the database', row?.kind === 'bomb' && row?.qty === 2, row);
+  check('…and in the database', row?.kind === 'bloop' && row?.qty === 2, row);
 
   // Refusals.
   check('a made-up item is refused', (await shopBuy({ kind: 'crown' })).error === 'unknown_item');
-  check('a silly quantity is refused', (await shopBuy({ kind: 'bomb', qty: 999 })).error === 'too_many_at_once');
-  check('a negative quantity is refused', (await shopBuy({ kind: 'bomb', qty: -3 })).error === 'bad_quantity');
+  check('a silly quantity is refused', (await shopBuy({ kind: 'bloop', qty: 999 })).error === 'too_many_at_once');
+  check('a negative quantity is refused', (await shopBuy({ kind: 'bloop', qty: -3 })).error === 'bad_quantity');
 
   // Energy: it is APPLIED, not carried.
   const energy = await shopBuy({ kind: 'energy' });
@@ -104,13 +104,13 @@ async function main() {
   // waiting to happen: the player sees a smaller number and nothing else.
   const receipts = await db.query.purchases.findMany({ where: eq(purchases.playerId, ID) });
   check('a carrot purchase writes a receipt', receipts.length >= 2, receipts.length);
-  const bombReceipt = receipts.find((r) => r.kind === 'bomb');
-  check('...naming what was bought', bombReceipt?.qty === 2, bombReceipt);
-  check('...in the currency it was paid in', bombReceipt?.currency === 'carrots');
+  const itemReceipt = receipts.find((r) => r.kind === 'bloop');
+  check('...naming what was bought', itemReceipt?.qty === 2, itemReceipt);
+  check('...in the currency it was paid in', itemReceipt?.currency === 'carrots');
   check('...for what it actually cost',
-    bombReceipt?.cost === SHOP.PRICES.bomb * 2, bombReceipt?.cost);
+    itemReceipt?.cost === SHOP.PRICES.bloop * 2, itemReceipt?.cost);
   check('...with no payment attached for a carrot purchase',
-    bombReceipt?.paymentId === null);
+    itemReceipt?.paymentId === null);
   check('an energy refill is receipted too, though nothing is carried',
     receipts.some((r) => r.kind === 'energy'));
 
@@ -142,11 +142,11 @@ async function main() {
   // The USDC route: a real quote when it is configured, a plain refusal when
   // it is not. Both are correct behaviour; which one is correct depends on the
   // environment, so the check follows it.
-  const quote = await quotePay({ kind: 'bomb' });
+  const quote = await quotePay({ kind: 'bloop' });
   if (usdcOn) {
     check('a quote names a payment', typeof quote.paymentId === 'string', quote);
     check('a quote prices the item in base units',
-      quote.amount === Math.round(SHOP.USDC_PRICES.bomb * 1e6), quote.amount);
+      quote.amount === Math.round(SHOP.USDC_PRICES.bloop * 1e6), quote.amount);
     check('a quote carries a reference to match the transfer against',
       typeof quote.reference === 'string' && quote.reference.length > 0);
     check('a quote expires', new Date(quote.expiresAt).getTime() > Date.now());
@@ -155,10 +155,10 @@ async function main() {
     // the confirm step checks the transaction against.
     const intent = await db.query.payments.findFirst({ where: eq(payments.id, quote.paymentId) });
     check('…and is recorded as pending', intent?.status === 'pending', intent?.status);
-    check('…for the right item', intent?.kind === 'bomb' && intent?.qty === 1);
+    check('…for the right item', intent?.kind === 'bloop' && intent?.qty === 1);
 
     // Every non-carrot limit still binds the money route.
-    const overQty = await quotePay({ kind: 'bomb', qty: 999 });
+    const overQty = await quotePay({ kind: 'bloop', qty: 999 });
     check('a quote obeys the quantity limit', overQty.error === 'too_many_at_once', overQty);
 
     const confirmed = await Pay.PATCH(req('PATCH', { paymentId: quote.paymentId, signature: 'not-a-real-signature' }));

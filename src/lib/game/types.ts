@@ -156,11 +156,11 @@ export interface Rabbit {
  * The chest kinds that become an inventory grant. `carrots` is paid straight
  * onto the rabbit and `nft` is minted, so neither appears here.
  */
-export type LootItemKind = 'bomb' | 'shield' | 'lightning' | 'water' | 'fertiliser';
+export type LootItemKind = 'trap' | 'shield' | 'lightning' | 'water' | 'fertiliser';
 
 /** The kinds above, as a value — and the guard that narrows a table's `kind`. */
 export const LOOT_ITEM_KINDS: readonly LootItemKind[] = [
-  'bomb', 'shield', 'lightning', 'water', 'fertiliser',
+  'trap', 'shield', 'lightning', 'water', 'fertiliser',
 ];
 
 /**

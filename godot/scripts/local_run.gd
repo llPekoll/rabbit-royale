@@ -182,7 +182,7 @@ func flag(cell: Vector2i, now: int) -> Dictionary:
 		digs.flags += 1
 		var item := flag_streak % f.item_every == 0
 		if item:
-			loot["bomb"] = int(loot.get("bomb", 0)) + 1
+			loot["trap"] = int(loot.get("trap", 0)) + 1
 		return _ok({"flag": {"tile": cell, "correct": true, "energy_delta": energy - before,
 			"carrot_delta": won, "streak": flag_streak, "item": item}})
 

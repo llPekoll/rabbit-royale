@@ -108,7 +108,7 @@
 			"$t": "Dig. {0}"
 		},
 		"ariaDefend": {
-			"$t": "Defend: bury traps. {0}"
+			"$t": "Defend: bury bombs. {0}"
 		},
 		"ariaRaid": {
 			"$t": "Raid. {0}"
@@ -141,13 +141,13 @@
 		},
 		"noShield": "no shield",
 		"traps": {
-			"$t": "{0} traps",
+			"$t": "{0} bombs",
 			"$v": [
 				{
 					"when": {
 						"0": 1.0
 					},
-					"t": "1 trap"
+					"t": "1 bomb"
 				}
 			]
 		},
@@ -185,7 +185,7 @@
 		},
 		"gardenFull": "Garden nearly full. Bring it in before a raider does.",
 		"shieldLifts": {
-			"$t": "Shield lifts in {0}. Bury traps."
+			"$t": "Shield lifts in {0}. Bury bombs."
 		},
 		"raidTarget": {
 			"$t": "{0} left {1} in the garden. Raid."
@@ -483,8 +483,8 @@
 		"aria": "Shop",
 		"protect": "PROTECT BASE",
 		"protectAria": "Protect your base",
-		"protectBuyAria": "Protect your base - buy a trap",
-		"noTraps": "NO TRAPS - GET ONE",
+		"protectBuyAria": "Protect your base - buy a bomb",
+		"noTraps": "NO BOMBS - GET ONE",
 		"nothingBuried": "NOTHING BURIED",
 		"inShed": {
 			"$t": "{0} IN THE SHED"
@@ -545,6 +545,7 @@
 			"$t": "{0}: {1}. You are holding as many as you can."
 		},
 		"confirmBuy": "CONFIRM?",
+		"yours": "GOT IT!",
 		"tooPoor": {
 			"$t": "{0}: {1}. Not enough carrots yet. Dig for more."
 		},
@@ -562,19 +563,19 @@
 			"$t": "Energy refilled. {0}"
 		},
 		"boughtTrap": {
-			"$t": "{0} traps in the shed. {1}",
+			"$t": "{0} bombs in the shed. {1}",
 			"$v": [
 				{
 					"when": {
 						"0": 1.0
 					},
-					"t": "trap in the shed. {1}"
+					"t": "bomb in the shed. {1}"
 				},
 				{
 					"when": {
 						"0": 0.0
 					},
-					"t": "trap in the shed. {1}"
+					"t": "bomb in the shed. {1}"
 				}
 			]
 		},
@@ -695,14 +696,14 @@
 		"smoke_capped": "Your burrow is hidden as long as it can be.",
 		"too_many_at_once": "Too many at once.",
 		"bad_quantity": "That is not a quantity.",
-		"no_traps": "No traps left. Buy one, or wait for tomorrow.",
-		"board_full": "Your burrow cannot hold another trap.",
+		"no_traps": "No bombs left. Buy one, or wait for tomorrow.",
+		"board_full": "Your burrow cannot hold another bomb.",
 		"tile_not_trappable": "Nothing to mine there.",
 		"tile_doorstep": "Too near the door. The first steps inside stay open.",
 		"tile_house": "Nothing is buried under your house.",
 		"tile_field": "Nothing is buried in your garden.",
 		"tile_already_trapped": "Already mined.",
-		"no_trap_there": "No trap there.",
+		"no_trap_there": "No bomb there.",
 		"no_fences": "No fences left. The shed sells them.",
 		"span_already_fenced": "A plank already stands there.",
 		"span_not_exposed": "That is not an edge of your garden.",
@@ -747,15 +748,15 @@
 				"$t": "{0} remaining"
 			},
 			"buyTrap": {
-				"$t": "Buy a trap - {0} carrots"
+				"$t": "Buy a bomb - {0} carrots"
 			},
-			"trapHint": "Tap a tile to bury a trap. Tap a trap to recover it.",
-			"trapEmpty": "Recover a placed trap or buy one below.",
+			"trapHint": "Tap a tile to bury a bomb. Tap a bomb to recover it.",
+			"trapEmpty": "Recover a placed bomb or buy one below.",
 			"fenceHint": "Tap a highlighted edge to build. Tap a fence to recover it.",
 			"raiseShield": "Use a shield",
 			"shieldActive": "Your burrow is already protected.",
 			"shopHint": "Available in the shop.",
-			"notEnough": "Not enough carrots for another trap.",
+			"notEnough": "Not enough carrots for another bomb.",
 			"smokeHint": "Buying smoke in the shop activates it immediately.",
 			"attackHint": "Use this on a rival’s island during a run.",
 			"chestHint": "Find more in chests.",
@@ -794,32 +795,32 @@
 			"$t": "{0}: none. {1}"
 		},
 		"trapsLine": {
-			"$t": "Traps: {0} of {1} in the ground, {2} in the shed. Bury them from BASE.",
+			"$t": "Bombs: {0} of {1} in the ground, {2} in the shed. Bury them from BASE.",
 			"$v": [
 				{
 					"when": {
 						"1": 0.0
 					},
-					"t": "Traps: {0} in the ground, {2} in the shed. Bury them from BASE."
+					"t": "Bombs: {0} in the ground, {2} in the shed. Bury them from BASE."
 				}
 			]
 		},
 		"trapsBuy": {
-			"$t": "Traps: {0} in the shed. Buy another for {1} carrots.",
+			"$t": "Bombs: {0} in the shed. Buy another for {1} carrots.",
 			"$v": [
 				{
 					"when": {
 						"0": 0.0
 					},
-					"t": "Traps: none in the shed. Buy one for {1} carrots."
+					"t": "Bombs: none in the shed. Buy one for {1} carrots."
 				}
 			]
 		},
 		"trapsBuyBroke": {
-			"$t": "Traps: none left. One costs {0} carrots - dig for more."
+			"$t": "Bombs: none left. One costs {0} carrots - dig for more."
 		},
 		"trapsBuyFull": {
-			"$t": "Traps: {0} in the shed. The shed is full."
+			"$t": "Bombs: {0} in the shed. The shed is full."
 		},
 		"bottleRunning": {
 			"$t": "{0}: running, {1} left. {2} in the bag."
@@ -1002,7 +1003,7 @@
 		},
 		"raidIt": "Raid",
 		"watchIt": "Watch",
-		"brief": "Reach the carrot field. Their traps are buried and unmarked.",
+		"brief": "Reach the carrot field. Their bombs are buried and unmarked.",
 		"outOfEnergy": "Out of energy",
 		"nothingTaken": "Nothing taken",
 		"unguarded": {
@@ -1026,13 +1027,13 @@
 			"$t": "{0}'S BURROW WAS EMPTY"
 		},
 		"trapsSprung": {
-			"$t": "{0} TRAPS SPRUNG ON THE WAY IN",
+			"$t": "{0} BOMBS WENT OFF ON THE WAY IN",
 			"$v": [
 				{
 					"when": {
 						"0": 1.0
 					},
-					"t": "1 TRAP SPRUNG ON THE WAY IN"
+					"t": "1 BOMB WENT OFF ON THE WAY IN"
 				}
 			]
 		},
@@ -1260,7 +1261,7 @@
 	},
 	"items": {
 		"trap": {
-			"name": "Trap",
+			"name": "Bomb",
 			"blurb": "Bury one in your burrow. It drains the raider who steps on it."
 		},
 		"bomb": {
@@ -1323,7 +1324,7 @@
 			"ask": {
 				"$t": "Go to DEFEND and place some bombs in your base."
 			},
-			"line": "A trap nobody can see is the only wall worth building. A wall gets walked around."
+			"line": "A bomb nobody can see is the only wall worth building. A wall gets walked around."
 		},
 		"open-a-chest": {
 			"title": "Open a chest",
@@ -1356,7 +1357,7 @@
 		"hold-the-door": {
 			"title": "Hold the door",
 			"ask": {
-				"$t": "Have {0} traps in the ground before your shield lifts."
+				"$t": "Have {0} bombs in the ground before your shield lifts."
 			},
 			"line": "Your shield lifts soon. After that, the floor is all you have. Make it expensive."
 		},

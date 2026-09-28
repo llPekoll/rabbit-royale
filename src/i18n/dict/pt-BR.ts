@@ -121,7 +121,7 @@ export const ptBR: Dict = {
     broughtHome: 'trazidas',
     ariaGroup: 'Cavar, toca, saquear',
     ariaDig: (line) => `Cavar. ${line}`,
-    ariaDefend: (line) => `Defender: enterrar armadilhas. ${line}`,
+    ariaDefend: (line) => `Defender: enterrar bombas. ${line}`,
     ariaRaid: (line) => `Saquear. ${line}`,
     energyOf: (energy, max) => `${energy}/${max} de energia`,
     runCosts: (n) => `a travessia custa ${n}`,
@@ -134,8 +134,8 @@ export const ptBR: Dict = {
     shieldFor: (wait) => `escudo ${wait}`,
     shieldBadge: (wait) => `Escudo ${wait}`,
     noShield: 'sem escudo',
-    /* Zero é plural em português: "0 armadilhas". */
-    traps: (n) => `${n} armadilha${n === 1 ? '' : 's'}`,
+    /* Zero é plural em português: "0 bombas". */
+    traps: (n) => `${n} bomba${n === 1 ? '' : 's'}`,
     leftOutside: (name, n) => `${name} deixou ${n} lá fora`,
     burrowsOpen: (n) => `${n} toca${n === 1 ? '' : 's'} abert${n === 1 ? 'a' : 'as'}`,
     bombsInBag: (n) => `${n} bomba${n === 1 ? '' : 's'} na bolsa`,
@@ -146,7 +146,7 @@ export const ptBR: Dict = {
     label: 'AGORA',
     aria: (text) => `Agora: ${text}`,
     gardenFull: 'Horta quase cheia. Recolha antes que um saqueador recolha.',
-    shieldLifts: (wait) => `Escudo cai em ${wait}. Enterre armadilhas.`,
+    shieldLifts: (wait) => `Escudo cai em ${wait}. Enterre bombas.`,
     raidTarget: (name, garden) => `${name} deixou ${garden} na horta. Saqueie.`,
     dig: (energy) => `${energy} de energia: dá uma saída. Cave.`,
     digPlain: 'Cave.',
@@ -339,8 +339,8 @@ export const ptBR: Dict = {
     aria: 'Loja',
     protect: 'PROTEGER A BASE',
     protectAria: 'Proteger sua base',
-    protectBuyAria: 'Proteger sua base - comprar uma armadilha',
-    noTraps: 'SEM ARMADILHAS - PEGUE UMA',
+    protectBuyAria: 'Proteger sua base - comprar uma bomba',
+    noTraps: 'SEM BOMBAS - PEGUE UMA',
     nothingBuried: 'NADA ENTERRADO',
     inShed: (n) => `${n} NO GALPÃO`,
     rearming: (n) => `REARMANDO - ${n} VOLTANDO`,
@@ -370,13 +370,14 @@ export const ptBR: Dict = {
     capped: (name, price) => `${name}: ${price}. Você já carrega o máximo.`,
     /** The price button, armed: a second press buys. */
     confirmBuy: 'CONFIRMAR?',
+    yours: 'É SEU!',
     tooPoor: (name, price) => `${name}: ${price}. Cenouras insuficientes. Vá cavar.`,
     heldOf: (held, cap) => `${held}/${cap}`,
     heldToday: (n) => `${n} hoje`,
     heldDaysLeft: (n) => `${n}d restantes`,
     heldOff: 'desligado',
     boughtEnergy: (paid) => `Energia recarregada. ${paid}`,
-    boughtTrap: (n, paid) => `${n > 1 ? `${n} armadilhas` : 'Armadilha'} no galpão. ${paid}`,
+    boughtTrap: (n, paid) => `${n > 1 ? `${n} bombas` : 'Bomba'} no galpão. ${paid}`,
     boughtBomb: (n, paid) => `${n > 1 ? `${n} bombas armadas` : 'Bomba armada'}. ${paid}`,
     boughtLightning: (n, paid) => `${n > 1 ? `${n} raios` : 'Raio'} engarrafado${n > 1 ? 's' : ''}. ${paid}`,
     boughtShield: (n, paid) => `${n > 1 ? `${n} escudos prontos` : 'Escudo pronto'}. ${paid}`,
@@ -397,14 +398,14 @@ export const ptBR: Dict = {
     smoke_capped: 'Sua toca está escondida pelo máximo de tempo possível.',
     too_many_at_once: 'Demais de uma vez.',
     bad_quantity: 'Isso não é uma quantidade.',
-    no_traps: 'Sem armadilhas. Compre uma, ou espere amanhã.',
-    board_full: 'Sua toca não cabe mais uma armadilha.',
+    no_traps: 'Sem bombas. Compre uma, ou espere amanhã.',
+    board_full: 'Sua toca não cabe mais uma bomba.',
     tile_not_trappable: 'Nada para minar aí.',
     tile_doorstep: 'Perto demais da porta. Os primeiros passos ficam livres.',
     tile_house: 'Nada fica enterrado debaixo da sua casa.',
     tile_field: 'Nada fica enterrado na sua horta.',
     tile_already_trapped: 'Já minado.',
-    no_trap_there: 'Não tem armadilha aí.',
+    no_trap_there: 'Não tem bomba aí.',
     no_fences: 'Sem cercas. O galpão vende.',
     span_already_fenced: 'Já tem uma tábua aí.',
     span_not_exposed: 'Isso não é uma borda da sua horta.',
@@ -444,12 +445,12 @@ export const ptBR: Dict = {
       available: (n) => n + ' disponíveis',
       placed: (n) => n + ' colocados',
       active: (time) => time + ' restantes',
-      buyTrap: (price) => 'Comprar armadilha - ' + price + ' cenouras',
-      trapHint: 'Toque numa casa para enterrar. Toque na armadilha para recuperar.',
-      trapEmpty: 'Recupere uma armadilha ou compre uma abaixo.',
+      buyTrap: (price) => 'Comprar bomba - ' + price + ' cenouras',
+      trapHint: 'Toque numa casa para enterrar. Toque na bomba para recuperar.',
+      trapEmpty: 'Recupere uma bomba ou compre uma abaixo.',
       fenceHint: 'Toque numa borda iluminada para construir. Toque na cerca para recuperar.',
       raiseShield: 'Usar um escudo', shieldActive: 'Sua toca já está protegida.',
-      shopHint: 'Disponível na loja.', notEnough: 'Faltam cenouras para outra armadilha.',
+      shopHint: 'Disponível na loja.', notEnough: 'Faltam cenouras para outra bomba.',
       smokeHint: 'Comprar fumaça na loja ativa o efeito imediatamente.',
       attackHint: 'Use na ilha de um rival durante uma partida.',
       chestHint: 'Encontre mais nos baús.',
@@ -471,15 +472,15 @@ export const ptBR: Dict = {
     carried: (name, held, blurb) => `${name}: ${held} na bolsa. ${blurb}`,
     carriedNone: (name, blurb) => `${name}: nenhum. ${blurb}`,
     trapsLine: (placed, max, held) =>
-      `Armadilhas: ${placed}${max ? ` de ${max}` : ''} no chão, ${held} no galpão.`
+      `Bombas: ${placed}${max ? ` de ${max}` : ''} no chão, ${held} no galpão.`
       + ' Enterre pela BASE.',
     trapsBuy: (held, price) =>
       (held > 0
-        ? `Armadilhas: ${held} no galpão. Compre outra por ${price} cenouras.`
-        : `Armadilhas: galpão vazio. Compre uma por ${price} cenouras.`),
+        ? `Bombas: ${held} no galpão. Compre outra por ${price} cenouras.`
+        : `Bombas: galpão vazio. Compre uma por ${price} cenouras.`),
     trapsBuyBroke: (price) =>
-      `Armadilhas: nenhuma. Uma custa ${price} cenouras - va cavar mais.`,
-    trapsBuyFull: (held) => `Armadilhas: ${held} no galpão. O galpão está cheio.`,
+      `Bombas: nenhuma. Uma custa ${price} cenouras - va cavar mais.`,
+    trapsBuyFull: (held) => `Bombas: ${held} no galpão. O galpão está cheio.`,
     bottleRunning: (name, wait, count) => `${name}: em curso, restam ${wait}. ${count} na bolsa.`,
     bottleHeld: (name, count) => `${name}: ${count} na bolsa. Despeje uma na horta.`,
     bottleNone: (name) => `${name}: nenhuma. Encontradas em baús.`,
@@ -575,7 +576,7 @@ export const ptBR: Dict = {
     },
     raidIt: 'Saquear',
     watchIt: 'Assistir',
-    brief: 'Alcance a plantação de cenouras. As armadilhas deles estão enterradas e sem marca.',
+    brief: 'Alcance a plantação de cenouras. As bombas deles estão enterradas e sem marca.',
     outOfEnergy: 'Sem energia',
     nothingTaken: 'Nada levado',
     unguarded: (amount) => `${amount} SEM GUARDA`,
@@ -589,7 +590,7 @@ export const ptBR: Dict = {
     lootedFrom: (name) => `SAQUEADO DE ${name}`,
     wasEmpty: (name) => `A TOCA DE ${name} ESTAVA VAZIA`,
     trapsSprung: (n) =>
-      n === 1 ? '1 ARMADILHA DISPARADA NA ENTRADA' : `${n} ARMADILHAS DISPARADAS NA ENTRADA`,
+      n === 1 ? '1 BOMBA EXPLODIU NA ENTRADA' : `${n} BOMBAS EXPLODIRAM NA ENTRADA`,
     wonAria: (carrots, name) => `Saque vencido - ${carrots} cenouras levadas de ${name}`,
     rabbitAria: 'Seu coelho, comemorando',
     stolen: (n, name) => `+${n} 🥕 roubadas de ${name}`,
@@ -744,7 +745,7 @@ export const ptBR: Dict = {
 
   items: {
     trap: {
-      name: 'Armadilha',
+      name: 'Bomba',
       blurb: 'Enterre uma na sua toca. Ela drena o saqueador que pisar nela.',
     },
     bomb: {
@@ -803,7 +804,7 @@ export const ptBR: Dict = {
     'bury-something': {
       title: 'Enterrar algo',
       ask: () => 'Vá em DEFENDER e coloque bombas na sua base.',
-      line: 'Uma armadilha que ninguém vê é o único muro que vale. Muro a gente contorna.',
+      line: 'Uma bomba que ninguém vê é o único muro que vale. Muro a gente contorna.',
     },
     'open-a-chest': {
       title: 'Abrir um baú',
@@ -829,7 +830,7 @@ export const ptBR: Dict = {
     },
     'hold-the-door': {
       title: 'Segurar a porta',
-      ask: (traps) => `Tenha ${traps} armadilhas no chão antes do seu escudo cair.`,
+      ask: (traps) => `Tenha ${traps} bombas no chão antes do seu escudo cair.`,
       line: 'Seu escudo cai logo. Depois disso, só resta o chão. Deixe-o caro.',
     },
     'the-thicket': {

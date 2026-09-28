@@ -354,7 +354,8 @@ export const RISK_GRADIENT = {
  * Energy stays capped at ENERGY.MAX, so an easy shore cannot be banked
  * against the far side. The carrot bounty climbs with the STREAK (right Xs in
  * a row this run); a wrong X or a blast resets it. Every ITEM_EVERY-th X of a
- * streak digs the bomb up whole: a raid bomb, the DIG loop feeding RAID.
+ * streak digs the bomb up whole, into the bag as a burrow bomb (a `trap`):
+ * the DIG loop feeding DEFEND.
  */
 export const FLAG = {
   /** Energy a wrong X costs, on every tier. Half a blast. */
@@ -372,8 +373,8 @@ export const FLAG = {
   CARROTS_STEP: 1,
   /** Ceiling on a single bounty (reached at a streak of 3): one dug carrot's worth. */
   CARROTS_MAX: 3,
-  /** Every n-th X of a streak also yields one raid bomb: two or three on a
-   *  flawless island, about what its chests give. */
+  /** Every n-th X of a streak also yields one burrow bomb (`trap`): two or
+   *  three on a flawless island, about what its chests give. */
   ITEM_EVERY: 25,
   /**
    * Carrots paid per point of energy a right X could NOT deliver because the
@@ -1231,7 +1232,6 @@ export const SHOP = {
    */
   PRICES: {
     trap: TRAPS.CARROT_COST,
-    bomb: 300,
     lightning: 500,
     shield: 600,
     // A refill is ONE TANK, and a run always ends at zero, so it buys one
@@ -1278,13 +1278,13 @@ export const SHOP = {
    */
   USDC_PRICES: {
     trap: 0.25,
-    bomb: 0.40,
     lightning: 0.60,
     shield: 0.90,
     energy: 0.99,
     smoke: 1.99,
     bloop: 0.10,
-    // The bomb's, for the same reason the carrot price is the bomb's.
+    // What the thrown bomb cost before it left the shelf (2026-09-28), for
+    // the reason the fence's carrot price gives.
     fence: 0.40,
   },
   /**
@@ -1455,7 +1455,7 @@ export const CHEST_LOOT_BY_TIER: Record<'bronze' | 'silver' | 'gold' | 'crown', 
     { kind: 'fertiliser', weight: 45, min: 1, max: 2 },
   ],
   gold: [
-    { kind: 'bomb', weight: 50, min: 1, max: 2 },
+    { kind: 'trap', weight: 50, min: 1, max: 2 },
     { kind: 'shield', weight: 28, min: 1, max: 1 },
     { kind: 'lightning', weight: 22, min: 1, max: 1 },
   ],
@@ -1467,7 +1467,7 @@ export const CHEST_LOOT_BY_TIER: Record<'bronze' | 'silver' | 'gold' | 'crown', 
   crown: [
     { kind: 'lightning', weight: 40, min: 1, max: 1 },
     { kind: 'shield', weight: 35, min: 1, max: 1 },
-    { kind: 'bomb', weight: 25, min: 2, max: 3 },
+    { kind: 'trap', weight: 25, min: 2, max: 3 },
   ],
 };
 
@@ -1480,7 +1480,7 @@ export const CHEST_LOOT_BY_TIER: Record<'bronze' | 'silver' | 'gold' | 'crown', 
  */
 export const CHEST_LOOT = [
   { kind: 'carrots',   weight: 40, min: 20, max: 90 },
-  { kind: 'bomb',      weight: 16, min: 1,  max: 2  },
+  { kind: 'trap',      weight: 16, min: 1,  max: 2  },
   { kind: 'water',     weight: 15, min: 1,  max: 3  },
   { kind: 'fertiliser', weight: 12, min: 1, max: 2  },
   { kind: 'shield',    weight: 9,  min: 1,  max: 1  },
@@ -1640,7 +1640,7 @@ export const QUESTS = {
   /** Item rewards, by quest id. */
   ITEMS: {
     'open-a-chest': { kind: 'shield', qty: 1 },
-    'knock-on-a-door': { kind: 'bomb', qty: 1 },
+    'knock-on-a-door': { kind: 'trap', qty: 1 },
   },
 } as const;
 

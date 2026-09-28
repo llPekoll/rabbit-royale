@@ -24,6 +24,11 @@ import { availableTraps, type TrapRow } from './traps';
  * `SHOP_KINDS` for what is actually for sale. The split is deliberate — water
  * and fertiliser are found, never bought, which is what keeps the garden a
  * reward for digging rather than a second thing to spend carrots on.
+ *
+ * `bomb` stays in the enum only because Postgres cannot drop an enum value:
+ * the ITEM is gone (2026-09-28). The burrow's bomb is the `trap` kind — one
+ * thing, one name for the player — and migration 0023 turned every bomb still
+ * held into traps.
  */
 export const ITEM_KINDS = [
   'trap', 'bomb', 'lightning', 'shield', 'energy', 'smoke', 'mirage', 'water', 'fertiliser',
@@ -33,7 +38,7 @@ export type ItemKind = (typeof ITEM_KINDS)[number];
 
 /** The kinds the shop sells — the keys of SHOP.PRICES. */
 export const SHOP_KINDS = [
-  'trap', 'bomb', 'lightning', 'shield', 'energy', 'smoke', 'bloop', 'fence',
+  'trap', 'lightning', 'shield', 'energy', 'smoke', 'bloop', 'fence',
 ] as const;
 export type ShopKind = (typeof SHOP_KINDS)[number];
 
@@ -63,7 +68,7 @@ export function isGardenKind(v: unknown): v is GardenKind {
 }
 
 /** The kinds that are actually CARRIED. Energy is spent as it is bought. */
-export const CARRIED_KINDS = ['trap', 'bomb', 'lightning', 'shield', 'mirage', 'fence', 'bloop'] as const;
+export const CARRIED_KINDS = ['trap', 'lightning', 'shield', 'mirage', 'fence', 'bloop'] as const;
 export type CarriedKind = (typeof CARRIED_KINDS)[number];
 
 export function isItemKind(v: unknown): v is ItemKind {

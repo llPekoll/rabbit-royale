@@ -695,8 +695,11 @@ async function bankRun(rabbit: Rabbit) {
   // row for the timed kinds, so folding it in would hold a row lock across the
   // whole bag. A chest item that fails to land is a bug worth a loud log, not a
   // reason to roll back carrots the player has already been told about.
-  for (const [kind, qty] of Object.entries(run.loot)) {
+  for (const [bagged, qty] of Object.entries(run.loot)) {
     if (!qty) continue;
+    // A run started before the bomb ITEM left the game (2026-09-28) may still
+    // carry one: it banks as what a bomb is now, the burrow's `trap`.
+    const kind = bagged === 'bomb' ? 'trap' : bagged;
     try {
       await grantItem(db, playerId, kind as ItemKind, qty);
     } catch (e) {

@@ -72,7 +72,7 @@ export function codexMark(chapterId: string): string {
 
 export interface QuestReward {
   carrots?: number;
-  item?: { kind: 'bomb' | 'shield'; qty: number };
+  item?: { kind: 'trap' | 'shield'; qty: number };
 }
 
 /**
