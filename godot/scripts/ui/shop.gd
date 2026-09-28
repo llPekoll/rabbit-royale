@@ -609,7 +609,9 @@ func _card(it: Dictionary, tokens: Array, lead: bool) -> Control:
 	inside.add_child(stage)
 	var centre := stage.size * 0.5
 	if lead:
-		var rays := _rays(Palette.GOLD, floorf(zone * 1.9))
+		# Pas plus larges que la carte : la pointe s'eteint avant le bord,
+		# sinon la bordure la coupe en plein or.
+		var rays := _rays(Palette.GOLD, floorf(w - 10.0 * k))
 		rays.position = centre - rays.size * 0.5
 		stage.add_child(rays)
 	var glow := TextureRect.new()
@@ -804,18 +806,34 @@ static func _rays(color: Color, side: float) -> Control:
 	rays.pivot_offset = rays.size * 0.5
 	rays.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	rays.draw.connect(func() -> void:
-		var c := rays.size * 0.5
-		var r := side * 0.5
 		var n := 12
 		for i in n:
-			var a := TAU * float(i) / float(n)
-			var half := TAU / float(n) * 0.22
-			rays.draw_colored_polygon(PackedVector2Array([
-				c, c + Vector2.from_angle(a - half) * r, c + Vector2.from_angle(a + half) * r,
-			]), Color(color, 0.22)))
+			draw_ray(rays, rays.size * 0.5, side * 0.5, TAU * float(i) / float(n), TAU / float(n) * 0.22, Color(color, 0.22)))
 	var spin := rays.create_tween().set_loops()
 	spin.tween_property(rays, "rotation", TAU, 30.0).from(0.0)
 	return rays
+
+
+## UN RAYON qui s'eteint avant son bout : plein jusqu'a RAY_SOLID du rayon,
+## puis des bandes de plus en plus pales (la couleur est portee par les
+## sommets, le GPU lisse entre elles) — plus de pointe coupee net sur le fond.
+const RAY_SOLID := 0.45
+const RAY_FADE := [1.0, 0.62, 0.32, 0.12, 0.0]
+
+static func draw_ray(on: CanvasItem, c: Vector2, r: float, a: float, half: float, color: Color) -> void:
+	var left := Vector2.from_angle(a - half)
+	var right := Vector2.from_angle(a + half)
+	var inner := r * RAY_SOLID
+	on.draw_colored_polygon(PackedVector2Array([c, c + left * inner, c + right * inner]), color)
+	var bands := RAY_FADE.size() - 1
+	for b in bands:
+		var r0 := lerpf(inner, r, float(b) / float(bands))
+		var r1 := lerpf(inner, r, float(b + 1) / float(bands))
+		var c0 := Color(color, color.a * RAY_FADE[b])
+		var c1 := Color(color, color.a * RAY_FADE[b + 1])
+		on.draw_polygon(
+			PackedVector2Array([c + left * r0, c + left * r1, c + right * r1, c + right * r0]),
+			PackedColorArray([c0, c1, c1, c0]))
 
 
 ## SOULEVER ou reposer une carte au survol.
