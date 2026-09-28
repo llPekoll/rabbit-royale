@@ -29,7 +29,7 @@
     <link rel="icon" href="/favicon.ico" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito+Sans:wght@400;600;700;900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Lilita+One&family=Nunito+Sans:wght@400;600;700;900&display=swap" rel="stylesheet" />
     <style>
       html, body {
         margin: 0;
@@ -74,6 +74,12 @@
       .slide x-shape[kind='arrow-right'] {
         clip-path: polygon(0 32%, 58% 32%, 58% 0, 100% 50%, 58% 100%, 58% 68%, 0 68%);
       }
+
+      /* Legendes facon meme sur les GIFs de la slide GTM. */
+      .meme { position:relative; flex:none; }
+      .meme p { position:absolute; left:4px; right:4px; margin:0; text-align:center; font-family:Impact, 'Anton', 'Arial Black', sans-serif; font-size:23px; line-height:1; text-transform:uppercase; color:#fff; -webkit-text-stroke:2px #000; paint-order:stroke fill; text-shadow:0 2px 0 #000; pointer-events:none; }
+      .meme p.top { top:10px; }
+      .meme p.bot { bottom:10px; }
 
       /* LA BARRE : discrete, elle disparait quand la souris dort. */
       .bar {
@@ -167,8 +173,8 @@
         <div style="position:absolute; top:0; left:0; width:1200px; height:1080px; background:linear-gradient(90deg, #10222bf2 0%, #10222bcc 55%, #10222b00 100%)"></div>
         <div style="display:flex; flex-direction:column; gap:32px">
           <p style="font-family:'Lilita One', Arial, sans-serif; font-size:36px; letter-spacing:2px; text-transform:uppercase; color:#f29a4a">Born in a casino</p>
-          <h2 style="font-family:'Lilita One', Arial, sans-serif; font-size:88px; font-weight:400; line-height:1.05; color:#f7f0e1; text-shadow:0 5px 0 #0a161c">Too addictive to stay gambling.</h2>
-          <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:34px; line-height:1.4; color:#dde6e3">Rabbit Royale was domin8's top mode by volume. We kept the core and took the wager out.</p>
+          <h2 style="font-family:'Lilita One', Arial, sans-serif; font-size:88px; font-weight:400; line-height:1.05; color:#f7f0e1; text-shadow:0 5px 0 #0a161c">Too big for a casino.</h2>
+          <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:34px; line-height:1.4; color:#dde6e3">Rabbit Royale was domin8's top mode by volume. A casino only reaches gamblers, so we took the wager out to reach every player.</p>
         </div>
         <div style="display:flex; flex-direction:column; gap:28px; align-items:center; padding:48px 40px; background:#0a161cd9; border:3px solid #f2c14e80; border-radius:28px">
           <div style="display:flex; align-items:center; gap:28px">
@@ -177,26 +183,26 @@
             <img src="/pitch/img/logo-skull.png" alt="Rabbit Royale pixel logo" style="width:136px; height:150px; object-fit:contain">
           </div>
           <p style="font-family:'Lilita One', Arial, sans-serif; font-size:180px; line-height:1; color:#f2c14e; text-shadow:0 10px 0 #0a161c, 0 16px 40px #00000099">28K</p>
-          <p style="margin-top:-12px; font-family:'Lilita One', Arial, sans-serif; font-size:40px; text-align:center; color:#f7f0e1; text-shadow:0 3px 0 #0a161c">games played on domin8</p>
+          <p style="margin-top:-12px; font-family:'Lilita One', Arial, sans-serif; font-size:40px; text-align:center; color:#f7f0e1; text-shadow:0 3px 0 #0a161c">games on domin8 in 1 year</p>
           <div style="display:flex; gap:24px; width:100%">
             <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:2px; padding:18px; background:#10222b; border:3px solid #f2c14e80; border-radius:20px">
               <p style="font-family:'Lilita One', Arial, sans-serif; font-size:60px; line-height:1; color:#f2c14e">160 SOL</p>
               <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:24px; color:#dde6e3">wagered</p>
             </div>
             <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:2px; padding:18px; background:#10222b; border:3px solid #f2c14e80; border-radius:20px">
-              <p style="font-family:'Lilita One', Arial, sans-serif; font-size:60px; line-height:1; color:#f2c14e">11K</p>
-              <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:24px; color:#dde6e3">Rabbit Royale games</p>
+              <p style="font-family:'Lilita One', Arial, sans-serif; font-size:60px; line-height:1; color:#f2c14e">8.4K</p>
+              <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:24px; color:#dde6e3">Rabbit Royale, in August</p>
             </div>
           </div>
         </div>
-        <p style="position:absolute; left:128px; bottom:48px; font-family:'Nunito Sans', Arial, sans-serif; font-size:20px; color:#9fb2af">domin8 on Solana mainnet, June to September 2026.</p>
+        <p style="position:absolute; left:128px; bottom:48px; font-family:'Nunito Sans', Arial, sans-serif; font-size:20px; color:#9fb2af">domin8 on Solana mainnet, over one year.</p>
       </section>
       
       <section class="slide" id="loop" data-transition="fade" style="background:#10222B; color:#F7F0E1; font-family:'Nunito Sans', Arial, sans-serif; padding:96px 128px 128px; display:flex; flex-direction:column; gap:40px">
         <img src="/pitch/img/title-art.webp" alt="" style="position:absolute; left:0; top:0; width:1920px; height:1080px; object-fit:cover; filter:blur(10px) brightness(0.3)">
         <div style="display:flex; flex-direction:column; gap:12px">
-          <h2 style="font-family:'Lilita One', Arial, sans-serif; font-size:88px; font-weight:400; line-height:1; text-shadow:0 5px 0 #0A161C">Dig. Defend. Raid.</h2>
-          <p style="font-size:34px; line-height:1.3; color:#DDE6E3">Real-time multiplayer: up to 4 rabbits on the same island, and first to dig takes the carrot.</p>
+          <h2 style="font-family:'Lilita One', Arial, sans-serif; font-size:88px; font-weight:400; line-height:1; text-shadow:0 5px 0 #0A161C">Simple mechanic, so much fun.</h2>
+          <p style="font-family:'Lilita One', Arial, sans-serif; font-size:46px; line-height:1.15; color:#f2c14e; text-shadow:0 4px 0 #0A161C">Built in 16 days.</p>
         </div>
         <div style="display:flex; gap:32px">
           <div style="width:533px; display:flex; flex-direction:column; border-radius:28px; overflow:hidden; border:4px solid #F2C14E; background:#0A161C">
@@ -228,41 +234,49 @@
         <h2 style="position:absolute; top:56px; left:128px; width:1664px; font-family:'Lilita One', Arial, sans-serif; font-size:120px; font-weight:400; line-height:1; color:#f2c14e; text-shadow:0 8px 0 #0a161c, 0 16px 40px #00000099">GAME ECONOMY</h2>
         <p style="position:absolute; top:196px; left:128px; width:900px; font-family:'Lilita One', Arial, sans-serif; font-size:48px; line-height:1.1; color:#f7f0e1; text-shadow:0 4px 0 #0a161c">Players buy time and revenge. Never power.</p>
         <p style="position:absolute; top:258px; left:128px; width:880px; font-family:'Nunito Sans', Arial, sans-serif; font-size:26px; line-height:1.35; color:#dde6e3">Everything is earned by playing. Or skip the grind in SOL or SKR, straight from your wallet.</p>
-        <p style="position:absolute; top:400px; left:90px; width:310px; font-family:'Lilita One', Arial, sans-serif; font-size:40px; text-align:center; color:#f2c14e; text-shadow:0 4px 0 #0a161c">TIME</p>
-        <p style="position:absolute; top:400px; left:405px; width:660px; font-family:'Lilita One', Arial, sans-serif; font-size:40px; text-align:center; color:#e8643a; text-shadow:0 4px 0 #0a161c">REVENGE</p>
-        <div style="position:absolute; top:470px; left:110px; width:270px; height:400px; display:flex; flex-direction:column; background:#0a161c; border:4px solid #f2c14e; border-radius:24px; box-shadow:0 16px 40px #00000099; transform:rotate(-5deg) scale(0.88); overflow:hidden">
+        <p style="position:absolute; top:400px; left:90px; width:470px; font-family:'Lilita One', Arial, sans-serif; font-size:40px; text-align:center; color:#f2c14e; text-shadow:0 4px 0 #0a161c">TIME</p>
+        <p style="position:absolute; top:400px; left:510px; width:630px; font-family:'Lilita One', Arial, sans-serif; font-size:40px; text-align:center; color:#e8643a; text-shadow:0 4px 0 #0a161c">REVENGE</p>
+        <div style="position:absolute; top:470px; left:90px; width:270px; height:400px; display:flex; flex-direction:column; background:#0a161c; border:4px solid #f2c14e; border-radius:24px; box-shadow:0 16px 40px #00000099; transform:rotate(-5deg) scale(0.88); overflow:hidden">
           <video src="/pitch/img/clip-dig.mp4" poster="/pitch/img/clip-dig.webp" muted loop playsinline preload="auto" aria-label="A rabbit digging on the island" style="display:block; width:262px; height:220px; object-fit:cover"></video>
           <div style="display:flex; flex-direction:column; gap:4px; padding:16px 22px">
             <h3 style="font-family:'Lilita One', Arial, sans-serif; font-size:36px; font-weight:400; line-height:1; color:#f7f0e1">Energy</h3>
             <p style="font-family:'Lilita One', Arial, sans-serif; font-size:28px; color:#f2c14e">700 carrots</p>
-            <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:24px; color:#dde6e3">or 0.0084 SOL</p>
+            <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:24px; color:#dde6e3">or $0.10</p>
           </div>
         </div>
-        <div style="position:absolute; top:485px; left:355px; width:270px; height:400px; display:flex; flex-direction:column; background:#0a161c; border:4px solid #e8643a; border-radius:24px; box-shadow:0 16px 40px #00000099; transform:rotate(-6deg) scale(0.88); overflow:hidden">
+        <div style="position:absolute; top:480px; left:290px; width:270px; height:400px; display:flex; flex-direction:column; background:#0a161c; border:4px solid #f2c14e; border-radius:24px; box-shadow:0 16px 40px #00000099; transform:rotate(-2deg) scale(0.88); overflow:hidden">
+          <div style="display:grid; place-items:center; width:262px; height:220px; background:radial-gradient(circle at 50% 45%, #3a2a66 0%, #10222b 75%)"><p style="display:flex; align-items:center; gap:14px; font-family:'Lilita One', Arial, sans-serif; font-size:64px; line-height:1; color:#f7f0e1; text-shadow:0 5px 0 #0a161c"><span style="display:inline-block; width:0; height:0; border-left:44px solid #f2c14e; border-top:28px solid transparent; border-bottom:28px solid transparent"></span>AD</p></div>
+          <div style="display:flex; flex-direction:column; gap:4px; padding:16px 22px">
+            <h3 style="font-family:'Lilita One', Arial, sans-serif; font-size:36px; font-weight:400; line-height:1; color:#f7f0e1">Ads</h3>
+            <p style="font-family:'Lilita One', Arial, sans-serif; font-size:28px; color:#f2c14e">free energy</p>
+            <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:24px; color:#dde6e3">paid by advertisers</p>
+          </div>
+        </div>
+        <div style="position:absolute; top:485px; left:490px; width:270px; height:400px; display:flex; flex-direction:column; background:#0a161c; border:4px solid #e8643a; border-radius:24px; box-shadow:0 16px 40px #00000099; transform:rotate(-6deg) scale(0.88); overflow:hidden">
           <video src="/pitch/img/clip-defend.mp4" poster="/pitch/img/clip-defend.webp" muted loop playsinline preload="auto" aria-label="Bombs buried one by one around the garden" style="display:block; width:262px; height:220px; object-fit:cover"></video>
           <div style="display:flex; flex-direction:column; gap:4px; padding:16px 22px">
             <h3 style="font-family:'Lilita One', Arial, sans-serif; font-size:36px; font-weight:400; line-height:1; color:#f7f0e1">Bomb</h3>
-            <p style="font-family:'Lilita One', Arial, sans-serif; font-size:28px; color:#f2c14e">300 carrots</p>
-            <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:24px; color:#dde6e3">or 0.0034 SOL</p>
+            <p style="font-family:'Lilita One', Arial, sans-serif; font-size:28px; color:#f2c14e">1,750 carrots</p>
+            <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:24px; color:#dde6e3">or $0.25</p>
           </div>
         </div>
-        <div style="position:absolute; top:460px; left:600px; width:270px; height:400px; display:flex; flex-direction:column; background:#0a161c; border:4px solid #e8643a; border-radius:24px; box-shadow:0 16px 40px #00000099; transform:rotate(0deg) scale(0.88); overflow:hidden">
+        <div style="position:absolute; top:460px; left:690px; width:270px; height:400px; display:flex; flex-direction:column; background:#0a161c; border:4px solid #e8643a; border-radius:24px; box-shadow:0 16px 40px #00000099; transform:rotate(0deg) scale(0.88); overflow:hidden">
           <video src="/pitch/img/clip-lightning.mp4" poster="/pitch/img/clip-lightning.webp" muted loop playsinline preload="auto" aria-label="Lightning strikes a rival rabbit" style="display:block; width:262px; height:220px; object-fit:cover"></video>
           <div style="display:flex; flex-direction:column; gap:4px; padding:16px 22px">
             <h3 style="font-family:'Lilita One', Arial, sans-serif; font-size:36px; font-weight:400; line-height:1; color:#f7f0e1">Lightning</h3>
-            <p style="font-family:'Lilita One', Arial, sans-serif; font-size:28px; color:#f2c14e">500 carrots</p>
-            <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:24px; color:#dde6e3">or 0.0051 SOL</p>
+            <p style="font-family:'Lilita One', Arial, sans-serif; font-size:28px; color:#f2c14e">4,200 carrots</p>
+            <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:24px; color:#dde6e3">or $0.60</p>
           </div>
         </div>
-        <div style="position:absolute; top:485px; left:845px; width:270px; height:400px; display:flex; flex-direction:column; background:#0a161c; border:4px solid #e8643a; border-radius:24px; box-shadow:0 16px 40px #00000099; transform:rotate(6deg) scale(0.88); overflow:hidden">
+        <div style="position:absolute; top:485px; left:890px; width:270px; height:400px; display:flex; flex-direction:column; background:#0a161c; border:4px solid #e8643a; border-radius:24px; box-shadow:0 16px 40px #00000099; transform:rotate(6deg) scale(0.88); overflow:hidden">
           <video src="/pitch/img/clip-bloop.mp4" poster="/pitch/img/clip-bloop.webp" muted loop playsinline preload="auto" aria-label="Ink splashes cover a rival's screen" style="display:block; width:262px; height:220px; object-fit:cover"></video>
           <div style="display:flex; flex-direction:column; gap:4px; padding:16px 22px">
             <h3 style="font-family:'Lilita One', Arial, sans-serif; font-size:36px; font-weight:400; line-height:1; color:#f7f0e1">Bloop</h3>
-            <p style="font-family:'Lilita One', Arial, sans-serif; font-size:28px; color:#f2c14e">100 carrots</p>
-            <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:24px; color:#dde6e3">or 0.0008 SOL</p>
+            <p style="font-family:'Lilita One', Arial, sans-serif; font-size:28px; color:#f2c14e">700 carrots</p>
+            <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:24px; color:#dde6e3">or $0.10</p>
           </div>
         </div>
-        <div style="position:absolute; top:330px; left:1150px; width:642px; height:640px; display:flex; flex-direction:column; gap:10px; padding:30px 34px 26px; background:#0a161cd9; border:3px solid #f2c14e80; border-radius:28px">
+        <div style="position:absolute; top:320px; left:1150px; width:642px; height:676px; display:flex; flex-direction:column; gap:10px; padding:30px 34px 26px; background:#0a161cd9; border:3px solid #f2c14e80; border-radius:28px">
           <p style="font-family:'Lilita One', Arial, sans-serif; font-size:26px; letter-spacing:2px; color:#f29a4a">PROJECTION · REVENUE PER YEAR</p>
           <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:22px; line-height:1.35; color:#dde6e3">At the mobile average: <b>$35 per player, per year</b>.</p>
           <div role="img" aria-label="Revenue per year at $35 per player: 10K players $350K, 100K players $3.5M, 1M players $35M, 10M players $350M" style="flex:1; display:flex; align-items:flex-end; gap:18px; padding-top:10px; border-bottom:2px solid #9fb2af66">
@@ -301,9 +315,9 @@
               <p style="font-family:'Lilita One', Arial, sans-serif; font-size:16px; letter-spacing:1px; color:#f29a4a">CLASH-SIZE</p>
             </div>
           </div>
-          <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:17px; line-height:1.35; color:#9fb2af">Monthly players. Each step ×10 (log scale). $103B mobile revenue ÷ 2.99B mobile players, Newzoo, Sep 2025. Before store fees.</p>
+          <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:17px; line-height:1.35; color:#9fb2af">Monthly players. Each step ×10 (log scale). $103B mobile revenue ÷ 2.99B mobile players, Newzoo, Sep 2025. Player spending only: ads come on top. Before store fees.</p>
         </div>
-        <p style="position:absolute; left:128px; bottom:24px; width:960px; font-family:'Nunito Sans', Arial, sans-serif; font-size:20px; color:#9fb2af">Priced in USD, settled in SOL or SKR at the live Jupiter rate. SOL amounts at $118 per SOL (Sep 28, 2026).</p>
+        <p style="position:absolute; left:128px; bottom:24px; width:960px; font-family:'Nunito Sans', Arial, sans-serif; font-size:20px; color:#9fb2af">Priced in USD, paid in USDC, SOL or SKR straight from the wallet (SOL and SKR at the live Jupiter rate).</p>
       </section>
       
       <section class="slide" id="ip" data-transition="fade" style="display:grid; gap:56px; align-items:center; grid-template-columns:500px 648px 1fr; padding:96px 128px 128px; background:#10222b">
@@ -315,7 +329,10 @@
           <div style="display:flex; gap:22px; margin-top:4px">
             <div style="position:relative; width:500px; margin-bottom:76px; transform:rotate(-2deg)">
               <div style="background:#0a161c; border:4px solid #6fc3e8; border-radius:22px; overflow:hidden; box-shadow:0 14px 34px #000000a6">
-                <img src="/pitch/img/merch-lineup.webp" alt="Rabbit merch: plush, tees, mug and cap" style="width:100%; height:430px; object-fit:cover">
+                <div style="position:relative; height:430px; overflow:hidden">
+                  <img src="/pitch/img/merch-lineup.webp" alt="" style="position:absolute; inset:-20px; width:calc(100% + 40px); height:calc(100% + 40px); object-fit:cover; filter:blur(14px) brightness(0.75)">
+                  <img src="/pitch/img/merch-lineup.webp" alt="Rabbit merch: plush, tees, mug and cap" style="position:absolute; left:50%; top:50%; translate:-50% -50%; width:84%; height:84%; object-fit:contain; border-radius:12px">
+                </div>
               </div>
               <p style="position:absolute; left:50%; bottom:-80px; translate:-50% 0; padding:8px 30px; font-family:'Lilita One', Arial, sans-serif; font-size:38px; white-space:nowrap; color:#10222b; background:#6fc3e8; border:4px solid #0a161c; border-radius:40px; box-shadow:0 6px 0 #0a161c">MERCH · SOON</p>
             </div>
@@ -341,8 +358,8 @@
         <img src="/pitch/img/title-art.webp" alt="" style="position:absolute; top:0; left:0; width:1920px; height:1080px; filter:blur(12px) brightness(0.28)">
         <div style="position:absolute; top:72px; left:128px; width:1664px; display:flex; flex-direction:column; gap:12px">
           <p style="font-family:'Lilita One', Arial, sans-serif; font-size:34px; letter-spacing:2px; text-transform:uppercase; color:#f29a4a">Who else builds IPs</p>
-          <h2 style="font-family:'Lilita One', Arial, sans-serif; font-size:88px; font-weight:400; line-height:1; color:#f7f0e1; text-shadow:0 5px 0 #0a161c">Not an app. An IP.</h2>
-          <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:32px; line-height:1.4; color:#dde6e3">Every giant started with one character in one medium. Then it went everywhere.</p>
+          <h2 style="font-family:'Lilita One', Arial, sans-serif; font-size:88px; font-weight:400; line-height:1; color:#f7f0e1; text-shadow:0 5px 0 #0a161c">Not just a game. An IP!</h2>
+          <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:32px; line-height:1.4; color:#dde6e3">It was just Minesweeper. The rabbits made it fun.</p>
         </div>
         <div style="position:absolute; top:410px; left:128px; width:1664px; display:flex; flex-direction:row; gap:28px">
           <div style="position:relative; flex:1; display:flex; flex-direction:column; gap:14px; padding:24px 24px 30px; background:#0a161cd9; border:3px solid #f2c14e80; border-radius:26px">
@@ -384,87 +401,69 @@
         <img src="/pitch/img/ep01-hero.webp" alt="" style="position:absolute; top:0; left:0; width:1920px; height:1080px; filter:blur(12px) brightness(0.3)">
         <div style="position:absolute; top:72px; left:128px; width:1664px; display:flex; flex-direction:column; gap:10px">
           <p style="font-family:'Lilita One', Arial, sans-serif; font-size:34px; letter-spacing:2px; text-transform:uppercase; color:#f29a4a">Go-to-market</p>
-          <h2 style="font-family:'Lilita One', Arial, sans-serif; font-size:88px; font-weight:400; line-height:1; color:#f7f0e1; text-shadow:0 5px 0 #0a161c">Every raid recruits.</h2>
-          <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:28px; line-height:1.4; color:#dde6e3">In 1996, Pokémon sold slowly. Then a secret and a friend did the marketing. Our revenge loop does the same.</p>
+          <h2 style="font-family:'Lilita One', Arial, sans-serif; font-size:88px; font-weight:400; line-height:1; color:#f7f0e1; text-shadow:0 5px 0 #0a161c">The Pudgy playbook.</h2>
+          <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:30px; line-height:1.4; color:#dde6e3">Pudgy Penguins went memes, then toys, then a game. We start with the game.</p>
         </div>
-        <svg aria-hidden="true" style="position:absolute; left:0; top:0; width:1920px; height:1080px; overflow:visible; pointer-events:none">
-          <defs><marker id="gtm-arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#f2c14e"/></marker></defs>
-          <path d="M710 430 A300 300 0 0 1 820 540" fill="none" stroke="#f2c14e" stroke-width="5" stroke-dasharray="14 10" stroke-linecap="round" marker-end="url(#gtm-arrow)"/><path d="M820 840 A300 300 0 0 1 710 950" fill="none" stroke="#f2c14e" stroke-width="5" stroke-dasharray="14 10" stroke-linecap="round" marker-end="url(#gtm-arrow)"/><path d="M410 950 A300 300 0 0 1 300 840" fill="none" stroke="#f2c14e" stroke-width="5" stroke-dasharray="14 10" stroke-linecap="round" marker-end="url(#gtm-arrow)"/><path d="M300 540 A300 300 0 0 1 410 430" fill="none" stroke="#f2c14e" stroke-width="5" stroke-dasharray="14 10" stroke-linecap="round" marker-end="url(#gtm-arrow)"/>
-        </svg>
-        <div style="position:absolute; left:455px; top:540px; width:210px; display:flex; flex-direction:column; align-items:center; gap:6px; padding:14px 14px 16px; background:#f3e3c3; border:5px solid #3b1d0e; border-radius:6px; box-shadow:0 14px 30px #000000b3; transform:rotate(-4deg)">
-          <p style="font-family:'Lilita One', Arial, sans-serif; font-size:40px; line-height:1; letter-spacing:3px; color:#3b1d0e">WANTED</p>
-          <img src="/pitch/img/degen-wanted.webp" alt="Wanted poster: Degen, the brown rabbit" style="width:140px; height:197px; border:3px solid #3b1d0e">
-          <p style="font-family:'Lilita One', Arial, sans-serif; font-size:26px; line-height:1; color:#3b1d0e">DEGEN</p>
-          <p style="padding:3px 14px; font-family:'Lilita One', Arial, sans-serif; font-size:22px; color:#10222b; background:#f2c14e; border-radius:20px">0.01 SOL</p>
-        </div>
-        <div style="position:absolute; left:430px; top:338px; width:260px; display:flex; flex-direction:column; gap:4px; padding:14px 18px; background:#0a161ce6; border:3px solid #f2c14e; border-radius:20px; box-shadow:0 10px 26px #00000099">
-          <p style="font-family:'Lilita One', Arial, sans-serif; font-size:26px; line-height:1.05; color:#f2c14e">1 · GET RAIDED</p>
-          <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:19px; line-height:1.3; color:#dde6e3">Someone walks off with your carrots.</p>
-        </div>
-        <div style="position:absolute; left:740px; top:628px; width:260px; display:flex; flex-direction:column; gap:4px; padding:14px 18px; background:#0a161ce6; border:3px solid #b58cff; border-radius:20px; box-shadow:0 10px 26px #00000099">
-          <p style="position:absolute; top:-18px; right:14px; padding:3px 14px; font-family:'Lilita One', Arial, sans-serif; font-size:18px; letter-spacing:1px; color:#10222b; background:#b58cff; border-radius:30px; box-shadow:0 3px 0 #0a161c">SOON</p>
-          <p style="font-family:'Lilita One', Arial, sans-serif; font-size:26px; line-height:1.05; color:#f2c14e">2 · POST A BOUNTY</p>
-          <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:19px; line-height:1.3; color:#dde6e3">A WANTED poster goes out on X.</p>
-        </div>
-        <div style="position:absolute; left:430px; top:908px; width:260px; display:flex; flex-direction:column; gap:4px; padding:14px 18px; background:#0a161ce6; border:3px solid #f2c14e; border-radius:20px; box-shadow:0 10px 26px #00000099">
-          <p style="font-family:'Lilita One', Arial, sans-serif; font-size:26px; line-height:1.05; color:#f2c14e">3 · HUNTERS JOIN</p>
-          <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:19px; line-height:1.3; color:#dde6e3">Followers tap it, install, raid him.</p>
-        </div>
-        <div style="position:absolute; left:120px; top:628px; width:260px; display:flex; flex-direction:column; gap:4px; padding:14px 18px; background:#0a161ce6; border:3px solid #f2c14e; border-radius:20px; box-shadow:0 10px 26px #00000099">
-          <p style="font-family:'Lilita One', Arial, sans-serif; font-size:26px; line-height:1.05; color:#f2c14e">4 · NEW RIVALS</p>
-          <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:19px; line-height:1.3; color:#dde6e3">Every hunter brings a burrow to raid.</p>
-        </div>
-        <div style="position:absolute; top:318px; left:1100px; width:692px; display:flex; flex-direction:column; gap:16px">
-          <div style="display:flex; font-family:'Lilita One', Arial, sans-serif; font-size:24px; letter-spacing:2px">
-            <p style="width:300px; padding-left:25px; color:#9fb2af">POKÉMON, 1996</p>
-            <p style="padding-left:78px; color:#f29a4a">RABBIT ROYALE</p>
-          </div>
-          <div style="display:flex; align-items:stretch; background:#0a161ccc; border:3px solid #f2c14e80; border-radius:24px; overflow:hidden">
-            <div style="width:300px; display:flex; flex-direction:column; gap:4px; padding:18px 22px; background:#f7f0e10f">
-              <p style="font-family:'Lilita One', Arial, sans-serif; font-size:28px; line-height:1.05; color:#f7f0e1">Two versions</p>
-              <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:19px; line-height:1.3; color:#9fb2af">You needed a friend to catch them all.</p>
+        <div style="position:absolute; top:292px; left:128px; width:1664px; display:flex; flex-direction:column; gap:18px">
+          <div style="display:flex; align-items:center">
+            <div style="width:760px; display:flex; align-items:center; gap:18px; padding-left:8px">
+              <div style="display:grid; place-items:center; width:120px; height:62px; padding:6px; background:#f7f0e1; border-radius:12px"><img src="/pitch/img/logos/pudgy-penguins.webp" alt="Pudgy Penguins" style="width:108px; height:50px; object-fit:contain"></div>
+              <p style="font-family:'Lilita One', Arial, sans-serif; font-size:30px; letter-spacing:2px; color:#dde6e3">WHAT PUDGY DID</p>
             </div>
-            <x-shape kind="arrow-right" style="align-self:center; margin:0 -6px 0 14px; background:#f2c14e; width:40px; height:26px"></x-shape>
-            <div style="flex:1; display:flex; flex-direction:column; gap:4px; padding:18px 22px">
-              <p style="font-family:'Lilita One', Arial, sans-serif; font-size:28px; line-height:1.05; color:#f2c14e">Community wars</p>
-              <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:19px; line-height:1.3; color:#dde6e3">Solana communities need each other: they raid as clans.</p>
+            <div style="width:128px"></div>
+            <div style="display:flex; align-items:center; gap:14px">
+              <img src="/pitch/img/logo-skull.png" alt="Rabbit Royale" style="width:62px; height:68px; object-fit:contain">
+              <p style="font-family:'Lilita One', Arial, sans-serif; font-size:30px; letter-spacing:2px; color:#f2c14e">WHAT WE DO</p>
             </div>
           </div>
-          <div style="display:flex; align-items:stretch; background:#0a161ccc; border:3px solid #f2c14e80; border-radius:24px; overflow:hidden">
-            <div style="width:300px; display:flex; flex-direction:column; gap:4px; padding:18px 22px; background:#f7f0e10f">
-              <p style="font-family:'Lilita One', Arial, sans-serif; font-size:28px; line-height:1.05; color:#f7f0e1">The secret Mew</p>
-              <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:19px; line-height:1.3; color:#9fb2af">20 given away, 78,000 entries. Sales took off.</p>
+          <div style="display:flex; align-items:center">
+            <div style="width:760px; display:flex; gap:18px; padding-left:8px">
+              <video src="/pitch/img/gifs/pudgy-1.mp4" poster="/pitch/img/gifs/pudgy-1.webp" muted loop playsinline preload="auto" aria-label="Pudgy Penguins GIF: a penguin blowing a party horn" style="display:block; width:150px; height:150px; object-fit:cover; border-radius:18px; border:3px solid #f7f0e1; box-shadow:0 10px 24px #00000099"></video>
+              <video src="/pitch/img/gifs/pudgy-2.mp4" poster="/pitch/img/gifs/pudgy-2.webp" muted loop playsinline preload="auto" aria-label="Pudgy Penguins GIF: a wizard penguin in a pumpkin" style="display:block; width:150px; height:150px; object-fit:cover; border-radius:18px; border:3px solid #f7f0e1; box-shadow:0 10px 24px #00000099"></video>
+              <video src="/pitch/img/gifs/pudgy-3.mp4" poster="/pitch/img/gifs/pudgy-3.webp" muted loop playsinline preload="auto" aria-label="Pudgy Penguins GIF: a penguin in a hot dog bun" style="display:block; width:150px; height:150px; object-fit:cover; border-radius:18px; border:3px solid #f7f0e1; box-shadow:0 10px 24px #00000099"></video>
             </div>
-            <x-shape kind="arrow-right" style="align-self:center; margin:0 -6px 0 14px; background:#f2c14e; width:40px; height:26px"></x-shape>
-            <div style="flex:1; display:flex; flex-direction:column; gap:4px; padding:18px 22px">
-              <p style="font-family:'Lilita One', Arial, sans-serif; font-size:28px; line-height:1.05; color:#f2c14e">A legendary rabbit</p>
-              <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:19px; line-height:1.3; color:#dde6e3">One hidden per island. Whoever digs it up posts it.</p>
-            </div>
-          </div>
-          <div style="display:flex; align-items:stretch; background:#0a161ccc; border:3px solid #f2c14e80; border-radius:24px; overflow:hidden">
-            <div style="width:300px; display:flex; flex-direction:column; gap:4px; padding:18px 22px; background:#f7f0e10f">
-              <p style="font-family:'Lilita One', Arial, sans-serif; font-size:28px; line-height:1.05; color:#f7f0e1">Manga in CoroCoro</p>
-              <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:19px; line-height:1.3; color:#9fb2af">The story ran next to the game.</p>
-            </div>
-            <x-shape kind="arrow-right" style="align-self:center; margin:0 -6px 0 14px; background:#f2c14e; width:40px; height:26px"></x-shape>
-            <div style="flex:1; display:flex; flex-direction:column; gap:4px; padding:18px 22px">
-              <p style="font-family:'Lilita One', Arial, sans-serif; font-size:28px; line-height:1.05; color:#f2c14e">Viral clips</p>
-              <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:19px; line-height:1.3; color:#dde6e3">Shiro and Degen on X and Shorts. No words, made to share.</p>
+            <div style="width:128px"></div>
+            <div style="display:flex; gap:18px">
+              <div class="meme"><video src="/pitch/img/gifs/rabbit-1.mp4" poster="/pitch/img/gifs/rabbit-1.webp" muted loop playsinline preload="auto" aria-label="Shiro pulls a giant carrot out of the ground" style="display:block; width:150px; height:150px; object-fit:cover; border-radius:18px; border:3px solid #f2c14e; box-shadow:0 10px 24px #00000099"></video><p class="top">First dig</p><p class="bot">Jackpot</p></div>
+              <div class="meme"><video src="/pitch/img/gifs/rabbit-2.mp4" poster="/pitch/img/gifs/rabbit-2.webp" muted loop playsinline preload="auto" aria-label="Degen digs up a bomb" style="display:block; width:150px; height:150px; object-fit:cover; border-radius:18px; border:3px solid #f2c14e; box-shadow:0 10px 24px #00000099"></video><p class="top">Trusted my gut</p><p class="bot">Boom</p></div>
+              <div class="meme"><video src="/pitch/img/gifs/rabbit-3.mp4" poster="/pitch/img/gifs/rabbit-3.webp" muted loop playsinline preload="auto" aria-label="A rabbit gets struck by lightning" style="display:block; width:150px; height:150px; object-fit:cover; border-radius:18px; border:3px solid #f2c14e; box-shadow:0 10px 24px #00000099"></video><p class="top">Raided me?</p><p class="bot">Zap.</p></div>
             </div>
           </div>
-          <div style="display:flex; align-items:stretch; background:#0a161ccc; border:3px solid #f2c14e80; border-radius:24px; overflow:hidden">
-            <div style="width:300px; display:flex; flex-direction:column; gap:4px; padding:18px 22px; background:#f7f0e10f">
-              <p style="font-family:'Lilita One', Arial, sans-serif; font-size:28px; line-height:1.05; color:#f7f0e1">Link cable</p>
-              <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:19px; line-height:1.3; color:#9fb2af">Trading happened face to face.</p>
+          <div style="display:flex; align-items:center; gap:0">
+            <div style="width:760px; display:flex; align-items:center; gap:24px; padding:16px 30px; background:#0a161ccc; border:3px solid #f7f0e140; border-radius:24px">
+              <p style="width:190px; flex:none; font-family:'Lilita One', Arial, sans-serif; font-size:64px; line-height:1; color:#f7f0e1">79.5B</p>
+              <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:26px; line-height:1.3; color:#dde6e3">GIPHY views. People knew the penguin before the NFT.</p>
             </div>
-            <x-shape kind="arrow-right" style="align-self:center; margin:0 -6px 0 14px; background:#f2c14e; width:40px; height:26px"></x-shape>
-            <div style="flex:1; display:flex; flex-direction:column; gap:4px; padding:18px 22px">
-              <p style="font-family:'Lilita One', Arial, sans-serif; font-size:28px; line-height:1.05; color:#f2c14e">Seeker first</p>
-              <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:19px; line-height:1.3; color:#dde6e3">150K phones, one dApp Store, quests paid in SKR.</p>
+            <x-shape kind="arrow-right" style="margin:0 24px; background:#f2c14e; width:80px; height:48px"></x-shape>
+            <div style="flex:1; display:flex; flex-direction:column; gap:4px; padding:14px 30px; background:#0a161ce6; border:4px solid #f2c14e; border-radius:24px">
+              <p style="font-family:'Lilita One', Arial, sans-serif; font-size:44px; line-height:1; color:#f2c14e">Stickers &amp; clips</p>
+              <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:24px; line-height:1.3; color:#f7f0e1">Shiro and Degen in every chat, on X and Shorts.</p>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:0">
+            <div style="width:760px; display:flex; align-items:center; gap:24px; padding:16px 30px; background:#0a161ccc; border:3px solid #f7f0e140; border-radius:24px">
+              <p style="width:190px; flex:none; font-family:'Lilita One', Arial, sans-serif; font-size:64px; line-height:1; color:#f7f0e1">2M+</p>
+              <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:26px; line-height:1.3; color:#dde6e3">toys sold, each with a QR code into their game world.</p>
+            </div>
+            <x-shape kind="arrow-right" style="margin:0 24px; background:#f2c14e; width:80px; height:48px"></x-shape>
+            <div style="flex:1; display:flex; flex-direction:column; gap:4px; padding:14px 30px; background:#0a161ce6; border:4px solid #f2c14e; border-radius:24px">
+              <p style="font-family:'Lilita One', Arial, sans-serif; font-size:44px; line-height:1; color:#f2c14e">Merch that plays</p>
+              <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:24px; line-height:1.3; color:#f7f0e1">Every plush unlocks a skin in Rabbit Royale.</p>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:0">
+            <div style="width:760px; display:flex; align-items:center; gap:24px; padding:16px 30px; background:#0a161ccc; border:3px solid #f7f0e140; border-radius:24px">
+              <p style="width:190px; flex:none; font-family:'Lilita One', Arial, sans-serif; font-size:64px; line-height:1; color:#f7f0e1">7M</p>
+              <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:26px; line-height:1.3; color:#dde6e3">wallets got the PENGU airdrop, across NFT communities.</p>
+            </div>
+            <x-shape kind="arrow-right" style="margin:0 24px; background:#f2c14e; width:80px; height:48px"></x-shape>
+            <div style="flex:1; display:flex; flex-direction:column; gap:4px; padding:14px 30px; background:#0a161ce6; border:4px solid #f2c14e; border-radius:24px">
+              <p style="font-family:'Lilita One', Arial, sans-serif; font-size:44px; line-height:1; color:#f2c14e">Community wars</p>
+              <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:24px; line-height:1.3; color:#f7f0e1">Solana communities join as clans and raid each other.</p>
             </div>
           </div>
         </div>
-        <p style="position:absolute; left:1100px; bottom:48px; width:692px; font-family:'Nunito Sans', Arial, sans-serif; font-size:20px; color:#9fb2af">Pokémon: Wikipedia; GameSpot, “How Mew Saved Pokémon”. Seeker: Solana Mobile via The Block.</p>
+        <p style="position:absolute; left:128px; bottom:44px; width:1664px; font-family:'Nunito Sans', Arial, sans-serif; font-size:20px; color:#9fb2af">Pudgy Penguins: CoinDesk Research, 2026; SolanaFloor, PENGU airdrop, Dec 2024; The Toy Insider.</p>
       </section>
       
       <section class="slide" id="vision" data-transition="fade" style="background:#10222b">
@@ -548,7 +547,9 @@
                 <p style="font-family:'Lilita One', Arial, sans-serif; font-size:32px; color:#f29a4a">founder &amp; lead</p>
               </div>
             </div>
-            <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:30px; line-height:1.35; color:#dde6e3"><b>15+ years of 3D and VFX</b>. Former animation professor.</p>
+            <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:30px; line-height:1.35; color:#dde6e3"><b>15+ years of 3D and VFX</b>: Iron Man, Rolex, The Little Prince.</p>
+            <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:30px; line-height:1.35; color:#dde6e3"><b>Suzanne Award</b>, Blender Festival. <b>Former animation professor</b>.</p>
+            <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:30px; line-height:1.35; color:#dde6e3">Built domin8 for Solana Breakpoint 2025 hackathon.</p>
             <div style="display:flex; flex-direction:row; gap:20px">
               <div style="display:flex; flex-direction:column; gap:8px; align-items:center">
                 <div style="display:grid; place-items:center; width:150px; height:84px; padding:12px; background:#f7f0e1; border-radius:16px"><img src="/pitch/img/logos/marvel.svg" alt="Marvel" style="width:126px; height:60px; object-fit:contain"></div>
@@ -576,15 +577,17 @@
                 <p style="font-family:'Lilita One', Arial, sans-serif; font-size:32px; color:#f29a4a">Co-founder &amp; UI/UX</p>
               </div>
             </div>
-            <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:30px; line-height:1.35; color:#dde6e3"><b>AAA UI/UX</b>, 10+ years making games.</p>
+            <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:30px; line-height:1.35; color:#dde6e3">UI/UX on <b>Quantic Dream AAA games</b>.</p>
+            <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:30px; line-height:1.35; color:#dde6e3"><b>10+ years making games</b>, since the Flash era.</p>
+            <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:30px; line-height:1.35; color:#dde6e3">Builds Rabbit Royale's game and UI in Godot.</p>
             <div style="display:flex; flex-direction:row; gap:20px">
+              <div style="display:flex; flex-direction:column; gap:8px; align-items:center">
+                <div style="display:grid; place-items:center; width:150px; height:84px; padding:12px; background:#000; border-radius:16px"><img src="/pitch/img/logos/star-wars.svg" alt="Star Wars" style="width:126px; height:60px; object-fit:contain"></div>
+                <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:19px; color:#9fb2af">Star Wars Eclipse</p>
+              </div>
               <div style="display:flex; flex-direction:column; gap:8px; align-items:center">
                 <div style="display:grid; place-items:center; width:150px; height:84px; padding:12px; background:#f7f0e1; border-radius:16px"><img src="/pitch/img/logos/quantic-dream.svg" alt="Quantic Dream" style="width:126px; height:60px; object-fit:contain"></div>
                 <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:19px; color:#9fb2af">AAA games</p>
-              </div>
-              <div style="display:flex; flex-direction:column; gap:8px; align-items:center">
-                <div style="display:grid; place-items:center; width:150px; height:84px; padding:12px; background:#f7f0e1; border-radius:16px"><img src="/pitch/img/logos/godot.svg" alt="Godot" style="width:126px; height:60px; object-fit:contain"></div>
-                <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:19px; color:#9fb2af">builds our game</p>
               </div>
             </div>
           </div>
