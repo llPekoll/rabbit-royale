@@ -29,8 +29,8 @@ And Minesweeper has 28,000 weekly visitors on Reddit. More than Tetris.
 How do we make money?
 Players buy time, revenge and style. Never power.
 Everything can be earned, or you skip the grind in SOL or SKR, straight from your wallet.
-On the right: the mobile average is 35 dollars per player per year.
-10,000 players is 350K a year. 100,000 is 3.5 million.
+On the right, a conservative 9 dollars per player per year, a quarter of the mobile average.
+10,000 players is 90K a year. 100,000 is 900K. A million is 9 million.
 
 ## Slide 5 — Viral clips & merch (18 s)
 
