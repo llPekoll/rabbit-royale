@@ -8,8 +8,8 @@ un rythme posé (~135 mots/min). Les temps entre parenthèses font 3:00.
 ## Slide 1 — Cover (8 s)
 
 Hi, I'm Yohann.
-What happens when Minesweeper meets Clash of Clans?
-This is Rabbit Royale.
+What if Minesweeper met Clash of Clans?
+Let me introduce Rabbit royale
 
 ## Slide 2 — Born in a casino (22 s)
 
@@ -21,11 +21,11 @@ But a casino only reaches gamblers. So we took the wager out, to reach every pla
 ## Slide 3 — Dig, defend, raid (22 s)
 
 We kept Minesweeper: read the numbers, dodge the bombs, beat your rivals to the carrots.
-Then we added Clash of Clans: your burrow is a minefield you design, and you raid your neighbours'.
-And Minesweeper is alive: 28,000 weekly visitors on Reddit. More than Tetris.
+Then we added Clash of Clans to spice it up your burrow is a minefield you design, and you raid your neighbours'.
 
 ## Slide 4 — Game economy (25 s)
 
+And Minesweeper has 28,000 weekly visitors on Reddit. More than Tetris.
 How do we make money?
 Players buy time, revenge and style. Never power.
 Everything can be earned, or you skip the grind in SOL or SKR, straight from your wallet.
