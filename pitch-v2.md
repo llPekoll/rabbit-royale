@@ -11,21 +11,24 @@ Hi, I'm Yohann.
 What if Minesweeper met Clash of Clans?
 Let me introduce Rabbit royale
 
-## Slide 2 — Born in a casino (22 s)
+## Slide 2 — How many of you know Minesweeper? (28 s)
 
-Last year I built domin8, a casino game on Solana, for the Breakpoint hackathon.
-28,000 games, 160 SOL wagered.
-We added a small mode with rabbits. It became our top mode: over 10,000 games.
-But a casino only reaches gamblers. So we took the wager out, to reach every player.
+How many of you know Minesweeper?
+(beat, hands go up)
+It has more weekly visitors on Reddit than Tetris.
+Everyone knows it. Nobody owns it. So we took it.
+We made it multiplayer and tested it inside domin8, our casino game on Solana.
+It became our top mode: over 10,000 games, sessions up to an hour and a half.
+Then we took the wager out, to reach every player.
 
-## Slide 3 — Dig, defend, raid (22 s)
+## Slide 3 — Dig, defend, raid (20 s)
 
 We kept Minesweeper: read the numbers, dodge the bombs, beat your rivals to the carrots.
-Then we added Clash of Clans to spice it up your burrow is a minefield you design, and you raid your neighbours'.
+Then we added Clash of Clans to spice it up: your burrow is a minefield you design, and you raid your neighbours'.
+Built in 16 days.
 
-## Slide 4 — Game economy (25 s)
+## Slide 4 — Game economy (21 s)
 
-And Minesweeper has 28,000 weekly visitors on Reddit. More than Tetris.
 How do we make money?
 Players buy time, revenge and style. Never power.
 Everything can be earned, or you skip the grind in SOL or SKR, straight from your wallet.
