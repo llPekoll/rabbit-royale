@@ -8,7 +8,7 @@ un rythme posé (~135 mots/min). Les temps entre parenthèses font 3:00.
 ## Slide 1 — The question (8 s)
 
 Hi, I'm Yohann.
-Solana has millions of wallets.
+Solana has 54 million active wallets.
 Why doesn't it have one hit game?
 
 ## Slide 2 — The answer (20 s)
