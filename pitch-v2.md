@@ -5,72 +5,71 @@ un rythme posé (~135 mots/min). Les temps entre parenthèses font 3:00.
 
 ---
 
-## Slide 1 — Cover (8 s)
+## Slide 1 — The question (8 s)
 
 Hi, I'm Yohann.
-What if Minesweeper met Clash of Clans?
-Let me introduce Rabbit royale
+Solana has millions of wallets.
+Why doesn't it have one hit game?
 
-## Slide 2 — How many of you know Minesweeper? (28 s)
+## Slide 2 — The answer (20 s)
 
-How many of you know Minesweeper?
-(beat, hands go up)
-It has more weekly visitors on Reddit than Tetris.
-Everyone knows it. Nobody owns it. So we took it.
-We made it multiplayer and tested it inside domin8, our casino game on Solana.
-It became our top mode: over 10,000 games, sessions up to an hour and a half.
-Then we took the wager out, to reach every player.
+Because crypto games are built to extract. Gameplay comes last.
+Hits are built on fun and characters.
+And characters are our job.
+So we made our own. Shiro and Kuro.
 
-## Slide 3 — Dig, defend, raid (20 s)
+## Slide 3 — Team (14 s)
+
+Me: 15 years of 3D and VFX, Iron Man, Rolex, The Little Prince.
+Paul, my co-founder: UI/UX on Quantic Dream's AAA games. He builds the game in Godot.
+
+## Slide 4 — When Clash of Clans meets Minesweeper (28 s)
 
 We kept Minesweeper: read the numbers, dodge the bombs, beat your rivals to the carrots.
 Then we added Clash of Clans to spice it up: your burrow is a minefield you design, and you raid your neighbours'.
-Built in 16 days.
+Instant hit: over 10,000 games, sessions of over an hour.
 
-## Slide 4 — Game economy (21 s)
+## Slide 5 — Game economy (21 s)
 
 How do we make money?
+Minesweeper already has the audience: more weekly visitors on Reddit than Tetris.
 Players buy time, revenge and style. Never power.
 Everything can be earned, or you skip the grind in SOL or SKR, straight from your wallet.
 On the right, a conservative 9 dollars per player per year, a quarter of the mobile average.
 10,000 players is 90K a year. 100,000 is 900K. A million is 9 million.
 
-## Slide 5 — Viral clips & merch (18 s)
+## Slide 6 — Viral clips & merch (18 s)
 
 How do we market it?
 I spent 15 years in animation, so I made an episode.
 Episode 1 is live on X. No words, just rabbits. That's a real first viewer.
 Episode 2 is coming, and merch with nomu, the last hackathon winner.
 
-## Slide 6 — Not just a game. An IP! (18 s)
+## Slide 7 — A rivalry, not a mascot (18 s)
 
 Because we're not building a game. We're building an IP.
+Kuro wanted the first carrot. Shiro got it. Now Kuro sabotages everything.
 Pokémon: 100 billion dollars.
 Hello Kitty: 33 billion. A cute face first, the stories came later.
 Angry Birds: bought 776 million by Sega.
-Shiro and Degen want that seat.
+Shiro and Kuro want that seat.
 
-## Slide 7 — The Among Us playbook (25 s)
+## Slide 8 — The Among Us playbook (25 s)
 
 Among Us launched with 30 players online.
 One streamer played it, every streamer followed: 3.8 million players at once.
 That's our playbook.
-Clips and streams: Shiro and Degen in every feed.
+Clips and streams: Shiro and Kuro in every feed.
 Multiplayer: Solana communities raiding as clans.
 And merch and episodes: Among Us got there after six years. We start with them.
 
-## Slide 8 — How a hit scales (20 s)
+## Slide 9 — How a hit scales (20 s)
 
 Supercell soft-launches in Canada. Seeker is our Canada.
-Proof: done, on domin8.
+Proof: done, 10,000 games.
 We are here: 150,000 Seeker phones, plus the web.
 When retention holds, we buy players on Android and iOS.
 Then live ops. That's how Clash made 10 billion.
-
-## Slide 9 — Team (14 s)
-
-Me: 15 years of 3D and VFX, Iron Man, Rolex, The Little Prince.
-Paul, my co-founder: UI/UX on Quantic Dream's AAA games. He builds the game in Godot.
 
 ## Slide 10 — Close (8 s)
 

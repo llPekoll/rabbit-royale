@@ -1,0 +1,13 @@
+#!/bin/sh
+# Le PDF du deck (rabbit.rip/pitch -> bouton PDF) suit le deck tout seul :
+# si le commit touche landing/pitch/ (hors le PDF lui-meme), on le refait
+# avec tools/pitch-pdf.ts et on l'ajoute au commit. Environ 20 s.
+# Active par : git config core.hooksPath .githooks
+# Sauter une fois : git commit --no-verify
+
+changed=$(git diff --cached --name-only -- landing/pitch/ | grep -v 'rabbit-royale-pitch\.pdf$')
+[ -z "$changed" ] && exit 0
+
+echo "pre-commit : le deck a change, on refait le PDF..."
+bun tools/pitch-pdf.ts || { echo "pre-commit : echec du PDF (git commit --no-verify pour passer outre)"; exit 1; }
+git add landing/pitch/rabbit-royale-pitch.pdf
