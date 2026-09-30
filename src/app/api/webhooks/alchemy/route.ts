@@ -33,24 +33,31 @@ import { grantItem } from '@/lib/game/grant';
 import { checkPayment, mintFor, payEnabled, readTransaction, treasuryAddress } from '@/lib/pay/solana';
 import { isPayTokenId } from '@/lib/pay/tokens';
 
-/** Alchemy signs every delivery with the signing key from its dashboard. */
+/**
+ * Alchemy signs every delivery with its webhook's signing key — ONE KEY PER
+ * WEBHOOK, and its dashboard cannot add an address to an existing one. So USDC,
+ * SOL and SKR are three webhooks, and `ALCHEMY_WEBHOOK_SECRET` holds their keys
+ * separated by commas. A delivery is genuine if any of them signed it.
+ */
 function signatureValid(raw: string, header: string | null): boolean {
-  const secret = process.env.ALCHEMY_WEBHOOK_SECRET;
+  const secrets = (process.env.ALCHEMY_WEBHOOK_SECRET ?? '')
+    .split(',').map((k) => k.trim()).filter(Boolean);
   // No secret configured means the endpoint is CLOSED, not open. An unsigned
   // webhook that credited items would be a public "give me things" button.
-  if (!secret || !header) return false;
-
-  const expected = createHmac('sha256', secret).update(raw, 'utf8').digest('hex');
+  if (secrets.length === 0 || !header) return false;
   const got = header.trim();
-  // Length check first: timingSafeEqual throws on a length mismatch, and a
-  // throw here would be a 500 that tells an attacker their guess was the wrong
-  // size.
-  if (got.length !== expected.length) return false;
-  try {
-    return timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(got, 'hex'));
-  } catch {
-    return false;
-  }
+  return secrets.some((secret) => {
+    const expected = createHmac('sha256', secret).update(raw, 'utf8').digest('hex');
+    // Length check first: timingSafeEqual throws on a length mismatch, and a
+    // throw here would be a 500 that tells an attacker their guess was the
+    // wrong size.
+    if (got.length !== expected.length) return false;
+    try {
+      return timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(got, 'hex'));
+    } catch {
+      return false;
+    }
+  });
 }
 
 /**
