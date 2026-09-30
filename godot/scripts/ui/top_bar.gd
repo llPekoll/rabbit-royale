@@ -61,11 +61,31 @@ var preview := false
 var _rail: HBoxContainer
 
 
+## LA BARRE A L'ECRAN, pour les panneaux qui se posent dessous (`hang_bottom`).
+static var live: TopBar
+
+
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
+func _exit_tree() -> void:
+	if live == self:
+		live = null
+
+
+## OU FINIT CE QUI PEND DE LA BARRE, en y d'ecran : la pastille et son
+## reservoir (« 300⚡ ») descendent sous TOPBAR_H. Un panneau pose a TOPBAR_H
+## ecrivait son titre dessous (« KURO IS RAIDI300 OU », 2026-09-30). 0 sans
+## barre visible.
+static func hang_bottom() -> float:
+	if live == null or not is_instance_valid(live) or not live.is_visible_in_tree() or live.pill == null:
+		return 0.0
+	return live.pill.hang_bottom()
+
+
 func _ready() -> void:
+	live = self
 	chip = PlayerChip.new()
 	chip.pressed.connect(func() -> void: profile_pressed.emit())
 	add_child(chip)

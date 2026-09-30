@@ -464,8 +464,11 @@ func _offer_refill() -> void:
 func defend(on: bool, finished: bool = false) -> void:
 	if on:
 		close_dialog()
+		# LA CARTE REPLIEE : le raid se joue sur le terrier, et la carte de
+		# la bombe (« Buy a bomb ») en couvrait le milieu — l'intrus passait
+		# dessous. La rangee reste, une tape sur la bombe la rouvre.
 		if _mode != "placing" and not finished:
-			_start_mode("placing")
+			_start_mode("placing", false)
 	else:
 		alarm_off()
 		if _mode == "placing":
@@ -520,12 +523,12 @@ func show_raid(on: bool) -> void:
 ## monte, la barre et la colonne s'effacent, le terrier prend son cadrage, et
 ## le retour s'affiche. La pose elle-meme est au terrier (burrow.gd
 ## `_toggle_trap`) : une tape sur une case minable, le serveur d'abord.
-func _start_mode(mode: String) -> void:
+func _start_mode(mode: String, expanded: bool = true) -> void:
 	if _kit == null:
 		return
 	_mode = mode
 	arrange_state({})
-	_kit.open(mode)
+	_kit.open(mode, expanded)
 	_column.set_editing(true)
 	_back.show_for(mode)
 	_mount_clean()

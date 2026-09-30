@@ -149,7 +149,11 @@ func _ready() -> void:
 ## OUVRIR la rangee pour un mode : "placing" (la case piege), "walling" (la
 ## case cloture), "inspect" (ce qui etait choisi). Choisit la case SANS
 ## re-emettre : c'est le chrome qui vient de lancer le mode.
-func open(mode: String) -> void:
+##
+## `expanded = false` : la rangee seule, la carte repliee — la defense en
+## direct, ou la carte cachait le terrier et l'intrus qui y marche. Une tape
+## sur une case la rouvre.
+func open(mode: String, expanded: bool = true) -> void:
 	_open = true
 	match mode:
 		"placing":
@@ -158,7 +162,7 @@ func open(mode: String) -> void:
 		"walling":
 			_group = 0
 			_selected = "fence"
-	_expanded = true
+	_expanded = expanded
 	_build_tray()
 	_refresh()
 	_update_visible()

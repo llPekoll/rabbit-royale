@@ -143,7 +143,13 @@ func _measure() -> void:
 	if _panel == null:
 		return
 	var w := minf(WIDTH, size.x - 2.0 * Kit.EDGE)
-	_panel.position = Vector2(floor((size.x - w) * 0.5), Kit.TOPBAR_H + Kit.PAD_TIGHT)
+	# SOUS CE QUI PEND DE LA BARRE (la pastille et son reservoir), pas a
+	# TOPBAR_H : le titre passait sous le « 300⚡ ».
+	var top := Kit.TOPBAR_H + Kit.PAD_TIGHT
+	var hang := TopBar.hang_bottom()
+	if hang > 0.0:
+		top = maxf(top, ceilf(hang - get_global_rect().position.y) + Kit.PAD_TIGHT)
+	_panel.position = Vector2(floor((size.x - w) * 0.5), top)
 	_panel.size = Vector2(w, _panel.get_combined_minimum_size().y)
 
 

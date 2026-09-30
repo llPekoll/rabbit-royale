@@ -280,6 +280,14 @@ func refresh() -> void:
 	_tick_energy()
 
 
+## Le bas de la pastille a l'ecran, reservoir compris quand il se montre.
+func hang_bottom() -> float:
+	var bottom := _plate.get_global_rect().end.y if _plate != null else get_global_rect().end.y
+	if _energy_tag != null and _energy_tag.visible:
+		bottom = maxf(bottom, _energy_tag.get_global_rect().end.y)
+	return bottom
+
+
 func _process(_delta: float) -> void:
 	_tick_energy()
 
