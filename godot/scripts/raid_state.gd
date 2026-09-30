@@ -338,6 +338,11 @@ func _on_finished(r: Dictionary) -> void:
 	var defender: Dictionary = r.get("defender", {}) if r.get("defender") is Dictionary else {}
 	var name := String(defender.get("name", ""))
 	if won:
+		# LA FANFARE TOUT DE SUITE, au pas qui atteint le potager — pas a la
+		# ceremonie, deux secondes plus tard (le user, 2026-09-30 : « quand tu
+		# arrives au bout, joue direct la musique de win »). `_leave_raid` la
+		# coupe au retour.
+		Sound.music("victory")
 		await get_tree().create_timer(RAID_OVER_SECONDS).timeout
 		# Parti entre-temps : la scene n'a plus rien a celebrer.
 		if String(raid.get("raidId", "")) != id:
