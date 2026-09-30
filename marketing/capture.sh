@@ -53,7 +53,7 @@ for b in ${@:-$all}; do
     pvp-shove)       shoot $b 150 $TB --clean --names --seed="$SEED" --beat=shove ;;
     pvp-bombshove)   shoot $b 180 $TB --clean --names --seed="$SEED" --beat=bombshove ;;
     pvp-drown)       shoot $b 230 $TB --clean --names --seed="$SEED" --beat=drown ;;
-    solo-dig)        shoot $b 1200 $TB --clean --seed="$SEED" --auto=60 --auto-every=0.7 ;;
+    solo-dig)        shoot $b 1200 $TB --clean --seed="$SEED" --auto=60 --auto-every=0.3 --hand ;;
     solo-explosions) shoot $b 1200 $TB --clean --seed=${BOMB_SEED:-mines} --auto=80 --auto-every=0.75 --hunt ;;
     solo-chest)      shoot $b 150 $TB --clean --seed="$SEED" --beat=chest ;;
     raid-attack)     shoot $b 540 scenes/bench/raid_film_bench.tscn --side=attack ;;

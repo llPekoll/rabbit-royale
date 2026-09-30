@@ -34,10 +34,10 @@ start_of() {
   esac
 }
 
-# La fin : le pilote de solo-dig bute contre le rivage vers 26 s.
+# La fin d'un plan, quand le pilote s'y enlise (aucun pour l'instant : la
+# main de solo-dig va jusqu'au bout).
 length_of() {
   case $1 in
-    solo-dig) echo "-t 25.5" ;;
     *) echo "" ;;
   esac
 }

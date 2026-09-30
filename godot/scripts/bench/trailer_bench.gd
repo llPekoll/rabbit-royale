@@ -357,6 +357,9 @@ func _duel() -> void:
 ## attend d'etre releve, et l'energie est remise a plein : la video ne
 ## s'arrete pas a sec.
 func _auto_step() -> void:
+	if _flag("hand"):
+		_hand_step()
+		return
 	if not _flag("hunt"):
 		super._auto_step()
 		return
@@ -398,3 +401,143 @@ func _auto_step() -> void:
 		return
 	_auto_left -= 1
 	_island._local_tap(pick)
+
+
+# ── `--hand` : LA MAIN DU JOUEUR ────────────────────────────────────────────
+##
+## Le pilote, mais on voit le doigt : la main du curseur du jeu
+## (ui/cursors/hand.png) glisse jusqu'a la case, tape, et le lapin y va. Une
+## bombe a cote, pas encore marquee : elle va d'abord taper MARK A BOMB, puis
+## la case — et la croix rouge s'y pose. Le bac a sable triche (il sait ou
+## sont les bombes) ; a l'ecran, c'est un joueur qui lit les chiffres.
+
+const HAND := preload("res://assets/ui/cursors/hand.png")
+## Le bout du doigt dans l'image (cursors.gd : le point chaud de la main).
+const HAND_TIP := Vector2(5, 0)
+const HAND_SCALE := 1.0
+## Le glisse, et l'appui.
+const HAND_GLIDE_S := 0.32
+const HAND_PRESS_S := 0.09
+
+var _hand: Sprite2D
+var _hand_busy := false
+
+
+func _hand_node() -> Sprite2D:
+	if _hand != null:
+		return _hand
+	var layer := CanvasLayer.new()
+	layer.layer = 40
+	add_child(layer)
+	_hand = Sprite2D.new()
+	_hand.texture = HAND
+	_hand.centered = false
+	_hand.offset = -HAND_TIP
+	_hand.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_hand.scale = Vector2.ONE * HAND_SCALE
+	_hand.position = get_viewport().get_visible_rect().size * Vector2(0.62, 0.8)
+	layer.add_child(_hand)
+	return _hand
+
+
+## Le milieu d'une case, a l'ecran : le losange au sol, la ou le lapin pose
+## les pieds (home_rabbit.gd `_place`), passe par la camera de l'ile.
+func _cell_on_screen(cell: Vector2i) -> Vector2:
+	var map := _island._terrain.map
+	var local: Vector2 = map.screen_of(cell.x, cell.y) + Vector2(0, Iso.half_h())
+	return _island.get_global_transform_with_canvas() * local
+
+
+## La main va a `at`, appuie, et `then` part au moment ou le doigt touche.
+func _hand_tap(at: Vector2, then: Callable) -> void:
+	var hand := _hand_node()
+	var glide := create_tween()
+	glide.tween_property(hand, "position", at, HAND_GLIDE_S).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	await glide.finished
+	var press := create_tween()
+	press.tween_property(hand, "scale", Vector2.ONE * HAND_SCALE * 0.84, HAND_PRESS_S)
+	await press.finished
+	_ripple(at)
+	then.call()
+	var up := create_tween()
+	up.tween_property(hand, "scale", Vector2.ONE * HAND_SCALE, HAND_PRESS_S * 1.4)
+	await up.finished
+
+
+## Un rond blanc qui s'ouvre sous le doigt : la tape se voit, meme petite.
+func _ripple(at: Vector2) -> void:
+	var ring := Line2D.new()
+	ring.width = 2.0
+	ring.default_color = Color(1, 1, 1, 0.9)
+	var pts := PackedVector2Array()
+	for i in 25:
+		pts.append(Vector2.from_angle(TAU * i / 24.0) * 6.0)
+	ring.points = pts
+	ring.position = at
+	_hand.get_parent().add_child(ring)
+	_hand.get_parent().move_child(ring, 0)
+	var t := ring.create_tween().set_parallel(true)
+	t.tween_property(ring, "scale", Vector2(3.2, 3.2), 0.35).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	t.tween_property(ring, "modulate:a", 0.0, 0.35)
+	t.chain().tween_callback(ring.queue_free)
+
+
+func _hand_step() -> void:
+	var run := _island.local_run
+	if _hand_busy or _auto_left <= 0 or run == null or not run.alive:
+		return
+	if run.is_stunned(Time.get_ticks_msec()) or _island._rabbit.hopping():
+		return
+	_hand_busy = true
+	run.energy = maxi(run.energy, 120)
+	var board := run.board
+	# UNE BOMBE A COTE, pas marquee : la croix d'abord.
+	var mine := Vector2i(-1, -1)
+	for n in board._neighbours(run.at):
+		if board.content.get(n) == IslandBoard.Content.BOMB and board.state.get(n) != IslandBoard.State.DUG \
+				and not board.is_flagged(n):
+			mine = n
+			break
+	if mine.x >= 0:
+		# LA PLANCHE elle-meme (`_button`) : MarkBombButton couvre le HUD entier
+		# et la pose dans son coin — son centre a lui tombait au milieu de l'ile.
+		var button: Control = _hud.mark_button.get("_button")
+		var at := button.get_global_rect().get_center()
+		await _hand_tap(at, func() -> void: RunState.current.set_flag_mode(true))
+		await _wait(0.35)
+		await _hand_tap(_cell_on_screen(mine), func() -> void: _island._local_tap(mine))
+		_auto_left -= 1
+		await _wait(0.5)
+		_hand_busy = false
+		return
+	var pick := _safe_step(run)
+	if pick.x >= 0:
+		await _hand_tap(_cell_on_screen(pick), func() -> void: _island._local_tap(pick))
+		_auto_left -= 1
+	_hand_busy = false
+
+
+## Le pas du pilote du bac a sable (dig_sandbox `_auto_step`) : vers le coffre
+## le plus proche, jamais sur une bombe.
+func _safe_step(run: LocalRun) -> Vector2i:
+	var board := run.board
+	var goal := Vector2i(-1, -1)
+	var best := INF
+	for c in board.chest_tier:
+		if board.state.get(c) != IslandBoard.State.DUG:
+			var d := Vector2(c - run.at).length()
+			if d < best:
+				best = d
+				goal = c
+	if goal.x < 0:
+		return goal
+	var pick := Vector2i(-1, -1)
+	var pick_d := INF
+	for n in board._neighbours(run.at):
+		if not board.may_step(run.at, n) or board.content.get(n) == IslandBoard.Content.BOMB:
+			continue
+		var d := Vector2(goal - n).length() + randf() * 1.5
+		if d < pick_d:
+			pick_d = d
+			pick = n
+	return pick
