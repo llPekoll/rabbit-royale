@@ -37,6 +37,12 @@ const SHOCK_HOLD_MS := 1400
 ## tete a -44 : le trait va de sous la plaque au-dessus des oreilles.
 const NAME_Y := -62.0
 const NAME_SIZE := 9
+## LE NOM EST TRACE EN GRAND, PUIS REDUIT. Trace a 9 px dans le monde, il
+## etait agrandi par le zoom de l'ile (~2,5) et par l'ecran : chaque pixel de
+## la police devenait un pate flou (le user, 2026-09-30 : « la qualite est
+## vraiment mauvaise »). A 4x, puis 1/4, la taille ne change pas et les bords
+## restent nets a tous les zooms.
+const NAME_OVERSAMPLE := 4.0
 const NAME_STEM_TOP := -55.0
 const NAME_STEM_BOTTOM := -46.0
 const NAME_TINT_ME := Color("#ffd45c")
@@ -153,9 +159,10 @@ func set_plate(text: String, mine: bool) -> void:
 		_stem.points = PackedVector2Array([Vector2(0, NAME_STEM_TOP), Vector2(0, NAME_STEM_BOTTOM)])
 		add_child(_stem)
 		_plate = Label.new()
-		_plate.add_theme_font_size_override("font_size", NAME_SIZE)
+		_plate.add_theme_font_size_override("font_size", int(NAME_SIZE * NAME_OVERSAMPLE))
 		_plate.add_theme_color_override("font_outline_color", Color("#1d1608"))
-		_plate.add_theme_constant_override("outline_size", 3)
+		_plate.add_theme_constant_override("outline_size", int(3 * NAME_OVERSAMPLE))
+		_plate.scale = Vector2.ONE / NAME_OVERSAMPLE
 		_plate.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_plate.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		_plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -166,7 +173,7 @@ func set_plate(text: String, mine: bool) -> void:
 		add_child(_plate)
 	_plate.text = text
 	_plate.add_theme_color_override("font_color", _plate_ink)
-	_plate.size = Vector2(120, 14)
+	_plate.size = Vector2(120, 14) * NAME_OVERSAMPLE
 	_plate.position = Vector2(-60, NAME_Y - 7)
 
 
