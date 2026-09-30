@@ -144,6 +144,47 @@ body {
 	text-align: center;
 	z-index: 1;
 }
+
+/* TOURNE TON TELEPHONE (2026-09-30). Le jeu est fait couche : en portrait
+   sur iPhone il demarrait debout puis basculait, sans rien dire. Safari ne
+   laisse pas une page verrouiller l'orientation — on le demande donc. CSS
+   seul : le voile vient et part avec le telephone, avant meme le moteur. */
+#rotate {
+	display: none;
+	position: fixed;
+	inset: 0;
+	z-index: 10;
+	background-color: #1b1f2a;
+	color: #f5e6c8;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	gap: 28px;
+	font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+	font-size: 16px;
+	letter-spacing: 0.04em;
+	text-align: center;
+	padding: 0 32px;
+}
+
+@media (orientation: portrait) and (pointer: coarse) {
+	#rotate { display: flex; }
+}
+
+#rotate .phone {
+	width: 44px;
+	height: 76px;
+	border: 4px solid #f5a04a;
+	border-radius: 8px;
+	box-sizing: border-box;
+	animation: rotate-phone 2.4s ease-in-out infinite;
+}
+
+@keyframes rotate-phone {
+	0%, 20% { transform: rotate(0deg); }
+	50%, 80% { transform: rotate(-90deg); }
+	100% { transform: rotate(0deg); }
+}
 		</style>
 		$GODOT_HEAD_INCLUDE
 	</head>
@@ -167,6 +208,23 @@ body {
 			</div>
 			<div id="status-notice"></div>
 		</div>
+
+		<div id="rotate">
+			<div class="phone"></div>
+			<div id="rotate-text">Turn your phone sideways to play</div>
+		</div>
+		<script>
+(function () {
+	var words = {
+		fr: 'Tourne ton téléphone pour jouer',
+		pt: 'Vire o celular para jogar',
+		vi: 'Xoay ngang điện thoại để chơi',
+		zh: '请横过手机来玩',
+	};
+	var lang = (navigator.language || 'en').slice(0, 2).toLowerCase();
+	if (words[lang]) document.getElementById('rotate-text').textContent = words[lang];
+})();
+		</script>
 
 		<script>
 /* LE WALLET DU NAVIGATEUR, pour wallet.gd (branche web).
