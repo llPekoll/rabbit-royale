@@ -36,6 +36,10 @@ Bloom="*res://scripts/bloom.gd"
 Analytics="*res://scripts/analytics.gd"
 Push="*res://scripts/push.gd"
 
+[debug]
+
+settings/gdscript/always_track_call_stacks=true
+
 [display]
 
 window/size/viewport_width=890

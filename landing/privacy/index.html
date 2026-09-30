@@ -1,9 +1,12 @@
 <!doctype html>
 <!--
-  POLITIQUE DE CONFIDENTIALITE (2026-09-28), lien public exige par le dApp
+  POLITIQUE DE CONFIDENTIALITE (2026-09-30), lien public exige par le dApp
   Store Solana. Elle decrit ce que le code fait VRAIMENT : a relire si l'auth,
-  les paiements, les push ou un service tiers changent (src/lib/auth,
-  src/lib/pay, android/app/src/fcm, src/lib/db/schema.ts).
+  les paiements, les push, les analytics ou un service tiers changent
+  (src/lib/auth, src/lib/pay, src/lib/notify, godot/scripts/analytics.gd,
+  godot/scripts/push.gd, godot/plugin-src/firebase, src/lib/db/schema.ts).
+  La retention GA4 annoncee (14 mois) doit etre REGLEE dans GA : Admin >
+  Data collection and modification > Data retention (defaut Google : 2 mois).
 -->
 <html lang="en">
   <head>
@@ -29,11 +32,13 @@
 
     <main>
       <h1>Privacy Policy</h1>
-      <p class="updated">Last updated: September 28, 2026</p>
+      <p class="updated">Last updated: September 30, 2026</p>
 
       <p class="lead">
         Rabbit Royale is a free-to-play game. We collect as little as we can: no email, no password, no
-        phone number, no real name, no analytics or advertising trackers.
+        phone number, no real name. We show no ads and sell no data. We do measure how the Game is played and
+        collect crash reports, with Google Firebase, to make it better — and if you are in Europe, we only
+        measure with your permission.
       </p>
       <p>
         This policy covers the game at <a href="https://rabbit.rip">rabbit.rip</a>, the Android app and the
@@ -80,19 +85,58 @@
         them to track you.
       </p>
 
-      <h3>Push notifications (Android)</h3>
+      <h3>How you play (analytics)</h3>
       <p>
-        If you allow notifications in the Android app (for example, to be told your burrow is being raided), a
-        device token from Google Firebase Cloud Messaging is used to deliver them. You can turn notifications
-        off at any time in your phone's settings.
+        We use <strong>Google Analytics for Firebase</strong> to understand how the Game is played: which screens
+        you open and for how long, where you tap (the position on the screen and the button touched), how far you
+        get in the tutorial, your games, raids and defences, the items you buy, and when you pause or leave. These
+        events are linked to your player ID, not to your name.
+      </p>
+      <p>
+        Firebase also collects, on its own, your device model, operating system, app version, language, screen
+        size, a random app-instance ID and your approximate location (country and region, worked out by Google
+        from your IP address — we never see a precise location). On Android it uses your device's
+        <strong>advertising ID</strong>; on the web it sets Google Analytics cookies (<code>_ga</code>,
+        <code>_ga_*</code>). If you are signed in to a Google account that allows it, Google may add
+        <strong>estimated</strong> age range, gender and interests to our reports; we only ever see these as
+        totals across many players, never for you alone. We do not show ads and do not use any of this to
+        target ads.
+      </p>
+      <p>
+        <strong>In the European Union, the EEA, the UK and Switzerland</strong>, the Game asks for your consent
+        the first time you open it, and nothing is measured unless you accept (refusing is as easy as accepting).
+        Elsewhere, measurement is on by default. Everywhere, you can change your choice at any time in the Game's
+        settings.
+      </p>
+
+      <h3>Crash reports</h3>
+      <p>
+        When the Game crashes or hits an error, a report is sent so we can fix it: what went wrong and where in
+        the code, the screen you were on, your level, the app version, your device model and operating system,
+        and your player ID. On Android this goes through <strong>Firebase Crashlytics</strong>; on the web,
+        errors are reported through Google Analytics. Crash reports are sent whatever your analytics choice,
+        because we need them to keep the Game working (our legitimate interest); they contain nothing about your
+        game beyond the moment of the crash.
+      </p>
+
+      <h3>Push notifications (Android and web)</h3>
+      <p>
+        If you allow notifications — the Game asks after your first real game, never before — we store a
+        device token from <strong>Google Firebase Cloud Messaging</strong>, with your language and your time
+        zone offset, so we can send them in your language and never at night. We use them to tell you that your
+        burrow is being raided or was raided, that your garden is full, that your energy is full, or, once or
+        twice, that you have not played for a while. At most a few per day. You can turn them off at any time in
+        your phone or browser settings; the token is deleted when you sign out, when it stops working, or with
+        your account.
       </p>
 
       <h2>2. What stays on your device</h2>
       <p>
         The Game keeps a few things in your browser storage or the app's local files: your session (so you stay
-        signed in), your language, sound settings and a few “already seen” flags for the tutorial. The website
-        also sets one cookie, <code>rr_session</code>, which keeps you signed in for up to 30 days. None of these
-        are used for advertising or cross-site tracking.
+        signed in), your language, sound settings, your analytics and notification choices, and a few “already
+        seen” flags for the tutorial. The website sets one cookie of its own, <code>rr_session</code>, which
+        keeps you signed in for up to 30 days, and — only if measurement is on — the Google Analytics cookies
+        described above. None of these are used for advertising or cross-site tracking.
       </p>
       <p class="note">
         A guest account exists only through the session stored on your device. If you clear your browser data
@@ -104,12 +148,16 @@
         <li>To run the Game: save your progress, match you with other players, keep the leaderboard.</li>
         <li>To verify and deliver purchases.</li>
         <li>To send the notifications you asked for.</li>
+        <li>To understand how the Game is played — where players get stuck, what they use — and improve it.</li>
+        <li>To find and fix crashes and bugs.</li>
         <li>To keep the Game fair and secure: stop cheating, abuse and attacks.</li>
       </ul>
       <p>
         We do not sell your data, share it with advertisers, or use it to build advertising profiles. Where the
         law asks for a legal basis, we rely on the performance of our agreement with you (running the Game you
-        signed up for) and our legitimate interest in keeping it secure.
+        signed up for and sending the notifications you allowed), your <strong>consent</strong> for analytics in
+        the EU, EEA, UK and Switzerland (you can withdraw it at any time in the settings), and our legitimate
+        interest in measuring and improving the Game elsewhere, fixing crashes and keeping it secure.
       </p>
 
       <h2>4. What other players see</h2>
@@ -131,7 +179,16 @@
           when a payment reaches our wallet.
         </li>
         <li><strong>Jupiter</strong>: our server asks it for SOL and SKR prices. No data about you is sent.</li>
-        <li><strong>Google Firebase Cloud Messaging</strong>: delivers Android push notifications, if enabled.</li>
+        <li>
+          <strong>Google (Firebase)</strong>: Google Analytics for Firebase measures how the Game is played,
+          Firebase Crashlytics collects crash reports, and Firebase Cloud Messaging delivers push notifications.
+          Analytics data may also be exported to Google BigQuery, in our own Google Cloud project, for our
+          analysis. Google may process this data outside your country, including in the United States, under the
+          EU–US Data Privacy Framework and standard contractual clauses. See
+          <a href="https://firebase.google.com/support/privacy" target="_blank" rel="noopener">Firebase's privacy
+          information</a> and <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google's
+          privacy policy</a>.
+        </li>
         <li><strong>Google Fonts</strong>: serves the fonts of this website; your browser fetches them from Google.</li>
         <li>
           <strong>Your wallet app</strong> (Phantom, Solflare, Seed Vault…) has its own privacy policy, which
@@ -148,13 +205,18 @@
         <li>Wallet accounts are kept while you play, and deleted on request.</li>
         <li>Purchase records are kept as long as needed for accounting and to handle disputes.</li>
         <li>Server logs are kept for a short period and then rotated.</li>
+        <li>Analytics events are kept for 14 months by Google Analytics, then deleted.</li>
+        <li>Crash reports are kept for 90 days by Firebase Crashlytics.</li>
+        <li>Notification tokens are deleted when you sign out, when they stop working, or with your account.</li>
       </ul>
 
       <h2>7. Your rights</h2>
       <p>
         You can ask us for a copy of your data, to correct it, or to delete your account. Guests can delete their
         account themselves from the Game. For a wallet account, write to us from the contact below with your
-        wallet address; we may ask you to sign a message to prove it is yours. Depending on where you live (for
+        wallet address; we may ask you to sign a message to prove it is yours. You can withdraw your analytics
+        consent at any time in the Game's settings, and turn notifications off in your device settings. Depending
+        on where you live (for
         example in the EU or UK), you may also have the right to object, to restrict processing and to complain
         to your data protection authority.
       </p>

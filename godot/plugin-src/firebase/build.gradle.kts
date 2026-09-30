@@ -1,4 +1,5 @@
 import groovy.json.JsonSlurper
+import java.util.UUID
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -28,7 +29,12 @@ val gameApplicationId = "rip.rabbit.royale"
  * NoSuchMethodError entre firebase-common et les modules.
  *
  * DOIT être égale à FIREBASE_BOM dans addons/RabbitFirebase/export_plugin.gd.
- * 34.19.0 → firebase-analytics 23.2.0, firebase-messaging 25.1.3.
+ * 34.19.0 → firebase-analytics 23.2.0, firebase-messaging 25.1.3,
+ * firebase-crashlytics et firebase-crashlytics-ndk 20.1.1 (qui tirent
+ * firebase-sessions 3.0.8).
+ *
+ * MONTER LA BoM = RELIRE CrashlyticsBuildId PLUS BAS : les noms de ressources
+ * qu'il écrit sont ceux que Crashlytics 20.1.1 cherche, relevés dans son AAR.
  */
 val firebaseBom = "34.19.0"
 
@@ -60,6 +66,14 @@ dependencies {
 	implementation(platform("com.google.firebase:firebase-bom:$firebaseBom"))
 	implementation("com.google.firebase:firebase-analytics")
 	implementation("com.google.firebase:firebase-messaging")
+	// Crashlytics ET son volet NDK. Le second n'est pas un bonus : le jeu est
+	// un moteur C++ (libgodot_android.so), et un SIGSEGV dans le rendu ou le
+	// GDScript ne passe JAMAIS par Thread.UncaughtExceptionHandler — sans le
+	// NDK, les plantages qui comptent le plus seraient exactement ceux qu'on
+	// ne voit pas. Le NDK installe un gestionnaire de signaux (crashpad) au
+	// démarrage du processus, avant même que Godot ne charge son moteur.
+	implementation("com.google.firebase:firebase-crashlytics")
+	implementation("com.google.firebase:firebase-crashlytics-ndk")
 
 	// Déclarée EN PROPRE : NotificationCompat, NotificationManagerCompat et
 	// ContextCompat sont nommés dans le code. Firebase et Godot l'apportent
@@ -169,11 +183,86 @@ val googleServicesValues by tasks.registering(GoogleServicesValues::class) {
 	outputDir.set(layout.buildDirectory.dir("generated/res/googleServices"))
 }
 
+/**
+ * LE « BUILD ID » DE CRASHLYTICS, ÉCRIT ICI, PAS PAR SON PLUGIN GRADLE.
+ *
+ * Même problème, même réponse que google-services ci-dessus. Au démarrage,
+ * CrashlyticsCore.onPreExecute cherche une chaîne
+ * `com.google.firebase.crashlytics.mapping_file_id` (à défaut, l'ancienne
+ * `com.crashlytics.android.build_id`, qu'on n'écrit donc pas) ; vide ou
+ * absente, il lève « The
+ * Crashlytics build ID is missing » — et cette exception-là N'EST PAS
+ * rattrapée : l'app meurt au lancement. C'est `com.google.firebase.crashlytics`
+ * (le plugin Gradle) qui l'écrit d'ordinaire, et il faudrait l'appliquer dans
+ * godot/android/build — le dossier que Godot écrase à chaque réinstallation
+ * du modèle. On l'écrit donc dans l'AAR, qui survit.
+ *
+ * LES NOMS SONT CEUX DE CRASHLYTICS 20.1.1, relevés dans ses classes
+ * (CommonUtils.getMappingFileId, CrashlyticsCore.isBuildIdValid), pas
+ * devinés. À relire à chaque montée de BoM.
+ *
+ * CE QUE VAUT L'IDENTIFIANT. Côté console, il ne sert qu'à apparier un
+ * mapping R8/ProGuard aux rapports d'un build — et le modèle Godot ne minifie
+ * pas le Java, il n'y a rien à apparier. Il doit simplement exister et être
+ * non vide. Il change À CHAQUE BUILD DE L'AAR (un UUID neuf, jamais mis en
+ * cache), comme le fait le plugin de Google ; deux exports tirés du même AAR
+ * partagent donc le même, ce qui est sans conséquence ici.
+ *
+ * CE QU'ON N'ÉCRIT PAS : les tableaux `com.google.firebase.crashlytics
+ * .build_ids_lib/_arch/_build_id`, que le plugin de Google remplit avec le
+ * build-id ELF de chaque .so de l'APK. Cet AAR ne voit jamais
+ * libgodot_android.so (elle vient du modèle d'export), il ne peut pas les
+ * calculer. Leur absence ne coûte qu'une ligne de debug (« Could not find
+ * resources ») : le minidump d'un plantage natif porte lui-même le build-id
+ * de chaque module chargé, et c'est sur lui que se fait l'appariement avec
+ * des symboles envoyés par `firebase crashlytics:symbols:upload`.
+ *
+ * INDÉPENDANT DE google-services.json, et exprès : si Firebase est configuré,
+ * Crashlytics démarre et DOIT trouver cette chaîne ; s'il ne l'est pas,
+ * Crashlytics ne démarre pas et la chaîne ne gêne personne. L'écrire toujours,
+ * c'est ne jamais pouvoir livrer un APK qui meurt au lancement.
+ */
+abstract class CrashlyticsBuildId : DefaultTask() {
+	@get:OutputDirectory
+	abstract val outputDir: DirectoryProperty
+
+	@TaskAction
+	fun generate() {
+		val out = outputDir.get().asFile
+		out.deleteRecursively()
+		// 32 hexadécimaux sans tirets : le format que le plugin de Google écrit.
+		val id = UUID.randomUUID().toString().replace("-", "")
+		val values = File(out, "values").apply { mkdirs() }
+		// tools:keep : Crashlytics lit ces chaînes par getIdentifier, donc par
+		// leur NOM. Un rétrécissement des ressources qui ne voit aucune
+		// référence dans le code les supprimerait.
+		File(values, "crashlytics_build_id.xml").writeText(buildString {
+			appendLine("<?xml version=\"1.0\" encoding=\"utf-8\"?>")
+			appendLine("<!-- Généré par plugin-src/firebase (CrashlyticsBuildId). Ne pas éditer. -->")
+			appendLine("<resources xmlns:tools=\"http://schemas.android.com/tools\"")
+			appendLine("    tools:keep=\"@string/com.google.firebase.crashlytics.mapping_file_id\">")
+			appendLine("    <string name=\"com.google.firebase.crashlytics.mapping_file_id\" translatable=\"false\" tools:ignore=\"UnusedResources\">$id</string>")
+			appendLine("</resources>")
+		})
+	}
+}
+
+val crashlyticsBuildId by tasks.registering(CrashlyticsBuildId::class) {
+	outputDir.set(layout.buildDirectory.dir("generated/res/crashlyticsBuildId"))
+	// Aucune entrée : sans cette ligne, Gradle la jugerait à jour dès le
+	// deuxième build et ressortirait l'identifiant du premier pour toujours.
+	outputs.upToDateWhen { false }
+}
+
 androidComponents {
 	onVariants { variant ->
 		variant.sources.res?.addGeneratedSourceDirectory(
 			googleServicesValues,
 			GoogleServicesValues::outputDir,
+		)
+		variant.sources.res?.addGeneratedSourceDirectory(
+			crashlyticsBuildId,
+			CrashlyticsBuildId::outputDir,
 		)
 	}
 }

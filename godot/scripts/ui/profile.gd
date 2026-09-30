@@ -394,6 +394,17 @@ func _build_profile() -> void:
 	var push := Control.new()
 	push.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	who.add_child(push)
+	# LA MESURE SE CHANGE ICI (consent_dialog.gd) : le meme dialogue que la
+	# premiere fois, avec son [x] et l'etat actuel. Au pied de la colonne des
+	# reglages de soi — le nom, la tete, le depart — parce que c'en est un, et
+	# pas dans la barre : elle ne porte que ce qui se touche en jouant. Rien
+	# au bureau sans la sonde : il n'y a pas de mesure a regler.
+	if Analytics.backend() != "none" or Consent.needed:
+		var privacy := Kit.button(I18N.shout(I18N.t("consent.settings")), "wood", 0.0, 36.0)
+		privacy.name = "Privacy"
+		privacy.label_size = 12
+		privacy.pressed.connect(func() -> void: ConsentDialog.open())
+		who.add_child(privacy)
 	_leave_button = Kit.button("", "wood", 0.0, 44.0)
 	_leave_button.pressed.connect(_on_leave)
 	who.add_child(_leave_button)

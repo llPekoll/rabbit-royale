@@ -55,13 +55,21 @@ class AndroidExportPlugin extends EditorExportPlugin:
 	## `platform(...)` SANS GUILLEMETS, et ce n'est pas une coquetterie : le
 	## build.gradle du modèle Godot reconnaît cette forme par une regex, et avec
 	## des guillemets le `"` final est capturé dans la coordonnée Maven, qui ne
-	## se résout plus. Les deux artefacts Firebase sont sans version : c'est la
-	## BoM qui la donne.
+	## se résout plus. Les artefacts Firebase sont sans version : c'est la BoM
+	## qui la donne.
+	##
+	## CRASHLYTICS : les deux, Java ET NDK. Oublier le second ici, c'est un
+	## APK qui démarre, qui rapporte les exceptions Java, et qui ne voit aucun
+	## plantage du moteur — sans rien qui le signale. Le build-id qu'il exige
+	## au lancement est dans l'AAR (plugin-src/firebase/build.gradle.kts,
+	## CrashlyticsBuildId), pas dans un plugin Gradle à appliquer ici.
 	func _get_android_dependencies(_platform: EditorExportPlatform, _debug: bool) -> PackedStringArray:
 		return PackedStringArray([
 			"platform(com.google.firebase:firebase-bom:%s)" % FIREBASE_BOM,
 			"com.google.firebase:firebase-analytics",
 			"com.google.firebase:firebase-messaging",
+			"com.google.firebase:firebase-crashlytics",
+			"com.google.firebase:firebase-crashlytics-ndk",
 			"androidx.core:core:1.13.1",
 		])
 

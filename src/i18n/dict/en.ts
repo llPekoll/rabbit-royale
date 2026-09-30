@@ -40,6 +40,21 @@ export const en = {
      *  a screen-reader-only label on a control that showed its own value. */
     label: 'Language',
   },
+  /* ── Consent: the measuring question, asked in Europe before the doors ── */
+  consent: {
+    title: 'Before you dig',
+    /** Analytics and ads go together, one switch (godot/scripts/consent.gd). */
+    body: 'Can we measure how you play? Screens, taps, and which ad brought you here. It shows us what to fix. Nothing is sold.',
+    /** Crash reports are legitimate interest, not consent: said, not asked. */
+    crash: 'Crash reports are always sent: they only help us fix bugs.',
+    later: 'Change your mind anytime in your profile.',
+    isOn: 'Right now: accepted.',
+    isOff: 'Right now: refused.',
+    policy: 'Privacy policy',
+    accept: 'Accept',
+    refuse: 'Refuse',
+    settings: 'Privacy',
+  },
 
   /* ── Signing in ───────────────────────────────────────────────────────── */
   auth: {

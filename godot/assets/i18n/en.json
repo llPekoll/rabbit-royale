@@ -12,6 +12,18 @@
 	"lang": {
 		"label": "Language"
 	},
+	"consent": {
+		"title": "Before you dig",
+		"body": "Can we measure how you play? Screens, taps, and which ad brought you here. It shows us what to fix. Nothing is sold.",
+		"crash": "Crash reports are always sent: they only help us fix bugs.",
+		"later": "Change your mind anytime in your profile.",
+		"isOn": "Right now: accepted.",
+		"isOff": "Right now: refused.",
+		"policy": "Privacy policy",
+		"accept": "Accept",
+		"refuse": "Refuse",
+		"settings": "Privacy"
+	},
 	"auth": {
 		"connect": "Connect wallet",
 		"connecting": "Digging in...",

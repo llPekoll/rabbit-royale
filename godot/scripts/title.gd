@@ -126,6 +126,14 @@ func _ready() -> void:
 	# donnerait un SECOND terrier par-dessus celui qu'on restaure, et c'est la
 	# seule erreur ici qui perd le travail de quelqu'un.
 	_busy(true)
+	# LA QUESTION DE LA MESURE, AVANT TOUT LE RESTE (consent.gd). Avant la
+	# connexion et avant le tutoriel : la reprise de session et la premiere ile
+	# envoient deja des evenements, et un joueur europeen doit avoir dit oui
+	# avant qu'ils partent avec un identifiant. Une fois par appareil ; hors
+	# d'Europe, jamais. Les portes restent grisees dessous : rien ne se presse
+	# a travers le voile.
+	if Consent.pending():
+		await ConsentDialog.ask_on(self).answered
 	# `-- --doorstep` : l'accueil tel qu'un nouveau venu le voit, sans
 	# reprendre la session enregistree (qui reste intacte). Outil, pas
 	# comportement.

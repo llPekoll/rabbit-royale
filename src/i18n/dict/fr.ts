@@ -23,6 +23,18 @@ export const fr: Dict = {
     description: 'Démineur compétitif. Creuse, entasse, pille, porte la couronne.',
   },
   lang: { label: 'Langue' },
+  consent: {
+    title: 'Avant de creuser',
+    body: 'On peut mesurer ta façon de jouer ? Les écrans, les tapes, et la pub qui t’a amené ici. Ça nous montre quoi réparer. Rien n’est vendu.',
+    crash: 'Les rapports de plantage partent toujours : ils servent seulement à corriger les bugs.',
+    later: 'Tu peux changer d’avis à tout moment dans ton profil.',
+    isOn: 'Pour l’instant : accepté.',
+    isOff: 'Pour l’instant : refusé.',
+    policy: 'Politique de confidentialité',
+    accept: 'Accepter',
+    refuse: 'Refuser',
+    settings: 'Confidentialité',
+  },
 
   auth: {
     connect: 'Connecter un portefeuille',

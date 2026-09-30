@@ -20,6 +20,15 @@ extends Node
 ##     chaque evenement sur la console. C'est la sonde pour verifier un
 ##     crochet sans compte Firebase.
 ##
+## LE CONSENTEMENT PASSE AVANT TOUT (consent.gd). Un joueur europeen qui n'a
+## pas dit oui : Android envoie en mode « refuse » (sans identifiant, le SDK
+## le gere), le web n'envoie RIEN — le morceau Analytics du SDK n'est meme
+## pas charge (shell.html). Le choix se change au profil (profile.gd).
+##
+## LES ERREURS AUSSI PASSENT PAR ICI (crash_report.gd) : un Logger note
+## celles du moteur et des scripts, `_process` les envoie — Crashlytics sur
+## Android, `exception` sur le web.
+##
 ## UNE PORTE ABSENTE NE CASSE RIEN. Plugin pas embarque, config web encore
 ## en placeholders, SDK bloque par un bloqueur de pub : tout se tait. Un
 ## evenement perdu vaut mieux qu'un jeu qui plante pour le compter.
@@ -109,6 +118,26 @@ var _run_tutorial := false
 ## tape, le beat ne part qu'a son changement.
 var _last_beat := ""
 
+## Le releve des erreurs (crash_report.gd), pose seulement s'il y a une porte
+## ou la sonde : au bureau il n'aurait personne a qui parler.
+var _crash: CrashReport = null
+## Les parametres du lancement, gardes pour le rejouer apres un oui sur le
+## web : avant, `rr_session_start` n'est parti nulle part.
+var _session_params: Dictionary = {}
+## Le dialogue de consentement s'est montre ce lancement ; `consent_shown` ne
+## part qu'avec le oui qui le suit (un refus n'envoie rien, pas meme qu'on a
+## demande).
+var _consent_shown := false
+
+## Les proprietes qui sont aussi des cles de Crashlytics : un plantage se lit
+## avec le niveau et le build du joueur.
+const CRASH_KEYS := ["platform", "build", "level"]
+## Les drapeaux de test (Android : `adb shell am start -n
+## rip.rabbit.royale/com.godot.game.GodotApp --esa command_line_params
+## --test-crash`). Apres le demarrage, pour que Crashlytics soit pret et que
+## l'ecran d'accueil soit monte.
+const TEST_DELAY := 4.0
+
 
 func _ready() -> void:
 	# Toujours actif : les notifications de pause doivent nous parvenir meme
@@ -121,6 +150,16 @@ func _ready() -> void:
 	if OS.has_feature("web"):
 		_web = JavaScriptBridge.get_interface("rrFirebase")
 		_watch_web_visibility()
+	var args := OS.get_cmdline_args() + OS.get_cmdline_user_args()
+	# LE CONSENTEMENT AVANT LE PREMIER EVENEMENT : c'est lui qui dit si
+	# `rr_session_start`, trois lignes plus bas, porte un identifiant (Android)
+	# ou part tout court (web).
+	Consent.setup(_android != null or _web != null, args)
+	_apply_consent()
+	if _android != null or _web != null or _debug:
+		_crash = CrashReport.new()
+		OS.add_logger(_crash)
+	set_process(_crash != null)
 	_launched = Time.get_ticks_msec()
 	_fg_since = _launched
 	_screen_since = _launched
@@ -143,7 +182,8 @@ func _ready() -> void:
 	_set_prop("platform", platform())
 	_set_prop("locale", I18N.locale)
 	_set_prop("build", version())
-	track("rr_session_start", {
+	_crash_key("screen", screen)
+	_session_params = {
 		"platform": platform(),
 		"os": OS.get_name(),
 		"locale": I18N.locale,
@@ -151,7 +191,22 @@ func _ready() -> void:
 		"build": version(),
 		"engine": Engine.get_version_info().get("string", ""),
 		"backend": backend(),
-	})
+		"consent": "pending" if Consent.pending() else ("granted" if Consent.analytics else "denied"),
+	}
+	track("rr_session_start", _session_params)
+
+	if "--test-error" in args:
+		get_tree().create_timer(TEST_DELAY).timeout.connect(_test_error)
+	if "--test-crash" in args:
+		get_tree().create_timer(TEST_DELAY).timeout.connect(_test_crash)
+
+
+func _exit_tree() -> void:
+	# Le moteur appellerait encore le releve pendant sa fermeture, alors que
+	# ce noeud n'est plus la pour le vider.
+	if _crash != null:
+		OS.remove_logger(_crash)
+		_crash = null
 
 
 ## « android », « web », « ios » ou « desktop » — ce que le serveur de push
@@ -193,12 +248,18 @@ func track(event: String, params: Dictionary = {}) -> void:
 		all["screen"] = screen
 	var clean := _params(all)
 	if _debug:
-		print("[analytics] %s %s" % [name, JSON.stringify(clean)])
+		print("[analytics] %s %s%s" % [name, JSON.stringify(clean),
+			"" if Consent.analytics else " (consent: %s)" % ("pending" if Consent.pending() else "denied")])
 	var json := JSON.stringify(clean)
 	if _android != null:
+		# Android envoie meme sans oui : le SDK est en mode « refuse »
+		# (`setConsent(false, false)`), sans identifiant ni stockage.
 		_android.logEvent(name, json)
-	elif _web != null:
+	elif _web != null and Consent.analytics:
+		# Le web, lui, n'a meme pas charge Analytics : rien a appeler.
 		_web.logEvent(name, json)
+	# Emis quoi qu'il arrive : c'est un moment du jeu (Push attend la premiere
+	# run finie ici), pas un envoi.
 	tracked.emit(name, clean)
 
 
@@ -213,6 +274,8 @@ func screen_view(name: String) -> void:
 	var dwell := now - _screen_since
 	screen = name
 	_screen_since = now
+	_crash_key("screen", name)
+	_crash_log("screen " + name)
 	track("screen_view", {"screen_name": name, "screen_class": name,
 		"prev_screen": prev, "prev_ms": dwell})
 	if name == "tutorial":
@@ -258,7 +321,7 @@ func set_user_id(id: String) -> void:
 		print("[analytics] user_id=%s" % id)
 	if _android != null:
 		_android.setUserId(id)
-	elif _web != null:
+	elif _web != null and Consent.analytics:
 		_web.setUserId(id)
 
 
@@ -270,10 +333,128 @@ func _set_prop(key: String, value: Variant) -> void:
 	_props[k] = v
 	if _debug:
 		print("[analytics] prop %s=%s" % [k, v])
+	if k in CRASH_KEYS:
+		_crash_key(k, v)
 	if _android != null:
 		_android.setUserProperty(k, v)
-	elif _web != null:
+	elif _web != null and Consent.analytics:
 		_web.setUserProperty(k, v)
+
+
+# ── Le consentement ──────────────────────────────────────────────────────────
+
+## L'ETAT DE Consent, pose sur le SDK. Android : le mode de consentement de
+## Firebase (les quatre signaux de Google). Web : charger Analytics ou non,
+## et le mode de consentement de gtag s'il est deja la (shell.html).
+func _apply_consent() -> void:
+	if _debug:
+		print("[analytics] consent analytics=%s ads=%s needed=%s answered=%s" % [
+			Consent.analytics, Consent.ads, Consent.needed, Consent.answered])
+	if _android != null:
+		_jni("setConsent", [Consent.analytics, Consent.ads])
+	elif _web != null:
+		_web.setConsent(Consent.analytics, Consent.ads)
+
+
+## LE DIALOGUE S'EST MONTRE (consent_dialog.gd). Rien ne part encore : on ne
+## le dira qu'avec un oui.
+func consent_shown() -> void:
+	_consent_shown = true
+
+
+## LA REPONSE DU JOUEUR, d'ou qu'elle vienne (l'accueil, le profil). Gardee,
+## posee sur le SDK ; et SEULEMENT si c'est oui, les deux evenements du
+## dialogue. `where` : "doorstep" ou "profile".
+func set_consent(granted: bool, where: String) -> void:
+	var was := Consent.analytics
+	Consent.answer(granted)
+	_apply_consent()
+	if not granted:
+		_consent_shown = false
+		return
+	if _web != null and not was:
+		# LE WEB REPART DE ZERO : tout ce qui precedait le oui a ete jete, pas
+		# mis de cote. On redit qui joue et d'ou, pour que ce lancement se
+		# lise comme les autres.
+		for k in _props:
+			_web.setUserProperty(k, _props[k])
+		if not _user_id.is_empty():
+			_web.setUserId(_user_id)
+		track("rr_session_start", _session_params.merged({"replayed": true}, true))
+	if _consent_shown:
+		track("consent_shown", {"where": where})
+		_consent_shown = false
+	track("consent_answer", {"analytics": true, "where": where})
+
+
+# ── Les erreurs ──────────────────────────────────────────────────────────────
+
+## LE RELEVE, VIDE SUR LE FIL PRINCIPAL. Une image sans erreur ne coute qu'un
+## verrou pris et rendu.
+func _process(_delta: float) -> void:
+	if _crash == null:
+		return
+	for report in _crash.take():
+		_report(report)
+
+
+func _report(r: Dictionary) -> void:
+	var message := String(r.get("message", ""))
+	var where := String(r.get("where", ""))
+	if _debug:
+		print("[crash] %s %s: %s" % [r.get("type", "error"), where, message])
+	if _android != null:
+		# Crashlytics : une exception non fatale, groupee par sa pile. Le
+		# message porte l'endroit — la pile d'un moteur seul est vide.
+		_jni("recordError", ["%s (%s)" % [message, where], String(r.get("stack", ""))])
+	elif _web != null:
+		# GA4 `exception` (l'evenement standard de gtag : le rapport des
+		# exceptions le lit). `app_exception` est reserve a Crashlytics.
+		track("exception", {"description": message, "fatal": false, "where": where,
+			"kind": r.get("type", "error")})
+
+
+## Une cle de Crashlytics : ce qui se lit a cote de chaque plantage.
+func _crash_key(key: String, value: String) -> void:
+	if _android != null:
+		_jni("setCrashKey", [key, value])
+
+
+## Une miette de Crashlytics : les dernieres lignes avant le plantage.
+func _crash_log(line: String) -> void:
+	if _android != null:
+		_jni("crashLog", [line])
+
+
+## LES METHODES RECENTES DU PLUGIN, PAR `callv`. Un APK construit avec un
+## plugin plus ancien n'a pas `setConsent` ni `recordError` : appelee
+## directement, une methode absente d'un JNISingleton est une erreur de script
+## qui ARRETE la fonction appelante (ici `_ready`, avant `rr_session_start`).
+## Par `callv`, c'est une ligne d'erreur et la suite continue. Pas de
+## has_method : il ment sur un JNISingleton (push.gd).
+func _jni(method: String, args: Array) -> void:
+	_android.callv(method, args)
+
+
+## `--test-error` : trois fois la meme erreur AU MEME ENDROIT (une seule doit
+## partir : le dedoublonnage) et une autre, par le chemin non fatal.
+func _test_error() -> void:
+	for i in 3:
+		push_error("[crash-test] non-fatal test error")
+	push_error("[crash-test] second test error")
+
+
+## `--test-crash` : un vrai plantage, pour voir Crashlytics le recevoir au
+## lancement suivant. Sur le web, l'abandon du moteur est simule par un
+## RuntimeError de WebAssembly (shell.html le lit comme fatal).
+func _test_crash() -> void:
+	_crash_log("test crash requested")
+	if _android != null:
+		_jni("testCrash", [])
+	elif OS.has_feature("web"):
+		JavaScriptBridge.eval("setTimeout(function(){throw new WebAssembly.RuntimeError('rr test crash')},0)")
+	else:
+		print("[crash] --test-crash: pas de Crashlytics ici (Android seulement)")
 
 
 # ── Les crochets qui demandent un peu d'etat ─────────────────────────────────
@@ -284,6 +465,7 @@ func _set_prop(key: String, value: Variant) -> void:
 func dialog_opened(dialog: Node) -> void:
 	_dialog = kind_of(dialog)
 	_dialog_since = Time.get_ticks_msec()
+	_crash_log("dialog " + _dialog)
 	track("dialog_open", {"dialog": _dialog})
 
 

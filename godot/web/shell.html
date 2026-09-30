@@ -333,6 +333,8 @@ window.rrWalletWeb = (function () {
    moteur passe d'abord), et jamais du tout tant que la config porte des TODO.
 
    Le contrat, le meme que le plugin :
+     setConsent(analytics, ads)  -> la reponse du joueur (consent.gd), dite
+                                    par Godot au demarrage puis a chaque choix
      logEvent(nom, paramsJson)   setUserId(id)   setUserProperty(cle, valeur)
      requestPush(cb)   -> cb(jeton), "" sur refus, panne ou config absente
      pushState()       -> 'granted' | 'denied' | 'default' | 'unsupported'
@@ -343,6 +345,22 @@ window.rrWalletWeb = (function () {
                           le poste au lieu d'ouvrir un second onglet)
    Comme rrWalletWeb, un rappel n'est JAMAIS synchrone : Godot n'a pas encore
    commence a attendre quand l'appel revient.
+
+   LE CONSENTEMENT DECIDE DU CHARGEMENT (RGPD, CNIL). Le morceau Analytics du
+   SDK — celui qui charge gtag.js et depose le cookie `_ga` — n'est charge
+   qu'APRES un oui. Tant que Godot n'a rien dit, les appels attendent dans une
+   petite file sans rien charger ; sur un « non » (ou « pas encore », pour un
+   joueur europeen), la file est jetee et rien ne part. Le coeur de Firebase
+   et Messaging, eux, se chargent quand le joueur DEMANDE les notifications :
+   c'est lui qui les veut, et ils ne portent pas GA.
+   Le mode de consentement de Google (`gtag('consent', ...)`) est pose dans
+   la file de gtag AVANT le SDK : `default` a l'etat du moment, `update` a
+   chaque changement ; un retrait coupe aussi GA (`ga-disable-<id>`) et
+   efface les cookies `_ga`.
+
+   LES ERREURS DE LA PAGE (window.onerror, promesses rejetees, sortie du
+   moteur en erreur) partent en `exception` GA — soumises au meme oui : sans
+   GA il n'y a pas ou les envoyer. Une fois par message, vingt au plus.
 
    Les appels d'analytics faits avant que le SDK soit la attendent dans une
    petite file, videe a son arrivee ; si le SDK ne vient pas (bloqueur,
@@ -358,6 +376,39 @@ window.rrFirebase = (function () {
 	const pushConfigured = configured && filled('vapidKey');
 	// DebugView de GA4 : /play/?analytics_debug
 	const debug = /[?&]analytics_debug\b/.test(location.search);
+
+	// LA FILE DE GTAG, a nous avant d'etre au SDK : Firebase reprend
+	// `dataLayer` s'il existe et enveloppe `gtag` sans rien jeter. Ce qu'on y
+	// pousse avant `config` (le consentement) est lu avant la premiere mesure.
+	// gtag.js veut l'objet `arguments` lui-meme, pas un tableau.
+	window.dataLayer = window.dataLayer || [];
+	function gtag() { window.dataLayer.push(arguments); }
+
+	// null : Godot n'a encore rien dit. Sinon { analytics, ads }.
+	let consent = null;
+	function consentMode(c) {
+		const a = c.analytics ? 'granted' : 'denied';
+		const ads = c.ads ? 'granted' : 'denied';
+		return { analytics_storage: a, ad_storage: ads, ad_user_data: ads, ad_personalization: ads };
+	}
+	// L'interrupteur officiel de GA : tant qu'il est vrai, gtag n'envoie
+	// RIEN, meme les evenements automatiques (user_engagement a la sortie).
+	function gaDisable(off) {
+		if (filled('measurementId')) window['ga-disable-' + cfg.measurementId] = !!off;
+	}
+	// Les cookies de GA (_ga, _ga_<id>), sur le domaine et ses parents.
+	function clearGaCookies() {
+		const host = location.hostname.split('.');
+		const domains = [''];
+		for (let i = 0; i < host.length - 1; i++) domains.push('; domain=.' + host.slice(i).join('.'));
+		document.cookie.split(';').forEach(function (pair) {
+			const name = pair.split('=')[0].trim();
+			if (!/^_ga/.test(name)) return;
+			domains.forEach(function (d) {
+				document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/' + d;
+			});
+		});
+	}
 
 	// Le chemin d'une notification qui a ouvert la page, lu UNE fois et retire
 	// de l'adresse : un rechargement ne doit pas rejouer la tape.
@@ -382,9 +433,12 @@ window.rrFirebase = (function () {
 		});
 	}
 
+	let app = null;
 	let analytics = null;
 	let messaging = null;
-	let booting = null;
+	let coreBoot = null;
+	let analyticsBoot = null;
+	let messagingBoot = null;
 	let queue = [];
 	const QUEUE_MAX = 200;
 
@@ -399,30 +453,31 @@ window.rrFirebase = (function () {
 		});
 	}
 
-	function boot() {
-		if (!configured) return Promise.resolve(false);
-		if (booting) return booting;
-		booting = load(BASE + 'firebase-app-compat.js')
-			.then(function () {
-				return Promise.all([
-					load(BASE + 'firebase-analytics-compat.js'),
-					pushConfigured ? load(BASE + 'firebase-messaging-compat.js') : null,
-				]);
-			})
-			.then(function () {
-				const app = firebase.initializeApp(cfg);
-				return Promise.all([
-					firebase.analytics.isSupported().then(function (ok) {
-						if (ok) analytics = firebase.analytics(app);
-					}),
-					pushConfigured && firebase.messaging && firebase.messaging.isSupported
-						? Promise.resolve(firebase.messaging.isSupported()).then(function (ok) {
-							if (ok) messaging = firebase.messaging(app);
-						})
-						: null,
-				]);
-			})
-			.then(function () {
+	// LE COEUR : firebase-app seul. Aucune requete, aucun cookie — il ne fait
+	// que tenir la config pour les deux autres.
+	function core() {
+		if (!configured) return Promise.reject(new Error('firebase config missing'));
+		coreBoot = coreBoot || load(BASE + 'firebase-app-compat.js').then(function () {
+			app = firebase.initializeApp(cfg);
+			return app;
+		});
+		return coreBoot;
+	}
+
+	// ANALYTICS, APRES UN OUI SEULEMENT. Le consentement du moment est pose
+	// dans la file de gtag avant que le SDK n'y ecrive son `config`.
+	function bootAnalytics() {
+		if (!configured || !consent || !consent.analytics) return Promise.resolve(false);
+		if (analyticsBoot) return analyticsBoot;
+		analyticsBoot = core()
+			.then(function () { return load(BASE + 'firebase-analytics-compat.js'); })
+			.then(function () { return firebase.analytics.isSupported(); })
+			.then(function (ok) {
+				// Retire pendant le chargement : on ne l'allume pas.
+				if (!ok || !consent || !consent.analytics) return false;
+				gaDisable(false);
+				gtag('consent', 'default', consentMode(consent));
+				analytics = firebase.analytics(app);
 				const pending = queue;
 				queue = [];
 				pending.forEach(function (fn) { fn(); });
@@ -430,22 +485,79 @@ window.rrFirebase = (function () {
 			})
 			.catch(function (e) {
 				// Un bloqueur, le reseau : le jeu n'a pas a le savoir.
-				console.warn('[rrFirebase] off:', e && e.message);
+				console.warn('[rrFirebase] analytics off:', e && e.message);
 				queue = [];
 				return false;
 			});
-		return booting;
+		return analyticsBoot;
+	}
+
+	// MESSAGING, quand le joueur demande les notifications.
+	function bootMessaging() {
+		if (!pushConfigured) return Promise.resolve(false);
+		messagingBoot = messagingBoot || core()
+			.then(function () { return load(BASE + 'firebase-messaging-compat.js'); })
+			.then(function () {
+				return firebase.messaging && firebase.messaging.isSupported
+					? firebase.messaging.isSupported() : false;
+			})
+			.then(function (ok) {
+				if (ok) messaging = firebase.messaging(app);
+				return !!messaging;
+			})
+			.catch(function (e) {
+				console.warn('[rrFirebase] messaging off:', e && e.message);
+				return false;
+			});
+		return messagingBoot;
 	}
 
 	// Chaque appel d'analytics passe par ici : tout de suite si le SDK est la,
-	// sinon dans la file (bornee), sinon nulle part.
+	// sinon dans la file (bornee) — mais seulement si le joueur n'a pas dit non.
 	function withAnalytics(fn) {
 		if (!configured) return;
-		const run = function () { if (analytics) { try { fn(analytics); } catch (e) { /* muet */ } } };
+		if (consent && !consent.analytics) return;
+		const run = function () {
+			if (analytics && consent && consent.analytics) { try { fn(analytics); } catch (e) { /* muet */ } }
+		};
 		if (analytics) return run();
 		if (queue.length < QUEUE_MAX) queue.push(run);
-		boot();
+		if (consent) bootAnalytics();
 	}
+
+	// LES ERREURS DE LA PAGE, une fois chacune, vingt au plus.
+	const errorsSeen = {};
+	let errorsSent = 0;
+	const ERRORS_MAX = 20;
+	function reportError(message, where, fatal) {
+		const text = String(message || 'error');
+		const key = where + '|' + text;
+		if (errorsSeen[key] || errorsSent >= ERRORS_MAX) return;
+		errorsSeen[key] = true;
+		errorsSent += 1;
+		const params = { description: text.slice(0, 100), fatal: !!fatal, where: String(where || '').slice(0, 100), kind: 'js' };
+		if (debug) params.debug_mode = true;
+		withAnalytics(function (a) { a.logEvent('exception', params); });
+	}
+	// L'ABANDON DU MOTEUR : WebAssembly leve un RuntimeError (unreachable, out
+	// of bounds), Emscripten dit « Aborted(...) ». Le reste est une erreur de
+	// page que le jeu survit.
+	function isAbort(err, message) {
+		return (typeof WebAssembly !== 'undefined' && err instanceof WebAssembly.RuntimeError)
+			|| /\bAborted\b|RuntimeError|unreachable/.test(String(message || ''));
+	}
+	window.addEventListener('error', function (e) {
+		// Les extensions (wallets) jettent leurs erreurs dans la page : pas les
+		// notres, pas a nous de les compter.
+		if (e.filename && !/^https?:/.test(e.filename)) return;
+		const where = (e.filename || '').split('/').pop() + ':' + (e.lineno || 0);
+		reportError(e.message || (e.error && e.error.message), where, isAbort(e.error, e.message));
+	});
+	window.addEventListener('unhandledrejection', function (e) {
+		const r = e.reason;
+		const message = (r && (r.message || r.toString())) || 'unhandled rejection';
+		reportError(message, 'promise', isAbort(r, message));
+	});
 
 	// Le worker des notifications, sous /play/ et a portee /play/, ACTIF avant
 	// que getToken le lise.
@@ -480,6 +592,23 @@ window.rrFirebase = (function () {
 	}
 
 	return {
+		setConsent: function (analyticsGranted, adsGranted) {
+			const was = consent;
+			consent = { analytics: !!analyticsGranted, ads: !!adsGranted };
+			if (analyticsBoot) gtag('consent', 'update', consentMode(consent));
+			if (!consent.analytics) {
+				queue = [];
+				if (analyticsBoot) gaDisable(true);
+				if (was && was.analytics) clearGaCookies();
+				return;
+			}
+			gaDisable(false);
+			bootAnalytics();
+		},
+		// Pour les sondes (et la console) : ou en est-on.
+		state: function () {
+			return JSON.stringify({ consent: consent, analytics: !!analytics, loading: !!analyticsBoot && !analytics, messaging: !!messaging });
+		},
 		logEvent: function (name, paramsJson) {
 			let params = {};
 			try { params = JSON.parse(paramsJson || '{}') || {}; } catch (e) { params = {}; }
@@ -489,6 +618,8 @@ window.rrFirebase = (function () {
 				params.firebase_screen = params.screen_name;
 				params.firebase_screen_class = params.screen_class;
 			}
+			// GA4 veut un booleen ; Godot n'envoie que texte et nombres.
+			if (name === 'exception' && typeof params.fatal === 'string') params.fatal = params.fatal === 'true';
 			if (debug) params.debug_mode = true;
 			withAnalytics(function (a) { a.logEvent(name, params); });
 		},
@@ -500,6 +631,10 @@ window.rrFirebase = (function () {
 			props[key] = value;
 			withAnalytics(function (a) { a.setUserProperties(props); });
 		},
+		// La sortie du moteur (onExit de Godot, plus bas).
+		reportExit: function (code) {
+			if (code) reportError('engine exited with code ' + code, 'engine', true);
+		},
 		pushState: pushState,
 		requestPush: function (cb) {
 			const done = function (token) { setTimeout(function () { cb(token || ''); }, 0); };
@@ -507,7 +642,7 @@ window.rrFirebase = (function () {
 			askPermission()
 				.then(function (permission) {
 					if (permission !== 'granted') return '';
-					return Promise.all([boot(), worker()]).then(function (r) {
+					return Promise.all([bootMessaging(), worker()]).then(function (r) {
 						if (!r[0] || !messaging) return '';
 						return messaging.getToken({ vapidKey: cfg.vapidKey, serviceWorkerRegistration: r[1] });
 					});
@@ -621,6 +756,12 @@ const engine = new Engine(GODOT_CONFIG);
 	} else {
 		setStatusMode('progress');
 		engine.startGame({
+			// UNE SORTIE EN ERREUR du moteur (un abandon que Godot a vu venir) :
+			// rapportee comme fatale. Les abandons brutaux passent par
+			// window.onerror, plus haut.
+			'onExit': function (code) {
+				if (window.rrFirebase) window.rrFirebase.reportExit(code);
+			},
 			'onProgress': function (current, total) {
 				if (current > 0 && total > 0) {
 					const fill = Math.min(current / total, 1);

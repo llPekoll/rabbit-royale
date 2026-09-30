@@ -4,7 +4,8 @@
   notifications app fermée.
 
   Fusionné dans le manifest de l'APK par le build Gradle de Godot. Trois choses
-  y vivent, et aucune ne peut vivre ailleurs :
+  y vivent, et aucune ne peut vivre ailleurs (plus les défauts de consentement
+  et de Crashlytics, plus bas, qui ne se règlent QUE par meta-data) :
 
   1. Le meta-data `org.godotengine.plugin.v2.RabbitFirebase` : Godot ne scanne
      pas les classes, il lit ce préfixe dans le manifest fusionné. Sans lui
@@ -72,6 +73,56 @@
           android.notification.channel_id ; un message data-only, lui, passe
           toujours par le service et choisit son canal via data.channel.
         -->
+        <!--
+          CONSENT MODE v2 : TOUT EST REFUSÉ TANT QUE LE JEU N'A RIEN DIT.
+
+          Ces quatre valeurs ne valent que jusqu'au premier setConsent() (voir
+          le plugin) ; ensuite le SDK retient la dernière réponse d'un lancement
+          à l'autre. Le GDScript accorde au démarrage pour un joueur hors UE,
+          ou après l'écran de consentement pour un joueur UE. Partir de
+          « refusé » plutôt que d'« accordé » : un joueur européen qui ferme
+          le jeu avant de répondre ne doit rien avoir laissé derrière lui.
+
+          Le nom de la quatrième est bien `…_ad_personalization_signals`, pas
+          `…_ad_personalization` : c'est celui que lit play-services-measurement
+          (relevé dans ses classes). Un nom faux est ignoré EN SILENCE, et la
+          personnalisation partirait « accordée » par défaut.
+
+          ON NE COUPE PAS LA COLLECTE (firebase_analytics_collection_enabled
+          reste à son défaut, vrai), et c'est voulu : consentement refusé, le
+          SDK n'écrit plus d'identifiant d'instance et n'envoie que des pings
+          sans cookie, dont Google modélise les conversions et l'audience.
+          Couper la collecte, ce serait perdre même ces pings — et l'entonnoir
+          du tuto pour tous les joueurs qui n'ont pas encore répondu.
+        -->
+        <meta-data
+            android:name="google_analytics_default_allow_analytics_storage"
+            android:value="false" />
+        <meta-data
+            android:name="google_analytics_default_allow_ad_storage"
+            android:value="false" />
+        <meta-data
+            android:name="google_analytics_default_allow_ad_user_data"
+            android:value="false" />
+        <meta-data
+            android:name="google_analytics_default_allow_ad_personalization_signals"
+            android:value="false" />
+
+        <!--
+          CRASHLYTICS : TOUJOURS ALLUMÉ, HORS CONSENTEMENT.
+
+          C'est déjà le défaut ; l'écrire rend la décision visible. Un rapport
+          de plantage relève de l'intérêt légitime (faire marcher le jeu), pas
+          du consentement publicitaire ou analytique — la politique de
+          confidentialité le dit. Le jour où il faudra le soumettre au
+          consentement : passer ceci à false, et appeler
+          FirebaseCrashlytics.setCrashlyticsCollectionEnabled(true) depuis le
+          plugin quand le joueur accepte.
+        -->
+        <meta-data
+            android:name="firebase_crashlytics_collection_enabled"
+            android:value="true" />
+
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
             android:resource="@drawable/rr_notification_icon" />

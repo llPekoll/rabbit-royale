@@ -30,6 +30,18 @@ export const vi: Dict = {
     description: 'Dò mìn đối kháng. Đào, tích trữ, đi cướp, đội vương miện.',
   },
   lang: { label: 'Ngôn ngữ' },
+  consent: {
+    title: 'Trước khi đào',
+    body: 'Cho phép đo cách bạn chơi? Màn hình, lượt chạm và quảng cáo đưa bạn đến đây. Nhờ vậy biết cần sửa gì. Không bán dữ liệu.',
+    crash: 'Báo cáo sự cố luôn được gửi: chỉ để sửa lỗi.',
+    later: 'Đổi ý bất cứ lúc nào trong hồ sơ.',
+    isOn: 'Hiện tại: đã đồng ý.',
+    isOff: 'Hiện tại: đã từ chối.',
+    policy: 'Chính sách quyền riêng tư',
+    accept: 'Đồng ý',
+    refuse: 'Từ chối',
+    settings: 'Quyền riêng tư',
+  },
 
   auth: {
     connect: 'Kết nối ví',

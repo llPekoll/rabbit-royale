@@ -12,6 +12,18 @@
 	"lang": {
 		"label": "Idioma"
 	},
+	"consent": {
+		"title": "Antes de cavar",
+		"body": "Podemos medir como você joga? Telas, toques e o anúncio que te trouxe aqui. Isso mostra o que consertar. Nada é vendido.",
+		"crash": "Relatórios de falha são sempre enviados: servem só para corrigir bugs.",
+		"later": "Mude de ideia quando quiser, no seu perfil.",
+		"isOn": "Agora: aceito.",
+		"isOff": "Agora: recusado.",
+		"policy": "Política de privacidade",
+		"accept": "Aceitar",
+		"refuse": "Recusar",
+		"settings": "Privacidade"
+	},
 	"auth": {
 		"connect": "Conectar carteira",
 		"connecting": "Cavando...",
