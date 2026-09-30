@@ -12,7 +12,7 @@ const HAND := preload("res://assets/ui/cursors/hand.png")
 ## Le bout du doigt dans l'image (cursors.gd : le point chaud de la main).
 const TIP := Vector2(5, 0)
 const SIZE := 1.0
-const GLIDE_S := 0.32
+const GLIDE_S := 0.24
 const PRESS_S := 0.09
 
 var _hand: Sprite2D

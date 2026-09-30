@@ -15,8 +15,8 @@ extends Node
 
 ## Le temps entre deux gestes : un joueur qui lit, pas un bot. La lecon plus
 ## lente : ses legendes doivent se lire a l'ecran.
-const BEAT_S := 0.75
-const LESSON_BEAT_S := 1.0
+const BEAT_S := 0.35
+const LESSON_BEAT_S := 0.5
 ## Combien de bombes marquer d'une croix, et sur laquelle sauter, dans la
 ## partie en ligne : les deux gestes du jeu, une fois chacun au moins.
 const SHOW_MARKS := 3
@@ -163,9 +163,9 @@ func _tutorial() -> void:
 		if not board.is_flagged(bomb) and board.is_beside(here, bomb):
 			_mark_time("mark")
 			await _tap_control(island.get("_mark"))
-			await _wait(0.9)
+			await _wait(0.45)
 			await _tap(_cell_on_screen(island, bomb))
-			await _wait(1.2)
+			await _wait(0.6)
 			continue
 		var goal := bomb if not board.is_flagged(bomb) else chest
 		var best := Vector2i(-1, -1)
@@ -194,7 +194,7 @@ func _to_dig() -> void:
 	await _until(func() -> bool:
 		var signs: Dictionary = marks.get("_signs")
 		return signs.has("dig") and (signs["dig"] as Control).is_visible_in_tree(), 20.0)
-	await _wait(3.0)
+	await _wait(2.2)
 	_mark_time("tap-dig")
 	await _tap_control(marks.get("_signs")["dig"])
 
@@ -264,10 +264,10 @@ func _online_run() -> void:
 			_mark_time("mark")
 			var button: Control = _find("ui/mark_bomb_button").get("_button")
 			await _tap_control(button)
-			await _wait(0.6)
+			await _wait(0.4)
 			await _tap(_cell_on_screen(island, mine))
 			marked += 1
-			await _wait(1.0)
+			await _wait(0.6)
 			continue
 		# LE SAUT SUR LA BOMBE, une fois, pour la voir sauter.
 		if mine.x >= 0 and not blasted and marked >= SHOW_BLAST_AT and board.may_step(here, mine):

@@ -23,7 +23,7 @@ const SHIRO := "shiro-3"
 const KURO := "kuro"
 const KURO_SHEET := "res://assets/bunnies/bunny-black.png"
 ## Un pas toutes les STEP_S : lisible a l'ecran, sans trainer.
-const STEP_S := 0.85
+const STEP_S := 0.65
 
 var _burrow: Node2D
 ## La main du joueur : chaque geste de Shiro passe par elle (bench_hand.gd).

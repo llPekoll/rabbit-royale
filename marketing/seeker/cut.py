@@ -174,10 +174,14 @@ def main() -> None:
     # Jusqu'a la premiere croix en ligne (la premiere de la liste est celle
     # de la lecon), puis on coupe : le chemin varie d'un tournage a l'autre.
     m1 = t["mark"][1]
+    # La deuxieme croix aussi, quand elle suit d'assez pres.
+    stop = m1 + 4.2
+    if len(t["mark"]) > 2 and t["mark"][2] - m1 < 13.0:
+        stop = t["mark"][2] + 3.2
     island += 1.0
-    segs.append(segment(game, island, m1 + 4.2, [
+    segs.append(segment(game, island, stop, [
         (caption("dig", "DIG", "Each number counts the bombs around it. Find the chests."), 0.2, m1 - island - 0.3),
-        (caption("mark", "MARK A BOMB", "Right guess: energy. Wrong guess: it costs you.", RED), m1 - island, m1 - island + 4.0),
+        (caption("mark", "MARK A BOMB", "Right guess: energy. Wrong guess: it costs you.", RED), m1 - island, stop - island),
     ]))
     # 4. LA BOMBE SUR LAQUELLE IL SAUTE.
     blast = first("blast")
@@ -212,7 +216,7 @@ def main() -> None:
         (caption("raid", "RAID", "Walk a neighbour's burrow blind. Reach the garden."), 0.4, 6.0),
         (caption("steal", "TAKE THEIR CARROTS", "Mind their bombs on the way in.", GOLD), 6.2, 12.0),
     ], **pvp))
-    segs.append(segment(CLIPS / "raid-defend.mp4", 0.3, 16.0, [
+    segs.append(segment(CLIPS / "raid-defend.mp4", 0.3, 15.0, [
         (caption("defend", "DEFEND", "Someone's in your burrow. Bury bombs in their path.", RED), 0.8, 7.5),
         (caption("strike", "STRIKE BACK", "Tap the raider: lightning.", GOLD), 7.7, 12.2),
     ], **pvp))
