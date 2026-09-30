@@ -466,8 +466,40 @@ func defend(on: bool, finished: bool = false) -> void:
 		close_dialog()
 		if _mode != "placing" and not finished:
 			_start_mode("placing")
-	elif _mode == "placing":
-		_end_mode()
+	else:
+		alarm_off()
+		if _mode == "placing":
+			_end_mode()
+
+
+## L'ALERTE DU RAID SUBI (raid_alarm.gd) : les bords battent en rouge et des
+## lignes convergent vers le centre tant que l'intrus est chez nous. Sous les
+## tampons (premier enfant des overlays) : DEFENDED passe devant.
+var _alarm: RaidAlarm
+
+
+func alarm_on(who: String) -> void:
+	if _alarm != null and is_instance_valid(_alarm):
+		return
+	_alarm = RaidAlarm.new()
+	_alarm.who = who
+	_alarm.banner = false
+	overlays.add_child(_alarm)
+	overlays.move_child(_alarm, 0)
+	Kit.fill(_alarm)
+
+
+## Un coup chez nous (une bombe a saute sous lui) : les lignes repartent.
+func alarm_burst() -> void:
+	if _alarm != null and is_instance_valid(_alarm):
+		_alarm.burst()
+
+
+## Foudroye, a sec, reparti : l'alerte s'eteint.
+func alarm_off() -> void:
+	if _alarm != null and is_instance_valid(_alarm):
+		_alarm.finish()
+	_alarm = null
 
 
 ## LE PLATEAU DU RAID vient de monter, ou de redescendre (burrow.gd, au noir

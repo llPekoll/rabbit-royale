@@ -39,6 +39,10 @@ const BANNER_Y := Kit.TOPBAR_H * 2.0
 
 ## Le nom de l'intrus, pose avant l'entree dans l'arbre.
 var who := ""
+## LE BANDEAU, pour la video seulement : en jeu, le panneau de defense
+## (defend_hud.gd) dit deja « KURO IS RAIDING YOU », avec l'eclair dessous —
+## deux fois la meme ligne l'une sur l'autre ne crie pas plus fort.
+var banner := true
 
 var _veil: TextureRect
 var _lines: FocusLines
@@ -81,6 +85,7 @@ func _ready() -> void:
 	words.add_theme_constant_override("shadow_offset_y", 2)
 	_banner.add_child(words)
 	add_child(_banner)
+	_banner.visible = banner
 
 	resized.connect(_place)
 	_place.call_deferred()

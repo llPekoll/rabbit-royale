@@ -360,6 +360,9 @@ func _on_incoming() -> void:
 		set_raiding(true)
 		if Chrome.current != null:
 			Chrome.current.defend(true, finished)
+			if not finished:
+				var attacker: Dictionary = inc.get("attacker", {}) if inc.get("attacker") is Dictionary else {}
+				Chrome.current.alarm_on(String(attacker.get("name", "")))
 		_raider = _spawn_raider(tile)
 		_raider_at = tile
 	elif tile != _raider_at and _raider != null:
@@ -374,6 +377,8 @@ func _on_incoming() -> void:
 		_sprung_seen = sprung
 		_spring_under_raider(tile)
 		ShopState.shared().refresh()
+		if Chrome.current != null:
+			Chrome.current.alarm_burst()
 
 	# L'ECLAIR, d'ou qu'il soit parti (la tape, le bouton du HUD, un autre
 	# appareil) : la reponse du serveur dit `struck`, le plateau le joue une
@@ -383,10 +388,14 @@ func _on_incoming() -> void:
 		_ended_shown = raid_id
 		if _raider != null:
 			Electrocute.strike(_raider, self)
+		if Chrome.current != null:
+			Chrome.current.alarm_off()
 		return
 
 	if finished and _ended_shown != raid_id:
 		_ended_shown = raid_id
+		if Chrome.current != null:
+			Chrome.current.alarm_off()
 		# LA FIN, une fois : il danse sur le potager, ou il tombe a bout de
 		# forces (`finishRaid`). Le son est celui de RaidState.
 		if _raider != null:
