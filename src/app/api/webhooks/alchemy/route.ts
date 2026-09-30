@@ -30,7 +30,7 @@ import { and, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { payments } from '@/lib/db/schema';
 import { grantItem } from '@/lib/game/grant';
-import { payEnabled, treasuryAddress, usdcMint, verifyPayment } from '@/lib/pay/solana';
+import { checkPayment, payEnabled, readTransaction, treasuryAddress, usdcMint } from '@/lib/pay/solana';
 
 /** Alchemy signs every delivery with the signing key from its dashboard. */
 function signatureValid(raw: string, header: string | null): boolean {
@@ -117,11 +117,15 @@ export async function POST(req: Request) {
       limit: 50,
     });
 
+    // ONE chain read per signature, then matched against every open quote in
+    // memory. Verifying quote by quote read the same transaction once per
+    // pending payment — every player's — which is fifty calls for one transfer.
+    const chainTx = await readTransaction(signature);
+    if (!chainTx) continue;
     for (const intent of pending) {
       if (intent.expiresAt.getTime() < Date.now()) continue;
 
-      const check = await verifyPayment({
-        signature,
+      const check = checkPayment(chainTx, {
         treasury,
         mint,
         amount: intent.amount,

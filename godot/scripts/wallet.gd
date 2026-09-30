@@ -131,7 +131,10 @@ func send(tx_base64: String, cluster: String) -> String:
 	if _web != null:
 		_web.send(tx_base64, cluster, _web_callback)
 		return await _await_web()
-	if _mwa == null or not _mwa.has_method("signAndSend"):
+	# Pas de has_method ici : un JNISingleton ne declare pas ses methodes a
+	# Godot 4, has_method("signAndSend") rend TOUJOURS faux et coupait le
+	# paiement avant la feuille du wallet (2026-09-30).
+	if _mwa == null:
 		return ""
 	_mwa.signAndSend(tx_base64, cluster)
 	# Un seul argument au signal : `await` rend la chaine elle-meme.

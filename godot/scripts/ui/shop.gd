@@ -128,6 +128,8 @@ var _row: HBoxContainer
 var _track: Control
 var _foot: Label
 var _bay: Control
+## « Loading » sur l'etagere tant que le premier /api/shop n'est pas rentre.
+var _loading: Label
 var _lamp: TextureRect
 ## L'echelle des cartes (1 au Seeker), et si l'entree a deja ete jouee : les
 ## cartes tombent sur l'etagere a l'ouverture, pas a chaque achat.
@@ -170,6 +172,8 @@ func _ready() -> void:
 	# Relire l'etal a chaque ouverture, comme le montage du web (use-shop.ts) :
 	# les avoirs ont pu bouger depuis (bombe posee, eclair lance, coffre).
 	_state.refresh()
+	# Le rattrapage des paiements, UNE fois par ouverture (voir claim()).
+	_state.claim()
 	I18N.locale_changed.connect(func(_code: String) -> void: _rebuild())
 	_pay.changed.connect(_rebuild)
 	_state.bought.connect(_celebrate)
@@ -270,6 +274,12 @@ func _build() -> void:
 	lamp.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bay.add_child(lamp)
 	bay.add_child(_shelf)
+	_loading = Kit.label("", 16, Palette.BARK, true)
+	_loading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_loading.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_loading.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	Kit.fill(_loading)
+	bay.add_child(_loading)
 	bay.resized.connect(_fit_bay)
 	var pad := Kit.margin(SHELF_PAD, 0, SHELF_PAD, 0)
 	pad.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -393,6 +403,10 @@ func _rebuild() -> void:
 	_sign_text.text = I18N.shout(I18N.t("shop.title"))
 	_sign_text.uppercase = I18N.pixel_face()
 	_purse_text.text = I18N.group_digits(_state.stock())
+	_loading.text = I18N.t("err_offline") if _state.load_failed \
+		else I18N.shout(I18N.t("chrome.loading")) + "..."
+	_loading.uppercase = I18N.pixel_face()
+	_loading.visible = not _state.loaded()
 
 	var tokens := _live_tokens()
 	if _rail != "carrots" and not tokens.has(_rail):
@@ -758,7 +772,7 @@ static func _card_total(k: float) -> float:
 ## L'ART D'UNE SORTE, dans une boite a sa taille : le sprite avec son ombre
 ## portee, l'emoji des sortes sans sprite, ou l'initiale — et ca se voit :
 ## ces sortes veulent un dessin.
-func _art(kind: String, item_name: String, tint: Color, px: float) -> Control:
+static func _art(kind: String, item_name: String, tint: Color, px: float) -> Control:
 	var box := Control.new()
 	box.custom_minimum_size = Vector2(px, px)
 	box.size = box.custom_minimum_size
@@ -866,10 +880,11 @@ func _enter() -> void:
 		i += 1
 
 
-## UN ACHAT SE FETE sur la carte achetee : l'art saute et une gerbe
-## d'eclats dores part de lui. Le recu en mots est deja au pied et en
-## pastille ; ceci est ce que le pouce sent.
-func _celebrate(kind: String, _qty: int) -> void:
+## UN ACHAT SE FETE sur tout l'ecran (purchase_reveal.gd), et sur la carte
+## achetee : l'art saute et une gerbe d'eclats dores part de lui, pour qui
+## la retrouve en fermant la fete. Le recu en mots est au pied et en pastille.
+func _celebrate(kind: String, qty: int) -> void:
+	PurchaseReveal.announce(kind, qty)
 	for card in _row.get_children():
 		if card.get_meta("kind", "") != kind:
 			continue
@@ -1177,25 +1192,25 @@ class UsdcPay:
 
 		_to(Stage.CONFIRMING)
 		var payment_id := String(quote.body.get("paymentId", ""))
-		# Le serveur peut regarder avant que la transaction ait atterri : un
-		# 202 veut dire « pas encore », pas « non ». Douze essais, puis la main
-		# au joueur — le balayage de l'etal creditera au prochain passage.
-		for _attempt in 12:
-			var res: Answer = await Net.send_json("/api/shop/pay", HTTPClient.METHOD_PATCH,
-				{"paymentId": payment_id, "signature": signature}, Session.token)
-			if res.ok and not res.body.has("error"):
-				_to(Stage.DONE)
-				var shop := ShopState.shared()
-				shop.shop = res.body
-				shop.refresh()
-				Home.refresh()
-				var bought: Dictionary = res.body.get("bought", {})
-				shop.bought.emit(String(bought.get("kind", kind)), int(bought.get("qty", qty)))
-				_to(Stage.IDLE)
-				return res.body
-			if not bool(res.body.get("retry", false)):
-				return _fail(_confirm_error(res))
-			await (Engine.get_main_loop() as SceneTree).create_timer(2.5).timeout
+		# UN appel : le serveur attend que la chaine SIGNALE la confirmation
+		# (awaitConfirmation, un abonnement, pas un sondage) puis lit la
+		# transaction une fois. Plus de douze essais toutes les 2,5 s. Un 202
+		# veut dire « pas encore » : le webhook, ou le rattrapage a la prochaine
+		# ouverture de l'etal, creditera.
+		var res: Answer = await Net.send_json("/api/shop/pay", HTTPClient.METHOD_PATCH,
+			{"paymentId": payment_id, "signature": signature}, Session.token)
+		if res.ok and not res.body.has("error"):
+			_to(Stage.DONE)
+			var shop := ShopState.shared()
+			shop.shop = res.body
+			shop.refresh()
+			Home.refresh()
+			var bought: Dictionary = res.body.get("bought", {})
+			shop.bought.emit(String(bought.get("kind", kind)), int(bought.get("qty", qty)))
+			_to(Stage.IDLE)
+			return res.body
+		if not bool(res.body.get("retry", false)) and res.error() != "offline":
+			return _fail(_confirm_error(res))
 		return _fail(I18N.t("pay.stillConfirming"))
 
 	func _to(s: Stage) -> void:

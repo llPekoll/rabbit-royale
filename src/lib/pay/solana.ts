@@ -25,7 +25,8 @@
  * is what stops a stranger's transaction being claimed.
  */
 import {
-  Connection, PublicKey, SystemProgram, Transaction, TransactionInstruction,
+  type ConfirmedSignatureInfo, Connection, PublicKey, SystemProgram, Transaction,
+  TransactionInstruction,
 } from '@solana/web3.js';
 import {
   TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID, createAssociatedTokenAccountIdempotentInstruction,
@@ -78,7 +79,19 @@ let _connection: Connection | null = null;
 export function connection(): Connection {
   const url = rpcUrl();
   if (!url) throw new Error('SOLANA_RPC_URL must be set to take payments');
-  if (!_connection) _connection = new Connection(url, USDC.COMMITMENT);
+  // No retry on a 429. web3.js otherwise backs off 0.5 → 4 s and tries again,
+  // INSIDE the request: a rate-limited sweep held GET /api/shop past the
+  // client's patience and the shop never opened (2026-09-30, first day on
+  // mainnet). Every caller here already treats an RPC failure as "don't know
+  // yet" and lets the next visit try again.
+  if (!_connection) {
+    _connection = new Connection(url, {
+      commitment: USDC.COMMITMENT,
+      disableRetryOnRateLimit: true,
+      // How long awaitConfirmation listens before handing over to the webhook.
+      confirmTransactionInitialTimeout: CONFIRM_WAIT_MS,
+    });
+  }
   return _connection;
 }
 
@@ -147,8 +160,7 @@ function splReceived(
   return pick(tx.meta?.postTokenBalances) - pick(tx.meta?.preTokenBalances);
 }
 
-export async function verifyPayment(opts: {
-  signature: string;
+export type PaymentCheck = {
   treasury: PublicKey;
   /**
    * The SPL mint that must have moved, or null for NATIVE SOL.
@@ -163,14 +175,41 @@ export async function verifyPayment(opts: {
   amount: number;
   /** The quote's reference, expected in the transaction's memo. */
   reference: string;
-}): Promise<VerifyResult> {
+};
+
+/**
+ * Wait until the chain SAYS the transaction is confirmed — a signatureSubscribe
+ * over the RPC's websocket, one status check once subscribed, then silence
+ * until the notification. The confirm route used to be polled by the client
+ * (twelve tries, each a getTransaction); now it reads the transaction once,
+ * after this. False on a timeout or a failed transaction: the webhook, or the
+ * claim on the next shop opening, takes it from there.
+ */
+export async function awaitConfirmation(signature: string): Promise<boolean> {
+  try {
+    const res = await connection().confirmTransaction(signature, 'confirmed');
+    return !res.value.err;
+  } catch {
+    return false;
+  }
+}
+// Under the client's 10 s request timeout (godot/scripts/net.gd). A confirmation
+// takes 1-2 s; past this, the webhook credits it.
+const CONFIRM_WAIT_MS = 8_000;
+
+export async function verifyPayment(opts: PaymentCheck & { signature: string }): Promise<VerifyResult> {
+  return checkPayment(await readTransaction(opts.signature), opts);
+}
+
+/** The transaction behind a signature, or null when it has not landed, does
+ *  not exist, or the RPC could not say — all three mean "not yet". */
+export async function readTransaction(signature: string): Promise<ChainTx | null> {
   // The RPC THROWS on a malformed signature rather than returning null, and a
   // signature is a client-supplied string — so an unhandled throw here is a 500
   // on the payment route for anyone who sends junk. A signature the chain will
   // not even look up is, for our purposes, a transaction that does not exist.
-  let tx: Awaited<ReturnType<Connection['getTransaction']>>;
   try {
-    tx = await connection().getTransaction(opts.signature, {
+    return await connection().getTransaction(signature, {
       commitment: 'confirmed',
       maxSupportedTransactionVersion: 0,
     });
@@ -179,9 +218,16 @@ export async function verifyPayment(opts: {
     // reporting it as 'not_found' tells the caller to retry, which is right,
     // and never marks a real payment failed.
     console.warn('[pay] getTransaction failed', err);
-    return { ok: false, reason: 'not_found' };
+    return null;
   }
+}
+type ChainTx = NonNullable<Awaited<ReturnType<Connection['getTransaction']>>>;
 
+/**
+ * Does this transaction pay this quote? No RPC: a caller holding one
+ * transaction and many open quotes (the webhook) reads the chain once.
+ */
+export function checkPayment(tx: ChainTx | null, opts: PaymentCheck): VerifyResult {
   // Not landed yet, or never existed. The caller retries; it is not a failure.
   if (!tx || !tx.meta) return { ok: false, reason: 'not_found' };
   // A transaction can land and still have reverted — its balances would be
@@ -204,6 +250,25 @@ export async function verifyPayment(opts: {
   if (received < opts.amount) return { ok: false, reason: 'no_matching_transfer' };
 
   return { ok: true, received };
+}
+
+/**
+ * The treasury's latest signatures, or null when the RPC could not say.
+ *
+ * An RPC that is down says nothing about whether the player paid: callers give
+ * up quietly and let the next visit try again — never mark a quote failed on
+ * the strength of a network error.
+ */
+export async function treasurySignatures(
+  treasury: PublicKey,
+  limit = 40,
+): Promise<ConfirmedSignatureInfo[] | null> {
+  try {
+    return await connection().getSignaturesForAddress(treasury, { limit });
+  } catch (err) {
+    console.warn('[pay] getSignaturesForAddress failed', err);
+    return null;
+  }
 }
 
 /**
@@ -230,19 +295,14 @@ export async function findPaidSignature(opts: {
   /** Only look at transactions after the quote was issued. */
   since: Date;
   limit?: number;
+  /** The treasury's listing, already read — a sweep over several quotes reads
+   *  it once for all of them rather than once each. */
+  listing?: ConfirmedSignatureInfo[] | null;
 }): Promise<string | null> {
-  let signatures;
-  try {
-    signatures = await connection().getSignaturesForAddress(opts.treasury, {
-      limit: opts.limit ?? 40,
-    });
-  } catch (err) {
-    // An RPC that is down says nothing about whether the player paid. Give up
-    // quietly and let the next visit try again — never mark a quote failed on
-    // the strength of a network error.
-    console.warn('[pay] getSignaturesForAddress failed', err);
-    return null;
-  }
+  const signatures = opts.listing !== undefined
+    ? opts.listing
+    : await treasurySignatures(opts.treasury, opts.limit);
+  if (!signatures) return null;
 
   const floor = Math.floor(opts.since.getTime() / 1000);
   for (const entry of signatures) {

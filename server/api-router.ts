@@ -60,6 +60,7 @@ const ROUTES: Record<string, () => Promise<ModuleRoute>> = {
   '/api/rpc': () => import('../src/app/api/rpc/route'),
   '/api/shop': () => import('../src/app/api/shop/route'),
   '/api/shop/pay': () => import('../src/app/api/shop/pay/route'),
+  '/api/shop/claim': () => import('../src/app/api/shop/claim/route'),
   '/api/traps': () => import('../src/app/api/traps/route'),
   '/api/webhooks/alchemy': () => import('../src/app/api/webhooks/alchemy/route'),
 };

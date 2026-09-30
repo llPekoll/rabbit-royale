@@ -51,6 +51,7 @@ import {
   crownHolderId, markConnected, markDisconnected, markOffline, markOnline, setScore,
 } from '../src/lib/leaderboard';
 import { purgeOrphanGuests } from '../src/lib/auth/abandon';
+import { PRICE_REFRESH_MS, refreshTokenPrices } from '../src/lib/pay/rates';
 import { guard, installProcessGuards, optional } from './resilience';
 
 const PORT = Number(process.env.WS_PORT ?? 3010);
@@ -1943,6 +1944,14 @@ const checkSeason = () => optional('rolloverSeason', async () => {
 });
 void checkSeason();
 setInterval(() => { void checkSeason(); }, 10 * 60_000).unref();
+
+/**
+ * THE TOKEN PRICES, on a timer rather than on a player's request: the shop and
+ * the quote read them from memory (src/lib/pay/rates.ts), so a slow price feed
+ * never holds a shop open.
+ */
+void refreshTokenPrices();
+setInterval(() => { void refreshTokenPrices(); }, PRICE_REFRESH_MS).unref();
 
 /**
  * Le port occupe doit le DIRE.

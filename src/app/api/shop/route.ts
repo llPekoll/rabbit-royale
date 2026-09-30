@@ -24,7 +24,6 @@ import { TRAPS } from '@config/tuning';
 import { enabledTokens } from '@/lib/pay/tokens';
 import { tokenUsdPrices } from '@/lib/pay/rates';
 import { treasuryAddress } from '@/lib/pay/solana';
-import { claimUnfinishedPayments } from './pay/route';
 
 /** Everything the shop screen needs, in one round trip. */
 export async function shopState(playerId: string) {
@@ -114,23 +113,11 @@ export async function GET(req: Request) {
   // garde la lecture de la base hors du chemin critique de l'affichage.
   refreshTuningIfStale();
 
-  // Before anything else: did they pay for something and never come back for
-  // it? A player who closes the tab between signing and confirming has money on
-  // chain and nothing in their bag, and the shop is exactly where they will
-  // next look for it. Failures here are swallowed — a sweep that cannot run is
-  // not a reason to refuse someone their shop.
-  let recovered: { kind: string; qty: number }[] = [];
-  try {
-    recovered = await claimUnfinishedPayments(session.sub);
-  } catch (err) {
-    console.error('[shop] claiming unfinished payments failed', err);
-  }
-
+  // No chain reads here: this is read from six places in the client. Unclaimed
+  // payments are swept by POST /api/shop/claim, which the shop calls on opening.
   const state = await shopState(session.sub);
   if (!state) return Response.json({ error: 'unknown player' }, { status: 404 });
-  // Named rather than left for the player to notice a changed number: money
-  // that arrives silently reads as money that went missing.
-  return Response.json({ ...state, recovered });
+  return Response.json(state);
 }
 
 /** `{ kind, qty? }` — buys with CARROTS. Money goes through api/shop/pay. */

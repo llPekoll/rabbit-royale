@@ -23,7 +23,9 @@ import { grantItem } from '@/lib/game/grant';
 import { USDC, usdcBaseUnits } from '@config/tuning';
 import { PublicKey } from '@solana/web3.js';
 import {
-  buildPaymentTx, cluster, findPaidSignature, mintFor, payEnabled, treasuryAddress,
+  awaitConfirmation, buildPaymentTx, cluster, findPaidSignature, mintFor, payEnabled,
+  treasuryAddress,
+  treasurySignatures,
   verifyPayment,
 } from '@/lib/pay/solana';
 import {
@@ -220,6 +222,8 @@ export async function PATCH(req: Request) {
   // a lamport transfer be checked against token balances (and pass by finding
   // nothing to contradict it).
   const paidToken: PayTokenId = isPayTokenId(intent.token) ? intent.token : 'usdc';
+  // Read the transaction ONCE, when the chain has said it landed — not polled.
+  await awaitConfirmation(signature);
   const check = await verifyPayment({
     signature,
     treasury: treasuryAddress()!,
@@ -317,6 +321,9 @@ export async function claimUnfinishedPayments(playerId: string): Promise<
   const treasury = treasuryAddress()!;
   const now = Date.now();
   const credited: { kind: string; qty: number }[] = [];
+  // Every quote pays the same treasury: one listing answers them all. Read
+  // lazily, so a sweep that only finds expired quotes costs no RPC at all.
+  let listing: Awaited<ReturnType<typeof treasurySignatures>> | undefined;
 
   for (const intent of pending) {
     // An expired quote is swept rather than searched: the price it named is no
@@ -326,10 +333,12 @@ export async function claimUnfinishedPayments(playerId: string): Promise<
       continue;
     }
 
+    listing ??= await treasurySignatures(treasury);
     const signature = await findPaidSignature({
       treasury,
       reference: intent.reference,
       since: intent.createdAt,
+      listing,
     });
     // Not paid, or the RPC could not say. Either way this quote is left alone
     // to be tried again on the next visit.

@@ -35,6 +35,8 @@ extends Node
 ## L'etal, les pieges, les clotures ou le mot du moment ont change. Sans
 ## argument : un ecouteur relit ce qu'il veut sur `shop`, `traps`, `fences`.
 signal changed
+## Une des trois lectures de `refresh` est rentree.
+signal _refresh_in
 
 ## Une phrase a montrer, et si c'est un refus (`setNote` du web).
 signal noted(text: String, refused: bool)
@@ -157,6 +159,11 @@ func _on_session_changed() -> void:
 		changed.emit()
 
 
+## La derniere lecture de /api/shop a echoue : l'etal vide dit « hors ligne »
+## plutot que « Loading » pour toujours.
+var load_failed := false
+
+
 func loaded() -> bool:
 	return not shop.is_empty()
 
@@ -166,16 +173,47 @@ func loaded() -> bool:
 func refresh() -> void:
 	if _fake or not Session.signed_in():
 		return
-	var s: Answer = await Net.get_json("/api/shop", Session.token)
-	var t: Answer = await Net.get_json("/api/traps", Session.token)
-	var f: Answer = await Net.get_json("/api/fences", Session.token)
-	if s.ok and not s.body.has("error"):
+	# Trois appels LANCES ensemble, puis attendus : les enchainer faisait
+	# trois allers-retours de suite, 3-4 s a l'ouverture au Seeker. Chaque
+	# appel a son propre HTTPRequest (net.gd), rien ne se marche dessus. Le
+	# tableau est partage par reference — une lambda gele un entier capture.
+	var got: Array = [null, null, null]
+	var paths := ["/api/shop", "/api/traps", "/api/fences"]
+	for i in paths.size():
+		(func() -> void:
+			got[i] = await Net.get_json(paths[i], Session.token)
+			_refresh_in.emit()).call()
+	# En boucle : deux relectures en vol partagent le signal, et le reveil
+	# d'une autre ne veut pas dire que les trois de CELLE-CI sont la.
+	while got.has(null):
+		await _refresh_in
+	var s: Answer = got[0]
+	var t: Answer = got[1]
+	var f: Answer = got[2]
+	load_failed = not s.ok or s.body.has("error")
+	if not load_failed:
 		shop = s.body
 	if t.ok and not t.body.has("error"):
 		traps = t.body
 	if f.ok and not f.body.has("error"):
 		fences = f.body
 	changed.emit()
+
+
+## RECLAMER ce qui a ete paye sans etre confirme (l'app fermee entre la
+## signature et la confirmation). Une fois, a l'ouverture de la boutique : c'est
+## la seule route qui lit la chaine, et /api/shop, lu de six endroits, ne le
+## fait plus. Un achat rattrape se fete comme un achat.
+func claim() -> void:
+	if _fake or not Session.signed_in():
+		return
+	var answer: Answer = await Net.post_json("/api/shop/claim", {}, Session.token)
+	var recovered: Array = answer.body.get("recovered", []) if answer.ok else []
+	if recovered.is_empty():
+		return
+	await refresh()
+	for it in recovered:
+		bought.emit(String(it.get("kind", "")), int(it.get("qty", 1)))
 
 
 ## ACHETER EN CAROTTES. La reponse porte le nouvel etal, donc rien n'est

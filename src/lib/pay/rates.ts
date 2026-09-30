@@ -20,6 +20,8 @@
  *    It never degrades to zero, which would make everything free.
  */
 import { PAY_TOKENS, PAY_TOKEN_IDS, mintAddressFor, type PayTokenId } from './tokens';
+// Relative, not `@/`: the WS server bundles this module too.
+import { redis } from '../leaderboard';
 
 /**
  * Jupiter's price API, keyed by MINT.
@@ -89,7 +91,6 @@ function priceMint(id: PayTokenId): string | null {
   return mintAddressFor(id);
 }
 
-const CACHE_TTL_MS = 5 * 60_000;
 let cache: { prices: Partial<Record<PayTokenId, number>>; at: number } | null = null;
 /** The last price that passed its band, per token — the first fallback. */
 const lastGood: Partial<Record<PayTokenId, number>> = {};
@@ -102,15 +103,43 @@ function believable(id: PayTokenId, price: number): boolean {
 }
 
 /**
- * Current USD price per token. Cached briefly in-process: a quote is not worth
- * a network round trip each time, and a five-minute-old SOL price cannot move
- * a $0.25 purchase enough to matter.
+ * Current USD price per token, from memory — never a fetch on a player's
+ * request once the server is warm. `refreshTokenPrices` keeps it current on a
+ * timer (server/index.ts), and Redis carries the last read across a restart.
+ * Only the very first read of a cold process with an empty Redis waits for the
+ * feed.
  */
 export async function tokenUsdPrices(): Promise<Record<PayTokenId, number>> {
-  if (cache && Date.now() - cache.at < CACHE_TTL_MS) {
-    return { ...FALLBACK_USD, ...lastGood, ...cache.prices };
+  if (!cache) {
+    const stored = await readStored();
+    if (stored) {
+      cache = { prices: stored.prices, at: stored.at };
+      Object.assign(lastGood, stored.lastGood);
+    }
   }
+  if (!cache) return refreshTokenPrices();
+  return { ...FALLBACK_USD, ...lastGood, ...cache.prices };
+}
 
+/** Every thirty seconds, from the server's timer. SOL and SKR do not move a
+ *  $0.25 purchase in that time, and Jupiter's free tier is far from it. */
+export const PRICE_REFRESH_MS = 30_000;
+const PRICES_KEY = 'rr:prices';
+
+async function readStored(): Promise<
+  { prices: Partial<Record<PayTokenId, number>>; lastGood: Partial<Record<PayTokenId, number>>; at: number } | null
+> {
+  try {
+    const raw = await (await redis())?.get(PRICES_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    console.warn('[rates] could not read stored prices', e);
+    return null;
+  }
+}
+
+/** Read the feed once and keep the answer — in memory and in Redis. */
+export async function refreshTokenPrices(): Promise<Record<PayTokenId, number>> {
   const prices: Partial<Record<PayTokenId, number>> = { ...FIXED_USD };
 
   // Only the oracle-priced rails, and only those this deployment configured:
@@ -162,6 +191,11 @@ export async function tokenUsdPrices(): Promise<Record<PayTokenId, number>> {
   }
 
   cache = { prices, at: Date.now() };
+  try {
+    await (await redis())?.set(PRICES_KEY, JSON.stringify({ ...cache, lastGood }));
+  } catch (e) {
+    console.warn('[rates] could not store prices', e);
+  }
   return { ...FALLBACK_USD, ...lastGood, ...prices };
 }
 
