@@ -8,6 +8,7 @@ extends Node2D
 ##   ... -- --grab=house     # la maison prise
 ##   ... -- --drop           # et pose sur la premiere case allumee
 ##   ... -- --seed=paul --size=890x400
+##   ... -- --ground=burrow-g42    # un sol candidat (tools/burrow-ground-pick.ts)
 ##
 ## Rien ne part au serveur : « valider » repondrait hors ligne.
 
@@ -24,6 +25,8 @@ func _ready() -> void:
 			seed_text = arg.trim_prefix("--seed=")
 		elif arg.begins_with("--grab="):
 			grab = arg.trim_prefix("--grab=")
+		elif arg.begins_with("--ground="):
+			BurrowLayout.ground_override = arg.trim_prefix("--ground=")
 		elif arg == "--drop":
 			drop = true
 		elif arg == "--hold":

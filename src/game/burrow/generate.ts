@@ -1,15 +1,16 @@
 /**
- * A burrow's ground, grown from a seed instead of painted once.
+ * A burrow: ONE ground for everyone, the owner's own scenery on it.
  *
- * Until now every burrow was the same 19x19 picture: one hand-drawn ASCII
- * layout calibrated against one painting, identical for every player. That
- * made a raid a memory test — cross one burrow and you have crossed them all,
- * because the rocks, the door and the field were in the same place in each of
- * them. The only thing that ever differed was where the traps were.
- *
- * Here the homestead is cut from the player's own seed, on the same tile
- * terrain the island already uses (`game/island/generate`), so two burrows are
- * two different places and a raider has to actually read the ground.
+ * The ground went from one hand-drawn ASCII layout (identical for every
+ * player), to a homestead cut from each player's seed (so a raider could not
+ * learn one route and reuse it), and back to ONE ground on 2026-09-30: the
+ * user's call, so that a single homestead and its crossing can be designed —
+ * a beautiful place and a fair route — and balanced once. The land, its
+ * shelves, the entrance, the carrot field and the house are cut from
+ * `BURROW_GROUND` and are the same in every burrow. What stands on them —
+ * trees, bushes, rocks, clutter — is scattered from the OWNER's seed, and the
+ * owner can move it (`editBurrow`), so no two burrows are crossed the same
+ * way: the trees move the route, and the bombs are the owner's secret.
  *
  * ## What a burrow needs that an island does not
  *
@@ -23,19 +24,20 @@
  *   - every walkable cell connected to the entrance, or the defender's trap
  *     budget is spent on ground nobody can walk.
  *
- * So generation is a LOOP, not a single draw: a candidate terrain is cut from
- * the seed, the landmarks are placed on it, and the result is measured. A
- * candidate that fails is not patched — it is thrown away and the next one is
- * cut from the next seed in the stream. That keeps every burrow honestly
- * generated rather than generated-then-bulldozed, and it keeps the invariants
- * total: if `burrowTerrain` returns, its promises hold.
+ * The shared ground is checked once and must hold them bare (it throws if
+ * not: a ground that cannot be crossed is a bug in the constant). The
+ * scenery is then a LOOP: a draw that closes the field off or pushes the
+ * crossing past `MAX_CROSSING` is thrown away and the next one is drawn from
+ * the next seed in the stream, down to bare ground if nothing fits.
  *
  * Deliberately free of Pixi, like the island's generator, and deterministic in
- * the seed alone — the server validates raids against this and the browser
+ * the seed alone — the server validates raids against this and the client
  * draws it, and no terrain crosses the wire. Same trick as `terrainBoard.ts`.
+ * Godot grows the same burrow (`burrow_layout.gd`), checked by the fixture
+ * `tools/export-godot-burrow-fixture.ts`.
  */
 import { mulberry32, seedFrom, type Rng } from '@/lib/game/rng';
-import { generateTerrain, type Placement } from '@/game/island/terrain';
+import { generateTerrain, scatterDecor, type Placement } from '@/game/island/terrain';
 import { levelAt, type IslandMap } from '@/game/island/generate';
 import { blocksCell } from '@/game/island/blocking';
 import { TRAPS } from '@config/tuning';
@@ -49,6 +51,19 @@ import { TRAPS } from '@config/tuning';
  * patch of somebody's garden, so the dimensions stay put and only what is ON
  * them is now generated.
  */
+/**
+ * The ground every burrow is cut from (2026-09-30). Changing it moves every
+ * cell of every burrow: the bombs, planks and edits stored by tile index
+ * would land somewhere else, so a change ships with a refund of all of them
+ * (`scripts/reset-burrows.ts`). Godot holds the same constant.
+ *
+ * `burrow-g285`: picked by the user from the four candidates
+ * `tools/burrow-ground-pick.ts` measured (a shelf, an 11-step crossing, the
+ * raid settings of 2026-09-30 landing close to their targets), with the
+ * entrance at the foot of the screen and the field at the top.
+ */
+export const BURROW_GROUND = 'burrow-g285';
+
 export const BURROW_COLS = 19;
 export const BURROW_ROWS = 19;
 
@@ -177,30 +192,54 @@ const STEPS: readonly (readonly [number, number])[] = [
 const MAX_STEP = 1;
 
 /**
- * Grow the burrow for a seed.
+ * Grow the burrow for a seed: the shared ground, and the owner's scenery.
  *
  * Deterministic: the same seed always yields the same homestead, on a server
- * with no canvas and in a browser. Throws only if `MAX_ATTEMPTS` terrains in a
- * row fail to hold the invariants, which the shape parameters above are chosen
- * to make vanishingly unlikely — and which is a bug to fix rather than a case
- * to handle, since a player whose burrow cannot be built cannot be raided.
+ * with no canvas and in a client. Never throws for a player seed — past
+ * `MAX_ATTEMPTS` draws of scenery the burrow is bare ground, which always
+ * holds (`sharedGround` checked it) — only for a ground that cannot be built.
  */
-export function burrowTerrain(seed: string): BurrowTerrain {
+export function burrowTerrain(seed: string, ground: string = BURROW_GROUND): BurrowTerrain {
+  const shared = sharedGround(ground);
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    const built = tryBuild(seed, attempt);
+    const decoSeed = attempt === 0 ? `${seed}:burrow` : `${seed}:burrow:${attempt}`;
+    const built = dress(shared, seed, scatterDecor(shared.map, decoSeed));
     if (built) return built;
   }
-  throw new Error(`burrow terrain: no layout for seed "${seed}" in ${MAX_ATTEMPTS} attempts`);
+  return dress(shared, seed, [])!;
 }
 
-/** One candidate: cut the terrain, place the landmarks, measure the crossing. */
-function tryBuild(seed: string, attempt: number): BurrowTerrain | null {
-  // The attempt number rides in the terrain's seed rather than in a counter
-  // outside it, so attempt 3 of one player's burrow is a genuinely different
-  // draw and not the same island nudged.
-  const terrainSeed = attempt === 0 ? `${seed}:burrow` : `${seed}:burrow:${attempt}`;
-  const { map, placements } = generateTerrain({
-    seed: terrainSeed,
+/** The part of a burrow every player shares. */
+export interface SharedGround {
+  map: IslandMap;
+  entrance: number;
+  field: number[];
+  house: number;
+  /** Steps in the crossing on bare ground. */
+  crossing: number;
+}
+
+const grounds = new Map<string, SharedGround>();
+
+/**
+ * The ground, its entrance, its field and its house — measured bare, once
+ * per ground, and cached. Throws when the ground cannot hold a crossing:
+ * `BURROW_GROUND` is chosen, never drawn, and a ground that fails is a bug.
+ */
+export function sharedGround(ground: string = BURROW_GROUND): SharedGround {
+  const cached = grounds.get(ground);
+  if (cached) return cached;
+  const built = buildGround(ground);
+  if (typeof built === 'string') throw new Error(`burrow ground "${ground}": ${built}`);
+  grounds.set(ground, built);
+  return built;
+}
+
+/** Measure a ground, or say why it cannot be a burrow. Exported for the tool that picks one. */
+export function buildGround(ground: string): SharedGround | string {
+  const groundSeed = `${ground}:burrow`;
+  const { map } = generateTerrain({
+    seed: groundSeed,
     width: BURROW_COLS,
     height: BURROW_ROWS,
     tiers: TIERS,
@@ -208,65 +247,136 @@ function tryBuild(seed: string, attempt: number): BurrowTerrain | null {
     rise: RISE,
     raggedness: RAGGEDNESS,
     inhabitedShare: INHABITED_SHARE,
+    scenery: false,
   });
+  // ONE HEIGHT, THE GARDEN'S (2026-09-30, the user's layout): the shelves
+  // the noise raised are flattened — the ones by the door read as steps up
+  // to nothing — and the only relief left is the one built under the field.
+  flatten(map);
+  const body = mainBody(map, walkableWith(map, []));
+  if (body.size < MIN_BODY) return 'body_too_small';
 
-  // The main body, so a cove cut off by a cliff is not counted as ground the
-  // defender should be mining.
-  const first = mainBody(map, walkableWith(map, placements));
-  if (first.size < MIN_BODY) return null;
+  const entrance = pickEntrance(map, body);
+  if (entrance === null) return 'no_entrance';
+  const field = pickField(map, body, entrance);
+  if (field.length < FIELD_CELLS / 2) return 'field_too_small';
 
-  const rng = mulberry32(seedFrom(`${terrainSeed}:layout`));
-  const entrance = pickEntrance(map, first, rng);
-  if (entrance === null) return null;
+  // THE HILL (2026-09-30, the user's layout): the field stays on the ground
+  // tier, and the relief is a hill in the far corner — the east one, away
+  // from the door and the field. Each tier is one step (MAX_STEP), so it is
+  // ground a raider may climb, not a wall. Measured again on the raised map.
+  raiseHill(map);
+  const lifted = mainBody(map, walkableWith(map, []));
+  if (!lifted.has(entrance) || field.some((t) => !lifted.has(t))) return 'field_cut_off';
 
-  // The door stands clear — and the ground is measured AGAIN once it does.
-  // A tree pulled out from beside the entrance gives its cell back, and a
-  // cell the board still called blocked with nothing drawn on it would be an
-  // invisible wall (the failure `onTheHomestead` was written against). The
-  // body can only grow here, so the entrance is still in it.
-  const cleared = clearTheDoor(placements, entrance);
-  const main = mainBody(map, walkableWith(map, cleared));
-
-  const field = pickField(map, main, entrance);
-  if (field.length < FIELD_CELLS / 2) return null;
-
-  // The garden stands clear too, for the same reason as the door — and the
-  // ground is measured a third time, since a bush pulled off the field's
-  // rim is a cell given back. The field was grown on `main` and the body
-  // only grows, so every field cell is still on it; what CAN change is the
-  // crossing, which is why it is measured after and not before.
-  const tidied = clearAround(cleared, field, FIELD_CLEARING, FIELD_CLEARING_TREES);
-  const homestead = mainBody(map, walkableWith(map, tidied));
-
-  const steps = stepDistances(map, homestead, entrance);
+  const steps = stepDistances(map, lifted, entrance);
   const crossing = Math.min(...field.map((tile) => steps.get(tile) ?? Infinity));
-  if (crossing < MIN_CROSSING || crossing === Infinity) return null;
+  if (crossing < MIN_CROSSING || crossing === Infinity) return 'crossing_too_short';
 
   const doorstep = pickDoorstep(steps, crossing, new Set(field));
-  const cells = paint(homestead, entrance, field, doorstep);
   const bare: BurrowTerrain = {
+    map, placements: [], cells: paint(lifted, entrance, field, doorstep),
+    entrance, field, doorstep, crossing, seed: ground,
+  };
+  for (const house of houseCandidates(bare)) {
+    const settled = settle(map, [], entrance, field, houseFootprint(house)!, Math.max(MAX_CROSSING, crossing));
+    if (typeof settled === 'string') continue;
+    return { map, entrance, field, house, crossing: settled.crossing };
+  }
+  return 'no_house';
+}
+
+/**
+ * The hill: two tiers above the ground at its peak (`HILL_TIER`), the peak
+ * within `HILL_TOP` cells of its centre and the slope out to `HILL_SLOPE`.
+ */
+const HILL_TIER = 3;
+const HILL_TOP = 1;
+const HILL_SLOPE = 2;
+/** Sea distance the hill's centre needs for its peak to reach `HILL_TIER` (see the cap in `raiseHill`). */
+const HILL_INLAND = 2;
+
+/** Every land cell back to the ground tier: the noise's shelves are gone. */
+function flatten(map: IslandMap): void {
+  const level = map.level as Int8Array;
+  for (let i = 0; i < level.length; i++) if (level[i] > 1) level[i] = 1;
+  (map as { tiers: number }).tiers = 1;
+}
+
+/**
+ * The hill, in the corner furthest RIGHT on the screen (the user's pick,
+ * 2026-09-30: "around here", by the scarecrow and the water).
+ *
+ * The corner is the land cell with the largest `col - row`; the centre is
+ * the cell nearest to it that is `HILL_INLAND` from the sea (ties: further
+ * right on the screen, then the lower tile).
+ *
+ * THE SEA CAPS THE HEIGHT: a cell `d` from the water rises to tier `d` at
+ * most, so the shore is always a strip of ground-tier beach. A raised cell
+ * on the water draws as a grey wall, and a cliff of two tiers as a slab;
+ * capped this way neither can happen, and no two neighbours differ by more
+ * than one tier (both the distance to the centre and the distance to the sea
+ * change by at most one from a cell to the next).
+ */
+function raiseHill(map: IslandMap): void {
+  const level = map.level as Int8Array;
+  let corner = -1, cornerKey = -Infinity;
+  for (let tile = 0; tile < level.length; tile++) {
+    if (level[tile] === 0) continue;
+    const { col, row } = colRow(tile);
+    if (col - row > cornerKey) { corner = tile; cornerKey = col - row; }
+  }
+  if (corner < 0) return;
+  const k = colRow(corner);
+  let centre = -1, best: number[] = [];
+  for (let tile = 0; tile < level.length; tile++) {
+    if (level[tile] === 0) continue;
+    const { col, row } = colRow(tile);
+    if (seaDistance(map, col, row) < HILL_INLAND) continue;
+    const key = [Math.max(Math.abs(col - k.col), Math.abs(row - k.row)), -(col - row)];
+    if (centre < 0 || key[0] < best[0] || (key[0] === best[0] && key[1] < best[1])) { centre = tile; best = key; }
+  }
+  if (centre < 0) return;
+  const c = colRow(centre);
+  const raised: Array<[number, number]> = [];
+  for (let row = 0; row < BURROW_ROWS; row++) {
+    for (let col = 0; col < BURROW_COLS; col++) {
+      const i = index(col, row);
+      if (level[i] === 0) continue;
+      const d = Math.max(Math.abs(c.col - col), Math.abs(c.row - row));
+      const want = d <= HILL_TOP ? HILL_TIER : d <= HILL_SLOPE ? HILL_TIER - 1 : 1;
+      const tier = Math.min(want, seaDistance(map, col, row));
+      if (tier > level[i]) raised.push([i, tier]);
+    }
+  }
+  // Written after the pass, so the sea distance is always measured on the flat map.
+  for (const [i, tier] of raised) level[i] = tier;
+  (map as { tiers: number }).tiers = HILL_TIER;
+}
+
+/**
+ * The owner's scenery on the shared ground: cleared off the door, the field
+ * and the house, then measured. Null when this draw closes the field off or
+ * stretches the crossing past `MAX_CROSSING`.
+ */
+function dress(shared: SharedGround, seed: string, scattered: Placement[]): BurrowTerrain | null {
+  const { map, entrance, field, house } = shared;
+  const footprint = houseFootprint(house)!;
+  const underHouse = new Set(footprint);
+  const tidied = clearAround(clearTheDoor(scattered, entrance), field, FIELD_CLEARING, FIELD_CLEARING_TREES)
+    .filter((p) => !underHouse.has(index(p.x, p.y)));
+  const settled = settle(map, tidied, entrance, field, footprint, MAX_CROSSING);
+  if (typeof settled === 'string') return null;
+  const homestead = mainBody(map, walkableWith(map, tidied, underHouse));
+  return {
     map,
     placements: onTheHomestead(tidied, homestead, field, entrance),
-    cells,
+    ...settled,
     entrance,
     field,
-    doorstep,
-    crossing,
     seed,
+    house,
   };
-
-  // The house goes down LAST, on the ground as measured without it, and is
-  // solid: its four cells leave the board and the crossing is measured a
-  // fourth time. The best-scoring square that still leaves the field
-  // reachable wins; a seed with none is thrown away like any other failure.
-  // The crossing may grow round the house, up to `MAX_CROSSING` (or what it
-  // already was, on the rare seed dealt longer).
-  for (const house of houseCandidates(bare)) {
-    const settled = settle(map, tidied, entrance, field, houseFootprint(house)!, Math.max(MAX_CROSSING, crossing));
-    if (typeof settled === 'string') continue;
-    return { ...bare, ...settled, house };
-  }
-  return null;
 }
 
 /** Ground the house keeps between itself and the water, in cells. */
@@ -546,16 +656,21 @@ function mainBody(map: IslandMap, walkable: (c: number, r: number) => boolean): 
 }
 
 /**
- * Where the raider comes in: a cell of the main body nearest the board's rim.
+ * Where the raider comes in: the cell of the rim lowest on the SCREEN.
  *
  * At the edge on purpose — an entrance in the middle of the homestead would
  * put the raider past half the ground the defender is trying to protect before
  * they have taken a step, and there would be nothing to mine in front of it.
  *
- * Which edge is left to the seed, so two burrows are approached from different
- * sides and a raider cannot learn one route and reuse it.
+ * At the BOTTOM since the ground became one (2026-09-30, the user's layout):
+ * the raider comes up from the foot of the screen and the field is grown at
+ * the far end of the walk, at the top. On the iso board the screen's height
+ * is `col + row`, so the entrance is the rim cell with the largest sum; ties
+ * go to the one nearest the middle (`col - row` closest to 0), then to the
+ * lower tile. No draw: it was random while every player had their own ground,
+ * so two burrows were approached from different sides.
  */
-function pickEntrance(map: IslandMap, main: Set<number>, rng: Rng): number | null {
+function pickEntrance(map: IslandMap, main: Set<number>): number | null {
   const rim = [...main].filter((tile) => {
     const { col, row } = colRow(tile);
     // Low ground only. An entrance on a shelf would have the raider start
@@ -564,7 +679,11 @@ function pickEntrance(map: IslandMap, main: Set<number>, rng: Rng): number | nul
     return edgeDistance(col, row) <= ENTRANCE_BAND;
   });
   if (!rim.length) return null;
-  return rim[Math.floor(rng() * rim.length)];
+  const key = (tile: number) => { const { col, row } = colRow(tile); return [-(col + row), Math.abs(col - row), tile]; };
+  return rim.sort((a, b) => {
+    const ka = key(a), kb = key(b);
+    return ka[0] - kb[0] || ka[1] - kb[1] || ka[2] - kb[2];
+  })[0];
 }
 
 /** How near the board's rim an entrance may sit, in cells. */

@@ -24,6 +24,15 @@ class_name BurrowLayout
 const COLS := 19
 const ROWS := 19
 
+## generate.ts `BURROW_GROUND` (2026-09-30) : LE sol de tous les terriers. Le
+## relief, l'entree, le potager et la maison en sortent ; le decor sort de
+## l'id du joueur. Change des DEUX cotes, et avec un remboursement des bombes,
+## planches et amenagements (scripts/reset-burrows.ts).
+const BURROW_GROUND := "burrow-g285"
+## Un autre sol, pour les bancs qui montrent des candidats (`--ground=`). Le
+## jeu ne le touche jamais : le serveur, lui, ne connait que BURROW_GROUND.
+static var ground_override := ""
+
 ## Les reglages de generate.ts, un par un. Voir la-bas pour le pourquoi.
 const TIERS := 2
 const LAND := 0.72
@@ -85,7 +94,7 @@ static var _cache: Dictionary = {}
 static func of(seed_value: String, edits: Dictionary = {}) -> BurrowLayout:
 	var base: BurrowLayout = _cache.get(seed_value)
 	if base == null:
-		base = grow(seed_value)
+		base = grow(seed_value, -1, ground_override if ground_override != "" else BURROW_GROUND)
 		_cache[seed_value] = base
 	if not has_edits(edits):
 		return base
@@ -243,22 +252,188 @@ static func edited(base: BurrowLayout, edits: Dictionary) -> Variant:
 	return out
 
 
-## `burrowTerrain`. Ne rend jamais null en pratique ; si les 24 essais
-## echouent, le web jette une erreur — ici on rend le dernier essai brut, pour
-## qu'un terrier se dessine quand meme (et le serveur refusera tout).
-static func grow(seed_value: String, doorstep_steps: int = -1) -> BurrowLayout:
+## `burrowTerrain` : le sol commun, et le decor du joueur par-dessus. Si
+## aucun des 24 tirages de decor ne tient, le terrier est le sol nu — qui
+## tient toujours, `_build_ground` l'a verifie.
+static func grow(seed_value: String, doorstep_steps: int = -1, ground: String = BURROW_GROUND) -> BurrowLayout:
 	if doorstep_steps < 0:
 		doorstep_steps = _tuning_doorstep()
+	var shared := shared_ground(ground, doorstep_steps)
 	for attempt in range(MAX_ATTEMPTS):
+		var deco_seed := "%s:burrow" % seed_value if attempt == 0 \
+			else "%s:burrow:%d" % [seed_value, attempt]
 		var built := BurrowLayout.new()
-		if built._try_build(seed_value, attempt, doorstep_steps):
+		var scattered: Array[Dictionary] = IslandGround.new(shared.map, deco_seed, true, INHABITED_SHARE).placements
+		if built._dress(shared, seed_value, scattered, doorstep_steps):
 			return built
-	push_error("burrow layout: no layout for seed \"%s\"" % seed_value)
-	var fallback := BurrowLayout.new()
-	fallback.seed_text = seed_value
-	fallback.map = IslandMap.new(COLS, ROWS, Iso.BURROW_ORIGIN)
-	fallback.cells.resize(COLS * ROWS)
-	return fallback
+	var bare := BurrowLayout.new()
+	bare._dress(shared, seed_value, [] as Array[Dictionary], doorstep_steps)
+	return bare
+
+
+static var _grounds: Dictionary = {}
+
+
+## generate.ts `sharedGround` : le sol, son entree, son potager, sa maison,
+## mesures nus, une fois par sol. Un sol qui ne tient pas est une erreur de la
+## constante : on le dit, et on rend ce qu'on a.
+static func shared_ground(ground: String, doorstep_steps: int) -> BurrowLayout:
+	var key := "%s#%d" % [ground, doorstep_steps]
+	var cached: BurrowLayout = _grounds.get(key)
+	if cached != null:
+		return cached
+	var built := BurrowLayout.new()
+	var why := built._build_ground(ground, doorstep_steps)
+	if why != "":
+		push_error("burrow ground \"%s\": %s" % [ground, why])
+	_grounds[key] = built
+	return built
+
+
+## generate.ts `buildGround`.
+func _build_ground(ground: String, doorstep_steps: int) -> String:
+	var ground_seed := "%s:burrow" % ground
+	seed_text = ground
+	map = IslandMap.new(COLS, ROWS, Iso.BURROW_ORIGIN)
+	map.seed_text = ground_seed
+	map.shape(ground_seed, LAND, RISE, RAGGEDNESS, TIERS)
+	# UNE SEULE HAUTEUR, CELLE DU POTAGER (2026-09-30) : les plateaux du bruit
+	# sont aplanis — ceux pres de la porte montaient vers rien.
+	_flatten()
+	var body := _main_body({})
+	if body.size() < MIN_BODY:
+		return "body_too_small"
+	entrance = _pick_entrance(body)
+	if entrance < 0:
+		return "no_entrance"
+	field = _pick_field(body, entrance)
+	if field.size() < FIELD_CELLS / 2:
+		return "field_too_small"
+	# LA COLLINE (2026-09-30) : le potager reste au palier 1, le relief est
+	# une colline dans le coin le plus a droite de l'ecran, loin de la porte
+	# et du potager. Un palier = un pas (MAX_STEP) : on la grimpe. Le sol est
+	# remesure sur la carte levee.
+	_raise_hill()
+	var lifted := _main_body({})
+	var in_lifted := {}
+	for t in lifted:
+		in_lifted[t] = true
+	if not in_lifted.has(entrance):
+		return "field_cut_off"
+	for t in field:
+		if not in_lifted.has(t):
+			return "field_cut_off"
+	body = lifted
+	var steps := _step_distances(body, entrance)
+	var best := INF
+	for t in field:
+		if steps.has(t):
+			best = minf(best, float(steps[t]))
+	if best == INF or best < MIN_CROSSING:
+		return "crossing_too_short"
+	crossing = int(best)
+	doorstep = _pick_doorstep(steps, crossing, field, doorstep_steps)
+	_paint(body)
+	placements = []
+	var cap := maxi(MAX_CROSSING, crossing)
+	for c in _house_candidates():
+		if _settle([] as Array[Dictionary], house_cells(c), cap, doorstep_steps) == "":
+			building = c
+			return ""
+	return "no_house"
+
+
+## generate.ts `HILL_*`, `flatten` et `raiseHill`.
+const HILL_TIER := 3
+const HILL_TOP := 1
+const HILL_SLOPE := 2
+const HILL_INLAND := 2
+
+
+## Toute la terre au palier 1 : les plateaux du bruit disparaissent.
+func _flatten() -> void:
+	for i in range(map.level.size()):
+		if map.level[i] > 1:
+			map.level[i] = 1
+	map.tiers = 1
+
+
+## generate.ts `raiseHill` : la colline dans le coin le plus a droite de
+## l'ecran, pres de l'epouvantail (le user, 2026-09-30). Le coin = la case de
+## terre au plus grand `col - row` (la plus petite a egalite) ; le centre = la
+## case a HILL_INLAND de la mer au moins la plus proche du coin (a egalite :
+## plus a droite, puis la plus petite). LA MER PLAFONNE LA HAUTEUR : une case
+## a `d` de l'eau monte au palier `d` au plus — il reste toujours une plage.
+func _raise_hill() -> void:
+	var corner := -1
+	var corner_key := -(1 << 30)
+	for tile in range(map.level.size()):
+		if map.level[tile] == 0:
+			continue
+		var c := cell_of(tile)
+		if c.x - c.y > corner_key:
+			corner = tile
+			corner_key = c.x - c.y
+	if corner < 0:
+		return
+	var k := cell_of(corner)
+	var centre := -1
+	var best := Vector2i.ZERO
+	for tile in range(map.level.size()):
+		if map.level[tile] == 0:
+			continue
+		var c := cell_of(tile)
+		if sea_distance(c) < HILL_INLAND:
+			continue
+		var key := Vector2i(maxi(absi(c.x - k.x), absi(c.y - k.y)), -(c.x - c.y))
+		if centre < 0 or key.x < best.x or (key.x == best.x and key.y < best.y):
+			centre = tile
+			best = key
+	if centre < 0:
+		return
+	var ce := cell_of(centre)
+	var raised: Array = []
+	for row in range(ROWS):
+		for col in range(COLS):
+			var i := index(Vector2i(col, row))
+			if map.level[i] == 0:
+				continue
+			var d := maxi(absi(ce.x - col), absi(ce.y - row))
+			var want := HILL_TIER if d <= HILL_TOP else (HILL_TIER - 1 if d <= HILL_SLOPE else 1)
+			var tier := mini(want, sea_distance(Vector2i(col, row)))
+			if tier > map.level[i]:
+				raised.append([i, tier])
+	for r in raised:
+		map.level[int(r[0])] = int(r[1])
+	map.tiers = HILL_TIER
+
+
+## generate.ts `dress` : le decor du joueur sur le sol commun, degage de la
+## porte, du potager et de la maison, puis mesure. Faux si ce tirage coupe le
+## potager ou etire la traversee au-dela de MAX_CROSSING.
+func _dress(shared: BurrowLayout, seed_value: String, scattered: Array[Dictionary],
+		doorstep_steps: int) -> bool:
+	seed_text = seed_value
+	map = shared.map
+	entrance = shared.entrance
+	field = shared.field.duplicate()
+	building = shared.building
+	var square := house_cells(building)
+	var under := {}
+	for q in square:
+		under[index(q)] = true
+	var cleared := _clear_around(scattered, [entrance], DOOR_CLEARING, DOOR_CLEARING_TREES)
+	var tidied: Array[Dictionary] = []
+	for p in _clear_around(cleared, field, FIELD_CLEARING, FIELD_CLEARING_TREES):
+		if not under.has(index(Vector2i(int(p.x), int(p.y)))):
+			tidied.append(p)
+	if _settle(tidied, square, MAX_CROSSING, doorstep_steps) != "":
+		return false
+	var solid := _solid(tidied)
+	for q in square:
+		solid[q] = true
+	placements = _on_the_homestead(tidied, _main_body(solid))
+	return true
 
 
 ## `TRAPS.DOORSTEP`, lu dans le meme tuning.json que l'autoload Tuning — lu
@@ -322,60 +497,6 @@ func field_cells() -> Array[Vector2i]:
 
 
 # ---------------------------------------------------------------- la pousse
-
-## `tryBuild` : un candidat, jete s'il ne tient pas ses promesses.
-func _try_build(seed_value: String, attempt: int, doorstep_steps: int) -> bool:
-	seed_text = seed_value
-	var terrain_seed := "%s:burrow" % seed_value if attempt == 0 \
-		else "%s:burrow:%d" % [seed_value, attempt]
-	map = IslandMap.new(COLS, ROWS, Iso.BURROW_ORIGIN)
-	map.seed_text = terrain_seed
-	map.shape(terrain_seed, LAND, RISE, RAGGEDNESS, TIERS)
-	var ground := IslandGround.new(map, terrain_seed, true, INHABITED_SHARE)
-	var scattered: Array[Dictionary] = ground.placements
-
-	var first := _main_body(_solid(scattered))
-	if first.size() < MIN_BODY:
-		return false
-
-	var rng := Rng.from_seed("%s:layout" % terrain_seed)
-	entrance = _pick_entrance(first, rng)
-	if entrance < 0:
-		return false
-
-	var cleared := _clear_around(scattered, [entrance], DOOR_CLEARING, DOOR_CLEARING_TREES)
-	var main := _main_body(_solid(cleared))
-
-	field = _pick_field(main, entrance)
-	if field.size() < FIELD_CELLS / 2:
-		return false
-
-	var tidied := _clear_around(cleared, field, FIELD_CLEARING, FIELD_CLEARING_TREES)
-	var homestead := _main_body(_solid(tidied))
-
-	var steps := _step_distances(homestead, entrance)
-	var best := INF
-	for t in field:
-		if steps.has(t):
-			best = minf(best, float(steps[t]))
-	if best == INF or best < MIN_CROSSING:
-		return false
-	crossing = int(best)
-
-	doorstep = _pick_doorstep(steps, crossing, field, doorstep_steps)
-	_paint(homestead)
-	placements = _on_the_homestead(tidied, homestead)
-
-	# LA MAISON, en dernier et SOLIDE (2026-09-24) : ses quatre cases sortent
-	# du plateau et le sol est remesure autour. Le premier carre du classement
-	# qui laisse le potager atteignable gagne ; aucun, et l'essai echoue.
-	var cap := maxi(MAX_CROSSING, crossing)
-	for c in _house_candidates():
-		if _settle(tidied, house_cells(c), cap, doorstep_steps) == "":
-			building = c
-			return true
-	return false
-
 
 ## generate.ts `settle` : le sol mesure avec la maison posee dessus — le
 ## terrier, la traversee, le paillasson — ou pourquoi le potager est hors
@@ -464,17 +585,25 @@ static func _edge_distance(c: Vector2i) -> int:
 	return mini(mini(c.x, c.y), mini(COLS - 1 - c.x, ROWS - 1 - c.y))
 
 
-func _pick_entrance(main: Array[int], rng: Rng) -> int:
-	var rim: Array[int] = []
+## generate.ts `pickEntrance` : la case du bord LA PLUS BASSE A L'ECRAN
+## (col + row le plus grand), puis la plus au milieu (|col - row| le plus
+## petit), puis la plus petite case. Le pillard monte du bas, le potager pousse
+## en haut (2026-09-30). Plus de tirage : il ne servait qu'a varier le cote
+## d'un terrier a l'autre, du temps ou chacun avait son sol.
+func _pick_entrance(main: Array[int]) -> int:
+	var best := -1
+	var best_key := Vector3i.ZERO
 	for t in main:
 		var c := cell_of(t)
 		if map.level_at(c.x, c.y) != 1:
 			continue
-		if _edge_distance(c) <= ENTRANCE_BAND:
-			rim.append(t)
-	if rim.is_empty():
-		return -1
-	return rim[int(floor(rng.next() * rim.size()))]
+		if _edge_distance(c) > ENTRANCE_BAND:
+			continue
+		var key := Vector3i(-(c.x + c.y), absi(c.x - c.y), t)
+		if best < 0 or key < best_key:
+			best = t
+			best_key = key
+	return best
 
 
 ## `clearAround` : rien a `bare` cases, pas d'arbre a `trees` (Chebyshev).

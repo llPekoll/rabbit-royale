@@ -88,6 +88,19 @@ export function generateTerrain(options: TerrainOptions): Terrain {
   return { map, placements: scatterLivestock(map, options, placements) };
 }
 
+/**
+ * The scenery alone, scattered on a map someone else grew, from its own seed.
+ *
+ * For ground that is shared while what stands on it is not: every burrow is
+ * cut from the same ground (`BURROW_GROUND`), and its trees and rocks are the
+ * owner's, drawn from the owner's seed.
+ */
+export function scatterDecor(map: IslandMap, decoSeed: string): Placement[] {
+  const placements: Placement[] = [];
+  scatterScenery(map, placements, decoSeed);
+  return placements;
+}
+
 /** True when all four neighbours stand at the same tier — no edge, no cliff. */
 function isInterior(map: IslandMap, x: number, y: number, tier: number): boolean {
   return (
@@ -112,8 +125,8 @@ function underCliff(map: IslandMap, x: number, y: number, tier: number): boolean
  * like. Kept identical to the order the renderer used, so the same seed still
  * grows the same island it did before this moved out of the view.
  */
-function scatterScenery(map: IslandMap, out: Placement[]): void {
-  const rng = mulberry32(seedFrom(`${map.seed}:deco`));
+function scatterScenery(map: IslandMap, out: Placement[], decoSeed: string = map.seed): void {
+  const rng = mulberry32(seedFrom(`${decoSeed}:deco`));
   const taken = new Set<string>();
 
   for (let y = 0; y < map.height; y++) {

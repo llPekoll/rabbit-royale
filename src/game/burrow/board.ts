@@ -86,6 +86,16 @@ export function baseBurrowFor(seed: string): BurrowTerrain {
   return terrain;
 }
 
+/**
+ * Put a terrain in the cache under a seed — for the tools that measure a
+ * ground other than `BURROW_GROUND` (tools/burrow-ground-pick.ts) with the
+ * same rules the server raids by. The game never calls it.
+ */
+export function primeBurrow(seed: string, terrain: BurrowTerrain): void {
+  cache.set(seed, terrain);
+  edited.delete(seed);
+}
+
 /** The terrain for a seed: the map, what stands on it, and the landmarks. */
 export function burrowFor(seed: string): BurrowTerrain {
   const base = baseBurrowFor(seed);
