@@ -174,6 +174,12 @@ func _defend(layout: BurrowLayout, path: Array[int]) -> void:
 	# L'intrus vient d'etre cree par le terrier : il devient Kuro.
 	await get_tree().process_frame
 	_paint_kuro(_burrow.get("_raider"))
+	# L'ALERTE : sous la barre du haut (qui reste lisible), par-dessus le terrier.
+	var alarm := RaidAlarm.new()
+	alarm.who = "Kuro"
+	_ui.add_child(alarm)
+	_ui.move_child(alarm, 0)
+	Kit.fill(alarm)
 	await _wait(1.4)
 	for i in range(0, mini(path.size() - 1, 7)):
 		inc.tile = path[i]
@@ -183,43 +189,49 @@ func _defend(layout: BurrowLayout, path: Array[int]) -> void:
 			inc.trapsSprung = 1
 			inc.energy = int(inc.energy) - 20
 		RaidState.current.fake({"incoming": inc.duplicate(true)})
+		if i == 3:
+			alarm.burst()
 		await _wait(STEP_S + (1.2 if i == 3 else 0.0))
 	# Shiro le foudroie.
 	await _wait(0.4)
 	inc.struck = true
 	inc.finished = true
 	RaidState.current.fake({"incoming": inc.duplicate(true)})
+	alarm.finish()
 	await _wait(3.2)
-	var stamp := RaidedStamp.announce({"by": "Kuro", "others": 0, "carrots": 0, "defended": true, "count": 1})
-	stamp.linger = true
-	_stamp(stamp)
+	# LA VRAIE CHOREGRAPHIE, pas `linger` : fige, le tampon restait dans son
+	# eclat jaune, or sur or, illisible — en jeu l'eclat s'eteint en 1,2 s.
+	_stamp(RaidedStamp.announce({"by": "Kuro", "others": 0, "carrots": 0, "defended": true, "count": 1}))
 
 
 # ── Outils ──────────────────────────────────────────────────────────────────
 
-## LE POTAGER CLOS : une planche par face exposee (FenceView.build), sauf UNE
-## — le passage que le jeu laisse toujours ouvert (voir fence-is-a-side),
-## tourne vers `toward` (la case d'ou le pillard arrive, ou la porte).
+## LE POTAGER CLOS DE QUATRE PLANCHES — le sac de depart plus une (voir
+## fence-is-a-side) : les faces exposees les plus proches de `toward` (la case
+## d'ou le pillard arrive, ou la porte), sauf la toute premiere, le passage
+## que le jeu laisse ouvert. Clore toutes les faces faisait un labyrinthe :
+## le potager a des trous, et chaque trou avait ses planches (le user,
+## 2026-09-30 : « un peu trop de fence, seulement 4 »).
+const PLANKS := 4
+
+
 static func _garden_fence(layout: BurrowLayout, toward: int) -> Array:
 	var field := {}
 	for t in layout.field:
 		field[BurrowLayout.cell_of(t)] = true
-	var goal := BurrowLayout.cell_of(toward)
-	var out: Array = []
-	var gap := {}
-	var gap_d := INF
+	var goal := Vector2(BurrowLayout.cell_of(toward))
+	var faces: Array = []
 	for cell: Vector2i in field:
 		for side: String in FenceView.SIDES:
 			var outer: Vector2i = cell + FenceView.STEP[side]
 			if field.has(outer):
 				continue
-			var seg := {"tile": BurrowLayout.index(cell), "side": side}
-			out.append(seg)
-			var d := Vector2(outer).distance_to(Vector2(goal))
-			if d < gap_d:
-				gap_d = d
-				gap = seg
-	out.erase(gap)
+			faces.append({"seg": {"tile": BurrowLayout.index(cell), "side": side},
+				"d": Vector2(outer).distance_to(goal)})
+	faces.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return float(a.d) < float(b.d))
+	var out: Array = []
+	for i in range(1, mini(faces.size(), PLANKS + 1)):
+		out.append(faces[i].seg)
 	return out
 
 
