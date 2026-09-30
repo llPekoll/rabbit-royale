@@ -240,7 +240,15 @@
 			"bush": "Bush",
 			"house": "Your house",
 			"field": "Your garden",
-			"thing": "Decoration"
+			"thing": "Decoration",
+			"mushroom": "Mushroom",
+			"pebble": "Pebble",
+			"grass": "Tuft of grass",
+			"pumpkin": "Pumpkin",
+			"bone": "Bone",
+			"skullSign": "Skull sign",
+			"signpost": "Signpost",
+			"scarecrow": "Scarecrow"
 		},
 		"planksBack": {
 			"$t": "{0} fences back in your bag",

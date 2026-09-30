@@ -216,6 +216,8 @@ export const en = {
     things: {
       tree: 'Tree', stump: 'Stump', rock: 'Rock', bush: 'Bush',
       house: 'Your house', field: 'Your garden', thing: 'Decoration',
+      mushroom: 'Mushroom', pebble: 'Pebble', grass: 'Tuft of grass', pumpkin: 'Pumpkin',
+      bone: 'Bone', skullSign: 'Skull sign', signpost: 'Signpost', scarecrow: 'Scarecrow',
     },
     planksBack: (n: number) => `${n} fence${n === 1 ? '' : 's'} back in your bag`,
     bombsBack: (n: number) => `${n} bomb${n === 1 ? '' : 's'} back in your bag`,

@@ -176,6 +176,8 @@ export const fr: Dict = {
     things: {
       tree: 'Arbre', stump: 'Souche', rock: 'Rocher', bush: 'Buisson',
       house: 'Ta maison', field: 'Ton potager', thing: 'Décor',
+      mushroom: 'Champignon', pebble: 'Caillou', grass: 'Touffe d\'herbe', pumpkin: 'Citrouille',
+      bone: 'Os', skullSign: 'Panneau au crâne', signpost: 'Poteau indicateur', scarecrow: 'Épouvantail',
     },
     planksBack: (n) => `${n} clôture${n > 1 ? 's' : ''} de retour dans le sac`,
     bombsBack: (n) => `${n} bombe${n > 1 ? 's' : ''} de retour dans le sac`,

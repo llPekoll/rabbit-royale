@@ -180,6 +180,8 @@ export const ptBR: Dict = {
     things: {
       tree: 'Árvore', stump: 'Toco', rock: 'Pedra', bush: 'Arbusto',
       house: 'Sua casa', field: 'Sua horta', thing: 'Decoração',
+      mushroom: 'Cogumelo', pebble: 'Pedrinha', grass: 'Tufo de grama', pumpkin: 'Abóbora',
+      bone: 'Osso', skullSign: 'Placa de caveira', signpost: 'Placa de direção', scarecrow: 'Espantalho',
     },
     planksBack: (n) => `${n} cerca${n > 1 ? 's' : ''} de volta na bolsa`,
     bombsBack: (n) => `${n} bomba${n > 1 ? 's' : ''} de volta na bolsa`,

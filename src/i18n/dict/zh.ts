@@ -182,6 +182,8 @@ export const zh: Dict = {
     things: {
       tree: '树', stump: '树桩', rock: '石头', bush: '灌木',
       house: '你的房子', field: '你的菜园', thing: '装饰',
+      mushroom: '蘑菇', pebble: '小石子', grass: '草丛', pumpkin: '南瓜',
+      bone: '骨头', skullSign: '骷髅牌', signpost: '路标', scarecrow: '稻草人',
     },
     planksBack: (n) => `${n} 块栅栏回到了背包`,
     bombsBack: (n) => `${n} 颗炸弹回到了背包`,

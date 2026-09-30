@@ -258,7 +258,15 @@
 			"bush": "Buisson",
 			"house": "Ta maison",
 			"field": "Ton potager",
-			"thing": "Décor"
+			"thing": "Décor",
+			"mushroom": "Champignon",
+			"pebble": "Caillou",
+			"grass": "Touffe d'herbe",
+			"pumpkin": "Citrouille",
+			"bone": "Os",
+			"skullSign": "Panneau au crâne",
+			"signpost": "Poteau indicateur",
+			"scarecrow": "Épouvantail"
 		},
 		"planksBack": {
 			"$t": "{0} clôtures de retour dans le sac",

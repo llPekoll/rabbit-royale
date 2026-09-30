@@ -240,7 +240,15 @@
 			"bush": "Arbusto",
 			"house": "Sua casa",
 			"field": "Sua horta",
-			"thing": "Decoração"
+			"thing": "Decoração",
+			"mushroom": "Cogumelo",
+			"pebble": "Pedrinha",
+			"grass": "Tufo de grama",
+			"pumpkin": "Abóbora",
+			"bone": "Osso",
+			"skullSign": "Placa de caveira",
+			"signpost": "Placa de direção",
+			"scarecrow": "Espantalho"
 		},
 		"planksBack": {
 			"$t": "{0} cercas de volta na bolsa",

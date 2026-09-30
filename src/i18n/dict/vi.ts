@@ -183,6 +183,8 @@ export const vi: Dict = {
     things: {
       tree: 'Cây', stump: 'Gốc cây', rock: 'Đá', bush: 'Bụi cây',
       house: 'Nhà của bạn', field: 'Vườn của bạn', thing: 'Đồ trang trí',
+      mushroom: 'Nấm', pebble: 'Sỏi', grass: 'Búi cỏ', pumpkin: 'Bí ngô',
+      bone: 'Xương', skullSign: 'Biển đầu lâu', signpost: 'Cột chỉ đường', scarecrow: 'Bù nhìn',
     },
     planksBack: (n) => `${n} hàng rào đã về lại túi`,
     bombsBack: (n) => `${n} bom đã về lại túi`,

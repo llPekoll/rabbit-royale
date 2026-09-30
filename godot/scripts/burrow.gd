@@ -1314,9 +1314,12 @@ func _decor_tap(cell: Vector2i) -> void:
 		_release_hold()
 		_grab(cell)
 		return
+	# LE NOM AVANT LA POSE : `drop` lache ce qu'on tenait, et apres coup
+	# tout s'appelait « Decor ».
+	var placed := _held_name()
 	var why := _arrange.drop(cell)
 	if why == "":
-		_commit_drop()
+		_commit_drop(placed)
 	else:
 		_refuse_here(why)
 
@@ -1369,6 +1372,9 @@ func _release_hold() -> void:
 ## POSER sur `cell`. Refuse (et le dit) si la regle ne veut pas ; ce qu'on
 ## tient reste alors en main.
 func _drop_at(cell: Vector2i, released: bool = false) -> bool:
+	# LE NOM AVANT LA POSE : `drop` lache ce qu'on tenait, et apres coup
+	# tout s'appelait « Decor ».
+	var placed := _held_name()
 	var why := _arrange.drop(cell)
 	_alog("pose en %s : %s" % [cell, why if why != "" else "ok " + JSON.stringify(_arrange.draft)])
 	if why != "":
@@ -1380,14 +1386,13 @@ func _drop_at(cell: Vector2i, released: bool = false) -> bool:
 		_refuse_here(why)
 		_paint_arrange()
 		return false
-	_commit_drop()
+	_commit_drop(placed)
 	return true
 
 
 ## LA POSE EST FAITE : le sol se repousse tel quel, et part au serveur.
-func _commit_drop() -> void:
+func _commit_drop(placed: String) -> void:
 	var before := _local_edits.duplicate(true)
-	var placed := _held_name()
 	_local_edits = BurrowArrange._clean(_arrange.draft)
 	_arrange = null
 	_arrange_over = Vector2i(-1, -1)
@@ -1851,10 +1856,24 @@ func _held_name() -> String:
 		BurrowArrange.Held.FIELD:
 			key = "field"
 		BurrowArrange.Held.THING:
-			var kind := String(_arrange.base.placements[_arrange.held_index].get("kind", ""))
+			var p: Dictionary = _arrange.base.placements[_arrange.held_index]
+			var kind := String(p.get("kind", ""))
+			var variant := int(p.get("variant", 0))
 			if kind in ["tree", "stump", "rock", "bush"]:
 				key = kind
+			elif kind == "prop":
+				key = PROP_NAMES[variant % IslandScenery.NATURAL_PROPS]
+			elif kind == "landmark":
+				key = LANDMARK_NAMES[variant % LANDMARK_NAMES.size()]
 	return I18N.t("arrange.things.%s" % key)
+
+
+## Le nom de chaque image de `IslandScenery.PROPS`, dans l'ordre : un objet
+## deplace se nomme par ce qu'on voit, pas « Decor ».
+const PROP_NAMES := ["mushroom", "mushroom", "mushroom", "pebble", "pebble",
+	"pebble", "bush", "bush", "bush", "grass", "grass", "pumpkin", "pumpkin",
+	"bone", "bone"]
+const LANDMARK_NAMES := ["skullSign", "signpost", "scarecrow"]
 
 
 ## Le bouton du bandeau : REPOSER ce qu'on tient, ou ANNULER la derniere pose.
