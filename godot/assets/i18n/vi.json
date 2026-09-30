@@ -411,6 +411,15 @@
   },
   "anon": "Có ai đó đẩy bạn!"
  },
+ "revenge": {
+  "struck": {
+   "$t": "{0} giật điện bạn!"
+  },
+  "inked": {
+   "$t": "{0} phun mực vào bạn!"
+  },
+  "strike": "Đánh trả"
+ },
  "pill": {
   "banked": {
    "$t": "{0} cà rốt đã cất"

@@ -311,6 +311,12 @@ export const fr: Dict = {
     anon: 'Quelqu’un t’a poussé !',
   },
 
+  revenge: {
+    struck: (name) => `${name} t’a foudroyé !`,
+    inked: (name) => `${name} t’a encré !`,
+    strike: 'Foudroie-le',
+  },
+
   pill: {
     banked: (n) => `${n} carottes en réserve`,
     carryNote: 'Portées cette sortie : mises en réserve au retour',

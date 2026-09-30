@@ -1,0 +1,9 @@
+[gd_scene format=3]
+
+; LE BANC DE LA RIPOSTE — Kuro frappe, l'offre « FOUDROIE-LE » monte, un tap
+; et l'eclair tombe sur lui. Voir scripts/bench/revenge_bench.gd.
+
+[ext_resource type="Script" path="res://scripts/bench/revenge_bench.gd" id="1_revenge"]
+
+[node name="RevengeBench" type="Node2D"]
+script = ExtResource("1_revenge")

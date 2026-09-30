@@ -318,6 +318,12 @@ export const vi: Dict = {
     anon: 'Có ai đó đẩy bạn!',
   },
 
+  revenge: {
+    struck: (name) => `${name} giật điện bạn!`,
+    inked: (name) => `${name} phun mực vào bạn!`,
+    strike: 'Đánh trả',
+  },
+
   pill: {
     banked: (n) => `${n} cà rốt đã cất`,
     carryNote: 'Mang theo chuyến này: cất khi bạn về hang',

@@ -315,6 +315,12 @@ export const ptBR: Dict = {
     anon: 'Alguém te empurrou!',
   },
 
+  revenge: {
+    struck: (name) => `${name} te eletrocutou!`,
+    inked: (name) => `${name} te encheu de tinta!`,
+    strike: 'Revidar',
+  },
+
   pill: {
     banked: (n) => `${n} cenouras guardadas`,
     carryNote: 'Carregadas nesta saída: guardadas ao voltar para casa',

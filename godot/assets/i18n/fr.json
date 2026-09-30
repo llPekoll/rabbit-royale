@@ -481,6 +481,15 @@
 		},
 		"anon": "Quelqu’un t’a poussé !"
 	},
+	"revenge": {
+		"struck": {
+			"$t": "{0} t’a foudroyé !"
+		},
+		"inked": {
+			"$t": "{0} t’a encré !"
+		},
+		"strike": "Foudroie-le"
+	},
 	"pill": {
 		"banked": {
 			"$t": "{0} carottes en réserve"

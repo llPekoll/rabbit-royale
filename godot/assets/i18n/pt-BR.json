@@ -463,6 +463,15 @@
 		},
 		"anon": "Alguém te empurrou!"
 	},
+	"revenge": {
+		"struck": {
+			"$t": "{0} te eletrocutou!"
+		},
+		"inked": {
+			"$t": "{0} te encheu de tinta!"
+		},
+		"strike": "Revidar"
+	},
 	"pill": {
 		"banked": {
 			"$t": "{0} cenouras guardadas"

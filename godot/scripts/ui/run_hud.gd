@@ -104,6 +104,8 @@ var _slot_timers: Array[Timer] = []
 var _watchers: Label
 var _hit_timer: Timer
 var _hurt: HurtFlash
+## La riposte offerte sur celui qui vient de frapper (revenge_offer.gd).
+var revenge: RevengeOffer
 var _card: RunRecap = null
 var _prev_energy := -1
 var _prev_subject := ""
@@ -234,6 +236,13 @@ func _build() -> void:
 	Kit.fill(_hurt)
 	add_child(_hurt)
 	move_child(_hurt, eruption.get_index())
+
+	# LA RIPOSTE, au-dessus des rougeurs, sous l'eruption : celui qui vient de
+	# frapper, et l'eclair sur lui en un tap.
+	revenge = RevengeOffer.new()
+	Kit.fill(revenge)
+	add_child(revenge)
+	move_child(revenge, eruption.get_index())
 
 
 ## UN OBJET ARMABLE : le compte, et s'il est celui qui est arme. Arme, il se
@@ -476,11 +485,15 @@ func _on_shoved(note: Dictionary) -> void:
 		_say(3, "", SHOVE_INK, 0)
 		return
 	var who := String(note.get("byName", ""))
+	# La riposte dit deja qui : la legende ne le repete pas au-dessus d'elle.
+	if revenge.offer(String(note.get("byId", "")), "shove"):
+		return
 	_say(3, I18N.f("shove.by", [who]) if not who.is_empty() else I18N.t("shove.anon"), SHOVE_INK, SHOVE_MS)
 
 
 func _on_island() -> void:
 	_prev_energy = -1
+	revenge.dismiss()
 	for i in 4:
 		_say(i, "", Palette.CAPTION_INK, 0)
 	_hit_timer.stop()
@@ -489,7 +502,12 @@ func _on_island() -> void:
 
 # ── Qui regarde ──────────────────────────────────────────────────────────────
 
-func _on_hit(_hit: Dictionary) -> void:
+func _on_hit(hit: Dictionary) -> void:
+	# L'eclair ou l'encre d'un rival : riposte offerte. La bombe enterree non —
+	# celui qui l'a plantee n'est souvent plus la.
+	var kind := String(hit.get("kind", ""))
+	if kind == "bolt" or kind == "bloop":
+		revenge.offer(String(hit.get("by", "")), kind)
 	_refresh_watchers()
 
 
@@ -497,7 +515,8 @@ func _refresh_watchers() -> void:
 	var state := RunState.current
 	var hit := state.hit
 	var fresh := not hit.is_empty() and Time.get_ticks_msec() - int(hit.get("at", 0)) < HIT_MS
-	if fresh:
+	# UNE SEULE CHOSE A LA FOIS : la riposte dit deja qui a frappe.
+	if fresh and not revenge.showing():
 		var who := state.name_of(String(hit.get("by", "")))
 		if who.is_empty():
 			who = I18N.t("raid.aRival")

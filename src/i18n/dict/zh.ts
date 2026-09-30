@@ -317,6 +317,12 @@ export const zh: Dict = {
     anon: '有人推了你！',
   },
 
+  revenge: {
+    struck: (name) => `${name} 电了你！`,
+    inked: (name) => `${name} 喷了你一脸墨！`,
+    strike: '电回去',
+  },
+
   pill: {
     banked: (n) => `已存入 ${n} 根胡萝卜`,
     carryNote: '本次带着的：走回家时才存入',

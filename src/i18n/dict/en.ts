@@ -397,6 +397,13 @@ export const en = {
     anon: 'Somebody pushed you!',
   },
 
+  /* ── Revenge: the bolt offered on whoever just hit you ──────────────── */
+  revenge: {
+    struck: (name: string) => `${name} zapped you!`,
+    inked: (name: string) => `${name} inked you!`,
+    strike: 'Zap back',
+  },
+
   /* ── The carrot pill ──────────────────────────────────────────────────── */
   pill: {
     banked: (n: number) => `${n} carrots banked`,

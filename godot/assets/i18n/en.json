@@ -451,6 +451,15 @@
 		},
 		"anon": "Somebody pushed you!"
 	},
+	"revenge": {
+		"struck": {
+			"$t": "{0} zapped you!"
+		},
+		"inked": {
+			"$t": "{0} inked you!"
+		},
+		"strike": "Zap back"
+	},
 	"pill": {
 		"banked": {
 			"$t": "{0} carrots banked"
