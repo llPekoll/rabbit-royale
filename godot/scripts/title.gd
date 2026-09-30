@@ -76,6 +76,13 @@ const TIP_PAD_Y := 10.0
 ## planches mortes et rien d'autre.
 const WAIT_CARROT := 40.0
 var _carrot: CarrotLoader
+## UNE SESSION ENREGISTREE SE REPREND sans offrir les portes. Les montrer
+## grisees pendant la verification (~5 s au Seeker) se lisait comme un menu a
+## choisir, la porte doree en pleine couleur : on ne comprenait pas que le jeu
+## chargeait. La colonne dit « Reconnecting... » avec la carotte, puis
+## « Loading... » jusqu'au terrier ; les portes ne sortent que si la reprise
+## echoue.
+var _restoring := false
 
 var _phrase := ""
 var _scale := 1
@@ -126,11 +133,13 @@ func _ready() -> void:
 		_busy(false)
 		_refresh_doors()
 		return
+	_set_restoring(not Session.token.is_empty())
 	if await Session.restore():
+		# Les portes restent cachees : l'ecran ne sert plus qu'a attendre le
+		# terrier, qui le remplace.
 		_enter()
-		_busy(false)
-		_refresh_doors()
 		return
+	_set_restoring(false)
 	_busy(false)
 	_refresh_doors()
 	# `-- --guest` : la porte invitee se presse seule, pour qu'une capture
@@ -236,6 +245,14 @@ func _measure() -> void:
 	# pour une pile (Paul, 2026-09-23 : « pas la meme largeur, ca fait
 	# brouillon »). La doree reste la porte par sa HAUTEUR et sa couleur.
 	var w := minf(PLANK_W, column - 2.0 * Kit.EDGE)
+	if _restoring:
+		# Le mot et la carotte au centre de la colonne, a la place des portes.
+		_status.position = Vector2(0.0, 0.0)
+		_status.size = Vector2(column, 24.0)
+		if _carrot != null:
+			_carrot.global_position = (_ask.global_position
+				+ Vector2((column - _carrot.size.x) * 0.5, 34.0)).round()
+		return
 	var y := 0.0
 	for entry in [[_connect, 64.0], [_guest, 44.0], [_lang, 44.0]]:
 		var node: Control = entry[0]
@@ -419,7 +436,13 @@ func _working(door: PlankButton, busy: bool) -> void:
 ## que personne ne joue) et c'est le coin le plus eloigne de la colonne : le
 ## nom se lit sans rien deranger.
 func _enter() -> void:
-	_say("", false)
+	# Reprise : la colonne attend le terrier, elle le DIT. Porte pressee : le
+	# mot de la porte (« Digging in... ») suffit, la ligne se vide.
+	if _restoring:
+		_say(I18N.t("chrome.loading") + "...", false)
+		_show_carrot(true)
+	else:
+		_say("", false)
 	_who.text = String(Session.player.get("name", ""))
 	_who.visible = not _who.text.is_empty()
 
@@ -471,7 +494,7 @@ func _say(text: String, bad: bool) -> void:
 	_status.visible = not text.is_empty()
 	_status.text = text
 	_status.add_theme_color_override("font_color",
-		Color("#ff6b6b") if bad else Color("#8b949e"))
+		Color("#ff6b6b") if bad else (Palette.CREAM if _restoring else Color("#8b949e")))
 	# Apparaitre ou disparaitre change la hauteur de la colonne : le selecteur
 	# de langue doit descendre pour lui faire place, et remonter apres.
 	if was != _status.visible:
@@ -491,6 +514,16 @@ func _busy(value: bool) -> void:
 		_refresh_doors()
 
 
+func _set_restoring(on: bool) -> void:
+	_restoring = on
+	for door in [_connect, _guest, _lang]:
+		door.visible = not on
+	# Plus grand que la ligne d'erreur (12) : c'est le seul mot de l'ecran.
+	_status.add_theme_font_size_override("font_size", 16 if on else 12)
+	_say(I18N.t("chrome.reconnecting") if on else "", false)
+	_show_carrot(on)
+
+
 func _show_carrot(on: bool) -> void:
 	if _carrot == null:
 		_carrot = CarrotLoader.new()
@@ -502,6 +535,8 @@ func _show_carrot(on: bool) -> void:
 	if on and not _carrot.visible:
 		_carrot.restart()
 	_carrot.visible = on
-	if on:
+	if on and _restoring:
+		_measure()
+	elif on:
 		var view := get_viewport_rect().size
 		_carrot.global_position = (view - _carrot.size - Vector2(10, 10)).round()
