@@ -212,11 +212,6 @@ export async function PATCH(req: Request) {
     const state = await shopState(session.sub);
     return Response.json({ alreadyCredited: true, bought: { kind: intent.kind, qty: intent.qty }, ...state });
   }
-  if (intent.expiresAt.getTime() < Date.now()) {
-    await db.update(payments).set({ status: 'expired' }).where(eq(payments.id, intent.id));
-    return Response.json({ error: 'quote_expired' }, { status: 410 });
-  }
-
   // The rail comes from the INTENT, never from the request: it decides which
   // ledger the transfer is read from, and letting the client name it would let
   // a lamport transfer be checked against token balances (and pass by finding
@@ -232,9 +227,17 @@ export async function PATCH(req: Request) {
     mint: mintFor(paidToken),
     amount: intent.amount,
     reference: intent.reference,
+    expiresAt: intent.expiresAt,
   });
 
   if (!check.ok) {
+    // Past the deadline and nothing that landed in time: the quote is over.
+    // A payment that DID land in time passed above, however late this is.
+    const lapsed = intent.expiresAt.getTime() < Date.now();
+    if (check.reason === 'landed_after_expiry' || (lapsed && check.reason === 'not_found')) {
+      await db.update(payments).set({ status: 'expired' }).where(eq(payments.id, intent.id));
+      return Response.json({ error: 'quote_expired' }, { status: 410 });
+    }
     // `not_found` means "not landed YET" as often as "never existed", so the
     // intent is left pending and the client is told to retry. Marking it failed
     // here would burn a real payment that was merely slow to confirm.
@@ -308,6 +311,10 @@ export async function expireStaleQuotes(): Promise<void> {
  * Returns what was credited, so the shop can tell the player their earlier
  * purchase arrived rather than leaving them to notice a changed number.
  */
+function expire(id: string) {
+  return db.update(payments).set({ status: 'expired' }).where(eq(payments.id, id));
+}
+
 export async function claimUnfinishedPayments(playerId: string): Promise<
   { kind: string; qty: number }[]
 > {
@@ -328,13 +335,6 @@ export async function claimUnfinishedPayments(playerId: string): Promise<
   let listing: Awaited<ReturnType<typeof treasurySignatures>> | undefined;
 
   for (const intent of pending) {
-    // An expired quote is swept rather than searched: the price it named is no
-    // longer the price, so honouring it later would be honouring a stale quote.
-    if (intent.expiresAt.getTime() < now) {
-      await db.update(payments).set({ status: 'expired' }).where(eq(payments.id, intent.id));
-      continue;
-    }
-
     listing ??= await treasurySignatures(treasury);
     const signature = await findPaidSignature({
       treasury,
@@ -342,9 +342,13 @@ export async function claimUnfinishedPayments(playerId: string): Promise<
       since: intent.createdAt,
       listing,
     });
-    // Not paid, or the RPC could not say. Either way this quote is left alone
-    // to be tried again on the next visit.
-    if (!signature) continue;
+    // Not paid, or the RPC could not say. A live quote is left for the next
+    // visit; a lapsed one is closed, but only once the chain actually answered
+    // — an RPC outage says nothing about whether it was paid.
+    if (!signature) {
+      if (listing && intent.expiresAt.getTime() < now) await expire(intent.id);
+      continue;
+    }
 
     // Verified the same way a client-supplied signature is — the sweep is not a
     // shortcut past the checks, only a different way of finding the signature.
@@ -356,8 +360,12 @@ export async function claimUnfinishedPayments(playerId: string): Promise<
       mint: mintFor(isPayTokenId(intent.token) ? intent.token : 'usdc'),
       amount: intent.amount,
       reference: intent.reference,
+      expiresAt: intent.expiresAt,
     });
-    if (!check.ok) continue;
+    if (!check.ok) {
+      if (check.reason === 'landed_after_expiry') await expire(intent.id);
+      continue;
+    }
 
     const granted = await db.transaction(async (tx) => {
       const [claimed] = await tx.update(payments)

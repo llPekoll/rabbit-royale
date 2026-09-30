@@ -97,7 +97,8 @@ export type VerifyFailure =
   | 'not_found'
   | 'failed_on_chain'
   | 'wrong_reference'
-  | 'no_matching_transfer';
+  | 'no_matching_transfer'
+  | 'landed_after_expiry';
 
 export interface VerifyOk {
   ok: true;
@@ -173,6 +174,12 @@ export type PaymentCheck = {
   amount: number;
   /** The quote's reference, expected in the transaction's memo. */
   reference: string;
+  /**
+   * The quote's deadline, judged against the BLOCK's time, not the time we
+   * look. A transfer that landed in time is honoured however late it is
+   * noticed — a slow confirm, a closed app, a sweep on the next day.
+   */
+  expiresAt: Date;
 };
 
 export async function verifyPayment(opts: PaymentCheck & { signature: string }): Promise<VerifyResult> {
@@ -211,6 +218,9 @@ export function checkPayment(tx: ChainTx | null, opts: PaymentCheck): VerifyResu
   // A transaction can land and still have reverted — its balances would be
   // unchanged, but saying so plainly beats reporting "no transfer found".
   if (tx.meta.err) return { ok: false, reason: 'failed_on_chain' };
+  if (tx.blockTime != null && tx.blockTime * 1000 > opts.expiresAt.getTime()) {
+    return { ok: false, reason: 'landed_after_expiry' };
+  }
 
   // The reference binds this transfer to ONE quote. Without it, any USDC
   // transfer to the treasury of the right size could be claimed by anyone who

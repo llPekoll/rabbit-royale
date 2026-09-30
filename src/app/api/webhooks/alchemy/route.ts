@@ -123,13 +123,15 @@ export async function POST(req: Request) {
     const chainTx = await readTransaction(signature);
     if (!chainTx) continue;
     for (const intent of pending) {
-      if (intent.expiresAt.getTime() < Date.now()) continue;
-
+      // No wall-clock skip: checkPayment judges the deadline by the block's
+      // time, so a transfer that landed in time is credited however late
+      // Alchemy delivers it.
       const check = checkPayment(chainTx, {
         treasury,
         mint,
         amount: intent.amount,
         reference: intent.reference,
+        expiresAt: intent.expiresAt,
       });
       if (!check.ok) continue;
 
