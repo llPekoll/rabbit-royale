@@ -71,12 +71,14 @@ const SKY_DROP_SECONDS := 0.55
 ## nuages passait par-dessus et le lapin disparaissait en plein vol.
 const Z_AIR := 3200
 
-## LE LAPIN S'ENFONCE A VUE : la mer se referme sur lui en 0,65 s, pas en
-## 0,4 — trop vite, il s'effacait avant qu'on l'ait vu entrer (Paul,
-## 2026-09-23 : « le lapin fade un peu trop tot »).
+## LE LAPIN S'ENFONCE A VUE : la mer se referme sur lui en 0,55 s, 0,1 s
+## apres la gerbe. Entre deux reglages contraires : a 0,4 s il s'effacait
+## avant qu'on l'ait vu entrer (Paul, 2026-09-23 : « le lapin fade un peu trop
+## tot ») ; a 0,25 + 0,65 il flottait encore sous l'eau (le user, 2026-09-30 :
+## « qu'il fade un peu plus tot »).
 const SINK_SECONDS := 0.8
-const FADE_DELAY := 0.25
-const FADE_SECONDS := 0.65
+const FADE_DELAY := 0.1
+const FADE_SECONDS := 0.55
 
 ## Le lapin assomme : trois etoiles d'or autour de la tete (`playStunned`).
 const STAR_INK := Color("#ffd138")
