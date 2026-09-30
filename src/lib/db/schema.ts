@@ -352,10 +352,89 @@ export const raidRuns = pgTable('raid_runs', {
    * with "no raid" — see `STRUCK_SHOWN_MS`.
    */
   struckAt: timestamp('struck_at', { withTimezone: true }),
+  /**
+   * When the OFFLINE defender's phone was told this raid began, and when it
+   * was told how it ended (`lib/notify/raid.ts`).
+   *
+   * On the raid row rather than in memory because the push bus fires on EVERY
+   * step of a crossing, and "one alert per raid" has to survive the ws process
+   * restarting mid-raid — and, once there are several shards, every shard
+   * hearing the same NOTIFY. Each is claimed with a conditional write
+   * (`IS NULL`), so exactly one listener ever sends it. Null for raids that
+   * were never pushed, which is nearly all of them: the defender was home.
+   */
+  pushedIncomingAt: timestamp('pushed_incoming_at', { withTimezone: true }),
+  pushedResultAt: timestamp('pushed_result_at', { withTimezone: true }),
 }, (t) => [
   index('raid_runs_defender_idx').on(t.defenderId, t.startedAt),
   index('raid_runs_attacker_idx').on(t.attackerId, t.startedAt),
 ]);
+
+/**
+ * Where to reach a player's phone or browser: one FCM registration token per
+ * row (`POST /api/push/token`).
+ *
+ * Keyed by the TOKEN, not the player: a token names an app install, and the
+ * install is what changes hands — a guest who signs in with a wallet on the
+ * same phone, a shared tablet. Registering it again moves it to the newest
+ * player, so a phone never buzzes for a burrow its current user cannot open.
+ * A player may hold several (phone + browser); each is localized and timed
+ * on its own `locale` and `tzOffsetMin`.
+ *
+ * `tzOffsetMin` is minutes EAST of UTC — what to ADD to UTC to get the
+ * device's wall clock (Paris in summer: +120). That is Godot's
+ * `Time.get_time_zone_from_system().bias`, and the OPPOSITE sign of JS's
+ * `Date.getTimezoneOffset()`; the web shell sends `-getTimezoneOffset()`.
+ */
+export const pushTokens = pgTable('push_tokens', {
+  token: text('token').primaryKey(),
+  playerId: text('player_id').notNull().references(() => players.id, { onDelete: 'cascade' }),
+  /** 'android' | 'web' — checked by the route, text so a third needs no enum migration. */
+  platform: text('platform').notNull(),
+  locale: text('locale').notNull().default('en'),
+  tzOffsetMin: integer('tz_offset_min').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index('push_tokens_player_idx').on(t.playerId)]);
+
+/**
+ * What the push sweep has already told a player (`lib/notify/`).
+ *
+ * A TABLE OF ITS OWN rather than columns on `players`, for two reasons. The
+ * players row is the hottest row in the game — every banked run, every raid
+ * settlement locks it `FOR UPDATE` — and a sweep writing bookkeeping into it
+ * every five minutes would queue behind (and in front of) the moves that
+ * matter. And only players who registered a token ever need one: the rows
+ * exist for the few who asked to be told, not for every guest ever minted.
+ *
+ * Every "once per cycle" is stored as the STAMP of the cycle it was sent for,
+ * never as a boolean: `energyFor` holds the `energyUpdatedAt` whose refill was
+ * announced, `gardenFor` the `gardenCollectedAt` whose harvest was. Spending
+ * energy or harvesting writes a new stamp on the player, which by itself
+ * re-arms the alert — no code path anywhere else has to remember to reset a
+ * flag.
+ */
+export const pushState = pgTable('push_state', {
+  playerId: text('player_id').primaryKey().references(() => players.id, { onDelete: 'cascade' }),
+  energyFor: timestamp('energy_for', { withTimezone: true }),
+  gardenFor: timestamp('garden_for', { withTimezone: true }),
+  /** The "last seen" the comeback reminders count from, and how many of them
+   *  (0, 1 at 24 h, 2 at 72 h) have gone out since. A newer last-seen resets. */
+  idleFor: timestamp('idle_for', { withTimezone: true }),
+  idleStage: integer('idle_stage').notNull().default(0),
+  /** The last sweep that found them connected. `players.lastSeenAt` is written
+   *  once an hour at most and not at all during a long session on the burrow;
+   *  this is what keeps a player who was here ten minutes ago from being told
+   *  they have been away a day. */
+  onlineAt: timestamp('online_at', { withTimezone: true }),
+  /** The last NON-raid push, for the gap between two of them. */
+  lastPushAt: timestamp('last_push_at', { withTimezone: true }),
+  /** The daily cap: a window opened by the first push in it, and its count. */
+  windowStart: timestamp('window_start', { withTimezone: true }),
+  windowCount: integer('window_count').notNull().default(0),
+  /** The last RAID push, so a burrow hit by three raiders in a minute buzzes once. */
+  raidPushAt: timestamp('raid_push_at', { withTimezone: true }),
+});
 
 /** Sabotage: a bomb or a lightning strike planted on someone else's live island. */
 export const sabotages = pgTable('sabotages', {

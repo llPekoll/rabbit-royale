@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  CE FICHIER EST CE QUI FAIT EXISTER LE PLUGIN — et ce qui fait arriver les
+  notifications app fermée.
+
+  Fusionné dans le manifest de l'APK par le build Gradle de Godot. Trois choses
+  y vivent, et aucune ne peut vivre ailleurs :
+
+  1. Le meta-data `org.godotengine.plugin.v2.RabbitFirebase` : Godot ne scanne
+     pas les classes, il lit ce préfixe dans le manifest fusionné. Sans lui
+     l'AAR est embarqué et le singleton n'apparaît jamais.
+
+  2. Le service FCM. Un plugin Godot n'existe que pendant que l'activité vit ;
+     le service, lui, est démarré par Google Play services même quand le jeu est
+     fermé — c'est tout l'intérêt d'une notification « on pille ton terrier ».
+
+  3. Les permissions : un plugin qui a besoin d'une permission la déclare
+     lui-même, plutôt que de compter sur une case cochée dans
+     export_presets.cfg qu'on décocherait sans savoir à quoi elle servait.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      Android 13+ : sans elle, notify() est ignoré en silence. Elle se demande
+      aussi à l'exécution — voir requestPushPermission() dans le plugin. Sous
+      13, la déclarer ne change rien.
+    -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!--
+      L'identifiant publicitaire, GARDÉ EXPRÈS.
+
+      firebase-analytics l'apporte déjà par son propre manifest, mais on le
+      nomme ici pour que la décision soit visible : ce sont les « Google
+      signals » qui donnent à Analytics l'âge et le sexe des joueurs
+      (démographie), et ils passent par l'AD_ID. Le jour où on voudra s'en
+      passer, c'est cette ligne qu'on remplacera par un tools:node="remove" —
+      pas une dépendance transitive qu'on aurait oubliée.
+
+      Conséquence côté Play Console : le formulaire « Identifiant publicitaire »
+      doit dire OUI (analytics).
+    -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
+
+    <application>
+        <meta-data
+            android:name="org.godotengine.plugin.v2.RabbitFirebase"
+            android:value="rip.rabbit.godot.firebase.RabbitFirebasePlugin" />
+
+        <!--
+          exported=false : seul Google Play services lui parle, et il passe par
+          l'intent-filter, pas par un appel explicite d'une autre app.
+        -->
+        <service
+            android:name="rip.rabbit.godot.firebase.RabbitMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!--
+          CE QUE LE SYSTÈME UTILISE QUAND NOTRE CODE NE TOURNE PAS.
+
+          Un message FCM qui porte un bloc `notification` et arrive app en
+          arrière-plan n'atteint JAMAIS onMessageReceived : c'est la
+          bibliothèque qui l'affiche elle-même, avec l'icône et le canal nommés
+          ici. Sans ces deux lignes, elle prend l'icône de l'app (un carré blanc
+          dans la barre d'état) et un canal « Divers » créé à la volée.
+
+          Le serveur qui veut le canal Raids dans ce cas-là doit le dire dans
+          android.notification.channel_id ; un message data-only, lui, passe
+          toujours par le service et choisit son canal via data.channel.
+        -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/rr_notification_icon" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="rr_default" />
+    </application>
+
+</manifest>

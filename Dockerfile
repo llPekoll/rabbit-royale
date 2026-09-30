@@ -63,6 +63,11 @@ RUN mkdir -p dist/web/play \
   && godot --headless --path godot --export-release "Web" ../dist/web/play/index.html \
   && test -s dist/web/play/index.wasm && test -s dist/web/play/index.pck \
   && gzip -k -9 dist/web/play/index.wasm dist/web/play/index.pck dist/web/play/index.js
+# FIREBASE, A COTE DU JEU (2026-09-30). L'export Godot n'ecrit que ses propres
+# fichiers (index.*) : la config web et le service worker des notifications
+# sont copies a la main. Le worker DOIT etre sous /play/ pour avoir la portee
+# /play/ (un worker ne peut pas viser plus haut que son dossier sans en-tete).
+RUN cp godot/web/firebase-config.js godot/web/firebase-messaging-sw.js dist/web/play/
 
 # Nginx sert les fichiers : ni Node ni Bun ne tournent en production ici.
 FROM nginx:alpine AS runtime

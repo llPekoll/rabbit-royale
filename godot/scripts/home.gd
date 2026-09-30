@@ -145,6 +145,8 @@ func act(action: String) -> Dictionary:
 	var res: Dictionary = answer.body
 	_adopt(res)
 	_landed.emit()
+	Analytics.track("burrow_action", {"action": action, "ok": answer.ok and not res.has("error"),
+		"code": String(res.get("error", "")), "harvested": int(res.get("harvested", 0))})
 
 	if res.has("harvested") and int(res["harvested"]) > 0:
 		var n := int(res["harvested"])
@@ -153,6 +155,7 @@ func act(action: String) -> Dictionary:
 	elif res.has("spent"):
 		var level := int(res.get("burrow", {}).get("level", 0))
 		if level > 0:
+			Analytics.track("level_up", {"level": level, "character": "burrow", "spent": int(res.get("spent", 0))})
 			level_up.emit(level)
 	elif res.get("raised", "") == "shield":
 		noted.emit(I18N.t("notes.shieldUp"), false)
@@ -207,6 +210,8 @@ func claim_quest(id: String) -> void:
 	# jamais apres une recompense pourtant creditee.
 	var claimed: Variant = res.get("claimed")
 	if (claimed is String and not (claimed as String).is_empty()) or (claimed is bool and claimed):
+		Analytics.track("quest_claim", {"quest_id": id, "carrots": int(reward.get("carrots", 0)),
+			"item": reward.get("item", {}).get("kind", "") if reward.get("item") is Dictionary else ""})
 		quest_claimed.emit(id, reward)
 	if int(reward.get("carrots", 0)) > 0:
 		burst.emit(int(reward["carrots"]))

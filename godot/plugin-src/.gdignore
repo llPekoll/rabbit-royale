@@ -1,0 +1,4 @@
+Ce dossier est dans res:// mais n'appartient pas au jeu : c'est le chantier
+Gradle des plugins Android. Sans ce fichier, Godot scanne plugin-src/*/build/,
+importe les PNG que Play services y déverse (merged_res) et les EMBARQUE dans
+l'APK. Le contenu de ce fichier est ignoré ; seule sa présence compte.

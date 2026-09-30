@@ -1,0 +1,137 @@
+/**
+ * What a push SAYS, in the player's language.
+ *
+ * Localized here, on the server, because a notification is drawn by the OS
+ * while the game is closed: there is no Godot running to look a key up in
+ * `godot/assets/i18n/`. The lines borrow that file's words and tone on
+ * purpose — "{0} is raiding your burrow!" is the game's own alert, "Bring it
+ * in before a raider does" its own nudge — so the phone and the game sound
+ * like the same rabbit.
+ *
+ * The five locales the game ships (en, fr, pt-BR, vi, zh). Anything else, or
+ * nothing, reads as English: a push in the wrong language is still a push,
+ * one with no text is not.
+ */
+export const PUSH_LOCALES = ['en', 'fr', 'pt-BR', 'vi', 'zh'] as const;
+export type PushLocale = (typeof PUSH_LOCALES)[number];
+
+/**
+ * A device locale tag → one of ours.
+ *
+ * Tolerant of every spelling a client might send: BCP 47 (`pt-BR`,
+ * `zh-Hans-CN`), POSIX/Godot (`pt_BR`, `fr_FR`), bare language (`vi`), any
+ * case. Portuguese of any region reads the Brazilian text — the only one
+ * written — and every Chinese reads `zh`, which is written in simplified
+ * characters.
+ */
+export function resolveLocale(tag: unknown): PushLocale {
+  if (typeof tag !== 'string') return 'en';
+  const lang = tag.trim().toLowerCase().split(/[-_.@]/)[0];
+  switch (lang) {
+    case 'fr': return 'fr';
+    case 'pt': return 'pt-BR';
+    case 'vi': return 'vi';
+    case 'zh': return 'zh';
+    default: return 'en';
+  }
+}
+
+/** Every kind of push, and the screen the client opens when it is tapped. */
+export type PushKind =
+  | 'raid_incoming'
+  | 'raid_looted'
+  | 'raid_held'
+  | 'energy_full'
+  | 'garden_ready'
+  | 'comeback_1'
+  | 'comeback_2';
+
+/** Where the client routes a tap (`data.path`). */
+export type PushPath = 'burrow' | 'defend' | 'island';
+
+export const PUSH_PATH: Record<PushKind, PushPath> = {
+  raid_incoming: 'defend',
+  raid_looted: 'burrow',
+  raid_held: 'burrow',
+  energy_full: 'island',
+  garden_ready: 'burrow',
+  comeback_1: 'burrow',
+  comeback_2: 'burrow',
+};
+
+/** `{name}` is the raider, `{n}` the carrots taken (raids) or waiting (garden). */
+export interface PushVars {
+  name?: string;
+  n?: number;
+}
+
+type Line = { title: string; body: string };
+
+const TEXT: Record<PushLocale, Record<PushKind, Line>> = {
+  en: {
+    raid_incoming: { title: '{name} is raiding your burrow!', body: 'Right now. Come home and defend.' },
+    raid_looted: { title: '{name} raided you: -{n} 🥕', body: 'Bury bombs on the path before the next one.' },
+    raid_held: { title: 'Burrow held!', body: '{name} came for your carrots and left with nothing.' },
+    energy_full: { title: 'Energy full', body: "A run's worth in the tank. Dig." },
+    garden_ready: { title: '{n} 🥕 waiting for you', body: 'Your garden is full. Bring them in before a raider does.' },
+    comeback_1: { title: '{n} 🥕 in your garden', body: 'Raiders have noticed. Come pick them up.' },
+    comeback_2: { title: 'Your burrow misses you', body: 'Full tank, full garden, and a crown still up for grabs.' },
+  },
+  fr: {
+    raid_incoming: { title: '{name} pille ton terrier !', body: 'En ce moment. Rentre défendre.' },
+    raid_looted: { title: '{name} t’a pillé : -{n} 🥕', body: 'Enterre des bombes sur le chemin avant le prochain.' },
+    raid_held: { title: 'Terrier défendu !', body: '{name} est venu pour tes carottes et repart bredouille.' },
+    energy_full: { title: 'Énergie pleine', body: 'De quoi sortir. Creuse.' },
+    garden_ready: { title: '{n} 🥕 t’attendent', body: 'Ton potager est plein. Viens les ramasser avant un pillard.' },
+    comeback_1: { title: '{n} 🥕 dans ton potager', body: 'Les pillards l’ont remarqué. Viens les chercher.' },
+    comeback_2: { title: 'Ton terrier t’attend', body: 'Énergie pleine, potager plein, et la couronne est toujours à prendre.' },
+  },
+  'pt-BR': {
+    raid_incoming: { title: '{name} está saqueando sua toca!', body: 'Agora mesmo. Volte e defenda.' },
+    raid_looted: { title: '{name} saqueou você: -{n} 🥕', body: 'Enterre bombas no caminho antes do próximo.' },
+    raid_held: { title: 'Toca defendida!', body: '{name} veio atrás das suas cenouras e saiu sem nada.' },
+    energy_full: { title: 'Energia cheia', body: 'Dá uma saída. Cave.' },
+    garden_ready: { title: '{n} 🥕 esperando você', body: 'Sua horta está cheia. Colha antes que um saqueador colha.' },
+    comeback_1: { title: '{n} 🥕 na sua horta', body: 'Os saqueadores perceberam. Venha buscar.' },
+    comeback_2: { title: 'Sua toca sente sua falta', body: 'Energia cheia, horta cheia, e a coroa ainda está em jogo.' },
+  },
+  vi: {
+    raid_incoming: { title: '{name} đang cướp hang bạn!', body: 'Ngay lúc này. Về phòng thủ đi.' },
+    raid_looted: { title: '{name} đã cướp bạn: -{n} 🥕', body: 'Chôn bom trên đường trước khi kẻ tiếp theo tới.' },
+    raid_held: { title: 'Hang đã giữ được!', body: '{name} đến cướp cà rốt và ra về tay trắng.' },
+    energy_full: { title: 'Năng lượng đầy', body: 'Đủ một chuyến. Đào.' },
+    garden_ready: { title: '{n} 🥕 đang chờ bạn', body: 'Vườn đầy rồi. Thu hoạch trước khi kẻ cướp tới.' },
+    comeback_1: { title: '{n} 🥕 trong vườn của bạn', body: 'Kẻ cướp đã để ý. Về lấy đi.' },
+    comeback_2: { title: 'Hang đang chờ bạn', body: 'Đầy năng lượng, đầy vườn, và vương miện vẫn còn đó.' },
+  },
+  zh: {
+    raid_incoming: { title: '{name} 正在掠夺你的兔窝！', body: '就是现在。快回去防守。' },
+    raid_looted: { title: '{name} 掠夺了你：-{n} 🥕', body: '下一个来之前，在路上埋好炸弹。' },
+    raid_held: { title: '兔窝守住了！', body: '{name} 想来偷胡萝卜，结果空手而归。' },
+    energy_full: { title: '体力已满', body: '够出行一次。去挖。' },
+    garden_ready: { title: '{n} 🥕 在等你', body: '菜园满了。趁掠夺者动手前收进来。' },
+    comeback_1: { title: '菜园里有 {n} 🥕', body: '掠夺者已经盯上了。快回来收。' },
+    comeback_2: { title: '你的兔窝在等你', body: '体力满了，菜园满了，王冠还没人拿走。' },
+  },
+};
+
+/**
+ * A raider's name as it goes into a notification: trimmed and capped, so a
+ * long name cannot push the rest of the title off a lock screen.
+ */
+function shortName(name: string | undefined): string {
+  const n = (name ?? '').trim() || '?';
+  return n.length > 24 ? `${n.slice(0, 23)}…` : n;
+}
+
+function fill(s: string, vars: PushVars): string {
+  return s
+    .replace('{name}', shortName(vars.name))
+    .replace('{n}', String(Math.max(0, Math.round(vars.n ?? 0))));
+}
+
+/** Title and body of `kind` for a device set to `locale`. */
+export function pushText(kind: PushKind, locale: unknown, vars: PushVars = {}): Line {
+  const line = TEXT[resolveLocale(locale)][kind];
+  return { title: fill(line.title, vars), body: fill(line.body, vars) };
+}

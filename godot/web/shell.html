@@ -323,6 +323,212 @@ window.rrWalletWeb = (function () {
 	};
 })();
 		</script>
+		<!-- La config web de Firebase (publique), copiee a cote de index.html
+		     par le Dockerfile. Placeholders « TODO » : tout reste muet. -->
+		<script src="firebase-config.js"></script>
+		<script>
+/* FIREBASE, pour analytics.gd et push.gd (branche web).
+   Android a son plugin RabbitFirebase ; ici c'est le SDK JS « compat »,
+   epingle sur gstatic et charge EN DIFFERE : jamais sur le chemin du boot (le
+   moteur passe d'abord), et jamais du tout tant que la config porte des TODO.
+
+   Le contrat, le meme que le plugin :
+     logEvent(nom, paramsJson)   setUserId(id)   setUserProperty(cle, valeur)
+     requestPush(cb)   -> cb(jeton), "" sur refus, panne ou config absente
+     pushState()       -> 'granted' | 'denied' | 'default' | 'unsupported'
+     launchPath()      -> le chemin de la notification qui a ouvert la page
+                          (?push=), une seule fois ; "" sinon
+     onPushOpened(cb)  -> cb(chemin) quand une notification est tapee alors
+                          que le jeu est deja ouvert (le service worker nous
+                          le poste au lieu d'ouvrir un second onglet)
+   Comme rrWalletWeb, un rappel n'est JAMAIS synchrone : Godot n'a pas encore
+   commence a attendre quand l'appel revient.
+
+   Les appels d'analytics faits avant que le SDK soit la attendent dans une
+   petite file, videe a son arrivee ; si le SDK ne vient pas (bloqueur,
+   hors ligne), la file est jetee sans bruit. */
+window.rrFirebase = (function () {
+	const VERSION = '12.19.0';
+	const BASE = 'https://www.gstatic.com/firebasejs/' + VERSION + '/';
+	const cfg = window.RR_FIREBASE_CONFIG || null;
+	function filled(k) {
+		return !!cfg && typeof cfg[k] === 'string' && cfg[k] !== '' && !/TODO/.test(cfg[k]);
+	}
+	const configured = ['apiKey', 'authDomain', 'projectId', 'messagingSenderId', 'appId', 'measurementId'].every(filled);
+	const pushConfigured = configured && filled('vapidKey');
+	// DebugView de GA4 : /play/?analytics_debug
+	const debug = /[?&]analytics_debug\b/.test(location.search);
+
+	// Le chemin d'une notification qui a ouvert la page, lu UNE fois et retire
+	// de l'adresse : un rechargement ne doit pas rejouer la tape.
+	let launch = '';
+	try {
+		const url = new URL(location.href);
+		launch = url.searchParams.get('push') || '';
+		if (launch) {
+			url.searchParams.delete('push');
+			history.replaceState(history.state, '', url.pathname + url.search + url.hash);
+		}
+	} catch (e) { launch = ''; }
+
+	// La tape sur une notification, jeu deja ouvert : postee par le worker.
+	let openedCb = null;
+	const openedQueue = [];
+	if ('serviceWorker' in navigator) {
+		navigator.serviceWorker.addEventListener('message', function (e) {
+			const path = e.data && e.data.rrPush;
+			if (typeof path !== 'string' || !path) return;
+			if (openedCb) openedCb(path); else openedQueue.push(path);
+		});
+	}
+
+	let analytics = null;
+	let messaging = null;
+	let booting = null;
+	let queue = [];
+	const QUEUE_MAX = 200;
+
+	function load(src) {
+		return new Promise(function (resolve, reject) {
+			const s = document.createElement('script');
+			s.src = src;
+			s.async = true;
+			s.onload = resolve;
+			s.onerror = function () { reject(new Error('could not load ' + src)); };
+			document.head.appendChild(s);
+		});
+	}
+
+	function boot() {
+		if (!configured) return Promise.resolve(false);
+		if (booting) return booting;
+		booting = load(BASE + 'firebase-app-compat.js')
+			.then(function () {
+				return Promise.all([
+					load(BASE + 'firebase-analytics-compat.js'),
+					pushConfigured ? load(BASE + 'firebase-messaging-compat.js') : null,
+				]);
+			})
+			.then(function () {
+				const app = firebase.initializeApp(cfg);
+				return Promise.all([
+					firebase.analytics.isSupported().then(function (ok) {
+						if (ok) analytics = firebase.analytics(app);
+					}),
+					pushConfigured && firebase.messaging && firebase.messaging.isSupported
+						? Promise.resolve(firebase.messaging.isSupported()).then(function (ok) {
+							if (ok) messaging = firebase.messaging(app);
+						})
+						: null,
+				]);
+			})
+			.then(function () {
+				const pending = queue;
+				queue = [];
+				pending.forEach(function (fn) { fn(); });
+				return true;
+			})
+			.catch(function (e) {
+				// Un bloqueur, le reseau : le jeu n'a pas a le savoir.
+				console.warn('[rrFirebase] off:', e && e.message);
+				queue = [];
+				return false;
+			});
+		return booting;
+	}
+
+	// Chaque appel d'analytics passe par ici : tout de suite si le SDK est la,
+	// sinon dans la file (bornee), sinon nulle part.
+	function withAnalytics(fn) {
+		if (!configured) return;
+		const run = function () { if (analytics) { try { fn(analytics); } catch (e) { /* muet */ } } };
+		if (analytics) return run();
+		if (queue.length < QUEUE_MAX) queue.push(run);
+		boot();
+	}
+
+	// Le worker des notifications, sous /play/ et a portee /play/, ACTIF avant
+	// que getToken le lise.
+	function worker() {
+		return navigator.serviceWorker.register('firebase-messaging-sw.js', { scope: './' })
+			.then(function (reg) {
+				if (reg.active) return reg;
+				return new Promise(function (resolve) {
+					const sw = reg.installing || reg.waiting;
+					if (!sw) return resolve(reg);
+					sw.addEventListener('statechange', function () {
+						if (sw.state === 'activated') resolve(reg);
+					});
+				});
+			});
+	}
+
+	function pushState() {
+		if (!pushConfigured || !('Notification' in window) || !('serviceWorker' in navigator)
+			|| !('PushManager' in window)) return 'unsupported';
+		return Notification.permission;
+	}
+
+	// La demande DOIT partir dans le geste du joueur : on l'appelle avant tout
+	// `then`. Les vieux Safari rendent la reponse a un rappel, pas une Promise.
+	function askPermission() {
+		if (Notification.permission === 'granted') return Promise.resolve('granted');
+		return new Promise(function (resolve) {
+			const ret = Notification.requestPermission(resolve);
+			if (ret && ret.then) ret.then(resolve);
+		});
+	}
+
+	return {
+		logEvent: function (name, paramsJson) {
+			let params = {};
+			try { params = JSON.parse(paramsJson || '{}') || {}; } catch (e) { params = {}; }
+			// Les rapports d'ecrans de GA4 lisent firebase_screen*, que Godot ne
+			// peut pas nommer (prefixe reserve, analytics.gd le retire).
+			if (name === 'screen_view') {
+				params.firebase_screen = params.screen_name;
+				params.firebase_screen_class = params.screen_class;
+			}
+			if (debug) params.debug_mode = true;
+			withAnalytics(function (a) { a.logEvent(name, params); });
+		},
+		setUserId: function (id) {
+			withAnalytics(function (a) { a.setUserId(id ? String(id) : null); });
+		},
+		setUserProperty: function (key, value) {
+			const props = {};
+			props[key] = value;
+			withAnalytics(function (a) { a.setUserProperties(props); });
+		},
+		pushState: pushState,
+		requestPush: function (cb) {
+			const done = function (token) { setTimeout(function () { cb(token || ''); }, 0); };
+			if (pushState() === 'unsupported') return done('');
+			askPermission()
+				.then(function (permission) {
+					if (permission !== 'granted') return '';
+					return Promise.all([boot(), worker()]).then(function (r) {
+						if (!r[0] || !messaging) return '';
+						return messaging.getToken({ vapidKey: cfg.vapidKey, serviceWorkerRegistration: r[1] });
+					});
+				})
+				.then(done, function (e) {
+					console.warn('[rrFirebase] push:', e && e.message);
+					done('');
+				});
+		},
+		launchPath: function () {
+			const path = launch;
+			launch = '';
+			return path;
+		},
+		onPushOpened: function (cb) {
+			openedCb = function (path) { setTimeout(function () { cb(path); }, 0); };
+			while (openedQueue.length) openedCb(openedQueue.shift());
+		},
+	};
+})();
+		</script>
 		<script src="$GODOT_URL"></script>
 		<script>
 const GODOT_CONFIG = $GODOT_CONFIG;

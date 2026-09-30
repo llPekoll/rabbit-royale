@@ -169,6 +169,13 @@
       "when": 1790592881448,
       "tag": "0023_bomb_becomes_trap",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1790769505494,
+      "tag": "0024_push_notifications",
+      "breakpoints": true
     }
   ]
 }

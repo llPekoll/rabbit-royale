@@ -29,6 +29,17 @@ server {
     add_header Cache-Control "no-cache";
   }
 
+  # FIREBASE, A COTE DU JEU : la config web et le worker des notifications
+  # (godot/web/, copies par le Dockerfile). JAMAIS en cache long : un worker
+  # perime continue d'intercepter les clics sur les notifications avec son
+  # ancien code, et une config perimee enverrait les evenements a l'ancien
+  # projet. Le navigateur revalide le worker de lui-meme a chaque
+  # navigation, mais seulement si le serveur ne lui promet pas de le garder.
+  location ~ ^/play/(firebase-messaging-sw|firebase-config)\.js$ {
+    types { application/javascript js; }
+    add_header Cache-Control "no-cache";
+  }
+
   # /api PART AU SERVEUR DE JEU, il n'est jamais servi d'ici.
   #
   # Sans ce bloc, le `try_files ... /index.html` plus bas attrape /api/* et

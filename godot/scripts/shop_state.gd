@@ -228,8 +228,10 @@ func buy(kind: String, qty: int = 1) -> Dictionary:
 	busy = false
 	var res: Dictionary = answer.body
 	if res.has("error") or not answer.ok:
+		Analytics.track("purchase_refused", {"item_id": kind, "quantity": qty, "currency": "carrots", "code": answer.error()})
 		_say(message(answer.error()), true)
 		return {}
+	Analytics.track("spend_virtual_currency", {"virtual_currency_name": "carrots", "value": int(res.get("spent", 0)), "item_name": kind, "quantity": qty})
 	shop = res
 	# Un achat de piege change aussi ce que le sol permet.
 	if kind == "trap":
@@ -254,6 +256,7 @@ func place_trap(tile: int) -> bool:
 		return false
 	_say("", false)
 	var answer: Answer = await Net.post_json("/api/traps", {"tile": tile}, Session.token)
+	Analytics.track("trap_place", {"ok": answer.ok and not answer.body.has("error")})
 	return _took(answer, "traps")
 
 
@@ -319,6 +322,7 @@ func place_fence(tile: int, side: String) -> bool:
 		return false
 	_say("", false)
 	var answer: Answer = await Net.post_json("/api/fences", {"tile": tile, "side": side}, Session.token)
+	Analytics.track("fence_place", {"ok": answer.ok and not answer.body.has("error")})
 	return _took(answer, "fences")
 
 

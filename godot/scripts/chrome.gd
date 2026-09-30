@@ -350,10 +350,12 @@ func go(door: String) -> void:
 
 ## UNE PORTE, qu'elle vienne d'un batiment ou de la ligne de la quete.
 func _on_door(door: String) -> void:
+	Analytics.track("door", {"door": door})
 	match door:
 		"dig":
 			_dig()
 		"defend":
+			Analytics.track("defend_open")
 			_start_mode("placing")
 		"raid":
 			# PAS DE RAID AVANT LE NIVEAU 10, dans les deux sens (2026-09-23) :
@@ -361,6 +363,7 @@ func _on_door(door: String) -> void:
 			Net.trace("porte RAID : niveau=%s" % str(Home.player.get("level")))
 			if not Chrome.raids_open():
 				Net.trace("porte RAID refusee : niveau < RAID_MIN")
+				Analytics.track("raid_locked", {"level": int(Home.player.get("level", 0))})
 				toast(I18N.f("rabbitLevel.raidLocked", [Tuning.i("RABBIT_LEVELS.RAID_MIN", 10)]), true)
 				return
 			TargetList.open()
@@ -424,6 +427,7 @@ func _dig() -> void:
 	if not Home.burrow.is_empty():
 		var run_cost := int(Home.burrow.get("runCost", Tuning.i("ENERGY.MIN_TO_CROSS")))
 		if int(Home.live_energy()["energy"]) < run_cost:
+			Analytics.track("energy_empty", {"where": "dig_door", "energy": int(Home.live_energy()["energy"]), "need": run_cost})
 			Sound.deny()
 			EnergyPopup.open()
 			return
@@ -513,6 +517,7 @@ func show_raid(on: bool) -> void:
 	if _raid_shown == on:
 		return
 	_raid_shown = on
+	Analytics.set_raid(on)
 	close_dialog()
 	_end_mode()
 	_mount_place()
@@ -905,6 +910,7 @@ func open(dialog: Control, dismiss: bool = true, placement: String = "center") -
 	# montent en fondu ensemble.
 	dialogs.modulate.a = 0.0
 	create_tween().tween_property(dialogs, "modulate:a", 1.0, 0.14)
+	Analytics.dialog_opened(dialog)
 
 
 func _center_dialog() -> void:
@@ -949,6 +955,7 @@ func _center_dialog() -> void:
 
 func close_dialog() -> void:
 	if _dialog != null:
+		Analytics.dialog_closed()
 		_dialog.queue_free()
 		_dialog = null
 	if _scrim != null:

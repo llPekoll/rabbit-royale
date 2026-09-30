@@ -1841,6 +1841,8 @@ static func _player_id() -> String:
 
 
 func _remember_finished() -> void:
+	if tutorial_pending():
+		Analytics.track("tutorial_complete", {"digs": _digs, "flags": _flags, "chests": _chests})
 	var cfg := ConfigFile.new()
 	cfg.load(TUTORIAL_PATH)
 	cfg.set_value("tutorial", _player_id(), true)
@@ -1953,6 +1955,7 @@ func _refresh_caption() -> void:
 
 	var b := FirstRun.beat(s)
 	var id: String = b.get("id", "")
+	Analytics.tutorial_step(id, FirstRun.BEATS.map(func(entry: Dictionary) -> String: return entry["id"]).find(id))
 	_caption.show_beat(id, b.get("sticky", false))
 	_tiles.set_pulse(held if s.beside else Vector2i(-1, -1))
 	_teach(s.beside and not _armed and not _done)

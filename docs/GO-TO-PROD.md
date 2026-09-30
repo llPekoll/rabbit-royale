@@ -191,6 +191,37 @@ test encaisse du vrai argent.
 > Mainnet : USDC `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`,
 > SKR `SKRbvo6Gf7GondiT3BbTfuRDPqLWei4j2Qy2NPGZhW3`.
 
+
+### Notifications push (FCM) — `rr-ws` seulement
+
+Envoyées par `rr-ws` (`src/lib/notify/`) : raid sur un terrier dont le
+propriétaire n'est pas connecté, énergie pleine, potager plein, rappels
+d'absence à 24 h et 72 h. Android (export Godot) et web (`/play/`) passent
+tous deux par FCM HTTP v1.
+
+| Variable | Effet si absente |
+| --- | --- |
+| `FIREBASE_SERVICE_ACCOUNT` | **aucune** notification : tout le module est un no-op silencieux (une ligne `[push] … OFF` au démarrage). Les jetons continuent d'être enregistrés par `POST /api/push/token`. |
+| `FIREBASE_PROJECT_ID` | lu dans le `project_id` du compte de service |
+
+`FIREBASE_SERVICE_ACCOUNT` est le JSON du compte de service (console
+Firebase → Paramètres du projet → Comptes de service → Générer une clé
+privée), **collé tel quel ou en base64** — le base64 évite que Coolify casse
+les retours à la ligne de la clé : `base64 -i rabbit-royale-firebase.json | tr -d '\n'`.
+Le compte n'a besoin que du rôle *Firebase Cloud Messaging API Admin*
+(l'API « Firebase Cloud Messaging API (V1) » doit être activée sur le projet).
+
+Au démarrage, `rr-ws` dit l'un ou l'autre :
+
+```
+[push] FCM on, project <id> as <client_email>
+[push] FIREBASE_SERVICE_ACCOUNT not set: push notifications OFF
+```
+
+> La migration `0024_push_notifications` ajoute deux colonnes à `raid_runs`
+> que toutes les lectures de raid sélectionnent : **la passer en prod AVANT
+> de pousser le code**, sinon chaque raid tombe en erreur de colonne.
+
 ---
 
 ## En cas de doute
@@ -438,3 +469,26 @@ ON CONFLICT (key) DO NOTHING;
 Registre de prod : 23 → 24, comme le local ; `bloop` présent dans l'enum,
 les deux prix dans `tuning`. Les lignes `SHOP.*.mirage` restent (clés mortes,
 ignorées au chargement ; `--prune` les retirera).
+
+### 2026-09-30 — `0024_push_notifications` : les notifications push
+
+Deux tables (`push_tokens` : un jeton FCM par appareil ; `push_state` : la
+comptabilité des envois, à part pour ne pas verrouiller `players`) et deux
+colonnes sur `raid_runs` (`pushed_incoming_at`, `pushed_result_at`). Passé en
+une transaction, **avant** le push du code : les lectures de raid sélectionnent
+toutes les colonnes de `raid_runs`, et le nouveau code sur l'ancienne table
+aurait fait échouer chaque raid.
+
+```sql
+BEGIN;
+-- le contenu de drizzle/0024_push_notifications.sql, tel quel
+INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
+SELECT '08273580614f95e9a11e0a9e8d5a7a2aa017de09359201ea893d2a41aa9a2481', 1790769505494
+WHERE NOT EXISTS (SELECT 1 FROM drizzle.__drizzle_migrations WHERE hash = '08273580…');
+COMMIT;
+```
+
+Registre de prod : 25 → 26 (la ligne de trop d'avant 0023 est toujours là) ;
+le hash de 0024 était absent avant d'écrire. `push_state`, `push_tokens`,
+`raid_runs.pushed_incoming_at` et `pushed_result_at` présents après.
+`FIREBASE_SERVICE_ACCOUNT` posé sur rr-ws dans Coolify le même jour.

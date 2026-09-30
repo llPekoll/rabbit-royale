@@ -137,6 +137,7 @@ func _ready() -> void:
 	if await Session.restore():
 		# Les portes restent cachees : l'ecran ne sert plus qu'a attendre le
 		# terrier, qui le remplace.
+		Analytics.track("login", {"method": "restore"})
 		_enter()
 		return
 	_set_restoring(false)
@@ -388,6 +389,7 @@ func _on_connect() -> void:
 	_working(_connect, false)
 	_busy(false)
 	if ok:
+		Analytics.track("login", {"method": "wallet_link" if linking else "wallet"})
 		_enter()
 
 
@@ -399,6 +401,7 @@ func _on_guest() -> void:
 	_working(_guest, false)
 	_busy(false)
 	if ok:
+		Analytics.track("login", {"method": "guest"})
 		_enter()
 
 

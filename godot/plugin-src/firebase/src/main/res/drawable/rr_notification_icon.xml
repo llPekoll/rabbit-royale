@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  L'icône de la barre d'état : une tête de lapin, deux oreilles, deux yeux.
+
+  MONOCHROME PAR OBLIGATION, pas par goût. Depuis Android 5, le système ne garde
+  que le canal alpha d'une small icon et la peint en blanc (ou dans la couleur
+  d'accent) : l'icône de lancement en couleurs y devient un carré blanc plein.
+  Seule la silhouette compte, donc elle doit se lire à 24 dp.
+
+  Les yeux sont des TROUS : tracés dans le sens inverse de la tête, la règle
+  nonZero les soustrait. Les oreilles, tracées dans le même sens que la tête,
+  s'y additionnent là où elles la chevauchent au lieu de s'y creuser — c'est
+  pour ça qu'on n'utilise pas evenOdd ici.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="nonZero"
+        android:pathData="M5.5,15.5 a6.5,6.5 0 1,0 13,0 a6.5,6.5 0 1,0 -13,0 z
+            M7.1,6 a1.9,4.6 0 1,0 3.8,0 a1.9,4.6 0 1,0 -3.8,0 z
+            M13.1,6 a1.9,4.6 0 1,0 3.8,0 a1.9,4.6 0 1,0 -3.8,0 z
+            M8.6,14.6 a1,1 0 1,1 2,0 a1,1 0 1,1 -2,0 z
+            M13.4,14.6 a1,1 0 1,1 2,0 a1,1 0 1,1 -2,0 z" />
+</vector>

@@ -327,6 +327,7 @@ func go_home() -> void:
 ## RENDRE LA PLACE ET ENCAISSER : le serveur banque sur `leave`, donc rentrer
 ## avec un sac plein vaut exactement vider le reservoir.
 func leave() -> void:
+	Analytics.run_left(digs)
 	held_seat = {}
 	GameSocket.leave()
 
@@ -639,6 +640,9 @@ func _on_island(snap: Dictionary) -> void:
 	rabbits_changed.emit()
 	me_changed.emit()
 	_refresh_caption()
+	if not me().is_empty() and spectating.is_empty():
+		Analytics.run_started({"tutorial": first_run, "island": seed.get_slice(":", 0), "chests_total": chests_total,
+			"rabbits": rabbits.size(), "energy": int(me().get("energy", 0)), "level": int(Home.player.get("level", 0))})
 
 
 ## Le serveur a dit non a une place. Seul `no_energy` porte des chiffres :
@@ -650,6 +654,7 @@ func _on_error(e: Dictionary) -> void:
 			refusal = {"code": code, "energy": 0, "need": 0, "nextRunInMs": null, "at": Time.get_ticks_msec()}
 			refused.emit(refusal)
 		"no_energy":
+			Analytics.track("energy_empty", {"where": "join", "energy": int(e.get("energy", 0)), "need": int(e.get("need", 0))})
 			refusal = {"code": code, "energy": int(e.get("energy", 0)), "need": int(e.get("need", 0)),
 				"nextRunInMs": e.get("nextRunInMs", null), "at": Time.get_ticks_msec()}
 			refused.emit(refusal)
@@ -720,6 +725,7 @@ func _on_run_over(r: Dictionary) -> void:
 	# Home le garde tout de suite, pour que le terrier le dise en arrivant.
 	if r.has("level"):
 		Home.player["level"] = int(r["level"])
+	Analytics.run_ended(r, digs)
 	run_ended.emit(r)
 
 

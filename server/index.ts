@@ -53,6 +53,10 @@ import {
 import { purgeOrphanGuests } from '../src/lib/auth/abandon';
 import { PRICE_REFRESH_MS, refreshTokenPrices } from '../src/lib/pay/rates';
 import { guard, installProcessGuards, optional } from './resilience';
+import { pushEnabled } from '../src/lib/notify/fcm';
+import { pushRaidEvent } from '../src/lib/notify/raid';
+import { runPushSweep } from '../src/lib/notify/sweep';
+import { PUSH } from '../src/lib/notify/schedule';
 
 const PORT = Number(process.env.WS_PORT ?? 3010);
 const store = new MemoryIslandStore();
@@ -521,7 +525,13 @@ function listenForPushes(): void {
     const push = decodePush(wire);
     if (!push) return;
     if (push.event === 'energy_granted') return topUpRabbit(push.to, push.payload);
-    socketOf(push.to)?.emit(push.event, push.payload);
+    const socket = socketOf(push.to);
+    if (socket) return void socket.emit(push.event, push.payload);
+    // Not at home: the raid reaches their phone instead (lib/notify/raid.ts,
+    // which dedupes the step-by-step stream to one alert and one outcome).
+    if (push.event === 'raid_incoming') {
+      void optional('pushRaidEvent', () => pushRaidEvent(push.to, push.payload));
+    }
   }).then(
     () => console.log('[rr-ws] push bus listening on', PLAYER_PUSH_CHANNEL),
     (e) => console.error('[rr-ws] push bus unavailable (live raids off):', e),
@@ -1875,6 +1885,22 @@ setInterval(guard('sweep', () => {
  * always up, and once at boot so a deploy clears the backlog without waiting
  * a night. `guard` because a failed sweep is a log line, never a dead server.
  */
+/**
+ * The fourth: push notifications that are owed by the clock — energy full,
+ * garden ready, the comeback reminders (src/lib/notify/sweep.ts). Only
+ * players with a registered device are read, and "online" is a live socket
+ * in THIS process, the same reading the raid alert above uses. A silent no-op
+ * when FCM is not configured (`pushEnabled` says so once, at boot).
+ *
+ * Several shards would each ask with their own sockets; the sweep's claim
+ * keeps it to one push per decision, but a player connected to another shard
+ * would read as offline here. One process today (see the header).
+ */
+pushEnabled(); // one line at boot: push on (project, account) or off (why)
+const pushSweep = guard('push-sweep', () => runPushSweep((id) => !!socketOf(id)));
+setTimeout(pushSweep, 30_000);
+setInterval(pushSweep, PUSH.SWEEP_MS).unref();
+
 const GUEST_SWEEP_MS = 6 * 60 * 60 * 1000;
 const sweepGuests = guard('sweep-guests', async () => {
   const gone = await purgeOrphanGuests();

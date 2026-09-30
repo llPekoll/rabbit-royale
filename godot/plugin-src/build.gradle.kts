@@ -1,7 +1,8 @@
-// Le build de l'AAR du plugin, à part du projet Godot lui-même.
+// Le build des AAR des plugins (mwa → RabbitMWA, firebase → RabbitFirebase),
+// à part du projet Godot lui-même.
 //
-// CE DOSSIER NE PART PAS DANS L'APK. Il produit un artefact — l'AAR sous
-// addons/RabbitMWA/bin/ — et c'est cet artefact que l'export embarque. Le garder
+// CE DOSSIER NE PART PAS DANS L'APK. Il produit des artefacts — les AAR sous
+// addons/<Plugin>/bin/ — et ce sont eux que l'export embarque. Le garder
 // hors de res:// évite que Godot importe des sources Kotlin comme des
 // ressources de jeu.
 //

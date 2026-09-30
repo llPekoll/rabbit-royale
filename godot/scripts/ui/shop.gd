@@ -164,6 +164,7 @@ static func open() -> Shop:
 
 
 func _ready() -> void:
+	Analytics.track("shop_open")
 	_state = ShopState.shared()
 	_pay = UsdcPay.new()
 	_build()
@@ -1178,6 +1179,7 @@ class UsdcPay:
 		if not Wallet.available():
 			return _fail(I18N.t("pay.noWallet"))
 		_to(Stage.QUOTING)
+		Analytics.track("begin_checkout", {"item_id": kind, "quantity": qty, "rail": rail})
 
 		var quote: Answer = await Net.post_json("/api/shop/pay",
 			{"kind": kind, "qty": qty, "token": rail, "build": true}, Session.token)
@@ -1206,6 +1208,8 @@ class UsdcPay:
 			shop.refresh()
 			Home.refresh()
 			var bought: Dictionary = res.body.get("bought", {})
+			Analytics.track("purchase", {"currency": "USD", "value": float(res.body.get("paidUsdc", 0.0)), "item_id": kind,
+				"quantity": qty, "rail": rail, "transaction_id": payment_id})
 			shop.bought.emit(String(bought.get("kind", kind)), int(bought.get("qty", qty)))
 			_to(Stage.IDLE)
 			return res.body
@@ -1218,6 +1222,7 @@ class UsdcPay:
 		changed.emit()
 
 	func _fail(text: String) -> Dictionary:
+		Analytics.track("purchase_error", {"stage": Stage.keys()[stage].to_lower(), "reason": text})
 		error = text
 		_to(Stage.IDLE)
 		return {}

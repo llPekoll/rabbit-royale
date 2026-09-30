@@ -199,6 +199,15 @@ func _ready() -> void:
 	_restyle()
 	if not Engine.is_editor_hint():
 		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		# CHAQUE PLANCHE PRESSEE EST COMPTEE (analytics.gd `ui_click`) : ou
+		# les joueurs tapent le plus, bouton par bouton. Cherche par son
+		# chemin et pas par son nom d'autoload : ce script ne dependait
+		# d'aucun autoload, et une sonde `--script` qui le compile avant que
+		# les autoloads existent doit continuer de le compiler.
+		pressed.connect(func() -> void:
+			var analytics := get_node_or_null(^"/root/Analytics")
+			if analytics != null:
+				analytics.call("ui_click", self))
 
 
 func _restyle() -> void:

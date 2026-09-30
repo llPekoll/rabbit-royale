@@ -26,6 +26,20 @@ android/
 #     cd plugin-src && ./gradlew assemble
 addons/RabbitMWA/bin/
 
+# L'AAR DU PLUGIN FIREBASE — même raison que RabbitMWA ci-dessus. En plus, il
+# EMBARQUE la configuration du projet Firebase (lue dans google-services.json
+# au build) : un AAR versionné figerait celle de la machine qui l'a construit.
+#     android/gradlew -p godot/plugin-src :firebase:assembleDebug :firebase:assembleRelease
+addons/RabbitFirebase/bin/
+
+# La configuration Firebase, lue par plugin-src/firebase/build.gradle.kts.
+# Ignorée comme android/app/google-services.json l'était pour la coquille
+# WebView (.gitignore racine) : elle est propre à un projet Firebase, et un
+# checkout sans elle doit toujours compiler — Firebase y reste simplement en
+# veille. Ce n'est pas un secret au sens strict (la clé d'API qu'elle contient
+# finit en clair dans l'APK), mais elle n'a rien à faire dans l'historique.
+plugin-src/firebase/google-services.json
+
 # Le chantier Gradle du plugin : caches, artefacts intermédiaires, et
 # local.properties qui contient un chemin de SDK propre à chaque machine.
 plugin-src/.gradle/

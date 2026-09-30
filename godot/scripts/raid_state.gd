@@ -198,6 +198,7 @@ func enter(defender_id: String) -> void:
 	busy = false
 	var res := answer.body
 	if res.has("error") or not answer.ok:
+		Analytics.track("raid_refused", {"code": answer.error()})
 		_refuse(answer)
 		# Un raid deja en cours revient AVEC ce raid : le joueur y est remis
 		# plutot que sermonne et laisse nulle part.
@@ -206,6 +207,13 @@ func enter(defender_id: String) -> void:
 		changed.emit()
 		return
 	_adopt_raid(res.get("raid", {}) if res.get("raid") is Dictionary else {})
+	if has_raid():
+		Analytics.track("raid_start", {"energy": int(raid.get("energy", 0)), "defender_level": int(_defender_of(raid).get("level", 0))})
+
+
+## Le defenseur d'un raid, ou vide — le serveur l'omet parfois.
+static func _defender_of(r: Dictionary) -> Dictionary:
+	return r["defender"] if r.get("defender") is Dictionary else {}
 
 
 ## AVANCER d'une case (`PATCH /api/raid {tile}`). Le plateau appelle ceci ;
@@ -245,6 +253,8 @@ func leave() -> void:
 	# repli apres lui rentre avec une jauge plus basse, qu'il faut aller lire
 	# (page.tsx `raidCharged`). Sans pas, rien n'a ete pris.
 	var paid := (raid.get("walked", []) as Array).size() >= 2
+	if not raid.is_empty() and not bool(raid.get("finished", false)):
+		Analytics.track("raid_abandon", {"steps": (raid.get("walked", []) as Array).size(), "paid": paid})
 	raid = {}
 	outcome = {}
 	note = ""
@@ -329,6 +339,10 @@ func _adopt_raid(next: Dictionary) -> void:
 ## s'etait passe.
 func _on_finished(r: Dictionary) -> void:
 	var id := String(r.get("raidId", ""))
+	Analytics.track("raid_end", {"succeeded": bool(r.get("succeeded", false)), "struck": bool(r.get("struck", false)),
+		"carrots": int(r.get("carrotsLooted", 0)), "traps_sprung": int(r.get("trapsSprung", 0)),
+		"steps": (r.get("walked", []) as Array).size(), "progress": float(outcome.get("progress", 0.0)),
+		"refunded": int(outcome.get("refunded", 0)), "defender_level": int(_defender_of(r).get("level", 0))})
 	finished.emit(r, outcome)
 	# Le butin est en base — aller lire le total. Le compteur du terrier est
 	# lu, pas pousse, et un raid fini ne le relisait jamais.
@@ -421,6 +435,7 @@ func strike() -> bool:
 	incoming_changed.emit()
 	var answer: Answer = await Net.post_json("/api/raid/strike", {}, Session.token)
 	striking = false
+	Analytics.track("defend_strike", {"ok": answer.ok and not answer.body.has("error"), "code": answer.error() if not answer.ok or answer.body.has("error") else ""})
 	if answer.body.has("error") or not answer.ok:
 		var code := answer.error()
 		if code == "offline":
@@ -471,8 +486,11 @@ func _accept_incoming(next: Dictionary) -> void:
 		var id := String(next.get("raidId", ""))
 		if id != _ended_heard:
 			_ended_heard = id
+			Analytics.track("defend_end", {"raider_won": bool(next.get("succeeded", false)), "struck": bool(next.get("struck", false)),
+				"carrots_lost": int(next.get("carrotsLooted", 0)), "traps_sprung": int(next.get("trapsSprung", 0))})
 			Sound.play("die" if bool(next.get("succeeded", false)) else "chime")
 	if arrived:
+		Analytics.track("defend_start", {"lightning_held": lightning_held})
 		# Quelqu'un entre chez soi : ca saute.
 		Sound.play("explosion")
 		# Le proprietaire apprend qu'on entre chez lui, et combien d'eclairs
