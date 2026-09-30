@@ -16,7 +16,7 @@ extends Node
 ## Le temps entre deux gestes : un joueur qui lit, pas un bot. La lecon plus
 ## lente : ses legendes doivent se lire a l'ecran.
 const BEAT_S := 0.75
-const LESSON_BEAT_S := 1.7
+const LESSON_BEAT_S := 1.0
 ## Combien de bombes marquer d'une croix, et sur laquelle sauter, dans la
 ## partie en ligne : les deux gestes du jeu, une fois chacun au moins.
 const SHOW_MARKS := 3

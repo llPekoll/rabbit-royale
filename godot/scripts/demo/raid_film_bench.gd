@@ -147,6 +147,9 @@ func _attack(layout: BurrowLayout, path: Array[int]) -> void:
 	r["succeeded"] = true
 	r["carrotsLooted"] = 3260
 	RaidState.current.fake({"raid": r.duplicate(true)})
+	# La fanfare au pas qui atteint le potager, comme le jeu (raid_state.gd
+	# `_on_finished`) — `fake` ne passe pas par lui.
+	Sound.music("victory")
 	await _wait(1.6)
 	_stamp(RaidVictory.present({"defender": "Kuro", "carrots": 3260, "trapsSprung": 1,
 		"refunded": 0, "avatar": "white"}))

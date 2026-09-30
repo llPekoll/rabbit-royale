@@ -161,20 +161,23 @@ def main() -> None:
     segs: list[Path] = []
     # 1. LE DEMARRAGE ET LA LECON, telle quelle : ses legendes a elle.
     lesson_end = first("tutorial-done") + 2.2
-    segs.append(segment(game, 0.0, lesson_end, [
-        (caption("lesson", "HOW TO PLAY", "The first island teaches you. 30 seconds.", SEA, top=True), first("tutorial") + 2.4, first("tutorial") + 6.4),
-    ]))
+    # Sans legende : la lecon a les siennes (le user, 2026-09-30).
+    segs.append(segment(game, 0.0, lesson_end))
     # 2. LE TERRIER, et le doigt qui tape DIG.
     burrow = first("burrow")
-    segs.append(segment(game, burrow - 0.3, first("tap-dig") + 1.0, [
-        (caption("burrow", "YOUR BURROW", "Your carrots grow here. New islets rise as you level up."), 0.3, 5.5),
+    # Les reperes tombent au debut du rideau, pas quand l'image revient.
+    segs.append(segment(game, burrow + 0.9, first("tap-dig") + 0.6, [
+        (caption("burrow", "YOUR BURROW", "Your carrots grow here. New islets rise as you level up."), 0.2, 4.8),
     ]))
     # 3. UNE VRAIE ILE, EN LIGNE : les chiffres, les croix.
     island = first("island")
-    m1, m2 = t["mark"][1], t["mark"][2]
-    segs.append(segment(game, island, m2 + 3.2, [
-        (caption("dig", "DIG", "Each number counts the bombs around it. Find the chests."), 0.6, m1 - island - 0.3),
-        (caption("mark", "MARK A BOMB", "Right guess: energy. Wrong guess: it costs you.", RED), m1 - island, m2 - island + 3.0),
+    # Jusqu'a la premiere croix en ligne (la premiere de la liste est celle
+    # de la lecon), puis on coupe : le chemin varie d'un tournage a l'autre.
+    m1 = t["mark"][1]
+    island += 1.0
+    segs.append(segment(game, island, m1 + 4.2, [
+        (caption("dig", "DIG", "Each number counts the bombs around it. Find the chests."), 0.2, m1 - island - 0.3),
+        (caption("mark", "MARK A BOMB", "Right guess: energy. Wrong guess: it costs you.", RED), m1 - island, m1 - island + 4.0),
     ]))
     # 4. LA BOMBE SUR LAQUELLE IL SAUTE.
     blast = first("blast")
@@ -187,8 +190,8 @@ def main() -> None:
         (caption("chests", "LAST CHEST", "Take it and the island sinks. Carrots go home."), 0.3, 5.3),
     ]))
     home = first("home")
-    segs.append(segment(game, home - 3.2, home + 2.6, [
-        (caption("level", "LEVEL UP", "Bigger islands, more chests, more rabbits.", SEA), 0.2, 5.6),
+    segs.append(segment(game, home + 0.7, home + 5.9, [
+        (caption("level", "LEVEL UP", "Bigger islands, more chests, more rabbits.", SEA), 1.6, 5.1),
     ]))
     # 6. CE QUE LE JEU DEVIENT : LE PVP (plans du banc, son releve, musique).
     pvp = dict(gain_db=14.0, music_db=-17.0)
