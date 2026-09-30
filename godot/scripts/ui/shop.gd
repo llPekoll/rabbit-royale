@@ -1192,9 +1192,9 @@ class UsdcPay:
 
 		_to(Stage.CONFIRMING)
 		var payment_id := String(quote.body.get("paymentId", ""))
-		# UN appel : le serveur attend que la chaine SIGNALE la confirmation
-		# (awaitConfirmation, un abonnement, pas un sondage) puis lit la
-		# transaction une fois. Plus de douze essais toutes les 2,5 s. Un 202
+		# UN appel, au bon moment : le wallet ne rend la signature qu'apres
+		# l'envoi, le serveur lit la transaction une fois. Plus de douze essais
+		# toutes les 2,5 s. Un 202
 		# veut dire « pas encore » : le webhook, ou le rattrapage a la prochaine
 		# ouverture de l'etal, creditera.
 		var res: Answer = await Net.send_json("/api/shop/pay", HTTPClient.METHOD_PATCH,

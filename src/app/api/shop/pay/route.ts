@@ -23,7 +23,7 @@ import { grantItem } from '@/lib/game/grant';
 import { USDC, usdcBaseUnits } from '@config/tuning';
 import { PublicKey } from '@solana/web3.js';
 import {
-  awaitConfirmation, buildPaymentTx, cluster, findPaidSignature, mintFor, payEnabled,
+  buildPaymentTx, cluster, findPaidSignature, mintFor, payEnabled,
   treasuryAddress,
   treasurySignatures,
   verifyPayment,
@@ -222,8 +222,10 @@ export async function PATCH(req: Request) {
   // a lamport transfer be checked against token balances (and pass by finding
   // nothing to contradict it).
   const paidToken: PayTokenId = isPayTokenId(intent.token) ? intent.token : 'usdc';
-  // Read the transaction ONCE, when the chain has said it landed — not polled.
-  await awaitConfirmation(signature);
+  // ONE read. The wallet hands back the signature only once it has sent the
+  // transaction (the Seeker's arrives well after it landed), so this is the
+  // moment to look. Not there yet → 202, and the webhook or the claim on the
+  // next shop opening credits it. Alchemy has no signatureSubscribe to wait on.
   const check = await verifyPayment({
     signature,
     treasury: treasuryAddress()!,

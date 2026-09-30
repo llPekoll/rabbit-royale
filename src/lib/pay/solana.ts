@@ -88,8 +88,6 @@ export function connection(): Connection {
     _connection = new Connection(url, {
       commitment: USDC.COMMITMENT,
       disableRetryOnRateLimit: true,
-      // How long awaitConfirmation listens before handing over to the webhook.
-      confirmTransactionInitialTimeout: CONFIRM_WAIT_MS,
     });
   }
   return _connection;
@@ -176,26 +174,6 @@ export type PaymentCheck = {
   /** The quote's reference, expected in the transaction's memo. */
   reference: string;
 };
-
-/**
- * Wait until the chain SAYS the transaction is confirmed — a signatureSubscribe
- * over the RPC's websocket, one status check once subscribed, then silence
- * until the notification. The confirm route used to be polled by the client
- * (twelve tries, each a getTransaction); now it reads the transaction once,
- * after this. False on a timeout or a failed transaction: the webhook, or the
- * claim on the next shop opening, takes it from there.
- */
-export async function awaitConfirmation(signature: string): Promise<boolean> {
-  try {
-    const res = await connection().confirmTransaction(signature, 'confirmed');
-    return !res.value.err;
-  } catch {
-    return false;
-  }
-}
-// Under the client's 10 s request timeout (godot/scripts/net.gd). A confirmation
-// takes 1-2 s; past this, the webhook credits it.
-const CONFIRM_WAIT_MS = 8_000;
 
 export async function verifyPayment(opts: PaymentCheck & { signature: string }): Promise<VerifyResult> {
   return checkPayment(await readTransaction(opts.signature), opts);
