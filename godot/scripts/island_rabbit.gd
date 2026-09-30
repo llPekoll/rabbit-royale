@@ -120,6 +120,9 @@ func _frames() -> SpriteFrames:
 			var frame := AtlasTexture.new()
 			frame.atlas = sheet
 			frame.region = Rect2((i % SHEET_COLS) * FRAME, (i / SHEET_COLS) * FRAME, FRAME, FRAME)
+			# Rien de la case voisine sur la planche : a une position fractionnaire
+			# (un saut, un zoom), sa ligne de bord suivait le lapin en trait noir.
+			frame.filter_clip = true
 			out.add_frame(name, frame)
 	return out
 
@@ -634,6 +637,7 @@ func _shock_frames() -> SpriteFrames:
 		var f := AtlasTexture.new()
 		f.atlas = SHOCK_SHEET
 		f.region = Rect2(at, Vector2(32, 32))
+		f.filter_clip = true
 		out.add_frame("shock", f)
 	return out
 

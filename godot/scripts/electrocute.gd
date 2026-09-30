@@ -95,5 +95,7 @@ static func _poses() -> SpriteFrames:
 		var f := AtlasTexture.new()
 		f.atlas = POSE
 		f.region = r
+		# Rien de la case voisine sur la planche (voir home_rabbit.gd).
+		f.filter_clip = true
 		_pose_frames.add_frame("shock", f)
 	return _pose_frames

@@ -122,6 +122,8 @@ func refresh() -> void:
 	var crop := AtlasTexture.new()
 	crop.atlas = sheet
 	crop.region = FACE_CROP
+	# Rien de la case voisine sur la planche (voir home_rabbit.gd).
+	crop.filter_clip = true
 	_face.texture = crop
 	tooltip_text = I18N.t("auth.guestNote") if bool(Session.player.get("guest", false)) \
 		else str(Session.player.get("wallet", "") if Session.player.get("wallet") != null else "")

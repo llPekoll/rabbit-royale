@@ -526,5 +526,8 @@ func _frames() -> SpriteFrames:
 			frame.region = Rect2(
 				(i % SHEET_COLS) * FRAME, (i / SHEET_COLS) * FRAME, FRAME, FRAME
 			)
+			# Rien de la case voisine sur la planche : a une position fractionnaire
+			# (un saut, un zoom), sa ligne de bord suivait le lapin en trait noir.
+			frame.filter_clip = true
 			out.add_frame(name, frame)
 	return out

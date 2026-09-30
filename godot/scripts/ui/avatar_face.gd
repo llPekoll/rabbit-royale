@@ -37,6 +37,8 @@ static func texture(key: Variant) -> AtlasTexture:
 	var atlas := AtlasTexture.new()
 	atlas.atlas = sheet(key)
 	atlas.region = ART
+	# Rien de la case voisine sur la planche (voir home_rabbit.gd).
+	atlas.filter_clip = true
 	return atlas
 
 

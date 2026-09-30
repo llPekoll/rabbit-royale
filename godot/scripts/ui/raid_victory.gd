@@ -514,6 +514,10 @@ func _frame_texture() -> AtlasTexture:
 	var atlas := AtlasTexture.new()
 	atlas.atlas = sheet
 	atlas.region = Rect2((_frame % SHEET_COLS) * FRAME, floori(_frame / float(SHEET_COLS)) * FRAME, FRAME, FRAME)
+	# PAS UN PIXEL DE LA CASE D'AU-DESSUS : pendant le saut, le lapin passe par
+	# des y fractionnaires, et la derniere ligne de l'image du dessus (un pied,
+	# un contour) le suivait en trait noir au-dessus des oreilles.
+	atlas.filter_clip = true
 	return atlas
 
 
