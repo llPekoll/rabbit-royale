@@ -229,6 +229,11 @@ func _measure() -> void:
 
 
 ## LA CHOREGRAPHIE, dans l'ordre du CSS.
+##
+## `set_parallel(true).chain()`, JAMAIS `chain().set_parallel(true)` :
+## set_parallel remet l'etape en parallele et annule le chain qui le precede.
+## Dans cet ordre-la, le depart partait avec l'arrivee — DEFENDED s'effacait
+## en 0,4 s et le tampon ne se lisait pas (2026-09-30).
 func _play() -> void:
 	# La vignette : 0 -> 1 sur 9% de sa duree, tient jusqu'a 81%, s'eteint.
 	_dim.modulate.a = 0.0
@@ -246,7 +251,7 @@ func _play() -> void:
 	flash.tween_property(_flash, "scale", Vector2.ONE, FLASH_S * 0.12)
 	if not linger:
 		flash.chain().tween_property(_flash, "modulate:a", 0.9, FLASH_S * 0.23)
-		var out := flash.chain().set_parallel(true)
+		var out := flash.set_parallel(true).chain()
 		out.tween_property(_flash, "modulate:a", 0.0, FLASH_S * 0.65)
 		out.tween_property(_flash, "scale", Vector2(1.25, 1.25), FLASH_S * 0.65)
 
@@ -258,10 +263,10 @@ func _play() -> void:
 	slam.tween_property(_stamp, "modulate:a", 1.0, SLAM_S * 0.3)
 	slam.tween_property(_stamp, "scale", Vector2(0.94, 0.94), SLAM_S * 0.6).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	slam.tween_property(_stamp, "rotation_degrees", 2.0, SLAM_S * 0.6).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	var settle := slam.chain().set_parallel(true)
+	var settle := slam.set_parallel(true).chain()
 	settle.tween_property(_stamp, "scale", Vector2(1.04, 1.04), SLAM_S * 0.2)
 	settle.tween_property(_stamp, "rotation_degrees", -1.0, SLAM_S * 0.2)
-	var rest := settle.chain().set_parallel(true)
+	var rest := settle.set_parallel(true).chain()
 	rest.tween_property(_stamp, "scale", Vector2.ONE, SLAM_S * 0.2)
 	rest.tween_property(_stamp, "rotation_degrees", 0.0, SLAM_S * 0.2)
 
@@ -272,7 +277,7 @@ func _play() -> void:
 	breath.set_parallel(true)
 	breath.tween_property(_halo, "modulate:a", 1.0, HALO_S).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	breath.tween_property(_halo, "scale", Vector2(1.06, 1.06), HALO_S).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	var back := breath.chain().set_parallel(true)
+	var back := breath.set_parallel(true).chain()
 	back.tween_property(_halo, "modulate:a", 0.7, HALO_S).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	back.tween_property(_halo, "scale", Vector2(0.94, 0.94), HALO_S).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
@@ -281,7 +286,7 @@ func _play() -> void:
 	# Le depart, et la fin.
 	var leave := create_tween()
 	leave.tween_interval(out_at_s)
-	var go := leave.chain().set_parallel(true)
+	var go := leave.set_parallel(true).chain()
 	go.tween_property(_stamp, "modulate:a", 0.0, OUT_S).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	go.tween_property(_stamp, "scale", Vector2(1.15, 1.15), OUT_S).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	go.tween_property(_stamp, "position:y", -10.0, OUT_S).as_relative().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)

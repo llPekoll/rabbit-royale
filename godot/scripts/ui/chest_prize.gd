@@ -421,7 +421,7 @@ func _reveal() -> void:
 	var suck := create_tween().set_parallel(true)
 	suck.tween_property(_flash, "scale", Vector2(0.32, 0.32), SUCK_S * 0.55).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	suck.tween_property(_flash, "modulate:a", 0.95, SUCK_S * 0.55)
-	var gone := suck.chain().set_parallel(true)
+	var gone := suck.set_parallel(true).chain()
 	gone.tween_property(_flash, "scale", Vector2.ZERO, SUCK_S * 0.45).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_IN)
 	gone.tween_property(_flash, "modulate:a", 0.35, SUCK_S * 0.45)
 	gone.chain().tween_callback(func() -> void: _flash.visible = false)
@@ -434,7 +434,7 @@ func _reveal() -> void:
 	_item.scale = Vector2(0.55, 0.55)
 	var rise := create_tween()
 	rise.tween_interval(0.12)
-	var up := rise.chain().set_parallel(true)
+	var up := rise.set_parallel(true).chain()
 	up.tween_property(_item, "modulate:a", 1.0, ITEM_S * 0.6)
 	up.tween_property(_item, "scale", Vector2(1.06, 1.06), ITEM_S * 0.6).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	up.chain().tween_property(_item, "scale", Vector2.ONE, ITEM_S * 0.4).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
@@ -459,14 +459,14 @@ func _shown(instant: bool = false) -> void:
 	_stamp.rotation_degrees = -8.0
 	var slam := create_tween()
 	slam.tween_interval(STAMP_DELAY_S)
-	var hit := slam.chain().set_parallel(true)
+	var hit := slam.set_parallel(true).chain()
 	hit.tween_property(_stamp, "modulate:a", 1.0, 0.52 * 0.3)
 	hit.tween_property(_stamp, "scale", Vector2(0.94, 0.94), 0.52 * 0.6).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	hit.tween_property(_stamp, "rotation_degrees", 2.0, 0.52 * 0.6).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	var settle := hit.chain().set_parallel(true)
+	var settle := hit.set_parallel(true).chain()
 	settle.tween_property(_stamp, "scale", Vector2(1.04, 1.04), 0.52 * 0.2)
 	settle.tween_property(_stamp, "rotation_degrees", -1.0, 0.52 * 0.2)
-	var rest := settle.chain().set_parallel(true)
+	var rest := settle.set_parallel(true).chain()
 	rest.tween_property(_stamp, "scale", Vector2.ONE, 0.52 * 0.2)
 	rest.tween_property(_stamp, "rotation_degrees", 0.0, 0.52 * 0.2)
 
@@ -475,7 +475,7 @@ func _shown(instant: bool = false) -> void:
 	_caption.position.y = cap_y + 14.0
 	var rise := create_tween()
 	rise.tween_interval(STAMP_DELAY_S + 0.5)
-	var up := rise.chain().set_parallel(true)
+	var up := rise.set_parallel(true).chain()
 	up.tween_property(_caption, "modulate:a", 1.0, RISE_S).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	up.tween_property(_caption, "position:y", cap_y, RISE_S).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	# Le clignotement du kit : deux pas, 1,1 s.
@@ -565,7 +565,7 @@ static func create_flight(host: Control, mover: Control, top: float) -> Tween:
 	tl.tween_property(mover, "scale", Vector2.ONE, FLY_IN_S).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	# Un temps en haut, parce que le nom est la pour etre lu.
 	tl.chain().tween_property(mover, "position:y", top - 18.0, FLY_READ_S)
-	var out := tl.chain().set_parallel(true)
+	var out := tl.set_parallel(true).chain()
 	out.tween_property(mover, "position:y", top - 70.0, FLY_OUT_S).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	out.tween_property(mover, "modulate:a", 0.0, FLY_OUT_S).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	return tl
