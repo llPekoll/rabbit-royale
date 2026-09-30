@@ -29,10 +29,12 @@ var _burrow: Node2D
 ## La main du joueur : chaque geste de Shiro passe par elle (bench_hand.gd).
 var _hand: BenchHand
 var _ui: Control
+## Le cote sans `--side=` — un banc qui herite de celui-ci choisit le sien.
+var default_side := "attack"
 
 
 func _ready() -> void:
-	var side := "attack"
+	var side := default_side
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--side="):
 			side = arg.trim_prefix("--side=")

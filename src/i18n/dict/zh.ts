@@ -605,6 +605,7 @@ export const zh: Dict = {
     theirSteps: '对方步数',
     hint: '在它前方埋一颗雷，或点兔子召来闪电。',
     strike: '雷击',
+    buyStrike: '买下并电击',
     held: (n) => `持有 ${n}`,
     struckDown: '已击倒',
     ranDry: '对方耗尽了能量',

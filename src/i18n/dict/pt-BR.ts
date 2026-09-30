@@ -621,6 +621,7 @@ export const ptBR: Dict = {
     theirSteps: 'passos dele',
     hint: 'Enterre uma bomba na frente dele, ou toque no coelho para chamar um raio.',
     strike: 'Raio',
+    buyStrike: 'Comprar e eletrocutar',
     held: (n) => (n === 1 ? '1 na bolsa' : `${n} na bolsa`),
     struckDown: 'DERRUBADO',
     ranDry: 'FICOU SEM ENERGIA',

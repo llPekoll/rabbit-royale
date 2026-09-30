@@ -1121,6 +1121,7 @@
 		"theirSteps": "their steps",
 		"hint": "Bury a bomb ahead of them, or tap the rabbit to strike it.",
 		"strike": "Strike",
+		"buyStrike": "Buy & strike",
 		"held": {
 			"$t": "{0} held"
 		},

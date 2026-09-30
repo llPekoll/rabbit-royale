@@ -398,6 +398,31 @@ static func button(text: String, tone: String = "wood", width: float = 0.0, heig
 	return b
 
 
+## LA CAROTTE AU BOUT D'UN PRIX, sur une planche : le libelle finit par
+## « 500   » et l'icone se pose dans les espaces (energy_popup.gd `_carrot`).
+## `on` faux la cache — le meme bouton qui dit tantot un prix, tantot un
+## compte. A rappeler apres chaque `relabel`.
+static func carrot_tail(button: PlankButton, on: bool, px: float = 14.0) -> void:
+	var ink: Label = button._ink
+	var tail: TextureRect = ink.get_node_or_null("Carrot")
+	if tail == null:
+		if not on:
+			return
+		tail = icon(ICONS["carrot"], px)
+		tail.name = "Carrot"
+		ink.add_child(tail)
+		button.resized.connect(func() -> void:
+			if tail.visible:
+				carrot_tail(button, true, px))
+	tail.visible = on
+	if not on:
+		return
+	var font := ink.get_theme_font("font")
+	var fs := ink.get_theme_font_size("font_size")
+	var w := font.get_string_size(ink.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	tail.position = Vector2(floor(ink.size.x * 0.5 + w * 0.5 - px), floor((ink.size.y - px) * 0.5))
+
+
 ## UN EMOJI EN COULEUR, par la face emoji du systeme : la face pixel n'en a
 ## pas, et le web s'en remet a celle du telephone pour les sortes sans
 ## sprite.

@@ -1194,6 +1194,7 @@
 		"theirSteps": "passos dele",
 		"hint": "Enterre uma bomba na frente dele, ou toque no coelho para chamar um raio.",
 		"strike": "Raio",
+		"buyStrike": "Comprar e eletrocutar",
 		"held": {
 			"$t": "{0} na bolsa"
 		},

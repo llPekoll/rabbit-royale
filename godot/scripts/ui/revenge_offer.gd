@@ -190,34 +190,13 @@ func _relabel() -> void:
 		return
 	var held := int(RunState.current.bag.get("lightning", 0))
 	var words := I18N.shout(I18N.t("revenge.strike"))
-	var carrot: TextureRect = _button._ink.get_node_or_null("Carrot")
 	if held > 0:
 		_button.relabel("%s · %d" % [words, held])
-		if carrot != null:
-			carrot.visible = false
 	else:
 		var price := int(ShopState.shared().item("lightning").get("price", 0))
 		_button.relabel("%s · %s   " % [words, I18N.group_digits(price)])
-		_carrot()
+	Kit.carrot_tail(_button, held <= 0)
 	_button.disabled = _busy
-
-
-## La carotte au bout du prix — la meme que l'offre d'energie.
-func _carrot() -> void:
-	var ink: Label = _button._ink
-	var icon: TextureRect = ink.get_node_or_null("Carrot")
-	if icon == null:
-		icon = Kit.icon(Kit.ICONS["carrot"], 14)
-		icon.name = "Carrot"
-		ink.add_child(icon)
-		_button.resized.connect(func() -> void:
-			if int(RunState.current.bag.get("lightning", 0)) <= 0:
-				_carrot())
-	icon.visible = true
-	var font := ink.get_theme_font("font")
-	var fs := ink.get_theme_font_size("font_size")
-	var w := font.get_string_size(ink.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-	icon.position = Vector2(floor(ink.size.x * 0.5 + w * 0.5 - 14.0), floor((ink.size.y - 14.0) * 0.5))
 
 
 func _on_take() -> void:

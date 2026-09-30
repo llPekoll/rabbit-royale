@@ -767,6 +767,8 @@ export const en = {
     theirSteps: 'their steps',
     hint: 'Bury a bomb ahead of them, or tap the rabbit to strike it.',
     strike: 'Strike',
+    /** No bolt held: the button buys one and strikes in the same tap. */
+    buyStrike: 'Buy & strike',
     held: (n: number) => (n === 1 ? '1 held' : `${n} held`),
     struckDown: 'STRUCK DOWN',
     ranDry: 'THEY RAN OUT OF ENERGY',

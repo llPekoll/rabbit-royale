@@ -49,6 +49,9 @@ func _ready() -> void:
 	_build()
 	RaidState.current.incoming_changed.connect(_refresh)
 	RaidState.current.changed.connect(_refresh)
+	# Le prix et les carottes : le bouton d'achat suit l'etal et le terrier.
+	ShopState.shared().changed.connect(_refresh)
+	Home.changed.connect(_refresh)
 	I18N.locale_changed.connect(_refresh)
 	resized.connect(_measure)
 	_measure()
@@ -90,7 +93,7 @@ func _build() -> void:
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_live.add_child(_hint)
 	_strike = Kit.button("", "gold", 0, 44)
-	_strike.pressed.connect(func() -> void: RaidState.current.strike())
+	_strike.pressed.connect(func() -> void: RaidState.current.buy_and_strike())
 	_live.add_child(_strike)
 	column.add_child(_live)
 
@@ -154,10 +157,20 @@ func _refresh(_arg: Variant = null) -> void:
 
 	_live.visible = not done
 	_hint.text = I18N.t("defend.hint")
-	# « Strike · 3 held » : l'or quand il en reste, le bois eteint sinon.
-	_strike.relabel(I18N.shout("%s · %s" % [I18N.t("defend.strike"), I18N.f("defend.held", [held])]))
-	var off := state.striking or held <= 0
-	_strike.board = PlankButton.Board.GOLD if held > 0 else PlankButton.Board.WOOD
+	# « Strike · 3 held » quand il en reste ; poche vide, « Buy & strike ·
+	# 500 🥕 » : le meme tap achete et frappe (RaidState.buy_and_strike). Le
+	# bois eteint seulement quand ni l'un ni l'autre n'est possible.
+	var shop := ShopState.shared()
+	var item := shop.item("lightning")
+	var buyable := held <= 0 and shop.can_buy(item)
+	if buyable:
+		_strike.relabel(I18N.shout("%s · %s   " % [I18N.t("defend.buyStrike"),
+			I18N.group_digits(int(item.get("price", 0)))]))
+	else:
+		_strike.relabel(I18N.shout("%s · %s" % [I18N.t("defend.strike"), I18N.f("defend.held", [held])]))
+	Kit.carrot_tail(_strike, buyable)
+	var off := state.striking or (held <= 0 and not buyable)
+	_strike.board = PlankButton.Board.WOOD if off else PlankButton.Board.GOLD
 	_strike.disabled = off
 	_strike.modulate.a = 0.75 if off else 1.0
 

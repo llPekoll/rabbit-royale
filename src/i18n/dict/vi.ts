@@ -613,6 +613,7 @@ export const vi: Dict = {
     theirSteps: 'bước chân họ',
     hint: 'Chôn bom trước mặt họ, hoặc chạm con thỏ để giáng sét.',
     strike: 'Giáng sét',
+    buyStrike: 'Mua và đánh',
     held: (n) => `còn ${n}`,
     struckDown: 'BỊ SÉT ĐÁNH',
     ranDry: 'HỌ ĐÃ CẠN NĂNG LƯỢNG',

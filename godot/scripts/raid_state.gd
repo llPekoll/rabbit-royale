@@ -451,6 +451,42 @@ func strike() -> bool:
 	return true
 
 
+## FRAPPER, EN ACHETANT S'IL LE FAUT (2026-09-30). Poche vide : le meme tap
+## achete un eclair a l'etal puis le lance — le bouton FRAPPER · 0 etait
+## grise au seul instant ou le defenseur voulait payer. Un refus d'achat (pas
+## assez de carottes) se dit par le toast de l'etal, et rien ne part.
+func buy_and_strike() -> bool:
+	if striking:
+		return false
+	if _faked:
+		return await _fake_strike()
+	if lightning_held <= 0:
+		striking = true
+		incoming_changed.emit()
+		var res: Dictionary = await ShopState.shared().buy("lightning")
+		striking = false
+		if res.is_empty():
+			incoming_changed.emit()
+			return false
+		lightning_held += 1
+	return await strike()
+
+
+## Le banc : l'achat et le coup joues sans serveur — le raid tombe foudroye,
+## la poche ne perd rien si elle etait vide (l'achat l'a remplie d'un).
+func _fake_strike() -> bool:
+	striking = true
+	incoming_changed.emit()
+	await (Engine.get_main_loop() as SceneTree).create_timer(0.4).timeout
+	striking = false
+	lightning_held = maxi(0, lightning_held - 1)
+	incoming["struck"] = true
+	incoming["finished"] = true
+	changed.emit()
+	incoming_changed.emit()
+	return true
+
+
 ## Les eclairs en poche, relus a la boutique : c'est la seule qui les compte
 ## (page.tsx `shop.shop.items.find(kind === 'lightning').held`).
 func refresh_holdings() -> void:

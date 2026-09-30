@@ -618,7 +618,7 @@ func _strike() -> void:
 	var inc: Dictionary = RaidState.current.incoming
 	if inc.is_empty() or bool(inc.get("finished", false)):
 		return
-	await RaidState.current.strike()
+	await RaidState.current.buy_and_strike()
 
 
 ## LE SOL D'UN TERRIER DONNE.

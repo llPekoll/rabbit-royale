@@ -619,6 +619,7 @@ export const fr: Dict = {
     theirSteps: 'ses pas',
     hint: 'Enterre une bombe devant lui, ou touche le lapin pour le foudroyer.',
     strike: 'Foudroyer',
+    buyStrike: 'Acheter et foudroyer',
     held: (n) => (n < 2 ? `${n} en stock` : `${n} en stock`),
     struckDown: 'FOUDROYÉ',
     ranDry: 'À COURT D’ÉNERGIE',
