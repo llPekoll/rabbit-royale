@@ -33,12 +33,14 @@ import {
   type PayTokenId,
 } from '@/lib/pay/tokens';
 import { usdPriceFor } from '@/lib/pay/rates';
+import { overLimit, tooMany } from '@/lib/rate-limit';
 import { shopState } from '../route';
 
 /** `{ kind, qty? }` → a quote the player's wallet can pay. */
 export async function POST(req: Request) {
   const session = await getSession(req);
   if (!session) return Response.json({ error: 'unauthenticated' }, { status: 401 });
+  if (await overLimit('quote', session.sub, 10)) return tooMany();
 
   if (!payEnabled()) {
     return Response.json({ error: 'payments_unavailable' }, { status: 503 });
@@ -186,6 +188,7 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
   const session = await getSession(req);
   if (!session) return Response.json({ error: 'unauthenticated' }, { status: 401 });
+  if (await overLimit('confirm', session.sub, 20)) return tooMany();
 
   if (!payEnabled()) {
     return Response.json({ error: 'payments_unavailable' }, { status: 503 });

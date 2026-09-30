@@ -13,11 +13,13 @@
  * costs one indexed query and no RPC at all.
  */
 import { getSession } from '@/lib/auth/jwt';
+import { overLimit, tooMany } from '@/lib/rate-limit';
 import { claimUnfinishedPayments } from '../pay/route';
 
 export async function POST(req: Request) {
   const session = await getSession(req);
   if (!session) return Response.json({ error: 'unauthenticated' }, { status: 401 });
+  if (await overLimit('claim', session.sub, 6)) return tooMany();
 
   // Failures are swallowed: a sweep that cannot run is not a reason to refuse
   // someone their shop, and the next opening tries again.
