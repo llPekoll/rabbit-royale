@@ -46,16 +46,16 @@ TB=scenes/bench/trailer_bench.tscn
 all="pvp-duel pvp-zap pvp-lightning pvp-bloop pvp-shove pvp-bombshove pvp-drown solo-dig solo-explosions solo-chest raid-attack raid-defend"
 for b in ${@:-$all}; do
   case $b in
-    pvp-duel)        shoot $b 420 $TB --clean --names --seed="$SEED" --beat=duel ;;
+    pvp-duel)        shoot $b 440 $TB --clean --names --hand --seed="$SEED" --beat=duel ;;
     pvp-zap)         shoot $b 190 $TB --clean --names --seed="$SEED" --beat=zap ;;
-    pvp-lightning)   shoot $b 190 $TB --clean --names --seed="$SEED" --beat=lightning ;;
-    pvp-bloop)       shoot $b 220 $TB --clean --names --seed="$SEED" --beat=bloop ;;
-    pvp-shove)       shoot $b 150 $TB --clean --names --seed="$SEED" --beat=shove ;;
-    pvp-bombshove)   shoot $b 180 $TB --clean --names --seed="$SEED" --beat=bombshove ;;
-    pvp-drown)       shoot $b 230 $TB --clean --names --seed="$SEED" --beat=drown ;;
+    pvp-lightning)   shoot $b 240 $TB --clean --names --hand --seed="$SEED" --beat=lightning ;;
+    pvp-bloop)       shoot $b 270 $TB --clean --names --hand --seed="$SEED" --beat=bloop ;;
+    pvp-shove)       shoot $b 170 $TB --clean --names --hand --seed="$SEED" --beat=shove ;;
+    pvp-bombshove)   shoot $b 200 $TB --clean --names --hand --seed="$SEED" --beat=bombshove ;;
+    pvp-drown)       shoot $b 250 $TB --clean --names --hand --seed="$SEED" --beat=drown ;;
     solo-dig)        shoot $b 1200 $TB --clean --seed="$SEED" --auto=60 --auto-every=0.3 --hand ;;
-    solo-explosions) shoot $b 1200 $TB --clean --seed=${BOMB_SEED:-mines} --auto=80 --auto-every=0.75 --hunt ;;
-    solo-chest)      shoot $b 150 $TB --clean --seed="$SEED" --beat=chest ;;
+    solo-explosions) shoot $b 1200 $TB --clean --seed=${BOMB_SEED:-mines} --auto=80 --auto-every=0.3 --hunt --hand ;;
+    solo-chest)      shoot $b 170 $TB --clean --hand --seed="$SEED" --beat=chest ;;
     raid-attack)     shoot $b 540 scenes/bench/raid_film_bench.tscn --side=attack ;;
     raid-defend)     shoot $b 540 scenes/bench/raid_film_bench.tscn --side=defend ;;
     *) echo "beat inconnu : $b" >&2; exit 1 ;;

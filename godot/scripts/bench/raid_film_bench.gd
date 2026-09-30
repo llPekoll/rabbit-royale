@@ -26,6 +26,8 @@ const KURO_SHEET := "res://assets/bunnies/bunny-black.png"
 const STEP_S := 0.85
 
 var _burrow: Node2D
+## La main du joueur : chaque geste de Shiro passe par elle (bench_hand.gd).
+var _hand: BenchHand
 var _ui: Control
 
 
@@ -57,9 +59,16 @@ func _ready() -> void:
 		shop.fences = {"placed": _garden_fence(layout, layout.entrance), "spans": [], "offers": [],
 			"held": 0, "maxHeld": 4}
 
+	# SES QUATRE ILOTS, chez Shiro aussi : sans compte, le terrier ne sait pas
+	# ce qu'il a deja revele (`_wanted` lit Home) et n'en sortait aucun.
+	BurrowLandmarks.bench = true
+	BurrowLandmarks.bench_seen.assign(["dig", "shop", "defend", "raid"])
+	BurrowLandmarks.bench_doors.assign(["dig", "shop", "defend", "raid"])
 	_burrow = preload("res://scenes/burrow.tscn").instantiate()
 	add_child(_burrow)
 	_mount_ui(side)
+	_hand = BenchHand.new()
+	add_child(_hand)
 	DevShot.arm(self)
 	await get_tree().create_timer(0.6).timeout
 	if side == "defend":
@@ -126,11 +135,12 @@ func _attack(layout: BurrowLayout, path: Array[int]) -> void:
 			r["energy"] = energy
 			r["tank"] = energy
 		r["trapsSprung"] = sprung
-		RaidState.current.fake({"raid": r.duplicate(true)})
+		var next := r.duplicate(true)
+		await _hand.tap(_tile_on_screen(path[i]), func() -> void: RaidState.current.fake({"raid": next}))
 		if i == 2:
 			RaidState.current.sprung.emit(path[i])
 			await _wait(1.3)
-		await _wait(STEP_S)
+		await _wait(STEP_S - 0.4)
 		if layout.field.has(path[i]):
 			break
 	r["finished"] = true
@@ -192,11 +202,14 @@ func _defend(layout: BurrowLayout, path: Array[int]) -> void:
 		if i == 3:
 			alarm.burst()
 		await _wait(STEP_S + (1.2 if i == 3 else 0.0))
-	# Shiro le foudroie.
+	# Shiro le foudroie : il tape le lapin (« tap the rabbit to strike it »).
 	await _wait(0.4)
 	inc.struck = true
 	inc.finished = true
-	RaidState.current.fake({"incoming": inc.duplicate(true)})
+	var raider: Node2D = _burrow.get("_raider")
+	var body := raider.get_global_transform_with_canvas() * Vector2(0, -16.0 * HomeRabbit.RABBIT_SCALE * 0.5)
+	var struck := inc.duplicate(true)
+	await _hand.tap(body, func() -> void: RaidState.current.fake({"incoming": struck}))
 	alarm.finish()
 	await _wait(3.2)
 	# LA VRAIE CHOREGRAPHIE, pas `linger` : fige, le tampon restait dans son
@@ -205,6 +218,15 @@ func _defend(layout: BurrowLayout, path: Array[int]) -> void:
 
 
 # ── Outils ──────────────────────────────────────────────────────────────────
+
+## Le milieu d'une case du terrier, a l'ecran : la ou le lapin pose les pieds
+## (home_rabbit.gd `_place`), passe par la camera du terrier.
+func _tile_on_screen(tile: int) -> Vector2:
+	var c := BurrowLayout.cell_of(tile)
+	var map: BurrowMap = (_burrow.get("_terrain") as Node).get("map")
+	var local: Vector2 = map.screen_of(c.x, c.y) + Vector2(0, Iso.half_h())
+	return _burrow.get_global_transform_with_canvas() * local
+
 
 ## LE POTAGER CLOS DE QUATRE PLANCHES — le sac de depart plus une (voir
 ## fence-is-a-side) : les faces exposees les plus proches de `toward` (la case

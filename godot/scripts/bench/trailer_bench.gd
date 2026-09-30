@@ -33,6 +33,7 @@ func _ready() -> void:
 	if _flag("names"):
 		_island._rabbit.set_plate("Shiro", true)
 		_lift_plate(_island._rabbit, 13.0)
+		_arm_up()
 	match beat:
 		"lightning":
 			await _lightning()
@@ -136,6 +137,8 @@ func _lightning() -> void:
 	var at := _rival_near(me)
 	var r := _spawn_rival(at)
 	await _wait(0.9)
+	if _flag("hand"):
+		await _aim_at(r, "strike")
 	var tiles := []
 	for dy in [-1, 0, 1]:
 		for dx in [-1, 0, 1]:
@@ -153,6 +156,8 @@ func _bloop() -> void:
 	var me: Vector2i = _island.local_run.at
 	var r := _spawn_rival(_rival_near(me))
 	await _wait(0.9)
+	if _flag("hand"):
+		await _aim_at(r, "bloop")
 	r.inked(3000)
 	Sound.play("hop", 0.6)
 	await _wait(1.6)
@@ -185,8 +190,7 @@ func _drown() -> void:
 	var r := _spawn_rival(shore)
 	await _wait(1.0)
 	# Le coup : je saute sur sa case, il part vers le large.
-	_island._rabbit.send_to(shore)
-	Sound.play("hop")
+	await _hop_to(shore)
 	await _wait(0.12)
 	_island._on_pushed({"playerId": RIVAL, "from": board.index_of(shore), "sea": board.index_of(best.sea),
 		"to": board.index_of(_middle_from(shore, best.dir)), "drowned": true, "stunMs": 1800,
@@ -222,7 +226,7 @@ func _step_on(kind: int) -> void:
 		return
 	_put_me(best.n)
 	await _wait(1.4)
-	_island._local_tap(best.c)
+	await _by_hand(_cell_on_screen(best.c), func() -> void: _island._local_tap(best.c))
 
 
 ## Une case ou jouer un coup : `c` avec `c - dir` (moi) et `c + dir` (ou il
@@ -297,8 +301,7 @@ func _shove(onto_bomb: bool) -> void:
 ## Le coup : je saute sur `c`, Kuro vole vers `to`.
 func _shove_hit(r: IslandRabbit, c: Vector2i, to: Vector2i, onto_bomb: bool) -> void:
 	var board := _board()
-	_island._rabbit.send_to(c)
-	Sound.play("hop")
+	await _hop_to(c)
 	await _wait(0.12)
 	_island._on_pushed({"playerId": RIVAL, "from": board.index_of(c), "to": board.index_of(to),
 		"stunMs": 0 if onto_bomb else 1600, "pushedBy": "me"})
@@ -338,13 +341,11 @@ func _duel() -> void:
 	await _strike_on(_island._rabbit, far, 2200)
 	await _wait(2.8)
 	# Je me releve, un pas vers lui.
-	_island._rabbit.send_to(close)
-	Sound.play("hop")
+	await _hop_to(close)
 	_island._refresh_ring()
 	await _wait(1.0)
 	# La poussee, a la mer.
-	_island._rabbit.send_to(shore)
-	Sound.play("hop")
+	await _hop_to(shore)
 	await _wait(0.12)
 	_island._on_pushed({"playerId": RIVAL, "from": _board().index_of(shore),
 		"sea": _board().index_of(s.to), "to": _board().index_of(_middle_from(shore, s.dir)),
@@ -357,14 +358,14 @@ func _duel() -> void:
 ## attend d'etre releve, et l'energie est remise a plein : la video ne
 ## s'arrete pas a sec.
 func _auto_step() -> void:
-	if _flag("hand"):
+	if _flag("hand") and not _flag("hunt"):
 		_hand_step()
 		return
 	if not _flag("hunt"):
 		super._auto_step()
 		return
 	var run := _island.local_run
-	if _auto_left <= 0 or run == null or not run.alive:
+	if _hand_busy or _auto_left <= 0 or run == null or not run.alive:
 		return
 	if run.is_stunned(Time.get_ticks_msec()) or _island._rabbit.hopping():
 		return
@@ -380,8 +381,9 @@ func _auto_step() -> void:
 			best = d
 			goal = c
 	if goal.x < 0:
-		super._auto_step()
-		return
+		goal = _safe_step(run)
+		if goal.x < 0:
+			return
 	var pick := Vector2i(-1, -1)
 	var pick_d := INF
 	for n in board._neighbours(run.at):
@@ -397,10 +399,11 @@ func _auto_step() -> void:
 			pick_d = d
 			pick = n
 	if pick.x < 0:
-		super._auto_step()
 		return
 	_auto_left -= 1
-	_island._local_tap(pick)
+	_hand_busy = true
+	await _by_hand(_cell_on_screen(pick), func() -> void: _island._local_tap(pick))
+	_hand_busy = false
 
 
 # ── `--hand` : LA MAIN DU JOUEUR ────────────────────────────────────────────
@@ -411,33 +414,8 @@ func _auto_step() -> void:
 ## la case — et la croix rouge s'y pose. Le bac a sable triche (il sait ou
 ## sont les bombes) ; a l'ecran, c'est un joueur qui lit les chiffres.
 
-const HAND := preload("res://assets/ui/cursors/hand.png")
-## Le bout du doigt dans l'image (cursors.gd : le point chaud de la main).
-const HAND_TIP := Vector2(5, 0)
-const HAND_SCALE := 1.0
-## Le glisse, et l'appui.
-const HAND_GLIDE_S := 0.32
-const HAND_PRESS_S := 0.09
-
-var _hand: Sprite2D
+var _hand: BenchHand
 var _hand_busy := false
-
-
-func _hand_node() -> Sprite2D:
-	if _hand != null:
-		return _hand
-	var layer := CanvasLayer.new()
-	layer.layer = 40
-	add_child(layer)
-	_hand = Sprite2D.new()
-	_hand.texture = HAND
-	_hand.centered = false
-	_hand.offset = -HAND_TIP
-	_hand.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_hand.scale = Vector2.ONE * HAND_SCALE
-	_hand.position = get_viewport().get_visible_rect().size * Vector2(0.62, 0.8)
-	layer.add_child(_hand)
-	return _hand
 
 
 ## Le milieu d'une case, a l'ecran : le losange au sol, la ou le lapin pose
@@ -448,38 +426,12 @@ func _cell_on_screen(cell: Vector2i) -> Vector2:
 	return _island.get_global_transform_with_canvas() * local
 
 
-## La main va a `at`, appuie, et `then` part au moment ou le doigt touche.
+## La main (bench_hand.gd) va a `at`, appuie, et `then` part.
 func _hand_tap(at: Vector2, then: Callable) -> void:
-	var hand := _hand_node()
-	var glide := create_tween()
-	glide.tween_property(hand, "position", at, HAND_GLIDE_S).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	await glide.finished
-	var press := create_tween()
-	press.tween_property(hand, "scale", Vector2.ONE * HAND_SCALE * 0.84, HAND_PRESS_S)
-	await press.finished
-	_ripple(at)
-	then.call()
-	var up := create_tween()
-	up.tween_property(hand, "scale", Vector2.ONE * HAND_SCALE, HAND_PRESS_S * 1.4)
-	await up.finished
-
-
-## Un rond blanc qui s'ouvre sous le doigt : la tape se voit, meme petite.
-func _ripple(at: Vector2) -> void:
-	var ring := Line2D.new()
-	ring.width = 2.0
-	ring.default_color = Color(1, 1, 1, 0.9)
-	var pts := PackedVector2Array()
-	for i in 25:
-		pts.append(Vector2.from_angle(TAU * i / 24.0) * 6.0)
-	ring.points = pts
-	ring.position = at
-	_hand.get_parent().add_child(ring)
-	_hand.get_parent().move_child(ring, 0)
-	var t := ring.create_tween().set_parallel(true)
-	t.tween_property(ring, "scale", Vector2(3.2, 3.2), 0.35).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	t.tween_property(ring, "modulate:a", 0.0, 0.35)
-	t.chain().tween_callback(ring.queue_free)
+	if _hand == null:
+		_hand = BenchHand.new()
+		add_child(_hand)
+	await _hand.tap(at, then)
 
 
 func _hand_step() -> void:
@@ -541,3 +493,48 @@ func _safe_step(run: LocalRun) -> Vector2i:
 			pick_d = d
 			pick = n
 	return pick
+
+
+
+## LA RANGEE D'ARMES du HUD de manche (l'eclair, le bloop) : elle ne se montre
+## que sur une ile ou l'on se bat — niveau 10, plusieurs sieges — et avec
+## quelque chose dans le sac.
+func _arm_up() -> void:
+	var state := RunState.current
+	state.island = {"level": 10}
+	state.island_changed.emit(state.island)
+	state.set_bag({"lightning": 3, "bloop": 2})
+
+
+## LE GESTE DU JOUEUR : la main tape l'arme (`strike`, `bloop`) dans la
+## rangee, la visee s'arme (« tap a rabbit »), puis elle tape Kuro — le coup
+## part au moment ou le doigt le touche, et le sac perd une charge.
+func _aim_at(r: IslandRabbit, mode: String) -> void:
+	var state := RunState.current
+	var button: Control = _hud.get("_strike" if mode == "strike" else "_bloop")
+	await _hand_tap(button.get_global_rect().get_center(), func() -> void: state.set_aiming(mode))
+	await _wait(0.5)
+	# Le milieu du corps, pas les pieds (island.gd `_rival_near`).
+	var body := r.get_global_transform_with_canvas() * Vector2(0, -16.0 * HomeRabbit.RABBIT_SCALE * 0.5)
+	await _hand_tap(body, func() -> void:
+		state.set_aiming("")
+		var left := state.bag.duplicate()
+		left[("lightning" if mode == "strike" else "bloop")] -= 1
+		state.set_bag(left))
+
+
+
+## UN GESTE DE SHIRO : avec `--hand`, la main va le faire (glisse, tape) ;
+## sans, il part tout de suite.
+func _by_hand(at: Vector2, action: Callable) -> void:
+	if _flag("hand"):
+		await _hand_tap(at, action)
+	else:
+		action.call()
+
+
+## Je saute sur `cell` — une poussee, un pas : la main tape la case.
+func _hop_to(cell: Vector2i) -> void:
+	await _by_hand(_cell_on_screen(cell), func() -> void:
+		_island._rabbit.send_to(cell)
+		Sound.play("hop"))
