@@ -30,7 +30,8 @@ import { and, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { payments } from '@/lib/db/schema';
 import { grantItem } from '@/lib/game/grant';
-import { checkPayment, payEnabled, readTransaction, treasuryAddress, usdcMint } from '@/lib/pay/solana';
+import { checkPayment, mintFor, payEnabled, readTransaction, treasuryAddress } from '@/lib/pay/solana';
+import { isPayTokenId } from '@/lib/pay/tokens';
 
 /** Alchemy signs every delivery with the signing key from its dashboard. */
 function signatureValid(raw: string, header: string | null): boolean {
@@ -97,7 +98,6 @@ export async function POST(req: Request) {
   }
 
   const treasury = treasuryAddress()!;
-  const mint = usdcMint()!;
   const candidates = [...signaturesIn(body)].slice(0, 20);
   const credited: string[] = [];
 
@@ -128,7 +128,10 @@ export async function POST(req: Request) {
       // Alchemy delivers it.
       const check = checkPayment(chainTx, {
         treasury,
-        mint,
+        // The rail comes from the INTENT, as in PATCH: a SOL quote is read off
+        // the lamport ledger, SKR off its own mint. The webhook watches the
+        // treasury (SOL) and both token accounts (USDC, SKR).
+        mint: mintFor(isPayTokenId(intent.token) ? intent.token : 'usdc'),
         amount: intent.amount,
         reference: intent.reference,
         expiresAt: intent.expiresAt,

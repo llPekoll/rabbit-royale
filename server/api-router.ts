@@ -57,7 +57,6 @@ const ROUTES: Record<string, () => Promise<ModuleRoute>> = {
   '/api/raid': () => import('../src/app/api/raid/route'),
   '/api/raid/incoming': () => import('../src/app/api/raid/incoming/route'),
   '/api/raid/strike': () => import('../src/app/api/raid/strike/route'),
-  '/api/rpc': () => import('../src/app/api/rpc/route'),
   '/api/shop': () => import('../src/app/api/shop/route'),
   '/api/shop/pay': () => import('../src/app/api/shop/pay/route'),
   '/api/shop/claim': () => import('../src/app/api/shop/claim/route'),
