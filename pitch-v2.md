@@ -44,6 +44,7 @@ How do we make money?
 Minesweeper already has the audience: more weekly visitors on Reddit than Tetris.
 Players buy time, revenge and style. Never power.
 Everything can be earned, or you skip the grind in SOL or SKR, straight from your wallet.
+Soon, a battle pass: daily energy all season, paid in SOL, USDC or SKR. Every SKR we earn gets staked.
 On the right, a conservative 9 dollars per player per year, a quarter of the mobile average.
 10,000 players is 90K a year. 100,000 is 900K. A million is 9 million.
 
