@@ -104,8 +104,9 @@ const DRAG_SLOP := 4.0
 ## LES RAILS D'ARGENT que le build connait (lib/pay/tokens.ts PAY_TOKENS),
 ## par leur symbole. Dessines meme quand la route de l'argent est coupee : une
 ## offre temporairement indisponible n'est pas une offre qui n'existe pas, et
-## l'etal doit pouvoir dire laquelle des deux.
-const RAILS := {"usdc": "USDC", "sol": "SOL", "skr": "SKR"}
+## l'etal doit pouvoir dire laquelle des deux. Dans l'ordre de la ligne de
+## tete : SKR d'abord (le jeton du Seeker), la carotte apres les trois.
+const RAILS := {"skr": "SKR", "usdc": "USDC", "sol": "SOL"}
 ## Les decimales affichees par rail (`displayDecimals`) : « 0.00 SOL » n'est
 ## pas un prix.
 const RAIL_PLACES := {"usdc": 2, "sol": 4, "skr": 2}
@@ -467,9 +468,9 @@ func _rebuild_rails(tokens: Array) -> void:
 	var wide := RAIL_W
 	for id in RAILS:
 		wide = maxf(wide, _face().get_string_size(RAILS[id], HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x + 2.0 * RAIL_LEAF)
-	_rails.add_child(_rail_button("carrots", true, wide))
 	for id in RAILS:
 		_rails.add_child(_rail_button(id, tokens.has(id), wide))
+	_rails.add_child(_rail_button("carrots", true, wide))
 
 
 ## UN RAIL : la planche a feuilles du solde (`.rr-stall-rails`, la meme
@@ -614,7 +615,7 @@ func _card(it: Dictionary, tokens: Array, lead: bool) -> Control:
 	body_panel.add_child(inside)
 
 	# L'ART, dans son creux lumineux : un halo de la couleur de l'objet, et
-	# pour la carte de tete des rayons qui tournent lentement derriere. Le
+	# des rayons qui tournent lentement derriere, sur chaque carte. Le
 	# tout est une scene (`stage`) que la phrase peut pousser et reduire.
 	var zone := floorf(ART_ZONE * k)
 	var stage := Control.new()
@@ -624,12 +625,11 @@ func _card(it: Dictionary, tokens: Array, lead: bool) -> Control:
 	stage.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	inside.add_child(stage)
 	var centre := stage.size * 0.5
-	if lead:
-		# Pas plus larges que la carte : la pointe s'eteint avant le bord,
-		# sinon la bordure la coupe en plein or.
-		var rays := _rays(Palette.GOLD, floorf(w - 10.0 * k))
-		rays.position = centre - rays.size * 0.5
-		stage.add_child(rays)
+	# Pas plus larges que la carte : la pointe s'eteint avant le bord, sinon
+	# la bordure la coupe en plein or.
+	var rays := _rays(Palette.GOLD, floorf(w - 10.0 * k))
+	rays.position = centre - rays.size * 0.5
+	stage.add_child(rays)
 	var glow := TextureRect.new()
 	glow.texture = _glow_texture(tint.lightened(0.35), 0.75)
 	glow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -814,7 +814,7 @@ static func _glow_texture(color: Color, strength: float) -> GradientTexture2D:
 	return tex
 
 
-## LES RAYONS de la carte de tete : douze pointes dorees qui tournent en
+## LES RAYONS derriere chaque carte : douze pointes dorees qui tournent en
 ## trente secondes, assez lent pour qu'on les sente plus qu'on ne les voie.
 static func _rays(color: Color, side: float) -> Control:
 	var rays := Control.new()
