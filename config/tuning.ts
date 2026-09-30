@@ -729,15 +729,27 @@ export const TRAPS = {
 /**
    * Energy a trap drains when stepped on.
    *
-   * Sized against what a raid walks with — RAID_RUN.STAKE less the toll, 30 —
+   * Sized against what a raid walks with — RAID_RUN.STAKE less the toll, 24 —
    * so that a trap costs a raider about a quarter of it: enough that mining the
    * right tile visibly shortens a raid, not so much that one trap ends it;
    * three do. Loot is paid by depth, so a trap converts directly into
    * carrots the attacker does not get. (30, a bomb's worth, was tried when
    * the raid first drew on the whole tank: with 150 to walk with it was still
    * a scratch. The stake is what restored the gradient, and this went back.)
+   *
+   * 12, from 8 (2026-09-30), with the walk cut to 25 and the loot paid on the
+   * field (RAID_RUN.STAKE, SHORT_LOOT_SPAN). Measured on 60 generated burrows
+   * (`tools/raid-matrix.sim.ts`): at 8 with a 30 walk, eight bombs and ten
+   * planks placed as well as they can be still let 97 % of raids onto the
+   * field for 100 % of the haul — defence was decoration. Raising the drain
+   * alone (15) or the bombs alone (12 standing) moved that to 80-85 %: a
+   * reader walks round what the numbers show, and the walk left 19 points of
+   * slack on an 11-step crossing. With all three, a raider who reads meets:
+   * the starting kit 90 % on the field, a week's defence 75 %, everything 53 %
+   * and 71 % of the haul. On the shared ground, with the walk at 24: 78 %,
+   * 70 %, 60 %.
    */
-  DRAIN: 8,
+  DRAIN: 12,
   /** Free traps per rolling 24h — derived from a timestamp, never a cron. */
   FREE_PER_DAY: 3,
   /** The free allowance refills over this window. */
@@ -902,11 +914,20 @@ export const RAID_RUN = {
    * did. A player with less than this in the tank stakes what they have,
    * which is the risk they took crossing on a low bar.
    *
-   * THE TOLL PLUS 30 (75; 60 on the 150 bar, 40 before the toll moved): the
-   * walk itself stays 30 whatever the bar, so three traps (24) and the
-   * crossing still end it, and two on a long crossing.
+   * THE TOLL PLUS 24 (69, from 75 on 2026-09-30; 60 on the 150 bar, 40
+   * before the toll moved). The walk is what makes a defence bite: at 30 an
+   * 11-step crossing kept 19 points of slack and a reader simply walked round
+   * the bombs (see TRAPS.DRAIN). Tested at 20 too: a burrow defended as well
+   * as it can be was never crossed, which is the attacking half of the game
+   * dead.
+   *
+   * 24 and not 25 because every burrow is now the same ground
+   * (`BURROW_GROUND`, an 11-step crossing), and on one map the answer is
+   * sharp: a well-placed defence let 93 % of readers through at 25, 70 % at
+   * 24, and at 22 nobody crossed at all (tools/raid-matrix-core.ts, 40
+   * owners). Move it one point at a time, and re-measure.
    */
-  STAKE: 75,
+  STAKE: 69,
   /** Every step costs this, trap or not — distance itself is a defence. */
   STEP_COST: 1,
   /**
@@ -968,6 +989,19 @@ export const RAID_RUN = {
    * twice and the PvP loop stops.
    */
   MIN_LOOT_FRACTION: 0.15,
+  /**
+   * THE LOOT IS ON THE FIELD (2026-09-30). A raid that reaches it takes the
+   * whole share; one that dies short takes MIN_LOOT_FRACTION plus this much
+   * of the way it walked — 15 % at the door, 40 % a step from the field.
+   *
+   * It used to scale all the way from the door to the field, and bombs sit
+   * near the field, so a raid stopped a step short still took ~96 % of the
+   * haul: stopping it changed nothing the defender could see. Measured in
+   * `tools/raid-matrix.sim.ts` — with the drain and the walk alone (12, 20) a
+   * well-defended burrow turned 80 % of raids away and still lost 90 % of
+   * what an open one does.
+   */
+  SHORT_LOOT_SPAN: 0.25,
   /** Attacks on one victim per rolling window, so nobody is farmed. */
   COOLDOWN_MS: 60 * 60 * 1000,
   /**

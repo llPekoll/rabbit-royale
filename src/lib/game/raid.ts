@@ -123,11 +123,14 @@ export function settleRaid(
   // than fixed, from the same injected `rng` as the damage — first, so a
   // replay with the same rolls reproduces the same haul. `LOOT_SHARE` remains
   // the ceiling `maxRaidLoss` promises against.
+  //
+  // The FIELD is where the haul is (RAID_RUN.SHORT_LOOT_SPAN): a raid that
+  // reaches it takes the whole share, one that dies short only the floor and
+  // a quarter of the way it walked.
   const band = RAID_RUN.LOOT_SHARE - RAID_RUN.LOOT_SHARE_MIN;
   const fullShare = RAID_RUN.LOOT_SHARE_MIN + rng() * band;
-  const share =
-    fullShare *
-    (RAID_RUN.MIN_LOOT_FRACTION + (1 - RAID_RUN.MIN_LOOT_FRACTION) * progress);
+  const depth = reachedField ? 1 : RAID_RUN.MIN_LOOT_FRACTION + RAID_RUN.SHORT_LOOT_SPAN * progress;
+  const share = fullShare * depth;
 
   // The crown is worth stealing: the season leader carries a bigger purse.
   const mult = opts.crowned ? CROWN.LOOT_MULT : 1;
@@ -137,7 +140,6 @@ export function settleRaid(
   // no raid reaches. Both scale with how far the raider got. The cap is on the
   // haul as a whole, and the garden fills it first: it is the purse a raid is
   // for, and the one whose owner could have brought it in.
-  const depth = RAID_RUN.MIN_LOOT_FRACTION + (1 - RAID_RUN.MIN_LOOT_FRACTION) * progress;
   const garden = Math.max(0, opts.defenderGarden ?? 0);
   const lootFromGarden = Math.min(
     RAID.LOOT_CAP,
@@ -168,10 +170,9 @@ export function exposedStock(stock: number): number {
  * The most a single raid can take from a stock — the worst case, always.
  *
  * Derived from `settleRaid`'s own formula rather than restated: the haul is
- * `stock * share * (MIN_LOOT_FRACTION + (1 - MIN) * progress) * crownMult`
- * capped at `LOOT_CAP`, and every term is maximised here. The rolled share
- * tops out at `LOOT_SHARE`, `progress = 1` (a raider who walked the whole
- * way) collapses the middle factor to 1, and the crown multiplier is applied
+ * `stock * share * depth * crownMult` capped at `LOOT_CAP`, and every term is
+ * maximised here. The rolled share tops out at `LOOT_SHARE`, a raider on the
+ * field has a depth of 1, and the crown multiplier is applied
  * UNCONDITIONALLY.
  *
  * That last part is the point. The burrow payload does not carry whether the
