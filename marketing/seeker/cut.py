@@ -52,9 +52,12 @@ def marks() -> dict[str, list[float]]:
 
 # ── Les legendes ─────────────────────────────────────────────────────────────
 
-def caption(name: str, title: str, line: str, ink=GOLD, top: bool = False) -> Path:
+def caption(name: str, title: str, line: str, ink=GOLD, top: bool = False, corner: bool = False,
+            y: int | None = None) -> Path:
     """Un encart sombre en bas, au centre : le mot en Lilita, l'explication.
-    `top` : sous la barre du haut — pendant la lecon, le bas est a ses legendes."""
+    `top` : sous la barre du haut — pendant la lecon, le bas est a ses legendes.
+    `corner` : en haut a droite, sur l'eau — dans un raid, la porte est en bas
+    au centre et le potager en haut a gauche."""
     img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     big = ImageFont.truetype(LILITA, 96)
     small = ImageFont.truetype(AVENIR, 50, index=DEMI)
@@ -63,8 +66,8 @@ def caption(name: str, title: str, line: str, ink=GOLD, top: bool = False) -> Pa
     lw = d.textlength(line, font=small) if line else 0
     box_w = int(max(tw, lw) + 120)
     box_h = 250 if line else 150
-    x0 = (W - box_w) // 2
-    y0 = 260 if top else H - box_h - 70
+    x0 = W - box_w - 70 if corner else (W - box_w) // 2
+    y0 = y if y is not None else (260 if (top or corner) else H - box_h - 70)
     shadow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     ImageDraw.Draw(shadow).rounded_rectangle((x0, y0 + 10, x0 + box_w, y0 + box_h + 10), 36, fill=(0, 0, 0, 120))
     img = Image.alpha_composite(img, shadow.filter(ImageFilter.GaussianBlur(14)))
@@ -72,10 +75,11 @@ def caption(name: str, title: str, line: str, ink=GOLD, top: bool = False) -> Pa
     d.rounded_rectangle((x0, y0, x0 + box_w, y0 + box_h), 36, fill=(18, 14, 10, 215),
                         outline=(*ink, 255), width=5)
     ty = y0 + 26
-    d.text(((W - tw) / 2, ty + 5), title, font=big, fill=(0, 0, 0, 160))
-    d.text(((W - tw) / 2, ty), title, font=big, fill=(*ink, 255))
+    mid = x0 + box_w / 2
+    d.text((mid - tw / 2, ty + 5), title, font=big, fill=(0, 0, 0, 160))
+    d.text((mid - tw / 2, ty), title, font=big, fill=(*ink, 255))
     if line:
-        d.text(((W - lw) / 2, y0 + 150), line, font=small, fill=(*CREAM, 255))
+        d.text((mid - lw / 2, y0 + 150), line, font=small, fill=(*CREAM, 255))
     path = WORK / f"cap-{name}.png"
     img.save(path)
     return path
@@ -213,12 +217,12 @@ def main() -> None:
     ], **pvp))
     # 7. LE RAID, PUIS LA DEFENSE.
     segs.append(segment(CLIPS / "raid-attack.mp4", 0.3, 17.6, [
-        (caption("raid", "RAID", "Walk a neighbour's burrow blind. Reach the garden."), 0.4, 6.0),
-        (caption("steal", "TAKE THEIR CARROTS", "Mind their bombs on the way in.", GOLD), 6.2, 12.0),
+        (caption("raid", "RAID", "Walk a neighbour's burrow blind. Reach the garden.", corner=True), 0.4, 6.0),
+        (caption("steal", "TAKE THEIR CARROTS", "Mind their bombs on the way in.", GOLD, corner=True), 6.2, 12.0),
     ], **pvp))
     segs.append(segment(CLIPS / "raid-defend.mp4", 0.3, 15.0, [
-        (caption("defend", "DEFEND", "Someone's in your burrow. Bury bombs in their path.", RED), 0.8, 7.5),
-        (caption("strike", "STRIKE BACK", "Tap the raider: lightning.", GOLD), 7.7, 12.2),
+        (caption("defend", "DEFEND", "Someone's in your burrow. Bury bombs in their path.", RED, corner=True, y=450), 0.8, 7.5),
+        (caption("strike", "STRIKE BACK", "Tap the raider: lightning.", GOLD, corner=True, y=450), 7.7, 12.2),
     ], **pvp))
     segs.append(end_card(4.5))
 
