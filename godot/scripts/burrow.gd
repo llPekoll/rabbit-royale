@@ -850,7 +850,10 @@ func _wanted_cam() -> BurrowCamera.Shot:
 	if _raiding:
 		if _cam_moved_by_player:
 			return BurrowCamera.clamp_place(_current_shot(), map, view.x, view.y)
-		return BurrowCamera.board(map, view.x, view.y)
+		# SOUS LA PASTILLE : le raid se joue sur toute la ferme, rien ne doit
+		# se passer derriere le chrome du haut.
+		var top := maxf(Kit.TOPBAR_H, TopBar.hang_bottom()) + Kit.PAD_TIGHT
+		return BurrowCamera.board(map, view.x, view.y, top)
 	if _placing or _walling:
 		# LE JOUEUR GARDE LA MAIN : on ne recadre pas sous lui, on borne.
 		if _cam_moved_by_player:

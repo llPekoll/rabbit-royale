@@ -198,12 +198,17 @@ static func home(map: BurrowMap, w: float = GAME_W, h: float = GAME_H) -> Shot:
 ## pas les cadrer toutes — une ferme large sortirait de l'ecran, une compacte
 ## se tiendrait dans un coin. Les deux reglages ne se battent plus parce qu'ils
 ## ne repondent plus a la meme question.
-static func board(map: BurrowMap, w: float = GAME_W, h: float = GAME_H) -> Shot:
+##
+## `top` : ce que le chrome couvre en haut (la pastille et son reservoir). La
+## ferme se cadre dessous — centree sur tout l'ecran, le potager d'un raid
+## tombait sous la pastille (2026-09-30).
+static func board(map: BurrowMap, w: float = GAME_W, h: float = GAME_H, top: float = 0.0) -> Shot:
 	var b := board_bounds(map)
 	if b.size == Vector2.ZERO:
 		return Shot.new(1.0, Vector2.ZERO)
-	var scale := minf((w * BOARD_MARGIN) / b.size.x, (h * BOARD_MARGIN) / b.size.y)
-	return Shot.new(scale, Vector2(w, h) * 0.5 - scale * b.get_center())
+	var room := maxf(1.0, h - top)
+	var scale := minf((w * BOARD_MARGIN) / b.size.x, (room * BOARD_MARGIN) / b.size.y)
+	return Shot.new(scale, Vector2(w * 0.5, top + room * 0.5) - scale * b.get_center())
 
 
 ## LES BORNES DU ZOOM DE PLACEMENT, pour cette ferme sur cet ecran.
