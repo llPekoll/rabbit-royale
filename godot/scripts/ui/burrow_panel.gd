@@ -93,7 +93,14 @@ func refresh() -> void:
 		_slab.add_price(I18N.shout(I18N.t("burrow.upgrade")) + " " + I18N.group_digits(float(cost)),
 			slab_text(), carrot_mark())
 	_slab.set_lit(can and not maxed)
-	_slab.pressed.connect(func() -> void: Home.act("upgrade"))
+	# EN DIALOGUE, L'ACHAT FERME LA CARTE tout de suite : la fete du niveau
+	# (la maison suivante, le tampon) se joue sur le terrier, et la carte la
+	# cachait. Refuse, elle reste : le refus se lit a cote.
+	var lit := can and not maxed
+	_slab.pressed.connect(func() -> void:
+		if lit and Chrome.current != null and Chrome.current.dialogs.is_ancestor_of(self):
+			Chrome.current.close_dialog()
+		Home.act("upgrade"))
 
 	set_footer(_slab)
 
