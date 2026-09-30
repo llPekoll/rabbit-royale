@@ -45,6 +45,15 @@ const ART := {
 		"ggggyyygggg",
 		"ggggggggggg",
 	],
+	"vi": [
+		"RRRRRRRRRRR",
+		"RRRRRYRRRRR",
+		"RRRYYYYYRRR",
+		"RRRRYYYRRRR",
+		"RRRRYRYRRRR",
+		"RRRRRRRRRRR",
+		"RRRRRRRRRRR",
+	],
 }
 
 const INK := {

@@ -2,7 +2,7 @@
 
 Des teasers courts pour X et Instagram. Chaque épisode **se regarde seul** (voir
 `README.md` : pas de numéro à l'écran, pas de « à suivre »). Ceux qui suivent la
-série reconnaissent les deux personnages, la carotte et la voix de l'île.
+série reconnaissent les deux personnages et la voix de l'île.
 
 ## Le fil rouge
 
@@ -15,10 +15,10 @@ as laissé → l'île coule → la couronne.
 
 | | Qui | Règle |
 |---|---|---|
-| **Le héros** | Le lapin blanc du jeu (`bunny-white`) | Il ne réagit **jamais** au malheur de Degen. Il réfléchit, il gagne. Il trimballe sa **carotte géante** de l'ep01 dans chaque épisode. |
+| **Shiro** (白, « blanc ») | Le héros, le lapin blanc du jeu (`bunny-white`) | Il ne réagit **jamais** au malheur de Degen. Il réfléchit, il gagne. Pas d'accessoire fixe : la carotte géante de l'ep01 ne revient que là où elle sert (ep03). |
 | **Degen** | Le lapin brun (`bunny-brown`), celui qui a sauté sur la bombe dans l'ep01 | Jaloux, pressé, moqueur. Il veut se venger ou passer devant, et ça se retourne **toujours** contre lui. |
 
-Le gag signature : **Degen se plante, le héros ne le regarde même pas.**
+Le gag signature : **Degen se plante, Shiro ne bronche pas.** Il peut le suivre des yeux, jamais réagir.
 
 ## La voix de l'île
 
@@ -35,7 +35,7 @@ flou d'arrière-plan.
 
 | Référence | Fichier |
 |---|---|
-| Le héros | `ep01-carotte-bombe/shots/cool/pixel3d-clean.png` (ventre uni — sinon il a « des nénés ») |
+| Shiro | `ep01-carotte-bombe/shots/cool/pixel3d-clean.png` (ventre uni — sinon il a « des nénés ») |
 | Degen | `ep01-carotte-bombe/shots/refs/brown-idle-x16.png` → à remplacer par une planche pixel 3D de Degen (une image Grok) |
 | Le monde | l'île du jeu, pas le volcan : **il n'y a plus de volcan**, les îles coulent |
 
@@ -57,10 +57,10 @@ flou d'arrière-plan.
 | Ep | Gag | Phrase de l'île | Gameplay | État |
 |---|---|---|---|---|
 | 01 | Il trouve une carotte, Degen trouve une bombe | *It has never stopped giving.* | creuser | ✅ monté |
-| 02 | **Le 50/50** : il hésite entre deux cases, Degen se moque, double, et saute sur la bombe | *The island does not kill the unlucky. It kills the hurried.* | une bombe, un coffre | découpage |
+| 02 | **Le 50/50** : Shiro hésite entre deux cases, Degen le toise, lui saute par-dessus et atterrit sur la bombe | *The island does not kill the unlucky. It kills the hurried.* | une bombe, un coffre | découpage |
 | 03 | **L'éclair** : Degen le lui lance, il rebondit sur la carotte et grille Degen | *A thing that never lies to you is a thing that wants something.* | `lightning` | idée |
 | 04 | **Le calmar** : encré, il creuse à l'aveugle et trouve quand même un coffre | *The numbers are honest.* | `bloop` | idée |
-| 05 | **À l'eau** : Degen veut le pousser, le héros se baisse, Degen file à la mer | *…and the rabbits swim.* | `drown` | idée |
+| 05 | **À l'eau** : Degen veut le pousser, Shiro se baisse, Degen file à la mer | *…and the rabbits swim.* | `drown` | idée |
 | 06 | **Le raid** : il rentre, la porte est défoncée, Degen est assis sur son tas | *The only thing that can be taken from a rabbit is what it left behind.* | raid (à filmer) | idée |
 | 07 | **L'île coule** au dernier coffre, les deux ennemis nagent côte à côte | *An island is a thing that happens once.* | l'île qui coule (à filmer) | idée |
 | 08 | **La couronne** : il se réveille couronné, tous les lapins de la carte se tournent vers lui | *It illuminates them, and then it stands back to watch.* | lancement | idée |

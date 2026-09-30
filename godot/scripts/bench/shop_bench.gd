@@ -15,7 +15,7 @@ extends Control
 func _fake_items(stock: int) -> Array:
 	var prices := Tuning.table("SHOP.PRICES")
 	var usdc := Tuning.table("SHOP.USDC_PRICES")
-	var held := {"trap": 3, "bomb": 1, "lightning": 0, "shield": 20, "energy": 1, "smoke": 2, "mirage": 0, "fence": 4}
+	var held := {"trap": 3, "bomb": 1, "lightning": 0, "shield": 20, "energy": 1, "smoke": 2, "mirage": 0, "bloop": 0, "fence": 4}
 	var caps := {"energy": 3, "smoke": 1}
 	var out: Array = []
 	for kind in ShopState.KINDS:

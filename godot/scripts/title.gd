@@ -301,9 +301,10 @@ func _apply_language() -> void:
 	_guest.relabel(I18N.t("auth.guest"))
 	_ribbon.text = I18N.t("codex.title").to_upper()
 	var here := I18N.LOCALES[I18N.locale_index(I18N.locale)]
-	# Le drapeau dit ce qu'est ce bouton, et il doit survivre a l'etat ferme.
-	# Une texture, pas un emoji : le web n'a pas de face emoji (flag.gd).
+	# Le drapeau dit ce qu'est ce bouton ; une texture, pas un emoji : le web
+	# n'a pas de face emoji (flag.gd). Les chevrons disent qu'il tourne.
 	_lang.set_lead(Flag.texture(String(here["code"])))
+	_lang.set_arrows(true)
 	_lang.relabel(String(here["label"]))
 	_status.visible = false
 
@@ -327,13 +328,11 @@ func _on_locale_changed(_code: String) -> void:
 	_tip_timer.start()
 
 
-## LE SELECTEUR : il tourne d'une langue a la suivante.
-##
-## Le web ouvre une fenetre a quatre options. Quatre langues et un bouton qui
-## les fait defiler disent la meme chose en un geste, et cet ecran n'a pas
-## encore de fenetre a lui — celle-ci viendra avec les autres dialogues.
+## LE SELECTEUR : un chevron a chaque bout. La moitie gauche recule d'une
+## langue, la droite avance ; la liste boucle.
 func _on_language_pressed() -> void:
-	var next := (I18N.locale_index(I18N.locale) + 1) % I18N.LOCALES.size()
+	var n := I18N.LOCALES.size()
+	var next := (I18N.locale_index(I18N.locale) + _lang.press_side + n) % n
 	I18N.set_locale(I18N.LOCALES[next]["code"])
 
 

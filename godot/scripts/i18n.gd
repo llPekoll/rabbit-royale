@@ -1,5 +1,5 @@
 extends Node
-## LES QUATRE LANGUES — les dictionnaires du web, lus tels quels.
+## LES CINQ LANGUES — les dictionnaires du web, lus tels quels.
 ##
 ## Les mots ne sont PAS retapes ici. `tools/export-godot-i18n.ts` exporte
 ## src/i18n/dict/*.ts en assets/i18n/<langue>.json, meme forme, memes cles :
@@ -28,6 +28,7 @@ const LOCALES: Array[Dictionary] = [
 	{"code": "fr", "label": "Français", "pixel_face": false},
 	{"code": "zh", "label": "中文", "pixel_face": false},
 	{"code": "pt-BR", "label": "Português", "pixel_face": false},
+	{"code": "vi", "label": "Tiếng Việt", "pixel_face": false},
 ]
 
 const DEFAULT_LOCALE := "en"
@@ -48,6 +49,7 @@ const DICT_FILES := {
 	"fr": preload("res://assets/i18n/fr.json"),
 	"zh": preload("res://assets/i18n/zh.json"),
 	"pt-BR": preload("res://assets/i18n/pt-BR.json"),
+	"vi": preload("res://assets/i18n/vi.json"),
 }
 
 ## CE QUE LE WEB N'A PAS A DIRE. Un client natif a ses propres phrases —
@@ -127,6 +129,23 @@ const NATIVE := {
 			"golden": "Ouro! Uma cenoura dourada vale cinco.",
 			"chest": "Um baú. O que tiver dentro vai para casa com você.",
 			"clock": "A ilha é o relógio. Cave até o fim e ela afunda.",
+		},
+	},
+	"vi": {
+		"err_offline": "Không kết nối được với đảo",
+		"first_run": {
+			"tap": "Chạm một ô cạnh bạn để đào.",
+			"numbers": "Con số đếm số bom chạm vào ô đó.",
+			"counts": "Số 1 này nghĩa là: có một quả bom trốn ở các ô xung quanh.",
+			"prove": "Chỉ còn một ô chưa mở. Đó là bom.",
+			"mark": "Nhấn ĐÁNH DẤU BOM, rồi chạm ô có dấu X đỏ.",
+			"aim": "Giờ chạm vào ô đang nhấp nháy.",
+			"marked": "Đúng! X đúng hoàn năng lượng. X sai thì mất.",
+			"fetch": "Giờ đi lấy rương. Bên trong có gì cũng theo bạn về.",
+			"bomb": "Mất năng lượng rồi. Số 1 đã chỉ vào nó.",
+			"golden": "Vàng! Một củ cà rốt vàng bằng năm củ.",
+			"chest": "Một cái rương. Bên trong có gì cũng theo bạn về.",
+			"clock": "Hòn đảo là đồng hồ. Đào sạch là nó chìm.",
 		},
 	},
 }

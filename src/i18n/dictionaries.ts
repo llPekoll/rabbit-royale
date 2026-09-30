@@ -18,6 +18,7 @@ import { en } from './dict/en';
 import { fr } from './dict/fr';
 import { zh } from './dict/zh';
 import { ptBR } from './dict/pt-BR';
+import { vi } from './dict/vi';
 
 export type Dict = typeof en;
 
@@ -26,6 +27,7 @@ export const DICTIONARIES: Record<Locale, Dict> = {
   fr,
   zh,
   'pt-BR': ptBR,
+  vi,
 };
 
 /** The English dictionary, for code that runs before a provider exists. */

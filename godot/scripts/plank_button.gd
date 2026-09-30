@@ -63,6 +63,11 @@ const GOLD_CAP := 30
 ## coupait son mot : « JOIN » en « JOII », « RAID » en « Al » (2026-09-23).
 const TEXT_PAD := 22.0
 ## L'air entre l'image de tete et le mot.
+const ARROW_SIDE := 18.0
+## Du bord de la planche au chevron, et du chevron au mot.
+const ARROW_INSET := 26.0
+const ARROW_GAP := 6.0
+## Entre le drapeau et le mot.
 const LEAD_GAP := 6.0
 
 ## L'encre. L'or porte un brun fonce sans ombre ; le bois une creme avec une
@@ -70,6 +75,14 @@ const LEAD_GAP := 6.0
 const GOLD_INK := Color("#352011")
 const WOOD_INK := Color("#fff0cb")
 const WOOD_INK_SHADOW := Color("#352011")
+## LE RELIEF DE LA PAGE D'ACCUEIL (landing/index.html, `.plank`), 2026-09-27.
+## Deux ombres dures, sans flou : la planche entiere repetee DESSOUS, en nuit,
+## decalee vers le bas (`drop-shadow(0 6px 0 rgba(10,22,28,.6))` sur 76 px de
+## haut) — c'est l'epaisseur du bouton —, et sous l'encre sombre de l'or un
+## liseré creme de 2 px (`text-shadow: 0 2px 0`) qui grave le mot dans le bois.
+const DROP_TINT := Color(0.04, 0.086, 0.11, 0.6)
+const DROP_RATIO := 6.0 / 76.0
+const GOLD_INK_EMBOSS := Color(1.0, 0.94, 0.706, 0.7)
 
 ## LA VAGUE — l'animation de repos de la colonne.
 ##
@@ -114,10 +127,16 @@ var wave_delay := 0.0
 var _words := ""
 
 var _plank: NinePatchRect
+## L'epaisseur : la meme planche, teinte en nuit, sous la vraie.
+var _drop: NinePatchRect
 ## Le texte, peint par nous plutot que par le Button — voir `_restyle`.
 var _ink: Label
 ## Une image devant le mot (le drapeau du bouton de langue), ou null.
 var _lead: TextureRect
+## Les deux chevrons d'un selecteur (la langue), vides sinon.
+var _arrows: Array[Control] = []
+## Le cote du dernier appui : -1 a gauche du milieu, 1 a droite.
+var press_side := 1
 var _wave := 0.0
 
 
@@ -131,6 +150,12 @@ func _init() -> void:
 	# par defaut, aucun setter ne partait, et elles n'apparaissaient jamais sur
 	# le telephone. Garder la creation ici et le style ailleurs supprime le
 	# probleme quel que soit l'ordre d'appel.
+	# L'ombre d'abord : ajoutee avant la planche, elle se dessine dessous.
+	_drop = NinePatchRect.new()
+	_drop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_drop.self_modulate = DROP_TINT
+	add_child(_drop, false, Node.INTERNAL_MODE_FRONT)
+
 	_plank = NinePatchRect.new()
 	_plank.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_plank, false, Node.INTERNAL_MODE_FRONT)
@@ -208,6 +233,11 @@ func _restyle() -> void:
 	# le `0` du `border-image-slice`.
 	_plank.patch_margin_top = 0
 	_plank.patch_margin_bottom = 0
+	_drop.texture = _plank.texture
+	_drop.patch_margin_left = source_cap
+	_drop.patch_margin_right = source_cap
+	_drop.patch_margin_top = 0
+	_drop.patch_margin_bottom = 0
 
 	_ink.text = text
 
@@ -235,7 +265,10 @@ func _restyle() -> void:
 		_ink.add_theme_constant_override("shadow_offset_x", 0)
 		_ink.add_theme_constant_override("shadow_offset_y", 1)
 	else:
-		_ink.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0))
+		# L'encre sombre de l'or est gravee : un liseré creme juste dessous.
+		_ink.add_theme_color_override("font_shadow_color", Color(GOLD_INK_EMBOSS, GOLD_INK_EMBOSS.a * (0.55 if disabled else 1.0)))
+		_ink.add_theme_constant_override("shadow_offset_x", 0)
+		_ink.add_theme_constant_override("shadow_offset_y", 2)
 
 
 ## Le libelle a change (une autre langue) : le Label le reprend et la taille
@@ -274,11 +307,44 @@ func set_lead(tex: Texture2D) -> void:
 	_relayout()
 
 
+## UN SELECTEUR : un chevron a chaque bout, « < » et « > », dessines au pixel
+## (BackButton.Arrow) plutot qu'ecrits — aucune face a trouver sur le web. Le
+## bouton reste un seul Button ; `press_side` dit de quel cote il a ete touche.
+func set_arrows(on: bool) -> void:
+	if on == not _arrows.is_empty():
+		return
+	for a in _arrows:
+		a.queue_free()
+	_arrows.clear()
+	if on:
+		for i in 2:
+			var a := BackButton.Arrow.new()
+			a.ink = WOOD_INK
+			a.size = Vector2(ARROW_SIDE, ARROW_SIDE)
+			a.pivot_offset = a.size * 0.5
+			# L'Arrow pointe a gauche ; le second est retourne.
+			if i == 1:
+				a.scale.x = -1.0
+			add_child(a, false, Node.INTERNAL_MODE_BACK)
+			_arrows.append(a)
+	_relayout()
+
+
+func _gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed:
+		press_side = -1 if event.position.x < size.x * 0.5 else 1
+	elif event is InputEventScreenTouch and event.pressed:
+		press_side = -1 if event.position.x < size.x * 0.5 else 1
+
+
 ## La planche et le texte reprennent la taille du bouton, puis le libelle est
 ## remesure pour la largeur obtenue.
 func _relayout() -> void:
 	if _plank != null:
 		_plank.size = size
+	if _drop != null:
+		_drop.size = size
+		_drop.position.y = _lift_now + _drop_px()
 	if _ink != null:
 		_ink.position.x = TEXT_PAD
 		_ink.size = Vector2(maxf(0.0, size.x - 2.0 * TEXT_PAD), size.y)
@@ -287,6 +353,10 @@ func _relayout() -> void:
 		_ink.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		if _lead != null and _lead.texture != null:
 			_place_lead(fitted)
+		if not _arrows.is_empty():
+			var y := roundf((size.y - ARROW_SIDE) / 2.0) + _lift_now
+			_arrows[0].position = Vector2(ARROW_INSET, y)
+			_arrows[1].position = Vector2(size.x - ARROW_INSET - ARROW_SIDE, y)
 
 
 ## Le drapeau et le mot forment UN bloc centre : le mot passe a gauche de sa
@@ -299,7 +369,7 @@ func _place_lead(fitted: int) -> void:
 		_ink.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fitted).x
 	var start := roundf((size.x - (lead_size.x + LEAD_GAP + words)) / 2.0)
 	_lead.size = lead_size
-	_lead.position = Vector2(start, roundf((size.y - lead_size.y) / 2.0))
+	_lead.position = Vector2(start, roundf((size.y - lead_size.y) / 2.0) + _lift_now)
 	_ink.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_ink.position.x = start + lead_size.x + LEAD_GAP
 	_ink.size.x = words + 2.0
@@ -310,6 +380,8 @@ func _place_lead(fitted: int) -> void:
 ## libelle est illisible et il vaut mieux qu'il soit serre.
 func _fitted_size() -> int:
 	var room := size.x - 2.0 * TEXT_PAD
+	if not _arrows.is_empty():
+		room = size.x - 2.0 * (ARROW_INSET + ARROW_SIDE + ARROW_GAP)
 	if _lead != null and _lead.texture != null:
 		room -= _lead.texture.get_width() * 2.0 + LEAD_GAP
 	if room <= 0.0 or _ink == null or _ink.text.is_empty():
@@ -390,16 +462,30 @@ func _process(delta: float) -> void:
 ## La boite du Control, elle, ne bouge pas : la zone tactile reste ou la
 ## colonne l'a posee, ce qui est aussi ce qu'on veut sous un pouce.
 func _lift(dy: float) -> void:
-	if is_equal_approx(_lift_now, dy):
+	if is_equal_approx(_lift_now, dy) and _lift_pressed == button_pressed:
 		return
 	_lift_now = dy
+	_lift_pressed = button_pressed
 	if _plank != null:
 		_plank.position.y = dy
+	if _drop != null:
+		# Enfonce, le bouton touche presque son ombre (le `:active` du web).
+		_drop.position.y = dy + _drop_px() * (0.35 if button_pressed else 1.0)
 	if _ink != null:
 		_ink.position.y = dy
+	if _lead != null:
+		_lead.position.y = roundf((size.y - _lead.size.y) / 2.0) + dy
+	for a in _arrows:
+		a.position.y = roundf((size.y - ARROW_SIDE) / 2.0) + dy
 
 
 var _lift_now := 0.0
+var _lift_pressed := false
+
+
+## L'epaisseur en pixels, a la proportion du web : 6 px pour 76 de haut.
+func _drop_px() -> float:
+	return roundf(maxf(2.0, size.y * DROP_RATIO))
 
 
 ## La courbe de la vague, lue sur les memes quatre etapes que la keyframe CSS

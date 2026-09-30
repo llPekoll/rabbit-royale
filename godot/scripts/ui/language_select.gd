@@ -1,6 +1,6 @@
 class_name LanguageSelect
 extends Dialog
-## LE CHOIX DE LA LANGUE — quatre lignes, un drapeau et le nom de la langue
+## LE CHOIX DE LA LANGUE — une ligne par langue, un drapeau et le nom de la langue
 ## DANS sa langue, la courante allumee.
 ##
 ## Porte de src/components/language-select.tsx, en gardant ce qu'il a decide :
@@ -17,7 +17,7 @@ extends Dialog
 ##     Ici c'est Kit.style_tab(on), la meme matiere.
 ##   • Des options de 44px, la hauteur d'un pouce.
 ##
-## LA FACE. Trois des quatre noms et tous les drapeaux tombent hors de la face
+## LA FACE. Tous les noms sauf l'anglais et tous les drapeaux tombent hors de la face
 ## pixel du kit (ASCII 32..126). Le web les ecrit dans sa face de secours ;
 ## ici la police importee autorise le repli systeme (`allow_system_fallback`)
 ## et la ligne s'ecrit dans une face qui a ses glyphes. Le drapeau reste une

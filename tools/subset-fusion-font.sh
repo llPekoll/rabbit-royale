@@ -9,10 +9,14 @@
 #
 #   tools/subset-fusion-font.sh <dossier ttf 12px proportional> <dossier ttf 10px proportional>
 #
-# Deux variantes : la latine (« ’ » a sa chasse de lettre) pour fr et pt-BR,
+# Deux variantes : la latine (« ’ » a sa chasse de lettre) pour fr, pt-BR et vi,
 # la zh_hans pour le chinois. Le web prend le 12px ; Godot le 10px, taille
 # sur la grille de la face de l'anglais par tools/fusion-godot.py (voir
 # godot/scripts/i18n.gd `face`).
+#
+# Fusion n'a pas les lettres vietnamiennes (U+1EA0-1EF9) : la latine 10px les
+# recoit de tools/fusion-vietnamese.py avant le sous-ensemble. La source doit
+# etre la version 2026.09.01, celle de toutes les autres lettres.
 set -euo pipefail
 SRC="${1:?dossier des ttf Fusion Pixel 12px proportional}"
 SRC10="${2:?dossier des ttf Fusion Pixel 10px proportional}"
@@ -37,7 +41,13 @@ PY
 for v in latin zh_hans; do
   name="$([ "$v" = latin ] && echo latin || echo zh)"
   out="$ROOT/godot/assets/fonts/fusion-pixel-10-rr-$name.ttf"
-  uvx --from 'fonttools[woff]' pyftsubset "$SRC10/fusion-pixel-10px-proportional-$v.ttf" \
+  src10="$SRC10/fusion-pixel-10px-proportional-$v.ttf"
+  if [ "$v" = latin ]; then
+    cp "$src10" "$CHARS.latin.ttf"
+    src10="$CHARS.latin.ttf"
+    uvx --from fonttools --with skia-pathops python "$ROOT/tools/fusion-vietnamese.py" "$src10"
+  fi
+  uvx --from 'fonttools[woff]' pyftsubset "$src10" \
     --text-file="$CHARS" --layout-features='*' --output-file="$out"
   uvx --from fonttools --with skia-pathops python "$ROOT/tools/fusion-godot.py" "$out"
   # Le meme sous-ensemble pour le web (src/components/pixel-font.tsx).
@@ -45,5 +55,5 @@ for v in latin zh_hans; do
     --text-file="$CHARS" --layout-features='*' --flavor=woff2 \
     --output-file="$ROOT/public/assets/fonts/fusion-pixel-12-rr-$name.woff2"
 done
-rm -f "$CHARS"
+rm -f "$CHARS" "$CHARS.latin.ttf"
 ls -la "$ROOT"/godot/assets/fonts/fusion-pixel-10-rr-*.ttf "$ROOT"/public/assets/fonts/fusion-pixel-12-rr-*.woff2

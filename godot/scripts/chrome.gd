@@ -933,6 +933,13 @@ func stamp(node: Control) -> void:
 	Kit.fill(node)
 
 
+## Une fete qui doit passer DEVANT le dialogue ouvert (un achat, l'etal
+## ouvert) : posee en dernier enfant du chrome, apres l'etage des dialogues.
+func over_dialogs(node: Control) -> void:
+	add_child(node)
+	Kit.fill(node)
+
+
 # ── Les sons ─────────────────────────────────────────────────────────────────
 
 ## CE QUE LE TERRIER FAIT ENTENDRE, pris aux signaux plutot qu'aux gestes :

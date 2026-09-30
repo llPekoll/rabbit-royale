@@ -117,8 +117,9 @@ func _ready() -> void:
 	# banc ni le compteur de l'ile.
 	if args.has("clean"):
 		_panel.visible = false
-		if _island._fps != null:
-			_island._fps.visible = false
+		var fps: Node = _island.get("_fps")
+		if fps != null:
+			fps.visible = false
 		set_process_unhandled_input(false)
 	DevShot.arm(self)
 

@@ -312,6 +312,7 @@ func _on_buy() -> void:
 	if not res.is_empty():
 		closed.emit()
 		bought.emit()
+		PurchaseReveal.announce("energy")
 
 
 func _on_pay_money() -> void:
@@ -321,5 +322,6 @@ func _on_pay_money() -> void:
 	if not res.is_empty():
 		closed.emit()
 		bought.emit()
+		PurchaseReveal.announce("energy")
 		return
 	_refresh()

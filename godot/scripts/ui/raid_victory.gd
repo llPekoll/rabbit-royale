@@ -238,6 +238,9 @@ func _build_spoils() -> void:
 	_rabbit_slot = Control.new()
 	_rabbit_slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_rabbit_slot.custom_minimum_size = Vector2(_rabbit_px, _rabbit_px + 4 + 9)
+	# CENTREE : en FILL (le defaut d'une colonne), la case prenait toute la
+	# largeur et le lapin, pose a son x = 0, sautait a gauche du butin.
+	_rabbit_slot.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_spoils.add_child(_rabbit_slot)
 	_rabbit = TextureRect.new()
 	_rabbit.texture = _frame_texture()
