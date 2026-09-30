@@ -5,7 +5,7 @@ extends "res://scripts/dig_sandbox.gd"
 ## les evenements de la socket ; seule la mise en scene est inventee.
 ##
 ##   godot --path godot --write-movie /tmp/lightning.avi --fixed-fps 30 \
-##     --quit-after 210 scenes/bench/trailer_bench.tscn -- --clean --beat=lightning
+##     --quit-after 210 scenes/demo/trailer_bench.tscn -- --clean --beat=lightning
 ##
 ## `--beat=` : lightning | bloop | drown | bomb | chest | zap | shove |
 ## bombshove | duel. Sans `--beat`, c'est le bac a sable avec le son : creuser

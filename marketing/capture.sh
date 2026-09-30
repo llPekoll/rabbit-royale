@@ -42,7 +42,7 @@ shoot() { # name frames scene args...
   echo "$OUT/$name.mp4"
 }
 
-TB=scenes/bench/trailer_bench.tscn
+TB=scenes/demo/trailer_bench.tscn
 all="pvp-duel pvp-zap pvp-lightning pvp-bloop pvp-shove pvp-bombshove pvp-drown solo-dig solo-explosions solo-chest raid-attack raid-defend"
 for b in ${@:-$all}; do
   case $b in
@@ -56,8 +56,8 @@ for b in ${@:-$all}; do
     solo-dig)        shoot $b 1200 $TB --clean --seed="$SEED" --auto=60 --auto-every=0.3 --hand ;;
     solo-explosions) shoot $b 1200 $TB --clean --seed=${BOMB_SEED:-mines} --auto=80 --auto-every=0.3 --hunt --hand ;;
     solo-chest)      shoot $b 170 $TB --clean --hand --seed="$SEED" --beat=chest ;;
-    raid-attack)     shoot $b 540 scenes/bench/raid_film_bench.tscn --side=attack ;;
-    raid-defend)     shoot $b 540 scenes/bench/raid_film_bench.tscn --side=defend ;;
+    raid-attack)     shoot $b 540 scenes/demo/raid_film_bench.tscn --side=attack ;;
+    raid-defend)     shoot $b 540 scenes/demo/raid_film_bench.tscn --side=defend ;;
     *) echo "beat inconnu : $b" >&2; exit 1 ;;
   esac
 done

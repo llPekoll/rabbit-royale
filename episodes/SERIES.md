@@ -45,7 +45,7 @@ flou d'arrière-plan.
    carrée, sans son (`examples/higgsfield/episode-video.ts`). Une génération
    à la fois : on regarde avant de relancer.
 2. **Gameplay** : filmé dans Godot, jamais généré
-   (`capture.sh`, `godot/scenes/bench/trailer_bench.tscn`).
+   (`capture.sh`, `godot/scenes/demo/trailer_bench.tscn`).
 3. **Montage** : `montage.sh`, qui ajoute les sons du jeu, le swipe flouté vers
    le jeu, l'iris en crâne RR-Skull et la carte de fin (Follow @RabbitRoyaleX,
    Soon on Seeker, Made with ♥ and Indies on Solana).

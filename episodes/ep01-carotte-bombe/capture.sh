@@ -37,12 +37,12 @@ shoot() { # beat frames scene args...
 for beat in "${@:-dig lightning bloop drown}"; do
   for b in $beat; do
     case $b in
-      dig)       shoot dig 330 scenes/bench/trailer_bench.tscn --auto=14 --auto-every=0.8 ;;
-      lightning) shoot lightning 200 scenes/bench/trailer_bench.tscn --beat=lightning ;;
-      bloop)     shoot bloop 230 scenes/bench/trailer_bench.tscn --beat=bloop ;;
-      drown)     shoot drown 230 scenes/bench/trailer_bench.tscn --beat=drown ;;
-      bomb)      shoot bomb 150 scenes/bench/trailer_bench.tscn --beat=bomb ;;
-      chest)     shoot chest 150 scenes/bench/trailer_bench.tscn --beat=chest ;;
+      dig)       shoot dig 330 scenes/demo/trailer_bench.tscn --auto=14 --auto-every=0.8 ;;
+      lightning) shoot lightning 200 scenes/demo/trailer_bench.tscn --beat=lightning ;;
+      bloop)     shoot bloop 230 scenes/demo/trailer_bench.tscn --beat=bloop ;;
+      drown)     shoot drown 230 scenes/demo/trailer_bench.tscn --beat=drown ;;
+      bomb)      shoot bomb 150 scenes/demo/trailer_bench.tscn --beat=bomb ;;
+      chest)     shoot chest 150 scenes/demo/trailer_bench.tscn --beat=chest ;;
       *) echo "beat inconnu : $b" >&2; exit 1 ;;
     esac
   done
