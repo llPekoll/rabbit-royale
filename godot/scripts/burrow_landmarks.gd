@@ -245,10 +245,13 @@ func _wanted() -> Array[String]:
 	var doors: Array[String] = []
 	if bench:
 		return _ordered(bench_doors.duplicate())
-	# CHEZ L'AUTRE, le raider n'a rien a faire de ses portes : ni DIG, ni
-	# DEFEND, ni la boutique — seul l'ilot RAID reste.
+	# CHEZ L'AUTRE, SES QUATRE ILOTS : on pille un terrier habite, pas un
+	# rocher (le user, 2026-09-30 : « en raid tu ne vois pas les iles des
+	# autres »). Ses portes restent mortes — le terrier coupe `set_live` hors
+	# de chez soi. Son avancement ne se lit pas d'ici ; un joueur qu'on peut
+	# piller a passe le niveau des raids, il les a donc toutes.
 	if not _own:
-		return _ordered(["raid"] as Array[String])
+		return _ordered(["dig", "shop", "defend", "raid"] as Array[String])
 	# RIEN AVANT LA FIN DU TUTO : DIG sort de l'eau au retour de la lecon, pas
 	# avant — vu pendant, il serait deja la. Sans Home, ce qu'on a deja vu.
 	var seen := _seen()
