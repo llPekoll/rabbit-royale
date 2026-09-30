@@ -856,12 +856,18 @@ func _what_line(r: Dictionary) -> String:
 	return I18N.f("profile.damage", [int(r.get("damage", 0))])
 
 
-## Ce qu'un achat a coute, dans la monnaie ou il a ete paye : un `cost` USDC
-## est en unites de base (6 decimales) et doit revenir en dollars ici.
+## Ce qu'un achat a coute, dans la monnaie ou il a ete PAYE. Le serveur rend
+## `token` (usdc, sol, skr) et `amount` en jetons entiers : un achat SOL se lit
+## « 0.0008 SOL », jamais « $0.84 » (son `cost` est en lamports). Memes
+## decimales que les prix de l'etal (Shop.RAIL_PLACES).
 func _price_of(p: Dictionary) -> String:
-	if String(p.get("currency", "")) == "usdc":
-		return I18N.f("profile.usd", ["%.2f" % (float(p.get("cost", 0)) / 1000000.0)])
-	return I18N.f("profile.spent", [I18N.group_digits(float(p.get("cost", 0)))])
+	if String(p.get("currency", "")) != "usdc":
+		return I18N.f("profile.spent", [I18N.group_digits(float(p.get("cost", 0)))])
+	var token := String(p.get("token", "usdc"))
+	var amount := float(p.get("amount", float(p.get("cost", 0)) / 1000000.0))
+	if token == "usdc":
+		return I18N.f("profile.usd", ["%.2f" % amount])
+	return String.num(amount, int(Shop.RAIL_PLACES.get(token, 2))) + " " + String(Shop.RAILS.get(token, token.to_upper()))
 
 
 ## « Today », ou le jour. Le web ecrit « Mon 14 » par Intl ; Godot n'a pas de

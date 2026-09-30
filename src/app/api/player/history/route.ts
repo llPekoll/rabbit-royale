@@ -24,7 +24,8 @@
 import { and, desc, eq, gte, isNotNull, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/lib/db';
-import { players, purchases, raids, runs } from '@/lib/db/schema';
+import { payments, players, purchases, raids, runs } from '@/lib/db/schema';
+import { isPayTokenId, wholeFor, type PayTokenId } from '@/lib/pay/tokens';
 import { getSession } from '@/lib/auth/jwt';
 
 /** How far back the profile looks. Long enough to see a habit, short enough to stay one query. */
@@ -128,16 +129,28 @@ export async function GET(req: Request) {
       currency: purchases.currency,
       cost: purchases.cost,
       createdAt: purchases.createdAt,
+      token: payments.token,
     })
     .from(purchases)
+    .leftJoin(payments, eq(payments.id, purchases.paymentId))
     .where(eq(purchases.playerId, session.sub))
     .orderBy(desc(purchases.createdAt))
     .limit(PURCHASE_LIMIT);
+  // A money receipt says `currency: 'usdc'` whatever was paid — the enum only
+  // knows carrots and usdc — while `cost` is in the base units of the token
+  // ACTUALLY paid (lamports for SOL). Read the rail off the payment it links to
+  // and hand the client the amount in whole tokens, so a SOL purchase reads
+  // "0.0008 SOL" and not "$0.84".
+  const bought = recentPurchases.map(({ token, ...p }) => {
+    if (p.currency !== 'usdc') return p;
+    const paid: PayTokenId = isPayTokenId(token) ? token : 'usdc';
+    return { ...p, token: paid, amount: wholeFor(p.cost, paid) };
+  });
 
   return Response.json({
     days,
     runs: recentRuns,
-    purchases: recentPurchases,
+    purchases: bought,
     raids: {
       against: against.map((r) => ({ ...r, direction: 'against' as const })),
       by: by.map((r) => ({ ...r, direction: 'by' as const })),
