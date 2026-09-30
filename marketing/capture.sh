@@ -25,7 +25,13 @@ fi
 mkdir -p "$OUT"
 
 [ -e godot/override.cfg ] && { echo "godot/override.cfg existe deja — une autre capture tourne ?" >&2; exit 1; }
+# UN user:// A PART : ceux de ce Mac coupaient la musique (audio.cfg,
+# music_muted) — les plans sortaient sans la fanfare du raid.
+rm -rf "$HOME/Library/Application Support/rabbit-royale-film"
 cat > godot/override.cfg <<CFG
+[application]
+config/use_custom_user_dir=true
+config/custom_user_dir_name="rabbit-royale-film"
 [display]
 window/size/viewport_width=$VW
 window/size/viewport_height=$VH
