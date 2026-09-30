@@ -15,15 +15,22 @@ cd "$(dirname "$0")/.."
 GODOT=${GODOT:-/Applications/Godot.app/Contents/MacOS/Godot}
 OUT=marketing/out/raw
 SEED=${SEED:-reef}
+# SEEKER=1 : l'ecran du Seeker couche (890x400, rendu en 1780x800) pour la
+# video Solana Mobile (marketing/seeker.sh), dans marketing/out/seeker/clips.
+VW=854 VH=480 WW=1920 WH=1080
+if [ "${SEEKER:-}" = 1 ]; then
+  OUT=marketing/out/seeker/clips
+  VW=890 VH=400 WW=1780 WH=800
+fi
 mkdir -p "$OUT"
 
 [ -e godot/override.cfg ] && { echo "godot/override.cfg existe deja — une autre capture tourne ?" >&2; exit 1; }
-cat > godot/override.cfg <<'CFG'
+cat > godot/override.cfg <<CFG
 [display]
-window/size/viewport_width=854
-window/size/viewport_height=480
-window/size/window_width_override=1920
-window/size/window_height_override=1080
+window/size/viewport_width=$VW
+window/size/viewport_height=$VH
+window/size/window_width_override=$WW
+window/size/window_height_override=$WH
 window/size/mode=0
 window/size/borderless=true
 window/size/initial_position_type=0

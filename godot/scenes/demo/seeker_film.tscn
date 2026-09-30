@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+; LA VIDEO SEEKER — le vrai jeu joue par un doigt. Voir scripts/demo/seeker_director.gd.
+
+[ext_resource type="Script" path="res://scripts/demo/seeker_director.gd" id="1_dir"]
+
+[node name="SeekerFilm" type="Node"]
+script = ExtResource("1_dir")
