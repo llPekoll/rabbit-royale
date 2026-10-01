@@ -3,9 +3,13 @@ extends Control
 const Motion = preload("res://scripts/home_idle_motion.gd")
 const ART_SIZE := Vector2(1672, 940)
 const DEPTH := [0.08, 0.18, 0.38, 0.65, 0.65, 1.0]
+## The side of one big pixel, in ART pixels: it grows with the cover scale so
+## the painting reads as the same pixel art at every window size.
+@export_range(1.0, 12.0) var art_pixel: float = 4.0
 @export_range(30.0, 180.0) var loop_duration: float = 72.0
 var elapsed := 0.0
 @onready var layers: Array[Node] = $Layers.get_children()
+@onready var pixelate: ColorRect = $Pixelate
 
 func _ready() -> void:
 	resized.connect(_compose)
@@ -27,3 +31,4 @@ func _compose() -> void:
 		var sprite := layers[i] as Sprite2D
 		sprite.position = size * 0.5 - travel * DEPTH[i] * cover
 		sprite.scale = Vector2.ONE * cover
+	(pixelate.material as ShaderMaterial).set_shader_parameter("block", maxf(1.0, roundf(art_pixel * cover)))

@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://scripts/home_background.gd" id="1"]
 [ext_resource type="Texture2D" path="res://assets/ui/home-parallax/01-sky-sea.png" id="2"]
@@ -10,10 +10,15 @@
 
 [ext_resource type="Shader" path="res://shaders/sun_glare.gdshader" id="8_glare"]
 [ext_resource type="Script" path="res://scripts/title_sun_glare.gd" id="9_glare"]
+[ext_resource type="Shader" path="res://shaders/pixelate.gdshader" id="10_pixel"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_glare"]
 resource_local_to_scene = true
 shader = ExtResource("8_glare")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_pixel"]
+resource_local_to_scene = true
+shader = ExtResource("10_pixel")
 
 [node name="HomeBackground" type="Control"]
 z_index = -10
@@ -63,3 +68,13 @@ offset_right = 836.0
 offset_bottom = 470.0
 mouse_filter = 2
 script = ExtResource("9_glare")
+
+[node name="Pixelate" type="ColorRect" parent="."]
+z_index = 3
+material = SubResource("ShaderMaterial_pixel")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
