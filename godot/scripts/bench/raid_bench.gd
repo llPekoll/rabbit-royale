@@ -104,7 +104,12 @@ func _stage(panel: String) -> void:
 	add_child(floor_host)
 	match panel:
 		"hud":
-			floor_host.add_child(preload("res://scenes/ui/raid_hud.tscn").instantiate())
+			var hud: Control = preload("res://scenes/ui/raid_hud.tscn").instantiate()
+			floor_host.add_child(hud)
+			# Le BACK du raid ne se montre que dans le monde : le banc l'y force.
+			var back: BackButton = hud.get("_retreat")
+			back.bench_mode = true
+			hud.call("_refresh")
 		"defend":
 			# Le raid subi ne se montre pas par-dessus un raid mene.
 			RaidState.current.raid = {}

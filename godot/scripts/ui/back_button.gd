@@ -16,13 +16,13 @@ extends Control
 ##     a gauche, ca gene dig / defence / raid »). Le milieu du sol est la
 ##     barre des trois verbes ; la droite appartient a MARK BOMB pendant une
 ##     run. Le coin gauche est le seul libre sur les trois ecrans.
-##   • PAS LE HOME DE L'ILE. Quitter une run est L'action principale de la
-##     run — elle encaisse la recolte — donc elle garde sa grande fleche au
-##     milieu du sol (go-button.tsx) : le mot sur une plaque de verre, la
-##     fleche dessous qui voyage sur son axe — c'est la seule chose de
-##     l'ecran qui demande a etre pressee, et une fleche immobile ne demande
-##     rien. Le bouton lui-meme ne bouge pas : sa zone tactile reste sous le
-##     pouce.
+##   • L'ILE AUSSI, ET LE RAID, DEPUIS LE 2026-10-01. L'ile avait sa planche
+##     a part, en haut a gauche (« ← TERRIER », ecrit en dur), regarder une
+##     run disait STOP WATCHING, et le raid avait RETREAT dans son panneau du
+##     haut : quatre mots, trois formes, trois places pour la meme sortie.
+##     C'est partout BACK, cette planche, en bas a gauche ; la mini-carte de
+##     l'ile monte au-dessus (island.gd). La grande fleche HOME du web n'est
+##     plus montree (`_is_go`).
 ##   • LA TERRE, PAS UNE SECONDE PLANCHE SATUREE. Le retour est la sortie
 ##     d'un mode que le joueur a choisi expres — il sait qu'elle est la, et
 ##     l'allumer aussi fort que DIG mettrait deux « presse-moi » sur un sol.
@@ -204,20 +204,11 @@ func note_run_cost(cost: int, energy: int, max_energy: int) -> void:
 # ── La mise en page ──────────────────────────────────────────────────────────
 
 func _is_go() -> bool:
-	return _mode == "island"
+	return false
 
 
 func _relabel() -> void:
-	var words := ""
-	match _mode:
-		"raid":
-			words = I18N.t("run.retreat")
-		"island":
-			words = I18N.t("run.home")
-		"watching":
-			words = I18N.t("run.stopWatching")
-		_:
-			words = I18N.t("chrome.back")
+	var words := I18N.t("chrome.back")
 	_label.text = I18N.shout(words)
 	if _plate.get_child_count() == 0:
 		_plate.add_child(Kit.label("", 13, Palette.CAPTION_INK))

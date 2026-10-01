@@ -52,7 +52,7 @@ var _note: Label
 var _over: VBoxContainer
 var _over_strong: Label
 var _over_haul: Label
-var _retreat: PlankButton
+var _retreat: BackButton
 
 
 func _ready() -> void:
@@ -155,27 +155,16 @@ func _build() -> void:
 	_over.add_child(_over_haul)
 	column.add_child(_over)
 
-	# LA SORTIE, EN PLEIN RAID. Sur le web c'est le BackButton partage du bas
-	# de l'ecran (« Retreat ») ; ce bouton-la n'est pas porte, donc la planche
-	# vit ici. Elle existe pour la raison qu'elle a toujours eue : un raider
-	# qui change d'avis restait sur le plateau d'un autre jusqu'a ce que son
-	# energie s'epuise.
-	_retreat = Kit.button(I18N.shout(I18N.t("run.retreat")), "wood", 0, 44)
+	# LA SORTIE, EN PLEIN RAID : le BACK partage, en bas a gauche, comme en
+	# DEFEND et sur l'ile (2026-10-01) — c'etait RETREAT dans ce panneau. Elle
+	# existe pour la raison qu'elle a toujours eue : un raider qui change
+	# d'avis restait sur le plateau d'un autre jusqu'a ce que son energie
+	# s'epuise.
+	_retreat = preload("res://scenes/ui/back_button.tscn").instantiate()
 	_retreat.pressed.connect(func() -> void: RaidState.current.leave())
-	header.add_child(_retreat)
-	_fit_retreat()
+	add_child(_retreat)
 	for child in header.get_children():
 		(child as Control).size_flags_vertical = Control.SIZE_SHRINK_CENTER
-
-
-## LA PLANCHE A LA LARGEUR DE SON MOT, plus ses deux bouts feuillus. Sur une
-## ligne partagee, le nom (qui s'etire) l'ecrasait a ses seuls bouts.
-func _fit_retreat() -> void:
-	var ink: Label = _retreat._ink
-	var font := ink.get_theme_font("font")
-	var px := ink.get_theme_font_size("font_size")
-	var w := font.get_string_size(ink.text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
-	_retreat.custom_minimum_size.x = ceilf(w) + 2.0 * Kit.LEAF_EDGE
 
 
 func _reach_top() -> void:
@@ -201,8 +190,6 @@ func _measure() -> void:
 
 
 func _on_locale_changed(_code: String) -> void:
-	_retreat.relabel(I18N.shout(I18N.t("run.retreat")))
-	_fit_retreat()
 	_refresh()
 
 
@@ -232,7 +219,9 @@ func _refresh() -> void:
 		var looted := int(raid.get("carrotsLooted", 0))
 		_over_haul.text = I18N.f("raid.looted", [I18N.group_digits(looted)]) if looted > 0 else I18N.t("raid.nothingTaken")
 
-	_retreat.visible = not done
-	_retreat.disabled = state.busy
-	_retreat.modulate.a = 0.75 if state.busy else 1.0
+	if done:
+		_retreat.dismiss()
+	else:
+		_retreat.show_for("raid")
+		_retreat.set_disabled(state.busy)
 	_measure()

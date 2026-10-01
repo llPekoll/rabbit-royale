@@ -101,7 +101,7 @@ var _fade: Tween
 ## main (voir `follows_run`).
 var _sink_sky: EruptionOverlay
 ## Provisoire : la porte vers le terrier, le temps qu'une manche se termine.
-var _back: PlankButton
+var _back: BackButton
 
 ## LE TUTORIEL, tel que cette scene le joue.
 ##
@@ -356,11 +356,11 @@ func _add_chrome() -> void:
 	layer.layer = 10
 	add_child(layer)
 
-	_back = preload("res://scenes/plank_button.tscn").instantiate()
-	_back.custom_minimum_size = Vector2(220, 44)
-	_back.size = Vector2(220, 44)
-	_back.position = Vector2(12, 12)
-	_back.relabel("← TERRIER")
+	# LA SORTIE DE L'ILE EST LE BACK DE PARTOUT (2026-10-01) : la planche
+	# partagee, en bas a gauche, le meme mot qu'en DEFEND et au raid. C'etait
+	# une planche a part, en haut a gauche, ou « ← TERRIER » etait ecrit en
+	# dur — en francais jusque dans le jeu anglais.
+	_back = preload("res://scenes/ui/back_button.tscn").instantiate()
 	_back.pressed.connect(func() -> void:
 		# RENTRER, C'EST ENCAISSER : le serveur banque sur `leave`. Un
 		# spectateur, lui, n'a rien a encaisser : il quitte la salle.
@@ -964,9 +964,13 @@ func _on_release(at: Vector2) -> void:
 var _mini: MiniMap
 
 
+## AU-DESSUS DE BACK, dans le coin bas-gauche qu'ils partagent : la sortie
+## de l'ile y vit depuis le 2026-10-01 (back_button.gd).
 func _place_mini() -> void:
 	if is_instance_valid(_mini):
-		_mini.position = Vector2(MiniMap.EDGE, get_viewport_rect().size.y - MiniMap.EDGE - _mini.size.y)
+		var view := get_viewport_rect().size
+		var back_h := clampf(view.y * BackButton.H_VH, BackButton.MIN_H, BackButton.MAX_H)
+		_mini.position = Vector2(MiniMap.EDGE, view.y - Kit.EDGE - back_h - Kit.PAD_TIGHT - _mini.size.y)
 
 
 func _show_mini() -> void:
@@ -1010,7 +1014,7 @@ func _on_snapshot(snap: Dictionary) -> void:
 	_remote_snap = snap
 	if not built:
 		show_ground(s)
-	_back.relabel(I18N.t("run.stopWatching") if _watching() else "← TERRIER")
+	_refresh_back()
 	RunState.current.markable_probe = func(_on: bool) -> int: return markable_count()
 	_cam_moved_by_player = false
 	frame_camera(true)
@@ -1876,7 +1880,10 @@ func _exit_tree() -> void:
 ## focus »). Hors ligne comme en ligne — c'est la graine qui le dit.
 func _refresh_back() -> void:
 	if _back != null:
-		_back.visible = not _standalone and not FirstIsland.is_first(_seed)
+		if _standalone or FirstIsland.is_first(_seed):
+			_back.dismiss()
+		else:
+			_back.show_for("watching" if _watching() else "island")
 
 
 ## COMBIEN DE CASES UN X PEUT VISER depuis le lapin — la sonde du HUD
