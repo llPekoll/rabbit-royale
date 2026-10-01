@@ -16,7 +16,7 @@ resource_local_to_scene = true
 shader = ExtResource("8_glare")
 
 [node name="HomeNatural" type="Node2D"]
-texture_filter = 2
+texture_filter = 1
 script = ExtResource("1")
 motion_mode = 1
 

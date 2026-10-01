@@ -32,7 +32,7 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@RabbitRoyaleX" />
 
-    <link rel="preload" as="image" href="/assets/l1.webp" />
+    <link rel="preload" as="image" href="/assets/l1.webp?v=shiro-kuro-20261001" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito+Sans:wght@400;600;700&display=swap" rel="stylesheet" />
@@ -90,7 +90,8 @@
         width: 100%;
         height: 100%;
         object-fit: cover;
-        /* Le lapin est a 40 % de l'image : en portrait, c'est lui qu'on garde. */
+        image-rendering: pixelated;
+        /* Shiro et Kuro restent visibles en portrait. */
         object-position: 40% 50%;
         will-change: transform;
       }
@@ -779,15 +780,14 @@
   </head>
   <body>
     <header class="hero">
-      <div class="layers" aria-hidden="true">
-        <img src="/assets/l1.webp" alt="" width="1672" height="940" data-depth="0.08" />
-        <img src="/assets/l2.webp" alt="" width="1672" height="940" data-depth="0.18" />
-        <img src="/assets/l3.webp" alt="" width="1672" height="940" data-depth="0.38" />
-        <img src="/assets/l4.webp" alt="" width="1672" height="940" data-depth="0.65" />
-        <!-- Le lapin PAR-DESSUS la vegetation, comme dans le jeu (README des
-             calques) : dessous, sa cape passait derriere les feuilles. -->
-        <img src="/assets/l6.webp" alt="" width="1672" height="940" data-depth="1" />
-        <img src="/assets/l5.webp" alt="" width="1672" height="940" data-depth="0.69" />
+      <div class="layers" data-home-parallax aria-hidden="true">
+        <img src="/assets/l1.webp?v=shiro-kuro-20261001" alt="" width="1672" height="940" data-depth="0.08" />
+        <img src="/assets/l2.webp?v=shiro-kuro-20261001" alt="" width="1672" height="940" data-depth="0.18" />
+        <img src="/assets/l3.webp?v=shiro-kuro-20261001" alt="" width="1672" height="940" data-depth="0.38" />
+        <img src="/assets/l4.webp?v=shiro-kuro-20261001" alt="" width="1672" height="940" data-depth="0.65" />
+        <!-- Shiro et Kuro partagent la profondeur du terrain, comme dans Godot. -->
+        <img src="/assets/l6.webp?v=shiro-kuro-20261001" alt="" width="1672" height="940" data-depth="1" />
+        <img src="/assets/l5.webp?v=shiro-kuro-20261001" alt="" width="1672" height="940" data-depth="0.65" />
         <div class="glare"></div>
       </div>
 
@@ -866,7 +866,7 @@
       <section class="story" aria-labelledby="story-title" data-ch="0">
         <div class="stage">
           <div class="cam" aria-hidden="true">
-            <img src="/assets/tale-map.webp" alt="" width="1672" height="940" loading="lazy" />
+            <img data-home-background src="/assets/tale-map.webp?v=shiro-kuro-20261001" alt="" width="1672" height="940" loading="lazy" />
             <div class="crown-glow"></div>
           </div>
           <div class="tide" aria-hidden="true"></div>
@@ -926,7 +926,7 @@
       </section>
 
       <section class="sail">
-        <img class="sea" src="/assets/l1.webp" alt="" loading="lazy" />
+        <img class="sea" src="/assets/l1.webp?v=shiro-kuro-20261001" alt="" loading="lazy" />
         <h2>Your island is waiting.</h2>
         <p>No download, no install. Tap play and you're on the island.</p>
         <div class="actions">
@@ -947,6 +947,7 @@
       <a href="/privacy/">Privacy</a>
     </footer>
 
+    <script src="/assets/home-parallax.js?v=shiro-kuro-20261001" defer></script>
     <script>
       (() => {
         const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1010,41 +1011,6 @@
           strip.classList.add('shown');
           obs.disconnect();
         }, { threshold: 0.3 }).observe(strip);
-
-        // LE PARALLAXE DE L'ECRAN TITRE : memes facteurs que home_background.gd
-        // (README des calques), une derive lente quand rien ne bouge, et la
-        // souris ou l'inclinaison du telephone par-dessus.
-        const layers = [...document.querySelectorAll('.layers [data-depth]')];
-        const hero = document.querySelector('.hero');
-        let tx = 0, ty = 0, x = 0, y = 0, visible = true;
-        if (!still) {
-          addEventListener('pointermove', (e) => {
-            if (e.pointerType !== 'mouse') return;
-            tx = (e.clientX / innerWidth - 0.5) * 2;
-            ty = (e.clientY / innerHeight - 0.5) * 2;
-          }, { passive: true });
-          addEventListener('deviceorientation', (e) => {
-            if (e.gamma == null) return;
-            tx = Math.max(-1, Math.min(1, e.gamma / 25));
-            ty = Math.max(-1, Math.min(1, (e.beta - 45) / 25));
-          }, { passive: true });
-          new IntersectionObserver(([en]) => (visible = en.isIntersecting)).observe(hero);
-          const frame = (t) => {
-            if (visible) {
-              const s = t / 1000;
-              x += (tx + Math.sin(s * 0.35) * 0.5 - x) * 0.05;
-              y += (ty + Math.sin(s * 0.23) * 0.35 - y) * 0.05;
-              // Le premier plan bouge de ±1,2 % de la largeur : l'agrandissement
-              // de 3 % de .layers suffit a cacher les bords.
-              for (const l of layers) {
-                const d = +l.dataset.depth;
-                l.style.transform = `translate3d(${(-x * d * 1.2).toFixed(3)}%, ${(-y * d * 0.9).toFixed(3)}%, 0)`;
-              }
-            }
-            requestAnimationFrame(frame);
-          };
-          requestAnimationFrame(frame);
-        }
 
         // Les extraits ne jouent qu'a l'ecran : trois videos qui tournent hors
         // champ, c'est de la batterie pour rien sur un telephone.
