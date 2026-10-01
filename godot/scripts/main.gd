@@ -43,6 +43,7 @@ func _ready() -> void:
 	var wipe := IrisWipe.new()
 	_wipe_host.add_child(wipe)
 	Screens.host_wipe(wipe)
+	DeskScale.open_window(get_window())
 	DeskScale.follow(get_window())
 	# LE SON VIT ICI pour la meme raison que le rideau : la boucle d'ambiance
 	# doit survivre aux traversees (sound.gd).

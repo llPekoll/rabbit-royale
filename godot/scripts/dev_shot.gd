@@ -16,7 +16,7 @@ static func arm(node: Node) -> void:
 	var after := 3.0
 	for arg in OS.get_cmdline_user_args():
 		# `--size=890x400` : la fenetre a une taille d'appareil. Sans lui elle
-		# s'ouvre maximisee (project.godot), et la mise en page mesuree est
+		# s'ouvre a la moitie de l'ecran (DeskScale.open_window), et la mise en page mesuree est
 		# celle d'un ecran de bureau, pas du Seeker couche.
 		# Differe d'une image : redimensionner pendant que la racine pose ses
 		# enfants fait refuser leurs `add_child` aux panneaux qui se mesurent.

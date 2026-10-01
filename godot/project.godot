@@ -44,7 +44,6 @@ settings/gdscript/always_track_call_stacks=true
 
 window/size/viewport_width=890
 window/size/viewport_height=400
-window/size/mode=2
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 

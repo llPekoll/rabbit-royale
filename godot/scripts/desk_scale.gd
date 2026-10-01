@@ -20,14 +20,55 @@ class_name DeskScale
 ## telephone, et montrait une colonne que le jeu ne montre jamais.
 
 
-## TOUJOURS EN PAYSAGE (Paul, 2026-09-24) : le jeu est fait pour un ecran
-## couche, pas pour tout ecran. Une fenetre de bureau ne descend pas sous
-## 890x400 (le Seeker couche), et une fenetre libre ne devient pas plus
-## etroite que 3:2 — tiree plus haute, elle perd la hauteur en trop. 3:2
-## laisse passer le plein ecran d'un MacBook (1728x1117, 1,55) ; une fenetre
-## maximisee ou plein ecran n'est jamais touchee.
-const MIN_ASPECT := 1.5
+## TOUJOURS EN PAYSAGE (Paul, 2026-09-24), ET TOUJOURS EN 16:9 (2026-10-01 :
+## « on ne peut pas laisser l'utilisateur faire n'importe quoi »). Une
+## fenetre libre garde le rapport 16:9 quoi qu'on tire : le cote que le
+## joueur a tire decide, l'autre suit. Elle ne descend pas sous 890 de large
+## (le Seeker couche) et ne depasse pas l'ecran : le plus grand 16:9 qui
+## tienne dans sa zone utile. Une fenetre maximisee ou plein ecran n'est
+## jamais touchee.
+const ASPECT := 16.0 / 9.0
 const MIN_SIZE := Vector2(890.0, 400.0)
+const MIN_WIDTH := 890.0
+
+## LA FENETRE DE DEPART SUR UN BUREAU : ni plein ecran ni maximisee (Paul,
+## 2026-10-01), une fenetre 16:9 qui prend la MOITIE DE L'ECRAN en surface —
+## 71 % de chaque cote — centree dans la zone utile (sans la barre des
+## taches). Le joueur la redimensionne ou la maximise s'il veut plus.
+const START_AREA := 0.5
+
+## La derniere taille posee, pour savoir quel cote le joueur vient de tirer.
+static var _last := Vector2i.ZERO
+
+
+static func open_window(win: Window) -> void:
+	if OS.has_feature("mobile") or win.mode != Window.MODE_WINDOWED:
+		return
+	var screen := DisplayServer.screen_get_usable_rect(win.current_screen)
+	var size := _fit(Vector2(screen.size) * sqrt(START_AREA))
+	size = size.clamp(_min_size(win), _max_size(win))
+	win.size = Vector2i(size.round())
+	win.position = screen.position + (screen.size - win.size) / 2
+	_last = win.size
+
+
+## Le plus grand 16:9 dans `box`.
+static func _fit(box: Vector2) -> Vector2:
+	if box.x / box.y > ASPECT:
+		return Vector2(box.y * ASPECT, box.y)
+	return Vector2(box.x, box.x / ASPECT)
+
+
+static func _min_size(win: Window) -> Vector2:
+	var px := maxf(DisplayServer.screen_get_scale(win.current_screen), 1.0)
+	return Vector2(MIN_WIDTH, MIN_WIDTH / ASPECT) * px
+
+
+## Le cadre du systeme (barre de titre, bords) compte : sans lui la fenetre
+## la plus grande debordait l'ecran de sa barre de titre.
+static func _max_size(win: Window) -> Vector2:
+	var frame := Vector2(win.get_size_with_decorations() - win.size).max(Vector2.ZERO)
+	return _fit(Vector2(DisplayServer.screen_get_usable_rect(win.current_screen).size) - frame)
 
 
 ## Suivre la fenetre, maintenant et a chaque redimensionnement.
@@ -51,17 +92,36 @@ static func apply(win: Window) -> void:
 		win.content_scale_size = base
 
 
-## Le plancher de la fenetre, et le rapport 3:2 d'une fenetre libre. Differe :
-## on ne redimensionne pas une fenetre dans son propre `size_changed`.
+## Le plancher, le plafond, et le 16:9 d'une fenetre libre. Differe : on ne
+## redimensionne pas une fenetre dans son propre `size_changed`.
 static func _keep_landscape(win: Window) -> void:
-	var px := DisplayServer.screen_get_scale(win.current_screen)
-	var floor_px := Vector2i((MIN_SIZE * maxf(px, 1.0)).ceil())
-	if win.min_size != floor_px:
-		win.min_size = floor_px
+	# `-- --size=890x400` (DevShot) veut la forme exacte d'un appareil, le
+	# Seeker couche n'est pas en 16:9 : outil, pas joueur.
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--size="):
+			win.min_size = Vector2i(MIN_SIZE)
+			return
+	var lo := Vector2i(_min_size(win).ceil())
+	var hi := Vector2i(_max_size(win).floor())
+	if win.min_size != lo:
+		win.min_size = lo
+	if win.max_size != hi:
+		win.max_size = hi
 	if win.mode != Window.MODE_WINDOWED:
+		_last = Vector2i.ZERO
 		return
-	var tallest := int(floorf(win.size.x / MIN_ASPECT))
-	if win.size.y > tallest:
-		(func() -> void:
-			if win.mode == Window.MODE_WINDOWED and win.size.y > tallest:
-				win.size = Vector2i(win.size.x, maxi(tallest, floor_px.y))).call_deferred()
+	var now := win.size
+	# Le cote tire decide ; au premier passage (sortie de maximise), la largeur.
+	var by_width := _last == Vector2i.ZERO 		or absi(now.x - _last.x) >= absi(now.y - _last.y)
+	var want := Vector2(now.x, now.x / ASPECT) if by_width else Vector2(now.y * ASPECT, now.y)
+	want = want.clamp(Vector2(lo), Vector2(hi))
+	# Borne d'un cote, l'autre se recale sur le rapport.
+	want = _fit(want)
+	var target := Vector2i(want.round())
+	_last = target
+	# Un pixel d'arrondi ne vaut pas un redimensionnement.
+	if absi(target.x - now.x) <= 1 and absi(target.y - now.y) <= 1:
+		return
+	(func() -> void:
+		if win.mode == Window.MODE_WINDOWED and win.size != target:
+			win.size = target).call_deferred()
