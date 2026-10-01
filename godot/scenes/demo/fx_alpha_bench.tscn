@@ -1,0 +1,9 @@
+[gd_scene format=3]
+
+; LES EFFETS SEULS SUR FOND TRANSPARENT, pour le marketing.
+; Voir scripts/demo/fx_alpha_bench.gd.
+
+[ext_resource type="Script" path="res://scripts/demo/fx_alpha_bench.gd" id="1_fx"]
+
+[node name="FxAlphaBench" type="Node"]
+script = ExtResource("1_fx")
