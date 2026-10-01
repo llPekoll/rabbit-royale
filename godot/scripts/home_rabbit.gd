@@ -223,7 +223,24 @@ func _land() -> void:
 ## meme sol, et trois facons differentes de le toucher se verraient.
 func _place() -> void:
 	position = map.screen_of(_at.x, _at.y) + Vector2(0, Iso.half_h())
-	z_index = Iso.depth(_at.x, _at.y) + map.level_at(_at.x, _at.y) + DEPTH_BIAS
+	z_index = _depth_of(_at)
+
+
+func _depth_of(cell: Vector2i) -> int:
+	return Iso.depth(cell.x, cell.y) + map.level_at(cell.x, cell.y) + DEPTH_BIAS
+
+
+## LA PROFONDEUR D'UN SAUT : la plus grande des deux cases, tout le saut.
+## Tombee d'emblee a celle d'une case plus en arriere, le lapin — encore
+## debout sur sa case de depart — passait SOUS elle (2026-10-01). Il ne
+## prend la profondeur de l'arrivee qu'en s'y posant (`_settle`).
+func _hop_depth(from: Vector2i, to: Vector2i) -> int:
+	return maxi(_depth_of(from), _depth_of(to))
+
+
+func _settle() -> void:
+	z_index = _depth_of(_at)
+	_rest()
 
 
 ## UN GESTE : manger sur place, ou faire UN pas.
@@ -373,14 +390,15 @@ func send_to(cell: Vector2i) -> void:
 	_home = cell
 	if cell.x != _at.x:
 		_sprite.flip_h = cell.x < _at.x
+	var from := _at
 	_at = cell
 	var to_at := map.screen_of(cell.x, cell.y) + Vector2(0, Iso.half_h())
-	z_index = Iso.depth(cell.x, cell.y) + map.level_at(cell.x, cell.y) + DEPTH_BIAS
+	z_index = _hop_depth(from, cell)
 	_sprite.play("move")
 	_hop = create_tween()
 	_hop.tween_property(self, "position", to_at, HOP_SECONDS)\
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	_hop.tween_callback(_rest)
+	_hop.tween_callback(_settle)
 
 
 ## UN PAS VERS UNE CASE VOISINE, s'il en trouve une qui lui va.
@@ -414,21 +432,20 @@ func _step() -> void:
 	# IL REGARDE OU IL VA. Un miroir en x, jamais une rotation.
 	if to.x != _at.x:
 		_sprite.flip_h = to.x < _at.x
+	var from := _at
 	_at = to
 	_sprite.play("move")
 
-	# LE SAUT : la position s'anime, la PROFONDEUR SAUTE tout de suite.
-	#
-	# C'est voulu. Trier a mi-chemin entre deux cases n'a pas de sens — le
-	# lapin appartient a l'une ou a l'autre — et le web recoupe son DepthHole a
-	# CHAQUE image pour cette raison : « un trou place a l'arrivee resterait une
-	# cellule en arriere pendant toute la duree du saut ».
+	# LE SAUT : la position s'anime, et la profondeur est la PLUS GRANDE des
+	# deux cases tout le saut (`_hop_depth`) : vers l'avant il passe devant
+	# l'arrivee des le depart, vers l'arriere il reste devant sa case de
+	# depart tant qu'il est dessus. Il prend celle de l'arrivee en s'y posant.
 	var to_at := map.screen_of(to.x, to.y) + Vector2(0, Iso.half_h())
-	z_index = Iso.depth(to.x, to.y) + map.level_at(to.x, to.y) + DEPTH_BIAS
+	z_index = _hop_depth(from, to)
 	_hop = create_tween()
 	_hop.tween_property(self, "position", to_at, HOP_SECONDS)\
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	_hop.tween_callback(_rest)
+	_hop.tween_callback(_settle)
 
 
 ## LES CASES OU UN LAPIN PEUT SE TENIR : la terre, restreinte a `only` quand
