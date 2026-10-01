@@ -112,7 +112,9 @@ func _fake_home(variant: String) -> void:
 		"capHours": Tuning.i("GARDEN.CAP_HOURS"),
 		"gardenCapacity": 432,
 		"gardenCeiling": 432,
-		"boosts": {},
+		# `-- --bottles` : deux arrosoirs et un engrais deja verse (eteint).
+		"boosts": {"water": {"held": 2}, "fertiliser": {"held": 1, "activeMs": 3600000}}
+			if "--bottles" in OS.get_cmdline_user_args() else {},
 		"shieldMs": null,
 		"upgradeCost": Tuning.upgrade_cost(level),
 		"canUpgrade": true,

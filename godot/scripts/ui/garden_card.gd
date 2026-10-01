@@ -21,8 +21,11 @@ extends HubCard
 ## une promesse, pas un blanc — un nouveau venu voyait « +0 » et se
 ## demandait si le chiffre bougerait un jour.
 ##
-## LES BOUTEILLES NE SONT PLUS ICI : une chose dans votre sac n'est pas une
-## propriete du lieu. Elles se versent depuis le coin du sol.
+## LES BOUTEILLES REVIENNENT ICI (2026-10-01). Le web les versait « depuis
+## le coin du sol », qui n'a jamais ete branche cote Godot : l'onglet GARDEN
+## de la rangee du kit (sous DEFEND) offrait WATER et FERTILISE et ne
+## faisait rien. Arrosoir et engrais tombent des coffres ; ils se versent la
+## ou l'on soigne le jardin, a cote de HARVEST, et seulement quand on en a.
 
 ## Le risque, dans le rouge du terrier leve pour lire sur la face sombre
 ## (`.rr-burrow .rr-note.danger`).
@@ -87,4 +90,44 @@ func refresh() -> void:
 		var res: Dictionary = await Home.act("harvest")
 		if int(res.get("harvested", 0)) > 0:
 			Sound.play("hop", 1.4))
-	set_footer(_slab)
+	var foot := Kit.hbox(Kit.PAD_TIGHT)
+	foot.custom_minimum_size = _slab.custom_minimum_size
+	foot.add_child(_slab)
+	for kind in ["water", "fertiliser"]:
+		var bottle := _bottle(kind)
+		if bottle != null:
+			foot.add_child(bottle)
+	set_footer(foot)
+
+
+## UNE BOUTEILLE A VERSER : son icone et ce qu'on en tient, a droite de
+## HARVEST. Rien si on n'en tient pas ; eteinte tant que la precedente agit
+## (`activeMs`). Le serveur verse (`/api/burrow` water / fertilise).
+func _bottle(kind: String) -> HubSlab:
+	var boosts: Variant = Home.burrow.get("boosts", {})
+	var boost: Dictionary = {}
+	if boosts is Dictionary and (boosts as Dictionary).get(kind) is Dictionary:
+		boost = boosts[kind]
+	var held := int(boost.get("held", 0))
+	if held <= 0:
+		return null
+	var active: Variant = boost.get("activeMs", null)
+	var running := (active is float or active is int) and float(active) > 0.0
+	var h := slab_height()
+	var b := HubSlab.new("green", h)
+	b.size_flags_horizontal = Control.SIZE_SHRINK_END
+	b.custom_minimum_size.x = roundf(h * 2.0)
+	var row := Kit.hbox(2)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var icon := Kit.icon(Kit.ICONS[kind], roundf(h * 0.5))
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(icon)
+	row.add_child(Kit.label("x%d" % held, slab_text(), b.ink()))
+	b.content.add_child(row)
+	b.tooltip_text = "%s · %s" % [I18N.t("kit.tools." + ("water" if kind == "water" else "fertilise")),
+		I18N.t("kit.tools.%sEffect" % kind)]
+	b.set_lit(not running and not Home.pending)
+	b.pressed.connect(func() -> void:
+		await Home.act("water" if kind == "water" else "fertilise"))
+	return b
