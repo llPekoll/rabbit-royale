@@ -17,8 +17,8 @@ class_name Sound
 ## mort en joue une dizaine a la fois.
 ##
 ## CE QUI N'EST PAS UN FICHIER : le refus (`deny`) est un carre synthetise,
-## 220 → 155 Hz, rendu une fois en echantillon ; le grondement du volcan est
-## l'explosion jouee a demi-vitesse, plus fort a chaque palier.
+## 220 → 155 Hz, rendu une fois en echantillon. Plus de grondement du volcan :
+## l'explosion a demi-vitesse tombait sur chaque coffre pris (2026-10-01).
 
 ## key -> [flux, niveau]
 const SFX := {
@@ -114,20 +114,6 @@ static func play(key: String, pitch: float = 1.0) -> void:
 static func deny() -> void:
 	if _deny != null:
 		_deny.play()
-
-
-## LE GRONDEMENT DU VOLCAN, palier 1 a 3 : l'explosion a demi-vitesse, 40 %
-## plus fort par palier. Charge comme les autres — le web jouait sans charger
-## et restait muet si aucune explosion n'etait encore passee.
-static func rumble(stage: int) -> void:
-	var p: AudioStreamPlayer = _players.get("explosion")
-	if p == null:
-		return
-	var level: float = SFX["explosion"][1] * (1.0 + 0.4 * clampf(stage, 1, 3))
-	var one := _player("SFX", SFX["explosion"][0], level)
-	one.pitch_scale = 0.5
-	one.finished.connect(one.queue_free)
-	one.play()
 
 
 ## LA MUSIQUE D'UNE SCENE : l'ambiance se tait tant qu'elle joue.

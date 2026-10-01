@@ -176,10 +176,6 @@ func _ready() -> void:
 	Screens.moved.connect(func(id: Screens.Place) -> void:
 		if id == Screens.Place.ISLAND:
 			_arrive())
-	# LE VOLCAN, tel que la manche le dit : il gronde a chaque palier qui
-	# monte, et l'ile coule a l'eruption. La lecon n'a pas de volcan ; ceci
-	# attend que les manches en ligne arrivent sur l'ile.
-	RunState.current.volcano_changed.connect(_on_volcano)
 	# L'ILE LIT LA SOCKET : l'instantane pose le plateau, les evenements le
 	# creusent, et le mode X du HUD arme l'anneau.
 	RunState.current.island_changed.connect(_on_snapshot)
@@ -215,18 +211,6 @@ func _on_refused(r: Dictionary) -> void:
 	if String(r.get("code", "")) == "no_energy":
 		Screens.moved.connect(func(_id: Screens.Place) -> void:
 			EnergyPopup.open(), CONNECT_ONE_SHOT)
-
-
-## LE GRONDEMENT, seulement quand le palier MONTE (use-game-socket.ts) : une
-## lecture qui repete le meme palier ne gronde pas deux fois.
-var _warn_heard := 0
-
-
-func _on_volcano() -> void:
-	var stage := RunState.current.warn_stage
-	if stage > _warn_heard:
-		Sound.rumble(stage)
-	_warn_heard = stage
 
 
 ## L'ILE COULE (IslandScene.ts `playEruption`). Le sol entier tremble sur la
@@ -267,7 +251,8 @@ func play_eruption(duration_ms: int, heave: bool = true) -> void:
 		_eruption.tween_property(self, "modulate:a", 0.0, s * 0.7).set_delay(s * 0.15) \
 			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 		return
-	Sound.play("explosion")
+	# MUET : plus de volcan, et l'explosion tombait sur le dernier coffre, par
+	# dessus `chest_arrive` (2026-10-01).
 	# LE SOULEVEMENT : un aller-retour toutes les 50 ms, sur 55 % de la duree.
 	var steps := int(floor(s * 0.55 / HEAVE_STEP))
 	for i in steps:
@@ -619,7 +604,6 @@ func show_ground(seed_value: String) -> void:
 	_sync_rivals()
 	local_run = LocalRun.new(_board, start) if _local_deal.size() > 0 else null
 	_local_over = false
-	_warn_heard = 0
 
 	# L'ANNEAU, dans les memes blocs que les voiles — et rallume tout de suite
 	# autour de l'apparition.
@@ -1612,8 +1596,11 @@ var _shake_home := Vector2.ZERO
 func _show_prize(prize: Dictionary) -> void:
 	if prize.is_empty():
 		return
+	# LE SON DU COFFRE, a chaque coffre ramasse : la ceremonie (une piece
+	# Genesis) joue le sien, `chest_arrive` puis `chest_open`.
+	if not bool(prize.get("nft", false)):
+		Sound.play("chest_open")
 	if String(prize.get("kind", "")) == "carrots" and not bool(prize.get("nft", false)):
-		Sound.play("coin")
 		return
 	# COMME UN POWER-UP : le lot monte avec son nom et la partie continue
 	# (2026-09-24). Seule une piece Genesis garde la ceremonie.
@@ -1634,15 +1621,6 @@ func _check_local_end(out: Dictionary) -> void:
 	if _local_over:
 		return
 	var p := _board.chest_progress()
-	# LE VOLCAN GRONDE A CHAQUE PALIER QUI MONTE (`warnStageFor`) : combien des
-	# seuils de `ERUPTION.WARN_STAGES` la part de coffres pris a depasses.
-	var stage := 0
-	for w in Tuning.list("ERUPTION.WARN_STAGES"):
-		if float(p.fraction) >= float(w):
-			stage += 1
-	if stage > _warn_heard:
-		Sound.rumble(stage)
-	_warn_heard = stage
 	if int(p.total) > 0 and int(p.left) == 0:
 		_local_over = true
 		var ms := Tuning.i("ERUPTION.SEQUENCE_MS", 4000)

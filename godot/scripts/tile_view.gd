@@ -586,6 +586,7 @@ func _mount_chest(cell: Vector2i) -> void:
 	# L'ECRASEMENT a l'impact, puis le rebond du couvercle. (Le web l'avance
 	# de 0,02 s ; un Tween de Godot n'a pas de delai negatif, et vingt
 	# millisecondes ne se voient pas.)
+	t.tween_callback(_chest_landed)
 	t.tween_property(chest, "scale:y", sy * 0.72, 0.08)\
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	t.tween_property(chest, "scale:y", sy, 0.22)\
@@ -1042,6 +1043,19 @@ func _blast(cell: Vector2i) -> void:
 		bush.queue_free()
 		_bush_at.erase(cell)
 	Blast.play(self, terrain, cell, dug)
+
+
+## LE BRUIT DE LA BOITE QUI TOUCHE TERRE, une fois pour tous les coffres :
+## ils tombent ensemble, et dix `chest_arrive` superposes font un vacarme.
+static var _landed_ms := -1000
+
+
+func _chest_landed() -> void:
+	var now := Time.get_ticks_msec()
+	if now - _landed_ms < 200:
+		return
+	_landed_ms = now
+	Sound.play("chest_arrive")
 
 
 ## LE COFFRE S'OUVRE SUR SA CASE, PUIS S'EN VA.

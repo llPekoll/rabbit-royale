@@ -5,6 +5,7 @@ extends Node2D
 ##   godot --path godot scenes/dig_sandbox.tscn
 ##   godot --path godot scenes/dig_sandbox.tscn -- --seed=reef --content=r --life=25000
 ##   godot --path godot scenes/dig_sandbox.tscn -- --shot=/tmp/dig.png --after=3
+##   godot --path godot scenes/dig_sandbox.tscn -- --sound --auto=400 --auto-every=0.5
 ##
 ## CE QUI EST VRAI ICI, et verifie : l'ile (`island_map.gd`), son decor et ses
 ## pas (`island_ground.gd`), ses contenus (`IslandBoard.deal_generated`) sont
@@ -47,6 +48,10 @@ var _started := 0
 func _ready() -> void:
 	_tiers = Tuning.list("ISLAND_TIERS")
 	var args := _args()
+	# `--sound` : le banc se prete au son comme la racine du jeu (`main.gd`) —
+	# sans hote, `Sound.play` se tait.
+	if args.has("sound"):
+		Sound.host(self)
 	_seed = args.get("seed", "")
 	_content = args.get("content", "")
 	if args.has("life"):
@@ -191,6 +196,8 @@ func _args() -> Dictionary:
 			out["reckless"] = "1"
 		if a == "--clean":
 			out["clean"] = "1"
+		if a == "--sound":
+			out["sound"] = "1"
 		if a.begins_with("--") and a.contains("="):
 			var kv := a.substr(2).split("=", true, 1)
 			out[kv[0]] = kv[1]
