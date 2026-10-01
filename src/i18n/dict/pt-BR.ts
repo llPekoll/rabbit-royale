@@ -338,6 +338,8 @@ export const ptBR: Dict = {
     show: 'Passe Cenoura Dourada',
     buy: 'Comprar',
     soon: 'Em breve',
+    soonTag: 'EM BREVE',
+    chestReady: 'Baú pronto!',
     short: 'Passe Dourado',
     left: (n) => `${n} dias restantes`,
     days: (n) => `${n} dias`,

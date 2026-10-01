@@ -12,6 +12,9 @@ extends Control
 
 
 func _ready() -> void:
+	# `-- --pass-open` : une saison a pass en cours (sinon la banniere dit BIENTOT).
+	PassState.shared().fake({"on": "--pass-open" in OS.get_cmdline_user_args(), "priceUsd": 4.99, "potShare": 0.5,
+		"season": {"endsAt": Time.get_datetime_string_from_unix_time(int(Time.get_unix_time_from_system()) + 18 * 86400)}})
 	# Le 890x400 de reference (le Seeker couche), pas la fenetre maximisee —
 	# sauf si `--size=` en demande une autre. Les deux ensemble, c'est le
 	# 890x400 qui gagnait : macOS anime la sortie du plein ecran sur une

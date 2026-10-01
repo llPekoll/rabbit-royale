@@ -425,6 +425,8 @@ export const en = {
     show: 'Golden Carrot Pass',
     buy: 'Buy',
     soon: 'Coming soon',
+    soonTag: 'SOON',
+    chestReady: 'Chest ready!',
     short: 'Golden Pass',
     left: (n: number) => `${n} days left`,
     days: (n: number) => `${n} days`,

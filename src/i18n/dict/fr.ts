@@ -334,6 +334,8 @@ export const fr: Dict = {
     show: 'Pass Carotte d’or',
     buy: 'Acheter',
     soon: 'Bientôt',
+    soonTag: 'BIENTÔT',
+    chestReady: 'Coffre prêt !',
     short: 'Pass d’or',
     left: (n) => `${n} jours restants`,
     days: (n) => `${n} jours`,

@@ -437,6 +437,8 @@
   "show": "Vé Cà Rốt Vàng",
   "buy": "Mua",
   "soon": "Sắp ra mắt",
+  "soonTag": "SẮP CÓ",
+  "chestReady": "Rương sẵn sàng!",
   "short": "Vé Vàng",
   "left": {
    "$t": "Còn {0} ngày"

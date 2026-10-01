@@ -341,6 +341,8 @@ export const vi: Dict = {
     show: 'Vé Cà Rốt Vàng',
     buy: 'Mua',
     soon: 'Sắp ra mắt',
+    soonTag: 'SẮP CÓ',
+    chestReady: 'Rương sẵn sàng!',
     short: 'Vé Vàng',
     left: (n) => `Còn ${n} ngày`,
     days: (n) => `${n} ngày`,

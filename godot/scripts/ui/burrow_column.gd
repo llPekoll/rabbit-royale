@@ -112,9 +112,11 @@ func _ready() -> void:
 	_stack.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_scroll.add_child(_stack)
 
-	var scenes := [QUEST_CARD] if quest_only else [QUEST_CARD, NEXT_STRIP, GARDEN_CARD, BURROW_PANEL]
+	# LE GOLDEN CARROT PASS juste sous la quete : la ou l'oeil va deja
+	# (pass_banner.gd). Un script, pas une scene : il se construit seul.
+	var scenes := [QUEST_CARD, PassBanner] if quest_only else [QUEST_CARD, PassBanner, NEXT_STRIP, GARDEN_CARD, BURROW_PANEL]
 	for scene in scenes:
-		var card: Control = scene.instantiate()
+		var card: Control = scene.instantiate() if scene is PackedScene else scene.new()
 		var slot := Control.new()
 		slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		slot.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -127,7 +129,7 @@ func _ready() -> void:
 		_cards.append(card)
 		_fit_slot(slot, card)
 	if not quest_only:
-		_cards[1].connect("next_action", func(door: String) -> void: next_action.emit(door))
+		_cards[scenes.find(NEXT_STRIP)].connect("next_action", func(door: String) -> void: next_action.emit(door))
 
 	_stack.minimum_size_changed.connect(_layout)
 	_scroll.get_v_scroll_bar().value_changed.connect(func(_v: float) -> void: _update_fade())

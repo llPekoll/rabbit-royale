@@ -489,6 +489,8 @@
 		"show": "Passe Cenoura Dourada",
 		"buy": "Comprar",
 		"soon": "Em breve",
+		"soonTag": "EM BREVE",
+		"chestReady": "Baú pronto!",
 		"short": "Passe Dourado",
 		"left": {
 			"$t": "{0} dias restantes"

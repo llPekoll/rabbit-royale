@@ -20,7 +20,9 @@ const KIND := "season_pass"
 ## LA CAROTTE D'OR, le visage du pass (la carotte du kit passee a l'or).
 const GOLDEN_CARROT := preload("res://assets/ui/icons/carrot-gold.webp")
 ## Le pass ferme : bouton et entree de l'etal grises, inertes.
-const LOCKED_TINT := Color(0.5, 0.5, 0.5, 0.8)
+## Assez clair pour se voir sur la barre sombre (a 0.5 la carotte se fondait
+## dans le fond et le user ne la trouvait pas, 2026-10-01).
+const LOCKED_TINT := Color(0.78, 0.78, 0.78, 1.0)
 ## Relire de temps en temps : la cagnotte bouge, et le coffre rouvre a minuit UTC.
 const POLL_SECONDS := 120.0
 

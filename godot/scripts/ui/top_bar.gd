@@ -40,7 +40,6 @@ signal profile_pressed
 signal shop_pressed
 signal story_pressed
 signal season_pressed
-signal pass_pressed
 
 ## Sous cette hauteur la pastille passe a 0,75.
 const PILL_SHRINK_UNDER := 420.0
@@ -54,8 +53,6 @@ var chip: PlayerChip
 var shop_button: HubIconButton
 var story_button: HubIconButton
 var season_button: HubIconButton
-## Le pass de saison : la, seulement pendant une saison a pass.
-var pass_button: HubIconButton
 var sound: SoundCluster
 
 ## Le banc la force visible sans monde derriere.
@@ -111,15 +108,6 @@ func _ready() -> void:
 	season_button.pressed.connect(func() -> void: season_pressed.emit())
 	_rail.add_child(season_button)
 
-	# LE PASS, avant la coupe : un « ! » quand le coffre du jour attend, les
-	# jours qui restent sinon. Toujours la, GRISE et inerte hors d'une saison
-	# a pass (« bientot ») : on le deverrouille en ouvrant une saison a pass.
-	pass_button = HubIconButton.make("Golden Carrot Pass", PassState.GOLDEN_CARROT)
-	pass_button.pressed.connect(func() -> void: pass_pressed.emit())
-	_rail.add_child(pass_button)
-	_rail.move_child(pass_button, season_button.get_index())
-	PassState.shared().changed.connect(_reflect_pass)
-
 	sound = SoundCluster.new()
 	_rail.add_child(sound)
 
@@ -140,7 +128,6 @@ func _ready() -> void:
 	_rail.resized.connect(_measure)
 	_measure()
 	_reflect_news()
-	_reflect_pass()
 	_reflect_place()
 	visible = Screens.in_world() or preview
 	if visible:
@@ -151,14 +138,13 @@ func _relabel() -> void:
 	shop_button.tooltip_text = I18N.t("shop.title")
 	story_button.tooltip_text = I18N.t("codex.title")
 	season_button.tooltip_text = I18N.t("board.show")
-	pass_button.tooltip_text = I18N.t("pass.show")
 
 
 ## LA MISE EN PAGE, a chaque changement de taille.
 func _measure() -> void:
 	var view := get_viewport_rect().size
 	var square := Kit.ICON_MIN if view.x < NARROW_W else Kit.icon_square(view.y)
-	for b in [shop_button, story_button, pass_button, season_button]:
+	for b in [shop_button, story_button, season_button]:
 		(b as HubIconButton).set_square(square, view.y)
 	sound.set_square(square, view.y)
 	_rail.offset_right = -Kit.EDGE
@@ -241,7 +227,7 @@ func _arrive() -> void:
 	UiEntrance.play(chip, UiEntrance.FROM_TOP, rank)
 	pill.drop_in(rank + 1)
 	rank += 2
-	for node in [shop_button, story_button, pass_button, season_button, sound]:
+	for node in [shop_button, story_button, season_button, sound]:
 		UiEntrance.play(node, UiEntrance.FROM_TOP, rank)
 		if (node as Control).visible:
 			rank += 1
@@ -249,26 +235,8 @@ func _arrive() -> void:
 
 ## La premiere image de l'arrivee : tout eteint.
 func _arrive_pose() -> void:
-	UiEntrance.pose([chip, shop_button, story_button, pass_button, season_button, sound])
+	UiEntrance.pose([chip, shop_button, story_button, season_button, sound])
 	pill.drop_pose()
-
-
-## Le bouton du pass suit l'etat du pass : grise et inerte hors d'une saison
-## a pass, « ! » rouge quand le coffre du jour attend, les jours qui restent sinon.
-func _reflect_pass() -> void:
-	var st := PassState.shared()
-	var open := st.on()
-	pass_button.disabled = not open
-	pass_button.modulate = Color.WHITE if open else PassState.LOCKED_TINT
-	pass_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if open else Control.CURSOR_ARROW
-	pass_button.tooltip_text = I18N.t("pass.show") if open else "%s · %s" % [I18N.t("pass.show"), I18N.t("pass.soon")]
-	if not open:
-		pass_button.set_badge("")
-		return
-	if st.can_claim():
-		pass_button.set_badge("!", true)
-	else:
-		pass_button.set_badge("%d%s" % [st.days_left(), I18N.t("units.d")])
 
 
 ## LE RANG, tel que le tableau le donne : « #59 » en puce discrete sur le

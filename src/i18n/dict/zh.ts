@@ -340,6 +340,8 @@ export const zh: Dict = {
     show: '金胡萝卜通行证',
     buy: '购买',
     soon: '即将推出',
+    soonTag: '即将',
+    chestReady: '宝箱已就绪！',
     short: '金萝卜通行证',
     left: (n) => `剩余 ${n} 天`,
     days: (n) => `${n} 天`,

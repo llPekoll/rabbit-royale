@@ -477,6 +477,8 @@
 		"show": "Golden Carrot Pass",
 		"buy": "Buy",
 		"soon": "Coming soon",
+		"soonTag": "SOON",
+		"chestReady": "Chest ready!",
 		"short": "Golden Pass",
 		"left": {
 			"$t": "{0} days left"

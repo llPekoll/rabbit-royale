@@ -507,6 +507,8 @@
 		"show": "Pass Carotte d’or",
 		"buy": "Acheter",
 		"soon": "Bientôt",
+		"soonTag": "BIENTÔT",
+		"chestReady": "Coffre prêt !",
 		"short": "Pass d’or",
 		"left": {
 			"$t": "{0} jours restants"

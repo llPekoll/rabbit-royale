@@ -120,7 +120,6 @@ func _mount() -> void:
 	bar.shop_pressed.connect(func() -> void: Shop.open())
 	bar.story_pressed.connect(func() -> void: LoreCodex.open())
 	bar.season_pressed.connect(_open_season)
-	bar.pass_pressed.connect(func() -> void: PassDialog.open())
 	_wire_bag()
 	bar.energy_tapped.connect(func() -> void: EnergyPanel.open())
 	bar.add_pressed.connect(func() -> void: EnergyPopup.open())
