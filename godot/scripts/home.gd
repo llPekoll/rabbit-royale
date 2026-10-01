@@ -29,8 +29,8 @@ signal burst(amount: int)
 
 ## UNE RECOLTE, avant la rafale. Le terrier l'ecoute pour faire sortir les
 ## carottes du potager et les envoyer a la pastille : c'est LUI qui dit
-## `burst` et la legende (`harvest_note`) quand la derniere arrive. Personne
-## a l'ecoute (un banc, une autre scene) : les deux partent tout de suite.
+## `burst` quand la derniere arrive, et montre « +N » sur sa planche. Personne
+## a l'ecoute (un banc, une autre scene) : rafale et legende tout de suite.
 signal harvested(amount: int)
 
 ## Le terrier vient de monter d'un niveau.
@@ -157,7 +157,7 @@ func act(action: String) -> Dictionary:
 	if res.has("harvested") and int(res["harvested"]) > 0:
 		var n := int(res["harvested"])
 		if harvested.get_connections().is_empty():
-			noted.emit(harvest_note(n), false)
+			noted.emit(I18N.f("notes.harvested", [n]), false)
 			burst.emit(n)
 		else:
 			harvested.emit(n)
@@ -177,11 +177,6 @@ func act(action: String) -> Dictionary:
 	elif not answer.ok:
 		noted.emit(I18N.t("err_offline") if answer.error() == "offline" else answer.error(), true)
 	return res
-
-
-## La legende d'une recolte de `n` carottes.
-func harvest_note(n: int) -> String:
-	return I18N.f("notes.harvested", [n])
 
 
 ## Le refus, dans les mots du web (page.tsx `act`).

@@ -481,6 +481,115 @@ func show_haul(amount: int) -> void:
 	tween.tween_callback(note.queue_free)
 
 
+## LA RECOLTE, « +N » qui sort de DERRIERE la planche HARVEST (2026-10-01,
+## a la place de la legende sous la pastille) : la meme legende sombre, qui
+## monte au-dessus et ralentit longuement, tient HARVEST_HOLD, puis repart
+## vers le haut en s'effacant. Elle vit dans la couche des planches, juste
+## avant la sienne (donc dessous), et la suit a chaque image : la planche,
+## elle, s'efface une fois la legende sortie — il n'y a plus rien a recolter.
+const HARVEST_RISE := 0.9
+const HARVEST_HOLD := 2.0
+const HARVEST_LEAVE := 0.6
+const HARVEST_DRIFT := 18.0
+## La planche HARVEST qui s'en va ou revient (le potager vide, puis repousse).
+const HARVEST_SIGN_FADE := 0.6
+const HARVEST_SIGN_SHRINK := 0.85
+
+var _harvest_note: Control = null
+var _harvest_note_y := 0.0
+## -1 : pas encore pose (la premiere fois, sans fondu).
+var _harvest_on := -1
+var _harvest_want := true
+## La planche attend que la legende soit sortie de derriere elle.
+var _harvest_hold_until := 0
+
+func show_harvest(amount: int) -> void:
+	var sign: Sign = _signs.get("harvest")
+	if sign == null or not sign.visible or amount <= 0 or not is_instance_valid(_sign_layer):
+		return
+	if is_instance_valid(_harvest_note):
+		_harvest_note.queue_free()
+	var k := maxf(1.0, sign._ui_scale)
+	var note := Kit.caption(I18N.f("notes.harvested", [amount]))
+	var words: Label = note.get_child(0)
+	words.autowrap_mode = TextServer.AUTOWRAP_OFF
+	words.add_theme_font_size_override("font_size", roundi(13.0 * k))
+	_sign_layer.add_child(note)
+	_sign_layer.move_child(note, sign.get_index())
+	note.size = note.get_combined_minimum_size()
+	_harvest_note = note
+	var shown_y := -note.size.y - 4.0 * k
+	_harvest_note_y = (sign.size.y - note.size.y) * 0.5
+	_harvest_hold_until = Time.get_ticks_msec() + int(HARVEST_RISE * 1000.0)
+	note.modulate.a = 0.0
+	_place_harvest_note()
+	var tw := note.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(self, "_harvest_note_y", shown_y, HARVEST_RISE) \
+		.set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
+	tw.tween_property(note, "modulate:a", 1.0, HARVEST_RISE * 0.25)
+	tw.set_parallel(false)
+	tw.tween_interval(HARVEST_HOLD)
+	tw.set_parallel(true)
+	tw.tween_property(self, "_harvest_note_y", shown_y - HARVEST_DRIFT * k, HARVEST_LEAVE) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	tw.tween_property(note, "modulate:a", 0.0, HARVEST_LEAVE) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	tw.set_parallel(false)
+	tw.tween_callback(note.queue_free)
+
+
+## La planche HARVEST dit ce que le potager tient, et s'il doit se montrer.
+func _say_harvest(garden: int) -> void:
+	_harvest_want = garden > 0
+	var sign: Sign = _signs.get("harvest")
+	if sign != null:
+		sign.say(I18N.shout(I18N.t("burrow.harvest")),
+			"+%s" % I18N.group_digits(garden) if garden > 0 else I18N.t("loop.gardenEmpty"), garden > 0)
+
+
+## La legende suit sa planche, centree, a `_harvest_note_y` de son haut.
+func _place_harvest_note() -> void:
+	var sign: Sign = _signs.get("harvest")
+	if not is_instance_valid(_harvest_note) or sign == null:
+		return
+	_harvest_note.position = (sign.position + Vector2(
+		(sign.size.x - _harvest_note.size.x) * 0.5, _harvest_note_y)).round()
+
+
+## PAS DE PLANCHE SANS RIEN A RECOLTER : elle s'efface doucement (et ne
+## se tape plus), puis revient de meme quand le potager a repousse.
+func _follow_harvest_sign() -> void:
+	var sign: Sign = _signs.get("harvest")
+	if sign == null:
+		return
+	# LA PREMIERE CAROTTE la fait revenir sur l'image, sans attendre le
+	# releve de TICK_SECONDS, avec son « +1 » deja ecrit.
+	if Home.loaded() and (Home.live_garden() > 0) != _harvest_want:
+		_say_harvest(Home.live_garden())
+	var want := 1 if _harvest_want else 0
+	if want == _harvest_on or Time.get_ticks_msec() < _harvest_hold_until:
+		return
+	var first := _harvest_on < 0
+	_harvest_on = want
+	sign.mouse_filter = Control.MOUSE_FILTER_STOP if want == 1 else Control.MOUSE_FILTER_IGNORE
+	sign.pivot_offset = sign.size * 0.5
+	if first:
+		sign.modulate.a = float(want)
+		return
+	var tw := sign.create_tween().set_parallel(true)
+	if want == 1:
+		sign.scale = Vector2.ONE * HARVEST_SIGN_SHRINK
+		tw.tween_property(sign, "scale", Vector2.ONE, HARVEST_SIGN_FADE) \
+			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		tw.tween_property(sign, "modulate:a", 1.0, HARVEST_SIGN_FADE * 0.6)
+	else:
+		tw.tween_property(sign, "scale", Vector2.ONE * HARVEST_SIGN_SHRINK, HARVEST_SIGN_FADE) \
+			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		tw.tween_property(sign, "modulate:a", 0.0, HARVEST_SIGN_FADE) \
+			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+
 # ── La pose ────────────────────────────────────────────────────────────────
 
 ## UN ILOT RECTANGULAIRE aux coins rognes : un rectangle se lit comme une
@@ -775,8 +884,10 @@ class Sign extends Button:
 		# n'ecrit que le sien (« LVL 10 » n'est pas un prix).
 		energy_icon.visible = (door == "dig" and words.right(1).is_valid_int()) \
 			or (door == "raid" and words.is_valid_int())
-		tooltip_text = word + " — " + words
-		modulate = Color.WHITE if lit else Color(0.82, 0.82, 0.82)
+		# La teinte seulement : l'opacite est a la planche HARVEST, qui
+		# s'efface quand le potager est vide (`_follow_harvest_sign`).
+		var tint := Color.WHITE if lit else Color(0.82, 0.82, 0.82)
+		modulate = Color(tint, modulate.a)
 		_fit.call_deferred()
 
 	func set_ui_scale(value: float) -> void:
@@ -844,6 +955,9 @@ func _process(delta: float) -> void:
 		elif door == "harvest":
 			lift = sign.size.y * 0.5
 		sign.position = world_to_screen * (_anchors[door] as Vector2) - Vector2(sign.size.x * 0.5, lift)
+		# Une planche effacee n'ecarte plus ses voisines.
+		if sign.modulate.a < 0.02:
+			continue
 		shown.append(sign)
 	_part(shown, 1.0)
 	# JAMAIS HORS DE L'ECRAN : la maison cadre serre, et le batiment du bord
@@ -853,6 +967,8 @@ func _process(delta: float) -> void:
 		at.x = clampf(at.x, SCREEN_EDGE, maxf(SCREEN_EDGE, view.x - SCREEN_EDGE - sign.size.x))
 		at.y = clampf(at.y, SCREEN_EDGE, maxf(SCREEN_EDGE, view.y - SCREEN_EDGE - sign.size.y))
 		sign.position = at.round()
+	_follow_harvest_sign()
+	_place_harvest_note()
 	_tick += delta
 	if _tick >= TICK_SECONDS:
 		_tick = 0.0
@@ -941,8 +1057,7 @@ func refresh() -> void:
 			str(floor_e), energy >= floor_e)
 
 	say.call("shop", I18N.shout(I18N.t("shop.title")), "", true)
-	say.call("harvest", I18N.shout(I18N.t("burrow.harvest")),
-		"+%s" % I18N.group_digits(garden) if garden > 0 else I18N.t("loop.gardenEmpty"), garden > 0)
+	_say_harvest(garden)
 
 	var cost: Variant = b.get("upgradeCost", null)
 	if cost == null:
