@@ -179,12 +179,43 @@ func _ready() -> void:
 			_props.set_level(level)
 			_props.celebrate())
 	_follow_level()
+	# LA RECOLTE : les carottes sortent du potager et volent a la pastille ;
+	# la rafale de la pastille part quand la premiere arrive.
+	Home.harvested.connect(_on_harvested)
 	# LE RAID : on arrive peut-etre en plein raid (une session reprise) — le
 	# rideau de la traversee vient de le couvrir, on dessine tout de suite.
 	var raids := RaidState.current
 	raids.changed.connect(_on_raid_changed)
 	raids.sprung.connect(_on_raid_sprung)
 	_cross_raid()
+
+
+## Le chiffre de la pastille retient la recolte et monte a chaque carotte
+## qui se pose ; la rafale (Home.burst) part avec la derniere.
+func _on_harvested(amount: int) -> void:
+	var chrome := Chrome.current
+	var pill: CarrotPill = chrome.carrot_pill() if is_instance_valid(chrome) else null
+	var target := func() -> Vector2:
+		if is_instance_valid(pill) and pill.is_visible_in_tree():
+			return pill.carrot_target()
+		# Pas de pastille : vers le haut de l'ecran, au milieu.
+		return Vector2(get_viewport_rect().size.x * 0.5, -20.0)
+	if pill != null:
+		pill.hold(amount)
+	var flying := 0
+	if _own_ground():
+		flying = _props.harvest(target, func(k: int, n: int) -> void:
+			if is_instance_valid(pill):
+				# Les parts tombent juste : leur somme fait `amount`.
+				pill.land(amount * k / n - amount * (k - 1) / n)
+			# Chaque arrivee tinte, un cran plus haut que la precedente.
+			Sound.play("coin", 1.0 + 0.5 * float(k) / float(n))
+			if k == n:
+				Home.burst.emit(amount))
+	if flying == 0:
+		if is_instance_valid(pill):
+			pill.land(amount)
+		Home.burst.emit(amount)
 
 
 func _follow_level() -> void:

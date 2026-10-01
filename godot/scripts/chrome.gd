@@ -373,15 +373,16 @@ func _on_door(door: String) -> void:
 			Shop.open()
 		"energy":
 			EnergyPopup.open()
-		# LE POTAGER : on recolte tout de suite, sans carte ; la recolte
-		# tinte si le serveur a vraiment donne (garden_card.gd).
+		# LE POTAGER : on recolte tout de suite, sans carte. Si le serveur a
+		# vraiment donne, les plants s'arrachent (un « pop ») et chaque
+		# carotte tinte en se posant sur la pastille (burrow.gd).
 		"harvest":
 			if Home.live_garden() <= 0 or Home.pending:
 				Sound.deny()
 				return
 			var res: Dictionary = await Home.act("harvest")
 			if int(res.get("harvested", 0)) > 0:
-				Sound.play("coin")
+				Sound.play("hop", 1.4)
 		# LA MAISON : sa carte en dialogue — un achat se lit avant de payer.
 		"upgrade":
 			# DANS UNE BOITE A SA TAILLE : la carte se mesure sur la boite qui
@@ -846,6 +847,15 @@ func _clear_pill() -> void:
 		if pill is Control and (pill as Control).is_visible_in_tree():
 			bottom = maxf(bottom, _drawn_bottom(pill) - global_position.y)
 	toasts.offset_top = bottom + Kit.PAD_TIGHT
+
+
+## LA PASTILLE A CAROTTES VISIBLE, pour ce qui doit y voler (la recolte).
+## Null quand la barre ne la montre pas.
+func carrot_pill() -> CarrotPill:
+	for pill in top_bar.find_children("*", "CarrotPill", true, false):
+		if pill is CarrotPill and (pill as CarrotPill).is_visible_in_tree():
+			return pill
+	return null
 
 
 static func _drawn_bottom(node: Control) -> float:

@@ -317,6 +317,151 @@ func _grow() -> void:
 			plant.texture = _frames[mini(GROWTH_STAGES - 1, int(local * GROWTH_STAGES))]
 
 
+## LA RECOLTE (2026-10-01, « fait une petite animation, ajoute un peu de
+## juice »). Le champ se vide sur l'image de la reponse (`_grow`) ; ce qui
+## part, ce sont des DOUBLES de ses plants :
+##
+##   1. LE PLANT TIRE : il s'ecrase sur sa racine, s'etire vers le haut et
+##      s'efface — arrache, pas eteint. Une bouffee de terre a son pied.
+##   2. LA CAROTTE SAUTE : la carotte de la pastille (la meme que celle du
+##      compteur, Kit) jaillit au-dessus du trou en tournant, et pend un
+##      instant au sommet.
+##   3. ELLE VOLE A LA PILE : vers `target` (en pixels d'ecran, relu a chaque
+##      image — la camera peut bouger pendant le vol), en accelerant et en
+##      retrecissant. `arrived(k, n)` a chaque arrivee, k = 1 … n.
+##
+## Au plus HARVEST_MAX volantes, prises dans tout le champ : au-dela on ne
+## compte plus, on voit une nuee. Rend combien volent (0 : rien ne volera,
+## l'appelant ne doit pas attendre d'arrivee).
+const HARVEST_MAX := 14
+const HARVEST_STAGGER := 0.045
+const LEAF_COLOR := Color("#7bc04a")
+## Au-dessus de tout le sol (z_index borne a ±4096).
+const FLY_Z := 4000
+
+func harvest(target: Callable, arrived: Callable) -> int:
+	var ripe: Array[Sprite2D] = []
+	for plant in _plants:
+		if plant.visible:
+			ripe.append(plant)
+	if ripe.is_empty():
+		return 0
+	# Les tiges arrachees : TOUTES. Les carottes qui volent : un echantillon
+	# regulier du champ, pas les quatorze premieres du semis.
+	var flying := mini(HARVEST_MAX, ripe.size())
+	var picked := {}
+	for k in flying:
+		picked[int(k * float(ripe.size()) / float(flying))] = true
+	var tex: Texture2D = Kit.ICONS["carrot"]
+	# Un Dictionary et pas un int : une lambda capture par valeur.
+	var landed := {"n": 0}
+	# De gauche a droite : la recolte balaie le champ au lieu de crepiter.
+	ripe.sort_custom(func(a: Sprite2D, b: Sprite2D) -> bool: return a.position.x < b.position.x)
+	for i in ripe.size():
+		var plant := ripe[i]
+		var delay := float(i) / float(ripe.size()) * HARVEST_STAGGER * flying
+		_uproot(plant, delay)
+		if picked.has(i):
+			_fly(tex, plant.position + Vector2(0, -6), delay + 0.05, target, func() -> void:
+				landed["n"] = int(landed["n"]) + 1
+				arrived.call(int(landed["n"]), flying))
+	return flying
+
+
+## Le double d'un plant : ecrase, etire, efface. Ancre a sa racine (`offset`
+## bas-centre), donc l'ecrasement s'appuie sur le sol.
+func _uproot(plant: Sprite2D, delay: float) -> void:
+	var ghost := Sprite2D.new()
+	ghost.texture = plant.texture
+	ghost.centered = false
+	ghost.offset = plant.offset
+	ghost.position = plant.position
+	ghost.scale = plant.scale
+	ghost.z_index = plant.z_index
+	add_child(ghost)
+	var s := plant.scale
+	var tw := create_tween()
+	tw.tween_interval(delay)
+	tw.tween_property(ghost, "scale", Vector2(s.x * 1.3, s.y * 0.65), 0.07) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_callback(func() -> void: _clods(ghost.position, ghost.z_index + 1))
+	tw.set_parallel(true)
+	tw.tween_property(ghost, "scale", Vector2(s.x * 0.7, s.y * 1.45), 0.16) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(ghost, "position:y", ghost.position.y - 10.0, 0.16) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(ghost, "modulate:a", 0.0, 0.16).set_delay(0.06)
+	tw.chain().tween_callback(ghost.queue_free)
+
+
+## La terre qui saute du trou, et deux brins de fane.
+func _clods(foot: Vector2, z: int) -> void:
+	for i in 5:
+		var leaf := i >= 3
+		var bit := _bit(1.5 + randf() * 1.5, Color(LEAF_COLOR if leaf else DUST_COLOR, 0.95))
+		bit.position = foot
+		bit.z_index = z
+		var dx := randf_range(-14.0, 14.0)
+		var up := 8.0 + randf() * 10.0
+		var t := create_tween().set_parallel(true)
+		t.tween_property(bit, "position:x", foot.x + dx, 0.4)
+		t.tween_property(bit, "position:y", foot.y - up, 0.16) \
+			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		t.tween_property(bit, "position:y", foot.y + 3.0, 0.24).set_delay(0.16) \
+			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		t.tween_property(bit, "modulate:a", 0.0, 0.14).set_delay(0.26)
+		t.chain().tween_callback(bit.queue_free)
+
+
+## Une carotte qui saute du trou puis vole a la pile.
+func _fly(tex: Texture2D, from: Vector2, delay: float, target: Callable, arrived: Callable) -> void:
+	var c := Sprite2D.new()
+	c.texture = tex
+	c.position = from
+	c.scale = Vector2.ZERO
+	c.z_as_relative = false
+	c.z_index = FLY_Z
+	add_child(c)
+	var peak := from + Vector2(randf_range(-16.0, 16.0), -randf_range(26.0, 40.0))
+	var spin := deg_to_rad(randf_range(-40.0, 40.0))
+	var tw := create_tween()
+	tw.tween_interval(delay)
+	# LE SAUT, sur l'image ou le plant s'arrache.
+	tw.set_parallel(true)
+	tw.tween_property(c, "position", peak, 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(c, "scale", Vector2.ONE * 0.6, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(c, "rotation", spin, 0.3)
+	tw.set_parallel(false)
+	tw.tween_interval(0.08)
+	# LE VOL : la cible est relue a chaque image ; l'arc tire d'abord sur le
+	# cote ou la carotte penchait, puis file droit.
+	var side := signf(peak.x - from.x) * 40.0
+	tw.tween_method(func(t: float) -> void:
+		if not is_instance_valid(c):
+			return
+		var to := _screen_to_local(target.call())
+		var e := t * t
+		var bend := Vector2(side * sin(t * PI), 0.0)
+		c.position = peak.lerp(to, e) + bend
+		c.scale = Vector2.ONE * lerpf(0.6, 0.35, e)
+		c.rotation = lerpf(spin, spin * 3.0, t), 0.0, 1.0, 0.5)
+	tw.tween_callback(arrived)
+	tw.tween_callback(c.queue_free)
+
+
+## Pixels d'ecran -> repere de ce noeud, a travers la camera.
+func _screen_to_local(screen: Vector2) -> Vector2:
+	return to_local(get_canvas_transform().affine_inverse() * screen)
+
+
+## Un disque plein, ici (le `_blob` de la fete se pose a cote de la maison).
+func _bit(radius: float, color: Color) -> Node2D:
+	var blob := Node2D.new()
+	blob.draw.connect(func() -> void: blob.draw_circle(Vector2.ZERO, radius, color))
+	add_child(blob)
+	return blob
+
+
 ## Les douze etapes de croissance, decoupees de la planche.
 func _carrot_frames() -> Array[Texture2D]:
 	var out: Array[Texture2D] = []

@@ -27,6 +27,12 @@ signal edits_changed
 ## pastille (recolte, recompense de quete).
 signal burst(amount: int)
 
+## UNE RECOLTE, avant la rafale. Le terrier l'ecoute pour faire sortir les
+## carottes du potager et les envoyer a la pastille : c'est LUI qui dit
+## `burst` quand la derniere arrive. Personne a l'ecoute (un banc, une autre
+## scene) : la rafale part tout de suite, comme avant.
+signal harvested(amount: int)
+
 ## Le terrier vient de monter d'un niveau.
 signal level_up(level: int)
 
@@ -151,7 +157,10 @@ func act(action: String) -> Dictionary:
 	if res.has("harvested") and int(res["harvested"]) > 0:
 		var n := int(res["harvested"])
 		noted.emit(I18N.f("notes.harvested", [n]), false)
-		burst.emit(n)
+		if harvested.get_connections().is_empty():
+			burst.emit(n)
+		else:
+			harvested.emit(n)
 	elif res.has("spent"):
 		var level := int(res.get("burrow", {}).get("level", 0))
 		if level > 0:

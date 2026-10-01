@@ -80,10 +80,11 @@ func refresh() -> void:
 	# Rien a prendre : la dalle n'a pas de travail. `pending` bloque une
 	# seconde pression tant que la premiere est en vol.
 	_slab.set_lit(ready > 0 and not Home.pending)
-	# La recolte tinte (page.tsx `act`) — seulement si le serveur a vraiment
-	# donne quelque chose : un refus a deja son son, celui du refus.
+	# La recolte arrache les plants (un « pop ») — seulement si le serveur a
+	# vraiment donne quelque chose : un refus a deja son son, celui du refus.
+	# Le tintement vient ensuite, carotte par carotte (burrow.gd).
 	_slab.pressed.connect(func() -> void:
 		var res: Dictionary = await Home.act("harvest")
 		if int(res.get("harvested", 0)) > 0:
-			Sound.play("coin"))
+			Sound.play("hop", 1.4))
 	set_footer(_slab)

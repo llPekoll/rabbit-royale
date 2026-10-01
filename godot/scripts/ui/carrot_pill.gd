@@ -89,6 +89,11 @@ var _carry_figure: Label
 var _add: Button
 
 var _stock := -1
+## LES CAROTTES ENCORE EN VOL (la recolte, burrow.gd `_on_harvested`) : le
+## serveur les a deja comptees, le chiffre les attend et monte a mesure
+## qu'elles se posent. `_hold_seq` reconnait la derniere attente.
+var _in_flight := 0
+var _hold_seq := 0
 var _rank := 0
 var _to_pass := -1
 var _energy_shown := -1
@@ -260,7 +265,7 @@ func _fit_figure() -> void:
 
 ## Relit le terrier : le stock, et si ce lieu a un reservoir.
 func refresh() -> void:
-	var stock := int(Home.burrow.get("stock", 0))
+	var stock := int(Home.burrow.get("stock", 0)) - _in_flight
 	if stock != _stock:
 		_stock = stock
 		_figure.text = I18N.group_digits(stock)
@@ -396,6 +401,40 @@ func _on_burst(amount: int) -> void:
 	var pop := create_tween()
 	pop.tween_property(_figure, "scale", Vector2.ONE * BANK_POP, BANK_SECONDS * 0.35).set_ease(Tween.EASE_OUT)
 	pop.tween_property(_figure, "scale", Vector2.ONE, BANK_SECONDS * 0.65).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+
+
+## LE FILET : si les carottes ne se posent jamais (on a quitte le terrier en
+## plein vol), le chiffre ne ment pas plus longtemps que ca.
+const HOLD_LIMIT := 3.0
+const LAND_POP := 1.08
+
+
+## `amount` carottes partent du potager : le chiffre les retient.
+func hold(amount: int) -> void:
+	_in_flight += amount
+	_hold_seq += 1
+	var seq := _hold_seq
+	refresh()
+	get_tree().create_timer(HOLD_LIMIT).timeout.connect(func() -> void:
+		if seq == _hold_seq and _in_flight > 0:
+			land(_in_flight))
+
+
+## `amount` d'entre elles se posent : le chiffre monte d'autant et sursaute
+## un peu — le grand sursaut est celui de la rafale, a la derniere.
+func land(amount: int) -> void:
+	_in_flight = maxi(0, _in_flight - amount)
+	refresh()
+	_figure.pivot_offset = _figure.size * 0.5
+	var pop := create_tween()
+	pop.tween_property(_figure, "scale", Vector2.ONE * LAND_POP, 0.05).set_ease(Tween.EASE_OUT)
+	pop.tween_property(_figure, "scale", Vector2.ONE, 0.12).set_ease(Tween.EASE_OUT)
+
+
+## OU VISENT LES CAROTTES QUI VOLENT VERS LA PILE (la recolte du potager,
+## burrow_props.gd `harvest`) : le milieu du chiffre, en pixels d'ecran.
+func carrot_target() -> Vector2:
+	return _figure.get_global_transform_with_canvas() * (_figure.size * 0.5)
 
 
 ## LE REFUS : la pastille secoue et son bord rougit — le nombre qui a dit
