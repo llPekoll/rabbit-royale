@@ -85,14 +85,18 @@ func _init() -> void:
 			and not bool(out.flag.correct) and run.energy == e0 - int(t.FLAG.LOSS)
 			and run.flag_streak == 0 and board.state[safe] == IslandBoard.State.HINTED)
 
-	# 6. UNE BOMBE CREUSEE : -(DIG_COST + BOMB_LOSS), sonne, le lapin dans le cratere.
+	# 6. UNE BOMBE CREUSEE : -BOMB_LOSS tout compris, sonne, le lapin renvoye
+	# d'ou il vient. Les deux regles du 2026-09-23 (run.ts) : le point du
+	# creusage fait partie du souffle (30 a l'ecran, 30 payes, pas 31), et le
+	# souffle le relance sur sa case de depart au lieu de le laisser au cratere.
 	var bomb2 := _walk_beside_kind(board, ground, run, IslandBoard.Content.BOMB, now, true)
 	if bomb2.x >= 0:
 		e0 = run.energy
+		var from := run.at
 		out = run.move(bomb2, now)
-		var loss := int(t.ENERGY.DIG_COST) + int(t.ENERGY.BOMB_LOSS)
-		_check("bombe : -%d, lapin sur la case" % loss, out.ok and run.energy == e0 - loss
-			and run.at == bomb2 and out.dig.has("knockback"))
+		var loss := int(t.ENERGY.BOMB_LOSS)
+		_check("bombe : -%d, lapin renvoye d'ou il vient" % loss, out.ok and run.energy == e0 - loss
+			and run.at == from and out.dig.has("knockback"))
 		out = run.move(board.spawn, now + 10)
 		_check("sonne : le pas suivant est refuse", not out.ok and out.reason == "stunned")
 		now += int(t.BOMB.STUN_MS) + 1
