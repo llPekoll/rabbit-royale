@@ -478,7 +478,7 @@ class Shallows extends Node2D:
 	## Le quart de la resolution du monde ; le flou en pixels de cette image.
 	const SCALE := 0.25
 	const BLUR_R := 2
-	const PASSES := 2
+	const PASSES := 1
 	var centres: Array[Vector2] = []
 	var _tex: ImageTexture
 	var _rect := Rect2()
