@@ -333,6 +333,12 @@ func _tick_energy() -> void:
 	dial.max_value = float(max_energy)
 	dial.value = float(energy)
 	if energy != _energy_shown:
+		# LE CADRAN TRESSAILLE A CHAQUE CHANGEMENT, d'autant plus fort que le
+		# saut est grand (2026-10-01) : +1 de regeneration a peine, une
+		# traversee ou un plein franchement. Pas au premier affichage, ni
+		# pendant la remontee du retour, qui change a chaque image.
+		if _energy_shown >= 0 and not _refill_armed:
+			_jolt(absf(energy - _energy_shown) / maxf(1.0, max_energy))
 		_energy_shown = energy
 		_energy_figure.text = I18N.group_digits(energy)
 		_energy_tag.tooltip_text = I18N.f("loop.energyOf", [energy, max_energy])
@@ -486,6 +492,22 @@ func carrot_target() -> Vector2:
 
 ## LE REFUS : la pastille secoue et son bord rougit — le nombre qui a dit
 ## non, le disant.
+## LE TRESSAILLEMENT DU CADRAN, pour une part `share` (0..1) du reservoir :
+## de JOLT_MIN a JOLT_MAX pixels, atteint vers un quart du reservoir.
+const JOLT_MIN := 1.5
+const JOLT_MAX := 7.0
+var _jolt_tween: Tween
+
+
+func _jolt(share: float) -> void:
+	if _jolt_tween != null and _jolt_tween.is_valid():
+		_jolt_tween.kill()
+	var amp := lerpf(JOLT_MIN, JOLT_MAX, clampf(share * 4.0, 0.0, 1.0))
+	_jolt_tween = create_tween()
+	for k in [-1.0, 0.8, -0.5, 0.25, 0.0]:
+		_jolt_tween.tween_property(dial, "position:x", amp * k, 0.06).set_ease(Tween.EASE_OUT)
+
+
 func deny() -> void:
 	var shake := create_tween()
 	for dx in [-6.0, 5.0, -3.0, 0.0]:
