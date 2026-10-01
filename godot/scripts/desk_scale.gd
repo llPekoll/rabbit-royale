@@ -44,7 +44,7 @@ static var _last := Vector2i.ZERO
 
 
 static func open_window(win: Window) -> void:
-	if OS.has_feature("mobile") or win.mode != Window.MODE_WINDOWED:
+	if OS.has_feature("mobile") or OS.has_feature("web") or win.mode != Window.MODE_WINDOWED:
 		return
 	var screen := DisplayServer.screen_get_usable_rect(win.current_screen)
 	var size := _fit(Vector2(screen.size) * sqrt(START_AREA))
@@ -108,6 +108,11 @@ static func apply(win: Window) -> void:
 ## repoussait la souris en temps reel et la fenetre tremblait (2026-10-01).
 ## Tant que le joueur tire, le canevas `expand` suit n'importe quelle forme.
 static func _keep_landscape(win: Window) -> void:
+	# PAS SUR LE WEB : la « fenetre » y est le canevas, que le navigateur
+	# dimensionne. Lui imposer un 16:9 retrecissait le rendu dans un coin bas
+	# gauche, le reste en noir (2026-10-01).
+	if OS.has_feature("web"):
+		return
 	# `-- --size=890x400` (DevShot) veut la forme exacte d'un appareil, le
 	# Seeker couche n'est pas en 16:9 : outil, pas joueur.
 	for arg in OS.get_cmdline_user_args():
