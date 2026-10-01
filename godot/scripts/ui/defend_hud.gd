@@ -62,6 +62,9 @@ func _build() -> void:
 	_panel = Kit.panel(RaidHud.hud_style())
 	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(_panel)
+	# Le texte qui revient a la ligne connait sa hauteur une fois sa largeur
+	# posee : le panneau suit, differe pour ne pas re-mesurer dans la mesure.
+	_panel.minimum_size_changed.connect(func() -> void: _measure.call_deferred())
 	var column := Kit.vbox(8)
 	_panel.add_child(column)
 
@@ -132,7 +135,11 @@ func _measure() -> void:
 	if hang > 0.0:
 		top = maxf(top, ceilf(hang - get_global_rect().position.y) + Kit.PAD_TIGHT)
 	_panel.position = Vector2(floor((size.x - w) * 0.5), top)
-	_panel.size = Vector2(w, _panel.get_combined_minimum_size().y)
+	# HAUTEUR 0 : le conteneur se cale sur son minimum. Lire ce minimum avant
+	# que la consigne ait une largeur le prenait une lettre par ligne — un
+	# grand rectangle noir pendant une seconde, jusqu'au pas suivant du
+	# pillard (2026-10-01). Le minimum qui bouge ensuite re-mesure (`_build`).
+	_panel.size = Vector2(w, 0.0)
 
 
 func _refresh(_arg: Variant = null) -> void:
