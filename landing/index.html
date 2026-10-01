@@ -134,29 +134,20 @@
         height: auto;
         filter: drop-shadow(0 6px 0 rgba(1, 30, 70, 0.45));
       }
-      /* L'accroche s'ecrit DANS le ruban vide du logo : x 24..340, y 63..76
-         sur 365 x 78. Tout est en cqw, donc elle suit le logo a toute taille. */
       .brand {
         position: relative;
         margin: 0;
         container-type: inline-size;
-        width: min(92vw, 730px);
+        width: min(48vw, 34vh, 320px);
       }
       .tagline {
-        position: absolute;
-        left: 6.6%;
-        right: 6.8%;
-        top: 80.8%;
-        height: 16.6%;
-        display: grid;
-        place-items: center;
+        display: block;
+        margin-top: 8px;
         font-family: var(--pixel);
-        font-weight: 400;
-        font-size: 2.35cqw;
-        line-height: 1;
-        letter-spacing: 0.02em;
-        color: var(--ink);
-        white-space: nowrap;
+        font-size: clamp(9px, 3.5cqw, 13px);
+        line-height: 1.4;
+        text-align: center;
+        color: var(--cream, #fff4df);
       }
 
       /* Le bouton descend sur l'herbe, au pied du lapin : le ciel reste au
@@ -771,7 +762,7 @@
       }
       @media (max-height: 640px) and (orientation: landscape) {
         .title { padding-top: 14px; }
-        .brand { width: min(60vw, 520px); }
+        .brand { width: min(48vw, 34vh, 320px); }
         .cta { bottom: 20px; }
         .scroll { display: none; }
       }
@@ -806,7 +797,7 @@
 
       <div class="title">
         <h1 class="brand">
-          <img class="logo px" src="/assets/logo.png" alt="Rabbit Royale" width="365" height="78" />
+          <img class="logo px" src="/assets/logo.png" alt="Rabbit Royale" width="1280" height="1280" />
           <span class="tagline">Competitive minesweeper with rabbits</span>
         </h1>
       </div>

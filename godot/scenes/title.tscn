@@ -171,6 +171,7 @@ expand_mode = 1
 stretch_mode = 5
 
 [node name="Ribbon" type="Label" parent="Masthead/LogoStack" unique_id=1786130154]
+visible = false
 unique_name_in_owner = true
 layout_mode = 0
 offset_left = 17.0

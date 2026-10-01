@@ -27,7 +27,7 @@ extends Control
 ## L'artwork et son ruban, mesures sur le fichier (x 17..79, y 93..98 d'un
 ## 96x106).
 const LOGO_W := 96
-const LOGO_H := 106
+const LOGO_H := 96
 
 ## Le corps du texte du ruban, en pixels SOURCE, multiplie par la meme echelle
 ## que l'embleme pour rester colle au parchemin a tous les crans.
