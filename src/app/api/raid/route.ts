@@ -16,13 +16,13 @@
  * attacker can be disconnected from mid-crossing, and losing a haul to a
  * dropped connection is the kind of thing players do not forgive.
  */
-import { and, desc, eq, gte, isNull, ne, sql as raw } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, isNull, ne, sql as raw } from 'drizzle-orm';
 import { db, sql } from '@/lib/db';
 import { pushToPlayer } from '@/lib/game/raid-events';
 import { defenderRaidView } from '@/lib/game/defence';
 import { players, raidRuns, raids, traps, fences } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
-import { connectedAmong, crownHolderId, onlineAmong } from '@/lib/leaderboard';
+import { connectedAmong, connectedIds, crownHolderId, onlineAmong } from '@/lib/leaderboard';
 import {
   distanceToField, raiderView, settleRaid, trapClues,
 } from '@/lib/game/raid';
@@ -44,6 +44,10 @@ import { payEnergy, type EnergyCharge } from '@/lib/game/pay-crossing';
  * behind a floor of the toll plus the longest crossing (RAID_RUN.WALK_FLOOR)
  * so a raid that is let in can at least reach an undefended field.
  */
+/** How long the raid list runs: everyone connected (up to LIVE), then the
+ *  richest burrows (RICH), deduplicated. Was 20 by stock alone. */
+const RAID_LIST = { LIVE: 50, RICH: 50 } as const;
+
 const TOLL: EnergyCharge = {
   // Getters: both are live (`tuning` table), read at each charge.
   get cost() { return RAID_RUN.TOLL; },
@@ -223,26 +227,39 @@ export async function GET(req: Request) {
   }
 
   // Otherwise: who is worth attacking. Ordered by stock, because the reason to
-  // raid somebody is what they are holding.
-  const targets = await db
-    .select({
-      id: players.id,
-      name: players.name,
-      avatar: players.avatar,
-      stock: players.stock,
-      shieldedUntil: players.shieldedUntil,
-      // What the garden holds is DERIVED from these — see `gardenYield`. A
-      // raid is for the garden first (RAID.GARDEN_LOOT_SHARE), so the list
-      // has to say what is standing outside, not only what is banked.
-      gardenCollectedAt: players.gardenCollectedAt,
-      burrowLevel: players.burrowLevel,
-      wateredUntil: players.wateredUntil,
-      fertilisedUntil: players.fertilisedUntil,
-    })
-    .from(players)
-    .where(and(ne(players.id, session.sub), gte(players.level, RABBIT_LEVELS.RAID_MIN)))
-    .orderBy(desc(players.stock))
-    .limit(20);
+  // raid somebody is what they are holding — but whoever is PLAYING right now
+  // comes first, whatever they hold (2026-10-01). Ordered by stock alone, the
+  // list was the same twenty rich accounts for everyone, and two players
+  // online together never found each other on it.
+  const columns = {
+    id: players.id,
+    name: players.name,
+    avatar: players.avatar,
+    stock: players.stock,
+    shieldedUntil: players.shieldedUntil,
+    // What the garden holds is DERIVED from these — see `gardenYield`. A
+    // raid is for the garden first (RAID.GARDEN_LOOT_SHARE), so the list
+    // has to say what is standing outside, not only what is banked.
+    gardenCollectedAt: players.gardenCollectedAt,
+    burrowLevel: players.burrowLevel,
+    wateredUntil: players.wateredUntil,
+    fertilisedUntil: players.fertilisedUntil,
+  };
+  const raidable = and(ne(players.id, session.sub), gte(players.level, RABBIT_LEVELS.RAID_MIN));
+  const liveIds = (await connectedIds()).filter((id) => id !== session.sub).slice(0, RAID_LIST.LIVE);
+  const [live, rich] = await Promise.all([
+    liveIds.length
+      ? db.select(columns).from(players)
+        .where(and(raidable, inArray(players.id, liveIds)))
+        .orderBy(desc(players.stock))
+      : Promise.resolve([]),
+    db.select(columns).from(players)
+      .where(raidable)
+      .orderBy(desc(players.stock))
+      .limit(RAID_LIST.RICH),
+  ]);
+  const listed = new Set(live.map((t) => t.id));
+  const targets = [...live, ...rich.filter((t) => !listed.has(t.id))];
 
   const now = Date.now();
   /**
@@ -263,7 +280,7 @@ export async function GET(req: Request) {
    * A flag could not say this: with one boolean, "not digging" had to mean
    * both away and home-and-watching, which is opposite advice.
    *
-   * Two round trips for all twenty rows, and EMPTY sets when Redis is down
+   * Two round trips for every row, and EMPTY sets when Redis is down
    * (see `membersAmong`), in which case every target reads as `away` — the
    * silence the list had before any of this existed.
    */

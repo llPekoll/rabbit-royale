@@ -324,6 +324,21 @@ export async function connectedAmong(ids: string[]): Promise<Set<string>> {
 }
 
 /**
+ * Everyone with a live socket right now. The raid list asks for them by name
+ * so that a player who is PLAYING is on it whatever their stock — ordered by
+ * stock alone, two newcomers online at the same time never saw each other.
+ * Redis down → empty, as for `membersAmong`.
+ */
+export async function connectedIds(): Promise<string[]> {
+  try {
+    const r = await redis();
+    return r ? await r.sMembers(CONNECTED_KEY) : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
  * `SMISMEMBER` for one set, with presence's failure rule applied once.
  *
  * Redis down returns an EMPTY set, never a throw. Presence is decoration on a

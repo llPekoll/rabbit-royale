@@ -70,6 +70,11 @@ var _raid_at_open := ""
 ## `changed`, qui revenait ici fermer encore — recursion jusqu'au stack
 ## overflow au premier raid lance depuis la liste (2026-10-01).
 var _closing := false
+## Quand la liste a defile pour la derniere fois. Les lignes et les boutons
+## laissent passer le doigt jusqu'au ScrollContainer (MOUSE_FILTER_PASS) :
+## un glisse qui commence sur RAID fait defiler — et ne doit pas lancer un
+## raid en se relevant sur le bouton (`_just_scrolled`).
+var _scrolled_at := -100000
 
 
 func _init() -> void:
@@ -87,6 +92,8 @@ func _ready() -> void:
 	_rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_scroll.add_child(_rows)
 	ScrollFade.attach(_scroll)
+	_scroll.get_v_scroll_bar().value_changed.connect(func(_v: float) -> void:
+		_scrolled_at = Time.get_ticks_msec())
 
 	# LE PIED S'ARRETE OU LES LIGNES S'ARRETENT. Quand la liste defile, sa
 	# barre prend une bande a droite des lignes ; le pied, lui, allait
@@ -210,6 +217,9 @@ func _row(target: Dictionary, state: RaidState) -> Control:
 	plank.content_margin_bottom = 9.0
 	panel.add_theme_stylebox_override("panel", plank)
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# Un PanelContainer ARRETE le doigt par defaut : au mobile, la liste ne
+	# defilait que dans les interstices entre deux planches (2026-10-01).
+	panel.mouse_filter = Control.MOUSE_FILTER_PASS
 	if shielded:
 		panel.modulate.a = SHIELDED_DIM
 	var line := Kit.hbox(Kit.PAD)
@@ -265,10 +275,13 @@ func _row(target: Dictionary, state: RaidState) -> Control:
 	button.label_size = 12
 	button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	button.disabled = off
+	button.mouse_filter = Control.MOUSE_FILTER_PASS
 	if off:
 		button.modulate.a = 0.75
 	var id := String(target.get("id", ""))
 	button.pressed.connect(func() -> void:
+		if _just_scrolled():
+			return
 		Net.trace("bouton Raid sur %s (busy=%s, presence=%s)" % [id, str(state.busy), where])
 		state.enter(id))
 
@@ -291,9 +304,12 @@ func _row(target: Dictionary, state: RaidState) -> Control:
 	var watch := Kit.button(I18N.t("raid.watchIt"), "blue", _button_w, WATCH_H)
 	watch.label_size = 11
 	watch.disabled = state.busy
+	watch.mouse_filter = Control.MOUSE_FILTER_PASS
 	if state.busy:
 		watch.modulate.a = 0.75
 	watch.pressed.connect(func() -> void:
+		if _just_scrolled():
+			return
 		Net.trace("bouton Regarder sur %s (busy=%s)" % [id, str(state.busy)])
 		if Chrome.current != null:
 			Chrome.current.watch(id))
@@ -380,3 +396,9 @@ class PresenceDot:
 
 	func _draw() -> void:
 		draw_circle(size * 0.5, minf(size.x, size.y) * 0.5, ink)
+
+
+## Le doigt vient de faire defiler la liste : le relacher sur un bouton n'est
+## pas un clic.
+func _just_scrolled() -> bool:
+	return Time.get_ticks_msec() - _scrolled_at < 200
