@@ -185,7 +185,7 @@ func _action() -> Control:
 	# PAS ENCORE LU : « fermee » pendant la lecture etait un mensonge d'une
 	# seconde (2026-10-01).
 	if _state.state.is_empty() and Session.signed_in():
-		box.add_child(LoadingNote.new(13))
+		box.add_child(Kit.note(I18N.t("profile.loading"), Palette.BARK, 13))
 		return box
 	if not _state.on():
 		box.add_child(Kit.note(I18N.t("pass.closed"), Palette.BARK, 13))
