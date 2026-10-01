@@ -701,9 +701,12 @@ static func _script_name(node: Node) -> String:
 
 
 ## Le premier ancetre qui est un panneau (un script qui n'est pas un bouton).
+## Sans `get_tree()` : un bouton qui ferme son panneau (RAID dans la liste)
+## en est deja detache quand son clic est compte — on remonte ses parents
+## jusqu'au bout, la racine n'a pas de script.
 static func _panel_of(node: Node) -> String:
 	var at := node.get_parent()
-	while at != null and at != node.get_tree().root:
+	while at != null:
 		var n := _script_name(at)
 		if not n.is_empty() and n != "PlankButton":
 			return n
@@ -729,7 +732,9 @@ static func _short_path(node: Node) -> String:
 	while at != null and parts.size() < 3:
 		parts.push_front(_node_name(at))
 		at = at.get_parent()
-		if at == node.get_tree().root:
+		# La racine (sans parent) ne compte pas ; pas de `get_tree()`, que
+		# n'a plus un noeud detache.
+		if at != null and at.get_parent() == null:
 			break
 	return "/".join(parts)
 

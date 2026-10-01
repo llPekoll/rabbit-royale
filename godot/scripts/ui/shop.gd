@@ -883,8 +883,13 @@ static func draw_ray(on: CanvasItem, c: Vector2, r: float, a: float, half: float
 
 
 ## SOULEVER ou reposer une carte au survol.
-func _hover(card: Control, on: bool) -> void:
-	if not is_instance_valid(card) or not card.has_meta("lift"):
+##
+## `card` sans type : la sortie du survol arrive en differe, et une vitrine
+## refaite entre-temps (achat, nouvelle du terrier) a deja libere la carte —
+## un parametre `Control` faisait echouer l'appel avant le test, et une carte
+## detachee n'a plus de viewport pour lire la souris (banc tools/e2e/duo.ts).
+func _hover(card, on: bool) -> void:
+	if not is_instance_valid(card) or not (card as Control).is_inside_tree() or not card.has_meta("lift"):
 		return
 	var lift: Control = card.get_meta("lift")
 	if not on and Rect2(Vector2.ZERO, lift.size).has_point(lift.get_local_mouse_position()):

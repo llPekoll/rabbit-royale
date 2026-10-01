@@ -1,0 +1,9 @@
+[gd_scene format=3]
+
+; LE TEST DE BOUT EN BOUT A DEUX — un joueur. Voir scripts/demo/duo_player.gd
+; et tools/e2e/duo.ts.
+
+[ext_resource type="Script" path="res://scripts/demo/duo_player.gd" id="1_duo"]
+
+[node name="DuoPlayer" type="Node"]
+script = ExtResource("1_duo")

@@ -181,14 +181,16 @@ func _wire_run(bar: TopBar) -> void:
 		bar.set_run(int(me.get("carrots", 0)), {"taken": state.chests_taken,
 			"total": state.chests_total, "warnStage": state.warn_stage})
 		bar.set_run_energy(int(me.get("energy", 0)))
-	state.me_changed.connect(feed)
-	state.rabbits_changed.connect(feed)
-	state.volcano_changed.connect(feed)
-	# SCREENS ET RAIDSTATE SURVIVENT AU CHROME : une lambda branchee sur eux
-	# lui survivrait aussi, et le premier signal apres le retour a l'accueil
-	# appelait une instance morte (tools/verify_scene_flow.gd). Une METHODE
-	# se debranche seule quand le chrome meurt.
+	# SCREENS, RAIDSTATE ET RUNSTATE SURVIVENT AU CHROME : une lambda branchee
+	# sur eux lui survivrait aussi, et le premier signal apres le retour a
+	# l'accueil appelait une instance morte (tools/verify_scene_flow.gd ; pour
+	# RunState, une erreur « Lambda capture freed » a chaque pas, vue par le
+	# banc tools/e2e/duo.ts). Une METHODE se debranche seule quand le chrome
+	# meurt.
 	_feed_run = feed
+	state.me_changed.connect(_refeed_run)
+	state.rabbits_changed.connect(_refeed_run)
+	state.volcano_changed.connect(_refeed_run)
 	Screens.moved.connect(_refeed_run)
 	RaidState.current.changed.connect(_refeed_run)
 	_raid_changed.connect(_refeed_run)

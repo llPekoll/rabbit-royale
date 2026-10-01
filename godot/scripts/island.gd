@@ -451,14 +451,14 @@ func _add_chrome() -> void:
 	layer.add_child(mini)
 	mini.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	mini.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	mini.position = Vector2(MiniMap.EDGE, get_viewport_rect().size.y - MiniMap.EDGE - mini.size.y)
-	get_viewport().size_changed.connect(func() -> void:
-		mini.position = Vector2(MiniMap.EDGE, get_viewport_rect().size.y - MiniMap.EDGE - mini.size.y))
-	var show_mini := func() -> void:
-		if is_instance_valid(mini):
-			mini.visible = RunState.current.spectating.is_empty()
-	RunState.current.me_changed.connect(show_mini)
-	show_mini.call()
+	_mini = mini
+	# Des METHODES, pas des lambdas : le viewport et RunState survivent a
+	# l'ile, et une lambda qui tient `mini` criait « Lambda capture freed » a
+	# chaque pas de l'ile suivante (banc tools/e2e/duo.ts).
+	_place_mini()
+	get_viewport().size_changed.connect(_place_mini)
+	RunState.current.me_changed.connect(_show_mini)
+	_show_mini()
 
 	# LA BOUSSOLE : un chevron au bord de l'ecran par coffre hors du cadre.
 	# Pas sur le tutoriel — son coffre a sa fleche (`_tiles.tutorial`).
@@ -961,6 +961,19 @@ func _on_release(at: Vector2) -> void:
 
 
 ## OU EST MON LAPIN, en cases : la manche locale, sinon le lapin affiche.
+var _mini: MiniMap
+
+
+func _place_mini() -> void:
+	if is_instance_valid(_mini):
+		_mini.position = Vector2(MiniMap.EDGE, get_viewport_rect().size.y - MiniMap.EDGE - _mini.size.y)
+
+
+func _show_mini() -> void:
+	if is_instance_valid(_mini):
+		_mini.visible = RunState.current.spectating.is_empty()
+
+
 func _me_cell() -> Vector2i:
 	if local_run != null:
 		return local_run.at

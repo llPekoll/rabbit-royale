@@ -204,8 +204,12 @@ func _ready() -> void:
 		# chemin et pas par son nom d'autoload : ce script ne dependait
 		# d'aucun autoload, et une sonde `--script` qui le compile avant que
 		# les autoloads existent doit continuer de le compiler.
+		# Par la racine de la boucle, pas `get_node` : une planche qui ferme
+		# son panneau (RAID dans la liste) est deja hors de l'arbre quand ce
+		# rappel passe, et le clic n'etait pas compte (banc tools/e2e/duo.ts).
 		pressed.connect(func() -> void:
-			var analytics := get_node_or_null(^"/root/Analytics")
+			var tree := Engine.get_main_loop() as SceneTree
+			var analytics := tree.root.get_node_or_null(^"Analytics") if tree != null else null
 			if analytics != null:
 				analytics.call("ui_click", self))
 
