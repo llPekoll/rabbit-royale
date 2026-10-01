@@ -191,7 +191,8 @@ func _ready() -> void:
 
 
 ## Le chiffre de la pastille retient la recolte et monte a chaque carotte
-## qui se pose ; la rafale (Home.burst) part avec la derniere.
+## qui se pose ; la rafale (Home.burst) et la legende « +N » partent avec
+## la derniere.
 func _on_harvested(amount: int) -> void:
 	var chrome := Chrome.current
 	var pill: CarrotPill = chrome.carrot_pill() if is_instance_valid(chrome) else null
@@ -211,10 +212,12 @@ func _on_harvested(amount: int) -> void:
 			# Chaque arrivee tinte, un cran plus haut que la precedente.
 			Sound.play("coin", 1.0 + 0.5 * float(k) / float(n))
 			if k == n:
+				Home.noted.emit(Home.harvest_note(amount), false)
 				Home.burst.emit(amount))
 	if flying == 0:
 		if is_instance_valid(pill):
 			pill.land(amount)
+		Home.noted.emit(Home.harvest_note(amount), false)
 		Home.burst.emit(amount)
 
 

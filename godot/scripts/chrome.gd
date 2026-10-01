@@ -37,6 +37,9 @@ static var current: Chrome
 ## Combien de temps une pastille reste, et son fondu.
 const TOAST_SECONDS := 3.2
 const TOAST_FADE := 0.35
+## L'arrivee d'une pastille : de quelle taille elle part, en combien de temps.
+const TOAST_POP_FROM := 0.6
+const TOAST_POP_SECONDS := 0.28
 
 @onready var column: Control = %Column
 @onready var floor_host: Control = %Floor
@@ -830,6 +833,20 @@ func toast(text: String, refused: bool = false) -> void:
 	var line := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 	words.custom_minimum_size.x = ceilf(minf(line + 1.0, maxf(room, 120.0)))
 	toasts.add_child(note)
+	# ELLE ARRIVE, elle n'apparait pas : petite et transparente, elle gonfle
+	# un peu au-dela et se pose. L'echelle seulement — la position est a la
+	# bande (VBoxContainer), qui la reposerait. Le pivot attend la mesure.
+	note.modulate.a = 0.0
+	note.scale = Vector2.ONE * TOAST_POP_FROM
+	var arrive := func() -> void:
+		if not is_instance_valid(note):
+			return
+		note.pivot_offset = note.size * 0.5
+		var pop := create_tween().set_parallel(true)
+		pop.tween_property(note, "scale", Vector2.ONE, TOAST_POP_SECONDS) \
+			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		pop.tween_property(note, "modulate:a", 1.0, TOAST_POP_SECONDS * 0.5)
+	arrive.call_deferred()
 	var tween := create_tween()
 	tween.tween_interval(TOAST_SECONDS)
 	tween.tween_property(note, "modulate:a", 0.0, TOAST_FADE)
