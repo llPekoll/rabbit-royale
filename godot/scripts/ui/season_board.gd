@@ -141,6 +141,9 @@ func _ready() -> void:
 
 	_scroll = ScrollContainer.new()
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	# La liste defile (molette, glisser) sans barre : le fondu du bas
+	# (ScrollFade) dit deja qu'il y a une suite (2026-10-01).
+	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	set_body(_scroll)
 	_list = Kit.vbox(0)
