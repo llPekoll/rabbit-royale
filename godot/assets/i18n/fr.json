@@ -135,10 +135,10 @@
 			"$t": "sortie dans {0}"
 		},
 		"raidNeeds": {
-			"$t": "Un raid demande {0} d’énergie. {1} pour l’instant, assez dans {2}."
+			"$t": "Un pillage demande {0} d’énergie. {1} pour l’instant, assez dans {2}."
 		},
 		"raidIn": {
-			"$t": "raid dans {0}"
+			"$t": "pillage dans {0}"
 		},
 		"aMoment": "un instant",
 		"gardenPlus": {
@@ -333,7 +333,7 @@
 				"$t": "Trop loin : le potager doit rester à {0} pas au plus."
 			},
 			"house_off_ground": "Ta maison a besoin d'un sol dégagé.",
-			"under_raid": "Un raid est en cours chez toi. Tu réaménageras après.",
+			"under_raid": "Un pillage est en cours chez toi. Tu réaménageras après.",
 			"bad_edits": "Cet aménagement a été refusé."
 		}
 	},
@@ -1009,14 +1009,14 @@
 		},
 		"island": "Île",
 		"islandCost": {
-			"$t": "{0} pour traverser, puis 1 par fouille"
+			"$t": "{0} pour traverser, puis 1 par case creusée"
 		},
-		"raid": "Raid",
+		"raid": "Piller",
 		"raidCost": {
 			"$t": "{0} pour traverser, {1} au plus"
 		},
 		"raidRefund": "Atteins le potager et tes pas reviennent.",
-		"dig": "Fouille",
+		"dig": "Creuser",
 		"digCost": {
 			"$t": "{0} par case. Une bombe : {1}"
 		},
@@ -1026,11 +1026,11 @@
 		},
 		"home": "Rentrer",
 		"homeCost": {
-			"$t": "rentre avec {0} ou plus et un raid est prêt"
+			"$t": "rentre avec {0} ou plus et un pillage est prêt"
 		},
 		"homeHint": "L’énergie que tu ramènes est gardée.",
 		"ready": "Prêt",
-		"raidReady": "Raid prêt",
+		"raidReady": "Pillage prêt",
 		"needs": {
 			"$t": "Il faut {0}"
 		},
@@ -1064,9 +1064,9 @@
 		},
 		"harder": "Les îles se durcissent",
 		"final": "Les îles finales",
-		"raidsOpen": "Les raids sont ouverts",
+		"raidsOpen": "Les pillages sont ouverts",
 		"raidLocked": {
-			"$t": "Les raids ouvrent au niveau {0}. Finis des îles pour y arriver."
+			"$t": "Les pillages ouvrent au niveau {0}. Finis des îles pour y arriver."
 		}
 	},
 	"islandPick": {
@@ -1074,10 +1074,10 @@
 		"which": "QUELLE ÎLE ?",
 		"loading": "On regarde la mer...",
 		"row": {
-			"$t": "{0} creusent · {1}/{2} coffres · {3} % fouillée"
+			"$t": "{0} creusent · {1}/{2} coffres · {3} % creusée"
 		},
 		"rowEmpty": {
-			"$t": "personne dessus en ce moment · {0}/{1} coffres · {2} % fouillée"
+			"$t": "personne dessus en ce moment · {0}/{1} coffres · {2} % creusée"
 		},
 		"fresh": "Personne dessus encore",
 		"join": "Rejoindre",
@@ -1086,7 +1086,7 @@
 			"$t": "S’ouvre à {0} carottes creusées"
 		},
 		"lockedShort": "Fermée",
-		"brief": "Une île occupée, c’est une fouille courte et sûre avec une part des coffres. Une île neuve, c’est la longue course.",
+		"brief": "Une île occupée, c’est court et sûr, avec une part des coffres. Une île neuve, c’est la longue course.",
 		"almostDone": "presque finie",
 		"best": {
 			"$t": "ton record {0} 🥕"
@@ -1106,7 +1106,7 @@
 		"choose": "Choisis un terrier",
 		"whose": "QUEL TERRIER ?",
 		"cost": {
-			"$t": "La traversée d’un raid coûte {0} d’énergie, {1} au plus."
+			"$t": "La traversée d’un pillage coûte {0} d’énergie, {1} au plus."
 		},
 		"allShielded": "TOUS LES TERRIERS PROTÉGÉS",
 		"nobody": "PERSONNE À VOLER",
