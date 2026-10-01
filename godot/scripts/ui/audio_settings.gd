@@ -80,7 +80,10 @@ static func _save() -> void:
 	cfg.save(PATH)
 
 
-## Les deux bus du jeu, sous Master, crees a la demande.
+## Les deux bus du jeu, sous Master. ILS VIENNENT DE default_bus_layout.tres :
+## crees ici a l'execution, le web (4.7.2) bouclait Master -> SFX -> Music ->
+## Master sans jamais rejoindre la sortie, et le jeu etait muet (2026-10-01).
+## Ce qui suit n'est qu'un filet si le fichier venait a manquer.
 static func _ensure_buses() -> void:
 	for name in ["Music", "SFX"]:
 		if AudioServer.get_bus_index(name) >= 0:
