@@ -922,8 +922,9 @@ func _wanted_cam() -> BurrowCamera.Shot:
 			return BurrowCamera.wall(map, _props.field, view.x, view.y)
 		return BurrowCamera.place(map, view.x, view.y)
 	# LA MAISON CADRE LES ILOTS AVEC L'ILE : ce sont ses boutons.
-	if _landmarks != null and _landmarks.sea_map != null:
-		map = _landmarks.sea_map
+	# Et les ombres des ilots a venir (`frame_map`) : l'indice reste a l'image.
+	if _landmarks != null and _landmarks.frame_map != null:
+		map = _landmarks.frame_map
 	return BurrowCamera.home(map, view.x, view.y)
 
 

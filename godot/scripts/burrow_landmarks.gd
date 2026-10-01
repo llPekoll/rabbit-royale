@@ -107,6 +107,18 @@ var _islet_cells := {}
 ## La carte de la mer : terrier + ilots, pour l'ecume, les rochers, les
 ## canards et le cadrage de la maison.
 var sea_map: BurrowMap
+## LE CADRAGE DE LA MAISON : `sea_map` plus les ilots encore sous l'eau, pour
+## que leur ombre reste dans le cadre sans que la mer les borde d'ecume.
+var frame_map: BurrowMap
+## LES ILOTS A VENIR, UNE OMBRE SOUS L'EAU (2026-10-01) : DEFEND et RAID
+## sortent a un niveau donne, et rien ne disait qu'il y aurait une action de
+## plus. Tant qu'un ilot n'est pas sorti, sa silhouette se devine sous la mer,
+## a sa place, et respire doucement. Seulement une fois le tuto fini (DIG
+## sorti) : avant, la mer reste vide.
+const SHALLOW_INK := Color(0.02, 0.10, 0.20, 1.0)
+const SHALLOW_ALPHA := Vector2(0.22, 0.38)
+const SHALLOW_SECONDS := 2.4
+var _shallow_cells := {}
 ## Le coin haut-gauche de `sea_map`, dans le treillis du terrier.
 var _lo := Vector2i.ZERO
 ## UN NOEUD PAR ILOT (sol, batiment, ombre, ponton) : c'est lui qui sort de
@@ -185,6 +197,7 @@ func build(main: BurrowMap, own: bool = true) -> void:
 	# LES PLACES SONT CELLES DES QUATRE, montres ou non : un ilot qui sort de
 	# l'eau ne pousse pas ses voisins.
 	_built = _wanted()
+	var shallow := own and _built.has("dig")
 	for spec in ISLETS:
 		var top := _settle(spec["size"], spec["dir"], taken)
 		tops[spec["door"]] = top
@@ -193,12 +206,14 @@ func build(main: BurrowMap, own: bool = true) -> void:
 			_all_cells[cell] = spec["door"]
 			if _built.has(spec["door"]):
 				_islet_cells[cell] = spec["door"]
+			elif shallow:
+				_shallow_cells[cell] = spec["door"]
 			taken[cell] = true
 
 	# LE CADRE COMMUN : toutes les cases, le terrier compris, et SEA_PAD de mer.
 	var lo := Vector2i(0, 0)
 	var hi := Vector2i(main.width - 1, main.height - 1)
-	for cell in _islet_cells:
+	for cell in _islet_cells.keys() + _shallow_cells.keys():
 		lo = Vector2i(mini(lo.x, cell.x), mini(lo.y, cell.y))
 		hi = Vector2i(maxi(hi.x, cell.x), maxi(hi.y, cell.y))
 	lo -= Vector2i(SEA_PAD, SEA_PAD)
@@ -218,6 +233,14 @@ func build(main: BurrowMap, own: bool = true) -> void:
 		islets.level[i] = 1
 	sea_map.measure_tiers()
 	islets.measure_tiers()
+	frame_map = sea_map
+	if not _shallow_cells.is_empty():
+		frame_map = BurrowMap.new(dims.x, dims.y, origin)
+		frame_map.level = sea_map.level.duplicate()
+		for cell in _shallow_cells:
+			frame_map.level[(cell.y - lo.y) * dims.x + (cell.x - lo.x)] = 1
+		frame_map.measure_tiers()
+		_lay_shallows(sea_map)
 
 	# UN TERRAIN PAR ILOT, dans son noeud. Ses blocs se trient sur leurs cases
 	# LOCALES ; decaler le terrain de la profondeur du coin remet chaque bloc
@@ -392,11 +415,38 @@ func _splash(door: String) -> void:
 		t.tween_interval(0.07)
 
 
+## Les ombres des ilots a venir : un losange sombre par case, a plat, un peu
+## sous la surface, sous tout le reste.
+func _lay_shallows(map: BurrowMap) -> void:
+	var node := Shallows.new()
+	node.name = "Shallows"
+	node.z_as_relative = false
+	node.z_index = -4000
+	for cell in _shallow_cells:
+		var p := Iso.project(cell.x - _lo.x, cell.y - _lo.y, map.origin) + Vector2(0, Iso.half_h() * 0.5)
+		node.diamonds.append(PackedVector2Array([p, p + Vector2(Iso.half_w(), Iso.half_h()),
+			p + Vector2(0, 2.0 * Iso.half_h()), p + Vector2(-Iso.half_w(), Iso.half_h())]))
+	add_child(node)
+	node.modulate.a = SHALLOW_ALPHA.x
+	var t := node.create_tween().set_loops()
+	t.tween_property(node, "modulate:a", SHALLOW_ALPHA.y, SHALLOW_SECONDS).set_trans(Tween.TRANS_SINE)
+	t.tween_property(node, "modulate:a", SHALLOW_ALPHA.x, SHALLOW_SECONDS).set_trans(Tween.TRANS_SINE)
+
+
+class Shallows extends Node2D:
+	var diamonds: Array[PackedVector2Array] = []
+
+	func _draw() -> void:
+		for d in diamonds:
+			draw_colored_polygon(d, SHALLOW_INK)
+
+
 func clear() -> void:
 	for child in get_children():
 		remove_child(child)
 		child.queue_free()
 	_islet_cells.clear()
+	_shallow_cells.clear()
 	_all_cells.clear()
 	_roots.clear()
 	_decks.clear()
@@ -409,6 +459,7 @@ func clear() -> void:
 	_sign_layer = null
 	_anchors.clear()
 	sea_map = null
+	frame_map = null
 
 
 ## LA MAISON ET LE POTAGER ont bouge (ou le sol vient d'etre pose) : leurs
