@@ -92,8 +92,13 @@ static func apply(win: Window) -> void:
 		win.content_scale_size = base
 
 
-## Le plancher, le plafond, et le 16:9 d'une fenetre libre. Differe : on ne
-## redimensionne pas une fenetre dans son propre `size_changed`.
+## Le plancher, le plafond, et le 16:9 d'une fenetre libre.
+##
+## Le plancher et le plafond sont des bornes du SYSTEME (`min_size`,
+## `max_size`) : il les tient lui-meme pendant le glisser, sans a-coup. Le
+## 16:9, lui, se pose UNE FOIS LE GESTE FINI : recale a chaque evenement, il
+## repoussait la souris en temps reel et la fenetre tremblait (2026-10-01).
+## Tant que le joueur tire, le canevas `expand` suit n'importe quelle forme.
 static func _keep_landscape(win: Window) -> void:
 	# `-- --size=890x400` (DevShot) veut la forme exacte d'un appareil, le
 	# Seeker couche n'est pas en 16:9 : outil, pas joueur.
@@ -110,18 +115,31 @@ static func _keep_landscape(win: Window) -> void:
 	if win.mode != Window.MODE_WINDOWED:
 		_last = Vector2i.ZERO
 		return
+	_settle_gen += 1
+	var gen := _settle_gen
+	win.get_tree().create_timer(SETTLE_SECONDS, true, false, true).timeout.connect(func() -> void:
+		if gen == _settle_gen:
+			_snap(win, lo, hi))
+
+
+## Le calme apres le geste : sans nouvel evenement pendant ce temps, le
+## joueur a lache le bord.
+const SETTLE_SECONDS := 0.25
+static var _settle_gen := 0
+
+
+static func _snap(win: Window, lo: Vector2i, hi: Vector2i) -> void:
+	if not is_instance_valid(win) or win.mode != Window.MODE_WINDOWED:
+		return
 	var now := win.size
 	# Le cote tire decide ; au premier passage (sortie de maximise), la largeur.
-	var by_width := _last == Vector2i.ZERO 		or absi(now.x - _last.x) >= absi(now.y - _last.y)
+	var by_width := _last == Vector2i.ZERO or absi(now.x - _last.x) >= absi(now.y - _last.y)
 	var want := Vector2(now.x, now.x / ASPECT) if by_width else Vector2(now.y * ASPECT, now.y)
-	want = want.clamp(Vector2(lo), Vector2(hi))
 	# Borne d'un cote, l'autre se recale sur le rapport.
-	want = _fit(want)
+	want = _fit(want.clamp(Vector2(lo), Vector2(hi)))
 	var target := Vector2i(want.round())
 	_last = target
 	# Un pixel d'arrondi ne vaut pas un redimensionnement.
 	if absi(target.x - now.x) <= 1 and absi(target.y - now.y) <= 1:
 		return
-	(func() -> void:
-		if win.mode == Window.MODE_WINDOWED and win.size != target:
-			win.size = target).call_deferred()
+	win.size = target
