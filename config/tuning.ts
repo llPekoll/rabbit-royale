@@ -13,17 +13,27 @@
 // ── Phase 1: the solo run ────────────────────────────────────────────────────
 
 /**
- * A run's energy: THE FUEL OF EXPLORING, on a bar of 300 — and it always runs
- * out. That is the design (the "capped run", 17 September 2026). The bar was
- * 100 until 21 September 2026, when it went to 150 for length, then to 300 the
- * same day — 150 still played short in the hand.
+ * A run's energy: THE FUEL OF EXPLORING, drawn from the one tank (a bar of
+ * 300, see OUT_OF_RUN_ENERGY). A RUN IS ONE ISLAND, and it ends one of two ways:
  *
- * Every dig costs a point. A well-placed red X (see FLAG) gives some back, but
- * never as much as the digging that found it cost: reading the board roughly
- * DOUBLES a run, it does not make it endless. So every run, at every level of
- * play, ends on the same sentence — no energy, no more exploring — and on the
- * recap that offers more. An island is a level several runs finish, alone over
- * a day or four rabbits at once, not something one ticket clears.
+ *   - the last CHEST is dug: the island erupts and sinks, the rabbit goes up a
+ *     level (RABBIT_LEVELS), and whatever is left in the bar goes home to the
+ *     tank (`bankRun`) and pays the next crossing;
+ *   - the bar hits zero first: the rabbit dies, the run is banked, and the
+ *     level is played again.
+ *
+ * The rabbit lands with what the tank held less the crossing
+ * (CROSSING_COST), not with a fresh bar. Every dig costs a point; a right
+ * red X (see FLAG) gives some back, never as much as the digging that found
+ * it. So the bar is the risk and the chests are the goal: a player who reads
+ * the numbers finishes the island with fuel to spare, one who guesses runs
+ * dry on the bigger levels. That is the intent (Paul, 21 September 2026): the
+ * game rewards the player who thinks.
+ *
+ * Until 21 September 2026 the rule was the opposite — "every run ends at
+ * zero" (the "capped run", 17 September), on a bar of 100 and then 150, with
+ * the island a level several runs finished. The notes below are how it got
+ * here; the ladder note at the end is what it measures now.
  *
  * How it got here. Three hearts (24 points, digging free) let a player who
  * deduced nothing clear 83 % of a Meadow island: the numbers were decoration.
@@ -79,7 +89,11 @@
  * home.
  */
 export const ENERGY = {
-  /** Energy a run starts with: a full bar. */
+  /**
+   * A full bar. A run opens on what the crossing left in the tank, not on
+   * this: START is `spawnRabbit`'s default, for the tests and the robot
+   * players. See server/index.ts, where the rabbit spawns on the tank.
+   */
   START: 300,
   /**
    * A dug tile costs this. Walking a revealed tile is free.

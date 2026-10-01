@@ -5,9 +5,10 @@
 import * as T from '../config/tuning';
 import { boardNeighbors, chestProgress, generateIsland, islandProgress } from '../src/lib/game/island';
 import { flagTile, resolveMove, spawnRabbit } from '../src/lib/game/run';
-import { makeShape } from '../src/config/gridConfig';
+import { makeShape, manhattanDist } from '../src/config/gridConfig';
 import { terrainNeighbors } from '../src/lib/game/terrainBoard';
 import { mulberry32 } from '../src/lib/game/rng';
+import { levelSeed } from '../src/lib/game/first-island';
 import type { Island } from '../src/lib/game/types';
 
 export type Policy = 'walker' | 'reader' | 'solver' | 'prober' | 'gambler';
@@ -19,10 +20,16 @@ export const mut = <O extends object>(o: O) => o as { -readonly [K in keyof O]: 
  *   goldAt    spend one on the tile the robot would otherwise have to bet on, when its risk is at least this.
  *   redCap    red Xs the robot may place in the run (a stocked red X).
  */
-export type Stocks = { gold?: number; goldAt?: number; redCap?: number; leaveAt?: number };
+export type Stocks = { gold?: number; goldAt?: number; redCap?: number; leaveAt?: number; start?: number; chase?: boolean };
 /*  leaveAt   the robot walks home as soon as the bar is at or under this — the
  *            "keep enough for a raid" play the one tank made possible
- *            (2026-09-21): what it leaves with comes home. */
+ *            (2026-09-21): what it leaves with comes home.
+ *  start     the energy the rabbit lands with: what the crossing left in the
+ *            tank, which is a full bar only when the player arrives full.
+ *  chase     head for the chests: among equally good digs, the one nearest an
+ *            unopened chest. The chests sit on the rim, in plain sight, and
+ *            end the island — a player goes for them; the old robots swept
+ *            the board in index order and were only ever right by luck. */
 
 /**
  * One rabbit on an island it may share: its state, its tally, and `tick`,
@@ -32,7 +39,7 @@ export type Stocks = { gold?: number; goldAt?: number; redCap?: number; leaveAt?
  * (`chestProgress`, the island's own end).
  */
 function runner(island: Island, shape: ReturnType<typeof makeShape>, seed: string, id: string, policy: Policy, rand: () => number, stocks: Stocks) {
-  const rabbit = spawnRabbit(id, id, T.ENERGY.START, seed);
+  const rabbit = spawnRabbit(id, id, stocks.start ?? T.ENERGY.START, seed);
   rabbit.run = { startedAt: 0, tilesDug: 0, bombsHit: 0, loot: {}, nfts: [] };
   let now = 1_000_000;
   let digs = 0, bombs = 0, right = 0, wrong = 0, guesses = 0, wasted = 0, low = rabbit.energy, ticks = 0, full = 0, sum = 0;
@@ -129,12 +136,16 @@ function runner(island: Island, shape: ReturnType<typeof makeShape>, seed: strin
       const proven = markable.find((i) => mines.has(i));
       if (proven !== undefined && reds < redCap) { mark(proven); return 'go'; }
     }
+    // Nearest unopened chest, for a robot that heads for them (stocks.chase).
+    const chests = stocks.chase ? [...tiles].filter(([, t]) => t.content === 'chest' && !t.revealed).map(([i]) => i) : [];
+    const toChest = (i: number) => chests.reduce((m, c) => Math.min(m, manhattanDist(i, c)), Infinity);
+    if (chests.length) diggable.sort((a, b) => toChest(a) - toChest(b));
     const sure = diggable.find((i) => safe.has(i));
     if (sure !== undefined) { if (!dig(sure)) return 'stop'; return 'go'; }
     // Nothing is certain: the least bad bet. Proven bombs are never stepped on.
     const bets = diggable.filter((i) => !mines.has(i));
     if (!bets.length) return 'stop';
-    bets.sort((a, b) => (risk.get(a) ?? 0.2) - (risk.get(b) ?? 0.2));
+    bets.sort((a, b) => (risk.get(a) ?? 0.2) - (risk.get(b) ?? 0.2) || (chests.length ? toChest(a) - toChest(b) : 0));
     guesses++;
     if (gold > 0 && (risk.get(bets[0]) ?? 0.2) >= goldAt && markable.includes(bets[0])) { markGold(bets[0]); return 'go'; }
     if (policy === 'prober') {
@@ -166,12 +177,35 @@ export function play(seed: string, lifetime: number, policy: Policy, rand: () =>
  */
 export function playShared(seed: string, lifetime: number, policies: Policy[], rand: () => number, stocks: Stocks = {}) {
   const island: Island = generateIsland({ seed, contentSeed: `c:${seed}`, lifetimeCarrots: lifetime });
+  return playOn(island, seed, policies, rand, stocks);
+}
+
+/**
+ * A run on the island a rabbit of this LEVEL is dealt, the way the server
+ * deals it (`levelSeed`, `levelRow`): the level's size, densities and chest
+ * count. One policy per seat — one for levels 1-5, more where the level
+ * seats more. Ends on the last chest (the eruption) or when nobody can go on.
+ */
+export function playLevel(level: number, id: string, policies: Policy[], rand: () => number, stocks: Stocks = {}) {
+  const seed = levelSeed(level, id);
+  const island: Island = generateIsland({ seed, contentSeed: `c:${seed}`, lifetimeCarrots: 0, level: T.levelRow(level) });
+  return { ...playOn(island, seed, policies, rand, stocks), tiles: island.tiles.size };
+}
+
+function playOn(island: Island, seed: string, policies: Policy[], rand: () => number, stocks: Stocks) {
   const shape = makeShape(seed);
   const rs = policies.map((policy, k) => runner(island, shape, seed, `bot${k}`, policy, rand, stocks));
   let rounds = 0, endedByChests = false;
   for (let guard = 0; guard < 20000; guard++) {
     let any = false;
-    for (const r of rs) { if (r.step()) any = true; if (chestProgress(island).left === 0) { endedByChests = true; break; } }
+    for (const r of rs) {
+      if (r.step()) any = true;
+      if (chestProgress(island).left === 0) {
+        // The rabbit that took the last chest rides the eruption alive, even at zero (server/index.ts).
+        if (!r.rabbit.alive && r.rabbit.energy <= 0) r.rabbit.alive = true;
+        endedByChests = true; break;
+      }
+    }
     rounds++;
     if (endedByChests || !any) break;
   }
