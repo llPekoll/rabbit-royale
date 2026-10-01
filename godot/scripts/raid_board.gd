@@ -78,6 +78,9 @@ var _door: Array[Node2D] = []
 var _door_shown := false
 ## Les cases que le pillard a vues : pas de « ? » sur elles.
 var _seen: Dictionary = {}
+## SOUS LA FUMEE, rien ne se lit autour du lapin : pas de « ? » sur les pas,
+## pas de front eclairci — tout ce qui n'est pas foule reste dans le noir.
+var _smoked := false
 
 
 func _ready() -> void:
@@ -134,7 +137,7 @@ func build() -> void:
 	_ring.terrain = terrain
 	_ring.unread = func(c: Vector2i) -> bool:
 		var t := BurrowLayout.index(c)
-		return not _seen.has(t) and _cells.has(t) and String(_cells[t]["veil"]) != "goal"
+		return not _smoked and not _seen.has(t) and _cells.has(t) and String(_cells[t]["veil"]) != "goal"
 	_ring.build(cells)
 	_goal = _hang(_goal_cell(), GOAL_ARROW_TINT)
 
@@ -158,7 +161,8 @@ func clear() -> void:
 ## fumee. Le brouillard se leve sur chaque case vue, en fondu — sauf a la
 ## premiere image : un plateau qui fond toute sa zone de depart se lit comme
 ## un chargement, pas comme un regard.
-func show_view(view: Array, fresh: bool) -> void:
+func show_view(view: Array, fresh: bool, smoked := false) -> void:
+	_smoked = smoked
 	var seen := {}
 	for v in view:
 		if v is Dictionary:
@@ -172,7 +176,7 @@ func show_view(view: Array, fresh: bool) -> void:
 		if seen.has(tile):
 			terrain.set_sod_look(c, TileView.Look.HINTED, false)
 		else:
-			terrain.set_sod_look(c, TileView.Look.COVERED, not _touches_seen(c, seen))
+			terrain.set_sod_look(c, TileView.Look.COVERED, smoked or not _touches_seen(c, seen))
 		var fog: Sprite2D = cell["fog"]
 		if fog != null:
 			fog.modulate.a = _alpha(String(cell["veil"]), seen.has(tile))

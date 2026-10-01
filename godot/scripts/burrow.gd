@@ -572,6 +572,23 @@ func _leave_raid() -> void:
 	RaidState.current.refresh_incoming()
 
 
+## CE QUE LE PILLARD A LU. Sans fumee, le serveur l'a dit : les cases foulees
+## et leurs voisines. SOUS LA FUMEE, seulement les cases foulees : les voisines
+## gardent leur motte levee et le pillard ne voit que la case ou il se tient.
+## Le serveur envoie encore les voisines (sans chiffre) ; c'est ici qu'on les
+## retire, elles ne fuient rien de plus que le relief.
+static func _raid_sight(r: Dictionary) -> Array:
+	var view: Array = r.get("view", []) as Array
+	if not bool(r.get("smoked", false)):
+		return view
+	var walked := {}
+	for t in r.get("walked", []) as Array:
+		walked[int(t)] = true
+	walked[int(r.get("tile", -1))] = true
+	return view.filter(func(v: Variant) -> bool:
+		return v is Dictionary and walked.has(int((v as Dictionary).get("tile", -1))))
+
+
 ## UN RAID EN COURS, redessine d'un coup : ce qu'on voit, ou l'on peut aller
 ## et ou l'on se tient changent ensemble a chaque pas, et trois mises a jour
 ## separees montreraient une image du plateau en desaccord avec elle-meme.
@@ -590,7 +607,7 @@ func _draw_raid(r: Dictionary, fresh: bool) -> void:
 	_raid_steps = {}
 	for t in steps:
 		_raid_steps[int(t)] = true
-	_raid_board.show_view(r.get("view", []) as Array, fresh)
+	_raid_board.show_view(_raid_sight(r), fresh, bool(r.get("smoked", false)))
 	if _walker != null and tile != _walker_at:
 		_walker.send_to(BurrowLayout.cell_of(tile))
 	_walker_at = tile

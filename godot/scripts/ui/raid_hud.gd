@@ -26,14 +26,19 @@ extends Control
 ## pastilles du terrier — epingle a Kit.EDGE du bord, il ecrivait le nom du
 ## terrier en travers du compte de carottes du joueur (px-raid.css).
 
-## La largeur : min(420px, 100% - 2 * edge).
-const WIDTH := 420.0
+## La largeur : min(560px, 100% - 2 * edge). UNE SEULE LIGNE (2026-10-01) :
+## nom, bombes sautees, fumee, sortie. Empilee, la plaque faisait 140 px sur
+## un ecran de 400 et couvrait le milieu du plateau ; il lui faut donc la
+## largeur que la pile prenait en hauteur.
+const WIDTH := 560.0
 
 ## Le web ecrit ces deux lignes en anglais dans le composant, hors des
 ## dictionnaires (raid-panel.tsx) ; elles sont reprises telles quelles
 ## plutot qu'inventees dans quatre langues.
 const WEB_BURROW_OF := "%s's burrow"
-const WEB_SMOKE := "Smoke. No numbers here. Walk it blind."
+const WEB_SMOKE := "No numbers"
+## Le nuage de la boutique (ItemSlot.Glyph), a la hauteur du texte.
+const SMOKE_ART := 22.0
 ## L'encre de la fumee (globals.css `.rr-raid-smoke`) : un gris bleute, ni
 ## le rouge d'un refus ni la craie d'un fait.
 const SMOKE_INK := Color("#9fb4c7")
@@ -42,7 +47,7 @@ var _panel: PanelContainer
 var _name: Label
 var _sprung: HBoxContainer
 var _sprung_count: Label
-var _smoke: Label
+var _smoke: HBoxContainer
 var _note: Label
 var _over: VBoxContainer
 var _over_strong: Label
@@ -84,6 +89,11 @@ func _build() -> void:
 	_panel = Kit.panel(hud_style())
 	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(_panel)
+	# Le texte qui revient a la ligne connait sa hauteur une fois sa largeur
+	# posee : le panneau suit, differe pour ne pas re-mesurer dans la mesure.
+	# Sans ca, la ligne de la fumee, mesuree sur 1 px, tenait le panneau a
+	# toute la hauteur de l'ecran jusqu'au premier pas.
+	_panel.minimum_size_changed.connect(func() -> void: _measure.call_deferred())
 	var column := Kit.vbox(8)
 	_panel.add_child(column)
 
@@ -101,9 +111,12 @@ func _build() -> void:
 	_sprung.add_child(_sprung_count)
 	header.add_child(_sprung)
 
-	_smoke = Kit.note(WEB_SMOKE, SMOKE_INK, 11)
-	_smoke.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	column.add_child(_smoke)
+	# LA FUMEE, en pastille sur la meme ligne : le nuage de la boutique et
+	# deux mots. Elle suffit a dire que le plateau sans chiffres est voulu.
+	_smoke = Kit.hbox(4)
+	_smoke.add_child(ItemSlot.art_for("smoke", SMOKE_ART))
+	_smoke.add_child(Kit.label(WEB_SMOKE, 11, SMOKE_INK))
+	header.add_child(_smoke)
 
 	_note = Kit.note("", Palette.BAD_ON_WOOD, 11)
 	_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -131,7 +144,20 @@ func _build() -> void:
 	# energie s'epuise.
 	_retreat = Kit.button(I18N.shout(I18N.t("run.retreat")), "wood", 0, 44)
 	_retreat.pressed.connect(func() -> void: RaidState.current.leave())
-	column.add_child(_retreat)
+	header.add_child(_retreat)
+	_fit_retreat()
+	for child in header.get_children():
+		(child as Control).size_flags_vertical = Control.SIZE_SHRINK_CENTER
+
+
+## LA PLANCHE A LA LARGEUR DE SON MOT, plus ses deux bouts feuillus. Sur une
+## ligne partagee, le nom (qui s'etire) l'ecrasait a ses seuls bouts.
+func _fit_retreat() -> void:
+	var ink: Label = _retreat._ink
+	var font := ink.get_theme_font("font")
+	var px := ink.get_theme_font_size("font_size")
+	var w := font.get_string_size(ink.text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
+	_retreat.custom_minimum_size.x = ceilf(w) + 2.0 * Kit.LEAF_EDGE
 
 
 func _reach_top() -> void:
@@ -155,6 +181,7 @@ func _measure() -> void:
 
 func _on_locale_changed(_code: String) -> void:
 	_retreat.relabel(I18N.shout(I18N.t("run.retreat")))
+	_fit_retreat()
 	_refresh()
 
 
