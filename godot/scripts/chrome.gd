@@ -488,15 +488,19 @@ func defend(on: bool, finished: bool = false) -> void:
 var _alarm: RaidAlarm
 
 
-func alarm_on(who: String) -> void:
+func alarm_on(who: String, action: String = "") -> RaidAlarm:
 	if _alarm != null and is_instance_valid(_alarm):
-		return
+		return _alarm
 	_alarm = RaidAlarm.new()
 	_alarm.who = who
-	_alarm.banner = false
+	# Au terrier, le panneau de defense dit deja qui entre ; ailleurs, rien
+	# ne le dit : le bandeau crie, et le bouton ramene.
+	_alarm.banner = not action.is_empty()
+	_alarm.action = action
 	overlays.add_child(_alarm)
 	overlays.move_child(_alarm, 0)
 	Kit.fill(_alarm)
+	return _alarm
 
 
 ## Un coup chez nous (une bombe a saute sous lui) : les lignes repartent.
@@ -510,6 +514,96 @@ func alarm_off() -> void:
 	if _alarm != null and is_instance_valid(_alarm):
 		_alarm.finish()
 	_alarm = null
+
+
+## UN RAID SUR NOTRE TERRIER PENDANT QU'ON EST AILLEURS — sur l'ile, la tete
+## dans le sable. RaidState ne garde le raid subi qu'au terrier (il n'a pas
+## de plateau ou le poser ailleurs) ; mais la socket le pousse partout, et
+## se taire ici, c'etait apprendre le pillage au retour (le user,
+## 2026-10-01 : « il le sait pas, faut une grosse notification alerte »).
+## Le meme cri qu'au terrier, bandeau compris, plus DEFENDRE qui ramene.
+## Le raid est le notre : on ne lit que ce que la poussee dit.
+var _away_raid := ""
+var _away_sprung := 0
+var _away_ended := ""
+## Plus de nouvelles depuis AWAY_QUIET_S : la fin s'est perdue (socket
+## coupee) — l'alerte ne reste pas allumee pour toujours.
+const AWAY_QUIET_S := 45.0
+var _away_quiet: Timer
+
+
+func _raid_away(d: Dictionary) -> void:
+	if Screens.place == Screens.Place.BURROW or not Screens.in_world() or Screens.crossing:
+		return
+	if RaidState.current.has_raid():
+		return
+	var id := String(d.get("raidId", ""))
+	var attacker: Dictionary = d.get("attacker", {}) if d.get("attacker") is Dictionary else {}
+	if bool(d.get("finished", false)):
+		if id == _away_ended:
+			return
+		_away_ended = id
+		var was_on := not _away_raid.is_empty()
+		_away_off()
+		if not was_on:
+			return
+		var looted := int(d.get("carrotsLooted", 0))
+		if bool(d.get("struck", false)):
+			toast(I18N.t("defend.struckDown"))
+		elif bool(d.get("succeeded", false)) and looted > 0:
+			toast(I18N.f("defend.looted", [I18N.group_digits(looted)]), true)
+		else:
+			toast(I18N.t("defend.held_"))
+		return
+	_quiet_timer().start(AWAY_QUIET_S)
+	if _away_raid == id:
+		# UNE BOMBE A SAUTE sous lui, chez nous : les lignes repartent.
+		var sprung := int(d.get("trapsSprung", 0))
+		if sprung > _away_sprung:
+			_away_sprung = sprung
+			alarm_burst()
+			Sound.play("explosion")
+		return
+	_away_raid = id
+	_away_sprung = int(d.get("trapsSprung", 0))
+	alarm_off()
+	var alarm := alarm_on(String(attacker.get("name", "")), I18N.t("loop.defend"))
+	alarm.acted.connect(_defend_from_away)
+	Sound.play("explosion")
+	Input.vibrate_handheld(600)
+	Analytics.track("defend_alarm_away", {})
+
+
+## DEFENDRE, depuis l'ile : rentrer (le serveur banque sur `leave`, comme le
+## bouton de retour), et le terrier relit le raid subi en arrivant
+## (RaidState `_on_moved` → `refresh_incoming`). Le chemin de push.gd.
+func _defend_from_away() -> void:
+	if Screens.crossing:
+		return
+	Analytics.track("defend_alarm_tap", {})
+	_away_off()
+	if Screens.place == Screens.Place.ISLAND:
+		RunState.current.go_home()
+	Screens.cross(Screens.Place.BURROW)
+
+
+func _away_off() -> void:
+	if _away_raid.is_empty():
+		return
+	_away_raid = ""
+	_away_sprung = 0
+	if _away_quiet != null:
+		_away_quiet.stop()
+	alarm_off()
+
+
+func _quiet_timer() -> Timer:
+	if _away_quiet == null:
+		_away_quiet = Timer.new()
+		_away_quiet.one_shot = true
+		_away_quiet.timeout.connect(_away_off)
+		add_child(_away_quiet)
+	return _away_quiet
 
 
 ## LE PLATEAU DU RAID vient de monter, ou de redescendre (burrow.gd, au noir
@@ -712,6 +806,9 @@ func _on_socket_event(name: String, data: Variant) -> void:
 	if name == "__follow" and data is Dictionary:
 		watch(String((data as Dictionary).get("playerId", "")))
 		return
+	if name == "raid_incoming" and data is Dictionary:
+		_raid_away(data)
+		return
 	if name != "banked" or not (data is Dictionary):
 		return
 	_pending_haul = int((data as Dictionary).get("carrots", 0))
@@ -775,6 +872,8 @@ func _on_moved(place: int) -> void:
 	# AVANT ce signal) — on ne le lui reprend pas.
 	if place != Screens.Place.BURROW:
 		_raid_shown = false
+	# L'alerte d'ailleurs ne suit pas : au terrier, burrow.gd allume la sienne.
+	_away_off()
 	# Un dialogue ouvert sur un lieu ne suit pas le joueur sur l'autre, ni un
 	# mode du terrier.
 	close_dialog()

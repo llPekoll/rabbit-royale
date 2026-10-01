@@ -12,6 +12,11 @@ extends Control
 ##   • LE BANDEAU sous la barre du haut : « KURO IS RAIDING YOU », qui claque
 ##     en entrant et dont le cadre rougit avec le battement.
 ##
+##   • LE BOUTON, hors du terrier seulement (`action`) : DEFENDRE, sous le
+##     bandeau, qui bat avec lui. Sur l'ile on creuse la tete baissee et le
+##     raid passait inapercu (le user, 2026-10-01 : « il le sait pas, faut
+##     une grosse notification alerte ») ; une tape ramene au terrier.
+##
 ## Demande pour la video de defense (le user, 2026-09-30 : « une notification
 ## under attack, avec une lumiere rouge de temps en temps ou les lignes rouges
 ## qui convergent vers le centre »). Rien ici ne lit le reseau : on la pose
@@ -36,6 +41,10 @@ const BURST_S := 1.1
 ## SOUS LE MEDAILLON, pas sous TOPBAR_H : la jauge et sa pastille d'energie
 ## pendent plus bas que la barre, et le bandeau passait dessous (« K… U »).
 const BANNER_Y := Kit.TOPBAR_H * 2.0
+## Le bouton DEFENDRE : large, sous le bandeau.
+const BUTTON_W := 240.0
+const BUTTON_H := 56.0
+const BUTTON_GAP := 14.0
 
 ## Le nom de l'intrus, pose avant l'entree dans l'arbre.
 var who := ""
@@ -43,11 +52,17 @@ var who := ""
 ## (defend_hud.gd) dit deja « KURO IS RAIDING YOU », avec l'eclair dessous —
 ## deux fois la meme ligne l'une sur l'autre ne crie pas plus fort.
 var banner := true
+## Le mot du bouton sous le bandeau ; vide, pas de bouton (au terrier, on y
+## est deja). Une tape emet `acted`.
+var action := ""
+
+signal acted
 
 var _veil: TextureRect
 var _lines: FocusLines
 var _banner: PanelContainer
 var _frame: StyleBoxFlat
+var _button: PlankButton
 var _t := 0.0
 var _burst := 0.0
 var _fade := 1.0
@@ -78,7 +93,8 @@ func _ready() -> void:
 	_frame.content_margin_top = 5.0
 	_frame.content_margin_bottom = 5.0
 	_banner.add_theme_stylebox_override("panel", _frame)
-	var words := Kit.label(I18N.f("defend.underAttack", [who.to_upper()]), 20, Color("#ffe3dc"))
+	# Hors du terrier, le bandeau est le seul a le dire : plus gros.
+	var words := Kit.label(I18N.f("defend.underAttack", [who.to_upper()]), 20 if action.is_empty() else 28, Color("#ffe3dc"))
 	words.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	words.add_theme_color_override("font_shadow_color", DEEP)
 	words.add_theme_constant_override("shadow_offset_x", 0)
@@ -86,6 +102,15 @@ func _ready() -> void:
 	_banner.add_child(words)
 	add_child(_banner)
 	_banner.visible = banner
+
+	if not action.is_empty():
+		_button = preload("res://scenes/plank_button.tscn").instantiate()
+		_button.board = PlankButton.Board.DANGER
+		_button.label_size = 20
+		_button.custom_minimum_size = Vector2(BUTTON_W, BUTTON_H)
+		_button.relabel(action)
+		_button.pressed.connect(func() -> void: acted.emit())
+		add_child(_button)
 
 	resized.connect(_place)
 	_place.call_deferred()
@@ -99,6 +124,10 @@ func _place() -> void:
 	_banner.size = want
 	_banner.position = Vector2(floorf((size.x - want.x) * 0.5), BANNER_Y)
 	_banner.pivot_offset = want * 0.5
+	if _button != null:
+		_button.size = Vector2(BUTTON_W, BUTTON_H)
+		_button.position = Vector2(floorf((size.x - BUTTON_W) * 0.5), BANNER_Y + want.y + BUTTON_GAP)
+		_button.pivot_offset = _button.size * 0.5
 
 
 ## Le bandeau claque : 1,7x, puis se pose.
@@ -108,6 +137,9 @@ func _slam() -> void:
 	var t := create_tween().set_parallel(true)
 	t.tween_property(_banner, "modulate:a", 1.0, 0.12)
 	t.tween_property(_banner, "scale", Vector2.ONE, 0.32).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	if _button != null:
+		_button.modulate.a = 0.0
+		t.tween_property(_button, "modulate:a", 1.0, 0.2).set_delay(0.18)
 
 
 ## UN COUP : l'arrivee, une bombe qui saute — les lignes repartent a fond.
@@ -123,6 +155,9 @@ func finish() -> void:
 	var t := create_tween().set_parallel(true)
 	t.tween_property(self, "_fade", 0.0, 0.45)
 	t.tween_property(_banner, "modulate:a", 0.0, 0.3)
+	if _button != null:
+		_button.disabled = true
+		t.tween_property(_button, "modulate:a", 0.0, 0.3)
 	t.chain().tween_callback(queue_free)
 
 
@@ -134,6 +169,9 @@ func _process(delta: float) -> void:
 	_veil.modulate.a = lerpf(VEIL_LOW, VEIL_HIGH, beat) * _fade
 	_lines.strength = maxf(_burst, beat * LINES_REST) * _fade
 	_frame.border_color = RED.lerp(Color("#ffd0c8"), beat)
+	# Le bouton gonfle au battement : il appelle, il n'attend pas.
+	if _button != null and not _button.button_pressed:
+		_button.scale = Vector2.ONE * (1.0 + 0.06 * beat)
 	_lines.jitter(delta, JITTER_S)
 
 
