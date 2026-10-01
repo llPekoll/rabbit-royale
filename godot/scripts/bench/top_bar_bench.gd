@@ -4,6 +4,7 @@ extends Control
 ##
 ##   godot --path godot scenes/bench/top_bar_bench.tscn -- --shot=bar.png --after=2
 ##   ... -- --run      # en pleine manche : coffres, butin, energie de la manche
+##   ... -- --refill   # retour de manche : le cadran vide remonte au reservoir
 ##   ... -- --sound    # le panneau du son ouvert, comme apres un tap
 ##
 ## Home et Session sont des autoloads : on ecrit directement dedans, la
@@ -36,6 +37,16 @@ func _ready() -> void:
 	if "--run" in OS.get_cmdline_user_args():
 		bar.set_run(18, {"taken": 0, "total": 1, "warnStage": 0})
 		bar.set_run_energy(295)
+
+	# `-- --refill` : le retour de manche — le cadran vide remonte au
+	# reservoir (carrot_pill.gd `_refilled`), le chiffre imprime en route.
+	if "--refill" in OS.get_cmdline_user_args():
+		Home.burrow["energy"] = 240
+		bar.set_run_energy(0)
+		get_tree().create_timer(0.3).timeout.connect(func() -> void: bar.set_run_energy(-1))
+		for i in 12:
+			get_tree().create_timer(0.3 + i * 0.15).timeout.connect(func() -> void:
+				print("[bench] dial ", bar.pill.dial.value))
 
 	if "--sound" in OS.get_cmdline_user_args():
 		(func() -> void: bar.sound.set_open(true)).call_deferred()

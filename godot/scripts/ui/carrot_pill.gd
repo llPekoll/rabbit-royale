@@ -306,7 +306,7 @@ func _tick_energy() -> void:
 		max_energy = Tuning.i("ENERGY.MAX", 300)
 	elif _has_bank:
 		var live := Home.live_energy()
-		energy = int(live.get("energy", 0))
+		energy = _refilled(int(live.get("energy", 0)))
 		max_energy = int(live.get("max", 1))
 	else:
 		dial.value = 0.0
@@ -318,6 +318,34 @@ func _tick_energy() -> void:
 		_energy_figure.text = I18N.group_digits(energy)
 		_energy_tag.tooltip_text = I18N.f("loop.energyOf", [energy, max_energy])
 		_hang_energy()
+
+
+## LE RETOUR AU TERRIER REMPLIT LE CADRAN. La manche l'a vide ; en rentrant,
+## il repart de zero et remonte jusqu'au reservoir, chiffre compris (Peko,
+## 2026-10-01 : « qu'elle soit videe et qu'elle se remplisse jusqu'a la
+## valeur d'energie que le joueur a »). Tant que le rideau couvre l'ecran, il
+## reste a zero : le geste commence quand on le voit.
+const REFILL_SECONDS := 0.6
+const REFILL_PER_FULL := 0.8
+var _refill_armed := false
+var _refill_from_ms := -1
+
+
+func _refilled(energy: int) -> int:
+	if not _refill_armed:
+		return energy
+	if Screens.crossing:
+		_refill_from_ms = -1
+		return 0
+	if _refill_from_ms < 0:
+		_refill_from_ms = Time.get_ticks_msec()
+	var max_energy := maxf(1.0, float(Home.live_energy().get("max", 1)))
+	var seconds := REFILL_SECONDS + REFILL_PER_FULL * minf(1.0, energy / max_energy)
+	var t := (Time.get_ticks_msec() - _refill_from_ms) / 1000.0 / seconds
+	if t >= 1.0:
+		_refill_armed = false
+		return energy
+	return int(round(energy * ease(t, 0.4)))
 
 
 ## L'etiquette, centree sous l'anneau, qui chevauche un peu son epingle.
@@ -360,6 +388,10 @@ var _run_energy := -1
 func set_run_energy(energy: int) -> void:
 	if energy == _run_energy:
 		return
+	# La manche rend la main au reservoir : le cadran repart de zero.
+	if _run_energy >= 0 and energy < 0:
+		_refill_armed = true
+		_refill_from_ms = -1
 	_run_energy = energy
 	refresh()
 
