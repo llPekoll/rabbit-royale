@@ -139,6 +139,21 @@ var _home: Sprite2D
 var _roof_tex: Texture2D
 var _roof_y := 0.0
 var _float_origins := {}
+
+## LES ICONES FLOTTANTES (DIG, DEFEND, RAID), plus grosses depuis le
+## 2026-10-01, avec un liseré blanc et un reflet qui les traverse de temps en
+## temps — UNE A LA FOIS, jamais deux fois de suite la meme (icon_glint).
+const ICON_PX := 44.0
+const ICON_LIFT := 34.0
+## Le liseré, en pixels du monde ; le shader le veut en texels de l'icone.
+const OUTLINE_WORLD := 1.5
+const GLINT := preload("res://shaders/icon_glint.gdshader")
+const GLINT_SECONDS := 0.7
+## L'attente entre deux reflets, toujours plus longue qu'un reflet : deux
+## icones ne brillent jamais ensemble.
+const GLINT_EVERY := Vector2(2.2, 4.2)
+var _glint_wait := 1.5
+var _glint_last := ""
 var _float_shadows := {}
 
 
@@ -654,9 +669,16 @@ func _place_building(spec: Dictionary, top: Vector2i, islets: BurrowMap, lo: Vec
 	root.add_child(sprite)
 	_buildings[spec["door"]] = sprite
 	if spec.get("floating", false):
-		# Uniform 32-pixel icons, raised above their own island centre.
-		sprite.scale = Vector2.ONE * (32.0 / maxf(tex.get_width(), tex.get_height()))
-		var rest := ground + Vector2(0, -28)
+		# Des icones de ICON_PX, levees au-dessus du milieu de leur ilot.
+		var k := ICON_PX / maxf(tex.get_width(), tex.get_height())
+		sprite.scale = Vector2.ONE * k
+		var glint := ShaderMaterial.new()
+		glint.shader = GLINT
+		# Jamais sous un texel : plus fin, l'echantillon retombe sur le meme
+		# pixel et le liseré ne se dessinait qu'au bord du quad (la pioche).
+		glint.set_shader_parameter("outline_px", maxf(1.0, roundf(OUTLINE_WORLD / k)))
+		sprite.material = glint
+		var rest := ground + Vector2(0, -ICON_LIFT)
 		_float_origins[spec["door"]] = rest
 		sprite.position = rest
 		var shadow := IconShadow.new()
@@ -927,9 +949,33 @@ func _make_sign(door: String) -> Sign:
 	return sign
 
 
+## LE REFLET SUIVANT : une icone tiree au sort parmi les autres que la
+## derniere, qui brille seule le temps de GLINT_SECONDS.
+func _tick_glint(delta: float) -> void:
+	if _float_origins.is_empty():
+		return
+	_glint_wait -= delta
+	if _glint_wait > 0.0:
+		return
+	_glint_wait = randf_range(GLINT_EVERY.x, GLINT_EVERY.y)
+	var doors: Array = _float_origins.keys()
+	if doors.size() > 1:
+		doors.erase(_glint_last)
+	var door: String = doors.pick_random()
+	_glint_last = door
+	var sprite: Sprite2D = _buildings.get(door)
+	if sprite == null or not (sprite.material is ShaderMaterial):
+		return
+	var glint := sprite.material as ShaderMaterial
+	var tw := sprite.create_tween()
+	tw.tween_method(func(at: float) -> void: glint.set_shader_parameter("shine", at),
+		-0.3, 1.3, GLINT_SECONDS).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+
 ## Interface labels follow projected world anchors without inheriting world scale.
 func _process(delta: float) -> void:
 	_float_time += delta
+	_tick_glint(delta)
 	for door in _float_origins:
 		var bob := sin(_float_time * 2.0) * 2.0
 		(_buildings[door] as Sprite2D).position = (_float_origins[door] as Vector2) + Vector2(0, bob)
