@@ -68,6 +68,9 @@ const ISLETS := [
 ## LA PLANCHE a l'ecran : taille du verbe et de la ligne, en pixels d'ECRAN.
 ## Dessinee dans l'interface : sa taille ne depend pas du zoom du monde.
 const VERB_PX := 13
+## La pastille du « ! » (la hauteur du « NEW » de la barre) et son jaune vif.
+const BADGE_PX := 20.0
+const BADGE_YELLOW := Color("#ffe23a")
 ## LA REVELATION (`_wanted`, `_rise`). Ce qu'un joueur a deja vu sortir de
 ## l'eau, par joueur ; DIG apres le tuto, DEFEND au niveau 2, RAID a RAID_MIN.
 const REVEAL_PATH := "user://reveal.cfg"
@@ -847,7 +850,11 @@ class Sign extends Button:
 	var verb: Label
 	var line: Label
 	var energy_icon: TextureRect
-	var badge: Label
+	## LE « ! » DE LA PORTE A PRENDRE, sur la pastille a feuilles du « NEW »
+	## de la barre (Kit.badge) et en jaune vif — c'etait un rond plat dessine
+	## a la main, a l'encre, d'un autre style que tout le chrome (2026-10-01).
+	var badge: NineSlice
+	var _badge_mark: Label
 	var _body: PanelContainer
 	var _ui_scale := -1.0
 
@@ -887,17 +894,13 @@ class Sign extends Button:
 		energy_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		energy_icon.visible = false
 		details.add_child(energy_icon)
-		badge = Kit.label("!", VERB_PX, Palette.INK)
-		badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var bg := StyleBoxFlat.new()
-		bg.bg_color = Color("#ffd45c")
-		bg.set_corner_radius_all(9)
-		bg.set_border_width_all(2)
-		bg.border_color = Color("#352011")
-		badge.add_theme_stylebox_override("normal", bg)
-		badge.custom_minimum_size = Vector2(18, 18)
+		badge = Kit.badge(BADGE_PX)
+		badge.size = Vector2(BADGE_PX, BADGE_PX)
+		_badge_mark = Kit.label("!", VERB_PX, BADGE_YELLOW, true)
+		_badge_mark.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_badge_mark.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		Kit.fill(_badge_mark)
+		badge.add_child(_badge_mark)
 		badge.visible = false
 		add_child(badge)
 		button_down.connect(func() -> void: _body.position.y = 2.0)
@@ -925,7 +928,11 @@ class Sign extends Button:
 		# Rasterize text at its final screen size instead of scaling glyphs.
 		verb.add_theme_font_size_override("font_size", roundi(VERB_PX * value))
 		line.add_theme_font_size_override("font_size", roundi(LINE_PX * value))
-		badge.add_theme_font_size_override("font_size", roundi(VERB_PX * value))
+		_badge_mark.add_theme_font_size_override("font_size", roundi(VERB_PX * value))
+		var side := roundf(BADGE_PX * value)
+		var k := side / float(Kit.BADGE.get_height())
+		badge.edge = Vector4(Kit.BADGE_SLICE) * k
+		badge.size = Vector2(side, side)
 		_body.add_theme_stylebox_override("panel", Kit.style_plank(2.0 * value, roundf(12.0 * value), roundf(3.0 * value)))
 		_fit.call_deferred()
 
@@ -935,7 +942,7 @@ class Sign extends Button:
 		_body.size = want
 		size = want
 		custom_minimum_size = want
-		badge.position = Vector2(want.x - 10.0, -8.0)
+		badge.position = Vector2(want.x - badge.size.x * 0.6, -badge.size.y * 0.45)
 
 
 func _make_sign(door: String) -> Sign:
