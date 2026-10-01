@@ -234,7 +234,7 @@
 			"$t": "TERRIER NIV {0}"
 		},
 		"maxLevel": "NIVEAU MAX",
-		"upgrade": "CREUSER PLUS",
+		"upgrade": "AMÉLIORER",
 		"safe": "À L’ABRI",
 		"exposed": {
 			"$t": "{0} EXPOSÉES"

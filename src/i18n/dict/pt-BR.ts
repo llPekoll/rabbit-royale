@@ -169,7 +169,7 @@ export const ptBR: Dict = {
     title: 'SUA TOCA',
     level: (n) => `TOCA NÍV ${n}`,
     maxLevel: 'NÍVEL MÁXIMO',
-    upgrade: 'CAVAR MAIS',
+    upgrade: 'MELHORAR',
     safe: 'A SALVO',
     exposed: (n) => `${n} EXPOSTAS`,
     garden: 'HORTA',

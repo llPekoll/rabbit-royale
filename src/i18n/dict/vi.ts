@@ -172,7 +172,7 @@ export const vi: Dict = {
     title: 'HANG CỦA BẠN',
     level: (n) => `HANG CẤP ${n}`,
     maxLevel: 'CẤP TỐI ĐA',
-    upgrade: 'ĐÀO SÂU HƠN',
+    upgrade: 'NÂNG CẤP',
     safe: 'AN TOÀN',
     exposed: (n) => `${n} BỊ LỘ`,
     garden: 'VƯỜN',

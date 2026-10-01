@@ -21,15 +21,16 @@ class_name BurrowLandmarks
 ##     direction et rentre vers le centre tant qu'il reste GAP cases d'eau
 ##     entre lui et toute terre. Une ile large les repousse, une ile maigre
 ##     les rapproche, l'ecart reste le meme.
-##   • LA MAISON (UPGRADE) ET LE POTAGER (HARVEST) ont aussi leur planche.
+##   • LE POTAGER (HARVEST) a aussi sa planche ; la maison n'en a plus (son
+##     volet est en haut a droite, house_panel.gd).
 ##     La planche ouvre la porte ; le batiment lui-meme reste a l'amenagement
 ##     (un clic le prend), sinon on ne pourrait plus le deplacer.
 ##
 ## DIG, DEFEND et RAID utilisent les icones du kit, flottant sur une ombre.
 ## SHOP conserve son etal. Chaque porte garde sa planche de label.
 
-## Une porte vient d'etre pressee : "dig", "defend", "raid", "shop",
-## "harvest" ou "upgrade". Le chrome sait ou elle mene (`Chrome.go`).
+## Une porte vient d'etre pressee : "dig", "defend", "raid", "shop" ou
+## "harvest". Le chrome sait ou elle mene (`Chrome.go`).
 signal door_pressed(door: String)
 ## Les ilots a montrer ne sont plus ceux poses : le terrier doit rebatir
 ## (burrow.gd `_rebuild_islets`) — la mer, sa cote et le cadrage en dependent.
@@ -227,7 +228,9 @@ func build(main: BurrowMap, own: bool = true) -> void:
 	for spec in ISLETS:
 		if _built.has(spec["door"]):
 			_lay_bridge(spec["door"])
-	for door in ["harvest", "upgrade"]:
+	# PLUS DE PLANCHE AMELIORER sur la maison (2026-10-01) : le volet du
+	# terrier, en haut a droite (house_panel.gd), la remplace.
+	for door in ["harvest"]:
 		_signs[door] = _make_sign(door)
 	# CE QU'ON N'AVAIT JAMAIS VU SORT DE L'EAU, une fois par joueur.
 	if _own:

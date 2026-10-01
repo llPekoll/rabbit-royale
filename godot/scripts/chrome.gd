@@ -62,6 +62,8 @@ var _column: BurrowColumn
 var _loop: LoopBar
 var _kit: KitRow
 var _back: BackButton
+## Le volet du terrier, sous les boutons du haut a droite (house_panel.gd).
+var _house: HousePanel
 ## Le mode du terrier en cours ("placing", "walling"), vide sinon.
 var _mode := ""
 ## NETTOYER LA BASE, en DEFEND : a la place de la colonne, qui s'efface.
@@ -210,6 +212,7 @@ func _mount_place() -> void:
 	_loop = null
 	_kit = null
 	_back = null
+	_house = null
 	_arrange_bar = null
 	_arrange_tip = null
 
@@ -247,6 +250,11 @@ func _mount_place() -> void:
 	# `_mount_place` repasse a chaque arrivee : on ne branche qu'une fois.
 	if not ShopState.shared().changed.is_connected(_feed_kit):
 		ShopState.shared().changed.connect(_feed_kit)
+
+	# LE VOLET DU TERRIER, sous les boutons du haut a droite : le niveau, le
+	# suivant, le coffre, AMELIORER (house_panel.gd).
+	_house = HousePanel.new()
+	floor_host.add_child(_house)
 
 	_back = preload("res://scenes/ui/back_button.tscn").instantiate()
 	floor_host.add_child(_back)
@@ -386,26 +394,11 @@ func _on_door(door: String) -> void:
 			var res: Dictionary = await Home.act("harvest")
 			if int(res.get("harvested", 0)) > 0:
 				Sound.play("hop", 1.4)
-		# LA MAISON : sa carte en dialogue — un achat se lit avant de payer.
+		# LA MAISON : son volet, en haut a droite (house_panel.gd) — il a pris
+		# la place de la carte qui s'ouvrait au milieu de l'ecran.
 		"upgrade":
-			# DANS UNE BOITE A SA TAILLE : la carte se mesure sur la boite qui
-			# la tient (HubCard `layout`), comme dans la colonne.
-			var view := get_viewport_rect().size
-			var holder := Control.new()
-			holder.custom_minimum_size = Vector2(minf(300.0, view.x - 40.0), minf(190.0, view.y - 40.0))
-			var panel: HubCard = preload("res://scenes/ui/burrow_panel.tscn").instantiate()
-			holder.add_child(panel)
-			Kit.fill(panel)
-			# Le [x] de tous les panneaux, dans le coin haut droit du contenu :
-			# la carte n'en avait pas, et seul le voile la fermait.
-			var close := Kit.close_button()
-			close.pressed.connect(close_dialog)
-			holder.add_child(close)
-			var place := func() -> void:
-				close.position = panel.content_corner() - Vector2(Kit.CLOSE_SIZE, 0.0)
-			panel.resized.connect(place)
-			place.call_deferred()
-			open(holder)
+			if _house != null:
+				_house.expand()
 
 
 ## DIG. Pas de liste : le SERVEUR choisit l'ile au niveau du lapin (1 a 10,

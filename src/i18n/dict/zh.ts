@@ -171,7 +171,7 @@ export const zh: Dict = {
     title: '你的兔窝',
     level: (n) => `兔窝 - ${n} 级`,
     maxLevel: '已达最深',
-    upgrade: '继续挖深',
+    upgrade: '升级',
     safe: '安全',
     exposed: (n) => `${n} 暴露在外`,
     garden: '菜园',

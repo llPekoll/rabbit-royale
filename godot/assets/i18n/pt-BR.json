@@ -216,7 +216,7 @@
 			"$t": "TOCA NÍV {0}"
 		},
 		"maxLevel": "NÍVEL MÁXIMO",
-		"upgrade": "CAVAR MAIS",
+		"upgrade": "MELHORAR",
 		"safe": "A SALVO",
 		"exposed": {
 			"$t": "{0} EXPOSTAS"

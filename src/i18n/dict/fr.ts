@@ -165,7 +165,7 @@ export const fr: Dict = {
     title: 'TON TERRIER',
     level: (n) => `TERRIER NIV ${n}`,
     maxLevel: 'NIVEAU MAX',
-    upgrade: 'CREUSER PLUS',
+    upgrade: 'AMÉLIORER',
     safe: 'À L’ABRI',
     exposed: (n) => `${n} EXPOSÉES`,
     garden: 'POTAGER',
