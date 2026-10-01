@@ -905,7 +905,11 @@ func _wanted_cam() -> BurrowCamera.Shot:
 		# se passer derriere le chrome du haut.
 		var top := maxf(Kit.TOPBAR_H, TopBar.hang_bottom()) + Kit.PAD_TIGHT
 		return BurrowCamera.board(map, view.x, view.y, top)
-	if _placing or _walling:
+	# DEFEND GARDE UNE SEULE PRISE, quel que soit l'objet choisi (2026-10-01) :
+	# le bouclier et la fumee n'ont rien a poser, et retombaient sur la prise
+	# de la maison — dezoomee, DIG et SHOP de retour dans un ecran qui ne
+	# parle que de defense. Ils gardent celle de la pose.
+	if _placing or _walling or _defend_kit:
 		# LE JOUEUR GARDE LA MAIN : on ne recadre pas sous lui, on borne.
 		if _cam_moved_by_player:
 			return BurrowCamera.clamp_place(_current_shot(), map, view.x, view.y)
@@ -970,6 +974,19 @@ func _reframe() -> void:
 ##
 ## Chacun RE-RESOUT la prise — c'est le seul moment ou on a le droit de la
 ## reprendre au joueur, parce que c'est lui qui vient de changer de mode.
+## LA SEANCE DEFEND, ouverte et fermee par le chrome : tant qu'elle dure,
+## passer d'un objet a l'autre ne reprend pas la camera au joueur.
+var _defend_kit := false
+
+
+func set_defend_kit(on: bool) -> void:
+	if _defend_kit == on:
+		return
+	_defend_kit = on
+	_cam_moved_by_player = false
+	frame_camera()
+
+
 func set_placing(on: bool) -> void:
 	if _placing == on:
 		return
@@ -978,7 +995,9 @@ func set_placing(on: bool) -> void:
 	_placing = on
 	# ENTRER DANS UN MODE REND LA CAMERA : c'est un nouveau sujet, donc une
 	# nouvelle prise. En SORTIR aussi, pour revenir a la maison proprement.
-	_cam_moved_by_player = false
+	# Sauf d'un objet a l'autre dans DEFEND : meme sujet, meme prise.
+	if not _defend_kit:
+		_cam_moved_by_player = false
 	# LA GRILLE N'APPARAIT QUE PENDANT LA POSE. Le reste du temps, cet ecran
 	# est une image de chez soi — pas un editeur de niveau.
 	_hints.show_hints(on)
@@ -994,7 +1013,8 @@ func set_walling(on: bool) -> void:
 		return
 	_release_hold()
 	_walling = on
-	_cam_moved_by_player = false
+	if not _defend_kit:
+		_cam_moved_by_player = false
 	_fences.set_placing(on and not _in_raid)
 	_relabel_cycle()
 	frame_camera()

@@ -42,6 +42,8 @@ signal start_walling
 signal inspect
 ## « Use a shield ».
 signal use_shield
+## Les cases viennent d'etre reposees (`tray_rect` a change).
+signal laid_out
 
 ## Les groupes, dans l'ordre du web, avec la case ouverte par defaut.
 ## Un seul groupe aujourd'hui : avec un seul, la rangee ne montre pas
@@ -211,6 +213,12 @@ func _measure() -> void:
 	_column.position = Vector2(floorf((size.x - want.x) * 0.5), size.y - Kit.EDGE - want.y)
 
 	_fit_detail()
+	laid_out.emit()
+
+
+## Les cases a l'ecran, pour ce qui se pose a cote (CLEAR ALL, chrome.gd).
+func tray_rect() -> Rect2:
+	return _tray.get_global_rect() if _tray != null and _tray.is_visible_in_tree() else Rect2()
 
 
 func _fit_detail() -> void:

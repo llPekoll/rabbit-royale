@@ -253,6 +253,7 @@ func _mount_place() -> void:
 	_kit.start_placing.connect(_switch_mode.bind("placing"))
 	_kit.start_walling.connect(_switch_mode.bind("walling"))
 	_kit.inspect.connect(_switch_mode.bind("inspect"))
+	_kit.laid_out.connect(func() -> void: _place_clean.call_deferred())
 	# LA RANGEE SUIT L'ETAL : une bombe ou une planche posee passe par
 	# ShopState, qui relit le serveur — la carte du kit, elle, gardait sa
 	# lecture d'ouverture (« 3 available · 0 placed » apres trois planches).
@@ -641,6 +642,7 @@ func _start_mode(mode: String, expanded: bool = true) -> void:
 	_mount_clean()
 	var burrow := Screens.at(Screens.Place.BURROW)
 	if burrow != null and burrow.has_method("set_placing"):
+		burrow.call("set_defend_kit", true)
 		burrow.call("set_placing", mode == "placing")
 		burrow.call("set_walling", mode == "walling")
 
@@ -700,11 +702,27 @@ func _relabel_clean() -> void:
 	var sz := Vector2(ceilf(w + 2.0 * PlankButton.TEXT_PAD + 8.0), CLEAN_H)
 	_clean.custom_minimum_size = sz
 	_clean.size = sz
-	# Au-dessus de BACK, a gauche : le pied du sol moins BACK (au plus
-	# BackButton.MAX_H) et un peu d'air.
+	_place_clean.call_deferred()
+
+
+## CLEAR ALL A COTE DES CASES, en bas au centre (2026-10-01) : c'est ce
+## qu'il vide, et en bas a gauche, au-dessus de BACK, il se lisait comme une
+## sortie. A droite de la rangee, centre sur elle ; a gauche si la droite
+## manque de place. Sans rangee posee : l'ancien coin, au-dessus de BACK.
+func _place_clean() -> void:
+	if _clean == null or not is_instance_valid(_clean):
+		return
 	var view := get_viewport_rect().size
-	_clean.global_position = Vector2(Kit.EDGE,
-		view.y - Kit.EDGE - BackButton.MAX_H - Kit.PAD - sz.y).round()
+	var sz := _clean.size
+	var tray: Rect2 = _kit.tray_rect() if _kit != null else Rect2()
+	if tray.size.x <= 0.0:
+		_clean.global_position = Vector2(Kit.EDGE,
+			view.y - Kit.EDGE - BackButton.MAX_H - Kit.PAD - sz.y).round()
+		return
+	var x := tray.end.x + KitRow.GAP
+	if x + sz.x > view.x - Kit.EDGE:
+		x = tray.position.x - KitRow.GAP - sz.x
+	_clean.global_position = Vector2(x, tray.get_center().y - sz.y * 0.5).round()
 
 
 func _on_clean() -> void:
@@ -797,6 +815,7 @@ func _end_mode() -> void:
 	if burrow != null and burrow.has_method("set_placing"):
 		burrow.call("set_placing", false)
 		burrow.call("set_walling", false)
+		burrow.call("set_defend_kit", false)
 
 
 ## `banked` : la run vient d'encaisser, sur l'ile. On garde, et on pose sur
@@ -892,6 +911,8 @@ func _on_moved(place: int) -> void:
 func _measure() -> void:
 	var view := get_viewport_rect().size
 	top_bar.offset_bottom = Kit.TOPBAR_H
+	# La rangee du kit se repose aussi : CLEAR ALL la suit.
+	_place_clean.call_deferred()
 
 	# 25 % de la largeur, entre 220 et 360 : au-dela, un grand ecran etirait
 	# les cartes sur 640 px pour trois lignes (2560 de large, 2026-09-23).
