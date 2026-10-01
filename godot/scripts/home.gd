@@ -222,6 +222,18 @@ func claim_quest(id: String) -> void:
 		Analytics.track("quest_claim", {"quest_id": id, "carrots": int(reward.get("carrots", 0)),
 			"item": reward.get("item", {}).get("kind", "") if reward.get("item") is Dictionary else ""})
 		quest_claimed.emit(id, reward)
+		# UN OBJET GAGNE vit dans l'etat de la boutique, pas dans `burrow` :
+		# sans relecture le kit gardait l'ancien compte, et la bombe recue ne
+		# se voyait nulle part. `granted` = ce que le sac a vraiment pris (un
+		# cadeau s'arrete au plafond, grant.ts).
+		var item: Variant = reward.get("item")
+		if item is Dictionary:
+			var given := int(res.get("granted", item.get("qty", 1)))
+			if given > 0:
+				noted.emit("+%d %s" % [given, I18N.t("items.%s.name" % String(item.get("kind", "")))], false)
+			else:
+				noted.emit(I18N.t("shopErrors.inventory_full"), true)
+			ShopState.shared().refresh()
 	if int(reward.get("carrots", 0)) > 0:
 		burst.emit(int(reward["carrots"]))
 

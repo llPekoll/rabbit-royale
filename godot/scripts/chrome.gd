@@ -241,7 +241,12 @@ func _mount_place() -> void:
 	_kit = preload("res://scenes/ui/kit_row.tscn").instantiate()
 	floor_host.add_child(_kit)
 	_kit.buy_trap_pressed.connect(func() -> void: ShopState.shared().buy("trap"))
-	_kit.use_shield.connect(func() -> void: ShopState.shared().buy("shield"))
+	# LEVER le bouclier tenu (POST /api/burrow `shield`), pas en racheter un :
+	# `buy` passait par /api/shop, payait 400 carottes et laissait le terrier
+	# nu — le bouclier d'une quete ne servait jamais.
+	_kit.use_shield.connect(func() -> void:
+		await Home.act("shield")
+		ShopState.shared().refresh())
 	# LES CASES DU KIT CHANGENT LE MODE DU PLATEAU (page.tsx : `startPlacing`,
 	# `startWalling`, `inspect`). Non branchees, la case cloture ouvrait sa
 	# carte et le plateau restait en pose de bombes : aucune planche a viser.

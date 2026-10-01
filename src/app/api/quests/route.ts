@@ -56,6 +56,9 @@ export async function POST(req: Request) {
     const carrots = quest.reward.carrots ?? 0;
     const item = quest.reward.item;
 
+    // What the bag actually took: a gift stops at the item's ceiling
+    // (grantItem), so a full bag can deliver less than the quest promised.
+    let granted = 0;
     const claimed = await db.transaction(async (tx) => {
       // The reward feeds all three counters like a harvest — a quest is a
       // carrot event, not a coupon. Guarded on the id NOT already being in
@@ -75,7 +78,7 @@ export async function POST(req: Request) {
       )).returning({ id: players.id });
       if (!row) return false;
 
-      if (item) await grantItem(tx, session.sub, item.kind, item.qty);
+      if (item) granted = (await grantItem(tx, session.sub, item.kind, item.qty)).qty;
       return true;
     });
 
@@ -85,6 +88,7 @@ export async function POST(req: Request) {
     return Response.json({
       claimed: id,
       reward: quest.reward,
+      granted,
       // The id, not the sentence: the server has no idea which of the four
       // languages this player reads, and the words for a quest live in the
       // dictionaries now. The client looks it up (see i18n/content.ts).
