@@ -1029,7 +1029,8 @@
   "struck": "Bị sét đánh",
   "struckBy": {
    "$t": "{0} gọi sét giáng xuống bạn"
-  }
+  },
+  "smoked": "Màn khói: không có số ở đây. Đi mò mà tiến."
  },
  "defend": {
   "clean": "GỠ HẾT",

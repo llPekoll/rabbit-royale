@@ -27,16 +27,15 @@ extends Control
 ## terrier en travers du compte de carottes du joueur (px-raid.css).
 
 ## La largeur : min(560px, 100% - 2 * edge). UNE SEULE LIGNE (2026-10-01) :
-## nom, bombes sautees, fumee, sortie. Empilee, la plaque faisait 140 px sur
+## nom, bombes sautees, sortie (la fumee se dit en bas de l'ecran). Empilee, la plaque faisait 140 px sur
 ## un ecran de 400 et couvrait le milieu du plateau ; il lui faut donc la
 ## largeur que la pile prenait en hauteur.
 const WIDTH := 560.0
 
-## Le web ecrit ces deux lignes en anglais dans le composant, hors des
-## dictionnaires (raid-panel.tsx) ; elles sont reprises telles quelles
-## plutot qu'inventees dans quatre langues.
+## Le web ecrivait cette ligne en anglais dans le composant, hors des
+## dictionnaires (raid-panel.tsx) ; elle est reprise telle quelle. La fumee,
+## elle, passe par raid.smoked.
 const WEB_BURROW_OF := "%s's burrow"
-const WEB_SMOKE := "No numbers"
 ## Le nuage de la boutique (ItemSlot.Glyph), a la hauteur du texte.
 const SMOKE_ART := 22.0
 ## L'encre de la fumee (globals.css `.rr-raid-smoke`) : un gris bleute, ni
@@ -47,7 +46,8 @@ var _panel: PanelContainer
 var _name: Label
 var _sprung: HBoxContainer
 var _sprung_count: Label
-var _smoke: HBoxContainer
+var _smoke: PanelContainer
+var _smoke_text: Label
 var _note: Label
 var _over: VBoxContainer
 var _over_strong: Label
@@ -111,12 +111,30 @@ func _build() -> void:
 	_sprung.add_child(_sprung_count)
 	header.add_child(_sprung)
 
-	# LA FUMEE, en pastille sur la meme ligne : le nuage de la boutique et
-	# deux mots. Elle suffit a dire que le plateau sans chiffres est voulu.
-	_smoke = Kit.hbox(4)
-	_smoke.add_child(ItemSlot.art_for("smoke", SMOKE_ART))
-	_smoke.add_child(Kit.label(WEB_SMOKE, 11, SMOKE_INK))
-	header.add_child(_smoke)
+	# LA FUMEE, EN BAS DE L'ECRAN, sur le verre des legendes de l'ile : le
+	# nuage de la boutique et la phrase entiere (raid.smoked). Un plateau
+	# noir, sans chiffres ni « ? », se lit comme un bug tant qu'on ne dit pas
+	# que le defenseur l'a paye. En bas, sous le pouce, loin de la barre.
+	var glass := StyleBoxFlat.new()
+	glass.bg_color = Palette.CARRY_GLASS
+	glass.set_corner_radius_all(4)
+	glass.content_margin_left = Kit.PAD
+	glass.content_margin_right = Kit.PAD
+	glass.content_margin_top = Kit.PAD_TIGHT
+	glass.content_margin_bottom = Kit.PAD_TIGHT
+	_smoke = Kit.panel(glass)
+	_smoke.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var smoke_row := Kit.hbox(6)
+	smoke_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	var cloud := ItemSlot.art_for("smoke", SMOKE_ART)
+	cloud.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	smoke_row.add_child(cloud)
+	_smoke_text = Kit.label("", 13, SMOKE_INK)
+	_smoke_text.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	smoke_row.add_child(_smoke_text)
+	_smoke.add_child(smoke_row)
+	add_child(_smoke)
+	_smoke.minimum_size_changed.connect(func() -> void: _measure.call_deferred())
 
 	_note = Kit.note("", Palette.BAD_ON_WOOD, 11)
 	_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -177,6 +195,9 @@ func _measure() -> void:
 		top = maxf(top, ceilf(hang - get_global_rect().position.y) + Kit.PAD_TIGHT)
 	_panel.position = Vector2(floor((size.x - w) * 0.5), top)
 	_panel.size = Vector2(w, _panel.get_combined_minimum_size().y)
+	var sw := _smoke.get_combined_minimum_size()
+	_smoke.size = sw
+	_smoke.position = Vector2(floorf((size.x - sw.x) * 0.5), size.y - Kit.EDGE - sw.y)
 
 
 func _on_locale_changed(_code: String) -> void:
@@ -201,6 +222,7 @@ func _refresh() -> void:
 	_sprung_count.text = str(sprung)
 
 	_smoke.visible = bool(raid.get("smoked", false)) and not done
+	_smoke_text.text = I18N.t("raid.smoked")
 	_note.visible = not state.note.is_empty() and not done
 	_note.text = state.note
 

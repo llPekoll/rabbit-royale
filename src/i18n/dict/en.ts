@@ -805,6 +805,8 @@ export const en = {
     bounced: (n: number) => `${n} RAID${n === 1 ? '' : 'S'} BOUNCED OFF`,
     struck: 'Struck by lightning',
     struckBy: (name: string) => `${name} called lightning down on you`,
+    /** Under the defender's smoke screen: why the board shows no numbers. */
+    smoked: 'Smoke screen: no numbers here. Walk it blind.',
   },
 
   /* ── Your burrow under attack, watched from home ──────────────────────── */

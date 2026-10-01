@@ -1237,7 +1237,8 @@
 		"struck": "Foudroyé",
 		"struckBy": {
 			"$t": "{0} a appelé la foudre sur toi"
-		}
+		},
+		"smoked": "Écran de fumée : pas de chiffres ici. Avance à l’aveugle."
 	},
 	"defend": {
 		"clean": "TOUT RETIRER",

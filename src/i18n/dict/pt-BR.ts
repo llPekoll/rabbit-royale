@@ -657,6 +657,7 @@ export const ptBR: Dict = {
     bounced: (n) => `${n} SAQUE${n === 1 ? '' : 'S'} RICOCHETEARAM`,
     struck: 'Atingido por um raio',
     struckBy: (name) => `${name} chamou um raio em cima de você`,
+    smoked: 'Cortina de fumaça: sem números aqui. Ande às cegas.',
   },
 
   /* ── Sua toca sob ataque, vista de casa ──────────────────────────────── */

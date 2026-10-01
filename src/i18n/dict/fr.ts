@@ -655,6 +655,7 @@ export const fr: Dict = {
     bounced: (n) => `${n} PILLAGE${n < 2 ? '' : 'S'} REPOUSSÉ${n < 2 ? '' : 'S'}`,
     struck: 'Foudroyé',
     struckBy: (name) => `${name} a appelé la foudre sur toi`,
+    smoked: 'Écran de fumée : pas de chiffres ici. Avance à l’aveugle.',
   },
 
   /* ── Ton terrier attaqué, vu de chez toi ─────────────────────────────── */

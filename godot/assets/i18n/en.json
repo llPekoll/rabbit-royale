@@ -1144,7 +1144,8 @@
 		"struck": "Struck by lightning",
 		"struckBy": {
 			"$t": "{0} called lightning down on you"
-		}
+		},
+		"smoked": "Smoke screen: no numbers here. Walk it blind."
 	},
 	"defend": {
 		"clean": "CLEAR ALL",

@@ -649,6 +649,7 @@ export const vi: Dict = {
     bounced: (n) => `${n} LẦN CƯỚP BỊ ĐẨY LÙI`,
     struck: 'Bị sét đánh',
     struckBy: (name) => `${name} gọi sét giáng xuống bạn`,
+    smoked: 'Màn khói: không có số ở đây. Đi mò mà tiến.',
   },
 
   /* ── Ton terrier attaqué, vu de chez toi ─────────────────────────────── */

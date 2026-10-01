@@ -1184,7 +1184,8 @@
 		"struck": "Atingido por um raio",
 		"struckBy": {
 			"$t": "{0} chamou um raio em cima de você"
-		}
+		},
+		"smoked": "Cortina de fumaça: sem números aqui. Ande às cegas."
 	},
 	"defend": {
 		"clean": "TIRAR TUDO",
