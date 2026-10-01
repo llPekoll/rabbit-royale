@@ -1348,12 +1348,9 @@ func _decor_tap(cell: Vector2i) -> void:
 		_release_hold()
 		_grab(cell)
 		return
-	# LE NOM AVANT LA POSE : `drop` lache ce qu'on tenait, et apres coup
-	# tout s'appelait « Decor ».
-	var placed := _held_name()
 	var why := _arrange.drop(cell)
 	if why == "":
-		_commit_drop(placed)
+		_commit_drop()
 	else:
 		_refuse_here(why)
 
@@ -1377,7 +1374,6 @@ func _grab(cell: Vector2i) -> bool:
 	_alog("pris %s en %s : %d cases possibles" % [
 		["rien", "chose", "maison", "potager"][a.held], a.held_cell, a.targets.size()])
 	Sound.play("step")
-	_drop_undo()
 	_end_flash()
 	_idle_hover(Vector2i(-1, -1))
 	_learned_arrange()
@@ -1406,9 +1402,6 @@ func _release_hold() -> void:
 ## POSER sur `cell`. Refuse (et le dit) si la regle ne veut pas ; ce qu'on
 ## tient reste alors en main.
 func _drop_at(cell: Vector2i, released: bool = false) -> bool:
-	# LE NOM AVANT LA POSE : `drop` lache ce qu'on tenait, et apres coup
-	# tout s'appelait « Decor ».
-	var placed := _held_name()
 	var why := _arrange.drop(cell)
 	_alog("pose en %s : %s" % [cell, why if why != "" else "ok " + JSON.stringify(_arrange.draft)])
 	if why != "":
@@ -1420,13 +1413,14 @@ func _drop_at(cell: Vector2i, released: bool = false) -> bool:
 		_refuse_here(why)
 		_paint_arrange()
 		return false
-	_commit_drop(placed)
+	_commit_drop()
 	return true
 
 
-## LA POSE EST FAITE : le sol se repousse tel quel, et part au serveur.
-func _commit_drop(placed: String) -> void:
-	var before := _local_edits.duplicate(true)
+## LA POSE EST FAITE : le sol se repousse tel quel, et part au serveur. Le
+## bandeau part avec la chose, tout de suite (Peko, 2026-10-01 : il restait
+## quatre secondes, « posé » et ANNULER, et se lisait comme un bug).
+func _commit_drop() -> void:
 	_local_edits = BurrowArrange._clean(_arrange.draft)
 	_arrange = null
 	_arrange_over = Vector2i(-1, -1)
@@ -1441,7 +1435,6 @@ func _commit_drop(placed: String) -> void:
 	show_ground(_own_seed(), _local_edits, true)
 	_hints.show_hints(_placing)
 	_save_edits()
-	_offer_undo(before, placed)
 
 
 ## ENREGISTRER ce que le sol montre. Un seul en vol : une pose faite pendant
@@ -1910,50 +1903,10 @@ const PROP_NAMES := ["mushroom", "mushroom", "mushroom", "pebble", "pebble",
 const LANDMARK_NAMES := ["skullSign", "signpost", "scarecrow"]
 
 
-## Le bouton du bandeau : REPOSER ce qu'on tient, ou ANNULER la derniere pose.
+## Le bouton du bandeau : REPOSER ce qu'on tient.
 func arrange_cancel() -> void:
 	if _arrange != null:
 		_release_hold()
-	elif _undo_edits != null:
-		_undo()
-
-
-## ANNULER LA DERNIERE POSE, quelques secondes durant. Au doigt une tape de
-## travers pose l'arbre ou on ne voulait pas, et chaque pose s'enregistre
-## seule : sans retour, le rattraper voulait dire le reprendre, retrouver sa
-## case, le reposer. Le bandeau reste donc apres la pose, « pose » et ANNULER.
-const UNDO_SECONDS := 4.0
-var _undo_edits: Variant = null
-var _undo_ticket := 0
-
-func _offer_undo(before: Dictionary, what: String) -> void:
-	_undo_edits = before
-	_undo_ticket += 1
-	var ticket := _undo_ticket
-	if Chrome.current != null:
-		Chrome.current.arrange_state({"what": what, "placed": true})
-	await get_tree().create_timer(UNDO_SECONDS).timeout
-	if ticket != _undo_ticket:
-		return
-	_undo_edits = null
-	if _arrange == null:
-		_tell_arrange()
-
-
-func _drop_undo() -> void:
-	_undo_edits = null
-	_undo_ticket += 1
-
-
-func _undo() -> void:
-	var back: Dictionary = _undo_edits
-	_drop_undo()
-	_alog("annule : %s" % JSON.stringify(back))
-	_local_edits = back
-	Sound.play("step")
-	show_ground(_own_seed(), _local_edits, true)
-	_tell_arrange()
-	_save_edits()
 
 
 ## UNE TAPE DANS LE VIDE, les mains vides : tout ce qui se deplace se detoure

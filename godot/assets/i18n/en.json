@@ -242,8 +242,6 @@
 		"tip": "Tap a tree, your house or your garden to move it.",
 		"place": "Tap a clear tile to put it there.",
 		"placeTouch": "Tap a clear tile, or slide your finger to it and lift.",
-		"placed": "Placed and saved.",
-		"undo": "Undo",
 		"putBack": "Put back",
 		"things": {
 			"tree": "Tree",

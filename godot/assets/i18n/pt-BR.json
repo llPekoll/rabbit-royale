@@ -242,8 +242,6 @@
 		"tip": "Toque numa árvore, na sua casa ou na sua horta para mudá-la de lugar.",
 		"place": "Toque num quadrado claro para colocá-la ali.",
 		"placeTouch": "Toque num quadrado claro, ou deslize o dedo até ele e solte.",
-		"placed": "Colocado e salvo.",
-		"undo": "Desfazer",
 		"putBack": "Devolver",
 		"things": {
 			"tree": "Árvore",

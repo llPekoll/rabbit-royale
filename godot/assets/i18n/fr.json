@@ -260,8 +260,6 @@
 		"tip": "Touche un arbre, ta maison ou ton potager pour le déplacer.",
 		"place": "Touche une case claire pour le poser là.",
 		"placeTouch": "Touche une case claire, ou glisse le doigt jusqu'à elle et lève-le.",
-		"placed": "Posé et enregistré.",
-		"undo": "Annuler",
 		"putBack": "Reposer",
 		"things": {
 			"tree": "Arbre",

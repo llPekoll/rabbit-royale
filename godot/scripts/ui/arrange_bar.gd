@@ -36,9 +36,6 @@ var _hint: Label
 var _back: PlankButton
 var _why := ""
 var _touch := false
-## Apres une pose : « pose », et le bouton devient ANNULER (burrow.gd
-## `_offer_undo`).
-var _placed := false
 ## LA BARRE DU SOL, sur laquelle le bandeau se pose. Nulle ou cachee : il
 ## descend au pied de l'ecran.
 var ground: LoopBar
@@ -99,7 +96,6 @@ func show_state(state: Dictionary) -> void:
 	_name.text = I18N.shout(String(state.get("what", "")))
 	_why = String(state.get("why", ""))
 	_touch = bool(state.get("touch", false))
-	_placed = bool(state.get("placed", false))
 	_relabel()
 
 
@@ -118,9 +114,9 @@ func _relabel() -> void:
 		_hint.text = _why
 		_hint.add_theme_color_override("font_color", Palette.CAPTION_DANGER_INK)
 	else:
-		_hint.text = I18N.t("arrange.placed" if _placed else ("arrange.placeTouch" if _touch else "arrange.place"))
+		_hint.text = I18N.t("arrange.placeTouch" if _touch else "arrange.place")
 		_hint.add_theme_color_override("font_color", Palette.CREAM)
-	_back.relabel(I18N.shout(I18N.t("arrange.undo" if _placed else "arrange.putBack")))
+	_back.relabel(I18N.shout(I18N.t("arrange.putBack")))
 	_measure()
 
 

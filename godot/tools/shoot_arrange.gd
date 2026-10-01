@@ -139,15 +139,6 @@ func _run() -> void:
 	await _wait(0.3)
 	print("[shot] leve sur l'arbre : tient encore = ", burrow.get("_arrange") != null)
 
-	# LE BANDEAU APRES UNE POSE, montre sans poser.
-	# Par le noeud, pas par la classe : sous `--script`, nommer Chrome fait
-	# compiler ses dependances avant les autoloads.
-	var chrome: Node = get_root().find_children("*", "Chrome", true, false)[0]
-	chrome.call("arrange_state", {"what": get_root().get_node("I18N").call("t", "arrange.things.tree"), "placed": true})
-	await _wait(0.2)
-	await _shot("8-placed")
-	chrome.call("arrange_state", {})
-
 	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://arrange.cfg"))
 	if not had.is_empty():
 		var f := FileAccess.open("user://arrange.cfg", FileAccess.WRITE)
