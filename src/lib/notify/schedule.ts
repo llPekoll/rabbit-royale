@@ -13,7 +13,7 @@
  *
  *   - a player at the keyboard is never pushed (they can see the game);
  *   - energy full and garden ready go out ONCE per cycle, only if the player
- *     has not been seen since it happened and has been gone an hour;
+ *     has not been seen since it happened and has been gone 15 minutes;
  *   - a tank that will top out during the night is told in the evening
  *     instead (`energy_overnight`), since the morning push would come after
  *     hours of regen already lost — one or the other per refill, never both;
@@ -38,8 +38,10 @@ export const PUSH = {
   SWEEP_MS: 5 * MINUTE,
   /** Energy and garden alerts only for someone gone at least this long: a
    *  player who closed the app a minute ago does not need their phone to tell
-   *  them what they just saw. */
-  AWAY_MIN_MS: 1 * HOUR,
+   *  them what they just saw. A quarter of an hour, not more: with an hour
+   *  the alert for a tank a few points short reached the phone 50 minutes
+   *  after it was full (2026-10-01). */
+  AWAY_MIN_MS: 15 * MINUTE,
   /** An alert about a moment older than this is history, not news. Long
    *  enough to survive a night of quiet hours (22:00 → 09:00 is 11 h). */
   STALE_MS: 24 * HOUR,
@@ -52,7 +54,7 @@ export const PUSH = {
   QUIET_UNTIL_HOUR: 9,
   /** From this hour to QUIET_FROM_HOUR, a tank due to fill during the coming
    *  night is announced now (`energy_overnight`). Two hours, so a player who
-   *  left at nine is still an hour gone before the quiet starts. */
+   *  plays on into the evening is still told before the quiet starts. */
   EVE_FROM_HOUR: 20,
   /** Non-raid pushes per player per day, and the least time between two.
    *  The gap is what stops "garden full" and "energy full" landing five

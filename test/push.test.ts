@@ -169,7 +169,7 @@ describe('decideSweepPush', () => {
     expect(later.kind).not.toBe('garden_ready');
   });
 
-  it('tells a full tank once per refill, only if they have been gone an hour', () => {
+  it('tells a full tank once per refill, only if they have been gone AWAY_MIN_MS', () => {
     const now = NOON;
     const seen = new Date(now - 11 * H);
     const player = {
@@ -262,10 +262,10 @@ describe('decideSweepPush', () => {
     const at = (localH: number, localM = 0) => Date.UTC(2026, 8, 30, localH - 7, localM, 0);
     const ask = (now: number, state = blank) => decideSweepPush({ now, online: false, tzOffsetMin: tz, player, state });
 
-    it('is told in the evening, once they have been gone an hour', () => {
+    it('is told in the evening, once they have been gone AWAY_MIN_MS', () => {
       expect(energyFullAt(player)!.getTime()).toBeGreaterThan(at(22));
-      expect(ask(at(21)).kind).toBeNull(); // gone 44 min
-      const d = ask(at(21, 20));
+      expect(ask(at(20, 25)).kind).toBeNull(); // gone 9 min
+      const d = ask(at(20, 35));
       expect(d.kind).toBe('energy_overnight');
       expect(d.patch.energyFor).toEqual(player.energyUpdatedAt);
       // …and the morning does not say it again.
