@@ -42,19 +42,19 @@ const HALF_H := HALF * float(Iso.BURROW_TILE_H) / float(Iso.BURROW_TILE_W)
 const DIGIT_SCALE := 1.0
 ## Le nombre de cotes du rond.
 const ROUND_SIDES := 48
+## Marge au bord de l'ecran : cadre rapproche du coin bas gauche.
+const EDGE := 4.0
 
-## LE CADRE : la lunette du cadran d'energie (dial-empty), ses quatre
-## pointes d'or en rose des vents — une boussole. Evidee et sans sa planche
-## (assets/ui/compass-ring.png, 2026-09-24) : la carte se dessine DESSOUS et
-## se voit par le trou ; le bronze couvre son bord.
-const FRAME_TEX := preload("res://assets/ui/compass-ring.png")
-## Le trou, dans les 102 px de la lunette : son centre et son rayon.
-const HOLE_CENTRE := Vector2(51.0, 51.0)
-const HOLE_HALF := Vector2(34.5, 34.5)
+## CADRE TRANSPARENT : bois, feuilles et ferrures en surimpression.
+## Dessine en dernier pour que les pointes recouvrent la carte.
+const FRAME_TEX := preload("res://assets/ui/minimap-frame.png")
+## Centre et rayon de l'ouverture mesures dans l'image de 1254 px.
+const HOLE_CENTRE := Vector2(620.0, 625.0)
+const HOLE_HALF := Vector2(400.0, 400.0)
 ## La carte deborde sous le bronze de ce qu'il faut pour ne laisser aucun jour.
 const UNDER_STONE := 2.0
 ## L'echelle de la lunette : son trou fait le rond de la carte.
-const FRAME_SCALE := DIAMETER * HALF / 34.5
+const FRAME_SCALE := DIAMETER * HALF / HOLE_HALF.x
 ## Une relecture tous les dixiemes de seconde suffit : le plateau change au
 ## rythme d'un pas.
 const TICK := 0.1

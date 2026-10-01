@@ -451,9 +451,9 @@ func _add_chrome() -> void:
 	layer.add_child(mini)
 	mini.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	mini.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	mini.position = Vector2(Kit.EDGE, get_viewport_rect().size.y - Kit.EDGE - mini.size.y)
+	mini.position = Vector2(MiniMap.EDGE, get_viewport_rect().size.y - MiniMap.EDGE - mini.size.y)
 	get_viewport().size_changed.connect(func() -> void:
-		mini.position = Vector2(Kit.EDGE, get_viewport_rect().size.y - Kit.EDGE - mini.size.y))
+		mini.position = Vector2(MiniMap.EDGE, get_viewport_rect().size.y - MiniMap.EDGE - mini.size.y))
 	var show_mini := func() -> void:
 		if is_instance_valid(mini):
 			mini.visible = RunState.current.spectating.is_empty()
