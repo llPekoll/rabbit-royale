@@ -49,6 +49,10 @@ const SEA_PAD := 3
 const ISLETS := [
 	{"door": "dig", "tex": preload("res://assets/ui/icons/pickaxe.png"),
 		"dir": Vector2(-0.15, 1.0), "size": Vector2i(3, 3), "scale": 1.0, "floating": true,
+		# La pioche est un dessin de 23x25 : a ICON_PX elle grossissait 1,8
+		# fois, en gros pixels et liseré epais, et pesait deux fois le
+		# bouclier et les epees (60 px, reduits). Plus petite, elle s'aligne.
+		"icon_px": 30.0,
 		"anchor": Vector2(0.5, 0.5), "at": Vector2.ZERO},
 	{"door": "defend", "tex": preload("res://assets/ui/icons/shield.webp"),
 		"dir": Vector2(1.0, 1.0), "size": Vector2i(4, 4), "scale": 1.0, "floating": true,
@@ -670,7 +674,7 @@ func _place_building(spec: Dictionary, top: Vector2i, islets: BurrowMap, lo: Vec
 	_buildings[spec["door"]] = sprite
 	if spec.get("floating", false):
 		# Des icones de ICON_PX, levees au-dessus du milieu de leur ilot.
-		var k := ICON_PX / maxf(tex.get_width(), tex.get_height())
+		var k := float(spec.get("icon_px", ICON_PX)) / maxf(tex.get_width(), tex.get_height())
 		sprite.scale = Vector2.ONE * k
 		var glint := ShaderMaterial.new()
 		glint.shader = GLINT
