@@ -25,6 +25,8 @@ const TTL_SECONDS: Record<PushKind, number> = {
   raid_looted: 24 * 3600,
   raid_held: 24 * 3600,
   energy_full: 12 * 3600,
+  // About the evening: a phone that only wakes after 22:00 has missed it.
+  energy_overnight: 2 * 3600,
   garden_ready: 12 * 3600,
   comeback_1: 24 * 3600,
   comeback_2: 24 * 3600,

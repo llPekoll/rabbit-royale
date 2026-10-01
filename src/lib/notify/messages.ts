@@ -42,6 +42,7 @@ export type PushKind =
   | 'raid_looted'
   | 'raid_held'
   | 'energy_full'
+  | 'energy_overnight'
   | 'garden_ready'
   | 'comeback_1'
   | 'comeback_2';
@@ -54,6 +55,7 @@ export const PUSH_PATH: Record<PushKind, PushPath> = {
   raid_looted: 'burrow',
   raid_held: 'burrow',
   energy_full: 'island',
+  energy_overnight: 'island',
   garden_ready: 'burrow',
   comeback_1: 'burrow',
   comeback_2: 'burrow',
@@ -73,6 +75,7 @@ const TEXT: Record<PushLocale, Record<PushKind, Line>> = {
     raid_looted: { title: '{name} raided you: -{n} 🥕', body: 'Bury bombs on the path before the next one.' },
     raid_held: { title: 'Burrow held!', body: '{name} came for your carrots and left with nothing.' },
     energy_full: { title: 'Energy full', body: "A run's worth in the tank. Dig." },
+    energy_overnight: { title: 'Your tank fills up tonight', body: 'Regen stops at full while you sleep. Spend some on a run first.' },
     garden_ready: { title: '{n} 🥕 waiting for you', body: 'Your garden is full. Bring them in before a raider does.' },
     comeback_1: { title: '{n} 🥕 in your garden', body: 'Raiders have noticed. Come pick them up.' },
     comeback_2: { title: 'Your burrow misses you', body: 'Full tank, full garden, and a crown still up for grabs.' },
@@ -82,6 +85,7 @@ const TEXT: Record<PushLocale, Record<PushKind, Line>> = {
     raid_looted: { title: '{name} t’a pillé : -{n} 🥕', body: 'Enterre des bombes sur le chemin avant le prochain.' },
     raid_held: { title: 'Terrier défendu !', body: '{name} est venu pour tes carottes et repart bredouille.' },
     energy_full: { title: 'Énergie pleine', body: 'De quoi sortir. Creuse.' },
+    energy_overnight: { title: 'Ton énergie sera pleine cette nuit', body: 'Pleine, elle ne remonte plus pendant que tu dors. Fais une sortie avant.' },
     garden_ready: { title: '{n} 🥕 t’attendent', body: 'Ton potager est plein. Viens les ramasser avant un pillard.' },
     comeback_1: { title: '{n} 🥕 dans ton potager', body: 'Les pillards l’ont remarqué. Viens les chercher.' },
     comeback_2: { title: 'Ton terrier t’attend', body: 'Énergie pleine, potager plein, et la couronne est toujours à prendre.' },
@@ -91,6 +95,7 @@ const TEXT: Record<PushLocale, Record<PushKind, Line>> = {
     raid_looted: { title: '{name} saqueou você: -{n} 🥕', body: 'Enterre bombas no caminho antes do próximo.' },
     raid_held: { title: 'Toca defendida!', body: '{name} veio atrás das suas cenouras e saiu sem nada.' },
     energy_full: { title: 'Energia cheia', body: 'Dá uma saída. Cave.' },
+    energy_overnight: { title: 'Sua energia enche esta noite', body: 'Cheia, ela para de subir enquanto você dorme. Faça uma saída antes.' },
     garden_ready: { title: '{n} 🥕 esperando você', body: 'Sua horta está cheia. Colha antes que um saqueador colha.' },
     comeback_1: { title: '{n} 🥕 na sua horta', body: 'Os saqueadores perceberam. Venha buscar.' },
     comeback_2: { title: 'Sua toca sente sua falta', body: 'Energia cheia, horta cheia, e a coroa ainda está em jogo.' },
@@ -100,6 +105,7 @@ const TEXT: Record<PushLocale, Record<PushKind, Line>> = {
     raid_looted: { title: '{name} đã cướp bạn: -{n} 🥕', body: 'Chôn bom trên đường trước khi kẻ tiếp theo tới.' },
     raid_held: { title: 'Hang đã giữ được!', body: '{name} đến cướp cà rốt và ra về tay trắng.' },
     energy_full: { title: 'Năng lượng đầy', body: 'Đủ một chuyến. Đào.' },
+    energy_overnight: { title: 'Năng lượng sẽ đầy trong đêm nay', body: 'Đầy rồi thì không hồi thêm khi bạn ngủ. Đi một chuyến trước đã.' },
     garden_ready: { title: '{n} 🥕 đang chờ bạn', body: 'Vườn đầy rồi. Thu hoạch trước khi kẻ cướp tới.' },
     comeback_1: { title: '{n} 🥕 trong vườn của bạn', body: 'Kẻ cướp đã để ý. Về lấy đi.' },
     comeback_2: { title: 'Hang đang chờ bạn', body: 'Đầy năng lượng, đầy vườn, và vương miện vẫn còn đó.' },
@@ -109,6 +115,7 @@ const TEXT: Record<PushLocale, Record<PushKind, Line>> = {
     raid_looted: { title: '{name} 掠夺了你：-{n} 🥕', body: '下一个来之前，在路上埋好炸弹。' },
     raid_held: { title: '兔窝守住了！', body: '{name} 想来偷胡萝卜，结果空手而归。' },
     energy_full: { title: '体力已满', body: '够出行一次。去挖。' },
+    energy_overnight: { title: '今晚体力就会满', body: '满了就不再恢复，睡觉时白白浪费。睡前先出去挖一趟。' },
     garden_ready: { title: '{n} 🥕 在等你', body: '菜园满了。趁掠夺者动手前收进来。' },
     comeback_1: { title: '菜园里有 {n} 🥕', body: '掠夺者已经盯上了。快回来收。' },
     comeback_2: { title: '你的兔窝在等你', body: '体力满了，菜园满了，王冠还没人拿走。' },

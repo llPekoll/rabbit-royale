@@ -8,7 +8,7 @@ import { GARDEN, GARDEN_BOOST, OUT_OF_RUN_ENERGY, regenPerHour } from '@config/t
 import { currentEnergy, gardenYield } from '@/lib/game/regen';
 import {
   PUSH, clampTzOffset, countPush, decideSweepPush, energyFullAt, gardenReadyAt,
-  idleStageFor, isQuietHours, localHour, underDailyCap, type SweepInput, type SweepState,
+  idleStageFor, isQuietHours, localHour, nightAhead, underDailyCap, type SweepInput, type SweepState,
 } from '@/lib/notify/schedule';
 import { PUSH_PATH, pushText, resolveLocale } from '@/lib/notify/messages';
 import { buildFcmMessage, isDeadTokenError, parseServiceAccount } from '@/lib/notify/fcm';
@@ -87,6 +87,16 @@ describe('quiet hours', () => {
     // noon UTC is 20:00 in Beijing (awake) and 22:00 in Sydney summer-ish (+600)
     expect(isQuietHours(NOON, 480)).toBe(false);
     expect(isQuietHours(NOON, 600)).toBe(true);
+  });
+
+  it('finds the night ahead, or the one still running', () => {
+    const at = (d: number, h: number) => Date.UTC(2026, 8, d, h, 0, 0);
+    // 20:00 UTC → tonight 22:00 to tomorrow 09:00
+    expect(nightAhead(at(30, 20), 0)).toEqual({ from: at(30, 22), until: at(31, 9) });
+    // 03:00 → the night that began yesterday at 22:00
+    expect(nightAhead(at(30, 3), 0)).toEqual({ from: at(29, 22), until: at(30, 9) });
+    // 13:00 UTC is 20:00 at +7: 22:00 there is 15:00 UTC
+    expect(nightAhead(at(30, 13), 420)).toEqual({ from: at(30, 15), until: at(31, 2) });
   });
 
   it('clamps offsets that are not on Earth', () => {
@@ -240,6 +250,41 @@ describe('decideSweepPush', () => {
     expect(d.patch.idleStage).toBe(2);
   });
 
+  describe('a tank that fills overnight', () => {
+    // 2026-09-30 on the Seeker (+7): a run ends at 20:16 with 188/300 at
+    // burrow 3, the tank tops out at 23:46 — inside quiet hours.
+    const tz = 420;
+    const left = Date.UTC(2026, 8, 30, 13, 16, 0);
+    const player = {
+      energy: 188, energyUpdatedAt: new Date(left), burrowLevel: 3,
+      gardenCollectedAt: new Date(left), fertilisedUntil: null, lastSeenAt: new Date(left),
+    };
+    const at = (localH: number, localM = 0) => Date.UTC(2026, 8, 30, localH - 7, localM, 0);
+    const ask = (now: number, state = blank) => decideSweepPush({ now, online: false, tzOffsetMin: tz, player, state });
+
+    it('is told in the evening, once they have been gone an hour', () => {
+      expect(energyFullAt(player)!.getTime()).toBeGreaterThan(at(22));
+      expect(ask(at(21)).kind).toBeNull(); // gone 44 min
+      const d = ask(at(21, 20));
+      expect(d.kind).toBe('energy_overnight');
+      expect(d.patch.energyFor).toEqual(player.energyUpdatedAt);
+      // …and the morning does not say it again.
+      const morning = Date.UTC(2026, 9, 1, 2, 5, 0); // 09:05 at +7
+      expect(ask(morning, { ...blank, ...d.patch } as SweepState).kind).not.toMatch(/^energy/);
+    });
+
+    it('waits for the evening', () => {
+      const early = { ...player, lastSeenAt: new Date(at(17)), energyUpdatedAt: new Date(at(17)), energy: 0 };
+      expect(decideSweepPush({ now: at(19, 55), online: false, tzOffsetMin: tz, player: early, state: blank }).kind).toBeNull();
+    });
+
+    it('leaves a tank that fills before the quiet to energy_full', () => {
+      const nearly = { ...player, energy: 290 }; // full ~20:35
+      const d = decideSweepPush({ now: at(21, 20), online: false, tzOffsetMin: tz, player: nearly, state: blank });
+      expect(d.kind).toBe('energy_full');
+    });
+  });
+
   it('counts a sweep that saw them online as being seen', () => {
     const player = input(NOON, 30).player;
     const d = decideSweepPush({
@@ -277,6 +322,8 @@ describe('locale', () => {
   it('routes raids to defend and the rest to a screen that exists', () => {
     expect(PUSH_PATH.raid_incoming).toBe('defend');
     expect(PUSH_PATH.raid_looted).toBe('burrow');
+    expect(PUSH_PATH.energy_overnight).toBe('island');
+    expect(pushText('energy_overnight', 'fr').title).toBe('Ton énergie sera pleine cette nuit');
     for (const p of Object.values(PUSH_PATH)) expect(['burrow', 'defend', 'island']).toContain(p);
   });
 });

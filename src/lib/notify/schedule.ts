@@ -14,6 +14,9 @@
  *   - a player at the keyboard is never pushed (they can see the game);
  *   - energy full and garden ready go out ONCE per cycle, only if the player
  *     has not been seen since it happened and has been gone an hour;
+ *   - a tank that will top out during the night is told in the evening
+ *     instead (`energy_overnight`), since the morning push would come after
+ *     hours of regen already lost — one or the other per refill, never both;
  *   - a comeback reminder at 24 h away, a second at 72 h, then silence until
  *     they return — a player gone a week gets one, not two in a row;
  *   - none of those between 22:00 and 09:00 on the device's clock (they wait
@@ -47,6 +50,10 @@ export const PUSH = {
    *  QUIET_UNTIL:00. Raids ignore them — a raid is happening NOW. */
   QUIET_FROM_HOUR: 22,
   QUIET_UNTIL_HOUR: 9,
+  /** From this hour to QUIET_FROM_HOUR, a tank due to fill during the coming
+   *  night is announced now (`energy_overnight`). Two hours, so a player who
+   *  left at nine is still an hour gone before the quiet starts. */
+  EVE_FROM_HOUR: 20,
   /** Non-raid pushes per player per day, and the least time between two.
    *  The gap is what stops "garden full" and "energy full" landing five
    *  minutes apart when both come due in the same evening. */
@@ -135,6 +142,22 @@ export function isQuietHours(nowMs: number, tzOffsetMin: number): boolean {
   return h >= PUSH.QUIET_FROM_HOUR || h < PUSH.QUIET_UNTIL_HOUR;
 }
 
+/**
+ * The next quiet window on the device that has not ended yet: `from` (its
+ * 22:00) and `until` (the 09:00 after). Inside quiet hours, the current one.
+ */
+export function nightAhead(nowMs: number, tzOffsetMin: number): { from: number; until: number } {
+  const DAY = 24 * HOUR;
+  const offset = tzOffsetMin * MINUTE;
+  // UTC instant of the local midnight that starts the device's current day.
+  const midnight = Math.floor((nowMs + offset) / DAY) * DAY - offset;
+  const length = (24 - PUSH.QUIET_FROM_HOUR + PUSH.QUIET_UNTIL_HOUR) * HOUR;
+  let from = midnight + PUSH.QUIET_FROM_HOUR * HOUR;
+  // Before nine in the morning: still last night's window.
+  if (from - DAY + length > nowMs) from -= DAY;
+  return { from, until: from + length };
+}
+
 // ── The daily cap ────────────────────────────────────────────────────────────
 
 export interface CapWindow {
@@ -173,7 +196,7 @@ export function idleStageFor(awayMs: number): 0 | 1 | 2 {
 
 // ── The decision ─────────────────────────────────────────────────────────────
 
-export type SweepKind = 'garden_ready' | 'energy_full' | 'comeback_1' | 'comeback_2';
+export type SweepKind = 'garden_ready' | 'energy_full' | 'energy_overnight' | 'comeback_1' | 'comeback_2';
 
 /** What the sweep remembers per player — `push_state`, minus the raid column. */
 export interface SweepState extends CapWindow {
@@ -259,8 +282,18 @@ export function decideSweepPush(input: SweepInput): SweepDecision {
       return sent('garden_ready', { gardenFor: player.gardenCollectedAt });
     }
     const full = energyFullAt(player)?.getTime();
-    if (full !== undefined && state.energyFor?.getTime() !== player.energyUpdatedAt.getTime() && fresh(full)) {
+    const unsaid = full !== undefined && state.energyFor?.getTime() !== player.energyUpdatedAt.getTime();
+    if (unsaid && fresh(full)) {
       return sent('energy_full', { energyFor: player.energyUpdatedAt });
+    }
+    // The evening before a night the tank tops out in: the morning push would
+    // only report hours of regen gone to waste, so say it while it can still
+    // be spent. Stamped like energy_full, so the morning stays silent.
+    if (unsaid && localHour(now, input.tzOffsetMin) >= PUSH.EVE_FROM_HOUR) {
+      const night = nightAhead(now, input.tzOffsetMin);
+      if (full >= night.from && full < night.until) {
+        return sent('energy_overnight', { energyFor: player.energyUpdatedAt });
+      }
     }
   }
 
