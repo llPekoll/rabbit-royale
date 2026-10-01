@@ -5,10 +5,12 @@ extends Control
 ## (public/assets/ui/notification-quest.png : etoile a gauche, chevron a
 ## droite), recadree et etiree au centre seulement.
 ##
-## Toujours la. Pass ferme : un peu eteinte, « BIENTOT », un tap ne fait
-## rien (on la deverrouille avec `scripts/season-pass.ts open`). Pass ouvert :
-## le prix et la cagnotte, puis pour qui l'a les jours qui restent, ou « le
-## coffre du jour t'attend » quand il attend. Un tap ouvre la fenetre du pass.
+## Toujours la. Pass ferme : un peu eteinte, « BIENTOT » (on la deverrouille
+## avec `scripts/season-pass.ts open`). Pass ouvert : le prix et la cagnotte,
+## puis pour qui l'a les jours qui restent, ou « le coffre du jour t'attend »
+## quand il attend. Un tap ouvre TOUJOURS la fenetre du pass : le chevron du
+## cadre le promet, et ferme elle montre ce qui vient, sans bouton d'achat
+## (pass_dialog.gd `_action`).
 
 const FRAME := preload("res://assets/ui/notification-quest.webp")
 ## La texture fait 476x140 : l'etoile tient dans les 110 premiers pixels, le
@@ -70,9 +72,8 @@ func _ready() -> void:
 	_hit.focus_mode = Control.FOCUS_NONE
 	for state in ["normal", "hover", "pressed", "focus", "disabled"]:
 		_hit.add_theme_stylebox_override(state, Kit.style_empty())
-	_hit.pressed.connect(func() -> void:
-		if PassState.shared().on():
-			PassDialog.open())
+	_hit.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	_hit.pressed.connect(func() -> void: PassDialog.open())
 	add_child(_hit)
 
 	PassState.shared().changed.connect(refresh)
@@ -119,8 +120,6 @@ func refresh() -> void:
 	_title.add_theme_font_size_override("font_size", 13 if pixel else 11)
 	_sub.add_theme_font_size_override("font_size", 11 if pixel else 10)
 	_title.text = I18N.shout(I18N.t("pass.title"))
-	_hit.disabled = not open
-	_hit.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if open else Control.CURSOR_ARROW
 	_hit.tooltip_text = I18N.t("pass.title") if open else "%s · %s" % [I18N.t("pass.title"), I18N.t("pass.soon")]
 	# Fermee : a peine eteinte. Elle doit rester VUE (le bouton gris de la
 	# barre, a 0.5, ne se trouvait pas — 2026-10-01).
