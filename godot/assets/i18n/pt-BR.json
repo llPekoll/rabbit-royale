@@ -342,7 +342,7 @@
 		}
 	},
 	"run": {
-		"goFarm": "Limpar todas as minas",
+		"goFarm": "Limpar todas as bombas",
 		"findMe": "Achar meu coelho",
 		"retreat": "Recuar",
 		"home": "Toca",
@@ -359,25 +359,25 @@
 			"$t": "{0} de {1} de energia"
 		},
 		"markBomb": "Marcar uma bomba",
-		"markHint": "Toque na casa onde você acha que há uma bomba · certo: +energia · errado: -energia",
+		"markHint": "Toque numa casa para pôr um X vermelho · certo: +energia · errado: -energia",
 		"markCancel": "Cancelar",
 		"markNothing": "Nada para marcar aqui: todas as casas ao seu redor já foram lidas.",
-		"energyLow": "Energia baixa. Um X certo numa bomba devolve um pouco.",
-		"energyRaidLeft": "Ainda dá para um saque. Volte, ou continue.",
+		"energyLow": "Energia baixa. Um X vermelho certo numa bomba devolve um pouco.",
+		"energyRaidLeft": "Ainda há energia para um saque. Volte, ou continue.",
 		"homeRaid": "Voltar e saquear",
 		"crossed": {
 			"$t": "⚡ -{0} na travessia · {1} sobrando"
 		},
 		"trapHint": {
-			"$t": "Toque num quadrado para minar, numa mina para tirar · restam {0}"
+			"$t": "Toque num quadrado para enterrar uma bomba, numa bomba para tirar · restam {0}"
 		},
-		"trapHintEmpty": "Sem bombas · compre outra, ou toque numa mina para tirar e enterrar noutro lugar",
+		"trapHintEmpty": "Sem bombas · compre outra, ou toque numa bomba para tirar e enterrar noutro lugar",
 		"strike": "Raio",
-		"aiming": "Toque num rival para atingi-lo",
-		"strikeNone": "Sem raio para chamar. O galpão vende.",
+		"aiming": "Toque num rival para eletrocutá-lo",
+		"strikeNone": "Sem raio para chamar. A loja vende.",
 		"plant": "Plantar bomba",
 		"aimingPlant": "Toque num chão não cavado para enterrar uma bomba",
-		"plantNone": "Sem bombas para plantar. O galpão vende.",
+		"plantNone": "Sem bombas para plantar. A loja vende.",
 		"planted": "Bomba enterrada. Só você sabe onde.",
 		"plantRefused": {
 			"off-island": "Fora da ilha.",
@@ -390,20 +390,20 @@
 			"$t": "Bomba de {0}!"
 		},
 		"struckBy": {
-			"$t": "{0} te atingiu com um raio"
+			"$t": "{0} te eletrocutou"
 		},
 		"watchers": {
 			"$t": "{0} online"
 		},
 		"hitBolt": {
-			"$t": "{0} te fulminou"
+			"$t": "{0} te eletrocutou"
 		},
 		"hitBomb": {
 			"$t": "Bomba oculta de {0}"
 		},
 		"bloop": "Bloop",
 		"aimingBloop": "Toque num rival para entintá-lo",
-		"bloopNone": "Nenhum bloop para lançar. O galpão vende.",
+		"bloopNone": "Nenhum bloop para lançar. A loja vende.",
 		"bloopRefused": {
 			"no-rival": "Ninguém ali para entintar.",
 			"level_locked": "Só a partir do nível 3.",
@@ -454,25 +454,25 @@
 			"$t": "🥕 {0} · {1} cavados · 💣 {2} · {3}"
 		},
 		"bank": {
-			"$t": "⚡ {0}/{1} no tanque · a travessia leva {2}"
+			"$t": "⚡ {0}/{1} de energia · a travessia custa {2}"
 		},
 		"raidLeft": {
-			"$t": "⚡ {0} no tanque: dá para um saque"
+			"$t": "⚡ {0} de energia: dá para um saque"
 		},
 		"getEnergy": "Pegar mais energia",
 		"goHome": {
 			"$t": "Toca · guardar {0} 🥕"
 		},
 		"shoved": "NA ÁGUA!",
-		"struck": "FULMINADO!",
+		"struck": "ELETROCUTADO!",
 		"shovedNote": {
 			"$t": "{0} te empurrou na água."
 		},
 		"struckNote": {
-			"$t": "{0} chamou o raio em cima de você."
+			"$t": "{0} te eletrocutou com um raio."
 		},
 		"shovedNoteAnon": "Alguém te empurrou na água.",
-		"struckNoteAnon": "Alguém chamou o raio em cima de você."
+		"struckNoteAnon": "Alguém te eletrocutou com um raio."
 	},
 	"shove": {
 		"by": {
@@ -562,7 +562,7 @@
 	},
 	"shop": {
 		"title": "LOJA",
-		"shed": "O GALPÃO",
+		"shed": "LOJA",
 		"aria": "Loja",
 		"protect": "PROTEGER A TOCA",
 		"protectAria": "Proteger sua toca",
@@ -570,7 +570,7 @@
 		"noTraps": "SEM BOMBAS - PEGUE UMA",
 		"nothingBuried": "NADA ENTERRADO",
 		"inShed": {
-			"$t": "{0} NO GALPÃO"
+			"$t": "{0} NA BOLSA"
 		},
 		"rearming": {
 			"$t": "REARMANDO - {0} VOLTANDO"
@@ -581,18 +581,18 @@
 		"inGround": {
 			"$t": "{0}/{1} NO CHÃO"
 		},
-		"openShed": "Abrir o galpão",
+		"openShed": "Abrir a loja",
 		"backToBurrow": "Voltar para a toca",
 		"payWith": "Pagar com",
 		"outOfEnergy": "SEM ENERGIA",
 		"energySay": {
-			"$t": "Uma saída leva {0}. Isso volta sozinho em {1}. Ou encha agora e continue cavando."
+			"$t": "A travessia custa {0}. Essa energia volta sozinha em {1}. Ou recarregue agora e continue cavando."
 		},
 		"energySayEmpty": {
-			"$t": "A barra está vazia. Um ponto volta sozinho em {0}. Ou encha agora e continue cavando."
+			"$t": "Sem energia. Um ponto volta sozinho em {0}. Ou recarregue agora e continue cavando."
 		},
 		"fillsTo": {
-			"$t": "Enche a barra até {0}."
+			"$t": "Recarrega sua energia até {0}."
 		},
 		"noRefills": " Sem recargas hoje.",
 		"refillsLeft": {
@@ -648,19 +648,19 @@
 			"$t": "Energia recarregada. {0}"
 		},
 		"boughtTrap": {
-			"$t": "{0} bombas no galpão. {1}",
+			"$t": "{0} bombas na bolsa. {1}",
 			"$v": [
 				{
 					"when": {
 						"0": 1.0
 					},
-					"t": "Bomba no galpão. {1}"
+					"t": "Bomba na bolsa. {1}"
 				},
 				{
 					"when": {
 						"0": 0.0
 					},
-					"t": "Bomba no galpão. {1}"
+					"t": "Bomba na bolsa. {1}"
 				}
 			]
 		},
@@ -753,19 +753,19 @@
 			]
 		},
 		"boughtFence": {
-			"$t": "{0} tábuas prontas para levantar. {1}",
+			"$t": "{0} cercas prontas para levantar. {1}",
 			"$v": [
 				{
 					"when": {
 						"0": 1.0
 					},
-					"t": "Tábua pronta para levantar. {1}"
+					"t": "Cerca pronta para levantar. {1}"
 				},
 				{
 					"when": {
 						"0": 0.0
 					},
-					"t": "Tábua pronta para levantar. {1}"
+					"t": "Cerca pronta para levantar. {1}"
 				}
 			]
 		},
@@ -783,18 +783,18 @@
 		"bad_quantity": "Isso não é uma quantidade.",
 		"no_traps": "Sem bombas. Compre uma, ou espere amanhã.",
 		"board_full": "Sua toca não cabe mais uma bomba.",
-		"tile_not_trappable": "Nada para minar aí.",
+		"tile_not_trappable": "Nenhuma bomba pode ir aí.",
 		"tile_doorstep": "Perto demais da porta. Os primeiros passos ficam livres.",
 		"tile_house": "Nada fica enterrado debaixo da sua casa.",
 		"tile_field": "Nada fica enterrado na sua horta.",
-		"tile_already_trapped": "Já minado.",
+		"tile_already_trapped": "Já tem uma bomba aí.",
 		"no_trap_there": "Não tem bomba aí.",
-		"no_fences": "Sem cercas. O galpão vende.",
-		"span_already_fenced": "Já tem uma tábua aí.",
+		"no_fences": "Sem cercas. A loja vende.",
+		"span_already_fenced": "Já tem uma cerca aí.",
 		"span_not_exposed": "Isso não é uma borda da sua horta.",
 		"would_seal_burrow": "Isso fecharia a última entrada. Uma entrada fica aberta como portão.",
-		"span_not_fenced": "Não tem tábua aí.",
-		"bad_span": "Isso não é lugar para uma tábua.",
+		"span_not_fenced": "Não tem cerca aí.",
+		"bad_span": "Isso não é lugar para uma cerca.",
 		"fenced": "Uma cerca bloqueia o caminho. Contorne.",
 		"payments_unavailable": "Pagamento com cartão ainda não está configurado.",
 		"quote_expired": "Essa cotação expirou. Tente de novo.",
@@ -880,24 +880,24 @@
 			"$t": "{0}: nenhum. {1}"
 		},
 		"trapsLine": {
-			"$t": "Bombas: {0} de {1} no chão, {2} no galpão. Enterre pelo DEFENDER.",
+			"$t": "Bombas: {0} de {1} no chão, {2} na bolsa. Enterre pelo DEFENDER.",
 			"$v": [
 				{
 					"when": {
 						"1": 0.0
 					},
-					"t": "Bombas: {0} no chão, {2} no galpão. Enterre pelo DEFENDER."
+					"t": "Bombas: {0} no chão, {2} na bolsa. Enterre pelo DEFENDER."
 				}
 			]
 		},
 		"trapsBuy": {
-			"$t": "Bombas: {0} no galpão. Compre outra por {1} cenouras.",
+			"$t": "Bombas: {0} na bolsa. Compre outra por {1} cenouras.",
 			"$v": [
 				{
 					"when": {
 						"0": 0.0
 					},
-					"t": "Bombas: galpão vazio. Compre uma por {1} cenouras."
+					"t": "Bombas: nenhuma na bolsa. Compre uma por {1} cenouras."
 				}
 			]
 		},
@@ -905,7 +905,7 @@
 			"$t": "Bombas: nenhuma. Uma custa {0} cenouras - va cavar mais."
 		},
 		"trapsBuyFull": {
-			"$t": "Bombas: {0} no galpão. O galpão está cheio."
+			"$t": "Bombas: {0} na bolsa. A bolsa está cheia."
 		},
 		"bottleRunning": {
 			"$t": "{0}: em curso, restam {1}. {2} na bolsa."
@@ -917,76 +917,48 @@
 			"$t": "{0}: nenhuma. Encontradas em baús."
 		},
 		"fencePlace": {
-			"$t": "Cercas: {0} tábuas na bolsa, {1} de {2} trechos fechados. Levante uma.",
+			"$t": "Cercas: {0} na bolsa, {1} de {2} bordas fechadas. Levante uma.",
 			"$v": [
 				{
 					"when": {
-						"0": 1.0
-					},
-					"t": "Cercas: 1 tábua na bolsa, {1} de {2} trechos fechados. Levante uma."
-				},
-				{
-					"when": {
 						"1": 1.0
 					},
-					"t": "Cercas: {0} tábuas na bolsa, 1 de {2} trechos fechado. Levante uma."
-				},
-				{
-					"when": {
-						"0": 1.0,
-						"1": 1.0
-					},
-					"t": "Cercas: 1 tábua na bolsa, 1 de {2} trechos fechado. Levante uma."
+					"t": "Cercas: {0} na bolsa, 1 de {2} bordas fechada. Levante uma."
 				},
 				{
 					"when": {
 						"2": 1.0
 					},
-					"t": "Cercas: {0} tábuas na bolsa, {1} de 1 trecho fechados. Levante uma."
-				},
-				{
-					"when": {
-						"0": 1.0,
-						"2": 1.0
-					},
-					"t": "Cercas: 1 tábua na bolsa, {1} de 1 trecho fechados. Levante uma."
+					"t": "Cercas: {0} na bolsa, {1} de 1 borda fechadas. Levante uma."
 				},
 				{
 					"when": {
 						"1": 1.0,
 						"2": 1.0
 					},
-					"t": "Cercas: {0} tábuas na bolsa, 1 de 1 trecho fechado. Levante uma."
-				},
-				{
-					"when": {
-						"0": 1.0,
-						"1": 1.0,
-						"2": 1.0
-					},
-					"t": "Cercas: 1 tábua na bolsa, 1 de 1 trecho fechado. Levante uma."
+					"t": "Cercas: {0} na bolsa, 1 de 1 borda fechada. Levante uma."
 				}
 			]
 		},
 		"fenceAllWalled": {
-			"$t": "Cercas: {0} trechos fechados. A última entrada é o portão e fica aberta.",
+			"$t": "Cercas: {0} bordas fechadas. A última entrada é o portão e fica aberta.",
 			"$v": [
 				{
 					"when": {
 						"0": 1.0
 					},
-					"t": "Cercas: 1 trecho fechado. A última entrada é o portão e fica aberta."
+					"t": "Cercas: 1 borda fechada. A última entrada é o portão e fica aberta."
 				}
 			]
 		},
 		"fenceNone": {
-			"$t": "Cercas: nenhuma na bolsa, {0} trechos fechados. O galpão vende. Toque numa tábua levantada para pegá-la de volta.",
+			"$t": "Cercas: nenhuma na bolsa, {0} bordas fechadas. A loja vende. Toque numa cerca para pegá-la de volta.",
 			"$v": [
 				{
 					"when": {
 						"0": 1.0
 					},
-					"t": "Cercas: nenhuma na bolsa, 1 trecho fechado. O galpão vende. Toque numa tábua levantada para pegá-la de volta."
+					"t": "Cercas: nenhuma na bolsa, 1 borda fechada. A loja vende. Toque numa cerca para pegá-la de volta."
 				}
 			]
 		},
@@ -1012,9 +984,9 @@
 		},
 		"raid": "Saque",
 		"raidCost": {
-			"$t": "{0} para entrar, no máximo {1}"
+			"$t": "{0} na travessia, no máximo {1}"
 		},
-		"raidRefund": "Chegue ao campo e seus passos voltam.",
+		"raidRefund": "Chegue à horta e seus passos voltam.",
 		"dig": "Escavar",
 		"digCost": {
 			"$t": "{0} por casa. Uma bomba: {1}"
@@ -1027,7 +999,7 @@
 		"homeCost": {
 			"$t": "volte com {0} ou mais e um saque está pronto"
 		},
-		"homeHint": "O que você leva para casa fica no tanque.",
+		"homeHint": "A energia que você leva para casa fica guardada.",
 		"ready": "Pronto",
 		"raidReady": "Saque pronto",
 		"needs": {
@@ -1105,7 +1077,7 @@
 		"choose": "Escolha uma toca",
 		"whose": "TOCA DE QUEM?",
 		"cost": {
-			"$t": "Um saque leva {0} de energia para entrar, no máximo {1}."
+			"$t": "A travessia de um saque custa {0} de energia, no máximo {1}."
 		},
 		"allShielded": "TODAS AS TOCAS COM ESCUDO",
 		"nobody": "NINGUÉM PARA ROUBAR",
@@ -1117,7 +1089,7 @@
 		},
 		"raidIt": "Saquear",
 		"watchIt": "Assistir",
-		"brief": "Alcance a plantação de cenouras. As bombas deles estão enterradas e sem marca.",
+		"brief": "Alcance a horta deles. As bombas deles estão enterradas e sem marca.",
 		"outOfEnergy": "Sem energia",
 		"nothingTaken": "Nada levado",
 		"unguarded": {
@@ -1126,7 +1098,7 @@
 		"nobodyYet": "Ninguém mais tem uma toca ainda.",
 		"steps": "passos",
 		"stepsBack": {
-			"$t": "Campo alcançado: seus {0} passos voltam"
+			"$t": "Horta alcançada: seus {0} passos voltam"
 		},
 		"looted": {
 			"$t": "+{0} 🥕"
@@ -1180,9 +1152,9 @@
 				}
 			]
 		},
-		"struck": "Atingido por um raio",
+		"struck": "Eletrocutado",
 		"struckBy": {
-			"$t": "{0} chamou um raio em cima de você"
+			"$t": "{0} te eletrocutou"
 		},
 		"smoked": "Cortina de fumaça: sem números aqui. Ande às cegas."
 	},
@@ -1250,13 +1222,13 @@
 			"$t": "{0} ESTÁ SAQUEANDO VOCÊ"
 		},
 		"theirSteps": "passos dele",
-		"hint": "Enterre uma bomba na frente dele, ou toque no coelho para chamar um raio.",
+		"hint": "Enterre uma bomba na frente dele, ou toque no coelho para eletrocutá-lo.",
 		"strike": "Raio",
 		"buyStrike": "Comprar e eletrocutar",
 		"held": {
 			"$t": "{0} na bolsa"
 		},
-		"struckDown": "DERRUBADO",
+		"struckDown": "ELETROCUTADO",
 		"ranDry": "FICOU SEM ENERGIA",
 		"looted": {
 			"$t": "LEVARAM {0} 🥕"
@@ -1276,7 +1248,7 @@
 		"no_energy": "Energia insuficiente para a travessia. Espere, ou recarregue.",
 		"not_adjacent": "Longe demais. Um passo por vez.",
 		"raid_over": "Esse saque já acabou.",
-		"none_held": "Sem raio para chamar. O galpão vende.",
+		"none_held": "Sem raio para chamar. A loja vende.",
 		"no_raid": "Esse saque acabou.",
 		"unknown_player": "Sumiram."
 	},
@@ -1312,7 +1284,7 @@
 		"historyFailed": "Não foi possível carregar seu histórico.",
 		"noRuns": "Nenhuma saída concluída ainda.",
 		"noRaids": "Ninguém veio para cima de você ainda.",
-		"noPurchases": "Nada do galpão ainda.",
+		"noPurchases": "Nada da loja ainda.",
 		"today": "Hoje",
 		"youHit": {
 			"$t": "Você acertou {0}"
@@ -1321,12 +1293,12 @@
 			"$t": "{0} de dano"
 		},
 		"shovedIn": "empurrado na água",
-		"struckDown": "fulminado por um raio",
+		"struckDown": "eletrocutado",
 		"youShoved": {
 			"$t": "Você empurrou {0} na água"
 		},
 		"youStruck": {
-			"$t": "Você fulminou {0}"
+			"$t": "Você eletrocutou {0}"
 		},
 		"spent": {
 			"$t": "-{0} 🥕"
@@ -1393,7 +1365,7 @@
 		"ANDAR DE VOLTA POR BLOCOS JÁ CAVADOS É DE GRAÇA",
 		"CADA BAÚ QUE VOCÊ ABRE VAI PARA CASA COM VOCÊ",
 		"A ILHA É O RELÓGIO - CAVE TUDO E ELA AFUNDA",
-		"AS CENOURAS SÃO A PONTUAÇÃO - O X VERMELHO É A ÚNICA BOMBA DE ENERGIA"
+		"AS CENOURAS SÃO A PONTUAÇÃO - SÓ UM X VERMELHO CERTO DEVOLVE ENERGIA"
 	],
 	"taglines": [
 		"CADA PASSO PODE SER O ÚLTIMO... OU SUA FORTUNA",
@@ -1414,12 +1386,12 @@
 			"blurb": "Enterre uma na sua toca. Ela drena o saqueador que pisar nela."
 		},
 		"bomb": {
-			"name": "Bomba",
+			"name": "Bomba oculta",
 			"blurb": "Plante uma na ilha de alguém no meio da saída. A pessoa vê que foi você."
 		},
 		"lightning": {
 			"name": "Raio",
-			"blurb": "Chama um raio na ilha de um rival. Ele abre o chão em volta."
+			"blurb": "Eletrocuta um rival no meio da saída. O raio abre o chão em volta dele."
 		},
 		"shield": {
 			"name": "Escudo",
@@ -1427,7 +1399,7 @@
 		},
 		"energy": {
 			"name": "Energia",
-			"blurb": "Encha a barra e cave agora, em vez de esperar."
+			"blurb": "Recarregue sua energia e cave agora, em vez de esperar."
 		},
 		"smoke": {
 			"name": "Cortina de fumaça",
@@ -1443,7 +1415,7 @@
 		},
 		"fence": {
 			"name": "Cerca",
-			"blurb": "Fecha um trecho da borda da sua horta. Saqueadores não atravessam."
+			"blurb": "Fecha uma borda da sua horta. Saqueadores não atravessam."
 		}
 	},
 	"quests": {
@@ -1471,7 +1443,7 @@
 		"bury-something": {
 			"title": "Enterrar algo",
 			"ask": {
-				"$t": "Vá em DEFENDER e coloque bombas na sua base."
+				"$t": "Vá em DEFENDER e enterre bombas na sua toca."
 			},
 			"line": "Uma bomba que ninguém vê é o único muro que vale. Muro a gente contorna."
 		},

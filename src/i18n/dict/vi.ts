@@ -17,8 +17,9 @@
  * fonctions qui en ont un en anglais rendent ici une seule forme.
  *
  * LE LEXIQUE, tenu partout : hang = burrow, vườn = garden, cướp = raid,
- * rương = chest, bẫy = trap, khiên = shield, sét = lightning, kho = shed,
- * hàng rào / tấm ván = fence / plank, chuyến = run, năng lượng = energy.
+ * rương = chest, bom = bomb (chôn trong hang cũng vậy), khiên = shield,
+ * sét = lightning, giật sét = zap, cửa hàng = shop, túi = bag, hàng rào = fence,
+ * mép = edge, qua biển = crossing, chuyến = run, năng lượng = energy, X đỏ = red X.
  */
 import type { Dict } from '../dictionaries';
 
@@ -136,7 +137,7 @@ export const vi: Dict = {
     broughtHome: 'đã mang về',
     ariaGroup: 'Đào, hang, cướp',
     ariaDig: (line) => `Đào. ${line}`,
-    ariaDefend: (line) => `Phòng thủ: chôn bẫy. ${line}`,
+    ariaDefend: (line) => `Phòng thủ: chôn bom. ${line}`,
     ariaRaid: (line) => `Cướp. ${line}`,
     energyOf: (energy, max) => `${energy}/${max} năng lượng`,
     runCosts: (n) => `qua biển tốn ${n}`,
@@ -150,7 +151,7 @@ export const vi: Dict = {
     shieldBadge: (wait) => `Khiên ${wait}`,
     noShield: 'không có khiên',
     /* Pas de pluriel en vietnamien : une seule forme. */
-    traps: (n) => `${n} bẫy`,
+    traps: (n) => `${n} bom`,
     leftOutside: (name, n) => `${name} để ${n} bên ngoài`,
     burrowsOpen: (n) => `${n} hang đang mở`,
     bombsInBag: (n) => `${n} bom trong túi`,
@@ -161,7 +162,7 @@ export const vi: Dict = {
     label: 'TIẾP',
     aria: (text) => `Tiếp: ${text}`,
     gardenFull: 'Vườn sắp đầy. Thu hoạch trước khi kẻ cướp tới.',
-    shieldLifts: (wait) => `Khiên hạ sau ${wait}. Chôn bẫy đi.`,
+    shieldLifts: (wait) => `Khiên hạ sau ${wait}. Chôn bom đi.`,
     raidTarget: (name, garden) => `${name} để ${garden} trong vườn. Cướp.`,
     dig: (energy) => `${energy} năng lượng: đủ một chuyến. Đào.`,
     digPlain: 'Đào.',
@@ -236,7 +237,7 @@ export const vi: Dict = {
   },
 
   run: {
-    goFarm: 'Dọn sạch mìn',
+    goFarm: 'Gỡ hết bom',
     findMe: 'Tìm thỏ của tôi',
     retreat: 'Rút lui',
     home: 'Về hang',
@@ -249,21 +250,21 @@ export const vi: Dict = {
     energy: (n, max) => `${n} trên ${max} năng lượng`,
     /** The red X — see FLAG in tuning. */
     markBomb: 'Đánh dấu bom',
-    markHint: 'Chạm ô bạn nghĩ có bom · đúng: +năng lượng · sai: -năng lượng',
+    markHint: 'Chạm ô để đánh X đỏ · đúng: +năng lượng · sai: -năng lượng',
     markCancel: 'Hủy',
     markNothing: 'Không có gì để đánh dấu: mọi ô quanh bạn đã được đọc.',
-    energyLow: 'Năng lượng thấp. Một dấu X đúng trên bom sẽ hoàn lại.',
-    energyRaidLeft: 'Vẫn đủ đi cướp. Về hang, hoặc đào tiếp.',
+    energyLow: 'Năng lượng thấp. Một X đỏ đúng trên bom sẽ hoàn lại.',
+    energyRaidLeft: 'Còn đủ năng lượng đi cướp. Về hang, hoặc đào tiếp.',
     homeRaid: 'Về và đi cướp',
-    crossed: (cost, energy) => `⚡ -${cost} để qua · còn ${energy}`,
-    trapHint: (left) => `Chạm ô để gài mìn, chạm mìn để gỡ · còn ${left}`,
-    trapHintEmpty: 'Hết bom · mua thêm, hoặc chạm một mìn để gỡ và chôn chỗ khác',
-    strike: 'Giáng sét',
-    aiming: 'Chạm một đối thủ để giáng sét',
-    strikeNone: 'Không có sét để gọi. Kho có bán.',
+    crossed: (cost, energy) => `⚡ -${cost} để qua biển · còn ${energy}`,
+    trapHint: (left) => `Chạm ô để chôn bom, chạm bom để gỡ · còn ${left}`,
+    trapHintEmpty: 'Hết bom · mua thêm, hoặc chạm một quả bom để gỡ và chôn chỗ khác',
+    strike: 'Giật sét',
+    aiming: 'Chạm một đối thủ để giật sét',
+    strikeNone: 'Không có sét để gọi. Cửa hàng có bán.',
     plant: 'Đặt bom',
     aimingPlant: 'Chạm ô chưa đào để chôn bom',
-    plantNone: 'Không có bom để đặt. Kho có bán.',
+    plantNone: 'Không có bom để đặt. Cửa hàng có bán.',
     planted: 'Đã chôn bom. Chỉ bạn biết chỗ.',
     plantRefused: {
       'off-island': 'Không nằm trên đảo.',
@@ -273,13 +274,13 @@ export const vi: Dict = {
       'too-many': 'Tối đa ba bom cùng lúc ở đây.',
     } as Record<string, string>,
     plantedBy: (name) => `Bom của ${name}!`,
-    struckBy: (name) => `${name} giáng sét vào bạn`,
+    struckBy: (name) => `${name} giật sét bạn`,
     watchers: (n) => `${n} online`,
     hitBolt: (name) => `${name} giật sét bạn`,
-    hitBomb: (name) => `Bom ngầm của ${name}`,
+    hitBomb: (name) => `Bom ẩn của ${name}`,
     bloop: 'Bloop',
     aimingBloop: 'Chạm một đối thủ để phun mực',
-    bloopNone: 'Không có bloop để ném. Kho có bán.',
+    bloopNone: 'Không có bloop để ném. Cửa hàng có bán.',
     bloopRefused: {
       'no-rival': 'Không có ai để phun mực.',
       level_locked: 'Chưa được trước cấp 3.',
@@ -297,7 +298,7 @@ export const vi: Dict = {
     prove: 'Chỉ còn một ô chưa mở. Đó là bom.',
     mark: 'Nhấn ĐÁNH DẤU BOM, rồi chạm ô có dấu X đỏ.',
     aim: 'Giờ chạm vào ô đang nhấp nháy.',
-    marked: 'Đúng! X đúng hoàn năng lượng. X sai thì mất.',
+    marked: 'Đúng! X đỏ đúng hoàn năng lượng. X đỏ sai thì mất.',
     fetch: 'Giờ đi lấy rương. Bên trong có gì cũng theo bạn về.',
     bomb: 'Mất năng lượng rồi. Số 1 đã chỉ vào nó.',
     golden: 'Vàng! Một củ cà rốt vàng bằng năm củ.',
@@ -315,16 +316,16 @@ export const vi: Dict = {
     tutorialDone: 'BẠN LÀM ĐƯỢC RỒI!',
     tutorialDoneNote: 'Cái rương là cả hòn đảo. Cà rốt đang chờ bạn ở hang.',
     stats: (carrots, dug, bombs, time) => `🥕 ${carrots} · ${dug} ô đã đào · 💣 ${bombs} · ${time}`,
-    bank: (energy, max, cost) => `⚡ ${energy}/${max} trong bình · qua biển tốn ${cost}`,
-    raidLeft: (energy) => `⚡ còn ${energy} trong bình: đủ đi cướp`,
+    bank: (energy, max, cost) => `⚡ ${energy}/${max} năng lượng · qua biển tốn ${cost}`,
+    raidLeft: (energy) => `⚡ còn ${energy} năng lượng: đủ đi cướp`,
     getEnergy: 'Lấy thêm năng lượng',
     goHome: (carrots) => `Về hang · cất ${carrots} 🥕`,
-    shoved: 'RƠI XUỐNG NƯỚC!',
-    struck: 'BỊ SÉT ĐÁNH!',
+    shoved: 'BỊ ĐẨY XUỐNG NƯỚC!',
+    struck: 'BỊ GIẬT SÉT!',
     shovedNote: (name) => `${name} đẩy bạn xuống nước.`,
-    struckNote: (name) => `${name} gọi sét giáng xuống bạn.`,
+    struckNote: (name) => `${name} giật sét bạn.`,
     shovedNoteAnon: 'Có ai đó đẩy bạn xuống nước.',
-    struckNoteAnon: 'Có ai đó gọi sét giáng xuống bạn.',
+    struckNoteAnon: 'Có ai đó giật sét bạn.',
   },
   shove: {
     by: (name) => `${name} đẩy bạn!`,
@@ -332,9 +333,9 @@ export const vi: Dict = {
   },
 
   revenge: {
-    struck: (name) => `${name} giật điện bạn!`,
+    struck: (name) => `${name} giật sét bạn!`,
     inked: (name) => `${name} phun mực vào bạn!`,
-    strike: 'Đánh trả',
+    strike: 'Giật trả',
   },
 
   pass: {
@@ -387,28 +388,28 @@ export const vi: Dict = {
 
   shop: {
     title: 'CỬA HÀNG',
-    shed: 'NHÀ KHO',
+    shed: 'CỬA HÀNG',
     aria: 'Cửa hàng',
     protect: 'BẢO VỆ HANG',
     protectAria: 'Bảo vệ hang của bạn',
-    protectBuyAria: 'Bảo vệ hang - mua một cái bẫy',
-    noTraps: 'HẾT BẪY - MUA THÊM',
+    protectBuyAria: 'Bảo vệ hang - mua một quả bom',
+    noTraps: 'HẾT BOM - MUA THÊM',
     nothingBuried: 'CHƯA CHÔN GÌ',
-    inShed: (n) => `${n} TRONG KHO`,
+    inShed: (n) => `${n} TRONG TÚI`,
     rearming: (n) => `ĐANG NẠP LẠI - ${n} SẮP VỀ`,
     upAndRearming: (armed, rearming) => `${armed} ĐÃ GÀI - ${rearming} ĐANG NẠP`,
     inGround: (armed, max) => `${armed}/${max} DƯỚI ĐẤT`,
-    openShed: 'Mở nhà kho',
+    openShed: 'Mở cửa hàng',
     backToBurrow: 'Về hang',
     payWith: 'Trả bằng',
     outOfEnergy: 'HẾT NĂNG LƯỢNG',
     energySay: (cost, wait) =>
-      `Một chuyến tốn ${cost}. Đủ để đi lại sẽ tự hồi sau ${wait}.`
-      + ' Hoặc nạp đầy ngay và đào tiếp.',
+      `Qua biển tốn ${cost}. Đủ năng lượng sẽ tự hồi sau ${wait}.`
+      + ' Hoặc nạp ngay và đào tiếp.',
     energySayEmpty: (wait) =>
-      `Thanh đã cạn. Một điểm tự hồi sau ${wait}.`
-      + ' Hoặc nạp đầy ngay và đào tiếp.',
-    fillsTo: (max) => `Nạp đầy thanh tới ${max}.`,
+      `Hết năng lượng. Một điểm tự hồi sau ${wait}.`
+      + ' Hoặc nạp ngay và đào tiếp.',
+    fillsTo: (max) => `Nạp năng lượng tới ${max}.`,
     noRefills: ' Hôm nay hết lượt nạp.',
     refillsLeft: (n) => (n > 0 ? ` Hôm nay còn ${n} lượt nạp.` : ' Hôm nay hết lượt nạp.'),
     cardsOff: 'Chưa mở thanh toán bằng thẻ. Tạm thời chỉ dùng cà rốt.',
@@ -431,15 +432,15 @@ export const vi: Dict = {
     max: 'TỐI ĐA',
     active: 'ĐANG BẬT',
     boughtEnergy: (paid) => `Đã nạp năng lượng. ${paid}`,
-    boughtTrap: (n, paid) => `${n > 1 ? `${n} bẫy` : 'Bẫy'} đã vào kho. ${paid}`,
+    boughtTrap: (n, paid) => `${n > 1 ? `${n} bom` : 'Bom'} đã vào túi. ${paid}`,
     boughtBomb: (n, paid) => `${n > 1 ? `${n} bom` : 'Bom'} đã sẵn sàng. ${paid}`,
     boughtLightning: (n, paid) => `${n > 1 ? `${n} tia sét` : 'Tia sét'} đã vào chai. ${paid}`,
     boughtShield: (n, paid) => `${n > 1 ? `${n} khiên` : 'Khiên'} sẵn sàng. ${paid}`,
     boughtSmoke: (paid) => `Các con số đã bị che. ${paid}`,
     boughtBloop: (n, paid) => `${n > 1 ? `${n} bloop` : 'Bloop'} đã vào hũ. ${paid}`,
     boughtMirage: (n, paid) => `${n > 1 ? `${n} ảo ảnh` : 'Ảo ảnh'} sẵn sàng để ném. ${paid}`,
-    /* Une clôture se DRESSE : le reçu nomme la planche qu'on va dresser. */
-    boughtFence: (n, paid) => `${n > 1 ? `${n} tấm ván` : 'Tấm ván'} sẵn sàng để dựng. ${paid}`,
+    /* Une clôture se DRESSE : le reçu nomme la clôture qu'on va dresser. */
+    boughtFence: (n, paid) => `${n > 1 ? `${n} hàng rào` : 'Hàng rào'} sẵn sàng để dựng. ${paid}`,
     paid: (spent) => `-${spent} 🥕`,
   },
 
@@ -451,22 +452,22 @@ export const vi: Dict = {
     smoke_capped: 'Hang của bạn đã được che lâu nhất có thể.',
     too_many_at_once: 'Quá nhiều cùng lúc.',
     bad_quantity: 'Đó không phải một số lượng.',
-    no_traps: 'Hết bẫy. Mua một cái, hoặc chờ mai.',
-    board_full: 'Hang không chứa thêm bẫy được nữa.',
-    tile_not_trappable: 'Không gài mìn ở đó được.',
+    no_traps: 'Hết bom. Mua một quả, hoặc chờ mai.',
+    board_full: 'Hang không chứa thêm bom được nữa.',
+    tile_not_trappable: 'Không chôn bom ở đó được.',
     tile_doorstep: 'Quá gần cửa. Mấy bước đầu phải để trống.',
     tile_house: 'Không chôn gì dưới nhà bạn.',
     tile_field: 'Không chôn gì trong vườn bạn.',
-    tile_already_trapped: 'Đã gài mìn rồi.',
-    no_trap_there: 'Không có bẫy ở đó.',
-    no_fences: 'Hết hàng rào. Kho có bán.',
-    span_already_fenced: 'Đã có tấm ván dựng ở đó.',
+    tile_already_trapped: 'Đã có bom ở đó rồi.',
+    no_trap_there: 'Không có bom ở đó.',
+    no_fences: 'Hết hàng rào. Cửa hàng có bán.',
+    span_already_fenced: 'Đã có hàng rào ở đó.',
     span_not_exposed: 'Đó không phải mép vườn của bạn.',
     /* La règle du portail, énoncée comme une règle : elle dit pourquoi avant
        de dire non. */
     would_seal_burrow: 'Thế là bịt lối vào cuối cùng. Luôn chừa một lối làm cổng.',
-    span_not_fenced: 'Không có tấm ván ở đó.',
-    bad_span: 'Chỗ đó không dựng ván được.',
+    span_not_fenced: 'Không có hàng rào ở đó.',
+    bad_span: 'Chỗ đó không dựng hàng rào được.',
     /* Le refus du PILLARD, depuis raid/route.ts : il l'oriente. */
     fenced: 'Hàng rào chắn đường. Đi vòng.',
     payments_unavailable: 'Thanh toán bằng thẻ chưa được thiết lập.',
@@ -496,12 +497,12 @@ export const vi: Dict = {
       available: (n) => n + ' sẵn có',
       placed: (n) => n + ' đã đặt',
       active: (time) => 'còn ' + time,
-      buyTrap: (price) => 'Mua một bẫy - ' + price + ' cà rốt',
-      trapHint: 'Chạm một ô để chôn bẫy. Chạm bẫy để lấy lại.',
-      trapEmpty: 'Lấy lại một bẫy đã đặt hoặc mua thêm bên dưới.',
+      buyTrap: (price) => 'Mua một quả bom - ' + price + ' cà rốt',
+      trapHint: 'Chạm một ô để chôn bom. Chạm bom để lấy lại.',
+      trapEmpty: 'Lấy lại một quả bom đã đặt hoặc mua thêm bên dưới.',
       fenceHint: 'Chạm một mép sáng để dựng. Chạm hàng rào để lấy lại.',
       raiseShield: 'Dùng một khiên', shieldActive: 'Hang của bạn đã được bảo vệ.',
-      shopHint: 'Có bán ở cửa hàng.', notEnough: 'Không đủ cà rốt cho thêm một bẫy.',
+      shopHint: 'Có bán ở cửa hàng.', notEnough: 'Không đủ cà rốt cho thêm một quả bom.',
       smokeHint: 'Mua khói ở cửa hàng là kích hoạt ngay.',
       attackHint: 'Dùng trên đảo của đối thủ trong một chuyến.',
       chestHint: 'Tìm thêm trong rương.',
@@ -523,29 +524,29 @@ export const vi: Dict = {
     carried: (name, held, blurb) => `${name}: ${held} trong túi. ${blurb}`,
     carriedNone: (name, blurb) => `${name}: không có. ${blurb}`,
     trapsLine: (placed, max, held) =>
-      `Bẫy: ${placed}${max ? `/${max}` : ''} dưới đất, ${held} trong kho.`
+      `Bom: ${placed}${max ? `/${max}` : ''} dưới đất, ${held} trong túi.`
       + ' Chôn chúng từ PHÒNG THỦ.',
     trapsBuy: (held, price) =>
       (held > 0
-        ? `Bẫy: ${held} trong kho. Mua thêm một cái giá ${price} cà rốt.`
-        : `Bẫy: kho trống. Mua một cái giá ${price} cà rốt.`),
+        ? `Bom: ${held} trong túi. Mua thêm một quả giá ${price} cà rốt.`
+        : `Bom: túi trống. Mua một quả giá ${price} cà rốt.`),
     trapsBuyBroke: (price) =>
-      `Bẫy: hết sạch. Một cái giá ${price} cà rốt - đi đào thêm.`,
-    trapsBuyFull: (held) => `Bẫy: ${held} trong kho. Kho đã đầy.`,
+      `Bom: hết sạch. Một quả giá ${price} cà rốt - đi đào thêm.`,
+    trapsBuyFull: (held) => `Bom: ${held} trong túi. Túi đã đầy.`,
     bottleRunning: (name, wait, count) => `${name}: đang chạy, còn ${wait}. ${count} trong túi.`,
     bottleHeld: (name, count) => `${name}: ${count} trong túi. Đổ một cái lên vườn.`,
     bottleNone: (name) => `${name}: không có. Tìm trong rương.`,
     /* LA CASE CLÔTURE. `total` compte tous les tronçons, portail compris ; le
        dernier ne se ferme jamais, et fenceAllWalled le dit. */
     fencePlace: (held, walled, total) =>
-      `Hàng rào: ${held} tấm ván trong túi, đã rào ${walled}/${total} đoạn.`
-      + ' Dựng một tấm.',
+      `Hàng rào: ${held} trong túi, đã rào ${walled}/${total} mép.`
+      + ' Dựng một cái.',
     fenceAllWalled: (walled) =>
-      `Hàng rào: đã rào ${walled} đoạn.`
+      `Hàng rào: đã rào ${walled} mép.`
       + ' Lối cuối cùng là cổng và luôn để mở.',
     fenceNone: (walled) =>
-      `Hàng rào: túi trống, đã rào ${walled} đoạn.`
-      + ' Kho có bán. Chạm tấm ván đang dựng để lấy lại.',
+      `Hàng rào: túi trống, đã rào ${walled} mép.`
+      + ' Cửa hàng có bán. Chạm hàng rào để lấy lại.',
     watering: 'Tưới nước',
     fertiliser: 'Phân bón',
   },
@@ -558,9 +559,9 @@ export const vi: Dict = {
     full: 'đầy',
     fullIn: (wait) => `đầy sau ${wait}`,
     island: 'Đảo',
-    islandCost: (cost) => `${cost} để qua, rồi 1 mỗi lần đào`,
+    islandCost: (cost) => `${cost} để qua biển, rồi 1 mỗi lần đào`,
     raid: 'Cướp',
-    raidCost: (toll, stake) => `${toll} để vào, tối đa ${stake}`,
+    raidCost: (toll, stake) => `${toll} để qua biển, tối đa ${stake}`,
     raidRefund: 'Tới được vườn là bước chân được hoàn lại.',
     dig: 'Đào',
     digCost: (dig, bomb) => `${dig} mỗi ô. Một quả bom: ${bomb}`,
@@ -568,7 +569,7 @@ export const vi: Dict = {
     xCost: (lo, hi, loss) => `đúng: +${lo} tới +${hi}. Sai: -${loss}`,
     home: 'Về hang',
     homeCost: (floor) => `về với ${floor} trở lên là sẵn sàng đi cướp`,
-    homeHint: 'Mang về bao nhiêu thì giữ trong bình bấy nhiêu.',
+    homeHint: 'Năng lượng mang về được giữ lại.',
     ready: 'Sẵn sàng',
     raidReady: 'Sẵn sàng cướp',
     needs: (floor) => `Cần ${floor}`,
@@ -603,14 +604,14 @@ export const vi: Dict = {
     gone: 'Đảo đó đã đầy hoặc đã kết thúc. Chọn đảo khác.',
     tierLocked: 'Bạn chưa đào tới được đảo đó.',
     youHave: (n) => `bạn có ${n}`,
-    tier: (bombs, x) => `${bombs}% bom · X đúng +${x}`,
+    tier: (bombs, x) => `${bombs}% bom · X đỏ đúng +${x}`,
   },
   raid: {
     go: 'ĐI CƯỚP',
     another: 'Cướp một hang khác',
     choose: 'Chọn một hang',
     whose: 'HANG CỦA AI?',
-    cost: (toll, stake) => `Một lần cướp tốn ${toll} năng lượng để vào, tối đa ${stake}.`,
+    cost: (toll, stake) => `Một lần cướp tốn ${toll} năng lượng để qua biển, tối đa ${stake}.`,
     allShielded: 'MỌI HANG ĐỀU CÓ KHIÊN',
     nobody: 'KHÔNG CÓ AI ĐỂ CƯỚP',
     shielded: 'Có khiên',
@@ -621,31 +622,31 @@ export const vi: Dict = {
     },
     raidIt: 'Cướp',
     watchIt: 'Xem',
-    brief: 'Tới được ruộng cà rốt. Bẫy của họ chôn kín, không đánh dấu.',
+    brief: 'Tới được vườn của họ. Bom của họ chôn kín, không đánh dấu.',
     outOfEnergy: 'Hết năng lượng',
     nothingTaken: 'Không lấy được gì',
     unguarded: (amount) => `${amount} KHÔNG AI CANH`,
     nobodyYet: 'Chưa ai khác có hang.',
     steps: 'bước',
-    stepsBack: (n) => `Tới ruộng rồi: ${n} bước được hoàn lại`,
+    stepsBack: (n) => `Tới vườn rồi: ${n} bước được hoàn lại`,
     looted: (n) => `+${n} 🥕`,
     won: 'CƯỚP THÀNH CÔNG!',
     backToBurrow: 'VỀ HANG',
     aRival: 'MỘT ĐỐI THỦ',
     lootedFrom: (name) => `CƯỚP TỪ ${name}`,
     wasEmpty: (name) => `HANG CỦA ${name} TRỐNG RỖNG`,
-    trapsSprung: (n) => `${n} BẪY ĐÃ SẬP TRÊN ĐƯỜNG VÀO`,
+    trapsSprung: (n) => `${n} QUẢ BOM ĐÃ NỔ TRÊN ĐƯỜNG VÀO`,
     wonAria: (carrots, name) => `Cướp thành công - ${carrots} cà rốt lấy từ ${name}`,
     rabbitAria: 'Thỏ của bạn đang ăn mừng',
     stolen: (n, name) => `+${n} 🥕 cướp từ ${name}`,
-    fellShort: (pct, name) => `Dừng ở ${pct}% đường tới ruộng của ${name}`,
+    fellShort: (pct, name) => `Dừng ở ${pct}% đường tới vườn của ${name}`,
     defended: 'ĐÃ GIỮ ĐƯỢC',
     raided: 'BỊ CƯỚP',
     byWho: (who, n) => `BỞI ${who} · -${n} CÀ RỐT`,
     byWhoNothing: (who) => `BỞI ${who}`,
     bounced: (n) => `${n} LẦN CƯỚP BỊ ĐẨY LÙI`,
-    struck: 'Bị sét đánh',
-    struckBy: (name) => `${name} gọi sét giáng xuống bạn`,
+    struck: 'Bị giật sét',
+    struckBy: (name) => `${name} giật sét bạn`,
     smoked: 'Màn khói: không có số ở đây. Đi mò mà tiến.',
   },
 
@@ -656,11 +657,11 @@ export const vi: Dict = {
     cleaned: (bombs, planks) => `${bombs} bom và ${planks} hàng rào đã về lại túi`,
     underAttack: (name) => `${name.toUpperCase()} ĐANG CƯỚP HANG BẠN`,
     theirSteps: 'bước chân họ',
-    hint: 'Chôn bom trước mặt họ, hoặc chạm con thỏ để giáng sét.',
-    strike: 'Giáng sét',
-    buyStrike: 'Mua và đánh',
+    hint: 'Chôn bom trước mặt họ, hoặc chạm con thỏ để giật sét.',
+    strike: 'Giật sét',
+    buyStrike: 'Mua và giật sét',
     held: (n) => `còn ${n}`,
-    struckDown: 'BỊ SÉT ĐÁNH',
+    struckDown: 'BỊ GIẬT SÉT',
     ranDry: 'HỌ ĐÃ CẠN NĂNG LƯỢNG',
     looted: (n) => `HỌ ĐÃ LẤY ${n} 🥕`,
     lost: 'Hang của bạn đã bị cướp',
@@ -674,10 +675,10 @@ export const vi: Dict = {
     cannot_raid_yourself: 'Đó là hang của chính bạn.',
     raid_in_progress: 'Bạn đang ở trong một hang rồi.',
     cooldown: 'Bạn vừa cướp họ gần đây quá.',
-    no_energy: 'Không đủ năng lượng để qua. Chờ, hoặc nạp thêm.',
+    no_energy: 'Không đủ năng lượng để qua biển. Chờ, hoặc nạp thêm.',
     not_adjacent: 'Quá xa. Từng bước một.',
     raid_over: 'Lần cướp này đã kết thúc.',
-    none_held: 'Không có sét để gọi. Kho có bán.',
+    none_held: 'Không có sét để gọi. Cửa hàng có bán.',
     no_raid: 'Lần cướp này đã xong.',
     unknown_player: 'Họ biến mất rồi.',
   },
@@ -712,14 +713,14 @@ export const vi: Dict = {
     historyFailed: 'Không tải được lịch sử của bạn.',
     noRuns: 'Chưa có chuyến nào hoàn thành.',
     noRaids: 'Chưa ai đụng tới bạn.',
-    noPurchases: 'Chưa mua gì từ kho.',
+    noPurchases: 'Chưa mua gì từ cửa hàng.',
     today: 'Hôm nay',
     youHit: (name) => `Bạn đánh ${name}`,
     damage: (n) => `${n} st`,
     shovedIn: 'bị đẩy xuống nước',
-    struckDown: 'bị sét đánh',
+    struckDown: 'bị giật sét',
     youShoved: (name) => `Bạn đẩy ${name} xuống nước`,
-    youStruck: (name) => `Bạn giáng sét ${name}`,
+    youStruck: (name) => `Bạn giật sét ${name}`,
     spent: (n) => `-${n} 🥕`,
     usd: (n) => `$${n}`,
     revenge: 'TRẢ THÙ NGAY',
@@ -769,7 +770,7 @@ export const vi: Dict = {
     'ĐI LẠI TRÊN Ô ĐÃ ĐÀO LÀ MIỄN PHÍ',
     'MỌI RƯƠNG BẠN MỞ ĐỀU THEO BẠN VỀ',
     'HÒN ĐẢO LÀ ĐỒNG HỒ - ĐÀO SẠCH LÀ NÓ CHÌM',
-    'CÀ RỐT LÀ ĐIỂM SỐ - X ĐỎ LÀ CÁCH DUY NHẤT ĐỂ HỒI SỨC',
+    'CÀ RỐT LÀ ĐIỂM SỐ - CHỈ X ĐỎ ĐÚNG MỚI HOÀN NĂNG LƯỢNG',
   ],
 
   taglines: [
@@ -789,16 +790,16 @@ export const vi: Dict = {
 
   items: {
     trap: {
-      name: 'Bẫy',
+      name: 'Bom',
       blurb: 'Chôn trong hang bạn. Nó rút cạn sức kẻ cướp dẫm phải.',
     },
     bomb: {
-      name: 'Bom',
+      name: 'Bom ẩn',
       blurb: 'Đặt lên đảo của ai đó giữa chuyến. Họ sẽ biết là bạn.',
     },
     lightning: {
       name: 'Sét',
-      blurb: 'Gọi sét xuống đảo đối thủ. Nó mở toang đất xung quanh.',
+      blurb: 'Giật sét đối thủ giữa chuyến. Tia sét mở toang đất quanh họ.',
     },
     shield: {
       name: 'Khiên',
@@ -806,7 +807,7 @@ export const vi: Dict = {
     },
     energy: {
       name: 'Năng lượng',
-      blurb: 'Nạp đầy thanh và đào ngay, khỏi phải chờ.',
+      blurb: 'Nạp đầy năng lượng và đào ngay, khỏi phải chờ.',
     },
     smoke: {
       name: 'Màn khói',
@@ -824,7 +825,7 @@ export const vi: Dict = {
        « làm chậm ». Voir lib/game/fences.ts. */
     fence: {
       name: 'Hàng rào',
-      blurb: 'Rào một đoạn mép vườn. Kẻ cướp không vượt qua được.',
+      blurb: 'Rào một mép vườn. Kẻ cướp không vượt qua được.',
     },
   },
 
@@ -846,8 +847,8 @@ export const vi: Dict = {
     },
     'bury-something': {
       title: 'Chôn thứ gì đó',
-      ask: () => 'Vào PHÒNG THỦ và đặt vài quả bom trong hang.',
-      line: 'Cái bẫy không ai thấy là bức tường duy nhất đáng xây. Tường thì người ta đi vòng.',
+      ask: () => 'Vào PHÒNG THỦ và chôn vài quả bom trong hang.',
+      line: 'Quả bom không ai thấy là bức tường duy nhất đáng xây. Tường thì người ta đi vòng.',
     },
     'open-a-chest': {
       title: 'Mở một rương',
@@ -873,7 +874,7 @@ export const vi: Dict = {
     },
     'hold-the-door': {
       title: 'Giữ cửa',
-      ask: (traps) => `Có ${traps} bẫy dưới đất trước khi khiên hạ.`,
+      ask: (traps) => `Có ${traps} bom dưới đất trước khi khiên hạ.`,
       line: 'Khiên sắp hạ. Sau đó, bạn chỉ còn mặt đất. Làm cho nó thật đắt giá.',
     },
     'the-thicket': {

@@ -360,7 +360,7 @@
 		}
 	},
 	"run": {
-		"goFarm": "Déminer l’île",
+		"goFarm": "Retirer toutes les bombes",
 		"findMe": "Retrouver mon lapin",
 		"retreat": "Battre en retraite",
 		"home": "Terrier",
@@ -377,25 +377,25 @@
 			"$t": "{0} d'énergie sur {1}"
 		},
 		"markBomb": "Marquer une bombe",
-		"markHint": "Touche la case où tu penses qu’il y a une bombe · juste : +énergie · faux : -énergie",
+		"markHint": "Touche une case pour y mettre un X rouge · juste : +énergie · faux : -énergie",
 		"markCancel": "Annuler",
 		"markNothing": "Rien à marquer ici : toutes les cases autour de toi sont déjà lues.",
-		"energyLow": "Énergie basse. Un X juste sur une bombe en rend.",
-		"energyRaidLeft": "Encore de quoi piller. Rentre, ou continue.",
+		"energyLow": "Énergie basse. Un X rouge juste sur une bombe en rend.",
+		"energyRaidLeft": "Assez d’énergie pour un pillage. Rentre, ou continue.",
 		"homeRaid": "Rentrer et piller",
 		"crossed": {
 			"$t": "⚡ -{0} pour traverser · {1} restants"
 		},
 		"trapHint": {
-			"$t": "Touche une case pour la miner, une mine pour la reprendre · {0} restant"
+			"$t": "Touche une case pour y enterrer une bombe, une bombe pour la reprendre · {0} restant"
 		},
-		"trapHintEmpty": "Plus de bombes · achètes-en une autre, ou touche une mine pour la reprendre et la poser ailleurs",
+		"trapHintEmpty": "Plus de bombes · achètes-en une autre, ou touche une bombe pour la reprendre et la poser ailleurs",
 		"strike": "Foudroyer",
 		"aiming": "Touche un rival pour le foudroyer",
-		"strikeNone": "Pas d’éclair à appeler. La remise en vend.",
+		"strikeNone": "Pas d’éclair à appeler. La boutique en vend.",
 		"plant": "Poser une bombe",
 		"aimingPlant": "Touche une case non creusée pour y enterrer une bombe",
-		"plantNone": "Pas de bombe à poser. La remise en vend.",
+		"plantNone": "Pas de bombe à poser. La boutique en vend.",
 		"planted": "Bombe enterrée. Toi seul sais où.",
 		"plantRefused": {
 			"off-island": "Pas sur l’île.",
@@ -421,7 +421,7 @@
 		},
 		"bloop": "Bloop",
 		"aimingBloop": "Touche un rival pour l’encrer",
-		"bloopNone": "Pas de bloop à lancer. La cabane en vend.",
+		"bloopNone": "Pas de bloop à lancer. La boutique en vend.",
 		"bloopRefused": {
 			"no-rival": "Personne à encrer ici.",
 			"level_locked": "Pas avant le niveau 3.",
@@ -462,7 +462,7 @@
 				}
 			]
 		},
-		"cleared": "ÎLE DÉMINÉE !",
+		"cleared": "ÎLE VIDÉE !",
 		"over": "SORTIE FINIE",
 		"clearedNote": "Tous les coffres sont sortis de terre. La mer a pris le reste.",
 		"overNote": "Plus d’énergie.",
@@ -472,10 +472,10 @@
 			"$t": "🥕 {0} · {1} creusées · 💣 {2} · {3}"
 		},
 		"bank": {
-			"$t": "⚡ {0}/{1} en réserve · la traversée prend {2}"
+			"$t": "⚡ {0}/{1} d’énergie · la traversée coûte {2}"
 		},
 		"raidLeft": {
-			"$t": "⚡ {0} en réserve : de quoi piller"
+			"$t": "⚡ {0} d’énergie restante : de quoi piller"
 		},
 		"getEnergy": "Prendre de l’énergie",
 		"goHome": {
@@ -487,10 +487,10 @@
 			"$t": "{0} t’a poussé à l’eau."
 		},
 		"struckNote": {
-			"$t": "{0} t’a fait tomber la foudre dessus."
+			"$t": "{0} t’a foudroyé d’un éclair."
 		},
 		"shovedNoteAnon": "Quelqu’un t’a poussé à l’eau.",
-		"struckNoteAnon": "Quelqu’un t’a fait tomber la foudre dessus."
+		"struckNoteAnon": "Quelqu’un t’a foudroyé d’un éclair."
 	},
 	"shove": {
 		"by": {
@@ -580,7 +580,7 @@
 	},
 	"shop": {
 		"title": "BOUTIQUE",
-		"shed": "LA REMISE",
+		"shed": "BOUTIQUE",
 		"aria": "Boutique",
 		"protect": "PROTÉGER LE TERRIER",
 		"protectAria": "Protéger ton terrier",
@@ -588,7 +588,7 @@
 		"noTraps": "AUCUNE BOMBE - EN PRENDRE",
 		"nothingBuried": "RIEN D’ENTERRÉ",
 		"inShed": {
-			"$t": "{0} À LA REMISE"
+			"$t": "{0} DANS LE SAC"
 		},
 		"rearming": {
 			"$t": "RÉARMEMENT - {0} REVIENNENT"
@@ -599,18 +599,18 @@
 		"inGround": {
 			"$t": "{0}/{1} EN TERRE"
 		},
-		"openShed": "Ouvrir la remise",
+		"openShed": "Ouvrir la boutique",
 		"backToBurrow": "Rentrer au terrier",
 		"payWith": "Payer avec",
 		"outOfEnergy": "PLUS D’ÉNERGIE",
 		"energySay": {
-			"$t": "Une sortie prend {0}. De quoi repartir revient tout seul dans {1}. Ou remplis maintenant et continue de creuser."
+			"$t": "Une traversée coûte {0}. Assez d’énergie revient toute seule dans {1}. Ou recharge maintenant et continue de creuser."
 		},
 		"energySayEmpty": {
-			"$t": "La barre est vide. Un point revient tout seul dans {0}. Ou remplis maintenant et continue de creuser."
+			"$t": "Plus d’énergie. Un point revient tout seul dans {0}. Ou recharge maintenant et continue de creuser."
 		},
 		"fillsTo": {
-			"$t": "Remplit la barre jusqu’à {0}."
+			"$t": "Recharge ton énergie jusqu’à {0}."
 		},
 		"noRefills": " Plus de recharge aujourd’hui.",
 		"refillsLeft": {
@@ -666,19 +666,19 @@
 			"$t": "Énergie rechargée. {0}"
 		},
 		"boughtTrap": {
-			"$t": "{0} bombes à la remise. {1}",
+			"$t": "{0} bombes dans le sac. {1}",
 			"$v": [
 				{
 					"when": {
 						"0": 1.0
 					},
-					"t": "Bombe à la remise. {1}"
+					"t": "Bombe dans le sac. {1}"
 				},
 				{
 					"when": {
 						"0": 0.0
 					},
-					"t": "Bombe à la remise. {1}"
+					"t": "Bombe dans le sac. {1}"
 				}
 			]
 		},
@@ -771,19 +771,19 @@
 			]
 		},
 		"boughtFence": {
-			"$t": "{0} planches prêtes à dresser. {1}",
+			"$t": "{0} clôtures prêtes à dresser. {1}",
 			"$v": [
 				{
 					"when": {
 						"0": 1.0
 					},
-					"t": "Planche prête à dresser. {1}"
+					"t": "Clôture prête à dresser. {1}"
 				},
 				{
 					"when": {
 						"0": 0.0
 					},
-					"t": "Planche prête à dresser. {1}"
+					"t": "Clôture prête à dresser. {1}"
 				}
 			]
 		},
@@ -801,18 +801,18 @@
 		"bad_quantity": "Ce n’est pas une quantité.",
 		"no_traps": "Plus de bombes. Achètes-en une, ou attends demain.",
 		"board_full": "Ton terrier ne peut pas tenir une bombe de plus.",
-		"tile_not_trappable": "Rien à miner là.",
+		"tile_not_trappable": "Pas de bombe possible là.",
 		"tile_doorstep": "Trop près de l'entrée. Les premiers pas restent libres.",
 		"tile_house": "On n'enterre rien sous ta maison.",
 		"tile_field": "On n'enterre rien dans ton potager.",
-		"tile_already_trapped": "Déjà miné.",
+		"tile_already_trapped": "Il y a déjà une bombe là.",
 		"no_trap_there": "Pas de bombe là.",
-		"no_fences": "Plus de clôtures. La remise en vend.",
-		"span_already_fenced": "Une planche est déjà dressée là.",
+		"no_fences": "Plus de clôtures. La boutique en vend.",
+		"span_already_fenced": "Une clôture est déjà dressée là.",
 		"span_not_exposed": "Ce n’est pas un bord de ton potager.",
 		"would_seal_burrow": "Ça fermerait le dernier passage. Un passage reste ouvert, c’est le portail.",
-		"span_not_fenced": "Pas de planche là.",
-		"bad_span": "Ce n’est pas une place pour une planche.",
+		"span_not_fenced": "Pas de clôture là.",
+		"bad_span": "Ce n’est pas une place pour une clôture.",
 		"fenced": "Une clôture bloque le passage. Contourne.",
 		"payments_unavailable": "Le paiement par carte n’est pas encore en place.",
 		"quote_expired": "Ce prix a expiré. Réessaie.",
@@ -842,7 +842,7 @@
 			"more": "Voir l’effet et les actions",
 			"less": "Réduire les détails",
 			"available": {
-				"$t": "{0} en réserve"
+				"$t": "{0} en sac"
 			},
 			"placed": {
 				"$t": "{0} en place"
@@ -863,15 +863,15 @@
 			"smokeHint": "Acheter de la fumée à la boutique l’active immédiatement.",
 			"attackHint": "À utiliser sur l’île d’un rival pendant une partie.",
 			"chestHint": "Tu en trouveras dans les coffres.",
-			"waterEffect": "Fait pousser ton jardin plus vite pendant un moment.",
-			"fertiliserEffect": "Permet au jardin de stocker plus de carottes avant d’être plein.",
+			"waterEffect": "Fait pousser ton potager plus vite pendant un moment.",
+			"fertiliserEffect": "Permet au potager de stocker plus de carottes avant d’être plein.",
 			"water": "Utiliser un arrosage",
 			"fertilise": "Utiliser un engrais"
 		},
 		"aria": "Ce que tu portes",
 		"groupDefence": "DEFENSE",
 		"groupAttack": "ATTAQUE",
-		"groupGarden": "JARDIN",
+		"groupGarden": "POTAGER",
 		"shieldHolding": {
 			"$t": "Bouclier : actif, {0} restant. {1} en sac."
 		},
@@ -904,24 +904,24 @@
 			"$t": "{0} : aucun. {1}"
 		},
 		"trapsLine": {
-			"$t": "Bombes : {0} sur {1} en terre, {2} à la remise. Enterre-les depuis DÉFENDRE.",
+			"$t": "Bombes : {0} sur {1} en terre, {2} en sac. Enterre-les depuis DÉFENDRE.",
 			"$v": [
 				{
 					"when": {
 						"1": 0.0
 					},
-					"t": "Bombes : {0} en terre, {2} à la remise. Enterre-les depuis DÉFENDRE."
+					"t": "Bombes : {0} en terre, {2} en sac. Enterre-les depuis DÉFENDRE."
 				}
 			]
 		},
 		"trapsBuy": {
-			"$t": "Bombes : {0} à la remise. Achètes-en une autre pour {1} carottes.",
+			"$t": "Bombes : {0} en sac. Achètes-en une autre pour {1} carottes.",
 			"$v": [
 				{
 					"when": {
 						"0": 0.0
 					},
-					"t": "Bombes : la remise est vide. Achètes-en une pour {1} carottes."
+					"t": "Bombes : aucune en sac. Achètes-en une pour {1} carottes."
 				}
 			]
 		},
@@ -929,7 +929,7 @@
 			"$t": "Bombes : plus aucune. Une bombe coûte {0} carottes - va en creuser."
 		},
 		"trapsBuyFull": {
-			"$t": "Bombes : {0} à la remise. La remise est pleine."
+			"$t": "Bombes : {0} en sac. Le sac est plein."
 		},
 		"bottleRunning": {
 			"$t": "{0} : en cours, {1} restant. {2} en sac."
@@ -941,93 +941,53 @@
 			"$t": "{0} : aucun. On en trouve dans les coffres."
 		},
 		"fencePlace": {
-			"$t": "Clôtures : {0} planches en sac, {1} tronçons sur {2} fermés. Pose-en une.",
+			"$t": "Clôtures : {0} en sac, {1} bords sur {2} fermés. Pose-en une.",
 			"$v": [
 				{
 					"when": {
-						"0": 1.0
-					},
-					"t": "Clôtures : 1 planche en sac, {1} tronçons sur {2} fermés. Pose-en une."
-				},
-				{
-					"when": {
-						"0": 0.0
-					},
-					"t": "Clôtures : 0 planche en sac, {1} tronçons sur {2} fermés. Pose-en une."
-				},
-				{
-					"when": {
 						"1": 1.0
 					},
-					"t": "Clôtures : {0} planches en sac, 1 tronçon sur {2} fermé. Pose-en une."
-				},
-				{
-					"when": {
-						"0": 1.0,
-						"1": 1.0
-					},
-					"t": "Clôtures : 1 planche en sac, 1 tronçon sur {2} fermé. Pose-en une."
-				},
-				{
-					"when": {
-						"0": 0.0,
-						"1": 1.0
-					},
-					"t": "Clôtures : 0 planche en sac, 1 tronçon sur {2} fermé. Pose-en une."
+					"t": "Clôtures : {0} en sac, 1 bord sur {2} fermé. Pose-en une."
 				},
 				{
 					"when": {
 						"1": 0.0
 					},
-					"t": "Clôtures : {0} planches en sac, 0 tronçon sur {2} fermé. Pose-en une."
-				},
-				{
-					"when": {
-						"0": 1.0,
-						"1": 0.0
-					},
-					"t": "Clôtures : 1 planche en sac, 0 tronçon sur {2} fermé. Pose-en une."
-				},
-				{
-					"when": {
-						"0": 0.0,
-						"1": 0.0
-					},
-					"t": "Clôtures : 0 planche en sac, 0 tronçon sur {2} fermé. Pose-en une."
+					"t": "Clôtures : {0} en sac, 0 bord sur {2} fermé. Pose-en une."
 				}
 			]
 		},
 		"fenceAllWalled": {
-			"$t": "Clôtures : {0} tronçons fermés. Le dernier passage est le portail et reste ouvert.",
+			"$t": "Clôtures : {0} bords fermés. Le dernier passage est le portail et reste ouvert.",
 			"$v": [
 				{
 					"when": {
 						"0": 1.0
 					},
-					"t": "Clôtures : 1 tronçon fermé. Le dernier passage est le portail et reste ouvert."
+					"t": "Clôtures : 1 bord fermé. Le dernier passage est le portail et reste ouvert."
 				},
 				{
 					"when": {
 						"0": 0.0
 					},
-					"t": "Clôtures : 0 tronçon fermé. Le dernier passage est le portail et reste ouvert."
+					"t": "Clôtures : 0 bord fermé. Le dernier passage est le portail et reste ouvert."
 				}
 			]
 		},
 		"fenceNone": {
-			"$t": "Clôtures : aucune en sac, {0} tronçons fermés. La remise en vend. Touche une planche dressée pour la reprendre.",
+			"$t": "Clôtures : aucune en sac, {0} bords fermés. La boutique en vend. Touche une clôture pour la reprendre.",
 			"$v": [
 				{
 					"when": {
 						"0": 1.0
 					},
-					"t": "Clôtures : aucune en sac, 1 tronçon fermé. La remise en vend. Touche une planche dressée pour la reprendre."
+					"t": "Clôtures : aucune en sac, 1 bord fermé. La boutique en vend. Touche une clôture pour la reprendre."
 				},
 				{
 					"when": {
 						"0": 0.0
 					},
-					"t": "Clôtures : aucune en sac, 0 tronçon fermé. La remise en vend. Touche une planche dressée pour la reprendre."
+					"t": "Clôtures : aucune en sac, 0 bord fermé. La boutique en vend. Touche une clôture pour la reprendre."
 				}
 			]
 		},
@@ -1053,9 +1013,9 @@
 		},
 		"raid": "Raid",
 		"raidCost": {
-			"$t": "{0} pour entrer, {1} au plus"
+			"$t": "{0} pour traverser, {1} au plus"
 		},
-		"raidRefund": "Atteins le champ et tes pas reviennent.",
+		"raidRefund": "Atteins le potager et tes pas reviennent.",
 		"dig": "Fouille",
 		"digCost": {
 			"$t": "{0} par case. Une bombe : {1}"
@@ -1068,7 +1028,7 @@
 		"homeCost": {
 			"$t": "rentre avec {0} ou plus et un raid est prêt"
 		},
-		"homeHint": "Ce que tu ramènes reste dans le réservoir.",
+		"homeHint": "L’énergie que tu ramènes est gardée.",
 		"ready": "Prêt",
 		"raidReady": "Raid prêt",
 		"needs": {
@@ -1146,7 +1106,7 @@
 		"choose": "Choisis un terrier",
 		"whose": "QUEL TERRIER ?",
 		"cost": {
-			"$t": "Un raid prend {0} d’énergie pour entrer, {1} au plus."
+			"$t": "La traversée d’un raid coûte {0} d’énergie, {1} au plus."
 		},
 		"allShielded": "TOUS LES TERRIERS PROTÉGÉS",
 		"nobody": "PERSONNE À VOLER",
@@ -1158,7 +1118,7 @@
 		},
 		"raidIt": "Piller",
 		"watchIt": "Regarder",
-		"brief": "Atteins le champ de carottes. Leurs bombes sont enterrées et invisibles.",
+		"brief": "Atteins leur potager. Leurs bombes sont enterrées et invisibles.",
 		"outOfEnergy": "Plus d’énergie",
 		"nothingTaken": "Rien pris",
 		"unguarded": {
@@ -1167,7 +1127,7 @@
 		"nobodyYet": "Personne d’autre n’a encore de terrier.",
 		"steps": "pas",
 		"stepsBack": {
-			"$t": "Champ atteint : tes {0} pas te sont rendus"
+			"$t": "Potager atteint : tes {0} pas te sont rendus"
 		},
 		"looted": {
 			"$t": "+{0} 🥕"
@@ -1206,7 +1166,7 @@
 			"$t": "+{0} 🥕 volées à {1}"
 		},
 		"fellShort": {
-			"$t": "Arrêté à {0}% du champ de {1}"
+			"$t": "Arrêté à {0}% du potager de {1}"
 		},
 		"defended": "DÉFENDU",
 		"raided": "PILLÉ",
@@ -1235,7 +1195,7 @@
 		},
 		"struck": "Foudroyé",
 		"struckBy": {
-			"$t": "{0} a appelé la foudre sur toi"
+			"$t": "{0} t’a foudroyé"
 		},
 		"smoked": "Écran de fumée : pas de chiffres ici. Avance à l’aveugle."
 	},
@@ -1329,7 +1289,7 @@
 		"no_energy": "Pas assez d'énergie pour traverser. Attends, ou recharge.",
 		"not_adjacent": "Trop loin. Un pas à la fois.",
 		"raid_over": "Ce pillage est déjà terminé.",
-		"none_held": "Pas d’éclair à appeler. La remise en vend.",
+		"none_held": "Pas d’éclair à appeler. La boutique en vend.",
 		"no_raid": "Ce pillage est terminé.",
 		"unknown_player": "Ils ont disparu."
 	},
@@ -1339,7 +1299,7 @@
 		"fertiliser": "ENGRAIS",
 		"bomb": "BOMBE",
 		"shield": "BOUCLIER",
-		"lightning": "FOUDRE",
+		"lightning": "ÉCLAIR",
 		"genesis": "RR GENESIS",
 		"piece": {
 			"$t": "UNE PART EST À TOI - PLUS {0}x {1}"
@@ -1365,7 +1325,7 @@
 		"historyFailed": "Impossible de charger ton historique.",
 		"noRuns": "Aucune sortie terminée pour l’instant.",
 		"noRaids": "Personne ne s’en est encore pris à toi.",
-		"noPurchases": "Rien de la remise pour l’instant.",
+		"noPurchases": "Rien de la boutique pour l’instant.",
 		"today": "Aujourd’hui",
 		"youHit": {
 			"$t": "Tu as touché {0}"
@@ -1446,7 +1406,7 @@
 		"REPASSER SUR LES CASES DÉJÀ CREUSÉES EST GRATUIT",
 		"CHAQUE COFFRE OUVERT RENTRE AVEC TOI",
 		"L’ÎLE EST LE CHRONO - VIDE-LA ET ELLE COULE",
-		"LES CAROTTES SONT LE SCORE - LE X ROUGE EST LA SEULE POMPE"
+		"LES CAROTTES SONT LE SCORE - SEUL UN X ROUGE JUSTE REND DE L’ÉNERGIE"
 	],
 	"taglines": [
 		"CHAQUE PAS PEUT ÊTRE LE DERNIER... OU TA FORTUNE",
@@ -1467,12 +1427,12 @@
 			"blurb": "Enterre-la dans ton terrier. Elle épuise le pillard qui marche dessus."
 		},
 		"bomb": {
-			"name": "Bombe",
+			"name": "Bombe cachée",
 			"blurb": "Pose-la sur l’île de quelqu’un en pleine sortie. Il verra que c’était toi."
 		},
 		"lightning": {
-			"name": "Foudre",
-			"blurb": "Appelle un éclair sur l’île d’un rival. Il ouvre le sol autour."
+			"name": "Éclair",
+			"blurb": "Foudroie un rival en pleine sortie. L’éclair ouvre le sol autour de lui."
 		},
 		"shield": {
 			"name": "Bouclier",
@@ -1480,7 +1440,7 @@
 		},
 		"energy": {
 			"name": "Énergie",
-			"blurb": "Remplis la barre et creuse maintenant, au lieu d’attendre."
+			"blurb": "Recharge ton énergie et creuse maintenant, au lieu d’attendre."
 		},
 		"smoke": {
 			"name": "Écran de fumée",
@@ -1496,7 +1456,7 @@
 		},
 		"fence": {
 			"name": "Clôture",
-			"blurb": "Ferme un tronçon du bord de ton potager. Les pillards ne peuvent pas le franchir."
+			"blurb": "Ferme un bord de ton potager. Les pillards ne peuvent pas le franchir."
 		}
 	},
 	"quests": {
@@ -1524,7 +1484,7 @@
 		"bury-something": {
 			"title": "Enterrer quelque chose",
 			"ask": {
-				"$t": "Va dans DÉFENDRE et pose des bombes dans ta base."
+				"$t": "Va dans DÉFENDRE et enterre des bombes dans ton terrier."
 			},
 			"line": "Une bombe invisible est le seul mur qui vaille. Un mur, on le contourne."
 		},

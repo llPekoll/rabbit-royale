@@ -229,7 +229,7 @@ export const fr: Dict = {
   },
 
   run: {
-    goFarm: 'Déminer l’île',
+    goFarm: 'Retirer toutes les bombes',
     findMe: 'Retrouver mon lapin',
     retreat: 'Battre en retraite',
     home: 'Terrier',
@@ -242,21 +242,21 @@ export const fr: Dict = {
     energy: (n, max) => `${n} d'énergie sur ${max}`,
     /** The red X — see FLAG in tuning. */
     markBomb: 'Marquer une bombe',
-    markHint: 'Touche la case où tu penses qu’il y a une bombe · juste : +énergie · faux : -énergie',
+    markHint: 'Touche une case pour y mettre un X rouge · juste : +énergie · faux : -énergie',
     markCancel: 'Annuler',
     markNothing: 'Rien à marquer ici : toutes les cases autour de toi sont déjà lues.',
-    energyLow: 'Énergie basse. Un X juste sur une bombe en rend.',
-    energyRaidLeft: 'Encore de quoi piller. Rentre, ou continue.',
+    energyLow: 'Énergie basse. Un X rouge juste sur une bombe en rend.',
+    energyRaidLeft: 'Assez d’énergie pour un pillage. Rentre, ou continue.',
     homeRaid: 'Rentrer et piller',
     crossed: (cost, energy) => `\u26a1 -${cost} pour traverser \u00b7 ${energy} restants`,
-    trapHint: (left) => `Touche une case pour la miner, une mine pour la reprendre · ${left} restant`,
-    trapHintEmpty: 'Plus de bombes · achètes-en une autre, ou touche une mine pour la reprendre et la poser ailleurs',
+    trapHint: (left) => `Touche une case pour y enterrer une bombe, une bombe pour la reprendre · ${left} restant`,
+    trapHintEmpty: 'Plus de bombes · achètes-en une autre, ou touche une bombe pour la reprendre et la poser ailleurs',
     strike: 'Foudroyer',
     aiming: 'Touche un rival pour le foudroyer',
-    strikeNone: 'Pas d’éclair à appeler. La remise en vend.',
+    strikeNone: 'Pas d’éclair à appeler. La boutique en vend.',
     plant: 'Poser une bombe',
     aimingPlant: 'Touche une case non creusée pour y enterrer une bombe',
-    plantNone: 'Pas de bombe à poser. La remise en vend.',
+    plantNone: 'Pas de bombe à poser. La boutique en vend.',
     planted: 'Bombe enterrée. Toi seul sais où.',
     plantRefused: {
       'off-island': 'Pas sur l’île.',
@@ -272,7 +272,7 @@ export const fr: Dict = {
     hitBomb: (name) => `Bombe cachée posée par ${name}`,
     bloop: 'Bloop',
     aimingBloop: 'Touche un rival pour l’encrer',
-    bloopNone: 'Pas de bloop à lancer. La cabane en vend.',
+    bloopNone: 'Pas de bloop à lancer. La boutique en vend.',
     bloopRefused: {
       'no-rival': 'Personne à encrer ici.',
       level_locked: 'Pas avant le niveau 3.',
@@ -301,23 +301,23 @@ export const fr: Dict = {
 
   recap: {
     record: (island, n, previous) => previous ? `RECORD sur ${island} : ${n} \ud83e\udd55 (avant ${previous})` : `PREMIER RECORD sur ${island} : ${n} \ud83e\udd55`,
-    cleared: 'ÎLE DÉMINÉE !',
+    cleared: 'ÎLE VIDÉE !',
     over: 'SORTIE FINIE',
     clearedNote: 'Tous les coffres sont sortis de terre. La mer a pris le reste.',
     overNote: 'Plus d’énergie.',
     tutorialDone: 'TU L\u2019AS EU !',
     tutorialDoneNote: 'Le coffre, c\u2019était toute l\u2019île. Tes carottes t\u2019attendent au terrier.',
     stats: (carrots, dug, bombs, time) => `🥕 ${carrots} · ${dug} creusées · 💣 ${bombs} · ${time}`,
-    bank: (energy, max, cost) => `⚡ ${energy}/${max} en r\u00e9serve · la travers\u00e9e prend ${cost}`,
-    raidLeft: (energy) => `⚡ ${energy} en r\u00e9serve : de quoi piller`,
+    bank: (energy, max, cost) => `⚡ ${energy}/${max} d\u2019\u00e9nergie · la travers\u00e9e co\u00fbte ${cost}`,
+    raidLeft: (energy) => `⚡ ${energy} d\u2019\u00e9nergie restante : de quoi piller`,
     getEnergy: 'Prendre de l’énergie',
     goHome: (carrots) => `Terrier · ranger ${carrots} 🥕`,
     shoved: 'À L’EAU !',
     struck: 'FOUDROYÉ !',
     shovedNote: (name) => `${name} t’a poussé à l’eau.`,
-    struckNote: (name) => `${name} t’a fait tomber la foudre dessus.`,
+    struckNote: (name) => `${name} t’a foudroyé d’un éclair.`,
     shovedNoteAnon: 'Quelqu’un t’a poussé à l’eau.',
-    struckNoteAnon: 'Quelqu’un t’a fait tomber la foudre dessus.',
+    struckNoteAnon: 'Quelqu’un t’a foudroyé d’un éclair.',
   },
   shove: {
     by: (name) => `${name} t’a poussé !`,
@@ -380,28 +380,28 @@ export const fr: Dict = {
 
   shop: {
     title: 'BOUTIQUE',
-    shed: 'LA REMISE',
+    shed: 'BOUTIQUE',
     aria: 'Boutique',
     protect: 'PROTÉGER LE TERRIER',
     protectAria: 'Protéger ton terrier',
     protectBuyAria: 'Protéger ton terrier - acheter une bombe',
     noTraps: 'AUCUNE BOMBE - EN PRENDRE',
     nothingBuried: 'RIEN D’ENTERRÉ',
-    inShed: (n) => `${n} À LA REMISE`,
+    inShed: (n) => `${n} DANS LE SAC`,
     rearming: (n) => `RÉARMEMENT - ${n} REVIENNENT`,
     upAndRearming: (armed, rearming) => `${armed} EN PLACE - ${rearming} EN RÉARMEMENT`,
     inGround: (armed, max) => `${armed}/${max} EN TERRE`,
-    openShed: 'Ouvrir la remise',
+    openShed: 'Ouvrir la boutique',
     backToBurrow: 'Rentrer au terrier',
     payWith: 'Payer avec',
     outOfEnergy: 'PLUS D’ÉNERGIE',
     energySay: (cost, wait) =>
-      `Une sortie prend ${cost}. De quoi repartir revient tout seul dans ${wait}.`
-      + ' Ou remplis maintenant et continue de creuser.',
+      `Une traversée coûte ${cost}. Assez d’énergie revient toute seule dans ${wait}.`
+      + ' Ou recharge maintenant et continue de creuser.',
     energySayEmpty: (wait) =>
-      `La barre est vide. Un point revient tout seul dans ${wait}.`
-      + ' Ou remplis maintenant et continue de creuser.',
-    fillsTo: (max) => `Remplit la barre jusqu’à ${max}.`,
+      `Plus d’énergie. Un point revient tout seul dans ${wait}.`
+      + ' Ou recharge maintenant et continue de creuser.',
+    fillsTo: (max) => `Recharge ton énergie jusqu’à ${max}.`,
     noRefills: ' Plus de recharge aujourd’hui.',
     refillsLeft: (n) => (n > 0 ? ` ${n} recharge${n > 1 ? 's' : ''} aujourd’hui.` : ' Plus de recharge aujourd’hui.'),
     cardsOff: 'Le paiement par carte n’est pas encore ouvert. Carottes seulement.',
@@ -424,16 +424,16 @@ export const fr: Dict = {
     max: 'MAX',
     active: 'ACTIF',
     boughtEnergy: (paid) => `Énergie rechargée. ${paid}`,
-    boughtTrap: (n, paid) => `${n > 1 ? `${n} bombes` : 'Bombe'} à la remise. ${paid}`,
+    boughtTrap: (n, paid) => `${n > 1 ? `${n} bombes` : 'Bombe'} dans le sac. ${paid}`,
     boughtBomb: (n, paid) => `${n > 1 ? `${n} bombes armées` : 'Bombe armée'}. ${paid}`,
     boughtLightning: (n, paid) => `${n > 1 ? `${n} éclairs` : 'Éclair'} en bouteille. ${paid}`,
     boughtShield: (n, paid) => `${n > 1 ? `${n} boucliers prêts` : 'Bouclier prêt'}. ${paid}`,
     boughtSmoke: (paid) => `Les chiffres sont cachés. ${paid}`,
     boughtBloop: (n, paid) => `${n > 1 ? `${n} bloops` : 'Bloop'} dans le bocal. ${paid}`,
     boughtMirage: (n, paid) => `${n > 1 ? `${n} mirages prêts` : 'Mirage prêt'} à lancer. ${paid}`,
-    /* Une clôture se DRESSE : ce qu'on achète, c'est une planche qui ferme un
-       tronçon du bord du potager, donc le reçu nomme ce que ça devient. */
-    boughtFence: (n, paid) => `${n > 1 ? `${n} planches prêtes` : 'Planche prête'} à dresser. ${paid}`,
+    /* Une clôture se DRESSE : ce qu'on achète ferme un bord du potager, donc
+       le reçu nomme ce que ça devient. */
+    boughtFence: (n, paid) => `${n > 1 ? `${n} clôtures prêtes` : 'Clôture prête'} à dresser. ${paid}`,
     paid: (spent) => `-${spent} 🥕`,
   },
 
@@ -447,21 +447,21 @@ export const fr: Dict = {
     bad_quantity: 'Ce n’est pas une quantité.',
     no_traps: 'Plus de bombes. Achètes-en une, ou attends demain.',
     board_full: 'Ton terrier ne peut pas tenir une bombe de plus.',
-    tile_not_trappable: 'Rien à miner là.',
+    tile_not_trappable: 'Pas de bombe possible là.',
     tile_doorstep: 'Trop près de l\'entrée. Les premiers pas restent libres.',
     tile_house: 'On n\'enterre rien sous ta maison.',
     tile_field: 'On n\'enterre rien dans ton potager.',
-    tile_already_trapped: 'Déjà miné.',
+    tile_already_trapped: 'Il y a déjà une bombe là.',
     no_trap_there: 'Pas de bombe là.',
-    no_fences: 'Plus de clôtures. La remise en vend.',
-    span_already_fenced: 'Une planche est déjà dressée là.',
+    no_fences: 'Plus de clôtures. La boutique en vend.',
+    span_already_fenced: 'Une clôture est déjà dressée là.',
     span_not_exposed: 'Ce n’est pas un bord de ton potager.',
     /* La règle du portail, énoncée comme une règle et non comme une faute :
        c’est le seul refus d’ici que le joueur doit APPRENDRE, alors il dit
        pourquoi avant de dire non. */
     would_seal_burrow: 'Ça fermerait le dernier passage. Un passage reste ouvert, c’est le portail.',
-    span_not_fenced: 'Pas de planche là.',
-    bad_span: 'Ce n’est pas une place pour une planche.',
+    span_not_fenced: 'Pas de clôture là.',
+    bad_span: 'Ce n’est pas une place pour une clôture.',
     /* Pas le refus du propriétaire mais celui du PILLARD, depuis raid/route.ts —
        une clôture est la seule défense dont on lui parle, alors elle l’oriente. */
     fenced: 'Une clôture bloque le passage. Contourne.',
@@ -489,7 +489,7 @@ export const fr: Dict = {
   kit: {
     tools: {
       more: 'Voir l’effet et les actions', less: 'Réduire les détails',
-      available: (n) => n + ' en réserve',
+      available: (n) => n + ' en sac',
       placed: (n) => n + ' en place',
       active: (time) => time + ' restantes',
       buyTrap: (price) => 'Acheter une bombe - ' + price + ' carottes',
@@ -501,14 +501,14 @@ export const fr: Dict = {
       smokeHint: 'Acheter de la fumée à la boutique l’active immédiatement.',
       attackHint: 'À utiliser sur l’île d’un rival pendant une partie.',
       chestHint: 'Tu en trouveras dans les coffres.',
-      waterEffect: 'Fait pousser ton jardin plus vite pendant un moment.',
-      fertiliserEffect: 'Permet au jardin de stocker plus de carottes avant d’être plein.',
+      waterEffect: 'Fait pousser ton potager plus vite pendant un moment.',
+      fertiliserEffect: 'Permet au potager de stocker plus de carottes avant d’être plein.',
       water: 'Utiliser un arrosage', fertilise: 'Utiliser un engrais',
     },
     aria: 'Ce que tu portes',
     groupDefence: 'DEFENSE',
     groupAttack: 'ATTAQUE',
-    groupGarden: 'JARDIN',
+    groupGarden: 'POTAGER',
     shieldHolding: (wait, held) => `Bouclier : actif, ${wait} restant. ${held} en sac.`,
     shieldReady: (held) => `Bouclier : ${held} en sac. Lève-en un. Les pillards rebondissent tant qu’il tient.`,
     shieldNone: 'Bouclier : aucun. Achètes-en un en boutique.',
@@ -519,38 +519,38 @@ export const fr: Dict = {
     carried: (name, held, blurb) => `${name} : ${held} en sac. ${blurb}`,
     carriedNone: (name, blurb) => `${name} : aucun. ${blurb}`,
     trapsLine: (placed, max, held) =>
-      `Bombes : ${placed}${max ? ` sur ${max}` : ''} en terre, ${held} à la remise.`
+      `Bombes : ${placed}${max ? ` sur ${max}` : ''} en terre, ${held} en sac.`
       + ' Enterre-les depuis DÉFENDRE.',
     trapsBuy: (held, price) =>
       (held > 0
-        ? `Bombes : ${held} à la remise. Achètes-en une autre pour ${price} carottes.`
-        : `Bombes : la remise est vide. Achètes-en une pour ${price} carottes.`),
+        ? `Bombes : ${held} en sac. Achètes-en une autre pour ${price} carottes.`
+        : `Bombes : aucune en sac. Achètes-en une pour ${price} carottes.`),
     trapsBuyBroke: (price) =>
       `Bombes : plus aucune. Une bombe coûte ${price} carottes - va en creuser.`,
-    trapsBuyFull: (held) => `Bombes : ${held} à la remise. La remise est pleine.`,
+    trapsBuyFull: (held) => `Bombes : ${held} en sac. Le sac est plein.`,
     bottleRunning: (name, wait, count) => `${name} : en cours, ${wait} restant. ${count} en sac.`,
     bottleHeld: (name, count) => `${name} : ${count} en sac. Verse-en un sur le potager.`,
     bottleNone: (name) => `${name} : aucun. On en trouve dans les coffres.`,
-    /* LA CASE CLÔTURE. Une clôture, c'est une planche sur un tronçon du bord du
-       potager. `total`, c'est tous les tronçons, portail compris, tels que
+    /* LA CASE CLÔTURE. Une clôture ferme un bord du potager. `total`, c'est
+       tous les bords, portail compris, tels que
        l'appelant (kit-row.tsx) les compte : le dernier ne peut jamais être
        fermé, et fenceAllWalled le dit plutôt que de laisser le compte se lire
-       comme une planche que le joueur aurait ratée. Pluriel à partir de 2,
+       comme une clôture que le joueur aurait ratée. Pluriel à partir de 2,
        comme ailleurs en français. */
     fencePlace: (held, walled, total) =>
-      `Clôtures : ${held} planche${held < 2 ? '' : 's'} en sac, ${walled} tronçon${walled < 2 ? '' : 's'} sur ${total} fermé${walled < 2 ? '' : 's'}.`
+      `Clôtures : ${held} en sac, ${walled} bord${walled < 2 ? '' : 's'} sur ${total} fermé${walled < 2 ? '' : 's'}.`
       + ' Pose-en une.',
     /* Pas un échec, d'où le portail nommé franchement : le joueur a fait tout
        ce que l'objet permet, et un simple « plus possible » se lirait comme un
        plafond qu'il devrait chercher à lever. */
     fenceAllWalled: (walled) =>
-      `Clôtures : ${walled} tronçon${walled < 2 ? '' : 's'} fermé${walled < 2 ? '' : 's'}.`
+      `Clôtures : ${walled} bord${walled < 2 ? '' : 's'} fermé${walled < 2 ? '' : 's'}.`
       + ' Le dernier passage est le portail et reste ouvert.',
-    /* Nomme le chemin vers une planche quand le sac est vide : une planche
+    /* Nomme le chemin vers une clôture quand le sac est vide : une clôture
        dressée n'est pas dépensée, on la touche pour la reprendre. */
     fenceNone: (walled) =>
-      `Clôtures : aucune en sac, ${walled} tronçon${walled < 2 ? '' : 's'} fermé${walled < 2 ? '' : 's'}.`
-      + ' La remise en vend. Touche une planche dressée pour la reprendre.',
+      `Clôtures : aucune en sac, ${walled} bord${walled < 2 ? '' : 's'} fermé${walled < 2 ? '' : 's'}.`
+      + ' La boutique en vend. Touche une clôture pour la reprendre.',
     watering: 'Arrosage',
     fertiliser: 'Engrais',
   },
@@ -565,15 +565,15 @@ export const fr: Dict = {
     island: '\u00cele',
     islandCost: (cost) => `${cost} pour traverser, puis 1 par fouille`,
     raid: 'Raid',
-    raidCost: (toll, stake) => `${toll} pour entrer, ${stake} au plus`,
-    raidRefund: 'Atteins le champ et tes pas reviennent.',
+    raidCost: (toll, stake) => `${toll} pour traverser, ${stake} au plus`,
+    raidRefund: 'Atteins le potager et tes pas reviennent.',
     dig: 'Fouille',
     digCost: (dig, bomb) => `${dig} par case. Une bombe : ${bomb}`,
     x: 'X rouge',
     xCost: (lo, hi, loss) => `juste : +${lo} \u00e0 +${hi}. Faux : -${loss}`,
     home: 'Rentrer',
     homeCost: (floor) => `rentre avec ${floor} ou plus et un raid est pr\u00eat`,
-    homeHint: 'Ce que tu ram\u00e8nes reste dans le r\u00e9servoir.',
+    homeHint: 'L\u2019\u00e9nergie que tu ram\u00e8nes est gard\u00e9e.',
     ready: 'Pr\u00eat',
     raidReady: 'Raid pr\u00eat',
     needs: (floor) => `Il faut ${floor}`,
@@ -615,7 +615,7 @@ export const fr: Dict = {
     another: 'Piller un autre terrier',
     choose: 'Choisis un terrier',
     whose: 'QUEL TERRIER ?',
-    cost: (toll, stake) => `Un raid prend ${toll} d’énergie pour entrer, ${stake} au plus.`,
+    cost: (toll, stake) => `La traversée d’un raid coûte ${toll} d’énergie, ${stake} au plus.`,
     allShielded: 'TOUS LES TERRIERS PROTÉGÉS',
     nobody: 'PERSONNE À VOLER',
     shielded: 'Protégé',
@@ -626,13 +626,13 @@ export const fr: Dict = {
     },
     raidIt: 'Piller',
     watchIt: 'Regarder',
-    brief: 'Atteins le champ de carottes. Leurs bombes sont enterrées et invisibles.',
+    brief: 'Atteins leur potager. Leurs bombes sont enterrées et invisibles.',
     outOfEnergy: 'Plus d’énergie',
     nothingTaken: 'Rien pris',
     unguarded: (amount) => `${amount} SANS GARDE`,
     nobodyYet: 'Personne d\u2019autre n\u2019a encore de terrier.',
     steps: 'pas',
-    stepsBack: (n) => `Champ atteint : tes ${n} pas te sont rendus`,
+    stepsBack: (n) => `Potager atteint : tes ${n} pas te sont rendus`,
     looted: (n) => `+${n} 🥕`,
     won: 'PILLAGE RÉUSSI !',
     backToBurrow: 'RETOUR AU TERRIER',
@@ -644,14 +644,14 @@ export const fr: Dict = {
     wonAria: (carrots, name) => `Pillage réussi - ${carrots} carottes volées à ${name}`,
     rabbitAria: 'Ton lapin, qui fête ça',
     stolen: (n, name) => `+${n} 🥕 volées à ${name}`,
-    fellShort: (pct, name) => `Arrêté à ${pct}% du champ de ${name}`,
+    fellShort: (pct, name) => `Arrêté à ${pct}% du potager de ${name}`,
     defended: 'DÉFENDU',
     raided: 'PILLÉ',
     byWho: (who, n) => `PAR ${who} · -${n} CAROTTES`,
     byWhoNothing: (who) => `PAR ${who}`,
     bounced: (n) => `${n} PILLAGE${n < 2 ? '' : 'S'} REPOUSSÉ${n < 2 ? '' : 'S'}`,
     struck: 'Foudroyé',
-    struckBy: (name) => `${name} a appelé la foudre sur toi`,
+    struckBy: (name) => `${name} t’a foudroyé`,
     smoked: 'Écran de fumée : pas de chiffres ici. Avance à l’aveugle.',
   },
 
@@ -683,7 +683,7 @@ export const fr: Dict = {
     no_energy: 'Pas assez d\'énergie pour traverser. Attends, ou recharge.',
     not_adjacent: 'Trop loin. Un pas à la fois.',
     raid_over: 'Ce pillage est déjà terminé.',
-    none_held: 'Pas d’éclair à appeler. La remise en vend.',
+    none_held: 'Pas d’éclair à appeler. La boutique en vend.',
     no_raid: 'Ce pillage est terminé.',
     unknown_player: 'Ils ont disparu.',
   },
@@ -694,7 +694,7 @@ export const fr: Dict = {
     fertiliser: 'ENGRAIS',
     bomb: 'BOMBE',
     shield: 'BOUCLIER',
-    lightning: 'FOUDRE',
+    lightning: 'ÉCLAIR',
     genesis: 'RR GENESIS',
     piece: (amount, label) => `UNE PART EST À TOI - PLUS ${amount}x ${label}`,
   },
@@ -719,7 +719,7 @@ export const fr: Dict = {
     historyFailed: 'Impossible de charger ton historique.',
     noRuns: 'Aucune sortie terminée pour l\u2019instant.',
     noRaids: 'Personne ne s\u2019en est encore pris à toi.',
-    noPurchases: 'Rien de la remise pour l\u2019instant.',
+    noPurchases: 'Rien de la boutique pour l\u2019instant.',
     today: 'Aujourd’hui',
     youHit: (name) => `Tu as touché ${name}`,
     damage: (n) => `${n} dég.`,
@@ -777,7 +777,7 @@ export const fr: Dict = {
     'REPASSER SUR LES CASES DÉJÀ CREUSÉES EST GRATUIT',
     'CHAQUE COFFRE OUVERT RENTRE AVEC TOI',
     'L’ÎLE EST LE CHRONO - VIDE-LA ET ELLE COULE',
-    'LES CAROTTES SONT LE SCORE - LE X ROUGE EST LA SEULE POMPE',
+    'LES CAROTTES SONT LE SCORE - SEUL UN X ROUGE JUSTE REND DE L’ÉNERGIE',
   ],
 
   taglines: [
@@ -801,12 +801,12 @@ export const fr: Dict = {
       blurb: 'Enterre-la dans ton terrier. Elle épuise le pillard qui marche dessus.',
     },
     bomb: {
-      name: 'Bombe',
+      name: 'Bombe cachée',
       blurb: 'Pose-la sur l’île de quelqu’un en pleine sortie. Il verra que c’était toi.',
     },
     lightning: {
-      name: 'Foudre',
-      blurb: 'Appelle un éclair sur l’île d’un rival. Il ouvre le sol autour.',
+      name: 'Éclair',
+      blurb: 'Foudroie un rival en pleine sortie. L’éclair ouvre le sol autour de lui.',
     },
     shield: {
       name: 'Bouclier',
@@ -814,7 +814,7 @@ export const fr: Dict = {
     },
     energy: {
       name: 'Énergie',
-      blurb: 'Remplis la barre et creuse maintenant, au lieu d’attendre.',
+      blurb: 'Recharge ton énergie et creuse maintenant, au lieu d’attendre.',
     },
     smoke: {
       name: 'Écran de fumée',
@@ -833,7 +833,7 @@ export const fr: Dict = {
        l'objet exactement. Voir lib/game/fences.ts. */
     fence: {
       name: 'Clôture',
-      blurb: 'Ferme un tronçon du bord de ton potager. Les pillards ne peuvent pas le franchir.',
+      blurb: 'Ferme un bord de ton potager. Les pillards ne peuvent pas le franchir.',
     },
   },
 
@@ -855,7 +855,7 @@ export const fr: Dict = {
     },
     'bury-something': {
       title: 'Enterrer quelque chose',
-      ask: () => 'Va dans DÉFENDRE et pose des bombes dans ta base.',
+      ask: () => 'Va dans DÉFENDRE et enterre des bombes dans ton terrier.',
       line: 'Une bombe invisible est le seul mur qui vaille. Un mur, on le contourne.',
     },
     'open-a-chest': {

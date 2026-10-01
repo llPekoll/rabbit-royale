@@ -233,7 +233,7 @@ export const ptBR: Dict = {
   },
 
   run: {
-    goFarm: 'Limpar todas as minas',
+    goFarm: 'Limpar todas as bombas',
     findMe: 'Achar meu coelho',
     retreat: 'Recuar',
     home: 'Toca',
@@ -246,21 +246,21 @@ export const ptBR: Dict = {
     energy: (n, max) => `${n} de ${max} de energia`,
     /** The red X — see FLAG in tuning. */
     markBomb: 'Marcar uma bomba',
-    markHint: 'Toque na casa onde você acha que há uma bomba · certo: +energia · errado: -energia',
+    markHint: 'Toque numa casa para pôr um X vermelho · certo: +energia · errado: -energia',
     markCancel: 'Cancelar',
     markNothing: 'Nada para marcar aqui: todas as casas ao seu redor já foram lidas.',
-    energyLow: 'Energia baixa. Um X certo numa bomba devolve um pouco.',
-    energyRaidLeft: 'Ainda dá para um saque. Volte, ou continue.',
+    energyLow: 'Energia baixa. Um X vermelho certo numa bomba devolve um pouco.',
+    energyRaidLeft: 'Ainda há energia para um saque. Volte, ou continue.',
     homeRaid: 'Voltar e saquear',
     crossed: (cost, energy) => `\u26a1 -${cost} na travessia \u00b7 ${energy} sobrando`,
-    trapHint: (left) => `Toque num quadrado para minar, numa mina para tirar · restam ${left}`,
-    trapHintEmpty: 'Sem bombas · compre outra, ou toque numa mina para tirar e enterrar noutro lugar',
+    trapHint: (left) => `Toque num quadrado para enterrar uma bomba, numa bomba para tirar · restam ${left}`,
+    trapHintEmpty: 'Sem bombas · compre outra, ou toque numa bomba para tirar e enterrar noutro lugar',
     strike: 'Raio',
-    aiming: 'Toque num rival para atingi-lo',
-    strikeNone: 'Sem raio para chamar. O galpão vende.',
+    aiming: 'Toque num rival para eletrocutá-lo',
+    strikeNone: 'Sem raio para chamar. A loja vende.',
     plant: 'Plantar bomba',
     aimingPlant: 'Toque num chão não cavado para enterrar uma bomba',
-    plantNone: 'Sem bombas para plantar. O galpão vende.',
+    plantNone: 'Sem bombas para plantar. A loja vende.',
     planted: 'Bomba enterrada. Só você sabe onde.',
     plantRefused: {
       'off-island': 'Fora da ilha.',
@@ -270,13 +270,13 @@ export const ptBR: Dict = {
       'too-many': 'Três bombas ativas é o máximo aqui.',
     } as Record<string, string>,
     plantedBy: (name) => `Bomba de ${name}!`,
-    struckBy: (name) => `${name} te atingiu com um raio`,
+    struckBy: (name) => `${name} te eletrocutou`,
     watchers: (n) => `${n} online`,
-    hitBolt: (name) => `${name} te fulminou`,
+    hitBolt: (name) => `${name} te eletrocutou`,
     hitBomb: (name) => `Bomba oculta de ${name}`,
     bloop: 'Bloop',
     aimingBloop: 'Toque num rival para entintá-lo',
-    bloopNone: 'Nenhum bloop para lançar. O galpão vende.',
+    bloopNone: 'Nenhum bloop para lançar. A loja vende.',
     bloopRefused: {
       'no-rival': 'Ninguém ali para entintar.',
       level_locked: 'Só a partir do nível 3.',
@@ -312,16 +312,16 @@ export const ptBR: Dict = {
     tutorialDone: 'VOCÊ PEGOU!',
     tutorialDoneNote: 'O baú era a ilha inteira. Suas cenouras esperam na toca.',
     stats: (carrots, dug, bombs, time) => `🥕 ${carrots} · ${dug} cavados · 💣 ${bombs} · ${time}`,
-    bank: (energy, max, cost) => `⚡ ${energy}/${max} no tanque · a travessia leva ${cost}`,
-    raidLeft: (energy) => `⚡ ${energy} no tanque: dá para um saque`,
+    bank: (energy, max, cost) => `⚡ ${energy}/${max} de energia · a travessia custa ${cost}`,
+    raidLeft: (energy) => `⚡ ${energy} de energia: dá para um saque`,
     getEnergy: 'Pegar mais energia',
     goHome: (carrots) => `Toca · guardar ${carrots} 🥕`,
     shoved: 'NA ÁGUA!',
-    struck: 'FULMINADO!',
+    struck: 'ELETROCUTADO!',
     shovedNote: (name) => `${name} te empurrou na água.`,
-    struckNote: (name) => `${name} chamou o raio em cima de você.`,
+    struckNote: (name) => `${name} te eletrocutou com um raio.`,
     shovedNoteAnon: 'Alguém te empurrou na água.',
-    struckNoteAnon: 'Alguém chamou o raio em cima de você.',
+    struckNoteAnon: 'Alguém te eletrocutou com um raio.',
   },
   shove: {
     by: (name) => `${name} te empurrou!`,
@@ -384,28 +384,28 @@ export const ptBR: Dict = {
 
   shop: {
     title: 'LOJA',
-    shed: 'O GALPÃO',
+    shed: 'LOJA',
     aria: 'Loja',
     protect: 'PROTEGER A TOCA',
     protectAria: 'Proteger sua toca',
     protectBuyAria: 'Proteger sua toca - comprar uma bomba',
     noTraps: 'SEM BOMBAS - PEGUE UMA',
     nothingBuried: 'NADA ENTERRADO',
-    inShed: (n) => `${n} NO GALPÃO`,
+    inShed: (n) => `${n} NA BOLSA`,
     rearming: (n) => `REARMANDO - ${n} VOLTANDO`,
     upAndRearming: (armed, rearming) => `${armed} DE PÉ - ${rearming} REARMANDO`,
     inGround: (armed, max) => `${armed}/${max} NO CHÃO`,
-    openShed: 'Abrir o galpão',
+    openShed: 'Abrir a loja',
     backToBurrow: 'Voltar para a toca',
     payWith: 'Pagar com',
     outOfEnergy: 'SEM ENERGIA',
     energySay: (cost, wait) =>
-      `Uma saída leva ${cost}. Isso volta sozinho em ${wait}.`
-      + ' Ou encha agora e continue cavando.',
+      `A travessia custa ${cost}. Essa energia volta sozinha em ${wait}.`
+      + ' Ou recarregue agora e continue cavando.',
     energySayEmpty: (wait) =>
-      `A barra está vazia. Um ponto volta sozinho em ${wait}.`
-      + ' Ou encha agora e continue cavando.',
-    fillsTo: (max) => `Enche a barra até ${max}.`,
+      `Sem energia. Um ponto volta sozinho em ${wait}.`
+      + ' Ou recarregue agora e continue cavando.',
+    fillsTo: (max) => `Recarrega sua energia até ${max}.`,
     noRefills: ' Sem recargas hoje.',
     refillsLeft: (n) => (n > 0 ? ` ${n} recarga${n > 1 ? 's' : ''} hoje.` : ' Sem recargas hoje.'),
     cardsOff: 'Pagamento com cartão ainda não está ligado. Só cenouras por enquanto.',
@@ -428,7 +428,7 @@ export const ptBR: Dict = {
     max: 'MÁX',
     active: 'ATIVO',
     boughtEnergy: (paid) => `Energia recarregada. ${paid}`,
-    boughtTrap: (n, paid) => `${n > 1 ? `${n} bombas` : 'Bomba'} no galpão. ${paid}`,
+    boughtTrap: (n, paid) => `${n > 1 ? `${n} bombas` : 'Bomba'} na bolsa. ${paid}`,
     boughtBomb: (n, paid) => `${n > 1 ? `${n} bombas armadas` : 'Bomba armada'}. ${paid}`,
     boughtLightning: (n, paid) => `${n > 1 ? `${n} raios` : 'Raio'} engarrafado${n > 1 ? 's' : ''}. ${paid}`,
     boughtShield: (n, paid) => `${n > 1 ? `${n} escudos prontos` : 'Escudo pronto'}. ${paid}`,
@@ -437,7 +437,7 @@ export const ptBR: Dict = {
     boughtMirage: (n, paid) => `${n > 1 ? `${n} miragens prontas` : 'Miragem pronta'} para jogar. ${paid}`,
     /* Uma cerca é LEVANTADA: o que se compra é uma tábua que fecha um trecho da
        borda da horta, então o recibo nomeia aquilo em que ela se transforma. */
-    boughtFence: (n, paid) => `${n > 1 ? `${n} tábuas prontas` : 'Tábua pronta'} para levantar. ${paid}`,
+    boughtFence: (n, paid) => `${n > 1 ? `${n} cercas prontas` : 'Cerca pronta'} para levantar. ${paid}`,
     paid: (spent) => `-${spent} 🥕`,
   },
 
@@ -451,21 +451,21 @@ export const ptBR: Dict = {
     bad_quantity: 'Isso não é uma quantidade.',
     no_traps: 'Sem bombas. Compre uma, ou espere amanhã.',
     board_full: 'Sua toca não cabe mais uma bomba.',
-    tile_not_trappable: 'Nada para minar aí.',
+    tile_not_trappable: 'Nenhuma bomba pode ir aí.',
     tile_doorstep: 'Perto demais da porta. Os primeiros passos ficam livres.',
     tile_house: 'Nada fica enterrado debaixo da sua casa.',
     tile_field: 'Nada fica enterrado na sua horta.',
-    tile_already_trapped: 'Já minado.',
+    tile_already_trapped: 'Já tem uma bomba aí.',
     no_trap_there: 'Não tem bomba aí.',
-    no_fences: 'Sem cercas. O galpão vende.',
-    span_already_fenced: 'Já tem uma tábua aí.',
+    no_fences: 'Sem cercas. A loja vende.',
+    span_already_fenced: 'Já tem uma cerca aí.',
     span_not_exposed: 'Isso não é uma borda da sua horta.',
     /* A regra do portão, dita como regra e não como erro: é a única recusa
        daqui que o jogador precisa APRENDER, então ela diz por que antes de
        dizer não. */
     would_seal_burrow: 'Isso fecharia a última entrada. Uma entrada fica aberta como portão.',
-    span_not_fenced: 'Não tem tábua aí.',
-    bad_span: 'Isso não é lugar para uma tábua.',
+    span_not_fenced: 'Não tem cerca aí.',
+    bad_span: 'Isso não é lugar para uma cerca.',
     /* Não é a recusa do dono, e sim a do SAQUEADOR, vinda de raid/route.ts —
        a cerca é a única defesa que ele enxerga, então ela o orienta. */
     fenced: 'Uma cerca bloqueia o caminho. Contorne.',
@@ -523,15 +523,15 @@ export const ptBR: Dict = {
     carried: (name, held, blurb) => `${name}: ${held} na bolsa. ${blurb}`,
     carriedNone: (name, blurb) => `${name}: nenhum. ${blurb}`,
     trapsLine: (placed, max, held) =>
-      `Bombas: ${placed}${max ? ` de ${max}` : ''} no chão, ${held} no galpão.`
+      `Bombas: ${placed}${max ? ` de ${max}` : ''} no chão, ${held} na bolsa.`
       + ' Enterre pelo DEFENDER.',
     trapsBuy: (held, price) =>
       (held > 0
-        ? `Bombas: ${held} no galpão. Compre outra por ${price} cenouras.`
-        : `Bombas: galpão vazio. Compre uma por ${price} cenouras.`),
+        ? `Bombas: ${held} na bolsa. Compre outra por ${price} cenouras.`
+        : `Bombas: nenhuma na bolsa. Compre uma por ${price} cenouras.`),
     trapsBuyBroke: (price) =>
       `Bombas: nenhuma. Uma custa ${price} cenouras - va cavar mais.`,
-    trapsBuyFull: (held) => `Bombas: ${held} no galpão. O galpão está cheio.`,
+    trapsBuyFull: (held) => `Bombas: ${held} na bolsa. A bolsa está cheia.`,
     bottleRunning: (name, wait, count) => `${name}: em curso, restam ${wait}. ${count} na bolsa.`,
     bottleHeld: (name, count) => `${name}: ${count} na bolsa. Despeje uma na horta.`,
     bottleNone: (name) => `${name}: nenhuma. Encontradas em baús.`,
@@ -541,18 +541,18 @@ export const ptBR: Dict = {
        diz isso em vez de deixar a conta ler como uma tábua que o jogador deixou
        de levantar. */
     fencePlace: (held, walled, total) =>
-      `Cercas: ${held} tábua${held === 1 ? '' : 's'} na bolsa, ${walled} de ${total} trecho${total === 1 ? '' : 's'} fechado${walled === 1 ? '' : 's'}.`
+      `Cercas: ${held} na bolsa, ${walled} de ${total} borda${total === 1 ? '' : 's'} fechada${walled === 1 ? '' : 's'}.`
       + ' Levante uma.',
     /* Não é falha, por isso o portão é dito na cara: o jogador fez tudo o que o
        item permite, e um "não dá mais" leria como um limite a ser vencido. */
     fenceAllWalled: (walled) =>
-      `Cercas: ${walled} trecho${walled === 1 ? '' : 's'} fechado${walled === 1 ? '' : 's'}.`
+      `Cercas: ${walled} borda${walled === 1 ? '' : 's'} fechada${walled === 1 ? '' : 's'}.`
       + ' A última entrada é o portão e fica aberta.',
     /* Nomeia o caminho de volta a uma tábua quando a bolsa está vazia: uma tábua
        levantada não foi gasta, é só tocar nela para pegá-la de volta. */
     fenceNone: (walled) =>
-      `Cercas: nenhuma na bolsa, ${walled} trecho${walled === 1 ? '' : 's'} fechado${walled === 1 ? '' : 's'}.`
-      + ' O galpão vende. Toque numa tábua levantada para pegá-la de volta.',
+      `Cercas: nenhuma na bolsa, ${walled} borda${walled === 1 ? '' : 's'} fechada${walled === 1 ? '' : 's'}.`
+      + ' A loja vende. Toque numa cerca para pegá-la de volta.',
     watering: 'Rega',
     fertiliser: 'Adubo',
   },
@@ -567,15 +567,15 @@ export const ptBR: Dict = {
     island: 'Ilha',
     islandCost: (cost) => `${cost} para atravessar, depois 1 por escava\u00e7\u00e3o`,
     raid: 'Saque',
-    raidCost: (toll, stake) => `${toll} para entrar, no m\u00e1ximo ${stake}`,
-    raidRefund: 'Chegue ao campo e seus passos voltam.',
+    raidCost: (toll, stake) => `${toll} na travessia, no m\u00e1ximo ${stake}`,
+    raidRefund: 'Chegue à horta e seus passos voltam.',
     dig: 'Escavar',
     digCost: (dig, bomb) => `${dig} por casa. Uma bomba: ${bomb}`,
     x: 'X vermelho',
     xCost: (lo, hi, loss) => `certo: +${lo} a +${hi}. Errado: -${loss}`,
     home: 'Voltar',
     homeCost: (floor) => `volte com ${floor} ou mais e um saque est\u00e1 pronto`,
-    homeHint: 'O que voc\u00ea leva para casa fica no tanque.',
+    homeHint: 'A energia que voc\u00ea leva para casa fica guardada.',
     ready: 'Pronto',
     raidReady: 'Saque pronto',
     needs: (floor) => `Pede ${floor}`,
@@ -617,7 +617,7 @@ export const ptBR: Dict = {
     another: 'Saquear outra toca',
     choose: 'Escolha uma toca',
     whose: 'TOCA DE QUEM?',
-    cost: (toll, stake) => `Um saque leva ${toll} de energia para entrar, no máximo ${stake}.`,
+    cost: (toll, stake) => `A travessia de um saque custa ${toll} de energia, no máximo ${stake}.`,
     allShielded: 'TODAS AS TOCAS COM ESCUDO',
     nobody: 'NINGUÉM PARA ROUBAR',
     shielded: 'Com escudo',
@@ -628,13 +628,13 @@ export const ptBR: Dict = {
     },
     raidIt: 'Saquear',
     watchIt: 'Assistir',
-    brief: 'Alcance a plantação de cenouras. As bombas deles estão enterradas e sem marca.',
+    brief: 'Alcance a horta deles. As bombas deles estão enterradas e sem marca.',
     outOfEnergy: 'Sem energia',
     nothingTaken: 'Nada levado',
     unguarded: (amount) => `${amount} SEM GUARDA`,
     nobodyYet: 'Ninguém mais tem uma toca ainda.',
     steps: 'passos',
-    stepsBack: (n) => `Campo alcançado: seus ${n} passos voltam`,
+    stepsBack: (n) => `Horta alcançada: seus ${n} passos voltam`,
     looted: (n) => `+${n} 🥕`,
     won: 'SAQUE VENCIDO!',
     backToBurrow: 'DE VOLTA À TOCA',
@@ -652,8 +652,8 @@ export const ptBR: Dict = {
     byWho: (who, n) => `POR ${who} · -${n} CENOURAS`,
     byWhoNothing: (who) => `POR ${who}`,
     bounced: (n) => `${n} SAQUE${n === 1 ? '' : 'S'} RICOCHETEARAM`,
-    struck: 'Atingido por um raio',
-    struckBy: (name) => `${name} chamou um raio em cima de você`,
+    struck: 'Eletrocutado',
+    struckBy: (name) => `${name} te eletrocutou`,
     smoked: 'Cortina de fumaça: sem números aqui. Ande às cegas.',
   },
 
@@ -664,11 +664,11 @@ export const ptBR: Dict = {
     cleaned: (bombs, planks) => `${bombs} bomba${bombs > 1 ? 's' : ''} e ${planks} cerca${planks > 1 ? 's' : ''} de volta na bolsa`,
     underAttack: (name) => `${name.toUpperCase()} ESTÁ SAQUEANDO VOCÊ`,
     theirSteps: 'passos dele',
-    hint: 'Enterre uma bomba na frente dele, ou toque no coelho para chamar um raio.',
+    hint: 'Enterre uma bomba na frente dele, ou toque no coelho para eletrocutá-lo.',
     strike: 'Raio',
     buyStrike: 'Comprar e eletrocutar',
     held: (n) => (n === 1 ? '1 na bolsa' : `${n} na bolsa`),
-    struckDown: 'DERRUBADO',
+    struckDown: 'ELETROCUTADO',
     ranDry: 'FICOU SEM ENERGIA',
     looted: (n) => `LEVARAM ${n} 🥕`,
     lost: 'Sua toca foi saqueada',
@@ -685,7 +685,7 @@ export const ptBR: Dict = {
     no_energy: 'Energia insuficiente para a travessia. Espere, ou recarregue.',
     not_adjacent: 'Longe demais. Um passo por vez.',
     raid_over: 'Esse saque já acabou.',
-    none_held: 'Sem raio para chamar. O galpão vende.',
+    none_held: 'Sem raio para chamar. A loja vende.',
     no_raid: 'Esse saque acabou.',
     unknown_player: 'Sumiram.',
   },
@@ -721,14 +721,14 @@ export const ptBR: Dict = {
     historyFailed: 'Não foi possível carregar seu histórico.',
     noRuns: 'Nenhuma saída concluída ainda.',
     noRaids: 'Ninguém veio para cima de você ainda.',
-    noPurchases: 'Nada do galpão ainda.',
+    noPurchases: 'Nada da loja ainda.',
     today: 'Hoje',
     youHit: (name) => `Você acertou ${name}`,
     damage: (n) => `${n} de dano`,
     shovedIn: 'empurrado na água',
-    struckDown: 'fulminado por um raio',
+    struckDown: 'eletrocutado',
     youShoved: (name) => `Você empurrou ${name} na água`,
-    youStruck: (name) => `Você fulminou ${name}`,
+    youStruck: (name) => `Você eletrocutou ${name}`,
     spent: (n) => `-${n} 🥕`,
     usd: (n) => `US$ ${n}`,
     revenge: 'VINGAR AGORA',
@@ -779,7 +779,7 @@ export const ptBR: Dict = {
     'ANDAR DE VOLTA POR BLOCOS JÁ CAVADOS É DE GRAÇA',
     'CADA BAÚ QUE VOCÊ ABRE VAI PARA CASA COM VOCÊ',
     'A ILHA É O RELÓGIO - CAVE TUDO E ELA AFUNDA',
-    'AS CENOURAS SÃO A PONTUAÇÃO - O X VERMELHO É A ÚNICA BOMBA DE ENERGIA',
+    'AS CENOURAS SÃO A PONTUAÇÃO - SÓ UM X VERMELHO CERTO DEVOLVE ENERGIA',
   ],
 
   taglines: [
@@ -803,12 +803,12 @@ export const ptBR: Dict = {
       blurb: 'Enterre uma na sua toca. Ela drena o saqueador que pisar nela.',
     },
     bomb: {
-      name: 'Bomba',
+      name: 'Bomba oculta',
       blurb: 'Plante uma na ilha de alguém no meio da saída. A pessoa vê que foi você.',
     },
     lightning: {
       name: 'Raio',
-      blurb: 'Chama um raio na ilha de um rival. Ele abre o chão em volta.',
+      blurb: 'Eletrocuta um rival no meio da saída. O raio abre o chão em volta dele.',
     },
     shield: {
       name: 'Escudo',
@@ -816,7 +816,7 @@ export const ptBR: Dict = {
     },
     energy: {
       name: 'Energia',
-      blurb: 'Encha a barra e cave agora, em vez de esperar.',
+      blurb: 'Recarregue sua energia e cave agora, em vez de esperar.',
     },
     smoke: {
       name: 'Cortina de fumaça',
@@ -835,7 +835,7 @@ export const ptBR: Dict = {
        Ver lib/game/fences.ts. */
     fence: {
       name: 'Cerca',
-      blurb: 'Fecha um trecho da borda da sua horta. Saqueadores não atravessam.',
+      blurb: 'Fecha uma borda da sua horta. Saqueadores não atravessam.',
     },
   },
 
@@ -857,7 +857,7 @@ export const ptBR: Dict = {
     },
     'bury-something': {
       title: 'Enterrar algo',
-      ask: () => 'Vá em DEFENDER e coloque bombas na sua base.',
+      ask: () => 'Vá em DEFENDER e enterre bombas na sua toca.',
       line: 'Uma bomba que ninguém vê é o único muro que vale. Muro a gente contorna.',
     },
     'open-a-chest': {
