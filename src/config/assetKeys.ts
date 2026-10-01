@@ -122,6 +122,7 @@ export const SFX_CHEST_OPEN = 'sfx-chest-open';
 export const SFX_CHIME = 'sfx-chime';
 export const SFX_CHIME_QUICK = 'sfx-chime-quick';
 export const SFX_EXPLOSION = 'sfx-explosion';
+export const SFX_ISLAND_SINK = 'sfx-island-sink';
 export const SFX_DIE = 'sfx-die';
 export const SFX_STEP = 'sfx-step';
 export const SFX_MATCH = 'sfx-match';

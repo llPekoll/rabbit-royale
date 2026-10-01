@@ -2533,7 +2533,7 @@ export class IslandScene implements Scene {
     // already on its way down when it starts to go, so what the player sees
     // fade is a board that is leaving, not one dissolving in place.
     tl.to(this.container, { alpha: 0, duration: s * 0.4, ease: 'power1.in' }, s * 0.6);
-    this.sound.playExplosion();
+    tl.call(() => this.sound.playIslandSink(), [], s * 0.55);
     this.eruption = tl;
   }
 

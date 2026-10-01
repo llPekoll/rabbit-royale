@@ -222,6 +222,7 @@ export function playUiSfx(kind: UiSfx): void {
  *   step_grass_1        -45.2      0.20    -59.2   (barely audible; untouched)
  */
 const SOUND_MAP: Record<string, { src: string; volume: number; format?: string[] }> = {
+  [Keys.SFX_ISLAND_SINK]: { src: '/assets/sfx/island_sink.wav', volume: 0.4 },
   // The shared arcade "insert coin" chirp from the kit — every game plays it
   // when a bet is committed. Ships as a data: URL, so Howler needs the
   // explicit format hint (no file extension to sniff).
@@ -333,6 +334,7 @@ export class SoundManager {
   playChime(): void { this.playSfx(Keys.SFX_CHIME); }
   playChimeQuick(): void { this.playSfx(Keys.SFX_CHIME_QUICK); }
   playExplosion(): void { this.playSfx(Keys.SFX_EXPLOSION); }
+  playIslandSink(): void { this.playSfx(Keys.SFX_ISLAND_SINK); }
   playDie(): void { this.playSfx(Keys.SFX_DIE); }
   playMatch(): void { this.playSfx(Keys.SFX_MATCH); }
   playCoinStart(): void { this.playSfx(Keys.SFX_COIN_START); }

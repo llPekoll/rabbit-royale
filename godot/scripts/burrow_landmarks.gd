@@ -328,6 +328,8 @@ func _rise(door: String) -> void:
 	t.tween_interval(delay)
 	t.tween_callback(func() -> void:
 		_splash(door)
+		# Le meme remous que l'ile qui coule, la mer s'ouvre dans l'autre sens.
+		Sound.play("island_sink")
 		Sound.play("chime"))
 	t.set_parallel(true)
 	t.tween_property(root, "modulate:a", 1.0, RISE_SECONDS * 0.4)

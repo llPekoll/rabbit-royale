@@ -22,6 +22,7 @@ class_name Sound
 
 ## key -> [flux, niveau]
 const SFX := {
+	"island_sink": [preload("res://assets/sound/island_sink.mp3"), 0.40],
 	"hop": [preload("res://assets/sound/hop.mp3"), 0.30],
 	"step": [preload("res://assets/sound/step.mp3"), 0.20],
 	"coin": [preload("res://assets/sound/coin.mp3"), 0.11],

@@ -239,6 +239,7 @@ func play_eruption(duration_ms: int, heave: bool = true) -> void:
 
 	_eruption = create_tween()
 	if not heave:
+		Sound.play("island_sink")
 		# LA FIN DU TUTORIEL : pas de volcan, rien ne tremble. L'ile s'en va
 		# vers le bas pendant que la camera garde le ciel, et l'ecume monte.
 		_eruption.set_parallel(true)
@@ -251,8 +252,7 @@ func play_eruption(duration_ms: int, heave: bool = true) -> void:
 		_eruption.tween_property(self, "modulate:a", 0.0, s * 0.7).set_delay(s * 0.15) \
 			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 		return
-	# MUET : plus de volcan, et l'explosion tombait sur le dernier coffre, par
-	# dessus `chest_arrive` (2026-10-01).
+	# Le son d'eau commence a la descente, apres le dernier coffre.
 	# LE SOULEVEMENT : un aller-retour toutes les 50 ms, sur 55 % de la duree.
 	var steps := int(floor(s * 0.55 / HEAVE_STEP))
 	for i in steps:
@@ -260,6 +260,7 @@ func play_eruption(duration_ms: int, heave: bool = true) -> void:
 		_eruption.tween_property(self, "position", to, HEAVE_STEP)
 	_eruption.tween_property(self, "position", at, HEAVE_STEP)
 	# LA DESCENTE, puis le fondu qui la rattrape.
+	_eruption.tween_callback(func() -> void: Sound.play("island_sink"))
 	_eruption.set_parallel(true)
 	_eruption.tween_property(self, "position:y", at.y + ERUPTION_RISE_PX / k, s * 0.45) \
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
