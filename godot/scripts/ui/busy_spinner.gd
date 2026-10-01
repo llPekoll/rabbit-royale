@@ -39,13 +39,31 @@ func _ready() -> void:
 
 func _on_busy(busy: bool) -> void:
 	_busy = busy
-	_waiting = 0.0
-	if not busy:
+	if not busy and not _seat_wait():
+		_waiting = 0.0
 		visible = false
 
 
+## L'ILE SANS MON LAPIN : DIG a demande une place et le serveur ne l'a pas
+## encore donnee — une socket qui se reconnecte, un serveur qui redemarre.
+## Sans la carotte, on regardait une ile vide, l'energie a 0, sans rien qui
+## dise d'attendre (2026-10-01). Un refus ou une place tenue ailleurs ne
+## s'attendent pas : l'ecran dit deja autre chose.
+func _seat_wait() -> bool:
+	if not GameSocket.wants_seat():
+		return false
+	if not Screens.in_world() or Screens.place != Screens.Place.ISLAND:
+		return false
+	var run := RunState.current
+	return run.me().is_empty() and run.spectating.is_empty() \
+		and run.refusal.is_empty() and run.held_seat.is_empty()
+
+
 func _process(delta: float) -> void:
-	if not _busy:
+	if not _busy and not _seat_wait():
+		if visible:
+			_waiting = 0.0
+			visible = false
 		return
 	if not visible:
 		_waiting += delta

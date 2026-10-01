@@ -152,6 +152,15 @@ func disconnect_socket():
 
 
 func _on_engine_io_connection_closed():
+	# RABBIT ROYALE : les namespaces meurent avec le transport. Sans ça, une
+	# coupure sans DISCONNECT (serveur redémarré, app en arrière-plan plus de
+	# pingInterval + pingTimeout) laissait le namespace marqué CONNECTED, la
+	# reconnexion refusait de le rouvrir (« namespace is already connected »),
+	# le serveur fermait faute de CONNECT, et ainsi de suite toutes les 45 s :
+	# plus aucun `join` n'arrivait jusqu'au redémarrage de l'app.
+	for ns in _namespaces:
+		_namespaces[ns].state = State.DISCONNECTED
+		_namespaces[ns].sid = ""
 	socket_disconnected.emit()
 
 

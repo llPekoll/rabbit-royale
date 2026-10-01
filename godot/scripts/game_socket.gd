@@ -216,6 +216,12 @@ func join(choice: Variant = null) -> void:
 		_io.emit("join", choice)
 
 
+## Une place sur l'ile est-elle demandee (et pas encore rendue) ? La carotte
+## d'attente de l'ile la lit (busy_spinner.gd).
+func wants_seat() -> bool:
+	return _want_seat
+
+
 func leave() -> void:
 	_want_seat = false
 	_seat_choice = null
