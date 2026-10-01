@@ -26,6 +26,8 @@ const SFX := {
 	"step": [preload("res://assets/sound/step.mp3"), 0.20],
 	"coin": [preload("res://assets/sound/coin.mp3"), 0.11],
 	"coin_start": [preload("res://assets/sound/coin_start.mp3"), 0.22],
+	"chest_arrive": [preload("res://assets/sound/chest_arrive.mp3"), 0.40],
+	"chest_open": [preload("res://assets/sound/chest_open.mp3"), 0.40],
 	"chime": [preload("res://assets/sound/chime.mp3"), 0.50],
 	"chime_quick": [preload("res://assets/sound/chime_quick.mp3"), 0.40],
 	"explosion": [preload("res://assets/sound/explosion.mp3"), 0.15],

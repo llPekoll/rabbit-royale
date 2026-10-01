@@ -83,13 +83,13 @@ export interface ChestPrizeProps {
 }
 
 /**
- * The chest, heard. The ceremony had no sound at all: the coin chirp as the
- * box arrives, the chime as it blows open. A component rather than a call in
+ * Dedicated wooden arrival and rounded reward bells at the opening.
+ * A component rather than a call in
  * the render prop, so the sounds follow mount and `open`, not every render.
  */
 function SoundedChest({ open }: { open: boolean }) {
-  useEffect(() => { playUiSfx('coinStart'); }, []);
-  useEffect(() => { if (open) playUiSfx('chime'); }, [open]);
+  useEffect(() => { playUiSfx('chestArrive'); }, []);
+  useEffect(() => { if (open) playUiSfx('chestOpen'); }, [open]);
   return <ChestOpening open={open} size={180} />;
 }
 

@@ -171,7 +171,7 @@ export function isSfxMuted(): boolean {
  * first use (never at import, so server rendering never touches Howler),
  * gives every card the same bus, the same mute and the same level.
  */
-export type UiSfx = 'chime' | 'chimeQuick' | 'match' | 'coin' | 'coinStart' | 'step' | 'die' | 'deny' | 'explosion';
+export type UiSfx = 'chime' | 'chimeQuick' | 'match' | 'coin' | 'coinStart' | 'chestArrive' | 'chestOpen' | 'step' | 'die' | 'deny' | 'explosion';
 
 let ui: SoundManager | null = null;
 
@@ -184,6 +184,8 @@ export function playUiSfx(kind: UiSfx): void {
     case 'match': ui.playMatch(); break;
     case 'coin': ui.playCoin(); break;
     case 'coinStart': ui.playCoinStart(); break;
+    case 'chestArrive': ui.playChestArrive(); break;
+    case 'chestOpen': ui.playChestOpen(); break;
     case 'step': ui.playStep(); break;
     case 'die': ui.playDie(); break;
     case 'deny': ui.playDeny(); break;
@@ -228,6 +230,9 @@ const SOUND_MAP: Record<string, { src: string; volume: number; format?: string[]
   [Keys.SFX_STEP]: { src: '/assets/sfx/04_step_grass_1.mp3', volume: 0.2 },
   [Keys.SFX_COIN]: { src: '/assets/sfx/coin.mp3', volume: 0.11 },
   [Keys.SFX_COIN_START]: { src: '/assets/sfx/coin_start.mp3', volume: 0.22 },
+  // Original chest cues: -24 dBFS mean × 0.40 ≈ -32 dBFS in the mix.
+  [Keys.SFX_CHEST_ARRIVE]: { src: '/assets/sfx/chest_arrive.wav', volume: 0.4 },
+  [Keys.SFX_CHEST_OPEN]: { src: '/assets/sfx/chest_open.wav', volume: 0.4 },
   [Keys.SFX_CHIME]: { src: '/assets/sfx/8_bit_chime_positive.mp3', volume: 0.5 },
   [Keys.SFX_CHIME_QUICK]: { src: '/assets/sfx/8_bit_chime_quick.mp3', volume: 0.4 },
   // Kept low: the death reveal fires one per revealed mine (≈10 overlapping
@@ -331,6 +336,8 @@ export class SoundManager {
   playDie(): void { this.playSfx(Keys.SFX_DIE); }
   playMatch(): void { this.playSfx(Keys.SFX_MATCH); }
   playCoinStart(): void { this.playSfx(Keys.SFX_COIN_START); }
+  playChestArrive(): void { this.playSfx(Keys.SFX_CHEST_ARRIVE); }
+  playChestOpen(): void { this.playSfx(Keys.SFX_CHEST_OPEN); }
   playInsertCoin(): void { this.playSfx(Keys.SFX_INSERT_COIN); }
 
   /**

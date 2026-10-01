@@ -198,7 +198,7 @@ func _init() -> void:
 
 
 func _ready() -> void:
-	Sound.play("coin_start")
+	Sound.play("chest_arrive")
 	_build()
 	resized.connect(_measure)
 	_measure()
@@ -387,6 +387,7 @@ func _process(delta: float) -> void:
 ## coffre gonfle (1.14 -> 1.9), blanchit (brightness 1 -> 6) et disparait.
 func _blow() -> void:
 	phase = Phase.BLOW
+	Sound.play("chest_open")
 	_rays.set_palette(RAYS.get(rarity, RAYS["common"]), false)
 	_rays.pulse()
 	_chest.pop()
@@ -444,7 +445,6 @@ func _reveal() -> void:
 ## la legende monte et clignote ; un tap termine.
 func _shown(instant: bool = false) -> void:
 	phase = Phase.SHOWN
-	Sound.play("chime")
 	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	_stamp.visible = true
 	_caption.visible = true
