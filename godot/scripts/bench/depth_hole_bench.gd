@@ -17,10 +17,15 @@ extends Control
 ## devant lui, sans buisson autour (TileView n'est pas monte ici).
 
 const HOLE_SHADER := preload("res://shaders/depth_hole.gdshader")
+## `radius` / `feather` en texels de l'art, comme HOLE_RADIUS / HOLE_FEATHER
+## d'island.gd. 2026-10-01 : le trou etait trop petit, compare 35 → 45 → 55.
 const VARIANTS := [
-	{"title": "1 · contour garde", "ghost": 0.1, "edge": 2.0, "shadow": false},
-	{"title": "2 · ombre au pied", "ghost": 0.1, "edge": 0.0, "shadow": true},
-	{"title": "3 · fantome 0,35", "ghost": 0.35, "edge": 0.0, "shadow": false},
+	{"title": "rayon 35 (avant)", "ghost": 0.1, "edge": 2.0, "shadow": false,
+		"radius": 35.0, "feather": 11.0},
+	{"title": "rayon 45", "ghost": 0.1, "edge": 2.0, "shadow": false,
+		"radius": 45.0, "feather": 13.0},
+	{"title": "rayon 55", "ghost": 0.1, "edge": 2.0, "shadow": false,
+		"radius": 55.0, "feather": 15.0},
 ]
 ## L'ombre de contact d'un arbre : une ellipse sombre a la taille du tronc et de
 ## sa ramure basse, au milieu du losange.
@@ -131,7 +136,7 @@ func _panel(row: HBoxContainer, v: Dictionary, seed_value: String, at: Vector2i,
 	# plusieurs milliers et passerait devant.
 	box.add_child(title)
 	return {"vp": vp, "world": world, "focus": focus, "zoom": zoom,
-		"rabbit": rabbit, "mat": mat}
+		"rabbit": rabbit, "mat": mat, "radius": v.radius, "feather": v.feather}
 
 
 ## La case praticable avec le plus d'arbres DEVANT elle — les trois voisines de
@@ -195,6 +200,6 @@ func _process(_delta: float) -> void:
 		var k := float(p.zoom)
 		var mat: ShaderMaterial = p.mat
 		mat.set_shader_parameter("centre", body)
-		mat.set_shader_parameter("radius", 35.0 * k)
-		mat.set_shader_parameter("feather", 11.0 * k)
+		mat.set_shader_parameter("radius", float(p.radius) * k)
+		mat.set_shader_parameter("feather", float(p.feather) * k)
 		mat.set_shader_parameter("dot_px", maxf(1.0, round(k)))

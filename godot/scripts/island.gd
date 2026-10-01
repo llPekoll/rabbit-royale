@@ -771,8 +771,8 @@ func _process(delta: float) -> void:
 ## shader, lui, ne fait que le disque. Les cases derriere ne sont jamais
 ## percees — elles sont derriere.
 const HOLE_SHADER := preload("res://shaders/depth_hole.gdshader")
-const HOLE_RADIUS := 35.0
-const HOLE_FEATHER := 11.0
+const HOLE_RADIUS := 55.0
+const HOLE_FEATHER := 15.0
 const HOLE_DOT := 1.0
 const HOLE_GHOST := 0.1
 ## LE CONTOUR N'EST JAMAIS PERCE, en texels de l'art : un arbre fantome a 0,1
