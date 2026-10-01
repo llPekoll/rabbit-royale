@@ -155,7 +155,9 @@ func _refresh(_arg: Variant = null) -> void:
 	var done := bool(raid.get("finished", false))
 	var held := state.lightning_held
 
-	_title.text = I18N.f("defend.underAttack", [String(attacker.get("name", ""))])
+	# Le titre CRIE EN ENTIER, nom compris (« Kuro IS RAIDING YOU » melait
+	# deux casses) — par I18N.shout, comme l'alarme : en anglais seulement.
+	_title.text = I18N.shout(I18N.f("defend.underAttack", [String(attacker.get("name", ""))]))
 	_energy.text = str(int(raid.get("energy", 0)))
 	_energy_unit.text = I18N.t("defend.theirSteps")
 	var sprung := int(raid.get("trapsSprung", 0))

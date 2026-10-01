@@ -189,7 +189,12 @@ func _build() -> void:
 	arm_row.add_child(_buy)
 	_aim = Kit.label("", 13, CROWN)
 	arm_row.add_child(_aim)
-	_plates.add_child(_arm_plate)
+	# LE SAC A COTE DE LA PASTILLE, plus dessous (2026-10-01) : la bande pend
+	# au milieu de l'ecran, la ou la camera tient les lapins — l'etiquette
+	# d'un voisin tombait sur « ⚡0 ⚔0 Buy ». La puce reste, elle, au rang de
+	# la barre du haut (`_place_arms`).
+	_arm_plate.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(_arm_plate)
 	_info_plate = Kit.panel(Kit.style_glass())
 	_info_plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var info_row := Kit.hbox(Kit.PAD)
@@ -290,7 +295,34 @@ func _measure() -> void:
 	_watchers.offset_left = -Kit.EDGE - watch_w
 	_watchers.offset_bottom = -(Kit.EDGE + mark_h + 6.0)
 	_watchers.offset_top = _watchers.offset_bottom
+	_place_arms.call_deferred()
 
+
+## LA PUCE DU SAC, a gauche de la pastille et centree sur sa hauteur, entre
+## elle et la puce du joueur. Si l'ecran est trop etroit (ou la ligne de
+## visee trop longue), elle redescend sous la pastille, au centre.
+func _place_arms() -> void:
+	if not is_inside_tree() or _arm_plate == null:
+		return
+	_arm_plate.reset_size()
+	var want := _arm_plate.get_combined_minimum_size()
+	_arm_plate.size = want
+	var origin := get_global_rect().position
+	var pill: Control = null
+	for p in get_tree().root.find_children("*", "CarrotPill", true, false):
+		if p is Control and (p as Control).is_visible_in_tree():
+			pill = p
+	var floor_x := Kit.EDGE
+	for c in get_tree().root.find_children("*", "PlayerChip", true, false):
+		if c is Control and (c as Control).is_visible_in_tree():
+			floor_x = maxf(floor_x, (c as Control).get_global_rect().end.x - origin.x + Kit.PAD)
+	if pill != null:
+		var r := pill.get_global_rect()
+		var x := r.position.x - origin.x - Kit.PAD - want.x
+		if x >= floor_x:
+			_arm_plate.position = Vector2(round(x), round(r.get_center().y - origin.y - want.y * 0.5))
+			return
+	_arm_plate.position = Vector2(round((size.x - want.x) * 0.5), round(_below_pill()))
 
 func _refresh_visible() -> void:
 	visible = always or (Screens.in_world() and Screens.place == Screens.Place.ISLAND)
@@ -386,6 +418,7 @@ func _refresh_plates() -> void:
 		_buy.tooltip_text = I18N.t("run.buyArms")
 		_aim.visible = not state.aiming.is_empty()
 		_aim.text = I18N.t("run.aiming" if state.aiming == "strike" else "run.aimingBloop")
+		_place_arms.call_deferred()
 	_info_plate.visible = state.warn_stage > 0 or watching
 	_warn.visible = state.warn_stage > 0
 	_warn.text = "🌊 " + "!".repeat(state.warn_stage)
@@ -531,9 +564,11 @@ func _refresh_watchers() -> void:
 	# « N ONLINE » compte ceux qui ME regardent : le serveur ne l'envoie qu'au
 	# creuseur. Un spectateur n'a rien a compter — la ligne se tait, et ne
 	# parle que pour dire qui a frappe celui qu'il regarde (ci-dessus).
-	_watchers.visible = state.spectating.is_empty()
+	# A ZERO, la ligne se tait aussi (2026-10-01) : « 0 ONLINE » au-dessus du
+	# bouton ne disait rien, sinon que personne ne regarde.
+	_watchers.visible = state.spectating.is_empty() and state.watchers > 0
 	_watchers.text = I18N.shout(I18N.f("run.watchers", [state.watchers]))
-	_watchers.add_theme_color_override("font_color", CROWN if state.watchers > 0 else WATCH_DIM)
+	_watchers.add_theme_color_override("font_color", CROWN)
 
 
 # ── Le recap ─────────────────────────────────────────────────────────────────

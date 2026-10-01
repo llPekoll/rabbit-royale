@@ -169,6 +169,7 @@ export const ptBR: Dict = {
     title: 'SUA TOCA',
     level: (n) => `TOCA NÍV ${n}`,
     maxLevel: 'NÍVEL MÁXIMO',
+    levelChip: (level) => `TOCA ${level}`,
     upgrade: 'MELHORAR',
     safe: 'A SALVO',
     exposed: (n) => `${n} EXPOSTAS`,
@@ -314,7 +315,7 @@ export const ptBR: Dict = {
     bank: (energy, max, cost) => `⚡ ${energy}/${max} no tanque · a travessia leva ${cost}`,
     raidLeft: (energy) => `⚡ ${energy} no tanque: dá para um saque`,
     getEnergy: 'Pegar mais energia',
-    goHome: 'Toca · empilhar',
+    goHome: (carrots) => `Toca · guardar ${carrots} 🥕`,
     shoved: 'NA ÁGUA!',
     struck: 'FULMINADO!',
     shovedNote: (name) => `${name} te empurrou na água.`,
@@ -385,9 +386,9 @@ export const ptBR: Dict = {
     title: 'LOJA',
     shed: 'O GALPÃO',
     aria: 'Loja',
-    protect: 'PROTEGER A BASE',
-    protectAria: 'Proteger sua base',
-    protectBuyAria: 'Proteger sua base - comprar uma bomba',
+    protect: 'PROTEGER A TOCA',
+    protectAria: 'Proteger sua toca',
+    protectBuyAria: 'Proteger sua toca - comprar uma bomba',
     noTraps: 'SEM BOMBAS - PEGUE UMA',
     nothingBuried: 'NADA ENTERRADO',
     inShed: (n) => `${n} NO GALPÃO`,
@@ -406,7 +407,7 @@ export const ptBR: Dict = {
       + ' Ou encha agora e continue cavando.',
     fillsTo: (max) => `Enche a barra até ${max}.`,
     noRefills: ' Sem recargas hoje.',
-    refillsLeft: (n) => ` ${n} recarga${n > 1 ? 's' : ''} hoje.`,
+    refillsLeft: (n) => (n > 0 ? ` ${n} recarga${n > 1 ? 's' : ''} hoje.` : ' Sem recargas hoje.'),
     cardsOff: 'Pagamento com cartão ainda não está ligado. Só cenouras por enquanto.',
     connectForCard: 'Conecte uma carteira para pagar com cartão. Tudo aqui também se cava.',
     eitherWay: 'Cenouras que você cava, ou cartão. A mercadoria é a mesma.',
@@ -424,6 +425,8 @@ export const ptBR: Dict = {
     heldToday: (n) => `${n} hoje`,
     heldDaysLeft: (n) => `${n}d restantes`,
     heldOff: 'desligado',
+    max: 'MÁX',
+    active: 'ATIVO',
     boughtEnergy: (paid) => `Energia recarregada. ${paid}`,
     boughtTrap: (n, paid) => `${n > 1 ? `${n} bombas` : 'Bomba'} no galpão. ${paid}`,
     boughtBomb: (n, paid) => `${n > 1 ? `${n} bombas armadas` : 'Bomba armada'}. ${paid}`,
@@ -521,7 +524,7 @@ export const ptBR: Dict = {
     carriedNone: (name, blurb) => `${name}: nenhum. ${blurb}`,
     trapsLine: (placed, max, held) =>
       `Bombas: ${placed}${max ? ` de ${max}` : ''} no chão, ${held} no galpão.`
-      + ' Enterre pela BASE.',
+      + ' Enterre pelo DEFENDER.',
     trapsBuy: (held, price) =>
       (held > 0
         ? `Bombas: ${held} no galpão. Compre outra por ${price} cenouras.`
@@ -578,7 +581,7 @@ export const ptBR: Dict = {
     needs: (floor) => `Pede ${floor}`,
     inWait: (wait) => `em ${wait}`,
     under: (floor) => `Abaixo de ${floor}`,
-    levelLabel: (level) => `N\u00edv. ${level}`,
+    levelLabel: (level) => `Toca ${level}`,
     levelRate: (regen, next) =>
       next === null ? `recarrega ${regen} por hora` : `recarrega ${regen} por hora. Pr\u00f3ximo n\u00edvel: ${next}`,
   },

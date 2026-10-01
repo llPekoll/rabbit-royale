@@ -234,6 +234,9 @@
 			"$t": "TERRIER NIV {0}"
 		},
 		"maxLevel": "NIVEAU MAX",
+		"levelChip": {
+			"$t": "TERRIER {0}"
+		},
 		"upgrade": "AMÉLIORER",
 		"safe": "À L’ABRI",
 		"exposed": {
@@ -260,6 +263,8 @@
 		"tip": "Touche un arbre, ta maison ou ton potager pour le déplacer.",
 		"place": "Touche une case claire pour le poser là.",
 		"placeTouch": "Touche une case claire, ou glisse le doigt jusqu'à elle et lève-le.",
+		"placed": "Posé et enregistré.",
+		"undo": "Annuler",
 		"putBack": "Reposer",
 		"things": {
 			"tree": "Arbre",
@@ -473,7 +478,9 @@
 			"$t": "⚡ {0} en réserve : de quoi piller"
 		},
 		"getEnergy": "Prendre de l’énergie",
-		"goHome": "Terrier · entasser",
+		"goHome": {
+			"$t": "Terrier · ranger {0} 🥕"
+		},
 		"shoved": "À L’EAU !",
 		"struck": "FOUDROYÉ !",
 		"shovedNote": {
@@ -575,9 +582,9 @@
 		"title": "BOUTIQUE",
 		"shed": "LA REMISE",
 		"aria": "Boutique",
-		"protect": "PROTÉGER LA BASE",
-		"protectAria": "Protéger ta base",
-		"protectBuyAria": "Protéger ta base - acheter une bombe",
+		"protect": "PROTÉGER LE TERRIER",
+		"protectAria": "Protéger ton terrier",
+		"protectBuyAria": "Protéger ton terrier - acheter une bombe",
 		"noTraps": "AUCUNE BOMBE - EN PRENDRE",
 		"nothingBuried": "RIEN D’ENTERRÉ",
 		"inShed": {
@@ -619,7 +626,7 @@
 					"when": {
 						"0": 0.0
 					},
-					"t": " 0 recharge aujourd’hui."
+					"t": " Plus de recharge aujourd’hui."
 				}
 			]
 		},
@@ -653,6 +660,8 @@
 			"$t": "{0}j restants"
 		},
 		"heldOff": "inactif",
+		"max": "MAX",
+		"active": "ACTIF",
 		"boughtEnergy": {
 			"$t": "Énergie rechargée. {0}"
 		},
@@ -895,13 +904,13 @@
 			"$t": "{0} : aucun. {1}"
 		},
 		"trapsLine": {
-			"$t": "Bombes : {0} sur {1} en terre, {2} à la remise. Enterre-les depuis BASE.",
+			"$t": "Bombes : {0} sur {1} en terre, {2} à la remise. Enterre-les depuis DÉFENDRE.",
 			"$v": [
 				{
 					"when": {
 						"1": 0.0
 					},
-					"t": "Bombes : {0} en terre, {2} à la remise. Enterre-les depuis BASE."
+					"t": "Bombes : {0} en terre, {2} à la remise. Enterre-les depuis DÉFENDRE."
 				}
 			]
 		},
@@ -1072,7 +1081,7 @@
 			"$t": "Sous {0}"
 		},
 		"levelLabel": {
-			"$t": "Niv. {0}"
+			"$t": "Terrier {0}"
 		},
 		"levelRate": {
 			"$t": "recharge {0} par heure. Niveau suivant : {1}",

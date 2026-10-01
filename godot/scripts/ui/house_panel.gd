@@ -372,7 +372,10 @@ func _build_button(d: Dictionary) -> Button:
 	button.add_theme_stylebox_override("pressed", lit)
 	button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	var h := _s(BUTTON_H)
-	var level := Kit.label(I18N.f("energyPanel.levelLabel", [d.level]), _f(10), Palette.CREAM)
+	# « BURROW 1 », pas « LVL 1 » : le lapin porte deja « LVL 10 » en haut a
+	# gauche, sur la meme rangee, et deux LVL qui ne comptent pas la meme
+	# chose se lisaient comme un seul niveau qui se contredit.
+	var level := Kit.label(I18N.f("burrow.levelChip", [d.level]), _f(10), Palette.CREAM)
 	level.uppercase = true
 	level.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	level.mouse_filter = Control.MOUSE_FILTER_IGNORE

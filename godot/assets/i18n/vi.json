@@ -192,6 +192,9 @@
    "$t": "HANG CẤP {0}"
   },
   "maxLevel": "CẤP TỐI ĐA",
+  "levelChip": {
+   "$t": "HANG {0}"
+  },
   "upgrade": "NÂNG CẤP",
   "safe": "AN TOÀN",
   "exposed": {
@@ -218,6 +221,8 @@
   "tip": "Chạm vào cây, nhà hoặc vườn để dời nó đi.",
   "place": "Chạm một ô trống để đặt vào đó.",
   "placeTouch": "Chạm một ô trống, hoặc kéo ngón tay tới đó rồi nhấc lên.",
+  "placed": "Đã đặt và lưu.",
+  "undo": "Hoàn tác",
   "putBack": "Trả về chỗ cũ",
   "things": {
    "tree": "Cây",
@@ -403,7 +408,9 @@
    "$t": "⚡ còn {0} trong bình: đủ đi cướp"
   },
   "getEnergy": "Lấy thêm năng lượng",
-  "goHome": "Về hang · cất đi",
+  "goHome": {
+   "$t": "Về hang · cất {0} 🥕"
+  },
   "shoved": "RƠI XUỐNG NƯỚC!",
   "struck": "BỊ SÉT ĐÁNH!",
   "shovedNote": {
@@ -537,7 +544,15 @@
   },
   "noRefills": " Hôm nay hết lượt nạp.",
   "refillsLeft": {
-   "$t": " Hôm nay còn {0} lượt nạp."
+   "$t": " Hôm nay còn {0} lượt nạp.",
+   "$v": [
+    {
+     "when": {
+      "0": 0
+     },
+     "t": " Hôm nay hết lượt nạp."
+    }
+   ]
   },
   "cardsOff": "Chưa mở thanh toán bằng thẻ. Tạm thời chỉ dùng cà rốt.",
   "connectForCard": "Kết nối ví để trả bằng thẻ. Mọi thứ ở đây cũng đào ra được.",
@@ -569,6 +584,8 @@
    "$t": "còn {0} ngày"
   },
   "heldOff": "tắt",
+  "max": "TỐI ĐA",
+  "active": "ĐANG BẬT",
   "boughtEnergy": {
    "$t": "Đã nạp năng lượng. {0}"
   },
@@ -892,7 +909,7 @@
    "$t": "Dưới {0}"
   },
   "levelLabel": {
-   "$t": "Cấp {0}"
+   "$t": "Hang cấp {0}"
   },
   "levelRate": {
    "$t": "hồi {0} mỗi giờ. Cấp sau: {1}",

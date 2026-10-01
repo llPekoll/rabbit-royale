@@ -749,8 +749,15 @@ func _card(it: Dictionary, tokens: Array, lead: bool) -> Control:
 	var dead := _state.busy or _pay.stage != UsdcPay.Stage.IDLE or (full if money else not can_buy)
 	var tone := "blue" if money else ("wood" if dead else "gold")
 	var label := _money_label(float(it.get("usdc", 0.0))) if money else I18N.group_digits(int(it.get("price", 0)))
+	# PLEINE, LA PLANCHE DIT POURQUOI (2026-10-01) : un prix grise ne disait
+	# pas si l'on etait trop pauvre ou deja servi. « ACTIF » pour un effet qui
+	# court (la fumee et ses jours), « MAX » pour une etagere pleine.
+	var capped := full and not money
+	if capped:
+		var running := String(ShopState.COUNTS.get(kind, "carried")) == "time"
+		label = I18N.shout(I18N.t("shop.active" if running else "shop.max"))
 	var buy_size := Vector2(w, floorf(BUY_H * k))
-	var buy := Kit.button(label + ("" if money else "  "), tone, buy_size.x, buy_size.y)
+	var buy := Kit.button(label + ("" if money or capped else "  "), tone, buy_size.x, buy_size.y)
 	buy.label_size = int(round(PRICE_SIZE * k))
 	buy.disabled = dead
 	buy.position = Vector2(0.0, over_top + h - buy_size.y + floorf(CARD_OVER_BOTTOM * k))
@@ -770,7 +777,7 @@ func _card(it: Dictionary, tokens: Array, lead: bool) -> Control:
 		buy.tooltip_text = I18N.f("shop.buy", [item_name, carrot_price])
 	else:
 		buy.tooltip_text = I18N.f("shop.tooPoor", [item_name, carrot_price])
-	if not money:
+	if not money and not capped:
 		_carrot_on(buy, round(12 * k))
 	buy.pressed.connect(func() -> void:
 		# Le clic qui suit un glissement n'achete rien (stall-drag.ts).

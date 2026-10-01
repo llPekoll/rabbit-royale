@@ -213,7 +213,9 @@ func _relabel() -> void:
 	_shop.visible = not won
 	_shop.relabel(I18N.shout(I18N.t("recap.getEnergy")))
 	_home.board = PlankButton.tone_board("gold" if won else "wood")
-	var home := I18N.shout(I18N.t("recap.goHome"))
+	# LE BOUTON DIT CE QU'IL FAIT : rentrer, et engranger tant de carottes
+	# (« Home · stack it » ne le disait pas, 2026-10-01).
+	var home := I18N.shout(I18N.f("recap.goHome", [I18N.group_digits(int(_recap.get("carrots", 0)))]))
 	# Pas a zero : la carte part deja, et « (0) » n'est pas un compte.
 	if won and _left > 0:
 		home += " (%d)" % _left

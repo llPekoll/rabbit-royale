@@ -2114,22 +2114,46 @@ var _tip_top := Vector2.ZERO
 const TIP_HOP_EVERY := 2.6
 const TIP_HOP_PX := 7.0
 
+## LA PLACE DE LA LEGENDE au-dessus de sa chose : deux lignes de pastille, la
+## fleche et son voyage (arrange_tip.gd, WIDE de large). Elle se posait sur la
+## lecture de l'energie et sur la planche HARVEST — 2026-10-01 : on ne pointe
+## plus qu'un arbre sous lequel elle tient entiere, sous la barre du haut et a
+## cote des planches du monde.
+const TIP_ROOM := 80.0
+const TIP_WIDE := 300.0
+
 func _pick_tip() -> Node2D:
 	var view := get_viewport_rect().size
-	var aim := Vector2(view.x * 0.6, view.y * 0.5)
+	# Un peu sous le milieu : la ou la legende a de l'air au-dessus d'elle.
+	var aim := Vector2(view.x * 0.6, view.y * 0.58)
+	var ceiling := Kit.TOPBAR_H + Kit.PAD_TIGHT + TIP_ROOM
+	var signs: Array[Rect2] = _landmarks.sign_rects() if _landmarks != null else []
 	var best: Node2D = null
 	var best_d := INF
-	for p in _layout.placements:
-		if p.kind != "tree":
-			continue
-		for n in _scenery.nodes_at(Vector2i(int(p.x), int(p.y))):
-			var at := (n as Node2D).get_global_transform_with_canvas().origin
-			if at.x < maxf(view.x * 0.25, 220.0) + 40.0 or at.y < 90.0:
+	# Le premier tour exige la place entiere ; le second reprend l'ancienne
+	# regle, pour un terrier ou aucun arbre ne la laisse.
+	for roomy in [true, false]:
+		for p in _layout.placements:
+			if p.kind != "tree":
 				continue
-			var d := at.distance_squared_to(aim)
-			if d < best_d:
-				best_d = d
-				best = n
+			for n in _scenery.nodes_at(Vector2i(int(p.x), int(p.y))):
+				var at := (n as Node2D).get_global_transform_with_canvas().origin
+				if at.x < maxf(view.x * 0.25, 220.0) + 40.0 or at.y < 90.0:
+					continue
+				if roomy:
+					var top := (n as Node2D).get_global_transform_with_canvas() * _drawn_top(n as Sprite2D)
+					if top.y < ceiling:
+						continue
+					var x := clampf(top.x - TIP_WIDE * 0.5, Kit.EDGE, view.x - Kit.EDGE - TIP_WIDE)
+					var room := Rect2(x, top.y - TIP_ROOM, TIP_WIDE, TIP_ROOM)
+					if signs.any(func(r: Rect2) -> bool: return r.intersects(room)):
+						continue
+				var d := at.distance_squared_to(aim)
+				if d < best_d:
+					best_d = d
+					best = n
+		if best != null:
+			break
 	if best == null and _props.home != null:
 		best = _props.home
 	return best

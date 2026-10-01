@@ -38,6 +38,13 @@ extends Control
 ##     verre qui PEND SOUS LE BOIS, centree sous le chiffre — le pendant de
 ##     l'energie sous l'anneau. A droite de la plaque, elle tombait sur la
 ##     boutique du rail des que l'ecran grandit (2026-09-23).
+##   • EN MANCHE, LE CHIFFRE EST CE QUE L'ON PORTE (2026-10-01). Le bois
+##     disait « 0 » pendant que « +271 » pendait en petit dessous : on lisait
+##     « je n'ai rien », alors que porter sans avoir encore engrange EST la
+##     tension de la manche. Sur l'ile le grand chiffre devient le butin
+##     porte, en orange carotte ; le stock du terrier descend sur la puce de
+##     verre, derriere la pile de carottes. Au retour, le stock reprend le
+##     bois et la rafale l'y fait monter.
 ##   • LE REFUS SECOUE : -6, 5, -3, 0 en 360 ms, sur le DESSIN et non la
 ##     boite — c'est la barre qui pose la pastille, et une secousse qui ecrit
 ##     dans `position` se bat avec elle.
@@ -55,11 +62,13 @@ const FIGURE_STEPS: Array[int] = [28, 22, 16, 12, 10]
 const CARROT_BOX := 32.0
 const CARROT_ART := 30.0
 const ROW_CARROT := 32.0 + 6.0 - 2.0
-## L'etiquette du reservoir : 11 px, l'eclair a 11 de haut, accrochee sous
+## L'etiquette du reservoir : 16 px, l'eclair a 16 de haut, accrochee sous
 ## l'epingle du cadran — elle la chevauche de ENERGY_TUCK pixels d'art, pour
-## pendre a l'anneau plutot que flotter dessous.
-const ENERGY_FONT := 11
-const ENERGY_BOLT_H := 11.0
+## pendre a l'anneau plutot que flotter dessous. Elle etait a 11 : le chiffre
+## qui decide si DIG et RAID s'allument se lisait moins bien que les carottes
+## (2026-10-01). 16 est un cran de FIGURE_STEPS, net sur la face pixel.
+const ENERGY_FONT := 16
+const ENERGY_BOLT_H := 16.0
 const ENERGY_TUCK := 6.0
 ## LES COFFRES DE L'ILE, sur leur propre puce de verre SOUS la pastille
 ## (2026-10-01 : « I'd rather have it in a separate panel below it ») — plus
@@ -90,6 +99,8 @@ var _energy_line: HBoxContainer
 var _energy_figure: Label
 var _carry: PanelContainer
 var _carry_figure: Label
+## Le butin porte sur l'ile, -1 hors manche (le terrier, un raid).
+var _carrying := -1
 var _add: Button
 
 var _stock := -1
@@ -192,18 +203,18 @@ func _init() -> void:
 	_energy_tag.visible = false
 	_plate.add_child(_energy_tag)
 
-	# LE BUTIN PORTE : une puce de verre a droite de la plaque, « +18 » et
-	# sa carotte.
+	# LE STOCK DU TERRIER, en manche : une puce de verre sous le chiffre, la
+	# pile de carottes puis le nombre — ce qui est deja a l'abri.
 	_carry = Kit.panel(Kit.style_glass())
-	_carry.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_carry.mouse_filter = Control.MOUSE_FILTER_PASS
 	var carry_row := Kit.hbox(3.0)
 	carry_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_carry_figure = Kit.label("+0", Kit.pixel_size(1.5), Palette.CARROT)
+	_carry_figure = Kit.label("0", Kit.pixel_size(1.5), Palette.PILL_INK)
 	_carry_figure.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	carry_row.add_child(_carry_figure)
-	var mark := Kit.icon(Kit.ICONS["carrot"], MARK)
+	var mark := Kit.icon(Kit.ICONS["carrot-pile"], MARK * 1.4)
 	mark.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	carry_row.add_child(mark)
+	carry_row.add_child(_carry_figure)
 	_carry.add_child(carry_row)
 	_carry.visible = false
 	_plate.add_child(_carry)
@@ -232,7 +243,7 @@ func _ready() -> void:
 
 ## LA MISE EN PAGE, dans les mesures de l'art (energy-dial.tsx) : la pile
 ## est le bois propre, de `inset` sur `room` ; l'etiquette du reservoir pend
-## sous l'anneau ; le butin sous le chiffre.
+## sous l'anneau ; en manche, le stock du terrier sous le chiffre.
 func _place() -> void:
 	var x := dial.inset()
 	var w := dial.room()
@@ -283,11 +294,19 @@ func _fit_figure() -> void:
 ## Relit le terrier : le stock, et si ce lieu a un reservoir.
 func refresh() -> void:
 	var stock := int(Home.burrow.get("stock", 0)) - _in_flight
-	if stock != _stock:
-		_stock = stock
-		_figure.text = I18N.group_digits(stock)
+	_stock = stock
+	var carried := _carrying >= 0
+	var text := I18N.group_digits(_carrying if carried else stock)
+	if text != _figure.text:
+		_figure.text = text
 		_fit_figure()
-	tooltip_text = I18N.f("pill.banked", [stock])
+	_figure.add_theme_color_override("font_color", Palette.CARROT if carried else Palette.PILL_INK)
+	tooltip_text = I18N.f("pill.carrying", [_carrying]) if carried else I18N.f("pill.banked", [stock])
+	_carry.visible = carried
+	if carried:
+		_carry_figure.text = I18N.group_digits(stock)
+		_carry.tooltip_text = I18N.f("pill.banked", [stock])
+		_place()
 	# LE RESERVOIR N'EXISTE QUE SUR LE TERRIER : ailleurs `bank` est null,
 	# et un cadran a zero avec une alarme serait le chrome inventant une
 	# urgence sur un ecran qui n'a pas d'energie a depenser.
@@ -422,16 +441,17 @@ func set_run_energy(energy: int) -> void:
 
 
 ## LA COURSE : le butin porte et les coffres de l'ile. `chests` est
-## {taken, total, warnStage} ou vide hors course ; `carrying` 0 cache la puce.
+## {taken, total, warnStage} sur l'ile, vide ailleurs (le terrier, un raid) :
+## c'est lui qui dit si le chiffre est le butin ou le stock.
 func set_run(carrying: int, chests: Dictionary = {}) -> void:
-	_carry.visible = carrying > 0
-	if carrying > 0:
-		_carry_figure.text = "+" + I18N.group_digits(carrying)
-		_carry.tooltip_text = I18N.t("pill.carryNote")
-		# Chaque creusement fait sauter la puce (re-keyed per gain).
-		_carry.pivot_offset = _carry.size * 0.5
-		_carry.scale = Vector2(0.7, 0.7)
-		create_tween().tween_property(_carry, "scale", Vector2.ONE, 0.2).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	var was := _carrying
+	_carrying = carrying if not chests.is_empty() else -1
+	refresh()
+	# Chaque gain fait sauter le chiffre (re-keyed per gain).
+	if _carrying > 0 and was >= 0 and _carrying > was:
+		_figure.pivot_offset = _figure.size * 0.5
+		_figure.scale = Vector2(0.8, 0.8)
+		create_tween().tween_property(_figure, "scale", Vector2.ONE, 0.2).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 	_chests.visible = not chests.is_empty()
 	if not chests.is_empty():
 		var taken := int(chests.get("taken", 0))

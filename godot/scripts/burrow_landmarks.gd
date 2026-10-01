@@ -1055,10 +1055,11 @@ class Sign extends Button:
 		verb.text = word
 		line.text = words
 		line.visible = not words.is_empty()
-		# L'eclair suit un prix : la phrase de DIG finit par son chiffre, RAID
-		# n'ecrit que le sien (« LVL 10 » n'est pas un prix).
-		energy_icon.visible = (door == "dig" and words.right(1).is_valid_int()) \
-			or (door == "raid" and words.is_valid_int())
+		# L'eclair suit un prix : DIG et RAID finissent leur phrase par leur
+		# chiffre (« crossing costs 58 ») ; « LVL 3 » sous un RAID ferme n'en
+		# est pas un, et son dernier caractere est un chiffre aussi.
+		energy_icon.visible = (door == "dig" or door == "raid") \
+			and words.right(1).is_valid_int() and not words.begins_with(I18N.f("rabbitLevel.badge", [""]).strip_edges())
 		# La teinte seulement : l'opacite est a la planche HARVEST, qui
 		# s'efface quand le potager est vide (`_follow_harvest_sign`).
 		var tint := Color.WHITE if lit else Color(0.82, 0.82, 0.82)
@@ -1088,6 +1089,18 @@ class Sign extends Button:
 		size = want
 		custom_minimum_size = want
 		badge.position = Vector2(want.x - badge.size.x * 0.6, -badge.size.y * 0.45)
+
+
+## LES PLANCHES A L'ECRAN, en pixels d'ecran (leur CanvasLayer n'a ni
+## decalage ni echelle) : ce qui se pose par-dessus le terrier les evite —
+## la legende d'amenagement (burrow.gd `_pick_tip`).
+func sign_rects() -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	for door in _signs:
+		var sign: Sign = _signs[door]
+		if sign.visible and _anchors.has(door):
+			out.append(sign.get_rect())
+	return out
 
 
 func _make_sign(door: String) -> Sign:
@@ -1256,8 +1269,9 @@ func refresh() -> void:
 		say.call("raid", I18N.shout(I18N.t("loop.raid")), I18N.f("rabbitLevel.badge", [raid_min]), false)
 	else:
 		var floor_e := Tuning.raid_floor()
+		# Meme phrase que DIG : « crossing costs 58 », pas un 58 seul.
 		say.call("raid", I18N.shout(I18N.t("loop.raid")),
-			str(floor_e), energy >= floor_e)
+			I18N.f("loop.runCosts", [floor_e]), energy >= floor_e)
 
 	say.call("shop", I18N.shout(I18N.t("shop.title")), "", true)
 	_say_harvest(garden)

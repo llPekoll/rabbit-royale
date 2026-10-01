@@ -94,7 +94,7 @@ func _ready() -> void:
 	_frame.content_margin_bottom = 5.0
 	_banner.add_theme_stylebox_override("panel", _frame)
 	# Hors du terrier, le bandeau est le seul a le dire : plus gros.
-	var words := Kit.label(I18N.f("defend.underAttack", [who.to_upper()]), 20 if action.is_empty() else 28, Color("#ffe3dc"))
+	var words := Kit.label(I18N.shout(I18N.f("defend.underAttack", [who])), 20 if action.is_empty() else 28, Color("#ffe3dc"))
 	words.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	words.add_theme_color_override("font_shadow_color", DEEP)
 	words.add_theme_constant_override("shadow_offset_x", 0)

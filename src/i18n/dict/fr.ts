@@ -165,6 +165,7 @@ export const fr: Dict = {
     title: 'TON TERRIER',
     level: (n) => `TERRIER NIV ${n}`,
     maxLevel: 'NIVEAU MAX',
+    levelChip: (level) => `TERRIER ${level}`,
     upgrade: 'AMÉLIORER',
     safe: 'À L’ABRI',
     exposed: (n) => `${n} EXPOSÉES`,
@@ -310,7 +311,7 @@ export const fr: Dict = {
     bank: (energy, max, cost) => `⚡ ${energy}/${max} en r\u00e9serve · la travers\u00e9e prend ${cost}`,
     raidLeft: (energy) => `⚡ ${energy} en r\u00e9serve : de quoi piller`,
     getEnergy: 'Prendre de l’énergie',
-    goHome: 'Terrier · entasser',
+    goHome: (carrots) => `Terrier · ranger ${carrots} 🥕`,
     shoved: 'À L’EAU !',
     struck: 'FOUDROYÉ !',
     shovedNote: (name) => `${name} t’a poussé à l’eau.`,
@@ -381,9 +382,9 @@ export const fr: Dict = {
     title: 'BOUTIQUE',
     shed: 'LA REMISE',
     aria: 'Boutique',
-    protect: 'PROTÉGER LA BASE',
-    protectAria: 'Protéger ta base',
-    protectBuyAria: 'Protéger ta base - acheter une bombe',
+    protect: 'PROTÉGER LE TERRIER',
+    protectAria: 'Protéger ton terrier',
+    protectBuyAria: 'Protéger ton terrier - acheter une bombe',
     noTraps: 'AUCUNE BOMBE - EN PRENDRE',
     nothingBuried: 'RIEN D’ENTERRÉ',
     inShed: (n) => `${n} À LA REMISE`,
@@ -402,7 +403,7 @@ export const fr: Dict = {
       + ' Ou remplis maintenant et continue de creuser.',
     fillsTo: (max) => `Remplit la barre jusqu’à ${max}.`,
     noRefills: ' Plus de recharge aujourd’hui.',
-    refillsLeft: (n) => ` ${n} recharge${n > 1 ? 's' : ''} aujourd’hui.`,
+    refillsLeft: (n) => (n > 0 ? ` ${n} recharge${n > 1 ? 's' : ''} aujourd’hui.` : ' Plus de recharge aujourd’hui.'),
     cardsOff: 'Le paiement par carte n’est pas encore ouvert. Carottes seulement.',
     connectForCard: 'Connecte un portefeuille pour payer par carte. Tout ici se creuse aussi.',
     eitherWay: 'Carottes creusées ou carte. Même marchandise.',
@@ -420,6 +421,8 @@ export const fr: Dict = {
     heldToday: (n) => `${n} aujourd’hui`,
     heldDaysLeft: (n) => `${n}j restants`,
     heldOff: 'inactif',
+    max: 'MAX',
+    active: 'ACTIF',
     boughtEnergy: (paid) => `Énergie rechargée. ${paid}`,
     boughtTrap: (n, paid) => `${n > 1 ? `${n} bombes` : 'Bombe'} à la remise. ${paid}`,
     boughtBomb: (n, paid) => `${n > 1 ? `${n} bombes armées` : 'Bombe armée'}. ${paid}`,
@@ -517,7 +520,7 @@ export const fr: Dict = {
     carriedNone: (name, blurb) => `${name} : aucun. ${blurb}`,
     trapsLine: (placed, max, held) =>
       `Bombes : ${placed}${max ? ` sur ${max}` : ''} en terre, ${held} à la remise.`
-      + ' Enterre-les depuis BASE.',
+      + ' Enterre-les depuis DÉFENDRE.',
     trapsBuy: (held, price) =>
       (held > 0
         ? `Bombes : ${held} à la remise. Achètes-en une autre pour ${price} carottes.`
@@ -576,7 +579,7 @@ export const fr: Dict = {
     needs: (floor) => `Il faut ${floor}`,
     inWait: (wait) => `dans ${wait}`,
     under: (floor) => `Sous ${floor}`,
-    levelLabel: (level) => `Niv. ${level}`,
+    levelLabel: (level) => `Terrier ${level}`,
     levelRate: (regen, next) =>
       next === null ? `recharge ${regen} par heure` : `recharge ${regen} par heure. Niveau suivant : ${next}`,
   },

@@ -216,6 +216,9 @@
 			"$t": "TOCA NÍV {0}"
 		},
 		"maxLevel": "NÍVEL MÁXIMO",
+		"levelChip": {
+			"$t": "TOCA {0}"
+		},
 		"upgrade": "MELHORAR",
 		"safe": "A SALVO",
 		"exposed": {
@@ -242,6 +245,8 @@
 		"tip": "Toque numa árvore, na sua casa ou na sua horta para mudá-la de lugar.",
 		"place": "Toque num quadrado claro para colocá-la ali.",
 		"placeTouch": "Toque num quadrado claro, ou deslize o dedo até ele e solte.",
+		"placed": "Colocado e salvo.",
+		"undo": "Desfazer",
 		"putBack": "Devolver",
 		"things": {
 			"tree": "Árvore",
@@ -455,7 +460,9 @@
 			"$t": "⚡ {0} no tanque: dá para um saque"
 		},
 		"getEnergy": "Pegar mais energia",
-		"goHome": "Toca · empilhar",
+		"goHome": {
+			"$t": "Toca · guardar {0} 🥕"
+		},
 		"shoved": "NA ÁGUA!",
 		"struck": "FULMINADO!",
 		"shovedNote": {
@@ -557,9 +564,9 @@
 		"title": "LOJA",
 		"shed": "O GALPÃO",
 		"aria": "Loja",
-		"protect": "PROTEGER A BASE",
-		"protectAria": "Proteger sua base",
-		"protectBuyAria": "Proteger sua base - comprar uma bomba",
+		"protect": "PROTEGER A TOCA",
+		"protectAria": "Proteger sua toca",
+		"protectBuyAria": "Proteger sua toca - comprar uma bomba",
 		"noTraps": "SEM BOMBAS - PEGUE UMA",
 		"nothingBuried": "NADA ENTERRADO",
 		"inShed": {
@@ -601,7 +608,7 @@
 					"when": {
 						"0": 0.0
 					},
-					"t": " 0 recarga hoje."
+					"t": " Sem recargas hoje."
 				}
 			]
 		},
@@ -635,6 +642,8 @@
 			"$t": "{0}d restantes"
 		},
 		"heldOff": "desligado",
+		"max": "MÁX",
+		"active": "ATIVO",
 		"boughtEnergy": {
 			"$t": "Energia recarregada. {0}"
 		},
@@ -871,13 +880,13 @@
 			"$t": "{0}: nenhum. {1}"
 		},
 		"trapsLine": {
-			"$t": "Bombas: {0} de {1} no chão, {2} no galpão. Enterre pela BASE.",
+			"$t": "Bombas: {0} de {1} no chão, {2} no galpão. Enterre pelo DEFENDER.",
 			"$v": [
 				{
 					"when": {
 						"1": 0.0
 					},
-					"t": "Bombas: {0} no chão, {2} no galpão. Enterre pela BASE."
+					"t": "Bombas: {0} no chão, {2} no galpão. Enterre pelo DEFENDER."
 				}
 			]
 		},
@@ -1031,7 +1040,7 @@
 			"$t": "Abaixo de {0}"
 		},
 		"levelLabel": {
-			"$t": "Nív. {0}"
+			"$t": "Toca {0}"
 		},
 		"levelRate": {
 			"$t": "recarrega {0} por hora. Próximo nível: {1}",

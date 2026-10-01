@@ -135,7 +135,7 @@
 			"$t": "run in {0}"
 		},
 		"raidNeeds": {
-			"$t": "A raid needs {0} in the tank. {1} now, enough in {2}."
+			"$t": "A raid needs {0} energy. {1} now, enough in {2}."
 		},
 		"raidIn": {
 			"$t": "raid in {0}"
@@ -216,6 +216,9 @@
 			"$t": "BURROW LVL {0}"
 		},
 		"maxLevel": "MAX LEVEL",
+		"levelChip": {
+			"$t": "BURROW {0}"
+		},
 		"upgrade": "UPGRADE",
 		"safe": "SAFE",
 		"exposed": {
@@ -242,6 +245,8 @@
 		"tip": "Tap a tree, your house or your garden to move it.",
 		"place": "Tap a clear tile to put it there.",
 		"placeTouch": "Tap a clear tile, or slide your finger to it and lift.",
+		"placed": "Placed and saved.",
+		"undo": "Undo",
 		"putBack": "Put back",
 		"things": {
 			"tree": "Tree",
@@ -325,7 +330,7 @@
 		}
 	},
 	"run": {
-		"goFarm": "Clear all mines",
+		"goFarm": "Clear all bombs",
 		"findMe": "Find my rabbit",
 		"retreat": "Retreat",
 		"home": "Home",
@@ -346,21 +351,21 @@
 		"markCancel": "Cancel",
 		"markNothing": "Nothing to mark here: every tile around you is already read.",
 		"energyLow": "Low energy. A right X on a bomb gives some back.",
-		"energyRaidLeft": "Still a raid in the tank. Go home, or dig on.",
+		"energyRaidLeft": "Enough energy left for a raid. Go home, or dig on.",
 		"homeRaid": "Home and raid",
 		"crossed": {
 			"$t": "⚡ -{0} to cross · {1} left"
 		},
 		"trapHint": {
-			"$t": "Tap a tile to mine it, tap a mine to lift it · {0} left"
+			"$t": "Tap a tile to bury a bomb, tap a bomb to lift it · {0} left"
 		},
-		"trapHintEmpty": "No bombs left · buy another, or tap a mine to lift it and bury it elsewhere",
-		"strike": "Strike",
-		"aiming": "Tap a rival to strike",
-		"strikeNone": "No lightning to call. The shed sells it.",
+		"trapHintEmpty": "No bombs left · buy another, or tap a bomb to lift it and bury it elsewhere",
+		"strike": "Zap",
+		"aiming": "Tap a rival to zap",
+		"strikeNone": "No lightning to call. The shop sells it.",
 		"plant": "Plant a bomb",
 		"aimingPlant": "Tap undug ground to bury a bomb",
-		"plantNone": "No bombs to plant. The shed sells them.",
+		"plantNone": "No bombs to plant. The shop sells them.",
 		"planted": "Bomb buried. Only you know where.",
 		"plantRefused": {
 			"off-island": "Not on the island.",
@@ -373,7 +378,7 @@
 			"$t": "{0}'s bomb!"
 		},
 		"struckBy": {
-			"$t": "{0} struck you with lightning"
+			"$t": "{0} zapped you"
 		},
 		"watchers": {
 			"$t": "{0} online"
@@ -386,7 +391,7 @@
 		},
 		"bloop": "Bloop",
 		"aimingBloop": "Tap a rival to ink them",
-		"bloopNone": "No bloop to throw. The shed sells it.",
+		"bloopNone": "No bloop to throw. The shop sells it.",
 		"bloopRefused": {
 			"no-rival": "Nobody there to ink.",
 			"level_locked": "Not before level 3.",
@@ -437,23 +442,25 @@
 			"$t": "🥕 {0} · {1} dug · 💣 {2} · {3}"
 		},
 		"raidLeft": {
-			"$t": "⚡ {0} left in the tank: enough for a raid"
+			"$t": "⚡ {0} energy left: enough for a raid"
 		},
 		"bank": {
-			"$t": "⚡ {0}/{1} in the tank · a crossing takes {2}"
+			"$t": "⚡ {0}/{1} energy · a crossing costs {2}"
 		},
 		"getEnergy": "Get more energy",
-		"goHome": "Home · stack it",
+		"goHome": {
+			"$t": "Home · bank {0} 🥕"
+		},
 		"shoved": "PUSHED IN!",
-		"struck": "STRUCK DOWN!",
+		"struck": "ZAPPED!",
 		"shovedNote": {
-			"$t": "{0} shoved you into the water."
+			"$t": "{0} pushed you into the water."
 		},
 		"struckNote": {
-			"$t": "{0} called the lightning down on you."
+			"$t": "{0} zapped you with lightning."
 		},
-		"shovedNoteAnon": "Someone shoved you into the water.",
-		"struckNoteAnon": "Someone called the lightning down on you."
+		"shovedNoteAnon": "Someone pushed you into the water.",
+		"struckNoteAnon": "Someone zapped you with lightning."
 	},
 	"shove": {
 		"by": {
@@ -543,15 +550,15 @@
 	},
 	"shop": {
 		"title": "SHOP",
-		"shed": "THE SHED",
+		"shed": "SHOP",
 		"aria": "Shop",
-		"protect": "PROTECT BASE",
-		"protectAria": "Protect your base",
-		"protectBuyAria": "Protect your base - buy a bomb",
+		"protect": "PROTECT BURROW",
+		"protectAria": "Protect your burrow",
+		"protectBuyAria": "Protect your burrow - buy a bomb",
 		"noTraps": "NO BOMBS - GET ONE",
 		"nothingBuried": "NOTHING BURIED",
 		"inShed": {
-			"$t": "{0} IN THE SHED"
+			"$t": "{0} IN THE BAG"
 		},
 		"rearming": {
 			"$t": "REARMING - {0} COMING BACK"
@@ -562,18 +569,18 @@
 		"inGround": {
 			"$t": "{0}/{1} IN THE GROUND"
 		},
-		"openShed": "Open the shed",
+		"openShed": "Open the shop",
 		"backToBurrow": "Back to the burrow",
 		"payWith": "Pay with",
 		"outOfEnergy": "OUT OF ENERGY",
 		"energySay": {
-			"$t": "A run takes {0}. Enough comes back on its own in {1}. Or fill it now and keep digging."
+			"$t": "A crossing costs {0}. Enough energy comes back on its own in {1}. Or refill now and keep digging."
 		},
 		"energySayEmpty": {
-			"$t": "The bar is empty. One point comes back on its own in {0}. Or fill it now and keep digging."
+			"$t": "No energy left. One point comes back on its own in {0}. Or refill now and keep digging."
 		},
 		"fillsTo": {
-			"$t": "Fills the bar to {0}."
+			"$t": "Refills your energy to {0}."
 		},
 		"noRefills": " No refills left today.",
 		"refillsLeft": {
@@ -589,7 +596,7 @@
 					"when": {
 						"0": 0.0
 					},
-					"t": " 0 refill left today."
+					"t": " No refills left today."
 				}
 			]
 		},
@@ -623,23 +630,25 @@
 			"$t": "{0}d left"
 		},
 		"heldOff": "off",
+		"max": "MAX",
+		"active": "ACTIVE",
 		"boughtEnergy": {
 			"$t": "Energy refilled. {0}"
 		},
 		"boughtTrap": {
-			"$t": "{0} bombs in the shed. {1}",
+			"$t": "{0} bombs in the bag. {1}",
 			"$v": [
 				{
 					"when": {
 						"0": 1.0
 					},
-					"t": "bomb in the shed. {1}"
+					"t": "bomb in the bag. {1}"
 				},
 				{
 					"when": {
 						"0": 0.0
 					},
-					"t": "bomb in the shed. {1}"
+					"t": "bomb in the bag. {1}"
 				}
 			]
 		},
@@ -732,19 +741,19 @@
 			]
 		},
 		"boughtFence": {
-			"$t": "{0} planks ready to raise. {1}",
+			"$t": "{0} fences ready to put up. {1}",
 			"$v": [
 				{
 					"when": {
 						"0": 1.0
 					},
-					"t": "plank ready to raise. {1}"
+					"t": "fence ready to put up. {1}"
 				},
 				{
 					"when": {
 						"0": 0.0
 					},
-					"t": "plank ready to raise. {1}"
+					"t": "fence ready to put up. {1}"
 				}
 			]
 		},
@@ -762,18 +771,18 @@
 		"bad_quantity": "That is not a quantity.",
 		"no_traps": "No bombs left. Buy one, or wait for tomorrow.",
 		"board_full": "Your burrow cannot hold another bomb.",
-		"tile_not_trappable": "Nothing to mine there.",
+		"tile_not_trappable": "No bomb can go there.",
 		"tile_doorstep": "Too near the door. The first steps inside stay open.",
 		"tile_house": "Nothing is buried under your house.",
 		"tile_field": "Nothing is buried in your garden.",
-		"tile_already_trapped": "Already mined.",
+		"tile_already_trapped": "A bomb is already there.",
 		"no_trap_there": "No bomb there.",
-		"no_fences": "No fences left. The shed sells them.",
-		"span_already_fenced": "A plank already stands there.",
+		"no_fences": "No fences left. The shop sells them.",
+		"span_already_fenced": "A fence already stands there.",
 		"span_not_exposed": "That is not an edge of your garden.",
 		"would_seal_burrow": "That would close the last way in. One way in stays open as a gate.",
-		"span_not_fenced": "No plank there.",
-		"bad_span": "That is not a place for a plank.",
+		"span_not_fenced": "No fence there.",
+		"bad_span": "That is not a place for a fence.",
 		"fenced": "A fence blocks the way. Go round.",
 		"payments_unavailable": "Card payments are not set up yet.",
 		"quote_expired": "That quote expired. Try again.",
@@ -859,24 +868,24 @@
 			"$t": "{0}: none. {1}"
 		},
 		"trapsLine": {
-			"$t": "Bombs: {0} of {1} in the ground, {2} in the shed. Bury them from BASE.",
+			"$t": "Bombs: {0} of {1} in the ground, {2} in the bag. Bury them from DEFEND.",
 			"$v": [
 				{
 					"when": {
 						"1": 0.0
 					},
-					"t": "Bombs: {0} in the ground, {2} in the shed. Bury them from BASE."
+					"t": "Bombs: {0} in the ground, {2} in the bag. Bury them from DEFEND."
 				}
 			]
 		},
 		"trapsBuy": {
-			"$t": "Bombs: {0} in the shed. Buy another for {1} carrots.",
+			"$t": "Bombs: {0} in the bag. Buy another for {1} carrots.",
 			"$v": [
 				{
 					"when": {
 						"0": 0.0
 					},
-					"t": "Bombs: none in the shed. Buy one for {1} carrots."
+					"t": "Bombs: none in the bag. Buy one for {1} carrots."
 				}
 			]
 		},
@@ -884,7 +893,7 @@
 			"$t": "Bombs: none left. One costs {0} carrots - dig for more."
 		},
 		"trapsBuyFull": {
-			"$t": "Bombs: {0} in the shed. The shed is full."
+			"$t": "Bombs: {0} in the bag. The bag is full."
 		},
 		"bottleRunning": {
 			"$t": "{0}: running, {1} left. {2} in the bag."
@@ -896,48 +905,35 @@
 			"$t": "{0}: none. Found in chests."
 		},
 		"fencePlace": {
-			"$t": "Fences: {0} planks in the bag, {1} of {2} stretches fenced. Put one up.",
+			"$t": "Fences: {0} in the bag, {1} of {2} edges fenced. Put one up.",
 			"$v": [
 				{
 					"when": {
-						"0": 1.0
-					},
-					"t": "Fences: 1 plank in the bag, {1} of {2} stretches fenced. Put one up."
-				},
-				{
-					"when": {
 						"2": 1.0
 					},
-					"t": "Fences: {0} planks in the bag, {1} of 1 stretch fenced. Put one up."
-				},
-				{
-					"when": {
-						"0": 1.0,
-						"2": 1.0
-					},
-					"t": "Fences: 1 plank in the bag, {1} of 1 stretch fenced. Put one up."
+					"t": "Fences: {0} in the bag, {1} of 1 edge fenced. Put one up."
 				}
 			]
 		},
 		"fenceAllWalled": {
-			"$t": "Fences: {0} stretches fenced. The last opening is the gate and stays open.",
+			"$t": "Fences: {0} edges fenced. The last opening is the gate and stays open.",
 			"$v": [
 				{
 					"when": {
 						"0": 1.0
 					},
-					"t": "Fences: 1 stretch fenced. The last opening is the gate and stays open."
+					"t": "Fences: 1 edge fenced. The last opening is the gate and stays open."
 				}
 			]
 		},
 		"fenceNone": {
-			"$t": "Fences: none in the bag, {0} stretches fenced. The shed sells them. Tap a standing plank to take it back.",
+			"$t": "Fences: none in the bag, {0} edges fenced. The shop sells them. Tap a fence to take it back.",
 			"$v": [
 				{
 					"when": {
 						"0": 1.0
 					},
-					"t": "Fences: none in the bag, 1 stretch fenced. The shed sells them. Tap a standing plank to take it back."
+					"t": "Fences: none in the bag, 1 edge fenced. The shop sells them. Tap a fence to take it back."
 				}
 			]
 		},
@@ -963,9 +959,9 @@
 		},
 		"raid": "RAID",
 		"raidCost": {
-			"$t": "{0} to climb in, {1} at most"
+			"$t": "{0} to cross, {1} at most"
 		},
-		"raidRefund": "Reach the field and your steps come back.",
+		"raidRefund": "Reach the garden and your steps come back.",
 		"dig": "DIG",
 		"digCost": {
 			"$t": "{0} a tile. A bomb: {1}"
@@ -978,7 +974,7 @@
 		"homeCost": {
 			"$t": "leave with {0} or more and a raid is ready"
 		},
-		"homeHint": "What you go home with stays in the tank.",
+		"homeHint": "Energy you bring home is kept.",
 		"ready": "READY",
 		"raidReady": "RAID READY",
 		"needs": {
@@ -991,7 +987,7 @@
 			"$t": "UNDER {0}"
 		},
 		"levelLabel": {
-			"$t": "LVL {0}"
+			"$t": "BURROW {0}"
 		},
 		"levelRate": {
 			"$t": "refills {0} an hour. Next level: {1}",
@@ -1056,7 +1052,7 @@
 		"choose": "Choose a burrow",
 		"whose": "WHOSE BURROW?",
 		"cost": {
-			"$t": "A raid takes {0} energy to climb in, {1} at most."
+			"$t": "A raid crossing costs {0} energy, {1} at most."
 		},
 		"allShielded": "ALL BURROWS SHIELDED",
 		"nobody": "NOBODY TO ROB",
@@ -1068,7 +1064,7 @@
 		},
 		"raidIt": "Raid",
 		"watchIt": "Watch",
-		"brief": "Reach the carrot field. Their bombs are buried and unmarked.",
+		"brief": "Reach their garden. Their bombs are buried and unmarked.",
 		"outOfEnergy": "Out of energy",
 		"nothingTaken": "Nothing taken",
 		"unguarded": {
@@ -1110,7 +1106,7 @@
 			"$t": "+{0} 🥕 stolen from {1}"
 		},
 		"fellShort": {
-			"$t": "Fell {0}% of the way to {1}'s field"
+			"$t": "Fell {0}% of the way to {1}'s garden"
 		},
 		"defended": "DEFENDED",
 		"raided": "RAIDED",
@@ -1131,9 +1127,9 @@
 				}
 			]
 		},
-		"struck": "Struck by lightning",
+		"struck": "Zapped",
 		"struckBy": {
-			"$t": "{0} called lightning down on you"
+			"$t": "{0} zapped you"
 		},
 		"smoked": "Smoke screen: no numbers here. Walk it blind."
 	},
@@ -1168,13 +1164,13 @@
 			"$t": "{0} IS RAIDING YOU"
 		},
 		"theirSteps": "their steps",
-		"hint": "Bury a bomb ahead of them, or tap the rabbit to strike it.",
-		"strike": "Strike",
-		"buyStrike": "Buy & strike",
+		"hint": "Bury a bomb ahead of them, or tap the rabbit to zap it.",
+		"strike": "Zap",
+		"buyStrike": "Buy & zap",
 		"held": {
 			"$t": "{0} held"
 		},
-		"struckDown": "STRUCK DOWN",
+		"struckDown": "ZAPPED",
 		"ranDry": "THEY RAN OUT OF ENERGY",
 		"looted": {
 			"$t": "THEY TOOK {0} 🥕"
@@ -1194,7 +1190,7 @@
 		"no_energy": "Not enough energy for a crossing. Wait, or refill.",
 		"not_adjacent": "Too far. One step at a time.",
 		"raid_over": "That raid is already over.",
-		"none_held": "No lightning to call. The shed sells it.",
+		"none_held": "No lightning to call. The shop sells it.",
 		"no_raid": "That raid is over.",
 		"unknown_player": "They are gone."
 	},
@@ -1230,7 +1226,7 @@
 		"historyFailed": "Could not load your history.",
 		"noRuns": "No finished runs yet.",
 		"noRaids": "Nobody has come after you yet.",
-		"noPurchases": "Nothing from the shed yet.",
+		"noPurchases": "Nothing from the shop yet.",
 		"today": "Today",
 		"youHit": {
 			"$t": "You hit {0}"
@@ -1239,12 +1235,12 @@
 			"$t": "{0} dmg"
 		},
 		"shovedIn": "pushed in the water",
-		"struckDown": "struck by lightning",
+		"struckDown": "zapped",
 		"youShoved": {
 			"$t": "You pushed {0} in"
 		},
 		"youStruck": {
-			"$t": "You struck {0} down"
+			"$t": "You zapped {0}"
 		},
 		"spent": {
 			"$t": "-{0} 🥕"
@@ -1311,14 +1307,14 @@
 		"WALKING BACK OVER TILES YOU ALREADY DUG IS FREE",
 		"EVERY CHEST YOU OPEN GOES HOME WITH YOU",
 		"THE ISLAND IS THE CLOCK - DIG IT OUT AND IT SINKS",
-		"CARROTS ARE THE SCORE - THE RED X IS THE ONLY PUMP"
+		"CARROTS ARE THE SCORE - ONLY A RIGHT RED X GIVES ENERGY BACK"
 	],
 	"taglines": [
 		"EVERY STEP COULD BE YOUR LAST... OR YOUR FORTUNE",
 		"CROSS THE ISLAND, CLAIM THE GOLD, OR DIE TRYING",
 		"THE BRAVE HOP FURTHER - THE LUCKY HOP HOME",
 		"STEP BY STEP, THE ISLAND TAKES OR THE ISLAND GIVES",
-		"ONLY THE BOLD SURVIVE - ONLY THE WISE CASH OUT"
+		"ONLY THE BOLD SURVIVE - ONLY THE WISE GO HOME"
 	],
 	"islands": {
 		"Meadow": "Meadow",
@@ -1332,12 +1328,12 @@
 			"blurb": "Bury one in your burrow. It drains the raider who steps on it."
 		},
 		"bomb": {
-			"name": "Bomb",
+			"name": "Hidden bomb",
 			"blurb": "Plant one on someone's island mid-run. They see it was you."
 		},
 		"lightning": {
 			"name": "Lightning",
-			"blurb": "Calls a strike on a rival’s island. It opens the ground around it."
+			"blurb": "Zaps a rival mid-run. The bolt opens the ground around them."
 		},
 		"shield": {
 			"name": "Shield",
@@ -1345,7 +1341,7 @@
 		},
 		"energy": {
 			"name": "Energy",
-			"blurb": "Fill the bar and dig now, instead of waiting it out."
+			"blurb": "Refill your energy and dig now, instead of waiting it out."
 		},
 		"smoke": {
 			"name": "Smoke screen",
@@ -1361,7 +1357,7 @@
 		},
 		"fence": {
 			"name": "Fence",
-			"blurb": "Walls one stretch of your garden’s edge. Raiders cannot cross it."
+			"blurb": "Closes one edge of your garden. Raiders cannot cross it."
 		}
 	},
 	"quests": {
@@ -1389,7 +1385,7 @@
 		"bury-something": {
 			"title": "Bury something",
 			"ask": {
-				"$t": "Go to DEFEND and place some bombs in your base."
+				"$t": "Go to DEFEND and bury some bombs in your burrow."
 			},
 			"line": "A bomb nobody can see is the only wall worth building. A wall gets walked around."
 		},

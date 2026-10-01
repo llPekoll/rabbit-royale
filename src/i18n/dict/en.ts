@@ -161,7 +161,7 @@ export const en = {
     energyOf: (energy: number, max: number) => `${energy}/${max} energy`,
     runCosts: (n: number) => `crossing costs ${n}`,
     runIn: (wait: string) => `run in ${wait}`,
-    raidNeeds: (floor: number, have: number, wait: string) => `A raid needs ${floor} in the tank. ${have} now, enough in ${wait}.`,
+    raidNeeds: (floor: number, have: number, wait: string) => `A raid needs ${floor} energy. ${have} now, enough in ${wait}.`,
     /* The RAID slab's own gate, in DIG's grammar ("run in 20m"): the slab
        says when it will be worth pressing, not only what is out there. */
     raidIn: (wait: string) => `raid in ${wait}`,
@@ -203,6 +203,9 @@ export const en = {
        cut off the rim (22 September 2026). Two characters are the difference. */
     level: (n: number) => `BURROW LVL ${n}`,
     maxLevel: 'MAX LEVEL',
+    /* The burrow's level on its own chip, beside the rabbit's LVL: two levels
+       that both read "LVL" side by side were read as one. */
+    levelChip: (level: number) => `BURROW ${level}`,
     upgrade: 'UPGRADE',
     safe: 'SAFE',
     exposed: (n: string) => `${n} EXPOSED`,
@@ -273,7 +276,7 @@ export const en = {
 
   /* ── A run, on the island ─────────────────────────────────────────────── */
   run: {
-    goFarm: 'Clear all mines',
+    goFarm: 'Clear all bombs',
     findMe: 'Find my rabbit',
     retreat: 'Retreat',
     home: 'Home',
@@ -298,20 +301,20 @@ export const en = {
     markCancel: 'Cancel',
     markNothing: 'Nothing to mark here: every tile around you is already read.',
     energyLow: 'Low energy. A right X on a bomb gives some back.',
-    energyRaidLeft: 'Still a raid in the tank. Go home, or dig on.',
+    energyRaidLeft: 'Enough energy left for a raid. Go home, or dig on.',
     /* Plain words, not a status chip: "HOME \u00b7 RAID READY" read as jargon
        (Paul, 21 September 2026). What leaving now buys, as a verb. */
     homeRaid: 'Home and raid',
     /** Said once on landing: what the crossing took, what is left ON YOU. */
     crossed: (cost: number, energy: number) => `\u26a1 -${cost} to cross \u00b7 ${energy} left`,
-    trapHint: (left: number) => `Tap a tile to mine it, tap a mine to lift it · ${left} left`,
-    trapHintEmpty: 'No bombs left · buy another, or tap a mine to lift it and bury it elsewhere',
-    strike: 'Strike',
-    aiming: 'Tap a rival to strike',
-    strikeNone: 'No lightning to call. The shed sells it.',
+    trapHint: (left: number) => `Tap a tile to bury a bomb, tap a bomb to lift it · ${left} left`,
+    trapHintEmpty: 'No bombs left · buy another, or tap a bomb to lift it and bury it elsewhere',
+    strike: 'Zap',
+    aiming: 'Tap a rival to zap',
+    strikeNone: 'No lightning to call. The shop sells it.',
     plant: 'Plant a bomb',
     aimingPlant: 'Tap undug ground to bury a bomb',
-    plantNone: 'No bombs to plant. The shed sells them.',
+    plantNone: 'No bombs to plant. The shop sells them.',
     planted: 'Bomb buried. Only you know where.',
     plantRefused: {
       'off-island': 'Not on the island.',
@@ -321,7 +324,7 @@ export const en = {
       'too-many': 'Three bombs live is the most you may have here.',
     } as Record<string, string>,
     plantedBy: (name: string) => `${name}'s bomb!`,
-    struckBy: (name: string) => `${name} struck you with lightning`,
+    struckBy: (name: string) => `${name} zapped you`,
     /**
      * How many rivals are watching this run — over MARK A BOMB.
      *
@@ -348,7 +351,7 @@ export const en = {
     /* THE BLOOP (2026-09-24): ink in a rival's eyes, and no way home until it runs off. */
     bloop: 'Bloop',
     aimingBloop: 'Tap a rival to ink them',
-    bloopNone: 'No bloop to throw. The shed sells it.',
+    bloopNone: 'No bloop to throw. The shop sells it.',
     bloopRefused: {
       'no-rival': 'Nobody there to ink.',
       level_locked: 'Not before level 3.',
@@ -388,23 +391,23 @@ export const en = {
     tutorialDoneNote: 'The chest was the whole island. Your carrots are waiting at the burrow.',
     stats: (carrots: number, dug: number, bombs: number, time: string) =>
       `🥕 ${carrots} · ${dug} dug · 💣 ${bombs} · ${time}`,
-    raidLeft: (energy: number) => `⚡ ${energy} left in the tank: enough for a raid`,
+    raidLeft: (energy: number) => `⚡ ${energy} energy left: enough for a raid`,
     bank: (energy: number, max: number, cost: number) =>
-      `⚡ ${energy}/${max} in the tank · a crossing takes ${cost}`,
+      `⚡ ${energy}/${max} energy · a crossing costs ${cost}`,
     getEnergy: 'Get more energy',
-    goHome: 'Home · stack it',
+    goHome: (carrots: number) => `Home · bank ${carrots} 🥕`,
     /* BEATEN BY SOMEBODY, not by the island.
        A shove into the water and a bolt out of the sky both used to end a run
        under "RUN OVER · Out of energy", which is true of the hearts and a lie
        about what happened: a rival did it, and a defeat with no culprit reads
        as the game breaking rather than as being beaten. */
     shoved: 'PUSHED IN!',
-    struck: 'STRUCK DOWN!',
-    shovedNote: (name: string) => `${name} shoved you into the water.`,
-    struckNote: (name: string) => `${name} called the lightning down on you.`,
+    struck: 'ZAPPED!',
+    shovedNote: (name: string) => `${name} pushed you into the water.`,
+    struckNote: (name: string) => `${name} zapped you with lightning.`,
     /** The same two, when the culprit's name never arrived. */
-    shovedNoteAnon: 'Someone shoved you into the water.',
-    struckNoteAnon: 'Someone called the lightning down on you.',
+    shovedNoteAnon: 'Someone pushed you into the water.',
+    struckNoteAnon: 'Someone zapped you with lightning.',
   },
   /** The toast over the board, on a shove that was SURVIVED. */
   shove: {
@@ -474,32 +477,32 @@ export const en = {
   /* ── The shop and the shed ────────────────────────────────────────────── */
   shop: {
     title: 'SHOP',
-    shed: 'THE SHED',
+    shed: 'SHOP',
     aria: 'Shop',
-    protect: 'PROTECT BASE',
-    protectAria: 'Protect your base',
-    protectBuyAria: 'Protect your base - buy a bomb',
+    protect: 'PROTECT BURROW',
+    protectAria: 'Protect your burrow',
+    protectBuyAria: 'Protect your burrow - buy a bomb',
     noTraps: 'NO BOMBS - GET ONE',
     nothingBuried: 'NOTHING BURIED',
-    inShed: (n: number) => `${n} IN THE SHED`,
+    inShed: (n: number) => `${n} IN THE BAG`,
     rearming: (n: number) => `REARMING - ${n} COMING BACK`,
     upAndRearming: (armed: number, rearming: number) => `${armed} UP - ${rearming} REARMING`,
     inGround: (armed: number, max: number) => `${armed}/${max} IN THE GROUND`,
-    openShed: 'Open the shed',
+    openShed: 'Open the shop',
     backToBurrow: 'Back to the burrow',
     payWith: 'Pay with',
     outOfEnergy: 'OUT OF ENERGY',
     /* Plain ASCII punctuation only: the pixel face has no em dash and draws
        one as a blank box. See test/pixel-font-glyphs. */
     energySay: (cost: number, wait: string) =>
-      `A run takes ${cost}. Enough comes back on its own in ${wait}.`
-      + ' Or fill it now and keep digging.',
+      `A crossing costs ${cost}. Enough energy comes back on its own in ${wait}.`
+      + ' Or refill now and keep digging.',
     energySayEmpty: (wait: string) =>
-      `The bar is empty. One point comes back on its own in ${wait}.`
-      + ' Or fill it now and keep digging.',
-    fillsTo: (max: number) => `Fills the bar to ${max}.`,
+      `No energy left. One point comes back on its own in ${wait}.`
+      + ' Or refill now and keep digging.',
+    fillsTo: (max: number) => `Refills your energy to ${max}.`,
     noRefills: ' No refills left today.',
-    refillsLeft: (n: number) => ` ${n} refill${n > 1 ? 's' : ''} left today.`,
+    refillsLeft: (n: number) => (n > 0 ? ` ${n} refill${n > 1 ? 's' : ''} left today.` : ' No refills left today.'),
     cardsOff: 'Card payments are not switched on yet. Carrots only for now.',
     connectForCard: 'Connect a wallet to pay by card. Everything here is diggable anyway.',
     eitherWay: 'Carrots you dig, or card. Same goods either way.',
@@ -521,10 +524,13 @@ export const en = {
     heldToday: (n: number) => `${n} today`,
     heldDaysLeft: (n: number) => `${n}d left`,
     heldOff: 'off',
+    /* Why a greyed card cannot be bought: held at the cap, or already running. */
+    max: 'MAX',
+    active: 'ACTIVE',
     /* What a purchase says back. The count leads only when there is more than
        one of them — "bomb in the shed" and "3 bombs in the shed". */
     boughtEnergy: (paid: string) => `Energy refilled. ${paid}`,
-    boughtTrap: (n: number, paid: string) => `${n > 1 ? `${n} bombs` : 'bomb'} in the shed. ${paid}`,
+    boughtTrap: (n: number, paid: string) => `${n > 1 ? `${n} bombs` : 'bomb'} in the bag. ${paid}`,
     boughtBomb: (n: number, paid: string) => `${n > 1 ? `${n} bombs` : 'bomb'} armed. ${paid}`,
     boughtLightning: (n: number, paid: string) =>
       `${n > 1 ? `${n} lightning bolts` : 'lightning bolt'} bottled. ${paid}`,
@@ -536,7 +542,7 @@ export const en = {
     /* A fence is BUILT, not readied: what it buys is one plank standing across
        one stretch of the garden's edge, so the receipt says the thing it becomes. */
     boughtFence: (n: number, paid: string) =>
-      `${n > 1 ? `${n} planks` : 'plank'} ready to raise. ${paid}`,
+      `${n > 1 ? `${n} fences` : 'fence'} ready to put up. ${paid}`,
     /* Plain ASCII '-', not a minus sign: the pixel face cannot draw U+2212 and
        it renders as a blank box on the device. See test/pixel-font-glyphs. */
     paid: (spent: number) => `-${spent} 🥕`,
@@ -553,20 +559,20 @@ export const en = {
     bad_quantity: 'That is not a quantity.',
     no_traps: 'No bombs left. Buy one, or wait for tomorrow.',
     board_full: 'Your burrow cannot hold another bomb.',
-    tile_not_trappable: 'Nothing to mine there.',
+    tile_not_trappable: 'No bomb can go there.',
     tile_doorstep: 'Too near the door. The first steps inside stay open.',
     tile_house: 'Nothing is buried under your house.',
     tile_field: 'Nothing is buried in your garden.',
-    tile_already_trapped: 'Already mined.',
+    tile_already_trapped: 'A bomb is already there.',
     no_trap_there: 'No bomb there.',
-    no_fences: 'No fences left. The shed sells them.',
-    span_already_fenced: 'A plank already stands there.',
+    no_fences: 'No fences left. The shop sells them.',
+    span_already_fenced: 'A fence already stands there.',
     span_not_exposed: 'That is not an edge of your garden.',
     /* The gate rule, stated as a rule rather than as a mistake: this is the one
        refusal here the player has to LEARN, so it says why before it says no. */
     would_seal_burrow: 'That would close the last way in. One way in stays open as a gate.',
-    span_not_fenced: 'No plank there.',
-    bad_span: 'That is not a place for a plank.',
+    span_not_fenced: 'No fence there.',
+    bad_span: 'That is not a place for a fence.',
     /* Not the owner's refusal but the RAIDER's, from raid/route.ts — a wall is
        the one defence they are told about, so it points them somewhere. */
     fenced: 'A fence blocks the way. Go round.',
@@ -633,21 +639,21 @@ export const en = {
     carried: (name: string, held: number, blurb: string) => `${name}: ${held} in the bag. ${blurb}`,
     carriedNone: (name: string, blurb: string) => `${name}: none. ${blurb}`,
     trapsLine: (placed: number, max: number | null, held: number) =>
-      `Bombs: ${placed}${max ? ` of ${max}` : ''} in the ground, ${held} in the shed.`
-      + ' Bury them from BASE.',
+      `Bombs: ${placed}${max ? ` of ${max}` : ''} in the ground, ${held} in the bag.`
+      + ' Bury them from DEFEND.',
     /* The same slot while PLACING, when it is a button rather than a readout.
        It names the PRICE, because that is the whole decision being made — and
        it says "buy" rather than "more", so a player reads what pressing it
        spends before they press it. */
     trapsBuy: (held: number, price: string) =>
       (held > 0
-        ? `Bombs: ${held} in the shed. Buy another for ${price} carrots.`
+        ? `Bombs: ${held} in the bag. Buy another for ${price} carrots.`
         // "another" is a lie at zero, and this is the state the press exists
         // for — so it gets the sentence that names the empty shed outright.
-        : `Bombs: none in the shed. Buy one for ${price} carrots.`),
+        : `Bombs: none in the bag. Buy one for ${price} carrots.`),
     trapsBuyBroke: (price: string) =>
       `Bombs: none left. One costs ${price} carrots - dig for more.`,
-    trapsBuyFull: (held: number) => `Bombs: ${held} in the shed. The shed is full.`,
+    trapsBuyFull: (held: number) => `Bombs: ${held} in the bag. The bag is full.`,
     bottleRunning: (name: string, wait: string, count: number) =>
       `${name}: running, ${wait} left. ${count} in the bag.`,
     bottleHeld: (name: string, count: number) => `${name}: ${count} in the bag. Pour one on the garden.`,
@@ -657,18 +663,18 @@ export const en = {
        counts them: the last one can never be fenced, and fenceAllWalled says so
        rather than letting the count read as a plank the player failed to raise. */
     fencePlace: (held: number, walled: number, total: number) =>
-      `Fences: ${held} plank${held === 1 ? '' : 's'} in the bag, ${walled} of ${total} stretch${total === 1 ? '' : 'es'} fenced.`
+      `Fences: ${held} in the bag, ${walled} of ${total} edge${total === 1 ? '' : 's'} fenced.`
       + ' Put one up.',
     /* Not a failure state, which is why it names the gate outright: the player
        has done everything the item allows, and a line that only said "no more"
        would read as a cap they should be trying to lift. */
     fenceAllWalled: (walled: number) =>
-      `Fences: ${walled} stretch${walled === 1 ? '' : 'es'} fenced. The last opening is the gate and stays open.`,
+      `Fences: ${walled} edge${walled === 1 ? '' : 's'} fenced. The last opening is the gate and stays open.`,
     /* Names the way back to a plank when the bag is empty: a standing plank is
        not spent, tapping it takes it back. */
     fenceNone: (walled: number) =>
-      `Fences: none in the bag, ${walled} stretch${walled === 1 ? '' : 'es'} fenced.`
-      + ' The shed sells them. Tap a standing plank to take it back.',
+      `Fences: none in the bag, ${walled} edge${walled === 1 ? '' : 's'} fenced.`
+      + ' The shop sells them. Tap a fence to take it back.',
     watering: 'Watering',
     fertiliser: 'Fertiliser',
   },
@@ -691,21 +697,21 @@ export const en = {
     island: 'ISLAND',
     islandCost: (cost: number) => `${cost} to cross, then 1 a dig`,
     raid: 'RAID',
-    raidCost: (toll: number, stake: number) => `${toll} to climb in, ${stake} at most`,
-    raidRefund: 'Reach the field and your steps come back.',
+    raidCost: (toll: number, stake: number) => `${toll} to cross, ${stake} at most`,
+    raidRefund: 'Reach the garden and your steps come back.',
     dig: 'DIG',
     digCost: (dig: number, bomb: number) => `${dig} a tile. A bomb: ${bomb}`,
     x: 'RED X',
     xCost: (lo: number, hi: number, loss: number) => `right: +${lo} to +${hi} back. Wrong: -${loss}`,
     home: 'HOME',
     homeCost: (floor: number) => `leave with ${floor} or more and a raid is ready`,
-    homeHint: 'What you go home with stays in the tank.',
+    homeHint: 'Energy you bring home is kept.',
     ready: 'READY',
     raidReady: 'RAID READY',
     needs: (floor: number) => `NEEDS ${floor}`,
     inWait: (wait: string) => `in ${wait}`,
     under: (floor: number) => `UNDER ${floor}`,
-    levelLabel: (level: number) => `LVL ${level}`,
+    levelLabel: (level: number) => `BURROW ${level}`,
     levelRate: (regen: number, next: number | null) =>
       next === null ? `refills ${regen} an hour` : `refills ${regen} an hour. Next level: ${next}`,
   },
@@ -751,7 +757,7 @@ export const en = {
     whose: 'WHOSE BURROW?',
     /* The toll, on the list's footer: a raid draws on the one tank, and the
        list is where the player decides to spend it. */
-    cost: (toll: number, stake: number) => `A raid takes ${toll} energy to climb in, ${stake} at most.`,
+    cost: (toll: number, stake: number) => `A raid crossing costs ${toll} energy, ${stake} at most.`,
     allShielded: 'ALL BURROWS SHIELDED',
     nobody: 'NOBODY TO ROB',
     shielded: 'Shielded',
@@ -773,7 +779,7 @@ export const en = {
     raidIt: 'Raid',
     /** The button on a row whose owner is out digging: watch the run, not raid the burrow. */
     watchIt: 'Watch',
-    brief: 'Reach the carrot field. Their bombs are buried and unmarked.',
+    brief: 'Reach their garden. Their bombs are buried and unmarked.',
     outOfEnergy: 'Out of energy',
     nothingTaken: 'Nothing taken',
     unguarded: (amount: string) => `${amount} UNGUARDED`,
@@ -791,14 +797,14 @@ export const en = {
     wonAria: (carrots: number, name: string) => `Raid won - ${carrots} carrots looted from ${name}`,
     rabbitAria: 'Your rabbit, celebrating',
     stolen: (n: string, name: string) => `+${n} 🥕 stolen from ${name}`,
-    fellShort: (pct: number, name: string) => `Fell ${pct}% of the way to ${name}'s field`,
+    fellShort: (pct: number, name: string) => `Fell ${pct}% of the way to ${name}'s garden`,
     defended: 'DEFENDED',
     raided: 'RAIDED',
     byWho: (who: string, n: number) => `BY ${who} · -${n} CARROTS`,
     byWhoNothing: (who: string) => `BY ${who}`,
     bounced: (n: number) => `${n} RAID${n === 1 ? '' : 'S'} BOUNCED OFF`,
-    struck: 'Struck by lightning',
-    struckBy: (name: string) => `${name} called lightning down on you`,
+    struck: 'Zapped',
+    struckBy: (name: string) => `${name} zapped you`,
     /** Under the defender's smoke screen: why the board shows no numbers. */
     smoked: 'Smoke screen: no numbers here. Walk it blind.',
   },
@@ -812,12 +818,12 @@ export const en = {
     cleaned: (bombs: number, planks: number) => `${bombs} bomb${bombs === 1 ? '' : 's'} and ${planks} fence${planks === 1 ? '' : 's'} back in your bag`,
     underAttack: (name: string) => `${name.toUpperCase()} IS RAIDING YOU`,
     theirSteps: 'their steps',
-    hint: 'Bury a bomb ahead of them, or tap the rabbit to strike it.',
-    strike: 'Strike',
+    hint: 'Bury a bomb ahead of them, or tap the rabbit to zap it.',
+    strike: 'Zap',
     /** No bolt held: the button buys one and strikes in the same tap. */
-    buyStrike: 'Buy & strike',
+    buyStrike: 'Buy & zap',
     held: (n: number) => (n === 1 ? '1 held' : `${n} held`),
-    struckDown: 'STRUCK DOWN',
+    struckDown: 'ZAPPED',
     ranDry: 'THEY RAN OUT OF ENERGY',
     looted: (n: string) => `THEY TOOK ${n} 🥕`,
     lost: 'Your burrow was sacked',
@@ -834,7 +840,7 @@ export const en = {
     no_energy: 'Not enough energy for a crossing. Wait, or refill.',
     not_adjacent: 'Too far. One step at a time.',
     raid_over: 'That raid is already over.',
-    none_held: 'No lightning to call. The shed sells it.',
+    none_held: 'No lightning to call. The shop sells it.',
     no_raid: 'That raid is over.',
     unknown_player: 'They are gone.',
   },
@@ -875,7 +881,7 @@ export const en = {
        somebody got at you, island kills included — so the empty state cannot
        promise a burrow. */
     noRaids: 'Nobody has come after you yet.',
-    noPurchases: 'Nothing from the shed yet.',
+    noPurchases: 'Nothing from the shop yet.',
     today: 'Today',
     youHit: (name: string) => `You hit ${name}`,
     damage: (n: number) => `${n} dmg`,
@@ -884,10 +890,10 @@ export const en = {
        figure ("-40 🥕", "35 dmg") would print "0 dmg" — which reads as nothing
        having happened. These say what happened instead. */
     shovedIn: 'pushed in the water',
-    struckDown: 'struck by lightning',
+    struckDown: 'zapped',
     /** The same two the other way round, on a line this player caused. */
     youShoved: (name: string) => `You pushed ${name} in`,
-    youStruck: (name: string) => `You struck ${name} down`,
+    youStruck: (name: string) => `You zapped ${name}`,
     spent: (n: string) => `-${n} 🥕`,
     usd: (n: string) => `$${n}`,
     /* ── Settling up ──────────────────────────────────────────────────────
@@ -965,7 +971,7 @@ export const en = {
     'WALKING BACK OVER TILES YOU ALREADY DUG IS FREE',
     'EVERY CHEST YOU OPEN GOES HOME WITH YOU',
     'THE ISLAND IS THE CLOCK - DIG IT OUT AND IT SINKS',
-    'CARROTS ARE THE SCORE - THE RED X IS THE ONLY PUMP',
+    'CARROTS ARE THE SCORE - ONLY A RIGHT RED X GIVES ENERGY BACK',
   ] as readonly string[],
 
   /* ── The five phrases in the wordmark's ribbon ────────────────────────── */
@@ -974,7 +980,7 @@ export const en = {
     'CROSS THE ISLAND, CLAIM THE GOLD, OR DIE TRYING',
     'THE BRAVE HOP FURTHER - THE LUCKY HOP HOME',
     'STEP BY STEP, THE ISLAND TAKES OR THE ISLAND GIVES',
-    'ONLY THE BOLD SURVIVE - ONLY THE WISE CASH OUT',
+    'ONLY THE BOLD SURVIVE - ONLY THE WISE GO HOME',
   ] as readonly string[],
 
   /* ── The islands on the ladder ────────────────────────────────────────── */
@@ -992,12 +998,12 @@ export const en = {
       blurb: 'Bury one in your burrow. It drains the raider who steps on it.',
     },
     bomb: {
-      name: 'Bomb',
+      name: 'Hidden bomb',
       blurb: "Plant one on someone's island mid-run. They see it was you.",
     },
     lightning: {
       name: 'Lightning',
-      blurb: 'Calls a strike on a rival’s island. It opens the ground around it.',
+      blurb: 'Zaps a rival mid-run. The bolt opens the ground around them.',
     },
     shield: {
       name: 'Shield',
@@ -1005,7 +1011,7 @@ export const en = {
     },
     energy: {
       name: 'Energy',
-      blurb: 'Fill the bar and dig now, instead of waiting it out.',
+      blurb: 'Refill your energy and dig now, instead of waiting it out.',
     },
     smoke: {
       name: 'Smoke screen',
@@ -1024,7 +1030,7 @@ export const en = {
        round has understood the item exactly. See lib/game/fences.ts. */
     fence: {
       name: 'Fence',
-      blurb: 'Walls one stretch of your garden’s edge. Raiders cannot cross it.',
+      blurb: 'Closes one edge of your garden. Raiders cannot cross it.',
     },
   } satisfies ItemTable,
 
@@ -1047,7 +1053,7 @@ export const en = {
     },
     'bury-something': {
       title: 'Bury something',
-      ask: () => 'Go to DEFEND and place some bombs in your base.',
+      ask: () => 'Go to DEFEND and bury some bombs in your burrow.',
       line: 'A bomb nobody can see is the only wall worth building. A wall gets walked around.',
     },
     'open-a-chest': {

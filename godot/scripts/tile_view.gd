@@ -143,8 +143,9 @@ const X_ART_SCALE := 44.0 / 42.0
 const X_RED := Color("#ff5a4a")
 const X_EDGE := Color("#3a0d0d")
 const X_SQUASH := Vector2(1.5, 0.75)
-## L'arrivee (`back.out(3)`, 0,3 s) : le X claque en place.
-const X_POP_SECONDS := 0.3
+## L'arrivee : ELASTIC en sortie (le user, 2026-10-01), 0,6 s — le X claque
+## puis tremble en place ; plus court, le ressort ne se voyait pas.
+const X_POP_SECONDS := 0.6
 
 ## LE BATTEMENT DE LA CASE ENSEIGNEE, en secondes — le meme que le bouton du
 ## web (`TEACH_BEAT_SECONDS`, 0,9 s) : c'est la cadence commune qui lie le
@@ -1500,7 +1501,7 @@ func _stamp_x(x: FlagMark) -> void:
 	tw.tween_property(x, "drop", 0.0, X_STAMP_FALL) \
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tw.chain().tween_property(x, "scale", X_SQUASH, X_POP_SECONDS) \
-		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		.set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
 	tw.parallel().tween_property(x, "ring", 1.0, X_STAMP_RING).from(0.0) \
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tw.chain().tween_callback(func() -> void: x.ring = -1.0)
