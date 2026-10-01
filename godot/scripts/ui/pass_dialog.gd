@@ -1,11 +1,11 @@
 class_name PassDialog
 extends Dialog
-## LA FENETRE DU PASS DE SAISON.
+## LA FENETRE DU CROWN RACE TICKET (le pass de saison).
 ##
-## A gauche, l'offre : le prix, la duree, ce que le pass donne (lu dans la
-## reponse du serveur, pas recopie ici — PASS.DAILY et PASS.PAYOUT_SHARES
-## dans config/tuning.ts), puis UN bouton : acheter (bleu, l'argent), ou,
-## pour qui l'a, ouvrir le coffre du jour (or) — eteint jusqu'a minuit UTC.
+## A gauche, l'offre : le prix, la duree, ce que le ticket donne (lu dans la
+## reponse du serveur, pas recopie ici — PASS.SKIN et PASS.PAYOUT_SHARES
+## dans config/tuning.ts) : un skin et la course, rien en jeu. Puis UN
+## bouton, acheter (bleu, l'argent) ; pour qui l'a, « tu es dans la course ».
 ## A droite, la course : la cagnotte, les dix premiers detenteurs et ce
 ## qu'ils toucheraient si la saison finissait maintenant, et ma place.
 ##
@@ -27,7 +27,6 @@ var _state: PassState
 var _shop: ShopState
 var _pay: Shop.UsdcPay
 var _rail := "usdc"
-var _busy := false
 
 var _days: Label
 var _columns: HBoxContainer
@@ -70,7 +69,7 @@ func _ready() -> void:
 
 	var header := title_label.get_parent()
 	title_label.text = I18N.shout(I18N.t("pass.title"))
-	var ticket := Kit.icon(PassState.GOLDEN_CARROT, 20)
+	var ticket := Kit.icon(PassState.TICKET_ICON, 20)
 	header.add_child(ticket)
 	header.move_child(ticket, 0)
 	_days = Kit.label("", 13, Palette.BARK)
@@ -121,10 +120,10 @@ func _rebuild() -> void:
 
 func _build_offer(s: Dictionary) -> void:
 	# LA TETE : le prix et la duree tant qu'on ne l'a pas ; une fois achete,
-	# « PASS ACTIF » en vert et les jours qui restent — le prix n'a plus
+	# « TICKET ACTIF » en vert et les jours qui restent — le prix n'a plus
 	# rien a dire a qui a paye.
 	var hero := Kit.hbox(Kit.PAD)
-	hero.add_child(Kit.icon(PassState.GOLDEN_CARROT, 40))
+	hero.add_child(Kit.icon(PassState.TICKET_ICON, 40))
 	var season: Variant = s.get("season", null)
 	if _state.holder():
 		var col := Kit.vbox(0)
@@ -143,26 +142,33 @@ func _build_offer(s: Dictionary) -> void:
 	_left.add_child(hero)
 
 	var rewards: Dictionary = s.get("rewards", {}) if s.get("rewards", {}) is Dictionary else {}
-	var daily: Dictionary = rewards.get("daily", {}) if rewards.get("daily", {}) is Dictionary else {}
 	var shares: Array = rewards.get("shares", []) if rewards.get("shares", []) is Array else []
 	var pot_share := "%d%%" % int(round(float(s.get("potShare", 0.5)) * 100.0))
-	_left.add_child(_reward(PassState.chest_icon(), I18N.t("pass.daily"),
-		I18N.f("pass.dailyWhat", [int(daily.get("trap", 1)), int(daily.get("bloop", 1))])))
+	_left.add_child(_reward(PassState.skin_icon(PassState.skin_in(rewards)), I18N.t("pass.skin"), I18N.t("pass.skinWhat"), 40))
 	_left.add_child(_reward(Kit.CUP, I18N.t("pass.race"),
 		I18N.f("pass.raceWhat", [pot_share, maxi(1, shares.size())])))
-	_left.add_child(_reward(Kit.CROWN, I18N.t("pass.tag"), I18N.t("pass.tagWhat")))
 
 	_left.add_child(Kit.spacer())
 	_left.add_child(_action())
 	var line := _pay_line()
 	if not line.is_empty():
 		_left.add_child(Kit.note(line, Palette.BAD_ON_PARCHMENT if not _pay.error.is_empty() else Palette.BARK, 12))
+	# MA PLACE ET LES CONDITIONS A GAUCHE, sous le bouton : la colonne de
+	# droite (dix lignes) remplissait deja la hauteur du Seeker, et les deux
+	# lignes de plus la faisaient defiler (le user, 2026-10-01).
+	if _state.holder():
+		var m := _state.mine()
+		var rank: Variant = m.get("rank", null)
+		var you := I18N.f("pass.you", [int(rank), PassState.dollars(float(m.get("prizeUsd", 0.0)))]) \
+			if (rank is int or rank is float) else I18N.t("pass.unranked")
+		_left.add_child(Kit.wrapped(Kit.label(you, 13, Palette.INK)))
+	_left.add_child(Kit.wrapped(Kit.note(I18N.t("pass.terms"), Palette.BARK, 11)))
 
 
-func _reward(tex: Texture2D, head: String, sub: String) -> Control:
+func _reward(tex: Texture2D, head: String, sub: String, side := 20) -> Control:
 	var row := Kit.hbox(Kit.PAD)
-	var icon := Kit.icon(tex, 20)
-	icon.custom_minimum_size = Vector2(28, 20)
+	var icon := Kit.icon(tex, side)
+	icon.custom_minimum_size = Vector2(maxi(28, side), side)
 	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(icon)
 	var text := Kit.vbox(0)
@@ -176,19 +182,17 @@ func _reward(tex: Texture2D, head: String, sub: String) -> Control:
 ## LE BOUTON UNIQUE, selon ou en est le joueur.
 func _action() -> Control:
 	var box := Kit.vbox(Kit.PAD_TIGHT)
+	# PAS ENCORE LU : « fermee » pendant la lecture etait un mensonge d'une
+	# seconde (2026-10-01).
+	if _state.state.is_empty() and Session.signed_in():
+		box.add_child(LoadingNote.new(13))
+		return box
 	if not _state.on():
 		box.add_child(Kit.note(I18N.t("pass.closed"), Palette.BARK, 13))
 		return box
 
 	if _state.holder():
-		var ready := _state.can_claim()
-		var wait := _state.next_chest_in()
-		var label := I18N.t("pass.claim") if ready or wait.is_empty() else I18N.f("pass.next", [wait])
-		var claim := Kit.button(label, "gold" if ready else "wood", LEFT_W, BUY_H)
-		claim.label_size = 15
-		claim.disabled = not ready or _busy
-		claim.pressed.connect(_on_claim)
-		box.add_child(claim)
+		box.add_child(Kit.note(I18N.t("pass.inRace"), ACTIVE_GREEN, 14))
 		return box
 
 	var tokens := _live_tokens()
@@ -276,24 +280,22 @@ func _on_buy() -> void:
 	_rebuild()
 
 
-func _on_claim() -> void:
-	if _busy:
-		return
-	_busy = true
-	_rebuild()
-	await _state.claim()
-	_busy = false
-	_rebuild()
-
-
 # ── La course ────────────────────────────────────────────────────────────────
 
 func _build_race(s: Dictionary) -> void:
+	# LA CAGNOTTE SUR UNE LIGNE : le mot puis le montant, a sa droite.
 	var pool_head := Kit.hbox(Kit.PAD_TIGHT)
-	pool_head.add_child(Kit.icon(Kit.CUP, 24))
-	pool_head.add_child(Kit.label(I18N.shout(I18N.t("pass.pool")), 14, Palette.BARK))
+	var cup := Kit.icon(Kit.CUP, 24)
+	cup.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	pool_head.add_child(cup)
+	var pool_word := Kit.label(I18N.shout(I18N.t("pass.pool")), 14, Palette.BARK)
+	pool_word.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	pool_head.add_child(pool_word)
+	var amount := Kit.title(PassState.dollars(float(s.get("prizePoolUsd", 0.0))), 30, GOLD_ON_PAPER)
+	amount.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	amount.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	pool_head.add_child(amount)
 	_right.add_child(pool_head)
-	_right.add_child(Kit.title(PassState.dollars(float(s.get("prizePoolUsd", 0.0))), 34, GOLD_ON_PAPER))
 	var pot_share := "%d%%" % int(round(float(s.get("potShare", 0.5)) * 100.0))
 	_right.add_child(Kit.label(I18N.f("pass.poolLine",
 		[pot_share, PassState.dollars(float(s.get("potUsd", 0.0))), int(s.get("holders", 0))]), 12, Palette.BARK))
@@ -309,21 +311,13 @@ func _build_race(s: Dictionary) -> void:
 		list.add_child(Kit.note(I18N.t("pass.empty"), Palette.BARK, 12))
 	_right.add_child(list)
 
-	if _state.holder():
-		var m := _state.mine()
-		var rank: Variant = m.get("rank", null)
-		var you := I18N.f("pass.you", [int(rank), PassState.dollars(float(m.get("prizeUsd", 0.0)))]) \
-			if (rank is int or rank is float) else I18N.t("pass.unranked")
-		_right.add_child(Kit.label(you, 13, Palette.INK))
-	_right.add_child(Kit.note(I18N.t("pass.terms"), Palette.BARK, 11))
-
 
 func _race_row(e: Dictionary, index: int, me: String) -> Control:
 	var mine := String(e.get("playerId", "")) == me and not me.is_empty()
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(GOLD_ON_PAPER, 0.18) if mine else (Color(Palette.BARK, 0.08) if index % 2 == 0 else Color.TRANSPARENT)
 	style.set_corner_radius_all(4)
-	style.set_content_margin_all(3)
+	style.set_content_margin_all(2)
 	style.content_margin_left = 6
 	style.content_margin_right = 6
 	var panel := Kit.panel(style)

@@ -114,11 +114,12 @@ var _under := false
 const LAST_PAINTED := {"damage": 52}
 
 
-## LA PLANCHE DE SON SIEGE, meme table que HomeRabbit.
+## LA PLANCHE DE SON SIEGE, meme table que HomeRabbit — ou celle de son
+## skin (`skin`, herite, pose avant `build` depuis le lapin du serveur).
 func _frames() -> SpriteFrames:
 	var out := SpriteFrames.new()
 	out.remove_animation("default")
-	var sheet: Texture2D = SHEETS[posmod(seat, SHEETS.size())]
+	var sheet: Texture2D = Kit.SKINS.get(skin, SHEETS[posmod(seat, SHEETS.size())])
 	for name in ANIMS:
 		var def: Array = ANIMS[name]
 		out.add_animation(name)

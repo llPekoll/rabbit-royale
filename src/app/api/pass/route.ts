@@ -1,6 +1,5 @@
 /**
- * The season pass screen: GET what it is and where the race stands, POST to
- * open today's chest.
+ * The Crown Race Ticket screen: GET what it is and where the race stands.
  *
  * Buying goes through /api/shop/pay with kind `season_pass` — the same quote,
  * sign, confirm rail as every other paid item, so the pass inherits the
@@ -8,15 +7,11 @@
  *
  * GET works signed out (the offer is public); `mine` is null then.
  */
-import { and, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { seasonPasses } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
-import { overLimit, tooMany } from '@/lib/rate-limit';
-import { grantItem, refillEnergy } from '@/lib/game/grant';
 import {
-  canClaimDaily, holderCount, holderRank, nextClaimAt, openSeason, passOf, passPriceUsd,
-  passSaleBlocker, payoutPlan, potCents, prizePoolCents, rankedHolders,
+  holderCount, holderRank, openSeason, passOf, passPriceUsd,
+  passSaleBlocker, payoutPlan, potCents, prizePoolCents, rankedHolders, skinOf,
 } from '@/lib/game/season-pass';
 import { PASS } from '@config/tuning';
 
@@ -35,8 +30,8 @@ export async function passState(playerId: string | null, now = Date.now()) {
     holder: boolean;
     rank: number | null;
     prizeUsd: number;
-    canClaim: boolean;
-    nextClaimAt: string | null;
+    /** The ticket's skin once ever bought, else null. */
+    skin: string | null;
     blocker: string | null;
   } = null;
   if (playerId) {
@@ -47,8 +42,7 @@ export async function passState(playerId: string | null, now = Date.now()) {
       holder: held !== null,
       rank,
       prizeUsd: dollars(seat?.usdCents ?? 0),
-      canClaim: !!held && on && canClaimDaily(held.lastClaimAt, now),
-      nextClaimAt: held ? nextClaimAt(held.lastClaimAt, now).toISOString() : null,
+      skin: await skinOf(playerId),
       blocker: passSaleBlocker(season, held !== null, now),
     };
   }
@@ -63,7 +57,7 @@ export async function passState(playerId: string | null, now = Date.now()) {
     holders: on ? await holderCount(db, season!.id) : 0,
     /** What the pass gives — the screen lists it from here, not from its own copy. */
     rewards: {
-      daily: PASS.DAILY,
+      skin: PASS.SKIN,
       /** Share of the prize pool per rank, 1st first. */
       shares: PASS.PAYOUT_SHARES,
     },
@@ -79,37 +73,4 @@ export async function passState(playerId: string | null, now = Date.now()) {
 export async function GET(req: Request) {
   const session = await getSession(req);
   return Response.json(await passState(session?.sub ?? null));
-}
-
-/** Open today's chest. One per UTC day, while the pass season runs. */
-export async function POST(req: Request) {
-  const session = await getSession(req);
-  if (!session) return Response.json({ error: 'unauthenticated' }, { status: 401 });
-  if (await overLimit('pass', session.sub, 10)) return tooMany();
-
-  const now = Date.now();
-  const outcome = await db.transaction(async (tx) => {
-    const season = await openSeason(tx);
-    if (!season?.passOn) return 'pass_closed' as const;
-    // Locked, so two taps cannot open the same chest twice.
-    const [held] = await tx.select().from(seasonPasses)
-      .where(and(eq(seasonPasses.seasonId, season.id), eq(seasonPasses.playerId, session.sub)))
-      .for('update');
-    if (!held) return 'no_pass' as const;
-    if (!canClaimDaily(held.lastClaimAt, now)) return 'already_claimed' as const;
-
-    const { energy, trap, bloop } = PASS.DAILY;
-    if (energy > 0) await refillEnergy(tx, session.sub, energy, now, false);
-    if (trap > 0) await grantItem(tx, session.sub, 'trap', trap, now);
-    if (bloop > 0) await grantItem(tx, session.sub, 'bloop', bloop, now);
-
-    await tx.update(seasonPasses).set({ lastClaimAt: new Date(now) })
-      .where(and(eq(seasonPasses.seasonId, season.id), eq(seasonPasses.playerId, session.sub)));
-    return 'ok' as const;
-  });
-
-  if (outcome !== 'ok') {
-    return Response.json({ error: outcome, ...(await passState(session.sub, now)) }, { status: outcome === 'already_claimed' ? 409 : 403 });
-  }
-  return Response.json({ claimed: PASS.DAILY, ...(await passState(session.sub, now)) });
 }

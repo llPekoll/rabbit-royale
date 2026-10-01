@@ -601,6 +601,7 @@ func show_ground(seed_value: String) -> void:
 	if _remote and mine.has("tile"):
 		start = _board.cell_of(int(mine["tile"]))
 	_rabbit.seat = _seat_of(RunState.current.my_id()) if _remote else 0
+	_rabbit.skin = PassState.skin_in(mine) if _remote else ""
 	_rabbit.build(hash(seed_value), start)
 	_sync_rivals()
 	local_run = LocalRun.new(_board, start) if _local_deal.size() > 0 else null
@@ -1296,6 +1297,7 @@ func _add_rival(r: Dictionary, arriving: bool) -> void:
 	var rabbit := IslandRabbit.new()
 	rabbit.player_id = id
 	rabbit.seat = _seat_of(id)
+	rabbit.skin = PassState.skin_in(r)
 	rabbit.map = _terrain.map
 	rabbit.roam = false
 	# FRERE du lapin du joueur, pour se trier sur la meme regle.

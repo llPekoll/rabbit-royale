@@ -1,11 +1,12 @@
 /**
- * The season pass: who holds it, what the pot holds, who it pays.
+ * The Crown Race Ticket (the season pass): who holds it, what the pot holds,
+ * who it pays, and who wears its skin.
  *
  * A pass season is an ordinary season with `pass_on` set (see PASS in
  * config/tuning.ts). This module is the rules and the reads; the grant is in
- * grant.ts (a paid pass arrives through the same payment rail as a bomb), the
- * daily chest in the /api/pass route, and the payout list is written by the
- * season close (season.ts) through `writePassPayouts`.
+ * grant.ts (a paid pass arrives through the same payment rail as a bomb), and
+ * the payout list is written by the season close (season.ts) through
+ * `writePassPayouts`. The ticket does nothing in play: a skin and the race.
  *
  * RELATIVE imports, like season.ts: the WS server imports this through the
  * season close, and it does not resolve the `@/` alias.
@@ -32,20 +33,6 @@ export function passPriceUsd(): number {
 }
 
 // ── Pure rules ───────────────────────────────────────────────────────────────
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-/** The UTC day a timestamp falls in. The chest resets at midnight UTC for everyone. */
-const utcDay = (t: number) => Math.floor(t / DAY_MS);
-
-/** Today's chest is waiting: never claimed, or last claimed on an earlier UTC day. */
-export function canClaimDaily(lastClaimAt: Date | null, now: number): boolean {
-  return !lastClaimAt || utcDay(lastClaimAt.getTime()) < utcDay(now);
-}
-
-/** When the next chest opens: now if one is waiting, else the next UTC midnight. */
-export function nextClaimAt(lastClaimAt: Date | null, now: number): Date {
-  return canClaimDaily(lastClaimAt, now) ? new Date(now) : new Date((utcDay(now) + 1) * DAY_MS);
-}
 
 export interface PassSeason {
   id: number;
@@ -216,4 +203,14 @@ export async function holdersAmong(seasonId: number, ids: string[]): Promise<Set
   const rows = await db.select({ playerId: seasonPasses.playerId }).from(seasonPasses)
     .where(and(eq(seasonPasses.seasonId, seasonId), inArray(seasonPasses.playerId, ids)));
   return new Set(rows.map((r) => r.playerId));
+}
+
+/**
+ * The skin a player wears: the ticket's, once they ever held one — any
+ * season, open or closed. Null for everyone else (the seat's own fur).
+ */
+export async function skinOf(playerId: string, tx: Tx = db): Promise<string | null> {
+  const [row] = await tx.select({ playerId: seasonPasses.playerId }).from(seasonPasses)
+    .where(eq(seasonPasses.playerId, playerId)).limit(1);
+  return row ? PASS.SKIN : null;
 }

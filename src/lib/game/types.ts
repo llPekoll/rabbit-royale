@@ -102,6 +102,9 @@ export interface Rabbit {
   alive: boolean;
   /** Season leader, drawn with the crown and worth more when raided. */
   crowned: boolean;
+  /** The skin it wears (PASS.SKIN for a Crown Race Ticket holder), or null
+   *  for the seat's own fur. Read at the door, like `crowned`. */
+  skin?: string | null;
   /** The player's rabbit level at spawn (RABBIT_LEVELS). Below RAID_MIN a
    *  rabbit neither strikes nor is struck — no bolt, mirage or shove. */
   level?: number;

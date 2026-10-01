@@ -1620,7 +1620,8 @@ export const CROWN = {
 } as const;
 
 /**
- * THE SEASON PASS — one month, bought once, opened when WE decide.
+ * THE CROWN RACE TICKET (the season pass) — one month, bought once, opened
+ * when WE decide.
  *
  * A pass season is an ordinary season with `seasons.pass_on` set. Nothing
  * opens one by itself: `scripts/season-pass.ts open` closes the running season
@@ -1628,9 +1629,9 @@ export const CROWN = {
  * the pass on sale. When it ends, the next season opens without a pass — the
  * pass is an event, not a subscription.
  *
- * What it gives is TIME and STYLE, never power (the GDD's rule, and the
- * deck's: "Players buy time, revenge and style"): a daily chest of the same
- * items the shop sells, the gold ticket on the board, and a seat at the pot.
+ * It does NOTHING in play. It gives a skin (SKIN, kept for good once bought)
+ * and a seat in the race: the season's top ten holders share half the pot.
+ * No chest, no items, no energy — nothing that wins a dig or a raid.
  */
 export const PASS = {
   /** Dollar price. Paid in USDC, SOL or SKR like every other purchase. */
@@ -1652,11 +1653,10 @@ export const PASS = {
    */
   PAYOUT_SHARES: [0.40, 0.24, 0.16, 0.2 / 7, 0.2 / 7, 0.2 / 7, 0.2 / 7, 0.2 / 7, 0.2 / 7, 0.2 / 7],
   /**
-   * The daily chest, claimed once per UTC day while the pass is active.
-   * `energy` is a number of full refills; it does NOT eat the paid refill
-   * window (ENERGY_PACK.MAX_PER_DAY).
+   * The skin a ticket unlocks, worn on the island and in the burrow. Kept for
+   * good: a ticket from any past season still dresses the rabbit.
    */
-  DAILY: { energy: 1, trap: 1, bloop: 1 },
+  SKIN: 'kuro-violet',
   /**
    * No sale in the season's last stretch: a quote lives INTENT_TTL_MS, and a
    * pass paid after the season closed would buy a seat at a pot already

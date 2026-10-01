@@ -144,7 +144,7 @@ func _only(which: String) -> void:
 			var codex := LoreCodex.new()
 			codex.read_marks = false
 			d = codex
-		"pass", "pass-holder", "pass-claimed", "pass-closed":
+		"pass", "pass-holder", "pass-closed":
 			ShopState.shared().fake([], {}, true)
 			ShopState.shared().shop["rates"] = {"sol": 142.5, "skr": 0.031, "usdc": 1.0}
 			PassState.shared().fake(_fake_pass(which))
@@ -175,16 +175,15 @@ func _fake_pass(which: String) -> Dictionary:
 	for i in names.size():
 		top.append({"rank": i + 1, "playerId": "p%d" % i, "name": names[i], "score": 48210 - i * 3900,
 			"prizeUsd": snappedf(pool * shares[i], 0.01)})
-	var holder := which == "pass-holder" or which == "pass-claimed"
-	var claimed := which == "pass-claimed"
+	var holder := which == "pass-holder"
 	return {
 		"on": which != "pass-closed",
 		"season": {"id": 4, "startedAt": iso.call(now - 12 * 86400), "endsAt": iso.call(now + 18 * 86400)},
 		"priceUsd": 4.99, "potUsd": 1057.88, "prizePoolUsd": pool, "potShare": 0.5, "holders": 212,
-		"rewards": {"daily": {"energy": 1, "trap": 1, "bloop": 1}, "shares": shares},
+		"rewards": {"skin": "kuro-violet", "shares": shares},
 		"top": top,
 		"mine": {"holder": holder, "rank": 2 if holder else null, "prizeUsd": 126.95 if holder else 0.0,
-			"canClaim": holder and not claimed, "nextClaimAt": iso.call(now + (5 * 3600 if claimed else 0)), "blocker": null if not holder else "pass_owned"},
+			"skin": "kuro-violet" if holder else null, "blocker": null if not holder else "pass_owned"},
 	}
 
 

@@ -116,6 +116,9 @@ var map: BurrowMap
 ## quitterait la case d'ou le X se pose.
 var roam := true
 
+## LE SKIN porte (Kit.SKINS), "" pour le pelage blanc. Pose avant `build`,
+## ou change en place par `wear`.
+var skin := ""
 var _sprite: AnimatedSprite2D
 var _shadow: RabbitShadow
 var _at: Vector2i
@@ -527,6 +530,23 @@ class RabbitShadow extends Node2D:
 
 
 ## LA PLANCHE DECOUPEE, une animation par ligne de la table.
+## CHANGER DE SKIN sans refaire le lapin : la meme animation, la meme image.
+func wear(new_skin: String) -> void:
+	if new_skin == skin:
+		return
+	skin = new_skin
+	if _sprite == null:
+		return
+	var anim := _sprite.animation
+	var at := _sprite.frame
+	var playing := _sprite.is_playing()
+	_sprite.sprite_frames = _frames()
+	_sprite.animation = anim
+	_sprite.frame = at
+	if playing:
+		_sprite.play(anim)
+
+
 func _frames() -> SpriteFrames:
 	var out := SpriteFrames.new()
 	# SpriteFrames arrive avec un "default" dont on ne veut pas : le laisser
@@ -539,7 +559,7 @@ func _frames() -> SpriteFrames:
 		out.set_animation_loop(name, def[3])
 		for i in range(def[0], def[1] + 1):
 			var frame := AtlasTexture.new()
-			frame.atlas = SHEET
+			frame.atlas = Kit.SKINS.get(skin, SHEET)
 			frame.region = Rect2(
 				(i % SHEET_COLS) * FRAME, (i / SHEET_COLS) * FRAME, FRAME, FRAME
 			)

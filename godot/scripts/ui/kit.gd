@@ -115,6 +115,13 @@ const DIAL_EMPTY := preload("res://assets/gauge/dial-empty.webp")
 const DIAL_FULL := preload("res://assets/gauge/dial-full.webp")
 const DIAL_ICON := preload("res://assets/gauge/dial-icon.webp")
 
+## LES SKINS, par cle (PASS.SKIN dans config/tuning.ts) : une planche de la
+## meme grille que bunny-white.png, posee a la place du pelage du siege.
+## « kuro-violet » vient du Crown Race Ticket.
+const SKINS := {
+	"kuro-violet": preload("res://assets/bunnies/bunny-black-violet.png"),
+}
+
 ## Les cinq lapins des avatars (lib/game/avatars.ts), par cle.
 const AVATARS := {
 	"brown": preload("res://assets/bunnies/bunny-brown.webp"),

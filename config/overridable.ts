@@ -81,7 +81,7 @@ export const OVERRIDABLE: readonly TuningSpec[] = [
   { path: 'SHOP.USDC_PRICES.smoke', kind: 'float', min: 0.01, max: 50, note: 'Prix d\'un écran de fumée en USDC' },
   { path: 'SHOP.USDC_PRICES.bloop', kind: 'float', min: 0.01, max: 50, note: 'Prix d\'un bloop en USDC' },
   { path: 'SHOP.USDC_PRICES.fence', kind: 'float', min: 0.01, max: 50, note: 'Prix d\'une clôture en USDC' },
-  { path: 'PASS.PRICE_USD', kind: 'float', min: 0.99, max: 50, note: 'Prix du pass de saison en USD' },
+  { path: 'PASS.PRICE_USD', kind: 'float', min: 0.99, max: 50, note: 'Prix du Crown Race Ticket en USD' },
 
   // ── The passive economy. Derived from a timestamp at read time (see
   //    lib/game/regen), so a change applies to the next read and never to a

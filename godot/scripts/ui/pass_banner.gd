@@ -1,14 +1,13 @@
 class_name PassBanner
 extends Control
-## LA BANNIERE DU GOLDEN CARROT PASS, sous la quete dans la colonne du
+## LA BANNIERE DU CROWN RACE TICKET, sous la quete dans la colonne du
 ## terrier — la ou l'oeil va deja. Le cadre est la notification doree du web
 ## (public/assets/ui/notification-quest.png : etoile a gauche, chevron a
 ## droite), recadree et etiree au centre seulement.
 ##
 ## Toujours la. Pass ferme : un peu eteinte, « BIENTOT » (on la deverrouille
 ## avec `scripts/season-pass.ts open`). Pass ouvert : le prix et la cagnotte,
-## puis pour qui l'a les jours qui restent, ou « le coffre du jour t'attend »
-## quand il attend. Un tap ouvre TOUJOURS la fenetre du pass : le chevron du
+## puis pour qui l'a les jours qui restent. Un tap ouvre TOUJOURS la fenetre du pass : le chevron du
 ## cadre le promet, et ferme elle montre ce qui vient, sans bouton d'achat
 ## (pass_dialog.gd `_action`).
 
@@ -19,7 +18,6 @@ const SLICE := Vector4i(110, 32, 64, 32)
 const TEX_H := 140.0
 const INK := Color("#3a2617")
 const SUB := Color("#6c3e22")
-const READY := Color("#2f5d1e")
 const SOON_BG := Color("#6c3e22")
 
 ## LE MEME CADRE POUR LA FENETRE DU PASS (pass_dialog.gd), sans l'etoile ni
@@ -159,7 +157,6 @@ func refresh() -> void:
 	_tag_label.text = I18N.t("pass.soonTag")
 	_sub.remove_theme_color_override("font_color")
 	_sub.add_theme_color_override("font_color", SUB)
-	var ready := false
 	var s := st.state
 	var share := "%d%%" % int(round(float(s.get("potShare", 0.5)) * 100.0))
 	# COURT, sans phrase : le prix et ce que le pot donne au top 10.
@@ -168,17 +165,13 @@ func refresh() -> void:
 		# La pastille BIENTOT prend la place : le prix seul derriere elle.
 		_sub.text = PassState.dollars(float(s.get("priceUsd", 4.99)))
 	elif st.holder():
-		ready = st.can_claim()
-		_sub.text = I18N.t("pass.chestReady") if ready else I18N.f("pass.left", [st.days_left()])
-		if ready:
-			_sub.add_theme_color_override("font_color", READY)
+		_sub.text = I18N.f("pass.left", [st.days_left()])
 	else:
 		_sub.text = offer
-	_breathe(ready or (open and not st.holder()))
+	_breathe(open and not st.holder())
 
 
-## UN SOUFFLE quand il y a quelque chose a prendre (pass en vente, coffre
-## pret) : la banniere enfle un peu, toutes les deux secondes.
+## UN SOUFFLE quand il y a quelque chose a prendre (ticket en vente) : la banniere enfle un peu, toutes les deux secondes.
 func _breathe(on: bool) -> void:
 	if _pulse != null and _pulse.is_valid():
 		_pulse.kill()

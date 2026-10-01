@@ -1,12 +1,10 @@
 /**
- * The season pass: how the prize pool is cut, when the daily chest opens,
- * and when the pass may be sold. All pure — no database, a fixed clock.
+ * The Crown Race Ticket: how the prize pool is cut, and when the ticket may
+ * be sold. All pure — no database, a fixed clock.
  */
 import { describe, expect, it } from 'vitest';
 import { PASS, passPayoutShare } from '@config/tuning';
-import {
-  canClaimDaily, nextClaimAt, passSaleBlocker, payoutPlan, prizePoolCents,
-} from '@/lib/game/season-pass';
+import { passSaleBlocker, payoutPlan, prizePoolCents } from '@/lib/game/season-pass';
 
 const DAY = 86_400_000;
 const holders = (n: number) => Array.from({ length: n }, (_, i) => ({ playerId: `p${i}`, score: 1000 - i }));
@@ -45,23 +43,6 @@ describe('prize pool', () => {
   it('pays nobody from an empty pot', () => {
     expect(payoutPlan(0, holders(3)).every((p) => p.usdCents === 0)).toBe(true);
     expect(payoutPlan(500, [])).toEqual([]);
-  });
-});
-
-describe('daily chest', () => {
-  const now = Date.UTC(2026, 9, 5, 15, 0);
-
-  it('waits for a holder who never claimed', () => {
-    expect(canClaimDaily(null, now)).toBe(true);
-    expect(nextClaimAt(null, now).getTime()).toBe(now);
-  });
-
-  it('opens once per UTC day', () => {
-    const morning = new Date(Date.UTC(2026, 9, 5, 1, 0));
-    expect(canClaimDaily(morning, now)).toBe(false);
-    expect(nextClaimAt(morning, now).getTime()).toBe(Date.UTC(2026, 9, 6));
-    const lateYesterday = new Date(Date.UTC(2026, 9, 4, 23, 59));
-    expect(canClaimDaily(lateYesterday, now)).toBe(true);
   });
 });
 

@@ -149,6 +149,9 @@ func _ready() -> void:
 	add_child(_landmarks)
 	move_child(_landmarks, _terrain.get_index() + 1)
 	_landmarks.door_pressed.connect(_on_landmark)
+	# LE SKIN DU TICKET arrive avec /api/pass, apres le premier dessin : le
+	# lapin en change sur place.
+	PassState.shared().changed.connect(func() -> void: _rabbit.wear(PassState.shared().skin()))
 	_landmarks.reveal_changed.connect(_rebuild_islets)
 	# LANCE SEUL (`godot --path godot scenes/burrow.tscn -- --shot=...`), le
 	# terrier se prete a une capture — sans session, sans chrome.
@@ -459,8 +462,9 @@ func _stop_defending() -> void:
 ## L'INTRUS : le lapin de l'ile, a la meme taille, qui TOMBE sur la case ou
 ## le serveur le dit (`playSpawnDrop`). Il n'erre pas : il ne bouge que quand
 ## une poussee le dit.
-func _spawn_raider(tile: int) -> HomeRabbit:
+func _spawn_raider(tile: int, skin := "") -> HomeRabbit:
 	var raider := HomeRabbit.new()
+	raider.skin = skin
 	raider.name = "Raider"
 	raider.roam = false
 	raider.map = _terrain.map
@@ -539,7 +543,7 @@ func _enter_raid(r: Dictionary) -> void:
 	show_ground(String(defender.get("id", "")),
 		defender.get("edits", {}) if defender.get("edits") is Dictionary else {})
 	_rabbit.visible = false
-	_walker = _spawn_raider(int(r.get("tile", -1)))
+	_walker = _spawn_raider(int(r.get("tile", -1)), PassState.shared().skin())
 	_walker_at = int(r.get("tile", -1))
 	_sync_door()
 	if Chrome.current != null:
@@ -783,6 +787,7 @@ func show_ground(seed_value: String, edits: Dictionary = {}, keep_cam: bool = fa
 	_rabbit.only = {}
 	for tile in _layout.walkable_tiles():
 		_rabbit.only[BurrowLayout.cell_of(tile)] = true
+	_rabbit.skin = PassState.shared().skin()
 	_rabbit.build(hash(seed_value))
 
 	# LA PRISE DEPEND DU RELIEF : les quatre cadrages sont resolus sur les

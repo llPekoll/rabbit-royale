@@ -394,8 +394,29 @@ func face() -> Font:
 	fusion.fallbacks = [chosen]
 	chosen = fusion
 
+	# LA FACE DE L'ANGLAIS DEVANT, FUSION DERRIERE (le user, 2026-10-01 :
+	# « la font est terrible », « les nombres aussi »). d8 dessine tout ce
+	# qu'elle sait — l'ASCII, donc les chiffres, les prix, les scores — et
+	# Fusion ne prend que ce qui lui manque, lettre par lettre : les accents,
+	# le vietnamien, les sinogrammes. Ses capitales sont celles de d8 a
+	# taille egale (voir `fusion_face`), la couture ne se voit pas.
+	var pixel := _pixel_base()
+	if pixel != null:
+		pixel = pixel.duplicate() as Font
+		pixel.fallbacks = [chosen]
+		chosen = pixel
+
 	_face_cache[locale] = chosen
 	return chosen
+
+
+## LA FACE PIXEL DU KIT, celle du theme avant qu'une langue ne la remplace.
+func _pixel_base() -> Font:
+	if _pixel_font == null:
+		var theme := ThemeDB.get_project_theme()
+		if theme != null:
+			_pixel_font = theme.default_font
+	return _pixel_font
 
 
 ## FUSION REGLEE COMME LA FACE DE L'ANGLAIS, pour `face` et pour le

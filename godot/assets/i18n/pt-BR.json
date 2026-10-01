@@ -483,50 +483,40 @@
 		"strike": "Revidar"
 	},
 	"pass": {
-		"title": "Passe Cenoura Dourada",
-		"show": "Passe Cenoura Dourada",
+		"title": "Crown Race Ticket",
+		"show": "Crown Race Ticket",
 		"buy": "Comprar",
 		"soon": "Em breve",
 		"soonTag": "EM BREVE",
-		"chestReady": "Baú pronto!",
-		"short": "Passe Dourado",
+		"short": "Crown Race",
 		"left": {
 			"$t": "{0} dias restantes"
 		},
 		"days": {
 			"$t": "{0} dias"
 		},
-		"daily": "Baú diário",
-		"dailyWhat": {
-			"$t": "Energia cheia, bomba ×{0}, bloop ×{1}"
-		},
 		"race": "A corrida pelo pote",
 		"raceWhat": {
-			"$t": "Os {1} melhores com o passe dividem {0} do pote"
+			"$t": "Os {1} melhores com o ticket dividem {0} do pote"
 		},
-		"tag": "Etiqueta PASS dourada",
-		"tagWhat": "Ao lado do seu nome no placar",
+		"skin": "Skin Kuro violeta",
+		"skinWhat": "Seu para sempre, na ilha e na toca",
+		"inRace": "Você está na corrida",
 		"pool": "Prêmio",
 		"poolLine": {
-			"$t": "{0} de {1} · {2} com passe"
+			"$t": "{0} de {1} · {2} com ticket"
 		},
-		"active": "Passe ativo",
-		"claim": "Abrir o baú de hoje",
-		"next": {
-			"$t": "Próximo baú em {0}"
-		},
-		"claimed": "Baú aberto: energia cheia, uma bomba e um bloop!",
-		"bought": "Passe ativo! Boa sorte na corrida.",
+		"active": "Ticket ativo",
+		"bought": "Ticket comprado! Boa sorte na corrida.",
 		"you": {
 			"$t": "Você: #{0} · {1}"
 		},
 		"unranked": "Pontue nesta temporada para entrar na corrida",
-		"empty": "Ninguém com passe pontuou ainda. Seja o primeiro!",
-		"closed": "Nenhum passe à venda agora",
-		"connect": "Conecte uma carteira para comprar o passe",
+		"empty": "Ninguém com ticket pontuou ainda. Seja o primeiro!",
+		"closed": "Nenhum ticket à venda agora",
+		"connect": "Conecte uma carteira para comprar o ticket",
 		"ending": "Vendas encerradas: a temporada termina em menos de uma hora",
-		"owned": "Você já tem o passe desta temporada",
-		"failed": "Não foi possível abrir o baú",
+		"owned": "Você já tem o ticket desta temporada",
 		"terms": "Os prêmios são pagos em USDC na sua carteira quando a temporada termina."
 	},
 	"pill": {
