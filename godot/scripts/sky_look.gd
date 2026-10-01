@@ -41,7 +41,7 @@ const SHADOWS := {
 	"octaves": 3.9,
 	"warp": 0.1,
 	"coverage": 0.57,
-	"coverage_min": 0.3,
+	"coverage_min": 0.5,  # 0,3 au web : « des fois ya trop de nuage c'est trop couvert » (2026-10-01)
 	"coverage_max": 0.8,
 	"weather_period": 240.0,
 	"edge": 0.08,
