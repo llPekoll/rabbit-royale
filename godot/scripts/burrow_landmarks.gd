@@ -116,7 +116,14 @@ var frame_map: BurrowMap
 ## a sa place, et respire doucement. Seulement une fois le tuto fini (DIG
 ## sorti) : avant, la mer reste vide.
 const SHALLOW_INK := Color(0.02, 0.10, 0.20, 1.0)
-const SHALLOW_ALPHA := Vector2(0.22, 0.38)
+## Plus fort que le trait net d'avant : le flou en dilue le coeur.
+const SHALLOW_ALPHA := Vector2(0.45, 0.7)
+## LE « ? » BLANC qui flotte au-dessus de chaque ombre : quelque chose est
+## la, pas encore pour vous.
+const MYSTERY_PX := 30
+const MYSTERY_LIFT := 46.0
+const MYSTERY_BOB := 5.0
+const MYSTERY_SECONDS := 1.1
 const SHALLOW_SECONDS := 2.4
 var _shallow_cells := {}
 ## Le coin haut-gauche de `sea_map`, dans le treillis du terrier.
@@ -423,22 +430,109 @@ func _lay_shallows(map: BurrowMap) -> void:
 	node.z_as_relative = false
 	node.z_index = -4000
 	for cell in _shallow_cells:
-		var p := Iso.project(cell.x - _lo.x, cell.y - _lo.y, map.origin) + Vector2(0, Iso.half_h() * 0.5)
-		node.diamonds.append(PackedVector2Array([p, p + Vector2(Iso.half_w(), Iso.half_h()),
-			p + Vector2(0, 2.0 * Iso.half_h()), p + Vector2(-Iso.half_w(), Iso.half_h())]))
+		# Le centre du losange, un peu sous la surface.
+		node.centres.append(Iso.project(cell.x - _lo.x, cell.y - _lo.y, map.origin)
+			+ Vector2(0, Iso.half_h() * 1.5))
+	node.bake()
 	add_child(node)
+	# UN « ? » PAR ILOT A VENIR, au-dessus du milieu de son ombre.
+	var by_door := {}
+	for cell in _shallow_cells:
+		var door: String = _shallow_cells[cell]
+		if not by_door.has(door):
+			by_door[door] = []
+		by_door[door].append(Iso.project(cell.x - _lo.x, cell.y - _lo.y, map.origin) + Vector2(0, Iso.half_h()))
+	for door in by_door:
+		var sum := Vector2.ZERO
+		for c in by_door[door]:
+			sum += c
+		_float_mystery(sum / float(by_door[door].size()) - Vector2(0, MYSTERY_LIFT))
 	node.modulate.a = SHALLOW_ALPHA.x
 	var t := node.create_tween().set_loops()
 	t.tween_property(node, "modulate:a", SHALLOW_ALPHA.y, SHALLOW_SECONDS).set_trans(Tween.TRANS_SINE)
 	t.tween_property(node, "modulate:a", SHALLOW_ALPHA.x, SHALLOW_SECONDS).set_trans(Tween.TRANS_SINE)
 
 
+## FLOUES, comme une forme vue a travers l'eau (2026-10-01) : les losanges
+## sont peints dans une petite image au quart, adoucie de quelques passes de
+## flou en boite, puis etiree en filtrage lineaire — un contour net se lisait
+## comme une dalle posee sur la mer.
+func _float_mystery(at: Vector2) -> void:
+	var mark := Kit.label("?", MYSTERY_PX, Color.WHITE)
+	mark.add_theme_color_override("font_outline_color", Palette.INK)
+	mark.add_theme_constant_override("outline_size", 6)
+	mark.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	mark.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	mark.z_as_relative = false
+	mark.z_index = 3000
+	add_child(mark)
+	mark.reset_size()
+	var rest := (at - mark.size * 0.5).round()
+	mark.position = rest
+	var t := mark.create_tween().set_loops()
+	t.tween_property(mark, "position:y", rest.y - MYSTERY_BOB, MYSTERY_SECONDS).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	t.tween_property(mark, "position:y", rest.y, MYSTERY_SECONDS).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+
 class Shallows extends Node2D:
-	var diamonds: Array[PackedVector2Array] = []
+	## Le quart de la resolution du monde ; le flou en pixels de cette image.
+	const SCALE := 0.25
+	const BLUR_R := 2
+	const PASSES := 2
+	var centres: Array[Vector2] = []
+	var _tex: ImageTexture
+	var _rect := Rect2()
+
+	func bake() -> void:
+		if centres.is_empty():
+			return
+		var hw := Iso.half_w()
+		var hh := Iso.half_h()
+		var box := Rect2(centres[0], Vector2.ZERO)
+		for c in centres:
+			box = box.expand(c - Vector2(hw, hh)).expand(c + Vector2(hw, hh))
+		var margin := float(BLUR_R * PASSES + 2) / SCALE
+		box = box.grow(margin)
+		var w := maxi(1, int(ceilf(box.size.x * SCALE)))
+		var h := maxi(1, int(ceilf(box.size.y * SCALE)))
+		var a := PackedFloat32Array()
+		a.resize(w * h)
+		for y in h:
+			for x in w:
+				var world := box.position + (Vector2(x, y) + Vector2(0.5, 0.5)) / SCALE
+				for c in centres:
+					if absf(world.x - c.x) / hw + absf(world.y - c.y) / hh <= 1.0:
+						a[y * w + x] = 1.0
+						break
+		for i in PASSES:
+			a = _blur(a, w, h, Vector2i(1, 0))
+			a = _blur(a, w, h, Vector2i(0, 1))
+		var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+		for y in h:
+			for x in w:
+				img.set_pixel(x, y, Color(SHALLOW_INK, a[y * w + x]))
+		_tex = ImageTexture.create_from_image(img)
+		_rect = box
+		texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+		queue_redraw()
+
+	static func _blur(src: PackedFloat32Array, w: int, h: int, step: Vector2i) -> PackedFloat32Array:
+		var out := PackedFloat32Array()
+		out.resize(w * h)
+		var n := float(2 * BLUR_R + 1)
+		for y in h:
+			for x in w:
+				var sum := 0.0
+				for k in range(-BLUR_R, BLUR_R + 1):
+					var xx := clampi(x + step.x * k, 0, w - 1)
+					var yy := clampi(y + step.y * k, 0, h - 1)
+					sum += src[yy * w + xx]
+				out[y * w + x] = sum / n
+		return out
 
 	func _draw() -> void:
-		for d in diamonds:
-			draw_colored_polygon(d, SHALLOW_INK)
+		if _tex != null:
+			draw_texture_rect(_tex, _rect, false)
 
 
 func clear() -> void:
