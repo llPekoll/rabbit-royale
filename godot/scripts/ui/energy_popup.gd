@@ -204,8 +204,11 @@ func _build() -> void:
 	_door.label_size = 11
 	_door.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_door.pressed.connect(func() -> void:
-		open_shop.emit()
-		closed.emit())
+		# FERMER D'ABORD : `closed` ferme le dialogue COURANT du chrome, et
+		# emis apres, il fermait celui qu'on venait d'ouvrir — le bouton ne
+		# faisait rien (2026-10-01).
+		closed.emit()
+		open_shop.emit())
 	_foot.add_child(_door)
 
 

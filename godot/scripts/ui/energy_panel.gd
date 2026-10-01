@@ -117,8 +117,11 @@ func _build() -> void:
 
 	_button = Kit.button("", "green", 0, 44)
 	_button.pressed.connect(func() -> void:
-		refill.emit()
-		closed.emit())
+		# FERMER D'ABORD : `closed` ferme le dialogue COURANT du chrome, et
+		# emis apres, il fermait celui qu'on venait d'ouvrir — le bouton ne
+		# faisait rien (2026-10-01).
+		closed.emit()
+		refill.emit())
 	add_footer(_button)
 
 
