@@ -30,6 +30,8 @@ class_name DeskScale
 const ASPECT := 16.0 / 9.0
 const MIN_SIZE := Vector2(890.0, 400.0)
 const MIN_WIDTH := 890.0
+## Le plus grand canevas de design : au-dela, tout s'agrandit.
+const MAX_BASE := Vector2(1280.0, 720.0)
 
 ## LA FENETRE DE DEPART SUR UN BUREAU : ni plein ecran ni maximisee (Paul,
 ## 2026-10-01), une fenetre 16:9 qui prend la MOITIE DE L'ECRAN en surface —
@@ -87,6 +89,12 @@ static func apply(win: Window) -> void:
 			scale = float(arg.trim_prefix("--ui-scale="))
 	scale = maxf(scale, 1.0)
 	var logical := Vector2(win.size) / scale
+	# AU-DELA DE MAX_BASE, LE JEU GRANDIT AU LIEU DE S'ETALER (2026-10-01) :
+	# la plupart des pieces du chrome ont une taille fixe, et une grande
+	# fenetre les laissait minuscules au milieu de vastes vides. Le canevas
+	# plafonne, et `canvas_items` agrandit le tout a la fenetre — rapport
+	# garde. Windows declare aussi une echelle de 1 meme a 150 %.
+	logical *= minf(1.0, minf(MAX_BASE.x / logical.x, MAX_BASE.y / logical.y))
 	var base := Vector2i(int(maxf(logical.x, 890.0)), int(maxf(logical.y, 400.0)))
 	if win.content_scale_size != base:
 		win.content_scale_size = base
