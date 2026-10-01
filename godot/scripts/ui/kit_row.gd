@@ -15,12 +15,16 @@ extends Control
 ##   • INSPECTER NE CONSOMME NI N'ACHETE JAMAIS. Les noms restent sur les
 ##     outils ; les quantites, les effets et les depenses explicites vivent
 ##     dans la carte de detail — et une depense est un SIGNAL vers la
-##     boutique (`buy_trap_pressed`, `use_shield`, `pour`), jamais un POST
+##     boutique (`buy_trap_pressed`, `use_shield`), jamais un POST
 ##     d'ici.
-##   • TROIS GROUPES, TROIS ENSEIGNES : defense (bouclier, fumee, piege,
-##     cloture), attaque (bombe, foudre, mirage), jardin (arrosage, engrais).
-##     Le plateau (`tray`) est au-dessus des enseignes (`tabs`), la carte de
-##     detail au-dessus des deux sur un ecran de telephone.
+##   • LA DEFENSE SEULE, SANS ENSEIGNES (2026-10-01). Le web avait trois
+##     groupes — defense, attaque, jardin — sous trois enseignes. Ouverte par
+##     DEFEND, la rangee repetait DEFENCE, offrait l'ATTACK (foudre, bloop :
+##     des outils de raid, sans action ici, et dont l'enseigne passait le
+##     terrier en inspection, dezoome, la rangee sur la porte DEFEND) et un
+##     GARDEN dont les boutons n'etaient branches a rien. Les bouteilles se
+##     versent depuis la carte du jardin (garden_card.gd) ; l'attaque vit dans
+##     le raid. La carte de detail reste au-dessus du plateau.
 ##   • LA CASE PIEGE RELANCE LA POSE, LA CASE CLOTURE LE MODE CLOTURE, toute
 ##     autre case SUSPEND le plateau (`onInspect`) : le chrome ecoute
 ##     `start_placing`, `start_walling`, `inspect` et parle au terrier.
@@ -38,18 +42,14 @@ signal start_walling
 signal inspect
 ## « Use a shield ».
 signal use_shield
-## Verser un arrosoir ou un engrais : "water" / "fertiliser".
-signal pour(kind: String)
 
 ## Les groupes, dans l'ordre du web, avec la case ouverte par defaut.
+## Un seul groupe aujourd'hui : avec un seul, la rangee ne montre pas
+## d'enseignes (`_tabs`).
 const GROUPS := [
+	# LA BOMBE EST LA DEFENSE DU TERRIER (2026-09-24), et une seule bombe
+	# (2026-09-28) : le `trap`, que le joueur lit « bombe ».
 	{"label": "kit.groupDefence", "kinds": ["shield", "smoke", "trap", "fence"], "first": "trap"},
-	# LA BOMBE EST LA DEFENSE DU TERRIER (2026-09-24) : l'attaque, c'est la
-	# foudre et le bloop — plus de bombe cachee sur l'ile des autres. Et une
-	# seule bombe (2026-09-28) : le `trap`, que le joueur lit « bombe » ;
-	# l'objet `bomb` a quitte le jeu.
-	{"label": "kit.groupAttack", "kinds": ["lightning", "bloop"], "first": "lightning"},
-	{"label": "kit.groupGarden", "kinds": ["water", "fertiliser"], "first": "water"},
 ]
 
 ## kit-row.css : les enseignes 100x44 sous 960 de large (124 au-dela), 6 de
@@ -123,6 +123,8 @@ func _ready() -> void:
 		var tab := _build_tab(index)
 		_tab_buttons.append(tab)
 		_tabs.add_child(tab)
+	# Une enseigne seule nomme ce que DEFEND vient de dire : pas d'enseignes.
+	_tabs.visible = GROUPS.size() > 1
 
 	_detail = _build_detail()
 	add_child(_detail)
@@ -471,12 +473,6 @@ func _refresh_detail(smoke_days: int, pending: bool) -> void:
 		"smoke":
 			status = I18N.f(copy + "active", [str(smoke_days) + I18N.t("units.d")]) if smoke_days > 0 else I18N.t("shop.heldOff")
 			hint = I18N.t(copy + "smokeHint")
-		"water", "fertiliser":
-			if amount == 0:
-				hint = I18N.t(copy + "chestHint")
-			label = I18N.t(copy + ("water" if kind == "water" else "fertilise"))
-			_action = func() -> void: pour.emit(kind)
-			disabled = amount == 0
 		_:
 			hint = I18N.t(copy + "attackHint")
 	if remaining >= 0:
