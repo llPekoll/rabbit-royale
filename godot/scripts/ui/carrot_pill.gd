@@ -31,8 +31,9 @@ extends Control
 ##     le fichier web mais plus dans son rendu ; le rang vit sur le trophee
 ##     du rail (« #59 »). `set_rank` garde donc les nombres pour qui les
 ##     demande, et ne peint rien.
-##   • LES COFFRES SOUS LA PILE, sur l'ile seulement (« met une icone de chest
-##     juste en dessous du nombre de carrote ») ; le butin porte (« +18 » avec
+##   • LES COFFRES SUR LEUR PROPRE PUCE, sous la pastille, sur l'ile
+##     seulement (d'abord « juste en dessous du nombre de carrote », sur le
+##     bois ; sortis du bois le 2026-10-01) ; le butin porte (« +18 » avec
 ##     sa carotte, « c'est quoi le plus 18 je comprends pas ») en puce de
 ##     verre qui PEND SOUS LE BOIS, centree sous le chiffre — le pendant de
 ##     l'energie sous l'anneau. A droite de la plaque, elle tombait sur la
@@ -60,10 +61,13 @@ const ROW_CARROT := 32.0 + 6.0 - 2.0
 const ENERGY_FONT := 11
 const ENERGY_BOLT_H := 11.0
 const ENERGY_TUCK := 6.0
-## La ligne des coffres : le sprite du coffre (23x14) a 26 de large, 6 sous
-## la pile.
+## LES COFFRES DE L'ILE, sur leur propre puce de verre SOUS la pastille
+## (2026-10-01 : « I'd rather have it in a separate panel below it ») — plus
+## sur le bois, ou ils se serraient sous le chiffre. Le sprite du coffre
+## (23x14) a 26 de large ; la puce pend CHEST_GAP sous les puces de l'energie
+## et du butin.
 const CHEST_W := 26.0
-const CHEST_GAP := 6.0
+const CHEST_GAP := 4.0
 const CHEST_FRAME := Rect2(0, 0, 23, 14)
 ## Le sursaut du chiffre quand il engrange (rr-banked : 1 -> 1.18 -> 1).
 const BANK_POP := 1.18
@@ -78,6 +82,7 @@ var _plate: Control
 var _stack: VBoxContainer
 var _row: HBoxContainer
 var _figure: Label
+var _chests: PanelContainer
 var _chest_line: HBoxContainer
 var _chest_figure: Label
 var _energy_tag: PanelContainer
@@ -150,10 +155,11 @@ func _init() -> void:
 	carrot_box.add_child(carrot)
 	_row.add_child(carrot_box)
 
+	_chests = Kit.panel(Kit.style_glass())
+	_chests.mouse_filter = Control.MOUSE_FILTER_PASS
+	_chests.visible = false
 	_chest_line = Kit.hbox(4.0)
 	_chest_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_chest_line.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	_chest_line.visible = false
 	var chest := AtlasTexture.new()
 	chest.atlas = Kit.ICONS["loot-box"]
 	chest.region = CHEST_FRAME
@@ -167,7 +173,8 @@ func _init() -> void:
 	_chest_figure = Kit.label("0/0", Kit.pixel_size(1.5), Palette.PILL_INK)
 	_chest_figure.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_chest_line.add_child(_chest_figure)
-	_stack.add_child(_chest_line)
+	_chests.add_child(_chest_line)
+	_plate.add_child(_chests)
 
 	# LE RESERVOIR, sous le cadran : la valeur de l'anneau, sur du verre.
 	_energy_tag = Kit.panel(Kit.style_glass())
@@ -243,7 +250,18 @@ func _place() -> void:
 	_carry.reset_size()
 	var cw := _carry.get_combined_minimum_size()
 	_carry.size = cw
-	_carry.position = Vector2(round(x + w * 0.5 - cw.x * 0.5), round(size.y - ENERGY_TUCK * dial.scale_factor()))
+	var hang := roundf(size.y - ENERGY_TUCK * dial.scale_factor())
+	_carry.position = Vector2(round(x + w * 0.5 - cw.x * 0.5), hang)
+	# Les coffres sous les deux puces qui pendent deja, centres sur le bois.
+	var below := hang
+	if _energy_tag.visible:
+		below = maxf(below, _energy_tag.position.y + _energy_tag.size.y)
+	if _carry.visible:
+		below = maxf(below, _carry.position.y + cw.y)
+	_chests.reset_size()
+	var chw := _chests.get_combined_minimum_size()
+	_chests.size = chw
+	_chests.position = Vector2(round(x + w * 0.5 - chw.x * 0.5), below + CHEST_GAP)
 
 
 ## Le plus grand cran ou le chiffre groupe tient encore dans la pile a cote
@@ -287,8 +305,9 @@ func refresh() -> void:
 ## Le bas de la pastille a l'ecran, reservoir compris quand il se montre.
 func hang_bottom() -> float:
 	var bottom := _plate.get_global_rect().end.y if _plate != null else get_global_rect().end.y
-	if _energy_tag != null and _energy_tag.visible:
-		bottom = maxf(bottom, _energy_tag.get_global_rect().end.y)
+	for chip in [_energy_tag, _carry, _chests]:
+		if chip != null and (chip as Control).visible:
+			bottom = maxf(bottom, (chip as Control).get_global_rect().end.y)
 	return bottom
 
 
@@ -407,19 +426,16 @@ func set_run(carrying: int, chests: Dictionary = {}) -> void:
 		_carry.pivot_offset = _carry.size * 0.5
 		_carry.scale = Vector2(0.7, 0.7)
 		create_tween().tween_property(_carry, "scale", Vector2.ONE, 0.2).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
-	_chest_line.visible = not chests.is_empty()
+	_chests.visible = not chests.is_empty()
 	if not chests.is_empty():
 		var taken := int(chests.get("taken", 0))
 		var total := int(chests.get("total", 0))
 		_chest_figure.text = "%d/%d" % [taken, total]
-		_chest_line.tooltip_text = I18N.t("run.chestsTitle")
+		_chests.tooltip_text = I18N.t("run.chestsTitle")
 		# Passe zero, le compte devient rouge : a ce point le compte EST
 		# l'avertissement, dit precisement.
 		var warn := int(chests.get("warnStage", 0)) > 0
 		_chest_figure.add_theme_color_override("font_color", Palette.DANGER if warn else Palette.PILL_INK)
-		_stack.add_theme_constant_override("separation", int(CHEST_GAP))
-	else:
-		_stack.add_theme_constant_override("separation", 0)
 	_place()
 
 
