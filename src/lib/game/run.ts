@@ -10,7 +10,10 @@
  * two objects it is handed and returns what happened, so a caller can broadcast
  * a delta rather than diffing whole islands.
  */
-import { BOMB, DROWN, CHEST_LOOT, CHEST_LOOT_BY_TIER, CHEST_NFT_ODDS, ENERGY, FLAG, MULTIPLAYER, RUN, xGainFor, mayFight } from '@config/tuning';
+import { BOMB, DROWN, CHEST_LOOT, CHEST_LOOT_BY_TIER, CHEST_NFT_ODDS, FLAG, MULTIPLAYER, RUN, levelRow, xGainFor, mayFight } from '@config/tuning';
+// LIVE view: the tank's ceiling (ENERGY.MAX, an alias of OUT_OF_RUN_ENERGY.MAX)
+// follows the `tuning` table; the run's rules (DIG_COST, BOMB_LOSS…) read the file.
+import { ENERGY } from '@/lib/tuning/tables';
 import { SPAWN_INDEX, neighbors, toColRow, type IslandShape } from '@/config/gridConfig';
 import { pickWeighted, randInt, type Rng } from './rng';
 import { boardNeighbors, cascadeAround, revealTile } from './island';
@@ -152,8 +155,12 @@ export function flagTile(island: Island, rabbit: Rabbit, at: number, now: number
     tile.flagged = true;
     tile.flaggedBy = rabbit.playerId;
     const before = rabbit.energy;
-    // Per tier — see `IslandTier.xGain`.
-    const gain = xGainFor(island.tier);
+    // The LEVEL's row when the island was dealt for one — the same number the
+    // Godot client reads offline (board.tier.xGain) — and the tier's only for
+    // an island with no level (the tutorial). Reading the tier by name for a
+    // level island meant a level's xGain in RABBIT_LEVELS changed the client
+    // and not the server.
+    const gain = island.level ? levelRow(island.level).xGain : xGainFor(island.tier);
     rabbit.energy = Math.min(ENERGY.MAX, rabbit.energy + gain);
     const streak = (run?.flagStreak ?? 0) + 1;
     // What the full bar turned away is paid as carrots — see OVERFLOW_CARROTS.

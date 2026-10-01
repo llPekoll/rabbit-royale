@@ -445,7 +445,7 @@ func ink_left_ms() -> int:
 ## > 1) d'un niveau >= RAID_MIN, et jamais sur la premiere : seul sur son
 ## ile, il n'y a personne a frapper.
 func may_fight_here() -> bool:
-	var min_level := Tuning.i("RABBIT_LEVELS.RAID_MIN", 10)
+	var min_level := Tuning.i("RABBIT_LEVELS.RAID_MIN", 3)
 	var level := int(island.get("level", 0))
 	if first_run or level < min_level:
 		return false

@@ -287,6 +287,10 @@ func _adopt(body: Dictionary) -> void:
 		touched = true
 	if body.get("edits") is Dictionary:
 		adopt_edits(body["edits"])
+	# Les surcharges de la table `tuning` (voir tuning.gd) : posees AVANT
+	# `changed`, pour que le chrome qui se redessine lise les bons couts.
+	if body.get("tuning") is Dictionary:
+		Tuning.adopt(body["tuning"])
 	if touched or pending == false:
 		changed.emit()
 

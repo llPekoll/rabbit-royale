@@ -424,27 +424,33 @@ bun db:seed-tuning --reset      # remet TOUT à la valeur du fichier
 bun db:seed-tuning --prune      # retire les clés qui ne sont plus surchargeables
 ```
 
-Run it once after `db:migrate`, and again after any deploy that adds a knob —
-it only ever creates what is missing and refreshes rows it wrote itself, so a
-price you edited by hand survives a re-run (use `--reset` to overwrite those
-too). Then change a value with plain SQL and it is live within 30 seconds,
-everywhere, with no restart:
+Run it once after `db:migrate`, and again after any deploy that adds a knob
+or moves one of these numbers in the file — it only ever creates what is
+missing and refreshes rows it wrote itself, so a price you edited by hand
+(`seeded = false`) survives a re-run (use `--reset` to overwrite those too).
+Then change a value with plain SQL and it is live on the server within 30
+seconds, with no restart; the Godot client picks it up on its next burrow read
+(a minute at most):
 
 ```sql
-update tuning set value = 199, note = 'promo week-end' where key = 'SHOP.PRICES.bomb';
+update tuning set value = 120, note = 'promo week-end', seeded = false where key = 'SHOP.PRICES.trap';
 ```
 
 **What is overridable, and what is not**, is declared in
-`config/overridable.ts` with bounds per key. Prices, the garden, energy regen,
-raid loot and the upgrade ladder are read at the moment they apply, so they
-move cleanly. Island densities and a run's own energy rules are *not*: tile
-contents are fixed at generation and the run's rules are read while somebody is
-standing on that board, so changing them at runtime would mean two players
-playing different games with nothing on screen to say why.
+`config/overridable.ts` with bounds per key — 42 keys: prices, the garden,
+energy regen and the tank, the crossing fee and floor, the raid toll, stake and
+loot, shields, trap caps, the upgrade ladder. Server code reads them through
+`src/lib/tuning/tables.ts` (live views of the same tables), so each moves at the
+moment it applies; aliases (`ENERGY.MAX` follows `OUT_OF_RUN_ENERGY.MAX`) and
+rules between keys (a toll above the stake is refused) are enforced at load.
+The client gets the same overrides from `/api/config` and `/api/burrow`.
+Island densities, a run's own energy rules and `TRAPS.DOORSTEP` (cut into the
+stored burrow ground) are *not* overridable: changing them at runtime would
+mean two players playing different games with nothing on screen to say why.
 
 The file is always the fallback. An empty table, a database that is down, a
-value outside its bounds, or a key the registry does not declare all resolve to
-the shipped number and log — a typo can make an override not apply, never make
+value outside its bounds, a key the registry does not declare, or two values
+that contradict each other all resolve to the shipped number and log — a typo can make an override not apply, never make
 the game start without rules.
 
 Les commandes prêtes à coller, la liste des clés et ce qui se passe quand on se

@@ -26,7 +26,7 @@
  *
  * Pure and time-injected, so the visuals are testable without waiting 12 hours.
  */
-import { BURROW, GARDEN } from '@config/tuning';
+import { BURROW, GARDEN } from '@/lib/tuning/tables';
 import PLOTS from '@/config/carrotPlots.json';
 
 /**

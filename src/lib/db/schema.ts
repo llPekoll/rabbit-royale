@@ -22,8 +22,9 @@ import type { BurrowEdits } from '@/game/burrow/generate';
  * `energy` is in this list but never in `inventory`: an energy refill is APPLIED
  * on purchase rather than carried, so it appears here only so a payment row can
  * name what was bought. Nothing reads an `inventory` row of that kind.
+ * `season_pass` is the same case: it lands in `season_passes`, never in the bag.
  */
-export const itemKindEnum = pgEnum('item_kind', ['bomb', 'shield', 'lightning', 'trap', 'energy', 'smoke', 'mirage', 'water', 'fertiliser', 'fence', 'bloop']);
+export const itemKindEnum = pgEnum('item_kind', ['bomb', 'shield', 'lightning', 'trap', 'energy', 'smoke', 'mirage', 'water', 'fertiliser', 'fence', 'bloop', 'season_pass']);
 /** What a purchase was paid with. Both routes buy the same goods — see SHOP. */
 export const currencyEnum = pgEnum('currency', ['carrots', 'usdc']);
 /** A USDC payment's life: quoted → paid → credited, or abandoned. */
@@ -561,7 +562,53 @@ export const seasons = pgTable('seasons', {
   /** The King. Set when the season closes. */
   championId: text('champion_id').references(() => players.id),
   championScore: bigint('champion_score', { mode: 'number' }),
+  /**
+   * The season pass is on sale in this season. Set only by
+   * `scripts/season-pass.ts open`: a pass season is an event we start, and the
+   * season that follows it opens without one.
+   */
+  passOn: boolean('pass_on').notNull().default(false),
 });
+
+/**
+ * Who holds the pass, for which season.
+ *
+ * One row per player per season: the unique index is what stops a second
+ * purchase of the same pass from being two seats at the pot. `usd_cents` is
+ * what that seat put INTO the pot — 0 for a pass we gave away, so a comp never
+ * inflates a prize pool nobody paid for.
+ */
+export const seasonPasses = pgTable('season_passes', {
+  seasonId: integer('season_id').notNull().references(() => seasons.id, { onDelete: 'cascade' }),
+  playerId: text('player_id').notNull().references(() => players.id, { onDelete: 'cascade' }),
+  paymentId: uuid('payment_id').references(() => payments.id, { onDelete: 'set null' }),
+  usdCents: integer('usd_cents').notNull().default(0),
+  boughtAt: timestamp('bought_at', { withTimezone: true }).notNull().defaultNow(),
+  /** The last daily chest taken. Null: today's is waiting. */
+  lastClaimAt: timestamp('last_claim_at', { withTimezone: true }),
+}, (t) => [uniqueIndex('season_passes_season_player_idx').on(t.seasonId, t.playerId)]);
+
+/**
+ * What a closed pass season owes its top ten, and whether it was sent.
+ *
+ * Written by the season close, in the same transaction that freezes the
+ * standings, so the list can never disagree with the board it came from. The
+ * money itself leaves by hand: `scripts/season-pass.ts pay` signs with the
+ * treasury key on OUR machine — the server never holds a key that can send.
+ */
+export const passPayouts = pgTable('pass_payouts', {
+  seasonId: integer('season_id').notNull().references(() => seasons.id, { onDelete: 'cascade' }),
+  playerId: text('player_id').notNull().references(() => players.id, { onDelete: 'cascade' }),
+  rank: integer('rank').notNull(),
+  score: bigint('score', { mode: 'number' }).notNull(),
+  /** Where the prize goes: the player's wallet as it stood at the close. */
+  wallet: text('wallet'),
+  usdCents: integer('usd_cents').notNull(),
+  /** 'pending' until the USDC transfer lands, then 'sent'. */
+  status: text('status').notNull().default('pending'),
+  signature: text('signature'),
+  sentAt: timestamp('sent_at', { withTimezone: true }),
+}, (t) => [uniqueIndex('pass_payouts_season_player_idx').on(t.seasonId, t.playerId)]);
 
 /** Frozen final standings — the leaderboard after a reset is gone otherwise. */
 export const seasonStandings = pgTable('season_standings', {

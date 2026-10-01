@@ -33,7 +33,8 @@ import { raiderSteps } from '@/game/burrow/fence';
 import { fencedSpans } from '@/lib/game/fences';
 import { smokeActive } from '@/lib/game/inventory';
 import { standingTraps } from '@/lib/game/traps';
-import { ENERGY, RABBIT_LEVELS, RAID, RAID_RUN, TRAPS } from '@config/tuning';
+import { RABBIT_LEVELS } from '@config/tuning';
+import { RAID, RAID_RUN, TRAPS, raidFloor } from '@/lib/tuning/tables';
 import { currentEnergy, gardenAfterLoot, gardenYield } from '@/lib/game/regen';
 import { msToHave } from '@/lib/game/burrow';
 import { payEnergy, type EnergyCharge } from '@/lib/game/pay-crossing';
@@ -43,7 +44,11 @@ import { payEnergy, type EnergyCharge } from '@/lib/game/pay-crossing';
  * behind a floor of the toll plus the longest crossing (RAID_RUN.WALK_FLOOR)
  * so a raid that is let in can at least reach an undefended field.
  */
-const TOLL: EnergyCharge = { cost: RAID_RUN.TOLL, need: RAID_RUN.TOLL + RAID_RUN.WALK_FLOOR * RAID_RUN.STEP_COST };
+const TOLL: EnergyCharge = {
+  // Getters: both are live (`tuning` table), read at each charge.
+  get cost() { return RAID_RUN.TOLL; },
+  get need() { return raidFloor(); },
+};
 
 /** Everything the raid screen draws, for a raid in progress. */
 async function raidView(runId: string) {

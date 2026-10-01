@@ -18,7 +18,7 @@ import { and, eq, sql as raw } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { players } from '@/lib/db/schema';
 import { chargeEnergy, msToHave } from './burrow';
-import { ENERGY } from '../../../config/tuning';
+import { ENERGY } from '../tuning/tables';
 import { currentEnergy } from './regen';
 
 export type CrossingPaid =
@@ -29,7 +29,12 @@ export type CrossingPaid =
 export interface EnergyCharge { cost: number; need: number; floor?: boolean }
 
 /** The crossing's own charge: the fee, behind the floor. */
-export const CROSSING: EnergyCharge = { cost: ENERGY.CROSSING_COST, need: ENERGY.MIN_TO_CROSS };
+// GETTERS, not values: both are live (`tuning` table) and a value captured at
+// import would freeze them for the life of the process.
+export const CROSSING: EnergyCharge = {
+  get cost() { return ENERGY.CROSSING_COST; },
+  get need() { return ENERGY.MIN_TO_CROSS; },
+};
 
 export function payCrossing(
   playerId: string,

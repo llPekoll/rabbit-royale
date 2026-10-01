@@ -23,7 +23,7 @@ import {
 import { burrowCell, isDoorstep, isTrappable } from '@/game/burrow/board';
 import { houseTiles } from '@/game/burrow/buildings';
 import { loadBurrowEdits } from '@/lib/game/burrowEdits';
-import { TRAPS } from '@config/tuning';
+import { TRAPS } from '@/lib/tuning/tables';
 
 async function trapState(playerId: string) {
   const player = await db.query.players.findFirst({ where: eq(players.id, playerId) });

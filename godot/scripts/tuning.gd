@@ -11,14 +11,70 @@ extends Node
 ## Les deux FONCTIONS que le chrome lit (`regenPerHour`, `upgradeCost`) ne
 ## sont pas des donnees ; elles sont portees ici a la main, en regard de leur
 ## source, pour que l'ecart se voie.
+##
+## LES SURCHARGES DU SERVEUR. La table `tuning` de la prod peut changer une
+## quarantaine de ces nombres sans deploiement (config/overridable.ts,
+## docs/TUNING.md) : un prix, le peage d'un raid, le seuil de traversee, la
+## regen. Sans elles le client annoncerait un cout que le serveur ne prend
+## pas. Le serveur les sert en `{chemin: valeur}` (alias compris :
+## `ENERGY.MAX` a cote de `OUT_OF_RUN_ENERGY.MAX`) dans `/api/config`, lu une
+## fois au demarrage, et dans `/api/burrow`, que Home relit chaque minute et a
+## chaque retour au terrier — pas de sondage a part. `adopt` les pose SUR les
+## tables du fichier, donc tout ce qui lit par `n`/`i`/`table` et les derives
+## (`raid_floor`, `regen_per_hour`, `upgrade_cost`) suit, et aussi les lecteurs
+## qui preloadent le meme tuning.json (meme Dictionary).
+
+## Les nombres ont bouge (une surcharge posee ou retiree).
+signal changed
 
 const FILE := preload("res://assets/tuning.json")
 
 var _tables: Dictionary = {}
+## Chemin -> valeur du FICHIER, pour chaque chemin surcharge en ce moment :
+## ce qu'on remet quand le serveur retire la surcharge.
+var _file_values: Dictionary = {}
+## Les surcharges posees, telles que le serveur les a envoyees.
+var _applied: Dictionary = {}
 
 
 func _ready() -> void:
 	_tables = (FILE as JSON).data
+	_fetch_overrides.call_deferred()
+
+
+## Au demarrage, avant meme la connexion : l'ecran d'accueil et la lecon
+## citent deja des couts. Silencieux : hors ligne, le fichier fait foi.
+func _fetch_overrides() -> void:
+	var answer: Answer = await Net.get_json("/api/config")
+	if answer.ok and answer.body.get("tuning") is Dictionary:
+		adopt(answer.body["tuning"])
+
+
+## POSE les surcharges du serveur, `{"RAID_RUN.TOLL": 50, ...}`. Un chemin
+## absent qui etait surcharge reprend la valeur du fichier ; `{}` les retire
+## toutes. Un chemin que le fichier ne connait pas est ignore.
+func adopt(overrides: Dictionary) -> void:
+	if overrides == _applied:
+		return
+	for path in _applied.keys():
+		if not overrides.has(path) and _file_values.has(path):
+			_put(path, _file_values[path])
+			_file_values.erase(path)
+	for path in overrides.keys():
+		var v: Variant = overrides[path]
+		if not (v is int or v is float):
+			continue
+		var p := String(path)
+		if not _file_values.has(p):
+			var base: Variant = _walk(p)
+			if not (base is int or base is float):
+				continue
+			_file_values[p] = base
+		# Un entier du fichier reste un entier (le JSON rend des float).
+		var orig: Variant = _file_values[p]
+		_put(p, int(v) if orig is int and float(int(v)) == float(v) else float(v))
+	_applied = overrides.duplicate()
+	changed.emit()
 
 
 ## Un nombre a un chemin : "ENERGY.MAX", "QUESTS.CARROTS.break-ground".
@@ -67,6 +123,17 @@ func tier_for(lifetime: float) -> Dictionary:
 		if lifetime >= float(tier.get("minLifetime", 0)):
 			chosen = tier
 	return chosen
+
+
+func _put(path: String, value: Variant) -> void:
+	var parts := path.split(".")
+	var node: Variant = _tables
+	for k in range(parts.size() - 1):
+		if not (node is Dictionary and (node as Dictionary).has(parts[k])):
+			return
+		node = node[parts[k]]
+	if node is Dictionary:
+		(node as Dictionary)[parts[parts.size() - 1]] = value
 
 
 func _walk(path: String) -> Variant:

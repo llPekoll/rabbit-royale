@@ -115,6 +115,7 @@ func _mount() -> void:
 	bar.shop_pressed.connect(func() -> void: Shop.open())
 	bar.story_pressed.connect(func() -> void: LoreCodex.open())
 	bar.season_pressed.connect(_open_season)
+	bar.pass_pressed.connect(func() -> void: PassDialog.open())
 	_wire_bag()
 	bar.energy_tapped.connect(func() -> void: EnergyPanel.open())
 	bar.add_pressed.connect(func() -> void: EnergyPopup.open())
@@ -268,6 +269,7 @@ func _dev_open() -> void:
 		"shop": Shop.open()
 		"profile": Profile.open()
 		"season": _open_season()
+		"pass": PassDialog.open()
 		"codex": LoreCodex.open()
 		"energy": EnergyPanel.open()
 		"refill": EnergyPopup.open()
@@ -338,7 +340,7 @@ func watch(player_id: String) -> void:
 ## terrier pas encore charge laisse passer (le serveur tranche).
 static func raids_open() -> bool:
 	var level: Variant = Home.player.get("level")
-	return level == null or int(level) >= Tuning.i("RABBIT_LEVELS.RAID_MIN", 10)
+	return level == null or int(level) >= Tuning.i("RABBIT_LEVELS.RAID_MIN", 3)
 
 
 ## UNE PORTE DES BATIMENTS DU TERRIER (burrow_landmarks.gd).
@@ -358,13 +360,13 @@ func _on_door(door: String) -> void:
 			Analytics.track("defend_open")
 			_start_mode("placing")
 		"raid":
-			# PAS DE RAID AVANT LE NIVEAU 10, dans les deux sens (2026-09-23) :
+			# PAS DE RAID AVANT RABBIT_LEVELS.RAID_MIN (3), dans les deux sens :
 			# le serveur refuse de toute facon ; ici on dit pourquoi.
 			Net.trace("porte RAID : niveau=%s" % str(Home.player.get("level")))
 			if not Chrome.raids_open():
 				Net.trace("porte RAID refusee : niveau < RAID_MIN")
 				Analytics.track("raid_locked", {"level": int(Home.player.get("level", 0))})
-				toast(I18N.f("rabbitLevel.raidLocked", [Tuning.i("RABBIT_LEVELS.RAID_MIN", 10)]), true)
+				toast(I18N.f("rabbitLevel.raidLocked", [Tuning.i("RABBIT_LEVELS.RAID_MIN", 3)]), true)
 				return
 			TargetList.open()
 		"shop":

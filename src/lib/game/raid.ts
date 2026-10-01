@@ -14,7 +14,8 @@
  *  - the burrow's HP, worn down by the raid and regenerating on its own;
  *  - the loot, a share of the victim's stock scaled by how far the raider got.
  */
-import { CROWN, RAID, RAID_RUN } from '@config/tuning';
+import { CROWN } from '@config/tuning';
+import { RAID, RAID_RUN } from '@/lib/tuning/tables';
 import {
   entranceTile, fieldTiles, burrowNeighbors, burrowAround, walkableTiles, burrowTier,
 } from '@/game/burrow/board';

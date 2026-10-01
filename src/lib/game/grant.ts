@@ -12,14 +12,17 @@
  * payment row (USDC) to move in the same commit as the grant, and a function
  * that opened its own would make that impossible.
  */
-import { eq, sql as raw } from 'drizzle-orm';
+import { and, eq, sql as raw } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { inventory, players, purchases } from '@/lib/db/schema';
-import { ENERGY_PACK, OUT_OF_RUN_ENERGY } from '@config/tuning';
+import { inventory, payments, players, purchases } from '@/lib/db/schema';
+import { isPayTokenId, wholeFor } from '@/lib/pay/tokens';
+import { ENERGY_PACK, OUT_OF_RUN_ENERGY, TRAPS, itemCap } from '@/lib/tuning/tables';
 import { currentEnergy } from './regen';
 import { encodePush, PLAYER_PUSH_CHANNEL } from './raid-events';
+import { grantPass, isPassKind, type PassKind } from './season-pass';
+import { freeTraps } from './traps';
 import {
-  extendSmoke, spendEnergyPack,
+  extendSmoke, isShopKind, spendEnergyPack,
   type EnergyPackRow, type ItemKind, type SmokeRow,
 } from './inventory';
 
@@ -32,7 +35,9 @@ import {
 export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0] | typeof db;
 
 export interface GrantResult {
-  kind: ItemKind;
+  kind: ItemKind | PassKind;
+  /** What was actually DELIVERED — less than asked only for a gift that hit
+   *  the bag's ceiling (a sale is always delivered in full). */
   qty: number;
   /** For an energy refill: the bar after the top-up. Null for carried items. */
   energy: number | null;
@@ -48,10 +53,27 @@ export interface GrantResult {
  */
 export interface Receipt {
   currency: 'carrots' | 'usdc';
-  /** Whole carrots, or USDC base units (6 dp) — whichever `currency` names. */
+  /** Whole carrots, or USDC base units (6 dp = micro-dollars) — whichever
+   *  `currency` names. A SOL or SKR payment is converted (see `paidUsdcUnits`):
+   *  the rail and its native amount stay on the linked `payments` row. */
   cost: number;
-  /** The payment row that funded it. USDC only. */
+  /** The payment row that funded it. Money only. */
   paymentId?: string;
+}
+
+/**
+ * What a payment was worth in USDC base units (micro-dollars), at the rate
+ * frozen into its quote.
+ *
+ * The receipt is the revenue ledger, and its `currency` enum only knows carrots
+ * and usdc. A SOL payment used to land there as `usdc` with its LAMPORTS as the
+ * cost, so any sum over `purchases` mixed units (a $0.25 bomb paid in SOL read
+ * as ~$2.50). Converting here keeps the ledger in one unit; the exact on-chain
+ * amount is still on `payments`.
+ */
+export function paidUsdcUnits(p: { token: string; amount: number; usdPrice: string | null }): number {
+  if (!isPayTokenId(p.token) || p.token === 'usdc') return p.amount;
+  return Math.round(wholeFor(p.amount, p.token) * Number(p.usdPrice ?? 0) * 10 ** 6);
 }
 
 /**
@@ -68,7 +90,7 @@ export interface Receipt {
 export async function grantItem(
   tx: Tx,
   playerId: string,
-  kind: ItemKind,
+  kind: ItemKind | PassKind,
   qty: number,
   now = Date.now(),
   receipt?: Receipt,
@@ -87,38 +109,25 @@ export async function grantItem(
     });
   }
 
+  // A season pass is a SEAT, not an item: it lands in `season_passes`, for
+  // the running season. What it put into the pot is read off the PAYMENT —
+  // the amount on its rail at the rate frozen into the quote — because the
+  // receipt's `cost` is in the rail's base units (lamports for SOL), not USDC.
+  if (isPassKind(kind)) {
+    let usdCents = 0;
+    if (receipt?.paymentId) {
+      const [paid] = await tx.select({ token: payments.token, amount: payments.amount, usdPrice: payments.usdPrice })
+        .from(payments).where(eq(payments.id, receipt.paymentId)).limit(1);
+      if (paid && isPayTokenId(paid.token)) {
+        usdCents = Math.round(wholeFor(paid.amount, paid.token) * Number(paid.usdPrice ?? 0) * 100);
+      }
+    }
+    await grantPass(tx, playerId, { paymentId: receipt?.paymentId, usdCents });
+    return { kind, qty, energy: null };
+  }
+
   if (kind === 'energy') {
-    const player = await tx.query.players.findFirst({ where: eq(players.id, playerId) });
-    if (!player) throw new Error('unknown player');
-
-    // Top up from where the bar ACTUALLY is — the stored number is stale by
-    // however long the player has been away, and writing `stored + AMOUNT`
-    // would silently pocket the energy that regenerated in between.
-    const energy = Math.min(
-      OUT_OF_RUN_ENERGY.MAX,
-      currentEnergy(player, now) + ENERGY_PACK.AMOUNT * qty,
-    );
-    const window = spendEnergyPack(player as EnergyPackRow, now);
-
-    await tx.update(players).set({
-      energy,
-      // Stamping the clock is what makes the new value the new baseline;
-      // without it the next read would re-add the elapsed regen on top.
-      energyUpdatedAt: new Date(now),
-      energyPacksBought: window.energyPacksBought,
-      energyPacksSince: window.energyPacksSince,
-    }).where(eq(players.id, playerId));
-
-    // A RABBIT OUT ON AN ISLAND DIGS WITH ITS OWN TANK, not with this column:
-    // the run writes that tank back over `players.energy` when it banks
-    // (bankRun, "the tank comes home"), so a refill bought mid-run landed
-    // here, never showed on the island, and was erased at the end of the run.
-    // The ws process holds the tank; it hears this and tops the rabbit up.
-    // NOTIFY inside the transaction is delivered on COMMIT, so a refill that
-    // rolls back tells nobody.
-    const wire = encodePush({ to: playerId, event: 'energy_granted', payload: { amount: ENERGY_PACK.AMOUNT * qty } });
-    if (wire) await tx.execute(raw`select pg_notify(${PLAYER_PUSH_CHANNEL}, ${wire})`);
-
+    const energy = await refillEnergy(tx, playerId, qty, now, true);
     return { kind, qty, energy };
   }
 
@@ -139,18 +148,91 @@ export async function grantItem(
   // watering is correctly worth nothing. The player pours them now, from the
   // burrow; see `gardenBoostBlocker` and the `water`/`fertilise` actions.
 
+  // THE BAG HAS A CEILING, WHATEVER FILLS IT. A purchase was already refused
+  // past it (`purchaseBlocker`), but chests, quests and the pass's daily chest
+  // used to add without looking — a season of chests became a season of
+  // attack nobody could have bought. A GIFT (no receipt) now stops at the cap
+  // and the rest is not delivered. A SALE is always delivered in full: one
+  // purchase = one item, and money already taken is never clipped.
+  const gift = !receipt;
+
   if (kind === 'trap') {
-    await tx.update(players)
-      .set({ trapsOwned: raw`${players.trapsOwned} + ${qty}` })
-      .where(eq(players.id, playerId));
-    return { kind, qty, energy: null };
+    let give = qty;
+    if (gift) {
+      const [row] = await tx.select({ trapsOwned: players.trapsOwned, trapsClaimedAt: players.trapsClaimedAt })
+        .from(players).where(eq(players.id, playerId)).limit(1);
+      if (!row) throw new Error('unknown player');
+      give = Math.min(qty, Math.max(0, TRAPS.MAX_HELD - row.trapsOwned - freeTraps(row, now)));
+    }
+    if (give > 0) {
+      await tx.update(players)
+        .set({ trapsOwned: raw`${players.trapsOwned} + ${give}` })
+        .where(eq(players.id, playerId));
+    }
+    return { kind, qty: give, energy: null };
   }
 
+  let give = qty;
+  if (gift && isShopKind(kind)) {
+    const [held] = await tx.select({ qty: inventory.qty }).from(inventory)
+      .where(and(eq(inventory.playerId, playerId), eq(inventory.kind, kind))).limit(1);
+    give = Math.min(qty, Math.max(0, itemCap(kind) - (held?.qty ?? 0)));
+  }
+  if (give <= 0) return { kind, qty: 0, energy: null };
+
   await tx.insert(inventory)
-    .values({ playerId, kind, qty })
+    .values({ playerId, kind, qty: give })
     .onConflictDoUpdate({
       target: [inventory.playerId, inventory.kind],
-      set: { qty: raw`${inventory.qty} + ${qty}` },
+      set: { qty: raw`${inventory.qty} + ${give}` },
     });
-  return { kind, qty, energy: null };
+  return { kind, qty: give, energy: null };
+}
+
+/**
+ * Top the bar up by `qty` full refills, inside the caller's transaction.
+ *
+ * `countsAsPack` stamps the paid-refill window (ENERGY_PACK.MAX_PER_DAY). The
+ * shop's refill does; the season pass's daily chest does not.
+ */
+export async function refillEnergy(
+  tx: Tx,
+  playerId: string,
+  qty: number,
+  now: number,
+  countsAsPack: boolean,
+): Promise<number> {
+  const player = await tx.query.players.findFirst({ where: eq(players.id, playerId) });
+  if (!player) throw new Error('unknown player');
+
+  // Top up from where the bar ACTUALLY is — the stored number is stale by
+  // however long the player has been away, and writing `stored + AMOUNT`
+  // would silently pocket the energy that regenerated in between.
+  const energy = Math.min(
+    OUT_OF_RUN_ENERGY.MAX,
+    currentEnergy(player, now) + ENERGY_PACK.AMOUNT * qty,
+  );
+  // A paid refill counts against the rolling window; the pass's daily one
+  // does not — it is part of what the pass already sold.
+  const window = countsAsPack ? spendEnergyPack(player as EnergyPackRow, now) : null;
+
+  await tx.update(players).set({
+    energy,
+    // Stamping the clock is what makes the new value the new baseline;
+    // without it the next read would re-add the elapsed regen on top.
+    energyUpdatedAt: new Date(now),
+    ...(window ? { energyPacksBought: window.energyPacksBought, energyPacksSince: window.energyPacksSince } : {}),
+  }).where(eq(players.id, playerId));
+
+  // A RABBIT OUT ON AN ISLAND DIGS WITH ITS OWN TANK, not with this column:
+  // the run writes that tank back over `players.energy` when it banks
+  // (bankRun, "the tank comes home"), so a refill bought mid-run landed
+  // here, never showed on the island, and was erased at the end of the run.
+  // The ws process holds the tank; it hears this and tops the rabbit up.
+  // NOTIFY inside the transaction is delivered on COMMIT, so a refill that
+  // rolls back tells nobody.
+  const wire = encodePush({ to: playerId, event: 'energy_granted', payload: { amount: ENERGY_PACK.AMOUNT * qty } });
+  if (wire) await tx.execute(raw`select pg_notify(${PLAYER_PUSH_CHANNEL}, ${wire})`);
+
+  return energy;
 }

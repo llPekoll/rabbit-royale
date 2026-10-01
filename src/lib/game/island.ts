@@ -21,7 +21,8 @@
  * Hence two seeds. `seed` is public and cuts everything the client must draw
  * (coastline, tiers, placements, spawn). `contentSeed` is private, never
  * appears in `publicView` or in any payload, and is the ONLY thing that decides
- * where a bomb sits. Publishing `seed` is then harmless by construction.
+ * where a bomb sits — and what a chest rolls when it is dug (`chestRng`).
+ * Publishing `seed` is then harmless by construction.
  */
 import { CHEST_TIER_WEIGHTS, FIRST_RUN, ISLAND, RISK_GRADIENT, tierFor, type LevelRow } from '@config/tuning';
 import {
@@ -173,6 +174,7 @@ export function generateIsland(opts: GenerateOptions): Island {
   const island: Island = {
     id: opts.seed,
     seed: opts.seed,
+    lootSeed: lootSeedFor(opts.seed, opts.contentSeed),
     tiles,
     tier: tier.name,
     ...(opts.level ? { level: opts.level.level } : {}),
@@ -189,6 +191,33 @@ export function generateIsland(opts: GenerateOptions): Island {
   cascadeHints(island, safe, spawn);
   if (isFirstIsland(opts.seed)) openTaughtWitness(island);
   return island;
+}
+
+/**
+ * WHAT A CHEST HOLDS IS AS PRIVATE AS WHERE A BOMB IS.
+ *
+ * The tier is public on purpose (`publicView`), but the roll — the item, the
+ * amount, and on a crown the Genesis draw — used to come from
+ * `<public seed>:<tile>`, and the snapshot sends both the seed and every chest
+ * tile. A modified client could read which crown held the NFT before taking a
+ * step. So the roll is keyed on the PRIVATE content seed: same island, same
+ * tile, same loot (a reconnect cannot re-roll a bad drop), and nothing the
+ * client holds can reproduce it.
+ *
+ * THE FIRST ISLAND KEEPS ITS PUBLIC ROLL. Its contents are already public
+ * (`first-content:` + the drawn map), its one chest is bronze — carrots, never
+ * an NFT — and the offline lesson the client plays (`LocalRun`, mirrored to
+ * the server step by step) can then agree with what the server banks.
+ *
+ * Mirrored in godot/scripts/island_board.gd (`loot_seed`, `chest_loot`).
+ */
+export function lootSeedFor(seed: string, contentSeed?: string): string {
+  return isFirstIsland(seed) ? seed : `loot:${contentSeed ?? seed}`;
+}
+
+/** The rng a dig on `tile` draws from: one per (island, tile), rolled once. */
+export function chestRng(island: Pick<Island, 'lootSeed'>, tile: number): Rng {
+  return mulberry32(seedFrom(`${island.lootSeed}:${tile}`));
 }
 
 /**
@@ -731,7 +760,8 @@ export const dugFraction = (island: Island) => chestProgress(island).fraction;
  *
  * What leaks is exactly two things: WHERE a chest is, and WHICH TIER it is.
  * Never what it rolled — the roll happens at the dig, from the private content
- * seed, and the tier only says which TABLE will be drawn from. And never
+ * seed (`chestRng`, keyed on `island.lootSeed`, which is not in this view), and
+ * the tier only says which TABLE will be drawn from. And never
  * anything about its neighbours: `adjacent` is withheld until the tile is dug
  * like everywhere else, so a chest tells a player nothing about the bombs
  * around it. Walking to a visible chest is as dangerous as walking anywhere.

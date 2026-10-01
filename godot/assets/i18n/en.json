@@ -391,7 +391,7 @@
 		"bloopNone": "No bloop to throw. The shed sells it.",
 		"bloopRefused": {
 			"no-rival": "Nobody there to ink.",
-			"level_locked": "Not before level 10.",
+			"level_locked": "Not before level 3.",
 			"none-held": "No bloop left."
 		},
 		"hitBloop": {
@@ -471,6 +471,51 @@
 			"$t": "{0} inked you!"
 		},
 		"strike": "Zap back"
+	},
+	"pass": {
+		"title": "Golden Carrot Pass",
+		"show": "Golden Carrot Pass",
+		"buy": "Buy",
+		"soon": "Coming soon",
+		"short": "Golden Pass",
+		"left": {
+			"$t": "{0} days left"
+		},
+		"days": {
+			"$t": "{0} days"
+		},
+		"daily": "Daily chest",
+		"dailyWhat": {
+			"$t": "Full energy, bomb x{0}, bloop x{1}"
+		},
+		"race": "The race for the pot",
+		"raceWhat": {
+			"$t": "Top {1} holders share {0} of the pot"
+		},
+		"tag": "Gold PASS tag",
+		"tagWhat": "Next to your name on the board",
+		"pool": "Prize pool",
+		"poolLine": {
+			"$t": "{0} of {1} · {2} holders"
+		},
+		"active": "Pass active",
+		"claim": "Open today's chest",
+		"next": {
+			"$t": "Next chest in {0}"
+		},
+		"claimed": "Chest opened: full energy, a bomb and a bloop!",
+		"bought": "Pass active! Good luck in the race.",
+		"you": {
+			"$t": "You: #{0} · {1}"
+		},
+		"unranked": "Score this season to enter the race",
+		"empty": "No holder has scored yet. Be the first!",
+		"closed": "No pass on sale right now",
+		"connect": "Connect a wallet to buy the pass",
+		"ending": "Sales are closed: the season ends within the hour",
+		"owned": "You already hold this season's pass",
+		"failed": "Could not open the chest",
+		"terms": "Prizes are paid in USDC to your wallet when the season ends."
 	},
 	"pill": {
 		"banked": {
@@ -978,7 +1023,8 @@
 			"$t": "LEVEL {0}"
 		},
 		"harder": "THE ISLANDS GET HARDER",
-		"final": "THE FINAL ISLANDS. RAIDS ARE OPEN.",
+		"final": "THE FINAL ISLANDS",
+		"raidsOpen": "RAIDS ARE OPEN",
 		"raidLocked": {
 			"$t": "Raids open at level {0}. Clear islands to get there."
 		}

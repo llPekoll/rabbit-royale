@@ -26,7 +26,7 @@
 // resolves fine in the editor and then hangs at runtime on the one process
 // that holds every live island.
 import * as FILE from '../../../config/tuning';
-import { OVERRIDABLE_BY_PATH, rejectReason } from '../../../config/overridable';
+import { ALIASES, OVERRIDABLE_BY_PATH, RELATIONS, rejectReason } from '../../../config/overridable';
 
 /**
  * How long a snapshot is trusted.
@@ -64,9 +64,12 @@ function fromFile(path: string): unknown {
  * number is never wrong, only potentially stale.
  */
 export function tuned(path: string): number {
-  const override = current.get(path);
+  // An alias (`ENERGY.MAX`, `ENERGY_PACK.AMOUNT`…) reads its source key: the
+  // file defines them as the same number, so the live value must be too.
+  const key = ALIASES.get(path) ?? path;
+  const override = current.get(key);
   if (override !== undefined) return override;
-  const base = fromFile(path);
+  const base = fromFile(key);
   if (typeof base !== 'number') {
     // A path that does not resolve is a programming error, not a data one, and
     // it must be loud: returning 0 here would quietly make something free.
@@ -78,6 +81,23 @@ export function tuned(path: string): number {
 /** Every override currently in force, for an admin view or a health check. */
 export function activeOverrides(): Record<string, number> {
   return Object.fromEntries(current);
+}
+
+/**
+ * The overrides as a CLIENT must apply them: every overridden key, plus every
+ * alias of one (`ENERGY.MAX` beside `OUT_OF_RUN_ENERGY.MAX`), so a client that
+ * merges `{path: value}` over its bundled copy of tuning.ts reads the same
+ * number under whichever name it uses. Empty when nothing is overridden —
+ * which is also the signal for a client to drop overrides it applied before.
+ * Served by `/api/config` and `/api/burrow`; reads the snapshot only.
+ */
+export function clientOverrides(): Record<string, number> {
+  const out: Record<string, number> = Object.fromEntries(current);
+  for (const [alias, source] of ALIASES) {
+    const v = current.get(source);
+    if (v !== undefined) out[alias] = v;
+  }
+  return out;
 }
 
 /** When the snapshot was last refreshed, as a timestamp. 0 before the first load. */
@@ -98,6 +118,11 @@ export function buildSnapshot(
   const out = new Map<string, number>();
   for (const row of rows) {
     const spec = OVERRIDABLE_BY_PATH.get(row.key);
+    const source = ALIASES.get(row.key);
+    if (source) {
+      warn(`[tuning] ${row.key} est un alias de ${source}, ignorée : régler ${source}`);
+      continue;
+    }
     if (!spec) {
       // Not refused for being wrong — refused for not being declared. A key
       // that was overridable and no longer is lands here after a deploy, and
@@ -112,7 +137,40 @@ export function buildSnapshot(
     }
     out.set(row.key, row.value);
   }
+  dropContradictions(out, warn);
   return out;
+}
+
+/**
+ * Drop the overrides that break a rule between keys (`RELATIONS`).
+ *
+ * Only OVERRIDDEN keys are dropped — the file's values satisfy every rule (a
+ * test holds that), so falling back to them always ends the contradiction.
+ * Repeats until a full pass is clean, because dropping one override can bring
+ * a file value back that contradicts another override.
+ */
+function dropContradictions(out: Map<string, number>, warn: (msg: string) => void): void {
+  const v = (path: string): number => {
+    const o = out.get(path);
+    if (o !== undefined) return o;
+    const base = fromFile(path);
+    return typeof base === 'number' ? base : NaN;
+  };
+  for (let pass = 0; pass <= RELATIONS.length; pass++) {
+    let dropped = false;
+    for (const rule of RELATIONS) {
+      if (rule.holds(v)) continue;
+      const culprits = rule.keys.filter((k) => out.has(k));
+      if (culprits.length === 0) {
+        warn(`[tuning] le fichier lui-même contredit une règle : ${rule.why}`);
+        continue;
+      }
+      for (const k of culprits) out.delete(k);
+      warn(`[tuning] surcharges refusées (${culprits.join(', ')}) : ${rule.why}`);
+      dropped = true;
+    }
+    if (!dropped) return;
+  }
 }
 
 /**
@@ -160,4 +218,17 @@ export function refreshTuningIfStale(): void {
 export function resetTuningCache(): void {
   current = new Map();
   loadedAt = 0;
+}
+
+/**
+ * Install a snapshot from rows, as a refresh would — same validation, no
+ * database. For tests and benches (`test/tuning-live.test.ts`). Marks the
+ * snapshot fresh so a stray `refreshTuningIfStale()` does not overwrite it.
+ */
+export function setTuningOverrides(
+  rows: readonly { key: string; value: number }[],
+  warn?: (msg: string) => void,
+): void {
+  current = buildSnapshot(rows, warn);
+  loadedAt = Date.now();
 }

@@ -44,6 +44,9 @@ const TICK_SECONDS := 60.0
 ## La planche RAID : 44 de haut (le plancher tactile), 84 de large au moins.
 const RAID_W := 104.0
 const RAID_H := 38.0
+## REGARDER, sous RAID sur la ligne d'un creuseur : l'action seconde, plus
+## basse, pour que la ligne ne double pas de hauteur.
+const WATCH_H := 28.0
 ## Ce que Chrome._center_dialog laisse autour d'un dialogue : 17 en haut (le
 ## [x] qui deborde), Kit.EDGE en bas.
 const DIALOG_AIR := 27.0
@@ -62,6 +65,11 @@ var _elapsed_ms := 0.0
 ## montre la liste que `!shownRaid`) — la liste se ferme sur un raid qui
 ## COMMENCE, pas sur celui qu'un banc a pose avant elle.
 var _raid_at_open := ""
+## La liste se ferme deja : `closed` appelle d'abord `state.clear_note`
+## (branche dans `_ready`, avant le `close_dialog` du chrome), qui reemet
+## `changed`, qui revenait ici fermer encore — recursion jusqu'au stack
+## overflow au premier raid lance depuis la liste (2026-10-01).
+var _closing := false
 
 
 func _init() -> void:
@@ -147,10 +155,13 @@ func _on_locale_changed(_code: String) -> void:
 ## Tout le corps, reecrit d'apres l'etat : les lignes sont peu nombreuses
 ## (vingt au plus) et les reconstruire est plus sur que de les raccorder.
 func _rebuild() -> void:
+	if _closing:
+		return
 	var state := RaidState.current
 	# Un raid a commence : la liste n'a plus lieu d'etre (page.tsx ne la
 	# montre que `!shownRaid`).
 	if state.has_raid() and String(state.raid.get("raidId", "")) != _raid_at_open:
+		_closing = true
 		closed.emit()
 		return
 
@@ -246,19 +257,10 @@ func _row(target: Dictionary, state: RaidState) -> Control:
 		purse.add_child(wait)
 	line.add_child(purse)
 
-	# IL CREUSE (2026-09-24) : on ne descend pas dans un terrier vide, on va le
-	# VOIR sur son ile — et de la l'electrocuter ou lui cacher une bombe (le
-	# spectateur arme, server/index.ts `lightning`/`plant`). Le bouclier ne
-	# protege que le terrier : regarder reste ouvert.
-	var digging := where == RaidState.DIGGING
-	if digging:
-		shielded = false
-		off = state.busy
-	var words := I18N.t("raid.watchIt") if digging \
-		else I18N.t("raid.shielded") if shielded else I18N.t("raid.raidIt")
 	# « Raid » dans sa casse, sur le bois du web (DANGER que la peau des bois
 	# dessine en planche) : en capitales sur l'or rouge, « RAID » sortait
 	# « Al », rogne par les feuilles.
+	var words := I18N.t("raid.shielded") if shielded else I18N.t("raid.raidIt")
 	var button := Kit.button(words, "wood", _button_w, RAID_H)
 	button.label_size = 12
 	button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -267,13 +269,36 @@ func _row(target: Dictionary, state: RaidState) -> Control:
 		button.modulate.a = 0.75
 	var id := String(target.get("id", ""))
 	button.pressed.connect(func() -> void:
-		Net.trace("bouton %s sur %s (busy=%s)" % ["Regarder" if digging else "Raid", id, str(state.busy)])
-		if digging:
-			if Chrome.current != null:
-				Chrome.current.watch(id)
-		else:
-			state.enter(id))
-	line.add_child(button)
+		Net.trace("bouton Raid sur %s (busy=%s, presence=%s)" % [id, str(state.busy), where])
+		state.enter(id))
+
+	# IL CREUSE : son terrier est SANS GARDE, c'est le meilleur moment pour
+	# le voler (le serveur l'accepte : POST /api/raid ne regarde que niveau,
+	# bouclier et cooldown). RAID reste donc l'action principale, comme sur
+	# toute ligne ; REGARDER s'ajoute dessous — aller le voir sur son ile et
+	# de la l'electrocuter ou l'encrer (le spectateur arme, server/index.ts
+	# `lightning`/`bloop`). Le bouclier ne protege que le terrier : regarder
+	# reste ouvert meme quand RAID est grise.
+	if where != RaidState.DIGGING:
+		line.add_child(button)
+		return panel
+	# Une ligne protegee s'assombrit pour que l'oeil passe ; celle-ci a encore
+	# un geste ouvert (REGARDER), elle garde toute sa lumiere.
+	panel.modulate.a = 1.0
+	var actions := Kit.vbox(4)
+	actions.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	actions.add_child(button)
+	var watch := Kit.button(I18N.t("raid.watchIt"), "blue", _button_w, WATCH_H)
+	watch.label_size = 11
+	watch.disabled = state.busy
+	if state.busy:
+		watch.modulate.a = 0.75
+	watch.pressed.connect(func() -> void:
+		Net.trace("bouton Regarder sur %s (busy=%s)" % [id, str(state.busy)])
+		if Chrome.current != null:
+			Chrome.current.watch(id))
+	actions.add_child(watch)
+	line.add_child(actions)
 	return panel
 
 
@@ -322,13 +347,13 @@ func _fit_scroll() -> void:
 
 
 ## LA MEME LARGEUR POUR TOUTES LES PLANCHES de la colonne, celle qui tient
-## le plus long des deux mots a sa taille pleine. Une largeur fixe de 104
+## le plus long des trois mots (RAID, bouclier, REGARDER) a sa taille pleine. Une largeur fixe de 104
 ## faisait tenir « Raid » et retrecir « Com escudo » a 9 px ; une largeur au
 ## mot aurait decale la colonne des chiffres d'une ligne a l'autre.
 func _button_width() -> float:
 	var font := get_theme_font("font", "Label")
 	var widest := 0.0
-	for key in ["raid.raidIt", "raid.shielded"]:
+	for key in ["raid.raidIt", "raid.shielded", "raid.watchIt"]:
 		widest = maxf(widest, font.get_string_size(I18N.t(key), HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x)
 	return maxf(RAID_W, ceilf(widest + 2.0 * PlankButton.TEXT_PAD + 4.0))
 

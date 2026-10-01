@@ -16,8 +16,10 @@
  *    a band, whoever pushes it buys the whole shop at a discount. A price
  *    outside its band is treated as NO price, so the quote fails and nothing is
  *    sold — refusing a sale is always cheaper than mispricing one.
- *  - A dead feed degrades to the last good price, then to the baked fallback.
- *    It never degrades to zero, which would make everything free.
+ *  - A dead feed degrades to the last good price. The baked fallback is for
+ *    DISPLAY only (the stall can still show a SOL figure): a quote never uses
+ *    it, because a number typed into this file weeks ago is not a price. And
+ *    nothing ever degrades to zero, which would make everything free.
  */
 import { PAY_TOKENS, PAY_TOKEN_IDS, mintAddressFor, type PayTokenId } from './tokens';
 // Relative, not `@/`: the WS server bundles this module too.
@@ -70,7 +72,8 @@ const BAND: Partial<Record<PayTokenId, { min: number; max: number }>> = {
   skr: { min: 0.001, max: 5 },
 };
 
-/** Last resort if the feed has never answered on this process. */
+/** What the stall SHOWS if the feed has never answered — never what it sells
+ *  at: `usdPriceFor` refuses a token that only has this. */
 const FALLBACK_USD: Record<PayTokenId, number> = {
   usdc: 1,
   sol: 100,
@@ -208,9 +211,11 @@ export async function refreshTokenPrices(): Promise<Record<PayTokenId, number>> 
  */
 export async function usdPriceFor(id: PayTokenId): Promise<number | null> {
   if (FIXED_USD[id] !== undefined) return FIXED_USD[id]!;
-  const prices = await tokenUsdPrices();
-  const p = prices[id];
-  if (!believable(id, p)) return null;
+  await tokenUsdPrices(); // warms `cache` and `lastGood` from Redis or the feed
+  // Only a price the feed actually gave: this read, or the last good one.
+  // The baked FALLBACK_USD is deliberately not in this lookup.
+  const p = cache?.prices[id] ?? lastGood[id];
+  if (p === undefined || !believable(id, p)) return null;
   return p;
 }
 

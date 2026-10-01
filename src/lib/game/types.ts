@@ -56,6 +56,15 @@ export interface Tile {
 export interface Island {
   id: string;
   seed: string;
+  /**
+   * PRIVATE. What a dug chest rolls from (`chestRng`): `loot:<contentSeed>`.
+   *
+   * Never in `publicView` or any payload. Rolled from the public `seed` it let
+   * a client compute every chest's loot — the crown's Genesis piece included —
+   * before walking to it. The first island is the one exception (its seed,
+   * bronze chest only): see `chestRng`.
+   */
+  lootSeed: string;
   /** Land tiles, by index. Water squares are absent, not present-and-empty. */
   tiles: Map<number, Tile>;
   /** Tier name from tuning.ISLAND_TIERS — drives visuals and densities. */

@@ -12,7 +12,8 @@
  * Per tile: content letter (E empty, C carrot, G golden, B bomb, K chest),
  * the chest tier's first letter, `d` dug / `h` hinted, then the bomb count.
  * And what every chest pays, rolled the way `server/index.ts` + `resolveMove`
- * roll it: one rng per (island seed, tile), loot then the crown's NFT draw.
+ * roll it: one rng per (island, tile) from the PRIVATE loot seed (`chestRng`),
+ * loot then the crown's NFT draw.
  * And the island as a CLIENT sees it (`publicView`), for the online board.
  */
 import { writeFileSync } from 'node:fs';
@@ -20,8 +21,8 @@ import { join } from 'node:path';
 
 import { CHEST_LOOT, CHEST_LOOT_BY_TIER, CHEST_NFT_ODDS, levelRow } from '../config/tuning';
 import { seedLevel } from '../src/lib/game/first-island';
-import { generateIsland, publicView } from '../src/lib/game/island';
-import { mulberry32, pickWeighted, randInt, seedFrom } from '../src/lib/game/rng';
+import { chestRng, generateIsland, publicView } from '../src/lib/game/island';
+import { pickWeighted, randInt } from '../src/lib/game/rng';
 import { spawnTile, terrainFor } from '../src/lib/game/terrainBoard';
 
 const CASES: ReadonlyArray<readonly [string, string, number]> = [
@@ -46,7 +47,7 @@ const out = CASES.map(([seed, contentSeed, life]) => {
   const loot: Record<number, string> = {};
   for (const [i, t] of island.tiles) {
     if (t.content === 'chest') {
-      const rng = mulberry32(seedFrom(`${seed}:${i}`));
+      const rng = chestRng(island, i);
       const table = t.chestTier ? CHEST_LOOT_BY_TIER[t.chestTier] : CHEST_LOOT;
       const roll = pickWeighted(rng, table);
       const amount = randInt(rng, roll.min, roll.max);

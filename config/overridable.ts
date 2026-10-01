@@ -32,7 +32,7 @@
 export type TuningKind = 'int' | 'float' | 'ratio';
 
 export interface TuningSpec {
-  /** Dotted path into the tuning module, e.g. `SHOP.PRICES.bomb`. */
+  /** Dotted path into the tuning module, e.g. `SHOP.PRICES.trap`. */
   readonly path: string;
   readonly kind: TuningKind;
   readonly min: number;
@@ -48,6 +48,13 @@ export interface TuningSpec {
  * a running game, so it earns its place by being read at the point it applies
  * — and by being a number somebody actually wants to move on a live server:
  * prices, the passive economy, and what a raid takes.
+ *
+ * DECLARING A KEY IS NOT ENOUGH: the server code has to READ it live. Server
+ * code imports these tables from `src/lib/tuning/tables.ts` (live views of the
+ * same objects, typed identically) rather than from `config/tuning.ts`, whose
+ * constants are the build's and never move. A test in `test/tuning-live.test.ts`
+ * sets overrides and checks representative reads change. The Godot client
+ * gets the same overrides from `/api/config` and `/api/burrow` (`tuning`).
  */
 export const OVERRIDABLE: readonly TuningSpec[] = [
   // ── The shop. THE case for this whole mechanism: a price that turns out to
@@ -74,6 +81,7 @@ export const OVERRIDABLE: readonly TuningSpec[] = [
   { path: 'SHOP.USDC_PRICES.smoke', kind: 'float', min: 0.01, max: 50, note: 'Prix d\'un écran de fumée en USDC' },
   { path: 'SHOP.USDC_PRICES.bloop', kind: 'float', min: 0.01, max: 50, note: 'Prix d\'un bloop en USDC' },
   { path: 'SHOP.USDC_PRICES.fence', kind: 'float', min: 0.01, max: 50, note: 'Prix d\'une clôture en USDC' },
+  { path: 'PASS.PRICE_USD', kind: 'float', min: 0.99, max: 50, note: 'Prix du pass de saison en USD' },
 
   // ── The passive economy. Derived from a timestamp at read time (see
   //    lib/game/regen), so a change applies to the next read and never to a
@@ -110,12 +118,18 @@ export const OVERRIDABLE: readonly TuningSpec[] = [
   // ── Traps: the defensive half. Read when a trap is placed, bought or springs.
   { path: 'TRAPS.FREE_PER_DAY', kind: 'int', min: 0, max: 100, note: 'Pièges gratuits par jour' },
   { path: 'TRAPS.MAX_PLACED', kind: 'int', min: 1, max: 100, note: 'Pièges posés au maximum' },
-  // Read by the GENERATOR, which is cached per seed and per process — so a
-  // row here changes nothing until the next deploy, and is listed so the table
-  // mirrors the file (docs/TUNING.md), not for a hot change.
-  { path: 'TRAPS.DOORSTEP', kind: 'int', min: 0, max: 6, note: 'Pas depuis l\'entrée où aucun piège ne peut être posé' },
   { path: 'TRAPS.MAX_HELD', kind: 'int', min: 1, max: 500, note: 'Pièges détenus au maximum' },
-  { path: 'TRAPS.CARROT_COST', kind: 'int', min: 1, max: 100_000, note: 'Prix d\'un piège supplémentaire' },
+  // NOT HERE, ON PURPOSE:
+  //  - `TRAPS.DOORSTEP` reshapes stored data. The burrow generator cuts the
+  //    doorstep into the ground (`game/burrow/generate`), the result is cached
+  //    per seed and per process, and traps are STORED BY TILE INDEX — a live
+  //    change would leave traps already standing on what had become doorstep,
+  //    and the Godot client draws the doorstep from its own bundled copy. It
+  //    is a deploy (and a reset-burrows) like any change of ground.
+  //  - `TRAPS.CARROT_COST` is not a second price: the shop charges
+  //    `SHOP.PRICES.trap`, and the file defines one as the other. It is an
+  //    ALIAS of that key (see ALIASES below), so a row for it would have been
+  //    a knob wired to nothing.
 
   // ── The energy gate. The COST of entering a run is read at the crossing, so
   //    it moves cleanly; what the run then opens with (`ENERGY.START`) does not
@@ -134,6 +148,79 @@ export const OVERRIDABLE: readonly TuningSpec[] = [
 /** Index by path, for the loader and the seed script. */
 export const OVERRIDABLE_BY_PATH: ReadonlyMap<string, TuningSpec> =
   new Map(OVERRIDABLE.map((s) => [s.path, s]));
+
+/**
+ * Paths the FILE defines as another key, and which must therefore move with it.
+ *
+ * `ENERGY.MAX` and `OUT_OF_RUN_ENERGY.MAX` are ONE tank (see tuning.ts, "ONE
+ * TANK"): the run's ceiling and the burrow's are the same bar, and an override
+ * that raised one alone would let the island fill a tank the burrow then
+ * clipped on the next read. The pack sells "a full tank", and a trap's price
+ * IS the shop's trap price. So only the source key is declared; every alias
+ * reads the source's live value through `tuned()`, and a row written for an
+ * alias is refused at load with a message naming the key to set instead.
+ *
+ * A test checks that each alias equals its source in the file — the day one
+ * of them is decoupled in tuning.ts, it has to leave this map too.
+ */
+export const ALIASES: ReadonlyMap<string, string> = new Map([
+  ['ENERGY.MAX', 'OUT_OF_RUN_ENERGY.MAX'],
+  ['ENERGY_PACK.AMOUNT', 'OUT_OF_RUN_ENERGY.MAX'],
+  ['TRAPS.CARROT_COST', 'SHOP.PRICES.trap'],
+  ['FENCES.CARROT_COST', 'SHOP.PRICES.fence'],
+]);
+
+/**
+ * Rules BETWEEN keys, checked on the merged values (overrides over the file).
+ *
+ * Per-key bounds cannot say "the toll must not exceed the stake" — each number
+ * is legal alone and the pair is a raid that enters with negative energy. When
+ * a relation fails, the OVERRIDDEN keys it names are dropped (the file's own
+ * values always satisfy every rule; a test holds that), with a log line saying
+ * which rule broke. Same contract as a bad row: an override can fail to apply,
+ * the game never runs on numbers that contradict each other.
+ */
+export interface TuningRelation {
+  /** Every path the rule reads. Only the overridden ones are dropped. */
+  readonly keys: readonly string[];
+  readonly holds: (v: (path: string) => number) => boolean;
+  readonly why: string;
+}
+
+export const RELATIONS: readonly TuningRelation[] = [
+  {
+    keys: ['RAID_RUN.LOOT_SHARE_MIN', 'RAID_RUN.LOOT_SHARE'],
+    holds: (v) => v('RAID_RUN.LOOT_SHARE_MIN') <= v('RAID_RUN.LOOT_SHARE'),
+    why: 'la part minimale de butin dépasse la maximale',
+  },
+  {
+    keys: ['RAID_RUN.TOLL', 'RAID_RUN.STAKE'],
+    holds: (v) => v('RAID_RUN.TOLL') <= v('RAID_RUN.STAKE'),
+    why: 'le péage dépasse la mise : un raid entrerait avec une énergie négative',
+  },
+  {
+    keys: ['RAID_RUN.TOLL', 'RAID_RUN.WALK_FLOOR', 'RAID_RUN.STEP_COST', 'OUT_OF_RUN_ENERGY.MAX'],
+    holds: (v) => v('RAID_RUN.TOLL') + v('RAID_RUN.WALK_FLOOR') * v('RAID_RUN.STEP_COST') <= v('OUT_OF_RUN_ENERGY.MAX'),
+    why: 'le plancher de raid dépasse un réservoir plein : plus aucun raid possible',
+  },
+  {
+    keys: ['ENERGY.CROSSING_COST', 'ENERGY.MIN_TO_CROSS'],
+    holds: (v) => v('ENERGY.CROSSING_COST') <= v('ENERGY.MIN_TO_CROSS'),
+    why: 'la traversée coûte plus que le minimum exigé pour traverser',
+  },
+  {
+    keys: ['ENERGY.MIN_TO_CROSS', 'OUT_OF_RUN_ENERGY.MAX'],
+    holds: (v) => v('ENERGY.MIN_TO_CROSS') <= v('OUT_OF_RUN_ENERGY.MAX'),
+    why: 'le minimum pour traverser dépasse un réservoir plein : plus aucune partie possible',
+  },
+  {
+    // tuning.ts, RAID.BROKEN_SHIELD_MS: "the ordering is the whole point" —
+    // a sacked burrow must be protected at least as long as a defended one.
+    keys: ['RAID_RUN.SHIELD_AFTER_RAID_MS', 'RAID.BROKEN_SHIELD_MS'],
+    holds: (v) => v('RAID_RUN.SHIELD_AFTER_RAID_MS') <= v('RAID.BROKEN_SHIELD_MS'),
+    why: 'un terrier vidé serait protégé moins longtemps qu\'un terrier défendu',
+  },
+];
 
 /**
  * Why this value is not acceptable for this key, or null when it is.

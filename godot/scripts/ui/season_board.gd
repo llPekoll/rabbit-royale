@@ -299,6 +299,9 @@ func _make_row(e: Dictionary, index: int, mine: String, roomy: bool) -> Control:
 	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_line.add_child(name_label)
+	if bool(e.get("pass", false)):
+		# L'etiquette PASS doree : ce joueur court pour la cagnotte.
+		name_line.add_child(_pass_tag())
 	if digging:
 		# Le point vert vit sur le NOM, pas dans la colonne du rang : c'est un
 		# fait sur le joueur, et la colonne du rang est une case fixe.
@@ -450,3 +453,21 @@ static func open() -> SeasonBoard:
 	var dialog := SeasonBoard.new()
 	Chrome.current.open(dialog, true, "board")
 	return dialog
+
+
+## L'ETIQUETTE PASS : or sur encre, petite, collee au nom.
+func _pass_tag() -> Control:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Palette.GOLD
+	style.border_color = GOLD_ON_PAPER
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(3)
+	style.content_margin_left = 3
+	style.content_margin_right = 3
+	var tag := Kit.panel(style)
+	tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var text := Kit.label("PASS", 9, Palette.INK)
+	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tag.add_child(text)
+	return tag

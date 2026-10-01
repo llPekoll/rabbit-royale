@@ -9,7 +9,7 @@
  * "3 free per day" is therefore a rolling allowance, not a midnight reset — you
  * are never punished for playing at the wrong hour, and there is no stampede.
  */
-import { TRAPS } from '@config/tuning';
+import { TRAPS } from '@/lib/tuning/tables';
 import { isTrappable } from '@/game/burrow/board';
 
 export interface TrapRow {

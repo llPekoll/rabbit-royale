@@ -29,7 +29,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { payments } from '@/lib/db/schema';
-import { grantItem } from '@/lib/game/grant';
+import { grantItem, paidUsdcUnits } from '@/lib/game/grant';
 import { checkPayment, mintFor, payEnabled, readTransaction, treasuryAddress } from '@/lib/pay/solana';
 import { isPayTokenId } from '@/lib/pay/tokens';
 
@@ -154,7 +154,7 @@ export async function POST(req: Request) {
 
         return grantItem(tx, intent.playerId, intent.kind, intent.qty, Date.now(), {
           currency: 'usdc',
-          cost: intent.amount,
+          cost: paidUsdcUnits(intent),
           paymentId: intent.id,
         });
       }).catch((err: unknown) => {

@@ -79,10 +79,18 @@ var chest_tier: Dictionary = {}
 ## le tutoriel, dont le couloir n'a ni decor ni falaise.
 var ground: IslandGround
 
-## LA GRAINE PUBLIQUE, celle qui nomme l'ile. Elle tire aussi ce que chaque
-## coffre contient (`<graine>:<case>`, server/index.ts) : un coffre donne
-## toujours la meme chose, a qui que ce soit qui l'ouvre.
+## LA GRAINE PUBLIQUE, celle qui nomme l'ile.
 var seed_text := ""
+
+## CE QUE LES COFFRES TIRENT (island.ts `lootSeedFor` / `chestRng`) : un rng
+## par case, `<loot_seed>:<case>`. Sur une ile ordinaire c'est
+## `loot:<contentSeed>` — PRIVE : tire de la graine publique, un client
+## modifie savait quelle couronne cachait la piece Genesis avant d'y marcher.
+## En ligne on ne la connait donc pas (vide) : le lot vient du serveur
+## (`move_result.dig.loot`). Hors ligne (bac a sable, bancs) on choisit la
+## graine de contenu, donc on la connait. La premiere ile garde sa graine
+## publique : un coffre de bronze, des carottes, jamais de NFT.
+var loot_seed := ""
 
 ## L'apparition : la ou la manche commence.
 var spawn := Vector2i(-1, -1)
@@ -572,6 +580,7 @@ func deal_generated(p_ground: IslandGround, p_seed: String, content_seed: String
 		lifetime: float = 0.0) -> void:
 	ground = p_ground
 	seed_text = p_seed
+	loot_seed = loot_seed_for(p_seed, content_seed)
 	teaching = false
 	content.clear()
 	state.clear()
@@ -789,14 +798,26 @@ func chest_progress() -> Dictionary:
 	return {"left": left, "total": total, "fraction": fraction}
 
 
-## CE QUE CONTIENT UN COFFRE — tire de `<graine>:<case>` (server/index.ts), donc
-## le meme pour quiconque l'ouvre. `{kind, amount, tier, announced, nft}`.
+## island.ts `lootSeedFor` : la premiere ile tire de sa graine publique, toute
+## autre de `loot:<contentSeed>` (vide : la graine publique, comme le web).
+static func loot_seed_for(p_seed: String, content_seed: String) -> String:
+	if FirstIsland.is_first(p_seed):
+		return p_seed
+	return "loot:%s" % (content_seed if content_seed != "" else p_seed)
+
+
+## CE QUE CONTIENT UN COFFRE — tire de `<loot_seed>:<case>` (island.ts
+## `chestRng`), donc le meme pour quiconque l'ouvre. `{kind, amount, tier,
+## announced, nft}`. VIDE sur une ile en ligne : le client ne connait pas la
+## graine, et c'est voulu — le lot arrive du serveur.
 func chest_loot(c: Vector2i) -> Dictionary:
+	if loot_seed == "":
+		return {}
 	var tune := _tuning()
 	var tier: String = chest_tier.get(c, "")
 	var table: Array = tune.CHEST_LOOT_BY_TIER.get(tier, tune.CHEST_LOOT) if tier != "" \
 		else tune.CHEST_LOOT
-	var rng := Rng.from_seed("%s:%d" % [seed_text, index_of(c)])
+	var rng := Rng.from_seed("%s:%d" % [loot_seed, index_of(c)])
 	var e := pick_weighted(rng, table)
 	var amount := rand_int(rng, int(e.get("min", 1)), int(e.get("max", 1)))
 	# LA COURONNE PEUT CACHER UNE PIECE GENESIS, tiree APRES le butin sur le
@@ -829,6 +850,8 @@ func cell_of(index: int) -> Vector2i:
 func apply_public(p_ground: IslandGround, snap: Dictionary) -> void:
 	ground = p_ground
 	seed_text = String(snap.get("seed", ""))
+	# Le lot d'un coffre en ligne vient du serveur : la graine reste chez lui.
+	loot_seed = ""
 	teaching = false
 	content.clear()
 	state.clear()
@@ -862,6 +885,7 @@ func apply_public(p_ground: IslandGround, snap: Dictionary) -> void:
 func apply_public_first(snap: Dictionary) -> void:
 	ground = null
 	seed_text = String(snap.get("seed", ""))
+	loot_seed = loot_seed_for(seed_text, "")
 	teaching = false
 	content.clear()
 	state.clear()

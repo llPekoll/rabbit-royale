@@ -3,8 +3,8 @@
  *
  * The defender's one direct answer to a raid in progress (the other is a bomb,
  * which is `/api/traps` and does not know it is being used mid-raid). It ends
- * the run where the raider stands: they take nothing, and the burrow gets the
- * short shield any ended raid earns.
+ * the run where the raider stands: they take nothing — and, having lost
+ * nothing, the burrow raises no shield.
  *
  * It COSTS a lightning — the same item the island's strike spends, from the
  * same shelf. A free, unlimited strike made a burrow unraidable by anyone
@@ -24,7 +24,6 @@ import { pushToPlayer } from '@/lib/game/raid-events';
 import { inventory, players, raidRuns, raids } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
 import { defenderRaidView } from '@/lib/game/defence';
-import { RAID_RUN } from '@config/tuning';
 
 export async function POST(req: Request) {
   const session = await getSession(req);
@@ -65,11 +64,9 @@ export async function POST(req: Request) {
   }
 
   await db.transaction(async (tx) => {
-    // A raid ended, so the burrow earns the short shield any ending earns —
-    // the pile-on protection, not the sacked-burrow one.
-    await tx.update(players)
-      .set({ shieldedUntil: new Date(now.getTime() + RAID_RUN.SHIELD_AFTER_RAID_MS) })
-      .where(eq(players.id, session.sub));
+    // NO SHIELD. A struck raid took nothing, and losing carrots is what raises
+    // a shield — never being visited (the rule /api/raid applies to a raid
+    // settled at zero). A shield here was a free 12 h bought with a bolt.
     // The attacker's raid COUNTED: they knocked on the door, and the quest
     // board asks for the knock, not the haul.
     await tx.update(players)

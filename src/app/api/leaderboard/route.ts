@@ -11,6 +11,7 @@ import { players, seasons } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
 import { topPlayers, rankOf, onlineAmong, gapToNextRank } from '@/lib/leaderboard';
 import { SEASON } from '@config/tuning';
+import { holdersAmong } from '@/lib/game/season-pass';
 
 export const dynamic = 'force-dynamic';
 
@@ -73,6 +74,8 @@ export async function GET(req: Request) {
   // Who is out digging right now. One round trip for the whole page — and a
   // failure here costs a dot, not the board (see onlineAmong).
   const online = await onlineAmong(rows.map((p) => p.id));
+  // The gold ticket: who holds this season's pass. Empty outside a pass season.
+  const passHolders = season?.passOn ? await holdersAmong(season.id, rows.map((p) => p.id)) : new Set<string>();
 
   const entries = rows.map((p, i) => ({
     rank: i + 1,
@@ -101,6 +104,8 @@ export async function GET(req: Request) {
      * this one describes a run in progress.
      */
     digging: online.has(p.id),
+    /** Holds this season's pass — in the race for the pot. */
+    pass: passHolders.has(p.id),
   }));
 
   // Where the viewer sits, even when they are nowhere near the top — a board
@@ -125,6 +130,6 @@ export async function GET(req: Request) {
   return Response.json({
     entries,
     me,
-    season: season ? { id: season.id, endsAt: season.endsAt } : null,
+    season: season ? { id: season.id, endsAt: season.endsAt, passOn: season.passOn } : null,
   });
 }

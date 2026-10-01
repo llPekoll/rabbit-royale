@@ -403,7 +403,7 @@
 		"bloopNone": "Nenhum bloop para lançar. O galpão vende.",
 		"bloopRefused": {
 			"no-rival": "Ninguém ali para entintar.",
-			"level_locked": "Só a partir do nível 10.",
+			"level_locked": "Só a partir do nível 3.",
 			"none-held": "Acabaram os bloops."
 		},
 		"hitBloop": {
@@ -483,6 +483,51 @@
 			"$t": "{0} te encheu de tinta!"
 		},
 		"strike": "Revidar"
+	},
+	"pass": {
+		"title": "Passe Cenoura Dourada",
+		"show": "Passe Cenoura Dourada",
+		"buy": "Comprar",
+		"soon": "Em breve",
+		"short": "Passe Dourado",
+		"left": {
+			"$t": "{0} dias restantes"
+		},
+		"days": {
+			"$t": "{0} dias"
+		},
+		"daily": "Baú diário",
+		"dailyWhat": {
+			"$t": "Energia cheia, bomba ×{0}, bloop ×{1}"
+		},
+		"race": "A corrida pelo pote",
+		"raceWhat": {
+			"$t": "Os {1} melhores com o passe dividem {0} do pote"
+		},
+		"tag": "Etiqueta PASS dourada",
+		"tagWhat": "Ao lado do seu nome no placar",
+		"pool": "Prêmio",
+		"poolLine": {
+			"$t": "{0} de {1} · {2} com passe"
+		},
+		"active": "Passe ativo",
+		"claim": "Abrir o baú de hoje",
+		"next": {
+			"$t": "Próximo baú em {0}"
+		},
+		"claimed": "Baú aberto: energia cheia, uma bomba e um bloop!",
+		"bought": "Passe ativo! Boa sorte na corrida.",
+		"you": {
+			"$t": "Você: #{0} · {1}"
+		},
+		"unranked": "Pontue nesta temporada para entrar na corrida",
+		"empty": "Ninguém com passe pontuou ainda. Seja o primeiro!",
+		"closed": "Nenhum passe à venda agora",
+		"connect": "Conecte uma carteira para comprar o passe",
+		"ending": "Vendas encerradas: a temporada termina em menos de uma hora",
+		"owned": "Você já tem o passe desta temporada",
+		"failed": "Não foi possível abrir o baú",
+		"terms": "Os prêmios são pagos em USDC na sua carteira quando a temporada termina."
 	},
 	"pill": {
 		"banked": {
@@ -1018,7 +1063,8 @@
 			"$t": "NÍVEL {0}"
 		},
 		"harder": "As ilhas ficam mais difíceis",
-		"final": "As ilhas finais. Os ataques estão abertos.",
+		"final": "As ilhas finais",
+		"raidsOpen": "Os ataques estão abertos",
 		"raidLocked": {
 			"$t": "Ataques abrem no nível {0}. Termine ilhas para chegar lá."
 		}

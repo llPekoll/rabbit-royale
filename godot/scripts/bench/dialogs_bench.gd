@@ -144,6 +144,11 @@ func _only(which: String) -> void:
 			var codex := LoreCodex.new()
 			codex.read_marks = false
 			d = codex
+		"pass", "pass-holder", "pass-claimed", "pass-closed":
+			ShopState.shared().fake([], {}, true)
+			ShopState.shared().shop["rates"] = {"sol": 142.5, "skr": 0.031, "usdc": 1.0}
+			PassState.shared().fake(_fake_pass(which))
+			d = PassDialog.new()
 		_:
 			d = LanguageSelect.new()
 	add_child(d)
@@ -159,6 +164,30 @@ func _only(which: String) -> void:
 
 
 ## Chrome._center_dialog, recopie : le banc n'a pas de chrome.
+## UNE SAISON A PASS, a mi-course : 212 pass vendus, dix detenteurs classes.
+func _fake_pass(which: String) -> Dictionary:
+	var now := int(Time.get_unix_time_from_system())
+	var iso := func(t: int) -> String: return Time.get_datetime_string_from_unix_time(t) + ".000Z"
+	var names := ["Kuro", "Thistle", "BitterSnare15", "VelvetDoe8", "HollowFang19", "Shiro", "Moss", "Pip", "Clover", "Bramble"]
+	var shares := [0.40, 0.24, 0.16, 0.2 / 7, 0.2 / 7, 0.2 / 7, 0.2 / 7, 0.2 / 7, 0.2 / 7, 0.2 / 7]
+	var pool := 528.94
+	var top := []
+	for i in names.size():
+		top.append({"rank": i + 1, "playerId": "p%d" % i, "name": names[i], "score": 48210 - i * 3900,
+			"prizeUsd": snappedf(pool * shares[i], 0.01)})
+	var holder := which == "pass-holder" or which == "pass-claimed"
+	var claimed := which == "pass-claimed"
+	return {
+		"on": which != "pass-closed",
+		"season": {"id": 4, "startedAt": iso.call(now - 12 * 86400), "endsAt": iso.call(now + 18 * 86400)},
+		"priceUsd": 4.99, "potUsd": 1057.88, "prizePoolUsd": pool, "potShare": 0.5, "holders": 212,
+		"rewards": {"daily": {"energy": 1, "trap": 1, "bloop": 1}, "shares": shares},
+		"top": top,
+		"mine": {"holder": holder, "rank": 2 if holder else null, "prizeUsd": 126.95 if holder else 0.0,
+			"canClaim": holder and not claimed, "nextClaimAt": iso.call(now + (5 * 3600 if claimed else 0)), "blocker": null if not holder else "pass_owned"},
+	}
+
+
 func _place(d: Dialog) -> void:
 	var view := get_viewport_rect().size
 	if d.fullscreen:

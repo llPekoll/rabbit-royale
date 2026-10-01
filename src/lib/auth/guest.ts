@@ -46,7 +46,7 @@ export async function createGuestPlayer(now: Date = new Date()): Promise<{
   const id = `guest:${randomUUID()}`;
   const name = randomRabbitName(id);
 
-  const { RAID, OUT_OF_RUN_ENERGY, TRAPS } = await import('../../../config/tuning');
+  const { RAID, OUT_OF_RUN_ENERGY, TRAPS } = await import('../tuning/tables');
   await db.insert(players).values({
     id,
     // Null, not a placeholder string: the unique index on this column is what

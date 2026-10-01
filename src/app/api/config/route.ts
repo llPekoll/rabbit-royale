@@ -7,9 +7,14 @@
  * API cannot even set). Serving it from the server at runtime means one image
  * runs anywhere and the URL is a redeploy, not a rebuild.
  */
+import { clientOverrides, refreshTuningIfStale } from '@/lib/tuning/live';
+
 export const dynamic = 'force-dynamic';
 
 export function GET() {
+  // Non-blocking: answers with the snapshot in hand (rr-ws refreshes it every
+  // 30 s anyway), never a database read on this path.
+  refreshTuningIfStale();
   return Response.json({
     wsUrl: process.env.NEXT_PUBLIC_WS_URL ?? process.env.WS_PUBLIC_URL ?? '',
     /**
@@ -25,5 +30,12 @@ export function GET() {
      * rather than offering a payment that cannot complete.
      */
     payments: Boolean(process.env.SOLANA_RPC_URL),
+    /**
+     * The `tuning` overrides in force, `{ "RAID_RUN.TOLL": 50, … }` — aliases
+     * included (`ENERGY.MAX` beside `OUT_OF_RUN_ENERGY.MAX`). The client merges
+     * them over its bundled tuning.json so it quotes the numbers the server
+     * charges; `{}` means "the file's numbers" and undoes earlier overrides.
+     */
+    tuning: clientOverrides(),
   });
 }

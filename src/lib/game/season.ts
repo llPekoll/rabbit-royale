@@ -12,8 +12,11 @@
  *      `season_standings` (the record the Mausoleum of Kings was meant to
  *      read — the Sacrifice is gone, the record of who won is not);
  *   3. the champion is stamped on the season row, and the season closed;
- *   4. every season score goes back to zero;
- *   5. the next season opens, a DURATION_MS long.
+ *   4. a PASS season writes what its top ten holders are owed (pass_payouts),
+ *      from the scores as they stand, before they are wiped;
+ *   5. every season score goes back to zero;
+ *   6. the next season opens, a DURATION_MS long — or as `next` says, which is
+ *      how `scripts/season-pass.ts open` starts a pass season on demand.
  *
  * Idempotent and race-safe: the lock and the `ends_at` test mean two callers
  * at the boundary close it once, and the second finds the new season open.
@@ -22,6 +25,7 @@ import { and, eq, isNull, lte, sql as raw } from 'drizzle-orm';
 import { db } from '../db';
 import { seasons } from '../db/schema';
 import { SEASON } from '../../../config/tuning';
+import { writePassPayouts } from './season-pass';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -31,12 +35,21 @@ export interface SeasonRollover {
   championId: string | null;
   championScore: number | null;
   ranked: number;
+  /** Prizes written for a pass season's top ten (0 for an ordinary season). */
+  payouts: number;
 }
 
-/** Close the open season if its time is up, inside `tx`. Null when it is not. */
-export async function closeSeasonIfDue(tx: Tx, now: Date = new Date()): Promise<SeasonRollover | null> {
+export interface CloseOptions {
+  /** Close it NOW, whatever its `ends_at` says. The admin's lever, never the clock's. */
+  force?: boolean;
+  /** The season that follows. Default: an ordinary one, DURATION_MS long. */
+  next?: { passOn: boolean; durationMs: number };
+}
+
+/** Close the open season if its time is up (or `force`), inside `tx`. Null when it is not. */
+export async function closeSeasonIfDue(tx: Tx, now: Date = new Date(), opts: CloseOptions = {}): Promise<SeasonRollover | null> {
   const [open] = await tx.select().from(seasons)
-    .where(and(isNull(seasons.endedAt), lte(seasons.endsAt, now)))
+    .where(opts.force ? isNull(seasons.endedAt) : and(isNull(seasons.endedAt), lte(seasons.endsAt, now)))
     .for('update');
   if (!open) return null;
 
@@ -57,18 +70,23 @@ export async function closeSeasonIfDue(tx: Tx, now: Date = new Date()): Promise<
     championScore: champion ? Number(champion.score) : null,
   }).where(eq(seasons.id, open.id));
 
+  // Before the wipe: the prizes are read off the scores as they stand.
+  const payouts = open.passOn ? await writePassPayouts(tx, open.id) : 0;
+
   await tx.execute(raw`update players set season_score = 0 where season_score <> 0`);
 
-  const [next] = await tx.insert(seasons)
-    .values({ startedAt: now, endsAt: new Date(now.getTime() + SEASON.DURATION_MS) })
+  const next = opts.next ?? { passOn: false, durationMs: SEASON.DURATION_MS };
+  const [opened] = await tx.insert(seasons)
+    .values({ startedAt: now, endsAt: new Date(now.getTime() + next.durationMs), passOn: next.passOn })
     .returning({ id: seasons.id });
 
   return {
     closed: open.id,
-    opened: next.id,
+    opened: opened.id,
     championId: champion?.id ?? null,
     championScore: champion ? Number(champion.score) : null,
     ranked: Number((ranked as unknown as { count?: number }).count ?? 0),
+    payouts,
   };
 }
 

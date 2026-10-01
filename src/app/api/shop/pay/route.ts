@@ -19,7 +19,8 @@ import { db } from '@/lib/db';
 import { inventory, payments, players } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
 import { holdings, isShopKind, purchaseBlocker, purchaseUsdc } from '@/lib/game/inventory';
-import { grantItem } from '@/lib/game/grant';
+import { grantItem, paidUsdcUnits } from '@/lib/game/grant';
+import { isPassKind, openSeason, passOf, passPriceUsd, passSaleBlocker } from '@/lib/game/season-pass';
 import { USDC, usdcBaseUnits } from '@config/tuning';
 import { PublicKey } from '@solana/web3.js';
 import {
@@ -66,21 +67,32 @@ export async function POST(req: Request) {
   // isShopKind, not isItemKind: the enum now also carries the chest-only garden
   // boosts, and those have no price. Guarding on the wider set would let a
   // crafted POST reach `itemPrice` with a kind that has no entry.
-  if (!isShopKind(body.kind)) return Response.json({ error: 'unknown_item' }, { status: 400 });
+  // The season pass rides the same rail but is not on the shelf: its own
+  // rules (one per season, only while a pass season is running) replace the
+  // bag's caps, and it is never sold for carrots.
   const kind = body.kind;
+  if (!isPassKind(kind) && !isShopKind(kind)) return Response.json({ error: 'unknown_item' }, { status: 400 });
   const qty = body.qty === undefined ? 1 : Number(body.qty);
 
   const player = await db.query.players.findFirst({ where: eq(players.id, session.sub) });
   if (!player) return Response.json({ error: 'unknown player' }, { status: 404 });
 
-  const rows = await db.query.inventory.findMany({ where: eq(inventory.playerId, session.sub) });
-  const bag = holdings(rows, player);
+  if (isPassKind(kind)) {
+    if (qty !== 1) return Response.json({ error: 'bad_quantity' }, { status: 400 });
+    const season = await openSeason();
+    const held = season ? await passOf(db, season.id, session.sub) : null;
+    const blocker = passSaleBlocker(season, held !== null, Date.now());
+    if (blocker) return Response.json({ error: blocker }, { status: 400 });
+  } else {
+    const rows = await db.query.inventory.findMany({ where: eq(inventory.playerId, session.sub) });
+    const bag = holdings(rows, player);
 
-  // No `stock` argument: carrots are irrelevant to a USDC purchase, but every
-  // OTHER limit still applies. Quantity caps, inventory ceilings and the daily
-  // energy window are the same for money as for grind.
-  const blocker = purchaseBlocker(kind, qty, bag);
-  if (blocker) return Response.json({ error: blocker }, { status: 400 });
+    // No `stock` argument: carrots are irrelevant to a USDC purchase, but every
+    // OTHER limit still applies. Quantity caps, inventory ceilings and the daily
+    // energy window are the same for money as for grind.
+    const blocker = purchaseBlocker(kind, qty, bag);
+    if (blocker) return Response.json({ error: blocker }, { status: 400 });
+  }
 
   /**
    * WHICH RAIL. The price is a dollar amount either way — the token only says
@@ -93,7 +105,7 @@ export async function POST(req: Request) {
     return Response.json({ error: 'token_unavailable' }, { status: 400 });
   }
 
-  const usdc = purchaseUsdc(kind, qty);
+  const usdc = isPassKind(kind) ? Math.round(passPriceUsd() * 100) / 100 : purchaseUsdc(kind, qty);
 
   /**
    * The rate is read ONCE, here, and frozen into the quote.
@@ -262,11 +274,11 @@ export async function PATCH(req: Request) {
       .returning({ id: payments.id });
     if (!claimed) return null;
 
-    // `intent.amount` is already in USDC base units, which is what the receipt
-    // stores — and the payment id links it back to its on-chain proof.
+    // The receipt is kept in USDC base units whatever the rail (`intent.amount`
+    // is lamports for SOL) — and the payment id links it to its on-chain proof.
     return grantItem(tx, session.sub, intent.kind, intent.qty, Date.now(), {
       currency: 'usdc',
-      cost: intent.amount,
+      cost: paidUsdcUnits(intent),
       paymentId: intent.id,
     });
   }).catch((err: unknown) => {
@@ -287,7 +299,7 @@ export async function PATCH(req: Request) {
   }
 
   const state = await shopState(session.sub);
-  return Response.json({ bought: granted, paidUsdc: intent.amount / 10 ** USDC.DECIMALS, ...state });
+  return Response.json({ bought: granted, paidUsdc: paidUsdcUnits(intent) / 10 ** USDC.DECIMALS, ...state });
 }
 
 /** Housekeeping: mark lapsed quotes expired. Called by the shop screen's load,
@@ -379,7 +391,7 @@ export async function claimUnfinishedPayments(playerId: string): Promise<
 
       return grantItem(tx, playerId, intent.kind, intent.qty, Date.now(), {
         currency: 'usdc',
-        cost: intent.amount,
+        cost: paidUsdcUnits(intent),
         paymentId: intent.id,
       });
       // A signature already used by another quote hits the unique index. That

@@ -119,18 +119,21 @@ func move(to: Vector2i, now: int) -> Dictionary:
 			if golden:
 				digs.goldens += 1
 		IslandBoard.Content.CHEST:
+			# Hors ligne, la graine de contenu est la notre : le lot se tire ici.
+			# Un plateau en ligne n'en a pas (`chest_loot` vide) — rien a payer.
 			var prize := board.chest_loot(to)
 			digs.chests += 1
-			dig.loot = prize
-			if prize.nft:
-				nfts += 1
-			if prize.kind == "carrots":
-				carrots += int(prize.amount)
-				dig.carrot_delta = int(prize.amount)
-			elif prize.kind == "nft":
-				nfts += 1
-			else:
-				loot[prize.kind] = int(loot.get(prize.kind, 0)) + int(prize.amount)
+			if not prize.is_empty():
+				dig.loot = prize
+				if prize.nft:
+					nfts += 1
+				if prize.kind == "carrots":
+					carrots += int(prize.amount)
+					dig.carrot_delta = int(prize.amount)
+				elif prize.kind == "nft":
+					nfts += 1
+				else:
+					loot[prize.kind] = int(loot.get(prize.kind, 0)) + int(prize.amount)
 	if not dig.has("knockback"):
 		at = to
 

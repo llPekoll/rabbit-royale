@@ -351,7 +351,7 @@ export const en = {
     bloopNone: 'No bloop to throw. The shed sells it.',
     bloopRefused: {
       'no-rival': 'Nobody there to ink.',
-      level_locked: 'Not before level 10.',
+      level_locked: 'Not before level 3.',
       'none-held': 'No bloop left.',
     } as Record<string, string>,
     hitBloop: (name: string) => `${name} inked you`,
@@ -417,6 +417,39 @@ export const en = {
     struck: (name: string) => `${name} zapped you!`,
     inked: (name: string) => `${name} inked you!`,
     strike: 'Zap back',
+  },
+
+  /* ── The season pass: one month, a daily chest, a seat at the pot ─────── */
+  pass: {
+    title: 'Golden Carrot Pass',
+    show: 'Golden Carrot Pass',
+    buy: 'Buy',
+    soon: 'Coming soon',
+    short: 'Golden Pass',
+    left: (n: number) => `${n} days left`,
+    days: (n: number) => `${n} days`,
+    daily: 'Daily chest',
+    dailyWhat: (bombs: number, bloops: number) => `Full energy, bomb x${bombs}, bloop x${bloops}`,
+    race: 'The race for the pot',
+    raceWhat: (share: string, n: number) => `Top ${n} holders share ${share} of the pot`,
+    tag: 'Gold PASS tag',
+    tagWhat: 'Next to your name on the board',
+    pool: 'Prize pool',
+    poolLine: (share: string, pot: string, holders: number) => `${share} of ${pot} · ${holders} holders`,
+    active: 'Pass active',
+    claim: "Open today's chest",
+    next: (time: string) => `Next chest in ${time}`,
+    claimed: 'Chest opened: full energy, a bomb and a bloop!',
+    bought: 'Pass active! Good luck in the race.',
+    you: (rank: number, prize: string) => `You: #${rank} · ${prize}`,
+    unranked: 'Score this season to enter the race',
+    empty: 'No holder has scored yet. Be the first!',
+    closed: 'No pass on sale right now',
+    connect: 'Connect a wallet to buy the pass',
+    ending: 'Sales are closed: the season ends within the hour',
+    owned: "You already hold this season's pass",
+    failed: 'Could not open the chest',
+    terms: 'Prizes are paid in USDC to your wallet when the season ends.',
   },
 
   /* ── The carrot pill ──────────────────────────────────────────────────── */
@@ -681,13 +714,14 @@ export const en = {
       next === null ? `refills ${regen} an hour` : `refills ${regen} an hour. Next level: ${next}`,
   },
   /* The rabbit's level, 1 to 10 (2026-09-23): each island cleared is one up,
-     the islands harden with it, and level 10 is where everyone meets and
-     raids open. */
+     the islands harden with it, raids open at RABBIT_LEVELS.RAID_MIN (3,
+     raidsOpen) and level 10 is where everyone meets. */
   rabbitLevel: {
     badge: (n: number) => `LVL ${n}`,
     up: (n: number) => `LEVEL ${n}`,
     harder: 'THE ISLANDS GET HARDER',
-    final: 'THE FINAL ISLANDS. RAIDS ARE OPEN.',
+    final: 'THE FINAL ISLANDS',
+    raidsOpen: 'RAIDS ARE OPEN',
     raidLocked: (n: number) => `Raids open at level ${n}. Clear islands to get there.`,
   },
   islandPick: {

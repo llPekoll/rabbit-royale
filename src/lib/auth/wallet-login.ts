@@ -83,7 +83,7 @@ export async function resolveWalletPlayer(
     return id;
   }
 
-  const { RAID, OUT_OF_RUN_ENERGY, TRAPS } = await import('../../../config/tuning');
+  const { RAID, OUT_OF_RUN_ENERGY, TRAPS } = await import('../tuning/tables');
   await db
     .insert(players)
     .values({

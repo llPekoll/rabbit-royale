@@ -351,7 +351,7 @@
   "bloopNone": "Không có bloop để ném. Kho có bán.",
   "bloopRefused": {
    "no-rival": "Không có ai để phun mực.",
-   "level_locked": "Chưa được trước cấp 10.",
+   "level_locked": "Chưa được trước cấp 3.",
    "none-held": "Hết bloop."
   },
   "hitBloop": {
@@ -431,6 +431,51 @@
    "$t": "{0} phun mực vào bạn!"
   },
   "strike": "Đánh trả"
+ },
+ "pass": {
+  "title": "Vé Cà Rốt Vàng",
+  "show": "Vé Cà Rốt Vàng",
+  "buy": "Mua",
+  "soon": "Sắp ra mắt",
+  "short": "Vé Vàng",
+  "left": {
+   "$t": "Còn {0} ngày"
+  },
+  "days": {
+   "$t": "{0} ngày"
+  },
+  "daily": "Rương mỗi ngày",
+  "dailyWhat": {
+   "$t": "Đầy năng lượng, bom ×{0}, bloop ×{1}"
+  },
+  "race": "Cuộc đua giành quỹ thưởng",
+  "raceWhat": {
+   "$t": "{1} người có vé đứng đầu chia nhau {0} quỹ"
+  },
+  "tag": "Nhãn PASS vàng",
+  "tagWhat": "Cạnh tên bạn trên bảng xếp hạng",
+  "pool": "Quỹ thưởng",
+  "poolLine": {
+   "$t": "{0} của {1} · {2} người có vé"
+  },
+  "active": "Vé đang hoạt động",
+  "claim": "Mở rương hôm nay",
+  "next": {
+   "$t": "Rương tiếp theo sau {0}"
+  },
+  "claimed": "Đã mở rương: đầy năng lượng, một quả bom và một bloop!",
+  "bought": "Vé đã kích hoạt! Chúc may mắn trong cuộc đua.",
+  "you": {
+   "$t": "Bạn: #{0} · {1}"
+  },
+  "unranked": "Ghi điểm mùa này để vào cuộc đua",
+  "empty": "Chưa ai có vé ghi điểm. Hãy là người đầu tiên!",
+  "closed": "Hiện không bán vé",
+  "connect": "Kết nối ví để mua vé",
+  "ending": "Đã ngừng bán: mùa giải kết thúc trong vòng một giờ",
+  "owned": "Bạn đã có vé mùa này",
+  "failed": "Không mở được rương",
+  "terms": "Tiền thưởng được trả bằng USDC vào ví của bạn khi mùa giải kết thúc."
  },
  "pill": {
   "banked": {
@@ -879,7 +924,8 @@
    "$t": "CẤP {0}"
   },
   "harder": "Các đảo khó dần lên",
-  "final": "Những đảo cuối cùng. Đã mở cướp.",
+  "final": "Những đảo cuối cùng",
+  "raidsOpen": "Đã mở cướp",
   "raidLocked": {
    "$t": "Mở cướp ở cấp {0}. Dọn đảo để lên tới đó."
   }

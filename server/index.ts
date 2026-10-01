@@ -20,10 +20,13 @@ import { randomUUID } from 'node:crypto';
 import { Server, type Socket } from 'socket.io';
 import { and, eq, isNull, ne, sql as raw } from 'drizzle-orm';
 
-import { BLOOP, CROWN, ENERGY, ERUPTION, ISLAND_TIERS, LIGHTNING, MIRAGE, MULTIPLAYER, OUT_OF_RUN_ENERGY, RABBIT_LEVELS, levelRow, mayFight } from '../config/tuning';
+import { BLOOP, CROWN, ERUPTION, ISLAND_TIERS, LIGHTNING, MIRAGE, MULTIPLAYER, RABBIT_LEVELS, levelRow, mayFight } from '../config/tuning';
+// LIVE: the crossing fee, its floor and the tank's ceiling follow the `tuning`
+// table (src/lib/tuning). The run's own rules (DIG_COST, BOMB_LOSS, START) are
+// not overridable and read the file through the same view.
+import { ENERGY, OUT_OF_RUN_ENERGY } from '../src/lib/tuning/tables';
 import { servirApi } from './api-router';
-import { mulberry32, seedFrom } from '../src/lib/game/rng';
-import { cascadeAround, chestProgress, publicView } from '../src/lib/game/island';
+import { cascadeAround, chestProgress, chestRng, publicView } from '../src/lib/game/island';
 import { firstIslandSeed, isFirstIsland, levelSeed } from '../src/lib/game/first-island';
 import { flagTile, resolveMove, spawnRabbit, teachingHold } from '../src/lib/game/run';
 import { mirageActive, planMirage, shownAdjacent } from '../src/lib/game/mirage';
@@ -1391,8 +1394,10 @@ io.on('connection', (socket: Socket) => {
 
     // The dig RNG is seeded per (island, tile) so a chest's contents are fixed
     // the moment the island exists — replayable, and not re-rollable by a
-    // client that disconnects on a bad drop.
-    const rng = mulberry32(seedFrom(`${live.island.seed}:${to}`));
+    // client that disconnects on a bad drop. Keyed on the PRIVATE content seed
+    // (`chestRng`): from the public seed, a client could compute every chest's
+    // loot, the crown's Genesis piece included, before walking to it.
+    const rng = chestRng(live.island, to);
     // The other rabbits ride along so a step can SHOVE them — the bumper-car
     // rules in `docs/bumping.md`. Passing the roster is what turns pushing on;
     // `resolveMove` without it behaves exactly as it did before.
@@ -1966,7 +1971,7 @@ setInterval(() => { void refreshTuning(); }, 30_000).unref();
  */
 const checkSeason = () => optional('rolloverSeason', async () => {
   const out = await rolloverSeasonIfDue();
-  if (out) console.log('[season] closed', out.closed, 'champion', out.championId, out.championScore, '→ opened', out.opened);
+  if (out) console.log('[season] closed', out.closed, 'champion', out.championId, out.championScore, 'pass prizes', out.payouts, '→ opened', out.opened);
 });
 void checkSeason();
 setInterval(() => { void checkSeason(); }, 10 * 60_000).unref();

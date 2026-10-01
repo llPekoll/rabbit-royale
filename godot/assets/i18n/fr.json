@@ -421,7 +421,7 @@
 		"bloopNone": "Pas de bloop à lancer. La cabane en vend.",
 		"bloopRefused": {
 			"no-rival": "Personne à encrer ici.",
-			"level_locked": "Pas avant le niveau 10.",
+			"level_locked": "Pas avant le niveau 3.",
 			"none-held": "Plus de bloop."
 		},
 		"hitBloop": {
@@ -501,6 +501,51 @@
 			"$t": "{0} t’a encré !"
 		},
 		"strike": "Foudroie-le"
+	},
+	"pass": {
+		"title": "Pass Carotte d’or",
+		"show": "Pass Carotte d’or",
+		"buy": "Acheter",
+		"soon": "Bientôt",
+		"short": "Pass d’or",
+		"left": {
+			"$t": "{0} jours restants"
+		},
+		"days": {
+			"$t": "{0} jours"
+		},
+		"daily": "Coffre du jour",
+		"dailyWhat": {
+			"$t": "Plein d’énergie, bombe ×{0}, bloop ×{1}"
+		},
+		"race": "La course à la cagnotte",
+		"raceWhat": {
+			"$t": "Les {1} meilleurs détenteurs du pass se partagent {0} du pot"
+		},
+		"tag": "Étiquette PASS dorée",
+		"tagWhat": "À côté de ton nom au classement",
+		"pool": "Cagnotte",
+		"poolLine": {
+			"$t": "{0} de {1} · {2} détenteurs"
+		},
+		"active": "Pass actif",
+		"claim": "Ouvrir le coffre du jour",
+		"next": {
+			"$t": "Prochain coffre dans {0}"
+		},
+		"claimed": "Coffre ouvert : plein d’énergie, une bombe et un bloop !",
+		"bought": "Pass actif ! Bonne chance dans la course.",
+		"you": {
+			"$t": "Toi : #{0} · {1}"
+		},
+		"unranked": "Marque des points cette saison pour entrer dans la course",
+		"empty": "Aucun détenteur n’a encore marqué. Sois le premier !",
+		"closed": "Pas de pass en vente pour le moment",
+		"connect": "Connecte un portefeuille pour acheter le pass",
+		"ending": "Ventes closes : la saison finit dans l’heure",
+		"owned": "Tu as déjà le pass de cette saison",
+		"failed": "Impossible d’ouvrir le coffre",
+		"terms": "Les gains sont versés en USDC sur ton portefeuille à la fin de la saison."
 	},
 	"pill": {
 		"banked": {
@@ -1059,7 +1104,8 @@
 			"$t": "NIVEAU {0}"
 		},
 		"harder": "Les îles se durcissent",
-		"final": "Les îles finales. Les raids sont ouverts.",
+		"final": "Les îles finales",
+		"raidsOpen": "Les raids sont ouverts",
 		"raidLocked": {
 			"$t": "Les raids ouvrent au niveau {0}. Finis des îles pour y arriver."
 		}

@@ -112,6 +112,10 @@ var _built: Array[String] = []
 ## pour ne pas changer de trace le jour ou le voisin sort de l'eau.
 var _all_cells := {}
 var _own := true
+## LES CIBLES DE RAID, lues UNE fois par terrier ouvert (`_ask_targets`) :
+## la ligne « et maintenant » nomme le jardin le plus riche, et RaidState ne
+## les relit sinon qu'a la connexion et a l'ouverture de la liste.
+var _targets_asked := false
 ## LE BANC (scenes/bench/reveal_bench.tscn) force l'etape et garde sa memoire
 ## en RAM : il ne touche ni a Home ni a `user://reveal.cfg`.
 static var bench_doors: Array[String] = []
@@ -141,6 +145,8 @@ func _ready() -> void:
 	Home.changed.connect(refresh)
 	I18N.locale_changed.connect(func(_c: String) -> void: refresh())
 	ShopState.shared().changed.connect(refresh)
+	# Les cibles de raid nourrissent la ligne « et maintenant » (`_quest_door`).
+	RaidState.current.targets_changed.connect(refresh)
 
 
 ## POSE LES ILOTS AUTOUR DE `main`, et la carte de la mer qui les englobe.
@@ -262,7 +268,7 @@ func _wanted() -> Array[String]:
 	var level := int(Home.player.get("level", 1)) if Home.loaded() else 0
 	if seen.has("defend") or (doors.has("dig") and level >= REVEAL_DEFEND_LEVEL):
 		doors.append("defend")
-	if seen.has("raid") or (doors.has("defend") and level >= Tuning.i("RABBIT_LEVELS.RAID_MIN", 10)):
+	if seen.has("raid") or (doors.has("defend") and level >= Tuning.i("RABBIT_LEVELS.RAID_MIN", 3)):
 		doors.append("raid")
 	return _ordered(doors)
 
@@ -905,7 +911,8 @@ func refresh() -> void:
 	var crossing := int(b.get("crossingCost", Tuning.i("ENERGY.CROSSING_COST")))
 	var garden := Home.live_garden() if Home.loaded() else 0
 	var level := int(Home.player.get("level", 1))
-	var raid_min := Tuning.i("RABBIT_LEVELS.RAID_MIN", 10)
+	var raid_min := Tuning.i("RABBIT_LEVELS.RAID_MIN", 3)
+	_ask_targets(level >= raid_min)
 
 	var say := func(door: String, word: String, words: String, lit: bool) -> void:
 		var sign: Sign = _signs.get(door)
@@ -949,6 +956,25 @@ func refresh() -> void:
 		(_signs[door] as Sign).badge.visible = door == pointed and door != "dig"
 
 
+## LES BOMBES ARMEES sur le terrier (`/api/traps` `armed`, que ShopState
+## tient deja pour le plateau) — le `trapsLive` du web (page.tsx).
+func _traps_live() -> int:
+	var armed: Variant = ShopState.shared().traps.get("armed", [])
+	return (armed as Array).size() if armed is Array else 0
+
+
+## LES CIBLES, UNE FOIS : a l'ouverture de NOTRE terrier, une fois le
+## niveau connu et s'il ouvre les raids (le serveur rend une liste vide
+## en dessous de RAID_MIN). Jamais en boucle ; jamais pendant un raid.
+func _ask_targets(raids_open: bool) -> void:
+	if _targets_asked or not _own or not Home.loaded() or not raids_open:
+		return
+	if RaidState.current.has_raid():
+		return
+	_targets_asked = true
+	RaidState.current.refresh()
+
+
 ## LA PORTE OU MENE LA QUETE (LoopBar `_quest_loop`), ou la ligne « et
 ## maintenant » sans quete active.
 func _quest_door() -> String:
@@ -965,8 +991,8 @@ func _quest_door() -> String:
 			"gardenReady": Home.live_garden(),
 			"gardenCapacity": b.get("gardenCapacity", 0),
 			"shieldMs": b.get("shieldMs", null),
-			"trapsLive": 0,
-			"targets": [],
+			"trapsLive": _traps_live(),
+			"targets": RaidState.current.targets if Chrome.raids_open() else [],
 		})
 		door = String(next.get("door", ""))
 	match door:

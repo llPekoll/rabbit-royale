@@ -13,7 +13,8 @@
  *  - ENERGY is not held at all — a refill is applied on purchase, so what the
  *    shelf reports for it is how many refills the daily cap still allows.
  */
-import { ENERGY_PACK, GARDEN_BOOST, SHOP, SMOKE, itemCap, itemPrice, itemUsdcPrice } from '@config/tuning';
+import { GARDEN_BOOST, SHOP, SMOKE, itemPrice, itemUsdcPrice } from '@config/tuning';
+import { ENERGY_PACK, itemCap } from '@/lib/tuning/tables';
 import { tuned } from '@/lib/tuning/live';
 import { availableTraps, type TrapRow } from './traps';
 
@@ -408,6 +409,9 @@ export function purchaseBlocker(
 ): string | null {
   if (!Number.isInteger(qty) || qty < 1) return 'bad_quantity';
   if (qty > SHOP.MAX_QTY_PER_PURCHASE) return 'too_many_at_once';
+  // ONE REFILL PER PURCHASE. A refill fills the tank to its ceiling, so a
+  // second one in the same purchase would be billed and deliver nothing.
+  if (kind === 'energy' && qty !== 1) return 'too_many_at_once';
   if (bag[kind] + qty > itemCap(kind)) {
     if (kind === 'energy') return 'daily_energy_limit';
     if (kind === 'smoke') return 'smoke_capped';

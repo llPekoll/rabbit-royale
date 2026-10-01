@@ -23,7 +23,8 @@
  * Raids are not decided here: they are pushed as they happen, day or night,
  * and outside the daily cap (`raid.ts`).
  */
-import { GARDEN, GARDEN_BOOST, OUT_OF_RUN_ENERGY, regenPerHour } from '../../../config/tuning';
+import { GARDEN_BOOST } from '../../../config/tuning';
+import { GARDEN, OUT_OF_RUN_ENERGY, regenPerHour } from '../tuning/tables';
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;

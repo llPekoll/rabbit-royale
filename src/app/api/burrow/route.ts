@@ -15,7 +15,8 @@ import { questBoardOf } from '@/lib/game/quests';
 import {
   extendGardenBoost, gardenBoostBlocker, holdings, shieldBlocker, type GardenKind,
 } from '@/lib/game/inventory';
-import { RAID, upgradeCost } from '@config/tuning';
+import { RAID, upgradeCost } from '@/lib/tuning/tables';
+import { clientOverrides } from '@/lib/tuning/live';
 
 /**
  * The player's row and their bag, which the burrow view needs both of.
@@ -56,6 +57,11 @@ export async function GET(req: Request) {
     /** The owner's rearrangement (`BurrowEdits`), laid on the generated
      *  burrow by the client — see /api/burrow/layout. */
     edits: owner.player.burrowEdits ?? {},
+    /** The live `tuning` overrides (as /api/config serves them). Rides on
+     *  this read because the client already re-reads the burrow every minute
+     *  and on every return home: its costs and thresholds follow the server
+     *  without a poll of their own. */
+    tuning: clientOverrides(),
   });
 }
 

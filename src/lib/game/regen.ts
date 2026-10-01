@@ -9,7 +9,9 @@
  * The functions are pure — they take a row and a clock and return numbers. The
  * caller decides whether to write the new values back.
  */
-import { GARDEN, GARDEN_BOOST, OUT_OF_RUN_ENERGY, regenPerHour } from '../../../config/tuning';
+import { GARDEN_BOOST } from '../../../config/tuning';
+// Live (the `tuning` table over the file): the garden's rate and cap, the regen.
+import { GARDEN, OUT_OF_RUN_ENERGY, regenPerHour } from '../tuning/tables';
 
 const HOUR = 3_600_000;
 

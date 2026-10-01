@@ -81,6 +81,8 @@ const SIGN_LIFT := 6.0
 ## prend 10px d'air de plus que celui du web, et 380 est la hauteur), la
 ## barre (8, marges 28).
 const HEAD_H := 34.0
+## L'entree du pass dans la ligne de tete : entre l'enseigne et la bourse.
+const PASS_ENTRY_W := 140.0
 const FOOT_H := 18.0
 const BODY_GAP := 4.0
 const TRACK_H := 8.0
@@ -122,6 +124,8 @@ var _thumb_drag: Dictionary = {}
 var _sign: NineSlice
 var _sign_text: Label
 var _rails: HBoxContainer
+## L'entree du Golden Carrot Pass, dans la ligne de tete.
+var _pass_entry: PlankButton
 var _purse: NineSlice
 var _purse_text: Label
 var _shelf: ScrollContainer
@@ -225,6 +229,18 @@ func _build() -> void:
 	_rails.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	head.add_child(_rails)
 	head.add_child(Kit.spacer())
+	# LE GOLDEN CARROT PASS, entre les rails et la bourse : c'est ici qu'un
+	# joueur cherche ce qui s'achete. Grise et inerte tant que le pass n'est
+	# pas ouvert (PassState.on) ; ouvert, il remplace l'etal par sa fenetre.
+	_pass_entry = Kit.button("", "gold", PASS_ENTRY_W, HEAD_H)
+	_pass_entry.label_size = 11
+	_pass_entry.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_pass_entry.pressed.connect(func() -> void: PassDialog.open())
+	head.add_child(_pass_entry)
+	var pass_state := PassState.shared()
+	pass_state.changed.connect(_paint_pass_entry)
+	I18N.locale_changed.connect(func(_c: String) -> void: _paint_pass_entry())
+	_paint_pass_entry()
 	_purse = Kit.plank("wood")
 	_purse.custom_minimum_size = Vector2(120, HEAD_H)
 	_purse.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -312,6 +328,19 @@ func _build() -> void:
 	_foot.clip_text = true
 	_foot.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	column.add_child(_foot)
+
+
+func _paint_pass_entry() -> void:
+	if _pass_entry == null:
+		return
+	var open := PassState.shared().on()
+	# Le nom court (« GOLDEN PASS ») : la place entre l'enseigne et la bourse
+	# est comptee au Seeker. « Bientot » vit dans l'info-bulle.
+	_pass_entry.relabel(I18N.shout(I18N.t("pass.short")))
+	_pass_entry.tooltip_text = I18N.t("pass.title") if open else "%s · %s" % [I18N.t("pass.title"), I18N.t("pass.soon")]
+	_pass_entry.disabled = not open
+	_pass_entry.modulate = Color.WHITE if open else PassState.LOCKED_TINT
+	_pass_entry.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if open else Control.CURSOR_ARROW
 
 
 ## L'ETAGERE A LA TAILLE DE SA BAIE. La carte grandit avec la hauteur qu'on
@@ -885,6 +914,9 @@ func _enter() -> void:
 ## achetee : l'art saute et une gerbe d'eclats dores part de lui, pour qui
 ## la retrouve en fermant la fete. Le recu en mots est au pied et en pastille.
 func _celebrate(kind: String, qty: int) -> void:
+	# Le pass n'est pas sur l'etagere : PassState l'annonce (pass_state.gd).
+	if not ShopState.KINDS.has(kind):
+		return
 	PurchaseReveal.announce(kind, qty)
 	for card in _row.get_children():
 		if card.get_meta("kind", "") != kind:

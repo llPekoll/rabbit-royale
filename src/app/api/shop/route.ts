@@ -20,7 +20,7 @@ import {
 import { grantItem } from '@/lib/game/grant';
 import { refreshTuningIfStale } from '@/lib/tuning/live';
 import { armedTraps, availableTraps, rearmingTraps } from '@/lib/game/traps';
-import { TRAPS } from '@config/tuning';
+import { TRAPS } from '@/lib/tuning/tables';
 import { enabledTokens } from '@/lib/pay/tokens';
 import { tokenUsdPrices } from '@/lib/pay/rates';
 import { treasuryAddress } from '@/lib/pay/solana';
@@ -157,28 +157,46 @@ export async function POST(req: Request) {
   // event, and a crash between them either bills for nothing or gives stock
   // away. The debit is ALSO guarded in SQL, so two purchases racing on the same
   // row cannot both pass the check above and overdraw.
-  const granted = await db.transaction(async (tx) => {
+  //
+  // ONE PURCHASE AT A TIME PER PLAYER. The check above read the bag before the
+  // transaction, so fifty taps racing each other would all have passed it —
+  // each paying, but together walking past the bag's ceiling or the five daily
+  // refills. The transaction locks the player row first and checks again on
+  // what it locked: the taps queue, and each one sees the one before it.
+  const outcome = await db.transaction(async (tx) => {
+    const [locked] = await tx.select().from(players)
+      .where(eq(players.id, session.sub)).for('update');
+    if (!locked) return { error: 'unknown player' } as const;
+    const lockedBag = holdings(
+      await tx.query.inventory.findMany({ where: eq(inventory.playerId, session.sub) }),
+      locked,
+    );
+    const late = purchaseBlocker(kind, qty, lockedBag, locked.stock);
+    if (late) return { error: late, have: locked.stock } as const;
+
     const [charged] = await tx
       .update(players)
       .set({ stock: raw`${players.stock} - ${cost}` })
       .where(and(eq(players.id, session.sub), raw`${players.stock} >= ${cost}`))
       .returning({ stock: players.stock });
-    if (!charged) return null;
+    if (!charged) return { error: 'insufficient_carrots', have: locked.stock } as const;
 
     // The receipt rides along in the same transaction as the debit above.
-    return grantItem(tx, session.sub, kind, qty, Date.now(), {
+    const granted = await grantItem(tx, session.sub, kind, qty, Date.now(), {
       currency: 'carrots',
       cost,
     });
+    return { granted } as const;
   });
 
-  // The guard bounced it: the same carrots were spent by a parallel request.
-  if (!granted) {
+  // A parallel tap got there first: the bag filled, or the carrots went.
+  if (!('granted' in outcome)) {
     return Response.json(
-      { error: 'insufficient_carrots', need: cost, have: player.stock },
-      { status: 400 },
+      { error: outcome.error, need: cost, have: 'have' in outcome ? outcome.have : player.stock },
+      { status: outcome.error === 'unknown player' ? 404 : 400 },
     );
   }
+  const granted = outcome.granted;
 
   const state = await shopState(session.sub);
   return Response.json({ bought: granted, spent: cost, ...state });

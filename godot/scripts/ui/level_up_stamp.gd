@@ -44,12 +44,18 @@ static func announce(level: int) -> LevelUpStamp:
 
 ## LE LAPIN A MONTE D'UN NIVEAU (1 a 10, 2026-09-23) : une ile finie en vie.
 ## Le meme tampon que le terrier — c'est la meme fete — avec ses mots a lui :
-## les iles durcissent, et au 10 le monde s'ouvre (raids compris).
+## les iles durcissent, les raids ouvrent a RAID_MIN (3), et le 10 est le
+## dernier palier.
 static func announce_rabbit(level: int) -> LevelUpStamp:
 	var stamp := LevelUpStamp.new()
 	var top := Tuning.i("RABBIT_LEVELS.MAX", 10)
-	stamp.set_words(I18N.f("rabbitLevel.up", [level]),
-		I18N.t("rabbitLevel.final" if level >= top else "rabbitLevel.harder"))
+	var raid_min := Tuning.i("RABBIT_LEVELS.RAID_MIN", 3)
+	var words := "rabbitLevel.harder"
+	if level >= top:
+		words = "rabbitLevel.final"
+	elif level == raid_min:
+		words = "rabbitLevel.raidsOpen"
+	stamp.set_words(I18N.f("rabbitLevel.up", [level]), I18N.t(words))
 	ScreenStamp.mount(stamp)
 	return stamp
 

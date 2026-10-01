@@ -12,6 +12,9 @@ extends Control
 
 
 func _ready() -> void:
+	# `-- --pass-open` : une saison a pass en cours (sinon le pass est grise).
+	PassState.shared().fake({"on": "--pass-open" in OS.get_cmdline_user_args(), "mine": {"canClaim": true, "holder": true},
+		"season": {"endsAt": Time.get_datetime_string_from_unix_time(int(Time.get_unix_time_from_system()) + 18 * 86400)}})
 	var bg := ColorRect.new()
 	bg.color = Palette.NIGHT
 	Kit.fill(bg)

@@ -51,6 +51,7 @@ const ROUTES: Record<string, () => Promise<ModuleRoute>> = {
   '/api/config': () => import('../src/app/api/config/route'),
   '/api/fences': () => import('../src/app/api/fences/route'),
   '/api/leaderboard': () => import('../src/app/api/leaderboard/route'),
+  '/api/pass': () => import('../src/app/api/pass/route'),
   '/api/player': () => import('../src/app/api/player/route'),
   '/api/player/history': () => import('../src/app/api/player/history/route'),
   '/api/push/token': () => import('../src/app/api/push/token/route'),

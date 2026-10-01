@@ -16,7 +16,7 @@
  *   new doorstep, under the garden) is lifted and refunded, as
  *   `evictDoorstep` does — and so is one the move puts UNDER THE HOUSE.
  */
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, sql as raw } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { fences, inventory, players, traps } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
@@ -27,7 +27,6 @@ import { houseTiles } from '@/game/burrow/buildings';
 import { editBurrow, hasEdits } from '@/game/burrow/generate';
 import { fieldReachable, isSpan } from '@/game/burrow/fence';
 import { fencedSpans } from '@/lib/game/fences';
-import { refundTraps } from '@/lib/game/traps';
 import { burrowUnderRaid, loadBurrowEdits, parseBurrowEdits } from '@/lib/game/burrowEdits';
 
 export async function GET(req: Request) {
@@ -107,8 +106,15 @@ export async function PUT(req: Request) {
           .where(and(eq(traps.ownerId, id), inArray(traps.tile, evicted)))
           .returning({ tile: traps.tile });
         bombsBack = rows.length;
+        // Every evicted bomb comes back, past the bag's ceiling if need be:
+        // the player did not choose to lift them, the edit pushed them off,
+        // and `refundTraps` (the lift's rule, capped) silently ate whatever
+        // did not fit. The planks above are returned the same way. The ceiling
+        // still stops NEW bombs — a purchase or a gift — from piling on.
         if (bombsBack) {
-          await tx.update(players).set(refundTraps(player, bombsBack)).where(eq(players.id, id));
+          await tx.update(players)
+            .set({ trapsOwned: raw`${players.trapsOwned} + ${bombsBack}` })
+            .where(eq(players.id, id));
         }
       }
     });

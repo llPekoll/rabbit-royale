@@ -5,7 +5,8 @@
  * "can I afford this?" and the tests. The numbers themselves all live in
  * config/tuning.ts — nothing here invents one.
  */
-import { BURROW, ENERGY, OUT_OF_RUN_ENERGY, regenPerHour, upgradeCost } from '../../../config/tuning';
+// Live views (src/lib/tuning/tables): a `tuning` row moves these within 30 s.
+import { BURROW, ENERGY, OUT_OF_RUN_ENERGY, regenPerHour, upgradeCost } from '../tuning/tables';
 import { capHoursFor, currentEnergy, gardenYield, type RegenRow, type TankRow } from './regen';
 import { gardenCapacity, yieldPerHour } from './garden-growth';
 import { gardenBoostView, type GardenBoostState, type GardenKind, type Holdings } from './inventory';

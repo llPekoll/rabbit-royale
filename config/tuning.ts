@@ -705,10 +705,17 @@ export const OUT_OF_RUN_ENERGY = {
   MAX: ENERGY.MAX,
 } as const;
 
-/** Energy the tank refills per hour at this burrow level (OUT_OF_RUN_ENERGY). */
-export function regenPerHour(level: number): number {
-  const steps = Math.max(0, Math.min(level, OUT_OF_RUN_ENERGY.REGEN_LEVEL_CAP) - 1);
-  return OUT_OF_RUN_ENERGY.REGEN_PER_HOUR + OUT_OF_RUN_ENERGY.REGEN_PER_LEVEL * steps;
+/**
+ * Energy the tank refills per hour at this burrow level (OUT_OF_RUN_ENERGY).
+ * `E` defaults to the file; the server passes the LIVE table
+ * (`src/lib/tuning/tables.ts`) so a `tuning` row moves it without a deploy.
+ */
+export function regenPerHour(
+  level: number,
+  E: { REGEN_PER_HOUR: number; REGEN_PER_LEVEL: number; REGEN_LEVEL_CAP: number } = OUT_OF_RUN_ENERGY,
+): number {
+  const steps = Math.max(0, Math.min(level, E.REGEN_LEVEL_CAP) - 1);
+  return E.REGEN_PER_HOUR + E.REGEN_PER_LEVEL * steps;
 }
 
 // ── Phase 5: raids & sabotage ────────────────────────────────────────────────
@@ -1005,7 +1012,10 @@ export const RAID_RUN = {
   /** Attacks on one victim per rolling window, so nobody is farmed. */
   COOLDOWN_MS: 60 * 60 * 1000,
   /**
-   * After being raided you cannot be raided again for this long.
+   * After a raid that TOOK carrots short of the field, you cannot be raided
+   * again for this long (one that reached the field raises
+   * RAID.BROKEN_SHIELD_MS). A raid that took nothing — settled at zero, or
+   * struck by the defender — raises no shield at all.
    *
    * The Clash of Clans shield, and the single most important anti-churn rule in
    * the game: without it a player who logs off rich is farmed to zero by
@@ -1390,10 +1400,15 @@ export function itemUsdcPrice(kind: keyof typeof SHOP.USDC_PRICES): number {
 
 /** How many of `kind` a player may hold at once. Energy is not held — it is
  *  applied on purchase — so it has no bag ceiling of its own. */
-export function itemCap(kind: keyof typeof SHOP.PRICES): number {
-  if (kind === 'trap') return TRAPS.MAX_HELD;
+export function itemCap(
+  kind: keyof typeof SHOP.PRICES,
+  // The live tables on the server (src/lib/tuning/tables.ts), the file's here.
+  T: { MAX_HELD: number } = TRAPS,
+  P: { MAX_PER_DAY: number } = ENERGY_PACK,
+): number {
+  if (kind === 'trap') return T.MAX_HELD;
   if (kind === 'fence') return FENCES.MAX_HELD;
-  if (kind === 'energy') return ENERGY_PACK.MAX_PER_DAY;
+  if (kind === 'energy') return P.MAX_PER_DAY;
   // Smoke is TIME, not a thing carried: the ceiling is how many days of screen
   // may be banked at once, so the shelf can say "2 of 3 days" like it says
   // "4 of 20 bombs".
@@ -1604,6 +1619,60 @@ export const CROWN = {
   LOOT_MULT: 1.5,
 } as const;
 
+/**
+ * THE SEASON PASS — one month, bought once, opened when WE decide.
+ *
+ * A pass season is an ordinary season with `seasons.pass_on` set. Nothing
+ * opens one by itself: `scripts/season-pass.ts open` closes the running season
+ * early (its standings are frozen as usual) and starts a fresh one of DAYS with
+ * the pass on sale. When it ends, the next season opens without a pass — the
+ * pass is an event, not a subscription.
+ *
+ * What it gives is TIME and STYLE, never power (the GDD's rule, and the
+ * deck's: "Players buy time, revenge and style"): a daily chest of the same
+ * items the shop sells, the gold ticket on the board, and a seat at the pot.
+ */
+export const PASS = {
+  /** Dollar price. Paid in USDC, SOL or SKR like every other purchase. */
+  PRICE_USD: 4.99,
+  /** Length of a pass season, in days, when `open` is not told otherwise. */
+  DAYS: 30,
+  /**
+   * The share of what the passes raised that goes back to the players.
+   * The other half is ours.
+   */
+  POT_SHARE: 0.5,
+  /**
+   * How the prize pool (POT_SHARE of the pot) is cut between the season's top
+   * ten PASS HOLDERS, by season score. 40 / 24 / 16 for the podium, then 20 %
+   * spread evenly over 4th-10th. Sums to 1.
+   *
+   * With fewer than ten ranked holders the same shares are normalised over
+   * whoever is there, so the whole prize pool is always paid out.
+   */
+  PAYOUT_SHARES: [0.40, 0.24, 0.16, 0.2 / 7, 0.2 / 7, 0.2 / 7, 0.2 / 7, 0.2 / 7, 0.2 / 7, 0.2 / 7],
+  /**
+   * The daily chest, claimed once per UTC day while the pass is active.
+   * `energy` is a number of full refills; it does NOT eat the paid refill
+   * window (ENERGY_PACK.MAX_PER_DAY).
+   */
+  DAILY: { energy: 1, trap: 1, bloop: 1 },
+  /**
+   * No sale in the season's last stretch: a quote lives INTENT_TTL_MS, and a
+   * pass paid after the season closed would buy a seat at a pot already
+   * paid out.
+   */
+  SALE_CUTOFF_MS: 60 * 60 * 1000,
+} as const;
+
+/** The prize for rank `i` (0-based) among `n` ranked holders, as a share of the prize pool. */
+export function passPayoutShare(i: number, n: number): number {
+  const shares = PASS.PAYOUT_SHARES.slice(0, Math.min(n, PASS.PAYOUT_SHARES.length));
+  if (i < 0 || i >= shares.length) return 0;
+  const total = shares.reduce((a, b) => a + b, 0);
+  return shares[i] / total;
+}
+
 // ── Onboarding: the first island and the first-week quests ───────────────────
 
 /**
@@ -1709,7 +1778,11 @@ export function tierFor(lifetimeCarrots: number): IslandTier {
   return tier;
 }
 
-/** Carrot cost to upgrade a burrow from `level` to `level + 1`. */
-export function upgradeCost(level: number): number {
-  return Math.round(BURROW.UPGRADE_BASE_COST * BURROW.UPGRADE_GROWTH ** (level - 1));
+/** Carrot cost to upgrade a burrow from `level` to `level + 1`. `B` as in
+ *  `regenPerHour`: the file by default, the live table on the server. */
+export function upgradeCost(
+  level: number,
+  B: { UPGRADE_BASE_COST: number; UPGRADE_GROWTH: number } = BURROW,
+): number {
+  return Math.round(B.UPGRADE_BASE_COST * B.UPGRADE_GROWTH ** (level - 1));
 }

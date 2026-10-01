@@ -400,10 +400,11 @@ raison d'être, pas une entorse. Elles portent leur propre `note` et leur
 `updated_at`, donc elles se documentent seules :
 
 ```sql
-update tuning set value = 199, note = 'promo week-end' where key = 'SHOP.PRICES.bomb';
+update tuning set value = 120, note = 'promo week-end', seeded = false where key = 'SHOP.PRICES.trap';
 ```
 
-Effet en 30 s, sans redéploiement, donc sans tuer les parties en cours. Ce qui
+Effet en 30 s, sans redéploiement, donc sans tuer les parties en cours (le
+client Godot suit à sa prochaine relecture du terrier, une minute au plus). Ce qui
 est surchargeable et dans quelles bornes est déclaré dans
 `config/overridable.ts` ; une valeur hors bornes est refusée et le jeu retombe
 sur `config/tuning.ts`.
@@ -492,3 +493,41 @@ Registre de prod : 25 → 26 (la ligne de trop d'avant 0023 est toujours là) ;
 le hash de 0024 était absent avant d'écrire. `push_state`, `push_tokens`,
 `raid_runs.pushed_incoming_at` et `pushed_result_at` présents après.
 `FIREBASE_SERVICE_ACCOUNT` posé sur rr-ws dans Coolify le même jour.
+
+### 2026-10-01 — `0025_season_pass` : le pass de saison
+
+`season_pass` dans l'enum `item_kind`, deux tables (`season_passes` : les
+places et ce que chacune a versé au pot ; `pass_payouts` : ce que le top 10
+touche à la clôture) et `seasons.pass_on`. Passé en une transaction, **avant**
+le push du code : toute lecture de `seasons` (classement, saison courante,
+clôture) sélectionne toutes ses colonnes, et le nouveau code sur l'ancienne
+table aurait cassé le classement.
+
+```sql
+BEGIN;
+-- le contenu de drizzle/0025_season_pass.sql, tel quel
+INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
+SELECT '8bec552b6927b5895fd931fef0b3089e23f584b4568a7547598319dbcec8b364', 1790778171182
+WHERE NOT EXISTS (SELECT 1 FROM drizzle.__drizzle_migrations WHERE hash = '8bec552b…');
+COMMIT;
+```
+
+Registre de prod : 26 → 27 (la ligne de trop d'avant 0023 est toujours là) ;
+le hash de 0025 était absent avant d'écrire. `seasons.pass_on` (faux sur les
+2 saisons), `season_passes`, `pass_payouts` et la valeur d'enum présents après.
+Aucune saison à pass ouverte : `scripts/season-pass.ts open` reste à lancer.
+
+### 2026-10-01 — `tuning` nettoyée, reçus SOL/SKR remis en dollars
+
+Avant le push qui branche les 42 clés en live, `tuning` en prod a été
+comparée au fichier : les valeurs actives étaient identiques (STAKE déjà à 69,
+aucune ligne `seeded = false`). Supprimées : les 5 lignes mortes
+(`ENERGY.RUN_COST`, `SHOP.*.mirage`, `TRAPS.CARROT_COST`, `TRAPS.DOORSTEP`) ;
+ajoutée : `PASS.PRICE_USD = 4.99`. 42 lignes après, comme le registre.
+
+Dans la même transaction, les 5 reçus payés en SOL (4) et SKR (1) écrits
+avec `cost` en unités du rail (lamports) sous `currency = 'usdc'` ont été
+convertis en micro-dollars au cours figé de leur paiement :
+`cost = amount / 10^decimales × usd_price × 10^6`. Après : SOL 2,48 $,
+SKR 0,10 $, USDC 0,10 $. Le code écrit désormais le reçu ainsi
+(`paidUsdcUnits`, src/lib/game/grant.ts).
