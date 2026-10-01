@@ -41,9 +41,8 @@ extends Control
 ##     boite — c'est la barre qui pose la pastille, et une secousse qui ecrit
 ##     dans `position` se bat avec elle.
 
-## Un tap sur l'anneau ouvre le panneau d'energie ; un tap sur le chiffre
-## ouvre la boutique (« the [+] is where you go when the number beside it is
-## too small for what you wanted to buy »).
+## Un tap sur l'anneau, un tap sur le chiffre : la barre (chrome.gd) envoie
+## les deux au meme panneau d'energie.
 signal energy_tapped
 signal add_pressed
 

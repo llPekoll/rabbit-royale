@@ -112,8 +112,11 @@ func _exit_tree() -> void:
 ## tampons. Les pieces d'un lieu sont a part, dans `_mount_place`.
 func _mount() -> void:
 	# LA BARRE DU HAUT : le joueur, la pastille, le rail. Chaque bouton ouvre
-	# son dialogue ; la pastille ouvre le grand livre du reservoir, et son +
-	# la recharge (energy-panel.tsx / carrot-pill.tsx).
+	# son dialogue ; la pastille, OU QU'ON LA TAPE, ouvre le grand livre du
+	# reservoir (energy-panel.tsx), dont le bouton vert mene a la recharge.
+	# L'anneau ouvrait le livre et le chiffre la recharge : deux panneaux
+	# pour une seule plaque, et on ne savait pas lequel viendrait
+	# (2026-10-01).
 	var bar: TopBar = preload("res://scenes/ui/top_bar.tscn").instantiate()
 	top_bar.add_child(bar)
 	bar.profile_pressed.connect(func() -> void: Profile.open())
@@ -122,7 +125,7 @@ func _mount() -> void:
 	bar.season_pressed.connect(_open_season)
 	_wire_bag()
 	bar.energy_tapped.connect(func() -> void: EnergyPanel.open())
-	bar.add_pressed.connect(func() -> void: EnergyPopup.open())
+	bar.add_pressed.connect(func() -> void: EnergyPanel.open())
 
 	# L'ATTENTE DU SERVEUR, en bas a droite : une petite carotte qui se
 	# remplit tant qu'une ecriture est en route (Net.busy_changed).
