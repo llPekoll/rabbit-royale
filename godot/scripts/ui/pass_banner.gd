@@ -22,6 +22,37 @@ const SUB := Color("#6c3e22")
 const READY := Color("#2f5d1e")
 const SOON_BG := Color("#6c3e22")
 
+## LE MEME CADRE POUR LA FENETRE DU PASS (pass_dialog.gd), sans l'etoile ni
+## le chevron : ses rails et ses coins, a l'echelle des pixels de la banniere
+## — les rails s'ALLONGENT (ce sont des traits droits), rien ne grossit. Le
+## centre de la source, ou se tiennent l'etoile et le chevron, est repeint de
+## l'or uni du plateau ; coupe a 32 de chaque cote, ce qui garde les coins.
+const PLATE_SLICE := Vector4i(32, 32, 32, 32)
+const PLATE_GOLD := Color8(250, 227, 141)
+static var _plate: Texture2D
+
+
+static func plate_texture() -> Texture2D:
+	if _plate != null:
+		return _plate
+	var img := FRAME.get_image()
+	img.decompress()
+	# L'interieur du cadre (rails de 13 px, ombre du bas de 15) moins les
+	# coins : le grand milieu, puis les bandes laterales entre les coins.
+	img.fill_rect(Rect2i(32, 13, img.get_width() - 64, img.get_height() - 28), PLATE_GOLD)
+	img.fill_rect(Rect2i(13, 32, 19, img.get_height() - 64), PLATE_GOLD)
+	img.fill_rect(Rect2i(img.get_width() - 32, 32, 19, img.get_height() - 64), PLATE_GOLD)
+	_plate = ImageTexture.create_from_image(img)
+	return _plate
+
+
+## L'echelle d'un pixel du cadre a l'ecran, celle de la banniere a cette
+## hauteur de vue : la fenetre la reprend pour que les deux cadres aient les
+## memes pixels.
+static func pixel_scale(view_h: float) -> float:
+	return clampf(view_h * 0.13, 52.0, 70.0) / TEX_H
+
+
 var _frame: NineSlice
 var _title: Label
 var _sub: Label
@@ -87,7 +118,7 @@ func _ready() -> void:
 ## LA HAUTEUR SUIT L'ECRAN, comme les cartes : 48 sur le Seeker couche,
 ## jusqu'a 66 sur un grand bureau. La largeur est celle de la colonne.
 func _measure() -> void:
-	var h := clampf(get_viewport_rect().size.y * 0.13, 52.0, 70.0)
+	var h := pixel_scale(get_viewport_rect().size.y) * TEX_H
 	custom_minimum_size = Vector2(0.0, h)
 	update_minimum_size()
 	_place()

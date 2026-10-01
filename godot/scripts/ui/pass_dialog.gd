@@ -37,6 +37,10 @@ var _right: VBoxContainer
 
 func _init() -> void:
 	super(I18N.t("pass.title"), WIDTH, HEIGHT)
+	# LE CADRE DE LA BANNIERE (pass_banner.gd) : la fenetre est la banniere
+	# ouverte, pas un parchemin de plus. Ses pixels a l'echelle se posent dans
+	# `_ready`, quand la vue est connue.
+	reframe(PassBanner.plate_texture(), PassBanner.PLATE_SLICE, Vector4(PassBanner.PLATE_SLICE) * PassBanner.pixel_scale(400.0))
 	# PLEIN ECRAN SUR LE SEEKER, a sa taille sur un bureau : `hug_size` dit
 	# ce que le contenu veut, et screen_rect ne resserre que si ca tient.
 	go_fullscreen()
@@ -57,6 +61,9 @@ static func open() -> PassDialog:
 
 func _ready() -> void:
 	Analytics.track("pass_open")
+	# Les memes pixels que la banniere a cette hauteur de vue.
+	var k := PassBanner.pixel_scale(get_viewport_rect().size.y)
+	reframe(PassBanner.plate_texture(), PassBanner.PLATE_SLICE, Vector4(PassBanner.PLATE_SLICE) * k)
 	_state = PassState.shared()
 	_shop = ShopState.shared()
 	_pay = Shop.UsdcPay.new()

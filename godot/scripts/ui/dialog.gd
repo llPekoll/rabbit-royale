@@ -137,6 +137,26 @@ func _place_close() -> void:
 ## meme papier — mais son cadre est pousse HORS de l'ecran de l'epaisseur de
 ## ses feuilles, et le corps prend la vue entiere. A appeler dans `_init`,
 ## avant l'entree dans l'arbre ; le chrome lit `fullscreen` pour le placer.
+## UN AUTRE CADRE que le parchemin a feuilles : la texture, ses coupes et
+## ses bords a l'ecran. En plein ecran le cadre deborde de ses bords, comme
+## les feuilles (`go_fullscreen`).
+func reframe(tex: Texture2D, slice: Vector4i, edge: Vector4) -> void:
+	_frame.texture = tex
+	_frame.slice = slice
+	_frame.edge = edge
+	_frame.fill = true
+	if fullscreen:
+		_frame.offset_left = -edge.x
+		_frame.offset_top = -edge.y
+		_frame.offset_right = edge.z
+		_frame.offset_bottom = edge.w
+		return
+	_inset.add_theme_constant_override("margin_left", int(edge.x + Kit.PAD))
+	_inset.add_theme_constant_override("margin_top", int(edge.y + Kit.PAD))
+	_inset.add_theme_constant_override("margin_right", int(edge.z + Kit.PAD))
+	_inset.add_theme_constant_override("margin_bottom", int(edge.w + Kit.PAD))
+
+
 func go_fullscreen() -> void:
 	fullscreen = true
 	var edge := _frame.inset()
