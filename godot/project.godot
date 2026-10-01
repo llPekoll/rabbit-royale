@@ -17,7 +17,7 @@ config/features=PackedStringArray("4.7", "GL Compatibility")
 boot_splash/bg_color=Color(0.050980393, 0.06666667, 0.09019608, 1)
 boot_splash/stretch_mode=0
 boot_splash/use_filter=false
-boot_splash/image="res://assets/ui/icon-512.png"
+boot_splash/image="res://assets/ui/icon-192.png"
 config/icon="res://assets/ui/icon-512.png"
 config/macos_native_icon="res://assets/ui/icon.icns"
 
@@ -44,6 +44,8 @@ settings/gdscript/always_track_call_stacks=true
 
 window/size/viewport_width=890
 window/size/viewport_height=400
+window/size/window_width_override=1280
+window/size/window_height_override=720
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 
