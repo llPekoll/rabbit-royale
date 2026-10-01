@@ -37,7 +37,7 @@ SEA = (120, 214, 255)
 
 
 def run(cmd: list[str]) -> None:
-    subprocess.run(cmd, check=True)
+    subprocess.run(cmd, check=True, cwd=ROOT)
 
 
 def marks() -> dict[str, list[float]]:
@@ -86,31 +86,20 @@ def caption(name: str, title: str, line: str, ink=GOLD, top: bool = False, corne
 
 
 def end_card(seconds: float) -> Path:
-    """La carte de fin : le logo, la phrase, ou jouer."""
-    img = Image.new("RGB", (W, H), (10, 22, 34))
-    glow = Image.new("RGB", (W, H), (0, 0, 0))
-    ImageDraw.Draw(glow).ellipse((W * 0.2, -H * 0.3, W * 0.8, H * 0.9), fill=(26, 70, 96))
-    img = Image.blend(img, glow.filter(ImageFilter.GaussianBlur(160)), 0.7)
-    logo = Image.open(ROOT / "public/assets/ui/rr-logo-banner.png").convert("RGBA")
-    logo = logo.resize((logo.width * 4, logo.height * 4), Image.NEAREST)
-    img.paste(logo, ((W - logo.width) // 2, 250), logo)
-    d = ImageDraw.Draw(img)
-    for text, font, ink, y in [
-        ("Competitive minesweeper with rabbits.", ImageFont.truetype(LILITA, 104), CREAM, 640),
-        ("Dig, grow your burrow, raid the neighbours.", ImageFont.truetype(AVENIR, 60, index=DEMI), SEA, 790),
-        ("rabbit.rip  ·  on Seeker", ImageFont.truetype(LILITA, 84), GOLD, 960),
-    ]:
-        tw = d.textlength(text, font=font)
-        d.text(((W - tw) / 2, y + 6), text, font=font, fill=(0, 0, 0))
-        d.text(((W - tw) / 2, y), text, font=font, fill=ink)
-    png = WORK / "end.png"
-    img.save(png)
+    """La carte de fin de l'ep01, a la largeur du film : le telephone Seeker
+    qui monte, SOON ON Seeker, Follow, Indies on Solana ; un carillon (le
+    user, 2026-10-01 : « plutot mettre la fin de l'episode 1 »)."""
+    frames = WORK / "end"
+    run(["python3", "episodes/ep01-carotte-bombe/cards.py", "end", str(frames), str(seconds), f"{W}x{H}"])
     out = WORK / "seg-99-end.mp4"
-    run(["ffmpeg", "-nostdin", "-v", "error", "-y", "-loop", "1", "-t", str(seconds), "-i", str(png),
-         "-f", "lavfi", "-t", str(seconds), "-i", "anullsrc=r=48000:cl=stereo",
-         "-vf", f"fade=t=in:d=0.5,fade=t=out:st={seconds - 0.6}:d=0.6,format=yuv420p",
-         "-r", str(FPS), "-c:v", "libx264", "-crf", "17", "-c:a", "aac", "-b:a", "192k",
-         "-shortest", str(out)])
+    run(["ffmpeg", "-nostdin", "-v", "error", "-y", "-framerate", str(FPS), "-i", str(frames / "end%03d.png"),
+         "-i", str(ROOT / "godot/assets/sound/chime.mp3"),
+         # En pleine plage comme les plans du jeu : sinon la concatenation
+         # lit son noir en gris (16,16,16).
+         "-filter_complex", f"[0:v]scale=out_range=full:out_color_matrix=bt601,format=yuvj420p,setsar=1[v];"
+         f"[1:a]volume=8dB,adelay=150|150,apad,atrim=0:{seconds},aresample=48000,aformat=channel_layouts=stereo[a]",
+         "-map", "[v]", "-map", "[a]", "-t", str(seconds), "-color_range", "pc", "-colorspace", "bt470bg",
+         "-r", str(FPS), "-c:v", "libx264", "-crf", "17", "-c:a", "aac", "-b:a", "192k", str(out)])
     return out
 
 
@@ -224,7 +213,7 @@ def main() -> None:
         (caption("defend", "DEFEND", "Someone's in your burrow. Bury bombs in their path.", RED, corner=True, y=450), 0.8, 7.5),
         (caption("strike", "STRIKE BACK", "Tap the raider: lightning.", GOLD, corner=True, y=450), 7.7, 12.2),
     ], **pvp))
-    segs.append(end_card(4.5))
+    segs.append(end_card(5.0))
 
     listing = WORK / "list.txt"
     listing.write_text("".join(f"file '{p}'\n" for p in segs))

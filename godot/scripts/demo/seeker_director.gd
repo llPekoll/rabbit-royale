@@ -29,16 +29,24 @@ var _main: Node
 var _clock := 0.0
 ## Le dossier de l'oracle (`-- --oracle=<dossier>`).
 var _oracle := ""
+## `-- --no-music` : le bus Music muet, les bruitages seuls. Le montage pose
+## une seule musique sous tout le film ; celle du jeu sautait a chaque coupe.
+var _no_music := false
 
 
 func _process(delta: float) -> void:
 	_clock += delta
+	# A chaque image : AudioSettings.restore() reecrit les bus au demarrage.
+	if _no_music:
+		AudioServer.set_bus_mute(AudioServer.get_bus_index("Music"), true)
 
 
 func _ready() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--oracle="):
 			_oracle = arg.trim_prefix("--oracle=")
+		elif arg == "--no-music":
+			_no_music = true
 	_main = preload("res://scenes/main.tscn").instantiate()
 	add_child(_main)
 	_hand = BenchHand.new()

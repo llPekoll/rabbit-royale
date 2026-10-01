@@ -4,6 +4,8 @@
 # 1780x800 puis agrandi a 2670x1200 au montage.
 #   marketing/seeker.sh [secondes]          (defaut 150)
 # Sort marketing/out/seeker/raw/game.mp4 et game.log (les reperes [film]).
+#   RAW=marketing/out/x/raw NOMUSIC=1 marketing/seeker.sh   (le preview X :
+#   bruitages seuls, la musique est posee au montage)
 #
 # Il faut un rr-ws LOCAL avec la scene : RR_STAGE=1 WS_PORT=3012 (lance ici
 # s'il ne tourne pas) et la base locale. Un invite neuf, un user:// neuf
@@ -13,7 +15,7 @@ cd "$(dirname "$0")/.."
 
 GODOT=${GODOT:-/Applications/Godot.app/Contents/MacOS/Godot}
 SECS=${1:-150}
-OUT=marketing/out/seeker/raw
+OUT=${RAW:-marketing/out/seeker/raw}
 ORACLE=$(mktemp -d -t rr-oracle)
 mkdir -p "$OUT"
 
@@ -46,7 +48,7 @@ sleep 2
 avi=$(mktemp -t seeker).avi
 "$GODOT" --path godot --write-movie "$avi" --fixed-fps 30 --quit-after $((SECS * 30)) \
   scenes/demo/seeker_film.tscn -- --server=http://localhost:3012 --token=film --doorstep \
-  --oracle="$ORACLE" > "$OUT/game.log" 2>&1 || true
+  --oracle="$ORACLE" ${NOMUSIC:+--no-music} > "$OUT/game.log" 2>&1 || true
 grep -E "\[film\]|SCRIPT ERROR" "$OUT/game.log" || true
 ffmpeg -nostdin -v error -y -i "$avi" -c:v libx264 -crf 16 -preset slow -pix_fmt yuv420p \
   -c:a aac -b:a 192k "$OUT/game.mp4"

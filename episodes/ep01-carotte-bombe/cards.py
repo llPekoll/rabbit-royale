@@ -1,7 +1,8 @@
 """Images du montage de l'ep01 : l'iris en crane de lapin et la carte de fin.
 
     python3 cards.py iris <dossier> <images>      # masques, blanc = on voit
-    python3 cards.py end  <dossier> <secondes>    # la carte de fin, image par image
+    python3 cards.py end  <dossier> <secondes> [LxH]  # la carte de fin, image par image
+                                                       # (LxH : la video Seeker la prend en 2670x1200)
 
 Lance depuis la racine du repo (montage.sh le fait).
 """
@@ -31,7 +32,7 @@ def ease_out(t: float) -> float:
 
 def rabbit_silhouette(holes: bool = True) -> Image.Image:
     """Le crane de lapin de Rabbit Royale (l'icone RR-Skull), en masque."""
-    skull = Image.open("public/assets/bunnies/RR-Skull.png").convert("RGBA")
+    skull = Image.open("episodes/ep01-carotte-bombe/RR-Skull.png").convert("RGBA")
     mask = Image.new("L", skull.size, 0)
     px, out = skull.load(), mask.load()
     for y in range(skull.height):
@@ -100,60 +101,65 @@ def with_alpha(img: Image.Image, a: float) -> Image.Image:
     return out
 
 
-def end(folder: Path, seconds: float) -> None:
+def end(folder: Path, seconds: float, w: int = W, h: int = W) -> None:
+    """La carte du carre 960, a l'echelle de la hauteur `h` et centree dans `w` :
+    plus large, elle garde sa composition, le noir s'etend sur les cotes."""
+    k = h / W
+    px = lambda v: round(v * k)
+    dx = (w - px(W)) // 2  # le carre, centre dans la largeur
     logo = Image.open("godot/assets/ui/rr-logo-1x.webp").convert("RGBA")
-    logo = logo.resize((logo.width * 2, logo.height * 2), Image.NEAREST)
-    seeker = fit_h(Image.open(REFS / "solana-logo.png").convert("RGBA"), 76)  # le mot « Seeker »
-    ios = fit_h(Image.open(REFS / "indies-on-solana.png").convert("RGBA"), 62)
+    logo = logo.resize((px(logo.width * 2), px(logo.height * 2)), Image.NEAREST)
+    seeker = fit_h(Image.open(REFS / "solana-logo.png").convert("RGBA"), px(76))  # le mot « Seeker »
+    ios = fit_h(Image.open(REFS / "indies-on-solana.png").convert("RGBA"), px(62))
     phone = Image.open(REFS / "seeker-photo.png").convert("RGBA")
-    phone = phone.resize((1180, round(phone.height * 1180 / phone.width)), Image.LANCZOS)
-    love = heart(42)
+    phone = phone.resize((px(1180), round(phone.height * px(1180) / phone.width)), Image.LANCZOS)
+    love = heart(px(42))
 
     # Le bas assombri : le texte « made with » passe sur le corps du telephone.
-    shade = Image.new("RGBA", (W, 240))
-    for y in range(240):
-        ImageDraw.Draw(shade).line([(0, y), (W, y)], fill=(0, 0, 0, round(235 * min(1, y / 150))))
+    shade = Image.new("RGBA", (w, px(240)))
+    for y in range(px(240)):
+        ImageDraw.Draw(shade).line([(0, y), (w, y)], fill=(0, 0, 0, round(235 * min(1, y / px(150)))))
 
     n = round(seconds * FPS)
     for i in range(n):
         t = i / FPS
-        f = Image.new("RGBA", (W, W), (0, 0, 0, 255))
+        f = Image.new("RGBA", (w, h), (0, 0, 0, 255))
         # LE TELEPHONE monte doucement pendant toute la carte.
         rise = ease_out(min(1, t / seconds))
-        f.alpha_composite(with_alpha(phone, min(1, t / 0.5)), (-150, round(640 - 190 * rise)))
-        f.alpha_composite(shade, (0, W - 240))
+        f.alpha_composite(with_alpha(phone, min(1, t / 0.5)), (dx + px(-150), px(640 - 190 * rise)))
+        f.alpha_composite(shade, (0, h - px(240)))
         a = min(1, t / 0.35)
-        f.alpha_composite(with_alpha(logo, a), ((W - logo.width) // 2, 70))
-        text = Image.new("RGBA", (W, W))
+        f.alpha_composite(with_alpha(logo, a), ((w - logo.width) // 2, px(70)))
+        text = Image.new("RGBA", (w, h))
         d = ImageDraw.Draw(text)
         white = (255, 255, 255, round(255 * a))
-        soon = avenir(40, HEAVY)
+        soon = avenir(px(40), HEAVY)
         tw = d.textlength("SOON ON", font=soon)
-        d.text(((W - tw) / 2, 312), "SOON ON", font=soon, fill=white)
-        f.alpha_composite(with_alpha(seeker, a), ((W - seeker.width) // 2, 368))
-        by = avenir(24, MEDIUM)
+        d.text(((w - tw) / 2, px(312)), "SOON ON", font=soon, fill=white)
+        f.alpha_composite(with_alpha(seeker, a), ((w - seeker.width) // 2, px(368)))
+        by = avenir(px(24), MEDIUM)
         tw = d.textlength("by Solana Mobile", font=by)
-        d.text(((W - tw) / 2, 456), "by Solana Mobile", font=by, fill=(200, 200, 200, round(255 * a)))
+        d.text(((w - tw) / 2, px(456)), "by Solana Mobile", font=by, fill=(200, 200, 200, round(255 * a)))
         # EN BAS : made with <coeur> and Indies on Solana.
         b = min(1, max(0, (t - 0.4) / 0.4))
         # LE CTA : du texte seul, juste au-dessus de « made with ».
         c = min(1, max(0, (t - 0.7) / 0.3))
-        cta = avenir(38, HEAVY)
+        cta = avenir(px(38), HEAVY)
         label = "Follow @RabbitRoyaleX"
         cw = d.textlength(label, font=cta)
-        d.text(((W - cw) / 2, 790), label, font=cta, fill=(255, 255, 255, round(255 * c)))
-        made = avenir(34, MEDIUM)
+        d.text(((w - cw) / 2, px(790)), label, font=cta, fill=(255, 255, 255, round(255 * c)))
+        made = avenir(px(34), MEDIUM)
         mw = d.textlength("Made with", font=made)
         aw = d.textlength("and", font=made)
-        gap = 14
+        gap = px(14)
         total = mw + gap + love.width + gap + aw + gap + ios.width
-        x = (W - total) / 2
-        y = 866
-        d.text((x, y + 10), "Made with", font=made, fill=(255, 255, 255, round(255 * b)))
+        x = (w - total) / 2
+        y = px(866)
+        d.text((x, y + px(10)), "Made with", font=made, fill=(255, 255, 255, round(255 * b)))
         x += mw + gap
-        f.alpha_composite(with_alpha(love, b), (round(x), y + 12))
+        f.alpha_composite(with_alpha(love, b), (round(x), y + px(12)))
         x += love.width + gap
-        d.text((x, y + 10), "and", font=made, fill=(255, 255, 255, round(255 * b)))
+        d.text((x, y + px(10)), "and", font=made, fill=(255, 255, 255, round(255 * b)))
         x += aw + gap
         f.alpha_composite(with_alpha(ios, b), (round(x), y))
         f.alpha_composite(text)
@@ -166,4 +172,5 @@ if __name__ == "__main__":
     if what == "iris":
         iris(folder, int(amount))
     else:
-        end(folder, float(amount))
+        size = [int(v) for v in sys.argv[4].split("x")] if len(sys.argv) > 4 else [W, W]
+        end(folder, float(amount), *size)
