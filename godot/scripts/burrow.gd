@@ -1552,11 +1552,17 @@ const LIFT_BOB := 3.0
 const LIFT_BOB_SECONDS := 0.55
 const LIFT_GLOW := Color(1.18, 1.15, 1.04)
 const GHOST_ALPHA := 0.35
+## LA CHOSE TENUE PASSE AU-DESSUS DE TOUT LE SOL : elle garde sinon la
+## profondeur de sa case d'origine (Iso.depth), et portee vers l'avant elle
+## glissait SOUS les blocs dessines apres elle. Absolu, juste sous les
+## carottes qui volent (BurrowProps.FLY_Z) ; son ombre juste en dessous.
+const LIFT_Z := BurrowProps.FLY_Z - 10
 const OUTLINE := preload("res://shaders/pixel_outline.gdshader")
 ## Un materiau par epaisseur : les arbres partagent le leur.
 static var _outline_mats: Dictionary = {}
 
-## `[noeud, position d'origine]` (dans `_lifted`), et ce qui les accompagne.
+## `[noeud, position d'origine, z_index, z_as_relative]` (dans `_lifted`), et
+## ce qui les accompagne.
 var _lift_fx: Array[Node] = []
 var _shadows: Array = []
 var _ghosts: Array = []
@@ -1589,16 +1595,17 @@ func _lift() -> void:
 		if not (n is Node2D) or not is_instance_valid(n):
 			continue
 		var node := n as Node2D
-		_lifted.append([node, node.position])
+		_lifted.append([node, node.position, node.z_index, node.z_as_relative])
 		node.modulate = LIFT_GLOW
 		node.material = _outline_for(node)
 		if not solid:
+			_raise(node, LIFT_Z)
 			continue
 		# L'OMBRE, au sol sous la chose, dessinee avant elle dans son bloc.
 		var shadow := LiftShadow.new()
 		shadow.radius = LiftShadow.HOUSE_RX if _arrange.held == BurrowArrange.Held.HOUSE else LiftShadow.THING_RX
 		shadow.position = node.position
-		shadow.z_index = node.z_index
+		_raise(shadow, LIFT_Z - 1)
 		node.get_parent().add_child(shadow)
 		node.get_parent().move_child(shadow, node.get_index())
 		_shadows.append(shadow)
@@ -1614,6 +1621,7 @@ func _lift() -> void:
 		node.get_parent().move_child(ghost, node.get_index())
 		_ghosts.append(ghost)
 		_lift_fx.append(ghost)
+		_raise(node, LIFT_Z)
 	_carry = Vector2.ZERO
 	_rise = 0.0
 	_bob = 0.0
@@ -1621,6 +1629,11 @@ func _lift() -> void:
 	_lift_tween.tween_method(_set_rise, 0.0, LIFT_PX, 0.12) \
 		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_lift_tween.tween_callback(_start_bob)
+
+
+func _raise(node: CanvasItem, z: int) -> void:
+	node.z_as_relative = false
+	node.z_index = z
 
 
 func _start_bob() -> void:
@@ -1683,6 +1696,8 @@ func _unlift() -> void:
 		var n: Node2D = pair[0]
 		if is_instance_valid(n):
 			n.position = pair[1]
+			n.z_index = pair[2]
+			n.z_as_relative = pair[3]
 			n.modulate = Color.WHITE
 			n.material = null
 	_lifted.clear()
