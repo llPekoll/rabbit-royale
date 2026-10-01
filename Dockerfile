@@ -71,13 +71,12 @@ RUN cp godot/web/firebase-config.js godot/web/firebase-messaging-sw.js dist/web/
 
 # Nginx sert les fichiers : ni Node ni Bun ne tournent en production ici.
 FROM nginx:alpine AS runtime
-# Les icones, le manifeste et le service worker du site restent : un joueur
-# qui avait installe la PWA garde son sw.js (reseau d'abord, rien en cache sauf
-# la page hors ligne). `assets/` etait l'art du client Pixi : il reste dehors.
-COPY public /usr/share/nginx/html
-RUN rm -rf /usr/share/nginx/html/assets /usr/share/nginx/html/.gitkeep
 COPY --from=build /app/dist/web /usr/share/nginx/html
 # La page d'accueil, a la racine : du HTML statique et son art, sans build.
+# Elle porte aussi les icones, le manifeste et le service worker de l'ancien
+# public/ (2026-10-01) : un joueur qui avait installe la PWA garde son sw.js
+# (reseau d'abord, rien en cache sauf la page hors ligne). Le client Pixi et
+# son art ont ete retires du repo (zip hors repo, et l'historique git).
 COPY landing /usr/share/nginx/html
 # `templates/*.template` : l'entrypoint de l'image nginx y substitue les
 # variables d'environnement au demarrage et ecrit le resultat dans conf.d.
