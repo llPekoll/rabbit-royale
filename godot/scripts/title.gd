@@ -12,9 +12,12 @@ extends Control
 ##   • UNE SEULE LIGNE COMMANDE LA MISE EN PAGE : `--rr-doorstep`, a 206px sur
 ##     le Seeker. Le masthead finit dessus, la colonne commence dessus. Ils se
 ##     touchent sans que personne n'ait a les accorder.
-##   • L'EMBLEME EST EN MULTIPLES ENTIERS de son 96x106, jamais un pourcentage :
-##     a une echelle fractionnaire, certains pixels source tombent sur deux
-##     pixels d'ecran et le biseau s'epaissit sur une lettre et pas la suivante.
+##   • L'EMBLEME REMPLIT LE HAUT, en pixels d'ECRAN entiers : chaque pixel
+##     source couvre le meme nombre de pixels physiques, sinon le biseau
+##     s'epaissit sur une lettre et pas la suivante. Les multiples entiers du
+##     web (1x, 2x, 3x) ne le garantissaient plus ici — le Seeker etire la
+##     page de 890x400 par un facteur qui n'est jamais entier — et laissaient
+##     l'embleme a 1x dans un masthead trois fois plus haut.
 ##   • LA PORTE D'ENTREE EST DOREE ET PLUS HAUTE. Les deux boutons etaient la
 ##     meme planche brune a la meme taille, et rien ne disait lequel presser.
 ##   • LES CONSEILS, PAS LES SLOGANS. La planche du bas-droit apprend a jouer —
@@ -30,10 +33,11 @@ const LOGO_H := 106
 ## que l'embleme pour rester colle au parchemin a tous les crans.
 const RIBBON_CELL := 4
 
-## Trois au maximum, et jamais plus de 34% de la hauteur : au-dela l'embleme
-## mange l'illustration au lieu de la titrer.
-const MAX_SCALE := 3
-const MAX_VH := 0.34
+## L'air au-dessus de l'embleme, et sous lui (les 14px du web).
+const LOGO_TOP := 12.0
+const LOGO_BOTTOM := 14.0
+## Un changement de taille glisse au lieu de sauter.
+const LOGO_EASE := 0.25
 
 ## La ligne qui separe le titre de la demande. `min(67vh, 100vh - 170 - 24)`.
 const MENU_RESERVE := 170.0
@@ -85,7 +89,8 @@ var _carrot: CarrotLoader
 var _restoring := false
 
 var _phrase := ""
-var _scale := 1
+var _logo_box := Vector2.ZERO
+var _logo_tween: Tween
 var _tip_timer: Timer
 
 
@@ -218,27 +223,21 @@ func _measure() -> void:
 	_ask.offset_right = column
 	_ask.offset_bottom = view.y
 
-	# L'embleme au plus grand multiple ENTIER qui tienne — borne par la largeur
-	# de la colonne ET par la hauteur qu'on lui concede.
-	var by_width := int(column / float(LOGO_W))
-	var by_height := int((view.y * MAX_VH) / float(LOGO_H))
-	_scale = maxi(1, mini(MAX_SCALE, mini(by_width, by_height)))
-
-	var box := Vector2(LOGO_W * _scale, LOGO_H * _scale)
-	_logo_stack.custom_minimum_size = box
-	_logo_stack.offset_left = -box.x * 0.5
-	_logo_stack.offset_right = box.x * 0.5
-	# Colle en bas de la boite du masthead, moins les 14px du web.
-	_logo_stack.offset_top = -box.y - 14.0
-	_logo_stack.offset_bottom = -14.0
-
-	# Le ruban en pourcentages de l'embleme, pour rester colle au parchemin a
-	# 1x comme a 3x.
-	_ribbon.offset_left = 17.0 / LOGO_W * box.x
-	_ribbon.offset_right = 79.0 / LOGO_W * box.x
-	_ribbon.offset_top = 93.0 / LOGO_H * box.y
-	_ribbon.offset_bottom = 98.0 / LOGO_H * box.y
-	_ribbon.add_theme_font_size_override("font_size", RIBBON_CELL * _scale)
+	# L'embleme au plus grand qui tienne dans le masthead — borne par la
+	# largeur de la colonne ET par la hauteur au-dessus du doorstep — puis
+	# arrondi pour qu'un pixel source fasse un nombre ENTIER de pixels d'ecran.
+	var k := get_viewport().get_final_transform().get_scale().x
+	var fit := minf((column - 2.0 * Kit.EDGE) / LOGO_W,
+		(doorstep - LOGO_TOP - LOGO_BOTTOM) / LOGO_H)
+	var logo_scale := maxf(1.0, floorf(fit * k)) / k
+	var box := Vector2(LOGO_W, LOGO_H) * logo_scale
+	if _logo_tween != null:
+		_logo_tween.kill()
+	if _logo_box == Vector2.ZERO or not is_visible_in_tree():
+		_place_logo(box)
+	elif box != _logo_box:
+		_logo_tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		_logo_tween.tween_method(_place_logo, _logo_box, box, LOGO_EASE)
 
 	# LA COLONNE EST EMPILEE A LA MAIN, planche par planche.
 	#
@@ -287,6 +286,25 @@ func _measure() -> void:
 	var tip_w := maxf(260.0, minf(view.x * 0.46, 340.0))
 	_tip.offset_left = -tip_w - Kit.EDGE
 	_fit_tip.call_deferred()
+
+
+## L'embleme et son ruban a la taille `box`, colles en bas du masthead.
+func _place_logo(box: Vector2) -> void:
+	_logo_box = box
+	_logo_stack.custom_minimum_size = box
+	_logo_stack.offset_left = -box.x * 0.5
+	_logo_stack.offset_right = box.x * 0.5
+	_logo_stack.offset_top = -box.y - LOGO_BOTTOM
+	_logo_stack.offset_bottom = -LOGO_BOTTOM
+
+	# Le ruban en proportions de l'embleme, pour rester colle au parchemin a
+	# toutes les tailles.
+	_ribbon.offset_left = 17.0 / LOGO_W * box.x
+	_ribbon.offset_right = 79.0 / LOGO_W * box.x
+	_ribbon.offset_top = 93.0 / LOGO_H * box.y
+	_ribbon.offset_bottom = 98.0 / LOGO_H * box.y
+	_ribbon.add_theme_font_size_override("font_size",
+		maxi(1, roundi(RIBBON_CELL * box.x / LOGO_W)))
 
 
 ## LA PLANCHE DES CONSEILS A LA HAUTEUR DE SA PHRASE. Fixe a 53px, elle
