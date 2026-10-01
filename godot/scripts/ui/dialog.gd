@@ -60,26 +60,13 @@ func _init(title: String = "", width: float = 420.0, height: float = 0.0) -> voi
 
 	_header = Kit.hbox(Kit.PAD)
 	_column.add_child(_header)
-	title_label = Kit.title(title, 20, Palette.CREAM)
-	# LE TITRE DE PANNEAU du web (`PanelTitle`, la face du kit) : lettres
-	# claires dans un cerne d'encre epais, et une ombre d'un pixel. En encre
-	# sur le parchemin, il se lisait comme une ligne du corps.
-	title_label.add_theme_color_override("font_outline_color", Palette.INK)
-	title_label.add_theme_constant_override("outline_size", 4)
-	title_label.add_theme_color_override("font_shadow_color", Palette.INK)
-	title_label.add_theme_constant_override("shadow_offset_x", 0)
-	title_label.add_theme_constant_override("shadow_offset_y", 2)
-	if not I18N.pixel_face():
-		# Fusion Pixel (hors anglais) est une face BITMAP : Godot ne sait pas
-		# lui tracer de cerne ni d'ombre (l'ombre porte un cerne d'un pixel),
-		# et les deux la dechiquetaient (« QUELLE ÎLE » illisible). En encre
-		# pleine, a 20 comme l'anglais : la face est taillee sur la grille de
-		# celle de l'anglais (i18n.gd `fusion_face`). A 24 elle sortait plus
-		# haute que le titre anglais (2026-09-23).
-		title_label.add_theme_font_size_override("font_size", 20)
-		title_label.add_theme_constant_override("outline_size", 0)
-		title_label.add_theme_color_override("font_color", Palette.INK)
-		title_label.add_theme_color_override("font_shadow_color", Color.TRANSPARENT)
+	# LE TITRE DE PANNEAU, A L'ENCRE : brun fonce plein, sans cerne ni ombre
+	# (Paul, 2026-10-01). La creme cernee d'encre du web (`PanelTitle`) se
+	# lisait mal sur le parchemin clair de TOUS les panneaux ; le profil,
+	# l'histoire et le consentement etaient deja passes a l'encre un par un.
+	# Une seule regle pour la face pixel (anglais) comme pour Fusion (hors
+	# anglais), qui ne supporte de toute facon ni cerne ni ombre.
+	title_label = Kit.title(title, 20, Palette.INK)
 	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title_label.clip_text = true
 	_header.add_child(title_label)
@@ -233,9 +220,8 @@ func set_body(node: Control) -> void:
 	_column.move_child(body, at)
 
 
-## LE TITRE A L'ENCRE : brun fonce, sans cerne ni ombre. Sur le parchemin
-## des pleins ecrans, la creme contouree se perdait (Paul, 2026-09-23 pour
-## l'histoire, 2026-09-24 pour le profil).
+## LE TITRE A L'ENCRE : brun fonce, sans cerne ni ombre. C'est desormais le
+## titre de tout dialogue (voir `_init`) ; garde pour qui le redemande.
 func ink_title() -> void:
 	title_label.add_theme_color_override("font_color", Palette.INK)
 	title_label.add_theme_constant_override("outline_size", 0)
