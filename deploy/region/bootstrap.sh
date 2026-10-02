@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# PREPARE A FRESH REGION VPS (OVH, Ubuntu 24.04) — once, as root.
+# PREPARE A FRESH REGION VPS (OVH, Ubuntu 24.04+) — once, as root.
 #
 #   scp deploy/region/bootstrap.sh ubuntu@<ip>:
 #   ssh ubuntu@<ip> 'sudo bash bootstrap.sh "<public key of the deploy user>"'
@@ -15,10 +15,13 @@ apt-get update -q
 apt-get upgrade -yq
 apt-get install -yq ca-certificates curl ufw unattended-upgrades
 
-# Docker, from Docker's own script (compose plugin included).
+# Docker, from Docker's own script (compose plugin included) — or, on an
+# Ubuntu too new for Docker's repository (OVH delivers 26.04), Ubuntu's own.
 if ! command -v docker >/dev/null; then
-  curl -fsSL https://get.docker.com | sh
+  curl -fsSL https://get.docker.com | sh \
+    || apt-get install -yq docker.io docker-compose-v2
 fi
+docker compose version
 
 # Only SSH and the web. Postgres and Redis publish no port in compose.yml, so
 # nothing else needs to be open — and Docker's own rules only ever open what
@@ -43,6 +46,15 @@ chown deploy:deploy /home/deploy/.ssh/authorized_keys
 chmod 600 /home/deploy/.ssh/authorized_keys
 
 install -d -o deploy -g deploy /opt/rabbit /opt/rabbit/backups
+
+# KEYS ONLY over SSH — once the admin user has one, so nobody is locked out.
+# OVH's KVM console still takes the password if a key is ever lost.
+if [ -s /home/ubuntu/.ssh/authorized_keys ] || [ -s /root/.ssh/authorized_keys ]; then
+  printf 'PasswordAuthentication no\nKbdInteractiveAuthentication no\n' \
+    > /etc/ssh/sshd_config.d/00-keys-only.conf
+  # Socket-activated sshd (Ubuntu 24.10+) reads it on the next connection.
+  systemctl reload ssh 2>/dev/null || systemctl reload sshd 2>/dev/null || true
+fi
 
 # A dump a night, seven kept. They sit on the VPS disk, which OVH's daily
 # backup carries off the machine.
