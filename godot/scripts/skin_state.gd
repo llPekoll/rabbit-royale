@@ -121,7 +121,13 @@ func buy(key: String, rail: String) -> void:
 	if owns(key):
 		note = I18N.t("skins.success")
 		failed = false
+		celebrate(key)
 	changed.emit()
+
+
+## LA FETE D'UN SKIN qui vient d'etre a soi (purchase_reveal.gd).
+static func celebrate(key: String) -> void:
+	PurchaseReveal.announce_skin(key, String(SALE_NAMES.get(key, I18N.t("pass.skin"))))
 
 
 func equip(key: Variant) -> void:
@@ -157,6 +163,7 @@ func recover(key: String = "solana") -> void:
 		return
 	if _fake:
 		return
+	var had := owns(key)
 	busy = true
 	note = I18N.t("skins.recovering")
 	failed = false
@@ -173,6 +180,8 @@ func recover(key: String = "solana") -> void:
 		return
 	if owns(key):
 		note = I18N.t("skins.success")
+		if not had:
+			celebrate(key)
 	elif bool(item(key).get("pending", false)):
 		note = I18N.t("skins.pending")
 	else:

@@ -765,7 +765,7 @@ export const fr: Dict = {
     guest: "Connecte ton portefeuille pour garder cette skin sur ton compte.",
     loadFailed: "Impossible de charger tes skins.",
     retry: "Réessayer",
-    success: "Solana débloquée ! Tu peux l’équiper.",
+    success: "Débloqué ! Tu peux l’équiper.",
     free: "Pelage gratuit",
     wait: "Un instant...",
     checked: "Aucun achat en attente. Tu peux réessayer.",

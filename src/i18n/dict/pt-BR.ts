@@ -767,7 +767,7 @@ export const ptBR: Dict = {
     guest: "Conecte sua carteira para guardar esta skin na sua conta.",
     loadFailed: "Não foi possível carregar suas skins.",
     retry: "Tentar de novo",
-    success: "Solana desbloqueada! Você já pode equipar.",
+    success: "Desbloqueado! Você já pode equipar.",
     free: "Pelagem grátis",
     wait: "Um instante...",
     checked: "Nenhuma compra pendente. Pode tentar de novo.",

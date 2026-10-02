@@ -31,7 +31,7 @@ func _ready() -> void:
 	panel.add_child(_stage)
 	_rabbit = AnimatedSprite2D.new()
 	_rabbit.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_rabbit.sprite_frames = _frames(skin_key)
+	_rabbit.sprite_frames = SkinWardrobe.frames(skin_key)
 	_rabbit.scale = Vector2.ONE * 7.0
 	_rabbit.centered = false
 	_rabbit.offset = Vector2(-16, -32)
@@ -64,7 +64,7 @@ func _place_rabbit() -> void:
 	_rabbit.position = Vector2(floorf(_stage.size.x * 0.5), _stage.size.y - 12)
 
 
-func _frames(key: String) -> SpriteFrames:
+static func frames(key: String) -> SpriteFrames:
 	var frames := SpriteFrames.new()
 	frames.remove_animation("default")
 	for anim in ["idle", "move", "happy"]:

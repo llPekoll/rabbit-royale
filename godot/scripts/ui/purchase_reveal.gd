@@ -42,11 +42,22 @@ const SPARK_S := 0.9
 const DIM := Color(8.0 / 255.0, 6.0 / 255.0, 4.0 / 255.0, 0.84)
 const HEAD_SHADOW := Color("#7a3a10")
 
+## UN SKIN se revele autrement : d'abord sa SILHOUETTE, noire, qui tremble
+## sous les projecteurs ; puis un eclair blanc, et le lapin en couleurs, qui
+## saute de joie. La teinte des rayons est celle du skin.
+const SKIN_TINT := {"solana": Color("#9945ff"), "carrot": Color("#f28a1e"), "kuro-violet": Palette.GOLD}
+## La silhouette tient ce temps avant l'eclair, et la fete reste plus longtemps.
+const TEASE_S := 0.75
+const SKIN_STAY_S := 3.4
+
 ## La fete qui joue, pour qu'un nouvel achat la remplace.
 static var _live: PurchaseReveal
 
 var kind := ""
 var qty := 1
+## Un skin (Kit.SKINS) a reveler au lieu d'un objet, et son nom.
+var skin := ""
+var skin_name := ""
 ## VRAI DANS UN BANC SEULEMENT : la fete reste, pour la capture.
 var linger := false
 
@@ -61,6 +72,8 @@ var _head: Label
 var _name: Label
 var _sparks: Control
 var _leaving := false
+var _bunny: AnimatedSprite2D
+var _flash: ColorRect
 
 
 ## FETER UN ACHAT : pose la fete au-dessus de tout (l'etal compris) et la
@@ -81,12 +94,31 @@ static func announce(bought_kind: String, bought_qty: int = 1) -> PurchaseReveal
 	return reveal
 
 
+## FETER UN SKIN : la meme fete, l'objet remplace par le lapin.
+static func announce_skin(key: String, display_name: String) -> PurchaseReveal:
+	if is_instance_valid(_live):
+		_live.queue_free()
+	var reveal := PurchaseReveal.new()
+	reveal.skin = key
+	reveal.skin_name = display_name
+	if Chrome.current != null and is_instance_valid(Chrome.current):
+		Chrome.current.over_dialogs(reveal)
+	else:
+		# Un banc, ou une sonde sans scene courante : la racine.
+		var tree := Engine.get_main_loop() as SceneTree
+		var scene: Node = tree.current_scene if tree.current_scene != null else tree.root
+		scene.add_child(reveal)
+		Kit.fill(reveal)
+	_live = reveal
+	return reveal
+
+
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 
 
 func _ready() -> void:
-	_tint = ShopState.TINT.get(kind, Palette.GOLD)
+	_tint = SKIN_TINT.get(skin, Palette.GOLD) if not skin.is_empty() else ShopState.TINT.get(kind, Palette.GOLD)
 	_build()
 	resized.connect(_measure)
 	gui_input.connect(func(event: InputEvent) -> void:
@@ -148,13 +180,21 @@ func _build() -> void:
 	_shade(_head, HEAD_SHADOW, 4)
 	add_child(_head)
 
-	var words := I18N.shout(I18N.t("items.%s.name" % kind))
+	var words := I18N.shout(skin_name if not skin.is_empty() else I18N.t("items.%s.name" % kind))
 	if qty > 1:
 		words = "%s x%d" % [words, qty]
 	_name = Kit.label(words, int(NAME_MAX), Palette.CREAM)
 	_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_shade(_name, Palette.CREAM_SHADOW, 3)
 	add_child(_name)
+
+	# L'eclair de la revelation, par-dessus tout.
+	_flash = ColorRect.new()
+	_flash.color = Color.WHITE
+	_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_flash.modulate.a = 0.0
+	Kit.fill(_flash)
+	add_child(_flash)
 
 
 func _shade(label: Label, color: Color, drop: int) -> void:
@@ -185,10 +225,26 @@ func _measure() -> void:
 	_name.add_theme_font_size_override("font_size", name_px)
 
 	# L'art se refait a sa taille : `Shop._art` pose l'ombre a la bonne echelle.
-	for child in _art.get_children():
-		child.queue_free()
-	var drawn := Shop._art(kind, I18N.t("items.%s.name" % kind), _tint, art_px)
-	_art.add_child(drawn)
+	# Le lapin, lui, se garde (son animation et sa silhouette en dependent) :
+	# seule son echelle suit.
+	if not skin.is_empty():
+		if _bunny == null:
+			_bunny = AnimatedSprite2D.new()
+			_bunny.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			_bunny.sprite_frames = SkinWardrobe.frames(skin)
+			_bunny.centered = false
+			_bunny.play("idle")
+			_art.add_child(_bunny)
+		# Sur la planche, le lapin assis tient x 8-22, y 16-32 de sa case :
+		# c'est LUI qu'on cadre, haut comme l'art, son milieu au milieu.
+		var k := floorf(art_px / 16.0)
+		_bunny.scale = Vector2(k, k)
+		_bunny.position = (Vector2(art_px, art_px) * 0.5 - Vector2(15.0, 24.0) * k).floor()
+	else:
+		for child in _art.get_children():
+			child.queue_free()
+		var drawn := Shop._art(kind, I18N.t("items.%s.name" % kind), _tint, art_px)
+		_art.add_child(drawn)
 	_art.size = Vector2(art_px, art_px)
 
 	var head_h := _head.get_combined_minimum_size().y
@@ -227,14 +283,60 @@ func _measure() -> void:
 ## LA CHOREGRAPHIE : le noir monte, l'objet jaillit, l'onde part, la gerbe
 ## retombe, le cri claque, le nom se pose ; puis tout respire jusqu'au depart.
 func _play() -> void:
-	Sound.play("coin")
-
 	_dim.modulate.a = 0.0
 	create_tween().tween_property(_dim, "modulate:a", 1.0, 0.16)
+	if skin.is_empty():
+		Sound.play("coin")
+		_bloom()
+		return
+	_tease()
 
-	# L'objet : de rien a 1.3, penche, puis se pose en rebondissant.
-	_art.scale = Vector2.ZERO
-	_art.rotation_degrees = -14.0
+
+## LA SILHOUETTE D'UN SKIN : tout est cache sauf une ombre de lapin qui
+## monte, tremble de plus en plus fort... puis l'eclair, et la fete.
+func _tease() -> void:
+	Sound.play("chest_arrive")
+	for node in [_rays, _glow, _head, _name]:
+		node.modulate.a = 0.0
+	_art.modulate = Color.BLACK
+	_art.scale = Vector2(0.6, 0.6)
+	var rise := create_tween()
+	rise.tween_property(_art, "scale", Vector2.ONE, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	# Le tremblement s'emballe : des pas de plus en plus courts et larges.
+	var shake := create_tween()
+	shake.tween_interval(0.2)
+	var steps := 9
+	for i in steps:
+		var amp := 3.0 + 9.0 * float(i) / float(steps)
+		shake.tween_property(_art, "rotation_degrees", amp if i % 2 == 0 else -amp, 0.055 - 0.003 * i)
+	shake.tween_property(_art, "rotation_degrees", 0.0, 0.03)
+	get_tree().create_timer(TEASE_S).timeout.connect(_reveal)
+
+
+## L'ECLAIR : blanc plein ecran qui retombe, le lapin passe du noir a ses
+## couleurs, saute de joie, et la fete de l'objet joue autour de lui.
+func _reveal() -> void:
+	if _leaving or not is_inside_tree():
+		return
+	Sound.play("chest_open")
+	Sound.play("chime")
+	_flash.modulate.a = 0.95
+	create_tween().tween_property(_flash, "modulate:a", 0.0, 0.45).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_art.modulate = Color(3.0, 3.0, 3.0)
+	create_tween().tween_property(_art, "modulate", Color.WHITE, 0.4)
+	for node in [_rays, _glow, _head, _name]:
+		node.modulate.a = 1.0
+	if _bunny != null:
+		_bunny.play("happy")
+	_bloom()
+
+
+## L'OBJET JAILLIT, et tout ce qui va autour.
+func _bloom() -> void:
+	# L'objet : de rien a 1.3, penche, puis se pose en rebondissant. Le
+	# lapin, deja la en silhouette, bondit de sa taille.
+	_art.scale = Vector2.ZERO if skin.is_empty() else Vector2(0.85, 0.85)
+	_art.rotation_degrees = -14.0 if skin.is_empty() else -6.0
 	var pop := create_tween()
 	pop.tween_property(_art, "scale", Vector2(1.3, 1.3), 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	pop.parallel().tween_property(_art, "rotation_degrees", 6.0, 0.16)
@@ -291,7 +393,7 @@ func _play() -> void:
 
 	if linger:
 		return
-	get_tree().create_timer(STAY_S).timeout.connect(_leave)
+	get_tree().create_timer(STAY_S if skin.is_empty() else SKIN_STAY_S).timeout.connect(_leave)
 
 
 ## LA GERBE : des eclats carres (des pixels, pas des ronds) partent de

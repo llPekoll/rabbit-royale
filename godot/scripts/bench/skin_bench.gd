@@ -41,6 +41,11 @@ func _ready() -> void:
 		"equippedSkin": equipped, "guest": "--guest" in args, "wallet": "Preview only"})
 	profile.show_history({"days": [], "runs": [], "purchases": [], "raids": {"against": [], "by": [], "unseen": 0}})
 	add_child(profile)
+	# `--reveal` : la fete d'un skin achete (purchase_reveal.gd), qui reste.
+	if "--reveal" in args:
+		(func() -> void:
+			var party := PurchaseReveal.announce_skin(selected, String(SkinState.SALE_NAMES.get(selected, I18N.t("pass.skin"))))
+			party.linger = true).call_deferred()
 	if "--purchase" in args:
 		profile._show_skin_offer(selected)
 		for arg in args:

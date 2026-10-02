@@ -760,7 +760,7 @@ export const vi: Dict = {
     guest: "Kết nối ví để lưu trang phục vào tài khoản.",
     loadFailed: "Không tải được trang phục.",
     retry: "Thử lại",
-    success: "Đã mở khóa Solana! Bạn có thể trang bị ngay.",
+    success: "Đã mở khóa! Bạn có thể trang bị ngay.",
     free: "Màu lông miễn phí",
     wait: "Vui lòng đợi...",
     checked: "Không có giao dịch chờ. Bạn có thể thử lại.",
