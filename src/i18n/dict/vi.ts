@@ -809,7 +809,7 @@ export const vi: Dict = {
      des FAITS, et les chiffres sont ceux de config/tuning.ts. */
   doorstepTips: [
     'SỐ TRÊN MỘT Ô ĐẾM SỐ BOM CHẠM VÀO NÓ',
-    'ĐÀO TỐN 1 NĂNG LƯỢNG - DẪM BOM TỐN 30',
+    'ĐÀO TỐN 1 NĂNG LƯỢNG - DẪM BOM TỐN 70',
     'ĐÁNH DẤU BOM BẰNG X ĐỎ: ĐÚNG ĐƯỢC HOÀN NĂNG LƯỢNG, SAI MẤT 15',
     'ĐI LẠI TRÊN Ô ĐÃ ĐÀO LÀ MIỄN PHÍ',
     'MỌI RƯƠNG BẠN MỞ ĐỀU THEO BẠN VỀ',

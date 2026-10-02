@@ -119,14 +119,18 @@ export const ENERGY = {
    */
   GOLDEN_GAIN: 0,
   /**
-   * Stepping on a bomb. Ten of them end a fresh run on the 300 bar.
+   * Stepping on a bomb. Four of them end a fresh run on the 300 bar.
    *
-   * Left at 30 when the bar doubled, so a blast is now a twentieth of a full
-   * tank rather than a fifth. That is the cost of the longer run: a single
-   * bomb stings less. Watch it — if blasts stop being frightening, this is the
-   * number to raise, not the bar to lower.
+   * It was left at 30 when the bar doubled (ten bombs to a death), and blasts
+   * stopped being frightening: a reader came home from every rung with half
+   * the tank (`tools/ladder.sim.ts`, 1 October 2026). 70 from 2 October, the
+   * user's call between 30 and 100 on that same simulator: levels 1-4 stay
+   * safe for everyone, the guesser starts dying at 5 and almost always does
+   * from 9, the reader is only touched at 9-10. The cost of it is play: a
+   * 3-visit reader runs 4.4 courses a day instead of 7.2, and digs up about
+   * 40 % fewer carrots (100 halved them, and kept the casual off level 10).
    */
-  BOMB_LOSS: 30,
+  BOMB_LOSS: 70,
   /** Ceiling — a full bar. Gains past it are lost: an easy shore cannot be banked. */
   MAX: 300,
   /**
@@ -159,9 +163,10 @@ export const ENERGY = {
    * ended on the seventh tile, which is the arrival the gate exists to
    * prevent. 40 is one blast survived with something left to read, and 80
    * minutes of regen after a dead run (21 September 2026, measured in
-   * `tools/economy-day.sim.ts`).
+   * `tools/economy-day.sim.ts`). 80 since the bomb went to 70 (2 October): the
+   * same rule, one blast and a handful of digs.
    */
-  MIN_TO_CROSS: 40,
+  MIN_TO_CROSS: 80,
 } as const;
 
 /*
@@ -209,8 +214,8 @@ export const BOMB = {
  *
  * A push whose landing is open water throws the victim in instead of failing.
  * The sea charges what a bomb charges — being thrown in is the same size of
- * mistake as digging one, and `LIGHTNING.SHOCK_LOSS` reuses that number for
- * the same reason — plus TIME: the victim is under for `STUN_MS`, then climbs
+ * mistake as digging one (70 since 2 October 2026; the lightning, which
+ * shared it, is now 50 — `LIGHTNING.SHOCK_LOSS`) — plus TIME: the victim is under for `STUN_MS`, then climbs
  * back out at the middle of the island (`drownRespawn` in `run.ts`).
  */
 export const DROWN = {
@@ -1197,10 +1202,10 @@ export const LIGHTNING = {
   /** Milliseconds between each tile in the area going off, for the eye. */
   STAGGER_MS: 60,
   /**
-   * What a rabbit CAUGHT in the strike loses: exactly what stepping on a bomb
-   * costs, and TIED to it rather than copied — the economy is recalibrated by
-   * moving `ENERGY.BOMB_LOSS`, and a strike that kept an older bomb's price
-   * would silently become the cheap or the ruinous way to lose a run.
+   * What a rabbit CAUGHT in the strike loses. It was tied to the bomb
+   * (`ENERGY.BOMB_LOSS`) until the bomb went to 70 on 2 October 2026; the
+   * user set the strike apart at 50 — a hit the victim could not read on the
+   * board should hurt, but less than a mistake they made themselves.
    *
    * The strike used to open ground only. It now also electrocutes any rival
    * standing in its square, which is what makes it a weapon aimed at a PLAYER
@@ -1208,7 +1213,7 @@ export const LIGHTNING = {
    * a hit the victim could not have read on the board: more, and one item
    * ends a run outright; less, and it is not worth carrying.
    */
-  SHOCK_LOSS: ENERGY.BOMB_LOSS,
+  SHOCK_LOSS: 50,
   /**
    * How long a struck rabbit is held, in ms. Longer than a bomb's stun
    * (BOMB.STUN_MS): the current has to be SEEN holding them, and the
