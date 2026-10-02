@@ -513,6 +513,9 @@ export const zh: Dict = {
     wrong_reference: '该交易与本次购买不符。',
     no_matching_transfer: '未找到匹配的 USDC 转账。',
     failed_on_chain: '交易在链上失败。',
+    rpc_unavailable: 'Solana 链暂时连不上，请稍后再试。',
+    no_price_for_token: '这个代币现在没有价格，请用 USDC。',
+    unknown_item: '这个不出售。',
   },
 
   pay: {

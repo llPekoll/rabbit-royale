@@ -806,7 +806,10 @@
   "not_confirmed_yet": "Vẫn đang xác nhận trên chuỗi...",
   "wrong_reference": "Giao dịch này không khớp với lần mua này.",
   "no_matching_transfer": "Không tìm thấy lệnh chuyển USDC khớp.",
-  "failed_on_chain": "Giao dịch thất bại trên chuỗi."
+  "failed_on_chain": "Giao dịch thất bại trên chuỗi.",
+  "rpc_unavailable": "Mạng Solana không phản hồi. Thử lại sau giây lát.",
+  "no_price_for_token": "Hiện chưa có giá cho token này. Hãy thử USDC.",
+  "unknown_item": "Món này không bán."
  },
  "pay": {
   "needsBuild": "Trả tiền trong app cần bản cập nhật tới. Tạm thời mua bằng cà rốt.",

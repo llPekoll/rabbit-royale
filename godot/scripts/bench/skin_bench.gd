@@ -26,7 +26,7 @@ func _ready() -> void:
 		"skins": skins,
 		"owned": [selected] if owned else (["kuro-violet"] if "--ticket" in args else []),
 		"equipped": equipped, "look": equipped if equipped != null else "white",
-		"paymentsEnabled": true, "tokens": ["usdc", "sol", "skr"],
+		"paymentsEnabled": true, "tokens": ["usdc", "sol", "skr"], "rates": {"usdc": 1.0, "sol": 152.4, "skr": 0.031},
 	})
 	PassState.shared().fake({})
 	ShopState.shared().fake([], {})
@@ -43,6 +43,11 @@ func _ready() -> void:
 	add_child(profile)
 	if "--purchase" in args:
 		profile._show_skin_offer(selected)
+		for arg in args:
+			if arg.begins_with("--rail="):
+				var offer: SkinWardrobe = profile.find_children("*", "SkinWardrobe", true, false)[0]
+				offer._rail = arg.trim_prefix("--rail=")
+				offer._render.call_deferred()
 	var place := func() -> void:
 		var rect := Dialog.screen_rect(get_viewport_rect().size, profile.hug_size())
 		profile.position = rect.position

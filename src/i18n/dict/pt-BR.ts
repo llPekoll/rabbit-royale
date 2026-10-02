@@ -518,6 +518,9 @@ export const ptBR: Dict = {
     wrong_reference: 'Essa transação não corresponde a esta compra.',
     no_matching_transfer: 'Nenhuma transferência USDC correspondente.',
     failed_on_chain: 'A transação falhou na rede.',
+    rpc_unavailable: 'A rede Solana não está respondendo. Tente de novo em instantes.',
+    no_price_for_token: 'Sem cotação para este token agora. Tente com USDC.',
+    unknown_item: 'Isso não está à venda.',
   },
 
   pay: {

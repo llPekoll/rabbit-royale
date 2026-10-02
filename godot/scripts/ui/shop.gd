@@ -1098,16 +1098,20 @@ func _carrot_on(button: PlankButton, px: float) -> void:
 ## ou sans taux ; sinon le montant dans le rail, arrondi VERS LE HAUT — la
 ## carte ne doit jamais citer moins que ce que le portefeuille demandera.
 func _money_label(usd: float) -> String:
-	if _rail == "usdc":
+	return Shop.money_label(usd, _rail, _state.shop.get("rates", null))
+
+
+## La meme regle hors de l'etal (la page d'un skin, skin_wardrobe.gd).
+static func money_label(usd: float, rail: String, rates: Variant) -> String:
+	if rail == "usdc" or not RAILS.has(rail):
 		return "$%.2f" % usd
-	var rates: Variant = _state.shop.get("rates", null)
-	var rate := float(rates.get(_rail, 0.0)) if rates is Dictionary else 0.0
+	var rate := float(rates.get(rail, 0.0)) if rates is Dictionary else 0.0
 	if rate <= 0.0 or not is_finite(rate):
 		return "$%.2f" % usd
-	var places: int = RAIL_PLACES.get(_rail, 2)
+	var places: int = RAIL_PLACES.get(rail, 2)
 	var scale := pow(10.0, places)
 	var shown := ceilf(usd / rate * scale) / scale
-	return String.num(shown, places) + " " + String(RAILS[_rail])
+	return String.num(shown, places) + " " + String(RAILS[rail])
 
 
 func _pay_money(kind: String) -> void:

@@ -6,6 +6,7 @@ import { SKINS, ownedSkinKeys } from '@/lib/game/skins';
 import { lookOf } from '@/lib/game/look';
 import { payEnabled } from '@/lib/pay/solana';
 import { enabledTokens } from '@/lib/pay/tokens';
+import { tokenUsdPrices } from '@/lib/pay/rates';
 
 /** Read-only: recovery uses the existing POST /api/shop/claim. */
 export async function GET(req: Request) {
@@ -24,5 +25,7 @@ export async function GET(req: Request) {
     })),
     owned, equipped: player.equippedSkin, look: lookOf(player.avatar, player.equippedSkin),
     paymentsEnabled: enabled, tokens: enabled ? enabledTokens() : [],
+    // The shop's rates (api/shop), so the page prices in the chosen rail.
+    rates: enabled ? await tokenUsdPrices().catch(() => null) : null,
   });
 }

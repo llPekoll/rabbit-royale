@@ -627,6 +627,9 @@ export const en = {
     wrong_reference: 'That transaction does not match this purchase.',
     no_matching_transfer: 'No matching USDC transfer found.',
     failed_on_chain: 'The transaction failed on chain.',
+    rpc_unavailable: 'The Solana network is not answering. Try again in a moment.',
+    no_price_for_token: 'No live price for this token right now. Try USDC.',
+    unknown_item: 'That is not for sale.',
   },
 
   /* ── Paying with USDC ─────────────────────────────────────────────────── */

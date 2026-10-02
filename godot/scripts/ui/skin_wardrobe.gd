@@ -104,16 +104,16 @@ func _render() -> void:
 	var owned := state.owns(skin_key)
 	var equipped: bool = state.catalog.get("equipped") == skin_key
 	var pending := bool(item.get("pending", false)) and not owned
-	var price := "$%.2f" % (float(item.get("usdCents", 0)) / 100.0)
+	var tokens: Array = state.catalog.get("tokens", [])
+	if not tokens.has(_rail) and not tokens.is_empty():
+		_rail = String(tokens[0])
+	var price := Shop.money_label(float(item.get("usdCents", 0)) / 100.0, _rail, state.catalog.get("rates", null))
 	var price_row := Kit.hbox(10)
 	_right.add_child(price_row)
 	price_row.add_child(Kit.title(I18N.t("skins.owned") if owned else price, 22, Palette.INK))
 	var small := Kit.note(I18N.t("skins.cosmetic"), Palette.BARK, 10)
 	small.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	price_row.add_child(small)
-	var tokens: Array = state.catalog.get("tokens", [])
-	if not tokens.has(_rail) and not tokens.is_empty():
-		_rail = String(tokens[0])
 	if not owned and not pending and not tokens.is_empty():
 		var rails := Kit.hbox(4)
 		_right.add_child(rails)

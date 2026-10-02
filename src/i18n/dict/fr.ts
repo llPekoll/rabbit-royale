@@ -514,6 +514,9 @@ export const fr: Dict = {
     wrong_reference: 'Cette transaction ne correspond pas à cet achat.',
     no_matching_transfer: 'Aucun transfert USDC correspondant.',
     failed_on_chain: 'La transaction a échoué sur la chaîne.',
+    rpc_unavailable: 'Le réseau Solana ne répond pas. Réessaie dans un instant.',
+    no_price_for_token: 'Pas de cours pour ce jeton en ce moment. Essaie en USDC.',
+    unknown_item: 'Ce n’est pas en vente.',
   },
 
   pay: {
