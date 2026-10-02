@@ -7,12 +7,14 @@ extends Control
 ## acheter, enregistrer l'amenagement, un pas de raid —, jamais les relectures
 ## de fond.
 ##
-## ELLE ATTEND AVANT DE SE MONTRER (DELAY) : la plupart des reponses arrivent
-## en 100 ms, et une moulinette qui clignote a chaque geste se lit comme un
-## ecran qui saccade. Elle ne dit quelque chose que quand l'attente se sent.
+## ELLE ATTEND A PEINE (DELAY) : les appels sont lents sur la prod, et le
+## joueur veut voir tout de suite que le geste est parti (2026-10-01). Le
+## retour le plus proche du doigt est sur le bouton (press_ack.gd) : quand il
+## s'y voit, elle se tait. Elle reste pour les ecritures sans bouton — une
+## case du terrier, l'amenagement enregistre, la marque d'une quete.
 
 const SIZE := 40.0
-const DELAY := 0.2
+const DELAY := 0.05
 
 var _carrot: CarrotLoader
 var _waiting := 0.0
@@ -60,7 +62,7 @@ func _seat_wait() -> bool:
 
 
 func _process(delta: float) -> void:
-	if not _busy and not _seat_wait():
+	if (not _busy or Net.acked()) and not _seat_wait():
 		if visible:
 			_waiting = 0.0
 			visible = false

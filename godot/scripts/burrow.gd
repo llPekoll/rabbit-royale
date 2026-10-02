@@ -294,7 +294,12 @@ func _toggle_trap(tile: int) -> void:
 	_toggling = true
 	var shop := ShopState.shared()
 	if _traps.has_trap(tile):
+		# LA BOMBE SORT DE SA CASE tant que le serveur decide : la tape se
+		# voit, et la vraie part (ou se repose) a la reponse.
+		_traps.set_lifted(tile)
 		await shop.remove_trap(tile)
+		if is_instance_valid(_traps):
+			_traps.set_lifted(-1)
 	else:
 		_traps.expect_fresh(tile)
 		# LE FANTOME TIENT LA CASE pendant que le serveur decide, et l'anneau
@@ -350,9 +355,10 @@ func _sync_fences() -> void:
 
 
 ## UNE ARETE TAPEE en mode cloture : on dresse la planche, ou on retire celle
-## qui s'y tient (page.tsx `onFence`). Le serveur d'abord, jamais a
+## qui s'y tient (page.tsx `onFence`). Le serveur decide, jamais a
 ## l'optimiste : la regle du portail est la sienne, et un refus revient en
-## mots (ShopState `noted`) plutot qu'en planche qui clignote.
+## mots (ShopState `noted`). Mais la tape se VOIT tout de suite : la planche
+## a demi tant que la reponse n'est pas la (FenceView `set_pending`).
 func _toggle_fence(seg: Dictionary) -> void:
 	if seg.is_empty():
 		return
@@ -363,10 +369,13 @@ func _toggle_fence(seg: Dictionary) -> void:
 	var shop := ShopState.shared()
 	var tile := int(seg["tile"])
 	var side := String(seg["side"])
+	_fences.set_pending(seg, true)
 	if _fences.is_built(seg):
 		await shop.remove_fence(tile, side)
 	elif await shop.place_fence(tile, side):
 		Sound.play("step")
+	if is_instance_valid(_fences):
+		_fences.set_pending(seg, false)
 	_fencing.erase(key)
 
 

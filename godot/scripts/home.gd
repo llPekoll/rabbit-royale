@@ -60,6 +60,9 @@ var quest: Dictionary = {}
 var edits: Dictionary = {}
 ## Vrai pendant un geste — les boutons qui depensent se grisent dessus.
 var pending := false
+## La quete dont la recompense est deja fetee mais pas encore confirmee
+## (`claim_quest`, optimiste) : la carte se tient en retrait en l'attendant.
+var claiming := ""
 
 var _fetched_ms := 0
 ## Le numero de la derniere relecture partie. Voir `refresh`.
@@ -140,10 +143,17 @@ func refresh() -> void:
 ## UN GESTE SUR LE TERRIER : "harvest", "upgrade", "water", "fertilise",
 ## "shield". Rend la reponse du serveur, et a deja dit ce qu'il y avait a
 ## dire par `noted`, `burst`, `level_up`.
+##
+## LA RECOLTE EST OPTIMISTE (2026-10-01) : ce que le jardin tient se lit ici
+## (`live_garden`), les carottes partent au doigt et la reponse ne fait que
+## corriger le compte. Un refus relit le terrier.
 func act(action: String) -> Dictionary:
 	if pending or not Session.signed_in():
 		return {}
 	pending = true
+	var guessed := live_garden() if action == "harvest" else 0
+	if guessed > 0:
+		_harvest_now(guessed)
 	changed.emit()
 	_refresh_seq += 1
 	var answer: Answer = await Net.post_json("/api/burrow", {"action": action}, Session.token)
@@ -154,13 +164,12 @@ func act(action: String) -> Dictionary:
 	Analytics.track("burrow_action", {"action": action, "ok": answer.ok and not res.has("error"),
 		"code": String(res.get("error", "")), "harvested": int(res.get("harvested", 0))})
 
+	if guessed > 0 and not (res.has("harvested") and int(res["harvested"]) > 0):
+		# La recolte deja montree n'a pas eu lieu : revenir a la verite.
+		refresh()
 	if res.has("harvested") and int(res["harvested"]) > 0:
-		var n := int(res["harvested"])
-		if harvested.get_connections().is_empty():
-			noted.emit(I18N.f("notes.harvested", [n]), false)
-			burst.emit(n)
-		else:
-			harvested.emit(n)
+		if guessed <= 0:
+			_show_harvest(int(res["harvested"]))
 	elif res.has("spent"):
 		var level := int(res.get("burrow", {}).get("level", 0))
 		if level > 0:
@@ -177,6 +186,25 @@ func act(action: String) -> Dictionary:
 	elif not answer.ok:
 		noted.emit(I18N.t("err_offline") if answer.error() == "offline" else answer.error(), true)
 	return res
+
+
+## Recolter d'avance : la pile prend `n`, le jardin repart de zero, et la
+## fete part. L'energie est figee a ce qu'elle vaut maintenant, parce que
+## `_fetched_ms` est l'origine des deux extrapolations.
+func _harvest_now(n: int) -> void:
+	burrow["energy"] = live_energy()["energy"]
+	burrow["gardenReady"] = 0
+	burrow["stock"] = int(burrow.get("stock", 0)) + n
+	_fetched_ms = Time.get_ticks_msec()
+	_show_harvest(n)
+
+
+func _show_harvest(n: int) -> void:
+	if harvested.get_connections().is_empty():
+		noted.emit(I18N.f("notes.harvested", [n]), false)
+		burst.emit(n)
+	else:
+		harvested.emit(n)
 
 
 ## Le refus, dans les mots du web (page.tsx `act`).
@@ -199,43 +227,61 @@ func _refuse(code: String, res: Dictionary) -> void:
 
 
 ## PRENDRE LA RECOMPENSE d'une quete finie (page.tsx `claimQuest`).
+##
+## OPTIMISTE (2026-10-01) : la fete part AU DOIGT — le son, la gerbe, les
+## carottes dans la pile, la phrase de l'ile —, sans attendre le serveur, qui
+## prenait parfois une seconde. La quete est FAITE (la carte n'offre CLAIM
+## qu'a ce moment-la) et le serveur recalcule la meme condition : un refus
+## est rare. Quand il arrive, on relit le terrier pour revenir a la verite.
+## Ce qu'on ne sait pas d'avance, c'est la quete suivante (elle depend des
+## compteurs du joueur) : elle glisse en place quand la reponse arrive.
 func claim_quest(id: String) -> void:
 	if pending or not Session.signed_in():
 		return
+	var active := active_quest()
+	var reward: Dictionary = active.get("reward", {}) if active.get("reward") is Dictionary else {}
+	var carrots := int(reward.get("carrots", 0))
+	var item: Variant = reward.get("item")
 	pending = true
-	changed.emit()
+	claiming = id
 	_refresh_seq += 1
+	if carrots > 0:
+		burrow["stock"] = int(burrow.get("stock", 0)) + carrots
+	quest_claimed.emit(id, reward)
+	noted.emit(I18N.t("quests.%s.line" % id), false)
+	if item is Dictionary:
+		noted.emit("+%d %s" % [int(item.get("qty", 1)), I18N.t("items.%s.name" % String(item.get("kind", "")))], false)
+	if carrots > 0:
+		burst.emit(carrots)
+	changed.emit()
+
 	var answer: Answer = await Net.post_json("/api/quests", {"action": "claim", "id": id}, Session.token)
 	pending = false
+	claiming = ""
 	var res: Dictionary = answer.body
-	_adopt(res)
-	_landed.emit()
-	var line_for := String(res.get("lineFor", ""))
-	if not line_for.is_empty():
-		noted.emit(I18N.t("quests.%s.line" % line_for), false)
-	var reward: Dictionary = res.get("reward", {}) if res.get("reward") is Dictionary else {}
-	# `claimed` est l'ID DE LA QUETE (route.ts : `claimed: id`), pas un booleen :
-	# `bool()` sur une chaine jette, et la fete (le son, la gerbe) ne partait
-	# jamais apres une recompense pourtant creditee.
+	# `claimed` est l'ID DE LA QUETE (route.ts : `claimed: id`), pas un booleen.
 	var claimed: Variant = res.get("claimed")
 	if (claimed is String and not (claimed as String).is_empty()) or (claimed is bool and claimed):
-		Analytics.track("quest_claim", {"quest_id": id, "carrots": int(reward.get("carrots", 0)),
-			"item": reward.get("item", {}).get("kind", "") if reward.get("item") is Dictionary else ""})
-		quest_claimed.emit(id, reward)
+		_adopt(res)
+		_landed.emit()
+		Analytics.track("quest_claim", {"quest_id": id, "carrots": carrots,
+			"item": item.get("kind", "") if item is Dictionary else ""})
 		# UN OBJET GAGNE vit dans l'etat de la boutique, pas dans `burrow` :
-		# sans relecture le kit gardait l'ancien compte, et la bombe recue ne
-		# se voyait nulle part. `granted` = ce que le sac a vraiment pris (un
-		# cadeau s'arrete au plafond, grant.ts).
-		var item: Variant = reward.get("item")
+		# sans relecture le kit gardait l'ancien compte. `granted` = ce que le
+		# sac a vraiment pris (un cadeau s'arrete au plafond, grant.ts) — le
+		# « +N » est deja dit, seul un sac plein se corrige.
 		if item is Dictionary:
-			var given := int(res.get("granted", item.get("qty", 1)))
-			if given > 0:
-				noted.emit("+%d %s" % [given, I18N.t("items.%s.name" % String(item.get("kind", "")))], false)
-			else:
+			if int(res.get("granted", item.get("qty", 1))) <= 0:
 				noted.emit(I18N.t("shopErrors.inventory_full"), true)
 			ShopState.shared().refresh()
-	if int(reward.get("carrots", 0)) > 0:
-		burst.emit(int(reward["carrots"]))
+		return
+	# REFUS : la fete a menti. `already_claimed` veut dire que la recompense
+	# est deja dans la pile (deux appareils) — la relecture suffit, sans un
+	# mot. Le reste se dit.
+	var code := String(res.get("error", ""))
+	if code != "already_claimed":
+		noted.emit(I18N.t("err_offline") if answer.error() == "offline" else (code if not code.is_empty() else answer.error()), true)
+	await refresh()
 
 
 ## POSER UNE MARQUE (ouvrir le tableau de saison, lire un chapitre) : c'est

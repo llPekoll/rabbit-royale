@@ -41,6 +41,9 @@ const NEXT_SLIDE := 24.0
 
 var _quest_id := ""
 var _last_done := ""
+## La quete qu'on vient de feter : la suivante glissera en place quand le
+## serveur l'aura nommee (Home.claim_quest est optimiste).
+var _claimed_id := ""
 var _slab: HubSlab
 var _glow: Panel
 var _burst: Control
@@ -60,9 +63,16 @@ func _ready() -> void:
 ## RELIRE la quete et se reecrire. Cache sans quete a l'affiche.
 func refresh() -> void:
 	var quest := Home.active_quest()
+	# PRISE, EN ROUTE : la fete est deja partie, la carte se tient en retrait
+	# sans se reconstruire — la dalle garde la carotte qui attend dessus
+	# (press_ack.gd) jusqu'a ce que la suivante arrive.
+	if not Home.claiming.is_empty() and Home.claiming == _quest_id and _slab != null:
+		_slab.set_lit(false)
+		return
 	visible = not quest.is_empty()
 	if quest.is_empty():
 		_quest_id = ""
+		_claimed_id = ""
 		return
 	var done := bool(quest.get("done", false))
 	_quest_id = String(quest.get("id", ""))
@@ -100,6 +110,13 @@ func refresh() -> void:
 	if done and _last_done != _quest_id:
 		_last_done = _quest_id
 		_celebrate()
+
+	# LA SUIVANTE est la : elle glisse de la droite. Un refus rend la meme
+	# quete — rien ne glisse, la dalle se rallume.
+	if not _claimed_id.is_empty() and Home.claiming.is_empty():
+		if _claimed_id != _quest_id:
+			_slide_in()
+		_claimed_id = ""
 
 
 ## LA RECOMPENSE, comme la dalle la nomme : ce qu'on recoit, pas son nom
@@ -157,10 +174,15 @@ func _celebrate() -> void:
 	tween.chain().tween_callback(_glow.queue_free)
 
 
-## PRISE : la rafale depuis le centre, et la demande suivante glisse de la
-## droite (`.rr-quest-next`, 24 px en 360 ms).
-func _on_claimed(_id: String, _reward: Dictionary) -> void:
+## PRISE : la rafale depuis le centre, tout de suite (le geste est fete au
+## doigt) ; la demande suivante glissera quand le serveur l'aura dite.
+func _on_claimed(id: String, _reward: Dictionary) -> void:
+	_claimed_id = id
 	_confetti()
+
+
+## La demande suivante glisse de la droite (`.rr-quest-next`, 24 px en 360 ms).
+func _slide_in() -> void:
 	if not visible:
 		return
 	var tween := create_tween().set_parallel(true)

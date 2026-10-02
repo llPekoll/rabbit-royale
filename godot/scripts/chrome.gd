@@ -396,16 +396,15 @@ func _on_door(door: String) -> void:
 			Shop.open()
 		"energy":
 			EnergyPopup.open()
-		# LE POTAGER : on recolte tout de suite, sans carte. Si le serveur a
-		# vraiment donne, les plants s'arrachent (un « pop ») et chaque
-		# carotte tinte en se posant sur la pastille (burrow.gd).
+		# LE POTAGER : on recolte tout de suite, sans carte. Les plants
+		# s'arrachent au doigt (un « pop », la recolte est optimiste) et
+		# chaque carotte tinte en se posant sur la pastille (burrow.gd).
 		"harvest":
 			if Home.live_garden() <= 0 or Home.pending:
 				Sound.deny()
 				return
-			var res: Dictionary = await Home.act("harvest")
-			if int(res.get("harvested", 0)) > 0:
-				Sound.play("hop", 1.4)
+			Sound.play("hop", 1.4)
+			Home.act("harvest")
 		# LA MAISON : son volet, en haut a droite (house_panel.gd) — il a pris
 		# la place de la carte qui s'ouvrait au milieu de l'ecran.
 		"upgrade":

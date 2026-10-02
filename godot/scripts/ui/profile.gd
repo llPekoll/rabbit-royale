@@ -550,15 +550,15 @@ func _patch_player(patch: Dictionary) -> Answer:
 		"Content-Type: application/json",
 		"Authorization: Bearer %s" % Session.token,
 	])
-	Net.begin()
+	var ticket := Net.begin()
 	var started := request.request(Net.HOST + "/api/player", headers, HTTPClient.METHOD_PATCH, JSON.stringify(patch))
 	if started != OK:
 		request.queue_free()
-		Net.end()
+		Net.end(ticket)
 		return Answer.new(0, {})
 	var result: Array = await request.request_completed
 	request.queue_free()
-	Net.end()
+	Net.end(ticket)
 	var parsed: Variant = JSON.parse_string((result[3] as PackedByteArray).get_string_from_utf8())
 	return Answer.new(int(result[1]), parsed if parsed is Dictionary else {})
 

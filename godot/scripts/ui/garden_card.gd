@@ -83,13 +83,14 @@ func refresh() -> void:
 	# Rien a prendre : la dalle n'a pas de travail. `pending` bloque une
 	# seconde pression tant que la premiere est en vol.
 	_slab.set_lit(ready > 0 and not Home.pending)
-	# La recolte arrache les plants (un « pop ») — seulement si le serveur a
-	# vraiment donne quelque chose : un refus a deja son son, celui du refus.
-	# Le tintement vient ensuite, carotte par carotte (burrow.gd).
+	# La recolte arrache les plants (un « pop ») AU DOIGT : elle est optimiste
+	# (Home.act), le serveur ne fait que corriger le compte. Le tintement
+	# vient ensuite, carotte par carotte (burrow.gd).
 	_slab.pressed.connect(func() -> void:
-		var res: Dictionary = await Home.act("harvest")
-		if int(res.get("harvested", 0)) > 0:
-			Sound.play("hop", 1.4))
+		if Home.pending or Home.live_garden() <= 0:
+			return
+		Sound.play("hop", 1.4)
+		Home.act("harvest"))
 	var foot := Kit.hbox(Kit.PAD_TIGHT)
 	foot.custom_minimum_size = _slab.custom_minimum_size
 	foot.add_child(_slab)

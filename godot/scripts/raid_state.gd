@@ -92,6 +92,9 @@ var raid: Dictionary = {}
 ## Les cibles (use-raid.ts `Target`) : id, name, avatar, stock, garden,
 ## shielded, shieldedFor, presence, digging. Classees par le serveur.
 var targets: Array = []
+## Une lecture des cibles est deja rentree (ou a echoue) : avant, une liste
+## vide veut dire « pas encore lu », pas « personne ».
+var targets_read := false
 ## Ce que la reponse qui a fini le raid a dit : reachedField, refunded, loot,
 ## damage, progress. Vide le reste du temps.
 var outcome: Dictionary = {}
@@ -153,6 +156,11 @@ func _toast(text: String, refused: bool) -> void:
 
 # ── L'attaquant ──────────────────────────────────────────────────────────────
 
+## La liste attend sa premiere lecture : la dire en train de charger.
+func targets_pending() -> bool:
+	return not targets_read and not _faked and Session.signed_in()
+
+
 func has_raid() -> bool:
 	return not raid.is_empty()
 
@@ -167,7 +175,11 @@ func refresh() -> void:
 	Net.trace("GET /api/raid -> %d ok=%s cibles=%d" % [answer.status, str(answer.ok),
 		(answer.body.get("targets", []) as Array).size() if answer.body.get("targets") is Array else -1])
 	if not answer.ok or answer.body.has("error"):
+		if not targets_read:
+			targets_read = true
+			targets_changed.emit()
 		return
+	targets_read = true
 	var next: Dictionary = answer.body.get("raid", {}) if answer.body.get("raid") is Dictionary else {}
 	if bool(next.get("finished", false)) and String(next.get("raidId", "")) == _dismissed:
 		_adopt_raid({})
@@ -599,6 +611,7 @@ func _on_session_changed() -> void:
 		return
 	raid = {}
 	targets = []
+	targets_read = false
 	outcome = {}
 	note = ""
 	incoming = {}
@@ -658,15 +671,15 @@ func _send(path: String, method: HTTPClient.Method, payload: Dictionary) -> Answ
 		"Authorization: Bearer %s" % Session.token,
 	])
 	var body := JSON.stringify(payload) if method == HTTPClient.METHOD_PATCH else ""
-	Net.begin()
+	var ticket := Net.begin()
 	var started := request.request(Net.HOST + path, headers, method, body)
 	if started != OK:
 		request.queue_free()
-		Net.end()
+		Net.end(ticket)
 		return Answer.new(0, {})
 	var result: Array = await request.request_completed
 	request.queue_free()
-	Net.end()
+	Net.end(ticket)
 	var code: int = result[1]
 	var raw: PackedByteArray = result[3]
 	var parsed: Variant = JSON.parse_string(raw.get_string_from_utf8())

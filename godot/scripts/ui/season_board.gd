@@ -99,6 +99,9 @@ var _list: VBoxContainer
 var _scroll: ScrollContainer
 var _days: Label
 var _empty: Label
+## Tant que la premiere lecture n'est pas rentree : « Loading », pas le vide.
+var _wait: LoadingNote
+var _loaded := false
 var _timer: Timer
 ## Les lignes telles que le serveur les a rendues, pour se relire dans une
 ## autre langue sans refaire l'appel.
@@ -163,6 +166,9 @@ func _ready() -> void:
 	_empty = Kit.note(EMPTY_NOTE, Palette.BARK)
 	_empty.visible = false
 	_list.add_child(_empty)
+	_wait = LoadingNote.new()
+	_wait.visible = false
+	_list.add_child(_wait)
 
 	I18N.locale_changed.connect(_on_locale_changed)
 	_timer = Timer.new()
@@ -200,6 +206,7 @@ func refresh() -> void:
 ## digging), `me` celle de `Me` (rank, score, toPass), `season` {endsAt}.
 func show_rows(entries: Array, me: Dictionary = {}, season: Dictionary = {}) -> void:
 	_offline = _offline or not Session.signed_in()
+	_loaded = true
 	_entries = entries
 	_me = me
 	_season = season
@@ -233,9 +240,11 @@ func _paint_days() -> void:
 
 func _rebuild() -> void:
 	for child in _list.get_children():
-		if child != _empty:
+		if child != _empty and child != _wait:
 			child.queue_free()
-	_empty.visible = _entries.is_empty()
+	var waiting := not _loaded and not _offline and Session.signed_in()
+	_wait.visible = waiting and _entries.is_empty()
+	_empty.visible = _entries.is_empty() and not _wait.visible
 	var mine := String(Session.player.get("id", ""))
 	var roomy := _roomy
 	var i := 0

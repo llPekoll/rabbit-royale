@@ -261,6 +261,15 @@ const TIMEOUT_SECONDS := 10.0
 signal busy_changed(busy: bool)
 
 var _in_flight := 0
+## Le numero de la derniere ecriture partie : `end` rend sa marque au bouton
+## qui l'a demandee (ui/press_ack.gd).
+var _ticket := 0
+var _ack: PressAck
+
+
+func _ready() -> void:
+	_ack = PressAck.new()
+	add_child(_ack)
 
 
 ## TRACE DU BANC : une ligne sur la sortie standard, seulement contre un
@@ -272,17 +281,30 @@ func trace(msg: String) -> void:
 
 
 ## Une ecriture part. A appeler par tout HTTPRequest fait a la main (la
-## boutique, le raid, le profil), et appariee a `end()` quoi qu'il arrive.
-func begin() -> void:
+## boutique, le raid, le profil), et appariee a `end(ticket)` quoi qu'il
+## arrive. Le bouton sous le doigt se marque TOUT DE SUITE (press_ack.gd).
+func begin() -> int:
+	_ticket += 1
 	_in_flight += 1
+	if _ack != null:
+		_ack.claim(_ticket)
 	if _in_flight == 1:
 		busy_changed.emit(true)
+	return _ticket
 
 
-func end() -> void:
+func end(ticket: int = 0) -> void:
+	if _ack != null:
+		_ack.release(ticket)
 	_in_flight = maxi(0, _in_flight - 1)
 	if _in_flight == 0:
 		busy_changed.emit(false)
+
+
+## L'attente se voit deja sur le bouton qui l'a demandee : la moulinette du
+## coin n'a pas a la redire.
+func acked() -> bool:
+	return _ack != null and _ack.showing()
 
 
 func busy() -> bool:
@@ -322,19 +344,18 @@ func _send(path: String, method: int, payload: Dictionary, token: String) -> Ans
 		or method == HTTPClient.METHOD_PATCH
 	var body := JSON.stringify(payload) if carries else ""
 	var writes := method != HTTPClient.METHOD_GET
-	if writes:
-		begin()
+	var ticket := begin() if writes else 0
 	var started := request.request(HOST + path, headers, method, body)
 	if started != OK:
 		request.queue_free()
 		if writes:
-			end()
+			end(ticket)
 		return Answer.new(0, {})
 
 	var result: Array = await request.request_completed
 	request.queue_free()
 	if writes:
-		end()
+		end(ticket)
 
 	# result is [result, response_code, headers, body]. A transport failure
 	# (no network, DNS, TLS) arrives as a non-OK result with code 0, which

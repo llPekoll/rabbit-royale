@@ -177,7 +177,9 @@ func _rebuild() -> void:
 		old.queue_free()
 
 	_button_w = _button_width()
-	if state.targets.is_empty():
+	if state.targets.is_empty() and state.targets_pending():
+		_rows.add_child(LoadingNote.new(13, Palette.INK))
+	elif state.targets.is_empty():
 		_rows.add_child(Kit.note(I18N.t("raid.nobodyYet"), Palette.INK, 13))
 	else:
 		for target in state.targets:

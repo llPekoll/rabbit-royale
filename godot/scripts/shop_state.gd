@@ -528,15 +528,15 @@ func _delete(path: String) -> Answer:
 		"Content-Type: application/json",
 		"Authorization: Bearer %s" % Session.token,
 	])
-	Net.begin()
+	var ticket := Net.begin()
 	var started := request.request(Net.HOST + path, headers, HTTPClient.METHOD_DELETE, "")
 	if started != OK:
 		request.queue_free()
-		Net.end()
+		Net.end(ticket)
 		return Answer.new(0, {})
 	var result: Array = await request.request_completed
 	request.queue_free()
-	Net.end()
+	Net.end(ticket)
 	var code: int = result[1]
 	var raw: PackedByteArray = result[3]
 	var parsed: Variant = JSON.parse_string(raw.get_string_from_utf8())

@@ -86,6 +86,12 @@ var _built := {}
 var _offered := {}
 var _hovered := ""
 var _placing := false
+## Les aretes tapees dont le serveur n'a pas encore repondu : la planche s'y
+## montre a demi — pale pour une pose, pale aussi pour un retrait. Ce n'est
+## pas de l'optimisme (la regle du portail reste au serveur), c'est la tape
+## qui se voit tout de suite (2026-10-01).
+var _pending := {}
+const PENDING_ALPHA := 0.5
 
 
 static func key_of(seg: Dictionary) -> String:
@@ -188,6 +194,15 @@ func set_hovered(seg: Dictionary) -> void:
 	_restyle()
 
 
+func set_pending(seg: Dictionary, on: bool) -> void:
+	var key := key_of(seg)
+	if on:
+		_pending[key] = true
+	else:
+		_pending.erase(key)
+	_restyle()
+
+
 func is_built(seg: Dictionary) -> bool:
 	return _built.has(key_of(seg))
 
@@ -224,11 +239,14 @@ func _restyle() -> void:
 		var built := _built.has(key)
 		var offered := _placing and _offered.has(key)
 		var hovered := _placing and key == _hovered and (offered or built)
-		plank.visible = built
+		var pending := _pending.has(key)
+		plank.visible = built or pending
 		# LA PLANCHE EN OR au survol : c'est « tape pour la retirer ».
 		plank.modulate = HOVER_TINT if built and hovered else Color.WHITE
+		if pending:
+			plank.modulate.a = PENDING_ALPHA
 		var alpha := 0.0
-		if _placing and not built:
+		if _placing and not built and not pending:
 			alpha = HOVER_ALPHA if hovered else (OFFER_ALPHA if offered else 0.0)
 		if is_instance_valid(mark):
 			var tint := HOVER_TINT if hovered else OFFER_TINT

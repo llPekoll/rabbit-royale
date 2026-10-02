@@ -49,10 +49,6 @@ window/size/window_height_override=720
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 
-[input_devices]
-
-sensors/enable_gravity=true
-
 [editor_plugins]
 
 enabled=PackedStringArray("res://addons/RabbitFirebase/plugin.cfg", "res://addons/RabbitMWA/plugin.cfg")
@@ -60,6 +56,10 @@ enabled=PackedStringArray("res://addons/RabbitFirebase/plugin.cfg", "res://addon
 [gui]
 
 theme/custom="res://assets/ui/theme.tres"
+
+[input_devices]
+
+sensors/enable_gravity=true
 
 [rendering]
 
