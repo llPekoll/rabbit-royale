@@ -104,8 +104,8 @@ func _ready() -> void:
 	_place()
 
 
-## Relit le joueur : Session le nomme, le terrier (/api/burrow) porte sa
-## tete choisie ; sans choix, le lapin brun (avatars.ts DEFAULT_AVATAR).
+## Relit le joueur : Session le nomme, le terrier (/api/burrow) porte son
+## niveau, et sa tete est celle de son lapin en jeu (Look.mine).
 func refresh() -> void:
 	# `str` et pas `String()` : un invite porte `null` pour son avatar et son
 	# wallet, et `String(null)` arrete le script.
@@ -116,11 +116,10 @@ func refresh() -> void:
 	var level: Variant = Home.player.get("level")
 	_level.visible = level != null
 	_level.text = I18N.f("rabbitLevel.badge", [int(level)]) if level != null else ""
-	var picked: Variant = Home.player.get("avatar", Session.player.get("avatar"))
-	var key := "brown" if picked == null else str(picked)
-	var sheet: Texture2D = Kit.AVATARS.get(key, Kit.AVATARS["brown"])
+	# LA TETE DE MON LAPIN EN JEU (Look) : skin compris, pas seulement le
+	# pelage choisi.
 	var crop := AtlasTexture.new()
-	crop.atlas = sheet
+	crop.atlas = Look.sheet(Look.mine())
 	crop.region = FACE_CROP
 	# Rien de la case voisine sur la planche (voir home_rabbit.gd).
 	crop.filter_clip = true

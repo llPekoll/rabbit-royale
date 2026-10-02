@@ -14,6 +14,7 @@ import {
   passSaleBlocker, payoutPlan, potCents, prizePoolCents, rankedHolders, skinOf,
 } from '@/lib/game/season-pass';
 import { PASS } from '@config/tuning';
+import { looksOf } from '@/lib/game/look';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,6 +26,8 @@ export async function passState(playerId: string | null, now = Date.now()) {
   const on = !!season?.passOn;
   const pot = on ? await potCents(db, season!.id) : 0;
   const plan = on ? payoutPlan(pot, await rankedHolders(db, season!.id)) : [];
+  // Every holder wears the ticket's skin: the race is drawn in it (look.ts).
+  const looks = await looksOf(plan.map((p) => ({ id: p.playerId, avatar: p.avatar })));
 
   let mine: null | {
     holder: boolean;
@@ -63,7 +66,7 @@ export async function passState(playerId: string | null, now = Date.now()) {
     },
     /** The race for the pot: the top holders and what they would take if it ended now. */
     top: plan.map((p) => ({
-      rank: p.rank, playerId: p.playerId, name: p.name, avatar: p.avatar, score: p.score,
+      rank: p.rank, playerId: p.playerId, name: p.name, avatar: p.avatar, look: looks.get(p.playerId), score: p.score,
       prizeUsd: dollars(p.usdCents),
     })),
     mine,

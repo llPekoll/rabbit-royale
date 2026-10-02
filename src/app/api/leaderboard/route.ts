@@ -12,6 +12,7 @@ import { getSession } from '@/lib/auth/jwt';
 import { topPlayers, rankOf, onlineAmong, gapToNextRank } from '@/lib/leaderboard';
 import { SEASON } from '@config/tuning';
 import { holdersAmong } from '@/lib/game/season-pass';
+import { looksOf } from '@/lib/game/look';
 
 export const dynamic = 'force-dynamic';
 
@@ -77,6 +78,10 @@ export async function GET(req: Request) {
   // The gold ticket: who holds this season's pass. Empty outside a pass season.
   const passHolders = season?.passOn ? await holdersAmong(season.id, rows.map((p) => p.id)) : new Set<string>();
 
+  // The sheet each one wears (look.ts) — the podium draws the rabbit they
+  // play as, skin included, not just the fur they picked.
+  const looks = await looksOf(rows);
+
   const entries = rows.map((p, i) => ({
     rank: i + 1,
     playerId: p.id,
@@ -91,6 +96,7 @@ export async function GET(req: Request) {
      * sheet, which is what a new player is anyway.
      */
     avatar: p.avatar,
+    look: looks.get(p.id),
     score: p.seasonScore,
     lifetime: p.lifetimeCarrots,
     burrowLevel: p.burrowLevel,

@@ -24,12 +24,10 @@ const DEFAULT_KEY := "brown"
 const KEYS := ["brown", "gray", "orange", "white", "yellow"]
 
 
-## La planche d'une cle, ou celle par defaut : « falling back rather than
-## rendering a hole » (avatarSrc).
+## La planche d'une cle — pelage ou skin (Look.sheet) —, ou celle par
+## defaut : « falling back rather than rendering a hole » (avatarSrc).
 static func sheet(key: Variant) -> Texture2D:
-	if key is String and Kit.AVATARS.has(key):
-		return Kit.AVATARS[key]
-	return Kit.AVATARS[DEFAULT_KEY]
+	return Look.sheet(key)
 
 
 ## La texture du portrait seul : la fenetre ART sur la planche.

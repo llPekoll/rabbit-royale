@@ -600,8 +600,9 @@ func show_ground(seed_value: String) -> void:
 	var mine := RunState.current.me()
 	if _remote and mine.has("tile"):
 		start = _board.cell_of(int(mine["tile"]))
-	_rabbit.seat = _seat_of(RunState.current.my_id()) if _remote else 0
-	_rabbit.skin = PassState.skin_in(mine) if _remote else ""
+	# EN LIGNE, l'apparence lue a la porte par le serveur ; hors ligne (la
+	# lecon), la mienne telle que le profil et le ticket la disent.
+	_rabbit.look = Look.of(mine) if _remote else Look.mine()
 	_rabbit.build(hash(seed_value), start)
 	_sync_rivals()
 	local_run = LocalRun.new(_board, start) if _local_deal.size() > 0 else null
@@ -1245,16 +1246,6 @@ func _watching() -> bool:
 	return _remote and not RunState.current.spectating.is_empty()
 
 
-## LE SIEGE D'UN JOUEUR : son rang d'arrivee sur l'ile, qui choisit son pelage.
-func _seat_of(id: String) -> int:
-	var i := 0
-	for k in RunState.current.rabbits:
-		if String(k) == id:
-			return i
-		i += 1
-	return i
-
-
 func _rabbit_of(id: String) -> IslandRabbit:
 	if not _watching() and id == RunState.current.my_id():
 		return _rabbit
@@ -1296,8 +1287,7 @@ func _add_rival(r: Dictionary, arriving: bool) -> void:
 		old.queue_free()
 	var rabbit := IslandRabbit.new()
 	rabbit.player_id = id
-	rabbit.seat = _seat_of(id)
-	rabbit.skin = PassState.skin_in(r)
+	rabbit.look = Look.of(r)
 	rabbit.map = _terrain.map
 	rabbit.roam = false
 	# FRERE du lapin du joueur, pour se trier sur la meme regle.

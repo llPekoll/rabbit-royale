@@ -378,7 +378,7 @@ func _on_finished(r: Dictionary) -> void:
 			"carrots": int(r.get("carrotsLooted", 0)),
 			"trapsSprung": int(r.get("trapsSprung", 0)),
 			"refunded": int(outcome.get("refunded", 0)),
-			"avatar": _my_avatar(),
+			"look": Look.mine(),
 		})
 		# Pas de pastille au retour : la scene vient de passer un plein ecran
 		# a dire ce qui a ete pris.
@@ -401,11 +401,6 @@ func _on_finished(r: Dictionary) -> void:
 	noted.emit(haul, false)
 
 
-## Le lapin du joueur, pour la scene : `players.avatar`, tel que /api/auth/me
-## le rend dans `player`. Vide -> le brun, celui de qui n'a jamais choisi.
-func _my_avatar() -> String:
-	var key: Variant = Home.player.get("avatar", Session.player.get("avatar", ""))
-	return String(key) if key is String else ""
 
 
 # ── Le defenseur ─────────────────────────────────────────────────────────────

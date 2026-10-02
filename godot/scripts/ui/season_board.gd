@@ -296,7 +296,7 @@ func _make_row(e: Dictionary, index: int, mine: String, roomy: bool) -> Control:
 	row.add_child(rank_label)
 
 	if on_podium:
-		row.add_child(_podium(e.get("avatar", null), rank, crowned))
+		row.add_child(_podium(Look.of(e), rank, crowned))
 
 	var names := Kit.vbox(0)
 	names.size_flags_horizontal = Control.SIZE_EXPAND_FILL

@@ -24,6 +24,7 @@ import { pushToPlayer } from '@/lib/game/raid-events';
 import { inventory, players, raidRuns, raids } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
 import { defenderRaidView } from '@/lib/game/defence';
+import { playerLook } from '@/lib/game/look';
 
 export async function POST(req: Request) {
   const session = await getSession(req);
@@ -93,5 +94,5 @@ export async function POST(req: Request) {
   // step: their client re-reads the raid and plays the shock they were dealt.
   await pushToPlayer(sql, { to: run.attackerId, event: 'raid_struck', payload: { raidId: run.id } });
 
-  return Response.json({ raid: defenderRaidView(after, attacker) });
+  return Response.json({ raid: defenderRaidView(after, attacker, await playerLook(attacker)) });
 }

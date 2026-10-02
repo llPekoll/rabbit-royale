@@ -14,16 +14,6 @@ class_name IslandRabbit
 ## ici — le vol d'une poussee, la chute dans la mer — finit par reposer `_at`
 ## et appeler `_place`, sinon le prochain saut repartirait d'un demi-point.
 
-## LES CINQ PELAGES, dans l'ordre du web (IslandScene.ts `BUNNY_SHEETS`) : le
-## siege d'arrivee choisit la couleur, le premier est blanc.
-const SHEETS: Array[Texture2D] = [
-	preload("res://assets/bunnies/bunny-white.png"),
-	preload("res://assets/bunnies/bunny-brown.webp"),
-	preload("res://assets/bunnies/bunny-gray.webp"),
-	preload("res://assets/bunnies/bunny-orange.webp"),
-	preload("res://assets/bunnies/bunny-yellowish.webp"),
-]
-
 ## LA POSE FOUDROYEE (bunnies/electrocuted.json) : deux cases de 32 dans des
 ## cellules de 34 extrudees d'un pixel, a x = 1 et 36.
 const SHOCK_SHEET := preload("res://assets/bunnies/electrocuted.png")
@@ -89,8 +79,6 @@ const FADE_SECONDS := 0.55
 ## Le lapin assomme : trois etoiles d'or autour de la tete (`playStunned`).
 const STAR_INK := Color("#ffd138")
 
-## Le siege d'arrivee (la couleur), avant `build`.
-var seat := 0
 ## Qui il est, pour la plaque et pour savoir si c'est le mien.
 var player_id := ""
 
@@ -114,12 +102,12 @@ var _under := false
 const LAST_PAINTED := {"damage": 52}
 
 
-## LA PLANCHE DE SON SIEGE, meme table que HomeRabbit — ou celle de son
-## skin (`skin`, herite, pose avant `build` depuis le lapin du serveur).
+## LA PLANCHE DE SON APPARENCE, meme table que HomeRabbit (`look`, herite,
+## posee avant `build` depuis le lapin du serveur).
 func _frames() -> SpriteFrames:
 	var out := SpriteFrames.new()
 	out.remove_animation("default")
-	var sheet: Texture2D = Kit.SKINS.get(skin, SHEETS[posmod(seat, SHEETS.size())])
+	var sheet := Look.sheet(look)
 	for name in ANIMS:
 		var def: Array = ANIMS[name]
 		out.add_animation(name)

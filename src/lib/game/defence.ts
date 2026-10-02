@@ -12,7 +12,8 @@
  */
 export interface DefenderRaidView {
   raidId: string;
-  attacker: { id: string; name: string; avatar: string | null };
+  /** `look` is the sheet the intruder is drawn with (look.ts). */
+  attacker: { id: string; name: string; avatar: string | null; look: string };
   /** Where the raider stands. */
   tile: number;
   energy: number;
@@ -43,10 +44,11 @@ export interface RaidRunRow {
 export function defenderRaidView(
   run: RaidRunRow,
   attacker: { id: string; name: string; avatar: string | null },
+  look: string,
 ): DefenderRaidView {
   return {
     raidId: run.id,
-    attacker: { id: attacker.id, name: attacker.name, avatar: attacker.avatar },
+    attacker: { id: attacker.id, name: attacker.name, avatar: attacker.avatar, look },
     tile: run.tile,
     energy: run.energy,
     walked: run.visited,

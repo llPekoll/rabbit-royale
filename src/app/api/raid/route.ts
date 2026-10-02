@@ -20,6 +20,7 @@ import { and, desc, eq, gte, inArray, isNull, ne, sql as raw } from 'drizzle-orm
 import { db, sql } from '@/lib/db';
 import { pushToPlayer } from '@/lib/game/raid-events';
 import { defenderRaidView } from '@/lib/game/defence';
+import { playerLook } from '@/lib/game/look';
 import { players, raidRuns, raids, traps, fences } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
 import { connectedAmong, connectedIds, crownHolderId, onlineAmong } from '@/lib/leaderboard';
@@ -178,7 +179,7 @@ async function tellDefender(runId: string): Promise<void> {
   await pushToPlayer(sql, {
     to: run.defenderId,
     event: 'raid_incoming',
-    payload: defenderRaidView(run, attacker),
+    payload: defenderRaidView(run, attacker, await playerLook(attacker)),
   });
 }
 

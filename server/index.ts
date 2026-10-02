@@ -39,6 +39,7 @@ import { payCrossing } from '../src/lib/game/pay-crossing';
 import { registerSeatLookup } from '../src/lib/game/live-seats';
 import { rolloverSeasonIfDue } from '../src/lib/game/season';
 import { racesNow, skinOf } from '../src/lib/game/season-pass';
+import { lookOf } from '../src/lib/game/look';
 import { currentEnergy } from '../src/lib/game/regen';
 import { grantItem } from '../src/lib/game/grant';
 import { refreshTuning } from '../src/lib/tuning/live';
@@ -348,6 +349,7 @@ const publicRabbit = (r: Rabbit) => ({
   alive: r.alive,
   crowned: r.crowned,
   skin: r.skin ?? null,
+  look: r.look ?? lookOf(null, r.skin),
   // What is left of a stun, as a REMAINING duration (see `bomb_hit` for why
   // never a deadline). A snapshot taken mid-stun used to say nothing, and a
   // client reconnecting right after a blast lit its ring at once.
@@ -975,8 +977,12 @@ io.on('connection', (socket: Socket) => {
     // (`publicRabbit`), and the run it digs scores CROWN.GAIN_MULT (`bankRun`).
     // Read at the door — a crown won mid-run is worn from the next one.
     if (!existing) rabbit.crowned = (await crownHolderId().catch(() => null)) === data.playerId;
-    // THE TICKET'S SKIN, worn for everyone to see (`publicRabbit`).
-    if (!existing) rabbit.skin = await skinOf(data.playerId).catch(() => null);
+    // THE TICKET'S SKIN, worn for everyone to see (`publicRabbit`) — and the
+    // LOOK it settles: that skin, else the fur the player picked (look.ts).
+    if (!existing) {
+      rabbit.skin = await skinOf(data.playerId).catch(() => null);
+      rabbit.look = lookOf(player.avatar, rabbit.skin);
+    }
     live.rabbits.set(data.playerId, rabbit);
     live.disconnectedAt.delete(data.playerId);
     live.emptySince = null;

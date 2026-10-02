@@ -23,6 +23,7 @@ import { db } from '@/lib/db';
 import { players, raidRuns } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
 import { defenderRaidView } from '@/lib/game/defence';
+import { playerLook } from '@/lib/game/look';
 import { RAID_RUN } from '@config/tuning';
 
 export async function GET(req: Request) {
@@ -58,5 +59,5 @@ export async function GET(req: Request) {
   const attacker = await db.query.players.findFirst({ where: eq(players.id, run.attackerId) });
   if (!attacker) return Response.json({ raid: null });
 
-  return Response.json({ raid: defenderRaidView(run, attacker) });
+  return Response.json({ raid: defenderRaidView(run, attacker, await playerLook(attacker)) });
 }

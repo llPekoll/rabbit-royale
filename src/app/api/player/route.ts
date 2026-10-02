@@ -15,6 +15,7 @@ import { players } from '@/lib/db/schema';
 import { getSession, signSession, SESSION_COOKIE } from '@/lib/auth/jwt';
 import { applyRegen } from '@/lib/game/regen';
 import { isBuiltInAvatar } from '@/lib/game/avatars';
+import { playerLook } from '@/lib/game/look';
 import { nameProblem, normalizeName } from '@/lib/game/player-name';
 
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
@@ -62,10 +63,12 @@ export async function PATCH(req: Request) {
     .where(eq(players.id, session.sub))
     .returning();
   if (!updated) return Response.json({ error: 'unknown player' }, { status: 404 });
+  // A new fur is a new LOOK — unless a skin sits on top of it (look.ts).
+  const player = { ...applyRegen(updated), look: await playerLook(updated) };
 
   // Only a rename invalidates the token; an avatar change is not in the claims.
   if (patch.name === undefined) {
-    return Response.json({ player: applyRegen(updated) });
+    return Response.json({ player });
   }
 
   const token = await signSession({
@@ -76,7 +79,7 @@ export async function PATCH(req: Request) {
     name: updated.name,
   });
   return Response.json(
-    { player: applyRegen(updated), token },
+    { player, token },
     { headers: { 'Set-Cookie': sessionCookie(token) } },
   );
 }

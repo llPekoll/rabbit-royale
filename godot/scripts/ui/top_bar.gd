@@ -122,6 +122,8 @@ func _ready() -> void:
 	Screens.moved.connect(_on_moved)
 	Session.changed.connect(chip.refresh)
 	Home.changed.connect(chip.refresh)
+	# Le skin du ticket change la tete du chip (Look.mine).
+	PassState.shared().changed.connect(chip.refresh)
 	Home.changed.connect(_reflect_news)
 	ShopState.shared().changed.connect(_reflect_news)
 	get_viewport().size_changed.connect(_measure)

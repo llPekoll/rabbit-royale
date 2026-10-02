@@ -90,7 +90,7 @@ const COLUMN_GAP_SHORT := 10
 ## repris tel quel, pas invente en quatre langues.
 const WEB_TAP := "TAP TO CONTINUE"
 
-## `defender`, `carrots`, `avatar`, `trapsSprung`, `refunded`.
+## `defender`, `carrots`, `look` (Look), `trapsSprung`, `refunded`.
 var outcome: Dictionary = {}
 
 var _shown := false
@@ -507,12 +507,10 @@ func _process(delta: float) -> void:
 			_rabbit.texture = _frame_texture()
 
 
-## Une image de la planche du lapin choisi (Kit.AVATARS ; le brun a defaut).
+## Une image de la planche du lapin, celle qu'il porte en jeu (Look).
 func _frame_texture() -> AtlasTexture:
-	var key := String(outcome.get("avatar", ""))
-	var sheet: Texture2D = Kit.AVATARS.get(key, Kit.AVATARS["brown"])
 	var atlas := AtlasTexture.new()
-	atlas.atlas = sheet
+	atlas.atlas = Look.sheet(outcome.get("look", outcome.get("avatar", "")))
 	atlas.region = Rect2((_frame % SHEET_COLS) * FRAME, floori(_frame / float(SHEET_COLS)) * FRAME, FRAME, FRAME)
 	# PAS UN PIXEL DE LA CASE D'AU-DESSUS : pendant le saut, le lapin passe par
 	# des y fractionnaires, et la derniere ligne de l'image du dessus (un pied,

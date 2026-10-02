@@ -25,8 +25,6 @@ class_name HomeRabbit
 ## qui le couvrait n'etait jamais son FRERE. Un lapin doit se trier contre les
 ## tuiles et les decors sur la meme regle qu'eux : `Iso.depth`.
 
-const SHEET := preload("res://assets/bunnies/bunny-white.png")
-
 ## LA PLANCHE : 8 colonnes sur 8 rangees de 32x32.
 const FRAME := 32
 const SHEET_COLS := 8
@@ -116,9 +114,9 @@ var map: BurrowMap
 ## quitterait la case d'ou le X se pose.
 var roam := true
 
-## LE SKIN porte (Kit.SKINS), "" pour le pelage blanc. Pose avant `build`,
-## ou change en place par `wear`.
-var skin := ""
+## L'APPARENCE portee (Look) : un skin ou un pelage, "" pour le brun. Posee
+## avant `build`, ou changee en place par `wear`.
+var look := ""
 var _sprite: AnimatedSprite2D
 var _shadow: RabbitShadow
 var _at: Vector2i
@@ -530,11 +528,11 @@ class RabbitShadow extends Node2D:
 
 
 ## LA PLANCHE DECOUPEE, une animation par ligne de la table.
-## CHANGER DE SKIN sans refaire le lapin : la meme animation, la meme image.
-func wear(new_skin: String) -> void:
-	if new_skin == skin:
+## CHANGER D'APPARENCE sans refaire le lapin : la meme animation, la meme image.
+func wear(new_look: String) -> void:
+	if new_look == look:
 		return
-	skin = new_skin
+	look = new_look
 	if _sprite == null:
 		return
 	var anim := _sprite.animation
@@ -559,7 +557,7 @@ func _frames() -> SpriteFrames:
 		out.set_animation_loop(name, def[3])
 		for i in range(def[0], def[1] + 1):
 			var frame := AtlasTexture.new()
-			frame.atlas = Kit.SKINS.get(skin, SHEET)
+			frame.atlas = Look.sheet(look)
 			frame.region = Rect2(
 				(i % SHEET_COLS) * FRAME, (i / SHEET_COLS) * FRAME, FRAME, FRAME
 			)

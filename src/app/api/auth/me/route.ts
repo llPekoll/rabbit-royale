@@ -13,6 +13,7 @@ import { db } from '@/lib/db';
 import { players } from '@/lib/db/schema';
 import { getSession, signSession } from '@/lib/auth/jwt';
 import { applyRegen } from '@/lib/game/regen';
+import { playerLook } from '@/lib/game/look';
 
 const SEEN_THROTTLE_MS = 60 * 60 * 1000;
 
@@ -58,7 +59,8 @@ export async function GET(req: Request) {
   // from a null wallet — one field, read the same way in every screen, and the
   // server stays the thing that decides what a guest is.
   return Response.json({
-    player: { ...applyRegen(player), guest: !player.wallet },
+    // `look`: the sheet this player's rabbit wears everywhere (look.ts).
+    player: { ...applyRegen(player), guest: !player.wallet, look: await playerLook(player) },
     ...(token ? { token } : {}),
   });
 }
