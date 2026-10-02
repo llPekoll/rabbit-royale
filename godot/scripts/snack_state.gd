@@ -164,6 +164,14 @@ static func pack_name(pack: String) -> String:
 	return I18N.t("snack.hat") if pack == "magic_hat" else I18N.t("snack.foot")
 
 
+## LES PARTIES JOUEES, la lecon comprise. `Session.player` est fige a la
+## connexion (un invite qui vient de finir la lecon y lit encore 0) ; le
+## terrier, relu chaque minute et apres chaque partie, porte le vrai compte.
+static func runs_played() -> int:
+	var from_home := int(Home.burrow.get("runs", 0))
+	return maxi(from_home, int(Session.player.get("runsPlayed", 0)))
+
+
 # ── Prendre ─────────────────────────────────────────────────────────────────
 
 ## Prendre le snack du jour ; `pack` au septieme. Les carottes partent tout
@@ -228,8 +236,10 @@ func _try_open() -> void:
 		return
 	if not Screens.in_world() or Screens.place != Screens.Place.BURROW or Screens.crossing:
 		return
-	# La lecon d'abord : runsPlayed la compte, 1 = elle est faite.
-	if int(Session.player.get("runsPlayed", 0)) < 1:
+	# PAS AU RETOUR DE LA LECON : l'arrivee qui suit la lecon est celle ou
+	# les ilots sortent de l'eau, et la fenetre la cacherait. La banniere
+	# respire deja ; la fenetre attend le retour d'une vraie partie.
+	if runs_played() < 2:
 		return
 	if RaidState.current.has_raid() or RaidState.current.has_incoming():
 		return

@@ -106,7 +106,7 @@ func refresh() -> void:
 		return
 	var st := SnackState.shared()
 	# APRES LA LECON, et une fois la semaine lue : avant, rien a montrer.
-	visible = st.known() and int(Session.player.get("runsPlayed", 0)) >= 1
+	visible = st.known() and SnackState.runs_played() >= 1
 	if not visible:
 		_breathe(false)
 		return
