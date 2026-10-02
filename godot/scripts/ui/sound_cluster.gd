@@ -1,46 +1,22 @@
 class_name SoundCluster
 extends Control
-## LE SON : un carre au bout droit de la barre, et un panneau qui tombe
-## dessous. Porte de src/components/sound-button.tsx, sauf sur un point :
-##
-##   • UN SEUL CARRE, LE HAUT-PARLEUR, ET IL OUVRE LE PANNEAU (Paul,
-##     2026-09-23). Il y en avait deux — le haut-parleur coupait la musique
-##     d'un tap, une fleche a cote ouvrait les reglages — et deux carres pour
-##     le son pesaient autant dans la barre que la boutique. Couper la
-##     musique coute maintenant deux taps, le premier rangee « Musique » du
-##     panneau a portee du pouce ; le haut-parleur dit toujours si elle est
-##     coupee.
-##   • EN HAUT A DROITE, DANS LA RANGEE. Il a passe sa vie a tourner autour
-##     des coins du bas ; c'est du chrome, comme la boutique et le tableau,
-##     donc il est bati comme eux et epingle au bout droit de la barre. C'est
-##     la seule piece de la rangee sur CHAQUE ecran, donc il possede le coin
-##     et les autres s'alignent a sa gauche. Le panneau descend de lui.
-##   • UN ENGRENAGE, PLUS UN HAUT-PARLEUR (2026-10-02) : le panneau porte
-##     aussi le solo et la qualite, « l'icone du son ça va plus trop ». Le
-##     muet ne se lit donc plus sur le bouton, seulement dans le panneau.
-##     Le carre s'enfonce tant que le panneau est ouvert — l'enfoncement dit
-##     « ce bouton a ouvert ceci », comme partout dans la barre.
-##   • UN PANNEAU SANS AUTRE ISSUE QUE SON BOUTON EST UN PIEGE sur un ecran
-##     tactile : un tap dehors le ferme, Echap aussi.
-##   • C'EST AUSSI LE PANNEAU DES OPTIONS DE JEU (2026-10-02) : le seul
-##     panneau de reglages du jeu, donc le SOLO s'y range sous le volume
-##     (PlaySettings). Grise, avec une ligne qui dit pourquoi, pour qui tient
-##     le Crown Race Ticket. Puis la QUALITE : BEAU (bloom, ombres, rais) ou
-##     FLUIDE.
-##   • DANS LA PEAU DES JEUX MOBILES (2026-10-02, « c'est tres moche,
-##     regarde ce qu'il y a sur les autres jeux ») : un titre, deux sections
-##     (SON, JEU), chaque reglage dans un cartouche brun avec son icone pixel,
-##     de vrais interrupteurs a glissiere (PixelSwitch) et un selecteur a deux
-##     cases pour la qualite (PixelSegment). Toute la rangee bascule au doigt :
-##     le pouce n'a pas a viser les 66 px de l'interrupteur.
+## Le panneau de réglages du terrier, accroché à l'engrenage.
+## Deux colonnes sur le bois : son à gauche, jeu à droite. Tous les
+## réglages restent visibles sur téléphone paysage, ticket compris.
+## Le tap dehors, Echap et la croix ferment le même panneau.
 
-const PANEL_W := 360.0
+const PANEL_W := 680.0
 const ROW_GAP := 6.0
 const ICON_PX := 24.0
-## La largeur de la glissiere et du selecteur : le cadre de feuilles prend
-## 36 px de chaque cote, et a 150 il ne restait que 8 px au libelle.
+## La largeur commune du volume et du choix de qualité.
 const CONTROL_W := 130.0
-const ICON_DIR := "res://assets/ui/icons/settings/"
+const PANEL_ART := preload("res://assets/ui/snack/cabinet.png")
+const SETTING_ICONS := {
+	"note": preload("res://assets/ui/icons/settings/note.png"),
+	"burst": preload("res://assets/ui/icons/settings/burst.png"),
+	"sparkle": preload("res://assets/ui/icons/settings/sparkle.png"),
+	"rabbit": preload("res://assets/ui/icons/settings/rabbit.png"),
+}
 
 var sound_button: HubIconButton
 
@@ -57,6 +33,10 @@ var _solo_note: HBoxContainer
 var _solo_note_text: Label
 var _labels: Array[Label] = []
 var _open := false
+var _inset: MarginContainer
+var _close: CloseButton
+var _volume_value: Label
+var _opening: Tween
 
 
 func _init() -> void:
@@ -77,11 +57,20 @@ func _init() -> void:
 
 
 func _ready() -> void:
+	set_notify_transform(true)
 	_relabel()
 	_reflect()
 	I18N.locale_changed.connect(func(_c: String) -> void: _relabel())
 	PassState.shared().changed.connect(_reflect)
+	get_viewport().size_changed.connect(_place)
 	_place()
+
+
+func _notification(what: int) -> void:
+	# Le parent range la barre après _ready et après un redimensionnement.
+	# Recaler alors le panneau à partir de sa vraie position écran.
+	if what == NOTIFICATION_TRANSFORM_CHANGED and is_inside_tree() and _panel != null:
+		_place.call_deferred()
 
 
 ## Le carre du bouton, comme le reste du rail.
@@ -99,68 +88,86 @@ func _build_panel() -> void:
 	_panel.z_index = 5
 	add_child(_panel)
 
-	var frame := Kit.parchment()
+	var frame := NineSlice.make(PANEL_ART, Vector4i(124, 125, 124, 148), Vector4(18, 47, 18, 24), true)
 	Kit.fill(frame)
 	_panel.add_child(frame)
-	var edge := frame.inset()
-	var inset := Kit.margin(edge.x + Kit.PAD, minf(edge.y, Kit.LEAF_EDGE) + Kit.PAD, edge.z + Kit.PAD, edge.w + Kit.PAD)
-	Kit.fill(inset)
-	_panel.add_child(inset)
-	var column := Kit.vbox(ROW_GAP)
-	inset.add_child(column)
-	var inner_w := PANEL_W - edge.x - edge.z - 2.0 * Kit.PAD
+	_inset = Kit.margin(24, 12, 24, 22)
+	Kit.fill(_inset)
+	_panel.add_child(_inset)
+	var column := Kit.vbox(12)
+	_inset.add_child(column)
+	var header := Kit.hbox(10)
+	column.add_child(header)
+	var gear := Kit.icon(Kit.ICONS["gear"], 24)
+	gear.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	header.add_child(gear)
+	_title = Kit.title("", 21, Palette.CREAM)
+	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	header.add_child(_title)
+	_close = Kit.close_button()
+	_close.pressed.connect(func() -> void: set_open(false))
+	header.add_child(_close)
 
-	_title = Kit.title("", Kit.pixel_size(2.0), Palette.INK)
-	column.add_child(_title)
+	var sections := Kit.hbox(18)
+	column.add_child(sections)
+	var audio := Kit.vbox(ROW_GAP)
+	var game := Kit.vbox(ROW_GAP)
+	for section in [audio, game]:
+		section.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		section.custom_minimum_size.x = (PANEL_W - 66.0) * 0.5
+		sections.add_child(section)
 
-	# ── SON ──
-	column.add_child(_head())
+	audio.add_child(_head())
 	_music = PixelSwitch.new()
 	_music.toggled.connect(func(on: bool) -> void: AudioSettings.set_music_muted(not on))
-	column.add_child(_card("note", _music))
+	audio.add_child(_card("note", _music))
 	_effects = PixelSwitch.new()
 	_effects.toggled.connect(func(on: bool) -> void: AudioSettings.set_sfx_muted(not on))
-	column.add_child(_card("burst", _effects))
+	audio.add_child(_card("burst", _effects))
 	_volume = _slider()
-	_volume.value_changed.connect(func(v: float) -> void: AudioSettings.set_volume(v))
-	column.add_child(_card("", _volume, Kit.ICONS["speaker-on"]))
+	var volume_column := Kit.vbox(0)
+	_volume_value = Kit.label("", 10, Palette.GOLD)
+	_volume_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	volume_column.add_child(_volume_value)
+	volume_column.add_child(_volume)
+	_volume.value_changed.connect(func(v: float) -> void:
+		AudioSettings.set_volume(v)
+		_volume_value.text = "%d%%" % roundi(v * 100))
+	audio.add_child(_card("", volume_column, Kit.ICONS["speaker-on"]))
 
-	# ── JEU ──
-	column.add_child(_head())
+	game.add_child(_head())
 	_quality = PixelSegment.new(CONTROL_W)
+	_quality.custom_minimum_size.y = 36
 	_quality.picked.connect(func(i: int) -> void: PlaySettings.set_pretty(i == 1))
-	column.add_child(_card("sparkle", _quality))
+	game.add_child(_card("sparkle", _quality))
 	_solo = PixelSwitch.new()
 	_solo.toggled.connect(func(on: bool) -> void: PlaySettings.set_solo(on))
-	column.add_child(_card("rabbit", _solo))
-
-	# Le ticket ferme le solo : la couronne et la raison, sous la rangee.
+	game.add_child(_card("rabbit", _solo))
 	_solo_note = Kit.hbox(Kit.PAD_TIGHT)
-	var crown := Kit.icon(Kit.CROWN, 14.0)
+	var crown := Kit.icon(Kit.CROWN, 16)
 	crown.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_solo_note.add_child(crown)
-	_solo_note_text = Kit.label("", Kit.pixel_size(1.0), Palette.BARK)
+	_solo_note_text = Kit.label("", 11, Palette.PARCHMENT)
 	_solo_note_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	# Sans largeur, un libelle qui passe a la ligne annonce une lettre par
-	# ligne, et le panneau descendait jusqu'au bas de l'ecran.
-	_solo_note_text.custom_minimum_size.x = inner_w - 20.0
+	_solo_note_text.custom_minimum_size.x = 276
+	_solo_note_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_solo_note.add_child(_solo_note_text)
 	_solo_note.visible = false
-	column.add_child(_solo_note)
-
-	_panel.custom_minimum_size = Vector2(PANEL_W, 0.0)
+	game.add_child(_solo_note)
+	_panel.custom_minimum_size = Vector2(PANEL_W, 0)
 	_panel.size.x = PANEL_W
 
 
-## Un intertitre de section : le mot a l'encre secondaire, puis un filet.
+## Un intertitre doré dans le bois.
 func _head() -> HBoxContainer:
 	var row := Kit.hbox(Kit.PAD_TIGHT)
-	var label := Kit.label("", Kit.pixel_size(1.0), Palette.BARK)
+	var label := Kit.label("", 12, Palette.GOLD, true)
 	label.uppercase = I18N.pixel_face()
 	row.add_child(label)
 	_heads.append(label)
 	var rule := ColorRect.new()
-	rule.color = Color(Palette.BARK, 0.35)
+	rule.color = Color(Palette.GOLD, 0.2)
 	rule.custom_minimum_size = Vector2(0.0, 2.0)
 	rule.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	rule.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -170,18 +177,19 @@ func _head() -> HBoxContainer:
 	return row
 
 
-## UN CARTOUCHE : le creux brun des boutons de langue, son icone, son
+## UN CARTOUCHE : le creux brun du comptoir, son icone, son
 ## libelle creme, son controle a droite. Un interrupteur se bascule de toute
 ## la rangee.
 func _card(icon_key: String, control: Control, tex: Texture2D = null) -> PanelContainer:
 	var card := PanelContainer.new()
 	card.add_theme_stylebox_override("panel", _card_style(false))
 	card.mouse_filter = Control.MOUSE_FILTER_STOP
+	card.custom_minimum_size.y = 52
 	var row := Kit.hbox(Kit.PAD)
 	card.add_child(row)
 
 	var icon := TextureRect.new()
-	icon.texture = tex if tex != null else load(ICON_DIR + icon_key + ".png")
+	icon.texture = tex if tex != null else SETTING_ICONS[icon_key]
 	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -191,7 +199,7 @@ func _card(icon_key: String, control: Control, tex: Texture2D = null) -> PanelCo
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(icon)
 
-	var label := Kit.label("", Kit.pixel_size(1.25), Palette.CREAM, true)
+	var label := Kit.label("", 12, Palette.CREAM, true)
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.clip_text = true
@@ -214,10 +222,10 @@ func _card(icon_key: String, control: Control, tex: Texture2D = null) -> PanelCo
 
 func _card_style(hot: bool) -> StyleBoxFlat:
 	var s := StyleBoxFlat.new()
-	s.bg_color = Palette.WELL_FACE
+	s.bg_color = Color("#352015")
 	s.set_border_width_all(2)
-	s.border_color = Palette.TAB_ON_BOTTOM if hot else Palette.INK
-	s.set_corner_radius_all(6)
+	s.border_color = Palette.GOLD if hot else Color("#79502b")
+	s.set_corner_radius_all(2)
 	s.anti_aliasing = false
 	s.shadow_color = Color(Palette.INK, 0.45)
 	s.shadow_offset = Vector2(0, 3)
@@ -306,6 +314,7 @@ func _reflect() -> void:
 	_music.set_on(not AudioSettings.music_muted, w)
 	_effects.set_on(not AudioSettings.sfx_muted, w)
 	_volume.set_value_no_signal(AudioSettings.volume)
+	_volume_value.text = "%d%%" % roundi(AudioSettings.volume * 100)
 	_quality.set_index(1 if PlaySettings.pretty else 0)
 	var locked := PlaySettings.solo_locked()
 	_solo.disabled = locked
@@ -320,15 +329,15 @@ func set_open(on: bool) -> void:
 	_panel.visible = on
 	_reflect()
 	_place()
+	if _opening != null and _opening.is_valid():
+		_opening.kill()
 	if on:
-		# L'OUVERTURE : le panneau sort de l'engrenage, un rien plus petit et
-		# transparent, et se pose avec un rebond.
-		_panel.pivot_offset = Vector2(_panel.size.x - 24.0, 0.0)
-		_panel.scale = Vector2(0.92, 0.92)
+		var rest := _panel.position
+		_panel.position.y -= 6
 		_panel.modulate.a = 0.0
-		var t := _panel.create_tween().set_parallel(true)
-		t.tween_property(_panel, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-		t.tween_property(_panel, "modulate:a", 1.0, 0.12)
+		_opening = _panel.create_tween().set_parallel()
+		_opening.tween_property(_panel, "position", rest, 0.18).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		_opening.tween_property(_panel, "modulate:a", 1.0, 0.12)
 
 
 func is_open() -> bool:
@@ -343,17 +352,25 @@ func _place() -> void:
 	_cluster.size = cs
 	custom_minimum_size = cs
 	size = cs
-	_panel.reset_size()
-	var ph := maxf(_panel.get_combined_minimum_size().y, _panel_height())
+	var ph := _panel_height()
 	_panel.size = Vector2(PANEL_W, ph)
-	_panel.position = Vector2(cs.x - PANEL_W, cs.y + Kit.PAD_TIGHT)
+	var k := 1.0
+	var local_x := cs.x - PANEL_W
+	var local_y := cs.y + Kit.PAD_TIGHT
+	if is_inside_tree():
+		var view := get_viewport_rect().size
+		k = minf(1.0, minf((view.x - 20) / PANEL_W, (view.y - 20) / ph))
+		var global_at := global_position + Vector2(cs.x - PANEL_W * k, local_y)
+		global_at.x = clampf(global_at.x, 10, maxf(10, view.x - PANEL_W * k - 10))
+		global_at.y = clampf(global_at.y, 10, maxf(10, view.y - ph * k - 10))
+		local_x = global_at.x - global_position.x
+		local_y = global_at.y - global_position.y
+	_panel.scale = Vector2.ONE * k
+	_panel.position = Vector2(local_x, local_y)
 
 
 func _panel_height() -> float:
-	var frame := _panel.get_child(0) as NineSlice
-	var edge := frame.inset()
-	var column := (_panel.get_child(1) as MarginContainer).get_child(0) as Control
-	return edge.y + edge.w + 2.0 * Kit.PAD + column.get_combined_minimum_size().y
+	return maxf(280, _inset.get_combined_minimum_size().y)
 
 
 ## Un tap hors du panneau et de ses boutons le ferme ; Echap aussi.
