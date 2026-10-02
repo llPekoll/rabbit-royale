@@ -46,6 +46,20 @@ func _ready() -> void:
 		(func() -> void:
 			var party := PurchaseReveal.announce_skin(selected, String(SkinState.SALE_NAMES.get(selected, I18N.t("pass.skin"))))
 			party.linger = true).call_deferred()
+	# `--reveal-loop` : les trois revelations a la suite, en boucle, pour voir.
+	if "--reveal-loop" in args:
+		var keys := ["solana", "carrot", "kuro-violet"]
+		var turn := [0]
+		var show := func() -> void:
+			var key: String = keys[turn[0] % keys.size()]
+			turn[0] += 1
+			PurchaseReveal.announce_skin(key, String(SkinState.SALE_NAMES.get(key, I18N.t("pass.skin"))))
+		var timer := Timer.new()
+		timer.wait_time = 4.6
+		timer.timeout.connect(show)
+		add_child(timer)
+		timer.start()
+		show.call_deferred()
 	if "--purchase" in args:
 		profile._show_skin_offer(selected)
 		for arg in args:
