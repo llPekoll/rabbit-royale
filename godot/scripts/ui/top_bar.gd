@@ -128,7 +128,7 @@ func _ready() -> void:
 	_rail.resized.connect(_measure)
 	_measure()
 	_reflect_news()
-	_reflect_place()
+	reflect_place()
 	visible = Screens.in_world() or preview
 	if visible:
 		_arrive()
@@ -178,13 +178,13 @@ func _measure() -> void:
 func _on_world_shown(shown: bool) -> void:
 	visible = shown or preview
 	if shown:
-		_reflect_place()
+		reflect_place()
 		_arrive()
 		_fetch_rank()
 
 
 func _on_moved(_place: int) -> void:
-	_reflect_place()
+	reflect_place()
 	sound.set_open(false)
 	if Screens.place == Screens.Place.BURROW:
 		# Pose de depart tout de suite, animation a la reouverture (voir
@@ -193,13 +193,16 @@ func _on_moved(_place: int) -> void:
 		Screens.on_reveal(_arrive)
 
 
-## Boutique, histoire et profil n'existent que sur le terrier : sur l'ile, la
-## puce du joueur couvrait le coin sans rien a y faire en pleine manche.
-func _reflect_place() -> void:
+## Histoire et profil n'existent que sur le terrier : sur l'ile, la puce du
+## joueur couvrait le coin sans rien a y faire en pleine manche.
+func reflect_place() -> void:
 	var home := Screens.place == Screens.Place.BURROW
+	var raid := Chrome.current != null and Chrome.current.raid_shown()
 	chip.visible = home or preview
-	# LA BOUTIQUE EST UN ETAL SUR SON ILOT (2026-09-24, burrow_landmarks.gd).
-	shop_button.visible = false
+	# LA BOUTIQUE : au terrier c'est un etal sur son ilot (2026-09-24,
+	# burrow_landmarks.gd) ; en DIG et en RAID il n'y a pas d'ilot, et il
+	# faut pouvoir racheter une bombe ou un eclair sans quitter (2026-10-02).
+	shop_button.visible = not home or raid
 	story_button.visible = home
 	pill.refresh()
 

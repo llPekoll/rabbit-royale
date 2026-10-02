@@ -123,6 +123,8 @@ func _mount() -> void:
 	bar.shop_pressed.connect(func() -> void: Shop.open())
 	bar.story_pressed.connect(func() -> void: LoreCodex.open())
 	bar.season_pressed.connect(_open_season)
+	# La boutique se montre aussi pendant un raid, qui se joue au terrier.
+	_raid_changed.connect(bar.reflect_place)
 	_wire_bag()
 	bar.energy_tapped.connect(func() -> void: EnergyPanel.open())
 	bar.add_pressed.connect(func() -> void: EnergyPanel.open())
@@ -610,6 +612,11 @@ func _quiet_timer() -> Timer:
 		_away_quiet.timeout.connect(_away_off)
 		add_child(_away_quiet)
 	return _away_quiet
+
+
+## Le plateau montre-t-il un raid ? (la barre du haut y rallume la boutique)
+func raid_shown() -> bool:
+	return _raid_shown
 
 
 ## LE PLATEAU DU RAID vient de monter, ou de redescendre (burrow.gd, au noir
