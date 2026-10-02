@@ -38,7 +38,13 @@
 			"$t": "That wallet already digs for \"{0}\"."
 		},
 		"alreadyLinked": "This burrow already has a wallet.",
-		"linkFailed": "Could not connect that wallet"
+		"linkFailed": "Could not connect that wallet",
+		"region": {
+			"label": "Server",
+			"eu": "Europe",
+			"sg": "Asia",
+			"us": "Americas"
+		}
 	},
 	"chrome": {
 		"loading": "Loading",

@@ -55,6 +55,7 @@ export const zh: Dict = {
     walletDigsFor: (name) => `该钱包已经在为「${name}」挖了。`,
     alreadyLinked: '该兔窝已绑定钱包。',
     linkFailed: '无法连接该钱包',
+    region: { label: '服务器', eu: '欧洲', sg: '亚洲', us: '美洲' },
   },
 
   chrome: {

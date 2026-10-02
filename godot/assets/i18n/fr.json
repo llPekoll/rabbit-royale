@@ -38,7 +38,13 @@
 			"$t": "Ce portefeuille creuse déjà pour « {0} »."
 		},
 		"alreadyLinked": "Ce terrier a déjà un portefeuille.",
-		"linkFailed": "Impossible de connecter ce portefeuille"
+		"linkFailed": "Impossible de connecter ce portefeuille",
+		"region": {
+			"label": "Serveur",
+			"eu": "Europe",
+			"sg": "Asie",
+			"us": "Amériques"
+		}
 	},
 	"chrome": {
 		"loading": "Chargement",

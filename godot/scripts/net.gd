@@ -18,15 +18,116 @@ extends Node
 ## POUR JOUER CONTRE UN SERVEUR LOCAL, sans rien changer au defaut :
 ##   godot --path godot -- --server=http://localhost:3011
 ## ou la variable d'environnement RR_SERVER. Lu une fois, au chargement.
-var HOST := _host()
+## Pose dans `_init` et non a la declaration : `_host` lit la region
+## enregistree dans `region`, que son propre initialiseur, plus bas, remettrait
+## a vide.
+var HOST := ""
+
+## LES REGIONS (2026-10-02), facon LoL : chacune est un jeu ENTIER — sa base,
+## ses comptes, ses saisons, ses raids. Rien ne passe de l'une a l'autre ; un
+## joueur qui change de region y trouve un autre terrier (deploy/region).
+##
+## `eu` est l'ancien et unique serveur : un jeton enregistre avant les regions
+## est un jeton `eu` (session.gd).
+const REGIONS: Array[Dictionary] = [
+	{"code": "eu", "host": "https://ws.rabbit.rip"},
+	{"code": "sg", "host": "https://ws-sg.rabbit.rip"},
+	{"code": "us", "host": "https://ws-us.rabbit.rip"},
+]
+const REGION_PATH := "user://region.cfg"
+## Une region qui ne repond pas en ce temps-la est hors course a la sonde.
+const PROBE_SECONDS := 2.5
+
+signal region_changed(code: String)
+
+## La region jouee. Vide contre un serveur nomme a la main (`--server=`) :
+## ce serveur-la n'est aucune des regions.
+var region := ""
+## Le dernier aller-retour mesure vers chaque region, en ms ; -1 = muette.
+var pings: Dictionary = {}
 
 
-static func _host() -> String:
+func _init() -> void:
+	HOST = _host()
+
+
+static func _override() -> String:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--server="):
 			return arg.trim_prefix("--server=").trim_suffix("/")
-	var env := OS.get_environment("RR_SERVER")
-	return env.trim_suffix("/") if env != "" else "https://ws.rabbit.rip"
+	return OS.get_environment("RR_SERVER").trim_suffix("/")
+
+
+func _host() -> String:
+	var forced := _override()
+	if forced != "":
+		return forced
+	region = _saved_region()
+	return host_of(region if region != "" else "eu")
+
+
+func host_of(code: String) -> String:
+	for r in REGIONS:
+		if r.code == code:
+			return r.host
+	return REGIONS[0].host
+
+
+## Le joueur (ou la sonde du premier lancement) a-t-il deja choisi ?
+func region_chosen() -> bool:
+	return region != "" or _override() != ""
+
+
+func choose_region(code: String) -> void:
+	if _override() != "" or code == region:
+		return
+	region = code
+	HOST = host_of(code)
+	var cfg := ConfigFile.new()
+	cfg.set_value("region", "code", code)
+	cfg.save(REGION_PATH)
+	region_changed.emit(code)
+
+
+func _saved_region() -> String:
+	var cfg := ConfigFile.new()
+	if cfg.load(REGION_PATH) != OK:
+		return ""
+	var code := String(cfg.get_value("region", "code", ""))
+	for r in REGIONS:
+		if r.code == code:
+			return code
+	return ""
+
+
+## LA SONDE : un `/health` vers chaque region, en meme temps, chronometre.
+## Remplit `pings` et rend la region la plus proche qui a repondu ("" si
+## aucune). Une region pas encore ouverte reste a -1 et ne gagne jamais.
+func probe() -> String:
+	var pending := {"n": REGIONS.size()}
+	var done := func() -> void: pending.n -= 1
+	for r in REGIONS:
+		var code := String(r.code)
+		pings[code] = -1
+		var request := HTTPRequest.new()
+		request.timeout = PROBE_SECONDS
+		add_child(request)
+		var sent := Time.get_ticks_msec()
+		request.request_completed.connect(func(result: int, status: int, _h: PackedStringArray, _b: PackedByteArray) -> void:
+			if result == HTTPRequest.RESULT_SUCCESS and status == 200:
+				pings[code] = Time.get_ticks_msec() - sent
+			request.queue_free()
+			done.call())
+		if request.request(String(r.host) + "/health") != OK:
+			request.queue_free()
+			done.call()
+	while pending.n > 0:
+		await get_tree().process_frame
+	var best := ""
+	for code in pings:
+		if int(pings[code]) >= 0 and (best == "" or int(pings[code]) < int(pings[best])):
+			best = code
+	return best
 
 ## How long a call waits before it is called dead.
 ##

@@ -70,6 +70,8 @@ export const en = {
     walletDigsFor: (name: string) => `That wallet already digs for "${name}".`,
     alreadyLinked: 'This burrow already has a wallet.',
     linkFailed: 'Could not connect that wallet',
+    /** The region picker on the doorstep: each region is its own world. */
+    region: { label: 'Server', eu: 'Europe', sg: 'Asia', us: 'Americas' },
   },
 
   /* ── The frame around everything ──────────────────────────────────────── */

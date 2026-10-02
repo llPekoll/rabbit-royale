@@ -28,8 +28,8 @@ extends Node
 ## WebSocket en réécrivant le schéma. Donner "wss://" ici fait échouer ce
 ## premier appel sur "Invalid URL scheme" — HTTPRequest ne connaît pas ce
 ## schéma — et la socket ne s'ouvre jamais.
-## Celui de Net, qui sait lire `--server=` pour un serveur local.
-var HOST: String = Net.HOST
+## Celui de Net, qui sait lire `--server=` pour un serveur local — relu a
+## chaque tentative (`_attempt`) : changer de region change d'hote.
 
 ## L'attente avant de retenter, et son plafond.
 ##
@@ -65,7 +65,7 @@ func _ready() -> void:
 	# Pas de connexion au montage : elle a besoin d'un jeton, et à cette
 	# seconde la session n'est pas encore restaurée.
 	_io.autoconnect = false
-	_io.base_url = HOST
+	_io.base_url = Net.HOST
 	_io.socket_path = "/socket.io"
 	add_child(_io)
 
@@ -83,6 +83,8 @@ func _ready() -> void:
 	# wallet — est une socket à refaire : le jeton du handshake n'est plus
 	# celui que le serveur nous connaît.
 	Session.changed.connect(_on_session_changed)
+	# UNE AUTRE REGION, UN AUTRE SERVEUR : la socket ouverte parle a l'ancien.
+	Net.region_changed.connect(func(_code: String) -> void: stop())
 
 
 ## Ouvre la socket avec le jeton de la session. Sans jeton il n'y a rien à
@@ -125,6 +127,7 @@ func _attempt() -> void:
 		return
 	if _io.state == EngineIO.State.CONNECTED:
 		return
+	_io.base_url = Net.HOST
 	# LE JETON EST LU MAINTENANT, pas mémorisé au premier appel : entre la
 	# coupure et cette reprise, un invité a pu lier son wallet, et le serveur a
 	# alors réémis un jeton. Rejouer l'ancien ferait refuser le CONNECT.

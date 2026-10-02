@@ -38,7 +38,13 @@
    "$t": "Ví này đã đào cho « {0} »."
   },
   "alreadyLinked": "Hang này đã có ví rồi.",
-  "linkFailed": "Không kết nối được ví này"
+  "linkFailed": "Không kết nối được ví này",
+  "region": {
+   "label": "Máy chủ",
+   "eu": "Châu Âu",
+   "sg": "Châu Á",
+   "us": "Châu Mỹ"
+  }
  },
  "chrome": {
   "loading": "Đang tải",

@@ -58,6 +58,19 @@ func _ready() -> void:
 			_from_args = true
 			return
 	token = _load_token()
+	Net.region_changed.connect(_on_region_changed)
+
+
+## UNE AUTRE REGION, UN AUTRE COMPTE : celui d'ici n'existe pas la-bas. On
+## lache le joueur et on prend le jeton que cette region avait, s'il y en a
+## un ; l'ecran d'accueil decide ensuite de le reprendre (`restore`).
+func _on_region_changed(_code: String) -> void:
+	if _from_args:
+		return
+	player = {}
+	token = _load_token()
+	checking = true
+	changed.emit()
 
 
 func signed_in() -> bool:
@@ -223,7 +236,12 @@ func _forget() -> void:
 	player = {}
 	token = ""
 	if not _from_args:
-		DirAccess.remove_absolute(TOKEN_PATH)
+		# Seulement celui de CETTE region : les autres comptes restent.
+		var cfg := ConfigFile.new()
+		if cfg.load(TOKEN_PATH) == OK:
+			if cfg.has_section_key(_section(), "token"):
+				cfg.erase_section_key(_section(), "token")
+			cfg.save(TOKEN_PATH)
 
 
 ## The server's refusal, in words the player can act on.
@@ -250,16 +268,26 @@ func _explain(reason: String, body: Dictionary = {}) -> String:
 			return reason
 
 
+## UN JETON PAR REGION, une section chacune. L'Europe garde la section
+## `session` d'avant les regions : un joueur deja connecte n'a rien a refaire.
+## Un serveur nomme a la main (`--server=`) range le sien a part.
+func _section() -> String:
+	if Net.region == "":
+		return "session" if Net._override() == "" else "local"
+	return "session" if Net.region == "eu" else "session-" + Net.region
+
+
 func _load_token() -> String:
 	var cfg := ConfigFile.new()
 	if cfg.load(TOKEN_PATH) != OK:
 		return ""
-	return String(cfg.get_value("session", "token", ""))
+	return String(cfg.get_value(_section(), "token", ""))
 
 
 func _save_token(value: String) -> void:
 	if _from_args:
 		return
 	var cfg := ConfigFile.new()
-	cfg.set_value("session", "token", value)
+	cfg.load(TOKEN_PATH)
+	cfg.set_value(_section(), "token", value)
 	cfg.save(TOKEN_PATH)

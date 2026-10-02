@@ -22,6 +22,10 @@ COPY config ./config
 COPY server ./server
 COPY src ./src
 RUN bun build server/index.ts --compile --minify --outfile ws-server
+# The regions' migrator (deploy/region): same journal as drizzle-kit, without
+# drizzle-kit. Coolify never calls it — CMD below is unchanged.
+COPY scripts/migrate.ts ./scripts/migrate.ts
+RUN bun build scripts/migrate.ts --compile --minify --outfile migrate
 
 FROM alpine:3
 WORKDIR /app
@@ -33,6 +37,8 @@ WORKDIR /app
 RUN apk add --no-cache libstdc++ libgcc wget
 
 COPY --from=build /app/ws-server ./ws-server
+COPY --from=build /app/migrate ./migrate
+COPY drizzle ./drizzle
 EXPOSE 3010
 
 # Tell the orchestrator the difference between "started" and "serving".

@@ -1,0 +1,79 @@
+# ONE REGION ON ONE VPS — Singapore, the US: no Coolify, the whole stack here.
+#
+# Europe stays on Coolify (datemeee). A region is ISOLATED: its own Postgres,
+# its own Redis, its own accounts, seasons and raids. Only the image is shared,
+# built once by .github/workflows/deploy-regions.yml and pulled from GHCR.
+#
+#   docker compose up -d          # Caddy + Postgres + Redis + migrate + rr-ws
+#
+# Postgres and Redis publish NO port: only rr-ws reaches them, on this network.
+# Caddy takes 80/443 and fetches the certificate for $WS_DOMAIN by itself.
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: rabbit
+      POSTGRES_USER: rabbit
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      # Postgres 18 keeps its data under a versioned subdirectory of this.
+      - pg:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rabbit -d rabbit"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "60", "1", "--appendonly", "no"]
+    volumes:
+      - redis:/data
+
+  # Runs once per `up`, before the server: the image's own `drizzle/`.
+  migrate:
+    image: ${RR_WS_IMAGE:-ghcr.io/llpekoll/rr-ws:latest}
+    command: ["./migrate"]
+    environment:
+      DATABASE_URL: postgres://rabbit:${POSTGRES_PASSWORD}@postgres:5432/rabbit
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  rr-ws:
+    image: ${RR_WS_IMAGE:-ghcr.io/llpekoll/rr-ws:latest}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://rabbit:${POSTGRES_PASSWORD}@postgres:5432/rabbit
+      REDIS_URL: redis://redis:6379
+      WS_PORT: "3010"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      WS_DOMAIN: ${WS_DOMAIN:?set WS_DOMAIN in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy:/data
+    depends_on:
+      - rr-ws
+
+volumes:
+  pg:
+  redis:
+  caddy:

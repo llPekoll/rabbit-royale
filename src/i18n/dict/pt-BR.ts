@@ -53,6 +53,7 @@ export const ptBR: Dict = {
     walletDigsFor: (name) => `Essa carteira já cava para "${name}".`,
     alreadyLinked: 'Esta toca já tem uma carteira.',
     linkFailed: 'Não foi possível conectar essa carteira',
+    region: { label: 'Servidor', eu: 'Europa', sg: 'Ásia', us: 'Américas' },
   },
 
   chrome: {

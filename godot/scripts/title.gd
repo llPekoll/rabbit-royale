@@ -69,6 +69,10 @@ const TIP_PAD_Y := 10.0
 @onready var _connect: PlankButton = %Connect
 @onready var _guest: PlankButton = %Guest
 @onready var _lang: PlankButton = %Language
+## LE SERVEUR (2026-10-02), a cote de la langue sur la meme ligne : une
+## planche de plus en dessous sortait de l'ecran du Seeker. Faite ici plutot
+## que dans la scene, sur le modele de la langue (chevrons, la liste boucle).
+var _region: PlankButton
 @onready var _status: Label = %Status
 @onready var _who: Label = %Who
 @onready var _tip: NinePatchRect = %Tip
@@ -95,6 +99,11 @@ var _tip_timer: Timer
 
 
 func _ready() -> void:
+	_region = (load("res://scenes/plank_button.tscn") as PackedScene).instantiate()
+	_region.name = "Region"
+	for style in ["normal", "pressed", "hover", "disabled", "focus"]:
+		_region.add_theme_stylebox_override(style, StyleBoxEmpty.new())
+	_ask.add_child(_region)
 	_paint_veil()
 	_paint_floor()
 	_apply_language()
@@ -103,11 +112,13 @@ func _ready() -> void:
 	_connect.pressed.connect(_on_connect)
 	_guest.pressed.connect(_on_guest)
 	_lang.pressed.connect(_on_language_pressed)
+	_region.pressed.connect(_on_region_pressed)
 
 	# La cascade de la vague, dans l'ordre de lecture de la colonne.
 	_connect.wave_delay = WAVE_STEPS[0]
 	_guest.wave_delay = WAVE_STEPS[1]
 	_lang.wave_delay = WAVE_STEPS[2]
+	_region.wave_delay = WAVE_STEPS[2] + 0.07
 
 	_tip_timer = Timer.new()
 	_tip_timer.wait_time = TIP_SECONDS
@@ -146,6 +157,7 @@ func _ready() -> void:
 		_busy(false)
 		_refresh_doors()
 		return
+	await _settle_region()
 	_set_restoring(not Session.token.is_empty())
 	if await Session.restore():
 		# Les portes restent cachees : l'ecran ne sert plus qu'a attendre le
@@ -270,6 +282,15 @@ func _measure() -> void:
 		# une taille demandee sous le minimum est refusee sans un mot.
 		node.custom_minimum_size = Vector2(w, h)
 		node.size = Vector2(w, h)
+		# LA LANGUE ET LE SERVEUR se partagent la derniere ligne, moitie
+		# chacun, 6px entre les deux.
+		if node == _lang and _region.visible:
+			var half := floorf((w - 6.0) * 0.5)
+			_lang.custom_minimum_size = Vector2(half, h)
+			_lang.size = Vector2(half, h)
+			_region.position = Vector2(_lang.position.x + w - half, y)
+			_region.custom_minimum_size = Vector2(half, h)
+			_region.size = Vector2(half, h)
 		# 8px entre deux planches ; la porte doree en ajoute 4 sous elle, comme
 		# le `margin-bottom` du web.
 		y += h + 8.0
@@ -350,6 +371,7 @@ func _apply_language() -> void:
 	_lang.set_lead(Flag.texture(String(here["code"])))
 	_lang.set_arrows(true)
 	_lang.relabel(String(here["label"]))
+	_apply_region()
 	_status.visible = false
 
 
@@ -361,7 +383,7 @@ func _apply_language() -> void:
 func _apply_face() -> void:
 	# La face vit dans le theme du projet depuis I18N._apply_theme_face :
 	# il ne reste qu'a retirer l'override que cet ecran posait lui-meme.
-	I18N.apply_face([_connect, _guest, _lang, _ribbon, _status, _tip_text])
+	I18N.apply_face([_connect, _guest, _lang, _region, _ribbon, _status, _tip_text])
 
 
 func _on_locale_changed(_code: String) -> void:
@@ -378,6 +400,83 @@ func _on_language_pressed() -> void:
 	var n := I18N.LOCALES.size()
 	var next := (I18N.locale_index(I18N.locale) + _lang.press_side + n) % n
 	I18N.set_locale(I18N.LOCALES[next]["code"])
+
+
+## LE NOM DE LA REGION, et son ping une fois la sonde revenue. Contre un
+## serveur nomme a la main (`--server=`), la planche n'a rien a choisir.
+func _apply_region() -> void:
+	# Une seule region qui repond (aujourd'hui, avant Singapour et les US) :
+	# rien a choisir, la planche se tait et la langue garde sa ligne entiere.
+	var was := _region.visible
+	_region.visible = Net.region != "" and not _restoring and _open_regions().size() > 1
+	# La ligne de la langue se coupe en deux, ou se recolle.
+	if was != _region.visible and _logo_box != Vector2.ZERO:
+		_measure()
+	if not _region.visible:
+		return
+	_region.set_arrows(true)
+	var words := I18N.t("auth.region." + Net.region)
+	var ms := int(Net.pings.get(Net.region, -1))
+	_region.relabel(words if ms < 0 else "%s %d ms" % [words, ms])
+
+
+## LE PREMIER LANCEMENT CHOISIT SEUL : la region qui repond le plus vite. Un
+## joueur d'avant les regions (un jeton deja la) reste en Europe, ou est son
+## terrier. Ensuite la sonde ne fait que mettre les pings a jour, sans
+## attendre.
+func _settle_region() -> void:
+	if Net.region_chosen():
+		if Net.region != "":
+			_refresh_pings()
+		return
+	if not Session.token.is_empty():
+		Net.choose_region("eu")
+		_refresh_pings()
+	else:
+		var best := await Net.probe()
+		Net.choose_region(best if best != "" else "eu")
+	_apply_region()
+
+
+func _refresh_pings() -> void:
+	await Net.probe()
+	if is_inside_tree():
+		_apply_region()
+
+
+## LES REGIONS QU'ON PEUT CHOISIR : celles qui ont repondu a la sonde, plus
+## celle ou l'on est. Une region pas encore ouverte n'est jamais offerte.
+func _open_regions() -> Array[String]:
+	var open: Array[String] = []
+	for r in Net.REGIONS:
+		var code := String(r.code)
+		if code == Net.region or int(Net.pings.get(code, -1)) >= 0:
+			open.append(code)
+	return open
+
+
+## LE SELECTEUR DE SERVEUR : chaque region est un autre monde, avec un autre
+## compte. Si celle-ci a deja un jeton sur cet appareil, on le reprend, comme
+## au lancement ; sinon les portes restent offertes.
+func _on_region_pressed() -> void:
+	var open := _open_regions()
+	var n := open.size()
+	var at := maxi(0, open.find(Net.region))
+	Net.choose_region(open[(at + _region.press_side + n) % n])
+	_apply_region()
+	Analytics.track("region_pick", {"region": Net.region})
+	if Session.token.is_empty():
+		Session.checking = false
+		return
+	_busy(true)
+	_set_restoring(true)
+	if await Session.restore():
+		Analytics.track("login", {"method": "restore"})
+		_enter()
+		return
+	_set_restoring(false)
+	_busy(false)
+	_refresh_doors()
 
 
 ## LA PORTE D'ENTREE : le wallet signe le defi du serveur et la session revient.
@@ -537,6 +636,7 @@ func _busy(value: bool) -> void:
 	# bouton sans rien derriere.
 	_guest.disabled = value
 	_lang.disabled = value
+	_region.disabled = value
 	if value:
 		_connect.disabled = true
 	else:
@@ -547,6 +647,7 @@ func _set_restoring(on: bool) -> void:
 	_restoring = on
 	for door in [_connect, _guest, _lang]:
 		door.visible = not on
+	_apply_region()
 	# Plus grand que la ligne d'erreur (12) : c'est le seul mot de l'ecran.
 	_status.add_theme_font_size_override("font_size", 16 if on else 12)
 	_say(I18N.t("chrome.reconnecting") if on else "", false)

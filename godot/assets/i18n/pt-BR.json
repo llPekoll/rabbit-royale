@@ -38,7 +38,13 @@
 			"$t": "Essa carteira já cava para \"{0}\"."
 		},
 		"alreadyLinked": "Esta toca já tem uma carteira.",
-		"linkFailed": "Não foi possível conectar essa carteira"
+		"linkFailed": "Não foi possível conectar essa carteira",
+		"region": {
+			"label": "Servidor",
+			"eu": "Europa",
+			"sg": "Ásia",
+			"us": "Américas"
+		}
 	},
 	"chrome": {
 		"loading": "Carregando",

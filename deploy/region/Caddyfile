@@ -1,0 +1,6 @@
+# TLS for the region, Let's Encrypt on first request. WebSockets pass through
+# reverse_proxy as is — socket.io's upgrade needs nothing more.
+{$WS_DOMAIN} {
+	encode gzip
+	reverse_proxy rr-ws:3010
+}

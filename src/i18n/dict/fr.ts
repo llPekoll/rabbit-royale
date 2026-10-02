@@ -49,6 +49,7 @@ export const fr: Dict = {
     walletDigsFor: (name) => `Ce portefeuille creuse déjà pour « ${name} ».`,
     alreadyLinked: 'Ce terrier a déjà un portefeuille.',
     linkFailed: 'Impossible de connecter ce portefeuille',
+    region: { label: 'Serveur', eu: 'Europe', sg: 'Asie', us: 'Amériques' },
   },
 
   chrome: {

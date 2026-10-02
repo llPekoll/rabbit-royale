@@ -57,6 +57,7 @@ export const vi: Dict = {
     walletDigsFor: (name) => `Ví này đã đào cho « ${name} ».`,
     alreadyLinked: 'Hang này đã có ví rồi.',
     linkFailed: 'Không kết nối được ví này',
+    region: { label: 'Máy chủ', eu: 'Châu Âu', sg: 'Châu Á', us: 'Châu Mỹ' },
   },
 
   chrome: {

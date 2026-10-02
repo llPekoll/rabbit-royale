@@ -159,7 +159,9 @@ const httpServer = http.createServer((req, res) => {
 
   if (req.url === '/health') {
     const islands = [...store.all()];
-    res.writeHead(200, { 'Content-Type': 'application/json' });
+    // Open to any origin: the web build on rabbit.rip times every region's
+    // /health to pick the closest (godot/scripts/net.gd `probe`).
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
     res.end(JSON.stringify({
       status: 'ok',
       islands: islands.length,
