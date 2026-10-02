@@ -96,6 +96,13 @@ const SCREEN_EDGE := 6.0
 const SIGN_LAYER := 19 # Interface, below Chrome (20) and its dialogs.
 ## Le batiment dans son ilot, un cran devant le sol de sa case.
 const Z_BUILDING := 8
+## LES ICONES DES PORTES PASSENT AU-DESSUS DES OMBRES DE NUAGES (2026-10-02) :
+## triees sur leur case, elles tombaient sous le voile de SkyLight (3000) et
+## s'assombrissaient au passage d'un nuage. « l'ombre du sol shader il faut
+## jamais la faire apparaitre sur les icones ». Sous les oiseaux et les rais.
+## Sans risque pour le tri : aucun lapin ne marche sur un ilot. Leur ombre
+## ronde (IconShadow) reste au sol, donc sous le nuage.
+const Z_ABOVE_CLOUDS := SkyLight.Z_SHADOWS + 1
 ## La ligne d'etat compte a rebours : une relecture toutes les 15 s.
 const TICK_SECONDS := 15.0
 ## « brought home » reste 4 s sur DIG (page.tsx `BROUGHT_HOME_MS`).
@@ -868,6 +875,8 @@ func _place_building(spec: Dictionary, top: Vector2i, islets: BurrowMap, lo: Vec
 		shadow.z_index = sprite.z_index - 1
 		root.add_child(shadow)
 		_float_shadows[spec["door"]] = shadow
+	sprite.z_as_relative = false
+	sprite.z_index = Z_ABOVE_CLOUDS
 	# LA PLANCHE SOUS LE BATIMENT : sous l'ombre de l'icone flottante, ou
 	# sous le pied peint du sprite (son alpha, pas son cadre). Celles de
 	# SIGNS_ABOVE se posent sur le haut peint.
