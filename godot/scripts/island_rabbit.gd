@@ -538,7 +538,11 @@ func _squash() -> void:
 
 const BLOOP_ICON := preload("res://assets/ui/icons/bloop.png")
 ## Le calmar se pose au-dessus du nom (NAME_Y), le temps de gicler.
-const BLOOP_Y := -84.0
+## Sa taille posee, en pixels du monde — l'icone est en 1254 px depuis la
+## boutique (5c3e6bc), une echelle fixe en faisait un calmar de 2000 px.
+const BLOOP_PX := 90.0
+## Son centre : le bas pose juste au-dessus de la plaque du nom.
+const BLOOP_Y := NAME_Y - 7.0 - BLOOP_PX * 0.5
 const BLOOP_SHOW_S := 1.3
 ## Le lapin encre : une teinte d'encre qui se retire sur toute la duree.
 const INK_TINT := Color(0.42, 0.36, 0.62)
@@ -552,17 +556,21 @@ func inked(ms: int) -> void:
 		return
 	var squid := Sprite2D.new()
 	squid.texture = BLOOP_ICON
-	squid.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	squid.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	squid.position = Vector2(0.0, BLOOP_Y)
 	squid.scale = Vector2.ZERO
-	squid.z_index = 3
+	# Au-dessus de tout le sol, comme le nom : un calmar cache derriere les
+	# mottes de devant ne gicle sur personne.
+	squid.z_as_relative = false
+	squid.z_index = Z_AIR + 11
 	add_child(squid)
+	var k := BLOOP_PX / float(BLOOP_ICON.get_width())
 	var pop := squid.create_tween()
-	pop.tween_property(squid, "scale", Vector2(1.6, 1.6), 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	pop.tween_property(squid, "scale", Vector2(k, k), 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	# Le giclement : il se tasse, puis s'etire vers le bas.
-	pop.tween_property(squid, "scale", Vector2(1.9, 1.3), 0.12)
-	pop.tween_property(squid, "scale", Vector2(1.4, 1.8), 0.12)
-	pop.tween_property(squid, "scale", Vector2(1.6, 1.6), 0.1)
+	pop.tween_property(squid, "scale", Vector2(k * 1.19, k * 0.81), 0.12)
+	pop.tween_property(squid, "scale", Vector2(k * 0.88, k * 1.12), 0.12)
+	pop.tween_property(squid, "scale", Vector2(k, k), 0.1)
 	pop.tween_property(squid, "position:y", BLOOP_Y - 6.0, 0.35).set_trans(Tween.TRANS_SINE)
 	pop.tween_property(squid, "position:y", BLOOP_Y, 0.35).set_trans(Tween.TRANS_SINE)
 	pop.tween_property(squid, "modulate:a", 0.0, maxf(0.1, BLOOP_SHOW_S - 1.22))
