@@ -82,6 +82,21 @@
       .meme p.top { top:10px; }
       .meme p.bot { bottom:10px; }
 
+      /* Le tampon de la fin : la streameuse s'abat sur la slide, 1,5 s apres l'arrivee. */
+      .stamp { opacity: 0; transform: rotate(-4deg); }
+      .slide.on .stamp { animation: stamp 0.5s cubic-bezier(0.2, 1.6, 0.4, 1) 1.5s forwards; }
+      @keyframes stamp {
+        0% { opacity: 0; transform: scale(1.9) rotate(-19deg); }
+        50% { opacity: 1; }
+        100% { opacity: 1; transform: scale(1) rotate(-4deg); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .stamp { opacity: 1; animation: none !important; }
+      }
+      @media print {
+        .stamp { opacity: 1; animation: none !important; }
+      }
+
       /* LA BARRE : discrete, elle disparait quand la souris dort. */
       .bar {
         position: fixed;
@@ -509,7 +524,7 @@
           <p style="font-family:'Lilita One', Arial, sans-serif; font-size:44px; color:#f2c14e">@RabbitRoyaleX</p>
           <p style="font-family:'Nunito Sans', Arial, sans-serif; font-size:26px; color:#dde6e3">Follow on X</p>
         </div>
-              <img src="/pitch/img/streamer-sticker.webp" alt="Sticker of a smiling streamer in a bunny-ear headset, hugging a Kuro plush" style="position:absolute; left:50%; top:430px; width:430px; height:auto; translate:-50% 0; transform:rotate(-4deg); filter:drop-shadow(0 16px 24px #000000cc)">
+              <img class="stamp" src="/pitch/img/streamer-sticker.webp" alt="Sticker of a smiling streamer in a bunny-ear headset, hugging a Kuro plush" style="position:absolute; left:50%; top:410px; width:500px; height:auto; translate:-50% 0; filter:drop-shadow(0 16px 24px #000000cc)">
 </section>
     </main>
 
