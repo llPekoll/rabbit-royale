@@ -503,6 +503,7 @@
 		"strike": "Revidar"
 	},
 	"snack": {
+		"keepWeek": "Perder um dia não reinicia sua semana.",
 		"title": "Snack Time",
 		"dayOf": {
 			"$t": "Dia {0}/7"
@@ -693,6 +694,7 @@
 		},
 		"heldOff": "desligado",
 		"max": "MÁX",
+		"bagFull": "CHEIO",
 		"active": "ATIVO",
 		"boughtEnergy": {
 			"$t": "Energia recarregada. {0}"
@@ -819,6 +821,9 @@
 				}
 			]
 		},
+		"boughtPack": {
+			"$t": "{0}: tudo na bolsa. {1}"
+		},
 		"paid": {
 			"$t": "-{0} 🥕"
 		}
@@ -827,6 +832,7 @@
 		"fallback": "Não deu certo.",
 		"insufficient_carrots": "Cenouras insuficientes.",
 		"inventory_full": "Sua bolsa está cheia desses.",
+		"bag_full": "Um dos itens não cabe mais na sua bolsa.",
 		"daily_energy_limit": "Sem mais recargas hoje. A horta continua crescendo.",
 		"smoke_capped": "Sua toca está escondida pelo máximo de tempo possível.",
 		"too_many_at_once": "Demais de uma vez.",
@@ -1466,6 +1472,14 @@
 		"fence": {
 			"name": "Cerca",
 			"blurb": "Fecha uma borda da sua horta. Saqueadores não atravessam."
+		},
+		"shiro_stash": {
+			"name": "Estoque do Shiro",
+			"blurb": "Bombas, cercas e escudo para segurar a toca."
+		},
+		"kuro_tantrum": {
+			"name": "Birra do Kuro",
+			"blurb": "Raios e bloops para estragar a partida de um rival."
 		}
 	},
 	"quests": {

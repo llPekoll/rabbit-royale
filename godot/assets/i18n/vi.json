@@ -451,6 +451,7 @@
   "strike": "Giật trả"
  },
  "snack": {
+  "keepWeek": "Bỏ lỡ một ngày không đặt lại tuần của bạn.",
   "title": "Snack Time",
   "dayOf": {
    "$t": "Ngày {0}/7"
@@ -635,6 +636,7 @@
   },
   "heldOff": "tắt",
   "max": "TỐI ĐA",
+  "bagFull": "ĐẦY",
   "active": "ĐANG BẬT",
   "boughtEnergy": {
    "$t": "Đã nạp năng lượng. {0}"
@@ -761,6 +763,9 @@
     }
    ]
   },
+  "boughtPack": {
+   "$t": "{0} đã vào túi. {1}"
+  },
   "paid": {
    "$t": "-{0} 🥕"
   }
@@ -769,6 +774,7 @@
   "fallback": "Không được rồi.",
   "insufficient_carrots": "Không đủ cà rốt.",
   "inventory_full": "Túi của bạn đầy món này rồi.",
+  "bag_full": "Một món trong gói không còn chỗ trong túi.",
   "daily_energy_limit": "Hôm nay hết lượt nạp. Vườn vẫn lớn.",
   "smoke_capped": "Hang của bạn đã được che lâu nhất có thể.",
   "too_many_at_once": "Quá nhiều cùng lúc.",
@@ -1293,6 +1299,14 @@
   "fence": {
    "name": "Hàng rào",
    "blurb": "Rào một mép vườn. Kẻ cướp không vượt qua được."
+  },
+  "shiro_stash": {
+   "name": "Kho của Shiro",
+   "blurb": "Bom, hàng rào và khiên để giữ hang."
+  },
+  "kuro_tantrum": {
+   "name": "Cơn giận của Kuro",
+   "blurb": "Sét và bloop để phá ván của đối thủ."
   }
  },
  "quests": {

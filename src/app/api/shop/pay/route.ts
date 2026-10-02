@@ -20,6 +20,7 @@ import { inventory, payments, players } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
 import { holdings, isShopKind, purchaseBlocker, purchaseUsdc } from '@/lib/game/inventory';
 import { grantItem, paidUsdcUnits } from '@/lib/game/grant';
+import { isPackKind, packBlocker, packUsdc } from '@/lib/game/packs';
 import { isPassKind, openSeason, passOf, passPriceUsd, passSaleBlocker } from '@/lib/game/season-pass';
 import { USDC, usdcBaseUnits } from '@config/tuning';
 import { PublicKey } from '@solana/web3.js';
@@ -71,7 +72,7 @@ export async function POST(req: Request) {
   // rules (one per season, only while a pass season is running) replace the
   // bag's caps, and it is never sold for carrots.
   const kind = body.kind;
-  if (!isPassKind(kind) && !isShopKind(kind)) return Response.json({ error: 'unknown_item' }, { status: 400 });
+  if (!isPassKind(kind) && !isPackKind(kind) && !isShopKind(kind)) return Response.json({ error: 'unknown_item' }, { status: 400 });
   const qty = body.qty === undefined ? 1 : Number(body.qty);
 
   const player = await db.query.players.findFirst({ where: eq(players.id, session.sub) });
@@ -90,7 +91,7 @@ export async function POST(req: Request) {
     // No `stock` argument: carrots are irrelevant to a USDC purchase, but every
     // OTHER limit still applies. Quantity caps, inventory ceilings and the daily
     // energy window are the same for money as for grind.
-    const blocker = purchaseBlocker(kind, qty, bag);
+    const blocker = isPackKind(kind) ? packBlocker(kind, qty, bag) : purchaseBlocker(kind, qty, bag);
     if (blocker) return Response.json({ error: blocker }, { status: 400 });
   }
 
@@ -105,7 +106,9 @@ export async function POST(req: Request) {
     return Response.json({ error: 'token_unavailable' }, { status: 400 });
   }
 
-  const usdc = isPassKind(kind) ? Math.round(passPriceUsd() * 100) / 100 : purchaseUsdc(kind, qty);
+  const usdc = isPassKind(kind)
+    ? Math.round(passPriceUsd() * 100) / 100
+    : isPackKind(kind) ? packUsdc(kind) * qty : purchaseUsdc(kind, qty);
 
   /**
    * The rate is read ONCE, here, and frozen into the quote.

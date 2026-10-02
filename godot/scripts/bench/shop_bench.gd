@@ -33,6 +33,28 @@ func _fake_items(stock: int) -> Array:
 	return out
 
 
+## Les packs, a la maniere du serveur (packs.ts `packShelf`) : prix et
+## contenu de SHOP_PACKS. `-- --pack-full` : celui de Kuro ne tient plus.
+func _fake_packs(stock: int) -> Array:
+	var out: Array = []
+	var full := "--pack-full" in OS.get_cmdline_user_args()
+	for kind in ShopState.PACKS:
+		var pack: Dictionary = Tuning.table("SHOP_PACKS").get(kind, {})
+		var room: bool = not (full and kind == "kuro_tantrum")
+		out.append({
+			"kind": kind,
+			"side": pack.get("side", ""),
+			"price": int(pack.get("price", 0)),
+			"usdc": float(pack.get("usdc", 0.0)),
+			"held": 0,
+			"cap": 1,
+			"hasRoom": room,
+			"canBuy": room and stock >= int(pack.get("price", 0)),
+			"items": pack.get("items", []),
+		})
+	return out
+
+
 func _ready() -> void:
 	# `-- --pass-open` : une saison a pass en cours (sinon le pass est grise).
 	PassState.shared().fake({"on": "--pass-open" in OS.get_cmdline_user_args(), "mine": {"holder": true, "skin": "kuro-violet"},
@@ -51,7 +73,7 @@ func _ready() -> void:
 		"next": {"regenPerHour": Tuning.regen_per_hour(4), "yieldPerHour": 0},
 	}
 	var state := ShopState.shared()
-	state.fake(_fake_items(1240), {"held": 3, "placed": 2, "armed": 2, "rearming": 0, "maxPlaced": 8})
+	state.fake(_fake_items(1240), {"held": 3, "placed": 2, "armed": 2, "rearming": 0, "maxPlaced": 8}, false, _fake_packs(1240))
 	Home.changed.emit()
 
 	# `-- --only=shop|popup|panel` : UN panneau, pose comme le chrome le

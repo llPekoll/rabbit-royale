@@ -50,6 +50,12 @@ static var current: ShopState
 ## Les sortes que l'etal vend (`ItemKind`), dans l'ordre du serveur.
 const KINDS := ["trap", "lightning", "shield", "energy", "smoke", "bloop", "fence"]
 
+## LES PACKS (SHOP_PACKS, 2026-10-02) : plusieurs objets pour un achat, un
+## par camp — Shiro defend, Kuro attaque. Pas des objets : le serveur les
+## sert a part (`packs`, avec leur contenu), et le sac recoit ce qu'il y a
+## dedans.
+const PACKS := ["shiro_stash", "kuro_tantrum"]
+
 ## L'ART D'UNE SORTE, la ou le jeu en a (item-meta.ts `art`). Quelques-unes
 ## seulement, et c'est voulu : ce sont les sprites du COFFRE, donc une sorte a
 ## un dessin exactement quand un coffre peut la lacher. Le piege est la bombe
@@ -84,6 +90,10 @@ const TINT := {
 	"smoke": Color("#6b7a8f"),
 	"bloop": Color("#3b2a5c"),
 	"fence": Color("#b98a3c"),
+	# Shiro, le lapin blanc qui garde le terrier : le bleu froid de la
+	# defense. Kuro, le noir : le violet de son skin.
+	"shiro_stash": Color("#5a8fb8"),
+	"kuro_tantrum": Color("#6a3d9a"),
 }
 
 ## COMMENT SE LIT LE COMPTE d'une sorte (item-meta.ts `counts`) : "carried",
@@ -382,6 +392,8 @@ func receipt(kind: String, qty: int, spent: int) -> String:
 			return I18N.f("shop.boughtBloop", [qty, paid])
 		"fence":
 			return I18N.f("shop.boughtFence", [qty, paid])
+	if PACKS.has(kind):
+		return I18N.f("shop.boughtPack", [I18N.t("items.%s.name" % kind), paid])
 	return paid
 
 
@@ -403,10 +415,24 @@ func items() -> Array:
 	return list if list is Array else []
 
 
+## Les packs de l'etal, chacun avec ses `items` ({kind, qty}).
+func packs() -> Array:
+	var list: Variant = shop.get("packs", [])
+	return list if list is Array else []
+
+
+## CE QU'IL Y A DANS UN PACK, lu dans tuning.json (SHOP_PACKS) : l'art de la
+## carte et la fete d'un achat le dessinent sans attendre l'etal.
+static func pack_items(kind: String) -> Array:
+	var pack: Variant = Tuning.table("SHOP_PACKS").get(kind, {})
+	return pack.get("items", []) if pack is Dictionary else []
+
+
 ## L'ENERGIE MENE L'ETAL (Paul, 2026-09-16) : c'est la recharge qu'on achete
 ## le plus, et « Out of energy » envoie ici pour elle — donc la premiere carte
-## qu'on voit, pas la cinquieme hors du bord. Les autres gardent l'ordre du
-## serveur (shop-card.tsx `shelfOrder`).
+## qu'on voit, pas la cinquieme hors du bord. Les packs juste apres : la
+## meilleure affaire de l'etal se voit sans tirer la rangee. Les autres
+## gardent l'ordre du serveur (shop-card.tsx `shelfOrder`).
 func shelf_order() -> Array:
 	var out: Array = []
 	for it in items():
@@ -414,6 +440,10 @@ func shelf_order() -> Array:
 			out.push_front(it)
 		else:
 			out.push_back(it)
+	var at := 1 if not out.is_empty() and out[0].get("kind", "") == "energy" else 0
+	for pack in packs():
+		out.insert(at, pack)
+		at += 1
 	return out
 
 
@@ -465,11 +495,12 @@ func clear_note() -> void:
 ## DES DONNEES FACTICES, pour le banc : l'etal et les pieges qu'on lui donne,
 ## et plus jamais le reseau. `items` a la forme de ShopItem[] ; `traps` celle
 ## de ShopState.traps.
-func fake(fake_items: Array, fake_traps: Dictionary, usdc_enabled: bool = false) -> void:
+func fake(fake_items: Array, fake_traps: Dictionary, usdc_enabled: bool = false, fake_packs: Array = []) -> void:
 	_fake = true
 	shop = {
 		"stock": Home.burrow.get("stock", 0),
 		"items": fake_items,
+		"packs": fake_packs,
 		"traps": fake_traps,
 		"usdcEnabled": usdc_enabled,
 		"tokens": ["usdc", "sol", "skr"] if usdc_enabled else [],

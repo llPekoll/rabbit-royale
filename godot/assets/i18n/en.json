@@ -491,6 +491,7 @@
 		"strike": "Zap back"
 	},
 	"snack": {
+		"keepWeek": "A missed day never resets your week.",
 		"title": "Snack Time",
 		"dayOf": {
 			"$t": "Day {0}/7"
@@ -681,6 +682,7 @@
 		},
 		"heldOff": "off",
 		"max": "MAX",
+		"bagFull": "FULL",
 		"active": "ACTIVE",
 		"boughtEnergy": {
 			"$t": "Energy refilled. {0}"
@@ -807,6 +809,9 @@
 				}
 			]
 		},
+		"boughtPack": {
+			"$t": "{0} unpacked into your bag. {1}"
+		},
 		"paid": {
 			"$t": "-{0} 🥕"
 		}
@@ -815,6 +820,7 @@
 		"fallback": "That did not work.",
 		"insufficient_carrots": "Not enough carrots.",
 		"inventory_full": "Your bag is full of those.",
+		"bag_full": "One of those would not fit in your bag.",
 		"daily_energy_limit": "No more refills today. The garden still grows.",
 		"smoke_capped": "Your burrow is hidden as long as it can be.",
 		"too_many_at_once": "Too many at once.",
@@ -1408,6 +1414,14 @@
 		"fence": {
 			"name": "Fence",
 			"blurb": "Closes one edge of your garden. Raiders cannot cross it."
+		},
+		"shiro_stash": {
+			"name": "Shiro's Stash",
+			"blurb": "Bombs, fences and a shield to hold the burrow."
+		},
+		"kuro_tantrum": {
+			"name": "Kuro's Tantrum",
+			"blurb": "Bolts and bloops to ruin a rival’s run."
 		}
 	},
 	"quests": {

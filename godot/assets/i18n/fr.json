@@ -521,6 +521,7 @@
 		"strike": "Foudroie-le"
 	},
 	"snack": {
+		"keepWeek": "Un jour manqué ne remet jamais ta semaine à zéro.",
 		"title": "Snack Time",
 		"dayOf": {
 			"$t": "Jour {0}/7"
@@ -711,6 +712,7 @@
 		},
 		"heldOff": "inactif",
 		"max": "MAX",
+		"bagFull": "PLEIN",
 		"active": "ACTIF",
 		"boughtEnergy": {
 			"$t": "Énergie rechargée. {0}"
@@ -837,6 +839,9 @@
 				}
 			]
 		},
+		"boughtPack": {
+			"$t": "{0} : tout est dans le sac. {1}"
+		},
 		"paid": {
 			"$t": "-{0} 🥕"
 		}
@@ -845,6 +850,7 @@
 		"fallback": "Ça n’a pas marché.",
 		"insufficient_carrots": "Pas assez de carottes.",
 		"inventory_full": "Ton sac en est plein.",
+		"bag_full": "Un des objets ne tient plus dans ton sac.",
 		"daily_energy_limit": "Plus de recharge aujourd’hui. Le potager pousse quand même.",
 		"smoke_capped": "Ton terrier est caché aussi longtemps que possible.",
 		"too_many_at_once": "Trop à la fois.",
@@ -1507,6 +1513,14 @@
 		"fence": {
 			"name": "Clôture",
 			"blurb": "Ferme un bord de ton potager. Les pillards ne peuvent pas le franchir."
+		},
+		"shiro_stash": {
+			"name": "Réserve de Shiro",
+			"blurb": "Bombes, clôtures et bouclier pour tenir le terrier."
+		},
+		"kuro_tantrum": {
+			"name": "Colère de Kuro",
+			"blurb": "Éclairs et bloops pour gâcher la partie d’un rival."
 		}
 	},
 	"quests": {

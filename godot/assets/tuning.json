@@ -1,7 +1,8 @@
 {
  "BLOOP": {
   "INK_MS": 6000,
-  "FADE_MS": 1500
+  "FADE_MS": 1500,
+  "STARTING": 3
  },
  "BOMB": {
   "KNOCKBACK_TILES": 3,
@@ -261,7 +262,8 @@
   "RADIUS": 1,
   "STAGGER_MS": 60,
   "SHOCK_LOSS": 30,
-  "SHOCK_STUN_MS": 2000
+  "SHOCK_STUN_MS": 2000,
+  "STARTING": 3
  },
  "MIRAGE": {
   "DURATION_MS": 90000,
@@ -288,6 +290,25 @@
   "REGEN_PER_LEVEL": 1,
   "REGEN_LEVEL_CAP": 10,
   "MAX": 300
+ },
+ "PASS": {
+  "PRICE_USD": 4.99,
+  "DAYS": 30,
+  "POT_SHARE": 0.5,
+  "PAYOUT_SHARES": [
+   0.4,
+   0.24,
+   0.16,
+   0.028571428571428574,
+   0.028571428571428574,
+   0.028571428571428574,
+   0.028571428571428574,
+   0.028571428571428574,
+   0.028571428571428574,
+   0.028571428571428574
+  ],
+  "SKIN": "kuro-violet",
+  "SALE_CUTOFF_MS": 3600000
  },
  "QUESTS": {
   "FIRST_DIG_TILES": 10,
@@ -505,10 +526,79 @@
   "MAX_HELD": 20,
   "MAX_QTY_PER_PURCHASE": 10
  },
+ "SHOP_PACKS": {
+  "shiro_stash": {
+   "side": "defence",
+   "price": 1200,
+   "usdc": 1.99,
+   "items": [
+    {
+     "kind": "trap",
+     "qty": 2
+    },
+    {
+     "kind": "fence",
+     "qty": 2
+    },
+    {
+     "kind": "shield",
+     "qty": 1
+    }
+   ]
+  },
+  "kuro_tantrum": {
+   "side": "attack",
+   "price": 1000,
+   "usdc": 1.19,
+   "items": [
+    {
+     "kind": "lightning",
+     "qty": 2
+    },
+    {
+     "kind": "bloop",
+     "qty": 3
+    }
+   ]
+  }
+ },
  "SMOKE": {
   "DURATION_MS": 86400000,
   "STACKS": true,
   "MAX_MS": 259200000
+ },
+ "SNACK": {
+  "CARROTS": [
+   50,
+   75,
+   100,
+   125,
+   150,
+   200
+  ],
+  "PACKS": {
+   "magic_hat": [
+    {
+     "kind": "lightning",
+     "qty": 1
+    },
+    {
+     "kind": "bloop",
+     "qty": 1
+    }
+   ],
+   "lucky_foot": [
+    {
+     "kind": "trap",
+     "qty": 2
+    },
+    {
+     "kind": "fence",
+     "qty": 1
+    }
+   ]
+  },
+  "MIN_GAP_MS": 21600000
  },
  "TRAPS": {
   "DRAIN": 12,

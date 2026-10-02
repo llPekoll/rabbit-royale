@@ -346,6 +346,7 @@ export const vi: Dict = {
   },
 
   snack: {
+    keepWeek: 'Bỏ lỡ một ngày không đặt lại tuần của bạn.',
     title: 'Snack Time',
     dayOf: (day) => `Ngày ${day}/7`,
     day: (day) => `Ngày ${day}`,
@@ -463,6 +464,8 @@ export const vi: Dict = {
     heldDaysLeft: (n) => `còn ${n} ngày`,
     heldOff: 'tắt',
     max: 'TỐI ĐA',
+    /* A pack that will not fit: one of its items would overflow the bag. */
+    bagFull: 'ĐẦY',
     active: 'ĐANG BẬT',
     boughtEnergy: (paid) => `Đã nạp năng lượng. ${paid}`,
     boughtTrap: (n, paid) => `${n > 1 ? `${n} bom` : 'Bom'} đã vào túi. ${paid}`,
@@ -474,6 +477,7 @@ export const vi: Dict = {
     boughtMirage: (n, paid) => `${n > 1 ? `${n} ảo ảnh` : 'Ảo ảnh'} sẵn sàng để ném. ${paid}`,
     /* Une clôture se DRESSE : le reçu nomme la clôture qu'on va dresser. */
     boughtFence: (n, paid) => `${n > 1 ? `${n} hàng rào` : 'Hàng rào'} sẵn sàng để dựng. ${paid}`,
+    boughtPack: (name, paid) => `${name} đã vào túi. ${paid}`,
     paid: (spent) => `-${spent} 🥕`,
   },
 
@@ -481,6 +485,7 @@ export const vi: Dict = {
     fallback: 'Không được rồi.',
     insufficient_carrots: 'Không đủ cà rốt.',
     inventory_full: 'Túi của bạn đầy món này rồi.',
+    bag_full: 'Một món trong gói không còn chỗ trong túi.',
     daily_energy_limit: 'Hôm nay hết lượt nạp. Vườn vẫn lớn.',
     smoke_capped: 'Hang của bạn đã được che lâu nhất có thể.',
     too_many_at_once: 'Quá nhiều cùng lúc.',
@@ -859,6 +864,14 @@ export const vi: Dict = {
     fence: {
       name: 'Hàng rào',
       blurb: 'Rào một mép vườn. Kẻ cướp không vượt qua được.',
+    },
+    shiro_stash: {
+      name: 'Kho của Shiro',
+      blurb: 'Bom, hàng rào và khiên để giữ hang.',
+    },
+    kuro_tantrum: {
+      name: 'Cơn giận của Kuro',
+      blurb: 'Sét và bloop để phá ván của đối thủ.',
     },
   },
 

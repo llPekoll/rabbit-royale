@@ -20,6 +20,7 @@ import { ENERGY_PACK, OUT_OF_RUN_ENERGY, TRAPS, itemCap } from '@/lib/tuning/tab
 import { currentEnergy } from './regen';
 import { encodePush, PLAYER_PUSH_CHANNEL } from './raid-events';
 import { grantPass, isPassKind, type PassKind } from './season-pass';
+import { isPackKind, packItems, type PackKind } from './packs';
 import { freeTraps } from './traps';
 import {
   extendSmoke, isShopKind, spendEnergyPack,
@@ -35,7 +36,7 @@ import {
 export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0] | typeof db;
 
 export interface GrantResult {
-  kind: ItemKind | PassKind;
+  kind: ItemKind | PassKind | PackKind;
   /** What was actually DELIVERED — less than asked only for a gift that hit
    *  the bag's ceiling (a sale is always delivered in full). */
   qty: number;
@@ -43,6 +44,8 @@ export interface GrantResult {
   energy: number | null;
   /** For a smoke screen: when the numbers come back. Null otherwise. */
   smokeUntil?: Date | null;
+  /** For a pack: what came out of it. */
+  items?: GrantResult[];
 }
 
 /**
@@ -90,10 +93,13 @@ export function paidUsdcUnits(p: { token: string; amount: number; usdPrice: stri
 export async function grantItem(
   tx: Tx,
   playerId: string,
-  kind: ItemKind | PassKind,
+  kind: ItemKind | PassKind | PackKind,
   qty: number,
   now = Date.now(),
   receipt?: Receipt,
+  /** Delivered in full although no receipt is written: a pack's contents,
+   *  whose receipt is the pack's own. */
+  sold = !!receipt,
 ): Promise<GrantResult> {
   // The receipt is written in the caller's transaction, beside the debit and
   // the grant, so a receipt can never exist for an item that was not delivered
@@ -126,6 +132,19 @@ export async function grantItem(
     return { kind, qty, energy: null };
   }
 
+  // A PACK is opened into the bag: one receipt (above, naming the pack), then
+  // each item as part of that sale — in full, never clipped like a gift.
+  // `packBlocker` already refused a pack that would overflow a ceiling.
+  if (isPackKind(kind)) {
+    const items: GrantResult[] = [];
+    for (let n = 0; n < qty; n++) {
+      for (const it of packItems(kind)) {
+        items.push(await grantItem(tx, playerId, it.kind, it.qty, now, undefined, sold));
+      }
+    }
+    return { kind, qty, energy: null, items };
+  }
+
   if (kind === 'energy') {
     const energy = await refillEnergy(tx, playerId, qty, now, true);
     return { kind, qty, energy };
@@ -154,7 +173,7 @@ export async function grantItem(
   // attack nobody could have bought. A GIFT (no receipt) now stops at the cap
   // and the rest is not delivered. A SALE is always delivered in full: one
   // purchase = one item, and money already taken is never clipped.
-  const gift = !receipt;
+  const gift = !sold;
 
   if (kind === 'trap') {
     let give = qty;

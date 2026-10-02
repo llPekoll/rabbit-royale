@@ -15,6 +15,7 @@
  */
 import type { LoreId } from '@/config/lore';
 import type { ItemKind } from '@/components/use-shop';
+import type { PackKind } from '@/lib/game/packs';
 
 /** The translatable half of a lore chapter. The thresholds stay in config. */
 export interface LoreText {
@@ -31,4 +32,6 @@ export interface ItemText {
 
 /** Keyed by `LoreId`, so a missing chapter is a compile error. */
 export type LoreTable = Record<LoreId, LoreText>;
-export type ItemTable = Record<ItemKind, ItemText>;
+/** The shop's packs sit beside the items: the Godot stall reads both as
+ *  `items.<kind>`. */
+export type ItemTable = Record<ItemKind | PackKind, ItemText>;

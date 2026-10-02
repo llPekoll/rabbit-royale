@@ -451,6 +451,7 @@
 		"strike": "电击回去"
 	},
 	"snack": {
+		"keepWeek": "漏签一天也不会重置本周进度。",
 		"title": "Snack Time",
 		"dayOf": {
 			"$t": "第 {0}/7 天"
@@ -635,6 +636,7 @@
 		},
 		"heldOff": "未启用",
 		"max": "已满",
+		"bagFull": "满了",
 		"active": "生效中",
 		"boughtEnergy": {
 			"$t": "能量已补满。{0}"
@@ -663,6 +665,9 @@
 		"boughtFence": {
 			"$t": "{0} 道栅栏可以立起来了。{1}"
 		},
+		"boughtPack": {
+			"$t": "{0}已放进背包。{1}"
+		},
 		"paid": {
 			"$t": "-{0} 🥕"
 		}
@@ -671,6 +676,7 @@
 		"fallback": "没成功。",
 		"insufficient_carrots": "胡萝卜不够。",
 		"inventory_full": "你的背包装满了。",
+		"bag_full": "有一件东西背包装不下。",
 		"daily_energy_limit": "今天不能再补了。菜园照样在长。",
 		"smoke_capped": "你的兔窝已经藏到最久了。",
 		"too_many_at_once": "一次太多了。",
@@ -1195,6 +1201,14 @@
 		"fence": {
 			"name": "栅栏",
 			"blurb": "围住你菜园的一条边。掠夺者过不去。"
+		},
+		"shiro_stash": {
+			"name": "Shiro 的补给包",
+			"blurb": "炸弹、栅栏和护盾，守住你的洞穴。"
+		},
+		"kuro_tantrum": {
+			"name": "Kuro 的火气",
+			"blurb": "闪电和墨鱼，让对手这一局玩不下去。"
 		}
 	},
 	"quests": {

@@ -722,6 +722,8 @@ func _card(it: Dictionary, tokens: Array, lead: bool) -> Control:
 	# LE COMPTE TENU, au coin, comme le 13/50 de la reference. Une pastille
 	# sombre et calme, pas le rouge d'une alerte : avoir 3 pieges n'est pas
 	# une mauvaise nouvelle. Doree quand l'etagere est pleine.
+	# Un pack ne se tient pas : pas de compte, son contenu est sur l'art.
+	var pack := ShopState.PACKS.has(kind)
 	var held := ShopState.held_label(kind, int(it.get("held", 0)), int(it.get("cap", 0)))
 	var held_size := int(round(10 * k))
 	var chip_style := StyleBoxFlat.new()
@@ -738,7 +740,8 @@ func _card(it: Dictionary, tokens: Array, lead: bool) -> Control:
 	var held_w := _face().get_string_size(held, HORIZONTAL_ALIGNMENT_LEFT, -1, held_size).x + 12.0 * k
 	chip.size = Vector2(maxf(26.0 * k, held_w), floorf(18.0 * k))
 	chip.position = Vector2(w - chip.size.x - floorf(7.0 * k), over_top + floorf(24.0 * k))
-	lift.add_child(chip)
+	if not pack:
+		lift.add_child(chip)
 
 	# LE BOUTON UNIQUE : le prix EST le bouton, la ou un pouce tombe. L'or
 	# lampe pour les carottes (CARROT_BTN), le bois eteint quand on ne peut
@@ -755,7 +758,8 @@ func _card(it: Dictionary, tokens: Array, lead: bool) -> Control:
 	var capped := full and not money
 	if capped:
 		var running := String(ShopState.COUNTS.get(kind, "carried")) == "time"
-		label = I18N.shout(I18N.t("shop.active" if running else "shop.max"))
+		# Un pack plein : un de ses objets deborderait le sac.
+		label = I18N.shout(I18N.t("shop.bagFull" if pack else ("shop.active" if running else "shop.max")))
 	var buy_size := Vector2(w, floorf(BUY_H * k))
 	var buy := Kit.button(label + ("" if money or capped else "  "), tone, buy_size.x, buy_size.y)
 	buy.label_size = int(round(PRICE_SIZE * k))
@@ -818,7 +822,9 @@ static func _art(kind: String, item_name: String, tint: Color, px: float) -> Con
 	centre.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	Kit.fill(centre)
 	box.add_child(centre)
-	if STALL_EMOJI.has(kind):
+	if ShopState.PACKS.has(kind):
+		box.add_child(_pack_art(kind, px))
+	elif STALL_EMOJI.has(kind):
 		centre.add_child(Kit.emoji(STALL_EMOJI[kind], int(px * 0.8)))
 	elif ShopState.ART.has(kind):
 		var art_shadow := Kit.icon(ShopState.ART[kind], px)
@@ -833,6 +839,50 @@ static func _art(kind: String, item_name: String, tint: Color, px: float) -> Con
 	else:
 		centre.add_child(Kit.label(item_name.substr(0, 1).to_upper(), int(px * 0.8), tint.lightened(0.45), true))
 	return box
+
+
+## L'ART D'UN PACK, en attendant le sien : ses objets en tas, chacun avec
+## son « xN » — deux cote a cote, trois en pyramide (deux en haut, un
+## dessous), dans la boite `px` de la carte. Les comptes sont poses apres
+## tous les dessins, pour qu'aucun objet ne les couvre.
+static func _pack_art(kind: String, px: float) -> Control:
+	var heap := Control.new()
+	heap.size = Vector2(px, px)
+	heap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var lines := ShopState.pack_items(kind)
+	var n := lines.size()
+	var side := px * 0.5
+	var spots: Array = [Vector2(0.5, 0.5)]
+	if n == 2:
+		spots = [Vector2(0.27, 0.5), Vector2(0.73, 0.5)]
+	elif n >= 3:
+		spots = [Vector2(0.26, 0.28), Vector2(0.74, 0.28), Vector2(0.5, 0.74)]
+	var counts: Array[Label] = []
+	for i in mini(n, spots.size()):
+		var line: Dictionary = lines[i]
+		var item_kind := String(line.get("kind", ""))
+		if not ShopState.ART.has(item_kind):
+			continue
+		var at: Vector2 = spots[i] * px
+		var shadow := Kit.icon(ShopState.ART[item_kind], side)
+		shadow.modulate = Color(0, 0, 0, 0.35)
+		var icon := Kit.icon(ShopState.ART[item_kind], side)
+		var w := minf(icon.custom_minimum_size.x, side * 1.15)
+		for part: TextureRect in [shadow, icon]:
+			part.custom_minimum_size = Vector2(w, side)
+			part.size = Vector2(w, side)
+			part.position = (at - part.size * 0.5).floor() + (Vector2(0, 4) if part == shadow else Vector2.ZERO)
+			heap.add_child(part)
+		var qty := int(line.get("qty", 1))
+		if qty > 1:
+			var count := Kit.label("x%d" % qty, int(round(maxf(9.0, side * 0.36))), Palette.CREAM, true)
+			count.add_theme_constant_override("outline_size", 4)
+			count.add_theme_color_override("font_outline_color", Palette.SOIL_DEEP)
+			count.position = (at + Vector2(side * 0.18, side * 0.1)).floor()
+			counts.append(count)
+	for count in counts:
+		heap.add_child(count)
+	return heap
 
 
 ## UNE FLAQUE DE LUMIERE : un disque radial, plein au centre, nul au bord.
@@ -927,7 +977,7 @@ func _enter() -> void:
 ## la retrouve en fermant la fete. Le recu en mots est au pied et en pastille.
 func _celebrate(kind: String, qty: int) -> void:
 	# Le pass n'est pas sur l'etagere : PassState l'annonce (pass_state.gd).
-	if not ShopState.KINDS.has(kind):
+	if not ShopState.KINDS.has(kind) and not ShopState.PACKS.has(kind):
 		return
 	PurchaseReveal.announce(kind, qty)
 	for card in _row.get_children():

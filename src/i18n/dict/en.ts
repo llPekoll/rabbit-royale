@@ -432,6 +432,7 @@ export const en = {
 
   /* ── Snack Time: the daily gift, seven days, a pack on the seventh ────── */
   snack: {
+    keepWeek: 'A missed day never resets your week.',
     title: 'Snack Time',
     dayOf: (day: number) => `Day ${day}/7`,
     day: (day: number) => `Day ${day}`,
@@ -561,6 +562,8 @@ export const en = {
     heldOff: 'off',
     /* Why a greyed card cannot be bought: held at the cap, or already running. */
     max: 'MAX',
+    /* A pack that will not fit: one of its items would overflow the bag. */
+    bagFull: 'FULL',
     active: 'ACTIVE',
     /* What a purchase says back. The count leads only when there is more than
        one of them — "bomb in the shed" and "3 bombs in the shed". */
@@ -578,6 +581,7 @@ export const en = {
        one stretch of the garden's edge, so the receipt says the thing it becomes. */
     boughtFence: (n: number, paid: string) =>
       `${n > 1 ? `${n} fences` : 'fence'} ready to put up. ${paid}`,
+    boughtPack: (name: string, paid: string) => `${name} unpacked into your bag. ${paid}`,
     /* Plain ASCII '-', not a minus sign: the pixel face cannot draw U+2212 and
        it renders as a blank box on the device. See test/pixel-font-glyphs. */
     paid: (spent: number) => `-${spent} 🥕`,
@@ -588,6 +592,7 @@ export const en = {
     fallback: 'That did not work.',
     insufficient_carrots: 'Not enough carrots.',
     inventory_full: 'Your bag is full of those.',
+    bag_full: 'One of those would not fit in your bag.',
     daily_energy_limit: 'No more refills today. The garden still grows.',
     smoke_capped: 'Your burrow is hidden as long as it can be.',
     too_many_at_once: 'Too many at once.',
@@ -1066,6 +1071,14 @@ export const en = {
     fence: {
       name: 'Fence',
       blurb: 'Closes one edge of your garden. Raiders cannot cross it.',
+    },
+    shiro_stash: {
+      name: "Shiro's Stash",
+      blurb: 'Bombs, fences and a shield to hold the burrow.',
+    },
+    kuro_tantrum: {
+      name: "Kuro's Tantrum",
+      blurb: 'Bolts and bloops to ruin a rival’s run.',
     },
   } satisfies ItemTable,
 

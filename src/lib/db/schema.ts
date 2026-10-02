@@ -23,8 +23,10 @@ import type { BurrowEdits } from '@/game/burrow/generate';
  * on purchase rather than carried, so it appears here only so a payment row can
  * name what was bought. Nothing reads an `inventory` row of that kind.
  * `season_pass` is the same case: it lands in `season_passes`, never in the bag.
+ * So are the shop's packs (`shiro_stash`, `kuro_tantrum`, SHOP_PACKS): the
+ * receipt names the pack, the bag receives what is inside it.
  */
-export const itemKindEnum = pgEnum('item_kind', ['bomb', 'shield', 'lightning', 'trap', 'energy', 'smoke', 'mirage', 'water', 'fertiliser', 'fence', 'bloop', 'season_pass']);
+export const itemKindEnum = pgEnum('item_kind', ['bomb', 'shield', 'lightning', 'trap', 'energy', 'smoke', 'mirage', 'water', 'fertiliser', 'fence', 'bloop', 'season_pass', 'shiro_stash', 'kuro_tantrum']);
 /** What a purchase was paid with. Both routes buy the same goods — see SHOP. */
 export const currencyEnum = pgEnum('currency', ['carrots', 'usdc']);
 /** A USDC payment's life: quoted → paid → credited, or abandoned. */

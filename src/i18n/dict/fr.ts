@@ -338,6 +338,7 @@ export const fr: Dict = {
   },
 
   snack: {
+    keepWeek: 'Un jour manqué ne remet jamais ta semaine à zéro.',
     title: 'Snack Time',
     dayOf: (day) => `Jour ${day}/7`,
     day: (day) => `Jour ${day}`,
@@ -455,6 +456,8 @@ export const fr: Dict = {
     heldDaysLeft: (n) => `${n}j restants`,
     heldOff: 'inactif',
     max: 'MAX',
+    /* A pack that will not fit: one of its items would overflow the bag. */
+    bagFull: 'PLEIN',
     active: 'ACTIF',
     boughtEnergy: (paid) => `Énergie rechargée. ${paid}`,
     boughtTrap: (n, paid) => `${n > 1 ? `${n} bombes` : 'Bombe'} dans le sac. ${paid}`,
@@ -467,6 +470,7 @@ export const fr: Dict = {
     /* Une clôture se DRESSE : ce qu'on achète ferme un bord du potager, donc
        le reçu nomme ce que ça devient. */
     boughtFence: (n, paid) => `${n > 1 ? `${n} clôtures prêtes` : 'Clôture prête'} à dresser. ${paid}`,
+    boughtPack: (name, paid) => `${name} : tout est dans le sac. ${paid}`,
     paid: (spent) => `-${spent} 🥕`,
   },
 
@@ -474,6 +478,7 @@ export const fr: Dict = {
     fallback: 'Ça n’a pas marché.',
     insufficient_carrots: 'Pas assez de carottes.',
     inventory_full: 'Ton sac en est plein.',
+    bag_full: 'Un des objets ne tient plus dans ton sac.',
     daily_energy_limit: 'Plus de recharge aujourd’hui. Le potager pousse quand même.',
     smoke_capped: 'Ton terrier est caché aussi longtemps que possible.',
     too_many_at_once: 'Trop à la fois.',
@@ -867,6 +872,14 @@ export const fr: Dict = {
     fence: {
       name: 'Clôture',
       blurb: 'Ferme un bord de ton potager. Les pillards ne peuvent pas le franchir.',
+    },
+    shiro_stash: {
+      name: 'Réserve de Shiro',
+      blurb: 'Bombes, clôtures et bouclier pour tenir le terrier.',
+    },
+    kuro_tantrum: {
+      name: 'Colère de Kuro',
+      blurb: 'Éclairs et bloops pour gâcher la partie d’un rival.',
     },
   },
 

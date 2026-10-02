@@ -344,6 +344,7 @@ export const zh: Dict = {
   },
 
   snack: {
+    keepWeek: '漏签一天也不会重置本周进度。',
     title: 'Snack Time',
     dayOf: (day) => `第 ${day}/7 天`,
     day: (day) => `第 ${day} 天`,
@@ -457,6 +458,8 @@ export const zh: Dict = {
     heldDaysLeft: (n) => `还剩 ${n} 天`,
     heldOff: '未启用',
     max: '已满',
+    /* A pack that will not fit: one of its items would overflow the bag. */
+    bagFull: '满了',
     active: '生效中',
     boughtEnergy: (paid) => `能量已补满。${paid}`,
     boughtTrap: (n, paid) => `${n} 颗炸弹进了背包。${paid}`,
@@ -467,6 +470,7 @@ export const zh: Dict = {
     boughtBloop: (n, paid) => `${n} 只墨鱼装进罐子。${paid}`,
     boughtMirage: (n, paid) => `${n} 个幻影可以丢出去了。${paid}`,
     boughtFence: (n, paid) => `${n} 道栅栏可以立起来了。${paid}`,
+    boughtPack: (name, paid) => `${name}已放进背包。${paid}`,
     paid: (spent) => `-${spent} 🥕`,
   },
 
@@ -474,6 +478,7 @@ export const zh: Dict = {
     fallback: '没成功。',
     insufficient_carrots: '胡萝卜不够。',
     inventory_full: '你的背包装满了。',
+    bag_full: '有一件东西背包装不下。',
     daily_energy_limit: '今天不能再补了。菜园照样在长。',
     smoke_capped: '你的兔窝已经藏到最久了。',
     too_many_at_once: '一次太多了。',
@@ -853,6 +858,14 @@ export const zh: Dict = {
     fence: {
       name: '栅栏',
       blurb: '围住你菜园的一条边。掠夺者过不去。',
+    },
+    shiro_stash: {
+      name: 'Shiro 的补给包',
+      blurb: '炸弹、栅栏和护盾，守住你的洞穴。',
+    },
+    kuro_tantrum: {
+      name: 'Kuro 的火气',
+      blurb: '闪电和墨鱼，让对手这一局玩不下去。',
     },
   },
 

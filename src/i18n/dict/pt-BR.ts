@@ -342,6 +342,7 @@ export const ptBR: Dict = {
   },
 
   snack: {
+    keepWeek: 'Perder um dia não reinicia sua semana.',
     title: 'Snack Time',
     dayOf: (day) => `Dia ${day}/7`,
     day: (day) => `Dia ${day}`,
@@ -459,6 +460,8 @@ export const ptBR: Dict = {
     heldDaysLeft: (n) => `${n}d restantes`,
     heldOff: 'desligado',
     max: 'MÁX',
+    /* A pack that will not fit: one of its items would overflow the bag. */
+    bagFull: 'CHEIO',
     active: 'ATIVO',
     boughtEnergy: (paid) => `Energia recarregada. ${paid}`,
     boughtTrap: (n, paid) => `${n > 1 ? `${n} bombas` : 'Bomba'} na bolsa. ${paid}`,
@@ -471,6 +474,7 @@ export const ptBR: Dict = {
     /* Uma cerca é LEVANTADA: o que se compra é uma tábua que fecha um trecho da
        borda da horta, então o recibo nomeia aquilo em que ela se transforma. */
     boughtFence: (n, paid) => `${n > 1 ? `${n} cercas prontas` : 'Cerca pronta'} para levantar. ${paid}`,
+    boughtPack: (name, paid) => `${name}: tudo na bolsa. ${paid}`,
     paid: (spent) => `-${spent} 🥕`,
   },
 
@@ -478,6 +482,7 @@ export const ptBR: Dict = {
     fallback: 'Não deu certo.',
     insufficient_carrots: 'Cenouras insuficientes.',
     inventory_full: 'Sua bolsa está cheia desses.',
+    bag_full: 'Um dos itens não cabe mais na sua bolsa.',
     daily_energy_limit: 'Sem mais recargas hoje. A horta continua crescendo.',
     smoke_capped: 'Sua toca está escondida pelo máximo de tempo possível.',
     too_many_at_once: 'Demais de uma vez.',
@@ -869,6 +874,14 @@ export const ptBR: Dict = {
     fence: {
       name: 'Cerca',
       blurb: 'Fecha uma borda da sua horta. Saqueadores não atravessam.',
+    },
+    shiro_stash: {
+      name: 'Estoque do Shiro',
+      blurb: 'Bombas, cercas e escudo para segurar a toca.',
+    },
+    kuro_tantrum: {
+      name: 'Birra do Kuro',
+      blurb: 'Raios e bloops para estragar a partida de um rival.',
     },
   },
 

@@ -15,9 +15,10 @@ import { db } from '@/lib/db';
 import { inventory, players, traps as trapsTable } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
 import {
-  holdings, isShopKind, purchaseBlocker, purchaseCost, shopShelf,
+  holdings, isShopKind, purchaseBlocker, purchaseCost, shopShelf, type Holdings,
 } from '@/lib/game/inventory';
 import { grantItem } from '@/lib/game/grant';
+import { isPackKind, packBlocker, packPrice, packShelf } from '@/lib/game/packs';
 import { refreshTuningIfStale } from '@/lib/tuning/live';
 import { armedTraps, availableTraps, rearmingTraps } from '@/lib/game/traps';
 import { TRAPS } from '@/lib/tuning/tables';
@@ -68,6 +69,8 @@ export async function shopState(playerId: string) {
   return {
     stock: player.stock,
     items: shopShelf(bag, player.stock),
+    /** The two packs (SHOP_PACKS), with what is inside each. */
+    packs: packShelf(bag, player.stock),
     traps: {
       held: availableTraps(player),
       placed,
@@ -133,9 +136,13 @@ export async function POST(req: Request) {
   // isShopKind, not isItemKind: the enum now also carries the chest-only garden
   // boosts, and those have no price. Guarding on the wider set would let a
   // crafted POST reach `itemPrice` with a kind that has no entry.
-  if (!isShopKind(body.kind)) return Response.json({ error: 'unknown_item' }, { status: 400 });
+  // A pack is bought the same way, under its own rules (packBlocker).
+  if (!isShopKind(body.kind) && !isPackKind(body.kind)) return Response.json({ error: 'unknown_item' }, { status: 400 });
   const kind = body.kind;
   const qty = body.qty === undefined ? 1 : Number(body.qty);
+  const blockerOf = (b: Holdings, stock: number) =>
+    isPackKind(kind) ? packBlocker(kind, qty, b, stock) : purchaseBlocker(kind, qty, b, stock);
+  const cost = isPackKind(kind) ? packPrice(kind) * qty : purchaseCost(kind, qty);
 
   const player = await db.query.players.findFirst({ where: eq(players.id, session.sub) });
   if (!player) return Response.json({ error: 'unknown player' }, { status: 404 });
@@ -143,15 +150,13 @@ export async function POST(req: Request) {
   const rows = await db.query.inventory.findMany({ where: eq(inventory.playerId, session.sub) });
   const bag = holdings(rows, player);
 
-  const blocker = purchaseBlocker(kind, qty, bag, player.stock);
+  const blocker = blockerOf(bag, player.stock);
   if (blocker) {
     return Response.json(
-      { error: blocker, need: purchaseCost(kind, qty), have: player.stock },
+      { error: blocker, need: cost, have: player.stock },
       { status: 400 },
     );
   }
-
-  const cost = purchaseCost(kind, qty);
 
   // One transaction: the carrots leaving and the item arriving are the same
   // event, and a crash between them either bills for nothing or gives stock
@@ -171,7 +176,7 @@ export async function POST(req: Request) {
       await tx.query.inventory.findMany({ where: eq(inventory.playerId, session.sub) }),
       locked,
     );
-    const late = purchaseBlocker(kind, qty, lockedBag, locked.stock);
+    const late = blockerOf(lockedBag, locked.stock);
     if (late) return { error: late, have: locked.stock } as const;
 
     const [charged] = await tx

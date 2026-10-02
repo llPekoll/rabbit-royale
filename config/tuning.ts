@@ -1235,6 +1235,13 @@ export const BLOOP = {
   INK_MS: 6000,
   /** The last part of it, the ink running off — the client fades over this. */
   FADE_MS: 1500,
+  /**
+   * Bloops a new burrow starts with, beside the three bolts (LIGHTNING.STARTING).
+   * Paul, 2026-10-02: 3 bloops when you start the game. Granted at account
+   * creation (`lib/auth/starting-kit`), and once to every account that existed
+   * before (migration 0027).
+   */
+  STARTING: 3,
 } as const;
 
 export const MIRAGE = {
@@ -1361,6 +1368,45 @@ export const SHOP = {
   /** Items per purchase. A "buy 5" that silently bought 5000 is a refund
    *  request; the server clamps to this and says so. */
   MAX_QTY_PER_PURCHASE: 10,
+} as const;
+
+/**
+ * THE SHOP'S PACKS (2026-10-02) — several items for one press, one per side.
+ *
+ * Shiro's Stash is DEFENCE (Shiro is the hero, he holds the burrow): bombs to
+ * bury, planks for the potager, a shield. Kuro's Tantrum is ATTACK (Kuro is
+ * the rival): bolts and ink. Each costs about a fifth under its contents
+ * bought one by one (1 500 → 1 200, 1 300 → 1 000 carrots; $2.20 → $1.99,
+ * $1.50 → $1.19), and is larger than the Snack Time day-7 packs (SNACK.PACKS),
+ * which are a taste of these.
+ *
+ * NO PARTIAL PACK. A pack whose any item would overflow its own ceiling
+ * (`itemCap`) is refused whole with `bag_full`: a sale is always delivered in
+ * full (grantItem), so the check has to happen before the money moves. One
+ * pack per purchase.
+ *
+ * `trap` is the bomb the player reads (one bomb since 2026-09-28).
+ */
+export const SHOP_PACKS = {
+  shiro_stash: {
+    side: 'defence',
+    price: 1_200,
+    usdc: 1.99,
+    items: [
+      { kind: 'trap', qty: 2 },
+      { kind: 'fence', qty: 2 },
+      { kind: 'shield', qty: 1 },
+    ],
+  },
+  kuro_tantrum: {
+    side: 'attack',
+    price: 1_000,
+    usdc: 1.19,
+    items: [
+      { kind: 'lightning', qty: 2 },
+      { kind: 'bloop', qty: 3 },
+    ],
+  },
 } as const;
 
 /**
