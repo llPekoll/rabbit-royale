@@ -418,7 +418,7 @@ func _on_door(door: String) -> void:
 
 
 ## DIG. Pas de liste : le SERVEUR choisit l'ile au niveau du lapin (1 a 10,
-## 2026-09-23 — seul jusqu'au 5, a deux du 6 au 9, jusqu'a quatre au 10). Le
+## 2026-10-02 — seul aux niveaux 1-2, a deux du 3 au 5, jusqu'a quatre des le 6). Le
 ## tutoriel reste a part : son plateau est dessine, et il traverse sans siege
 ## hors ligne.
 ##

@@ -504,8 +504,9 @@ export const ISLAND_TIERS: readonly IslandTier[] = [
  * The list on DIG is gone. A rabbit has ten levels, and the island it is dealt
  * is its level's: every island it CLEARS (the eruption, reached alive) is one
  * level up, and level 10 is where the final islands are, the ones everybody
- * plays together. The user's rule, as given: alone up to level 5, two to an
- * island from 6 to 9, up to four at 10. And nobody raids, nor is raided,
+ * plays together. The user's rule, as given (2026-10-02, it was alone to 5,
+ * two from 6 to 9, four at 10): alone at levels 1 and 2, two to an island
+ * from 3 to 5, up to four from 6 to 10. And nobody raids, nor is raided,
  * below RAID_MIN — the burrow is safe while the rabbit is still learning.
  *
  * A row still names an ISLAND_TIERS tier: that is the art, the island's name
@@ -548,13 +549,13 @@ export const RABBIT_LEVELS = {
   LADDER: [
     { level: 1,  tier: 'Meadow',  seats: 1, bombDensity: 0.10, carrotDensity: 0.28, goldenShare: 0.05, xGain: 3, land: 0.12, chests: 2 },
     { level: 2,  tier: 'Meadow',  seats: 1, bombDensity: 0.12, carrotDensity: 0.29, goldenShare: 0.06, xGain: 3, land: 0.16, chests: 2 },
-    { level: 3,  tier: 'Meadow',  seats: 1, bombDensity: 0.14, carrotDensity: 0.30, goldenShare: 0.06, xGain: 3, land: 0.20, chests: 3 },
-    { level: 4,  tier: 'Thicket', seats: 1, bombDensity: 0.15, carrotDensity: 0.32, goldenShare: 0.08, xGain: 3, land: 0.25, chests: 3 },
-    { level: 5,  tier: 'Thicket', seats: 1, bombDensity: 0.17, carrotDensity: 0.34, goldenShare: 0.09, xGain: 3, land: 0.30, chests: 4 },
-    { level: 6,  tier: 'Ashland', seats: 2, bombDensity: 0.18, carrotDensity: 0.36, goldenShare: 0.11, xGain: 2, land: 0.36, chests: 5 },
-    { level: 7,  tier: 'Ashland', seats: 2, bombDensity: 0.20, carrotDensity: 0.38, goldenShare: 0.13, xGain: 2, land: 0.42, chests: 6 },
-    { level: 8,  tier: 'Caldera', seats: 2, bombDensity: 0.21, carrotDensity: 0.40, goldenShare: 0.15, xGain: 2, land: 0.50, chests: 7 },
-    { level: 9,  tier: 'Caldera', seats: 2, bombDensity: 0.22, carrotDensity: 0.41, goldenShare: 0.16, xGain: 2, land: 0.56, chests: 8 },
+    { level: 3,  tier: 'Meadow',  seats: 2, bombDensity: 0.14, carrotDensity: 0.30, goldenShare: 0.06, xGain: 3, land: 0.20, chests: 3 },
+    { level: 4,  tier: 'Thicket', seats: 2, bombDensity: 0.15, carrotDensity: 0.32, goldenShare: 0.08, xGain: 3, land: 0.25, chests: 3 },
+    { level: 5,  tier: 'Thicket', seats: 2, bombDensity: 0.17, carrotDensity: 0.34, goldenShare: 0.09, xGain: 3, land: 0.30, chests: 4 },
+    { level: 6,  tier: 'Ashland', seats: 4, bombDensity: 0.18, carrotDensity: 0.36, goldenShare: 0.11, xGain: 2, land: 0.36, chests: 5 },
+    { level: 7,  tier: 'Ashland', seats: 4, bombDensity: 0.20, carrotDensity: 0.38, goldenShare: 0.13, xGain: 2, land: 0.42, chests: 6 },
+    { level: 8,  tier: 'Caldera', seats: 4, bombDensity: 0.21, carrotDensity: 0.40, goldenShare: 0.15, xGain: 2, land: 0.50, chests: 7 },
+    { level: 9,  tier: 'Caldera', seats: 4, bombDensity: 0.22, carrotDensity: 0.41, goldenShare: 0.16, xGain: 2, land: 0.56, chests: 8 },
     { level: 10, tier: 'Caldera', seats: 4, bombDensity: 0.24, carrotDensity: 0.43, goldenShare: 0.18, xGain: 2, land: 0.62, chests: 10 },
   ] as readonly LevelRow[],
 } as const;

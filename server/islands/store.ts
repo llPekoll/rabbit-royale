@@ -86,8 +86,8 @@ export interface LiveIsland {
   isolated: boolean;
   /**
    * The rabbit level it was dealt for (RABBIT_LEVELS), and how many it seats.
-   * Since 2026-09-23 a player is seated by LEVEL, never across it: alone to
-   * level 5, two from 6 to 9, four at 10. `level` is undefined on an island
+   * Since 2026-09-23 a player is seated by LEVEL, never across it: alone at
+   * levels 1-2, two from 3 to 5, four from 6 (2026-10-02). `level` is undefined on an island
    * dealt by lifetime (the tutorial, the tests), which only a level-less
    * `findJoinable()` will hand out.
    */
