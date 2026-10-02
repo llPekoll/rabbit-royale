@@ -424,25 +424,31 @@ func _onboard() -> bool:
 	var title := _find("title")
 	if title != null:
 		var guest: Control = title.get("_guest")
+		# Avec un vrai jeton (`--token=`), l'accueil entre seul : pas de porte.
 		var consent_ok := await _until(func() -> bool:
+			if Screens.in_world():
+				return true
 			var dlg := _find("ui/consent_dialog")
 			if dlg != null:
 				var b := dlg.find_child("ConsentAccept", true, false) as Control
 				if _shown(b):
 					return true
 			return _shown(guest) and not (guest as BaseButton).disabled, 30.0)
-		if not consent_ok:
+		if Screens.in_world():
+			_note("session reprise : l'accueil entre seul")
+		elif not consent_ok:
 			_note("l'accueil n'offre pas de porte invite")
 			return false
-		var dlg := _find("ui/consent_dialog")
-		if dlg != null:
-			_note("consentement : accepte")
-			await _tap_control(dlg.find_child("ConsentAccept", true, false))
+		if not Screens.in_world():
+			var dlg := _find("ui/consent_dialog")
+			if dlg != null:
+				_note("consentement : accepte")
+				await _tap_control(dlg.find_child("ConsentAccept", true, false))
+				await _wait(1.0)
 			await _wait(1.0)
-		await _wait(1.0)
-		await _tap_control(guest)
+			await _tap_control(guest)
 		if not await _until(func() -> bool: return Session.signed_in(), 20.0):
-			_note("la connexion invite n'aboutit pas")
+			_note("la connexion n'aboutit pas")
 			return false
 	_result["playerId"] = String(Session.player.get("id", ""))
 	_write_state()
@@ -688,7 +694,7 @@ func _dig(a: Dictionary) -> bool:
 			var shove := Vector2i(-1, -1)
 			for r in taken:
 				var d: Vector2i = r - here
-				if absi(d.x) <= 1 and absi(d.y) <= 1 and not board.content.has(r + d):
+				if absi(d.x) <= 1 and absi(d.y) <= 1 and _is_sea(island, r + d):
 					shove = r
 			if shove.x >= 0 and _cell_point(island, shove) != Vector2.INF:
 				hunt = 0
@@ -707,7 +713,7 @@ func _dig(a: Dictionary) -> bool:
 				for dy in [-1, 0, 1]:
 					for dx in [-1, 0, 1]:
 						var d := Vector2i(dx, dy)
-						if d != Vector2i.ZERO and not board.content.has(r + d) and board.content.has(r - d) \
+						if d != Vector2i.ZERO and _is_sea(island, r + d) and board.content.has(r - d) \
 								and not bombs.has(r - d):
 							goal[r - d] = true
 			if goal.is_empty():
@@ -802,6 +808,15 @@ func _mark(island: Node2D, cell: Vector2i) -> bool:
 	await _tap(at)
 	await _wait(0.5)
 	return true
+
+
+## LA MER FRANCHE (palier 0) : seule elle noie. Une plage hors plateau
+## (palier 1) arrete la poussee comme un mur (push.ts `isSea`).
+func _is_sea(island: Node2D, c: Vector2i) -> bool:
+	var map = island.get("_terrain").map
+	if c.x < 0 or c.y < 0 or c.x >= map.width or c.y >= map.height:
+		return true
+	return int(map.level_at(c.x, c.y)) == 0
 
 
 ## En largeur, le premier pas vers la case la plus proche de `goal`.
