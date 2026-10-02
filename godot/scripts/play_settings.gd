@@ -20,6 +20,9 @@ class_name PlaySettings
 const PATH := "user://play.cfg"
 
 static var solo := false
+## Le temps qu'un refus `solo_cooldown` laisse avant de pouvoir passer solo,
+## en ms (RAID_RUN.SOLO_AFTER_RAID_MS depuis le dernier raid marche).
+static var solo_wait_ms := 0
 static var pretty := false
 static var _loaded := false
 
@@ -45,12 +48,13 @@ static func solo_on() -> bool:
 
 
 ## BASCULER LE SOLO, chez le serveur. Rend "" quand c'est fait, sinon le code
-## du refus (`solo_ticket`, `raid_in_progress`, `offline`...) — et le reglage
-## reste alors ce qu'il etait.
+## du refus (`solo_ticket`, `raid_in_progress`, `solo_cooldown` — attente
+## dans `solo_wait_ms` —, `offline`...) ; le reglage reste alors ce qu'il etait.
 static func set_solo(v: bool) -> String:
 	restore()
 	var answer: Answer = await Net.send_json("/api/player", HTTPClient.METHOD_PATCH, {"solo": v}, Session.token)
 	if not answer.ok or answer.body.has("error"):
+		solo_wait_ms = int(answer.body.get("retryInMs", 0))
 		return answer.error()
 	solo = v
 	Home.player["solo"] = v

@@ -123,6 +123,7 @@ export const fr: Dict = {
     soloRaids: 'Solo : pas de raid, dans les deux sens',
     soloNext: 'Solo dès ta prochaine île',
     soloBusy: 'Termine ton raid d’abord',
+    soloCooldown: (wait) => `Solo dans ${wait} : tu viens de raider`,
     on: 'OUI',
     off: 'NON',
     settings: 'Réglages',

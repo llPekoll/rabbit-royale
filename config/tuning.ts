@@ -1026,6 +1026,12 @@ export const RAID_RUN = {
   /** Attacks on one victim per rolling window, so nobody is farmed. */
   COOLDOWN_MS: 60 * 60 * 1000,
   /**
+   * SOLO is closed for this long after your last WALKED raid (2026-10-02):
+   * otherwise a raider strikes and pulls up the drawbridge before the victim
+   * can answer. Two hours, the user's call — "sinon c'est trop facile".
+   */
+  SOLO_AFTER_RAID_MS: 2 * 60 * 60 * 1000,
+  /**
    * After a raid that TOOK carrots short of the field, you cannot be raided
    * again for this long (one that reached the field raises
    * RAID.BROKEN_SHIELD_MS). A raid that took nothing — settled at zero, or

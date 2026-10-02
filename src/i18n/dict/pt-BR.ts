@@ -127,6 +127,7 @@ export const ptBR: Dict = {
     soloRaids: 'Solo: sem ataques, nos dois sentidos',
     soloNext: 'Solo a partir da próxima ilha',
     soloBusy: 'Termine seu ataque primeiro',
+    soloCooldown: (wait) => `Solo em ${wait}: você acabou de atacar`,
     on: 'SIM',
     off: 'NÃO',
     settings: 'Ajustes',

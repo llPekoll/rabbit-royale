@@ -10,7 +10,7 @@
  * to REISSUE it — otherwise the WS handshake keeps introducing the player under
  * the old name until the token expires, up to thirty days later.
  */
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, desc, eq, isNull, sql as raw } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { players, raidRuns } from '@/lib/db/schema';
 import { getSession, signSession, SESSION_COOKIE } from '@/lib/auth/jwt';
@@ -19,6 +19,7 @@ import { isBuiltInAvatar } from '@/lib/game/avatars';
 import { playerLook } from '@/lib/game/look';
 import { nameProblem, normalizeName } from '@/lib/game/player-name';
 import { racesNow } from '@/lib/game/season-pass';
+import { RAID_RUN } from '@/lib/tuning/tables';
 
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
 
@@ -71,6 +72,21 @@ export async function PATCH(req: Request) {
         columns: { id: true },
       });
       if (open) return Response.json({ error: 'raid_in_progress' }, { status: 409 });
+      // Nor just after one (RAID_RUN.SOLO_AFTER_RAID_MS): the victim gets
+      // their window to answer. A raid opened and never walked took nothing
+      // and does not count — the same rule as the raid cooldown.
+      const last = await db.query.raidRuns.findFirst({
+        where: and(
+          eq(raidRuns.attackerId, session.sub),
+          raw`coalesce(array_length(${raidRuns.visited}, 1), 0) > 1`,
+        ),
+        orderBy: desc(raidRuns.startedAt),
+        columns: { startedAt: true, endedAt: true },
+      });
+      const since = last ? Date.now() - (last.endedAt ?? last.startedAt).getTime() : Infinity;
+      if (since < RAID_RUN.SOLO_AFTER_RAID_MS) {
+        return Response.json({ error: 'solo_cooldown', retryInMs: RAID_RUN.SOLO_AFTER_RAID_MS - since }, { status: 429 });
+      }
     }
     patch.solo = body.solo;
   }

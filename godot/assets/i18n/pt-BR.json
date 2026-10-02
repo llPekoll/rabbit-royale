@@ -118,6 +118,9 @@
 		"soloRaids": "Solo: sem ataques, nos dois sentidos",
 		"soloNext": "Solo a partir da próxima ilha",
 		"soloBusy": "Termine seu ataque primeiro",
+		"soloCooldown": {
+			"$t": "Solo em {0}: você acabou de atacar"
+		},
 		"on": "SIM",
 		"off": "NÃO",
 		"settings": "Ajustes",

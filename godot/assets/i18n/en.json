@@ -118,6 +118,9 @@
 		"soloRaids": "Solo: no raids, either way",
 		"soloNext": "Solo from your next island",
 		"soloBusy": "Finish your raid first",
+		"soloCooldown": {
+			"$t": "Solo in {0}: you just raided"
+		},
 		"on": "ON",
 		"off": "OFF",
 		"settings": "Settings",

@@ -150,6 +150,7 @@ export const en = {
     soloRaids: 'Solo: no raids, either way',
     soloNext: 'Solo from your next island',
     soloBusy: 'Finish your raid first',
+    soloCooldown: (wait: string) => `Solo in ${wait}: you just raided`,
     on: 'ON',
     off: 'OFF',
     settings: 'Settings',

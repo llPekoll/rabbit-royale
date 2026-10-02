@@ -131,6 +131,7 @@ export const vi: Dict = {
     soloRaids: 'Chơi đơn: không đột kích, cả hai chiều',
     soloNext: 'Chơi đơn từ hòn đảo tiếp theo',
     soloBusy: 'Hãy xong cuộc đột kích trước',
+    soloCooldown: (wait) => `Chơi đơn sau ${wait}: bạn vừa đột kích`,
     on: 'BẬT',
     off: 'TẮT',
     settings: 'Cài đặt',

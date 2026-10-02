@@ -383,6 +383,8 @@ func _on_solo_toggled(on: bool) -> void:
 			_solo_msg = I18N.t("sound.soloTicket")
 		"raid_in_progress":
 			_solo_msg = I18N.t("sound.soloBusy")
+		"solo_cooldown":
+			_solo_msg = I18N.f("sound.soloCooldown", [I18N.wait(float(PlaySettings.solo_wait_ms))])
 		"offline":
 			_solo_msg = I18N.t("err_offline")
 		_:
