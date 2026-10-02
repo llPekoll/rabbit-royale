@@ -33,23 +33,35 @@ func _fake_items(stock: int) -> Array:
 	return out
 
 
-## Les packs, a la maniere du serveur (packs.ts `packShelf`) : prix et
-## contenu de SHOP_PACKS. `-- --pack-full` : celui de Kuro ne tient plus.
+## Les packs, a la maniere du serveur (packs.ts `packShelf`) : le contenu
+## de SHOP_PACKS aux prix de l'etal, moins PACK_DISCOUNT (20 %).
+## `-- --pack-full` : celui de Kuro ne tient plus.
 func _fake_packs(stock: int) -> Array:
 	var out: Array = []
 	var full := "--pack-full" in OS.get_cmdline_user_args()
+	var shop: Dictionary = Tuning.table("SHOP")
+	var prices: Dictionary = shop.get("PRICES", {})
+	var usdc_prices: Dictionary = shop.get("USDC_PRICES", {})
 	for kind in ShopState.PACKS:
 		var pack: Dictionary = Tuning.table("SHOP_PACKS").get(kind, {})
 		var room: bool = not (full and kind == "kuro_tantrum")
+		var whole := 0
+		var whole_usdc := 0.0
+		for line in pack.get("items", []):
+			whole += int(prices.get(line["kind"], 0)) * int(line["qty"])
+			whole_usdc += float(usdc_prices.get(line["kind"], 0.0)) * int(line["qty"])
+		var price := int(round(whole * 0.8 / 10.0)) * 10
 		out.append({
 			"kind": kind,
 			"side": pack.get("side", ""),
-			"price": int(pack.get("price", 0)),
-			"usdc": float(pack.get("usdc", 0.0)),
+			"price": price,
+			"usdc": snappedf(whole_usdc * 0.8, 0.01),
+			"fullPrice": whole,
+			"discount": 0.2,
 			"held": 0,
 			"cap": 1,
 			"hasRoom": room,
-			"canBuy": room and stock >= int(pack.get("price", 0)),
+			"canBuy": room and stock >= price,
 			"items": pack.get("items", []),
 		})
 	return out

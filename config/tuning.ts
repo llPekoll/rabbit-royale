@@ -1375,10 +1375,20 @@ export const SHOP = {
  *
  * Shiro's Stash is DEFENCE (Shiro is the hero, he holds the burrow): bombs to
  * bury, planks for the potager, a shield. Kuro's Tantrum is ATTACK (Kuro is
- * the rival): bolts and ink. Each costs about a fifth under its contents
- * bought one by one (1 500 → 1 200, 1 300 → 1 000 carrots; $2.20 → $1.99,
- * $1.50 → $1.19), and is larger than the Snack Time day-7 packs (SNACK.PACKS),
- * which are a taste of these.
+ * the rival): bolts and ink. Larger than the Snack Time day-7 packs
+ * (SNACK.PACKS), which are a taste of these.
+ *
+ * PRICED FROM WHAT IS INSIDE, never typed in (2026-10-02). The first prices
+ * were written by hand — 20 % off one pack, 23 % off the other in carrots,
+ * 10 % and 21 % in dollars — and the user read them against the shelf and
+ * found them incoherent. A pack now costs its contents at the shelf's LIVE
+ * prices (`SHOP.PRICES`, `SHOP.USDC_PRICES`, overridable) minus
+ * PACK_DISCOUNT, the same cut on both packs and both rails, and the card
+ * says the cut. Move a unit price and the pack follows.
+ *
+ * The discount runs against the rule that offence is never sold in bulk
+ * (`purchaseCost`): it is small, one pack per press, and every item still
+ * stops at its ceiling. PACK_DISCOUNT = 0 sells a pack at its contents.
  *
  * NO PARTIAL PACK. A pack whose any item would overflow its own ceiling
  * (`itemCap`) is refused whole with `bag_full`: a sale is always delivered in
@@ -1387,11 +1397,11 @@ export const SHOP = {
  *
  * `trap` is the bomb the player reads (one bomb since 2026-09-28).
  */
+export const PACK_DISCOUNT = 0.2;
+
 export const SHOP_PACKS = {
   shiro_stash: {
     side: 'defence',
-    price: 1_200,
-    usdc: 1.99,
     items: [
       { kind: 'trap', qty: 2 },
       { kind: 'fence', qty: 2 },
@@ -1400,8 +1410,6 @@ export const SHOP_PACKS = {
   },
   kuro_tantrum: {
     side: 'attack',
-    price: 1_000,
-    usdc: 1.19,
     items: [
       { kind: 'lightning', qty: 2 },
       { kind: 'bloop', qty: 3 },

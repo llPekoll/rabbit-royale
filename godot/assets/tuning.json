@@ -291,6 +291,7 @@
   "REGEN_LEVEL_CAP": 10,
   "MAX": 300
  },
+ "PACK_DISCOUNT": 0.2,
  "PASS": {
   "PRICE_USD": 4.99,
   "DAYS": 30,
@@ -529,8 +530,6 @@
  "SHOP_PACKS": {
   "shiro_stash": {
    "side": "defence",
-   "price": 1200,
-   "usdc": 1.99,
    "items": [
     {
      "kind": "trap",
@@ -548,8 +547,6 @@
   },
   "kuro_tantrum": {
    "side": "attack",
-   "price": 1000,
-   "usdc": 1.19,
    "items": [
     {
      "kind": "lightning",

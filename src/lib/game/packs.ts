@@ -7,10 +7,9 @@
  * with the same checks, because the caps are what keep the paid route a
  * convenience.
  */
-import { SHOP_PACKS } from '@config/tuning';
+import { PACK_DISCOUNT, SHOP_PACKS } from '@config/tuning';
 import { itemCap } from '@/lib/tuning/tables';
-import { tuned } from '@/lib/tuning/live';
-import type { Holdings, ShopKind } from './inventory';
+import { purchaseCost, purchaseUsdc, type Holdings, type ShopKind } from './inventory';
 
 export type PackKind = keyof typeof SHOP_PACKS;
 export const PACK_KINDS = Object.keys(SHOP_PACKS) as PackKind[];
@@ -29,12 +28,20 @@ export function packItems(kind: PackKind): PackLine[] {
   return SHOP_PACKS[kind].items.map((it) => ({ kind: it.kind, qty: it.qty }));
 }
 
-/** Carrots for one pack, through the live surcharge like every shelf price. */
-export const packPrice = (kind: PackKind): number => tuned(`SHOP_PACKS.${kind}.price`);
+/** What the contents cost one by one, at the shelf's live prices. */
+export const packFullPrice = (kind: PackKind): number =>
+  packItems(kind).reduce((n, it) => n + purchaseCost(it.kind, it.qty), 0);
 
-/** Whole USDC for one pack, rounded to the cent the quote is stated in. */
+export const packFullUsdc = (kind: PackKind): number =>
+  Math.round(packItems(kind).reduce((n, it) => n + purchaseUsdc(it.kind, it.qty), 0) * 100) / 100;
+
+/** Carrots for one pack: its contents minus PACK_DISCOUNT, to the ten. */
+export const packPrice = (kind: PackKind): number =>
+  Math.round((packFullPrice(kind) * (1 - PACK_DISCOUNT)) / 10) * 10;
+
+/** Whole USDC for one pack: the same cut, to the cent the quote is stated in. */
 export const packUsdc = (kind: PackKind): number =>
-  Math.round(tuned(`SHOP_PACKS.${kind}.usdc`) * 100) / 100;
+  Math.round(packFullUsdc(kind) * (1 - PACK_DISCOUNT) * 100) / 100;
 
 /** Does every item fit under its own ceiling? */
 export function packFits(kind: PackKind, bag: Holdings): boolean {
@@ -66,6 +73,10 @@ export interface ShopPack {
   side: 'defence' | 'attack';
   price: number;
   usdc: number;
+  /** The contents one by one, and the cut — the card shows the saving. */
+  fullPrice: number;
+  fullUsdc: number;
+  discount: number;
   /** Packs are not held: always 0 of 1, so the shelf's arithmetic holds. */
   held: number;
   cap: number;
@@ -83,6 +94,9 @@ export function packShelf(bag: Holdings, stock: number): ShopPack[] {
       side: SHOP_PACKS[kind].side,
       price: packPrice(kind),
       usdc: packUsdc(kind),
+      fullPrice: packFullPrice(kind),
+      fullUsdc: packFullUsdc(kind),
+      discount: PACK_DISCOUNT,
       held: 0,
       cap: 1,
       canBuy: hasRoom && stock >= packPrice(kind),

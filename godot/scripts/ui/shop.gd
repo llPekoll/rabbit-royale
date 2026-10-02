@@ -742,6 +742,27 @@ func _card(it: Dictionary, tokens: Array, lead: bool) -> Control:
 	chip.position = Vector2(w - chip.size.x - floorf(7.0 * k), over_top + floorf(24.0 * k))
 	if not pack:
 		lift.add_child(chip)
+	else:
+		# UN PACK DIT CE QU'IL FAIT GAGNER, a la place du compte : « -20% » en
+		# or, la remise que le serveur applique au contenu (PACK_DISCOUNT).
+		var cut := int(round(float(it.get("discount", 0.0)) * 100.0))
+		if cut > 0:
+			var deal := "-%d%%" % cut
+			var deal_style := StyleBoxFlat.new()
+			deal_style.bg_color = Palette.TAB_ON_BOTTOM
+			deal_style.border_color = Palette.TAB_ON_TOP
+			deal_style.set_border_width_all(2)
+			deal_style.set_corner_radius_all(int(5 * k))
+			deal_style.set_content_margin_all(0)
+			var deal_chip := Kit.panel(deal_style)
+			var deal_text := Kit.label(deal, int(round(11 * k)), Palette.INK)
+			deal_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			deal_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			deal_chip.add_child(deal_text)
+			var deal_w := _face().get_string_size(deal, HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(11 * k))).x + 12.0 * k
+			deal_chip.size = Vector2(maxf(30.0 * k, deal_w), floorf(18.0 * k))
+			deal_chip.position = Vector2(w - deal_chip.size.x - floorf(7.0 * k), over_top + floorf(24.0 * k))
+			lift.add_child(deal_chip)
 
 	# LE BOUTON UNIQUE : le prix EST le bouton, la ou un pouce tombe. L'or
 	# lampe pour les carottes (CARROT_BTN), le bois eteint quand on ne peut

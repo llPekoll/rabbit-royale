@@ -3,21 +3,33 @@
  * by hand, no database.
  */
 import { describe, expect, it } from 'vitest';
-import { BLOOP, SHOP_PACKS, SHOP } from '@config/tuning';
+import { BLOOP, PACK_DISCOUNT, SHOP } from '@config/tuning';
 import { ITEM_KINDS, type Holdings } from '@/lib/game/inventory';
-import { PACK_KINDS, isPackKind, packBlocker, packShelf } from '@/lib/game/packs';
+import {
+  PACK_KINDS, isPackKind, packBlocker, packFullPrice, packFullUsdc, packPrice, packShelf, packUsdc,
+} from '@/lib/game/packs';
 import { itemCap } from '@/lib/tuning/tables';
 
 const empty = (): Holdings =>
   Object.fromEntries(ITEM_KINDS.map((k) => [k, 0])) as Holdings;
 
 describe('the packs', () => {
-  it('are the two validated ones, at their prices', () => {
+  it('are the two validated ones, priced from what is inside', () => {
     expect(PACK_KINDS).toEqual(['shiro_stash', 'kuro_tantrum']);
-    expect(SHOP_PACKS.shiro_stash.price).toBe(1_200);
-    expect(SHOP_PACKS.shiro_stash.usdc).toBe(1.99);
-    expect(SHOP_PACKS.kuro_tantrum.price).toBe(1_000);
-    expect(SHOP_PACKS.kuro_tantrum.usdc).toBe(1.19);
+    // 2 bombs + 2 planks + a shield; 2 bolts + 3 bloops — at the shelf.
+    expect(packFullPrice('shiro_stash')).toBe(2 * SHOP.PRICES.trap + 2 * SHOP.PRICES.fence + SHOP.PRICES.shield);
+    expect(packFullPrice('kuro_tantrum')).toBe(2 * SHOP.PRICES.lightning + 3 * SHOP.PRICES.bloop);
+    expect(packPrice('shiro_stash')).toBe(1_200);
+    expect(packPrice('kuro_tantrum')).toBe(1_040);
+    expect(packUsdc('shiro_stash')).toBe(1.76);
+    expect(packUsdc('kuro_tantrum')).toBe(1.2);
+  });
+
+  it('take the same cut on both packs and both rails', () => {
+    for (const k of PACK_KINDS) {
+      expect(packPrice(k) / packFullPrice(k)).toBeCloseTo(1 - PACK_DISCOUNT, 1);
+      expect(packUsdc(k) / packFullUsdc(k)).toBeCloseTo(1 - PACK_DISCOUNT, 1);
+    }
   });
 
   it('are packs, not items on the shelf', () => {
@@ -28,7 +40,7 @@ describe('the packs', () => {
 
   it('sell to an empty bag with enough carrots', () => {
     expect(packBlocker('shiro_stash', 1, empty(), 1_200)).toBeNull();
-    expect(packBlocker('kuro_tantrum', 1, empty(), 999)).toBe('insufficient_carrots');
+    expect(packBlocker('kuro_tantrum', 1, empty(), 1_039)).toBe('insufficient_carrots');
     // The money rail checks no carrots.
     expect(packBlocker('kuro_tantrum', 1, empty())).toBeNull();
   });
