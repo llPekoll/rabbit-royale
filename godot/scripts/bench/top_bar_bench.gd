@@ -6,6 +6,9 @@ extends Control
 ##   ... -- --run      # en pleine manche : coffres, butin, energie de la manche
 ##   ... -- --refill   # retour de manche : le cadran vide remonte au reservoir
 ##   ... -- --sound    # le panneau du son ouvert, comme apres un tap
+##   ... -- --sound --ticket  # ... pour un detenteur du ticket : solo grise
+##   ... -- --sound --pretty  # ... qualite sur BEAU (sans rien sauver)
+##   ... -- --sound --off     # ... musique coupee (sans rien sauver)
 ##
 ## Home et Session sont des autoloads : on ecrit directement dedans, la
 ## barre les lit comme elle lirait le serveur. Rien ne part sur le reseau
@@ -48,6 +51,14 @@ func _ready() -> void:
 			get_tree().create_timer(0.3 + i * 0.15).timeout.connect(func() -> void:
 				print("[bench] dial ", bar.pill.dial.value))
 
+	if "--off" in OS.get_cmdline_user_args():
+		AudioSettings.restore()
+		AudioSettings.music_muted = true
+	if "--pretty" in OS.get_cmdline_user_args():
+		PlaySettings.restore()
+		PlaySettings.pretty = true
+	if "--ticket" in OS.get_cmdline_user_args():
+		PassState.shared().fake({"on": true, "mine": {"holder": true}})
 	if "--sound" in OS.get_cmdline_user_args():
 		(func() -> void: bar.sound.set_open(true)).call_deferred()
 

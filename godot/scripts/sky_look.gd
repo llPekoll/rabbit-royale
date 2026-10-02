@@ -72,7 +72,16 @@ const AIR_MOTES_ON := true
 ## sont maintenant rendus en demi-resolution une image sur quatre
 ## (SkyLight.OFFSCREEN_EVERY). Leurs grains a eux sont eteints : les
 ## poussieres sont celles de MoteField.
+##
+## DEPUIS LE 2026-10-02 C'EST AUSSI UNE OPTION DU JOUEUR : la ligne « Qualite »
+## du panneau (PlaySettings.pretty, BEAU / FLUIDE) allume ou eteint rais,
+## ombres et bloom, eteints par defaut pour les perfs. Ces deux constantes disent ce que le jeu a le
+## droit de montrer ; l'option dit ce que le joueur veut voir.
 const RAYS_IN_AIR := true
+
+## LES OMBRES DE NUAGES sur le terrain (cloud_shadows.gdshader), sous la meme
+## option que les rais.
+const SHADOWS_ON := true
 
 ## Le soleil sur l'eau : le bruit des rais, A PLAT sur le plan iso.
 ##

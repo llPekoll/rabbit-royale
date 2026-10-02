@@ -96,6 +96,7 @@ const ICONS := {
 	"shop": preload("res://assets/ui/icons/shop.png"),
 	"speaker-on": preload("res://assets/sound/speaker-on.webp"),
 	"speaker-off": preload("res://assets/sound/speaker-off.webp"),
+	"gear": preload("res://assets/ui/icons/gear.png"),
 	"loot-box": preload("res://assets/misc/loot-box.webp"),
 	"bomb-small": preload("res://assets/misc/RR-Bomb-Small.webp"),
 	"carrot-pile": preload("res://assets/ui/carrot-pile.png"),

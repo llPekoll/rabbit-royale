@@ -206,6 +206,18 @@ export async function holdersAmong(seasonId: number, ids: string[]): Promise<Set
 }
 
 /**
+ * Does this player race for the pot right now — a ticket for the OPEN season,
+ * while its pass is on? What keeps a holder off a solo island: the race is
+ * run against the others, and an island nobody can share would be a way out
+ * of it.
+ */
+export async function racesNow(playerId: string, tx: Tx = db): Promise<boolean> {
+  const season = await openSeason(tx);
+  if (!season || !season.passOn) return false;
+  return (await passOf(tx, season.id, playerId)) !== null;
+}
+
+/**
  * The skin a player wears: the ticket's, once they ever held one — any
  * season, open or closed. Null for everyone else (the seat's own fur).
  */

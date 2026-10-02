@@ -14,6 +14,10 @@ extends CanvasLayer
 ## rideau (100). Et eteint hors du monde : le doorstep pose ses boutons au
 ## calque 0, il bavait tout entier. Un calque d'UI sous 2 passe sous le halo.
 ##
+## SOUS L'OPTION « Qualite » DU JOUEUR (2026-10-02, PlaySettings.pretty) :
+## eteint en FLUIDE, le reglage par defaut. Cache, le calque ne lit pas
+## l'ecran, donc la copie plein ecran disparait avec lui.
+##
 ## `--no-bloom` au lancement l'eteint, pour comparer ; au Seeker, un fichier
 ## `user://no-bloom` (adb shell run-as rip.rabbit.royale touch files/no-bloom).
 
@@ -39,4 +43,4 @@ func _ready() -> void:
 
 
 func _follow() -> void:
-	visible = Screens.in_world()
+	visible = Screens.in_world() and PlaySettings.pretty_on()

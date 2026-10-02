@@ -293,13 +293,14 @@ func stun_left(r: Dictionary) -> int:
 
 # ── Ce que le joueur fait ────────────────────────────────────────────────────
 
-## PRENDRE UNE PLACE. Sans choix : le serveur assoit au niveau du lapin.
+## PRENDRE UNE PLACE. Sans choix : le serveur assoit au niveau du lapin —
+## seul si le joueur l'a demande (PlaySettings.solo).
 ## Une nouvelle traversee ne montre jamais la carte de la run d'avant, ni sa
 ## rancune, ni son public : le serveur ne pousse un compte de spectateurs
 ## qu'a un CHANGEMENT, donc une ile ou personne n'est encore ne dirait rien.
 func join(_pick: Variant = null) -> void:
 	spectating = ""
-	GameSocket.join(null)
+	GameSocket.join(PlaySettings.seat_choice())
 	_recap_timer.stop()
 	_recap_pending = {}
 	_set_recap({})

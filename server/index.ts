@@ -38,7 +38,7 @@ import type { Rabbit } from '../src/lib/game/types';
 import { payCrossing } from '../src/lib/game/pay-crossing';
 import { registerSeatLookup } from '../src/lib/game/live-seats';
 import { rolloverSeasonIfDue } from '../src/lib/game/season';
-import { skinOf } from '../src/lib/game/season-pass';
+import { racesNow, skinOf } from '../src/lib/game/season-pass';
 import { currentEnergy } from '../src/lib/game/regen';
 import { grantItem } from '../src/lib/game/grant';
 import { refreshTuning } from '../src/lib/tuning/live';
@@ -202,9 +202,9 @@ io.use(async (socket, next) => {
 
 // ── Island helpers ───────────────────────────────────────────────────────────
 
-/** A fresh island dealt for a rabbit level: its densities, tier and seats. */
-function newIsland(level: number): LiveIsland {
-  return store.create(levelSeed(level, randomUUID()), 0, { level });
+/** A fresh island dealt for a rabbit level: its densities, tier and seats — one, `solo`. */
+function newIsland(level: number, solo = false): LiveIsland {
+  return store.create(levelSeed(level, randomUUID()), 0, { level, solo });
 }
 
 /** A player's rabbit level, read from the row. 1 for a player with none. */
@@ -244,8 +244,12 @@ function newFirstIsland(playerId: string): LiveIsland {
  * after the first and find a held seat with no drop behind it, which is the
  * walk-home-and-back shape — the run would be banked, re-paid and restarted.
  */
-/** What a `join` may ask for: one island, or a tier to open or join. */
-interface IslandChoice { islandId?: string; tier?: string }
+/**
+ * What a `join` may ask for. `islandId`/`tier` are from the old picker and
+ * ignored; `solo` is the player's option (2026-10-02): an island of their
+ * level that nobody else is sent to — refused to a Crown Race ticket holder.
+ */
+interface IslandChoice { islandId?: string; tier?: string; solo?: boolean }
 /** What the `islands` ack carries. */
 interface IslandListing {
   unlocked: number;
@@ -889,12 +893,14 @@ io.on('connection', (socket: Socket) => {
      * deals the island — its difficulty and how many share it (RABBIT_LEVELS:
      * alone to 5, two from 6 to 9, four at 10). A shared level packs players
      * onto the fullest island of that level with room; a solo one, or no
-     * room, deals a new one. `choice` is still accepted from older clients
-     * and ignored.
+     * room, deals a new one. Of `choice`, only `solo` is read now.
      */
-    void choice;
+    // SOLO, the player's option: their level's island, seated alone. Not for
+    // a ticket holder — the Crown Race is run against the others.
+    const solo = choice?.solo === true && !(await racesNow(data.playerId).catch(() => false));
     const live = store.seatOf(data.playerId)
       ?? (player.runsPlayed === 0 ? newFirstIsland(player.id) : undefined)
+      ?? (solo ? newIsland(player.level, true) : undefined)
       ?? store.findJoinable(player.level)
       ?? newIsland(player.level);
 

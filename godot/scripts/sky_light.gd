@@ -238,6 +238,10 @@ var _birds: BirdFlock
 ## LE BRUIT DES RAIS, PARTAGE avec la mer (SeaGradient) : le soleil sur l'eau
 ## doit lire le meme ciel que le rai.
 static var _ray_noise: NoiseTexture2D
+## Les ciels montes, pour que l'option du joueur les rallume tous d'un coup.
+static var _live: Array[SkyLight] = []
+## `show_sky` (banc, sondes) : le ciel entier, sous l'option.
+var _sky_on := true
 var _elapsed := 0.0
 var _shadow_phase := 0.0
 
@@ -248,8 +252,7 @@ func _ready() -> void:
 	_rays = _make_layer(RAYS_SHADER, Z_RAYS)
 	_offscreen(_shadows, Z_SHADOWS)
 	_offscreen(_rays, Z_RAYS)
-	# Un voile cache ne remplit aucun fragment, et son viewport ne rend rien.
-	_views[1].visible = SkyLook.RAYS_IN_AIR
+	_apply_fx()
 	if SkyLook.AIR_MOTES_ON:
 		_motes = MoteField.new()
 		_motes.z_index = Z_RAYS
@@ -590,10 +593,36 @@ func _process(delta: float) -> void:
 				_vps[i].render_target_update_mode = SubViewport.UPDATE_ONCE
 
 
-## Allume ou eteint les deux couches d'un coup — pour le banc et les sondes.
+func _enter_tree() -> void:
+	_live.append(self)
+
+
+func _exit_tree() -> void:
+	_live.erase(self)
+
+
+## L'option « Qualite » a change : chaque ciel monte la reprend tout de suite.
+static func refresh_all() -> void:
+	for sky in _live:
+		if not sky._views.is_empty():
+			sky._apply_fx()
+
+
+## LES OMBRES ET LES RAIS, SOUS L'OPTION DU JOUEUR (PlaySettings.pretty).
+## Un voile cache ne remplit aucun fragment, et son viewport ne rend rien —
+## pas meme la premiere image. Rallume, il est recalcule tout de suite.
+func _apply_fx() -> void:
+	var fx := PlaySettings.pretty_on()
+	_views[0].visible = _sky_on and fx and SkyLook.SHADOWS_ON
+	_views[1].visible = _sky_on and fx and SkyLook.RAYS_IN_AIR
+	for i in _vps.size():
+		_vps[i].render_target_update_mode = SubViewport.UPDATE_ONCE if _views[i].visible else SubViewport.UPDATE_DISABLED
+
+
+## Allume ou eteint le ciel d'un coup — pour le banc et les sondes.
 func show_sky(on: bool) -> void:
-	_views[0].visible = on
-	_views[1].visible = on and SkyLook.RAYS_IN_AIR
+	_sky_on = on
+	_apply_fx()
 	if _motes != null:
 		_motes.visible = on
 	if _birds != null:
