@@ -197,7 +197,10 @@ func claim(pack: String = "") -> bool:
 			Home.burrow["stock"] = int(Home.burrow.get("stock", 0)) + carrots
 			Home.burst.emit(carrots)
 			Home.changed.emit()
-		Analytics.track("snack_claim", {"day": int(reward.get("day", 0)), "carrots": carrots, "pack": String(reward.get("pack", ""))})
+		# `pack` est null les jours a carottes : String(null) arrete le script
+		# net, au milieu de la prise (vu en prod le 2026-10-02).
+		var pack_v: Variant = reward.get("pack")
+		Analytics.track("snack_claim", {"day": int(reward.get("day", 0)), "carrots": carrots, "pack": pack_v if pack_v is String else ""})
 		if res.get("snack") is Dictionary:
 			_adopt(res["snack"])
 		claimed.emit(reward)
