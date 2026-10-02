@@ -37,7 +37,7 @@ try {
   await page.goto(`http://localhost:${server.port}/pitch/`, { waitUntil: 'networkidle' });
   await page.evaluate(() => document.fonts.ready);
   // Sans le lecteur ni les fondus : la slide seule, a sa taille. Les
-  // animations (la rature de la fin) sautent a leur etat final, sinon la
+  // animations (le tampon de la fin) sautent a leur etat final, sinon la
   // photo les prend a mi-course.
   await page.addStyleTag({
     content:
