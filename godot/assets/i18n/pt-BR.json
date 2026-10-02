@@ -41,6 +41,7 @@
 		"linkFailed": "Não foi possível conectar essa carteira",
 		"region": {
 			"label": "Servidor",
+			"finding": "Procurando o servidor mais próximo...",
 			"eu": "Europa",
 			"sg": "Ásia",
 			"us": "Américas"

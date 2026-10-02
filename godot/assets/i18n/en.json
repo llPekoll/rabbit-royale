@@ -41,6 +41,7 @@
 		"linkFailed": "Could not connect that wallet",
 		"region": {
 			"label": "Server",
+			"finding": "Finding the closest server...",
 			"eu": "Europe",
 			"sg": "Asia",
 			"us": "Americas"

@@ -41,6 +41,7 @@
   "linkFailed": "Không kết nối được ví này",
   "region": {
    "label": "Máy chủ",
+   "finding": "Đang tìm máy chủ gần nhất...",
    "eu": "Châu Âu",
    "sg": "Châu Á",
    "us": "Châu Mỹ"

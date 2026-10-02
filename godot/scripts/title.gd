@@ -73,7 +73,11 @@ const TIP_PAD_Y := 10.0
 ## liste boucle). Fait ici plutot que dans la scene ; quand il se montre, la
 ## colonne reserve sa place (`REGION_ROW`) et le titre remonte d'autant.
 var _region: PlankButton
-const REGION_ROW := 52.0
+## Son titre, juste au-dessus : sans lui, « Asia 54 ms » ne disait pas de quoi
+## il s'agissait.
+var _region_title: Label
+const REGION_TITLE_H := 16.0
+const REGION_ROW := 52.0 + REGION_TITLE_H + 2.0
 @onready var _status: Label = %Status
 @onready var _who: Label = %Who
 @onready var _tip: NinePatchRect = %Tip
@@ -105,6 +109,14 @@ func _ready() -> void:
 	for style in ["normal", "pressed", "hover", "disabled", "focus"]:
 		_region.add_theme_stylebox_override(style, StyleBoxEmpty.new())
 	_ask.add_child(_region)
+	_region_title = Label.new()
+	_region_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_region_title.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	_region_title.add_theme_font_size_override("font_size", 12)
+	_region_title.add_theme_color_override("font_color", Palette.CREAM)
+	_region_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_region_title.visible = false
+	_ask.add_child(_region_title)
 	_paint_veil()
 	_paint_floor()
 	_apply_language()
@@ -151,11 +163,13 @@ func _ready() -> void:
 	# a travers le voile.
 	if Consent.pending():
 		await ConsentDialog.ask_on(self).answered
-	await _settle_region()
+	_settle_region()
 	# `-- --doorstep` : l'accueil tel qu'un nouveau venu le voit, sans
 	# reprendre la session enregistree (qui reste intacte). Outil, pas
 	# comportement.
 	if "--doorstep" in OS.get_cmdline_user_args():
+		await _find_region()
+		_set_restoring(false)
 		_busy(false)
 		_refresh_doors()
 		return
@@ -171,8 +185,16 @@ func _ready() -> void:
 		# Les portes restent cachees : l'ecran ne sert plus qu'a attendre le
 		# terrier, qui le remplace.
 		Analytics.track("login", {"method": "restore"})
+		# La mesure du jour repart en fond, pour le prochain lancement. Lancee
+		# sur Net et pas attendue ici : cet ecran s'en va.
+		if Net._override() == "":
+			Net.probe()
 		_enter()
 		return
+	# LES PORTES ATTENDENT LA MESURE : elles sortent toutes ensemble, le
+	# serveur deja choisi, au lieu d'une planche qui surgit apres coup sous un
+	# doigt deja pose.
+	await _find_region()
 	_set_restoring(false)
 	_busy(false)
 	_refresh_doors()
@@ -293,7 +315,9 @@ func _measure() -> void:
 		node.size = Vector2(w, h)
 		# LE SERVEUR, une planche pleine sous la langue.
 		if node == _lang and _region.visible:
-			_region.position = Vector2((column - w) * 0.5, y + h + 8.0)
+			_region_title.position = Vector2(0.0, y + h + 8.0)
+			_region_title.size = Vector2(column, REGION_TITLE_H)
+			_region.position = Vector2((column - w) * 0.5, y + h + 8.0 + REGION_TITLE_H + 2.0)
 			_region.custom_minimum_size = Vector2(w, h)
 			_region.size = Vector2(w, h)
 		# 8px entre deux planches ; la porte doree en ajoute 4 sous elle, comme
@@ -388,7 +412,7 @@ func _apply_language() -> void:
 func _apply_face() -> void:
 	# La face vit dans le theme du projet depuis I18N._apply_theme_face :
 	# il ne reste qu'a retirer l'override que cet ecran posait lui-meme.
-	I18N.apply_face([_connect, _guest, _lang, _region, _ribbon, _status, _tip_text])
+	I18N.apply_face([_connect, _guest, _lang, _region, _region_title, _ribbon, _status, _tip_text])
 
 
 func _on_locale_changed(_code: String) -> void:
@@ -414,6 +438,8 @@ func _apply_region() -> void:
 	# rien a choisir, la planche se tait et la langue garde sa ligne entiere.
 	var was := _region.visible
 	_region.visible = Net.region != "" and not _restoring and _open_regions().size() > 1
+	_region_title.visible = _region.visible
+	_region_title.text = I18N.t("auth.region.label")
 	# La ligne de la langue se coupe en deux, ou se recolle.
 	if was != _region.visible and _logo_box != Vector2.ZERO:
 		_measure()
@@ -425,27 +451,42 @@ func _apply_region() -> void:
 	_region.relabel(words if ms < 0 else "%s %d ms" % [words, ms])
 
 
-## LA REGION SE PRESELECTIONNE AU PING. Au premier lancement on attend la
-## sonde (la plus rapide gagne) ; ensuite on va ou la sonde PRECEDENTE a
-## trouve mieux, sans faire attendre l'accueil, et la sonde du jour repart en
-## fond pour le lancement suivant. Un choix fait a la main n'est plus touche.
+## LA REGION SE PRESELECTIONNE AU PING, sans faire attendre qui reprend sa
+## session : on va ou la mesure PRECEDENTE a trouve nettement mieux. Un joueur
+## d'avant les regions repart d'Europe, ou est son terrier ; la mesure de fond
+## dira au lancement suivant s'il y a plus proche. Un choix fait a la main
+## n'est plus touche.
 func _settle_region() -> void:
 	if Net._override() != "":
 		return
 	if not Net.region_chosen():
-		var best := await Net.probe()
-		Net.choose_region(best if best != "" else "eu")
-	else:
-		if not Net.region_manual and Net.region_best != "" and Net.region_best != Net.region:
-			Net.choose_region(Net.region_best)
-		_refresh_pings()
-	_apply_region()
+		if not Session.token.is_empty():
+			Net.choose_region("eu")
+		return
+	if not Net.region_manual and Net.region_best != "" and Net.region_best != Net.region:
+		Net.choose_region(Net.region_best)
 
 
-func _refresh_pings() -> void:
-	await Net.probe()
-	if is_inside_tree():
-		_apply_region()
+## DEVANT LES PORTES, ON MESURE D'ABORD : la carotte et « on cherche le
+## serveur le plus proche » a la place des planches, rien a presser. Puis le
+## plus proche est pris (sauf choix a la main) et tout sort ensemble.
+func _find_region() -> void:
+	if Net._override() != "":
+		return
+	_set_restoring(true, I18N.t("auth.region.finding"))
+	var started := Time.get_ticks_msec()
+	var best := await Net.probe()
+	# AU MOINS UN REMPLISSAGE DE LA CAROTTE : partie de sa silhouette, sombre
+	# sur le feuillage, elle ne se voyait pas si la mesure revenait en une
+	# demi-seconde — et la phrase passait sans etre lue.
+	var hold := CarrotLoader.GROW_SECONDS + CarrotLoader.FULL_SECONDS \
+		- float(Time.get_ticks_msec() - started) / 1000.0
+	if hold > 0.0:
+		await get_tree().create_timer(hold).timeout
+	if not Net.region_manual and best != "":
+		Net.choose_region(best)
+	elif not Net.region_chosen():
+		Net.choose_region("eu")
 
 
 ## LES REGIONS QU'ON PEUT CHOISIR : celles qui ont repondu a la sonde, plus
@@ -647,14 +688,14 @@ func _busy(value: bool) -> void:
 		_refresh_doors()
 
 
-func _set_restoring(on: bool) -> void:
+func _set_restoring(on: bool, words := "") -> void:
 	_restoring = on
 	for door in [_connect, _guest, _lang]:
 		door.visible = not on
 	_apply_region()
 	# Plus grand que la ligne d'erreur (12) : c'est le seul mot de l'ecran.
 	_status.add_theme_font_size_override("font_size", 16 if on else 12)
-	_say(I18N.t("chrome.reconnecting") if on else "", false)
+	_say((words if words != "" else I18N.t("chrome.reconnecting")) if on else "", false)
 	_show_carrot(on)
 
 

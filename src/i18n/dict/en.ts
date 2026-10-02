@@ -71,7 +71,7 @@ export const en = {
     alreadyLinked: 'This burrow already has a wallet.',
     linkFailed: 'Could not connect that wallet',
     /** The region picker on the doorstep: each region is its own world. */
-    region: { label: 'Server', eu: 'Europe', sg: 'Asia', us: 'Americas' },
+    region: { label: 'Server', finding: 'Finding the closest server...', eu: 'Europe', sg: 'Asia', us: 'Americas' },
   },
 
   /* ── The frame around everything ──────────────────────────────────────── */
