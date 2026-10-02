@@ -147,6 +147,7 @@ var _targets_asked := false
 ## en RAM : il ne touche ni a Home ni a `user://reveal.cfg`.
 static var bench_doors: Array[String] = []
 static var bench_seen: Array[String] = []
+static var bench_tapped: Array[String] = []
 static var bench := false
 ## Combien d'ilots montent en ce moment : chacun part un peu apres l'autre.
 var _rising := 0
@@ -357,6 +358,34 @@ func _remember(seen: Array[String]) -> void:
 	cfg.save(REVEAL_PATH)
 
 
+## LE « ! » NE SE MONTRE QU'UNE FOIS par batiment : la premiere planche
+## pressee l'eteint pour de bon (par joueur, sur cet appareil).
+func _tapped() -> Array[String]:
+	if bench:
+		return bench_tapped.duplicate()
+	var out: Array[String] = []
+	var cfg := ConfigFile.new()
+	if cfg.load(REVEAL_PATH) == OK:
+		for door in cfg.get_value("tapped", _player_key(), []):
+			out.append(String(door))
+	return out
+
+
+func _note_tapped(door: String) -> void:
+	var tapped := _tapped()
+	if tapped.has(door):
+		return
+	tapped.append(door)
+	if bench:
+		bench_tapped = tapped
+	else:
+		var cfg := ConfigFile.new()
+		cfg.load(REVEAL_PATH)
+		cfg.set_value("tapped", _player_key(), tapped)
+		cfg.save(REVEAL_PATH)
+	refresh()
+
+
 func _player_key() -> String:
 	return str(Session.player.get("id", "anon"))
 
@@ -551,6 +580,9 @@ func clear() -> void:
 	_float_shadows.clear()
 	_signs.clear()
 	_sign_layer = null
+	# LA PLANCHE HARVEST NEUVE nait opaque : sans ce -1, `_follow_harvest_sign`
+	# la croyait deja effacee et la laissait dire « garden empty ».
+	_harvest_on = -1
 	_anchors.clear()
 	sea_map = null
 	frame_map = null
@@ -1111,7 +1143,9 @@ func _make_sign(door: String) -> Sign:
 		_sign_layer.layer = SIGN_LAYER
 		add_child(_sign_layer)
 	sign.visible = _live and _anchors.has(door)
-	sign.pressed.connect(func() -> void: door_pressed.emit(door))
+	sign.pressed.connect(func() -> void:
+		_note_tapped(door)
+		door_pressed.emit(door))
 	_sign_layer.add_child(sign)
 	return sign
 
@@ -1284,10 +1318,13 @@ func refresh() -> void:
 			bool(b.get("canUpgrade", false)))
 
 	# LE « ! » DE LA QUETE sur le batiment ou elle mene — jamais sur DIG, ou
-	# il ne faisait que du bruit a cote du prix.
+	# il ne faisait que du bruit a cote du prix ; seulement tant qu'on n'y est
+	# jamais entre ; jamais sur un potager vide.
 	var pointed := _quest_door()
+	var tapped := _tapped()
 	for door in _signs:
-		(_signs[door] as Sign).badge.visible = door == pointed and door != "dig"
+		(_signs[door] as Sign).badge.visible = door == pointed and door != "dig" \
+			and not tapped.has(door) and not (door == "harvest" and garden <= 0)
 
 
 ## LES BOMBES ARMEES sur le terrier (`/api/traps` `armed`, que ShopState

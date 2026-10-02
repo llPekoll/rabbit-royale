@@ -35,6 +35,7 @@ func _ready() -> void:
 			start = clampi(int(arg.trim_prefix("--stage=")), 0, STAGES.size() - 1)
 	BurrowLandmarks.bench = true
 	BurrowLandmarks.bench_seen = []
+	BurrowLandmarks.bench_tapped = []
 	BurrowLandmarks.bench_doors.assign(STAGES[start]["doors"])
 	_stage = start
 	_burrow = BURROW.instantiate()
@@ -79,6 +80,7 @@ func _go(i: int) -> void:
 ## Tout oublier : l'etape en cours remonte en entier.
 func _replay() -> void:
 	BurrowLandmarks.bench_seen = []
+	BurrowLandmarks.bench_tapped = []
 	_burrow.call("_rebuild_islets")
 
 
