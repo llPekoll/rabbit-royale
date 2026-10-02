@@ -69,10 +69,11 @@ const TIP_PAD_Y := 10.0
 @onready var _connect: PlankButton = %Connect
 @onready var _guest: PlankButton = %Guest
 @onready var _lang: PlankButton = %Language
-## LE SERVEUR (2026-10-02), a cote de la langue sur la meme ligne : une
-## planche de plus en dessous sortait de l'ecran du Seeker. Faite ici plutot
-## que dans la scene, sur le modele de la langue (chevrons, la liste boucle).
+## LE SERVEUR (2026-10-02), sous la langue et fait comme elle (chevrons, la
+## liste boucle). Fait ici plutot que dans la scene ; quand il se montre, la
+## colonne reserve sa place (`REGION_ROW`) et le titre remonte d'autant.
 var _region: PlankButton
+const REGION_ROW := 52.0
 @onready var _status: Label = %Status
 @onready var _who: Label = %Who
 @onready var _tip: NinePatchRect = %Tip
@@ -150,6 +151,7 @@ func _ready() -> void:
 	# a travers le voile.
 	if Consent.pending():
 		await ConsentDialog.ask_on(self).answered
+	await _settle_region()
 	# `-- --doorstep` : l'accueil tel qu'un nouveau venu le voit, sans
 	# reprendre la session enregistree (qui reste intacte). Outil, pas
 	# comportement.
@@ -157,9 +159,15 @@ func _ready() -> void:
 		_busy(false)
 		_refresh_doors()
 		return
-	await _settle_region()
 	_set_restoring(not Session.token.is_empty())
-	if await Session.restore():
+	var back := await Session.restore()
+	# UN COMPTE NE EN EUROPE APRES LA COPIE n'existe pas ici : la sonde l'y
+	# avait envoye, on le ramene chez lui et il y reste (choix fige).
+	if not back and Session.borrowed_refused and not Net.region_manual:
+		Net.choose_region("eu", true)
+		_apply_region()
+		back = await Session.restore()
+	if back:
 		# Les portes restent cachees : l'ecran ne sert plus qu'a attendre le
 		# terrier, qui le remplace.
 		Analytics.track("login", {"method": "restore"})
@@ -225,7 +233,8 @@ func _paint_floor() -> void:
 ## formule ici donne la meme page sur un ecran de n'importe quelle taille.
 func _measure() -> void:
 	var view := get_viewport_rect().size
-	var doorstep := minf(view.y * 0.67, view.y - MENU_RESERVE - DOORSTEP_GAP)
+	var reserve := MENU_RESERVE + (REGION_ROW if _region.visible else 0.0)
+	var doorstep := minf(view.y * 0.67, view.y - reserve - DOORSTEP_GAP)
 	var column := minf(view.x * 0.38, 420.0)
 
 	_masthead.offset_right = column
@@ -282,15 +291,11 @@ func _measure() -> void:
 		# une taille demandee sous le minimum est refusee sans un mot.
 		node.custom_minimum_size = Vector2(w, h)
 		node.size = Vector2(w, h)
-		# LA LANGUE ET LE SERVEUR se partagent la derniere ligne, moitie
-		# chacun, 6px entre les deux.
+		# LE SERVEUR, une planche pleine sous la langue.
 		if node == _lang and _region.visible:
-			var half := floorf((w - 6.0) * 0.5)
-			_lang.custom_minimum_size = Vector2(half, h)
-			_lang.size = Vector2(half, h)
-			_region.position = Vector2(_lang.position.x + w - half, y)
-			_region.custom_minimum_size = Vector2(half, h)
-			_region.size = Vector2(half, h)
+			_region.position = Vector2((column - w) * 0.5, y + h + 8.0)
+			_region.custom_minimum_size = Vector2(w, h)
+			_region.size = Vector2(w, h)
 		# 8px entre deux planches ; la porte doree en ajoute 4 sous elle, comme
 		# le `margin-bottom` du web.
 		y += h + 8.0
@@ -420,21 +425,20 @@ func _apply_region() -> void:
 	_region.relabel(words if ms < 0 else "%s %d ms" % [words, ms])
 
 
-## LE PREMIER LANCEMENT CHOISIT SEUL : la region qui repond le plus vite. Un
-## joueur d'avant les regions (un jeton deja la) reste en Europe, ou est son
-## terrier. Ensuite la sonde ne fait que mettre les pings a jour, sans
-## attendre.
+## LA REGION SE PRESELECTIONNE AU PING. Au premier lancement on attend la
+## sonde (la plus rapide gagne) ; ensuite on va ou la sonde PRECEDENTE a
+## trouve mieux, sans faire attendre l'accueil, et la sonde du jour repart en
+## fond pour le lancement suivant. Un choix fait a la main n'est plus touche.
 func _settle_region() -> void:
-	if Net.region_chosen():
-		if Net.region != "":
-			_refresh_pings()
+	if Net._override() != "":
 		return
-	if not Session.token.is_empty():
-		Net.choose_region("eu")
-		_refresh_pings()
-	else:
+	if not Net.region_chosen():
 		var best := await Net.probe()
 		Net.choose_region(best if best != "" else "eu")
+	else:
+		if not Net.region_manual and Net.region_best != "" and Net.region_best != Net.region:
+			Net.choose_region(Net.region_best)
+		_refresh_pings()
 	_apply_region()
 
 
@@ -462,7 +466,7 @@ func _on_region_pressed() -> void:
 	var open := _open_regions()
 	var n := open.size()
 	var at := maxi(0, open.find(Net.region))
-	Net.choose_region(open[(at + _region.press_side + n) % n])
+	Net.choose_region(open[(at + _region.press_side + n) % n], true)
 	_apply_region()
 	Analytics.track("region_pick", {"region": Net.region})
 	if Session.token.is_empty():

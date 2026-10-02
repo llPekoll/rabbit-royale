@@ -50,6 +50,12 @@ var busy := false
 ## deconnecterait le vrai compte.
 var _from_args := false
 
+## Le jeton tenu vient de l'Europe, emprunte (`_load_token`), et pas de cette
+## region. `borrowed_refused` : celle-ci n'a pas reconnu le compte — il est ne
+## en Europe apres la copie, et c'est la-bas qu'il vit (title.gd l'y ramene).
+var borrowed := false
+var borrowed_refused := false
+
 
 func _ready() -> void:
 	for arg in OS.get_cmdline_user_args():
@@ -191,11 +197,14 @@ func restore() -> bool:
 
 	if answer.ok:
 		# /me answers with the player at the top level, not wrapped. It mints no
-		# token for us — we sent the header, so we already hold one.
+		# token for us — we sent the header, so we already hold one. Saved under
+		# THIS region: it may be the Europe one, borrowed (`_load_token`).
+		_save_token(token)
 		_adopt({"player": answer.body.get("player", answer.body), "token": token})
 		return true
 
 	if _discard(answer.status):
+		borrowed_refused = borrowed
 		_forget()
 	changed.emit()
 	return false
@@ -236,12 +245,13 @@ func _forget() -> void:
 	player = {}
 	token = ""
 	if not _from_args:
-		# Seulement celui de CETTE region : les autres comptes restent.
+		# Seulement celui de CETTE region : les autres comptes restent. Vide
+		# plutot qu'efface : une cle absente fait emprunter le jeton de
+		# l'Europe (`_load_token`), et la deconnexion se reconnecterait seule.
 		var cfg := ConfigFile.new()
-		if cfg.load(TOKEN_PATH) == OK:
-			if cfg.has_section_key(_section(), "token"):
-				cfg.erase_section_key(_section(), "token")
-			cfg.save(TOKEN_PATH)
+		cfg.load(TOKEN_PATH)
+		cfg.set_value(_section(), "token", "")
+		cfg.save(TOKEN_PATH)
 
 
 ## The server's refusal, in words the player can act on.
@@ -277,10 +287,18 @@ func _section() -> String:
 	return "session" if Net.region == "eu" else "session-" + Net.region
 
 
+## Jamais de jeton ici, celui de l'Europe : une region copiee de l'Europe (avec
+## son secret) y reconnait le meme compte, et le joueur arrive connecte. Un
+## compte ne la-bas apres la copie est refuse (404) et la porte s'ouvre.
 func _load_token() -> String:
 	var cfg := ConfigFile.new()
 	if cfg.load(TOKEN_PATH) != OK:
 		return ""
+	borrowed = false
+	if not cfg.has_section_key(_section(), "token") and Net.region != "" and Net.region != "eu":
+		var eu := String(cfg.get_value("session", "token", ""))
+		borrowed = not eu.is_empty()
+		return eu
 	return String(cfg.get_value(_section(), "token", ""))
 
 
