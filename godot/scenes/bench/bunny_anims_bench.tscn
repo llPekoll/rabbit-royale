@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+; Le banc des animations du lapin — voir scripts/bench/bunny_anims_bench.gd.
+
+[ext_resource type="Script" path="res://scripts/bench/bunny_anims_bench.gd" id="1_bench"]
+
+[node name="BunnyAnimsBench" type="Node2D"]
+script = ExtResource("1_bench")
