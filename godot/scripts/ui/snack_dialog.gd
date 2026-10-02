@@ -7,7 +7,6 @@ extends Dialog
 ## sprite indépendant, les boutons et les socles ne bougent jamais.
 
 const CABINET := preload("res://assets/ui/snack/cabinet.png")
-const HAT := preload("res://assets/ui/snack/hat.png")
 const PLINTH := preload("res://assets/ui/snack/plinth.png")
 const GREY := preload("res://shaders/grey.gdshader")
 ## La prise : les carottes du socle sautent et filent a la pastille, comme
@@ -22,6 +21,8 @@ var _content: Control
 var _last: Dictionary = {}
 var _buttons: Array[BaseButton] = []
 var _wait_labels: Array[Label] = []
+## Les planches grisees du snack qui vient : elles portent le compte a rebours.
+var _wait_buttons: Array[PlankButton] = []
 var _clock := 0.0
 var _claim_at := Vector2(270, 214)
 ## Les carottes posees sur le socle : d'ou partent celles qui volent, et
@@ -54,7 +55,9 @@ static func open() -> SnackDialog:
 
 func _ready() -> void:
 	Analytics.track("snack_open")
-	_state = SnackState.shared()
+	# Un banc peut poser son propre etat avant l'entree dans l'arbre.
+	if _state == null:
+		_state = SnackState.shared()
 	_canvas = Control.new()
 	_canvas.name = "Cabinet"
 	_canvas.size = DESIGN
@@ -90,6 +93,7 @@ func _rebuild() -> void:
 		return
 	_buttons.clear()
 	_wait_labels.clear()
+	_wait_buttons.clear()
 	_harvest_items.clear()
 	if _content != null:
 		_canvas.remove_child(_content)
@@ -128,12 +132,30 @@ func _build_rail() -> void:
 		var today := d == _state.day() and _state.ready()
 		var card := _panel(_content, Rect2(x, 63, 128, 62), today)
 		_label(card, I18N.f("snack.day", [d]), Rect2(4, 9, 118, 16), 11, Palette.GOLD if today else Palette.PARCHMENT)
-		_picture(card, Kit.ICONS["carrot"], Rect2(17, 29, 22, 22))
-		_label(card, "+%d" % int(_state.day_info(d).get("carrots", 0)), Rect2(38, 29, 66, 23), 17, Palette.CREAM)
+		_rail_reward(card, d)
 		if d <= _state.taken():
-			_tick(card, Vector2(103, 36))
+			_tick(card, Vector2(108, 9))
 		elif today:
 			card.tooltip_text = I18N.t("snack.today")
+
+
+## UNE CAROTTE DE PLUS CHAQUE JOUR : le tas grandit le long de la semaine,
+## et le tas + le montant restent centres sur la carte.
+func _rail_reward(card: Control, d: int) -> void:
+	const SIDE := 20.0
+	const STEP := 8.0
+	var text := "+%d" % int(_state.day_info(d).get("carrots", 0))
+	var amount := _label(card, text, Rect2(0, 29, 66, 23), 17, Palette.CREAM)
+	amount.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	var px := amount.get_theme_font_size("font_size")
+	var text_w := amount.get_theme_font("font").get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x + 4.0
+	var pile_w := SIDE + (d - 1) * STEP
+	var x := roundf((card.size.x - (pile_w + 3.0 + text_w)) * 0.5)
+	for i in d:
+		_picture(card, Kit.ICONS["carrot"], Rect2(x + i * STEP, 30 - (i % 2) * 3, SIDE, SIDE))
+	amount.position.x = x + pile_w + 3.0
+	amount.size.x = text_w
+	card.move_child(amount, card.get_child_count() - 1)
 
 
 func _build_harvest() -> void:
@@ -155,8 +177,8 @@ func _build_harvest() -> void:
 	for i in count:
 		var row := i / cols
 		var in_row := mini(cols, count - row * cols)
-		var x := 132.0 + (i % cols - (in_row - 1) * 0.5) * 48.0
-		var y := 18.0 + row * 37.0 - (rows - 1) * 8.0
+		var x := 132.0 + (i % cols - (in_row - 1) * 0.5) * 38.0
+		var y := 18.0 + row * 34.0 - (rows - 1) * 8.0
 		var carrot := _float_picture(harvest, Kit.ICONS["carrot"], Rect2(x - 30, y, 60, 60), ready_now, i * 1.15)
 		# Celles de demain se voient, mais en gris : pas encore a toi.
 		if not ready_now:
@@ -167,11 +189,8 @@ func _build_harvest() -> void:
 	if ready_now:
 		_sparkles(harvest, Rect2(14, 0, 236, 116))
 	_label(_content, "+%d" % amount, Rect2(147, 274, 245, 36), 27, Palette.GOLD if ready_now else Palette.PARCHMENT.darkened(0.25))
-	if ready_now:
-		_action(_content, I18N.t("snack.take"), Rect2(159, 312, 224, 44), "")
-	else:
-		_wait_labels.append(_label(_content, "", Rect2(60, 316, 425, 34), 13, Palette.PARCHMENT))
-		_update_wait()
+	# Demain : la meme planche, grisee, qui compte les heures.
+	_action(_content, I18N.t("snack.take"), Rect2(159, 312, 224, 44), "", ready_now)
 
 
 func _pack_face(rect: Rect2, pack: String, active: bool) -> void:
@@ -190,22 +209,16 @@ func _pack_face(rect: Rect2, pack: String, active: bool) -> void:
 	if active:
 		_reward_light(face, Vector2(w * 0.5, 84), 140, Palette.GOLD)
 	_picture(face, PLINTH, plinth_rect)
-	# Le chapeau est l'emblème du pack, pas un troisième objet à gagner.
-	if pack == "magic_hat":
-		var hat_rect := Rect2(w * 0.30, art_top + 10, w * 0.40, art_height * 0.78)
-		_float_picture(face, HAT, hat_rect, true, 0.5)
 	var items := _state.pack_items(pack)
 	for i in items.size():
 		var item: Variant = items[i]
 		if not item is Dictionary:
 			continue
 		var kind := String(item.get("kind", ""))
-		var h := art_height * (0.73 if pack == "magic_hat" else 0.9)
+		var h := art_height * 0.9
 		var art := ItemSlot.art_for(kind, h)
 		var aw: float = art.custom_minimum_size.x
 		var fraction := float(i + 1) / float(items.size() + 1)
-		if pack == "magic_hat" and items.size() == 2:
-			fraction = 0.16 if i == 0 else 0.82
 		var at := Vector2(w * fraction - aw * 0.5, art_top + (7 if i == 0 else 0))
 		var floating := FloatingItem.new()
 		floating.name = "Float_" + kind
@@ -224,7 +237,7 @@ func _pack_face(rect: Rect2, pack: String, active: bool) -> void:
 			count.add_theme_color_override("font_outline_color", Palette.SOIL_DEEP)
 	if active:
 		_sparkles(face, Rect2(4, 44, w - 8, 85))
-		_action(face, I18N.t("snack.choose"), Rect2(3, 153, w - 6, 44), pack)
+	_action(face, I18N.t("snack.choose"), Rect2(3, 153, w - 6, 44), pack, active)
 
 
 func _build_footer() -> void:
@@ -366,19 +379,38 @@ func _update_wait() -> void:
 	for label in _wait_labels:
 		if is_instance_valid(label):
 			label.text = I18N.f("snack.nextIn", [I18N.wait(_state.wait_ms())])
+	for button in _wait_buttons:
+		if is_instance_valid(button):
+			button.relabel(I18N.wait(_state.wait_ms()))
 
 
-func _action(parent: Control, text: String, rect: Rect2, pack: String) -> void:
+## `live` faux : la planche est la, a sa place, mais grisee et morte — ce
+## qui vient plus tard, pas encore a toi. Hors de `_buttons`, que `_take`
+## rallume apres une erreur.
+func _action(parent: Control, text: String, rect: Rect2, pack: String, live := true) -> void:
 	var button := Kit.button(text, "gold", rect.size.x, rect.size.y)
 	button.name = "Claim_" + (pack if not pack.is_empty() else "carrots")
 	button.position = rect.position
 	button.size = rect.size
 	button.label_size = 18
+	parent.add_child(button)
+	button.set_deferred("size", rect.size)
+	if not live:
+		button.disabled = true
+		button.focus_mode = Control.FOCUS_NONE
+		button.mouse_default_cursor_shape = Control.CURSOR_ARROW
+		var grey := ShaderMaterial.new()
+		grey.shader = GREY
+		grey.set_shader_parameter("dim", 0.85)
+		button._plank.material = grey
+		# La planche du jour attendu dit dans combien de temps.
+		if pack.is_empty() and not _state.ready():
+			_wait_buttons.append(button)
+			_update_wait()
+		return
 	button.focus_mode = Control.FOCUS_ALL
 	button.disabled = _state.pending
 	button.pressed.connect(func() -> void: _take(pack))
-	parent.add_child(button)
-	button.set_deferred("size", rect.size)
 	_buttons.append(button)
 
 
@@ -409,7 +441,7 @@ func _float_picture(parent: Control, texture: Texture2D, rect: Rect2, active: bo
 	var floating := FloatingItem.new()
 	floating.position = rect.position
 	floating.size = rect.size
-	floating.amplitude = 3.0 if active else 0.0
+	floating.amplitude = 3.0 if active else 2.0
 	floating.phase = phase
 	parent.add_child(floating)
 	var art := _picture(floating, texture, Rect2(Vector2.ZERO, rect.size))
