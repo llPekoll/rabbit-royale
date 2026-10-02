@@ -467,16 +467,12 @@
 			"$t": "明天：{0} 根胡萝卜"
 		},
 		"tomorrowPack": "明天：Magic Hat 或 Lucky Foot！",
-		"toPack": {
-			"$t": "再领 {0} 次就到第 7 天"
-		},
-		"rule": "每天都来。错过一天也不会从头开始。",
 		"pick": "第 7 天：选一个！",
 		"choose": "选择",
 		"hat": "Magic Hat",
-		"hatWhat": "用来进攻",
+		"hatWhat": "进攻",
 		"foot": "Lucky Foot",
-		"footWhat": "用来防守",
+		"footWhat": "防守",
 		"got": {
 			"$t": "+{0} 根胡萝卜！"
 		},
@@ -485,7 +481,11 @@
 		},
 		"weekDone": "一周完成！明天开始新的一周。",
 		"notReady": "今天已经领过了。明天再来！",
-		"pack": "补给包"
+		"today": "今天",
+		"taken": "已领",
+		"ruleShort": "每天一份点心。第 7 天选一个补给包！",
+		"or": "或",
+		"pickOne": "选一个"
 	},
 	"pass": {
 		"title": "Crown Race Ticket",

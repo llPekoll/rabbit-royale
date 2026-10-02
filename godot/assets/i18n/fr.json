@@ -537,24 +537,12 @@
 			"$t": "Demain : {0} carottes"
 		},
 		"tomorrowPack": "Demain : Magic Hat ou Lucky Foot !",
-		"toPack": {
-			"$t": "Plus que {0} snacks avant le jour 7",
-			"$v": [
-				{
-					"when": {
-						"0": 1.0
-					},
-					"t": "Plus qu’un snack avant le jour 7"
-				}
-			]
-		},
-		"rule": "Reviens chaque jour. Un jour raté ne remet jamais ta semaine à zéro.",
 		"pick": "Jour 7 : choisis !",
 		"choose": "Choisir",
 		"hat": "Magic Hat",
-		"hatWhat": "Pour attaquer",
+		"hatWhat": "Attaque",
 		"foot": "Lucky Foot",
-		"footWhat": "Pour défendre",
+		"footWhat": "Défense",
 		"got": {
 			"$t": "+{0} carottes !"
 		},
@@ -563,7 +551,11 @@
 		},
 		"weekDone": "Semaine finie ! Une nouvelle commence demain.",
 		"notReady": "Déjà pris aujourd’hui. Reviens demain !",
-		"pack": "PACK"
+		"today": "Aujourd’hui",
+		"taken": "Pris",
+		"ruleShort": "Un snack par jour. Au 7e, choisis un pack !",
+		"or": "ou",
+		"pickOne": "1 au choix"
 	},
 	"pass": {
 		"title": "Crown Race Ticket",
