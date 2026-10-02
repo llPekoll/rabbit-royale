@@ -1,76 +1,48 @@
 class_name SnackDialog
 extends Dialog
-## LA FENETRE DE SNACK TIME, batie comme l'etal (shop.gd) — le user : « hyper
-## laid, et pas clair » (2026-10-02) pour la premiere, une bande de creux
-## bruns sur le parchemin avec un bouton seul en dessous.
-##
-## Ce qui la rend lisible, pris aux calendriers de connexion des jeux mobiles :
-##   • UNE CARTE PAR JOUR, comme les cartes de l'etal : une planche « JOUR N »
-##     pendue en haut, un corps sombre, l'art dans un creux eclaire, et la
-##     planche du bas. Le jeu n'a qu'un langage de carte ; celui-ci.
-##   • LA RECOMPENSE GROSSIT A L'OEIL : une carotte le premier jour, un tas
-##     le sixieme. Le chiffre le dit aussi, mais c'est le dessin qui fait
-##     revenir.
-##   • LE JOUR QUI ATTEND est la seule carte qui sautille, avec les rayons de
-##     l'etal, et son bouton PRENDRE est SUR elle : on touche ce qu'on prend.
-##   • LES JOURS PRIS sont eteints et coches ; ceux qui viennent attendent,
-##     leur montant sur la planche.
-##   • LE SEPTIEME, deux fois plus large et dore : les deux packs cote a
-##     cote, et au septieme jour un bouton CHOISIR sous chacun.
-##   • UNE LIGNE dessous : ce qui attend, ou quand vient le suivant et ce
-##     qu'il donne.
-##
-## S'ouvre seule au retour d'une partie quand un snack attend
-## (SnackState._try_open), et a chaque tap sur la banniere.
+## Le comptoir de Snack Time. Les jours 1–6 gardent leur rail et mettent
+## la récolte du jour au premier plan. Le rail et les packs restent à la
+## même place au jour 7 : seule la récolte disparaît, les choix s’activent.
+## Le décor ne porte aucun texte ni objet : chaque récompense est un
+## sprite indépendant, les boutons et les socles ne bougent jamais.
 
-## Les mesures du Seeker (890x400) ; ailleurs, multipliees par `_k`.
-const HUG_W := 860.0
-const CARD_W := 96.0
-const CARD_H := 168.0
-const CARD_GAP := 10.0
-## La planche du nom deborde en haut du corps, le bouton en bas.
-const OVER_TOP := 16.0
-const OVER_BOTTOM := 18.0
-const SIGN_H := 32.0
-const BUTTON_H := 36.0
-const ART_ZONE := 84.0
-const CARROT_PX := 38.0
-const ITEM_PX := 34.0
-## Le bouton PRENDRE deborde de la carte de chaque cote.
-const BUTTON_SPILL := 10.0
-## Les feuilles aux bouts d'une planche : le texte se tient entre elles.
-const LEAF_ROOM := 34.0
-## Carottes dessinees par jour : la recompense grossit a l'oeil.
-const PILE := [1, 2, 3, 3, 4, 5]
-## L'enseigne pendue, comme celle de l'etal.
-const BANNER_W := 230.0
-const BANNER_H := 50.0
-const CARROT_TINT := Color("#e07a2f")
-const GREEN := Color("#3d7a1f")
-const DONE_ALPHA := 0.55
+const CABINET := preload("res://assets/ui/snack/cabinet.png")
+const HAT := preload("res://assets/ui/snack/hat.png")
+const PLINTH := preload("res://assets/ui/snack/plinth.png")
+const GREY := preload("res://shaders/grey.gdshader")
+## La prise : les carottes du socle sautent et filent a la pastille, comme
+## la recolte du potager (burrow_props.gd `_fly`).
+const FLY_STAGGER := 0.07
+const FLY_SIDE := 34.0
+const DESIGN := Vector2(890, 400)
 
 var _state: SnackState
-var _k := 1.0
-var _row: HBoxContainer
-var _rule: Label
-var _foot: VBoxContainer
-var _banner: NineSlice
-var _banner_text: Label
-## Ce que le dernier snack pris a donne, pour le dire sous la bande.
+var _canvas: Control
+var _content: Control
 var _last: Dictionary = {}
+var _buttons: Array[BaseButton] = []
+var _wait_labels: Array[Label] = []
+var _clock := 0.0
+var _claim_at := Vector2(270, 214)
+## Les carottes posees sur le socle : d'ou partent celles qui volent, et
+## celles du lendemain qui arrivent apres elles.
+var _harvest_items: Array[FloatingItem] = []
+var _fly_from: Array[Vector2] = []
 
 
 func _init() -> void:
-	# Sans titre dans l'en-tete : l'enseigne pend en haut, comme l'etal.
-	super("", HUG_W, 0.0)
+	super("", 0.0, 0.0)
 	go_fullscreen()
+	_frame.hide()
+	_inset.hide()
+
+
+func _get_minimum_size() -> Vector2:
+	return Vector2.ZERO
 
 
 func hug_size() -> Vector2:
-	# Pas de defilement : le minimum du cadre porte deja tout le contenu.
-	if _row == null:
-		return Vector2(HUG_W * _k, 0.0)
-	return Vector2(HUG_W * _k, _inset.get_combined_minimum_size().y)
+	return DESIGN * 1.2
 
 
 static func open() -> SnackDialog:
@@ -83,385 +55,471 @@ static func open() -> SnackDialog:
 func _ready() -> void:
 	Analytics.track("snack_open")
 	_state = SnackState.shared()
-	_k = clampf(get_viewport_rect().size.y / 400.0, 1.0, 1.4)
-
-	# L'ENSEIGNE, sur le dialogue lui-meme, avec son ombre dure.
-	var shadow := Kit.plank("wood")
-	shadow.tint = Color(0, 0, 0, 0.45)
-	shadow.set_meta("banner_shadow", true)
-	add_child(shadow)
-	_banner = Kit.plank("wood")
-	add_child(_banner)
-	_banner_text = Kit.label("", int(round(18 * _k)), Palette.CREAM, true)
-	_banner_text.uppercase = I18N.pixel_face()
-	_banner_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_banner_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	Kit.fill(_banner_text)
-	_banner.add_child(_banner_text)
-	for n: NineSlice in [shadow, _banner]:
-		n.custom_minimum_size = Vector2(BANNER_W, BANNER_H) * _k
-		n.size = n.custom_minimum_size
-	move_child(close_button, get_child_count() - 1)
-
-	var col := Kit.vbox(floorf(6.0 * _k))
-	col.alignment = BoxContainer.ALIGNMENT_CENTER
-	set_body(col)
-	# La place de l'enseigne, en tete de colonne.
-	var room := Control.new()
-	room.custom_minimum_size = Vector2(0, BANNER_H * _k - Kit.PAD)
-	col.add_child(room)
-	_rule = Kit.label("", int(round(12 * _k)), Palette.BARK)
-	_rule.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	col.add_child(_rule)
-	_row = Kit.hbox(floorf(CARD_GAP * _k))
-	_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	col.add_child(_row)
-	_foot = Kit.vbox(2)
-	_foot.alignment = BoxContainer.ALIGNMENT_CENTER
-	col.add_child(_foot)
-
+	_canvas = Control.new()
+	_canvas.name = "Cabinet"
+	_canvas.size = DESIGN
+	add_child(_canvas)
+	_picture(_canvas, CABINET, Rect2(Vector2.ZERO, DESIGN), false)
 	_state.changed.connect(_rebuild)
 	_state.claimed.connect(_on_claimed)
 	I18N.locale_changed.connect(func(_c: String) -> void: _rebuild())
-	resized.connect(_place_banner)
+	resized.connect(_layout)
 	_rebuild()
-	_place_banner.call_deferred()
+	_layout()
 	_state.refresh()
 
 
-func _place_banner() -> void:
-	if _banner == null:
+func _layout() -> void:
+	if _canvas == null:
 		return
-	var at := Vector2(floorf((size.x - _banner.size.x) * 0.5), Kit.CLOSE_AIR)
-	_banner.position = at
-	for child in get_children():
-		if child is NineSlice and child.has_meta("banner_shadow"):
-			child.position = at + Vector2(0, 4)
+	var k := minf(size.x / DESIGN.x, size.y / DESIGN.y)
+	_canvas.scale = Vector2.ONE * k
+	_canvas.position = ((size - DESIGN * k) * 0.5).floor()
+	_place_close()
+
+
+func _place_close() -> void:
+	if _canvas == null or close_button == null:
+		return
+	close_button.scale = _canvas.scale
+	close_button.position = _canvas.position + Vector2(836, 12) * _canvas.scale
+
+
+func _rebuild() -> void:
+	if _canvas == null:
+		return
+	_buttons.clear()
+	_wait_labels.clear()
+	_harvest_items.clear()
+	if _content != null:
+		_canvas.remove_child(_content)
+		_content.queue_free()
+	_content = Control.new()
+	_content.name = "Rewards"
+	_content.size = DESIGN
+	_canvas.add_child(_content)
+	_label(_content, I18N.shout(I18N.t("snack.title")), Rect2(55, 11, 640, 34), 24, Palette.CREAM)
+	_label(_content, I18N.f("snack.dayOf", [_state.day()]) if _state.known() else "", Rect2(692, 14, 134, 28), 14, Palette.PARCHMENT)
+	if not _state.known():
+		var spinner := CarrotLoader.new()
+		spinner.side = 36
+		spinner.position = Vector2(427, 175)
+		_content.add_child(spinner)
+		return
+	_build_rail()
+	if not _state.is_pack_day():
+		_build_harvest()
+	else:
+		_label(_content, I18N.t("snack.pick") if _state.ready() else I18N.t("snack.tomorrowPack"), Rect2(64, 189, 410, 38), 22, Palette.GOLD)
+		if not _state.ready():
+			_wait_labels.append(_label(_content, "", Rect2(64, 236, 410, 28), 13, Palette.PARCHMENT))
+			_update_wait()
+	# Mêmes positions, tailles et socles pendant toute la semaine.
+	_label(_content, I18N.f("snack.day", [7]), Rect2(490, 133, 348, 23), 17, Palette.GOLD)
+	_pack_face(Rect2(490, 161, 168, 197), "magic_hat", _state.is_pack_day() and _state.ready())
+	_pack_face(Rect2(670, 161, 168, 197), "lucky_foot", _state.is_pack_day() and _state.ready())
+	_build_footer()
+	move_child(close_button, get_child_count() - 1)
+
+
+func _build_rail() -> void:
+	for d in range(1, 7):
+		var x := 35.0 + (d - 1) * 137.0
+		var today := d == _state.day() and _state.ready()
+		var card := _panel(_content, Rect2(x, 63, 128, 62), today)
+		_label(card, I18N.f("snack.day", [d]), Rect2(4, 9, 118, 16), 11, Palette.GOLD if today else Palette.PARCHMENT)
+		_picture(card, Kit.ICONS["carrot"], Rect2(17, 29, 22, 22))
+		_label(card, "+%d" % int(_state.day_info(d).get("carrots", 0)), Rect2(38, 29, 66, 23), 17, Palette.CREAM)
+		if d <= _state.taken():
+			_tick(card, Vector2(103, 36))
+		elif today:
+			card.tooltip_text = I18N.t("snack.today")
+
+
+func _build_harvest() -> void:
+	var ready_now := _state.ready()
+	var amount := int(_state.day_info(_state.day()).get("carrots", 0))
+	_label(_content, I18N.t("snack.ready") if ready_now else I18N.f("snack.tomorrow", [amount]), Rect2(54, 132, 434, 23), 16, Palette.PARCHMENT)
+	_picture(_content, PLINTH, Rect2(138, 235, 265, 83))
+	var harvest := Control.new()
+	harvest.name = "CarrotHarvest"
+	harvest.position = Vector2(139, 156)
+	harvest.size = Vector2(264, 118)
+	_content.add_child(harvest)
+	if ready_now:
+		_reward_light(harvest, Vector2(132, 60), 185, Palette.CARROT)
+	# Le nombre de sprites suit le montant, pas le numéro du jour.
+	var count := clampi(int(ceil(amount / 25.0)), 1, 12)
+	var cols := mini(count, 4)
+	var rows := int(ceil(float(count) / cols))
+	for i in count:
+		var row := i / cols
+		var in_row := mini(cols, count - row * cols)
+		var x := 132.0 + (i % cols - (in_row - 1) * 0.5) * 48.0
+		var y := 18.0 + row * 37.0 - (rows - 1) * 8.0
+		var carrot := _float_picture(harvest, Kit.ICONS["carrot"], Rect2(x - 30, y, 60, 60), ready_now, i * 1.15)
+		# Celles de demain se voient, mais en gris : pas encore a toi.
+		if not ready_now:
+			var grey := ShaderMaterial.new()
+			grey.shader = GREY
+			carrot.art.material = grey
+		_harvest_items.append(carrot)
+	if ready_now:
+		_sparkles(harvest, Rect2(14, 0, 236, 116))
+	_label(_content, "+%d" % amount, Rect2(147, 274, 245, 36), 27, Palette.GOLD if ready_now else Palette.PARCHMENT.darkened(0.25))
+	if ready_now:
+		_action(_content, I18N.t("snack.take"), Rect2(159, 312, 224, 44), "")
+	else:
+		_wait_labels.append(_label(_content, "", Rect2(60, 316, 425, 34), 13, Palette.PARCHMENT))
+		_update_wait()
+
+
+func _pack_face(rect: Rect2, pack: String, active: bool) -> void:
+	var face := Control.new()
+	face.name = pack
+	face.position = rect.position
+	face.size = rect.size
+	_content.add_child(face)
+	var w := rect.size.x
+	var heading := I18N.shout(SnackState.pack_name(pack))
+	_label(face, heading, Rect2(0, 0, w, 25), 14, Palette.CREAM)
+	_label(face, I18N.t("snack.hatWhat") if pack == "magic_hat" else I18N.t("snack.footWhat"), Rect2(0, 24, w, 18), 11, Palette.PARCHMENT)
+	var art_top := 50.0
+	var art_height := 66.0
+	var plinth_rect := Rect2(0, 107, w, 64)
+	if active:
+		_reward_light(face, Vector2(w * 0.5, 84), 140, Palette.GOLD)
+	_picture(face, PLINTH, plinth_rect)
+	# Le chapeau est l'emblème du pack, pas un troisième objet à gagner.
+	if pack == "magic_hat":
+		var hat_rect := Rect2(w * 0.30, art_top + 10, w * 0.40, art_height * 0.78)
+		_float_picture(face, HAT, hat_rect, true, 0.5)
+	var items := _state.pack_items(pack)
+	for i in items.size():
+		var item: Variant = items[i]
+		if not item is Dictionary:
+			continue
+		var kind := String(item.get("kind", ""))
+		var h := art_height * (0.73 if pack == "magic_hat" else 0.9)
+		var art := ItemSlot.art_for(kind, h)
+		var aw: float = art.custom_minimum_size.x
+		var fraction := float(i + 1) / float(items.size() + 1)
+		if pack == "magic_hat" and items.size() == 2:
+			fraction = 0.16 if i == 0 else 0.82
+		var at := Vector2(w * fraction - aw * 0.5, art_top + (7 if i == 0 else 0))
+		var floating := FloatingItem.new()
+		floating.name = "Float_" + kind
+		floating.position = at
+		floating.size = Vector2(aw, h + 20)
+		floating.amplitude = 4.0 if active else 2.0
+		floating.phase = i * 1.9 + (0.8 if pack == "lucky_foot" else 0.0)
+		face.add_child(floating)
+		art.position = Vector2.ZERO
+		art.size = Vector2(aw, h)
+		floating.add_floating(art)
+		var qty := int(item.get("qty", 1))
+		if qty > 1:
+			var count := _label(art, "x%d" % qty, Rect2(aw - 24, h - 13, 33, 21), 13, Palette.CREAM)
+			count.add_theme_constant_override("outline_size", 4)
+			count.add_theme_color_override("font_outline_color", Palette.SOIL_DEEP)
+	if active:
+		_sparkles(face, Rect2(4, 44, w - 8, 85))
+		_action(face, I18N.t("snack.choose"), Rect2(3, 153, w - 6, 44), pack)
+
+
+func _build_footer() -> void:
+	var text := I18N.t("snack.keepWeek")
+	var color := Palette.PARCHMENT
+	if not _last.is_empty():
+		var pack: Variant = _last.get("pack")
+		text = I18N.f("snack.gotPack", [SnackState.pack_name(pack)]) if pack is String and not pack.is_empty() else I18N.f("snack.got", [int(_last.get("carrots", 0))])
+		if _state.day() == 1 and int(_last.get("day", 0)) == 7:
+			text += "  " + I18N.t("snack.weekDone")
+		color = Palette.LEAF
+	_label(_content, text, Rect2(66, 369, 760, 20), 12, color)
 
 
 func _on_claimed(reward: Dictionary) -> void:
 	_last = reward
+	var from := _fly_from
+	_fly_from = []
 	Sound.play("match")
 	_rebuild()
+	_celebrate()
+	var carrots := int(reward.get("carrots", 0))
+	var landing := 0.0
+	if carrots > 0 and not from.is_empty():
+		landing = _fly_home(from, carrots)
+		reward["flown"] = landing > 0.0
+	_arrive(landing)
 
 
-func _rebuild() -> void:
-	if _row == null:
-		return
-	for box in [_row, _foot]:
-		for child in box.get_children():
-			box.remove_child(child)
-			child.queue_free()
-	_banner_text.text = I18N.shout(I18N.t("snack.title"))
-	_rule.text = I18N.t("snack.ruleShort")
-	if not _state.known():
-		return
-	for d in range(1, 7):
-		_row.add_child(_day_card(d))
-	_row.add_child(_pack_card())
-	_build_foot()
-	refit.call_deferred()
-
-
-# ── Les cartes ───────────────────────────────────────────────────────────────
-
-## Un jour a carottes : pris (eteint, coche), celui qui attend (dore, avec
-## son bouton), ou a venir (son montant sur la planche).
-func _day_card(d: int) -> Control:
-	var done := d <= _state.taken()
-	var now := d == _state.day() and _state.ready()
-	var carrots := int(_state.day_info(d).get("carrots", 0))
-	var w := floorf(CARD_W * _k)
-	var card := _card_frame(w, now, CARROT_TINT)
-	var body: Control = card.get_meta("body")
-
-	var stage := _stage(body, w, now)
-	var pile := _carrot_pile(PILE[clampi(d - 1, 0, PILE.size() - 1)], floorf(CARROT_PX * _k))
-	pile.position = ((stage.size - pile.size) * 0.5).floor()
-	stage.add_child(pile)
-	var amount := Kit.label("+%d" % carrots, int(round(20 * _k)), Palette.LAMP, true)
-	amount.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	amount.position = Vector2(0, stage.position.y + stage.size.y)
-	amount.size = Vector2(w, 22.0 * _k)
-	body.add_child(amount)
-
-	_sign(card, w, I18N.t("snack.today") if now else I18N.f("snack.day", [d]), "gold" if now else "wood")
-	if now:
-		var take := _button(card, w, I18N.t("snack.take"), "gold")
-		take.pressed.connect(func() -> void: _take(""))
-		_bounce(card.get_meta("lift"))
-	elif done:
-		(card.get_meta("lift") as Control).modulate = Color(1, 1, 1, DONE_ALPHA)
-		_tick(card, w)
-		_plank(card, w, I18N.t("snack.taken"), "wood")
-	# A venir : rien en bas. Le montant est deja sur la carte, et une planche
-	# de plus le disait deux fois.
-	return card
-
-
-## LE SEPTIEME : deux packs, dores, deux fois plus large.
-func _pack_card() -> Control:
-	var now := _state.is_pack_day() and _state.ready()
-	var w := floorf(CARD_W * 2.0 * _k + CARD_GAP * _k)
-	var card := _card_frame(w, true, Palette.GOLD)
-	var body: Control = card.get_meta("body")
-	var half := floorf(w * 0.5)
-	# Le but de la semaine luit toujours : des rayons derriere les deux packs.
-	var rays := Shop._rays(Palette.GOLD, w * 1.1)
-	rays.position = Vector2(w, CARD_H * _k) * 0.5 - rays.size * 0.5
-	body.add_child(rays)
-	var i := 0
-	for pack in SnackState.PACKS:
-		var face := _pack_face(pack, half)
-		face.position = Vector2(half * i, 0)
-		body.add_child(face)
-		i += 1
-	# La couture entre les deux : « ou ».
-	var either := Kit.label(I18N.t("snack.or"), int(round(11 * _k)), Palette.PARCHMENT, true)
-	either.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	either.position = Vector2(half - 20.0 * _k, floorf(CARD_H * _k * 0.72))
-	either.size = Vector2(40.0 * _k, 16.0 * _k)
-	body.add_child(either)
-
-	_sign(card, w, I18N.t("snack.today") if now else I18N.f("snack.day", [7]), "gold")
-	if now:
-		var lift: Control = card.get_meta("lift")
-		var j := 0
-		for pack in SnackState.PACKS:
-			var b := Kit.button(I18N.shout(I18N.t("snack.choose")), "gold", half - 6.0, floorf(BUTTON_H * _k))
-			b.label_size = int(round(12 * _k))
-			b.position = Vector2(half * j + 3.0, _bottom_y())
-			b.set_deferred("size", Vector2(half - 6.0, floorf(BUTTON_H * _k)))
-			b.pressed.connect(func() -> void: _take(pack))
-			lift.add_child(b)
-			j += 1
-		_bounce(lift)
-	else:
-		_plank(card, w, I18N.t("snack.pickOne"), "gold")
-	return card
-
-
-func _pack_face(pack: String, w: float) -> Control:
-	var face := Control.new()
-	face.size = Vector2(w, CARD_H * _k)
-	face.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var shout := I18N.shout(SnackState.pack_name(pack))
-	var name := Kit.label(shout, Shop._fit(shout, int(round(12 * _k)), w - 8.0), Palette.CREAM, true)
-	name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name.position = Vector2(0, floorf(22.0 * _k))
-	name.size = Vector2(w, 16.0 * _k)
-	face.add_child(name)
-	var line := I18N.t("snack.hatWhat") if pack == "magic_hat" else I18N.t("snack.footWhat")
-	var what := Kit.label(line, Shop._fit(line, int(round(10 * _k)), w - 8.0), Palette.PARCHMENT)
-	what.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	what.position = Vector2(0, floorf(38.0 * _k))
-	what.size = Vector2(w, 14.0 * _k)
-	face.add_child(what)
-	var items := Kit.hbox(floorf(4.0 * _k))
-	items.alignment = BoxContainer.ALIGNMENT_CENTER
-	items.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	for it in _state.pack_items(pack):
-		if not it is Dictionary:
-			continue
-		var cell := Kit.vbox(0)
-		cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var art := ItemSlot.art_for(String(it.get("kind", "")), floorf(ITEM_PX * _k))
-		art.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		cell.add_child(art)
-		var qty := Kit.label("x%d" % int(it.get("qty", 1)), int(round(11 * _k)), Palette.CREAM, true)
-		qty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		cell.add_child(qty)
-		items.add_child(cell)
-	items.position = Vector2(0, floorf(62.0 * _k))
-	items.size = Vector2(w, 50.0 * _k)
-	face.add_child(items)
-	return face
-
-
-# ── Les pieces d'une carte, comme l'etal ─────────────────────────────────────
-
-## Le cadre : `lift` porte tout (il saute, il s'eteint), le corps sombre a la
-## teinte de la recompense, bord dore pour ce qui attend.
-func _card_frame(w: float, lit: bool, tint: Color) -> Control:
-	var h := floorf(CARD_H * _k)
-	var top := floorf(OVER_TOP * _k)
-	var card := Control.new()
-	card.custom_minimum_size = Vector2(w, top + h + floorf(OVER_BOTTOM * _k))
-	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var lift := Control.new()
-	lift.size = card.custom_minimum_size
-	lift.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	card.add_child(lift)
-	var style := StyleBoxFlat.new()
-	style.bg_color = tint.lerp(Palette.SOIL, 0.65).lerp(tint.lerp(Palette.SOIL_DEEP, 0.8), 0.5)
-	style.set_border_width_all(int(3 * _k))
-	style.border_color = Palette.GOLD if lit else Palette.WELL_FACE
-	style.set_corner_radius_all(int(12 * _k))
-	style.shadow_color = Palette.SOIL_DEEP
-	style.shadow_size = 2
-	style.set_content_margin_all(0)
-	var body := Kit.panel(style)
-	body.position = Vector2(0, top)
-	body.size = Vector2(w, h)
-	body.clip_children = CanvasItem.CLIP_CHILDREN_AND_DRAW
-	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	lift.add_child(body)
-	var inside := Control.new()
-	inside.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	inside.size = body.size
-	body.add_child(inside)
-	card.set_meta("lift", lift)
-	card.set_meta("body", inside)
-	return card
-
-
-## Le creux eclaire de l'art ; les rayons de l'etal tournent derriere ce qui
-## attend.
-func _stage(body: Control, w: float, lit: bool) -> Control:
-	var zone := floorf(ART_ZONE * _k)
-	var stage := Control.new()
-	stage.size = Vector2(zone, zone)
-	stage.position = Vector2(floorf((w - zone) * 0.5), floorf(22.0 * _k))
-	stage.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	body.add_child(stage)
-	var centre := stage.size * 0.5
-	if lit:
-		var rays := Shop._rays(Palette.GOLD, w * 1.2)
-		rays.position = centre - rays.size * 0.5
-		stage.add_child(rays)
-	var glow := TextureRect.new()
-	glow.texture = Shop._glow_texture(CARROT_TINT.lightened(0.35), 0.8 if lit else 0.45)
-	glow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	glow.stretch_mode = TextureRect.STRETCH_SCALE
-	glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	glow.size = stage.size * 1.3
-	glow.position = centre - glow.size * 0.5
-	stage.add_child(glow)
-	return stage
-
-
-## LE TAS : `n` carottes en eventail, la plus haute au milieu.
-func _carrot_pile(n: int, px: float) -> Control:
-	var box := Control.new()
-	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var step := px * 0.42
-	box.size = Vector2(px + step * float(n - 1), px * 1.1)
-	var mid := float(n - 1) * 0.5
+## LES CAROTTES DU SOCLE FILENT A LA PASTILLE. Elle retient le montant
+## (hold) et le compte a chaque arrivee (land), qui tinte un cran plus haut ;
+## la rafale part avec la derniere — la recolte du potager, au mot pres.
+## Rend la duree du vol (0 : pas de pastille, rien ne vole).
+func _fly_home(from: Array[Vector2], amount: int) -> float:
+	var pill: CarrotPill = Chrome.current.carrot_pill() if Chrome.current != null else _bench_pill()
+	if pill == null:
+		return 0.0
+	pill.hold(amount)
+	var to_local := get_global_transform_with_canvas().affine_inverse()
+	var side := 60.0 * _canvas.scale.x
+	var n := from.size()
+	var landed := {"n": 0}
 	for i in n:
-		var c := Kit.icon(Kit.ICONS["carrot"], px)
-		c.pivot_offset = Vector2(px, px) * 0.5
-		c.rotation = deg_to_rad((float(i) - mid) * 12.0)
-		c.position = Vector2(step * float(i), absf(float(i) - mid) * px * 0.12).floor()
-		box.add_child(c)
-	return box
+		var c := TextureRect.new()
+		c.texture = Kit.ICONS["carrot"]
+		c.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		c.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		c.size = Vector2.ONE * side
+		c.pivot_offset = c.size * 0.5
+		add_child(c)
+		var start := to_local * from[i] - c.size * 0.5
+		var peak := start + Vector2(randf_range(-18.0, 18.0), -randf_range(30.0, 46.0)) * _canvas.scale.x
+		var spin := deg_to_rad(randf_range(-40.0, 40.0))
+		var bend := signf(peak.x - start.x) * FLY_SIDE
+		c.position = start
+		var tw := c.create_tween()
+		tw.tween_interval(i * FLY_STAGGER)
+		# LE SAUT hors du socle, puis LE VOL : la cible est relue a chaque
+		# image, l'arc tire sur le cote ou la carotte penchait.
+		tw.set_parallel(true)
+		tw.tween_property(c, "position", peak, 0.26).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tw.tween_property(c, "scale", Vector2.ONE * 1.15, 0.26).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		tw.tween_property(c, "rotation", spin, 0.26)
+		tw.set_parallel(false)
+		tw.tween_interval(0.06)
+		tw.tween_method(func(t: float) -> void:
+			if not is_instance_valid(pill):
+				return
+			var e := t * t
+			var to := to_local * pill.carrot_target() - c.size * 0.5
+			c.position = peak.lerp(to, e) + Vector2(bend * sin(t * PI), 0.0)
+			c.scale = Vector2.ONE * lerpf(1.15, 0.3, e)
+			c.rotation = lerpf(spin, spin * 3.0, t), 0.0, 1.0, 0.5)
+		tw.tween_callback(func() -> void:
+			landed["n"] = int(landed["n"]) + 1
+			var k := int(landed["n"])
+			if is_instance_valid(pill):
+				# Les parts tombent juste : leur somme fait `amount`.
+				pill.land(amount * k / n - amount * (k - 1) / n)
+			Sound.play("coin", 1.0 + 0.5 * float(k) / float(n))
+			if k == n:
+				Home.burst.emit(amount))
+		tw.tween_callback(c.queue_free)
+	return (n - 1) * FLY_STAGGER + 0.26 + 0.06 + 0.5
 
 
-## La planche pendue en haut : JOUR N, ou AUJOURD'HUI en or.
-func _sign(card: Control, w: float, text: String, tone: String) -> void:
-	var sign := Kit.plank(tone)
-	# La planche du jour qui attend deborde comme son bouton : « Aujourd'hui »
-	# ne tenait pas dans la largeur d'une carte.
-	var spill := floorf(BUTTON_SPILL * _k) if tone == "gold" and w < CARD_W * 1.5 * _k else 0.0
-	sign.size = Vector2(w - 4.0 + spill * 2.0, floorf(SIGN_H * _k))
-	sign.position = Vector2(2.0 - spill, 0.0)
-	(card.get_meta("lift") as Control).add_child(sign)
-	var shout := I18N.shout(text)
-	var label := Kit.label(shout, Shop._fit(shout, int(round(11 * _k)), sign.size.x - LEAF_ROOM * _k), Kit.plank_ink(tone), tone != "gold")
-	label.uppercase = I18N.pixel_face()
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	label.clip_text = true
-	Kit.fill(label)
-	sign.add_child(label)
+## Hors du jeu (banc) : la premiere pastille visible de l'arbre.
+func _bench_pill() -> CarrotPill:
+	for pill in get_tree().root.find_children("*", "CarrotPill", true, false):
+		if (pill as CarrotPill).is_visible_in_tree():
+			return pill
+	return null
 
 
-## Le bouton du bas, sur le bord comme le prix de l'etal.
-func _button(card: Control, w: float, text: String, tone: String) -> PlankButton:
-	# PLUS LARGE QUE LA CARTE : c'est LE bouton de la fenetre, et a la
-	# largeur d'une carte la planche rapetissait « PRENDRE » a 9px.
-	var bw := w + floorf(BUTTON_SPILL * 2.0 * _k)
-	var b := Kit.button(I18N.shout(text), tone, bw, floorf(BUTTON_H * _k))
-	b.label_size = int(round(15 * _k))
-	b.position = Vector2(-floorf(BUTTON_SPILL * _k), _bottom_y())
-	b.set_deferred("size", Vector2(bw, floorf(BUTTON_H * _k)))
-	(card.get_meta("lift") as Control).add_child(b)
-	return b
-
-
-## La planche du bas quand il n'y a rien a toucher : le montant, PRIS.
-func _plank(card: Control, w: float, text: String, tone: String) -> void:
-	var p := Kit.plank(tone)
-	p.size = Vector2(w, floorf(BUTTON_H * _k))
-	p.position = Vector2(0.0, _bottom_y())
-	(card.get_meta("lift") as Control).add_child(p)
-	var shout := I18N.shout(text)
-	var label := Kit.label(shout, Shop._fit(shout, int(round(12 * _k)), w - LEAF_ROOM * _k), Kit.plank_ink(tone), tone != "gold")
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	label.clip_text = true
-	Kit.fill(label)
-	p.add_child(label)
-
-
-func _bottom_y() -> float:
-	return floorf(OVER_TOP * _k) + floorf(CARD_H * _k) - floorf(BUTTON_H * _k) + floorf(OVER_BOTTOM * _k)
-
-
-## LA COCHE d'un jour pris, grosse, au milieu du corps.
-func _tick(card: Control, w: float) -> void:
-	var tick := Tick.new()
-	tick.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	tick.size = Vector2(w, floorf(CARD_H * _k))
-	tick.position = Vector2(0, floorf(OVER_TOP * _k) - 8.0 * _k)
-	card.add_child(tick)
-
-
-## CE QUI ATTEND SAUTILLE : la seule chose a toucher.
-func _bounce(lift: Control) -> void:
-	var t := lift.create_tween().set_loops()
-	t.tween_property(lift, "position:y", -5.0 * _k, 0.35).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	t.tween_property(lift, "position:y", 0.0, 0.35).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
-	t.tween_interval(0.6)
-
-
-# ── Sous la bande ────────────────────────────────────────────────────────────
-
-func _build_foot() -> void:
-	if not _last.is_empty():
-		var pack: Variant = _last.get("pack")
-		var got := I18N.f("snack.gotPack", [SnackState.pack_name(pack)]) if pack is String \
-			else I18N.f("snack.got", [int(_last.get("carrots", 0))])
-		_foot.add_child(_line(got, 18, GREEN))
-	if _state.ready():
-		if _last.is_empty():
-			_foot.add_child(_line(I18N.t("snack.pick") if _state.is_pack_day() else I18N.t("snack.ready"), 16, Palette.INK))
-		return
-	# PRIS : quand vient le suivant et ce qu'il donne — la ligne qui fait
-	# revenir demain.
-	var next := _state.day()
-	var tomorrow := I18N.t("snack.tomorrowPack") if next >= 7 \
-		else I18N.f("snack.tomorrow", [int(_state.day_info(next).get("carrots", 0))])
-	_foot.add_child(_line("%s · %s" % [I18N.f("snack.nextIn", [I18N.wait(_state.wait_ms())]), tomorrow], 14, Palette.INK))
-	if next == 1 and int(_last.get("day", 0)) == 7:
-		_foot.add_child(_line(I18N.t("snack.weekDone"), 12, Palette.BARK))
+## CELLES DE DEMAIN ARRIVENT, une a une et en gris, une fois le socle vide.
+func _arrive(delay: float) -> void:
+	for i in _harvest_items.size():
+		var item := _harvest_items[i]
+		item.pivot_offset = item.size * 0.5
+		item.scale = Vector2.ZERO
+		var tw := item.create_tween()
+		tw.tween_interval(delay + 0.15 + i * 0.08)
+		tw.tween_property(item, "scale", Vector2.ONE, 0.32).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 func _take(pack: String) -> void:
-	if _state.pending:
+	if _state.pending or not _state.ready():
 		return
+	_claim_at = Vector2(270, 214) if pack.is_empty() else Vector2(574 if pack == "magic_hat" else 754, 247)
+	for button in _buttons:
+		button.disabled = true
+	_aim()
 	await _state.claim(pack)
+	# Après une erreur réseau on rend les boutons ; après une réussite
+	# _rebuild a déjà remplacé la vue par le lendemain.
+	for button in _buttons:
+		if is_instance_valid(button):
+			button.disabled = false
 
 
-func _line(text: String, px: int, color: Color) -> Label:
-	var l := Kit.label(text, int(round(px * _k)), color)
-	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	return l
+## Les points de depart du vol, lus au tap : la reponse adopte le lendemain
+## (`changed`) et refait la vue AVANT `claimed`.
+func _aim() -> void:
+	_fly_from = []
+	for item in _harvest_items:
+		if is_instance_valid(item.art):
+			_fly_from.append(item.art.get_global_transform_with_canvas() * (item.art.size * 0.5))
+
+
+func _process(delta: float) -> void:
+	_clock += delta
+	if _clock >= 1.0:
+		_clock = 0.0
+		_update_wait()
+
+
+func _update_wait() -> void:
+	for label in _wait_labels:
+		if is_instance_valid(label):
+			label.text = I18N.f("snack.nextIn", [I18N.wait(_state.wait_ms())])
+
+
+func _action(parent: Control, text: String, rect: Rect2, pack: String) -> void:
+	var button := Kit.button(text, "gold", rect.size.x, rect.size.y)
+	button.name = "Claim_" + (pack if not pack.is_empty() else "carrots")
+	button.position = rect.position
+	button.size = rect.size
+	button.label_size = 18
+	button.focus_mode = Control.FOCUS_ALL
+	button.disabled = _state.pending
+	button.pressed.connect(func() -> void: _take(pack))
+	parent.add_child(button)
+	button.set_deferred("size", rect.size)
+	_buttons.append(button)
+
+
+func _label(parent: Control, text: String, rect: Rect2, px: int, color: Color) -> Label:
+	var label := Kit.label(text, Shop._fit(text, px, rect.size.x - 4), color, true)
+	label.position = rect.position
+	label.size = rect.size
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(label)
+	return label
+
+
+func _picture(parent: Control, texture: Texture2D, rect: Rect2, aspect := true) -> TextureRect:
+	var picture := TextureRect.new()
+	picture.texture = texture
+	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED if aspect else TextureRect.STRETCH_SCALE
+	picture.position = rect.position
+	picture.size = rect.size
+	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(picture)
+	return picture
+
+
+func _float_picture(parent: Control, texture: Texture2D, rect: Rect2, active: bool, phase: float) -> FloatingItem:
+	var floating := FloatingItem.new()
+	floating.position = rect.position
+	floating.size = rect.size
+	floating.amplitude = 3.0 if active else 0.0
+	floating.phase = phase
+	parent.add_child(floating)
+	var art := _picture(floating, texture, Rect2(Vector2.ZERO, rect.size))
+	floating.add_floating(art)
+	return floating
+
+
+func _panel(parent: Control, rect: Rect2, selected: bool) -> Control:
+	var panel := Control.new()
+	panel.name = "Day_%d" % (parent.get_child_count())
+	panel.position = rect.position
+	panel.size = rect.size
+	parent.add_child(panel)
+	# La vraie texture du comptoir, découpée en neuf : grain, biseaux,
+	# rivets et coins conservés au lieu d'un rectangle à trait fin.
+	var frame := NineSlice.make(CABINET, Vector4i(124, 125, 124, 148), Vector4(10, 9, 10, 10), true)
+	frame.size = rect.size
+	panel.add_child(frame)
+	if selected:
+		frame.tint = Color(1.35, 1.15, 0.75)
+		var light := _picture(panel, Shop._glow_texture(Palette.GOLD, 0.32), Rect2(8, 7, rect.size.x - 16, rect.size.y - 14), false)
+		var pulse := light.create_tween().set_loops()
+		pulse.tween_property(light, "modulate:a", 0.45, 1.1).set_trans(Tween.TRANS_SINE)
+		pulse.tween_property(light, "modulate:a", 1.0, 1.1).set_trans(Tween.TRANS_SINE)
+	return panel
+
+
+func _reward_light(parent: Control, centre: Vector2, side: float, tint: Color) -> void:
+	var rays := Shop._rays(Palette.GOLD, side)
+	rays.position = centre - rays.size * 0.5
+	parent.add_child(rays)
+	_picture(parent, Shop._glow_texture(tint.lightened(0.2), 0.55), Rect2(centre - Vector2.ONE * side * 0.5, Vector2.ONE * side), false)
+
+
+func _sparkles(parent: Control, rect: Rect2) -> void:
+	var sparks := Sparkles.new()
+	sparks.position = rect.position
+	sparks.size = rect.size
+	parent.add_child(sparks)
+
+
+func _celebrate() -> void:
+	# Même gerbe de pixels que l'achat du shop, seulement après succès.
+	for i in 14:
+		var spark := ColorRect.new()
+		spark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		spark.color = Palette.GOLD if i % 2 else Palette.CREAM
+		spark.size = Vector2.ONE * (3 + i % 3)
+		spark.position = _claim_at
+		_content.add_child(spark)
+		var to := _claim_at + Vector2.from_angle(TAU * i / 14.0) * (48 + i % 4 * 12)
+		var burst := spark.create_tween().set_parallel()
+		burst.tween_property(spark, "position", to, 0.55).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		burst.tween_property(spark, "modulate:a", 0.0, 0.4).set_delay(0.15)
+		burst.chain().tween_callback(spark.queue_free)
+
+
+func _tick(parent: Control, at: Vector2) -> void:
+	var tick := Tick.new()
+	tick.position = at
+	tick.size = Vector2(14, 14)
+	tick.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(tick)
 
 
 class Tick extends Control:
 	func _draw() -> void:
-		var s := minf(size.x, size.y) * 0.38
-		var c := size * 0.5
-		var pts := PackedVector2Array([c + Vector2(-s * 0.6, 0.0), c + Vector2(-s * 0.12, s * 0.5), c + Vector2(s * 0.7, -s * 0.55)])
-		draw_polyline(pts, Color("#1d100a"), 12.0, true)
-		draw_polyline(pts, Color("#87bd3a"), 7.0, true)
+		var points := PackedVector2Array([Vector2(2, 7), Vector2(6, 11), Vector2(13, 2)])
+		draw_polyline(points, Palette.SOIL_DEEP, 5.0)
+		draw_polyline(points, Palette.LEAF, 3.0)
+
+
+class FloatingItem extends Control:
+	var amplitude := 4.0
+	var phase := 0.0
+	var elapsed := 0.0
+	var art: Control
+
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+
+	func add_floating(node: Control) -> void:
+		art = node
+		if node.get_parent() == null:
+			add_child(node)
+		set_process(amplitude > 0.0)
+
+
+	func _process(delta: float) -> void:
+		elapsed += delta
+		if is_instance_valid(art):
+			art.position.y = sin(elapsed * TAU / 3.2 + phase) * amplitude
+
+
+class Sparkles extends Control:
+	var elapsed := 0.0
+
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _process(delta: float) -> void:
+		elapsed += delta
+		queue_redraw()
+
+	func _draw() -> void:
+		for i in 6:
+			var phase := elapsed * 1.8 + i * 2.4
+			var alpha := pow(maxf(0.0, sin(phase)), 3.0)
+			var at := Vector2((0.11 + fmod(i * 0.37, 0.82)) * size.x, (0.15 + fmod(i * 0.29, 0.7)) * size.y - sin(phase * 0.6) * 3)
+			var color := Color(Palette.CREAM if i % 2 else Palette.GOLD, alpha)
+			draw_rect(Rect2(at.floor() - Vector2(1, 4), Vector2(2, 8)), color)
+			draw_rect(Rect2(at.floor() - Vector2(4, 1), Vector2(8, 2)), color)

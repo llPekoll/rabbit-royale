@@ -193,17 +193,21 @@ func claim(pack: String = "") -> bool:
 	if answer.ok and res.get("reward") is Dictionary:
 		var reward: Dictionary = res["reward"]
 		carrots = int(reward.get("carrots", 0))
-		if carrots > 0 and Home.loaded():
-			Home.burrow["stock"] = int(Home.burrow.get("stock", 0)) + carrots
-			Home.burst.emit(carrots)
-			Home.changed.emit()
 		# `pack` est null les jours a carottes : String(null) arrete le script
 		# net, au milieu de la prise (vu en prod le 2026-10-02).
 		var pack_v: Variant = reward.get("pack")
 		Analytics.track("snack_claim", {"day": int(reward.get("day", 0)), "carrots": carrots, "pack": pack_v if pack_v is String else ""})
 		if res.get("snack") is Dictionary:
 			_adopt(res["snack"])
+		# AVANT le stock : la fenetre fait voler les carottes a la pastille,
+		# qui doit les retenir (CarrotPill.hold) avant que le chiffre monte.
+		# Elle pose `flown` et tire la rafale a l'arrivee de la derniere.
 		claimed.emit(reward)
+		if carrots > 0 and Home.loaded():
+			Home.burrow["stock"] = int(Home.burrow.get("stock", 0)) + carrots
+			if not reward.get("flown", false):
+				Home.burst.emit(carrots)
+			Home.changed.emit()
 		# Les objets vivent dans l'etat de la boutique, les carottes dans
 		# `Home` : les deux se relisent pour coller au serveur.
 		if not (reward.get("items", []) as Array).is_empty():

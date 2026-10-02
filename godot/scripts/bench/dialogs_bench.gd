@@ -152,6 +152,15 @@ func _only(which: String) -> void:
 		"snack", "snack-taken", "snack-pack":
 			SnackState.shared().fake(_fake_snack(which))
 			d = SnackDialog.new()
+		"snack-claim":
+			# La prise jouee a une seconde, avec une pastille pour cible.
+			Home.burrow = {"stock": 294, "level": 3}
+			var pill := CarrotPill.new()
+			pill.position = Vector2(360, 16)
+			add_child(pill)
+			SnackState.shared().fake(_fake_snack("snack"))
+			d = SnackDialog.new()
+			get_tree().create_timer(1.0).timeout.connect(_fake_claim.bind(d))
 		_:
 			d = LanguageSelect.new()
 	add_child(d)
@@ -164,6 +173,25 @@ func _only(which: String) -> void:
 	if "--dbg" in OS.get_cmdline_user_args():
 		_dump(d, 0)
 	get_viewport().size_changed.connect(_place.bind(d))
+
+
+## Ce que fait SnackState.claim a la reponse, sans reseau : le tap vise,
+## le lendemain adopte, `claimed`, puis le stock.
+func _fake_claim(d: SnackDialog) -> void:
+	d._aim()
+	var next := _fake_snack("snack")
+	next["day"] = 4
+	next["taken"] = 3
+	next["ready"] = false
+	next["readyAt"] = Time.get_datetime_string_from_unix_time(int(Time.get_unix_time_from_system()) + 9 * 3600) + ".000Z"
+	var state := SnackState.shared()
+	state.fake(next)
+	var reward := {"day": 3, "carrots": 100, "pack": null, "items": []}
+	state.claimed.emit(reward)
+	Home.burrow["stock"] = int(Home.burrow["stock"]) + 100
+	if not reward.get("flown", false):
+		Home.burst.emit(100)
+	Home.changed.emit()
 
 
 ## SNACK TIME : jour 3 qui attend, jour 4 pris (prochain dans 9 h), ou le
