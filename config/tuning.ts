@@ -1386,9 +1386,10 @@ export const SHOP = {
  * PACK_DISCOUNT, the same cut on both packs and both rails, and the card
  * says the cut. Move a unit price and the pack follows.
  *
- * The discount runs against the rule that offence is never sold in bulk
- * (`purchaseCost`): it is small, one pack per press, and every item still
- * stops at its ceiling. PACK_DISCOUNT = 0 sells a pack at its contents.
+ * Attack takes the cut too. The shop used to hold that offence is never sold
+ * at a discount; the user dropped that rule for packs on 2026-10-02 (« c'est
+ * plus marrant »). What still bounds it: one pack per press, and every item
+ * stops at its own ceiling. PACK_DISCOUNT = 0 sells a pack at its contents.
  *
  * NO PARTIAL PACK. A pack whose any item would overflow its own ceiling
  * (`itemCap`) is refused whole with `bag_full`: a sale is always delivered in

@@ -380,8 +380,10 @@ function liveUsdcPrice(kind: ShopKind): number {
   return tuned(`SHOP.USDC_PRICES.${kind}`);
 }
 
-/** Carrots for `qty` of `kind`. Flat — no bulk discount, because a discount on
- *  offence is a discount on hurting people who bought none. */
+/** Carrots for `qty` of `kind`. Flat — no bulk discount on a single kind. The
+ *  shop's PACKS are the one cut, on purpose, attack included (the user,
+ *  2026-10-02: « change la règle des packs, c'est plus marrant ») — see
+ *  PACK_DISCOUNT in config/tuning.ts. */
 export const purchaseCost = (kind: ShopKind, qty: number) => livePrice(kind) * qty;
 
 /** Whole USDC for `qty` of `kind`. Rounded to the cent the quote is stated in;
