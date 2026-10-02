@@ -7,10 +7,13 @@ extends Control
 
 const PANEL_W := 680.0
 const ROW_GAP := 6.0
+## La marge interieure du parchemin, cote / haut et bas.
+const PANEL_PAD := Vector2(22, 18)
 const ICON_PX := 24.0
+## L'engrenage du rail est dessine droit et montre tourne : une dent de coin en haut.
+const GEAR_TURN := 45.0
 ## La largeur commune du volume et du choix de qualité.
 const CONTROL_W := 130.0
-const PANEL_ART := preload("res://assets/ui/snack/cabinet.png")
 const SETTING_ICONS := {
 	"note": preload("res://assets/ui/icons/settings/note.png"),
 	"burst": preload("res://assets/ui/icons/settings/burst.png"),
@@ -49,6 +52,7 @@ func _init() -> void:
 	add_child(_cluster)
 
 	sound_button = HubIconButton.make("Sound settings", Kit.ICONS["gear"])  # la cle choisit l anneau : garder l ancien
+	sound_button.set_glyph_turn(GEAR_TURN)
 	sound_button.pressed.connect(func() -> void: set_open(not _open))
 	_cluster.add_child(sound_button)
 
@@ -88,20 +92,24 @@ func _build_panel() -> void:
 	_panel.z_index = 5
 	add_child(_panel)
 
-	var frame := NineSlice.make(PANEL_ART, Vector4i(124, 125, 124, 148), Vector4(18, 47, 18, 24), true)
+	# LE PARCHEMIN, pas la vitrine du Snack Time : l'etagere vide en bas
+	# faisait meuble, et le fond sombre etait « moche » (2026-10-02).
+	var frame := Kit.parchment()
 	Kit.fill(frame)
 	_panel.add_child(frame)
-	_inset = Kit.margin(24, 12, 24, 22)
+	# Serre : le cadre du parchemin ne fait qu'une dizaine de pixels a l'oeil,
+	# son inset (36/44) laissait une marge creme trop large (2026-10-02).
+	_inset = Kit.margin(PANEL_PAD.x, PANEL_PAD.y, PANEL_PAD.x, PANEL_PAD.y)
 	Kit.fill(_inset)
 	_panel.add_child(_inset)
 	var column := Kit.vbox(12)
 	_inset.add_child(column)
 	var header := Kit.hbox(10)
 	column.add_child(header)
-	var gear := Kit.icon(Kit.ICONS["gear"], 24)
+	var gear := Kit.icon(Kit.ICONS["gear"], 24)  # droit ici : seul le bouton du rail est tourne
 	gear.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	header.add_child(gear)
-	_title = Kit.title("", 21, Palette.CREAM)
+	_title = Kit.title("", 21, Palette.INK)
 	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	header.add_child(_title)
@@ -115,7 +123,7 @@ func _build_panel() -> void:
 	var game := Kit.vbox(ROW_GAP)
 	for section in [audio, game]:
 		section.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		section.custom_minimum_size.x = (PANEL_W - 66.0) * 0.5
+		section.custom_minimum_size.x = (PANEL_W - 2.0 * PANEL_PAD.x - 18.0) * 0.5
 		sections.add_child(section)
 
 	audio.add_child(_head())
@@ -148,7 +156,7 @@ func _build_panel() -> void:
 	var crown := Kit.icon(Kit.CROWN, 16)
 	crown.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_solo_note.add_child(crown)
-	_solo_note_text = Kit.label("", 11, Palette.PARCHMENT)
+	_solo_note_text = Kit.label("", 11, Palette.BARK)
 	_solo_note_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_solo_note_text.custom_minimum_size.x = 276
 	_solo_note_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -159,15 +167,15 @@ func _build_panel() -> void:
 	_panel.size.x = PANEL_W
 
 
-## Un intertitre doré dans le bois.
+## Un intertitre de section : le mot a l'encre secondaire, puis un filet.
 func _head() -> HBoxContainer:
 	var row := Kit.hbox(Kit.PAD_TIGHT)
-	var label := Kit.label("", 12, Palette.GOLD, true)
+	var label := Kit.label("", 12, Palette.BARK)
 	label.uppercase = I18N.pixel_face()
 	row.add_child(label)
 	_heads.append(label)
 	var rule := ColorRect.new()
-	rule.color = Color(Palette.GOLD, 0.2)
+	rule.color = Color(Palette.BARK, 0.35)
 	rule.custom_minimum_size = Vector2(0.0, 2.0)
 	rule.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	rule.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -177,7 +185,7 @@ func _head() -> HBoxContainer:
 	return row
 
 
-## UN CARTOUCHE : le creux brun du comptoir, son icone, son
+## UN CARTOUCHE : le creux brun des boutons de langue, son icone, son
 ## libelle creme, son controle a droite. Un interrupteur se bascule de toute
 ## la rangee.
 func _card(icon_key: String, control: Control, tex: Texture2D = null) -> PanelContainer:
@@ -222,10 +230,10 @@ func _card(icon_key: String, control: Control, tex: Texture2D = null) -> PanelCo
 
 func _card_style(hot: bool) -> StyleBoxFlat:
 	var s := StyleBoxFlat.new()
-	s.bg_color = Color("#352015")
+	s.bg_color = Palette.WELL_FACE
 	s.set_border_width_all(2)
-	s.border_color = Palette.GOLD if hot else Color("#79502b")
-	s.set_corner_radius_all(2)
+	s.border_color = Palette.TAB_ON_BOTTOM if hot else Palette.INK
+	s.set_corner_radius_all(6)
 	s.anti_aliasing = false
 	s.shadow_color = Color(Palette.INK, 0.45)
 	s.shadow_offset = Vector2(0, 3)
@@ -325,6 +333,8 @@ func _reflect() -> void:
 
 
 func set_open(on: bool) -> void:
+	if on != _open:
+		sound_button.spin_glyph(1.0 if on else -1.0)  # un tour, dans un sens puis dans l'autre
 	_open = on
 	_panel.visible = on
 	_reflect()
@@ -370,7 +380,7 @@ func _place() -> void:
 
 
 func _panel_height() -> float:
-	return maxf(280, _inset.get_combined_minimum_size().y)
+	return _inset.get_combined_minimum_size().y
 
 
 ## Un tap hors du panneau et de ses boutons le ferme ; Echap aussi.

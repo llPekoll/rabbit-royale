@@ -62,6 +62,8 @@ var _square := Kit.ICON_MIN
 var _glyph_h := GLYPH_MIN
 var _held := false
 var _sunk := false
+var _turn := 0.0
+var _spin: Tween
 
 
 static func make(stable_key: String, glyph: Texture2D = null) -> HubIconButton:
@@ -163,6 +165,25 @@ func set_glyph(tex: Texture2D) -> void:
 	_place()
 
 
+## Tourne le glyphe autour de son centre, en degres : son angle de repos.
+func set_glyph_turn(deg: float) -> void:
+	_turn = deg_to_rad(deg)
+	_glyph.rotation = _turn
+
+
+## UN TOUR COMPLET, qui retombe sur l'angle de repos : meme image a l'arrivee,
+## donc pas de coupure. Un cran de 45 degres finissait sur un dessin eclaire
+## d'ailleurs et sautait au repos (« ca fait une coupure »). Repart de l'angle
+## en cours si on reclique pendant le tour. Signe = sens.
+func spin_glyph(turns: float = 1.0) -> void:
+	if _spin != null and _spin.is_valid():
+		_spin.kill()
+	var target := _turn + snappedf(_glyph.rotation - _turn + turns * TAU, TAU)
+	_spin = create_tween()
+	_spin.tween_property(_glyph, "rotation", target, 0.45).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_spin.tween_callback(func() -> void: _glyph.rotation = _turn)
+
+
 ## Le glyphe est une fleche : vers le bas pour ouvrir, vers le haut pour
 ## replier — elle pointe la ou le panneau va.
 func set_caret(down: bool) -> void:
@@ -207,6 +228,7 @@ func _place() -> void:
 		var t := _glyph.texture
 		_glyph.size.x = _glyph_h * float(t.get_width()) / maxf(1.0, float(t.get_height()))
 	_glyph.position = ((sq - _glyph.size) * 0.5).round()
+	_glyph.pivot_offset = _glyph.size * 0.5
 	var caret_h := clampf(_glyph_h * 0.5, 8.0, 16.0)
 	_caret.size = Vector2(caret_h * 2.0, caret_h)
 	_caret.position = ((sq - _caret.size) * 0.5).round()
