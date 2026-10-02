@@ -424,6 +424,31 @@ export const en = {
     strike: 'Zap back',
   },
 
+  /* ── Snack Time: the daily gift, seven days, a pack on the seventh ────── */
+  snack: {
+    title: 'Snack Time',
+    dayOf: (day: number) => `Day ${day}/7`,
+    day: (day: number) => `Day ${day}`,
+    ready: 'Your snack is ready!',
+    take: 'Take it',
+    nextIn: (wait: string) => `Next snack in ${wait}`,
+    tomorrow: (n: number) => `Tomorrow: ${n} carrots`,
+    tomorrowPack: 'Tomorrow: Magic Hat or Lucky Foot!',
+    toPack: (n: number) => (n === 1 ? '1 more snack to day 7' : `${n} more snacks to day 7`),
+    rule: 'Come back every day. A missed day never resets your week.',
+    pick: 'Day 7: pick one!',
+    choose: 'Choose',
+    hat: 'Magic Hat',
+    hatWhat: 'To attack',
+    foot: 'Lucky Foot',
+    footWhat: 'To defend',
+    got: (n: number) => `+${n} carrots!`,
+    gotPack: (name: string) => `${name} is yours!`,
+    weekDone: 'Week done! A new one starts tomorrow.',
+    notReady: 'Already taken today. Come back tomorrow!',
+    pack: 'PACK',
+  },
+
   /* ── The season pass: one month, a daily chest, a seat at the pot ─────── */
   pass: {
     title: 'Crown Race Ticket',

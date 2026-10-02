@@ -16,6 +16,7 @@
  * three more every time the player goes out would make the four-fence ceiling
  * meaningless within a night. "3 when you start the game" is read as the
  * account starting, which is the only reading under which the number stays 3.
+ * The three bolts (2026-10-02) follow the same reading.
  */
 import { db } from '../db';
 import { inventory } from '../db/schema';
@@ -31,12 +32,15 @@ export async function grantStartingKit(
   playerId: string,
   tx: typeof db | PgTransaction<never, never, never> = db,
 ): Promise<void> {
-  const { FENCES } = await import('../../../config/tuning');
+  const { FENCES, LIGHTNING } = await import('../../../config/tuning');
   await (tx as typeof db)
     .insert(inventory)
-    .values({ playerId, kind: 'fence', qty: FENCES.STARTING })
-    // Do NOTHING on conflict, never a set: a player who already has fences has
-    // played, and re-running this must not top them back up to the starting
-    // three — nor overwrite a bag they have spent down.
+    .values([
+      { playerId, kind: 'fence', qty: FENCES.STARTING },
+      { playerId, kind: 'lightning', qty: LIGHTNING.STARTING },
+    ])
+    // Do NOTHING on conflict, never a set: a player who already has fences or
+    // bolts has played, and re-running this must not top them back up to the
+    // starting three — nor overwrite a bag they have spent down.
     .onConflictDoNothing();
 }

@@ -1208,6 +1208,13 @@ export const LIGHTNING = {
    * electrocuted pose reads as a flicker under a second.
    */
   SHOCK_STUN_MS: 2000,
+  /**
+   * Bolts a new burrow starts with, beside the three planks (FENCES.STARTING).
+   * Paul, 2026-10-02: "qd tu commence le jeu tu as 3 éclairs". Granted at
+   * account creation (`lib/auth/starting-kit`), and once to every account
+   * that existed before (migration 0026).
+   */
+  STARTING: 3,
 } as const;
 
 /**
@@ -1759,6 +1766,49 @@ export const QUESTS = {
     'open-a-chest': { kind: 'shield', qty: 1 },
     'knock-on-a-door': { kind: 'trap', qty: 1 },
   },
+} as const;
+
+/**
+ * SNACK TIME — the daily gift (2026-10-02).
+ *
+ * Seven snacks, one per day on the PHONE'S calendar (Paul chose midnight over
+ * a rolling 20 h: "à minuit, heure du téléphone"). Days one to six are
+ * carrots, climbing; the seventh is a pack, and the player picks which —
+ * Magic Hat to attack, Lucky Foot to defend. Then the week starts over.
+ *
+ * MOSTLY CARROTS on purpose (Paul: "donner des carottes pour diluer les
+ * consommables"): carrots go back into the shop, so a week of snacks is a
+ * week of shopping rather than a free bag that empties the shelf. A whole
+ * week is 1 400 carrots and ~600 carrots of items — about three runs.
+ *
+ * A MISSED DAY DOES NOT RESET. The streak only moves forward when a snack is
+ * taken; skipping a day just means the seventh comes a day later. A reset
+ * would be the stronger hook and the meaner one, and the player who misses
+ * the J6 and loses the hat does not come back the next day — they leave.
+ *
+ * The carrots feed the three counters like a quest does (a snack is a carrot
+ * event, not a coupon), and the items arrive as a gift: they stop at the
+ * bag's ceiling (`grantItem` without a receipt).
+ */
+export const SNACK = {
+  /** Carrots for days one to six. */
+  CARROTS: [100, 150, 200, 250, 300, 400],
+  /** The seventh day: the player picks ONE. Both are worth ~600 carrots on
+   *  the shelf, smaller than the shop's packs so those keep their point. */
+  PACKS: {
+    magic_hat: [{ kind: 'lightning', qty: 1 }, { kind: 'bloop', qty: 1 }],
+    lucky_foot: [{ kind: 'trap', qty: 2 }, { kind: 'fence', qty: 1 }],
+  },
+  /**
+   * The least time between two snacks, whatever the calendar says.
+   *
+   * The calendar is the phone's, and the phone says what time zone it is in:
+   * without a floor, a player could flip the offset sent with each claim and
+   * put a midnight between any two taps. Six hours caps that at four a day
+   * and costs an honest player almost nothing — the one who snacks at 23:00
+   * gets the next one at 05:00 rather than at 00:00.
+   */
+  MIN_GAP_MS: 6 * 60 * 60 * 1000,
 } as const;
 
 /**

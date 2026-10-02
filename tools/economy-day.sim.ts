@@ -107,6 +107,15 @@ test('a day', () => {
     check(ra >= 0.1 && ra <= 0.5, `raids are ${f(100 * ra)} % of income (10-50)`);
     check(reg.perRun >= reg.haul * 0.4 && reg.perRun <= reg.haul * 2.5, `a run (${f(reg.perRun)}) against a raid (${f(reg.haul)}) and a garden visit (${f(gardenHour(1) * T.GARDEN.CAP_HOURS)}): similar weight`);
     check(T.SHOP.PRICES.shield / reg.total <= 4, `a shield is ${f(T.SHOP.PRICES.shield / reg.total, 1)} days of income (4 at most)`);
+    // SNACK TIME: a week of snacks, carrots plus the seventh day's pack at
+    // shelf price, spread over seven days. A reason to come back, never the
+    // income: under a quarter of what even a CASUAL earns on Meadow.
+    const packValue = (pack: readonly { kind: string; qty: number }[]) =>
+      pack.reduce((n, it) => n + it.qty * (T.SHOP.PRICES as Record<string, number>)[it.kind], 0);
+    const snackWeek = T.SNACK.CARROTS.reduce((a, b) => a + b, 0)
+      + Math.max(...Object.values(T.SNACK.PACKS).map(packValue));
+    const casual = day('Meadow', 'casual').total;
+    check(snackWeek / 7 <= casual * 0.25, `a snack is ${f(snackWeek / 7)} a day, ${f(100 * snackWeek / 7 / casual)} % of a casual's day (25 at most)`);
     // ONE TANK: a refill is a full tank, and a run ends at zero (no robot ever
     // finishes with fuel left — the table at the top of tuning.ts), so a run
     // spends the whole tank whatever the X gives back along the way.

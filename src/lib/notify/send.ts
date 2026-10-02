@@ -30,6 +30,9 @@ const TTL_SECONDS: Record<PushKind, number> = {
   garden_ready: 12 * 3600,
   comeback_1: 24 * 3600,
   comeback_2: 24 * 3600,
+  // Good until the phone's next midnight at most, when a newer one is due.
+  snack_ready: 12 * 3600,
+  snack_pack: 12 * 3600,
 };
 
 /**

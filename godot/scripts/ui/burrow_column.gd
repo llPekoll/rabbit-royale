@@ -112,9 +112,10 @@ func _ready() -> void:
 	_stack.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_scroll.add_child(_stack)
 
-	# LE GOLDEN CARROT PASS juste sous la quete : la ou l'oeil va deja
-	# (pass_banner.gd). Un script, pas une scene : il se construit seul.
-	var scenes := [QUEST_CARD, PassBanner] if quest_only else [QUEST_CARD, PassBanner, NEXT_STRIP, GARDEN_CARD, BURROW_PANEL]
+	# SNACK TIME puis le CROWN RACE TICKET juste sous la quete : la ou l'oeil
+	# va deja (snack_banner.gd, pass_banner.gd). Des scripts, pas des
+	# scenes : ils se construisent seuls.
+	var scenes := [QUEST_CARD, SnackBanner, PassBanner] if quest_only else [QUEST_CARD, SnackBanner, PassBanner, NEXT_STRIP, GARDEN_CARD, BURROW_PANEL]
 	for scene in scenes:
 		var card: Control = scene.instantiate() if scene is PackedScene else scene.new()
 		var slot := Control.new()

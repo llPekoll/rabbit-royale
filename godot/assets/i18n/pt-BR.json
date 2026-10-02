@@ -495,6 +495,51 @@
 		},
 		"strike": "Revidar"
 	},
+	"snack": {
+		"title": "Snack Time",
+		"dayOf": {
+			"$t": "Dia {0}/7"
+		},
+		"day": {
+			"$t": "Dia {0}"
+		},
+		"ready": "Seu lanche está pronto!",
+		"take": "Pegar",
+		"nextIn": {
+			"$t": "Próximo lanche em {0}"
+		},
+		"tomorrow": {
+			"$t": "Amanhã: {0} cenouras"
+		},
+		"tomorrowPack": "Amanhã: Magic Hat ou Lucky Foot!",
+		"toPack": {
+			"$t": "Faltam {0} lanches para o dia 7",
+			"$v": [
+				{
+					"when": {
+						"0": 1.0
+					},
+					"t": "Falta 1 lanche para o dia 7"
+				}
+			]
+		},
+		"rule": "Volte todo dia. Um dia perdido nunca zera sua semana.",
+		"pick": "Dia 7: escolha um!",
+		"choose": "Escolher",
+		"hat": "Magic Hat",
+		"hatWhat": "Para atacar",
+		"foot": "Lucky Foot",
+		"footWhat": "Para defender",
+		"got": {
+			"$t": "+{0} cenouras!"
+		},
+		"gotPack": {
+			"$t": "{0} é seu!"
+		},
+		"weekDone": "Semana completa! Uma nova começa amanhã.",
+		"notReady": "Já pegou hoje. Volte amanhã!",
+		"pack": "PACOTE"
+	},
 	"pass": {
 		"title": "Crown Race Ticket",
 		"show": "Crown Race Ticket",

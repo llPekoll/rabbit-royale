@@ -443,6 +443,43 @@
   },
   "strike": "Giật trả"
  },
+ "snack": {
+  "title": "Snack Time",
+  "dayOf": {
+   "$t": "Ngày {0}/7"
+  },
+  "day": {
+   "$t": "Ngày {0}"
+  },
+  "ready": "Món ăn vặt đã sẵn sàng!",
+  "take": "Nhận",
+  "nextIn": {
+   "$t": "Món tiếp theo sau {0}"
+  },
+  "tomorrow": {
+   "$t": "Ngày mai: {0} cà rốt"
+  },
+  "tomorrowPack": "Ngày mai: Magic Hat hoặc Lucky Foot!",
+  "toPack": {
+   "$t": "Còn {0} món nữa là tới ngày 7"
+  },
+  "rule": "Quay lại mỗi ngày. Lỡ một ngày cũng không mất chuỗi của bạn.",
+  "pick": "Ngày 7: chọn một!",
+  "choose": "Chọn",
+  "hat": "Magic Hat",
+  "hatWhat": "Để tấn công",
+  "foot": "Lucky Foot",
+  "footWhat": "Để phòng thủ",
+  "got": {
+   "$t": "+{0} cà rốt!"
+  },
+  "gotPack": {
+   "$t": "{0} là của bạn!"
+  },
+  "weekDone": "Xong một tuần! Tuần mới bắt đầu từ mai.",
+  "notReady": "Hôm nay đã nhận rồi. Mai quay lại nhé!",
+  "pack": "GÓI"
+ },
  "pass": {
   "title": "Crown Race Ticket",
   "show": "Crown Race Ticket",

@@ -483,6 +483,51 @@
 		},
 		"strike": "Zap back"
 	},
+	"snack": {
+		"title": "Snack Time",
+		"dayOf": {
+			"$t": "Day {0}/7"
+		},
+		"day": {
+			"$t": "Day {0}"
+		},
+		"ready": "Your snack is ready!",
+		"take": "Take it",
+		"nextIn": {
+			"$t": "Next snack in {0}"
+		},
+		"tomorrow": {
+			"$t": "Tomorrow: {0} carrots"
+		},
+		"tomorrowPack": "Tomorrow: Magic Hat or Lucky Foot!",
+		"toPack": {
+			"$t": "{0} more snacks to day 7",
+			"$v": [
+				{
+					"when": {
+						"0": 1.0
+					},
+					"t": "1 more snack to day 7"
+				}
+			]
+		},
+		"rule": "Come back every day. A missed day never resets your week.",
+		"pick": "Day 7: pick one!",
+		"choose": "Choose",
+		"hat": "Magic Hat",
+		"hatWhat": "To attack",
+		"foot": "Lucky Foot",
+		"footWhat": "To defend",
+		"got": {
+			"$t": "+{0} carrots!"
+		},
+		"gotPack": {
+			"$t": "{0} is yours!"
+		},
+		"weekDone": "Week done! A new one starts tomorrow.",
+		"notReady": "Already taken today. Come back tomorrow!",
+		"pack": "PACK"
+	},
 	"pass": {
 		"title": "Crown Race Ticket",
 		"show": "Crown Race Ticket",

@@ -18,7 +18,7 @@
  */
 import { and, asc, eq, gt, inArray, sql as raw } from 'drizzle-orm';
 import { db } from '../db';
-import { players, pushState, pushTokens } from '../db/schema';
+import { players, pushState, pushTokens, snackStreak } from '../db/schema';
 import { gardenYield } from '../game/regen';
 import { pushEnabled } from './fcm';
 import { decideSweepPush, type SweepState } from './schedule';
@@ -61,7 +61,7 @@ async function sweepPage(ids: string[], isOnline: IsOnline, now: number): Promis
   // to compare against and the claim always has one to win.
   await db.insert(pushState).values(ids.map((playerId) => ({ playerId }))).onConflictDoNothing();
 
-  const [rows, states, tokens] = await Promise.all([
+  const [rows, states, tokens, snacks] = await Promise.all([
     db.select({
       id: players.id,
       energy: players.energy,
@@ -74,9 +74,11 @@ async function sweepPage(ids: string[], isOnline: IsOnline, now: number): Promis
     }).from(players).where(inArray(players.id, ids)),
     db.select().from(pushState).where(inArray(pushState.playerId, ids)),
     db.select().from(pushTokens).where(inArray(pushTokens.playerId, ids)),
+    db.select().from(snackStreak).where(inArray(snackStreak.playerId, ids)),
   ]);
 
   const stateOf = new Map(states.map((s) => [s.playerId, s]));
+  const snackOf = new Map(snacks.map((s) => [s.playerId, s]));
   const tokensOf = new Map<string, TokenRow[]>();
   for (const t of tokens) {
     const list = tokensOf.get(t.playerId) ?? [];
@@ -96,6 +98,7 @@ async function sweepPage(ids: string[], isOnline: IsOnline, now: number): Promis
       now,
       online: isOnline(player.id),
       player,
+      snack: snackOf.get(player.id) ?? null,
       state: state as SweepState,
       tzOffsetMin: newest.tzOffsetMin,
     });
@@ -115,7 +118,9 @@ async function sweepPage(ids: string[], isOnline: IsOnline, now: number): Promis
       if (!won || !decision.kind) continue;
       // The count is what makes the push worth opening: « 120 🥕 » and not
       // « potager plein ». The reminders that talk about the garden carry it too.
-      const n = gardenYield(player, now);
+      // A snack carries its day instead: « jour 4/7 ».
+      const snack = decision.kind === 'snack_ready' || decision.kind === 'snack_pack';
+      const n = snack ? (snackOf.get(player.id)?.step ?? 0) + 1 : gardenYield(player, now);
       sent += (await sendToTokens(devices, decision.kind, { n })) > 0 ? 1 : 0;
     } catch (e) {
       console.warn('[push] sweep failed for', player.id, e instanceof Error ? e.message : e);

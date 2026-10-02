@@ -149,6 +149,9 @@ func _only(which: String) -> void:
 			ShopState.shared().shop["rates"] = {"sol": 142.5, "skr": 0.031, "usdc": 1.0}
 			PassState.shared().fake(_fake_pass(which))
 			d = PassDialog.new()
+		"snack", "snack-taken", "snack-pack":
+			SnackState.shared().fake(_fake_snack(which))
+			d = SnackDialog.new()
 		_:
 			d = LanguageSelect.new()
 	add_child(d)
@@ -161,6 +164,24 @@ func _only(which: String) -> void:
 	if "--dbg" in OS.get_cmdline_user_args():
 		_dump(d, 0)
 	get_viewport().size_changed.connect(_place.bind(d))
+
+
+## SNACK TIME : jour 3 qui attend, jour 4 pris (prochain dans 9 h), ou le
+## septieme a choisir.
+func _fake_snack(which: String) -> Dictionary:
+	var week := []
+	for i in 6:
+		week.append({"day": i + 1, "carrots": [100, 150, 200, 250, 300, 400][i], "packs": null})
+	week.append({"day": 7, "carrots": 0, "packs": {
+		"magic_hat": [{"kind": "lightning", "qty": 1}, {"kind": "bloop", "qty": 1}],
+		"lucky_foot": [{"kind": "trap", "qty": 2}, {"kind": "fence", "qty": 1}]}})
+	var later := Time.get_datetime_string_from_unix_time(int(Time.get_unix_time_from_system()) + 9 * 3600) + ".000Z"
+	match which:
+		"snack-taken":
+			return {"day": 5, "ready": false, "readyAt": later, "taken": 4, "weeks": 0, "week": week}
+		"snack-pack":
+			return {"day": 7, "ready": true, "readyAt": null, "taken": 6, "weeks": 0, "week": week}
+	return {"day": 3, "ready": true, "readyAt": null, "taken": 2, "weeks": 0, "week": week}
 
 
 ## Chrome._center_dialog, recopie : le banc n'a pas de chrome.

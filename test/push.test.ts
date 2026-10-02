@@ -134,7 +134,7 @@ describe('idle stages', () => {
 describe('decideSweepPush', () => {
   const blank: SweepState = {
     energyFor: null, gardenFor: null, idleFor: null, idleStage: 0, onlineAt: null,
-    lastPushAt: null, windowStart: null, windowCount: 0,
+    lastPushAt: null, windowStart: null, windowCount: 0, snackFor: null,
   };
   /** A player last seen `awayH` hours before `now`, garden and tank stamped then. */
   function input(now: number, awayH: number, over: Partial<SweepInput> = {}): SweepInput {
@@ -148,6 +148,7 @@ describe('decideSweepPush', () => {
         gardenCollectedAt: seen, fertilisedUntil: null, lastSeenAt: seen,
       },
       state: blank,
+      snack: null,
       ...over,
     };
   }
@@ -260,7 +261,7 @@ describe('decideSweepPush', () => {
       gardenCollectedAt: new Date(left), fertilisedUntil: null, lastSeenAt: new Date(left),
     };
     const at = (localH: number, localM = 0) => Date.UTC(2026, 8, 30, localH - 7, localM, 0);
-    const ask = (now: number, state = blank) => decideSweepPush({ now, online: false, tzOffsetMin: tz, player, state });
+    const ask = (now: number, state = blank) => decideSweepPush({ now, snack: null, online: false, tzOffsetMin: tz, player, state });
 
     it('is told in the evening, once they have been gone AWAY_MIN_MS', () => {
       expect(energyFullAt(player)!.getTime()).toBeGreaterThan(at(22));
@@ -275,12 +276,12 @@ describe('decideSweepPush', () => {
 
     it('waits for the evening', () => {
       const early = { ...player, lastSeenAt: new Date(at(17)), energyUpdatedAt: new Date(at(17)), energy: 0 };
-      expect(decideSweepPush({ now: at(19, 55), online: false, tzOffsetMin: tz, player: early, state: blank }).kind).toBeNull();
+      expect(decideSweepPush({ snack: null, now: at(19, 55), online: false, tzOffsetMin: tz, player: early, state: blank }).kind).toBeNull();
     });
 
     it('leaves a tank that fills before the quiet to energy_full', () => {
       const nearly = { ...player, energy: 290 }; // full ~20:35
-      const d = decideSweepPush({ now: at(21, 20), online: false, tzOffsetMin: tz, player: nearly, state: blank });
+      const d = decideSweepPush({ snack: null, now: at(21, 20), online: false, tzOffsetMin: tz, player: nearly, state: blank });
       expect(d.kind).toBe('energy_full');
     });
   });

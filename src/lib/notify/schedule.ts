@@ -19,6 +19,9 @@
  *     hours of regen already lost — one or the other per refill, never both;
  *   - a comeback reminder at 24 h away, a second at 72 h, then silence until
  *     they return — a player gone a week gets one, not two in a row;
+ *   - Snack Time once per snack, when the phone's day has turned since the
+ *     last one and they have not been back since (`snack_pack` on the
+ *     seventh) — it stands in for the 24 h reminder when both are due;
  *   - none of those between 22:00 and 09:00 on the device's clock (they wait
  *     for the first sweep after nine), none within PUSH.MIN_GAP_MS of the
  *     previous one, and at most PUSH.DAILY_CAP in a day.
@@ -27,6 +30,7 @@
  * and outside the daily cap (`raid.ts`).
  */
 import { GARDEN_BOOST } from '../../../config/tuning';
+import { SNACK_DAYS, snackReadyAt, type SnackRow } from '../game/snack';
 import { GARDEN, OUT_OF_RUN_ENERGY, regenPerHour } from '../tuning/tables';
 
 const MINUTE = 60_000;
@@ -198,7 +202,9 @@ export function idleStageFor(awayMs: number): 0 | 1 | 2 {
 
 // ── The decision ─────────────────────────────────────────────────────────────
 
-export type SweepKind = 'garden_ready' | 'energy_full' | 'energy_overnight' | 'comeback_1' | 'comeback_2';
+export type SweepKind =
+  | 'garden_ready' | 'energy_full' | 'energy_overnight' | 'comeback_1' | 'comeback_2'
+  | 'snack_ready' | 'snack_pack';
 
 /** What the sweep remembers per player — `push_state`, minus the raid column. */
 export interface SweepState extends CapWindow {
@@ -208,6 +214,8 @@ export interface SweepState extends CapWindow {
   idleStage: number;
   onlineAt: Date | null;
   lastPushAt: Date | null;
+  /** The snack whose successor was announced — see `snackStamp`. */
+  snackFor: Date | null;
 }
 
 export interface SweepInput {
@@ -215,6 +223,8 @@ export interface SweepInput {
   /** Has a live socket right now. */
   online: boolean;
   player: TankClock & GardenClock & { lastSeenAt: Date };
+  /** The Snack Time streak, null for a player who never took a snack. */
+  snack: SnackRow | null;
   state: SweepState;
   /** The device clock that decides quiet hours (the newest token's). */
   tzOffsetMin: number;
@@ -228,6 +238,11 @@ export interface SweepDecision {
   patch: Partial<SweepState>;
 }
 
+/** The stamp a snack push is sent for: the last claim, or the epoch for none. */
+export function snackStamp(snack: SnackRow | null): Date {
+  return snack?.claimedAt ?? new Date(0);
+}
+
 /** The most recent sign of life: the row's last-seen, or a sweep that saw a socket. */
 export function lastSeen(player: { lastSeenAt: Date }, state: Pick<SweepState, 'onlineAt'>): number {
   return Math.max(player.lastSeenAt.getTime(), state.onlineAt?.getTime() ?? 0);
@@ -237,9 +252,10 @@ export function lastSeen(player: { lastSeenAt: Date }, state: Pick<SweepState, '
  * The one push a player is owed on this sweep, if any, and the bookkeeping.
  *
  * At most ONE per sweep, in order of what costs the player most to miss: a
- * full garden is carrots a raider can take, a full tank is only regen going to
- * waste, and a comeback reminder is the least urgent of all. The others are
- * still due next sweep — after the gap.
+ * full garden is carrots a raider can take, a snack is the day's reason to
+ * come back, a full tank is only regen going to waste, and a comeback
+ * reminder is the least urgent of all. The others are still due next sweep —
+ * after the gap.
  */
 export function decideSweepPush(input: SweepInput): SweepDecision {
   const { now, online, player, state } = input;
@@ -282,6 +298,19 @@ export function decideSweepPush(input: SweepInput): SweepDecision {
     const garden = gardenReadyAt(player).getTime();
     if (state.gardenFor?.getTime() !== player.gardenCollectedAt.getTime() && fresh(garden)) {
       return sent('garden_ready', { gardenFor: player.gardenCollectedAt });
+    }
+    // SNACK TIME: once per snack, when the phone's day turned while they were
+    // away. It says what the 24 h reminder would, better ("day 4/7" rather
+    // than "come back"), so it uses that reminder up when both are due.
+    const stamp = snackStamp(input.snack);
+    const snackAt = snackReadyAt(input.snack, input.tzOffsetMin);
+    if (state.snackFor?.getTime() !== stamp.getTime() && snackAt <= now && snackAt > seen) {
+      const owedIdle = idleStageFor(away);
+      const pack = (input.snack?.step ?? 0) >= SNACK_DAYS - 1;
+      return sent(pack ? 'snack_pack' : 'snack_ready', {
+        snackFor: stamp,
+        ...(owedIdle > idleStage ? { idleFor: new Date(seen), idleStage: owedIdle } : {}),
+      });
     }
     const full = energyFullAt(player)?.getTime();
     const unsaid = full !== undefined && state.energyFor?.getTime() !== player.energyUpdatedAt.getTime();

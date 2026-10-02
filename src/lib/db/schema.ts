@@ -435,6 +435,30 @@ export const pushState = pgTable('push_state', {
   windowCount: integer('window_count').notNull().default(0),
   /** The last RAID push, so a burrow hit by three raiders in a minute buzzes once. */
   raidPushAt: timestamp('raid_push_at', { withTimezone: true }),
+  /** The `snack_streak.claimedAt` whose NEXT snack was announced (epoch for a
+   *  player who never took one). Taking a snack moves the stamp and re-arms it. */
+  snackFor: timestamp('snack_for', { withTimezone: true }),
+});
+
+/**
+ * SNACK TIME, the daily gift (`lib/game/snack.ts`, SNACK in config/tuning).
+ *
+ * A table of its own, like `push_state` and for the same reason: the players
+ * row is the hottest one in the game, and a row only exists for who has taken
+ * a snack. No row reads as "day one, nothing taken yet".
+ *
+ * `step` is the snack to take NEXT (0 = day one … 6 = the pack), so a missed
+ * day leaves it where it was. `tzOffsetMin` is the phone's offset at the last
+ * claim (minutes east of UTC, as in `push_tokens`): it is what the sweep reads
+ * to know when "tomorrow" starts for this player.
+ */
+export const snackStreak = pgTable('snack_streak', {
+  playerId: text('player_id').primaryKey().references(() => players.id, { onDelete: 'cascade' }),
+  step: integer('step').notNull().default(0),
+  claimedAt: timestamp('claimed_at', { withTimezone: true }),
+  tzOffsetMin: integer('tz_offset_min').notNull().default(0),
+  /** Whole weeks finished — seven snacks each. */
+  weeks: integer('weeks').notNull().default(0),
 });
 
 /** Sabotage: a bomb or a lightning strike planted on someone else's live island. */

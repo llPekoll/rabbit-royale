@@ -45,7 +45,9 @@ export type PushKind =
   | 'energy_overnight'
   | 'garden_ready'
   | 'comeback_1'
-  | 'comeback_2';
+  | 'comeback_2'
+  | 'snack_ready'
+  | 'snack_pack';
 
 /** Where the client routes a tap (`data.path`). */
 export type PushPath = 'burrow' | 'defend' | 'island';
@@ -59,9 +61,12 @@ export const PUSH_PATH: Record<PushKind, PushPath> = {
   garden_ready: 'burrow',
   comeback_1: 'burrow',
   comeback_2: 'burrow',
+  snack_ready: 'burrow',
+  snack_pack: 'burrow',
 };
 
-/** `{name}` is the raider, `{n}` the carrots taken (raids) or waiting (garden). */
+/** `{name}` is the raider, `{n}` the carrots taken (raids) or waiting
+ *  (garden), or the day of the week's snack (1 … 7). */
 export interface PushVars {
   name?: string;
   n?: number;
@@ -79,6 +84,8 @@ const TEXT: Record<PushLocale, Record<PushKind, Line>> = {
     garden_ready: { title: '{n} 🥕 waiting for you', body: 'Your garden is full. Bring them in before a raider does.' },
     comeback_1: { title: '{n} 🥕 in your garden', body: 'Raiders have noticed. Come pick them up.' },
     comeback_2: { title: 'Your burrow misses you', body: 'Full tank, full garden, and a crown still up for grabs.' },
+    snack_ready: { title: 'Snack Time 🥕 day {n}/7', body: 'Your snack is ready. Come every day: on day 7 you pick Magic Hat or Lucky Foot.' },
+    snack_pack: { title: 'Day 7: pick your pack! 🎩🍀', body: 'Magic Hat or Lucky Foot. Your week of snacks pays off.' },
   },
   fr: {
     raid_incoming: { title: '{name} pille ton terrier !', body: 'En ce moment. Rentre défendre.' },
@@ -89,6 +96,8 @@ const TEXT: Record<PushLocale, Record<PushKind, Line>> = {
     garden_ready: { title: '{n} 🥕 t’attendent', body: 'Ton potager est plein. Viens les ramasser avant un pillard.' },
     comeback_1: { title: '{n} 🥕 dans ton potager', body: 'Les pillards l’ont remarqué. Viens les chercher.' },
     comeback_2: { title: 'Ton terrier t’attend', body: 'Énergie pleine, potager plein, et la couronne est toujours à prendre.' },
+    snack_ready: { title: 'Snack Time 🥕 jour {n}/7', body: 'Ton snack est prêt. Viens chaque jour : au 7e, tu choisis Magic Hat ou Lucky Foot.' },
+    snack_pack: { title: 'Jour 7 : choisis ton pack ! 🎩🍀', body: 'Magic Hat ou Lucky Foot. Ta semaine de snacks paie.' },
   },
   'pt-BR': {
     raid_incoming: { title: '{name} está saqueando sua toca!', body: 'Agora mesmo. Volte e defenda.' },
@@ -99,6 +108,8 @@ const TEXT: Record<PushLocale, Record<PushKind, Line>> = {
     garden_ready: { title: '{n} 🥕 esperando você', body: 'Sua horta está cheia. Colha antes que um saqueador colha.' },
     comeback_1: { title: '{n} 🥕 na sua horta', body: 'Os saqueadores perceberam. Venha buscar.' },
     comeback_2: { title: 'Sua toca sente sua falta', body: 'Energia cheia, horta cheia, e a coroa ainda está em jogo.' },
+    snack_ready: { title: 'Snack Time 🥕 dia {n}/7', body: 'Seu lanche está pronto. Venha todo dia: no 7º você escolhe Magic Hat ou Lucky Foot.' },
+    snack_pack: { title: 'Dia 7: escolha seu pacote! 🎩🍀', body: 'Magic Hat ou Lucky Foot. Sua semana de lanches valeu a pena.' },
   },
   vi: {
     raid_incoming: { title: '{name} đang cướp hang bạn!', body: 'Ngay lúc này. Về phòng thủ đi.' },
@@ -109,6 +120,8 @@ const TEXT: Record<PushLocale, Record<PushKind, Line>> = {
     garden_ready: { title: '{n} 🥕 đang chờ bạn', body: 'Vườn đầy rồi. Thu hoạch trước khi kẻ cướp tới.' },
     comeback_1: { title: '{n} 🥕 trong vườn của bạn', body: 'Kẻ cướp đã để ý. Về lấy đi.' },
     comeback_2: { title: 'Hang đang chờ bạn', body: 'Đầy năng lượng, đầy vườn, và vương miện vẫn còn đó.' },
+    snack_ready: { title: 'Snack Time 🥕 ngày {n}/7', body: 'Bữa ăn vặt đã sẵn sàng. Ghé mỗi ngày: ngày 7 bạn chọn Magic Hat hoặc Lucky Foot.' },
+    snack_pack: { title: 'Ngày 7: chọn gói của bạn! 🎩🍀', body: 'Magic Hat hoặc Lucky Foot. Một tuần ăn vặt đã được đền đáp.' },
   },
   zh: {
     raid_incoming: { title: '{name} 正在掠夺你的兔窝！', body: '就是现在。快回去防守。' },
@@ -119,6 +132,8 @@ const TEXT: Record<PushLocale, Record<PushKind, Line>> = {
     garden_ready: { title: '{n} 🥕 在等你', body: '菜园满了。趁掠夺者动手前收进来。' },
     comeback_1: { title: '菜园里有 {n} 🥕', body: '掠夺者已经盯上了。快回来收。' },
     comeback_2: { title: '你的兔窝在等你', body: '体力满了，菜园满了，王冠还没人拿走。' },
+    snack_ready: { title: 'Snack Time 🥕 第 {n}/7 天', body: '今天的点心好了。每天都来：第 7 天可以选 Magic Hat 或 Lucky Foot。' },
+    snack_pack: { title: '第 7 天：选你的补给包！🎩🍀', body: 'Magic Hat 或 Lucky Foot。一周的点心没白吃。' },
   },
 };
 

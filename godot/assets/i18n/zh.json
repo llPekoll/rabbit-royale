@@ -443,6 +443,43 @@
 		},
 		"strike": "电击回去"
 	},
+	"snack": {
+		"title": "Snack Time",
+		"dayOf": {
+			"$t": "第 {0}/7 天"
+		},
+		"day": {
+			"$t": "第 {0} 天"
+		},
+		"ready": "点心好了！",
+		"take": "领取",
+		"nextIn": {
+			"$t": "{0} 后有下一份点心"
+		},
+		"tomorrow": {
+			"$t": "明天：{0} 根胡萝卜"
+		},
+		"tomorrowPack": "明天：Magic Hat 或 Lucky Foot！",
+		"toPack": {
+			"$t": "再领 {0} 次就到第 7 天"
+		},
+		"rule": "每天都来。错过一天也不会从头开始。",
+		"pick": "第 7 天：选一个！",
+		"choose": "选择",
+		"hat": "Magic Hat",
+		"hatWhat": "用来进攻",
+		"foot": "Lucky Foot",
+		"footWhat": "用来防守",
+		"got": {
+			"$t": "+{0} 根胡萝卜！"
+		},
+		"gotPack": {
+			"$t": "{0} 归你了！"
+		},
+		"weekDone": "一周完成！明天开始新的一周。",
+		"notReady": "今天已经领过了。明天再来！",
+		"pack": "补给包"
+	},
 	"pass": {
 		"title": "Crown Race Ticket",
 		"show": "Crown Race Ticket",
