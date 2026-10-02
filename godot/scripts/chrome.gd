@@ -391,6 +391,11 @@ func _on_door(door: String) -> void:
 				Analytics.track("raid_locked", {"level": int(Home.player.get("level", 0))})
 				toast(I18N.f("rabbitLevel.raidLocked", [Tuning.i("RABBIT_LEVELS.RAID_MIN", 3)]), true)
 				return
+			# SOLO : hors du PvP dans les deux sens (le serveur refuse aussi).
+			if PlaySettings.solo_on():
+				Analytics.track("raid_locked", {"solo": true})
+				toast(I18N.t("sound.soloRaids"), true)
+				return
 			TargetList.open()
 		"shop":
 			Shop.open()

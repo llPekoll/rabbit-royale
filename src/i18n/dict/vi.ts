@@ -128,6 +128,9 @@ export const vi: Dict = {
     smooth: 'MƯỢT',
     solo: 'Chơi đơn',
     soloTicket: 'Không dùng với Crown Race Ticket',
+    soloRaids: 'Chơi đơn: không đột kích, cả hai chiều',
+    soloNext: 'Chơi đơn từ hòn đảo tiếp theo',
+    soloBusy: 'Hãy xong cuộc đột kích trước',
     on: 'BẬT',
     off: 'TẮT',
     settings: 'Cài đặt',
@@ -710,6 +713,8 @@ export const vi: Dict = {
   raidErrors: {
     fallback: 'Không được rồi.',
     target_shielded: 'Hang của họ có khiên. Thử người khác.',
+    target_solo: 'Người này đang chơi đơn.',
+    solo_mode: 'Bạn đang chơi đơn. Tắt trong cài đặt để đột kích.',
     cannot_raid_yourself: 'Đó là hang của chính bạn.',
     raid_in_progress: 'Bạn đang ở trong một hang rồi.',
     cooldown: 'Bạn vừa cướp họ gần đây quá.',

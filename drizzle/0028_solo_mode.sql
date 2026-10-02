@@ -1,0 +1,1 @@
+ALTER TABLE "players" ADD COLUMN "solo" boolean DEFAULT false NOT NULL;

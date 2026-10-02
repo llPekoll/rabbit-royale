@@ -90,6 +90,14 @@ export const players = pgTable('players', {
    *  it is earned by clearing an island, never bought, and it deals the next
    *  island — its difficulty and how many share it. Raids open at RAID_MIN. */
   level: integer('level').notNull().default(1),
+  /**
+   * SOLO (2026-10-02): the player stepped out of PvP. Their island is their
+   * level's, seated alone; their burrow is on nobody's raid list and they
+   * raid nobody; nobody watches their run. Set by the player (PATCH
+   * /api/player), refused to a Crown Race ticket holder — the race is run
+   * against the others. Turned off, everything comes back at once.
+   */
+  solo: boolean('solo').notNull().default(false),
 
   /** Energy regen is derived from its timestamp at read time — no per-player
    *  cron, which is what lets this scale to a lot of players (BUILD-PLAN 5). */

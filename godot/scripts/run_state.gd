@@ -444,11 +444,12 @@ func ink_left_ms() -> int:
 ## PEUT-ON SE BATTRE ICI ? Le serveur tranche (`mayFight`) ; le HUD n'offre
 ## l'eclair et le bloop a un joueur EN JEU que sur une ile partagee (sieges
 ## > 1) d'un niveau >= RAID_MIN, et jamais sur la premiere : seul sur son
-## ile, il n'y a personne a frapper.
+## ile, il n'y a personne a frapper. L'ile le dit elle-meme (`solo`, une
+## place) : une ile SOLO de niveau 6 n'a pas les quatre places de son niveau.
 func may_fight_here() -> bool:
 	var min_level := Tuning.i("RABBIT_LEVELS.RAID_MIN", 3)
 	var level := int(island.get("level", 0))
-	if first_run or level < min_level:
+	if first_run or level < min_level or bool(island.get("solo", false)):
 		return false
 	var ladder := Tuning.list("RABBIT_LEVELS.LADDER")
 	var row: Dictionary = ladder[clampi(level, 1, ladder.size()) - 1] if not ladder.is_empty() else {}

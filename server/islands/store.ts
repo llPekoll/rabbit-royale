@@ -79,6 +79,12 @@ export interface LiveIsland {
    */
   solo: boolean;
   /**
+   * Dealt for a player's SOLO option (2026-10-02), not merely one-seated:
+   * nobody may WATCH it either (`spectate`). The tutorial and levels 1-2 are
+   * one-seat too, and stay watchable.
+   */
+  isolated: boolean;
+  /**
    * The rabbit level it was dealt for (RABBIT_LEVELS), and how many it seats.
    * Since 2026-09-23 a player is seated by LEVEL, never across it: alone to
    * level 5, two from 6 to 9, four at 10. `level` is undefined on an island
@@ -123,6 +129,8 @@ const SOLO_EMPTY_MS = 60_000;
 
 export interface CreateOptions {
   solo?: boolean;
+  /** The player's SOLO option: one seat, and nobody watching. */
+  isolated?: boolean;
   /** Deal it for this rabbit level: its densities, its tier, its seats. */
   level?: number;
   /** Overrides the level's seats. */
@@ -150,7 +158,7 @@ export class MemoryIslandStore implements IslandStore {
 
   create(seed: string, lifetimeCarrots: number, opts: CreateOptions = {}): LiveIsland {
     const row = opts.level !== undefined ? levelRow(opts.level) : undefined;
-    const seats = opts.solo ? 1 : opts.seats ?? row?.seats ?? MULTIPLAYER.MAX_PLAYERS_PER_ISLAND;
+    const seats = opts.solo || opts.isolated ? 1 : opts.seats ?? row?.seats ?? MULTIPLAYER.MAX_PLAYERS_PER_ISLAND;
     // Two seeds, and the second one never leaves this process. `seed` is the
     // island id and travels in every snapshot so the client can cut the same
     // coastline; `contentSeed` decides where the bombs are and is generated
@@ -162,6 +170,7 @@ export class MemoryIslandStore implements IslandStore {
     const live: LiveIsland = {
       // A one-seat island IS solo: nobody else is ever sent to it.
       solo: seats <= 1,
+      isolated: opts.isolated === true,
       level: row?.level,
       seats,
       island,

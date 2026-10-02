@@ -115,6 +115,9 @@
 		"smooth": "流畅",
 		"solo": "单人",
 		"soloTicket": "持有 Crown Race Ticket 时不可用",
+		"soloRaids": "单人：不能偷袭，也不会被偷袭",
+		"soloNext": "下一座岛起单人",
+		"soloBusy": "先完成你的偷袭",
 		"on": "开",
 		"off": "关",
 		"settings": "设置",
@@ -1027,6 +1030,8 @@
 	"raidErrors": {
 		"fallback": "没成功。",
 		"target_shielded": "他们的兔窝有护盾。换一个人。",
+		"target_solo": "对方正在单人游戏。",
+		"solo_mode": "你在单人模式。在设置中关闭后才能偷袭。",
 		"cannot_raid_yourself": "那是你自己的兔窝。",
 		"raid_in_progress": "你已经在一个兔窝里了。",
 		"cooldown": "你刚刚才掠夺过他们。",

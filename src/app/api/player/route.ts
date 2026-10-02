@@ -1,22 +1,24 @@
 /**
- * PATCH /api/player — the two things a player owns about themselves.
+ * PATCH /api/player — the things a player owns about themselves.
  *
- * A name and a face. Everything else on the player row is earned by playing and
- * is the server's to decide, which is why this route accepts exactly two fields
- * and ignores the rest of the body.
+ * A name, a face, and SOLO (2026-10-02) — stepping out of PvP. Everything else
+ * on the player row is earned by playing and is the server's to decide, which
+ * is why this route accepts exactly these fields and ignores the rest of the
+ * body.
  *
  * The name is baked into the session token (see lib/auth/jwt), so a rename has
  * to REISSUE it — otherwise the WS handshake keeps introducing the player under
  * the old name until the token expires, up to thirty days later.
  */
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { players } from '@/lib/db/schema';
+import { players, raidRuns } from '@/lib/db/schema';
 import { getSession, signSession, SESSION_COOKIE } from '@/lib/auth/jwt';
 import { applyRegen } from '@/lib/game/regen';
 import { isBuiltInAvatar } from '@/lib/game/avatars';
 import { playerLook } from '@/lib/game/look';
 import { nameProblem, normalizeName } from '@/lib/game/player-name';
+import { racesNow } from '@/lib/game/season-pass';
 
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
 
@@ -30,9 +32,9 @@ export async function PATCH(req: Request) {
   const session = await getSession(req);
   if (!session) return Response.json({ error: 'unauthenticated' }, { status: 401 });
 
-  const body = (await req.json().catch(() => ({}))) as { name?: unknown; avatar?: unknown };
+  const body = (await req.json().catch(() => ({}))) as { name?: unknown; avatar?: unknown; solo?: unknown };
 
-  const patch: { name?: string; avatar?: string } = {};
+  const patch: { name?: string; avatar?: string; solo?: boolean } = {};
 
   if (body.name !== undefined) {
     if (typeof body.name !== 'string') {
@@ -51,6 +53,26 @@ export async function PATCH(req: Request) {
       return Response.json({ error: 'unknown_avatar' }, { status: 400 });
     }
     patch.avatar = body.avatar;
+  }
+
+  if (body.solo !== undefined) {
+    if (typeof body.solo !== 'boolean') {
+      return Response.json({ error: 'bad_solo' }, { status: 400 });
+    }
+    if (body.solo) {
+      // The Crown Race is run against the others: a ticket holder stays in.
+      if (await racesNow(session.sub)) {
+        return Response.json({ error: 'solo_ticket' }, { status: 403 });
+      }
+      // Not halfway across someone's burrow: a raider does not get to pull
+      // up the drawbridge behind them.
+      const open = await db.query.raidRuns.findFirst({
+        where: and(eq(raidRuns.attackerId, session.sub), isNull(raidRuns.endedAt)),
+        columns: { id: true },
+      });
+      if (open) return Response.json({ error: 'raid_in_progress' }, { status: 409 });
+    }
+    patch.solo = body.solo;
   }
 
   if (Object.keys(patch).length === 0) {

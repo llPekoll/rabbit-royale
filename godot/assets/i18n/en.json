@@ -115,6 +115,9 @@
 		"smooth": "SMOOTH",
 		"solo": "Solo",
 		"soloTicket": "Not with the Crown Race Ticket",
+		"soloRaids": "Solo: no raids, either way",
+		"soloNext": "Solo from your next island",
+		"soloBusy": "Finish your raid first",
 		"on": "ON",
 		"off": "OFF",
 		"settings": "Settings",
@@ -1240,6 +1243,8 @@
 	"raidErrors": {
 		"fallback": "That did not work.",
 		"target_shielded": "Their burrow is shielded. Try someone else.",
+		"target_solo": "They are playing solo.",
+		"solo_mode": "You are playing solo. Turn it off in the settings to raid.",
 		"cannot_raid_yourself": "That is your own burrow.",
 		"raid_in_progress": "You are already inside a burrow.",
 		"cooldown": "You raided them too recently.",

@@ -32,8 +32,14 @@ var _effects: PixelSwitch
 var _volume: HSlider
 var _quality: PixelSegment
 var _solo: PixelSwitch
+var _solo_card: Control
 var _solo_note: HBoxContainer
+var _solo_crown: Control
 var _solo_note_text: Label
+## Ce que la ligne solo vient de dire (refus, « des ta prochaine ile ») ;
+## vide = la phrase par defaut de l'etat.
+var _solo_msg := ""
+var _solo_busy := false
 var _labels: Array[Label] = []
 var _open := false
 var _inset: MarginContainer
@@ -150,11 +156,13 @@ func _build_panel() -> void:
 	_quality.picked.connect(func(i: int) -> void: PlaySettings.set_pretty(i == 1))
 	game.add_child(_card("sparkle", _quality))
 	_solo = PixelSwitch.new()
-	_solo.toggled.connect(func(on: bool) -> void: PlaySettings.set_solo(on))
-	game.add_child(_card("rabbit", _solo))
+	_solo.toggled.connect(_on_solo_toggled)
+	_solo_card = _card("rabbit", _solo)
+	game.add_child(_solo_card)
 	_solo_note = Kit.hbox(Kit.PAD_TIGHT)
 	var crown := Kit.icon(Kit.CROWN, 16)
 	crown.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_solo_crown = crown
 	_solo_note.add_child(crown)
 	_solo_note_text = Kit.label("", 11, Palette.BARK)
 	_solo_note_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -308,7 +316,6 @@ func _relabel() -> void:
 	_labels[3].text = I18N.t("sound.quality")
 	_labels[4].text = I18N.t("sound.solo")
 	_quality.set_words(I18N.t("sound.smooth"), I18N.t("sound.pretty"))
-	_solo_note_text.text = I18N.t("sound.soloTicket")
 	_reflect()
 
 
@@ -324,12 +331,65 @@ func _reflect() -> void:
 	_volume.set_value_no_signal(AudioSettings.volume)
 	_volume_value.text = "%d%%" % roundi(AudioSettings.volume * 100)
 	_quality.set_index(1 if PlaySettings.pretty else 0)
+	_reflect_solo(w)
+
+
+## LA LIGNE SOLO. Cachee avant RAID_MIN : les iles des niveaux 1-2 sont deja a
+## une place et personne ne s'y bat, l'interrupteur n'y changerait rien.
+## Dessous, une phrase : le ticket qui la ferme, le dernier refus ou « des ta
+## prochaine ile », sinon ce que le solo coute quand il est allume.
+func _reflect_solo(w: Array) -> void:
+	var level: Variant = Home.player.get("level")
+	var shown := level == null or int(level) >= Tuning.i("RABBIT_LEVELS.RAID_MIN", 3)
 	var locked := PlaySettings.solo_locked()
-	_solo.disabled = locked
-	_solo.set_on(PlaySettings.solo and not locked, w)
-	if _solo_note.visible != locked:
-		_solo_note.visible = locked
+	var on := PlaySettings.solo_on()
+	_solo.disabled = locked or _solo_busy
+	if not _solo_busy:
+		_solo.set_on(on and not locked, w)
+	var say := ""
+	if locked:
+		say = I18N.t("sound.soloTicket")
+	elif not _solo_msg.is_empty():
+		say = _solo_msg
+	elif on:
+		say = I18N.t("sound.soloRaids")
+	_solo_note_text.text = say
+	_solo_crown.visible = locked
+	var note := shown and not say.is_empty()
+	if _solo_card.visible != shown or _solo_note.visible != note:
+		_solo_card.visible = shown
+		_solo_note.visible = note
 		_place()
+
+
+## L'INTERRUPTEUR demande au serveur (PlaySettings.set_solo) ; refuse, il
+## revient ou il etait et dit pourquoi. Allume en pleine partie, il le dit
+## aussi : l'ile sous les pattes reste celle qu'elle est.
+func _on_solo_toggled(on: bool) -> void:
+	if _solo_busy:
+		return
+	_solo_busy = true
+	_solo_msg = ""
+	_reflect()
+	var refused: String = await PlaySettings.set_solo(on)
+	_solo_busy = false
+	if not is_inside_tree():
+		return
+	match refused:
+		"":
+			var out_there := not RunState.current.island.is_empty() and RunState.current.spectating.is_empty()
+			_solo_msg = I18N.t("sound.soloNext") if on and out_there else ""
+		"solo_ticket":
+			_solo_msg = I18N.t("sound.soloTicket")
+		"raid_in_progress":
+			_solo_msg = I18N.t("sound.soloBusy")
+		"offline":
+			_solo_msg = I18N.t("err_offline")
+		_:
+			_solo_msg = I18N.t("raidErrors.fallback")
+	if not refused.is_empty():
+		Sound.deny()
+	_reflect()
 
 
 func set_open(on: bool) -> void:
@@ -337,6 +397,8 @@ func set_open(on: bool) -> void:
 		sound_button.spin_glyph(1.0 if on else -1.0)  # un tour, dans un sens puis dans l'autre
 	_open = on
 	_panel.visible = on
+	if not on:
+		_solo_msg = ""
 	_reflect()
 	_place()
 	if _opening != null and _opening.is_valid():

@@ -120,6 +120,9 @@ export const fr: Dict = {
     smooth: 'FLUIDE',
     solo: 'Solo',
     soloTicket: 'Pas avec le Crown Race Ticket',
+    soloRaids: 'Solo : pas de raid, dans les deux sens',
+    soloNext: 'Solo dès ta prochaine île',
+    soloBusy: 'Termine ton raid d’abord',
     on: 'OUI',
     off: 'NON',
     settings: 'Réglages',
@@ -715,6 +718,8 @@ export const fr: Dict = {
   raidErrors: {
     fallback: 'Ça n’a pas marché.',
     target_shielded: 'Leur terrier est protégé. Essaie quelqu’un d’autre.',
+    target_solo: 'Ce joueur joue en solo.',
+    solo_mode: 'Tu joues en solo. Coupe-le dans les réglages pour raider.',
     cannot_raid_yourself: 'C’est ton propre terrier.',
     raid_in_progress: 'Tu es déjà dans un terrier.',
     cooldown: 'Tu les as pillés trop récemment.',

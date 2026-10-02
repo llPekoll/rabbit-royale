@@ -197,6 +197,13 @@
       "when": 1790912032634,
       "tag": "0027_bloops_and_packs",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1790926330892,
+      "tag": "0028_solo_mode",
+      "breakpoints": true
     }
   ]
 }

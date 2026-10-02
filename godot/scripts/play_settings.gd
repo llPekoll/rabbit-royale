@@ -3,12 +3,14 @@ class_name PlaySettings
 ## sur le meme modele : statiques, sauves dans user://, valables pour la
 ## session meme si la sauvegarde echoue.
 ##
-##   • SOLO (2026-10-02) : une ile de son niveau ou personne d'autre n'est
-##     envoye. Le souhait part avec chaque traversee (RunState.join) ; c'est
-##     le SERVEUR qui tranche, et il le refuse a qui tient le Crown Race
-##     Ticket de la saison — la course se court contre les autres. Le
-##     panneau grise la ligne pour lui, mais le reglage reste sauve : le
-##     ticket expire, le joueur retrouve son choix.
+##   • SOLO (2026-10-02) : sortir du PvP. Une ile de son niveau ou personne
+##     d'autre n'est envoye ni ne regarde, un terrier absent de la liste de
+##     raid, et pas de raid soi-meme. Le choix VIT SUR LE SERVEUR
+##     (`players.solo`, PATCH /api/player) : la liste de raid des autres le
+##     lit, un fichier local ne suffirait pas. user://play.cfg n'en garde
+##     qu'une copie pour le premier ecran, avant /api/burrow. Refuse a qui
+##     tient le Crown Race Ticket (la course se court contre les autres) et
+##     au milieu d'un raid ; l'achat du ticket le coupe.
 ##   • QUALITE (2026-10-02) : « pour avoir un bon fps ou un beau jeu ».
 ##     BEAU allume les trois effets plein ecran — le bloom (Bloom), les
 ##     ombres de nuages et les rais (SkyLight) ; FLUIDE les eteint. FLUIDE
@@ -32,10 +34,28 @@ static func restore() -> void:
 		pretty = bool(cfg.get_value("play", "pretty", false))
 
 
-static func set_solo(v: bool) -> void:
+## LE SOLO EN VIGUEUR : ce que dit le serveur (Home.player, relu avec le
+## terrier), sinon la derniere copie locale.
+static func solo_on() -> bool:
 	restore()
+	var row: Variant = Home.player.get("solo")
+	if row != null:
+		solo = bool(row)
+	return solo
+
+
+## BASCULER LE SOLO, chez le serveur. Rend "" quand c'est fait, sinon le code
+## du refus (`solo_ticket`, `raid_in_progress`, `offline`...) — et le reglage
+## reste alors ce qu'il etait.
+static func set_solo(v: bool) -> String:
+	restore()
+	var answer: Answer = await Net.send_json("/api/player", HTTPClient.METHOD_PATCH, {"solo": v}, Session.token)
+	if not answer.ok or answer.body.has("error"):
+		return answer.error()
 	solo = v
+	Home.player["solo"] = v
 	_save()
+	return ""
 
 
 static func set_pretty(v: bool) -> void:
@@ -64,8 +84,7 @@ static func _save() -> void:
 ## Ce que le `join` demande au serveur (null = s'asseoir au niveau, comme
 ## avant).
 static func seat_choice() -> Variant:
-	restore()
-	return {"solo": true} if solo else null
+	return {"solo": true} if solo_on() else null
 
 
 ## Le solo est-il ferme a ce joueur ? Le ticket de la saison ouverte.

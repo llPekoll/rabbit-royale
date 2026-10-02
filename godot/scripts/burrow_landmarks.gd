@@ -1289,7 +1289,8 @@ func refresh() -> void:
 	var garden := Home.live_garden() if Home.loaded() else 0
 	var level := int(Home.player.get("level", 1))
 	var raid_min := Tuning.i("RABBIT_LEVELS.RAID_MIN", 3)
-	_ask_targets(level >= raid_min)
+	var solo := PlaySettings.solo_on()
+	_ask_targets(level >= raid_min and not solo)
 
 	var say := func(door: String, word: String, words: String, lit: bool) -> void:
 		var sign: Sign = _signs.get(door)
@@ -1310,6 +1311,8 @@ func refresh() -> void:
 
 	if level < raid_min:
 		say.call("raid", I18N.shout(I18N.t("loop.raid")), I18N.f("rabbitLevel.badge", [raid_min]), false)
+	elif solo:
+		say.call("raid", I18N.shout(I18N.t("loop.raid")), I18N.t("sound.solo"), false)
 	else:
 		var floor_e := Tuning.raid_floor()
 		# Meme phrase que DIG : « crossing costs 58 », pas un 58 seul.

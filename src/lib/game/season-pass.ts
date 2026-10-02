@@ -13,7 +13,7 @@
  */
 import { and, eq, inArray, isNull, sql as raw } from 'drizzle-orm';
 import { db } from '../db';
-import { passPayouts, seasonPasses, seasons } from '../db/schema';
+import { passPayouts, players, seasonPasses, seasons } from '../db/schema';
 import { PASS, passPayoutShare } from '../../../config/tuning';
 import { tuned } from '../tuning/live';
 
@@ -121,6 +121,9 @@ export async function grantPass(
     usdCents: paid.usdCents,
   }).onConflictDoNothing().returning({ seasonId: seasonPasses.seasonId });
   if (seated.length === 0) console.warn('[pass] already held — second payment kept, no second seat', playerId, paid.paymentId);
+  // A ticket is a seat in the race, and the race is run against the others:
+  // whoever was playing SOLO is back in (raid list, shared islands) from now.
+  await tx.update(players).set({ solo: false }).where(eq(players.id, playerId));
   return { seasonId: season.id };
 }
 

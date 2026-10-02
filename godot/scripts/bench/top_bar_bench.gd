@@ -7,6 +7,8 @@ extends Control
 ##   ... -- --refill   # retour de manche : le cadran vide remonte au reservoir
 ##   ... -- --sound    # le panneau du son ouvert, comme apres un tap
 ##   ... -- --sound --ticket  # ... pour un detenteur du ticket : solo grise
+##   ... -- --sound --solo    # ... solo allume (niveau 6) : la phrase dessous
+##   ... -- --sound --low     # ... niveau 1 : pas de ligne solo
 ##   ... -- --sound --pretty  # ... qualite sur BEAU (sans rien sauver)
 ##   ... -- --sound --off     # ... musique coupee (sans rien sauver)
 ##
@@ -22,7 +24,8 @@ func _ready() -> void:
 	add_child(bg)
 
 	Session.player = {"id": "bench", "name": "CursedRoot", "guest": true, "avatar": "orange"}
-	Home.player = {"avatar": "orange"}
+	var args := OS.get_cmdline_user_args()
+	Home.player = {"avatar": "orange", "level": 1 if "--low" in args else 6, "solo": "--solo" in args}
 	Home.burrow = {
 		"level": 3, "stock": 1263, "lifetime": 4200, "gardenReady": 12,
 		"energy": 17, "maxEnergy": Tuning.i("ENERGY.MAX"), "regenPerHour": 6,

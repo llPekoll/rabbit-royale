@@ -124,6 +124,9 @@ export const ptBR: Dict = {
     smooth: 'FLUIDO',
     solo: 'Solo',
     soloTicket: 'Não com o Crown Race Ticket',
+    soloRaids: 'Solo: sem ataques, nos dois sentidos',
+    soloNext: 'Solo a partir da próxima ilha',
+    soloBusy: 'Termine seu ataque primeiro',
     on: 'SIM',
     off: 'NÃO',
     settings: 'Ajustes',
@@ -717,6 +720,8 @@ export const ptBR: Dict = {
   raidErrors: {
     fallback: 'Não deu certo.',
     target_shielded: 'A toca deles está com escudo. Tente outra pessoa.',
+    target_solo: 'Essa pessoa está jogando solo.',
+    solo_mode: 'Você está jogando solo. Desative nas configurações para atacar.',
     cannot_raid_yourself: 'Essa é a sua própria toca.',
     raid_in_progress: 'Você já está dentro de uma toca.',
     cooldown: 'Você saqueou essa pessoa faz pouco tempo.',

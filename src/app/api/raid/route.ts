@@ -222,10 +222,12 @@ export async function GET(req: Request) {
 
   // NO RAIDS BELOW RAID_MIN, either way (2026-09-23). A rabbit still climbing
   // the levels sees nobody to raid, and is on nobody's list.
-  const me = await db.query.players.findFirst({ where: eq(players.id, session.sub), columns: { level: true } });
+  const me = await db.query.players.findFirst({ where: eq(players.id, session.sub), columns: { level: true, solo: true } });
   if ((me?.level ?? 1) < RABBIT_LEVELS.RAID_MIN) {
     return Response.json({ targets: [], locked: { level: me?.level ?? 1, need: RABBIT_LEVELS.RAID_MIN } });
   }
+  // SOLO, either way (2026-10-02): out of PvP is out of the raid list too.
+  if (me?.solo) return Response.json({ targets: [], solo: true });
 
   // Otherwise: who is worth attacking. Ordered by stock, because the reason to
   // raid somebody is what they are holding — but whoever is PLAYING right now
@@ -246,7 +248,12 @@ export async function GET(req: Request) {
     wateredUntil: players.wateredUntil,
     fertilisedUntil: players.fertilisedUntil,
   };
-  const raidable = and(ne(players.id, session.sub), gte(players.level, RABBIT_LEVELS.RAID_MIN));
+  const raidable = and(
+    ne(players.id, session.sub),
+    gte(players.level, RABBIT_LEVELS.RAID_MIN),
+    // A SOLO burrow is not on anyone's list — not even shown as shut.
+    eq(players.solo, false),
+  );
   const liveIds = (await connectedIds()).filter((id) => id !== session.sub).slice(0, RAID_LIST.LIVE);
   const [live, rich] = await Promise.all([
     liveIds.length
@@ -341,10 +348,14 @@ export async function POST(req: Request) {
   if (!defender) return Response.json({ error: 'unknown_player' }, { status: 404 });
 
   // Both ways: the target must have reached RAID_MIN, and so must the raider.
-  const raider = await db.query.players.findFirst({ where: eq(players.id, session.sub), columns: { level: true } });
+  const raider = await db.query.players.findFirst({ where: eq(players.id, session.sub), columns: { level: true, solo: true } });
   if (defender.level < RABBIT_LEVELS.RAID_MIN || (raider?.level ?? 1) < RABBIT_LEVELS.RAID_MIN) {
     return Response.json({ error: 'level_locked', need: RABBIT_LEVELS.RAID_MIN }, { status: 403 });
   }
+  // SOLO, both ways: a solo player raids nobody, and nobody raids them —
+  // whatever door led here (an old list, a revenge button, a crafted call).
+  if (raider?.solo) return Response.json({ error: 'solo_mode' }, { status: 403 });
+  if (defender.solo) return Response.json({ error: 'target_solo' }, { status: 403 });
 
   // ONE DOOR AT A TIME. A rabbit out on an island digs with the tank, and
   // banking writes what it has left back over the column — a raid paid for

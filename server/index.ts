@@ -203,9 +203,12 @@ io.use(async (socket, next) => {
 
 // ── Island helpers ───────────────────────────────────────────────────────────
 
-/** A fresh island dealt for a rabbit level: its densities, tier and seats — one, `solo`. */
-function newIsland(level: number, solo = false): LiveIsland {
-  return store.create(levelSeed(level, randomUUID()), 0, { level, solo });
+/**
+ * A fresh island dealt for a rabbit level: its densities, tier and seats — one,
+ * `solo`. `isolated` is the player's SOLO option: nobody may watch it either.
+ */
+function newIsland(level: number, solo = false, isolated = false): LiveIsland {
+  return store.create(levelSeed(level, randomUUID()), 0, { level, solo, isolated });
 }
 
 /** A player's rabbit level, read from the row. 1 for a player with none. */
@@ -296,6 +299,9 @@ function snapshot(live: LiveIsland) {
     // The rabbit level this island was dealt for (RABBIT_LEVELS). Absent on
     // the tutorial, which comes before level 1.
     ...(live.level !== undefined ? { level: live.level } : {}),
+    // One seat: nobody else will ever stand here, so the HUD offers no fight
+    // (`may_fight_here`) — the level alone says how many it WOULD seat.
+    solo: live.solo,
     revealed: view.revealed,
     // Chests are announced before they are dug — see `publicView`. Already
     // read by the client's snapshot type; it was simply never sent here.
@@ -897,14 +903,18 @@ io.on('connection', (socket: Socket) => {
      * onto the fullest island of that level with room; a solo one, or no
      * room, deals a new one. Of `choice`, only `solo` is read now.
      */
-    // SOLO, the player's option: their level's island, seated alone. Not for
-    // a ticket holder — the Crown Race is run against the others.
-    const solo = choice?.solo === true && !(await racesNow(data.playerId).catch(() => false));
-    const live = store.seatOf(data.playerId)
-      ?? (player.runsPlayed === 0 ? newFirstIsland(player.id) : undefined)
-      ?? (solo ? newIsland(player.level, true) : undefined)
-      ?? store.findJoinable(player.level)
-      ?? newIsland(player.level);
+    // SOLO, the player's option: their level's island, seated alone. The row
+    // is the truth (PATCH /api/player); `choice.solo` is what a client from
+    // before the column still sends. Never for a ticket holder — the Crown
+    // Race is run against the others — and when the check itself fails, the
+    // race wins: a free exit from it is worse than one shared island.
+    const solo = (player.solo || choice?.solo === true)
+      && !(await racesNow(data.playerId).catch(() => true));
+    // Only a seat already HELD is looked up here. A new island is dealt after
+    // the crossing is paid (below): dealt before, every refused join — no
+    // energy, a raid under way — left a whole island behind, and a solo one
+    // is dealt fresh on every tap.
+    const seated = store.seatOf(data.playerId);
 
     /**
      * A refresh returns to the same rabbit; walking back in starts a new run.
@@ -917,14 +927,14 @@ io.on('connection', (socket: Socket) => {
      * unplayable — every move answered `'dead'`, the ring went dark, and
      * nothing on screen said why.
      */
-    const held = live.rabbits.get(data.playerId);
-    const existing = held && held.alive && live.disconnectedAt.has(data.playerId) ? held : undefined;
-    if (held && !existing) {
+    const held = seated?.rabbits.get(data.playerId);
+    const existing = held && held.alive && seated!.disconnectedAt.has(data.playerId) ? held : undefined;
+    if (seated && held && !existing) {
       // Whatever it was carrying is owed to them before the rabbit goes.
       await bankRun(held).catch((e) => console.error('[bankRun:rejoin]', e));
-      live.rabbits.delete(data.playerId);
-      live.disconnectedAt.delete(data.playerId);
-      io.to(roomFor(live.island.id)).emit('rabbit_left', { playerId: data.playerId, grace: false });
+      seated.rabbits.delete(data.playerId);
+      seated.disconnectedAt.delete(data.playerId);
+      io.to(roomFor(seated.island.id)).emit('rabbit_left', { playerId: data.playerId, grace: false });
     }
     // A NEW run is paid for out of the burrow's bar before a seat is taken. A
     // reconnect (`existing`) is the same run continuing and pays nothing.
@@ -969,6 +979,13 @@ io.on('connection', (socket: Socket) => {
       bank = { energy: paid.energy, cost: ENERGY.CROSSING_COST, max: OUT_OF_RUN_ENERGY.MAX };
     }
 
+    // WHICH ISLAND, now that the crossing is paid (see `seated` above).
+    const live = seated
+      ?? (player.runsPlayed === 0 ? newFirstIsland(player.id) : undefined)
+      ?? (solo ? newIsland(player.level, true, true) : undefined)
+      ?? store.findJoinable(player.level)
+      ?? newIsland(player.level);
+
     // THE RABBIT DIGS WITH THE TANK. It used to open every run on a fresh
     // ENERGY.START whatever the bank held; it opens on what the crossing left
     // in the one tank, and brings the rest home (`bankRun`).
@@ -1008,7 +1025,9 @@ io.on('connection', (socket: Socket) => {
     // Presence is a NICE-TO-HAVE. A Redis hiccup must not stop a player joining
     // a run — this used to throw straight out of the handler and take the whole
     // process, and everyone else's live island, with it.
-    await optional('markOnline', () => markOnline(data.playerId!));
+    // Not for a SOLO run: this set is what puts WATCH beside a name on the
+    // leaderboard, and an isolated island turns every watcher away.
+    if (!live.isolated) await optional('markOnline', () => markOnline(data.playerId!));
     // Out on an island now: anyone holding this name in their raid log sees
     // the dot turn. `data.islandId` is set above, so this reads `digging`.
     pushPresence(data.playerId);
@@ -1039,7 +1058,9 @@ io.on('connection', (socket: Socket) => {
     for (const live of store.all()) {
       if (live.rabbits.has(target)) { found = live; break; }
     }
-    if (!found) return socket.emit('error_msg', { code: 'not_playing' });
+    // SOLO is nobody's business (2026-10-02): an isolated run answers as no
+    // run at all, the same `not_playing` a player at home gives.
+    if (!found || found.isolated) return socket.emit('error_msg', { code: 'not_playing' });
 
     // Leave whatever was being watched before — a viewer belongs to one island.
     if (data.islandId) socket.leave(roomFor(data.islandId));
