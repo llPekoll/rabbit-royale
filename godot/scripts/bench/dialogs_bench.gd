@@ -171,7 +171,7 @@ func _only(which: String) -> void:
 func _fake_snack(which: String) -> Dictionary:
 	var week := []
 	for i in 6:
-		week.append({"day": i + 1, "carrots": [100, 150, 200, 250, 300, 400][i], "packs": null})
+		week.append({"day": i + 1, "carrots": [50, 75, 100, 125, 150, 200][i], "packs": null})
 	week.append({"day": 7, "carrots": 0, "packs": {
 		"magic_hat": [{"kind": "lightning", "qty": 1}, {"kind": "bloop", "qty": 1}],
 		"lucky_foot": [{"kind": "trap", "qty": 2}, {"kind": "fence", "qty": 1}]}})

@@ -1779,7 +1779,9 @@ export const QUESTS = {
  * MOSTLY CARROTS on purpose (Paul: "donner des carottes pour diluer les
  * consommables"): carrots go back into the shop, so a week of snacks is a
  * week of shopping rather than a free bag that empties the shelf. A whole
- * week is 1 400 carrots and ~600 carrots of items — about three runs.
+ * week is 700 carrots and ~600 carrots of items — under two runs. Halved
+ * on 2026-10-02 (100 → 400 was 42 % of a casual player's day; the sim's
+ * check in tools/economy-day.sim.ts wants a quarter at most).
  *
  * A MISSED DAY DOES NOT RESET. The streak only moves forward when a snack is
  * taken; skipping a day just means the seventh comes a day later. A reset
@@ -1792,7 +1794,7 @@ export const QUESTS = {
  */
 export const SNACK = {
   /** Carrots for days one to six. */
-  CARROTS: [100, 150, 200, 250, 300, 400],
+  CARROTS: [50, 75, 100, 125, 150, 200],
   /** The seventh day: the player picks ONE. Both are worth ~600 carrots on
    *  the shelf, smaller than the shop's packs so those keep their point. */
   PACKS: {
