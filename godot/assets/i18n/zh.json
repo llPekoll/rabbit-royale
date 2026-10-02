@@ -511,7 +511,7 @@
 		"raceWhat": {
 			"$t": "前 {1} 名入场券持有者瓜分奖池的 {0}"
 		},
-		"skin": "紫色 Kuro 皮肤",
+		"skin": "金色兔子",
 		"skinWhat": "永久拥有，岛上和兔窝里都能穿",
 		"inRace": "你已加入比赛",
 		"pool": "奖金池",
@@ -1056,6 +1056,36 @@
 		"piece": {
 			"$t": "你得到一份 - 另加 {0}x {1}"
 		}
+	},
+	"skins": {
+		"carrotDescription": "橙色皮毛，绿色耳朵，来自菜园。",
+		"ticketOnly": "这个不能购买：只有 Crown Race Ticket 才能获得。",
+		"title": "皮肤",
+		"description": "电光紫，薄荷绿耳朵。你的 Solana 兔子。",
+		"permanent": "购买一次，永久拥有。",
+		"cosmetic": "仅改变外观",
+		"owned": "已拥有",
+		"equip": "装备",
+		"equipped": "已装备",
+		"buy": "购买",
+		"confirm": "确认",
+		"check": "检查购买",
+		"recovering": "正在检查购买...",
+		"pending": "有一笔购买待确认。请先检查再付款；未付款的报价将在 15 分钟后过期。",
+		"unavailable": "暂时无法购买。",
+		"guest": "连接钱包，将皮肤保存在你的账号中。",
+		"loadFailed": "无法加载皮肤。",
+		"retry": "重试",
+		"success": "Solana 已解锁！现在可以装备。",
+		"free": "免费毛色",
+		"wait": "请稍候...",
+		"checked": "没有待确认的购买，可以重试。",
+		"equipFailed": "无法装备此皮肤，请重试。",
+		"idle": "待机",
+		"move": "奔跑",
+		"happy": "庆祝",
+		"preview": "游戏动画预览",
+		"back": "返回兔子选择"
 	},
 	"profile": {
 		"title": "资料",

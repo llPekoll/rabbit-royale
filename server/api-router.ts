@@ -53,6 +53,7 @@ const ROUTES: Record<string, () => Promise<ModuleRoute>> = {
   '/api/leaderboard': () => import('../src/app/api/leaderboard/route'),
   '/api/pass': () => import('../src/app/api/pass/route'),
   '/api/player': () => import('../src/app/api/player/route'),
+  '/api/skins': () => import('../src/app/api/skins/route'),
   '/api/player/history': () => import('../src/app/api/player/history/route'),
   '/api/push/token': () => import('../src/app/api/push/token/route'),
   '/api/quests': () => import('../src/app/api/quests/route'),

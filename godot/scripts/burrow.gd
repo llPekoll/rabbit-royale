@@ -153,6 +153,7 @@ func _ready() -> void:
 	# apres le premier dessin, un pelage se choisit au profil (Session).
 	PassState.shared().changed.connect(_wear_mine)
 	Session.changed.connect(_wear_mine)
+	SkinState.shared().changed.connect(_wear_mine)
 	_landmarks.reveal_changed.connect(_rebuild_islets)
 	# LANCE SEUL (`godot --path godot scenes/burrow.tscn -- --shot=...`), le
 	# terrier se prete a une capture — sans session, sans chrome.

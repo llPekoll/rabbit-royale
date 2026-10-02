@@ -501,6 +501,8 @@ func _on_event(name: String, data: Variant) -> void:
 				_refresh_caption()
 		"rabbit_energy":
 			_patch_rabbit(String(d.get("playerId", "")), {"energy": int(d.get("energy", 0)), "carrots": int(d.get("carrots", 0))})
+		"rabbit_look":
+			_patch_rabbit(String(d.get("playerId", "")), {"look": d.get("look"), "skin": d.get("skin")})
 		"flag_result":
 			if bool(d.get("correct", false)):
 				digs["flags"] = int(digs["flags"]) + 1

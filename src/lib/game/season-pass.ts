@@ -123,7 +123,10 @@ export async function grantPass(
   if (seated.length === 0) console.warn('[pass] already held — second payment kept, no second seat', playerId, paid.paymentId);
   // A ticket is a seat in the race, and the race is run against the others:
   // whoever was playing SOLO is back in (raid list, shared islands) from now.
-  await tx.update(players).set({ solo: false }).where(eq(players.id, playerId));
+  await tx.update(players).set({
+    solo: false,
+    equippedSkin: raw`coalesce(${players.equippedSkin}, ${PASS.SKIN})`,
+  }).where(eq(players.id, playerId));
   return { seasonId: season.id };
 }
 

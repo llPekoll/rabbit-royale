@@ -15,6 +15,7 @@ import {
   pgTable, text, integer, bigint, doublePrecision, timestamp, boolean, uuid, index, uniqueIndex, pgEnum, jsonb,
 } from 'drizzle-orm/pg-core';
 import type { BurrowEdits } from '@/game/burrow/generate';
+import { sql } from 'drizzle-orm';
 
 /**
  * What the shop sells and the bag holds.
@@ -26,7 +27,7 @@ import type { BurrowEdits } from '@/game/burrow/generate';
  * So are the shop's packs (`shiro_stash`, `kuro_tantrum`, SHOP_PACKS): the
  * receipt names the pack, the bag receives what is inside it.
  */
-export const itemKindEnum = pgEnum('item_kind', ['bomb', 'shield', 'lightning', 'trap', 'energy', 'smoke', 'mirage', 'water', 'fertiliser', 'fence', 'bloop', 'season_pass', 'shiro_stash', 'kuro_tantrum']);
+export const itemKindEnum = pgEnum('item_kind', ['bomb', 'shield', 'lightning', 'trap', 'energy', 'smoke', 'mirage', 'water', 'fertiliser', 'fence', 'bloop', 'season_pass', 'shiro_stash', 'kuro_tantrum', 'skin_solana', 'skin_noir_violet', 'skin_carrot']);
 /** What a purchase was paid with. Both routes buy the same goods — see SHOP. */
 export const currencyEnum = pgEnum('currency', ['carrots', 'usdc']);
 /** A USDC payment's life: quoted → paid → credited, or abandoned. */
@@ -72,6 +73,8 @@ export const players = pgTable('players', {
    *  picture is a CHOICE among it, not an upload to host and moderate. Null
    *  means the player never picked and gets the default. */
   avatar: text('avatar'),
+  /** A purchased skin worn over the free fur. Null means the free fur. */
+  equippedSkin: text('equipped_skin'),
 
   /** THE THREE COUNTERS (GDD). One carrot event feeds all three, always. */
   /** Spendable bank. Raids move carrots out of here. */
@@ -575,6 +578,8 @@ export const payments = pgTable('payments', {
   treasury: text('treasury').notNull(),
   /** Echoed in the transfer's memo so a payment can be matched to its intent. */
   reference: text('reference').notNull(),
+  /** One outstanding checkout per permanent cosmetic, across devices. */
+  purchaseKey: text('purchase_key'),
   status: paymentStatusEnum('status').notNull().default('pending'),
   signature: text('signature'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -585,7 +590,16 @@ export const payments = pgTable('payments', {
   uniqueIndex('payments_signature_idx').on(t.signature),
   uniqueIndex('payments_reference_idx').on(t.reference),
   index('payments_player_idx').on(t.playerId, t.createdAt),
+  uniqueIndex('payments_pending_purchase_idx').on(t.purchaseKey).where(sql`${t.status} = 'pending'`),
 ]);
+
+/** Permanent cosmetics. Their payment and ownership commit together. */
+export const playerSkins = pgTable('player_skins', {
+  playerId: text('player_id').notNull().references(() => players.id, { onDelete: 'cascade' }),
+  skin: text('skin').notNull(),
+  paymentId: uuid('payment_id').references(() => payments.id, { onDelete: 'set null' }),
+  boughtAt: timestamp('bought_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [uniqueIndex('player_skins_owner_idx').on(t.playerId, t.skin)]);
 
 /** Seasons. The current one is the row with `endedAt` null. */
 export const seasons = pgTable('seasons', {

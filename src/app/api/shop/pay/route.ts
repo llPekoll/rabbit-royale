@@ -14,7 +14,7 @@
  * control flow rather than as a promise.
  */
 import { randomUUID } from 'node:crypto';
-import { and, desc, eq, lt } from 'drizzle-orm';
+import { and, desc, eq, lt, sql as raw } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { inventory, payments, players } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
@@ -22,6 +22,7 @@ import { holdings, isShopKind, purchaseBlocker, purchaseUsdc } from '@/lib/game/
 import { grantItem, paidUsdcUnits } from '@/lib/game/grant';
 import { isPackKind, packBlocker, packUsdc } from '@/lib/game/packs';
 import { isPassKind, openSeason, passOf, passPriceUsd, passSaleBlocker } from '@/lib/game/season-pass';
+import { isSkinKind, ownsSkin, skinForKind, skinSaleBlocker } from '@/lib/game/skins';
 import { USDC, usdcBaseUnits } from '@config/tuning';
 import { PublicKey } from '@solana/web3.js';
 import {
@@ -72,13 +73,21 @@ export async function POST(req: Request) {
   // rules (one per season, only while a pass season is running) replace the
   // bag's caps, and it is never sold for carrots.
   const kind = body.kind;
-  if (!isPassKind(kind) && !isPackKind(kind) && !isShopKind(kind)) return Response.json({ error: 'unknown_item' }, { status: 400 });
+  if (!isSkinKind(kind) && !isPassKind(kind) && !isPackKind(kind) && !isShopKind(kind)) return Response.json({ error: 'unknown_item' }, { status: 400 });
   const qty = body.qty === undefined ? 1 : Number(body.qty);
 
   const player = await db.query.players.findFirst({ where: eq(players.id, session.sub) });
   if (!player) return Response.json({ error: 'unknown player' }, { status: 404 });
 
-  if (isPassKind(kind)) {
+  if (isSkinKind(kind)) {
+    const skin = skinForKind(kind);
+    const blocker = skinSaleBlocker(qty, await ownsSkin(session.sub, skin.key), skin.onSale);
+    if (blocker) return Response.json({ error: blocker }, { status: 400 });
+    const pending = await db.query.payments.findFirst({
+      where: and(eq(payments.playerId, session.sub), eq(payments.kind, kind), eq(payments.status, 'pending')),
+    });
+    if (pending) return Response.json({ error: 'skin_purchase_pending' }, { status: 409 });
+  } else if (isPassKind(kind)) {
     if (qty !== 1) return Response.json({ error: 'bad_quantity' }, { status: 400 });
     const season = await openSeason();
     const held = season ? await passOf(db, season.id, session.sub) : null;
@@ -106,7 +115,7 @@ export async function POST(req: Request) {
     return Response.json({ error: 'token_unavailable' }, { status: 400 });
   }
 
-  const usdc = isPassKind(kind)
+  const usdc = isSkinKind(kind) ? skinForKind(kind).usdCents / 100 : isPassKind(kind)
     ? Math.round(passPriceUsd() * 100) / 100
     : isPackKind(kind) ? packUsdc(kind) * qty : purchaseUsdc(kind, qty);
 
@@ -162,7 +171,7 @@ export async function POST(req: Request) {
   // The quote is recorded BEFORE the player is asked to sign, which is what
   // makes the confirm step safe: it checks the transaction against a price this
   // server set, not against a number handed back with the signature.
-  const [intent] = await db.insert(payments).values({
+  const values = {
     playerId: session.sub,
     kind,
     qty,
@@ -172,7 +181,22 @@ export async function POST(req: Request) {
     treasury: treasury.toBase58(),
     reference,
     expiresAt,
-  }).returning();
+    purchaseKey: isSkinKind(kind) ? JSON.stringify([session.sub, kind]) : null,
+  };
+  const intent = await db.transaction(async (tx) => {
+    if (isSkinKind(kind)) {
+      // Serialize the final ownership check and reservation across devices.
+      await tx.execute(raw`select id from players where id = ${session.sub} for update`);
+      if (await ownsSkin(session.sub, skinForKind(kind).key, tx)) return 'skin_owned' as const;
+      const pending = await tx.query.payments.findFirst({
+        where: and(eq(payments.purchaseKey, values.purchaseKey!), eq(payments.status, 'pending')),
+      });
+      if (pending) return 'skin_purchase_pending' as const;
+    }
+    const [row] = await tx.insert(payments).values(values).returning();
+    return row;
+  });
+  if (typeof intent === 'string') return Response.json({ error: intent }, { status: 409 });
 
   return Response.json({
     paymentId: intent.id,
@@ -330,7 +354,8 @@ export async function expireStaleQuotes(): Promise<void> {
  * purchase arrived rather than leaving them to notice a changed number.
  */
 function expire(id: string) {
-  return db.update(payments).set({ status: 'expired' }).where(eq(payments.id, id));
+  return db.update(payments).set({ status: 'expired' })
+    .where(and(eq(payments.id, id), eq(payments.status, 'pending')));
 }
 
 export async function claimUnfinishedPayments(playerId: string): Promise<

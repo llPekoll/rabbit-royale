@@ -5,8 +5,8 @@ extends Control
 ## (public/assets/ui/notification-quest.png : etoile a gauche, chevron a
 ## droite), recadree et etiree au centre seulement.
 ##
-## La seulement quand le pass est en vente (on l'ouvre avec
-## `scripts/season-pass.ts open`) : le prix et la cagnotte,
+## Toujours la. Pass ferme : un peu eteinte, « BIENTOT » (on la deverrouille
+## avec `scripts/season-pass.ts open`). Pass ouvert : le prix et la cagnotte,
 ## puis pour qui l'a les jours qui restent. Un tap ouvre TOUJOURS la fenetre du pass : le chevron du
 ## cadre le promet, et ferme elle montre ce qui vient, sans bouton d'achat
 ## (pass_dialog.gd `_action`).
@@ -150,14 +150,10 @@ func refresh() -> void:
 	_sub.add_theme_font_size_override("font_size", 11 if pixel else 10)
 	_title.text = I18N.shout(I18N.t("pass.title"))
 	_hit.tooltip_text = I18N.t("pass.title") if open else "%s · %s" % [I18N.t("pass.title"), I18N.t("pass.soon")]
-	# FERMEE, ELLE N'EST PAS LA (2026-10-01, revu le meme jour) : la deuxieme
-	# place de la colonne pour un titre coupe et un prix qu'on ne peut pas
-	# payer, c'etait de la place prise a la quete et au jardin. La boutique
-	# garde son entree vers le pass (shop.gd `_pass_entry`) ; la banniere
-	# revient d'elle-meme quand la vente ouvre. La colonne suit `visible`
-	# (burrow_column.gd `_fit_slot`).
-	visible = open
-	modulate = Color.WHITE
+	# Fermee : a peine eteinte. Elle doit rester VUE (le bouton gris de la
+	# barre, a 0.5, ne se trouvait pas — 2026-10-01). Cachee un temps quand
+	# la vente etait fermee ; remise le 2026-10-02 a la demande du user.
+	modulate = Color.WHITE if open else Color(0.86, 0.86, 0.86, 1.0)
 	_tag.visible = not open
 	_tag_label.text = I18N.t("pass.soonTag")
 	_sub.remove_theme_color_override("font_color")

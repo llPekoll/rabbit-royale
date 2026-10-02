@@ -581,7 +581,7 @@
 		"raceWhat": {
 			"$t": "Les {1} meilleurs détenteurs du ticket se partagent {0} du pot"
 		},
-		"skin": "Skin Kuro violet",
+		"skin": "Lapin doré",
 		"skinWhat": "À toi pour de bon, sur l’île et au terrier",
 		"inRace": "Tu es dans la course",
 		"pool": "Cagnotte",
@@ -1368,6 +1368,36 @@
 		"piece": {
 			"$t": "UNE PART EST À TOI - PLUS {0}x {1}"
 		}
+	},
+	"skins": {
+		"carrotDescription": "Pelage orange. Oreilles vertes. Tout droit du potager.",
+		"ticketOnly": "Celui-là ne s’achète pas : il vient seulement avec le Crown Race Ticket.",
+		"title": "Skins",
+		"description": "Violet électrique. Oreilles menthe. Ton lapin Solana.",
+		"permanent": "Un seul achat. À toi pour toujours.",
+		"cosmetic": "Apparence uniquement",
+		"owned": "Possédée",
+		"equip": "Équiper",
+		"equipped": "Équipée",
+		"buy": "Acheter",
+		"confirm": "Confirmer",
+		"check": "Vérifier l’achat",
+		"recovering": "Vérification de ton achat...",
+		"pending": "Un achat est en attente. Vérifie-le avant de repayer ; un devis non payé expire après 15 minutes.",
+		"unavailable": "Les achats sont indisponibles pour le moment.",
+		"guest": "Connecte ton portefeuille pour garder cette skin sur ton compte.",
+		"loadFailed": "Impossible de charger tes skins.",
+		"retry": "Réessayer",
+		"success": "Solana débloquée ! Tu peux l’équiper.",
+		"free": "Pelage gratuit",
+		"wait": "Un instant...",
+		"checked": "Aucun achat en attente. Tu peux réessayer.",
+		"equipFailed": "Impossible d’équiper cette skin. Réessaie.",
+		"idle": "Repos",
+		"move": "Course",
+		"happy": "Joie",
+		"preview": "Aperçu des animations du jeu",
+		"back": "Retour aux lapins"
 	},
 	"profile": {
 		"title": "PROFIL",

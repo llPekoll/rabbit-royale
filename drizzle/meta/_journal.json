@@ -204,6 +204,27 @@
       "when": 1790926330892,
       "tag": "0028_solo_mode",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1790932308239,
+      "tag": "0029_solana_skin",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1790935311313,
+      "tag": "0030_noir_violet_skin",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1790936042359,
+      "tag": "0031_carrot_skin",
+      "breakpoints": true
     }
   ]
 }

@@ -97,7 +97,13 @@ const PICK_SCALE := 2.0
 ## Une case de lapin : le plancher tactile de 44px.
 const PICK_CELL := 44.0
 
+const LOCK_ICON := preload("res://assets/ui/icons/settings/lock.png")
+
 var _tabs: Array[Button] = []
+var _tab_row: HBoxContainer
+var _skin_detail := false
+var _rabbit_grid: GridContainer
+var _portrait: TextureRect
 var _tab_badge: PanelContainer
 var _tab_badge_label: Label
 var _scroll: ScrollContainer
@@ -142,6 +148,7 @@ func _init() -> void:
 func _ready() -> void:
 	ink_title()
 	var tabs := Kit.hbox(Kit.PAD_TIGHT)
+	_tab_row = tabs
 	body.add_child(tabs)
 	for which in [Tab.PROFILE, Tab.HISTORY]:
 		var b := Button.new()
@@ -181,6 +188,7 @@ func _ready() -> void:
 	I18N.locale_changed.connect(_on_locale_changed)
 	Session.failed.connect(_on_session_failed)
 	GameSocket.event.connect(_on_socket_event)
+	SkinState.shared().changed.connect(_refresh_rabbits)
 
 	if _player.is_empty() and Session.signed_in():
 		show_player(Session.player)
@@ -189,6 +197,8 @@ func _ready() -> void:
 	_relabel_tabs()
 	_paint_badge()
 	_show_tab(_tab)
+	if not _offline:
+		_load_skins()
 
 
 ## LE JOUEUR A MONTRER : id, name, wallet, guest, avatar. `Session.player` en
@@ -235,6 +245,11 @@ func _fetch_history() -> void:
 
 func _show_tab(which: Tab) -> void:
 	_tab = which
+	_skin_detail = false
+	_tab_row.visible = true
+	if not _offline and Session.signed_in():
+		_player = Session.player
+		_avatar = _player.get("avatar", null)
 	for i in _tabs.size():
 		var on := i == int(which)
 		var style := Kit.style_tab(on)
@@ -243,6 +258,7 @@ func _show_tab(which: Tab) -> void:
 		var label: Label = _tabs[i].get_child(0).get_child(0)
 		label.add_theme_color_override("font_color", Palette.INK if on else Palette.CREAM)
 	if _page != null:
+		_scroll.remove_child(_page)
 		_page.queue_free()
 	_page = Kit.hbox(Kit.PAD * 2.0)
 	_page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -259,6 +275,16 @@ func _show_tab(which: Tab) -> void:
 		_build_history()
 		_mark_seen()
 		_follow_raiders()
+
+
+func _load_skins() -> void:
+	var skins := SkinState.shared()
+	await skins.refresh()
+	for item in skins.catalog.get("skins", []):
+		var key := String(item.get("key", ""))
+		if bool(item.get("pending", false)) and not skins.owns(key):
+			skins.recover(key)
+			break
 
 
 func hug_size() -> Vector2:
@@ -312,9 +338,9 @@ func _build_profile() -> void:
 	# La tete A GAUCHE DU NOM qu'elle porte, comme le web.
 	var identity := Kit.hbox(Kit.PAD)
 	who.add_child(identity)
-	var portrait := AvatarFace.portrait(_picked if _picked != null else _avatar, PORTRAIT_SCALE)
-	portrait.size_flags_vertical = Control.SIZE_SHRINK_END
-	identity.add_child(portrait)
+	_portrait = AvatarFace.portrait(_picked if _picked != null else Look.of(_player), PORTRAIT_SCALE)
+	_portrait.size_flags_vertical = Control.SIZE_SHRINK_END
+	identity.add_child(_portrait)
 	var naming := Kit.vbox(Kit.PAD_TIGHT)
 	naming.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	identity.add_child(naming)
@@ -340,29 +366,12 @@ func _build_profile() -> void:
 	_refresh_name()
 
 	wear.add_child(_heading(H_RABBIT))
-	var grid := Kit.hbox(8)
-	wear.add_child(grid)
-	for key in AvatarFace.KEYS:
-		var wearing: Variant = _picked if _picked != null else _avatar
-		var on: bool = wearing == key
-		var cell := Button.new()
-		cell.focus_mode = Control.FOCUS_NONE
-		cell.custom_minimum_size = Vector2(PICK_CELL, PICK_CELL)
-		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		cell.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-		cell.tooltip_text = I18N.t("avatars." + key)
-		cell.disabled = _saving
-		# La case choisie est cerclee d'or, la marque du jeu pour « celle-ci
-		# est a toi » (`.rr-avatar-pick.on`).
-		var style := Kit.style_well(on)
-		for state in ["normal", "hover", "pressed", "focus", "disabled"]:
-			cell.add_theme_stylebox_override(state, style)
-		var face := AvatarFace.portrait(key, PICK_SCALE)
-		face.set_anchors_preset(Control.PRESET_CENTER)
-		face.position = -face.custom_minimum_size * 0.5
-		cell.add_child(face)
-		cell.pressed.connect(_on_pick.bind(key))
-		grid.add_child(cell)
+	_rabbit_grid = GridContainer.new()
+	_rabbit_grid.columns = 5
+	_rabbit_grid.add_theme_constant_override("h_separation", 8)
+	_rabbit_grid.add_theme_constant_override("v_separation", 8)
+	wear.add_child(_rabbit_grid)
+	_refresh_rabbits()
 
 	_error = Kit.note("", Palette.BAD_ON_PARCHMENT)
 	_error.visible = false
@@ -409,6 +418,95 @@ func _build_profile() -> void:
 	_leave_button.pressed.connect(_on_leave)
 	who.add_child(_leave_button)
 	_refresh_leave()
+
+
+## Les skins sont des choix de lapin dans le meme selecteur que les pelages.
+## Le cadenas ouvre l'offre correspondante ; un lapin possede s'equipe.
+func _refresh_rabbits() -> void:
+	if _skin_detail or _tab != Tab.PROFILE or not is_instance_valid(_rabbit_grid):
+		return
+	var skins := SkinState.shared()
+	if not skins.catalog.is_empty():
+		_player["equippedSkin"] = skins.catalog.get("equipped", null)
+		_player["look"] = skins.catalog.get("look", Look.of(_player))
+	for child in _rabbit_grid.get_children():
+		_rabbit_grid.remove_child(child)
+		child.queue_free()
+	var wearing := String(_picked) if _picked != null else Look.of(_player)
+	if is_instance_valid(_portrait):
+		_portrait.texture = AvatarFace.texture(wearing)
+	for key in AvatarFace.KEYS + SkinState.SALE_NAMES.keys() + ["kuro-violet"]:
+		var premium: bool = Kit.SKINS.has(key)
+		var locked: bool = premium and not skins.owns(key)
+		var cell := Button.new()
+		cell.name = "Rabbit_" + key
+		cell.focus_mode = Control.FOCUS_NONE
+		cell.custom_minimum_size = Vector2(PICK_CELL, PICK_CELL)
+		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cell.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		if SkinState.SALE_NAMES.has(key):
+			var item := skins.item(key)
+			cell.tooltip_text = SkinState.SALE_NAMES[key]
+			if item.has("usdCents") and locked:
+				cell.tooltip_text += " · $%.2f" % (float(item["usdCents"]) / 100.0)
+		else:
+			cell.tooltip_text = I18N.t("pass.skin") + " · " + I18N.t("pass.title") if premium else I18N.t("avatars." + key)
+		cell.disabled = _saving or skins.busy
+		var style := Kit.style_well(wearing == key)
+		for state in ["normal", "hover", "pressed", "focus", "disabled"]:
+			cell.add_theme_stylebox_override(state, style)
+		var face := AvatarFace.portrait(key, PICK_SCALE)
+		face.set_anchors_preset(Control.PRESET_CENTER)
+		face.position = -face.custom_minimum_size * 0.5
+		face.modulate.a = 0.45 if locked else 1.0
+		cell.add_child(face)
+		if locked:
+			var lock := Kit.icon(LOCK_ICON, 22)
+			lock.name = "Lock"
+			lock.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			lock.set_anchors_preset(Control.PRESET_CENTER)
+			lock.position = Vector2(-11, -9)
+			cell.add_child(lock)
+		cell.pressed.connect(_on_skin_pick.bind(key) if premium else _on_pick.bind(key))
+		_rabbit_grid.add_child(cell)
+	if is_instance_valid(_error):
+		_error.visible = skins.failed
+		_error.text = skins.note if skins.failed else ""
+
+
+func _on_skin_pick(key: String) -> void:
+	if SkinState.shared().owns(key):
+		_picked = null
+		SkinState.shared().equip(key)
+	else:
+		# Le lapin dore aussi : sa page dit qu'il ne s'achete pas.
+		_show_skin_offer(key)
+
+
+## Detail d'achat accessible uniquement depuis le lapin verrouille.
+func _show_skin_offer(key: String = "solana") -> void:
+	_skin_detail = true
+	_tab_row.visible = false
+	_scroll.remove_child(_page)
+	_page.queue_free()
+	_page = Kit.hbox(0)
+	_page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_scroll.add_child(_page)
+	var content := Kit.vbox(8)
+	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_page.add_child(content)
+	var back := Kit.button(I18N.t("skins.back"), "wood", 180, 36)
+	back.name = "BackToRabbits"
+	back.label_size = 12
+	back.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	back.pressed.connect(_show_tab.bind(Tab.PROFILE))
+	content.add_child(back)
+	var offer := SkinWardrobe.new()
+	offer.skin_key = key
+	offer.connect_wallet.connect(func() -> void: _show_tab(Tab.PROFILE))
+	content.add_child(offer)
+	_page.minimum_size_changed.connect(refit, CONNECT_DEFERRED)
+	refit.call_deferred()
 
 
 ## LES COLONNES DE LA PAGE, une par poids : chacune prend sa part de la
@@ -502,6 +600,13 @@ func _on_save_name() -> void:
 
 func _on_pick(key: String) -> void:
 	_picked = key
+	if _offline:
+		_player["avatar"] = key
+		_player["equippedSkin"] = null
+		_player["look"] = key
+		var skins := SkinState.shared()
+		skins.catalog["equipped"] = null
+		skins.catalog["look"] = key
 	_save({"avatar": key})
 	_show_tab(_tab)
 
@@ -530,6 +635,7 @@ func _save(patch: Dictionary) -> void:
 		merged.merge(patch, true)
 		Session._adopt({"player": merged, "token": String(answer.body.get("token", ""))})
 		_player = Session.player
+		_picked = null
 		if patch.has("avatar"):
 			_avatar = patch["avatar"]
 		updated.emit(patch)
@@ -786,6 +892,9 @@ func _purchase_row(p: Dictionary) -> Control:
 	var kind := String(p.get("kind", ""))
 	var qty := int(p.get("qty", 1))
 	var name := I18N.t("items.%s.name" % kind)
+	var skin_names := {"skin_solana": "Solana", "skin_carrot": "Carrot"}
+	if skin_names.has(kind):
+		name = skin_names[kind]
 	if name == "items.%s.name" % kind:
 		name = kind
 	var who := Kit.label(name + (" x%d" % qty if qty > 1 else ""), 12, Palette.INK)

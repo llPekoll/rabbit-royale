@@ -11,12 +11,14 @@
  * the old name until the token expires, up to thirty days later.
  */
 import { and, desc, eq, isNull, sql as raw } from 'drizzle-orm';
-import { db } from '@/lib/db';
+import { db, sql } from '@/lib/db';
 import { players, raidRuns } from '@/lib/db/schema';
 import { getSession, signSession, SESSION_COOKIE } from '@/lib/auth/jwt';
 import { applyRegen } from '@/lib/game/regen';
 import { isBuiltInAvatar } from '@/lib/game/avatars';
 import { playerLook } from '@/lib/game/look';
+import { isSkinKey, ownsSkin } from '@/lib/game/skins';
+import { pushToPlayer } from '@/lib/game/raid-events';
 import { nameProblem, normalizeName } from '@/lib/game/player-name';
 import { racesNow } from '@/lib/game/season-pass';
 import { RAID_RUN } from '@/lib/tuning/tables';
@@ -33,9 +35,9 @@ export async function PATCH(req: Request) {
   const session = await getSession(req);
   if (!session) return Response.json({ error: 'unauthenticated' }, { status: 401 });
 
-  const body = (await req.json().catch(() => ({}))) as { name?: unknown; avatar?: unknown; solo?: unknown };
+  const body = (await req.json().catch(() => ({}))) as { name?: unknown; avatar?: unknown; solo?: unknown; skin?: unknown };
 
-  const patch: { name?: string; avatar?: string; solo?: boolean } = {};
+  const patch: { name?: string; avatar?: string; solo?: boolean; equippedSkin?: string | null } = {};
 
   if (body.name !== undefined) {
     if (typeof body.name !== 'string') {
@@ -54,6 +56,17 @@ export async function PATCH(req: Request) {
       return Response.json({ error: 'unknown_avatar' }, { status: 400 });
     }
     patch.avatar = body.avatar;
+    patch.equippedSkin = null;
+  }
+
+  if (body.skin !== undefined) {
+    if (body.skin !== null && !isSkinKey(body.skin)) {
+      return Response.json({ error: 'unknown_skin' }, { status: 400 });
+    }
+    if (body.skin !== null && !await ownsSkin(session.sub, body.skin as string)) {
+      return Response.json({ error: 'skin_not_owned' }, { status: 403 });
+    }
+    patch.equippedSkin = body.skin as string | null;
   }
 
   if (body.solo !== undefined) {
@@ -103,6 +116,11 @@ export async function PATCH(req: Request) {
   if (!updated) return Response.json({ error: 'unknown player' }, { status: 404 });
   // A new fur is a new LOOK — unless a skin sits on top of it (look.ts).
   const player = { ...applyRegen(updated), look: await playerLook(updated) };
+  if (patch.avatar !== undefined || patch.equippedSkin !== undefined) {
+    await pushToPlayer(sql, { to: session.sub, event: 'look_changed', payload: {
+      look: player.look, skin: updated.equippedSkin,
+    } });
+  }
 
   // Only a rename invalidates the token; an avatar change is not in the claims.
   if (patch.name === undefined) {

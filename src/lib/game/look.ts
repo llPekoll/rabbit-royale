@@ -9,35 +9,34 @@
  * and nowhere in play.
  *
  * The answer is a key the client knows how to paint (Godot `Kit.SKINS`, then
- * `Kit.AVATARS`). Today the only skin is the Crown Race Ticket's (PASS.SKIN);
- * when skins are owned and chosen, `skinsOf` is the one thing that changes.
+ * `Kit.AVATARS`). Equipment is saved on the player; the profile verifies
+ * ownership before changing it. Buying another skin does not replace it.
  *
  * RELATIVE imports, like season-pass.ts: the WS server imports this.
  */
 import { inArray } from 'drizzle-orm';
 import { db } from '../db';
-import { seasonPasses } from '../db/schema';
-import { PASS } from '../../../config/tuning';
+import { players as playerTable } from '../db/schema';
 import { DEFAULT_AVATAR, isBuiltInAvatar } from './avatars';
+import { isSkinKey } from './skins';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0] | typeof db;
 
 /** The rule itself, for a player whose skin is already known. */
 export function lookOf(avatar: string | null | undefined, skin: string | null | undefined): string {
-  if (skin) return skin;
+  if (isSkinKey(skin)) return skin;
   return avatar && isBuiltInAvatar(avatar) ? avatar : DEFAULT_AVATAR;
 }
 
 /**
- * The skin each player wears, for a page of them in one round trip. A ticket
- * bought once, any season, is a skin kept for good (`skinOf`).
+ * The chosen skin for a page of players, in one round trip.
  */
 export async function skinsOf(ids: string[], tx: Tx = db): Promise<Map<string, string>> {
   const out = new Map<string, string>();
   if (ids.length === 0) return out;
-  const rows = await tx.selectDistinct({ playerId: seasonPasses.playerId }).from(seasonPasses)
-    .where(inArray(seasonPasses.playerId, ids));
-  for (const r of rows) out.set(r.playerId, PASS.SKIN);
+  const rows = await tx.select({ playerId: playerTable.id, skin: playerTable.equippedSkin }).from(playerTable)
+    .where(inArray(playerTable.id, ids));
+  for (const r of rows) if (isSkinKey(r.skin)) out.set(r.playerId, r.skin);
   return out;
 }
 
@@ -53,4 +52,8 @@ export async function looksOf(players: Array<{ id: string; avatar: string | null
 /** The look of one player. */
 export async function playerLook(player: { id: string; avatar: string | null }, tx: Tx = db): Promise<string> {
   return (await looksOf([player], tx)).get(player.id)!;
+}
+
+export async function equippedSkinOf(playerId: string, tx: Tx = db): Promise<string | null> {
+  return (await skinsOf([playerId], tx)).get(playerId) ?? null;
 }

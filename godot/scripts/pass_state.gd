@@ -2,7 +2,7 @@ class_name PassState
 extends Node
 ## LE CROWN RACE TICKET (le pass de saison), tel que /api/pass le dit : en
 ## vente ou non, la cagnotte, la course des dix premiers, ma place, et mon
-## skin. Il ne donne RIEN en jeu : un skin (Kuro violet, garde pour de bon)
+## skin. Il ne donne RIEN en jeu : un lapin dore (garde pour de bon)
 ## et une place dans la course au pot.
 ##
 ## Meme forme que ShopState : pas un autoload, `PassState.shared()` le cree
@@ -75,6 +75,7 @@ func _on_bought(kind: String, _qty: int) -> void:
 		return
 	if Chrome.current != null:
 		Chrome.current.toast(I18N.t("pass.bought"), false)
+	await Session.restore()
 	refresh()
 
 

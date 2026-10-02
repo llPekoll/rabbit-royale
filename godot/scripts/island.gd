@@ -1030,6 +1030,10 @@ func _on_board_event(name: String, data: Variant) -> void:
 	var d: Dictionary = data if data is Dictionary else {}
 	var mine := RunState.current.my_id()
 	match name:
+		"rabbit_look":
+			var rabbit := _rabbit_of(String(d.get("playerId", "")))
+			if rabbit != null:
+				rabbit.wear(Look.of(d))
 		"tile_revealed":
 			var what := String(d.get("content", "empty"))
 			var c := _board.reveal_remote(int(d.get("tile", -1)), what, int(d.get("adjacent", 0)))

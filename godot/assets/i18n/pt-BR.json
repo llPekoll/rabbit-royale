@@ -563,7 +563,7 @@
 		"raceWhat": {
 			"$t": "Os {1} melhores com o ticket dividem {0} do pote"
 		},
-		"skin": "Skin Kuro violeta",
+		"skin": "Coelho dourado",
 		"skinWhat": "Seu para sempre, na ilha e na toca",
 		"inRace": "Você está na corrida",
 		"pool": "Prêmio",
@@ -1327,6 +1327,36 @@
 		"piece": {
 			"$t": "UMA PARTE É SUA - MAIS {0}x {1}"
 		}
+	},
+	"skins": {
+		"carrotDescription": "Pelagem laranja. Orelhas verdes. Direto da horta.",
+		"ticketOnly": "Este não pode ser comprado: só vem com o Crown Race Ticket.",
+		"title": "Skins",
+		"description": "Violeta elétrico. Orelhas menta. Seu coelho Solana.",
+		"permanent": "Uma compra. Seu para sempre.",
+		"cosmetic": "Apenas aparência",
+		"owned": "Adquirida",
+		"equip": "Equipar",
+		"equipped": "Equipada",
+		"buy": "Comprar",
+		"confirm": "Confirmar",
+		"check": "Verificar compra",
+		"recovering": "Verificando sua compra...",
+		"pending": "Há uma compra pendente. Verifique antes de pagar de novo; uma cotação não paga expira em 15 minutos.",
+		"unavailable": "As compras estão indisponíveis no momento.",
+		"guest": "Conecte sua carteira para guardar esta skin na sua conta.",
+		"loadFailed": "Não foi possível carregar suas skins.",
+		"retry": "Tentar de novo",
+		"success": "Solana desbloqueada! Você já pode equipar.",
+		"free": "Pelagem grátis",
+		"wait": "Um instante...",
+		"checked": "Nenhuma compra pendente. Pode tentar de novo.",
+		"equipFailed": "Não foi possível equipar esta skin. Tente de novo.",
+		"idle": "Parado",
+		"move": "Correr",
+		"happy": "Celebrar",
+		"preview": "Prévia das animações do jogo",
+		"back": "Voltar aos coelhos"
 	},
 	"profile": {
 		"title": "PERFIL",

@@ -22,6 +22,7 @@ import { encodePush, PLAYER_PUSH_CHANNEL } from './raid-events';
 import { grantPass, isPassKind, type PassKind } from './season-pass';
 import { isPackKind, packItems, type PackKind } from './packs';
 import { freeTraps } from './traps';
+import { grantSkin, isSkinKind, type SkinKind } from './skins';
 import {
   extendSmoke, isShopKind, spendEnergyPack,
   type EnergyPackRow, type ItemKind, type SmokeRow,
@@ -36,7 +37,7 @@ import {
 export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0] | typeof db;
 
 export interface GrantResult {
-  kind: ItemKind | PassKind | PackKind;
+  kind: ItemKind | PassKind | PackKind | SkinKind;
   /** What was actually DELIVERED — less than asked only for a gift that hit
    *  the bag's ceiling (a sale is always delivered in full). */
   qty: number;
@@ -93,7 +94,7 @@ export function paidUsdcUnits(p: { token: string; amount: number; usdPrice: stri
 export async function grantItem(
   tx: Tx,
   playerId: string,
-  kind: ItemKind | PassKind | PackKind,
+  kind: ItemKind | PassKind | PackKind | SkinKind,
   qty: number,
   now = Date.now(),
   receipt?: Receipt,
@@ -113,6 +114,11 @@ export async function grantItem(
       cost: receipt.cost,
       paymentId: receipt.paymentId ?? null,
     });
+  }
+
+  if (isSkinKind(kind)) {
+    await grantSkin(tx, playerId, kind, receipt?.paymentId);
+    return { kind, qty: 1, energy: null };
   }
 
   // A season pass is a SEAT, not an item: it lands in `season_passes`, for

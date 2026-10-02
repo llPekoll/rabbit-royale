@@ -1348,6 +1348,10 @@ class UsdcPay:
 		var code := answer.error()
 		var symbol := String(answer.body.get("symbol", ""))
 		match code:
+			"skin_owned":
+				return I18N.t("skins.owned")
+			"skin_purchase_pending":
+				return I18N.t("skins.pending")
 			"insufficient_funds":
 				var amount := float(answer.body.get("tokenAmount", 0.0))
 				return I18N.f("pay.notEnough", [String.num(amount, 4 if symbol == "SOL" else 2), symbol])

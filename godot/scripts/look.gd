@@ -31,6 +31,12 @@ static func of(d: Dictionary) -> String:
 	var v: Variant = d.get("look", null)
 	if v is String and not String(v).is_empty():
 		return v
+	if d.has("equippedSkin"):
+		var equipped: Variant = d["equippedSkin"]
+		if equipped is String and Kit.SKINS.has(equipped):
+			return equipped
+		var fur: Variant = d.get("avatar", null)
+		return String(fur) if fur is String and Kit.AVATARS.has(fur) else DEFAULT
 	var skin := PassState.skin_in(d)
 	if not skin.is_empty():
 		return skin
@@ -38,12 +44,7 @@ static func of(d: Dictionary) -> String:
 	return String(a) if a is String and Kit.AVATARS.has(a) else DEFAULT
 
 
-## LA MIENNE. Le skin du ticket d'abord : /api/pass le dit, et un ticket
-## achete pendant la session n'a pas encore touche le joueur de la session.
-## Puis le joueur de /api/auth/me — que le profil reecrit des qu'un pelage
-## est choisi — et a defaut celui du terrier.
+## La mienne vient du choix sauvegarde. Posseder le ticket ne remplace pas
+## une autre skin equipee : /api/pass decrit la possession, pas l'equipement.
 static func mine() -> String:
-	var skin := PassState.shared().skin()
-	if not skin.is_empty():
-		return skin
 	return Look.of(Session.player if not Session.player.is_empty() else Home.player)

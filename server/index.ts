@@ -38,8 +38,8 @@ import type { Rabbit } from '../src/lib/game/types';
 import { payCrossing } from '../src/lib/game/pay-crossing';
 import { registerSeatLookup } from '../src/lib/game/live-seats';
 import { rolloverSeasonIfDue } from '../src/lib/game/season';
-import { racesNow, skinOf } from '../src/lib/game/season-pass';
-import { lookOf } from '../src/lib/game/look';
+import { racesNow } from '../src/lib/game/season-pass';
+import { equippedSkinOf, lookOf } from '../src/lib/game/look';
 import { currentEnergy } from '../src/lib/game/regen';
 import { grantItem } from '../src/lib/game/grant';
 import { refreshTuning } from '../src/lib/tuning/live';
@@ -544,6 +544,7 @@ function listenForPushes(): void {
     const push = decodePush(wire);
     if (!push) return;
     if (push.event === 'energy_granted') return topUpRabbit(push.to, push.payload);
+    if (push.event === 'look_changed') return wearRabbit(push.to, push.payload);
     const socket = socketOf(push.to);
     if (socket) return void socket.emit(push.event, push.payload);
     // Not at home: the raid reaches their phone instead (lib/notify/raid.ts,
@@ -578,6 +579,19 @@ function topUpRabbit(playerId: string, payload: unknown): void {
     console.log('[refill:live]', playerId, '+', amount, '→', rabbit.energy);
     io.to(roomFor(live.island.id)).emit('rabbit_energy', { playerId, energy: rabbit.energy, carrots: rabbit.carrots });
     return;
+  }
+}
+
+/** A wardrobe change reaches everyone already sharing the player's island. */
+function wearRabbit(playerId: string, payload: unknown): void {
+  const data = payload as { look?: unknown; skin?: unknown } | null;
+  if (typeof data?.look !== 'string') return;
+  for (const live of store.all()) {
+    const rabbit = live.rabbits.get(playerId);
+    if (!rabbit) continue;
+    rabbit.look = data.look;
+    rabbit.skin = typeof data.skin === 'string' ? data.skin : null;
+    io.to(roomFor(live.island.id)).emit('rabbit_look', { playerId, look: rabbit.look, skin: rabbit.skin });
   }
 }
 
@@ -997,7 +1011,7 @@ io.on('connection', (socket: Socket) => {
     // THE TICKET'S SKIN, worn for everyone to see (`publicRabbit`) — and the
     // LOOK it settles: that skin, else the fur the player picked (look.ts).
     if (!existing) {
-      rabbit.skin = await skinOf(data.playerId).catch(() => null);
+      rabbit.skin = await equippedSkinOf(data.playerId).catch(() => null);
       rabbit.look = lookOf(player.avatar, rabbit.skin);
     }
     live.rabbits.set(data.playerId, rabbit);
