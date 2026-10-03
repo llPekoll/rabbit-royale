@@ -700,6 +700,12 @@ func refresh() -> void:
 			if _primed:
 				_pop_tile(cell)
 				_reveal(cell)
+			elif board.content.get(cell) == IslandBoard.Content.BOMB:
+				# UNE BOMBE SAUTEE AVANT QU'ON ARRIVE (instantane d'une ile en
+				# cours, reconnexion) : pas de feu, mais le trou. Sans lui la
+				# case se dessinait comme de l'herbe creusee, et le « 2 » d'a
+				# cote semblait ne toucher rien.
+				_crater(cell, false)
 
 		# LE COFFRE S'EN VA AVEC LA CASE CREUSEE : pris, il est parti avec le
 		# joueur, et la fleche n'a plus rien a designer. Il s'envole si on le
@@ -1022,6 +1028,13 @@ func _take_carrot(cell: Vector2i, golden: bool = false) -> void:
 ## qui monte SOUS le feu plutot qu'apres lui : apparu a sa derniere image, il
 ## se lirait comme un second evenement.
 func _blast(cell: Vector2i) -> void:
+	Blast.play(self, terrain, cell, _crater(cell, true))
+
+
+## LE TROU D'UNE BOMBE, sans le feu : le cratere peint si le sol le permet
+## (rend vrai), sinon celui en losanges. `fade` le fait monter sous
+## l'explosion ; sans, il est deja la — une bombe sautee avant notre arrivee.
+func _crater(cell: Vector2i, fade: bool) -> bool:
 	var dug := terrain.dig_cell(cell)
 	if not dug:
 		var crater := Node2D.new()
@@ -1031,9 +1044,10 @@ func _blast(cell: Vector2i) -> void:
 			pit.position.y = 1.0
 			crater.add_child(rim)
 			crater.add_child(pit)
-			crater.modulate.a = 0.0
 			_props.append(crater)
-			create_tween().tween_property(crater, "modulate:a", 1.0, 0.4).set_delay(0.25)
+			if fade:
+				crater.modulate.a = 0.0
+				create_tween().tween_property(crater, "modulate:a", 1.0, 0.4).set_delay(0.25)
 		else:
 			crater.free()
 	# LE BUISSON DE LA CASE PART AVEC LE SOL : les buissons ne bloquent pas, le
@@ -1043,7 +1057,7 @@ func _blast(cell: Vector2i) -> void:
 	if bush != null and is_instance_valid(bush):
 		bush.queue_free()
 		_bush_at.erase(cell)
-	Blast.play(self, terrain, cell, dug)
+	return dug
 
 
 ## LE BRUIT DE LA BOITE QUI TOUCHE TERRE, une fois pour tous les coffres :
